@@ -1,0 +1,51 @@
+#
+# location of exodus libs and makedepend
+#
+CUBITROOT = $(CUBIT)
+
+
+NETCDF_INCLUDE = -I$(HOME)/cubit/netcdf/cxx_hp11 -I$(CUBIT)/include
+NETCDF_LIB_DIR = $(HOME)/cubit/netcdf/cxx_hp11
+NETCDF_LIBS = -L$(HOME)/cubit/netcdf/cxx_hp11 -L$(CUBIT)/lib -lnetcdf_c++ -lnetcdf
+
+LIBS = -lm
+
+SO_LFLAGS = -b -Wl,-a,shared -Wl,+h,libMDB.sl -o libMDB.sl
+PCOM_LIB_LFLAGS = -b -AA
+PCOM_APP_LIBS = -ldld
+
+# Machine-dependent include paths
+CC_INCLUDE = -I/opt/graphics/OpenGL/include
+#-I/usr -I/opt/aCC/include
+
+MACH_CXXFLAGS = -DHP +inst_implicit_include +DAportable -D__STRICT_ANSI__ -AA +z
+CXXFLAGS = -AA
+
+MACH_LINK_LIBS = -L/opt/graphics/OpenGL/lib
+MACH_LFLAGS = +DAportable -AA
+
+# Some controls on echoing of compile commands; for verbose output, comment
+# out the following two definitions
+#PREFIX = @
+ECHO_COMMAND = @ echo "Compiling(${DEBUG_FLAG}): $<"
+
+
+# Some compiler definitions - check your environment to make sure the correct
+# compilers are being referenced
+#
+# CC:
+CC = cc
+CXX = /opt/aCC/bin/aCC
+LINKER = ${CXX} -Wl,+s
+MAKE = make
+ARCHIVER = ar ru
+
+# MAKEDEPEND:
+MAKEDEPEND = $(CUBITROOT)/bin/makedepend -f - 
+
+# location of templates for template classes, helps make clean_all
+TEMPLATE_DIR = 
+
+
+
+

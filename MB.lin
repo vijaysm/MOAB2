@@ -1,0 +1,46 @@
+#
+# location of exodus libs and makedepend
+#
+CUBITROOT = $(CUBIT)
+
+NETCDF_INCLUDE = -I$(CUBITROOT)/include -I$(CUBITROOT)/include
+NETCDF_LIBS = -L$(CUBITROOT)/lib -lnetcdf_c++ -lnetcdf
+
+LIBS = -lm
+
+# Machine-dependent include paths
+#CC_INCLUDE = -I/usr/include/g++-3 \
+#		-I/usr/lib/gcc-lib/i386-linux/2.95.2/include
+
+MACH_CXXFLAGS = -DLINUX -Wall -W
+MACH_LINK_LIBS = 
+
+SO_LFLAGS = -shared -Wl,-soname,libMOAB.so -o libMOAB.so
+
+PCOM_LIB_LFLAGS = -shared
+PCOM_APP_LIBS = -L. -lMOAB -ldl
+
+# Some controls on echoing of compile commands; for verbose output, comment
+# out the following two definitions
+PREFIX = @
+DEBUG_FLAG = -O2
+ECHO_COMMAND = @ echo "Compiling(${DEBUG_FLAG}): $<"
+
+
+# Some compiler definitions - check your environment to make sure the correct
+# compilers are being referenced
+#
+# CC:
+CC = gcc
+CXX = g++ 
+LINKER = ${CXX}
+MAKE = make
+ARCHIVER = /usr/bin/ar ru
+
+# MAKEDEPEND:
+MAKEDEPEND = $(CUBITROOT)/mklin/makedepend -f -
+#MAKEDEPEND = ${CXX} -MM
+
+# location of templates for template classes, helps make clean_all
+TEMPLATE_DIR = 
+

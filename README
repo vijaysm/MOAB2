@@ -1,0 +1,72 @@
+=====================================
+MOAB: Mesh-Oriented datA Base
+Read Me
+
+API version: 1.00
+Implementation version: 1.00
+=====================================
+
+MOAB is a component for representing and evaluating mesh data.  MOAB
+can store structured and unstructured mesh, consisting of elements in
+the finite element "zoo".  The functional interface to MOAB is simple
+yet powerful, allowing the representation of many types of metadata
+commonly found on the mesh.  MOAB is optimized for efficiency in space
+and time, based on access to mesh in chunks rather than through
+individual entities, while also versatile enough to support individual
+entity access.
+
+MOAB can be used in several ways: as the underlying mesh data
+representation for applications (MOAB is used in this way in the VERDE
+mesh verification code, as a mesh input mechanism (using mesh readers
+included with MOAB), or as a translator between mesh formats (using
+readers and writers included with MOAB).
+
+MOAB was developed as part of the CUBIT project at Sandia National
+Laboratories, and was partially funded by the DOE SciDAC program as
+part of the Terascale Tools and Technologies (TSTT) center.
+
+=====================================
+Compiling
+=====================================
+
+1. Unpack the source code in some directory MOAB_DIR.
+2. Touch or create a file named MOAB_DIR/MB.local.
+3. Define an environment variable with your machine type named
+MACHINE_TYPE; options for MOAB are:
+   lin: Linux
+   ss: Sun Solaris
+   sg: SGI
+   da: DEC Alpha
+   hp: HP (HP/UX 11)
+
+4. Edit the information in MOAB_DIR/MB.$(MACHINE_TYPE), changing
+definitions so that things can be found.  Alternatively, you can put
+the modified definitions into MB.local; doing so will mean you won't
+lose those definitions if you unpack an updated version of MOAB (or, if
+you're committing something to CVS repository, you won't change the
+distributed version of the MB.xx files).
+5. Make dependencies ('make depend') (this might generate warnings
+about missing system includes, which you can usually ignore).
+6. Make the MOAB shared library (libMOAB.so) by typing 'make'.  If
+desired, make the static library (libMOAB.a) by typing 'make static'.
+Making the libraries also makes the test programs packaged with MOAB.
+7. Test the code: './moab_test; ./moab_test.static'.
+
+=====================================
+Bugs, Correspondence, Contributing
+=====================================
+
+MOAB is LGPL code, and we encourage users to submit bug reports (and,
+if desired, fixes) to moab@sandia.gov.  Users are encouraged to check
+http://software.sandia.gov/moab often for news and updates.
+
+=====================================
+Updates
+=====================================
+
+API:
+1.00 (2/1/04): Initial release (woo-hoo!)
+
+Implementation:
+1.00 (2/1/04): Initial release
+
