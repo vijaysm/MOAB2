@@ -3612,7 +3612,7 @@ main routine for test harness
  #define MB_CDECL
 #endif
 
-
+#ifndef MB_STATIC
 //! MBClient connects with the MBServer and retrieves interfaces
 class MBClient
 {
@@ -4104,6 +4104,7 @@ int main()
 
 #endif
 
+#ifndef MB_STATIC
 
 //! constructor
 MBClient::MBClient(const char* shared_library)
@@ -4327,4 +4328,4 @@ bool MBClient::resolveSymbols()
    
 }
 
-
+#endif // ifndef MB_STATIC
