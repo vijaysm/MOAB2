@@ -998,7 +998,7 @@ mhdf_readAdjacency( hid_t data_handle,
  * with the specified start ID.  If this bit is not set in the set flags,
  * the contents of the set are stored as a simple list of global IDs.
  */
-#define mhdf_SET_RANGE_BIT 0x40000000
+#define mhdf_SET_RANGE_BIT 0x8
 
 /*@}*/
 
