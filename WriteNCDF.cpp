@@ -732,7 +732,7 @@ MBErrorCode WriteNCDF::write_nodes(int num_nodes, MBRange& nodes, int dimension)
   if( num_coords_to_fill == 3 ) 
     coord_arrays[2] = new double[num_nodes];
  
-  result = mWriteIface->get_node_arrays(dimension, num_nodes, nodes, mGlobalIdTag, coord_arrays);
+  result = mWriteIface->get_node_arrays(dimension, num_nodes, nodes, mGlobalIdTag, 1, coord_arrays);
   if(result != MB_SUCCESS)
   {
     delete [] coord_arrays[0];

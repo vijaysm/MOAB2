@@ -15,6 +15,47 @@
 class DualTool
 {
 public:
+    //! tag name for dual surfaces
+  static char *DUAL_SURFACE_TAG_NAME;
+
+    //! tag name for dual curves
+  static char *DUAL_CURVE_TAG_NAME;
+
+    //! tag name for dual cells
+  static char *IS_DUAL_CELL_TAG_NAME;
+
+    //! tag name for dual entitys
+  static char *DUAL_ENTITY_TAG_NAME;
+
+    //! tag name for dual entitys
+  static char *EXTRA_DUAL_ENTITY_TAG_NAME;
+
+    //! tag name for dual entitys
+  static char *DUAL_GRAPHICS_POINT_TAG_NAME;
+
+    //! struct for storing a graphics pt
+  class GraphicsPoint 
+  {
+  public:
+    GraphicsPoint() 
+      {xyz[0] = 0.0; xyz[1] = 0.0; xyz[2] = 0.0; id = -1;}
+
+    GraphicsPoint(float xi, float yi, float zi, int idi) 
+      {xyz[0] = xi; xyz[1] = yi; xyz[2] = zi; id = idi;}
+
+    GraphicsPoint(float xyzi[3], int idi)
+      {xyz[0] = xyzi[0]; xyz[1] = xyzi[1]; xyz[2] = xyzi[2]; id = idi;}
+
+    GraphicsPoint(double xyzi[3], int idi)
+      {xyz[0] = xyzi[0]; xyz[1] = xyzi[1]; xyz[2] = xyzi[2]; id = idi;}
+
+    GraphicsPoint(const GraphicsPoint &gp) 
+      {xyz[0] = gp.xyz[0]; xyz[1] = gp.xyz[1]; xyz[2] = gp.xyz[2]; id = gp.id;}
+    
+    float xyz[3];
+    int id;
+  };
+  
   DualTool(MBInterface *impl);
   
   ~DualTool();
@@ -31,6 +72,18 @@ public:
   //! get the faces of the dual
   MBErrorCode get_dual_entities(const int dim, 
                                 std::vector<MBEntityHandle> &dual_ents);
+
+    //! get the graphics points for single entity (dual_ent CAN'T be a set);
+    //! returns multiple facets, each with npts[i] points
+  MBErrorCode get_graphics_points(MBEntityHandle dual_ent,
+                                  std::vector<int> &npts,
+                                  std::vector<GraphicsPoint> &gpoints);
+  
+    //! get the graphics points for a range of entities or sets (if set, the
+    //! entities in those sets); optionally reset ids on points
+  MBErrorCode get_graphics_points(const MBRange &in_range,
+                                  std::vector<GraphicsPoint> &gpoints,
+                                  const bool assign_ids = false);
   
     //! get/set the tag for dual surfaces
   MBTag dualSurface_tag();
@@ -48,19 +101,14 @@ public:
   MBTag dualEntity_tag();
   MBErrorCode dualEntity_tag(const MBTag tag);
 
-    //! tag name for dual surfaces
-  static char *DUAL_SURFACE_TAG_NAME;
+    //! get/set the tag for dual entities
+  MBTag extraDualEntity_tag();
+  MBErrorCode extraDualEntity_tag(const MBTag tag);
 
-    //! tag name for dual curves
-  static char *DUAL_CURVE_TAG_NAME;
+    //! get/set the tag for dual entities
+  MBTag dualGraphicsPoint_tag();
+  MBErrorCode dualGraphicsPoint_tag(const MBTag tag);
 
-    //! tag name for dual cells
-  static char *IS_DUAL_CELL_TAG_NAME;
-
-    //! tag name for dual entitys
-  static char *DUAL_ENTITY_TAG_NAME;
-
-  
 private:
 
     //! construct dual vertices for specified regions
@@ -84,18 +132,37 @@ private:
   MBErrorCode construct_dual_hyperplanes(const int dim);
   
   //! given an edge handle, return a list of dual vertices in radial order 
-  //! around the edge
+  //! around the edge; also returns whether this edge is on the boundary
   MBErrorCode get_radial_dverts(const MBEntityHandle edge,
-                                std::vector<MBEntityHandle> &rad_verts);
+                                std::vector<MBEntityHandle> &rad_verts,
+                                bool &bdy_edge);
+  
+  MBErrorCode construct_dual_vertex(MBEntityHandle entity, 
+                                    MBEntityHandle &dual_ent, 
+                                    const bool extra = false);
+
+    //! add a graphics point to an entity (on a tag)
+  MBErrorCode add_graphics_point(MBEntityHandle entity,
+                                 double *avg_pos = NULL);
+  
+    //! get points defining facets of a 2cell
+  MBErrorCode get_cell_points(MBEntityHandle dual_ent,
+                              std::vector<int> &npts,
+                              std::vector<GraphicsPoint> &points);
   
     //! private copy of interface *
   MBInterface *mbImpl;
-  
+
+    //! static constant number of points bounding any cell
+  static int GP_SIZE;
+
     //! tags used for dual surfaces, curves, cells, entities
   MBTag dualCurveTag;
   MBTag dualSurfaceTag;
   MBTag isDualCellTag;
   MBTag dualEntityTag;
+  MBTag extraDualEntityTag;
+  MBTag dualGraphicsPointTag;
 };
 
 inline MBTag DualTool::dualSurface_tag()
@@ -116,6 +183,16 @@ inline MBTag DualTool::isDualCell_tag()
 inline MBTag DualTool::dualEntity_tag()
 {
   return dualEntityTag;
+}
+
+inline MBTag DualTool::extraDualEntity_tag()
+{
+  return extraDualEntityTag;
+}
+
+inline MBTag DualTool::dualGraphicsPoint_tag()
+{
+  return dualGraphicsPointTag;
 }
 
   //! get/set the tag for dual surfaces
@@ -160,6 +237,30 @@ inline MBErrorCode DualTool::dualEntity_tag(const MBTag tag)
   MBErrorCode result = MB_FAILURE;
   if (0 == dualEntityTag && tag || dualEntityTag != tag) {
     dualEntityTag = tag;
+    result = MB_SUCCESS;
+  }
+  
+  return result;
+}
+  
+  //! get/set the tag for dual entities
+inline MBErrorCode DualTool::extraDualEntity_tag(const MBTag tag)
+{
+  MBErrorCode result = MB_FAILURE;
+  if (0 == extraDualEntityTag && tag || extraDualEntityTag != tag) {
+    extraDualEntityTag = tag;
+    result = MB_SUCCESS;
+  }
+  
+  return result;
+}
+  
+  //! get/set the tag for dual entities
+inline MBErrorCode DualTool::dualGraphicsPoint_tag(const MBTag tag)
+{
+  MBErrorCode result = MB_FAILURE;
+  if (0 == dualGraphicsPointTag && tag || dualGraphicsPointTag != tag) {
+    dualGraphicsPointTag = tag;
     result = MB_SUCCESS;
   }
   

@@ -23,6 +23,7 @@ MBErrorCode MBWriteUtil::get_node_arrays(
     const int num_nodes, 
     const MBRange& entities, 
     MBTag node_id_tag,
+    const int start_node_id,
     std::vector<double*>& arrays)
 {
   MBErrorCode error = MB_SUCCESS;
@@ -48,8 +49,6 @@ MBErrorCode MBWriteUtil::get_node_arrays(
     if(arrays[check_array] == NULL)
       return MB_FAILURE;
   }
-
-  int node_index = 0;
 
   // lets get ready to iterate the entity sequences and copy data
   // we'll iterate the map in the sequence manager and
@@ -77,6 +76,9 @@ MBErrorCode MBWriteUtil::get_node_arrays(
   // a look ahead iterator
   MBRange::const_iterator range_iter_lookahead = range_iter;
 
+  int node_id = start_node_id;
+  int node_index = 0;
+
   // our main loop
   for(; range_iter != range_iter_end && seq_iter != seq_iter_end; /* ++ is handled in loop*/ )
   {
@@ -86,10 +88,7 @@ MBErrorCode MBWriteUtil::get_node_arrays(
         ++range_iter_lookahead)
     {}
 
-    int start_node_index = node_index;
-
     // get the coordinate array
-    node_index = start_node_index;
     double* coord_array[3];
     static_cast<VertexEntitySequence*>(seq_iter->second)->get_coordinate_arrays(
         coord_array[0], coord_array[1], coord_array[2]);
@@ -107,7 +106,8 @@ MBErrorCode MBWriteUtil::get_node_arrays(
         arrays[2][node_index] = coord_array[2][*tmp_iter - start_ent];
 
       ++node_index;
-      tag_server->set_data(node_id_tag, *tmp_iter, &node_index);
+      tag_server->set_data(node_id_tag, *tmp_iter, &node_id);
+      node_id++;
     }
 
     // go to the next entity sequence
@@ -119,7 +119,7 @@ MBErrorCode MBWriteUtil::get_node_arrays(
 
   // we need to make sure we found all the nodes we were supposed to find
   // if not, we screwed up in this function
-  assert(node_index == num_nodes);
+  assert(node_id == start_node_id + num_nodes);
   // if we hit this assert, then something wrong happened in MB.  The user only specifies meshsets to write out.
   // Therefore, we should always have valid entity handles and we should always be able to get the nodes we want.
 

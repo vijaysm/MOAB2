@@ -24,6 +24,9 @@ MBErrorCode MeshTopoUtil::get_average_position(const MBEntityHandle entity,
 {
   const MBEntityHandle *connect;
   int num_connect;
+  if (MBVERTEX == mbImpl->type_from_handle(entity))
+    return mbImpl->get_coords(&entity, 1, avg_position);
+    
   MBErrorCode result = mbImpl->get_connectivity(entity, connect, num_connect);
   if (MB_SUCCESS != result) return result;
   double dum_pos[3];

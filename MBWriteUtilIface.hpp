@@ -30,6 +30,7 @@ public:
       const int num_nodes, 
       const MBRange& entities, 
       MBTag node_id_tag,
+      const int start_node_id,
       std::vector<double*>& arrays
       ) = 0;
 

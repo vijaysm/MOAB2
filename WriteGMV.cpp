@@ -168,7 +168,7 @@ MBErrorCode WriteGMV::local_write_mesh(const char *file_name,
   coord_arrays.push_back(zcoord);
   
     // fill them in, writing id tags at the same time
-  result = mWriteIface->get_node_arrays(3, num_verts, all_verts, mGlobalIdTag, coord_arrays);
+  result = mWriteIface->get_node_arrays(3, num_verts, all_verts, mGlobalIdTag, 1, coord_arrays);
   if (MB_SUCCESS != result) return result;
 
   int i, j;
