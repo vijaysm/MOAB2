@@ -202,56 +202,71 @@ MBRange::iterator MBRange::insert(MBEntityHandle val1, MBEntityHandle val2)
   if(val1 == 0 || val1 > val2)
     return end();
 
-  // if this is empty, just add it and return an iterator to it
-  if(&mHead == mHead.mNext)
-  {
-    mHead.mNext = mHead.mPrev = new PairNode(&mHead, &mHead, val1, val2);
-    return iterator(mHead.mNext, val1);
-  }
-
-  // find the location in the list where we can safely begin insertions
-  // and keep our list in order
-  PairNode* jter = mHead.mNext;
-  for( ; (jter != &mHead) && (jter->first < val1); jter = jter->mNext);
-
-  PairNode* kter=NULL;
-
-  if((jter->mPrev->second+1) >= val1)
-  {
-    jter->mPrev->second = val2;
-    kter = jter->mPrev;
-  }
-  else
-  {
-    // just insert this range
-    kter = new PairNode(jter, jter->mPrev, val1, val2);
-    jter->mPrev->mNext = kter;
-    jter->mPrev = kter;
-  }
-
-  jter = kter->mPrev;
-  PairNode* iter = kter->mNext;
-  // at this point, kter is the newly inserted node, 
-  // jter is the previous after and iter is the one after
-  
-  // merge forward as many times as needed
-  while( (kter->second >= iter->first - 1) && (iter != &mHead))
-  {
-    if(kter->second < iter->second)
-      kter->second = iter->second;
-    kter->mNext = iter->mNext;
-    iter->mNext->mPrev = kter;
-    delete iter;
-    iter = kter->mNext;
-  }
-
-  // be sure something didn't go wrong
-  assert( (kter->first <= val1) && (val1 <= kter->second) );
-  return iterator( kter, val1 );
-  
+  return insert( begin(), val1, val2 );
 }
 
+MBRange::iterator MBRange::insert( MBRange::iterator prev,
+                                   MBEntityHandle val1, 
+                                   MBEntityHandle val2 )
+{
+  assert( val1 <= val2  );
 
+  // Empty 
+  if (mHead.mNext == &mHead)
+  {
+    assert( prev == end() );
+    PairNode* new_node = new PairNode( &mHead, &mHead, val1, val2 );
+    mHead.mNext = mHead.mPrev = new_node;
+    return iterator( mHead.mNext, val1 );
+  }
+  
+  PairNode* iter = prev.mNode;
+  assert( iter != &mHead );
+  assert( iter->mPrev == &mHead || iter->mPrev->second+1 < val1 );
+  
+  // Input range is before beginning?
+  if (iter->mPrev == &mHead && val2 < iter->first - 1)
+  {
+    PairNode* new_node = new PairNode( iter, &mHead,  val1, val2 );
+    mHead.mNext = iter->mPrev = new_node;
+    return iterator( mHead.mNext, val1 );
+  }
+  
+  // Find first intersecting list entry, or the next entry
+  // if none intersects.
+  while (iter != &mHead && iter->second+1 < val1)
+    iter = iter->mNext;
+  
+  // Need to insert new pair (don't intersect any existing pair)?
+  if (iter == &mHead || iter->first-1 > val1)
+  {
+    PairNode* new_node = new PairNode( iter, iter->mPrev, val1, val2 );
+    iter->mPrev = iter->mPrev->mNext = new_node;
+    return iterator( iter->mPrev, val1 );
+  }
+  
+  // Make the first intersecting pair the union of itself with [val1,val2]
+  if (iter->first > val1)
+    iter->first = val1;
+  if (iter->second >= val2)  
+    return iterator( iter, val1 );
+  iter->second = val2;
+  
+  // Merge any remaining pairs that intersect [val1,val2]
+  while (iter->mNext != &mHead && iter->mNext->first <= val2 + 1)
+  {
+    PairNode* dead = iter->mNext;
+    iter->mNext = dead->mNext;
+    dead->mNext->mPrev = iter;
+    
+    if (dead->second > val2)
+      iter->second = dead->second;
+    delete dead;
+  }
+  
+  return iterator( iter, val1 );
+}
+    
 
 /*!
   erases an item from this list and returns an iterator to the next item
@@ -324,17 +339,41 @@ MBRange::const_iterator MBRange::find(MBEntityHandle val) const
 
 void MBRange::merge( const MBRange& range )
 {
-
-  if(range.empty())
-    return;
-
-  PairNode* iter = range.mHead.mPrev;
-  
-  //insert all the base ranges
-  for(; iter != &(range.mHead); iter=iter->mPrev )
-    insert(iter->first, iter->second);
-
+  merge( range.begin(), range.end() );
 }
+
+void MBRange::merge( MBRange::const_iterator begin,
+                     MBRange::const_iterator end )
+{
+  if (begin == end)
+    return;
+  
+  PairNode* node = begin.mNode;
+  if (end.mNode == node)
+  {
+    insert( *begin, (*end)-1 );
+    return;
+  }
+  
+  MBRange::iterator hint = insert( *begin, node->second );
+  node = node->mNext;
+  while (node != end.mNode)
+  {
+    hint = insert( hint, node->first, node->second );
+    node = node->mNext;
+  }
+  
+  if (*end > node->first)
+  {
+    if (*end <= node->second)
+      insert( hint, node->first, *(end) - 1 );
+    else
+      insert( hint, node->first, node->second );
+  }
+}
+
+  
+  
 
 #include <algorithm>
 

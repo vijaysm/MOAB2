@@ -255,6 +255,10 @@ public:
 
   //! merges this MBRange with another range
   void merge( const MBRange& range );
+  
+  //! merge a subset of some other range
+  void merge( MBRange::const_iterator begin,
+              MBRange::const_iterator end );
 
   //! swap the contents of this range with another one
   void swap( MBRange &range );
@@ -285,6 +289,10 @@ protected:
   //! the head of the list that contains pairs that represent the ranges 
   //! this list is sorted and unique at all times
   PairNode mHead;
+  
+  MBRange::iterator insert( MBRange::iterator prev,
+                            MBEntityHandle first,
+                            MBEntityHandle last );
 
 public:
 

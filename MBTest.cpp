@@ -3558,6 +3558,33 @@ MBErrorCode mb_range_test(MBInterface *)
     result = MB_FAILURE;
     std::cout << "Range test half-below failed." << std::endl;
   }
+  
+    // merge all test
+  r1.clear();
+  r2.clear();
+  r1.insert(h1, h5);
+  r1.insert(h10, h15);
+  r2 = r1;
+  r1.merge( r2 );
+  if (r1.size() != r2.size()) {
+    result = MB_FAILURE;
+    std::cout << "Range merge test failed." << std::endl;
+  }
+  
+    // merge subset test
+  r1.clear();
+  r2.clear();
+  r1.insert(h1, h5);
+  r1.insert(h10, h15);
+  MBRange::const_iterator i1 = r1.begin();
+  MBRange::const_iterator i2 = r1.end();
+  i1 += 2;
+  i2 -= 2;
+  r2.merge( i1, i2 );
+  if (r1.size() - 4 != r2.size()) {
+    result = MB_FAILURE;
+    std::cout << "Range merge subset test failed." << std::endl;
+  }
 
   return result;
 }
