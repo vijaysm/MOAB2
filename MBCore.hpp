@@ -1,8 +1,8 @@
 #ifndef MB_IMPL_GENERAL_HPP
 #define MB_IMPL_GENERAL_HPP
 
-#define MOAB_IMPL_VERSION 0.99
-#define MOAB_IMPL_VERSION_STRING "0.99"
+#define MOAB_IMPL_VERSION 1.00
+#define MOAB_IMPL_VERSION_STRING "1.00"
 
 #include "MBInterface.hpp"
 #include <map>
