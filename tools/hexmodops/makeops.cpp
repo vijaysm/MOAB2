@@ -273,7 +273,10 @@ MBErrorCode make_chord_push()
       // front/rear quads a, b
     2, 0, 4, 3, 6, 5, 4, 0,
       // duplicate edges from chord push
-    0, 4
+    0, 4,
+      // face between bottom 2 normal hexes (needed for explicit
+      // adjacency)
+    0, 4, 11, 7
   };
 
   MBErrorCode result;
@@ -284,7 +287,7 @@ MBErrorCode make_chord_push()
     if (MB_SUCCESS != result) return MB_FAILURE;
   }
   
-  MBEntityHandle conn[8], elems[10];
+  MBEntityHandle conn[8], elems[12];
 
     // make the five hexes
   for (int i = 0; i < 5; i++) {
@@ -318,11 +321,21 @@ MBErrorCode make_chord_push()
     if (MB_SUCCESS != result) return MB_FAILURE;
   }
 
+    // now the quad between the lower pair of hexes
+  for (int j = 0; j < 4; j++)
+    conn[j] = vtx_handles[connect[50+j]];
+  result = gMB->create_element(MBQUAD, conn, 4, elems[11]);
+  if (MB_SUCCESS != result) return MB_FAILURE;
+
     // now set adjacencies explicitly
     // front/rear duplicated edge to front/rear pair of quads
   result = gMB->add_adjacencies(elems[9], &elems[5], 2, false);
   if (MB_SUCCESS != result) return MB_FAILURE;
   result = gMB->add_adjacencies(elems[10], &elems[7], 2, false);
+  if (MB_SUCCESS != result) return MB_FAILURE;
+
+    // rear duplicated edge to quad between lower pair of normal hexes
+  result = gMB->add_adjacencies(elems[10], &elems[11], 1, false);
   if (MB_SUCCESS != result) return MB_FAILURE;
 
     // front/rear duplicated edge to front/rear degen hex
@@ -358,7 +371,64 @@ MBErrorCode make_chord_push()
 
 MBErrorCode make_triple_chord_push() 
 {
-  return MB_FAILURE;
+    // make chord push configuration
+    // make all vertices
+  double vtx_coord[] = 
+    {
+        // first layer
+      0.0, 0.0, 0.5,
+      0.0, 1.0, 0.0,
+      -1.0, 0.5, 0.0, 
+      -1.0, -0.5, 0.0,
+      0.0, -1.0, 0.0,
+      1.0, -0.5, 0.0,
+      1.0, 0.5, 0.0,
+        // second layer
+      0.0, 0.0, -1.5,
+      0.0, 1.0, -1.0,
+      -1.0, 0.5, -1.0, 
+      -1.0, -0.5, -1.0,
+      0.0, -1.0, -1.0,
+      1.0, -0.5, -1.0,
+      1.0, 0.5, -1.0,
+        // 2 extra vertices in middle
+      0.0, 0.0, -0.25,
+      0.0, 0.0, 0.0
+    };
+
+  int connect[] = {
+      // 3 "normal" hexes first
+      // top hex
+    14, 2, 1, 6, 7, 9, 8, 13,
+      // bottom left
+    14, 4, 3, 2, 7, 11, 10, 9,
+      // bottom right
+    6, 5, 4, 14, 13, 12, 11, 7,
+      // front triple chord push hex
+    0, 4, 3, 2, 6, 5, 15, 1,
+      // back triple chord push hex
+    2, 1, 15, 3, 14, 6, 5, 4
+  };
+
+  MBErrorCode result;
+  MBEntityHandle vtx_handles[16];
+  
+  for (int i = 0; i < 16; i++) {
+    result = gMB->create_vertex(&vtx_coord[3*i], vtx_handles[i]);
+    if (MB_SUCCESS != result) return MB_FAILURE;
+  }
+  
+  MBEntityHandle conn[8], elems[12];
+
+    // make the five hexes
+  for (int i = 0; i < 5; i++) {
+    for (int j = 0; j < 8; j++)
+      conn[j] = vtx_handles[connect[8*i+j]];
+    result = gMB->create_element(MBHEX, conn, 8, elems[i]);
+    if (MB_SUCCESS != result) return MB_FAILURE;
+  }
+
+  return MB_SUCCESS;
 }
 
 MBErrorCode make_triple_hex_push() 
