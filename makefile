@@ -195,11 +195,11 @@ test_adj : test_adj.o libMOAB.a
 
 # build the dependencies
 depend : 
-	${MAKEDEPEND} -DIS_BUILDING_MB ${NETCDF_INCLUDE} ${MB_LIB_SRCS} MBTest.cpp > make.dependencies
-	${MAKEDEPEND} -DIS_BUILDING_MB ${NETCDF_INCLUDE} -DXPCOM_MB ${MB_LIB_SRCS} MBTest.cpp >> make.dependencies
-	${MAKEDEPEND} -DIS_BUILDING_MB ${NETCDF_INCLUDE} -DMB_STATIC MBTest.cpp >> make.dependencies
-	${MAKEDEPEND} -DIS_BUILDING_MB -DTEST HomXform.cpp >> make.dependencies
-	${MAKEDEPEND} -DIS_BUILDING_MB scdseq_test.cpp >> make.dependencies
+	@ ${MAKEDEPEND} -DIS_BUILDING_MB ${NETCDF_INCLUDE} ${PLATFORM_INCLUDE} ${MB_LIB_SRCS} MBTest.cpp > make.dependencies
+	@ ${MAKEDEPEND} -DIS_BUILDING_MB ${NETCDF_INCLUDE} ${PLATFORM_INCLUDE} ${MB_LIB_SRCS} MBTest.cpp >> make.dependencies
+	@ ${MAKEDEPEND} -DIS_BUILDING_MB ${NETCDF_INCLUDE} ${PLATFORM_INCLUDE} -DMB_STATIC MBTest.cpp >> make.dependencies
+	@ ${MAKEDEPEND} -DIS_BUILDING_MB -DTEST ${PLATFORM_INCLUDE} HomXform.cpp >> make.dependencies
+	@ ${MAKEDEPEND} -DIS_BUILDING_MB ${PLATFORM_INCLUDE} scdseq_test.cpp >> make.dependencies
 
 # clean up intermediate files
 clean_all : clean

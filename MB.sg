@@ -73,3 +73,4 @@ MAKEDEPEND = $(CUBITROOT)/makedepend/makedepend -f -
 # location of templates for template classes, helps make clean_all
 TEMPLATE_DIR = ii_files
 
+PLATFORM_INCLUDE = ${CC_INCLUDE} -D__sgi -D_STANDARD_C_PLUS_PLUS
