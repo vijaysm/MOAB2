@@ -48,9 +48,24 @@ MBErrorCode DualTool::construct_dual()
     // with highest dimension and working downward; do each dimension in a separate code
     // block, since they're all handled slightly differently
   
-    // regions get a dual vertex
   MBRange all_regions, all_faces, all_edges, all_vertices;
-  MBErrorCode result = mbImpl->get_entities_by_dimension(0, 3, all_regions);
+
+    // first, construct all the aentities, since they're currently needed to 
+    // compute the dual
+  MBErrorCode result = mbImpl->get_entities_by_dimension(0, 0, all_vertices);
+  if (MB_SUCCESS != result) return result;
+
+  result = MeshTopoUtil(mbImpl).construct_aentities(all_vertices);
+  if (MB_SUCCESS != result) return result;
+
+    // get all edges, faces and regions now, so we don't need to filter out dual
+    // entities later
+  
+  result = mbImpl->get_entities_by_dimension(0, 1, all_edges);
+  if (MB_SUCCESS != result) return result;
+  result = mbImpl->get_entities_by_dimension(0, 2, all_faces);
+  if (MB_SUCCESS != result) return result;
+  result = mbImpl->get_entities_by_dimension(0, 3, all_regions);
   if (MB_SUCCESS != result) return result;
 
   MBRange dual_verts;
@@ -58,22 +73,16 @@ MBErrorCode DualTool::construct_dual()
   if (MB_SUCCESS != result || dual_verts.size() != all_regions.size()) return result;
 
     // don't really need dual edges, but construct 'em anyway
-  result = mbImpl->get_entities_by_dimension(0, 2, all_faces);
-  if (MB_SUCCESS != result) return result;
   MBRange dual_edges;
   result = construct_dual_edges(all_faces, dual_edges);
   if (MB_SUCCESS != result || dual_edges.size() != all_faces.size()) return result;
 
     // construct dual faces
-  result = mbImpl->get_entities_by_dimension(0, 1, all_edges);
-  if (MB_SUCCESS != result) return result;
   MBRange dual_faces;
   result = construct_dual_faces(all_edges, dual_faces);
   if (MB_SUCCESS != result || dual_faces.size() != all_edges.size()) return result;
 
     // construct dual cells
-  result = mbImpl->get_entities_by_dimension(0, 0, all_vertices);
-  if (MB_SUCCESS != result) return result;
   MBRange dual_cells;
   result = construct_dual_cells(all_vertices, dual_cells);
   if (MB_SUCCESS != result || dual_cells.size() != all_vertices.size()) return result;
@@ -217,7 +226,8 @@ MBErrorCode DualTool::construct_dual_faces(const MBRange &all_edges,
   MBErrorCode result = MB_SUCCESS;
   
   for (rit = all_edges.begin(); rit != all_edges.end(); rit++) {
-    if (tmp_result != MB_SUCCESS) result = tmp_result;
+    if (tmp_result != MB_SUCCESS) 
+      result = tmp_result;
     
     tmp_result = mbImpl->tag_get_data(dualEntity_tag(), &(*rit), 1, &dual_ent);
     if (MB_SUCCESS == tmp_result && 0 != dual_ent) {
@@ -228,22 +238,26 @@ MBErrorCode DualTool::construct_dual_faces(const MBRange &all_edges,
       // no dual entity; construct one; get the dual vertices bounding the edge in radial order
     std::vector<MBEntityHandle> rad_dverts;
     tmp_result = get_radial_dverts(*rit, rad_dverts);
-    if (MB_SUCCESS != tmp_result) continue;
+    if (MB_SUCCESS != tmp_result) 
+      continue;
     
       // create the dual face
     tmp_result = mbImpl->create_element(MBPOLYGON, &rad_dverts[0], rad_dverts.size(), dual_ent);
-    if (MB_SUCCESS != tmp_result || 0 == dual_ent) continue;
+    if (MB_SUCCESS != tmp_result || 0 == dual_ent) 
+      continue;
     
       // tag it indicating it's a dual entity
     tmp_result = mbImpl->tag_set_data(isDualCell_tag(), &dual_ent, 1, &is_dual);
-    if (MB_SUCCESS != tmp_result) continue;
+    if (MB_SUCCESS != tmp_result) 
+      continue;
 
       // save it in the list of new dual ents
     dual_ents.insert(dual_ent);
     
       // tag the primal entity with its dual entity
     tmp_result = mbImpl->tag_set_data(dualEntity_tag(), &(*rit), 1, &dual_ent);
-    if (MB_SUCCESS != tmp_result) continue;
+    if (MB_SUCCESS != tmp_result) 
+      continue;
   }
 
   return result;
@@ -323,6 +337,7 @@ MBErrorCode DualTool::get_radial_dverts(const MBEntityHandle edge,
   for (rit = all_faces.begin(); rit != all_faces.end(); rit++) {
     in_range.clear();
     in_range.insert(*rit);
+    out_range.clear();
     result = mbImpl->get_adjacencies(in_range, 3, false, out_range);
     if (MB_SUCCESS != result) return result;
     if (out_range.size() == 1) {
@@ -442,7 +457,32 @@ MBErrorCode DualTool::get_dual_surfaces(MBRange &dual_surfs);
   //! get the sets representing dual curves (chords) in hex dual
 MBErrorCode DualTool::get_dual_curves(MBRange &dual_curves);
   
-  //! get the cells of the dual
-MBErrorCode DualTool::get_dual_cells(MBRange &dual_cells);
-
 */
+
+  //! get the cells of the dual
+MBErrorCode DualTool::get_dual_faces(MBRange &dual_faces) 
+{
+  if (0 == isDualCell_tag()) return MB_SUCCESS;
+
+  unsigned int dum = 0x1;
+  const void *dum_ptr = &dum;
+  
+  return
+    mbImpl->get_entities_by_type_and_tag(0, MBPOLYGON, &isDualCellTag, &dum_ptr, 1,
+                                         dual_faces);
+}
+
+  //! get the cells of the dual
+MBErrorCode DualTool::get_dual_cells(MBRange &dual_cells) 
+{
+  if (0 == isDualCell_tag()) return MB_SUCCESS;
+  
+  unsigned int dum = 0x1;
+  const void *dum_ptr = &dum;
+
+  return
+    mbImpl->get_entities_by_type_and_tag(0, MBPOLYHEDRON, &isDualCellTag, &dum_ptr, 1,
+                                         dual_cells);
+}
+
+

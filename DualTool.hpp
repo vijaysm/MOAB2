@@ -34,6 +34,9 @@ public:
     //! get the cells of the dual
   MBErrorCode get_dual_cells(MBRange &dual_cells);
 
+    //! get the faces of the dual
+  MBErrorCode get_dual_faces(MBRange &dual_faces);
+
     //! get/set the tag for dual surfaces
   MBTag dualSurface_tag();
   MBErrorCode dualSurface_tag(const MBTag tag);

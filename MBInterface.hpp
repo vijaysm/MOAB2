@@ -658,9 +658,9 @@ class NS_NO_VTABLE MBInterface : public nsISupports {
     virtual MBErrorCode list_entities(const MBRange &entities) const = 0;
   
       //! List entities, or number of entities in database, to standard output
-      /** Lists data pertaining to entities to standard output.  If <em>entities<\em> is NULL and
-          <em>num_entities<\em> is zero, lists only the number of entities of each type in the 
-          database.  If <em>entities<\em> is NULL and <em>num_entities<\em> is zero, lists all
+      /** Lists data pertaining to entities to standard output.  If <em>entities is NULL and
+          <em>num_entities is zero, lists only the number of entities of each type in the 
+          database.  If <em>entities is NULL and <em>num_entities<\em> is non-zero, lists all
           information for all entities in the database.
           \param entities 1d vector of entities to list
           \param num_entities Number of entities in 1d vector

@@ -35,7 +35,10 @@ PolyEntitySequence::PolyEntitySequence(EntitySequenceManager* seq_manager,
 }
 
 PolyEntitySequence::~PolyEntitySequence() 
-{}
+{
+    // set the mElement pointer to NULL to avoid deleting in ~ElementEntitySequence
+  mElements = NULL;
+}
 
 bool PolyEntitySequence::is_valid_entity(MBEntityHandle entity) const
 {
