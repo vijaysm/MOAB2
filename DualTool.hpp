@@ -154,8 +154,11 @@ private:
   MBInterface *mbImpl;
 
     //! static constant number of points bounding any cell
-  static int GP_SIZE;
-
+  enum
+  {
+    GP_SIZE=20
+  };
+  
     //! tags used for dual surfaces, curves, cells, entities
   MBTag dualCurveTag;
   MBTag dualSurfaceTag;

@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 #include <stdio.h>
+#include <iostream>
 
 #include "MBInterface.hpp"
 #include "MBRange.hpp"
@@ -107,7 +108,7 @@ MBErrorCode WriteSLAC::write_file(const char *file_name,
          0 != mDirichletSetTag);
 
     // check the file name
-  if (NULL == std::strstr(file_name, ".ncdf"))
+  if (NULL == strstr(file_name, ".ncdf"))
     return MB_FAILURE;
 
   std::vector<MBEntityHandle> matsets, dirsets, neusets, entities;

@@ -28,7 +28,7 @@ char *DualTool::EXTRA_DUAL_ENTITY_TAG_NAME = "__EXTRA_DUAL_ENTITY";
   //! tag name for graphics point
 char *DualTool::DUAL_GRAPHICS_POINT_TAG_NAME = "__DUAL_GRAPHICS_POINT";
 
-int DualTool::GP_SIZE = 20;
+//const int DualTool::GP_SIZE = 20;
 
 DualTool::DualTool(MBInterface *impl) 
     : mbImpl(impl)
@@ -793,7 +793,7 @@ MBErrorCode DualTool::get_graphics_points(MBEntityHandle dual_ent,
   assert(MBENTITYSET != mbImpl->type_from_handle(dual_ent));
   
     // get the graphics points comprising the given entity
-  GraphicsPoint gp_array[GP_SIZE];
+  GraphicsPoint gp_array[DualTool::GP_SIZE];
 
   MBErrorCode result = MB_SUCCESS;
   

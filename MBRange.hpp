@@ -808,6 +808,20 @@ inline MBRange::MBRange(const MBRange& copy)
   }
 }
 
+  //! clears the contents of the list 
+inline void MBRange::clear()
+{
+  PairNode* tmp_node = mHead.mNext;
+  while(tmp_node != &mHead)
+  {
+    PairNode* to_delete = tmp_node;
+    tmp_node = tmp_node->mNext;
+    delete to_delete;
+  }
+  mHead.mNext = &mHead;
+  mHead.mPrev = &mHead;
+}
+
 inline MBRange& MBRange::operator=(const MBRange& copy)
 {
   clear();
@@ -906,20 +920,6 @@ inline void MBRange::erase(MBEntityHandle val)
   erase(find(val)); 
 }
   
-  //! clears the contents of the list 
-inline void MBRange::clear()
-{
-  PairNode* tmp_node = mHead.mNext;
-  while(tmp_node != &mHead)
-  {
-    PairNode* to_delete = tmp_node;
-    tmp_node = tmp_node->mNext;
-    delete to_delete;
-  }
-  mHead.mNext = &mHead;
-  mHead.mPrev = &mHead;
-}
-
   //! swap the contents of this range with another one
 inline void MBRange::swap( MBRange &range )
 {
