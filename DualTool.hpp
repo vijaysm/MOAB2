@@ -25,18 +25,13 @@ public:
     //! construct the dual entities for a hex mesh, including dual surfaces & curves
   MBErrorCode construct_hex_dual();
   
-    //! get the sets representing dual surfaces (sheets) in hex dual
-  MBErrorCode get_dual_surfaces(MBRange &dual_surfs);
+  //! get the faces of the dual
+  MBErrorCode get_dual_entities(const int dim, MBRange &dual_ents);
   
-    //! get the sets representing dual curves (chords) in hex dual
-  MBErrorCode get_dual_curves(MBRange &dual_curves);
+  //! get the faces of the dual
+  MBErrorCode get_dual_entities(const int dim, 
+                                std::vector<MBEntityHandle> &dual_ents);
   
-    //! get the cells of the dual
-  MBErrorCode get_dual_cells(MBRange &dual_cells);
-
-    //! get the faces of the dual
-  MBErrorCode get_dual_faces(MBRange &dual_faces);
-
     //! get/set the tag for dual surfaces
   MBTag dualSurface_tag();
   MBErrorCode dualSurface_tag(const MBTag tag);
@@ -83,6 +78,10 @@ private:
     //! construct dual cells for specified vertices
   MBErrorCode construct_dual_cells(const MBRange &all_verts,
                                    MBRange &new_dual_ents);
+  
+    //! traverse dual faces of input dimension, constructing
+    //! dual hyperplanes of them in sets as it goes
+  MBErrorCode construct_dual_hyperplanes(const int dim);
   
   //! given an edge handle, return a list of dual vertices in radial order 
   //! around the edge

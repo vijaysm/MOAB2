@@ -2,6 +2,9 @@
 #include "MeshTopoUtil.hpp"
 #include "MBRange.hpp"
 #include "MBInternals.hpp"
+#include <string>
+#include <iostream>
+#include <sstream>
 
   //! tag name for dual surfaces
 char *DualTool::DUAL_SURFACE_TAG_NAME = "DUAL_SURFACE";
@@ -204,6 +207,10 @@ MBErrorCode DualTool::construct_dual_edges(const MBRange &all_faces,
     
       // tag the primal entity with its dual entity
     tmp_result = mbImpl->tag_set_data(dualEntity_tag(), &(*rit), 1, &dual_ent);
+    if (MB_SUCCESS != tmp_result) continue;
+
+      // tag the edge indicating it's a dual entity
+    tmp_result = mbImpl->tag_set_data(isDualCell_tag(), &dual_ent, 1, &is_dual);
     if (MB_SUCCESS != tmp_result) continue;
   }
 
@@ -447,42 +454,172 @@ MBErrorCode DualTool::get_radial_dverts(const MBEntityHandle edge,
   return MB_SUCCESS;
 }
 
-/*  
   //! construct the dual entities for a hex mesh, including dual surfaces & curves
-MBErrorCode DualTool::construct_hex_dual();
-  
-  //! get the sets representing dual surfaces (sheets) in hex dual
-MBErrorCode DualTool::get_dual_surfaces(MBRange &dual_surfs);
-  
-  //! get the sets representing dual curves (chords) in hex dual
-MBErrorCode DualTool::get_dual_curves(MBRange &dual_curves);
-  
-*/
-
-  //! get the cells of the dual
-MBErrorCode DualTool::get_dual_faces(MBRange &dual_faces) 
+MBErrorCode DualTool::construct_hex_dual() 
 {
-  if (0 == isDualCell_tag()) return MB_SUCCESS;
+    // really quite simple: 
 
-  unsigned int dum = 0x1;
-  const void *dum_ptr = &dum;
+    // construct the dual...
+  MBErrorCode result = construct_dual();
+  if (MB_SUCCESS != result) return result;
   
-  return
-    mbImpl->get_entities_by_type_and_tag(0, MBPOLYGON, &isDualCellTag, &dum_ptr, 1,
-                                         dual_faces);
+    // now traverse to build 1d and 2d hyperplanes
+  result = construct_dual_hyperplanes(1);
+  if (MB_SUCCESS != result) return result;
+
+  result = construct_dual_hyperplanes(2);
+  if (MB_SUCCESS != result) return result;
+  
+    // see?  simple, just like I said
+  return MB_SUCCESS;
 }
 
   //! get the cells of the dual
-MBErrorCode DualTool::get_dual_cells(MBRange &dual_cells) 
+MBErrorCode DualTool::get_dual_entities(const int dim, MBRange &dual_ents) 
 {
   if (0 == isDualCell_tag()) return MB_SUCCESS;
-  
+  if (0 > dim || 3 < dim) return MB_INDEX_OUT_OF_RANGE;
+
   unsigned int dum = 0x1;
   const void *dum_ptr = &dum;
-
+  static MBEntityType dual_type[] = {MBVERTEX, MBEDGE, MBPOLYGON, MBPOLYHEDRON};
+  
   return
-    mbImpl->get_entities_by_type_and_tag(0, MBPOLYHEDRON, &isDualCellTag, &dum_ptr, 1,
-                                         dual_cells);
+    mbImpl->get_entities_by_type_and_tag(0, dual_type[dim], &isDualCellTag, &dum_ptr, 1,
+                                         dual_ents);
 }
 
+  //! get the faces of the dual
+MBErrorCode DualTool::get_dual_entities(const int dim, 
+                                        std::vector<MBEntityHandle> &dual_ents) 
+{
+  MBRange tmp_range;
+  MBErrorCode result = get_dual_entities(dim, tmp_range);
+  if (MB_SUCCESS != result) return result;
+  
+  dual_ents.insert(dual_ents.end(), tmp_range.begin(), tmp_range.end());
+  return MB_SUCCESS;
+}
+  
+MBErrorCode DualTool::construct_dual_hyperplanes(const int dim) 
+{
+    // this function traverses dual faces of input dimension, constructing
+    // dual hyperplanes of them in sets as it goes
 
+    // check various inputs
+  int num_quads, num_hexes;
+  if (
+      // this function only makes sense for dim == 1 or dim == 2
+    (dim != 1 && dim != 2) ||
+      // should either be quads or hexes around
+    mbImpl->get_number_entities_by_type(0, MBQUAD, num_quads) != MB_SUCCESS ||
+    mbImpl->get_number_entities_by_type(0, MBQUAD, num_hexes) != MB_SUCCESS ||
+      // if we're asking for 1d dual ents, should be quads around
+    (num_quads == 0 && dim == 1) ||
+      // if we're asking for 2d dual ents, should be hexes around
+    (num_hexes == 0 && dim == 2))
+    return MB_FAILURE;
+  
+    // get tag name for this dimension hyperplane
+  const char *hp_tag_names[2] = {"dual_hyperplane_1", "dual_hyperplane_2"};
+  MBTag hp_tag, gid_tag;
+  int dum = -1;
+  MBErrorCode result = mbImpl->tag_get_handle(hp_tag_names[dim-1], hp_tag);
+  if (MB_SUCCESS != result) result = mbImpl->tag_create(hp_tag_names[dim-1], 
+                                                        4, MB_TAG_SPARSE, hp_tag, &dum);
+  if (MB_SUCCESS != result) return result;
+  result = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gid_tag);
+  if (MB_SUCCESS != result) result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, 4, 
+                                                        MB_TAG_DENSE, gid_tag, &dum);
+  if (MB_SUCCESS != result) return result;
+  
+    // two stacks: one completely untreated entities, and the other untreated 
+    // entities on the current dual hyperplane
+  std::vector<MBEntityHandle> tot_untreated, hp_untreated;
+  
+    // put dual entities of this dimension on the untreated list
+  result = get_dual_entities(dim, tot_untreated);
+  if (MB_SUCCESS != result) return result;
+  
+    // main part of traversal loop
+  MBEntityHandle this_ent;
+  int hp_val;
+  int hp_ids = 0;
+  while (!tot_untreated.empty()) {
+    this_ent = tot_untreated.back(); tot_untreated.pop_back();
+    result = mbImpl->tag_get_data(hp_tag, &this_ent, 1, &hp_val);
+    if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) continue;
+
+      // test for this entity having a hyperplane assignment already
+    else if (hp_val != -1)
+      continue;
+    
+      // ok, doesn't have one; make a new hyperplane
+    hp_val = hp_ids++;
+    MBEntityHandle this_hp;
+    result = mbImpl->create_meshset(MESHSET_SET, this_hp);
+    if (MB_SUCCESS != result) continue;
+    result = mbImpl->tag_set_data(gid_tag, &this_hp, 1, &hp_val);
+    if (MB_SUCCESS != result) continue;
+    result = mbImpl->tag_set_data(hp_tag, &this_hp, 1, &hp_val);
+    if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) continue;
+    hp_untreated.clear();
+
+      // inner loop: traverse the hyperplane 'till we don't have any more
+    MBRange tmp_star, star, tmp_range;
+    while (0 != this_ent) {
+        // set the hp_val for this_ent
+      result = mbImpl->tag_set_data(hp_tag, &this_ent, 1, &hp_val);
+      if (MB_SUCCESS != result) continue;
+      result = mbImpl->add_entities(this_hp, &this_ent, 1);
+      if (MB_SUCCESS != result) continue;
+
+        // get all neighbors connected to this entity
+      tmp_range.clear(); tmp_star.clear(); star.clear();
+      tmp_range.insert(this_ent);
+      result = mbImpl->get_adjacencies(tmp_range, dim-1, true, tmp_star);
+      if (MB_SUCCESS != result) continue;
+      result = mbImpl->get_adjacencies(tmp_star, dim, false, star,
+                                       MBInterface::UNION);
+      if (MB_SUCCESS != result) continue;
+      star.erase(this_ent);
+      
+        // for each star entity, see if it shares a cell with this one; if so,
+        // it's not opposite
+
+        // this_ent is already in tmp_range
+      for (MBRange::iterator rit = star.begin(); rit != star.end(); rit++) {
+          // check for tag first, 'cuz it's probably faster than checking adjacencies
+        int r_val;
+        result = mbImpl->tag_get_data(hp_tag, &(*rit), 1, &r_val);
+        if (MB_SUCCESS == result && -1 != r_val) 
+          continue;
+
+          // passed tag test; check adjacencies
+        tmp_star.clear();
+        tmp_range.insert(*rit);
+        result = mbImpl->get_adjacencies(tmp_range, dim+1, false, tmp_star);
+        if (MB_SUCCESS != result) continue;
+        
+        if (tmp_star.empty())
+            // have one on this hp; just put it on the hp_untreated list for now,
+            // will get tagged and put in the hp set later
+          hp_untreated.push_back(*rit);
+        
+          // take *rit out of tmp_range, then proceed to the next
+        tmp_range.erase(*rit);
+      }
+      
+        // end of inner loop; get the next this_ent, or set to zero
+      if (hp_untreated.empty()) this_ent = 0;
+      else {
+        this_ent = *hp_untreated.begin();
+        hp_untreated.erase(hp_untreated.begin());
+      }
+    }
+  }
+
+  return MB_SUCCESS;
+}
+
+  
