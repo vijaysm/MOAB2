@@ -325,6 +325,8 @@ private:
   void process_record(AcisRecord &this_record);
   
   Tqdcfr *const instance;
+  
+  FILE* acisDumpFile;
 };
 
 #endif
