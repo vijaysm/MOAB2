@@ -895,6 +895,9 @@ MBErrorCode MBCore::get_entities_by_type(const MBEntityHandle meshset,
                                            MBRange &entities,
                                            const bool recursive) const
 {
+  if (recursive && type == MBENTITYSET)  // will never return anything
+    return MB_TYPE_OUT_OF_RANGE;
+  
   MBErrorCode result;
   if (0 != meshset) {
     MBMeshSet *ms_ptr = update_cache(meshset);
@@ -926,6 +929,9 @@ MBErrorCode MBCore::get_entities_by_type_and_tag(const MBEntityHandle meshset,
                                                    const int condition,
                                                    const bool recursive) const
 {
+  if (recursive && type == MBENTITYSET)  // will never return anything
+    return MB_TYPE_OUT_OF_RANGE;
+  
   MBErrorCode result;
   if (0 != meshset) {
     MBMeshSet *ms_ptr = update_cache(meshset);

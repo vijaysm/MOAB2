@@ -487,7 +487,8 @@ public:
     /** \param meshset Meshset whose entities are being queried (zero if query is for entire mesh).
         \param dimension Topological dimension of entities desired.
         \param entities Range in which entities of dimension <em>dimension</em> are returned.
-        \param recursive If true, meshsets containing meshsets are queried recursively.
+        \param recursive If true, meshsets containing meshsets are queried recursively.  Returns
+                         the contents of meshsets, but not the meshsets themselves if true.
 
         Example: \code
           // get 1d (edge) elements in the entire mesh
@@ -504,7 +505,10 @@ public:
     /** \param meshset Meshset whose entities are being queried (zero if query is for entire mesh).
         \param type Type of entities to be returned
         \param entities Range in which entities of type <em>type</em> are returned.
-        \param recursive If true, meshsets containing meshsets are queried recursively.
+        \param recursive If true, meshsets containing meshsets are queried recursively.  Returns
+                         the contents of meshsets, but not the meshsets themselves.  Specifying 
+                         both recursive=true and type=MBMESHSET is an error, as it would always 
+                         result in an empty list.
 
         Example: \code
           // get the quadrilateral elements in meshset
@@ -526,7 +530,10 @@ public:
         \param num_tags Number of tags and values in <em>tag_handles</em> and <em>values</em>
         \param entities Range in which entities are returned.
         \param condition Boolean condition, either MBInterface::UNION or MBInterface::INTERSECT
-        \param recursive If true, meshsets containing meshsets are queried recursively.
+        \param recursive If true, meshsets containing meshsets are queried recursively.  Returns
+                         the contents of meshsets, but not the meshsets themselves.  Specifying 
+                         both recursive=true and type=MBMESHSET is an error, as it would always 
+                         result in an empty list.
 
         If MBInterface::UNION is specified as the condition, entities with <em>any</em> of the tags
         and values specified are returned.  If MBInterface::INTERSECT is specified, only entities with
@@ -557,7 +564,8 @@ public:
     //! Returns all entities in the data base or meshset, in a range (order not preserved)
     /** \param meshset Meshset whose entities are being queried (zero if query is for the entire mesh).
         \param entities Range in which entities are returned.
-        \param recursive If true, recurses down into any contained sets
+        \param recursive If true, meshsets containing meshsets are queried recursively.  Returns
+                         the contents of meshsets, but not the meshsets themselves if true.
 
         Example: \code
         MBRange entities;
@@ -572,7 +580,8 @@ public:
     //! Returns all entities in the data base or meshset, in a vector (order preserved)
     /** \param meshset Meshset whose entities are being queried (zero if query is for the entire mesh).
         \param entities STL vector in which entities are returned.
-        \param recursive If true, recurses down into any contained sets
+        \param recursive If true, meshsets containing meshsets are queried recursively.  Returns
+                         the contents of meshsets, but not the meshsets themselves if true.
 
         Example: \code
         std::vector<MBEntityHandle> entities;
@@ -588,7 +597,8 @@ public:
     /** \param meshset Meshset whose entities are being queried (zero if query is for the entire mesh).
         \param dimension Dimension of entities desired.
         \param num_entities Number of entities of the given dimension
-        \param recursive If true, recurses down into any contained sets
+        \param recursive If true, meshsets containing meshsets are queried recursively.  Returns
+                         the contents of meshsets, but not the meshsets themselves if true.
     */
   virtual MBErrorCode get_number_entities_by_dimension(const MBEntityHandle meshset,
                                                        const int dimension, 
@@ -600,7 +610,10 @@ public:
         \param meshset Meshset whose entities are being queried (zero if query is for entire mesh).
         \param type Type of entities to be returned
         \param num_entities Number of entities of type <em>type</em>
-        \param recursive If true, meshsets containing meshsets are queried recursively.
+        \param recursive If true, meshsets containing meshsets are queried recursively.  Returns
+                         the contents of meshsets, but not the meshsets themselves.  Specifying 
+                         both recursive=true and type=MBMESHSET is an error, as it would always 
+                         result in an empty list.
     */
   virtual MBErrorCode get_number_entities_by_type(const MBEntityHandle meshset,
                                                   const MBEntityType type, 
@@ -616,7 +629,10 @@ public:
         \param values Vector of pointers to values of tags in <em>tag_handles</em>
         \param num_tags Number of tags and values in <em>tag_handles</em> and <em>values</em>
         \param num_entities Range in which number of entities are returned.
-        \param recursive If true, meshsets containing meshsets are queried recursively.
+        \param recursive If true, meshsets containing meshsets are queried recursively.  Returns
+                         the contents of meshsets, but not the meshsets themselves.  Specifying 
+                         both recursive=true and type=MBMESHSET is an error, as it would always 
+                         result in an empty list.
     */
   virtual MBErrorCode get_number_entities_by_type_and_tag(const MBEntityHandle meshset,
                                                           const MBEntityType type,
@@ -630,7 +646,8 @@ public:
     /** Identical to get-entities_by_handle, except number instead of entities are returned
         \param meshset Meshset whose entities are being queried (zero if query is for the entire mesh).
         \param num_entities Range in which num_entities are returned.
-        \param recursive If true, recurses down into any contained sets
+        \param recursive If true, meshsets containing meshsets are queried recursively.  Returns
+                         the contents of meshsets, but not the meshsets themselves if true.
     */
   virtual MBErrorCode get_number_entities_by_handle(const MBEntityHandle meshset,
                                                     int &num_entities,
