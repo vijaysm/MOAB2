@@ -3653,6 +3653,7 @@ private:
    const char* ( MB_CDECL *MBS_Version)();
 };
 
+#endif
 
 int main(int argc, char* argv[])
 {
