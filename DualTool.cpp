@@ -421,6 +421,9 @@ MBErrorCode DualTool::check_dual_equiv_edges(MBRange &dual_edges)
     if (MB_SUCCESS != tmp_result) continue;
   }
 
+    // save a copy for checking later
+  MBRange save_all_2cells;
+
     // go through each edge
   while (!all_dedges.empty()) {
     MBEntityHandle this_edge = *all_dedges.begin();
@@ -473,6 +476,8 @@ MBErrorCode DualTool::check_dual_equiv_edges(MBRange &dual_edges)
         // now add explicit adjacencies from the dedge to those dcells
       std::vector<MBEntityHandle>::iterator vit;
       for (vit = dcells.begin(); vit != dcells.end(); vit++) {
+        save_all_2cells.insert(*vit);
+        
         assert(MBPOLYGON == mbImpl->type_from_handle(*vit));
         tmp_result = mbImpl->add_adjacencies(this_edge, &(*vit), 1, false);
         if (MB_SUCCESS != tmp_result) {
@@ -486,19 +491,6 @@ MBErrorCode DualTool::check_dual_equiv_edges(MBRange &dual_edges)
           get_adjacencies(this_edge, adjs, num_adjs);
         if (NULL == adjs || std::find(adjs, adjs+num_adjs, *vit) == adjs+num_adjs)
           std::cout << "Add_adjacencies failed in construct_dual_faces." << std::endl;
-      }
-
-        // sanity check - look for adj edges again, and check for equiv entities
-      for (vit = dcells.begin(); vit != dcells.end(); vit++) {
-        MBRange adj_edges;
-        dum_quad_range.clear();
-        dum_quad_range.insert(*vit);
-        assert(MBPOLYGON == mbImpl->type_from_handle(*vit));
-        tmp_result = mbImpl->get_adjacencies(dum_quad_range, 1, false, adj_edges);
-        if (MB_MULTIPLE_ENTITIES_FOUND == tmp_result) {
-          std::cout << "Couldn't clean up multiple entities in construct_dual_faces." << std::endl;
-          continue;
-        }
       }
     }
     else {
@@ -516,6 +508,20 @@ MBErrorCode DualTool::check_dual_equiv_edges(MBRange &dual_edges)
     }
   }
   
+
+    // sanity check - look for adj edges again, and check for equiv entities
+  for (MBRange::iterator vit = save_all_2cells.begin(); 
+       vit != save_all_2cells.end(); vit++) {
+    MBRange adj_edges, dum_quad_range;
+    dum_quad_range.insert(*vit);
+    assert(MBPOLYGON == mbImpl->type_from_handle(*vit));
+    tmp_result = mbImpl->get_adjacencies(dum_quad_range, 1, false, adj_edges);
+    if (MB_MULTIPLE_ENTITIES_FOUND == tmp_result) {
+      std::cout << "Multiple entities returned for polygon " << mbImpl->id_from_handle(*vit)
+                << "." << std::endl;
+      continue;
+    }
+  }
     // success!
   return result;
 }
@@ -867,7 +873,7 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
   }
 
   if (debug)
-    std::cout << "Constructed " << hp_ids << " hyperplanes of dim = " << dim << "." << std::endl;
+    std::cout << "Constructed " << hp_ids-1 << " hyperplanes of dim = " << dim << "." << std::endl;
   return MB_SUCCESS;
 }
 

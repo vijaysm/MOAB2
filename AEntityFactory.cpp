@@ -221,7 +221,7 @@ MBErrorCode AEntityFactory::get_element(const MBEntityHandle *vertex_list,
   int dum;
 
     // use a fixed-size array, for speed; there should never be more than 5 equivalent entities
-  MBEntityHandle temp_vec[5];
+  MBEntityHandle temp_vec[15];
   int temp_vec_size = 0;
   
   i_adj = std::lower_bound(adj_vec->begin(), adj_vec->end(), CREATE_HANDLE(target_type, MB_START_ID, dum));
@@ -240,7 +240,7 @@ MBErrorCode AEntityFactory::get_element(const MBEntityHandle *vertex_list,
     return result;
   
     // test for size against fixed-size array
-  assert(temp_vec_size <= 5);
+  assert(temp_vec_size <= 15);
   
     // test for empty first, 'cuz it's cheap
   if (temp_vec_size == 0 && true == create_if_missing) {
@@ -304,7 +304,8 @@ bool AEntityFactory::entities_equivalent(const MBEntityHandle this_entity,
   
   // see if we can get one node id to match
   assert(vertex_list_size > 0);
-  int num_corner_verts = MBCN::VerticesPerEntity(target_type);
+  int num_corner_verts = ((this_type == MBPOLYGON || this_type == MBPOLYHEDRON) ?
+                          num_this_vertices : MBCN::VerticesPerEntity(target_type));
   const MBEntityHandle *iter = 
     std::find(this_vertices, (this_vertices+num_corner_verts), vertex_list[0]);
   if(iter == (this_vertices+num_corner_verts))
@@ -899,12 +900,14 @@ MBErrorCode AEntityFactory::get_down_adjacency_elements_poly(MBEntityHandle sour
       }
       else {
           // multiple ones - need to check for explicit adjacencies
-        MBAdjacencyVector *adj_vec;
         unsigned int start_sz = target_entities.size();
+        const MBEntityHandle *explicit_adjs;
+        int num_exp;
         for (MBRange::iterator rit = adj_edges.begin(); rit != adj_edges.end(); rit++) {
-          tmp_result = mDensePageGroups[TYPE_FROM_HANDLE(source_entity)]->get_data(*rit, &adj_vec);
-          if (MB_SUCCESS == tmp_result && NULL != adj_vec &&
-              std::find(adj_vec->begin(), adj_vec->end(), source_entity) != adj_vec->end())
+          this->get_adjacencies(*rit, explicit_adjs, num_exp);
+          if (NULL != explicit_adjs &&
+              std::find(explicit_adjs, explicit_adjs+num_exp, source_entity) != 
+              explicit_adjs+num_exp)
             target_entities.push_back(*rit);
         }
         if (target_entities.size() == start_sz) {
@@ -993,6 +996,24 @@ MBErrorCode AEntityFactory::get_up_adjacency_elements(MBEntityHandle source_enti
     target_entities.swap(elems[0]);
     delete [] elems;
   }
+  else if (source_type == MBPOLYGON) {
+      // get adjacencies using polyhedra's connectivity vectors
+      // first get polyhedra neighboring vertices
+    result = thisMB->get_adjacencies(source_vertices, num_source_vertices, 3, false,
+                                     tmp_vec);
+    if (MB_SUCCESS != result) return result;
+    
+      // now filter according to whether each is adjacent to the polygon
+    const MBEntityHandle *connect;
+    int num_connect;
+    for (unsigned int i = 0; i < tmp_vec.size(); i++) {
+      result = thisMB->get_connectivity(tmp_vec[i], connect, num_connect);
+      if (MB_SUCCESS != result) return result;
+      if (std::find(connect, connect+num_connect, source_entity) != connect+num_connect)
+        target_entities.push_back(tmp_vec[i]);
+    }
+  }
+  
   else {
       // else get up-adjacencies directly; code copied from get_zero_to_n_elements
 
@@ -1021,7 +1042,6 @@ MBErrorCode AEntityFactory::get_up_adjacency_elements(MBEntityHandle source_enti
     target_entities.resize(end_ent - start_ent);
     std::copy(start_ent, end_ent, target_entities.begin());
   }
-
 
   return result;
 }

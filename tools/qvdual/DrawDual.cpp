@@ -1008,15 +1008,25 @@ MBErrorCode DrawDual::construct_graphviz_data(MBEntityHandle dual_surf)
 MBErrorCode DrawDual::compute_fixed_points(MBEntityHandle dual_surf, MBRange &dverts,
                                            MBRange &face_verts) 
 {
-  std::map<unsigned int, std::vector<MBEntityHandle> > loops;
+  std::vector<std::vector<MBEntityHandle> > loops;
   DualTool dual_tool(vtkMOABUtils::mbImpl);
-  
+
   while (!face_verts.empty()) {
       // get the next first vertex on the loop
     MBEntityHandle this_v = *face_verts.begin();
     MBEntityHandle first_v = 0, last_v = 0;
     std::vector<MBEntityHandle> loop_vs;
     MBRange temp_face_verts;
+
+    if (face_verts.size() == 2) {
+        // quick way to do this, assuming both vertices are on the loop
+      loop_vs.push_back(*face_verts.begin());
+      loop_vs.push_back(*face_verts.rbegin());
+      temp_face_verts.insert(*face_verts.begin());
+      temp_face_verts.insert(*face_verts.rbegin());
+      this_v = first_v;
+    }
+    
     while (this_v != first_v) {
       if (0 == first_v) first_v = this_v;
       
@@ -1030,7 +1040,7 @@ MBErrorCode DrawDual::compute_fixed_points(MBEntityHandle dual_surf, MBRange &dv
     }
 
       // save this vector in the map
-    loops[loop_vs.size()] = loop_vs;
+    loops.push_back(loop_vs);
     
       // ok, we've got them all; first, remove them from face_verts
     MBRange temp_range = face_verts.subtract(temp_face_verts);
@@ -1041,7 +1051,7 @@ MBErrorCode DrawDual::compute_fixed_points(MBEntityHandle dual_surf, MBRange &dv
   Agsym_t *asym_pos = NULL, *asym_pin = NULL;
   char tmp_pos[80];
   int loop_num, num_loops = loops.size();
-  std::map<unsigned int, std::vector<MBEntityHandle> >::iterator mit;
+  std::vector<std::vector<MBEntityHandle> >::iterator mit;
   if (my_debug) std::cout << "Loop points: " << std::endl;
   for (mit = loops.begin(), loop_num = 0; mit != loops.end(); mit++, loop_num++) {
 
@@ -1050,7 +1060,7 @@ MBErrorCode DrawDual::compute_fixed_points(MBEntityHandle dual_surf, MBRange &dv
     
       // now, go around the loop, assigning vertex positions; assume a 6-inch diameter circle
       // (at 72 pts/inch)
-    unsigned int loop_size = mit->second.size();
+    unsigned int loop_size = (*mit).size();
     double angle = (2.0*acos(-1.0))/((double)loop_size);
     int xpos_pts, ypos_pts;
     
@@ -1060,7 +1070,7 @@ MBErrorCode DrawDual::compute_fixed_points(MBEntityHandle dual_surf, MBRange &dv
 
         // now set that position on the node
       GVEntity *this_gv;
-      MBErrorCode result = MBI->tag_get_data(gvEntityHandle, &(mit->second[i]), 1, &this_gv);
+      MBErrorCode result = MBI->tag_get_data(gvEntityHandle, &((*mit)[i]), 1, &this_gv);
       if (MB_SUCCESS != result) return result;
       
       int index = this_gv->get_index(dual_surf);
@@ -1089,7 +1099,7 @@ MBErrorCode DrawDual::compute_fixed_points(MBEntityHandle dual_surf, MBRange &dv
       ND_coord_i(this_gpt).y = ypos_pts;
         //ND_pinned(this_gpt) = true;
 
-      if (my_debug) std::cout << "Point " << MBI->id_from_handle(mit->second[i])
+      if (my_debug) std::cout << "Point " << MBI->id_from_handle((*mit)[i])
                 << ": x = " << xpos_pts << ", y = " << ypos_pts << std::endl;
     }
   }
