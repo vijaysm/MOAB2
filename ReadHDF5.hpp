@@ -22,16 +22,6 @@ public:
 
   static MBReaderIface* factory( MBInterface* );
 
-  /** The type of the global ID tag data 
-   * 
-   * NOTE:  If this is changed, the value of id_type 
-   *        MUST be changed accordingly.
-   */
-  typedef int id_t;
-  
-  /** HDF5 type corresponding to type of id_t */
-  static const hid_t id_type;
-
   ReadHDF5( MBInterface* iface );
   
   virtual ~ReadHDF5();
@@ -58,7 +48,7 @@ private:
     //! The type handle for the mhdf library.
     mhdf_ElemHandle type2;
     //! The first Id allocated by the mhdf library.  Entities in range have sequential IDs.
-    id_t first_id;
+    MBEntityHandle first_id;
   };
   
   //! The size of the data buffer (<code>dataBuffer</code>).
@@ -72,14 +62,8 @@ private:
   //! The file handle from the mhdf library
   mhdf_FileHandle filePtr;
   
-  //! True if created the ID tag in init()
-  bool createdIdTag;
-  
   //! Cache pointer to read util
   MBReadUtilIface* readUtil;
-  
-  //! Handle for the ID tag.
-  MBTag idTag;
   
   //! The list elements to export.
   std::list<ElemSet> elemList;

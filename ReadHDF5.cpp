@@ -28,8 +28,6 @@
 
 #define READ_HDF5_BUFFER_SIZE (40*1024*1024)
 
-const hid_t ReadHDF5::id_type = H5T_NATIVE_INT;
-
 MBReaderIface* ReadHDF5::factory( MBInterface* iface )
   { return new ReadHDF5( iface ); }
 
@@ -38,7 +36,6 @@ ReadHDF5::ReadHDF5( MBInterface* iface )
     dataBuffer( 0 ),
     iFace( iface ), 
     filePtr( 0 ), 
-    createdIdTag(false),
     readUtil( 0 ),
     handleType( 0 )
 {
@@ -47,7 +44,6 @@ ReadHDF5::ReadHDF5( MBInterface* iface )
 MBErrorCode ReadHDF5::init()
 {
   MBErrorCode rval;
-  id_t zero_int = 0;
 
   if (readUtil) 
     return MB_SUCCESS;
@@ -70,23 +66,6 @@ MBErrorCode ReadHDF5::init()
     H5Tclose( handleType );
     return rval;
   }
- 
-  rval = iFace->tag_get_handle( GLOBAL_ID_TAG_NAME, idTag );
-  if (MB_TAG_NOT_FOUND == rval)
-  {
-    rval = iFace->tag_create( GLOBAL_ID_TAG_NAME, sizeof(id_t), 
-                              MB_TAG_DENSE, idTag, &zero_int );
-    if (MB_SUCCESS == rval)
-      createdIdTag = true;
-  }
-  
-  if (MB_SUCCESS != rval)
-  {
-    H5Tclose( handleType );
-    iFace->release_interface( "MBReadUtilIface", readUtil );
-    readUtil = 0;
-    return rval;
-  }
   
   setSet.first_id = 0;
   setSet.type2 = mhdf_set_type_handle();
@@ -105,8 +84,6 @@ ReadHDF5::~ReadHDF5()
     return;
 
   iFace->release_interface( "MBReadUtilIface", readUtil );
-  if (createdIdTag)
-    iFace->tag_delete( idTag );
   H5Tclose( handleType );
 }
 
@@ -132,7 +109,7 @@ MBErrorCode ReadHDF5::load_file( const char* filename, const int*, const int num
 DEBUGOUT( "Opening File\n" );  
   
     // Open the file
-  filePtr = mhdf_openFile( filename, 0, &status );
+  filePtr = mhdf_openFile( filename, 0, NULL, &status );
   if (!filePtr)
   {
     readUtil->report_error( mhdf_message( &status ));
@@ -377,7 +354,7 @@ MBErrorCode ReadHDF5::read_elems( mhdf_ElemHandle elem_group )
     readUtil->report_error( mhdf_message( &status ) );
     return MB_FAILURE;
   }
-  elems.first_id = (id_t)first_id;
+  elems.first_id = first_id;
   
   MBEntityHandle handle;
   MBEntityHandle* array;
@@ -451,7 +428,7 @@ MBErrorCode ReadHDF5::read_poly( mhdf_ElemHandle elem_group )
     readUtil->report_error( mhdf_message( &status ) );
     return MB_FAILURE;
   }
-  elems.first_id = (id_t)first_id;
+  elems.first_id = first_id;
   
   MBEntityHandle handle;
   MBEntityHandle* conn_array;
@@ -531,7 +508,7 @@ MBErrorCode ReadHDF5::read_sets()
     readUtil->report_error( mhdf_message( &status ) );
     return MB_FAILURE;
   }
-  setSet.first_id = (id_t)first_id;
+  setSet.first_id = first_id;
   setSet.type = MBENTITYSET;
   setSet.type2 = mhdf_set_type_handle();
   
