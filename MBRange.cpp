@@ -343,3 +343,43 @@ MBRange MBRange::intersect(const MBRange &range2) const
   return lhs;
 }
 
+MBRange::const_iterator MBRange::lower_bound(MBRange::const_iterator first,
+                                             MBRange::const_iterator last,
+                                             MBEntityHandle val)
+{
+    // Find the first pair whose end is >= val
+  for (PairNode* iter = first.mNode; iter != last.mNode; iter = iter->mNext)
+  {
+    if (iter->second >= val)
+    {
+        // This is the correct pair.  Either 'val' is in the range, or
+        // the range starts before 'val' and iter->first IS the lower_bound.
+      if (iter->first > val)
+        return const_iterator(iter, iter->first);
+      return const_iterator(iter, val);
+    }
+  }
+  
+  return last;
+}
+
+MBRange::iterator MBRange::lower_bound(MBRange::iterator first,
+                                       MBRange::iterator last,
+                                       MBEntityHandle val)
+{
+    // Find the first pair whose end is >= val
+  for (PairNode* iter = first.mNode; iter != last.mNode; iter = iter->mNext)
+  {
+    if (iter->second >= val)
+    {
+        // This is the correct pair.  Either 'val' is in the range, or
+        // the range starts before 'val' and iter->first IS the lower_bound.
+      if (iter->first > val)
+        return iterator(iter, iter->first);
+      return iterator(iter, val);
+    }
+  }
+  
+  return last;
+}
+

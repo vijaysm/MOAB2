@@ -257,6 +257,16 @@ public:
   //! find an item int the list and return an iterator at that value
   const_iterator find(MBEntityHandle val) const;
 
+  //! return an iterator to the first value >= val
+  static iterator lower_bound(iterator first,
+                              iterator last,
+                              MBEntityHandle val);
+  
+  //! return an iterator to the first value >= val
+  static const_iterator lower_bound(const_iterator first,
+                                    const_iterator last,
+                                    MBEntityHandle val);
+  
   //! clears the contents of the list 
   void clear();
   
