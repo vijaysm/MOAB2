@@ -7,12 +7,13 @@
 #define TQDCFR
 
 #include "MBInternals.hpp"
+#include "MBReaderIface.hpp"
 
 #include <iostream>
 #include <stdio.h>
 #include <string>
 #include <vector>
-
+/*
 #define CHECK_SIZE(buf_vec, new_size)  \
     if (buf_vec.size() < (unsigned int) new_size) buf_vec.resize(new_size)
 #define FSEEK(offset) assert(0 == fseek(Tqdcfr::instance()->cubFile, offset, SEEK_SET))
@@ -31,10 +32,30 @@
    {assert(fread(array, 8, num_ents, Tqdcfr::instance()->cubFile) == (unsigned int) num_ents);}
 #define FREADCA(num_ents,array) \
    {assert(fread(array, 1, num_ents, Tqdcfr::instance()->cubFile) == (unsigned int) num_ents);}
+*/
+#define CHECK_SIZE(buf_vec, new_size)  \
+    if (buf_vec.size() < (unsigned int) new_size) buf_vec.resize(new_size)
+#define FSEEK(offset) assert(0 == fseek(instance->cubFile, offset, SEEK_SET))
+#define FREADI(num_ents) \
+   {CHECK_SIZE(instance->int_buf, num_ents); \
+   assert(fread(&instance->int_buf[0], 4, num_ents, instance->cubFile) == (unsigned int) num_ents);}
+#define FREADD(num_ents) \
+   {CHECK_SIZE(dbl_buf, num_ents); \
+    assert(fread(&dbl_buf[0], 8, num_ents, instance->cubFile) == (unsigned int) num_ents);}
+#define FREADC(num_ents) \
+   {CHECK_SIZE(char_buf, num_ents); \
+    assert(fread(&char_buf[0], 1, num_ents, instance->cubFile) == (unsigned int) num_ents);}
+#define FREADIA(num_ents,array) \
+   {assert(fread(array, 4, num_ents, instance->cubFile) == (unsigned int) num_ents);}
+#define FREADDA(num_ents,array) \
+   {assert(fread(array, 8, num_ents, instance->cubFile) == (unsigned int) num_ents);}
+#define FREADCA(num_ents,array) \
+   {assert(fread(array, 1, num_ents, instance->cubFile) == (unsigned int) num_ents);}
+
 
 class MBReadUtilIface;
 
-class Tqdcfr
+class Tqdcfr : public MBReaderIface
 {
 public:  
   class FileTOC
@@ -75,16 +96,16 @@ public:
           std::cout << "ArrayInfo:numEntities, tableOffset, metaDataOffset = "
                     << numEntities << ", " << tableOffset << ", " << metaDataOffset << std::endl;
         }
-      void init()
+      void init( const std::vector<int>& int_buf )
         {
-          numEntities = Tqdcfr::instance()->int_buf[0]; tableOffset = Tqdcfr::instance()->int_buf[1]; metaDataOffset = Tqdcfr::instance()->int_buf[2];
+          numEntities = int_buf[0]; tableOffset = int_buf[1]; metaDataOffset = int_buf[2];
         }
     };
     
     ArrayInfo geomArray, nodeArray, elementArray, groupArray, 
       blockArray, nodesetArray, sidesetArray;
 
-    void init(const int offset);
+    void init(const int offset, Tqdcfr* instance );
         
     void print() 
       {
@@ -126,6 +147,7 @@ public:
     static void read_info_header(const int model_offset, 
                                  const FEModelHeader::ArrayInfo &info,
                                  const int info_type,
+                                 Tqdcfr* instance,
                                  EntityHeader *&entity_headers);
 
     EntityHeader() 
@@ -222,7 +244,7 @@ public:
                       FEModelHeader::ArrayInfo &info,
                       EntityHeader *header);
     
-    void read_header_info();
+    void read_header_info( Tqdcfr* instance );
     void read_metadata_info(Tqdcfr *tqd);
   };
 
@@ -257,8 +279,12 @@ public:
   std::vector<double> dbl_buf;
   std::vector<char> char_buf;
 
+  static MBReaderIface* factory( MBInterface* );
+  
     // read cub file
-  MBErrorCode load_file(const char *file_name);
+  MBErrorCode load_file(const char *file_name,
+                        const int* block_list,
+                        int num_blocks );
   void read_nodeset(ModelEntry *model,
                     EntityHeader *nodeseth);
   void read_sideset(ModelEntry *model,
@@ -282,14 +308,11 @@ public:
   MBEntityType type_from_cub_type(const int cub_type, const int nodes_per_elem);
   void add_set_entities(const int this_type, const int num_ents,
                         const int *ints, MBEntityHandle &set_handle);
-  static int check_contiguous(const int num_ents);
+  int check_contiguous(const int num_ents);
 
-  static Tqdcfr *instance(MBInterface *impl = NULL);
+  Tqdcfr(MBInterface *impl);
   
 private:
-  Tqdcfr(MBInterface *impl);
-
-  static Tqdcfr *instance_;
 
   void read_acis_records();
   
@@ -300,6 +323,8 @@ private:
   void reset_record(AcisRecord &this_record);
   
   void process_record(AcisRecord &this_record);
+  
+  Tqdcfr *const instance;
 };
 
 #endif

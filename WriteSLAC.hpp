@@ -32,8 +32,9 @@
 #include "MBInterface.hpp"
 #include "MBWriteUtilIface.hpp"
 #include "ExoIIInterface.hpp"
+#include "MBWriterIface.hpp"
 
-class MB_DLL_EXPORT WriteSLAC
+class MB_DLL_EXPORT WriteSLAC : public MBWriterIface
 {
  
 public:
@@ -43,11 +44,16 @@ public:
 
    //! Destructor
   virtual ~WriteSLAC();
+  
+  static MBWriterIface* factory( MBInterface* );
 
     //! writes out a file
   MBErrorCode write_file(const char *file_name,
+                         const bool overwrite,
                           const MBEntityHandle *output_list,
-                          const int num_sets);
+                          const int num_sets,
+                          std::vector<std::string>& qa_list,
+                          int export_dimension);
   
 //! struct used to hold data for each block to be output; used by
 //! initialize_file to initialize the file header for increased speed

@@ -16,9 +16,10 @@
 
 #include "MBInterface.hpp"
 #include "MBWriteUtilIface.hpp"
+#include "MBWriterIface.hpp"
 
 //! Output Exodus File for VERDE
-class MB_DLL_EXPORT WriteGMV
+class MB_DLL_EXPORT WriteGMV : public MBWriterIface
 {
  
 public:
@@ -28,6 +29,15 @@ public:
 
    //! Destructor
   virtual ~WriteGMV();
+
+  static MBWriterIface* factory( MBInterface* );
+
+  MBErrorCode write_file( const char* filename,
+                          const bool overwite,
+                          const MBEntityHandle* output_sets,
+                          const int num_output_sets,
+                          std::vector<std::string>& qa_list,
+                          int requested_dimension );
 
     //! writes out a mesh file
   MBErrorCode write_file(const char *file_name,

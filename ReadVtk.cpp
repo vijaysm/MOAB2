@@ -7,6 +7,9 @@
 #include <iostream>
 #include <assert.h>
 
+MBReaderIface* ReadVtk::factory( MBInterface* iface )
+  { return new ReadVtk( iface ); }
+
 ReadVtk::ReadVtk(MBInterface* impl)
     : mdbImpl(impl)
 {
@@ -15,7 +18,8 @@ ReadVtk::ReadVtk(MBInterface* impl)
   impl->query_interface(iface_name, reinterpret_cast<void**>(&readMeshIface));
 }
 
-MBErrorCode ReadVtk::load_file(const char *file_name) 
+MBErrorCode ReadVtk::load_file(const char *file_name,
+                               const int*, const int) 
 {
   MBErrorCode result;
   fileName = file_name;

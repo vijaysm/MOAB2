@@ -10,10 +10,6 @@
 #include <algorithm>
 #include "MBCore.hpp"
 #include "TagServer.hpp"
-#include "WriteSLAC.hpp"
-#include "WriteNCDF.hpp"
-#include "ReadNCDF.hpp"
-#include "Tqdcfr.hpp"
 #include "MBMeshSet.hpp"
 #include "assert.h"
 #include "AEntityFactory.hpp"
@@ -23,7 +19,15 @@
 #include "HigherOrderFactory.hpp"
 #include "EntitySequenceManager.hpp"
 #include "MBError.hpp"
-#include "ReadVtk.hpp"
+#include "MBReaderWriterSet.hpp"
+#include "MBReaderIface.hpp"
+#include "MBWriterIface.hpp"
+#include "WriteNCDF.hpp"
+#ifdef LINUX
+# include <dlfcn.h>
+# include <dirent.h>
+#endif
+
 
 #ifdef XPCOM_MB
 #include "nsMemory.h"
@@ -91,6 +95,14 @@ MBErrorCode MBCore::initialize()
 
   mMBWriteUtil = NULL;
   mMBReadUtil = NULL;
+    
+    // Readers and writers try to get pointers to above utils.
+    // Do this after pointers are initialized. (Pointers should
+    // really be initialized in constructor to avoid this kind
+    // of thing -- j.kraftcheck.)
+  readerWriterSet = new MBReaderWriterSet( this, mError );
+  if (!readerWriterSet)
+    return MB_MEMORY_ALLOCATION_FAILED;
 
   MBErrorCode result = create_meshset(0, myMeshSet);
   if (MB_SUCCESS != result) return result;
@@ -232,44 +244,61 @@ int MBCore::dimension_from_handle(const MBEntityHandle handle) const
 //! load mesh from data in file
 //! NOTE: if there is mesh already present, the new mesh will be added
 MBErrorCode  MBCore::load_mesh(const char *file_name,
-                                 const int* active_block_id_list,
+                                 const int* block_id_list,
                                  const int num_blocks)
 {
-    // see if the file can be read by exodus
-  ReadNCDF reader(this);
-  MBErrorCode result = reader.load_file(file_name, active_block_id_list,
-                                         num_blocks);
-  if (MB_FAILURE != result) return result;
+  MBErrorCode rval;
   
-    // try cub file
-  result = Tqdcfr::instance(this)->load_file(file_name);
-  if (MB_FAILURE != result) return result;
+    // Try using the file extension to selecte a reader
+  MBReaderIface* reader = 
+    reader_writer_set()->get_file_extension_reader( file_name );
+  if (reader)
+  { 
+    rval = reader->load_file( file_name, block_id_list, num_blocks );
+    delete reader;
+    if (MB_SUCCESS == rval)
+      return MB_SUCCESS;
+  }
   
-    // try vtk
-  result = ReadVtk(this).load_file(file_name);
-  if (MB_FAILURE != result) return result;
+    // Try all the readers
+  std::vector<MBReaderIface*> list;
+  std::vector<MBReaderIface*>::iterator iter;
+  for ( iter = list.begin() ; iter != list.end(); ++iter )
+  {
+    rval = (*iter)->load_file( file_name, block_id_list, num_blocks );
+    if (rval == MB_SUCCESS)
+      break;
+  }
 
-    // if we get here, we've failed
-  return MB_FAILURE; 
+    // Destroy all the reader intances
+  for ( iter = list.begin() ; iter != list.end(); ++iter )
+    delete *iter;
+
+  return rval; 
 }
 
 MBErrorCode  MBCore::write_mesh(const char *file_name,
                                   const MBEntityHandle *output_list,
                                   const int num_sets)
 {
-  
-      // try a SLAC writer
-  WriteSLAC slacw(this);
-  MBErrorCode error = slacw.write_file(file_name, output_list, num_sets);
+  MBErrorCode rval;
+  std::vector<std::string> qa_records;
+  const bool overwrite = true;
 
-  if (MB_SUCCESS != error) {
-      // see if the file can be written by exodus
-    WriteNCDF writer(this);
-    std::vector<std::string> qa_records;
-    error = writer.write_file(file_name, output_list, num_sets, qa_records);
+  MBWriterIface* writer = 
+    reader_writer_set()->get_file_extension_writer( file_name );
+  if (writer == NULL)
+  {
+    WriteNCDF exowriter(this);
+    rval = exowriter.write_file(file_name, overwrite, output_list, num_sets, qa_records, 0);
+  }
+  else
+  {
+    rval = writer->write_file(file_name, overwrite, output_list, num_sets, qa_records );
+    delete writer;
   }
   
-  return error; 
+  return rval; 
 }
 
 
@@ -2227,9 +2256,5 @@ MBEntityType tfh(MBEntityHandle handle)
 {
   return TYPE_FROM_HANDLE(handle);
 }
-
-
-
-
 
 

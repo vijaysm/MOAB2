@@ -51,6 +51,7 @@ MB_LIB_SRCS = \
 	MBMeshSet.cpp \
 	MBRange.cpp \
 	MBReadUtil.cpp \
+	MBReaderWriterSet.cpp \
 	MBSkinner.cpp \
 	MBUtil.cpp \
 	MBWriteUtil.cpp \

@@ -14,6 +14,7 @@ class MBMeshSet;
 class EntitySequenceManager;
 class TagServer;
 class MBError;
+class MBReaderWriterSet;
 
 #ifdef XPCOM_MB
 
@@ -678,6 +679,9 @@ public:
 
     //! return the a_entity_factory pointer
   AEntityFactory *a_entity_factory() { return aEntityFactory; }
+  
+    //! return set of registered IO tools
+  MBReaderWriterSet* reader_writer_set() { return readerWriterSet; }
 
 
 //-----------------MeshSet Interface Functions------------------//
@@ -723,6 +727,8 @@ private:
   EntitySequenceManager *sequenceManager;
 
   AEntityFactory *aEntityFactory;
+  
+  MBReaderWriterSet* readerWriterSet;
 
     //! a meshset for the overall mesh; used primarily to set tags on entire mesh
   MBEntityHandle myMeshSet;

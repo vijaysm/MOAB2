@@ -29,7 +29,10 @@ const int TIME_STR_LEN = 11;
 
 #define INS_ID(stringvar, prefix, id) \
           sprintf(stringvar, prefix, id)
-          
+
+MBWriterIface* WriteNCDF::factory( MBInterface* iface )
+  { return new WriteNCDF( iface ); }
+
 WriteNCDF::WriteNCDF(MBInterface *impl) 
     : mdbImpl(impl), ncFile(0), mCurrentMeshHandle(0)
 {
@@ -123,6 +126,7 @@ void WriteNCDF::time_and_date(char* time_string, char* date_string)
 }
 
 MBErrorCode WriteNCDF::write_file(const char *exodus_file_name, 
+                                    const bool overwrite,
                                     const MBEntityHandle *ent_handles,
                                     const int num_sets,
                                     std::vector<std::string> &qa_records,
@@ -131,6 +135,9 @@ MBErrorCode WriteNCDF::write_file(const char *exodus_file_name,
   assert(0 != mMaterialSetTag &&
          0 != mNeumannSetTag &&
          0 != mDirichletSetTag);
+
+  if (user_dimension == 0)
+   mdbImpl->get_dimension( user_dimension );
   
 
   std::vector<MBEntityHandle> blocks, nodesets, sidesets, entities;
@@ -148,6 +155,22 @@ MBErrorCode WriteNCDF::write_file(const char *exodus_file_name,
     this_range.clear();
     mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &mNeumannSetTag, NULL, 1, this_range);
     std::copy(this_range.begin(), this_range.end(), std::back_inserter(sidesets));
+  
+    // If there is nothing to write, write everything as one block.
+    if (blocks.empty() && nodesets.empty() && sidesets.empty())
+    {
+      this_range.clear();
+      mdbImpl->get_entities_by_dimension( 0, user_dimension, this_range, false );
+      if (!this_range.empty())
+      {
+        MBEntityHandle block_handle;
+        int block_id = 1;
+        mdbImpl->create_meshset( MESHSET_SET, block_handle );
+        mdbImpl->tag_set_data( mMaterialSetTag, &block_handle, 1, &block_id );
+        mdbImpl->add_entities( block_handle, this_range );
+        blocks.push_back( block_handle );
+      }
+    }
   }
   else {
     int dummy;
@@ -161,6 +184,7 @@ MBErrorCode WriteNCDF::write_file(const char *exodus_file_name,
         sidesets.push_back(*iter);
     }
   }
+  
   
     // if there is nothing to write just return.
   if (blocks.empty() && nodesets.empty() && sidesets.empty())
@@ -202,7 +226,7 @@ MBErrorCode WriteNCDF::write_file(const char *exodus_file_name,
 
 
   // try to open the file after gather mesh info succeeds
-  ncFile = new NcFile(exodus_file_name, NcFile::Replace);
+  ncFile = new NcFile(exodus_file_name, overwrite ? NcFile::Replace : NcFile::New );
   if (NULL == ncFile) {
     reset_block(block_info);
     return MB_FAILURE;

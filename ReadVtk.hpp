@@ -15,15 +15,21 @@
 #endif
 
 #include "MBInterface.hpp"
+#include "MBReaderIface.hpp"
 
 class MBReadUtilIface;
 
-class ReadVtk
+class ReadVtk : public MBReaderIface
 {
    
 public:
-    //! load an ExoII file
-  MBErrorCode load_file(const char *exodus_file_name);
+
+  static MBReaderIface* factory( MBInterface* );
+
+    //! load a file
+  MBErrorCode load_file(const char *file_name,
+                        const int* material_set_list,
+                        const int num_material_sets );
   
     //! Constructor
   ReadVtk(MBInterface* impl = NULL);

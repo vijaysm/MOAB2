@@ -29,6 +29,7 @@
 #include "MBRange.hpp"
 #include "MBInternals.hpp"
 #include "ExoIIUtil.hpp"
+#include "MBReaderIface.hpp"
 
 struct ReadBlockData
 {
@@ -43,10 +44,13 @@ struct ReadBlockData
 class NcFile;
 
 //! Output Exodus File for VERDE
-class ReadNCDF 
+class ReadNCDF : public MBReaderIface
 {
    
 public:
+  
+  static MBReaderIface* factory( MBInterface* );
+  
     //! load an ExoII file
   MBErrorCode load_file(const char *exodus_file_name,
                          const int* blocks_to_load,

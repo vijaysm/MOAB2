@@ -31,6 +31,7 @@
 #include "MBInterface.hpp"
 #include "MBWriteUtilIface.hpp"
 #include "ExoIIInterface.hpp"
+#include "MBWriterIface.hpp"
 
 //! struct used to hold data for each block to be output in Exodus; used by
 //! initialize_exodus_file to initialize the file header for increased speed
@@ -69,10 +70,12 @@ struct NeumannSetData
 
 
 //! Output Exodus File for VERDE
-class MB_DLL_EXPORT WriteNCDF
+class MB_DLL_EXPORT WriteNCDF : public MBWriterIface
 {
  
 public:
+  
+  static MBWriterIface* factory( MBInterface* );
 
    //! Constructor
    WriteNCDF(MBInterface *impl);
@@ -82,10 +85,11 @@ public:
 
     //! writes out an ExoII file
   MBErrorCode write_file(const char *exodus_file_name,
+                         const bool overwrite,
                           const MBEntityHandle *output_list,
                           const int num_sets,
                           std::vector<std::string> &qa_records, 
-                          int user_dimension = 3);
+                          int user_dimension);
   
 protected:
 

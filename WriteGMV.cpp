@@ -31,6 +31,9 @@ const char *WriteGMV::gmvTypeNames[] = {
   ""
 };
 
+MBWriterIface* WriteGMV::factory( MBInterface* iface )
+  { return new WriteGMV( iface ); }
+
 WriteGMV::WriteGMV(MBInterface *impl) 
     : mbImpl(impl), mCurrentMeshHandle(0)
 {
@@ -109,6 +112,30 @@ MBErrorCode WriteGMV::write_file(const char *file_name,
   
   return result;
 }
+
+MBErrorCode WriteGMV::write_file( const char* filename,
+                                  const bool ,
+                                  const MBEntityHandle* output_sets,
+                                  const int num_output_sets,
+                                  std::vector<std::string>& ,
+                                  int dimension )
+{
+  MBEntityHandle output_set = 0;
+  if (output_sets && num_output_sets > 0)
+  {
+    if (num_output_sets > 1)
+      return MB_FAILURE;
+    output_set = output_sets[0];
+  }
+  
+  if (dimension == 0)
+  {
+    mbImpl->get_dimension( dimension );
+  }
+  
+  return write_file( filename, output_set, dimension, true, true );
+}
+  
 
 MBErrorCode WriteGMV::local_write_mesh(const char *file_name,
                                        const MBEntityHandle output_set,

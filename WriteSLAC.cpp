@@ -27,7 +27,10 @@
 
 #define INS_ID(stringvar, prefix, id) \
           sprintf(stringvar, prefix, id)
-          
+
+MBWriterIface* WriteSLAC::factory( MBInterface* iface )
+  { return new WriteSLAC( iface ); }
+
 WriteSLAC::WriteSLAC(MBInterface *impl) 
     : mbImpl(impl), ncFile(0), mCurrentMeshHandle(0)
 {
@@ -99,8 +102,10 @@ void WriteSLAC::reset_matset(std::vector<WriteSLAC::MaterialSetData> &matset_inf
 }
 
 MBErrorCode WriteSLAC::write_file(const char *file_name, 
+                                  const bool overwrite,
                                   const MBEntityHandle *ent_handles,
-                                  const int num_sets)
+                                  const int num_sets,
+                                  std::vector<std::string>&, int )
 {
   assert(0 != mMaterialSetTag &&
          0 != mNeumannSetTag &&
@@ -161,7 +166,7 @@ MBErrorCode WriteSLAC::write_file(const char *file_name,
 
 
   // try to open the file after gather mesh info succeeds
-  ncFile = new NcFile(file_name, NcFile::Replace);
+  ncFile = new NcFile(file_name, overwrite ? NcFile::Replace : NcFile::New );
   if (NULL == ncFile) {
     reset_matset(matset_info);
     return MB_FAILURE;

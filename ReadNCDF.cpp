@@ -40,6 +40,8 @@
             val = ncdim->size();\
           } else val = 0;
 
+MBReaderIface* ReadNCDF::factory( MBInterface* iface )
+  { return new ReadNCDF( iface ); }
 
 ReadNCDF::ReadNCDF(MBInterface* impl)
     : mdbImpl(impl), max_line_length(-1), max_str_length(-1)

@@ -6,24 +6,17 @@
 #include <assert.h>
 
 const bool debug = false;
-Tqdcfr *Tqdcfr::instance_ = NULL;
 const int ACIS_DIMS[] = {-1, 3, -1, 2, -1, -1, 1, 0, -1, -1};
 // acis dimensions for each entity type, to match
 // enum {BODY, LUMP, SHELL, FACE, LOOP, COEDGE, EDGE, VERTEX, ATTRIB, UNKNOWN} 
 
-Tqdcfr *Tqdcfr::instance(MBInterface *impl) 
-{
-  if (NULL == instance_) {
-    assert(NULL != impl);
-    instance_ = new Tqdcfr(impl);
-  }
-  
-  return instance_;
-}
+MBReaderIface* Tqdcfr::factory( MBInterface* iface )
+  { return new Tqdcfr( iface ); }
 
 Tqdcfr::Tqdcfr(MBInterface *impl) 
     : cubFile(NULL), globalIdTag(0), geomTag(0), uniqueIdTag(0), groupTag(0), 
-      blockTag(0), nsTag(0), ssTag(0), attribVectorTag(0), entityNameTag(0)
+      blockTag(0), nsTag(0), ssTag(0), attribVectorTag(0), entityNameTag(0),
+      instance(this)
 {
   assert(NULL != impl);
   mdbImpl = impl;
@@ -43,8 +36,10 @@ Tqdcfr::~Tqdcfr()
 }
 
   
-MBErrorCode Tqdcfr::load_file(const char *file_name) 
+MBErrorCode Tqdcfr::load_file(const char *file_name,
+                              const int*, const int) 
 {
+  Tqdcfr* instance = this;
   
     // open file
   cubFile = fopen(file_name, "rb");
@@ -52,8 +47,8 @@ MBErrorCode Tqdcfr::load_file(const char *file_name)
   
     // verify magic string
   FREADC(4);
-  if (!(Tqdcfr::instance()->char_buf[0] == 'C' && Tqdcfr::instance()->char_buf[1] == 'U' && 
-         Tqdcfr::instance()->char_buf[2] == 'B' && Tqdcfr::instance()->char_buf[3] == 'E')) 
+  if (!(char_buf[0] == 'C' && char_buf[1] == 'U' && 
+         char_buf[2] == 'B' && char_buf[3] == 'E')) 
     return MB_FAILURE;
 
     // ***********************
@@ -73,7 +68,7 @@ MBErrorCode Tqdcfr::load_file(const char *file_name)
   ModelEntry *mesh_model = &modelEntries[index];
   
     // first the header & metadata info
-  mesh_model->read_header_info();
+  mesh_model->read_header_info(this);
   mesh_model->read_metadata_info(this);
 
     // now read in mesh for each geometry entity
@@ -154,6 +149,8 @@ void Tqdcfr::read_nodeset(Tqdcfr::ModelEntry *model,
 {
   if (nodeseth->numTypes == 0) return;
 
+  Tqdcfr* instance = this;
+
     // position file
   FSEEK(model->modelOffset+nodeseth->nodeOffset);
   
@@ -162,8 +159,8 @@ void Tqdcfr::read_nodeset(Tqdcfr::ModelEntry *model,
   for (int i = 0; i < nodeseth->numTypes; i++) {
       // get how many and what type
     FREADI(2);
-    this_type = Tqdcfr::instance()->int_buf[0];
-    num_ents = Tqdcfr::instance()->int_buf[1];
+    this_type = int_buf[0];
+    num_ents = int_buf[1];
 
       // now get the ids
     FREADI(num_ents);
@@ -187,9 +184,9 @@ void Tqdcfr::read_sideset(Tqdcfr::ModelEntry *model,
   for (int i = 0; i < sideseth->numTypes; i++) {
       // get how many and what type
     FREADI(3);
-    this_type = Tqdcfr::instance()->int_buf[0];
-    num_ents = Tqdcfr::instance()->int_buf[1];
-    sense_size = Tqdcfr::instance()->int_buf[2];
+    this_type = int_buf[0];
+    num_ents = int_buf[1];
+    sense_size = int_buf[2];
 
       // now get the ids
     FREADI(num_ents);
@@ -235,8 +232,8 @@ void Tqdcfr::read_block(Tqdcfr::ModelEntry *model,
   for (int i = 0; i < blockh->numTypes; i++) {
       // get how many and what type
     FREADI(2);
-    this_type = Tqdcfr::instance()->int_buf[0];
-    num_ents = Tqdcfr::instance()->int_buf[1];
+    this_type = int_buf[0];
+    num_ents = int_buf[1];
 
       // now get the ids
     FREADI(num_ents);
@@ -257,7 +254,7 @@ void Tqdcfr::read_block(Tqdcfr::ModelEntry *model,
                                               block_attribs, NULL);
     assert(MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
     result = mdbImpl->tag_set_data(block_attribs, &(blockh->setHandle), 1,
-                                   &(Tqdcfr::instance()->dbl_buf[0]));
+                                   &(dbl_buf[0]));
     assert(MB_SUCCESS == result);
   }
 }
@@ -317,7 +314,7 @@ void Tqdcfr::add_set_entities(const int this_type, const int num_ents,
   else {
       // else offset the id, then look for that entity
     for (i = 0; i < num_ents; i++) {
-      result = mdbImpl->handle_from_id(set_type, Tqdcfr::instance()->int_buf[i], dum_ent);
+      result = mdbImpl->handle_from_id(set_type, int_buf[i], dum_ent);
       if (MB_SUCCESS == result) add_entities.insert(dum_ent);
     }
   }
@@ -344,8 +341,8 @@ void Tqdcfr::read_group(Tqdcfr::ModelEntry *model,
   for (int i = 0; i < grouph->numTypes; i++) {
       // get how many and what type
     FREADI(2);
-    this_type = Tqdcfr::instance()->int_buf[0];
-    num_ents = Tqdcfr::instance()->int_buf[1];
+    this_type = int_buf[0];
+    num_ents = int_buf[1];
 
       // now get the ids
     FREADI(num_ents);
@@ -362,7 +359,7 @@ void Tqdcfr::read_nodes(Tqdcfr::ModelEntry *model,
     // get the ids & coords in separate calls to minimize memory usage
     // position the file
   FSEEK(model->modelOffset+entity->nodeOffset);
-    // get node ids in Tqdcfr::instance()->int_buf
+    // get node ids in int_buf
   FREADI(entity->numNodes);
 
       // check to see if ids are contiguous...
@@ -373,11 +370,11 @@ void Tqdcfr::read_nodes(Tqdcfr::ModelEntry *model,
   MBEntityHandle node_handle = 0;
   std::vector<double*> arrays;
   readUtilIface->get_node_arrays(3, entity->numNodes,
-                                 Tqdcfr::instance()->int_buf[0], node_handle, arrays);
+                                 int_buf[0], node_handle, arrays);
   long unsigned int node_offset;
   node_offset = mdbImpl->id_from_handle( node_handle);
   
-  node_offset -= Tqdcfr::instance()->int_buf[0];
+  node_offset -= int_buf[0];
   if (-1 == currNodeIdOffset)
     currNodeIdOffset = node_offset;
   else
@@ -398,8 +395,7 @@ void Tqdcfr::read_nodes(Tqdcfr::ModelEntry *model,
 
     // set the dimension to at least zero (entity has at least nodes) on the geom tag
   int max_dim = 0;
-  result = Tqdcfr::instance()->mdbImpl->tag_set_data(Tqdcfr::instance()->geomTag, 
-                                                     &entity->setHandle, 1, &max_dim);
+  result = mdbImpl->tag_set_data(geomTag, &entity->setHandle, 1, &max_dim);
   assert(MB_SUCCESS == result);
 
   
@@ -421,9 +417,9 @@ void Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
   for (int i = 0; i < entity->numTypes; i++) {
       // for this elem type, get the type, nodes per elem, num elems
     FREADI(3);
-    int_type = Tqdcfr::instance()->int_buf[0];
-    nodes_per_elem = Tqdcfr::instance()->int_buf[1];
-    num_elem = Tqdcfr::instance()->int_buf[2];
+    int_type = int_buf[0];
+    nodes_per_elem = int_buf[1];
+    num_elem = int_buf[2];
 
       // get MB element type from cub file's 
     MBEntityType elem_type = type_from_cub_type(int_type, nodes_per_elem);
@@ -440,10 +436,10 @@ void Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     MBEntityHandle *conn, start_handle;
     
     readUtilIface->get_element_array(num_elem, nodes_per_elem,
-                                     elem_type, Tqdcfr::instance()->int_buf[0], start_handle, conn);
+                                     elem_type, int_buf[0], start_handle, conn);
         
     long unsigned int elem_offset;
-    elem_offset = mdbImpl->id_from_handle( start_handle) - Tqdcfr::instance()->int_buf[0];
+    elem_offset = mdbImpl->id_from_handle( start_handle) - int_buf[0];
     if (-1 == currElementIdOffset[elem_type])
       currElementIdOffset[elem_type] = elem_offset;
     else
@@ -473,8 +469,7 @@ void Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
   }
 
     // set the dimension on the geom tag
-  result = Tqdcfr::instance()->mdbImpl->tag_set_data(Tqdcfr::instance()->geomTag, 
-                                                     &entity->setHandle, 1, &max_dim);
+  result = mdbImpl->tag_set_data(geomTag, &entity->setHandle, 1, &max_dim);
   assert(MB_SUCCESS == result);
 }
 
@@ -484,9 +479,9 @@ int Tqdcfr::check_contiguous(const int num_ents)
   int curr_id, i;
 
     // check in forward-contiguous direction
-  id_it = Tqdcfr::instance()->int_buf.begin();
+  id_it = int_buf.begin();
   curr_id = *id_it++ + 1;
-  for (i = 1; id_it != Tqdcfr::instance()->int_buf.end() && i < num_ents; id_it++, i++) {
+  for (i = 1; id_it != int_buf.end() && i < num_ents; id_it++, i++) {
     if (*id_it != curr_id) {
       i = 0;
       break;
@@ -498,9 +493,9 @@ int Tqdcfr::check_contiguous(const int num_ents)
   if (i == num_ents) return 1;
 
 // check in reverse-contiguous direction
-  id_it = Tqdcfr::instance()->int_buf.begin();
+  id_it = int_buf.begin();
   curr_id = *id_it++ - 1;
-  for (i = 1; id_it != Tqdcfr::instance()->int_buf.end() && i < num_ents; id_it++, i++) {
+  for (i = 1; id_it != int_buf.end() && i < num_ents; id_it++, i++) {
     if (*id_it != curr_id) {
       i = 0;
       break;
@@ -549,22 +544,22 @@ MBEntityType Tqdcfr::type_from_cub_type(const int cub_type, const int nodes_per_
   return ret_type;
 }
 
-void Tqdcfr::FEModelHeader::init(const int offset) 
+void Tqdcfr::FEModelHeader::init(const int offset, Tqdcfr* instance ) 
 {
   FSEEK(offset);
   FREADI(4);
-  feEndian = Tqdcfr::instance()->int_buf[0];
-  feSchema = Tqdcfr::instance()->int_buf[1];
-  feCompressFlag = Tqdcfr::instance()->int_buf[2];
-  feLength = Tqdcfr::instance()->int_buf[3];
-  FREADI(3); geomArray.init();
+  feEndian = instance->int_buf[0];
+  feSchema = instance->int_buf[1];
+  feCompressFlag = instance->int_buf[2];
+  feLength = instance->int_buf[3];
+  FREADI(3); geomArray.init(instance->int_buf);
   FREADI(2);
-  nodeArray.metaDataOffset = Tqdcfr::instance()->int_buf[0];
-  elementArray.metaDataOffset = Tqdcfr::instance()->int_buf[1];
-  FREADI(3); groupArray.init();
-  FREADI(3); blockArray.init();
-  FREADI(3); nodesetArray.init();
-  FREADI(3); sidesetArray.init();
+  nodeArray.metaDataOffset = instance->int_buf[0];
+  elementArray.metaDataOffset = instance->int_buf[1];
+  FREADI(3); groupArray.init(instance->int_buf);
+  FREADI(3); blockArray.init(instance->int_buf);
+  FREADI(3); nodesetArray.init(instance->int_buf);
+  FREADI(3); sidesetArray.init(instance->int_buf);
   FREADI(1);
 }
 
@@ -573,12 +568,12 @@ void Tqdcfr::read_file_header()
     // read file header
   FSEEK(4);
   FREADI(6);
-  fileTOC.fileEndian = Tqdcfr::instance()->int_buf[0];
-  fileTOC.fileSchema = Tqdcfr::instance()->int_buf[1];
-  fileTOC.numModels = Tqdcfr::instance()->int_buf[2];
-  fileTOC.modelTableOffset = Tqdcfr::instance()->int_buf[3];
-  fileTOC.modelMetaDataOffset = Tqdcfr::instance()->int_buf[4];
-  fileTOC.activeFEModel = Tqdcfr::instance()->int_buf[5];
+  fileTOC.fileEndian = int_buf[0];
+  fileTOC.fileSchema = int_buf[1];
+  fileTOC.numModels = int_buf[2];
+  fileTOC.modelTableOffset = int_buf[3];
+  fileTOC.modelMetaDataOffset = int_buf[4];
+  fileTOC.activeFEModel = int_buf[5];
   if (debug) fileTOC.print();
 }
 
@@ -590,7 +585,7 @@ void Tqdcfr::read_model_entries()
   FREADI(fileTOC.numModels*6);
   modelEntries = new ModelEntry[fileTOC.numModels];
   assert(NULL != modelEntries);
-  std::vector<int>::iterator int_it = Tqdcfr::instance()->int_buf.begin();
+  std::vector<int>::iterator int_it = int_buf.begin();
   for (int i = 0; i < fileTOC.numModels; i++) {
     modelEntries[i].modelHandle = *int_it++;
     modelEntries[i].modelOffset = *int_it++;
@@ -598,7 +593,7 @@ void Tqdcfr::read_model_entries()
     modelEntries[i].modelType = *int_it++;
     modelEntries[i].modelOwner = *int_it++;
     modelEntries[i].modelPad = *int_it++;
-    assert(int_it != Tqdcfr::instance()->int_buf.end() || i == fileTOC.numModels-1);
+    assert(int_it != int_buf.end() || i == fileTOC.numModels-1);
     if (debug) modelEntries[i].print();
   }
 }
@@ -617,9 +612,9 @@ void Tqdcfr::read_meta_data(const int metadata_offset,
     // read the metadata header
   FSEEK(metadata_offset);
   FREADI(3);
-  mc.mdSchema = Tqdcfr::instance()->int_buf[0];
-  mc.compressFlag = Tqdcfr::instance()->int_buf[1];
-  mc.numDatums = Tqdcfr::instance()->int_buf[2];
+  mc.mdSchema = int_buf[0];
+  mc.compressFlag = int_buf[1];
+  mc.numDatums = int_buf[2];
 
     // allocate space for the entries
   mc.metadataEntries = 
@@ -628,8 +623,8 @@ void Tqdcfr::read_meta_data(const int metadata_offset,
     // now read the metadata values
   for (int i = 0; i < mc.numDatums; i++) {
     FREADI(2);
-    mc.metadataEntries[i].mdOwner = Tqdcfr::instance()->int_buf[0];
-    mc.metadataEntries[i].mdDataType = Tqdcfr::instance()->int_buf[1];
+    mc.metadataEntries[i].mdOwner = int_buf[0];
+    mc.metadataEntries[i].mdDataType = int_buf[1];
     
       // read the name string
     read_md_string(mc.metadataEntries[i].mdName);
@@ -637,7 +632,7 @@ void Tqdcfr::read_meta_data(const int metadata_offset,
     if (mc.metadataEntries[i].mdDataType == 0) {
         // integer
       FREADI(1);
-      mc.metadataEntries[i].mdIntValue = Tqdcfr::instance()->int_buf[0];
+      mc.metadataEntries[i].mdIntValue = int_buf[0];
     }
     else if (mc.metadataEntries[i].mdDataType == 1) {
         // string
@@ -646,24 +641,24 @@ void Tqdcfr::read_meta_data(const int metadata_offset,
     else if (mc.metadataEntries[i].mdDataType == 2) {
         // double
       FREADD(1);
-      mc.metadataEntries[i].mdDblValue = Tqdcfr::instance()->dbl_buf[0];
+      mc.metadataEntries[i].mdDblValue = dbl_buf[0];
     }
     else if (mc.metadataEntries[i].mdDataType == 3) {
         // int array
       FREADI(1);
-      mc.metadataEntries[i].mdIntArrayValue.resize(Tqdcfr::instance()->int_buf[0]);
+      mc.metadataEntries[i].mdIntArrayValue.resize(int_buf[0]);
       FREADI(mc.metadataEntries[i].mdIntArrayValue.size());
-      std::copy(Tqdcfr::instance()->int_buf.begin(), 
-                Tqdcfr::instance()->int_buf.begin() + mc.metadataEntries[i].mdIntArrayValue.size(),
+      std::copy(int_buf.begin(), 
+                int_buf.begin() + mc.metadataEntries[i].mdIntArrayValue.size(),
                 std::back_inserter(mc.metadataEntries[i].mdIntArrayValue));
     }
     else if (mc.metadataEntries[i].mdDataType == 4) {
         // double array
       FREADI(1);
-      mc.metadataEntries[i].mdDblArrayValue.resize(Tqdcfr::instance()->int_buf[0]);
+      mc.metadataEntries[i].mdDblArrayValue.resize(int_buf[0]);
       FREADD(mc.metadataEntries[i].mdDblArrayValue.size());
-      std::copy(Tqdcfr::instance()->dbl_buf.begin(), 
-                Tqdcfr::instance()->dbl_buf.begin() + mc.metadataEntries[i].mdDblArrayValue.size(),
+      std::copy(dbl_buf.begin(), 
+                dbl_buf.begin() + mc.metadataEntries[i].mdDblArrayValue.size(),
                 std::back_inserter(mc.metadataEntries[i].mdDblArrayValue));
     }
     else
@@ -675,13 +670,13 @@ void Tqdcfr::read_meta_data(const int metadata_offset,
 void Tqdcfr::read_md_string(std::string &name) 
 {
   FREADI(1);
-  int str_size = Tqdcfr::instance()->int_buf[0];
+  int str_size = int_buf[0];
   if (str_size > 0) {
     FREADC(str_size);
-    if (Tqdcfr::instance()->char_buf.size() <= (unsigned int) str_size)
-      Tqdcfr::instance()->char_buf.resize(str_size+1);
-    Tqdcfr::instance()->char_buf[str_size] = '\0';
-    name = (char *) &Tqdcfr::instance()->char_buf[0];
+    if (char_buf.size() <= (unsigned int) str_size)
+      char_buf.resize(str_size+1);
+    char_buf[str_size] = '\0';
+    name = (char *) &char_buf[0];
       // read pad if any
     int num_word = str_size/4;
     if (4*num_word != str_size) {
@@ -695,6 +690,7 @@ void Tqdcfr::read_md_string(std::string &name)
 void Tqdcfr::EntityHeader::read_info_header(const int model_offset, 
                                             const Tqdcfr::FEModelHeader::ArrayInfo &info,
                                             const int info_type,
+                                            Tqdcfr* instance,
                                             Tqdcfr::EntityHeader *&entity_headers) 
 {
   entity_headers = new EntityHeader[info.numEntities];
@@ -704,19 +700,19 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
   for (int i = 0; i < info.numEntities; i++) {
 
       // create an entity set for this entity
-    MBErrorCode result = Tqdcfr::instance()->mdbImpl->create_meshset(MESHSET_SET, entity_headers[i].setHandle);
+    MBErrorCode result = instance->mdbImpl->create_meshset(MESHSET_SET, entity_headers[i].setHandle);
     assert(MB_SUCCESS == result);
     
     switch (info_type) {
       case geom:
         FREADI(8);
-        entity_headers[i].numNodes = Tqdcfr::instance()->int_buf[0];
-        entity_headers[i].nodeOffset = Tqdcfr::instance()->int_buf[1];
-        entity_headers[i].numElements = Tqdcfr::instance()->int_buf[2];
-        entity_headers[i].elementOffset = Tqdcfr::instance()->int_buf[3];
-        entity_headers[i].numTypes = Tqdcfr::instance()->int_buf[4];
-        entity_headers[i].entityLength = Tqdcfr::instance()->int_buf[5];
-        entity_headers[i].entityID = Tqdcfr::instance()->int_buf[6];
+        entity_headers[i].numNodes = instance->int_buf[0];
+        entity_headers[i].nodeOffset = instance->int_buf[1];
+        entity_headers[i].numElements = instance->int_buf[2];
+        entity_headers[i].elementOffset = instance->int_buf[3];
+        entity_headers[i].numTypes = instance->int_buf[4];
+        entity_headers[i].entityLength = instance->int_buf[5];
+        entity_headers[i].entityID = instance->int_buf[6];
         entity_headers[i].entityType = 
           entity_headers[i].entityColor = 
           entity_headers[i].pyrType = 
@@ -726,12 +722,12 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
 
           // set the dimension to -1; will have to reset later, after elements are read
         dum_int = -1;
-        result = Tqdcfr::instance()->mdbImpl->tag_set_data(Tqdcfr::instance()->geomTag, 
+        result = instance->mdbImpl->tag_set_data(instance->geomTag, 
                                                            &(entity_headers[i].setHandle), 1, &dum_int);
         assert(MB_SUCCESS == result);
 
           // set a unique id tag
-        result = Tqdcfr::instance()->mdbImpl->tag_set_data(Tqdcfr::instance()->uniqueIdTag, 
+        result = instance->mdbImpl->tag_set_data(instance->uniqueIdTag, 
                                                            &(entity_headers[i].setHandle), 1, 
                                                            &(entity_headers[i].entityID));
         assert(MB_SUCCESS == result);
@@ -739,12 +735,12 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
         break;
       case group:
         FREADI(6);
-        entity_headers[i].entityID = Tqdcfr::instance()->int_buf[0];
-        entity_headers[i].entityType = Tqdcfr::instance()->int_buf[1];
-        entity_headers[i].numNodes = Tqdcfr::instance()->int_buf[2];
-        entity_headers[i].nodeOffset = Tqdcfr::instance()->int_buf[3];
-        entity_headers[i].numTypes = Tqdcfr::instance()->int_buf[4];
-        entity_headers[i].entityLength = Tqdcfr::instance()->int_buf[5];
+        entity_headers[i].entityID = instance->int_buf[0];
+        entity_headers[i].entityType = instance->int_buf[1];
+        entity_headers[i].numNodes = instance->int_buf[2];
+        entity_headers[i].nodeOffset = instance->int_buf[3];
+        entity_headers[i].numTypes = instance->int_buf[4];
+        entity_headers[i].entityLength = instance->int_buf[5];
         entity_headers[i].numElements = 
           entity_headers[i].elementOffset = 
           entity_headers[i].entityColor = 
@@ -755,12 +751,12 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
 
           // set the group tag to 1 to signify this is a group
         dum_int = 1;
-        result = Tqdcfr::instance()->mdbImpl->tag_set_data(Tqdcfr::instance()->groupTag, 
+        result = instance->mdbImpl->tag_set_data(instance->groupTag, 
                                                            &(entity_headers[i].setHandle), 1, &dum_int);
         assert(MB_SUCCESS == result);
 
           // set a global id tag
-        result = Tqdcfr::instance()->mdbImpl->tag_set_data(Tqdcfr::instance()->globalIdTag, 
+        result = instance->mdbImpl->tag_set_data(instance->globalIdTag, 
                                                            &(entity_headers[i].setHandle), 1, 
                                                &(entity_headers[i].entityID));
         assert(MB_SUCCESS == result);
@@ -768,38 +764,38 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
         break;
       case block:
         FREADI(12);
-        entity_headers[i].entityID = Tqdcfr::instance()->int_buf[0];
-        entity_headers[i].entityType = Tqdcfr::instance()->int_buf[1];
-        entity_headers[i].numNodes = Tqdcfr::instance()->int_buf[2];
-        entity_headers[i].nodeOffset = Tqdcfr::instance()->int_buf[3];
-        entity_headers[i].numTypes = Tqdcfr::instance()->int_buf[4];
-        entity_headers[i].numElements = Tqdcfr::instance()->int_buf[5]; // attrib order
-        entity_headers[i].entityColor = Tqdcfr::instance()->int_buf[6];
-        entity_headers[i].elementOffset = Tqdcfr::instance()->int_buf[7]; // mixed elem type
-        entity_headers[i].pyrType = Tqdcfr::instance()->int_buf[8];
-        entity_headers[i].matType = Tqdcfr::instance()->int_buf[9];
-        entity_headers[i].entityLength = Tqdcfr::instance()->int_buf[10];
-        entity_headers[i].blockDimension = Tqdcfr::instance()->int_buf[11];
+        entity_headers[i].entityID = instance->int_buf[0];
+        entity_headers[i].entityType = instance->int_buf[1];
+        entity_headers[i].numNodes = instance->int_buf[2];
+        entity_headers[i].nodeOffset = instance->int_buf[3];
+        entity_headers[i].numTypes = instance->int_buf[4];
+        entity_headers[i].numElements = instance->int_buf[5]; // attrib order
+        entity_headers[i].entityColor = instance->int_buf[6];
+        entity_headers[i].elementOffset = instance->int_buf[7]; // mixed elem type
+        entity_headers[i].pyrType = instance->int_buf[8];
+        entity_headers[i].matType = instance->int_buf[9];
+        entity_headers[i].entityLength = instance->int_buf[10];
+        entity_headers[i].blockDimension = instance->int_buf[11];
         entity_headers[i].shellsFlag = -1;
 
           // set the material set tag and id tag both to id
-        result = Tqdcfr::instance()->mdbImpl->tag_set_data(Tqdcfr::instance()->blockTag, &(entity_headers[i].setHandle), 1, 
+        result = instance->mdbImpl->tag_set_data(instance->blockTag, &(entity_headers[i].setHandle), 1, 
                                                &(entity_headers[i].entityID));
         assert(MB_SUCCESS == result);
-        result = Tqdcfr::instance()->mdbImpl->tag_set_data(Tqdcfr::instance()->globalIdTag, &(entity_headers[i].setHandle), 1, 
+        result = instance->mdbImpl->tag_set_data(instance->globalIdTag, &(entity_headers[i].setHandle), 1, 
                                                &(entity_headers[i].entityID));
         assert(MB_SUCCESS == result);
         
         break;
       case nodeset:
         FREADI(8);
-        entity_headers[i].entityID = Tqdcfr::instance()->int_buf[0];
-        entity_headers[i].numNodes = Tqdcfr::instance()->int_buf[1];
-        entity_headers[i].nodeOffset = Tqdcfr::instance()->int_buf[2];
-        entity_headers[i].numTypes = Tqdcfr::instance()->int_buf[3];
-        entity_headers[i].pyrType = Tqdcfr::instance()->int_buf[4];  // point sym
-        entity_headers[i].entityColor = Tqdcfr::instance()->int_buf[5];
-        entity_headers[i].entityLength = Tqdcfr::instance()->int_buf[6];
+        entity_headers[i].entityID = instance->int_buf[0];
+        entity_headers[i].numNodes = instance->int_buf[1];
+        entity_headers[i].nodeOffset = instance->int_buf[2];
+        entity_headers[i].numTypes = instance->int_buf[3];
+        entity_headers[i].pyrType = instance->int_buf[4];  // point sym
+        entity_headers[i].entityColor = instance->int_buf[5];
+        entity_headers[i].entityLength = instance->int_buf[6];
           // pad
 
         entity_headers[i].entityType =
@@ -810,24 +806,24 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
           entity_headers[i].shellsFlag = -1;
 
           // set the dirichlet set tag and id tag both to id
-        result = Tqdcfr::instance()->mdbImpl->tag_set_data(Tqdcfr::instance()->nsTag, &(entity_headers[i].setHandle), 1, 
+        result = instance->mdbImpl->tag_set_data(instance->nsTag, &(entity_headers[i].setHandle), 1, 
                                                &(entity_headers[i].entityID));
         assert(MB_SUCCESS == result);
-        result = Tqdcfr::instance()->mdbImpl->tag_set_data(Tqdcfr::instance()->globalIdTag, &(entity_headers[i].setHandle), 1, 
+        result = instance->mdbImpl->tag_set_data(instance->globalIdTag, &(entity_headers[i].setHandle), 1, 
                                                &(entity_headers[i].entityID));
         assert(MB_SUCCESS == result);
         
         break;
       case sideset:
         FREADI(8);
-        entity_headers[i].entityID = Tqdcfr::instance()->int_buf[0];
-        entity_headers[i].numNodes = Tqdcfr::instance()->int_buf[1];
-        entity_headers[i].nodeOffset = Tqdcfr::instance()->int_buf[2];
-        entity_headers[i].numTypes = Tqdcfr::instance()->int_buf[3];
-        entity_headers[i].numElements = Tqdcfr::instance()->int_buf[4]; // num dist factors
-        entity_headers[i].entityColor = Tqdcfr::instance()->int_buf[5];
-        entity_headers[i].shellsFlag = Tqdcfr::instance()->int_buf[6];
-        entity_headers[i].entityLength = Tqdcfr::instance()->int_buf[7];
+        entity_headers[i].entityID = instance->int_buf[0];
+        entity_headers[i].numNodes = instance->int_buf[1];
+        entity_headers[i].nodeOffset = instance->int_buf[2];
+        entity_headers[i].numTypes = instance->int_buf[3];
+        entity_headers[i].numElements = instance->int_buf[4]; // num dist factors
+        entity_headers[i].entityColor = instance->int_buf[5];
+        entity_headers[i].shellsFlag = instance->int_buf[6];
+        entity_headers[i].entityLength = instance->int_buf[7];
 
         entity_headers[i].pyrType =
           entity_headers[i].entityType =
@@ -837,10 +833,10 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
           entity_headers[i].blockDimension = -1;
 
           // set the neumann set tag and id tag both to id
-        result = Tqdcfr::instance()->mdbImpl->tag_set_data(Tqdcfr::instance()->ssTag, &(entity_headers[i].setHandle), 1, 
+        result = instance->mdbImpl->tag_set_data(instance->ssTag, &(entity_headers[i].setHandle), 1, 
                                                &(entity_headers[i].entityID));
         assert(MB_SUCCESS == result);
-        result = Tqdcfr::instance()->mdbImpl->tag_set_data(Tqdcfr::instance()->globalIdTag, &(entity_headers[i].setHandle), 1, 
+        result = instance->mdbImpl->tag_set_data(instance->globalIdTag, &(entity_headers[i].setHandle), 1, 
                                                &(entity_headers[i].entityID));
         assert(MB_SUCCESS == result);
         
@@ -861,78 +857,83 @@ void Tqdcfr::ModelEntry::print_header(const char *prefix,
     header[i].print();
 }
           
-void Tqdcfr::ModelEntry::read_header_info()
+void Tqdcfr::ModelEntry::read_header_info( Tqdcfr* instance )
 {
-  feModelHeader.init(modelOffset);
+  feModelHeader.init(modelOffset, instance);
   int default_val = -1;
   MBErrorCode result;
 
-  result = Tqdcfr::instance()->mdbImpl->tag_create(GLOBAL_ID_TAG_NAME, 4, MB_TAG_DENSE, 
-                                                          Tqdcfr::instance()->globalIdTag, &default_val);
+  result = instance->mdbImpl->tag_create(GLOBAL_ID_TAG_NAME, 4, MB_TAG_DENSE, 
+                                         instance->globalIdTag, &default_val);
   assert(MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
 
   if (feModelHeader.geomArray.numEntities > 0) {
-    result = Tqdcfr::instance()->mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4, MB_TAG_SPARSE, 
-                                                Tqdcfr::instance()->geomTag, &default_val);
+    result = instance->mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4, MB_TAG_SPARSE, 
+                                                instance->geomTag, &default_val);
     assert(MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
     
-    result = Tqdcfr::instance()->mdbImpl->tag_create("UNIQUE_ID", 4, MB_TAG_SPARSE, 
-                                                            Tqdcfr::instance()->uniqueIdTag, &default_val);
+    result = instance->mdbImpl->tag_create("UNIQUE_ID", 4, MB_TAG_SPARSE, 
+                                                            instance->uniqueIdTag, &default_val);
     assert(MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
     
     Tqdcfr::EntityHeader::read_info_header(modelOffset, 
                                            feModelHeader.geomArray, 
                                            Tqdcfr::EntityHeader::geom, 
+                                           instance,
                                            feGeomH);
     print_header("Geom headers:", feModelHeader.geomArray,
                  feGeomH);
   }
   
   if (feModelHeader.groupArray.numEntities > 0) {
-    result = Tqdcfr::instance()->mdbImpl->tag_create("GROUP_SET", 4, MB_TAG_SPARSE, 
-                                                Tqdcfr::instance()->groupTag, &default_val);
+    result = instance->mdbImpl->tag_create("GROUP_SET", 4, MB_TAG_SPARSE, 
+                                                instance->groupTag, &default_val);
     assert(MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
     
     Tqdcfr::EntityHeader::read_info_header(modelOffset, 
                                            feModelHeader.groupArray, 
                                            Tqdcfr::EntityHeader::group,
+                                           instance,
                                            feGroupH);
     print_header("Group headers:", feModelHeader.groupArray,
                  feGroupH);
   }
 
   if (feModelHeader.blockArray.numEntities > 0) {
-    result = Tqdcfr::instance()->mdbImpl->tag_create(MATERIAL_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
-                                                Tqdcfr::instance()->blockTag, &default_val);
+    result = instance->mdbImpl->tag_create(MATERIAL_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
+                                                instance->blockTag, &default_val);
     assert(MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
     
     Tqdcfr::EntityHeader::read_info_header(modelOffset, 
                                            feModelHeader.blockArray, 
                                            Tqdcfr::EntityHeader::block, 
+                                           instance,
                                            feBlockH);
     print_header("Block headers:", feModelHeader.blockArray,
                  feBlockH);
   }
   if (feModelHeader.nodesetArray.numEntities > 0) {
-    result = Tqdcfr::instance()->mdbImpl->tag_create(DIRICHLET_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
-                                                Tqdcfr::instance()->nsTag, &default_val);
+    result = instance->mdbImpl->tag_create(DIRICHLET_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
+                                                instance->nsTag, &default_val);
     assert(MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
     
     Tqdcfr::EntityHeader::read_info_header(modelOffset, 
                                            feModelHeader.nodesetArray, 
                                            Tqdcfr::EntityHeader::nodeset, 
+                                           instance,
                                            feNodeSetH);
     print_header("Nodeset headers:", feModelHeader.nodesetArray,
                  feNodeSetH);
   }
   if (feModelHeader.sidesetArray.numEntities > 0) {
-    result = Tqdcfr::instance()->mdbImpl->tag_create(NEUMANN_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
-                                                Tqdcfr::instance()->ssTag, &default_val);
+    result = instance->mdbImpl->tag_create(NEUMANN_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
+                                                instance->ssTag, &default_val);
     assert(MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
     
     Tqdcfr::EntityHeader::read_info_header(modelOffset, 
                                            feModelHeader.sidesetArray, 
                                            Tqdcfr::EntityHeader::sideset, 
+                                           instance,
                                            feSideSetH);
     print_header("SideSet headers:", feModelHeader.sidesetArray,
                  feSideSetH);
@@ -1071,8 +1072,8 @@ void Tqdcfr::interpret_acis_records(std::vector<AcisRecord> &records)
     // make a tag for the vector holding unrecognized attributes
   void *default_val = NULL;
   MBErrorCode result = 
-    Tqdcfr::instance()->mdbImpl->tag_create("ATTRIB_VECTOR", sizeof(void*), MB_TAG_SPARSE, 
-                                                   Tqdcfr::instance()->attribVectorTag, &default_val);
+    mdbImpl->tag_create("ATTRIB_VECTOR", sizeof(void*), MB_TAG_SPARSE, 
+                         attribVectorTag, &default_val);
   assert(MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
 
   int current_record = 0;
