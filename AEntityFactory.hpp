@@ -49,6 +49,11 @@ public:
                             const bool create_if_missing,
                             const int create_adjacency_option = -1);
 
+    //! get the vertices for a polyhedron (special implementation because for polyhedra
+    //! connectivity array stores faces)
+  MBErrorCode get_polyhedron_vertices(const MBEntityHandle source_entity, 
+                                      std::vector<MBEntityHandle> &target_entities);
+  
 //! get the meshsets that are in source_entitiy's adjacency vector
   MBErrorCode get_associated_meshsets( MBEntityHandle source_entity, 
                                         std::vector<MBEntityHandle> &target_entities );

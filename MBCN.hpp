@@ -233,6 +233,9 @@ inline void MBCN::SubEntityConn(const MBEntityType this_type,
 inline bool MBCN::HasMidEdgeNodes(const MBEntityType this_type, 
                                      const int num_nodes)
 {
+    // poly elements never have mid nodes as far as canonical ordering is concerned
+  if (MBPOLYGON == this_type || MBPOLYHEDRON == this_type) return false;
+
   if (num_nodes == (VerticesPerEntity(this_type) + NumSubEntities(this_type, 1)) ||
       num_nodes == (VerticesPerEntity(this_type) + NumSubEntities(this_type, 1) + 
                     NumSubEntities(this_type, 2)) ||
@@ -248,6 +251,9 @@ inline bool MBCN::HasMidEdgeNodes(const MBEntityType this_type,
 inline bool MBCN::HasMidFaceNodes(const MBEntityType this_type, 
                                        const int num_nodes)
 {
+    // poly elements never have mid nodes as far as canonical ordering is concerned
+  if (MBPOLYGON == this_type || MBPOLYHEDRON == this_type) return false;
+
   if (num_nodes == (VerticesPerEntity(this_type) + NumSubEntities(this_type, 2)) ||
       num_nodes == (VerticesPerEntity(this_type) + NumSubEntities(this_type, 1) + 
                     NumSubEntities(this_type, 2)) ||
@@ -263,6 +269,9 @@ inline bool MBCN::HasMidFaceNodes(const MBEntityType this_type,
 inline bool MBCN::HasMidRegionNodes(const MBEntityType this_type, 
                                          const int num_nodes)
 {
+    // poly elements never have mid nodes as far as canonical ordering is concerned
+  if (MBPOLYGON == this_type || MBPOLYHEDRON == this_type) return false;
+
   if (num_nodes == (VerticesPerEntity(this_type) + 1) ||
       num_nodes == (VerticesPerEntity(this_type) + NumSubEntities(this_type, 1) + 1) ||
       num_nodes == (VerticesPerEntity(this_type) + NumSubEntities(this_type, 1) + 
@@ -277,7 +286,9 @@ inline bool MBCN::HasMidRegionNodes(const MBEntityType this_type,
 inline void MBCN::HasMidNodes(const MBEntityType this_type, const int num_nodes,
                                   bool mid_nodes[3])
 {
-  if (num_nodes <= VerticesPerEntity(this_type)) {
+  if (num_nodes <= VerticesPerEntity(this_type) ||
+    // poly elements never have mid nodes as far as canonical ordering is concerned
+      MBPOLYGON == this_type || MBPOLYHEDRON == this_type) {
     mid_nodes[0] = false;
     mid_nodes[1] = false;
     mid_nodes[2] = false;

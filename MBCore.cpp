@@ -640,9 +640,9 @@ MBErrorCode  MBCore::get_connectivity(const MBEntityHandle *entity_handles,
 
 //! get the connectivity for element handles.  For non-element handles, return an error
 MBErrorCode MBCore::get_connectivity(const MBEntityHandle entity_handle, 
-                                       const MBEntityHandle*& connectivity,
-                                       int& number_nodes,
-                                       bool topological_connectivity) const
+                                     const MBEntityHandle*& connectivity,
+                                     int& number_nodes,
+                                     bool topological_connectivity) const
 {
 
   MBErrorCode status;
@@ -650,7 +650,6 @@ MBErrorCode MBCore::get_connectivity(const MBEntityHandle entity_handle,
     // Make sure the entity should have a connectivity.
   MBEntityType type = TYPE_FROM_HANDLE(entity_handle);
   
-
     // WARNING: This is very dependent on the ordering of the MBEntityType enum
   if(type <= MBVERTEX || type >= MBENTITYSET)
     return MB_TYPE_OUT_OF_RANGE;
@@ -663,18 +662,10 @@ MBErrorCode MBCore::get_connectivity(const MBEntityHandle entity_handle,
   if (seq == 0 || status != MB_SUCCESS || !seq->is_valid_entity(entity_handle)) 
     return MB_ENTITY_NOT_FOUND;
 
-  status = static_cast<ElementEntitySequence*>(seq)->get_connectivity_array(const_cast<MBEntityHandle*&>(connectivity));
-  number_nodes = static_cast<ElementEntitySequence*>(seq)->nodes_per_element();
-
-  connectivity += (entity_handle - seq->get_start_handle())*number_nodes;
-  
-  if (topological_connectivity)
-    number_nodes = MBCN::VerticesPerEntity(type);
-
-  return status;
-
+  return static_cast<ElementEntitySequence*>(seq)->get_connectivity(entity_handle, connectivity,
+                                                                    number_nodes,
+                                                                    topological_connectivity);
 }
-
 
 //! set the connectivity for element handles.  For non-element handles, return an error
 MBErrorCode  MBCore::set_connectivity(const MBEntityHandle entity_handle, 
@@ -720,7 +711,7 @@ MBErrorCode MBCore::get_adjacencies(const MBEntityHandle *from_entities,
 {
   MBErrorCode result;
   if (num_entities == 1) {
-    if(to_dimension == 0)
+    if(to_dimension == 0 && TYPE_FROM_HANDLE(from_entities[0]) != MBPOLYHEDRON)
       result = get_connectivity(&from_entities[0], 1, adj_entities);
     else
       result = aEntityFactory->get_adjacencies(from_entities[0], to_dimension, 
@@ -771,7 +762,7 @@ MBErrorCode MBCore::get_adjacencies(const MBRange &from_entities,
     temp_range.clear();
 
       // get the next set of adjacencies
-    if(to_dimension == 0)
+    if(to_dimension == 0 && TYPE_FROM_HANDLE(*from_it) != MBPOLYHEDRON)
       tmp_result = get_connectivity(&(*from_it), 1, temp_vec);
     else
       tmp_result = aEntityFactory->get_adjacencies(*from_it, to_dimension, 

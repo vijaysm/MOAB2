@@ -36,7 +36,8 @@ public:
                                        const bool topological_connectivity = false) const;
   virtual MBErrorCode get_connectivity(MBEntityHandle entity, 
                                        const MBEntityHandle*& connectivity,
-                                       int &num_vertices) const;
+                                       int &num_vertices,
+                                       const bool topological_connectivity = false) const;
 
   MBErrorCode set_connectivity(MBEntityHandle entity, const MBEntityHandle *conn,
                                const int num_vertices);

@@ -44,7 +44,8 @@ bool PolyEntitySequence::is_valid_entity(MBEntityHandle entity) const
 
 MBErrorCode PolyEntitySequence::get_connectivity(MBEntityHandle entity,
                                                  const MBEntityHandle*& conn,
-                                                 int &num_vertices) const
+                                                 int &num_vertices,
+                                                 const bool /*topological_connectivity*/) const
 {
   int index = entity - mStartEntityHandle;
   assert (0 <= index);

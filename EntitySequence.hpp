@@ -162,7 +162,8 @@ public:
                                        const bool topological_connectivity = false) const;
   virtual MBErrorCode get_connectivity(MBEntityHandle entity, 
                                         const MBEntityHandle*& connectivity,
-                                        int &num_vertices) const;
+                                        int &num_vertices,
+                                       const bool topological_connectivity = false) const;
 
   virtual MBErrorCode set_connectivity(MBEntityHandle entity, const MBEntityHandle *conn,
                                 const int num_vertices);
@@ -251,12 +252,15 @@ inline bool ElementEntitySequence::is_valid_entity(MBEntityHandle entity) const
 }
 
 inline MBErrorCode ElementEntitySequence::get_connectivity(MBEntityHandle entity,
-                                                            const MBEntityHandle*& conn,
-                                                            int &num_vertices) const
+                                                           const MBEntityHandle*& conn,
+                                                           int &num_vertices,
+                                                           const bool topological_connectivity) const
 {
   num_vertices = mNodesPerElement;
   int index = entity - mStartEntityHandle;
   conn = mElements+index*mNodesPerElement;
+  num_vertices = (topological_connectivity ? MBCN::VerticesPerEntity(TYPE_FROM_HANDLE(entity))
+              : mNodesPerElement);
   return MB_SUCCESS;
 }
 

@@ -3017,6 +3017,156 @@ MBErrorCode mb_canon_number_test(MBInterface *MB)
   return MB_SUCCESS;
 }
 
+MBErrorCode mb_poly_test(MBInterface *mb) 
+{
+    // test polygon and polyhedron representation
+    // create a couple of polygons; vertices first
+  const double vert_pos[48] = {
+    -1, 0, 0,
+    1, 0, 0, 
+    2, 0, 0,
+    2, 1, 0,
+    1, 1, 0,
+    0, 2, 0,
+    -1, 1, 0,
+    -2, 1, 0,
+    -2, 0, 0,
+    -2, -1, 0,
+    -1, -1, 0,
+    -1, -2, 0,
+    1, -2, 0,
+    1, -1, 0,
+    2, -1, 0,
+    1.5, .5, 1};
+
+  MBEntityHandle verts[16];
+  MBErrorCode result;
+  int i;
+  for (i = 0; i < 16; i++) {
+    result = mb->create_vertex(&vert_pos[3*i], verts[i]);
+    if (MB_SUCCESS != result) {
+      std::cout << "Failed to create vertex " << i << " in mb_poly_test." << std::endl;
+      return result;
+    }
+  }
+
+    // then polygons
+  const int connect_idx[] = 
+    {
+      1, 2, 5, 6, 7,
+      2, 3, 4, 5,
+      5, 4, 6,
+      7, 6, 8,
+      0, 1, 7, 8,
+      0, 1, 2, 3, 14, 13, 12, 11, 10, 9,
+      0, 9, 10, 11, 12, 13, 14, 3, 4, 6, 8,
+      2, 3, 15, 5,
+      3, 4, 5, 15
+    };
+  
+  int num_connect_idx[] = {5, 4, 3, 3, 4, 10, 11, 4, 4};
+  
+  MBEntityHandle polygons[9], temp_connect[12];
+  int idx = 0, nump = 0;
+  MBErrorCode tmp_result;
+  while (nump < 9) {
+    for (i = 0; i < num_connect_idx[nump]; i++)
+      temp_connect[i] = verts[connect_idx[idx+i]];
+      
+    tmp_result = mb->create_element(MBPOLYGON, temp_connect, num_connect_idx[nump], 
+                                polygons[nump]);
+    if (MB_SUCCESS != tmp_result) {
+      std::cout << "mb_poly_test: create_element failed for polygon " << i << "." << std::endl;
+      result = tmp_result;
+      nump++;
+      continue;
+    }
+    
+    idx += num_connect_idx[nump];
+    nump++;
+  }
+
+  if (MB_SUCCESS != result) return result;
+  
+    // ok, made 'em; now get all the vertices and make sure they're the same
+  const MBEntityHandle *connect;
+  int num_connect;
+  idx = 0;
+  int j;
+  for (i = 0; i < 9; i++) {
+    tmp_result = mb->get_connectivity(polygons[i], connect, num_connect);
+    if (MB_SUCCESS != tmp_result || num_connect != num_connect_idx[i]) {
+      std::cout << "mb_poly_test: get_connectivity test failed for polygon " << i << "." << std::endl;
+      result = (tmp_result != MB_SUCCESS ? tmp_result : MB_FAILURE);
+      continue;
+    }
+
+    for (j = 0; j < num_connect; j++) {
+      if (connect[j] != verts[connect_idx[idx+j]]) {
+        std::cout << "mb_poly_test: get_connectivity test returned wrong vertices for polygon " 
+                  << i << "." << std::endl;
+        result = MB_FAILURE;
+        continue;
+      }
+    }
+    
+    idx += num_connect;
+  }
+  
+  if (MB_SUCCESS != result) return result;
+
+    // check a different way, with ranges
+  MBRange vert_range, poly_range;
+  for (i = 0; i < 9; i++) poly_range.insert(polygons[i]);
+  result = mb->get_adjacencies(poly_range, 0, false, vert_range, 
+                               MBInterface::UNION);
+  if (MB_SUCCESS != result) {
+    std::cout << "mb_poly_test: get_adjacencies failed for polygon " 
+                << i << "." << std::endl;
+    return result;
+  }
+  
+  else if (vert_range.size() != 16) {
+    std::cout << "mb_poly_test: get_adjacencies returned wrong # of vertices for polygon " 
+                << i << "." << std::endl;
+    return MB_FAILURE;
+  }
+  
+    // make a couple polyhedra
+  MBEntityHandle polyhedra[2];
+  result = mb->create_element(MBPOLYHEDRON, polygons, 7, polyhedra[0]);
+  if (MB_SUCCESS != result) {
+    std::cout << "mb_poly_test: create_element failed for polyhedron 1." << std::endl;
+    return result;
+  }
+
+  temp_connect[0] = polygons[1];
+  temp_connect[1] = polygons[7];
+  temp_connect[2] = polygons[8];
+  result = mb->create_element(MBPOLYHEDRON, temp_connect, 3, polyhedra[1]);
+  if (MB_SUCCESS != result) {
+    std::cout << "mb_poly_test: create_element failed for polyhedron 2." << std::endl;
+    return result;
+  }
+  
+    // now look for vertices common to both
+  std::vector<MBEntityHandle> temp_verts;
+  result = mb->get_adjacencies(polyhedra, 2, 0, false, temp_verts);
+  if (MB_SUCCESS != result) {
+    std::cout << "mb_poly_test: get_adjacencies failed for polyhedra." << std::endl;
+    return result;
+  }
+
+  if (4 != temp_verts.size()) {
+    std::cout << "mb_poly_test: get_adjacencies for polyhedra returned " << temp_verts.size()
+              << " vertices, should be 4." << std::endl;
+    return MB_FAILURE;
+  }
+  
+    // ok, we're probably fine
+  return MB_SUCCESS;
+}
+
 MBErrorCode mb_range_test(MBInterface *) 
 {
 
@@ -3433,6 +3583,15 @@ int main(int argc, char* argv[])
   // MB test
   cout << "   mb_canon_number_test: ";
   result = mb_canon_number_test(gMB);
+  handle_error_code(result, number_tests_failed,
+                    number_tests_not_implemented,
+                    number_tests_successful);
+  number_tests++;
+  cout << "\n";
+ 
+  // poly test
+  cout << "   mb_poly_test: ";
+  result = mb_poly_test(gMB);
   handle_error_code(result, number_tests_failed,
                     number_tests_not_implemented,
                     number_tests_successful);
