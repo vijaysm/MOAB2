@@ -868,13 +868,10 @@ MBErrorCode WriteHDF5::get_set_info( MBEntityHandle set,
     return rval;
   num_children = i;
 
-/********************************* FIX ME *********************************
   rval = iFace->get_meshset_options( set, u );
   if (MB_SUCCESS != rval)
     return rval;
   flags = u;
-**************************************************************************/
-  flags = MESHSET_SET;
   
   return MB_SUCCESS;
 }

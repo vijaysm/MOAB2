@@ -1909,10 +1909,23 @@ MBErrorCode MBCore::create_meshset(const unsigned int options,
   return MB_SUCCESS;
 }
 
-MBErrorCode MBCore::get_meshset_options(const MBEntityHandle /*ms_handle*/, 
-                                          unsigned int& /*options*/) const
+MBErrorCode MBCore::get_meshset_options( const MBEntityHandle ms_handle, 
+                                          unsigned int& options) const
 {
-  assert(false);
+  MBMeshSet *ms_ptr = update_cache( ms_handle );
+  if (!ms_ptr) 
+    return MB_ENTITY_NOT_FOUND;
+  
+  if (dynamic_cast<MBMeshSet_MBRange*>(ms_ptr))
+    options = MESHSET_SET;
+  else if (dynamic_cast<MBMeshSet_Vector*>(ms_ptr))
+    options = MESHSET_ORDERED;
+  else
+    { assert(0); return MB_FAILURE; }
+  
+  if (ms_ptr->tracking())
+    options |= MESHSET_TRACK_OWNER;
+  
   return MB_SUCCESS;
 }
 
