@@ -949,13 +949,18 @@ mhdf_readAdjacency( hid_t data_handle,
  * the set contents table and the set children table.  Each is written and read independently.
  *
  * The set list table contains one row for each set.  Each row contains three values:
- * {content list length, child list length, flags}.  The flags is a collection of bits with
+ * {content list end index, child list end index, flags}.  The flags is a collection of bits with
  * values from \ref mhdf_set_flag .  The all the flags except \ref mhdf_SET_RANGE_BIT are
  * saved properties of the mesh data and are not relevant to the actual file in any way.  The
  * \ref mhdf_SET_RANGE_BIT flag is a toggle for how the meshset contents (not children) are saved.
  * It is an internal property of the file format and should not be passed on to the mesh database.
- * The content list length is the number of values in the contents list used to specify the contents
- * of the set.  Similarly the child list length is the number of entries in the set children table.
+ * The content list end index and child list end index are the indices of the last entry for the
+ * set in the contents and children tables respectively.  In the case where a set has either no
+ * children or no contents, the last index of should be the same as the last index of the previous
+ * set in the table, or -1 for the first set in the table.  Thus the first index is always one
+ * greater than the last index of the previous set.  If the first index, calculated as one greater
+ * that the last index of the previous set is greater than the last index of the current set, then
+ * there are no values in the corresponding contents or children table for that set.
  *
  * The set contents table is a vector of integer global IDs that is the concatenation of the contents
  * data for all of the mesh sets.  The values are stored corresponding to the order of the sets
@@ -963,9 +968,7 @@ mhdf_readAdjacency( hid_t data_handle,
  * the set list table, the contents for a specific set may be stored in one of two formats.  If the
  * flag is set, the contents list is a list of pairs where each pair is a starting global Id and a 
  * count.  For each pair, the set contains the range of global Ids beginning at the start value. 
- * The content list length in the set list table for a set with ranged data is the total number of
- * values in the content list for that set, or twice the number of ranges.  If the \ref mhdf_SET_RANGE_BIT
- * flag is not set, the meshset contents are a simple list of global Ids.
+ * If the \ref mhdf_SET_RANGE_BIT flag is not set, the meshset contents are a simple list of global Ids.
  *
  * The meshset child table is a vector of integer global IDs.  It is a concatenation of the child
  * lists for all the mesh sets, in the order the sets occur in the meshset list table.  The values
@@ -1003,16 +1006,19 @@ mhdf_readAdjacency( hid_t data_handle,
  * 
  * The set table contains description of sets, but not contents or
  * children.  The table is a <code>n x 3</code> matrix of values.  
- * One row for each of <code>n</code> sets.  Each row contains the length
- * of the set content list, the number of children of the set, and the set
- * flags, respectively for the corresponding set. The \ref mhdf_SET_RANGE_BIT
+ * One row for each of <code>n</code> sets.  Each row contains the end index
+ * for the set in the contents table, the end index for the set in the children
+ * table, and the set flags, respectively. The \ref mhdf_SET_RANGE_BIT
  * bit in the flags specifies the format of the contents list for each set.
  * See a description of the \ref mhdf_SET_RANGE_BIT flag for a description
- * of the two possbile data formats.  The first value for each set specifies
- * the length of the set contents list, which may be less that the number
- * of entities in the set depending on the state of the 
- * \ref mhdf_SET_RANGE_BIT bit in the correspong set flag list.  Any other
- * values in the set flag list are TSTT-specific set flags.
+ * of the two possbile data formats.  The index values in the first two columns
+ * of the table are the index of the <em>last</em> value for the set in the corresponding
+ * contents and children lists.  The first index is always one greater than the last index
+ * for the previous set in the table.  The first index of the first set in the table is
+ * implicitly zero.  A special value of -1 in the appropraite column should be used to 
+ * indicate that the first set contains no contents or has no children.  For any other set,
+ * if the last index for the set is the same as that of the previous set, it has no data
+ * in the corresponding list. 
  *
  *\param file_handle  The file.
  *\param num_sets     The number of sets in the table.
@@ -1047,7 +1053,7 @@ mhdf_haveSets( mhdf_FileHandle file,
 /** \brief Open table holding list of meshsets and their properties.
  * 
  * Open set list.  
- * See \ref mhdf_createSetMeta for a description of this data.
+ * See \ref mhdf_createSetMeta or \ref mhdf_set for a description of this data.
  *
  *\param file_handle  The file.
  *\param num_sets_out The number of sets in the table.
@@ -1065,8 +1071,8 @@ mhdf_openSetMeta( mhdf_FileHandle file_handle,
 
 /** \brief Read list of sets and meta-information about sets.
  *
- * Read set descriptions.  See \ref mhdf_createSetMeta for a 
- * description of the data format.
+ * Read set descriptions.  See \ref mhdf_createSetMeta or \ref mhdf_set 
+ * for a description of this data.
  *
  *\param data_handle The handle returned from \ref mhdf_createSetMeta or
  *                   \ref mhdf_openSetMeta.
@@ -1089,7 +1095,7 @@ mhdf_readSetMeta( hid_t data_handle,
 
 /** \brief Write list of sets and meta-information about sets.
  *
- * WRite set descriptions.  See \ref mhdf_createSetMeta for a 
+ * Write set descriptions.  See \ref mhdf_createSetMeta or \ref mhdf_set for a 
  * description of the data format.
  *
  *\param data_handle The handle returned from \ref mhdf_createSetMeta or
