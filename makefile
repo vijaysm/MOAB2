@@ -25,6 +25,7 @@
 #         !!!!! warning: if you have another version of libxpcom.so, you'll get conflicts      !!!!!
 #
 
+MOAB_IMPL_VERSION = 0.99
 
 include MB.$(MACHINE_TYPE)
 
@@ -45,7 +46,6 @@ MB_LIB_SRCS = \
 	MBBits.cpp \
 	MBCN.cpp \
 	MBCore.cpp \
-	MBDefines.cpp \
 	MBFactory.cpp \
 	MBMeshSet.cpp \
 	MBRange.cpp \
@@ -61,6 +61,11 @@ MB_LIB_SRCS = \
 	TagServer.cpp \
 	Tqdcfr.cpp \
 	WriteNCDF.cpp
+
+UTEST_SRCS = merge_test.cpp scdseq_test.cpp test_adj.cpp test_exo.cpp test_rms.cpp
+
+DUM_LIB_HDRS = ${MB_LIB_SRCS:.cpp=.hpp} 
+MB_LIB_HDRS = ${DUM_LIB_HDRS:MBFactory.hpp=} 
 
 # object files for building the static library
 MB_LIB_OBJS = ${MB_LIB_SRCS:.cpp=.o} 
@@ -120,13 +125,13 @@ components :
 	@ echo Making "components" directory...
 	@ mkdir components
 
-runtest: moab_test homxform_test.static
+runtest: moab_test homxform_test.static scdseq_test.static
 	./moab_test
 	./homxform_test.static
 	./scdseq_test.static
 
-dist: ${MB_LIB_SRCS} test doc/MOAB-UG.doc doxygen/moab
-	tar czf MOAB-${VERSION}.tar.gz ${MB_LIB_SRCS} test doc/MOAB-UG.doc doxygen/moab
+dist: clean_all ${MB_LIB_SRCS} ${MB_LIB_HDRS} test doc/MOAB-UG.doc doxygen/moab MBUnknownInterface.h MB.* makefile README ${UTEST_SRCS}
+	tar czf MOAB-${MOAB_IMPL_VERSION}.tar.gz ${MB_LIB_SRCS} ${MB_LIB_HDRS} test doc/MOAB-UG.doc doxygen/moab MBUnknownInterface.h MB.* makefile ${UTEST_SRCS} TSTT
 
 # build moab_test which uses static MB library
 moab_test.static : MBTest.static.o ${MB_LIB_TARGET}  
@@ -195,6 +200,7 @@ depend :
 
 # clean up intermediate files
 clean_all : clean
+	@ cd TSTT; ${MAKE} clean_all
 
 clean : clean_pcom clean_xpcom
 	@ rm -f *.o *.o_test

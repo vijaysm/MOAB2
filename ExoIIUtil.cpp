@@ -43,7 +43,7 @@ const MBEntityType ExoIIUtil::ExoIIElementMBEntity[] =
   MBPYRAMID, // PYRAMID8,
   MBPYRAMID, // PYRAMID13,
   MBPYRAMID, // PYRAMID18,
-  MBPrism, // WEDGE,
+  MBPRISM, // WEDGE,
   MBKNIFE, // KNIFE,
   MBHEX, // HEX,
   MBHEX, // HEX8,

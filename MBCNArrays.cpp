@@ -73,7 +73,7 @@ const MBCN::ConnMap MBCN::mConnectivityMap[MBMAXTYPE][3] =
                           MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, 
      { {0,1,4,3}, {1,2,5,4}, {0,3,5,2}, {0,2,1}, {3,4,5} } }, 
      // wedge-wedge
-   { 3, 1, {6}, {MBPrism, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, 
+   { 3, 1, {6}, {MBPRISM, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, 
                  MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, 
      {{0,1,2,3,4,5}} }},
 
@@ -382,7 +382,7 @@ const MBCN::UpConnMap MBCN::mUpConnMap[MBMAXTYPE][4][4] =
     } // end source dim 3
   }, // end type MBPYRAMID
 
-  { // type MBPrism
+  { // type MBPRISM
     { // source dim 0
       { // target dim 0
         {3, 3, 3, 3, 3, 3}, // 3 connected vertices for all vertices
@@ -443,7 +443,7 @@ const MBCN::UpConnMap MBCN::mUpConnMap[MBMAXTYPE][4][4] =
         {0}, // 0 connected elements for all vertices
         {{0}} } // end target dimension 3
     } // end source dim 3
-  }, // end type MBPrism
+  }, // end type MBPRISM
 
   { // type MBKNIFE
     {{{0}, {{0}} }, {{0}, {{0}} }, {{0}, {{0}} }}, // source dim 0

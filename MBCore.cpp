@@ -2289,3 +2289,19 @@ MBMeshSet* MBCore::update_cache( const MBEntityHandle ms_handle ) const
 
 }
 
+//! define non-inline versions of these functions for debugging
+MBEntityHandle ifh(MBEntityHandle handle) 
+{
+  return ID_FROM_HANDLE(handle);
+}
+
+MBEntityType tfh(MBEntityHandle handle)
+{
+  return TYPE_FROM_HANDLE(handle);
+}
+
+
+
+
+
+
