@@ -268,7 +268,7 @@ MBErrorCode DualTool::construct_dual_edges(const MBRange &all_faces,
       // no dual entity; construct one; get the bounding regions
     std::vector<MBEntityHandle> in_ents, out_ents;
     tmp_result = mbImpl->get_adjacencies(&(*rit), 1, 3, false, out_ents);
-    if (MB_SUCCESS != tmp_result) continue;
+    if (MB_SUCCESS != tmp_result || out_ents.empty()) continue;
 
       // get the dual vertices
     std::vector<MBEntityHandle> dual_verts(out_ents.size());
@@ -352,6 +352,8 @@ MBErrorCode DualTool::construct_dual_faces(const MBRange &all_edges,
     std::vector<MBEntityHandle> rad_dverts;
     bool bdy_edge;
     tmp_result = get_radial_dverts(*rit, rad_dverts, bdy_edge);TRC
+    if (rad_dverts.empty()) continue;
+    
     tmp_result = mbImpl->create_element(MBPOLYGON, &rad_dverts[0], rad_dverts.size(), dual_ent);TRC
 
       // tag it indicating it's a dual entity, and tag primal/dual with dual/primal
