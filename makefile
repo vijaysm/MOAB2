@@ -63,6 +63,7 @@ MB_LIB_SRCS = \
 	SparseTagCollections.cpp \
 	TagServer.cpp \
 	Tqdcfr.cpp \
+	WriteGMV.cpp \
 	WriteNCDF.cpp
 
 UTEST_SRCS = merge_test.cpp scdseq_test.cpp test_adj.cpp test_exo.cpp test_rms.cpp
