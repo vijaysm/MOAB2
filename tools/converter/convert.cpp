@@ -14,7 +14,10 @@
  */
 
 #include "MBCore.hpp"
+#include "MBRange.hpp"
+#include "MBTagConventions.hpp"
 #include <iostream>
+#include <set>
 #ifndef WIN32
 #  include <sys/times.h>
 #  include <limits.h>
@@ -27,6 +30,7 @@
 #define READ_ERROR 2
 #define WRITE_ERROR 3
 #define OTHER_ERROR 4
+#define ENT_NOT_FOUND 5
 
 /* Tag to control ACIS dump from .cub file reader */
 const char acis_dump_file_tag_name[] = "__ACISDumpFile";
@@ -34,19 +38,34 @@ const char acis_dump_file_tag_name[] = "__ACISDumpFile";
 
 void usage_error( const char* name )
 {
-  std::cerr << "Usauge: " << name << 
-    " [-d <sat_file>|-D] [-t] <input_file> <output_file>" << std::endl
-    << "\t-d <acis_file> - ACIS SAT file dumped by .cub reader" << std::endl
-    << "\t-D             - .cub file reader should not dump a SAT file" << std::endl
+  std::cerr << "Usage: " << name << 
+    " [-a <sat_file>|-A] [-t] [subset options] <input_file> <output_file>" << std::endl
+    << "\t-a <acis_file> - ACIS SAT file dumped by .cub reader" << std::endl
+    << "\t-A             - .cub file reader should not dump a SAT file" << std::endl
     << "\t-t             - Time read and write of files." << std::endl
+    << "\t-g             - Enable verbose/debug output." << std::endl
     << "\t--             - treat all subsequent options as file names" << std::endl
     << "\t                 (allows file names beginning with '-')" << std::endl
+    << "  subset options: " << std::endl
+    << "\tEach of the following options should be followed by " << std::endl
+    << "\ta list of ids.  IDs may be separated with commas.  " << std::endl
+    << "\tRanges of IDs may be specified with a '-' between " << std::endl
+    << "\ttwo values.  The list may not contain spaces." << std::endl
+    << "\t-v  - volume" << std::endl
+    << "\t-s  - surface" << std::endl
+    << "\t-c  - curve" << std::endl
+    << "\t-V  - vertex" << std::endl
+    << "\t-m  - material set (block)" << std::endl
+    << "\t-d  - Dirchlet set (nodeset)" << std::endl
+    << "\t-n  - Neumann set (sideset)" << std::endl
     ;
   
   exit(USAGE_ERROR);
 }
 
 
+bool parse_id_list( const char* string, std::set<int>&  );
+void print_id_list( const char*, std::ostream& stream, const std::set<int>& list );
 void reset_times();
 void write_times( std::ostream& stream );
 
@@ -54,16 +73,28 @@ int main(int argc, char* argv[])
 {
   MBInterface* gMB;
   MBErrorCode result;
+  MBRange range;
 
-    // scan arguments
-  int i;
-  const char* in = NULL;
-  const char* out = NULL;
-  const char* acis = NULL;
-  bool do_acis = false;
+  int i, dim;
+  const char* in = NULL;    // input file name
+  const char* out = NULL;   // output file name
+  const char* acis = NULL;  // file to which to write geom data from .cub files.
   bool no_acis = false;
+  bool verbose = false;
+  std::set<int> geom[4], mesh[3];       // user-specified IDs 
+  std::vector<MBEntityHandle> set_list; // list of user-specified sets to write
+  const char* const mesh_tag_names[] = { DIRICHLET_SET_TAG_NAME,
+                                         NEUMANN_SET_TAG_NAME,
+                                         MATERIAL_SET_TAG_NAME };
+  const char* const geom_names[] = { "VERTEX",
+                                     "CURVE",
+                                     "SURFACE",
+                                     "VOLUME" };
+  
+    // scan arguments
   bool do_flag = true;
   bool print_times = false;
+  bool pval;
   for (i = 1; i < argc; i++)
   {
     if (!argv[i][0])
@@ -76,26 +107,45 @@ int main(int argc, char* argv[])
       
       switch ( argv[i][1] )
       {
+          // do flag arguments:
         case '-': do_flag = false;    break;
+        case 'g': verbose = true;     break;
         case 't': print_times = true; break;
-        case 'd': do_acis = true;     break;
-        case 'D': no_acis = true;     break;
-        default: usage_error(argv[0]);
+        case 'A': no_acis = true;     break;
+          // do options that require additional args:
+        default: 
+          ++i;
+          if (i == argc || argv[i][0] == '-') {
+            std::cerr << "Expected argument following " << argv[i-1] << std::endl;
+            usage_error(argv[0]);
+          }
+          pval = false;
+          switch ( argv[i-1][1] )
+          {
+            case 'a': acis = argv[i]; pval = true;              break;
+            case 'v': pval = parse_id_list( argv[i], geom[3] ); break;
+            case 's': pval = parse_id_list( argv[i], geom[2] ); break;
+            case 'c': pval = parse_id_list( argv[i], geom[1] ); break;
+            case 'V': pval = parse_id_list( argv[i], geom[0] ); break;
+            case 'm': pval = parse_id_list( argv[i], mesh[2] ); break;
+            case 'n': pval = parse_id_list( argv[i], mesh[1] ); break;
+            case 'd': pval = parse_id_list( argv[i], mesh[0] ); break;
+            default: std::cerr << "Invalid option: " << argv[i] << std::endl;
+          }
+          
+          if (!pval)
+            usage_error(argv[0]);
       }
     }
-    else if (do_acis)
-    {
-      acis = argv[i];
-      do_acis = false;
-    }
+      // do file names
     else if (!in)
       in = argv[i];
     else if (!out)
       out = argv[i];
-    else
+    else  // too many file names
       usage_error(argv[0]);
   }
-  if (do_acis || !in || !out)
+  if (!in || !out)
     usage_error(argv[0]);
   
     // Get MB instance
@@ -121,6 +171,14 @@ int main(int argc, char* argv[])
       std::cerr << "Failed to set ACIS dump file." << std::endl;
       return OTHER_ERROR;
     }
+    
+    if (verbose)
+    {
+      if (no_acis)
+        std::cout << "Disabling write of ACIS geometry data." << std::endl;
+      else
+        std::cout << "ACIS geometry data will be written to: " << acis << std::endl;
+    }
   }
   
     // Read the input file.
@@ -134,9 +192,152 @@ int main(int argc, char* argv[])
   std::cerr << "Read \"" << in << "\"" << std::endl;
   if (print_times) write_times( std::cerr );
   
+    // Determine if the user has specified any geometry sets to write
+  bool have_geom = false;
+  for (dim = 0; dim <= 3; ++dim)
+  {
+    if (!geom[dim].empty())
+      have_geom = true;
+    if (verbose)
+      print_id_list( geom_names[dim], std::cout, geom[dim] );
+  }
+  
+    // True if the user has specified any sets to write
+  bool have_sets = have_geom;
+  
+    // Get geometry tags
+  MBTag dim_tag, id_tag;
+  if (have_geom) 
+  {
+    int size;
+    result = gMB->tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
+    if (MB_SUCCESS != result) 
+    {
+      std::cerr << "No ID tag defined."  << std::endl;
+      have_geom = false;
+    }
+    else
+    {
+      result = gMB->tag_get_size( id_tag, size );
+      if (MB_SUCCESS != result || size != sizeof(int))
+      {
+        std::cerr << "ID tag is invalid." << std::endl;
+        have_geom = false;
+      }
+    }
+    result = gMB->tag_get_handle( GEOM_DIMENSION_TAG_NAME, dim_tag );
+    if (MB_SUCCESS != result) 
+    {
+      std::cerr << "No geometry tag defined."  << std::endl;
+      have_geom = false;
+    }
+    else
+    {
+      result = gMB->tag_get_size( dim_tag, size );
+      if (MB_SUCCESS != result || size != sizeof(int))
+      {
+        std::cerr << "Geometry tag is invalid." << std::endl;
+        have_geom = false;
+      }
+    }
+  }
+  
+    // Get geometry sets
+  if ( have_geom ) 
+  {
+    int id_val;
+    MBTag tags[] = { id_tag, dim_tag };
+    const void* vals[] = { &id_val, &dim };
+    for (dim = 0; dim <= 3; ++dim) 
+    {
+      int init_count = set_list.size();
+      for (std::set<int>::iterator iter = geom[dim].begin(); iter != geom[dim].end(); ++iter) 
+      {
+        id_val = *iter;
+        range.clear();
+        result = gMB->get_entities_by_type_and_tag( 0, MBENTITYSET, tags, vals, 2, range );
+        if (MB_SUCCESS != result || range.empty()) 
+        {
+          range.clear();
+          std::cerr << geom_names[dim] << " " << id_val << " not found.\n";
+        }
+        std::copy( range.begin(), range.end(), std::back_inserter(set_list) );
+      }
+      
+      if (verbose)
+        std::cout << "Found " << (set_list.size()-init_count) << ' '
+                  << geom_names[dim] << " sets" << std::endl;
+    }
+  }
+  
+    // Get mesh groupings
+  for (i = 0; i < 3; ++i) 
+  {
+    if (verbose)
+      print_id_list( mesh_tag_names[i], std::cout, mesh[i] );
+    
+    if (mesh[i].empty())
+      continue;
+    have_sets = true;
+    
+      // Get tag
+    MBTag tag;
+    result = gMB->tag_get_handle( mesh_tag_names[i], tag );
+    if (MB_SUCCESS != result) 
+    {
+      std::cerr << "Tag not found: " << mesh_tag_names[i] << std::endl;
+      continue;
+    }
+    int size;
+    result = gMB->tag_get_size( tag, size );
+    if (MB_SUCCESS != result || size != sizeof(int))
+    {
+      std::cerr << "Tag invalid: " << mesh_tag_names[i] << std::endl;
+      continue;
+    }
+
+      // get entity sets
+    int init_count = set_list.size();
+    for (std::set<int>::iterator iter = mesh[i].begin(); iter != mesh[i].end(); ++iter) 
+    {
+      range.clear();
+      const void* vals[] = { &*iter };
+      result = gMB->get_entities_by_type_and_tag( 0, MBENTITYSET, &tag, vals, 1, range );
+      if (MB_SUCCESS != result || range.empty()) 
+      {
+        range.clear();
+        std::cerr << mesh_tag_names[i] << " " << *iter << " not found.\n";
+      }
+      std::copy( range.begin(), range.end(), std::back_inserter(set_list) );
+    }
+      
+    if (verbose)
+      std::cout << "Found " << (set_list.size()-init_count) << ' '
+                << mesh_tag_names[dim] << " sets" << std::endl;
+  }
+  
+    // If user specified sets to write, but none were found, exit.
+  if (have_sets && set_list.empty())
+  {
+    std::cerr << "Nothing to write." << std::endl;
+    return ENT_NOT_FOUND;
+  }
+  
+  if (verbose)
+  {
+    if (have_sets)
+      std::cout << "Found " << set_list.size() 
+              << " specified sets to write (total)." << std::endl;  
+    else
+      std::cout << "No sets specifed.  Writing entire mesh." << std::endl; 
+  }  
+  
     // Write the output file
   reset_times();
-  result = gMB->write_mesh( out );
+  if (have_sets)
+    result = gMB->write_mesh( out, &set_list[0], set_list.size() );
+  else
+    result = gMB->write_mesh( out );
   if (MB_SUCCESS != result)
   { 
     std::cerr << "Failed to write \"" << out << "\"." << std::endl; 
@@ -147,6 +348,84 @@ int main(int argc, char* argv[])
 
   return 0;
 }
+
+bool parse_id_list( const char* string, std::set<int>& results )
+{
+  bool okay = true;
+  char* mystr = strdup( string );
+  for (const char* ptr = strtok(mystr, ","); ptr; ptr = strtok(0,","))
+  {
+    char* endptr;
+    long val = strtol( ptr, &endptr, 0 );
+    if (endptr == ptr || val <= 0) {
+      std::cerr << "Not a valid id: " << ptr << std::endl;
+      okay = false;
+      break;
+    }
+    
+    long val2 = val;
+    if (*endptr == '-') {
+      const char* sptr = endptr+1;
+      val2 = strtol( sptr, &endptr, 0 );
+      if (endptr == sptr || val2 <= 0) {
+        std::cerr << "Not a valid id: " << sptr << std::endl;
+        okay = false;
+        break;
+      }
+      if (val2 < val) {
+        std::cerr << "Invalid id range: " << ptr << std::endl;
+        okay = false;
+        break;
+      }
+    }
+    
+    if (*endptr) {
+      std::cerr << "Unexpected character: " << *endptr << std::endl;
+      okay = false;
+      break;
+    }
+    
+    for (; val <= val2; ++val)
+      if (!results.insert( (int)val ).second) 
+        std::cerr << "Warning: duplicate Id: " << val << std::endl;
+
+  }
+  
+  free( mystr );
+  return okay;    
+}
+
+void print_id_list( const char* head, std::ostream& stream, const std::set<int>& list )
+{
+  stream << head << ": ";
+  
+  if (list.empty())
+  {
+    stream << "(none)" << std::endl;
+    return;
+  }
+  
+  int start, prev;
+  std::set<int>::const_iterator iter = list.begin();
+  start = prev = *(iter++);
+  for (;;)
+  {
+    if (iter == list.end() || *iter != 1+prev) {
+      stream << start;
+      if (prev != start)
+        stream << '-' << prev;
+      if (iter == list.end())
+        break;
+      stream << ", ";
+      start = *iter;
+    }
+    prev = *(iter++);
+  }
+  
+  stream << std::endl;
+}
+    
+    
 
 
 void print_time( const char* prefix, clock_t ticks, std::ostream& stream )
