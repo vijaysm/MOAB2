@@ -132,13 +132,13 @@ static : libMOAB.a moab_test.static homxform_test.static scdseq_test.static
 all : moab_test test_exo test_tag_server test_ent_seq xpcom pcom
 
 # build the static moab library
-libMOAB.a : $(STATIC_MB_LIB_OBJS)
+libMOAB.a : $(STATIC_MB_LIB_OBJS) $(MHDF_LIB)
 	@ echo Archiving $@ ...
-	$(PREFIX) $(ARCHIVER) $@ $(STATIC_MB_LIB_OBJS)
+	$(PREFIX) $(ARCHIVER) $@ $(STATIC_MB_LIB_OBJS) 
 
-libMOAB-pic.a: $(MB_LIB_OBJS)
+libMOAB-pic.a: $(MB_LIB_OBJS) $(MHDF_LIB_PIC)
 	@ echo Archiving $@ ...
-	$(PREFIX) $(ARCHIVER) $@ $(MB_LIB_OBJS)
+	$(PREFIX) $(ARCHIVER) $@ $(MB_LIB_OBJS) 
 
 # build the xpcom moab library
 xpcom : ${XPCOM_MB_LIB_TARGET} moab_test.xpcom
