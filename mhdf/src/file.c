@@ -193,9 +193,23 @@ mhdf_get_max_elem_id( hid_t elem_id, mhdf_Status* status )
 
 mhdf_FileHandle
 mhdf_openFile( const char* filename, 
-               int writable, 
+               int writeable, 
                unsigned long* max_id_out,
                mhdf_Status* status )
+{
+  return mhdf_openFileWithOpt( filename, 
+                               writeable, 
+                               max_id_out, 
+                               H5P_DEFAULT, 
+                               status );
+}
+
+mhdf_FileHandle
+mhdf_openFileWithOpt( const char* filename, 
+                      int writable, 
+                      unsigned long* max_id_out,
+                      hid_t access_prop,
+                      mhdf_Status* status )
 {
   FileHandle* file_ptr;
   unsigned int flags;
@@ -218,7 +232,7 @@ mhdf_openFile( const char* filename,
 
     /* Create the file */
   flags = writable ? H5F_ACC_RDWR : H5F_ACC_RDONLY;
-  file_ptr->hdf_handle = H5Fopen( filename, flags, H5P_DEFAULT );
+  file_ptr->hdf_handle = H5Fopen( filename, flags, access_prop );
   if (file_ptr->hdf_handle < 0)
   {
     mhdf_setFail( status, "Failed to open file \"%s\"", filename );

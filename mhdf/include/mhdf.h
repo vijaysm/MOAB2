@@ -177,6 +177,33 @@ mhdf_openFile( const char* filename,
                unsigned long* max_id,
                mhdf_Status* status );
 
+/** \brief Open an existing file with options.
+ *
+ * Open an existing HDF mesh file.  This handle must be closed with
+ * <code>mhdf_closeFile</code> to avoid resource loss.  This function
+ * allows the calling application to specify the HDF5 access property
+ * list that is passed to the HDF5 H5Fopen API.  If this is passed as
+ * H5P_DEFAULT, the behavior is the same as \ref mhdf_openFile .
+ * This argument is typically used to specify a parallel context for
+ * for writing the file in parallel.
+ *
+ * \param filename   The path and name of the file to open
+ * \param writeable  If non-zero, open read-write.  Otherwise readonly.
+ * \param status     Passed back status of API call.
+ * \param max_id     Used to pass back the maximum global ID used in the
+ *                   file.  Provided as an indication to the caller of the
+ *                   size of the mesh.
+ * \param options    The HDF5 access property list to use when opening
+ *                   the file.  See the HDF5 documenation for H5Fopen.
+ * \return An opaque handle to the file.
+ */
+mhdf_FileHandle
+mhdf_openFileWithOpt( const char* filename,
+                      int writeable,
+                      unsigned long* max_id,
+                      hid_t options,
+                      mhdf_Status* status );
+
 /** \brief Given an element type Id, get the name. 
  * Fails if buffer is not of sufficient size.
  * \param file_handle The file.
