@@ -50,6 +50,7 @@ mhdf_createFile( const char* filename,
     mhdf_setFail( status, "Element type list too long." );
     return NULL;
   }
+  mhdf_setOkay( status );
   
     /* Create struct to hold working data */
   file_ptr = mhdf_alloc_FileHandle( 0, status );
