@@ -502,7 +502,12 @@ MBEntityHandle HigherOrderFactory::center_node_exist( MBEntityHandle corner1,
   std::vector<MBEntityHandle> adj_corner1(32);
   std::vector<MBEntityHandle> adj_corner2(32);
 
+  // create needed vertex adjacencies
+  if (!a_fact->vert_elem_adjacencies())
+    a_fact->create_vert_elem_adjacencies();
+
   // vectors are returned sorted
+  
   a_fact->get_adjacencies(corner1, adj_corner1);
   a_fact->get_adjacencies(corner2, adj_corner2);
 
@@ -550,6 +555,10 @@ MBEntityHandle HigherOrderFactory::center_node_exist( MBEntityHandle corners[4],
   std::vector<MBEntityHandle> adj_corner[4];
   int num_nodes = corners[3] == 0 ? 3 : 4;
   int i = 0;
+
+  // create needed vertex adjacencies
+  if (!a_fact->vert_elem_adjacencies())
+    a_fact->create_vert_elem_adjacencies();
 
   // vectors are returned sorted
   for(i=0; i<num_nodes; i++)

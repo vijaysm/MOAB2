@@ -188,6 +188,10 @@ MBErrorCode AEntityFactory::get_element(const MBEntityHandle *vertex_list,
 
   target_entity = 0;
   
+  // need vertex adjacencies, so create if necessary
+  if(mVertElemAdj == false)
+    create_vert_elem_adjacencies();
+  
   // get the adjacency list
   MBAdjacencyVector *adj_vec = NULL;
   result = mDensePageGroups[MBVERTEX]->get_data(vertex_list[0], &adj_vec);
@@ -527,9 +531,6 @@ MBErrorCode AEntityFactory::get_adjacencies(MBEntityHandle entity,
                                             const MBEntityHandle *&adjacent_entities,
                                             int &num_entities)
 {
-  if(mVertElemAdj == false)
-    create_vert_elem_adjacencies();
-    
   MBAdjacencyVector *adj_vec = NULL;
   MBErrorCode result = mDensePageGroups[TYPE_FROM_HANDLE(entity)]->get_data(
       entity, &adj_vec);
@@ -547,9 +548,6 @@ MBErrorCode AEntityFactory::get_adjacencies(MBEntityHandle entity,
 MBErrorCode AEntityFactory::get_adjacencies(MBEntityHandle entity,
                                             std::vector<MBEntityHandle>& adjacent_entities)
 {
-  if(mVertElemAdj == false)
-    create_vert_elem_adjacencies();
-    
   MBAdjacencyVector *adj_vec = NULL;
   MBErrorCode result = mDensePageGroups[TYPE_FROM_HANDLE(entity)]->get_data(
       entity, &adj_vec);
