@@ -40,12 +40,16 @@ public:
   MBErrorCode get_average_position(const MBEntityHandle entity,
                                    double *avg_position);
 
-    //! given a mesh edge, find the ordered faces around the edge; if any
-    //! of the faces is in only one region, on_boundary is returned true
-  MBErrorCode star_faces(const MBEntityHandle edge,
-                         std::vector<MBEntityHandle> &rad_faces,
-                         bool &bdy_edge,
-                         std::vector<MBEntityHandle> *rad_regions = NULL);
+  //! given an entity, find the entities of next higher dimension around
+  //! that entity, ordered by connection through next higher dimension entities; 
+  //! if any of the star entities is in only entity of next higher dimension, 
+  //! on_boundary is returned true
+  MBErrorCode star_entities(const MBEntityHandle star_center,
+                            std::vector<MBEntityHandle> &star_entities,
+                            bool &bdy_entity,
+                            const MBEntityHandle starting_star_entity = 0,
+                            std::vector<MBEntityHandle> *star_entities_dp1 = NULL,
+                            MBRange *star_entities_candidates_dp1 = NULL);
   
 private:
   MBInterface *mbImpl;

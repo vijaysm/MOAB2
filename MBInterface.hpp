@@ -738,6 +738,18 @@ public:
                                      bool auto_merge,
                                      bool delete_removed_entity) = 0;
 
+    //! split entities that are manifold (shared by two or less entities of each higher dimension),
+    //! optionally creating an entity of next higher dimension to fill the gap
+    /**
+       \param entities The entities to be split
+       \param new_entities New entities, in order of correspondence to that of entities
+       \param fill_entities If non-NULL, create an entity of next higher dimension to fill the gap,
+       passing it back in *fill_entities
+    */
+  virtual MBErrorCode split_entities_manifold(MBRange &entities,
+                                              MBRange &new_entities,
+                                              MBRange *fill_entities) = 0;
+
     //! Removes entities in a vector from the data base.  
     /** If any of the entities are contained in any meshsets, it is removed from those meshsets 
         which were created with MESHSET_TRACK_OWNER option bit set.  Tags for <em>entity</em> are 

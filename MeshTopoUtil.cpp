@@ -63,98 +63,104 @@ MBErrorCode MeshTopoUtil::get_average_position(const MBEntityHandle entity,
   return MB_SUCCESS;
 }
 
-    //! given a mesh edge, find the ordered faces around the edge; if any
-    //! of the faces is in only one region, on_boundary is returned true
-MBErrorCode MeshTopoUtil::star_faces(const MBEntityHandle edge,
-                                     std::vector<MBEntityHandle> &star_faces,
-                                     bool &bdy_edge,
-                                     std::vector<MBEntityHandle> *star_regions)
+  // given an entity, find the entities of next higher dimension around
+  // that entity, ordered by connection through next higher dimension entities; 
+  // if any of the star entities is in only entity of next higher dimension, 
+  // on_boundary is returned true
+MBErrorCode MeshTopoUtil::star_entities(const MBEntityHandle star_center,
+                                        std::vector<MBEntityHandle> &star_entities,
+                                        bool &bdy_entity,
+                                        const MBEntityHandle starting_star_entity,
+                                        std::vector<MBEntityHandle> *star_entities_dp1,
+                                        MBRange *star_entities_candidates_dp1)
 {
-  MBRange all_faces, untreated_regions;
-  MBRange in_range, out_range;
-
-    // get faces & regions adjacent to the edge
-  in_range.insert(edge);
-  MBErrorCode result = mbImpl->get_adjacencies(in_range, 2, false, all_faces);
-  if (MB_SUCCESS != result) return result;
-
-  result = mbImpl->get_adjacencies(in_range, 3, false, untreated_regions);
-  if (MB_SUCCESS != result) return result;
-
-    // if any of the faces have a single connected region, choose that,
-    // otherwise choose any
-  MBRange::iterator rit;
-  MBEntityHandle last_face = 0, first_face = 0;
-  for (rit = all_faces.begin(); rit != all_faces.end(); rit++) {
-    in_range.clear();
-    in_range.insert(*rit);
-    out_range.clear();
-    result = mbImpl->get_adjacencies(in_range, 3, false, out_range);
-    if (MB_SUCCESS != result) return result;
-    if (out_range.size() == 1) {
-        // if we have a single-region face, take it off the all_faces list, since 
-        // we'll never get back to it going around the edge
-      all_faces.erase(*rit);
-      last_face = *rit;
-      first_face = last_face;
-      star_faces.push_back(first_face);
+  MBEntityHandle last_entity = 0, last_dp1 = 0;
+  MBErrorCode result;
+  MBRange from_ents, adj_ents;
+  unsigned int star_dim = MBCN::Dimension(mbImpl->type_from_handle(star_center))+1;
+  std::vector<MBEntityHandle> star_dp1;
+  
+  if (0 != starting_star_entity) {
+    last_entity = starting_star_entity;
+    star_entities.push_back(last_entity);
+  }
+  
+    // now start the traversal
+  bdy_entity = false;
+  bool first = true;
+  
+  while (first || 0 != last_entity) {
+    first = false;
+    from_ents.clear();
+    from_ents.insert(star_center);
+    
+      // get dp1 entities which are adjacent to star_center and last_entity
+    if (0 != last_entity) from_ents.insert(last_entity);
+      // if candidates were specified, also needs to be among those
+    if (NULL != star_entities_candidates_dp1) 
+      adj_ents = *star_entities_candidates_dp1;
+    else adj_ents.clear();
+    
+    MBErrorCode tmp_result = mbImpl->get_adjacencies(from_ents, star_dim+1, false, adj_ents);
+    if (MB_SUCCESS != tmp_result) {
+      result = tmp_result;
       break;
     }
-  }
+    if (adj_ents.empty()) {
+      bdy_entity = true;
+      return MB_SUCCESS;
+    }
 
-    // if no single-region faces, just pick the last one; don't take it off
-    // the list, though, so that we get back to it
-  if (0 == last_face)
-    last_face = *all_faces.rbegin();
+      // get a dp1 entity which isn't last_dp1
+      // if both last_entity and last_dp1 are zero, we're just starting, so do nothing
+    if (0 == last_entity && 0 == last_dp1);
+    else if (*adj_ents.begin() != last_dp1) last_dp1 = *adj_ents.begin();
+    else if (adj_ents.size() > 1) last_dp1 = *adj_ents.rbegin();
+    else {
+        // if we're here, we're at an open bdy; try reversing the list and going
+        // in the other direction; also jumble the from_ents list so it appears we
+        // last checked the new last_entity
+      bdy_entity = true;
+      std::reverse(star_entities.begin(), star_entities.end());
+      std::reverse(star_dp1.begin(), star_dp1.end());
+      if (0 != last_entity) from_ents.erase(last_entity);
+      last_entity = *star_entities.rbegin();
+      last_dp1 = *star_dp1.rbegin();
+      from_ents.insert(last_entity);
+    }
+
+      // get the other star-dimension entity adj to star_center and last_dp1
+    if (0 != last_entity) from_ents.erase(last_entity);
+    if (0 != last_dp1) from_ents.insert(last_dp1);
+    adj_ents.clear();
+    tmp_result = mbImpl->get_adjacencies(from_ents, star_dim, false, adj_ents);
+    if (MB_SUCCESS != tmp_result) {
+      result = tmp_result;
+      break;
+    }
+    
+      // next star entity is the one not equal to last_entity; must be one at this point
+    if (*adj_ents.begin() != last_entity) last_entity = *adj_ents.begin();
+    else last_entity = *adj_ents.rbegin();
+
+    if (std::find(star_entities.begin(), star_entities.end(), last_entity) != 
+        star_entities.end()) {
+        // either we're back where we started or one after; either way, we're done
+      last_entity = 0;
+        // if we're not a bdy entity, the last dp1 entity wasn't put on list
+      if (0 != last_dp1) star_dp1.push_back(last_dp1);
+    }
+    else {
+        // add star and last_dp1 to the list
+      star_entities.push_back(last_entity);
+      if (0 != last_dp1) star_dp1.push_back(last_dp1);
+    }
+  } // end while
+
+    // copy over the star_dp1 list, if requested
+  if (NULL != star_entities_dp1) 
+    (*star_entities_dp1).swap(star_dp1);
   
-  MBRange regions;
-
-  while (!all_faces.empty()) {
-      // during each iteration:
-      // - start with a last_face & edge
-      // - find a region that's not on the list, and the other face in the region
-      //   sharing that edge
-      // - remove that face from all_faces & put on face list & assign to last_face
-      // - add the region to the region list
-      // - proceed to next iteration
-
-      // get 3d elements common to face and edge and in untreated range
-    in_range.clear();
-    in_range.insert(edge);
-    in_range.insert(last_face);
-    out_range = untreated_regions;
-    result = mbImpl->get_adjacencies(in_range, 3, false, out_range, 
-                                     MBInterface::INTERSECT);
-    if (MB_SUCCESS != result) return result;
-
-      // if we got here and we didn't find an untreated region
-    if (out_range.empty()) return MB_FAILURE;
-    
-      // take this region out of the list
-    untreated_regions.erase(*out_range.begin());
-    if (NULL != star_regions) star_regions->push_back(*out_range.begin());
-    
-      // get the other face sharing the edge
-    in_range.clear(); 
-    in_range.insert(edge);
-    in_range.insert(*out_range.begin());
-    out_range.clear();
-    result = mbImpl->get_adjacencies(in_range, 2, false, out_range);
-    if (MB_SUCCESS != result) return result;
-    else if (out_range.size() != 2) return MB_FAILURE;
-
-    last_face = (last_face != *out_range.begin() ? 
-                 *out_range.begin() : *out_range.rbegin());
-    
-      // remove the face from all_faces and add region to regions
-    all_faces.erase(last_face);
-    star_faces.push_back(last_face);
-  }
-
-    // if it's a closed loop, we got all the vertices; if not, we need 2 more;
-    // closed is indicated by first_face being zero
-  bdy_edge = !(0 == first_face);
-
   return MB_SUCCESS;
 }
 

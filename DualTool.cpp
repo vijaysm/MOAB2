@@ -598,7 +598,8 @@ MBErrorCode DualTool::get_radial_dverts(const MBEntityHandle edge,
   rad_dverts.clear();
   
   std::vector<MBEntityHandle> rad_faces, rad_ents;
-  MBErrorCode result = MeshTopoUtil(mbImpl).star_faces(edge, rad_faces, bdy_edge, &rad_ents);
+  MBErrorCode result = MeshTopoUtil(mbImpl).star_entities(edge, rad_faces, bdy_edge, 0, 
+                                                          &rad_ents);
   if (MB_SUCCESS != result) return result;
 
   if (bdy_edge) {
@@ -1210,8 +1211,8 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge)
   MeshTopoUtil mtu(mbImpl);
   std::vector<MBEntityHandle> star_2cells, star_3cells;
   bool bdy_edge;
-  MBErrorCode result = mtu.star_faces(odedge, star_2cells, 
-                                      bdy_edge, &star_3cells); RR;
+  MBErrorCode result = mtu.star_entities(odedge, star_2cells, 
+                                         bdy_edge, 0, &star_3cells); RR;
   
     // 1. construct 2 new dverts; position them 1/3, 2/3 along dedge
   std::vector<MBEntityHandle> odverts;

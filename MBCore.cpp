@@ -1688,6 +1688,100 @@ MBErrorCode MBCore::merge_entities( MBEntityHandle entity_to_keep,
                            delete_removed_entity);
 }
 
+MBErrorCode MBCore::split_entities_manifold(MBRange &entities,
+                                            MBRange &new_entities,
+                                            MBRange *fill_entities) 
+{
+    // split entities by duplicating them; splitting manifold means that there is at
+    // most two higher-dimension entities bounded by a given entity; after split, the
+    // new entity bounds one and the original entity bounds the other
+
+#define ITERATE_RANGE(a, b) for (MBRange::iterator b = a.begin(); b != a.end(); b++)
+#define GET_CONNECT_DECL(a, b, c) \
+  const MBEntityHandle *b; int c; \
+  {MBErrorCode connect_result = get_connectivity(a, b, c); \
+   if (MB_SUCCESS != connect_result) return connect_result;}
+#define GET_CONNECT(a, b, c) \
+  {MBErrorCode connect_result = get_connectivity(a, b, c); \
+   if (MB_SUCCESS != connect_result) return connect_result;}
+#define TC if (MB_SUCCESS != tmp_result) {result = tmp_result; continue;}
+
+  MBErrorCode result = MB_SUCCESS;
+  ITERATE_RANGE(entities, rit) {
+    MBErrorCode tmp_result;
+      
+      // get original higher-dimensional bounding entities
+    MBRange up_adjs[4];
+      // can only do a split_manifold if there are at most 2 entities of each
+      // higher dimension; otherwise it's a split non-manifold
+    bool valid_up_adjs = true;
+    for (unsigned int dim = MBCN::Dimension(TYPE_FROM_HANDLE(*rit))+1; dim <= 3; dim++) {
+      tmp_result = get_adjacencies(&(*rit), 1, dim, false, up_adjs[dim]); TC;
+      if (up_adjs[dim].size() > 2) {
+        valid_up_adjs = false;
+        break;
+      }
+    }
+    if (!valid_up_adjs) continue;
+      
+      // ok to split; create the new entity, with connectivity of the original
+    GET_CONNECT_DECL(*rit, connect, num_connect);
+    MBEntityHandle new_entity;
+    result = create_element(TYPE_FROM_HANDLE(*rit), connect, num_connect, new_entity); TC;
+      
+      // by definition, new entity and original will be equivalent; need to add explicit
+      // adjs to distinguish them; don't need to check if there's already one there,
+      // 'cuz add_adjacency does that for us
+    for (int dim = MBCN::Dimension(TYPE_FROM_HANDLE(*rit))+1; dim <= 3; dim++) {
+      if (up_adjs[dim].empty()) continue;
+        // first the new entity; if there's only one up_adj of this dimension, make the
+        // new entity adjacent to it, so that any bdy information is preserved on the
+        // original entity
+      tmp_result = aEntityFactory->remove_adjacency(*rit, *(up_adjs[dim].begin()));
+        // (ok if there's an error, that just means there wasn't an explicit adj)
+      tmp_result = aEntityFactory->add_adjacency(new_entity, *(up_adjs[dim].begin()), false); TC;
+      if (up_adjs[dim].size() < 2) continue;
+        // add adj to other up_adj
+      tmp_result = aEntityFactory->add_adjacency(*rit, *(up_adjs[dim].rbegin()), false); TC;
+    }
+
+      // if we're asked to build a next-higher-dimension object, do so
+    MBEntityHandle fill_entity = 0;
+    MBEntityHandle tmp_ents[2];
+    if (NULL != fill_entities) {
+        // how to do this depends on dimension
+      switch (MBCN::Dimension(TYPE_FROM_HANDLE(*rit))) {
+        case 0:
+          tmp_ents[0] = *rit;
+          tmp_ents[1] = new_entity;
+          tmp_result = create_element(MBEDGE, tmp_ents, 2, fill_entity); TC;
+          break;
+        case 1:
+          tmp_result = create_element(MBPOLYGON, connect, 2, fill_entity); TC;
+            // need to create explicit adj in this case
+          tmp_result = aEntityFactory->add_adjacency(*rit, fill_entity, false); TC;
+          tmp_result = aEntityFactory->add_adjacency(new_entity, fill_entity, false); TC;
+          break;
+        case 2:
+          tmp_ents[0] = *rit;
+          tmp_ents[1] = new_entity;
+          tmp_result = create_element(MBPOLYHEDRON, connect, 2, fill_entity); TC;
+          break;
+      }
+      if (0 == fill_entity) {
+        result = MB_FAILURE;
+        continue;
+      }
+      fill_entities->insert(fill_entity);
+    }
+
+    new_entities.insert(new_entity);
+    
+  } // end for over input entities
+
+  return result;
+}
+
 //! deletes an entity vector
 MBErrorCode MBCore::delete_entities(const MBEntityHandle *entities,
                                       const int num_entities)
