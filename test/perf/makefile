@@ -15,7 +15,7 @@
 
 MOAB_DIR = ${HOME}/MOAB
 SIDL_MESH_DIR = ${MOAB_DIR}/TSTT
-SIDLDIR = /usr/local/babel-0.8.8
+SIDLDIR = /usr/local/
 
 include ${MOAB_DIR}/MB.lin
 include ${MOAB_DIR}/MB.local
@@ -49,7 +49,13 @@ cubit_perf.o: cubit_perf.cpp
 tstt_perf.o: tstt_perf.cpp
 	g++ -c ${DEBUG_FLAG} -DLINUX -DREALTFI -I${SIDL_MESH_DIR} -I$(SIDLDIR)/include -I${SIDL_MESH_DIR}/server tstt_perf.cpp
 
+tstt_perf_binding.o: tstt_perf_binding.cpp
+	g++ -c ${DEBUG_FLAG} -DLINUX -DREALTFI -I${SIDL_MESH_DIR} -I$(SIDLDIR)/include -I${SIDL_MESH_DIR}/server -I${MOAB_DIR} tstt_perf_binding.cpp
+
 tstt_perf: tstt_perf.o
 	$(LD)  -o $@ ${DEBUG_FLAG} tstt_perf.o -Wl,-rpath,${SIDL_MESH_DIR} -Wl,-rpath,${MOAB_DIR} -L${SIDL_MESH_DIR} -lMOABserver -L$(SIDLDIR)/lib -lsidl -L${MOAB_DIR} -lMOAB ${NETCDF_LIBS}
+
+tstt_perf_binding: tstt_perf_binding.o
+	$(LD)  -o $@ ${DEBUG_FLAG} tstt_perf_binding.o ${MOAB_DIR}/TSTT/TSTTM_MOAB.o -Wl,-rpath,${SIDL_MESH_DIR} -Wl,-rpath,${MOAB_DIR} -L${SIDL_MESH_DIR} -L$(SIDLDIR)/lib -lsidl -L${MOAB_DIR} -lMOAB ${NETCDF_LIBS}
 
 
