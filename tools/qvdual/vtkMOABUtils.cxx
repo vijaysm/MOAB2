@@ -23,6 +23,8 @@
 #include "vtkTubeFilter.h"
 #include "vtkGeometryFilter.h"
 #include "vtkLookupTable.h"
+#include "vtkSource.h"
+#include <assert.h>
 
 #include "DualTool.hpp"
 #include "MBTagConventions.hpp"
@@ -873,7 +875,8 @@ void vtkMOABUtils::remove_geom_extractors()
     if (NULL != this_dsmapper) {
       vtkExtractGeometry *eg = vtkExtractGeometry::SafeDownCast(this_dsmapper->GetInput()->GetSource());
       if (NULL != eg) {
-        this_dsmapper->SetInput(eg->GetInput());
+        vtkDataSet* set = vtkDataSet::SafeDownCast(eg->GetInput());
+        this_dsmapper->SetInput(set);
         eg->Delete();
       }
       else 
@@ -883,7 +886,8 @@ void vtkMOABUtils::remove_geom_extractors()
       vtkExtractPolyDataGeometry *epg = 
         vtkExtractPolyDataGeometry::SafeDownCast(this_pdmapper->GetInput()->GetSource());
       if (NULL != epg) {
-        this_pdmapper->SetInput(epg->GetInput());
+        vtkPolyData* pd = vtkPolyData::SafeDownCast(epg->GetInput());
+        this_pdmapper->SetInput(pd);
         epg->Delete();
       }
       else 
