@@ -56,7 +56,15 @@ size_t mhdf_name_to_path( const char* name, char* path, size_t path_len )
   return length;
 }
 
-void mhdf_path_to_name( const char* path, char* name )
+static int mhdf_hex_char( int c )
+{
+  if (isdigit(c))
+    return c - '0';
+  else
+    return toupper(c) - ('A' - 10);
+}
+
+int mhdf_path_to_name( const char* path, char* name )
 {
   const char* iter;
   char c1, c2;
@@ -67,17 +75,10 @@ void mhdf_path_to_name( const char* path, char* name )
     {
       c1 = *++iter;
       c2 = *++iter;
-      assert(c1 && c2);
+      if (!isxdigit(c1) || !isxdigit(c2))
+        return 0;
       
-      if (isdigit(c1))
-        *name = 16 * (c1 - '0');
-      else
-        *name = 16 * (c1 - 'A');
-      
-      if (isdigit(c2))
-        *name += c2 - '0';
-      else
-        *name += c2 - 'A';
+      *name = (char)(16 * mhdf_hex_char(c1) + mhdf_hex_char(c2));
     }
     else
     {
@@ -86,6 +87,7 @@ void mhdf_path_to_name( const char* path, char* name )
   }
   
   *name = '\0';
+  return 1;
 }
 
 char* mhdf_name_to_path_copy( const char* name, mhdf_Status* status )

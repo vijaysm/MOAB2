@@ -471,7 +471,12 @@ mhdf_addElement( mhdf_FileHandle file_handle,
   
   strcpy( path, ELEMENT_GROUP );
   ptr = path + strlen(ELEMENT_GROUP);
-  mhdf_path_to_name( name, ptr ); 
+  if (!mhdf_path_to_name( name, ptr ))
+  {
+    mhdf_setFail( status, "Invalid character string in internal file path: \"%s\"\n",
+      name );
+    return -1;
+  }
   
   group_id = H5Gcreate( file_ptr->hdf_handle, path, 3 );
   if (group_id < 0)

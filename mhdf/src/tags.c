@@ -414,7 +414,12 @@ mhdf_getTagNames( mhdf_FileHandle file_handle,
     }
     
     H5Gget_objname_by_idx( group_id, index, name, size + 1 );
-    mhdf_path_to_name( name, name );
+    if (!mhdf_path_to_name( name, name ))
+    {
+      mhdf_setFail( status, "Invalid character string in internal file path: \"%s\"\n",
+        name );
+      return NULL;
+    }
     result[index] = name;
   }
   

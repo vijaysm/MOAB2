@@ -15,7 +15,7 @@ void* mhdf_malloc( size_t size, mhdf_Status* status );
 
 size_t mhdf_name_to_path( const char* name, char* path, size_t path_len );
 
-void mhdf_path_to_name( const char* path, char* name );
+int mhdf_path_to_name( const char* path, char* name );
 
 char* mhdf_name_to_path_copy( const char* name, mhdf_Status* status );
 
