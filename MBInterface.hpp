@@ -24,8 +24,8 @@
 #ifndef MB_INTERFACE_HPP
 #define MB_INTERFACE_HPP
 
-#define MOAB_API_VERSION 1.00
-#define MOAB_API_VERSION_STRING "1.00"
+#define MOAB_API_VERSION 1.01
+#define MOAB_API_VERSION_STRING "1.01"
 
 //! include files
 #include <vector>
