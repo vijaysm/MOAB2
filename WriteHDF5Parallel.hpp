@@ -11,6 +11,8 @@
 #include "WriteHDF5.hpp"
 #include <mpi.h>
 
+struct RemoteSetData;
+
 class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
 {
   public:
@@ -77,7 +79,14 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
     MBErrorCode negotiate_shared_meshsets( long* offsets );
     
       //! Setup meshsets spanning multiple processors
-    MBErrorCode negotiate_shared_meshsets( const char* tagname, long* offsets );
+    MBErrorCode get_remote_set_data( const char* tagname,
+                                     RemoteSetData& data,
+                                     long& offset );
+    
+      //! Determine offsets in contents and children tables for 
+      //! meshsets shared between processors.
+    MBErrorCode negotiate_remote_set_contents( RemoteSetData& data,
+                                               long* offsets );
     
       //! Create tables for mesh sets
     MBErrorCode create_meshset_tables();
@@ -88,7 +97,7 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
       //! Mark multiple-processor meshsets with correct file Id
       //! from the set description offset stored in that tag by
       //! negotiate_shared_meshsets(..).
-    MBErrorCode assign_parallel_set_ids();
+    MBErrorCode fix_remote_set_ids( RemoteSetData& data, long first_id );
       
       //! Write set descriptions for multi-processor meshsets.
       //! Virtual function called by non-parallel code after
@@ -111,6 +120,11 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
       //! Virtual function overridden from WriteHDF5.  
       //! Release memory by clearing member lists.
     MBErrorCode write_finished();
+    
+      //! Remove any remote mesh entities from the passed range.
+    void remove_remote_entities( MBRange& range );
+    void remove_remote_entities( std::vector<MBEntityHandle>& vect );
+    
   private:
     
       //! MPI environment
@@ -136,8 +150,7 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
       //! List of multi-processor meshsets
     std::list<ParallelSet> parallelSets;
     
-    
-    void printdebug( const char* fmt, ... );
+    void printrange( MBRange& );
 };
 
 #endif
