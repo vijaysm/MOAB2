@@ -84,6 +84,8 @@ void mhdf_path_to_name( const char* path, char* name )
       *name = *iter;
     }
   }
+  
+  *name = '\0';
 }
 
 char* mhdf_name_to_path_copy( const char* name, mhdf_Status* status )
