@@ -7,6 +7,8 @@
 
 const bool debug = false;
 const int ACIS_DIMS[] = {-1, 3, -1, 2, -1, -1, 1, 0, -1, -1};
+const char default_acis_dump_file[] = "dumped_acis.sat";
+const char acis_dump_file_tag_name[] = "__ACISDumpFile";
 // acis dimensions for each entity type, to match
 // enum {BODY, LUMP, SHELL, FACE, LOOP, COEDGE, EDGE, VERTEX, ATTRIB, UNKNOWN} 
 
@@ -965,9 +967,6 @@ void Tqdcfr::ModelEntry::read_metadata_info(Tqdcfr *tqd)
                       sidesetMD);
 }
 
-bool dump_acis_file = true;
-FILE *dumped_file;
-  
 void Tqdcfr::read_acis_records() 
 {
 
@@ -987,9 +986,18 @@ void Tqdcfr::read_acis_records()
   
   std::vector<AcisRecord> records;
 
-  if (dump_acis_file) {
-    dumped_file = fopen("dumped_acis.sat", "w+");
-    assert(NULL != dumped_file);
+    // get name for acis dump file
+  MBTag acis_file_tag;
+  MBErrorCode rval;
+  rval = mdbImpl->tag_get_handle( acis_dump_file_tag_name, acis_file_tag );
+  const char* filename = default_acis_dump_file;
+  if (MB_SUCCESS == rval)
+    mdbImpl->tag_get_data( acis_file_tag, 0, 0, &filename );
+  
+  acisDumpFile = NULL;
+  if (filename && *filename)
+  {
+    acisDumpFile = fopen( filename, "w+" );
   }
 
     // position the file at the start of the acis model
@@ -1011,8 +1019,8 @@ void Tqdcfr::read_acis_records()
     int next_buf = (bytes_left > buf_size ? buf_size : bytes_left);
     FREADC(next_buf);
 
-    if (dump_acis_file)
-      fwrite(&char_buf[0], sizeof(char), next_buf, dumped_file);
+    if (NULL != acisDumpFile)
+      fwrite(&char_buf[0], sizeof(char), next_buf, acisDumpFile);
     
       // put null at end of string to stop searches 
     char_buf[next_buf] = '\0';
@@ -1057,14 +1065,14 @@ void Tqdcfr::read_acis_records()
     while (buf_pos < next_buf);
   }
 
-  if (dump_acis_file)
-    fwrite("\n======================\nSorted acis records:\n======================\n", 1, 68, dumped_file);
+  if (NULL != acisDumpFile)
+    fwrite("\n======================\nSorted acis records:\n======================\n", 1, 68, acisDumpFile);
     
     // now interpret the records
   interpret_acis_records(records);
   
-  if (dump_acis_file)
-    fclose(dumped_file);
+  if (NULL != acisDumpFile)
+    fclose(acisDumpFile);
 }
 
 void Tqdcfr::interpret_acis_records(std::vector<AcisRecord> &records) 
@@ -1117,10 +1125,10 @@ void Tqdcfr::parse_acis_attribs(const int entity_rec_num,
   int current_attrib = records[entity_rec_num].first_attrib;
   if (-1 == current_attrib) return;
 
-  if (dump_acis_file) {
-    fwrite("-----------------------------------------------------------------------\n", 1, 72, dumped_file);
+  if (NULL != acisDumpFile) {
+    fwrite("-----------------------------------------------------------------------\n", 1, 72, acisDumpFile);
     fwrite(records[entity_rec_num].att_string.c_str(), sizeof(char), 
-           records[entity_rec_num].att_string.length(), dumped_file);
+           records[entity_rec_num].att_string.length(), acisDumpFile);
   }
 
   while (-1 != current_attrib) {
@@ -1128,9 +1136,9 @@ void Tqdcfr::parse_acis_attribs(const int entity_rec_num,
            (records[current_attrib].att_next == next_attrib &&
             records[current_attrib].att_ent_num == entity_rec_num));
     
-    if (dump_acis_file)
+    if (NULL != acisDumpFile)
       fwrite(records[current_attrib].att_string.c_str(), sizeof(char), 
-             records[current_attrib].att_string.length(), dumped_file);
+             records[current_attrib].att_string.length(), acisDumpFile);
 
       // is the attrib one we already recognize?
     if (strncmp(records[current_attrib].att_string.c_str(), "ENTITY_NAME", 11) == 0) {
