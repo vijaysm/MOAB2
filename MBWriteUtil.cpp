@@ -799,21 +799,35 @@ MBErrorCode MBWriteUtil::get_adjacencies( MBEntityHandle entity,
 {
   MBErrorCode rval;
   const MBEntityHandle* adj_array;
-  int num_adj;
+  int num_adj, id;
+
+  TagServer* tag_server = mMB->tag_server();
  
+    // Get handles of adjacent entities 
   rval = mMB->a_entity_factory()->get_adjacencies( entity, adj_array, num_adj );
   if (MB_SUCCESS != rval)
   {
     adj.clear();
     return rval;
   }
-  if (num_adj == 0)
+  
+    // Append IDs of adjacent entities -- skip meshsets
+  adj.resize( num_adj );  // pre-allocate space
+  adj.clear();            // clear used space
+  
+  const MBEntityHandle* iter = adj_array;
+  const MBEntityHandle* const end = adj_array + num_adj;
+  for (const MBEntityHandle* iter = adj_array; iter != end; ++iter)
   {
-    adj.clear();
-    return MB_SUCCESS;
+    if (TYPE_FROM_HANDLE( *iter ) != MBENTITYSET)
+    {
+      rval = tag_server->get_data( id_tag, iter, 1, &id );
+      if (MB_SUCCESS != rval)
+        return rval;
+      adj.push_back( id );
+    }
   }
   
-  adj.resize( num_adj );
-  return mMB->tag_get_data( id_tag, adj_array, num_adj, &adj[0] );
+  return MB_SUCCESS;
 }
 
