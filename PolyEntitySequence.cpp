@@ -11,7 +11,7 @@ PolyEntitySequence::PolyEntitySequence(EntitySequenceManager* seq_manager,
                                        MBEntityHandle start_handle, int num_entities,
                                        int nodes_per_element, bool all_handles_used,
                                        bool allocate_connect)
-: ElementEntitySequence(seq_manager, start_handle, 0, 0, true, false)
+: ElementEntitySequence(seq_manager, start_handle, num_entities, 0, true, false)
 {
   if (allocate_connect) {
       // for a poly sequence, the nodes_per_element is really the total # vertices/faces
@@ -21,7 +21,7 @@ PolyEntitySequence::PolyEntitySequence(EntitySequenceManager* seq_manager,
   }
   
   mNodesPerElement = nodes_per_element;
-
+/*
   if(all_handles_used)
   {
     mNumEntities = num_entities;
@@ -36,6 +36,7 @@ PolyEntitySequence::PolyEntitySequence(EntitySequenceManager* seq_manager,
     mNumEntities = 0;
     mFirstFreeIndex = 0;
   }
+*/
 }
 
 PolyEntitySequence::~PolyEntitySequence() 
