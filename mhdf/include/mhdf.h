@@ -151,11 +151,15 @@ mhdf_createFile( const char* filename,
  * \param filename   The path and name of the file to open
  * \param writeable  If non-zero, open read-write.  Otherwise readonly.
  * \param status     Passed back status of API call.
+ * \param max_id     Used to pass back the maximum global ID used in the
+ *                   file.  Provided as an indication to the caller of the
+ *                   size of the mesh.
  * \return An opaque handle to the file.
  */
 mhdf_FileHandle
 mhdf_openFile( const char* filename,
                int writeable,
+               unsigned long* max_id,
                mhdf_Status* status );
 
 /** \brief Given an element type Id, get the name. 

@@ -177,7 +177,10 @@ mhdf_get_max_elem_id( hid_t elem_id, mhdf_Status* status )
 
 
 mhdf_FileHandle
-mhdf_openFile( const char* filename, int writable, mhdf_Status* status )
+mhdf_openFile( const char* filename, 
+               int writable, 
+               unsigned long* max_id_out,
+               mhdf_Status* status )
 {
   FileHandle* file_ptr;
   unsigned int flags;
@@ -186,7 +189,8 @@ mhdf_openFile( const char* filename, int writable, mhdf_Status* status )
   hsize_t count, index;
   hid_t group_id, elem_id;
   char* name;
-  long max_id;
+  unsigned long long max_id = 0;
+  unsigned long long gp_max_id;
   API_BEGIN;
   
     /* Check if file is HDF5 */
@@ -326,8 +330,8 @@ mhdf_openFile( const char* filename, int writable, mhdf_Status* status )
       return NULL;
     }
     
-    max_id = mhdf_get_max_elem_id( elem_id, status );
-    if (max_id <= 0)
+    gp_max_id = mhdf_get_max_elem_id( elem_id, status );
+    if (gp_max_id <= 0)
     {
       free( name );
       H5Gclose( group_id );
@@ -335,12 +339,26 @@ mhdf_openFile( const char* filename, int writable, mhdf_Status* status )
       return NULL;
     }
     
-    if (max_id > file_ptr->max_id)
-      file_ptr->max_id = max_id;
+    if (gp_max_id > max_id)
+      max_id = gp_max_id;
   }
-  
+
   free( name );
   H5Gclose( group_id );
+  
+  unsigned long long max_int_range = 1;
+  max_int_range = max_int_range << ((sizeof(long)*8 - 2));
+  if (max_id > max_int_range)
+  {
+    mhdf_setFail( status, "Mesh too large.\n");
+    mhdf_closeFile( file_ptr, NULL );
+    return NULL;
+  }
+  
+  file_ptr->max_id = max_id;
+  if (max_id_out)
+    *max_id_out = max_id;
+    
   mhdf_setOkay( status );
   API_END_H(file_ptr->num_type_handles+1);
   return file_ptr;
