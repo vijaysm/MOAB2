@@ -18,6 +18,7 @@
  #include <assert.h>
  #include <math.h>
  #include "MBInterface.hpp"
+ #include "MBTagConventions.hpp"
  #include "MBRange.hpp"
  #include "MBSkinner.hpp"
  #include "WriteNCDF.hpp"
