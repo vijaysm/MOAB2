@@ -1080,8 +1080,7 @@ MBErrorCode  MBCore::tag_get_data(const MBTag tag_handle,
   MBTagType tag_type;
   
   if (NULL == entity_handles && 0 == num_entities && 
-      MB_SUCCESS == tag_get_type(tag_handle, tag_type) &&
-      tag_type == MB_TAG_MESH)
+      MB_SUCCESS == tag_get_type(tag_handle, tag_type))
     return tagServer->get_data(tag_handle, &myMeshSet, 1, tag_data);
 
   else return tagServer->get_data(tag_handle, entity_handles, num_entities, tag_data);
@@ -1104,8 +1103,7 @@ MBErrorCode  MBCore::tag_set_data(const MBTag tag_handle,
   MBTagType tag_type;
   
   if (NULL == entity_handles && 0 == num_entities && 
-      MB_SUCCESS == tag_get_type(tag_handle, tag_type) &&
-      tag_type == MB_TAG_MESH)
+      MB_SUCCESS == tag_get_type(tag_handle, tag_type))
     return tagServer->set_data(tag_handle, &myMeshSet, 1, tag_data);
 
   //verify handles
