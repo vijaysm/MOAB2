@@ -20,6 +20,7 @@
 #include "MBTagConventions.hpp"
 #include "MBSkinner.hpp"
 #include "MBCore.hpp"
+#include "MeshTopoUtil.hpp"
 #include "AEntityFactory.hpp"
 #include <string>
 #include <iostream>
@@ -86,7 +87,10 @@ DualTool::DualTool(MBInterface *impl)
                               sizeof(DualTool::GraphicsPoint), MB_TAG_DENSE, 
                               dualGraphicsPointTag, &dum_pt);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
-  
+
+  result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, 
+                              globalIdTag, &dummy);
+  assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
 }
 
 DualTool::~DualTool() 
@@ -779,25 +783,8 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
     
       // ok, doesn't have one; make a new hyperplane
     hp_val = hp_ids++;
-    result = mbImpl->create_meshset((MESHSET_SET | MESHSET_TRACK_OWNER), this_hp);
-    if (MB_SUCCESS != result) 
-      return result;
-    result = mbImpl->tag_set_data(gid_tag, &this_hp, 1, &hp_val);
-    if (MB_SUCCESS != result) 
-      return result;
-    result = mbImpl->tag_set_data(hp_tag, &this_hp, 1, &this_hp);
-    if (MB_SUCCESS != result) 
-      return result;
-    hp_untreated.clear();
-
-      // assign a category name to these sets
-    static const char dual_category_names[2][CATEGORY_TAG_NAME_LENGTH] = 
-      {"Chord\0", "Sheet\0"};
+    result = construct_new_hyperplane(dim, this_hp, hp_val);
     
-    result = mbImpl->tag_set_data(categoryTag, &this_hp, 1, dual_category_names[dim-1]);
-    if (MB_SUCCESS != result) 
-      return result;
-
       // inner loop: traverse the hyperplane 'till we don't have any more
     MBRange tmp_star, star, tmp_range;
     while (0 != this_ent) {
@@ -877,6 +864,32 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
   if (debug)
     std::cout << "Constructed " << hp_ids-1 << " hyperplanes of dim = " << dim << "." << std::endl;
   return MB_SUCCESS;
+}
+
+MBErrorCode DualTool::construct_new_hyperplane(const int dim,
+                                               MBEntityHandle &new_hyperplane,
+                                               int &id) 
+{
+  MBErrorCode result = mbImpl->create_meshset((MESHSET_SET | MESHSET_TRACK_OWNER), 
+                                              new_hyperplane); RR;
+
+  if (-1 == id) {
+    MBRange all_hyperplanes;
+    result = get_dual_hyperplanes(mbImpl, dim, all_hyperplanes); RR;
+    id = all_hyperplanes.size();
+  }
+    
+  result = mbImpl->tag_set_data(globalId_tag(), &new_hyperplane, 1, &id); RR;
+  MBTag hp_tag = (1 == dim ? dualCurve_tag() : dualSurface_tag());
+  result = mbImpl->tag_set_data(hp_tag, &new_hyperplane, 1, &new_hyperplane);
+
+    // assign a category name to these sets
+  static const char dual_category_names[2][CATEGORY_TAG_NAME_LENGTH] = 
+    {"Chord\0", "Sheet\0"};
+    
+  result = mbImpl->tag_set_data(categoryTag, &new_hyperplane, 1, dual_category_names[dim-1]);
+
+  return result;
 }
 
 bool DualTool::check_1d_loop_edge(MBEntityHandle this_ent) 
@@ -1165,6 +1178,21 @@ MBEntityHandle DualTool::get_dual_surface_or_curve(const MBEntityHandle ncell)
   return 0;
 }
 
+    //! set the dual surface or curve for an entity
+MBErrorCode DualTool::set_dual_surface_or_curve(MBEntityHandle entity, 
+                                                const MBEntityHandle dual_hyperplane,
+                                                const int dual_entity_dimension)
+{
+  if (1 == dual_entity_dimension)
+    mbImpl->tag_set_data(dualCurve_tag(), &entity, 1, &dual_hyperplane);
+  else if (2 == dual_entity_dimension)
+    mbImpl->tag_set_data(dualSurface_tag(), &entity, 1, &dual_hyperplane);
+  else 
+    return MB_INDEX_OUT_OF_RANGE;
+
+  return MB_SUCCESS;
+}
+
 //! return the corresponding dual entity
 MBEntityHandle DualTool::get_dual_entity(const MBEntityHandle this_ent) 
 {
@@ -1174,3 +1202,184 @@ MBEntityHandle DualTool::get_dual_entity(const MBEntityHandle this_ent)
   else return dual_ent;
 }
 
+MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge) 
+{
+    // perform an atomic pillow operation around dedge
+
+    // 0. get star 2cells and 3cells around odedge (before odedge changes)
+  MeshTopoUtil mtu(mbImpl);
+  std::vector<MBEntityHandle> star_2cells, star_3cells;
+  bool bdy_edge;
+  MBErrorCode result = mtu.star_faces(odedge, star_2cells, 
+                                      bdy_edge, &star_3cells); RR;
+  
+    // 1. construct 2 new dverts; position them 1/3, 2/3 along dedge
+  std::vector<MBEntityHandle> odverts;
+  result = mbImpl->get_connectivity(&odedge, 1, odverts); RR;
+  double odverts_coords[6];
+  result = mbImpl->get_coords(&odverts[0], 2, odverts_coords); RR;
+  for (int i = 0; i < 3; i++)
+    odverts_coords[i] = odverts_coords[i] + (odverts_coords[i+3] - odverts_coords[i])/3;
+  for (int i = 3; i < 6; i++)
+    odverts_coords[i] = odverts_coords[i] + .5*(odverts_coords[i] + odverts_coords[i-3]);
+  
+  MBEntityHandle ndverts[2];
+  result = mbImpl->create_vertex(odverts_coords, ndverts[0]); RR;
+  result = mbImpl->create_vertex(&odverts_coords[3], ndverts[1]); RR;
+  
+    // 2. create 2 new dedges, between odverts and ndverts
+  MBEntityHandle tmp_connect[2], ndedges[2];
+  for (int i = 0; i < 2; i++) {
+    tmp_connect[0] = odverts[i];
+    tmp_connect[1] = ndverts[i];
+    mbImpl->create_element(MBEDGE, tmp_connect, 2, ndedges[i]); RR;
+  }
+
+    // 3. change connectivity of odedge to ndverts
+  result = mbImpl->set_connectivity(odedge, ndverts, 2); RR;
+  
+    // 4. fix 2cells connected to odedge
+  std::vector<MBEntityHandle> nstar_1cells;
+  result = ap_fix_2cells(odedge, star_2cells, ndverts, 
+                         nstar_1cells); RR;
+  assert(nstar_1cells.size() == star_2cells.size());
+
+    // 5. fix 3cells connected to odedge
+  MBEntityHandle new_sheet;
+  std::vector<MBEntityHandle> nstar_3cells;
+  result = ap_fix_3cells(ndverts, nstar_1cells, 
+                         star_2cells, star_3cells, new_sheet); RR;
+  
+    // 6. make new chords & add new 1cells to them
+  result = ap_construct_new_1cells(nstar_1cells, star_2cells, new_sheet); RR;
+
+    // 7. update primal???
+
+    // 8. update graphics???
+
+  return MB_SUCCESS;
+}
+
+MBErrorCode DualTool::ap_construct_new_1cells(std::vector<MBEntityHandle> &nstar_1cells,
+                                              std::vector<MBEntityHandle> &star_2cells,
+                                              MBEntityHandle new_sheet) 
+{
+  int new_id = -2;
+  MBEntityHandle new_1cells[2];
+  for (unsigned int i = 0; i < nstar_1cells.size(); i += 2) {
+      // make a new chord; 2nd one gets id one greater than 1st
+    MBEntityHandle new_chord;
+    new_id++;
+    MBErrorCode result = construct_new_hyperplane(1, new_chord, new_id); RR;
+    
+      // add 2 dedges to it
+    new_1cells[0] = nstar_1cells[i];
+    new_1cells[1] = nstar_1cells[(i+2)%nstar_1cells.size()];
+    result = mbImpl->add_entities(new_chord, new_1cells, 2); RR;
+
+      // make new chord child of 2 sheets containing it
+    result = mbImpl->add_parent_child(new_sheet, new_chord); RR;
+    MBEntityHandle other_sheet = get_dual_surface_or_curve(star_2cells[i]);
+    assert(0 != other_sheet);
+    result = mbImpl->add_parent_child(other_sheet, new_chord); RR;
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode DualTool::ap_fix_2cells(MBEntityHandle odedge, 
+                                    std::vector<MBEntityHandle> &star_2cells,
+                                    MBEntityHandle *ndverts,
+                                    std::vector<MBEntityHandle> &nstar_1cells) 
+{
+  std::vector<MBEntityHandle> new_2cell_connect;
+  std::vector<MBEntityHandle>::iterator vit;
+  for (unsigned int i = 1; i <= star_2cells.size(); i++) {
+    MBEntityHandle this_2cell = star_2cells[i];
+      // 4a. insert 2 new dverts betw odverts in this 2cell
+    new_2cell_connect.clear();
+    MBErrorCode result = mbImpl->get_connectivity(&this_2cell, 1, new_2cell_connect); RR;
+      // how to insert them depends on sense of odverts in this 2cell; where to insert
+      // them is the side_num or offset
+    int side_num, sense;
+    result = mbImpl->side_number(this_2cell, odedge, side_num, sense, side_num); RR;
+      // set the iterator to the first dvertex on the 2cell
+    vit = new_2cell_connect.begin() + side_num;
+      // order of insertion depends on sense
+//    xxx check whether insert goes *after* current iterator position or before;
+//    xxx also, whether iterator points to new position or old after insertion;
+//    xxx current code assumes after and old, resp.
+    int first_index = (sense > 0 ? 0 : 1);
+    new_2cell_connect.insert(vit+1, ndverts[first_index]);
+    vit++;
+    new_2cell_connect.insert(vit+1, ndverts[(first_index+1)%2]);
+    result = mbImpl->set_connectivity(this_2cell, &new_2cell_connect[0],
+                                      new_2cell_connect.size()); RR;
+    
+      // 4b. make new dedge between ndverts
+    MBEntityHandle this_ndedge;
+    result = mbImpl->create_element(MBEDGE, &ndverts[0], 2, this_ndedge); RR;
+    nstar_1cells.push_back(this_ndedge);
+
+      // 4c. add explicit adjacency between ndedge and this_2cell, since odverts will
+      // have multiple edges between them
+    result = mbImpl->add_adjacencies(this_ndedge, &this_2cell, 1, false); RR;
+    
+      // 4d. make new 2cell between ndedge and odedge; add adjacencies betw both dedges
+      // and new 2cell
+    MBEntityHandle new_2cell;
+    result = mbImpl->create_element(MBPOLYGON, ndverts, 2, new_2cell); RR;
+    result = mbImpl->add_adjacencies(this_ndedge, &new_2cell, 1, false); RR;
+    result = mbImpl->add_adjacencies(odedge, &new_2cell, 1, false); RR;
+    
+      // 4e. add new 2cell to sheet of this_2cell
+    MBEntityHandle owning_sheet = get_dual_surface_or_curve(this_2cell);
+    assert(0 != owning_sheet);
+    result = mbImpl->add_entities(owning_sheet, &new_2cell, 1); RR;
+    result = set_dual_surface_or_curve(new_2cell, owning_sheet, 2);
+  }
+
+  return MB_SUCCESS;
+}
+
+MBErrorCode DualTool::ap_fix_3cells(MBEntityHandle *ndverts,
+                                    std::vector<MBEntityHandle> &nstar_1cells,
+                                    std::vector<MBEntityHandle> &star_2cells,
+                                    std::vector<MBEntityHandle> &star_3cells,
+                                    MBEntityHandle new_sheet) 
+{
+    // construct a new sheet, and designate it as such
+  int new_id = -1;
+  MBErrorCode result = construct_new_hyperplane(2, new_sheet, new_id); RR;
+  
+    // given the new 1cells and 2cells around odedge, fix up the 3cells around odedge
+  std::vector<MBEntityHandle> polyh_connect;
+  for (unsigned int i = 0; i < nstar_1cells.size(); i++) {
+      // 5a. make new 2cell that's part of the new sheet; add explicit adjacencies betw star 1cells
+      // and this one, because of multiple edges between ndverts
+    MBEntityHandle new_2cell;
+    MBErrorCode result = mbImpl->create_element(MBPOLYGON, ndverts, 2, new_2cell); RR;
+    result = mbImpl->add_adjacencies(nstar_1cells[i], &new_2cell, 1, false); RR;
+    result = mbImpl->add_adjacencies(nstar_1cells[(i+1)%nstar_1cells.size()], &new_2cell, 1, false); RR;
+    
+      // 5b. insert new 2cell into star 3cell
+    polyh_connect.clear();
+    result = mbImpl->get_connectivity(&star_3cells[i], 1, polyh_connect); RR;
+    polyh_connect.push_back(new_2cell);
+    result = mbImpl->set_connectivity(star_3cells[i], &polyh_connect[0], polyh_connect.size()); RR;
+    
+      // 5c. constr new 3cell with new 2cell and star 2cells on either side; reuse polyh_connect
+    polyh_connect.clear();
+    polyh_connect.push_back(new_2cell);
+    polyh_connect.push_back(star_2cells[i]);
+    polyh_connect.push_back(star_2cells[(i+1)%star_2cells.size()]);
+    MBEntityHandle new_3cell;
+    result = mbImpl->create_element(MBPOLYHEDRON, &polyh_connect[0], 3, new_3cell); RR;
+    
+      // 5d. insert new 2cell into new sheet & set the dual tag at the same time
+    result = mbImpl->add_entities(new_sheet, &new_2cell, 1); RR;
+    result = set_dual_surface_or_curve(new_2cell, new_sheet, 2);
+  }
+  
+  return MB_SUCCESS;
+}
