@@ -14,6 +14,7 @@
 #include "MBRange.hpp"
 #include "MBCN.hpp"
 #include <fstream>
+#include <assert.h>
 
 const char *WriteGMV::gmvTypeNames[] = {
   "",
@@ -203,11 +204,15 @@ MBErrorCode WriteGMV::local_write_mesh(const char *file_name,
       if (otype == MBPOLYGON || otype == MBPOLYHEDRON) continue;
       
         // get the first element of this type in the range, and one past the last
-      MBRange::iterator lower = std::lower_bound(elements.begin(), elements.end(), 
-                                                 CREATE_HANDLE(otype, MB_START_ID, i)),
-        upper = std::lower_bound(elements.begin(), elements.end(), 
-                                 CREATE_HANDLE(otype+1, MB_START_ID, i));
-
+      MBRange::iterator lower =
+        MBRange::lower_bound(elements.begin(),
+                             elements.end(),
+                             CREATE_HANDLE(otype, MB_START_ID, i));
+      MBRange::iterator upper =
+        MBRange::lower_bound(elements.begin(),
+                             elements.end(),
+                             CREATE_HANDLE(otype+1, MB_START_ID, i));
+      
       if (lower == upper) continue;
     
         // copy these elements into a subrange

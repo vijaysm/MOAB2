@@ -1,24 +1,24 @@
-# Microsoft Developer Studio Project File - Name="MDB" - Package Owner=<4>
+# Microsoft Developer Studio Project File - Name="MB" - Package Owner=<4>
 # Microsoft Developer Studio Generated Build File, Format Version 6.00
 # ** DO NOT EDIT **
 
 # TARGTYPE "Win32 (x86) Dynamic-Link Library" 0x0102
 
-CFG=MDB - Win32 Release
+CFG=MB - Win32 Release
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
 !MESSAGE 
-!MESSAGE NMAKE /f "MDB.mak".
+!MESSAGE NMAKE /f "MB.mak".
 !MESSAGE 
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f "MDB.mak" CFG="MDB - Win32 Release"
+!MESSAGE NMAKE /f "MB.mak" CFG="MB - Win32 Release"
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
-!MESSAGE "MDB - Win32 Release" (based on "Win32 (x86) Dynamic-Link Library")
-!MESSAGE "MDB - Win32 Debug" (based on "Win32 (x86) Dynamic-Link Library")
+!MESSAGE "MB - Win32 Release" (based on "Win32 (x86) Dynamic-Link Library")
+!MESSAGE "MB - Win32 Debug" (based on "Win32 (x86) Dynamic-Link Library")
 !MESSAGE 
 
 # Begin Project
@@ -29,12 +29,12 @@ CPP=cl.exe
 MTL=midl.exe
 RSC=rc.exe
 
-!IF  "$(CFG)" == "MDB - Win32 Release"
+!IF  "$(CFG)" == "MB - Win32 Release"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 0
-# PROP BASE Output_Dir "MDB___Win32_Release"
-# PROP BASE Intermediate_Dir "MDB___Win32_Release"
+# PROP BASE Output_Dir "MB___Win32_Release"
+# PROP BASE Intermediate_Dir "MB___Win32_Release"
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 0
@@ -42,8 +42,8 @@ RSC=rc.exe
 # PROP Intermediate_Dir "Release"
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "MDB_EXPORTS" /YX /FD /c
-# ADD CPP /nologo /MD /W3 /GX /O2 /I "%CUBITROOT%\exodus\exodus3.07\include" /I "%CUBITROOT%\netcdf\netcdf-3.4\include" /I "$(CUBITROOT)\exodus\exodus3.07\include" /I "$(CUBITROOT)\netcdf\netcdf-3.4\include" /D "NDEBUG" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "MDB_EXPORTS" /D "IS_BUILDING_MDB" /YX /FD /c
+# ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "MB_EXPORTS" /YX /FD /c
+# ADD CPP /nologo /MD /W3 /GX /O2 /I "%CUBITROOT%\exodus\exodus3.07\include" /I "%CUBITROOT%\netcdf\netcdf-3.4\include" /I "$(CUBITROOT)\exodus\exodus3.07\include" /I "$(CUBITROOT)\netcdf\netcdf-3.4\include" /D "NDEBUG" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "MB_EXPORTS" /D "IS_BUILDING_MB" /YX /FD /c
 # SUBTRACT CPP /Fr
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
@@ -54,14 +54,14 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /machine:I386
-# ADD LINK32 libexoIIv2c.lib netcdfs.lib /nologo /dll /machine:I386 /out:"components/MDB.dll" /libpath:"$(CUBITROOT)\exodus\exodus3.07\lib\NT" /libpath:"$(CUBITROOT)\netcdf\netcdf-3.4\lib"
+# ADD LINK32 libexoIIv2c.lib netcdfs.lib /nologo /dll /machine:I386 /out:"components/MB.dll" /libpath:"$(CUBITROOT)\exodus\exodus3.07\lib\NT" /libpath:"$(CUBITROOT)\netcdf\netcdf-3.4\lib"
 
-!ELSEIF  "$(CFG)" == "MDB - Win32 Debug"
+!ELSEIF  "$(CFG)" == "MB - Win32 Debug"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 1
-# PROP BASE Output_Dir "MDB___Win32_Debug"
-# PROP BASE Intermediate_Dir "MDB___Win32_Debug"
+# PROP BASE Output_Dir "MB___Win32_Debug"
+# PROP BASE Intermediate_Dir "MB___Win32_Debug"
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 1
@@ -69,8 +69,8 @@ LINK32=link.exe
 # PROP Intermediate_Dir "Debug"
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "MDB_EXPORTS" /YX /FD /GZ /c
-# ADD CPP /nologo /MDd /W3 /Gm /GX /ZI /Od /I "$(CUBITROOT)\exodus\exodus3.07\include" /I "$(CUBITROOT)\netcdf\netcdf-3.4\include" /D "_DEBUG" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "MDB_EXPORTS" /D "IS_BUILDING_MDB" /YX /FD /GZ /c
+# ADD BASE CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "MB_EXPORTS" /YX /FD /GZ /c
+# ADD CPP /nologo /MDd /W3 /Gm /GX /ZI /Od /I "$(CUBITROOT)\exodus\exodus3.07\include" /I "$(CUBITROOT)\netcdf\netcdf-3.4\include" /D "_DEBUG" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "MB_EXPORTS" /D "IS_BUILDING_MB" /YX /FD /GZ /c
 # SUBTRACT CPP /Fr
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
@@ -81,15 +81,15 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 libexoIIv2c_db.lib netcdfsd.lib /nologo /dll /debug /machine:I386 /out:"components/MDBd.dll" /pdbtype:sept /libpath:"$(CUBITROOT)\exodus\exodus3.07\lib\NT" /libpath:"$(CUBITROOT)\netcdf\netcdf-3.4\lib"
+# ADD LINK32 libexoIIv2c_db.lib netcdfsd.lib /nologo /dll /debug /machine:I386 /out:"components/MBd.dll" /pdbtype:sept /libpath:"$(CUBITROOT)\exodus\exodus3.07\lib\NT" /libpath:"$(CUBITROOT)\netcdf\netcdf-3.4\lib"
 # SUBTRACT LINK32 /profile
 
 !ENDIF 
 
 # Begin Target
 
-# Name "MDB - Win32 Release"
-# Name "MDB - Win32 Debug"
+# Name "MB - Win32 Release"
+# Name "MB - Win32 Debug"
 # Begin Group "Source Files"
 
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
@@ -115,6 +115,10 @@ SOURCE=.\ExoIIUtil.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\GeomTopoTool.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\HigherOrderFactory.cpp
 # End Source File
 # Begin Source File
@@ -123,43 +127,51 @@ SOURCE=.\HomXform.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBBits.cpp
+SOURCE=.\MBBits.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBCore.cpp
+SOURCE=.\MBCN.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBDefines.cpp
+SOURCE=.\MBCore.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBFactory.cpp
+SOURCE=.\MBFactory.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBMeshSet.cpp
+SOURCE=.\MBMeshSet.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBRange.cpp
+SOURCE=.\MBRange.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBReadUtil.cpp
+SOURCE=.\MBReadUtil.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBWriteUtil.cpp
+SOURCE=.\MBSkinner.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MOABCN.cpp
+SOURCE=.\MBUtil.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\ReadExoII.cpp
+SOURCE=.\MBWriteUtil.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\ReadNCDF.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\ReadVtk.cpp
 # End Source File
 # Begin Source File
 
@@ -179,7 +191,11 @@ SOURCE=.\TagServer.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\WriteExoII.cpp
+SOURCE=.\Tqdcfr.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\WriteNCDF.cpp
 # End Source File
 # End Group
 # Begin Group "Header Files"
@@ -191,6 +207,10 @@ SOURCE=.\AEntityFactory.hpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\DenseTagCollections.hpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\EntitySequence.hpp
 # End Source File
 # Begin Source File
@@ -199,7 +219,11 @@ SOURCE=.\EntitySequenceManager.hpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\ExoIIInterface.hpp
+SOURCE=.\ExoIIUtil.hpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GeomTopoTool.hpp
 # End Source File
 # Begin Source File
 
@@ -211,59 +235,51 @@ SOURCE=.\HomXform.hpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBCore.hpp
+SOURCE=.\MBBits.hpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBDefines.h
+SOURCE=.\MBCN.hpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBEntitySequence.hpp
+SOURCE=.\MBCore.hpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBInterface.hpp
+SOURCE=.\MBInterface.hpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBInternals.hpp
+SOURCE=.\MBInternals.hpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBMeshSet.hpp
+SOURCE=.\MBMeshSet.hpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBRange.hpp
+SOURCE=.\MBRange.hpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBReadUtil.hpp
+SOURCE=.\MBReadUtil.hpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBReadUtilIface.hpp
+SOURCE=.\MBSkinner.hpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBSkinner.hpp
+SOURCE=.\MBUtil.hpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBWriteUtil.hpp
+SOURCE=.\ReadNCDF.hpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\MDBWriteUtilIface.hpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\MOABCN.hpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\ReadExoII.hpp
+SOURCE=.\ReadVtk.hpp
 # End Source File
 # Begin Source File
 
@@ -283,11 +299,11 @@ SOURCE=.\TagServer.hpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\TSTT_Base.h
+SOURCE=.\Tqdcfr.hpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\WriteExoII.hpp
+SOURCE=.\WriteNCDF.hpp
 # End Source File
 # End Group
 # Begin Group "Resource Files"

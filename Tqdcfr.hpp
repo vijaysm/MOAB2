@@ -219,8 +219,8 @@ public:
       }
 
     void print_header(const char *prefix,
-                      Tqdcfr::FEModelHeader::ArrayInfo &info,
-                      Tqdcfr::EntityHeader *header);
+                      FEModelHeader::ArrayInfo &info,
+                      EntityHeader *header);
     
     void read_header_info();
     void read_metadata_info(Tqdcfr *tqd);

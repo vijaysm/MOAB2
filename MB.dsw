@@ -3,7 +3,7 @@ Microsoft Developer Studio Workspace File, Format Version 6.00
 
 ###############################################################################
 
-Project: "MDB"=.\MDB.dsp - Package Owner=<4>
+Project: "MB"=.\MB.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -15,7 +15,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "MDBUtil"=.\MDBUtil.dsp - Package Owner=<4>
+Project: "MBUtil"=.\MBUtil.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -27,7 +27,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "MdbTest"=.\MdbTest.dsp - Package Owner=<4>
+Project: "MBTest"=.\MBTest.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -36,10 +36,10 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name mdb
+    Project_Dep_Name MB
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name MDBUtil
+    Project_Dep_Name MBUtil
     End Project Dependency
 }}}
 

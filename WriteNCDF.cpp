@@ -1370,12 +1370,12 @@ MBErrorCode WriteNCDF::initialize_exodus_file(ExodusMeshInfo &mesh_info,
   }
 
     // add other attributes while we're at it
-  float dum_vers = 3.04;
+  float dum_vers = 3.04F;
   if (!ncFile->add_att("api_version", dum_vers)) {
     mWriteIface->report_error("WriteNCDF: failed to define api_version attribute");
     return (MB_FAILURE);
   }
-  dum_vers = 99.9;
+  dum_vers = 99.9F;
   if (!ncFile->add_att("version", dum_vers)) {
     mWriteIface->report_error("WriteNCDF: failed to define version attribute");
     return (MB_FAILURE);

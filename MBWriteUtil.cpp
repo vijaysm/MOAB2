@@ -1,16 +1,12 @@
+#ifdef WIN32
+#pragma warning(disable : 4786)
+#endif
+
 #include "MBWriteUtil.hpp"
 #include "MBCore.hpp"
 #include "MBError.hpp"
 #include "EntitySequenceManager.hpp"
 #include "TagServer.hpp"
-
-#ifdef WIN32
-#ifdef _DEBUG
-// turn off warnings that say they debugging identifier has been truncated
-// this warning comes up when using some STL containers
-#pragma warning(disable : 4786)
-#endif
-#endif
 
 MBWriteUtil::MBWriteUtil(MBCore* mdb, MBError* error_handler) 
     : MBWriteUtilIface(), mMB(mdb), mError(error_handler)

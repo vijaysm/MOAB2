@@ -1,7 +1,7 @@
 #ifndef MB_IMPL_GENERAL_HPP
 #define MB_IMPL_GENERAL_HPP
 
-#define MOAB_IMPL_VERSION 1.01
+#define MOAB_IMPL_VERSION 1.01F
 #define MOAB_IMPL_VERSION_STRING "1.01b"
 
 #include "MBInterface.hpp"

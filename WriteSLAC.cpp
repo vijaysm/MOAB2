@@ -8,7 +8,6 @@
 #endif
 
 
-
 #include "WriteSLAC.hpp"
 
 #include <utility>
@@ -567,20 +566,26 @@ MBErrorCode WriteSLAC::write_nodes(const int num_nodes, const MBRange& nodes, co
   // write the nodes 
   NcVar *coord = ncFile->get_var("coords");
   if (NULL == coord) return MB_FAILURE;
-  bool status = coord->put(coord_arrays[0], num_nodes, 1);
-  if (!status) return MB_FAILURE;
-  status = coord->set_cur(0, 1);
-  if (!status) return MB_FAILURE;
-  status = coord->put(&(coord_arrays[1][0]), num_nodes, 1);
-  if (!status) return MB_FAILURE;
-  status = coord->set_cur(0, 2);
-  if (!status) return MB_FAILURE;
-  status = coord->put(&(coord_arrays[2][0]), num_nodes, 1);
-  if (!status) return MB_FAILURE;
+  bool status = coord->put(coord_arrays[0], num_nodes, 1) != 0;
+  if (!status)
+    return MB_FAILURE;
+  status = coord->set_cur(0, 1) != 0;
+  if (!status)
+    return MB_FAILURE;
+  status = coord->put(&(coord_arrays[1][0]), num_nodes, 1) != 0;
+  if (!status)
+    return MB_FAILURE;
+  status = coord->set_cur(0, 2) != 0;
+  if (!status)
+    return MB_FAILURE;
+  status = coord->put(&(coord_arrays[2][0]), num_nodes, 1) != 0;
+  if (!status)
+    return MB_FAILURE;
   
   delete [] coord_arrays[0];
   delete [] coord_arrays[1];
-  if(coord_arrays[2]) delete [] coord_arrays[2];
+  if(coord_arrays[2]) 
+    delete [] coord_arrays[2];
 
   return MB_SUCCESS;
 

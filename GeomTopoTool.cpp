@@ -1,5 +1,6 @@
 #include "GeomTopoTool.hpp"
 #include "MBRange.hpp"
+#include <assert.h>
 
     //! Restore parent/child links between GEOM_TOPO mesh sets
 MBErrorCode GeomTopoTool::restore_topology() 

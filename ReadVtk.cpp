@@ -5,6 +5,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <assert.h>
 
 ReadVtk::ReadVtk(MBInterface* impl)
     : mdbImpl(impl)
@@ -27,7 +28,8 @@ MBErrorCode ReadVtk::load_file(const char *file_name)
   }
 
   char line[256];
-  for (int i=0; i<4; ++i)
+  int i;
+  for (i=0; i<4; ++i)
     ifs.getline(line,256);
 
     // gets the number of vertices.
@@ -47,7 +49,7 @@ MBErrorCode ReadVtk::load_file(const char *file_name)
   readMeshIface->get_node_arrays(3, NbVertices,
                                  MB_START_ID, start_handle, arrays);
 
-  for(int i=0;i<NbVertices;++i)
+  for(i=0;i<NbVertices;++i)
     ifs >> (arrays[0])[i] >> (arrays[1])[i] >> (arrays[2])[i];
 
     // make a meshset for this mesh
@@ -71,7 +73,7 @@ MBErrorCode ReadVtk::load_file(const char *file_name)
 
     // fills up the connectivity table
   std::vector<int> connectivity;
-  for (int i=0; i<tableSize; ++i) {
+  for (i=0; i<tableSize; ++i) {
     int entry;
     ifs >> entry;
     connectivity.push_back(entry);
@@ -92,7 +94,7 @@ MBErrorCode ReadVtk::load_file(const char *file_name)
   }
 
   int* cellType = new int[NbCellTypes];
-  for (int i=0; i < NbCellTypes; ++i)
+  for (i=0; i < NbCellTypes; ++i)
     ifs >> cellType[i];
 
   MBEntityHandle vtx[8];
@@ -100,7 +102,7 @@ MBErrorCode ReadVtk::load_file(const char *file_name)
   connectIter = connectivity.begin();
   MBEntityHandle new_region;
   
-  for (int i=0; i<NbRegions; ++i) {
+  for (i=0; i<NbRegions; ++i) {
 
     switch (cellType[i]) {
       case 5:  // Triangle

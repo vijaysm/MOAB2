@@ -1,5 +1,8 @@
-#include "MeshTopoUtil.hpp"
+#ifdef WIN32
+#pragma warning (disable : 4786)
+#endif
 
+#include "MeshTopoUtil.hpp"
 #include "MBRange.hpp"
 
     //! generate all the AEntities bounding the vertices

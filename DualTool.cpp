@@ -5,6 +5,7 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <assert.h>
 
 #define RR if (MB_SUCCESS != result) return result
 
@@ -635,12 +636,20 @@ MBErrorCode DualTool::get_dual_entities(const int dim,
 {
   MBRange tmp_range;
   MBErrorCode result = get_dual_entities(dim, tmp_range);
-  if (MB_SUCCESS != result) return result;
-  
-  dual_ents.insert(dual_ents.end(), tmp_range.begin(), tmp_range.end());
+  if (MB_SUCCESS != result)
+    return result;
+
+    // dual_ents.insert(dual_ents.end(), tmp_range.begin(), tmp_range.end());
+  dual_ents.reserve(dual_ents.size() + tmp_range.size());
+  for (MBRange::const_iterator it = tmp_range.begin();
+       it != tmp_range.end();
+       ++it)
+  {
+    dual_ents.push_back(*it);
+  }
   return MB_SUCCESS;
 }
-  
+
 MBErrorCode DualTool::construct_dual_hyperplanes(const int dim) 
 {
     // this function traverses dual faces of input dimension, constructing

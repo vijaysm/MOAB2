@@ -1,5 +1,6 @@
 #include "MBCN.hpp"
 #include "MBCNArrays.cpp"
+#include <assert.h>
 
 const char *MBCN::entityTypeNames[] = {
 "Vertex",

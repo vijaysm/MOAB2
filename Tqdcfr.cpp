@@ -3,6 +3,7 @@
 #include "MBRange.hpp"
 #include "MBReadUtilIface.hpp"
 #include "GeomTopoTool.hpp"
+#include <assert.h>
 
 const bool debug = false;
 Tqdcfr *Tqdcfr::instance_ = NULL;

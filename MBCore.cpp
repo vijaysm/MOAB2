@@ -1,9 +1,7 @@
 #ifdef WIN32
-#ifdef _DEBUG
 // turn off warnings that say they debugging identifier has been truncated
 // this warning comes up when using some STL containers
 #pragma warning(disable : 4786)
-#endif
 #endif
 
 #include <iostream>
@@ -708,7 +706,11 @@ MBErrorCode MBCore::get_adjacencies(const MBEntityHandle *from_entities,
     return result;
   
   adj_entities.clear();
-  adj_entities.insert(adj_entities.end(), temp_range2.begin(), temp_range2.end());
+  adj_entities.reserve(temp_range2.size());
+  for (MBRange::const_iterator it = temp_range2.begin();
+       it != temp_range2.end();
+       ++it)
+    adj_entities.push_back(*it);
   
   return MB_SUCCESS;
 }
@@ -932,9 +934,13 @@ MBErrorCode MBCore::get_entities_by_handle(const MBEntityHandle meshset,
     result = get_entities_by_handle(meshset, dum_range, recursive);
     if (MB_SUCCESS != result) 
       return result;
-    entities.insert(entities.end(), dum_range.begin(), dum_range.end());
+    entities.reserve(entities.size() + dum_range.size());
+    for (MBRange::const_iterator it = dum_range.begin();
+         it != dum_range.end();
+         ++it)
+      entities.push_back(*it);
   }
-
+  
   return result;
 }
 

@@ -18,7 +18,6 @@
 #ifndef MBCN_HPP
 #define MBCN_HPP
 
-#include "assert.h"
 #include <vector>
 #include <algorithm>
 

@@ -19,6 +19,8 @@
 #error "WriteSLAC.hpp isn't supposed to be included into an application"
 #endif
 
+#include "netcdf.hh"
+
 #include <set>
 #include <map>
 #include <vector>
@@ -26,7 +28,6 @@
 #include <functional>
 #include <string>
 
-#include "netcdf.hh"
 #include "MBRange.hpp"
 #include "MBInterface.hpp"
 #include "MBWriteUtilIface.hpp"
@@ -130,9 +131,9 @@ private:
   MBTag mEntityMark;   //used to say whether an entity will be exported
 
   MBErrorCode gather_mesh_information(MeshInfo &mesh_info,
-                                      std::vector<WriteSLAC::MaterialSetData> &matset_info,
-                                      std::vector<WriteSLAC::NeumannSetData> &neuset_info,
-                                      std::vector<WriteSLAC::DirichletSetData> &dirset_info,
+                                      std::vector<MaterialSetData> &matset_info,
+                                      std::vector<NeumannSetData> &neuset_info,
+                                      std::vector<DirichletSetData> &dirset_info,
                                       std::vector<MBEntityHandle> &matsets,
                                       std::vector<MBEntityHandle> &neusets,
                                       std::vector<MBEntityHandle> &dirsets);
@@ -143,20 +144,20 @@ private:
                           const int dimension );
 
   MBErrorCode write_matsets(MeshInfo &mesh_info, 
-                            std::vector<WriteSLAC::MaterialSetData> &matset_data,
-                            std::vector<WriteSLAC::NeumannSetData> &neuset_data);
+                            std::vector<MaterialSetData> &matset_data,
+                            std::vector<NeumannSetData> &neuset_data);
   
   MBErrorCode get_valid_sides(MBRange &elems, const int sense,
                               WriteSLAC::NeumannSetData &sideset_data);
   
-  void reset_matset(std::vector<WriteSLAC::MaterialSetData> &matset_info);
+  void reset_matset(std::vector<MaterialSetData> &matset_info);
   
   MBErrorCode get_neuset_elems(MBEntityHandle neuset, int current_sense,
                                MBRange &forward_elems, MBRange &reverse_elems);
   
   MBErrorCode gather_interior_exterior(MeshInfo &mesh_info,
-                                       std::vector<WriteSLAC::MaterialSetData> &matset_data,
-                                       std::vector<WriteSLAC::NeumannSetData> &neuset_data);
+                                       std::vector<MaterialSetData> &matset_data,
+                                       std::vector<NeumannSetData> &neuset_data);
   
 };
 

@@ -1,3 +1,6 @@
+#ifdef WIN32
+#pragma warning(disable:4786)
+#endif
 
 #include "ReadNCDF.hpp"
 #include "netcdf.hh"
@@ -869,7 +872,7 @@ MBErrorCode ReadNCDF::read_elements()
         {
           // nodesInLoadedBlocks is the size of nodes in this block.
           // set the value prior to the offset
-          nodesInLoadedBlocks[conn[k]] = true;
+          nodesInLoadedBlocks[conn[k]] = 1;
           conn[k] += vertexOffset;
         }
 
@@ -879,7 +882,7 @@ MBErrorCode ReadNCDF::read_elements()
         //Put all the nodes you are using into a range
         for(int k = 0; k<number_nodes; k++) 
         {
-          nodesInLoadedBlocks[conn[k]] = true;
+          nodesInLoadedBlocks[conn[k]] = 1;
         }
       }
       
@@ -903,7 +906,7 @@ MBErrorCode ReadNCDF::read_elements()
         // copy the int data into MBEntityHandle data
         for(int i = number_nodes-1; i--; )
         {
-          nodesInLoadedBlocks[tmp_ptr[i]] = true;
+          nodesInLoadedBlocks[tmp_ptr[i]] = 1;
           conn[i] = static_cast<MBEntityHandle>(tmp_ptr[i]) + vertexOffset;
         }
       }
@@ -912,7 +915,7 @@ MBErrorCode ReadNCDF::read_elements()
         // copy the int data into MBEntityHandle data
         for(int i = number_nodes; i--; )
         {
-          nodesInLoadedBlocks[tmp_ptr[i]] = true;
+          nodesInLoadedBlocks[tmp_ptr[i]] = 1;
           conn[i] = static_cast<MBEntityHandle>(tmp_ptr[i]) + vertexOffset;
         }
 
@@ -1123,7 +1126,7 @@ MBErrorCode ReadNCDF::read_nodesets()
     for (j = 0; j < number_nodes_in_set; j++)
     {
         //see if this node is one we're currently reading in
-      if( nodesInLoadedBlocks[node_handles[j]] == true )
+      if( nodesInLoadedBlocks[node_handles[j]] == 1 )
       {
           //make sure that it already isn't in a nodeset
         unsigned int node_id = CREATE_HANDLE(MBVERTEX, node_handles[j]+vertexOffset, temp);
