@@ -3822,7 +3822,7 @@ MBErrorCode mb_topo_util_test(MBInterface *gMB)
   
   std::vector<MBEntityHandle> star_faces, star_hexes;
   bool bdy_edge;
-  result = mtu.star_faces(*middle_edge.begin(), star_faces, bdy_edge, &star_hexes);
+  result = mtu.star_faces(*middle_edge.begin(), star_faces, bdy_edge);
   if (MB_SUCCESS != result || bdy_edge || star_faces.size() != 4 || star_hexes.size() != 4) {
     std::cout << "Bad result from star_faces for non-bdy edge." << std::endl;
     return MB_FAILURE;

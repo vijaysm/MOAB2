@@ -471,48 +471,34 @@ MBErrorCode DualTool::get_radial_dverts(const MBEntityHandle edge,
                                         bool &bdy_edge) 
 {
   rad_dverts.clear();
-  std::vector<MBEntityHandle> faces, regions;
-  MeshTopoUtil tu(mbImpl);
-  MBErrorCode result = tu.star_faces(edge, faces, bdy_edge, &regions);
+  
+  std::vector<MBEntityHandle> rad_ents, rad_hexes;
+  MBErrorCode result = MeshTopoUtil(mbImpl).star_faces(edge, rad_ents, bdy_edge);
   if (MB_SUCCESS != result) return result;
   
-  if (bdy_edge) {
-      // if bdy edge, put the face on front and back; will replace with correct vertex later
-    MBEntityHandle this_face = faces[0];
-    regions.insert(regions.begin(), this_face);
-    this_face = faces[faces.size()-1];
-    regions.push_back(this_face);
-  }
-
-    // now get the dual entities
-  rad_dverts.resize(regions.size());
-  for (unsigned int i = 0; i < regions.size(); i++) {
-    result = mbImpl->tag_get_data(dualEntity_tag(), &regions[i], 1, &rad_dverts[i]);
-    if (MB_SUCCESS != result) return result;
-  }
-  
-//  result = mbImpl->tag_get_data(dualEntity_tag(), &regions[0], regions.size(), &rad_dverts[0]);
-//  if (MB_SUCCESS != result) return result;
-
-  if (bdy_edge) {
-
-      // get the 1st and last vertices using dual edges    
-      // get connectivity of the 1st edge
-    const MBEntityHandle *connect;
-    int num_connect;
-    result = mbImpl->get_connectivity(rad_dverts[0], connect, num_connect);
-    if (MB_SUCCESS != result) return result;
+  rad_dverts.resize(rad_ents.size());
+  for (unsigned int i = 0; i < rad_ents.size(); i++) {
+    MBEntityHandle dual_ent;
+    result = mbImpl->tag_get_data(dualEntity_tag(), &rad_ents[i], 1,
+                                  &dual_ent);
+    if (!bdy_edge || i < rad_ents.size()-2) rad_dverts[i] = dual_ent;
+    else {
+      // fix up this entry
+      assert(mbImpl->type_from_handle(dual_ent) == MBEDGE);
     
-      // we want the one that's not already on the list; reuse last_face
-    rad_dverts[0] = (connect[0] == rad_dverts[1] ? connect[1] : connect[0]);
-
-      // do the same for first_face
-    unsigned int end_index = rad_dverts.size()-1;
-    result = mbImpl->get_connectivity(rad_dverts[end_index], connect, num_connect);
-    if (MB_SUCCESS != result) return result;
-    rad_dverts[end_index] = (connect[0] == rad_dverts[end_index-1] ? connect[1] : connect[0]);
+        // get connectivity of that edge
+      const MBEntityHandle *connect;
+      int num_connect;
+      result = mbImpl->get_connectivity(dual_ent, connect, num_connect);
+      if (MB_SUCCESS != result) return result;
+    
+        // we want the one that's not already on the list; reuse last_face
+      int last_hex = (i == rad_ents.size()-1 ? 0 : i-1);
+      MBEntityHandle last_face = (connect[0] == rad_dverts[last_hex] ? connect[1] : connect[0]);
+      rad_dverts[i] = last_face;
+    }
   }
-  
+    
   return result;
 }
 
