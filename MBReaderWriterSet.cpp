@@ -9,6 +9,7 @@
 #include "ReadVtk.hpp"
 #include "Tqdcfr.hpp"
 
+#include "WriteVtk.hpp"
 #include "WriteGMV.hpp"
 #include "WriteNCDF.hpp"
 #include "WriteSLAC.hpp"
@@ -25,7 +26,7 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
   register_factory( ReadNCDF::factory, WriteNCDF::factory, "Exodus II", exo_list );
   
   const char* vtk_list[] = { "vtk", NULL };
-  register_factory( ReadVtk::factory, NULL, "Kitware VTK", vtk_list );
+  register_factory( ReadVtk::factory, WriteVtk::factory, "Kitware VTK", vtk_list );
   
   const char* cub_list[] = { "cub", NULL };
   register_factory( Tqdcfr::factory, NULL, "Cubit", cub_list );

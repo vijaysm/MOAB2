@@ -63,10 +63,12 @@ MB_LIB_SRCS = \
 	SparseTagCollections.cpp \
 	TagServer.cpp \
 	Tqdcfr.cpp \
+	VtkUtil.cpp \
 	WriteGMV.cpp \
 	WriteNCDF.cpp \
 	WriteSLAC.cpp \
-	WriteTemplate.cpp
+	WriteTemplate.cpp \
+	WriteVtk.cpp
 
 HDF_IO_SRCS = RangeTree.cpp ReadHDF5.cpp WriteHDF5.cpp
 ifeq ($(HDF5_FILE),yes)
