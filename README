@@ -26,6 +26,20 @@ Laboratories, and was partially funded by the DOE SciDAC program as
 part of the Terascale Tools and Technologies (TSTT) center.
 
 =====================================
+Dependencies
+=====================================
+
+MOAB depends on the NetCDF libraries (C and C++) to compile the
+ExodusII reader/writer.  Because of problems compiling the released
+version, it's easiest to download the latest, beta version of netcdf,
+which is available at
+ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-3.5.1.tar.Z.  If you want
+to use the released version, it'll work once you've compiled the C++
+version of the library; see
+http://www.unidata.ucar.edu/packages/netcdf/known_problems.html#gcc-3.0
+for a discussion of how to do that.
+
+=====================================
 Compiling
 =====================================
 
