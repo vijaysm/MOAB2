@@ -12,6 +12,7 @@
 #include <algorithm>
 #include "MBCore.hpp"
 #include "TagServer.hpp"
+#include "WriteSLAC.hpp"
 #include "WriteNCDF.hpp"
 #include "ReadNCDF.hpp"
 #include "Tqdcfr.hpp"
@@ -259,11 +260,17 @@ MBErrorCode  MBCore::write_mesh(const char *file_name,
                                   const int num_sets)
 {
   
-    // see if the file can be read by exodus
-  WriteNCDF writer(this);
-  std::vector<std::string> qa_records;
-  MBErrorCode error = writer.write_file(file_name, output_list, num_sets, qa_records);
+      // try a SLAC writer
+  WriteSLAC slacw(this);
+  MBErrorCode error = slacw.write_file(file_name, output_list, num_sets);
 
+  if (MB_SUCCESS != error) {
+      // see if the file can be written by exodus
+    WriteNCDF writer(this);
+    std::vector<std::string> qa_records;
+    error = writer.write_file(file_name, output_list, num_sets, qa_records);
+  }
+  
   return error; 
 }
 
