@@ -1208,12 +1208,24 @@ MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
     return MB_FAILURE;
   }
   
+    // Split buffer into two portions: one for handles and one for data.
+    
+    // We want to read the same number of handles as data values for each
+    // iteration.  Calculate the total number of entries to read in each
+    // pass as the size of the buffer over the sum of the size of a handle
+    // and value.  Subtract off the size of one value so we reserve space
+    // for adjusting for data alignment.
   size_t chunk_size = (bufferSize - read_size) / (sizeof(MBEntityHandle) + read_size);
+  
+    // Use the first half of the buffer for the handles.
   MBEntityHandle* idbuffer = (MBEntityHandle*)dataBuffer;
-  char* databuffer = dataBuffer + (chunk_size * read_size);
-    // be careful about alignment
+    // Use the latter portion of the buffer for data
+  char* databuffer = dataBuffer + (chunk_size * sizeof(MBEntityHandle));
+    // To be safe, align tag data to the size of an entire tag value
   if ((size_t)databuffer % read_size)
     databuffer += read_size - ((size_t)databuffer % read_size);
+      // Make sure the above calculations are correct
+  assert( databuffer + chunk_size*read_size < dataBuffer + bufferSize );
   
   size_t remaining = (size_t)num_values;
   size_t offset = 0;
