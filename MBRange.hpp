@@ -285,8 +285,6 @@ public:
   void sanity_check() const;
 
 
-private:
-
   struct PairNode
   {
 
@@ -311,8 +309,6 @@ protected:
   MBRange::iterator insert( MBRange::iterator prev,
                             MBEntityHandle first,
                             MBEntityHandle last );
-
-public:
 
     //! used to iterate over sub-ranges of a range
   class pair_iterator : public range_base_iter
@@ -364,6 +360,8 @@ public:
     
     PairNode* mNode;
   };
+
+public:
 
   //! a const iterator which iterates over an MBRange
   class const_iterator : public range_base_iter
