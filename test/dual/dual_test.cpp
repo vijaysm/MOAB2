@@ -4,7 +4,9 @@
 #include "MBRange.hpp"
 #include "MeshTopoUtil.hpp"
 #include "DualTool.hpp"
-#include "iostream"
+#include "WriteGMV.hpp"
+#include <iostream>
+#include <string>
 
 MBInterface *gMB;
 
@@ -104,6 +106,12 @@ int main(int argc, char* argv[])
                   << std::endl;
     }
   }
+
+    // write GMV file
+  WriteGMV *wgmv = new WriteGMV(gMB);
+  std::string file_name = std::string(argv[1]) + std::string(".gmv");
+  wgmv->write_file(file_name.c_str(), 0, 3);
+  delete wgmv;
   
   delete gMB;
 }

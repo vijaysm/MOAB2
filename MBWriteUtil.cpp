@@ -355,6 +355,36 @@ MBErrorCode MBWriteUtil::gather_nodes_from_elements(
 
 }
 
+  //! assign ids to input elements starting with start_id, written to id_tag
+  //! if zero, assigns to GLOBAL_ID_TAG_NAME
+MBErrorCode MBWriteUtil::assign_ids(MBRange &elements,
+                                    MBTag id_tag,
+                                    const int start_id) 
+{
+  MBErrorCode result;
+  if (0 == id_tag) {
+      // get the global id tag
+    result = mMB->tag_get_handle(GLOBAL_ID_TAG_NAME, id_tag);
+    if (MB_TAG_NOT_FOUND == result) {
+      int def_val = -1;
+      result = mMB->tag_create(GLOBAL_ID_TAG_NAME, 4, MB_TAG_DENSE, id_tag, &def_val);
+    }
+    
+    if (MB_SUCCESS != result) return result;
+  }
+  
+    // now assign the ids
+  int i;
+  MBRange::iterator rit;
+  MBErrorCode tmp_result;
+  result = MB_SUCCESS;
+  for (i = start_id, rit = elements.begin(); rit != elements.end(); rit++, i++) {
+    tmp_result = mMB->tag_set_data(id_tag, &(*rit), 1, &i);
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
+  }
+  
+  return result;
+}
 
 MBErrorCode MBWriteUtil::report_error( const std::string& error )
 {
@@ -373,3 +403,4 @@ MBErrorCode MBWriteUtil::report_error( const char* error, ... )
   va_end(args);
   return result;
 }
+

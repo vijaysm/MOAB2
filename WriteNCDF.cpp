@@ -39,23 +39,45 @@ WriteNCDF::WriteNCDF(MBInterface *impl)
   impl->query_interface(iface_name, reinterpret_cast<void**>(&mWriteIface));
 
   // initialize in case tag_get_handle fails below
-  mMaterialSetTag  = 0;
-  mDirichletSetTag = 0;
-  mNeumannSetTag   = 0;
-  mHasMidNodesTag  = 0;
-  mGeomDimensionTag= 0;
-  mDistFactorTag   = 0;
-  mQaRecordTag     = 0;
-  mExodusIdTag     = 0;
-
   //! get and cache predefined tag handles
-  impl->tag_get_handle(MATERIAL_SET_TAG_NAME,  mMaterialSetTag);
-  impl->tag_get_handle(DIRICHLET_SET_TAG_NAME, mDirichletSetTag);
-  impl->tag_get_handle(NEUMANN_SET_TAG_NAME,   mNeumannSetTag);
-  impl->tag_get_handle(HAS_MID_NODES_TAG_NAME, mHasMidNodesTag);
-  impl->tag_get_handle(GEOM_DIMENSION_TAG_NAME,mGeomDimensionTag);
-  impl->tag_get_handle("distFactor",           mDistFactorTag);
-  impl->tag_get_handle("qaRecord",             mQaRecordTag);
+  int dum_val = 0;
+  MBErrorCode result = impl->tag_get_handle(MATERIAL_SET_TAG_NAME,  mMaterialSetTag);
+  if (MB_TAG_NOT_FOUND == result)
+    result = impl->tag_create(MATERIAL_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mMaterialSetTag,
+                              &dum_val);
+  
+  result = impl->tag_get_handle(DIRICHLET_SET_TAG_NAME, mDirichletSetTag);
+  if (MB_TAG_NOT_FOUND == result)
+    result = impl->tag_create(DIRICHLET_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mDirichletSetTag,
+                              &dum_val);
+  
+  result = impl->tag_get_handle(NEUMANN_SET_TAG_NAME,   mNeumannSetTag);
+  if (MB_TAG_NOT_FOUND == result)
+    result = impl->tag_create(NEUMANN_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mNeumannSetTag,
+                              &dum_val);
+  
+  result = impl->tag_get_handle(HAS_MID_NODES_TAG_NAME, mHasMidNodesTag);
+  if (MB_TAG_NOT_FOUND == result) {
+    int dum_val_array[] = {0, 0, 0, 0};
+    result = impl->tag_create(HAS_MID_NODES_TAG_NAME, 4*sizeof(int), MB_TAG_SPARSE, mHasMidNodesTag,
+                              dum_val_array);
+  }
+  
+  result = impl->tag_get_handle("distFactor",           mDistFactorTag);
+  if (MB_TAG_NOT_FOUND == result)
+    result = impl->tag_create("distFactor", sizeof(double*), MB_TAG_SPARSE, mDistFactorTag, 
+                              &dum_val);
+  
+  result = impl->tag_get_handle("qaRecord",             mQaRecordTag);
+  if (MB_TAG_NOT_FOUND == result)
+    result = impl->tag_create("qaRecord", sizeof(void*), MB_TAG_SPARSE, mQaRecordTag,
+                              &dum_val);
+  
+  result = impl->tag_get_handle(GLOBAL_ID_TAG_NAME,             mGlobalIdTag);
+  if (MB_TAG_NOT_FOUND == result)
+    result = impl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mGlobalIdTag,
+                              &dum_val);
+  
 
   impl->tag_create("WriteNCDF element mark", 1, MB_TAG_BIT, mEntityMark, NULL);
 
@@ -381,7 +403,8 @@ MBErrorCode WriteNCDF::gather_mesh_information(
   
     std::vector<char*> *qa_rec;
 
-    if (mdbImpl->tag_get_data(mQaRecordTag, &(*vector_iter), 1, &qa_rec) == MB_SUCCESS) 
+    if (mdbImpl->tag_get_data(mQaRecordTag, &(*vector_iter), 1, &qa_rec) == MB_SUCCESS &&
+        NULL != qa_rec) 
     {
         // there are qa records on this block - copy over to mesh qa records
 
@@ -444,7 +467,8 @@ MBErrorCode WriteNCDF::gather_mesh_information(
     std::vector<double> *dist_factor_vector;
    
     int has_dist_factors = 0; 
-    if(mdbImpl->tag_get_data(mDistFactorTag,&(*vector_iter), 1, &dist_factor_vector) == MB_SUCCESS)
+    if(mdbImpl->tag_get_data(mDistFactorTag,&(*vector_iter), 1, &dist_factor_vector) == MB_SUCCESS &&
+       NULL != dist_factor_vector)
       has_dist_factors = 1;
     std::vector<MBEntityHandle>::iterator iter, end_iter;
     iter = node_vector.begin();
@@ -533,7 +557,8 @@ MBErrorCode WriteNCDF::get_valid_sides(MBRange &elems, ExodusMeshInfo& /*mesh_in
   std::vector<double>::iterator dist_fac_iter(0);
   bool has_dist_factors = false; 
   if(mdbImpl->tag_get_data(mDistFactorTag,
-                           &(sideset_data.mesh_set_handle), 1, &dist_factor_vector) == MB_SUCCESS)
+                           &(sideset_data.mesh_set_handle), 1, &dist_factor_vector) == MB_SUCCESS &&
+     NULL != dist_factor_vector)
   {
     has_dist_factors = true;
     dist_fac_iter = (*dist_factor_vector).begin();
@@ -707,7 +732,7 @@ MBErrorCode WriteNCDF::write_nodes(int num_nodes, MBRange& nodes, int dimension)
   if( num_coords_to_fill == 3 ) 
     coord_arrays[2] = new double[num_nodes];
  
-  result = mWriteIface->get_node_arrays(dimension, num_nodes, nodes, exodusId_tag(), coord_arrays);
+  result = mWriteIface->get_node_arrays(dimension, num_nodes, nodes, mGlobalIdTag, coord_arrays);
   if(result != MB_SUCCESS)
   {
     delete [] coord_arrays[0];
@@ -854,7 +879,7 @@ MBErrorCode WriteNCDF::write_elementblocks(std::vector<MaterialSetData> &block_d
     int* connectivity = new int[num_nodes];
 
     MBErrorCode result = mWriteIface->get_element_array(
-        num_elem, num_nodes_per_elem, exodusId_tag(), *block.elements, exodusId_tag(), exodus_id ,connectivity);
+        num_elem, num_nodes_per_elem, mGlobalIdTag, *block.elements, mGlobalIdTag, exodus_id ,connectivity);
 
     if(result != MB_SUCCESS) {
       mWriteIface->report_error("Couldn't get element array to write from.");
@@ -1084,7 +1109,7 @@ MBErrorCode WriteNCDF::write_BCs(std::vector<NeumannSetData> &sidesets,
     //fill up node array and dist. factor array at the same time
     for(; begin_iter != end_iter; begin_iter++)
     {
-      result = mdbImpl->tag_get_data(exodusId_tag(), &(*begin_iter), 1, &exodus_id);
+      result = mdbImpl->tag_get_data(mGlobalIdTag, &(*begin_iter), 1, &exodus_id);
       if (MB_SUCCESS != result) {
         mWriteIface->report_error("Problem getting id tag data.");
         return result;
@@ -1184,7 +1209,7 @@ MBErrorCode WriteNCDF::write_BCs(std::vector<NeumannSetData> &sidesets,
       //for each "side"
     for(; begin_iter != end_iter; begin_iter++, side_iter++)
     {
-      MBErrorCode result = mdbImpl->tag_get_data(exodusId_tag(),
+      MBErrorCode result = mdbImpl->tag_get_data(mGlobalIdTag,
                                                   &(*begin_iter), 
                                                   1, &exodus_id);
       if (MB_FAILURE == result) {

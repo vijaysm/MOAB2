@@ -56,13 +56,46 @@ ReadNCDF::ReadNCDF(MBInterface* impl)
   mGlobalIdTag     = 0;
 
   //! get and cache predefined tag handles
-  impl->tag_get_handle(MATERIAL_SET_TAG_NAME,  mMaterialSetTag);
-  impl->tag_get_handle(DIRICHLET_SET_TAG_NAME, mDirichletSetTag);
-  impl->tag_get_handle(NEUMANN_SET_TAG_NAME,   mNeumannSetTag);
-  impl->tag_get_handle(HAS_MID_NODES_TAG_NAME, mHasMidNodesTag);
-  impl->tag_get_handle("distFactor",           mDistFactorTag);
-  impl->tag_get_handle("qaRecord",             mQaRecordTag);
-  impl->tag_get_handle(GLOBAL_ID_TAG_NAME,             mGlobalIdTag);
+  int dum_val = 0;
+  MBErrorCode result = impl->tag_get_handle(MATERIAL_SET_TAG_NAME,  mMaterialSetTag);
+  if (MB_TAG_NOT_FOUND == result)
+    result = impl->tag_create(MATERIAL_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mMaterialSetTag,
+                              &dum_val);
+  
+  result = impl->tag_get_handle(DIRICHLET_SET_TAG_NAME, mDirichletSetTag);
+  if (MB_TAG_NOT_FOUND == result)
+    result = impl->tag_create(DIRICHLET_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mDirichletSetTag,
+                              &dum_val);
+  
+  result = impl->tag_get_handle(NEUMANN_SET_TAG_NAME,   mNeumannSetTag);
+  if (MB_TAG_NOT_FOUND == result)
+    result = impl->tag_create(NEUMANN_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mNeumannSetTag,
+                              &dum_val);
+  
+  result = impl->tag_get_handle(HAS_MID_NODES_TAG_NAME, mHasMidNodesTag);
+  if (MB_TAG_NOT_FOUND == result) {
+    int dum_val_array[] = {0, 0, 0, 0};
+    result = impl->tag_create(HAS_MID_NODES_TAG_NAME, 4*sizeof(int), MB_TAG_SPARSE, mHasMidNodesTag,
+                              dum_val_array);
+  }
+  
+  result = impl->tag_get_handle("distFactor",           mDistFactorTag);
+  if (MB_TAG_NOT_FOUND == result) {
+    double dum_dbl = 0.0;
+    result = impl->tag_create("distFactor", sizeof(double*), MB_TAG_SPARSE, mDistFactorTag, 
+                              &dum_dbl);
+  }
+  
+  result = impl->tag_get_handle("qaRecord",             mQaRecordTag);
+  if (MB_TAG_NOT_FOUND == result)
+    result = impl->tag_create("qaRecord", sizeof(int), MB_TAG_SPARSE, mQaRecordTag,
+                              &dum_val);
+  
+  result = impl->tag_get_handle(GLOBAL_ID_TAG_NAME,             mGlobalIdTag);
+  if (MB_TAG_NOT_FOUND == result)
+    result = impl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mGlobalIdTag,
+                              &dum_val);
+  
 
   ncFile = NULL;
 }
@@ -94,38 +127,6 @@ ReadNCDF::~ReadNCDF()
   mdbImpl->release_interface(iface_name, readMeshIface);
   if (NULL != ncFile)
     delete ncFile;
-}
-
-void ReadNCDF::release_mesh_file(MBInterface* mdb)
-{
-  // get the handle for the loaded_blocks
-  MBTag loaded_block_tag=0;
-  mdb->tag_get_handle("__loaded_blocks", loaded_block_tag);
-  
-  // delete the mesh sets tagged "__mesh" and associated data
-  MBTag mesh_tag=0;
-  if (mdb->tag_get_handle("__mesh", mesh_tag) == MB_SUCCESS)
-  {
-    MBRange mesh_range;
-    mdb->get_entities_by_type_and_tag( 0, MBENTITYSET, &mesh_tag, NULL, 1, mesh_range);
-
-
-    // free the filename and load_block pointers
-    MBRange::iterator iter;
-    for (iter = mesh_range.begin(); iter != mesh_range.end(); iter++)
-    {
-      std::string* filename = 0; 
-      mdb->tag_get_data(mesh_tag, &(*iter), 1, &filename);
-      delete filename;
-
-      std::vector<int>* loaded_blocks = 0; 
-      mdb->tag_get_data(loaded_block_tag, &(*iter), 1, &loaded_blocks);
-      delete loaded_blocks;
-
-      // now delete the meshset itself. 
-      mdb->delete_entities(&(*iter), 1);
-    }
-  }
 }
 
 // should this be moved to the core?  This could apply to ANY input
@@ -646,10 +647,10 @@ MBErrorCode ReadNCDF::read_block_headers(const int *blocks_to_load,
       // get the entity type corresponding to this ExoII element type
       //ExoIIElementType elem_type = 
       //ExoIIUtil::static_element_name_to_type(element_type_string);
-      // block_data.elemType = elem_type;
 
     // tag each element block(mesh set) with enum for ElementType (SHELL, QUAD4, ....etc)
     ReadBlockData block_data;
+    block_data.elemType = EXOII_MAX_ELEM_TYPE;
     block_data.blockId = *iter;
     block_data.startExoId = exodus_id; 
     block_data.numElements = num_elements;
@@ -1165,18 +1166,21 @@ MBErrorCode ReadNCDF::read_nodesets()
         if( mdbImpl->tag_set_data(mDistFactorTag, &ns_handle, 1, &dist_factor_vector ) != MB_SUCCESS )
           return MB_FAILURE;
       }
+      else delete dist_factor_vector;
     }
     else if( !dist_factor_vector->empty() )
     {
         // append dist factors to vector 
       
       std::vector<double> *temp_vec;
-      if( mdbImpl->tag_get_data( mDistFactorTag, &ns_handle, 1, &temp_vec ) != MB_SUCCESS )
+      if( mdbImpl->tag_get_data( mDistFactorTag, &ns_handle, 1, &temp_vec ) != MB_SUCCESS ||
+          NULL == temp_vec)
         return MB_FAILURE;
        
       std::copy(dist_factor_vector->begin(), dist_factor_vector->end(), 
                 std::back_inserter( *temp_vec ) );
 
+      delete dist_factor_vector;
     }
 
       // add the nodes to the meshset
@@ -1184,6 +1188,7 @@ MBErrorCode ReadNCDF::read_nodesets()
       return MB_FAILURE;
 
   }
+
   delete [] id_array;
   delete [] temp_string;
   return MB_SUCCESS;
@@ -1430,6 +1435,7 @@ MBErrorCode ReadNCDF::create_ss_elements( int *element_ids,
   {
     ExoIIElementType exoii_type;
     ReadBlockData block_data;
+    block_data.elemType = EXOII_MAX_ELEM_TYPE;
 
     if( find_side_element_type( element_ids[i], exoii_type, block_data, df_index, side_list[i]) != MB_SUCCESS )
       continue; //isn't being read in this time

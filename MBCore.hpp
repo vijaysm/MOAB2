@@ -9,7 +9,6 @@
 
 class MBWriteUtil;
 class MBReadUtil;
-class ExoIIInterface;
 class AEntityFactory;
 class MBMeshSet;
 class EntitySequenceManager;
@@ -656,12 +655,7 @@ public:
   MBTag material_tag();
   MBTag neumannBC_tag();
   MBTag dirichletBC_tag();
-  MBTag distFactor_tag();
-  MBTag sideNumber_tag();
-  MBTag exodusId_tag();
   MBTag globalId_tag();
-  MBTag qaRecord_tag();
-  MBTag has_mid_nodes_tag();
   MBTag geom_dimension_tag();
 
     //! get/set the number of nodes
@@ -698,7 +692,6 @@ private:
     // other interfaces for MB
   MBWriteUtil* mMBWriteUtil;
   MBReadUtil* mMBReadUtil;
-  ExoIIInterface* mExoIIInterface;
 
     //! store the total number of elements defined in this interface
     //int totalNumElements;
@@ -718,13 +711,8 @@ private:
   MBTag materialTag;
   MBTag neumannBCTag;
   MBTag dirichletBCTag;
-  MBTag hasMidNodesTag;
   MBTag geomDimensionTag;
-  MBTag distFactorTag;
-  MBTag sideNumberTag;
-  MBTag exodusIdTag;
   MBTag globalIdTag;
-  MBTag qaRecordTag;
 
     //! tag server for this interface
   TagServer* tagServer;

@@ -63,6 +63,12 @@ public:
       MBRange& nodes
       ) = 0;
 
+    //! assign ids to input elements starting with start_id, written to id_tag
+    //! if id_tag is zero, assigns to GLOBAL_ID_TAG_NAME and passes back
+  virtual MBErrorCode assign_ids(MBRange &elements,
+                                 MBTag id_tag,
+                                 const int start_id) = 0;
+
   //! if an error occured when reading the mesh, report it to MB
   //! it makes sense to have this as long as MBInterface has a write_mesh function
   virtual MBErrorCode report_error( const std::string& error ) = 0;

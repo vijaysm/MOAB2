@@ -129,9 +129,6 @@ private:
   MBTag mDistFactorTag;
   MBTag mGlobalIdTag;
   MBTag mQaRecordTag;
-  MBTag mExodusIdTag;
-
-  MBTag exodusId_tag();
 
   MBTag mEntityMark;   //used to say whether an entity will be exported
 
@@ -201,20 +198,5 @@ private:
     //! get the time and date in strings
   static void time_and_date(char* time_string, char* date_string);
 };
-
-// inline functions
-
-inline MBTag WriteNCDF::exodusId_tag()
-{
-  if (0 == mExodusIdTag)
-  {
-    // first try to get it
-    mdbImpl->tag_get_handle("exodusId", mExodusIdTag);
-    if( 0 == mExodusIdTag)
-      mdbImpl->tag_create("exodusId", sizeof(int), MB_TAG_DENSE, mExodusIdTag, 0);
-  }
-
-  return mExodusIdTag;
-}
 
 #endif

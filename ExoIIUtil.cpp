@@ -331,7 +331,7 @@ ExoIIElementType ExoIIUtil::get_element_type_from_num_verts(const int num_verts,
   for (int i = 0; i < EXOII_MAX_ELEM_TYPE; i++) {
     if ((entity_type == MBMAXTYPE || entity_type == ExoIIElementMBEntity[i]) &&
         VerticesPerElement[i] == num_verts &&
-        ElementGeometricDimension[i] == dimension)
+        ElementGeometricDimension[i] >= dimension)
       return (ExoIIElementType) i;
   }
   

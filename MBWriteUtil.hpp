@@ -52,7 +52,12 @@ public:
       MBRange& nodes
       );
   
- 
+    //! assign ids to input elements starting with start_id, written to id_tag
+    //! if zero, assigns to GLOBAL_ID_TAG_NAME
+  MBErrorCode assign_ids(MBRange &elements,
+                         MBTag id_tag,
+                         const int start_id);
+
   //! tell MB there was an error when writing the mesh
   //! it makes sense to have this as long as MBInterface has a write_mesh function
   MBErrorCode report_error( const std::string& error );

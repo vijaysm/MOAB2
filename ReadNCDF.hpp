@@ -52,9 +52,6 @@ public:
                          const int* blocks_to_load,
                          const int num_blocks);
   
-  // this should also be moved - KGM
-  static void release_mesh_file(MBInterface* mdb);
-
    //! Constructor
    ReadNCDF(MBInterface* impl = NULL);
 

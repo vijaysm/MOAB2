@@ -50,18 +50,15 @@ MBCore::MBCore()
 //! destructor
 MBCore::~MBCore()
 {
-  deinitialize();
-  
   if(mMBWriteUtil)
     delete mMBWriteUtil;
   if(mMBReadUtil) 
     delete mMBReadUtil;
-  if(mExoIIInterface)
-    delete mExoIIInterface;
   
   mMBWriteUtil = NULL;
   mMBReadUtil = NULL;
-  mExoIIInterface = NULL;
+
+  deinitialize();
 }
 
 
@@ -71,12 +68,8 @@ MBErrorCode MBCore::initialize()
   materialTag      = 0;
   neumannBCTag     = 0;
   dirichletBCTag   = 0;
-  hasMidNodesTag   = 0;
   geomDimensionTag = 0;
-  distFactorTag    = 0;
-  sideNumberTag    = 0;
   globalIdTag      = 0;
-  qaRecordTag      = 0;
 
     //Initialize MBset Members
   cachedMsPtr = NULL;
@@ -99,30 +92,21 @@ MBErrorCode MBCore::initialize()
 
   mMBWriteUtil = NULL;
   mMBReadUtil = NULL;
-  mExoIIInterface = NULL;
-
-
-    //! Do all of these really belong to the core? -- KGM
-  material_tag();
-  dirichletBC_tag();
-  neumannBC_tag();
-  has_mid_nodes_tag();
-  geom_dimension_tag();
-  distFactor_tag();
-  qaRecord_tag();
-  globalId_tag();
 
   MBErrorCode result = create_meshset(0, myMeshSet);
   if (MB_SUCCESS != result) return result;
   
+  material_tag();
+  neumannBC_tag();
+  dirichletBC_tag();
+  geom_dimension_tag();
+  globalId_tag();
+
   return MB_SUCCESS;
 }
 
 void MBCore::deinitialize()
 {
-  ReadNCDF::release_mesh_file(this);
-  
-
   if (aEntityFactory)
     delete aEntityFactory;
 
@@ -152,8 +136,6 @@ void MBCore::deinitialize()
   if(mError)
     delete mError;
   mError = 0;
-
-
 }
 
 MBErrorCode MBCore::query_interface(const std::string& iface_name, void** iface)
@@ -174,14 +156,6 @@ MBErrorCode MBCore::query_interface(const std::string& iface_name, void** iface)
       *iface = mMBWriteUtil = new MBWriteUtil(this, mError);
     return MB_SUCCESS;
   }
-  else if(iface_name == "ExoIIInterface")
-  {
-    if(mExoIIInterface)
-      *iface = mExoIIInterface;
-    else
-      *iface = mExoIIInterface = new ExoIIUtil(this);
-    return MB_SUCCESS;
-  }
   return MB_FAILURE;
 }
 
@@ -197,10 +171,6 @@ MBErrorCode MBCore::release_interface(const std::string& iface_name, void* iface
     return MB_SUCCESS;
   }
   else if(iface_name == "MBWriteUtilIface")
-  {
-    return MB_SUCCESS;
-  }
-  else if(iface_name == "ExoIIInterface")
   {
     return MB_SUCCESS;
   }
@@ -307,8 +277,6 @@ MBErrorCode MBCore::delete_mesh()
   MBErrorCode result = MB_SUCCESS;
 
     // perform all deinitialization procedures to clean up
-  ReadNCDF::release_mesh_file(this);
-
   if (aEntityFactory)
     delete aEntityFactory;
   aEntityFactory = new AEntityFactory(this);
@@ -1277,12 +1245,12 @@ MBTag MBCore::dirichletBC_tag()
   return dirichletBCTag;
 }
 
-MBTag MBCore::has_mid_nodes_tag()
+MBTag MBCore::globalId_tag()
 {
-  if (0 == hasMidNodesTag)
-    tagServer->add_tag(HAS_MID_NODES_TAG_NAME, 4*sizeof(int), 
-                       MB_TAG_SPARSE, hasMidNodesTag);
-  return hasMidNodesTag;
+  if (0 == globalIdTag)
+    tagServer->add_tag(GLOBAL_ID_TAG_NAME, sizeof(int), 
+                       MB_TAG_DENSE, globalIdTag);
+  return globalIdTag;
 }
 
 MBTag MBCore::geom_dimension_tag()
@@ -1292,26 +1260,6 @@ MBTag MBCore::geom_dimension_tag()
                        MB_TAG_SPARSE, geomDimensionTag);
   return geomDimensionTag;
 }
-
-MBTag MBCore::distFactor_tag()
-{
-  if (0 == distFactorTag)
-    tagServer->add_tag("distFactor", sizeof(double*), 
-                       MB_TAG_SPARSE, distFactorTag);
-  return distFactorTag;
-}
-
-/*
-  MBTag MBCore::sideNumber_tag()
-  {
-  if (0 == sideNumberTag)
-  sideNumberTag =
-  tagServer->add_tag("sideNumber", MBRegion, sizeof(int*), 
-  MB_TAG_SPARSE);
-  return sideNumberTag;
-  }
-
-*/
 
 //! creates an element based on the type and connectivity.  returns a handle and error code
 MBErrorCode MBCore::create_element(const MBEntityType type, 
@@ -2216,31 +2164,6 @@ void MBCore::print(const MBEntityHandle ms_handle, const char *prefix) const
                 << ID_FROM_HANDLE(*it) << std::endl;
     }
   }
-}
-
-MBTag MBCore::exodusId_tag()
-{
-  if (0 == exodusIdTag)
-    tagServer->add_tag("exodusId", sizeof(int), 
-                       MB_TAG_DENSE, exodusIdTag);
-  return exodusIdTag;
-}
-
-
-MBTag MBCore::globalId_tag()
-{
-  if (0 == globalIdTag)
-    tagServer->add_tag(GLOBAL_ID_TAG_NAME, sizeof(int), 
-                       MB_TAG_DENSE, globalIdTag);
-  return globalIdTag;
-}
-
-MBTag MBCore::qaRecord_tag()
-{
-  if (0 == qaRecordTag)
-    tagServer->add_tag("qaRecord", sizeof(int), 
-                       MB_TAG_SPARSE, qaRecordTag);
-  return qaRecordTag;
 }
 
 MBMeshSet* MBCore::update_cache( const MBEntityHandle ms_handle ) const

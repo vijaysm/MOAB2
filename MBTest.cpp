@@ -1449,6 +1449,11 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
     // set dimension tag on this to ensure shells get output; reuse id variable
   result = MB->tag_get_handle( GEOM_DIMENSION_TAG_NAME, tag_handle) ;
+  if (result == MB_TAG_NOT_FOUND) {
+    int dum_dim = -1;
+    result = MB->tag_create(GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_SPARSE, tag_handle,
+                            &dum_dim);
+  }
   if(result != MB_SUCCESS )
       return result;
   id = 3;
@@ -1698,7 +1703,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
     //tag it so it's a sideset
   id = 444;
-  result = MB->tag_get_handle( "NEUMANN_SET", tag_handle ) ;
+  result = MB->tag_get_handle( NEUMANN_SET_TAG_NAME, tag_handle ) ;
   if(result != MB_SUCCESS)
     return result;
 
