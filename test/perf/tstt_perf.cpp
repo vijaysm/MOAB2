@@ -91,21 +91,26 @@ void build_connect(const int nelem, const int vstart, int *&connect);
 
 int main( int argc, char *argv[] )
 {
-  // Check command line arg
-  std::string filename;
-
-  if (argc < 2) {
-    cerr << "Usage: " << argv[0] << " <intervals_per_side>" << std::endl;
+  int nelem = 20;
+  if (argc < 3) {
+    std::cout << "Usage: " << argv[0] << " <ints_per_side> <A|B|C>" << std::endl;
     return 1;
   }
-
-  int nelem;
+  
+  char which_test = '\0';
+  
   sscanf(argv[1], "%d", &nelem);
+  sscanf(argv[2], "%c", &which_test);
 
-    // initialize the data in native format
+  if (which_test != 'B' && which_test != 'C') {
+      std::cout << "Must indicate B or C for test." << std::endl;
+      return 1;
+  }
+  
+  std::cout << "number of elements: " << nelem << "; test " 
+            << which_test << std::endl;
 
     // pre-build the coords array
-  double ttime0, utime1, stime1, ttime1;
   SIDL::array<double> coords;
   build_coords(nelem, coords);
   assert(NULL != coords);
@@ -113,21 +118,22 @@ int main( int argc, char *argv[] )
   int *connect = NULL;
   build_connect(nelem, 1, connect);
 
-    // test B: create mesh using bulk interface
-
     // create an implementation
   TSTT::Mesh mesh = IMPLEMENTATION_CLASS::_create();
   
-    // construct the mesh
-  testB(mesh, nelem, coords, connect);
-
-  mesh.deleteRef();
-
+  switch (which_test) {
+    case 'B':
+        // test B: create mesh using bulk interface
+      testB(mesh, nelem, coords, connect);
+      break;
+      
+    case 'C':
     // test C: create mesh using individual interface
-  mesh = IMPLEMENTATION_CLASS::_create();
-  testC(mesh, nelem, coords);
+      testC(mesh, nelem, coords);
+      break;
+  }
   
-  mesh.deleteRef();
+  return 0;
 }
 
 void testB(TSTT::Mesh &mesh, 

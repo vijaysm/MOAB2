@@ -268,11 +268,23 @@ MBInterface *gMB;
 int main(int argc, char* argv[])
 {
   int nelem = 20;
-  if (argc > 1)
-  {
-    sscanf(argv[1], "%d", &nelem);
+  if (argc < 3) {
+    std::cout << "Usage: " << argv[0] << " <ints_per_side> <A|B|C>" << std::endl;
+    return 1;
   }
-  std::cout << "number of elements: " << nelem << std::endl;
+  
+  char which_test = '\0';
+  
+  sscanf(argv[1], "%d", &nelem);
+  sscanf(argv[2], "%c", &which_test);
+
+  if (which_test != 'A' && which_test != 'B' && which_test != 'C') {
+      std::cout << "Must indicate A or B or C for test." << std::endl;
+      return 1;
+  }
+  
+  std::cout << "number of elements: " << nelem << "; test " 
+            << which_test << std::endl;
 
   gMB = new MBCore();
 
@@ -284,19 +296,22 @@ int main(int argc, char* argv[])
   MBEntityHandle *connect = NULL;
   build_connect(nelem, 1, connect);
 
-    // test A: create structured mesh
-  testA(nelem, coords);
-
-    // done, delete the mesh
-  MBErrorCode result = gMB->delete_mesh();
-
-    // test B: create mesh using bulk interface
-  testB(nelem, coords, connect);
-
-  result = gMB->delete_mesh();
-
+  switch (which_test) {
+    case 'A':
+        // test A: create structured mesh
+      testA(nelem, coords);
+      break;
+      
+    case 'B':
+        // test B: create mesh using bulk interface
+      testB(nelem, coords, connect);
+      break;
+      
+    case 'C':
     // test C: create mesh using individual interface
-  testC(nelem, coords);
+      testC(nelem, coords);
+      break;
+  }
   
   return 0;
 }
