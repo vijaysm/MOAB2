@@ -15,6 +15,7 @@
 
 #include <H5Tpublic.h>
 #include <H5Dpublic.h>
+#include <H5Gpublic.h>
 #include "mhdf.h"
 #include "util.h"
 #include "file-handle.h"
@@ -238,7 +239,7 @@ mhdf_createPolyConnectivity( mhdf_FileHandle file_handle,
   {
     H5Dclose(index_id);
     H5Dclose( conn_id );
-    return -1;
+    return;
   }
   file_ptr->open_handle_count++;
   mhdf_setOkay( status );

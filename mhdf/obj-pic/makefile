@@ -11,7 +11,7 @@ default: $(LIB_DIR)/libmhdf-pic.a
 shared:  $(LIB_DIR)/libmhdf.so
 
 .c.o: $<
-	$(CC) $(PIC) $(DEBUG_FLAG) $(CLFAGS) -I$(INC_DIR) $(HDF5_INC) -o $@ -c $< 
+	$(CC) -DNDEBUG $(PIC) -Wall -Wmissing-prototypes $(DEBUG_FLAG) $(CLFAGS) -I$(INC_DIR) $(HDF5_INC) -o $@ -c $< 
 
 $(LIB_DIR)/libmhdf-pic.a: $(OBJS)
 	$(ARCHIVER) $@ $(OBJS)

@@ -66,6 +66,7 @@
 #define TAG_DEFAULT_ATTRIB     "default"
 #define TAG_GLOBAL_ATTRIB      "global"
 #define TAG_TYPE_ATTRIB        "class"
+#define TAG_HANDLE_TYPE_ATTRIB "is_handle"
 #define ELEM_TYPE_ATTRIB       "element_type"
 #define START_ID_ATTRIB        "start_id"
 #define MAX_ID_ATTRIB          "max_id"

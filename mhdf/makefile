@@ -25,6 +25,12 @@ lib/libmhdf.a: force_rebuild lib
 lib/libmhdf-pic.a: force_rebuild lib
 	make -C obj-pic ../$@
 
+#lib/libmhdf-pic.a: src/fake.c lib
+#	gcc -Wall -fpic -o obj-pic/fake.o -g -c -Iinclude src/fake.c
+#	rm -f $@
+#	ar cr $@ obj-pic/fake.o
+#	ranlib $@
+
 lib/libmhdf.so: force_rebuild lib
 	make -C obj-pic ../$@
 

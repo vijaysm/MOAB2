@@ -78,6 +78,20 @@ mhdf_message( mhdf_Status const* );
 
 /*@}*/
 
+/** \brief Enum for tag data type class
+ *
+ * Enumerates known types for tag data
+ */
+enum mhdf_TagDataType {
+  mhdf_OPAQUE = 0, /**< Opaque/unknown type */
+  mhdf_INTEGER,    /**< Integer type */
+  mhdf_FLOAT,      /**< Floating point value */
+  mhdf_BITFIELD,   /**< Bit field */
+  mhdf_BOOLEAN,    /**< Boolean values stored as one byte each */
+  mhdf_ENTITY_ID   /**< Global ID referencing another entity in file */
+};
+
+
 /**
  *\defgroup mhdf_group Element group handle
  */
@@ -1379,78 +1393,38 @@ mhdf_getNativeType( hid_t input_type,
                     int size,
                     mhdf_Status* status );
 
-/** \brief Add a tag to the file for which the HDF5 type is known
+/** \brief Add a tag to the file
  *
- * Add a new tag to the file.  If the HDF5 type of the tag is 
- * not known, use \ref mhdf_createOpaqueTag instead.  This function
- * must be called to define the tag characteristics before values
- * for the tag can be written for entities.
+ * Add a new tag to the file.  This function must be called
+ * to define the tag characteristics before values for the
+ * tag can be written.
  *
- *\param file_handle   The file.
- *\param tag_name      The tag name.
- *\param hdf5_tag_type The type of the tag data.
- *\param default_value The default value for the tag.
- *\param global_value  If the tag has a value on the entire mesh
- *                     that value, otherwise NULL.
- *\param tstt_tag_type The TSTT enum value for the tag type (sparse, dense, etc.)
- *\param status        Passed back status of API call.
+ *\param file_handle    The file
+ *\param tag_name       The tag name
+ *\param tag_type       The tag type.
+ *\param size           If tag_type == mhdf_BITFIELD, the number of
+ *                      bits.  If tag_type == mhdf_OPAQUE, the size
+ *                      of the opaque type in bytes.  Otherwise the
+ *                      length of the array of tag_type entities associated
+ *                      with each mesh entity, or 1 for a scalar value.
+ *\param storage        MOAB storage type (dense, sparse, etc.)
+ *\param default_value  Default value for tag, or NULL if none.
+ *\param global_value   Global value for tag, or NULL if none.
+ *\param hdf_type       If non-zero, assumed to be a user-specified type
+ *                      for opaque data.  Ignored if tag_type is not
+ *                      mhdf_OPAQUE.
  */
 void
-mhdf_createTypeTag( mhdf_FileHandle file_handle,
-                    const char* tag_name,
-                    hid_t hdf5_tag_type,
-                    void* default_value,
-                    void* global_value,
-                    int tstt_tag_type,
-                    mhdf_Status* status );
-
-/** \brief Add a tag to the file for which the tag data is opaque.
- *
- * Add a new tag to the file.  This function
- * must be called to define the tag characteristics before values
- * for the tag can be written for entities.
- *
- *\param file_handle   The file.
- *\param tag_name      The tag name.
- *\param tag_size      The size of the tag data in bytes. 
- *\param default_value The default value for the tag.
- *\param global_value  If the tag has a value on the entire mesh
- *                     that value, otherwise NULL.
- *\param tstt_tag_type The TSTT enum value for the tag type (sparse, dense, etc.)
- *\param status        Passed back status of API call.
- */
-void
-mhdf_createOpaqueTag( mhdf_FileHandle file_handle,
-                      const char* tag_name,
-                      size_t tag_size,
-                      void* default_value,
-                      void* global_value,
-                      int tstt_tag_type,
-                      mhdf_Status* status );
-
-/** \brief Add a tag to the file for which the tag data is a bit sequence
- *
- * Add a new tag to the file.  This function
- * must be called to define the tag characteristics before values
- * for the tag can be written for entities.
- *
- *\param file_handle   The file.
- *\param tag_name      The tag name.
- *\param tag_size      The size of the tag data in <em>bits</em>
- *\param default_value The default value for the tag.
- *\param global_value  If the tag has a value on the entire mesh
- *                     that value, otherwise NULL.
- *\param tstt_tag_type The TSTT enum value for the tag type (sparse, dense, etc.)
- *\param status        Passed back status of API call.
- */
-void
-mhdf_createBitTag( mhdf_FileHandle file_handle,
-                   const char* tag_name,
-                   size_t tag_size,
-                   void* default_value,
-                   void* global_value,
-                   int tstt_tag_type,
-                   mhdf_Status* status );
+mhdf_createTag( mhdf_FileHandle file_handle,
+                const char* tag_name,
+                enum mhdf_TagDataType tag_type,
+                int size,
+                int storage,
+                void* default_value,
+                void* global_value,
+                hid_t hdf_type,
+                mhdf_Status* status );
+                
 
 /** \brief Get the number of tags in the file.
  *
@@ -1479,34 +1453,33 @@ mhdf_getTagNames( mhdf_FileHandle file_handle,
 
 /** \brief Get the description of a specified tag.
  *
- *\param file_handle        The file.
- *\param tag_name           The name of the tag to retreive the data for.
- *\param tag_data_len_out   The size of the tag value.
- *\param have_default_out   Non-zero if there is a default value for the tag.
- *                          Zero otherwise.
- *\param have_global_out    Non-zero if there is a global/mesh value for the tag.
- *                          Zero otherwise.
- *\param is_opaque_type_out Non-zero if the tag data is opaque.  Zero if
- *                          The HDF5 type of the tag value is known.
- *\param have_sparse_data_out Non-zero if there is a sparse data list for this tag.
- *\param tstt_tag_class_out The TSTT enum for the tag type (dense, sparse, etc.)
- *\param bit_tag_bits_out   If a BITFIELD type, the number of bits, otherwise zero.
- *\param hdf_type_out       A handle to the hdf5 type of the tag, if
- *                          <code>is_opaque_type_out</code> is zero.
- *\param status             Passed back status of API call.
+ * Get everything about a tag except the actual values.
+ *
+ *\param file_handle      The file.
+ *\param tag_name         The name of the tag to retreive the data for.
+ *\param class_out        The TSTT class of the tag data.
+ *\param size_out         Depends on value of class_out:
+ *                        - mhdf_OPAQUE  - size of opaque data in bytes
+ *                        - mhdf_BITFIELD - number of bits
+ *                        - for everything else, if the tag dats is an
+ *                          array, the length of the array.  1 otherwize.
+ *\param tstt_storage_out The value of the TSTT enum for storage (dense, spase, etc.)
+ *\param have_default_out Non-zero if file contains a default value for the tag.
+ *\param have_global_out  Non-zero if the file contains a global/mesh value for the tag.
+ *\param have_sparse_out  Non-zero if the file contains a sparse data table for this tag.
  */
 void
 mhdf_getTagInfo( mhdf_FileHandle file_handle,
                  const char* tag_name,
-                 int* tag_data_len_out,
+                 enum mhdf_TagDataType* class_out,
+                 int* size_out,
+                 int* tstt_storage_out,
                  int* have_default_out,
                  int* have_global_out,
-                 int* is_opaque_type_out,
-                 int* have_sparse_data_out,
-                 int* tstt_tag_class_out,
-                 int* bit_tag_bits_out,
-                 hid_t* hdf_type_out,
+                 int* have_sparse_out,
                  mhdf_Status* status );
+                 
+
 
 /** \brief Get the default and global values of the tag.
  *

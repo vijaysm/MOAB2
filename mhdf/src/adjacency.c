@@ -68,7 +68,6 @@ mhdf_createAdjacency( mhdf_FileHandle file,
   FileHandle* file_ptr;
   hid_t elem_id, table_id;
   hsize_t dim = (hsize_t)adj_list_size;
-  char* path;
   API_BEGIN;
   
   file_ptr = (FileHandle*)(file);
@@ -118,7 +117,6 @@ mhdf_openAdjacency( mhdf_FileHandle file,
   FileHandle* file_ptr;
   hid_t elem_id, table_id;
   hsize_t dim;
-  char* path;
   API_BEGIN;
   
   file_ptr = (FileHandle*)(file);

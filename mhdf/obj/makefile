@@ -10,7 +10,7 @@ VPATH = $(SRC_DIR):$(INC_DIR)
 default: $(LIB_DIR)/libmhdf.a
 
 .c.o: $<
-	$(CC) $(DEBUG_FLAG) $(CLFAGS) -I$(INC_DIR) $(HDF5_INC) -o $@ -c $< 
+	$(CC) -DNDEBUG $(DEBUG_FLAG) $(CLFAGS) -I$(INC_DIR) $(HDF5_INC) -o $@ -c $< 
 
 $(LIB_DIR)/libmhdf.a: $(OBJS)
 	$(ARCHIVER) $@ $(OBJS)

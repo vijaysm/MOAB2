@@ -42,7 +42,7 @@ mhdf_createFile( const char* filename,
   unsigned int flags;
   unsigned char index;
   size_t i;
-  hid_t enum_id, root_id, group_id;
+  hid_t enum_id, group_id;
   int rval;
   API_BEGIN;
   
@@ -154,11 +154,10 @@ static herr_t get_max_id( hid_t group_id,
                           unsigned long* data )
 {
   unsigned long id;
-  hid_t elem_id, conn_id, attr_id, space_id, poly_id = -1;
+  hid_t elem_id, conn_id, attr_id, space_id;
   herr_t rval;
   int rank;
   hsize_t dims[2];
-  mhdf_Status status;
   
   elem_id = H5Gopen( group_id, subgroup );
   if (elem_id < 0) return (herr_t)-1;
@@ -201,7 +200,6 @@ scan_for_max_id( FileHandle* file_ptr, mhdf_Status* status )
 {
   hid_t group_id;
   herr_t rval;
-  unsigned long tmp;
   
     /* Check for new format, with max_id as attrib of root group */
   group_id = H5Gopen( file_ptr->hdf_handle, ROOT_GROUP );
@@ -267,13 +265,8 @@ mhdf_openFileWithOpt( const char* filename,
 {
   FileHandle* file_ptr;
   unsigned int flags;
-  size_t size;
-  ssize_t tmp;
-  hsize_t count, index;
-  hid_t group_id, elem_id;
-  char* name;
+  hid_t group_id;
   unsigned long long max_id = 0;
-  unsigned long long gp_max_id;
   API_BEGIN;
   
     /* Check if file is HDF5 */
@@ -527,7 +520,7 @@ mhdf_getElemHandles( mhdf_FileHandle file_handle,
                      unsigned int* count_out,
                      mhdf_Status* status )
 {
-  hsize_t idx, count, length, i;
+  hsize_t count, length, i;
   char** buffer;
   char* current;
   hid_t group_id;
