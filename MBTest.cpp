@@ -3839,7 +3839,7 @@ MBErrorCode mb_topo_util_test(MBInterface *gMB)
   }
   star_faces.clear();
   star_hexes.clear();
-  result = mtu.star_faces(*other_edges.begin(), star_faces, bdy_edge, &star_hexes);
+  result = mtu.star_faces(*other_edges.begin(), star_faces, bdy_edge);
   if (MB_SUCCESS != result || !bdy_edge || 
       (star_faces.size() != 2 && star_faces.size() != 3) ||
       (star_hexes.size() != 1 && star_hexes.size() != 2)) {

@@ -475,6 +475,13 @@ MBErrorCode DualTool::get_radial_dverts(const MBEntityHandle edge,
   std::vector<MBEntityHandle> rad_ents, rad_hexes;
   MBErrorCode result = MeshTopoUtil(mbImpl).star_faces(edge, rad_ents, bdy_edge);
   if (MB_SUCCESS != result) return result;
+
+  if (bdy_edge) {
+      // if we're a bdy edge, change the order back to what DualTool expects
+    MBEntityHandle tmp_ent = rad_ents[0];
+    std::copy(++rad_ents.begin(), rad_ents.end(), rad_ents.begin());
+    *rad_ents.rbegin() = tmp_ent;
+  }
   
   rad_dverts.resize(rad_ents.size());
   for (unsigned int i = 0; i < rad_ents.size(); i++) {
@@ -498,7 +505,7 @@ MBErrorCode DualTool::get_radial_dverts(const MBEntityHandle edge,
       rad_dverts[i] = last_face;
     }
   }
-    
+
   return result;
 }
 

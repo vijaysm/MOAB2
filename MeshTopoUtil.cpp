@@ -191,7 +191,7 @@ MBErrorCode MeshTopoUtil::star_faces(const MBEntityHandle edge,
 //    if (MB_SUCCESS != result) return result;
 //    first_face = (connect[0] == rad_dverts[0] ? connect[1] : connect[0]);
 //    rad_dverts.push_back(first_face);
-    rad_ents.push_back(first_face);
+    rad_ents.insert(rad_ents.begin(), first_face);
   }
   else {
     bdy_edge = false;
