@@ -1176,25 +1176,28 @@ MBErrorCode WriteHDF5::write_adjacencies( const ExportSet& elements )
   
   /* Count Adjacencies */
   long count = 0;
-  for (iter = elements.range.begin(); iter != end; ++iter)
-  {
-    adj_list.clear();
-    rval = get_adjacencies( *iter, adj_list);
-    CHK_MB_ERR_0(rval);
-
-    if (adj_list.size() > 0)
-      count += adj_list.size() + 2;
-  }
+  //for (iter = elements.range.begin(); iter != end; ++iter)
+  //{
+  //  adj_list.clear();
+  //  rval = get_adjacencies( *iter, adj_list);
+  //  CHK_MB_ERR_0(rval);
+  //
+  //  if (adj_list.size() > 0)
+  //    count += adj_list.size() + 2;
+  //}
   
-  if (count == 0)
+  //if (count == 0)
+  //  return MB_SUCCESS;
+
+  long offset = elements.adj_offset;
+  if (offset < 0)
     return MB_SUCCESS;
   
   /* Create data list */
-  hid_t table = mhdf_createAdjacency( filePtr, elements.name(), count, &status );
+  hid_t table = mhdf_openAdjacency( filePtr, elements.name(), &count, &status );
   CHK_MHDF_ERR_0(status);
   
   /* Write data */
-  long offset = 0;
   id_t* buffer = (id_t*)dataBuffer;
   long chunk_size = bufferSize / sizeof(id_t); 
   count = 0;
@@ -1803,8 +1806,10 @@ DEBUGOUT( "Gathering Tags\n" );
                                      &status );
       CHK_MHDF_ERR_0(status);
       mhdf_closeData( filePtr, handle, &status );
+      ex_itor->adj_offset = 0;
     }
-    ex_itor->adj_offset = 0;
+    else
+      ex_itor->adj_offset = -1;
   }
   
     // create set tables

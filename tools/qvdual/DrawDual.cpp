@@ -252,7 +252,7 @@ void DrawDual::update_high_polydatas()
   for (mit = surfDrawrings.begin(); mit != surfDrawrings.end(); mit++) {
       // reset or initialize
     if (NULL == mit->second.highPoly)
-        ; // xxx mit->second.highPoly = get_new_pd();
+      mit->second.highPoly = vtkPolyData::New();
     else
       mit->second.highPoly->Reset();
   }

@@ -947,7 +947,7 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
 {
   MBErrorCode rval;
   mhdf_Status status;
-  int result;
+  int i, j, result;
   const int numtypes = exportList.size();
   std::vector<long>::iterator viter;
   std::list<ExportSet>::iterator ex_iter;
@@ -963,23 +963,30 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
     *viter = num_adj; ++viter;
   }
   
-    // End local adjacency counts to root processor
+    // Send local adjacency counts to root processor
   result = MPI_Gather( &local[0], numtypes, MPI_LONG,
                        &all[0],   numtypes, MPI_LONG, 
                        0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
   
     // Convert counts to offsets
-  for (int i = 0; i < numtypes; i++) 
+  for (i = 0; i < numtypes; i++) 
   {
     long prev = 0;
-    for (int j = 0; j <= numProc; j++)
+    for (j = 0; j <= numProc; j++)
     {
       long tmp = all[j*numtypes + i];
       all[j*numtypes+i] = prev;
       prev += tmp;
     }
   }
+  
+    // For each element type for which there is no adjacency data,
+    // send -1 to all processors as the offset
+  for (i = 0; i < num_types; ++i)
+    if (all[numtypes*numProc+i] == 0)
+      for (j = 0; j < numProc; ++j)
+        all[j*numtypes+i] = -1;
   
     // Send offsets back to each processor
   result = MPI_Scatter( &all[0],   numtypes, MPI_LONG,
