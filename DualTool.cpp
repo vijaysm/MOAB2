@@ -62,7 +62,7 @@ DualTool::DualTool(MBInterface *impl)
                               dualCurveTag, &dummy);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
   
-  result = mbImpl->tag_create(IS_DUAL_CELL_TAG_NAME, 1, MB_TAG_BIT, 
+  result = mbImpl->tag_create(IS_DUAL_CELL_TAG_NAME, sizeof(unsigned int), MB_TAG_SPARSE, 
                               isDualCellTag, &dummy);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
 
@@ -471,148 +471,22 @@ MBErrorCode DualTool::get_radial_dverts(const MBEntityHandle edge,
                                         bool &bdy_edge) 
 {
   rad_dverts.clear();
-  MBRange all_faces;
-  MBRange in_range, out_range;
-  in_range.insert(edge);
-  MBErrorCode result = mbImpl->get_adjacencies(in_range, 2, false, all_faces);
+  std::vector<MBEntityHandle> faces, regions;
+  MeshTopoUtil tu(mbImpl);
+  MBErrorCode result = tu.star_faces(edge, faces, bdy_edge, &regions);
   if (MB_SUCCESS != result) return result;
-
-    // if any of the faces have a single connected region, choose that,
-    // otherwise choose any
-  MBRange::iterator rit;
-  MBEntityHandle last_face = 0, first_face = 0;
-  for (rit = all_faces.begin(); rit != all_faces.end(); rit++) {
-    in_range.clear();
-    in_range.insert(*rit);
-    out_range.clear();
-    result = mbImpl->get_adjacencies(in_range, 3, false, out_range);
-    if (MB_SUCCESS != result) return result;
-    if (out_range.size() == 1) {
-        // if we have a single-region face, take it off the all_faces list, since 
-        // we'll never get back to it going around the edge
-      all_faces.erase(*rit);
-      last_face = *rit;
-      first_face = last_face;
-      break;
-    }
-  }
-
-    // if no single-region faces, just pick the last one; don't take it off
-    // the list, though, so that we get back to it
-  if (0 == last_face)
-    last_face = *all_faces.rbegin();
   
-  MBRange regions;
-  MBEntityHandle last_region;
-  MBEntityHandle dvert;
-
-  while (!all_faces.empty()) {
-      // during each iteration:
-      // - start with a last_face & edge
-      // - find a region that's not on the list, and the other face in the region
-      //   sharing that edge
-      // - remove that face from all_faces & put on face list & assign to last_face
-      // - add the region to the region list
-      // - proceed to next iteration
-
-      // get 3d elements common to face and edge
-    in_range.clear();
-    in_range.insert(edge);
-    in_range.insert(last_face);
-    out_range.clear();
-    result = mbImpl->get_adjacencies(in_range, 3, false, out_range, 
-                                     MBInterface::INTERSECT);
-    if (MB_SUCCESS != result) return result;
-
-      // find one which hasn't been treated yet
-    last_region = 0;
-    for (rit = out_range.begin(); rit != out_range.end(); rit++) {
-      if (regions.find(*rit) == regions.end()) {
-        last_region = *rit;
-        break;
-      }
-    }
-
-      // if we got here and we didn't find an untreated region
-    if (0 == last_region) return MB_FAILURE;
-    
-      // get the other face sharing the edge
-    in_range.clear(); out_range.clear();
-    in_range.insert(edge);
-    in_range.insert(last_region);
-    result = mbImpl->get_adjacencies(in_range, 2, false, out_range);
-    if (MB_SUCCESS != result) return result;
-    else if (out_range.size() != 2) return MB_FAILURE;
-
-    rit = out_range.begin();
-    if (last_face != *rit)
-      last_face = *rit;
-    else if (last_face != *(++rit))
-      last_face = *rit;
-    else return MB_FAILURE;
-
-      // remove the face from all_faces and add region to regions
-    all_faces.erase(last_face);
-    regions.insert(last_region);
-
-      // get dual vertex for the region & put on list
-    result = mbImpl->tag_get_data(dualEntity_tag(), &last_region, 1, &dvert);
-    if (MB_SUCCESS != result) return result;
-    assert(0 != dvert);
-    rad_dverts.push_back(dvert);
+  if (bdy_edge) {
+      // if bdy edge, put the face on front and back
+    regions.insert(regions.begin(), *faces.begin());
+    regions.push_back(*faces.rbegin());
   }
 
-    // if it's a closed loop, we got all the vertices; if not, we need 2 more;
-    // closed is indicated by first_face being zero
-  if (0 != first_face) {
-    bdy_edge = true;
-    
-      // not closed - get the last and first vertices
-      // last is on dual of last_face not on the end of the list
-      // get dual of last face
-    MBEntityHandle dedge;
-    result = mbImpl->tag_get_data(dualEntity_tag(), &last_face, 1, &dedge);
-    if (MB_SUCCESS != result) return result;
-    
-      // get connectivity of that edge
-    const MBEntityHandle *connect;
-    int num_connect;
-    result = mbImpl->get_connectivity(dedge, connect, num_connect);
-    if (MB_SUCCESS != result) return result;
-    
-      // we want the one that's not already on the list; reuse last_face
-    last_face = (connect[0] == rad_dverts.back() ? connect[1] : connect[0]);
-    rad_dverts.push_back(last_face);
+    // now get the dual entities
+  rad_dverts.reserve(regions.size());
+  result = mbImpl->tag_get_data(dualEntity_tag(), &regions[0], regions.size(), &rad_dverts[0]);
 
-      // do the same for first_face
-    result = mbImpl->tag_get_data(dualEntity_tag(), &first_face, 1, &dedge);
-    if (MB_SUCCESS != result) return result;
-    result = mbImpl->get_connectivity(dedge, connect, num_connect);
-    if (MB_SUCCESS != result) return result;
-    first_face = (connect[0] == rad_dverts[0] ? connect[1] : connect[0]);
-    rad_dverts.push_back(first_face);
-/*
-      // make a dual edge for this (reuse connect array and first_face)
-    MBEntityHandle tmp_conn[3];
-    tmp_conn[0] = first_face;
-    tmp_conn[1] = last_face;
-    result = mbImpl->create_element(MBEDGE, connect, 2, tmp_conn[2]);
-
-      // tag it indicating it's a dual entity
-    unsigned int is_dual = 0x1;
-    result = mbImpl->tag_set_data(isDualCell_tag(), &tmp_conn[2], 1, &is_dual);
-    if (MB_SUCCESS != result) return result;
-
-      // add a graphics point to it too
-    result = add_graphics_point(tmp_conn[2]);
-    if (MB_SUCCESS != result) return result;
-*/
-  }
-  else {
-    bdy_edge = false;
-  }
-  
-  return MB_SUCCESS;
+  return result;
 }
 
   //! construct the dual entities for a hex mesh, including dual surfaces & curves
@@ -858,7 +732,7 @@ bool DualTool::check_1d_loop_edge(MBEntityHandle this_ent)
   if (MBEDGE != mbImpl->type_from_handle(this_ent)) return false;
 
     // also has to be a dual entity
-  unsigned char dum;
+  unsigned int dum;
   MBErrorCode result = mbImpl->tag_get_data(isDualCell_tag(), &this_ent, 1, &dum);
   if (MB_SUCCESS != result || dum != 0x1) return false;
   
@@ -1137,3 +1011,13 @@ MBEntityHandle DualTool::get_dual_surface_or_curve(const MBEntityHandle ncell)
   
   return 0;
 }
+
+//! return the corresponding dual entity
+MBEntityHandle DualTool::get_dual_entity(const MBEntityHandle this_ent) 
+{
+  MBEntityHandle dual_ent;
+  MBErrorCode result = mbImpl->tag_get_data(dualEntity_tag(), &this_ent, 1, &dual_ent);
+  if (MB_SUCCESS != result || MB_TAG_NOT_FOUND) return 0;
+  else return dual_ent;
+}
+

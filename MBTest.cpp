@@ -36,6 +36,7 @@
  #include "MBTagConventions.hpp"
  #include "MBRange.hpp"
  #include "MBSkinner.hpp"
+ #include "MeshTopoUtil.hpp"
  #include "WriteNCDF.hpp"
 
  #ifndef IS_BUILDING_MB
@@ -3733,6 +3734,122 @@ MBErrorCode mb_range_test(MBInterface *)
   return result;
 }
 
+MBErrorCode mb_topo_util_test(MBInterface *gMB) 
+{
+  MeshTopoUtil mtu(gMB);
+
+    // construct a four-hex mesh for testing purposes
+  double grid_vert_pos[] = 
+    {
+      0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 2.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 2.0, 1.0, 0.0,
+      0.0, 2.0, 0.0, 1.0, 2.0, 0.0, 2.0, 2.0, 0.0,
+//
+      0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 2.0, 0.0, 1.0,
+      0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 1.0, 1.0,
+      0.0, 2.0, 1.0, 1.0, 2.0, 1.0, 2.0, 2.0, 1.0
+    };
+      
+  MBEntityHandle grid_verts[18], grid_elems[4];
+  MBErrorCode result;
+#define RR if (result != MB_SUCCESS) return result
+  int init_edges, init_faces;
+  result = gMB->get_number_entities_by_dimension(0, 1, init_edges); RR;
+  result = gMB->get_number_entities_by_dimension(0, 2, init_faces); RR;
+
+    // make vertices
+  for (int i = 0; i < 18; i++) {
+    result = gMB->create_vertex(&grid_vert_pos[3*i], grid_verts[i]); RR;
+  }
+
+    // make hexes
+  int numv = 3, numv_sq = 9;
+#define VINDEX(i,j,k) (i + (j*numv) + (k*numv_sq))
+  MBEntityHandle connect[8];
+  for (int j = 0; j < 2; j++) {
+    for (int i = 0; i < 2; i++) {
+      int vijk = VINDEX(i,j,0);
+      connect[0] = grid_verts[vijk];
+      connect[1] = grid_verts[vijk+1];
+      connect[2] = grid_verts[vijk+1+numv];
+      connect[3] = grid_verts[vijk+numv];
+      connect[4] = grid_verts[vijk+numv*numv];
+      connect[5] = grid_verts[vijk+1+numv*numv];
+      connect[6] = grid_verts[vijk+1+numv+numv*numv];
+      connect[7] = grid_verts[vijk+numv+numv*numv];
+      result = gMB->create_element(MBHEX, connect, 8, grid_elems[2*j+i]); RR;
+    }
+  }
+
+  MBRange vert_range;
+  std::copy(grid_verts, grid_verts+18, mb_range_inserter(vert_range));
+  
+    // generate aentities
+  result = mtu.construct_aentities(vert_range); RR;
+  
+  int this_edges, this_faces;
+  result = gMB->get_number_entities_by_dimension(0, 1, this_edges); RR;
+  result = gMB->get_number_entities_by_dimension(0, 2, this_faces); RR;
+
+  if (this_edges != init_edges+33 || this_faces != init_faces+20) {
+    std::cout << "Wrong number of edges or faces in mb_topo_util test." << std::endl;
+//    return MB_FAILURE;
+  }
+  
+    // get average position
+  double pos[3];
+  for (int j = 0; j < 2; j++) {
+    for (int i = 0; i < 2; i++) {
+      result = mtu.get_average_position(grid_elems[2*j+i], pos);
+      RR;
+      if (pos[0] != .5+i || pos[1] != .5+j || pos[2] != .5) {
+        std::cout << "Wrong position at i = " << i << ", j = " << j << std::endl;
+        result = MB_FAILURE;
+      }
+    }
+  }
+  RR;
+
+    // get star faces
+  MBRange all_hexes, middle_edge;
+  std::copy(grid_elems, grid_elems+4, mb_range_inserter(all_hexes));
+    // get the shared edge
+  result = gMB->get_adjacencies(all_hexes, 1, false, middle_edge);
+  if (MB_SUCCESS != result || 1 != middle_edge.size()) {
+    std::cout << "Bad result getting single shared edge." << std::endl;
+    return MB_FAILURE;
+  }
+  
+  std::vector<MBEntityHandle> star_faces, star_hexes;
+  bool bdy_edge;
+  result = mtu.star_faces(*middle_edge.begin(), star_faces, bdy_edge, &star_hexes);
+  if (MB_SUCCESS != result || bdy_edge || star_faces.size() != 4 || star_hexes.size() != 4) {
+    std::cout << "Bad result from star_faces for non-bdy edge." << std::endl;
+    return MB_FAILURE;
+  }
+  
+    // now try for a different edge, which has to be on the bdy
+  MBRange other_edges;
+  all_hexes.clear(); all_hexes.insert(grid_elems[0]);
+  result = gMB->get_adjacencies(all_hexes, 1, false, other_edges); RR;
+  other_edges.erase(*middle_edge.begin());
+  if (11 != other_edges.size()) {
+    std::cout << "Wrong number of edges in hex." << std::endl;
+    return MB_FAILURE;
+  }
+  star_faces.clear();
+  star_hexes.clear();
+  result = mtu.star_faces(*other_edges.begin(), star_faces, bdy_edge, &star_hexes);
+  if (MB_SUCCESS != result || !bdy_edge || 
+      (star_faces.size() != 2 && star_faces.size() != 3) ||
+      (star_hexes.size() != 1 && star_hexes.size() != 2)) {
+    std::cout << "Bad result from star_faces for bdy edge." << std::endl;
+    return MB_FAILURE;
+  }
+  
+  return MB_SUCCESS;
+}
+
 /*!
 main routine for test harness 
 */
@@ -4093,6 +4210,15 @@ int main(int argc, char* argv[])
   number_tests++;
   cout << "\n";
  
+    // Mesh Topo Utils test
+  result = mb_topo_util_test(gMB);
+  cout << "   mb_topo_util_test: ";
+  handle_error_code(result, number_tests_failed,
+		    number_tests_not_implemented,
+		    number_tests_successful);
+  number_tests++;
+  cout << "\n";
+
   // MB Stress test.  Read in a large file time and manipulate it then write it out
   stress_test = true;
   if (stress_test)

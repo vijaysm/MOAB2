@@ -87,6 +87,9 @@ public:
   //! get the faces of the dual
   MBErrorCode get_dual_entities(const int dim, 
                                 std::vector<MBEntityHandle> &dual_ents);
+
+    //! return the corresponding dual entity
+  MBEntityHandle get_dual_entity(const MBEntityHandle this_ent);
   
     //! get the d-dimensional hyperplane sets; static 'cuz it's easy to do without an active
     //! dualtool

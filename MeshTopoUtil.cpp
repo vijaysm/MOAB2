@@ -63,3 +63,99 @@ MBErrorCode MeshTopoUtil::get_average_position(const MBEntityHandle entity,
   return MB_SUCCESS;
 }
 
+    //! given a mesh edge, find the ordered faces around the edge; if any
+    //! of the faces is in only one region, on_boundary is returned true
+MBErrorCode MeshTopoUtil::star_faces(const MBEntityHandle this_edge,
+                                     std::vector<MBEntityHandle> &star_ents,
+                                     bool &on_boundary,
+                                     std::vector<MBEntityHandle> *star_regions)
+
+{
+  MBRange all_faces, untreated_regions;
+  MBRange in_range, out_range;
+
+    // get faces & regions adjacent to the edge
+  in_range.insert(this_edge);
+  MBErrorCode result = mbImpl->get_adjacencies(in_range, 2, false, all_faces);
+  if (MB_SUCCESS != result) return result;
+
+  result = mbImpl->get_adjacencies(in_range, 3, false, untreated_regions);
+  if (MB_SUCCESS != result) return result;
+
+    // if any of the faces have a single connected region, choose that,
+    // otherwise choose any
+  MBRange::iterator rit;
+  MBEntityHandle last_face = 0, first_face = 0;
+  for (rit = all_faces.begin(); rit != all_faces.end(); rit++) {
+    in_range.clear();
+    in_range.insert(*rit);
+    out_range.clear();
+    result = mbImpl->get_adjacencies(in_range, 3, false, out_range);
+    if (MB_SUCCESS != result) return result;
+    if (out_range.size() == 1) {
+        // if we have a single-region face, take it off the all_faces list, since 
+        // we'll never get back to it going around the edge
+      all_faces.erase(*rit);
+      last_face = *rit;
+      first_face = last_face;
+      star_ents.push_back(first_face);
+      break;
+    }
+  }
+
+    // if no single-region faces, just pick the last one; don't take it off
+    // the list, though, so that we get back to it
+  if (0 == last_face)
+    last_face = *all_faces.rbegin();
+  
+  MBRange regions;
+
+  while (!all_faces.empty()) {
+      // during each iteration:
+      // - start with a last_face & edge
+      // - find a region that's not on the list, and the other face in the region
+      //   sharing that edge
+      // - remove that face from all_faces & put on face list & assign to last_face
+      // - add the region to the region list
+      // - proceed to next iteration
+
+      // get 3d elements common to face and edge and in untreated range
+    in_range.clear();
+    in_range.insert(this_edge);
+    in_range.insert(last_face);
+    out_range = untreated_regions;
+    result = mbImpl->get_adjacencies(in_range, 3, false, out_range, 
+                                     MBInterface::INTERSECT);
+    if (MB_SUCCESS != result) return result;
+
+      // if we got here and we didn't find an untreated region
+    if (out_range.empty()) return MB_FAILURE;
+    
+      // take this region out of the list
+    untreated_regions.erase(*out_range.begin());
+    if (NULL != star_regions) star_regions->push_back(*out_range.begin());
+    
+      // get the other face sharing the edge
+    in_range.clear(); 
+    in_range.insert(this_edge);
+    in_range.insert(*out_range.begin());
+    out_range.clear();
+    result = mbImpl->get_adjacencies(in_range, 2, false, out_range);
+    if (MB_SUCCESS != result) return result;
+    else if (out_range.size() != 2) return MB_FAILURE;
+
+    last_face = (last_face != *out_range.begin() ? 
+                 *out_range.begin() : *out_range.rbegin());
+    
+      // remove the face from all_faces and add region to regions
+    all_faces.erase(last_face);
+    star_ents.push_back(last_face);
+  }
+
+    // if it's a closed loop, we got all the vertices; if not, we need 2 more;
+    // closed is indicated by first_face being zero
+  on_boundary = !(0 == first_face);
+
+  return MB_SUCCESS;
+}
+

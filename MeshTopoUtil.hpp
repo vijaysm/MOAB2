@@ -39,7 +39,13 @@ public:
     //! given an entity, get its average position (avg vertex locations)
   MBErrorCode get_average_position(const MBEntityHandle entity,
                                    double *avg_position);
-  
+
+    //! given a mesh edge, find the ordered faces around the edge; if any
+    //! of the faces is in only one region, on_boundary is returned true
+  MBErrorCode star_faces(const MBEntityHandle this_edge,
+                         std::vector<MBEntityHandle> &star_ents,
+                         bool &on_boundary,
+                         std::vector<MBEntityHandle> *star_regions = NULL);
   
 private:
   MBInterface *mbImpl;
