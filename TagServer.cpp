@@ -835,7 +835,7 @@ MBErrorCode TagServer::get_entities_with_tag_values( MBEntityType type,
     temp2.clear();
 
       // get the sets with this tag/value combo in temp1
-    if (NULL == values) 
+    if (NULL == values || NULL == values[it]) 
       result = get_entities(tags[it], type, temp1);
     else
       result = get_entities_with_tag_value(type, tags[it], *(reinterpret_cast<const int**>(values)+it), temp1);
