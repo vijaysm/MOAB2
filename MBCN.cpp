@@ -74,7 +74,7 @@ MBEntityType MBCN::EntityTypeFromName(const char *name)
 void MBCN::SubEntityConn(const void *parent_conn, const MBEntityType parent_type,
                          const int sub_dimension,
                          const int sub_index,
-                         void *sub_entity_conn[], int &num_sub_vertices) 
+                         void *sub_entity_conn, int &num_sub_vertices) 
 {
   static int sub_indices[MB_MAX_SUB_ENTITY_VERTICES];
   
@@ -82,8 +82,9 @@ void MBCN::SubEntityConn(const void *parent_conn, const MBEntityType parent_type
   
   num_sub_vertices = VerticesPerEntity(SubEntityType(parent_type, sub_dimension, sub_index));
   void **parent_conn_ptr = static_cast<void **>(const_cast<void *>(parent_conn));
+  void **sub_conn_ptr = static_cast<void **>(sub_entity_conn);
   for (int i = 0; i < num_sub_vertices; i++)
-    *(sub_entity_conn+i) = parent_conn_ptr[sub_indices[i]];
+    sub_conn_ptr[i] = parent_conn_ptr[sub_indices[i]];
 }
 
 //! given an entity and a target dimension & side number, get that entity

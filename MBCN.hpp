@@ -66,6 +66,8 @@ enum MBEntityType
     //!< dimensioning purposes 
 };
 
+typedef void* Handle;
+
 //! postfix increment operator for MBEntityType
 inline MBEntityType operator++(MBEntityType &type, int)
 {
@@ -205,7 +207,7 @@ public:
   static void SubEntityConn(const void *parent_conn, const MBEntityType parent_type,
                             const int sub_dimension,
                             const int sub_index,
-                            void *sub_entity_conn[], int &num_sub_vertices);
+                            void *sub_entity_conn, int &num_sub_vertices);
 
   //! For a specified set of sides of given dimension, return the intersection 
   //! or union of all sides of specified target dimension adjacent to those sides.
