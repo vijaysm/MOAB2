@@ -713,7 +713,7 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
   MBErrorCode result;
 
   if (0 == instance->categoryTag) {
-    static const char val[32] = "\0";
+    static const char val[CATEGORY_TAG_NAME_LENGTH] = "\0";
     result = instance->mdbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_NAME_LENGTH,
                                            MB_TAG_SPARSE, instance->categoryTag, val);
     assert (MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);

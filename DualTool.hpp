@@ -137,6 +137,9 @@ private:
     //! dual hyperplanes of them in sets as it goes
   MBErrorCode construct_dual_hyperplanes(const int dim);
   
+    //! connect dual surfaces with dual curves using parent/child connections
+  MBErrorCode construct_hp_parent_child();
+  
   //! given an edge handle, return a list of dual vertices in radial order 
   //! around the edge; also returns whether this edge is on the boundary
   MBErrorCode get_radial_dverts(const MBEntityHandle edge,
@@ -177,6 +180,7 @@ private:
   MBTag dualEntityTag;
   MBTag extraDualEntityTag;
   MBTag dualGraphicsPointTag;
+  MBTag categoryTag;
 };
 
 inline MBTag DualTool::dualSurface_tag()

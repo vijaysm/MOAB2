@@ -35,17 +35,17 @@ char *DualTool::DUAL_GRAPHICS_POINT_TAG_NAME = "__DUAL_GRAPHICS_POINT";
 DualTool::DualTool(MBInterface *impl) 
     : mbImpl(impl)
 {
-  int dummy = -1;
+  int dummy = 0;
 
-  MBErrorCode result = mbImpl->tag_create(DUAL_SURFACE_TAG_NAME, sizeof(int), MB_TAG_SPARSE, 
+  MBErrorCode result = mbImpl->tag_create(DUAL_SURFACE_TAG_NAME, sizeof(MBEntityHandle), 
+                                          MB_TAG_SPARSE, 
                                           dualSurfaceTag, &dummy);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
   
-  result = mbImpl->tag_create(DUAL_CURVE_TAG_NAME, sizeof(int), MB_TAG_SPARSE, 
+  result = mbImpl->tag_create(DUAL_CURVE_TAG_NAME, sizeof(MBEntityHandle), MB_TAG_SPARSE, 
                               dualCurveTag, &dummy);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
   
-  dummy = 0;
   result = mbImpl->tag_create(IS_DUAL_CELL_TAG_NAME, 1, MB_TAG_BIT, 
                               isDualCellTag, &dummy);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
@@ -56,6 +56,11 @@ DualTool::DualTool(MBInterface *impl)
 
   result = mbImpl->tag_create(EXTRA_DUAL_ENTITY_TAG_NAME, sizeof(MBEntityHandle), MB_TAG_SPARSE, 
                               extraDualEntityTag, &dummy);
+  assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
+  
+  static const char dum_name[CATEGORY_TAG_NAME_LENGTH] = "\0";
+  result = mbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_NAME_LENGTH, MB_TAG_SPARSE, 
+                              categoryTag, dum_name);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
   
   DualTool::GraphicsPoint dum_pt(0.0, 0.0, 0.0, -1);
@@ -610,6 +615,9 @@ MBErrorCode DualTool::construct_hex_dual()
   result = construct_dual_hyperplanes(2);
   if (MB_SUCCESS != result) return result;
   
+  result = construct_hp_parent_child();
+  if (MB_SUCCESS != result) return result;
+
     // see?  simple, just like I said
   return MB_SUCCESS;
 }
@@ -649,7 +657,8 @@ MBErrorCode DualTool::get_dual_entities(const int dim,
   return MB_SUCCESS;
 }
 
-MBErrorCode DualTool::get_dual_hyperplanes(const MBInterface *impl, const int dim, MBRange &dual_ents) 
+MBErrorCode DualTool::get_dual_hyperplanes(const MBInterface *impl, const int dim, 
+                                           MBRange &dual_ents) 
 {
   if (dim != 1 && dim != 2) return MB_INDEX_OUT_OF_RANGE;
 
@@ -716,33 +725,41 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
   
     // main part of traversal loop
   MBEntityHandle this_ent;
+  MBEntityHandle this_hp;
   int hp_val;
-  int hp_ids = 0;
-    // int report = tot_untreated.size() / 10;
+  int hp_ids = 1;
+  std::vector<MBEntityHandle> parents;
+
   while (!tot_untreated.empty()) {
     if (debug && dim == 2 /*(tot_untreated.size()%report == 0)*/)
       std::cout << "Untreated list size " << tot_untreated.size() << "." << std::endl;
       
     this_ent = tot_untreated.back(); tot_untreated.pop_back();
-    result = mbImpl->tag_get_data(hp_tag, &this_ent, 1, &hp_val);
+    result = mbImpl->tag_get_data(hp_tag, &this_ent, 1, &this_hp);
     if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) return result;
 
       // test for this entity having a hyperplane assignment already
-    else if (hp_val != -1)
+    else if (this_hp != 0)
       continue;
 
-    if (check_1d_loop_edge(this_ent)) continue;
+    if (1 == dim && check_1d_loop_edge(this_ent)) continue;
     
       // ok, doesn't have one; make a new hyperplane
     hp_val = hp_ids++;
-    MBEntityHandle this_hp;
     result = mbImpl->create_meshset(MESHSET_SET, this_hp);
     if (MB_SUCCESS != result) return result;
     result = mbImpl->tag_set_data(gid_tag, &this_hp, 1, &hp_val);
     if (MB_SUCCESS != result) return result;
-    result = mbImpl->tag_set_data(hp_tag, &this_hp, 1, &hp_val);
-    if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) return result;
+    result = mbImpl->tag_set_data(hp_tag, &this_hp, 1, &this_hp);
+    if (MB_SUCCESS != result) return result;
     hp_untreated.clear();
+
+      // assign a category name to these sets
+    static const char dual_category_names[2][CATEGORY_TAG_NAME_LENGTH] = 
+      {"Chord\0", "Sheet\0"};
+    
+    result = mbImpl->tag_set_data(categoryTag, &this_hp, 1, dual_category_names[dim-1]);
+    if (MB_SUCCESS != result) return result;
 
       // inner loop: traverse the hyperplane 'till we don't have any more
     MBRange tmp_star, star, tmp_range;
@@ -750,9 +767,9 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
       if (debug && hp_untreated.size()%10 == 0) 
         std::cout << "Dual surface " << hp_val << ", hp_untreated list size = " 
                   << hp_untreated.size() << "." << std::endl;
-      
+
         // set the hp_val for this_ent
-      result = mbImpl->tag_set_data(hp_tag, &this_ent, 1, &hp_val);
+      result = mbImpl->tag_set_data(hp_tag, &this_ent, 1, &this_hp);
       if (MB_SUCCESS != result) return result;
       result = mbImpl->add_entities(this_hp, &this_ent, 1);
       if (MB_SUCCESS != result) return result;
@@ -773,9 +790,9 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
         // this_ent is already in tmp_range
       for (MBRange::iterator rit = star.begin(); rit != star.end(); rit++) {
           // check for tag first, 'cuz it's probably faster than checking adjacencies
-        int r_val;
+        MBEntityHandle r_val;
         result = mbImpl->tag_get_data(hp_tag, &(*rit), 1, &r_val);
-        if (MB_SUCCESS == result && -1 != r_val) 
+        if (MB_SUCCESS == result && 0 != r_val) 
           continue;
 
           // assign to avoid valgrind warning
@@ -785,7 +802,7 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
           continue;
 
           // if it's on the loop, it's not eligible
-        if (check_1d_loop_edge(*rit)) continue;
+        if (1 == dim && check_1d_loop_edge(*rit)) continue;
 
           // passed tag test; check adjacencies
         tmp_star.clear();
@@ -842,7 +859,42 @@ bool DualTool::check_1d_loop_edge(MBEntityHandle this_ent)
   
   else return true;
 }
+
+MBErrorCode DualTool::construct_hp_parent_child() 
+{
+  MBRange dual_surfs, dual_cells, dual_edges;
+  MBErrorCode result = this->get_dual_hyperplanes(mbImpl, 2, dual_surfs);
+  if (MB_SUCCESS != result || dual_surfs.empty()) return result;
+  std::vector<MBEntityHandle> dual_curve_sets;
   
+  for (MBRange::iterator surf_it = dual_surfs.begin(); surf_it != dual_surfs.end();
+       surf_it++) {
+      // get all the cells, edges in those cells, and chords for those edges
+    dual_cells.clear();
+    result = mbImpl->get_entities_by_handle(*surf_it, dual_cells);
+    if (MB_SUCCESS != result) return result;
+    dual_edges.clear();
+    result = mbImpl->get_adjacencies(dual_cells, 1, false, dual_edges, MBInterface::UNION);
+    if (MB_SUCCESS != result) return result;
+    dual_curve_sets.reserve(dual_edges.size());
+    result = mbImpl->tag_get_data(dualCurve_tag(), dual_edges, &dual_curve_sets[0]);
+    if (MB_SUCCESS != result) return result;
+
+      // reuse dual_cells to get unique list of chord sets
+    dual_cells.clear();
+    for (unsigned int i = 0; i < dual_edges.size(); i++)
+      if (dual_curve_sets[i] != 0) dual_cells.insert(dual_curve_sets[i]);
+    
+      // now connect up this dual surf with all the 1d ones
+    for (MBRange::iterator rit = dual_cells.begin(); rit != dual_cells.end(); rit++) {
+      result = mbImpl->add_parent_child(*surf_it, *rit);
+      if (MB_SUCCESS != result) return result;
+    }
+  }
+
+  return MB_SUCCESS;
+}
+    
 MBErrorCode DualTool::get_graphics_points(MBEntityHandle dual_ent,
                                           std::vector<int> &npts,
                                           std::vector<GraphicsPoint> &points) 

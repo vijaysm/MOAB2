@@ -175,8 +175,17 @@ MBErrorCode DenseTagSuperCollection::get_entities_with_tag_value(const MBTagId t
 {
   if(tag_id >= mDensePageGroupsSize || (*mDensePageGroups)[tag_id] == NULL)
     return MB_TAG_NOT_FOUND;
+  
+  bool equals_default = (NULL != mDefaultData[tag_id] ? 
+    (memcmp(mDefaultData[tag_id], value, (*mDensePageGroups)[tag_id]->tag_size()) == 0) :
+                         false);
 
-  return mDensePageGroups[type][tag_id]->get_entities_with_tag_value(type, value, entities);
+    // for now, return if default value is requested
+  if (equals_default)
+    return MB_FAILURE;
+
+  return mDensePageGroups[type][tag_id]->get_entities_with_tag_value(type, value, entities, 
+                                                                     equals_default);
 }
 
 
@@ -198,8 +207,9 @@ MBErrorCode DenseTagSuperCollection::get_entities_with_tag_value(const MBRange &
 }
 
 MBErrorCode DensePageGroup::get_entities_with_tag_value(const MBEntityType type,
-                                                         const void* value, 
-                                                         MBRange &entities)
+                                                        const void* value, 
+                                                        MBRange &entities,
+                                                        const bool equals_default)
 {
 
   void* test_data = malloc(mBytesPerFlag);
@@ -215,6 +225,8 @@ MBErrorCode DensePageGroup::get_entities_with_tag_value(const MBEntityType type,
       if(memcmp(test_data, value, mBytesPerFlag) == 0)
         entities.insert(handle);
     }
+    else if (result == MB_TAG_NOT_FOUND && equals_default)
+      entities.insert(handle);
   }
 
   free(test_data);

@@ -157,7 +157,7 @@ class DensePageGroup
 public:
   // default constructor
   DensePageGroup(int bytes_per_flag)
-    : mBytesPerFlag(bytes_per_flag)
+      : mBytesPerFlag(bytes_per_flag)
   {
     //compute the offset factor based on the number of bytes for each entity
     mOffsetFactor = compute_offset_factor(bytes_per_flag);
@@ -193,14 +193,14 @@ public:
   
   //! get the entities with a value
   MBErrorCode get_entities_with_tag_value(const MBEntityType type, const void* value, 
-                                           MBRange &entities);
+                                          MBRange &entities,
+                                          const bool equals_default);
 
     //! return true if this page group contains this entity, false otherwise
   bool contains(const MBEntityHandle entity) const;
   
 
   int tag_size() const { return mBytesPerFlag; }
-    
 
 private:
 
