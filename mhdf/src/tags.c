@@ -271,6 +271,7 @@ mhdf_createTag( mhdf_FileHandle file_handle,
       default:
       case mhdf_OPAQUE:
         hdf_type = H5Tcreate( H5T_OPAQUE, size );
+        H5Tset_tag( hdf_type, "tag_data" );
         arr_len = 1;
         break;
       
