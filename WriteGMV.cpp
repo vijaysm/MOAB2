@@ -76,45 +76,80 @@ WriteGMV::WriteGMV(MBInterface *impl)
   if (MB_TAG_NOT_FOUND == result)
     result = impl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mGlobalIdTag,
                               &dum_val);
-  
-
-  impl->tag_create("__WriteGMV element mark", 1, MB_TAG_BIT, mEntityMark, NULL);
-
 }
 
 WriteGMV::~WriteGMV() 
 {
   std::string iface_name = "MBWriteUtilIface";
   mbImpl->release_interface(iface_name, mWriteIface);
-
-  mbImpl->tag_delete(mEntityMark);
-
 }
 
 MBErrorCode WriteGMV::write_file(const char *file_name,
                                  const MBEntityHandle output_set,
-                                 const int user_dimension) 
+                                 const int user_dimension,
+                                 const bool mesh,
+                                 const bool poly_mesh) 
 {
     // general function for writing a mesh
   
-  MBRange dum_range, elements, all_verts;
-  MBErrorCode result;
-  MBEntityType otype;
+  MBErrorCode result = MB_SUCCESS;
 
-    // get elements to be output; iterate over type because of special handling
-    // for polyhedra
-  for (otype = MBCN::TypeDimensionMap[user_dimension].first;
-       otype <= MBCN::TypeDimensionMap[user_dimension].second; otype++) {
-    dum_range.clear();
-    if (otype != MBPOLYHEDRON)
-      result = mbImpl->get_entities_by_type(output_set, otype, dum_range, true);
-    else
-        // if type requested is polyhedra, we'll really be outputting polygons, so
-        // put polygons in range
-      result = mbImpl->get_entities_by_type(output_set, MBPOLYGON, dum_range, true);
+    // initialize file
+
+  if (mesh) {
+    result = local_write_mesh(file_name, output_set, user_dimension, true, false);
     if (MB_SUCCESS != result) return result;
+  }
+  
+  if (poly_mesh) {
+    result = local_write_mesh(file_name, output_set, user_dimension, false, true);
+    if (MB_SUCCESS != result) return result;
+  }
+  
+  return result;
+}
 
-    std::copy(dum_range.begin(), dum_range.end(), mb_range_inserter(elements));
+MBErrorCode WriteGMV::local_write_mesh(const char *file_name,
+                                       const MBEntityHandle output_set,
+                                       const int user_dimension,
+                                       const bool mesh,
+                                       const bool poly_mesh)
+{
+  std::ofstream ofile;
+  MBErrorCode result;
+
+  if (mesh) {
+      // need to insert ".gmv"
+    std::string tmp_name(file_name);
+    tmp_name += ".gmv";
+    ofile.open(tmp_name.c_str());
+  }
+  else if (poly_mesh) {
+      // need to insert ".poly.gmv"
+    std::string tmp_name(file_name);
+    tmp_name += ".poly.gmv";
+    ofile.open(tmp_name.c_str());
+  }
+
+  ofile << "gmvinput ascii" << std::endl;
+  
+    // get elements to be output
+  MBRange dum_range, elements, all_verts;
+  MBEntityType otype;
+  if (poly_mesh) {
+    result = mbImpl->get_entities_by_type(output_set, MBPOLYGON, elements, true);
+    if (MB_SUCCESS != result) return result;
+  }
+  else {
+    for (otype = MBCN::TypeDimensionMap[user_dimension].first;
+         otype <= MBCN::TypeDimensionMap[user_dimension].second; otype++) {
+      if (otype == MBPOLYGON || otype == MBPOLYHEDRON) continue;
+      dum_range.clear();
+      result = mbImpl->get_entities_by_type(output_set, otype, dum_range, true);
+      if (MB_SUCCESS != result) return result;
+
+      std::copy(dum_range.begin(), dum_range.end(), mb_range_inserter(elements));
+    }
   }
   
     // gather the vertices in these elements
@@ -136,10 +171,6 @@ MBErrorCode WriteGMV::write_file(const char *file_name,
   result = mWriteIface->get_node_arrays(3, num_verts, all_verts, mGlobalIdTag, coord_arrays);
   if (MB_SUCCESS != result) return result;
 
-    // initialize file
-  std::ofstream ofile(file_name);
-  ofile << "gmvinput ascii" << std::endl;
-
   int i, j;
   
     //========================================
@@ -155,109 +186,120 @@ MBErrorCode WriteGMV::write_file(const char *file_name,
   delete [] xcoord;
   delete [] ycoord;
   delete [] zcoord;
-  
+
     // iterate over types in selected dimension
 
-  MBRange sub_range;
   std::vector<int> connect;
   std::vector<MBEntityHandle> connecth;
-  for (MBEntityType otype = MBCN::TypeDimensionMap[user_dimension].first;
-       otype <= MBCN::TypeDimensionMap[user_dimension].second; otype++) {
 
-    if (otype == MBPOLYGON || otype == MBPOLYHEDRON) continue;
+  if (mesh) {
+    MBRange sub_range;
+    
+    ofile << "cells " << elements.size() << std::endl;
+  
+    for (MBEntityType otype = MBCN::TypeDimensionMap[user_dimension].first;
+         otype <= MBCN::TypeDimensionMap[user_dimension].second; otype++) {
+
+      if (otype == MBPOLYGON || otype == MBPOLYHEDRON) continue;
       
-      // get the first element of this type in the range, and one past the last
-    MBRange::iterator lower = std::lower_bound(elements.begin(), elements.end(), 
-                                               CREATE_HANDLE(otype, MB_START_ID, i)),
-      upper = std::lower_bound(elements.begin(), elements.end(), 
-                               CREATE_HANDLE(otype+1, MB_START_ID, i));
+        // get the first element of this type in the range, and one past the last
+      MBRange::iterator lower = std::lower_bound(elements.begin(), elements.end(), 
+                                                 CREATE_HANDLE(otype, MB_START_ID, i)),
+        upper = std::lower_bound(elements.begin(), elements.end(), 
+                                 CREATE_HANDLE(otype+1, MB_START_ID, i));
 
-    if (lower == upper) continue;
+      if (lower == upper) continue;
     
-      // copy these elements into a subrange
-    sub_range.clear();
-    std::copy(lower, upper, mb_range_inserter(sub_range));
+        // copy these elements into a subrange
+      sub_range.clear();
+      std::copy(lower, upper, mb_range_inserter(sub_range));
 
-      // make sure the connectivity array is big enough
-    int verts_per = MBCN::VerticesPerEntity(otype);
-    if (connect.size() < verts_per*sub_range.size())
-      connect.reserve(verts_per*sub_range.size());
+        // make sure the connectivity array is big enough
+      int verts_per = MBCN::VerticesPerEntity(otype);
+      if (connect.size() < verts_per*sub_range.size())
+        connect.reserve(verts_per*sub_range.size());
     
-      // get the connectivity
-    result = mWriteIface->get_element_array(sub_range.size(),
-                                            verts_per,
-                                            mGlobalIdTag, sub_range,
-                                            mGlobalIdTag, 1, &connect[0]);
-    if (MB_SUCCESS != result) return result;
+        // get the connectivity
+      result = mWriteIface->get_element_array(sub_range.size(),
+                                              verts_per,
+                                              mGlobalIdTag, sub_range,
+                                              mGlobalIdTag, 1, &connect[0]);
+      if (MB_SUCCESS != result) return result;
 
-      //========================================
-      // WRITE CONNECTIVITY DATA TO FILE HERE
+        //========================================
+        // WRITE CONNECTIVITY DATA TO FILE HERE
 
-    for (i = 0; i < (int) sub_range.size(); i++) {
-      ofile << gmvTypeNames[otype] << " " << verts_per << std::endl;
-      for (j = i*verts_per; j < (int) (i+1)*verts_per; j++)
-        ofile << connect[j] << " ";
-      ofile << std::endl;
+      for (i = 0; i < (int) sub_range.size(); i++) {
+        ofile << gmvTypeNames[otype] << " " << verts_per << std::endl;
+        for (j = i*verts_per; j < (int) (i+1)*verts_per; j++)
+          ofile << connect[j] << " ";
+        ofile << std::endl;
+      }
+
+        //========================================
     }
-
-      //========================================
   }
-
-    // write polygons/hedra, if any
-  MBRange polygons, polyhedra;
-  result = mbImpl->get_entities_by_type(output_set, MBPOLYGON, polygons, true);
-  if (MB_SUCCESS != result) return result;
   
-  result = mbImpl->get_entities_by_type(output_set, MBPOLYHEDRON, polyhedra, true);
-  if (MB_SUCCESS != result) return result;
-
-  if (polygons.size() == 0) return result;
+  else if (poly_mesh) {
   
-    // mark polyhedra with global ids
-  result = mWriteIface->assign_ids(polyhedra, mGlobalIdTag, 1);
-  if (MB_SUCCESS != result) return result;
-
-  ofile << "faces " << polygons.size() << " " << polyhedra.size() << std::endl;
-
-  for (MBRange::iterator rit = polygons.begin(); rit != polygons.end(); rit++) {
-      // get the vertices
-    connecth.clear();
-    result = mbImpl->get_connectivity(&(*rit), 1, connecth, true);
+      // write polygons/hedra, if any
+    MBRange polygons, polyhedra;
+    result = mbImpl->get_entities_by_type(output_set, MBPOLYGON, polygons, true);
+    if (MB_SUCCESS != result) return result;
+  
+    result = mbImpl->get_entities_by_type(output_set, MBPOLYHEDRON, polyhedra, true);
     if (MB_SUCCESS != result) return result;
 
-    if (0 == connecth.size()) continue;
+    if (polygons.size() == 0) return result;
+  
+      // mark polyhedra with global ids
+    result = mWriteIface->assign_ids(polyhedra, mGlobalIdTag, 1);
+    if (MB_SUCCESS != result) return result;
+
+    ofile << "faces " << polygons.size() << " " << polyhedra.size() << std::endl;
+
+    for (MBRange::iterator rit = polygons.begin(); rit != polygons.end(); rit++) {
+        // get the vertices
+      connecth.clear();
+      result = mbImpl->get_connectivity(&(*rit), 1, connecth, true);
+      if (MB_SUCCESS != result) return result;
+
+      if (0 == connecth.size()) continue;
     
-      // get the polyhedra, if any
-    if (user_dimension == 3) {
-      polyhedra.clear();
-      result = mbImpl->get_adjacencies(MBRange(*rit, *rit), 3, false, polyhedra);
+        // get the polyhedra, if any
+      if (user_dimension == 3) {
+        polyhedra.clear();
+        result = mbImpl->get_adjacencies(MBRange(*rit, *rit), 3, false, polyhedra);
+        if (MB_SUCCESS != result) return result;
+    
+          // put them in the connect array
+        connecth.push_back((polyhedra.size() > 0 ? *polyhedra.begin() : 0));
+        connecth.push_back((polyhedra.size() > 1 ? *polyhedra.rbegin() : 0));
+      }
+    
+        // replace handles with ids
+      connect.reserve(connecth.size());
+
+        // pre-set polyhedra ids in case there aren't any
+      connect[connecth.size()] = 0;
+      connect[connecth.size()+1] = 0;
+      result = mbImpl->tag_get_data(mGlobalIdTag, &connecth[0], 
+                                    connecth.size()-2+polyhedra.size(),
+                                    &connect[0]);
       if (MB_SUCCESS != result) return result;
     
-        // put them in the connect array
-      connecth.push_back((polyhedra.size() > 0 ? *polyhedra.begin() : 0));
-      connecth.push_back((polyhedra.size() > 1 ? *polyhedra.rbegin() : 0));
+        // write the data
+      ofile << connecth.size()-2;
+    
+      for (i = 0; i < (int)connecth.size(); i++)
+        ofile << " " << connect[i];
+
+      ofile << std::endl;
     }
-    
-      // replace handles with ids
-    connect.reserve(connecth.size());
-
-      // pre-set polyhedra ids in case there aren't any
-    connect[connecth.size()] = 0;
-    connect[connecth.size()+1] = 0;
-    result = mbImpl->tag_get_data(mGlobalIdTag, &connecth[0], 
-                                  connecth.size()-2+polyhedra.size(),
-                                  &connect[0]);
-    if (MB_SUCCESS != result) return result;
-    
-      // write the data
-    ofile << connecth.size()-2;
-    
-    for (i = 0; i < (int)connecth.size(); i++)
-      ofile << " " << connect[i];
-
-    ofile << std::endl;
   }
 
+  ofile << std::endl << "endgmv" << std::endl;
+  
   ofile.close();
   
   return MB_SUCCESS;

@@ -32,7 +32,9 @@ public:
     //! writes out a mesh file
   MBErrorCode write_file(const char *file_name,
                          const MBEntityHandle output_set,
-                         const int user_dimension = 3);
+                         const int user_dimension = 3,
+                         const bool mesh = true,
+                         const bool poly_mesh = true);
   
 protected:
 
@@ -54,10 +56,13 @@ private:
   MBTag mGeomDimensionTag;
   MBTag mGlobalIdTag;
 
-  MBTag mEntityMark;   //used to say whether an entity will be exported
-
   static const char *gmvTypeNames[MBMAXTYPE];
   
+  MBErrorCode local_write_mesh(const char *file_name,
+                               const MBEntityHandle output_set,
+                               const int user_dimension,
+                               const bool mesh,
+                               const bool poly_mesh);
 };
 
 #endif

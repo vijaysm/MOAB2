@@ -109,8 +109,7 @@ int main(int argc, char* argv[])
 
     // write GMV file
   WriteGMV *wgmv = new WriteGMV(gMB);
-  std::string file_name = std::string(argv[1]) + std::string(".gmv");
-  wgmv->write_file(file_name.c_str(), 0, 3);
+  wgmv->write_file(argv[1], 0, 3);
   delete wgmv;
   
   delete gMB;
