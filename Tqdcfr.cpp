@@ -467,7 +467,9 @@ void Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     if (-1 == currElementIdOffset[elem_type])
       currElementIdOffset[elem_type] = elem_offset;
     else
-      assert((long unsigned int) currElementIdOffset[elem_type] == elem_offset);
+      ;
+    
+        //assert((long unsigned int) currElementIdOffset[elem_type] == elem_offset);
 
       // now do something with them...
 
@@ -1200,8 +1202,11 @@ void Tqdcfr::parse_acis_attribs(const int entity_rec_num,
     if (strncmp(records[current_attrib].att_string.c_str(), "ENTITY_NAME", 11) == 0) {
         // parse name
       int num_chars;
-      num_read = sscanf(records[current_attrib].att_string.c_str(), "ENTITY_NAME %d %s", &num_chars, temp_name);
+      num_read = sscanf(records[current_attrib].att_string.c_str(), "ENTITY_NAME @%d %s", &num_chars, temp_name);
+      if (num_read != 2)
+        num_read = sscanf(records[current_attrib].att_string.c_str(), "ENTITY_NAME %d %s", &num_chars, temp_name);
       assert(num_read == 2);
+
         // put the name on the entity
       name_tag = new char[num_chars];
       strcpy(name_tag, temp_name);
@@ -1264,6 +1269,16 @@ void Tqdcfr::parse_acis_attribs(const int entity_rec_num,
   
     // set the name
   if (NULL != name_tag) {
+    if (0 == entityNameTag) {
+      result = mdbImpl->tag_get_handle("NAME", entityNameTag);
+      if (MB_SUCCESS != result || 0 == entityNameTag) {
+        char *dum_val = NULL;
+        result = mdbImpl->tag_create("NAME", sizeof(char*), MB_TAG_SPARSE, 
+                                     entityNameTag, &dum_val);
+      }
+    }
+    assert(0 != entityNameTag);
+
     result = mdbImpl->tag_set_data(entityNameTag, &(records[entity_rec_num].entity), 1, &name_tag);
     assert(MB_SUCCESS == result);
   }
