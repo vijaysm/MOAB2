@@ -1,0 +1,34 @@
+# Define these here, but let MB.common override
+# them if defined there.
+
+HDF5_INC = 
+HDF5_LNK = -lhdf5
+
+PIC = -fpic
+SO_LINKER = $(CC) $(PIC) -shared 
+DEBUG_FLAG = -g
+ARCHIVER = ar ru
+
+MOAB_DIR = ../..
+include $(MOAB_DIR)/MB.common
+
+
+HEADERS = mhdf.h \
+	  file-handle.h \
+	  names-and-paths.h \
+	  status.h \
+	  util.h
+
+SRCS =	adjacency.c \
+	connectivity.c \
+	file-handle.c \
+	file.c \
+	nodes.c \
+	sets.c \
+	status.c \
+	tags.c \
+	util.c
+
+OBJS = $(SRCS:.c=.o)
+
+$(OBJS): $(HEADERS)
