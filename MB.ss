@@ -7,13 +7,6 @@ NETCDF_INCLUDE = -I$(CUBITROOT)/include
 NETCDF_LIB_DIR = $(CUBITROOT)/lib
 NETCDF_LIBS = -lnetcdf_c++ -lnetcdf
 
-LIBS = -lm
-
-SO_LFLAGS = -G -h libMDB.so -o libMDB.so
-PCOM_LIB_LFLAGS = -G
-PCOM_LIB_LIBS = -lCstd
-PCOM_APP_LIBS = -ldl
-
 # Machine-dependent include paths
 CC_INCLUDE = -I/net/sasn232/opt/SUNWspro.old/SC5.0/include/CCios \
         -I/opt/SUNWspro/WS6U1/include/CCios \
@@ -38,6 +31,9 @@ CXX = CC
 LINKER = ${CXX}
 MAKE = make 
 ARCHIVER = ${CXX} -xar -o
+PIC = -Kpic
+SO_LINKER = $(LINKER) $(PIC) -G -lCstd -h $(notdir $@)
+RUNTIME_LINKER_LIB = -ldl
 
 # MAKEDEPEND:
 MAKEDEPEND = $(CUBITROOT)/bin/makedepend -f -

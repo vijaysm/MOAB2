@@ -15,11 +15,6 @@ NETCDF_INCLUDE = -I$(CUBITROOT)/include
 NETCDF_LIB_DIR = $(CUBITROOT)/lib
 NETCDF_LIBS = -lnetcdf_c++ -lnetcdf
 
-LIBS = -lm
-
-SO_LFLAGS = -shared -soname libMDB.so -o libMDB.so
-PCOM_LIB_LFLAGS = -shared
-
 # Machine-dependent include paths
 CC_INCLUDE = -I/usr/include/cxx
 
@@ -43,6 +38,8 @@ CXX = cxx
 LINKER = ${CXX}
 MAKE = make
 ARCHIVER = ar -ru
+PIC = -Kpic
+SO_LINKER = -shared $(PIC) -soname $(notdir $@) 
 
 # MAKEDEPEND:
 MAKEDEPEND = /usr/bin/X11/makedepend -f -

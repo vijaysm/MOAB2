@@ -8,12 +8,6 @@ NETCDF_INCLUDE = -I$(HOME)/cubit/netcdf/cxx_hp11 -I$(CUBIT)/include
 NETCDF_LIB_DIR = $(HOME)/cubit/netcdf/cxx_hp11
 NETCDF_LIBS = -L$(HOME)/cubit/netcdf/cxx_hp11 -L$(CUBIT)/lib -lnetcdf_c++ -lnetcdf
 
-LIBS = -lm
-
-SO_LFLAGS = -b -Wl,-a,shared -Wl,+h,libMDB.sl -o libMDB.sl
-PCOM_LIB_LFLAGS = -b -AA
-PCOM_APP_LIBS = -ldld
-
 # Machine-dependent include paths
 CC_INCLUDE = -I/opt/graphics/OpenGL/include
 #-I/usr -I/opt/aCC/include
@@ -39,6 +33,9 @@ CXX = /opt/aCC/bin/aCC
 LINKER = ${CXX} -Wl,+s
 MAKE = make
 ARCHIVER = ar ru
+PIC = -Kpic
+SO_LINKER = $(LINKER) $(PIC) -b -Wl,-a,shared -Wl,+h,$(notdir $@)
+RUNTIME_LINKER_LIB = -ldld
 
 # MAKEDEPEND:
 MAKEDEPEND = $(CUBITROOT)/bin/makedepend -f - 

@@ -21,12 +21,6 @@ NETCDF_LIB_DIR_N64 = $(CUBITROOT)/netcdf/netcdf-3.4/lib/irix65_n64
 NETCDF_LIB_DIR = $(NETCDF_LIB_DIR_$(CUBIT_ABI_FORMAT))
 NETCDF_LIBS = -lnetcdf_c++ -lnetcdf
 
-LIBS = -lm
-
-SO_LFLAGS = -shared -check_registry /usr/lib/so_locations -Wl,-soname,libMDB.so -o libMDB.so
-
-PCOM_LIB_LFLAGS = -shared
-
 # Machine-dependent include paths
 CC_INCLUDE = 
 
@@ -66,6 +60,10 @@ CC = $(CC_$(CUBIT_ABI_FORMAT))
 LINKER = ${CXX}
 MAKE = make
 ARCHIVER = $(CXX) -ar -o
+PIC = -KPIC
+SO_LINKER = $(LINKER) $(PIC) -shared -check_registry /usr/lib/so_locations -Wl,-soname,$(notdir $@)
+RUNTIME_LINKER_LIB = -ldl
+
 
 # MAKEDEPEND:
 MAKEDEPEND = $(CUBITROOT)/makedepend/makedepend -f -
