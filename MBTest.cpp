@@ -3851,6 +3851,109 @@ MBErrorCode mb_topo_util_test(MBInterface *gMB)
   return MB_SUCCESS;
 }
 
+MBErrorCode mb_split_test(MBInterface *gMB) 
+{
+  MeshTopoUtil mtu(gMB);
+
+    // construct a four-hex mesh for testing purposes
+  double grid_vert_pos[] = 
+    {
+      0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 2.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 2.0, 1.0, 0.0,
+      0.0, 2.0, 0.0, 1.0, 2.0, 0.0, 2.0, 2.0, 0.0,
+//
+      0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 2.0, 0.0, 1.0,
+      0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 1.0, 1.0,
+      0.0, 2.0, 1.0, 1.0, 2.0, 1.0, 2.0, 2.0, 1.0,
+//
+      0.0, 0.0, 2.0, 1.0, 0.0, 2.0, 2.0, 0.0, 2.0,
+      0.0, 1.0, 2.0, 1.0, 1.0, 2.0, 2.0, 1.0, 2.0,
+      0.0, 2.0, 2.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0
+    };
+      
+  MBEntityHandle grid_verts[27], grid_elems[8];
+  MBErrorCode result;
+#define RR if (result != MB_SUCCESS) return result
+  int init_edges, init_faces;
+  result = gMB->get_number_entities_by_dimension(0, 1, init_edges); RR;
+  result = gMB->get_number_entities_by_dimension(0, 2, init_faces); RR;
+
+    // make vertices
+  for (int i = 0; i < 27; i++) {
+    result = gMB->create_vertex(&grid_vert_pos[3*i], grid_verts[i]); RR;
+  }
+
+    // make hexes
+  int numv = 3, numv_sq = 9;
+#define VINDEX(i,j,k) (i + (j*numv) + (k*numv_sq))
+  MBEntityHandle connect[8];
+  for (int k = 0; k < 2; k++) {
+    for (int j = 0; j < 2; j++) {
+      for (int i = 0; i < 2; i++) {
+        int vijk = VINDEX(i,j,k);
+        connect[0] = grid_verts[vijk];
+        connect[1] = grid_verts[vijk+1];
+        connect[2] = grid_verts[vijk+1+numv];
+        connect[3] = grid_verts[vijk+numv];
+        connect[4] = grid_verts[vijk+numv*numv];
+        connect[5] = grid_verts[vijk+1+numv*numv];
+        connect[6] = grid_verts[vijk+1+numv+numv*numv];
+        connect[7] = grid_verts[vijk+numv+numv*numv];
+        result = gMB->create_element(MBHEX, connect, 8, grid_elems[4*k+2*j+i]); RR;
+      }
+    }
+  }
+  
+  MBRange vert_range;
+  std::copy(grid_verts, grid_verts+27, mb_range_inserter(vert_range));
+  
+    // generate aentities
+  result = mtu.construct_aentities(vert_range); RR;
+  
+  int this_edges, this_faces;
+  result = gMB->get_number_entities_by_dimension(0, 1, this_edges); RR;
+  result = gMB->get_number_entities_by_dimension(0, 2, this_faces); RR;
+
+  if (this_edges != init_edges+54 || this_faces != init_faces+36) {
+    std::cout << "Wrong number of edges or faces in mb_topo_util test." << std::endl;
+    return MB_FAILURE;
+  }
+
+    // split the faces between the 2 layers
+    // first get the faces
+  MBRange split_faces, tmp_ents, tmp_faces;
+  for (int i = 0; i < 4; i++) {
+    tmp_ents.clear();
+    tmp_ents.insert(grid_elems[i]);
+    tmp_ents.insert(grid_elems[i+4]);
+    tmp_faces.clear();
+    result = gMB->get_adjacencies(tmp_ents, 2, false, tmp_faces);
+    if (MB_SUCCESS != result || tmp_faces.size() != 1) {
+      std::cout << "mb_split_test failed to get shared quad." << std::endl;
+      return MB_FAILURE;
+    }
+    split_faces.insert(*tmp_faces.begin());
+  }
+
+  MBRange new_faces, new_regions;
+  result = gMB->split_entities_manifold(split_faces, new_faces, &new_regions);
+  if (MB_SUCCESS != result || new_faces.size() != 4 ||
+      new_regions.size() != 4) {
+    std::cout << "mb_split_test failed to split quads." << std::endl;
+    return MB_FAILURE;
+  }
+
+  result = gMB->get_number_entities_by_dimension(0, 1, this_edges); RR;
+  result = gMB->get_number_entities_by_dimension(0, 2, this_faces); RR;
+
+  if (this_edges != init_edges+54 || this_faces != init_faces+40) {
+    std::cout << "Wrong number of edges or faces after splitting in mb_topo_util test." << std::endl;
+    return MB_FAILURE;
+  }
+  
+  return MB_SUCCESS;
+}
+
 /*!
 main routine for test harness 
 */
@@ -4214,6 +4317,15 @@ int main(int argc, char* argv[])
     // Mesh Topo Utils test
   result = mb_topo_util_test(gMB);
   cout << "   mb_topo_util_test: ";
+  handle_error_code(result, number_tests_failed,
+		    number_tests_not_implemented,
+		    number_tests_successful);
+  number_tests++;
+  cout << "\n";
+
+    // split test
+  result = mb_split_test(gMB);
+  cout << "   mb_split_test: ";
   handle_error_code(result, number_tests_failed,
 		    number_tests_not_implemented,
 		    number_tests_successful);
