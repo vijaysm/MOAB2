@@ -254,8 +254,8 @@ MBErrorCode make_chord_push()
       1.0, -0.5, -1.0,
       1.0, 0.5, -1.0,
         // 2 extra vertices for chord push
-      0.0, -.333, 0.0,
-      0.0, -.667, 0.0
+      0.0, -.333, 0.05,
+      0.0, -.667, 0.10
     };
 
   int connect[] = {
@@ -279,7 +279,7 @@ MBErrorCode make_chord_push()
   MBErrorCode result;
   MBEntityHandle vtx_handles[16];
   
-  for (int i = 0; i < 6; i++) {
+  for (int i = 0; i < 16; i++) {
     result = gMB->create_vertex(&vtx_coord[3*i], vtx_handles[i]);
     if (MB_SUCCESS != result) return MB_FAILURE;
   }
@@ -289,7 +289,7 @@ MBErrorCode make_chord_push()
     // make the five hexes
   for (int i = 0; i < 5; i++) {
     for (int j = 0; j < 8; j++)
-      conn[i] = vtx_handles[connect[8*i+j]];
+      conn[j] = vtx_handles[connect[8*i+j]];
     result = gMB->create_element(MBHEX, conn, 8, elems[i]);
     if (MB_SUCCESS != result) return MB_FAILURE;
   }
@@ -297,7 +297,7 @@ MBErrorCode make_chord_push()
     // make the frontmost pair of quads and bind to the front degen hex
   for (int i = 0; i < 2; i++) {
     for (int j = 0; j < 4; j++)
-      conn[i] = vtx_handles[connect[40+4*i+j]];
+      conn[j] = vtx_handles[connect[40+4*i+j]];
     result = gMB->create_element(MBQUAD, conn, 4, elems[5+i]);
     if (MB_SUCCESS != result) return MB_FAILURE;
   }
@@ -305,7 +305,7 @@ MBErrorCode make_chord_push()
     // now the back pair
   for (int i = 0; i < 2; i++) {
     for (int j = 0; j < 4; j++)
-      conn[i] = vtx_handles[connect[40+4*i+j]];
+      conn[j] = vtx_handles[connect[40+4*i+j]];
     result = gMB->create_element(MBQUAD, conn, 4, elems[7+i]);
     if (MB_SUCCESS != result) return MB_FAILURE;
   }
@@ -313,7 +313,7 @@ MBErrorCode make_chord_push()
     // make the duplicated edges explicitly too
   for (int i = 0; i < 2; i++) {
     for (int j = 0; j < 2; j++)
-      conn[i] = vtx_handles[connect[48+j]];
+      conn[j] = vtx_handles[connect[48+j]];
     result = gMB->create_element(MBEDGE, conn, 2, elems[9+i]);
     if (MB_SUCCESS != result) return MB_FAILURE;
   }
@@ -325,16 +325,32 @@ MBErrorCode make_chord_push()
   result = gMB->add_adjacencies(elems[10], &elems[7], 2, false);
   if (MB_SUCCESS != result) return MB_FAILURE;
 
-    // front pair of quads to front degen hex
-  result = gMB->add_adjacencies(elems[5], &elems[4], 1, false);
+    // front/rear duplicated edge to front/rear degen hex
+  result = gMB->add_adjacencies(elems[9], &elems[3], 1, false);
   if (MB_SUCCESS != result) return MB_FAILURE;
-  result = gMB->add_adjacencies(elems[6], &elems[4], 1, false);
+  result = gMB->add_adjacencies(elems[10], &elems[4], 1, false);
+  if (MB_SUCCESS != result) return MB_FAILURE;
+
+    // rear duplicated edge to normal hexes behind it
+  result = gMB->add_adjacencies(elems[10], &elems[1], 2, false);
+  if (MB_SUCCESS != result) return MB_FAILURE;
+
+    // front pair of quads to front degen hex
+  result = gMB->add_adjacencies(elems[5], &elems[3], 1, false);
+  if (MB_SUCCESS != result) return MB_FAILURE;
+  result = gMB->add_adjacencies(elems[6], &elems[3], 1, false);
   if (MB_SUCCESS != result) return MB_FAILURE;
 
     // rear pair of quads to rear degen hex
-  result = gMB->add_adjacencies(elems[7], &elems[5], 1, false);
+  result = gMB->add_adjacencies(elems[7], &elems[4], 1, false);
   if (MB_SUCCESS != result) return MB_FAILURE;
-  result = gMB->add_adjacencies(elems[8], &elems[5], 1, false);
+  result = gMB->add_adjacencies(elems[8], &elems[4], 1, false);
+  if (MB_SUCCESS != result) return MB_FAILURE;
+
+    // rear pair of quads to normal hexes behind them
+  result = gMB->add_adjacencies(elems[7], &elems[1], 1, false);
+  if (MB_SUCCESS != result) return MB_FAILURE;
+  result = gMB->add_adjacencies(elems[8], &elems[2], 1, false);
   if (MB_SUCCESS != result) return MB_FAILURE;
 
   return MB_SUCCESS;
