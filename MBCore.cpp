@@ -625,9 +625,24 @@ MBErrorCode MBCore::get_connectivity_by_type(const MBEntityType type,
 
 //! get the connectivity for element /handles.  For non-element handles, return an error
 MBErrorCode  MBCore::get_connectivity(const MBEntityHandle *entity_handles, 
-                                        const int num_handles,
-                                        std::vector<MBEntityHandle> &connectivity,
-                                        bool topological_connectivity) const
+                                      const int num_handles,
+                                      MBRange &connectivity,
+                                      bool topological_connectivity) const
+{
+  std::vector<MBEntityHandle> tmp_connect;
+  MBErrorCode result = get_connectivity(entity_handles, num_handles, tmp_connect,
+                                        topological_connectivity);
+  if (MB_SUCCESS != result) return result;
+  
+  std::copy(tmp_connect.begin(), tmp_connect.end(), mb_range_inserter(connectivity));
+  return result;
+}
+
+//! get the connectivity for element /handles.  For non-element handles, return an error
+MBErrorCode  MBCore::get_connectivity(const MBEntityHandle *entity_handles, 
+                                      const int num_handles,
+                                      std::vector<MBEntityHandle> &connectivity,
+                                      bool topological_connectivity) const
 {
   if (num_handles == 0) return MB_FAILURE;
   
@@ -717,7 +732,8 @@ MBErrorCode MBCore::get_connectivity(const MBEntityHandle entity_handle,
 
 //! set the connectivity for element handles.  For non-element handles, return an error
 MBErrorCode  MBCore::set_connectivity(const MBEntityHandle entity_handle, 
-                                        std::vector<MBEntityHandle> &connectivity)
+                                      MBEntityHandle *connect,
+                                      const int num_connect)
 {
   MBErrorCode status = MB_FAILURE;
 
@@ -740,12 +756,11 @@ MBErrorCode  MBCore::set_connectivity(const MBEntityHandle entity_handle,
   if (status != MB_SUCCESS) return status;
   
   status = static_cast<ElementEntitySequence*>(seq)->set_connectivity(entity_handle, 
-                                                                      &connectivity[0], 
-                                                                      connectivity.size());
+                                                                      connect, num_connect);
   if (status != MB_SUCCESS) return status;
 
   aEntityFactory->notify_change_connectivity(
-    entity_handle, &tmp[0], &connectivity[0], connectivity.size());
+    entity_handle, &tmp[0], connect, num_connect);
 
   return status;
 }
@@ -1499,7 +1514,7 @@ MBErrorCode MBCore::merge_entities_up(MBEntityHandle entity_to_keep,
       if(result == MB_SUCCESS)
       {
         std::replace(conn.begin(), conn.end(), entity_to_remove, entity_to_keep);
-        set_connectivity(*iter, conn);
+        set_connectivity(*iter, &conn[0], conn.size());
       }
     }
     else
@@ -1873,11 +1888,44 @@ MBErrorCode MBCore::side_number(const MBEntityHandle parent,
   if (MB_SUCCESS != result) return result;
 
     // call handle vector-based function
-  int temp_result = MBCN::SideNumber(parent_conn, TYPE_FROM_HANDLE(parent),
+  if (TYPE_FROM_HANDLE(parent) != MBPOLYGON &&
+      TYPE_FROM_HANDLE(parent) != MBPOLYHEDRON) {
+    int temp_result = MBCN::SideNumber(parent_conn, TYPE_FROM_HANDLE(parent),
                                        child_conn, num_child_vertices, 
                                        MBCN::Dimension(TYPE_FROM_HANDLE(child)), 
                                        side_number, sense, offset);
-  return (0 == temp_result ? MB_SUCCESS : MB_FAILURE);
+    return (0 == temp_result ? MB_SUCCESS : MB_FAILURE);
+  }
+  else if (TYPE_FROM_HANDLE(parent) == MBPOLYGON) {
+      // find location of 1st vertex
+    const MBEntityHandle *first_v = std::find(parent_conn, parent_conn+num_parent_vertices,
+                                              child_conn[0]);
+    if (first_v == parent_conn+num_parent_vertices) return MB_ENTITY_NOT_FOUND;
+    side_number = first_v - parent_conn;
+    offset = side_number;
+    if (TYPE_FROM_HANDLE(child) == MBVERTEX) {
+      sense = 0;
+      return MB_SUCCESS;
+    }
+    else if (TYPE_FROM_HANDLE(child) == MBPOLYGON) {
+      bool match = MBCN::ConnectivityMatch(parent_conn, child_conn,
+                                           num_parent_vertices,
+                                           sense, offset);
+      side_number = 0;
+      if (match) return MB_SUCCESS;
+      else return MB_ENTITY_NOT_FOUND;
+    }
+    else if (TYPE_FROM_HANDLE(child) == MBEDGE) {
+      if (parent_conn[(side_number+1)%num_parent_vertices] == child_conn[1])
+        sense = 1;
+      else if (parent_conn[(side_number+num_parent_vertices-1)%num_parent_vertices] ==
+               child_conn[1])
+        sense = -1;
+      return MB_SUCCESS;
+    }
+  }
+  
+  return MB_FAILURE;
 }
 
   //! given an entity and the connectivity and type of one of its subfacets, find the

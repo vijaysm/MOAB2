@@ -5,6 +5,10 @@ Version beta:
 argument was making the choice between overloaded versions of this
 function ambiguous)
 - Fixed bug in MBCN::NumSubEntities when input d=0 (i.e. vertices)
+- Changed arguments to get_connectivity to take const MBEntityHandle* and size
+instead of std::vector, so single MBEntityHandle can be used as input
+- Added version of get_connectivity which returns results in an MBRange, 
+for convenience of calling code needing to do range-based logic
 
 Version 1.01 (CVS tag version_101): 
 New Capabilities:

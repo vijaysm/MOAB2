@@ -374,6 +374,14 @@ public:
                                                std::vector<MBEntityHandle> &connect) const =0;
 
     //! Gets the connectivity for a vector of elements
+    /** Same as vector-based version except range is returned (unordered!)
+    */
+  virtual MBErrorCode  get_connectivity(const MBEntityHandle *entity_handles, 
+                                        const int num_handles,
+                                        MBRange &connectivity, 
+                                        bool topological_connectivity = false) const =0;
+ 
+    //! Gets the connectivity for a vector of elements
     /** Corner vertices or all vertices (including higher-order nodes, if any) are returned.
         For non-element handles (ie, MB_MeshSets), returns an error. Connectivity data is copied 
         from the database into the vector.  Connectivity of a vertex is the same vertex.
@@ -408,15 +416,18 @@ public:
     //! Sets the connectivity for an MBEntityHandle.  For non-element handles, return an error.
     /** Connectivity is stored exactly as it is ordered in vector <em>connectivity</em>. 
         \param entity_handle MBEntityHandle to set connectivity of.
-        \param connectivity Vector containing new connectivity of <em>entity_handle</em>.
+        \param connect Vector containing new connectivity of <em>entity_handle</em>.
+        \param num_connect Number of vertices in <em>connect</em>
    
         Example: \code 
         MBEntityHandle conn[] = {node1, node2, node3};
-        set_connectivity( tri_element, conn ); \endcode 
+        set_connectivity( tri_element, conn, 3 ); \endcode 
     */
   virtual MBErrorCode  set_connectivity(const MBEntityHandle entity_handle, 
-                                        std::vector<MBEntityHandle> &connectivity)=0;
+                                        MBEntityHandle *connect,
+                                        const int num_connect)=0;
 
+    //! Sets the connectivity for an MBEntityHandle.  For non-element handles, return an error.
     //@}
 
     //! \name Adjacencies functions 

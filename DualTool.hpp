@@ -139,8 +139,20 @@ public:
   MBTag dualGraphicsPoint_tag();
   MBErrorCode dualGraphicsPoint_tag(const MBTag tag);
 
+    //! get/set the global id tag
+  MBTag globalId_tag();
+  MBErrorCode globalId_tag(const MBTag tag);
+
     //! given an entity, return any dual surface or curve it's in
   MBEntityHandle get_dual_surface_or_curve(const MBEntityHandle ncell);
+  
+    //! set the dual surface or curve for an entity
+  MBErrorCode set_dual_surface_or_curve(MBEntityHandle entity, 
+                                        const MBEntityHandle dual_hyperplane,
+                                        const int dimension);
+  
+    //! effect atomic pillow operation
+  MBErrorCode atomic_pillow(MBEntityHandle odedge);
   
 private:
 
@@ -163,6 +175,11 @@ private:
     //! traverse dual faces of input dimension, constructing
     //! dual hyperplanes of them in sets as it goes
   MBErrorCode construct_dual_hyperplanes(const int dim);
+
+    //! make a new dual hyperplane with the specified id; if the id specified is -1,
+    //! set the new one's id to the max found
+  MBErrorCode construct_new_hyperplane(const int dim, MBEntityHandle &new_hyperplane,
+                                       int &id);
   
     //! connect dual surfaces with dual curves using parent/child connections
   MBErrorCode construct_hp_parent_child();
@@ -195,6 +212,22 @@ private:
     //! multiple edges), and add explicit adjacencies to corrent 2cells
   MBErrorCode check_dual_equiv_edges(MBRange &dual_edges);
   
+  MBErrorCode ap_construct_new_1cells(std::vector<MBEntityHandle> &nstar_1cells,
+                                      std::vector<MBEntityHandle> &star_2cells,
+                                      MBEntityHandle new_sheet);
+  
+
+  MBErrorCode ap_fix_2cells(MBEntityHandle odedge, 
+                            std::vector<MBEntityHandle> &star_2cells,
+                            MBEntityHandle *ndverts,
+                            std::vector<MBEntityHandle> &nstar_1cells);
+  
+  MBErrorCode ap_fix_3cells(MBEntityHandle *ndverts,
+                            std::vector<MBEntityHandle> &nstar_1cells,
+                            std::vector<MBEntityHandle> &star_2cells,
+                            std::vector<MBEntityHandle> &star_3cells,
+                            MBEntityHandle new_sheet);
+  
     //! private copy of interface *
   MBInterface *mbImpl;
 
@@ -212,6 +245,7 @@ private:
   MBTag extraDualEntityTag;
   MBTag dualGraphicsPointTag;
   MBTag categoryTag;
+  MBTag globalIdTag;
 };
 
 inline MBTag DualTool::dualSurface_tag()
@@ -242,6 +276,11 @@ inline MBTag DualTool::extraDualEntity_tag()
 inline MBTag DualTool::dualGraphicsPoint_tag()
 {
   return dualGraphicsPointTag;
+}
+
+inline MBTag DualTool::globalId_tag()
+{
+  return globalIdTag;
 }
 
   //! get/set the tag for dual surfaces
@@ -310,6 +349,18 @@ inline MBErrorCode DualTool::dualGraphicsPoint_tag(const MBTag tag)
   MBErrorCode result = MB_FAILURE;
   if (0 == dualGraphicsPointTag && tag || dualGraphicsPointTag != tag) {
     dualGraphicsPointTag = tag;
+    result = MB_SUCCESS;
+  }
+  
+  return result;
+}
+  
+  //! get/set the tag for dual entities
+inline MBErrorCode DualTool::globalId_tag(const MBTag tag)
+{
+  MBErrorCode result = MB_FAILURE;
+  if (0 == globalIdTag && tag || globalIdTag != tag) {
+    globalIdTag = tag;
     result = MB_SUCCESS;
   }
   

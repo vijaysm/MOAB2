@@ -153,7 +153,15 @@ public:
                                            std::vector<MBEntityHandle> &connectivity, 
                                            bool topological_connectivity = false) const;
  
-      //! Gets a pointer to constant connectivity data of <em>entity_handle</em> 
+    //! Gets the connectivity for a vector of elements
+    /** Same as vector-based version except range is returned (unordered!)
+     */
+  virtual MBErrorCode  get_connectivity(const MBEntityHandle *entity_handles, 
+                                        const int num_handles,
+                                        MBRange &connectivity, 
+                                        bool topological_connectivity = false) const;
+ 
+    //! Gets a pointer to constant connectivity data of <em>entity_handle</em> 
       /** Sets <em>number_nodes</em> equal to the number of nodes of the <em> 
           entity_handle </em>.  Faster then the other <em>get_connectivity</em> function. 
           The nodes in 'connectivity' are properly ordered. 
@@ -174,16 +182,18 @@ public:
       //! Sets the connectivity for an MBEntityHandle.  For non-element handles, return an error.
       /** Connectivity is stored exactly as it is ordered in vector <em>connectivity</em>. 
           \param entity_handle MBEntityHandle to set connectivity of.
-          \param connectivity Vector containing new connectivity of <em>entity_handle</em>.
+          \param connect Vector containing new connectivity of <em>entity_handle</em>.
+          \param num_connect Number of vertices in <em>connect</em>
    
           Example: \code 
           std::vector<MBEntityHandle> conn(3);
           conn[0] = node1;
           conn[1] = node2;
           conn[2] = node3;
-          set_connectivity( entity_handle, conn ); \endcode */
+          set_connectivity( entity_handle, conn, 3 ); \endcode */
     virtual MBErrorCode  set_connectivity(const MBEntityHandle entity_handle, 
-                                           std::vector<MBEntityHandle> &connectivity);
+                                          MBEntityHandle *connect,
+                                          const int num_connect);
 
       //! get the adjacencies associated with a set of entities
       /** \param from_entities vector of MBEntityHandle to get adjacencies of.
