@@ -76,6 +76,17 @@ protected:
                                    bool overwrite,
                                    std::vector<std::string>& qa_records,
                                    int dimension = 3 );
+
+
+  /** Functions that the parallel version overrides*/
+  virtual MBErrorCode write_shared_set_descriptions( hid_t ) 
+    { return MB_SUCCESS;}
+  virtual MBErrorCode write_shared_set_contents( hid_t )
+    { return MB_SUCCESS;}
+  virtual MBErrorCode write_shared_set_children( hid_t )
+    { return MB_SUCCESS;}
+  virtual MBErrorCode write_finished();
+
  
   //! Gather tags
   MBErrorCode gather_tags();
@@ -162,6 +173,8 @@ protected:
                 type != MBPOLYGON &&
                 type != MBPOLYHEDRON &&
                 num_nodes < other.num_nodes); }
+                
+    const char* name() const;
   };
   
 public:
@@ -206,10 +219,20 @@ protected:
   ExportSet setSet;
   //! Sets to be compressed into ranges
   MBRange rangeSets;
+  
   //! Offset into set contents table (zero except for parallel)
   unsigned long setContentsOffset;
   //! Offset into set children table (zero except for parallel)
   unsigned long setChildrenOffset;
+  //! Flags idicating if set data should be written.
+  //! For the normal (non-parallel) case, these values
+  //! will depend only on whether or not there is any
+  //! data to be written.  For parallel-meshes, opening
+  //! the data table is collective so the values must
+  //! depend on whether or not any processor has meshsets
+  //! to be written.
+  bool writeSets, writeSetContents, writeSetChildren;
+  
   //! The list of tags to export
   std::list<SparseTag> tagList;
 
@@ -253,6 +276,8 @@ private:
                             long& num_entities,
                             long& num_children,
                             unsigned long& flags );
+
+protected:
   
   /** Get possibly compacted list of IDs for passed entities
    *
@@ -284,6 +309,7 @@ private:
    */
   MBErrorCode get_adjacencies( MBEntityHandle entity, std::vector<id_t>& adj );
   
+private:
   
   /** Get all mesh to export from given list of sets.
    *
