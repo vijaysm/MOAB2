@@ -19,7 +19,6 @@
 #include <vector>
 #include <stdio.h>
 #include <iostream>
-#include <fstream>
 
 #include "MBInterface.hpp"
 #include "MBRange.hpp"
@@ -36,7 +35,7 @@ MBWriterIface *WriteVtk::factory( MBInterface* iface )
   { return new WriteVtk( iface ); }
 
 WriteVtk::WriteVtk(MBInterface *impl) 
-    : mbImpl(impl), oFile(NULL), mCurrentMeshHandle(0)
+    : mbImpl(impl), mCurrentMeshHandle(0)
 {
   assert(impl != NULL);
 
@@ -106,7 +105,7 @@ void WriteVtk::reset_matset(std::vector<WriteVtk::MaterialSetData> &matset_info)
 }
 
 MBErrorCode WriteVtk::write_file(const char *file_name, 
-                                 const bool /*overwrite*/,
+                                 const bool overwrite,
                                  const MBEntityHandle *ent_handles,
                                  const int num_sets,
                                  std::vector<std::string>&, int )
@@ -168,7 +167,7 @@ MBErrorCode WriteVtk::write_file(const char *file_name,
   }
 
   // try to open the file after gather mesh info succeeds
-  MBErrorCode result = open_file(file_name);
+  MBErrorCode result = open_file(file_name, overwrite);
   if (MB_FAILURE == result) {
     reset_matset(matset_info);
     return result;
@@ -193,7 +192,7 @@ MBErrorCode WriteVtk::write_file(const char *file_name,
     return MB_FAILURE;
   }
 
-  oFile.flush();
+  oFile.sync();
   oFile.close();
   
   return MB_SUCCESS;
@@ -411,12 +410,12 @@ MBErrorCode WriteVtk::write_nodes(const int num_nodes, const MBRange& nodes, con
 
 
   // write the nodes 
-  std::cout << "POINTS " << num_nodes << " float" << std::endl;
+  oFile << std::endl << "POINTS " << num_nodes << " float" << std::endl;
 
   if (NULL != coord_arrays[2]) {
     for( int i=0; i<num_nodes; i++)
     {
-      std::cout << coord_arrays[0][i] << " " 
+      oFile << coord_arrays[0][i] << " " 
             << coord_arrays[1][i] << " "
             << coord_arrays[2][i] << std::endl;
     }
@@ -424,7 +423,7 @@ MBErrorCode WriteVtk::write_nodes(const int num_nodes, const MBRange& nodes, con
   else {
     for( int i=0; i<num_nodes; i++)
     {
-      std::cout << coord_arrays[0][i] << " " 
+      oFile << coord_arrays[0][i] << " " 
             << coord_arrays[1][i] << " "
             << "0.0" << std::endl;
     }
@@ -473,7 +472,7 @@ MBErrorCode WriteVtk::write_matsets(MeshInfo &,
     }
   }
 
-  std::cout << "CELLS " << total_elems << " " << total_ints << std::endl;
+  oFile << std::endl << "CELLS " << total_elems << " " << total_ints << std::endl;
 
   for (i = 0; i < matset_data.size(); i++) {
     matset = matset_data[i];
@@ -494,18 +493,18 @@ MBErrorCode WriteVtk::write_matsets(MeshInfo &,
       
         // write the data; <= because we have an extra member, # nodes
       for (int j = 0; j <= matset.number_nodes_per_element; j++) 
-        std::cout << connect[j] << " ";
+        oFile << connect[j] << " ";
       
-      std::cout << std::endl;
+      oFile << std::endl;
     }
   }
 
-  std::cout << std::endl << "CELL_TYPES " << total_elems << std::endl;
+  oFile << std::endl << "CELL_TYPES " << total_elems << std::endl;
   for (i = 0; i < matset_data.size(); i++) {
     int elem_type = VtkUtil::vtkElemType[matset_data[i].moab_type];
     if (-1 == elem_type) continue;
     for (int j = 0; j < matset_data[i].number_elements; j++)
-      std::cout << elem_type << std::endl;
+      oFile << elem_type << std::endl;
   }
   
   return MB_SUCCESS;
@@ -514,10 +513,10 @@ MBErrorCode WriteVtk::write_matsets(MeshInfo &,
 MBErrorCode WriteVtk::initialize_file(MeshInfo &)
 {
     // perform the initializations
-  std::cout << "# vtk DataFile Version 2.0" << std::endl;
-  std::cout << "MOAB vtk data file" << std::endl;
-  std::cout << "ASCII" << std::endl;
-  std::cout << "DATASET UNSTRUCTURED_GRID" << std::endl;
+  oFile << "# vtk DataFile Version 2.0" << std::endl;
+  oFile << "MOAB vtk data file" << std::endl;
+  oFile << "ASCII" << std::endl;
+  oFile << "DATASET UNSTRUCTURED_GRID" << std::endl;
 
     // wait until actual write operations to count how many and actually write 
 
@@ -525,7 +524,7 @@ MBErrorCode WriteVtk::initialize_file(MeshInfo &)
 }
 
 
-MBErrorCode WriteVtk::open_file(const char* filename)
+MBErrorCode WriteVtk::open_file(const char* filename, const bool overwrite)
 {
     // check the file name
   if (NULL == strstr(filename, ".vtk")) {
@@ -540,7 +539,19 @@ MBErrorCode WriteVtk::open_file(const char* filename)
     return MB_FAILURE;
   }
 
-  oFile.open(filename, std::ofstream::out | std::ofstream::trunc);
+  if (overwrite) 
+    oFile.open(filename, std::ios::out | std::ios::trunc);
+  else {
+    oFile.open(filename, std::ios::in);
+    if (!oFile.fail()) {
+        // didn't fail, which means it's already there, which is an error
+      mWriteIface->report_error("Output filename already exists and overwrite not allowed.");
+      oFile.close();
+      return MB_FAILURE;
+    }
+    oFile.clear();
+    oFile.open(filename, std::ios::out);
+  }
 
     // file couldn't be opened
   if(!oFile.is_open())

@@ -27,7 +27,6 @@
 #include "ExoIIInterface.hpp"
 #include "MBWriterIface.hpp"
 
-#include <iostream>
 #include <fstream>
 
 //class MB_DLL_EXPORT WriteVtk : public MBWriterIface
@@ -47,10 +46,10 @@ public:
     //! writes out a file
   MBErrorCode write_file(const char *file_name,
                          const bool overwrite,
-                          const MBEntityHandle *output_list,
-                          const int num_sets,
-                          std::vector<std::string>& qa_list,
-                          int export_dimension);
+                         const MBEntityHandle *output_list,
+                         const int num_sets,
+                         std::vector<std::string>& qa_list,
+                         int export_dimension);
   
 //! struct used to hold data for each block to be output; used by
 //! initialize_file to initialize the file header for increased speed
@@ -94,7 +93,8 @@ protected:
   //int number_dimensions();
 
     //! open a file for writing
-  MBErrorCode open_file(const char *filename);
+  MBErrorCode open_file(const char *filename, 
+                        const bool overwrite);
 
   //! contains the general information about a mesh
   class MeshInfo
@@ -125,7 +125,7 @@ private:
   std::string fileName;
 
     //! file ptr
-  std::ofstream oFile;
+  std::fstream oFile;
 
     //! Meshset Handle for the mesh that is currently being read
   MBEntityHandle mCurrentMeshHandle;

@@ -166,7 +166,7 @@ runtest: moab_test homxform_test.static scdseq_test.static
 	./scdseq_test.static
 
 dist: 
-	cvs update MOAB
+	cvs -z 9 co MOAB
 	tar czf MOAB-${MOAB_IMPL_VERSION}.tar.gz ./MOAB
 	rm -rf MOAB
 
