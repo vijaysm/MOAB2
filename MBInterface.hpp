@@ -888,6 +888,10 @@ public:
     /** Get the default value of the specified tag
         \param tag Handle of the desired tag. 
         \param def_value Pointer to memory where default value of the specified tag is written
+        \return - MB_ENTITY_NOT_FOUND If no default value is set for tag.
+                - MB_SUCCESS          If success.
+                - MB_FAILURE          If <code>def_val</code> is NULL.
+                - MB_TAG_NOT_FOUND    If <code>tag_handle</code> is invalid.
     */ 
   virtual MBErrorCode tag_get_default_value(const MBTag tag, void *def_val) const = 0;
 

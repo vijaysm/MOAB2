@@ -154,17 +154,22 @@ MBErrorCode MBCore::query_interface(const std::string& iface_name, void** iface)
   if(iface_name == "MBReadUtilIface")
   {
     if(mMBReadUtil)
-      *iface = mMBReadUtil;
+      *iface = (MBReadUtilIface*)mMBReadUtil;
     else
-      *iface = mMBReadUtil = new MBReadUtil(this, mError);
+      *iface = (MBReadUtilIface*)(mMBReadUtil = new MBReadUtil(this, mError));
     return MB_SUCCESS;
   }
   else if(iface_name == "MBWriteUtilIface")
   {
     if(mMBWriteUtil)
-      *iface = mMBWriteUtil;
+      *iface = (MBWriteUtilIface*)mMBWriteUtil;
     else
-      *iface = mMBWriteUtil = new MBWriteUtil(this, mError);
+      *iface = (MBWriteUtilIface*)(mMBWriteUtil = new MBWriteUtil(this, mError));
+    return MB_SUCCESS;
+  }
+  else if(iface_name == "MBReaderWriterSet")
+  {
+    *iface = reader_writer_set();
     return MB_SUCCESS;
   }
   return MB_FAILURE;
@@ -182,6 +187,10 @@ MBErrorCode MBCore::release_interface(const std::string& iface_name, void* iface
     return MB_SUCCESS;
   }
   else if(iface_name == "MBWriteUtilIface")
+  {
+    return MB_SUCCESS;
+  }
+  else if(iface_name == "MBReaderWriterSet")
   {
     return MB_SUCCESS;
   }
@@ -243,38 +252,37 @@ int MBCore::dimension_from_handle(const MBEntityHandle handle) const
 
 //! load mesh from data in file
 //! NOTE: if there is mesh already present, the new mesh will be added
-MBErrorCode  MBCore::load_mesh(const char *file_name,
-                                 const int* block_id_list,
-                                 const int num_blocks)
+MBErrorCode  MBCore::load_mesh( const char *file_name,
+                                const int* block_id_list,
+                                const int num_blocks )
 {
   MBErrorCode rval;
+  const MBReaderWriterSet* set = reader_writer_set();
   
-    // Try using the file extension to selecte a reader
-  MBReaderIface* reader = 
-    reader_writer_set()->get_file_extension_reader( file_name );
+    // Try using the file extension to select a reader
+  MBReaderIface* reader = set->get_file_extension_reader( file_name );
   if (reader)
   { 
     rval = reader->load_file( file_name, block_id_list, num_blocks );
     delete reader;
-    if (MB_SUCCESS == rval)
-      return MB_SUCCESS;
+    return rval;
   }
   
     // Try all the readers
-  std::vector<MBReaderIface*> list;
-  std::vector<MBReaderIface*>::iterator iter;
-  for ( iter = list.begin() ; iter != list.end(); ++iter )
+  MBReaderWriterSet::iter_type iter;
+  for (iter = set->begin(); iter != set->end(); ++iter)
   {
-    rval = (*iter)->load_file( file_name, block_id_list, num_blocks );
-    if (rval == MB_SUCCESS)
-      break;
+    MBReaderIface* reader = iter->make_reader( this );
+    if (NULL != reader)
+    {
+      rval = reader->load_file( file_name, block_id_list, num_blocks );
+      delete reader;
+      if (MB_SUCCESS == rval)
+        return MB_SUCCESS;
+    }
   }
 
-    // Destroy all the reader intances
-  for ( iter = list.begin() ; iter != list.end(); ++iter )
-    delete *iter;
-
-  return rval; 
+  return MB_FAILURE; 
 }
 
 MBErrorCode  MBCore::write_mesh(const char *file_name,
@@ -282,11 +290,11 @@ MBErrorCode  MBCore::write_mesh(const char *file_name,
                                   const int num_sets)
 {
   MBErrorCode rval;
+  const MBReaderWriterSet* set = reader_writer_set();
   std::vector<std::string> qa_records;
   const bool overwrite = true;
 
-  MBWriterIface* writer = 
-    reader_writer_set()->get_file_extension_writer( file_name );
+  MBWriterIface* writer = set->get_file_extension_writer( file_name );
   if (writer == NULL)
   {
     WriteNCDF exowriter(this);
@@ -1237,6 +1245,9 @@ MBErrorCode MBCore::tag_get_default_value(const MBTag tag_handle, void *def_valu
     return MB_TAG_NOT_FOUND;
 
   if (NULL == def_value) return MB_FAILURE;
+  
+  if (tag_info->default_value() == NULL)
+    return MB_ENTITY_NOT_FOUND;
   
   memcpy(def_value, tag_info->default_value(), tag_info->get_size());
 

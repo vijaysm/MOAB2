@@ -9,9 +9,8 @@
 #ifndef MB_READER_WRITER_SET_HPP
 #define MB_READER_WRITER_SET_HPP
 
-#include <vector>
+#include <list>
 #include <string>
-#include <map>
 #include "MBInterface.hpp"
 
 class MBReaderIface;
@@ -30,13 +29,20 @@ class MBReaderWriterSet
     MBReaderWriterSet( MBCore* mdb, MBError* handler );
   
     ~MBReaderWriterSet();
-  
-    MBErrorCode register_reader( reader_factory_t function,
-                                 const char* description,
-                                 const char** extensions );
-    MBErrorCode register_writer( writer_factory_t function,
-                                 const char* description,
-                                 const char** extensions );
+    
+    /**
+     * Regiseter a reader and/or writer
+     * Either factory function may be NULL, but not both.
+     *
+     *\param reader_fact  A factory method to create an instance of the reader
+     *\param writer_fact  A factory method to create an instance of the reader
+     *\param description  A short description of the file format.
+     *\param extensions   A null-terminated list of file extensions
+     */
+    MBErrorCode register_factory( reader_factory_t reader_fact,
+                                  writer_factory_t writer_fact,
+                                  const char* description,
+                                  const char** extensions );
     
     /** 
      * Create a reader object for the passed file name 
@@ -54,38 +60,62 @@ class MBReaderWriterSet
      */
     MBWriterIface* get_file_extension_writer( const std::string& filename ) const;
     
-    /**
-     * Return an instance of every reader.
-     * Caller must delete each instance when done.
+    /** 
+     * Get the file extension from a file name
      */
-    MBErrorCode get_all_readers( std::vector<MBReaderIface*>& list ) const;
-    
     static std::string extension_from_filename( const std::string& filename );
+  
+    class Handler {
+      
+      friend class MBReaderWriterSet;
+      
+      public:
+      
+      Handler( reader_factory_t read_f,
+               writer_factory_t write_f,
+               const char* desc, 
+               const char** ext, 
+               int num_ext );
+      
+      inline const std::string& description() const { return mDescription; }
+      inline void get_extensions( std::vector<std::string>& list_out ) const
+        { list_out = mExtensions; }
+      
+      inline bool have_reader() const { return NULL != mReader; }
+      inline bool have_writer() const { return NULL != mWriter; }
+      
+      inline MBReaderIface* make_reader( MBInterface* iface ) const
+        { return have_reader() ? mReader(iface) : NULL; }
+      
+      inline MBWriterIface* make_writer( MBInterface* iface ) const
+        { return have_writer() ? mWriter(iface) : NULL; }
+      
+      private:
+      
+      reader_factory_t mReader;
+      writer_factory_t mWriter;
+      
+      std::string mDescription;
+      std::vector<std::string> mExtensions;
+    };
+    
+    typedef std::list<Handler>::const_iterator iter_type;
+    
+    inline iter_type begin() const { return handlerList.begin(); }
+    
+    inline iter_type end()   const { return handlerList.end();   }
+    
+    
+    iter_type handler_from_extension( const std::string& extension,
+                                      bool with_reader = false, 
+                                      bool with_writer = false) const;
     
   private:
-  
-    struct Reader {
-      Reader( reader_factory_t fact, const char* desc, const char** ext, int num_ext );
-      reader_factory_t factory;
-      std::string description;
-      std::vector<std::string> extensions;
-    };
-   
-    struct Writer {
-      Writer( writer_factory_t fact, const char* desc, const char** ext, int num_ext );
-      writer_factory_t factory;
-      std::string description;
-      std::vector<std::string> extensions;
-    };
-    
-    const Reader* find_reader( const std::string& extension ) const;
-    const Writer* find_writer( const std::string& extension ) const;
   
     MBCore* mbCore;
     MBError* mbError;
   
-    std::vector<Reader> readerList;
-    std::vector<Writer> writerList;
+    std::list<Handler> handlerList;
 };
 
 
