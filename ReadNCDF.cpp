@@ -1650,34 +1650,53 @@ MBErrorCode ReadNCDF::create_ss_elements( int *element_ids,
     }
     else if(type == MBTRI)
     {
-      //ent_handle = CREATE_HANDLE(MBTRI, base_id, error );
-      //if( mdbImpl->get_adjacencies( ent_handle, 0, false, nodes ) != MB_SUCCESS )
-      if( mdbImpl->get_connectivity(&( ent_handle), 1, nodes) != MB_SUCCESS )
-          return MB_FAILURE;
-
-      std::vector<MBEntityHandle> connectivity;
-
-      int index = MBCN::mConnectivityMap[MBTRI][0].conn[ side_list[i]-1][0];
-      assert(index < MBCN::VerticesPerEntity(mdbImpl->type_from_handle(ent_handle)));
-      connectivity.push_back( nodes[index] );
-      index = MBCN::mConnectivityMap[MBTRI][0].conn[ side_list[i]-1][1];
-      assert(index < MBCN::VerticesPerEntity(mdbImpl->type_from_handle(ent_handle)));
-      connectivity.push_back( nodes[index] );
-     
-      ent_handle = 0; 
-      
-      if(create_sideset_element(connectivity, MBEDGE, ent_handle) == MB_SUCCESS)
+      int side_offset = 0;
+      if(number_dimensions() == 3 && side_list[i] <= 2)
       {
         entities_to_add.push_back(ent_handle);
+        if( num_dist_factors )
+        {
+          for(k=0; k<3; k++)
+            dist_factor_vector.push_back( temp_dist_factor_vector[df_index++] );
+        }
       }
       else
-        return MB_FAILURE;
-
-      if( num_dist_factors )
       {
-        for(k=0; k<2; k++)
-          dist_factor_vector.push_back( temp_dist_factor_vector[df_index++] );
+        if(number_dimensions() == 3)
+        {
+          if(side_list[i] > 2)
+            side_offset = 2;
+        }
+
+        //ent_handle = CREATE_HANDLE(MBTRI, base_id, error );
+        //if( mdbImpl->get_adjacencies( ent_handle, 0, false, nodes ) != MB_SUCCESS )
+        if( mdbImpl->get_connectivity(&( ent_handle), 1, nodes) != MB_SUCCESS )
+            return MB_FAILURE;
+
+        std::vector<MBEntityHandle> connectivity;
+
+        int index = MBCN::mConnectivityMap[MBTRI][0].conn[ side_list[i]-1-side_offset][0];
+        assert(index < MBCN::VerticesPerEntity(mdbImpl->type_from_handle(ent_handle)));
+        connectivity.push_back( nodes[index] );
+        index = MBCN::mConnectivityMap[MBTRI][0].conn[ side_list[i]-1-side_offset][1];
+        assert(index < MBCN::VerticesPerEntity(mdbImpl->type_from_handle(ent_handle)));
+        connectivity.push_back( nodes[index] );
+       
+        ent_handle = 0; 
+        
+        if(create_sideset_element(connectivity, MBEDGE, ent_handle) == MB_SUCCESS)
+        {
+          entities_to_add.push_back(ent_handle);
+        }
+        else
+          return MB_FAILURE;
+        if( num_dist_factors )
+        {
+          for(k=0; k<2; k++)
+            dist_factor_vector.push_back( temp_dist_factor_vector[df_index++] );
+        }
       }
+
     }
 
   }
