@@ -21,6 +21,19 @@ ifdef HDF5_DIR
   HDF5_RLINK=-Wl,-rpath,$(HDF5_DIR)/lib
 endif
 
+  # Run serial test
+default: h5test.h5m
+
+  # Run parallel test, too
+  # NOTE: You probably want to specify the number of processors
+  #       on the command line. e.g.:  make NP=4
+  #       The default is 1, which is safe but uninteresting.
+ifeq ($(PARALLEL),yes)
+  default: ptest
+endif
+
+force:
+
 h5test.h5m: h5file_test ../../libMOAB.so
 	- h5file_test -k
 
@@ -55,7 +68,7 @@ ptest: parallel ptest.cub force
 	- test -f $@            && h5dump -A $@            > summary.parallel
 	- test -f $@.serial.h5m && h5dump -A $@.serial.h5m > summary.serial
 
-dump: h5test.h5m
+dump: h5test.h5m 
 	- h5dump $< > $@
 
 clean:
