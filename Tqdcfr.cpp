@@ -1208,7 +1208,7 @@ void Tqdcfr::parse_acis_attribs(const int entity_rec_num,
       assert(num_read == 2);
 
         // put the name on the entity
-      name_tag = new char[num_chars];
+      name_tag = new char[num_chars+1];
       strcpy(name_tag, temp_name);
     }
     else if (strncmp(records[current_attrib].att_string.c_str(), "ENTITY_ID", 9) == 0) {
