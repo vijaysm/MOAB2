@@ -1,10 +1,10 @@
-include ../../MB.$(MACHINE_TYPE)
-include ../../MB.local
+MOAB_DIR = ../..
+include $(MOAB_DIR)/MB.common
 
-
-convert: convert.cpp ../../libMOAB.so
+convert: convert.cpp 
 	$(CXX) $(DEBUG_FLAG) $(MACH_CXXFLAGS) \
-        convert.cpp -o convert -I../.. -L../.. -lMOAB
+	-I$(MOAB_DIR) -L$(MOAB_DIR) -lMOAB \
+	convert.cpp -o convert $(MOAB_APP_LIBS)
 
 ../../libMOAB.so:
 	cd ../.. && make libMOAB.so
