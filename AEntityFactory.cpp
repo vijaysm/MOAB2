@@ -88,7 +88,7 @@ MBErrorCode AEntityFactory::get_elements(MBEntityHandle source_entity,
   MBErrorCode result = MB_FAILURE;
     
   if(target_dimension == 0 && source_type != MBPOLYHEDRON) 
-    return result;
+    return thisMB->get_connectivity(&source_entity, 1, target_entities);
 
   if( target_dimension == 4 ) //get meshsets 'source' is in
   {
@@ -574,11 +574,7 @@ MBErrorCode AEntityFactory::get_adjacencies(const MBEntityHandle entity,
   if ((unsigned int)MBCN::Dimension(ent_type) == to_dimension)
     return MB_SUCCESS;
 
-    // don't ask for adjacencies to dimension 0 unless it's a polyhedron
-  if (to_dimension == 0 && ent_type != MBPOLYHEDRON) return MB_FAILURE;
-
-
-  if(mVertElemAdj == false)
+  if(mVertElemAdj == false && to_dimension != 0)
     create_vert_elem_adjacencies();
   
   return get_elements(entity, to_dimension, adjacent_entities, create_if_missing, 0);
@@ -758,7 +754,11 @@ MBErrorCode AEntityFactory::get_down_adjacency_elements(MBEntityHandle source_en
 
   MBEntityType source_type = TYPE_FROM_HANDLE(source_entity);
 
-  if (source_type == MBPOLYHEDRON) return MB_NOT_IMPLEMENTED;
+  if (source_type == MBPOLYHEDRON ||
+      source_type == MBPOLYGON) 
+    return get_down_adjacency_elements_poly(source_entity, target_dimension,
+                                            target_entities, create_if_missing, 
+                                            create_adjacency_option);
   
     // make this a fixed size to avoid cost of working with STL vectors
   MBEntityHandle vertex_array[27];
@@ -828,6 +828,61 @@ MBErrorCode AEntityFactory::get_down_adjacency_elements(MBEntityHandle source_en
   }
   
   return result;
+}
+
+MBErrorCode AEntityFactory::get_down_adjacency_elements_poly(MBEntityHandle source_entity,
+                                                             const unsigned int target_dimension,
+                                                             std::vector<MBEntityHandle> &target_entities,
+                                                             const bool /*create_if_missing*/,
+                                                             const int /*create_adjacency_option*/)
+{
+
+  MBEntityType source_type = TYPE_FROM_HANDLE(source_entity);
+
+  assert (source_type == MBPOLYHEDRON || source_type == MBPOLYGON);
+  
+    // make this a fixed size to avoid cost of working with STL vectors
+  std::vector<MBEntityHandle> vertex_array;
+
+    // I know there are already vertex adjacencies for this - call
+    // another function to get them
+  MBErrorCode result = get_adjacencies(source_entity, 0, false, vertex_array);
+  if (MB_SUCCESS != result) return result;
+
+  if (target_dimension == 0) {
+    target_entities = vertex_array;
+    return MB_SUCCESS;
+  }
+
+  std::vector<MBEntityHandle> dum_vec;
+  MBErrorCode tmp_result;
+  if (source_type == MBPOLYGON) {
+    result = MB_SUCCESS;
+      // put the first vertex on the end so we have a ring
+    vertex_array.push_back(*vertex_array.begin());
+    for (unsigned int i = 0; i < vertex_array.size()-1; i++) {
+      tmp_result = thisMB->get_adjacencies(&vertex_array[i], 2, 1, false, dum_vec);
+      if (MB_SUCCESS != tmp_result) result = tmp_result;
+      target_entities.insert(target_entities.end(), dum_vec.begin(), dum_vec.end());
+      dum_vec.clear();
+    }
+    return result;
+  }
+  
+  else {
+    if (target_dimension == 2) {
+      result = thisMB->get_connectivity(&source_entity, 1, target_entities);
+    }
+    else {
+      result = thisMB->get_connectivity(&source_entity, 1, dum_vec);
+      if (MB_SUCCESS != result) return result;
+      result = thisMB->get_adjacencies(&dum_vec[0], dum_vec.size(), 1, false,
+                                       target_entities, MBInterface::UNION);
+      return result;
+    }
+  }
+
+  return MB_SUCCESS;
 }
 
 MBErrorCode AEntityFactory::get_up_adjacency_elements(MBEntityHandle source_entity,

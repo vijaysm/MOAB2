@@ -1325,7 +1325,8 @@ MBErrorCode MBCore::create_element(const MBEntityType type,
     return MB_FAILURE;
   
   MBErrorCode status = sequence_manager()->create_element(type, connectivity, num_nodes, handle);
-  aEntityFactory->notify_create_entity( handle, connectivity, num_nodes); 
+  if (MB_SUCCESS == status)
+    status = aEntityFactory->notify_create_entity( handle, connectivity, num_nodes); 
 
   return status;
 

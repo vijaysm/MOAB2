@@ -134,7 +134,7 @@ public:
   
   MBErrorCode get_coordinate_arrays(double*& x, double*& y, double*& z);
 
-  void get_entities(MBRange& entities) const;
+  virtual void get_entities(MBRange& entities) const;
 
 private:
 

@@ -64,6 +64,9 @@ public:
                          const int num_conn, MBEntityHandle &handle);
   
 
+  //! get entities in this range, will not add unused entities
+  virtual void get_entities(MBRange& entities) const;
+
 private:
 
   std::vector<MBEntityHandle> polyConn;

@@ -141,6 +141,12 @@ private:
                             const bool create_if_missing,
                             const int create_adjacency_option = -1);
 
+  MBErrorCode get_down_adjacency_elements_poly(MBEntityHandle source_entity,
+                                               const unsigned int target_dimension,
+                                               std::vector<MBEntityHandle> &target_entities,
+                                               const bool create_if_missing,
+                                               const int create_adjacency_option = -1);
+
   MBErrorCode get_up_adjacency_elements(MBEntityHandle source_entity,
                             const unsigned int target_dimension,
                             std::vector<MBEntityHandle> &target_entities,

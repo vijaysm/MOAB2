@@ -160,3 +160,8 @@ MBErrorCode PolyEntitySequence::set_connectivity(MBEntityHandle entity,
   return result;
 }
 
+void PolyEntitySequence::get_entities(MBRange& entities) const
+{
+  entities.insert(mStartEntityHandle, mStartEntityHandle+mNumEntities-1);
+}
+
