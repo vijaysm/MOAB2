@@ -112,7 +112,7 @@ private:
   
   MBErrorCode gather_points(DualTool &dt, vtkUnstructuredGrid *&ug);
 
-  MBErrorCode modify_pipeline(DualTool &dt);
+  MBErrorCode construct_filters();
 
   void add_name(vtkUnstructuredGrid *output, const char *prefix,
                 const int id);

@@ -42,6 +42,7 @@ const int vtkMOABReader::vtk_cell_types[] = {
   1, 3, 5, 9, 7, 10, 14, 13, 0, 12, 0, 0, 0};
 
 const bool new_outputs = false;
+const bool use_filters = true;
 
 vtkMOABReader::vtkMOABReader()
 {
@@ -54,6 +55,10 @@ vtkMOABReader::vtkMOABReader()
 
 vtkMOABReader::~vtkMOABReader()
 {
+  if (NULL != gMB) {
+    delete gMB;
+    gMB = NULL;
+  }
 }
 
 void vtkMOABReader::Execute()
@@ -104,13 +109,14 @@ void vtkMOABReader::Execute()
     }
   vtkDebugMacro(<<"Constructed dual...");
 
-//  result = modify_pipeline(dt);
+  if (use_filters)
+    result = construct_filters();
   if (MB_SUCCESS != result)
     {
-    vtkErrorMacro( << "Failed to modify pipeline with threshold and group filters ");
+    vtkErrorMacro( << "Failed to construct filters ");
     return;
     }
-  vtkDebugMacro(<<"Modified pipeline...");
+  vtkDebugMacro(<<"Filters constructed...");
   
 }
 
@@ -703,67 +709,47 @@ int vtkMOABReader::GetNumberOfDualCurves()
   return NumberOfDualCurves;
 }
 
-MBErrorCode vtkMOABReader::modify_pipeline(DualTool &dt) 
+MBErrorCode vtkMOABReader::construct_filters() 
 {
     // apply threshold and type filters to the output to get multiple actors
     // corresponding to dual surfaces and curves, then group the dual actors
     // together using a group filter
-
-  this->SetNumberOfOutputs(3 + this->NumberOfDualSurfaces + this->NumberOfDualCurves);
 
   vtkUnstructuredGrid *ug = this->GetOutput(0);
 
     // first, get the non-dual mesh
   vtkExtractUnstructuredGrid *primal = vtkExtractUnstructuredGrid::New();
   primal->SetInput(this->GetOutput());
-  this->SetNthOutput(1, primal->GetOutput());
   primal->SetCellMinimum(0);
   primal->SetCellMaximum(this->MaxPrimalId);
 
-    // add the primal as an output
-    //primal->Delete();
-  
+    // set merging on so points aren't duplicated
+  primal->SetMerging(1);
+
     // now do dual surfaces; do threshold-based extraction for now
   MBTag gid_tag;
   MBErrorCode result = gMB->tag_get_handle(GLOBAL_ID_TAG_NAME, gid_tag);
   assert(MB_SUCCESS == result && 0 != gid_tag);
   
   int ds_id;
-  MBTag ds_tag = dt.dualSurface_tag();
-  MBRange ds_range;
-  result = gMB->get_entities_by_type_and_tag(0, MBENTITYSET, 
-                                             &ds_tag, NULL, 1, ds_range);
-  for (MBRange::iterator rit = ds_range.begin(); rit != ds_range.end(); rit++) {
-    result = gMB->tag_get_data(gid_tag, &(*rit), 1, &ds_id);
-
+  for (ds_id = 0; ds_id < this->NumberOfDualSurfaces; ds_id++) {
     vtkThreshold *ds_filter = vtkThreshold::New();
     ds_filter->SelectInputScalars(DUAL_SURF_ATTRIBUTE_NAME);
     ds_filter->SetAttributeModeToUseCellData();
     ds_filter->ThresholdBetween(((double)ds_id-0.5), ((double)ds_id+0.5));
     ds_filter->SetInput(ug);
     this->add_name(ds_filter->GetOutput(), "dual_surf_", ds_id);
-    this->SetNthOutput(ds_id+2, ds_filter->GetOutput());
-      //ds_filter->Delete();
   }
   
     // same for dual curves
   int dc_id;
-  MBTag dc_tag = dt.dualSurface_tag();
-  MBRange dc_range;
-  result = gMB->get_entities_by_type_and_tag(0, MBENTITYSET, 
-                                             &dc_tag, NULL, 1, dc_range);
-  for (MBRange::iterator rit = dc_range.begin(); rit != dc_range.end(); rit++) {
-    result = gMB->tag_get_data(gid_tag, &(*rit), 1, &dc_id);
-
+  for (dc_id = 0; dc_id < this->NumberOfDualCurves; dc_id++) {
     vtkThreshold *dc_filter = vtkThreshold::New();
     dc_filter->SelectInputScalars(DUAL_CURVE_ATTRIBUTE_NAME);
     dc_filter->SetAttributeModeToUseCellData();
     dc_filter->ThresholdBetween(((double)dc_id-0.5), ((double)dc_id+0.5));
     dc_filter->SetInput(ug);
     this->add_name(dc_filter->GetOutput(), "dual_curve_", dc_id);
-    this->SetNthOutput(this->NumberOfDualSurfaces + 2 + dc_id, 
-                       dc_filter->GetOutput());
-      //dc_filter->Delete();
   }
 
     // lastly, get the dual vertices and put those in a group
@@ -772,9 +758,6 @@ MBErrorCode vtkMOABReader::modify_pipeline(DualTool &dt)
   dual_verts->SetCellMinimum(this->DualVertexIdOffset);
   dual_verts->SetCellMaximum(this->DualVertexIdOffset+this->NumberOfDualVertices-1);
   this->add_name(dual_verts->GetOutput(), "dual_verts", 0);
-  this->SetNthOutput(this->NumberOfDualSurfaces + this->NumberOfDualCurves +
-                     2, dual_verts->GetOutput());
-    //dual_verts->Delete();
 
   return MB_SUCCESS;
 }
