@@ -4,7 +4,7 @@
 #include "MBReadUtilIface.hpp"
 #include "GeomTopoTool.hpp"
 
-const bool debug = true;
+const bool debug = false;
 Tqdcfr *Tqdcfr::instance_ = NULL;
 const int ACIS_DIMS[] = {-1, 3, -1, 2, -1, -1, 1, 0, -1, -1};
 // acis dimensions for each entity type, to match

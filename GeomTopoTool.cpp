@@ -31,7 +31,7 @@ MBErrorCode GeomTopoTool::restore_topology()
 
     // create the tag holding the vertex ranges
   MBRange *dum = NULL;
-  result = mdbImpl->tag_create("vertex_range", sizeof(MBRange*), MB_TAG_SPARSE, verts_tag, &dum);
+  result = mdbImpl->tag_create("__vertex_range", sizeof(MBRange*), MB_TAG_SPARSE, verts_tag, &dum);
   if (MB_SUCCESS != result)
     return result;
 

@@ -117,7 +117,8 @@ public:
   virtual MBEntityHandle get_unused_handle();
 
   virtual MBErrorCode get_connectivity(MBEntityHandle entity, 
-                                        std::vector<MBEntityHandle>& connectivity) const;
+                                       std::vector<MBEntityHandle>& connectivity,
+                                       const bool topological_connectivity = false) const;
 
   virtual MBErrorCode get_connectivity(MBEntityHandle entity, 
                                         const MBEntityHandle*& connectivity,
@@ -250,27 +251,24 @@ inline MBEntityHandle ScdElementSeq::get_vertex(const int i, const int j, const 
 
 inline MBEntityHandle ScdElementSeq::get_unused_handle() 
 {
-  assert(false);
-  return 0;
+  return MB_FAILURE;
 }
 
 inline MBErrorCode ScdElementSeq::set_connectivity(MBEntityHandle , 
                                                     const MBEntityHandle *,
                                                     const int )
 {
-  assert(false);
   return MB_FAILURE;
 }
 
-inline void ScdElementSeq::get_entities(MBRange& ) const
+inline void ScdElementSeq::get_entities(MBRange& range) const
 {
-  assert(false);
+  range.insert(mStartEntityHandle, mStartEntityHandle+mNumEntities-1);
 }
   
 inline MBErrorCode ScdElementSeq::split(MBEntityHandle , 
-                                MBEntitySequence*& )
+                                        MBEntitySequence*& )
 {
-  assert(false);
   return MB_FAILURE;
 }
 
@@ -280,8 +278,7 @@ inline MBErrorCode ScdElementSeq::split(MBEntityHandle ,
 inline MBErrorCode ScdElementSeq::convert_realloc(bool& , bool& , bool& , 
                                           MBInterface*, MBTag )
 {
-  assert(false);
-  return MB_FAILURE;
+  return MB_NOT_IMPLEMENTED;
 }
   
 inline bool VertexSeqRef::contains(const HomCoord &coords) const 
@@ -298,7 +295,8 @@ inline VertexSeqRef::VertexSeqRef(const HomCoord &this_min, const HomCoord &this
 }
 
 inline MBErrorCode ScdElementSeq::get_connectivity(MBEntityHandle entity, 
-                                                    std::vector<MBEntityHandle>& connectivity) const
+                                                   std::vector<MBEntityHandle>& connectivity,
+                                                   const bool) const
 {
     // get parameter values
   int i, j, k;
@@ -313,7 +311,7 @@ inline MBErrorCode ScdElementSeq::get_connectivity(MBEntityHandle ,
                                                     int &) const 
 {
     // this version of get_connectivity isn't supported yet!
-  return MB_FAILURE;
+  return MB_NOT_IMPLEMENTED;
 }
 
 inline MBEntityHandle ScdElementSeq::get_vertex(const HomCoord &coords) const
@@ -330,7 +328,6 @@ inline MBEntityHandle ScdElementSeq::get_vertex(const HomCoord &coords) const
    }
    
      // got here, it's an error
-   assert(false);
    return 0;
 }
 

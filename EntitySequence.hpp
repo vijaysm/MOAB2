@@ -158,7 +158,8 @@ public:
   unsigned int nodes_per_element() const { return mNodesPerElement; }
 
   virtual MBErrorCode get_connectivity(MBEntityHandle entity, 
-                                        std::vector<MBEntityHandle>& connectivity) const;
+                                       std::vector<MBEntityHandle>& connectivity,
+                                       const bool topological_connectivity = false) const;
   virtual MBErrorCode get_connectivity(MBEntityHandle entity, 
                                         const MBEntityHandle*& connectivity,
                                         int &num_vertices) const;
@@ -260,15 +261,18 @@ inline MBErrorCode ElementEntitySequence::get_connectivity(MBEntityHandle entity
 }
 
 inline MBErrorCode ElementEntitySequence::get_connectivity(MBEntityHandle entity,
-                                                            std::vector<MBEntityHandle> &conn) const
+                                                           std::vector<MBEntityHandle> &conn,
+                                                           const bool topological_connectivity) const
 {
-  conn.reserve(mNodesPerElement);
+  int numv = (topological_connectivity ? MBCN::VerticesPerEntity(TYPE_FROM_HANDLE(entity))
+              : mNodesPerElement);
+  conn.reserve(numv);
   int index = entity - mStartEntityHandle;
   MBErrorCode result = MB_SUCCESS;
   if (!is_valid_entity(entity)) result = MB_FAILURE;
   else
-    std::copy(mElements+index*mNodesPerElement, mElements+(index+1)*mNodesPerElement,
-              std::back_inserter(conn));
+    conn.insert(conn.end(), mElements+index*mNodesPerElement, 
+                mElements+index*mNodesPerElement+numv);
   return result;
 }
 

@@ -627,21 +627,11 @@ MBErrorCode  MBCore::get_connectivity(const MBEntityHandle *entity_handles,
 
     ElementEntitySequence *elem_seq = static_cast<ElementEntitySequence*>(seq);
       // let's be smart about this...
-    const MBEntityHandle *temp_conn;
-    int num_verts;
-    temp_result = elem_seq->get_connectivity(entity_handles[i], temp_conn, num_verts);
+    temp_result = elem_seq->get_connectivity(entity_handles[i], connectivity,
+                                             topological_connectivity);
     if (MB_SUCCESS != temp_result) {
       result = temp_result;
       continue;
-    }
-  
-    if (topological_connectivity)
-    {
-      connectivity.insert(connectivity.end(), temp_conn, temp_conn+MBCN::VerticesPerEntity(type));
-    }
-    else
-    {
-      connectivity.insert(connectivity.end(), temp_conn, temp_conn+num_verts);
     }
   }
   
