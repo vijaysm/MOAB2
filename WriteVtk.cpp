@@ -410,7 +410,7 @@ MBErrorCode WriteVtk::write_nodes(const int num_nodes, const MBRange& nodes, con
 
 
   // write the nodes 
-  oFile << std::endl << "POINTS " << num_nodes << " float" << std::endl;
+  oFile << "POINTS " << num_nodes << " float" << std::endl;
 
   if (NULL != coord_arrays[2]) {
     for( int i=0; i<num_nodes; i++)
@@ -472,7 +472,7 @@ MBErrorCode WriteVtk::write_matsets(MeshInfo &,
     }
   }
 
-  oFile << std::endl << "CELLS " << total_elems << " " << total_ints << std::endl;
+  oFile << "CELLS " << total_elems << " " << total_ints << std::endl;
 
   for (i = 0; i < matset_data.size(); i++) {
     matset = matset_data[i];
@@ -499,7 +499,7 @@ MBErrorCode WriteVtk::write_matsets(MeshInfo &,
     }
   }
 
-  oFile << std::endl << "CELL_TYPES " << total_elems << std::endl;
+  oFile << "CELL_TYPES " << total_elems << std::endl;
   for (i = 0; i < matset_data.size(); i++) {
     int elem_type = VtkUtil::vtkElemType[matset_data[i].moab_type];
     if (-1 == elem_type) continue;

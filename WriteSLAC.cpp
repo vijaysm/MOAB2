@@ -856,8 +856,9 @@ MBErrorCode WriteSLAC::initialize_file(MeshInfo &mesh_info)
     // perform the initializations
 
   NcDim *coord_size, *ncoords;
-  NcDim *hexinterior, *hexinteriorsize, *hexexterior, *hexexteriorsize;
-  NcDim *tetinterior, *tetinteriorsize, *tetexterior, *tetexteriorsize;
+    // initialization to avoid warnings on linux
+  NcDim *hexinterior = NULL, *hexinteriorsize, *hexexterior = NULL, *hexexteriorsize;
+  NcDim *tetinterior = NULL, *tetinteriorsize, *tetexterior = NULL, *tetexteriorsize;
   
   if (!(coord_size = ncFile->add_dim("coord_size", (long)mesh_info.num_dim)))
   {

@@ -169,15 +169,28 @@ public:
                                          const int sub_dimension,
                                          const int index);
   
-  //! return the connectivity of the specified sub-entity.
+  //! return the vertex indices of the specified sub-entity.
   //! \param this_type Type of entity for which sub-entity connectivity is being queried
   //! \param sub_dimension Dimension of sub-entity
-  //! \param index Index of sub-entity
+  //! \param sub_index Index of sub-entity
   //! \param sub_entity_conn Connectivity of sub-entity (returned to calling function)
-  static void SubEntityConn(const MBEntityType this_type, 
+  static void SubEntityVertexIndices(const MBEntityType this_type, 
+                                     const int sub_dimension,
+                                     const int sub_index,
+                                     int sub_entity_conn[]);
+
+  //! return the vertices of the specified sub entity
+  //! \param parent_conn Connectivity of parent entity
+  //! \param parent_type Entity type of parent entity
+  //! \param sub_dimension Dimension of sub-entity being queried
+  //! \param sub_index Index of sub-entity being queried
+  //! \param sub_entity_conn Connectivity of sub-entity, based on parent_conn and canonical
+  //!           ordering for parent_type
+  //! \param num_sub_vertices Number of vertices in sub-entity
+  static void SubEntityConn(const void *parent_conn, const MBEntityType parent_type,
                             const int sub_dimension,
-                            const int index,
-                            int sub_entity_conn[]);
+                            const int sub_index,
+                            void *sub_entity_conn[], int &num_sub_vertices);
 
   //! For a specified set of sides of given dimension, return the intersection 
   //! or union of all sides of specified target dimension adjacent to those sides.
@@ -320,10 +333,10 @@ inline MBEntityType MBCN::SubEntityType(const MBEntityType this_type,
 }
   
   //! return the connectivity of the specified sub-entity.
-inline void MBCN::SubEntityConn(const MBEntityType this_type, 
-                                  const int sub_dimension,
-                                  const int index,
-                                  int sub_entity_conn[]) 
+inline void MBCN::SubEntityVertexIndices(const MBEntityType this_type, 
+                                         const int sub_dimension,
+                                         const int index,
+                                         int sub_entity_conn[]) 
 {
   for (int i = 0; i < VerticesPerEntity(SubEntityType(this_type, sub_dimension, index)); i++)
     sub_entity_conn[i] = mConnectivityMap[this_type][sub_dimension-1].conn[index][i];

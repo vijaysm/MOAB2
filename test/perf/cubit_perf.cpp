@@ -106,8 +106,8 @@ int main(int argc, char* argv[])
   
   assert(NULL != connect && NULL != coords);
 
-  double ttime1, utime1, stime1;
-  print_time(false, ttime1, utime1, stime1);
+  double ttime0, ttime1, ttime2, ttime3, utime, stime;
+  print_time(false, ttime0, utime, stime);
   int nodes_tot = nnodes*nnodes*nnodes;
   CubitNode** node_array = new CubitNode*[nodes_tot];
   int i;
@@ -132,27 +132,41 @@ int main(int argc, char* argv[])
     hex_array[i] = new NodeHex(conn);
   }
 
-  double ttime2, utime2, stime2;
-  print_time(false, ttime2, utime2, stime2);
+  print_time(false, ttime1, utime, stime);
 
-  double dum_coord[24];
+    // query element to vertex
+
+  
   for (i = 0; i < nelem_tot; i++) {
+    double centroid[3] = {0.0, 0.0, 0.0};
     hex_array[i]->hex_nodes(conn[0], conn[1], conn[2], conn[3], 
                             conn[4], conn[5], conn[6], conn[7]);
     for (j = 0; j < 8; j++) {
-      dum_coord[3*j] = conn[j]->node_x();
-      dum_coord[3*j+1] = conn[j]->node_y();
-      dum_coord[3*j+2] = conn[j]->node_z();
+      centroid[0] += conn[j]->node_x();
+      centroid[1] += conn[j]->node_y();
+      centroid[2] += conn[j]->node_z();
     }
     
   }
 
-  double ttime3;
-  print_time(false, ttime3, utime2, stime2);
+  print_time(false, ttime2, utime, stime);
 
-  std::cout << "Cubit: construction = " << ttime2-ttime1 << " sec, query = " 
-            << ttime3-ttime2 << " seconds." << std::endl;
+    // need to allocate & populate TDHexKnowing for these
+  for (i = 0; i < nelem_tot; i++)
+    hex_array[i]->add_hex_to_nodes();
+    
+  DLIList<CubitHex*> hexes;
+  for (i = 0; i < nodes_tot; i++) {
+    node_array[i]->all_hexes(hexes);
+  }
+    
+  print_time(false, ttime3, utime, stime);
 
+  std::cout << "CUBIT: construct, e_to_v query, v_to_e query = " 
+            << ttime1-ttime0 << ", " 
+            << ttime2-ttime1 << ", " 
+            << ttime3-ttime2 << " seconds" 
+            << std::endl;
   return 0;
 }
 

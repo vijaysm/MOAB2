@@ -29,8 +29,9 @@ void testA(const int nelem, const double *coords);
 void testB(const int nelem, const double *coords, const MBEntityHandle *connect);
 void testC(const int nelem, const double *coords);
 void print_time(const bool print_em, double &tot_time, double &utime, double &stime);
-void query_mesh(const int nelem);
-void query_mesh_struct(const int nelem);
+void query_vert_to_elem();
+void query_elem_to_vert();
+void query_struct_elem_to_vert();
 
 void compute_edge(double *start, const int nelem,  const double xint,
                   const int stride) 
@@ -81,6 +82,8 @@ void compute_face(double *a, const int nelem,  const double xint,
 
 void build_coords(const int nelem, double *&coords) 
 {
+  double ttime0, ttime1, utime1, stime1;
+  print_time(false, ttime0, utime1, stime1);
     // allocate the memory
   int numv = nelem+1;
   int numv_sq = numv*numv;
@@ -97,7 +100,7 @@ void build_coords(const int nelem, double *&coords)
   scale2 = LENGTH/nelem;
   scale3 = LENGTH/nelem;
 
-#ifdef REALMAP
+#ifdef REALTFI
     // use a real TFI xform to compute coordinates
     // compute edges
     // i (stride=1)
@@ -206,13 +209,16 @@ void build_coords(const int nelem, double *&coords)
       for (int k=0; k < numv; k++) {
         idx = VINDEX(i,j,k);
           // blocked coordinate ordering
-        coords[idx] = i*scale;
-        coords[tot_numv+idx] = j*scale;
-        coords[2*tot_numv+idx] = k*scale;
+        coords[idx] = i*scale1;
+        coords[tot_numv+idx] = j*scale2;
+        coords[2*tot_numv+idx] = k*scale3;
       }
     }
   }
 #endif
+  print_time(false, ttime1, utime1, stime1);
+  std::cout << "MOAB: TFI time = " << ttime1-ttime0 << " sec" 
+            << std::endl;
 }
 
 void build_connect(const int nelem, const MBEntityHandle vstart, MBEntityHandle *&connect) 
@@ -255,71 +261,33 @@ int main(int argc, char* argv[])
 
   gMB = new MBCore();
 
-  double ttime0, utime1, stime1, ttime1, utime2, stime2, ttime2, ttime3;
-
     // pre-build the coords array
   double *coords = NULL;
-  print_time(false, ttime0, utime1, stime1);
   build_coords(nelem, coords);
-  print_time(false, ttime1, utime1, stime1);
   assert(NULL != coords);
-  std::cout << "MOAB TFI time = " << ttime1-ttime0 << " seconds." << std::endl;
 
   MBEntityHandle *connect = NULL;
   build_connect(nelem, 1, connect);
 
-#ifndef PROFILE  
     // test A: create structured mesh
-  print_time(false, ttime1, utime1, stime1);
   testA(nelem, coords);
-  print_time(false, ttime2, utime2, stime2);
 
-    // query it
-  query_mesh_struct(nelem);
-  print_time(false, ttime3, utime2, stime2);
-  
-  std::cout << "MOAB scd: construction = " << ttime2-ttime1 << " sec, query = " 
-            << ttime3-ttime2 << " seconds." << std::endl;
-  
     // done, delete the mesh
   MBErrorCode result = gMB->delete_mesh();
 
     // test B: create mesh using bulk interface
-  print_time(false, ttime1, utime1, stime1);
   testB(nelem, coords, connect);
-  print_time(false, ttime2, utime2, stime2);
 
-    // query it
-  query_mesh(nelem);
-  print_time(false, ttime3, utime2, stime2);
-  
-  std::cout << "MOAB ucd blocked: construction = " << ttime2-ttime1 << " sec, query = " 
-            << ttime3-ttime2 << " seconds." << std::endl;
-  
   result = gMB->delete_mesh();
 
-#endif
-  
     // test C: create mesh using individual interface
-  print_time(false, ttime1, utime1, stime1);
   testC(nelem, coords);
-  print_time(false, ttime2, utime2, stime2);
-  
-    // query it
-  query_mesh(nelem);
-  print_time(false, ttime3, utime2, stime2);
-  
-  std::cout << "MOAB ucd indiv: construction = " << ttime2-ttime1 << " sec, query = " 
-            << ttime3-ttime2 << " seconds." << std::endl;
   
   return 0;
 }
 
-void query_mesh(const int nelem)
+void query_elem_to_vert()
 {
-    // assumes brick mapped mesh with handles starting at zero
-  int nelem_tot = nelem*nelem*nelem;
-  
   MBRange all_hexes;
   MBErrorCode result = gMB->get_entities_by_type(0, MBHEX, all_hexes);
   const MBEntityHandle *connect;
@@ -330,14 +298,33 @@ void query_mesh(const int nelem)
     assert(MB_SUCCESS == result);
     result = gMB->get_coords(connect, num_connect, dum_coords);
     assert(MB_SUCCESS == result);
+
+      // compute the centroid
+    double centroid[3] = {0.0, 0.0, 0.0};
+    for (int j = 0; j < 24;) {
+      centroid[0] += dum_coords[j++];
+      centroid[1] += dum_coords[j++];
+      centroid[2] += dum_coords[j++];
+    }
   }
 }
 
-void query_mesh_struct(const int nelem)
+void query_vert_to_elem()
+{
+  MBRange all_verts;
+  std::vector<MBEntityHandle> neighbor_hexes;
+  MBErrorCode result = gMB->get_entities_by_type(0, MBVERTEX, all_verts);
+  assert(MB_SUCCESS == result);
+  for (MBRange::iterator vit = all_verts.begin(); vit != all_verts.end(); vit++) {
+    neighbor_hexes.clear();
+    result = gMB->get_adjacencies(&(*vit), 1, 3, false, neighbor_hexes);
+    assert(MB_SUCCESS == result);
+  }
+}
+
+void query_struct_elem_to_vert()
 {
     // assumes brick mapped mesh with handles starting at zero
-  int nelem_tot = nelem*nelem*nelem;
-  
   MBRange all_hexes;
   MBErrorCode result = gMB->get_entities_by_type(0, MBHEX, all_hexes);
   double dum_coords[24];
@@ -363,16 +350,19 @@ void print_time(const bool print_em, double &tot_time, double &utime, double &st
     std::cout << "User, system, total time = " << utime << ", " << stime 
               << ", " << tot_time << std::endl;
 #ifndef LINUX
- std::cout << "Max resident set size = " << r_usage.ru_maxrss*4096 << " bytes" << std::endl;
- std::cout << "Int resident set size = " << r_usage.ru_idrss << std::endl;
+  std::cout << "Max resident set size = " << r_usage.ru_maxrss*4096 << " bytes" << std::endl;
+  std::cout << "Int resident set size = " << r_usage.ru_idrss << std::endl;
 #else
   system("ps o args,drs,rss | grep perf | grep -v grep");  // RedHat 9.0 doesnt fill in actual memory data 
 #endif
-    //delete [] hex_array;
 }
 
 void testA(const int nelem, const double *coords) 
 {
+  double ttime0, ttime1, ttime2, ttime3, utime, stime;
+  
+  print_time(false, ttime0, utime, stime);
+
     // make a 3d block of vertices
   MBEntitySequence *dum_seq = NULL;
   ScdVertexSeq *vseq = NULL;
@@ -408,10 +398,31 @@ void testA(const int nelem, const double *coords)
     result = gMB->set_coords(&handle, 1, dumv);
     assert(MB_SUCCESS == result);
   }
+
+  print_time(false, ttime1, utime, stime);
+
+    // query the mesh 2 ways
+  query_struct_elem_to_vert();
+
+  print_time(false, ttime2, utime, stime);
+
+  query_vert_to_elem();
+  
+  print_time(false, ttime3, utime, stime);
+
+  std::cout << "MOAB scd: construct, e_to_v query, v_to_e query = " 
+            << ttime1-ttime0 << ", " 
+            << ttime2-ttime1 << ", " 
+            << ttime3-ttime2 << " seconds" 
+            << std::endl;
 }
 
 void testB(const int nelem, const double *coords, const MBEntityHandle *connect) 
 {
+  double ttime0, ttime1, ttime2, ttime3, utime, stime;
+  
+  print_time(false, ttime0, utime, stime);
+
   int num_verts = (nelem + 1)*(nelem + 1)*(nelem + 1);
   int num_elems = nelem*nelem*nelem;
   MBEntityHandle vstart, estart;
@@ -437,11 +448,31 @@ void testB(const int nelem, const double *coords, const MBEntityHandle *connect)
   memcpy(conn, connect, num_elems*8*sizeof(MBEntityHandle));
   result = readMeshIface->update_adjacencies(estart, num_elems, 8, conn);
   assert(MB_SUCCESS == result);
+
+  print_time(false, ttime1, utime, stime);
+
+    // query the mesh 2 ways
+  query_elem_to_vert();
+
+  print_time(false, ttime2, utime, stime);
+
+  query_vert_to_elem();
   
+  print_time(false, ttime3, utime, stime);
+
+  std::cout << "MOAB ucd blocked: construct, e_to_v query, v_to_e query = " 
+            << ttime1-ttime0 << ", " 
+            << ttime2-ttime1 << ", " 
+            << ttime3-ttime2 << " seconds" 
+            << std::endl;
 }
 
 void testC(const int nelem, const double *coords) 
 {
+  double ttime0, ttime1, ttime2, ttime3, utime, stime;
+  
+  print_time(false, ttime0, utime, stime);
+
     // create the vertices; assume we don't need to keep a list of vertex handles, since they'll
     // be created in sequence
   int numv = nelem + 1;
@@ -482,4 +513,21 @@ void testC(const int nelem, const double *coords)
       }
     }
   }
+
+  print_time(false, ttime1, utime, stime);
+
+    // query the mesh 2 ways
+  query_elem_to_vert();
+
+  print_time(false, ttime2, utime, stime);
+
+  query_vert_to_elem();
+  
+  print_time(false, ttime3, utime, stime);
+
+  std::cout << "MOAB ucd indiv: construct, e_to_v query, v_to_e query = " 
+            << ttime1-ttime0 << ", " 
+            << ttime2-ttime1 << ", " 
+            << ttime3-ttime2 << " seconds" 
+            << std::endl;
 }

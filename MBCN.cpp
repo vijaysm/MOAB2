@@ -48,7 +48,30 @@ MBEntityType MBCN::EntityTypeFromName(const char *name)
   return MBMAXTYPE;
 }
 
-  //! given an entity and a target dimension & side number, get that entity
+//! return the vertices of the specified sub entity
+//! \param parent_conn Connectivity of parent entity
+//! \param parent_type Entity type of parent entity
+//! \param sub_dimension Dimension of sub-entity being queried
+//! \param sub_index Index of sub-entity being queried
+//! \param sub_entity_conn Connectivity of sub-entity, based on parent_conn and canonical
+//!           ordering for parent_type
+//! \param num_sub_vertices Number of vertices in sub-entity
+void MBCN::SubEntityConn(const void *parent_conn, const MBEntityType parent_type,
+                         const int sub_dimension,
+                         const int sub_index,
+                         void *sub_entity_conn[], int &num_sub_vertices) 
+{
+  static int sub_indices[MB_MAX_SUB_ENTITY_VERTICES];
+  
+  SubEntityVertexIndices(parent_type, sub_dimension, sub_index, sub_indices);
+  
+  num_sub_vertices = VerticesPerEntity(SubEntityType(parent_type, sub_dimension, sub_index));
+  void **parent_conn_ptr = static_cast<void **>(const_cast<void *>(parent_conn));
+  for (int i = 0; i < num_sub_vertices; i++)
+    *(sub_entity_conn+i) = parent_conn_ptr[sub_indices[i]];
+}
+
+//! given an entity and a target dimension & side number, get that entity
 int MBCN::AdjacentSubEntities(const MBEntityType this_type,
                                 const int *source_indices,
                                 const int num_source_indices,

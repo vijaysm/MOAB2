@@ -490,6 +490,8 @@ MBErrorCode AEntityFactory::create_vert_elem_adjacencies()
   int number_nodes;
   MBErrorCode result;
   MBRange handle_range;
+  static std::vector<MBEntityHandle> aux_connect;
+  
   
   // 1. over all element types, for each element, create vertex-element adjacencies
   for (ent_type = MBEDGE; ent_type != MBENTITYSET; ent_type++) 
@@ -506,6 +508,15 @@ MBErrorCode AEntityFactory::create_vert_elem_adjacencies()
         // get the min-id vertex
       if (MBPOLYHEDRON != ent_type) {
         result = this->thisMB->get_connectivity(*i_range, connectivity, number_nodes);
+        if (MB_NOT_IMPLEMENTED == result) {
+            // probably a structured sequence - get the connectivity as a vector and
+            // set connectivity to point to that
+          result = this->thisMB->get_connectivity(&(*i_range), 1, aux_connect);
+          if (MB_SUCCESS != result) return result;
+          connectivity = &aux_connect[0];
+          number_nodes = aux_connect.size();
+        }
+          
         if (MB_SUCCESS != result) return result;
       }
       else {
@@ -572,8 +583,10 @@ MBErrorCode AEntityFactory::get_adjacencies(const MBEntityHandle entity,
   if ((unsigned int)MBCN::Dimension(ent_type) == to_dimension)
     return MB_SUCCESS;
 
-  if(mVertElemAdj == false && to_dimension != 0)
-    create_vert_elem_adjacencies();
+  if(mVertElemAdj == false && to_dimension != 0) {
+    MBErrorCode result = create_vert_elem_adjacencies();
+    if (MB_SUCCESS != result) return result;
+  }
   
   return get_elements(entity, to_dimension, adjacent_entities, create_if_missing, 0);
 }
