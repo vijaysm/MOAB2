@@ -838,7 +838,7 @@ MBErrorCode TagServer::get_entities_with_tag_values( MBEntityType type,
     if (NULL == values || NULL == values[it]) 
       result = get_entities(tags[it], type, temp1);
     else
-      result = get_entities_with_tag_value(type, tags[it], *(reinterpret_cast<const int**>(values)+it), temp1);
+      result = get_entities_with_tag_value(type, tags[it], values[it], temp1);
 
       // if we're doing a running intersection and we're just starting and
       // the list comes in empty, the 1st result is the start
@@ -898,7 +898,7 @@ MBErrorCode TagServer::get_entities_with_tag_values( const MBRange &range,
     if (NULL == values) 
       result = get_entities(tags[it], type, temp1);
     else
-      result = get_entities_with_tag_value(type, tags[it], *(reinterpret_cast<const int**>(values)+it), temp1);
+      result = get_entities_with_tag_value(type, tags[it], values[it], temp1);
 
       // if we're doing a running intersection and we're just starting and
       // the list comes in empty, the 1st result is the start
