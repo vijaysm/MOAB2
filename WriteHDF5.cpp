@@ -641,7 +641,6 @@ MBErrorCode WriteHDF5::write_nodes( )
   MBErrorCode rval;
   hid_t node_table;
   long first_id, num_nodes;
-  nodeSet.type2 = mhdf_node_type_handle();
   
   rval = iFace->get_dimension( mesh_dim );
   CHK_MB_ERR_0(rval);
@@ -695,9 +694,11 @@ MBErrorCode WriteHDF5::write_elems( ExportSet& elems )
   long first_id;
   int nodes_per_elem;
   long table_size;
+  char elem_handle[32];
+  sprintf( elem_handle, "%s%d", MBCN::EntityTypeName(elems.type), elems.num_nodes );
 
   hid_t elem_table = mhdf_openConnectivity( filePtr, 
-                                            elems.type2, 
+                                            elem_handle, 
                                             &nodes_per_elem,
                                             &table_size,
                                             &first_id,
@@ -754,7 +755,7 @@ MBErrorCode WriteHDF5::write_poly( ExportSet& elems )
     // Create the tables in the file and assign IDs to polys
   hid_t handles[2];
   mhdf_openPolyConnectivity( filePtr, 
-                             elems.type2,
+                             MBCN::EntityTypeName(elems.type),
                              &poly_count,
                              &table_size,
                              &first_id,
@@ -835,7 +836,6 @@ MBErrorCode WriteHDF5::write_sets( )
   MBErrorCode rval;
   long first_id, meta_size, data_size, child_size;
   hid_t set_table = 0, content_table = 0, child_table = 0;
-  setSet.type2 = mhdf_set_type_handle();
   
   /* Get this from the file because we if working in parallel, 
      we may need to do the collective open/closes even if there
@@ -1103,6 +1103,14 @@ MBErrorCode WriteHDF5::write_adjacencies( const ExportSet& elements )
   MBRange::const_iterator iter;
   const MBRange::const_iterator end = elements.range.end();
   std::vector<int> adj_list;
+  char elem_handle_f[32];
+  const char* elem_handle = elem_handle_f;
+  if (elements.type == MBVERTEX)
+    elem_handle = mhdf_node_type_handle();
+  else if(elements.type == MBPOLYGON || elements.type == MBPOLYHEDRON)
+    elem_handle = MBCN::EntityTypeName( elements.type );
+  else
+    sprintf( elem_handle_f, "%s%d", MBCN::EntityTypeName( elements.type ), elements.num_nodes );
   
   /* Count Adjacencies */
   long count = 0;
@@ -1120,7 +1128,7 @@ MBErrorCode WriteHDF5::write_adjacencies( const ExportSet& elements )
     return MB_SUCCESS;
   
   /* Create data list */
-  hid_t table = mhdf_createAdjacency( filePtr, elements.type2, count, &status );
+  hid_t table = mhdf_createAdjacency( filePtr, elem_handle, count, &status );
   CHK_MHDF_ERR_0(status);
   
   /* Write data */
@@ -1700,8 +1708,6 @@ DEBUGOUT( "Gathering Tags\n" );
     // Create element tables
   for (ex_itor = exportList.begin(); ex_itor != exportList.end(); ++ex_itor)
   {
-    mhdf_ElemHandle elem_handle;
-    
     if (ex_itor->type == MBPOLYGON || ex_itor->type == MBPOLYHEDRON)
     {
       int mb_count;
@@ -1713,7 +1719,6 @@ DEBUGOUT( "Gathering Tags\n" );
       rval = create_poly_tables( ex_itor->type,
                                  ex_itor->range.size(),
                                  mb_count,
-                                 elem_handle,
                                  first_id );
     }
     else
@@ -1721,7 +1726,6 @@ DEBUGOUT( "Gathering Tags\n" );
       rval = create_elem_tables( ex_itor->type,
                                  ex_itor->num_nodes,
                                  ex_itor->range.size(),
-                                 elem_handle,
                                  first_id );
     }
     CHK_MB_ERR_0(rval);
@@ -1730,12 +1734,17 @@ DEBUGOUT( "Gathering Tags\n" );
     ex_itor->first_id = (id_t)first_id;
     ex_itor->offset = 0;
     ex_itor->poly_offset = 0;
-    ex_itor->type2 = elem_handle;
   }
   
     // create element adjacency tables
   for (ex_itor = exportList.begin(); ex_itor != exportList.end(); ++ex_itor)
   {
+    char elem_handle[32];
+    if( ex_itor->type == MBPOLYGON ||  ex_itor->type == MBPOLYHEDRON)
+      strcpy(elem_handle, MBCN::EntityTypeName( ex_itor->type ) );
+    else
+      sprintf( elem_handle, "%s%d", MBCN::EntityTypeName( ex_itor->type ), ex_itor->num_nodes );
+
     id_t num_adjacencies;
     rval = count_adjacencies( ex_itor->range, num_adjacencies );
     CHK_MB_ERR_0(rval);
@@ -1743,7 +1752,7 @@ DEBUGOUT( "Gathering Tags\n" );
     if (num_adjacencies > 0)
     {
       handle = mhdf_createAdjacency( filePtr,
-                                     ex_itor->type2,
+                                     elem_handle,
                                      num_adjacencies,
                                      &status );
       CHK_MHDF_ERR_0(status);
@@ -1806,7 +1815,6 @@ MBErrorCode WriteHDF5::count_adjacencies( const MBRange& set, id_t& result )
 MBErrorCode WriteHDF5::create_elem_tables( MBEntityType mb_type,
                                            int nodes_per_elem,
                                            id_t num_elements,
-                                           mhdf_ElemHandle& mhdf_type_out,
                                            long& first_id_out )
 {
   char name[64];
@@ -1814,11 +1822,11 @@ MBErrorCode WriteHDF5::create_elem_tables( MBEntityType mb_type,
   hid_t handle;
   
   sprintf( name, "%s%d", MBCN::EntityTypeName(mb_type), nodes_per_elem );
-  mhdf_type_out = mhdf_addElement( filePtr, name, mb_type, &status );
+  mhdf_addElement( filePtr, name, mb_type, &status );
   CHK_MHDF_ERR_0(status);
   
   handle = mhdf_createConnectivity( filePtr, 
-                                    mhdf_type_out,
+                                    name,
                                     nodes_per_elem,
                                     num_elements,
                                     &first_id_out,
@@ -1835,19 +1843,18 @@ MBErrorCode WriteHDF5::create_elem_tables( MBEntityType mb_type,
 MBErrorCode WriteHDF5::create_poly_tables( MBEntityType mb_type,
                                            id_t num_poly,
                                            id_t connectivity_size,
-                                           mhdf_ElemHandle& mhdf_type_out,
                                            long& first_id_out )
 {
   char name[64];
   mhdf_Status status;
   hid_t handles[2];
   
-  sprintf( name, "%s", MBCN::EntityTypeName(mb_type) );
-  mhdf_type_out = mhdf_addElement( filePtr, name, mb_type, &status );
+  strcpy( name, MBCN::EntityTypeName(mb_type) );
+  mhdf_addElement( filePtr, name, mb_type, &status );
   CHK_MHDF_ERR_0(status);
   
   mhdf_createPolyConnectivity( filePtr, 
-                               mhdf_type_out, 
+                               name, 
                                num_poly, 
                                connectivity_size, 
                                &first_id_out,

@@ -110,10 +110,9 @@ MBErrorCode ReadHDF5::load_file( const char* filename, const int*, const int num
   std::string tagname;
   int num_tags = 0;
   char** tag_names = NULL;
-  std::vector<mhdf_ElemHandle> groups;
-  std::vector<mhdf_ElemHandle>::const_iterator g_itor;
+  char** groups = NULL;
   std::list<ElemSet>::iterator el_itor;
-  int num_groups;
+  unsigned int i, num_groups;
   MBEntityHandle all;  // meshset of everything in file.
 
   if (num_blocks)
@@ -143,27 +142,16 @@ DEBUGOUT("Reading Nodes.\n");
 
 DEBUGOUT("Reading element connectivity.\n");
 
-  num_groups = mhdf_numElemGroups( filePtr, &status );
+  groups = mhdf_getElemHandles( filePtr, &num_groups, &status );
   if (mhdf_isError( &status ))
   {
     readUtil->report_error( mhdf_message( &status ));
     return MB_FAILURE;
   }
 
-  if (num_groups)
+  for (i = 0; i < num_groups; ++i)
   {
-    groups.resize( num_groups );
-    mhdf_getElemGroups( filePtr, &groups[0], &status );
-    if (mhdf_isError( &status ))
-    {
-      readUtil->report_error( mhdf_message( &status ));
-      return MB_FAILURE;
-    }
-  }
-    
-  for (g_itor = groups.begin(); g_itor != groups.end(); ++g_itor)
-  {
-    int poly = mhdf_isPolyElement( filePtr, *g_itor, &status );
+    int poly = mhdf_isPolyElement( filePtr, groups[i], &status );
     if (mhdf_isError( &status ))
     {
       readUtil->report_error( mhdf_message( &status ));
@@ -171,13 +159,13 @@ DEBUGOUT("Reading element connectivity.\n");
     }
 
     if (poly)
-      rval = read_poly( *g_itor );
+      rval = read_poly( groups[i] );
     else
-      rval = read_elems( *g_itor );
+      rval = read_elems( groups[i] );
       
     if (MB_SUCCESS != rval)
       goto read_fail;
-  }    
+  }
   
 DEBUGOUT("Reading sets.\n");
   
@@ -221,6 +209,8 @@ DEBUGOUT("Finishing read.\n");
   dataBuffer = 0;
   mhdf_closeFile( filePtr, &status );
   filePtr = 0;
+  elemList.clear();
+  if (groups) free( groups );
   return MB_SUCCESS;
   
 read_fail:
@@ -238,6 +228,8 @@ read_fail:
         free( tag_names[tt] );
     free( tag_names );
   }
+
+  if (groups) free( groups );
   
   mhdf_closeFile( filePtr, &status );
   filePtr = 0;
@@ -328,7 +320,7 @@ MBErrorCode ReadHDF5::read_nodes()
   return MB_SUCCESS;
 }
 
-MBErrorCode ReadHDF5::read_elems( mhdf_ElemHandle elem_group )
+MBErrorCode ReadHDF5::read_elems( const char* elem_group )
 {
   MBErrorCode rval;
   mhdf_Status status;
@@ -406,7 +398,7 @@ MBErrorCode ReadHDF5::read_elems( mhdf_ElemHandle elem_group )
   return rval;
 }
 
-MBErrorCode ReadHDF5::read_poly( mhdf_ElemHandle elem_group )
+MBErrorCode ReadHDF5::read_poly( const char* elem_group )
 {
   MBErrorCode rval;
   mhdf_Status status;

@@ -23,7 +23,7 @@
 #ifndef READ_HDF5_HPP
 #define READ_HDF5_HPP
 
-
+#include <stdlib.h>
 #include <list>
 #include "mhdf.h"
 #include "MBInterface.hpp"
@@ -61,7 +61,7 @@ private:
     //! The type of the entities in the range
     MBEntityType type;
     //! The type handle for the mhdf library.
-    mhdf_ElemHandle type2;
+    const char* type2;
     //! The first Id allocated by the mhdf library.  Entities in range have sequential IDs.
     MBEntityHandle first_id;
   };
@@ -106,10 +106,10 @@ private:
   MBErrorCode read_nodes( );
   
   //! Read element connectivity.
-  MBErrorCode read_elems( mhdf_ElemHandle elem_group );
+  MBErrorCode read_elems( const char* elem_group );
   
   //! Read poly(gons|hedra)
-  MBErrorCode read_poly( mhdf_ElemHandle elem_group );
+  MBErrorCode read_poly( const char* elem_group );
   
   //! Read sets
   MBErrorCode read_sets( );

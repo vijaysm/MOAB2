@@ -95,7 +95,6 @@ protected:
   MBErrorCode create_elem_tables( MBEntityType mb_type,
                                   int nodes_per_element,
                                   id_t number_elements,
-                                  mhdf_ElemHandle& mhdf_type_out,
                                   long& first_id_out );
 
   /** Helper function for create-file
@@ -106,7 +105,6 @@ protected:
   MBErrorCode create_poly_tables( MBEntityType mb_type,
                                   id_t number_elements,
                                   id_t connectivity_length,
-                                  mhdf_ElemHandle& mhdf_type_out,
                                   long& first_id_out );
   
   /** Helper function for create-file
@@ -147,8 +145,6 @@ protected:
     MBEntityType type;
     //! The number of nodes per entity - not used for nodes and sets
     int num_nodes;
-    //! The type handle for the mhdf library.
-    mhdf_ElemHandle type2;
     //! The first Id allocated by the mhdf library.  Entities in range have sequential IDs.
     id_t first_id;
     //! The offset at which to begin writting this processor's data.
