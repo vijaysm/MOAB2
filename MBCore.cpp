@@ -572,9 +572,9 @@ MBErrorCode MBCore::get_connectivity_by_type(const MBEntityType type,
   {
     const MBEntityHandle *connect_vec;
     result = get_connectivity(*this_it, connect_vec, num_ents, true);
-    if (MB_SUCCESS != result) return result;
-    std::copy(&connect_vec[0], &connect_vec[num_ents], 
-              std::back_inserter(connect));
+    if (MB_SUCCESS != result) 
+      return result;
+    connect.insert(connect.end(), &connect_vec[0], &connect_vec[num_ents]); 
   }
   
   return MB_SUCCESS;
@@ -636,10 +636,13 @@ MBErrorCode  MBCore::get_connectivity(const MBEntityHandle *entity_handles,
     }
   
     if (topological_connectivity)
-      std::copy(temp_conn, temp_conn+MBCN::VerticesPerEntity(type),
-                std::back_inserter(connectivity));
+    {
+      connectivity.insert(connectivity.end(), temp_conn, temp_conn+MBCN::VerticesPerEntity(type));
+    }
     else
-      std::copy(temp_conn, temp_conn+num_verts, std::back_inserter(connectivity));
+    {
+      connectivity.insert(connectivity.end(), temp_conn, temp_conn+num_verts);
+    }
   }
   
   return result;
@@ -745,11 +748,11 @@ MBErrorCode MBCore::get_adjacencies(const MBEntityHandle *from_entities,
   
   result = get_adjacencies(temp_range, to_dimension, create_if_missing, temp_range2,
                            operation_type);
-  if (MB_SUCCESS != result) return result;
+  if (MB_SUCCESS != result) 
+    return result;
   
   adj_entities.clear();
-  std::copy(temp_range2.begin(), temp_range2.end(),
-            back_inserter(adj_entities));
+  adj_entities.insert(adj_entities.end(), temp_range2.begin(), temp_range2.end());
   
   return MB_SUCCESS;
 }
@@ -971,9 +974,9 @@ MBErrorCode MBCore::get_entities_by_handle(const MBEntityHandle meshset,
   else {
     MBRange dum_range;
     result = get_entities_by_handle(meshset, dum_range, recursive);
-    if (MB_SUCCESS != result) return result;
-    std::copy(dum_range.begin(), dum_range.end(),
-              std::back_inserter(entities));
+    if (MB_SUCCESS != result) 
+      return result;
+    entities.insert(entities.end(), dum_range.begin(), dum_range.end());
   }
 
   return result;
@@ -1392,22 +1395,19 @@ MBErrorCode MBCore::merge_entities_up(MBEntityHandle entity_to_keep,
   if(result != MB_SUCCESS)
     return result;
 
-  std::copy(tmp.begin(), tmp.end(),
-            std::back_inserter<std::vector<MBEntityHandle> >(adjacencies));
+  adjacencies.insert(adjacencies.end(), tmp.begin(), tmp.end());
 
   result = aEntityFactory->get_adjacencies(entity_to_remove, 2, false, tmp);
   if(result != MB_SUCCESS)
     return result;
 
-  std::copy(tmp.begin(), tmp.end(),
-            std::back_inserter<std::vector<MBEntityHandle> >(adjacencies));
+  adjacencies.insert(adjacencies.end(), tmp.begin(), tmp.end());
 
   result = aEntityFactory->get_adjacencies(entity_to_remove, 3, false, tmp);
   if(result != MB_SUCCESS)
     return result;
 
-  std::copy(tmp.begin(), tmp.end(),
-            std::back_inserter<std::vector<MBEntityHandle> >(adjacencies));
+  adjacencies.insert(adjacencies.end(), tmp.begin(), tmp.end());
 
   result = aEntityFactory->get_adjacencies(entity_to_remove, 4, false, tmp);
   if (result != MB_SUCCESS)
@@ -1545,10 +1545,8 @@ MBErrorCode MBCore::merge_entities( MBEntityHandle entity_to_keep,
       std::sort(tmp2.begin(), tmp2.end());
 
         // Put these sets in with the other ones.
-      std::copy(tmp.begin(), tmp.end(),
-                std::back_inserter<std::vector<MBEntityHandle> >(adjacencies));
-      std::copy(tmp2.begin(), tmp2.end(),
-                std::back_inserter<std::vector<MBEntityHandle> >(adjacencies2));
+      adjacencies.insert(adjacencies.end(), tmp.begin(), tmp.end());
+      adjacencies.insert(adjacencies.end(), tmp2.begin(), tmp2.end());
     }
 
       // Make sure we can merge before doind so.
