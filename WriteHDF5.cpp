@@ -882,6 +882,10 @@ MBErrorCode WriteHDF5::write_sets( )
   setSet.type2 = mhdf_set_type_handle();
   long first_id;
   
+  /* If no sets, just return success */
+  if (sets.empty())
+    return MB_SUCCESS;
+  
   /* Write set description table */
   
   /* Create the table */
@@ -1466,9 +1470,10 @@ MBErrorCode WriteHDF5::write_tag( MBTag tag_handle )
 MBErrorCode WriteHDF5::write_dense_tag( MBTag handle,
                                         hid_t type )
 {
-  MBErrorCode rval;
+  MBErrorCode rval = MB_SUCCESS;
   
-  rval = write_dense_tag( nodeSet, handle, type );
+  if (!nodeSet.range.empty())
+    rval = write_dense_tag( nodeSet, handle, type );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -1480,7 +1485,8 @@ MBErrorCode WriteHDF5::write_dense_tag( MBTag handle,
       return rval;
   }
   
-  rval = write_dense_tag( setSet, handle, type );
+  if (!setSet.range.empty())
+    rval = write_dense_tag( setSet, handle, type );
   return rval;
 }
 
@@ -1505,7 +1511,7 @@ MBErrorCode WriteHDF5::write_dense_tag( ExportSet& set,
   if (mb_type == MB_TAG_BIT)
     tag_size = 1;
   assert( type == 0 || H5Tget_size(type) == (unsigned)tag_size );
-  
+
   data_handle = mhdf_createDenseTagData( filePtr, name.c_str(), set.type2, set.range.size(), &status );
   if (mhdf_isError(&status))
   {
