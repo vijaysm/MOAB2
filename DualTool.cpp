@@ -1095,24 +1095,23 @@ MBEntityHandle DualTool::next_loop_vertex(const MBEntityHandle last_v,
   result = mbImpl->get_adjacencies(verts, 2, false, tcells);
   if (MB_SUCCESS != result || tcells.empty()) return 0;
 
-    // next get 2cells common to this_v and last_v, if last_v isn't zero, and remove
-    // them from tcells
-  if (0 != last_v) {
-    verts.insert(last_v);
-    result = mbImpl->get_adjacencies(verts, 2, false, tcells2);
-    if (MB_SUCCESS != result || tcells2.empty()) return 0;
-    MBRange temp_range = tcells.subtract(tcells2);
-    tcells.swap(temp_range);
-  }
-  if (tcells.empty()) return 0;
-  if (tcells.size() == 2) tcells.erase(tcells.begin());
-  assert(tcells.size() == 1);
+    // next get vertices common to both 2cells and subtract from other_verts; also
+    // remove last_v if it's non-zero
+  verts.clear();
+  result = mbImpl->get_adjacencies(tcells, 0, false, verts);
+  if (MB_SUCCESS != result || verts.empty()) return 0;
   
-    // next loop vertex is intersection of other_verts and vertices adjacent to first
-    // 2cell on tcells
+  MBRange tmp_verts = other_verts.subtract(verts);
+  other_verts.swap(tmp_verts);
+  if (0 != last_v) other_verts.erase(last_v);
+
+    // now get intersection of remaining vertices and 2 2cells vertices
   result = mbImpl->get_adjacencies(tcells, 0, false, other_verts);
-  if (MB_SUCCESS != result || other_verts.size() != 1) return 0;
+  if (MB_SUCCESS != result || other_verts.empty()) return 0;
+
+    // should have only one now
+  assert(1 == tmp_verts.size());
   
-  return *other_verts.begin();
+  return *tmp_verts.begin();
 }
 

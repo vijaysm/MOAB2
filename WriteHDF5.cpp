@@ -498,7 +498,6 @@ MBErrorCode WriteHDF5::gather_mesh_info(
                            const std::vector<MBEntityHandle>& export_sets )
 {
   MBErrorCode rval;
-  std::list<MBEntityHandle>::iterator export_itor;
   
   nodeSet.range.clear();
   setSet.range.clear();

@@ -1060,7 +1060,6 @@ MBErrorCode ReadHDF5::read_dense_tag( ElemSet& set,
   }
   
   MBRange::const_iterator iter = set.range.begin();
-  const MBRange::const_iterator end = set.range.end();
   MBRange subrange;
   
   assert ((hdf_read_type == 0) || (H5Tget_size(hdf_read_type) == read_size));
