@@ -35,7 +35,10 @@
 #include "WriteHDF5.hpp"
 #include "RangeTree.hpp"
 #include "mhdf.h"
-
+/* Access HDF5 file handle for debugging
+#include <H5Fpublic.h>
+struct file { uint32_t magic; hid_t handle; };
+*/
 #undef DEBUG
 
 #ifdef DEBUG
@@ -46,12 +49,17 @@
 #endif
 
 #ifdef DEBUG
+/*
 # include <H5Epublic.h>
   extern "C" herr_t hdf_error_handler( void*  )
   {
     H5Eprint( stderr );
     assert( 0 );
   }
+*/
+# define myassert(A) assert(A)
+#else
+# define myassert(A)
 #endif
 
 #define WRITE_HDF5_BUFFER_SIZE (40*1024*1024)
@@ -78,12 +86,14 @@ const hid_t WriteHDF5::id_type = H5T_NATIVE_INT;
 #define CHK_MHDF_ERR_0( A )                                 \
 do if ( mhdf_isError( &(A) )) {                             \
     writeUtil->report_error( "%s\n", mhdf_message( &(A) ) );\
+    myassert(0);                                            \
     return MB_FAILURE;                                      \
 } while(false)                                               
 
 #define CHK_MHDF_ERR_1( A, B )                              \
 do if ( mhdf_isError( &(A) )) {                             \
     writeUtil->report_error( "%s\n", mhdf_message( &(A) ) );\
+    myassert(0);                                            \
     mhdf_closeData( filePtr, (B), &(A) );                   \
     return MB_FAILURE;                                      \
 } while(false)                                               
@@ -91,6 +101,7 @@ do if ( mhdf_isError( &(A) )) {                             \
 #define CHK_MHDF_ERR_2( A, B )                              \
 do if ( mhdf_isError( &(A) )) {                             \
     writeUtil->report_error( "%s\n", mhdf_message( &(A) ) );\
+    myassert(0);                                            \
     mhdf_closeData( filePtr, (B)[0], &(A) );                \
     mhdf_closeData( filePtr, (B)[1], &(A) );                \
     return MB_FAILURE;                                      \
@@ -99,6 +110,7 @@ do if ( mhdf_isError( &(A) )) {                             \
 #define CHK_MHDF_ERR_2C( A, B, C, D )                       \
 do if ( mhdf_isError( &(A) )) {                             \
     writeUtil->report_error( "%s\n", mhdf_message( &(A) ) );\
+    myassert(0);                                            \
     mhdf_closeData( filePtr, (B), &(A) );                   \
     if (C) mhdf_closeData( filePtr, (D), &(A) );            \
     return MB_FAILURE;                                      \
@@ -111,6 +123,7 @@ do if (MB_SUCCESS != (A)) return (A); while(false)
 #define CHK_MB_ERR_1( A, B, C )         \
 do if (MB_SUCCESS != (A)) {             \
   mhdf_closeData( filePtr, (B), &(C) ); \
+  myassert(0);                          \
   return (A);                           \
 } while(false)
 
@@ -118,14 +131,16 @@ do if (MB_SUCCESS != (A)) {             \
 do if (MB_SUCCESS != (A)) {                \
   mhdf_closeData( filePtr, (B)[0], &(C) ); \
   mhdf_closeData( filePtr, (B)[1], &(C) ); \
-  write_finished();                          \
+  write_finished();                        \
+  myassert(0);                             \
 } while(false)
 
 #define CHK_MB_ERR_2C( A, B, C, D, E )          \
 do if (MB_SUCCESS != (A)) {                     \
   mhdf_closeData( filePtr, (B), &(E) );         \
   if (C) mhdf_closeData( filePtr, (D), &(E) );  \
-  write_finished();                               \
+  write_finished();                             \
+  myassert(0);                                  \
 } while(false)
 
 
@@ -173,11 +188,11 @@ MBErrorCode WriteHDF5::init()
 
   if (writeUtil) // init has already been called
     return MB_SUCCESS;
- 
+/* 
 #ifdef DEBUG
   H5Eset_auto( &hdf_error_handler, writeUtil );  // HDF5 callback for errors
 #endif
- 
+*/ 
     // For known tag types, store the corresponding HDF5 in which
     // the tag data is to be written in the file.
   register_known_tag_types( iFace ); 
@@ -348,6 +363,8 @@ DEBUGOUT("Writing tags.\n");
   for (t_itor = tagList.begin(); t_itor != tagList.end(); ++t_itor)
     if (write_sparse_tag( *t_itor ) != MB_SUCCESS)
       goto write_fail;
+
+DEBUGOUT("Closing file.\n");
 
     // Clean up and exit.
   free( dataBuffer );
@@ -919,10 +936,10 @@ MBErrorCode WriteHDF5::write_sets( )
     rval = get_set_info( *iter, data_size, child_size, flags );
     CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
     
+    id_list.clear();
     if (*iter == *comp)
     {
       set_contents.clear();
-      id_list.clear();
       
       rval = iFace->get_entities_by_handle( *iter, set_contents, false );
       CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
@@ -938,7 +955,6 @@ MBErrorCode WriteHDF5::write_sets( )
     }
     else
     {
-      id_list.clear();
       handle_list.clear();
       
       rval = iFace->get_entities_by_handle( *iter, handle_list, false );
@@ -1433,6 +1449,8 @@ MBErrorCode WriteHDF5::write_sparse_tag( const SparseTag& tag_data )
       MB_SUCCESS != iFace->tag_get_type( tag_data.tag_id, mb_type ) ||
       MB_SUCCESS != iFace->tag_get_size( tag_data.tag_id, mb_size ))
     return MB_FAILURE;
+
+DEBUGOUT((std::string("Tag: ") + name + "\n").c_str());
   
     //Check if there's any data to write for this tag.
     //Check if data table has been created, because if we're
@@ -1799,8 +1817,6 @@ DEBUGOUT( "Gathering Tags\n" );
     }
     ex_itor->adj_offset = 0;
   }
-      
-  
   
     // create set tables
   writeSets = !setSet.range.empty();
@@ -1808,13 +1824,16 @@ DEBUGOUT( "Gathering Tags\n" );
   {
     long contents_len, children_len;
     writeSets = true;
+    
+    rval = create_set_meta( setSet.range.size(), first_id );
+    writeUtil->assign_ids( setSet.range, idTag, (id_t)first_id );
+    
     rval = count_set_size( setSet.range, rangeSets, contents_len, children_len );
     CHK_MB_ERR_0(rval);
     
-    rval = create_set_tables( setSet.range.size(), contents_len, children_len, first_id );
+    rval = create_set_tables( contents_len, children_len );
     CHK_MB_ERR_0(rval);
    
-    writeUtil->assign_ids( setSet.range, idTag, (id_t)first_id );
     setSet.first_id = (id_t)first_id;
     setSet.offset = 0;
     setContentsOffset = 0;
@@ -1955,10 +1974,7 @@ MBErrorCode WriteHDF5::count_set_size( const MBRange& sets,
   return MB_SUCCESS;
 }
 
-MBErrorCode WriteHDF5::create_set_tables( id_t num_sets,
-                                          long num_set_contents,
-                                          long num_set_children,
-                                          long& first_id_out )
+MBErrorCode WriteHDF5::create_set_meta( id_t num_sets, long& first_id_out )
 {
   hid_t handle;
   mhdf_Status status;
@@ -1966,6 +1982,16 @@ MBErrorCode WriteHDF5::create_set_tables( id_t num_sets,
   handle = mhdf_createSetMeta( filePtr, num_sets, &first_id_out, &status );
   CHK_MHDF_ERR_0(status);
   mhdf_closeData( filePtr, handle, &status );
+  
+  return MB_SUCCESS;
+}
+
+
+MBErrorCode WriteHDF5::create_set_tables( long num_set_contents,
+                                          long num_set_children )
+{
+  hid_t handle;
+  mhdf_Status status;
   
   if (num_set_contents > 0)
   {

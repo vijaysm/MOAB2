@@ -129,12 +129,15 @@ protected:
   
   /** Helper function for create-file
    *
+   * Create zero-ed table where set descriptions will be written
+   */
+  MBErrorCode create_set_meta( id_t number_sets, long& first_id_out );
+
+  /** Helper function for create-file
+   *
    * Create zero-ed tables where set data will be written.
    */
-  MBErrorCode create_set_tables( id_t number_sets,
-                                 long contents_length,
-                                 long children_length,
-                                 long& first_id_out );
+  MBErrorCode create_set_tables( long contents_length, long children_length );
 
   /** Helper function for create-file
    *
