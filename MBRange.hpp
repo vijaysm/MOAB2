@@ -559,7 +559,7 @@ public:
     public:
       const_pair_iterator( const PairNode* node ) : myNode(node) {}
       
-      std::pair<MBEntityHandle, MBEntityHandle> operator->() const
+      const std::pair<MBEntityHandle, MBEntityHandle> operator*() const
         { return std::pair<MBEntityHandle,MBEntityHandle>(myNode->first, myNode->second); }
       
       const_pair_iterator& operator--()
@@ -574,18 +574,18 @@ public:
       const_pair_iterator operator++(int)
         { const_pair_iterator rval(*this); this->operator++(); return rval; }
         
-      bool operator==( const_pair_iterator& other ) const
+      bool operator==( const const_pair_iterator& other ) const
         { return other.myNode == myNode; }
     
-      bool operator!=( const_pair_iterator& other ) const
+      bool operator!=( const const_pair_iterator& other ) const
         { return other.myNode != myNode; }
         
     private:
       const PairNode* myNode;
   };
   
-  const_pair_iterator pair_begin() const { return const_pair_iterator( &mHead ); }
-  const_pair_iterator pair_end() const { return const_pair_iterator( 0 ); }
+  const_pair_iterator pair_begin() const { return const_pair_iterator( mHead.mNext ); }
+  const_pair_iterator pair_end() const { return const_pair_iterator( &mHead ); }
 };
 
 //! Use as you would an STL back_inserter

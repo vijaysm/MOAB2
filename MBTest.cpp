@@ -3601,6 +3601,25 @@ MBErrorCode mb_range_test(MBInterface *)
     result = MB_FAILURE;
     std::cout << "Range merge subset test failed." << std::endl;
   }
+  
+    // const_pair_iterator test
+  r1.clear();
+  r1.insert( h1 );
+  r1.insert( h4 );
+  r1.insert( h5 );
+  MBRange::const_pair_iterator pair_iter = r1.pair_begin();
+  MBEntityHandle cpi_h1 = (*pair_iter).first;
+  MBEntityHandle cpi_h2 = (*pair_iter).second;
+  ++pair_iter;
+  MBEntityHandle cpi_h3 = (*pair_iter).first;
+  MBEntityHandle cpi_h4 = (*pair_iter).second;
+  ++pair_iter;
+  if (cpi_h1 != h1 || cpi_h2 != h1 || 
+      cpi_h3 != h4 || cpi_h4 != h5 ||
+      pair_iter != r1.pair_end()) {
+    result = MB_FAILURE;
+    std::cout << "Range::const_pair_iterator test failed.\n" << std::endl;
+  }
 
   return result;
 }
