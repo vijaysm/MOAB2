@@ -6,11 +6,13 @@ const char *MBCN::entityTypeNames[] = {
 "Edge",
 "Tri",
 "Quad",
+"Polygon",
 "Tet",
 "Pyramid",
 "Prism",
 "Knife",
 "Hex",
+"Polyhedron",
 "EntitySet",
 "MaxType"
 };
@@ -21,8 +23,8 @@ const MBDimensionPair MBCN::TypeDimensionMap[] =
 {
   MBDimensionPair(MBVERTEX,   MBVERTEX), 
   MBDimensionPair(MBEDGE,     MBEDGE), 
-  MBDimensionPair(MBTRI,     MBQUAD),
-  MBDimensionPair(MBTET,     MBHEX),
+  MBDimensionPair(MBTRI,     MBPOLYGON),
+  MBDimensionPair(MBTET,     MBPOLYHEDRON),
   MBDimensionPair(MBENTITYSET, MBENTITYSET), 
   MBDimensionPair(MBMAXTYPE, MBMAXTYPE)
 };

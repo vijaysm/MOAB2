@@ -8,6 +8,7 @@
 #endif
 
 
+#include "PolyEntitySequence.hpp"
 #include "EntitySequence.hpp"
 #include "EntitySequenceManager.hpp"
 #include "MBRange.hpp"
@@ -215,19 +216,23 @@ MBErrorCode EntitySequenceManager::create_element(MBEntityType type,
                                                    const int num_vertices,
                                                    MBEntityHandle& handle)
 {
-  // see if there is an existing sequence that can take this new vertex
+  // see if there is an existing sequence that can take this new element
   std::map<MBEntityHandle, MBEntitySequence*>::iterator iter;
   for(iter = mPartlyFullSequenceMap[type].begin();
       iter != mPartlyFullSequenceMap[type].end();
       ++iter)
   {
-    ElementEntitySequence* seq = static_cast<ElementEntitySequence*>(iter->second);
-    if(seq->nodes_per_element() == (unsigned int) num_vertices)
+    ElementEntitySequence* seq = dynamic_cast<ElementEntitySequence*>(iter->second);
+    if(seq->nodes_per_element() == (unsigned int) num_vertices ||
+       seq->nodes_per_element() == 0)
     {
-      handle = seq->get_unused_handle();
-      seq->set_connectivity(handle, conn, num_vertices);
-    
-      return MB_SUCCESS;
+      if (MBPOLYGON == type || MBPOLYHEDRON == type) {
+        return dynamic_cast<PolyEntitySequence*>(iter->second)->add_entity(conn, num_vertices, handle);
+      }
+      else {
+        handle = seq->get_unused_handle();
+        return seq->set_connectivity(handle, conn, num_vertices);
+      }
     }
 
   }
@@ -243,12 +248,16 @@ MBErrorCode EntitySequenceManager::create_element(MBEntityType type,
     handle = CREATE_HANDLE(type, MB_START_ID, err);
   }
 
-  ElementEntitySequence* seq = new ElementEntitySequence(this, handle, 4096, num_vertices, false);
-  handle = seq->get_unused_handle();
-  seq->set_connectivity(handle, conn, num_vertices);
-  
-  return MB_SUCCESS;
+  ElementEntitySequence* seq;
+  if (MBPOLYGON == type || MBPOLYHEDRON == type)
+    seq = new PolyEntitySequence(this, handle, 0, 0, false);
+  else
+    seq = new ElementEntitySequence(this, handle, 4096, num_vertices, false);
 
+  handle = seq->get_unused_handle();
+  MBErrorCode result = seq->set_connectivity(handle, conn, num_vertices);
+  
+  return result;
 }
 
 

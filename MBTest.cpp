@@ -2940,7 +2940,7 @@ MBErrorCode mb_canon_number_test(MBInterface *MB)
   MBEntityHandle this_entity;
   MBHandleVec sub_verts;
   
-  for (this_type = MBEDGE; this_type != MBKNIFE; this_type++) {
+  for (this_type = MBEDGE; this_type != MBENTITYSET; this_type++) {
     
       // make an entity of this type
     result = MB->create_element(this_type, vertex_handles, 
@@ -2951,6 +2951,11 @@ MBErrorCode mb_canon_number_test(MBInterface *MB)
                << MBCN::EntityTypeName(this_type) << endl;
       return MB_FAILURE;
     }
+
+      // skip remainder of the loop for POLYGONS and POLYHEDRA, which don't follow
+      // the standard canonical ordering 
+    if (this_type == MBPOLYGON || this_type == MBPOLYHEDRON)
+      continue;
     
       // now get the connectivity vector *
     const MBEntityHandle *entity_vertices;

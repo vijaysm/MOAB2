@@ -42,6 +42,16 @@ const MBCN::ConnMap MBCN::mConnectivityMap[MBMAXTYPE][3] =
    { 2, 0, {0}, {MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, 
                  MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, {{0}} }},
    
+    // polygon-edge
+  {{ 2, 0, {0}, {MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, 
+                MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, {{0}} },
+     // polygon-face
+   { 2, 1, {0}, {MBPOLYGON, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, 
+                 MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, {{0}} },
+     // polygon-region
+   { 2, 0, {0}, {MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, 
+                 MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, {{0}} }},
+   
     // tet-edge
   {{ 3, 6, {2,2,2,2,2,2}, {MBEDGE,MBEDGE,MBEDGE,MBEDGE,MBEDGE,MBEDGE, 
                            MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, {{0,1}, {1,2}, {2,0}, {0,3}, {1,3}, {2,3}} },
@@ -78,9 +88,9 @@ const MBCN::ConnMap MBCN::mConnectivityMap[MBMAXTYPE][3] =
      {{0,1,2,3,4,5}} }},
 
     // knife-edge
-  {{ 3, 8, {2,2,2,2,2,2,2,2,}, {MBEDGE,MBEDGE,MBEDGE,MBEDGE,MBEDGE,MBEDGE,
+  {{ 3, 8, {2,2,2,2,2,2,2,2}, {MBEDGE,MBEDGE,MBEDGE,MBEDGE,MBEDGE,MBEDGE,
                                 MBEDGE,MBEDGE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, 
-     { {0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0} } },
+     { {0,1},{1,2},{2,3},{3,0},{0,4},{1,5},{2,6},{3,5} } },
      // knife-face
    { 3, 5, {4,4,4,4,4}, {MBQUAD,MBQUAD,MBQUAD,MBQUAD,MBQUAD, MBMAXTYPE, 
                          MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, 
@@ -102,6 +112,19 @@ const MBCN::ConnMap MBCN::mConnectivityMap[MBMAXTYPE][3] =
    { 3, 1, {8}, {MBHEX, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, 
                  MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, 
      {{0,1,2,3,4,5,6,7}} }},
+
+    // polyhedron-edge
+  {{ 3, 0, {0}, {MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, 
+                 MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, 
+     {{0}}},
+     // polyhedron-face
+   { 3, 0, {0}, {MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE,
+                 MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, 
+     { {0}} },
+     // polyhedron-polyhedron
+   { 3, 1, {0}, {MBPOLYHEDRON, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, 
+                 MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, 
+     {{0}} }},
 
     // meshset-edge
   {{ 4, 0 , {0}, {MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, 
@@ -257,6 +280,68 @@ const MBCN::UpConnMap MBCN::mUpConnMap[MBMAXTYPE][4][4] =
     
     {{{0}, {{0}} }, {{0}, {{0}} }, {{0}, {{0}} }} // source dim 3
   }, // end type MBQUAD
+
+  { // type MBPOLYGON
+    { // source dim 0
+      { // target dim 0
+        {0},
+        {{0}} },
+      { // target dimension 1
+        {0},
+        {{0}} },
+      { // target dimension 2
+        {0},
+        {{0}} },
+      { // target dimension 3
+        {0},
+        {{0}} }
+    }, // end source dim 0
+
+    { // source dim 1
+      { // target dim 0
+        {0},
+        {{0}} },
+      { // target dimension 1
+        {0},
+        {{0}} },
+      { // target dimension 2
+        {0},
+        {{0}} },
+      { // target dimension 3
+        {0},
+        {{0}} }
+    }, // end source dim 1
+
+    { // source dim 2
+      { // target dim 0
+        {0},
+        {{0}} },
+      { // target dimension 1
+        {0},
+        {{0}} },
+      { // target dimension 2
+        {0},
+        {{0}} },
+      { // target dimension 3
+        {0},
+        {{0}} }
+    }, // end source dim 2
+
+    { // source dim 3
+      { // target dim 0
+        {0},
+        {{0}} },
+      { // target dimension 1
+        {0},
+        {{0}} },
+      { // target dimension 2
+        {0},
+        {{0}} },
+      { // target dimension 3
+        {0},
+        {{0}} }
+    } // end source dim 3
+  }, // end type MBPOLYGON
 
   { // type MBTET
     { // source dim 0
@@ -517,6 +602,68 @@ const MBCN::UpConnMap MBCN::mUpConnMap[MBMAXTYPE][4][4] =
         {{0}} } // end target dimension 3
     } // end source dim 3
   }, // end type MBHEX
+
+  { // type MBPOLYHEDRON
+    { // source dim 0
+      { // target dim 0
+        {0},
+        {{0}} },
+      { // target dimension 1
+        {0},
+        {{0}} },
+      { // target dimension 2
+        {0},
+        {{0}} },
+      { // target dimension 3
+        {0},
+        {{0}} }
+    }, // end source dim 0
+
+    { // source dim 1
+      { // target dim 0
+        {0},
+        {{0}} },
+      { // target dimension 1
+        {0},
+        {{0}} },
+      { // target dimension 2
+        {0},
+        {{0}} },
+      { // target dimension 3
+        {0},
+        {{0}} }
+    }, // end source dim 1
+
+    { // source dim 2
+      { // target dim 0
+        {0},
+        {{0}} },
+      { // target dimension 1
+        {0},
+        {{0}} },
+      { // target dimension 2
+        {0},
+        {{0}} },
+      { // target dimension 3
+        {0},
+        {{0}} }
+    }, // end source dim 2
+
+    { // source dim 3
+      { // target dim 0
+        {0},
+        {{0}} },
+      { // target dimension 1
+        {0},
+        {{0}} },
+      { // target dimension 2
+        {0},
+        {{0}} },
+      { // target dimension 3
+        {0},
+        {{0}} }
+    } // end source dim 3
+  }, // end type MBPOLYHEDRON
 
   { // type MBENTITYSET
     {{{0}, {{0}} }, {{0}, {{0}} }, {{0}, {{0}} }}, // source dim 0

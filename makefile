@@ -37,6 +37,7 @@ include MB.local
 MB_LIB_SRCS = \
 	AEntityFactory.cpp \
 	DenseTagCollections.cpp \
+	DualTool.cpp \
 	EntitySequence.cpp \
 	EntitySequenceManager.cpp \
 	ExoIIUtil.cpp \
@@ -53,6 +54,8 @@ MB_LIB_SRCS = \
 	MBSkinner.cpp \
 	MBUtil.cpp \
 	MBWriteUtil.cpp \
+	MeshTopoUtil.cpp \
+	PolyEntitySequence.cpp \
 	ReadNCDF.cpp \
 	ReadVtk.cpp \
 	ScdElementSeq.cpp \

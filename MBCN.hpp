@@ -9,10 +9,10 @@
 #include <algorithm>
 
 // the maximum number n-1 dimension adjacencies a element may have
-#define MB_MAX_SUB_ENTITIES  12
+#define MB_MAX_SUB_ENTITIES  24
 
 // the maximum number of nodes an n-1 dimensional element may have
-#define MB_MAX_SUB_ENTITY_VERTICES 8
+#define MB_MAX_SUB_ENTITY_VERTICES 16
 
 
 /*! The ordering here must ensure that all element types are 
@@ -25,11 +25,13 @@ enum MBEntityType
   MBEDGE,       //!< Mesh Edge
   MBTRI,        //!< Triangular element (including shells)
   MBQUAD,       //!< Quadrilateral element (including shells)
+  MBPOLYGON,    //!< Polygon
   MBTET,        //!< Tetrahedral element
   MBPYRAMID,    //!< Pyramid element (where are the face ids for this defined?)
   MBPRISM,      //!< Wedge element (Exodus has one, Cubit doesn't. Does Mesh need it?)
   MBKNIFE,      //!< Knife element
   MBHEX,        //!< Hexahedral element
+  MBPOLYHEDRON, //!< Polyhedron
   MBENTITYSET,    //!< MeshSet
   MBMAXTYPE  //!< Just a place keeper - must be the # of entities, for array
     //!< dimensioning purposes 

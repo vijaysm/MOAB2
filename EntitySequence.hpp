@@ -150,12 +150,12 @@ public:
   ElementEntitySequence(EntitySequenceManager* seq_manager, MBEntityHandle start_handle, int num_entities,
                         int nodes_per_element, bool all_handles_used,
                         bool allocate_connect = true);
-  ~ElementEntitySequence();
+  virtual ~ElementEntitySequence();
 
-  MBEntityHandle get_unused_handle();
-  void free_handle(MBEntityHandle handle);
+  virtual MBEntityHandle get_unused_handle();
+  virtual void free_handle(MBEntityHandle handle);
 
-  unsigned int nodes_per_element() const { return mNodesPerElement; }
+  virtual unsigned int nodes_per_element() const { return mNodesPerElement; }
 
   virtual MBErrorCode get_connectivity(MBEntityHandle entity, 
                                        std::vector<MBEntityHandle>& connectivity,
@@ -164,27 +164,27 @@ public:
                                         const MBEntityHandle*& connectivity,
                                         int &num_vertices) const;
 
-  MBErrorCode set_connectivity(MBEntityHandle entity, const MBEntityHandle *conn,
+  virtual MBErrorCode set_connectivity(MBEntityHandle entity, const MBEntityHandle *conn,
                                 const int num_vertices);
 
   virtual MBErrorCode get_connectivity_array(MBEntityHandle*& conn_array);
   
-  void get_entities(MBRange& entities) const;
+  virtual void get_entities(MBRange& entities) const;
   
   virtual MBErrorCode split(MBEntityHandle split_location, MBEntitySequence*& new_sequence);
 
   // reallocated the sequence to hold extra/less nodes, pass in what you want, and will return whether it needed
   // reallocate space for those nodes
-  MBErrorCode convert_realloc(bool& mid_edge_nodes, bool& mid_face_nodes, bool& mid_volume_nodes, 
+  virtual MBErrorCode convert_realloc(bool& mid_edge_nodes, bool& mid_face_nodes, bool& mid_volume_nodes, 
       MBCore* MB, MBTag bit_delete_mark );
   
-  bool has_mid_edge_nodes() const;
-  bool has_mid_face_nodes() const;
-  bool has_mid_volume_nodes() const;
+  virtual bool has_mid_edge_nodes() const;
+  virtual bool has_mid_face_nodes() const;
+  virtual bool has_mid_volume_nodes() const;
 
   virtual bool is_valid_entity(MBEntityHandle entity) const;
 
-private:
+protected:
   
   unsigned short mNodesPerElement;
 

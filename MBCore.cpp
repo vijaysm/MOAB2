@@ -1324,9 +1324,9 @@ MBTag MBCore::distFactor_tag()
 
 //! creates an element based on the type and connectivity.  returns a handle and error code
 MBErrorCode MBCore::create_element(const MBEntityType type, 
-                                     const MBEntityHandle *connectivity,
-                                     const int num_nodes, 
-                                     MBEntityHandle &handle)
+                                   const MBEntityHandle *connectivity,
+                                   const int num_nodes, 
+                                   MBEntityHandle &handle)
 {
 
     // make sure we have enough vertices for this entity type
