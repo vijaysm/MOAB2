@@ -177,11 +177,11 @@ public:
 
     // forward declare the iterators
   class pair_iterator;
-  class iterator;
   class const_iterator;
   class const_reverse_iterator;
-  class reverse_iterator;
-
+  typedef const_iterator iterator;
+  typedef const_reverse_iterator reverse_iterator;
+ 
     //! intersect two ranges, placing the results in the return range
   MBRange intersect(const MBRange &range2) const;
 
@@ -204,27 +204,15 @@ public:
   //! destructor
   ~MBRange();
 
-  //! return the beginning iterator of this range
-  iterator begin();
-
   //! return the beginning const iterator of this range
   const_iterator begin() const;
   
-  //! return the beginning reverse iterator of this range
-  reverse_iterator rbegin();
-
   //! return the beginning const reverse iterator of this range
   const_reverse_iterator rbegin() const;
  
-  //! return the ending iterator for this range
-  iterator end();
-
   //! return the ending const iterator for this range
   const_iterator end() const;
   
-  //! return the ending reverse iterator for this range
-  reverse_iterator rend();
-
   //! return the ending const reverse iterator for this range
   const_reverse_iterator rend() const;
 
@@ -252,16 +240,8 @@ public:
   void erase(MBEntityHandle val);
   
   //! find an item int the list and return an iterator at that value
-  iterator find(MBEntityHandle val);
-
-  //! find an item int the list and return an iterator at that value
   const_iterator find(MBEntityHandle val) const;
 
-  //! return an iterator to the first value >= val
-  static iterator lower_bound(iterator first,
-                              iterator last,
-                              MBEntityHandle val);
-  
   //! return an iterator to the first value >= val
   static const_iterator lower_bound(const_iterator first,
                                     const_iterator last,
@@ -362,16 +342,15 @@ public:
   //! a const iterator which iterates over an MBRange
   class const_iterator : public range_base_iter
   {
-    // MBRange<T> is a friend
     friend class MBRange;
     friend class pair_iterator;
   public:
     //! default constructor - intialize base default constructor
     const_iterator() : mNode(NULL), mValue(0) {}
 
-    //! copy constructor
-    const_iterator( const const_iterator& copy )
-      : mNode( copy.mNode ), mValue( copy.mValue ) {}
+    //! constructor used by MBRange
+    const_iterator( const PairNode* iter, const MBEntityHandle val) 
+      : mNode(const_cast<PairNode*>(iter)), mValue(val)  {} 
 
     //! dereference that value this iterator points to
     //! returns a const reference
@@ -428,6 +407,16 @@ public:
       // return the copy
       return tmp;
     }
+    
+    //! Advance iterator specified amount.
+    //! Potentially O(n), but typically better.  Always
+    //! more efficient than calling operator++ step times.
+    const_iterator& operator+=( long step );
+    
+    //! Regress iterator specified amount.
+    //! Potentially O(n), but typically better.  Always
+    //! more efficient than calling operator-- step times.
+    const_iterator& operator-=( long step );
 
     //! equals operator
     bool operator==( const const_iterator& other ) const
@@ -441,15 +430,10 @@ public:
     bool operator!=( const const_iterator& other ) const
     {
       // call == operator and not it.
-      return ! operator==(other);
+      return (mNode != other.mNode) || (mValue != other.mValue);
     }
 
   protected:
-
-    //! protected const_iterator constructor
-    //! which can be called by this, or friends
-    const_iterator( const PairNode* iter, const MBEntityHandle val) 
-      : mNode(const_cast<PairNode*>(iter)), mValue(val)  {} 
 
     //! the node we are pointing at
     PairNode* mNode;
@@ -457,311 +441,91 @@ public:
     MBEntityHandle mValue;
   };
 
-  
-  //! iterator class which iterates the MBRange
-  class iterator : public const_iterator
-  {
-    // MBRange can access private members.
-    friend class MBRange;
-  public:
-    //! default constructor
-    iterator() : const_iterator() {}
-    
-    //! copy constructor
-    iterator( const iterator& copy ) 
-      : const_iterator(copy) {}
-
-    //! dereference operator returns the value represented
-    MBEntityHandle& operator*() { return mValue; }
-
-    //! prefix increment operator
-    iterator& operator++()
-    {
-      // see if we need to increment the base iterator
-      if(mValue == mNode->second)
-      {
-        mNode = mNode->mNext;
-        mValue = mNode->first;
-      }
-      // if not, just increment the value
-      else
-        ++mValue;
-      return *this;
-
-    }
-
-    //! postfix incrementer
-    iterator operator++(int)
-    {
-      // make a copy of this
-      iterator tmp = *this;
-      // increment this
-      this->operator ++();
-      // return the copy
-      return tmp;
-
-      // this returns a copy instead of this 
-      // to be consistent with what other STL iterators do.
-      // ie. for a vector, this enables you to do
-      // my_vector.erase(iter++);
-      // and iter is still valid after the erase
-    }
-
-    //! prefix decrementer
-    iterator& operator--()
-    {
-      // see if we need to decrement the base iterator
-      if(mValue == mNode->first)
-      {
-        mNode = mNode->mPrev;
-        mValue = mNode->second;
-      }
-      // if not, just decrement the value
-      else
-        --mValue;
-      return *this;
-    }
-
-    //! postfix decrementer
-    iterator operator--(int)
-    {
-      // make a copy of this
-      iterator tmp = *this;
-      // decrement this
-      this->operator --();
-      // return the copy
-      return tmp;
-    }
-    
-    //! equals operator
-    bool operator==( const iterator& other ) const
-    {
-      // see if the base iterators are equal
-      // and the values
-      return (mNode == other.mNode) && (mValue == other.mValue);
-    }
-
-    //! not equals operator
-    bool operator!=( const iterator& other ) const
-    {
-      // not what is returned from operator ==
-      return ! operator==(other);
-    }
-
-  protected:
-    
-    //! protected constructor that takes initialization
-    //! for use only by this and friends
-    iterator( const PairNode* iter, const MBEntityHandle val )
-      : const_iterator(iter, val) {}
-  };
-  
   //! a const reverse iterator which iterates over an MBRange
   class const_reverse_iterator : public range_base_iter
   {
-    // MBRange<T> is a friend
     friend class MBRange;
     friend class pair_iterator;
   public:
     //! default constructor - intialize base default constructor
-    const_reverse_iterator() : mNode(NULL), mValue(0) {}
+    const_reverse_iterator() {}
+    
+    const_reverse_iterator( const_iterator fwd_iter ) : myIter(fwd_iter) {}
 
-    //! copy constructor
-    const_reverse_iterator( const const_reverse_iterator& copy )
-      : mNode( copy.mNode ), mValue( copy.mValue ) {}
+    //! constructor used by MBRange
+    const_reverse_iterator( const PairNode* iter, const MBEntityHandle val) 
+      : myIter(iter, val)  {} 
 
     //! dereference that value this iterator points to
     //! returns a const reference
-    const MBEntityHandle& operator*() const { return  mValue; }
+    const MBEntityHandle& operator*() const { return  *myIter; }
 
     //! prefix incrementer
     const_reverse_iterator& operator++()
     {
-      // see if we need to decrement the base iterator
-      if(mValue == mNode->first)
-      {
-        mNode = mNode->mPrev;
-        mValue = mNode->second;
-      }
-      // if not, just decrement the value in the range
-      else
-        --mValue;
+      --myIter;
       return *this;
     }
 
     //! postfix incrementer
     const_reverse_iterator operator++(int)
     {
-      // make a temporary copy
-      const_reverse_iterator tmp(*this);
-      // increment self
-      this->operator ++();
-      // return the copy
-      return tmp;
+      return const_reverse_iterator( myIter-- );
     }
 
     //! prefix decrementer
     const_reverse_iterator& operator--()
     {
-      // see if we need to increment the base iterator
-      if(mValue == mNode->second)
-      {
-        mNode = mNode->mNext;
-        mValue = mNode->first;
-      }
-      // if not, just decrement the value
-      else
-        ++mValue;
+      ++myIter;
       return *this;
     }
 
     //! postfix decrementer
     const_reverse_iterator operator--(int)
     {
-      // make a copy of this
-      const_reverse_iterator tmp(*this);
-      // decrement self
-      this->operator --();
-      // return the copy
-      return tmp;
+      return const_reverse_iterator( myIter++ );
+    }
+    
+    //! Advance iterator specified amount.
+    //! Potentially O(n), but typically better.  Always
+    //! more efficient than calling operator++ step times.
+    const_reverse_iterator& operator+=( long step )
+    {
+      myIter -= step;
+      return *this;
+    }
+
+    //! Regress iterator specified amount.
+    //! Potentially O(n), but typically better.  Always
+    //! more efficient than calling operator-- step times.
+    const_reverse_iterator& operator-=( long step )
+    {
+      myIter += step;
+      return *this;
     }
 
     //! equals operator
     bool operator==( const const_reverse_iterator& other ) const
     {
-      // see if the base iterator is the same and the
-      // value of this iterator is the same
-      return (mNode == other.mNode) && (mValue == other.mValue);
+      return myIter == other.myIter;
     }
 
     //! not equals operator
     bool operator!=( const const_reverse_iterator& other ) const
     {
-      // call == operator and not it.
-      return ! operator==(other);
+      return myIter != other.myIter;
     }
 
   protected:
-
-    //! protected const_reverse_iterator constructor
-    //! which can be called by this, or friends
-    const_reverse_iterator( const PairNode* iter, const MBEntityHandle val) 
-      : mNode(const_cast<PairNode*>(iter)), mValue(val)  {} 
 
     //! the node we are pointing at
-    PairNode* mNode;
-    //! the value in the range
-    MBEntityHandle mValue;
-  };
-
-  
-  //! the reverse_iterator class which iterates the MBRange
-  class reverse_iterator : public const_reverse_iterator
-  {
-    // MBRange can access private members.
-    friend class MBRange;
-  public:
-    //! default constructor
-    reverse_iterator() : const_reverse_iterator() {}
-    
-    //! copy constructor
-    reverse_iterator( const reverse_iterator& copy ) 
-      : const_reverse_iterator(copy) {}
-
-    //! dereference operator returns the value represented
-    MBEntityHandle& operator*() { return mValue; }
-
-    //! prefix increment operator
-    reverse_iterator& operator++()
-    {
-      // see if we need to decrement the base reverse_iterator
-      if(mValue == mNode->first)
-      {
-        mNode = mNode->mPrev;
-        mValue = mNode->second;
-      }
-      // if not, just decrement the value
-      else
-        --mValue;
-      return *this;
-
-    }
-
-    //! postfix incrementer
-    reverse_iterator operator++(int)
-    {
-      // make a copy of this
-      reverse_iterator tmp = *this;
-      // increment this
-      this->operator ++();
-      // return the copy
-      return tmp;
-
-      // this returns a copy instead of this 
-      // to be consistent with what other STL iterators do.
-      // ie. for a vector, this enables you to do
-      // my_vector.erase(iter++);
-      // and iter is still valid after the erase
-    }
-
-    //! prefix decrementer
-    reverse_iterator& operator--()
-    {
-      // see if we need to increment the base iterator
-      if(mValue == mNode->second)
-      {
-        mNode = mNode->mNext;
-        mValue = mNode->first;
-      }
-      // if not, just increment the value
-      else
-        ++mValue;
-      return *this;
-    }
-
-    //! postfix decrementer
-    reverse_iterator operator--(int)
-    {
-      // make a copy of this
-      reverse_iterator tmp = *this;
-      // decrement this
-      this->operator --();
-      // return the copy
-      return tmp;
-    }
-    
-    //! equals operator
-    bool operator==( const reverse_iterator& other ) const
-    {
-      // see if the base iterators are equal
-      // and the values
-      return (mNode == other.mNode) && (mValue == other.mValue);
-    }
-
-    //! not equals operator
-    bool operator!=( const reverse_iterator& other ) const
-    {
-      // not what is returned from operator ==
-      return ! operator==(other);
-    }
-
-  protected:
-    
-    //! protected constructor that takes initialization
-    //! for use only by this and friends
-    reverse_iterator( const PairNode* iter, const MBEntityHandle val )
-      : const_reverse_iterator(iter, val) {}
+    const_iterator myIter;
   };
 
 public:
   friend class pair_iterator;
-  friend class iterator;
   friend class const_iterator;
   friend class const_reverse_iterator;
-  friend class reverse_iterator;
-
-
-
 };
 
 //! Use as you would an STL back_inserter
@@ -796,7 +560,7 @@ inline MBRange::MBRange()
 {
     // set the head node to point to itself
   mHead.mNext = mHead.mPrev = &mHead;
-  mHead.first = mHead.second = ~0;
+  mHead.first = mHead.second = 0;
 }
 
   //! copy constructor
@@ -804,7 +568,7 @@ inline MBRange::MBRange(const MBRange& copy)
 {
     // set the head node to point to itself
   mHead.mNext = mHead.mPrev = &mHead;
-  mHead.first = mHead.second = ~0;
+  mHead.first = mHead.second = 0;
 
   const PairNode* copy_node = copy.mHead.mNext;
   PairNode* new_node = &mHead;
@@ -858,13 +622,7 @@ inline MBRange::~MBRange()
 inline MBRange::MBRange( MBEntityHandle val1, MBEntityHandle val2 )
 {
   mHead.mNext = mHead.mPrev = new PairNode(&mHead, &mHead, val1, val2);
-  mHead.first = mHead.second = ~0;
-}
-
-  //! return the beginning iterator of this range
-inline MBRange::iterator MBRange::begin()
-{
-  return iterator(mHead.mNext, mHead.mNext->first);
+  mHead.first = mHead.second = 0;
 }
 
   //! return the beginning const iterator of this range
@@ -873,36 +631,18 @@ inline MBRange::const_iterator MBRange::begin() const
   return const_iterator(mHead.mNext, mHead.mNext->first);
 }
   
-  //! return the beginning reverse iterator of this range
-inline MBRange::reverse_iterator MBRange::rbegin()
-{
-  return reverse_iterator(mHead.mPrev, mHead.mPrev->second);
-}
-
   //! return the beginning const reverse iterator of this range
 inline MBRange::const_reverse_iterator MBRange::rbegin() const
 {
   return const_reverse_iterator(mHead.mPrev, mHead.mPrev->second);
 }
  
-  //! return the ending iterator for this range
-inline MBRange::iterator MBRange::end()
-{
-  return iterator(&mHead, mHead.first);
-}
-
   //! return the ending const iterator for this range
 inline MBRange::const_iterator MBRange::end() const
 {
   return const_iterator(&mHead, mHead.first);
 }
   
-  //! return the ending reverse iterator for this range
-inline MBRange::reverse_iterator MBRange::rend()
-{
-  return reverse_iterator(&mHead, mHead.second);
-}
-
   //! return the ending const reverse iterator for this range
 inline MBRange::const_reverse_iterator MBRange::rend() const
 {

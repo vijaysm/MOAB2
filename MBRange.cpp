@@ -33,6 +33,94 @@ unsigned int MBRange::size() const
 }
 
 /*!
+  advance iterator
+*/
+MBRange::const_iterator& MBRange::const_iterator::operator+=( long sstep )
+{
+    // Check negative now to avoid infinite loop below.
+  if (sstep < 0)
+  {
+    return operator-=( -sstep );
+  }
+  unsigned long step = sstep;
+  
+    // Handle current PairNode.  Either step is within the current
+    // node or need to remove the remainder of the current node
+    // from step.
+  MBEntityHandle this_node_rem = mNode->second - mValue;
+  if (this_node_rem >= step)
+  {
+    mValue += step;
+    return *this;
+  }
+  step -= this_node_rem + 1;
+
+    // For each node we are stepping past, decrement step
+    // by the size of the node.
+  PairNode* node = mNode->mNext;
+  MBEntityHandle node_size = node->second - node->first + 1;
+  while (step > node_size)
+  {
+    step -= node_size;
+    node = node->mNext;
+    node_size = node->second - node->first + 1;
+  }
+  
+    // Advance into the resulting node by whatever is
+    // left in step.
+  mNode = node;
+  mValue = mNode->first + step;
+  return *this;
+}
+  
+    
+ 
+/*!
+  regress iterator
+*/
+MBRange::const_iterator& MBRange::const_iterator::operator-=( long sstep )
+{
+    // Check negative now to avoid infinite loop below.
+  if (sstep < 0)
+  {
+    return operator+=( -sstep );
+  }
+  unsigned long step = sstep;
+  
+    // Handle current PairNode.  Either step is within the current
+    // node or need to remove the remainder of the current node
+    // from step.
+  MBEntityHandle this_node_rem = mValue - mNode->first;
+  if (this_node_rem >= step)
+  {
+    mValue -= step;
+    return *this;
+  }
+  step -= this_node_rem + 1;
+
+    // For each node we are stepping past, decrement step
+    // by the size of the node.
+  PairNode* node = mNode->mPrev;
+  MBEntityHandle node_size = node->second - node->first + 1;
+  while (step > node_size)
+  {
+    step -= node_size;
+    node = node->mPrev;
+    node_size = node->second - node->first + 1;
+  }
+  
+    // Advance into the resulting node by whatever is
+    // left in step.
+  mNode = node;
+  mValue = mNode->second - step;
+  return *this;
+}
+  
+ 
+  
+
+
+/*!
   inserts a single value into this range
 */
 
@@ -221,19 +309,6 @@ MBRange::iterator MBRange::erase(iterator iter)
   this method is preferred over other algorithms because
   it can be found faster this way.
 */
-MBRange::iterator MBRange::find(MBEntityHandle val)
-{
-  // iterator through the list
-  PairNode* iter = mHead.mNext;
-  for( ; iter != &mHead && (val > iter->second); iter=iter->mNext );
-  return ((iter->second >= val) && (iter->first <= val)) ? iterator(iter,val) : end();
-}
-
-/*!
-  finds a value in the list.
-  this method is preferred over other algorithms because
-  it can be found faster this way.
-*/
 MBRange::const_iterator MBRange::find(MBEntityHandle val) const
 {
   // iterator through the list
@@ -362,24 +437,3 @@ MBRange::const_iterator MBRange::lower_bound(MBRange::const_iterator first,
   
   return last;
 }
-
-MBRange::iterator MBRange::lower_bound(MBRange::iterator first,
-                                       MBRange::iterator last,
-                                       MBEntityHandle val)
-{
-    // Find the first pair whose end is >= val
-  for (PairNode* iter = first.mNode; iter != last.mNode; iter = iter->mNext)
-  {
-    if (iter->second >= val)
-    {
-        // This is the correct pair.  Either 'val' is in the range, or
-        // the range starts before 'val' and iter->first IS the lower_bound.
-      if (iter->first > val)
-        return iterator(iter, iter->first);
-      return iterator(iter, val);
-    }
-  }
-  
-  return last;
-}
-
