@@ -16,8 +16,11 @@
  #include <algorithm>
  #include <time.h>
  #include <assert.h>
+ #include <math.h>
  #include "MBInterface.hpp"
  #include "MBRange.hpp"
+ #include "MBSkinner.hpp"
+ #include "WriteNCDF.hpp"
 
  #ifndef IS_BUILDING_MB
  #define IS_BUILDING_MB
@@ -1449,11 +1452,6 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
     // set dimension tag on this to ensure shells get output; reuse id variable
   result = MB->tag_get_handle( GEOM_DIMENSION_TAG_NAME, tag_handle) ;
-  if (result == MB_TAG_NOT_FOUND) {
-    int dum_dim = -1;
-    result = MB->tag_create(GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_SPARSE, tag_handle,
-                            &dum_dim);
-  }
   if(result != MB_SUCCESS )
       return result;
   id = 3;
@@ -1703,7 +1701,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
     //tag it so it's a sideset
   id = 444;
-  result = MB->tag_get_handle( NEUMANN_SET_TAG_NAME, tag_handle ) ;
+  result = MB->tag_get_handle( "NEUMANN_SET", tag_handle ) ;
   if(result != MB_SUCCESS)
     return result;
 
@@ -2737,6 +2735,315 @@ MBErrorCode mb_forced_adjacencies_test(MBInterface *MB)
   return MB_SUCCESS;
 }
 
+/*bool lessnodesZ(const MBEntityHandle entity_handle1, const MBEntityHandle entity_handle2) 
+{
+  double coords1[3], coords2[3];
+  gMB->get_coords(entity_handle1, coords1);
+  gMB->get_coords(entity_handle2, coords2);
+
+  return coords2[2] < coords1[2];
+}*/
+
+/*void sort_verts(MBRange vertices) 
+{
+  std::vector<MBEntityHandle> vert_vec(vertices.size());
+  MBRange::const_iterator iter;
+  for (iter = vertices.begin(); iter != vertices.end(); iter++) 
+    vert_vec.push_back(*iter);
+  vert_vec.sort(lessnodesZ);
+}*/
+bool points_are_coincident(const double *first, const double *second)
+{
+  double diff[3];
+  diff[2] = first[2] - second[2];
+  //  if (diff[2] > 0.001) return false;
+
+  diff[0] = first[0] - second[0];
+  diff[1] = first[1] - second[1];
+
+  double length = diff[0]*diff[0] + diff[1]*diff[1] + diff[2]*diff[2];
+  if(fabs(length) < .001)
+    return true;
+
+  return false;
+}
+MBErrorCode find_coincident_nodes(MBRange vertices,
+  std::vector< std::pair<MBEntityHandle,MBEntityHandle> > &coin_nodes)
+{
+  double first_coords[3], second_coords[3];
+  MBRange::const_iterator iter, jter;
+  std::pair<MBEntityHandle, MBEntityHandle> coincident_pair;
+  MBErrorCode result;
+
+  for (iter = vertices.begin(); iter != vertices.end(); iter++)
+  {
+    result = gMB->get_coords(&(*iter),1, first_coords);
+    if (result != MB_SUCCESS)
+      return result;
+
+    for (jter = iter; jter != vertices.end(); jter++)
+    {
+      if (*iter != *jter)
+      {
+        result = gMB->get_coords(&(*jter), 1, second_coords);
+        if (result != MB_SUCCESS)
+          return result;
+
+        if(points_are_coincident(first_coords, second_coords))
+        {
+          coincident_pair.first  = *iter;
+          coincident_pair.second = *jter;
+          coin_nodes.push_back(coincident_pair);
+        }
+      }
+    }
+  }
+  return MB_SUCCESS;
+}
+
+MBErrorCode find_coincident_elements(MBRange entities, int num_nodes,
+  std::vector< std::pair<MBEntityHandle,MBEntityHandle> > &coin)
+{
+  double coords1[8][3], coords2[8][3];
+  MBRange::iterator iter, jter;
+  std::vector<MBEntityHandle> conn(8);
+  std::pair<MBEntityHandle, MBEntityHandle> coincident_pair;
+  int i = 0,/* j = 0,*/ ii = 0;
+
+  for(iter = entities.begin(); iter != entities.end(); iter++)
+  {
+    // Get the coordinates for the element corners.
+    if(gMB->get_connectivity(&(*iter), 1, conn) != MB_SUCCESS)
+      return MB_FAILURE;
+    for(ii=0; ii<num_nodes; ii++)
+    {
+      if(gMB->get_coords(&(conn[ii]), 1, coords1[ii]) != MB_SUCCESS)
+        return MB_FAILURE;
+    }
+
+    for(jter = iter; jter != entities.end(); jter++)
+    {
+      if(*iter != *jter)
+      {
+        // Elements should be the same sense to merge.
+        if(gMB->get_connectivity(&(*jter), 1, conn) != MB_SUCCESS)
+          return MB_FAILURE;
+
+	for (int tq = 0; tq < num_nodes; tq++)
+	  if(gMB->get_coords(&(conn[tq]), 1,  coords2[tq]) != MB_SUCCESS)
+	    return MB_FAILURE;
+	  //        if(gMB->get_coords(&(conn[0]), 1,  coords2[0]) != MB_SUCCESS)
+	  //          return MB_FAILURE;
+
+        // Find if first node is coincident before testing the rest.
+	bool first = false;
+        for(i=0; i<num_nodes; i++)
+        {
+          if(points_are_coincident(coords1[i], coords2[0])) {
+	    /*	    cout <<"first("<<i<<",0) - ";
+	    cout <<" coords1["<<i<<"] = ("
+		 <<coords1[i][0]<<","
+		 <<coords1[i][1]<<","
+		 <<coords1[i][2]<<") ";
+	    cout <<" coords2["<<0<<"] = ("
+		 <<coords2[0][0]<<","
+		 <<coords2[0][1]<<","
+		 <<coords2[0][2]<<")\n";*/
+	    first = true;
+            break;
+	  }
+        }
+        // TEST -- Find if second node is coincident before testing the rest.
+	bool second = false;
+        for(int t2=0; t2<num_nodes; t2++)
+        {
+          if(points_are_coincident(coords1[t2], coords2[1])) {
+	    /*	    cout <<"second("<<t2<<",1) - ";
+	    cout <<" coords1["<<t2<<"] = ("
+		 <<coords1[t2][0]<<","
+		 <<coords1[t2][1]<<","
+		 <<coords1[t2][2]<<") ";
+	    cout <<" coords2["<<1<<"] = ("
+		 <<coords2[1][0]<<","
+		 <<coords2[1][1]<<","
+		 <<coords2[1][2]<<")\n";*/
+	    second = true;
+            break;
+	  }
+        }
+        // TEST -- Find if second node is coincident before testing the rest.
+	bool third = false;
+        for(int ti=0; ti<num_nodes; ti++)
+        {
+          if(points_are_coincident(coords1[ti], coords2[2])) {
+	    /*	    cout <<"third("<<ti<<",2) - ";
+	    cout <<" coords1["<<ti<<"] = ("
+		 <<coords1[ti][0]<<","
+		 <<coords1[ti][1]<<","
+		 <<coords1[ti][2]<<") ";
+	    cout <<" coords2["<<1<<"] = ("
+		 <<coords2[2][0]<<","
+		 <<coords2[2][1]<<","
+		 <<coords2[2][2]<<")\n";*/
+	    third = true;
+            break;
+	  }
+	  }
+	if ((first)&&(second)&&(third)) {
+	  cout <<"i = "<<i<<"\n";
+	    for (int tii = 0; tii < num_nodes; tii++) {
+	      cout <<" coords1["<<tii<<"] = ("
+		   <<coords1[tii][0]<<","
+		   <<coords1[tii][1]<<","
+		   <<coords1[tii][2]<<") ";
+	      cout <<" coords2["<<tii<<"] = ("
+		   <<coords2[tii][0]<<","
+		   <<coords2[tii][1]<<","
+		   <<coords2[tii][2]<<")\n";
+	    }
+	}
+
+        if(i < num_nodes)
+        {
+          for(ii=1; ii<num_nodes; ii++)
+          {
+            if(gMB->get_coords(&(conn[ii]), 1,  coords2[ii]) != MB_SUCCESS)
+              return MB_FAILURE;
+          }
+	  /*
+          for(j=1; j<num_nodes; j++)
+          {
+	    
+            if(!points_are_coincident(coords1[j], coords2[(j+i)%num_nodes]))
+              break;
+          }
+          if(j == num_nodes)*/
+	  if ((first)&&(second)&&(third))
+          {
+            coincident_pair.first  = *iter;
+            coincident_pair.second = *jter;
+            coin.push_back(coincident_pair);
+          }
+        }
+      }
+    }
+  }
+
+  return MB_SUCCESS;
+}
+
+
+MBErrorCode mb_merge_test(MBInterface *MB)
+{ 
+  time_t begin_time = clock();
+  unsigned int i;
+  MBErrorCode result;
+  MBSkinner MBSkinner_Obj(MB);
+
+  std::string test_files[] = {std::string("test/cell1.gen"),
+			      std::string("test/cell2.gen")};
+  /*  			      std::string("cell3.gen"),
+    			      std::string("cell4.gen"),
+			      std::string("cell5.gen"),
+			      std::string("cell6.gen"),
+			      std::string("cell7.gen"),
+			      std::string("cell8.gen"),
+			      std::string("cell9.gen"),
+			      std::string("cell10.gen"),
+			      std::string("cell11.gen"),
+			      std::string("cell12.gen"),
+			      std::string("cell13.gen"),
+			      std::string("cell14.gen"),
+			      std::string("cell15.gen"),
+			      std::string("cell16.gen"),
+			      std::string("cell17.gen"),
+			      std::string("cell18.gen"),
+			      std::string("cell19.gen"),
+			      std::string("cell20.gen"),
+			      std::string("cell21.gen"),
+			      std::string("cell22.gen"),
+			      std::string("cell23.gen"),
+			      std::string("cell24.gen")};*/
+
+  /*std::vector<MBRange> entities(sizeof(test_files));
+  std::vector<MBRange> forward_lower(sizeof(test_files));
+  std::vector<MBRange> reverse_lower(sizeof(test_files));
+  std::vector<MBRange> nodes(sizeof(test_files));*/
+  MBRange entities;
+  MBRange forward_lower;
+  MBRange reverse_lower;
+  MBRange faces;
+  MBRange nodes;
+
+  cout << "---Starting Merge Tests---" << endl << endl;
+  for(i=0; i<(sizeof(test_files)/sizeof(std::string)); i++)
+  {
+
+    cout << "---Testing:\"" << test_files[i] << "\"---" << endl;
+    result = MB->load_mesh(test_files[i].c_str(), NULL, 0);
+    if (result == MB_SUCCESS) 
+      cout <<"Loaded "<<test_files[i]<<"\n";
+    //get Hexes from model
+  }
+  result = MB->get_entities_by_type(0, MBHEX, entities);
+  MBSkinner_Obj.find_skin(entities,forward_lower,reverse_lower);
+  cout <<"num hexes = "<<entities.size()<<"\n";
+  cout <<"fl = "<<forward_lower.size()<<" rl = "<<reverse_lower.size()<<"\n";
+  
+  //  MBRange::const_iterator iter;
+  int dim = 0;
+  //  int num_ents = 1;
+  result = MB->get_adjacencies(forward_lower, dim, true, nodes, MBInterface::UNION);
+  cout <<"nodes.size() = "<<nodes.size() <<"\n";
+    
+  if(result == MB_SUCCESS)
+    cout << "---Success---";
+  else
+    cout << "---Failure---";
+  cout << endl << endl;
+
+  //  result = MB->get_entities_by_type(0, MBQUAD, faces);
+  //  cout <<"num faces = "<<faces.size() <<"\n";
+
+  std::vector<std::pair<MBEntityHandle, MBEntityHandle> > coin_nodes;
+  //  cout <<"Begining sort...\n";
+  //  std::sort(nodes.begin(),nodes.end(),lessnodesZ);
+  //  cout <<"Ending sort...\n";
+  result = find_coincident_nodes(nodes, coin_nodes);
+  cout <<"coin_nodes.size() = "<<coin_nodes.size() <<"\n";
+  std::vector< std::pair<MBEntityHandle, MBEntityHandle> >::iterator n_iter;
+  for (n_iter=coin_nodes.begin(); n_iter != coin_nodes.end(); n_iter++)
+    MB->merge_entities((*n_iter).first, (*n_iter).second, false, true);
+  
+  /*  std::vector<std::pair<MBEntityHandle, MBEntityHandle> > coin_faces;
+  int nodes_per_elt = 4;
+  result = find_coincident_elements(forward_lower, nodes_per_elt, coin_faces);
+  if (result != MB_SUCCESS) cout <<"find_coincident_elements fail!\n";
+  cout <<"coin_faces.size() = "<<coin_faces.size() <<"\n";
+  std::vector< std::pair<MBEntityHandle, MBEntityHandle> >::iterator f_iter;
+  for (f_iter=coin_faces.begin(); f_iter != coin_faces.end(); f_iter++)
+  MB->merge_entities((*f_iter).first, (*f_iter).second, true, true);*/
+  /*
+  std::vector<std::pair<MBEntityHandle, MBEntityHandle> > coin_fl;
+  nodes_per_elt = 4;
+  result = find_coincident_elements(entities, nodes_per_elt, coin_fl);
+  cout <<"coin_fl.size() = "<<coin_fl.size() <<"\n";
+  */
+  int num_ents;
+  if ((MB_SUCCESS == MB->get_number_entities_by_dimension(0, 3, num_ents) &&
+       0 != num_ents) ||
+      (MB_SUCCESS == MB->get_number_entities_by_dimension(0, 2, num_ents) &&
+       0 != num_ents))
+//    result = MB->write_mesh("test/merge_test.ncdf");
+    ;
+  
+
+  double clocks_per_sec = (double) CLOCKS_PER_SEC;
+  double real_time =  difftime(time(NULL), begin_time);
+  cout <<"TIME: "<<(real_time/clocks_per_sec)<<" seconds.\n";
+  return result;
+}
+
 
 MBErrorCode mb_stress_test(MBInterface *MB)
 {
@@ -2876,6 +3183,8 @@ MBErrorCode mb_stress_test(MBInterface *MB)
 
   cout << "        Total time: " << time << " seconds." << endl;
 
+  MB->delete_mesh();
+  
   return MB_SUCCESS;
 }
 
@@ -2945,7 +3254,7 @@ MBErrorCode mb_canon_number_test(MBInterface *MB)
   MBEntityHandle this_entity;
   MBHandleVec sub_verts;
   
-  for (this_type = MBEDGE; this_type != MBENTITYSET; this_type++) {
+  for (this_type = MBEDGE; this_type != MBKNIFE; this_type++) {
     
       // make an entity of this type
     result = MB->create_element(this_type, vertex_handles, 
@@ -2956,12 +3265,12 @@ MBErrorCode mb_canon_number_test(MBInterface *MB)
                << MBCN::EntityTypeName(this_type) << endl;
       return MB_FAILURE;
     }
-
+    
       // skip remainder of the loop for POLYGONS and POLYHEDRA, which don't follow
       // the standard canonical ordering 
     if (this_type == MBPOLYGON || this_type == MBPOLYHEDRON)
       continue;
-    
+
       // now get the connectivity vector *
     const MBEntityHandle *entity_vertices;
     int num_verts;
@@ -3613,6 +3922,7 @@ int main(int argc, char* argv[])
   cout << "\n";
  
   // MB Stress test.  Read in a large file time and manipulate it then write it out
+  stress_test = true;
   if (stress_test)
   {
     result = mb_stress_test(gMB);
@@ -3623,6 +3933,15 @@ int main(int argc, char* argv[])
     number_tests++;
     cout << "\n";
   }
+
+  // Testing NCDF stuff
+  result = mb_merge_test(gMB);
+  cout << "   mb_merge_test: ";
+  handle_error_code(result, number_tests_failed,
+		    number_tests_not_implemented,
+		    number_tests_successful);
+  number_tests++;
+  cout << "\n";
 
   // summary
 

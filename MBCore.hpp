@@ -492,6 +492,9 @@ public:
   //! get size of tag in bytes
   virtual MBErrorCode tag_get_size(const MBTag, int &tag_size) const;
 
+    //! Get the default value of the specified tag
+  virtual MBErrorCode tag_get_default_value(const MBTag tag, void *def_val) const;
+
   //! get type of tag (sparse, dense, etc.; 0 = dense, 1 = sparse, 2 = bit, 3 = mesh)
   virtual MBErrorCode tag_get_type(const MBTag, MBTagType &tag_type) const;
 

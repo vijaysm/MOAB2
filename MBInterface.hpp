@@ -884,6 +884,13 @@ public:
     */ 
   virtual MBErrorCode tag_get_type(const MBTag tag, MBTagType &tag_type) const = 0;
 
+    //! Get the default value of the specified tag
+    /** Get the default value of the specified tag
+        \param tag Handle of the desired tag. 
+        \param def_value Pointer to memory where default value of the specified tag is written
+    */ 
+  virtual MBErrorCode tag_get_default_value(const MBTag tag, void *def_val) const = 0;
+
     //! Get handles for all tags defined in the mesh instance
     /** Get handles for all tags defined on the mesh instance.
         \param tag_handles STL vector of all tags

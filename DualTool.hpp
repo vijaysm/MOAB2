@@ -83,7 +83,8 @@ public:
     //! entities in those sets); optionally reset ids on points
   MBErrorCode get_graphics_points(const MBRange &in_range,
                                   std::vector<GraphicsPoint> &gpoints,
-                                  const bool assign_ids = false);
+                                  const bool assign_ids = false,
+                                  const int start_id = 0);
   
     //! get/set the tag for dual surfaces
   MBTag dualSurface_tag();

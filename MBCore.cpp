@@ -1200,6 +1200,20 @@ MBErrorCode MBCore::tag_get_size(const MBTag tag_handle, int &tag_size) const
   return MB_SUCCESS;
 }
 
+  //! get default value of the tag
+MBErrorCode MBCore::tag_get_default_value(const MBTag tag_handle, void *def_value) const
+{
+  const TagInfo* tag_info = tagServer->get_tag_info( tag_handle );
+  if(!tag_info)
+    return MB_TAG_NOT_FOUND;
+
+  if (NULL == def_value) return MB_FAILURE;
+  
+  memcpy(def_value, tag_info->default_value(), tag_info->get_size());
+
+  return MB_SUCCESS;
+}
+
   //! get type of tag (sparse, dense, etc.; 0 = dense, 1 = sparse, 2 = bit, 3 = static)
 MBErrorCode MBCore::tag_get_type(const MBTag tag_handle, MBTagType &tag_type) const
 {

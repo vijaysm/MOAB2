@@ -898,7 +898,8 @@ MBErrorCode DualTool::get_cell_points(MBEntityHandle dual_ent,
 
 MBErrorCode DualTool::get_graphics_points(const MBRange &in_range,
                                           std::vector<GraphicsPoint> &points,
-                                          const bool assign_ids) 
+                                          const bool assign_ids,
+                                          const int start_id) 
 {
     // return graphics points on dual entities in in_range or in entities
     // in sets in in_range
@@ -937,7 +938,7 @@ MBErrorCode DualTool::get_graphics_points(const MBRange &in_range,
                                 &points[0]); RR;
 
   if (assign_ids) {
-    int i = 0;
+    int i = start_id;
     
     for (std::vector<GraphicsPoint>::iterator vit = points.begin(); 
          vit != points.end(); vit++)
