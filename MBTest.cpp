@@ -352,7 +352,7 @@
    if (error != MB_SUCCESS )  
      return error;
 
-   //print_yes = true;
+     //print_yes = true;
    int i;
    for (i=0; i<10; i++)
    {
@@ -365,7 +365,7 @@
      int input_value = 11;
      error = MB->tag_set_data(tag_id, &handle, 1, &input_value);
 
-     // should fail on odd values of i
+       // should fail on odd values of i
      if ( !(i % 2) )
      {
        if (error != MB_SUCCESS )  // even case and if failed
@@ -379,60 +379,75 @@
 
      int output_value;
      error = MB->tag_get_data(tag_id, &handle, 1, &output_value);
-      if ( (i % 2) && error != MB_FAILURE && error != MB_TAG_NOT_FOUND)
-          return error;
+     if ( (i % 2) && error != MB_FAILURE && error != MB_TAG_NOT_FOUND)
+       return error;
 
-      if( (i % 2) && output_value != input_value)
-        return MB_FAILURE;
-    }
+     if( (i % 2) && output_value != input_value)
+       return MB_FAILURE;
+   }
 
-    // get the tag_name of the last tag created above
-    std::string int_tag_name;
-    error = MB->tag_get_name (tag_id, int_tag_name);
-    if (error != MB_SUCCESS)
-      return error;
+     // get the tag_name of the last tag created above
+   std::string int_tag_name;
+   error = MB->tag_get_name (tag_id, int_tag_name);
+   if (error != MB_SUCCESS)
+     return error;
 
-    if (int_tag_name != "sparse_int_tag")
-        return MB_FAILURE;
+   if (int_tag_name != "sparse_int_tag")
+     return MB_FAILURE;
 
-    // get the tag handle of the last tag created above
-    MBTag int_tag_handle;
-    error = MB->tag_get_handle (int_tag_name.c_str(), int_tag_handle);
-    if (MB_SUCCESS != error) return error;
+     // get the tag handle of the last tag created above
+   MBTag int_tag_handle;
+   error = MB->tag_get_handle (int_tag_name.c_str(), int_tag_handle);
+   if (MB_SUCCESS != error) return error;
     
-    if (int_tag_handle != tag_id)
-        return MB_FAILURE;
+   if (int_tag_handle != tag_id)
+     return MB_FAILURE;
 
-    // delete tags test
+     // test tag_get_tags_on_entity and tag_delete_data
+   std::vector<MBTag> all_tags;
+   error = MB->tag_get_tags_on_entity(node_ids[0], all_tags);
+   if (MB_SUCCESS != error)
+     return error;
 
-    // delete 2 of the sparse tags that were created above.
-    handle = CREATE_HANDLE(MBVERTEX, node_ids[2], err);
-    error = MB->tag_delete_data(tag_id, &handle, 1);
-    if (error != MB_SUCCESS )  
-      return error;
+   if (!all_tags.empty()) {
+     error = MB->tag_delete_data(all_tags[0], node_ids, 1);
+     if (MB_SUCCESS != error)
+       return error;
 
-    handle = CREATE_HANDLE(MBVERTEX, node_ids[6], err);
-    error = MB->tag_delete_data(tag_id, &handle, 1);
-    if (error != MB_SUCCESS )  
-      return error;
+     error = MB->tag_delete(all_tags[0]);
+     if (MB_SUCCESS != error)
+       return error;
+   }
+     // delete tags test
 
-    // delete all the rest of the sparse tags.
+     // delete 2 of the sparse tags that were created above.
+   handle = CREATE_HANDLE(MBVERTEX, node_ids[2], err);
+   error = MB->tag_delete_data(tag_id, &handle, 1);
+   if (error != MB_SUCCESS )  
+     return error;
 
-    error = MB->tag_delete(tag_id);
-    if (error != MB_SUCCESS )  
-      return error;
+   handle = CREATE_HANDLE(MBVERTEX, node_ids[6], err);
+   error = MB->tag_delete_data(tag_id, &handle, 1);
+   if (error != MB_SUCCESS )  
+     return error;
 
-    // delete the dense tag named bool_tag 
-    MBTag bool_tag_handle;
-    error = MB->tag_get_handle ("bool_tag", bool_tag_handle);
-    if (error != MB_SUCCESS) return error;
+     // delete all the rest of the sparse tags.
 
-    error = MB->tag_delete(bool_tag_handle);
-    if (error != MB_SUCCESS )  
-      return error;
+   error = MB->tag_delete(tag_id);
+   if (error != MB_SUCCESS )  
+     return error;
 
-    return error;
-  }
+     // delete the dense tag named bool_tag 
+   MBTag bool_tag_handle;
+   error = MB->tag_get_handle ("bool_tag", bool_tag_handle);
+   if (error != MB_SUCCESS) return error;
+
+   error = MB->tag_delete(bool_tag_handle);
+   if (error != MB_SUCCESS )  
+     return error;
+
+   return error;
+ }
 
 
   /*!
