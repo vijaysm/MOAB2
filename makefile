@@ -120,6 +120,14 @@ components :
 	@ echo Making "components" directory...
 	@ mkdir components
 
+runtest: moab_test homxform_test.static
+	./moab_test
+	./homxform_test.static
+	./scdseq_test.static
+
+dist: ${MB_LIB_SRCS} test doc/MOAB-UG.doc doxygen/moab
+	tar czf MOAB-${VERSION}.tar.gz ${MB_LIB_SRCS} test doc/MOAB-UG.doc doxygen/moab
+
 # build moab_test which uses static MB library
 moab_test.static : MBTest.static.o ${MB_LIB_TARGET}  
 	@ echo Linking...  moab_test.static

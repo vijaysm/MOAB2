@@ -27,7 +27,7 @@ enum MBEntityType
   MBQUAD,       //!< Quadrilateral element (including shells)
   MBTET,        //!< Tetrahedral element
   MBPYRAMID,    //!< Pyramid element (where are the face ids for this defined?)
-  MBPrism,      //!< Wedge element (Exodus has one, Cubit doesn't. Does Mesh need it?)
+  MBPRISM,      //!< Wedge element (Exodus has one, Cubit doesn't. Does Mesh need it?)
   MBKNIFE,      //!< Knife element
   MBHEX,        //!< Hexahedral element
   MBENTITYSET,    //!< MeshSet

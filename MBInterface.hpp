@@ -812,6 +812,15 @@ class NS_NO_VTABLE MBInterface : public nsISupports {
    */
   virtual MBErrorCode tag_get_tags(std::vector<MBTag> &tag_handles) const = 0;
 
+  //! Get handles for all tags defined on this entity
+  /** Get handles for all tags defined on this entity; if zero, get all tags defined 
+      on mesh instance
+      \param entity Entity for which you want tags
+      \param tag_handles STL vector of all tags defined on <em>entity<\em>
+   */
+  virtual MBErrorCode tag_get_tags_on_entity(const MBEntityHandle entity,
+                                             std::vector<MBTag> &tag_handles) const = 0;
+
   //! Get the value of the indicated tag on the specified entities in the specified vector
   /** Get the value of the indicated tag on the specified entities; <em>tag_data<\em> must contain
       enough space (i.e. tag_size*num_entities bytes or bits) to hold all tag data.  MB does <em>not<\em>
