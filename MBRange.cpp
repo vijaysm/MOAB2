@@ -253,7 +253,7 @@ MBRange::iterator MBRange::insert( MBRange::iterator prev,
     iter = iter->mNext;
   
   // Need to insert new pair (don't intersect any existing pair)?
-  if (iter == &mHead || iter->first-1 > val1)
+  if (iter == &mHead || iter->first-1 > val2)
   {
     PairNode* new_node = new PairNode( iter, iter->mPrev, val1, val2 );
     iter->mPrev = iter->mPrev->mNext = new_node;
