@@ -3,12 +3,16 @@
 #include "MBRange.hpp"
 #include "MBReadUtilIface.hpp"
 #include "GeomTopoTool.hpp"
+#include "MBTagConventions.hpp"
 #include <assert.h>
 
 const bool debug = false;
 const int ACIS_DIMS[] = {-1, 3, -1, 2, -1, -1, 1, 0, -1, -1};
 const char default_acis_dump_file[] = "dumped_acis.sat";
 const char acis_dump_file_tag_name[] = "__ACISDumpFile";
+const char Tqdcfr::geom_categories[][CATEGORY_TAG_NAME_LENGTH] = 
+{"Vertex\0", "Curve\0", "Surface\0", "Volume\0"};
+  
 // acis dimensions for each entity type, to match
 // enum {BODY, LUMP, SHELL, FACE, LOOP, COEDGE, EDGE, VERTEX, ATTRIB, UNKNOWN} 
 
@@ -18,7 +22,7 @@ MBReaderIface* Tqdcfr::factory( MBInterface* iface )
 Tqdcfr::Tqdcfr(MBInterface *impl) 
     : cubFile(NULL), globalIdTag(0), geomTag(0), uniqueIdTag(0), groupTag(0), 
       blockTag(0), nsTag(0), ssTag(0), attribVectorTag(0), entityNameTag(0),
-      instance(this)
+      categoryTag(0), instance(this)
 {
   assert(NULL != impl);
   mdbImpl = impl;
@@ -397,9 +401,12 @@ void Tqdcfr::read_nodes(Tqdcfr::ModelEntry *model,
 
     // set the dimension to at least zero (entity has at least nodes) on the geom tag
   int max_dim = 0;
-  result = mdbImpl->tag_set_data(geomTag, &entity->setHandle, 1, &max_dim);
+  result = mdbImpl->tag_set_data(geomTag, &(entity->setHandle), 1, &max_dim);
   assert(MB_SUCCESS == result);
-
+    // set the category tag just in case there're only vertices in this set
+  result = mdbImpl->tag_set_data(categoryTag, &entity->setHandle, 1, 
+                                 &geom_categories[0]);
+  assert(MB_SUCCESS == result);
   
     // don't bother with FixedNode metadata for now...
 }
@@ -473,6 +480,11 @@ void Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     // set the dimension on the geom tag
   result = mdbImpl->tag_set_data(geomTag, &entity->setHandle, 1, &max_dim);
   assert(MB_SUCCESS == result);
+  if (max_dim != -1) {
+    result = mdbImpl->tag_set_data(categoryTag, &entity->setHandle, 1, 
+                                   &geom_categories[max_dim]);
+    assert(MB_SUCCESS == result);
+  }
 }
 
 int Tqdcfr::check_contiguous(const int num_ents) 
@@ -698,11 +710,19 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
   entity_headers = new EntityHeader[info.numEntities];
   FSEEK(model_offset+info.tableOffset);
   int dum_int;
-  
+  MBErrorCode result;
+
+  if (0 == instance->categoryTag) {
+    static const char val[32] = "\0";
+    result = instance->mdbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_NAME_LENGTH,
+                                           MB_TAG_SPARSE, instance->categoryTag, val);
+    assert (MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
+  }
+
   for (int i = 0; i < info.numEntities; i++) {
 
       // create an entity set for this entity
-    MBErrorCode result = instance->mdbImpl->create_meshset(MESHSET_SET, entity_headers[i].setHandle);
+    result = instance->mdbImpl->create_meshset(MESHSET_SET, entity_headers[i].setHandle);
     assert(MB_SUCCESS == result);
     
     switch (info_type) {
@@ -756,6 +776,11 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
         result = instance->mdbImpl->tag_set_data(instance->groupTag, 
                                                            &(entity_headers[i].setHandle), 1, &dum_int);
         assert(MB_SUCCESS == result);
+        static const char group_category[CATEGORY_TAG_NAME_LENGTH] = "Group\0";
+        result = instance->mdbImpl->tag_set_data(instance->categoryTag, 
+                                                 &(entity_headers[i].setHandle), 1, 
+                                                 group_category);
+        assert(MB_SUCCESS == result);
 
           // set a global id tag
         result = instance->mdbImpl->tag_set_data(instance->globalIdTag, 
@@ -787,6 +812,11 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
         result = instance->mdbImpl->tag_set_data(instance->globalIdTag, &(entity_headers[i].setHandle), 1, 
                                                &(entity_headers[i].entityID));
         assert(MB_SUCCESS == result);
+        static const char material_category[CATEGORY_TAG_NAME_LENGTH] = "Material Set\0";
+        result = instance->mdbImpl->tag_set_data(instance->categoryTag, 
+                                                 &(entity_headers[i].setHandle), 1, 
+                                                 material_category);
+        assert(MB_SUCCESS == result);
         
         break;
       case nodeset:
@@ -814,6 +844,11 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
         result = instance->mdbImpl->tag_set_data(instance->globalIdTag, &(entity_headers[i].setHandle), 1, 
                                                &(entity_headers[i].entityID));
         assert(MB_SUCCESS == result);
+        static const char dirichlet_category[CATEGORY_TAG_NAME_LENGTH] = "Dirichlet Set\0";
+        result = instance->mdbImpl->tag_set_data(instance->categoryTag, 
+                                                 &(entity_headers[i].setHandle), 1, 
+                                                 dirichlet_category);
+        assert(MB_SUCCESS == result);
         
         break;
       case sideset:
@@ -840,6 +875,11 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
         assert(MB_SUCCESS == result);
         result = instance->mdbImpl->tag_set_data(instance->globalIdTag, &(entity_headers[i].setHandle), 1, 
                                                &(entity_headers[i].entityID));
+        assert(MB_SUCCESS == result);
+        static const char neumann_category[CATEGORY_TAG_NAME_LENGTH] = "Neumann Set\0";
+        result = instance->mdbImpl->tag_set_data(instance->categoryTag, 
+                                                 &(entity_headers[i].setHandle), 1, 
+                                                 neumann_category);
         assert(MB_SUCCESS == result);
         
         break;
@@ -940,6 +980,7 @@ void Tqdcfr::ModelEntry::read_header_info( Tqdcfr* instance )
     print_header("SideSet headers:", feModelHeader.sidesetArray,
                  feSideSetH);
   }
+
 }
 
 void Tqdcfr::ModelEntry::read_metadata_info(Tqdcfr *tqd) 
@@ -1153,9 +1194,13 @@ void Tqdcfr::parse_acis_attribs(const int entity_rec_num,
     else if (strncmp(records[current_attrib].att_string.c_str(), "ENTITY_ID", 9) == 0) {
         // parse id
       int bounding_uid, bounding_sense;
-      num_read = sscanf(records[current_attrib].att_string.c_str(), "ENTITY_ID 0 3 %d %d %d", &id,
-                        &bounding_uid, &bounding_sense);
-      assert(3 == num_read);
+      num_read = sscanf(records[current_attrib].att_string.c_str(), "ENTITY_ID 0 3 %d %d %d", 
+                        &id, &bounding_uid, &bounding_sense);
+      if (3 != num_read)
+        std::cout << "Warning: bad ENTITY_ID attribute in .sat file, record number " << entity_rec_num
+                  << ", record follows:" << std::endl
+                  << records[current_attrib].att_string.c_str() << std::endl;
+;
     }
     else if (strncmp(records[current_attrib].att_string.c_str(), "UNIQUE_ID", 9) == 0) {
         // parse uid
@@ -1316,7 +1361,12 @@ void Tqdcfr::process_record(AcisRecord &this_record)
              type_substr-this_record.att_string.c_str() < 20) {
       this_record.rec_type = Tqdcfr::EDGE;
     }
-    else this_record.rec_type = Tqdcfr::UNKNOWN;
+    else if ((type_substr = strstr(this_record.att_string.c_str(), "vertex")) != NULL && 
+             type_substr-this_record.att_string.c_str() < 20) {
+      this_record.rec_type = Tqdcfr::VERTEX;
+    }
+    else 
+      this_record.rec_type = Tqdcfr::UNKNOWN;
     
     if (this_record.rec_type != Tqdcfr::UNKNOWN) {
 

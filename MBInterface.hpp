@@ -124,15 +124,6 @@ extern MBInterface* gMB;
 //! typedef for handle vectors
 typedef std::vector<MBEntityHandle> MBHandleVec;
 
-//! Conventional tag names used for some often-used sets
-#define MATERIAL_SET_TAG_NAME  "MATERIAL_SET"
-#define DIRICHLET_SET_TAG_NAME "DIRICHLET_SET"
-#define NEUMANN_SET_TAG_NAME   "NEUMANN_SET"
-#define HAS_MID_NODES_TAG_NAME "HAS_MID_NODES"
-#define GEOM_DIMENSION_TAG_NAME "GEOM_DIMENSION"
-#define MESH_TRANSFORM_TAG_NAME "MESH_TRANSFORM"
-#define GLOBAL_ID_TAG_NAME "GLOBAL_ID"
-
   //@}
 
 #if defined(XPCOM_MB)

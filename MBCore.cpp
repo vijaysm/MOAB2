@@ -23,6 +23,7 @@
 #include "MBReaderIface.hpp"
 #include "MBWriterIface.hpp"
 #include "WriteNCDF.hpp"
+#include "MBTagConventions.hpp"
 #ifdef LINUX
 # include <dlfcn.h>
 # include <dirent.h>
@@ -1660,7 +1661,7 @@ MBErrorCode MBCore::list_entities(const MBEntityHandle *entities,
 {
   MBRange temp_range;
   MBErrorCode result;
-  if (NULL == entities && 0 == num_entities) {
+  if (NULL == entities && num_entities <= 0) {
       // just list the numbers of each entity type
     int num_ents;
     std::cout << std::endl;
@@ -1670,6 +1671,19 @@ MBErrorCode MBCore::list_entities(const MBEntityHandle *entities,
       std::cout << MBCN::EntityTypeName(this_type) << ": " << num_ents << std::endl;
     }
     std::cout << std::endl;
+
+      // if negative num_entities, list the set hierarchy too
+    if (0 > num_entities) {
+      MBRange sets;
+      result = this->get_entities_by_type(0, MBENTITYSET, sets);
+      if (MB_SUCCESS != result) return result;
+      for (MBRange::iterator rit = sets.begin(); rit != sets.end(); rit++) {
+        this->print(*rit, "", false);
+        result = this->get_number_entities_by_handle(*rit, num_ents);
+        std::cout << "(" << num_ents << " total entities)" << std::endl;
+      }
+    }
+    
     return MB_SUCCESS;
   }
       
@@ -1687,7 +1701,7 @@ MBErrorCode MBCore::list_entities(const MBEntityHandle *entities,
     
     return MB_SUCCESS;
   }
-      
+
   else {
     std::copy(entities, entities+num_entities, mb_range_inserter(temp_range));
     return list_entities(temp_range);
@@ -1711,6 +1725,8 @@ MBErrorCode MBCore::list_entities(const MBRange &entities) const
       std::cout << "Coordinates: (" << coords[0] << ", " << coords[1] << ", " << coords[2] 
            << ")" << std::endl;
     }
+    else if (this_type == MBENTITYSET)
+      this->print(*iter, "");
     
     std::cout << "Adjacencies:" << std::endl;
     bool some = false;
@@ -1723,6 +1739,7 @@ MBErrorCode MBCore::list_entities(const MBRange &entities) const
       if (MB_FAILURE == result) continue;
       for (MBHandleVec::iterator adj_it = adj_vec.begin(); adj_it != adj_vec.end(); adj_it++) {
         if (adj_it != adj_vec.begin()) std::cout << ", ";
+        else std::cout << std::endl;
         std::cout << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*adj_it)) << " " << ID_FROM_HANDLE(*adj_it);
       }
       if (!adj_vec.empty()) {
@@ -2209,7 +2226,8 @@ MBErrorCode MBCore::get_last_error(std::string& info) const
   return mError->get_last_error(info);
 }
 
-void MBCore::print(const MBEntityHandle ms_handle, const char *prefix) const
+void MBCore::print(const MBEntityHandle ms_handle, const char *prefix,
+                   bool first_call) const
 {
     // get the entities
   MBRange entities;
@@ -2219,8 +2237,9 @@ void MBCore::print(const MBEntityHandle ms_handle, const char *prefix) const
       return;
 
     ms_ptr->get_entities(entities, false);
-    std::cout << prefix << "--MBENTITYSET " << ID_FROM_HANDLE(ms_handle) 
-              << ":---" << std::endl;
+    if (!first_call)
+      std::cout << prefix << "MBENTITYSET " << ID_FROM_HANDLE(ms_handle) 
+                << std::endl;
   }
   else {
     get_entities_by_dimension(0, 3, entities);
@@ -2237,9 +2256,9 @@ void MBCore::print(const MBEntityHandle ms_handle, const char *prefix) const
        it != entities.end(); it++) 
   {
     if (TYPE_FROM_HANDLE(*it) == MBENTITYSET) {
-      print(*it, indent_prefix.c_str());
+      print(*it, indent_prefix.c_str(), false);
     }
-    else {
+    else if (first_call) {
       std::cout << prefix << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*it)) << " " 
                 << ID_FROM_HANDLE(*it) << std::endl;
     }

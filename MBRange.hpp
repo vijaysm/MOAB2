@@ -185,6 +185,9 @@ public:
     //! intersect two ranges, placing the results in the return range
   MBRange intersect(const MBRange &range2) const;
 
+    //! subtract range2 from this, placing the results in the return range
+  MBRange subtract(const MBRange &range2) const;
+
   //! for short hand notation, lets typedef the 
   //! container class that holds the ranges
   typedef MBEntityHandle value_type;
@@ -237,7 +240,7 @@ public:
   iterator erase( iterator iter1, iterator iter2);
 
   //! erases a value from this container
-  void erase(MBEntityHandle val);
+  iterator erase(MBEntityHandle val);
   
   //! find an item int the list and return an iterator at that value
   const_iterator find(MBEntityHandle val) const;
@@ -673,9 +676,9 @@ inline MBRange::iterator MBRange::erase( iterator iter1, iterator iter2)
 }
 
   //! erases a value from this container
-inline void MBRange::erase(MBEntityHandle val) 
+inline MBRange::iterator MBRange::erase(MBEntityHandle val) 
 { 
-  erase(find(val)); 
+  return erase(find(val)); 
 }
   
   //! swap the contents of this range with another one

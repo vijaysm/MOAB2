@@ -9,6 +9,7 @@
 #include "TagServer.hpp"
 #include "AEntityFactory.hpp"
 #include "PolyEntitySequence.hpp"
+#include "MBTagConventions.hpp"
 
 MBWriteUtil::MBWriteUtil(MBCore* mdb, MBError* error_handler) 
     : MBWriteUtilIface(), mMB(mdb), mError(error_handler)
@@ -815,7 +816,6 @@ MBErrorCode MBWriteUtil::get_adjacencies( MBEntityHandle entity,
   adj.resize( num_adj );  // pre-allocate space
   adj.clear();            // clear used space
   
-  const MBEntityHandle* iter = adj_array;
   const MBEntityHandle* const end = adj_array + num_adj;
   for (const MBEntityHandle* iter = adj_array; iter != end; ++iter)
   {

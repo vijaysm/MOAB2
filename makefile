@@ -25,7 +25,7 @@
 #         !!!!! warning: if you have another version of libxpcom.so, you'll get conflicts      !!!!!
 #
 
-MOAB_IMPL_VERSION = 0.99
+MOAB_IMPL_VERSION = 1.01
 
 SHELL = /bin/sh
 
@@ -162,8 +162,10 @@ runtest: moab_test homxform_test.static scdseq_test.static
 	./homxform_test.static
 	./scdseq_test.static
 
-dist: clean_all ${MB_LIB_SRCS} ${MB_LIB_HDRS} test doc/MOAB-UG.doc doxygen/moab MBUnknownInterface.h MB.* makefile README ${UTEST_SRCS}
-	tar czf MOAB-${MOAB_IMPL_VERSION}.tar.gz ${MB_LIB_SRCS} ${MB_LIB_HDRS} test doc/MOAB-UG.doc doxygen/moab MBUnknownInterface.h MB.* makefile ${UTEST_SRCS} TSTT
+dist: 
+	cvs update MOAB
+	tar czf MOAB-${MOAB_IMPL_VERSION}.tar.gz ./MOAB
+	rm -rf MOAB
 
 # build moab_test which uses static MB library
 moab_test.static : MBTest.static.o ${MB_LIB_TARGET} $(MHDF_LIB)

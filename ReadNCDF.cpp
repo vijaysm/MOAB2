@@ -15,6 +15,7 @@
 #include "MBRange.hpp"
 #include "MBInterface.hpp"
 #include "ExoIIInterface.hpp"
+#include "MBTagConventions.hpp"
 
 #define INS_ID(stringvar, prefix, id) \
           sprintf(stringvar, prefix, id)
@@ -1832,7 +1833,8 @@ MBErrorCode ReadNCDF::read_qa_information(std::vector<char*> &qa_record_list)
   {
     for(int j = 0; j < 4; j++)
     {
-      data = new char[80];
+      data = new char[max_str_length+1];
+      data[max_str_length] = '\0';
       if (read_qa_string(data, i, j) != MB_SUCCESS)
       {
         return MB_FAILURE;

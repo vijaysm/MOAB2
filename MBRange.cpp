@@ -457,6 +457,16 @@ MBRange MBRange::intersect(const MBRange &range2) const
   return lhs;
 }
 
+MBRange MBRange::subtract(const MBRange &range2) const 
+{
+    // brain-dead implementation right now
+  MBRange res = *this;
+  for (MBRange::const_iterator rit = range2.begin(); rit != range2.end(); rit++)
+    res.erase(*rit);
+
+  return res;
+}
+
 MBRange::const_iterator MBRange::lower_bound(MBRange::const_iterator first,
                                              MBRange::const_iterator last,
                                              MBEntityHandle val)

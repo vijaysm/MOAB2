@@ -13,6 +13,7 @@
 #include "MBInternals.hpp"
 #include "MBRange.hpp"
 #include "MBCN.hpp"
+#include "MBTagConventions.hpp"
 #include <fstream>
 #include <assert.h>
 

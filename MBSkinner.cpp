@@ -12,6 +12,7 @@
 #include <assert.h>
 #include <iostream>
 #include "MBUtil.hpp"
+#include "MBTagConventions.hpp"
 
 #define SKINNER_PI 3.1415926535897932384626
 

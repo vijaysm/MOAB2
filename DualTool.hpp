@@ -72,6 +72,11 @@ public:
   //! get the faces of the dual
   MBErrorCode get_dual_entities(const int dim, 
                                 std::vector<MBEntityHandle> &dual_ents);
+  
+    //! get the d-dimensional hyperplane sets; static 'cuz it's easy to do without an active
+    //! dualtool
+  static MBErrorCode get_dual_hyperplanes(const MBInterface *impl, const int dim, 
+                                          MBRange &dual_ents);
 
     //! get the graphics points for single entity (dual_ent CAN'T be a set);
     //! returns multiple facets, each with npts[i] points
@@ -140,7 +145,8 @@ private:
   
   MBErrorCode construct_dual_vertex(MBEntityHandle entity, 
                                     MBEntityHandle &dual_ent, 
-                                    const bool extra = false);
+                                    const bool extra = false,
+                                    const bool add_graphics_pt = true);
 
     //! add a graphics point to an entity (on a tag)
   MBErrorCode add_graphics_point(MBEntityHandle entity,
@@ -150,6 +156,10 @@ private:
   MBErrorCode get_cell_points(MBEntityHandle dual_ent,
                               std::vector<int> &npts,
                               std::vector<GraphicsPoint> &points);
+
+    //! if this_ent is an edge, is a dual entity, and has quads as
+    //! its vertices' dual entities, return true, otherwise false
+  bool check_1d_loop_edge(MBEntityHandle this_ent);
   
     //! private copy of interface *
   MBInterface *mbImpl;

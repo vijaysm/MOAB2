@@ -8,6 +8,7 @@
 
 #include "MBInternals.hpp"
 #include "MBReaderIface.hpp"
+#include "MBTagConventions.hpp"
 
 #include <iostream>
 #include <stdio.h>
@@ -273,7 +274,7 @@ public:
   int currNodeIdOffset;
   int currElementIdOffset[MBMAXTYPE];
   MBTag globalIdTag, geomTag, uniqueIdTag, groupTag, blockTag, nsTag, ssTag,
-    attribVectorTag, entityNameTag;
+    attribVectorTag, entityNameTag, categoryTag;
 
   std::vector<int> int_buf;
   std::vector<double> dbl_buf;
@@ -323,6 +324,8 @@ private:
   void reset_record(AcisRecord &this_record);
   
   void process_record(AcisRecord &this_record);
+  
+  static const char geom_categories[][CATEGORY_TAG_NAME_LENGTH];
   
   Tqdcfr *const instance;
   

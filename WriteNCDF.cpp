@@ -21,6 +21,7 @@
 #include "MBInterface.hpp"
 #include "MBRange.hpp"
 #include "MBCN.hpp"
+#include "MBTagConventions.hpp"
 #include "assert.h"
 #include "MBInternals.hpp"
 #include "ExoIIUtil.hpp"

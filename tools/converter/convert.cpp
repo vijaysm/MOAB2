@@ -3,6 +3,7 @@
 #ifndef WIN32
 #  include <sys/times.h>
 #  include <limits.h>
+#include <unistd.h>
 #endif
 #include <time.h>
 

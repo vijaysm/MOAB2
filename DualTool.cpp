@@ -2,6 +2,7 @@
 #include "MeshTopoUtil.hpp"
 #include "MBRange.hpp"
 #include "MBInternals.hpp"
+#include "MBTagConventions.hpp"
 #include <string>
 #include <iostream>
 #include <sstream>
@@ -150,13 +151,9 @@ MBErrorCode DualTool::construct_dual_vertices(const MBRange &all_regions,
     }
     else if (MB_SUCCESS != tmp_result) continue;
 
-    tmp_result = construct_dual_vertex(*rit, dual_ent);
+    tmp_result = construct_dual_vertex(*rit, dual_ent, false, true);
     if (MB_SUCCESS != tmp_result) continue;
 
-      // add a graphics point to this vertex
-    tmp_result = add_graphics_point(dual_ent);
-    if (MB_SUCCESS != tmp_result) continue;
-    
       // save it in the list of new dual ents
     dual_ents.insert(dual_ent);
     
@@ -167,7 +164,8 @@ MBErrorCode DualTool::construct_dual_vertices(const MBRange &all_regions,
 
 MBErrorCode DualTool::construct_dual_vertex(MBEntityHandle entity, 
                                             MBEntityHandle &dual_ent, 
-                                            const bool extra) 
+                                            const bool extra,
+                                            const bool add_graphics_pt)
 {
     // no dual entity; construct one; first need the avg coordinates
   unsigned int is_dual = 0x1;
@@ -183,14 +181,21 @@ MBErrorCode DualTool::construct_dual_vertex(MBEntityHandle entity,
   result = mbImpl->tag_set_data(isDualCell_tag(), &dual_ent, 1, &is_dual);
   if (MB_SUCCESS != result) return result;
     
-    // tag the primal entity with its dual entity
+    // tag the primal entity with its dual entity and vica versa
   if (extra) 
     result = mbImpl->tag_set_data(extraDualEntity_tag(), &(entity), 1, &dual_ent);
   else
     result = mbImpl->tag_set_data(dualEntity_tag(), &(entity), 1, &dual_ent);
   if (MB_SUCCESS != result) return result;
     
-  return MB_SUCCESS;
+  result = mbImpl->tag_set_data(dualEntity_tag(), &dual_ent, 1, &(entity));
+  if (MB_SUCCESS != result) return result;
+
+  if (add_graphics_pt)
+        // put a graphics point on that vertex too
+    result = add_graphics_point(dual_ent, avg_pos);
+
+  return result;
 }
 
 MBErrorCode DualTool::add_graphics_point(MBEntityHandle entity,
@@ -253,20 +258,8 @@ MBErrorCode DualTool::construct_dual_edges(const MBRange &all_faces,
     bool bdy_face = (dual_verts.size() == 1 ? true : false);
     if (bdy_face) {
         // boundary face - make a dual vertex at the face center and put in list
-      tmp_result = MeshTopoUtil(mbImpl).get_average_position(*rit, avg_pos);
-      if (MB_SUCCESS != tmp_result) continue;
+      tmp_result = construct_dual_vertex(*rit, dual_ent, true, true);
       
-      tmp_result = mbImpl->create_vertex(avg_pos, dual_ent);
-      if (MB_SUCCESS != tmp_result) continue;
-    
-        // tag it indicating it's a dual entity
-      tmp_result = mbImpl->tag_set_data(isDualCell_tag(), &dual_ent, 1, &is_dual);
-      if (MB_SUCCESS != tmp_result) continue;
-
-        // put a graphics point on that vertex too
-      tmp_result = add_graphics_point(dual_ent, avg_pos);
-      if (MB_SUCCESS != tmp_result) continue;
-
         // put it on vertex list
       dual_verts.push_back(dual_ent);
     }
@@ -280,8 +273,11 @@ MBErrorCode DualTool::construct_dual_edges(const MBRange &all_faces,
       // save it in the list of new dual ents
     dual_ents.insert(dual_ent);
     
-      // tag the primal entity with its dual entity
+      // tag the primal entity with its dual entity and vica versa
     tmp_result = mbImpl->tag_set_data(dualEntity_tag(), &(*rit), 1, &dual_ent);
+    if (MB_SUCCESS != tmp_result) continue;
+
+    tmp_result = mbImpl->tag_set_data(dualEntity_tag(), &dual_ent, 1, &(*rit));
     if (MB_SUCCESS != tmp_result) continue;
 
       // tag the edge indicating it's a dual entity
@@ -349,10 +345,11 @@ MBErrorCode DualTool::construct_dual_faces(const MBRange &all_edges,
       // save it in the list of new dual ents
     dual_ents.insert(dual_ent);
     
-      // tag the primal entity with its dual entity
+      // tag the primal entity with its dual entity and vica versa
     tmp_result = mbImpl->tag_set_data(dualEntity_tag(), &(*rit), 1, &dual_ent);
-    if (MB_SUCCESS != tmp_result) 
-      continue;
+    if (MB_SUCCESS != tmp_result) continue;
+    tmp_result = mbImpl->tag_set_data(dualEntity_tag(), &dual_ent, 1, &(*rit));
+    if (MB_SUCCESS != tmp_result) continue;
 
       // add a graphics point to the cell; position depends on whether it's a
       // bdy cell (mid-pt of cell's vertices) or not (mid-pt of primal edge)
@@ -436,8 +433,10 @@ MBErrorCode DualTool::construct_dual_cells(const MBRange &all_verts,
     tmp_result = mbImpl->tag_set_data(isDualCell_tag(), &dual_ent, 1, &is_dual);
     if (MB_SUCCESS != tmp_result) continue;
 
-      // tag the primal entity with its dual entity
+      // tag the primal entity with its dual entity and vica versa
     tmp_result = mbImpl->tag_set_data(dualEntity_tag(), &(*rit), 1, &dual_ent);
+    if (MB_SUCCESS != tmp_result) continue;
+    tmp_result = mbImpl->tag_set_data(dualEntity_tag(), &dual_ent, 1, &(*rit));
     if (MB_SUCCESS != tmp_result) continue;
   }
 
@@ -650,6 +649,25 @@ MBErrorCode DualTool::get_dual_entities(const int dim,
   return MB_SUCCESS;
 }
 
+MBErrorCode DualTool::get_dual_hyperplanes(const MBInterface *impl, const int dim, MBRange &dual_ents) 
+{
+  if (dim != 1 && dim != 2) return MB_INDEX_OUT_OF_RANGE;
+
+  MBTag dual_tag;
+  MBErrorCode result;
+  
+  if (dim == 1)
+    result = impl->tag_get_handle(DUAL_CURVE_TAG_NAME, dual_tag );
+  else 
+    result = impl->tag_get_handle(DUAL_SURFACE_TAG_NAME, dual_tag );
+
+  if (MB_SUCCESS == result)
+    result = impl->get_entities_by_type_and_tag(0, MBENTITYSET, &dual_tag, NULL, 1, dual_ents,
+                                                MBInterface::UNION);
+      
+  return result;
+}
+
 MBErrorCode DualTool::construct_dual_hyperplanes(const int dim) 
 {
     // this function traverses dual faces of input dimension, constructing
@@ -707,21 +725,23 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
       
     this_ent = tot_untreated.back(); tot_untreated.pop_back();
     result = mbImpl->tag_get_data(hp_tag, &this_ent, 1, &hp_val);
-    if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) continue;
+    if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) return result;
 
       // test for this entity having a hyperplane assignment already
     else if (hp_val != -1)
       continue;
+
+    if (check_1d_loop_edge(this_ent)) continue;
     
       // ok, doesn't have one; make a new hyperplane
     hp_val = hp_ids++;
     MBEntityHandle this_hp;
     result = mbImpl->create_meshset(MESHSET_SET, this_hp);
-    if (MB_SUCCESS != result) continue;
+    if (MB_SUCCESS != result) return result;
     result = mbImpl->tag_set_data(gid_tag, &this_hp, 1, &hp_val);
-    if (MB_SUCCESS != result) continue;
+    if (MB_SUCCESS != result) return result;
     result = mbImpl->tag_set_data(hp_tag, &this_hp, 1, &hp_val);
-    if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) continue;
+    if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) return result;
     hp_untreated.clear();
 
       // inner loop: traverse the hyperplane 'till we don't have any more
@@ -733,18 +753,18 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
       
         // set the hp_val for this_ent
       result = mbImpl->tag_set_data(hp_tag, &this_ent, 1, &hp_val);
-      if (MB_SUCCESS != result) continue;
+      if (MB_SUCCESS != result) return result;
       result = mbImpl->add_entities(this_hp, &this_ent, 1);
-      if (MB_SUCCESS != result) continue;
+      if (MB_SUCCESS != result) return result;
 
         // get all neighbors connected to this entity
       tmp_range.clear(); tmp_star.clear(); star.clear();
       tmp_range.insert(this_ent);
       result = mbImpl->get_adjacencies(tmp_range, dim-1, true, tmp_star);
-      if (MB_SUCCESS != result) continue;
+      if (MB_SUCCESS != result) return result;
       result = mbImpl->get_adjacencies(tmp_star, dim, false, star,
                                        MBInterface::UNION);
-      if (MB_SUCCESS != result) continue;
+      if (MB_SUCCESS != result) return result;
       star.erase(this_ent);
       
         // for each star entity, see if it shares a cell with this one; if so,
@@ -758,22 +778,27 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
         if (MB_SUCCESS == result && -1 != r_val) 
           continue;
 
-        unsigned short tmp_mark;
+          // assign to avoid valgrind warning
+        unsigned short tmp_mark = 0x0;
         result = mbImpl->tag_get_data(mark_tag, &(*rit), 1, &tmp_mark);
         if (MB_SUCCESS == result && mark_val == tmp_mark) 
           continue;
+
+          // if it's on the loop, it's not eligible
+        if (check_1d_loop_edge(*rit)) continue;
 
           // passed tag test; check adjacencies
         tmp_star.clear();
         tmp_range.insert(*rit);
         result = mbImpl->get_adjacencies(tmp_range, dim+1, false, tmp_star);
-        if (MB_SUCCESS != result) continue;
+        if (MB_SUCCESS != result) return result;
         
         if (tmp_star.empty()) {
             // have one on this hp; just put it on the hp_untreated list for now,
             // will get tagged and put in the hp set later
           hp_untreated.push_back(*rit);
           result = mbImpl->tag_set_data(mark_tag, &(*rit), 1, &mark_val);
+          if (MB_SUCCESS != result) return result;
         }
 
           // take *rit out of tmp_range, then proceed to the next
@@ -792,6 +817,30 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
   if (debug)
     std::cout << "Constructed " << hp_ids << " hyperplanes of dim = " << dim << "." << std::endl;
   return MB_SUCCESS;
+}
+
+bool DualTool::check_1d_loop_edge(MBEntityHandle this_ent) 
+{
+    // make sure it's an edge
+  if (MBEDGE != mbImpl->type_from_handle(this_ent)) return false;
+
+    // also has to be a dual entity
+  unsigned char dum;
+  MBErrorCode result = mbImpl->tag_get_data(isDualCell_tag(), &this_ent, 1, &dum);
+  if (MB_SUCCESS != result || dum != 0x1) return false;
+  
+  const MBEntityHandle *verts;
+  MBEntityHandle vert_tags[2];
+  int num_verts;
+  result = mbImpl->get_connectivity(this_ent, verts, num_verts);
+  if (MB_SUCCESS != result) return false;
+  
+  result = mbImpl->tag_get_data(dualEntity_tag(), verts, 2, vert_tags);
+  if (MB_SUCCESS != result ||
+      mbImpl->type_from_handle(vert_tags[0]) != MBQUAD ||
+      mbImpl->type_from_handle(vert_tags[1]) != MBQUAD) return false;
+  
+  else return true;
 }
   
 MBErrorCode DualTool::get_graphics_points(MBEntityHandle dual_ent,

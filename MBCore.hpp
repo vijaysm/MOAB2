@@ -686,7 +686,8 @@ public:
 
 //-----------------MeshSet Interface Functions------------------//
 
-  void print(const MBEntityHandle handle, const char *prefix) const;
+  void print(const MBEntityHandle handle, const char *prefix,
+             bool first_call = true) const;
 
   virtual MBErrorCode get_last_error(std::string& info) const;
 

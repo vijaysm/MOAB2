@@ -24,6 +24,7 @@
 #include "assert.h"
 #include "MBInternals.hpp"
 #include "ExoIIUtil.hpp"
+#include "MBTagConventions.hpp"
 
 #define INS_ID(stringvar, prefix, id) \
           sprintf(stringvar, prefix, id)
@@ -698,7 +699,7 @@ MBErrorCode WriteSLAC::write_matsets(MeshInfo &mesh_info,
       if (MB_SUCCESS != result) return result;
       
         // put the variable at the right position
-      hex_conn->set_cur(elem_num, 0);
+      hex_conn->set_cur(elem_num++, 0);
       
         // write the data
       NcBool err = hex_conn->put(&connect[0], 1, 9);
