@@ -8,6 +8,7 @@
 #include "EntitySequenceManager.hpp"
 #include "TagServer.hpp"
 #include "AEntityFactory.hpp"
+#include "PolyEntitySequence.hpp"
 
 MBWriteUtil::MBWriteUtil(MBCore* mdb, MBError* error_handler) 
     : MBWriteUtilIface(), mMB(mdb), mError(error_handler)
@@ -411,6 +412,213 @@ MBErrorCode MBWriteUtil::get_element_array(
   return MB_SUCCESS;
 }
 
+MBErrorCode MBWriteUtil::get_poly_array_size(
+      MBRange::const_iterator iter,
+      const MBRange::const_iterator end,
+      int& connectivity_size )
+{
+  connectivity_size = 0;
+
+  // check the data we got
+  if(iter == end)
+    return MB_FAILURE;
+
+
+  // Sequence iterators
+  std::map<MBEntityHandle, MBEntitySequence*>::const_iterator seq_iter, seq_end;
+  
+  // loop over range, getting coordinate value
+  MBEntityType current_type = MBMAXTYPE;
+  while (iter != end)
+  {
+      // Make sure we have the right sequence list (and get the sequence 
+      // list for the first iteration.)
+    MBEntityType type = TYPE_FROM_HANDLE(*iter);
+    if (type != current_type)
+    {
+      if (type != MBPOLYGON && type != MBPOLYHEDRON)
+        return MB_TYPE_OUT_OF_RANGE;
+      seq_iter = mMB->sequence_manager()->entity_map(type)->begin();
+      seq_end  = mMB->sequence_manager()->entity_map(type)->end();
+      current_type = type;
+    }
+    
+      // Find the sqeuence containing the current handle
+    while (seq_iter != seq_end && seq_iter->second->get_end_handle() < *iter)
+      ++seq_iter;
+    if (seq_iter == seq_end || *iter < seq_iter->second->get_start_handle())
+      return MB_FAILURE;
+ 
+      // get the index array
+    int* last_index_array;
+    PolyEntitySequence* poly_seq = dynamic_cast<PolyEntitySequence*>(seq_iter->second);
+    if (NULL == poly_seq) { assert(0); return MB_FAILURE; }
+    poly_seq->get_index_array( last_index_array );
+   
+      // Determine how much of the sequence we want.
+    MBRange::pair_iterator pair(iter);
+    MBRange::const_iterator prev(end);
+    --prev;
+    MBEntityHandle range_end = pair->second;
+    MBEntityHandle sequence_end = poly_seq->get_end_handle();
+    MBEntityHandle end_handle = range_end > sequence_end ? sequence_end : range_end;
+    if (end_handle > *prev)
+      end_handle = *prev;
+    MBEntityHandle count = end_handle - *iter + 1;
+    
+      // Get offset in sequence to start at
+    assert( *iter >= poly_seq->get_start_handle() );
+    MBEntityHandle offset = *iter - poly_seq->get_start_handle();
+
+      // Calculate the connectivity length for the subset of the current sequence
+    int prev_index = (offset == 0) ? -1 : last_index_array[offset-1];
+    int last_index = last_index_array[offset + count - 1];
+    connectivity_size += last_index - prev_index;
+
+    iter += count;
+  }
+
+  return MB_SUCCESS;
+}
+
+MBErrorCode MBWriteUtil::get_poly_arrays(
+      MBRange::const_iterator& iter,
+      const MBRange::const_iterator end,
+      const MBTag node_id_tag,
+      size_t& element_array_len,
+      int *const element_array,
+      size_t& index_array_len,
+      int*const index_array,
+      int& index_offset )
+{
+  // check the data we got
+  if (iter == end)
+    return MB_FAILURE;
+  if (index_array_len < 1 || element_array_len < 1)
+    return MB_FAILURE;
+  if (!element_array || !index_array)
+    return MB_FAILURE;
+
+  TagServer* tag_server = mMB->tag_server();
+
+  // Sequence iterators
+  std::map<MBEntityHandle, MBEntitySequence*>::const_iterator seq_iter, seq_end;
+  
+  // Iterators into output arrays
+  int* elem_out_iter = element_array;
+  int*const elem_out_end = element_array + element_array_len;
+  int* idx_out_iter = index_array;
+  int* idx_out_end = index_array + index_array_len;
+  
+  // loop over range, getting coordinate value
+  MBEntityType current_type = MBMAXTYPE;
+  while (iter != end && idx_out_iter != idx_out_end)
+  {
+      // Make sure we have the right sequence list (and get the sequence 
+      // list for the first iteration.)
+    MBEntityType type = TYPE_FROM_HANDLE(*iter);
+    if (type != current_type)
+    {
+      if (type != MBPOLYGON && type != MBPOLYHEDRON)
+        return MB_TYPE_OUT_OF_RANGE;
+      seq_iter = mMB->sequence_manager()->entity_map(type)->begin();
+      seq_end  = mMB->sequence_manager()->entity_map(type)->end();
+      current_type = type;
+    }
+    
+      // Find the sqeuence containing the current handle
+    while (seq_iter != seq_end && seq_iter->second->get_end_handle() < *iter)
+      ++seq_iter;
+    if (seq_iter == seq_end || *iter < seq_iter->second->get_start_handle())
+      return MB_FAILURE;
+ 
+      // get the arrays
+    int* last_index_array;
+    MBEntityHandle* conn_array;
+    PolyEntitySequence* poly_seq = dynamic_cast<PolyEntitySequence*>(seq_iter->second);
+    if (NULL == poly_seq) { assert(0); return MB_FAILURE; }
+    poly_seq->get_index_array( last_index_array );
+    poly_seq->get_connectivity_array( conn_array );
+   
+      // Determine how much of the sequence we want.
+    MBRange::pair_iterator pair(iter);
+    MBRange::const_iterator prev(end);
+    --prev;
+    MBEntityHandle range_end = pair->second;
+    MBEntityHandle sequence_end = poly_seq->get_end_handle();
+    MBEntityHandle end_handle = range_end > sequence_end ? sequence_end : range_end;
+    if (end_handle > *prev)
+      end_handle = *prev;
+    MBEntityHandle count = end_handle - *iter + 1;
+
+       // Get offset in sequence to start at
+    assert( *iter >= poly_seq->get_start_handle() );
+    MBEntityHandle offset = *iter - poly_seq->get_start_handle();
+   
+      // Check if sufficient space in index array
+    if (idx_out_iter + count > idx_out_end)
+      count = idx_out_end - idx_out_iter;
+
+      // Calculate the connectivity length for the subset of the current sequence
+    int prev_index = (offset == 0) ? -1 : last_index_array[offset-1];
+    int last_index = last_index_array[offset + count - 1];
+    int conn_size = last_index - prev_index;
+    
+      // Check for sufficient space in id array
+    int space = elem_out_end - elem_out_iter;
+    if (conn_size > space)
+    {
+        // back up until the data fits.
+      int* back_iter = last_index_array + offset + count - 1;
+      int* back_end  = last_index_array + offset;
+      while (back_iter != back_end && (*back_iter - prev_index) > space)
+        --back_iter;
+        
+        // not even the first poly fits?
+      if (back_iter == back_end)
+        break;
+        
+        // update how many polys we're writing
+      count = back_iter - back_end + 1;
+      last_index = *back_iter;
+      conn_size = *back_iter - prev_index;
+    }
+    
+      // Convert element handles to global IDs and write IDs into output array
+    MBErrorCode rval = tag_server->get_data( node_id_tag, 
+                                             conn_array + prev_index + 1,
+                                             conn_size,
+                                             elem_out_iter );
+    elem_out_iter += conn_size;
+    if (MB_SUCCESS != rval)
+      return rval;
+  
+      // Copy indices into output array, offsetting as necessary
+      // offsetting must account for a) initial input offset from user,
+      // b) the offset since the last sequence and c) the offset from
+      // the start of the current sequence.
+    int curr_offset = index_offset - (prev_index + 1);
+    int *const index_end = idx_out_iter + count;
+    last_index_array += offset;
+    while (idx_out_iter != index_end)
+    {
+      *idx_out_iter = *last_index_array + curr_offset;
+      ++idx_out_iter;
+      ++last_index_array;
+    }
+    index_offset += conn_size;
+
+    iter += count;
+  }
+  
+  element_array_len = elem_out_iter - element_array;
+  index_array_len = idx_out_iter - index_array;
+
+  return MB_SUCCESS;
+}
+  
+
+      
 MBErrorCode MBWriteUtil::gather_nodes_from_elements(
       const MBRange& elements,
       const MBTag node_bit_mark_tag,

@@ -122,6 +122,72 @@ public:
       int *const element_array
       ) = 0;
 
+
+  /** Get poly (polygon or polyhedron) connectivity size
+   *\param begin  First iterator in range of poly
+   *\param end    One past last in range of poly.
+   *\param connectivity_size  The lenght of the connectivity list
+   *              For the specified range of polyhedra.
+   *\author Jason Kraftcheck
+   */
+  virtual MBErrorCode get_poly_array_size(
+      MBRange::const_iterator begin,
+      const MBRange::const_iterator end,
+      int& connectivity_size 
+      ) = 0;
+   
+
+  /** Get poly (polygon or polyhedron) connectivity.
+   *
+   * Connectivity is returned in two arrays.  The first is
+   * an array of global IDs that is the concatenation of the
+   * connectivity for the entire range of polys.  The second
+   * is the last index of the connectivity data for each poly
+   * in the global ID array.
+   *
+   * This function will add as many polys as possible to the
+   * passed arrays given the sizes of those arrays.  It will
+   * then pass back position at which it stoped and the sizes
+   * of the data written to the arrays.
+   *
+   * Failure cases:
+   *  - Passed range is empty (<code>begin == end</code>).
+   *  - <code>element_array</code> or <code>index_array</code> is null.
+   *  - The range contains invalid handles (non-existant entities,
+   *      not an poly, etc.)
+   *  - Retreiving ID tag for an entity failed.
+   *
+   *\param iter               As input, the first element handle.
+   *                          As output, one past the last element handle
+   *                          for which data was written to the arrays.
+   *\param end                The iterator at which to stop.
+   *\param node_id_tag        A tag with integer values.  
+   *\param element_array_len  As input, length of <code>element_array</code>.
+   *                          As output, the number of entries written in that
+   *                          array.
+   *\param element_array      The memory location at which to store the 
+   *                          connectivity list.
+   *\param index_array_len    As input, the length of <code>index_array</code>.
+   *                          As output, the number of entries written in that
+   *                          array.
+   *\param index_array        The memory location at which to store offsets.
+   *\param index_offset       Value to offset (add to) index values.  As output
+   *                          the input value plus the amount of data 
+   *                          written to the element array.  (The value you
+   *                          presumably want to pass to the next call.)
+   *\author Jason Kraftcheck
+   */
+  virtual MBErrorCode get_poly_arrays(
+      MBRange::const_iterator& iter,
+      const MBRange::const_iterator end,
+      const MBTag node_id_tag,
+      size_t& element_array_len,
+      int *const element_array,
+      size_t& index_array_len,
+      int *const index_array,
+      int& index_offset
+      ) = 0;
+
     //! given elements to be written, gather all the nodes which define those elements
     //! \param elements Range of elements to be written
     //! \param node_bit_mark_tag Bit tag to use to identify nodes

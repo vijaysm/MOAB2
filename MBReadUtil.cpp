@@ -11,6 +11,7 @@
 #include "AEntityFactory.hpp"
 #include "MBError.hpp"
 #include "EntitySequenceManager.hpp"
+#include "PolyEntitySequence.hpp"
 
 
 MBReadUtil::MBReadUtil(MBCore* mdb, MBError* error_handler) 
@@ -60,16 +61,50 @@ MBErrorCode MBReadUtil::get_element_array(
 
   MBErrorCode error;
   MBEntitySequence* seq;
+  
+  if (mdb_type <= MBVERTEX || mdb_type >= MBPOLYHEDRON || mdb_type == MBPOLYGON)
+    return MB_TYPE_OUT_OF_RANGE;
 
   // make an entity sequence to hold these elements
   error = mMB->sequence_manager()->create_entity_sequence(
       mdb_type, num_elements, verts_per_element, preferred_start_id, actual_start_handle, seq);
+  if (MB_SUCCESS != error)
+    return error;
 
   // get an array for the connectivity
   error = static_cast<ElementEntitySequence*>(seq)->get_connectivity_array(array);
 
   return error;
   
+}
+
+MBErrorCode MBReadUtil::get_poly_element_array(
+      const int num_poly, 
+      const int conn_list_length,
+      const MBEntityType mdb_type,
+      int preferred_start_id, 
+      MBEntityHandle& actual_start_handle, 
+      int*& last_index_array,
+      MBEntityHandle*& connectivity_array )
+{
+
+  MBErrorCode error;
+  MBEntitySequence* seq;
+  
+  if (mdb_type != MBPOLYGON && mdb_type != MBPOLYHEDRON)
+    return MB_TYPE_OUT_OF_RANGE;
+
+  error = mMB->sequence_manager()->create_entity_sequence(
+      mdb_type, num_poly, conn_list_length, preferred_start_id, actual_start_handle, seq);
+  if (MB_SUCCESS != error || NULL == seq)
+    return error;
+
+  PolyEntitySequence *pseq = dynamic_cast<PolyEntitySequence*>(seq);
+  assert(NULL != pseq);
+  
+  pseq->get_connectivity_array( connectivity_array );
+  pseq->get_index_array( last_index_array );
+  return MB_SUCCESS;
 }
 
 

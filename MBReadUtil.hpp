@@ -43,6 +43,30 @@ public:
       MBEntityHandle& actual_start_handle, 
       MBEntityHandle*& array
       );
+
+  /** Allocate storage for poly (polygon or polyhedron elements) 
+   * 
+   * Allocate storage for poly (polygon or polyhedron elements) and
+   * return connectivity arrays for direct read into memory.
+   *
+   *\param num_poly            The number of polygons to allocate handles for.
+   *\param conn_list_length    The total length of the connectivity list.
+   *\param mdb_type            <code>MBPOLYGON</code> or <code>MBPOLYHEDRON</code>
+   *\param preferred_start_id  Preferred integer id for first element
+   *\param actual_start_handle Actual integer id for first element (returned)
+   *\param last_index_array    Array of indices into <code>connectivity_array</code<
+   *\param connectivity_array  The connectivity array
+   *\author Jason Kraftcheck
+   */
+  MBErrorCode get_poly_element_array(
+      const int num_poly, 
+      const int conn_list_length,
+      const MBEntityType mdb_type,
+      int preferred_start_id, 
+      MBEntityHandle& actual_start_handle, 
+      int*& last_index_array,
+      MBEntityHandle*& connectivity_array
+      );
  
   //! tell MB which elements have been added to the database
   MBErrorCode update_adjacencies(

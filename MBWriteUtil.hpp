@@ -107,7 +107,59 @@ public:
       const size_t array_size, 
       int *const element_array
       );
-  
+
+  /** Get poly (polygon or polyhedron) connectivity size
+   *\param begin  First iterator in range of poly
+   *\param end    One past last in range of poly.
+   *\param connectivity_size  The lenght of the connectivity list
+   *              For the specified range of polyhedra.
+   *\author Jason Kraftcheck
+   */
+  virtual MBErrorCode get_poly_array_size(
+      MBRange::const_iterator begin,
+      const MBRange::const_iterator end,
+      int& connectivity_size 
+      );
+   
+   
+  /** Get poly (polygon or polyhedron) connectivity.
+   *
+   * This function will add as many polys as possible to the
+   * passed arrays given the sizes of those arrays.  It will
+   * then pass back position at which it stoped and the sizes
+   * of the data written to the arrays.
+   *
+   *\param iter               As input, the first element handle.
+   *                          As output, one past the last element handle
+   *                          for which data was written to the arrays.
+   *\param end                The iterator at which to stop.
+   *\param node_id_tag        A tag with integer values.  
+   *\param element_array_len  As input, length of <code>element_array</code>.
+   *                          As output, the number of entries written in that
+   *                          array.
+   *\param element_array      The memory location at which to store the 
+   *                          connectivity list.
+   *\param index_array_len    As input, the length of <code>index_array</code>.
+   *                          As output, the number of entries written in that
+   *                          array.
+   *\param index_array        The memory location at which to store offsets.
+   *\param index_offset       Value to offset (add to) index values.  As output
+   *                          the input value plus the amount of data 
+   *                          written to the element array.  (The value you
+   *                          presumably want to pass to the next call.)
+   *\author Jason Kraftcheck
+   */
+  virtual MBErrorCode get_poly_arrays(
+      MBRange::const_iterator& iter,
+      const MBRange::const_iterator end,
+      const MBTag node_id_tag,
+      size_t& handle_array_len,
+      int *const handle_array,
+      size_t& index_array_len,
+      int *const index_array,
+      int& index_offset 
+      );
+ 
   //! get a set of nodes that represent a set of elements
   MBErrorCode gather_nodes_from_elements(
       const MBRange& elements,
