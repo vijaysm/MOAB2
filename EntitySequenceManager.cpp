@@ -169,6 +169,8 @@ MBErrorCode EntitySequenceManager::private_create_entity_sequence(MBEntityHandle
   MBEntityType type = TYPE_FROM_HANDLE(start);
   if(type == MBVERTEX)
     seq = new VertexEntitySequence(this, start, num_ent, full);
+  else if(type == MBPOLYGON || type == MBPOLYHEDRON)
+    seq = new PolyEntitySequence(this, start, num_ent, num_nodes, full);
   else
     seq = new ElementEntitySequence(this, start, num_ent, num_nodes, full);
   
