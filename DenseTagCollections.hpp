@@ -339,24 +339,16 @@ inline MBErrorCode DensePageGroup::get_entities(MBEntityType type, MBRange& enti
 {
   std::vector<DensePage*>::iterator iter;
   int dum =0;
-  MBEntityHandle handle = CREATE_HANDLE(type, MB_START_ID, dum);
-  bool first_time = true;
+  MBEntityHandle handle = CREATE_HANDLE(type, 0, dum);
+  int first_time = 1; // Don't want zero-ID handle at start of range.
   for(iter = mDensePages.begin(); iter < mDensePages.end(); ++iter)
   {
-    if(*iter)
+    if (*iter && (*iter)->has_data())
     {
-      if((*iter)->has_data())
-      {
-        entities.insert(handle, handle + mOffsetFactor);
-      }        
+      entities.insert( handle + first_time, handle + mOffsetFactor - 1 );
     }
-    if(first_time)
-    {
-      first_time = false;
-      handle = handle + mOffsetFactor - MB_START_ID;
-    }
-    else
-      handle += mOffsetFactor;
+    first_time = 0;
+    handle += mOffsetFactor;
   }
   return MB_SUCCESS;
 }
