@@ -18,6 +18,7 @@
 #include "MBRange.hpp"
 #include "MBInternals.hpp"
 #include "MBTagConventions.hpp"
+#include "MBSkinner.hpp"
 #include <string>
 #include <iostream>
 #include <sstream>
@@ -1065,5 +1066,53 @@ MBErrorCode DualTool::get_graphics_points(const MBRange &in_range,
   }
 
   return result;
+}
+
+MBEntityHandle DualTool::next_loop_vertex(const MBEntityHandle last_v,
+                                          const MBEntityHandle this_v,
+                                          const MBEntityHandle dual_surf)
+{
+    // given two vertices, find the next one on the loop; if one is a dual
+    // surface, then just choose either one for that surface
+  assert(mbImpl->type_from_handle(last_v) == MBVERTEX &&
+         mbImpl->type_from_handle(last_v) == MBVERTEX &&
+         mbImpl->type_from_handle(dual_surf) == MBENTITYSET);
+
+    // get the connected vertices
+  MBSkinner skinner(mbImpl);
+  MBRange other_verts;
+  MBErrorCode result = skinner.get_bridge_adjacencies(this_v, 1, 0, other_verts);
+  if (MB_SUCCESS != result || other_verts.empty()) return 0;
+  
+    //if (mbImpl->type_from_handle(last_v) == MBENTITYSET) {
+      // dual surface, choose either; first get a 2cell on this surface
+  MBRange tcells, tcells2, verts;
+  result = mbImpl->get_entities_by_type(dual_surf, MBPOLYGON, tcells);
+  if (MB_SUCCESS != result || tcells.empty()) return 0;
+
+    // ok, pay attention here: first get 2cells common to dual surface and this_v
+  verts.insert(this_v);
+  result = mbImpl->get_adjacencies(verts, 2, false, tcells);
+  if (MB_SUCCESS != result || tcells.empty()) return 0;
+
+    // next get 2cells common to this_v and last_v, if last_v isn't zero, and remove
+    // them from tcells
+  if (0 != last_v) {
+    verts.insert(last_v);
+    result = mbImpl->get_adjacencies(verts, 2, false, tcells2);
+    if (MB_SUCCESS != result || tcells2.empty()) return 0;
+    MBRange temp_range = tcells.subtract(tcells2);
+    tcells.swap(temp_range);
+  }
+  if (tcells.empty()) return 0;
+  if (tcells.size() == 2) tcells.erase(tcells.begin());
+  assert(tcells.size() == 1);
+  
+    // next loop vertex is intersection of other_verts and vertices adjacent to first
+    // 2cell on tcells
+  result = mbImpl->get_adjacencies(tcells, 0, false, other_verts);
+  if (MB_SUCCESS != result || other_verts.size() != 1) return 0;
+  
+  return *other_verts.begin();
 }
 

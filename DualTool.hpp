@@ -106,6 +106,12 @@ public:
                                   const bool assign_ids = false,
                                   const int start_id = 0);
   
+    //! given a last_v (possibly zero) and this_v, find the next loop vertex on 
+    //! this dual surface
+  static MBEntityHandle next_loop_vertex(const MBEntityHandle last_v,
+                                         const MBEntityHandle this_v,
+                                         const MBEntityHandle dual_surf);
+  
     //! get/set the tag for dual surfaces
   MBTag dualSurface_tag();
   MBErrorCode dualSurface_tag(const MBTag tag);
