@@ -64,7 +64,8 @@ MB_LIB_SRCS = \
 	TagServer.cpp \
 	Tqdcfr.cpp \
 	WriteGMV.cpp \
-	WriteNCDF.cpp
+	WriteNCDF.cpp \
+	WriteSLAC.cpp
 
 UTEST_SRCS = merge_test.cpp scdseq_test.cpp test_adj.cpp test_exo.cpp test_rms.cpp
 
