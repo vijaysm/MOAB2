@@ -29,22 +29,22 @@
 bool debug = false;
 
   //! tag name for dual surfaces
-char *DualTool::DUAL_SURFACE_TAG_NAME = "DUAL_SURFACE";
+const char *DualTool::DUAL_SURFACE_TAG_NAME = "DUAL_SURFACE";
 
   //! tag name for dual curves
-char *DualTool::DUAL_CURVE_TAG_NAME = "DUAL_CURVE";
+const char *DualTool::DUAL_CURVE_TAG_NAME = "DUAL_CURVE";
 
   //! tag name for dual cells
-char *DualTool::IS_DUAL_CELL_TAG_NAME = "IS_DUAL_CELL";
+const char *DualTool::IS_DUAL_CELL_TAG_NAME = "IS_DUAL_CELL";
 
   //! tag name for dual entities
-char *DualTool::DUAL_ENTITY_TAG_NAME = "DUAL_ENTITY";
+const char *DualTool::DUAL_ENTITY_TAG_NAME = "DUAL_ENTITY";
 
   //! tag name for extra dual entities
-char *DualTool::EXTRA_DUAL_ENTITY_TAG_NAME = "__EXTRA_DUAL_ENTITY";
+const char *DualTool::EXTRA_DUAL_ENTITY_TAG_NAME = "__EXTRA_DUAL_ENTITY";
 
   //! tag name for graphics point
-char *DualTool::DUAL_GRAPHICS_POINT_TAG_NAME = "__DUAL_GRAPHICS_POINT";
+const char *DualTool::DUAL_GRAPHICS_POINT_TAG_NAME = "__DUAL_GRAPHICS_POINT";
 
 //const int DualTool::GP_SIZE = 20;
 
@@ -1074,8 +1074,8 @@ MBEntityHandle DualTool::next_loop_vertex(const MBEntityHandle last_v,
 {
     // given two vertices, find the next one on the loop; if one is a dual
     // surface, then just choose either one for that surface
-  assert(mbImpl->type_from_handle(last_v) == MBVERTEX &&
-         mbImpl->type_from_handle(last_v) == MBVERTEX &&
+  assert((0 == last_v || mbImpl->type_from_handle(last_v) == MBVERTEX) &&
+         mbImpl->type_from_handle(this_v) == MBVERTEX &&
          mbImpl->type_from_handle(dual_surf) == MBENTITYSET);
 
     // get the connected vertices

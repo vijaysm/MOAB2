@@ -31,22 +31,22 @@ class DualTool
 {
 public:
     //! tag name for dual surfaces
-  static char *DUAL_SURFACE_TAG_NAME;
+  static const char *DUAL_SURFACE_TAG_NAME;
 
     //! tag name for dual curves
-  static char *DUAL_CURVE_TAG_NAME;
+  static const char *DUAL_CURVE_TAG_NAME;
 
     //! tag name for dual cells
-  static char *IS_DUAL_CELL_TAG_NAME;
+  static const char *IS_DUAL_CELL_TAG_NAME;
 
     //! tag name for dual entitys
-  static char *DUAL_ENTITY_TAG_NAME;
+  static const char *DUAL_ENTITY_TAG_NAME;
 
     //! tag name for dual entitys
-  static char *EXTRA_DUAL_ENTITY_TAG_NAME;
+  static const char *EXTRA_DUAL_ENTITY_TAG_NAME;
 
     //! tag name for dual entitys
-  static char *DUAL_GRAPHICS_POINT_TAG_NAME;
+  static const char *DUAL_GRAPHICS_POINT_TAG_NAME;
 
     //! struct for storing a graphics pt
   class GraphicsPoint 
@@ -108,9 +108,9 @@ public:
   
     //! given a last_v (possibly zero) and this_v, find the next loop vertex on 
     //! this dual surface
-  static MBEntityHandle next_loop_vertex(const MBEntityHandle last_v,
-                                         const MBEntityHandle this_v,
-                                         const MBEntityHandle dual_surf);
+  MBEntityHandle next_loop_vertex(const MBEntityHandle last_v,
+                                  const MBEntityHandle this_v,
+                                  const MBEntityHandle dual_surf);
   
     //! get/set the tag for dual surfaces
   MBTag dualSurface_tag();

@@ -677,8 +677,14 @@ MBErrorCode MBCore::get_connectivity(const MBEntityHandle entity_handle,
   MBEntityType type = TYPE_FROM_HANDLE(entity_handle);
   
     // WARNING: This is very dependent on the ordering of the MBEntityType enum
-  if(type <= MBVERTEX || type >= MBENTITYSET)
+  if(type < MBVERTEX || type >= MBENTITYSET)
     return MB_TYPE_OUT_OF_RANGE;
+
+  else if (type == MBVERTEX) {
+    connectivity = &entity_handle;
+    number_nodes = 1;
+    return MB_SUCCESS;
+  }
   
   MBEntitySequence* seq = 0;
 
