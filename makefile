@@ -176,59 +176,59 @@ dist:
 # build moab_test which uses static MB library
 moab_test.static : MBTest.static.o ${MB_LIB_TARGET} $(MHDF_LIB)
 	@ echo Linking...  moab_test.static
-	${PREFIX} ${LINKER} ${DEBUG_FLAG} ${MACH_LFLAGS} MBTest.static.o -L./ -lMOAB \
+	${PREFIX} ${LINKER} ${MACH_LFLAGS} MBTest.static.o -L./ -lMOAB \
 	${MOAB_APP_LIBS} -lm $(MHDF_LNK) \
 	-o moab_test.static
 
 # build moab_test which uses xpcom MB library
 moab_test.xpcom : MBTest.xpcom.o MBDefines.o
 	@ echo Linking...  moab_test.xpcom
-	${PREFIX} ${LINKER} ${DEBUG_FLAG} ${MACH_LFLAGS} ${XPCOM_LIBS} ${PCOM_APP_LIBS} $? -o $@
+	${PREFIX} ${LINKER} ${MACH_LFLAGS} ${XPCOM_LIBS} ${PCOM_APP_LIBS} $? -o $@
 
 # build moab_test which uses pcom MB library
 moab_test : MBTest.o MBRange.o MBCN.o HomXform.o ${PCOM_MB_LIB_TARGET}
 	@ echo Linking...  moab_test
-	${PREFIX} ${LINKER} ${DEBUG_FLAG} ${MACH_LFLAGS} MBRange.o MBTest.o MBCN.o HomXform.o -o $@ ${PCOM_APP_LIBS} 
+	${PREFIX} ${LINKER} ${MACH_LFLAGS} MBRange.o MBTest.o MBCN.o HomXform.o -o $@ ${PCOM_APP_LIBS} 
 
 homxform_test.static : HomXform.o
 	@ echo Linking...  homxform_test.static
-	${PREFIX} ${LINKER} ${DEBUG_FLAG} ${MACH_LFLAGS} -DTEST HomXform.cpp -o homxform_test.static
+	${PREFIX} ${LINKER} ${MACH_LFLAGS} -DTEST HomXform.cpp -o homxform_test.static
 
 scdseq_test.static : scdseq_test.o ${MB_LIB_TARGET}
 	@ echo Linking...  scdseq_test.static
-	${PREFIX} ${LINKER} ${DEBUG_FLAG} ${MACH_LFLAGS} scdseq_test.o \
+	${PREFIX} ${LINKER} ${MACH_LFLAGS} scdseq_test.o \
 	${MOAB_APP_LIBS} -lm -o scdseq_test.static
 
 scdseq_timing : scdseq_timing.o ${MB_LIB_TARGET}
 	@ echo Linking...  scdseq_timing
-	${PREFIX} ${LINKER} ${DEBUG_FLAG} ${MACH_LFLAGS} scdseq_timing.o \
+	${PREFIX} ${LINKER} ${MACH_LFLAGS} scdseq_timing.o \
 	${MOAB_APP_LIBS} -lm -o scdseq_timing
 
 tqdcfr: Tqdcfr.o MBCN.o ${MB_LIB_TARGET}
-	${PREFIX} ${LINKER} ${DEBUG_FLAG} ${MACH_LFLAGS} -DIS_BUILDING_MB -DTEST_TQDCFR Tqdcfr.cpp MBCN.o \
+	${PREFIX} ${LINKER} ${MACH_LFLAGS} -DIS_BUILDING_MB -DTEST_TQDCFR Tqdcfr.cpp MBCN.o \
 	${MOAB_APP_LIBS} -o tqdcfr
 #
 # build component tests
 test_rms : libMOAB.a test_rms.o
-	${LINKER} ${DEBUG_FLAG} test_rms.o -L. -lMOAB -o test_rms
+	${LINKER} test_rms.o -L. -lMOAB -o test_rms
 
 merge_test : libMOAB.a merge_test.o
-	${LINKER} ${DEBUG_FLAG} merge_test.o $(MOAB_APP_LIBS) -o merge_test
+	${LINKER} merge_test.o $(MOAB_APP_LIBS) -o merge_test
 
 delete_test : libMOAB.a delete_test.o 
-	${LINKER} ${DEBUG_FLAG} delete_test.o $(MOAB_APP_LIBS)} -o delete_test
+	${LINKER} delete_test.o $(MOAB_APP_LIBS)} -o delete_test
 
 test_exo : libMOAB.a test_exo.o
-	${LINKER} ${DEBUG_FLAG} test_exo.o $(MOAB_APP_LIBS)} -o test_exo
+	${LINKER} test_exo.o $(MOAB_APP_LIBS)} -o test_exo
 
 test_tag_server : libMOAB.a TagServer.o_test
-	${CXX} ${DEBUG_FLAG} -o test_tag_server TagServer.o_test $(MOAB_APP_LIBS)
+	${CXX} -o test_tag_server TagServer.o_test $(MOAB_APP_LIBS)
 
 test_ent_seq : libMOAB.a MBEntitySequence.o_test
-	${CXX} ${DEBUG_FLAG} -o test_ent_seq MBEntitySequence.o_test ${NETCDF_INCLUDE} $(MOAB_APP_LIBS)
+	${CXX} -o test_ent_seq MBEntitySequence.o_test ${NETCDF_INCLUDE} $(MOAB_APP_LIBS)
 
 test_adj : test_adj.o libMOAB.a
-	${LINKER} ${DEBUG_FLAG} test_adj.o -o test_adj $(MOAB_APP_LIBS)
+	${LINKER} test_adj.o -o test_adj $(MOAB_APP_LIBS)
 
 # hdf5 reader-writer stuff
 mhdf/%: force_rebuild
@@ -266,26 +266,26 @@ clean_pcom :
 # .cpp.o rule for building regular object files
 .cpp.o:
 	${ECHO_COMMAND} 
-	${PREFIX} ${CXX} -DIS_BUILDING_MB ${DEBUG_FLAG} ${MACH_CXXFLAGS} \
+	${PREFIX} ${CXX} -DIS_BUILDING_MB ${MACH_CXXFLAGS} \
 	${NETCDF_INCLUDE} $(MHDF_FLAGS) -c -o $@ $<
 
 # .cpp.static.o rule for building regular object files
 .cpp.static.o:
 	${ECHO_COMMAND} 
-	${PREFIX} ${CXX} -DIS_BUILDING_MB -DMB_STATIC ${DEBUG_FLAG} \
+	${PREFIX} ${CXX} -DIS_BUILDING_MB -DMB_STATIC \
 	${MACH_CXXFLAGS} ${NETCDF_INCLUDE} $(MHDF_FLAGS) -c -o $@ $<
 
 # .cpp.o_test for building object files which have an individual component test in them
 # meaning they have their own main() defined
 .cpp.o_test:
 	${ECHO_COMMAND}
-	${PREFIX} ${CXX} -DIS_BUILDING_MB ${DEBUG_FLAG} -DTEST \
+	${PREFIX} ${CXX} -DIS_BUILDING_MB -DTEST \
 	${MACH_CXXFLAGS} ${NETCDF_INCLUDE} $(MHDF_FLAGS) -c -o $@ $<
 
 # .cpp.xpcom.o rule for building object files to work with xpcom
 .cpp.xpcom.o:
 	${ECHO_COMMAND} 
-	${PREFIX} ${CXX} ${DEBUG_FLAG} ${MACH_CXXFLAGS} ${XPCOM_MACH_CXXFLAGS} \
+	${PREFIX} ${CXX} ${MACH_CXXFLAGS} ${XPCOM_MACH_CXXFLAGS} \
 	${NETCDF_INCLUDE} $(MHDF_FLAGS) -c -o $@ $<
 
 WriteHDF5Parallel.o: WriteHDF5Parallel.cpp

@@ -191,6 +191,10 @@ private:
     //! its vertices' dual entities, return true, otherwise false
   bool check_1d_loop_edge(MBEntityHandle this_ent);
   
+    //! go through potential dual equivalent edges (edges whose nodes define
+    //! multiple edges), and add explicit adjacencies to corrent 2cells
+  MBErrorCode check_dual_equiv_edges(MBRange &dual_edges);
+  
     //! private copy of interface *
   MBInterface *mbImpl;
 

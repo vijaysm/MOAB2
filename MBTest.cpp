@@ -406,12 +406,13 @@
 
      // test tag_get_tags_on_entity and tag_delete_data
    std::vector<MBTag> all_tags;
-   error = MB->tag_get_tags_on_entity(node_ids[0], all_tags);
+   handle = CREATE_HANDLE(MBVERTEX, node_ids[0], err);
+   error = MB->tag_get_tags_on_entity(handle, all_tags);
    if (MB_SUCCESS != error)
      return error;
 
    if (!all_tags.empty()) {
-     error = MB->tag_delete_data(all_tags[0], node_ids, 1);
+     error = MB->tag_delete_data(all_tags[0], &handle, 1);
      if (MB_SUCCESS != error)
        return error;
 

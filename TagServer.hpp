@@ -55,10 +55,6 @@ class TagInfo
 {
 public:
 
-  //! defines relatively how many entities this tag will be
-  //! attached to so we can store it efficiently
-  static const int TagBitProperties[];
-                    
   //! constructor
   TagInfo() : mTagName(""), mDataSize(0), mDefaultValue(NULL) {}
   

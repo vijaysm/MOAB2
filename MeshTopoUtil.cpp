@@ -74,7 +74,7 @@ MBErrorCode MeshTopoUtil::star_faces(const MBEntityHandle edge,
   MBRange in_range, out_range;
 
     // get faces & regions adjacent to the edge
-  in_range.insert(this_edge);
+  in_range.insert(edge);
   MBErrorCode result = mbImpl->get_adjacencies(in_range, 2, false, all_faces);
   if (MB_SUCCESS != result) return result;
 
@@ -120,7 +120,7 @@ MBErrorCode MeshTopoUtil::star_faces(const MBEntityHandle edge,
 
       // get 3d elements common to face and edge and in untreated range
     in_range.clear();
-    in_range.insert(this_edge);
+    in_range.insert(edge);
     in_range.insert(last_face);
     out_range = untreated_regions;
     result = mbImpl->get_adjacencies(in_range, 3, false, out_range, 
@@ -136,7 +136,7 @@ MBErrorCode MeshTopoUtil::star_faces(const MBEntityHandle edge,
     
       // get the other face sharing the edge
     in_range.clear(); 
-    in_range.insert(this_edge);
+    in_range.insert(edge);
     in_range.insert(*out_range.begin());
     out_range.clear();
     result = mbImpl->get_adjacencies(in_range, 2, false, out_range);
@@ -153,7 +153,7 @@ MBErrorCode MeshTopoUtil::star_faces(const MBEntityHandle edge,
 
     // if it's a closed loop, we got all the vertices; if not, we need 2 more;
     // closed is indicated by first_face being zero
-  on_boundary = !(0 == first_face);
+  bdy_edge = !(0 == first_face);
 
   return MB_SUCCESS;
 }

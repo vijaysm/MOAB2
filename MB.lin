@@ -24,13 +24,13 @@ ECHO_COMMAND = @ echo "Compiling(${DEBUG_FLAG}): $<"
 # compilers are being referenced
 #
 # CC:
-CC = gcc
-CXX = g++ 
-LINKER = ${CXX}
+CC = gcc ${PIC}
+CXX = g++ ${PIC} ${DEBUG_FLAG}
+LINKER = ${CXX} ${DEBUG_FLAG}
 MAKE = make
 ARCHIVER = /usr/bin/ar ru
 PIC = -fpic
-SO_LINKER = $(LINKER) $(PIC) -shared -Wl,-soname,$(notdir $@)
+SO_LINKER = $(LINKER) -shared -Wl,-soname,$(notdir $@)
 RUNTIME_LINKER_LIB = -ldl
 
 # MAKEDEPEND:

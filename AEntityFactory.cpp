@@ -865,7 +865,9 @@ MBErrorCode AEntityFactory::get_down_adjacency_elements_poly(MBEntityHandle sour
 
   MBEntityType source_type = TYPE_FROM_HANDLE(source_entity);
 
-  assert (source_type == MBPOLYHEDRON || source_type == MBPOLYGON);
+  if (!(source_type == MBPOLYHEDRON && target_dimension > 0 && target_dimension < 3) &&
+      (!source_type == MBPOLYGON && target_dimension == 1)) 
+    return MB_TYPE_OUT_OF_RANGE;
   
     // make this a fixed size to avoid cost of working with STL vectors
   std::vector<MBEntityHandle> vertex_array;
@@ -880,17 +882,36 @@ MBErrorCode AEntityFactory::get_down_adjacency_elements_poly(MBEntityHandle sour
     return MB_SUCCESS;
   }
 
-  std::vector<MBEntityHandle> dum_vec;
   MBErrorCode tmp_result;
   if (source_type == MBPOLYGON) {
     result = MB_SUCCESS;
       // put the first vertex on the end so we have a ring
     vertex_array.push_back(*vertex_array.begin());
     for (unsigned int i = 0; i < vertex_array.size()-1; i++) {
-      tmp_result = thisMB->get_adjacencies(&vertex_array[i], 2, 1, false, dum_vec);
+      MBRange vrange, adj_edges;
+      vrange.insert(vertex_array[i]);
+      vrange.insert(vertex_array[i+1]);
+      tmp_result = thisMB->get_adjacencies(vrange, 1, false, adj_edges);
       if (MB_SUCCESS != tmp_result) result = tmp_result;
-      target_entities.insert(target_entities.end(), dum_vec.begin(), dum_vec.end());
-      dum_vec.clear();
+      if (adj_edges.size() == 1) {
+          // single edge - don't check adjacencies
+        target_entities.push_back(*adj_edges.begin());
+      }
+      else {
+          // multiple ones - need to check for explicit adjacencies
+        MBAdjacencyVector *adj_vec;
+        unsigned int start_sz = target_entities.size();
+        for (MBRange::iterator rit = adj_edges.begin(); rit != adj_edges.end(); rit++) {
+          tmp_result = mDensePageGroups[TYPE_FROM_HANDLE(source_entity)]->get_data(*rit, &adj_vec);
+          if (MB_SUCCESS == tmp_result && NULL != adj_vec &&
+              std::find(adj_vec->begin(), adj_vec->end(), source_entity) != adj_vec->end())
+            target_entities.push_back(*rit);
+        }
+        if (target_entities.size() == start_sz) {
+          result = MB_MULTIPLE_ENTITIES_FOUND;
+          target_entities.push_back(*adj_edges.begin());
+        }
+      }
     }
     return result;
   }
@@ -900,6 +921,7 @@ MBErrorCode AEntityFactory::get_down_adjacency_elements_poly(MBEntityHandle sour
       result = thisMB->get_connectivity(&source_entity, 1, target_entities);
     }
     else {
+      std::vector<MBEntityHandle> dum_vec;
       result = thisMB->get_connectivity(&source_entity, 1, dum_vec);
       if (MB_SUCCESS != result) return result;
       result = thisMB->get_adjacencies(&dum_vec[0], dum_vec.size(), 1, false,

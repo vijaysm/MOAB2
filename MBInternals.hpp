@@ -100,9 +100,23 @@ inline MBTagId ID_FROM_TAG_HANDLE(MBTag tag_handle)
   return static_cast<MBTagId>( (reinterpret_cast<long>(tag_handle)) & TAG_ID_MASK );
 }
 
+  //! defines relatively how many entities this tag will be
+  //! attached to so we can store it efficiently
+const int TAG_BIT_PROPERTIES[] =   
+  {
+    0x01000000,  //TAGPROP_BIT   
+    0x02000000,  //TAGPROP_SPARSE
+    0x04000000,  //TAGPROP_DENSE 
+    0x08000000,  //TAGPROP_MESH  
+    0x10000000,   //TAGPROP_LAST  
+    0x20000000,   // next       
+    0x40000000,   // next       
+    0x80000000,   // next       
+  };
+
 inline MBTag TAG_HANDLE_FROM_ID(MBTagId tag_id, MBTagType prop) 
 {
-  return reinterpret_cast<MBTag>(tag_id | prop);
+  return reinterpret_cast<MBTag>(tag_id | TAG_BIT_PROPERTIES[prop]);
 }
 
 //! define non-inline versions of these functions for debugging

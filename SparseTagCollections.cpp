@@ -344,7 +344,7 @@ MBErrorCode SparseTagCollection::remove_data( const MBEntityHandle entity_handle
     mData.erase(iterator);
     return MB_SUCCESS;
   }
-  return MB_TAG_NOT_FOUND;
+  return MB_ENTITY_NOT_FOUND;
 }
 
 

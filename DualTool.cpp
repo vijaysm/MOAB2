@@ -19,6 +19,8 @@
 #include "MBInternals.hpp"
 #include "MBTagConventions.hpp"
 #include "MBSkinner.hpp"
+#include "MBCore.hpp"
+#include "AEntityFactory.hpp"
 #include <string>
 #include <iostream>
 #include <sstream>
@@ -335,10 +337,9 @@ MBErrorCode DualTool::construct_dual_faces(const MBRange &all_edges,
   unsigned int is_dual = 0x1;
   MBErrorCode tmp_result = MB_SUCCESS;
   MBErrorCode result = MB_SUCCESS;
-  
+  MBRange equiv_edges;
+#define TRC if (MB_SUCCESS != tmp_result) {result = tmp_result; continue;}
   for (rit = all_edges.begin(); rit != all_edges.end(); rit++) {
-    if (tmp_result != MB_SUCCESS) 
-      result = tmp_result;
     
     tmp_result = mbImpl->tag_get_data(dualEntity_tag(), &(*rit), 1, &dual_ent);
     if (MB_SUCCESS == tmp_result && 0 != dual_ent) {
@@ -346,64 +347,176 @@ MBErrorCode DualTool::construct_dual_faces(const MBRange &all_edges,
       continue;
     }
     
-      // no dual entity; construct one; get the dual vertices bounding the edge in radial order
+      // no dual entity; construct one; get the dual vertices bounding the edge in radial order,
+      // then construct the dual face
     std::vector<MBEntityHandle> rad_dverts;
     bool bdy_edge;
-    tmp_result = get_radial_dverts(*rit, rad_dverts, bdy_edge);
-    if (MB_SUCCESS != tmp_result) 
-      continue;
-    
-      // create the dual face
-    tmp_result = mbImpl->create_element(MBPOLYGON, &rad_dverts[0], rad_dverts.size(), dual_ent);
-    if (MB_SUCCESS != tmp_result || 0 == dual_ent) 
-      continue;
-    
-      // tag it indicating it's a dual entity
-    tmp_result = mbImpl->tag_set_data(isDualCell_tag(), &dual_ent, 1, &is_dual);
-    if (MB_SUCCESS != tmp_result) 
-      continue;
+    tmp_result = get_radial_dverts(*rit, rad_dverts, bdy_edge);TRC
+    tmp_result = mbImpl->create_element(MBPOLYGON, &rad_dverts[0], rad_dverts.size(), dual_ent);TRC
+
+      // tag it indicating it's a dual entity, and tag primal/dual with dual/primal
+    tmp_result = mbImpl->tag_set_data(isDualCell_tag(), &dual_ent, 1, &is_dual);TRC
+    tmp_result = mbImpl->tag_set_data(dualEntity_tag(), &(*rit), 1, &dual_ent);TRC
+    tmp_result = mbImpl->tag_set_data(dualEntity_tag(), &dual_ent, 1, &(*rit));TRC
 
       // save it in the list of new dual ents
     dual_ents.insert(dual_ent);
     
-      // tag the primal entity with its dual entity and vica versa
-    tmp_result = mbImpl->tag_set_data(dualEntity_tag(), &(*rit), 1, &dual_ent);
-    if (MB_SUCCESS != tmp_result) continue;
-    tmp_result = mbImpl->tag_set_data(dualEntity_tag(), &dual_ent, 1, &(*rit));
-    if (MB_SUCCESS != tmp_result) continue;
-
       // add a graphics point to the cell; position depends on whether it's a
       // bdy cell (mid-pt of cell's vertices) or not (mid-pt of primal edge)
     double avg_pos[3];
-    tmp_result = MeshTopoUtil(mbImpl).get_average_position(*rit, avg_pos);
-    if (MB_SUCCESS != tmp_result) continue;
+    tmp_result = MeshTopoUtil(mbImpl).get_average_position(*rit, avg_pos);TRC
     if (bdy_edge) {
       
-      tmp_result = add_graphics_point(dual_ent);
-      if (MB_SUCCESS != tmp_result) continue;
-
-        // also, if it's a bdy edge, add a new dual edge betw last 2 verts
+        // add a new dual edge betw last 2 verts
       MBEntityHandle new_edge;
       tmp_result = mbImpl->create_element(MBEDGE, &rad_dverts[rad_dverts.size()-2], 
-                                          2, new_edge);
-      if (MB_SUCCESS != tmp_result) continue;
+                                          2, new_edge);TRC
+      tmp_result = mbImpl->tag_set_data(isDualCell_tag(), &new_edge, 1, &is_dual);TRC
 
-        // tag it indicating it's a dual entity
-      tmp_result = mbImpl->tag_set_data(isDualCell_tag(), &new_edge, 1, &is_dual);
-      if (MB_SUCCESS != tmp_result) continue;
-
+        // tag the new dual edge with the primal edge as it's dual entity; primal
+        // edge IS NOT likewise tagged, since it's already tagged with the 2cell
+      tmp_result = mbImpl->tag_set_data(dualEntity_tag(), &new_edge, 1, &(*rit)); TRC
+      
         // add a graphics pt, position is center of primal edge
-      tmp_result = add_graphics_point(new_edge, avg_pos);
-      if (MB_SUCCESS != tmp_result) continue;
+      tmp_result = add_graphics_point(dual_ent);TRC
+      tmp_result = add_graphics_point(new_edge, avg_pos);TRC
     }
     
     else {
         // if inside, point goes on the 2cell, at primal edge mid-pt
-      tmp_result = add_graphics_point(dual_ent, avg_pos);
+      tmp_result = add_graphics_point(dual_ent, avg_pos);TRC
     }
+
+      // check to see whether we have equiv entities; if we find any, save for later fixup
+    MBRange dum_edges, dum_poly(dual_ent, dual_ent);
+    tmp_result = mbImpl->get_adjacencies(dum_poly, 1, false, dum_edges);
+    if (MB_MULTIPLE_ENTITIES_FOUND == tmp_result) {
+        // we do - need to add adjacencies to disambiguate; use the primal
+      equiv_edges.merge(dum_edges);
+    }    
+  }
+
+  if (!equiv_edges.empty()) 
+    result = check_dual_equiv_edges(equiv_edges);
+
+  return result;
+}
+
+MBErrorCode DualTool::check_dual_equiv_edges(MBRange &dual_edges)
+{
+    // fix equivalent dual edges (i.e. edges whose vertices define multiple edges)
+    // by explicitly adding adjacencies to containing polygons; adjacent polygons
+    // found by going through primal
+  MBErrorCode tmp_result, result = MB_SUCCESS;
+
+  MBRange all_dedges(dual_edges);
+    // first, go through all dual edges and find equivalent edges (by looking for
+    // up-adjacent edges on the vertices of each edge)
+  for (MBRange::iterator rit = dual_edges.begin(); rit != dual_edges.end(); rit++) {
+    MBRange connect, dum_range(*rit, *rit);
+    tmp_result = mbImpl->get_adjacencies(dum_range, 0, false, connect);
+    if (MB_SUCCESS != tmp_result) continue;
+    tmp_result = mbImpl->get_adjacencies(connect, 1, false, all_dedges, MBInterface::UNION);
     if (MB_SUCCESS != tmp_result) continue;
   }
 
+    // go through each edge
+  while (!all_dedges.empty()) {
+    MBEntityHandle this_edge = *all_dedges.begin();
+    all_dedges.erase(all_dedges.begin());
+    
+    const MBEntityHandle *connect;
+    int num_connect;
+    result = mbImpl->get_connectivity(this_edge, connect, num_connect);
+    if (MB_SUCCESS != result) continue;
+
+    MBRange dum_edges, verts;
+    verts.insert(connect[0]);
+    verts.insert(connect[1]);
+    MBErrorCode tmp_result = mbImpl->get_adjacencies(verts, 1, false, dum_edges);
+    if (MB_SUCCESS != tmp_result) {
+      result = tmp_result;
+      continue;
+    }
+    if (dum_edges.size() == 1) {
+        // not an equiv edge - already removed from list, so just continue
+      continue;
+    }
+    
+      // ok, have an equiv entity - fix by looking through primal
+      // pre-get the primal of these
+    MBEntityHandle dedge_quad;
+    tmp_result = mbImpl->tag_get_data(dualEntity_tag(), &this_edge, 1, &dedge_quad);
+    if (MB_SUCCESS != tmp_result) {
+      result = tmp_result;
+      continue;
+    }
+  
+    if (MBQUAD == mbImpl->type_from_handle(dedge_quad)) {
+      
+        // get the primal edges adj to quad
+      MBRange dum_quad_range(dedge_quad, dedge_quad), adj_pedges;
+      tmp_result = mbImpl->get_adjacencies(dum_quad_range, 1, false, adj_pedges);
+      if (MB_SUCCESS != tmp_result) {
+        result = tmp_result;
+        continue;
+      }
+        // get the dual 2cells corresponding to those pedges
+      std::vector<MBEntityHandle> dcells;
+      dcells.resize(adj_pedges.size());
+      tmp_result = mbImpl->tag_get_data(dualEntity_tag(), adj_pedges, &dcells[0]);
+      if (MB_SUCCESS != tmp_result) {
+        result = tmp_result;
+        continue;
+      }
+        // now add explicit adjacencies from the dedge to those dcells
+      std::vector<MBEntityHandle>::iterator vit;
+      for (vit = dcells.begin(); vit != dcells.end(); vit++) {
+        assert(MBPOLYGON == mbImpl->type_from_handle(*vit));
+        tmp_result = mbImpl->add_adjacencies(this_edge, &(*vit), 1, false);
+        if (MB_SUCCESS != tmp_result) {
+          result = tmp_result;
+          continue;
+        }
+          // check that there are really adjacencies and *vit is in them
+        const MBEntityHandle *adjs;
+        int num_adjs;
+        tmp_result = reinterpret_cast<MBCore*>(mbImpl)->a_entity_factory()->
+          get_adjacencies(this_edge, adjs, num_adjs);
+        if (NULL == adjs || std::find(adjs, adjs+num_adjs, *vit) == adjs+num_adjs)
+          std::cout << "Add_adjacencies failed in construct_dual_faces." << std::endl;
+      }
+
+        // sanity check - look for adj edges again, and check for equiv entities
+      for (vit = dcells.begin(); vit != dcells.end(); vit++) {
+        MBRange adj_edges;
+        dum_quad_range.clear();
+        dum_quad_range.insert(*vit);
+        assert(MBPOLYGON == mbImpl->type_from_handle(*vit));
+        tmp_result = mbImpl->get_adjacencies(dum_quad_range, 1, false, adj_edges);
+        if (MB_MULTIPLE_ENTITIES_FOUND == tmp_result) {
+          std::cout << "Couldn't clean up multiple entities in construct_dual_faces." << std::endl;
+          continue;
+        }
+      }
+    }
+    else {
+        // else, have a dual edge representing a bdy edge - tie directly to
+        // dual entity if its dual entity
+      MBEntityHandle bdy_dcell;
+      tmp_result = mbImpl->tag_get_data(dualEntity_tag(), &dedge_quad, 1, &bdy_dcell); TRC
+      assert(MBPOLYGON == mbImpl->type_from_handle(bdy_dcell));
+      
+      tmp_result = mbImpl->add_adjacencies(this_edge, &bdy_dcell, 1, false); 
+      if (MB_SUCCESS != tmp_result) {
+        result = tmp_result;
+        continue;
+      }
+    }
+  }
+  
+    // success!
   return result;
 }
 

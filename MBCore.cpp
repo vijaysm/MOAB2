@@ -1214,7 +1214,7 @@ MBErrorCode  MBCore::tag_delete_data(const MBTag tag_handle,
                                        const MBEntityHandle *entity_handles,
                                        const int num_handles)
 {
-  if (reinterpret_cast<long>(tag_handle) & TagInfo::TagBitProperties[MB_TAG_DENSE])
+  if (reinterpret_cast<long>(tag_handle) & TAG_BIT_PROPERTIES[MB_TAG_DENSE])
     return MB_FAILURE;
 
   MBErrorCode status = MB_SUCCESS, temp_status;
@@ -1228,9 +1228,9 @@ MBErrorCode  MBCore::tag_delete_data(const MBTag tag_handle,
 
 //! removes the tag from the entity
 MBErrorCode  MBCore::tag_delete_data(const MBTag tag_handle, 
-                                       const MBRange &entity_handles)
+                                     const MBRange &entity_handles)
 {
-  if (reinterpret_cast<long>(tag_handle) & TagInfo::TagBitProperties[MB_TAG_DENSE])
+  if (reinterpret_cast<long>(tag_handle) & TAG_BIT_PROPERTIES[MB_TAG_DENSE])
     return MB_FAILURE;
 
   MBErrorCode status = MB_SUCCESS, temp_status;
@@ -1320,13 +1320,13 @@ MBErrorCode MBCore::tag_get_default_value(const MBTag tag_handle, void *def_valu
   //! get type of tag (sparse, dense, etc.; 0 = dense, 1 = sparse, 2 = bit, 3 = static)
 MBErrorCode MBCore::tag_get_type(const MBTag tag_handle, MBTagType &tag_type) const
 {
-  if( reinterpret_cast<long>(tag_handle) & TagInfo::TagBitProperties[MB_TAG_DENSE])
+  if( reinterpret_cast<long>(tag_handle) & TAG_BIT_PROPERTIES[MB_TAG_DENSE])
     tag_type = MB_TAG_DENSE;
-  else if( reinterpret_cast<long>(tag_handle) & TagInfo::TagBitProperties[MB_TAG_SPARSE])
+  else if( reinterpret_cast<long>(tag_handle) & TAG_BIT_PROPERTIES[MB_TAG_SPARSE])
     tag_type = MB_TAG_SPARSE;
-  else if( reinterpret_cast<long>(tag_handle) & TagInfo::TagBitProperties[MB_TAG_BIT])
+  else if( reinterpret_cast<long>(tag_handle) & TAG_BIT_PROPERTIES[MB_TAG_BIT])
     tag_type = MB_TAG_BIT;
-  else if( reinterpret_cast<long>(tag_handle) & TagInfo::TagBitProperties[MB_TAG_MESH])
+  else if( reinterpret_cast<long>(tag_handle) & TAG_BIT_PROPERTIES[MB_TAG_MESH])
     tag_type = MB_TAG_MESH;
   else {
     tag_type = MB_TAG_LAST;
@@ -1790,8 +1790,9 @@ MBErrorCode MBCore::list_entities(const MBRange &entities) const
     else if (this_type == MBENTITYSET)
       this->print(*iter, "");
     
-    std::cout << "Adjacencies:" << std::endl;
+    std::cout << "  Adjacencies:" << std::endl;
     bool some = false;
+    int multiple = 0;
     for (int dim = 0; dim <= 3; dim++) {
       if (dim == MBCN::Dimension(this_type)) continue;
       adj_vec.clear();
@@ -1801,15 +1802,31 @@ MBErrorCode MBCore::list_entities(const MBRange &entities) const
       if (MB_FAILURE == result) continue;
       for (MBHandleVec::iterator adj_it = adj_vec.begin(); adj_it != adj_vec.end(); adj_it++) {
         if (adj_it != adj_vec.begin()) std::cout << ", ";
-        else std::cout << std::endl;
+        else std::cout << "   ";
         std::cout << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*adj_it)) << " " << ID_FROM_HANDLE(*adj_it);
       }
       if (!adj_vec.empty()) {
         std::cout << std::endl;
         some = true;
       }
+      if (MB_MULTIPLE_ENTITIES_FOUND == result)
+        multiple += dim;
     }
     if (!some) std::cout << "(none)" << std::endl;
+    const MBEntityHandle *explicit_adjs;
+    int num_exp;
+    aEntityFactory->get_adjacencies(*iter, explicit_adjs, num_exp);
+    if (NULL != explicit_adjs && 0 != num_exp) {
+      std::cout << "  Explicit adjacencies: ";
+      for (int i = 0; i < num_exp; i++) {
+        if (i != 0) std::cout << ", ";
+        std::cout << MBCN::EntityTypeName(TYPE_FROM_HANDLE(explicit_adjs[i])) << " " 
+                  << ID_FROM_HANDLE(explicit_adjs[i]);
+      }
+      std::cout << std::endl;
+    }
+    if (multiple != 0)
+      std::cout << "   (MULTIPLE = " << multiple << ")" << std::endl;
 
     std::cout << std::endl;
   }

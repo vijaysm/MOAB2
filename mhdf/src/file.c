@@ -525,7 +525,7 @@ mhdf_getElemHandles( mhdf_FileHandle file_handle,
   char* current;
   hid_t group_id;
   herr_t rval;
-  ssize_t rlen;
+  ssize_t rlen = 0;
   size_t remaining;
   FileHandle* file_ptr = (FileHandle*)file_handle;
   if (!mhdf_check_valid_file( file_ptr, status ))
