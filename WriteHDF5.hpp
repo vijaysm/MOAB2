@@ -65,7 +65,7 @@ public:
   /** Create attributes holding the HDF5 type handle for the 
    *  type of a bunch of the default tags.
    */
-  static MBErrorCode register_known_tag_types( MBInterface* );
+  //static MBErrorCode register_known_tag_types( MBInterface* );
 
 protected:
   
@@ -191,6 +191,8 @@ public:
     //! The offset at which to begin writting this processor's data.
     //! Always zero except for parallel IO.
     id_t offset;
+    //! Write tag data (for serial, is always equal to !range.empty())
+    bool write;
     
     bool operator<(const SparseTag&) const;
   };

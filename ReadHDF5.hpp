@@ -123,18 +123,21 @@ private:
   //! Read dense tag for all entities 
   MBErrorCode read_dense_tag( MBTag tag_handle,
                               hid_t hdf_read_type,
-                              size_t read_size );
+                              size_t read_size,
+                              bool is_handle_type );
 
   //! Read dense tag for specified entity set
   MBErrorCode read_dense_tag( ElemSet& set,
                               MBTag tag_handle,
                               hid_t hdf_read_type,
-                              size_t read_size );
+                              size_t read_size,
+                              bool is_handle_type );
   
   //! Read sparse tag for all entities.
   MBErrorCode read_sparse_tag( MBTag tag_handle,
                                hid_t hdf_read_type,
-                               size_t read_size );
+                               size_t read_size,
+                               bool is_handle_type );
                                
   MBErrorCode read_qa( MBEntityHandle& import_set_out );
                                

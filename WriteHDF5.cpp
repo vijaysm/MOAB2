@@ -195,7 +195,7 @@ MBErrorCode WriteHDF5::init()
 */ 
     // For known tag types, store the corresponding HDF5 in which
     // the tag data is to be written in the file.
-  register_known_tag_types( iFace ); 
+  //register_known_tag_types( iFace ); 
  
     // Get the util interface
   rval = iFace->query_interface( "MBWriteUtilIface", (void**)&writeUtil );
@@ -242,6 +242,7 @@ WriteHDF5::~WriteHDF5()
   if (createdIdTag)
     iFace->tag_delete( idTag );
 }
+
 
 MBErrorCode WriteHDF5::write_file( const char* filename,
                                    bool overwrite,
@@ -361,8 +362,9 @@ DEBUGOUT("Writing tags.\n");
 
     // Write tags
   for (t_itor = tagList.begin(); t_itor != tagList.end(); ++t_itor)
-    if (write_sparse_tag( *t_itor ) != MB_SUCCESS)
-      goto write_fail;
+    if (t_itor->write)
+      if (write_sparse_tag( *t_itor ) != MB_SUCCESS)
+        goto write_fail;
 
 DEBUGOUT("Closing file.\n");
 
@@ -373,7 +375,6 @@ DEBUGOUT("Closing file.\n");
   filePtr = 0;
   result = write_finished();
   CHK_MHDF_ERR_0( rval );
-    
   return result;
   
 write_fail:
@@ -1152,6 +1153,7 @@ erase_from_vector( std::vector<T> vector, T value )
   
   vector.resize( count );
 }
+ 
 
   
 
@@ -1439,44 +1441,22 @@ MBErrorCode WriteHDF5::write_sparse_tag( const SparseTag& tag_data )
   mhdf_Status status;
   hid_t tables[2];
   std::string name;
-  int mb_size, hdf_size;
+  int mb_size;
   MBTagType mb_type;
+  MBDataType mb_data_type;
   long table_size;
   
     //get tag properties from moab
   if (MB_SUCCESS != iFace->tag_get_name( tag_data.tag_id, name )    ||
       MB_SUCCESS != iFace->tag_get_type( tag_data.tag_id, mb_type ) ||
-      MB_SUCCESS != iFace->tag_get_size( tag_data.tag_id, mb_size ))
+      MB_SUCCESS != iFace->tag_get_size( tag_data.tag_id, mb_size ) ||
+      MB_SUCCESS != iFace->tag_get_data_type( tag_data.tag_id, mb_data_type ))
     return MB_FAILURE;
+  if (mb_type == MB_TAG_BIT)
+    mb_size = 1;
 
 DEBUGOUT((std::string("Tag: ") + name + "\n").c_str());
   
-    //Check if there's any data to write for this tag.
-    //Check if data table has been created, because if we're
-    //writing in parallel, other CPUs may have data to write
-    //even though we don't and the open call is collective.
-  int hdf_default, hdf_global, hdf_opaque, hdf_sparse, hdf_class, hdf_bits;
-  hid_t hdf_type;
-  mhdf_getTagInfo( filePtr, 
-                   name.c_str(),
-                   &hdf_size,
-                   &hdf_default,
-                   &hdf_global,
-                   &hdf_opaque,
-                   &hdf_sparse,
-                   &hdf_class,
-                   &hdf_bits,
-                   &hdf_type,
-                   &status );
-  CHK_MHDF_ERR_0(status);
-  assert( hdf_class == mb_type );
-  assert( (mb_type == MB_TAG_BIT) ? (hdf_size == 1 && hdf_bits == mb_size) : (hdf_size == mb_size) );
-  if (0 != hdf_type)
-    mhdf_closeData( filePtr, hdf_type, &status );
-    
-  if (!hdf_sparse)
-    return MB_SUCCESS;
-
     //open tables to write info
   mhdf_openSparseTagData( filePtr,
                           name.c_str(),
@@ -1521,7 +1501,7 @@ DEBUGOUT((std::string("Tag: ") + name + "\n").c_str());
   CHK_MHDF_ERR_0(status);
   
     // Set up data buffer for writing tag values
-  chunk_size = bufferSize / hdf_size;
+  chunk_size = bufferSize / mb_size;
   assert( chunk_size > 0 );
   char* tag_buffer = (char*)dataBuffer;
   
@@ -1534,7 +1514,7 @@ DEBUGOUT((std::string("Tag: ") + name + "\n").c_str());
       // write "chunk_size" blocks of data
     long count = (unsigned long)remaining > chunk_size ? chunk_size : remaining;
     remaining -= count;
-    bzero( tag_buffer, count * hdf_size );
+    bzero( tag_buffer, count * mb_size );
     MBRange::const_iterator stop = iter;
     stop += count;
     range.clear();
@@ -1549,7 +1529,7 @@ DEBUGOUT((std::string("Tag: ") + name + "\n").c_str());
       char* buf_iter = tag_buffer;
       for (MBRange::const_iterator it = range.begin(); 
            MB_SUCCESS == rval && it != range.end(); 
-           ++it, buf_iter += hdf_size)
+           ++it, buf_iter += mb_size)
         rval = iFace->tag_get_data( tag_data.tag_id, &*it, 1, buf_iter );
     }
     else
@@ -1557,6 +1537,17 @@ DEBUGOUT((std::string("Tag: ") + name + "\n").c_str());
       rval = iFace->tag_get_data( tag_data.tag_id, range, tag_buffer );
     }
     CHK_MB_ERR_1(rval, tables[1], status);
+    
+      // Convert MBEntityHandles to file ids
+    if (mb_data_type == MB_TYPE_HANDLE)
+    {
+      for (unsigned i = 0; i < (count * mb_size / sizeof(MBEntityHandle)); ++i)
+      {
+        int id;
+        rval = iFace->tag_get_data( idTag, ((MBEntityHandle*)tag_buffer)+i, 1, &id );
+        tag_buffer[i] = (MBEntityHandle)(rval == MB_SUCCESS ? id : 0);
+      }
+    }
     
       // write the data
     mhdf_writeSparseTagValues( tables[1], offset, count,
@@ -1605,7 +1596,7 @@ MBErrorCode WriteHDF5::write_qa( std::vector<std::string>& list )
   return MB_SUCCESS;
 }
 
-
+/*
 MBErrorCode WriteHDF5::register_known_tag_types( MBInterface* iface )
 {
   hid_t int4, double16;
@@ -1660,7 +1651,7 @@ MBErrorCode WriteHDF5::register_known_tag_types( MBInterface* iface )
   H5Tclose( double16 );
   return error ? MB_FAILURE : MB_SUCCESS;
 }
-
+*/
 
 MBErrorCode WriteHDF5::gather_tags()
 {
@@ -1721,6 +1712,8 @@ MBErrorCode WriteHDF5::gather_tags()
     result = iFace->get_entities_by_type_and_tag( 0, MBENTITYSET, &handle, NULL, 1, range );
     CHK_MB_ERR_0(result);
     td_iter->range.merge( range.intersect( setSet.range ) );
+  
+    td_iter->write = !td_iter->range.empty();
   }
   
   return MB_SUCCESS;
@@ -2009,37 +2002,82 @@ MBErrorCode WriteHDF5::create_set_tables( long num_set_contents,
 
 MBErrorCode WriteHDF5::create_tag( MBTag tag_id, id_t num_sparse_entities )
 {
-  MBTagType tag_type;
+  MBTagType storage;
+  MBDataType mb_type;
   MBTag type_handle;
-  bool have_type = false;
-  int tag_size, mem_size;
-  hid_t hdf_tag_type, handles[2];
+  mhdf_TagDataType mhdf_type;
+  int tag_size, elem_size = 0, mhdf_size;
+  hid_t hdf_type = (hid_t)0;
+  hid_t handles[2];
   std::string tag_name, tag_type_name = "__hdf5_tag_type_";
   MBErrorCode rval;
   mhdf_Status status;
   
-  rval = iFace->tag_get_type( tag_id, tag_type ); CHK_MB_ERR_0(rval);
+
+    // get tag properties
+  rval = iFace->tag_get_type( tag_id, storage  ); CHK_MB_ERR_0(rval);
   rval = iFace->tag_get_size( tag_id, tag_size ); CHK_MB_ERR_0(rval);
   rval = iFace->tag_get_name( tag_id, tag_name ); CHK_MB_ERR_0(rval);
-
-  tag_type_name += tag_name;
-  rval = iFace->tag_get_handle( tag_type_name.c_str(), type_handle );
-  if (MB_SUCCESS == rval)
+  rval = iFace->tag_get_data_type( tag_id, mb_type ); CHK_MB_ERR_0(rval);
+  
+  
+    // get type-specific parameters
+  if (MB_TAG_BIT == storage)
   {
-    rval = iFace->tag_get_data( type_handle, 0, 0, &hdf_tag_type );
-    if (rval != MB_SUCCESS) return rval;
-    have_type = true;
+    mhdf_type = mhdf_BITFIELD;
   }
-  else if(MB_TAG_NOT_FOUND != rval)
-    return rval;
-
-  mem_size = tag_size;
-  if (MB_TAG_BIT == tag_type)
+  else 
   {
-    assert( tag_size < 9 );
-    mem_size = 1;
+    switch (mb_type)
+    {
+    case MB_TYPE_INTEGER:
+      elem_size = sizeof(int);
+      mhdf_type = mhdf_INTEGER;
+      break;
+    case MB_TYPE_DOUBLE:
+      elem_size = sizeof(double);
+      mhdf_type = mhdf_FLOAT;
+      break;
+    case MB_TYPE_BIT:
+      elem_size = sizeof(bool);
+      mhdf_type = mhdf_BOOLEAN;
+      break;
+    case MB_TYPE_HANDLE:
+      elem_size = sizeof(MBEntityHandle);
+      mhdf_type = mhdf_ENTITY_ID;
+      break;
+    case MB_TYPE_OPAQUE:
+    default:
+      mhdf_type = mhdf_OPAQUE;
+      
+      tag_type_name = "__hdf5_tag_type_";
+      tag_type_name += tag_name;
+      rval = iFace->tag_get_handle( tag_type_name.c_str(), type_handle );
+      if (MB_SUCCESS == rval)
+      {
+        rval = iFace->tag_get_data( type_handle, 0, 0, &hdf_type );
+        if (rval != MB_SUCCESS || H5Tget_size(hdf_type) != (unsigned)tag_size) 
+          return MB_FAILURE;
+       }
+      else if(MB_TAG_NOT_FOUND != rval)
+        return rval;
+    }
   }
-
+    
+    // if a basic type, check if it is an array of them
+  if (elem_size)
+  {
+    if (tag_size % elem_size)  // tag_size must be a multiple of elem_size
+      return MB_FAILURE;
+    mhdf_size = tag_size / elem_size;
+  }
+  else
+  {
+    mhdf_size = tag_size;
+  }
+  
+  
+    // check for default and global/mesh values
   assert( 2*tag_size + sizeof(long) < (unsigned long)bufferSize );
   bool have_default = true;
   bool have_global = true;
@@ -2048,46 +2086,27 @@ MBErrorCode WriteHDF5::create_tag( MBTag tag_id, id_t num_sparse_entities )
     have_default = false;
   else if(MB_SUCCESS != rval)
     return rval;
-  rval = iFace->tag_get_data( tag_id, 0, 0, dataBuffer + mem_size );
+  rval = iFace->tag_get_data( tag_id, 0, 0, dataBuffer + tag_size );
   if (MB_TAG_NOT_FOUND == rval)
     have_global = false;
   else if(MB_SUCCESS != rval)
     return rval;
 
-  if (have_type)
-  {
-    mhdf_createTypeTag( filePtr, 
-                        tag_name.c_str(),
-                        hdf_tag_type,
-                        have_default ? dataBuffer : 0,
-                        have_global ? dataBuffer + mem_size : 0,
-                        tag_type,
-                        &status );
-  }
-  else if (MB_TAG_BIT == tag_type)
-  {
-    mhdf_createBitTag( filePtr, 
-                       tag_name.c_str(),
-                       tag_size,
-                       have_default ? dataBuffer : 0,
-                       have_global ? dataBuffer + mem_size : 0,
-                       tag_type,
-                       &status );
-    hdf_tag_type = H5T_NATIVE_B8;
-  }
-  else
-  {
-    mhdf_createOpaqueTag( filePtr,
-                          tag_name.c_str(),
-                          tag_size,
-                          have_default ? dataBuffer : 0,
-                          have_global ? dataBuffer + mem_size : 0,
-                          tag_type,
-                          &status );
-    hdf_tag_type = 0;
-  }
+
+    // write the tag description to the file
+  mhdf_createTag( filePtr,
+                  tag_name.c_str(),
+                  mhdf_type,
+                  mhdf_size,
+                  storage,
+                  have_default ? dataBuffer : 0,
+                  have_global ? dataBuffer + tag_size : 0,
+                  hdf_type,
+                  &status );
   CHK_MHDF_ERR_0(status);
 
+  
+    // create empty table for tag data
   if (num_sparse_entities)
   {
     mhdf_createSparseTagData( filePtr, 

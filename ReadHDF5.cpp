@@ -31,7 +31,7 @@
 #include "MBInternals.hpp"
 #include "MBTagConventions.hpp"
 #include "ReadHDF5.hpp"
-#include "WriteHDF5.hpp"
+//#include "WriteHDF5.hpp"
 
 #undef DEBUG
 
@@ -64,7 +64,7 @@ MBErrorCode ReadHDF5::init()
   if (readUtil) 
     return MB_SUCCESS;
   
-  WriteHDF5::register_known_tag_types( iFace );
+  //WriteHDF5::register_known_tag_types( iFace );
   
   handleType = H5Tcopy( H5T_NATIVE_ULONG );
   if (handleType < 0)
@@ -839,135 +839,199 @@ MBErrorCode ReadHDF5::read_adjacencies( ElemSet& elems )
   return MB_SUCCESS;  
 }
 
-
 MBErrorCode ReadHDF5::read_tag( const char* name )
 {
   MBErrorCode rval;
   mhdf_Status status;
-  MBTag type_handle;
-  hid_t hdf_tag_type;
-  MBTag handle;
- 
-  bool have_type = false;
-  std::string tag_type_name = "__hdf5_tag_type_";
-  tag_type_name += name;
-  rval = iFace->tag_get_handle( tag_type_name.c_str(), type_handle );
-  if (MB_SUCCESS == rval)
-  {
-    rval = iFace->tag_get_data( type_handle, 0, 0, &hdf_tag_type );
-    if (MB_SUCCESS == rval)
-      have_type = true;
-    else if (MB_TAG_NOT_FOUND != rval)
-      return rval;
-  }
-  else if (MB_TAG_NOT_FOUND != rval)
-    return rval;
- 
-  int storage_size, have_global, have_default, is_opaque, have_sparse, tstt_class, num_bits;
-  hid_t storage_type;
-  mhdf_getTagInfo( filePtr, name, &storage_size, 
-                   &have_default, &have_global, 
-                   &is_opaque, &have_sparse, &tstt_class, 
-                   &num_bits, &storage_type, &status );
+  std::string tag_type_name;
+  
+  mhdf_TagDataType mhdf_type;  // Enum for tag data type
+  int tag_size;                // Size of tag
+  int storage;                 // TSTT storage type (dense vs. sparse)
+  int have_default;            // File contains default value for tag
+  int have_global;             // File contains global value for tag
+  int have_sparse;             // File contains sparse data table for tag
+  hid_t hdf_type = 0;          // Type to use when reading tag data.
+  int elem_size;               // Bytes required for one elem of array
+  hsize_t array_size;          // If tag is not opaque, the number of data per entity
+  MBTag handle;                // The handle for the tag
+  MBDataType mb_type;          // The MOAB data type for the data
+  
+    // Get description of tag
+  mhdf_getTagInfo( filePtr, name, &mhdf_type, &tag_size, &storage,
+                   &have_default, &have_global, &have_sparse, &status );
   if (mhdf_isError( &status ))
   {
     readUtil->report_error( mhdf_message( &status ) );
     return MB_FAILURE;
   }
-  
-  int create_size = storage_size;
-  int read_size = storage_size;
-  hid_t read_type;
-  if (have_type)
+
+    // Type-specific stuff
+  switch (mhdf_type)
   {
-    create_size = read_size = H5Tget_size(hdf_tag_type);
-    if (!create_size) return MB_FAILURE;
-    read_type = hdf_tag_type;
-  }
-  else if (tstt_class == MB_TAG_BIT)
-  {
-    if (!num_bits || num_bits > 8)
-    {
-      readUtil->report_error( "Invalid bit tag:  class is MB_TAG_BIT, num bits = %d\n", num_bits );
-      return MB_FAILURE;
-    }
+    case mhdf_BITFIELD:
     
-    create_size = num_bits;
-    read_size = 1;
-    read_type = H5T_NATIVE_B8;
+      if (!tag_size || tag_size > 8)
+      {
+        readUtil->report_error( "Invalid bit tag:  class is MB_TAG_BIT, num bits = %d\n", tag_size );
+        return MB_FAILURE;
+      }
+    
+      elem_size = tag_size;
+      tag_size = 1;
+      array_size = 1;
+      hdf_type = H5T_NATIVE_B8;
+      mb_type = MB_TYPE_BIT;
+      break;
+      
+    case mhdf_INTEGER:
+    
+      elem_size = sizeof(int);
+      array_size = tag_size;
+      hdf_type = H5T_NATIVE_INT;
+      tag_size = elem_size * array_size;
+      mb_type = MB_TYPE_INTEGER;
+      break;
+      
+    case mhdf_FLOAT:
+      
+      elem_size = sizeof(double);
+      array_size = tag_size;
+      hdf_type = H5T_NATIVE_DOUBLE;
+      tag_size = elem_size * array_size;
+      mb_type = MB_TYPE_DOUBLE;
+      break;
+    
+    case mhdf_BOOLEAN:
+      
+      elem_size = sizeof(char);
+      array_size = tag_size;
+      hdf_type = H5T_NATIVE_UCHAR;
+      tag_size = elem_size * array_size;
+      mb_type = MB_TYPE_BIT;
+      break;
+    
+    case mhdf_ENTITY_ID:
+      
+      elem_size = sizeof(MBEntityHandle);
+      array_size = tag_size;
+      hdf_type = handleType;
+      tag_size = elem_size * array_size;
+      mb_type = MB_TYPE_HANDLE;
+      break;
+      
+    case mhdf_OPAQUE:
+    default:
+
+      elem_size = tag_size;
+      array_size = 1;
+      mb_type = MB_TYPE_OPAQUE;
+      hdf_type = (hid_t)0;
+      
+        // Check for user-provided type
+      MBTag type_handle;
+      tag_type_name = "__hdf5_tag_type_";
+      tag_type_name += name;
+      rval = iFace->tag_get_handle( tag_type_name.c_str(), type_handle );
+      if (MB_SUCCESS == rval)
+      {
+        rval = iFace->tag_get_data( type_handle, 0, 0, &hdf_type );
+        if (MB_SUCCESS == rval)
+          elem_size = H5Tget_size( hdf_type );
+        else if (MB_TAG_NOT_FOUND != rval)
+          return rval;
+      }
+      else if (MB_TAG_NOT_FOUND != rval)
+        return rval;
+
+      break;
   }
-  else if (is_opaque)
-  {
-    create_size = read_size = storage_size;
-    read_type = 0;
-  }
-  else
-  {
-    rval = iFace->tag_get_handle( name, handle );
-    if (rval == MB_TAG_NOT_FOUND)
-      create_size = storage_size;
-    else if (rval != MB_SUCCESS)
-      return rval;
-    else if (iFace->tag_get_size( handle, create_size ) != MB_SUCCESS)
-      return MB_FAILURE;
-    read_size = create_size;
-    read_type = mhdf_getNativeType( storage_type, read_size, &status );
-    if (mhdf_isError(&status))
-    {
-      readUtil->report_error( mhdf_message( &status ) );
-      return MB_FAILURE;
-    }
-  }      
+
   
+    // Create array type from base type if array
+  if (array_size > 1)
+  {
+    hdf_type = H5Tarray_create( hdf_type, 1, &array_size, NULL );
+    if (hdf_type < 0)
+      return MB_FAILURE;
+  }  
+
+  
+    // If default or global/mesh value in file, read it.
   if (have_default || have_global)
   {
-    assert( 3*read_size < bufferSize );
-    mhdf_getTagValues( filePtr, name, read_type, dataBuffer, dataBuffer + read_size, &status );
+    assert( 3*tag_size < bufferSize );
+    mhdf_getTagValues( filePtr, name, hdf_type, dataBuffer, dataBuffer + tag_size, &status );
     if (mhdf_isError( &status ))
     {
       readUtil->report_error( mhdf_message( &status ) );
       return MB_FAILURE;
     }
   }
-
+  
+  
+    // Check if tag already exists
   rval = iFace->tag_get_handle( name, handle );
-  if (MB_TAG_NOT_FOUND == rval)
-    rval = iFace->tag_create( name, create_size, (MBTagType)tstt_class, handle,
-                              have_default ? dataBuffer : 0 );
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  int esize;
-  rval = iFace->tag_get_size( handle, esize );
-  if (MB_SUCCESS != rval)
-    return rval;
-  if (tstt_class != MB_TAG_BIT && esize != read_size)
-    return MB_FAILURE;
-  MBTagType etype;
-  rval = iFace->tag_get_type( handle, etype );
-  if (MB_SUCCESS != rval)
-    return rval;
-  if ((tstt_class ==  MB_TAG_BIT || etype == MB_TAG_BIT) && (tstt_class != etype))
-    return MB_FAILURE;
-  
-  if (have_global)
+  if (MB_SUCCESS == rval)
   {
-    rval = iFace->tag_set_data( handle, 0, 0, dataBuffer + read_size );
+    // If tag exists, make sure it is consistant with the type in the file
+    int curr_size;
+    MBDataType curr_type;
+    MBTagType curr_store;
+    
+    rval = iFace->tag_get_size( handle, curr_size );
+    if (MB_SUCCESS != rval) 
+      return rval;
+      
+    rval = iFace->tag_get_data_type( handle, curr_type );
+    if (MB_SUCCESS != rval)
+      return rval;
+    
+    rval = iFace->tag_get_type( handle, curr_store );
+    if (MB_SUCCESS != rval)
+      return rval;
+    
+    if ((curr_store != MB_TAG_BIT && curr_size != tag_size) || curr_type != mb_type ||
+        ((curr_store == MB_TAG_BIT || storage == MB_TAG_BIT) && 
+          curr_store != storage))
+    {
+      readUtil->report_error( "Tag type in file does not match type in "
+                              "database for \"%s\"\n", name );
+      return MB_FAILURE;
+    }
+  }
+    // Create the tag if it doesn't exist
+  else if (MB_TAG_NOT_FOUND == rval)
+  {
+    rval = iFace->tag_create( name, tag_size, (MBTagType)storage, mb_type,
+                              handle, have_default ? dataBuffer : 0 );
     if (MB_SUCCESS != rval)
       return rval;
   }
+    // error
+  else
+    return rval;
   
+  
+    // Read tag data
   MBErrorCode tmp = MB_SUCCESS;
   if (have_sparse)
-    tmp = read_sparse_tag( handle, read_type, read_size );
-  rval = read_dense_tag( handle, read_type, read_size );
+    tmp = read_sparse_tag( handle, hdf_type, tag_size, mb_type == MB_TYPE_HANDLE );
+  rval = read_dense_tag( handle, hdf_type, tag_size, mb_type == MB_TYPE_HANDLE );
+  
+  
+    // If an array type, need to release the type object created above.
+  if (array_size > 1)
+    H5Tclose( hdf_type );
   
   return MB_SUCCESS == tmp ? rval : tmp;
 }
+  
 
 MBErrorCode ReadHDF5::read_dense_tag( MBTag tag_handle,
                                       hid_t hdf_read_type,
-                                      size_t read_size )
+                                      size_t read_size,
+                                      bool is_handle_type )
 {
   std::list<ElemSet>::iterator iter;
   const std::list<ElemSet>::iterator end = elemList.end();
@@ -989,7 +1053,7 @@ MBErrorCode ReadHDF5::read_dense_tag( MBTag tag_handle,
   
   if (have)
   {
-    rval = read_dense_tag( nodeSet, tag_handle, hdf_read_type, read_size );
+    rval = read_dense_tag( nodeSet, tag_handle, hdf_read_type, read_size, is_handle_type );
     if (!rval)
       return rval;
   }
@@ -1004,7 +1068,7 @@ MBErrorCode ReadHDF5::read_dense_tag( MBTag tag_handle,
   
   if (have)
   {
-    rval = read_dense_tag( setSet, tag_handle, hdf_read_type, read_size );
+    rval = read_dense_tag( setSet, tag_handle, hdf_read_type, read_size, is_handle_type );
     if (!rval)
       return rval;
   }
@@ -1021,7 +1085,7 @@ MBErrorCode ReadHDF5::read_dense_tag( MBTag tag_handle,
     
     if (have)
     {
-      rval = read_dense_tag( *iter, tag_handle, hdf_read_type, read_size );
+      rval = read_dense_tag( *iter, tag_handle, hdf_read_type, read_size, is_handle_type );
       if (!rval)
         return rval;
     }
@@ -1034,7 +1098,8 @@ MBErrorCode ReadHDF5::read_dense_tag( MBTag tag_handle,
 MBErrorCode ReadHDF5::read_dense_tag( ElemSet& set,
                                       MBTag tag_handle,
                                       hid_t hdf_read_type,
-                                      size_t read_size )
+                                      size_t read_size, 
+                                      bool is_handle_type )
 {
   mhdf_Status status;
   std::string name;
@@ -1086,6 +1151,16 @@ MBErrorCode ReadHDF5::read_dense_tag( ElemSet& set,
       return MB_FAILURE;
     }
     
+    if (is_handle_type)
+    {
+      rval = convert_id_to_handle( (MBEntityHandle*)dataBuffer, count * read_size / sizeof(MBEntityHandle) );
+      if (MB_SUCCESS != rval)
+      {
+        mhdf_closeData( filePtr, data, &status );
+        return rval;
+      }
+    }
+    
     rval = iFace->tag_set_data( tag_handle, subrange, dataBuffer );
     if (MB_SUCCESS != rval)
     {
@@ -1107,7 +1182,8 @@ MBErrorCode ReadHDF5::read_dense_tag( ElemSet& set,
 
 MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
                                        hid_t hdf_read_type,
-                                       size_t read_size )
+                                       size_t read_size,
+                                       bool is_handle_type )
 {
   mhdf_Status status;
   std::string name;
@@ -1172,6 +1248,17 @@ MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
       mhdf_closeData( filePtr, data[0], &status );
       mhdf_closeData( filePtr, data[1], &status );
       return rval;
+    }
+    
+    if (is_handle_type)
+    {
+      rval = convert_id_to_handle( (MBEntityHandle*)dataBuffer, count * read_size / sizeof(MBEntityHandle) );
+      if (MB_SUCCESS != rval)
+      {
+        mhdf_closeData( filePtr, data[0], &status );
+        mhdf_closeData( filePtr, data[1], &status );
+        return rval;
+      }
     }
 
 /*** FIX ME - need to do one at a time for BIT tags!  This is stupid. ***/

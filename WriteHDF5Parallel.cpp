@@ -514,12 +514,14 @@ MBErrorCode WriteHDF5Parallel::create_file( const char* filename,
   tag_iter = tagList.begin();
   for (int i = 0; i < num_tags; ++i, ++tag_iter)
   {
+    tag_counts[i] = 0;
     int next_offset = 0;
     for (int j = 0; j < numProc; j++)
     {
       int count = proc_tag_offsets[i + j*num_tags];
       proc_tag_offsets[i + j*num_tags] = next_offset;
       next_offset += count;
+      tag_counts[i] += count;
     }
 
     if (0 == myRank)
@@ -530,14 +532,21 @@ MBErrorCode WriteHDF5Parallel::create_file( const char* filename,
     }
   }
   
+  result = MPI_Bcast( &tag_counts[0], num_tags, MPI_INT, 0, MPI_COMM_WORLD );
+  assert(MPI_SUCCESS == result);
+  
   result = MPI_Scatter( &proc_tag_offsets[0], num_tags, MPI_INT,
                              &tag_offsets[0], num_tags, MPI_INT,
                              0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
 
+
   tag_iter = tagList.begin();
   for (int i = 0; i < num_tags; ++i, ++tag_iter)
+  {
     tag_iter->offset = tag_offsets[i];
+    tag_iter->write = tag_counts[i[ > 0;
+  }
 
   #ifdef DEBUG
   START_SERIAL;  

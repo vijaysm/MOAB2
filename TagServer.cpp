@@ -43,6 +43,17 @@
 
 using namespace std;
 
+int TagInfo::size_from_data_type( MBDataType t )
+{
+  static const int sizes[] = { 1, 
+                               sizeof(int), 
+                               sizeof(double), 
+                               1, 
+                               sizeof(MBEntityHandle),
+                               0 };  
+   return sizes[t];
+}
+
 const int TagInfo::TagBitProperties[] =   
   {
     0x01000000,  //TAGPROP_BIT   
@@ -101,9 +112,10 @@ MBErrorCode TagServer::reset_all_data()
 }
 
 
-MBErrorCode TagServer::add_tag(const char *tag_name, 
+MBErrorCode TagServer::add_tag( const char *tag_name, 
                                 const int data_size,
-                                const MBTagType tag_prop,
+                                const MBTagType storage,
+                                const MBDataType data_type,
                                 MBTag &tag_handle,
                                 const void *default_value)
 {
@@ -127,15 +139,22 @@ MBErrorCode TagServer::add_tag(const char *tag_name,
   MBErrorCode result;
   MBTagId id;
 
-  if(tag_prop == MB_TAG_BIT)
+    // Input size must be a multiple of the size of the data type.
+  int typesize = TagInfo::size_from_data_type( data_type );
+  if (data_size % typesize)
+    return MB_FAILURE;
+
+  if(storage == MB_TAG_BIT)
   {
+    if (data_type != MB_TYPE_BIT)
+      return MB_FAILURE;
     result = mBitServer->reserve_tag_id(data_size, id);
   }
-  else if(tag_prop == MB_TAG_SPARSE || tag_prop == MB_TAG_MESH)
+  else if(storage == MB_TAG_SPARSE || storage == MB_TAG_MESH)
   {
     result = mSparseData->reserve_tag_id(data_size, id);
   }
-  else if(tag_prop == MB_TAG_DENSE)
+  else if(storage == MB_TAG_DENSE)
   {
     result = mDenseData->reserve_tag_id(data_size, default_value, id);
   }
@@ -149,13 +168,13 @@ MBErrorCode TagServer::add_tag(const char *tag_name,
 
   unsigned long tmp_handle = id;
   //tmp_handle |= (entity_type << 16);
-  tmp_handle |= TagInfo::TagBitProperties[tag_prop];
+  tmp_handle |= TagInfo::TagBitProperties[storage];
   tag_handle = reinterpret_cast<MBTag>(tmp_handle);
 
   // we have a valid id, lets register it
   if(tag_handle > 0)
   {
-    TagInfo tag_info(tag_name, data_size, default_value);
+    TagInfo tag_info(tag_name, data_size, data_type, default_value);
     mTagTable.insert( std::pair<MBTag, TagInfo>( tag_handle, tag_info ) );
   }
 

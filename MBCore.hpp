@@ -477,6 +477,27 @@ public:
                                   MBTag &tag_handle, 
                                   const void *default_value);
 
+    /** \brief Define a new tag.
+     *
+     * Define a new tag for storing application-defined data on MB entities.  
+     *
+     * \param name    The name of the tag.
+     * \param size    The size of the tag data in bytes.
+     * \param storage The tag storage type.
+     * \param data    The tag data type.
+     * \param handle  The tag handle (output)
+     * \param def_val Optional default value for tag.
+     * \return - MB_ALREADY_ALLOCATED if a tag with name already exists.
+     *         - MB_FAILURE if inconsistant arguments
+     *         - MB_SUCCESS otherwise.
+     */
+  virtual MBErrorCode tag_create( const      char* name,
+                                  const        int size,
+                                  const  MBTagType storage,
+                                  const MBDataType data,
+                                            MBTag& handle,
+                                  const      void* def_val = 0 );
+
   //! Gets the tag name string of the tag_handle.
   /** \param tag_handle MBTag you want the name of.  
       \param tag_name Name string of <em>tag_handle</em>. 
@@ -513,6 +534,17 @@ public:
 
   //! get type of tag (sparse, dense, etc.; 0 = dense, 1 = sparse, 2 = bit, 3 = mesh)
   virtual MBErrorCode tag_get_type(const MBTag, MBTagType &tag_type) const;
+
+   /** \brief Get data type of tag.
+    *
+    * Get the type of the tag data.  The tag is data is assumed to
+    * be a vector of this type.  If the tag data vetcor contains 
+    * more than one value, then the tag size must be a multiple of
+    * the size of this type.
+    * \param tag  The tag 
+    * \param type The type of the specified tag (output).
+    */
+  virtual MBErrorCode tag_get_data_type(const MBTag tag, MBDataType& type) const;
 
   //! get handles for all tags defined
   virtual MBErrorCode tag_get_tags(std::vector<MBTag> &tag_handles) const;

@@ -69,7 +69,7 @@ public:
   TagInfo(const TagInfo&);
 
   //! constructor that takes all parameters
-  TagInfo(const char *, int, const void *);
+  TagInfo(const char *, int, MBDataType type, const void *);
 
   //! assignment operator
   TagInfo &operator=(const TagInfo &rhs);
@@ -89,6 +89,11 @@ public:
     //! get the default data
   const void *default_value() const  { return mDefaultValue;}
   
+  inline MBDataType get_data_type() const     { return dataType; }
+  
+  inline void set_data_type( MBDataType t )   { dataType = t; }
+
+  static int size_from_data_type( MBDataType t );
 
 private:    
 
@@ -100,6 +105,9 @@ private:
 
   //! stores the default data, if any
   unsigned char *mDefaultValue;
+  
+  //! type of tag data
+  MBDataType dataType;
 
 };
 
@@ -116,7 +124,8 @@ public:
   //! add a tag
   MBErrorCode add_tag(const char *tag_name, 
                        const int data_size,
-                       const MBTagType tag_property,
+                       const MBTagType storage,
+                       const MBDataType data_type,
                        MBTag &tag_handle,
                        const void *default_data = NULL);
 
@@ -256,10 +265,10 @@ private:
 
 
 inline TagInfo::TagInfo(const TagInfo& copy)
+  : mTagName( copy.mTagName ),
+    mDataSize( copy.mDataSize ),
+    dataType( copy.dataType )
 {
-  mTagName = copy.mTagName;
-  mDataSize = copy.mDataSize;
-
   if (NULL != copy.mDefaultValue)
   {
     mDefaultValue = new unsigned char[mDataSize];
@@ -269,11 +278,14 @@ inline TagInfo::TagInfo(const TagInfo& copy)
     mDefaultValue = NULL;
 }
 
-inline TagInfo::TagInfo(const char *name, int size, const void *default_value)
+inline TagInfo::TagInfo( const char* name, 
+                         int size, 
+                         MBDataType type,
+                         const void* default_value)
+ : mTagName( name ),
+   mDataSize( size ),
+   dataType( type )
 {
-  mTagName = name;
-  mDataSize = size;
-
   if (NULL != default_value) 
   {
     mDefaultValue = new unsigned char[size];

@@ -1190,10 +1190,18 @@ MBErrorCode MBCore::tag_create(const char *tag_name,
                                  MBTag &tag_handle, 
                                  const void *default_value)
 {
-    // Don't know what to do with the default value yet.
-  default_value = default_value;
+  MBDataType data_type = (tag_type == MB_TAG_BIT) ? MB_TYPE_BIT : MB_TYPE_OPAQUE;
+  return tag_create( tag_name, tag_size, tag_type, data_type, tag_handle, default_value );
+}
 
-  return tagServer->add_tag(tag_name, tag_size, tag_type, tag_handle, default_value);
+MBErrorCode MBCore::tag_create( const char* name,
+                                const int size,
+                                const MBTagType storage,
+                                const MBDataType data,
+                                MBTag& handle,
+                                const void* def_val )
+{
+  return tagServer->add_tag( name, size, storage, data, handle, def_val );
 }
 
 //! removes the tag from the entity
@@ -1276,6 +1284,17 @@ MBErrorCode MBCore::tag_get_size(const MBTag tag_handle, int &tag_size) const
   return MB_SUCCESS;
 }
 
+MBErrorCode MBCore::tag_get_data_type( const MBTag handle, 
+                                       MBDataType& type ) const
+{
+  const TagInfo* info = tagServer->get_tag_info( handle );
+  if (!info)
+    return MB_TAG_NOT_FOUND;
+  
+  type = info->get_data_type();
+  return MB_SUCCESS;
+}
+
   //! get default value of the tag
 MBErrorCode MBCore::tag_get_default_value(const MBTag tag_handle, void *def_value) const
 {
@@ -1331,7 +1350,7 @@ MBTag MBCore::material_tag()
 {
   if (0 == materialTag)
     tagServer->add_tag(MATERIAL_SET_TAG_NAME, sizeof(int), 
-                       MB_TAG_SPARSE, materialTag);
+                       MB_TAG_SPARSE, MB_TYPE_INTEGER, materialTag);
   return materialTag;
 }
 
@@ -1339,7 +1358,7 @@ MBTag MBCore::neumannBC_tag()
 {
   if (0 == neumannBCTag)
     tagServer->add_tag(NEUMANN_SET_TAG_NAME, sizeof(int), 
-                       MB_TAG_SPARSE, neumannBCTag);
+                       MB_TAG_SPARSE, MB_TYPE_INTEGER, neumannBCTag);
   return neumannBCTag;
 }
 
@@ -1347,7 +1366,7 @@ MBTag MBCore::dirichletBC_tag()
 {
   if (0 == dirichletBCTag)
     tagServer->add_tag(DIRICHLET_SET_TAG_NAME, sizeof(int), 
-                       MB_TAG_SPARSE, dirichletBCTag);
+                       MB_TAG_SPARSE, MB_TYPE_INTEGER, dirichletBCTag);
   return dirichletBCTag;
 }
 
@@ -1355,7 +1374,7 @@ MBTag MBCore::globalId_tag()
 {
   if (0 == globalIdTag)
     tagServer->add_tag(GLOBAL_ID_TAG_NAME, sizeof(int), 
-                       MB_TAG_DENSE, globalIdTag);
+                       MB_TAG_DENSE, MB_TYPE_INTEGER, globalIdTag);
   return globalIdTag;
 }
 
@@ -1363,7 +1382,7 @@ MBTag MBCore::geom_dimension_tag()
 {
   if (0 == geomDimensionTag)
     tagServer->add_tag(GEOM_DIMENSION_TAG_NAME, sizeof(int), 
-                       MB_TAG_SPARSE, geomDimensionTag);
+                       MB_TAG_SPARSE, MB_TYPE_INTEGER, geomDimensionTag);
   return geomDimensionTag;
 }
 
