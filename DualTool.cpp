@@ -477,15 +477,42 @@ MBErrorCode DualTool::get_radial_dverts(const MBEntityHandle edge,
   if (MB_SUCCESS != result) return result;
   
   if (bdy_edge) {
-      // if bdy edge, put the face on front and back
-    regions.insert(regions.begin(), *faces.begin());
-    regions.push_back(*faces.rbegin());
+      // if bdy edge, put the face on front and back; will replace with correct vertex later
+    MBEntityHandle this_face = faces[0];
+    regions.insert(regions.begin(), this_face);
+    this_face = faces[faces.size()-1];
+    regions.push_back(this_face);
   }
 
     // now get the dual entities
-  rad_dverts.reserve(regions.size());
-  result = mbImpl->tag_get_data(dualEntity_tag(), &regions[0], regions.size(), &rad_dverts[0]);
+  rad_dverts.resize(regions.size());
+  for (unsigned int i = 0; i < regions.size(); i++) {
+    result = mbImpl->tag_get_data(dualEntity_tag(), &regions[i], 1, &rad_dverts[i]);
+    if (MB_SUCCESS != result) return result;
+  }
+  
+//  result = mbImpl->tag_get_data(dualEntity_tag(), &regions[0], regions.size(), &rad_dverts[0]);
+//  if (MB_SUCCESS != result) return result;
 
+  if (bdy_edge) {
+
+      // get the 1st and last vertices using dual edges    
+      // get connectivity of the 1st edge
+    const MBEntityHandle *connect;
+    int num_connect;
+    result = mbImpl->get_connectivity(rad_dverts[0], connect, num_connect);
+    if (MB_SUCCESS != result) return result;
+    
+      // we want the one that's not already on the list; reuse last_face
+    rad_dverts[0] = (connect[0] == rad_dverts[1] ? connect[1] : connect[0]);
+
+      // do the same for first_face
+    unsigned int end_index = rad_dverts.size()-1;
+    result = mbImpl->get_connectivity(rad_dverts[end_index], connect, num_connect);
+    if (MB_SUCCESS != result) return result;
+    rad_dverts[end_index] = (connect[0] == rad_dverts[end_index-1] ? connect[1] : connect[0]);
+  }
+  
   return result;
 }
 
@@ -579,7 +606,7 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
     (dim != 1 && dim != 2) ||
       // should either be quads or hexes around
     mbImpl->get_number_entities_by_type(0, MBQUAD, num_quads) != MB_SUCCESS ||
-    mbImpl->get_number_entities_by_type(0, MBQUAD, num_hexes) != MB_SUCCESS ||
+    mbImpl->get_number_entities_by_type(0, MBHEX, num_hexes) != MB_SUCCESS ||
       // if we're asking for 1d dual ents, should be quads around
     (num_quads == 0 && dim == 1) ||
       // if we're asking for 2d dual ents, should be hexes around
@@ -601,7 +628,8 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
     dum = 0x0;
     result = mbImpl->tag_create("__hyperplane_mark", 1, 
                                 MB_TAG_BIT, mark_tag, &mark_val);
-    if (MB_SUCCESS != result) return result;
+    if (MB_SUCCESS != result) 
+      return result;
   }
   mark_val = 0x1;
   
@@ -611,7 +639,8 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
   
     // put dual entities of this dimension on the untreated list
   result = get_dual_entities(dim, tot_untreated);
-  if (MB_SUCCESS != result) return result;
+  if (MB_SUCCESS != result) 
+    return result;
   
     // main part of traversal loop
   MBEntityHandle this_ent;
@@ -626,7 +655,8 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
       
     this_ent = tot_untreated.back(); tot_untreated.pop_back();
     result = mbImpl->tag_get_data(hp_tag, &this_ent, 1, &this_hp);
-    if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) return result;
+    if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
+      return result;
 
       // test for this entity having a hyperplane assignment already
     else if (this_hp != 0)
@@ -637,11 +667,14 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
       // ok, doesn't have one; make a new hyperplane
     hp_val = hp_ids++;
     result = mbImpl->create_meshset((MESHSET_SET | MESHSET_TRACK_OWNER), this_hp);
-    if (MB_SUCCESS != result) return result;
+    if (MB_SUCCESS != result) 
+      return result;
     result = mbImpl->tag_set_data(gid_tag, &this_hp, 1, &hp_val);
-    if (MB_SUCCESS != result) return result;
+    if (MB_SUCCESS != result) 
+      return result;
     result = mbImpl->tag_set_data(hp_tag, &this_hp, 1, &this_hp);
-    if (MB_SUCCESS != result) return result;
+    if (MB_SUCCESS != result) 
+      return result;
     hp_untreated.clear();
 
       // assign a category name to these sets
@@ -649,7 +682,8 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
       {"Chord\0", "Sheet\0"};
     
     result = mbImpl->tag_set_data(categoryTag, &this_hp, 1, dual_category_names[dim-1]);
-    if (MB_SUCCESS != result) return result;
+    if (MB_SUCCESS != result) 
+      return result;
 
       // inner loop: traverse the hyperplane 'till we don't have any more
     MBRange tmp_star, star, tmp_range;
@@ -660,18 +694,22 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
 
         // set the hp_val for this_ent
       result = mbImpl->tag_set_data(hp_tag, &this_ent, 1, &this_hp);
-      if (MB_SUCCESS != result) return result;
+      if (MB_SUCCESS != result) 
+        return result;
       result = mbImpl->add_entities(this_hp, &this_ent, 1);
-      if (MB_SUCCESS != result) return result;
+      if (MB_SUCCESS != result) 
+        return result;
 
         // get all neighbors connected to this entity
       tmp_range.clear(); tmp_star.clear(); star.clear();
       tmp_range.insert(this_ent);
       result = mbImpl->get_adjacencies(tmp_range, dim-1, true, tmp_star);
-      if (MB_SUCCESS != result) return result;
+      if (MB_SUCCESS != result) 
+        return result;
       result = mbImpl->get_adjacencies(tmp_star, dim, false, star,
                                        MBInterface::UNION);
-      if (MB_SUCCESS != result) return result;
+      if (MB_SUCCESS != result) 
+        return result;
       star.erase(this_ent);
       
         // for each star entity, see if it shares a cell with this one; if so,
@@ -698,14 +736,16 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
         tmp_star.clear();
         tmp_range.insert(*rit);
         result = mbImpl->get_adjacencies(tmp_range, dim+1, false, tmp_star);
-        if (MB_SUCCESS != result) return result;
+        if (MB_SUCCESS != result) 
+          return result;
         
         if (tmp_star.empty()) {
             // have one on this hp; just put it on the hp_untreated list for now,
             // will get tagged and put in the hp set later
           hp_untreated.push_back(*rit);
           result = mbImpl->tag_set_data(mark_tag, &(*rit), 1, &mark_val);
-          if (MB_SUCCESS != result) return result;
+          if (MB_SUCCESS != result) 
+            return result;
         }
 
           // take *rit out of tmp_range, then proceed to the next
