@@ -39,6 +39,7 @@
 #include "MBWriterIface.hpp"
 #include "WriteNCDF.hpp"
 #include "MBTagConventions.hpp"
+#include "ExoIIUtil.hpp"
 #ifdef LINUX
 # include <dlfcn.h>
 # include <dirent.h>
@@ -188,6 +189,11 @@ MBErrorCode MBCore::query_interface(const std::string& iface_name, void** iface)
     *iface = reader_writer_set();
     return MB_SUCCESS;
   }
+  else if(iface_name == "ExoIIInterface")
+  {
+    *iface = (void*)(ExoIIInterface*) new ExoIIUtil(this);
+    return MB_SUCCESS;
+  }
   return MB_FAILURE;
 }
 
@@ -208,6 +214,11 @@ MBErrorCode MBCore::release_interface(const std::string& iface_name, void* iface
   }
   else if(iface_name == "MBReaderWriterSet")
   {
+    return MB_SUCCESS;
+  }
+  else if(iface_name == "ExoIIInterface")
+  {
+    delete (ExoIIInterface*)iface;
     return MB_SUCCESS;
   }
   
