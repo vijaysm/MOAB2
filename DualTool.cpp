@@ -6,6 +6,8 @@
 #include <iostream>
 #include <sstream>
 
+bool debug = false;
+
   //! tag name for dual surfaces
 char *DualTool::DUAL_SURFACE_TAG_NAME = "DUAL_SURFACE";
 
@@ -74,25 +76,29 @@ MBErrorCode DualTool::construct_dual()
   MBRange dual_verts;
   result = construct_dual_vertices(all_regions, dual_verts);
   if (MB_SUCCESS != result || dual_verts.size() != all_regions.size()) return result;
-  std::cout << "Constructed " << dual_verts.size() << " dual vertices." << std::endl;
+  if (debug)
+    std::cout << "Constructed " << dual_verts.size() << " dual vertices." << std::endl;
 
     // don't really need dual edges, but construct 'em anyway
   MBRange dual_edges;
   result = construct_dual_edges(all_faces, dual_edges);
   if (MB_SUCCESS != result || dual_edges.size() != all_faces.size()) return result;
-  std::cout << "Constructed " << dual_edges.size() << " dual edges." << std::endl;
+  if (debug)
+    std::cout << "Constructed " << dual_edges.size() << " dual edges." << std::endl;
 
     // construct dual faces
   MBRange dual_faces;
   result = construct_dual_faces(all_edges, dual_faces);
   if (MB_SUCCESS != result || dual_faces.size() != all_edges.size()) return result;
-  std::cout << "Constructed " << dual_faces.size() << " dual faces." << std::endl;
+  if (debug)
+    std::cout << "Constructed " << dual_faces.size() << " dual faces." << std::endl;
 
     // construct dual cells
   MBRange dual_cells;
   result = construct_dual_cells(all_vertices, dual_cells);
   if (MB_SUCCESS != result || dual_cells.size() != all_vertices.size()) return result;
-  std::cout << "Constructed " << dual_cells.size() << " dual cells." << std::endl;
+  if (debug)
+    std::cout << "Constructed " << dual_cells.size() << " dual cells." << std::endl;
 
   return MB_SUCCESS;
 }
@@ -526,7 +532,7 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
   
     // get tag name for this dimension hyperplane
   const char *hp_tag_names[2] = {"dual_hyperplane_1", "dual_hyperplane_2"};
-  MBTag hp_tag, gid_tag;
+  MBTag hp_tag, gid_tag, mark_tag;
   int dum = -1;
   MBErrorCode result = mbImpl->tag_get_handle(hp_tag_names[dim-1], hp_tag);
   if (MB_SUCCESS != result) result = mbImpl->tag_create(hp_tag_names[dim-1], 
@@ -535,7 +541,15 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
   result = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gid_tag);
   if (MB_SUCCESS != result) result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, 4, 
                                                         MB_TAG_DENSE, gid_tag, &dum);
-  if (MB_SUCCESS != result) return result;
+  unsigned short mark_val = 0x0;
+  result = mbImpl->tag_get_handle("__hyperplane_mark", mark_tag);
+  if (MB_SUCCESS != result) {
+    dum = 0x0;
+    result = mbImpl->tag_create("__hyperplane_mark", 1, 
+                                                        MB_TAG_BIT, mark_tag, &mark_val);
+    if (MB_SUCCESS != result) return result;
+  }
+  mark_val = 0x1;
   
     // two stacks: one completely untreated entities, and the other untreated 
     // entities on the current dual hyperplane
@@ -550,7 +564,6 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
   int hp_val;
   int hp_ids = 0;
   int report = tot_untreated.size() / 10;
-  bool debug = true;
   while (!tot_untreated.empty()) {
     if (debug && dim == 2 /*(tot_untreated.size()%report == 0)*/)
       std::cout << "Untreated list size " << tot_untreated.size() << "." << std::endl;
@@ -608,17 +621,24 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
         if (MB_SUCCESS == result && -1 != r_val) 
           continue;
 
+        unsigned short tmp_mark;
+        result = mbImpl->tag_get_data(mark_tag, &(*rit), 1, &tmp_mark);
+        if (MB_SUCCESS == result && mark_val == tmp_mark) 
+          continue;
+
           // passed tag test; check adjacencies
         tmp_star.clear();
         tmp_range.insert(*rit);
         result = mbImpl->get_adjacencies(tmp_range, dim+1, false, tmp_star);
         if (MB_SUCCESS != result) continue;
         
-        if (tmp_star.empty())
+        if (tmp_star.empty()) {
             // have one on this hp; just put it on the hp_untreated list for now,
             // will get tagged and put in the hp set later
           hp_untreated.push_back(*rit);
-        
+          result = mbImpl->tag_set_data(mark_tag, &(*rit), 1, &mark_val);
+        }
+
           // take *rit out of tmp_range, then proceed to the next
         tmp_range.erase(*rit);
       }
@@ -626,13 +646,14 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
         // end of inner loop; get the next this_ent, or set to zero
       if (hp_untreated.empty()) this_ent = 0;
       else {
-        this_ent = *hp_untreated.begin();
-        hp_untreated.erase(hp_untreated.begin());
+        this_ent = hp_untreated.back();
+        hp_untreated.pop_back();
       }
     }
   }
 
-  std::cout << "Constructed " << hp_ids << " hyperplanes of dim = " << dim << "." << std::endl;
+  if (debug)
+    std::cout << "Constructed " << hp_ids << " hyperplanes of dim = " << dim << "." << std::endl;
   return MB_SUCCESS;
 }
 
