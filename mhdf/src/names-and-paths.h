@@ -19,7 +19,7 @@
 #define TAG_TYPE_NAME          "type"
 
 /* Common names for data node/element/set groups */
-#define DENSE_TAG_SUBGROUP     "tags/"
+#define DENSE_TAG_SUBGROUP     TAG_GROUP_NAME "/"
 #define ADJACENCY_NAME         "adjacency"
 #define CONNECTIVITY_NAME      "connectivity"     
 #define POLY_INDEX_NAME        "poly_indices"

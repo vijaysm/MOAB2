@@ -1329,26 +1329,27 @@ mhdf_readSetChildren( hid_t data_handle,
 
 /** \brief Make type native-endian.
  *
- * Given an HDF5 type object, create a new type object for which
- * all endian-sensitive subtypes are converted to the native endian-ness
- * of the current platform.  
+ * Given an atomic HDF5 data type, return the built-in type
+ * that matches the class of the passed type and is the specified
+ * size. 
  *
  * This function is providied to allow converting the stored tag
  * type in a file to the preferred type for it's representation 
  * in memory when reading tag values.
  *
- * The returned HDF5 type object should be closed with mhdf_closeData
- * to prevent resource loss.
+ * This function works only for atomic types.  The returned type
+ * will be a pre-defined HDF5 object and does not need to be
+ * closed/released.
  *
- *\param file_handle  The file.
  *\param input_type   The type to convert.
- *\param status      Passed back status of API call.
+ *\param size         The desired size in bytes.
+ *\param status       Passed back status of API call.
  *\return             The converted type.
  */
 hid_t
-mhdf_makeTypeNative( mhdf_FileHandle file_handle,
-                     hid_t input_type,
-                     mhdf_Status* status );
+mhdf_getNativeType( hid_t input_type,
+                    int size,
+                    mhdf_Status* status );
 
 /** \brief Add a tag to the file for which the HDF5 type is known
  *

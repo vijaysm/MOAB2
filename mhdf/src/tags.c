@@ -10,18 +10,80 @@
 #include "names-and-paths.h"
 
 hid_t
-mhdf_makeTypeNative( mhdf_FileHandle file_handle,
-                     hid_t input_type,
-                     mhdf_Status* status )
+mhdf_getNativeType( hid_t input_type,
+                    int size,
+                    mhdf_Status* status )
 {
-  hid_t result = H5Tget_native_type( input_type, H5T_DIR_ASCEND );
+  hid_t result;
+  H5T_sign_t sgn;
+  H5T_class_t cls;
+  hid_t tmp_id, type_id;
   
-  if (result < 0)
-    mhdf_setFail( status, "H5Tget_native_type failed.  Bad type handle?" );
-  else 
-    mhdf_setOkay( status );
+  mhdf_setOkay( status );
   
-  return result;
+  cls = H5Tget_class( input_type );
+  switch( cls )
+  {
+    case H5T_FLOAT:
+      switch( size ) 
+      {
+        case  4: return H5T_NATIVE_FLOAT;
+        case  8: return H5T_NATIVE_DOUBLE;
+        case 16: return H5T_NATIVE_LDOUBLE;
+        default:
+          mhdf_setFail( status, "Invalid size for floating point type: %d", size );
+          return -1;
+      }
+
+    case H5T_INTEGER:
+      sgn = H5Tget_sign( input_type );
+      if (H5T_SGN_ERROR == sgn)
+      {
+        mhdf_setFail( status, "Internall errror calling H5Tget_sign." );
+        return -1;
+      }
+      if (     sizeof(      char ) == size)
+        return sgn == H5T_SGN_NONE ? H5T_NATIVE_UCHAR  : H5T_NATIVE_SCHAR;
+      else if (sizeof(     short ) == size)
+        return sgn == H5T_SGN_NONE ? H5T_NATIVE_USHORT : H5T_NATIVE_SHORT;
+      else if (sizeof(       int ) == size)
+        return sgn == H5T_SGN_NONE ? H5T_NATIVE_UINT   : H5T_NATIVE_INT;
+      else if (sizeof(      long ) == size)
+        return sgn == H5T_SGN_NONE ? H5T_NATIVE_ULONG  : H5T_NATIVE_LONG;
+      else if (sizeof( long long ) == size)
+        return sgn == H5T_SGN_NONE ? H5T_NATIVE_ULLONG : H5T_NATIVE_LLONG;
+      
+      mhdf_setFail( status, "Invalid size for integer type: %d", size );
+      return -1;
+      
+    case H5T_ENUM:
+      tmp_id = H5Tget_super( input_type );
+      if (tmp_id < 0)
+      {
+        mhdf_setFail( status, "Internal error calling H5Tget_super." );
+        return -1;
+      }
+      type_id = mhdf_getNativeType( tmp_id, size, status );
+      H5Tclose( tmp_id );
+      return type_id;
+
+    case H5T_TIME:
+    case H5T_OPAQUE:
+    case H5T_REFERENCE:
+      mhdf_setFail( status, "Unsupported type class." );
+      return -1;
+
+    case H5T_COMPOUND:
+    case H5T_VLEN:
+    case H5T_ARRAY:
+    case H5T_STRING:
+      mhdf_setFail( status, "Only atomic types are supported." );
+      return -1;
+
+    default:
+      mhdf_setFail( status, "Internal error calling H5Tget_class.  Bad handle?" );
+      return -1;
+  }
 }
 
 static hid_t get_tag( mhdf_FileHandle file_handle,
@@ -35,7 +97,7 @@ static hid_t get_tag( mhdf_FileHandle file_handle,
   file_ptr = (FileHandle*)file_handle;
   if (!mhdf_check_valid_file( file_ptr, status ))
     return -1;
-  
+
   path = mhdf_name_to_path_copy( tag_name, status );
   if (NULL == path)
     return -1;
@@ -189,6 +251,7 @@ mhdf_createTypeTag( mhdf_FileHandle file_handle,
   char* path;
   FileHandle* file_ptr;
   herr_t rval;
+  API_BEGIN;
 
     /* Validate input */
   
@@ -202,8 +265,6 @@ mhdf_createTypeTag( mhdf_FileHandle file_handle,
     return ;
   }
   
-
-  type_id = hdf5_tag_type;
   
     /* Open the tag group */
 
@@ -259,8 +320,10 @@ mhdf_createTypeTag( mhdf_FileHandle file_handle,
     return;
   }
 
+
     /* Create tag type object, or write attribute if opaque */
  
+  type_id = H5Tcopy( hdf5_tag_type );
   rval = H5Tcommit( tag_id, TAG_TYPE_NAME, type_id );
   if (rval < 0)
   {
@@ -281,6 +344,7 @@ mhdf_createTypeTag( mhdf_FileHandle file_handle,
     if (!rval) 
     { 
       H5Gclose( tag_id );
+      H5Tclose( type_id );
       return; 
     }
   }
@@ -298,12 +362,15 @@ mhdf_createTypeTag( mhdf_FileHandle file_handle,
     if (!rval) 
     { 
       H5Gclose( tag_id );
+      H5Tclose( type_id );
       return; 
     }
   }
 
   H5Gclose( tag_id );
+  H5Tclose( type_id );
   mhdf_setOkay( status );
+  API_END;
 }
 
 int
@@ -312,6 +379,7 @@ mhdf_getNumberTags( mhdf_FileHandle file_handle, mhdf_Status* status )
   hid_t group_id;
   hsize_t result;
   FileHandle* file_ptr;
+  API_BEGIN;
 
     /* Validate input */
   
@@ -339,6 +407,7 @@ mhdf_getNumberTags( mhdf_FileHandle file_handle, mhdf_Status* status )
   
   H5Gclose( group_id );
   mhdf_setOkay( status );
+  API_END;
   return (int)result;
 }
 
@@ -353,6 +422,7 @@ mhdf_getTagNames( mhdf_FileHandle file_handle,
   char* name;
   char** result;
   ssize_t size;
+  API_BEGIN;
   
 
     /* Validate input */
@@ -425,6 +495,7 @@ mhdf_getTagNames( mhdf_FileHandle file_handle,
   
   H5Gclose( group_id );
   mhdf_setOkay( status );
+  API_END;
   return result;
 }
   
@@ -446,6 +517,8 @@ mhdf_getTagInfo( mhdf_FileHandle file_handle,
   hid_t tag_id, type_id;
   int rval;
   unsigned int index;
+
+  API_BEGIN;
 
 
     /* Validate input */
@@ -513,33 +586,36 @@ mhdf_getTagInfo( mhdf_FileHandle file_handle,
     mhdf_setFail( status, "Failed to get type object for tag \"%s\".", tag_name );
     return ;
   }
-  *hdf_type_out = type_id;
+  *hdf_type_out = H5Tcopy( type_id );
+  H5Tclose( type_id );
 
-  *tag_data_len_out = (int)H5Tget_size( type_id );
+  *tag_data_len_out = (int)H5Tget_size( *hdf_type_out );
   if (*tag_data_len_out < 1)
   {
     mhdf_setFail( status, "Invalid opaque tag size: %d.", *tag_data_len_out );
     H5Gclose( tag_id );
-    H5Tclose( type_id );
+    H5Tclose( *hdf_type_out );
     return;
   }
   
     /* Check if tag is opaque or bitfield type */
-  *is_opaque_type_out = H5Tget_class( type_id ) == H5T_OPAQUE;
+  *is_opaque_type_out = H5Tget_class( *hdf_type_out ) == H5T_OPAQUE;
   *bit_tag_bits_out = 0;
   if (*is_opaque_type_out)
   {
-    H5Tclose( type_id );
+    H5Tclose( *hdf_type_out );
+    *hdf_type_out = 0;
   }
-  else if (H5Tget_class( type_id ) == H5T_BITFIELD)
+  else if (H5Tget_class( *hdf_type_out ) == H5T_BITFIELD)
   {
-    *bit_tag_bits_out = H5Tget_precision( type_id );
-    H5Tclose( type_id );
-    type_id = 0;
+    *bit_tag_bits_out = H5Tget_precision( *hdf_type_out );
+    H5Tclose( *hdf_type_out );
+    *hdf_type_out = 0;
   }
 
   H5Gclose( tag_id );
   mhdf_setOkay( status );
+  API_END;
 }    
 
 void
@@ -553,6 +629,7 @@ mhdf_getTagValues( mhdf_FileHandle file_handle,
   hid_t tag_id;
   int rval;
   unsigned int junk;
+  API_BEGIN;
   
     /* check args */
   if (NULL == tag_name || !*tag_name)
@@ -622,6 +699,7 @@ mhdf_getTagValues( mhdf_FileHandle file_handle,
   
   H5Gclose( tag_id );
   mhdf_setOkay( status );
+  API_END;
 }
 
 int
@@ -635,6 +713,7 @@ mhdf_haveDenseTag( mhdf_FileHandle file_handle,
   FileHandle* file_ptr;
   int rval = 0;
   int close_elem_id = 1;
+  API_BEGIN;
   
   file_ptr = (FileHandle*)file_handle;
   if (!mhdf_check_valid_file( file_ptr, status )) return -1;
@@ -658,7 +737,7 @@ mhdf_haveDenseTag( mhdf_FileHandle file_handle,
   }
   if (elem_id < 0) return -1;
   
-  rval = mhdf_is_in_group( elem_id, DENSE_TAG_SUBGROUP, status );
+  rval = mhdf_is_in_group( elem_id, TAG_GROUP_NAME, status );
   if (rval < 0)
   {
     if (close_elem_id) H5Gclose( elem_id );
@@ -691,6 +770,7 @@ mhdf_haveDenseTag( mhdf_FileHandle file_handle,
     mhdf_setOkay( status );
   }
   
+  API_END;
   return rval;
 }
 
@@ -707,6 +787,7 @@ mhdf_createDenseTagData( mhdf_FileHandle file_handle,
   size_t name_len, path_len, dir_len;
   hsize_t size;
   int close_elem_id = 1;
+  API_BEGIN;
   
   file_ptr = (FileHandle*)file_handle;
   if (!mhdf_check_valid_file( file_ptr, status )) return -1;
@@ -752,6 +833,7 @@ mhdf_createDenseTagData( mhdf_FileHandle file_handle,
   if (data_id > 0)
     mhdf_setOkay( status );
   
+  API_END_H( 1 );
   return data_id;
 }
 
@@ -768,6 +850,7 @@ mhdf_openDenseTagData(  mhdf_FileHandle file_handle,
   size_t name_len, path_len, dir_len;
   hsize_t size;
   int close_elem_id = 1;
+  API_BEGIN;
   
   file_ptr = (FileHandle*)file_handle;
   if (!mhdf_check_valid_file( file_ptr, status )) return -1;
@@ -808,6 +891,7 @@ mhdf_openDenseTagData(  mhdf_FileHandle file_handle,
   if (data_id > 0)
     mhdf_setOkay( status );
   
+  API_END_H( 1 );
   return data_id;
 }
 
@@ -821,6 +905,7 @@ mhdf_writeDenseTag( hid_t tag_table,
                     mhdf_Status* status )
 {
   hid_t my_type_id;
+  API_BEGIN;
   
   if (type_id > 0)
   {
@@ -840,6 +925,7 @@ mhdf_writeDenseTag( hid_t tag_table,
 
   if (type_id < 1)
     H5Tclose( my_type_id );
+  API_END;
 }
 
 void
@@ -852,6 +938,7 @@ mhdf_readDenseTag( hid_t tag_table,
 
 {
   hid_t my_type_id;
+  API_BEGIN;
   
   if (type_id > 0)
   {
@@ -871,6 +958,7 @@ mhdf_readDenseTag( hid_t tag_table,
 
   if (type_id < 1)
     H5Tclose( my_type_id );
+  API_END;
 }
 
 void
@@ -882,6 +970,7 @@ mhdf_createSparseTagData( mhdf_FileHandle file_handle,
 {
   hid_t tag_id, index_id, data_id, type_id;
   hsize_t count = (hsize_t)num_values;
+  API_BEGIN;
   
   tag_id = get_tag( file_handle, tag_name, status );
   if (tag_id < 0) return ;
@@ -917,6 +1006,7 @@ mhdf_createSparseTagData( mhdf_FileHandle file_handle,
   handles_out[0] = index_id;
   handles_out[1] = data_id;
   mhdf_setOkay( status );
+  API_END_H(2);
 }
 
 
@@ -929,6 +1019,7 @@ mhdf_openSparseTagData( mhdf_FileHandle file_handle,
 {
   hid_t tag_id, index_id, data_id;
   hsize_t size1, size2;
+  API_BEGIN;
   
   tag_id = get_tag( file_handle, tag_name, status );
   if (tag_id < 0) return ;
@@ -960,6 +1051,7 @@ mhdf_openSparseTagData( mhdf_FileHandle file_handle,
   handles_out[0] = index_id;
   handles_out[1] = data_id;
   mhdf_setOkay( status );
+  API_END_H(2);
 }
 
 void
@@ -970,7 +1062,9 @@ mhdf_writeSparseTagEntities( hid_t table_id,
                              const void* id_list,
                              mhdf_Status* status )
 {
+  API_BEGIN;
   mhdf_write_data( table_id, offset, count, int_type, id_list, status );
+  API_END;
 }
                         
 void
@@ -982,6 +1076,7 @@ mhdf_writeSparseTagValues( hid_t table_id,
                            mhdf_Status* status )
 {
   hid_t type_id;
+  API_BEGIN;
   
   if (tag_type > 0)
   {
@@ -1001,6 +1096,7 @@ mhdf_writeSparseTagValues( hid_t table_id,
 
   if (tag_type < 1)
     H5Tclose( type_id );
+  API_END;
 }
 
 void
@@ -1011,7 +1107,9 @@ mhdf_readSparseTagEntities( hid_t table_id,
                             void* id_list,
                             mhdf_Status* status )
 {
+  API_BEGIN;
   mhdf_read_data( table_id, offset, count, int_type, id_list, status );
+  API_END;
 }
                         
 void
@@ -1023,6 +1121,7 @@ mhdf_readSparseTagValues( hid_t table_id,
                           mhdf_Status* status )
 {
   hid_t type_id;
+  API_BEGIN;
   
   if (tag_type > 0)
   {
@@ -1042,4 +1141,5 @@ mhdf_readSparseTagValues( hid_t table_id,
 
   if (tag_type < 1)
     H5Tclose( type_id );
+  API_END;
 }

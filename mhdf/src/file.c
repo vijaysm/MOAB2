@@ -28,6 +28,7 @@ mhdf_createFile( const char* filename,
   unsigned char index;
   size_t i;
   hid_t enum_id;
+  API_BEGIN;
   
   if (elem_list_len > 255)
   {
@@ -95,6 +96,7 @@ mhdf_createFile( const char* filename,
   }
   H5Tclose( enum_id );
   
+  API_END_H( 1 );
   return file_ptr;
 }
 
@@ -185,6 +187,11 @@ mhdf_openFile( const char* filename, int writable, mhdf_Status* status )
   hid_t group_id, elem_id;
   char* name;
   long max_id;
+  API_BEGIN;
+  
+    /* Check if file is HDF5 */
+  if (H5Fis_hdf5( filename ) <= 0)
+    return NULL;
   
     /* Create struct to hold working data */
   file_ptr = mhdf_alloc_FileHandle( 0, status );
@@ -335,6 +342,7 @@ mhdf_openFile( const char* filename, int writable, mhdf_Status* status )
   free( name );
   H5Gclose( group_id );
   mhdf_setOkay( status );
+  API_END_H(file_ptr->num_type_handles+1);
   return file_ptr;
 }
 
@@ -349,6 +357,7 @@ mhdf_getElemName( mhdf_FileHandle file_handle,
   FileHandle* file_ptr;
   herr_t rval;
   hid_t enum_id;
+  API_BEGIN;
   
   if (type_index > 255)
   {
@@ -378,6 +387,8 @@ mhdf_getElemName( mhdf_FileHandle file_handle,
     mhdf_setFail( status, "H5Tenum_nameof failed.  Invalid type index?" );
   else
     mhdf_setOkay( status );
+    
+  API_END;
 }
 
 void 
@@ -386,6 +397,7 @@ mhdf_closeFile( mhdf_FileHandle handle,
 {
   FileHandle* file_ptr;
   int i;
+  API_BEGIN;
   
   file_ptr = (FileHandle*)(handle);
   if (!mhdf_check_valid_file( file_ptr, status ))
@@ -404,6 +416,20 @@ mhdf_closeFile( mhdf_FileHandle handle,
     H5Gclose( file_ptr->elem_type_handles[i] );
   }
   
+  /* Check for open handles.  HDF5 will not actually close the
+     file until all handles are closed. */
+  if (H5Fget_obj_count( file_ptr->hdf_handle, H5F_OBJ_ALL ) != 1)
+  {
+    mhdf_setFail( status, "Cannot close file with open handles: "
+                 "%d file, %d data, %d group, %d type, %d attr\n",
+                  H5Fget_obj_count( file_ptr->hdf_handle, H5F_OBJ_FILE ) - 1,
+                  H5Fget_obj_count( file_ptr->hdf_handle, H5F_OBJ_DATASET ),
+                  H5Fget_obj_count( file_ptr->hdf_handle, H5F_OBJ_GROUP ),
+                  H5Fget_obj_count( file_ptr->hdf_handle, H5F_OBJ_DATATYPE ),
+                  H5Fget_obj_count( file_ptr->hdf_handle, H5F_OBJ_ATTR ) );
+    return;
+  }
+ 
   if (0 > H5Fclose( file_ptr->hdf_handle ))
   {
     mhdf_setFail( status, "H5FClose failed.  Invalid handle?" );
@@ -414,6 +440,7 @@ mhdf_closeFile( mhdf_FileHandle handle,
   bzero( file_ptr, sizeof(FileHandle) );
   free( file_ptr );
   mhdf_setOkay( status );
+  API_END_H( -i - 1 );
 }
 
 void
@@ -459,6 +486,7 @@ mhdf_addElement( mhdf_FileHandle file_handle,
   size_t name_len;
   mhdf_ElemHandle result;
   herr_t rval;
+  API_BEGIN;
   
   if (!mhdf_check_valid_file( file_ptr, status ))
     return -1;
@@ -529,6 +557,7 @@ mhdf_addElement( mhdf_FileHandle file_handle,
   }
   
   mhdf_setOkay( status );
+  API_END_H(1);
   return result;
 }
 
@@ -571,6 +600,7 @@ mhdf_getElemTypeName( mhdf_FileHandle file_handle,
   hid_t elem_id, type_id, attr_id;
   char bytes[16];
   herr_t rval;
+  API_BEGIN;
  
   if (NULL == buffer || buf_len < 2)
   {
@@ -600,6 +630,7 @@ mhdf_getElemTypeName( mhdf_FileHandle file_handle,
   H5Aclose( attr_id );
   if (rval < 0)
   {
+    H5Tclose( type_id );
     mhdf_setFail( status, "Failed to read element type attribute.  Invalid file." );
     return;
   }
@@ -613,6 +644,7 @@ mhdf_getElemTypeName( mhdf_FileHandle file_handle,
   }
   
   mhdf_setOkay( status );  
+  API_END;
   return ;
 }
 
@@ -652,6 +684,8 @@ mhdf_isPolyElement( mhdf_FileHandle file_handle,
 {
   FileHandle* file_ptr;
   hid_t elem_id;
+  int rval;
+  API_BEGIN;
   
   file_ptr = (FileHandle*)(file_handle);
   if (!mhdf_check_valid_file( file_ptr, status ))
@@ -661,7 +695,9 @@ mhdf_isPolyElement( mhdf_FileHandle file_handle,
   if (elem_id < 0) return -1;
   
   mhdf_setOkay( status );
-  return mhdf_is_in_group( elem_id, POLY_INDEX_NAME, status );
+  rval = mhdf_is_in_group( elem_id, POLY_INDEX_NAME, status );
+  API_END;
+  return rval;
 }
 
 void
@@ -674,6 +710,7 @@ mhdf_writeHistory( mhdf_FileHandle file_handle,
   hid_t data_id, type_id, space_id;
   hsize_t dim = (hsize_t)num_strings;
   herr_t rval;
+  API_BEGIN;
   
   file_ptr = (FileHandle*)(file_handle);
   if (!mhdf_check_valid_file( file_ptr, status ))
@@ -715,6 +752,7 @@ mhdf_writeHistory( mhdf_FileHandle file_handle,
   }
   
   mhdf_setOkay( status );
+  API_END;
 }
 
 char**
@@ -727,6 +765,7 @@ mhdf_readHistory( mhdf_FileHandle file_handle,
   hsize_t dim;
   herr_t rval;
   char** array;
+  API_BEGIN;
   
   file_ptr = (FileHandle*)(file_handle);
   if (!mhdf_check_valid_file( file_ptr, status ))
@@ -812,5 +851,6 @@ mhdf_readHistory( mhdf_FileHandle file_handle,
    
   *num_strings = dim;
   mhdf_setOkay( status );
+  API_END;
   return array;
 }

@@ -18,6 +18,7 @@ mhdf_createConnectivity( mhdf_FileHandle file_handle,
   hid_t elem_id, table_id;
   hsize_t dims[2];
   long first_id;
+  API_BEGIN;
   
   file_ptr = (FileHandle*)(file_handle);
   if (!mhdf_check_valid_file( file_ptr, status ))
@@ -59,6 +60,7 @@ mhdf_createConnectivity( mhdf_FileHandle file_handle,
   file_ptr->open_handle_count++;
   mhdf_setOkay( status );
  
+  API_END_H(1);
   return table_id;
 }
 
@@ -73,6 +75,7 @@ mhdf_openConnectivity( mhdf_FileHandle file_handle,
   FileHandle* file_ptr;
   hid_t elem_id, table_id;
   hsize_t dims[2];
+  API_BEGIN;
   
   file_ptr = (FileHandle*)(file_handle);
   if (!mhdf_check_valid_file( file_ptr, status ))
@@ -99,6 +102,7 @@ mhdf_openConnectivity( mhdf_FileHandle file_handle,
   
   file_ptr->open_handle_count++;
   mhdf_setOkay( status );
+  API_END_H(1);
   return table_id;
 }
 
@@ -110,7 +114,9 @@ mhdf_writeConnectivity( hid_t table_id,
                         const void* nodes,
                         mhdf_Status* status )
 {
+  API_BEGIN;
   mhdf_write_data( table_id, offset, count, hdf_integer_type, nodes, status );
+  API_END;
 }
 
 void 
@@ -121,7 +127,9 @@ mhdf_readConnectivity( hid_t table_id,
                        void* nodes,
                        mhdf_Status* status )
 {
+  API_BEGIN;
   mhdf_read_data( table_id, offset, count, hdf_integer_type, nodes, status );
+  API_END;
 }
 
 
@@ -138,6 +146,7 @@ mhdf_createPolyConnectivity( mhdf_FileHandle file_handle,
   hid_t elem_id, index_id, conn_id;
   hsize_t dim;
   long first_id;
+  API_BEGIN;
   
   file_ptr = (FileHandle*)(file_handle);
   if (!mhdf_check_valid_file( file_ptr, status ))
@@ -206,6 +215,7 @@ mhdf_createPolyConnectivity( mhdf_FileHandle file_handle,
   mhdf_setOkay( status );
   handles_out[0] = index_id;
   handles_out[1] = conn_id;
+  API_END_H(2);
 }
 
 void
@@ -220,6 +230,7 @@ mhdf_openPolyConnectivity( mhdf_FileHandle file_handle,
   FileHandle* file_ptr;
   hid_t elem_id, table_id, index_id;
   hsize_t row_count;
+  API_BEGIN;
   
   file_ptr = (FileHandle*)(file_handle);
   if (!mhdf_check_valid_file( file_ptr, status ))
@@ -262,6 +273,7 @@ mhdf_openPolyConnectivity( mhdf_FileHandle file_handle,
   handles_out[0] = index_id;
   handles_out[1] = table_id;
   mhdf_setOkay( status );
+  API_END_H(2);
 }
 
 void
@@ -272,7 +284,9 @@ mhdf_writePolyConnIndices( hid_t table_id,
                            const void* index_list,
                            mhdf_Status* status )
 {
+  API_BEGIN;
   mhdf_write_data( table_id, offset, count, hdf_integer_type, index_list, status );
+  API_END;
 }
 
 void 
@@ -283,7 +297,9 @@ mhdf_readPolyConnIndices( hid_t table_id,
                           void* index_list,
                           mhdf_Status* status )
 {
+  API_BEGIN;
   mhdf_read_data( table_id, offset, count, hdf_integer_type, index_list, status );
+  API_END;
 }
 
 void
@@ -294,7 +310,9 @@ mhdf_writePolyConnIDs( hid_t table_id,
                        const void* id_list,
                        mhdf_Status* status )
 {
+  API_BEGIN;
   mhdf_write_data( table_id, offset, count, hdf_integer_type, id_list, status );
+  API_END;
 }
 
 void 
@@ -305,6 +323,8 @@ mhdf_readPolyConnIDs( hid_t table_id,
                       void* id_list,
                       mhdf_Status* status )
 {
+  API_BEGIN;
   mhdf_read_data( table_id, offset, count, hdf_integer_type, id_list, status );
+  API_END;
 }
 

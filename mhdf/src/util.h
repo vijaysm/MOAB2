@@ -111,6 +111,19 @@ mhdf_compact_to_ranges( int* length_in_out, int* ids_in, int ordered );
 hid_t 
 get_elem_type_enum( FileHandle* file_ptr, mhdf_Status* status );
 
+void mhdf_api_begin_internal( );
+void mhdf_api_end_internal( int expected_diff,
+                            const char* filename,
+                            int linenumber );
+#ifdef NDEBUG
+#  define API_BEGIN
+#  define API_END_H(n)
+#else
+#  define API_BEGIN mhdf_api_begin_internal()
+#  define API_END_H(n) mhdf_api_end_internal(n, __FILE__, __LINE__)
+#endif
+#define API_END API_END_H(0)
+
 
 #ifdef __cplusplus
 } // extern "C"

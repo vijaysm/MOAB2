@@ -16,6 +16,7 @@ mhdf_haveSets( mhdf_FileHandle file,
   FileHandle* file_ptr = (FileHandle*)file;
   hid_t root_id, set_id;
   int result;
+  API_BEGIN;
   
   if (!mhdf_check_valid_file( file_ptr, status ))
     return -1;
@@ -64,6 +65,8 @@ mhdf_haveSets( mhdf_FileHandle file,
   }
   
   mhdf_setOkay( status );
+  H5Gclose( set_id );
+  API_END;
   return result;
 }
   
@@ -78,6 +81,7 @@ mhdf_createSetMeta( mhdf_FileHandle file,
   hid_t table_id;
   hsize_t dims[2];
   long first_id;
+  API_BEGIN;
   
   if (!mhdf_check_valid_file( file_ptr, status ))
     return -1;
@@ -108,6 +112,7 @@ mhdf_createSetMeta( mhdf_FileHandle file,
   file_ptr->open_handle_count++;
   mhdf_setOkay( status );
  
+  API_END_H(1);
   return table_id;
 }
   
@@ -121,6 +126,7 @@ mhdf_openSetMeta( mhdf_FileHandle file,
   FileHandle* file_ptr = (FileHandle*)file;
   hid_t table_id;
   hsize_t dims[2];
+  API_BEGIN;
   
   if (!mhdf_check_valid_file( file_ptr, status ))
     return -1;
@@ -142,6 +148,7 @@ mhdf_openSetMeta( mhdf_FileHandle file,
   *num_sets = dims[0];
   file_ptr->open_handle_count++;
   mhdf_setOkay( status );
+  API_END_H(1);
   return table_id;
 }
 
@@ -156,7 +163,9 @@ mhdf_readSetMeta( hid_t table_id,
                   void* data,  
                   mhdf_Status* status )
 {
+  API_BEGIN;
   mhdf_read_data( table_id, offset, count, type, data, status );
+  API_END;
 }
 
 void
@@ -167,7 +176,9 @@ mhdf_writeSetMeta( hid_t table_id,
                    const void* data,  
                    mhdf_Status* status )
 {
+  API_BEGIN;
   mhdf_write_data( table_id, offset, count, type, data, status );
+  API_END;
 }
 
                   
@@ -180,6 +191,7 @@ mhdf_createSetData( mhdf_FileHandle file_handle,
   FileHandle* file_ptr;
   hid_t table_id;
   hsize_t dim = (hsize_t)data_list_size;
+  API_BEGIN;
   
   file_ptr = (FileHandle*)(file_handle);
   if (!mhdf_check_valid_file( file_ptr, status ))
@@ -197,6 +209,7 @@ mhdf_createSetData( mhdf_FileHandle file_handle,
                                 1, &dim,
                                 status );
   
+  API_END_H(1);
   return table_id;
 }
 
@@ -208,6 +221,7 @@ mhdf_openSetData( mhdf_FileHandle file_handle,
   FileHandle* file_ptr;
   hid_t table_id;
   hsize_t dim;
+  API_BEGIN;
   
   file_ptr = (FileHandle*)(file_handle);
   if (!mhdf_check_valid_file( file_ptr, status ))
@@ -225,6 +239,7 @@ mhdf_openSetData( mhdf_FileHandle file_handle,
                               status );
  
   *data_list_size_out = (long)dim;
+  API_END_H(1);
   return table_id;
 }
 
@@ -237,7 +252,9 @@ mhdf_writeSetData( hid_t table_id,
                    const void* data,
                    mhdf_Status* status )
 {
+  API_BEGIN;
   mhdf_write_data( table_id, offset, count, type, data, status );
+  API_END;
 }
 
 
@@ -249,7 +266,9 @@ mhdf_readSetData( hid_t table_id,
                   void* data,
                   mhdf_Status* status )
 {
+  API_BEGIN;
   mhdf_read_data( table_id, offset, count, type, data, status );
+  API_END;
 }
 
 hid_t
@@ -260,6 +279,7 @@ mhdf_createSetChildren( mhdf_FileHandle file_handle,
   FileHandle* file_ptr;
   hid_t table_id;
   hsize_t dim = (hsize_t)child_list_size;
+  API_BEGIN;
   
   file_ptr = (FileHandle*)(file_handle);
   if (!mhdf_check_valid_file( file_ptr, status ))
@@ -277,6 +297,7 @@ mhdf_createSetChildren( mhdf_FileHandle file_handle,
                                 1, &dim,
                                 status );
   
+  API_END_H(1);
   return table_id;
 }
 
@@ -288,6 +309,7 @@ mhdf_openSetChildren( mhdf_FileHandle file_handle,
   FileHandle* file_ptr;
   hid_t table_id;
   hsize_t dim;
+  API_BEGIN;
   
   file_ptr = (FileHandle*)(file_handle);
   if (!mhdf_check_valid_file( file_ptr, status ))
@@ -305,6 +327,7 @@ mhdf_openSetChildren( mhdf_FileHandle file_handle,
                               status );
  
   *child_list_size = (long)dim;
+  API_END_H(1);
   return table_id;
 }
 
@@ -316,7 +339,9 @@ mhdf_writeSetChildren( hid_t table_id,
                        const void* data,
                        mhdf_Status* status )
 {
+  API_BEGIN;
   mhdf_write_data( table_id, offset, count, type, data, status );
+  API_END;
 }
 
 void
@@ -327,5 +352,7 @@ mhdf_readSetChildren( hid_t table_id,
                       void* data,
                       mhdf_Status* status )
 {
+  API_BEGIN;
   mhdf_read_data( table_id, offset, count, type, data, status );
+  API_END;
 }

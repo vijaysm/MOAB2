@@ -161,15 +161,15 @@ int mhdf_read_scalar_attrib( hid_t object,
   }
   else
   {
-    type = H5Aget_type( attr_id );
-    if (type < 0)
+    type_id = H5Aget_type( attr_id );
+    if (type_id < 0)
     {
       H5Aclose( attr_id );
       return 0;
     }
   }
   
-  rval = H5Aread( attr_id, type, value );
+  rval = H5Aread( attr_id, type_id, value );
   H5Aclose( attr_id );
   if (type < 1)
     H5Tclose( type_id );
@@ -259,7 +259,7 @@ mhdf_readwrite( hid_t data_id, int read,
     H5Sclose( slab_id );
     mhdf_setFail( status, 
       "Requested %s of rows %ld to %ld of a %ld row table.\n",
-      read ? "read" : "write", offset, offset+count-1, (long)counts[1]);
+      read ? "read" : "write", offset, offset+count-1, (long)counts[dims-1]);
     return 0;
   }
  
@@ -647,7 +647,53 @@ get_elem_type_enum( FileHandle* file_ptr, mhdf_Status* status )
   return result;
 }
 
+static int mhdf_api_handle_count = 0;
 
- 
-    
+static int num_open( )
+{
+  hid_t list[64];
+  int nf, rval, i, count = 0;
+  
+  nf = H5Fget_obj_ids( H5F_OBJ_ALL, H5F_OBJ_FILE, sizeof(list)/sizeof(hid_t), list );
+  if (nf <= 0 || nf > 64)
+    return 0;
+  
+  for (i = 0; i < nf; i++)
+  {
+    rval = H5Fget_obj_count( list[i], H5F_OBJ_ALL );
+    if (rval > 0)
+      count += rval;
+  }
+  
+  return count;
+}
+  
+
+void mhdf_api_begin_internal( )
+{
+  /* HDF5 docs are incorrect.  Passing H5F_OBJ_ALL as the first
+     arg to H5Fget_obj_count returns the total number of open 
+     handles, not just those in files (i.e. temporary types and such.)
+  mhdf_api_handle_count = H5Fget_obj_count( H5F_OBJ_ALL, H5F_OBJ_ALL );
+     Need to loop to get actual file handles:
+  */
+  mhdf_api_handle_count = num_open();
+}
+
+void mhdf_api_end_internal( int expected_diff,
+                            const char* filename,
+                            int linenumber )
+{
+  if (mhdf_api_handle_count + expected_diff != num_open( ))
+  {
+    fprintf( stderr, "Unclosed handles at end of mhdf API call.\n" );
+    fprintf( stderr, "Entered with %d, expected %d change, got %d.\n",
+      mhdf_api_handle_count, expected_diff, num_open( ) );
+    fprintf( stderr, "%s:%d\n", filename, linenumber );
+    abort();
+  }
+  
+  mhdf_api_handle_count = 0;
+}
+
   

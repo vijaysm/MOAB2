@@ -17,6 +17,7 @@ mhdf_createNodeCoords( mhdf_FileHandle file_handle,
   hid_t table_id;
   hsize_t dims[2];
   long first_id;
+  API_BEGIN;
   
   if (!mhdf_check_valid_file( file_ptr, status ))
     return -1;
@@ -53,6 +54,7 @@ mhdf_createNodeCoords( mhdf_FileHandle file_handle,
   file_ptr->open_handle_count++;
   mhdf_setOkay( status );
  
+  API_END_H(1);
   return table_id;
 }
 
@@ -67,6 +69,7 @@ mhdf_openNodeCoords( mhdf_FileHandle file_handle,
   FileHandle* file_ptr = (FileHandle*)file_handle;
   hid_t table_id;
   hsize_t dims[2];
+  API_BEGIN;
   
   if (!mhdf_check_valid_file( file_ptr, status ))
     return -1;
@@ -81,6 +84,7 @@ mhdf_openNodeCoords( mhdf_FileHandle file_handle,
   *dimension_out = dims[1];
   file_ptr->open_handle_count++;
   mhdf_setOkay( status );
+  API_END_H(1);
   return table_id;
 }
 
@@ -92,7 +96,9 @@ mhdf_writeNodeCoords( hid_t table_id,
                       const double* coords,
                       mhdf_Status* status )
 {
+  API_BEGIN;
   mhdf_write_data( table_id, offset, count, H5T_NATIVE_DOUBLE, coords, status );
+  API_END;
 }
 
 void
@@ -102,7 +108,9 @@ mhdf_readNodeCoords( hid_t table_id,
                      double* coords,
                      mhdf_Status* status )
 {
+  API_BEGIN;
   mhdf_read_data( table_id, offset, count, H5T_NATIVE_DOUBLE, coords, status );
+  API_END;
 }
 
 void 
@@ -113,8 +121,10 @@ mhdf_writeNodeCoord( hid_t table_id,
                      const double* coords,
                      mhdf_Status* status )
 {
+  API_BEGIN;
   mhdf_write_column( table_id, dimension, offset, count, 
                       H5T_NATIVE_DOUBLE, coords, status );
+  API_END;
 }
   
 
@@ -126,7 +136,9 @@ mhdf_readNodeCoord( hid_t table_id,
                     double* coords,
                     mhdf_Status* status )
 {
+  API_BEGIN;
   mhdf_read_column( table_id, dimension, offset, count, 
                     H5T_NATIVE_DOUBLE, coords, status );
+  API_END;
 }
 
