@@ -741,6 +741,10 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
       // create an entity set for this entity
     result = instance->mdbImpl->create_meshset(MESHSET_SET, entity_headers[i].setHandle);
     assert(MB_SUCCESS == result);
+    static const char group_category[CATEGORY_TAG_NAME_LENGTH] = "Group\0";
+    static const char material_category[CATEGORY_TAG_NAME_LENGTH] = "Material Set\0";
+    static const char dirichlet_category[CATEGORY_TAG_NAME_LENGTH] = "Dirichlet Set\0";
+    static const char neumann_category[CATEGORY_TAG_NAME_LENGTH] = "Neumann Set\0";
     
     switch (info_type) {
       case geom:
@@ -793,7 +797,6 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
         result = instance->mdbImpl->tag_set_data(instance->groupTag, 
                                                            &(entity_headers[i].setHandle), 1, &dum_int);
         assert(MB_SUCCESS == result);
-        static const char group_category[CATEGORY_TAG_NAME_LENGTH] = "Group\0";
         result = instance->mdbImpl->tag_set_data(instance->categoryTag, 
                                                  &(entity_headers[i].setHandle), 1, 
                                                  group_category);
@@ -829,7 +832,6 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
         result = instance->mdbImpl->tag_set_data(instance->globalIdTag, &(entity_headers[i].setHandle), 1, 
                                                &(entity_headers[i].entityID));
         assert(MB_SUCCESS == result);
-        static const char material_category[CATEGORY_TAG_NAME_LENGTH] = "Material Set\0";
         result = instance->mdbImpl->tag_set_data(instance->categoryTag, 
                                                  &(entity_headers[i].setHandle), 1, 
                                                  material_category);
@@ -861,7 +863,6 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
         result = instance->mdbImpl->tag_set_data(instance->globalIdTag, &(entity_headers[i].setHandle), 1, 
                                                &(entity_headers[i].entityID));
         assert(MB_SUCCESS == result);
-        static const char dirichlet_category[CATEGORY_TAG_NAME_LENGTH] = "Dirichlet Set\0";
         result = instance->mdbImpl->tag_set_data(instance->categoryTag, 
                                                  &(entity_headers[i].setHandle), 1, 
                                                  dirichlet_category);
@@ -893,7 +894,6 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
         result = instance->mdbImpl->tag_set_data(instance->globalIdTag, &(entity_headers[i].setHandle), 1, 
                                                &(entity_headers[i].entityID));
         assert(MB_SUCCESS == result);
-        static const char neumann_category[CATEGORY_TAG_NAME_LENGTH] = "Neumann Set\0";
         result = instance->mdbImpl->tag_set_data(instance->categoryTag, 
                                                  &(entity_headers[i].setHandle), 1, 
                                                  neumann_category);
