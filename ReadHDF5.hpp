@@ -55,14 +55,10 @@ private:
     MBRange range;
     //! The type of the entities in the range
     MBEntityType type;
-    //! The number of nodes per entity - not used for nodes and sets
-    int num_nodes;
     //! The type handle for the mhdf library.
     mhdf_ElemHandle type2;
     //! The first Id allocated by the mhdf library.  Entities in range have sequential IDs.
     id_t first_id;
-    
-    MBEntityHandle handle_from_id( int id ) const;
   };
   
   //! The size of the data buffer (<code>dataBuffer</code>).

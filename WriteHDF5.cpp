@@ -252,6 +252,12 @@ DEBUGOUT("Writing tags.\n");
   dataBuffer = 0;
   mhdf_closeFile( filePtr, &rval );
   filePtr = 0;
+  if (mhdf_isError( &rval ))
+  {
+    writeUtil->report_error("%s", mhdf_message( &rval ));
+    return MB_FAILURE;
+  }
+    
   return MB_SUCCESS;
   
 write_fail:

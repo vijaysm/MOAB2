@@ -89,7 +89,11 @@ MBErrorCode ReadHDF5::init()
   }
   
   setSet.first_id = 0;
+  setSet.type2 = mhdf_set_type_handle();
+  setSet.type = MBENTITYSET;
   nodeSet.first_id = 0;
+  nodeSet.type2 = mhdf_node_type_handle();
+  nodeSet.type = MBVERTEX;
   
   return MB_SUCCESS;
 }
@@ -307,7 +311,6 @@ MBErrorCode ReadHDF5::read_nodes()
   nodeSet.range.insert( handle, handle + count - 1 );
   nodeSet.first_id = first_id;
   nodeSet.type = MBVERTEX;
-  nodeSet.num_nodes = 0;
   nodeSet.type2 = mhdf_node_type_handle();
   for (int i = 0; i < dim; i++)
   {
@@ -374,7 +377,6 @@ MBErrorCode ReadHDF5::read_elems( mhdf_ElemHandle elem_group )
     readUtil->report_error( mhdf_message( &status ) );
     return MB_FAILURE;
   }
-  elems.num_nodes = nodes_per_elem;
   elems.first_id = (id_t)first_id;
   
   MBEntityHandle handle;
@@ -449,7 +451,6 @@ MBErrorCode ReadHDF5::read_poly( mhdf_ElemHandle elem_group )
     readUtil->report_error( mhdf_message( &status ) );
     return MB_FAILURE;
   }
-  elems.num_nodes = 0;
   elems.first_id = (id_t)first_id;
   
   MBEntityHandle handle;
@@ -530,7 +531,6 @@ MBErrorCode ReadHDF5::read_sets()
     readUtil->report_error( mhdf_message( &status ) );
     return MB_FAILURE;
   }
-  setSet.num_nodes = 0;
   setSet.first_id = (id_t)first_id;
   setSet.type = MBENTITYSET;
   setSet.type2 = mhdf_set_type_handle();
@@ -738,10 +738,12 @@ MBErrorCode ReadHDF5::read_sets()
   mhdf_closeData( filePtr, meta_id, &status );
   if (mhdf_isError( &status ))
     { readUtil->report_error( mhdf_message( &status ) ); error = 1; }
-  mhdf_closeData( filePtr, data_id, &status );
+  if (have_data)
+    mhdf_closeData( filePtr, data_id, &status );
   if (mhdf_isError( &status ))
     { readUtil->report_error( mhdf_message( &status ) ); error = 1; }
-  mhdf_closeData( filePtr, child_id, &status );
+  if (have_children)
+    mhdf_closeData( filePtr, child_id, &status );
   if (mhdf_isError( &status ))
     { readUtil->report_error( mhdf_message( &status ) ); error = 1; }
   
@@ -855,6 +857,7 @@ MBErrorCode ReadHDF5::read_tag( const char* name )
   mhdf_Status status;
   MBTag type_handle;
   hid_t hdf_tag_type;
+  MBTag handle;
  
   bool have_type = false;
   std::string tag_type_name = "__hdf5_tag_type_";
@@ -863,14 +866,10 @@ MBErrorCode ReadHDF5::read_tag( const char* name )
   if (MB_SUCCESS == rval)
   {
     rval = iFace->tag_get_data( type_handle, 0, 0, &hdf_tag_type );
-    if (rval != MB_SUCCESS)
+    if (MB_SUCCESS == rval)
+      have_type = true;
+    else if (MB_TAG_NOT_FOUND != rval)
       return rval;
-    have_type = true;
-    hdf_tag_type = H5Tcopy( hdf_tag_type );
-    if (hdf_tag_type < 0)
-    {
-      return MB_FAILURE;
-    }
   }
   else if (MB_TAG_NOT_FOUND != rval)
     return rval;
@@ -908,11 +907,28 @@ MBErrorCode ReadHDF5::read_tag( const char* name )
     read_size = 1;
     read_type = H5T_NATIVE_B8;
   }
-  else
+  else if (is_opaque)
   {
     create_size = read_size = storage_size;
     read_type = 0;
   }
+  else
+  {
+    rval = iFace->tag_get_handle( name, handle );
+    if (rval == MB_TAG_NOT_FOUND)
+      create_size = storage_size;
+    else if (rval != MB_SUCCESS)
+      return rval;
+    else if (iFace->tag_get_size( handle, create_size ) != MB_SUCCESS)
+      return MB_FAILURE;
+    read_size = create_size;
+    read_type = mhdf_getNativeType( storage_type, read_size, &status );
+    if (mhdf_isError(&status))
+    {
+      readUtil->report_error( mhdf_message( &status ) );
+      return MB_FAILURE;
+    }
+  }      
   
   if (have_default || have_global)
   {
@@ -924,7 +940,7 @@ MBErrorCode ReadHDF5::read_tag( const char* name )
       return MB_FAILURE;
     }
   }
-  MBTag handle;
+
   rval = iFace->tag_get_handle( name, handle );
   if (MB_TAG_NOT_FOUND == rval)
     rval = iFace->tag_create( name, create_size, (MBTagType)tstt_class, handle,
@@ -949,7 +965,7 @@ MBErrorCode ReadHDF5::read_tag( const char* name )
   {
     rval = iFace->tag_set_data( handle, 0, 0, dataBuffer + read_size );
     if (MB_SUCCESS != rval)
-      return MB_FAILURE;
+      return rval;
   }
   
   MBErrorCode tmp = MB_SUCCESS;
@@ -1065,7 +1081,7 @@ MBErrorCode ReadHDF5::read_dense_tag( ElemSet& set,
   while (remaining)
   {
     size_t count = remaining > chunk_size ? chunk_size : remaining;
-    remaining -= chunk_size;
+    remaining -= count;
     
     MBRange::const_iterator stop = iter;
     stop += count;
