@@ -36,6 +36,7 @@ extern char *PARAMS_FILENAME;	/* name of file with parameter updates */
 extern double EIGEN_TOLERANCE;	/* tolerance for eigen calculations */
 extern long RANDOM_SEED;	/* seed for random number generators */
 extern int MATCH_TYPE;      /* matching routine to call */
+extern int FREE_GRAPH;	/* free graph data structure after reformat? */
 FILE     *params_file;	/* file with parameter value updates */
 double   *goal;		/* desired set sizes */
 float    *x, *y, *z;	/* coordinates for inertial method */
@@ -179,6 +180,9 @@ MBErrorCode ComputePartition::drive_chaco(const int nprocs,
 
   eigtol = EIGEN_TOLERANCE;
   seed = RANDOM_SEED;
+
+    // set free_graph to false
+  FREE_GRAPH = 0;
   
   interface(start.size()-1, &start[0], &adjacencies[0], /*vwgts*/ NULL, 
             /*ewgts*/ NULL, /*x*/ NULL, /*y*/ NULL, /*z*/ NULL,
