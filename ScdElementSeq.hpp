@@ -72,7 +72,7 @@ public:
   MBEntityHandle get_vertex(const int i, const int j, const int k) const;
   
     //! get handle of vertex at homogeneous coords
-  MBEntityHandle get_vertex(const HomCoord &coords) const;
+  inline MBEntityHandle get_vertex(const HomCoord &coords) const;
   
     //! get handle of element at i, j, k
   MBEntityHandle get_element(const int i, const int j, const int k) const;
@@ -111,7 +111,7 @@ public:
 
     //! test whether this sequence contains these parameters
   bool contains(const int i, const int j, const int k) const;
-  bool contains(const HomCoord &coords) const;
+  inline bool contains(const HomCoord &coords) const;
   
     // from parent class
   virtual MBEntityHandle get_unused_handle();
@@ -121,11 +121,12 @@ public:
                                        const bool topological_connectivity = false) const;
 
   virtual MBErrorCode get_connectivity(MBEntityHandle entity, 
-                                        const MBEntityHandle*& connectivity,
-                                        int &num_vertices) const;
+                                       const MBEntityHandle*& connectivity,
+                                       int &num_vertices,
+                                       const bool topological_connectivity = false) const;
 
     //! get connectivity of an entity given entity's parameters
-  MBErrorCode get_params_connectivity(const int i, const int j, const int k,
+  inline MBErrorCode get_params_connectivity(const int i, const int j, const int k,
                                        std::vector<MBEntityHandle>& connectivity) const;
   
     //! add a vertex seq ref to this element sequence;
@@ -150,7 +151,7 @@ public:
                              MBEntitySequence*& );
   
   virtual MBErrorCode convert_realloc(bool& , bool& , bool& , 
-                                       MBInterface*, MBTag );
+                                      MBCore*, MBTag );
   
 };
 
@@ -276,7 +277,7 @@ inline MBErrorCode ScdElementSeq::split(MBEntityHandle ,
   // and will return whether it needed
   // reallocate space for those nodes
 inline MBErrorCode ScdElementSeq::convert_realloc(bool& , bool& , bool& , 
-                                          MBInterface*, MBTag )
+                                                  MBCore*, MBTag )
 {
   return MB_NOT_IMPLEMENTED;
 }
@@ -307,8 +308,9 @@ inline MBErrorCode ScdElementSeq::get_connectivity(MBEntityHandle entity,
 }
 
 inline MBErrorCode ScdElementSeq::get_connectivity(MBEntityHandle , 
-                                                    const MBEntityHandle*& ,
-                                                    int &) const 
+                                                   const MBEntityHandle*& ,
+                                                   int &,
+                                                   const bool) const 
 {
     // this version of get_connectivity isn't supported yet!
   return MB_NOT_IMPLEMENTED;

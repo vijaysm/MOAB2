@@ -1019,7 +1019,8 @@ MBErrorCode AEntityFactory::notify_change_connectivity(MBEntityHandle entity,
   }
 
   return MB_SUCCESS;
-  
+
+#if 0
     // for each AEntity containing an old node, construct a new one which
     // contains the new node in its place
   std::vector<int> side_vec, tmp_sides, changed_verts;
@@ -1073,5 +1074,6 @@ MBErrorCode AEntityFactory::notify_change_connectivity(MBEntityHandle entity,
   }
 
   return MB_SUCCESS;
+#endif
 }
 

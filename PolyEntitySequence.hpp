@@ -44,7 +44,7 @@ public:
 
   virtual MBErrorCode get_connectivity_array(MBEntityHandle*& conn_array);
   
-  MBErrorCode PolyEntitySequence::get_index_array(int*& index_array);
+  MBErrorCode get_index_array(int*& index_array);
   
   virtual MBErrorCode split(MBEntityHandle , MBEntitySequence*& )
     {return MB_FAILURE;}

@@ -66,13 +66,13 @@ public:
   HomCoord operator*(const HomXform &rhs2) const;
   HomCoord &operator*=(const int mult);
   HomCoord operator*(const int mult) const;
-  HomCoord &operator/=(const HomXform &rhs2);
+  inline HomCoord &operator/=(const HomXform &rhs2);
   HomCoord operator/(const HomXform &rhs2) const;
-  HomCoord &operator/=(const int mult);
+  inline HomCoord &operator/=(const int mult);
   HomCoord operator/(const int mult) const;
-  HomCoord &operator+=(const HomCoord &rhs1);
+  inline HomCoord &operator+=(const HomCoord &rhs1);
   HomCoord operator+(const HomCoord &rhs1) const;
-  HomCoord &operator-=(const HomCoord &rhs1);
+  inline HomCoord &operator-=(const HomCoord &rhs1);
   HomCoord operator-(const HomCoord &rhs1) const;
   HomCoord &operator=(const HomCoord &rhs);
 
@@ -89,7 +89,7 @@ public:
   bool operator<=(const HomCoord &rhs1) const;
   bool operator>(const HomCoord &rhs1) const;
   bool operator<(const HomCoord &rhs1) const;
-  int operator[](const int &param) const;
+  inline int operator[](const int &param) const;
   int &operator[](const int &param);
 
 };
@@ -125,7 +125,7 @@ public:
            int i13, int i14, int i15, int i16);
 
     //! return this.inverse
-  HomXform inverse() const;
+  inline HomXform inverse() const;
 
     //! compute a transform from three points
   void three_pt_xform(const HomCoord &p1, const HomCoord &q1,

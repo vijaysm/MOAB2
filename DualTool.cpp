@@ -563,7 +563,7 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
   MBEntityHandle this_ent;
   int hp_val;
   int hp_ids = 0;
-  int report = tot_untreated.size() / 10;
+    // int report = tot_untreated.size() / 10;
   while (!tot_untreated.empty()) {
     if (debug && dim == 2 /*(tot_untreated.size()%report == 0)*/)
       std::cout << "Untreated list size " << tot_untreated.size() << "." << std::endl;
