@@ -43,10 +43,9 @@ public:
     //! given a mesh edge, find the ordered faces around the edge; if any
     //! of the faces is in only one region, on_boundary is returned true
   MBErrorCode star_faces(const MBEntityHandle edge,
-                         std::vector<MBEntityHandle> &rad_ents,
-                         bool &bdy_edge);
-  
-
+                         std::vector<MBEntityHandle> &rad_faces,
+                         bool &bdy_edge,
+                         std::vector<MBEntityHandle> *rad_regions = NULL);
   
 private:
   MBInterface *mbImpl;

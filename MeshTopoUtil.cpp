@@ -66,8 +66,9 @@ MBErrorCode MeshTopoUtil::get_average_position(const MBEntityHandle entity,
     //! given a mesh edge, find the ordered faces around the edge; if any
     //! of the faces is in only one region, on_boundary is returned true
 MBErrorCode MeshTopoUtil::star_faces(const MBEntityHandle edge,
-                                     std::vector<MBEntityHandle> &rad_ents,
-                                     bool &bdy_edge)
+                                     std::vector<MBEntityHandle> &rad_faces,
+                                     bool &bdy_edge,
+                                     std::vector<MBEntityHandle> *rad_regions)
 {
   MBRange all_faces;
   MBRange in_range, out_range;
@@ -91,6 +92,7 @@ MBErrorCode MeshTopoUtil::star_faces(const MBEntityHandle edge,
       all_faces.erase(*rit);
       last_face = *rit;
       first_face = last_face;
+      rad_faces.push_back(first_face);
       break;
     }
   }
@@ -102,7 +104,6 @@ MBErrorCode MeshTopoUtil::star_faces(const MBEntityHandle edge,
   
   MBRange regions;
   MBEntityHandle last_region;
-  MBEntityHandle dvert;
 
   while (!all_faces.empty()) {
       // during each iteration:
@@ -154,44 +155,14 @@ MBErrorCode MeshTopoUtil::star_faces(const MBEntityHandle edge,
     regions.insert(last_region);
 
       // get dual vertex for the region & put on list
-//    result = mbImpl->tag_get_data(dualEntity_tag(), &last_region, 1, &dvert);
-//    if (MB_SUCCESS != result) return result;
-//    assert(0 != dvert);
-//    rad_dverts.push_back(dvert);
-    rad_ents.push_back(last_region);
+    rad_faces.push_back(last_face);
+    if (NULL != rad_regions) rad_regions->push_back(last_region);
   }
 
     // if it's a closed loop, we got all the vertices; if not, we need 2 more;
     // closed is indicated by first_face being zero
   if (0 != first_face) {
     bdy_edge = true;
-    
-      // not closed - get the last and first vertices
-      // last is on dual of last_face not on the end of the list
-      // get dual of last face
-    MBEntityHandle dedge;
-//    result = mbImpl->tag_get_data(dualEntity_tag(), &last_face, 1, &dedge);
-//    if (MB_SUCCESS != result) return result;
-    
-      // get connectivity of that edge
-//    const MBEntityHandle *connect;
-//    int num_connect;
-//    result = mbImpl->get_connectivity(dedge, connect, num_connect);
-//    if (MB_SUCCESS != result) return result;
-    
-      // we want the one that's not already on the list; reuse last_face
-//    last_face = (connect[0] == rad_dverts.back() ? connect[1] : connect[0]);
-// rad_dverts.push_back(last_face);
-    rad_ents.push_back(last_face);
-
-      // do the same for first_face
-//    result = mbImpl->tag_get_data(dualEntity_tag(), &first_face, 1, &dedge);
-//    if (MB_SUCCESS != result) return result;
-//    result = mbImpl->get_connectivity(dedge, connect, num_connect);
-//    if (MB_SUCCESS != result) return result;
-//    first_face = (connect[0] == rad_dverts[0] ? connect[1] : connect[0]);
-//    rad_dverts.push_back(first_face);
-    rad_ents.insert(rad_ents.begin(), first_face);
   }
   else {
     bdy_edge = false;
