@@ -609,13 +609,15 @@ MBErrorCode ReadHDF5::read_sets()
       // (shouldn't happen if file is vaild.)
       // Note: this will also catch the case where the set
       // contents list didn't exist, as data_len will be zero.
-    if (data_offset + set_data[0] > data_len)
+    if (set_data[0] >= data_len)
       { assert(0); return MB_FAILURE; }
 
       // Loop until all the entities in the set are read.
       // The buffer is rather large, so it is unlikely that
       // we'll loop more than once.
-    size_t remaining = set_data[0];
+    if (data_offset > (set_data[0] + 1))
+      { assert(0); return MB_FAILURE; }
+    size_t remaining = set_data[0] + 1 - data_offset;
     while (remaining)
     {
       size_t count = remaining > chunk_size ? chunk_size : remaining;
@@ -662,13 +664,15 @@ MBErrorCode ReadHDF5::read_sets()
       // (shouldn't happen if file is vaild.)
       // Note: this will also catch the case where the set
       // contents list didn't exist, as data_len will be zero.
-    if (child_offset + set_data[1] > child_len)
+    if (set_data[1] >= child_len)
       { assert(0); return MB_FAILURE; }
 
       // Loop until all the children are read.
       // The buffer is rather large, so it is unlikely that
       // we'll loop more than once.
-    remaining = set_data[1];
+    if (child_offset > (set_data[1] + 1))
+      { assert(0); return MB_FAILURE; }
+    remaining = set_data[1] + 1 - child_offset;
     while (remaining)
     {
       size_t count = remaining > chunk_size ? chunk_size : remaining;
@@ -1300,7 +1304,7 @@ MBErrorCode ReadHDF5::convert_range_to_handle( const MBEntityHandle* array,
       ++iter;
     }
   
-    MBEntityHandle s_rem = set->range.size() - (start - offset) + 1;
+    MBEntityHandle s_rem = set->range.size() - (start - offset);
     MBEntityHandle num = count > s_rem ? s_rem : count;
     MBRange::const_iterator riter = set->range.begin();
     riter += (start - offset);

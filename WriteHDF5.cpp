@@ -908,25 +908,26 @@ MBErrorCode WriteHDF5::write_sets( )
   MBRange::const_iterator itor = sets.begin();
   std::vector<MBEntityHandle> handle_list;
   MBRange set_contents;
-  long offset = 0, count = 0, child_count = 0, data_count = 0, remaining = sets.size();
+  long offset = 0, count = 0;   // current block of table to write
+  long child_count = 0, data_count = 0; // Running sum of required size for contents and child lists
+  long remaining = sets.size(); // count of sets still to be written.
   while (remaining)
   {
     count = chunk_size < remaining ? chunk_size : remaining;
     remaining -= count;
     long* buf_iter = meta_buf;
-    unsigned long flags;
-    for (int i = 0; i < count; i++, itor++, buf_iter += 3)
+    unsigned long flags;              // bit flags for current set
+    long num_children, num_contents;  // sizes for current set
+    for (int i = 0; i < count; i++, itor++)
     {
-      rval = get_set_info( *itor, buf_iter[0], buf_iter[1], flags );
+      rval = get_set_info( *itor, num_contents, num_children, flags );
       if (MB_SUCCESS != rval)
       {
         mhdf_closeData( filePtr, table, &status );
         return rval;
       }
-      child_count += buf_iter[1];
 
       /* Check if set can be written as ranges of ids */
-      buf_iter[2] = flags;
       if ((flags&MESHSET_SET) && !(flags&MESHSET_ORDERED))
       {
         set_contents.clear();
@@ -945,17 +946,19 @@ MBErrorCode WriteHDF5::write_sets( )
           return rval;
         }
         
-        if (length < buf_iter[0])
+        if (length < num_contents)
         {
-          buf_iter[0] = length;
-          buf_iter[2] |= mhdf_SET_RANGE_BIT;
+          num_contents = length;
+          flags |= mhdf_SET_RANGE_BIT;
         }
-        data_count += length;
       }
-      else
-      {
-        data_count += buf_iter[0];
-      }
+      
+      data_count += num_contents;
+      child_count += num_children;
+      buf_iter[0] = data_count - 1;
+      buf_iter[1] = child_count - 1;
+      buf_iter[2] = flags;
+      buf_iter += 3;
     }
     
     mhdf_writeSetMeta( table, offset, count, H5T_NATIVE_LONG, meta_buf, &status );
