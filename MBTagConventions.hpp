@@ -12,6 +12,9 @@
  * version 2.1 of the License, or (at your option) any later version.
  * 
  */
+ 
+ #ifndef MB_TAG_CONVENTIONS_HPP
+ #define MB_TAG_CONVENTIONS_HPP
 
 //! Conventional tag names used for some often-used sets
 
@@ -90,3 +93,4 @@
 #define CATEGORY_TAG_NAME "CATEGORY"
 #define CATEGORY_TAG_NAME_LENGTH 32
 
+#endif
