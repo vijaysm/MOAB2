@@ -201,7 +201,6 @@ scan_for_max_id( FileHandle* file_ptr, mhdf_Status* status )
 {
   hid_t group_id;
   herr_t rval;
-  int idx;
   unsigned long tmp;
   
     /* Check for new format, with max_id as attrib of root group */
@@ -220,8 +219,8 @@ scan_for_max_id( FileHandle* file_ptr, mhdf_Status* status )
   }
   
     /* Didn't find it, scan the elements group */
-  rval = H5Giterate( group_id, ELEMENT_GROUP_NAME, &idx, &max_id_iter, &file_ptr->max_id );
-  if (!rval)
+  rval = H5Giterate( group_id, ELEMENT_GROUP_NAME, 0, &max_id_iter, &file_ptr->max_id );
+  if (rval)
   {
     H5Gclose( group_id );
     mhdf_setFail( status, "Internal error -- invalid file." );
@@ -230,7 +229,7 @@ scan_for_max_id( FileHandle* file_ptr, mhdf_Status* status )
   
     /* Check node table too */
   rval = get_max_id( group_id, NODE_GROUP_NAME, "coordinates", &file_ptr->max_id );
-  if (!rval)
+  if (rval)
   {
     H5Gclose( group_id );
     mhdf_setFail( status, "Internal error -- invalid file." );
@@ -246,7 +245,7 @@ scan_for_max_id( FileHandle* file_ptr, mhdf_Status* status )
   }
   rval = get_max_id( group_id, SET_GROUP_NAME, SET_META_NAME, &file_ptr->max_id );
   H5Gclose( group_id );
-  if (!rval)
+  if (rval)
   {
     mhdf_setFail( status, "Internal error -- invalid file." );
     return 0;
