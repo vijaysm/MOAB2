@@ -3621,6 +3621,100 @@ MBErrorCode mb_range_test(MBInterface *)
     std::cout << "Range::const_pair_iterator test failed.\n" << std::endl;
   }
 
+    // swap tests
+    // both non-empty
+  r1.clear();
+  r2.clear();
+  r1.insert(h1);
+  r1.insert(h4);
+  r1.insert(h5);
+  r2.insert(h9);
+  r1.swap(r2);
+  if (r1.size() != 1 || r2.size() != 3 ||
+      r1.find(h9) == r1.end() ||
+      r2.find(h1) == r2.end() ||
+      r2.find(h4) == r2.end() ||
+      r2.find(h5) == r2.end()) 
+  {
+    std::cout << "Range test: swap both non-empty failed." << std::endl;
+    result = MB_FAILURE;
+  }
+  
+    // destination empty
+  r1.clear();
+  r2.clear();
+  r2.insert(h1);
+  r2.insert(h4);
+  r2.insert(h5);
+  r1.swap(r2);
+  if (r1.size() != 3 || r2.size() != 0 ||
+      r1.find(h1) == r1.end() ||
+      r1.find(h4) == r1.end() ||
+      r1.find(h5) == r1.end()) 
+  {
+    std::cout << "Range test: swap destination empty failed." << std::endl;
+    result = MB_FAILURE;
+  }
+  
+    // source empty
+  r1.clear();
+  r2.clear();
+  r1.insert(h1);
+  r1.insert(h4);
+  r1.insert(h5);
+  r1.swap(r2);
+  if (r1.size() != 0 || r2.size() != 3 ||
+      r2.find(h1) == r2.end() ||
+      r2.find(h4) == r2.end() ||
+      r2.find(h5) == r2.end()) 
+  {
+    std::cout << "Range test: swap source empty failed." << std::endl;
+    result = MB_FAILURE;
+  }
+  
+    // both empty
+  r1.clear();
+  r2.clear();
+  if (r1.size() != 0 || r2.size() != 0) 
+  {
+    std::cout << "Range test: swap both empty failed." << std::endl;
+    result = MB_FAILURE;
+  }
+
+    // subtract tests
+    // both non-empty
+  r1.clear();
+  r2.clear();
+  r1.insert(h1);
+  r1.insert(h4);
+  r1.insert(h5);
+  r2.insert(h4);
+  MBRange r3 = r1.subtract(r2);
+  if (r3.size() != 2 ||
+      r3.find(h1) == r3.end() ||
+      r3.find(h5) == r3.end() ||
+      r3.find(h4) != r3.end()) 
+  {
+    std::cout << "Range test: subtract both non-empty failed." << std::endl;
+    result = MB_FAILURE;
+  }
+  
+    // destination empty
+  r1.clear();
+  r2.clear();
+  r1.insert(h1);
+  r1.insert(h4);
+  r1.insert(h5);
+  r3 = r1.subtract(r2);
+  if (r3.size() != 3 ||
+      r3.find(h1) == r3.end() ||
+      r3.find(h4) == r3.end() ||
+      r3.find(h5) == r3.end()) 
+  {
+    std::cout << "Range test: subtract destination empty failed." << std::endl;
+    result = MB_FAILURE;
+  }
+
   return result;
 }
 

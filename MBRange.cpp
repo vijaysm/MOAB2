@@ -507,3 +507,26 @@ MBRange::const_iterator MBRange::lower_bound(MBRange::const_iterator first,
   else
     return last;
 }
+
+//! swap the contents of this range with another one
+//! THIS FUNCTION MUST NOT BE INLINED, THAT WILL ELIMINATE RANGE_EMPTY AND THIS_EMPTY
+//! BY SUBSTITUTION AND THE FUNCTION WON'T WORK RIGHT!
+void MBRange::swap( MBRange &range )
+{
+    // update next/prev nodes of head of both ranges
+  bool range_empty = (range.mHead.mNext == &(range.mHead));
+  bool this_empty = (mHead.mNext == &mHead);
+
+  range.mHead.mNext->mPrev = (range_empty ? &(range.mHead) : &mHead);
+  range.mHead.mPrev->mNext = (range_empty ? &(range.mHead) : &mHead);
+  mHead.mNext->mPrev = (this_empty ? &mHead : &(range.mHead));
+  mHead.mPrev->mNext = (this_empty ? &mHead : &(range.mHead));
+
+    // switch data in head nodes of both ranges
+  PairNode *range_next = range.mHead.mNext, *range_prev = range.mHead.mPrev;
+  range.mHead.mNext = (this_empty ? &(range.mHead) : mHead.mNext);
+  range.mHead.mPrev = (this_empty ? &(range.mHead) : mHead.mPrev);
+  mHead.mNext = (range_empty ? &mHead : range_next);
+  mHead.mPrev = (range_empty ? &mHead : range_prev);
+
+}

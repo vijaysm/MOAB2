@@ -1106,12 +1106,17 @@ MBEntityHandle DualTool::next_loop_vertex(const MBEntityHandle last_v,
   if (0 != last_v) other_verts.erase(last_v);
 
     // now get intersection of remaining vertices and 2 2cells vertices
-  result = mbImpl->get_adjacencies(tcells, 0, false, other_verts);
-  if (MB_SUCCESS != result || other_verts.empty()) return 0;
+    // look at each one successively; should find one, maybe not on both
+  tmp_verts = other_verts;
+  MBRange tmp_faces(*tcells.begin(), *tcells.begin());
+  result = mbImpl->get_adjacencies(tmp_faces, 0, false, tmp_verts);
+  if (MB_SUCCESS == result && !tmp_verts.empty()) return *tmp_verts.begin();
+  tmp_faces.clear();
+  tmp_faces.insert(*tcells.rbegin());
+  result = mbImpl->get_adjacencies(tmp_faces, 0, false, other_verts);
+  if (MB_SUCCESS == result && !other_verts.empty()) return *other_verts.begin();
 
-    // should have only one now
-  assert(1 == tmp_verts.size());
-  
-  return *tmp_verts.begin();
+    // if we got here, there isn't any
+  return 0;
 }
 

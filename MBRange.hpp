@@ -722,22 +722,6 @@ inline MBRange::iterator MBRange::erase(MBEntityHandle val)
   return erase(find(val)); 
 }
   
-  //! swap the contents of this range with another one
-inline void MBRange::swap( MBRange &range )
-{
-    // update next/prev nodes of head of both ranges
-  range.mHead.mNext->mPrev = &mHead;
-  range.mHead.mPrev->mNext = &mHead;
-  mHead.mNext->mPrev = &(range.mHead);
-  mHead.mPrev->mNext = &(range.mHead);
-
-    // switch data in head nodes of both ranges
-  PairNode *next = range.mHead.mNext, *prev = range.mHead.mPrev;
-  range.mHead.mNext = mHead.mNext;
-  range.mHead.mPrev = mHead.mPrev;
-  mHead.mNext = next;
-  mHead.mPrev = prev;
-}
 
 
 #endif // MB_RANGE_HPP
