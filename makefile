@@ -78,7 +78,7 @@ ifeq ($(HDF5_FILE),yes)
 	MHDF_LIB       = $(MHDF_DIR)/lib/libmhdf.a
 	MHDF_LNK_PIC   = -L$(MHDF_DIR)/lib -lmhdf-pic $(HDF5_LNK)
 	MHDF_LNK       = -L$(MHDF_DIR)/lib -lmhdf $(HDF5_LNK)
-	MHDF_INC       = -I$(MHDF_DIR)/include
+	MHDF_INC       = -I$(MHDF_DIR)/include $(HDF5_INC)
 	MHDF_FLAGS      = $(MHDF_INC) -DHDF5_FILE
 else
 	MHDF_LIB_PIC   = 

@@ -29,6 +29,7 @@
 #include <H5Tpublic.h>
 #include "MBInterface.hpp"
 #include "MBInternals.hpp"
+#include "MBTagConventions.hpp"
 #include "ReadHDF5.hpp"
 #include "WriteHDF5.hpp"
 
