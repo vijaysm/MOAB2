@@ -496,7 +496,7 @@ public:
                                   const  MBTagType storage,
                                   const MBDataType data,
                                             MBTag& handle,
-                                  const      void* def_val = 0 );
+                                  const      void* def_val);
 
   //! Gets the tag name string of the tag_handle.
   /** \param tag_handle MBTag you want the name of.  
@@ -670,11 +670,13 @@ public:
 
   //! gets number of parent meshsets
   virtual MBErrorCode num_parent_meshsets(const MBEntityHandle meshset,  
-                                           int *number ) const;
+                                          int *number,
+                                          const int num_hops = 1) const;
 
   //! gets number of child meshsets
   virtual MBErrorCode num_child_meshsets(const MBEntityHandle meshset, 
-                                          int *number ) const;
+                                         int *number, 
+                                         const int num_hops = 1) const;
 
   //! add a parent meshset
   virtual MBErrorCode add_parent_meshset(MBEntityHandle meshset, 
@@ -744,6 +746,9 @@ private:
   MBErrorCode initialize();
   void deinitialize();
 
+    //! return the entity set representing the whole mesh
+  MBEntityHandle get_root_set();
+  
     // other interfaces for MB
   MBWriteUtil* mMBWriteUtil;
   MBReadUtil* mMBReadUtil;

@@ -59,7 +59,7 @@ MBMeshSet::~MBMeshSet()
 
 
 MBErrorCode MBMeshSet::get_children(const int num_hops, 
-    std::vector<MBEntityHandle> &children) const
+                                    std::vector<MBEntityHandle> &children) const
 {
     // compute new value of num_hops, either decremented or equal to -1
   int this_hops = (-1 == num_hops ? -1 : num_hops-1);
@@ -84,7 +84,7 @@ MBErrorCode MBMeshSet::get_children(const int num_hops,
 
 
 MBErrorCode MBMeshSet::get_parents(const int num_hops, 
-    std::vector<MBEntityHandle> &parents) const
+                                   std::vector<MBEntityHandle> &parents) const
 {
     // compute new value of num_hops, either decremented or equal to -1
   int this_hops = (-1 == num_hops ? -1 : num_hops-1);
@@ -190,14 +190,24 @@ int MBMeshSet::remove_child(MBMeshSet *child)
 }
 
   //! return the number of child/parent relations for this meshset
-int MBMeshSet::num_children(int *) const
+int MBMeshSet::num_children(int *,
+                            const int num_hops) const
 { 
-  return childMeshSets.size();
+  static std::vector<MBEntityHandle> children;
+  children.clear();
+  MBErrorCode result = get_children(num_hops, children);
+  if (MB_SUCCESS != result) return -1;
+  else return children.size();
 }
 
-int MBMeshSet::num_parents(int *) const
+int MBMeshSet::num_parents(int *,
+                           const int num_hops) const
 { 
-  return parentMeshSets.size();
+  static std::vector<MBEntityHandle> parents;
+  parents.clear();
+  MBErrorCode result = get_parents(num_hops, parents);
+  if (MB_SUCCESS != result) return -1;
+  else return parents.size();
 }
 
 

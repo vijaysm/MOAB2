@@ -338,8 +338,8 @@ inline int MBCN::VerticesPerEntity(const MBEntityType t)
 
 inline int MBCN::NumSubEntities(const MBEntityType t, const int d)
 {
-  return (t != MBVERTEX ? mConnectivityMap[t][d-1].num_sub_elements :
-          (d ? -1 : 1));
+  return (t != MBVERTEX && d > 0 ? mConnectivityMap[t][d-1].num_sub_elements :
+          (d ? -1 : VerticesPerEntity(t)));
 }
 
   //! return the type of a particular sub-entity.

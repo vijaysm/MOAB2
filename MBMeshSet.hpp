@@ -64,10 +64,10 @@ public:
                                 MBMeshSet *child_meshset);
 
     //! return the number of children pointed to by this meshset
-  int num_children(int *) const;
+  int num_children(int *, const int num_hops) const;
     
     //! return the number of parents pointed to by this meshset
-  int num_parents(int *) const;
+  int num_parents(int *, const int num_hops) const;
 
     //! add a parent to this meshset; returns true if parent was added, 0 if it was
     //! already a parent of this meshset

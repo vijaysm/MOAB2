@@ -1,3 +1,11 @@
+Version beta: 
+- Added functions to support tag semantics 
+- Added num_hops argument for num_child_meshsets and num_parent_meshsets.
+- Removed default value for default value in tag_create function (this
+argument was making the choice between overloaded versions of this
+function ambiguous)
+- Fixed bug in MBCN::NumSubEntities when input d=0 (i.e. vertices)
+
 Version 1.01 (CVS tag version_101): 
 New Capabilities:
 - Added support for polygons/polyhedra; polyhedra represented by

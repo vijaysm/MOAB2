@@ -136,6 +136,9 @@ public:
   MBTag dualGraphicsPoint_tag();
   MBErrorCode dualGraphicsPoint_tag(const MBTag tag);
 
+    //! given an entity, return any dual surface or curve it's in
+  MBEntityHandle get_dual_surface_or_curve(const MBEntityHandle ncell);
+  
 private:
 
     //! construct dual vertices for specified regions

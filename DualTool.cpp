@@ -762,7 +762,7 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
     
       // ok, doesn't have one; make a new hyperplane
     hp_val = hp_ids++;
-    result = mbImpl->create_meshset(MESHSET_SET, this_hp);
+    result = mbImpl->create_meshset((MESHSET_SET | MESHSET_TRACK_OWNER), this_hp);
     if (MB_SUCCESS != result) return result;
     result = mbImpl->tag_set_data(gid_tag, &this_hp, 1, &hp_val);
     if (MB_SUCCESS != result) return result;
@@ -1120,3 +1120,20 @@ MBEntityHandle DualTool::next_loop_vertex(const MBEntityHandle last_v,
   return 0;
 }
 
+MBEntityHandle DualTool::get_dual_surface_or_curve(const MBEntityHandle ncell) 
+{
+    // get the sheet or chord it's in
+  std::vector<MBEntityHandle> adj_sets;
+  MBErrorCode result = mbImpl->get_adjacencies(&ncell, 1, 4, false, adj_sets);
+  if (MB_SUCCESS != result) return 0;
+    
+  MBEntityHandle dum_set;
+  for (std::vector<MBEntityHandle>::iterator vit = adj_sets.begin(); 
+       vit != adj_sets.end(); vit++) {
+    if (mbImpl->tag_get_data(dualCurve_tag(), &(*vit), 1, &dum_set) != MB_TAG_NOT_FOUND ||
+        mbImpl->tag_get_data(dualSurface_tag(), &(*vit), 1, &dum_set) != MB_TAG_NOT_FOUND)
+      return *vit;
+  }
+  
+  return 0;
+}

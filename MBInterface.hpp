@@ -170,6 +170,9 @@ public:
     //! destructor
   virtual ~MBInterface() {}
 
+    //! return the entity set representing the whole mesh
+  virtual MBEntityHandle get_root_set()=0;
+  
     //! query an MB internal interface
   virtual MBErrorCode query_interface(const std::string& iface_name, void** iface)=0;
  
@@ -903,7 +906,7 @@ public:
                                   const  MBTagType storage,
                                   const MBDataType data,
                                             MBTag& handle,
-                                  const      void* def_val = 0 ) = 0;
+                                  const      void* def_val) = 0;
 
     //! Get the name of a tag corresponding to a handle
     /** \param tag_handle Tag you want the name of.  
@@ -1182,7 +1185,8 @@ public:
         \param number Number of parents
     */
   virtual MBErrorCode num_parent_meshsets(const MBEntityHandle meshset,  
-                                          int *number ) const = 0;
+                                          int *number,
+                                          const int num_hops = 1) const = 0;
 
     //! Get the number of child mesh sets of a mesh set
     /** Identical to get_child_meshsets, only number is returned instead of actual children.
@@ -1190,7 +1194,8 @@ public:
         \param number Number of children
     */
   virtual MBErrorCode num_child_meshsets(const MBEntityHandle meshset, 
-                                         int *number ) const = 0;
+                                         int *number,
+                                         const int num_hops = 1) const = 0;
 
     //! Add a parent mesh set to a mesh set
     /** Make <em>parent_meshset</em> a new parent of <em>child_meshset</em>.  This function does 

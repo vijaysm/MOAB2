@@ -133,6 +133,11 @@ MBErrorCode MBCore::initialize()
   return MB_SUCCESS;
 }
 
+MBEntityHandle MBCore::get_root_set() 
+{
+  return myMeshSet;
+}
+
 void MBCore::deinitialize()
 {
   if (aEntityFactory)
@@ -2151,7 +2156,8 @@ MBErrorCode MBCore::get_child_meshsets(const MBEntityHandle meshset,
 }
 
 
-MBErrorCode MBCore::num_parent_meshsets(const MBEntityHandle meshset, int* number) const
+MBErrorCode MBCore::num_parent_meshsets(const MBEntityHandle meshset, int* number,
+                                        const int num_hops) const
 {
 
   MBMeshSet *ms_ptr = update_cache( meshset );
@@ -2159,12 +2165,13 @@ MBErrorCode MBCore::num_parent_meshsets(const MBEntityHandle meshset, int* numbe
     return MB_ENTITY_NOT_FOUND;
  
   int error; 
-  *number = ms_ptr->num_parents( &error );
+  *number = ms_ptr->num_parents( &error, num_hops);
 
   return MB_SUCCESS;
 }
 
-MBErrorCode MBCore::num_child_meshsets(const MBEntityHandle meshset, int* number ) const
+MBErrorCode MBCore::num_child_meshsets(const MBEntityHandle meshset, int* number,
+                                       const int num_hops) const
 {
 
   MBMeshSet *ms_ptr = update_cache( meshset );
@@ -2172,7 +2179,7 @@ MBErrorCode MBCore::num_child_meshsets(const MBEntityHandle meshset, int* number
     return MB_ENTITY_NOT_FOUND;
  
   int error; 
-  *number = ms_ptr->num_children( &error );
+  *number = ms_ptr->num_children( &error, num_hops);
 
   return MB_SUCCESS;
 }
