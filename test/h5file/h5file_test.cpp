@@ -35,21 +35,10 @@ bool compare();
 
 void moab_error( const char* function );
 
-int main( int argc, char* argv[] )
+int main()
 {
   MBErrorCode rval;
   std::string msg;
-  bool keep_file = false;
-  
-  if (argc > 1)
-  {
-    if (argc != 2 || strcmp( argv[1], "-k" ))
-    {
-      fprintf(stderr, "Usage: %s [-k]\n", argv[0] );
-      return 1;
-    }
-    keep_file = true;
-  }
   
   iface = new MBCore();
   
@@ -132,8 +121,7 @@ int main( int argc, char* argv[] )
     moab_error( "delete_mesh" );
 
   // Clean up the file.
-  if (!keep_file)
-    remove( filename );
+  remove( filename );
   fprintf( stderr, "done.\n" );
   return 0;
 }

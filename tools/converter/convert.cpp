@@ -28,33 +28,6 @@
 #define WRITE_ERROR 3
 #define OTHER_ERROR 4
 
-#ifdef H5M_FILE
-
-#include "MBReaderWriterSet.hpp"
-#include "WriteHDF5.hpp"
-#include "ReadHDF5.hpp"
-
-MBWriterIface* write_h5m_factory( MBInterface* iface )
-  { return new WriteHDF5( iface ); }
-
-MBReaderIface* read_h5m_factory( MBInterface* iface )
-  { return new ReadHDF5( iface ); }
-  
-void register_h5m( MBCore* core )
-{
-  const char desc[] = "TSTT HDF5 Mesh";
-  const char* ext[] = { "h5m", "mhdf", NULL };
-  core->reader_writer_set()->register_reader( &read_h5m_factory, desc, ext );
-  core->reader_writer_set()->register_writer( &write_h5m_factory, desc, ext );
-}
-
-#else
-
-void register_h5m( MBCore* ) {}
-
-#endif
-
-
 /* Tag to control ACIS dump from .cub file reader */
 const char acis_dump_file_tag_name[] = "__ACISDumpFile";
 
@@ -126,9 +99,7 @@ int main(int argc, char* argv[])
     usage_error(argv[0]);
   
     // Get MB instance
-  MBCore* mbCore = new MBCore();
-  gMB = mbCore;
-  register_h5m( mbCore );
+  gMB = new MBCore();
   
     // If requested, set mesh tag to indicate SAT file name to
     // dump from .cub file reader.
@@ -157,9 +128,6 @@ int main(int argc, char* argv[])
   result = gMB->load_mesh( in );
   if (MB_SUCCESS != result)
   { 
-    std::string msg;
-    gMB->get_last_error( msg );
-    std::cerr << msg << std::endl;
     std::cerr << "Failed to load \"" << in << "\"." << std::endl; 
     return READ_ERROR;
   }
@@ -171,9 +139,6 @@ int main(int argc, char* argv[])
   result = gMB->write_mesh( out );
   if (MB_SUCCESS != result)
   { 
-    std::string msg;
-    gMB->get_last_error( msg );
-    std::cerr << msg << std::endl;
     std::cerr << "Failed to write \"" << out << "\"." << std::endl; 
     return WRITE_ERROR;
   }

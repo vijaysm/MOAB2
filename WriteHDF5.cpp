@@ -56,25 +56,10 @@
 
 #define WRITE_HDF5_BUFFER_SIZE (40*1024*1024)
 
-  // This is the tag used to store file offsets (file ids)
-  // during export.  It is temporary data.
 #define HDF5_ID_TAG_NAME "hdf5_id"
 
-  // This is the HDF5 type for the data of the "hdf5_id" tag.
 const hid_t WriteHDF5::id_type = H5T_NATIVE_INT;
 
-
-  // Some macros to handle error checking.  The
-  // CHK_MHDF__ERR* macros check the value of an mhdf_Status 
-  // object.  The CHK_MB_ERR_* check the value of an MBStatus.
-  // The *_0 macros accept no other arguments. The *_1
-  // macros accept a single hdf5 handle to close on error.
-  // The *_2 macros accept an array of two hdf5 handles to
-  // close on error.  The _*2C macros accept one hdf5 handle
-  // to close on error and a bool and an hdf5 handle where
-  // the latter handle is conditionally closed depending on
-  // the value of the bool.  All macros contain a "return"
-  // statement.
 #define CHK_MHDF_ERR_0( A )                                 \
 do if ( mhdf_isError( &(A) )) {                             \
     writeUtil->report_error( "%s\n", mhdf_message( &(A) ) );\
@@ -140,13 +125,7 @@ WriteHDF5::WriteHDF5( MBInterface* iface )
     iFace( iface ), 
     writeUtil( 0 ), 
     filePtr( 0 ), 
-    createdIdTag(false),
-    idTag( 0 ),
-    setContentsOffset( 0 ),
-    setChildrenOffset( 0 ),
-    writeSets(false),
-    writeSetContents(false),
-    writeSetChildren(false)
+    createdIdTag(false)
 {
 }
 
@@ -155,22 +134,18 @@ MBErrorCode WriteHDF5::init()
   MBErrorCode rval;
   id_t zero_int = 0;
 
-  if (writeUtil) // init has already been called
+  if (writeUtil) 
     return MB_SUCCESS;
  
 #ifdef DEBUG
-  H5Eset_auto( &hdf_error_handler, writeUtil );  // HDF5 callback for errors
+  H5Eset_auto( &hdf_error_handler, writeUtil );
 #endif
  
-    // For known tag types, store the corresponding HDF5 in which
-    // the tag data is to be written in the file.
-  register_known_tag_types( iFace ); 
+  register_known_tag_types( iFace );
  
-    // Get the util interface
   rval = iFace->query_interface( "MBWriteUtilIface", (void**)&writeUtil );
   CHK_MB_ERR_0(rval);
   
-    // Get the file id tag if it exists or create it otherwise.
   rval = iFace->tag_get_handle( HDF5_ID_TAG_NAME, idTag );
   if (MB_TAG_NOT_FOUND == rval)
   {
@@ -186,7 +161,7 @@ MBErrorCode WriteHDF5::init()
     writeUtil = 0;
     return rval;
   }
-
+  
   return MB_SUCCESS;
 }
   
@@ -257,8 +232,26 @@ DEBUGOUT("Checking ID space\n");
   }
 
 DEBUGOUT( "Creating File\n" );  
+  
+  /*
+  const char* type_names[MBMAXTYPE];
+  bzero( type_names, MBMAXTYPE * sizeof(char*) );
+  for (MBEntityType i = MBEDGE; i < MBENTITYSET; ++i)
+    type_names[i] = MBCN::EntityTypeName( i );
+ 
+    // Create the file
+  filePtr = mhdf_createFile( filename, overwrite, type_names, MBMAXTYPE, &rval );
+  if (!filePtr)
+  {
+    fprintf(stderr, mhdf_message( &rval ));
+    return MB_FAILURE;
+  }
 
-    // Figure out the dimension in which to write the mesh.  
+  result = write_qa( qa_records );
+  if (MB_SUCCESS != result)
+    return result;
+  */
+  
   int mesh_dim;
   result = iFace->get_dimension( mesh_dim );
   CHK_MB_ERR_0(result);
@@ -267,26 +260,23 @@ DEBUGOUT( "Creating File\n" );
     user_dimension = mesh_dim;
   user_dimension = user_dimension > mesh_dim ? mesh_dim : user_dimension;
   
-    // Allocate internal buffer to use when gathering data to write.
   dataBuffer = (char*)malloc( bufferSize );
   if (!dataBuffer)
     goto write_fail;
   
-    // Create the file layout, including all tables (zero-ed) and
-    // all structure and meta information.
   result = create_file( filename, overwrite, qa_records, user_dimension );
   if (MB_SUCCESS != result)
     goto write_fail;
 
 DEBUGOUT("Writing Nodes.\n");
   
-    // Write node coordinates
+    // Write nodes
   if (write_nodes() != MB_SUCCESS)
     goto write_fail;
 
 DEBUGOUT("Writing connectivity.\n");
   
-    // Write element connectivity
+    // Write connectivity
   for (ex_itor = exportList.begin(); ex_itor != exportList.end(); ++ex_itor)
   {
     if (ex_itor->type == MBPOLYGON || ex_itor->type == MBPOLYHEDRON)
@@ -342,10 +332,6 @@ write_fail:
   return MB_FAILURE;
 }
 
-  // Initialize all file ids to -1.  We do this so that
-  // if we are writing only a part of the mesh, we can
-  // easily identify adjacencies, set contents, etc. which
-  // are not in the mesh we are writing.
 MBErrorCode WriteHDF5::clear_all_id_tags()
 {
   id_t cleared_value = -1;
@@ -366,9 +352,7 @@ MBErrorCode WriteHDF5::clear_all_id_tags()
   return MB_SUCCESS;
 }
    
-  // For a given element type, get all higher-order configurations
-  // (and the linear element type) has a list of node counts in
-  // each.
+
 MBErrorCode WriteHDF5::midnode_combinations( MBEntityType type,
                                     std::vector<int>& combinations )
 {
@@ -402,9 +386,6 @@ MBErrorCode WriteHDF5::midnode_combinations( MBEntityType type,
   return MB_SUCCESS;
 }
 
-  // Get the subset of the passed range that matches both the passed
-  // element type and the number of nodes in the element (the
-  // subtype, e.g. HEX20 vs. HEX8).
 MBErrorCode WriteHDF5::subrange_by_type_and_conn( const MBRange& input,
                                                   MBEntityType type,
                                                   int nodecount,
@@ -417,7 +398,6 @@ MBErrorCode WriteHDF5::subrange_by_type_and_conn( const MBRange& input,
   output.clear();
   for (itor = input.begin(); itor != input.end(); ++itor)
   {
-      // The connectivity pointer (junk) is passed back.  
     rval = iFace->get_connectivity( *itor, junk, num_nodes, false );
     CHK_MB_ERR_0(rval);
     if (num_nodes == nodecount && 
@@ -427,7 +407,6 @@ MBErrorCode WriteHDF5::subrange_by_type_and_conn( const MBRange& input,
   return MB_SUCCESS;
 }
 
-  // Get the subset of a range containing a given element type.
 MBErrorCode WriteHDF5::subrange_by_type( const MBRange& input,
                                          MBEntityType type,
                                          MBRange& output )
@@ -446,7 +425,7 @@ MBErrorCode WriteHDF5::subrange_by_type( const MBRange& input,
 }
 
                                          
-  // Gather the mesh to be written from a list of owning meshsets.
+
 MBErrorCode WriteHDF5::gather_mesh_info( 
                            const std::vector<MBEntityHandle>& export_sets )
 {
@@ -576,7 +555,7 @@ MBErrorCode WriteHDF5::gather_mesh_info(
   return MB_SUCCESS;  
 }
 
-  // Gather all the mesh and related information to be written.
+
 MBErrorCode WriteHDF5::gather_all_mesh( )
 {
   MBErrorCode rval;
@@ -858,8 +837,15 @@ MBErrorCode WriteHDF5::write_sets( )
   hid_t set_table = 0, content_table = 0, child_table = 0;
   setSet.type2 = mhdf_set_type_handle();
   
+  /* Get this from the file because we if working in parallel, 
+     we may need to do the collective open/closes even if there
+     is no set data on this processor */
+  int do_sets, do_contents, do_children;
+  do_sets = mhdf_haveSets( filePtr, &do_contents, &do_children, &status );
+  CHK_MHDF_ERR_0(status);
+  
   /* If no sets, just return success */
-  if (!writeSets)
+  if (!do_sets)
     return MB_SUCCESS;
   
   /* Write set description table and set contents table */
@@ -868,7 +854,7 @@ MBErrorCode WriteHDF5::write_sets( )
   set_table = mhdf_openSetMeta( filePtr, &meta_size, &first_id, &status );
   CHK_MHDF_ERR_0(status);
   
-  if (writeSetContents)
+  if (do_contents)
   {
     content_table = mhdf_openSetData( filePtr, &data_size, &status );
     CHK_MHDF_ERR_1(status, set_table);
@@ -889,7 +875,7 @@ MBErrorCode WriteHDF5::write_sets( )
   for ( ; iter != end; ++iter )
   {
     rval = get_set_info( *iter, data_size, child_size, flags );
-    CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
+    CHK_MB_ERR_2C(rval, set_table, do_contents, content_table, status);
     
     if (*iter == *comp)
     {
@@ -897,11 +883,11 @@ MBErrorCode WriteHDF5::write_sets( )
       id_list.clear();
       
       rval = iFace->get_entities_by_handle( *iter, set_contents, false );
-      CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
+      CHK_MB_ERR_2C(rval, set_table, do_contents, content_table, status);
 
       int length;
       rval = range_to_id_list( set_contents, &id_list, length );
-      CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
+      CHK_MB_ERR_2C(rval, set_table, do_contents, content_table, status);
 
       assert (length < data_size);
       flags |= mhdf_SET_RANGE_BIT;
@@ -914,10 +900,10 @@ MBErrorCode WriteHDF5::write_sets( )
       handle_list.clear();
       
       rval = iFace->get_entities_by_handle( *iter, handle_list, false );
-      CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
+      CHK_MB_ERR_2C(rval, set_table, do_contents, content_table, status);
       
       rval = vector_to_id_list( handle_list, id_list );
-      CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
+      CHK_MB_ERR_2C(rval, set_table, do_contents, content_table, status);
     }
     
     child_offset += child_size;
@@ -925,8 +911,9 @@ MBErrorCode WriteHDF5::write_sets( )
     set_data[1] = child_offset - 1;
     set_data[2] = flags;
 
+    
     mhdf_writeSetMeta( set_table, set_offset++, 1L, H5T_NATIVE_LONG, set_data, &status );
-    CHK_MHDF_ERR_2C(status, set_table, writeSetContents, content_table );
+    CHK_MHDF_ERR_2C(status, set_table, do_contents, content_table );
     
     if (id_list.size())
     {
@@ -936,14 +923,14 @@ MBErrorCode WriteHDF5::write_sets( )
                          id_type,
                          &id_list[0],
                          &status );
-      CHK_MHDF_ERR_2C(status, set_table, writeSetContents, content_table );
+      CHK_MHDF_ERR_2C(status, set_table, do_contents, content_table );
       content_offset += data_size;
     }
   }
   
   mhdf_closeData( filePtr, set_table, &status );
   mhdf_closeData( filePtr, content_table, &status );
-  if (!writeSetChildren)
+  if (!do_children)
     return MB_SUCCESS;
       
   
@@ -1768,11 +1755,9 @@ DEBUGOUT( "Gathering Tags\n" );
   
   
     // create set tables
-  writeSets = !setSet.range.empty();
-  if (writeSets)
+  if (!setSet.range.empty())
   {
     long contents_len, children_len;
-    writeSets = true;
     rval = count_set_size( setSet.range, rangeSets, contents_len, children_len );
     CHK_MB_ERR_0(rval);
     
@@ -1784,8 +1769,6 @@ DEBUGOUT( "Gathering Tags\n" );
     setSet.offset = 0;
     setContentsOffset = 0;
     setChildrenOffset = 0;
-    writeSetContents = !!contents_len;
-    writeSetChildren = !!children_len;
   } // if(!setSet.range.empty())
   
     // Create the tags and tag data tables
