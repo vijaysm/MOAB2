@@ -51,7 +51,7 @@ public:
   virtual ~WriteHDF5();
   
   /** Export specified meshsets to file
-   * \param filename     The filename to export.  Must end in <em>.mhdf</em>
+   * \param filename     The filename to export. 
    * \param export_sets  Array of handles to sets to export, or NULL to export all.
    * \param export_set_count Length of <code>export_sets</code> array.
    */
@@ -66,11 +66,78 @@ public:
    *  type of a bunch of the default tags.
    */
   static MBErrorCode register_known_tag_types( MBInterface* );
-  
 
-private:
-  MBErrorCode init();
+protected:
   
+  /** Function to create the file.  Virtual to allow override
+   *  for parallel version.
+   */
+  virtual MBErrorCode create_file( const char* filename,
+                                   bool overwrite,
+                                   std::vector<std::string>& qa_records,
+                                   int dimension = 3 );
+ 
+  //! Gather tags
+  MBErrorCode gather_tags();
+
+  /** Helper function for create-file
+   *
+   * Calculate the sum of the number of non-set adjacencies
+   * of all entities in the passed range.
+   */
+  MBErrorCode count_adjacencies( const MBRange& elements, id_t& result );
+  
+  /** Helper function for create-file
+   *
+   * Create zero-ed tables where element connectivity and 
+   * adjacency data will be stored.
+   */
+  MBErrorCode create_elem_tables( MBEntityType mb_type,
+                                  int nodes_per_element,
+                                  id_t number_elements,
+                                  mhdf_ElemHandle& mhdf_type_out,
+                                  long& first_id_out );
+
+  /** Helper function for create-file
+   *
+   * Create zero-ed tables where poly connectivity and 
+   * adjacency data will be stored.
+   */
+  MBErrorCode create_poly_tables( MBEntityType mb_type,
+                                  id_t number_elements,
+                                  id_t connectivity_length,
+                                  mhdf_ElemHandle& mhdf_type_out,
+                                  long& first_id_out );
+  
+  /** Helper function for create-file
+   *
+   * Calculate total length of set contents and child tables.
+   */
+  MBErrorCode count_set_size( const MBRange& sets,
+                              MBRange& compressed_sets_out,
+                              long& contents_length_out,
+                              long& children_length_out );
+  
+  /** Helper function for create-file
+   *
+   * Create zero-ed tables where set data will be written.
+   */
+  MBErrorCode create_set_tables( id_t number_sets,
+                                 long contents_length,
+                                 long children_length,
+                                 long& first_id_out );
+
+  /** Helper function for create-file
+   *
+   * Write tag meta-info and create zero-ed table where
+   * tag values will be written.
+   */
+  MBErrorCode create_tag( MBTag tag_id, id_t num_sparse_entities );
+
+  //! Write exodus-type QA info
+  MBErrorCode write_qa( std::vector<std::string>& list );
+
+
   //! Range of entities, grouped by type, to export 
   struct ExportSet 
   {
@@ -84,7 +151,38 @@ private:
     mhdf_ElemHandle type2;
     //! The first Id allocated by the mhdf library.  Entities in range have sequential IDs.
     id_t first_id;
+    //! The offset at which to begin writting this processor's data.
+    //! Always zero except for parallel IO.
+    id_t offset;
+    //! Offset for poly connectivity.  Unused for non-poly elements.
+    //! Always zero except for parallel IO.
+    id_t poly_offset;
+    //! Offset for adjacency data.  Always zero except for parallel IO
+    id_t adj_offset;
+    
+    bool operator<( const ExportSet& other ) const
+      { return type < other.type || 
+               (type == other.type && 
+                type != MBPOLYGON &&
+                type != MBPOLYHEDRON &&
+                num_nodes < other.num_nodes); }
   };
+  
+public:
+  //! Tag to write to file.
+  struct SparseTag
+  {
+    //! The tag handle
+    MBTag tag_id;
+    //! The list of entities with this tag
+    MBRange range;
+    //! The offset at which to begin writting this processor's data.
+    //! Always zero except for parallel IO.
+    id_t offset;
+    
+    bool operator<(const SparseTag&) const;
+  };
+protected:
   
   //! The size of the data buffer (<code>dataBuffer</code>).
   const int bufferSize;
@@ -93,7 +191,6 @@ private:
 
   //! MBInterface pointer passed to constructor
   MBInterface* iFace;
-  
   //! Cached pointer to writeUtil interface.
   MBWriteUtilIface* writeUtil;
   
@@ -102,18 +199,26 @@ private:
   
   //! True if created the ID tag in init()
   bool createdIdTag;
-  
   //! Handle for the ID tag.
   MBTag idTag;
   
   //! The list elements to export.
   std::list<ExportSet> exportList;
-  
   //! The list of nodes to export
   ExportSet nodeSet;
-  
   //! The list of sets to export
   ExportSet setSet;
+  //! Sets to be compressed into ranges
+  MBRange rangeSets;
+  //! Offset into set contents table (zero except for parallel)
+  unsigned long setContentsOffset;
+  //! Offset into set children table (zero except for parallel)
+  unsigned long setChildrenOffset;
+  //! The list of tags to export
+  std::list<SparseTag> tagList;
+
+private:
+  MBErrorCode init();
 
   //! Zero the ID tag on all entities in the mesh.
   MBErrorCode clear_all_id_tags();
@@ -146,6 +251,43 @@ private:
    */
   MBErrorCode midnode_combinations( MBEntityType type,
                                     std::vector<int>& combinations );
+
+  //! Get information about a meshset
+  MBErrorCode get_set_info( MBEntityHandle set,
+                            long& num_entities,
+                            long& num_children,
+                            unsigned long& flags );
+  
+  /** Get possibly compacted list of IDs for passed entities
+   *
+   * For the passed range of entities, determine if IDs
+   * can be compacted and optionally write IDs to passed list.
+   *
+   * If the IDs are not compacted, the output list will contain
+   * a simple ordered list of IDs.
+   *
+   * If IDs are compacted, the output list will contain 
+   * {start,count} pairs.
+   *
+   * If the ID list is compacted, output_length will be less than
+   * range.size().
+   */
+  MBErrorCode range_to_id_list( const MBRange& input_range,
+                                std::vector<id_t>* output_id_list,
+                                id_t& output_length );
+  
+  //! Get IDs for entities 
+  MBErrorCode vector_to_id_list( const std::vector<MBEntityHandle>& input,
+                                 std::vector<id_t>& output );
+
+  /** Get IDs of adjacent entities.
+   * 
+   * For all entities adjacent to the passed entity, if the
+   * adjacent entity is to be exported (ID is not zero), append
+   * the ID to the passed list.
+   */
+  MBErrorCode get_adjacencies( MBEntityHandle entity, std::vector<id_t>& adj );
+  
   
   /** Get all mesh to export from given list of sets.
    *
@@ -163,7 +305,7 @@ private:
    *
    * Note: Assigns IDs to nodes.
    */
-  MBErrorCode write_nodes( int dimension );
+  MBErrorCode write_nodes( );
   
   /** Write out element connectivity.
    *
@@ -205,37 +347,8 @@ private:
    * Note: Must have already written nodes, elem connectivity and
    *       sets so that entities have IDs assigned.
    */
+/*
   MBErrorCode write_tag( MBTag tag_handle );
-  
-  /** Get possibly compacted list of IDs for passed entities
-   *
-   * For the passed range of entities, determine if IDs
-   * can be compacted and optionally write IDs to passed list.
-   *
-   * If the IDs are not compacted, the output list will contain
-   * a simple ordered list of IDs.
-   *
-   * If IDs are compacted, the output list will contain 
-   * {start,count} pairs.
-   *
-   * If the ID list is compacted, output_length will be less than
-   * range.size().
-   */
-  MBErrorCode range_to_id_list( const MBRange& input_range,
-                                std::vector<id_t>* output_id_list,
-                                id_t& output_length );
-  
-  //! Get IDs for entities 
-  MBErrorCode vector_to_id_list( const std::vector<MBEntityHandle>& input,
-                                 std::vector<id_t>& output );
-
-  /** Get IDs of adjacent entities.
-   * 
-   * For all entities adjacent to the passed entity, if the
-   * adjacent entity is to be exported (ID is not zero), append
-   * the ID to the passed list.
-   */
-  MBErrorCode get_adjacencies( MBEntityHandle entity, std::vector<id_t>& adj );
   
   //! Write dense tag for all entities 
   MBErrorCode write_dense_tag( MBTag tag_handle,
@@ -245,25 +358,15 @@ private:
   MBErrorCode write_dense_tag( ExportSet& set,
                                MBTag tag_handle,
                                hid_t hdf_write_type );
-  
+*/  
   //! Write sparse tag for all entities.
-  MBErrorCode write_sparse_tag( MBTag tag_handle,
-                                hid_t hdf_write_type );
-
-  //! Get information about a meshset
-  MBErrorCode get_set_info( MBEntityHandle set,
-                            long& num_entities,
-                            long& num_children,
-                            unsigned long& flags );
+  MBErrorCode write_sparse_tag( const SparseTag& tag_data );
                             
   //! Get element connectivity
   MBErrorCode get_connectivity( MBRange::const_iterator begin,
                                 MBRange::const_iterator end,
                                 int nodes_per_element,
                                 id_t* id_data_out );
-
-  //! Write exodus-type QA info
-  MBErrorCode write_qa( std::vector<std::string>& list );
 };
 
 #endif

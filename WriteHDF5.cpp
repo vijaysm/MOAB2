@@ -56,6 +56,8 @@
 
 #define WRITE_HDF5_BUFFER_SIZE (40*1024*1024)
 
+#define HDF5_ID_TAG_NAME "hdf5_id"
+
 const hid_t WriteHDF5::id_type = H5T_NATIVE_INT;
 
 
@@ -90,10 +92,10 @@ MBErrorCode WriteHDF5::init()
   if (MB_SUCCESS != rval)
     return rval;
   
-  rval = iFace->tag_get_handle( GLOBAL_ID_TAG_NAME, idTag );
+  rval = iFace->tag_get_handle( HDF5_ID_TAG_NAME, idTag );
   if (MB_TAG_NOT_FOUND == rval)
   {
-    rval = iFace->tag_create( GLOBAL_ID_TAG_NAME, sizeof(id_t), 
+    rval = iFace->tag_create( HDF5_ID_TAG_NAME, sizeof(id_t), 
                               MB_TAG_DENSE, idTag, &zero_int );
     if (MB_SUCCESS == rval)
       createdIdTag = true;
@@ -129,10 +131,7 @@ MBErrorCode WriteHDF5::write_file( const char* filename,
 {
   MBErrorCode result;
   mhdf_Status rval;
-  std::string tagname;
-  std::vector<MBTag> tag_list;
-  std::vector<MBTag>::iterator t_itor;
-
+  std::list<SparseTag>::const_iterator t_itor;
   std::list<ExportSet>::iterator ex_itor;
   
   if (MB_SUCCESS != init())
@@ -183,6 +182,7 @@ DEBUGOUT("Checking ID space\n");
 
 DEBUGOUT( "Creating File\n" );  
   
+  /*
   const char* type_names[MBMAXTYPE];
   bzero( type_names, MBMAXTYPE * sizeof(char*) );
   for (MBEntityType i = MBEDGE; i < MBENTITYSET; ++i)
@@ -195,19 +195,33 @@ DEBUGOUT( "Creating File\n" );
     fprintf(stderr, mhdf_message( &rval ));
     return MB_FAILURE;
   }
-  
+
   result = write_qa( qa_records );
   if (MB_SUCCESS != result)
     return result;
+  */
+  
+  int mesh_dim;
+  result = iFace->get_dimension( mesh_dim );
+  if (MB_SUCCESS != result)
+    return result;
+  
+  if (user_dimension < 1) 
+    user_dimension = mesh_dim;
+  user_dimension = user_dimension > mesh_dim ? mesh_dim : user_dimension;
   
   dataBuffer = (char*)malloc( bufferSize );
   if (!dataBuffer)
+    goto write_fail;
+  
+  result = create_file( filename, overwrite, qa_records, user_dimension );
+  if (MB_SUCCESS != result)
     goto write_fail;
 
 DEBUGOUT("Writing Nodes.\n");
   
     // Write nodes
-  if (write_nodes( user_dimension ) != MB_SUCCESS)
+  if (write_nodes() != MB_SUCCESS)
     goto write_fail;
 
 DEBUGOUT("Writing connectivity.\n");
@@ -241,27 +255,11 @@ DEBUGOUT("Writing adjacencies.\n");
 
 DEBUGOUT("Writing tags.\n");
   
-    // Get list of Tags to write
-  result = iFace->tag_get_tags( tag_list );
-  if (MB_SUCCESS != result)
-    goto write_fail;
 
     // Write tags
-  for (t_itor = tag_list.begin(); t_itor != tag_list.end(); ++t_itor)
-  {
-      // Don't write global ID tag
-    if (*t_itor == idTag)
-      continue;
-    
-      // Don't write tags that have name beginning with "__"
-    if (iFace->tag_get_name( *t_itor, tagname ) != MB_SUCCESS)
+  for (t_itor = tagList.begin(); t_itor != tagList.end(); ++t_itor)
+    if (write_sparse_tag( *t_itor ) != MB_SUCCESS)
       goto write_fail;
-    if (tagname[0] == '_' && tagname[1] == '_')
-      continue;
-    
-    if (write_tag( *t_itor ) != MB_SUCCESS)
-      goto write_fail;
-  }
 
     // Clean up and exit.
   free( dataBuffer );
@@ -606,36 +604,31 @@ MBErrorCode WriteHDF5::gather_all_mesh( )
   return MB_SUCCESS;
 }
   
-MBErrorCode WriteHDF5::write_nodes( int req_dim )
+MBErrorCode WriteHDF5::write_nodes( )
 {
   mhdf_Status status;
   int dim, mesh_dim;
   MBErrorCode rval;
   hid_t node_table;
-  long first_id;
+  long first_id, num_nodes;
   nodeSet.type2 = mhdf_node_type_handle();
   
   rval = iFace->get_dimension( mesh_dim );
   if (MB_SUCCESS != rval)
     return rval;
   
-  if (req_dim < 1) 
-    req_dim = mesh_dim;
-  dim = req_dim > mesh_dim ? mesh_dim : req_dim;
-  
-  node_table = mhdf_createNodeCoords( filePtr, req_dim, nodeSet.range.size(), &first_id, &status );
+  node_table = mhdf_openNodeCoords( filePtr, &num_nodes, &dim, &first_id, &status );
   if (mhdf_isError( &status ))
   {
     writeUtil->report_error( "%s\n", mhdf_message( &status ) );
     return MB_FAILURE;
   }
-  writeUtil->assign_ids( nodeSet.range, idTag, (id_t)first_id );
   
   double* buffer = (double*)dataBuffer;
   int chunk_size = bufferSize / sizeof(double);
   
   long remaining = nodeSet.range.size();
-  long offset = 0;
+  long offset = nodeSet.offset;
   MBRange::const_iterator iter = nodeSet.range.begin();
   while (remaining)
   {
@@ -644,9 +637,9 @@ MBErrorCode WriteHDF5::write_nodes( int req_dim )
     MBRange::const_iterator end = iter;
     end += count;
     
-    for (int d = 0; d < req_dim; d++)
+    for (int d = 0; d < dim; d++)
     {
-      if (d < dim)
+      if (d < mesh_dim)
       {
         rval = writeUtil->get_node_array( d, iter, end, count, buffer );
         if (MB_SUCCESS != rval)
@@ -687,34 +680,29 @@ MBErrorCode WriteHDF5::write_elems( ExportSet& elems )
 {
   mhdf_Status status;
   MBErrorCode rval;
-  char name[64];
   long first_id;
-  
-  sprintf( name, "%s%d", MBCN::EntityTypeName(elems.type), elems.num_nodes );
-  elems.type2 = mhdf_addElement( filePtr, name, elems.type, &status );
-  if (mhdf_isError( &status ))
-  {
-    writeUtil->report_error( "%s\n", mhdf_message( &status ) );
-    return MB_FAILURE;
-  }
+  int nodes_per_elem;
+  long table_size;
 
-  hid_t elem_table = mhdf_createConnectivity( filePtr,
-                                              elems.type2,
-                                              elems.num_nodes,
-                                              elems.range.size(),
-                                              &first_id,
-                                              &status );
+  hid_t elem_table = mhdf_openConnectivity( filePtr, 
+                                            elems.type2, 
+                                            &nodes_per_elem,
+                                            &table_size,
+                                            &first_id,
+                                            &status );
+                                            
   if (mhdf_isError( &status ))
   {
     writeUtil->report_error( "%s\n", mhdf_message( &status ) );
     return MB_FAILURE;
   }
-  writeUtil->assign_ids( elems.range, idTag, (id_t)first_id );
+  assert (first_id <= elems.first_id);
+  assert ((unsigned long)table_size >= elems.offset + elems.range.size());
   
   
   id_t* buffer = (id_t*)dataBuffer;
   int chunk_size = bufferSize / (elems.num_nodes * sizeof(id_t));
-  long offset = 0;
+  long offset = elems.offset;
   long remaining = elems.range.size();
   MBRange::iterator iter = elems.range.begin();
   
@@ -761,42 +749,29 @@ MBErrorCode WriteHDF5::write_poly( ExportSet& elems )
 {
   mhdf_Status status;
   MBErrorCode rval;
-  char name[64];
-  long first_id;
+  long first_id, table_size, poly_count;
   
   assert( elems.type == MBPOLYGON || elems.type == MBPOLYHEDRON );
   
-  // Create the element group in the file
-  sprintf( name, "%s", MBCN::EntityTypeName(elems.type) );
-  elems.type2 = mhdf_addElement( filePtr, name, elems.type, &status );
-  if (mhdf_isError( &status ))
-  {
-    writeUtil->report_error( "%s\n", mhdf_message( &status ) );
-    return MB_FAILURE;
-  }
-
-  // Determine how much data must be written
-  int mb_count;
-  rval = writeUtil->get_poly_array_size( elems.range.begin(), 
-                                         elems.range.end(),
-                                         mb_count );
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  long count = mb_count;
   const MBRange::const_iterator end = elems.range.end();
   MBRange::const_iterator iter;
 
     // Create the tables in the file and assign IDs to polys
   hid_t handles[2];
-  mhdf_createPolyConnectivity( filePtr, elems.type2, elems.range.size(),
-                               count, &first_id, handles, &status );
+  mhdf_openPolyConnectivity( filePtr, 
+                             elems.type2,
+                             &poly_count,
+                             &table_size,
+                             &first_id,
+                             handles,
+                             &status );
   if (mhdf_isError( &status ))
   {
     writeUtil->report_error( "%s\n", mhdf_message( &status ) );
     return MB_FAILURE;
   }
-  writeUtil->assign_ids( elems.range, idTag, (id_t)first_id );
+  assert (first_id <= elems.first_id);
+  assert ((unsigned long)poly_count >= elems.offset + elems.range.size());
   
     // Split the data buffer into two chunks, one for the indices
     // and one for the IDs.  Assume average of 4 IDs per poly.
@@ -844,9 +819,6 @@ MBErrorCode WriteHDF5::write_poly( ExportSet& elems )
     }
     offset[1] += num_conn;
   }
-  
-  assert((unsigned)offset[0] == elems.range.size());
-  assert(offset[1] == mb_count);
 
   mhdf_closeData( filePtr, handles[0], &status );
   if (mhdf_isError( &status ))
@@ -898,251 +870,206 @@ MBErrorCode WriteHDF5::write_sets( )
   mhdf_Status status;
   MBRange& sets = setSet.range;
   MBErrorCode rval;
+  long first_id, meta_size, data_size, child_size;
+  hid_t set_table = 0, content_table = 0, child_table = 0;
   setSet.type2 = mhdf_set_type_handle();
-  long first_id;
+  
+  /* Get this from the file because we if working in parallel, 
+     we may need to do the collective open/closes even if there
+     is no set data on this processor */
+  int do_sets, do_contents, do_children;
+  do_sets = mhdf_haveSets( filePtr, &do_contents, &do_children, &status );
+  if (mhdf_isError( &status ))
+  {
+    writeUtil->report_error( "%s\n", mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
   
   /* If no sets, just return success */
-  if (sets.empty())
+  if (!do_sets)
     return MB_SUCCESS;
   
-  /* Write set description table */
+  /* Write set description table and set contents table */
   
   /* Create the table */
-  hid_t table = mhdf_createSetMeta( filePtr, sets.size(), &first_id, &status );
+  set_table = mhdf_openSetMeta( filePtr, &meta_size, &first_id, &status );
   if (mhdf_isError( &status ))
   {
     writeUtil->report_error( "%s\n", mhdf_message( &status ) );
     return MB_FAILURE;
   }
-  writeUtil->assign_ids( sets, idTag, (id_t)first_id );
-
-  /* Set up I/O buffer */
-  int chunk_size = bufferSize / (3*sizeof(long));
-  long* meta_buf = (long*)dataBuffer;
   
-  /* Write set descriptions */
-  MBRange::const_iterator itor = sets.begin();
-  std::vector<MBEntityHandle> handle_list;
-  MBRange set_contents;
-  long offset = 0, count = 0;   // current block of table to write
-  long child_count = 0, data_count = 0; // Running sum of required size for contents and child lists
-  long remaining = sets.size(); // count of sets still to be written.
-  while (remaining)
+  if (do_contents)
   {
-    count = chunk_size < remaining ? chunk_size : remaining;
-    remaining -= count;
-    long* buf_iter = meta_buf;
-    unsigned long flags;              // bit flags for current set
-    long num_children, num_contents;  // sizes for current set
-    for (int i = 0; i < count; i++, itor++)
+    content_table = mhdf_openSetData( filePtr, &data_size, &status );
+    if (mhdf_isError( &status ))
     {
-      rval = get_set_info( *itor, num_contents, num_children, flags );
-      if (MB_SUCCESS != rval)
-      {
-        mhdf_closeData( filePtr, table, &status );
-        return rval;
-      }
-
-      /* Check if set can be written as ranges of ids */
-      if ((flags&MESHSET_SET) && !(flags&MESHSET_ORDERED))
-      {
-        set_contents.clear();
-        rval = iFace->get_entities_by_handle( *itor, set_contents, false );
-        if (MB_SUCCESS != rval)
-        {
-          mhdf_closeData( filePtr, table, &status );
-          return rval;
-        }
-        
-        int length;
-        rval = range_to_id_list( set_contents, NULL, length );
-        if (MB_SUCCESS != rval)
-        {
-          mhdf_closeData( filePtr, table, &status );
-          return rval;
-        }
-        
-        if (length < num_contents)
-        {
-          num_contents = length;
-          flags |= mhdf_SET_RANGE_BIT;
-        }
-      }
-      
-      data_count += num_contents;
-      child_count += num_children;
-      buf_iter[0] = data_count - 1;
-      buf_iter[1] = child_count - 1;
-      buf_iter[2] = flags;
-      buf_iter += 3;
+      writeUtil->report_error( "%s\n", mhdf_message( &status ) );
+      mhdf_closeData( filePtr, set_table, &status );
+      return MB_FAILURE;
+    }
+  }
+  
+    
+  MBRange set_contents;
+  MBRange::const_iterator iter = sets.begin();
+  MBRange::const_iterator comp = rangeSets.begin();
+  const MBRange::const_iterator end = sets.end();
+  long set_data[3];
+  long set_offset = setSet.offset;
+  long content_offset = setContentsOffset;
+  long child_offset = setChildrenOffset;
+  unsigned long flags;
+  std::vector<id_t> id_list;
+  std::vector<MBEntityHandle> handle_list;
+  for ( ; iter != end; ++iter )
+  {
+    rval = get_set_info( *iter, data_size, child_size, flags );
+    if (MB_SUCCESS != rval)
+    {
+      mhdf_closeData( filePtr, set_table, &status );
+      if (do_contents) mhdf_closeData( filePtr, content_table, &status );
+      return rval;
     }
     
-    mhdf_writeSetMeta( table, offset, count, H5T_NATIVE_LONG, meta_buf, &status );
+    if (*iter == *comp)
+    {
+      set_contents.clear();
+      id_list.clear();
+      
+      rval = iFace->get_entities_by_handle( *iter, set_contents, false );
+      if (MB_SUCCESS != rval)
+      {
+        mhdf_closeData( filePtr, set_table, &status );
+        if (do_contents) mhdf_closeData( filePtr, content_table, &status );
+        return rval;
+      }
+
+      int length;
+      rval = range_to_id_list( set_contents, &id_list, length );
+      if (MB_SUCCESS != rval)
+      {
+        mhdf_closeData( filePtr, set_table, &status );
+        if (do_contents) mhdf_closeData( filePtr, content_table, &status );
+        return rval;
+      }
+
+      assert (length < data_size);
+      flags |= mhdf_SET_RANGE_BIT;
+      data_size = length;
+      ++comp;
+    }
+    else
+    {
+      id_list.clear();
+      handle_list.clear();
+      
+      rval = iFace->get_entities_by_handle( *iter, handle_list, false );
+      if (MB_SUCCESS != rval)
+      {
+        mhdf_closeData( filePtr, set_table, &status );
+        if (do_contents) mhdf_closeData( filePtr, content_table, &status );
+        return rval;
+      }
+      
+      rval = vector_to_id_list( handle_list, id_list );
+      if (MB_SUCCESS != rval)
+      {
+        mhdf_closeData( filePtr, set_table, &status );
+        if (do_contents) mhdf_closeData( filePtr, content_table, &status );
+        return rval;
+      }
+    }
+    
+    child_offset += child_size;
+    set_data[0] = content_offset + data_size - 1;
+    set_data[1] = child_offset - 1;
+    set_data[2] = flags;
+
+    
+    mhdf_writeSetMeta( set_table, set_offset++, 1L, H5T_NATIVE_LONG, set_data, &status );
     if (mhdf_isError( &status ))
     {
       writeUtil->report_error( "%s\n", mhdf_message( &status ) );
-      mhdf_closeData( filePtr, table, &status );
+      mhdf_closeData( filePtr, set_table, &status );
+      if (do_contents) mhdf_closeData( filePtr, content_table, &status );
+      if (do_children) mhdf_closeData( filePtr, child_table, &status );
       return MB_FAILURE;
     }
-    offset += count;
+    
+    if (id_list.size())
+    {
+      mhdf_writeSetData( content_table, 
+                         content_offset,
+                         id_list.size(),
+                         id_type,
+                         &id_list[0],
+                         &status );
+      if (mhdf_isError( &status ))
+      {
+        writeUtil->report_error( "%s\n", mhdf_message( &status ) );
+        mhdf_closeData( filePtr, set_table, &status );
+        if (do_contents) mhdf_closeData( filePtr, content_table, &status );
+        return MB_FAILURE;
+      }
+      content_offset += data_size;
+    }
   }
   
-  mhdf_closeData( filePtr, table, &status );
+  mhdf_closeData( filePtr, set_table, &status );
+  mhdf_closeData( filePtr, content_table, &status );
+  if (!do_children)
+    return MB_SUCCESS;
+      
+  
+  /* Write set children */
+  
+  child_offset = setChildrenOffset;
+  child_table = mhdf_openSetChildren( filePtr, &child_size, &status );
   if (mhdf_isError( &status ))
   {
     writeUtil->report_error( "%s\n", mhdf_message( &status ) );
     return MB_FAILURE;
   }
-  
-  /* Write set contents */
-  
-  if (data_count > 0)
+   
+  for (iter = sets.begin(); iter != end; ++iter)
   {
+    handle_list.clear();
+    id_list.clear();
+    rval = iFace->get_child_meshsets( *iter, handle_list, 1 );
+    if (MB_SUCCESS != rval)
+    {
+      mhdf_closeData( filePtr, child_table, &status );
+      return rval;
+    }
 
-    /* Create the table */  
-    table = mhdf_createSetData( filePtr, data_count, &status );
+    if (handle_list.size() == 0)
+      continue;
+
+    rval = vector_to_id_list( handle_list, id_list );
+    if (MB_SUCCESS != rval)
+    {
+      mhdf_closeData( filePtr, child_table, &status );
+      return rval;
+    }
+
+
+    mhdf_writeSetChildren( child_table, 
+                           child_offset, 
+                           id_list.size(), 
+                           id_type, 
+                           &id_list[0], 
+                           &status );
     if (mhdf_isError( &status ))
     {
       writeUtil->report_error( "%s\n", mhdf_message( &status ) );
+      mhdf_closeData( filePtr, child_table, &status );
       return MB_FAILURE;
     }
-
-    /* Write contents of each set */
-    offset = 0;
-    std::vector<id_t> list;
-    MBRange range;
-    for (itor = sets.begin(); itor != sets.end(); ++itor)
-    {
-      long junk1, junk2;
-      id_t junk3;
-      unsigned long flags;
-      rval = get_set_info( *itor, junk1, junk2, flags );
-      if (MB_SUCCESS != rval)
-      {
-        mhdf_closeData( filePtr, table, &status );
-        return rval;
-      }
-
-      /* Ranges of IDs or just list of IDs? */
-      if ((flags&MESHSET_SET) && !(flags&MESHSET_ORDERED))
-      {
-        list.clear();
-        range.clear();
-
-        rval = iFace->get_entities_by_handle( *itor, range, false );
-        if (MB_SUCCESS != rval)
-        {
-          mhdf_closeData( filePtr, table, &status );
-          return rval;
-        }
-
-        if (range.size() == 0)
-          continue;
-
-        rval = range_to_id_list( range, &list, junk3 );
-        if (MB_SUCCESS != rval)
-        {
-          mhdf_closeData( filePtr, table, &status );
-          return rval;
-        }
-      }
-      else
-      {
-        list.clear();
-        handle_list.clear();
-        rval = iFace->get_entities_by_handle( *itor, handle_list, false );
-        if (MB_SUCCESS != rval)
-        {
-          mhdf_closeData( filePtr, table, &status );
-          return rval;
-        }
-
-        if (handle_list.size() == 0)
-          continue;
-
-        rval = vector_to_id_list( handle_list, list );
-        if (MB_SUCCESS != rval)
-        {
-          mhdf_closeData( filePtr, table, &status );
-          return rval;
-        }
-      }
-
-      mhdf_writeSetData( table, offset, list.size(), id_type, 
-                         &list[0], &status );
-      if (mhdf_isError( &status ))
-      {
-        writeUtil->report_error( "%s\n", mhdf_message( &status ) );
-        mhdf_closeData( filePtr, table, &status );
-        return MB_FAILURE;
-      }
-
-      offset += list.size();
-    }  
-
-    mhdf_closeData( filePtr, table, &status );
-    if (mhdf_isError( &status ))
-    {
-      writeUtil->report_error( "%s\n", mhdf_message( &status ) );
-      return MB_FAILURE;
-    }
+    child_offset += id_list.size();
   }
-  
-   
-  /* Write set children */
-  offset = 0;
-  if (child_count > 0)
-  {  
-    std::vector<id_t> list;
-    table = mhdf_createSetChildren( filePtr, child_count, &status );
-    if (mhdf_isError( &status ))
-    {
-      writeUtil->report_error( "%s\n", mhdf_message( &status ) );
-      return MB_FAILURE;
-    }
 
-    count = 0;
-    for (itor = sets.begin(); itor != sets.end(); ++itor)
-    {
-      handle_list.clear();
-      list.clear();
-      rval = iFace->get_child_meshsets( *itor, handle_list, 1 );
-      if (MB_SUCCESS != rval)
-      {
-        mhdf_closeData( filePtr, table, &status );
-        return rval;
-      }
-
-      if (handle_list.size() == 0)
-        continue;
-
-      rval = vector_to_id_list( handle_list, list );
-      if (MB_SUCCESS != rval)
-      {
-        mhdf_closeData( filePtr, table, &status );
-        return rval;
-      }
-
-
-      mhdf_writeSetChildren( table, offset, list.size(), id_type, 
-                             &list[0], &status );
-      if (mhdf_isError( &status ))
-      {
-        writeUtil->report_error( "%s\n", mhdf_message( &status ) );
-        mhdf_closeData( filePtr, table, &status );
-        return MB_FAILURE;
-      }
-      offset += list.size();
-    }
-
-    mhdf_closeData( filePtr, table, &status );
-    if (mhdf_isError( &status ))
-    {
-      writeUtil->report_error( "%s\n", mhdf_message( &status ) );
-      return MB_FAILURE;
-    }
-  }
-   
+  mhdf_closeData( filePtr, child_table, &status );
   return MB_SUCCESS;
 }
 
@@ -1378,6 +1305,7 @@ MBErrorCode WriteHDF5::write_adjacencies( const ExportSet& elements )
   return MB_SUCCESS;
 }
 
+/*
 
 MBErrorCode WriteHDF5::write_tag( MBTag tag_handle )
 {
@@ -1481,10 +1409,16 @@ MBErrorCode WriteHDF5::write_tag( MBTag tag_handle )
     return MB_FAILURE;
   }
   
-  if (sparse)
-    rval = write_sparse_tag( tag_handle, hdf_tag_type );
-  else
-    rval = write_dense_tag( tag_handle, hdf_tag_type );
+  // FIX ME
+  // Always write tags as sparse to work around MOAB issues
+  //   with dense tags.  (Can't determine which entities tag
+  //   is actually set for.)
+  //if (sparse)
+  //  rval = write_sparse_tag( tag_handle, hdf_tag_type );
+  //else
+  //  rval = write_dense_tag( tag_handle, hdf_tag_type );
+  //
+  rval = write_sparse_tag( tag_handle hdf_tag_type );
     
   return rval;
 }
@@ -1558,7 +1492,12 @@ MBErrorCode WriteHDF5::write_dense_tag( ExportSet& set,
     remaining -= count;
     
     rval = iFace->tag_get_data( handle, sub_range, dataBuffer );
-    if (MB_SUCCESS != rval)
+    if (MB_TAG_NOT_FOUND == rval)
+    {
+        // Dense tag that doesn't have a default value -- use zero.
+      memset( dataBuffer, 0, bufferSize );
+    }
+    else if (MB_SUCCESS != rval)
     {
       mhdf_closeData( filePtr, data_handle, &status );
       return MB_FAILURE;
@@ -1585,88 +1524,89 @@ MBErrorCode WriteHDF5::write_dense_tag( ExportSet& set,
   return MB_SUCCESS;
 }
 
-MBErrorCode WriteHDF5::write_sparse_tag( MBTag handle,
-                                         hid_t type )
+*/
+
+MBErrorCode WriteHDF5::write_sparse_tag( const SparseTag& tag_data )
 {
   MBErrorCode rval;
   mhdf_Status status;
   hid_t tables[2];
   std::string name;
-  int tag_size;
+  int mb_size, hdf_size;
   MBTagType mb_type;
+  long table_size;
   
-    //get tag properties
-  if (MB_SUCCESS != iFace->tag_get_name( handle, name )    ||
-      MB_SUCCESS != iFace->tag_get_type( handle, mb_type ) ||
-      MB_SUCCESS != iFace->tag_get_size( handle, tag_size ))
+    //get tag properties from moab
+  if (MB_SUCCESS != iFace->tag_get_name( tag_data.tag_id, name )    ||
+      MB_SUCCESS != iFace->tag_get_type( tag_data.tag_id, mb_type ) ||
+      MB_SUCCESS != iFace->tag_get_size( tag_data.tag_id, mb_size ))
     return MB_FAILURE;
   
-  if (mb_type == MB_TAG_BIT)
-    tag_size = 1;
-  assert( type == 0 || H5Tget_size(type) == (unsigned)tag_size );
-  
-    // Get one big range of all entities that have tag.
-  MBRange range, e_range;
-  
-  e_range = nodeSet.range;
-  rval = iFace->get_entities_by_type_and_tag( 0, nodeSet.type,
-    &handle, NULL, 1, e_range, MBInterface::INTERSECT, false );
-  if (MB_SUCCESS != rval)
-    return rval;
-  range.merge( e_range );
-  
-  std::list<ExportSet>::iterator e_iter, e_end = exportList.end();
-  for (e_iter = exportList.begin(); e_iter != e_end; ++e_iter)
-  {
-    e_range = e_iter->range;
-    rval = iFace->get_entities_by_type_and_tag( 0, e_iter->type, 
-      &handle, NULL, 1, e_range, MBInterface::INTERSECT, false );
-    if (MB_SUCCESS != rval)
-      return rval;
-    range.merge( e_range );
-  }
-  
-  e_range = setSet.range;
-  rval = iFace->get_entities_by_type_and_tag( 0, setSet.type,
-    &handle, NULL, 1, e_range, MBInterface::INTERSECT, false );
-  if (MB_SUCCESS != rval)
-    return rval;
-  range.merge( e_range );
-  
-  if (range.empty())
-    return MB_SUCCESS;
-  
-  
-  
-    // Create data table to write to
-  mhdf_createSparseTagData( filePtr, name.c_str(), range.size(), tables, &status );
+    //Check if there's any data to write for this tag.
+    //Check if data table has been created, because if we're
+    //writing in parallel, other CPUs may have data to write
+    //even though we don't and the open call is collective.
+  int hdf_default, hdf_global, hdf_opaque, hdf_sparse, hdf_class, hdf_bits;
+  hid_t hdf_type;
+  mhdf_getTagInfo( filePtr, 
+                   name.c_str(),
+                   &hdf_size,
+                   &hdf_default,
+                   &hdf_global,
+                   &hdf_opaque,
+                   &hdf_sparse,
+                   &hdf_class,
+                   &hdf_bits,
+                   &hdf_type,
+                   &status );
   if (mhdf_isError( &status ))
   {
     writeUtil->report_error( "%s\n", mhdf_message( &status ) );
     return MB_FAILURE;
   }
+  assert( hdf_class == mb_type );
+  assert( (mb_type == MB_TAG_BIT) ? (hdf_size == 1 && hdf_bits == mb_size) : (hdf_size == mb_size) );
+  if (0 != hdf_type)
+    mhdf_closeData( filePtr, hdf_type, &status );
+    
+  if (!hdf_sparse)
+    return MB_SUCCESS;
+
+    //open tables to write info
+  mhdf_openSparseTagData( filePtr,
+                          name.c_str(),
+                          &table_size,
+                          tables,
+                          &status);
+  if (mhdf_isError( &status ))
+  {
+    writeUtil->report_error( "%s\n", mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
+  assert( tag_data.range.size() + tag_data.offset <= (unsigned long)table_size );
 
     // Set up data buffer for writing IDs
   size_t chunk_size = bufferSize / sizeof(id_t);
   id_t* id_buffer = (id_t*)dataBuffer;
   
     // Write IDs of tagged entities.
-  long remaining = range.size();
-  long offset = 0;
-  MBRange::iterator iter = range.begin();
+  MBRange range;
+  long remaining = tag_data.range.size();
+  long offset = tag_data.offset;
+  MBRange::const_iterator iter = tag_data.range.begin();
   while (remaining)
   {
       // write "chunk_size" blocks of data
     long count = (unsigned long)remaining > chunk_size ? chunk_size : remaining;
     remaining -= count;
-    MBRange::iterator stop = iter;
+    MBRange::const_iterator stop = iter;
     stop += count;
-    e_range.clear();
-    e_range.merge( iter, stop );
+    range.clear();
+    range.merge( iter, stop );
     iter = stop;
-    assert(e_range.size() == (unsigned)count);
+    assert(range.size() == (unsigned)count);
     
-    rval = iFace->tag_get_data( idTag, e_range, id_buffer );
+    rval = iFace->tag_get_data( idTag, range, id_buffer );
     if (MB_SUCCESS != rval)
     {
       mhdf_closeData( filePtr, tables[0], &status );
@@ -1695,40 +1635,40 @@ MBErrorCode WriteHDF5::write_sparse_tag( MBTag handle,
   }
   
     // Set up data buffer for writing tag values
-  chunk_size = bufferSize / tag_size;
+  chunk_size = bufferSize / hdf_size;
   assert( chunk_size > 0 );
   char* tag_buffer = (char*)dataBuffer;
   
     // Write the tag values
-  remaining = range.size();
-  offset = 0;
-  iter = range.begin();
+  remaining = tag_data.range.size();
+  offset = tag_data.offset;
+  iter = tag_data.range.begin();
   while (remaining)
   {
       // write "chunk_size" blocks of data
     long count = (unsigned long)remaining > chunk_size ? chunk_size : remaining;
     remaining -= count;
-    bzero( tag_buffer, count * tag_size );
-    MBRange::iterator stop = iter;
+    bzero( tag_buffer, count * hdf_size );
+    MBRange::const_iterator stop = iter;
     stop += count;
-    e_range.clear();
-    e_range.merge( iter, stop );
+    range.clear();
+    range.merge( iter, stop );
     iter = stop;
-    assert(e_range.size() == (unsigned)count);
+    assert(range.size() == (unsigned)count);
  
  /** Fix me - stupid API requires we get these one at a time for BIT tags */
     if (mb_type == MB_TAG_BIT)
     {
       rval = MB_SUCCESS;
       char* buf_iter = tag_buffer;
-      for (MBRange::iterator it = e_range.begin(); 
-           MB_SUCCESS == rval && it != e_range.end(); 
-           ++it, buf_iter += tag_size)
-        rval = iFace->tag_get_data( handle, &*it, 1, buf_iter );
+      for (MBRange::const_iterator it = range.begin(); 
+           MB_SUCCESS == rval && it != range.end(); 
+           ++it, buf_iter += hdf_size)
+        rval = iFace->tag_get_data( tag_data.tag_id, &*it, 1, buf_iter );
     }
     else
     {
-      rval = iFace->tag_get_data( handle, e_range, tag_buffer );
+      rval = iFace->tag_get_data( tag_data.tag_id, range, tag_buffer );
     }
     if (MB_SUCCESS != rval)
     {
@@ -1738,7 +1678,7 @@ MBErrorCode WriteHDF5::write_sparse_tag( MBTag handle,
     
       // write the data
     mhdf_writeSparseTagValues( tables[1], offset, count,
-                               type, tag_buffer, &status );
+                               0, tag_buffer, &status );
     if (mhdf_isError( &status ))
     {
       writeUtil->report_error( "%s\n", mhdf_message( &status ) );
@@ -1850,4 +1790,505 @@ MBErrorCode WriteHDF5::register_known_tag_types( MBInterface* iface )
   H5Tclose( int4 );
   H5Tclose( double16 );
   return error ? MB_FAILURE : MB_SUCCESS;
+}
+
+
+MBErrorCode WriteHDF5::gather_tags()
+{
+  MBErrorCode result;
+  std::string tagname;
+  std::vector<MBTag> tag_list;
+  std::vector<MBTag>::iterator t_itor;
+  MBRange e_range;
+    
+    // Get list of Tags to write
+  result = iFace->tag_get_tags( tag_list );
+  if (MB_SUCCESS != result)
+    return result;
+
+    // Get list of tags
+  for (t_itor = tag_list.begin(); t_itor != tag_list.end(); ++t_itor)
+  {
+      // Don't write global ID tag
+    if (*t_itor == idTag)
+      continue;
+    
+      // Don't write tags that have name beginning with "__"
+    result = iFace->tag_get_name( *t_itor, tagname );
+    if (MB_SUCCESS != result)
+      return result;
+    if (tagname[0] == '_' && tagname[1] == '_')
+      continue;
+  
+      // Add tag to export list
+    SparseTag tag_data;
+    tag_data.tag_id = *t_itor;
+    tag_data.offset = 0;
+    tagList.push_back( tag_data );
+  }
+  
+    // Get entities for each tag
+  std::list<SparseTag>::iterator td_iter = tagList.begin();
+  const std::list<SparseTag>::iterator td_end = tagList.end();
+  for ( ; td_iter != td_end; ++td_iter)
+  {  
+    MBTag handle = td_iter->tag_id;
+      // Get list of entities for which tag is set
+    std::list<ExportSet>::iterator e_iter, e_end = exportList.end();
+    for (e_iter = exportList.begin(); e_iter != e_end; ++e_iter)
+    {
+      e_range = e_iter->range;
+      result = iFace->get_entities_by_type_and_tag( 0, e_iter->type, 
+        &handle, NULL, 1, e_range, MBInterface::INTERSECT, false );
+      if (MB_SUCCESS != result)
+        return result;
+      td_iter->range.merge( e_range );
+    }
+    
+    e_range = nodeSet.range;
+    result = iFace->get_entities_by_type_and_tag( 0, MBVERTEX, 
+                      &handle, NULL, 1, e_range, MBInterface::INTERSECT, false );
+    if (MB_SUCCESS != result)
+      return result;
+    td_iter->range.merge( e_range );
+    
+    
+    e_range = setSet.range;
+    result = iFace->get_entities_by_type_and_tag( 0, MBENTITYSET, 
+                      &handle, NULL, 1, e_range, MBInterface::INTERSECT, false );
+    if (MB_SUCCESS != result)
+      return result;
+    td_iter->range.merge( e_range );
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode WriteHDF5::create_file( const char* filename,
+                                    bool overwrite,
+                                    std::vector<std::string>& qa_records,
+                                    int dimension )
+{
+  long first_id;
+  mhdf_Status status;
+  hid_t handle;
+  std::list<ExportSet>::iterator ex_itor;
+  MBErrorCode rval;
+  
+DEBUGOUT( "Gathering Tags\n" );
+  
+  result = gather_tags();
+  if (MB_SUCCESS != result)
+    return result;
+  
+  const char* type_names[MBMAXTYPE];
+  bzero( type_names, MBMAXTYPE * sizeof(char*) );
+  for (MBEntityType i = MBEDGE; i < MBENTITYSET; ++i)
+    type_names[i] = MBCN::EntityTypeName( i );
+ 
+    // Create the file
+  filePtr = mhdf_createFile( filename, overwrite, type_names, MBMAXTYPE, &status );
+  if (!filePtr)
+  {
+    writeUtil->report_error( "%s\n", mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
+
+  rval = write_qa( qa_records );
+  if (MB_SUCCESS != rval) return rval;
+  
+    // Create node table
+  handle = mhdf_createNodeCoords( filePtr, dimension, nodeSet.range.size(), &first_id, &status );
+  if (mhdf_isError( &status ))
+  {
+    writeUtil->report_error( "%s\n", mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
+  mhdf_closeData( filePtr, handle, &status );
+  writeUtil->assign_ids( nodeSet.range, idTag, (id_t)first_id );
+  nodeSet.first_id = (id_t)first_id;
+  nodeSet.offset = 0;
+
+    // Create element tables
+  for (ex_itor = exportList.begin(); ex_itor != exportList.end(); ++ex_itor)
+  {
+    mhdf_ElemHandle elem_handle;
+    
+    if (ex_itor->type == MBPOLYGON || ex_itor->type == MBPOLYHEDRON)
+    {
+      int mb_count;
+      rval = writeUtil->get_poly_array_size( ex_itor->range.begin(),
+                                             ex_itor->range.end(),
+                                             mb_count );
+      if (MB_SUCCESS != rval) return rval;
+      
+      rval = create_poly_tables( ex_itor->type,
+                                 ex_itor->range.size(),
+                                 mb_count,
+                                 elem_handle,
+                                 first_id );
+    }
+    else
+    {
+      rval = create_elem_tables( ex_itor->type,
+                                 ex_itor->num_nodes,
+                                 ex_itor->range.size(),
+                                 elem_handle,
+                                 first_id );
+    }
+    
+    if (MB_SUCCESS != rval)
+      return rval;
+      
+    writeUtil->assign_ids( ex_itor->range, idTag, (id_t)first_id );
+    ex_itor->first_id = (id_t)first_id;
+    ex_itor->offset = 0;
+    ex_itor->poly_offset = 0;
+    ex_itor->type2 = elem_handle;
+  }
+  
+    // create element adjacency tables
+  for (ex_itor = exportList.begin(); ex_itor != exportList.end(); ++ex_itor)
+  {
+    id_t num_adjacencies;
+    rval = count_adjacencies( ex_itor->range, num_adjacencies );
+    if (MB_SUCCESS != rval) return MB_FAILURE;
+    
+    if (num_adjacencies > 0)
+    {
+      handle = mhdf_createAdjacency( filePtr,
+                                     ex_itor->type2,
+                                     num_adjacencies,
+                                     &status );
+      if (mhdf_isError( &status ))
+      {
+        writeUtil->report_error( "%s\n", mhdf_message( &status ) );
+        return MB_FAILURE;
+      }
+      mhdf_closeData( filePtr, handle, &status );
+    }
+    ex_itor->adj_offset = 0;
+  }
+      
+  
+  
+    // create set tables
+  if (!setSet.range.empty())
+  {
+    long contents_len, children_len;
+    rval = count_set_size( setSet.range, rangeSets, contents_len, children_len );
+    if (MB_SUCCESS != rval) return rval;
+    
+    rval = create_set_tables( setSet.range.size(), contents_len, children_len, first_id );
+    if (MB_SUCCESS != rval) return rval;
+    
+    writeUtil->assign_ids( setSet.range, idTag, (id_t)first_id );
+    setSet.first_id = (id_t)first_id;
+    setSet.offset = 0;
+    setContentsOffset = 0;
+    setChildrenOffset = 0;
+  } // if(!setSet.range.empty())
+  
+    // Create the tags and tag data tables
+  std::list<SparseTag>::iterator tag_iter = tagList.begin();
+  const std::list<SparseTag>::iterator tag_end = tagList.end();
+  for ( ; tag_iter != tag_end; ++tag_iter)
+  {
+    rval = create_tag( tag_iter->tag_id, tag_iter->range.size() );
+    if (MB_SUCCESS != rval) return rval;
+  } // for(tags)
+  
+  return MB_SUCCESS;
+}
+
+
+MBErrorCode WriteHDF5::count_adjacencies( const MBRange& set, id_t& result )
+{
+  MBErrorCode rval;
+  std::vector<int> adj_list;
+  MBRange::const_iterator iter = set.begin();
+  const MBRange::const_iterator end = set.end();
+  result = 0;
+  for ( ; iter != end; ++iter )
+  {
+    adj_list.clear();
+    rval = get_adjacencies( *iter, adj_list );
+    if (MB_SUCCESS != rval)
+      return rval;
+    
+    if (adj_list.size() > 0)
+      result += 2 + adj_list.size();
+  }
+  return MB_SUCCESS;
+}
+
+MBErrorCode WriteHDF5::create_elem_tables( MBEntityType mb_type,
+                                           int nodes_per_elem,
+                                           id_t num_elements,
+                                           mhdf_ElemHandle& mhdf_type_out,
+                                           long& first_id_out )
+{
+  char name[64];
+  mhdf_Status status;
+  hid_t handle;
+  
+  sprintf( name, "%s%d", MBCN::EntityTypeName(mb_type), nodes_per_elem );
+  mhdf_type_out = mhdf_addElement( filePtr, name, mb_type, &status );
+  if (mhdf_isError( &status ))
+  {
+    writeUtil->report_error( "%s\n", mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
+  
+  handle = mhdf_createConnectivity( filePtr, 
+                                    mhdf_type_out,
+                                    nodes_per_elem,
+                                    num_elements,
+                                    &first_id_out,
+                                    &status );
+  if (mhdf_isError( &status ))
+  {
+    writeUtil->report_error( "%s\n", mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
+  mhdf_closeData( filePtr, handle, &status );
+  
+  return MB_SUCCESS;
+}
+
+
+
+MBErrorCode WriteHDF5::create_poly_tables( MBEntityType mb_type,
+                                           id_t num_poly,
+                                           id_t connectivity_size,
+                                           mhdf_ElemHandle& mhdf_type_out,
+                                           long& first_id_out )
+{
+  char name[64];
+  mhdf_Status status;
+  hid_t handles[2];
+  
+  sprintf( name, "%s", MBCN::EntityTypeName(mb_type) );
+  mhdf_type_out = mhdf_addElement( filePtr, name, mb_type, &status );
+  if (mhdf_isError( &status ))
+  {
+    writeUtil->report_error( "%s\n", mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
+  
+  mhdf_createPolyConnectivity( filePtr, 
+                               mhdf_type_out, 
+                               num_poly, 
+                               connectivity_size, 
+                               &first_id_out,
+                               handles,
+                               &status );
+  if (mhdf_isError( &status ))
+  {
+    writeUtil->report_error( "%s\n", mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
+  mhdf_closeData( filePtr, handles[0], &status );
+  mhdf_closeData( filePtr, handles[1], &status );
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode WriteHDF5::count_set_size( const MBRange& sets, 
+                                       MBRange& compressed_sets,
+                                       long& contents_length_out,
+                                       long& children_length_out )
+{
+  MBErrorCode rval;
+  MBRange set_contents;
+  MBRange::const_iterator iter = sets.begin();
+  const MBRange::const_iterator end = sets.end();
+  long contents_length_set, children_length_set;
+  unsigned long flags;
+  
+  contents_length_out = 0;
+  children_length_out = 0;
+  
+  for (; iter != end; ++iter)
+  {
+    rval = get_set_info( *iter, contents_length_set, children_length_set, flags );
+    if (MB_SUCCESS != rval)
+      return rval;
+    
+      // check if can and should compress as ranges
+    if ((flags&MESHSET_SET) && !(flags&MESHSET_ORDERED))
+    {
+      set_contents.clear();
+      rval = iFace->get_entities_by_handle( *iter, set_contents, false );
+      if (MB_SUCCESS != rval)
+        return rval;
+      
+      int length;
+      rval = range_to_id_list( set_contents, NULL, length );
+      if (MB_SUCCESS != rval)
+        return rval;
+      
+      if (length < contents_length_set)
+      {
+        contents_length_set = length;
+        compressed_sets.insert( *iter );
+      }
+    }
+    
+    contents_length_out += contents_length_set;
+    children_length_out += children_length_set;
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode WriteHDF5::create_set_tables( id_t num_sets,
+                                          long num_set_contents,
+                                          long num_set_children,
+                                          long& first_id_out )
+{
+  hid_t handle;
+  mhdf_Status status;
+  
+  handle = mhdf_createSetMeta( filePtr, num_sets, &first_id_out, &status );
+  if (mhdf_isError( &status ))
+  {
+    writeUtil-> report_error( "%s\n", mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
+  mhdf_closeData( filePtr, handle, &status );
+  
+  if (num_set_contents > 0)
+  {
+    handle = mhdf_createSetData( filePtr, num_set_contents, &status );
+    if (mhdf_isError( &status ))
+    {
+      writeUtil->report_error( "%s\n", mhdf_message( &status ) );
+      return MB_FAILURE;
+    }
+    mhdf_closeData( filePtr, handle, &status );
+  }
+  
+  if (num_set_children > 0)
+  {
+    handle = mhdf_createSetChildren( filePtr, num_set_children, &status );
+    if (mhdf_isError( &status ))
+    {
+      writeUtil->report_error( "%s\n", mhdf_message( &status ) );
+      return MB_FAILURE;
+    }
+    mhdf_closeData( filePtr, handle, &status );
+  }
+  
+  return MB_SUCCESS;
+}
+
+
+MBErrorCode WriteHDF5::create_tag( MBTag tag_id, id_t num_sparse_entities )
+{
+  MBTagType tag_type;
+  MBTag type_handle;
+  bool have_type = false;
+  int tag_size, mem_size;
+  hid_t hdf_tag_type, handles[2];
+  std::string tag_name, tag_type_name = "__hdf5_tag_type_";
+  MBErrorCode rval;
+  mhdf_Status status;
+  
+  rval = iFace->tag_get_type( tag_id, tag_type );
+  if (MB_SUCCESS != rval) return rval;
+
+  rval = iFace->tag_get_size( tag_id, tag_size );
+  if (MB_SUCCESS != rval) return rval;
+
+  rval = iFace->tag_get_name( tag_id, tag_name );
+  if (MB_SUCCESS != rval) return rval;
+
+  tag_type_name += tag_name;
+  rval = iFace->tag_get_handle( tag_type_name.c_str(), type_handle );
+  if (MB_SUCCESS == rval)
+  {
+    rval = iFace->tag_get_data( type_handle, 0, 0, &hdf_tag_type );
+    if (rval != MB_SUCCESS) return rval;
+    have_type = true;
+  }
+  else if(MB_TAG_NOT_FOUND != rval)
+    return rval;
+
+  mem_size = tag_size;
+  if (MB_TAG_BIT == tag_type)
+  {
+    assert( tag_size < 9 );
+    mem_size = 1;
+  }
+
+  assert( 2*tag_size + sizeof(long) < (unsigned long)bufferSize );
+  bool have_default = true;
+  bool have_global = true;
+  rval = iFace->tag_get_default_value( tag_id, dataBuffer );
+  if (MB_ENTITY_NOT_FOUND == rval)
+    have_default = false;
+  else if(MB_SUCCESS != rval)
+    return rval;
+  rval = iFace->tag_get_data( tag_id, 0, 0, dataBuffer + mem_size );
+  if (MB_TAG_NOT_FOUND == rval)
+    have_global = false;
+  else if(MB_SUCCESS != rval)
+    return rval;
+
+  if (have_type)
+  {
+    mhdf_createTypeTag( filePtr, 
+                        tag_name.c_str(),
+                        hdf_tag_type,
+                        have_default ? dataBuffer : 0,
+                        have_global ? dataBuffer + mem_size : 0,
+                        tag_type,
+                        &status );
+  }
+  else if (MB_TAG_BIT == tag_type)
+  {
+    mhdf_createBitTag( filePtr, 
+                       tag_name.c_str(),
+                       tag_size,
+                       have_default ? dataBuffer : 0,
+                       have_global ? dataBuffer + mem_size : 0,
+                       tag_type,
+                       &status );
+    hdf_tag_type = H5T_NATIVE_B8;
+  }
+  else
+  {
+    mhdf_createOpaqueTag( filePtr,
+                          tag_name.c_str(),
+                          tag_size,
+                          have_default ? dataBuffer : 0,
+                          have_global ? dataBuffer + mem_size : 0,
+                          tag_type,
+                          &status );
+    hdf_tag_type = 0;
+  }
+  if (mhdf_isError( &status ))
+  {
+    writeUtil->report_error( "%s\n", mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
+
+  if (num_sparse_entities)
+  {
+    mhdf_createSparseTagData( filePtr, 
+                              tag_name.c_str(), 
+                              num_sparse_entities,
+                              handles,
+                              &status );
+    if (mhdf_isError( &status ))
+    {
+      writeUtil->report_error( "%s\n", mhdf_message( &status ) );
+      return MB_FAILURE;
+    }
+    mhdf_closeData( filePtr, handles[0], &status );
+    mhdf_closeData( filePtr, handles[1], &status );
+  }
+  
+  return MB_SUCCESS;
 }
