@@ -94,8 +94,9 @@ protected:
   MBErrorCode open_file(const char *filename);
 
   //! contains the general information about a mesh
-  struct MeshInfo
+  class MeshInfo
   {
+  public:
     unsigned int num_dim;
     unsigned int num_nodes;
     unsigned int num_elements;
@@ -104,6 +105,12 @@ protected:
     unsigned int num_int_tets;
     MBRange bdy_hexes, bdy_tets;
     MBRange nodes;
+
+    MeshInfo() 
+        : num_dim(0), num_nodes(0), num_elements(0), num_matsets(0), 
+          num_int_hexes(0), num_int_tets(0) 
+      {}
+    
   };
   
 private:

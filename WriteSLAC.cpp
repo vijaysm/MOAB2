@@ -286,6 +286,9 @@ MBErrorCode WriteSLAC::gather_mesh_information(MeshInfo &mesh_info,
     if( dimension > highest_dimension_of_element_matsets )
       highest_dimension_of_element_matsets = dimension;
 
+    matset_data.moab_type = mbImpl->type_from_handle(*(matset_data.elements->begin()));
+    if (MBMAXTYPE == matset_data.moab_type) return MB_FAILURE;
+    
     std::vector<MBEntityHandle> tmp_conn;
     mbImpl->get_connectivity(&(*(matset_data.elements->begin())), 1, tmp_conn);
     matset_data.element_type = 
@@ -862,7 +865,8 @@ MBErrorCode WriteSLAC::initialize_file(MeshInfo &mesh_info)
     return (MB_FAILURE);
   }
 
-  if (!(hexinterior = ncFile->add_dim("hexinterior", (long)mesh_info.num_int_hexes)))
+  if (0 != mesh_info.num_int_hexes &&
+      !(hexinterior = ncFile->add_dim("hexinterior", (long)mesh_info.num_int_hexes)))
   {
     mWriteIface->report_error("WriteSLAC: failed to define number of interior hex elements");
     return (MB_FAILURE);
@@ -874,7 +878,8 @@ MBErrorCode WriteSLAC::initialize_file(MeshInfo &mesh_info)
     return (MB_FAILURE);
   }
 
-  if (!(hexexterior = ncFile->add_dim("hexexterior", (long)mesh_info.bdy_hexes.size())))
+  if (0 != mesh_info.bdy_hexes.size() &&
+      !(hexexterior = ncFile->add_dim("hexexterior", (long)mesh_info.bdy_hexes.size())))
   {
     mWriteIface->report_error("WriteSLAC: failed to define number of exterior hex elements");
     return (MB_FAILURE);
@@ -886,7 +891,8 @@ MBErrorCode WriteSLAC::initialize_file(MeshInfo &mesh_info)
     return (MB_FAILURE);
   }
 
-  if (!(tetinterior = ncFile->add_dim("tetinterior", (long)mesh_info.num_int_tets)))
+  if (0 != mesh_info.num_int_tets &&
+      !(tetinterior = ncFile->add_dim("tetinterior", (long)mesh_info.num_int_tets)))
   {
     mWriteIface->report_error("WriteSLAC: failed to define number of interior tet elements");
     return (MB_FAILURE);
@@ -898,7 +904,8 @@ MBErrorCode WriteSLAC::initialize_file(MeshInfo &mesh_info)
     return (MB_FAILURE);
   }
 
-  if (!(tetexterior = ncFile->add_dim("tetexterior", (long)mesh_info.bdy_tets.size())))
+  if (0 != mesh_info.bdy_tets.size() &&
+      !(tetexterior = ncFile->add_dim("tetexterior", (long)mesh_info.bdy_tets.size())))
   {
     mWriteIface->report_error("WriteSLAC: failed to define number of exterior tet elements");
     return (MB_FAILURE);
@@ -912,28 +919,32 @@ MBErrorCode WriteSLAC::initialize_file(MeshInfo &mesh_info)
 
 /* ...and some variables */
 
-  if (NULL == ncFile->add_var("hexahedron_interior", ncLong, 
+  if (0 != mesh_info.num_int_hexes &&
+      NULL == ncFile->add_var("hexahedron_interior", ncLong, 
                               hexinterior, hexinteriorsize))
   {
     mWriteIface->report_error("WriteSLAC: failed to create connectivity array for interior hexes.");
     return (MB_FAILURE);
   }
 
-  if (NULL == ncFile->add_var("hexahedron_exterior", ncLong, 
+  if (0 != mesh_info.bdy_hexes.size() &&
+      NULL == ncFile->add_var("hexahedron_exterior", ncLong, 
                               hexexterior, hexexteriorsize))
   {
     mWriteIface->report_error("WriteSLAC: failed to create connectivity array for exterior hexes.");
     return (MB_FAILURE);
   }
 
-  if (NULL == ncFile->add_var("tetrahedron_interior", ncLong, 
+  if (0 != mesh_info.num_int_tets &&
+      NULL == ncFile->add_var("tetrahedron_interior", ncLong, 
                               tetinterior, tetinteriorsize))
   {
     mWriteIface->report_error("WriteSLAC: failed to create connectivity array for interior tets.");
     return (MB_FAILURE);
   }
 
-  if (NULL == ncFile->add_var("tetrahedron_exterior", ncLong, 
+  if (0 != mesh_info.bdy_tets.size() &&
+      NULL == ncFile->add_var("tetrahedron_exterior", ncLong, 
                               tetexterior, tetexteriorsize))
   {
     mWriteIface->report_error("WriteSLAC: failed to create connectivity array for exterior tets.");

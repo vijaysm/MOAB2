@@ -3034,7 +3034,7 @@ MBErrorCode mb_merge_test(MBInterface *MB)
        0 != num_ents) ||
       (MB_SUCCESS == MB->get_number_entities_by_dimension(0, 2, num_ents) &&
        0 != num_ents))
-//    result = MB->write_mesh("test/merge_test.ncdf");
+    result = MB->write_mesh("test/merge_test.ncdf");
     ;
   
 
