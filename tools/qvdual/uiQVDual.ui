@@ -1,0 +1,844 @@
+<!DOCTYPE UI><UI version="3.3" stdsetdef="1">
+<class>uiQVDual</class>
+<widget class="QMainWindow">
+    <property name="name">
+        <cstring>uiQVDual</cstring>
+    </property>
+    <property name="geometry">
+        <rect>
+            <x>0</x>
+            <y>0</y>
+            <width>854</width>
+            <height>688</height>
+        </rect>
+    </property>
+    <property name="sizePolicy">
+        <sizepolicy>
+            <hsizetype>5</hsizetype>
+            <vsizetype>5</vsizetype>
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+        </sizepolicy>
+    </property>
+    <property name="minimumSize">
+        <size>
+            <width>21</width>
+            <height>160</height>
+        </size>
+    </property>
+    <property name="caption">
+        <string>QVDual</string>
+    </property>
+    <property name="mouseTracking">
+        <bool>false</bool>
+    </property>
+    <property name="focusPolicy">
+        <enum>NoFocus</enum>
+    </property>
+    <widget class="QPushButton">
+        <property name="name">
+            <cstring>CropTool</cstring>
+        </property>
+        <property name="geometry">
+            <rect>
+                <x>510</x>
+                <y>586</y>
+                <width>81</width>
+                <height>31</height>
+            </rect>
+        </property>
+        <property name="text">
+            <string>CropTool</string>
+        </property>
+    </widget>
+    <widget class="QLayoutWidget">
+        <property name="name">
+            <cstring>layout15</cstring>
+        </property>
+        <property name="geometry">
+            <rect>
+                <x>-20</x>
+                <y>0</y>
+                <width>831</width>
+                <height>637</height>
+            </rect>
+        </property>
+        <hbox>
+            <property name="name">
+                <cstring>unnamed</cstring>
+            </property>
+            <widget class="QLayoutWidget">
+                <property name="name">
+                    <cstring>layout13</cstring>
+                </property>
+                <vbox>
+                    <property name="name">
+                        <cstring>unnamed</cstring>
+                    </property>
+                    <widget class="QListView">
+                        <column>
+                            <property name="text">
+                                <string>Actor</string>
+                            </property>
+                            <property name="clickable">
+                                <bool>true</bool>
+                            </property>
+                            <property name="resizable">
+                                <bool>false</bool>
+                            </property>
+                        </column>
+                    <item>
+                        <property name="text">
+                            <string>New Item</string>
+                        </property>
+                        <property name="pixmap">
+                            <pixmap></pixmap>
+                        </property>
+                    </item>
+                        <property name="name">
+                            <cstring>ActorListView1</cstring>
+                        </property>
+                        <property name="sizePolicy">
+                            <sizepolicy>
+                                <hsizetype>7</hsizetype>
+                                <vsizetype>7</vsizetype>
+                                <horstretch>0</horstretch>
+                                <verstretch>1</verstretch>
+                            </sizepolicy>
+                        </property>
+                        <property name="minimumSize">
+                            <size>
+                                <width>100</width>
+                                <height>0</height>
+                            </size>
+                        </property>
+                        <property name="maximumSize">
+                            <size>
+                                <width>300</width>
+                                <height>32767</height>
+                            </size>
+                        </property>
+                        <property name="resizePolicy">
+                            <enum>Manual</enum>
+                        </property>
+                        <property name="hScrollBarMode">
+                            <enum>AlwaysOn</enum>
+                        </property>
+                        <property name="selectionMode">
+                            <enum>Extended</enum>
+                        </property>
+                        <property name="allColumnsShowFocus">
+                            <bool>true</bool>
+                        </property>
+                        <property name="showSortIndicator">
+                            <bool>true</bool>
+                        </property>
+                        <property name="rootIsDecorated">
+                            <bool>true</bool>
+                        </property>
+                        <property name="resizeMode">
+                            <enum>AllColumns</enum>
+                        </property>
+                    </widget>
+                    <widget class="QListView">
+                        <column>
+                            <property name="text">
+                                <string>Tag/Value</string>
+                            </property>
+                            <property name="clickable">
+                                <bool>true</bool>
+                            </property>
+                            <property name="resizable">
+                                <bool>false</bool>
+                            </property>
+                        </column>
+                    <item>
+                        <property name="text">
+                            <string>New Item</string>
+                        </property>
+                        <property name="pixmap">
+                            <pixmap></pixmap>
+                        </property>
+                    </item>
+                        <property name="name">
+                            <cstring>TagListView1</cstring>
+                        </property>
+                        <property name="sizePolicy">
+                            <sizepolicy>
+                                <hsizetype>7</hsizetype>
+                                <vsizetype>7</vsizetype>
+                                <horstretch>0</horstretch>
+                                <verstretch>1</verstretch>
+                            </sizepolicy>
+                        </property>
+                        <property name="minimumSize">
+                            <size>
+                                <width>100</width>
+                                <height>0</height>
+                            </size>
+                        </property>
+                        <property name="maximumSize">
+                            <size>
+                                <width>300</width>
+                                <height>32767</height>
+                            </size>
+                        </property>
+                        <property name="resizePolicy">
+                            <enum>Manual</enum>
+                        </property>
+                        <property name="hScrollBarMode">
+                            <enum>AlwaysOn</enum>
+                        </property>
+                        <property name="selectionMode">
+                            <enum>Extended</enum>
+                        </property>
+                        <property name="allColumnsShowFocus">
+                            <bool>true</bool>
+                        </property>
+                        <property name="showSortIndicator">
+                            <bool>true</bool>
+                        </property>
+                        <property name="rootIsDecorated">
+                            <bool>true</bool>
+                        </property>
+                        <property name="resizeMode">
+                            <enum>AllColumns</enum>
+                        </property>
+                    </widget>
+                </vbox>
+            </widget>
+            <widget class="QLayoutWidget">
+                <property name="name">
+                    <cstring>layout12</cstring>
+                </property>
+                <vbox>
+                    <property name="name">
+                        <cstring>unnamed</cstring>
+                    </property>
+                    <widget class="QVTKWidget">
+                        <property name="name">
+                            <cstring>vtkWidget</cstring>
+                        </property>
+                        <property name="sizePolicy">
+                            <sizepolicy>
+                                <hsizetype>7</hsizetype>
+                                <vsizetype>7</vsizetype>
+                                <horstretch>5</horstretch>
+                                <verstretch>1</verstretch>
+                            </sizepolicy>
+                        </property>
+                        <property name="minimumSize">
+                            <size>
+                                <width>0</width>
+                                <height>0</height>
+                            </size>
+                        </property>
+                    </widget>
+                    <widget class="QPushButton">
+                        <property name="name">
+                            <cstring>DebugButton</cstring>
+                        </property>
+                        <property name="sizePolicy">
+                            <sizepolicy>
+                                <hsizetype>0</hsizetype>
+                                <vsizetype>0</vsizetype>
+                                <horstretch>0</horstretch>
+                                <verstretch>0</verstretch>
+                            </sizepolicy>
+                        </property>
+                        <property name="text">
+                            <string>Debug</string>
+                        </property>
+                    </widget>
+                    <widget class="QPushButton">
+                        <property name="name">
+                            <cstring>Create_Dual_Button</cstring>
+                        </property>
+                        <property name="sizePolicy">
+                            <sizepolicy>
+                                <hsizetype>0</hsizetype>
+                                <vsizetype>0</vsizetype>
+                                <horstretch>0</horstretch>
+                                <verstretch>0</verstretch>
+                            </sizepolicy>
+                        </property>
+                        <property name="text">
+                            <string>Make Dual</string>
+                        </property>
+                        <property name="toolTip" stdset="0">
+                            <string>Create the dual</string>
+                        </property>
+                    </widget>
+                </vbox>
+            </widget>
+        </hbox>
+    </widget>
+    <widget class="QPushButton">
+        <property name="name">
+            <cstring>CropToolButton</cstring>
+        </property>
+        <property name="geometry">
+            <rect>
+                <x>480</x>
+                <y>576</y>
+                <width>71</width>
+                <height>31</height>
+            </rect>
+        </property>
+        <property name="text">
+            <string>Crop</string>
+        </property>
+    </widget>
+</widget>
+<menubar>
+    <property name="name">
+        <cstring>MenuBar</cstring>
+    </property>
+    <item text="&amp;File" name="fileMenu">
+        <action name="fileNewAction"/>
+        <action name="fileOpenAction"/>
+        <action name="fileSaveAction"/>
+        <action name="fileSaveAsAction"/>
+        <separator/>
+        <action name="filePrintAction"/>
+        <separator/>
+        <action name="fileExitAction"/>
+    </item>
+    <item text="&amp;Help" name="helpMenu">
+        <action name="helpContentsAction"/>
+        <action name="helpIndexAction"/>
+        <separator/>
+        <action name="helpAboutAction"/>
+    </item>
+    <item text="Window" name="Window">
+        <action name="windowTagViewAction"/>
+        <action name="windowSheetViewAction"/>
+        <action name="windowChordViewAction"/>
+    </item>
+    <item text="Display" name="Display">
+        <action name="displayVisibleAction"/>
+        <action name="displayInvisibleAction"/>
+        <action name="displayDrawAction"/>
+        <action name="displayWireframeShadedAction"/>
+        <action name="displayInvertSelectionAction"/>
+        <action name="displayDisplayAllActions"/>
+        <action name="displayDrawSheetAction"/>
+    </item>
+</menubar>
+<toolbars>
+</toolbars>
+<customwidgets>
+    <customwidget>
+        <class>QVTKWidget</class>
+        <header location="global">QVTKWidget.h</header>
+        <sizehint>
+            <width>-1</width>
+            <height>-1</height>
+        </sizehint>
+        <container>0</container>
+        <sizepolicy>
+            <hordata>5</hordata>
+            <verdata>5</verdata>
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+        </sizepolicy>
+        <pixmap>image0</pixmap>
+        <signal>signal()</signal>
+    </customwidget>
+</customwidgets>
+<actions>
+    <action>
+        <property name="name">
+            <cstring>fileNewAction</cstring>
+        </property>
+        <property name="iconSet">
+            <iconset></iconset>
+        </property>
+        <property name="text">
+            <string>New</string>
+        </property>
+        <property name="menuText">
+            <string>&amp;New</string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>fileOpenAction</cstring>
+        </property>
+        <property name="iconSet">
+            <iconset></iconset>
+        </property>
+        <property name="text">
+            <string>Open</string>
+        </property>
+        <property name="menuText">
+            <string>&amp;Open...</string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>fileSaveAction</cstring>
+        </property>
+        <property name="iconSet">
+            <iconset></iconset>
+        </property>
+        <property name="text">
+            <string>Save</string>
+        </property>
+        <property name="menuText">
+            <string>&amp;Save</string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>fileSaveAsAction</cstring>
+        </property>
+        <property name="text">
+            <string>Save As</string>
+        </property>
+        <property name="menuText">
+            <string>Save &amp;As...</string>
+        </property>
+        <property name="accel">
+            <string></string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>filePrintAction</cstring>
+        </property>
+        <property name="iconSet">
+            <iconset></iconset>
+        </property>
+        <property name="text">
+            <string>Print</string>
+        </property>
+        <property name="menuText">
+            <string>&amp;Print...</string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>fileExitAction</cstring>
+        </property>
+        <property name="text">
+            <string>Exit</string>
+        </property>
+        <property name="menuText">
+            <string>E&amp;xit</string>
+        </property>
+        <property name="accel">
+            <string></string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>helpContentsAction</cstring>
+        </property>
+        <property name="text">
+            <string>Contents</string>
+        </property>
+        <property name="menuText">
+            <string>&amp;Contents...</string>
+        </property>
+        <property name="accel">
+            <string></string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>helpIndexAction</cstring>
+        </property>
+        <property name="text">
+            <string>Index</string>
+        </property>
+        <property name="menuText">
+            <string>&amp;Index...</string>
+        </property>
+        <property name="accel">
+            <string></string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>helpAboutAction</cstring>
+        </property>
+        <property name="text">
+            <string>About</string>
+        </property>
+        <property name="menuText">
+            <string>&amp;About</string>
+        </property>
+        <property name="accel">
+            <string></string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>windowTagViewAction</cstring>
+        </property>
+        <property name="text">
+            <string>Tag view</string>
+        </property>
+        <property name="menuText">
+            <string>Tag view</string>
+        </property>
+        <property name="whatsThis">
+            <string>Hierarchical tag view</string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>windowSheetViewAction</cstring>
+        </property>
+        <property name="text">
+            <string>Sheet view</string>
+        </property>
+        <property name="menuText">
+            <string>Sheet view</string>
+        </property>
+        <property name="whatsThis">
+            <string>Toggle sheet visibility</string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>windowChordViewAction</cstring>
+        </property>
+        <property name="text">
+            <string>Chord view</string>
+        </property>
+        <property name="menuText">
+            <string>Chord view</string>
+        </property>
+        <property name="whatsThis">
+            <string>Toggle chord visibility</string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>windowActorViewAction</cstring>
+        </property>
+        <property name="text">
+            <string>Actor view</string>
+        </property>
+        <property name="whatsThis">
+            <string>Toggle actor view</string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>displayVisibleAction</cstring>
+        </property>
+        <property name="toggleAction">
+            <bool>false</bool>
+        </property>
+        <property name="on">
+            <bool>false</bool>
+        </property>
+        <property name="text">
+            <string>Visible</string>
+        </property>
+        <property name="menuText">
+            <string>Visible</string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>displayDrawAction</cstring>
+        </property>
+        <property name="text">
+            <string>Draw</string>
+        </property>
+        <property name="menuText">
+            <string>Draw</string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>displayWireframeShadedAction</cstring>
+        </property>
+        <property name="text">
+            <string>Wireframe/Shaded</string>
+        </property>
+        <property name="menuText">
+            <string>Wireframe/Shaded</string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>displayInvertSelectionAction</cstring>
+        </property>
+        <property name="text">
+            <string>Invert selection</string>
+        </property>
+        <property name="menuText">
+            <string>Invert selection</string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>displayInvisibleAction</cstring>
+        </property>
+        <property name="text">
+            <string>Invisible</string>
+        </property>
+        <property name="menuText">
+            <string>Invisible</string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>displayDisplayAllActions</cstring>
+        </property>
+        <property name="text">
+            <string>Display All</string>
+        </property>
+        <property name="menuText">
+            <string>Display All</string>
+        </property>
+    </action>
+    <action>
+        <property name="name">
+            <cstring>displayDrawSheetAction</cstring>
+        </property>
+        <property name="text">
+            <string>Draw Sheet</string>
+        </property>
+        <property name="menuText">
+            <string>Draw Sheet</string>
+        </property>
+    </action>
+</actions>
+<images>
+    <image name="image0">
+        <data format="PNG" length="319">89504e470d0a1a0a0000000d4948445200000016000000160806000000c4b46c3b0000010649444154789ced942d7202411085bf4921b8465c24d87188484444aec211e0381c00816b83203287888888404cd522e8a57a677b66a0528854a5cdeccf9bd7eff5f47410111e114f0f61fd27b6316901e257ec38383f5e409e2594f6855a57c45dec00480d49af200c93144b1177b16bfb017e806d3def85701f3b9251d9af535d4ffa9c806f65701c8d352d143831eb0cd818cc49955a4c93b8ff62c93f80a5c11c814fc79589718d578ee23cfd3c13e1281e11cbbadc42f784df151525038c75761371a576038c92cafbd8a5afc9d6b55794b2f7862b57b1206160333f4443266ffe99146f9e204192842ba15396126996bb9020e9664546747e34765687d06fe2ef0dfa3374304bdac25aab340000000049454e44ae426082</data>
+    </image>
+</images>
+<connections>
+    <connection>
+        <sender>ActorListView1</sender>
+        <signal>selectionChanged()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>ActorTreeView_selectionChanged()</slot>
+    </connection>
+    <connection>
+        <sender>ActorListView1</sender>
+        <signal>rightButtonPressed(QListViewItem*,const QPoint&amp;,int)</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>ActorListView1_rightButtonPressed(QListViewItem*,const QPoint&amp;,int)</slot>
+    </connection>
+    <connection>
+        <sender>Create_Dual_Button</sender>
+        <signal>clicked()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>constructDual()</slot>
+    </connection>
+    <connection>
+        <sender>DebugButton</sender>
+        <signal>pressed()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>DebugButton_pressed()</slot>
+    </connection>
+    <connection>
+        <sender>displayDisplayAllActions</sender>
+        <signal>activated()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>displayDisplayAll()</slot>
+    </connection>
+    <connection>
+        <sender>displayDrawAction</sender>
+        <signal>activated()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>displayDraw()</slot>
+    </connection>
+    <connection>
+        <sender>displayInvertSelectionAction</sender>
+        <signal>activated()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>displayInvertSelection()</slot>
+    </connection>
+    <connection>
+        <sender>displayVisibleAction</sender>
+        <signal>activated()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>displayVisible()</slot>
+    </connection>
+    <connection>
+        <sender>displayWireframeShadedAction</sender>
+        <signal>activated()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>displayWireframeShaded()</slot>
+    </connection>
+    <connection>
+        <sender>fileExitAction</sender>
+        <signal>activated()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>fileExit()</slot>
+    </connection>
+    <connection>
+        <sender>fileNewAction</sender>
+        <signal>activated()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>fileNew()</slot>
+    </connection>
+    <connection>
+        <sender>fileOpenAction</sender>
+        <signal>activated()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>fileOpen()</slot>
+    </connection>
+    <connection>
+        <sender>filePrintAction</sender>
+        <signal>activated()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>filePrint()</slot>
+    </connection>
+    <connection>
+        <sender>fileSaveAction</sender>
+        <signal>activated()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>fileSave()</slot>
+    </connection>
+    <connection>
+        <sender>fileSaveAsAction</sender>
+        <signal>activated()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>fileSaveAs()</slot>
+    </connection>
+    <connection>
+        <sender>helpAboutAction</sender>
+        <signal>activated()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>helpAbout()</slot>
+    </connection>
+    <connection>
+        <sender>helpContentsAction</sender>
+        <signal>activated()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>helpContents()</slot>
+    </connection>
+    <connection>
+        <sender>helpIndexAction</sender>
+        <signal>activated()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>helpIndex()</slot>
+    </connection>
+    <connection>
+        <sender>TagListView1</sender>
+        <signal>selectionChanged()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>TagTreeView_selectionChanged()</slot>
+    </connection>
+    <connection>
+        <sender>TagListView1</sender>
+        <signal>rightButtonPressed(QListViewItem*,const QPoint&amp;,int)</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>TagListView1_rightButtonPressed(QListViewItem*,const QPoint&amp;,int)</slot>
+    </connection>
+    <connection>
+        <sender>displayInvisibleAction</sender>
+        <signal>activated()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>displayInvisible()</slot>
+    </connection>
+    <connection>
+        <sender>CropToolButton</sender>
+        <signal>clicked()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>CropToolButton_clicked()</slot>
+    </connection>
+    <connection>
+        <sender>displayDrawSheetAction</sender>
+        <signal>activated()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>displayDrawSheetAction_activated()</slot>
+    </connection>
+</connections>
+<includes>
+    <include location="local" impldecl="in declaration">MBInterface.hpp</include>
+    <include location="global" impldecl="in declaration">map</include>
+    <include location="global" impldecl="in declaration">set</include>
+    <include location="local" impldecl="in implementation">vtkRenderer.h</include>
+    <include location="local" impldecl="in implementation">vtkRenderWindow.h</include>
+    <include location="local" impldecl="in implementation">vtkActor.h</include>
+    <include location="local" impldecl="in implementation">MBCore.hpp</include>
+    <include location="local" impldecl="in implementation">vtkDataSetMapper.h</include>
+    <include location="local" impldecl="in implementation">qfiledialog.h</include>
+    <include location="local" impldecl="in implementation">vtkMOABReader.h</include>
+    <include location="local" impldecl="in implementation">vtkUnstructuredGridSource.h</include>
+    <include location="local" impldecl="in implementation">vtkUnstructuredGrid.h</include>
+    <include location="local" impldecl="in implementation">vtkMOABUtils.h</include>
+    <include location="local" impldecl="in implementation">qapplication.h</include>
+    <include location="local" impldecl="in implementation">MBTagConventions.hpp</include>
+    <include location="local" impldecl="in implementation">vtkRenderWindowInteractor.h</include>
+    <include location="local" impldecl="in implementation">CropToolpopup.h</include>
+    <include location="local" impldecl="in implementation">CropTool.hpp</include>
+    <include location="local" impldecl="in implementation">DrawDual.hpp</include>
+    <include location="local" impldecl="in implementation">uiQVDual.ui.h</include>
+</includes>
+<forwards>
+    <forward>class vtkUnstructuredGrid</forward>
+    <forward>class vtkRenderer</forward>
+    <forward>class vtkRenderWindowInteractor</forward>
+    <forward>class vtkProperty</forward>
+    <forward>class CropToolPopup</forward>
+    <forward>class DrawDual</forward>
+</forwards>
+<variables>
+    <variable>CropToolPopup *cropToolPopup;</variable>
+    <variable access="private">std::map&lt;QListViewItem*,MBEntityHandle&gt; itemSetMap;</variable>
+    <variable access="private">vtkUnstructuredGrid *myUG;</variable>
+    <variable>std::set&lt;QListViewItem*&gt; itemSelList;</variable>
+    <variable access="private">int currentWin;</variable>
+    <variable>DrawDual *drawDual;</variable>
+</variables>
+<signals>
+    <signal>toggled()</signal>
+</signals>
+<slots>
+    <slot>fileNew()</slot>
+    <slot>fileOpen()</slot>
+    <slot>fileOpen( const QString &amp; filename )</slot>
+    <slot>fileSave()</slot>
+    <slot>fileSaveAs()</slot>
+    <slot>filePrint()</slot>
+    <slot>fileExit()</slot>
+    <slot>helpIndex()</slot>
+    <slot>helpContents()</slot>
+    <slot>helpAbout()</slot>
+    <slot>constructDual()</slot>
+    <slot>updateMesh()</slot>
+    <slot>DebugButton_pressed()</slot>
+    <slot>ActorTreeView_selectionChanged()</slot>
+    <slot>TagTreeView_selectionChanged()</slot>
+    <slot>displayVisible()</slot>
+    <slot>displayDraw()</slot>
+    <slot>displayWireframeShaded()</slot>
+    <slot>displayInvertSelection()</slot>
+    <slot>ActorListView1_rightButtonPressed( QListViewItem * item, const QPoint &amp;, int )</slot>
+    <slot>displayInvisible()</slot>
+    <slot>TagListView1_rightButtonPressed( QListViewItem *, const QPoint &amp;, int )</slot>
+    <slot>displayDisplayAll()</slot>
+    <slot>CropToolButton_clicked()</slot>
+    <slot>displayDrawSheetAction_activated()</slot>
+</slots>
+<functions>
+    <function access="private" specifier="non virtual">init()</function>
+    <function access="private" specifier="non virtual">destroy()</function>
+    <function access="private">updateTagList()</function>
+    <function access="private">updateActorList()</function>
+    <function access="private">updateActorContainsList( QListViewItem * item, MBEntityHandle set_handle )</function>
+    <function access="private">updateActorParentList( QListViewItem * item, MBEntityHandle set_handle )</function>
+    <function access="private">changeSetProperty( std::set&lt;QListViewItem *&gt; &amp; high_sets, std::set&lt;QListViewItem *&gt; &amp; unhigh_sets )</function>
+    <function access="private">evalItem( QListViewItem * item, const bool high, MBRange &amp; high_mbsets, MBRange &amp; unhigh_mbsets )</function>
+    <function access="private">getSelected( QListView * listv, std::set&lt;QListViewItem *&gt; &amp; selected, std::set&lt;QListViewItem *&gt; &amp; unselected )</function>
+    <function access="private">getSelected( QListView * listv, MBRange &amp; selected, MBRange &amp; unselected )</function>
+    <function access="private">getItemSets( std::set&lt;QListViewItem *&gt; &amp; items, MBRange &amp; sets )</function>
+</functions>
+<pixmapinproject/>
+<layoutdefaults spacing="6" margin="11"/>
+<includehints>
+    <includehint>qvtkwidget.h</includehint>
+</includehints>
+</UI>

@@ -1,0 +1,1331 @@
+#include "DrawDual.hpp"
+#include "MBTagConventions.hpp"
+#include "DualTool.hpp"
+#include "vtkMOABUtils.h"
+#include "vtkPolyData.h"
+#include "vtkPolyDataMapper2D.h"
+#include "vtkPolyDataMapper.h"
+#include "vtkDataSetMapper.h"
+#include "vtkMapper2D.h"
+#include "vtkMapper.h"
+#include "vtkLabeledDataMapper.h"
+#include "vtkActor2D.h"
+#include "vtkTextActor.h"
+#include "vtkIdFilter.h"
+#include "vtkTextProperty.h"
+#include "vtkPoints.h"
+#include "vtkPointData.h"
+#include "vtkRenderer.h"
+#include "vtkRenderWindow.h"
+#include "vtkRendererCollection.h"
+#include "vtkActorCollection.h"
+#include "vtkCellArray.h"
+#include "vtkCellData.h"
+#include "vtkCellPicker.h"
+#include "vtkCallbackCommand.h"
+#include "vtkCamera.h"
+#include "vtkCoordinate.h"
+#include "vtkProperty2D.h"
+#include "vtkProperty.h"
+#include "vtkExtractEdges.h"
+#include "vtkExtractCells.h"
+#include "vtkTubeFilter.h"
+#include "vtkGeometryFilter.h"
+#include "vtkInteractorStyle.h"
+#include "vtkLookupTable.h"
+#include "QVTKWidget.h"
+#include "vtkFloatArray.h"
+#include "vtkMaskFields.h"
+
+extern "C" 
+{
+#include "dotneato.h"
+//  extern GVC_t *gvContext();
+}
+
+const bool my_debug = true;
+
+const int SHEET_WINDOW_SIZE = 500;
+
+const int RAD_PTS = 3*72;
+const int CENT_X = 2*RAD_PTS;
+const int CENT_Y = 2*RAD_PTS;
+
+#define MBI vtkMOABUtils::mbImpl
+vtkCellPicker *DrawDual::dualPicker = NULL;
+
+MBTag DrawDual::dualCurveTagHandle = 0;
+MBTag DrawDual::dualSurfaceTagHandle = 0;
+
+DrawDual *DrawDual::gDrawDual = NULL;
+MBRange DrawDual::pickRange;
+
+DrawDual::DrawDual() 
+{
+    // make sure we have basic tags we need
+  MBErrorCode result = MBI->tag_get_handle("__GVEntity", gvEntityHandle);
+  if (MB_TAG_NOT_FOUND == result) {
+    GVEntity *dum = NULL;
+    result = MBI->tag_create("__GVEntity", sizeof(GVEntity*), MB_TAG_DENSE,
+                             gvEntityHandle, &dum);
+    assert(MB_SUCCESS == result && 0 != gvEntityHandle);
+  }
+  result = MBI->tag_get_handle(DualTool::DUAL_ENTITY_TAG_NAME, dualEntityTagHandle);
+  if (MB_TAG_NOT_FOUND == result) {
+    MBEntityHandle dum = 0;
+    result = MBI->tag_create(DualTool::DUAL_ENTITY_TAG_NAME, sizeof(MBEntityHandle), MB_TAG_DENSE,
+                             dualEntityTagHandle, &dum);
+    assert(MB_SUCCESS == result && 0 != dualEntityTagHandle);
+  }
+
+  result = MBI->tag_get_handle(DualTool::DUAL_SURFACE_TAG_NAME, dualSurfaceTagHandle);
+  assert(MB_TAG_NOT_FOUND != result);
+
+  result = MBI->tag_get_handle(DualTool::DUAL_CURVE_TAG_NAME, dualCurveTagHandle);
+  assert(MB_TAG_NOT_FOUND != result);
+
+    // initialize dot
+  gvizGvc = gvContext();
+  const char *this_prog = "QVDual";
+  dotneato_initialize((GVC_t*)gvizGvc, 1, &(const_cast<char *>(this_prog)));
+
+  assert(gDrawDual == NULL);
+  gDrawDual = this;
+
+  add_picker(vtkMOABUtils::myRen);
+}
+
+DrawDual::~DrawDual() 
+{
+  if (NULL != gDrawDual) gDrawDual = NULL;
+}
+
+void DrawDual::add_picker(vtkRenderer *this_ren) 
+{
+  assert(NULL != this_ren);
+  
+  if (NULL == dualPicker) {
+    
+      // create a cell picker
+    dualPicker = vtkCellPicker::New();
+    dualPicker->SetTolerance(0.002);
+
+      // set up the callback handler for the picker
+    vtkMOABUtils::eventCallbackCommand = vtkCallbackCommand::New();
+      // do we need to do this???
+      // eventCallbackCommand->SetClientData(this); 
+    vtkMOABUtils::eventCallbackCommand->SetCallback(process_events);
+
+  }
+  
+    // make sure the renderer can handle observers
+  vtkRenderWindow *this_ren_window = this_ren->GetRenderWindow();
+  assert(NULL != this_ren_window);
+  vtkRenderWindowInteractor *this_int = this_ren_window->GetInteractor();
+  if (NULL == this_int)
+    this_int = this_ren_window->MakeRenderWindowInteractor();
+    
+  assert(NULL != this_int);
+  
+  vtkInteractorStyle *this_style = vtkInteractorStyle::SafeDownCast(
+    this_int->GetInteractorStyle());
+  assert(NULL != this_style);
+  this_style->HandleObserversOn();
+
+    // register this command to process the LMB event
+  this_ren->GetRenderWindow()->GetInteractor()->GetInteractorStyle()->
+    AddObserver(vtkCommand::LeftButtonPressEvent, 
+                vtkMOABUtils::eventCallbackCommand);
+}
+
+void DrawDual::process_events(vtkObject *caller, 
+                              unsigned long event,
+                              void* clientdata, 
+                              void* /*vtkNotUsed(calldata)*/) 
+{
+  assert(event == vtkCommand::LeftButtonPressEvent);
+
+  vtkInteractorStyle* style = reinterpret_cast<vtkInteractorStyle *>(caller);
+  vtkRenderWindowInteractor *rwi = style->GetInteractor();
+
+    // check to see if the <Ctrl> key is on
+  if (rwi->GetControlKey()) {
+      // control key is on - send pick event to picker
+    if (style->GetState() == VTKIS_NONE) 
+    {
+      style->FindPokedRenderer(rwi->GetEventPosition()[0],
+                               rwi->GetEventPosition()[1]);
+      rwi->StartPickCallback();
+      dualPicker->Pick(rwi->GetEventPosition()[0],
+                       rwi->GetEventPosition()[1], 
+                       0.0, 
+                       style->GetCurrentRenderer());
+
+      vtkRenderer *ren = style->GetCurrentRenderer();
+      ren->SetDisplayPoint(rwi->GetEventPosition()[0],
+                           rwi->GetEventPosition()[1], 0);
+      ren->DisplayToWorld();
+      double tmp_world[4];
+      ren->GetWorldPoint(tmp_world);
+      
+      process_pick();
+    
+//      if (dualPicker->GetProp()) style->HighlightProp(dualPicker->GetProp());
+      
+      rwi->EndPickCallback();
+    }
+  }
+  else {
+      // otherwise send event to interactor style handler
+    style->OnLeftButtonDown();
+  }
+}
+
+void DrawDual::process_pick() 
+{
+  assert(0 != dualCurveTagHandle);
+  
+    // get the actor through the prop, to make sure we get the leaf of an
+    // assembly
+  vtkActorCollection *actors = dualPicker->GetActors();
+  
+  vtkActor *picked_actor = NULL, *tmp_actor;
+  MBEntityHandle picked_sheet = 0, picked_chord = 0;
+  
+  if (actors->GetNumberOfItems() == 1) {
+    picked_actor = vtkActor::SafeDownCast(dualPicker->GetProp());
+    picked_sheet = vtkMOABUtils::propSetMap[dualPicker->GetActor()];
+  }
+
+  else {
+      // more than one - traverse, choosing the chord if any first
+    actors->InitTraversal();
+    while (tmp_actor = actors->GetNextItem()) {
+      MBEntityHandle this_set = vtkMOABUtils::propSetMap[tmp_actor];
+      if (0 == this_set) continue;
+        // get whether it's a dual surface or dual curve
+      MBEntityHandle dum_handle = 0;
+      MBErrorCode result = MBI->tag_get_data(dualCurveTagHandle, &this_set, 1, 
+                                             &dum_handle);
+      if (MB_TAG_NOT_FOUND == result)
+          // must be a sheet
+        picked_sheet = this_set;
+      else {
+        picked_chord = this_set;
+        picked_actor = tmp_actor;
+      }
+    }
+  }
+  
+    
+  if (0 == picked_actor) return;
+
+  vtkPolyDataMapper *this_mapper = 
+    vtkPolyDataMapper::SafeDownCast(picked_actor->GetMapper());
+
+  if (picked_sheet != 0) 
+    std::cout << "Sheet ";
+  else if (picked_chord != 0)
+    std::cout << "Chord ";
+
+  if (dualPicker->GetCellId() != -1) 
+    std::cout << "cell " << dualPicker->GetCellId() << " picked." << std::endl;
+
+    // get picked entity based on cell id and set
+  MBEntityHandle picked_ent;
+  if (picked_chord != 0) 
+    picked_ent = gDrawDual->get_picked_cell(picked_chord, 1, dualPicker->GetCellId());
+  else if (picked_sheet != 0)
+    picked_ent = gDrawDual->get_picked_cell(picked_sheet, 2, dualPicker->GetCellId());
+
+  MBRange::iterator pit = pickRange.find(picked_ent);
+  if (pit == pickRange.end()) pickRange.insert(picked_ent);
+  else pickRange.erase(pit);
+  
+    // now update the highlighted polydata
+  gDrawDual->update_high_polydatas();
+}
+
+void DrawDual::update_high_polydatas() 
+{
+    // go through each graph window and rebuild picked entities
+  std::map<MBEntityHandle, GraphWindows>::iterator mit;
+  for (mit = surfDrawrings.begin(); mit != surfDrawrings.end(); mit++) {
+      // reset or initialize
+    if (NULL == mit->second.highPoly)
+        ; // xxx mit->second.highPoly = get_new_pd();
+    else
+      mit->second.highPoly->Reset();
+  }
+
+  DualTool dt(MBI);
+  MBEntityHandle gv_verts[20];
+  
+    // now go through highlight entities, adding to highlight poly in each window
+  MBErrorCode result;
+  std::vector<MBEntityHandle> dual_sets;
+  std::vector<MBEntityHandle>::iterator vit;
+  static std::vector<GVEntity*> gvents;
+  gvents.reserve(pickRange.size());
+  
+  result = MBI->tag_get_data(gvEntityHandle, pickRange, &gvents[0]); 
+  if (MB_SUCCESS != result) return;
+  unsigned int i, j;
+  MBRange::iterator rit;
+  
+  for (i = 0, rit = pickRange.begin(); rit != pickRange.end(); i++, rit++) {
+    int dim = MBCN::Dimension(MBI->type_from_handle(*rit));
+      // can be up to 3 instances of this entity
+    for (j = 0; j < 3; j++) {
+      if (gvents[i]->myActors[j] == NULL) continue;
+      
+        // get the vtk cell and duplicate it
+      vtkPolyData *this_pd = 
+        vtkPolyData::SafeDownCast(gvents[i]->myActors[j]->GetMapper()->GetInput());
+      assert(NULL != this_pd);
+      vtkCell *this_cell = this_pd->GetCell(gvents[i]->vtkEntityIds[j]);
+      assert(NULL != this_cell);
+
+/*      
+      - make a new polygon or line
+ - shallow copy this_cell onto the new one
+- add the new one to the highlight pd
+xxx
+*/  
+
+      // for each dual surf, add polygon/line for the entity
+    for (vit = dual_sets.begin(); vit != dual_sets.end(); vit++) {
+      GraphWindows &gw = surfDrawrings[*vit];
+        // 
+    }
+    }
+  }
+}
+
+MBEntityHandle DrawDual::get_picked_cell(MBEntityHandle cell_set,
+                                         const int dim,
+                                         const int picked_cell) 
+{
+    // get the cells in the set
+  MBRange cells;
+  MBErrorCode result;
+  if (1 == dim)
+    result = get_dual_entities(cell_set, NULL, &cells, NULL, NULL);
+  else if (2 == dim)
+    result = get_dual_entities(cell_set, &cells, NULL, NULL, NULL);
+  else
+    assert(false);
+  
+  if (MB_SUCCESS != result) return 0;
+  
+  MBRange::iterator rit = cells.begin();
+  
+  for (int i = 0; i < picked_cell; i++, rit++);
+  
+  return *rit;
+}
+
+bool DrawDual::draw_dual_surfs(MBRange &dual_surfs) 
+{
+  MBErrorCode success = MB_SUCCESS;
+  for (MBRange::iterator rit = dual_surfs.begin(); rit != dual_surfs.end(); rit++) {
+    MBErrorCode tmp_success = draw_dual_surf(*rit);
+    if (MB_SUCCESS != tmp_success) success = tmp_success;
+  }
+  
+  return (MB_SUCCESS == success ? true : false);
+}
+
+MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf) 
+{
+    // draw this dual surface
+
+    // 1. gather/construct data for graphviz
+  MBErrorCode success = construct_graphviz_data(dual_surf);
+  if (MB_SUCCESS != success) return success;
+
+  GraphWindows &this_gw = surfDrawrings[dual_surf];
+
+    // 2. tell graphviz to compute graph
+//  gvBindContext((GVC_t*)gvizGvc, this_gw.gvizGraph);
+//  neato_layout(this_gw.gvizGraph);
+  if (my_debug) {
+    std::cout << "Before layout:" << std::endl;
+    agwrite(this_gw.gvizGraph, stdout);
+  }
+//  neato_init_graph(this_gw.gvizGraph);
+  neato_layout(this_gw.gvizGraph);
+  adjustNodes(this_gw.gvizGraph);
+  spline_edges(this_gw.gvizGraph);
+  dotneato_postprocess(this_gw.gvizGraph, neato_nodesize);
+  if (my_debug) {
+    std::cout << "After layout, before vtk:" << std::endl;
+    agwrite(this_gw.gvizGraph, stdout);
+  }
+
+    // 3. make a new pd for this drawring
+  vtkPolyData *pd;
+  get_clean_pd(dual_surf, this_gw.qvtkWidget, pd);
+  
+  vtkRenderer *this_ren = 
+    this_gw.qvtkWidget->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
+
+    // 4. create vtk points, cells for this 2d dual surface drawing
+  success = make_vtk_data(dual_surf, pd, this_ren);
+  if (MB_SUCCESS != success) return success;
+  if (my_debug) {
+    std::cout << "After layout, after vtk:" << std::endl;
+    agwrite(this_gw.gvizGraph, stdout);
+  }
+
+    // 5. draw chords
+  vtkPolyData *new_pd;
+  MBErrorCode result = draw_chords(dual_surf, pd, new_pd);
+  if (MB_SUCCESS != result) return result;
+  
+    // 5. render the window
+  this_gw.qvtkWidget->GetRenderWindow()->Render();
+
+    // now that we've rendered, can get the size of various things
+  int *tmp_siz = this_ren->GetSize();
+  xSize = tmp_siz[0];
+  ySize = tmp_siz[1];
+  tmp_siz = this_ren->GetOrigin();
+  xOrigin = tmp_siz[0];
+  yOrigin = tmp_siz[1];
+  
+    // 6. draw labels for dual surface, points, dual curves
+  success = draw_labels(dual_surf, pd, new_pd);
+  if (MB_SUCCESS != success) return success;
+
+    // 7. add a picker
+  add_picker(this_ren);
+
+  if (my_debug) agwrite(this_gw.gvizGraph, stdout);
+  
+  return success;
+}
+
+MBErrorCode DrawDual::draw_chords(MBEntityHandle dual_surf,
+                                  vtkPolyData *pd,
+                                  vtkPolyData *&new_pd) 
+{
+    // gather the chord sets
+  std::vector<MBEntityHandle> chords, chord_surfs;
+  MBRange dedges, dverts, dverts_loop;
+  MBErrorCode result = MBI->get_child_meshsets(dual_surf, chords);
+  if (MB_SUCCESS != result || 0 == chords.size()) return result;
+
+    // start a new polydata with points for labeling
+  new_pd = vtkPolyData::New();
+  vtkPoints *new_points = new_pd->GetPoints();
+  if (NULL == new_points) {
+    new_points = vtkPoints::New();
+    new_pd->SetPoints(new_points);
+    new_points->Delete();
+  }
+  new_pd->Allocate();
+  vtkIntArray *id_array = vtkIntArray::New();
+  id_array->SetName("LoopVertexIds");
+
+    // for each chord:
+  MBErrorCode tmp_result;
+  std::vector<MBEntityHandle>::iterator vit1;
+  MBRange::iterator rit;
+  std::vector<GVEntity*> gv_edges;
+  for (vit1 = chords.begin(); vit1 != chords.end(); vit1++) {
+
+      // get a color for this chord; make it the color of the "other" sheet, unless
+      // it's this sheet, in which case it's black
+    MBEntityHandle color_set = other_sheet(*vit1, dual_surf);
+    double red, green, blue;
+    int global_id;
+    if (0 == color_set) red = green = blue = 0.0;
+    else
+      vtkMOABUtils::get_colors(color_set, vtkMOABUtils::totalColors, global_id,
+                               red, green, blue);
+
+    // create a series of edges in the original pd
+    dedges.clear(); dverts.clear(); dverts_loop.clear();
+    tmp_result = get_dual_entities(*vit1, NULL, &dedges, &dverts, &dverts_loop);
+    if (MB_SUCCESS != tmp_result) {
+      result = tmp_result;
+      continue;
+    }
+    
+    gv_edges.reserve(dedges.size());
+    tmp_result = MBI->tag_get_data(gvEntityHandle, dedges, &gv_edges[0]);
+    if (MB_SUCCESS != tmp_result) {
+      result = tmp_result;
+      continue;
+    }
+    
+    int low_edge = -1, high_edge = -1;
+    int edge_vtk_vs[2];
+    GVEntity *gv_verts[2];
+    const MBEntityHandle *edge_vs;
+    int num_edge_vs;
+    int edge_num;
+    int index;
+    vtkIdList *ids = vtkIdList::New();
+    for (rit = dedges.begin(), edge_num = 0; rit != dedges.end(); rit++, edge_num++) {
+      tmp_result = MBI->get_connectivity(*rit, edge_vs, num_edge_vs);
+      if (MB_SUCCESS != tmp_result) {
+        result = tmp_result;
+        continue;
+      }
+        // get the gventities
+      tmp_result = MBI->tag_get_data(gvEntityHandle, edge_vs, 2, gv_verts);
+      if (MB_SUCCESS != tmp_result) {
+        result = tmp_result;
+        continue;
+      }
+      for (int i = 0; i < 2; i++) {
+        index = gv_verts[i]->get_index(dual_surf);
+        assert(NULL != gv_verts[i]->gvizPoints[index]);
+        edge_vtk_vs[i] = gv_verts[i]->vtkEntityIds[index];
+
+          // look for loop points, and add label if there are any
+        if (dverts_loop.find(edge_vs[i]) != dverts_loop.end()) {
+          point p = ND_coord_i(gv_verts[i]->gvizPoints[index]);
+//          double xpos = (double)(p.x - CENT_X);
+//          double ypos = (double)(p.y - CENT_Y);
+//          new_points->InsertNextPoint(xpos/(double)RAD_PTS, ypos/(double)RAD_PTS, 0.0);
+          new_points->InsertNextPoint(((double)p.x)/32000.0, ((double)p.y)/32000.0, 0.0);
+          id_array->InsertNextValue(global_id);
+        }
+      }
+
+        // get the vtk edge
+//      index = gv_edges[edge_num]->get_index(dual_surf);
+//      ids->InsertNextId(gv_edges[edge_num]->vtkEntityIds[index]);
+    }
+
+/*
+    // create a geometry extractor & extract those edges
+    vtkExtractCells *ec = vtkExtractCells::New();
+    ec->SetInput(pd);
+    ec->AddCellList(ids);
+
+      // now extract the edges in the cell extractor output, to get them
+      // in polydata form (to input to a 2d mapper)
+    vtkExtractEdges *ee = vtkExtractEdges::New();
+    ee->SetInput(ec->GetOutput());
+    
+    vtkPolyDataMapper *edge_mapper = vtkPolyDataMapper2D::New();
+    edge_mapper->SetInput(ee->GetOutput());
+    edge_mapper->ScalarVisibilityOff();
+    vtkActor2D *edge_actor = vtkActor2D::New();
+    edge_actor->SetMapper(edge_mapper);
+    vtkProperty2D *this_property = edge_actor->GetProperty();
+
+    this_property->SetColor(red, green, blue);
+      //this_property->SetDisplayLocationToForeground();
+    this_property->SetLineWidth(5.0);
+    edge_actor->SetProperty(this_property);
+
+      // add to the renderer
+    GraphWindows &this_gw = surfDrawrings[dual_surf];
+    this_gw.qvtkWidget->GetRenderWindow()->GetRenderers()->
+      GetFirstRenderer()->AddActor(edge_actor);
+
+      // keep track of the chord actors, for picking
+    vtkMOABUtils::propSetMap[edge_actor] = *vit1;
+*/
+  }
+
+    // assign id data to the pd for drawing other sheet labels
+  new_pd->GetPointData()->AddArray(id_array);
+  new_pd->GetPointData()->SetScalars(id_array);
+  new_pd->GetPointData()->SetActiveAttribute("LoopVertexIds", 0);
+
+  return result;
+}
+
+MBErrorCode DrawDual::make_vtk_data(MBEntityHandle dual_surf,
+                                    vtkPolyData *pd,
+                                    vtkRenderer *this_ren)
+{
+    // get the cells and vertices on this dual surface
+  MBRange dcells, dverts, dverts_loop;
+  MBErrorCode result = get_dual_entities(dual_surf, &dcells, NULL, 
+                                         &dverts, &dverts_loop);
+  if (MB_SUCCESS != result) return result;
+  
+    // get the GVEntity for each entity
+  std::map<MBEntityHandle, GVEntity *> vert_gv_map;
+  
+    // allocate cells and points; start by getting the point and cell arrays
+  result = allocate_points(dual_surf, pd, dverts, vert_gv_map);
+  if (MB_SUCCESS != result) return result;
+
+    // get an int field to put the color id into
+  vtkFloatArray *color_ids = vtkFloatArray::New();
+  color_ids->SetName("ColorId");
+  color_ids->Initialize();
+  
+    // make the 2d cells
+  int global_id;
+  pd->Allocate();
+  result = vtkMOABUtils::mbImpl->tag_get_data(vtkMOABUtils::globalId_tag(), &dual_surf, 
+                                              1, &global_id);
+  if (MB_SUCCESS != result) return result;
+
+  result = make_vtk_cells(dcells, 2, (float) global_id,
+                          dual_surf, vert_gv_map, pd,
+                          color_ids);
+  if (MB_SUCCESS != result) return result;
+
+    // make the color ids the active scalar
+  pd->GetCellData()->AddArray(color_ids);
+  pd->GetCellData()->SetScalars(color_ids);
+  pd->GetCellData()->SetActiveAttribute("ColorId", 0);
+  
+    // make the 1d cells chord by chord
+  std::vector<MBEntityHandle> chords;
+  result = MBI->get_child_meshsets(dual_surf, chords);
+  if (MB_SUCCESS != result) return result;
+
+  for (std::vector<MBEntityHandle>::iterator vit = chords.begin();
+       vit != chords.end(); vit++) {
+      // set color of chord to other sheet's color
+    MBEntityHandle color_set = other_sheet(*vit, dual_surf);
+    result = vtkMOABUtils::mbImpl->tag_get_data(vtkMOABUtils::globalId_tag(), &color_set,
+                                                1, &global_id);
+    if (MB_SUCCESS != result) return result;
+
+      // get edges in this chord
+    MBRange dedges;
+    result = get_dual_entities(*vit, NULL, &dedges, NULL, NULL);
+    if (MB_SUCCESS != result) return result;
+    
+      // construct a new polydata, and borrow the points from the sheet's pd
+    vtkPolyData *chord_pd = vtkPolyData::New();
+    chord_pd->Allocate();
+    chord_pd->SetPoints(pd->GetPoints());
+    vtkPolyDataMapper *chord_mapper = vtkPolyDataMapper::New();
+    chord_mapper->SetInput(chord_pd);
+    vtkActor *chord_actor = vtkActor::New();
+    vtkMOABUtils::propSetMap[chord_actor] = *vit;
+    chord_actor->SetMapper(chord_mapper);
+    this_ren->AddActor(chord_actor);
+    double red, green, blue;
+    vtkMOABUtils::get_colors(color_set, 0, global_id, red, green, blue);
+    chord_actor->GetProperty()->SetColor(red, green, blue);
+    chord_actor->GetProperty()->SetLineWidth(2.0);
+    
+      // now make the 1-cells
+    result = make_vtk_cells(dedges, 1, (float) global_id,
+                            dual_surf, vert_gv_map, chord_pd, NULL);
+    if (MB_SUCCESS != result) return result;
+  }
+
+  return MB_SUCCESS;
+}
+
+MBErrorCode DrawDual::make_vtk_cells(const MBRange &cell_range, const int dim,
+                                     const float color_index,
+                                     const MBEntityHandle dual_surf,
+                                     std::map<MBEntityHandle, GVEntity *> &vert_gv_map,
+                                     vtkPolyData *pd,
+                                     vtkFloatArray *color_ids) 
+{
+  std::vector<MBEntityHandle> cell_verts;
+  std::vector<GVEntity*> gv_cells;
+  int cell_num;
+  MBRange::iterator rit;
+  int cell_points[20];
+  static int vtk_cell_type[] = {VTK_VERTEX, VTK_LINE, VTK_POLYGON};
+
+  gv_cells.reserve(cell_range.size());
+  MBErrorCode result = MBI->tag_get_data(gvEntityHandle, cell_range, &gv_cells[0]);
+  if (MB_SUCCESS != result) return result;
+
+    // create GVEntity objects for the cells, to hold the vtk cell ids
+  GVEntity *gvents = new GVEntity[cell_range.size()];
+  std::map<MBEntityHandle, GVEntity*>::iterator mit;
+
+  for (rit = cell_range.begin(), cell_num = 0; 
+       rit != cell_range.end(); rit++, cell_num++) {
+      // get the vertices in this cell; must be done through vector for polygons
+    cell_verts.clear();
+    result = MBI->get_adjacencies(&(*rit), 1, 0, false, cell_verts);
+    if (MB_SUCCESS != result) return result;
+    assert(cell_verts.size() <= 20);
+    
+      // for each, check for vtk point & build one if it's missing, 
+      // then create the vtk entity
+    for (unsigned int i = 0; i < cell_verts.size(); i++) {
+      GVEntity *this_gv = vert_gv_map[cell_verts[i]];
+      assert(this_gv != NULL);
+      int index = this_gv->get_index(dual_surf);
+      assert(NULL != this_gv->gvizPoints[index]);
+      cell_points[i] = this_gv->vtkEntityIds[index];
+    }
+
+    if (dim == 2)
+      cell_points[cell_verts.size()] = cell_points[0];
+    
+      // create the vtk cell
+    gv_cells[cell_num] = gvents+cell_num;
+    int index = gv_cells[cell_num]->get_index(dual_surf);
+    int this_cell = pd->InsertNextCell(vtk_cell_type[dim], cell_verts.size()-1+dim, 
+                                       cell_points);
+    gv_cells[cell_num]->vtkEntityIds[index] = this_cell;
+    if (NULL != color_ids)
+      color_ids->InsertValue(this_cell, color_index);
+  }
+
+  result = MBI->tag_set_data(gvEntityHandle, cell_range, &gv_cells[0]);
+  if (MB_SUCCESS != result) return result;
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode DrawDual::allocate_points(MBEntityHandle dual_surf,
+                                      vtkPolyData *pd,
+                                      MBRange &verts,
+                                      std::map<MBEntityHandle, GVEntity*> &vert_gv_map) 
+{
+  vtkPoints *points = pd->GetPoints();
+  if (NULL == points) {
+    points = vtkPoints::New();
+    pd->SetPoints(points);
+    points->Delete();
+  }
+  pd->Allocate();
+  
+  std::vector<GVEntity*> gv_verts;
+  gv_verts.reserve(verts.size());
+  
+    // get the gventities
+  MBErrorCode result = MBI->tag_get_data(gvEntityHandle, verts, &gv_verts[0]);
+  if (MB_SUCCESS != result) {
+    std::cout << "Couldn't get gv vertex data." << std::endl;
+    return result;
+  }
+
+  unsigned int i;
+  MBRange::iterator rit;
+  char dum_str[80];
+  Agsym_t *asym_pos =
+    agfindattr(surfDrawrings[dual_surf].gvizGraph->proto->n, "pos");
+  assert(NULL != asym_pos);
+
+    // get the transform based on old/new positions for loop vert(s)
+  double x_xform, y_xform;
+  result = get_xform(dual_surf, asym_pos, x_xform, y_xform);
+
+  for (rit = verts.begin(), i = 0; rit != verts.end(); rit++, i++) {
+    int index = gv_verts[i]->get_index(dual_surf);
+    assert(NULL != gv_verts[i]->gvizPoints[index]);
+    if (gv_verts[i]->vtkEntityIds[index] == -1) {
+      point p = ND_coord_i(gv_verts[i]->gvizPoints[index]);
+      sprintf(dum_str, "%d, %d", p.x, p.y);
+      agxset(gv_verts[i]->gvizPoints[index], asym_pos->index, dum_str);
+      gv_verts[i]->vtkEntityIds[index] = 
+        points->InsertNextPoint(((double)p.x)*x_xform, ((double)p.y)*y_xform, 0.0);
+    }
+    vert_gv_map[*rit] = gv_verts[i];
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode DrawDual::get_xform(MBEntityHandle dual_surf, Agsym_t *asym_pos, 
+                                double &x_xform, double &y_xform)
+{
+  MBRange face_verts;
+
+  MBErrorCode result = get_dual_entities(dual_surf, NULL, NULL, NULL, &face_verts);
+  if (MB_SUCCESS != result) return result;
+  
+    // get the gventities
+  std::vector<GVEntity*> gv_verts;
+  gv_verts.reserve(face_verts.size());
+  result = MBI->tag_get_data(gvEntityHandle, face_verts, &gv_verts[0]);
+  if (MB_SUCCESS != result) return result;
+  char dum_str[80];
+
+    // find a vertex with non-zero x, y coordinates
+  for (std::vector<GVEntity*>::iterator vit = gv_verts.begin(); vit != gv_verts.end(); vit++) {
+    int index = (*vit)->get_index(dual_surf);
+    assert(NULL != (*vit)->gvizPoints[index]);
+      // get new point position
+    point p = ND_coord_i((*vit)->gvizPoints[index]);
+    if (p.x != 0 && p.y != 0) {
+        // get old point position, which is set on attribute
+      char *agx = agxget((*vit)->gvizPoints[index], asym_pos->index);
+      int x, y;
+      sscanf(agx, "%d, %d", &x, &y);
+      if (0 == x || 0 == y) continue;
+
+        // ok, non-zeros in all quantities, can compute xform now as old over new
+      x_xform = ((double)x) / ((double)p.x);
+      y_xform = ((double)y) / ((double)p.y);
+      
+      return MB_SUCCESS;
+    }
+  }
+
+    // didn't get any usable data; set to unity
+  x_xform = 1.0;
+  y_xform = 1.0;
+
+  std::cout << "Didn't find transform." << std::endl;
+  
+  return MB_FAILURE;
+}
+
+vtkPolyData *DrawDual::get_polydata(QVTKWidget *this_wid) 
+{
+  vtkRendererCollection *rcoll = this_wid->GetRenderWindow()->GetRenderers();
+  assert(rcoll != NULL);
+  rcoll->InitTraversal();
+  vtkActorCollection *acoll = rcoll->GetNextItem()->GetActors();
+  assert(NULL != acoll);
+  acoll->InitTraversal();
+  return vtkPolyData::SafeDownCast(acoll->GetNextActor()->GetMapper()->GetInput());
+}
+
+void DrawDual::get_clean_pd(MBEntityHandle dual_surf,
+                            QVTKWidget *&this_wid,
+                            vtkPolyData *&pd)
+{
+  if (NULL == this_wid) {
+    vtkRenderer *this_ren = vtkRenderer::New();
+    pd = vtkPolyData::New();
+    
+    const bool twod = false;
+    
+    if (twod) {
+      
+        // the easy route - just make new stuff
+      vtkPolyDataMapper2D *this_mapper = vtkPolyDataMapper2D::New();
+//    vtkPolyDataMapper *this_mapper = vtkPolyDataMapper::New();
+
+        // need to set a coordinate system for this window, so that display coordinates
+        // are re-normalized to window size
+      vtkCoordinate *this_coord = vtkCoordinate::New();
+      this_coord->SetCoordinateSystemToWorld();
+      this_mapper->SetTransformCoordinate(this_coord);
+
+      this_mapper->ScalarVisibilityOn();
+      this_mapper->SetLookupTable(vtkMOABUtils::lookupTable);
+      this_mapper->UseLookupTableScalarRangeOn();
+      this_mapper->SetScalarModeToUseCellData();
+    
+        // put an edge extractor before the mapper
+//    vtkExtractEdges *ee = vtkExtractEdges::New();
+//    ee->SetInput(pd);
+//    this_mapper->SetInput(ee->GetOutput());
+      this_mapper->SetInput(pd);
+
+      vtkActor2D *this_actor = vtkActor2D::New();
+      this_actor->PickableOn();
+      vtkMOABUtils::propSetMap[this_actor] = dual_surf;
+//    vtkActor *this_actor = vtkActor::New();
+      this_actor->SetMapper(this_mapper);
+      this_actor->GetProperty()->SetLineWidth(2.0);
+      this_ren->AddActor(this_actor);
+    }
+    else {
+        // the easy route - just make new stuff
+      vtkPolyDataMapper *this_mapper = vtkPolyDataMapper::New();
+
+        // need to set a coordinate system for this window, so that display coordinates
+        // are re-normalized to window size
+/*
+      vtkCoordinate *this_coord = vtkCoordinate::New();
+      this_coord->SetCoordinateSystemToWorld();
+      this_mapper->SetTransformCoordinate(this_coord);
+*/
+      this_mapper->ScalarVisibilityOn();
+      this_mapper->SetLookupTable(vtkMOABUtils::lookupTable);
+      this_mapper->UseLookupTableScalarRangeOn();
+      this_mapper->SetScalarModeToUseCellData();
+    
+        // put an edge extractor before the mapper
+//    vtkExtractEdges *ee = vtkExtractEdges::New();
+//    ee->SetInput(pd);
+//    this_mapper->SetInput(ee->GetOutput());
+      this_mapper->SetInput(pd);
+
+      vtkActor *this_actor = vtkActor::New();
+      this_actor->PickableOn();
+      vtkMOABUtils::propSetMap[this_actor] = dual_surf;
+//    vtkActor *this_actor = vtkActor::New();
+      this_actor->SetMapper(this_mapper);
+      this_actor->GetProperty()->SetLineWidth(2.0);
+      this_ren->AddActor(this_actor);
+    }
+
+//    double red, green, blue;
+//    int dum;
+//    vtkMOABUtils::get_colors(dual_surf, vtkMOABUtils::totalColors, dum,
+//                             red, green, blue);
+//    vtkProperty2D *this_property = this_actor->GetProperty();
+//    this_property->SetColor(red, green, blue);
+//    this_property->SetDisplayLocationToBackground();
+//    this_property->SetOpacity(0.5);
+    
+//    vtkCamera *camera = vtkCamera::New();
+//    camera->SetPosition(72.0,72.0,300);
+//    camera->SetFocalPoint(72.0,72.0,0);
+//    camera->SetViewUp(0,1,0);
+
+    this_ren->ResetCamera();
+
+    this_wid = new QVTKWidget();
+    this_wid->GetRenderWindow()->AddRenderer(this_ren);
+    this_wid->GetRenderWindow()->SetSize(SHEET_WINDOW_SIZE, SHEET_WINDOW_SIZE);
+
+    return;
+  }
+  
+    // trace back until we find the dataset
+  pd = get_polydata(this_wid);
+  assert(NULL != pd);
+    // re-initialize the data, then we're done
+  pd->Initialize();
+}
+
+MBErrorCode DrawDual::construct_graphviz_data(MBEntityHandle dual_surf) 
+{
+    // gather/construct the data for graphviz
+
+    // get which drawring we're referring to
+  char dum_str[80];
+  GraphWindows &this_gw = surfDrawrings[dual_surf];
+  if (NULL == this_gw.gvizGraph) {
+      // allocate a new graph and create a new window
+    sprintf(dum_str, "%d", dual_surf);
+    this_gw.gvizGraph = agopen(dum_str, AGRAPH);
+    if (this_gw.gvizGraph == NULL) return MB_FAILURE;
+  }
+    
+    // get the cells and vertices on this dual surface
+  MBRange dcells, dedges, dverts, face_verts;
+  MBErrorCode result = get_dual_entities(dual_surf, &dcells, &dedges, 
+                                         &dverts, &face_verts);
+  if (MB_SUCCESS != result) return result;
+
+  if (dcells.empty() || dedges.empty() || dverts.empty()) return MB_FAILURE;
+  
+    // for each vertex, allocate a graphviz point if it doesn't already have one
+  GVEntity **dvert_gv = new GVEntity*[dverts.size()];
+  result = MBI->tag_get_data(gvEntityHandle, dverts, dvert_gv);
+  if (MB_SUCCESS != result) return result;
+  int i;
+  MBRange::iterator rit;
+  Agsym_t *asym_pos =
+    agfindattr(surfDrawrings[dual_surf].gvizGraph->proto->n, "pos");
+  if (NULL == asym_pos) 
+    asym_pos = agnodeattr(surfDrawrings[dual_surf].gvizGraph, "pos", "");
+  assert(NULL != asym_pos);
+  char tmp_pos[80];
+
+  for (rit = dverts.begin(), i = 0; rit != dverts.end(); rit++, i++) {
+
+      // get the DVertexPoint for this dual vertex
+    GVEntity *this_gv = dvert_gv[i];
+    if (NULL == this_gv) {
+      this_gv = new GVEntity();
+      this_gv->moabEntity = *rit;
+      result = MBI->tag_set_data(gvEntityHandle, &(*rit), 1, &this_gv);
+      if (MB_SUCCESS != result) return result;
+      dvert_gv[i] = this_gv;
+    }
+
+      // get the index for this dual surface
+    int dsindex = this_gv->get_index(dual_surf);
+    if (dsindex == -1) {
+        // need to make a graphviz point
+      sprintf(dum_str, "%u", *rit);
+      Agnode_t *this_gvpt = agnode(this_gw.gvizGraph, dum_str);
+      if (NULL == this_gvpt) return MB_FAILURE;
+      this_gv->add_gvpoint(dual_surf, this_gvpt);
+      sprintf(dum_str, "%u, %u", 0, 0);
+      agxset(this_gvpt, asym_pos->index, dum_str);
+    }
+  }
+  
+    // compute the starting positions of the boundary points, and fix them
+  result = compute_fixed_points(dual_surf, dverts, face_verts);
+  if (MB_SUCCESS != result) return result;
+
+    // for each edge, allocate a graphviz edge if it doesn't already have one
+  GVEntity **dedge_gv = new GVEntity*[dedges.size()];
+  result = MBI->tag_get_data(gvEntityHandle, dedges, dedge_gv);
+  if (MB_SUCCESS != result) return result;
+
+  const MBEntityHandle *connect;
+  int num_connect;
+  
+  for (rit = dedges.begin(), i = 0; rit != dedges.end(); rit++, i++) {
+
+      // get the DEdgeGVEdge for this dual edge
+    GVEntity *this_gv = dedge_gv[i];
+    if (NULL == this_gv) {
+      this_gv = new GVEntity();
+      this_gv->moabEntity = *rit;
+      result = MBI->tag_set_data(gvEntityHandle, &(*rit), 1, &this_gv);
+      if (MB_SUCCESS != result) return result;
+      dedge_gv[i] = this_gv;
+    }
+
+      // get the index for this dual surface
+    int dsindex = this_gv->get_index(dual_surf);
+    if (dsindex == -1) {
+        // need to make a graphviz entity; get the graphviz nodes, then make the edge
+      result = MBI->get_connectivity(*rit, connect, num_connect);
+      if (MB_SUCCESS != result) return result;
+      result = MBI->tag_get_data(gvEntityHandle, connect, 2, dvert_gv);
+      if (MB_SUCCESS != result) return result;
+      assert(NULL != dvert_gv[0] && NULL != dvert_gv[1]);
+      int index0 = dvert_gv[0]->get_index(dual_surf);
+      int index1 = dvert_gv[1]->get_index(dual_surf);
+      sprintf(dum_str, "%g", *rit);
+      Agedge_t *this_gved = agedge(this_gw.gvizGraph,
+                                   dvert_gv[0]->gvizPoints[index0],
+                                   dvert_gv[1]->gvizPoints[index1]);
+      if (NULL == this_gved) return MB_FAILURE;
+//      if (ND_pinned(dvert_gv[0]->gvizPoints[index0]) ||
+//          ND_pinned(dvert_gv[1]->gvizPoints[index1]))
+//        ED_factor(this_gved) = 0.1;
+      this_gv->add_gvedge(dual_surf, this_gved);
+    }
+
+      // note to self: check for self-intersections here, to handle 2 instances
+      // of edge in drawring
+  }
+
+  delete [] dvert_gv;
+  delete [] dedge_gv;
+
+  return result;
+}
+
+MBErrorCode DrawDual::compute_fixed_points(MBEntityHandle dual_surf, MBRange &dverts,
+                                           MBRange &face_verts) 
+{
+  std::map<unsigned int, std::vector<MBEntityHandle> > loops;
+  DualTool dual_tool(vtkMOABUtils::mbImpl);
+  
+  while (!face_verts.empty()) {
+      // get the next first vertex on the loop
+    MBEntityHandle this_v = *face_verts.begin();
+    MBEntityHandle first_v = 0, last_v = 0;
+    std::vector<MBEntityHandle> loop_vs;
+    MBRange temp_face_verts;
+    while (this_v != first_v) {
+      if (0 == first_v) first_v = this_v;
+      
+        // put this vertex on the loop, then get the next one
+      loop_vs.push_back(this_v);
+      temp_face_verts.insert(this_v);
+      MBEntityHandle temp_v = this_v;
+      this_v = dual_tool.next_loop_vertex(last_v, this_v, dual_surf);
+      assert(0 != this_v);
+      last_v = temp_v;
+    }
+
+      // save this vector in the map
+    loops[loop_vs.size()] = loop_vs;
+    
+      // ok, we've got them all; first, remove them from face_verts
+    MBRange temp_range = face_verts.subtract(temp_face_verts);
+    face_verts.swap(temp_range);
+  }
+  
+    // now compute vertex coordinates for each loop
+  Agsym_t *asym_pos = NULL, *asym_pin = NULL;
+  char tmp_pos[80];
+  int loop_num, num_loops = loops.size();
+  std::map<unsigned int, std::vector<MBEntityHandle> >::iterator mit;
+  if (my_debug) std::cout << "Loop points: " << std::endl;
+  for (mit = loops.begin(), loop_num = 0; mit != loops.end(); mit++, loop_num++) {
+
+      // if we have more than two loops, let graphviz compute the best position
+    if (num_loops > 2 && loop_num > 0) break;
+    
+      // now, go around the loop, assigning vertex positions; assume a 6-inch diameter circle
+      // (at 72 pts/inch)
+    unsigned int loop_size = mit->second.size();
+    double angle = (2.0*acos(-1.0))/((double)loop_size);
+    int xpos_pts, ypos_pts;
+    
+    for (unsigned int i = 0; i < loop_size; i++) {
+        // get the position
+      get_loop_vertex_pos(i, loop_num, num_loops, angle, xpos_pts, ypos_pts);
+
+        // now set that position on the node
+      GVEntity *this_gv;
+      MBErrorCode result = MBI->tag_get_data(gvEntityHandle, &(mit->second[i]), 1, &this_gv);
+      if (MB_SUCCESS != result) return result;
+      
+      int index = this_gv->get_index(dual_surf);
+      Agnode_t *this_gpt = this_gv->gvizPoints[index];
+      
+        // get the attribute handle for position and pin, and set them for the node
+      if (!asym_pos) {
+        asym_pos = agfindattr(surfDrawrings[dual_surf].gvizGraph->proto->n, "pos");
+        if (NULL == asym_pos) 
+          asym_pos = agnodeattr(surfDrawrings[dual_surf].gvizGraph, "pos", "");
+      }
+      assert(NULL != asym_pos);
+      sprintf(tmp_pos, "%d,%d", xpos_pts, ypos_pts);
+      agxset(this_gpt, asym_pos->index, tmp_pos);
+
+      if (!asym_pin) {
+        asym_pin = agfindattr(surfDrawrings[dual_surf].gvizGraph->proto->n, "pin");
+        if (NULL == asym_pin) 
+          asym_pin = agnodeattr(surfDrawrings[dual_surf].gvizGraph, "pin", "false");
+      }
+      assert(NULL != asym_pin);
+      agxset(this_gpt, asym_pin->index, "true");
+
+        // also try setting them in the data structure directly
+      ND_coord_i(this_gpt).x = xpos_pts;
+      ND_coord_i(this_gpt).y = ypos_pts;
+      ND_pinned(this_gpt) = true;
+
+      if (my_debug) std::cout << "Point " << MBI->id_from_handle(mit->second[i])
+                << ": x = " << xpos_pts << ", y = " << ypos_pts << std::endl;
+    }
+  }
+
+  return MB_SUCCESS;
+}
+
+void DrawDual::get_loop_vertex_pos(unsigned int vert_num, 
+                                   unsigned int loop_num, 
+                                   unsigned int num_loops, 
+                                   double angle, int &xpos_pts, int &ypos_pts) 
+{
+  double this_angle = vert_num * angle;
+  if (num_loops > 2 && loop_num > 0) {
+    xpos_pts = 0;
+    ypos_pts = 0;
+    return;
+  }
+
+  xpos_pts = (int) (((double)RAD_PTS) * cos(this_angle));
+  ypos_pts = (int) (((double)RAD_PTS) * sin(this_angle));
+
+  if (loop_num > 0) {
+    xpos_pts /= 6;
+    ypos_pts /= 6;
+  }
+
+  xpos_pts += CENT_X;
+  ypos_pts += CENT_Y;
+}
+
+MBErrorCode DrawDual::draw_labels(MBEntityHandle dual_surf, vtkPolyData *pd,
+                                  vtkPolyData *new_pd) 
+{
+    // get the renderer you'll be writing the text to
+  GraphWindows &this_gw = surfDrawrings[dual_surf];
+  vtkRenderer *ren = 
+    this_gw.qvtkWidget->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
+
+    // sheet id first
+  char set_name[CATEGORY_TAG_NAME_LENGTH];
+  int dum;
+  MBErrorCode result = vtkMOABUtils::mbImpl->tag_get_data(vtkMOABUtils::globalId_tag(),
+                                                          &dual_surf, 1, &dum);
+  if (MB_SUCCESS != result) return result;
+  sprintf(set_name, "%d\n", dum);
+
+    // create a text actor
+  vtkTextActor *text_actor = vtkTextActor::New();
+  vtkMOABUtils::propSetMap[text_actor] = dual_surf;
+  text_actor->SetInput(set_name);
+
+    // compute proper position for string
+  double LABEL_FRACTION = .90;
+  vtkCoordinate *this_pos = text_actor->GetPositionCoordinate();
+  this_pos->SetCoordinateSystemToWorld();
+  this_pos->SetValue(LABEL_FRACTION, LABEL_FRACTION, 0);
+  text_actor->GetTextProperty()->SetColor(1.0, 1.0, 1.0);
+  text_actor->GetTextProperty()->BoldOn();
+  ren->AddActor(text_actor);
+
+    // now vertex ids
+
+    // first, get new polydata's with interior and loop points
+  label_interior_verts(dual_surf, pd, ren);
+
+    // create other sheet labels and add to renderer
+  vtkLabeledDataMapper *os_labels = vtkLabeledDataMapper::New();
+  os_labels->SetInput(new_pd);
+  os_labels->SetLabelModeToLabelFieldData();
+  os_labels->SetLabelFormat("___/%g");
+  vtkActor2D *lda2 = vtkActor2D::New();
+  lda2->SetMapper(os_labels);
+  ren->AddActor(lda2);
+
+    // set label actor to be non-pickable
+  lda2->PickableOff();
+
+  return MB_SUCCESS;
+}
+
+void DrawDual::label_interior_verts(MBEntityHandle dual_surf,
+                                    vtkPolyData *pd,
+                                    vtkRenderer *ren) 
+{
+    // this function originally designed to filter out interior vertices,
+    // extract them and add data just to them; however, there isn't a filter
+    // in vtk to extract just vertices, so we label all the vertices here
+    // 
+    // get the cells and vertices on this dual surface
+  MBRange dcells, dverts, face_verts;
+
+  MBErrorCode result = get_dual_entities(dual_surf, &dcells, NULL, 
+                                         &dverts, &face_verts);
+  if (MB_SUCCESS != result) return;
+  
+//  MBRange temp_range = dverts.subtract(face_verts);
+//  dverts.swap(temp_range);
+
+    // get the GVentity for vertices, so we can find the vtk point on the sheet drawing
+  std::vector<GVEntity*> gv_ents;
+  gv_ents.reserve(dverts.size());
+  result = MBI->tag_get_data(gvEntityHandle, dverts, &gv_ents[0]);
+  if (MB_SUCCESS != result) {
+    std::cout << "Failed to get GV entities." << std::endl;
+    return;
+  }
+
+    // get the ids of the primal entities of these vertices
+  std::vector<int> vert_ids;
+  result = get_primal_ids(dverts, vert_ids);
+  if (MB_SUCCESS != result) {
+    std::cout << "Failed to get primal ids." << std::endl;
+    return;
+  }
+
+    // now put those ids in the id list, and the vtk point ids
+    // in an extract cells list
+  vtkIntArray *int_ids = vtkIntArray::New();
+  int_ids->SetName("VertexIds");
+  int_ids->SetNumberOfValues(dverts.size());
+  
+  for (int i = 0; i != dverts.size(); i++) {
+    int index = gv_ents[i]->get_index(dual_surf);
+    
+      // insert the primal entity id into a list for labeling
+    int_ids->InsertValue(gv_ents[i]->vtkEntityIds[index], vert_ids[i]);
+  }
+
+    // make a new pd and copy the points from the last one
+  vtkPolyData *label_pd = vtkPolyData::New();
+  label_pd->SetPoints(pd->GetPoints());
+  label_pd->GetPointData()->AddArray(int_ids);
+  label_pd->GetPointData()->SetActiveAttribute("VertexIds", 0);
+
+  vtkLabeledDataMapper *ldm = vtkLabeledDataMapper::New();
+
+  ldm->SetInput(label_pd);
+  ldm->SetLabelModeToLabelScalars();
+  ldm->SetLabelFormat("%g");
+  vtkActor2D *lda = vtkActor2D::New();
+  lda->SetMapper(ldm);
+  ren->AddActor(lda);
+
+    // set label actor to be non-pickable
+  lda->PickableOff();
+}
+
+MBEntityHandle DrawDual::other_sheet(const MBEntityHandle this_chord,
+                                     const MBEntityHandle dual_surf) 
+{
+  static std::vector<MBEntityHandle> chord_surfs;
+  MBEntityHandle val = dual_surf;
+  MBErrorCode result = MBI->get_parent_meshsets(this_chord, chord_surfs);
+  if (MB_SUCCESS == result && !chord_surfs.empty()) {
+    if (chord_surfs[0] != dual_surf) val = chord_surfs[0];
+    else if (chord_surfs.size() > 1 && chord_surfs[1] != dual_surf)
+      val = chord_surfs[1];
+    else if (chord_surfs[0] == dual_surf &&
+             (chord_surfs.size() == 1 || chord_surfs[1] == dual_surf))
+      val = 0;
+  }
+  chord_surfs.clear();
+  return val;
+}
+
+MBErrorCode DrawDual::get_primal_ids(const MBRange &ents, std::vector<int> &ids)
+{
+    // get the ids of these verts, equal to entity ids of their primal entities
+  static std::vector<MBEntityHandle> primals;
+  primals.reserve(ents.size());
+  ids.reserve(ents.size());
+  MBErrorCode result = MBI->tag_get_data(dualEntityTagHandle, ents, &primals[0]);
+  if (MB_SUCCESS != result) {
+    std::cout << "Couldn't get primal entities." << std::endl;
+    for (unsigned int i = 0; i < ents.size(); i++) ids[i] = 0;
+  }
+  else {
+    result = MBI->tag_get_data(vtkMOABUtils::globalId_tag(), &primals[0], ents.size(), &ids[0]);
+    if (MB_SUCCESS != result) {
+        // no global ids - use moab ids then
+      std::cout << "No global ids - using handle instead." << std::endl;
+      for (unsigned int i = 0; i < ents.size(); i++)
+        ids[i] = MBI->id_from_handle(primals[i]);
+      result = MB_SUCCESS;
+    }
+  }
+
+  return result;
+}
+
+MBErrorCode DrawDual::get_dual_entities(const MBEntityHandle dual_ent,
+                                        MBRange *dcells,
+                                        MBRange *dedges,
+                                        MBRange *dverts,
+                                        MBRange *dverts_loop)
+{
+  MBErrorCode result;
+
+  if (NULL != dcells) {
+    result = MBI->get_entities_by_type(dual_ent, MBPOLYGON, *dcells);
+    if (MB_SUCCESS != result) return result;
+  }
+  
+  if (NULL != dedges) {
+    if (NULL != dcells)
+      result = MBI->get_adjacencies(*dcells, 1, false, *dedges, MBInterface::UNION);
+    else 
+      result = MBI->get_entities_by_type(dual_ent, MBEDGE, *dedges);
+
+    if (MB_SUCCESS != result) return result;
+  }
+
+  if (NULL != dverts) {
+    if (NULL != dcells)
+      result = MBI->get_adjacencies(*dcells, 0, false, *dverts, MBInterface::UNION);
+    else if (NULL != dedges)
+      result = MBI->get_adjacencies(*dedges, 0, false, *dverts, MBInterface::UNION);
+
+    if (MB_SUCCESS != result) return result;
+  }
+
+  if (NULL != dverts_loop && NULL != dverts) {
+    static std::vector<MBEntityHandle> dual_ents;
+    dual_ents.reserve(dverts->size());
+    result = MBI->tag_get_data(dualEntityTagHandle, *dverts, &dual_ents[0]);
+    if (MB_SUCCESS != result) return result;
+    MBRange::iterator rit;
+    unsigned int i;
+    for (rit = dverts->begin(), i = 0; rit != dverts->end(); rit++, i++)
+      if (0 != dual_ents[i] && MBI->type_from_handle(dual_ents[i]) == MBQUAD)
+        dverts_loop->insert(*rit);
+  }
+  
+  return MB_SUCCESS;
+}
+
+    
