@@ -65,7 +65,8 @@ MB_LIB_SRCS = \
 	Tqdcfr.cpp \
 	WriteGMV.cpp \
 	WriteNCDF.cpp \
-	WriteSLAC.cpp
+	WriteSLAC.cpp \
+	WriteTemplate.cpp
 
 HDF_IO_SRCS = RangeTree.cpp ReadHDF5.cpp WriteHDF5.cpp
 ifeq ($(HDF5_FILE),yes)
