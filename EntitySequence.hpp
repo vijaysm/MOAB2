@@ -245,7 +245,8 @@ inline MBErrorCode VertexEntitySequence::get_coordinate_arrays(double*& x, doubl
 
 inline bool ElementEntitySequence::is_valid_entity(MBEntityHandle entity) const
 {
-  return !mFreeEntities[entity-mStartEntityHandle];
+  // Do a quick check first to see if there are any empty slots
+  return mNumAllocated == mNumEntities ? true : !mFreeEntities[entity-mStartEntityHandle];
 }
 
 inline MBErrorCode ElementEntitySequence::get_connectivity(MBEntityHandle entity,
@@ -255,7 +256,7 @@ inline MBErrorCode ElementEntitySequence::get_connectivity(MBEntityHandle entity
   num_vertices = mNodesPerElement;
   int index = entity - mStartEntityHandle;
   conn = mElements+index*mNodesPerElement;
-  return (is_valid_entity(entity) ? MB_SUCCESS : MB_FAILURE);
+  return MB_SUCCESS;
 }
 
 inline MBErrorCode ElementEntitySequence::get_connectivity(MBEntityHandle entity,
