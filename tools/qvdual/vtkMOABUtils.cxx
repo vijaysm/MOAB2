@@ -24,6 +24,7 @@
 #include "vtkGeometryFilter.h"
 #include "vtkLookupTable.h"
 #include "vtkSource.h"
+
 #include <assert.h>
 
 #include "DualTool.hpp"

@@ -36,6 +36,8 @@
 #include "vtkExtractGeometry.h"
 #include "vtkPlane.h"
 
+#include "assert.h"
+
 vtkCxxRevisionMacro(vtkMOABReader, "$Revision$");
 vtkStandardNewMacro(vtkMOABReader);
 

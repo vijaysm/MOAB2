@@ -7,6 +7,7 @@
 #include "vtkImplicitBoolean.h"
 #include "vtkMOABUtils.h"
 
+#include "assert.h"
 
 CropTool::CropTool()
 {

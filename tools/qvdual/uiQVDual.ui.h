@@ -23,6 +23,7 @@
 ** place of a destructor.
 *****************************************************************************/
 
+#include "assert.h"
 
 void uiQVDual::fileNew()
 {

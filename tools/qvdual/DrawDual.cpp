@@ -36,6 +36,7 @@
 #include "QVTKWidget.h"
 #include "vtkFloatArray.h"
 #include "vtkMaskFields.h"
+#include "assert.h"
 
 extern "C" 
 {
