@@ -177,7 +177,8 @@ int main(int argc, char* argv[])
     
   print_time(false, ttime3, utime, stime);
 
-  std::cout << "CUBIT: construct, e_to_v query, v_to_e query = " 
+  std::cout << "CUBIT: nelem, construct, e_to_v query, v_to_e query = " 
+            << nelem << ", " 
             << ttime1-ttime0 << ", " 
             << ttime2-ttime1 << ", " 
             << ttime3-ttime2 << " seconds" 

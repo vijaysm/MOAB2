@@ -209,7 +209,8 @@ void testB(TSTTM::Mesh &mesh,
   
   print_time(false, ttime3, utime, stime);
 
-  std::cout << "TSTT/MOAB ucd blocked: construct, e_to_v query, v_to_e query = " 
+  std::cout << "TSTT/MOAB ucd blocked: nelem, construct, e_to_v query, v_to_e query = " 
+            << nelem << ", "
             << ttime1-ttime0 << ", " 
             << ttime2-ttime1 << ", " 
             << ttime3-ttime2 << " seconds" 
@@ -319,7 +320,8 @@ void testC(TSTTM::Mesh &mesh,
   
   print_time(false, ttime3, utime, stime);
 
-  std::cout << "TSTT/MOAB ucd indiv: construct, e_to_v query, v_to_e query = " 
+  std::cout << "TSTT/MOAB ucd indiv: nelem, construct, e_to_v query, v_to_e query = " 
+            << nelem << ", "
             << ttime1-ttime0 << ", " 
             << ttime2-ttime1 << ", " 
             << ttime3-ttime2 << " seconds" 

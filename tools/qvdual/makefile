@@ -1,4 +1,4 @@
-QT_DIR = /usr/local/qt-x11-free-3.3.2
+QT_DIR = /usr/local/qt-x11-free-3.3.1
 
 VTK_LIB_DIR = /usr/local/ParaViewComplete/bin
 VTK_DIR = /usr/local/ParaViewComplete/VTK

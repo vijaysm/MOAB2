@@ -440,7 +440,8 @@ void testA(const int nelem, const double *coords)
   
   print_time(false, ttime3, utime, stime);
 
-  std::cout << "MOAB scd: construct, e_to_v query, v_to_e query = " 
+  std::cout << "MOAB scd: nelem, construct, e_to_v query, v_to_e query = " 
+            << nelem << ", "
             << ttime1-ttime0 << ", " 
             << ttime2-ttime1 << ", " 
             << ttime3-ttime2 << " seconds" 
@@ -490,7 +491,8 @@ void testB(const int nelem, const double *coords, const MBEntityHandle *connect)
   
   print_time(false, ttime3, utime, stime);
 
-  std::cout << "MOAB ucd blocked: construct, e_to_v query, v_to_e query = " 
+  std::cout << "MOAB ucd blocked: nelem, construct, e_to_v query, v_to_e query = " 
+            << nelem << ", "
             << ttime1-ttime0 << ", " 
             << ttime2-ttime1 << ", " 
             << ttime3-ttime2 << " seconds" 
@@ -555,7 +557,8 @@ void testC(const int nelem, const double *coords)
   
   print_time(false, ttime3, utime, stime);
 
-  std::cout << "MOAB ucd indiv: construct, e_to_v query, v_to_e query = " 
+  std::cout << "MOAB ucd indiv: nelem, construct, e_to_v query, v_to_e query = " 
+            << nelem << ", "
             << ttime1-ttime0 << ", " 
             << ttime2-ttime1 << ", " 
             << ttime3-ttime2 << " seconds" 

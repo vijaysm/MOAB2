@@ -47,9 +47,10 @@ const bool my_debug = true;
 
 const int SHEET_WINDOW_SIZE = 500;
 
-const int RAD_PTS = 3*72;
-const int CENT_X = 2*RAD_PTS;
-const int CENT_Y = 2*RAD_PTS;
+//const int RAD_PTS = 3*72;
+const int RAD_PTS = 7;
+const int CENT_X = 0;
+const int CENT_Y = 0;
 
 #define MBI vtkMOABUtils::mbImpl
 vtkCellPicker *DrawDual::dualPicker = NULL;
@@ -85,9 +86,7 @@ DrawDual::DrawDual()
   assert(MB_TAG_NOT_FOUND != result);
 
     // initialize dot
-  gvizGvc = gvContext();
-  const char *this_prog = "QVDual";
-  dotneato_initialize((GVC_t*)gvizGvc, 1, &(const_cast<char *>(this_prog)));
+  aginit();
 
   assert(gDrawDual == NULL);
   gDrawDual = this;
@@ -355,9 +354,9 @@ MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf)
   }
 //  neato_init_graph(this_gw.gvizGraph);
   neato_layout(this_gw.gvizGraph);
-  adjustNodes(this_gw.gvizGraph);
-  spline_edges(this_gw.gvizGraph);
-  dotneato_postprocess(this_gw.gvizGraph, neato_nodesize);
+//  adjustNodes(this_gw.gvizGraph);
+//  spline_edges(this_gw.gvizGraph);
+//  dotneato_postprocess(this_gw.gvizGraph, neato_nodesize);
   if (my_debug) {
     std::cout << "After layout, before vtk:" << std::endl;
     agwrite(this_gw.gvizGraph, stdout);
@@ -491,7 +490,7 @@ MBErrorCode DrawDual::draw_chords(MBEntityHandle dual_surf,
 //          double xpos = (double)(p.x - CENT_X);
 //          double ypos = (double)(p.y - CENT_Y);
 //          new_points->InsertNextPoint(xpos/(double)RAD_PTS, ypos/(double)RAD_PTS, 0.0);
-          new_points->InsertNextPoint(((double)p.x)/32000.0, ((double)p.y)/32000.0, 0.0);
+          new_points->InsertNextPoint((double)p.x, (double)p.y, 0.0);
           id_array->InsertNextValue(global_id);
         }
       }
@@ -724,7 +723,7 @@ MBErrorCode DrawDual::allocate_points(MBEntityHandle dual_surf,
       sprintf(dum_str, "%d, %d", p.x, p.y);
       agxset(gv_verts[i]->gvizPoints[index], asym_pos->index, dum_str);
       gv_verts[i]->vtkEntityIds[index] = 
-        points->InsertNextPoint(((double)p.x)*x_xform, ((double)p.y)*y_xform, 0.0);
+        points->InsertNextPoint((double)p.x, (double)p.y, 0.0);
     }
     vert_gv_map[*rit] = gv_verts[i];
   }
@@ -899,7 +898,7 @@ MBErrorCode DrawDual::construct_graphviz_data(MBEntityHandle dual_surf)
   GraphWindows &this_gw = surfDrawrings[dual_surf];
   if (NULL == this_gw.gvizGraph) {
       // allocate a new graph and create a new window
-    sprintf(dum_str, "%d", dual_surf);
+    sprintf(dum_str, "%d", MBI->id_from_handle(dual_surf));
     this_gw.gvizGraph = agopen(dum_str, AGRAPH);
     if (this_gw.gvizGraph == NULL) return MB_FAILURE;
   }
@@ -945,8 +944,8 @@ MBErrorCode DrawDual::construct_graphviz_data(MBEntityHandle dual_surf)
       Agnode_t *this_gvpt = agnode(this_gw.gvizGraph, dum_str);
       if (NULL == this_gvpt) return MB_FAILURE;
       this_gv->add_gvpoint(dual_surf, this_gvpt);
-      sprintf(dum_str, "%u, %u", 0, 0);
-      agxset(this_gvpt, asym_pos->index, dum_str);
+      sprintf(dum_str, "%u, %u", CENT_X, CENT_Y);
+        //agxset(this_gvpt, asym_pos->index, dum_str);
     }
   }
   
@@ -1088,7 +1087,7 @@ MBErrorCode DrawDual::compute_fixed_points(MBEntityHandle dual_surf, MBRange &dv
         // also try setting them in the data structure directly
       ND_coord_i(this_gpt).x = xpos_pts;
       ND_coord_i(this_gpt).y = ypos_pts;
-      ND_pinned(this_gpt) = true;
+        //ND_pinned(this_gpt) = true;
 
       if (my_debug) std::cout << "Point " << MBI->id_from_handle(mit->second[i])
                 << ": x = " << xpos_pts << ", y = " << ypos_pts << std::endl;
