@@ -42,10 +42,10 @@ private:
     MBEntityHandle dualSurfs[3];
     MBEntityHandle moabEntity;
     int pointPos[3][2];
-    int vtkEntityIds[3];
+    int vtkEntityIds[4]; // extra pt for edge mid-pts
     vtkActor *myActors[3];
-    Agnode_t *gvizPoints[3];
-    Agedge_t *gvizEdges[3];
+    Agnode_t *gvizPoints[5]; // extra 2 for edge mid-pts
+    Agedge_t *gvizEdges[4]; // extra 2 for extra edges
 
     GVEntity() 
       {
@@ -54,35 +54,20 @@ private:
         moabEntity = 0;
         pointPos[0][0] = pointPos[0][1] = pointPos[0][2] = 
           pointPos[1][0] = pointPos[1][1] = pointPos[1][2] = 0;
-        vtkEntityIds[0] = vtkEntityIds[1] = vtkEntityIds[2] = -1;
+        vtkEntityIds[0] = vtkEntityIds[1] = vtkEntityIds[2] = vtkEntityIds[3] = -1;
         myActors[0] = myActors[1] = myActors[2] = NULL;
-        gvizPoints[0] = gvizPoints[1] = gvizPoints[2] = NULL;
-        gvizEdges[0] = gvizEdges[1] = gvizEdges[2] = NULL;
+        gvizPoints[0] = gvizPoints[1] = gvizPoints[2] = gvizPoints[3] = gvizPoints[4] = NULL;
+        gvizEdges[0] = gvizEdges[1] = gvizEdges[2] = gvizEdges[3] = NULL;
       }
     int get_index(const MBEntityHandle dual_surf) 
       {
         if (dual_surf == dualSurfs[0]) return 0;
         else if (dual_surf == dualSurfs[1]) return 1;
         else if (dual_surf == dualSurfs[2]) return 2;
+        else if (dualSurfs[2] != 0) return -10;
+        else if (dualSurfs[1] != 0) return -3;
+        else if (dualSurfs[0] != 0) return -2;
         else return -1;
-      }
-    int add_gvpoint(const MBEntityHandle dual_surf, Agnode_t *this_pt) 
-      {
-        int surf_num = get_index(0);
-        if (surf_num != -1) {
-          dualSurfs[surf_num] = dual_surf;
-          gvizPoints[surf_num] = this_pt;
-        }
-        return surf_num;
-      }
-    int add_gvedge(const MBEntityHandle dual_surf, Agedge_t *this_ed) 
-      {
-        int surf_num = get_index(0);
-        if (surf_num != -1) {
-          dualSurfs[surf_num] = dual_surf;
-          gvizEdges[surf_num] = this_ed;
-        }
-        return surf_num;
       }
   };
 
@@ -103,7 +88,7 @@ private:
   
     //! given the loop vertices, compute and fix their points
   MBErrorCode compute_fixed_points(MBEntityHandle dual_surf, MBRange &dverts,
-                            MBRange &face_verts);
+                                   MBRange &face_verts, MBRange &loop_edges);
 
     //! compute the position on the loop, accounting for multiple loops
   void get_loop_vertex_pos(unsigned int vert_num, 
@@ -136,9 +121,9 @@ private:
                           vtkPolyData *pd,
                           vtkPolyData *new_pd);
 
-  MBErrorCode draw_chords(MBEntityHandle dual_surf,
-                          vtkPolyData *pd,
-                          vtkPolyData *&new_pd);
+  MBErrorCode label_other_sheets(MBEntityHandle dual_surf,
+                                 vtkPolyData *pd,
+                                 vtkPolyData *&new_pd);
   
   void label_interior_verts(MBEntityHandle dual_surf,
                             vtkPolyData *pd,
@@ -153,11 +138,13 @@ private:
                                 MBRange *dcells,
                                 MBRange *dedges = NULL,
                                 MBRange *dverts = NULL,
-                                MBRange *dverts_loop = NULL);
+                                MBRange *dverts_loop = NULL,
+                                MBRange *dedges_loop = NULL);
   
   MBErrorCode allocate_points(MBEntityHandle dual_surf,
                               vtkPolyData *pd,
                               MBRange &verts,
+                              MBRange &loop_edges,
                               std::map<MBEntityHandle, GVEntity*> &vert_gv_map);
   
   static void add_picker(vtkRenderer *this_ren);
@@ -198,6 +185,22 @@ private:
   MBErrorCode get_xform(MBEntityHandle dual_surf, Agsym_t *asym_pos, 
                         double &x_xform, double &y_xform);
   
+  MBErrorCode construct_graphviz_points(MBEntityHandle dual_surf, 
+                                        MBRange &dverts, 
+                                        Agsym_t *asym_pos,
+                                        GVEntity **dvert_gv);
+  
+  MBErrorCode construct_graphviz_edges(MBEntityHandle dual_surf, 
+                                       MBRange &dedges, 
+                                       MBRange &loop_verts, 
+                                       Agsym_t *asym_pos, 
+                                       GVEntity **dvert_gv, 
+                                       GVEntity **dege_gv);
+  
+  Agsym_t *get_asym(MBEntityHandle dual_surf, const int dim,
+                    const char *name, const char *def_val = NULL);
+  
+  MBErrorCode fixup_degen_bchords(MBEntityHandle dual_surf);
 };
 
 

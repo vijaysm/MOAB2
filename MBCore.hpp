@@ -209,6 +209,13 @@ public:
                                          std::vector<MBEntityHandle>& adj_entities,
                                          const int operation_type = MBInterface::INTERSECT);
 
+    virtual MBErrorCode get_adjacencies(const MBEntityHandle *from_entities,
+                                        const int num_entities,
+                                         const int to_dimension,
+                                         const bool create_if_missing,
+                                         MBRange &adj_entities,
+                                         const int operation_type = MBInterface::INTERSECT);
+
     virtual MBErrorCode get_adjacencies(const MBRange &from_entities,
                                          const int to_dimension,
                                          const bool create_if_missing,

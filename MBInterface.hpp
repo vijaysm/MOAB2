@@ -452,6 +452,17 @@ public:
                                       std::vector<MBEntityHandle>& adj_entities,
                                       const int operation_type = MBInterface::INTERSECT) = 0;
 
+    //! Get the adjacencies associated with a vector of entities to entities of a specfied dimension.
+    /** Identical to vector-based get_adjacencies function, except results are returned in a
+        range instead of a vector.
+    */
+  virtual MBErrorCode get_adjacencies(const MBEntityHandle *from_entities,
+                                      const int num_entities,
+                                      const int to_dimension,
+                                      const bool create_if_missing,
+                                      MBRange &adj_entities,
+                                      const int operation_type = MBInterface::INTERSECT) = 0;
+
     //! Get the adjacencies associated with a range of entities to entities of a specfied dimension.
     /** Identical to vector-based get_adjacencies function, except "from" entities specified in a
         range instead of a vector.

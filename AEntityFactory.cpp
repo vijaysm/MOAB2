@@ -596,8 +596,10 @@ MBErrorCode AEntityFactory::get_adjacencies(const MBEntityHandle entity,
 
   if (ent_type == MBMAXTYPE) return MB_TYPE_OUT_OF_RANGE;
   
-  if ((unsigned int)MBCN::Dimension(ent_type) == to_dimension)
+  if ((unsigned int)MBCN::Dimension(ent_type) == to_dimension) {
+    adjacent_entities.push_back(entity);
     return MB_SUCCESS;
+  }
 
   if(mVertElemAdj == false && to_dimension != 0) {
     MBErrorCode result = create_vert_elem_adjacencies();

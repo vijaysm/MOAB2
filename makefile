@@ -237,7 +237,7 @@ mhdf/%: force_rebuild
 # build the dependencies
 depend : 
 	$(PREFIX) ${MAKEDEPEND} -DIS_BUILDING_MB ${NETCDF_INCLUDE} ${PLATFORM_INCLUDE} $(MHDF_FLAGS) ${MB_LIB_SRCS} MBTest.cpp > make.dependencies
-	$(PREFIX) ${MAKEDEPEND} -DIS_BUILDING_MB ${NETCDF_INCLUDE} ${PLATFORM_INCLUDE} -DMB_STATIC MBTest.cpp >> make.dependencies
+	$(PREFIX) ${MAKEDEPEND} -DIS_BUILDING_MB ${NETCDF_INCLUDE} ${PLATFORM_INCLUDE} MBTest.cpp >> make.dependencies
 	$(PREFIX) ${MAKEDEPEND} -DIS_BUILDING_MB -DTEST ${PLATFORM_INCLUDE} HomXform.cpp >> make.dependencies
 	$(PREFIX) ${MAKEDEPEND} -DIS_BUILDING_MB ${PLATFORM_INCLUDE} scdseq_test.cpp >> make.dependencies
 

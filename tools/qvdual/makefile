@@ -11,6 +11,7 @@ GRAPHVIZ_INCLUDE_DIR = /usr/local/include/graphviz
 NETCDF_DIR = /cubit/netcdf
 
 MOAB_DIR = ../..
+include $(MOAB_DIR)/MB.common
 
 X11_LIB_DIR = /usr/X11R6/lib 
 
@@ -27,16 +28,19 @@ QVTKWidgetPlugin_SRC_OBJS = \
 	QVTKWidgetPlugin.o \
 	moc_QVTKWidget.o
 
-QVDual_SRC_OBJS = \
-	main.o \
-	CropTool.o \
-	DrawDual.o \
-	uiQVDual.o \
-	moc_uiQVDual.o \
-	CropToolpopup.o \
-	moc_CropToolpopup.o \
-	vtkMOABUtils.o \
-	vtkMOABReader.o
+QVDual_SRC = \
+	main.cpp \
+	CropTool.cpp \
+	DrawDual.cpp \
+	uiQVDual.cxx \
+	moc_uiQVDual.cxx \
+	CropToolpopup.cxx \
+	moc_CropToolpopup.cxx \
+	vtkMOABUtils.cxx \
+	vtkMOABReader.cxx
+
+QVDual_DUM_OBJS = ${QVDual_SRC:.cxx=.o}
+QVDual_SRC_OBJS = ${QVDual_DUM_OBJS:.cpp=.o}
 
 GENERATED_QVDUAL_QT_FILES =  \
 	uiQVDual.h \
@@ -62,6 +66,9 @@ QVDual: $(QVDual_SRC_OBJS) libQVTK.a
 
 clean:
 	rm -rf QVDual libQVTK.a libQVTKWidgetPlugin.so ${GENERATED_QVDUAL_QT_FILES} ${GENERATED_QVTK_QT_FILES} 
+
+depend : 
+	$(PREFIX) ${MAKEDEPEND} ${CXXFLAGS} ${QVDual_SRC}  > make.dependencies
 
 .SUFFIXES: .o .cpp .cxx
 uiQVDual.h: uiQVDual.ui
@@ -111,3 +118,5 @@ QVTKWidgetPlugin.o: QVTKWidgetPlugin.cxx
 
 .cpp.o:
 	${CXX} -c ${CXXFLAGS} $<
+
+include make.dependencies

@@ -790,6 +790,19 @@ MBErrorCode MBCore::get_adjacencies(const MBEntityHandle *from_entities,
   return MB_SUCCESS;
 }
 
+MBErrorCode MBCore::get_adjacencies(const MBEntityHandle *from_entities,
+                                    const int num_entities,
+                                    const int to_dimension,
+                                      const bool create_if_missing,
+                                      MBRange &adj_entities,
+                                      const int operation_type)
+{
+  MBRange tmp_from_entities;
+  std::copy(from_entities, from_entities+num_entities, mb_range_inserter(tmp_from_entities));
+  return get_adjacencies(tmp_from_entities, to_dimension, create_if_missing, 
+                         adj_entities, operation_type);
+}
+  
 MBErrorCode MBCore::get_adjacencies(const MBRange &from_entities,
                                       const int to_dimension,
                                       const bool create_if_missing,
