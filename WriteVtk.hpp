@@ -70,35 +70,10 @@ public:
 //! initialize_file to initialize the file header for increased speed
   struct MaterialSetData
   {
-    int id;
     int number_elements;
     int number_nodes_per_element;
-    int number_attributes;
-    ExoIIElementType element_type;
     MBEntityType moab_type;
     MBRange *elements;
-  };
-
-//! struct used to hold data for each nodeset to be output; used by
-//! initialize_file to initialize the file header for increased speed
-  struct DirichletSetData
-  {
-    int id;
-    int number_nodes;
-    std::vector< MBEntityHandle > nodes;
-    std::vector< double > node_dist_factors;
-  
-  };
-
-//! struct used to hold data for each sideset to be output; used by
-//! initialize_file to initialize the file header for increased speed
-  struct NeumannSetData
-  {
-    int id;
-    int number_elements;
-    std::vector<MBEntityHandle> elements;
-    std::vector<int> side_numbers;
-    MBEntityHandle mesh_set_handle;
   };
 
 
@@ -115,17 +90,13 @@ protected:
   class MeshInfo
   {
   public:
-    unsigned int num_dim;
     unsigned int num_nodes;
     unsigned int num_elements;
     unsigned int num_matsets;
-    unsigned int num_dirsets;
-    unsigned int num_neusets;
     MBRange nodes;
 
     MeshInfo() 
-        : num_dim(0), num_nodes(0), num_elements(0), num_matsets(0), 
-          num_dirsets(0), num_neusets(0)
+        : num_nodes(0), num_elements(0), num_matsets(0)
       {}
     
   };
@@ -148,8 +119,6 @@ private:
   //! Cached tags for reading.  Note that all these tags are defined when the
   //! core is initialized.
   MBTag mMaterialSetTag;
-  MBTag mDirichletSetTag;
-  MBTag mNeumannSetTag;
   MBTag mHasMidNodesTag;
   MBTag mGlobalIdTag;
   MBTag mMatSetIdTag;
@@ -158,20 +127,17 @@ private:
 
   MBErrorCode gather_mesh_information(MeshInfo &mesh_info,
                                       std::vector<MaterialSetData> &matset_info,
-                                      std::vector<NeumannSetData> &neuset_info,
-                                      std::vector<DirichletSetData> &dirset_info,
-                                      std::vector<MBEntityHandle> &matsets,
-                                      std::vector<MBEntityHandle> &neusets,
-                                      std::vector<MBEntityHandle> &dirsets);
+                                      std::vector<MBEntityHandle> &matsets );
+
+  MBErrorCode gather_mesh_information(std::vector<MaterialSetData> &matset_info,
+                                      MBEntityHandle matset );
   
   MBErrorCode initialize_file(MeshInfo &mesh_info);
 
-  MBErrorCode write_nodes(const int num_nodes, const MBRange& nodes, 
-                          const int dimension );
+  MBErrorCode write_nodes(const MBRange& nodes);
 
   MBErrorCode write_matsets(MeshInfo &mesh_info, 
-                            std::vector<MaterialSetData> &matset_data,
-                            std::vector<NeumannSetData> &neuset_data);
+                            std::vector<MaterialSetData> &matset_data);
   
   void reset_matset(std::vector<MaterialSetData> &matset_info);
   

@@ -62,18 +62,7 @@ WriteVtk::WriteVtk(MBInterface *impl)
   int dum_val = 0;
   MBErrorCode result = impl->tag_get_handle(MATERIAL_SET_TAG_NAME,  mMaterialSetTag);
   if (MB_TAG_NOT_FOUND == result)
-    result = impl->tag_create(MATERIAL_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mMaterialSetTag,
-                              &dum_val);
-  
-  result = impl->tag_get_handle(DIRICHLET_SET_TAG_NAME, mDirichletSetTag);
-  if (MB_TAG_NOT_FOUND == result)
-    result = impl->tag_create(DIRICHLET_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mDirichletSetTag,
-                              &dum_val);
-  
-  result = impl->tag_get_handle(NEUMANN_SET_TAG_NAME,   mNeumannSetTag);
-  if (MB_TAG_NOT_FOUND == result)
-    result = impl->tag_create(NEUMANN_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mNeumannSetTag,
-                              &dum_val);
+    mMaterialSetTag = 0;
   
   result = impl->tag_get_handle(HAS_MID_NODES_TAG_NAME, mHasMidNodesTag);
   if (MB_TAG_NOT_FOUND == result) {
@@ -125,52 +114,30 @@ MBErrorCode WriteVtk::write_file(const char *file_name,
                                  const int num_sets,
                                  std::vector<std::string>&, int )
 {
-  assert(0 != mMaterialSetTag &&
-         0 != mNeumannSetTag &&
-         0 != mDirichletSetTag);
-
-  std::vector<MBEntityHandle> matsets, dirsets, neusets, entities;
+  std::vector<MBEntityHandle> matsets, entities;
 
     // separate into material sets, dirichlet sets, neumann sets
 
   if (num_sets == 0) {
-      // default to all defined sets
+      // default to all material sets
     MBRange this_range;
-    mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &mMaterialSetTag, NULL, 1, this_range);
-    std::copy(this_range.begin(), this_range.end(), std::back_inserter(matsets));
-    this_range.clear();
-    mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &mDirichletSetTag, NULL, 1, this_range);
-    std::copy(this_range.begin(), this_range.end(), std::back_inserter(dirsets));
-    this_range.clear();
-    mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &mNeumannSetTag, NULL, 1, this_range);
-    std::copy(this_range.begin(), this_range.end(), std::back_inserter(neusets));
+    if (mMaterialSetTag) {
+      mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &mMaterialSetTag, NULL, 1, this_range);
+      std::copy(this_range.begin(), this_range.end(), std::back_inserter(matsets));
+      this_range.clear();
+    }
+      // If no material sets, will do entire mesh
   }
   else {
-    int dummy;
-    for (const MBEntityHandle *iter = ent_handles; iter < ent_handles+num_sets; iter++) 
-    {
-      if (MB_SUCCESS == mbImpl->tag_get_data(mMaterialSetTag, &(*iter), 1, &dummy))
-        matsets.push_back(*iter);
-      else if (MB_SUCCESS == mbImpl->tag_get_data(mDirichletSetTag, &(*iter), 1, &dummy))
-        dirsets.push_back(*iter);
-      else if (MB_SUCCESS == mbImpl->tag_get_data(mNeumannSetTag, &(*iter), 1, &dummy))
-        neusets.push_back(*iter);
-    }
+    std::copy(ent_handles, ent_handles+num_sets, std::back_inserter(matsets));
   }
-  
-    // if there is nothing to write, write the whole mesh
-  if (!dirsets.empty() || !neusets.empty())
-    mWriteIface->report_error("Warning, can't write dirichlet nor neumann sets to this format.");
 
   std::vector<WriteVtk::MaterialSetData> matset_info;
-  std::vector<WriteVtk::DirichletSetData> dirset_info;
-  std::vector<WriteVtk::NeumannSetData> neuset_info;
 
   MeshInfo mesh_info;
   
   matset_info.clear();
-  if(gather_mesh_information(mesh_info, matset_info, neuset_info, dirset_info,
-                             matsets, neusets, dirsets) != MB_SUCCESS)
+  if(gather_mesh_information(mesh_info, matset_info, matsets) != MB_SUCCESS)
   {
     reset_matset(matset_info);
     return MB_FAILURE;
@@ -190,13 +157,13 @@ MBErrorCode WriteVtk::write_file(const char *file_name,
     return MB_FAILURE;
   }
 
-  if( write_nodes(mesh_info.num_nodes, mesh_info.nodes, mesh_info.num_dim) != MB_SUCCESS )
+  if( write_nodes(mesh_info.nodes) != MB_SUCCESS )
   {
     reset_matset(matset_info);
     return MB_FAILURE;
   }
 
-  if( write_matsets(mesh_info, matset_info, neuset_info) )
+  if( write_matsets(mesh_info, matset_info) )
   {
     reset_matset(matset_info);
     return MB_FAILURE;
@@ -210,174 +177,87 @@ MBErrorCode WriteVtk::write_file(const char *file_name,
 
 MBErrorCode WriteVtk::gather_mesh_information(MeshInfo &mesh_info,
                                               std::vector<WriteVtk::MaterialSetData> &matset_info,
-                                              std::vector<WriteVtk::NeumannSetData> &,
-                                              std::vector<WriteVtk::DirichletSetData> &,
-                                              std::vector<MBEntityHandle> &matsets,
-                                              std::vector<MBEntityHandle> &,
-                                              std::vector<MBEntityHandle> &)
+                                              std::vector<MBEntityHandle> &matsets )
 {
-
-  std::vector<MBEntityHandle>::iterator vector_iter, end_vector_iter;
-
-  mesh_info.num_nodes = 0;
-  mesh_info.num_elements = 0;
-  mesh_info.num_matsets = 0;
+  MBErrorCode rval;
   
-  int id = 0;
-
-  vector_iter= matsets.begin();
-  end_vector_iter = matsets.end();
-
   // clean out the bits for the element mark
   mbImpl->tag_delete(mEntityMark);
   mbImpl->tag_create("WriteVtk element mark", 1, MB_TAG_BIT, mEntityMark, NULL);
 
-  int highest_dimension_of_element_matsets = 0;
-
-  if (!matsets.empty()) {
-    for(vector_iter = matsets.begin(); vector_iter != matsets.end(); vector_iter++)
-    {
-       
-      WriteVtk::MaterialSetData matset_data;
-      matset_data.elements = new MBRange;
-
-        // get all Entity Handles in the mesh set
-      MBRange dummy_range;
-      mbImpl->get_entities_by_handle(*vector_iter, dummy_range, true );
-
-        // find the dimension of the last entity in this range
-      MBRange::iterator entity_iter = dummy_range.end();
-      entity_iter = dummy_range.end();
-      entity_iter--;
-      int this_dim = MBCN::Dimension(TYPE_FROM_HANDLE(*entity_iter));
-      entity_iter = dummy_range.begin();
-      while (entity_iter != dummy_range.end() &&
-             MBCN::Dimension(TYPE_FROM_HANDLE(*entity_iter)) != this_dim)
-        entity_iter++;
-    
-      if (entity_iter != dummy_range.end())
-        std::copy(entity_iter, dummy_range.end(), mb_range_inserter(*(matset_data.elements)));
-
-      assert(matset_data.elements->begin() == matset_data.elements->end() ||
-             MBCN::Dimension(TYPE_FROM_HANDLE(*(matset_data.elements->begin()))) == this_dim);
-    
-        // get the matset's id
-      if(mbImpl->tag_get_data(mMaterialSetTag, &(*vector_iter), 1, &id) != MB_SUCCESS ) {
-        mWriteIface->report_error("Couldn't get matset id from a tag for an element matset.");
-        return MB_FAILURE;
-      }
-    
-      matset_data.id = id; 
- 
-        // iterate through all the elements in the meshset
-      MBRange::iterator elem_range_iter, end_elem_range_iter;
-      elem_range_iter = matset_data.elements->begin();
-      end_elem_range_iter = matset_data.elements->end();
-
-        // get the entity type for this matset, verifying that it's the same for all elements
-        // THIS ASSUMES HANDLES SORT BY TYPE!!!
-      MBEntityType entity_type = TYPE_FROM_HANDLE(*elem_range_iter);
-      end_elem_range_iter--;
-      if (entity_type != TYPE_FROM_HANDLE(*(end_elem_range_iter++))) {
-        mWriteIface->report_error("Entities in matset %i not of common type", id);
-        continue;
-      }
-
-      matset_info.push_back( matset_data );
-    }
-    
+  if (matsets.empty())
+  {
+      // if no input sets, do entire mesh (root set)
+    rval = gather_mesh_information(matset_info, 0);
+    if (MB_SUCCESS != rval)
+      return MB_FAILURE;
   }
-  else {
-      // no matsets - export the whole mesh
-    int this_dim;
-    mbImpl->get_dimension(this_dim);
-    for(MBEntityType this_type = MBCN::TypeDimensionMap[this_dim].first;
-        this_type <= MBCN::TypeDimensionMap[this_dim].second; this_type++)
+  else
+  {
+      // get information for each set
+    for (std::vector<MBEntityHandle>::const_iterator iter = matsets.begin();
+         iter != matsets.end(); ++iter)
     {
-       
-      WriteVtk::MaterialSetData matset_data;
-      matset_data.elements = new MBRange;
-
-        // get all Entity Handles in the mesh set
-      MBRange dummy_range;
-      mbImpl->get_entities_by_type(0, this_type, *(matset_data.elements));
-
-      matset_data.id = 0; 
-      matset_data.number_attributes = 0;
- 
-      matset_info.push_back( matset_data );
+      rval = gather_mesh_information(matset_info, *iter);
+      if (MB_SUCCESS != rval)
+        return MB_FAILURE;
     }
   }
   
-    // now loop back over matsets, doing common stuff
-  for (std::vector<WriteVtk::MaterialSetData>::iterator vit = matset_info.begin();
-       vit != matset_info.end(); vit++) {
-
-    (*vit).number_attributes = 0;
-
-    (*vit).moab_type = mbImpl->type_from_handle(*((*vit).elements->begin()));
-    if (MBMAXTYPE == (*vit).moab_type) return MB_FAILURE;
-    
-    int dimension = MBCN::Dimension((*vit).moab_type);
-
-    if( dimension > highest_dimension_of_element_matsets )
-      highest_dimension_of_element_matsets = dimension;
-
-    std::vector<MBEntityHandle> tmp_conn;
-    mbImpl->get_connectivity(&(*((*vit).elements->begin())), 1, tmp_conn);
-    (*vit).element_type = 
-      ExoIIUtil::get_element_type_from_num_verts(tmp_conn.size(), (*vit).moab_type, dimension);
-    
-    if ((*vit).element_type == EXOII_MAX_ELEM_TYPE) {
-      mWriteIface->report_error("Element type in matset %i didn't get set correctly", (*vit).id);
-      return MB_FAILURE;
-    }
-    
-    (*vit).number_nodes_per_element = ExoIIUtil::VerticesPerElement[(*vit).element_type];
-
-      // number of nodes for this matset
-    (*vit).number_elements = (*vit).elements->size();
-
-      // total number of elements
-    mesh_info.num_elements += (*vit).number_elements;
-
-      // get the nodes for the elements
-    mWriteIface->gather_nodes_from_elements(*((*vit).elements), mEntityMark, mesh_info.nodes);
-  }
- 
+    // Now get nodes from elements, count total elements, etc.
+  mesh_info.num_elements = 0;
   mesh_info.num_matsets = matset_info.size();
-
-
-  //if user hasn't entered dimension, we figure it out
-  if( mesh_info.num_dim == 0 )
+  for (std::vector<WriteVtk::MaterialSetData>::iterator iter = matset_info.begin();
+       iter != matset_info.end(); ++iter)
   {
-    //never want 1 or zero dimensions
-    if( highest_dimension_of_element_matsets < 2 )
-      mesh_info.num_dim = 3;
-    else
-      mesh_info.num_dim = highest_dimension_of_element_matsets;
+    mesh_info.num_elements += iter->number_elements;
+    rval = mWriteIface->gather_nodes_from_elements( *(iter->elements), mEntityMark, mesh_info.nodes);
+    if (MB_SUCCESS != rval)
+      return rval;
   }
+  mesh_info.num_nodes = mesh_info.nodes.size();
 
-  if (mesh_info.num_dim < 3) {
-      // check against mesh interface value
-    int tmp_dim;
-    MBErrorCode result = mbImpl->get_dimension(tmp_dim);
-    if (MB_SUCCESS == result && mesh_info.num_dim < (unsigned int) tmp_dim)
-      mesh_info.num_dim = tmp_dim;
-  }
-
-  MBRange::iterator range_iter, end_range_iter;
-  range_iter = mesh_info.nodes.begin();
-  end_range_iter = mesh_info.nodes.end();
-
-  mesh_info.num_nodes = mesh_info.nodes.size(); 
-
-    // (no neusets or dirsets in this format)
   return MB_SUCCESS;
 }
 
-MBErrorCode WriteVtk::write_nodes(const int num_nodes, const MBRange& nodes, const int dimension)
+MBErrorCode WriteVtk::gather_mesh_information(std::vector<WriteVtk::MaterialSetData> &matset_info,
+                                              MBEntityHandle matset )
 {
+    // Get elements of highest dimension in entity set
+  MBRange elements;
+  for (int dim = 3; dim > 0 && elements.empty(); --dim)
+    mbImpl->get_entities_by_dimension( matset, dim, elements, true );
+  
+    // Now subdivide the range by element type
+  MBRange::iterator iter, last;
+  for (iter = elements.begin(); iter != elements.end(); iter = last)
+  {
+      // Find beginning of next element type in range
+    int err;
+    MBEntityType type = TYPE_FROM_HANDLE( *iter );
+    MBEntityHandle handle = CREATE_HANDLE( type+1, 0, err );
+    last = elements.lower_bound( iter, elements.end(), handle );
+    
+      // Create MaterialSetData containing the elements
+    WriteVtk::MaterialSetData matset_data;
+    matset_data.elements = new MBRange;
+    matset_data.elements->merge( iter, last );
+    matset_data.number_elements = matset_data.elements->size();
+    matset_data.moab_type = type;
+    matset_data.number_nodes_per_element = MBCN::VerticesPerEntity( type );
+    
+      // Add to list
+    matset_info.push_back( matset_data );
+  }
+  
+  return MB_SUCCESS;
+}
+
+
+MBErrorCode WriteVtk::write_nodes(const MBRange& nodes)
+{
+  const int num_nodes = nodes.size();
+  
   //see if should transform coordinates
   MBErrorCode result;
   MBTag trans_tag;
@@ -386,14 +266,15 @@ MBErrorCode WriteVtk::write_nodes(const int num_nodes, const MBRange& nodes, con
   if( result == MB_TAG_NOT_FOUND )
     transform_needed = false;
 
-  int num_coords_to_fill = transform_needed ? 3 : dimension;
+  int dimension;
+  mbImpl->get_dimension(dimension);
 
   std::vector<double*> coord_arrays(3);
   coord_arrays[0] = new double[num_nodes];
   coord_arrays[1] = new double[num_nodes];
   coord_arrays[2] = NULL;
 
-  if( num_coords_to_fill == 3 ) 
+  if( transform_needed || dimension == 3 ) 
     coord_arrays[2] = new double[num_nodes];
  
   result = mWriteIface->get_node_arrays(dimension, num_nodes, nodes, 
@@ -473,8 +354,7 @@ MBErrorCode WriteVtk::write_nodes(const int num_nodes, const MBRange& nodes, con
 }
 
 MBErrorCode WriteVtk::write_matsets(MeshInfo &,
-                                    std::vector<WriteVtk::MaterialSetData> &matset_data,
-                                    std::vector<WriteVtk::NeumannSetData> &)
+                   std::vector<WriteVtk::MaterialSetData> &matset_data )
 {
   unsigned int i;
   std::vector<int> connect;
