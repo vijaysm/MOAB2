@@ -66,14 +66,19 @@ MBErrorCode MeshTopoUtil::get_average_position(const MBEntityHandle entity,
     //! given a mesh edge, find the ordered faces around the edge; if any
     //! of the faces is in only one region, on_boundary is returned true
 MBErrorCode MeshTopoUtil::star_faces(const MBEntityHandle edge,
-                                     std::vector<MBEntityHandle> &rad_faces,
+                                     std::vector<MBEntityHandle> &star_faces,
                                      bool &bdy_edge,
-                                     std::vector<MBEntityHandle> *rad_regions)
+                                     std::vector<MBEntityHandle> *star_regions)
 {
-  MBRange all_faces;
+  MBRange all_faces, untreated_regions;
   MBRange in_range, out_range;
-  in_range.insert(edge);
+
+    // get faces & regions adjacent to the edge
+  in_range.insert(this_edge);
   MBErrorCode result = mbImpl->get_adjacencies(in_range, 2, false, all_faces);
+  if (MB_SUCCESS != result) return result;
+
+  result = mbImpl->get_adjacencies(in_range, 3, false, untreated_regions);
   if (MB_SUCCESS != result) return result;
 
     // if any of the faces have a single connected region, choose that,
@@ -92,7 +97,7 @@ MBErrorCode MeshTopoUtil::star_faces(const MBEntityHandle edge,
       all_faces.erase(*rit);
       last_face = *rit;
       first_face = last_face;
-      rad_faces.push_back(first_face);
+      star_faces.push_back(first_face);
       break;
     }
   }
@@ -103,7 +108,6 @@ MBErrorCode MeshTopoUtil::star_faces(const MBEntityHandle edge,
     last_face = *all_faces.rbegin();
   
   MBRange regions;
-  MBEntityHandle last_region;
 
   while (!all_faces.empty()) {
       // during each iteration:
@@ -114,60 +118,43 @@ MBErrorCode MeshTopoUtil::star_faces(const MBEntityHandle edge,
       // - add the region to the region list
       // - proceed to next iteration
 
-      // get 3d elements common to face and edge
+      // get 3d elements common to face and edge and in untreated range
     in_range.clear();
-    in_range.insert(edge);
+    in_range.insert(this_edge);
     in_range.insert(last_face);
-    out_range.clear();
+    out_range = untreated_regions;
     result = mbImpl->get_adjacencies(in_range, 3, false, out_range, 
                                      MBInterface::INTERSECT);
     if (MB_SUCCESS != result) return result;
 
-      // find one which hasn't been treated yet
-    last_region = 0;
-    for (rit = out_range.begin(); rit != out_range.end(); rit++) {
-      if (regions.find(*rit) == regions.end()) {
-        last_region = *rit;
-        break;
-      }
-    }
-
       // if we got here and we didn't find an untreated region
-    if (0 == last_region) return MB_FAILURE;
+    if (out_range.empty()) return MB_FAILURE;
+    
+      // take this region out of the list
+    untreated_regions.erase(*out_range.begin());
+    if (NULL != star_regions) star_regions->push_back(*out_range.begin());
     
       // get the other face sharing the edge
-    in_range.clear(); out_range.clear();
-    in_range.insert(edge);
-    in_range.insert(last_region);
+    in_range.clear(); 
+    in_range.insert(this_edge);
+    in_range.insert(*out_range.begin());
+    out_range.clear();
     result = mbImpl->get_adjacencies(in_range, 2, false, out_range);
     if (MB_SUCCESS != result) return result;
     else if (out_range.size() != 2) return MB_FAILURE;
 
-    rit = out_range.begin();
-    if (last_face != *rit)
-      last_face = *rit;
-    else if (last_face != *(++rit))
-      last_face = *rit;
-    else return MB_FAILURE;
-
+    last_face = (last_face != *out_range.begin() ? 
+                 *out_range.begin() : *out_range.rbegin());
+    
       // remove the face from all_faces and add region to regions
     all_faces.erase(last_face);
-    regions.insert(last_region);
-
-      // get dual vertex for the region & put on list
-    rad_faces.push_back(last_face);
-    if (NULL != rad_regions) rad_regions->push_back(last_region);
+    star_faces.push_back(last_face);
   }
 
     // if it's a closed loop, we got all the vertices; if not, we need 2 more;
     // closed is indicated by first_face being zero
-  if (0 != first_face) {
-    bdy_edge = true;
-  }
-  else {
-    bdy_edge = false;
-  }
-  
+  on_boundary = !(0 == first_face);
+
   return MB_SUCCESS;
 }
 
