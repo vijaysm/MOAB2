@@ -233,30 +233,28 @@ mhdf/%: force_rebuild
 
 # build the dependencies
 depend : 
-	@ ${MAKEDEPEND} -DIS_BUILDING_MB ${NETCDF_INCLUDE} ${PLATFORM_INCLUDE} ${MB_LIB_SRCS} MBTest.cpp > make.dependencies
-	@ ${MAKEDEPEND} -DIS_BUILDING_MB ${NETCDF_INCLUDE} ${PLATFORM_INCLUDE} ${MB_LIB_SRCS} MBTest.cpp >> make.dependencies
-	@ ${MAKEDEPEND} -DIS_BUILDING_MB ${NETCDF_INCLUDE} ${PLATFORM_INCLUDE} -DMB_STATIC MBTest.cpp >> make.dependencies
-	@ ${MAKEDEPEND} -DIS_BUILDING_MB -DTEST ${PLATFORM_INCLUDE} HomXform.cpp >> make.dependencies
-	@ ${MAKEDEPEND} -DIS_BUILDING_MB ${PLATFORM_INCLUDE} scdseq_test.cpp >> make.dependencies
-	@ ${MAKEDEPEND} -DIS_BUILDING_MB ${PLATFORM_INCLUDE} $(HDF_IO_SRCS) >> make.dependencies
+	$(PREFIX) ${MAKEDEPEND} -DIS_BUILDING_MB ${NETCDF_INCLUDE} ${PLATFORM_INCLUDE} $(MHDF_FLAGS) ${MB_LIB_SRCS} MBTest.cpp > make.dependencies
+	$(PREFIX) ${MAKEDEPEND} -DIS_BUILDING_MB ${NETCDF_INCLUDE} ${PLATFORM_INCLUDE} -DMB_STATIC MBTest.cpp >> make.dependencies
+	$(PREFIX) ${MAKEDEPEND} -DIS_BUILDING_MB -DTEST ${PLATFORM_INCLUDE} HomXform.cpp >> make.dependencies
+	$(PREFIX) ${MAKEDEPEND} -DIS_BUILDING_MB ${PLATFORM_INCLUDE} scdseq_test.cpp >> make.dependencies
 
 # clean up intermediate files
 clean_all : clean
-	@ cd TSTT; ${MAKE} clean_all
+	$(PREFIX) cd TSTT; ${MAKE} clean_all
 
 clean : clean_pcom clean_xpcom
-	@ rm -f *.o *.o_test
-	@ rm -rf ${TEMPLATE_DIR}
-	@ rm -f moab_test test_exo test_tag_server test_ent_seq 
-	@ rm -f *.a *.so
+	$(PREFIX) rm -f *.o *.o_test
+	$(PREFIX) rm -rf ${TEMPLATE_DIR}
+	$(PREFIX) rm -f moab_test test_exo test_tag_server test_ent_seq 
+	$(PREFIX) rm -f *.a *.so
 
 clean_xpcom : 
-	@ rm -f *.xpcom.o
-	@ rm -f moab_test.xpcom libMOABxpcom.so 
+	$(PREFIX) rm -f *.xpcom.o
+	$(PREFIX) rm -f moab_test.xpcom libMOABxpcom.so 
 
 clean_pcom : 
-	@ rm -f *.pcom.o
-	@ rm -f moab_test.pcom libMOAB.so
+	$(PREFIX) rm -f *.pcom.o
+	$(PREFIX) rm -f moab_test.pcom libMOAB.so
 
 
 .SUFFIXES : .o .cpp .c .o_test .xpcom.o .static.o
@@ -285,5 +283,10 @@ clean_pcom :
 	${ECHO_COMMAND} 
 	${PREFIX} ${CXX} ${DEBUG_FLAG} ${MACH_CXXFLAGS} ${XPCOM_MACH_CXXFLAGS} \
 	${NETCDF_INCLUDE} $(MHDF_FLAGS) -c -o $@ $<
+
+WriteHDF5Parallel.o: WriteHDF5Parallel.cpp
+	$(ECHO_COMMAND)
+	$(PREFIX) $(MPICXX) $(DEBUG_FLAG) $(MACH_CXXFLAGS) \
+	$(MHDF_FLAGS) -DIS_BUILDING_MB -c -o $@ $<
 
 include make.dependencies

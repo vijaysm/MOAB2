@@ -885,7 +885,8 @@ MBErrorCode TagServer::get_entities_with_tag_values( const MBRange &range,
     return MB_FAILURE;
 
     // if there aren't any values we're looking for, it has to be union
-  int temp_condition = (NULL == values ? MBInterface::UNION : condition);
+  //This doesn't make sense to me so I removed it -- J.Kraftcheck
+  //int temp_condition = (NULL == values ? MBInterface::UNION : condition);
   
   for (unsigned int it = 0; it < (unsigned int) num_tags; it++) {
       // get all entities with this tag/value combo
@@ -895,21 +896,21 @@ MBErrorCode TagServer::get_entities_with_tag_values( const MBRange &range,
     temp2.clear();
 
       // get the sets with this tag/value combo in temp1
-    if (NULL == values) 
+    if (NULL == values || NULL == values[it]) 
       result = get_entities(tags[it], type, temp1);
     else
       result = get_entities_with_tag_value(type, tags[it], values[it], temp1);
 
       // if we're doing a running intersection and we're just starting and
       // the list comes in empty, the 1st result is the start
-    if (0 == it && temp_condition == MBInterface::INTERSECT && entities.empty()) {
+    if (0 == it && condition == MBInterface::INTERSECT && entities.empty()) {
       temp1 = entities;
     }
 
       // else if we're doing a running intersection, intersect this result (temp1)
       // with the running result (entities) into temp2, then move that to the running
       // result (entities)
-    else if (temp_condition == MBInterface::INTERSECT) {
+    else if (condition == MBInterface::INTERSECT) {
       std::set_intersection(entities.begin(), entities.end(),
                             temp1.begin(), temp1.end(),
                             mb_range_inserter(temp2));
@@ -919,7 +920,7 @@ MBErrorCode TagServer::get_entities_with_tag_values( const MBRange &range,
 
       // else if we're doing a union, put these results (temp1) into the running result (entities)
       // and re-sort the running result
-    else if (temp_condition == MBInterface::UNION) {
+    else if (condition == MBInterface::UNION) {
       entities.merge(temp1);
     }
 

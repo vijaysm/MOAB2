@@ -16,6 +16,12 @@
 MOAB_DIR=../..
 include $(MOAB_DIR)/MB.common
 
+dump: h5test.h5m
+	- h5dump $< > $@
+
+h5test.h5m: h5file_test ../../libMOAB.so
+	- h5file_test -k
+
 h5file_test: h5file_test.cpp
 	g++ $(CXXFLAGS) $(DEBUG_FLAG) -Wl,-rpath,$(MOAB_DIR) \
 	-o $@ -I $(MOAB_DIR) $< $(PCOM_APP_LIBS)

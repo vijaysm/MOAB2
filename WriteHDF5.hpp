@@ -210,10 +210,20 @@ protected:
   ExportSet setSet;
   //! Sets to be compressed into ranges
   MBRange rangeSets;
+  
   //! Offset into set contents table (zero except for parallel)
   unsigned long setContentsOffset;
   //! Offset into set children table (zero except for parallel)
   unsigned long setChildrenOffset;
+  //! Flags idicating if set data should be written.
+  //! For the normal (non-parallel) case, these values
+  //! will depend only on whether or not there is any
+  //! data to be written.  For parallel-meshes, opening
+  //! the data table is collective so the values must
+  //! depend on whether or not any processor has meshsets
+  //! to be written.
+  bool writeSets, writeSetContents, writeSetChildren;
+  
   //! The list of tags to export
   std::list<SparseTag> tagList;
 

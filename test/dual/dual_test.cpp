@@ -107,10 +107,10 @@ int main(int argc, char* argv[])
     }
   }
 
-    // write GMV file
-  WriteGMV *wgmv = new WriteGMV(gMB);
-  wgmv->write_file(argv[1], 0, 3);
-  delete wgmv;
+    // write HDF5 file
+  std::string filename( argv[1] );
+  filename += ".h5m";
+  gMB->write_mesh( filename.c_str() );
   
   delete gMB;
 }
