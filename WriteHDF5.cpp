@@ -519,7 +519,7 @@ MBErrorCode WriteHDF5::gather_mesh_info(
   
       // Get contained sets
     range.clear();
-    rval = iFace->get_entities_by_type( meshset, MBENTITYSET, range, true );
+    rval = iFace->get_entities_by_type( meshset, MBENTITYSET, range );
     CHK_MB_ERR_0(rval);
     for (MBRange::iterator ritor = range.begin(); ritor != range.end(); ++ritor)
       if (setSet.range.find( *ritor ) == setSet.range.end())
@@ -630,14 +630,14 @@ MBErrorCode WriteHDF5::gather_all_mesh( )
   
     // Get all nodes
   nodeSet.range.clear();
-  rval = iFace->get_entities_by_type( 0, MBVERTEX, nodeSet.range, true );
+  rval = iFace->get_entities_by_type( 0, MBVERTEX, nodeSet.range );
   CHK_MB_ERR_0(rval);
   nodeSet.type = MBVERTEX;
   nodeSet.num_nodes = 1;
   
     // Get all sets
   setSet.range.clear();
-  rval = iFace->get_entities_by_type( 0, MBENTITYSET, setSet.range, true );
+  rval = iFace->get_entities_by_type( 0, MBENTITYSET, setSet.range );
   CHK_MB_ERR_0(rval);
   setSet.type = MBENTITYSET;
   setSet.num_nodes = 0;
@@ -663,7 +663,7 @@ MBErrorCode WriteHDF5::gather_all_mesh( )
     ExportSet set;
     
     MBRange range;
-    rval = iFace->get_entities_by_type( 0, type, range, true );
+    rval = iFace->get_entities_by_type( 0, type, range );
     CHK_MB_ERR_0(rval);
       
     if (range.empty())
@@ -1669,7 +1669,7 @@ MBErrorCode WriteHDF5::gather_tags()
   std::string tagname;
   std::vector<MBTag> tag_list;
   std::vector<MBTag>::iterator t_itor;
-  MBRange e_range;
+  MBRange range;
     
     // Get list of Tags to write
   result = iFace->tag_get_tags( tag_list );
@@ -1706,25 +1706,22 @@ MBErrorCode WriteHDF5::gather_tags()
     std::list<ExportSet>::iterator e_iter, e_end = exportList.end();
     for (e_iter = exportList.begin(); e_iter != e_end; ++e_iter)
     {
-      e_range = e_iter->range;
-      result = iFace->get_entities_by_type_and_tag( 0, e_iter->type, 
-        &handle, NULL, 1, e_range, MBInterface::INTERSECT, false );
+      range.clear();
+      result = iFace->get_entities_by_type_and_tag( 0, e_iter->type, &handle, NULL, 1, range );
       CHK_MB_ERR_0(result);
-      td_iter->range.merge( e_range );
+      td_iter->range.merge( range.intersect( e_iter->range ) );
     }
     
-    e_range = nodeSet.range;
-    result = iFace->get_entities_by_type_and_tag( 0, MBVERTEX, 
-                      &handle, NULL, 1, e_range, MBInterface::INTERSECT, false );
+    range.clear();
+    result = iFace->get_entities_by_type_and_tag( 0, MBVERTEX, &handle, NULL, 1, range );
     CHK_MB_ERR_0(result);
-    td_iter->range.merge( e_range );
-    
-    
-    e_range = setSet.range;
-    result = iFace->get_entities_by_type_and_tag( 0, MBENTITYSET, 
-                      &handle, NULL, 1, e_range, MBInterface::INTERSECT, false );
+    td_iter->range.merge( range.intersect( nodeSet.range ) );
+
+
+    range.clear();
+    result = iFace->get_entities_by_type_and_tag( 0, MBENTITYSET, &handle, NULL, 1, range );
     CHK_MB_ERR_0(result);
-    td_iter->range.merge( e_range );
+    td_iter->range.merge( range.intersect( setSet.range ) );
   }
   
   return MB_SUCCESS;
