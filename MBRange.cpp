@@ -59,7 +59,7 @@ MBRange::const_iterator& MBRange::const_iterator::operator+=( long sstep )
     // by the size of the node.
   PairNode* node = mNode->mNext;
   MBEntityHandle node_size = node->second - node->first + 1;
-  while (step > node_size)
+  while (step >= node_size)
   {
     step -= node_size;
     node = node->mNext;
@@ -102,7 +102,7 @@ MBRange::const_iterator& MBRange::const_iterator::operator-=( long sstep )
     // by the size of the node.
   PairNode* node = mNode->mPrev;
   MBEntityHandle node_size = node->second - node->first + 1;
-  while (step > node_size)
+  while (step >= node_size)
   {
     step -= node_size;
     node = node->mPrev;
@@ -462,7 +462,8 @@ MBRange::const_iterator MBRange::lower_bound(MBRange::const_iterator first,
                                              MBEntityHandle val)
 {
     // Find the first pair whose end is >= val
-  for (PairNode* iter = first.mNode; iter != last.mNode; iter = iter->mNext)
+  PairNode* iter;
+  for (iter = first.mNode; iter != last.mNode; iter = iter->mNext)
   {
     if (iter->second >= val)
     {
@@ -474,5 +475,10 @@ MBRange::const_iterator MBRange::lower_bound(MBRange::const_iterator first,
     }
   }
   
-  return last;
+  if (iter->first >= val)
+    return const_iterator( iter, iter->first );
+  else if(*last > val)
+    return const_iterator( iter, val );
+  else
+    return last;
 }

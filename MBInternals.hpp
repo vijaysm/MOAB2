@@ -27,15 +27,8 @@
  *  required for the entity type and the id space can be increased to over 2B.
  */
 
-#ifdef USE_64_BIT_HANDLES
-  #define MB_HANDLE_MASK 0xF000000000000000
-  #define MB_HANDLE_SHIFT_WIDTH 60
-  // use 64 bit entity handles on a 64 bit machine
-#else
-  #define MB_HANDLE_MASK 0xF0000000
-  #define MB_HANDLE_SHIFT_WIDTH 28
-  // use 32 bit integer entity handles on 32/64 bit machines.
-#endif
+#define MB_HANDLE_SHIFT_WIDTH (8*sizeof(MBEntityHandle)-4)
+#define MB_HANDLE_MASK ((MBEntityHandle)0xF << MB_HANDLE_SHIFT_WIDTH)
 
 
 #define MB_START_ID 1              //!< All entity id's currently start at 1

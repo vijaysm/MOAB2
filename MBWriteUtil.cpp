@@ -7,6 +7,7 @@
 #include "MBError.hpp"
 #include "EntitySequenceManager.hpp"
 #include "TagServer.hpp"
+#include "AEntityFactory.hpp"
 
 MBWriteUtil::MBWriteUtil(MBCore* mdb, MBError* error_handler) 
     : MBWriteUtilIface(), mMB(mdb), mError(error_handler)
@@ -123,6 +124,75 @@ MBErrorCode MBWriteUtil::get_node_arrays(
 
 }
 
+MBErrorCode MBWriteUtil::get_node_array(
+    const int which_array, /* 0->X, 1->Y, 2->Z */
+    MBRange::const_iterator iter,
+    const MBRange::const_iterator end,
+    const size_t output_array_len,
+    double* const output_array)
+{
+  // check the data coming into the function
+  // dimension should be proper
+  if(which_array < 0 || which_array > 2)
+    return MB_FAILURE;
+
+  // there should be some entities
+  if(iter == end)
+    return MB_FAILURE;
+
+  // memory should already be allocated for us
+  if (NULL == output_array || 0 == output_array_len)
+    return MB_FAILURE;
+
+  // Sequence iterators
+  std::map<MBEntityHandle, MBEntitySequence*>::const_iterator seq_iter, seq_end;
+  seq_iter = mMB->sequence_manager()->entity_map(MBVERTEX)->begin();
+  seq_end = mMB->sequence_manager()->entity_map(MBVERTEX)->end();
+  
+  // loop over range, getting coordinate value
+  double* output_iter = output_array;
+  double* const output_end = output_array + output_array_len;
+  while (iter != end)
+  {
+      // Find the sqeuence containing the current handle
+    while (seq_iter != seq_end && seq_iter->second->get_end_handle() < *iter)
+      ++seq_iter;
+    if (seq_iter == seq_end || *iter < seq_iter->second->get_start_handle())
+      return MB_FAILURE;
+    
+      // Determine how much of the sequence we want.
+    MBRange::pair_iterator pair(iter);
+    MBRange::const_iterator prev(end);
+    --prev;
+    MBEntityHandle range_end = pair->second;
+    MBEntityHandle sequence_end = seq_iter->second->get_end_handle();
+    MBEntityHandle end_handle = range_end > sequence_end ? sequence_end : range_end;
+    if (end_handle > *prev)
+      end_handle = *prev;
+    MBEntityHandle count = end_handle - *iter + 1;
+    
+      // Get offset in sequence to start at
+    assert( *iter >= seq_iter->second->get_start_handle() );
+    MBEntityHandle offset = *iter - seq_iter->second->get_start_handle();
+    
+      // Get coordinate arrays from sequence
+    double* coord_array[3];
+    static_cast<VertexEntitySequence*>(seq_iter->second)
+      ->get_coordinate_arrays( coord_array[0], coord_array[1], coord_array[2]);
+    
+      // Copy data to ouput buffer
+    if (output_iter + count > output_end)
+      return MB_FAILURE;
+    memcpy( output_iter, coord_array[which_array] + offset, count * sizeof(double) );
+    
+      // Iterate
+    output_iter += count;
+    iter += count;
+  }
+
+  return MB_SUCCESS;
+}
+
 MBErrorCode MBWriteUtil::get_element_array(
     const int num_elements, 
     const int verts_per_element,
@@ -222,6 +292,120 @@ MBErrorCode MBWriteUtil::get_element_array(
     ++seq_iter;
     // start with the next entities
     range_iter = range_iter_lookahead;
+  }
+
+  return MB_SUCCESS;
+}
+
+MBErrorCode MBWriteUtil::get_element_array(
+    MBRange::const_iterator iter,
+    const MBRange::const_iterator end,
+    const int vertices_per_elem,
+    MBTag node_id_tag,
+    const size_t elem_array_size, 
+    int *const element_array)
+{
+
+  // check the data we got
+  if(iter == end)
+    return MB_FAILURE;
+  if(vertices_per_elem < 1)
+    return MB_FAILURE;
+  if(!element_array || elem_array_size < (unsigned)vertices_per_elem)
+    return MB_FAILURE;
+
+  TagServer* tag_server = mMB->tag_server();
+
+
+  // Sequence iterators
+  std::map<MBEntityHandle, MBEntitySequence*>::const_iterator seq_iter, seq_end;
+  
+  // loop over range, getting coordinate value
+  MBEntityType current_type = MBMAXTYPE;
+  int* output_iter = element_array;
+  int*const output_end = element_array + elem_array_size;
+  while (iter != end)
+  {
+      // Make sure we have the right sequence list (and get the sequence 
+      // list for the first iteration.)
+    MBEntityType type = TYPE_FROM_HANDLE(*iter);
+    if (type != current_type)
+    {
+      if (type >= MBENTITYSET || type < MBEDGE)
+        return MB_FAILURE;
+      seq_iter = mMB->sequence_manager()->entity_map(type)->begin();
+      seq_end  = mMB->sequence_manager()->entity_map(type)->end();
+      current_type = type;
+    }
+    
+      // Find the sqeuence containing the current handle
+    while (seq_iter != seq_end && seq_iter->second->get_end_handle() < *iter)
+      ++seq_iter;
+    if (seq_iter == seq_end || *iter < seq_iter->second->get_start_handle())
+      return MB_FAILURE;
+ 
+      // get the connectivity array
+    MBEntityHandle* conn_array = NULL;
+    int conn_size = static_cast<ElementEntitySequence*>(seq_iter->second)->nodes_per_element();
+    static_cast<ElementEntitySequence*>(seq_iter->second)->get_connectivity_array(conn_array);
+   
+      // Determine how much of the sequence we want.
+    MBRange::pair_iterator pair(iter);
+    MBRange::const_iterator prev(end);
+    --prev;
+    MBEntityHandle range_end = pair->second;
+    MBEntityHandle sequence_end = seq_iter->second->get_end_handle();
+    MBEntityHandle end_handle = range_end > sequence_end ? sequence_end : range_end;
+    if (end_handle > *prev)
+      end_handle = *prev;
+    MBEntityHandle count = end_handle - *iter + 1;
+    
+      // Get offset in sequence to start at
+    assert( *iter >= seq_iter->second->get_start_handle() );
+    MBEntityHandle offset = *iter - seq_iter->second->get_start_handle();
+
+      // Make sure sufficient space in output array
+    if (output_iter + (count * conn_size) > output_end)
+      return MB_FAILURE;
+
+      // If the nodes per element match, do in one call
+    conn_array += (conn_size * offset);
+    if (vertices_per_elem == conn_size)
+    {
+      MBErrorCode rval = tag_server->get_data( node_id_tag, 
+                                               conn_array,
+                                               count * conn_size,
+                                               output_iter );
+      if (MB_SUCCESS != rval)
+        return rval;
+      
+      output_iter += count * conn_size;
+    }
+      // Otherwise need to do one at a time
+    else
+    {
+      int min = vertices_per_elem > conn_size ? conn_size : vertices_per_elem;
+      for (MBEntityHandle i = 0; i < count; ++i)
+      {
+        MBErrorCode rval = tag_server->get_data( node_id_tag,
+                                                 conn_array,
+                                                 min,
+                                                 output_iter );
+        if (MB_SUCCESS != rval)
+          return rval;
+
+        output_iter += min;
+        conn_array += conn_size;
+
+        if (vertices_per_elem > conn_size) // need to pad
+        {
+          memset( output_iter, 0, sizeof(int) * (vertices_per_elem - conn_size) );
+          output_iter += (vertices_per_elem - conn_size);
+        }
+      }
+    }
+
+    iter += count;
   }
 
   return MB_SUCCESS;
@@ -398,5 +582,30 @@ MBErrorCode MBWriteUtil::report_error( const char* error, ... )
   MBErrorCode result = mError->set_last_error(error, args);
   va_end(args);
   return result;
+}
+
+
+MBErrorCode MBWriteUtil::get_adjacencies( MBEntityHandle entity,
+                                          MBTag id_tag,
+                                          std::vector<int>& adj )
+{
+  MBErrorCode rval;
+  const MBEntityHandle* adj_array;
+  int num_adj;
+ 
+  rval = mMB->a_entity_factory()->get_adjacencies( entity, adj_array, num_adj );
+  if (MB_SUCCESS != rval)
+  {
+    adj.clear();
+    return rval;
+  }
+  if (num_adj == 0)
+  {
+    adj.clear();
+    return MB_SUCCESS;
+  }
+  
+  adj.resize( num_adj );
+  return mMB->tag_get_data( id_tag, adj_array, num_adj, &adj[0] );
 }
 
