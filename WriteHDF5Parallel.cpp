@@ -26,11 +26,28 @@
 
 #include "WriteHDF5Parallel.hpp"
 
+
+#ifdef DEBUG
+#  define START_SERIAL                     \
+     for (int _x = 0; _x < numProc; ++_x) {\
+       MPI_Barrier( MPI_COMM_WORLD );      \
+       if (_x != myRank) continue     
+#  define END_SERIAL                       \
+     }                                     \
+     MPI_Barrier( MPI_COMM_WORLD )
+#else
+#  define START_SERIAL
+#  define END_SERIAL
+#endif
+
+
 #define DEBUG_OUT_STREAM stdout
 
+#ifndef DEBUG
+static void printdebug( const char*, ... ) {}
+#else
 static void printdebug( const char* fmt, ... )
 {
-#ifdef DEBUG
   int rank;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   fprintf( DEBUG_OUT_STREAM, "[%d] ", rank );
@@ -39,11 +56,14 @@ static void printdebug( const char* fmt, ... )
   vfprintf( DEBUG_OUT_STREAM, fmt, args );
   va_end( args );
   fflush( DEBUG_OUT_STREAM );
-#endif
 }
+#endif
+
+#ifndef DEBUG
+void WriteHDF5Parallel::printrange( MBRange& ) {}
+#else
 void WriteHDF5Parallel::printrange( MBRange& r )
 {
-#ifdef DEBUG
   int rank;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   MBEntityType type = MBMAXTYPE;
@@ -67,8 +87,74 @@ void WriteHDF5Parallel::printrange( MBRange& r )
   }
   fprintf(DEBUG_OUT_STREAM, "\n");
   fflush( DEBUG_OUT_STREAM );
-#endif
 }
+#endif
+
+
+#ifndef DEBUG
+static void print_type_sets( MBInterface* , int , int , MBRange& ) {}
+#else
+static void print_type_sets( MBInterface* iFace, int myRank, int numProc, MBRange& sets )
+{
+  MBTag gid, did, bid, sid, nid, iid;
+  iFace->tag_get_handle( GLOBAL_ID_TAG_NAME, gid ); 
+  iFace->tag_get_handle( GEOM_DIMENSION_TAG_NAME, did );
+  iFace->tag_get_handle( MATERIAL_SET_TAG_NAME, bid );
+  iFace->tag_get_handle( DIRICHLET_SET_TAG_NAME, nid );
+  iFace->tag_get_handle( NEUMANN_SET_TAG_NAME, sid );
+  iFace->tag_get_handle( PARALLEL_INTERFACE_TAG_NAME, iid );
+  MBRange typesets[10];
+  const char* typenames[] = {"Block", "Sideset", "NodeSet", "Vertex", "Curve", "Surface", "Volume", "Body", "Interfaces", "Other"};
+  for (MBRange::iterator riter = sets.begin(); riter != sets.end(); ++riter)
+  {
+    unsigned dim, id, proc[2], oldsize;
+    if (MB_SUCCESS == iFace->tag_get_data(bid, &*riter, 1, &id)) 
+      dim = 0;
+    else if (MB_SUCCESS == iFace->tag_get_data(sid, &*riter, 1, &id))
+      dim = 1;
+    else if (MB_SUCCESS == iFace->tag_get_data(nid, &*riter, 1, &id))
+      dim = 2;
+    else if (MB_SUCCESS == iFace->tag_get_data(did, &*riter, 1, &dim)) {
+      id = 0;
+      iFace->tag_get_data(gid, &*riter, 1, &id);
+      dim += 3;
+    }
+    else if (MB_SUCCESS == iFace->tag_get_data(iid, &*riter, 1, proc)) {
+      assert(proc[0] == (unsigned)myRank || proc[1] == (unsigned)myRank);
+      id = proc[proc[0] == (unsigned)myRank];
+      dim = 8;
+    }
+    else {
+      id = *riter;
+      dim = 9;
+    }
+
+    oldsize = typesets[dim].size();
+    typesets[dim].insert( id );
+    assert( typesets[dim].size() - oldsize == 1 );  
+  }
+  for (int ii = 0; ii < 10; ++ii)
+  {
+    char num[16];
+    std::string line(typenames[ii]);
+    sprintf(num, "(%u):", typesets[ii].size());
+    line += num;
+    for (MBRange::const_pair_iterator piter = typesets[ii].pair_begin();
+         piter != typesets[ii].pair_end(); ++piter)
+    {
+      sprintf(num," %d", (*piter).first);
+      line += num;
+      if ((*piter).first != (*piter).second) {
+        sprintf(num,"-%d", (*piter).second);
+        line += num;
+      }
+    }
+
+    printdebug ("%s\n", line.c_str());
+  }
+  printdebug("Total: %u\n", sets.size());
+}
+#endif
 
 #ifdef NDEBUG
 #  define assert(A)
@@ -80,53 +166,9 @@ void WriteHDF5Parallel::printrange( MBRange& r )
      MPI_Comm_rank( MPI_COMM_WORLD, &rank );
      fprintf( DEBUG_OUT_STREAM, "[%d] Assert(%s) failed at %s:%d\n", rank, condstr, file, line );
      fflush( DEBUG_OUT_STREAM );
-
      abort();
    }
 #endif
-
-#ifdef DEBUG
-#  define START_SERIAL                     \
-     for (int _x = 0; _x < numProc; ++_x) {\
-       MPI_Barrier( MPI_COMM_WORLD );      \
-       if (_x != myRank) continue     
-#  define END_SERIAL                       \
-     }                                     \
-     MPI_Barrier( MPI_COMM_WORLD )
-#else
-#  define START_SERIAL
-#  define END_SERIAL
-#endif
-
-struct elemtype {
-  int mbtype;
-  int numnode;
-  
-  elemtype( int vals[2] ) : mbtype(vals[0]), numnode(vals[1]) {}
-  elemtype( int t, int n ) : mbtype(t), numnode(n) {}
-  
-  bool operator==( const elemtype& other ) const
-  {
-    return mbtype == other.mbtype &&
-            (mbtype == MBPOLYGON ||
-             mbtype == MBPOLYHEDRON ||
-             mbtype == MBENTITYSET ||
-             numnode == other.numnode);
-  }
-  bool operator<( const elemtype& other ) const
-  {
-    if (mbtype > other.mbtype)
-      return false;
-   
-    return mbtype < other.mbtype ||
-           (mbtype != MBPOLYGON &&
-            mbtype != MBPOLYHEDRON &&
-            mbtype != MBENTITYSET &&
-            numnode < other.numnode);
-  }
-  bool operator!=( const elemtype& other ) const
-    { return !this->operator==(other); }
-};
 
 
 void range_remove( MBRange& from, const MBRange& removed )
@@ -592,6 +634,39 @@ MBErrorCode WriteHDF5Parallel::create_node_table( int dimension )
   return MB_SUCCESS;
 }
 
+
+
+struct elemtype {
+  int mbtype;
+  int numnode;
+  
+  elemtype( int vals[2] ) : mbtype(vals[0]), numnode(vals[1]) {}
+  elemtype( int t, int n ) : mbtype(t), numnode(n) {}
+  
+  bool operator==( const elemtype& other ) const
+  {
+    return mbtype == other.mbtype &&
+            (mbtype == MBPOLYGON ||
+             mbtype == MBPOLYHEDRON ||
+             mbtype == MBENTITYSET ||
+             numnode == other.numnode);
+  }
+  bool operator<( const elemtype& other ) const
+  {
+    if (mbtype > other.mbtype)
+      return false;
+   
+    return mbtype < other.mbtype ||
+           (mbtype != MBPOLYGON &&
+            mbtype != MBPOLYHEDRON &&
+            mbtype != MBENTITYSET &&
+            numnode < other.numnode);
+  }
+  bool operator!=( const elemtype& other ) const
+    { return !this->operator==(other); }
+};
+
+
 MBErrorCode WriteHDF5Parallel::negotiate_type_list()
 {
   int result;
@@ -1034,72 +1109,6 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data( const char* tagname,
 }
   
 
-void print_type_sets( MBInterface* iFace, int myRank, int numProc, MBRange& sets )
-{
-
-#ifdef DEBUG
-START_SERIAL; {
-MBTag gid, did, bid, sid, nid, iid;
-iFace->tag_get_handle( GLOBAL_ID_TAG_NAME, gid ); 
-iFace->tag_get_handle( GEOM_DIMENSION_TAG_NAME, did );
-iFace->tag_get_handle( MATERIAL_SET_TAG_NAME, bid );
-iFace->tag_get_handle( DIRICHLET_SET_TAG_NAME, nid );
-iFace->tag_get_handle( NEUMANN_SET_TAG_NAME, sid );
-iFace->tag_get_handle( PARALLEL_INTERFACE_TAG_NAME, iid );
-MBRange typesets[10];
-const char* typenames[] = {"Block", "Sideset", "NodeSet", "Vertex", "Curve", "Surface", "Volume", "Body", "Interfaces", "Other"};
-for (MBRange::iterator riter = sets.begin(); riter != sets.end(); ++riter)
-{
-  unsigned dim, id, proc[2], oldsize;
-  if (MB_SUCCESS == iFace->tag_get_data(bid, &*riter, 1, &id)) 
-    dim = 0;
-  else if (MB_SUCCESS == iFace->tag_get_data(sid, &*riter, 1, &id))
-    dim = 1;
-  else if (MB_SUCCESS == iFace->tag_get_data(nid, &*riter, 1, &id))
-    dim = 2;
-  else if (MB_SUCCESS == iFace->tag_get_data(did, &*riter, 1, &dim)) {
-    id = 0;
-    iFace->tag_get_data(gid, &*riter, 1, &id);
-    dim += 3;
-  }
-  else if (MB_SUCCESS == iFace->tag_get_data(iid, &*riter, 1, proc)) {
-    assert(proc[0] == (unsigned)myRank || proc[1] == (unsigned)myRank);
-    id = proc[proc[0] == (unsigned)myRank];
-    dim = 8;
-  }
-  else {
-    id = *riter;
-    dim = 9;
-  }
-  
-  oldsize = typesets[dim].size();
-  typesets[dim].insert( id );
-  assert( typesets[dim].size() - oldsize == 1 );  
-}
-for (int ii = 0; ii < 10; ++ii)
-{
-  char num[16];
-  std::string line(typenames[ii]);
-  sprintf(num, "(%u):", typesets[ii].size());
-  line += num;
-  for (MBRange::const_pair_iterator piter = typesets[ii].pair_begin();
-       piter != typesets[ii].pair_end(); ++piter)
-  {
-    sprintf(num," %d", (*piter).first);
-    line += num;
-    if ((*piter).first != (*piter).second) {
-      sprintf(num,"-%d", (*piter).second);
-      line += num;
-    }
-  }
-  
-  printdebug ("%s\n", line.c_str());
-}
-printdebug("Total: %u\n", sets.size());
-} END_SERIAL;
-#endif
-}
-
 
 MBErrorCode WriteHDF5Parallel::create_meshset_tables()
 {
@@ -1108,7 +1117,9 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   long total_offset = 0;
   MBRange::const_iterator riter;
 
+  START_SERIAL;
   print_type_sets( iFace, myRank, numProc, setSet.range );
+  END_SERIAL;
 
     // Gather data about multi-processor meshsets - removes sets from setSet.range
   std::vector<RemoteSetData> remote_set_data( multiProcSetTags.size() );
@@ -1119,7 +1130,9 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
                                 total_offset ); assert(MB_SUCCESS == rval);
   }
 
+  START_SERIAL;
   print_type_sets( iFace, myRank, numProc, setSet.range );
+  END_SERIAL;
 
     // Gather counts from each proc
   std::vector<long> set_offsets(numProc + 1);
@@ -1269,12 +1282,12 @@ void WriteHDF5Parallel::remove_remote_entities( std::vector<MBEntityHandle>& vec
 MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& data,
                                                               long* offsets /* long[2] */ )
 {
-  int i;
+  unsigned i;
   MBErrorCode rval;
   MBRange::const_iterator riter;
   int result;
-  const int count = data.range.size();
-  const int total = data.all_values.size();
+  const unsigned count = data.range.size();
+  const unsigned total = data.all_values.size();
   std::vector<int>::iterator viter;
 
     // Calculate counts for each meshset
@@ -1323,10 +1336,10 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
     // Exchange sizes for sets between all processors.
   std::vector<long> all_sizes(2*total);
   std::vector<int> counts(numProc), displs(numProc);
-  for (i = 0; i < numProc; i++)
+  for (i = 0; i < (unsigned)numProc; i++)
     counts[i] = 2 * data.counts[i];
   displs[0] = 0;
-  for (i = 1; i < numProc; i++)
+  for (i = 1; i < (unsigned)numProc; i++)
     displs[i] = displs[i-1] + counts[i-1];
   result = MPI_Allgatherv( &local_sizes[0], 2*count, MPI_LONG,
                            &all_sizes[0], &counts[0], &displs[0], MPI_LONG,
@@ -1402,23 +1415,20 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
   
     // Now calculate the offset of the data for each (entire, parallel) set in
     // the set contents and set children tables.
-  for (std::map<int,int>::iterator map_iter = tagsort.begin();
-       map_iter != tagsort.end(); ++map_iter)
+  for (i = 0; i < all_sizes.size(); ++i)
   {
-    long tmp;
-    int j = 2 * map_iter->second;
-    tmp = offsets[0];
-    offsets[0] += all_sizes[j];
-    all_sizes[j] = tmp;
-    tmp = offsets[1];
-    offsets[1] += all_sizes[j+1];
-    all_sizes[j+1] = tmp;
-    
+    if (all_sizes[i] >= 0)
+    {
+      int j = i % 2;              // contents or children list ?
+      long tmp = offsets[j];      // save current, running offset
+      offsets[j] += all_sizes[i]; // next set's offset is current plus the size of this set
+      all_sizes[i] = tmp;         // size of this set is running offset.
+    }
   }
   
-    // Convert the offsets relative to the beginning of the
-    // set data to absolute offsets in the table for the
-    // data to be written by this processor
+    // Local offsets for this processor are stored as values relative to the
+    // start of each set's data.  Convert them to offsets relative to the
+    // start of all the set data.
   sizes_iter = local_offsets.begin();
   viter = data.local_values.begin();
   for (riter = data.range.begin(); riter != data.range.end(); ++riter)
