@@ -324,7 +324,7 @@ mhdf_createTypeTag( mhdf_FileHandle file_handle,
 
     /* Store TSTT tag type as attribute */
 
-  rval = mhdf_write_scalar_attrib( tag_id, 
+  rval = mhdf_create_scalar_attrib( tag_id, 
                                    TAG_TYPE_ATTRIB,
                                    H5T_NATIVE_INT,
                                    &tstt_tag_type,
@@ -351,7 +351,7 @@ mhdf_createTypeTag( mhdf_FileHandle file_handle,
 
   if (default_value)
   {
-    rval = mhdf_write_scalar_attrib( tag_id, 
+    rval = mhdf_create_scalar_attrib( tag_id, 
                                      TAG_DEFAULT_ATTRIB, 
                                      type_id, 
                                      default_value, 
@@ -369,7 +369,7 @@ mhdf_createTypeTag( mhdf_FileHandle file_handle,
   
   if (global_value)
   {
-    rval = mhdf_write_scalar_attrib( tag_id,  
+    rval = mhdf_create_scalar_attrib( tag_id,  
                                      TAG_GLOBAL_ATTRIB,
                                      type_id,
                                      global_value, 
@@ -720,14 +720,13 @@ mhdf_getTagValues( mhdf_FileHandle file_handle,
 int
 mhdf_haveDenseTag( mhdf_FileHandle file_handle,
                    const char* tag_name,
-                   mhdf_ElemHandle type_handle,
+                   const char* type_handle,
                    mhdf_Status* status )
 {
   char* path;
   hid_t elem_id, group_id;
   FileHandle* file_ptr;
   int rval = 0;
-  int close_elem_id = 1;
   API_BEGIN;
   
   file_ptr = (FileHandle*)file_handle;
@@ -747,26 +746,25 @@ mhdf_haveDenseTag( mhdf_FileHandle file_handle,
   }
   else
   {
-    elem_id = mhdf_handle_from_type_index( file_ptr, type_handle, status );
-    close_elem_id = 0;
+    elem_id = mhdf_elem_group_from_handle( file_ptr, type_handle, status );
   }
   if (elem_id < 0) return -1;
   
   rval = mhdf_is_in_group( elem_id, TAG_GROUP_NAME, status );
   if (rval < 0)
   {
-    if (close_elem_id) H5Gclose( elem_id );
+    H5Gclose( elem_id );
     return -1;
   }
   else if (rval == 0)
   {
-    if (close_elem_id) H5Gclose( elem_id );
+    H5Gclose( elem_id );
     mhdf_setOkay( status );
     return 0;
   }
   
   group_id = H5Gopen( elem_id, DENSE_TAG_SUBGROUP );
-  if (close_elem_id) H5Gclose( elem_id );
+  H5Gclose( elem_id );
   if (group_id < 0)
   {
     mhdf_setFail( status, "Could not open tag subgroup." );
@@ -792,7 +790,7 @@ mhdf_haveDenseTag( mhdf_FileHandle file_handle,
 hid_t
 mhdf_createDenseTagData( mhdf_FileHandle file_handle,
                          const char* tag_name,
-                         mhdf_ElemHandle type_handle,
+                         const char* type_handle,
                          long num_values,
                          mhdf_Status* status )
 {
@@ -801,7 +799,6 @@ mhdf_createDenseTagData( mhdf_FileHandle file_handle,
   FileHandle* file_ptr;
   size_t name_len, path_len, dir_len;
   hsize_t size;
-  int close_elem_id = 1;
   API_BEGIN;
   
   file_ptr = (FileHandle*)file_handle;
@@ -821,8 +818,7 @@ mhdf_createDenseTagData( mhdf_FileHandle file_handle,
   }
   else
   {
-    elem_id = mhdf_handle_from_type_index( file_ptr, type_handle, status );
-    close_elem_id = 0;
+    elem_id = mhdf_elem_group_from_handle( file_ptr, type_handle, status );
   }
   if (elem_id < 0) return -1;
   
@@ -831,18 +827,18 @@ mhdf_createDenseTagData( mhdf_FileHandle file_handle,
   path_len = dir_len + name_len + 1;
   path = (char*)mhdf_malloc( path_len, status );
   if (NULL == path) 
-    { if (close_elem_id) H5Gclose( elem_id ); return -1; }
+    { H5Gclose( elem_id ); return -1; }
   strcpy( path, DENSE_TAG_SUBGROUP );
   mhdf_name_to_path( tag_name, path + dir_len, name_len + 1 );
 
   type_id = get_tag_type( file_ptr, path + dir_len, status );
   if (type_id < 0) 
-    { if (close_elem_id) H5Gclose( elem_id ); return -1; }
+    { H5Gclose( elem_id ); return -1; }
   
   size = (hsize_t)num_values;
   data_id = mhdf_create_table( elem_id, path, type_id, 1, &size, status );
   free( path );
-  if (close_elem_id) H5Gclose( elem_id );
+  H5Gclose( elem_id );
   H5Tclose( type_id );
   
   if (data_id > 0)
@@ -855,7 +851,7 @@ mhdf_createDenseTagData( mhdf_FileHandle file_handle,
 hid_t
 mhdf_openDenseTagData(  mhdf_FileHandle file_handle,
                         const char* tag_name,
-                        mhdf_ElemHandle type_handle,
+                        const char* type_handle,
                         long* num_values_out,
                         mhdf_Status* status )
 {
@@ -864,7 +860,6 @@ mhdf_openDenseTagData(  mhdf_FileHandle file_handle,
   FileHandle* file_ptr;
   size_t name_len, path_len, dir_len;
   hsize_t size;
-  int close_elem_id = 1;
   API_BEGIN;
   
   file_ptr = (FileHandle*)file_handle;
@@ -884,8 +879,7 @@ mhdf_openDenseTagData(  mhdf_FileHandle file_handle,
   }
   else
   {
-    elem_id = mhdf_handle_from_type_index( file_ptr, type_handle, status );
-    close_elem_id = 0;
+    elem_id = mhdf_elem_group_from_handle( file_ptr, type_handle, status );
   }
   if (elem_id < 0) return -1;
   
@@ -894,13 +888,13 @@ mhdf_openDenseTagData(  mhdf_FileHandle file_handle,
   path_len = dir_len + name_len + 1;
   path = (char*)mhdf_malloc( path_len, status );
   if (NULL == path) 
-    { if (close_elem_id) H5Gclose( elem_id ); return -1; }
+    { H5Gclose( elem_id ); return -1; }
   strcpy( path, DENSE_TAG_SUBGROUP );
   mhdf_name_to_path( tag_name, path + dir_len, name_len + 1 );
   
   data_id = mhdf_open_table( elem_id, path, 1, &size, status );
   free( path );
-  if (close_elem_id) H5Gclose( elem_id );
+  H5Gclose( elem_id );
   *num_values_out = (long)size;
   
   if (data_id > 0)

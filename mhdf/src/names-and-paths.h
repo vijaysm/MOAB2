@@ -68,5 +68,6 @@
 #define TAG_TYPE_ATTRIB        "class"
 #define ELEM_TYPE_ATTRIB       "element_type"
 #define START_ID_ATTRIB        "start_id"
+#define MAX_ID_ATTRIB          "max_id"
 
 #endif

@@ -42,7 +42,8 @@ mhdf_createFile( const char* filename,
   unsigned int flags;
   unsigned char index;
   size_t i;
-  hid_t enum_id;
+  hid_t enum_id, root_id, group_id;
+  int rval;
   API_BEGIN;
   
   if (elem_list_len > 255)
@@ -66,6 +67,7 @@ mhdf_createFile( const char* filename,
     return NULL;
   }
   
+  
     /* Create file structure */
   if (!make_hdf_group(     ROOT_GROUP, file_ptr->hdf_handle, 6, status )
    || !make_hdf_group(      TAG_GROUP, file_ptr->hdf_handle, 0, status )
@@ -74,6 +76,21 @@ mhdf_createFile( const char* filename,
    || !make_hdf_group(      SET_GROUP, file_ptr->hdf_handle, 5, status )
    || !make_hdf_group( NODE_TAG_GROUP, file_ptr->hdf_handle, 0, status )
    || !make_hdf_group(  SET_TAG_GROUP, file_ptr->hdf_handle, 0, status ))
+  {
+    H5Fclose( file_ptr->hdf_handle );
+    free( file_ptr );
+    return NULL;
+  }
+  
+    /* Store the max ID as an attribite on the /tstt/ group */
+  group_id = H5Gopen( file_ptr->hdf_handle, ROOT_GROUP );
+  rval = mhdf_create_scalar_attrib( group_id, 
+                                    MAX_ID_ATTRIB, 
+                                    H5T_NATIVE_ULONG, 
+                                    &file_ptr->max_id,
+                                    status );
+  H5Gclose( group_id );
+  if (!rval)
   {
     H5Fclose( file_ptr->hdf_handle );
     free( file_ptr );
@@ -117,81 +134,6 @@ mhdf_createFile( const char* filename,
 }
 
 
-static long
-mhdf_get_max_elem_id( hid_t elem_id, mhdf_Status* status )
-{
-  hid_t table_id, space_id;
-  hsize_t dims[2];
-  int rank;
-  long result;
-  int ispoly;
-
-    /* Get connectivity table for element */
-  table_id = H5Dopen( elem_id, CONNECTIVITY_NAME );
-  if (table_id < 0)
-  {
-    mhdf_setFail( status, "Missing connectivity data for element." );
-    return 0L;
-  }
-  
-  space_id = H5Dget_space( table_id );
-  if (space_id < 0)
-  {
-    mhdf_setFail( status, "Internal error in H5Dget_space.");
-    H5Dclose( table_id );
-    return 0L;
-  }
-  
-  ispoly = mhdf_is_in_group( elem_id, POLY_INDEX_NAME, status );
-  if (ispoly < 0)
-  {
-    H5Sclose( space_id );
-    H5Dclose( table_id );
-    return 0L;
-  }
-  
-  rank = H5Sget_simple_extent_ndims( space_id );
-  if (rank != (ispoly ? 1 : 2))
-  {
-    if (rank < 0)
-      mhdf_setFail( status, "Internal error in H5Sget_simple_extent_ndims." );
-    else if (ispoly)
-      mhdf_setFail( status, "Invalid file: Poly(gon|hedron) connectivity with rank %d.\n", rank );
-    else
-      mhdf_setFail( status, "Invalid file: Element connectivity data has rank %d.\n", rank );
-    H5Sclose( space_id );
-    H5Dclose( table_id );
-    return 0L;
-  }
-  
-  rank = H5Sget_simple_extent_dims( space_id, dims, NULL );
-  H5Sclose( space_id );
-  if (rank < 0)
-  {
-    mhdf_setFail( status, "Internal error calling H5Sget_simple_extent_dims.");
-    H5Dclose( table_id );
-    return 0L;
-  }
-  
-  rank = mhdf_read_scalar_attrib( table_id, START_ID_ATTRIB, 
-                                  H5T_NATIVE_LONG, &result, 
-                                  status );
-  H5Dclose( table_id );
-  if (!rank)
-  {
-    return 0L;
-  }
-  if (result < 1)
-  {
-    mhdf_setFail( status, "Invalid start ID for element data: %ld\n", result );
-    return 0L;
-  }
-  
-  result += dims[0];
-  return result;
-}
-
-
 mhdf_FileHandle
 mhdf_openFile( const char* filename, 
                int writeable, 
@@ -200,10 +142,122 @@ mhdf_openFile( const char* filename,
 {
   return mhdf_openFileWithOpt( filename, 
                                writeable, 
-                               max_id_out, 
+                               max_id_out,
                                H5P_DEFAULT, 
                                status );
 }
+
+
+static herr_t get_max_id( hid_t group_id, 
+                          const char* subgroup, 
+                          const char* datatable,
+                          unsigned long* data )
+{
+  unsigned long id;
+  hid_t elem_id, conn_id, attr_id, space_id, poly_id = -1;
+  herr_t rval;
+  int rank;
+  hsize_t dims[2];
+  mhdf_Status status;
+  
+  elem_id = H5Gopen( group_id, subgroup );
+  if (elem_id < 0) return (herr_t)-1;
+  
+  conn_id = H5Dopen( elem_id, datatable );
+  H5Gclose( elem_id );
+  if (conn_id < 0) return (herr_t)-1;
+  
+  space_id = H5Dget_space( conn_id );
+  if (space_id < 0) { H5Dclose( conn_id ); return -1; }
+  
+  rank = H5Sget_simple_extent_ndims( space_id );
+  if (rank <= 0 || rank > 2) { H5Dclose(conn_id); H5Sclose(space_id); return -1; }
+  
+  rval = H5Sget_simple_extent_dims( space_id, dims, NULL );
+  H5Sclose( space_id );
+  if (rval < 0) { H5Dclose( conn_id ); return -1; }
+  
+  attr_id = H5Aopen_name( conn_id, START_ID_ATTRIB );
+  H5Dclose( conn_id );
+  if (attr_id < 0) return (herr_t)-1;
+  
+  rval = H5Aread( attr_id, H5T_NATIVE_ULONG, &id );
+  H5Aclose( attr_id );
+  if (rval < 0) return rval;
+  
+  id += dims[0];
+  if (id > *data)
+    *data = id;
+  return 0;
+}
+
+static herr_t max_id_iter( hid_t group_id, const char* name, void* data )
+{
+  return get_max_id( group_id, name, CONNECTIVITY_NAME, (unsigned long*)data );
+}
+
+static int
+scan_for_max_id( FileHandle* file_ptr, mhdf_Status* status )
+{
+  hid_t group_id;
+  herr_t rval;
+  int idx;
+  unsigned long tmp;
+  
+    /* Check for new format, with max_id as attrib of root group */
+  group_id = H5Gopen( file_ptr->hdf_handle, ROOT_GROUP );
+  if (group_id < 0)
+  {
+    mhdf_setFail( status, "Internal error - invalid file.");
+    return 0;
+  }
+  if (mhdf_read_scalar_attrib( group_id, MAX_ID_ATTRIB,
+                               H5T_NATIVE_ULONG, &file_ptr->max_id,
+                               status ))
+  {
+    H5Gclose( group_id );
+    return 1;
+  }
+  
+    /* Didn't find it, scan the elements group */
+  rval = H5Giterate( group_id, ELEMENT_GROUP_NAME, &idx, &max_id_iter, &file_ptr->max_id );
+  if (!rval)
+  {
+    H5Gclose( group_id );
+    mhdf_setFail( status, "Internal error -- invalid file." );
+    return 0;
+  }
+  
+    /* Check node table too */
+  rval = get_max_id( group_id, NODE_GROUP_NAME, "coordinates", &file_ptr->max_id );
+  if (!rval)
+  {
+    H5Gclose( group_id );
+    mhdf_setFail( status, "Internal error -- invalid file." );
+    return 0;
+  }
+  
+    /* Check set table, if it exists */
+  rval = mhdf_is_in_group( group_id, SET_GROUP_NAME, status );
+  if (rval < 1)
+  {
+    H5Gclose( group_id );
+    return !rval;
+  }
+  rval = get_max_id( group_id, SET_GROUP_NAME, SET_META_NAME, &file_ptr->max_id );
+  H5Gclose( group_id );
+  if (!rval)
+  {
+    mhdf_setFail( status, "Internal error -- invalid file." );
+    return 0;
+  }
+
+  return 1;
+}    
+  
+   
+   
+
 
 mhdf_FileHandle
 mhdf_openFileWithOpt( const char* filename, 
@@ -250,147 +304,21 @@ mhdf_openFileWithOpt( const char* filename,
     free( file_ptr );
     return NULL;
   }
-  
-    /* Check for subgroups */
-  mhdf_setFail( status, "Invalid file." );
-  if (1 > mhdf_is_in_group( group_id, NODE_GROUP_NAME, status ) ||
-      1 > mhdf_is_in_group( group_id, "elements", status ) ||
-      1 > mhdf_is_in_group( group_id, TAG_GROUP_NAME, status) ||
-      1 > mhdf_is_in_group( group_id, SET_GROUP_NAME, status))
-  {
-    H5Gclose( group_id );
-    H5Fclose( file_ptr->hdf_handle );
-    free( file_ptr );
-    return NULL;
-  }
   H5Gclose( group_id );
   
-    /* Get element group */
-  group_id = H5Gopen( file_ptr->hdf_handle, ELEMENT_GROUP );
-  if (group_id < 0)
+    /* Get max id */
+  if (!scan_for_max_id( file_ptr, status ))
   {
     H5Fclose( file_ptr->hdf_handle );
     free( file_ptr );
     return NULL;
   }
   
-    /* Get number of entries in element group */
-  if (H5Gget_num_objs( group_id, &count ) < 0)
-  {
-    H5Gclose( group_id );
-    H5Fclose( file_ptr->hdf_handle );
-    free( file_ptr );
-    return NULL;
-  }
-  
-    /* Pre-allocate array for element handles, as the size is known */
-  file_ptr->type_array_len = (int)count;
-  file_ptr->num_type_handles = 0;
-  file_ptr->elem_type_handles = (hid_t*)mhdf_malloc( count * sizeof(hid_t), status );
-  if (NULL == file_ptr->elem_type_handles)
-  {
-    H5Gclose( group_id );
-    H5Fclose( file_ptr->hdf_handle );
-    free( file_ptr );
-    return NULL;
-  }
-  
-    /* Determine the maximum name length for element types,
-       and make sure each entry is a group */
-  size = 0;
-  for (index = 0; index < count; ++index)
-  {
-    if (H5Gget_objtype_by_idx( group_id, index ) != H5G_GROUP)
-    {
-      H5Gclose( group_id );
-      H5Fclose( file_ptr->hdf_handle );
-      free( file_ptr );
-      return NULL;
-    }
-    
-    tmp = H5Gget_objname_by_idx( group_id, index, NULL, 0 );
-    if (tmp < 1)
-    {
-      H5Gclose( group_id );
-      H5Fclose( file_ptr->hdf_handle );
-      free( file_ptr );
-      return NULL;
-    }
-    
-    if ((unsigned)tmp > size)
-      size = tmp;
-  }
-  
-    /* Allocate buffer to hold element names */
-  ++size;
-  name = (char*)mhdf_malloc( size, status );
-  if (!name)
-  {
-    H5Gclose( group_id );
-    H5Fclose( file_ptr->hdf_handle );
-    free( file_ptr );
-    return NULL;
-  }
-  
-    /* Open each entry in the elements group by name, check for 
-       the existance of a connectivity table and if one exists,
-       aquire the ID range for the elements from said table. */
-  mhdf_setFail( status, "Internal error traversing elem group contents." );
-  for (index = 0; index < count; ++index)
-  {
-      /* Open element group */
-    tmp = H5Gget_objname_by_idx( group_id, index, name, size );
-    if (tmp < 1 || (unsigned)tmp > size  || 
-        (elem_id = H5Gopen( group_id, name )) < 0)
-    {
-      free( name );
-      H5Gclose( group_id );
-      mhdf_closeFile( file_ptr, status );
-      mhdf_setFail( status, "Invalid file." );
-      return NULL;
-    }
-    
-      /* Add element type to FileHandle */
-    if (0 > mhdf_add_elem_type( file_ptr, elem_id, status ))
-    {
-      free( name );
-      H5Gclose( group_id );
-      mhdf_closeFile( file_ptr, status );
-      mhdf_setFail( status, "Invalid file." );
-      return NULL;
-    }
-    
-    gp_max_id = mhdf_get_max_elem_id( elem_id, status );
-    if (gp_max_id <= 0)
-    {
-      free( name );
-      H5Gclose( group_id );
-      mhdf_closeFile( file_ptr, NULL );
-      return NULL;
-    }
-    
-    if (gp_max_id > max_id)
-      max_id = gp_max_id;
-  }
-
-  free( name );
-  H5Gclose( group_id );
-  
-  unsigned long long max_int_range = 1;
-  max_int_range = max_int_range << ((sizeof(long)*8 - 2));
-  if (max_id > max_int_range)
-  {
-    mhdf_setFail( status, "Mesh too large.\n");
-    mhdf_closeFile( file_ptr, NULL );
-    return NULL;
-  }
-  
-  file_ptr->max_id = max_id;
   if (max_id_out)
     *max_id_out = max_id;
     
   mhdf_setOkay( status );
-  API_END_H(file_ptr->num_type_handles+1);
+  API_END_H(1);
   return file_ptr;
 }
 
@@ -444,7 +372,6 @@ mhdf_closeFile( mhdf_FileHandle handle,
                 mhdf_Status* status )
 {
   FileHandle* file_ptr;
-  int i;
   API_BEGIN;
   
   file_ptr = (FileHandle*)(handle);
@@ -458,11 +385,6 @@ mhdf_closeFile( mhdf_FileHandle handle,
     return;
   }
 */  
-  
-  for (i = 0; i < file_ptr->num_type_handles; i++)
-  {
-    H5Gclose( file_ptr->elem_type_handles[i] );
-  }
   
   /* Check for open handles.  HDF5 will not actually close the
      file until all handles are closed. */
@@ -484,11 +406,10 @@ mhdf_closeFile( mhdf_FileHandle handle,
     return;
   } 
   
-  free( file_ptr->elem_type_handles );
   bzero( file_ptr, sizeof(FileHandle) );
   free( file_ptr );
   mhdf_setOkay( status );
-  API_END_H( -i - 1 );
+  API_END_H( -1 );
 }
 
 void
@@ -522,7 +443,7 @@ mhdf_closeData( mhdf_FileHandle file, hid_t handle, mhdf_Status* status )
 }
 
 
-mhdf_ElemHandle
+void
 mhdf_addElement( mhdf_FileHandle file_handle, 
                  const char* name, 
                  unsigned int elem_type,
@@ -532,18 +453,17 @@ mhdf_addElement( mhdf_FileHandle file_handle,
   hid_t group_id, tag_id, enum_id;
   char* path, *ptr;
   size_t name_len;
-  mhdf_ElemHandle result;
   herr_t rval;
   API_BEGIN;
   
   if (!mhdf_check_valid_file( file_ptr, status ))
-    return -1;
+    return;
   
   name_len = mhdf_name_to_path( name, NULL, 0 );
   name_len += strlen(ELEMENT_GROUP) + 1;
   path = (char*)mhdf_malloc( name_len, status );
   if (!path)
-    return -1;
+    return;
   
   strcpy( path, ELEMENT_GROUP );
   ptr = path + strlen(ELEMENT_GROUP);
@@ -551,7 +471,7 @@ mhdf_addElement( mhdf_FileHandle file_handle,
   {
     mhdf_setFail( status, "Invalid character string in internal file path: \"%s\"\n",
       name );
-    return -1;
+    return;
   }
   
   group_id = H5Gcreate( file_ptr->hdf_handle, path, 3 );
@@ -559,7 +479,7 @@ mhdf_addElement( mhdf_FileHandle file_handle,
   {
     mhdf_setFail( status, "Creation of \"%s\" group failed.\n", path );
     free( path );
-    return -1;
+    return;
   }
   free( path );
   
@@ -568,7 +488,7 @@ mhdf_addElement( mhdf_FileHandle file_handle,
   {
     H5Gclose( group_id );
     mhdf_setFail( status, "Creation of tag subgroup failed.\n" );
-    return -1;
+    return;
   }
   H5Gclose( tag_id );
   
@@ -576,7 +496,7 @@ mhdf_addElement( mhdf_FileHandle file_handle,
   if (enum_id < 0)
   {
     H5Gclose( group_id );
-    return -1;
+    return;
   }
   
   rval = H5Tconvert( H5T_NATIVE_UINT, H5Tget_super(enum_id), 1, &elem_type, NULL, H5P_DEFAULT );
@@ -585,62 +505,93 @@ mhdf_addElement( mhdf_FileHandle file_handle,
     H5Gclose( group_id );
     H5Tclose( enum_id );
     mhdf_setFail( status, "Internal error converting to enum type." );
-    return -1;
+    return;
   }
   
-  rval = mhdf_write_scalar_attrib( group_id, ELEM_TYPE_ATTRIB, enum_id,
+  rval = mhdf_create_scalar_attrib( group_id, ELEM_TYPE_ATTRIB, enum_id,
                                  &elem_type, status );
   H5Tclose( enum_id );
   if (rval < 0)
   {
     H5Gclose( group_id );
-    return -1;
+    return;
   }
   
-  result = mhdf_add_elem_type( file_ptr, group_id, status );
-  if (result < 0)
+  H5Gclose( group_id );
+  mhdf_setOkay( status );
+  API_END;
+}
+
+
+char**
+mhdf_getElemHandles( mhdf_FileHandle file_handle,
+                     unsigned int* count_out,
+                     mhdf_Status* status )
+{
+  hsize_t idx, count, length, i;
+  char** buffer;
+  char* current;
+  hid_t group_id;
+  herr_t rval;
+  ssize_t rlen;
+  size_t remaining;
+  FileHandle* file_ptr = (FileHandle*)file_handle;
+  if (!mhdf_check_valid_file( file_ptr, status ))
+    return NULL;
+  
+  group_id = H5Gopen( file_ptr->hdf_handle, ELEMENT_GROUP );
+  if (group_id < 0) 
+  {
+    mhdf_setFail( status, "Invalid file -- element group does not exist." );
+    return NULL;
+  }
+  
+  rval = H5Gget_num_objs( group_id, &count );
+  if (rval < 0) 
   {
     H5Gclose( group_id );
-    return -1;
+    mhdf_setFail( status, "Internal error calling H5Gget_num_objs." );
+    return NULL;
+  }
+  *count_out = count;
+  
+  for (i = 0; i < count; ++i)
+  {
+    rlen += H5Gget_objname_by_idx( group_id, i, NULL, 0 ) + 1;
   }
   
+  length = count * sizeof(char*) + rlen;
+  buffer = (char**)mhdf_malloc( length, status );
+  if (!buffer) { H5Gclose( group_id ); return NULL; }
+  current = (char*)(buffer + count);
+  remaining = rlen;
+  
+  for (i = 0; i < count; ++i)
+  {
+    buffer[i] = current;
+    rlen = H5Gget_objname_by_idx( group_id, i, current, remaining ) + 1;
+    if (rlen < 0)
+    {
+      H5Gclose( group_id );
+      free( buffer );
+      mhdf_setFail( status, "Internal error calling H5Gget_objname_by_idx." );
+      return NULL;
+    }
+    
+    mhdf_path_to_name( current, current );
+    remaining -= rlen;
+    current += rlen;
+  }
+  
+  H5Gclose( group_id );
   mhdf_setOkay( status );
-  API_END_H(1);
-  return result;
-}
-
-
-int
-mhdf_numElemGroups( mhdf_FileHandle file_handle, mhdf_Status* status )
-{
-  FileHandle* file_ptr = (FileHandle*)file_handle;
-  
-  if (!mhdf_check_valid_file( file_ptr, status ))
-    return -1;
-  
-  return file_ptr->num_type_handles;
-}
-
-
-void
-mhdf_getElemGroups( mhdf_FileHandle file_handle, 
-                    mhdf_ElemHandle* out, 
-                    mhdf_Status* status )
-{
-  mhdf_ElemHandle i;
-  FileHandle* file_ptr = (FileHandle*)file_handle;
-  
-  if (!mhdf_check_valid_file( file_ptr, status ))
-    return;
-  
-  for (i = 0; i < file_ptr->num_type_handles; ++i)
-    out[i] = i;
+  return buffer;
 }
 
 
 void 
 mhdf_getElemTypeName( mhdf_FileHandle file_handle,
-                      mhdf_ElemHandle elem_handle,
+                      const char* elem_handle,
                       char* buffer, size_t buf_len,
                       mhdf_Status* status )
 {
@@ -661,10 +612,11 @@ mhdf_getElemTypeName( mhdf_FileHandle file_handle,
   if (!mhdf_check_valid_file( file_ptr, status ))
     return;
   
-  elem_id = mhdf_handle_from_type_index( file_ptr, elem_handle, status );
+  elem_id = mhdf_elem_group_from_handle( file_ptr, elem_handle, status );
   if (elem_id < 0) return;
   
   attr_id = H5Aopen_name( elem_id, ELEM_TYPE_ATTRIB );
+  H5Gclose( elem_id );
   if (attr_id < 0)
   {
     mhdf_setFail( status, "Missing element type attribute.  Invalid file." );
@@ -713,21 +665,23 @@ make_hdf_group( const char* path, hid_t file, size_t size, mhdf_Status* status )
   }
 }
 
-mhdf_ElemHandle 
+const char* 
 mhdf_node_type_handle(void)
 {
-  return 1 << 15;
+  static const char rval[] = "nodes";
+  return rval;
 }
 
-mhdf_ElemHandle
+const char*
 mhdf_set_type_handle(void)
 {
-  return (1 << 15) - 1;
+  static const char rval[] = "sets";
+  return rval;
 }
 
 int
 mhdf_isPolyElement( mhdf_FileHandle file_handle,
-                    mhdf_ElemHandle elem_handle,
+                    const char* elem_handle,
                     mhdf_Status* status )
 {
   FileHandle* file_ptr;
@@ -739,11 +693,12 @@ mhdf_isPolyElement( mhdf_FileHandle file_handle,
   if (!mhdf_check_valid_file( file_ptr, status ))
     return -1;
   
-  elem_id = mhdf_handle_from_type_index( file_ptr, elem_handle, status );
+  elem_id = mhdf_elem_group_from_handle( file_ptr, elem_handle, status );
   if (elem_id < 0) return -1;
   
   mhdf_setOkay( status );
   rval = mhdf_is_in_group( elem_id, POLY_INDEX_NAME, status );
+  H5Gclose( elem_id );
   API_END;
   return rval;
 }

@@ -34,11 +34,17 @@ int mhdf_path_to_name( const char* path, char* name );
 
 char* mhdf_name_to_path_copy( const char* name, mhdf_Status* status );
 
-int mhdf_write_scalar_attrib( hid_t object,
-                              const char* name,
-                              hid_t type,
-                              const void* value,
-                              mhdf_Status* status );
+char* mhdf_name_to_path_cat( const char* prefix, const char* name, mhdf_Status* status );
+
+hid_t mhdf_elem_group_from_handle( FileHandle* file_ptr,
+                                   const char* elem_handle,
+                                   mhdf_Status* status );
+
+int mhdf_create_scalar_attrib( hid_t object,
+                               const char* name,
+                               hid_t type,
+                               const void* value,
+                               mhdf_Status* status );
 
 /* If type is zero, assumes opaque type.
    On error, sets status and returns zero.
@@ -130,6 +136,10 @@ void mhdf_api_begin_internal( );
 void mhdf_api_end_internal( int expected_diff,
                             const char* filename,
                             int linenumber );
+
+int mhdf_write_max_id( FileHandle* file_ptr, mhdf_Status* status );
+                            
+                            
 #ifdef NDEBUG
 #  define API_BEGIN
 #  define API_END_H(n)

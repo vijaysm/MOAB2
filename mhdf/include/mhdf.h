@@ -84,23 +84,12 @@ mhdf_message( mhdf_Status const* );
 /*@{*/
 
 
-/** Opaque handle to an element group. 
- * An element group is the data for a block of elements with the same 
- * TSTT type and same number of nodes in their connectivity data.
- * (e.g. all the HEX20 elements).  This function is also
- * used to create the groups for general polygon data and
- * general polyhedron data.  The requirement that all elements
- * have the same number of nodes in their connectivity does not
- * apply for poly(gons|hedra).
- */
-typedef short mhdf_ElemHandle;
-
 /** \brief Get an mhdf_ElemHandle object for the node data.  
  *
  * \return A special element group handle used when specifying adjacency or
  * tag data for nodes. 
  */
-mhdf_ElemHandle
+const char*
 mhdf_node_type_handle(void);
 
 
@@ -109,7 +98,7 @@ mhdf_node_type_handle(void);
  *  \return A special element group handle used to specify the set group
  *  for reading/writing tag data on sets.
  */
-mhdf_ElemHandle
+const char*
 mhdf_set_type_handle(void);
 
 /*@}*/
@@ -420,38 +409,22 @@ mhdf_readNodeCoord( hid_t data_handle,
  * apply for poly(gons|hedra).
  *
  * \param file_handle  File in which to create the element type.
- * \param group_name   The name to use for the element data.  This
- *                     name is not important, but should be something
+ * \param elem_handle  The name to use for the element data.  This
+ *                     name is used as an identifer to reference the
+ *                     data for this element type later.  The selected
+ *                     name also appears explicitly in the file and 
+ *                     therefore should be something
  *                     descriptive of the element type such as the
  *                     'base type' and number of nodes (e.g. "Hex20").
  * \param named_elem_type An index into the list of named element types
  *                     passed to \ref mhdf_createFile .
  * \param status     Passed back status of API call.
- * \return An opaque handle for the created element type.
  */
-mhdf_ElemHandle
+void
 mhdf_addElement( mhdf_FileHandle file_handle,
-                 const char* group_name,
+                 const char* elem_handle,
                  unsigned int named_elem_type,
                  mhdf_Status* status );
-
-/** \brief Get the number of element groups in the file.
- *
- * Get the count of element groups in the file.
- * An element group is the data for a block of elements with the same 
- * TSTT type and same number of nodes in their connectivity data.
- * (e.g. all the HEX20 elements).  This function is also
- * used to create the groups for general polygon data and
- * general polyhedron data.  The requirement that all elements
- * have the same number of nodes in their connectivity does not
- * apply for poly(gons|hedra).
- *
- * \param file_handle The file.
- * \param status      Passed back status of API call.
- */
-int
-mhdf_numElemGroups( mhdf_FileHandle file_handle,
-                    mhdf_Status* status );
 
 /** \brief Get the list of element groups in the file.
  *
@@ -459,22 +432,24 @@ mhdf_numElemGroups( mhdf_FileHandle file_handle,
  * An element group is the data for a block of elements with the same 
  * TSTT type and same number of nodes in their connectivity data.
  * (e.g. all the HEX20 elements).  This function is also
- * used to create the groups for general polygon data and
+ * used to retrieve the groups for general polygon data and
  * general polyhedron data.  The requirement that all elements
  * have the same number of nodes in their connectivity does not
  * apply for poly(gons|hedra).
  *
- * \param file_handle      The file.
- * \param elem_handles_out A pointer to memory in which to write the
- *                         list of handles.  <code>mhdf_numElemGroups</code>
- *                         should be called first so the caller can ensure
- *                         this array is of sufficient size.
- * \param status      Passed back status of API call.
+ * \param  file_handle   The file.
+ * \param  connt_out     Memory location at which to store the
+ *                       length of the returned array.
+ * \param  status        Passed back status of API call.
+ * \return               An array of pointers to element group
+ *                       names.  This array is allocated as a 
+ *                       single memory block and should be freed
+ *                       with <em>one</em> call to free().
  */
-void
-mhdf_getElemGroups( mhdf_FileHandle file_handle,
-                    mhdf_ElemHandle* elem_handles_out,
-                    mhdf_Status* status );
+char**
+mhdf_getElemHandles( mhdf_FileHandle file_handle,
+                     unsigned int* count_out,
+                     mhdf_Status* status );
 
 /** 
  * \brief Get the element type name for a given element group handle.
@@ -482,14 +457,15 @@ mhdf_getElemGroups( mhdf_FileHandle file_handle,
  * Fails if name is longer than <code>buf_len</code>.
  *
  * \param file_handle The file.
- * \param elem_handle One of the values passed back from \ref mhdf_getElemGroups
+ * \param elem_handle One of the group names passed back from 
+ *                    \ref mhdf_getElemHandles
  * \param buffer      A buffer to copy the name into.
  * \param buf_len     The length of <code>buffer</code>.
  * \param status      Passed back status of API call.
  */
 void
 mhdf_getElemTypeName( mhdf_FileHandle file_handle,
-                      mhdf_ElemHandle elem_handle,
+                      const char* elem_handle,
                       char* buffer, size_t buf_len,
                       mhdf_Status* status );
 
@@ -506,7 +482,7 @@ mhdf_getElemTypeName( mhdf_FileHandle file_handle,
  */
 int
 mhdf_isPolyElement( mhdf_FileHandle file_handle,
-                    mhdf_ElemHandle elem_handle,
+                    const char* elem_handle,
                     mhdf_Status* status );
 
 /** \brief Create connectivity table for an element group
@@ -515,7 +491,7 @@ mhdf_isPolyElement( mhdf_FileHandle file_handle,
  * Do NOT use this function for poly(gon/hedron) data.
  *
  * \param file_handle  The file.
- * \param elem_type    The element group.
+ * \param elem_handle  The element group.
  * \param num_nodes_per_elem The number of nodes in the connectivity data
  *                     for each element.
  * \param num_elements The number of elements to be written to the table.
@@ -533,7 +509,7 @@ mhdf_isPolyElement( mhdf_FileHandle file_handle,
  */
 hid_t 
 mhdf_createConnectivity( mhdf_FileHandle file_handle,
-                         mhdf_ElemHandle elem_type,
+                         const char* elem_handle,
                          int num_nodes_per_elem,
                          long num_elements,
                          long* first_elem_id_out,
@@ -567,7 +543,7 @@ mhdf_createConnectivity( mhdf_FileHandle file_handle,
  */
 hid_t
 mhdf_openConnectivity( mhdf_FileHandle file_handle,
-                       mhdf_ElemHandle elem_handle,
+                       const char* elem_handle,
                        int* num_nodes_per_elem_out,
                        long* num_elements_out,
                        long* first_elem_id_out,
@@ -658,7 +634,7 @@ mhdf_readConnectivity( hid_t data_handle,
  */
 void
 mhdf_createPolyConnectivity( mhdf_FileHandle file_handle,
-                             mhdf_ElemHandle elem_handle,
+                             const char* elem_handle,
                              long num_poly,
                              long data_list_length,
                              long* first_id_out,
@@ -698,7 +674,7 @@ mhdf_createPolyConnectivity( mhdf_FileHandle file_handle,
  */
 void
 mhdf_openPolyConnectivity( mhdf_FileHandle file_handle,
-                           mhdf_ElemHandle elem_handle,
+                           const char* elem_handle,
                            long* num_poly_out,
                            long* data_list_length_out,
                            long* first_id_out,
@@ -876,7 +852,7 @@ mhdf_readPolyConnIDs( hid_t poly_handle,
  */
 hid_t
 mhdf_createAdjacency( mhdf_FileHandle file_handle,
-                      mhdf_ElemHandle elem_handle,
+                      const char* elem_handle,
                       long adj_list_size,
                       mhdf_Status* status );
 
@@ -889,7 +865,7 @@ mhdf_createAdjacency( mhdf_FileHandle file_handle,
  */
 int
 mhdf_haveAdjacency( mhdf_FileHandle file,
-                    mhdf_ElemHandle elem_handle,
+                    const char* elem_handle,
                     mhdf_Status* status );
 
 /** \brief Open adjacency data table for nodes, elements, polys, etc. 
@@ -914,7 +890,7 @@ mhdf_haveAdjacency( mhdf_FileHandle file,
  */
 hid_t
 mhdf_openAdjacency( mhdf_FileHandle file_handle,
-                    mhdf_ElemHandle elem_handle,
+                    const char* elem_handle,
                     long* adj_list_size,
                     mhdf_Status* status );
 
@@ -1569,7 +1545,7 @@ mhdf_getTagValues( mhdf_FileHandle file_handle,
 int
 mhdf_haveDenseTag( mhdf_FileHandle file_handle,
                    const char* tag_name,
-                   mhdf_ElemHandle elem_group,
+                   const char* elem_group,
                    mhdf_Status* status );
 
 /** \brief Create an object to hold dense tag values for a given element group.
@@ -1589,7 +1565,7 @@ mhdf_haveDenseTag( mhdf_FileHandle file_handle,
 hid_t
 mhdf_createDenseTagData( mhdf_FileHandle file_handle,
                          const char* tag_name,
-                         mhdf_ElemHandle elem_group,
+                         const char* elem_group,
                          long num_values,
                          mhdf_Status* status );
 
@@ -1608,7 +1584,7 @@ mhdf_createDenseTagData( mhdf_FileHandle file_handle,
 hid_t
 mhdf_openDenseTagData( mhdf_FileHandle file_handle,
                        const char* tag_name,
-                       mhdf_ElemHandle elem_group,
+                       const char* elem_group,
                        long* num_values_out,
                        mhdf_Status* status );
 

@@ -112,7 +112,7 @@ mhdf_createSetMeta( mhdf_FileHandle file,
     return -1;
   
   first_id = file_ptr->max_id + 1;
-  if (!mhdf_write_scalar_attrib( table_id, 
+  if (!mhdf_create_scalar_attrib( table_id, 
                                  START_ID_ATTRIB, 
                                  H5T_NATIVE_LONG,
                                  &first_id,
@@ -124,6 +124,11 @@ mhdf_createSetMeta( mhdf_FileHandle file,
   
   *first_id_out = first_id;
   file_ptr->max_id += num_sets;
+  if (!mhdf_write_max_id( file_ptr, status))
+  {
+    H5Dclose( table_id );
+    return -1;
+  }
   file_ptr->open_handle_count++;
   mhdf_setOkay( status );
  

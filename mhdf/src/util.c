@@ -118,7 +118,42 @@ char* mhdf_name_to_path_copy( const char* name, mhdf_Status* status )
   return buffer;
 }
 
-int mhdf_write_scalar_attrib( hid_t object,
+
+char* mhdf_name_to_path_cat( const char* prefix, const char* name, mhdf_Status* status )
+{
+  size_t size, plen;
+  char* buffer;
+  
+  plen = strlen( prefix );
+  size = mhdf_name_to_path( name, NULL, 0 ) + 1;
+  buffer = (char*)mhdf_malloc( size + plen, status );
+  if (!buffer) return NULL;
+  
+  memcpy( buffer, prefix, plen );
+  mhdf_name_to_path( name, buffer + plen, size );
+  return buffer;
+}
+
+
+hid_t mhdf_elem_group_from_handle( FileHandle* file_ptr,
+                                   const char* elem_handle,
+                                   mhdf_Status* status )
+{
+  char* path;
+  hid_t result;
+  
+  path = mhdf_name_to_path_cat( ELEMENT_GROUP, elem_handle, status );
+  if (NULL == path)
+    return -1;
+  
+  result = H5Gopen( file_ptr->hdf_handle, path );
+  free( path );
+  if (result < 0)
+    mhdf_setFail( status, "Failed to open element group: \"%s\"", elem_handle );
+  return result;
+}    
+
+int mhdf_create_scalar_attrib( hid_t object,
                               const char* name,
                               hid_t type,
                               const void* value,
@@ -661,6 +696,51 @@ get_elem_type_enum( FileHandle* file_ptr, mhdf_Status* status )
     mhdf_setFail( status, "Element type enum does not exist in file.  Invalid file." );
   return result;
 }
+
+int
+mhdf_write_max_id( FileHandle* file_ptr, mhdf_Status* status )
+{
+  hid_t group_id, attr_id, space_id;
+  herr_t rval;
+  
+  group_id = H5Gopen( file_ptr->hdf_handle, ROOT_GROUP );
+  if (group_id < 0)
+  {
+    mhdf_setFail( status, "Internal error -- file invalid." );
+    return 0;
+  }
+  
+  attr_id = H5Aopen_name( group_id, MAX_ID_ATTRIB );
+  if (attr_id < 0)
+  {
+    space_id = H5Screate( H5S_SCALAR );
+    attr_id = H5Acreate( group_id, 
+                         MAX_ID_ATTRIB, 
+                         H5T_NATIVE_ULONG,
+                         space_id, 
+                         H5P_DEFAULT );
+    H5Sclose( space_id );
+  }
+  H5Gclose( group_id );
+  if (attr_id < 0)
+  {
+    mhdf_setFail( status, "Failed to create attribute \"%s\" on \"%s\"", MAX_ID_ATTRIB, ROOT_GROUP );
+    return 0;
+  }
+                         
+  
+  rval = H5Awrite( attr_id, H5T_NATIVE_ULONG, &file_ptr->max_id );
+  H5Aclose( attr_id );
+  if (rval < 0)
+  {
+    mhdf_setFail( status, "Failed to write \"%s\" attrib.", MAX_ID_ATTRIB );
+    return 0;
+  }
+  
+  return 1;
+}
+
+
 
 static int mhdf_api_handle_count = 0;
 

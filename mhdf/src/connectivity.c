@@ -23,7 +23,7 @@
 
 hid_t 
 mhdf_createConnectivity( mhdf_FileHandle file_handle,
-                         mhdf_ElemHandle mhdf_type,
+                         const char* elem_handle,
                          int nodes_per_elem,
                          long count,
                          long* first_id_out,
@@ -45,7 +45,7 @@ mhdf_createConnectivity( mhdf_FileHandle file_handle,
     return -1;
   }
   
-  elem_id = mhdf_handle_from_type_index( file_ptr, mhdf_type, status );
+  elem_id = mhdf_elem_group_from_handle( file_ptr, elem_handle, status );
   if (elem_id < 0) return -1;
   
   
@@ -56,11 +56,12 @@ mhdf_createConnectivity( mhdf_FileHandle file_handle,
                                 H5T_NATIVE_LONG,
                                 2, dims, 
                                 status );
+  H5Gclose( elem_id );
   if (table_id < 0)
     return -1;
   
   first_id = file_ptr->max_id + 1;
-  if (!mhdf_write_scalar_attrib( table_id, 
+  if (!mhdf_create_scalar_attrib( table_id, 
                                  START_ID_ATTRIB, 
                                  H5T_NATIVE_LONG,
                                  &first_id,
@@ -72,6 +73,11 @@ mhdf_createConnectivity( mhdf_FileHandle file_handle,
   
   *first_id_out = first_id;
   file_ptr->max_id += count;
+  if (!mhdf_write_max_id( file_ptr, status))
+  {
+    H5Dclose( table_id );
+    return -1;
+  }
   file_ptr->open_handle_count++;
   mhdf_setOkay( status );
  
@@ -81,7 +87,7 @@ mhdf_createConnectivity( mhdf_FileHandle file_handle,
 
 hid_t
 mhdf_openConnectivity( mhdf_FileHandle file_handle,
-                       mhdf_ElemHandle element_handle,
+                       const char* elem_handle,
                        int* num_nodes_per_elem_out,
                        long* num_elements_out,
                        long* first_elem_id_out,
@@ -102,13 +108,14 @@ mhdf_openConnectivity( mhdf_FileHandle file_handle,
     return -1;
   }
   
-  elem_id = mhdf_handle_from_type_index( file_ptr, element_handle, status );
+  elem_id = mhdf_elem_group_from_handle( file_ptr, elem_handle, status );
   if (elem_id < 0) return -1;
   
   table_id = mhdf_open_table2( elem_id, CONNECTIVITY_NAME, 
                                2, dims,
                                first_elem_id_out, status );
   
+  H5Gclose( elem_id );
   if (table_id < 0)
     return -1;
   
@@ -150,7 +157,7 @@ mhdf_readConnectivity( hid_t table_id,
 
 void 
 mhdf_createPolyConnectivity( mhdf_FileHandle file_handle,
-                             mhdf_ElemHandle elem_type,
+                             const char* elem_type,
                              long num_poly,
                              long data_list_length,
                              long* first_id_out,
@@ -187,7 +194,7 @@ mhdf_createPolyConnectivity( mhdf_FileHandle file_handle,
     return;
   }
   
-  elem_id = mhdf_handle_from_type_index( file_ptr, elem_type, status );
+  elem_id = mhdf_elem_group_from_handle( file_ptr, elem_type, status );
   if (elem_id < 0) return;
   
   dim = (hsize_t)num_poly;
@@ -197,7 +204,7 @@ mhdf_createPolyConnectivity( mhdf_FileHandle file_handle,
                                 1, &dim,
                                 status );
   if (index_id < 0)
-    return;
+    { H5Gclose(elem_id); return; }
   
   
   dim = (hsize_t)data_list_length;
@@ -206,6 +213,7 @@ mhdf_createPolyConnectivity( mhdf_FileHandle file_handle,
                                 H5T_NATIVE_LONG,
                                 1, &dim, 
                                 status );
+  H5Gclose( elem_id );
   if (conn_id < 0)
   {
     H5Dclose(index_id);
@@ -213,7 +221,7 @@ mhdf_createPolyConnectivity( mhdf_FileHandle file_handle,
   }
   
   first_id = file_ptr->max_id + 1;
-  if (!mhdf_write_scalar_attrib( conn_id, 
+  if (!mhdf_create_scalar_attrib( conn_id, 
                                  START_ID_ATTRIB, 
                                  H5T_NATIVE_LONG,
                                  &first_id,
@@ -226,6 +234,12 @@ mhdf_createPolyConnectivity( mhdf_FileHandle file_handle,
   
   *first_id_out = first_id;
   file_ptr->max_id += num_poly;
+  if (!mhdf_write_max_id( file_ptr, status))
+  {
+    H5Dclose(index_id);
+    H5Dclose( conn_id );
+    return -1;
+  }
   file_ptr->open_handle_count++;
   mhdf_setOkay( status );
   handles_out[0] = index_id;
@@ -235,7 +249,7 @@ mhdf_createPolyConnectivity( mhdf_FileHandle file_handle,
 
 void
 mhdf_openPolyConnectivity( mhdf_FileHandle file_handle,
-                           mhdf_ElemHandle element_handle,
+                           const char* element_handle,
                            long* num_poly_out,
                            long* data_list_length_out,
                            long* first_poly_id_out,
@@ -257,18 +271,19 @@ mhdf_openPolyConnectivity( mhdf_FileHandle file_handle,
     return ;
   }
   
-  elem_id = mhdf_handle_from_type_index( file_ptr, element_handle, status );
+  elem_id = mhdf_elem_group_from_handle( file_ptr, element_handle, status );
   if (elem_id < 0) return ;
   
   index_id = mhdf_open_table( elem_id, POLY_INDEX_NAME,
                               1, &row_count, status );
   if (index_id < 0)
-    return ;
+    { H5Gclose(elem_id); return ; }
   *num_poly_out = (int)row_count;
   
   table_id = mhdf_open_table( elem_id, CONNECTIVITY_NAME, 
                               1, &row_count, status );
   
+  H5Gclose( elem_id );
   if (table_id < 0)
   {
     H5Dclose( index_id );
