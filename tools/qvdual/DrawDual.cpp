@@ -438,20 +438,21 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
       const MBEntityHandle *connect, *ed_connect;
       int num_connect;
       result = MBI->get_connectivity(*rit2, ed_connect, num_connect);
-      if (*rit == *tmp_cells.begin())
-        result = MBI->get_connectivity(*tmp_cells.rbegin(), connect, num_connect);
-      else
-        result = MBI->get_connectivity(*tmp_cells.begin(), connect, num_connect);
+      MBEntityHandle the_cell = 
+        (*rit == *tmp_cells.begin() ? *tmp_cells.rbegin() : *tmp_cells.begin());
       
+      result = MBI->get_connectivity(the_cell, connect, num_connect);RR;
       if (num_connect == 2) continue;
-      
         // we're next to a non-degenerate cell; check that our mid-pt is on the same side 
         // of the straight line as the cell is
         // get gvents for that cell's vertices
+      MBRange nondegen_edges;
+      result = MBI->get_adjacencies(&the_cell, 1, 1, false, nondegen_edges);RR;
+
       std::vector<GVEntity*> gvents;
-      gvents.resize(num_connect+1);
+      gvents.resize(num_connect+nondegen_edges.size());
       result = MBI->tag_get_data(gvEntityHandle, connect, num_connect, &gvents[0]); RR;
-      result = MBI->tag_get_data(gvEntityHandle, &(*rit2), 1, &gvents[num_connect]); RR;
+      result = MBI->tag_get_data(gvEntityHandle, nondegen_edges, &gvents[num_connect]); RR;
       int index;
       double avg_coord[2] = {0.0, 0.0}, ed_vec[2] = {0.0, 0.0};
       double ed_cent[2] = {0.0, 0.0}, mid_pt[2] = {0.0, 0.0};
@@ -470,21 +471,41 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
           ed_cent[0] += p.x; ed_cent[1] += p.y;
         }
       }
-      avg_coord[0] /= num_connect; avg_coord[1] /= num_connect;
+
+        // also account for edges with mid-pts
+      int num_pts = num_connect;
+      MBRange::iterator rit3;
+      Agnode_t *my_point = NULL;
+      int i;
+      for (i = num_connect, rit3 = nondegen_edges.begin(); rit3 != nondegen_edges.end(); rit3++, i++) {
+        if (NULL == gvents[i]) continue;
+        index = gvents[i]->get_index(dual_surf);
+        if (gvents[i]->gvizPoints[index+2] == NULL) continue;
+          // if this is the edge we're thinking about adjusting, save the mid-pt for later and
+          // don't include it in the cell's avg position; otherwise, do
+        if (*rit3 == *rit2) {
+          my_point = gvents[i]->gvizPoints[index+2];
+        }
+        else {
+          point p = ND_coord_i(gvents[i]->gvizPoints[index+2]);
+          avg_coord[0] += p.x; avg_coord[1] += p.y;
+          num_pts++;
+        }
+      }
+      
+      avg_coord[0] /= num_pts; avg_coord[1] /= num_pts;
       ed_cent[0] *= 0.5; ed_cent[1] *= 0.5;
       
-      assert(NULL != gvents[num_connect]);
-      index = gvents[num_connect]->get_index(dual_surf);
-      assert(NULL != gvents[num_connect]->gvizPoints[index+2]);
-      point p = ND_coord_i(gvents[num_connect]->gvizPoints[index+2]);
+      point p = ND_coord_i(my_point);
       mid_pt[0] = p.x; mid_pt[1] = p.y;
-      
+
         // take dot product of straight edge and cell center -> edge mid-pt
       double dot = (avg_coord[0]-ed_cent[0])*(mid_pt[0]-ed_cent[0]) +
         (avg_coord[1]-ed_cent[1])*(mid_pt[1]-ed_cent[1]);
       if (dot < 0.0) {
           // must reflect mid-pt across edge center point
-        p.x += (int)(2.0*(ed_cent[0]-mid_pt[0])); p.y += (int)(2.0*(ed_cent[1]-mid_pt[1]));
+        ND_coord_i(my_point).x += (int)(2.0*(ed_cent[0]-mid_pt[0]));
+        ND_coord_i(my_point).y += (int)(2.0*(ed_cent[1]-mid_pt[1]));
       }
     }
   }
