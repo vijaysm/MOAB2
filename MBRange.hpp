@@ -191,7 +191,6 @@ class MBRange
 public:
 
     // forward declare the iterators
-  class pair_iterator;
   class const_iterator;
   class const_reverse_iterator;
   typedef const_iterator iterator;
@@ -310,6 +309,8 @@ protected:
                             MBEntityHandle first,
                             MBEntityHandle last );
 
+public:
+
     //! used to iterate over sub-ranges of a range
   class pair_iterator : public range_base_iter
   {
@@ -360,8 +361,6 @@ protected:
     
     PairNode* mNode;
   };
-
-public:
 
   //! a const iterator which iterates over an MBRange
   class const_iterator : public range_base_iter
@@ -548,11 +547,6 @@ public:
 
 public:
 
-  friend class const_pair_iterator;
-  friend class pair_iterator;
-  friend class const_iterator;
-  friend class const_reverse_iterator;
-  
   class const_pair_iterator {
     public:
       const_pair_iterator( const PairNode* node ) : myNode(node) {}
