@@ -209,12 +209,15 @@ ElementEntitySequence::ElementEntitySequence(EntitySequenceManager* seq_manager,
     std::vector<bool>(mNumAllocated, true).swap(mFreeEntities);
     mNumEntities = 0;
     mFirstFreeIndex = 0;
-    int max = (num_entities-1)*nodes_per_element;
-    for(int i=0; i<max ; i+=nodes_per_element)
+    if (nodes_per_element)
     {
-      mElements[i] = (i/nodes_per_element)+1;
+      int max = (num_entities-1)*nodes_per_element;
+      for(int i=0; i<max ; i+=nodes_per_element)
+      {
+        mElements[i] = (i/nodes_per_element)+1;
+      }
+      reinterpret_cast<int&>(mElements[max]) = -1;
     }
-    reinterpret_cast<int&>(mElements[max]) = -1;
   }
 }
 

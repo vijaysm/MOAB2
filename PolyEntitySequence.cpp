@@ -11,7 +11,7 @@ PolyEntitySequence::PolyEntitySequence(EntitySequenceManager* seq_manager,
                                        MBEntityHandle start_handle, int num_entities,
                                        int nodes_per_element, bool all_handles_used,
                                        bool allocate_connect)
-: ElementEntitySequence(seq_manager, start_handle, num_entities, 0, true, false)
+: ElementEntitySequence(seq_manager, start_handle, num_entities, 0, all_handles_used, false)
 {
   if (allocate_connect) {
       // for a poly sequence, the nodes_per_element is really the total # vertices/faces
