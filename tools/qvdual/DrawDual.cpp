@@ -223,27 +223,55 @@ void DrawDual::process_pick()
   vtkPolyDataMapper *this_mapper = 
     vtkPolyDataMapper::SafeDownCast(picked_actor->GetMapper());
 
-  if (picked_sheet != 0) 
-    std::cout << "Sheet ";
-  else if (picked_chord != 0)
-    std::cout << "Chord ";
+  if (dualPicker->GetCellId() != -1) {
 
-  if (dualPicker->GetCellId() != -1) 
-    std::cout << "cell " << dualPicker->GetCellId() << " picked." << std::endl;
+      // get picked entity based on cell id and set
+    MBEntityHandle picked_ent = 0;
+    if (picked_chord != 0) 
+      picked_ent = gDrawDual->get_picked_cell(picked_chord, 1, dualPicker->GetCellId());
+    else if (picked_sheet != 0)
+      picked_ent = gDrawDual->get_picked_cell(picked_sheet, 2, dualPicker->GetCellId());
 
-    // get picked entity based on cell id and set
-  MBEntityHandle picked_ent;
-  if (picked_chord != 0) 
-    picked_ent = gDrawDual->get_picked_cell(picked_chord, 1, dualPicker->GetCellId());
-  else if (picked_sheet != 0)
-    picked_ent = gDrawDual->get_picked_cell(picked_sheet, 2, dualPicker->GetCellId());
-
-  MBRange::iterator pit = pickRange.find(picked_ent);
-  if (pit == pickRange.end()) pickRange.insert(picked_ent);
-  else pickRange.erase(pit);
+    if (0 != picked_ent)
+      gDrawDual->print_picked_ent(picked_ent);
+    else
+      std::cout << "Couldn't identify picked entity." << std::endl;
   
-    // now update the highlighted polydata
-  gDrawDual->update_high_polydatas();
+    MBRange::iterator pit = pickRange.find(picked_ent);
+    if (pit == pickRange.end()) pickRange.insert(picked_ent);
+    else pickRange.erase(pit);
+  
+      // now update the highlighted polydata
+    gDrawDual->update_high_polydatas();
+  }
+  else
+    std::cout << "Couldn't identify picked entity." << std::endl;
+}
+
+void DrawDual::print_picked_ent(MBEntityHandle picked_ent) 
+{
+    // get the vertices
+  const MBEntityHandle *connect;
+  int num_connect;
+  MBErrorCode result = MBI->get_connectivity(picked_ent, connect, num_connect);
+  if (MB_SUCCESS != result) return;
+  bool first = true;
+  MBEntityHandle primals[20];
+  assert(num_connect < 20);
+  if (MBI->type_from_handle(picked_ent) == MBPOLYGON) std::cout << "2-cell: ";
+  else if (MBI->type_from_handle(picked_ent) == MBEDGE) std::cout << "1-cell: ";
+  else std::cout << "(unknown):";
+  result = MBI->tag_get_data(dualEntityTagHandle, connect, num_connect, primals);
+  for (int i = 0; i < num_connect; i++) {
+    if (!first) std::cout << "-";
+    MBEntityType this_type = MBI->type_from_handle(primals[i]);
+    if (this_type == MBHEX) std::cout << "h";
+    else if (this_type == MBQUAD) std::cout << "f";
+    else std::cout << "u";
+    std::cout << MBI->id_from_handle(primals[i]);
+    first = false;
+  }
+  std::cout << std::endl;
 }
 
 void DrawDual::update_high_polydatas() 

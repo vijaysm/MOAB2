@@ -201,6 +201,8 @@ private:
                     const char *name, const char *def_val = NULL);
   
   MBErrorCode fixup_degen_bchords(MBEntityHandle dual_surf);
+
+  void print_picked_ent(MBEntityHandle picked_ent);
 };
 
 
