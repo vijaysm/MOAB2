@@ -1030,6 +1030,7 @@ MBErrorCode WriteHDF5::write_sets( )
       else
       {
         list.clear();
+        handle_list.clear();
         rval = iFace->get_entities_by_handle( *itor, handle_list, false );
         if (MB_SUCCESS != rval)
         {
