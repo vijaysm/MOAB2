@@ -58,7 +58,7 @@ MBErrorCode MBMeshSet::get_children(const int num_hops,
     if (j == children.end()) 
     {
       children.push_back((*i)->mEntityHandle);
-      if (0 != num_hops)
+      if (0 != this_hops)
         (*i)->get_children(this_hops, children);
     }
     i++;
@@ -83,7 +83,7 @@ MBErrorCode MBMeshSet::get_parents(const int num_hops,
     if (j == parents.end()) 
     {
       parents.push_back( (*i)->mEntityHandle );
-      if (0 != num_hops)
+      if (0 != this_hops)
         (*i)->get_parents(this_hops, parents);
     }
     i++;
