@@ -409,7 +409,7 @@ MBErrorCode ReadHDF5::read_elems( mhdf_ElemHandle elem_group )
     return MB_FAILURE;
   }
   
-  rval = convert_id_to_handle( nodeSet, array, (size_t)count );
+  rval = convert_id_to_handle( nodeSet, array, (size_t)(nodes_per_elem*count) );
   return rval;
 }
 
