@@ -1,0 +1,42 @@
+Version 1.01 (CVS tag version_101): 
+New Capabilities:
+- Added support for polygons/polyhedra; polyhedra represented by
+storing polygon handles as connectivity array, otherwise poly elements
+similar to other entities in MOAB
+- Added DualTool, to compute mesh dual, and for hex meshes, dual
+surfaces/curves
+- Added support for new HDF5-based native MOAB reader/writer; this is
+the only format capable of storing any data represented in MOAB
+- Added writers for GMV, SLAC, Vtk (limited), and also a template for
+constructing new mesh writers WriteTemplate
+- Added tools/converter tool for mesh format conversion to/from any of
+the formats supported by MOAB
+- Added support for dynamically adding readers/writers and dynamically
+testing whether any in the list can read/write a given file; required
+substantial additions to MBWriteUtil
+- Added MBInterface::tag_get_default_value
+- Added MBRange functions subtract, lowerBound, operator+=, operator-=
+- Added rudimentary mesh joining capability, and a test for that to
+MBTest
+- Added "categories" tag, which represent broad category types on
+entity sets; used e.g. to indicate a set represents geometric
+vertex/edge/face/region, dual surface/curve, etc.; currently only
+supported by .cub file reader
+
+Bug Fixes/Rearrangements:
+- Improved efficiency of MOAB's TSTT mesh interface implementation in
+various ways
+- Extensive changes to performance tests (in test/perf) to test MOAB
+performance compared to that of cubit and of MOAB TSTT mesh interface
+- When requesting entities with a tag value equal to the (defined)
+default value for that tag, entities not having a tag are returned in
+the list
+- Move conventional tag names from MBInterface.hpp into
+MBTagConventions.hpp
+- renamed MBCN::SubEntityConn to MBCN::SubEntityVertexIndices, and added
+new function MBCN::SubEntityConn, which returns the actual
+connectivity of a subentity given the parent connectivity, and the
+subentity dimension and index
+
+Version 1.00: 
+Initial release (woo-hoo!)
