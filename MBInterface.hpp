@@ -1294,6 +1294,11 @@ public:
      */
   virtual MBErrorCode get_last_error(std::string& info) const = 0;
 
+    //! Return string representation of given error code
+    /** \param code Error code for which string is wanted
+     */
+  virtual std::string get_error_string(const MBErrorCode code) const = 0;
+
     //@}
 };
 

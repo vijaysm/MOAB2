@@ -52,6 +52,21 @@
 
 using namespace std;
 
+const char *MBCore::errorStrings[] = {
+  "MB_SUCCESS",
+  "MB_INDEX_OUT_OF_RANGE",
+  "MB_TYPE_OUT_OF_RANGE",
+  "MB_MEMORY_ALLOCATION_FAILED",
+  "MB_ENTITY_NOT_FOUND",
+  "MB_MULTIPLE_ENTITIES_FOUND",
+  "MB_TAG_NOT_FOUND",
+  "MB_FILE_DOES_NOT_EXIST",
+  "MB_FILE_WRITE_ERROR",
+  "MB_NOT_IMPLEMENTED",
+  "MB_ALREADY_ALLOCATED",
+  "MB_FAILURE",
+};
+
 //! Constructor
 MBCore::MBCore() 
 {
@@ -1247,7 +1262,10 @@ MBErrorCode  MBCore::tag_delete_data(const MBTag tag_handle,
 
   MBErrorCode status = MB_SUCCESS, temp_status;
   for (int i = 0; i < num_handles; i++) {
-    temp_status = tagServer->remove_data(tag_handle, entity_handles[i]);
+    if (0 == entity_handles[i])
+      temp_status = tagServer->remove_data(tag_handle, myMeshSet);
+    else
+      temp_status = tagServer->remove_data(tag_handle, entity_handles[i]);
     if (temp_status != MB_SUCCESS) status = temp_status;
   }
 
@@ -2460,6 +2478,11 @@ MBErrorCode MBCore::remove_child_meshset(MBEntityHandle meshset,
 MBErrorCode MBCore::get_last_error(std::string& info) const
 {
   return mError->get_last_error(info);
+}
+
+std::string MBCore::get_error_string(const MBErrorCode code) const 
+{
+  return errorStrings[code];
 }
 
 void MBCore::print(const MBEntityHandle ms_handle, const char *prefix,

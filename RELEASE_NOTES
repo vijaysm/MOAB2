@@ -9,6 +9,9 @@ function ambiguous)
 instead of std::vector, so single MBEntityHandle can be used as input
 - Added version of get_connectivity which returns results in an MBRange, 
 for convenience of calling code needing to do range-based logic
+- Added std::string MBInterface::get_error_string(const MBErrorCode) const, which
+returns a string for the error code passed in (usually just a string representation
+of the error code enum)
 
 Version 1.01 (CVS tag version_101): 
 New Capabilities:

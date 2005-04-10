@@ -772,6 +772,8 @@ public:
 
   virtual MBErrorCode get_last_error(std::string& info) const;
 
+  virtual std::string get_error_string(const MBErrorCode code) const;
+
 private:
 
     //! database init and de-init routines
@@ -820,6 +822,7 @@ private:
 
   MBError* mError;
 
+  static const char *errorStrings[];
 
 //------------MeshSet Interface Private Functions & Data------------//
 
