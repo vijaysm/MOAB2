@@ -30,14 +30,10 @@ Dependencies
 =====================================
 
 MOAB depends on the NetCDF libraries (C and C++) to compile the
-ExodusII reader/writer.  Because of problems compiling the released
-version, it's easiest to download the latest, beta version of netcdf,
-which is available at
-ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-3.5.1.tar.Z.  If you want
-to use the released version, it'll work once you've compiled the C++
-version of the library; see
-http://www.unidata.ucar.edu/packages/netcdf/known_problems.html#gcc-3.0
-for a discussion of how to do that.
+ExodusII reader/writer.  Support for C++ was added in version 3.5.1, and took
+a bit of time to get compiling ironed out, so make sure you have version 3.6 or
+later.  To get netcdf, search the web or try 
+http://www.unidata.ucar.edu/packages/netcdf/.
 
 =====================================
 Compiling
@@ -59,12 +55,23 @@ the modified definitions into MB.local; doing so will mean you won't
 lose those definitions if you unpack an updated version of MOAB (or, if
 you're committing something to CVS repository, you won't change the
 distributed version of the MB.xx files).
-5. Make dependencies ('make depend') (this might generate warnings
+5. For first-time compiles, touch the file make.dependencies 
+('touch make.dependencies').
+6. Make dependencies ('make depend') (this might generate warnings
 about missing system includes, which you can usually ignore).
-6. Make the MOAB shared library (libMOAB.so) by typing 'make'.  If
+7. Make the MOAB shared library (libMOAB.so) by typing 'make'.  If
 desired, make the static library (libMOAB.a) by typing 'make static'.
 Making the libraries also makes the test programs packaged with MOAB.
-7. Test the code: './moab_test; ./moab_test.static'.
+8. Make sure the MOAB shared library location is in your LD_LIBRARY_PATH
+environment variable (see the man page for your shell for instructions on
+how to set environment variables).
+9. Test the code: './moab_test; ./moab_test.static'.  NOTE: one of the tests
+in moab_test requires a vary large file, which is stored in gzipped form in
+the repository.  In order for this test to pass, you must gunzip this file 
+by entering the following command:
+gunzip mb_bit_test.g.gz
+
+
 
 =====================================
 Bugs, Correspondence, Contributing

@@ -298,10 +298,10 @@ MBErrorCode SparseTagCollection::set_data(const MBEntityHandle entity_handle, co
   MBErrorCode ret_val = MB_TAG_NOT_FOUND;
 
   std::map<MBEntityHandle, void*>::iterator iterator =
-    mData.find(entity_handle);
+    mData.lower_bound(entity_handle);
 
   // data space already exists
-  if(iterator != mData.end())
+  if(iterator->first == entity_handle)
   {
     memcpy( iterator->second, data, mDataSize);
     ret_val = MB_SUCCESS;
@@ -311,8 +311,7 @@ MBErrorCode SparseTagCollection::set_data(const MBEntityHandle entity_handle, co
   {
     void* new_data = mAllocator.allocate(mDataSize);
     memcpy(new_data, data, mDataSize);
-      //mData.insert( std::pair<MBEntityHandle, void*>(entity_handle, new_data));
-    mData[entity_handle] = new_data;
+    mData.insert( iterator, std::make_pair(entity_handle, new_data));
     ret_val = MB_SUCCESS;
   }
 
