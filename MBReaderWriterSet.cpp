@@ -24,6 +24,7 @@
 #include "ReadVtk.hpp"
 #include "Tqdcfr.hpp"
 
+#include "WriteAns.hpp"
 #include "WriteVtk.hpp"
 #include "WriteGMV.hpp"
 #include "WriteNCDF.hpp"
@@ -51,6 +52,9 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
   
   const char* gmv_list[] = { "gmv", NULL };
   register_factory( NULL, WriteGMV::factory, "GMV", gmv_list );
+  
+  const char* ans_list[] = { "ans", NULL };
+  register_factory( NULL, WriteAns::factory, "Ansys", ans_list );
   
 #ifdef HDF5_FILE
   const char* hdf5_list[] = { "h5m", "mhdf", NULL };

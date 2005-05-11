@@ -64,6 +64,7 @@ MB_LIB_SRCS = \
 	TagServer.cpp \
 	Tqdcfr.cpp \
 	VtkUtil.cpp \
+	WriteAns.cpp \
 	WriteGMV.cpp \
 	WriteNCDF.cpp \
 	WriteSLAC.cpp \
