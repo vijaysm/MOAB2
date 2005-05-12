@@ -441,7 +441,7 @@ MBErrorCode WriteNCDF::gather_mesh_information(
 
     block_info.push_back( block_data );
   
-    std::vector<char*> *qa_rec;
+    std::vector<char*> *qa_rec = NULL;
 
     if (mdbImpl->tag_get_data(mQaRecordTag, &(*vector_iter), 1, &qa_rec) == MB_SUCCESS &&
         NULL != qa_rec) 
