@@ -299,9 +299,9 @@ MBErrorCode SparseTagCollection::set_data(const MBEntityHandle entity_handle, co
 
   std::map<MBEntityHandle, void*>::iterator iterator =
     mData.lower_bound(entity_handle);
-
+  
   // data space already exists
-  if(iterator->first == entity_handle)
+  if (iterator!= mData.end() && iterator->first == entity_handle)
   {
     memcpy( iterator->second, data, mDataSize);
     ret_val = MB_SUCCESS;
