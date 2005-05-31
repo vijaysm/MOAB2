@@ -57,7 +57,9 @@ MB_LIB_SRCS = \
 	MeshTopoUtil.cpp \
 	PolyEntitySequence.cpp \
 	ReadNCDF.cpp \
+	ReadSTL.cpp \
 	ReadVtk.cpp \
+	ReadGmsh.cpp \
 	ScdElementSeq.cpp \
 	ScdVertexSeq.cpp \
 	SparseTagCollections.cpp \
@@ -68,8 +70,10 @@ MB_LIB_SRCS = \
 	WriteGMV.cpp \
 	WriteNCDF.cpp \
 	WriteSLAC.cpp \
+	WriteSTL.cpp \
 	WriteTemplate.cpp \
-	WriteVtk.cpp
+	WriteVtk.cpp \
+	WriteGmsh.cpp 
 
 HDF_IO_SRCS = RangeTree.cpp ReadHDF5.cpp WriteHDF5.cpp
 ifeq ($(HDF5_FILE),yes)

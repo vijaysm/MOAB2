@@ -22,6 +22,8 @@
 
 #include "ReadNCDF.hpp"
 #include "ReadVtk.hpp"
+#include "ReadSTL.hpp"
+#include "ReadGmsh.hpp"
 #include "Tqdcfr.hpp"
 
 #include "WriteAns.hpp"
@@ -29,6 +31,8 @@
 #include "WriteGMV.hpp"
 #include "WriteNCDF.hpp"
 #include "WriteSLAC.hpp"
+#include "WriteSTL.hpp"
+#include "WriteGmsh.hpp"
 
 #ifdef HDF5_FILE
 #  include "ReadHDF5.hpp"
@@ -38,6 +42,11 @@
 MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
   : mbCore( mdb ), mbError( handler ) 
 {
+#ifdef HDF5_FILE
+  const char* hdf5_list[] = { "h5m", "mhdf", NULL };
+  register_factory(  ReadHDF5::factory, WriteHDF5::factory, "MOAB HDF5", hdf5_list );
+#endif
+
   const char* exo_list[] = { "exo", "exoII", "exo2", "g", "gen", NULL };
   register_factory( ReadNCDF::factory, WriteNCDF::factory, "Exodus II", exo_list );
   
@@ -56,10 +65,14 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
   const char* ans_list[] = { "ans", NULL };
   register_factory( NULL, WriteAns::factory, "Ansys", ans_list );
   
-#ifdef HDF5_FILE
-  const char* hdf5_list[] = { "h5m", "mhdf", NULL };
-  register_factory(  ReadHDF5::factory, WriteHDF5::factory, "TSTT HDF5", hdf5_list );
-#endif
+  const char* gmsh_list[] = { "msh", "gmsh", NULL };
+  register_factory( ReadGmsh::factory, WriteGmsh::factory, "Gmsh mesh file", gmsh_list );
+  
+  const char* stl_list[] = { "stl", NULL };
+  register_factory( ReadSTL::ascii_instance, WriteSTL::ascii_instance, "Stereo Lithography File (STL)", stl_list );
+  
+  const char* stlb_list[] = { "stlb", NULL };
+  register_factory( ReadSTL::binary_instance, WriteSTL::binary_instance, "Binary Stereo Lithography (STL)", stlb_list );
 }
 
 

@@ -64,18 +64,22 @@ public:
 
   MBErrorCode set_last_error(const char* fmt, ...)
   {
-    if(!fmt)
-      return MB_FAILURE;
-    
-    va_list ap;
+    MBErrorCode result = MB_FAILURE;
+    if (fmt)
+    {
+      va_list args;
+      va_start( args, fmt );
+      result = set_last_error( fmt, args );
+      va_end( args );
+    }
+    return result;
+  }
+  
+  MBErrorCode set_last_error( const char* fmt, va_list args )
+  {
     static char text[1024];
-
-    va_start(ap, fmt);
-    VSNPRINTF(text, 1024, fmt, ap);
-    va_end(ap);
-
+    VSNPRINTF( text, sizeof(text), fmt, args );
     mLastError = text;
-
     return MB_SUCCESS;
   }
 

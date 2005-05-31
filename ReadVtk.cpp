@@ -1277,12 +1277,6 @@ bool FileTokenizer::get_float_internal( float& result )
     return false;
   
   result = (float)d;
-  if (d != (double)result)
-  {
-    readUtilPtr->report_error( "Numberic overflow at line %d.", line_number() );
-    return false;
-  }
-  
   return true;
 }
 
