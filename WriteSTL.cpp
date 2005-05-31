@@ -28,6 +28,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <unistd.h>
 
 #ifdef _MSC_VER /* windows */
 #  include <io.h>
