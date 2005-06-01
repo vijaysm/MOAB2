@@ -1216,7 +1216,16 @@ void Tqdcfr::parse_acis_attribs(const int entity_rec_num,
       int bounding_uid, bounding_sense;
       num_read = sscanf(records[current_attrib].att_string.c_str(), "ENTITY_ID 0 3 %d %d %d", 
                         &id, &bounding_uid, &bounding_sense);
-      if (3 != num_read)
+      if (3 != num_read) {
+          // try reading updated entity_id format, which has coordinate triple embedded in it too
+        float dumx, dumy, dumz;
+        num_read = sscanf(records[current_attrib].att_string.c_str(), 
+                          "ENTITY_ID 3 %f %f %f 3 %d %d %d", 
+                          &dumx, &dumy, &dumz, &id, &bounding_uid, &bounding_sense);
+        num_read -= 3;
+      }
+      
+      if (3 != num_read)  
         std::cout << "Warning: bad ENTITY_ID attribute in .sat file, record number " << entity_rec_num
                   << ", record follows:" << std::endl
                   << records[current_attrib].att_string.c_str() << std::endl;
