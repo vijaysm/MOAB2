@@ -25,23 +25,17 @@
 
 #include "WriteVtk.hpp"
 #include "VtkUtil.hpp"
-#include "ExoIIUtil.hpp"
 
-#include <utility>
-#include <algorithm>
-#include <time.h>
-#include <string>
-#include <vector>
+#include <fstream>
 #include <stdio.h>
-#include <iostream>
+#include <assert.h>
 
 #include "MBInterface.hpp"
 #include "MBRange.hpp"
 #include "MBCN.hpp"
-#include "assert.h"
-#include "MBInternals.hpp"
-#include "ExoIIUtil.hpp"
 #include "MBTagConventions.hpp"
+#include "MBWriteUtilIface.hpp"
+#include "MBInternals.hpp"
 
 #define INS_ID(stringvar, prefix, id) \
 sprintf(stringvar, prefix, id)
@@ -50,430 +44,479 @@ MBWriterIface *WriteVtk::factory( MBInterface* iface )
   { return new WriteVtk( iface ); }
 
 WriteVtk::WriteVtk(MBInterface *impl) 
-    : mbImpl(impl), mCurrentMeshHandle(0)
+    : mbImpl(impl), writeTool(0), globalId(0)
 {
   assert(impl != NULL);
 
-  std::string iface_name = "MBWriteUtilIface";
-  impl->query_interface(iface_name, reinterpret_cast<void**>(&mWriteIface));
-
-  // initialize in case tag_get_handle fails below
-  //! get and cache predefined tag handles
-  int dum_val = 0;
-  MBErrorCode result = impl->tag_get_handle(MATERIAL_SET_TAG_NAME,  mMaterialSetTag);
+  impl->query_interface("MBWriteUtilIface", reinterpret_cast<void**>(&writeTool));
+  
+  MBErrorCode result = impl->tag_get_handle(GLOBAL_ID_TAG_NAME, globalId);
   if (MB_TAG_NOT_FOUND == result)
-    mMaterialSetTag = 0;
-  
-  result = impl->tag_get_handle(HAS_MID_NODES_TAG_NAME, mHasMidNodesTag);
-  if (MB_TAG_NOT_FOUND == result) {
-    int dum_val_array[] = {0, 0, 0, 0};
-    result = impl->tag_create(HAS_MID_NODES_TAG_NAME, 4*sizeof(int), MB_TAG_SPARSE, mHasMidNodesTag,
-                              dum_val_array);
-  }
-  
-  result = impl->tag_get_handle(GLOBAL_ID_TAG_NAME, mGlobalIdTag);
-  if (MB_TAG_NOT_FOUND == result)
-    result = impl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mGlobalIdTag,
-                              &dum_val);
-  
-  dum_val = -1;
-  result = impl->tag_get_handle("__matSetIdTag", mMatSetIdTag);
-  if (MB_TAG_NOT_FOUND == result)
-    result = impl->tag_create("__matSetIdTag", sizeof(int), MB_TAG_DENSE, mMatSetIdTag,
-                              &dum_val);
-  
-
-  impl->tag_create("WriteVtk element mark", 1, MB_TAG_BIT, mEntityMark, NULL);
-
+    result = impl->tag_create( GLOBAL_ID_TAG_NAME, 
+                               sizeof(int), 
+                               MB_TAG_SPARSE,
+                               MB_TYPE_INTEGER, 
+                               globalId, 0 );
 }
 
 WriteVtk::~WriteVtk() 
 {
-  if (oFile.is_open())
-    oFile.close();
-  
-  std::string iface_name = "MBWriteUtilIface";
-  mbImpl->release_interface(iface_name, mWriteIface);
-
-  mbImpl->tag_delete(mEntityMark);
-}
-
-void WriteVtk::reset_matset(std::vector<WriteVtk::MaterialSetData> &matset_info)
-{
-  std::vector<WriteVtk::MaterialSetData>::iterator iter;
-  
-  for (iter = matset_info.begin(); iter != matset_info.end(); iter++)
-  {
-    delete (*iter).elements;
-  }
+  mbImpl->release_interface("MBWriteUtilIface", writeTool);
 }
 
 MBErrorCode WriteVtk::write_file(const char *file_name, 
                                  const bool overwrite,
-                                 const MBEntityHandle *ent_handles,
+                                 const MBEntityHandle *output_list,
                                  const int num_sets,
-                                 std::vector<std::string>&, int )
-{
-  std::vector<MBEntityHandle> matsets, entities;
-
-    // separate into material sets, dirichlet sets, neumann sets
-
-  if (num_sets == 0) {
-      // default to all material sets
-    MBRange this_range;
-    if (mMaterialSetTag) {
-      mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &mMaterialSetTag, NULL, 1, this_range);
-      std::copy(this_range.begin(), this_range.end(), std::back_inserter(matsets));
-      this_range.clear();
-    }
-      // If no material sets, will do entire mesh
-  }
-  else {
-    std::copy(ent_handles, ent_handles+num_sets, std::back_inserter(matsets));
-  }
-
-  std::vector<WriteVtk::MaterialSetData> matset_info;
-
-  MeshInfo mesh_info;
-  
-  matset_info.clear();
-  if(gather_mesh_information(mesh_info, matset_info, matsets) != MB_SUCCESS)
-  {
-    reset_matset(matset_info);
-    return MB_FAILURE;
-  }
-
-  // try to open the file after gather mesh info succeeds
-  MBErrorCode result = open_file(file_name, overwrite);
-  if (MB_FAILURE == result) {
-    reset_matset(matset_info);
-    return result;
-  }
-
-  result = initialize_file(mesh_info);
-  if(result != MB_SUCCESS)
-  {
-    reset_matset(matset_info);
-    return MB_FAILURE;
-  }
-
-  if( write_nodes(mesh_info.nodes) != MB_SUCCESS )
-  {
-    reset_matset(matset_info);
-    return MB_FAILURE;
-  }
-
-  if( write_matsets(mesh_info, matset_info) )
-  {
-    reset_matset(matset_info);
-    return MB_FAILURE;
-  }
-
-  oFile.sync();
-  oFile.close();
-  
-  return MB_SUCCESS;
-}
-
-MBErrorCode WriteVtk::gather_mesh_information(MeshInfo &mesh_info,
-                                              std::vector<WriteVtk::MaterialSetData> &matset_info,
-                                              std::vector<MBEntityHandle> &matsets )
+                                 std::vector<std::string>& ,
+                                 int )
 {
   MBErrorCode rval;
   
-  // clean out the bits for the element mark
-  mbImpl->tag_delete(mEntityMark);
-  mbImpl->tag_create("WriteVtk element mark", 1, MB_TAG_BIT, mEntityMark, NULL);
-
-  if (matsets.empty())
-  {
-      // if no input sets, do entire mesh (root set)
-    rval = gather_mesh_information(matset_info, 0);
-    if (MB_SUCCESS != rval)
-      return MB_FAILURE;
-  }
-  else
-  {
-      // get information for each set
-    for (std::vector<MBEntityHandle>::const_iterator iter = matsets.begin();
-         iter != matsets.end(); ++iter)
-    {
-      rval = gather_mesh_information(matset_info, *iter);
-      if (MB_SUCCESS != rval)
-        return MB_FAILURE;
-    }
-  }
+    // Get entities to write
+  MBRange nodes, elems;
+  rval = gather_mesh( output_list, num_sets, nodes, elems );
+  if (MB_SUCCESS != rval)
+    return rval;
   
-    // Now get nodes from elements, count total elements, etc.
-  mesh_info.num_elements = 0;
-  mesh_info.num_matsets = matset_info.size();
-  for (std::vector<WriteVtk::MaterialSetData>::iterator iter = matset_info.begin();
-       iter != matset_info.end(); ++iter)
+    // Honor overwrite flag
+  if (!overwrite)
   {
-    mesh_info.num_elements += iter->number_elements;
-    rval = mWriteIface->gather_nodes_from_elements( *(iter->elements), mEntityMark, mesh_info.nodes);
+    rval = writeTool->check_doesnt_exist( file_name );
     if (MB_SUCCESS != rval)
       return rval;
   }
-  mesh_info.num_nodes = mesh_info.nodes.size();
-
+  
+    // Create file
+  std::ofstream file( file_name );
+  if (!file)
+  {
+    writeTool->report_error("Could not open file: %s\n", file_name );
+    return MB_FILE_WRITE_ERROR;
+  }
+  
+    // Write file
+  if ((rval = write_header(file              )) != MB_SUCCESS ||
+      (rval = write_nodes( file, nodes       )) != MB_SUCCESS ||
+      (rval = write_elems( file, elems       )) != MB_SUCCESS ||
+      (rval = write_tags ( file, true,  nodes)) != MB_SUCCESS ||
+      (rval = write_tags ( file, false, elems)) != MB_SUCCESS)
+  {
+    file.close();
+    remove( file_name );
+    return rval;
+  } 
+  
   return MB_SUCCESS;
 }
 
-MBErrorCode WriteVtk::gather_mesh_information(std::vector<WriteVtk::MaterialSetData> &matset_info,
-                                              MBEntityHandle matset )
+
+MBErrorCode WriteVtk::gather_mesh( const MBEntityHandle* set_list,
+                                   int num_sets, 
+                                   MBRange& nodes,
+                                   MBRange& elems )
 {
-    // Get elements of highest dimension in entity set
-  MBRange elements;
-  for (int dim = 3; dim > 0 && elements.empty(); --dim)
-    mbImpl->get_entities_by_dimension( matset, dim, elements, true );
+  MBErrorCode rval;
+  int e;
   
-    // Now subdivide the range by element type
-  MBRange::iterator iter, last;
-  for (iter = elements.begin(); iter != elements.end(); iter = last)
+  if (!set_list || !num_sets)
   {
-      // Find beginning of next element type in range
-    int err;
-    MBEntityType type = TYPE_FROM_HANDLE( *iter );
-    MBEntityHandle handle = CREATE_HANDLE( type+1, 0, err );
-    last = elements.lower_bound( iter, elements.end(), handle );
+    MBRange a;
+    rval = mbImpl->get_entities_by_handle( 0, a );
+    if (MB_SUCCESS != rval) return rval;
+
+    MBRange::const_iterator node_i, elem_i, set_i;
+    node_i = a.lower_bound( a.begin(), a.end(), CREATE_HANDLE(    MBVERTEX, 0, e ) );
+    elem_i = a.lower_bound(    node_i, a.end(), CREATE_HANDLE(      MBEDGE, 0, e ) );
+    set_i  = a.lower_bound(    elem_i, a.end(), CREATE_HANDLE( MBENTITYSET, 0, e ) );
+    nodes.merge( node_i, elem_i );
+    elems.merge( elem_i, set_i );
+  }
+  else
+  {
+    for (int i = 0; i < num_sets; ++i)
+    {
+      MBEntityHandle set = set_list[i];
+      MBRange a;
+      rval = mbImpl->get_entities_by_handle( set, a );
+      if (MB_SUCCESS != rval) return rval;
+      
+      MBRange::const_iterator node_i, elem_i, set_i;
+      node_i = a.lower_bound( a.begin(), a.end(), CREATE_HANDLE(    MBVERTEX, 0, e ) );
+      elem_i = a.lower_bound(    node_i, a.end(), CREATE_HANDLE(      MBEDGE, 0, e ) );
+      set_i  = a.lower_bound(    elem_i, a.end(), CREATE_HANDLE( MBENTITYSET, 0, e ) );
+      nodes.merge( node_i, elem_i );
+      elems.merge( elem_i, set_i );
+    }
     
-      // Create MaterialSetData containing the elements
-    WriteVtk::MaterialSetData matset_data;
-    matset_data.elements = new MBRange;
-    matset_data.elements->merge( iter, last );
-    matset_data.number_elements = matset_data.elements->size();
-    matset_data.moab_type = type;
-    matset_data.number_nodes_per_element = MBCN::VerticesPerEntity( type );
-    
-      // Add to list
-    matset_info.push_back( matset_data );
+    for (MBRange::const_iterator e = elems.begin(); e != elems.end(); ++e)
+    {
+      const MBEntityHandle* conn;
+      int conn_len;
+      rval = mbImpl->get_connectivity( *e, conn, conn_len );
+      if (MB_SUCCESS != rval) return rval;
+      
+      for (int i = 0; i < conn_len; ++i)
+        nodes.insert( conn[i] );
+    }
+  }
+
+  if (nodes.empty())
+  {
+    writeTool->report_error( "Nothing to write.\n" );
+    return  MB_ENTITY_NOT_FOUND;
   }
   
   return MB_SUCCESS;
 }
 
-
-MBErrorCode WriteVtk::write_nodes(const MBRange& nodes)
+MBErrorCode WriteVtk::write_header( std::ostream& stream )
 {
-  const int num_nodes = nodes.size();
+  stream << "# vtk DataFile Version 2.0" << std::endl;
+  stream << "MOAB Version " << MOAB_API_VERSION_STRING << std::endl;
+  stream << "ASCII" << std::endl;
+  stream << "DATASET UNSTRUCTURED_GRID" << std::endl;
+  return MB_SUCCESS;
+}
+
+
+MBErrorCode WriteVtk::write_nodes( std::ostream& stream, const MBRange& nodes )
+{
+  MBErrorCode rval;
   
-  //see if should transform coordinates
-  MBErrorCode result;
-  MBTag trans_tag;
-  result = mbImpl->tag_get_handle( MESH_TRANSFORM_TAG_NAME, trans_tag);
-  bool transform_needed = true;
-  if( result == MB_TAG_NOT_FOUND )
-    transform_needed = false;
-
-  int dimension;
-  mbImpl->get_dimension(dimension);
-
+    // Allocate storage for node coordinates
+  const unsigned long n = nodes.size();
+  std::vector<double> coord_mem( 3*n );
+  double* x = &coord_mem[0];
+  double* y = &coord_mem[n];
+  double* z = &coord_mem[2*n];
   std::vector<double*> coord_arrays(3);
-  coord_arrays[0] = new double[num_nodes];
-  coord_arrays[1] = new double[num_nodes];
-  coord_arrays[2] = NULL;
-
-  if( transform_needed || dimension == 3 ) 
-    coord_arrays[2] = new double[num_nodes];
- 
-  result = mWriteIface->get_node_arrays(dimension, num_nodes, nodes, 
-                                        mGlobalIdTag, 0, coord_arrays);
-  if(result != MB_SUCCESS)
-  {
-    delete [] coord_arrays[0];
-    delete [] coord_arrays[1];
-    if(coord_arrays[2]) delete [] coord_arrays[2];
-    return result;
-  }
-
-  if( transform_needed )
-  {
-    double trans_matrix[16]; 
-    result = mbImpl->tag_get_data( trans_tag, NULL, 0, trans_matrix ); 
-    if (MB_SUCCESS != result) {
-      mWriteIface->report_error("Couldn't get transform data.");
-      return result;
-    }
-      
-    for( int i=0; i<num_nodes; i++)
-    {
-
-      double vec1[3];
-      double vec2[3];
-
-      vec2[0] =  coord_arrays[0][i];
-      vec2[1] =  coord_arrays[1][i];
-      vec2[2] =  coord_arrays[2][i];
-
-      for( int row=0; row<3; row++ )
-      {
-        vec1[row] = 0.0;
-        for( int col = 0; col<3; col++ )
-        {
-          vec1[row] += ( trans_matrix[ (row*4)+col ] * vec2[col] );
-        }
-      }
-
-      coord_arrays[0][i] = vec1[0];
-      coord_arrays[1][i] = vec1[1];
-      coord_arrays[2][i] = vec1[2];
-
-    }
-  }
-
-
-  // write the nodes 
-  oFile << "POINTS " << num_nodes << " float" << std::endl;
-
-  if (NULL != coord_arrays[2]) {
-    for( int i=0; i<num_nodes; i++)
-    {
-      oFile << coord_arrays[0][i] << " " 
-            << coord_arrays[1][i] << " "
-            << coord_arrays[2][i] << std::endl;
-    }
-  }
-  else {
-    for( int i=0; i<num_nodes; i++)
-    {
-      oFile << coord_arrays[0][i] << " " 
-            << coord_arrays[1][i] << " "
-            << "0.0" << std::endl;
-    }
-  }
-
-  // clean up
-  delete [] coord_arrays[0];
-  delete [] coord_arrays[1];
-  if(coord_arrays[2]) 
-    delete [] coord_arrays[2];
-
-  return MB_SUCCESS;
-
-}
-
-MBErrorCode WriteVtk::write_matsets(MeshInfo &,
-                   std::vector<WriteVtk::MaterialSetData> &matset_data )
-{
-  unsigned int i;
-  std::vector<int> connect;
-  const MBEntityHandle *connecth;
-  int num_connecth;
-  MBErrorCode result;
-  int total_elems = 0, total_ints = 0;
-
-    // don't usually have anywhere near 31 nodes per element
-  connect.reserve(31);
-  MBRange::iterator rit;
-
-    // three loops, first to count, second to write connectivity, 
-    // third to write cell types
-  WriteVtk::MaterialSetData matset;
-  for (i = 0; i < matset_data.size(); i++) {
-      // make sure this element type is supported
-    if (-1 == VtkUtil::vtkElemType[matset_data[i].moab_type]) {
-      mWriteIface->report_error("Warning: won't be able to write out MOAB type %s, no"
-                                " corresponding vtk type.", 
-                                MBCN::EntityTypeName(matset_data[i].moab_type));
-    }
-    
-    else {
-      int tot_e = matset_data[i].elements->size();
-      total_elems += tot_e;
-      total_ints += (matset_data[i].number_nodes_per_element + 1) * tot_e;
-    }
-  }
-
-  oFile << "CELLS " << total_elems << " " << total_ints << std::endl;
-
-  for (i = 0; i < matset_data.size(); i++) {
-    matset = matset_data[i];
-    if (-1 == VtkUtil::vtkElemType[matset.moab_type]) continue;
-    
-      // 1st element is always the # nodes
-    connect[0] = matset.number_nodes_per_element;
-      
-    for (rit = matset.elements->begin(); rit != matset.elements->end(); rit++) {
-      
-        // get the connectivity of this element
-      result = mbImpl->get_connectivity(*rit, connecth, num_connecth);
-      if (MB_SUCCESS != result) return result;
-      
-        // get the vertex ids
-      result = mbImpl->tag_get_data(mGlobalIdTag, connecth, num_connecth, &connect[1]);
-      if (MB_SUCCESS != result) return result;
-      
-        // write the data; <= because we have an extra member, # nodes
-      for (int j = 0; j <= matset.number_nodes_per_element; j++) 
-        oFile << connect[j] << " ";
-      
-      oFile << std::endl;
-    }
-  }
-
-  oFile << "CELL_TYPES " << total_elems << std::endl;
-  for (i = 0; i < matset_data.size(); i++) {
-    int elem_type = VtkUtil::vtkElemType[matset_data[i].moab_type];
-    if (-1 == elem_type) continue;
-    for (int j = 0; j < matset_data[i].number_elements; j++)
-      oFile << elem_type << std::endl;
-  }
+  coord_arrays[0] = x;
+  coord_arrays[1] = y;
+  coord_arrays[2] = z;
   
-  return MB_SUCCESS;
-}
-
-MBErrorCode WriteVtk::initialize_file(MeshInfo &)
-{
-    // perform the initializations
-  oFile << "# vtk DataFile Version 2.0" << std::endl;
-  oFile << "MOAB vtk data file" << std::endl;
-  oFile << "ASCII" << std::endl;
-  oFile << "DATASET UNSTRUCTURED_GRID" << std::endl;
-
-    // wait until actual write operations to count how many and actually write 
-
-  return MB_SUCCESS;
-}
-
-
-MBErrorCode WriteVtk::open_file(const char* filename, const bool overwrite)
-{
-    // check the file name
-  if (NULL == strstr(filename, ".vtk")) {
-    mWriteIface->report_error("Vtk files should end with .vtk ");
+    // Get node coordinates
+  rval = writeTool->get_node_arrays( 3, n, nodes, globalId, 0, coord_arrays );
+  if (MB_SUCCESS != rval)
     return MB_FAILURE;
-  }
+  
+  stream << "POINTS " << nodes.size() << " double" << std::endl;
+  for (unsigned long i = 0; i < n; ++i, ++x, ++y, ++z )
+    stream << *x << ' ' << *y << ' ' << *z << std::endl;
 
-    // not a valid filname
-  if(strlen(filename) == 0)
+  return MB_SUCCESS;
+}
+
+MBErrorCode WriteVtk::write_elems( std::ostream& stream, const MBRange& elems )
+{
+  MBErrorCode rval;
+  MBRange::const_iterator i;
+
+  // Get and write counts
+  unsigned long num_elems, num_uses;
+  num_elems = num_uses = elems.size();
+  for (MBRange::const_iterator i = elems.begin(); i != elems.end(); ++i)
   {
-    mWriteIface->report_error("Output filename not specified");
-    return MB_FAILURE;
+    const MBEntityHandle* conn;
+    int conn_len;
+    rval = mbImpl->get_connectivity( *i, conn, conn_len );
+    if (MB_SUCCESS != rval)
+      return rval;
+    num_uses += conn_len;
   }
+  stream << "CELLS " << num_elems << ' ' << num_uses << std::endl;
+  
+    // Write element connectivity
+  std::vector<int> conn_data;
+  std::vector<unsigned> vtk_types( elems.size() );
+  std::vector<unsigned>::iterator t = vtk_types.begin();
+  for (MBRange::const_iterator i = elems.begin(); i != elems.end(); ++i)
+  {
+      // Get element connectivity
+    const MBEntityHandle* conn;
+    int conn_len;
+    rval = mbImpl->get_connectivity( *i, conn, conn_len );
+    if (MB_SUCCESS != rval)
+      return rval;
 
-  if (overwrite) 
-    oFile.open(filename, std::ios::out | std::ios::trunc);
-  else {
-    oFile.open(filename, std::ios::in);
-    if (!oFile.fail()) {
-        // didn't fail, which means it's already there, which is an error
-      mWriteIface->report_error("Output filename already exists and overwrite not allowed.");
-      oFile.close();
+      // Get IDs from vertex handles
+    assert( conn_len > 0 );
+     if (conn_data.size() < (unsigned)conn_len)
+      conn_data.resize( conn_len );
+    rval = mbImpl->tag_get_data( globalId, conn, conn_len, &conn_data[0] );
+    if (MB_SUCCESS != rval)
+      return rval;
+
+      // Get type information for element
+    MBEntityType type = TYPE_FROM_HANDLE(*i);
+    const VtkElemType* vtk_type = VtkUtil::get_vtk_type( type, conn_len );
+    if (!vtk_type)
+    {
+      writeTool->report_error( "Vtk file format does not support elements "
+        "of type %s (%d) with %d nodes.\n", MBCN::EntityTypeName(type), 
+        (int)type, conn_len );
       return MB_FAILURE;
     }
-    oFile.clear();
-    oFile.open(filename, std::ios::out);
-  }
-
-    // file couldn't be opened
-  if(!oFile.is_open())
-  {
-    mWriteIface->report_error("Cannot open %s", filename);
-    return MB_FAILURE;
+    
+      // Save VTK type index for later
+    *t = vtk_type->vtk_type;
+    ++t;
+    
+      // Write connectivity list
+    stream << conn_len;
+    if (vtk_type->node_order)
+      for (int k = 0; k < conn_len; ++k)
+        stream << ' ' << conn_data[vtk_type->node_order[k]];
+    else
+      for (int k = 0; k < conn_len; ++k)
+        stream << ' ' << conn_data[k];
+    stream << std::endl;
   }
    
+    // Write element types
+  stream << "CELL_TYPES " << num_elems << std::endl;
+  for (std::vector<unsigned>::const_iterator i = vtk_types.begin(); i != vtk_types.end(); ++i)
+    stream << *i << std::endl;
+  
   return MB_SUCCESS;
+}
+
+
+
+MBErrorCode WriteVtk::write_tags( std::ostream& stream, bool nodes, const MBRange& entities )
+{
+  MBErrorCode rval;
+  
+    // The #$%@#$% MOAB interface does not have a function to retreive
+    // all entities with a tag, only all entities with a specified type
+    // and tag.  Define types to loop over depending on the if vertex
+    // or element tag data is being written.  It seems horribly inefficient
+    // to have the implementation subdivide the results by type and have
+    // to call that function once for each type just to recombine the results.
+    // Unfortunamtely, there doesn't seem to be any other way.
+  MBEntityType low_type, high_type;
+  if (nodes) 
+  {
+    low_type = MBVERTEX;
+    high_type = MBEDGE;
+  }
+  else
+  {
+    low_type = MBEDGE;
+    high_type = MBENTITYSET;
+  }
+
+    // Get all defined tags
+  std::vector<MBTag> tags;
+  rval = mbImpl->tag_get_tags( tags );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+    // For each tag...  
+  bool entities_have_tags = false;
+  for (std::vector<MBTag>::iterator i = tags.begin(); i != tags.end(); ++i)
+  {
+      // Skip this tag because we created this data as part of writing
+      // the mesh.  
+    if (*i == globalId)
+      continue;
+
+      // Skip tags holding entity handles -- no way to save them
+    MBDataType type;
+    rval = mbImpl->tag_get_data_type( *i, type );
+    if (MB_SUCCESS != rval)
+      return rval;
+    if (type == MB_TYPE_HANDLE)
+      continue;
+      
+      // Print warning and skip BIT tags
+    MBTagType storage;
+    rval = mbImpl->tag_get_type( *i, storage );
+    if (MB_SUCCESS != rval)
+      return rval;
+    if (storage == MB_TAG_BIT)
+    {
+      std::string name( "<error>" );
+      mbImpl->tag_get_name( *i, name );
+      std::cerr << "Cannot write BIT tags. Skipping tag: " << name << std::endl;
+      continue;
+    }
+    
+      // Get subset of input entities that have the tag set
+    MBRange tagged;
+    for (MBEntityType type = low_type; type < high_type; ++type)
+    {
+      MBRange tmp_tagged;
+      rval = mbImpl->get_entities_by_type_and_tag( 0, type, &*i, 0, 1, tmp_tagged );
+      if (MB_SUCCESS != rval)
+        return rval;
+      tmp_tagged = tmp_tagged.intersect( entities );
+      tagged.merge( tmp_tagged );
+    }
+
+      // If any entities were tadged
+    if (!tagged.empty())
+    {
+        // If this is the first tag being written for the
+        // entity type, write the label marking the beginning
+        // of the tag data.
+      if (!entities_have_tags)
+      {
+        entities_have_tags = true;
+        stream << (nodes ? "POINT_DATA " : "CELL_DATA ") << entities.size() << std::endl;
+      }
+      
+        // Write the tag 
+      rval = write_tag( stream, *i, entities, tagged );
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
+  }
+  
+  return MB_SUCCESS;
+}
+
+template <typename T>
+void WriteVtk::write_data( std::ostream& stream, 
+                           const std::vector<T>& data,
+                           unsigned vals_per_tag )
+{
+  typename std::vector<T>::const_iterator d = data.begin();
+  const unsigned long n = data.size() / vals_per_tag;
+  
+  for (unsigned long i = 0; i < n; ++i)
+  {
+    for (unsigned j = 0; j < vals_per_tag; ++j, ++d)
+    {
+      stream << *d << ' ';
+    }
+    stream << std::endl;
+  }
+}
+
+template <>
+void WriteVtk::write_data<unsigned char>( std::ostream& stream, 
+                                          const std::vector<unsigned char>& data,
+                                          unsigned vals_per_tag )
+{
+  std::vector<unsigned char>::const_iterator d = data.begin();
+  const unsigned long n = data.size() / vals_per_tag;
+  
+  for (unsigned long i = 0; i < n; ++i)
+  {
+    for (unsigned j = 0; j < vals_per_tag; ++j, ++d)
+    {
+      stream << (unsigned int)*d << ' ';
+    }
+    stream << std::endl;
+  }
+}
+
+
+template <typename T>
+MBErrorCode WriteVtk::write_tag( std::ostream& stream, MBTag tag, const MBRange& entities, const MBRange& tagged )
+{
+  MBErrorCode rval;
+  const unsigned long n = entities.size();
+  
+    // Get tag properties  
+
+  std::string name;
+  int size;
+  if (MB_SUCCESS != mbImpl->tag_get_name( tag, name ) ||
+      MB_SUCCESS != mbImpl->tag_get_size( tag, size ) )
+    return MB_FAILURE;
+
+  unsigned type_size = sizeof(T);
+  unsigned vals_per_tag = size / type_size;
+  if (size % type_size) {
+    writeTool->report_error( "Invalid tag size for tag \"%s\"\n", name.c_str() );
+    return MB_FAILURE;
+  } 
+  
+    // Get a tag value for each entity.  Do this by initializing the
+    // "data" vector with zero, and then filling in the values for
+    // the entities that actually have the tag set.
+  std::vector<T> data;
+  data.resize( n * vals_per_tag, 0 );
+  MBRange::const_iterator t = tagged.begin();
+  typename std::vector<T>::iterator d = data.begin();
+  for (MBRange::const_iterator i = entities.begin(); 
+       i != entities.end() && t != tagged.end(); ++i, d += vals_per_tag)
+  {
+    if (*i == *t)
+    {
+      ++t;
+      rval = mbImpl->tag_get_data( tag, &*i, 1, &*d );
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
+  }
+  
+    // Write the tag values, one entity per line.
+  write_data( stream, data, vals_per_tag );
+  
+  return MB_SUCCESS;
+}
+  
+
+
+MBErrorCode WriteVtk::write_tag( std::ostream& s, MBTag tag,
+                                 const MBRange& entities,
+                                 const MBRange& tagged )
+{
+    // Get tag properties
+  std::string name;
+  MBDataType type;
+  int size;
+  if (MB_SUCCESS != mbImpl->tag_get_name( tag, name ) ||
+      MB_SUCCESS != mbImpl->tag_get_size( tag, size ) ||
+      MB_SUCCESS != mbImpl->tag_get_data_type( tag, type ))
+    return MB_FAILURE;
+  
+    // Skip tags of type ENTITY_HANDLE
+  if (type == MB_TYPE_HANDLE)
+    return MB_FAILURE;
+  
+    // Get the size of the specified tag type
+  unsigned type_size;
+  switch (type) {
+    case MB_TYPE_OPAQUE:  type_size = 1;              break;
+    case MB_TYPE_INTEGER: type_size = sizeof(int);    break;
+    case MB_TYPE_DOUBLE:  type_size = sizeof(double); break;
+    default: return MB_FAILURE;
+  }
+  
+    // Get array length of tag
+  unsigned vals_per_tag = size / type_size;
+  if (size % type_size) {
+    writeTool->report_error( "Invalid tag size for tag \"%s\"\n", name.c_str() );
+    return MB_FAILURE;
+  } 
+  
+    // Now that we're past the point where the name would be used in
+    // an error message, remove any spaces to conform to VTK file.
+  for (std::string::iterator i = name.begin(); i != name.end(); ++i)
+    if (isspace(*i) || iscntrl(*i))
+      *i = '_';
+  
+    // Write the tag desciption
+  if (vals_per_tag == 3 && type == MB_TYPE_DOUBLE)
+    s << "VECTORS " << name << ' ' << VtkUtil::vtkTypeNames[type] << std::endl;
+  else if (vals_per_tag == 9)
+    s << "TENSORS " << name << ' ' << VtkUtil::vtkTypeNames[type] << std::endl;
+  else
+    s << "SCALARS " << name << ' ' << VtkUtil::vtkTypeNames[type] << ' '
+    << vals_per_tag << std::endl << "LOOKUP_TABLE default" << std::endl;
+  
+    // Write the tag data
+  switch (type) 
+  {
+    case MB_TYPE_OPAQUE:  return write_tag<unsigned char>(s, tag, entities, tagged );
+    case MB_TYPE_INTEGER: return write_tag<          int>(s, tag, entities, tagged );
+    case MB_TYPE_DOUBLE:  return write_tag<       double>(s, tag, entities, tagged );
+    default:              return MB_FAILURE;
+  }
 }
 
 

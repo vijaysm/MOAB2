@@ -26,9 +26,41 @@
 #include "PolyEntitySequence.hpp"
 #include "MBTagConventions.hpp"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
+
+#ifdef WIN32
+#  define stat _stat
+#else
+#  include <unistd.h>
+#endif
+
+
 MBWriteUtil::MBWriteUtil(MBCore* mdb, MBError* error_handler) 
     : MBWriteUtilIface(), mMB(mdb), mError(error_handler)
 {
+}
+
+  //! Check if the specified file already exists.
+  //! Returns MB_SUCCESS if file does not exist, MB_ALREADY_ALLOCATED
+  //! if file does exist, or MB_FAILURE for some other error condition.
+MBErrorCode MBWriteUtil::check_doesnt_exist( const char* file_name )
+{
+  struct stat s;
+  if (0 == stat( file_name, &s ))
+  {
+    report_error( "%s: file already exists.\n", file_name );
+    return MB_ALREADY_ALLOCATED;  
+  }
+  else if (errno == ENOENT)
+  {
+    return MB_SUCCESS;
+  }
+  else
+  {
+    return MB_FAILURE;
+  }
 }
 
 

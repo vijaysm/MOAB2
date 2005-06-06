@@ -13,30 +13,47 @@
  * 
  */
 
-#ifndef VTK_UTIL
-#define VTK_UTIL
-
-//
-// ExoIIUtil class: utility class for functions used by both reader
-// and writer
-
-#ifndef IS_BUILDING_MB
-#error "ExoIIUtil.hpp isn't supposed to be included into an application"
-#endif
+#ifndef VTK_UTIL_HPP
+#define VTK_UTIL_HPP
 
 #include "MBInterface.hpp"
 
+//! Structure defining relation between MOAB and VTK element
+//! types.  VTK had different types for quadratic than linear
+//! elements, so a tuple of the MOAB type and number of
+//! elements maps to a VTK type.
+struct VtkElemType
+{
+  const char* name;            //!< String name for use in error messages
+  unsigned vtk_type;           //!< VTK integer type
+  MBEntityType mb_type;        //!< MOAB type
+  unsigned num_nodes;          //!< Number of nodes (0 for polygon)
+  const unsigned* node_order;  //!< VTK element node ordering, indexed by
+                               //!< the VTK node position and containing
+                               //!< the corresponding MOAB node position.
+                               //!< NOTE: This field is NULL if MOAB and VTK 
+                               //!< ordering is the same!
+};
 
+//! General data about VTK files for use by read and write code.
+//! \author Jason Kraftcheck
 class VtkUtil 
 {
 
 public:
-
-    //! vtk element type numbers
-  static const int vtkElemType[];
-
-    //! vtk element type names
-  static const char *vtkElemNames[];
+    //! vtk data type names, indexed by MBDataType
+  static const char *vtkTypeNames[];
+  
+    //! Vtk types, indexed by VTK type number.
+    //! For unused VTK type numbers, mb_type will be MBMAXTYPE.
+  static const VtkElemType vtkElemTypes[];
+  
+    //! Lenght of \ref vtkElemTypes
+  static const unsigned numVtkElemType;
+  
+    //! Get the VTK type corresponding to a tuple of the MOAB type and number of nodes.
+    //! num_nodes is ignored for POLYGON type.
+  static const VtkElemType* get_vtk_type( MBEntityType type, unsigned num_nodes );
 };
 
 #endif

@@ -39,6 +39,11 @@ public:
 
   //! destructor
   ~MBWriteUtil(){}
+  
+    //! Check if the specified file already exists.
+    //! Returns MB_SUCCESS if file does not exist, MB_ALREADY_ALLOCATED
+    //! if file does exist, or MB_FAILURE for some other error condition.
+  virtual MBErrorCode check_doesnt_exist( const char* file_name );
 
   //! gets arrays for coordinate data from the MB
   MBErrorCode get_node_arrays(

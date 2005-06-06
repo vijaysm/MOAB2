@@ -33,6 +33,11 @@ public:
 
     //! destructor
   virtual ~MBWriteUtilIface(){}
+  
+    //! Check if the specified file already exists.
+    //! Returns MB_SUCCESS if file does not exist, MB_ALREADY_ALLOCATED
+    //! if file does exist, or MB_FAILURE for some other error condition.
+  virtual MBErrorCode check_doesnt_exist( const char* file_name ) = 0;
 
     //! Given information about the nodes to be written, and pointers to memory
     //! to which coordinates will be written, writes coordinate data there, and

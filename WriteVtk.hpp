@@ -13,36 +13,17 @@
  * 
  */
 
-//-------------------------------------------------------------------------
-// Filename      : WriteVtk.hpp
-//
-// Purpose       : ExodusII writer
-//
-// Special Notes : Lots of code taken from verde implementation
-//
-// Creator       : Corey Ernst 
-//
-// Date          : 8/02
-//
-// Owner         : Corey Ernst 
-//-------------------------------------------------------------------------
 
-#ifndef WRITEVTK_HPP
-#define WRITEVTK_HPP
-
-#ifndef IS_BUILDING_MB
-#error "WriteVtk.hpp isn't supposed to be included into an application"
-#endif
+#ifndef WRITE_VTK_HPP
+#define WRITE_VTK_HPP
 
 #include <vector>
+#include <iostream>
 
-#include "MBRange.hpp"
 #include "MBInterface.hpp"
-#include "MBWriteUtilIface.hpp"
-#include "ExoIIInterface.hpp"
 #include "MBWriterIface.hpp"
 
-#include <fstream>
+class MBWriteUtilIface;
 
 //class MB_DLL_EXPORT WriteVtk : public MBWriterIface
 class WriteVtk : public MBWriterIface
@@ -65,82 +46,42 @@ public:
                          const int num_sets,
                          std::vector<std::string>& qa_list,
                          int export_dimension);
-  
-//! struct used to hold data for each block to be output; used by
-//! initialize_file to initialize the file header for increased speed
-  struct MaterialSetData
-  {
-    int number_elements;
-    int number_nodes_per_element;
-    MBEntityType moab_type;
-    MBRange *elements;
-  };
 
-
-protected:
-
-    //! number of dimensions in this file
-  //int number_dimensions();
-
-    //! open a file for writing
-  MBErrorCode open_file(const char *filename, 
-                        const bool overwrite);
-
-  //! contains the general information about a mesh
-  class MeshInfo
-  {
-  public:
-    unsigned int num_nodes;
-    unsigned int num_elements;
-    unsigned int num_matsets;
-    MBRange nodes;
-
-    MeshInfo() 
-        : num_nodes(0), num_elements(0), num_matsets(0)
-      {}
-    
-  };
-  
 private:
 
-    //! interface instance
-  MBInterface *mbImpl;
-  MBWriteUtilIface* mWriteIface;
+    //! Get entities to write, given set list passed to \ref write_file
+  MBErrorCode gather_mesh( const MBEntityHandle* set_list,
+                           int num_sets, 
+                           MBRange& nodes,
+                           MBRange& elems );
+    
+    //! Write 4-line VTK file header
+  MBErrorCode write_header( std::ostream& stream );
   
-    //! file name
-  std::string fileName;
-
-    //! file ptr
-  std::fstream oFile;
-
-    //! Meshset Handle for the mesh that is currently being read
-  MBEntityHandle mCurrentMeshHandle;
-
-  //! Cached tags for reading.  Note that all these tags are defined when the
-  //! core is initialized.
-  MBTag mMaterialSetTag;
-  MBTag mHasMidNodesTag;
-  MBTag mGlobalIdTag;
-  MBTag mMatSetIdTag;
-
-  MBTag mEntityMark;   //used to say whether an entity will be exported
-
-  MBErrorCode gather_mesh_information(MeshInfo &mesh_info,
-                                      std::vector<MaterialSetData> &matset_info,
-                                      std::vector<MBEntityHandle> &matsets );
-
-  MBErrorCode gather_mesh_information(std::vector<MaterialSetData> &matset_info,
-                                      MBEntityHandle matset );
+    //! Write node coordinates
+  MBErrorCode write_nodes( std::ostream& stream, const MBRange& nodes );
   
-  MBErrorCode initialize_file(MeshInfo &mesh_info);
-
-  MBErrorCode write_nodes(const MBRange& nodes);
-
-  MBErrorCode write_matsets(MeshInfo &mesh_info, 
-                            std::vector<MaterialSetData> &matset_data);
+    //! Write element connectivity
+  MBErrorCode write_elems( std::ostream& stream, const MBRange& elems );
   
-  void reset_matset(std::vector<MaterialSetData> &matset_info);
+    //! Write all tags on either the list of nodes or the list of elements
+  MBErrorCode write_tags( std::ostream& stream, bool nodes, const MBRange& entities );
   
+    //! Write the tad description for the passed tag and call the template
+    //! \ref write_tag function to write the tag data.
+  MBErrorCode write_tag( std::ostream& stream, MBTag tag, const MBRange& entities, const MBRange& tagged_entities );
+  
+    //! Write tag data
+  template <typename T> 
+  MBErrorCode write_tag( std::ostream& stream, MBTag tag, const MBRange& entities, const MBRange& tagged_entities );
+
+    //! Write a list of values
+  template <typename T>
+  void write_data( std::ostream& stream, const std::vector<T>& data, unsigned vals_per_tag );
+
+  MBInterface* mbImpl;
+  MBWriteUtilIface* writeTool;
+  MBTag globalId;
 };
 
 #endif

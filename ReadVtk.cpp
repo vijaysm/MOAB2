@@ -19,12 +19,14 @@
  * \author Jason Kraftcheck
  */
 
+#include <assert.h>
 
 #include "ReadVtk.hpp"
 #include "MBRange.hpp"
 #include "MBInternals.hpp"
 #include "MBReadUtilIface.hpp"
 #include "FileTokenizer.hpp"
+#include "VtkUtil.hpp"
 
 MBReaderIface* ReadVtk::factory( MBInterface* iface )
   { return new ReadVtk( iface ); }
@@ -578,45 +580,8 @@ MBErrorCode ReadVtk::vtk_read_unstructured_grid( FileTokenizer& tokens,
 {
   MBErrorCode result;
   long i, num_verts, num_elems[2];
-  
-    /* Map VTK types to Mesquite Types */
-  const int pixel_swap[] = { 2, 3, -1 };
-  const int voxel_swap[] = { 2, 3, 6, 7, -1 };
-  const int wedge_swap[] = { 1, 2, 4, 5, -1 };
-  const int qhex_swap[] = { 12, 16, 13, 17, 14, 18, 15, 19, -1 };
-  const struct { const char* name;       // name for type from vtk documentation
-                 MBEntityType topo;    // Mesquite element topology type
-                 unsigned size;          // Expected connectivity length
-                 const int* swap;        // Index pairs to swap for vtk->exodus ordering
-    } vtk_cell_types[] = { 
-      { 0,                MBMAXTYPE, 0, 0 },
-      { "vertex",         MBMAXTYPE, 1, 0 },
-      { "polyvertex",     MBMAXTYPE, 0, 0 },
-      { "line",           MBEDGE,    2, 0 },
-      { "polyline",       MBMAXTYPE, 0, 0 },
-      { "triangle",       MBTRI,     3, 0 },
-      { "triangle strip", MBMAXTYPE, 0, 0 },
-      { "polygon",        MBPOLYGON, 0, 0 },
-      { "pixel",          MBQUAD,    4, pixel_swap },
-      { "quadrilateral",  MBQUAD,    4, 0 }, 
-      { "tetrahedron",    MBTET,     4, 0 }, 
-      { "voxel",          MBHEX,     8, voxel_swap }, 
-      { "hexahedron",     MBHEX,     8, 0 }, 
-      { "wedge",          MBPRISM,   6, wedge_swap }, 
-      { "pyramid",        MBPYRAMID, 5, 0 },
-      { 0,                MBMAXTYPE, 0, 0 },
-      { 0,                MBMAXTYPE, 0, 0 },
-      { 0,                MBMAXTYPE, 0, 0 },
-      { 0,                MBMAXTYPE, 0, 0 },
-      { 0,                MBMAXTYPE, 0, 0 },
-      { 0,                MBMAXTYPE, 0, 0 },
-      { 0,                MBMAXTYPE, 0, 0 },
-      { "quadratic tri",  MBTRI,     6, 0 },
-      { "quadratic quad", MBQUAD,    8, 0 },
-      { "quadratic tet",  MBTET,    10, 0 },
-      { "quadratic hex",  MBHEX,    20, qhex_swap } 
-    };
-  
+  MBEntityHandle tmp_conn_list[27];
+
   if (!tokens.match_token( "POINTS" )        ||
       !tokens.get_long_ints( 1, &num_verts ) ||
       !tokens.match_token( vtk_type_names)   ||
@@ -664,19 +629,22 @@ MBErrorCode ReadVtk::vtk_read_unstructured_grid( FileTokenizer& tokens,
   std::vector<long>::iterator conn_iter = connectivity.begin();
   while (id < num_elems[0])
   {
-    long vtk_type = types[id];
-    MBEntityType type = vtk_cell_types[vtk_type].topo;
-    int num_vtx = vtk_cell_types[vtk_type].size;
+    unsigned vtk_type = types[id];
+    if (vtk_type >= VtkUtil::numVtkElemType)
+      return MB_FAILURE;
+      
+    MBEntityType type = VtkUtil::vtkElemTypes[vtk_type].mb_type;
+    int num_vtx = VtkUtil::vtkElemTypes[vtk_type].num_nodes;
     
     if (type == MBMAXTYPE) {
-      readMeshIface->report_error( "Unsupported VTK element type: %s\n",
-                                   vtk_cell_types[vtk_type].name );
+      readMeshIface->report_error( "Unsupported VTK element type: %s (%d)\n",
+                                   VtkUtil::vtkElemTypes[vtk_type].name, vtk_type );
       return MB_FAILURE;
     }
     
       // Find any subsequent elements of the same type
     long end_id = id + 1;
-    while ( end_id < num_elems[0] && types[end_id] == vtk_type)
+    while ( end_id < num_elems[0] && (unsigned)types[end_id] == vtk_type)
       ++end_id;
     
       // Allocate element block
@@ -732,7 +700,7 @@ MBErrorCode ReadVtk::vtk_read_unstructured_grid( FileTokenizer& tokens,
       {
         readMeshIface->report_error(
           "Cell %ld is of type '%s' but has %u vertices.\n",
-          id, vtk_cell_types[vtk_type].name, num_vtx );
+          id, VtkUtil::vtkElemTypes[vtk_type].name, num_vtx );
         return MB_FAILURE;
       }
       ++conn_iter;
@@ -749,11 +717,13 @@ MBErrorCode ReadVtk::vtk_read_unstructured_grid( FileTokenizer& tokens,
         conn_array[i] = *conn_iter + first_vertex;
       }
 
-      const int* swap = vtk_cell_types[vtk_type].swap;
-      if ( swap )
+      const unsigned* order = VtkUtil::vtkElemTypes[vtk_type].node_order;
+      if ( order )
       {
-        for (unsigned j = 0; swap[j] != -1; j += 2 )
-          std::swap( conn_array[swap[j]], conn_array[swap[j+1]] );
+        assert( num_vtx * sizeof(MBEntityHandle) <= sizeof(tmp_conn_list) );
+        memcpy( tmp_conn_list, conn_array, num_vtx * sizeof(MBEntityHandle) );
+        for (int j = 0; j < num_vtx; ++j)
+          conn_array[order[j]] = tmp_conn_list[j];
       }       
 
       conn_array += num_vtx;

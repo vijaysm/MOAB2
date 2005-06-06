@@ -44,7 +44,7 @@ struct ElemInfo {
   
     //! writes out a file
 MBErrorCode WriteGmsh::write_file(const char *file_name,
-                                  const bool ,
+                                  const bool overwrite,
                                   const MBEntityHandle *output_list,
                                   const int num_sets,
                                   std::vector<std::string>& ,
@@ -52,6 +52,13 @@ MBErrorCode WriteGmsh::write_file(const char *file_name,
 {
   MBErrorCode rval;
   MBTag global_id = 0, block_tag = 0, geom_tag = 0, prtn_tag = 0;
+
+  if (!overwrite)
+  {
+    rval = mWriteIface->check_doesnt_exist( file_name );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
   
     // Get tags
   mbImpl->tag_get_handle( GLOBAL_ID_TAG_NAME, global_id );
