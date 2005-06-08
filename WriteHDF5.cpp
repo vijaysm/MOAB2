@@ -1544,11 +1544,12 @@ DEBUGOUT((std::string("Tag: ") + name + "\n").c_str());
       // Convert MBEntityHandles to file ids
     if (mb_data_type == MB_TYPE_HANDLE)
     {
+      MBEntityHandle* handle_buffer = (MBEntityHandle*)tag_buffer;
       for (unsigned i = 0; i < (count * mb_size / sizeof(MBEntityHandle)); ++i)
       {
         int id;
         rval = iFace->tag_get_data( idTag, ((MBEntityHandle*)tag_buffer)+i, 1, &id );
-        tag_buffer[i] = (MBEntityHandle)(rval == MB_SUCCESS ? id : 0);
+        handle_buffer[i] = (MBEntityHandle)(rval == MB_SUCCESS ? id : 0);
       }
     }
     
@@ -1715,6 +1716,39 @@ MBErrorCode WriteHDF5::gather_tags()
     result = iFace->get_entities_by_type_and_tag( 0, MBENTITYSET, &handle, NULL, 1, range );
     CHK_MB_ERR_0(result);
     td_iter->range.merge( range.intersect( setSet.range ) );
+    
+      // for tags containing entity handles, skip values if
+      // handle doesn't reference something being written to the file
+    MBDataType data_type;
+    iFace->tag_get_data_type( handle, data_type );
+    if (MB_TYPE_HANDLE == data_type)
+    {
+      MBRange::iterator i = td_iter->range.begin();
+      while (i != td_iter->range.end())
+      {
+        MBEntityHandle value;
+        result = iFace->tag_get_data( handle, &*i, 1, &value );
+        CHK_MB_ERR_0(result);
+        bool found = false;
+        if (value)
+        {
+          MBEntityType type = iFace->type_from_handle( value );
+          if (type == MBVERTEX)
+            found = nodeSet.range.find( value ) != nodeSet.range.end();
+          else if (type == MBENTITYSET)
+            found = setSet.range.find( value ) != setSet.range.end();
+          else for (e_iter = exportList.begin(); !found && e_iter != e_end; ++e_iter)
+            if (type == e_iter->type &&
+                e_iter->range.find( value ) != e_iter->range.end())
+              found = true;
+        }
+        
+        if (found)
+          ++i;
+        else
+          i = td_iter->range.erase( i );
+      }
+    }
   
     td_iter->write = !td_iter->range.empty();
   }
