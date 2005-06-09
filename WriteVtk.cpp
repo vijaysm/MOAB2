@@ -414,7 +414,8 @@ void WriteVtk::write_data<unsigned char>( std::ostream& stream,
 
 
 template <typename T>
-MBErrorCode WriteVtk::write_tag( std::ostream& stream, MBTag tag, const MBRange& entities, const MBRange& tagged )
+MBErrorCode WriteVtk::write_tag( std::ostream& stream, MBTag tag, const MBRange& entities, const MBRange& tagged,
+                                 const int)
 {
   MBErrorCode rval;
   const unsigned long n = entities.size();
@@ -458,8 +459,6 @@ MBErrorCode WriteVtk::write_tag( std::ostream& stream, MBTag tag, const MBRange&
   
   return MB_SUCCESS;
 }
-  
-
 
 MBErrorCode WriteVtk::write_tag( std::ostream& s, MBTag tag,
                                  const MBRange& entities,
@@ -512,12 +511,11 @@ MBErrorCode WriteVtk::write_tag( std::ostream& s, MBTag tag,
     // Write the tag data
   switch (type) 
   {
-    case MB_TYPE_OPAQUE:  return write_tag<unsigned char>(s, tag, entities, tagged );
-    case MB_TYPE_INTEGER: return write_tag<          int>(s, tag, entities, tagged );
-    case MB_TYPE_DOUBLE:  return write_tag<       double>(s, tag, entities, tagged );
+    case MB_TYPE_OPAQUE:  return write_tag<unsigned char>(s, tag, entities, tagged, 0 );
+    case MB_TYPE_INTEGER: return write_tag<          int>(s, tag, entities, tagged, 0 );
+    case MB_TYPE_DOUBLE:  return write_tag<       double>(s, tag, entities, tagged, 0 );
     default:              return MB_FAILURE;
   }
 }
-
 
   

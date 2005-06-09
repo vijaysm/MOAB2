@@ -73,7 +73,8 @@ private:
   
     //! Write tag data
   template <typename T> 
-  MBErrorCode write_tag( std::ostream& stream, MBTag tag, const MBRange& entities, const MBRange& tagged_entities );
+  MBErrorCode write_tag( std::ostream& stream, MBTag tag, const MBRange& entities, const MBRange& tagged_entities,
+                         const int);
 
     //! Write a list of values
   template <typename T>
