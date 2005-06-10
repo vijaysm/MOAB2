@@ -210,7 +210,6 @@ MBErrorCode WriteVtk::write_nodes( std::ostream& stream, const MBRange& nodes )
 MBErrorCode WriteVtk::write_elems( std::ostream& stream, const MBRange& elems )
 {
   MBErrorCode rval;
-  MBRange::const_iterator i;
 
   // Get and write counts
   unsigned long num_elems, num_uses;
@@ -250,6 +249,12 @@ MBErrorCode WriteVtk::write_elems( std::ostream& stream, const MBRange& elems )
       // Get type information for element
     MBEntityType type = TYPE_FROM_HANDLE(*i);
     const VtkElemType* vtk_type = VtkUtil::get_vtk_type( type, conn_len );
+        // check for higher-order nodes and whether this linear type is supported
+    if (!vtk_type && conn_len != MBCN::VerticesPerEntity(type)) {
+      vtk_type = VtkUtil::get_vtk_type(type, MBCN::VerticesPerEntity(type));
+      if (vtk_type) conn_len = MBCN::VerticesPerEntity(type);
+    }
+      
     if (!vtk_type)
     {
       writeTool->report_error( "Vtk file format does not support elements "
