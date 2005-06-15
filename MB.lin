@@ -1,10 +1,10 @@
 #
 # location of exodus libs and makedepend
 #
-CUBITROOT = $(CUBIT)
 
-NETCDF_INCLUDE = -I$(CUBITROOT)/include -I$(CUBITROOT)/include
-NETCDF_LIBS = -L$(CUBITROOT)/lib -lnetcdf_c++ -lnetcdf
+NETCDF_DIR = /usr/local
+NETCDF_INCLUDE = -I${NETCDF_DIR}/include -I${NETCDF_DIR}/include
+NETCDF_LIBS = -L${NETCDF_DIR}/lib -lnetcdf_c++ -lnetcdf
 
 # Machine-dependent include paths
 #CC_INCLUDE = -I/usr/include/g++-3 \
@@ -34,7 +34,7 @@ SO_LINKER = $(LINKER) -shared -Wl,-soname,$(notdir $@)
 RUNTIME_LINKER_LIB = -ldl
 
 # MAKEDEPEND:
-MAKEDEPEND = $(CUBITROOT)/mklin/makedepend -f -
+MAKEDEPEND = /usr/bin/X11/makedepend -f -
 #MAKEDEPEND = ${CXX} -MM
 
 # location of templates for template classes, helps make clean_all
