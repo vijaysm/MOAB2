@@ -34,6 +34,8 @@ const unsigned VtkUtil::typeSizes[] = {
 };
 */
 
+// Define node ordering for those types for which
+// the VTK and MOAB ordering doesn't match.
 const unsigned pixel[] = { 0, 1, 3, 2 };
 const unsigned voxel[] = { 0, 1, 3, 2, 4, 5, 7, 6 };
 const unsigned wedge[] = { 0, 2, 1, 3, 5, 4 };
@@ -43,6 +45,7 @@ const unsigned  qhex[] = {  0,  1,  2,  3,
                            16, 17, 18, 19,
                            12, 13, 14, 15 };
 
+// List of VtkElemType structs, indexed by the VTK type number.
 const VtkElemType VtkUtil::vtkElemTypes[] = {
       { 0,                0, MBMAXTYPE, 0, 0 },
       { "vertex",         1, MBMAXTYPE, 1, 0 },
@@ -75,33 +78,40 @@ const VtkElemType VtkUtil::vtkElemTypes[] = {
 
 const unsigned VtkUtil::numVtkElemType = sizeof(VtkUtil::vtkElemTypes) / sizeof(VtkUtil::vtkElemTypes[0]);
 
-const VtkElemType* mb_type_offsets[] = {
-  NULL,                       // MBVERTEX
-  VtkUtil::vtkElemTypes +  3, // MBEDGE
-  VtkUtil::vtkElemTypes +  5, // MBTRI
-  VtkUtil::vtkElemTypes +  9, // MBQUAD
-  VtkUtil::vtkElemTypes +  7, // MBPOLYGON
-  VtkUtil::vtkElemTypes + 10, // MBTET
-  VtkUtil::vtkElemTypes + 14, // MBPYRAMID
-  VtkUtil::vtkElemTypes + 13, // MBWEDGE
-  NULL,                       // MBKNIFE
-  VtkUtil::vtkElemTypes + 12, // MBHEX
-  NULL,                       // MBPOLYHEDRON
-  NULL,                       // MBENTITYSET
-  NULL,                       // MBMAXTYPE
-};
+// Define an array, indexed by MBEntityType containing the corresponding 
+// VTK element type numbers for the linear and quadratic (mid-edge) elements.
+// Zero is used to indicate an invalid type (not supported by VTK.)  The
+// VTK element type number may be used as an index into vtkElemTypes[].
+const int mb_to_vtk_type[][2] = {
+  {  1,  0 },  // MBVERTEX
+  {  3, 21 },  // MBEDGE
+  {  5, 22 },  // MBTRI
+  {  9, 23 },  // MBQUAD
+  {  7,  0 },  // MBPOLYGON
+  { 10, 24 },  // MBTET
+  { 14,  0 },  // MBPYRAMID
+  { 13,  0 },  // MBWEDGE
+  {  0,  0 },  // MBKNIFE
+  { 12, 25 },  // MBHEX
+  {  0,  0 },  // MBPOLYHEDRON
+  {  0,  0 },  // MBENTITYSET
+  {  0,  0 } };// MBMAXTYPE
 
 const VtkElemType* VtkUtil::get_vtk_type( MBEntityType type, unsigned num_nodes )
 {
-  const VtkElemType* iter = mb_type_offsets[type];
-  if (!iter || type == MBPOLYGON)
-    return iter;
-  
-  do {
-    if (iter->num_nodes == num_nodes)
-      return iter;
-    ++iter;
-  } while (iter->mb_type == type);
+  const int i = mb_to_vtk_type[type][0]; // Index for linear type
+  const int j = mb_to_vtk_type[type][1]; // Index for quadratic type
+  if (i) // If element type is supported at all (if not linear then not quadratic either)
+  {
+      // If the linear type is requested (all polygons are linear
+      // irrespective of the number of nodes), return that.
+    if (type == MBPOLYGON || vtkElemTypes[i].num_nodes == num_nodes)
+      return vtkElemTypes + i;
+      // Otherwise if there is a quadratic type and the number of
+      // nodes specified corresponds to the quadratic type, return that.
+    else if (j && vtkElemTypes[j].num_nodes == num_nodes)
+      return vtkElemTypes + j;
+  }
   
   return 0;
 }
