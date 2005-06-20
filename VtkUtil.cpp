@@ -65,7 +65,7 @@ const VtkElemType VtkUtil::vtkElemTypes[] = {
       { 0,               18, MBMAXTYPE, 0, 0 },
       { 0,               19, MBMAXTYPE, 0, 0 },
       { 0,               20, MBMAXTYPE, 0, 0 },
-      { 0,               21, MBMAXTYPE, 0, 0 },
+      { "quadratic edge",21, MBEDGE,    3, 0 },
       { "quadratic tri", 22, MBTRI,     6, 0 },
       { "quadratic quad",23, MBQUAD,    8, 0 },
       { "quadratic tet", 24, MBTET,    10, 0 },
