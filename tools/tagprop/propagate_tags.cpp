@@ -110,6 +110,44 @@ int main( int argc, char* argv[] )
   if (argc == 1)
     about();
     
+    // find file names 
+    // load input file before processing other options so
+    // tags are defined
+  const char* input_name = 0;
+  const char* output_name = 0;
+  for (int i = 1; i < argc; ++i)
+  {
+    if (argv[i][0] == '-')
+    {
+      switch (argv[i][1]) { case 't': case 'c': case 'd': case 'w': ++i; }
+      continue;
+    }
+    
+    if (!input_name)
+      input_name = argv[i];
+    else if (!output_name)
+      output_name = argv[i];
+    else 
+      parse_error( "Unexpected argument", argv[i] );
+  }
+  
+  if (!input_name)
+    parse_error( "No input file specified." );
+  if (!output_name)
+    parse_error( "No output file specified." );
+  
+    // Read the input file
+  if (MB_SUCCESS != iface->load_mesh( input_name ))
+  {
+    std::cerr << "Failed to read file: " << input_name << std::endl;
+    std::string message;
+    if (MB_SUCCESS == iface->get_last_error(message))
+      std::cerr << message << std::endl;
+    return 2;
+  }
+
+    
+    
   bool nodes_spec = false;
   bool elems_spec = false;
   bool have_data_tag = false;
@@ -118,13 +156,13 @@ int main( int argc, char* argv[] )
   TagSpec data_tag;
   typedef std::vector<TagSpec> TagVect;
   TagVect ident_tags;
-  const char* input_name = 0;
-  const char* output_name = 0;
   int data_size = 0;
   
   for (int i = 1; i < argc; ++i)
   {
-    if (!strcmp(argv[i],"-h"))
+    if (argv[i] == input_name || argv[i] == output_name)
+      continue;
+    else if (!strcmp(argv[i],"-h"))
       usage();
     else if (!strcmp(argv[i],"-n"))
       nodes_spec = true;
@@ -132,8 +170,6 @@ int main( int argc, char* argv[] )
       elems_spec = true;
     else if (!argv[i][0])
       usage();
-    else if (argv[i][0] != '-')
-      (input_name ? output_name : input_name) = argv[i];
     else
     {
       char flag = argv[i][1];
@@ -183,11 +219,6 @@ int main( int argc, char* argv[] )
       }
     }
   } // for(args)
-  
-  if (!input_name)
-    parse_error( "No input file specified." );
-  if (!output_name)
-    parse_error( "No output file specified." );
   
     // if neither, default to both
   if (!nodes_spec && !elems_spec)
@@ -251,17 +282,7 @@ int main( int argc, char* argv[] )
   
   
   /**************** Done processing input -- do actual work ****************/
-  
-    // Read the input file
-  if (MB_SUCCESS != iface->load_mesh( input_name ))
-  {
-    std::cerr << "Failed to read file: " << input_name << std::endl;
-    std::string message;
-    if (MB_SUCCESS == iface->get_last_error(message))
-      std::cerr << message << std::endl;
-    return 2;
-  }
-  
+ 
     // Get list of sets with identifying tags
   MBRange sets, temp;
   for (TagVect::iterator i = ident_tags.begin(); i != ident_tags.end(); ++i)
