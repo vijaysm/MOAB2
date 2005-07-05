@@ -88,8 +88,8 @@ public:
   //! load mesh from data in file
   //! NOTE: if there is mesh already present, the new mesh will be added
   virtual MBErrorCode load_mesh(const char *file_name,
-                                 const int *active_block_id_list,
-                                 const int num_blocks);
+                                 const int *active_block_id_list = NULL,
+                                 const int num_blocks = 0);
   
   virtual MBErrorCode write_mesh(const char *file_name,
                                   const MBEntityHandle *output_list = NULL,
