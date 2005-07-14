@@ -244,6 +244,11 @@ public:
                                          const int num_handles,
                                          bool both_ways);
 
+      //! Adds adjacencies; same as vector-based, but with range instead
+    virtual MBErrorCode add_adjacencies(const MBEntityHandle from_handle, 
+                                        MBRange &adjacencies,
+                                        bool both_ways);
+
       //! Removes adjacencies
       /** \param handle MBEntityHandle to get adjacencies of.
 
@@ -401,6 +406,13 @@ public:
                                         bool auto_merge,
                                         bool delete_removed_entity);
 
+    //! split entities that are nonmanifold (shared by three or more entities of each 
+    //! higher dimension), optionally creating an entity of next higher dimension to 
+    //! fill the gap;
+    //! ONLY PARTIALLY IMPLEMENTED RIGHT NOW (see comments in source)
+  MBErrorCode split_entities_nonmanifold(MBEntityHandle d,
+                                         MBEntityHandle &nd);
+  
     //! split entities that are manifold (shared by two or less entities of each higher dimension),
     //! optionally creating an entity of next higher dimension to fill the gap
     /**

@@ -51,6 +51,12 @@ public:
                             std::vector<MBEntityHandle> *star_entities_dp1 = NULL,
                             MBRange *star_entities_candidates_dp1 = NULL);
   
+    //! get "bridge" or "2nd order" adjacencies, going through dimension bridge_dim
+  MBErrorCode get_bridge_adjacencies(const MBEntityHandle from_entity,
+                                     const int bridge_dim,
+                                     const int to_dim,
+                                     MBRange &to_adjs);
+
 private:
   MBInterface *mbImpl;
   

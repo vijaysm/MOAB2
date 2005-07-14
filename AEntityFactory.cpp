@@ -1089,61 +1089,17 @@ MBErrorCode AEntityFactory::notify_change_connectivity(MBEntityHandle entity,
   }
 
   return MB_SUCCESS;
-
-#if 0
-    // for each AEntity containing an old node, construct a new one which
-    // contains the new node in its place
-  std::vector<int> side_vec, tmp_sides, changed_verts;
-  MBHandleVec side_verts;
-  
-  for (int dim = MBCN::Dimension(source_type)-1; dim > 0; dim--) {
-    side_vec.clear();
-      // get all the sides of dimension dim containing this vertex number
-    MBCN::AdjacentSubEntities(source_type, &changed_verts[0], changed_verts.size(),
-                                   0, dim, side_vec, MBInterface::UNION);
-    
-      // side_vec contains all the side numbers containing a changed node, and it will
-      // be sorted and unique'd
-
-      // ... now for each side, if there's already an explicit aentity for that (old) side, 
-      // create a new one
-    MBEntityHandle target_entity;
-    std::vector<int>::iterator vert_it, side_no;
-    for (side_no = side_vec.begin(); side_no != side_vec.end(); side_no++) {
-        // get the vertices
-      side_verts.clear();
-      int temp_result = MBCN::AdjacentSubEntities(source_type, 
-                                                    &*side_no, 1, dim, 0, tmp_sides);
-      if (0 != temp_result) return MB_INDEX_OUT_OF_RANGE;
-
-        // take the indices and get the corresponding (old) vertices
-      for (vert_it = tmp_sides.begin(); vert_it != tmp_sides.end(); vert_it++)
-        side_verts.push_back(old_array[*vert_it]);
-      
-        // check for an aentity with those (old) verts
-      MBEntityType target_type = 
-        MBCN::mConnectivityMap[source_type][dim-1].target_type[*side_no];
-      result = get_element(&side_verts[0], side_verts.size(), target_type,
-                           target_entity, false);
-      if (0 != target_entity) {
-          // get the verts for the new entity
-        side_verts.clear();
-        MBEntityHandle new_element;
-        for (vert_it = tmp_sides.begin(); vert_it != tmp_sides.end(); vert_it++)
-          side_verts.push_back(new_array[*vert_it]);
-        
-          // create the entity
-        thisMB->create_element(target_type, &side_verts[0], side_verts.size(), 
-                                new_element);
-
-          // if there were multiple entities, explicitly add an adjacency
-        if (MB_MULTIPLE_ENTITIES_FOUND == result)
-          add_adjacency(entity, new_element, true);
-      }
-    }
-  }
-
-  return MB_SUCCESS;
-#endif
 }
 
+    //! return true if 2 entities are explicitly adjacent
+bool AEntityFactory::explicitly_adjacent(const MBEntityHandle ent1,
+                                         const MBEntityHandle ent2) 
+{
+  const MBEntityHandle *explicit_adjs;
+  int num_exp;
+  get_adjacencies(ent1, explicit_adjs, num_exp);
+  if (std::find(explicit_adjs, explicit_adjs+num_exp, ent2) != explicit_adjs+num_exp)
+    return true;
+  else
+    return false;
+}

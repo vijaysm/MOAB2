@@ -290,9 +290,20 @@ MBErrorCode ComputePartition::write_partition(const int nprocs, MBRange &elems,
     // assign entities to the relevant sets
   MBRange::iterator rit;
   int i;
+  int *tag_data = new int[elems.size()];
   for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
-    result = mbImpl->add_entities(part_sets[assignment[i]], &(*rit), 1); RR;
+    int part = assignment[i];
+    result = mbImpl->add_entities(part_sets[part], &(*rit), 1); RR;
+    tag_data[i] = part;
   }
+
+    // allocate integer-size partitions
+  MBTag elem_part_set_tag;
+  int dum_id = -1;
+  result = mbImpl->tag_create("ELEM_PARALLEL_PARTITION", 4, MB_TAG_SPARSE, MB_TYPE_INTEGER,
+                              elem_part_set_tag, &dum_id); RR;
+  result = mbImpl->tag_set_data(part_set_tag, elems, (void*) tag_data);
+  if (MB_SUCCESS != result) return result;
 
   return MB_SUCCESS;
 }

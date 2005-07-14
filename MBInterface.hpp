@@ -496,6 +496,11 @@ public:
                                       const int num_handles,
                                       bool both_ways) = 0;
 
+    //! Adds adjacencies; same as vector-based, but with range instead
+  virtual MBErrorCode add_adjacencies(const MBEntityHandle from_handle, 
+                                      MBRange &adjacencies,
+                                      bool both_ways) = 0;
+
     //! Removes adjacencies between handles.
     /** Adjacencies in both directions are removed.
         \param from_handle Entity from which adjacencies are being removed.

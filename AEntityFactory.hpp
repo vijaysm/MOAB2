@@ -123,6 +123,10 @@ public:
                                           const MBEntityHandle* old_array,
                                           const MBEntityHandle* new_array, int number_nodes);
 
+    //! return true if 2 entities are explicitly adjacent
+  bool explicitly_adjacent(const MBEntityHandle ent1,
+                           const MBEntityHandle ent2);
+
 private:
 
   //! private constructor to prevent the construction of a default one

@@ -1120,9 +1120,9 @@ MBEntityHandle DualTool::next_loop_vertex(const MBEntityHandle last_v,
          mbImpl->type_from_handle(dual_surf) == MBENTITYSET);
 
     // get the connected vertices
-  MBSkinner skinner(mbImpl);
+  MeshTopoUtil tpu(mbImpl);
   MBRange other_verts;
-  MBErrorCode result = skinner.get_bridge_adjacencies(this_v, 1, 0, other_verts);
+  MBErrorCode result = tpu.get_bridge_adjacencies(this_v, 1, 0, other_verts);
   if (MB_SUCCESS != result || other_verts.empty()) return 0;
   
     //if (mbImpl->type_from_handle(last_v) == MBENTITYSET) {

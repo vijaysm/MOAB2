@@ -3874,9 +3874,10 @@ MBErrorCode mb_split_test(MBInterface *gMB)
   MBEntityHandle grid_verts[27], grid_elems[8];
   MBErrorCode result;
 #define RR if (result != MB_SUCCESS) return result
-  int init_edges, init_faces;
+  int init_edges, init_faces, init_regions;
   result = gMB->get_number_entities_by_dimension(0, 1, init_edges); RR;
   result = gMB->get_number_entities_by_dimension(0, 2, init_faces); RR;
+  result = gMB->get_number_entities_by_dimension(0, 3, init_regions); RR;
 
     // make vertices
   for (int i = 0; i < 27; i++) {
@@ -3936,6 +3937,10 @@ MBErrorCode mb_split_test(MBInterface *gMB)
   }
 
   MBRange new_faces, new_regions;
+
+    // NOTE: passing in non-NULL pointer for new_regions requests that region between the
+    // split entities be filled with an element; in this case, since we're splitting faces,
+    // the new entities are polyhedra
   result = gMB->split_entities_manifold(split_faces, new_faces, &new_regions);
   if (MB_SUCCESS != result || new_faces.size() != 4 ||
       new_regions.size() != 4) {
@@ -3943,11 +3948,15 @@ MBErrorCode mb_split_test(MBInterface *gMB)
     return MB_FAILURE;
   }
 
+  int this_regions;
   result = gMB->get_number_entities_by_dimension(0, 1, this_edges); RR;
   result = gMB->get_number_entities_by_dimension(0, 2, this_faces); RR;
+  result = gMB->get_number_entities_by_dimension(0, 3, this_regions); RR;
 
-  if (this_edges != init_edges+54 || this_faces != init_faces+40) {
-    std::cout << "Wrong number of edges or faces after splitting in mb_topo_util test." << std::endl;
+  if (this_edges != init_edges+54 || this_faces != init_faces+40 ||
+      this_regions != init_regions+12) {
+    std::cout << "Wrong number of edges or faces or regions after splitting in mb_topo_util test." 
+              << std::endl;
     return MB_FAILURE;
   }
   

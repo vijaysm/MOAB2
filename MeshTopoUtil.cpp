@@ -19,6 +19,7 @@
 
 #include "MeshTopoUtil.hpp"
 #include "MBRange.hpp"
+#include "MBInternals.hpp"
 
     //! generate all the AEntities bounding the vertices
 MBErrorCode MeshTopoUtil::construct_aentities(const MBRange &vertices) 
@@ -164,3 +165,60 @@ MBErrorCode MeshTopoUtil::star_entities(const MBEntityHandle star_center,
   return MB_SUCCESS;
 }
 
+    //! get "bridge" or "2nd order" adjacencies, going through dimension bridge_dim
+MBErrorCode MeshTopoUtil::get_bridge_adjacencies(const MBEntityHandle from_entity,
+                                                 const int bridge_dim,
+                                                 const int to_dim,
+                                                 MBRange &to_adjs) 
+{
+    // get pointer to connectivity for this entity
+  const MBEntityHandle *connect;
+  int num_connect;
+  MBErrorCode result = mbImpl->get_connectivity(from_entity, connect, num_connect);
+  if (MB_SUCCESS != result) return result;
+  
+  MBEntityType from_type = TYPE_FROM_HANDLE(from_entity);
+  if (from_type >= MBENTITYSET) return MB_FAILURE;
+
+  int from_dim = MBCN::Dimension(from_type);
+  
+  std::vector<MBEntityHandle> to_ents;
+
+  if (bridge_dim < from_dim) {
+      // looping over each sub-entity of dimension bridge_dim...
+    static MBEntityHandle bridge_verts[MB_MAX_SUB_ENTITIES];
+    for (int i = 0; i < MBCN::NumSubEntities(from_type, bridge_dim); i++) {
+
+        // get the vertices making up this sub-entity
+      int num_bridge_verts;
+      MBCN::SubEntityConn(connect, from_type, bridge_dim, i, &bridge_verts[0], num_bridge_verts);
+    
+        // get the to_dim entities adjacent
+      to_ents.clear();
+      MBErrorCode tmp_result = mbImpl->get_adjacencies(bridge_verts, num_bridge_verts,
+                                                       to_dim, false, to_ents, MBInterface::INTERSECT);
+      if (MB_SUCCESS != tmp_result) result = tmp_result;
+    
+      std::copy(to_ents.begin(), to_ents.end(), mb_range_inserter(to_adjs));
+    }
+  }
+  else {
+      // going to higher dimension for bridge
+    MBRange bridge_ents, tmp_ents;
+    tmp_ents.insert(from_entity);
+    MBErrorCode tmp_result = mbImpl->get_adjacencies(tmp_ents, bridge_dim,
+                                                     false, bridge_ents, 
+                                                     MBInterface::UNION);
+    if (MB_SUCCESS != tmp_result) return tmp_result;
+    
+    tmp_result = mbImpl->get_adjacencies(bridge_ents, to_dim, false, to_adjs, 
+                                         MBInterface::UNION);
+    if (MB_SUCCESS != tmp_result) return tmp_result;
+  }
+  
+    // if to_dimension is same as that of from_entity, make sure from_entity isn't
+    // in list
+  if (to_dim == from_dim) to_adjs.erase(from_entity);
+  
+  return result;
+}
