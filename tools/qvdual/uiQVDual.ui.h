@@ -138,7 +138,7 @@ void uiQVDual::constructDual()
 {
   // tell MOAB to construct the dual first
   DualTool dt(vtkMOABUtils::mbImpl);
-  MBErrorCode result = dt.construct_hex_dual();
+  MBErrorCode result = dt.construct_hex_dual(NULL, 0);
   if (MB_SUCCESS == result) {
     // success - now populate vtk data; first the points
     result = vtkMOABUtils::make_vertex_points(vtkMOABUtils::myUG);

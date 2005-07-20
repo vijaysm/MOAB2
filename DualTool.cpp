@@ -98,81 +98,53 @@ DualTool::~DualTool()
 {}
 
   //! construct the dual entities for the entire mesh
-MBErrorCode DualTool::construct_dual() 
+MBErrorCode DualTool::construct_dual(MBEntityHandle *entities, 
+                                     const int num_entities) 
 {
     // allocate a dual entity for each primal entity in the mesh, starting
     // with highest dimension and working downward; do each dimension in a separate code
     // block, since they're all handled slightly differently
   
-  MBRange all_regions, all_faces, all_edges, all_vertices;
-
-    // first, construct all the aentities, since they're currently needed to 
-    // compute the dual
-  MBErrorCode result = mbImpl->get_entities_by_dimension(0, 0, all_vertices);
-  if (MB_SUCCESS != result) return result;
-
-  result = MeshTopoUtil(mbImpl).construct_aentities(all_vertices);
-  if (MB_SUCCESS != result) return result;
-
-    // get all edges, faces and regions now, so we don't need to filter out dual
-    // entities later
-  
-  result = mbImpl->get_entities_by_dimension(0, 1, all_edges);
-  if (MB_SUCCESS != result) return result;
-  result = mbImpl->get_entities_by_dimension(0, 2, all_faces);
-  if (MB_SUCCESS != result) return result;
-  result = mbImpl->get_entities_by_dimension(0, 3, all_regions);
-  if (MB_SUCCESS != result) return result;
-
-  MBRange dual_verts;
-  result = construct_dual_vertices(all_regions, dual_verts);
-  if (MB_SUCCESS != result || dual_verts.size() != all_regions.size()) return result;
-  if (debug)
-    std::cout << "Constructed " << dual_verts.size() << " dual vertices." << std::endl;
-
-    // don't really need dual edges, but construct 'em anyway
-  MBRange dual_edges;
-  result = construct_dual_edges(all_faces, dual_edges);
-  if (MB_SUCCESS != result || dual_edges.size() != all_faces.size()) return result;
-  if (debug)
-    std::cout << "Constructed " << dual_edges.size() << " dual edges." << std::endl;
-
-    // construct dual faces
-  MBRange dual_faces;
-  result = construct_dual_faces(all_edges, dual_faces);
-  if (MB_SUCCESS != result || dual_faces.size() != all_edges.size()) return result;
-  if (debug)
-    std::cout << "Constructed " << dual_faces.size() << " dual faces." << std::endl;
-
-    // construct dual cells
-  MBRange dual_cells;
-  result = construct_dual_cells(all_vertices, dual_cells);
-  if (MB_SUCCESS != result || dual_cells.size() != all_vertices.size()) return result;
-  if (debug)
-    std::cout << "Constructed " << dual_cells.size() << " dual cells." << std::endl;
-
-  return MB_SUCCESS;
-}
-
-  //! update the dual entities for the specified entities
-MBErrorCode DualTool::update_dual(MBEntityHandle *entities, const int num_entities) 
-{
   MBRange regions, faces, edges, vertices;
+  MBErrorCode result;
 
-    // get entities of various dimensions adjacent to these
-  MBErrorCode result = mbImpl->get_adjacencies(entities, num_entities, 0, true, vertices, 
-                                               MBInterface::UNION);
-  if (MB_SUCCESS != result) return result;
-  result = mbImpl->get_adjacencies(entities, num_entities, 1, true, edges,
-                                   MBInterface::UNION);
-  if (MB_SUCCESS != result) return result;
-  result = mbImpl->get_adjacencies(entities, num_entities, 2, true, faces,
-                                   MBInterface::UNION);
-  if (MB_SUCCESS != result) return result;
-  result = mbImpl->get_adjacencies(entities, num_entities, 3, true, regions,
-                                   MBInterface::UNION);
-  if (MB_SUCCESS != result) return result;
+  if (NULL == entities || 0 == num_entities) {
+    
+      // first, construct all the aentities, since they're currently needed to 
+      // compute the dual
+    result = mbImpl->get_entities_by_dimension(0, 0, vertices);
+    if (MB_SUCCESS != result) return result;
 
+    result = MeshTopoUtil(mbImpl).construct_aentities(vertices);
+    if (MB_SUCCESS != result) return result;
+
+      // get all edges, faces and regions now, so we don't need to filter out dual
+      // entities later
+  
+    result = mbImpl->get_entities_by_dimension(0, 1, edges);
+    if (MB_SUCCESS != result) return result;
+    result = mbImpl->get_entities_by_dimension(0, 2, faces);
+    if (MB_SUCCESS != result) return result;
+    result = mbImpl->get_entities_by_dimension(0, 3, regions);
+    if (MB_SUCCESS != result) return result;
+  }
+  else {
+      // get entities of various dimensions adjacent to these
+    result = mbImpl->get_adjacencies(entities, num_entities, 0, true, vertices, 
+                                     MBInterface::UNION);
+    if (MB_SUCCESS != result) return result;
+    result = mbImpl->get_adjacencies(entities, num_entities, 1, true, edges,
+                                     MBInterface::UNION);
+    if (MB_SUCCESS != result) return result;
+    result = mbImpl->get_adjacencies(entities, num_entities, 2, true, faces,
+                                     MBInterface::UNION);
+    if (MB_SUCCESS != result) return result;
+    result = mbImpl->get_adjacencies(entities, num_entities, 3, true, regions,
+                                     MBInterface::UNION);
+    if (MB_SUCCESS != result) return result;
+  
+  }
+  
   MBRange dual_verts;
   result = construct_dual_vertices(regions, dual_verts);
   if (MB_SUCCESS != result || dual_verts.size() != regions.size()) return result;
@@ -684,19 +656,20 @@ MBErrorCode DualTool::get_radial_dverts(const MBEntityHandle edge,
 }
 
   //! construct the dual entities for a hex mesh, including dual surfaces & curves
-MBErrorCode DualTool::construct_hex_dual() 
+MBErrorCode DualTool::construct_hex_dual(MBEntityHandle *entities,
+                                         const int num_entities) 
 {
     // really quite simple: 
 
     // construct the dual...
-  MBErrorCode result = construct_dual();
+  MBErrorCode result = construct_dual(entities, num_entities);
   if (MB_SUCCESS != result) return result;
   
     // now traverse to build 1d and 2d hyperplanes
-  result = construct_dual_hyperplanes(1);
+  result = construct_dual_hyperplanes(1, entities, num_entities);
   if (MB_SUCCESS != result) return result;
 
-  result = construct_dual_hyperplanes(2);
+  result = construct_dual_hyperplanes(2, entities, num_entities);
   if (MB_SUCCESS != result) return result;
   
   result = construct_hp_parent_child();
@@ -707,7 +680,10 @@ MBErrorCode DualTool::construct_hex_dual()
 }
 
   //! get the cells of the dual
-MBErrorCode DualTool::get_dual_entities(const int dim, MBRange &dual_ents) 
+MBErrorCode DualTool::get_dual_entities(const int dim, 
+                                        MBEntityHandle *entities, 
+                                        const int num_entities, 
+                                        MBRange &dual_ents) 
 {
   if (0 == isDualCell_tag()) return MB_SUCCESS;
   if (0 > dim || 3 < dim) return MB_INDEX_OUT_OF_RANGE;
@@ -715,18 +691,40 @@ MBErrorCode DualTool::get_dual_entities(const int dim, MBRange &dual_ents)
   unsigned int dum = 0x1;
   const void *dum_ptr = &dum;
   static MBEntityType dual_type[] = {MBVERTEX, MBEDGE, MBPOLYGON, MBPOLYHEDRON};
+
+  MBRange dim_ents;
   
-  return
-    mbImpl->get_entities_by_type_and_tag(0, dual_type[dim], &isDualCellTag, &dum_ptr, 1,
-                                         dual_ents);
+  MBErrorCode result;
+
+  if (0 == entities || 0 == num_entities) {
+      // just get all the dual entities of this dimension
+    result = mbImpl->get_entities_by_type_and_tag(0, dual_type[dim], 
+                                                  &isDualCellTag, &dum_ptr, 1,
+                                                  dual_ents);
+  }
+  else {
+      // else look for specific dual entities
+    result = mbImpl->get_adjacencies(entities, num_entities, 3-dim, false,
+                                     dim_ents, MBInterface::UNION);
+    if (MB_SUCCESS != result) return result;
+    std::vector<MBEntityHandle> dual_ents_vec(dim_ents.size());
+    result = mbImpl->tag_get_data(dualEntity_tag(), dim_ents, &dual_ents_vec[0]);
+    if (MB_SUCCESS != result) return result;
+    std::copy(dual_ents_vec.begin(), dual_ents_vec.end(), 
+              mb_range_inserter(dual_ents));
+  }
+  
+  return result;
 }
 
   //! get the faces of the dual
 MBErrorCode DualTool::get_dual_entities(const int dim, 
+                                        MBEntityHandle *entities, 
+                                        const int num_entities, 
                                         std::vector<MBEntityHandle> &dual_ents) 
 {
   MBRange tmp_range;
-  MBErrorCode result = get_dual_entities(dim, tmp_range);
+  MBErrorCode result = get_dual_entities(dim, entities, num_entities, tmp_range);
   if (MB_SUCCESS != result)
     return result;
 
@@ -761,7 +759,9 @@ MBErrorCode DualTool::get_dual_hyperplanes(const MBInterface *impl, const int di
   return result;
 }
 
-MBErrorCode DualTool::construct_dual_hyperplanes(const int dim) 
+MBErrorCode DualTool::construct_dual_hyperplanes(const int dim, 
+                                                 MBEntityHandle *entities, 
+                                                 const int num_entities) 
 {
     // this function traverses dual faces of input dimension, constructing
     // dual hyperplanes of them in sets as it goes
@@ -804,15 +804,13 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
   std::vector<MBEntityHandle> tot_untreated;
   
     // put dual entities of this dimension on the untreated list
-  result = get_dual_entities(dim, tot_untreated);
+  result = get_dual_entities(dim, entities, num_entities, tot_untreated);
   if (MB_SUCCESS != result) 
     return result;
   
     // main part of traversal loop
   MBEntityHandle this_ent;
   MBEntityHandle this_hp;
-  int hp_val;
-  int hp_ids = 1;
   std::vector<MBEntityHandle> parents;
 
   while (!tot_untreated.empty()) {
@@ -830,129 +828,37 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
 
     if (1 == dim && check_1d_loop_edge(this_ent)) continue;
     
-      // ok, doesn't have one; make a new hyperplane
-    hp_val = hp_ids++;
-    result = construct_new_hyperplane(dim, this_hp, hp_val);
-    
       // inner loop: traverse the hyperplane 'till we don't have any more
-    result = traverse_hyperplane_2(hp_tag, mark_tag, this_hp, this_ent);
+    result = traverse_hyperplane(hp_tag, mark_tag, this_hp, this_ent);
 
       // ok, now order the edges if it's a chord
     if (1 == dim) order_chord(this_hp);
   }
 
-  if (debug)
-    std::cout << "Constructed " << hp_ids-1 << " hyperplanes of dim = " << dim << "." << std::endl;
   return MB_SUCCESS;
 }
 
 MBErrorCode DualTool::traverse_hyperplane(const MBTag hp_tag, const MBTag mark_tag,
-                                          MBEntityHandle this_hp, 
+                                          MBEntityHandle &this_hp, 
                                           MBEntityHandle this_ent) 
 {
   unsigned short mark_val = 0x1;
-  MBRange tmp_star, star, tmp_range;
-  std::vector<MBEntityHandle> hp_untreated;
-  int dim = mbImpl->dimension_from_handle(this_ent);
-  
-  while (0 != this_ent) {
-    if (debug && hp_untreated.size()%10 == 0) 
-      std::cout << "Dual surface " << this_hp << ", hp_untreated list size = " 
-                << hp_untreated.size() << "." << std::endl;
-
-      // set the hp_val for this_ent
-    MBErrorCode result = mbImpl->tag_set_data(hp_tag, &this_ent, 1, &this_hp);
-    if (MB_SUCCESS != result) 
-      return result;
-    result = mbImpl->add_entities(this_hp, &this_ent, 1);
-    if (MB_SUCCESS != result) 
-      return result;
-
-      // get all neighbors connected to this entity
-    tmp_range.clear(); tmp_star.clear(); star.clear();
-    tmp_range.insert(this_ent);
-    result = mbImpl->get_adjacencies(tmp_range, dim-1, true, tmp_star);
-    if (MB_SUCCESS != result) 
-      return result;
-    result = mbImpl->get_adjacencies(tmp_star, dim, false, star,
-                                     MBInterface::UNION);
-    if (MB_SUCCESS != result) 
-      return result;
-    star.erase(this_ent);
-      
-      // for each star entity, see if it shares a cell with this one; if so,
-      // it's not opposite
-
-      // this_ent is already in tmp_range
-    for (MBRange::iterator rit = star.begin(); rit != star.end(); rit++) {
-        // check for tag first, 'cuz it's probably faster than checking adjacencies
-      MBEntityHandle r_val;
-      result = mbImpl->tag_get_data(hp_tag, &(*rit), 1, &r_val);
-      if (MB_SUCCESS == result && 0 != r_val) 
-        continue;
-
-        // assign to avoid valgrind warning
-      unsigned short tmp_mark = 0x0;
-      result = mbImpl->tag_get_data(mark_tag, &(*rit), 1, &tmp_mark);
-      if (MB_SUCCESS == result && mark_val == tmp_mark) 
-        continue;
-
-        // if it's on the loop, it's not eligible
-      if (1 == dim && check_1d_loop_edge(*rit)) continue;
-
-        // passed tag test; check adjacencies
-      tmp_star.clear();
-      tmp_range.insert(*rit);
-      result = mbImpl->get_adjacencies(tmp_range, dim+1, false, tmp_star);
-      if (MB_SUCCESS != result) 
-        return result;
-        
-      if (tmp_star.empty()) {
-          // have one on this hp; just put it on the hp_untreated list for now,
-          // will get tagged and put in the hp set later
-        hp_untreated.push_back(*rit);
-        result = mbImpl->tag_set_data(mark_tag, &(*rit), 1, &mark_val);
-        if (MB_SUCCESS != result) 
-          return result;
-      }
-
-        // take *rit out of tmp_range, then proceed to the next
-      tmp_range.erase(*rit);
-    }
-      
-      // end of inner loop; get the next this_ent, or set to zero
-    if (hp_untreated.empty()) this_ent = 0;
-    else {
-      this_ent = hp_untreated.back();
-      hp_untreated.pop_back();
-    }
-  }
-
-  return MB_SUCCESS;
-}
-
-MBErrorCode DualTool::traverse_hyperplane_2(const MBTag hp_tag, const MBTag mark_tag,
-                                            MBEntityHandle this_hp, 
-                                            MBEntityHandle this_ent) 
-{
-  unsigned short mark_val = 0x1;
-  MBRange tmp_star, star, tmp_range;
+  MBRange tmp_star, star, tmp_range, new_hyperplane_ents;
   std::vector<MBEntityHandle> hp_untreated;
   int dim = mbImpl->dimension_from_handle(this_ent);
   MeshTopoUtil mtu(mbImpl);
+  this_hp = 0;
+  MBErrorCode result;
   
   while (0 != this_ent) {
+    MBEntityHandle tmp_hp = get_dual_hyperplane(this_ent);
+    if (0 == this_hp && 0 != tmp_hp) this_hp = tmp_hp;
+    
+    if (0 == tmp_hp) new_hyperplane_ents.insert(this_ent);
+    
     if (debug && hp_untreated.size()%10 == 0) 
       std::cout << "Dual surface " << this_hp << ", hp_untreated list size = " 
                 << hp_untreated.size() << "." << std::endl;
-
-      // set the hp_val for this_ent
-    MBErrorCode result = mbImpl->tag_set_data(hp_tag, &this_ent, 1, &this_hp);
-    if (MB_SUCCESS != result) 
-      return result;
-    result = mbImpl->add_entities(this_hp, &this_ent, 1);
-    if (MB_SUCCESS != result) 
-      return result;
 
       // get the 2nd order adjacencies through lower dimension
     tmp_range.clear(); tmp_star.clear(); star.clear();
@@ -964,11 +870,6 @@ MBErrorCode DualTool::traverse_hyperplane_2(const MBTag hp_tag, const MBTag mark
     
     for (MBRange::iterator rit = tmp_range.begin(); rit != tmp_range.end(); rit++) {
         // check for tag first, 'cuz it's probably faster than checking adjacencies
-      MBEntityHandle r_val;
-      result = mbImpl->tag_get_data(hp_tag, &(*rit), 1, &r_val);
-      if (MB_SUCCESS == result && 0 != r_val) 
-        continue;
-
         // assign to avoid valgrind warning
       unsigned short tmp_mark = 0x0;
       result = mbImpl->tag_get_data(mark_tag, &(*rit), 1, &tmp_mark);
@@ -993,6 +894,23 @@ MBErrorCode DualTool::traverse_hyperplane_2(const MBTag hp_tag, const MBTag mark
       hp_untreated.pop_back();
     }
   }
+
+  if (0 == this_hp) {
+      // ok, doesn't have one; make a new hyperplane
+    int new_id = -1;
+    result = construct_new_hyperplane(dim, this_hp, new_id);
+    if (MB_SUCCESS != result) return result;
+  }
+  
+    // set the hp_val for entities which didn't have one before
+  std::vector<MBEntityHandle> hp_tags(new_hyperplane_ents.size());
+  std::fill(hp_tags.begin(), hp_tags.end(), this_hp);
+  result = mbImpl->tag_set_data(hp_tag, new_hyperplane_ents, &hp_tags[0]);
+  if (MB_SUCCESS != result) 
+    return result;
+  result = mbImpl->add_entities(this_hp, new_hyperplane_ents);
+  if (MB_SUCCESS != result) 
+    return result;
 
   return MB_SUCCESS;
 }
@@ -1067,7 +985,7 @@ MBErrorCode DualTool::construct_new_hyperplane(const int dim,
   if (-1 == id) {
     MBRange all_hyperplanes;
     result = get_dual_hyperplanes(mbImpl, dim, all_hyperplanes); RR;
-    id = all_hyperplanes.size();
+    id = all_hyperplanes.size() + 1;
   }
     
   result = mbImpl->tag_set_data(globalId_tag(), &new_hyperplane, 1, &id); RR;
@@ -1351,7 +1269,7 @@ MBEntityHandle DualTool::next_loop_vertex(const MBEntityHandle last_v,
   return 0;
 }
 
-MBEntityHandle DualTool::get_dual_surface_or_curve(const MBEntityHandle ncell) 
+MBEntityHandle DualTool::get_dual_hyperplane(const MBEntityHandle ncell) 
 {
     // get the sheet or chord it's in
   std::vector<MBEntityHandle> adj_sets;
@@ -1468,7 +1386,7 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge)
   result = mbImpl->add_adjacencies(new_quad, &new_hexes[1], 1, false); RR;
 
     // now update the dual
-  result = update_dual(&new_hexes[0], 2); RR;
+  result = construct_hex_dual(&new_hexes[0], 2); RR;
   
   return MB_SUCCESS;
 }
@@ -1704,33 +1622,33 @@ MBErrorCode DualTool::foc_gather_data(const MBEntityHandle ocl, const MBEntityHa
                                     thcru, thcrl); RR;
 
     // sm, sl, sr
-  sm = get_dual_surface_or_curve(tcm);
+  sm = get_dual_hyperplane(tcm);
   if (0 == sm) {
     std::cerr << "Couldn't get dual surface for tcm." << std::endl;
     return MB_FAILURE;
   }
   
-  sl = get_dual_surface_or_curve(tclu);
+  sl = get_dual_hyperplane(tclu);
   if (0 == sl) {
     std::cerr << "Couldn't get dual surface for tclu." << std::endl;
     return MB_FAILURE;
   }
   
-  sr = get_dual_surface_or_curve(tcru);
+  sr = get_dual_hyperplane(tcru);
   if (0 == sl) {
     std::cerr << "Couldn't get dual surface for tcru." << std::endl;
     return MB_FAILURE;
   }
   
     // cl, cr
-  cl = get_dual_surface_or_curve(ocl);
+  cl = get_dual_hyperplane(ocl);
   if (0 == sm) {
     std::cerr << "Couldn't get dual curve for ocl." << std::endl;
     return MB_FAILURE;
   }
   
     // cl, cr
-  cr = get_dual_surface_or_curve(ocr);
+  cr = get_dual_hyperplane(ocr);
   if (0 == sm) {
     std::cerr << "Couldn't get dual curve for ocr." << std::endl;
     return MB_FAILURE;

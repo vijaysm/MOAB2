@@ -76,16 +76,23 @@ public:
   ~DualTool();
 
     //! construct the dual entities for the entire mesh
-  MBErrorCode construct_dual();
+  MBErrorCode construct_dual(MBEntityHandle *entities, 
+                             const int num_entities);
   
     //! construct the dual entities for a hex mesh, including dual surfaces & curves
-  MBErrorCode construct_hex_dual();
+  MBErrorCode construct_hex_dual(MBEntityHandle *entities,
+                                 const int num_entities);
   
-  //! get the faces of the dual
-  MBErrorCode get_dual_entities(const int dim, MBRange &dual_ents);
-  
-  //! get the faces of the dual
+  //! get the dual entities; if non-null, only dual of entities passed in are returned
   MBErrorCode get_dual_entities(const int dim, 
+                                MBEntityHandle *entities, 
+                                const int num_entities, 
+                                MBRange &dual_ents);
+  
+  //! get the dual entities; if non-null, only dual of entities passed in are returned
+  MBErrorCode get_dual_entities(const int dim, 
+                                MBEntityHandle *entities, 
+                                const int num_entities, 
                                 std::vector<MBEntityHandle> &dual_ents);
 
     //! return the corresponding dual entity
@@ -144,7 +151,7 @@ public:
   MBErrorCode globalId_tag(const MBTag tag);
 
     //! given an entity, return any dual surface or curve it's in
-  MBEntityHandle get_dual_surface_or_curve(const MBEntityHandle ncell);
+  MBEntityHandle get_dual_hyperplane(const MBEntityHandle ncell);
 
     //! returns true if first & last vertices are dual to hexes (not faces)
   bool is_blind(const MBEntityHandle chord);
@@ -181,7 +188,9 @@ private:
   
     //! traverse dual faces of input dimension, constructing
     //! dual hyperplanes of them in sets as it goes
-  MBErrorCode construct_dual_hyperplanes(const int dim);
+  MBErrorCode construct_dual_hyperplanes(const int dim, 
+                                         MBEntityHandle *entities, 
+                                         const int num_entities);
 
     //! order 1cells on a chord 
   MBErrorCode order_chord(MBEntityHandle chord_set);
@@ -193,15 +202,11 @@ private:
   
     //! traverse the cells of a dual hyperplane, starting with this_ent (dimension
     //! of this_ent determines hyperplane dimension)
-  MBErrorCode traverse_hyperplane(const MBTag hp_tag, const MBTag mark_tag,
-                                  MBEntityHandle this_hp, 
-                                  MBEntityHandle this_ent);
-
     //! simpler method for traversing hyperplane, using same basic algorithm but
     //! using MeshTopoUtil::get_bridge_adjacencies
-  MBErrorCode traverse_hyperplane_2(const MBTag hp_tag, const MBTag mark_tag,
-                                    MBEntityHandle this_hp, 
-                                    MBEntityHandle this_ent);
+  MBErrorCode traverse_hyperplane(const MBTag hp_tag, const MBTag mark_tag,
+                                  MBEntityHandle &this_hp, 
+                                  MBEntityHandle this_ent);
   
     //! connect dual surfaces with dual curves using parent/child connections
   MBErrorCode construct_hp_parent_child();
@@ -239,10 +244,6 @@ private:
 
     //! delete a range of dual entities; updates primal to no longer point to them
   MBErrorCode delete_dual_entities(MBRange &entities);
-  
-    //! update the dual on these entities
-  MBErrorCode update_dual(MBEntityHandle *entities,
-                          const int num_entities);
   
   MBErrorCode foc_gather_data(const MBEntityHandle ocl, const MBEntityHandle ocr, 
                               const MBEntityHandle tcm, 
