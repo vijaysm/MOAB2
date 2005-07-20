@@ -145,6 +145,9 @@ public:
 
     //! given an entity, return any dual surface or curve it's in
   MBEntityHandle get_dual_surface_or_curve(const MBEntityHandle ncell);
+
+    //! returns true if first & last vertices are dual to hexes (not faces)
+  bool is_blind(const MBEntityHandle chord);
   
     //! set the dual surface or curve for an entity
   MBErrorCode set_dual_surface_or_curve(MBEntityHandle entity, 
@@ -153,6 +156,10 @@ public:
   
     //! effect atomic pillow operation
   MBErrorCode atomic_pillow(MBEntityHandle odedge);
+
+    //! effect a face open-collapse operation
+  MBErrorCode face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr,
+                                 MBEntityHandle tcm);
   
 private:
 
@@ -176,10 +183,25 @@ private:
     //! dual hyperplanes of them in sets as it goes
   MBErrorCode construct_dual_hyperplanes(const int dim);
 
+    //! order 1cells on a chord 
+  MBErrorCode order_chord(MBEntityHandle chord_set);
+  
     //! make a new dual hyperplane with the specified id; if the id specified is -1,
     //! set the new one's id to the max found
   MBErrorCode construct_new_hyperplane(const int dim, MBEntityHandle &new_hyperplane,
                                        int &id);
+  
+    //! traverse the cells of a dual hyperplane, starting with this_ent (dimension
+    //! of this_ent determines hyperplane dimension)
+  MBErrorCode traverse_hyperplane(const MBTag hp_tag, const MBTag mark_tag,
+                                  MBEntityHandle this_hp, 
+                                  MBEntityHandle this_ent);
+
+    //! simpler method for traversing hyperplane, using same basic algorithm but
+    //! using MeshTopoUtil::get_bridge_adjacencies
+  MBErrorCode traverse_hyperplane_2(const MBTag hp_tag, const MBTag mark_tag,
+                                    MBEntityHandle this_hp, 
+                                    MBEntityHandle this_ent);
   
     //! connect dual surfaces with dual curves using parent/child connections
   MBErrorCode construct_hp_parent_child();
@@ -212,21 +234,63 @@ private:
     //! multiple edges), and add explicit adjacencies to corrent 2cells
   MBErrorCode check_dual_equiv_edges(MBRange &dual_edges);
   
-  MBErrorCode ap_construct_new_1cells(std::vector<MBEntityHandle> &nstar_1cells,
-                                      std::vector<MBEntityHandle> &star_2cells,
-                                      MBEntityHandle new_sheet);
-  
+    //! delete a dual entity; updates primal to no longer point to it
+  MBErrorCode delete_dual_entity(MBEntityHandle entity);
 
-  MBErrorCode ap_fix_2cells(MBEntityHandle odedge, 
-                            std::vector<MBEntityHandle> &star_2cells,
-                            MBEntityHandle *ndverts,
-                            std::vector<MBEntityHandle> &nstar_1cells);
+    //! delete a range of dual entities; updates primal to no longer point to them
+  MBErrorCode delete_dual_entities(MBRange &entities);
   
-  MBErrorCode ap_fix_3cells(MBEntityHandle *ndverts,
-                            std::vector<MBEntityHandle> &nstar_1cells,
-                            std::vector<MBEntityHandle> &star_2cells,
-                            std::vector<MBEntityHandle> &star_3cells,
-                            MBEntityHandle new_sheet);
+    //! update the dual on these entities
+  MBErrorCode update_dual(MBEntityHandle *entities,
+                          const int num_entities);
+  
+  MBErrorCode foc_gather_data(const MBEntityHandle ocl, const MBEntityHandle ocr, 
+                              const MBEntityHandle tcm, 
+                                // 0-cells, left & right
+                              MBEntityHandle &zclf, MBEntityHandle &zclb, 
+                              MBEntityHandle &zcrf, MBEntityHandle &zcrb,
+                                // 2-cells, left & right
+                              MBEntityHandle &tclu, MBEntityHandle &tclm, MBEntityHandle &tcll, 
+                              MBEntityHandle &tcru, MBEntityHandle &tcrm, MBEntityHandle &tcrl,
+                                // 3-cells, left & right
+                              MBEntityHandle &thclu, MBEntityHandle &thcll, MBEntityHandle &thcmu, 
+                              MBEntityHandle &thcml, MBEntityHandle &thcru, MBEntityHandle &thcrl,
+                                // sheets
+                              MBEntityHandle &sl, MBEntityHandle &sm, MBEntityHandle &sr,
+                                // chords     
+                              MBEntityHandle &cl, MBEntityHandle &cr);
+  
+  MBErrorCode foc_get_neighbor_23cells(const MBEntityHandle oc,
+                                       const MBEntityHandle tcm,
+                                       const MBEntityHandle thcmu,
+                                       const MBEntityHandle thcml,
+                                       MBEntityHandle &tcu, 
+                                       MBEntityHandle &tcm, 
+                                       MBEntityHandle &tcl, 
+                                       MBEntityHandle &thcu, 
+                                       MBEntityHandle &thcl);
+  
+  MBErrorCode foc_1cells(MBEntityHandle zclf, MBEntityHandle zclb, 
+                         MBEntityHandle ocl, MBEntityHandle cl,
+                         MBEntityHandle zcrf, MBEntityHandle zcrb, 
+                         MBEntityHandle ocr, MBEntityHandle cr,
+                         MBEntityHandle sm, MBEntityHandle sr,
+                         MBEntityHandle &new_ocb, MBEntityHandle &new_ocf,
+                         MBEntityHandle &new_cb, MBEntityHandle &new_cf);
+  
+    //! break a chord such that first_1cell is the first 1cell, the next 1cell
+    //! shares next_0cell, and the new chord starts with the 1cell in the other
+    //! direction; if chord is blind, new_chord is not created
+  MBErrorCode foc_break_chord(MBEntityHandle chord,
+                              MBEntityHandle first_1cell,
+                              MBEntityHandle next_0cell,
+                              std::vector<MBEntityHandle> &chord_1cells,
+                              std::vector<MBEntityHandle> &new_chord_1cells);
+
+    //! replace zc_old with zc_new in 1cell oc
+  MBErrorCode foc_replace_0cell(MBEntityHandle oc,
+                                MBEntityHandle zc_old,
+                                MBEntityHandle zc_new);
   
     //! private copy of interface *
   MBInterface *mbImpl;

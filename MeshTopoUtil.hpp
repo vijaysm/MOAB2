@@ -50,6 +50,17 @@ public:
                             const MBEntityHandle starting_star_entity = 0,
                             std::vector<MBEntityHandle> *star_entities_dp1 = NULL,
                             MBRange *star_entities_candidates_dp1 = NULL);
+
+    //! given a star_center, a last_entity (whose dimension should be 1 greater than center)
+    //! and last_dp1 (dimension 2 higher than center), returns the next star entity across
+    //! last_dp1, and the next dp1 entity sharing next_entity; if star_candidates is non-empty,
+    //! star must come from those
+  MBErrorCode star_next_entity(const MBEntityHandle star_center,
+                               const MBEntityHandle last_entity,
+                               const MBEntityHandle last_dp1,
+                               MBRange *star_candidates_dp1,
+                               MBEntityHandle &next_entity,
+                               MBEntityHandle &next_dp1);
   
     //! get "bridge" or "2nd order" adjacencies, going through dimension bridge_dim
   MBErrorCode get_bridge_adjacencies(const MBEntityHandle from_entity,
@@ -57,6 +68,11 @@ public:
                                      const int to_dim,
                                      MBRange &to_adjs);
 
+    //! return a common entity of the specified dimension, or 0 if there isn't one
+  MBEntityHandle common_entity(const MBEntityHandle ent1,
+                               const MBEntityHandle ent2,
+                               const int dim);
+  
 private:
   MBInterface *mbImpl;
   

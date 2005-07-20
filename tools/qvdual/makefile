@@ -1,7 +1,7 @@
 QT_DIR = /usr/local/qt-x11-free-3.3.1
 
-VTK_LIB_DIR = /usr/local/ParaViewComplete/bin
-VTK_DIR = /usr/local/ParaViewComplete/VTK
+VTK_LIB_DIR = /usr/local/ParaViewComplete.old/bin
+VTK_DIR = /usr/local/ParaViewComplete.old/VTK
 
 DEBUG_FLAG = -g
 
@@ -62,7 +62,7 @@ libQVTKWidgetPlugin.so: $(QVTKWidgetPlugin_SRC_OBJS)
 	${CXX} -fPIC -shared -Wl,-soname,libQVTKWidgetPlugin.so -o libQVTKWidgetPlugin.so $(QVTKWidgetPlugin_SRC_OBJS) -L${VTK_LIB_DIR} -L${QT_DIR}/lib -L/usr/X11R6/lib -lvtkRendering -lvtkImaging -lvtkGraphics -lvtkFiltering -lvtkCommon -lqt -lGLU -lGL -lSM -lICE -lSM -lICE -lSM -lICE -lSM -lICE -lSM -lICE -lX11 -lXext -lX11 -lXext -lX11 -lXext -lX11 -lXext -lX11 -lXext -lvtkIO -lvtkFiltering -lvtkDICOMParser -lvtkpng -lvtktiff -lvtkzlib -lvtkjpeg -lvtkexpat -lvtkftgl -lGL -lvtkfreetype -lSM -lICE -lX11 -lXext -lm -lXt -lpthread -ldl -lm -lgcc
 
 QVDual: $(QVDual_SRC_OBJS) libQVTK.a
-	${CXX} ${DEBUG_FLAG} -Wno-deprecated $(QVDual_SRC_OBJS) -o QVDual -rdynamic -L. -L${VTK_LIB_DIR} -L${MOAB_DIR} -L${NETCDF_DIR}/lib -L${GRAPHVIZ_LIB_DIR} -L${QT_DIR}/lib -L${X11_LIB_DIR} -lMOAB -lnetcdf_c++ -lnetcdf -ldotneato -lgraph -lQVTK -lqt -lvtkRendering -lvtkGraphics -lvtkIO -lvtkCommon -lvtkFiltering -lGLU -lGL -lSM -lICE -lX11 -lXext -lvtkParallel -lvtkHybrid -lvtkRendering -lvtkIO -lvtkImaging -lvtkFiltering -lvtkftgl -lGL -lvtkfreetype -lvtkDICOMParser -lvtkpng -lvtktiff -lvtkjpeg -lvtkexpat -lSM -lICE -lX11 -lXext -lvtkCommon -lm -lXt -lpthread -ldl -lm
+	${CXX} ${DEBUG_FLAG} -Wno-deprecated $(QVDual_SRC_OBJS) -o QVDual -rdynamic -L. -L${VTK_LIB_DIR} -L${MOAB_DIR} -L${NETCDF_DIR}/lib -L${GRAPHVIZ_LIB_DIR} -L${QT_DIR}/lib -L${X11_LIB_DIR} -lMOAB -lnetcdf_c++ -lnetcdf -ldotneato -lgraph -lQVTK -lqt -lvtkRendering -lvtkGraphics -lvtkIO -lvtkCommon -lvtkFiltering -lGLU -lGL -lSM -lICE -lX11 -lXext -lvtkParallel -lvtkHybrid -lvtkRendering -lvtkIO -lvtkImaging -lvtkFiltering -lvtkftgl -lGL -lvtkfreetype -lvtkDICOMParser -lvtkpng -lvtktiff -lvtkjpeg -lvtkexpat -lSM -lICE -lX11 -lXext -lvtkCommon -lvtkzlib -lm -lXt -lpthread -ldl -lm -Wl,-rpath,${VTK_LIB_DIR}
 
 clean:
 	rm -rf QVDual libQVTK.a libQVTKWidgetPlugin.so ${GENERATED_QVDUAL_QT_FILES} ${GENERATED_QVTK_QT_FILES} 

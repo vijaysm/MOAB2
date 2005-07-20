@@ -73,95 +73,103 @@ MBErrorCode MeshTopoUtil::star_entities(const MBEntityHandle star_center,
                                         bool &bdy_entity,
                                         const MBEntityHandle starting_star_entity,
                                         std::vector<MBEntityHandle> *star_entities_dp1,
-                                        MBRange *star_entities_candidates_dp1)
+                                        MBRange *star_candidates_dp1)
 {
-  MBEntityHandle last_entity = 0, last_dp1 = 0;
-  MBErrorCode result;
-  MBRange from_ents, adj_ents;
-  unsigned int star_dim = MBCN::Dimension(mbImpl->type_from_handle(star_center))+1;
-  std::vector<MBEntityHandle> star_dp1;
-  
-  if (0 != starting_star_entity) {
-    last_entity = starting_star_entity;
-    star_entities.push_back(last_entity);
-  }
-  
     // now start the traversal
   bdy_entity = false;
-  bool first = true;
-  
-  while (first || 0 != last_entity) {
-    first = false;
-    from_ents.clear();
-    from_ents.insert(star_center);
-    
-      // get dp1 entities which are adjacent to star_center and last_entity
-    if (0 != last_entity) from_ents.insert(last_entity);
-      // if candidates were specified, also needs to be among those
-    if (NULL != star_entities_candidates_dp1) 
-      adj_ents = *star_entities_candidates_dp1;
-    else adj_ents.clear();
-    
-    MBErrorCode tmp_result = mbImpl->get_adjacencies(from_ents, star_dim+1, false, adj_ents);
-    if (MB_SUCCESS != tmp_result) {
-      result = tmp_result;
-      break;
-    }
-    if (adj_ents.empty()) {
-      bdy_entity = true;
-      return MB_SUCCESS;
-    }
+  MBEntityHandle last_entity = starting_star_entity, last_dp1 = 0, next_entity, next_dp1;
+  std::vector<MBEntityHandle> star_dp1;
 
-      // get a dp1 entity which isn't last_dp1
-      // if both last_entity and last_dp1 are zero, we're just starting, so do nothing
-    if (0 == last_entity && 0 == last_dp1);
-    else if (*adj_ents.begin() != last_dp1) last_dp1 = *adj_ents.begin();
-    else if (adj_ents.size() > 1) last_dp1 = *adj_ents.rbegin();
-    else {
-        // if we're here, we're at an open bdy; try reversing the list and going
-        // in the other direction; also jumble the from_ents list so it appears we
-        // last checked the new last_entity
+  do {
+      // get the next star entity
+    MBErrorCode result = star_next_entity(star_center, last_entity, last_dp1,
+                                          star_candidates_dp1,
+                                          next_entity, next_dp1);
+    if (MB_SUCCESS != result) return result;
+    
+      // if we're at a bdy and bdy_entity hasn't been set yet, we're at the
+      // first bdy; reverse the lists and start traversing in the other direction; but,
+      // pop the last star entity off the list and find it again, so that we properly
+      // check for next_dp1
+    if (0 == next_dp1 && !bdy_entity) {
+      star_entities.push_back(next_entity);
       bdy_entity = true;
       std::reverse(star_entities.begin(), star_entities.end());
       std::reverse(star_dp1.begin(), star_dp1.end());
-      if (0 != last_entity) from_ents.erase(last_entity);
-      last_entity = *star_entities.rbegin();
-      last_dp1 = *star_dp1.rbegin();
-      from_ents.insert(last_entity);
+      star_entities.pop_back();
+      last_entity = star_entities.back();
+      last_dp1 = star_dp1.back();
+    }
+      // else if we're not on the bdy and next_entity is already in star, that means
+      // we've come all the way around; don't put next_entity on list again, and
+      // zero out last_dp1 to terminate while loop
+    else if (!bdy_entity && 
+             std::find(star_entities.begin(), star_entities.end(), next_entity) != 
+             star_entities.end())
+    {
+      last_dp1 = 0;
     }
 
-      // get the other star-dimension entity adj to star_center and last_dp1
-    if (0 != last_entity) from_ents.erase(last_entity);
-    if (0 != last_dp1) from_ents.insert(last_dp1);
-    adj_ents.clear();
-    tmp_result = mbImpl->get_adjacencies(from_ents, star_dim, false, adj_ents);
-    if (MB_SUCCESS != tmp_result) {
-      result = tmp_result;
-      break;
-    }
-    
-      // next star entity is the one not equal to last_entity; must be one at this point
-    if (*adj_ents.begin() != last_entity) last_entity = *adj_ents.begin();
-    else last_entity = *adj_ents.rbegin();
-
-    if (std::find(star_entities.begin(), star_entities.end(), last_entity) != 
-        star_entities.end()) {
-        // either we're back where we started or one after; either way, we're done
-      last_entity = 0;
-        // if we're not a bdy entity, the last dp1 entity wasn't put on list
-      if (0 != last_dp1) star_dp1.push_back(last_dp1);
-    }
+      // else, just assign last entities seen and go on to next iteration
     else {
-        // add star and last_dp1 to the list
-      star_entities.push_back(last_entity);
-      if (0 != last_dp1) star_dp1.push_back(last_dp1);
+      star_entities.push_back(next_entity);
+      if (0 != next_dp1) star_dp1.push_back(next_dp1);
+      last_entity = next_entity;
+      last_dp1 = next_dp1;
     }
-  } // end while
-
+  }
+  while (0 != last_dp1);
+  
     // copy over the star_dp1 list, if requested
   if (NULL != star_entities_dp1) 
     (*star_entities_dp1).swap(star_dp1);
   
+  return MB_SUCCESS;
+}
+
+MBErrorCode MeshTopoUtil::star_next_entity(const MBEntityHandle star_center,
+                                           const MBEntityHandle last_entity,
+                                           const MBEntityHandle last_dp1,
+                                           MBRange *star_candidates_dp1,
+                                           MBEntityHandle &next_entity,
+                                           MBEntityHandle &next_dp1) 
+{
+    // given a star_center, a last_entity (whose dimension should be 1 greater than center)
+    // and last_dp1 (dimension 2 higher than center), returns the next star entity across
+    // last_dp1, and the next dp1 entity sharing next_entity; if star_candidates is non-empty,
+    // star must come from those
+  MBRange from_ents, to_ents;
+  from_ents.insert(star_center);
+  if (0 != last_dp1) from_ents.insert(last_dp1);
+  int dim = mbImpl->dimension_from_handle(star_center);
+  
+  MBErrorCode result = mbImpl->get_adjacencies(from_ents, dim+1, false, to_ents);
+  if (MB_SUCCESS != result) return result;
+  
+    // remove last_entity from result, and should only have 1 left, if any
+  if (0 != last_entity) to_ents.erase(last_entity);
+  if (!to_ents.empty()) next_entity = *to_ents.begin();
+  else {
+    next_entity = 0;
+    next_dp1 = 0;
+    return MB_SUCCESS;
+  }
+  
+    // get next_dp1
+  if (0 != star_candidates_dp1) to_ents = *star_candidates_dp1;
+  else to_ents.clear();
+  
+  result = mbImpl->get_adjacencies(&next_entity, 1, dim+2, false, to_ents);
+  if (MB_SUCCESS != result) return result;
+
+    // can't be last one
+  if (0 != last_dp1) to_ents.erase(last_dp1);
+  
+  if (!to_ents.empty()) next_dp1 = *to_ents.begin();
+
+    // could be zero, means we're at bdy
+  else next_dp1 = 0;
+
   return MB_SUCCESS;
 }
 
@@ -182,7 +190,9 @@ MBErrorCode MeshTopoUtil::get_bridge_adjacencies(const MBEntityHandle from_entit
 
   int from_dim = MBCN::Dimension(from_type);
   
-  std::vector<MBEntityHandle> to_ents;
+  MBRange to_ents;
+
+  if (MB_SUCCESS != result) return result;
 
   if (bridge_dim < from_dim) {
       // looping over each sub-entity of dimension bridge_dim...
@@ -199,22 +209,23 @@ MBErrorCode MeshTopoUtil::get_bridge_adjacencies(const MBEntityHandle from_entit
                                                        to_dim, false, to_ents, MBInterface::INTERSECT);
       if (MB_SUCCESS != tmp_result) result = tmp_result;
     
-      std::copy(to_ents.begin(), to_ents.end(), mb_range_inserter(to_adjs));
+      to_adjs.merge(to_ents);
     }
+
   }
-  else {
-      // going to higher dimension for bridge
-    MBRange bridge_ents, tmp_ents;
-    tmp_ents.insert(from_entity);
-    MBErrorCode tmp_result = mbImpl->get_adjacencies(tmp_ents, bridge_dim,
-                                                     false, bridge_ents, 
-                                                     MBInterface::UNION);
-    if (MB_SUCCESS != tmp_result) return tmp_result;
+
+    // now get the direct ones too, or only in the case where we're 
+    // going to higher dimension for bridge
+  MBRange bridge_ents, tmp_ents;
+  tmp_ents.insert(from_entity);
+  MBErrorCode tmp_result = mbImpl->get_adjacencies(tmp_ents, bridge_dim,
+                                                   false, bridge_ents, 
+                                                   MBInterface::UNION);
+  if (MB_SUCCESS != tmp_result) return tmp_result;
     
-    tmp_result = mbImpl->get_adjacencies(bridge_ents, to_dim, false, to_adjs, 
-                                         MBInterface::UNION);
-    if (MB_SUCCESS != tmp_result) return tmp_result;
-  }
+  tmp_result = mbImpl->get_adjacencies(bridge_ents, to_dim, false, to_adjs, 
+                                       MBInterface::UNION);
+  if (MB_SUCCESS != tmp_result) return tmp_result;
   
     // if to_dimension is same as that of from_entity, make sure from_entity isn't
     // in list
@@ -222,3 +233,16 @@ MBErrorCode MeshTopoUtil::get_bridge_adjacencies(const MBEntityHandle from_entit
   
   return result;
 }
+
+    //! return a common entity of the specified dimension, or 0 if there isn't one
+MBEntityHandle MeshTopoUtil::common_entity(const MBEntityHandle ent1,
+                                           const MBEntityHandle ent2,
+                                           const int dim) 
+{
+  MBRange tmp_range, tmp_range2;
+  tmp_range.insert(ent1); tmp_range.insert(ent2);
+  MBErrorCode result = mbImpl->get_adjacencies(tmp_range, dim, false, tmp_range2);
+  if (MB_SUCCESS == result || tmp_range2.empty()) return 0;
+  else return *tmp_range2.begin();
+}
+

@@ -23,6 +23,7 @@
 #include "MeshTopoUtil.hpp"
 #include "AEntityFactory.hpp"
 #include <string>
+#include <algorithm>
 #include <iostream>
 #include <sstream>
 #include <assert.h>
@@ -153,6 +154,54 @@ MBErrorCode DualTool::construct_dual()
   return MB_SUCCESS;
 }
 
+  //! update the dual entities for the specified entities
+MBErrorCode DualTool::update_dual(MBEntityHandle *entities, const int num_entities) 
+{
+  MBRange regions, faces, edges, vertices;
+
+    // get entities of various dimensions adjacent to these
+  MBErrorCode result = mbImpl->get_adjacencies(entities, num_entities, 0, true, vertices, 
+                                               MBInterface::UNION);
+  if (MB_SUCCESS != result) return result;
+  result = mbImpl->get_adjacencies(entities, num_entities, 1, true, edges,
+                                   MBInterface::UNION);
+  if (MB_SUCCESS != result) return result;
+  result = mbImpl->get_adjacencies(entities, num_entities, 2, true, faces,
+                                   MBInterface::UNION);
+  if (MB_SUCCESS != result) return result;
+  result = mbImpl->get_adjacencies(entities, num_entities, 3, true, regions,
+                                   MBInterface::UNION);
+  if (MB_SUCCESS != result) return result;
+
+  MBRange dual_verts;
+  result = construct_dual_vertices(regions, dual_verts);
+  if (MB_SUCCESS != result || dual_verts.size() != regions.size()) return result;
+  if (debug)
+    std::cout << "Constructed " << dual_verts.size() << " dual vertices." << std::endl;
+
+    // don't really need dual edges, but construct 'em anyway
+  MBRange dual_edges;
+  result = construct_dual_edges(faces, dual_edges);
+  if (MB_SUCCESS != result || dual_edges.size() != faces.size()) return result;
+  if (debug)
+    std::cout << "Constructed " << dual_edges.size() << " dual edges." << std::endl;
+
+    // construct dual faces
+  MBRange dual_faces;
+  result = construct_dual_faces(edges, dual_faces);
+  if (MB_SUCCESS != result || dual_faces.size() != edges.size()) return result;
+  if (debug)
+    std::cout << "Constructed " << dual_faces.size() << " dual faces." << std::endl;
+
+    // construct dual cells
+  MBRange dual_cells;
+  result = construct_dual_cells(vertices, dual_cells);
+  if (MB_SUCCESS != result || dual_cells.size() != vertices.size()) return result;
+  if (debug)
+    std::cout << "Constructed " << dual_cells.size() << " dual cells." << std::endl;
+
+  return MB_SUCCESS;
+}
 
 MBErrorCode DualTool::construct_dual_vertices(const MBRange &all_regions,
                                               MBRange &dual_ents) 
@@ -749,11 +798,10 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
     if (MB_SUCCESS != result) 
       return result;
   }
-  mark_val = 0x1;
   
     // two stacks: one completely untreated entities, and the other untreated 
     // entities on the current dual hyperplane
-  std::vector<MBEntityHandle> tot_untreated, hp_untreated;
+  std::vector<MBEntityHandle> tot_untreated;
   
     // put dual entities of this dimension on the untreated list
   result = get_dual_entities(dim, tot_untreated);
@@ -787,79 +835,10 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
     result = construct_new_hyperplane(dim, this_hp, hp_val);
     
       // inner loop: traverse the hyperplane 'till we don't have any more
-    MBRange tmp_star, star, tmp_range;
-    while (0 != this_ent) {
-      if (debug && hp_untreated.size()%10 == 0) 
-        std::cout << "Dual surface " << hp_val << ", hp_untreated list size = " 
-                  << hp_untreated.size() << "." << std::endl;
+    result = traverse_hyperplane_2(hp_tag, mark_tag, this_hp, this_ent);
 
-        // set the hp_val for this_ent
-      result = mbImpl->tag_set_data(hp_tag, &this_ent, 1, &this_hp);
-      if (MB_SUCCESS != result) 
-        return result;
-      result = mbImpl->add_entities(this_hp, &this_ent, 1);
-      if (MB_SUCCESS != result) 
-        return result;
-
-        // get all neighbors connected to this entity
-      tmp_range.clear(); tmp_star.clear(); star.clear();
-      tmp_range.insert(this_ent);
-      result = mbImpl->get_adjacencies(tmp_range, dim-1, true, tmp_star);
-      if (MB_SUCCESS != result) 
-        return result;
-      result = mbImpl->get_adjacencies(tmp_star, dim, false, star,
-                                       MBInterface::UNION);
-      if (MB_SUCCESS != result) 
-        return result;
-      star.erase(this_ent);
-      
-        // for each star entity, see if it shares a cell with this one; if so,
-        // it's not opposite
-
-        // this_ent is already in tmp_range
-      for (MBRange::iterator rit = star.begin(); rit != star.end(); rit++) {
-          // check for tag first, 'cuz it's probably faster than checking adjacencies
-        MBEntityHandle r_val;
-        result = mbImpl->tag_get_data(hp_tag, &(*rit), 1, &r_val);
-        if (MB_SUCCESS == result && 0 != r_val) 
-          continue;
-
-          // assign to avoid valgrind warning
-        unsigned short tmp_mark = 0x0;
-        result = mbImpl->tag_get_data(mark_tag, &(*rit), 1, &tmp_mark);
-        if (MB_SUCCESS == result && mark_val == tmp_mark) 
-          continue;
-
-          // if it's on the loop, it's not eligible
-        if (1 == dim && check_1d_loop_edge(*rit)) continue;
-
-          // passed tag test; check adjacencies
-        tmp_star.clear();
-        tmp_range.insert(*rit);
-        result = mbImpl->get_adjacencies(tmp_range, dim+1, false, tmp_star);
-        if (MB_SUCCESS != result) 
-          return result;
-        
-        if (tmp_star.empty()) {
-            // have one on this hp; just put it on the hp_untreated list for now,
-            // will get tagged and put in the hp set later
-          hp_untreated.push_back(*rit);
-          result = mbImpl->tag_set_data(mark_tag, &(*rit), 1, &mark_val);
-          if (MB_SUCCESS != result) 
-            return result;
-        }
-
-          // take *rit out of tmp_range, then proceed to the next
-        tmp_range.erase(*rit);
-      }
-      
-        // end of inner loop; get the next this_ent, or set to zero
-      if (hp_untreated.empty()) this_ent = 0;
-      else {
-        this_ent = hp_untreated.back();
-        hp_untreated.pop_back();
-      }
-    }
+      // ok, now order the edges if it's a chord
+    if (1 == dim) order_chord(this_hp);
   }
 
   if (debug)
@@ -867,12 +846,223 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim)
   return MB_SUCCESS;
 }
 
+MBErrorCode DualTool::traverse_hyperplane(const MBTag hp_tag, const MBTag mark_tag,
+                                          MBEntityHandle this_hp, 
+                                          MBEntityHandle this_ent) 
+{
+  unsigned short mark_val = 0x1;
+  MBRange tmp_star, star, tmp_range;
+  std::vector<MBEntityHandle> hp_untreated;
+  int dim = mbImpl->dimension_from_handle(this_ent);
+  
+  while (0 != this_ent) {
+    if (debug && hp_untreated.size()%10 == 0) 
+      std::cout << "Dual surface " << this_hp << ", hp_untreated list size = " 
+                << hp_untreated.size() << "." << std::endl;
+
+      // set the hp_val for this_ent
+    MBErrorCode result = mbImpl->tag_set_data(hp_tag, &this_ent, 1, &this_hp);
+    if (MB_SUCCESS != result) 
+      return result;
+    result = mbImpl->add_entities(this_hp, &this_ent, 1);
+    if (MB_SUCCESS != result) 
+      return result;
+
+      // get all neighbors connected to this entity
+    tmp_range.clear(); tmp_star.clear(); star.clear();
+    tmp_range.insert(this_ent);
+    result = mbImpl->get_adjacencies(tmp_range, dim-1, true, tmp_star);
+    if (MB_SUCCESS != result) 
+      return result;
+    result = mbImpl->get_adjacencies(tmp_star, dim, false, star,
+                                     MBInterface::UNION);
+    if (MB_SUCCESS != result) 
+      return result;
+    star.erase(this_ent);
+      
+      // for each star entity, see if it shares a cell with this one; if so,
+      // it's not opposite
+
+      // this_ent is already in tmp_range
+    for (MBRange::iterator rit = star.begin(); rit != star.end(); rit++) {
+        // check for tag first, 'cuz it's probably faster than checking adjacencies
+      MBEntityHandle r_val;
+      result = mbImpl->tag_get_data(hp_tag, &(*rit), 1, &r_val);
+      if (MB_SUCCESS == result && 0 != r_val) 
+        continue;
+
+        // assign to avoid valgrind warning
+      unsigned short tmp_mark = 0x0;
+      result = mbImpl->tag_get_data(mark_tag, &(*rit), 1, &tmp_mark);
+      if (MB_SUCCESS == result && mark_val == tmp_mark) 
+        continue;
+
+        // if it's on the loop, it's not eligible
+      if (1 == dim && check_1d_loop_edge(*rit)) continue;
+
+        // passed tag test; check adjacencies
+      tmp_star.clear();
+      tmp_range.insert(*rit);
+      result = mbImpl->get_adjacencies(tmp_range, dim+1, false, tmp_star);
+      if (MB_SUCCESS != result) 
+        return result;
+        
+      if (tmp_star.empty()) {
+          // have one on this hp; just put it on the hp_untreated list for now,
+          // will get tagged and put in the hp set later
+        hp_untreated.push_back(*rit);
+        result = mbImpl->tag_set_data(mark_tag, &(*rit), 1, &mark_val);
+        if (MB_SUCCESS != result) 
+          return result;
+      }
+
+        // take *rit out of tmp_range, then proceed to the next
+      tmp_range.erase(*rit);
+    }
+      
+      // end of inner loop; get the next this_ent, or set to zero
+    if (hp_untreated.empty()) this_ent = 0;
+    else {
+      this_ent = hp_untreated.back();
+      hp_untreated.pop_back();
+    }
+  }
+
+  return MB_SUCCESS;
+}
+
+MBErrorCode DualTool::traverse_hyperplane_2(const MBTag hp_tag, const MBTag mark_tag,
+                                            MBEntityHandle this_hp, 
+                                            MBEntityHandle this_ent) 
+{
+  unsigned short mark_val = 0x1;
+  MBRange tmp_star, star, tmp_range;
+  std::vector<MBEntityHandle> hp_untreated;
+  int dim = mbImpl->dimension_from_handle(this_ent);
+  MeshTopoUtil mtu(mbImpl);
+  
+  while (0 != this_ent) {
+    if (debug && hp_untreated.size()%10 == 0) 
+      std::cout << "Dual surface " << this_hp << ", hp_untreated list size = " 
+                << hp_untreated.size() << "." << std::endl;
+
+      // set the hp_val for this_ent
+    MBErrorCode result = mbImpl->tag_set_data(hp_tag, &this_ent, 1, &this_hp);
+    if (MB_SUCCESS != result) 
+      return result;
+    result = mbImpl->add_entities(this_hp, &this_ent, 1);
+    if (MB_SUCCESS != result) 
+      return result;
+
+      // get the 2nd order adjacencies through lower dimension
+    tmp_range.clear(); tmp_star.clear(); star.clear();
+    result = mtu.get_bridge_adjacencies(this_ent, dim-1, dim, star); RR;
+
+      // get the bridge adjacencies through higher dimension
+    result = mtu.get_bridge_adjacencies(this_ent, dim+1, dim, tmp_star); RR;
+    tmp_range = star.subtract(tmp_star);
+    
+    for (MBRange::iterator rit = tmp_range.begin(); rit != tmp_range.end(); rit++) {
+        // check for tag first, 'cuz it's probably faster than checking adjacencies
+      MBEntityHandle r_val;
+      result = mbImpl->tag_get_data(hp_tag, &(*rit), 1, &r_val);
+      if (MB_SUCCESS == result && 0 != r_val) 
+        continue;
+
+        // assign to avoid valgrind warning
+      unsigned short tmp_mark = 0x0;
+      result = mbImpl->tag_get_data(mark_tag, &(*rit), 1, &tmp_mark);
+      if (MB_SUCCESS == result && mark_val == tmp_mark) 
+        continue;
+
+        // if it's on the loop, it's not eligible
+      if (1 == dim && check_1d_loop_edge(*rit)) continue;
+
+        // have one on this hp; just put it on the hp_untreated list for now,
+        // will get tagged and put in the hp set later
+      hp_untreated.push_back(*rit);
+      result = mbImpl->tag_set_data(mark_tag, &(*rit), 1, &mark_val);
+      if (MB_SUCCESS != result) 
+        return result;
+    }
+
+      // end of inner loop; get the next this_ent, or set to zero
+    if (hp_untreated.empty()) this_ent = 0;
+    else {
+      this_ent = hp_untreated.back();
+      hp_untreated.pop_back();
+    }
+  }
+
+  return MB_SUCCESS;
+}
+
+MBErrorCode DualTool::order_chord(MBEntityHandle chord_set) 
+{
+    // re-order the 1cells in the set so they are in order along the chord
+    // start by finding the vertex dual to a quad
+  MBRange verts, one_cells;
+  MBErrorCode result = mbImpl->get_entities_by_dimension(chord_set, 1, one_cells); 
+  if (MB_SUCCESS != result || one_cells.empty()) return MB_FAILURE;
+  
+  result = mbImpl->get_adjacencies(one_cells, 0, false, verts, MBInterface::UNION);
+  if (MB_SUCCESS != result || verts.empty()) return MB_FAILURE;
+  
+  MBEntityHandle last_vert = 0;
+  for (MBRange::iterator rit = verts.begin(); rit != verts.end(); rit++) {
+    if (TYPE_FROM_HANDLE(get_dual_entity(*rit)) == MBQUAD) {
+      last_vert = *rit;
+      break;
+    }
+  }
+    // if there's no vertex owned by a quad, just start with 1st one
+  if (0 == last_vert) last_vert = *verts.begin();
+  
+    // now, skip from vertex to vertex, building a list of 1cells
+  std::vector<MBEntityHandle> ordered_1cells;
+  MBEntityHandle last_1cell = 0;
+  MBRange dum1, dum2;
+  const MBEntityHandle *connect;
+  int num_connect;
+  MBErrorCode tmp_result = MB_SUCCESS;
+  while(ordered_1cells.size() != one_cells.size()) {
+    dum1 = one_cells;
+    result = mbImpl->get_adjacencies(&last_vert, 1, 1, false, dum1);
+    if (0 != last_1cell) dum1.erase(last_1cell);
+      // assert(1 == dum1.size());
+    if (1 != dum1.size()) {
+      std::cerr << "unexpected size traversing chord." << std::endl;
+      tmp_result = MB_FAILURE;
+    }
+      
+    last_1cell = *dum1.begin();
+    ordered_1cells.push_back(last_1cell);
+    result = mbImpl->get_connectivity(last_1cell, connect, num_connect); RR;
+    if (last_vert == connect[0]) last_vert = connect[1];
+    else last_vert = connect[0];
+  }
+  
+    // now have the 1cells in order, replace them in the set
+  if (MB_SUCCESS == tmp_result) {
+    result = mbImpl->remove_entities(chord_set, one_cells); RR;
+    result = mbImpl->add_entities(chord_set, &ordered_1cells[0], ordered_1cells.size()); RR;
+  }
+  
+  return MB_SUCCESS;
+}
+
 MBErrorCode DualTool::construct_new_hyperplane(const int dim,
                                                MBEntityHandle &new_hyperplane,
                                                int &id) 
 {
-  MBErrorCode result = mbImpl->create_meshset((MESHSET_SET | MESHSET_TRACK_OWNER), 
-                                              new_hyperplane); RR;
+  MBErrorCode result;
+  if (1 == dim)
+    result = mbImpl->create_meshset((MESHSET_ORDERED | MESHSET_TRACK_OWNER), 
+                                    new_hyperplane);
+  else
+    result = mbImpl->create_meshset((MESHSET_SET | MESHSET_TRACK_OWNER), 
+                                    new_hyperplane);
+  if (MB_SUCCESS != result) return result;
 
   if (-1 == id) {
     MBRange all_hyperplanes;
@@ -1199,7 +1389,7 @@ MBEntityHandle DualTool::get_dual_entity(const MBEntityHandle this_ent)
 {
   MBEntityHandle dual_ent;
   MBErrorCode result = mbImpl->tag_get_data(dualEntity_tag(), &this_ent, 1, &dual_ent);
-  if (MB_SUCCESS != result || MB_TAG_NOT_FOUND) return 0;
+  if (MB_SUCCESS != result || MB_TAG_NOT_FOUND == result) return 0;
   else return dual_ent;
 }
 
@@ -1209,178 +1399,433 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge)
 
     // 0. get star 2cells and 3cells around odedge (before odedge changes)
   MeshTopoUtil mtu(mbImpl);
-  std::vector<MBEntityHandle> star_2cells, star_3cells;
-  bool bdy_edge;
-  MBErrorCode result = mtu.star_entities(odedge, star_2cells, 
-                                         bdy_edge, 0, &star_3cells); RR;
+  MBRange star_2cells, star_3cells;
+  MBErrorCode result = mbImpl->get_adjacencies(&odedge, 1, 2, false, star_2cells); RR;
+  result = mbImpl->get_adjacencies(&odedge, 1, 3, false, star_3cells); RR;
   
-    // 1. construct 2 new dverts; position them 1/3, 2/3 along dedge
-  std::vector<MBEntityHandle> odverts;
-  result = mbImpl->get_connectivity(&odedge, 1, odverts); RR;
-  double odverts_coords[6];
-  result = mbImpl->get_coords(&odverts[0], 2, odverts_coords); RR;
-  for (int i = 0; i < 3; i++)
-    odverts_coords[i] = odverts_coords[i] + (odverts_coords[i+3] - odverts_coords[i])/3;
-  for (int i = 3; i < 6; i++)
-    odverts_coords[i] = odverts_coords[i] + .5*(odverts_coords[i] + odverts_coords[i-3]);
+    // tear down the dual entities which will be modified by the ap first
+  result = delete_dual_entities(star_3cells);RR;
+  result = delete_dual_entities(star_2cells);RR;
+
+    // grab the quad before deleting the odedge
+  MBEntityHandle quad = get_dual_entity(odedge);
+  assert(0 != quad);
+  result = delete_dual_entity(odedge); RR;
+
+    // now change the quad to an ap
+  std::vector<MBEntityHandle> verts;
+  result = mbImpl->get_connectivity(&quad, 1, verts); RR;
   
-  MBEntityHandle ndverts[2];
-  result = mbImpl->create_vertex(odverts_coords, ndverts[0]); RR;
-  result = mbImpl->create_vertex(&odverts_coords[3], ndverts[1]); RR;
+    // get average position of vertices
+  double coords[12], avg[3] = {0.0, 0.0, 0.0};
+  result = mbImpl->get_coords(&verts[0], verts.size(), coords); RR;
+  for (int i = 0; i < 4; i++) {
+    avg[0] += coords[3*i]; avg[1] += coords[3*i+1]; avg[2] += coords[3*i+2];
+  }
+  for (int i = 0; i < 3; i++) avg[i] *= 0.25;
+
+    // for each position, get a corresponding position 1/2 way to avg
+  double new_coords[12];
+  for (int i = 0; i < 4; i++) {
+    new_coords[3*i] = .5*(coords[3*i]-avg[i]);
+    new_coords[3*i+1] = .5*(coords[3*i+1]-avg[i]);
+    new_coords[3*i+2] = .5*(coords[3*i+2]-avg[i]);
+  }
   
-    // 2. create 2 new dedges, between odverts and ndverts
-  MBEntityHandle tmp_connect[2], ndedges[2];
-  for (int i = 0; i < 2; i++) {
-    tmp_connect[0] = odverts[i];
-    tmp_connect[1] = ndverts[i];
-    mbImpl->create_element(MBEDGE, tmp_connect, 2, ndedges[i]); RR;
+    // make the 4 new vertices; store in vector long enough for hex connectivity
+  for (int i = 0; i < 4; i++) {
+    verts.push_back(0);
+    result = mbImpl->create_vertex(&coords[3*i], verts[4+i]); RR;
   }
 
-    // 3. change connectivity of odedge to ndverts
-  result = mbImpl->set_connectivity(odedge, ndverts, 2); RR;
+    // get the hexes connected to the quad
+  MBRange hexes;
+  result = mbImpl->get_adjacencies(&quad, 1, 3, false, hexes); RR;
   
-    // 4. fix 2cells connected to odedge
-  std::vector<MBEntityHandle> nstar_1cells;
-  result = ap_fix_2cells(odedge, star_2cells, ndverts, 
-                         nstar_1cells); RR;
-  assert(nstar_1cells.size() == star_2cells.size());
-
-    // 5. fix 3cells connected to odedge
-  MBEntityHandle new_sheet;
-  std::vector<MBEntityHandle> nstar_3cells;
-  result = ap_fix_3cells(ndverts, nstar_1cells, 
-                         star_2cells, star_3cells, new_sheet); RR;
+    // remove any explicit adjacency from the first hex, since that'll get connected
+    // to the new outer quad; add adjacency between quad and other hex
+  result = mbImpl->remove_adjacencies(quad, &(*hexes.begin()), 1); RR;
+  if (hexes.size() == 2) {
+    result = mbImpl->add_adjacencies(quad, &(*hexes.rbegin()), 1, false);
+    RR;
+  }
   
-    // 6. make new chords & add new 1cells to them
-  result = ap_construct_new_1cells(nstar_1cells, star_2cells, new_sheet); RR;
+    // create the new, outer quad, and make it explicitly adjacent to 1st hex
+  MBEntityHandle new_quad;
+  result = mbImpl->create_element(MBQUAD, &verts[0], 4, new_quad); RR;
+  result = mbImpl->add_adjacencies(new_quad, &(*hexes.begin()), 1, false); RR;
+  
+    // now make two inner hexes, connect each to one of the quads; note connectivity
+    // array is flipped for the two hexes
+  MBEntityHandle new_hexes[2];
+  result = mbImpl->create_element(MBHEX, &verts[0], 8, new_hexes[0]); RR;
+  result = mbImpl->add_adjacencies(quad, &new_hexes[0], 1, false); RR;
+  
+    // reverse the connectivities for the 2nd hex
+  std::reverse(verts.begin(), verts.begin()+4);
+  std::reverse(verts.begin()+4, verts.end());
+  result = mbImpl->create_element(MBHEX, &verts[0], 8, new_hexes[1]); RR;
+  result = mbImpl->add_adjacencies(new_quad, &new_hexes[1], 1, false); RR;
 
-    // 7. update primal???
-
-    // 8. update graphics???
-
+    // now update the dual
+  result = update_dual(&new_hexes[0], 2); RR;
+  
   return MB_SUCCESS;
 }
 
-MBErrorCode DualTool::ap_construct_new_1cells(std::vector<MBEntityHandle> &nstar_1cells,
-                                              std::vector<MBEntityHandle> &star_2cells,
-                                              MBEntityHandle new_sheet) 
+MBErrorCode DualTool::delete_dual_entity(MBEntityHandle entity) 
 {
-  int new_id = -2;
-  MBEntityHandle new_1cells[2];
-  for (unsigned int i = 0; i < nstar_1cells.size(); i += 2) {
-      // make a new chord; 2nd one gets id one greater than 1st
-    MBEntityHandle new_chord;
-    new_id++;
-    MBErrorCode result = construct_new_hyperplane(1, new_chord, new_id); RR;
+    // reset the primal's dual entity
+  MBEntityHandle primal = get_dual_entity(entity);
+  MBEntityHandle null_entity = 0;
+  MBErrorCode result = mbImpl->tag_set_data(dualEntity_tag(), &primal, 1, &null_entity); RR;
+  
+    // now delete this entity (sheet and chord will be updated automatically)
+  return mbImpl->delete_entities(&entity, 1);
+}
+
+MBErrorCode DualTool::delete_dual_entities(MBRange &entities) 
+{
+  MBErrorCode result = MB_SUCCESS;
+  for (MBRange::iterator rit = entities.begin(); rit != entities.end(); rit++) {
+    MBErrorCode tmp_result = delete_dual_entity(*rit);
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
+  }
+
+  return result;
+}
+
+MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr,
+                                         MBEntityHandle tcm) 
+{
+  MBErrorCode result;
+
+    // gather data we can get just from looking at ocl, ocr, tcm
+  MBEntityHandle zclf, zclb, zcrf, zcrb;
+  MBEntityHandle tclu, tclm, tcll, tcru, tcrm, tcrl;
+  MBEntityHandle thclu, thcll, thcmu, thcml, thcru, thcrl;
+  MBEntityHandle sl, sm, sr, cl, cr;
+  
+  result = foc_gather_data(ocl, ocr, tcm,
+                           zclf, zclb, zcrf, zcrb,
+                           tclu, tclm, tcll, tcru, tcrm, tcrl,
+                           thclu, thcll, thcmu, thcml, thcru, thcrl,
+                           sl, sm, sr, cl, cr); RR;
+
+  MBEntityHandle new_ocb, new_ocf, new_cb, new_cf;
+  
+  result = foc_1cells(zclf, zclb, ocl, cl,
+                      zcrf, zcrb, ocr, cr,
+                      sm, sr,
+                      new_ocb, new_ocf, new_cb, new_cf);
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode DualTool::foc_1cells(MBEntityHandle zclf, MBEntityHandle zclb, 
+                                 MBEntityHandle ocl, MBEntityHandle cl,
+                                 MBEntityHandle zcrf, MBEntityHandle zcrb, 
+                                 MBEntityHandle ocr, MBEntityHandle cr,
+                                 MBEntityHandle sm, MBEntityHandle sr,
+                                 MBEntityHandle &new_ocb, MBEntityHandle &new_ocf,
+                                 MBEntityHandle &new_cb, MBEntityHandle &new_cf) 
+{
+  std::vector<MBEntityHandle> cl_1cells, cl_split_1cells, cr_1cells, cr_split_1cells;
+  MBErrorCode result;
+
+    // break the chords; make them go in opposite directions, so it's easier
+    // to join them up
+  result = foc_break_chord(cl, ocl, zclb, cl_1cells, cl_split_1cells); RR;
+  result = foc_break_chord(cr, ocr, zcrf, cr_1cells, cr_split_1cells); RR;
+
+    // make new 1cells
+  MBEntityHandle new_verts[2];
+  new_verts[0] = zclb; new_verts[1] = zcrb; 
+  result = mbImpl->create_element(MBEDGE, new_verts, 2, new_ocb); RR;
+  new_verts[0] = zclf; new_verts[1] = zcrf; 
+  result = mbImpl->create_element(MBEDGE, new_verts, 2, new_ocf); RR;
+  
+    // construct new chord 1cell lists
+  std::vector<MBEntityHandle> cb_1cells, cf_1cells;
+
+    // if cr was blind, insert reversed cl split and ocf onto front of cb
+  if (cr_split_1cells.empty() && !cl_split_1cells.empty()) {
+    std::copy(cl_split_1cells.rbegin(), cl_split_1cells.rend(), std::back_inserter(cb_1cells));
+    cb_1cells.push_back(new_ocf);
+  }
+
+    // reverse cr & put on cb
+  std::copy(cr_1cells.rbegin(), cr_1cells.rend(), std::back_inserter(cb_1cells));
+    // add new_ocb and append cl
+  cb_1cells.push_back(new_ocb);
+  std::copy(cl_1cells.begin(), cl_1cells.end(), std::back_inserter(cb_1cells));
+  
+    // if both chords got split, add the pieces to a new list
+  if (!cl_split_1cells.empty() && !cr_split_1cells.empty()) {
+    std::copy(cl_split_1cells.rbegin(), cl_split_1cells.rend(), std::back_inserter(cf_1cells));
+    cf_1cells.push_back(new_ocf);
+    std::copy(cr_split_1cells.begin(), cr_split_1cells.end(), std::back_inserter(cf_1cells));
+  }
+    // if niether was split, just need to add ocf
+  else if (cl_split_1cells.empty() && cr_split_1cells.empty()) {
+    cb_1cells.push_back(new_ocf);
+  }
+    // if cl was blind, add ocf and remainder of cr split to cb
+  else if (cl_split_1cells.empty()) {
+    cb_1cells.push_back(new_ocf);
+    std::copy(cr_split_1cells.begin(), cr_split_1cells.end(), std::back_inserter(cb_1cells));
+  }
     
-      // add 2 dedges to it
-    new_1cells[0] = nstar_1cells[i];
-    new_1cells[1] = nstar_1cells[(i+2)%nstar_1cells.size()];
-    result = mbImpl->add_entities(new_chord, new_1cells, 2); RR;
+    // make new chords
+    // cb
+  result = mbImpl->create_meshset((MESHSET_ORDERED | MESHSET_TRACK_OWNER), new_cb); RR;
 
-      // make new chord child of 2 sheets containing it
-    result = mbImpl->add_parent_child(new_sheet, new_chord); RR;
-    MBEntityHandle other_sheet = get_dual_surface_or_curve(star_2cells[i]);
-    assert(0 != other_sheet);
-    result = mbImpl->add_parent_child(other_sheet, new_chord); RR;
-  }
+    // give them parents sr and sm
+  result = mbImpl->add_parent_child(sr, new_cb); RR;
+  result = mbImpl->add_parent_child(sm, new_cb); RR;
+  
+    // now add 1cells
+  result = mbImpl->add_entities(new_cb, &cb_1cells[0], cb_1cells.size()); RR;
+
+    // cf
+  result = mbImpl->create_meshset((MESHSET_ORDERED | MESHSET_TRACK_OWNER), new_cf); RR;
+
+    // give them parents sr and sm
+  result = mbImpl->add_parent_child(sr, new_cf); RR;
+  result = mbImpl->add_parent_child(sm, new_cf); RR;
+  
+    // now add 1cells
+  result = mbImpl->add_entities(new_cf, &cf_1cells[0], cf_1cells.size()); RR;
+
+    // now delete chords cl, cr
+  result = mbImpl->delete_entities(&cl, 1); RR;
+  result = mbImpl->delete_entities(&cr, 1); RR;
   
   return MB_SUCCESS;
 }
 
-MBErrorCode DualTool::ap_fix_2cells(MBEntityHandle odedge, 
-                                    std::vector<MBEntityHandle> &star_2cells,
-                                    MBEntityHandle *ndverts,
-                                    std::vector<MBEntityHandle> &nstar_1cells) 
+MBErrorCode DualTool::foc_break_chord(MBEntityHandle chord,
+                                      MBEntityHandle first_1cell,
+                                      MBEntityHandle next_0cell,
+                                      std::vector<MBEntityHandle> &chord_1cells,
+                                      std::vector<MBEntityHandle> &new_chord_1cells) 
 {
-  std::vector<MBEntityHandle> new_2cell_connect;
+  std::vector<MBEntityHandle> tmp_1cells;
+  MBErrorCode result;
+  result = mbImpl->get_entities_by_handle(chord, tmp_1cells); RR;
   std::vector<MBEntityHandle>::iterator vit;
-  for (unsigned int i = 1; i <= star_2cells.size(); i++) {
-    MBEntityHandle this_2cell = star_2cells[i];
-      // 4a. insert 2 new dverts betw odverts in this 2cell
-    new_2cell_connect.clear();
-    MBErrorCode result = mbImpl->get_connectivity(&this_2cell, 1, new_2cell_connect); RR;
-      // how to insert them depends on sense of odverts in this 2cell; where to insert
-      // them is the side_num or offset
-    int side_num, sense;
-    result = mbImpl->side_number(this_2cell, odedge, side_num, sense, side_num); RR;
-      // set the iterator to the first dvertex on the 2cell
-    vit = new_2cell_connect.begin() + side_num;
-      // order of insertion depends on sense
-//    xxx check whether insert goes *after* current iterator position or before;
-//    xxx also, whether iterator points to new position or old after insertion;
-//    xxx current code assumes after and old, resp.
-    int first_index = (sense > 0 ? 0 : 1);
-    new_2cell_connect.insert(vit+1, ndverts[first_index]);
-    vit++;
-    new_2cell_connect.insert(vit+1, ndverts[(first_index+1)%2]);
-    result = mbImpl->set_connectivity(this_2cell, &new_2cell_connect[0],
-                                      new_2cell_connect.size()); RR;
-    
-      // 4b. make new dedge between ndverts
-    MBEntityHandle this_ndedge;
-    result = mbImpl->create_element(MBEDGE, &ndverts[0], 2, this_ndedge); RR;
-    nstar_1cells.push_back(this_ndedge);
+  
+    // position list at first_1cell
+  vit = std::find(tmp_1cells.begin(), tmp_1cells.end(), first_1cell);
+  if (vit == tmp_1cells.end()) return MB_FAILURE;
+  int index = vit - tmp_1cells.end();
 
-      // 4c. add explicit adjacency between ndedge and this_2cell, since odverts will
-      // have multiple edges between them
-    result = mbImpl->add_adjacencies(this_ndedge, &this_2cell, 1, false); RR;
-    
-      // 4d. make new 2cell between ndedge and odedge; add adjacencies betw both dedges
-      // and new 2cell
-    MBEntityHandle new_2cell;
-    result = mbImpl->create_element(MBPOLYGON, ndverts, 2, new_2cell); RR;
-    result = mbImpl->add_adjacencies(this_ndedge, &new_2cell, 1, false); RR;
-    result = mbImpl->add_adjacencies(odedge, &new_2cell, 1, false); RR;
-    
-      // 4e. add new 2cell to sheet of this_2cell
-    MBEntityHandle owning_sheet = get_dual_surface_or_curve(this_2cell);
-    assert(0 != owning_sheet);
-    result = mbImpl->add_entities(owning_sheet, &new_2cell, 1); RR;
-    result = set_dual_surface_or_curve(new_2cell, owning_sheet, 2);
+    // get common vtx with next 1cell to see if we're forward or reverse
+  MeshTopoUtil mtu(mbImpl);
+  MBEntityHandle next_v = 
+    mtu.common_entity(first_1cell, tmp_1cells[(index+1)%tmp_1cells.size()], 0);
+  int direction = (next_0cell == next_v ? 1 : -1);
+
+    // start copy one past first_1cell, so first_1cell isn't on chord
+  int i = (index + direction) % tmp_1cells.size();
+  for (; i != (int)tmp_1cells.size() && i != -1; i += direction)
+    chord_1cells.push_back(tmp_1cells[i]);
+  
+  i = (i + tmp_1cells.size()) % tmp_1cells.size();
+  if (is_blind(chord)) {
+    // now get the others
+    for (; i != index; i += direction)
+      chord_1cells.push_back(tmp_1cells[i]);
+  }
+  else {
+      // put remaining 1cells on new list, but going away from first_1cell
+    i = (index - direction + tmp_1cells.size()) % tmp_1cells.size();
+    for (; i != (int)tmp_1cells.size() && i != -1; i -= direction)
+      new_chord_1cells.push_back(tmp_1cells[i]);
   }
 
+    // done
   return MB_SUCCESS;
 }
-
-MBErrorCode DualTool::ap_fix_3cells(MBEntityHandle *ndverts,
-                                    std::vector<MBEntityHandle> &nstar_1cells,
-                                    std::vector<MBEntityHandle> &star_2cells,
-                                    std::vector<MBEntityHandle> &star_3cells,
-                                    MBEntityHandle new_sheet) 
+  
+MBErrorCode DualTool::foc_gather_data(const MBEntityHandle ocl, const MBEntityHandle ocr, 
+                                      const MBEntityHandle tcm, 
+                                        // 0-cells, left & right
+                                      MBEntityHandle &zclf, MBEntityHandle &zclb, 
+                                      MBEntityHandle &zcrf, MBEntityHandle &zcrb,
+                                        // 2-cells, left & right
+                                      MBEntityHandle &tclu, MBEntityHandle &tclm, MBEntityHandle &tcll, 
+                                      MBEntityHandle &tcru, MBEntityHandle &tcrm, MBEntityHandle &tcrl,
+                                        // 3-cells, left & right
+                                      MBEntityHandle &thclu, MBEntityHandle &thcll, MBEntityHandle &thcmu, 
+                                      MBEntityHandle &thcml, MBEntityHandle &thcru, MBEntityHandle &thcrl,
+                                        // sheets
+                                      MBEntityHandle &sl, MBEntityHandle &sm, MBEntityHandle &sr,
+                                        // chords
+                                      MBEntityHandle &cl, MBEntityHandle &cr) 
 {
-    // construct a new sheet, and designate it as such
-  int new_id = -1;
-  MBErrorCode result = construct_new_hyperplane(2, new_sheet, new_id); RR;
+    // for explanation of algorithm, see notes 7/13/05
+  MBErrorCode result;
   
-    // given the new 1cells and 2cells around odedge, fix up the 3cells around odedge
-  std::vector<MBEntityHandle> polyh_connect;
-  for (unsigned int i = 0; i < nstar_1cells.size(); i++) {
-      // 5a. make new 2cell that's part of the new sheet; add explicit adjacencies betw star 1cells
-      // and this one, because of multiple edges between ndverts
-    MBEntityHandle new_2cell;
-    MBErrorCode result = mbImpl->create_element(MBPOLYGON, ndverts, 2, new_2cell); RR;
-    result = mbImpl->add_adjacencies(nstar_1cells[i], &new_2cell, 1, false); RR;
-    result = mbImpl->add_adjacencies(nstar_1cells[(i+1)%nstar_1cells.size()], &new_2cell, 1, false); RR;
-    
-      // 5b. insert new 2cell into star 3cell
-    polyh_connect.clear();
-    result = mbImpl->get_connectivity(&star_3cells[i], 1, polyh_connect); RR;
-    polyh_connect.push_back(new_2cell);
-    result = mbImpl->set_connectivity(star_3cells[i], &polyh_connect[0], polyh_connect.size()); RR;
-    
-      // 5c. constr new 3cell with new 2cell and star 2cells on either side; reuse polyh_connect
-    polyh_connect.clear();
-    polyh_connect.push_back(new_2cell);
-    polyh_connect.push_back(star_2cells[i]);
-    polyh_connect.push_back(star_2cells[(i+1)%star_2cells.size()]);
-    MBEntityHandle new_3cell;
-    result = mbImpl->create_element(MBPOLYHEDRON, &polyh_connect[0], 3, new_3cell); RR;
-    
-      // 5d. insert new 2cell into new sheet & set the dual tag at the same time
-    result = mbImpl->add_entities(new_sheet, &new_2cell, 1); RR;
-    result = set_dual_surface_or_curve(new_2cell, new_sheet, 2);
+    // get vertices around tcm
+  const MBEntityHandle *tcm_verts, *ocl_verts, *ocr_verts;
+  int tcm_verts_size, oc_verts_size;
+  result = mbImpl->get_connectivity(tcm, tcm_verts, tcm_verts_size); RR;
+  result = mbImpl->get_connectivity(ocl, ocl_verts, oc_verts_size); RR;
+  assert(2 == oc_verts_size);
+  result = mbImpl->get_connectivity(ocr, ocr_verts, oc_verts_size); RR;
+  assert(2 == oc_verts_size);
+  
+  int side_no, sense, offset;
+    // check ordering such that zclb comes before zclf in tcm's vert list; if
+    // ocl and tcm are same sense, then zclb,zclf are in order on ocl
+  result = mbImpl->side_number(tcm, ocl, side_no, sense, offset); RR;
+  zclb = ocl_verts[(1-sense)/2];
+  zclf = ocl_verts[(1+sense)/2];
+
+    // reversed for ocr
+  result = mbImpl->side_number(tcm, ocr, side_no, sense, offset); RR;
+  zcrb = ocl_verts[(1+sense)/2];
+  zcrf = ocl_verts[(1-sense)/2];
+
+    // thcmu, thcml
+  MBRange dum_range, dum_range_2;
+  result = mbImpl->get_adjacencies(&tcm, 1, 3, false, dum_range); RR;
+  assert(2 == dum_range.size());
+  thcmu = *dum_range.begin();
+  thcml = *dum_range.rbegin();
+
+  result = foc_get_neighbor_23cells(ocl, tcm, thcmu, thcml,
+                                    tclu, tclm, tcll,
+                                    thclu, thcll); RR;
+
+  result = foc_get_neighbor_23cells(ocr, tcm, thcmu, thcml,
+                                    tcru, tcrm, tcrl,
+                                    thcru, thcrl); RR;
+
+    // sm, sl, sr
+  sm = get_dual_surface_or_curve(tcm);
+  if (0 == sm) {
+    std::cerr << "Couldn't get dual surface for tcm." << std::endl;
+    return MB_FAILURE;
+  }
+  
+  sl = get_dual_surface_or_curve(tclu);
+  if (0 == sl) {
+    std::cerr << "Couldn't get dual surface for tclu." << std::endl;
+    return MB_FAILURE;
+  }
+  
+  sr = get_dual_surface_or_curve(tcru);
+  if (0 == sl) {
+    std::cerr << "Couldn't get dual surface for tcru." << std::endl;
+    return MB_FAILURE;
+  }
+  
+    // cl, cr
+  cl = get_dual_surface_or_curve(ocl);
+  if (0 == sm) {
+    std::cerr << "Couldn't get dual curve for ocl." << std::endl;
+    return MB_FAILURE;
+  }
+  
+    // cl, cr
+  cr = get_dual_surface_or_curve(ocr);
+  if (0 == sm) {
+    std::cerr << "Couldn't get dual curve for ocr." << std::endl;
+    return MB_FAILURE;
   }
   
   return MB_SUCCESS;
 }
+
+MBErrorCode DualTool::foc_get_neighbor_23cells(const MBEntityHandle oc,
+                                               const MBEntityHandle tcm,
+                                               const MBEntityHandle thcmu,
+                                               const MBEntityHandle thcml,
+                                               MBEntityHandle &tcxu, 
+                                               MBEntityHandle &tcxm, 
+                                               MBEntityHandle &tcxl, 
+                                               MBEntityHandle &thcxu, 
+                                               MBEntityHandle &thcxl) 
+{
+    // given a 1cell, 2cell, and an upper and lower 3cell (in that order),
+    // return the adjacent upper, middle and lower 2cells sharing the 1cell
+    // and adjacent to the 3cells (respectively), and the adjacent 3cells
+  MBErrorCode result;
+  MBRange dum_range, dum_range_2;
+  
+    // tcu, tcl, tcm
+  dum_range.insert(tcm);
+  dum_range.insert(thcmu);
+  dum_range.insert(oc);
+  result = mbImpl->get_adjacencies(dum_range, 2, false, dum_range_2); RR;
+  assert(dum_range_2.size() == 2 &&
+         (*dum_range_2.begin() == tcm || *dum_range_2.rbegin() == tcm));
+  if (*dum_range_2.begin() == tcm)
+    tcxu = *dum_range_2.rbegin();
+  else
+    tcxu = *dum_range_2.begin();
+
+  dum_range_2.clear();
+  dum_range.erase(thcmu);
+  dum_range.insert(thcml);
+  result = mbImpl->get_adjacencies(dum_range, 2, false, dum_range_2); RR;
+  assert(dum_range_2.size() == 2 &&
+         (*dum_range_2.begin() == tcm || *dum_range_2.rbegin() == tcm));
+  if (*dum_range_2.begin() == tcm)
+    tcxl = *dum_range_2.rbegin();
+  else
+    tcxl = *dum_range_2.begin();
+  
+  dum_range.clear(); dum_range_2.clear();
+  dum_range.insert(oc);
+  result = mbImpl->get_adjacencies(dum_range, 2, false, dum_range_2); RR;
+  assert(4 == dum_range_2.size());
+  dum_range_2.erase(tcm);
+  dum_range_2.erase(tcxu);
+  dum_range_2.erase(tcxl);
+  tcxm = *dum_range_2.begin();
+  
+    // thcu, thcl
+  dum_range.clear(); dum_range_2.clear();
+  dum_range.insert(tcxm);
+  dum_range.insert(tcxu);
+  result = mbImpl->get_adjacencies(dum_range, 3, false, dum_range_2); RR;
+  assert(1 == dum_range_2.size());
+  thcxu = *dum_range_2.begin();
+  dum_range_2.clear();
+  dum_range.erase(tcxu);
+  dum_range.insert(tcxl);
+  result = mbImpl->get_adjacencies(dum_range, 3, false, dum_range_2); RR;
+  assert(1 == dum_range_2.size());
+  thcxl = *dum_range_2.begin();
+  
+  return MB_SUCCESS;
+}
+
+//! returns true if first & last vertices are dual to hexes (not faces)
+bool DualTool::is_blind(const MBEntityHandle chord) 
+{
+    // must be an entity set
+  if (TYPE_FROM_HANDLE(chord) != MBENTITYSET) return false;
+  
+    // get the vertices
+  MBRange verts, ents;
+  MBErrorCode result = mbImpl->get_entities_by_handle(chord, ents); 
+  if (MB_SUCCESS != result || ents.empty()) return false;
+  
+  result = mbImpl->get_adjacencies(ents, 0, false, verts, MBInterface::UNION);
+  if (MB_SUCCESS != result || verts.empty()) return false;
+  
+  for (MBRange::iterator rit = verts.begin(); rit != verts.end(); rit++) {
+      // get dual entity for this vertex
+    MBEntityHandle dual_ent = get_dual_entity(*rit);
+    if (0 == dual_ent) continue;
+    if (TYPE_FROM_HANDLE(dual_ent) == MBQUAD) return false;
+  }
+
+    // if none of the vertices' duals were quads, chord must be blind
+  return true;
+}
+
