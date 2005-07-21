@@ -51,7 +51,7 @@ RangeTree<T>::const_iterator::operator--()
     value_ = span_->last;
   }
   
-  else if (value_ == span_->first && span_ != first)
+  else if (value_ == span_->first && span_ != beg_)
   {
     --span_;
     value_ = span_->first;

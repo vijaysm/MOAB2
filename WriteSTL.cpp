@@ -29,6 +29,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <unistd.h>
+#include <math.h>
 
 #ifdef _MSC_VER /* windows */
 #  include <io.h>
