@@ -369,11 +369,15 @@ MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf)
 {
     // draw this dual surface
 
+    // 3. make a new pd for this drawring
+  GraphWindows &this_gw = surfDrawrings[dual_surf];
+  vtkPolyData *pd;
+  get_clean_pd(dual_surf, this_gw.qvtkWidget, pd);
+  
     // 1. gather/construct data for graphviz
   MBErrorCode success = construct_graphviz_data(dual_surf);
   if (MB_SUCCESS != success) return success;
 
-  GraphWindows &this_gw = surfDrawrings[dual_surf];
 
     // 2. tell graphviz to compute graph
 //  gvBindContext((GVC_t*)gvizGvc, this_gw.gvizGraph);
@@ -394,10 +398,6 @@ MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf)
 
   success = fixup_degen_bchords(dual_surf);
   if (MB_SUCCESS != success) return success;
-  
-    // 3. make a new pd for this drawring
-  vtkPolyData *pd;
-  get_clean_pd(dual_surf, this_gw.qvtkWidget, pd);
   
   vtkRenderer *this_ren = 
     this_gw.qvtkWidget->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
@@ -846,6 +846,16 @@ void DrawDual::get_clean_pd(MBEntityHandle dual_surf,
                             QVTKWidget *&this_wid,
                             vtkPolyData *&pd)
 {
+  if (NULL != this_wid) {
+    MBErrorCode result = reset_drawing_data(dual_surf);
+    if (MB_SUCCESS != result) {
+      std::cerr << "Trouble resetting drawing data for sheet." << std::endl;
+    }
+    
+    delete this_wid;
+    this_wid = NULL;
+  }
+  
   if (NULL == this_wid) {
     vtkRenderer *this_ren = vtkRenderer::New();
     pd = vtkPolyData::New();
@@ -941,7 +951,7 @@ void DrawDual::get_clean_pd(MBEntityHandle dual_surf,
   pd = get_polydata(this_wid);
   assert(NULL != pd);
     // re-initialize the data, then we're done
-  pd->Initialize();
+//  pd->Initialize();
 }
 
 MBErrorCode DrawDual::construct_graphviz_data(MBEntityHandle dual_surf) 
@@ -1621,4 +1631,100 @@ MBErrorCode DrawDual::get_dual_entities(const MBEntityHandle dual_ent,
   return result;
 }
 
+MBErrorCode DrawDual::reset_drawing_data(MBEntityHandle dual_surf) 
+{
+    // deleting a sheet drawing; reset the data on moab tags so it'll draw right
+    // next time
+
+    // get the widget
+  GraphWindows &this_gw = surfDrawrings[dual_surf];
+  
+  vtkRenderer *ren = 
+    this_gw.qvtkWidget->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
+  
+  vtkActorCollection *acoll = ren->GetActors();
+  assert(NULL != acoll);
+  acoll->InitTraversal();
+  vtkActor *tmp_actor;
+  MBRange saved_sets;
+
+    // get all actors, check sets in propSetMap; save set, remove actor from map
+  while (tmp_actor = acoll->GetNextItem()) {
+    std::map<vtkProp*,MBEntityHandle>::iterator mit = 
+      vtkMOABUtils::propSetMap.find(tmp_actor);
+    if (mit == vtkMOABUtils::propSetMap.end()) continue;
+    saved_sets.insert((*mit).second);
+    vtkMOABUtils::propSetMap.erase(mit);
+  }
+  
+    // for dual surface set:
+    // get 0-, 1-, 2-cells, GVEntity for each
+  MBRange tcells, all_cells;
+  MBErrorCode result = MBI->get_entities_by_type(dual_surf, MBPOLYGON,
+                                                 tcells);
+  if (MB_SUCCESS != result) return result;
+  result = MBI->get_adjacencies(tcells, 0, false, all_cells, MBInterface::UNION);
+  if (MB_SUCCESS != result) return result;
+  result = MBI->get_adjacencies(tcells, 1, false, all_cells, MBInterface::UNION);
+  if (MB_SUCCESS != result) return result;
+  
+  for (MBRange::iterator rit = all_cells.begin(); rit != all_cells.end(); rit++) {
+      // get the GVEntity
+    GVEntity *gv_ent;
+    result = MBI->tag_get_data(gvEntityHandle, &(*rit), 1, &gv_ent);
+    if (MB_TAG_NOT_FOUND == result || 0 == gv_ent) continue;
     
+      // reset the data on this gv_ent for this dual surf
+    int index = gv_ent->get_index(dual_surf);
+    gv_ent->reset(index);
+  }
+
+  if (this_gw.gvizGraph) {
+    delete this_gw.gvizGraph;
+    this_gw.gvizGraph = NULL;
+  }
+  
+  if (this_gw.pickExtractor) {
+    this_gw.pickExtractor->Delete();
+    this_gw.pickExtractor = NULL;
+  }
+  
+  if (this_gw.highPoly) {
+    this_gw.highPoly->Delete();
+    this_gw.highPoly = NULL;
+  }
+
+  return MB_SUCCESS;
+}
+
+void DrawDual::GVEntity::reset(const int index)    
+{
+  dualSurfs[index] = 0;
+  pointPos[index][0] = pointPos[index][1] = 0;
+  vtkEntityIds[index] = -1;
+
+  int dim = MBI->dimension_from_handle(moabEntity);
+  
+    // use gvizEdges to tell whether we're an edge or not
+  if (0 == dim) {
+    if (gvizPoints[index]) {
+      delete gvizPoints[index];
+      gvizPoints[index] = NULL;
+    }
+  }
+  else if (1 == dim) {
+    vtkEntityIds[index+2] = -1;
+    if (gvizEdges[index]) {
+      delete gvizEdges[index];
+      gvizEdges[index] = NULL;
+    }
+    if (gvizEdges[index+2]) {
+      delete gvizEdges[index+2];
+      gvizEdges[index+2] = NULL;
+    }
+  }
+  
+  myActors[index] = NULL;
+}
+
+  

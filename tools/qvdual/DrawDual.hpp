@@ -59,6 +59,7 @@ private:
         gvizPoints[0] = gvizPoints[1] = gvizPoints[2] = gvizPoints[3] = gvizPoints[4] = NULL;
         gvizEdges[0] = gvizEdges[1] = gvizEdges[2] = gvizEdges[3] = NULL;
       }
+    void reset(const int index);
     int get_index(const MBEntityHandle dual_surf) 
       {
         if (dual_surf == dualSurfs[0]) return 0;
@@ -155,9 +156,13 @@ private:
                              void* /*vtkNotUsed(calldata)*/);
   
   static void process_pick();
-  
+
+    //! reset the drawing data for a sheet
+  MBErrorCode reset_drawing_data(MBEntityHandle dual_surf);
+
     //! map of dual surfaces and windows they're drawn in
   std::map<MBEntityHandle, GraphWindows> surfDrawrings;
+  
   
     //! cache some of the tags we use
   MBTag gvEntityHandle, dualEntityTagHandle;

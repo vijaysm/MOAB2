@@ -192,6 +192,11 @@ void uiQVDual::updateTagList()
 {
   // clean the tag list view
   TagListView1->clear();    
+  QListViewItemIterator it = QListViewItemIterator(TagListView1);
+  while ( it.current() ) {
+    itemSetMap.erase(*it);
+    ++it;
+  }
   
   // get a list of tags
   std::vector<MBTag> tag_handles;
@@ -243,7 +248,12 @@ void uiQVDual::updateActorList()
 {
     // clean the ActorView
   ActorListView1->clear();    
-
+  QListViewItemIterator it = QListViewItemIterator(ActorListView1);
+  while ( it.current() ) {
+    itemSetMap.erase(*it);
+    ++it;
+  }
+  
     // update "contains" view
   MBRange top_sets;
   QListViewItem *last_item;
