@@ -28,6 +28,9 @@ const char acis_dump_file_tag_name[] = "__ACISDumpFile";
 const char Tqdcfr::geom_categories[][CATEGORY_TAG_NAME_LENGTH] = 
 {"Vertex\0", "Curve\0", "Surface\0", "Volume\0"};
   
+char *Tqdcfr::BLOCK_NODESET_OFFSET_TAG_NAME = "BLOCK_NODESET_OFFSET";
+char *Tqdcfr::BLOCK_SIDESET_OFFSET_TAG_NAME = "BLOCK_SIDESET_OFFSET";
+
 // acis dimensions for each entity type, to match
 // enum {BODY, LUMP, SHELL, FACE, LOOP, COEDGE, EDGE, VERTEX, ATTRIB, UNKNOWN} 
 
@@ -48,6 +51,10 @@ Tqdcfr::Tqdcfr(MBInterface *impl)
   currNodeIdOffset = -1;
   for (MBEntityType this_type = MBVERTEX; this_type < MBMAXTYPE; this_type++)
     currElementIdOffset[this_type] = -1;
+
+  mdbImpl->tag_get_handle(MATERIAL_SET_TAG_NAME, blockTag);
+  mdbImpl->tag_get_handle(DIRICHLET_SET_TAG_NAME, nsTag);
+  mdbImpl->tag_get_handle(NEUMANN_SET_TAG_NAME, ssTag);
 }
 
 Tqdcfr::~Tqdcfr() 
@@ -161,7 +168,101 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
     // **************************
   GeomTopoTool gtt(mdbImpl);
   MBErrorCode result = gtt.restore_topology();
+
+  // convert blocks to nodesets/sidesets if tag is set
+  result = convert_nodesets_sidesets();
   
+  return result;
+}
+
+MBErrorCode Tqdcfr::convert_nodesets_sidesets() 
+{
+
+  // look first for the nodeset and sideset offset flags; if they're not
+  // set, we don't need to convert
+  int nodeset_offset, sideset_offset;
+  MBTag tmp_tag;
+  MBErrorCode result = mdbImpl->tag_get_handle(BLOCK_NODESET_OFFSET_TAG_NAME,
+					       tmp_tag);
+  if (MB_SUCCESS != result) nodeset_offset = 0;
+  else {
+    result = mdbImpl->tag_get_data(tmp_tag, 0, 0, &nodeset_offset);
+    if (MB_SUCCESS != result) return result;
+  }
+
+  result = mdbImpl->tag_get_handle(BLOCK_SIDESET_OFFSET_TAG_NAME,
+				   tmp_tag);
+  if (MB_SUCCESS != result) sideset_offset = 0;
+  else {
+    result = mdbImpl->tag_get_data(tmp_tag, 0, 0, &sideset_offset);
+    if (MB_SUCCESS != result) return result;
+  }
+
+  if (0 == nodeset_offset && 0 == sideset_offset) return MB_SUCCESS;
+
+  // look for all blocks
+  MBRange blocks;
+  result = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET,
+							     &blockTag, NULL, 1,
+							     blocks);
+  if (MB_SUCCESS != result || blocks.empty()) return result;
+  
+  // get the id tag for them
+  std::vector<int> block_ids(blocks.size());
+  result = mdbImpl->tag_get_data(globalIdTag, blocks, &block_ids[0]);
+  if (MB_SUCCESS != result) return result;
+
+  int i = 0;
+  MBRange::iterator rit = blocks.begin();
+  MBRange new_nodesets, new_sidesets;
+  std::vector<int> new_nodeset_ids, new_sideset_ids;
+  for (; rit != blocks.end(); i++, rit++) {
+    if (0 != nodeset_offset && block_ids[i] >= nodeset_offset && 
+        (nodeset_offset > sideset_offset || block_ids[i] < sideset_offset)) {
+      // this is a nodeset
+      new_nodesets.insert(*rit);
+      new_nodeset_ids.push_back(block_ids[i]);
+    }
+    else if (0 != sideset_offset && block_ids[i] >= sideset_offset && 
+        (sideset_offset > nodeset_offset || block_ids[i] < nodeset_offset)) {
+      // this is a sideset
+      new_sidesets.insert(*rit);
+      new_sideset_ids.push_back(block_ids[i]);
+    }
+  }
+
+  // ok, have the new nodesets and sidesets; now remove the block tags, and
+  // add nodeset and sideset tags
+  MBErrorCode tmp_result = MB_SUCCESS;
+  if (0 != nodeset_offset) {
+    if (0 == nsTag) {
+      int default_val = 0;
+      tmp_result = instance->mdbImpl->tag_create(DIRICHLET_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
+                                                 instance->nsTag, &default_val);
+      if (MB_SUCCESS != tmp_result) result = tmp_result;
+    }
+    if (MB_SUCCESS == tmp_result)
+      tmp_result = mdbImpl->tag_set_data(nsTag, new_nodesets, 
+                                         &new_nodeset_ids[0]);
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
+    tmp_result = mdbImpl->tag_delete_data(blockTag, new_nodesets);
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
+  }
+  if (0 != sideset_offset) {
+    if (0 == ssTag) {
+      int default_val = 0;
+      tmp_result = instance->mdbImpl->tag_create(NEUMANN_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
+                                                 instance->ssTag, &default_val);
+      if (MB_SUCCESS != tmp_result) result = tmp_result;
+    }
+    if (MB_SUCCESS == tmp_result) 
+      tmp_result = mdbImpl->tag_set_data(ssTag, new_sidesets, 
+                                         &new_sideset_ids[0]);
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
+    tmp_result = mdbImpl->tag_delete_data(blockTag, new_sidesets);
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
+  }
+
   return result;
 }
 

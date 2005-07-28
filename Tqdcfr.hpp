@@ -327,8 +327,13 @@ public:
   int check_contiguous(const int num_ents);
 
   Tqdcfr(MBInterface *impl);
-  
+
+  static char *BLOCK_NODESET_OFFSET_TAG_NAME;
+  static char *BLOCK_SIDESET_OFFSET_TAG_NAME;
+
 private:
+
+  MBErrorCode convert_nodesets_sidesets();
 
   void read_acis_records();
   
