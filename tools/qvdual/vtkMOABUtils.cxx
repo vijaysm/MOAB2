@@ -466,7 +466,7 @@ MBErrorCode vtkMOABUtils::update_set_actors(const MBRange &update_sets,
 //      this_mapper->UseLookupTableScalarRangeOn();
 //    }
 
-    ids->Delete();
+      ids->Delete();
   }
   
   return result;
@@ -492,14 +492,14 @@ MBErrorCode vtkMOABUtils::setup_tube_filter(MBEntityHandle this_set,
     vtkExtractEdges *ee = vtkExtractEdges::New();
     ee->SetInput(ec->GetOutput());
     tf->SetInput(ee->GetOutput());
-    ee->Delete();
+//    ee->Delete();
   }
   else {
       // need a geometry filter to change unstructuredgrid to polydata
     vtkGeometryFilter *gf = vtkGeometryFilter::New();
     gf->SetInput(ec->GetOutput());
     tf->SetInput(gf->GetOutput());
-    gf->Delete();
+//    gf->Delete();
   }
           
   tf->SetNumberOfSides(6);

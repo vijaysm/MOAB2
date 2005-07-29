@@ -44,7 +44,7 @@ extern "C"
 //  extern GVC_t *gvContext();
 }
 
-const bool my_debug = true;
+const bool my_debug = false;
 
 const int SHEET_WINDOW_SIZE = 500;
 
@@ -414,6 +414,10 @@ MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf)
   vtkPolyData *new_pd;
   MBErrorCode result = label_other_sheets(dual_surf, pd, new_pd);
   if (MB_SUCCESS != result) return result;
+
+  pd->Update();
+  
+    //this_gw.qvtkWidget->GetRenderWindow()->DebugOn();
   
     // 5. render the window
   this_gw.qvtkWidget->GetRenderWindow()->Render();
@@ -938,11 +942,11 @@ void DrawDual::get_clean_pd(MBEntityHandle dual_surf,
 //    camera->SetFocalPoint(72.0,72.0,0);
 //    camera->SetViewUp(0,1,0);
 
-    this_ren->ResetCamera();
-
     this_wid = new QVTKWidget();
     this_wid->GetRenderWindow()->AddRenderer(this_ren);
     this_wid->GetRenderWindow()->SetSize(SHEET_WINDOW_SIZE, SHEET_WINDOW_SIZE);
+
+    this_ren->ResetCamera();
 
     return;
   }

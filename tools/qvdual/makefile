@@ -1,7 +1,12 @@
 QT_DIR = /usr/local/qt-x11-free-3.3.1
 
-VTK_LIB_DIR = /usr/local/ParaViewComplete.old/bin
-VTK_DIR = /usr/local/ParaViewComplete.old/VTK
+#VTK_LIB_DIR = /usr/local/lib/vtk
+#VTK_DIR = /usr/local/include/vtk
+
+VTK_LIB_DIR = /usr/local/ParaViewComplete/VTK/bin
+VTK_DIR = /usr/local/ParaViewComplete/VTK
+EXTRA_INCLUDE_DIR = -I${VTK_DIR}/Parallel
+EXTRA_LIB = -lvtkParallel
 
 DEBUG_FLAG = -g
 
@@ -15,7 +20,7 @@ include $(MOAB_DIR)/MB.common
 
 X11_LIB_DIR = /usr/X11R6/lib 
 
-INCLUDE_FLAGS = -I../.. -I. -I${GRAPHVIZ_INCLUDE_DIR} -I${VTK_DIR} -I${VTK_DIR}/Utilities -I${VTK_DIR}/Parallel -I${VTK_DIR}/Hybrid -I${VTK_DIR}/Rendering -I${VTK_DIR}/IO -I${VTK_DIR}/Imaging -I${VTK_DIR}/Graphics -I${VTK_DIR}/GenericFiltering -I${VTK_DIR}/Filtering -I${VTK_DIR}/Common -I${VTK_DIR}/Common/Testing/Cxx -I${VTK_DIR}/Utilities/DICOMParser -I${VTK_DIR}/Utilities/freetype/include -I/usr/share/doc/NVIDIA_GLX-1.0/include -I/usr/X11R6/include -I${QT_DIR}/include 
+INCLUDE_FLAGS = -I../.. -I. -I${GRAPHVIZ_INCLUDE_DIR} -I${VTK_DIR} -I${VTK_DIR}/Utilities -I${VTK_DIR}/Hybrid -I${VTK_DIR}/Rendering -I${VTK_DIR}/IO -I${VTK_DIR}/Imaging -I${VTK_DIR}/Graphics -I${VTK_DIR}/GenericFiltering -I${VTK_DIR}/Filtering -I${VTK_DIR}/Common -I${VTK_DIR}/Common/Testing/Cxx -I${VTK_DIR}/Utilities/DICOMParser -I${VTK_DIR}/Utilities/freetype/include -I/usr/share/doc/NVIDIA_GLX-1.0/include -I/usr/X11R6/include -I${QT_DIR}/include ${EXTRA_INCLUDE_DIR}
 
 CXXFLAGS = -Wno-deprecated ${DEBUG_FLAG} $(INCLUDE_FLAGS)
 
@@ -59,13 +64,13 @@ libQVTK.a: $(QVTK_SRC_OBJS) $(QVTK_EXTERNAL_OBJS)  $(QVTK_DEPEND_LIBS)
 	ranlib libQVTK.a 
 
 libQVTKWidgetPlugin.so: $(QVTKWidgetPlugin_SRC_OBJS)
-	${CXX} -fPIC -shared -Wl,-soname,libQVTKWidgetPlugin.so -o libQVTKWidgetPlugin.so $(QVTKWidgetPlugin_SRC_OBJS) -L${VTK_LIB_DIR} -L${QT_DIR}/lib -L/usr/X11R6/lib -lvtkRendering -lvtkImaging -lvtkGraphics -lvtkFiltering -lvtkCommon -lqt -lGLU -lGL -lSM -lICE -lSM -lICE -lSM -lICE -lSM -lICE -lSM -lICE -lX11 -lXext -lX11 -lXext -lX11 -lXext -lX11 -lXext -lX11 -lXext -lvtkIO -lvtkFiltering -lvtkDICOMParser -lvtkpng -lvtktiff -lvtkzlib -lvtkjpeg -lvtkexpat -lvtkftgl -lGL -lvtkfreetype -lSM -lICE -lX11 -lXext -lm -lXt -lpthread -ldl -lm -lgcc
+	${CXX} -fPIC -shared -Wl,-soname,libQVTKWidgetPlugin.so -o libQVTKWidgetPlugin.so $(QVTKWidgetPlugin_SRC_OBJS) -L${VTK_LIB_DIR} -L${QT_DIR}/lib -L/usr/X11R6/lib -lvtkRendering -lvtkImaging -lvtkGraphics -lvtkFiltering ${EXTRA_LIB} -lvtkCommon -lqt -lGLU -lGL -lSM -lICE -lSM -lICE -lSM -lICE -lSM -lICE -lSM -lICE -lX11 -lXext -lX11 -lXext -lX11 -lXext -lX11 -lXext -lX11 -lXext -lvtkIO -lvtkFiltering -lvtkDICOMParser -lvtkpng -lvtktiff -lvtkzlib -lvtkjpeg -lvtkexpat -lvtkftgl -lGL -lvtkfreetype -lSM -lICE -lX11 -lXext -lm -lXt -lpthread -ldl -lm -lgcc 
 
 QVDual: $(QVDual_SRC_OBJS) libQVTK.a
-	${CXX} ${DEBUG_FLAG} -Wno-deprecated $(QVDual_SRC_OBJS) -o QVDual -rdynamic -L. -L${VTK_LIB_DIR} -L${MOAB_DIR} -L${NETCDF_DIR}/lib -L${GRAPHVIZ_LIB_DIR} -L${QT_DIR}/lib -L${X11_LIB_DIR} -lMOAB -lnetcdf_c++ -lnetcdf -ldotneato -lgraph -lQVTK -lqt -lvtkRendering -lvtkGraphics -lvtkIO -lvtkCommon -lvtkFiltering -lGLU -lGL -lSM -lICE -lX11 -lXext -lvtkParallel -lvtkHybrid -lvtkRendering -lvtkIO -lvtkImaging -lvtkFiltering -lvtkftgl -lGL -lvtkfreetype -lvtkDICOMParser -lvtkpng -lvtktiff -lvtkjpeg -lvtkexpat -lSM -lICE -lX11 -lXext -lvtkCommon -lvtkzlib -lm -lXt -lpthread -ldl -lm -Wl,-rpath,${VTK_LIB_DIR}
+	${CXX} ${DEBUG_FLAG} -Wno-deprecated $(QVDual_SRC_OBJS) -o QVDual -rdynamic -L. -L${VTK_LIB_DIR} -L${MOAB_DIR} -L${NETCDF_DIR}/lib -L${GRAPHVIZ_LIB_DIR} -L${QT_DIR}/lib -L${X11_LIB_DIR} -lMOAB -lnetcdf_c++ -lnetcdf -ldotneato -lgraph -lQVTK -lqt -lvtkRendering -lvtkGraphics -lvtkIO -lvtkCommon -lvtkFiltering ${EXTRA_LIB} -lGLU -lGL -lSM -lICE -lX11 -lXext -lvtkHybrid -lvtkRendering -lvtkIO -lvtkImaging -lvtkFiltering -lvtkftgl -lGL -lvtkfreetype -lvtkDICOMParser -lvtkpng -lvtktiff -lvtkjpeg -lvtkexpat -lSM -lICE -lX11 -lXext -lvtkCommon -lvtkzlib -lm -lXt -lpthread -ldl -lm -Wl,-rpath,${VTK_LIB_DIR} -Wl,-rpath,${PWD}/../..
 
 clean:
-	rm -rf QVDual libQVTK.a libQVTKWidgetPlugin.so ${GENERATED_QVDUAL_QT_FILES} ${GENERATED_QVTK_QT_FILES} 
+	rm -rf QVDual libQVTK.a libQVTKWidgetPlugin.so ${GENERATED_QVDUAL_QT_FILES} ${GENERATED_QVTK_QT_FILES} *.o *.a
 
 depend : 
 	$(PREFIX) ${MAKEDEPEND} ${CXXFLAGS} ${QVDual_SRC}  > make.dependencies
@@ -120,3 +125,4 @@ QVTKWidgetPlugin.o: QVTKWidgetPlugin.cxx
 	${CXX} -c ${CXXFLAGS} $<
 
 include make.dependencies
+# DO NOT DELETE

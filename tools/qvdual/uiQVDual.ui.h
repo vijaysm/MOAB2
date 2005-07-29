@@ -25,6 +25,20 @@
 
 #include "assert.h"
 
+#include "vtkObjectFactory.h"
+#include "vtkUnstructuredGrid.h"
+#include "vtkMOABUtils.h"
+#include "vtkPolyDataMapper.h"
+#include "vtkDataSetMapper.h"
+#include "vtkActor.h"
+#include "vtkCamera.h"
+#include "vtkProperty.h"
+#include "vtkExtractEdges.h"
+#include "vtkTubeFilter.h"
+#include "vtkRenderer.h"
+#include "vtkExtractGeometry.h"
+#include "vtkPlane.h"
+
 void uiQVDual::fileNew()
 {
   
@@ -53,13 +67,92 @@ void uiQVDual::fileOpen( const QString &filename )
   if (NULL != vtkMOABUtils::myUG) reader->SetOutput(vtkMOABUtils::myUG);
   
   reader->SetFileName(filename.ascii());
-  
+
   // need to update here, in case we're doing something else which requires moab data
   reader->Update();
   
-  // keep track of the reader's output, to know where the cell and point data is
-  vtkMOABUtils::myUG = reader->GetOutput();
+    // make sure there's a mapper, actor for the whole mesh in ug, put in renderer
+  vtkPolyDataMapper *poly_mapper;
+  vtkDataSetMapper *set_mapper;
+  vtkTubeFilter *tube_filter;
+  vtkExtractEdges *edge_filter;
 
+  vtkActor *mesh_actor = vtkActor::New();
+  
+  bool tubes = true;
+
+  if (tubes) {
+      // extract edges and build a tube filter for them
+    edge_filter = vtkExtractEdges::New();
+    edge_filter->SetInput(vtkMOABUtils::myUG);
+    tube_filter = vtkTubeFilter::New();
+    vtkPolyData *pd = edge_filter->GetOutput();
+    tube_filter->SetInput(pd);
+    tube_filter->SetNumberOfSides(6);
+    tube_filter->SetRadius(0.005);
+    poly_mapper =  vtkPolyDataMapper::New();
+    poly_mapper->SetInput(tube_filter->GetOutput());
+    mesh_actor->SetMapper(poly_mapper);
+    poly_mapper->ImmediateModeRenderingOn();
+  }
+  else {
+    set_mapper = vtkDataSetMapper::New();
+    set_mapper->SetInput(vtkMOABUtils::myUG);
+    mesh_actor->SetMapper(set_mapper);
+    set_mapper->ImmediateModeRenderingOn();
+  }
+  
+  vtkMOABUtils::myRen->AddActor(mesh_actor);
+  MBErrorCode result = vtkMOABUtils::mbImpl->tag_set_data(vtkMOABUtils::vtkSetActorTag, 
+                                                          NULL, 0, &mesh_actor);
+
+  if (MB_SUCCESS != result) {
+    std::cerr << "Failed to set actor for mesh in vtkMOABReader::Execute()." << std::endl;
+    return;
+  }
+    
+    // now turn around and set a different property for the mesh, because we want the tubes
+    // to be shaded in red
+  vtkMOABUtils::actorProperties[mesh_actor] = NULL;
+  vtkProperty *this_prop = vtkMOABUtils::get_property(mesh_actor, true);
+  this_prop->SetRepresentationToSurface();
+  this_prop->SetColor(0.0, 1.0, 0.0);
+  this_prop->SetEdgeColor(0.0, 1.0, 0.0);
+//  mesh_actor->VisibilityOff();
+  
+
+    /*
+    // center the camera on the center of the ug
+  vtkMOABUtils::myRen->GetActiveCamera()->SetFocalPoint(ug->GetPoint(1));
+  vtkMOABUtils::myRen->GetActiveCamera()->SetPosition(0, 0, 50.0);
+  vtkMOABUtils::myRen->GetActiveCamera()->SetViewUp(0, 1.0, 0.0);
+  
+  std::cout << "Set focal point to " 
+            << ug->GetPoint(1)[0] 
+            << ", "
+            << ug->GetPoint(1)[1] 
+            << ", "
+            << ug->GetPoint(1)[2] 
+            << std::endl;
+    */
+
+  mesh_actor->Delete();
+  if (tubes) {
+//    tube_filter->Delete();
+//    edge_filter->Delete();
+//    poly_mapper->Delete();
+  }
+  else {
+    set_mapper->Delete();
+  }
+      
+    // construct actors and prop assemblies for the sets
+  result = vtkMOABUtils::update_all_actors(0, vtkMOABUtils::myUG, false);
+  if (MB_SUCCESS != result)
+  {
+    std::cerr << "Failed to update " << filename.ascii();
+  }
+  
     // update anything else in the UI
   this->updateMesh();
   
