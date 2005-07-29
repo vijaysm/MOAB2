@@ -31,6 +31,9 @@ public:
   bool draw_dual_surfs(MBRange &dual_surfs);
   MBErrorCode draw_dual_surf(MBEntityHandle dual_surf);
   
+  MBEntityHandle lastPickedEnt; // last picked entity
+  MBEntityHandle secondLastPickedEnt; // second last picked entity
+
 private:
 
   static DrawDual *gDrawDual;
@@ -46,7 +49,7 @@ private:
     vtkActor *myActors[3];
     Agnode_t *gvizPoints[5]; // extra 2 for edge mid-pts
     Agedge_t *gvizEdges[4]; // extra 2 for extra edges
-
+    
     GVEntity() 
       {
         numGvizEntities = 0;
@@ -77,11 +80,9 @@ private:
   public:
     Agraph_t *gvizGraph;
     QVTKWidget *qvtkWidget;
-    vtkExtractCells *pickExtractor;
-    vtkPolyData *highPoly;
+    vtkActor *pickActor;
 
-    GraphWindows() : gvizGraph(NULL), qvtkWidget(NULL), pickExtractor(NULL),
-      highPoly(NULL) {}
+    GraphWindows() : gvizGraph(NULL), qvtkWidget(NULL), pickActor(NULL) {}
   };
   
     //! make sure all dual vertices and edges have graphviz nodes and edges

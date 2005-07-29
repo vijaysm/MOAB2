@@ -93,6 +93,9 @@ DrawDual::DrawDual()
   assert(gDrawDual == NULL);
   gDrawDual = this;
 
+  lastPickedEnt = 0;
+  secondLastPickedEnt = 0;
+  
   add_picker(vtkMOABUtils::myRen);
 }
 
@@ -244,6 +247,9 @@ void DrawDual::process_pick()
   
       // now update the highlighted polydata
     gDrawDual->update_high_polydatas();
+
+    gDrawDual->secondLastPickedEnt = gDrawDual->lastPickedEnt;
+    gDrawDual->lastPickedEnt = picked_ent;
   }
   else
     std::cout << "Couldn't identify picked entity." << std::endl;
@@ -281,10 +287,15 @@ void DrawDual::update_high_polydatas()
   std::map<MBEntityHandle, GraphWindows>::iterator mit;
   for (mit = surfDrawrings.begin(); mit != surfDrawrings.end(); mit++) {
       // reset or initialize
-    if (NULL == mit->second.highPoly)
-      mit->second.highPoly = vtkPolyData::New();
+    if (NULL == mit->second.pickActor) {
+      vtkPolyData *pd = vtkPolyData::New();
+      vtkPolyDataMapper *mapper = vtkPolyDataMapper::New();
+      mapper->SetInput(pd);
+      mit->second.pickActor = vtkActor::New();
+      mit->second.pickActor->SetMapper(mapper);
+    }
     else
-      mit->second.highPoly->Reset();
+      vtkPolyData::SafeDownCast(mit->second.pickActor->GetMapper()->GetInput())->Reset();
   }
 
   DualTool dt(MBI);
@@ -301,6 +312,8 @@ void DrawDual::update_high_polydatas()
   if (MB_SUCCESS != result) return;
   unsigned int i, j;
   MBRange::iterator rit;
+  vtkIdList *id_list = vtkIdList::New();
+  id_list->Allocate(1);
   
   for (i = 0, rit = pickRange.begin(); rit != pickRange.end(); i++, rit++) {
     int dim = MBCN::Dimension(MBI->type_from_handle(*rit));
@@ -312,21 +325,18 @@ void DrawDual::update_high_polydatas()
       vtkPolyData *this_pd = 
         vtkPolyData::SafeDownCast(gvents[i]->myActors[j]->GetMapper()->GetInput());
       assert(NULL != this_pd);
-      vtkCell *this_cell = this_pd->GetCell(gvents[i]->vtkEntityIds[j]);
-      assert(NULL != this_cell);
+      assert(gvents[i]->dualSurfs[j] != 0);
+      GraphWindows &gw = surfDrawrings[gvents[i]->dualSurfs[j]];
+      vtkPolyData *pd = vtkPolyData::SafeDownCast(gw.pickActor->GetMapper()->GetInput());
+      pd->Allocate();
+      id_list->Reset();
+      id_list->InsertNextId(gvents[i]->vtkEntityIds[j]);
+      pd->CopyCells(this_pd, id_list);
 
-/*      
-      - make a new polygon or line
- - shallow copy this_cell onto the new one
-- add the new one to the highlight pd
-xxx
-*/  
 
-      // for each dual surf, add polygon/line for the entity
-    for (vit = dual_sets.begin(); vit != dual_sets.end(); vit++) {
-      GraphWindows &gw = surfDrawrings[*vit];
-        // 
-    }
+      vtkInteractorStyle *this_style = vtkInteractorStyle::SafeDownCast(
+        gw.qvtkWidget->GetRenderWindow()->GetInteractor()->GetInteractorStyle());
+      this_style->HighlightProp(gw.pickActor);
     }
   }
 }
@@ -670,10 +680,6 @@ MBErrorCode DrawDual::make_vtk_cells(const MBRange &cell_range, const int dim,
   MBErrorCode result = MBI->tag_get_data(gvEntityHandle, cell_range, &gv_cells[0]);
   if (MB_SUCCESS != result) return result;
 
-    // create GVEntity objects for the cells, to hold the vtk cell ids
-  GVEntity *gvents = new GVEntity[cell_range.size()];
-  std::map<MBEntityHandle, GVEntity*>::iterator mit;
-
   MBRange cell_edges, shared_edges, tmp_verts;
   for (rit = cell_range.begin(), cell_num = 0; 
        rit != cell_range.end(); rit++, cell_num++) {
@@ -724,8 +730,17 @@ MBErrorCode DrawDual::make_vtk_cells(const MBRange &cell_range, const int dim,
       cell_points[num_pts++] = cell_points[0];
     
       // create the vtk cell
-    gv_cells[cell_num] = gvents+cell_num;
+    if (NULL == gv_cells[cell_num]) {
+      gv_cells[cell_num] = new GVEntity();
+      gv_cells[cell_num]->moabEntity = *rit;
+    }
+    
     int index = gv_cells[cell_num]->get_index(dual_surf);
+    if (index < 0) {
+      index = -index - 1;
+      gv_cells[cell_num]->dualSurfs[index] = dual_surf;
+    }
+    
     int this_type = vtk_cell_type[dim];
     if (dim == 1 && num_pts > 2) this_type = VTK_POLY_LINE;
     int this_cell = pd->InsertNextCell(this_type, num_pts, 
@@ -1713,14 +1728,9 @@ MBErrorCode DrawDual::reset_drawing_data(MBEntityHandle dual_surf)
     this_gw.gvizGraph = NULL;
   }
   
-  if (this_gw.pickExtractor) {
-    this_gw.pickExtractor->Delete();
-    this_gw.pickExtractor = NULL;
-  }
-  
-  if (this_gw.highPoly) {
-    this_gw.highPoly->Delete();
-    this_gw.highPoly = NULL;
+  if (this_gw.pickActor) {
+    this_gw.pickActor->Delete();
+    this_gw.pickActor = NULL;
   }
 
   return MB_SUCCESS;
