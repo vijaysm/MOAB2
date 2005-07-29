@@ -272,7 +272,7 @@ void DrawDual::print_picked_ent(MBEntityHandle picked_ent)
     std::cout << MBI->id_from_handle(primals[i]);
     first = false;
   }
-  std::cout << std::endl;
+  std::cout << " (" << picked_ent << ")" << std::endl;
 }
 
 void DrawDual::update_high_polydatas() 
@@ -475,7 +475,32 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
         (*rit == *tmp_cells.begin() ? *tmp_cells.rbegin() : *tmp_cells.begin());
       
       result = MBI->get_connectivity(the_cell, connect, num_connect);RR;
-      if (num_connect == 2) continue;
+      if (num_connect == 2) {
+          // this edge is between two degenerate cells - put the mid-pt on the
+          // line between the two vertices
+
+          // get the avg position between the two end vertices
+        std::vector<GVEntity*> gvents;
+        gvents.resize(num_connect);
+        result = MBI->tag_get_data(gvEntityHandle, connect, num_connect, &gvents[0]); RR;
+        int index = gvents[0]->get_index(dual_surf);
+        double avg_coord[2] = {0.0, 0.0};
+        point p = ND_coord_i(gvents[0]->gvizPoints[index]);
+        avg_coord[0] += p.x; avg_coord[1] += p.y;
+        p = ND_coord_i(gvents[1]->gvizPoints[index]);
+        avg_coord[0] += p.x; avg_coord[1] += p.y;
+        avg_coord[0] *= 0.5; avg_coord[1] *= 0.5;
+
+          // now get the gventity for the mid-point on the edge
+        result = MBI->tag_get_data(gvEntityHandle, &(*rit2), 1, &gvents[0]); RR;
+        assert(NULL != gvents[0]);
+        index = gvents[0]->get_index(dual_surf);
+        Agnode_t *my_point = gvents[0]->gvizPoints[index+2];
+        ND_coord_i(my_point).x = (int)(avg_coord[0]);
+        ND_coord_i(my_point).y = (int)(avg_coord[1]);
+        continue;
+      }
+      
         // we're next to a non-degenerate cell; check that our mid-pt is on the same side 
         // of the straight line as the cell is
         // get gvents for that cell's vertices
