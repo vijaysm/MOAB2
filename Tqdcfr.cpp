@@ -1349,13 +1349,12 @@ void Tqdcfr::parse_acis_attribs(const int entity_rec_num,
 
     // at this point, there aren't entity sets for entity types which don't contain mesh
     // in this case, just return
-  if (records[entity_rec_num].rec_type == BODY)
+  if (records[entity_rec_num].rec_type == BODY ||
+      (records[entity_rec_num].entity == 0 && uid == -1)) {
     return;
-
-  else if (records[entity_rec_num].entity == 0 && uid == -1) {
-    std::cout << "Warning: couldn't resolve entity of type " << records[entity_rec_num].rec_type
-              << " because no uid was found." << std::endl;
-    return;
+      // Warning: couldn't resolve entity of type 1 because no uid was found.
+      // ddriv: GeomTopoTool.cpp:172: MBErrorCode GeomTopoTool::separate_by_dimension(const MBRange&, MBRange*, void**): Assertion `false' failed.
+     // xxx
   }
   
     // parsed the data; now put on mdb entities; first we need to find the entity

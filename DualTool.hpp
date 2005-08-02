@@ -162,7 +162,7 @@ public:
                                         const int dimension);
   
     //! effect atomic pillow operation
-  MBErrorCode atomic_pillow(MBEntityHandle odedge);
+  MBErrorCode atomic_pillow(MBEntityHandle odedge, MBEntityHandle &new_hp);
 
     //! effect a face open-collapse operation
   MBErrorCode face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr,

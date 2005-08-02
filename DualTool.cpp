@@ -1311,7 +1311,7 @@ MBEntityHandle DualTool::get_dual_entity(const MBEntityHandle this_ent)
   else return dual_ent;
 }
 
-MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge) 
+MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &new_hp) 
 {
     // perform an atomic pillow operation around dedge
 
@@ -1345,9 +1345,9 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge)
     // for each position, get a corresponding position 1/2 way to avg
   double new_coords[12];
   for (int i = 0; i < 4; i++) {
-    new_coords[3*i] = .5*(coords[3*i]-avg[i]);
-    new_coords[3*i+1] = .5*(coords[3*i+1]-avg[i]);
-    new_coords[3*i+2] = .5*(coords[3*i+2]-avg[i]);
+    new_coords[3*i] = avg[i] + .5*(coords[3*i]-avg[i]);
+    new_coords[3*i+1] = avg[i] + .5*(coords[3*i+1]-avg[i]);
+    new_coords[3*i+2] = avg[i] + .5*(coords[3*i+2]-avg[i]);
   }
   
     // make the 4 new vertices; store in vector long enough for hex connectivity
@@ -1387,6 +1387,14 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge)
 
     // now update the dual
   result = construct_hex_dual(&new_hexes[0], 2); RR;
+
+    // get the new dual surface, by getting one of the edges between the center
+    // and outer vertex rings
+  MBRange new_edge;
+  verts[1] = verts[4];
+  result = mbImpl->get_adjacencies(&verts[0], 2, 1, false, new_edge);
+  if (MB_SUCCESS != result || new_edge.size() != 1) return result;
+  new_hp = get_dual_hyperplane(get_dual_entity(*new_edge.begin()));
   
   return MB_SUCCESS;
 }

@@ -707,9 +707,19 @@ public:
                                            std::vector<MBEntityHandle> &parents, 
                                            const int num_hops = 1) const;
 
+  //! get parent meshsets
+  virtual MBErrorCode get_parent_meshsets(const MBEntityHandle meshset,
+                                          MBRange &parents, 
+                                          const int num_hops = 1) const;
+
   //! get child meshsets
   virtual MBErrorCode get_child_meshsets(const MBEntityHandle meshset, 
                                           std::vector<MBEntityHandle> &children, 
+                                          const int num_hops = 1) const;
+
+  //! get child meshsets
+  virtual MBErrorCode get_child_meshsets(const MBEntityHandle meshset, 
+                                         MBRange &children, 
                                           const int num_hops = 1) const;
 
   //! gets number of parent meshsets

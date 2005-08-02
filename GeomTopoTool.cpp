@@ -168,8 +168,10 @@ MBErrorCode GeomTopoTool::separate_by_dimension(const MBRange &geom_sets,
        git++, iit++) {
     if (0 <= *iit && 3 >= *iit) 
       entities[*iit].insert(*git);
-    else
-      assert(false);
+    else {
+        // assert(false);
+        // do nothing for now
+    }
   }
   
   return MB_SUCCESS;

@@ -1206,6 +1206,18 @@ public:
                                           std::vector<MBEntityHandle> &parents, 
                                           const int num_hops = 1) const = 0;
 
+    //! Get parent mesh sets of a mesh set
+    /** If <em>num_hops</em> is 1, only immediate parents are returned.  If <em>num_hops</em> is zero,
+        all ancenstors are returned.  Otherwise, <em>num_hops</em> specifies the maximum number of 
+        generations to traverse.
+        \param meshset The mesh set whose parents are being queried
+        \param parents MBRange holding the parents returned by this function
+        \param num_hops Number of generations to traverse (0 = all)
+    */
+  virtual MBErrorCode get_parent_meshsets(const MBEntityHandle meshset,
+                                          MBRange &parents,
+                                          const int num_hops = 1) const = 0;
+
     //! Get child mesh sets of a mesh set
     /** If <em>num_hops</em> is 1, only immediate children are returned.  If <em>num_hops</em> is zero,
         all ancenstors are returned.  Otherwise, <em>num_hops</em> specifies the maximum number of 
@@ -1216,6 +1228,18 @@ public:
     */
   virtual MBErrorCode get_child_meshsets(const MBEntityHandle meshset, 
                                          std::vector<MBEntityHandle> &children, 
+                                         const int num_hops = 1) const = 0;
+
+    //! Get child mesh sets of a mesh set
+    /** If <em>num_hops</em> is 1, only immediate children are returned.  If <em>num_hops</em> is zero,
+        all ancenstors are returned.  Otherwise, <em>num_hops</em> specifies the maximum number of 
+        generations to traverse.
+        \param meshset The mesh set whose children are being queried
+        \param children MBRange holding the children returned by this function
+        \param num_hops Number of generations to traverse (0 = all)
+    */
+  virtual MBErrorCode get_child_meshsets(const MBEntityHandle meshset, 
+                                         MBRange &children, 
                                          const int num_hops = 1) const = 0;
 
     //! Get the number of parent mesh sets of a mesh set

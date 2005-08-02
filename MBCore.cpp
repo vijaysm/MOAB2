@@ -2482,6 +2482,17 @@ MBErrorCode MBCore::get_parent_meshsets(const MBEntityHandle meshset,
   return ms_ptr->get_parents( num_hops, parents); 
 }
 
+MBErrorCode MBCore::get_parent_meshsets(const MBEntityHandle meshset,
+                                        MBRange &parents,
+                                          const int num_hops) const
+{
+  std::vector<MBEntityHandle> parent_vec;
+  MBErrorCode result = get_parent_meshsets(meshset, parent_vec, num_hops);
+  if (MB_SUCCESS != result) return result;
+  std::copy(parent_vec.begin(), parent_vec.end(), mb_range_inserter(parents));
+  return MB_SUCCESS;
+}
+
 MBErrorCode MBCore::get_child_meshsets(const MBEntityHandle meshset,
                                          std::vector<MBEntityHandle> &children,
                                          const int num_hops) const
@@ -2493,6 +2504,16 @@ MBErrorCode MBCore::get_child_meshsets(const MBEntityHandle meshset,
   return ms_ptr->get_children( num_hops, children); 
 }
 
+MBErrorCode MBCore::get_child_meshsets(const MBEntityHandle meshset,
+                                        MBRange &children,
+                                          const int num_hops) const
+{
+  std::vector<MBEntityHandle> child_vec;
+  MBErrorCode result = get_child_meshsets(meshset, child_vec, num_hops);
+  if (MB_SUCCESS != result) return result;
+  std::copy(child_vec.begin(), child_vec.end(), mb_range_inserter(children));
+  return MB_SUCCESS;
+}
 
 MBErrorCode MBCore::num_parent_meshsets(const MBEntityHandle meshset, int* number,
                                         const int num_hops) const
