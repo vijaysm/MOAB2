@@ -8,8 +8,8 @@
         <rect>
             <x>0</x>
             <y>0</y>
-            <width>854</width>
-            <height>688</height>
+            <width>940</width>
+            <height>708</height>
         </rect>
     </property>
     <property name="sizePolicy">
@@ -287,6 +287,102 @@
         </property>
         <property name="text">
             <string>Crop</string>
+        </property>
+    </widget>
+    <widget class="QPushButton">
+        <property name="name">
+            <cstring>APbutton</cstring>
+        </property>
+        <property name="geometry">
+            <rect>
+                <x>560</x>
+                <y>580</y>
+                <width>40</width>
+                <height>25</height>
+            </rect>
+        </property>
+        <property name="text">
+            <string>AP</string>
+        </property>
+    </widget>
+    <widget class="QPushButton">
+        <property name="name">
+            <cstring>negAPbutton</cstring>
+        </property>
+        <property name="geometry">
+            <rect>
+                <x>560</x>
+                <y>610</y>
+                <width>40</width>
+                <height>25</height>
+            </rect>
+        </property>
+        <property name="text">
+            <string>-AP</string>
+        </property>
+    </widget>
+    <widget class="QPushButton">
+        <property name="name">
+            <cstring>FOCbutton</cstring>
+        </property>
+        <property name="geometry">
+            <rect>
+                <x>610</x>
+                <y>580</y>
+                <width>40</width>
+                <height>25</height>
+            </rect>
+        </property>
+        <property name="text">
+            <string>FOC</string>
+        </property>
+    </widget>
+    <widget class="QPushButton">
+        <property name="name">
+            <cstring>negFOCbutton</cstring>
+        </property>
+        <property name="geometry">
+            <rect>
+                <x>610</x>
+                <y>610</y>
+                <width>40</width>
+                <height>25</height>
+            </rect>
+        </property>
+        <property name="text">
+            <string>-FOC</string>
+        </property>
+    </widget>
+    <widget class="QPushButton">
+        <property name="name">
+            <cstring>FSbutton</cstring>
+        </property>
+        <property name="geometry">
+            <rect>
+                <x>660</x>
+                <y>580</y>
+                <width>30</width>
+                <height>25</height>
+            </rect>
+        </property>
+        <property name="text">
+            <string>FS</string>
+        </property>
+    </widget>
+    <widget class="QPushButton">
+        <property name="name">
+            <cstring>negFCbutton</cstring>
+        </property>
+        <property name="geometry">
+            <rect>
+                <x>660</x>
+                <y>610</y>
+                <width>30</width>
+                <height>25</height>
+            </rect>
+        </property>
+        <property name="text">
+            <string>-FS</string>
         </property>
     </widget>
 </widget>
@@ -612,7 +708,7 @@
 </actions>
 <images>
     <image name="image0">
-        <data format="PNG" length="319">89504e470d0a1a0a0000000d4948445200000016000000160806000000c4b46c3b0000010649444154789ced942d7202411085bf4921b8465c24d87188484444aec211e0381c00816b83203287888888404cd522e8a57a677b66a0528854a5cdeccf9bd7eff5f47410111e114f0f61fd27b6316901e257ec38383f5e409e2594f6855a57c45dec00480d49af200c93144b1177b16bfb017e806d3def85701f3b9251d9af535d4ffa9c806f65701c8d352d143831eb0cd818cc49955a4c93b8ff62c93f80a5c11c814fc79589718d578ee23cfd3c13e1281e11cbbadc42f784df151525038c75761371a576038c92cafbd8a5afc9d6b55794b2f7862b57b1206160333f4443266ffe99146f9e204192842ba15396126996bb9020e9664546747e34765687d06fe2ef0dfa3374304bdac25aab340000000049454e44ae426082</data>
+        <data format="XBM.GZ" length="79">789c534e494dcbcc4b554829cdcdad8c2fcf4c29c95030e0524611cd48cd4ccf28010a1797249664262b2467241641a592324b8aa363156c15aab914146aadb90067111b1f</data>
     </image>
 </images>
 <connections>
@@ -754,6 +850,36 @@
         <receiver>uiQVDual</receiver>
         <slot>displayDrawSheetAction_activated()</slot>
     </connection>
+    <connection>
+        <sender>APbutton</sender>
+        <signal>clicked()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>APbutton_clicked()</slot>
+    </connection>
+    <connection>
+        <sender>negAPbutton</sender>
+        <signal>clicked()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>negAPbutton_clicked()</slot>
+    </connection>
+    <connection>
+        <sender>FOCbutton</sender>
+        <signal>clicked()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>FOCbutton_clicked()</slot>
+    </connection>
+    <connection>
+        <sender>FSbutton</sender>
+        <signal>clicked()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>FSbutton_clicked()</slot>
+    </connection>
+    <connection>
+        <sender>negFCbutton</sender>
+        <signal>clicked()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>negFCbutton_clicked()</slot>
+    </connection>
 </connections>
 <includes>
     <include location="local" impldecl="in declaration">MBInterface.hpp</include>
@@ -822,6 +948,11 @@
     <slot>displayDisplayAll()</slot>
     <slot>CropToolButton_clicked()</slot>
     <slot>displayDrawSheetAction_activated()</slot>
+    <slot>APbutton_clicked()</slot>
+    <slot>negAPbutton_clicked()</slot>
+    <slot>FOCbutton_clicked()</slot>
+    <slot>FSbutton_clicked()</slot>
+    <slot>negFCbutton_clicked()</slot>
 </slots>
 <functions>
     <function access="private" specifier="non virtual">init()</function>

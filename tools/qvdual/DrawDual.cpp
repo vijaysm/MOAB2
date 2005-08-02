@@ -241,9 +241,9 @@ void DrawDual::process_pick()
     else
       std::cout << "Couldn't identify picked entity." << std::endl;
   
-    MBRange::iterator pit = pickRange.find(picked_ent);
-    if (pit == pickRange.end()) pickRange.insert(picked_ent);
-    else pickRange.erase(pit);
+//    MBRange::iterator pit = pickRange.find(picked_ent);
+//    if (pit == pickRange.end()) pickRange.insert(picked_ent);
+//    else pickRange.erase(pit);
   
       // now update the highlighted polydata
     gDrawDual->update_high_polydatas();
@@ -1720,11 +1720,11 @@ MBErrorCode DrawDual::reset_drawing_data(MBEntityHandle dual_surf)
     
       // reset the data on this gv_ent for this dual surf
     int index = gv_ent->get_index(dual_surf);
-    gv_ent->reset(index);
+    if (index != -1) gv_ent->reset(index);
   }
 
   if (this_gw.gvizGraph) {
-    delete this_gw.gvizGraph;
+    free(this_gw.gvizGraph);
     this_gw.gvizGraph = NULL;
   }
   
@@ -1747,18 +1747,18 @@ void DrawDual::GVEntity::reset(const int index)
     // use gvizEdges to tell whether we're an edge or not
   if (0 == dim) {
     if (gvizPoints[index]) {
-      delete gvizPoints[index];
+      free(gvizPoints[index]);
       gvizPoints[index] = NULL;
     }
   }
   else if (1 == dim) {
     vtkEntityIds[index+2] = -1;
     if (gvizEdges[index]) {
-      delete gvizEdges[index];
+      free(gvizEdges[index]);
       gvizEdges[index] = NULL;
     }
     if (gvizEdges[index+2]) {
-      delete gvizEdges[index+2];
+      free(gvizEdges[index+2]);
       gvizEdges[index+2] = NULL;
     }
   }

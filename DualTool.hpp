@@ -204,7 +204,7 @@ private:
     //! of this_ent determines hyperplane dimension)
     //! simpler method for traversing hyperplane, using same basic algorithm but
     //! using MeshTopoUtil::get_bridge_adjacencies
-  MBErrorCode traverse_hyperplane(const MBTag hp_tag, const MBTag mark_tag,
+  MBErrorCode traverse_hyperplane(const MBTag hp_tag, 
                                   MBEntityHandle &this_hp, 
                                   MBEntityHandle this_ent);
   

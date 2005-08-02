@@ -321,6 +321,11 @@ bool AEntityFactory::entities_equivalent(const MBEntityHandle this_entity,
   // first compare forward
   for(i = 1; i<num_corner_verts; ++i)
   {
+    if (i >= vertex_list_size) {
+      they_match = false;
+      break;
+    }
+    
     if(vertex_list[i] != this_vertices[(offset+i)%num_corner_verts])
     {
       they_match = false;

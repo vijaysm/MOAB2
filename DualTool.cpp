@@ -781,23 +781,13 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim,
     return MB_FAILURE;
   
     // get tag name for this dimension hyperplane
-  MBTag gid_tag, mark_tag;
+  MBTag gid_tag;
   int dum = -1;
   MBErrorCode result = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gid_tag);
   if (MB_SUCCESS != result) result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, 4, 
                                                         MB_TAG_DENSE, gid_tag, &dum);
 
   MBTag hp_tag = (1 == dim ? dualCurve_tag() : dualSurface_tag());
-  
-  unsigned short mark_val = 0x0;
-  result = mbImpl->tag_get_handle("__hyperplane_mark", mark_tag);
-  if (MB_SUCCESS != result) {
-    dum = 0x0;
-    result = mbImpl->tag_create("__hyperplane_mark", 1, 
-                                MB_TAG_BIT, mark_tag, &mark_val);
-    if (MB_SUCCESS != result) 
-      return result;
-  }
   
     // two stacks: one completely untreated entities, and the other untreated 
     // entities on the current dual hyperplane
@@ -829,7 +819,7 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim,
     if (1 == dim && check_1d_loop_edge(this_ent)) continue;
     
       // inner loop: traverse the hyperplane 'till we don't have any more
-    result = traverse_hyperplane(hp_tag, mark_tag, this_hp, this_ent);
+    result = traverse_hyperplane(hp_tag, this_hp, this_ent);
 
       // ok, now order the edges if it's a chord
     if (1 == dim) order_chord(this_hp);
@@ -838,17 +828,27 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim,
   return MB_SUCCESS;
 }
 
-MBErrorCode DualTool::traverse_hyperplane(const MBTag hp_tag, const MBTag mark_tag,
+MBErrorCode DualTool::traverse_hyperplane(const MBTag hp_tag, 
                                           MBEntityHandle &this_hp, 
                                           MBEntityHandle this_ent) 
 {
-  unsigned short mark_val = 0x1;
   MBRange tmp_star, star, tmp_range, new_hyperplane_ents;
   std::vector<MBEntityHandle> hp_untreated;
   int dim = mbImpl->dimension_from_handle(this_ent);
   MeshTopoUtil mtu(mbImpl);
   this_hp = 0;
   MBErrorCode result;
+  
+  unsigned short mark_val = 0x0;
+  MBTag mark_tag;
+  result = mbImpl->tag_get_handle("__hyperplane_mark", mark_tag);
+  if (MB_SUCCESS != result) {
+    result = mbImpl->tag_create("__hyperplane_mark", 1, 
+                                MB_TAG_BIT, mark_tag, &mark_val);
+    if (MB_SUCCESS != result) 
+      return result;
+  }
+  mark_val = 0x1;
   
   while (0 != this_ent) {
     MBEntityHandle tmp_hp = get_dual_hyperplane(this_ent);
@@ -869,6 +869,8 @@ MBErrorCode DualTool::traverse_hyperplane(const MBTag hp_tag, const MBTag mark_t
     tmp_range = star.subtract(tmp_star);
     
     for (MBRange::iterator rit = tmp_range.begin(); rit != tmp_range.end(); rit++) {
+      if (new_hyperplane_ents.find(*rit) != new_hyperplane_ents.end()) continue;
+      
         // check for tag first, 'cuz it's probably faster than checking adjacencies
         // assign to avoid valgrind warning
       unsigned short tmp_mark = 0x0;
@@ -909,6 +911,11 @@ MBErrorCode DualTool::traverse_hyperplane(const MBTag hp_tag, const MBTag mark_t
   if (MB_SUCCESS != result) 
     return result;
   result = mbImpl->add_entities(this_hp, new_hyperplane_ents);
+  if (MB_SUCCESS != result) 
+    return result;
+
+    // unmark the entities by removing the tag
+  result = mbImpl->tag_delete(mark_tag);
   if (MB_SUCCESS != result) 
     return result;
 
@@ -1345,9 +1352,9 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &new_h
     // for each position, get a corresponding position 1/2 way to avg
   double new_coords[12];
   for (int i = 0; i < 4; i++) {
-    new_coords[3*i] = avg[i] + .5*(coords[3*i]-avg[i]);
-    new_coords[3*i+1] = avg[i] + .5*(coords[3*i+1]-avg[i]);
-    new_coords[3*i+2] = avg[i] + .5*(coords[3*i+2]-avg[i]);
+    new_coords[3*i] = avg[0] + .5*(coords[3*i]-avg[0]);
+    new_coords[3*i+1] = avg[1] + .5*(coords[3*i+1]-avg[1]);
+    new_coords[3*i+2] = avg[2] + .5*(coords[3*i+2]-avg[2]);
   }
   
     // make the 4 new vertices; store in vector long enough for hex connectivity
