@@ -801,6 +801,7 @@ MBErrorCode DrawDual::make_vtk_cells(const MBRange &cell_range, const int dim,
     }
     
     int index = gv_cells[cell_num]->get_index(dual_surf);
+    assert(index > -10);
     if (index < 0) {
       index = -index - 1;
       gv_cells[cell_num]->dualSurfs[index] = dual_surf;
@@ -1139,6 +1140,7 @@ MBErrorCode DrawDual::construct_graphviz_edges(MBEntityHandle dual_surf,
 
       // get the index for this dual surface
     int dsindex = this_gv->get_index(dual_surf);
+    assert(dsindex > -10);
     if (dsindex < 0) {
         // need to make a graphviz entity; get the graphviz nodes, then make the edge
         // next sheet index is negative of value returned from get_index
@@ -1227,6 +1229,7 @@ MBErrorCode DrawDual::construct_graphviz_points(MBEntityHandle dual_surf,
 
       // get the index for this dual surface
     int dsindex = this_gv->get_index(dual_surf);
+    assert(dsindex > -10);
     if (dsindex < 0) {
       dsindex = -dsindex - 1;
         // need to make a graphviz point
@@ -1780,7 +1783,7 @@ MBErrorCode DrawDual::reset_drawing_data(MBEntityHandle dual_surf)
     
       // reset the data on this gv_ent for this dual surf
     int index = gv_ent->get_index(dual_surf);
-    if (index != -1) gv_ent->reset(index);
+    if (index != -10) gv_ent->reset(index);
   }
 
   if (this_gw.gvizGraph) {
@@ -1837,6 +1840,7 @@ void DrawDual::get_points(const MBEntityHandle *ents, const int num_ents,
   int offset = (extra ? 2 : 0);
   for (int i = 0; i < num_ents; i++) {
     int index = gvs[i]->get_index(dual_surf);
+    assert(index >= 0 && index < 3);
     points[i] = gvs[i]->gvizPoints[index+offset];
   }
 }

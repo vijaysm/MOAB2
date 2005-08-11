@@ -68,10 +68,10 @@ private:
         if (dual_surf == dualSurfs[0]) return 0;
         else if (dual_surf == dualSurfs[1]) return 1;
         else if (dual_surf == dualSurfs[2]) return 2;
-        else if (dualSurfs[2] != 0) return -10;
-        else if (dualSurfs[1] != 0) return -3;
-        else if (dualSurfs[0] != 0) return -2;
-        else return -1;
+        else if (dualSurfs[0] == 0) return -1;
+        else if (dualSurfs[1] == 0) return -2;
+        else if (dualSurfs[2] == 0) return -3;
+        else return -10;
       }
   };
 
