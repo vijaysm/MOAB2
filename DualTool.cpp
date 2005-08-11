@@ -14,7 +14,6 @@
  */
 
 #include "DualTool.hpp"
-#include "MeshTopoUtil.hpp"
 #include "MBRange.hpp"
 #include "MBInternals.hpp"
 #include "MBTagConventions.hpp"
@@ -1760,5 +1759,75 @@ bool DualTool::is_blind(const MBEntityHandle chord)
 
     // if none of the vertices' duals were quads, chord must be blind
   return true;
+}
+
+  //! given a 1-cell and a chord, return the neighboring vertices on the
+  //! chord, in the same order as the 1-cell's vertices
+MBErrorCode DualTool::get_opposite_verts(const MBEntityHandle middle_edge, 
+                                         const MBEntityHandle chord, 
+                                         MBEntityHandle *verts) 
+{
+    // get the edges on the chord, in order, and move to middle_edge
+  std::vector<MBEntityHandle> chord_edges;
+  const MBEntityHandle *connect;
+  int num_connect;
+  
+  MBErrorCode result = mbImpl->get_entities_by_handle(chord, chord_edges); RR;
+  std::vector<MBEntityHandle>::iterator vit = std::find(chord_edges.begin(), chord_edges.end(),
+                                                        middle_edge);
+  result = mbImpl->get_connectivity(middle_edge, connect, num_connect); RR;
+
+  if (
+      // middle_edge isn't on this chord
+    vit == chord_edges.end() || 
+      // chord only has 1 edge
+    chord_edges.size() == 1 ||
+      // middle_edge is at beginning or end and chord isn't blind
+      ((vit == chord_edges.begin() || vit == chord_edges.end()-1) && !is_blind(chord))) 
+    return MB_FAILURE;
+
+  else if (chord_edges.size() == 2) {
+      // easier if it's a 2-edge blind chord, just get vertices in opposite order
+    verts[0] = connect[1];
+    verts[1] = connect[0];
+    return MB_SUCCESS;
+  }
+  
+    // get vertices with the prev edge & subtract vertices of 1-cell
+  if (vit == chord_edges.begin())
+    vit = chord_edges.end() - 1;
+  else vit--;
+  MBRange dum_connect, middle_connect;
+  result = mbImpl->get_connectivity(&middle_edge, 1, middle_connect); RR;
+  result = mbImpl->get_connectivity(&(*vit), 1, dum_connect); RR;
+  dum_connect = dum_connect.subtract(middle_connect);
+  assert(dum_connect.size() == 1);
+
+    // put in verts[0]
+  verts[0] = *dum_connect.begin();
+
+    // same with prev edge
+  vit++;
+  if (vit == chord_edges.end()) vit = chord_edges.begin();
+  else vit++;
+  dum_connect.clear();
+  result = mbImpl->get_connectivity(&(*vit), 1, dum_connect); RR;
+  dum_connect = dum_connect.subtract(middle_connect);
+  assert(dum_connect.size() == 1);
+
+    // put in verts[1]
+  verts[1] = *dum_connect.begin();
+
+    // if verts[0] and 1st vertex of 1cell don't have common edge, switch verts
+  MeshTopoUtil mtu(mbImpl);
+  if (0 == mtu.common_entity(verts[0], connect[0], 1)) {
+    MBEntityHandle dum_h = verts[0];
+    verts[0] = verts[1];
+    verts[1] = dum_h;
+  }
+  
+  assert(0 != mtu.common_entity(verts[0], connect[0], 1));
+  
+  return MB_SUCCESS;
 }
 

@@ -1,4 +1,5 @@
 #include "DrawDual.hpp"
+#include "MeshTopoUtil.hpp"
 #include "MBTagConventions.hpp"
 #include "DualTool.hpp"
 #include "vtkMOABUtils.h"
@@ -460,7 +461,8 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
   MBErrorCode result = get_dual_entities(dual_surf, &dcells, &dedges, 
                                          &dverts, &face_verts, &loop_edges); RR;
   
-  MBRange tmp_edges;
+  MBRange tmp_edges, degen_2cells;
+    
   for (MBRange::iterator rit = dcells.begin(); rit != dcells.end(); rit++) {
       // first, find if it's degenerate
     tmp_edges.clear();
@@ -470,115 +472,178 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
     else if (loop_edges.find(*tmp_edges.begin()) != loop_edges.end() ||
              loop_edges.find(*tmp_edges.rbegin()) != loop_edges.end())
       continue;
+
+    degen_2cells.insert(*rit);
+  }
+  
+  MeshTopoUtil mtu(vtkMOABUtils::mbImpl);
+  DualTool dt(vtkMOABUtils::mbImpl);
+  
+  while (!degen_2cells.empty()) {
+      // grab the first one off the list
+    MBEntityHandle tcell1 = *degen_2cells.begin();
+
+      // look for any adjacent degenerate 2cells also on the list
+    const MBEntityHandle *connect;
+    int num_connect;
+    MBRange adj_2cells;
+    result = MBI->get_connectivity(tcell1, connect, num_connect); RR;
+    result = MBI->get_adjacencies(connect, num_connect, 2, false, adj_2cells); RR;
+    adj_2cells = degen_2cells.intersect(adj_2cells);
+    if (!adj_2cells.empty()) degen_2cells = degen_2cells.subtract(adj_2cells);
     
-      // ok, we have one; check to see if one or both are next to non-degenerate cells
-    MBRange::iterator rit2;
-    for (rit2 = tmp_edges.begin(); rit2 != tmp_edges.end(); rit2++) {
-      MBRange tmp_cells = dcells;
-      result = MBI->get_adjacencies(&(*rit2), 1, 2, false, tmp_cells); RR;
-      // should be two of them
-      assert(2 == tmp_cells.size());
-      const MBEntityHandle *connect, *ed_connect;
+      // ok, have all the adjacent degen 2cells; get the 1cells
+    MBRange adj_1cells;
+    result = vtkMOABUtils::mbImpl->get_adjacencies(adj_2cells, 1, false, adj_1cells, 
+                                                   MBInterface::UNION);
+    if (MB_SUCCESS != result) return result;
+
+      // branch depending on what kind of arrangement we have
+    if (adj_2cells.size() == 2) {
+      assert(3 == adj_1cells.size());
+        // blind chord intersecting another chord
+        // get the middle edge and chord, and the next 2 verts along the chord
+      MBRange dum;
+      result = MBI->get_adjacencies(adj_2cells, 1, false, dum); RR;
+      assert(1 == dum.size());
+      MBEntityHandle middle_edge = *dum.begin();
+      MBEntityHandle chord = dt.get_dual_hyperplane(middle_edge);
+      assert(0 != chord);
+      MBEntityHandle verts[2];
+      result = dt.get_opposite_verts(middle_edge, chord, verts); RR;
+
+        // get the gv points for the four vertices
+      Agnode_t *next_points[2], *points[2];
+      get_points(verts, 2, false, dual_surf, next_points);
+      assert(next_points[0] != NULL && next_points[1] != NULL);
+      result = MBI->get_connectivity(middle_edge, connect, num_connect); RR;
+      get_points(connect, 2, false, dual_surf, points);
+      assert(points[0] != NULL && points[1] != NULL);
+      
+        // now space points along the line segment joining the next_points
+      double avg_pos[2];
+      point pn0 = ND_coord_i(next_points[0]),
+        pn1 = ND_coord_i(next_points[1]);
+      
+      avg_pos[0] = .5*(pn0.x + pn1.x);
+      avg_pos[1] = .5*(pn0.y + pn1.y);
+      int tmp1 = ((int) avg_pos[0] + pn0.x)/2;
+      int tmp2 = ((int) avg_pos[1] + pn0.y)/2;
+      int tmp3 = ((int) avg_pos[0] + pn1.x)/2;
+      int tmp4 = ((int) avg_pos[1] + pn1.y)/2;
+      ND_coord_i(points[0]).x = tmp1;
+      ND_coord_i(points[0]).y = tmp2;
+      ND_coord_i(points[1]).x = tmp3;
+      ND_coord_i(points[1]).y = tmp4;
+
+        // also fix the middle point on this edge
+      points[0] = NULL;
+      get_points(&middle_edge, 1, true, dual_surf, points);
+      assert(points[0] != NULL);
+      ND_coord_i(points[0]).x = (int) avg_pos[0];
+      ND_coord_i(points[0]).y = (int) avg_pos[1];
+
+        // now fix the other 2 dedges
+      adj_1cells.erase(middle_edge);
+      for (MBRange::iterator rit = adj_1cells.begin(); rit != adj_1cells.end(); rit++) {
+          // get the other 2cell
+        MBRange dum = dcells;
+        result = MBI->get_adjacencies(&(*rit), 1, 2, false, dum);
+        dum = dum.subtract(adj_2cells);
+        assert(1 == dum.size());
+          // get the vertices and points of them, and average their positions
+        const MBEntityHandle *connect2;
+        result = MBI->get_connectivity(*dum.begin(), connect2, num_connect); RR;
+        std::vector<Agnode_t*> tc_points(num_connect);
+        get_points(connect2, num_connect, false, dual_surf, &tc_points[0]);
+        double avg_pos2[] = {0.0, 0.0};
+        for (int i = 0; i < num_connect; i++) {
+          if (connect2[i] != connect[0] && connect2[i] != connect[1]) {
+            avg_pos2[0] += ND_coord_i(tc_points[i]).x;
+            avg_pos2[1] += ND_coord_i(tc_points[i]).y;
+          }
+        }
+        avg_pos2[0] = (.2*avg_pos2[0]/(num_connect-2) + .8*avg_pos[0]);
+        avg_pos2[1] = (.2*avg_pos2[1]/(num_connect-2) + .8*avg_pos[1]);
+        get_points(&(*rit), 1, true, dual_surf, &tc_points[0]);
+        ND_coord_i(tc_points[0]).x = (int) avg_pos2[0];
+        ND_coord_i(tc_points[0]).y = (int) avg_pos2[1];
+      }
+    }
+    else if (adj_2cells.size() == 1) {
+      assert(adj_1cells.size() == 2);
+      MBEntityHandle opp_verts[4], chords[2];
+      Agnode_t *opp_vert_pts[4], *edge_pts[2];
+        // get the chords & opposite verts on each 
+      MBEntityHandle edges[2];
+      MBRange::iterator rit = adj_1cells.begin();
+      for (int i = 0; i < 2; i++, rit++) {
+        edges[i] = *rit;
+        chords[i] = dt.get_dual_hyperplane(edges[i]);
+        assert(0 != chords[i]);
+        result = dt.get_opposite_verts(*rit, chords[i], &opp_verts[2*i]); RR;
+      }
+        // get points on opp verts and mid-pts on edges
+      get_points(&opp_verts[0], 4, false, dual_surf, opp_vert_pts);
+      get_points(&edges[0], 2, true, dual_surf, edge_pts);
+      
+        // mid-pt on each edge is on line between opp verts on other,
+        // towards avg pos of all four
+      double avg_pos[2] = {0.0, 0.0};
+      for (int i = 0; i < 4; i++) {
+        avg_pos[0] += ND_coord_i(opp_vert_pts[i]).x;
+        avg_pos[1] += ND_coord_i(opp_vert_pts[i]).y;
+      }
+        
+      ND_coord_i(edge_pts[0]).x = ((ND_coord_i(opp_vert_pts[2]).x + 
+                                    ND_coord_i(opp_vert_pts[3]).x)/2 +
+                                   (int) avg_pos[0])/2;
+      ND_coord_i(edge_pts[0]).y = ((ND_coord_i(opp_vert_pts[2]).y + 
+                                    ND_coord_i(opp_vert_pts[3]).y)/2 +
+                                   (int) avg_pos[1])/2;
+      
+      ND_coord_i(edge_pts[1]).x = ((ND_coord_i(opp_vert_pts[0]).x + 
+                                    ND_coord_i(opp_vert_pts[1]).x)/2 +
+                                   (int) avg_pos[0])/2;
+      ND_coord_i(edge_pts[1]).y = ((ND_coord_i(opp_vert_pts[0]).y + 
+                                    ND_coord_i(opp_vert_pts[1]).y)/2 +
+                                   (int) avg_pos[1])/2;
+    }
+    else if (adj_2cells.size() == 4 && adj_1cells.size() == 4) {
+        // pillow sheet, right after atomic pillow; just place 1cell mid-pts so
+        // we can see them
+      const MBEntityHandle *connect;
       int num_connect;
-      result = MBI->get_connectivity(*rit2, ed_connect, num_connect);
-      MBEntityHandle the_cell = 
-        (*rit == *tmp_cells.begin() ? *tmp_cells.rbegin() : *tmp_cells.begin());
-      
-      result = MBI->get_connectivity(the_cell, connect, num_connect);RR;
-      if (num_connect == 2) {
-          // this edge is between two degenerate cells - put the mid-pt on the
-          // line between the two vertices
+      result = MBI->get_connectivity(*adj_1cells.begin(), connect, num_connect); RR;
+      Agnode_t *vert_pts[2], *edge_pts[4];
+      get_points(connect, 2, false, dual_surf, vert_pts);
+      std::vector<MBEntityHandle> edges;
+      std::copy(adj_1cells.begin(), adj_1cells.end(), std::back_inserter(edges));
 
-          // get the avg position between the two end vertices
-        std::vector<GVEntity*> gvents;
-        gvents.resize(num_connect);
-        result = MBI->tag_get_data(gvEntityHandle, connect, num_connect, &gvents[0]); RR;
-        int index = gvents[0]->get_index(dual_surf);
-        double avg_coord[2] = {0.0, 0.0};
-        point p = ND_coord_i(gvents[0]->gvizPoints[index]);
-        avg_coord[0] += p.x; avg_coord[1] += p.y;
-        p = ND_coord_i(gvents[1]->gvizPoints[index]);
-        avg_coord[0] += p.x; avg_coord[1] += p.y;
-        avg_coord[0] *= 0.5; avg_coord[1] *= 0.5;
-
-          // now get the gventity for the mid-point on the edge
-        result = MBI->tag_get_data(gvEntityHandle, &(*rit2), 1, &gvents[0]); RR;
-        assert(NULL != gvents[0]);
-        index = gvents[0]->get_index(dual_surf);
-        Agnode_t *my_point = gvents[0]->gvizPoints[index+2];
-        ND_coord_i(my_point).x = (int)(avg_coord[0]);
-        ND_coord_i(my_point).y = (int)(avg_coord[1]);
-        continue;
+        // check that 1cells are in proper order, i.e. they share 2cell with adj 1cell
+      MBRange dum;
+      result = MBI->get_adjacencies(&edges[0], 2, 2, false, dum); RR;
+      dum = dum.intersect(adj_2cells);
+      if (dum.empty()) {
+          // not adjacent - switch list order
+        MBEntityHandle dum_h = edges[1];
+        edges[1] = edges[2];
+        edges[2] = dum_h;
       }
       
-        // we're next to a non-degenerate cell; check that our mid-pt is on the same side 
-        // of the straight line as the cell is
-        // get gvents for that cell's vertices
-      MBRange nondegen_edges;
-      result = MBI->get_adjacencies(&the_cell, 1, 1, false, nondegen_edges);RR;
-
-      std::vector<GVEntity*> gvents;
-      gvents.resize(num_connect+nondegen_edges.size());
-      result = MBI->tag_get_data(gvEntityHandle, connect, num_connect, &gvents[0]); RR;
-      result = MBI->tag_get_data(gvEntityHandle, nondegen_edges, &gvents[num_connect]); RR;
-      int index;
-      double avg_coord[2] = {0.0, 0.0}, ed_vec[2] = {0.0, 0.0};
-      double ed_cent[2] = {0.0, 0.0}, mid_pt[2] = {0.0, 0.0};
-      
-      for (int i = 0; i < num_connect; i++) {
-        assert(NULL != gvents[i]);
-        index = gvents[i]->get_index(dual_surf);
-        point p = ND_coord_i(gvents[i]->gvizPoints[index]);
-        avg_coord[0] += p.x; avg_coord[1] += p.y;
-        if (connect[i] == ed_connect[0]) {
-          ed_vec[0] = -p.x; ed_vec[1] = -p.y;
-          ed_cent[0] += p.x; ed_cent[1] += p.y;
-        }
-        else if (connect[i] == ed_connect[1]) {
-          ed_vec[0] += p.x; ed_vec[1] += p.y;
-          ed_cent[0] += p.x; ed_cent[1] += p.y;
-        }
-      }
-
-        // also account for edges with mid-pts
-      int num_pts = num_connect;
-      MBRange::iterator rit3;
-      Agnode_t *my_point = NULL;
-      int i;
-      for (i = num_connect, rit3 = nondegen_edges.begin(); rit3 != nondegen_edges.end(); rit3++, i++) {
-        if (NULL == gvents[i]) continue;
-        index = gvents[i]->get_index(dual_surf);
-        if (gvents[i]->gvizPoints[index+2] == NULL) continue;
-          // if this is the edge we're thinking about adjusting, save the mid-pt for later and
-          // don't include it in the cell's avg position; otherwise, do
-        if (*rit3 == *rit2) {
-          my_point = gvents[i]->gvizPoints[index+2];
-        }
-        else {
-          point p = ND_coord_i(gvents[i]->gvizPoints[index+2]);
-          avg_coord[0] += p.x; avg_coord[1] += p.y;
-          num_pts++;
-        }
-      }
-      
-      avg_coord[0] /= num_pts; avg_coord[1] /= num_pts;
-      ed_cent[0] *= 0.5; ed_cent[1] *= 0.5;
-      
-      point p = ND_coord_i(my_point);
-      mid_pt[0] = p.x; mid_pt[1] = p.y;
-
-        // take dot product of straight edge and cell center -> edge mid-pt
-      double dot = (avg_coord[0]-ed_cent[0])*(mid_pt[0]-ed_cent[0]) +
-        (avg_coord[1]-ed_cent[1])*(mid_pt[1]-ed_cent[1]);
-      if (dot < 0.0) {
-          // must reflect mid-pt across edge center point
-        ND_coord_i(my_point).x += (int)(2.0*(ed_cent[0]-mid_pt[0]));
-        ND_coord_i(my_point).y += (int)(2.0*(ed_cent[1]-mid_pt[1]));
+      get_points(&edges[0], 4, true, dual_surf, edge_pts);
+      ND_coord_i(vert_pts[0]).x = 250;
+      ND_coord_i(vert_pts[0]).y = 400;
+      ND_coord_i(vert_pts[1]).x = 250;
+      ND_coord_i(vert_pts[1]).y = 100;
+      for (int i = 0; i < 4; i++) {
+        ND_coord_i(edge_pts[i]).y = 250;
+        ND_coord_i(edge_pts[i]).x = (i+1)*100;
       }
     }
   }
 
-  return result;
+  return MB_SUCCESS;
 }
 
 MBErrorCode DrawDual::make_vtk_data(MBEntityHandle dual_surf,
@@ -1603,14 +1668,9 @@ MBErrorCode DrawDual::get_primal_ids(const MBRange &ents, std::vector<int> &ids)
     for (unsigned int i = 0; i < ents.size(); i++) ids[i] = 0;
   }
   else {
-    result = MBI->tag_get_data(vtkMOABUtils::globalId_tag(), &primals[0], ents.size(), &ids[0]);
-    if (MB_SUCCESS != result) {
-        // no global ids - use moab ids then
-      std::cout << "No global ids - using handle instead." << std::endl;
-      for (unsigned int i = 0; i < ents.size(); i++)
-        ids[i] = MBI->id_from_handle(primals[i]);
-      result = MB_SUCCESS;
-    }
+    for (unsigned int i = 0; i < ents.size(); i++)
+      ids[i] = MBI->id_from_handle(primals[i]);
+    result = MB_SUCCESS;
   }
 
   return result;
@@ -1765,5 +1825,18 @@ void DrawDual::GVEntity::reset(const int index)
   
   myActors[index] = NULL;
 }
-
   
+void DrawDual::get_points(const MBEntityHandle *ents, const int num_ents, 
+                          const bool extra,
+                          MBEntityHandle dual_surf, Agnode_t **points) 
+{
+  std::vector<GVEntity *> gvs(num_ents);
+  MBErrorCode result = MBI->tag_get_data(gvEntityHandle, ents, num_ents, &gvs[0]);
+  if (MB_SUCCESS != result) return;
+  
+  int offset = (extra ? 2 : 0);
+  for (int i = 0; i < num_ents; i++) {
+    int index = gvs[i]->get_index(dual_surf);
+    points[i] = gvs[i]->gvizPoints[index+offset];
+  }
+}

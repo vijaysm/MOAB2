@@ -242,7 +242,7 @@ MBEntityHandle MeshTopoUtil::common_entity(const MBEntityHandle ent1,
   MBRange tmp_range, tmp_range2;
   tmp_range.insert(ent1); tmp_range.insert(ent2);
   MBErrorCode result = mbImpl->get_adjacencies(tmp_range, dim, false, tmp_range2);
-  if (MB_SUCCESS == result || tmp_range2.empty()) return 0;
+  if (MB_SUCCESS != result || tmp_range2.empty()) return 0;
   else return *tmp_range2.begin();
 }
 

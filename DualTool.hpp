@@ -168,6 +168,12 @@ public:
   MBErrorCode face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr,
                                  MBEntityHandle tcm);
   
+    //! given a 1-cell and a chord, return the neighboring vertices on the
+    //! chord, in the same order as the 1-cell's vertices
+  MBErrorCode get_opposite_verts(const MBEntityHandle middle_edge, 
+                                 const MBEntityHandle chord, 
+                                 MBEntityHandle *verts);
+
 private:
 
     //! construct dual vertices for specified regions

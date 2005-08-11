@@ -209,6 +209,12 @@ private:
   MBErrorCode fixup_degen_bchords(MBEntityHandle dual_surf);
 
   void print_picked_ent(MBEntityHandle picked_ent);
+
+    //! given some entities, get the corresponding gviz points on the sheet
+  void get_points(const MBEntityHandle *ents, const int num_ents, 
+                  const bool extra,
+                  MBEntityHandle dual_surf, Agnode_t **points);
+  
 };
 
 
