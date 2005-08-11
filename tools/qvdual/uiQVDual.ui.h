@@ -257,7 +257,9 @@ void uiQVDual::constructDual()
     if (MB_SUCCESS != result) return;
     result = vtkMOABUtils::update_set_actors(dual_sets, vtkMOABUtils::myUG, true, false, true);
 
-    vtkMOABUtils::construct_lookup_table(dual_sets.size());
+    int table_size = (dual_sets.size() > vtkMOABUtils::totalColors ? 
+                      dual_sets.size() : vtkMOABUtils::totalColors);
+    vtkMOABUtils::construct_lookup_table(table_size);
   }
   
   updateMesh();
@@ -813,7 +815,8 @@ void uiQVDual::APbutton_clicked()
   bool success = drawDual->draw_dual_surfs(sheets);
   if (!success)
     std::cerr << "Problem drawing dual surfaces from atomic pillow." << std::endl;
-    
+
+  updateMesh();
 }
 
 
