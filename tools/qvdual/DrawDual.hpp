@@ -11,6 +11,7 @@ class QVTKWidget;
 #include <map>
 #include <vector>
 
+class DualTool;
 class vtkPolyData;
 class vtkRenderer;
 class vtkCellPicker;
@@ -34,9 +35,13 @@ public:
   MBEntityHandle lastPickedEnt; // last picked entity
   MBEntityHandle secondLastPickedEnt; // second last picked entity
 
+    //! reset the drawing data for a sheet
+  MBErrorCode reset_drawing_data(MBEntityHandle dual_surf);
+
 private:
 
   static DrawDual *gDrawDual;
+  DualTool *dualTool;
   
   class GVEntity
   {
@@ -136,13 +141,6 @@ private:
   
   MBErrorCode get_primal_ids(const MBRange &ents, std::vector<int> &ids);
   
-  MBErrorCode get_dual_entities(const MBEntityHandle dual_ent,
-                                MBRange *dcells,
-                                MBRange *dedges = NULL,
-                                MBRange *dverts = NULL,
-                                MBRange *dverts_loop = NULL,
-                                MBRange *dedges_loop = NULL);
-  
   MBErrorCode allocate_points(MBEntityHandle dual_surf,
                               vtkPolyData *pd,
                               MBRange &verts,
@@ -157,9 +155,6 @@ private:
                              void* /*vtkNotUsed(calldata)*/);
   
   static void process_pick();
-
-    //! reset the drawing data for a sheet
-  MBErrorCode reset_drawing_data(MBEntityHandle dual_surf);
 
     //! map of dual surfaces and windows they're drawn in
   std::map<MBEntityHandle, GraphWindows> surfDrawrings;

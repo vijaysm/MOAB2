@@ -655,6 +655,14 @@ MBErrorCode DualTool::get_radial_dverts(const MBEntityHandle edge,
 }
 
   //! construct the dual entities for a hex mesh, including dual surfaces & curves
+MBErrorCode DualTool::construct_hex_dual(MBRange &entities) 
+{
+  std::vector<MBEntityHandle> evec;
+  std::copy(entities.begin(), entities.end(), std::back_inserter(evec));
+  return construct_hex_dual(&evec[0], evec.size());
+}
+  
+  //! construct the dual entities for a hex mesh, including dual surfaces & curves
 MBErrorCode DualTool::construct_hex_dual(MBEntityHandle *entities,
                                          const int num_entities) 
 {
@@ -1334,7 +1342,7 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &new_h
     // grab the quad before deleting the odedge
   MBEntityHandle quad = get_dual_entity(odedge);
   assert(0 != quad);
-  result = delete_dual_entity(odedge); RR;
+  result = delete_dual_entities(&odedge, 1); RR;
 
     // now change the quad to an ap
   std::vector<MBEntityHandle> verts;
@@ -1405,22 +1413,101 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &new_h
   return MB_SUCCESS;
 }
 
-MBErrorCode DualTool::delete_dual_entity(MBEntityHandle entity) 
+  //! effect reverse atomic pillow operation
+MBErrorCode DualTool::rev_atomic_pillow(MBEntityHandle pillow, MBRange &chords) 
 {
-    // reset the primal's dual entity
-  MBEntityHandle primal = get_dual_entity(entity);
-  MBEntityHandle null_entity = 0;
-  MBErrorCode result = mbImpl->tag_set_data(dualEntity_tag(), &primal, 1, &null_entity); RR;
+    // get the dual entities associated with elements in the pillow; go through
+    // the elements instead of the pillow sheet so you get all of them, not just
+    // the ones on the sheet
+  MBRange dverts;
+  MBErrorCode result = get_dual_entities(pillow, NULL, NULL,
+                                         &dverts, NULL, NULL);
+  if (MB_SUCCESS != result) return result;
+  assert(2 == dverts.size());
   
-    // now delete this entity (sheet and chord will be updated automatically)
-  return mbImpl->delete_entities(&entity, 1);
+  MBEntityHandle hexes[2];
+  result = mbImpl->tag_get_data(dualEntity_tag(), dverts, hexes); RR;
+  assert(hexes[0] != 0 && hexes[1] != 0);
+
+  std::vector<MBEntityHandle> dcells[4];
+  MBRange pcells[4];
+  std::copy(hexes, hexes+2, mb_range_inserter(pcells[3]));
+  std::copy(dverts.begin(), dverts.end(), std::back_inserter(dcells[0]));
+  for (int dim = 0; dim <= 2; dim++) {
+    result = mbImpl->get_adjacencies(hexes, 2, dim, false, pcells[dim], 
+                                     MBInterface::UNION); RR;
+    dcells[3-dim].resize(pcells[dim].size());
+    result = mbImpl->tag_get_data(dualEntity_tag(), pcells[dim], &dcells[3-dim][0]); RR;
+  }
+  
+    // delete the dual entities which are part of the original pillow
+  result = mbImpl->delete_entities(&pillow, 1);
+  if (MB_SUCCESS != result) return result;
+  
+  result = mbImpl->delete_entities(chords);
+  if (MB_SUCCESS != result) return result;
+
+  for (int i = 0; i < 4; i++) {
+    result = delete_dual_entities(&dcells[i][0], dcells[i].size()); RR;
+  }
+
+    // delete the primal entities inserted by the ap; be careful to get the right
+    // faces, edges and vertices
+  MBRange del_faces, del_edges, del_verts, tmp_faces, tmp_verts;
+    // faces are the shared 5 and the 1 other one with greater handle (which
+    // we know will be later in the range)
+  result = mbImpl->get_adjacencies(hexes, 2, 2, false, del_faces); RR;
+  assert(5 == del_faces.size());
+  std::copy(pcells[2].begin(), pcells[2].end(), mb_range_inserter(tmp_faces));
+  tmp_faces = tmp_faces.subtract(del_faces);
+  del_faces.insert(*tmp_faces.rbegin());
+  result = mbImpl->get_adjacencies(tmp_faces, 0, false, tmp_verts); RR;
+  std::copy(pcells[0].begin(), pcells[0].end(), mb_range_inserter(del_verts));
+  del_verts = del_verts.subtract(tmp_verts);
+  assert(4 == del_verts.size());
+  result = mbImpl->get_adjacencies(del_verts, 1, false, del_edges, MBInterface::UNION); RR;
+  assert(8 == del_edges.size());
+  
+  result = mbImpl->delete_entities(hexes, 2); RR;
+  result = mbImpl->delete_entities(del_faces); RR;
+  result = mbImpl->delete_entities(del_edges); RR;
+  result = mbImpl->delete_entities(del_verts); RR;
+
+    // recompute the dual for the hexes on either side of the quad affected
+    // by the ap removal
+  MBRange tmp_hexes;
+  result = mbImpl->get_adjacencies(tmp_verts, 3, false, tmp_hexes, MBInterface::UNION); RR;
+  result = construct_hex_dual(tmp_hexes); RR;
+
+  return MB_SUCCESS;
+}
+
+  
+  
+  
+  
+
+MBErrorCode DualTool::delete_dual_entities(MBEntityHandle *entities, 
+                                           const int num_entities) 
+{
+  MBEntityHandle null_entity = 0;
+  MBErrorCode result;
+  for (int i = 0; i < num_entities; i++) {
+      // reset the primal's dual entity
+    MBEntityHandle primal = get_dual_entity(entities[i]);
+    result = mbImpl->tag_set_data(dualEntity_tag(), &primal, 1, &null_entity); RR;
+  }
+  
+    // now delete the entities (sheets and chords will be updated automatically)
+  return mbImpl->delete_entities(entities, num_entities);
 }
 
 MBErrorCode DualTool::delete_dual_entities(MBRange &entities) 
 {
   MBErrorCode result = MB_SUCCESS;
   for (MBRange::iterator rit = entities.begin(); rit != entities.end(); rit++) {
-    MBErrorCode tmp_result = delete_dual_entity(*rit);
+    MBEntityHandle this_ent = *rit;
+    MBErrorCode tmp_result = delete_dual_entities(&this_ent, 1);
     if (MB_SUCCESS != tmp_result) result = tmp_result;
   }
 
@@ -1829,5 +1916,69 @@ MBErrorCode DualTool::get_opposite_verts(const MBEntityHandle middle_edge,
   assert(0 != mtu.common_entity(verts[0], connect[0], 1));
   
   return MB_SUCCESS;
+}
+
+MBErrorCode DualTool::get_dual_entities(const MBEntityHandle dual_ent,
+                                        MBRange *dcells,
+                                        MBRange *dedges,
+                                        MBRange *dverts,
+                                        MBRange *dverts_loop,
+                                        MBRange *dedges_loop)
+{
+  MBErrorCode result;
+
+  if (NULL != dcells) {
+    result = mbImpl->get_entities_by_type(dual_ent, MBPOLYGON, *dcells);
+    if (MB_SUCCESS != result) return result;
+  }
+  
+  if (NULL != dedges) {
+    if (NULL != dcells)
+      result = mbImpl->get_adjacencies(*dcells, 1, false, *dedges, MBInterface::UNION);
+    else 
+      result = mbImpl->get_entities_by_type(dual_ent, MBEDGE, *dedges);
+
+    if (MB_SUCCESS != result) return result;
+  }
+
+  if (NULL != dverts) {
+    if (NULL != dcells)
+      result = mbImpl->get_adjacencies(*dcells, 0, false, *dverts, MBInterface::UNION);
+    else if (NULL != dedges)
+      result = mbImpl->get_adjacencies(*dedges, 0, false, *dverts, MBInterface::UNION);
+    else {
+      MBRange all_ents;
+      result = mbImpl->get_entities_by_handle(dual_ent, all_ents); RR;
+      result = mbImpl->get_adjacencies(all_ents, 0, false, *dverts, MBInterface::UNION);
+    }
+
+    if (MB_SUCCESS != result) return result;
+  }
+
+  if (NULL != dverts_loop && NULL != dverts) {
+    static std::vector<MBEntityHandle> dual_ents;
+    dual_ents.reserve(dverts->size());
+    result = mbImpl->tag_get_data(dualEntity_tag(), *dverts, &dual_ents[0]);
+    if (MB_SUCCESS != result) return result;
+    MBRange::iterator rit;
+    unsigned int i;
+    for (rit = dverts->begin(), i = 0; rit != dverts->end(); rit++, i++)
+      if (0 != dual_ents[i] && mbImpl->type_from_handle(dual_ents[i]) == MBQUAD)
+        dverts_loop->insert(*rit);
+  }
+  
+  if (NULL != dedges_loop && NULL != dedges) {
+    static std::vector<MBEntityHandle> dual_ents;
+    dual_ents.reserve(dedges->size());
+    result = mbImpl->tag_get_data(dualEntity_tag(), *dedges, &dual_ents[0]);
+    if (MB_SUCCESS != result) return result;
+    MBRange::iterator rit;
+    unsigned int i;
+    for (rit = dedges->begin(), i = 0; rit != dedges->end(); rit++, i++)
+      if (0 != dual_ents[i] && mbImpl->type_from_handle(dual_ents[i]) == MBEDGE)
+        dedges_loop->insert(*rit);
+  }
+
+  return result;
 }
 

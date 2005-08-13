@@ -83,6 +83,9 @@ public:
   MBErrorCode construct_hex_dual(MBEntityHandle *entities,
                                  const int num_entities);
   
+    //! construct the dual entities for a hex mesh, including dual surfaces & curves
+  MBErrorCode construct_hex_dual(MBRange &entities);
+  
   //! get the dual entities; if non-null, only dual of entities passed in are returned
   MBErrorCode get_dual_entities(const int dim, 
                                 MBEntityHandle *entities, 
@@ -164,6 +167,9 @@ public:
     //! effect atomic pillow operation
   MBErrorCode atomic_pillow(MBEntityHandle odedge, MBEntityHandle &new_hp);
 
+    //! effect reverse atomic pillow operation
+  MBErrorCode rev_atomic_pillow(MBEntityHandle pillow, MBRange &chords);
+
     //! effect a face open-collapse operation
   MBErrorCode face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr,
                                  MBEntityHandle tcm);
@@ -174,6 +180,16 @@ public:
                                  const MBEntityHandle chord, 
                                  MBEntityHandle *verts);
 
+    //! given a dual surface or curve, return the 2-cells, 1-cells, 0-cells, and
+    //! loop 0/1-cells, if requested; any of those range pointers can be NULL,
+    //! in which case that range isn't returned
+  MBErrorCode get_dual_entities(const MBEntityHandle dual_ent,
+                                MBRange *dcells,
+                                MBRange *dedges,
+                                MBRange *dverts,
+                                MBRange *dverts_loop,
+                                MBRange *dedges_loop);
+  
 private:
 
     //! construct dual vertices for specified regions
@@ -246,7 +262,7 @@ private:
   MBErrorCode check_dual_equiv_edges(MBRange &dual_edges);
   
     //! delete a dual entity; updates primal to no longer point to it
-  MBErrorCode delete_dual_entity(MBEntityHandle entity);
+  MBErrorCode delete_dual_entities(MBEntityHandle *entities, const int num_entities);
 
     //! delete a range of dual entities; updates primal to no longer point to them
   MBErrorCode delete_dual_entities(MBRange &entities);

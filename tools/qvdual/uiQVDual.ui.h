@@ -822,7 +822,67 @@ void uiQVDual::APbutton_clicked()
 
 void uiQVDual::negAPbutton_clicked()
 {
+    // make sure the last picked entity is a 2cell
+  MBEntityHandle tcell = drawDual->lastPickedEnt;
+  if (0 == tcell) {
+    std::cerr << "Didn't find a picked entity." << std::endl;
+    return;
+  }
+  
+  if (MBPOLYGON != vtkMOABUtils::mbImpl->type_from_handle(tcell)) {
+    std::cerr << "-AP must apply to a dual face." << std::endl;
+    return;
+  }
 
+  DualTool dt(vtkMOABUtils::mbImpl);
+
+    // get the dual surface containing that 2cell
+  MBEntityHandle sheet = dt.get_dual_hyperplane(tcell);
+  MBRange chords;
+  MBErrorCode result = vtkMOABUtils::mbImpl->get_child_meshsets(sheet, chords);
+  if (MB_SUCCESS != result) {
+    std::cerr << "Couldn't get child dual chords of dual surface." << std::endl;
+    return;
+  }
+  else if (2 != chords.size()) {
+    std::cerr << "Wrong number of (child) chords for a dual surface; not a pillow?." 
+              << std::endl;
+    return;
+  }
+
+  MBRange other_sheets;
+  for (MBRange::iterator rit = chords.begin(); rit != chords.end(); rit++) {
+    result = vtkMOABUtils::mbImpl->get_parent_meshsets(*rit, other_sheets);
+    if (MB_SUCCESS != result) {
+      std::cerr << "Trouble getting chord parents." << std::endl;
+      return;
+    }
+  }
+  other_sheets.erase(sheet);
+  
+    // otherwise, do the -AP
+  
+    // reset the drawing for the pillow sheet
+  result = drawDual->reset_drawing_data(sheet);
+  if (MB_SUCCESS != result) {
+    std::cerr << "Couldn't reset drawing data, exiting." << std::endl;
+    return;
+  }
+
+  MBEntityHandle new_hp;
+  result = dt.rev_atomic_pillow(sheet, chords);
+  if (MB_SUCCESS != result) {
+    std::cerr << "-AP failed." << std::endl;
+    return;
+  }
+
+    // now draw the other sheets
+  bool success = drawDual->draw_dual_surfs(other_sheets);
+  if (!success)
+    std::cerr << "Problem drawing other dual surfaces from reverse atomic pillow." 
+              << std::endl;
+
+  updateMesh();
 }
 
 

@@ -44,7 +44,6 @@ public:
   virtual ~PolyEntitySequence();
 
   MBEntityHandle get_unused_handle();
-  void free_handle(MBEntityHandle) {}
 
   virtual MBErrorCode get_connectivity(MBEntityHandle entity, 
                                        std::vector<MBEntityHandle>& connectivity,
@@ -82,16 +81,15 @@ public:
   //! get entities in this range, will not add unused entities
   virtual void get_entities(MBRange& entities) const;
 
+  virtual void free_handle(MBEntityHandle entity);
+  
 private:
 
   std::vector<MBEntityHandle> polyConn;
 
   std::vector<int> mLastIndex;
-};
 
-inline MBEntityHandle PolyEntitySequence::get_unused_handle() 
-{
-  return mNumEntities + mStartEntityHandle;
-}
+  std::vector<MBEntityHandle> mDeadEntities;
+};
 
 #endif

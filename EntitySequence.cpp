@@ -746,7 +746,3 @@ bool ElementEntitySequence::tag_for_deletion( MBEntityHandle &node, MBCore *MB )
   return delete_node;
 
 }
-
-
-
-

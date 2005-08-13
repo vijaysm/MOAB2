@@ -66,7 +66,7 @@ public:
   MBEntityType get_type() const { return TYPE_FROM_HANDLE(mStartEntityHandle); }
 
   //! returns number of MBEntityHandles in MBEntitySequence
-  int number_entities() const { return mNumEntities; }
+  int number_entities() const {return mNumEntities;}
 
   //! returns the number of entities space was allocated for
   int number_allocated() const { return mNumAllocated; }
@@ -130,7 +130,7 @@ public:
   virtual ~VertexEntitySequence();
 
   MBEntityHandle get_unused_handle();
-  void free_handle(MBEntityHandle handle);
+  virtual void free_handle(MBEntityHandle handle);
   virtual bool is_valid_entity(MBEntityHandle entity) const;
 
   MBErrorCode get_coordinates(MBEntityHandle entity,
