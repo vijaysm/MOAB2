@@ -30,6 +30,7 @@
 #define RR if (MB_SUCCESS != result) return result
 
 bool debug = false;
+bool debug_ap = true;
 
   //! tag name for dual surfaces
 const char *DualTool::DUAL_SURFACE_TAG_NAME = "DUAL_SURFACE";
@@ -904,13 +905,44 @@ MBErrorCode DualTool::traverse_hyperplane(const MBTag hp_tag,
     }
   }
 
+  if (debug_ap) {
+    std::string hp_name;
+    if (2 == dim) hp_name = "sheet";
+    else hp_name = "chord";
+    
+    if (0 == this_hp) std::cout << "Constructed new " << hp_name << " with ";
+    else {
+      int this_id;
+      result = mbImpl->tag_get_data(globalId_tag(), &this_hp, 1, &this_id); RR;
+      std::cout << "Added to " << hp_name << " " << this_id << " ";
+    }
+    if (dim == 2) std::cout << "edges:" << std::endl;
+    else std::cout << "quads:" << std::endl;
+    std::vector<MBEntityHandle> pents(new_hyperplane_ents.size());
+    result = mbImpl->tag_get_data(dualEntity_tag(), new_hyperplane_ents,
+                                  &pents[0]); RR;
+    for (std::vector<MBEntityHandle>::iterator vit = pents.begin(); 
+         vit != pents.end(); vit++) {
+      if (vit != pents.begin()) std::cout << ", ";
+      std::cout << mbImpl->id_from_handle(*vit);
+    }
+    std::cout << std::endl;
+  }
+
   if (0 == this_hp) {
       // ok, doesn't have one; make a new hyperplane
     int new_id = -1;
     result = construct_new_hyperplane(dim, this_hp, new_id);
     if (MB_SUCCESS != result) return result;
+
+    if (debug_ap) {
+      std::cout << "New ";
+      if (2 == dim) std::cout << " sheet ";
+      else std::cout << " chord ";
+      std::cout << new_id << " constructed." << std::endl;
+    }
   }
-  
+
     // set the hp_val for entities which didn't have one before
   std::vector<MBEntityHandle> hp_tags(new_hyperplane_ents.size());
   std::fill(hp_tags.begin(), hp_tags.end(), this_hp);
