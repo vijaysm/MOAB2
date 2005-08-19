@@ -1355,7 +1355,7 @@ MBErrorCode DualTool::set_dual_surface_or_curve(MBEntityHandle entity,
 }
 
 //! return the corresponding dual entity
-MBEntityHandle DualTool::get_dual_entity(const MBEntityHandle this_ent) 
+MBEntityHandle DualTool::get_dual_entity(const MBEntityHandle this_ent) const
 {
   MBEntityHandle dual_ent;
   MBErrorCode result = mbImpl->tag_get_data(dualEntity_tag(), &this_ent, 1, &dual_ent);
@@ -2053,5 +2053,116 @@ MBErrorCode DualTool::get_dual_entities(const MBEntityHandle dual_ent,
   }
 
   return result;
+}
+
+MBErrorCode DualTool::list_entities(const MBEntityHandle *entities,
+                                    const int num_entities) const
+{
+  MBRange temp_range;
+  MBErrorCode result;
+  if (NULL == entities && num_entities <= 0) {
+      // just list the numbers of each entity type
+    int num_ents;
+    std::cout << std::endl;
+    std::cout << "Number of entities per type: " << std::endl;
+    for (MBEntityType this_type = MBVERTEX; this_type < MBMAXTYPE; this_type++) {
+      result = mbImpl->get_number_entities_by_type(0, this_type, num_ents);
+      std::cout << MBCN::EntityTypeName(this_type) << ": " << num_ents << std::endl;
+    }
+    std::cout << std::endl;
+
+      // if negative num_entities, list the set hierarchy too
+    if (0 > num_entities) {
+      MBRange sets;
+      result = mbImpl->get_entities_by_type(0, MBENTITYSET, sets);
+      if (MB_SUCCESS != result) return result;
+      for (MBRange::iterator rit = sets.begin(); rit != sets.end(); rit++) {
+        mbImpl->list_entities(&(*rit), 1);
+        result = mbImpl->get_number_entities_by_handle(*rit, num_ents);
+        std::cout << "(" << num_ents << " total entities)" << std::endl;
+      }
+    }
+    
+    return MB_SUCCESS;
+  }
+      
+  else if (NULL == entities) {
+
+      // list all entities of all types
+    std::cout << std::endl;
+    for (MBEntityType this_type = MBVERTEX; this_type < MBMAXTYPE; this_type++) {
+      temp_range.clear();
+      std::cout << "Entities of type: " << MBCN::EntityTypeName(this_type) << ": " << std::endl;
+      result = mbImpl->get_entities_by_type(0, this_type, temp_range);
+      result = list_entities(temp_range);
+    }
+    std::cout << std::endl;
+    
+    return MB_SUCCESS;
+  }
+
+  else {
+    std::copy(entities, entities+num_entities, mb_range_inserter(temp_range));
+    return list_entities(temp_range);
+  }
+}
+  
+MBErrorCode DualTool::list_entities(const MBRange &entities) const
+{
+  MBErrorCode result;
+  std::vector<MBEntityHandle> adj_vec;
+
+    // list entities
+  for (MBRange::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
+    MBEntityType this_type = TYPE_FROM_HANDLE(*iter);
+    std::cout << MBCN::EntityTypeName(this_type) << " " << mbImpl->id_from_handle(*iter) << ":" << std::endl;
+
+    if (this_type == MBVERTEX) {
+      double coords[3];
+      result = mbImpl->get_coords(&(*iter), 1, coords);
+      if (MB_SUCCESS != result) return result;
+      std::cout << "Coordinates: (" << coords[0] << ", " << coords[1] << ", " << coords[2] 
+           << ")" << std::endl;
+    }
+    else if (this_type == MBENTITYSET)
+      mbImpl->list_entities(&(*iter), 1);
+
+    MBEntityHandle dual_ent = get_dual_entity(*iter);
+    if (0 != dual_ent) {
+      std::cout << "Dual to " 
+                << MBCN::EntityTypeName(mbImpl->type_from_handle(dual_ent)) << " "
+                << mbImpl->id_from_handle(dual_ent) << std::endl;
+    }
+    
+    std::cout << "  Adjacencies:" << std::endl;
+    bool some = false;
+    int multiple = 0;
+    for (int dim = 0; dim <= 3; dim++) {
+      if (dim == MBCN::Dimension(this_type)) continue;
+      adj_vec.clear();
+      result = mbImpl->get_adjacencies(&(*iter), 1, dim, false, adj_vec);
+      if (MB_FAILURE == result) continue;
+      for (std::vector<MBEntityHandle>::iterator adj_it = adj_vec.begin(); 
+           adj_it != adj_vec.end(); adj_it++) {
+        if (adj_it != adj_vec.begin()) std::cout << ", ";
+        else std::cout << "   ";
+        std::cout << MBCN::EntityTypeName(mbImpl->type_from_handle(*adj_it)) << " " 
+                  << mbImpl->id_from_handle(*adj_it);
+      }
+      if (!adj_vec.empty()) {
+        std::cout << std::endl;
+        some = true;
+      }
+      if (MB_MULTIPLE_ENTITIES_FOUND == result)
+        multiple += dim;
+    }
+    if (!some) std::cout << "(none)" << std::endl;
+    if (multiple != 0)
+      std::cout << "   (MULTIPLE = " << multiple << ")" << std::endl;
+
+    std::cout << std::endl;
+  }
+
+  return MB_SUCCESS;
 }
 

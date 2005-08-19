@@ -99,7 +99,7 @@ public:
                                 std::vector<MBEntityHandle> &dual_ents);
 
     //! return the corresponding dual entity
-  MBEntityHandle get_dual_entity(const MBEntityHandle this_ent);
+  MBEntityHandle get_dual_entity(const MBEntityHandle this_ent) const;
   
     //! return the corresponding extra dual entity
   MBEntityHandle get_extra_dual_entity(const MBEntityHandle this_ent);
@@ -129,31 +129,31 @@ public:
                                   const MBEntityHandle dual_surf);
   
     //! get/set the tag for dual surfaces
-  MBTag dualSurface_tag();
+  MBTag dualSurface_tag() const;
   MBErrorCode dualSurface_tag(const MBTag tag);
   
     //! get/set the tag for dual curves
-  MBTag dualCurve_tag();
+  MBTag dualCurve_tag() const;
   MBErrorCode dualCurve_tag(const MBTag tag);
 
     //! get/set the tag for dual cells
-  MBTag isDualCell_tag();
+  MBTag isDualCell_tag() const;
   MBErrorCode isDualCell_tag(const MBTag tag);
 
     //! get/set the tag for dual entities
-  MBTag dualEntity_tag();
+  MBTag dualEntity_tag() const;
   MBErrorCode dualEntity_tag(const MBTag tag);
 
     //! get/set the tag for dual entities
-  MBTag extraDualEntity_tag();
+  MBTag extraDualEntity_tag() const;
   MBErrorCode extraDualEntity_tag(const MBTag tag);
 
     //! get/set the tag for dual entities
-  MBTag dualGraphicsPoint_tag();
+  MBTag dualGraphicsPoint_tag() const;
   MBErrorCode dualGraphicsPoint_tag(const MBTag tag);
 
     //! get/set the global id tag
-  MBTag globalId_tag();
+  MBTag globalId_tag() const;
   MBErrorCode globalId_tag(const MBTag tag);
 
     //! given an entity, return any dual surface or curve it's in
@@ -192,6 +192,10 @@ public:
                                 MBRange *dverts,
                                 MBRange *dverts_loop,
                                 MBRange *dedges_loop);
+  
+  MBErrorCode list_entities(const MBRange &entities) const;
+  MBErrorCode list_entities(const MBEntityHandle *entities,
+                            const int num_entities) const;
   
 private:
 
@@ -338,37 +342,37 @@ private:
   MBTag globalIdTag;
 };
 
-inline MBTag DualTool::dualSurface_tag()
+inline MBTag DualTool::dualSurface_tag() const
 {
   return dualSurfaceTag;
 }
 
-inline MBTag DualTool::dualCurve_tag()
+inline MBTag DualTool::dualCurve_tag() const
 {
   return dualCurveTag;
 }
 
-inline MBTag DualTool::isDualCell_tag()
+inline MBTag DualTool::isDualCell_tag() const
 {
   return isDualCellTag;
 }
 
-inline MBTag DualTool::dualEntity_tag()
+inline MBTag DualTool::dualEntity_tag() const
 {
   return dualEntityTag;
 }
 
-inline MBTag DualTool::extraDualEntity_tag()
+inline MBTag DualTool::extraDualEntity_tag() const
 {
   return extraDualEntityTag;
 }
 
-inline MBTag DualTool::dualGraphicsPoint_tag()
+inline MBTag DualTool::dualGraphicsPoint_tag() const
 {
   return dualGraphicsPointTag;
 }
 
-inline MBTag DualTool::globalId_tag()
+inline MBTag DualTool::globalId_tag() const
 {
   return globalIdTag;
 }

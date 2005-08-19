@@ -450,7 +450,18 @@ MBErrorCode AEntityFactory::remove_all_adjacencies(MBEntityHandle base_entity,
   if (TYPE_FROM_HANDLE(base_entity) == MBENTITYSET) 
     return thisMB->clear_meshset(&base_entity, 1);
 
-    // clear out vertex-entity adjacencies first
+    // clean out explicit adjacencies to this entity first
+  for (int dim = 1; dim < thisMB->dimension_from_handle(base_entity); dim++) {
+    MBRange ents;
+    result = thisMB->get_adjacencies(&base_entity, 1, dim, false, ents);
+    if (MB_SUCCESS != result && MB_MULTIPLE_ENTITIES_FOUND != result) continue;
+    for (MBRange::iterator rit = ents.begin(); rit != ents.end(); rit++) {
+      if (explicitly_adjacent(*rit, base_entity))
+        remove_adjacency(*rit, base_entity);
+    }
+  }
+  
+    // clear out vertex-entity adjacencies next
   MBErrorCode tmp_result;
   if (vert_elem_adjacencies()) {
     std::vector<MBEntityHandle> verts;
