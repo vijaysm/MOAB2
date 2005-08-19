@@ -1363,6 +1363,15 @@ MBEntityHandle DualTool::get_dual_entity(const MBEntityHandle this_ent)
   else return dual_ent;
 }
 
+//! return the corresponding dual entity
+MBEntityHandle DualTool::get_extra_dual_entity(const MBEntityHandle this_ent) 
+{
+  MBEntityHandle dual_ent;
+  MBErrorCode result = mbImpl->tag_get_data(extraDualEntity_tag(), &this_ent, 1, &dual_ent);
+  if (MB_SUCCESS != result || MB_TAG_NOT_FOUND == result) return 0;
+  else return dual_ent;
+}
+
 MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &new_hp) 
 {
     // perform an atomic pillow operation around dedge
@@ -1485,7 +1494,7 @@ MBErrorCode DualTool::rev_atomic_pillow(MBEntityHandle pillow, MBRange &chords)
   result = mbImpl->delete_entities(chords);
   if (MB_SUCCESS != result) return result;
 
-  for (int i = 0; i < 4; i++) {
+  for (int i = 3; i >= 0; i--) {
     result = delete_dual_entities(&dcells[i][0], dcells[i].size()); RR;
   }
 
@@ -1530,14 +1539,40 @@ MBErrorCode DualTool::delete_dual_entities(MBEntityHandle *entities,
 {
   MBEntityHandle null_entity = 0;
   MBErrorCode result;
+  std::vector<MBEntityHandle> ents_to_delete;
+  
   for (int i = 0; i < num_entities; i++) {
       // reset the primal's dual entity
     MBEntityHandle primal = get_dual_entity(entities[i]);
-    result = mbImpl->tag_set_data(dualEntity_tag(), &primal, 1, &null_entity); RR;
+    if (get_dual_entity(primal) == entities[i]) {
+      result = mbImpl->tag_set_data(dualEntity_tag(), &primal, 1, &null_entity); RR;
+    }
+    MBEntityHandle extra = get_extra_dual_entity(primal);
+    if (0 != extra) {
+      result = mbImpl->tag_set_data(extraDualEntity_tag(), &primal, 1, &null_entity); RR;
+    }
+    ents_to_delete.push_back(entities[i]);
+    
+      // check for extra dual entities
+    if (mbImpl->type_from_handle(entities[i]) == MBPOLYGON) {
+      // for 2cell, might be a loop edge
+      MBRange loop_edges;
+      result = mbImpl->get_adjacencies(&entities[i], 1, 1, false, loop_edges);
+      for (MBRange::iterator rit = loop_edges.begin(); rit != loop_edges.end(); rit++) {
+        if (check_1d_loop_edge(*rit)) {
+          MBEntityHandle this_ent = *rit;
+          result = delete_dual_entities(&this_ent, 1); RR;
+        }
+      }
+    }
+    else if (extra && extra != entities[i])
+        // just put it on the list; primal for which we're extra has already been
+        // reset to not point to extra entity
+      ents_to_delete.push_back(extra);
   }
-  
+
     // now delete the entities (sheets and chords will be updated automatically)
-  return mbImpl->delete_entities(entities, num_entities);
+  return mbImpl->delete_entities(&ents_to_delete[0], ents_to_delete.size());
 }
 
 MBErrorCode DualTool::delete_dual_entities(MBRange &entities) 

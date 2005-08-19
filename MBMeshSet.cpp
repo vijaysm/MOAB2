@@ -222,6 +222,19 @@ MBMeshSet_MBRange::~MBMeshSet_MBRange()
       mAdjFact->remove_adjacency(*iter, mEntityHandle);
     }
   }
+
+  std::vector<MBMeshSet*> temp;
+  std::copy(parentMeshSets.begin(), parentMeshSets.end(),
+            std::back_inserter(temp));
+  for (std::vector<MBMeshSet*>::iterator vit = temp.begin(); vit != temp.end(); vit++)
+    remove_parent_child(*vit, this);
+
+  temp.clear();
+  std::copy(childMeshSets.begin(), childMeshSets.end(),
+            std::back_inserter(temp));
+  for (std::vector<MBMeshSet*>::iterator vit = temp.begin(); vit != temp.end(); vit++)
+    remove_parent_child(this, *vit);
+
 }
 
 MBErrorCode MBMeshSet_MBRange::clear()
@@ -458,6 +471,19 @@ MBMeshSet_Vector::~MBMeshSet_Vector()
       mAdjFact->remove_adjacency(*iter, mEntityHandle);
     }
   }
+
+  std::vector<MBMeshSet*> temp;
+  std::copy(parentMeshSets.begin(), parentMeshSets.end(),
+            std::back_inserter(temp));
+  for (std::vector<MBMeshSet*>::iterator vit = temp.begin(); vit != temp.end(); vit++)
+    remove_parent_child(*vit, this);
+
+  temp.clear();
+  std::copy(childMeshSets.begin(), childMeshSets.end(),
+            std::back_inserter(temp));
+  for (std::vector<MBMeshSet*>::iterator vit = temp.begin(); vit != temp.end(); vit++)
+    remove_parent_child(this, *vit);
+
 }
 
 MBErrorCode MBMeshSet_Vector::clear()

@@ -1726,7 +1726,7 @@ MBErrorCode DrawDual::reset_drawing_data(MBEntityHandle dual_surf)
     
       // reset the data on this gv_ent for this dual surf
     int index = gv_ent->get_index(dual_surf);
-    if (index != -10) gv_ent->reset(index);
+    if (index >= 0) gv_ent->reset(index);
   }
 
   if (this_gw.gvizGraph) {
@@ -1744,6 +1744,7 @@ MBErrorCode DrawDual::reset_drawing_data(MBEntityHandle dual_surf)
 
 void DrawDual::GVEntity::reset(const int index)    
 {
+  assert(index >= 0);
   dualSurfs[index] = 0;
   pointPos[index][0] = pointPos[index][1] = 0;
   vtkEntityIds[index] = -1;

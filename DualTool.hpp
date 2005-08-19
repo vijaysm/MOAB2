@@ -101,6 +101,9 @@ public:
     //! return the corresponding dual entity
   MBEntityHandle get_dual_entity(const MBEntityHandle this_ent);
   
+    //! return the corresponding extra dual entity
+  MBEntityHandle get_extra_dual_entity(const MBEntityHandle this_ent);
+  
     //! get the d-dimensional hyperplane sets; static 'cuz it's easy to do without an active
     //! dualtool
   static MBErrorCode get_dual_hyperplanes(const MBInterface *impl, const int dim, 

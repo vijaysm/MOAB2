@@ -2659,8 +2659,10 @@ void MBCore::print(const MBEntityHandle ms_handle, const char *prefix,
 {
     // get the entities
   MBRange entities;
+  MBMeshSet *ms_ptr;
+  
   if (0 != ms_handle) {
-    MBMeshSet *ms_ptr = update_cache( ms_handle );
+    ms_ptr = update_cache( ms_handle );
     if( !ms_ptr )
       return;
 
@@ -2691,6 +2693,34 @@ void MBCore::print(const MBEntityHandle ms_handle, const char *prefix,
                 << ID_FROM_HANDLE(*it) << std::endl;
     }
   }
+
+  if (!first_call || !ms_handle) return;
+  
+    // print parent/children
+  MBRange temp;
+  this->get_parent_meshsets(ms_handle, temp);
+  std::cout << "  Parent sets: ";
+  if (temp.empty()) std::cout << "(none)" << std::endl;
+  else {
+    for (MBRange::iterator rit = temp.begin(); rit != temp.end(); rit++) {
+      if (rit != temp.begin()) std::cout << ", ";
+      std::cout << ID_FROM_HANDLE(*rit);
+    }
+    std::cout << std::endl;
+  }
+
+  temp.clear();
+  this->get_child_meshsets(ms_handle, temp);
+  std::cout << "  Child sets: ";
+  if (temp.empty()) std::cout << "(none)" << std::endl;
+  else {
+    for (MBRange::iterator rit = temp.begin(); rit != temp.end(); rit++) {
+      if (rit != temp.begin()) std::cout << ", ";
+      std::cout << ID_FROM_HANDLE(*rit);
+    }
+    std::cout << std::endl;
+  }
+  
 }
 
 MBMeshSet* MBCore::update_cache( const MBEntityHandle ms_handle ) const
