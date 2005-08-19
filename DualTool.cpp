@@ -828,6 +828,12 @@ MBErrorCode DualTool::construct_dual_hyperplanes(const int dim,
     
       // inner loop: traverse the hyperplane 'till we don't have any more
     result = traverse_hyperplane(hp_tag, this_hp, this_ent);
+    if (MB_SUCCESS != result) {
+      std::cout << "Failed to traverse hyperplane ";
+      if (this_hp) std::cout << mbImpl->id_from_handle(this_hp) << "."  << std::endl;
+      else std::cout << "0." << std::endl;
+      return result;
+    }
 
       // ok, now order the edges if it's a chord
     if (1 == dim) order_chord(this_hp);

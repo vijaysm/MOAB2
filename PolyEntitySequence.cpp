@@ -172,7 +172,7 @@ MBErrorCode PolyEntitySequence::set_connectivity(MBEntityHandle entity,
 
 void PolyEntitySequence::get_entities(MBRange& entities) const
 {
-  entities.insert(mStartEntityHandle, mStartEntityHandle+mNumEntities-1);
+  entities.insert(mStartEntityHandle, mStartEntityHandle+mNumEntities+mDeadEntities.size()-1);
   for (std::vector<MBEntityHandle>::const_iterator vit = mDeadEntities.begin();
        vit != mDeadEntities.end(); vit++)
     entities.erase(*vit);
@@ -186,7 +186,7 @@ void PolyEntitySequence::free_handle(MBEntityHandle entity)
   
   int start_index;
   if (0 == index) start_index = 0;
-  else start_index = mLastIndex[index-1];
+  else start_index = mLastIndex[index-1]+1;
   for (int i = start_index; i <= mLastIndex[index]; i++)
     mElements[i] = 0;
 
