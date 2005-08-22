@@ -1529,11 +1529,6 @@ MBErrorCode DualTool::rev_atomic_pillow(MBEntityHandle pillow, MBRange &chords)
   return MB_SUCCESS;
 }
 
-  
-  
-  
-  
-
 MBErrorCode DualTool::delete_dual_entities(MBEntityHandle *entities, 
                                            const int num_entities) 
 {
@@ -2213,16 +2208,37 @@ MBErrorCode DualTool::face_shrink(MBEntityHandle odedge)
   
     // ok, done with setup; now delete dual entities affected by this operation,
     // which is all the entities adjacent to vertices of dual edge
-  MBRange dual_ents, dverts;
+  MBRange dual_ents, dverts, cells1or2;
   MeshTopoUtil mtu(mbImpl);
   for (int i = 1; i <= 3; i++) {
     result = mtu.get_bridge_adjacencies(odedge, 0, i, dual_ents);
     if (MB_SUCCESS != result) return result;
   }
+
+    // before deleting dual, grab the 1- and 2-cells
+  for (MBRange::iterator rit = dual_ents.begin(); rit != dual_ents.end(); rit++) {
+    int dim = mbImpl->dimension_from_handle(*rit);
+    if (1 == dim || 2 == dim) cells1or2.insert(*rit);
+  }
+  
   dual_ents.insert(odedge);
   result = delete_dual_entities(dual_ents);
   if (MB_SUCCESS != result) return result;
   
+    // after deleting cells, check for empty chords & sheets, and delete those too
+  MBRange dual_hps;
+  for (MBRange::iterator rit = cells1or2.begin(); rit != cells1or2.end(); rit++)
+    dual_hps.insert(get_dual_hyperplane(*rit));
+  for (MBRange::iterator rit = dual_hps.begin(); rit != dual_hps.end(); rit++) {
+    MBRange tmp_ents;
+    result = mbImpl->get_entities_by_handle(*rit, tmp_ents);
+    if (MB_SUCCESS != result) return result;
+    if (tmp_ents.empty()) {
+      result = mbImpl->delete_entities(&(*rit), 1);
+      if (MB_SUCCESS != result) return result;
+    }
+  }
+    
     // make inner ring of vertices
     // get centroid of quad2
   double q2coords[12], avg[3] = {0.0, 0.0, 0.0};
@@ -2284,7 +2300,11 @@ MBErrorCode DualTool::face_shrink(MBEntityHandle odedge)
   if (MB_SUCCESS != result) return result;
   
     // now update the dual
-  result = construct_hex_dual(&new_hexes[0], 4);
+  tmph.clear();
+  std::copy(new_hexes, new_hexes+4, mb_range_inserter(tmph));
+  tmph.insert(hex0);
+  tmph.insert(hex1);
+  result = construct_hex_dual(tmph);
   if (MB_SUCCESS != result) return result;
   
   return result;

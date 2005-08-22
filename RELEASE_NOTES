@@ -40,6 +40,10 @@ vertex/edge/face/region, dual surface/curve, etc.; currently only
 supported by .cub file reader
 
 Bug Fixes/Rearrangements:
+- Fixed a bug in set_connectivity, where old vertices were put on the
+end of a scratch array instead of the beginning; symptom showed up as
+old vertices still being adjacent to the element whose connectivity
+was being set.
 - Changed error returned when tag_delete_data called for entity which can't be found,
 from MB_TAG_NOT_FOUND to MB_ENTITY_NOT_FOUND
 - Fixed bug in tag_get_tags, where tag handles weren't passed back properly

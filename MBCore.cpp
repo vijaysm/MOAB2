@@ -756,7 +756,8 @@ MBErrorCode  MBCore::set_connectivity(const MBEntityHandle entity_handle,
     // WARNING: This is very dependent on the ordering of the MBEntityType enum
   MBEntityType type = TYPE_FROM_HANDLE(entity_handle);
   
-  static std::vector<MBEntityHandle> tmp(31);
+  static std::vector<MBEntityHandle> tmp;
+  tmp.clear();
   
   MBEntitySequence* seq = 0;
 

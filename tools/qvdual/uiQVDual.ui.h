@@ -908,17 +908,12 @@ void uiQVDual::FSbutton_clicked()
 
   DualTool dt(vtkMOABUtils::mbImpl);
 
-    // get the dual surfaces for that edge
-  MBEntityHandle chord = dt.get_dual_hyperplane(edge);
-  MBRange sheets;
-  MBErrorCode result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
-  if (MB_SUCCESS != result) {
-    std::cerr << "Couldn't get parent dual surfaces of dual edge." << std::endl;
-    return;
-  }
-  
+    // save the quad, 'cuz the dual sheets/chord might change
+  MBEntityHandle quad = dt.get_dual_entity(edge);
+  assert(0 != quad);
+
     // otherwise, do the FS
-  result = dt.face_shrink(edge);
+  MBErrorCode result = dt.face_shrink(edge);
   if (MB_SUCCESS != result) {
     std::cerr << "FS failed." << std::endl;
     return;
@@ -926,11 +921,21 @@ void uiQVDual::FSbutton_clicked()
 
   std::cerr << "FS succeeded." << std::endl;
 
-    // now draw the sheets affected
-  bool success = drawDual->draw_dual_surfs(sheets);
-  if (!success)
-    std::cerr << "Problem drawing dual surfaces from face shrink." << std::endl;
-
+    // get the dual surfaces for that edge
+  edge = dt.get_dual_entity(quad);
+  MBEntityHandle chord = dt.get_dual_hyperplane(edge);
+  MBRange sheets;
+  result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
+  if (MB_SUCCESS == result) {
+      // now draw the sheets affected
+    bool success = drawDual->draw_dual_surfs(sheets);
+    if (!success)
+      std::cerr << "Problem drawing dual surfaces from face shrink." << std::endl;
+  }
+  else {
+    std::cerr << "Couldn't get parent dual surfaces of dual edge." << std::endl;
+  }
+  
   updateMesh();
 
 }
