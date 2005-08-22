@@ -858,7 +858,8 @@ public:
         \param side_number Side number in canonical ordering of <em>child</em> with respect to 
         <em>parent</em>
         \param sense Sense of <em>child</em> with respect to <em>parent</em>, assuming ordering of 
-        <em>child</em> as given by get_connectivity called on <em>child</em>
+        <em>child</em> as given by get_connectivity called on <em>child</em>; sense is 1, -1
+        for forward/reverse sense, resp.
         \param offset Offset between first vertex of <em>child</em> and first vertex of side 
         <em>side_number</em> on <em>parent</em>
     */

@@ -173,6 +173,9 @@ public:
     //! effect reverse atomic pillow operation
   MBErrorCode rev_atomic_pillow(MBEntityHandle pillow, MBRange &chords);
 
+    //! effect face shrink operation
+  MBErrorCode face_shrink(MBEntityHandle odedge);
+  
     //! effect a face open-collapse operation
   MBErrorCode face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr,
                                  MBEntityHandle tcm);
@@ -321,6 +324,11 @@ private:
   MBErrorCode foc_replace_0cell(MBEntityHandle oc,
                                 MBEntityHandle zc_old,
                                 MBEntityHandle zc_new);
+  
+    //! check sense of connect arrays, and reverse/rotate if necessary
+  MBErrorCode fs_check_quad_sense(MBEntityHandle hex0,
+                                  MBEntityHandle quad0,
+                                  std::vector<MBEntityHandle> *connects);
   
     //! private copy of interface *
   MBInterface *mbImpl;

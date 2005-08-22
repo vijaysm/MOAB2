@@ -894,6 +894,44 @@ void uiQVDual::FOCbutton_clicked()
 
 void uiQVDual::FSbutton_clicked()
 {
+    // make sure the last picked entity is an edge
+  MBEntityHandle edge = drawDual->lastPickedEnt;
+  if (0 == edge) {
+    std::cerr << "Didn't find a picked entity." << std::endl;
+    return;
+  }
+  
+  if (MBEDGE != vtkMOABUtils::mbImpl->type_from_handle(edge)) {
+    std::cerr << "AP must apply to a dual edge." << std::endl;
+    return;
+  }
+
+  DualTool dt(vtkMOABUtils::mbImpl);
+
+    // get the dual surfaces for that edge
+  MBEntityHandle chord = dt.get_dual_hyperplane(edge);
+  MBRange sheets;
+  MBErrorCode result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
+  if (MB_SUCCESS != result) {
+    std::cerr << "Couldn't get parent dual surfaces of dual edge." << std::endl;
+    return;
+  }
+  
+    // otherwise, do the FS
+  result = dt.face_shrink(edge);
+  if (MB_SUCCESS != result) {
+    std::cerr << "FS failed." << std::endl;
+    return;
+  }
+
+  std::cerr << "FS succeeded." << std::endl;
+
+    // now draw the sheets affected
+  bool success = drawDual->draw_dual_surfs(sheets);
+  if (!success)
+    std::cerr << "Problem drawing dual surfaces from face shrink." << std::endl;
+
+  updateMesh();
 
 }
 

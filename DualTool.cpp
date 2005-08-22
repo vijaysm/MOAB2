@@ -2166,3 +2166,201 @@ MBErrorCode DualTool::list_entities(const MBRange &entities) const
   return MB_SUCCESS;
 }
 
+MBErrorCode DualTool::face_shrink(MBEntityHandle odedge) 
+{
+    // some preliminary checking
+  if (mbImpl->type_from_handle(odedge) != MBEDGE) return MB_TYPE_OUT_OF_RANGE;
+  
+    // need to get the three quads along the chord
+  MBEntityHandle chord = get_dual_hyperplane(odedge);
+  if (0 == chord) return MB_FAILURE;
+  
+  std::vector<MBEntityHandle> edges;
+  MBErrorCode result = mbImpl->get_entities_by_handle(chord, edges);
+  if (MB_FAILURE == result) return result;
+  
+  std::vector<MBEntityHandle>::iterator vit = std::find(edges.begin(), edges.end(), odedge);
+    // shouldn't be first or last edge on chord
+  if (vit == edges.end() || *edges.begin() == *vit || *edges.rbegin() == *vit)
+    return MB_FAILURE;
+  
+  MBEntityHandle quads[4];
+
+    // get quads/connectivity for first 3 quads
+  quads[0] = get_dual_entity(*(vit-1));
+  quads[1] = get_dual_entity(*vit);
+  quads[2] = get_dual_entity(*(vit+1));
+  std::vector<MBEntityHandle> connects[4];
+  for (int i = 0; i < 3; i++) {
+    result = mbImpl->get_connectivity(&quads[i], 1, connects[i], true);
+    if (MB_SUCCESS != result) return result;
+  }
+  
+  MBRange tmph;
+  MBEntityHandle hex0, hex1;
+  result = mbImpl->get_adjacencies(quads, 2, 3, false, tmph);
+  if (MB_SUCCESS != result) return result;
+  assert(tmph.size() == 1);
+  hex0 = *tmph.begin();
+  
+  tmph.clear();
+  result = mbImpl->get_adjacencies(&quads[1], 2, 3, false, tmph);
+  if (MB_SUCCESS != result) return result;
+  assert(tmph.size() == 1);
+  hex1 = *tmph.begin();
+  
+  result = fs_check_quad_sense(hex0, quads[0], connects);
+  
+    // ok, done with setup; now delete dual entities affected by this operation,
+    // which is all the entities adjacent to vertices of dual edge
+  MBRange dual_ents, dverts;
+  MeshTopoUtil mtu(mbImpl);
+  for (int i = 1; i <= 3; i++) {
+    result = mtu.get_bridge_adjacencies(odedge, 0, i, dual_ents);
+    if (MB_SUCCESS != result) return result;
+  }
+  dual_ents.insert(odedge);
+  result = delete_dual_entities(dual_ents);
+  if (MB_SUCCESS != result) return result;
+  
+    // make inner ring of vertices
+    // get centroid of quad2
+  double q2coords[12], avg[3] = {0.0, 0.0, 0.0};
+  result = mbImpl->get_coords(&connects[1][0], 4, q2coords);
+  if (MB_SUCCESS != result) return result;
+  for (int i = 0; i < 4; i++) {
+    avg[0] += q2coords[3*i];
+    avg[1] += q2coords[3*i+1];
+    avg[2] += q2coords[3*i+2];
+  }
+  avg[0] *= .25; avg[1] *= .25; avg[2] *= .25;
+    // position new vertices
+  connects[3].resize(4);
+  for (int i = 0; i < 4; i++) {
+    q2coords[3*i] = avg[0] + .25*(q2coords[3*i]-avg[0]);
+    q2coords[3*i+1] = avg[1] + .25*(q2coords[3*i+1]-avg[1]);
+    q2coords[3*i+2] = avg[2] + .25*(q2coords[3*i+2]-avg[2]);
+    result = mbImpl->create_vertex(&q2coords[3*i], connects[3][i]);
+    if (MB_SUCCESS != result) return result;
+  }
+  
+    // ok, now have the 4 connectivity arrays for 4 quads; construct hexes
+  MBEntityHandle hconnect[8], new_hexes[4];
+  for (int i = 0; i < 4; i++) {
+    int i1 = i, i2 = (i+1)%4;
+    hconnect[0] = connects[0][i1];
+    hconnect[1] = connects[0][i2];
+    hconnect[2] = connects[3][i2];
+    hconnect[3] = connects[3][i1];
+
+    hconnect[4] = connects[1][i1];
+    hconnect[5] = connects[1][i2];
+    hconnect[6] = connects[2][i2];
+    hconnect[7] = connects[2][i1];
+    
+    result = mbImpl->create_element(MBHEX, hconnect, 8, new_hexes[i]);
+    if (MB_SUCCESS != result) return result;
+  }
+  
+    // now fixup other two hexes; start by getting hex through quads 0, 1       
+    // make this first hex switch to the other side, to make the dual look like
+    // a hex push
+  for (int i = 0; i < 4; i++) {
+    hconnect[i] = connects[3][i];
+    hconnect[4+i] = connects[2][i];
+  }
+  result = mbImpl->set_connectivity(hex0, hconnect, 8);
+  if (MB_SUCCESS != result) return result;
+
+  for (int i = 0; i < 4; i++) {
+    hconnect[i] = connects[0][i];
+    hconnect[4+i] = connects[3][i];
+  }
+  result = mbImpl->set_connectivity(hex1, hconnect, 8);
+  if (MB_SUCCESS != result) return result;
+
+    // now change the quad too
+  result = mbImpl->set_connectivity(quads[1], &connects[3][0], 4);
+  if (MB_SUCCESS != result) return result;
+  
+    // now update the dual
+  result = construct_hex_dual(&new_hexes[0], 4);
+  if (MB_SUCCESS != result) return result;
+  
+  return result;
+}
+
+MBErrorCode DualTool::fs_check_quad_sense(MBEntityHandle hex0,
+                                          MBEntityHandle quad0,
+                                          std::vector<MBEntityHandle> *connects) 
+{
+    // check sense of 0th quad wrt hex; since sense is out of element,
+    // switch if quad is NOT reversed wrt hex
+  int dum1, dum2, sense = 0;
+  MBErrorCode result = mbImpl->side_number(hex0, quad0, dum1, sense, dum2);
+  if (MB_SUCCESS != result) return result;
+  assert(0 != sense);
+  if (1 == sense) {
+      // just switch sense of this one; others will get switched next
+    MBEntityHandle dum = connects[0][0];
+    connects[0][0] = connects[0][2];
+    connects[0][2] = dum;
+  }
+  
+    // check sense of 1st, 2nd quads, rotate if necessary to align connect arrays
+  int index0 = -1, index2 = -1, sense0 = 0, sense2 = 0;
+  MeshTopoUtil mtu(mbImpl);
+  for (int i = 0; i < 4; i++) {
+    if (0 != mtu.common_entity(connects[0][0], connects[1][i], 1)) {
+      index0 = i;
+      if (0 != mtu.common_entity(connects[0][1], connects[1][(i+1)%4], 1))
+        sense0 = 1;
+      else if (0 != mtu.common_entity(connects[0][1], connects[1][(i+4-1)%4], 1))
+        sense0 = -1;
+      break;
+    }
+  }
+
+  assert(index0 != -1 && sense0 != 0);
+  
+  if (index0 != 0) {
+    std::vector<MBEntityHandle> tmpc;
+    for (int i = 0; i < 4; i++)
+      tmpc.push_back(connects[1][(index0+i)%4]);
+    connects[1].swap(tmpc);
+  }
+    
+  if (sense0 == -1) {
+    MBEntityHandle dumh = connects[1][0];
+    connects[1][0] = connects[1][2];
+    connects[1][2] = dumh;
+  }
+
+  for (int i = 0; i < 4; i++) {
+    if (0 != mtu.common_entity(connects[1][0], connects[2][i], 1)) {
+      index2 = i;
+      if (0 != mtu.common_entity(connects[1][1], connects[2][(i+1)%4], 1))
+        sense2 = 1;
+      else if (0 != mtu.common_entity(connects[1][1], connects[2][(i+4-1)%4], 1))
+        sense2 = -1;
+      break;
+    }
+  }
+
+  assert(index2 != -1 && sense2 != 0);
+
+  if (index2 != 0) {
+    std::vector<MBEntityHandle> tmpc;
+    for (int i = 0; i < 4; i++)
+      tmpc.push_back(connects[2][(index2+i)%4]);
+    connects[2].swap(tmpc);
+  }
+    
+  if (sense2 == -1) {
+    MBEntityHandle dumh = connects[2][0];
+    connects[2][0] = connects[2][2];
+    connects[2][2] = dumh;
+  }
+
+  return MB_SUCCESS;
+}
