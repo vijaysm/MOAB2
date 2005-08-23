@@ -1681,6 +1681,21 @@ MBErrorCode DrawDual::get_primal_ids(const MBRange &ents, std::vector<int> &ids)
   return result;
 }
 
+MBErrorCode DrawDual::reset_drawn_sheets(MBRange &drawn_sheets) 
+{
+  MBErrorCode result = MB_SUCCESS, tmp_result;
+  for (std::map<MBEntityHandle,GraphWindows>::iterator mit = surfDrawrings.begin();
+       mit != surfDrawrings.end(); mit++) {
+    if (NULL != (*mit).second.qvtkWidget) {
+      drawn_sheets.insert((*mit).first);
+      tmp_result = reset_drawing_data((*mit).first);
+      if (MB_SUCCESS != tmp_result) result = tmp_result;
+    }
+  }
+  
+  return tmp_result;
+}
+
 MBErrorCode DrawDual::reset_drawing_data(MBEntityHandle dual_surf) 
 {
     // deleting a sheet drawing; reset the data on moab tags so it'll draw right

@@ -902,7 +902,7 @@ void uiQVDual::FSbutton_clicked()
   }
   
   if (MBEDGE != vtkMOABUtils::mbImpl->type_from_handle(edge)) {
-    std::cerr << "AP must apply to a dual edge." << std::endl;
+    std::cerr << "FS must apply to a dual edge." << std::endl;
     return;
   }
 
@@ -912,8 +912,12 @@ void uiQVDual::FSbutton_clicked()
   MBEntityHandle quad = dt.get_dual_entity(edge);
   assert(0 != quad);
 
+    // reset any drawn sheets (will get redrawn later)
+  MBRange drawn_sheets;
+  MBErrorCode result = drawDual->reset_drawn_sheets(drawn_sheets);
+  
     // otherwise, do the FS
-  MBErrorCode result = dt.face_shrink(edge);
+  result = dt.face_shrink(edge);
   if (MB_SUCCESS != result) {
     std::cerr << "FS failed." << std::endl;
     return;
@@ -927,10 +931,23 @@ void uiQVDual::FSbutton_clicked()
   MBRange sheets;
   result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
   if (MB_SUCCESS == result) {
+    drawn_sheets = drawn_sheets.subtract(sheets);
+    for (MBRange::iterator rit = drawn_sheets.begin(); rit != drawn_sheets.end(); rit++) {
+      int dum;
+      if (vtkMOABUtils::mbImpl->get_number_entities_by_handle(*rit, dum) == MB_SUCCESS &&
+          dum > 0) {
+        bool success = drawDual->draw_dual_surfs(drawn_sheets);
+        if (!success)
+          std::cerr << "Problem drawing previously-drawn dual surfaces." << std::endl;
+      }
+    }
+
       // now draw the sheets affected
     bool success = drawDual->draw_dual_surfs(sheets);
     if (!success)
       std::cerr << "Problem drawing dual surfaces from face shrink." << std::endl;
+
+    
   }
   else {
     std::cerr << "Couldn't get parent dual surfaces of dual edge." << std::endl;
@@ -943,5 +960,64 @@ void uiQVDual::FSbutton_clicked()
 
 void uiQVDual::negFCbutton_clicked()
 {
+    // make sure the last picked entity is an edge
+  MBEntityHandle edge = drawDual->lastPickedEnt;
+  if (0 == edge) {
+    std::cerr << "Didn't find a picked entity." << std::endl;
+    return;
+  }
+  
+  if (MBEDGE != vtkMOABUtils::mbImpl->type_from_handle(edge)) {
+    std::cerr << "Reverse FS must apply to a dual edge." << std::endl;
+    return;
+  }
 
+  DualTool dt(vtkMOABUtils::mbImpl);
+
+    // save the quad, 'cuz the dual sheets/chord might change
+  MBEntityHandle quad = dt.get_dual_entity(edge);
+  assert(0 != quad);
+
+    // reset any drawn sheets (will get redrawn later)
+  MBRange drawn_sheets;
+  MBErrorCode result = drawDual->reset_drawn_sheets(drawn_sheets);
+  
+    // otherwise, do the rev FS
+  result = dt.rev_face_shrink(edge);
+  if (MB_SUCCESS != result) {
+    std::cerr << "Reverse FS failed." << std::endl;
+    return;
+  }
+
+  std::cerr << "Reverse FS succeeded." << std::endl;
+
+    // get the dual surfaces for that edge
+  edge = dt.get_dual_entity(quad);
+  MBEntityHandle chord = dt.get_dual_hyperplane(edge);
+  MBRange sheets;
+  result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
+  if (MB_SUCCESS == result) {
+    drawn_sheets = drawn_sheets.subtract(sheets);
+    for (MBRange::iterator rit = drawn_sheets.begin(); rit != drawn_sheets.end(); rit++) {
+      int dum;
+      if (vtkMOABUtils::mbImpl->get_number_entities_by_handle(*rit, dum) == MB_SUCCESS &&
+          dum > 0) {
+        bool success = drawDual->draw_dual_surfs(drawn_sheets);
+        if (!success)
+          std::cerr << "Problem drawing previously-drawn dual surfaces." << std::endl;
+      }
+    }
+
+      // now draw the sheets affected
+    bool success = drawDual->draw_dual_surfs(sheets);
+    if (!success)
+      std::cerr << "Problem drawing dual surfaces from reverse face shrink." << std::endl;
+
+    
+  }
+  else {
+    std::cerr << "Couldn't get parent dual surfaces of dual edge." << std::endl;
+  }
+  
+  updateMesh();
 }

@@ -176,6 +176,9 @@ public:
     //! effect face shrink operation
   MBErrorCode face_shrink(MBEntityHandle odedge);
   
+    //! effect reverse atomic pillow operation
+  MBErrorCode rev_face_shrink(MBEntityHandle edge);
+  
     //! effect a face open-collapse operation
   MBErrorCode face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr,
                                  MBEntityHandle tcm);
@@ -329,6 +332,17 @@ private:
   MBErrorCode fs_check_quad_sense(MBEntityHandle hex0,
                                   MBEntityHandle quad0,
                                   std::vector<MBEntityHandle> *connects);
+  
+    //! get the three quads for a face shrink, the two hexes, and the connectivity
+    //! of the three quads
+  MBErrorCode fs_get_quads(MBEntityHandle odedge, 
+                           MBEntityHandle *quads,
+                           MBEntityHandle *hexes,
+                           std::vector<MBEntityHandle> *connects);
+  
+    //! given connectivity of first 3 quads for reverse face shrink, get fourth (outer
+    //! 4 verts to be shared by two inner hexes)
+  MBErrorCode fsr_get_fourth_quad(std::vector<MBEntityHandle> *connects);
   
     //! private copy of interface *
   MBInterface *mbImpl;
