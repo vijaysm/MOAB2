@@ -3941,7 +3941,7 @@ MBErrorCode mb_split_test(MBInterface *gMB)
     // NOTE: passing in non-NULL pointer for new_regions requests that region between the
     // split entities be filled with an element; in this case, since we're splitting faces,
     // the new entities are polyhedra
-  result = gMB->split_entities_manifold(split_faces, new_faces, &new_regions);
+  result = mtu.split_entities_manifold(split_faces, new_faces, &new_regions);
   if (MB_SUCCESS != result || new_faces.size() != 4 ||
       new_regions.size() != 4) {
     std::cout << "mb_split_test failed to split quads." << std::endl;

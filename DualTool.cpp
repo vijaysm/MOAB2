@@ -1582,312 +1582,167 @@ MBErrorCode DualTool::delete_dual_entities(MBRange &entities)
   return result;
 }
 
-MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr,
-                                         MBEntityHandle tcm) 
+MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr) 
 {
-  MBErrorCode result;
+  MeshTopoUtil mtu(mbImpl);
 
-    // gather data we can get just from looking at ocl, ocr, tcm
-  MBEntityHandle zclf, zclb, zcrf, zcrb;
-  MBEntityHandle tclu, tclm, tcll, tcru, tcrm, tcrl;
-  MBEntityHandle thclu, thcll, thcmu, thcml, thcru, thcrl;
-  MBEntityHandle sl, sm, sr, cl, cr;
+    // get the primal entities we're dealing with
+  MBEntityHandle quads[2], edge;
+  quads[0] = get_dual_entity(ocl);
+  quads[1] = get_dual_entity(ocr);
+  if (MBQUAD != mbImpl->type_from_handle(quads[0]) ||
+      MBQUAD != mbImpl->type_from_handle(quads[1]))
+    return MB_TYPE_OUT_OF_RANGE;
   
-  result = foc_gather_data(ocl, ocr, tcm,
-                           zclf, zclb, zcrf, zcrb,
-                           tclu, tclm, tcll, tcru, tcrm, tcrl,
-                           thclu, thcll, thcmu, thcml, thcru, thcrl,
-                           sl, sm, sr, cl, cr); RR;
+  edge = mtu.common_entity(quads[0], quads[1], 1);
+  if (0 == edge) return MB_FAILURE;
 
-  MBEntityHandle new_ocb, new_ocf, new_cb, new_cf;
+  MBRange hexes;
+  MBErrorCode result = mbImpl->get_adjacencies(quads, 2, 3, false, hexes, MBInterface::UNION);
+  if (MB_SUCCESS != result) return result;
+  assert(4 >= hexes.size());
   
-  result = foc_1cells(zclf, zclb, ocl, cl,
-                      zcrf, zcrb, ocr, cr,
-                      sm, sr,
-                      new_ocb, new_ocf, new_cb, new_cf);
-  
-  return MB_SUCCESS;
-}
-
-MBErrorCode DualTool::foc_1cells(MBEntityHandle zclf, MBEntityHandle zclb, 
-                                 MBEntityHandle ocl, MBEntityHandle cl,
-                                 MBEntityHandle zcrf, MBEntityHandle zcrb, 
-                                 MBEntityHandle ocr, MBEntityHandle cr,
-                                 MBEntityHandle sm, MBEntityHandle sr,
-                                 MBEntityHandle &new_ocb, MBEntityHandle &new_ocf,
-                                 MBEntityHandle &new_cb, MBEntityHandle &new_cf) 
-{
-  std::vector<MBEntityHandle> cl_1cells, cl_split_1cells, cr_1cells, cr_split_1cells;
-  MBErrorCode result;
-
-    // break the chords; make them go in opposite directions, so it's easier
-    // to join them up
-  result = foc_break_chord(cl, ocl, zclb, cl_1cells, cl_split_1cells); RR;
-  result = foc_break_chord(cr, ocr, zcrf, cr_1cells, cr_split_1cells); RR;
-
-    // make new 1cells
-  MBEntityHandle new_verts[2];
-  new_verts[0] = zclb; new_verts[1] = zcrb; 
-  result = mbImpl->create_element(MBEDGE, new_verts, 2, new_ocb); RR;
-  new_verts[0] = zclf; new_verts[1] = zcrf; 
-  result = mbImpl->create_element(MBEDGE, new_verts, 2, new_ocf); RR;
-  
-    // construct new chord 1cell lists
-  std::vector<MBEntityHandle> cb_1cells, cf_1cells;
-
-    // if cr was blind, insert reversed cl split and ocf onto front of cb
-  if (cr_split_1cells.empty() && !cl_split_1cells.empty()) {
-    std::copy(cl_split_1cells.rbegin(), cl_split_1cells.rend(), std::back_inserter(cb_1cells));
-    cb_1cells.push_back(new_ocf);
+    // delete dual entities affected by this operation
+  MBRange adj_ents, dual_ents, cells1or2;
+  for (int i = 0; i < 3; i++) {
+    result = mbImpl->get_adjacencies(hexes, i, false, adj_ents, MBInterface::UNION);
+    if (MB_SUCCESS != result) return result;
+  }
+  for (MBRange::iterator rit = adj_ents.begin(); rit != adj_ents.end(); rit++) {
+    MBEntityHandle this_ent = get_dual_entity(*rit);
+    dual_ents.insert(this_ent);
+    int dim = mbImpl->dimension_from_handle(this_ent);
+    if (1 == dim || 2 == dim) cells1or2.insert(this_ent);
   }
 
-    // reverse cr & put on cb
-  std::copy(cr_1cells.rbegin(), cr_1cells.rend(), std::back_inserter(cb_1cells));
-    // add new_ocb and append cl
-  cb_1cells.push_back(new_ocb);
-  std::copy(cl_1cells.begin(), cl_1cells.end(), std::back_inserter(cb_1cells));
+  MBRange dual_hps;
+  for (MBRange::iterator rit = cells1or2.begin(); rit != cells1or2.end(); rit++)
+    dual_hps.insert(get_dual_hyperplane(*rit));
   
-    // if both chords got split, add the pieces to a new list
-  if (!cl_split_1cells.empty() && !cr_split_1cells.empty()) {
-    std::copy(cl_split_1cells.rbegin(), cl_split_1cells.rend(), std::back_inserter(cf_1cells));
-    cf_1cells.push_back(new_ocf);
-    std::copy(cr_split_1cells.begin(), cr_split_1cells.end(), std::back_inserter(cf_1cells));
-  }
-    // if niether was split, just need to add ocf
-  else if (cl_split_1cells.empty() && cr_split_1cells.empty()) {
-    cb_1cells.push_back(new_ocf);
-  }
-    // if cl was blind, add ocf and remainder of cr split to cb
-  else if (cl_split_1cells.empty()) {
-    cb_1cells.push_back(new_ocf);
-    std::copy(cr_split_1cells.begin(), cr_split_1cells.end(), std::back_inserter(cb_1cells));
+  result = delete_dual_entities(dual_ents);
+  if (MB_SUCCESS != result) return result;
+  
+    // after deleting cells, check for empty chords & sheets, and delete those too
+  for (MBRange::iterator rit = dual_hps.begin(); rit != dual_hps.end(); rit++) {
+    MBRange tmp_ents;
+    result = mbImpl->get_entities_by_handle(*rit, tmp_ents);
+    if (MB_SUCCESS != result) return result;
+    if (tmp_ents.empty()) {
+      result = mbImpl->delete_entities(&(*rit), 1);
+      if (MB_SUCCESS != result) return result;
+    }
   }
     
-    // make new chords
-    // cb
-  result = mbImpl->create_meshset((MESHSET_ORDERED | MESHSET_TRACK_OWNER), new_cb); RR;
-
-    // give them parents sr and sm
-  result = mbImpl->add_parent_child(sr, new_cb); RR;
-  result = mbImpl->add_parent_child(sm, new_cb); RR;
+    // split manifold each of the quads
+  MBEntityHandle new_quads[2];
+  result = mtu.split_entities_manifold(quads, 2, new_quads, NULL);
+  if (MB_SUCCESS != result) return result;
   
-    // now add 1cells
-  result = mbImpl->add_entities(new_cb, &cb_1cells[0], cb_1cells.size()); RR;
+    // split non-manifold the edge between them; should be one new edge
+  MBRange new_edges;
+  result = mtu.split_entity_nonmanifold(edge, new_edges);
+  if (MB_SUCCESS != result) return result;
+  assert(new_edges.size() == 1);
 
-    // cf
-  result = mbImpl->create_meshset((MESHSET_ORDERED | MESHSET_TRACK_OWNER), new_cf); RR;
+    // adjust quad lists so that quads[0] and new_quads[0] share an edge
+  if (0 == mtu.common_entity(quads[0], new_quads[0], 1) &&
+      0 != mtu.common_entity(quads[0], new_quads[1], 1)) {
+    MBEntityHandle tmp_quad = new_quads[0];
+    new_quads[0] = new_quads[1];
+    new_quads[1] = tmp_quad;
+  }
 
-    // give them parents sr and sm
-  result = mbImpl->add_parent_child(sr, new_cf); RR;
-  result = mbImpl->add_parent_child(sm, new_cf); RR;
+    // now the process of merging entities, from lower dimensions on up
+  std::vector<MBEntityHandle> merge_ents;
+  result = foc_get_merge_ents(quads, new_quads, edge, *new_edges.begin(), merge_ents);
+  if (MB_SUCCESS != result) return result;
+    // should be 2 pairs of verts, 3 of edges, 2 of faces, = 14 entities
+  assert(merge_ents.size() == 14);
   
-    // now add 1cells
-  result = mbImpl->add_entities(new_cf, &cf_1cells[0], cf_1cells.size()); RR;
-
-    // now delete chords cl, cr
-  result = mbImpl->delete_entities(&cl, 1); RR;
-  result = mbImpl->delete_entities(&cr, 1); RR;
+    // now merge them
+  for (std::vector<MBEntityHandle>::iterator vit = merge_ents.begin();
+       vit != merge_ents.end(); vit+=2) {
+    result = mbImpl->merge_entities(*vit, *(vit+1), false, true);
+    if (MB_SUCCESS != result) return result;
+  }
+  
+    // reconstruct dual
+  result = construct_hex_dual(hexes); 
+  if (MB_SUCCESS != result) return result;
   
   return MB_SUCCESS;
 }
 
-MBErrorCode DualTool::foc_break_chord(MBEntityHandle chord,
-                                      MBEntityHandle first_1cell,
-                                      MBEntityHandle next_0cell,
-                                      std::vector<MBEntityHandle> &chord_1cells,
-                                      std::vector<MBEntityHandle> &new_chord_1cells) 
+MBErrorCode DualTool::foc_get_merge_ents(MBEntityHandle *quads, MBEntityHandle *new_quads, 
+                                         MBEntityHandle edge, MBEntityHandle new_edge,
+                                         std::vector<MBEntityHandle> &merge_ents)
 {
-  std::vector<MBEntityHandle> tmp_1cells;
-  MBErrorCode result;
-  result = mbImpl->get_entities_by_handle(chord, tmp_1cells); RR;
-  std::vector<MBEntityHandle>::iterator vit;
-  
-    // position list at first_1cell
-  vit = std::find(tmp_1cells.begin(), tmp_1cells.end(), first_1cell);
-  if (vit == tmp_1cells.end()) return MB_FAILURE;
-  int index = vit - tmp_1cells.end();
-
-    // get common vtx with next 1cell to see if we're forward or reverse
   MeshTopoUtil mtu(mbImpl);
-  MBEntityHandle next_v = 
-    mtu.common_entity(first_1cell, tmp_1cells[(index+1)%tmp_1cells.size()], 0);
-  int direction = (next_0cell == next_v ? 1 : -1);
 
-    // start copy one past first_1cell, so first_1cell isn't on chord
-  int i = (index + direction) % tmp_1cells.size();
-  for (; i != (int)tmp_1cells.size() && i != -1; i += direction)
-    chord_1cells.push_back(tmp_1cells[i]);
+    // get the vertices in the 4 quads; should be 6 of them
+  MBRange all_verts;
+  MBErrorCode result = mbImpl->get_adjacencies(quads, 2, 0, false, 
+                                               all_verts, MBInterface::UNION);
+  if (MB_SUCCESS != result) return result;
+  assert(6 == all_verts.size());
+    // each pair is bridge-adjacent to one of the vertices of our edge
+  const MBEntityHandle *connect;
+  int num_connect;
+  result = mbImpl->get_connectivity(edge, connect, num_connect);
+  if (MB_SUCCESS != result) return result;
   
-  i = (i + tmp_1cells.size()) % tmp_1cells.size();
-  if (is_blind(chord)) {
-    // now get the others
-    for (; i != index; i += direction)
-      chord_1cells.push_back(tmp_1cells[i]);
+  for (int i = 0; i < 2; i++) {
+    MBRange tmp_verts;
+    result = mtu.get_bridge_adjacencies(connect[i], 1, 0, tmp_verts);
+    if (MB_SUCCESS != result) return result;    
+    tmp_verts = tmp_verts.intersect(all_verts);
+
+      // bridge adjacencies don't include connect[i], but will include the other
+    tmp_verts.erase(connect[(i+1)%2]);
+    assert(2 == tmp_verts.size());
+    
+    merge_ents.push_back(*tmp_verts.begin());
+    merge_ents.push_back(*tmp_verts.rbegin());
   }
-  else {
-      // put remaining 1cells on new list, but going away from first_1cell
-    i = (index - direction + tmp_1cells.size()) % tmp_1cells.size();
-    for (; i != (int)tmp_1cells.size() && i != -1; i -= direction)
-      new_chord_1cells.push_back(tmp_1cells[i]);
+
+    // now edges
+  MBRange all_edges, saved_edges;
+  result = mbImpl->get_adjacencies(quads, 2, 1, false, all_edges, MBInterface::UNION);
+  if (MB_SUCCESS != result) return result;
+  all_edges.erase(edge);
+  all_edges.erase(new_edge);
+    // first the ones connected to edge and new_edge
+  for (int i = 0; i < 2; i++) {
+    MBRange tmp_edges;
+    result = mbImpl->get_adjacencies(&connect[i], 1, 1, false, tmp_edges);
+    if (MB_SUCCESS != result) return result;
+    tmp_edges = tmp_edges.intersect(all_edges);
+    assert(2 == tmp_edges.size());
+    merge_ents.push_back(*tmp_edges.begin());
+    merge_ents.push_back(*tmp_edges.rbegin());
+    saved_edges.merge(tmp_edges);
   }
-
-    // done
-  return MB_SUCCESS;
-}
+    // last two are the ones left over, not counting edge and new_edge
+  all_edges = all_edges.subtract(saved_edges);
+  assert(2 == all_edges.size());
+  merge_ents.push_back(*all_edges.begin());
+  merge_ents.push_back(*all_edges.rbegin());
   
-MBErrorCode DualTool::foc_gather_data(const MBEntityHandle ocl, const MBEntityHandle ocr, 
-                                      const MBEntityHandle tcm, 
-                                        // 0-cells, left & right
-                                      MBEntityHandle &zclf, MBEntityHandle &zclb, 
-                                      MBEntityHandle &zcrf, MBEntityHandle &zcrb,
-                                        // 2-cells, left & right
-                                      MBEntityHandle &tclu, MBEntityHandle &tclm, MBEntityHandle &tcll, 
-                                      MBEntityHandle &tcru, MBEntityHandle &tcrm, MBEntityHandle &tcrl,
-                                        // 3-cells, left & right
-                                      MBEntityHandle &thclu, MBEntityHandle &thcll, MBEntityHandle &thcmu, 
-                                      MBEntityHandle &thcml, MBEntityHandle &thcru, MBEntityHandle &thcrl,
-                                        // sheets
-                                      MBEntityHandle &sl, MBEntityHandle &sm, MBEntityHandle &sr,
-                                        // chords
-                                      MBEntityHandle &cl, MBEntityHandle &cr) 
-{
-    // for explanation of algorithm, see notes 7/13/05
-  MBErrorCode result;
-  
-    // get vertices around tcm
-  const MBEntityHandle *tcm_verts, *ocl_verts, *ocr_verts;
-  int tcm_verts_size, oc_verts_size;
-  result = mbImpl->get_connectivity(tcm, tcm_verts, tcm_verts_size); RR;
-  result = mbImpl->get_connectivity(ocl, ocl_verts, oc_verts_size); RR;
-  assert(2 == oc_verts_size);
-  result = mbImpl->get_connectivity(ocr, ocr_verts, oc_verts_size); RR;
-  assert(2 == oc_verts_size);
-  
-  int side_no, sense, offset;
-    // check ordering such that zclb comes before zclf in tcm's vert list; if
-    // ocl and tcm are same sense, then zclb,zclf are in order on ocl
-  result = mbImpl->side_number(tcm, ocl, side_no, sense, offset); RR;
-  zclb = ocl_verts[(1-sense)/2];
-  zclf = ocl_verts[(1+sense)/2];
-
-    // reversed for ocr
-  result = mbImpl->side_number(tcm, ocr, side_no, sense, offset); RR;
-  zcrb = ocl_verts[(1+sense)/2];
-  zcrf = ocl_verts[(1-sense)/2];
-
-    // thcmu, thcml
-  MBRange dum_range, dum_range_2;
-  result = mbImpl->get_adjacencies(&tcm, 1, 3, false, dum_range); RR;
-  assert(2 == dum_range.size());
-  thcmu = *dum_range.begin();
-  thcml = *dum_range.rbegin();
-
-  result = foc_get_neighbor_23cells(ocl, tcm, thcmu, thcml,
-                                    tclu, tclm, tcll,
-                                    thclu, thcll); RR;
-
-  result = foc_get_neighbor_23cells(ocr, tcm, thcmu, thcml,
-                                    tcru, tcrm, tcrl,
-                                    thcru, thcrl); RR;
-
-    // sm, sl, sr
-  sm = get_dual_hyperplane(tcm);
-  if (0 == sm) {
-    std::cerr << "Couldn't get dual surface for tcm." << std::endl;
-    return MB_FAILURE;
+    // now faces
+  if (0 != mtu.common_entity(quads[0], new_quads[0], 1)) {
+    merge_ents.push_back(quads[0]);
+    merge_ents.push_back(new_quads[0]);
+    merge_ents.push_back(quads[1]);
+    merge_ents.push_back(new_quads[1]);
   }
-  
-  sl = get_dual_hyperplane(tclu);
-  if (0 == sl) {
-    std::cerr << "Couldn't get dual surface for tclu." << std::endl;
-    return MB_FAILURE;
+  else if (0 != mtu.common_entity(quads[0], new_quads[1], 1)) {
+    merge_ents.push_back(quads[0]);
+    merge_ents.push_back(new_quads[1]);
+    merge_ents.push_back(quads[1]);
+    merge_ents.push_back(new_quads[0]);
   }
-  
-  sr = get_dual_hyperplane(tcru);
-  if (0 == sl) {
-    std::cerr << "Couldn't get dual surface for tcru." << std::endl;
-    return MB_FAILURE;
-  }
-  
-    // cl, cr
-  cl = get_dual_hyperplane(ocl);
-  if (0 == sm) {
-    std::cerr << "Couldn't get dual curve for ocl." << std::endl;
-    return MB_FAILURE;
-  }
-  
-    // cl, cr
-  cr = get_dual_hyperplane(ocr);
-  if (0 == sm) {
-    std::cerr << "Couldn't get dual curve for ocr." << std::endl;
-    return MB_FAILURE;
-  }
-  
-  return MB_SUCCESS;
-}
+  else return MB_FAILURE;
 
-MBErrorCode DualTool::foc_get_neighbor_23cells(const MBEntityHandle oc,
-                                               const MBEntityHandle tcm,
-                                               const MBEntityHandle thcmu,
-                                               const MBEntityHandle thcml,
-                                               MBEntityHandle &tcxu, 
-                                               MBEntityHandle &tcxm, 
-                                               MBEntityHandle &tcxl, 
-                                               MBEntityHandle &thcxu, 
-                                               MBEntityHandle &thcxl) 
-{
-    // given a 1cell, 2cell, and an upper and lower 3cell (in that order),
-    // return the adjacent upper, middle and lower 2cells sharing the 1cell
-    // and adjacent to the 3cells (respectively), and the adjacent 3cells
-  MBErrorCode result;
-  MBRange dum_range, dum_range_2;
-  
-    // tcu, tcl, tcm
-  dum_range.insert(tcm);
-  dum_range.insert(thcmu);
-  dum_range.insert(oc);
-  result = mbImpl->get_adjacencies(dum_range, 2, false, dum_range_2); RR;
-  assert(dum_range_2.size() == 2 &&
-         (*dum_range_2.begin() == tcm || *dum_range_2.rbegin() == tcm));
-  if (*dum_range_2.begin() == tcm)
-    tcxu = *dum_range_2.rbegin();
-  else
-    tcxu = *dum_range_2.begin();
-
-  dum_range_2.clear();
-  dum_range.erase(thcmu);
-  dum_range.insert(thcml);
-  result = mbImpl->get_adjacencies(dum_range, 2, false, dum_range_2); RR;
-  assert(dum_range_2.size() == 2 &&
-         (*dum_range_2.begin() == tcm || *dum_range_2.rbegin() == tcm));
-  if (*dum_range_2.begin() == tcm)
-    tcxl = *dum_range_2.rbegin();
-  else
-    tcxl = *dum_range_2.begin();
-  
-  dum_range.clear(); dum_range_2.clear();
-  dum_range.insert(oc);
-  result = mbImpl->get_adjacencies(dum_range, 2, false, dum_range_2); RR;
-  assert(4 == dum_range_2.size());
-  dum_range_2.erase(tcm);
-  dum_range_2.erase(tcxu);
-  dum_range_2.erase(tcxl);
-  tcxm = *dum_range_2.begin();
-  
-    // thcu, thcl
-  dum_range.clear(); dum_range_2.clear();
-  dum_range.insert(tcxm);
-  dum_range.insert(tcxu);
-  result = mbImpl->get_adjacencies(dum_range, 3, false, dum_range_2); RR;
-  assert(1 == dum_range_2.size());
-  thcxu = *dum_range_2.begin();
-  dum_range_2.clear();
-  dum_range.erase(tcxu);
-  dum_range.insert(tcxl);
-  result = mbImpl->get_adjacencies(dum_range, 3, false, dum_range_2); RR;
-  assert(1 == dum_range_2.size());
-  thcxl = *dum_range_2.begin();
-  
   return MB_SUCCESS;
 }
 

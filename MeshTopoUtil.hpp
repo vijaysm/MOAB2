@@ -73,6 +73,38 @@ public:
                                const MBEntityHandle ent2,
                                const int dim);
   
+    //! split entity which is non-manifold, that is, which has > 2 connected entities
+    //! of next higher dimension; assumes that there are >= 2 connected regions of
+    //! (d+2)-dimensional entities; a new d-entity is created for each region after the
+    //! first, and it's made explicitly-adjacent to the region to which it corresponds
+  MBErrorCode split_entity_nonmanifold(MBEntityHandle split_ent,
+                                       MBRange &new_ents);
+  
+    //! split entities that are manifold (shared by two or less entities of each higher dimension),
+    //! optionally creating an entity of next higher dimension to fill the gap
+    /**
+       \param entities The entities to be split
+       \param new_entities New entities, in order of correspondence to that of entities
+       \param fill_entities If non-NULL, create an entity of next higher dimension to fill the gap,
+                       passing it back in *fill_entities
+    */
+  MBErrorCode split_entities_manifold(MBRange &entities,
+                                      MBRange &new_entities,
+                                      MBRange *fill_entities);
+  
+    //! split entities that are manifold (shared by two or less entities of each higher dimension),
+    //! optionally creating an entity of next higher dimension to fill the gap
+    /**
+       \param entities The entities to be split
+       \param new_entities New entities, in order of correspondence to that of entities
+       \param fill_entities If non-NULL, create an entity of next higher dimension to fill the gap,
+                       passing it back in *fill_entities
+    */
+  MBErrorCode split_entities_manifold(MBEntityHandle *entities,
+                                      const int num_entities,
+                                      MBEntityHandle *new_entities,
+                                      MBRange *fill_entities);
+  
 private:
   MBInterface *mbImpl;
   

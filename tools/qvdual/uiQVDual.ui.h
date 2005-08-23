@@ -28,6 +28,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtkMOABUtils.h"
+#include "MeshTopoUtil.hpp"
 #include "vtkPolyDataMapper.h"
 #include "vtkDataSetMapper.h"
 #include "vtkActor.h"
@@ -888,7 +889,92 @@ void uiQVDual::negAPbutton_clicked()
 
 void uiQVDual::FOCbutton_clicked()
 {
+    // make sure the last picked entities are edges
+  MBEntityHandle edge1 = drawDual->lastPickedEnt,
+    edge2 = drawDual->secondLastPickedEnt,;
+  if (0 == edge1 || 0 == edge2) {
+    std::cerr << "Didn't find a picked entity." << std::endl;
+    return;
+  }
 
+  DualTool dt(vtkMOABUtils::mbImpl);
+  MeshTopoUtil mtu(vtkMOABUtils::mbImpl);
+  if (0 == mtu.common_entity(edge1, edge2, 2)) {
+    std::cerr << "Dual edges don't share a common 2-cell." << std::endl;
+    return;
+  }
+  
+  MBErrorCode result;
+/*  
+    // check that edge1 and edge2 have a common polygon; if not, and one's
+    // on a blind chord, get the other 1cell on that blind chord and check that
+  if (0 == mtu.common_entity(edge1, edge2, 2)) {
+    MBEntityHandle chord1 = dt.get_dual_hyperplane(edge1),
+      chord2 = dt.get_dual_hyperplane(edge2);
+    if (dt.is_blind(chord1) && vtkMOABUtils::mbImpl->num_entities(chord1) == 2 &&
+        !is_blind(chord2)) {
+      std::vector<MBEntityHandle> edges;
+      result = vtkMOABUtils::mbImpl->get_entities_by_handle(chord1, edges);
+      if (MB_SUCCESS != result) {
+        std::cerr << "Couldn't get edges on chord." << std::endl;
+        return;
+      }
+      if 
+      edge1 = (edge1 == edges
+*/      
+  
+  if (MBEDGE != vtkMOABUtils::mbImpl->type_from_handle(edge1) ||
+      MBEDGE != vtkMOABUtils::mbImpl->type_from_handle(edge2)) {
+    std::cerr << "FOC must apply to dual edges." << std::endl;
+    return;
+  }
+
+    // save the quad from edge1, 'cuz the dual sheets/chord might change;
+  MBEntityHandle quad = dt.get_dual_entity(edge1);
+  assert(0 != quad);
+
+    // reset any drawn sheets (will get redrawn later)
+  MBRange drawn_sheets;
+  result = drawDual->reset_drawn_sheets(drawn_sheets);
+  
+    // otherwise, do the FOC
+  result = dt.face_open_collapse(edge1, edge2);
+  if (MB_SUCCESS != result) {
+    std::cerr << "FOC failed." << std::endl;
+    return;
+  }
+
+  std::cerr << "FOC succeeded." << std::endl;
+
+    // get the dual surfaces for that edge
+  edge1 = dt.get_dual_entity(quad);
+  MBEntityHandle chord = dt.get_dual_hyperplane(edge1);
+  MBRange sheets;
+  result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
+  if (MB_SUCCESS == result) {
+    drawn_sheets = drawn_sheets.subtract(sheets);
+    for (MBRange::iterator rit = drawn_sheets.begin(); rit != drawn_sheets.end(); rit++) {
+      int dum;
+      if (vtkMOABUtils::mbImpl->get_number_entities_by_handle(*rit, dum) == MB_SUCCESS &&
+          dum > 0) {
+        bool success = drawDual->draw_dual_surfs(drawn_sheets);
+        if (!success)
+          std::cerr << "Problem drawing previously-drawn dual surfaces." << std::endl;
+      }
+    }
+
+      // now draw the sheets affected
+    bool success = drawDual->draw_dual_surfs(sheets);
+    if (!success)
+      std::cerr << "Problem drawing dual surfaces from reverse face open-collapse." << std::endl;
+
+    
+  }
+  else {
+    std::cerr << "Couldn't get parent dual surfaces of dual edge." << std::endl;
+  }
+  
+  updateMesh();
 }
 
 

@@ -180,8 +180,7 @@ public:
   MBErrorCode rev_face_shrink(MBEntityHandle edge);
   
     //! effect a face open-collapse operation
-  MBErrorCode face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr,
-                                 MBEntityHandle tcm);
+  MBErrorCode face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr);
   
     //! given a 1-cell and a chord, return the neighboring vertices on the
     //! chord, in the same order as the 1-cell's vertices
@@ -280,54 +279,6 @@ private:
     //! delete a range of dual entities; updates primal to no longer point to them
   MBErrorCode delete_dual_entities(MBRange &entities);
   
-  MBErrorCode foc_gather_data(const MBEntityHandle ocl, const MBEntityHandle ocr, 
-                              const MBEntityHandle tcm, 
-                                // 0-cells, left & right
-                              MBEntityHandle &zclf, MBEntityHandle &zclb, 
-                              MBEntityHandle &zcrf, MBEntityHandle &zcrb,
-                                // 2-cells, left & right
-                              MBEntityHandle &tclu, MBEntityHandle &tclm, MBEntityHandle &tcll, 
-                              MBEntityHandle &tcru, MBEntityHandle &tcrm, MBEntityHandle &tcrl,
-                                // 3-cells, left & right
-                              MBEntityHandle &thclu, MBEntityHandle &thcll, MBEntityHandle &thcmu, 
-                              MBEntityHandle &thcml, MBEntityHandle &thcru, MBEntityHandle &thcrl,
-                                // sheets
-                              MBEntityHandle &sl, MBEntityHandle &sm, MBEntityHandle &sr,
-                                // chords     
-                              MBEntityHandle &cl, MBEntityHandle &cr);
-  
-  MBErrorCode foc_get_neighbor_23cells(const MBEntityHandle oc,
-                                       const MBEntityHandle tcm,
-                                       const MBEntityHandle thcmu,
-                                       const MBEntityHandle thcml,
-                                       MBEntityHandle &tcu, 
-                                       MBEntityHandle &tcm, 
-                                       MBEntityHandle &tcl, 
-                                       MBEntityHandle &thcu, 
-                                       MBEntityHandle &thcl);
-  
-  MBErrorCode foc_1cells(MBEntityHandle zclf, MBEntityHandle zclb, 
-                         MBEntityHandle ocl, MBEntityHandle cl,
-                         MBEntityHandle zcrf, MBEntityHandle zcrb, 
-                         MBEntityHandle ocr, MBEntityHandle cr,
-                         MBEntityHandle sm, MBEntityHandle sr,
-                         MBEntityHandle &new_ocb, MBEntityHandle &new_ocf,
-                         MBEntityHandle &new_cb, MBEntityHandle &new_cf);
-  
-    //! break a chord such that first_1cell is the first 1cell, the next 1cell
-    //! shares next_0cell, and the new chord starts with the 1cell in the other
-    //! direction; if chord is blind, new_chord is not created
-  MBErrorCode foc_break_chord(MBEntityHandle chord,
-                              MBEntityHandle first_1cell,
-                              MBEntityHandle next_0cell,
-                              std::vector<MBEntityHandle> &chord_1cells,
-                              std::vector<MBEntityHandle> &new_chord_1cells);
-
-    //! replace zc_old with zc_new in 1cell oc
-  MBErrorCode foc_replace_0cell(MBEntityHandle oc,
-                                MBEntityHandle zc_old,
-                                MBEntityHandle zc_new);
-  
     //! check sense of connect arrays, and reverse/rotate if necessary
   MBErrorCode fs_check_quad_sense(MBEntityHandle hex0,
                                   MBEntityHandle quad0,
@@ -343,6 +294,11 @@ private:
     //! given connectivity of first 3 quads for reverse face shrink, get fourth (outer
     //! 4 verts to be shared by two inner hexes)
   MBErrorCode fsr_get_fourth_quad(std::vector<MBEntityHandle> *connects);
+  
+    //! get pairs of entities to be merged as part of foc operation
+  MBErrorCode foc_get_merge_ents(MBEntityHandle *quads, MBEntityHandle *new_quads, 
+                                 MBEntityHandle edge, MBEntityHandle new_edge,
+                                 std::vector<MBEntityHandle> &merge_ents);
   
     //! private copy of interface *
   MBInterface *mbImpl;
