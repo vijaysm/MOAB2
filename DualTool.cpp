@@ -2380,17 +2380,37 @@ MBErrorCode DualTool::rev_face_shrink(MBEntityHandle odedge)
   }
     // next get all entities adjacent to those; these will have their dual
     // entities deleted
-  for (int i = 1; i <= 3; i++) {
+  for (int i = 0; i <= 3; i++) {
     result = mbImpl->get_adjacencies(adj_ents, i, false, all_adjs,
                                      MBInterface::UNION);
     if (MB_SUCCESS != result) return result;
   }
 
     // get the dual entities and delete them
+  MBRange dual_ents, dual_hps;
   for (MBRange::iterator rit = all_adjs.begin(); rit != all_adjs.end(); rit++) {
     MBEntityHandle this_ent = get_dual_entity(*rit);
-    result = delete_dual_entities(&this_ent, 1);
+    dual_ents.insert(this_ent);
+  }
+    
+    // before deleting dual, grab the 1- and 2-cells
+  for (MBRange::iterator rit = dual_ents.begin(); rit != dual_ents.end(); rit++) {
+    int dim = mbImpl->dimension_from_handle(*rit);
+    if (1 == dim || 2 == dim) dual_hps.insert(get_dual_hyperplane(*rit));
+  }
+  
+  result = delete_dual_entities(dual_ents);
+  if (MB_SUCCESS != result) return result;
+  
+    // after deleting cells, check for empty chords & sheets, and delete those too
+  for (MBRange::iterator rit = dual_hps.begin(); rit != dual_hps.end(); rit++) {
+    MBRange tmp_ents;
+    result = mbImpl->get_entities_by_handle(*rit, tmp_ents);
     if (MB_SUCCESS != result) return result;
+    if (tmp_ents.empty()) {
+      result = mbImpl->delete_entities(&(*rit), 1);
+      if (MB_SUCCESS != result) return result;
+    }
   }
     
     // get the two outer hexes and remove them from the interior entity list; do it
