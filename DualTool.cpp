@@ -1642,6 +1642,39 @@ MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr)
   MBRange new_edges;
   result = mtu.split_entity_nonmanifold(edge, new_edges);
   if (MB_SUCCESS != result) return result;
+
+  if (new_edges.size() > 2) {
+    std::cerr << "Can't do FOC here, at least 1 quad must be below the surface." << std::endl;
+    return MB_FAILURE;
+  }
+  else if (new_edges.size() == 2) {
+      // one quad was on the surface; must merge that quad's new edge with the other
+      // find the surface quad, then the edge it contains
+    MBRange tmp_ents;
+    result = mbImpl->get_adjacencies(&quads[0], 1, 3, false, tmp_ents);
+    if (MB_SUCCESS != result) return result;
+    MBEntityHandle edge1, edge2, the_quad;
+    the_quad = (tmp_ents.empty() ? 
+        // quads[0] is the one
+                quads[0] :
+                  // else quads[1] is
+                quads[1]);
+    tmp_ents.clear();
+    result = mbImpl->get_adjacencies(&the_quad, 1, 1, false, tmp_ents);
+    if (MB_SUCCESS != result) return result;
+    if (tmp_ents.find(*new_edges.begin()) != tmp_ents.end()) {
+      edge1 = *new_edges.begin();
+      edge2 = *new_edges.rbegin();
+    }
+    else {
+      edge1 = *new_edges.rbegin();
+      edge2 = *new_edges.begin();
+    }
+    result = mbImpl->merge_entities(edge1, edge2, false, true);
+    if (MB_SUCCESS != result) return result;
+    new_edges.clear();
+    new_edges.insert(edge1);
+  }
   assert(new_edges.size() == 1);
 
     // adjust quad lists so that quads[0] and new_quads[0] share an edge
@@ -1662,6 +1695,7 @@ MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr)
     // now merge them
   for (std::vector<MBEntityHandle>::iterator vit = merge_ents.begin();
        vit != merge_ents.end(); vit+=2) {
+//xxx - failing merge on the first pair of quads
     result = mbImpl->merge_entities(*vit, *(vit+1), false, true);
     if (MB_SUCCESS != result) return result;
   }

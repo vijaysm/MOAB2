@@ -1646,7 +1646,10 @@ MBErrorCode MBCore::merge_entities( MBEntityHandle entity_to_keep,
       return result;
 
       // Check to see if we can merge before pulling adjacencies.
-    if(!auto_merge && conn != conn2)
+    int dum1, dum2;
+    if(!auto_merge && 
+       (conn.size() != conn2.size() ||
+        !MBCN::ConnectivityMatch(&conn[0], &conn2[0], conn.size(), dum1, dum2)))
       return MB_FAILURE;
 
     int i = 1;

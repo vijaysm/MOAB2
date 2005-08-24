@@ -87,6 +87,15 @@ MBErrorCode MeshTopoUtil::star_entities(const MBEntityHandle star_center,
                                           next_entity, next_dp1);
     if (MB_SUCCESS != result) return result;
     
+      // special case: if starting_star_entity isn't connected to any entities of next
+      // higher dimension, it's the only entity in the star; put it on the list and return
+    if (star_entities.empty() && next_entity == 0 && next_dp1 == 0 &&
+        star_candidates_dp1 == NULL) {
+      star_entities.push_back(last_entity);
+      bdy_entity = true;
+      return MB_SUCCESS;
+    }
+
       // if we're at a bdy and bdy_entity hasn't been set yet, we're at the
       // first bdy; reverse the lists and start traversing in the other direction; but,
       // pop the last star entity off the list and find it again, so that we properly
@@ -148,6 +157,17 @@ MBErrorCode MeshTopoUtil::star_next_entity(const MBEntityHandle star_center,
   
     // remove last_entity from result, and should only have 1 left, if any
   if (0 != last_entity) to_ents.erase(last_entity);
+
+    // if no last_dp1, contents of to_ents should share dp1-dimensional entity with last_entity
+  if (0 != last_entity && 0 == last_dp1) {
+    MBRange tmp_to_ents;
+    for (MBRange::iterator rit = to_ents.begin(); rit != to_ents.end(); rit++) {
+      if (0 != common_entity(last_entity, *rit, dim+2))
+        tmp_to_ents.insert(*rit);
+    }
+    to_ents = tmp_to_ents;
+  }
+  
   if (!to_ents.empty()) next_entity = *to_ents.begin();
   else {
     next_entity = 0;
@@ -393,6 +413,9 @@ MBErrorCode MeshTopoUtil::split_entity_nonmanifold(MBEntityHandle split_ent,
                            &this_region_dp2);
     if (MB_SUCCESS != result) return result;
     else if (!is_bdy) return MB_FAILURE;
+      // star should include starting entity
+    assert(std::find(this_region.begin(), this_region.end(), *dp1_ents.begin()) != 
+           this_region.end());
     
       // fold the dp2-entities into the star then put in the list
     assert(this_region_dp2.size() == this_region.size()-1);
@@ -423,22 +446,28 @@ MBErrorCode MeshTopoUtil::split_entity_nonmanifold(MBEntityHandle split_ent,
   result = mbImpl->get_connectivity(split_ent, connect, num_connect);
   if (MB_SUCCESS != result) return result;
   MBEntityType split_type = mbImpl->type_from_handle(split_ent);
-  for (vvit++; vvit != star_regions.end(); vvit++) {
+  for (; vvit != star_regions.end(); vvit++) {
       // create the new entity
     MBEntityHandle new_entity;
-    result = mbImpl->create_element(split_type, connect, num_connect, new_entity);
-    if (MB_SUCCESS != result) return result;
-    else if (0 == new_entity) return MB_FAILURE;
-
+    if (vvit != star_regions.begin()) {
+      result = mbImpl->create_element(split_type, connect, num_connect, new_entity);
+      if (MB_SUCCESS != result) return result;
+      else if (0 == new_entity) return MB_FAILURE;
+      new_ents.insert(new_entity);
+    }
+    else {
+      new_entity = split_ent;
+    }
+    
       // remove any explicit adjacencies with split entity
-    result = mbImpl->remove_adjacencies(split_ent, &(*vvit)[0], vvit->size());
-    if (MB_SUCCESS != result) return result;
+    if (new_entity != split_ent) {
+      result = mbImpl->remove_adjacencies(split_ent, &(*vvit)[0], vvit->size());
+      if (MB_SUCCESS != result) return result;
+    }
     
       //  add adjacency with new entity
     result = mbImpl->add_adjacencies(new_entity, &(*vvit)[0], vvit->size(), false);
     if (MB_SUCCESS != result) return result;
-      
-    new_ents.insert(new_entity);
   }
   
   return result;
