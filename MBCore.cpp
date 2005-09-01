@@ -1478,139 +1478,14 @@ MBErrorCode MBCore::create_vertex(const double coords[3], MBEntityHandle &handle
   return sequence_manager()->create_vertex(coords, handle);
 }
 
-// merge entities without doing a down check because it's already been done
-MBErrorCode MBCore::merge_entities_up(MBEntityHandle entity_to_keep,
-                                        MBEntityHandle entity_to_remove,
-                                        bool auto_merge,
-                                        bool delete_removed_entity)
-{
-    // The two entities to merge must be of the same type
-  MBEntityType type_to_keep = TYPE_FROM_HANDLE(entity_to_keep);
-
-  if (type_to_keep != TYPE_FROM_HANDLE(entity_to_remove))
-    return MB_TYPE_OUT_OF_RANGE;
-
-  int ent_dim = MBCN::Dimension(type_to_keep);
-  
-    // Make sure both entities exist before trying to merge.
-  if(ent_dim > 0)
-  {
-    MBEntitySequence* seq = 0;
-    MBErrorCode status;
-    status = sequence_manager()->find(entity_to_keep, seq);
-    if(seq == 0 || status != MB_SUCCESS ||
-       !seq->is_valid_entity(entity_to_keep))
-      return MB_ENTITY_NOT_FOUND;
-    status = sequence_manager()->find(entity_to_remove, seq);
-    if(seq == 0 || status != MB_SUCCESS ||
-       !seq->is_valid_entity(entity_to_remove))
-      return MB_ENTITY_NOT_FOUND;
-  }
-
-  std::vector<MBEntityHandle> adjacencies, tmp, conn;
-  std::vector<MBEntityHandle>::iterator iter;
-  MBErrorCode result;
-
-    // gather all the adjacencies
-  result = aEntityFactory->get_adjacencies(entity_to_remove, 1, false, tmp);
-  if(result != MB_SUCCESS)
-    return result;
-
-  adjacencies.insert(adjacencies.end(), tmp.begin(), tmp.end());
-
-  result = aEntityFactory->get_adjacencies(entity_to_remove, 2, false, tmp);
-  if(result != MB_SUCCESS)
-    return result;
-
-  adjacencies.insert(adjacencies.end(), tmp.begin(), tmp.end());
-
-  result = aEntityFactory->get_adjacencies(entity_to_remove, 3, false, tmp);
-  if(result != MB_SUCCESS)
-    return result;
-
-  adjacencies.insert(adjacencies.end(), tmp.begin(), tmp.end());
-
-  result = aEntityFactory->get_adjacencies(entity_to_remove, 4, false, tmp);
-  if (result != MB_SUCCESS)
-        return result;
-    
-  std::copy(tmp.begin(), tmp.end(),
-            std::back_inserter<std::vector<MBEntityHandle> >(adjacencies));
-
-  for(iter = adjacencies.begin(); iter != adjacencies.end(); iter++)
-  {
-      // attempt to update the connectivity
-    if(ent_dim == 0)
-    {
-      result = get_connectivity(&(*iter), 1, conn);
-
-      if(result == MB_SUCCESS)
-      {
-        std::replace(conn.begin(), conn.end(), entity_to_remove, entity_to_keep);
-        set_connectivity(*iter, &conn[0], conn.size());
-      }
-    }
-    else
-    {
-        // update the adjacency with the new entity
-      result = aEntityFactory->remove_adjacency(entity_to_remove, *iter);
-      if(result != MB_SUCCESS)
-        return result;
-      result = aEntityFactory->add_adjacency(entity_to_keep, *iter, false);
-      if(result != MB_SUCCESS)
-        return result;
-    }
-
-      // TODO: figure out how to update the meshsets
-  }
-
-    // delete the merged out entity
-  if (delete_removed_entity) delete_entities(&entity_to_remove, 1);
-
-    // Does this merge cause other entities to be coincident?
-  if(auto_merge && ent_dim < 3)
-  {
-    std::vector<MBEntityHandle> conn2;
-    std::vector<MBEntityHandle>::iterator jter;
-    int i = ent_dim + 1;
-    for(; i<4; i++)
-    {
-      result = aEntityFactory->get_adjacencies(entity_to_keep, i, false, tmp);
-      if(result != MB_SUCCESS)
-        return result;
-
-      for(iter=tmp.begin(); iter<tmp.end(); iter++)
-      {
-        result = get_connectivity(&(*iter), 1, conn);
-        if(result != MB_SUCCESS)
-          continue;
-
-        for(jter=iter+1; jter<tmp.end(); jter++)
-        {
-          result = get_connectivity(&(*jter), 1, conn2);
-          if(result != MB_SUCCESS)
-            continue;
-
-          if(conn == conn2)
-          {
-            result = merge_entities_up(*iter, *jter, false, delete_removed_entity);
-            if(result != MB_SUCCESS && result != MB_ENTITY_NOT_FOUND)
-              return result;
-          }
-        }
-      }
-    }
-  }
-
-  return MB_SUCCESS;
-}
-
 //! merges two  entities
 MBErrorCode MBCore::merge_entities( MBEntityHandle entity_to_keep, 
                                       MBEntityHandle entity_to_remove,
                                       bool auto_merge,
                                       bool delete_removed_entity)
 {
+  if (auto_merge) return MB_FAILURE;
+  
     // The two entities to merge must be of the same type
   MBEntityType type_to_keep = TYPE_FROM_HANDLE(entity_to_keep);
 
@@ -1634,9 +1509,7 @@ MBErrorCode MBCore::merge_entities( MBEntityHandle entity_to_keep,
   int ent_dim = MBCN::Dimension(type_to_keep);
   if(ent_dim > 0)
   {
-    std::vector<MBEntityHandle> adjacencies, tmp, conn;
-    std::vector<MBEntityHandle> adjacencies2, tmp2, conn2;
-    std::vector<MBEntityHandle>::iterator iter, jter;
+    std::vector<MBEntityHandle> conn, conn2;
 
     result = get_connectivity(&entity_to_keep, 1, conn);
     if(result != MB_SUCCESS)
@@ -1651,77 +1524,58 @@ MBErrorCode MBCore::merge_entities( MBEntityHandle entity_to_keep,
        (conn.size() != conn2.size() ||
         !MBCN::ConnectivityMatch(&conn[0], &conn2[0], conn.size(), dum1, dum2)))
       return MB_FAILURE;
-
-    int i = 1;
-    for(; i<ent_dim; i++)
-    {
-      result = aEntityFactory->get_adjacencies(entity_to_keep, i, false, tmp);
-      if(result != MB_SUCCESS)
-        return result;
-      result = aEntityFactory->get_adjacencies(entity_to_remove, i, false, tmp2);
-      if(result != MB_SUCCESS)
-        return result;
-      if(tmp.size() != tmp2.size())
-        return MB_FAILURE;
-
-        // Sort the entities for comparison
-      std::sort(tmp.begin(), tmp.end());
-      std::sort(tmp2.begin(), tmp2.end());
-
-        // Put these sets in with the other ones.
-      adjacencies.insert(adjacencies.end(), tmp.begin(), tmp.end());
-      adjacencies.insert(adjacencies.end(), tmp2.begin(), tmp2.end());
-    }
-
-      // Make sure we can merge before doind so.
-    if(auto_merge)
-    {
-        // Merge all the vertecies for the two entities.
-      for(iter=conn.begin(), jter=conn2.begin();
-          iter != conn.end() || jter != conn2.end(); iter++, jter++)
-      {
-        if(*iter != *jter)
-        {
-          result = merge_entities_up(*iter, *jter, true, delete_removed_entity);
-          if(result != MB_SUCCESS)
-            return result;
-        }
+  }
+  
+    // check adjacencies TO removed entity
+  for (int dim = 1; dim < ent_dim; dim++) {
+    MBRange adjs;
+    result = get_adjacencies(&entity_to_remove, 1, dim, false, adjs);
+    if(result != MB_SUCCESS)
+      return result;
+      // for any explicit ones, make them adjacent to keeper
+    for (MBRange::iterator rit = adjs.begin(); rit != adjs.end(); rit++) {
+      if (aEntityFactory->explicitly_adjacent(*rit, entity_to_remove)) {
+        result = aEntityFactory->add_adjacency(*rit, entity_to_keep);
+        if(result != MB_SUCCESS) return result;
       }
-
-        // Merge the remainder of the sub-entities.
-      for(iter=adjacencies.begin(), jter=adjacencies2.begin();
-          iter != adjacencies.end() || jter != adjacencies2.end(); iter++, jter++)
-      {
-        if(*iter != *jter)
-        {
-            // Check to see if entities still exist. They may have
-            // been merged when merging a lower entity.
-          status = sequence_manager()->find(*iter, seq);
-          if(seq != 0 && status == MB_SUCCESS && seq->is_valid_entity(*iter))
-          {
-            status = sequence_manager()->find(*jter, seq);
-            if(seq != 0 && status == MB_SUCCESS && seq->is_valid_entity(*jter))
-            {
-              result = merge_entities_up(*iter, *jter, true, delete_removed_entity);
-              if(result != MB_SUCCESS && result != MB_ENTITY_NOT_FOUND)
-                return result;
-            }
-          }
-        }
-      }
-    }
-    else
-    {
-        // Don't merge if the adjacencies don't match.
-      std::sort(adjacencies.begin(), adjacencies.end());
-      std::sort(adjacencies2.begin(), adjacencies2.end());
-      if(adjacencies != adjacencies2)
-        return MB_FAILURE;
     }
   }
 
-  return merge_entities_up(entity_to_keep, entity_to_remove, auto_merge, 
-                           delete_removed_entity);
+    // check adjacencies FROM removed entity
+  const MBEntityHandle *adjs;
+  int num_adjs;
+  std::vector<MBEntityHandle> conn;
+  result = aEntityFactory->get_adjacencies(entity_to_remove, adjs, num_adjs);
+  if(result != MB_SUCCESS)
+    return result;
+    // set them all, and if to_entity is a set, add to that one too
+  for (int i = 0; i < num_adjs; i++) {
+    if(ent_dim == 0)
+    {
+      conn.clear();
+      result = get_connectivity(&adjs[i], 1, conn);
+
+      if(result == MB_SUCCESS)
+      {
+        std::replace(conn.begin(), conn.end(), entity_to_remove, entity_to_keep);
+        set_connectivity(adjs[i], &conn[0], conn.size());
+      }
+      else return result;
+    }
+    else {
+      result = aEntityFactory->add_adjacency(entity_to_keep, adjs[i]);
+      if(result != MB_SUCCESS) return result;
+      if (TYPE_FROM_HANDLE(adjs[i]) == MBENTITYSET) {
+        result = add_entities(adjs[i], &entity_to_keep, 1);
+        if(result != MB_SUCCESS) return result;
+      }
+    }
+  }
+
+  if (delete_removed_entity) 
+    result = delete_entities(&entity_to_remove, 1);
+
+  return result;
 }
 
 //! deletes an entity vector

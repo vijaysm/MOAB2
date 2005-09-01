@@ -796,12 +796,6 @@ private:
     //! the overall geometric dimension of this mesh
   int geometricDimension;
 
-    //! merge the upward adjacent entities
-  MBErrorCode merge_entities_up(MBEntityHandle entity_to_keep,
-                                 MBEntityHandle entity_to_remove,
-                                 bool auto_merge,
-                                 bool delete_removed_entity);
-
   MBTag materialTag;
   MBTag neumannBCTag;
   MBTag dirichletBCTag;
