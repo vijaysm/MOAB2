@@ -21,6 +21,8 @@
 #include "MBRange.hpp"
 #include "MBInternals.hpp"
 
+#include <assert.h>
+
     //! generate all the AEntities bounding the vertices
 MBErrorCode MeshTopoUtil::construct_aentities(const MBRange &vertices) 
 {
