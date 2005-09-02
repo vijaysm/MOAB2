@@ -31,6 +31,8 @@
 
 #include <math.h>
 
+class HomXform;
+
 class HomCoord 
 {
 private:

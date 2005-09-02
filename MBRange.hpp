@@ -605,6 +605,11 @@ public:
   mb_range_inserter& operator++() { return *this; }
   mb_range_inserter& operator++(int) { return *this; }
 
+  typedef MBEntityHandle            value_type;
+  typedef MBEntityHandle            difference_type;
+  typedef std::output_iterator_tag  iterator_category;
+  typedef MBEntityHandle*           pointer;
+  typedef MBEntityHandle&           reference;
 };
 
 
