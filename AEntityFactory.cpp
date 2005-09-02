@@ -1119,3 +1119,147 @@ bool AEntityFactory::explicitly_adjacent(const MBEntityHandle ent1,
   else
     return false;
 }
+
+MBErrorCode AEntityFactory::merge_adjust_adjacencies(MBEntityHandle entity_to_keep,
+                                                     MBEntityHandle entity_to_remove) 
+{
+  int ent_dim = MBCN::Dimension(TYPE_FROM_HANDLE(entity_to_keep));
+  MBErrorCode result;
+  
+    // check for newly-formed equivalent entities, and create explicit adjacencies
+    // to distinguish them; this must be done before connectivity of higher-dimensional
+    // entities is changed below, and only needs to be checked if merging vertices
+  if (ent_dim == 0) {
+    result = check_equiv_entities(entity_to_keep, entity_to_remove);
+    if (MB_SUCCESS != result) return result;
+  }
+  
+    // check adjacencies TO removed entity
+  for (int dim = 1; dim < ent_dim; dim++) {
+    MBRange adjs;
+    result = thisMB->get_adjacencies(&entity_to_remove, 1, dim, false, adjs);
+    if(result != MB_SUCCESS)
+      return result;
+      // for any explicit ones, make them adjacent to keeper
+    for (MBRange::iterator rit = adjs.begin(); rit != adjs.end(); rit++) {
+      if (this->explicitly_adjacent(*rit, entity_to_remove)) {
+        result = this->add_adjacency(*rit, entity_to_keep);
+        if(result != MB_SUCCESS) return result;
+      }
+    }
+  }
+
+    // check adjacencies FROM removed entity
+  const MBEntityHandle *adjs;
+  int num_adjs;
+  std::vector<MBEntityHandle> conn;
+  result = this->get_adjacencies(entity_to_remove, adjs, num_adjs);
+  if(result != MB_SUCCESS)
+    return result;
+    // set them all, and if to_entity is a set, add to that one too
+  for (int i = 0; i < num_adjs; i++) {
+    if(ent_dim == 0)
+    {
+      conn.clear();
+      result = thisMB->get_connectivity(&adjs[i], 1, conn);
+
+      if(result == MB_SUCCESS)
+      {
+        std::replace(conn.begin(), conn.end(), entity_to_remove, entity_to_keep);
+        result = thisMB->set_connectivity(adjs[i], &conn[0], conn.size());
+        if (MB_SUCCESS != result) return result;
+      }
+      else return result;
+    }
+    else {
+      result = this->add_adjacency(entity_to_keep, adjs[i]);
+      if(result != MB_SUCCESS) return result;
+      if (TYPE_FROM_HANDLE(adjs[i]) == MBENTITYSET) {
+        result = thisMB->add_entities(adjs[i], &entity_to_keep, 1);
+        if(result != MB_SUCCESS) return result;
+      }
+    }
+  }
+
+  return MB_SUCCESS;
+}
+
+// check for equivalent entities that may be formed when merging two entities, and
+// create explicit adjacencies accordingly
+MBErrorCode AEntityFactory::check_equiv_entities(MBEntityHandle entity_to_keep,
+                                                 MBEntityHandle entity_to_remove) 
+{
+  if (thisMB->dimension_from_handle(entity_to_keep) > 0) return MB_SUCCESS;
+
+    // get all the adjacencies for both entities for all dimensions > 0
+  MBRange adjs_keep, adjs_remove;
+  MBErrorCode result;
+  
+  for (int dim = 1; dim <= 3; dim++) {
+    result = thisMB->get_adjacencies(&entity_to_keep, 1, dim, false, adjs_keep,
+                                     MBInterface::UNION);
+    if (MB_SUCCESS != result) return result;
+    result = thisMB->get_adjacencies(&entity_to_remove, 1, dim, false, adjs_remove,
+                                     MBInterface::UNION);
+    if (MB_SUCCESS != result) return result;
+  }
+
+    // now look for equiv entities which will be formed
+    // algorithm:
+    // for each entity adjacent to removed entity:
+  MBEntityHandle two_ents[2];
+  for (MBRange::iterator rit_rm = adjs_remove.begin(); rit_rm != adjs_remove.end(); rit_rm++) {
+    two_ents[0] = *rit_rm;
+    
+      // - for each entity of same dimension adjacent to kept entity:
+    for (MBRange::iterator rit_kp = adjs_keep.begin(); rit_kp != adjs_keep.end(); rit_kp++) {
+      if (TYPE_FROM_HANDLE(*rit_kp) != TYPE_FROM_HANDLE(*rit_rm)) continue;
+      
+      MBRange all_verts;
+      two_ents[1] = *rit_kp;
+      //   . get union of adjacent vertices to two entities
+      result = thisMB->get_adjacencies(two_ents, 2, 0, false, all_verts, MBInterface::UNION);
+      if (MB_SUCCESS != result) return result;
+
+      assert(all_verts.find(entity_to_keep) != all_verts.end() && 
+             all_verts.find(entity_to_remove) != all_verts.end());
+      
+      
+      //   . if # vertices != number of corner vertices + 1, continue
+      if (MBCN::VerticesPerEntity(TYPE_FROM_HANDLE(*rit_rm))+1 != (int) all_verts.size()) continue;
+      
+      //   . for the two entities adjacent to kept & removed entity:
+      result = create_explicit_adjs(*rit_rm);
+      if (MB_SUCCESS != result) return result;
+      result = create_explicit_adjs(*rit_kp);
+      if (MB_SUCCESS != result) return result;
+      //   . (end for)
+    }
+      // - (end for)
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode AEntityFactory::create_explicit_adjs(MBEntityHandle this_ent) 
+{
+    //     - get all adjacent entities of higher dimension
+  MBRange all_adjs;
+  MBErrorCode result;
+  for (int dim = thisMB->dimension_from_handle(this_ent)+1; dim <= 3; dim++) {
+    result = thisMB->get_adjacencies(&this_ent, 1, dim, true, all_adjs, MBInterface::UNION);
+    if (MB_SUCCESS != result) return result;
+  }
+  
+    //     - create explicit adjacency to these entities
+  for (MBRange::iterator rit = all_adjs.begin(); rit != all_adjs.end(); rit++) {
+    result = add_adjacency(this_ent, *rit);
+    if (MB_SUCCESS != result) return result;
+  }
+  
+  return MB_SUCCESS;
+}
+
+  
+
+    

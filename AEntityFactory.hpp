@@ -127,6 +127,13 @@ public:
   bool explicitly_adjacent(const MBEntityHandle ent1,
                            const MBEntityHandle ent2);
 
+    //! in preparation for merging two entities, adjust adjacencies so that
+    //! entity_to_keep will be adjacent to the "right" entities after merge
+    //! (also checks for potential formation of equivalent entities and 
+    //! creates explicit adjacencies accordingly)
+  MBErrorCode merge_adjust_adjacencies(MBEntityHandle entity_to_keep,
+                                       MBEntityHandle entity_to_remove);
+  
 private:
 
   //! private constructor to prevent the construction of a default one
@@ -172,6 +179,15 @@ private:
                             const bool create_if_missing,
                             const int create_adjacency_option = -1);
 
+    //! check for equivalent entities that may be formed when merging two entities, and
+    //! create explicit adjacencies accordingly
+  MBErrorCode check_equiv_entities(MBEntityHandle entity_to_keep,
+                                   MBEntityHandle entity_to_remove);
+  
+    //! create explicit adjacencies between this_ent and all adjacent entities of higher
+    //! dimension
+  MBErrorCode create_explicit_adjs(MBEntityHandle this_ent);
+  
 };
 
 /*! 

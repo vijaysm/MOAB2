@@ -1719,7 +1719,8 @@ MBErrorCode DualTool::foc_get_merge_ents(MBEntityHandle *quads, MBEntityHandle *
                                                all_verts, MBInterface::UNION);
   if (MB_SUCCESS != result) return result;
   assert(6 == all_verts.size());
-    // each pair is bridge-adjacent to one of the vertices of our edge
+    // get the vertices to merge; each vertex pair is bridge-adjacent (across edges)
+    // to one of the vertices of our edge, and is not the other vertex of our edge
   const MBEntityHandle *connect;
   int num_connect;
   result = mbImpl->get_connectivity(edge, connect, num_connect);
@@ -1745,7 +1746,7 @@ MBErrorCode DualTool::foc_get_merge_ents(MBEntityHandle *quads, MBEntityHandle *
   if (MB_SUCCESS != result) return result;
   all_edges.erase(edge);
   all_edges.erase(new_edge);
-    // first the ones connected to edge and new_edge
+    // first the ones connected to each vertex of our edge but not edge or new_edge
   for (int i = 0; i < 2; i++) {
     MBRange tmp_edges;
     result = mbImpl->get_adjacencies(&connect[i], 1, 1, false, tmp_edges);
@@ -1763,17 +1764,27 @@ MBErrorCode DualTool::foc_get_merge_ents(MBEntityHandle *quads, MBEntityHandle *
   merge_ents.push_back(*all_edges.rbegin());
   
     // now faces
-  if (0 != mtu.common_entity(quads[0], new_quads[0], 1)) {
+  MBEntityHandle common_ent;
+  if (common_ent = mtu.common_entity(quads[0], new_quads[0], 1) && 
+      (edge == common_ent || new_edge == common_ent)) {
     merge_ents.push_back(quads[0]);
     merge_ents.push_back(new_quads[0]);
     merge_ents.push_back(quads[1]);
     merge_ents.push_back(new_quads[1]);
   }
-  else if (0 != mtu.common_entity(quads[0], new_quads[1], 1)) {
+  else if (common_ent = mtu.common_entity(quads[0], new_quads[1], 1) && 
+           (edge == common_ent || new_edge == common_ent)) {
     merge_ents.push_back(quads[0]);
     merge_ents.push_back(new_quads[1]);
     merge_ents.push_back(quads[1]);
     merge_ents.push_back(new_quads[0]);
+  }
+  else if (common_ent = mtu.common_entity(quads[0], quads[1], 1) && 
+           (edge == common_ent || new_edge == common_ent)) {
+    merge_ents.push_back(quads[0]);
+    merge_ents.push_back(quads[1]);
+    merge_ents.push_back(new_quads[0]);
+    merge_ents.push_back(new_quads[1]);
   }
   else return MB_FAILURE;
 

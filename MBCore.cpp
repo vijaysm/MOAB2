@@ -1525,53 +1525,9 @@ MBErrorCode MBCore::merge_entities( MBEntityHandle entity_to_keep,
         !MBCN::ConnectivityMatch(&conn[0], &conn2[0], conn.size(), dum1, dum2)))
       return MB_FAILURE;
   }
+
+  result = aEntityFactory->merge_adjust_adjacencies(entity_to_keep, entity_to_remove);
   
-    // check adjacencies TO removed entity
-  for (int dim = 1; dim < ent_dim; dim++) {
-    MBRange adjs;
-    result = get_adjacencies(&entity_to_remove, 1, dim, false, adjs);
-    if(result != MB_SUCCESS)
-      return result;
-      // for any explicit ones, make them adjacent to keeper
-    for (MBRange::iterator rit = adjs.begin(); rit != adjs.end(); rit++) {
-      if (aEntityFactory->explicitly_adjacent(*rit, entity_to_remove)) {
-        result = aEntityFactory->add_adjacency(*rit, entity_to_keep);
-        if(result != MB_SUCCESS) return result;
-      }
-    }
-  }
-
-    // check adjacencies FROM removed entity
-  const MBEntityHandle *adjs;
-  int num_adjs;
-  std::vector<MBEntityHandle> conn;
-  result = aEntityFactory->get_adjacencies(entity_to_remove, adjs, num_adjs);
-  if(result != MB_SUCCESS)
-    return result;
-    // set them all, and if to_entity is a set, add to that one too
-  for (int i = 0; i < num_adjs; i++) {
-    if(ent_dim == 0)
-    {
-      conn.clear();
-      result = get_connectivity(&adjs[i], 1, conn);
-
-      if(result == MB_SUCCESS)
-      {
-        std::replace(conn.begin(), conn.end(), entity_to_remove, entity_to_keep);
-        set_connectivity(adjs[i], &conn[0], conn.size());
-      }
-      else return result;
-    }
-    else {
-      result = aEntityFactory->add_adjacency(entity_to_keep, adjs[i]);
-      if(result != MB_SUCCESS) return result;
-      if (TYPE_FROM_HANDLE(adjs[i]) == MBENTITYSET) {
-        result = add_entities(adjs[i], &entity_to_keep, 1);
-        if(result != MB_SUCCESS) return result;
-      }
-    }
-  }
-
   if (delete_removed_entity) 
     result = delete_entities(&entity_to_remove, 1);
 
