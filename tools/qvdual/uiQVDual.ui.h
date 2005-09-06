@@ -905,23 +905,6 @@ void uiQVDual::FOCbutton_clicked()
   }
   
   MBErrorCode result;
-/*  
-    // check that edge1 and edge2 have a common polygon; if not, and one's
-    // on a blind chord, get the other 1cell on that blind chord and check that
-  if (0 == mtu.common_entity(edge1, edge2, 2)) {
-    MBEntityHandle chord1 = dt.get_dual_hyperplane(edge1),
-      chord2 = dt.get_dual_hyperplane(edge2);
-    if (dt.is_blind(chord1) && vtkMOABUtils::mbImpl->num_entities(chord1) == 2 &&
-        !is_blind(chord2)) {
-      std::vector<MBEntityHandle> edges;
-      result = vtkMOABUtils::mbImpl->get_entities_by_handle(chord1, edges);
-      if (MB_SUCCESS != result) {
-        std::cerr << "Couldn't get edges on chord." << std::endl;
-        return;
-      }
-      if 
-      edge1 = (edge1 == edges
-*/      
   
   if (MBEDGE != vtkMOABUtils::mbImpl->type_from_handle(edge1) ||
       MBEDGE != vtkMOABUtils::mbImpl->type_from_handle(edge2)) {
@@ -946,32 +929,20 @@ void uiQVDual::FOCbutton_clicked()
 
   std::cerr << "FOC succeeded." << std::endl;
 
-    // get the dual surfaces for that edge
+    // get the dual surfaces for the edges
   edge1 = dt.get_dual_entity(quad);
   MBEntityHandle chord = dt.get_dual_hyperplane(edge1);
   MBRange sheets;
   result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
-  if (MB_SUCCESS == result) {
-    drawn_sheets = drawn_sheets.subtract(sheets);
-    for (MBRange::iterator rit = drawn_sheets.begin(); rit != drawn_sheets.end(); rit++) {
-      int dum;
-      if (vtkMOABUtils::mbImpl->get_number_entities_by_handle(*rit, dum) == MB_SUCCESS &&
-          dum > 0) {
-        bool success = drawDual->draw_dual_surfs(drawn_sheets);
-        if (!success)
-          std::cerr << "Problem drawing previously-drawn dual surfaces." << std::endl;
-      }
+  if (MB_SUCCESS == result) drawn_sheets.merge(sheets);
+  for (MBRange::iterator rit = drawn_sheets.begin(); rit != drawn_sheets.end(); rit++) {
+    int dum;
+    if (vtkMOABUtils::mbImpl->get_number_entities_by_handle(*rit, dum) == MB_SUCCESS &&
+        dum > 0) {
+      MBErrorCode success = drawDual->draw_dual_surf(*rit);
+      if (MB_SUCCESS != success)
+        std::cerr << "Problem drawing previously-drawn dual surfaces." << std::endl;
     }
-
-      // now draw the sheets affected
-    bool success = drawDual->draw_dual_surfs(sheets);
-    if (!success)
-      std::cerr << "Problem drawing dual surfaces from reverse face open-collapse." << std::endl;
-
-    
-  }
-  else {
-    std::cerr << "Couldn't get parent dual surfaces of dual edge." << std::endl;
   }
   
   updateMesh();
@@ -1022,8 +993,8 @@ void uiQVDual::FSbutton_clicked()
       int dum;
       if (vtkMOABUtils::mbImpl->get_number_entities_by_handle(*rit, dum) == MB_SUCCESS &&
           dum > 0) {
-        bool success = drawDual->draw_dual_surfs(drawn_sheets);
-        if (!success)
+        MBErrorCode success = drawDual->draw_dual_surf(*rit);
+        if (MB_SUCCESS != success)
           std::cerr << "Problem drawing previously-drawn dual surfaces." << std::endl;
       }
     }
@@ -1088,8 +1059,8 @@ void uiQVDual::negFCbutton_clicked()
       int dum;
       if (vtkMOABUtils::mbImpl->get_number_entities_by_handle(*rit, dum) == MB_SUCCESS &&
           dum > 0) {
-        bool success = drawDual->draw_dual_surfs(drawn_sheets);
-        if (!success)
+        MBErrorCode success = drawDual->draw_dual_surf(*rit);
+        if (MB_SUCCESS != success)
           std::cerr << "Problem drawing previously-drawn dual surfaces." << std::endl;
       }
     }

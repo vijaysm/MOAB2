@@ -1150,14 +1150,12 @@ MBErrorCode AEntityFactory::merge_adjust_adjacencies(MBEntityHandle entity_to_ke
   }
 
     // check adjacencies FROM removed entity
-  const MBEntityHandle *adjs;
-  int num_adjs;
-  std::vector<MBEntityHandle> conn;
-  result = this->get_adjacencies(entity_to_remove, adjs, num_adjs);
+  std::vector<MBEntityHandle> conn, adjs;
+  result = this->get_adjacencies(entity_to_remove, adjs);
   if(result != MB_SUCCESS)
     return result;
     // set them all, and if to_entity is a set, add to that one too
-  for (int i = 0; i < num_adjs; i++) {
+  for (unsigned int i = 0; i < adjs.size(); i++) {
     if(ent_dim == 0)
     {
       conn.clear();

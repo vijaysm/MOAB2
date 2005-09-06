@@ -1601,38 +1601,10 @@ MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr)
   MBErrorCode result = mbImpl->get_adjacencies(quads, 2, 3, false, hexes, MBInterface::UNION);
   if (MB_SUCCESS != result) return result;
   assert(4 >= hexes.size());
-  
-    // delete dual entities affected by this operation
-  MBRange adj_ents, dual_ents, cells1or2;
-  for (int i = 0; i < 3; i++) {
-    result = mbImpl->get_adjacencies(hexes, i, false, adj_ents, MBInterface::UNION);
-    if (MB_SUCCESS != result) return result;
-  }
-  for (MBRange::iterator rit = adj_ents.begin(); rit != adj_ents.end(); rit++) {
-    MBEntityHandle this_ent = get_dual_entity(*rit);
-    dual_ents.insert(this_ent);
-    int dim = mbImpl->dimension_from_handle(this_ent);
-    if (1 == dim || 2 == dim) cells1or2.insert(this_ent);
-  }
 
-  MBRange dual_hps;
-  for (MBRange::iterator rit = cells1or2.begin(); rit != cells1or2.end(); rit++)
-    dual_hps.insert(get_dual_hyperplane(*rit));
-  
-  result = delete_dual_entities(dual_ents);
+  result = foc_delete_dual(edge, ocl, ocr, hexes);
   if (MB_SUCCESS != result) return result;
   
-    // after deleting cells, check for empty chords & sheets, and delete those too
-  for (MBRange::iterator rit = dual_hps.begin(); rit != dual_hps.end(); rit++) {
-    MBRange tmp_ents;
-    result = mbImpl->get_entities_by_handle(*rit, tmp_ents);
-    if (MB_SUCCESS != result) return result;
-    if (tmp_ents.empty()) {
-      result = mbImpl->delete_entities(&(*rit), 1);
-      if (MB_SUCCESS != result) return result;
-    }
-  }
-    
     // split manifold each of the quads
   MBEntityHandle new_quads[2];
   result = mtu.split_entities_manifold(quads, 2, new_quads, NULL);
@@ -1648,32 +1620,53 @@ MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr)
     return MB_FAILURE;
   }
   else if (new_edges.size() == 2) {
-      // one quad was on the surface; must merge that quad's new edge with the other
-      // find the surface quad, then the edge it contains
-    MBRange tmp_ents;
-    result = mbImpl->get_adjacencies(&quads[0], 1, 3, false, tmp_ents);
+      // one quad was on the surface; must merge that quad's new edge with another
+
+      // according to implementation of split_entities_manifold, surface quad will be
+      // one of the originals, not one of the new ones
+    MBRange tmp_adjs;
+    result = mbImpl->get_adjacencies(quads, 1, 3, false, tmp_adjs);
     if (MB_SUCCESS != result) return result;
-    MBEntityHandle edge1, edge2, the_quad;
-    the_quad = (tmp_ents.empty() ? 
-        // quads[0] is the one
-                quads[0] :
-                  // else quads[1] is
-                quads[1]);
-    tmp_ents.clear();
-    result = mbImpl->get_adjacencies(&the_quad, 1, 1, false, tmp_ents);
+    if (tmp_adjs.empty()) {
+        // quads[0] is the surface quad; switch so that it's quads[1]
+      MBEntityHandle tmp_quad = quads[0];
+      quads[0] = quads[1];
+      quads[1] = tmp_quad;
+    }
+    
+      // now make sure quads[0] and new_quads[0] share an edge
+    if (0 == mtu.common_entity(quads[0], new_quads[0], 1)) {
+        // if new_quads[0] isn't the one, new_quads[1] has to be
+      if (0 == mtu.common_entity(quads[0], new_quads[1], 1))
+        return MB_FAILURE;
+        // switch so that it's now new_quads[0]
+      MBEntityHandle tmp_quad = new_quads[0];
+      new_quads[0] = new_quads[1];
+      new_quads[1] = tmp_quad;
+    }
+    
+      // at this point, quads[1] and new_quads[1] shouldn't share an edge
+    assert(0 == mtu.common_entity(quads[1], new_quads[1], 1));
+    
+      // now get the edges to merge
+    MBEntityHandle edge1, edge2;
+    MBRange tmp_edges = new_edges, tmp_edges2;
+    tmp_edges.insert(edge);
+    result = mbImpl->get_adjacencies(&quads[1], 1, 1, false, tmp_edges2);
     if (MB_SUCCESS != result) return result;
-    if (tmp_ents.find(*new_edges.begin()) != tmp_ents.end()) {
-      edge1 = *new_edges.begin();
-      edge2 = *new_edges.rbegin();
-    }
-    else {
-      edge1 = *new_edges.rbegin();
-      edge2 = *new_edges.begin();
-    }
+    tmp_edges2 = tmp_edges2.intersect(tmp_edges);
+    assert(1 == tmp_edges2.size());
+    edge1 = *tmp_edges2.begin();
+    tmp_edges2.clear();
+    result = mbImpl->get_adjacencies(&new_quads[1], 1, 1, false, tmp_edges2);
+    if (MB_SUCCESS != result) return result;
+    tmp_edges2 = tmp_edges2.intersect(tmp_edges);
+    assert(1 == tmp_edges2.size());
+    edge2 = *tmp_edges2.begin();
+
     result = mbImpl->merge_entities(edge1, edge2, false, true);
     if (MB_SUCCESS != result) return result;
-    new_edges.clear();
-    new_edges.insert(edge1);
+    new_edges.erase(edge2);
   }
   assert(new_edges.size() == 1);
 
@@ -1704,6 +1697,91 @@ MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr)
   result = construct_hex_dual(hexes); 
   if (MB_SUCCESS != result) return result;
   
+  return MB_SUCCESS;
+}
+
+MBErrorCode DualTool::foc_delete_dual(MBEntityHandle edge,
+                                      MBEntityHandle ocl,
+                                      MBEntityHandle ocr,
+                                      MBRange &hexes) 
+{
+    // special delete dual procedure, because in some cases we need to delete
+    // a sheet too since it'll get merged into another
+
+    // figure out whether we'll need to delete a sheet
+  MBEntityHandle sheet = get_dual_hyperplane(get_dual_entity(edge));
+  MBEntityHandle chordl = get_dual_hyperplane(ocl);
+  MBEntityHandle chordr = get_dual_hyperplane(ocr);
+  assert(0 != sheet && 0 != chordl && 0 != chordr);
+  MBRange parentsl, parentsr;
+  MBErrorCode result = mbImpl->get_parent_meshsets(chordl, parentsl);
+  if (MB_SUCCESS != result) return result;
+  result = mbImpl->get_parent_meshsets(chordr, parentsr);
+  if (MB_SUCCESS != result) return result;
+  parentsl.erase(sheet);
+  parentsr.erase(sheet);
+
+    // before deciding which one to delete, collect the other cells which must
+    // be deleted, and all the chords/sheets they're on
+  MBRange adj_ents, dual_ents, cells1or2;
+  for (int i = 0; i < 3; i++) {
+    result = mbImpl->get_adjacencies(hexes, i, false, adj_ents, MBInterface::UNION);
+    if (MB_SUCCESS != result) return result;
+  }
+  for (MBRange::iterator rit = adj_ents.begin(); rit != adj_ents.end(); rit++) {
+    MBEntityHandle this_ent = get_dual_entity(*rit);
+    dual_ents.insert(this_ent);
+    int dim = mbImpl->dimension_from_handle(this_ent);
+    if (1 == dim || 2 == dim) cells1or2.insert(this_ent);
+  }
+
+  MBRange dual_hps;
+  for (MBRange::iterator rit = cells1or2.begin(); rit != cells1or2.end(); rit++)
+    dual_hps.insert(get_dual_hyperplane(*rit));
+
+  std::vector<MBEntityHandle> dual_ents_vec;
+  std::copy(dual_ents.rbegin(), dual_ents.rend(), std::back_inserter(dual_ents_vec));
+  
+//  for (MBRange::iterator rit = dual_ents.rbegin(); rit != dual_ents.rend(); rit++)
+//    dual_ents_vec.push_back(*rit);
+  
+  result = delete_dual_entities(&dual_ents_vec[0], dual_ents_vec.size());
+  if (MB_SUCCESS != result) return result;
+
+    // now decide which sheet to delete (to be merged into the other)
+  MBEntityHandle sheet_delete = 0;
+  if (is_blind(*parentsl.begin())) sheet_delete = *parentsl.begin();
+  else if (is_blind(*parentsr.begin())) sheet_delete = *parentsr.begin();
+  else {
+      // neither is blind, take the one with fewer cells
+    MBRange tmp_ents;
+    int numl, numr;
+    result = mbImpl->get_number_entities_by_handle(*parentsl.begin(), numl);
+    if (MB_SUCCESS != result) return result;
+    result = mbImpl->get_number_entities_by_handle(*parentsr.begin(), numr);
+    if (MB_SUCCESS != result) return result;
+    sheet_delete = (numl > numr ? *parentsr.begin() : *parentsl.begin());
+  }
+  assert(0 != sheet_delete);
+  
+    // after deleting cells, check for empty chords & sheets, and delete those too
+  for (MBRange::iterator rit = dual_hps.begin(); rit != dual_hps.end(); rit++) {
+    MBRange tmp_ents;
+    result = mbImpl->get_entities_by_handle(*rit, tmp_ents);
+    if (MB_SUCCESS != result) return result;
+    if (tmp_ents.empty()) {
+      result = mbImpl->delete_entities(&(*rit), 1);
+      if (MB_SUCCESS != result) return result;
+    }
+    else if (*rit == sheet_delete) {
+        // delete all the dual entities, then delete the sheet
+      result = delete_dual_entities(tmp_ents);
+      if (MB_SUCCESS != result) return result;
+      result = mbImpl->delete_entities(&(*rit), 1);
+      if (MB_SUCCESS != result) return result;
+    }
+  }
+
   return MB_SUCCESS;
 }
 
@@ -1763,43 +1841,47 @@ MBErrorCode DualTool::foc_get_merge_ents(MBEntityHandle *quads, MBEntityHandle *
   merge_ents.push_back(*all_edges.begin());
   merge_ents.push_back(*all_edges.rbegin());
   
-    // now faces
+    // now faces; needs to be one of these three possibilities
   MBEntityHandle common_ent;
-  if (common_ent = mtu.common_entity(quads[0], new_quads[0], 1) && 
-      (edge == common_ent || new_edge == common_ent)) {
+  common_ent = mtu.common_entity(quads[0], new_quads[0], 1);
+  if (edge == common_ent || new_edge == common_ent) {
     merge_ents.push_back(quads[0]);
     merge_ents.push_back(new_quads[0]);
     merge_ents.push_back(quads[1]);
     merge_ents.push_back(new_quads[1]);
+    return MB_SUCCESS;
   }
-  else if (common_ent = mtu.common_entity(quads[0], new_quads[1], 1) && 
-           (edge == common_ent || new_edge == common_ent)) {
+  
+  common_ent = mtu.common_entity(quads[0], new_quads[1], 1);
+  if (edge == common_ent || new_edge == common_ent) {
     merge_ents.push_back(quads[0]);
     merge_ents.push_back(new_quads[1]);
     merge_ents.push_back(quads[1]);
     merge_ents.push_back(new_quads[0]);
+    return MB_SUCCESS;
   }
-  else if (common_ent = mtu.common_entity(quads[0], quads[1], 1) && 
-           (edge == common_ent || new_edge == common_ent)) {
+  
+  common_ent = mtu.common_entity(quads[0], quads[1], 1);
+  if (edge == common_ent || new_edge == common_ent) {
     merge_ents.push_back(quads[0]);
     merge_ents.push_back(quads[1]);
     merge_ents.push_back(new_quads[0]);
     merge_ents.push_back(new_quads[1]);
+    return MB_SUCCESS;
   }
-  else return MB_FAILURE;
-
-  return MB_SUCCESS;
+  
+  return MB_FAILURE;
 }
 
-//! returns true if first & last vertices are dual to hexes (not faces)
-bool DualTool::is_blind(const MBEntityHandle chord) 
+//! returns true if all vertices are dual to hexes (not faces)
+bool DualTool::is_blind(const MBEntityHandle chord_or_sheet) 
 {
     // must be an entity set
-  if (TYPE_FROM_HANDLE(chord) != MBENTITYSET) return false;
+  if (TYPE_FROM_HANDLE(chord_or_sheet) != MBENTITYSET) return false;
   
     // get the vertices
   MBRange verts, ents;
-  MBErrorCode result = mbImpl->get_entities_by_handle(chord, ents); 
+  MBErrorCode result = mbImpl->get_entities_by_handle(chord_or_sheet, ents); 
   if (MB_SUCCESS != result || ents.empty()) return false;
   
   result = mbImpl->get_adjacencies(ents, 0, false, verts, MBInterface::UNION);
@@ -1812,7 +1894,7 @@ bool DualTool::is_blind(const MBEntityHandle chord)
     if (TYPE_FROM_HANDLE(dual_ent) == MBQUAD) return false;
   }
 
-    // if none of the vertices' duals were quads, chord must be blind
+    // if none of the vertices' duals were quads, chord_or_sheet must be blind
   return true;
 }
 

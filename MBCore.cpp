@@ -1538,51 +1538,42 @@ MBErrorCode MBCore::merge_entities( MBEntityHandle entity_to_keep,
 MBErrorCode MBCore::delete_entities(const MBEntityHandle *entities,
                                       const int num_entities)
 {
-  MBRange entity_range;
-  std::copy(entities, entities+num_entities,
-            mb_range_inserter(entity_range));
-  return delete_entities(entity_range);
-}
-
-
-//! deletes an entity range
-MBErrorCode MBCore::delete_entities(const MBRange &range)
-{
   std::vector<MBEntityHandle> adj_list;
   MBErrorCode result = MB_SUCCESS, temp_result;
   
-  for (MBRange::const_iterator it = range.begin(); it != range.end(); it++) {
-    MBEntityType type = TYPE_FROM_HANDLE(*it);
+  for (int i = 0; i < num_entities; i++) {
+    
+    MBEntityType type = TYPE_FROM_HANDLE(entities[i]);
 
       // delete sets a different way
     if (MBENTITYSET == type) {
       std::map<MBEntityHandle, MBMeshSet*>::iterator iter;
-      iter = global_mesh_set_list.find(*it);
+      iter = global_mesh_set_list.find(entities[i]);
       if(iter != global_mesh_set_list.end())
       {
         delete iter->second;
-        tagServer->reset_data(*it);
+        tagServer->reset_data(entities[i]);
         global_mesh_set_list.erase(iter);
       }
       continue;
     }
     
       // tell AEntityFactory that this element is going away
-    temp_result = aEntityFactory->notify_delete_entity(*it);
+    temp_result = aEntityFactory->notify_delete_entity(entities[i]);
     if (MB_SUCCESS != temp_result) {
       result = temp_result;
       continue;
     }
 
       // reset and/or clean out data associated with this entity handle
-    temp_result = tagServer->reset_data(*it);
+    temp_result = tagServer->reset_data(entities[i]);
     if (MB_SUCCESS != temp_result) {
       result = temp_result;
       continue;
     }
 
       // now delete the entity
-    temp_result = sequence_manager()->delete_entity(*it);
+    temp_result = sequence_manager()->delete_entity(entities[i]);
     if (MB_SUCCESS != temp_result) {
       result = temp_result;
       continue;
@@ -1590,6 +1581,16 @@ MBErrorCode MBCore::delete_entities(const MBRange &range)
   }
 
   return result;
+}
+
+
+//! deletes an entity range
+MBErrorCode MBCore::delete_entities(const MBRange &range)
+{
+  std::vector<MBEntityHandle> entity_vec;
+  std::copy(range.rbegin(), range.rend(),
+            std::back_inserter(entity_vec));
+  return delete_entities(&entity_vec[0], entity_vec.size());
 }
 
 MBErrorCode MBCore::list_entities(const MBEntityHandle *entities,

@@ -573,42 +573,41 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
     }
     else if (adj_2cells.size() == 1) {
       assert(adj_1cells.size() == 2);
-      MBEntityHandle opp_verts[4], chords[2];
-      Agnode_t *opp_vert_pts[4], *edge_pts[2];
-        // get the chords & opposite verts on each 
-      MBEntityHandle edges[2];
-      MBRange::iterator rit = adj_1cells.begin();
-      for (int i = 0; i < 2; i++, rit++) {
-        edges[i] = *rit;
-        chords[i] = dualTool->get_dual_hyperplane(edges[i]);
-        assert(0 != chords[i]);
-        result = dualTool->get_opposite_verts(*rit, chords[i], &opp_verts[2*i]); RR;
+      Agnode_t *edge_pts[2];
+
+        // get vertices making up degen 2cell and their avg position
+      const MBEntityHandle *connect;
+      result = MBI->get_connectivity(*adj_2cells.begin(), connect, num_connect); RR;
+      std::vector<Agnode_t*> tc_points(num_connect);
+      get_points(connect, num_connect, false, dual_surf, &tc_points[0]);
+      double avg_pos[2];
+      avg_pos[0] = .5*(ND_coord_i(tc_points[0]).x + ND_coord_i(tc_points[1]).x);
+      avg_pos[1] = .5*(ND_coord_i(tc_points[0]).y + ND_coord_i(tc_points[1]).y);
+
+        // for each 1cell, get the vertices on the adjacent non-degen 2cell 
+        // and points of them, and average their positions
+      for (MBRange::iterator rit = adj_1cells.begin(); rit != adj_1cells.end(); rit++) {
+          // get the other 2cell
+        MBRange dum = dcells;
+        result = MBI->get_adjacencies(&(*rit), 1, 2, false, dum);
+        dum = dum.subtract(adj_2cells);
+        assert(1 == dum.size());
+          // get the vertices and points of them, and average their positions
+        const MBEntityHandle *connect;
+        result = MBI->get_connectivity(*dum.begin(), connect, num_connect); RR;
+        std::vector<Agnode_t*> tc_points(num_connect);
+        get_points(connect, num_connect, false, dual_surf, &tc_points[0]);
+        double avg_pos2[] = {0.0, 0.0};
+        for (int i = 0; i < num_connect; i++) {
+          avg_pos2[0] += ND_coord_i(tc_points[i]).x;
+          avg_pos2[1] += ND_coord_i(tc_points[i]).y;
+        }
+        avg_pos2[0] = (.2*avg_pos2[0]/num_connect + .8*avg_pos[0]);
+        avg_pos2[1] = (.2*avg_pos2[1]/num_connect + .8*avg_pos[1]);
+        get_points(&(*rit), 1, true, dual_surf, &tc_points[0]);
+        ND_coord_i(tc_points[0]).x = (int) avg_pos2[0];
+        ND_coord_i(tc_points[0]).y = (int) avg_pos2[1];
       }
-        // get points on opp verts and mid-pts on edges
-      get_points(&opp_verts[0], 4, false, dual_surf, opp_vert_pts);
-      get_points(&edges[0], 2, true, dual_surf, edge_pts);
-      
-        // mid-pt on each edge is on line between opp verts on other,
-        // towards avg pos of all four
-      double avg_pos[2] = {0.0, 0.0};
-      for (int i = 0; i < 4; i++) {
-        avg_pos[0] += ND_coord_i(opp_vert_pts[i]).x;
-        avg_pos[1] += ND_coord_i(opp_vert_pts[i]).y;
-      }
-        
-      ND_coord_i(edge_pts[0]).x = ((ND_coord_i(opp_vert_pts[2]).x + 
-                                    ND_coord_i(opp_vert_pts[3]).x)/2 +
-                                   (int) avg_pos[0])/2;
-      ND_coord_i(edge_pts[0]).y = ((ND_coord_i(opp_vert_pts[2]).y + 
-                                    ND_coord_i(opp_vert_pts[3]).y)/2 +
-                                   (int) avg_pos[1])/2;
-      
-      ND_coord_i(edge_pts[1]).x = ((ND_coord_i(opp_vert_pts[0]).x + 
-                                    ND_coord_i(opp_vert_pts[1]).x)/2 +
-                                   (int) avg_pos[0])/2;
-      ND_coord_i(edge_pts[1]).y = ((ND_coord_i(opp_vert_pts[0]).y + 
-                                    ND_coord_i(opp_vert_pts[1]).y)/2 +
-                                   (int) avg_pos[1])/2;
     }
     else if (adj_2cells.size() == 4 && adj_1cells.size() == 4) {
         // pillow sheet, right after atomic pillow; just place 1cell mid-pts so

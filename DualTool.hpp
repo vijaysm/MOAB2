@@ -300,6 +300,13 @@ private:
                                  MBEntityHandle edge, MBEntityHandle new_edge,
                                  std::vector<MBEntityHandle> &merge_ents);
   
+    //! function for deleting dual prior to foc operation; special because in
+    //! many cases need to delete a sheet in preparation for merging onto another
+  MBErrorCode foc_delete_dual(MBEntityHandle edge,
+                              MBEntityHandle ocl,
+                              MBEntityHandle ocr,
+                              MBRange &hexes);
+  
     //! private copy of interface *
   MBInterface *mbImpl;
 

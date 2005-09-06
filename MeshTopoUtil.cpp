@@ -329,7 +329,7 @@ MBErrorCode MeshTopoUtil::split_entities_manifold(MBEntityHandle *entities,
         break;
       }
     }
-    if (!valid_up_adjs) continue;
+    if (!valid_up_adjs) return MB_FAILURE;
       
       // ok to split; create the new entity, with connectivity of the original
     GET_CONNECT_DECL(entities[i], connect, num_connect);
