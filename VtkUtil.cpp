@@ -54,7 +54,8 @@ const VtkElemType VtkUtil::vtkElemTypes[] = {
       { "polyline",       4, MBMAXTYPE, 0, 0 },
       { "triangle",       5, MBTRI,     3, 0 },
       { "triangle strip", 6, MBMAXTYPE, 0, 0 },
-      { "polygon",        7, MBPOLYGON, 0, 0 },
+//      { "polygon",        7, MBPOLYGON, 0, 0 },
+      { 0,                7, MBMAXTYPE, 0, 0 },
       { "pixel",          8, MBQUAD,    4, pixel },
       { "quadrilateral",  9, MBQUAD,    4, 0 }, 
       { "tetrahedron",   10, MBTET,     4, 0 }, 
@@ -87,7 +88,7 @@ const int mb_to_vtk_type[][2] = {
   {  3, 21 },  // MBEDGE
   {  5, 22 },  // MBTRI
   {  9, 23 },  // MBQUAD
-  {  7,  0 },  // MBPOLYGON
+  {  0,  0 },  // MBPOLYGON
   { 10, 24 },  // MBTET
   { 14,  0 },  // MBPYRAMID
   { 13,  0 },  // MBWEDGE

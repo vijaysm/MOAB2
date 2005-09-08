@@ -367,18 +367,37 @@ MBEntityHandle DrawDual::get_picked_cell(MBEntityHandle cell_set,
   return *rit;
 }
 
-bool DrawDual::draw_dual_surfs(MBRange &dual_surfs) 
+bool DrawDual::draw_dual_surfs(MBRange &dual_surfs,
+                               const bool use_offsets) 
 {
   MBErrorCode success = MB_SUCCESS;
-  for (MBRange::iterator rit = dual_surfs.begin(); rit != dual_surfs.end(); rit++) {
-    MBErrorCode tmp_success = draw_dual_surf(*rit);
+  int offset = 0;
+  for (MBRange::reverse_iterator rit = dual_surfs.rbegin(); rit != dual_surfs.rend(); rit++) {
+    MBErrorCode tmp_success = draw_dual_surf(*rit, offset);
     if (MB_SUCCESS != tmp_success) success = tmp_success;
+    if (use_offsets) offset++;
   }
   
   return (MB_SUCCESS == success ? true : false);
 }
 
-MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf) 
+bool DrawDual::draw_dual_surfs(std::vector<MBEntityHandle> &dual_surfs,
+                               const bool use_offsets) 
+{
+  MBErrorCode success = MB_SUCCESS;
+  int offset = 0;
+  for (std::vector<MBEntityHandle>::reverse_iterator vit = dual_surfs.rbegin();
+       vit != dual_surfs.rend(); vit++) {
+    MBErrorCode tmp_success = draw_dual_surf(*vit, offset);
+    if (MB_SUCCESS != tmp_success) success = tmp_success;
+    if (use_offsets) offset++;
+  }
+  
+  return (MB_SUCCESS == success ? true : false);
+}
+
+MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf,
+                                     int offset_num) 
 {
     // draw this dual surface
 
@@ -451,6 +470,10 @@ MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf)
   add_picker(this_ren);
 
   if (my_debug) agwrite(this_gw.gvizGraph, stdout);
+
+  int *old_pos = this_gw.qvtkWidget->GetRenderWindow()->GetPosition();
+  int new_pos[2] = {(int) ((double)old_pos[0]*(1.0+.1*offset_num)), old_pos[1]};
+  this_gw.qvtkWidget->GetRenderWindow()->SetPosition(new_pos);
   
   return success;
 }
@@ -499,8 +522,11 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
                                                    MBInterface::UNION);
     if (MB_SUCCESS != result) return result;
 
+      // decide whether this sheet is blind or not
+    bool sheet_is_blind = dualTool->is_blind(dual_surf);
+    
       // branch depending on what kind of arrangement we have
-    if (adj_2cells.size() == 2) {
+    if (adj_2cells.size() == 2 && !sheet_is_blind) {
       assert(3 == adj_1cells.size());
         // blind chord intersecting another chord
         // get the middle edge and chord, and the next 2 verts along the chord
@@ -609,36 +635,114 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
         ND_coord_i(tc_points[0]).y = (int) avg_pos2[1];
       }
     }
-    else if (adj_2cells.size() == 4 && adj_1cells.size() == 4) {
+    else if ((adj_2cells.size() == 4 && adj_1cells.size() == 4) ||
+             sheet_is_blind) {
         // pillow sheet, right after atomic pillow; just place 1cell mid-pts so
         // we can see them
-      const MBEntityHandle *connect;
-      int num_connect;
-      result = MBI->get_connectivity(*adj_1cells.begin(), connect, num_connect); RR;
-      Agnode_t *vert_pts[2], *edge_pts[4];
-      get_points(connect, 2, false, dual_surf, vert_pts);
-      std::vector<MBEntityHandle> edges;
-      std::copy(adj_1cells.begin(), adj_1cells.end(), std::back_inserter(edges));
-
-        // check that 1cells are in proper order, i.e. they share 2cell with adj 1cell
-      MBRange dum;
-      result = MBI->get_adjacencies(&edges[0], 2, 2, false, dum); RR;
-      dum = dum.intersect(adj_2cells);
-      if (dum.empty()) {
-          // not adjacent - switch list order
-        MBEntityHandle dum_h = edges[1];
-        edges[1] = edges[2];
-        edges[2] = dum_h;
-      }
+        // get # chords, since drawing method depends on that
+      MBRange chords;
+      result = MBI->get_child_meshsets(dual_surf, chords);
+      if (MB_SUCCESS != result) return result;
       
-      get_points(&edges[0], 4, true, dual_surf, edge_pts);
-      ND_coord_i(vert_pts[0]).x = 250;
-      ND_coord_i(vert_pts[0]).y = 400;
-      ND_coord_i(vert_pts[1]).x = 250;
-      ND_coord_i(vert_pts[1]).y = 100;
-      for (int i = 0; i < 4; i++) {
-        ND_coord_i(edge_pts[i]).y = 250;
-        ND_coord_i(edge_pts[i]).x = (i+1)*100;
+      if (2 == chords.size()) {
+        
+        const MBEntityHandle *connect;
+        int num_connect;
+        result = MBI->get_connectivity(*adj_1cells.begin(), connect, num_connect); RR;
+        Agnode_t *vert_pts[2], *edge_pts[4];
+        get_points(connect, 2, false, dual_surf, vert_pts);
+        std::vector<MBEntityHandle> edges;
+        std::copy(adj_1cells.begin(), adj_1cells.end(), std::back_inserter(edges));
+
+          // check that 1cells are in proper order, i.e. they share 2cell with adj 1cell
+        MBRange dum;
+        result = MBI->get_adjacencies(&edges[0], 2, 2, false, dum); RR;
+        dum = dum.intersect(adj_2cells);
+        if (dum.empty()) {
+            // not adjacent - switch list order
+          MBEntityHandle dum_h = edges[1];
+          edges[1] = edges[2];
+          edges[2] = dum_h;
+        }
+      
+        get_points(&edges[0], 4, true, dual_surf, edge_pts);
+        ND_coord_i(vert_pts[0]).x = 250;
+        ND_coord_i(vert_pts[0]).y = 400;
+        ND_coord_i(vert_pts[1]).x = 250;
+        ND_coord_i(vert_pts[1]).y = 100;
+        for (int i = 0; i < 4; i++) {
+          ND_coord_i(edge_pts[i]).y = 250;
+          ND_coord_i(edge_pts[i]).x = (i+1)*100;
+        }
+      }
+      else if (3 == chords.size()) {
+          // get the middle chord
+        MBEntityHandle middle_chord = 0;
+        for (MBRange::iterator rit = chords.begin(); rit != chords.end(); rit++) {
+          int num_ents;
+          result = MBI->get_number_entities_by_type(*rit, MBEDGE, num_ents);
+          if (MB_SUCCESS != result) return result;
+          if (2 < num_ents) {
+            middle_chord = *rit;
+            break;
+          }
+        }
+        if (0 == middle_chord) return MB_FAILURE;
+        
+        chords.erase(middle_chord);
+
+          // get the edges on each of the non-middle chords
+        std::vector<MBEntityHandle> chord_edges[2];
+        result = MBI->get_entities_by_handle(*chords.begin(), chord_edges[0]); RR;
+        result = MBI->get_entities_by_handle(*chords.rbegin(), chord_edges[1]); RR;
+
+          // align them such that chord_edges[0][0] and chord_edges[1][0] do not share a 2cell 
+          // on this sheet; arbitrarily choose chord_edges[0][0] to be left-most
+        MBEntityHandle shared_2cell = mtu.common_entity(chord_edges[0][0], chord_edges[1][0], 2);
+        if (0 != shared_2cell && dualTool->get_dual_hyperplane(shared_2cell) == dual_surf) {
+          shared_2cell = chord_edges[0][0];
+          chord_edges[0][0] = chord_edges[0][1];
+          chord_edges[0][1] = shared_2cell;
+        }
+        if (0 != mtu.common_entity(chord_edges[0][0], chord_edges[1][0], 2)) 
+          return MB_FAILURE;
+
+        int num_x = 2, xpos = 100, xdelta = (300/num_x)/3, xcent = 250;
+        
+        for (int i = 0; i < num_x; i++) {
+          
+          // get the edge on the middle chord between chord_edges[i][0] and chord_edges[i][1]; that will
+          // be the intersection of edges on middle chord and edges adjacent to vertices
+          // bounding chord_edges[i][0]
+          MBRange middle_edges;
+          result = MBI->get_entities_by_handle(middle_chord, middle_edges); RR;
+          const MBEntityHandle *connect;
+          int num_connect;
+          result = MBI->get_connectivity(*chord_edges[i].begin(), connect, num_connect); RR;
+          result = MBI->get_adjacencies(connect, num_connect, 1, false, middle_edges); RR;
+          assert(1 == middle_edges.size());
+        
+            // get the points for the two vertices and the 3 edges
+            // non-middle chord; get the edges too
+          Agnode_t *vert_pts[2], *edge_pts[3];
+          get_points(connect, 2, false, dual_surf, vert_pts);
+          get_points(&chord_edges[i][0], 2, true, dual_surf, edge_pts);
+          get_points(&(*middle_edges.begin()), 1, true, dual_surf, &edge_pts[2]);
+
+          ND_coord_i(edge_pts[0]).x = xpos; xpos += xdelta;
+          ND_coord_i(edge_pts[2]).x = (xpos < xcent ? xpos-xdelta/2 : xpos+xdelta/2);
+          ND_coord_i(vert_pts[0]).x = xpos;
+          ND_coord_i(vert_pts[1]).x = xpos; xpos += xdelta;
+          ND_coord_i(edge_pts[1]).x = xpos; xpos += xdelta;
+
+          ND_coord_i(vert_pts[0]).y = 100;
+          ND_coord_i(vert_pts[1]).y = 400;
+          ND_coord_i(edge_pts[0]).y = 250;
+          ND_coord_i(edge_pts[1]).y = 250;
+          ND_coord_i(edge_pts[2]).y = 250;
+
+          xpos += xdelta;
+        }
       }
     }
   }
@@ -671,7 +775,7 @@ MBErrorCode DrawDual::make_vtk_data(MBEntityHandle dual_surf,
     // make the 2d cells
   int global_id;
   pd->Allocate();
-  result = vtkMOABUtils::mbImpl->tag_get_data(vtkMOABUtils::globalId_tag(), &dual_surf, 
+  result = vtkMOABUtils::MBI->tag_get_data(vtkMOABUtils::globalId_tag(), &dual_surf, 
                                               1, &global_id);
   if (MB_SUCCESS != result) return result;
 
@@ -694,7 +798,7 @@ MBErrorCode DrawDual::make_vtk_data(MBEntityHandle dual_surf,
        vit != chords.end(); vit++) {
       // set color of chord to other sheet's color
     MBEntityHandle color_set = other_sheet(*vit, dual_surf);
-    result = vtkMOABUtils::mbImpl->tag_get_data(vtkMOABUtils::globalId_tag(), &color_set,
+    result = vtkMOABUtils::MBI->tag_get_data(vtkMOABUtils::globalId_tag(), &color_set,
                                                 1, &global_id);
     if (MB_SUCCESS != result) return result;
 
@@ -1432,7 +1536,7 @@ MBErrorCode DrawDual::draw_labels(MBEntityHandle dual_surf, vtkPolyData *pd,
     // sheet id first
   char set_name[CATEGORY_TAG_NAME_LENGTH];
   int dum;
-  MBErrorCode result = vtkMOABUtils::mbImpl->tag_get_data(vtkMOABUtils::globalId_tag(),
+  MBErrorCode result = vtkMOABUtils::MBI->tag_get_data(vtkMOABUtils::globalId_tag(),
                                                           &dual_surf, 1, &dum);
   if (MB_SUCCESS != result) return result;
   sprintf(set_name, "%d\n", dum);

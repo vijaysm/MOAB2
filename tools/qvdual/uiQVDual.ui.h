@@ -159,6 +159,11 @@ void uiQVDual::fileOpen( const QString &filename )
   
     // Reset camera
   vtkMOABUtils::myRen->ResetCamera();
+
+    // compute dual, if requested
+  if (computeDual)
+    constructDual();
+    
 }
 
 void uiQVDual::fileSave()
@@ -218,6 +223,8 @@ void uiQVDual::init()
   cropToolPopup = NULL;
 
   drawDual = NULL;
+
+  computeDual = false;
 }
 
 
@@ -233,6 +240,7 @@ void uiQVDual::constructDual()
   // tell MOAB to construct the dual first
   DualTool dt(vtkMOABUtils::mbImpl);
   MBErrorCode result = dt.construct_hex_dual(NULL, 0);
+  MBRange dual_sets;
   if (MB_SUCCESS == result) {
     // success - now populate vtk data; first the points
     result = vtkMOABUtils::make_vertex_points(vtkMOABUtils::myUG);
@@ -247,7 +255,6 @@ void uiQVDual::constructDual()
     if (MB_SUCCESS != result) return;
     
     // finally, the sets
-    MBRange dual_sets;
     result = dt.get_dual_hyperplanes(vtkMOABUtils::mbImpl, 1, dual_sets);
     if (MB_SUCCESS != result) return;
     result = vtkMOABUtils::update_set_actors(dual_sets, vtkMOABUtils::myUG, true, true, true);
@@ -264,6 +271,24 @@ void uiQVDual::constructDual()
   }
   
   updateMesh();
+
+  QListViewItemIterator it = QListViewItemIterator(TagListView1);
+  while ( it.current() ) {
+    std::string this_name((*it)->text(0));
+    
+    if (this_name == "DUAL_SURFACE") {
+      (*it)->setOpen(true);
+      break;
+    }
+
+    ++it;
+  }
+
+  if (!dual_sets.empty()) {
+      // draw the first sheet
+    if (NULL == drawDual) drawDual = new DrawDual();
+    drawDual->draw_dual_surf(*dual_sets.begin());
+  }
 }
 
 void uiQVDual::updateMesh()
@@ -786,7 +811,7 @@ void uiQVDual::APbutton_clicked()
 
     // get the dual surfaces for that edge
   MBEntityHandle chord = dt.get_dual_hyperplane(edge);
-  MBRange sheets;
+  std::vector<MBEntityHandle> sheets;
   MBErrorCode result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
   if (MB_SUCCESS != result) {
     std::cerr << "Couldn't get parent dual surfaces of dual edge." << std::endl;
@@ -801,7 +826,7 @@ void uiQVDual::APbutton_clicked()
     return;
   }
 
-  sheets.insert(new_hp);
+  sheets.push_back(new_hp);
   
   int id;
   result = vtkMOABUtils::mbImpl->tag_get_data(dt.globalId_tag(), &new_hp, 1, &id);
@@ -813,7 +838,7 @@ void uiQVDual::APbutton_clicked()
   std::cerr << "AP succeeded; new dual surface id = " << id << "." << std::endl;
 
     // now draw the sheets affected
-  bool success = drawDual->draw_dual_surfs(sheets);
+  bool success = drawDual->draw_dual_surfs(sheets, true);
   if (!success)
     std::cerr << "Problem drawing dual surfaces from atomic pillow." << std::endl;
 

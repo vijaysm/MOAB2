@@ -29,8 +29,12 @@ public:
   DrawDual();
   ~DrawDual();
 
-  bool draw_dual_surfs(MBRange &dual_surfs);
-  MBErrorCode draw_dual_surf(MBEntityHandle dual_surf);
+  bool draw_dual_surfs(MBRange &dual_surfs,
+                       const bool use_offsets = false);
+  bool draw_dual_surfs(std::vector<MBEntityHandle> &dual_surfs,
+                       const bool use_offsets = false);
+  MBErrorCode draw_dual_surf(MBEntityHandle dual_surf,
+                             int offset_num = 0);
   
   MBEntityHandle lastPickedEnt; // last picked entity
   MBEntityHandle secondLastPickedEnt; // second last picked entity

@@ -106,10 +106,12 @@ MBErrorCode MeshTopoUtil::star_entities(const MBEntityHandle star_center,
       star_entities.push_back(next_entity);
       bdy_entity = true;
       std::reverse(star_entities.begin(), star_entities.end());
-      std::reverse(star_dp1.begin(), star_dp1.end());
       star_entities.pop_back();
       last_entity = star_entities.back();
-      last_dp1 = star_dp1.back();
+      if (!star_dp1.empty()) {
+        std::reverse(star_dp1.begin(), star_dp1.end());
+        last_dp1 = star_dp1.back();
+      }
     }
       // else if we're not on the bdy and next_entity is already in star, that means
       // we've come all the way around; don't put next_entity on list again, and

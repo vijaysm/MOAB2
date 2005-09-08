@@ -131,6 +131,16 @@ MBErrorCode WriteVtk::gather_mesh( const MBEntityHandle* set_list,
     set_i  = a.lower_bound(    elem_i, a.end(), CREATE_HANDLE( MBENTITYSET, 0, e ) );
     nodes.merge( node_i, elem_i );
     elems.merge( elem_i, set_i );
+
+      // filter out unsupported element types
+    MBEntityType et = MBEDGE;
+    for (et++; et < MBENTITYSET; et++) {
+      if (VtkUtil::get_vtk_type(et, MBCN::VerticesPerEntity(et))) continue;
+      MBRange::iterator 
+        eit = elems.lower_bound(elems.begin(), elems.end(), CREATE_HANDLE(et, 0, e)),
+        ep1it = elems.lower_bound(elems.begin(), elems.end(), CREATE_HANDLE(et+1, 0, e));
+      elems.erase(eit, ep1it);
+    }
   }
   else
   {
@@ -216,6 +226,8 @@ MBErrorCode WriteVtk::write_elems( std::ostream& stream, const MBRange& elems )
   num_elems = num_uses = elems.size();
   for (MBRange::const_iterator i = elems.begin(); i != elems.end(); ++i)
   {
+    MBEntityType type = mbImpl->type_from_handle(*i);
+    if (!VtkUtil::get_vtk_type(type, MBCN::VerticesPerEntity(type))) continue;
     const MBEntityHandle* conn;
     int conn_len;
     rval = mbImpl->get_connectivity( *i, conn, conn_len );
@@ -231,6 +243,17 @@ MBErrorCode WriteVtk::write_elems( std::ostream& stream, const MBRange& elems )
   std::vector<unsigned>::iterator t = vtk_types.begin();
   for (MBRange::const_iterator i = elems.begin(); i != elems.end(); ++i)
   {
+      // Get type information for element
+    MBEntityType type = TYPE_FROM_HANDLE(*i);
+    const VtkElemType* vtk_type = 
+      VtkUtil::get_vtk_type( type, MBCN::VerticesPerEntity(type));
+    if (!vtk_type) {
+      writeTool->report_error( "Vtk file format does not support elements "
+        "of type %s (%d).\n", MBCN::EntityTypeName(type), 
+        (int)type);
+      continue;
+    }
+
       // Get element connectivity
     const MBEntityHandle* conn;
     int conn_len;
@@ -246,9 +269,6 @@ MBErrorCode WriteVtk::write_elems( std::ostream& stream, const MBRange& elems )
     if (MB_SUCCESS != rval)
       return rval;
 
-      // Get type information for element
-    MBEntityType type = TYPE_FROM_HANDLE(*i);
-    const VtkElemType* vtk_type = VtkUtil::get_vtk_type( type, conn_len );
         // check for higher-order nodes and whether this linear type is supported
     if (!vtk_type && conn_len != MBCN::VerticesPerEntity(type)) {
       vtk_type = VtkUtil::get_vtk_type(type, MBCN::VerticesPerEntity(type));
@@ -260,7 +280,7 @@ MBErrorCode WriteVtk::write_elems( std::ostream& stream, const MBRange& elems )
       writeTool->report_error( "Vtk file format does not support elements "
         "of type %s (%d) with %d nodes.\n", MBCN::EntityTypeName(type), 
         (int)type, conn_len );
-      return MB_FAILURE;
+      continue;
     }
     
       // Save VTK type index for later

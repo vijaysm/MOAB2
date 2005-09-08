@@ -23,7 +23,7 @@
     <property name="minimumSize">
         <size>
             <width>21</width>
-            <height>160</height>
+            <height>166</height>
         </size>
     </property>
     <property name="caption">
@@ -912,12 +912,13 @@
     <forward>class DrawDual</forward>
 </forwards>
 <variables>
-    <variable>CropToolPopup *cropToolPopup;</variable>
-    <variable access="private">std::map&lt;QListViewItem*,MBEntityHandle&gt; itemSetMap;</variable>
-    <variable access="private">vtkUnstructuredGrid *myUG;</variable>
-    <variable>std::set&lt;QListViewItem*&gt; itemSelList;</variable>
-    <variable access="private">int currentWin;</variable>
     <variable>DrawDual *drawDual;</variable>
+    <variable access="private">int currentWin;</variable>
+    <variable>std::set&lt;QListViewItem*&gt; itemSelList;</variable>
+    <variable access="private">vtkUnstructuredGrid *myUG;</variable>
+    <variable access="private">std::map&lt;QListViewItem*,MBEntityHandle&gt; itemSetMap;</variable>
+    <variable>CropToolPopup *cropToolPopup;</variable>
+    <variable access="public">bool computeDual;</variable>
 </variables>
 <signals>
     <signal>toggled()</signal>

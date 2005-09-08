@@ -1374,6 +1374,19 @@ MBEntityHandle DualTool::get_extra_dual_entity(const MBEntityHandle this_ent)
 
 MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &new_hp) 
 {
+  if (debug_ap) {
+    MBRange sets;
+    MBTag ms_tag;
+    
+    MBErrorCode result = mbImpl->tag_get_handle("MATERIAL_SET", ms_tag);
+    if (MB_SUCCESS == result) {
+      result = mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &ms_tag, NULL,
+                                                    1, sets);
+      if (MB_SUCCESS == result)
+        result = mbImpl->delete_entities(sets);
+    }
+  }
+  
     // perform an atomic pillow operation around dedge
 
     // 0. get star 2cells and 3cells around odedge (before odedge changes)
@@ -1622,31 +1635,46 @@ MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr)
   else if (new_edges.size() == 2) {
       // one quad was on the surface; must merge that quad's new edge with another
 
-      // according to implementation of split_entities_manifold, surface quad will be
-      // one of the originals, not one of the new ones
-    MBRange tmp_adjs;
-    result = mbImpl->get_adjacencies(quads, 1, 3, false, tmp_adjs);
+      // get the two faces linked through hexes (at either end of the quad star), 
+      // the two other faces are the ones we're looking for
+    MBRange all_quads;
+    std::copy(quads, quads+2, mb_range_inserter(all_quads));
+    std::copy(new_quads, new_quads+2, mb_range_inserter(all_quads));
+  
+    std::vector<MBEntityHandle> star_ents;
+    bool bdy_entity;
+    result = mtu.star_entities(edge, star_ents, bdy_entity);
     if (MB_SUCCESS != result) return result;
-    if (tmp_adjs.empty()) {
-        // quads[0] is the surface quad; switch so that it's quads[1]
-      MBEntityHandle tmp_quad = quads[0];
-      quads[0] = quads[1];
-      quads[1] = tmp_quad;
+    if (star_ents.empty() ||
+        all_quads.find(*star_ents.begin()) == all_quads.end() ||
+        all_quads.find(*star_ents.rbegin()) == all_quads.end()) {
+      for (MBRange::iterator rit = new_edges.begin(); rit != new_edges.end(); rit++) {
+        star_ents.clear();
+        result = mtu.star_entities(*rit, star_ents, bdy_entity);
+        if (MB_SUCCESS != result) return result;
+        if (all_quads.find(*star_ents.begin()) != all_quads.end() &&
+            all_quads.find(*star_ents.rbegin()) != all_quads.end()) break;
+      }
     }
-    
-      // now make sure quads[0] and new_quads[0] share an edge
-    if (0 == mtu.common_entity(quads[0], new_quads[0], 1)) {
-        // if new_quads[0] isn't the one, new_quads[1] has to be
-      if (0 == mtu.common_entity(quads[0], new_quads[1], 1))
-        return MB_FAILURE;
-        // switch so that it's now new_quads[0]
-      MBEntityHandle tmp_quad = new_quads[0];
-      new_quads[0] = new_quads[1];
-      new_quads[1] = tmp_quad;
-    }
-    
-      // at this point, quads[1] and new_quads[1] shouldn't share an edge
-    assert(0 == mtu.common_entity(quads[1], new_quads[1], 1));
+    if (star_ents.empty() ||
+        all_quads.find(*star_ents.begin()) == all_quads.end() ||
+        all_quads.find(*star_ents.rbegin()) == all_quads.end()) return MB_FAILURE;
+      
+      // found the ones which aren't adjacent to bdy; now find the one that's
+      // old and the one that's new
+    all_quads.erase(*star_ents.begin());
+    all_quads.erase(*star_ents.rbegin());
+
+    quads[0] = *star_ents.begin();
+    new_quads[0] = *star_ents.rbegin();
+    quads[1] = *all_quads.begin();
+    new_quads[1] = *all_quads.rbegin();
+
+      // at this point, quads[1] and new_quads[1] shouldn't share an edge and
+      // quads[0] and new_quads[0] should
+    assert(0 == mtu.common_entity(quads[1], new_quads[1], 1) &&
+           (edge == mtu.common_entity(quads[0], new_quads[0], 1) ||
+            new_edges.find(mtu.common_entity(quads[0], new_quads[0], 1)) != new_edges.end()));
     
       // now get the edges to merge
     MBEntityHandle edge1, edge2;
@@ -1796,6 +1824,9 @@ MBErrorCode DualTool::foc_get_merge_ents(MBEntityHandle *quads, MBEntityHandle *
   MBErrorCode result = mbImpl->get_adjacencies(quads, 2, 0, false, 
                                                all_verts, MBInterface::UNION);
   if (MB_SUCCESS != result) return result;
+  result = mbImpl->get_adjacencies(new_quads, 2, 0, false, 
+                                   all_verts, MBInterface::UNION);
+  if (MB_SUCCESS != result) return result;
   assert(6 == all_verts.size());
     // get the vertices to merge; each vertex pair is bridge-adjacent (across edges)
     // to one of the vertices of our edge, and is not the other vertex of our edge
@@ -1822,8 +1853,12 @@ MBErrorCode DualTool::foc_get_merge_ents(MBEntityHandle *quads, MBEntityHandle *
   MBRange all_edges, saved_edges;
   result = mbImpl->get_adjacencies(quads, 2, 1, false, all_edges, MBInterface::UNION);
   if (MB_SUCCESS != result) return result;
+  result = mbImpl->get_adjacencies(new_quads, 2, 1, false, all_edges, MBInterface::UNION);
+  if (MB_SUCCESS != result) return result;
   all_edges.erase(edge);
   all_edges.erase(new_edge);
+  assert(6 == all_edges.size());
+
     // first the ones connected to each vertex of our edge but not edge or new_edge
   for (int i = 0; i < 2; i++) {
     MBRange tmp_edges;
@@ -1841,36 +1876,14 @@ MBErrorCode DualTool::foc_get_merge_ents(MBEntityHandle *quads, MBEntityHandle *
   merge_ents.push_back(*all_edges.begin());
   merge_ents.push_back(*all_edges.rbegin());
   
-    // now faces; needs to be one of these three possibilities
-  MBEntityHandle common_ent;
-  common_ent = mtu.common_entity(quads[0], new_quads[0], 1);
-  if (edge == common_ent || new_edge == common_ent) {
-    merge_ents.push_back(quads[0]);
-    merge_ents.push_back(new_quads[0]);
-    merge_ents.push_back(quads[1]);
-    merge_ents.push_back(new_quads[1]);
-    return MB_SUCCESS;
-  }
+    // now faces; already know which ones, because of code we used before to
+    // store quads and new_quads
+  merge_ents.push_back(quads[0]);
+  merge_ents.push_back(new_quads[0]);
+  merge_ents.push_back(quads[1]);
+  merge_ents.push_back(new_quads[1]);
   
-  common_ent = mtu.common_entity(quads[0], new_quads[1], 1);
-  if (edge == common_ent || new_edge == common_ent) {
-    merge_ents.push_back(quads[0]);
-    merge_ents.push_back(new_quads[1]);
-    merge_ents.push_back(quads[1]);
-    merge_ents.push_back(new_quads[0]);
-    return MB_SUCCESS;
-  }
-  
-  common_ent = mtu.common_entity(quads[0], quads[1], 1);
-  if (edge == common_ent || new_edge == common_ent) {
-    merge_ents.push_back(quads[0]);
-    merge_ents.push_back(quads[1]);
-    merge_ents.push_back(new_quads[0]);
-    merge_ents.push_back(new_quads[1]);
-    return MB_SUCCESS;
-  }
-  
-  return MB_FAILURE;
+  return MB_SUCCESS;
 }
 
 //! returns true if all vertices are dual to hexes (not faces)
