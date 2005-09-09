@@ -116,7 +116,7 @@ void DrawDual::add_picker(vtkRenderer *this_ren)
     
       // create a cell picker
     dualPicker = vtkCellPicker::New();
-    dualPicker->SetTolerance(0.002);
+    dualPicker->SetTolerance(0.01);
 
       // set up the callback handler for the picker
     vtkMOABUtils::eventCallbackCommand = vtkCallbackCommand::New();

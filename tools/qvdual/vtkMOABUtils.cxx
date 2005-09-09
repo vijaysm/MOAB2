@@ -12,6 +12,7 @@
 #include "vtkPropCollection.h"
 #include "vtkObjectFactory.h"
 #include "vtkRenderer.h"
+#include "vtkRenderWindow.h"
 #include "vtkDataSetMapper.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkPolyData.h"
@@ -321,7 +322,8 @@ MBErrorCode vtkMOABUtils::make_cells(vtkUnstructuredGrid *&ug)
 
       // skip cell types vtk doesn't understand
     if (vtk_cell_types[in_type] == 0) continue;
-    
+
+    ents.clear();
     MBErrorCode tmp_result = mbImpl->get_entities_by_type(0, in_type, ents);
     if (MB_SUCCESS != tmp_result || ents.empty()) {
       result = tmp_result;
@@ -364,6 +366,29 @@ MBErrorCode vtkMOABUtils::update_all_actors(MBEntityHandle this_set,
                                                                   update_sets);
   if (MB_SUCCESS != result) return result;
 
+    // finally, the sets
+  MBRange chord_sets, sheet_sets;
+  DualTool dt(mbImpl);
+  
+  result = dt.get_dual_hyperplanes(vtkMOABUtils::mbImpl, 1, chord_sets);
+  if (MB_SUCCESS != result) return result;
+
+  result = dt.get_dual_hyperplanes(vtkMOABUtils::mbImpl, 2, sheet_sets);
+  if (MB_SUCCESS != result) return result;
+
+  result = vtkMOABUtils::update_set_actors(chord_sets, vtkMOABUtils::myUG, true, false, true);
+  if (MB_SUCCESS != result) return result;
+
+  result = vtkMOABUtils::update_set_actors(sheet_sets, vtkMOABUtils::myUG, true, false, true);
+  if (MB_SUCCESS != result) return result;
+
+  int table_size = (chord_sets.size()+sheet_sets.size() > vtkMOABUtils::totalColors ? 
+                    chord_sets.size()+sheet_sets.size() : vtkMOABUtils::totalColors);
+  vtkMOABUtils::construct_lookup_table(table_size);
+  
+  update_sets = update_sets.subtract(chord_sets);
+  update_sets = update_sets.subtract(sheet_sets);
+  
   return vtkMOABUtils::update_set_actors(update_sets, ug, shaded, tubed, colored);
 }
 
@@ -996,3 +1021,34 @@ MBErrorCode vtkMOABUtils::get_colors(MBEntityHandle dual_set,
   return MB_SUCCESS;
 }
 
+void vtkMOABUtils::update_display(vtkUnstructuredGrid *ug) 
+{
+  if (NULL == ug) ug = myUG;
+  
+  MBErrorCode result = vtkMOABUtils::make_vertex_points(ug);
+  if (MB_SUCCESS != result)
+    {
+      std::cerr << "Failed to make vertex points." << std::endl;
+    return;
+    }
+
+    // now make the cells
+  result = vtkMOABUtils::make_cells(ug);
+  if (MB_SUCCESS != result)
+    {
+      std::cerr << "Failed to make cells." << std::endl;
+    return;
+    }
+
+  vtkMOABUtils::myUG = ug;
+    //ug->Initialize();
+  
+  result = update_all_actors(0, myUG, false);
+  if (MB_SUCCESS != result)
+  {
+    std::cerr << "Failed to update. " << std::endl;
+  }
+  
+  // Render
+  myRen->GetRenderWindow()->Render();
+}

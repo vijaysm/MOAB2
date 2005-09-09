@@ -68,25 +68,6 @@ void vtkMOABReader::Execute()
 
     // initialize the vtk data on top of MOAB
   vtkUnstructuredGrid *ug = this->GetOutput();
-  
-  result = vtkMOABUtils::make_vertex_points(ug);
-  if (MB_SUCCESS != result)
-    {
-    vtkErrorMacro( << "Failed to make vertex points for " << this->GetFileName() );
-    return;
-    }
-  vtkDebugMacro(<<"Vertex points constructed.");
 
-    // now make the cells
-  result = vtkMOABUtils::make_cells(ug);
-  if (MB_SUCCESS != result)
-    {
-    vtkErrorMacro( << "Failed to make cells for " << this->GetFileName() );
-    return;
-    }
-  vtkDebugMacro(<<"Cells constructed.");
-
-  vtkMOABUtils::myUG = ug;
-    //ug->Initialize();
-  
+  vtkMOABUtils::update_display(ug);
 }

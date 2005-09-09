@@ -231,6 +231,9 @@ public:
     //! remove the specified extractor from the head of the pipeline, just after myUG
   static void remove_geom_extractors();
 
+    //! update the display with all the mesh
+  static void update_display(vtkUnstructuredGrid *ug = NULL);
+  
 private:
     //! private constructor so nobody can construct one
   vtkMOABUtils();

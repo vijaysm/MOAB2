@@ -148,12 +148,6 @@ void uiQVDual::fileOpen( const QString &filename )
   }
       
     // construct actors and prop assemblies for the sets
-  result = vtkMOABUtils::update_all_actors(0, vtkMOABUtils::myUG, false);
-  if (MB_SUCCESS != result)
-  {
-    std::cerr << "Failed to update " << filename.ascii();
-  }
-  
     // update anything else in the UI
   this->updateMesh();
   
@@ -247,38 +241,11 @@ void uiQVDual::constructDual()
   // tell MOAB to construct the dual first
   DualTool dt(vtkMOABUtils::mbImpl);
   MBErrorCode result = dt.construct_hex_dual(NULL, 0);
-  MBRange dual_sets;
-  if (MB_SUCCESS == result) {
-    // success - now populate vtk data; first the points
-    result = vtkMOABUtils::make_vertex_points(vtkMOABUtils::myUG);
-    if (MB_SUCCESS != result) return;
-    
-    // now the polylines
-    result = vtkMOABUtils::make_cells(MBEDGE, vtkMOABUtils::myUG);
-    if (MB_SUCCESS != result) return;
-    
-    // now the polygons
-    result = vtkMOABUtils::make_cells(MBPOLYGON, vtkMOABUtils::myUG);
-    if (MB_SUCCESS != result) return;
-    
-    // finally, the sets
-    result = dt.get_dual_hyperplanes(vtkMOABUtils::mbImpl, 1, dual_sets);
-    if (MB_SUCCESS != result) return;
-    result = vtkMOABUtils::update_set_actors(dual_sets, vtkMOABUtils::myUG, true, true, true);
-    if (MB_SUCCESS != result) return;
 
-    dual_sets.clear();
-    result = dt.get_dual_hyperplanes(vtkMOABUtils::mbImpl, 2, dual_sets);
-    if (MB_SUCCESS != result) return;
-    result = vtkMOABUtils::update_set_actors(dual_sets, vtkMOABUtils::myUG, true, false, true);
-
-    int table_size = (dual_sets.size() > vtkMOABUtils::totalColors ? 
-                      dual_sets.size() : vtkMOABUtils::totalColors);
-    vtkMOABUtils::construct_lookup_table(table_size);
-  }
-  
   updateMesh();
 
+  vtkMOABUtils::update_display(vtkMOABUtils::myUG);
+  
   QListViewItemIterator it = QListViewItemIterator(TagListView1);
   while ( it.current() ) {
     std::string this_name((*it)->text(0));
@@ -291,10 +258,14 @@ void uiQVDual::constructDual()
     ++it;
   }
 
-  if (!dual_sets.empty()) {
+  MBRange sheet_sets;
+  result = dt.get_dual_hyperplanes(vtkMOABUtils::mbImpl, 2, sheet_sets);
+  if (MB_SUCCESS != result) return;
+
+  if (!sheet_sets.empty()) {
       // draw the first sheet
     if (NULL == drawDual) drawDual = new DrawDual();
-    drawDual->draw_dual_surf(*dual_sets.begin());
+    drawDual->draw_dual_surf(*sheet_sets.begin());
   }
 }
 
@@ -303,9 +274,6 @@ void uiQVDual::updateMesh()
   // mesh was updated; update the various UI elements
   this->updateTagList();
   this->updateActorList();
-  
-  // Render
-  vtkWidget->GetRenderWindow()->Render();
 }
 
 
@@ -850,6 +818,8 @@ void uiQVDual::APbutton_clicked()
     std::cerr << "Problem drawing dual surfaces from atomic pillow." << std::endl;
 
   updateMesh();
+
+  vtkMOABUtils::update_display();
 }
 
 
@@ -916,6 +886,8 @@ void uiQVDual::negAPbutton_clicked()
               << std::endl;
 
   updateMesh();
+
+  vtkMOABUtils::update_display();
 }
 
 
@@ -980,6 +952,8 @@ void uiQVDual::FOCbutton_clicked()
     std::cerr << "Problem drawing previously-drawn dual surfaces." << std::endl;
   
   updateMesh();
+
+  vtkMOABUtils::update_display();
 }
 
 
@@ -1046,6 +1020,7 @@ void uiQVDual::FSbutton_clicked()
   
   updateMesh();
 
+  vtkMOABUtils::update_display();
 }
 
 
@@ -1111,6 +1086,8 @@ void uiQVDual::negFCbutton_clicked()
   }
   
   updateMesh();
+
+  vtkMOABUtils::update_display();
 }
 
 

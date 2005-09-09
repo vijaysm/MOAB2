@@ -1768,6 +1768,11 @@ MBErrorCode DualTool::foc_delete_dual(MBEntityHandle edge,
     result = mbImpl->get_adjacencies(hexes, i, false, adj_ents, MBInterface::UNION);
     if (MB_SUCCESS != result) return result;
   }
+
+    // cache any adjacent hexes, for rebuilding the dual later
+  result = mbImpl->get_adjacencies(adj_ents, 3, false, hexes, MBInterface::UNION);
+  if (MB_SUCCESS != result) return result;
+  
   for (MBRange::iterator rit = adj_ents.begin(); rit != adj_ents.end(); rit++) {
     MBEntityHandle this_ent = get_dual_entity(*rit);
     dual_ents.insert(this_ent);
@@ -1814,13 +1819,21 @@ MBErrorCode DualTool::foc_delete_dual(MBEntityHandle edge,
       if (MB_SUCCESS != result) return result;
     }
     else if (*rit == sheet_delete) {
-        // delete all the dual entities, then delete the sheet
-      result = delete_dual_entities(tmp_ents);
-      if (MB_SUCCESS != result) return result;
+        // delete the sheet
       result = mbImpl->delete_entities(&(*rit), 1);
       if (MB_SUCCESS != result) return result;
     }
   }
+
+    // now just to be safe, add the hexes bridge-adjacent across vertices
+    // to the hexes we already have
+  MBRange tmp_hexes;
+  MeshTopoUtil mtu(mbImpl);
+  for (MBRange::iterator rit = hexes.begin(); rit != hexes.end(); rit++) {
+    result = mtu.get_bridge_adjacencies(*rit, 0, 3, tmp_hexes);
+    if (MB_SUCCESS != result) return result;
+  }
+  hexes.merge(tmp_hexes);
 
   return MB_SUCCESS;
 }
