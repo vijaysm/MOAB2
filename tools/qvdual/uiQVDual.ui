@@ -912,13 +912,14 @@
     <forward>class DrawDual</forward>
 </forwards>
 <variables>
-    <variable>DrawDual *drawDual;</variable>
-    <variable access="private">int currentWin;</variable>
-    <variable>std::set&lt;QListViewItem*&gt; itemSelList;</variable>
-    <variable access="private">vtkUnstructuredGrid *myUG;</variable>
-    <variable access="private">std::map&lt;QListViewItem*,MBEntityHandle&gt; itemSetMap;</variable>
-    <variable>CropToolPopup *cropToolPopup;</variable>
+    <variable access="private">QString lastOpened;</variable>
     <variable access="public">bool computeDual;</variable>
+    <variable>CropToolPopup *cropToolPopup;</variable>
+    <variable access="private">std::map&lt;QListViewItem*,MBEntityHandle&gt; itemSetMap;</variable>
+    <variable access="private">vtkUnstructuredGrid *myUG;</variable>
+    <variable>std::set&lt;QListViewItem*&gt; itemSelList;</variable>
+    <variable access="private">int currentWin;</variable>
+    <variable>DrawDual *drawDual;</variable>
 </variables>
 <signals>
     <signal>toggled()</signal>
@@ -928,7 +929,7 @@
     <slot>fileOpen()</slot>
     <slot>fileOpen( const QString &amp; filename )</slot>
     <slot>fileSave()</slot>
-    <slot>fileSaveAs()</slot>
+    <slot>fileSaveAs( const QString &amp; filename )</slot>
     <slot>filePrint()</slot>
     <slot>fileExit()</slot>
     <slot>helpIndex()</slot>
@@ -954,6 +955,7 @@
     <slot>FOCbutton_clicked()</slot>
     <slot>FSbutton_clicked()</slot>
     <slot>negFCbutton_clicked()</slot>
+    <slot>fileSaveAs()</slot>
 </slots>
 <functions>
     <function access="private" specifier="non virtual">init()</function>

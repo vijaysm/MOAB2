@@ -13,6 +13,7 @@ for convenience of calling code needing to do range-based logic
 returns a string for the error code passed in (usually just a string representation
 of the error code enum)
 - Added MBRange variants of get_parent_meshsets, get_child_meshsets
+- Added list_entity function to MBInterface
 
 Version 1.01 (CVS tag version_101): 
 New Capabilities:
@@ -40,6 +41,8 @@ vertex/edge/face/region, dual surface/curve, etc.; currently only
 supported by .cub file reader
 
 Bug Fixes/Rearrangements:
+- Fixed bug getting up-adjacencies from entities having equivalent entities; 
+some adjacencies were being missed.
 - Fixed a bug in set_connectivity, where old vertices were put on the
 end of a scratch array instead of the beginning; symptom showed up as
 old vertices still being adjacent to the element whose connectivity

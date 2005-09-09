@@ -1044,21 +1044,38 @@ MBErrorCode AEntityFactory::get_up_adjacency_elements(MBEntityHandle source_enti
       return result;
     else if (adj_vec == NULL)
       return MB_SUCCESS;
-  
-    MBDimensionPair dim_pair = MBCN::TypeDimensionMap[target_dimension];
+
+    MBDimensionPair dim_pair_dp1 = MBCN::TypeDimensionMap[MBCN::Dimension(source_type)+1],
+      dim_pair_td = MBCN::TypeDimensionMap[target_dimension];
     int dum;
 
-      // now get the elements
-    MBAdjacencyVector::iterator 
-      start_ent = std::lower_bound(adj_vec->begin(), adj_vec->end(), 
-                                   CREATE_HANDLE(dim_pair.first, MB_START_ID, dum)),
-       
-      end_ent = std::lower_bound(start_ent, adj_vec->end(), 
-                                 CREATE_HANDLE(dim_pair.second, MB_END_ID, dum));
+    MBRange tmp_ents, target_ents;
 
-      // copy the entities
-    target_entities.resize(end_ent - start_ent);
-    std::copy(start_ent, end_ent, target_entities.begin());
+      // get iterators for start handle of source_dim+1 and target_dim, and end handle
+      // of target_dim
+    MBAdjacencyVector::iterator 
+      start_ent_dp1 = std::lower_bound(adj_vec->begin(), adj_vec->end(), 
+                                       CREATE_HANDLE(dim_pair_dp1.first, MB_START_ID, dum)),
+       
+      start_ent_td = std::lower_bound(adj_vec->begin(), adj_vec->end(), 
+                                      CREATE_HANDLE(dim_pair_td.first, MB_START_ID, dum)),
+       
+      end_ent_td = std::lower_bound(adj_vec->begin(), adj_vec->end(), 
+                                    CREATE_HANDLE(dim_pair_td.second, MB_END_ID, dum));
+
+      // get the adjacencies for source_dim+1 to target_dim-1, and the adjacencies from
+      // those to target_dim
+    std::copy(start_ent_dp1, start_ent_td, mb_range_inserter(tmp_ents));
+    MBErrorCode result = thisMB->get_adjacencies(tmp_ents, target_dimension, false,
+                                                 target_ents, MBInterface::UNION);
+    if (MB_SUCCESS != result) return result;
+    
+      // now copy the explicit adjacencies to target_dimension
+    std::copy(start_ent_td, end_ent_td, mb_range_inserter(target_ents));
+    
+      // now insert the whole thing into the argument vector
+    target_entities.clear();
+    std::copy(target_ents.begin(), target_ents.end(), std::back_inserter(target_entities));
   }
 
   return result;

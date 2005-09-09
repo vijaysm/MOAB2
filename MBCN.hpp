@@ -348,8 +348,9 @@ inline MBEntityType MBCN::SubEntityType(const MBEntityType this_type,
                                         const int index) 
 {
   
-  return (Dimension(this_type) == sub_dimension && 0 == index ? this_type :
-          mConnectivityMap[this_type][sub_dimension-1].target_type[index]);
+  return (!sub_dimension ? MBVERTEX : 
+          (Dimension(this_type) == sub_dimension && 0 == index ? this_type :
+          mConnectivityMap[this_type][sub_dimension-1].target_type[index]));
 }
   
   //! return the connectivity of the specified sub-entity.
@@ -361,7 +362,8 @@ inline void MBCN::SubEntityVertexIndices(const MBEntityType this_type,
   for (int i = 0; i < VerticesPerEntity(SubEntityType(this_type, sub_dimension, index)); i++)
     sub_entity_conn[i] = (MBVERTEX == this_type && 0 == sub_dimension && 
                           0 == index) ? 0 : 
-      mConnectivityMap[this_type][sub_dimension-1].conn[index][i];
+      (0 == sub_dimension ? index :
+      mConnectivityMap[this_type][sub_dimension-1].conn[index][i]);
 }
 
 inline bool MBCN::HasMidEdgeNodes(const MBEntityType this_type, 

@@ -426,8 +426,10 @@ public:
 
   virtual MBErrorCode list_entities(const MBRange &entities) const;
   
-    virtual MBErrorCode list_entities(const MBEntityHandle *entities,
-                                       const int num_entities) const;
+  virtual MBErrorCode list_entities(const MBEntityHandle *entities,
+                                    const int num_entities) const;
+
+  virtual MBErrorCode list_entity(const MBEntityHandle entity) const;
 
       //! function object for recieving events from MB of higher order nodes
       //! added to entities
@@ -774,6 +776,15 @@ public:
 
   virtual std::string get_error_string(const MBErrorCode code) const;
 
+    //! check all adjacencies for consistency
+  MBErrorCode check_adjacencies();
+  
+    //! check some adjacencies for consistency
+  MBErrorCode check_adjacencies(const MBEntityHandle *ents, int num_ents);
+  
+    //! return whether the input handle is valid or not
+  bool is_valid(const MBEntityHandle this_ent);
+  
 private:
 
     //! database init and de-init routines

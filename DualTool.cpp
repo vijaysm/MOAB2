@@ -15,6 +15,8 @@
 
 #include "DualTool.hpp"
 #include "MBRange.hpp"
+// using MBCore for call to check_adjacencies
+#include "MBCore.hpp"
 #include "MBInternals.hpp"
 #include "MBTagConventions.hpp"
 #include "MBSkinner.hpp"
@@ -1000,7 +1002,7 @@ MBErrorCode DualTool::order_chord(MBEntityHandle chord_set)
     result = mbImpl->get_adjacencies(&last_vert, 1, 1, false, dum1);
     if (0 != last_1cell) dum1.erase(last_1cell);
       // assert(1 == dum1.size());
-    if (1 != dum1.size()) {
+    if (0 != last_1cell && 1 != dum1.size()) {
       std::cerr << "unexpected size traversing chord." << std::endl;
       tmp_result = MB_FAILURE;
     }
@@ -1374,6 +1376,8 @@ MBEntityHandle DualTool::get_extra_dual_entity(const MBEntityHandle this_ent)
 
 MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &new_hp) 
 {
+  if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
+
   if (debug_ap) {
     MBRange sets;
     MBTag ms_tag;
@@ -1479,6 +1483,8 @@ MBErrorCode DualTool::rev_atomic_pillow(MBEntityHandle pillow, MBRange &chords)
     // get the dual entities associated with elements in the pillow; go through
     // the elements instead of the pillow sheet so you get all of them, not just
     // the ones on the sheet
+  if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
+
   MBRange dverts;
   MBErrorCode result = get_dual_entities(pillow, NULL, NULL,
                                          &dverts, NULL, NULL);
@@ -1539,6 +1545,8 @@ MBErrorCode DualTool::rev_atomic_pillow(MBEntityHandle pillow, MBRange &chords)
   result = mbImpl->get_adjacencies(tmp_verts, 3, false, tmp_hexes, MBInterface::UNION); RR;
   result = construct_hex_dual(tmp_hexes); RR;
 
+  if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
+
   return MB_SUCCESS;
 }
 
@@ -1586,7 +1594,7 @@ MBErrorCode DualTool::delete_dual_entities(MBEntityHandle *entities,
 MBErrorCode DualTool::delete_dual_entities(MBRange &entities) 
 {
   MBErrorCode result = MB_SUCCESS;
-  for (MBRange::iterator rit = entities.begin(); rit != entities.end(); rit++) {
+  for (MBRange::reverse_iterator rit = entities.rbegin(); rit != entities.rend(); rit++) {
     MBEntityHandle this_ent = *rit;
     MBErrorCode tmp_result = delete_dual_entities(&this_ent, 1);
     if (MB_SUCCESS != tmp_result) result = tmp_result;
@@ -1597,6 +1605,8 @@ MBErrorCode DualTool::delete_dual_entities(MBRange &entities)
 
 MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr) 
 {
+  if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
+
   MeshTopoUtil mtu(mbImpl);
 
     // get the primal entities we're dealing with
@@ -1725,6 +1735,8 @@ MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr)
   result = construct_hex_dual(hexes); 
   if (MB_SUCCESS != result) return result;
   
+  if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
+
   return MB_SUCCESS;
 }
 
@@ -2050,72 +2062,33 @@ MBErrorCode DualTool::list_entities(const MBEntityHandle *entities,
 {
   MBRange temp_range;
   MBErrorCode result;
-  if (NULL == entities && num_entities <= 0) {
-      // just list the numbers of each entity type
-    int num_ents;
-    std::cout << std::endl;
-    std::cout << "Number of entities per type: " << std::endl;
-    for (MBEntityType this_type = MBVERTEX; this_type < MBMAXTYPE; this_type++) {
-      result = mbImpl->get_number_entities_by_type(0, this_type, num_ents);
-      std::cout << MBCN::EntityTypeName(this_type) << ": " << num_ents << std::endl;
-    }
-    std::cout << std::endl;
-
-      // if negative num_entities, list the set hierarchy too
-    if (0 > num_entities) {
-      MBRange sets;
-      result = mbImpl->get_entities_by_type(0, MBENTITYSET, sets);
-      if (MB_SUCCESS != result) return result;
-      for (MBRange::iterator rit = sets.begin(); rit != sets.end(); rit++) {
-        mbImpl->list_entities(&(*rit), 1);
-        result = mbImpl->get_number_entities_by_handle(*rit, num_ents);
-        std::cout << "(" << num_ents << " total entities)" << std::endl;
-      }
-    }
-    
-    return MB_SUCCESS;
-  }
-      
-  else if (NULL == entities) {
+  if (NULL == entities && 0 == num_entities) 
+    return mbImpl->list_entities(entities, num_entities);
+  
+  else if (NULL == entities && 0 < num_entities) {
 
       // list all entities of all types
     std::cout << std::endl;
     for (MBEntityType this_type = MBVERTEX; this_type < MBMAXTYPE; this_type++) {
-      temp_range.clear();
-      std::cout << "Entities of type: " << MBCN::EntityTypeName(this_type) << ": " << std::endl;
       result = mbImpl->get_entities_by_type(0, this_type, temp_range);
-      result = list_entities(temp_range);
     }
-    std::cout << std::endl;
-    
-    return MB_SUCCESS;
   }
-
+  
   else {
     std::copy(entities, entities+num_entities, mb_range_inserter(temp_range));
-    return list_entities(temp_range);
   }
+
+  return list_entities(temp_range);
 }
   
 MBErrorCode DualTool::list_entities(const MBRange &entities) const
 {
-  MBErrorCode result;
-  std::vector<MBEntityHandle> adj_vec;
-
-    // list entities
+    // now print each entity, listing the dual information first then calling MBInterface to do
+    // the rest
+  MBErrorCode result = MB_SUCCESS, tmp_result;
   for (MBRange::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
     MBEntityType this_type = TYPE_FROM_HANDLE(*iter);
-    std::cout << MBCN::EntityTypeName(this_type) << " " << mbImpl->id_from_handle(*iter) << ":" << std::endl;
-
-    if (this_type == MBVERTEX) {
-      double coords[3];
-      result = mbImpl->get_coords(&(*iter), 1, coords);
-      if (MB_SUCCESS != result) return result;
-      std::cout << "Coordinates: (" << coords[0] << ", " << coords[1] << ", " << coords[2] 
-           << ")" << std::endl;
-    }
-    else if (this_type == MBENTITYSET)
-      mbImpl->list_entities(&(*iter), 1);
+    std::cout << MBCN::EntityTypeName(this_type) << " " << ID_FROM_HANDLE(*iter) << ":" << std::endl;
 
     MBEntityHandle dual_ent = get_dual_entity(*iter);
     if (0 != dual_ent) {
@@ -2123,43 +2096,33 @@ MBErrorCode DualTool::list_entities(const MBRange &entities) const
                 << MBCN::EntityTypeName(mbImpl->type_from_handle(dual_ent)) << " "
                 << mbImpl->id_from_handle(dual_ent) << std::endl;
     }
-    
-    std::cout << "  Adjacencies:" << std::endl;
-    bool some = false;
-    int multiple = 0;
-    for (int dim = 0; dim <= 3; dim++) {
-      if (dim == MBCN::Dimension(this_type)) continue;
-      adj_vec.clear();
-      result = mbImpl->get_adjacencies(&(*iter), 1, dim, false, adj_vec);
-      if (MB_FAILURE == result) continue;
-      for (std::vector<MBEntityHandle>::iterator adj_it = adj_vec.begin(); 
-           adj_it != adj_vec.end(); adj_it++) {
-        if (adj_it != adj_vec.begin()) std::cout << ", ";
-        else std::cout << "   ";
-        std::cout << MBCN::EntityTypeName(mbImpl->type_from_handle(*adj_it)) << " " 
-                  << mbImpl->id_from_handle(*adj_it);
-      }
-      if (!adj_vec.empty()) {
-        std::cout << std::endl;
-        some = true;
-      }
-      if (MB_MULTIPLE_ENTITIES_FOUND == result)
-        multiple += dim;
-    }
-    if (!some) std::cout << "(none)" << std::endl;
-    if (multiple != 0)
-      std::cout << "   (MULTIPLE = " << multiple << ")" << std::endl;
 
-    std::cout << std::endl;
+    if (TYPE_FROM_HANDLE(*iter) == MBENTITYSET) {
+      MBEntityHandle chord = 0, sheet = 0;
+      int id;
+      result = mbImpl->tag_get_data(dualCurve_tag(), &(*iter), 1, &chord);
+      result = mbImpl->tag_get_data(dualSurface_tag(), &(*iter), 1, &sheet);
+      result = mbImpl->tag_get_data(globalId_tag(), &(*iter), 1, &id);
+        
+      if (0 != chord)
+        std::cout << "(Dual chord " << id << ")" << std::endl;
+      if (0 != sheet)
+        std::cout << "(Dual sheet " << id << ")" << std::endl;
+    }
+
+    tmp_result = mbImpl->list_entity(*iter);
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
   }
 
-  return MB_SUCCESS;
+  return result;
 }
 
 MBErrorCode DualTool::face_shrink(MBEntityHandle odedge) 
 {
     // some preliminary checking
   if (mbImpl->type_from_handle(odedge) != MBEDGE) return MB_TYPE_OUT_OF_RANGE;
+
+  if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
   
   MBEntityHandle quads[4], hexes[2];
   std::vector<MBEntityHandle> connects[4];
@@ -2264,12 +2227,16 @@ MBErrorCode DualTool::face_shrink(MBEntityHandle odedge)
   
     // now update the dual
   MBRange tmph;
-  std::copy(new_hexes, new_hexes+4, mb_range_inserter(tmph));
-  tmph.insert(hexes[0]);
+  result = mtu.get_bridge_adjacencies(hexes[0], 0, 3, tmph);
+  if (MB_SUCCESS != result) return result;
+  result = mtu.get_bridge_adjacencies(hexes[1], 0, 3, tmph);
+  if (MB_SUCCESS != result) return result;
   tmph.insert(hexes[1]);
   result = construct_hex_dual(tmph);
   if (MB_SUCCESS != result) return result;
   
+  if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
+
   return result;
 }
 
@@ -2306,6 +2273,13 @@ MBErrorCode DualTool::fs_check_quad_sense(MBEntityHandle hex0,
 
   assert(index0 != -1 && sense0 != 0);
   
+  if (sense0 == -1) {
+    MBEntityHandle dumh = connects[1][0];
+    connects[1][0] = connects[1][2];
+    connects[1][2] = dumh;
+    index0 = (index0+2)%4;
+  }
+
   if (index0 != 0) {
     std::vector<MBEntityHandle> tmpc;
     for (int i = 0; i < 4; i++)
@@ -2313,12 +2287,6 @@ MBErrorCode DualTool::fs_check_quad_sense(MBEntityHandle hex0,
     connects[1].swap(tmpc);
   }
     
-  if (sense0 == -1) {
-    MBEntityHandle dumh = connects[1][0];
-    connects[1][0] = connects[1][2];
-    connects[1][2] = dumh;
-  }
-
   for (int i = 0; i < 4; i++) {
     if (0 != mtu.common_entity(connects[1][0], connects[2][i], 1)) {
       index2 = i;
@@ -2332,6 +2300,13 @@ MBErrorCode DualTool::fs_check_quad_sense(MBEntityHandle hex0,
 
   assert(index2 != -1 && sense2 != 0);
 
+  if (sense2 == -1) {
+    MBEntityHandle dumh = connects[2][0];
+    connects[2][0] = connects[2][2];
+    connects[2][2] = dumh;
+    index2 = (index2+2)%4;
+  }
+
   if (index2 != 0) {
     std::vector<MBEntityHandle> tmpc;
     for (int i = 0; i < 4; i++)
@@ -2339,18 +2314,14 @@ MBErrorCode DualTool::fs_check_quad_sense(MBEntityHandle hex0,
     connects[2].swap(tmpc);
   }
     
-  if (sense2 == -1) {
-    MBEntityHandle dumh = connects[2][0];
-    connects[2][0] = connects[2][2];
-    connects[2][2] = dumh;
-  }
-
   return MB_SUCCESS;
 }
 
   //! effect reverse face shrink operation
 MBErrorCode DualTool::rev_face_shrink(MBEntityHandle odedge) 
 {
+  if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
+
     // some preliminary checking
   if (mbImpl->type_from_handle(odedge) != MBEDGE) return MB_TYPE_OUT_OF_RANGE;
   
@@ -2444,6 +2415,8 @@ MBErrorCode DualTool::rev_face_shrink(MBEntityHandle odedge)
     // now update the dual
   result = construct_hex_dual(hexes, 2);
   if (MB_SUCCESS != result) return result;
+
+  if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
 
   return MB_SUCCESS;
 }

@@ -785,6 +785,14 @@ public:
   virtual MBErrorCode list_entities(const MBEntityHandle *entities,
                                     const int num_entities) const = 0;
 
+    //! List a single entity; no header printed
+    /** Lists a single entity, including its connectivity and its adjacencies.
+     *  No header is printed, because calling function might print information between header
+     *  and information printed by this function.
+     *  \param entity The entity to be listed.
+     */
+  virtual MBErrorCode list_entity(const MBEntityHandle entity) const = 0;
+
     //@}
 
     //! \name Functions for higher-order elements

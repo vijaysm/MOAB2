@@ -163,18 +163,25 @@ void uiQVDual::fileOpen( const QString &filename )
     // compute dual, if requested
   if (computeDual)
     constructDual();
-    
+
+  lastOpened = filename;
 }
 
 void uiQVDual::fileSave()
 {
-  
+  if (lastOpened == QString::null)
+    fileSaveAs();
+  else
+    fileSaveAs(lastOpened);
 }
 
 
-void uiQVDual::fileSaveAs()
+void uiQVDual::fileSaveAs(const QString &filename)
 {
-  
+  if(filename == QString::null)
+    return;
+
+  vtkMOABUtils::mbImpl->write_mesh(filename.ascii());
 }
 
 
@@ -903,7 +910,7 @@ void uiQVDual::negAPbutton_clicked()
   }
 
     // now draw the other sheets
-  bool success = drawDual->draw_dual_surfs(other_sheets);
+  bool success = drawDual->draw_dual_surfs(other_sheets, true);
   if (!success)
     std::cerr << "Problem drawing other dual surfaces from reverse atomic pillow." 
               << std::endl;
@@ -960,15 +967,17 @@ void uiQVDual::FOCbutton_clicked()
   MBRange sheets;
   result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
   if (MB_SUCCESS == result) drawn_sheets.merge(sheets);
+  std::vector<MBEntityHandle> dum_sheets;
   for (MBRange::iterator rit = drawn_sheets.begin(); rit != drawn_sheets.end(); rit++) {
     int dum;
     if (vtkMOABUtils::mbImpl->get_number_entities_by_handle(*rit, dum) == MB_SUCCESS &&
         dum > 0) {
-      MBErrorCode success = drawDual->draw_dual_surf(*rit);
-      if (MB_SUCCESS != success)
-        std::cerr << "Problem drawing previously-drawn dual surfaces." << std::endl;
+      dum_sheets.push_back(*rit);
     }
   }
+  bool success = drawDual->draw_dual_surfs(dum_sheets, true);
+  if (!success)
+    std::cerr << "Problem drawing previously-drawn dual surfaces." << std::endl;
   
   updateMesh();
 }
@@ -1011,6 +1020,7 @@ void uiQVDual::FSbutton_clicked()
   edge = dt.get_dual_entity(quad);
   MBEntityHandle chord = dt.get_dual_hyperplane(edge);
   MBRange sheets;
+  std::vector<MBEntityHandle> dum_sheets;
   result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
   if (MB_SUCCESS == result) {
     drawn_sheets = drawn_sheets.subtract(sheets);
@@ -1018,17 +1028,16 @@ void uiQVDual::FSbutton_clicked()
       int dum;
       if (vtkMOABUtils::mbImpl->get_number_entities_by_handle(*rit, dum) == MB_SUCCESS &&
           dum > 0) {
-        MBErrorCode success = drawDual->draw_dual_surf(*rit);
-        if (MB_SUCCESS != success)
-          std::cerr << "Problem drawing previously-drawn dual surfaces." << std::endl;
+        dum_sheets.push_back(*rit);
+        
       }
     }
-
-      // now draw the sheets affected
-    bool success = drawDual->draw_dual_surfs(sheets);
+    
+    std::copy(sheets.begin(), sheets.end(), std::back_inserter(dum_sheets));
+    
+    bool success = drawDual->draw_dual_surfs(dum_sheets, true);
     if (!success)
-      std::cerr << "Problem drawing dual surfaces from face shrink." << std::endl;
-
+      std::cerr << "Problem drawing dual surfaces for face shrink." << std::endl;
     
   }
   else {
@@ -1077,6 +1086,7 @@ void uiQVDual::negFCbutton_clicked()
   edge = dt.get_dual_entity(quad);
   MBEntityHandle chord = dt.get_dual_hyperplane(edge);
   MBRange sheets;
+  std::vector<MBEntityHandle> dum_sheets;
   result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
   if (MB_SUCCESS == result) {
     drawn_sheets = drawn_sheets.subtract(sheets);
@@ -1084,17 +1094,16 @@ void uiQVDual::negFCbutton_clicked()
       int dum;
       if (vtkMOABUtils::mbImpl->get_number_entities_by_handle(*rit, dum) == MB_SUCCESS &&
           dum > 0) {
-        MBErrorCode success = drawDual->draw_dual_surf(*rit);
-        if (MB_SUCCESS != success)
-          std::cerr << "Problem drawing previously-drawn dual surfaces." << std::endl;
+        dum_sheets.push_back(*rit);
+        
       }
     }
-
-      // now draw the sheets affected
-    bool success = drawDual->draw_dual_surfs(sheets);
+    
+    std::copy(sheets.begin(), sheets.end(), std::back_inserter(dum_sheets));
+    
+    bool success = drawDual->draw_dual_surfs(dum_sheets, true);
     if (!success)
-      std::cerr << "Problem drawing dual surfaces from reverse face shrink." << std::endl;
-
+      std::cerr << "Problem drawing dual surfaces for reverse face shrink." << std::endl;
     
   }
   else {
@@ -1102,4 +1111,17 @@ void uiQVDual::negFCbutton_clicked()
   }
   
   updateMesh();
+}
+
+
+void uiQVDual::fileSaveAs()
+{
+  QString filename = QFileDialog::getSaveFileName(
+      QString::null,
+      "Exodus files (*.g *.gen *.exoII);;Cub files (*.cub);;SLAC Netcdf files (*.ncdf);;All Files (*)", this
+      );
+  if(filename == QString::null)
+    return;
+
+  fileSaveAs(filename);
 }

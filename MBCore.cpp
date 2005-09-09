@@ -20,6 +20,7 @@
 #endif
 
 #include <iostream>
+#include <sstream>
 #include <vector>
 #include <string>
 #include <algorithm>
@@ -1597,7 +1598,7 @@ MBErrorCode MBCore::list_entities(const MBEntityHandle *entities,
                                     const int num_entities) const
 {
   MBRange temp_range;
-  MBErrorCode result;
+  MBErrorCode result = MB_SUCCESS;
   if (NULL == entities && num_entities <= 0) {
       // just list the numbers of each entity type
     int num_ents;
@@ -1629,82 +1630,88 @@ MBErrorCode MBCore::list_entities(const MBEntityHandle *entities,
       // list all entities of all types
     std::cout << std::endl;
     for (MBEntityType this_type = MBVERTEX; this_type < MBMAXTYPE; this_type++) {
-      temp_range.clear();
-      std::cout << "Entities of type: " << MBCN::EntityTypeName(this_type) << ": " << std::endl;
       result = get_entities_by_type(0, this_type, temp_range);
-      result = list_entities(temp_range);
     }
-    std::cout << std::endl;
-    
-    return MB_SUCCESS;
   }
 
   else {
     std::copy(entities, entities+num_entities, mb_range_inserter(temp_range));
-    return list_entities(temp_range);
   }
+
+  return list_entities(temp_range);
+}
+
+MBErrorCode MBCore::list_entities(const MBRange &temp_range) const
+{
+  MBErrorCode result = MB_SUCCESS, tmp_result;
+  
+  for (MBRange::const_iterator rit = temp_range.begin(); rit != temp_range.end(); rit++) {
+    MBEntityType this_type = TYPE_FROM_HANDLE(*rit);
+    std::cout << MBCN::EntityTypeName(this_type) << " " << ID_FROM_HANDLE(*rit) << ":" << endl;
+
+    tmp_result = (const_cast<MBCore*>(this))->list_entity(*rit);
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
+  }
+    
+  return result;
 }
   
-MBErrorCode MBCore::list_entities(const MBRange &entities) const
+MBErrorCode MBCore::list_entity(const MBEntityHandle entity) const
 {
   MBErrorCode result;
   MBHandleVec adj_vec;
 
-    // list entities
-  for (MBRange::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
-    MBEntityType this_type = TYPE_FROM_HANDLE(*iter);
-    std::cout << MBCN::EntityTypeName(this_type) << " " << ID_FROM_HANDLE(*iter) << ":" << endl;
-
-    if (this_type == MBVERTEX) {
-      double coords[3];
-      result = get_coords(&(*iter), 1, coords);
-      if (MB_SUCCESS != result) return result;
-      std::cout << "Coordinates: (" << coords[0] << ", " << coords[1] << ", " << coords[2] 
-           << ")" << std::endl;
-    }
-    else if (this_type == MBENTITYSET)
-      this->print(*iter, "");
+    // list entity
+  MBEntityType this_type = TYPE_FROM_HANDLE(entity);
+  if (this_type == MBVERTEX) {
+    double coords[3];
+    result = get_coords(&(entity), 1, coords);
+    if (MB_SUCCESS != result) return result;
+    std::cout << "Coordinates: (" << coords[0] << ", " << coords[1] << ", " << coords[2] 
+              << ")" << std::endl;
+  }
+  else if (this_type == MBENTITYSET)
+    this->print(entity, "");
     
-    std::cout << "  Adjacencies:" << std::endl;
-    bool some = false;
-    int multiple = 0;
-    for (int dim = 0; dim <= 3; dim++) {
-      if (dim == MBCN::Dimension(this_type)) continue;
-      adj_vec.clear();
-        // use const_cast here 'cuz we're in a const function and we're passing 'false' for
-        // create_if_missing, so we know we won't change anything
-      result = (const_cast<MBCore*>(this))->get_adjacencies(&(*iter), 1, dim, false, adj_vec);
-      if (MB_FAILURE == result) continue;
-      for (MBHandleVec::iterator adj_it = adj_vec.begin(); adj_it != adj_vec.end(); adj_it++) {
-        if (adj_it != adj_vec.begin()) std::cout << ", ";
-        else std::cout << "   ";
-        std::cout << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*adj_it)) << " " << ID_FROM_HANDLE(*adj_it);
-      }
-      if (!adj_vec.empty()) {
-        std::cout << std::endl;
-        some = true;
-      }
-      if (MB_MULTIPLE_ENTITIES_FOUND == result)
-        multiple += dim;
+  std::cout << "  Adjacencies:" << std::endl;
+  bool some = false;
+  int multiple = 0;
+  for (int dim = 0; dim <= 3; dim++) {
+    if (dim == MBCN::Dimension(this_type)) continue;
+    adj_vec.clear();
+      // use const_cast here 'cuz we're in a const function and we're passing 'false' for
+      // create_if_missing, so we know we won't change anything
+    result = (const_cast<MBCore*>(this))->get_adjacencies(&(entity), 1, dim, false, adj_vec);
+    if (MB_FAILURE == result) continue;
+    for (MBHandleVec::iterator adj_it = adj_vec.begin(); adj_it != adj_vec.end(); adj_it++) {
+      if (adj_it != adj_vec.begin()) std::cout << ", ";
+      else std::cout << "   ";
+      std::cout << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*adj_it)) << " " << ID_FROM_HANDLE(*adj_it);
     }
-    if (!some) std::cout << "(none)" << std::endl;
-    const MBEntityHandle *explicit_adjs;
-    int num_exp;
-    aEntityFactory->get_adjacencies(*iter, explicit_adjs, num_exp);
-    if (NULL != explicit_adjs && 0 != num_exp) {
-      std::cout << "  Explicit adjacencies: ";
-      for (int i = 0; i < num_exp; i++) {
-        if (i != 0) std::cout << ", ";
-        std::cout << MBCN::EntityTypeName(TYPE_FROM_HANDLE(explicit_adjs[i])) << " " 
-                  << ID_FROM_HANDLE(explicit_adjs[i]);
-      }
+    if (!adj_vec.empty()) {
       std::cout << std::endl;
+      some = true;
     }
-    if (multiple != 0)
-      std::cout << "   (MULTIPLE = " << multiple << ")" << std::endl;
-
+    if (MB_MULTIPLE_ENTITIES_FOUND == result)
+      multiple += dim;
+  }
+  if (!some) std::cout << "(none)" << std::endl;
+  const MBEntityHandle *explicit_adjs;
+  int num_exp;
+  aEntityFactory->get_adjacencies(entity, explicit_adjs, num_exp);
+  if (NULL != explicit_adjs && 0 != num_exp) {
+    std::cout << "  Explicit adjacencies: ";
+    for (int i = 0; i < num_exp; i++) {
+      if (i != 0) std::cout << ", ";
+      std::cout << MBCN::EntityTypeName(TYPE_FROM_HANDLE(explicit_adjs[i])) << " " 
+                << ID_FROM_HANDLE(explicit_adjs[i]);
+    }
     std::cout << std::endl;
   }
+  if (multiple != 0)
+    std::cout << "   (MULTIPLE = " << multiple << ")" << std::endl;
+
+  std::cout << std::endl;
 
   return MB_SUCCESS;
 }
@@ -2345,4 +2352,101 @@ MBEntityType tfh(MBEntityHandle handle)
   return TYPE_FROM_HANDLE(handle);
 }
 
+MBErrorCode MBCore::check_adjacencies() 
+{
+    // run through all entities, checking adjacencies and reverse-evaluating them
+  MBRange all_ents;
+  MBErrorCode result = get_entities_by_handle(0, all_ents);
+  if (MB_SUCCESS != result) return result;
+  
+  MBErrorCode tmp_result;
+  for (MBRange::iterator rit = all_ents.begin(); rit != all_ents.end(); rit++) {
+    tmp_result = check_adjacencies(&(*rit), 1);
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
+  }
+  
+  return result;
+}
+
+MBErrorCode MBCore::check_adjacencies(const MBEntityHandle *ents, int num_ents) 
+{
+
+  MBErrorCode result = MB_SUCCESS, tmp_result;
+  std::ostringstream oss;
+  
+  for (int i = 0; i < num_ents; i++) {
+    MBEntityHandle this_ent = ents[i];
+    std::ostringstream ent_str;
+    ent_str << MBCN::EntityTypeName(TYPE_FROM_HANDLE(this_ent)) << " "
+            << ID_FROM_HANDLE(this_ent) << ": ";
+    int this_dim = dimension_from_handle(this_ent);
+
+    if (!is_valid(this_ent)) {
+      std::cerr << ent_str.str()
+                << "Not a valid entity." << std::endl;
+      result = MB_FAILURE;
+    }
+
+    else {
+        // get adjacencies for this entity
+      MBRange adjs;
+      for (int dim = 0; dim <= 3; dim++) {
+        if (dim == this_dim) continue;
+        tmp_result = get_adjacencies(&this_ent, 1, dim, false, adjs, MBInterface::UNION);
+        if (MB_SUCCESS != tmp_result) {
+          oss << ent_str.str()
+              << "Failed to get adjacencies for dimension " << dim << "." << std::endl;
+          result = tmp_result;
+        }
+      }
+      if (!oss.str().empty()) {
+        std::cerr << oss.str();
+        oss.str("");
+      }
+
+        // now check and reverse-evaluate them
+      for (MBRange::iterator rit = adjs.begin(); rit != adjs.end(); rit++) {
+        MBEntitySequence* seq = 0;
+        tmp_result = sequence_manager()->find(*rit, seq);
+        if(seq == 0 || tmp_result != MB_SUCCESS || !seq->is_valid_entity(*rit)) {
+          oss << ent_str.str() << 
+            "Adjacent entity " << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*rit)) << " "
+              << ID_FROM_HANDLE(*rit) << " is invalid." << std::endl;
+          result = tmp_result;
+        }
+        else {
+          MBRange rev_adjs;
+          tmp_result = get_adjacencies(&(*rit), 1, this_dim, false, rev_adjs);
+          if (MB_SUCCESS != tmp_result) {
+            oss << ent_str.str() 
+                << "Failed to get reverse adjacencies for dimension " << this_dim << "." << std::endl;
+            result = tmp_result;
+          }
+          else if (rev_adjs.find(this_ent) == rev_adjs.end()) {
+            oss << ent_str.str() 
+                << "Failed to find adjacency to this entity from " 
+                << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*rit)) << " "
+                << ID_FROM_HANDLE(*rit) << "." << std::endl;
+            result = tmp_result;
+          }
+        }
+        if (!oss.str().empty()) {
+          std::cerr << oss.str();
+          oss.str("");
+        }
+      }
+    }
+  }
+  
+  return MB_SUCCESS;
+}
+
+bool MBCore::is_valid(const MBEntityHandle this_ent) 
+{
+  MBEntitySequence* seq = 0;
+  MBErrorCode result = sequence_manager()->find(this_ent, seq);
+  if(seq == 0 || result != MB_SUCCESS || !seq->is_valid_entity(this_ent))
+    return false;
+  else return true;
+}
 
