@@ -29,6 +29,7 @@ MOAB_IMPL_VERSION = 1.01
 
 SHELL = /bin/sh
 
+SIDLDIR=/usr/local
 MOAB_DIR=$(PWD)
 include $(MOAB_DIR)/MB.common
 
@@ -135,6 +136,10 @@ static : libMOAB.a moab_test.static homxform_test.static scdseq_test.static
 
 # build everything
 all : moab_test test_exo test_tag_server test_ent_seq xpcom pcom
+
+tstt : 
+	cd TSTTB && make SIDLDIR=$(SIDLDIR) MOAB_DIR=..
+	cd TSTT  && make SIDLDIR=$(SIDLDIR) MOAB_DIR=..
 
 # build the static moab library
 libMOAB.a : $(STATIC_MB_LIB_OBJS) $(MHDF_LIB)
