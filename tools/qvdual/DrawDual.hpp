@@ -43,7 +43,7 @@ public:
     //! reset the drawing data for a sheet
   MBErrorCode reset_drawing_data(MBEntityHandle dual_surf);
 
-  MBErrorCode reset_drawn_sheets(MBRange &drawn_sheets);
+  MBErrorCode reset_drawn_sheets(MBRange *drawn_sheets = NULL);
   
 private:
 

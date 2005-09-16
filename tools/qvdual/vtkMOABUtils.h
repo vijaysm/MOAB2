@@ -172,6 +172,9 @@ public:
     //! given a set, get the list of vtk cell ids for its entities
   static MBErrorCode get_id_list(MBEntityHandle this_set, vtkIdList *&ids);
   
+    //! given a range, get the list of vtk cell ids for its entities
+  static MBErrorCode get_id_list(MBRange &ents, vtkIdList *&ids);
+  
     //! given a prop assembly, remove all its parts
   static MBErrorCode empty_assy(vtkPropAssembly *this_assy);
 

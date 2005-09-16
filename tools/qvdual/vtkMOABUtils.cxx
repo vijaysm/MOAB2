@@ -130,12 +130,11 @@ MBErrorCode vtkMOABUtils::init(MBInterface *impl, vtkRenderer *this_ren)
   if (NULL == this_ren) return MB_FAILURE;
   myRen = this_ren;
 
-  if (NULL == impl) {
+  if (NULL == impl && NULL == mbImpl) {
     impl = new MBCore();
     gMB = impl;
+    vtkMOABUtils::mbImpl = impl;
   }
-    
-  vtkMOABUtils::mbImpl = impl;
 
   MBErrorCode result = vtkMOABUtils::mbImpl->tag_get_handle(vtkCellTagName, vtkCellTag);
   if (MB_TAG_NOT_FOUND == result) {
@@ -187,36 +186,40 @@ MBErrorCode vtkMOABUtils::init(MBInterface *impl, vtkRenderer *this_ren)
 void vtkMOABUtils::make_properties() 
 {
     // make top property
-  vtkMOABUtils::topProperty = vtkProperty::New();
-    // need to increase use count of top property
-  vtkMOABUtils::topProperty->Register(NULL);
+  if (NULL == topProperty) {
+    vtkMOABUtils::topProperty = vtkProperty::New();
+      // need to increase use count of top property
+    vtkMOABUtils::topProperty->Register(NULL);
 
-    // want the top property to be wire frame to start with
-  vtkMOABUtils::topProperty->SetRepresentationToWireframe();
-    //vtkMOABUtils::topProperty->SetColor(0.0, 1.0, 0.0);
-  vtkMOABUtils::topProperty->SetDiffuse(1.0);
-  vtkMOABUtils::topProperty->SetAmbient(1.0);
-  vtkMOABUtils::topProperty->SetSpecular(1.0);
-    //vtkMOABUtils::topProperty->SetLineWidth(2.0);
-    //vtkMOABUtils::topProperty->SetEdgeColor(0.0, 0.0, 0.0);
-    //vtkMOABUtils::topProperty->EdgeVisibilityOn();
+      // want the top property to be wire frame to start with
+    vtkMOABUtils::topProperty->SetRepresentationToWireframe();
+      //vtkMOABUtils::topProperty->SetColor(0.0, 1.0, 0.0);
+    vtkMOABUtils::topProperty->SetDiffuse(1.0);
+    vtkMOABUtils::topProperty->SetAmbient(1.0);
+    vtkMOABUtils::topProperty->SetSpecular(1.0);
+      //vtkMOABUtils::topProperty->SetLineWidth(2.0);
+      //vtkMOABUtils::topProperty->SetEdgeColor(0.0, 0.0, 0.0);
+      //vtkMOABUtils::topProperty->EdgeVisibilityOn();
+  }
+  
+  if (NULL == highlightProperty) {
+    
+      // make highlight property
+    vtkMOABUtils::highlightProperty = vtkProperty::New();
+      // need to increase use count of highlight property
+    vtkMOABUtils::highlightProperty->Register(NULL);
 
-    // make highlight property
-  vtkMOABUtils::highlightProperty = vtkProperty::New();
-    // need to increase use count of highlight property
-  vtkMOABUtils::highlightProperty->Register(NULL);
-
-    // want the highlight property to be shaded and highlight color
-  vtkMOABUtils::highlightProperty->SetRepresentationToSurface();
-  vtkMOABUtils::highlightProperty->SetColor(1.0, 0.67, 0.0);
-  vtkMOABUtils::highlightProperty->SetEdgeColor(1.0, 0.67, 0.0);
-  vtkMOABUtils::highlightProperty->SetDiffuse(1.0);
-  vtkMOABUtils::highlightProperty->SetAmbient(1.0);
-  vtkMOABUtils::highlightProperty->SetSpecular(1.0);
-    //vtkMOABUtils::highlightProperty->SetLineWidth(2.0);
-    //vtkMOABUtils::highlightProperty->SetEdgeColor(0.0, 0.0, 0.0);
-    //vtkMOABUtils::highlightProperty->EdgeVisibilityOn();
-
+      // want the highlight property to be shaded and highlight color
+    vtkMOABUtils::highlightProperty->SetRepresentationToSurface();
+    vtkMOABUtils::highlightProperty->SetColor(1.0, 0.67, 0.0);
+    vtkMOABUtils::highlightProperty->SetEdgeColor(1.0, 0.67, 0.0);
+    vtkMOABUtils::highlightProperty->SetDiffuse(1.0);
+    vtkMOABUtils::highlightProperty->SetAmbient(1.0);
+    vtkMOABUtils::highlightProperty->SetSpecular(1.0);
+      //vtkMOABUtils::highlightProperty->SetLineWidth(2.0);
+      //vtkMOABUtils::highlightProperty->SetEdgeColor(0.0, 0.0, 0.0);
+      //vtkMOABUtils::highlightProperty->EdgeVisibilityOn();
+  }
 }
 
 void vtkMOABUtils::destroy() 
@@ -545,7 +548,13 @@ MBErrorCode vtkMOABUtils::get_id_list(MBEntityHandle this_set, vtkIdList *&ids)
     return result;
   }
 
-  MBErrorCode tmp_result;
+  return get_id_list(ents, ids);
+}
+
+MBErrorCode vtkMOABUtils::get_id_list(MBRange &ents, vtkIdList *&ids) 
+{
+      
+  MBErrorCode tmp_result, result = MB_SUCCESS;
   ids = vtkIdList::New();
   vtkIdType this_id;
   for (MBRange::iterator rit = ents.begin(); rit != ents.end(); rit++) {
@@ -1023,26 +1032,119 @@ MBErrorCode vtkMOABUtils::get_colors(MBEntityHandle dual_set,
 
 void vtkMOABUtils::update_display(vtkUnstructuredGrid *ug) 
 {
-  if (NULL == ug) ug = myUG;
+  if (NULL == myUG) {
+    if (NULL == ug) ug = vtkUnstructuredGrid::New();
+    myUG = ug;
+
+      // make sure there's a mapper, actor for the whole mesh in ug, put in renderer
+    vtkPolyDataMapper *poly_mapper;
+    vtkDataSetMapper *set_mapper;
+    vtkTubeFilter *tube_filter;
+    vtkExtractEdges *edge_filter;
+    vtkExtractCells *cell_filter;
+
+    vtkActor *mesh_actor = vtkActor::New();
   
-  MBErrorCode result = vtkMOABUtils::make_vertex_points(ug);
+    bool tubes = true;
+
+    if (tubes) {
+        // extract edges and build a tube filter for them
+      poly_mapper =  vtkPolyDataMapper::New();
+      mesh_actor->SetMapper(poly_mapper);
+      tube_filter = vtkTubeFilter::New();
+      poly_mapper->SetInput(tube_filter->GetOutput());
+      edge_filter = vtkExtractEdges::New();
+      tube_filter->SetInput(edge_filter->GetOutput());
+
+        /*
+      cell_filter = vtkExtractCells::New();
+      vtkIdList *ids;
+      MBRange ents, dum_ents;
+      MBErrorCode result = mbImpl->get_entities_by_dimension(0, 3, dum_ents);
+      if (MB_SUCCESS != result) return;
+      for (MBRange::iterator rit = dum_ents.begin(); rit != dum_ents.end(); rit++)
+        if (mbImpl->type_from_handle(*rit) != MBPOLYHEDRON) ents.insert(*rit);
+      
+      result = vtkMOABUtils::get_id_list(ents, ids);
+      cell_filter->SetInput(myUG);
+      cell_filter->AddCellList(ids);
+      ids->Delete();
+      edge_filter->SetInput(cell_filter->GetOutput());
+        */
+      edge_filter->SetInput(myUG);
+      
+      tube_filter->SetNumberOfSides(6);
+      tube_filter->SetRadius(0.005);
+      poly_mapper->ImmediateModeRenderingOn();
+    }
+    else {
+      set_mapper = vtkDataSetMapper::New();
+      set_mapper->SetInput(vtkMOABUtils::myUG);
+      mesh_actor->SetMapper(set_mapper);
+      set_mapper->ImmediateModeRenderingOn();
+    }
+  
+    vtkMOABUtils::myRen->AddActor(mesh_actor);
+    MBErrorCode result = vtkMOABUtils::mbImpl->tag_set_data(vtkMOABUtils::vtkSetActorTag, 
+                                                            NULL, 0, &mesh_actor);
+
+    if (MB_SUCCESS != result) {
+      std::cerr << "Failed to set actor for mesh in vtkMOABReader::Execute()." << std::endl;
+      return;
+    }
+    
+      // now turn around and set a different property for the mesh, because we want the tubes
+      // to be shaded in red
+    vtkMOABUtils::actorProperties[mesh_actor] = NULL;
+    vtkProperty *this_prop = vtkMOABUtils::get_property(mesh_actor, true);
+    this_prop->SetRepresentationToSurface();
+    this_prop->SetColor(0.0, 1.0, 0.0);
+    this_prop->SetEdgeColor(0.0, 1.0, 0.0);
+//  mesh_actor->VisibilityOff();
+  
+
+      /*
+        // center the camera on the center of the ug
+        vtkMOABUtils::myRen->GetActiveCamera()->SetFocalPoint(ug->GetPoint(1));
+        vtkMOABUtils::myRen->GetActiveCamera()->SetPosition(0, 0, 50.0);
+        vtkMOABUtils::myRen->GetActiveCamera()->SetViewUp(0, 1.0, 0.0);
+  
+        std::cout << "Set focal point to " 
+        << ug->GetPoint(1)[0] 
+        << ", "
+        << ug->GetPoint(1)[1] 
+        << ", "
+        << ug->GetPoint(1)[2] 
+        << std::endl;
+      */
+
+    mesh_actor->Delete();
+    if (tubes) {
+//    tube_filter->Delete();
+//    edge_filter->Delete();
+//    poly_mapper->Delete();
+    }
+    else {
+      set_mapper->Delete();
+    }
+      
+  }
+  
+  MBErrorCode result = vtkMOABUtils::make_vertex_points(myUG);
   if (MB_SUCCESS != result)
     {
       std::cerr << "Failed to make vertex points." << std::endl;
-    return;
+      return;
     }
 
     // now make the cells
-  result = vtkMOABUtils::make_cells(ug);
+  result = vtkMOABUtils::make_cells(myUG);
   if (MB_SUCCESS != result)
     {
       std::cerr << "Failed to make cells." << std::endl;
     return;
     }
 
-  vtkMOABUtils::myUG = ug;
-    //ug->Initialize();
-  
   result = update_all_actors(0, myUG, false);
   if (MB_SUCCESS != result)
   {
@@ -1051,6 +1153,9 @@ void vtkMOABUtils::update_display(vtkUnstructuredGrid *ug)
   
   // Render
   myRen->GetRenderWindow()->Render();
+
+    // Reset camera
+  vtkMOABUtils::myRen->ResetCamera();
 }
 
   //! get rid of all the vtk drawing stuff
@@ -1062,13 +1167,22 @@ void vtkMOABUtils::reset_drawing_data()
     myUG = NULL;
   }
 
+  if (NULL != myRen) {
+    myRen->Delete();
+    myRen = NULL;
+  }
+
   //! the default property
-  topProperty->Delete();
-  topProperty = NULL;
+  if (NULL != topProperty) {
+    topProperty->Delete();
+    topProperty = NULL;
+  }
   
   //! the highlight property
-  highlightProperty->Delete();
-  highlightProperty = NULL;
+  if (NULL != highlightProperty) {
+    highlightProperty->Delete();
+    highlightProperty = NULL;
+  }
   
   actorProperties.clear();
 
@@ -1076,12 +1190,16 @@ void vtkMOABUtils::reset_drawing_data()
     //! e.g. an extracted set)
   propSetMap.clear();
 
-  topContainsAssy->Delete();
-  topContainsAssy = NULL;
-
+  if (NULL != topContainsAssy) {
+    topContainsAssy->Delete();
+    topContainsAssy = NULL;
+  }
+  
     //! topmost assembly for displaying parent/child relationships
-  topParentAssy->Delete();
-  topParentAssy = NULL;
+  if (NULL != topParentAssy) {
+    topParentAssy->Delete();
+    topParentAssy = NULL;
+  }
   
   //! tag indicating whether a given set is in top contains assy
   MBErrorCode result = mbImpl->tag_delete(vtkTopContainsTag);

@@ -65,9 +65,4 @@ void vtkMOABReader::Execute()
     return;
     }
   vtkDebugMacro(<<"Read MOAB file...");
-
-    // initialize the vtk data on top of MOAB
-  vtkUnstructuredGrid *ug = this->GetOutput();
-
-  vtkMOABUtils::update_display(ug);
 }

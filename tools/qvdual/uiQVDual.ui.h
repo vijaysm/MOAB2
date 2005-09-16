@@ -71,93 +71,15 @@ void uiQVDual::fileOpen( const QString &filename )
 
   // need to update here, in case we're doing something else which requires moab data
   reader->Update();
-  
-    // make sure there's a mapper, actor for the whole mesh in ug, put in renderer
-  vtkPolyDataMapper *poly_mapper;
-  vtkDataSetMapper *set_mapper;
-  vtkTubeFilter *tube_filter;
-  vtkExtractEdges *edge_filter;
 
-  vtkActor *mesh_actor = vtkActor::New();
+  vtkMOABUtils::update_display(reader->GetOutput());
   
-  bool tubes = true;
-
-  if (tubes) {
-      // extract edges and build a tube filter for them
-    edge_filter = vtkExtractEdges::New();
-    edge_filter->SetInput(vtkMOABUtils::myUG);
-    tube_filter = vtkTubeFilter::New();
-    vtkPolyData *pd = edge_filter->GetOutput();
-    tube_filter->SetInput(pd);
-    tube_filter->SetNumberOfSides(6);
-    tube_filter->SetRadius(0.005);
-    poly_mapper =  vtkPolyDataMapper::New();
-    poly_mapper->SetInput(tube_filter->GetOutput());
-    mesh_actor->SetMapper(poly_mapper);
-    poly_mapper->ImmediateModeRenderingOn();
-  }
-  else {
-    set_mapper = vtkDataSetMapper::New();
-    set_mapper->SetInput(vtkMOABUtils::myUG);
-    mesh_actor->SetMapper(set_mapper);
-    set_mapper->ImmediateModeRenderingOn();
-  }
-  
-  vtkMOABUtils::myRen->AddActor(mesh_actor);
-  MBErrorCode result = vtkMOABUtils::mbImpl->tag_set_data(vtkMOABUtils::vtkSetActorTag, 
-                                                          NULL, 0, &mesh_actor);
-
-  if (MB_SUCCESS != result) {
-    std::cerr << "Failed to set actor for mesh in vtkMOABReader::Execute()." << std::endl;
-    return;
-  }
-    
-    // now turn around and set a different property for the mesh, because we want the tubes
-    // to be shaded in red
-  vtkMOABUtils::actorProperties[mesh_actor] = NULL;
-  vtkProperty *this_prop = vtkMOABUtils::get_property(mesh_actor, true);
-  this_prop->SetRepresentationToSurface();
-  this_prop->SetColor(0.0, 1.0, 0.0);
-  this_prop->SetEdgeColor(0.0, 1.0, 0.0);
-//  mesh_actor->VisibilityOff();
-  
-
-    /*
-    // center the camera on the center of the ug
-  vtkMOABUtils::myRen->GetActiveCamera()->SetFocalPoint(ug->GetPoint(1));
-  vtkMOABUtils::myRen->GetActiveCamera()->SetPosition(0, 0, 50.0);
-  vtkMOABUtils::myRen->GetActiveCamera()->SetViewUp(0, 1.0, 0.0);
-  
-  std::cout << "Set focal point to " 
-            << ug->GetPoint(1)[0] 
-            << ", "
-            << ug->GetPoint(1)[1] 
-            << ", "
-            << ug->GetPoint(1)[2] 
-            << std::endl;
-    */
-
-  mesh_actor->Delete();
-  if (tubes) {
-//    tube_filter->Delete();
-//    edge_filter->Delete();
-//    poly_mapper->Delete();
-  }
-  else {
-    set_mapper->Delete();
-  }
-      
-    // construct actors and prop assemblies for the sets
-    // update anything else in the UI
-  this->updateMesh();
-  
-    // Reset camera
-  vtkMOABUtils::myRen->ResetCamera();
-
     // compute dual, if requested
   if (computeDual)
     constructDual();
 
+  this->updateMesh();
+  
   lastOpened = filename;
 
   reader->Delete();
@@ -215,19 +137,26 @@ void uiQVDual::init()
 {
   // initialize vtk stuff
   vtkRenderer *ren = vtkRenderer::New();
+
+  if (NULL == vtkWidget) {
+    vtkWidget = new QVTKWidget( centralWidget(), "vtkWidget" );
+    vtkWidget->setGeometry( QRect( 400, 10, 470, 569 ) );
+    vtkWidget->setSizePolicy( QSizePolicy( (QSizePolicy::SizeType)7, (QSizePolicy::SizeType)7, 5, 1, vtkWidget->sizePolicy().hasHeightForWidth() ) );
+    vtkWidget->setMinimumSize( QSize( 0, 0 ) );
+  }
+  
   vtkWidget->GetRenderWindow()->AddRenderer(ren);
   
-  // initialize MOAB if it's not already
-  if (NULL == vtkMOABUtils::mbImpl) 
-    vtkMOABUtils::init(NULL, ren);
+  // save the renderer
+  vtkMOABUtils::init(NULL, ren);
   
   currentWin = 0;
 
   cropToolPopup = NULL;
 
-  drawDual = new DrawDual(pickline1, pickline2);
-
   computeDual = false;
+
+  drawDual = NULL;
 }
 
 
@@ -244,9 +173,7 @@ void uiQVDual::constructDual()
   DualTool dt(vtkMOABUtils::mbImpl);
   MBErrorCode result = dt.construct_hex_dual(NULL, 0);
 
-  updateMesh();
-
-  vtkMOABUtils::update_display(vtkMOABUtils::myUG);
+  resetDisplay();
   
   QListViewItemIterator it = QListViewItemIterator(TagListView1);
   while ( it.current() ) {
@@ -266,6 +193,7 @@ void uiQVDual::constructDual()
 
   if (!sheet_sets.empty()) {
       // draw the first sheet
+    if (NULL == drawDual) drawDual = new DrawDual(pickline1, pickline2);
     drawDual->draw_dual_surf(*sheet_sets.begin());
   }
 }
@@ -283,8 +211,6 @@ void uiQVDual::DebugButton_pressed()
 {
   vtkMOABUtils::print_debug();
 
-  vtkMOABUtils::reset_drawing_data();
-  
 }
 
 
@@ -765,7 +691,9 @@ void uiQVDual::displayDrawSheetAction_activated()
       dual_surfs.insert(*rit);
   }
 
-    // now draw them
+  if (NULL == drawDual) drawDual = new DrawDual(pickline1, pickline2);
+
+  // now draw them
   drawDual->draw_dual_surfs(dual_surfs);
 }
 
@@ -820,9 +748,7 @@ void uiQVDual::APbutton_clicked()
   if (!success)
     std::cerr << "Problem drawing dual surfaces from atomic pillow." << std::endl;
 
-  updateMesh();
-
-  vtkMOABUtils::update_display();
+  resetDisplay();
 }
 
 
@@ -888,9 +814,7 @@ void uiQVDual::negAPbutton_clicked()
     std::cerr << "Problem drawing other dual surfaces from reverse atomic pillow." 
               << std::endl;
 
-  updateMesh();
-
-  vtkMOABUtils::update_display();
+  resetDisplay();
 }
 
 
@@ -925,7 +849,7 @@ void uiQVDual::FOCbutton_clicked()
 
     // reset any drawn sheets (will get redrawn later)
   MBRange drawn_sheets;
-  result = drawDual->reset_drawn_sheets(drawn_sheets);
+  result = drawDual->reset_drawn_sheets(&drawn_sheets);
   
     // otherwise, do the FOC
   result = dt.face_open_collapse(edge1, edge2);
@@ -953,10 +877,8 @@ void uiQVDual::FOCbutton_clicked()
   bool success = drawDual->draw_dual_surfs(dum_sheets, true);
   if (!success)
     std::cerr << "Problem drawing previously-drawn dual surfaces." << std::endl;
-  
-  updateMesh();
 
-  vtkMOABUtils::update_display();
+  resetDisplay();
 }
 
 
@@ -982,7 +904,7 @@ void uiQVDual::FSbutton_clicked()
 
     // reset any drawn sheets (will get redrawn later)
   MBRange drawn_sheets;
-  MBErrorCode result = drawDual->reset_drawn_sheets(drawn_sheets);
+  MBErrorCode result = drawDual->reset_drawn_sheets(&drawn_sheets);
   
     // otherwise, do the FS
   result = dt.face_shrink(edge);
@@ -1020,10 +942,8 @@ void uiQVDual::FSbutton_clicked()
   else {
     std::cerr << "Couldn't get parent dual surfaces of dual edge." << std::endl;
   }
-  
-  updateMesh();
 
-  vtkMOABUtils::update_display();
+  resetDisplay();
 }
 
 
@@ -1049,7 +969,7 @@ void uiQVDual::negFCbutton_clicked()
 
     // reset any drawn sheets (will get redrawn later)
   MBRange drawn_sheets;
-  MBErrorCode result = drawDual->reset_drawn_sheets(drawn_sheets);
+  MBErrorCode result = drawDual->reset_drawn_sheets(&drawn_sheets);
   
     // otherwise, do the rev FS
   result = dt.rev_face_shrink(edge);
@@ -1079,6 +999,7 @@ void uiQVDual::negFCbutton_clicked()
     
     std::copy(sheets.begin(), sheets.end(), std::back_inserter(dum_sheets));
     
+    if (NULL == drawDual) drawDual = new DrawDual(pickline1, pickline2);
     bool success = drawDual->draw_dual_surfs(dum_sheets, true);
     if (!success)
       std::cerr << "Problem drawing dual surfaces for reverse face shrink." << std::endl;
@@ -1087,10 +1008,8 @@ void uiQVDual::negFCbutton_clicked()
   else {
     std::cerr << "Couldn't get parent dual surfaces of dual edge." << std::endl;
   }
-  
-  updateMesh();
 
-  vtkMOABUtils::update_display();
+  resetDisplay();
 }
 
 
@@ -1104,4 +1023,33 @@ void uiQVDual::fileSaveAs()
     return;
 
   fileSaveAs(filename);
+}
+
+
+void uiQVDual::resetDisplay()
+{
+  bool save_compute = computeDual;
+
+  if (NULL != drawDual) {
+    MBRange sheets;
+    drawDual->reset_drawn_sheets(&sheets);
+    delete drawDual;
+    drawDual = NULL;
+
+    if (!sheets.empty()) computeDual = true;
+  }
+
+  vtkMOABUtils::reset_drawing_data();
+
+  if (NULL != vtkWidget) {
+    delete vtkWidget;
+    vtkWidget = NULL;
+  }
+
+  
+  this->init();
+  
+  vtkMOABUtils::update_display();
+
+  this->updateMesh();
 }

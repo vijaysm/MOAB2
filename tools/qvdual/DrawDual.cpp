@@ -1792,13 +1792,13 @@ MBErrorCode DrawDual::get_primal_ids(const MBRange &ents, std::vector<int> &ids)
   return result;
 }
 
-MBErrorCode DrawDual::reset_drawn_sheets(MBRange &drawn_sheets) 
+MBErrorCode DrawDual::reset_drawn_sheets(MBRange *drawn_sheets) 
 {
   MBErrorCode result = MB_SUCCESS, tmp_result;
   for (std::map<MBEntityHandle,GraphWindows>::iterator mit = surfDrawrings.begin();
        mit != surfDrawrings.end(); mit++) {
     if (NULL != (*mit).second.qvtkWidget) {
-      drawn_sheets.insert((*mit).first);
+      if (NULL != drawn_sheets) drawn_sheets->insert((*mit).first);
       tmp_result = reset_drawing_data((*mit).first);
       if (MB_SUCCESS != tmp_result) result = tmp_result;
     }

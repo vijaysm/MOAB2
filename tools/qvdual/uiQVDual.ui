@@ -23,7 +23,7 @@
     <property name="minimumSize">
         <size>
             <width>21</width>
-            <height>161</height>
+            <height>166</height>
         </size>
     </property>
     <property name="caption">
@@ -1035,6 +1035,7 @@
     <function access="private">getSelected( QListView * listv, std::set&lt;QListViewItem *&gt; &amp; selected, std::set&lt;QListViewItem *&gt; &amp; unselected )</function>
     <function access="private">getSelected( QListView * listv, MBRange &amp; selected, MBRange &amp; unselected )</function>
     <function access="private">getItemSets( std::set&lt;QListViewItem *&gt; &amp; items, MBRange &amp; sets )</function>
+    <function>resetDisplay()</function>
 </functions>
 <pixmapinproject/>
 <layoutdefaults spacing="6" margin="11"/>
