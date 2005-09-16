@@ -291,9 +291,16 @@ private:
                            MBEntityHandle *hexes,
                            std::vector<MBEntityHandle> *connects);
   
-    //! given connectivity of first 3 quads for reverse face shrink, get fourth (outer
-    //! 4 verts to be shared by two inner hexes)
-  MBErrorCode fsr_get_fourth_quad(std::vector<MBEntityHandle> *connects);
+    //! get loops of quads around 2 hexes, ordered similarly to vertex loops
+  MBErrorCode  fs_get_quad_loops(MBEntityHandle *hexes, 
+                                 std::vector<MBEntityHandle> *connects, 
+                                 std::vector<MBEntityHandle> *side_quads);
+  
+    //! given connectivity of first 3 quads for reverse face shrink, 
+    //! get fourth (outer 4 verts to be shared by two inner hexes) and quads
+    //! around the side of the structure
+  MBErrorCode fsr_get_fourth_quad(std::vector<MBEntityHandle> *connects,
+                                  std::vector<MBEntityHandle> *side_quads);
   
     //! get pairs of entities to be merged as part of foc operation
   MBErrorCode foc_get_merge_ents(MBEntityHandle *quads, MBEntityHandle *new_quads, 

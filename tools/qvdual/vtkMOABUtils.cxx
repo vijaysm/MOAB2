@@ -1052,3 +1052,52 @@ void vtkMOABUtils::update_display(vtkUnstructuredGrid *ug)
   // Render
   myRen->GetRenderWindow()->Render();
 }
+
+  //! get rid of all the vtk drawing stuff
+void vtkMOABUtils::reset_drawing_data() 
+{
+    // could it be this easy???
+  if (NULL != myUG) {
+    myUG->Delete();
+    myUG = NULL;
+  }
+
+  //! the default property
+  topProperty->Delete();
+  topProperty = NULL;
+  
+  //! the highlight property
+  highlightProperty->Delete();
+  highlightProperty = NULL;
+  
+  actorProperties.clear();
+
+    //! map between props (actor2d's and actors) and sets they represent (0 if no set, 
+    //! e.g. an extracted set)
+  propSetMap.clear();
+
+  topContainsAssy->Delete();
+  topContainsAssy = NULL;
+
+    //! topmost assembly for displaying parent/child relationships
+  topParentAssy->Delete();
+  topParentAssy = NULL;
+  
+  //! tag indicating whether a given set is in top contains assy
+  MBErrorCode result = mbImpl->tag_delete(vtkTopContainsTag);
+  if (MB_SUCCESS != result) std::cout << "Trouble deleting tag." << std::endl;
+
+  //! tag indicating whether a given set is in top parent assy
+  result = mbImpl->tag_delete(vtkTopParentTag);
+  if (MB_SUCCESS != result) std::cout << "Trouble deleting tag." << std::endl;
+  result = mbImpl->tag_delete(vtkCellTag);
+  if (MB_SUCCESS != result) std::cout << "Trouble deleting tag." << std::endl;
+  result = mbImpl->tag_delete(vtkSetActorTag);
+  if (MB_SUCCESS != result) std::cout << "Trouble deleting tag." << std::endl;
+  result = mbImpl->tag_delete(vtkSetPropAssemblyTag);
+  if (MB_SUCCESS != result) std::cout << "Trouble deleting tag." << std::endl;
+  result = mbImpl->tag_delete(vtkPointAllocatedTag);
+  if (MB_SUCCESS != result) std::cout << "Trouble deleting tag." << std::endl;
+}
+
+  

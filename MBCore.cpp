@@ -2419,7 +2419,12 @@ MBErrorCode MBCore::check_adjacencies(const MBEntityHandle *ents, int num_ents)
           tmp_result = get_adjacencies(&(*rit), 1, this_dim, false, rev_adjs);
           if (MB_SUCCESS != tmp_result) {
             oss << ent_str.str() 
-                << "Failed to get reverse adjacencies for dimension " << this_dim << "." << std::endl;
+                << "Failed to get reverse adjacency from " 
+                << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*rit)) << " "
+                << ID_FROM_HANDLE(*rit);
+            if (MB_MULTIPLE_ENTITIES_FOUND == tmp_result)
+              oss << " (MULTIPLE)" << std::endl;
+            else oss << " (" << tmp_result << ")" << std::endl;
             result = tmp_result;
           }
           else if (rev_adjs.find(this_ent) == rev_adjs.end()) {

@@ -606,3 +606,29 @@ way to do it, if I ever get the time.  Sigh.
 */
 }
 
+    //! return whether entity is equivalent to any other of same type and same vertices;
+    //! if equivalent entity is found, it's returned in equiv_ents and return value is true,
+    //! false otherwise.
+bool MeshTopoUtil::equivalent_entities(const MBEntityHandle entity,
+                                       MBRange *equiv_ents) 
+{
+  const MBEntityHandle *connect;
+  int num_connect;
+  MBErrorCode result = mbImpl->get_connectivity(entity, connect, num_connect);
+  if (MB_SUCCESS != result) return false;
+
+  MBRange dum;
+  result = mbImpl->get_adjacencies(connect, num_connect, 
+                                   mbImpl->dimension_from_handle(entity),
+                                   false, dum);
+  dum.erase(entity);
+
+  if (NULL != equiv_ents) {
+    equiv_ents->swap(dum);
+  }
+  
+  if (!dum.empty()) return true;
+  else return false;
+}
+
+  

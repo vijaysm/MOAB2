@@ -159,6 +159,8 @@ void uiQVDual::fileOpen( const QString &filename )
     constructDual();
 
   lastOpened = filename;
+
+  reader->Delete();
 }
 
 void uiQVDual::fileSave()
@@ -223,7 +225,7 @@ void uiQVDual::init()
 
   cropToolPopup = NULL;
 
-  drawDual = NULL;
+  drawDual = new DrawDual(pickline1, pickline2);
 
   computeDual = false;
 }
@@ -264,7 +266,6 @@ void uiQVDual::constructDual()
 
   if (!sheet_sets.empty()) {
       // draw the first sheet
-    if (NULL == drawDual) drawDual = new DrawDual();
     drawDual->draw_dual_surf(*sheet_sets.begin());
   }
 }
@@ -281,6 +282,9 @@ void uiQVDual::updateMesh()
 void uiQVDual::DebugButton_pressed()
 {
   vtkMOABUtils::print_debug();
+
+  vtkMOABUtils::reset_drawing_data();
+  
 }
 
 
@@ -762,7 +766,6 @@ void uiQVDual::displayDrawSheetAction_activated()
   }
 
     // now draw them
-  if (NULL == drawDual) drawDual = new DrawDual();
   drawDual->draw_dual_surfs(dual_surfs);
 }
 

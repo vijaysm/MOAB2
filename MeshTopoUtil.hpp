@@ -104,7 +104,14 @@ public:
                                       const int num_entities,
                                       MBEntityHandle *new_entities,
                                       MBRange *fill_entities);
+
+    //! return whether entity is equivalent to any other of same type and same vertices;
+    //! if equivalent entity is found, it's returned in equiv_ents and return value is true,
+    //! false otherwise.
+  bool equivalent_entities(const MBEntityHandle entity,
+                           MBRange *equiv_ents = NULL);
   
+                                  
 private:
   MBInterface *mbImpl;
   

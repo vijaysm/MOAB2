@@ -20,6 +20,7 @@
 #include "MBRange.hpp"
 #include "MBError.hpp"
 #include "MBCN.hpp"
+#include "MeshTopoUtil.hpp"
 
 #include "assert.h"
 #include <algorithm>
@@ -267,6 +268,21 @@ MBErrorCode AEntityFactory::get_element(const MBEntityHandle *vertex_list,
             // found it, return it
           target_entity = temp_vec[dum];
           break;
+        }
+      }
+
+      if (0 == target_entity && 
+          thisMB->dimension_from_handle(source_entity) > MBCN::Dimension(target_type)+1) {
+          // still have multiple entities, and source dimension is two greater than target,
+          // so there may not be any explicit adjacencies between the two; look for common
+          // entities of the intermediate dimension
+        MeshTopoUtil mtu(thisMB);
+        int intermed_dim = MBCN::Dimension(target_type)+1;
+        for (dum = 0; dum < temp_vec_size; dum++) {
+          if (0 != mtu.common_entity(temp_vec[dum], source_entity, intermed_dim)) {
+            target_entity = temp_vec[dum];
+            break;
+          }
         }
       }
     }

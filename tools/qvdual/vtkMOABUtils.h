@@ -233,6 +233,9 @@ public:
 
     //! update the display with all the mesh
   static void update_display(vtkUnstructuredGrid *ug = NULL);
+
+    //! get rid of all the vtk drawing stuff
+  static void reset_drawing_data();
   
 private:
     //! private constructor so nobody can construct one

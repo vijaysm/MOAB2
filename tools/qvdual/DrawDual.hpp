@@ -22,11 +22,12 @@ class vtkFloatArray;
 class vtkCellArray;
 class vtkActor;
 class Agsym_t;
+class QLineEdit;
 
 class DrawDual
 {
 public:
-  DrawDual();
+  DrawDual(QLineEdit *pickline1, QLineEdit *pickline2);
   ~DrawDual();
 
   bool draw_dual_surfs(MBRange &dual_surfs,
@@ -48,7 +49,8 @@ private:
 
   static DrawDual *gDrawDual;
   DualTool *dualTool;
-  
+  QLineEdit *pickLine1, *pickLine2;
+
   class GVEntity
   {
   public:
@@ -70,7 +72,8 @@ private:
           pointPos[1][0] = pointPos[1][1] = pointPos[1][2] = 0;
         vtkEntityIds[0] = vtkEntityIds[1] = vtkEntityIds[2] = vtkEntityIds[3] = -1;
         myActors[0] = myActors[1] = myActors[2] = NULL;
-        gvizPoints[0] = gvizPoints[1] = gvizPoints[2] = gvizPoints[3] = gvizPoints[4] = NULL;
+        gvizPoints[0] = gvizPoints[1] = gvizPoints[2] = gvizPoints[3] = 
+          gvizPoints[4] = NULL;
         gvizEdges[0] = gvizEdges[1] = gvizEdges[2] = gvizEdges[3] = NULL;
       }
     void reset(const int index);

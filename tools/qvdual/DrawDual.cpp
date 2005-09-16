@@ -35,9 +35,11 @@
 #include "vtkInteractorStyle.h"
 #include "vtkLookupTable.h"
 #include "QVTKWidget.h"
+#include "qlineedit.h"
 #include "vtkFloatArray.h"
 #include "vtkMaskFields.h"
 #include "assert.h"
+#include <sstream>
 
 extern "C" 
 {
@@ -64,8 +66,11 @@ MBTag DrawDual::dualSurfaceTagHandle = 0;
 DrawDual *DrawDual::gDrawDual = NULL;
 MBRange DrawDual::pickRange;
 
-DrawDual::DrawDual() 
+DrawDual::DrawDual(QLineEdit *pickline1, QLineEdit *pickline2) 
+    : pickLine1(pickline1), pickLine2(pickline2)
 {
+  dualTool = new DualTool(vtkMOABUtils::mbImpl);
+
     // make sure we have basic tags we need
   MBErrorCode result = MBI->tag_get_handle("__GVEntity", gvEntityHandle);
   if (MB_TAG_NOT_FOUND == result) {
@@ -99,7 +104,6 @@ DrawDual::DrawDual()
   
   add_picker(vtkMOABUtils::myRen);
 
-  dualTool = new DualTool(vtkMOABUtils::mbImpl);
 }
 
 DrawDual::~DrawDual() 
@@ -262,6 +266,7 @@ void DrawDual::process_pick()
 void DrawDual::print_picked_ent(MBEntityHandle picked_ent) 
 {
     // get the vertices
+  std::ostringstream oss;
   const MBEntityHandle *connect;
   int num_connect;
   MBErrorCode result = MBI->get_connectivity(picked_ent, connect, num_connect);
@@ -269,20 +274,23 @@ void DrawDual::print_picked_ent(MBEntityHandle picked_ent)
   bool first = true;
   MBEntityHandle primals[20];
   assert(num_connect < 20);
-  if (MBI->type_from_handle(picked_ent) == MBPOLYGON) std::cout << "2-cell: ";
-  else if (MBI->type_from_handle(picked_ent) == MBEDGE) std::cout << "1-cell: ";
-  else std::cout << "(unknown):";
+  if (MBI->type_from_handle(picked_ent) == MBPOLYGON) oss << "2-cell: ";
+  else if (MBI->type_from_handle(picked_ent) == MBEDGE) oss << "1-cell: ";
+  else oss << "(unknown):";
   result = MBI->tag_get_data(dualEntityTagHandle, connect, num_connect, primals);
   for (int i = 0; i < num_connect; i++) {
-    if (!first) std::cout << "-";
+    if (!first) oss << "-";
     MBEntityType this_type = MBI->type_from_handle(primals[i]);
-    if (this_type == MBHEX) std::cout << "h";
-    else if (this_type == MBQUAD) std::cout << "f";
-    else std::cout << "u";
-    std::cout << MBI->id_from_handle(primals[i]);
+    if (this_type == MBHEX) oss << "h";
+    else if (this_type == MBQUAD) oss << "f";
+    else oss << "u";
+    oss << MBI->id_from_handle(primals[i]);
     first = false;
   }
-  std::cout << " (" << picked_ent << ")" << std::endl;
+
+  std::cout << oss.str() << " (" << picked_ent << ")" << std::endl;
+  pickLine2->setText(pickLine1->displayText());
+  pickLine1->setText(QString(oss.str().c_str()));
 }
 
 void DrawDual::update_high_polydatas() 
@@ -1856,6 +1864,12 @@ MBErrorCode DrawDual::reset_drawing_data(MBEntityHandle dual_surf)
     this_gw.pickActor->Delete();
     this_gw.pickActor = NULL;
   }
+
+  if (NULL != this_gw.qvtkWidget) {
+    delete this_gw.qvtkWidget;
+    this_gw.qvtkWidget = NULL;
+  }
+  
 
   return MB_SUCCESS;
 }
