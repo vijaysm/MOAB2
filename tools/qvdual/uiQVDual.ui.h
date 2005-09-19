@@ -985,6 +985,7 @@ void uiQVDual::negFCbutton_clicked()
   result = dt.rev_face_shrink(edge);
   if (MB_SUCCESS != result) {
     std::cerr << "Reverse FS failed." << std::endl;
+    drawDual->draw_dual_surfs(drawn_sheets);
     return;
   }
 

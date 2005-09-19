@@ -277,18 +277,25 @@ void DrawDual::print_picked_ent(MBEntityHandle picked_ent)
   if (MB_SUCCESS != result) return;
   bool first = true;
   MBEntityHandle primals[20];
+  std::vector<int> ids;
+  
   assert(num_connect < 20);
   if (MBI->type_from_handle(picked_ent) == MBPOLYGON) oss << "2-cell: ";
   else if (MBI->type_from_handle(picked_ent) == MBEDGE) oss << "1-cell: ";
   else oss << "(unknown):";
   result = MBI->tag_get_data(dualEntityTagHandle, connect, num_connect, primals);
+  ids.resize(num_connect);
+  result = MBI->tag_get_data(vtkMOABUtils::globalId_tag(), primals, num_connect, &ids[0]);
   for (int i = 0; i < num_connect; i++) {
     if (!first) oss << "-";
     MBEntityType this_type = MBI->type_from_handle(primals[i]);
     if (this_type == MBHEX) oss << "h";
     else if (this_type == MBQUAD) oss << "f";
     else oss << "u";
-    oss << MBI->id_from_handle(primals[i]);
+
+    if (ids[i] != 0) oss << ids[i];
+    else oss << MBI->id_from_handle(primals[i]);
+
     first = false;
   }
 

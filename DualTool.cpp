@@ -2428,7 +2428,11 @@ MBErrorCode DualTool::rev_face_shrink(MBEntityHandle odedge)
   if (MB_SUCCESS != result) return result;
 
   result = fsr_get_fourth_quad(connects, side_quads);
-  if (MB_SUCCESS != result) return result;
+  if (MB_SUCCESS != result) {
+    std::cout << "Can't do -FS here, two hexes must be adjacent to ring of 4 hexes." 
+              << std::endl;
+    return result;
+  }
 
   MBRange adj_ents, outer_hexes, all_adjs;
 
@@ -2537,7 +2541,7 @@ MBErrorCode DualTool::fsr_get_fourth_quad(std::vector<MBEntityHandle> *connects,
     all_verts.erase(connects[1][i]);
     // outside 4 verts are just difference
   all_verts = all_verts.subtract(outside_verts);
-  assert(all_verts.size() == 4);
+  if (all_verts.size() != 4) return MB_FAILURE;
   std::copy(all_verts.begin(), all_verts.end(), std::back_inserter(connects[3]));
   
     // now align with other quads
