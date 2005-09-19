@@ -1571,6 +1571,8 @@ MBErrorCode DualTool::rev_atomic_pillow(MBEntityHandle pillow, MBRange &chords)
 MBErrorCode DualTool::delete_dual_entities(MBEntityHandle *entities, 
                                            const int num_entities) 
 {
+  if (NULL == entities || num_entities == 0) return delete_whole_dual();
+  
   MBEntityHandle null_entity = 0;
   MBErrorCode result;
   std::vector<MBEntityHandle> ents_to_delete;
@@ -2646,5 +2648,58 @@ MBErrorCode DualTool::fs_get_quads(MBEntityHandle odedge,
   assert(tmph.size() == 1);
   hexes[1] = *tmph.begin();
   
+  return MB_SUCCESS;
+}
+
+MBErrorCode DualTool::delete_whole_dual() 
+{
+    // delete dual hyperplanes
+  MBRange dual_surfs, dual_curves;
+  MBErrorCode result = this->get_dual_hyperplanes(mbImpl, 2, dual_surfs); RR;
+  result = mbImpl->delete_entities(dual_surfs); RR;
+  result = this->get_dual_hyperplanes(mbImpl, 1, dual_curves); RR;
+  result = mbImpl->delete_entities(dual_curves); RR;
+  
+    // gather up all dual entities
+  MBRange dual_ents;
+  result = mbImpl->get_entities_by_type_and_tag(0, MBVERTEX, &isDualCellTag, NULL, 1, dual_ents,
+                                                MBInterface::UNION); RR;
+  result = mbImpl->get_entities_by_type_and_tag(0, MBEDGE, &isDualCellTag, NULL, 1, dual_ents,
+                                                MBInterface::UNION); RR;
+  result = mbImpl->get_entities_by_type_and_tag(0, MBPOLYGON, &isDualCellTag, NULL, 1, dual_ents,
+                                                MBInterface::UNION); RR;
+  result = mbImpl->get_entities_by_type_and_tag(0, MBPOLYHEDRON, &isDualCellTag, NULL, 1, dual_ents,
+                                                MBInterface::UNION); RR;
+
+    // delete them, in reverse order of dimension
+  MBErrorCode tmp_result;
+  for (MBRange::reverse_iterator rit = dual_ents.rbegin(); rit != dual_ents.rend(); rit++) {
+    tmp_result = mbImpl->delete_entities(&(*rit), 1);
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
+  }
+  RR;
+  
+    // delete dual-related tags
+  if (0 != dualSurfaceTag) {
+    tmp_result = mbImpl->tag_delete(dualSurfaceTag); 
+    if (MB_SUCCESS != tmp_result && MB_TAG_NOT_FOUND != tmp_result) result = tmp_result;
+  }
+  if (0 != dualCurveTag) {
+    tmp_result = mbImpl->tag_delete(dualCurveTag); 
+    if (MB_SUCCESS != tmp_result && MB_TAG_NOT_FOUND != tmp_result) result = tmp_result;
+  }
+  if (0 != dualEntityTag) {
+    tmp_result = mbImpl->tag_delete(dualEntityTag); 
+    if (MB_SUCCESS != tmp_result && MB_TAG_NOT_FOUND != tmp_result) result = tmp_result;
+  }
+  if (0 != extraDualEntityTag) {
+    tmp_result = mbImpl->tag_delete(extraDualEntityTag); 
+    if (MB_SUCCESS != tmp_result && MB_TAG_NOT_FOUND != tmp_result) result = tmp_result;
+  }
+  if (0 != dualGraphicsPointTag) {
+    tmp_result = mbImpl->tag_delete(dualGraphicsPointTag); 
+    if (MB_SUCCESS != tmp_result && MB_TAG_NOT_FOUND != tmp_result) result = tmp_result;
+  }
+
   return MB_SUCCESS;
 }

@@ -108,8 +108,12 @@ DrawDual::DrawDual(QLineEdit *pickline1, QLineEdit *pickline2)
 
 DrawDual::~DrawDual() 
 {
+  if (0 != gvEntityHandle)
+    MBI->tag_delete(gvEntityHandle);
+
   if (NULL != gDrawDual) gDrawDual = NULL;
   if (NULL != dualTool) delete dualTool;
+
 }
 
 void DrawDual::add_picker(vtkRenderer *this_ren) 
@@ -1780,16 +1784,16 @@ MBErrorCode DrawDual::get_primal_ids(const MBRange &ents, std::vector<int> &ids)
   ids.reserve(ents.size());
   MBErrorCode result = MBI->tag_get_data(dualEntityTagHandle, ents, &primals[0]);
   if (MB_SUCCESS != result) {
-    std::cout << "Couldn't get primal entities." << std::endl;
     for (unsigned int i = 0; i < ents.size(); i++) ids[i] = 0;
   }
-  else {
-    for (unsigned int i = 0; i < ents.size(); i++)
-      ids[i] = MBI->id_from_handle(primals[i]);
-    result = MB_SUCCESS;
+
+  result = MBI->tag_get_data(vtkMOABUtils::globalId_tag(), &primals[0], ents.size(),
+                             &ids[0]);
+  for (unsigned int i = 0; i < ents.size(); i++) {
+    if (0 == ids[i]) ids[i] = MBI->id_from_handle(primals[i]);
   }
 
-  return result;
+  return MB_SUCCESS;
 }
 
 MBErrorCode DrawDual::reset_drawn_sheets(MBRange *drawn_sheets) 

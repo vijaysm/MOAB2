@@ -1661,6 +1661,13 @@ MBErrorCode MBCore::list_entity(const MBEntityHandle entity) const
   MBErrorCode result;
   MBHandleVec adj_vec;
 
+  if (0 != globalIdTag) {
+    int dum;
+    result = tag_get_data(globalIdTag, &entity, 1, &dum);
+    if (MB_SUCCESS == result)
+      std::cout << "Global id = " << dum << std::endl;
+  }
+  
     // list entity
   MBEntityType this_type = TYPE_FROM_HANDLE(entity);
   if (this_type == MBVERTEX) {

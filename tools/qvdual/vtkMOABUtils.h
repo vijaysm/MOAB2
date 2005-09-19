@@ -239,6 +239,9 @@ public:
 
     //! get rid of all the vtk drawing stuff
   static void reset_drawing_data();
+
+    //! assign global ids, in preparation for writing mesh
+  static void assign_global_ids();
   
 private:
     //! private constructor so nobody can construct one

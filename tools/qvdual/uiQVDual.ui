@@ -1022,6 +1022,8 @@
     <slot>FSbutton_clicked()</slot>
     <slot>negFCbutton_clicked()</slot>
     <slot>fileSaveAs()</slot>
+    <slot>resetDisplay()</slot>
+    <slot>redrawDisplay()</slot>
 </slots>
 <functions>
     <function access="private" specifier="non virtual">init()</function>
@@ -1035,7 +1037,6 @@
     <function access="private">getSelected( QListView * listv, std::set&lt;QListViewItem *&gt; &amp; selected, std::set&lt;QListViewItem *&gt; &amp; unselected )</function>
     <function access="private">getSelected( QListView * listv, MBRange &amp; selected, MBRange &amp; unselected )</function>
     <function access="private">getItemSets( std::set&lt;QListViewItem *&gt; &amp; items, MBRange &amp; sets )</function>
-    <function>resetDisplay()</function>
 </functions>
 <pixmapinproject/>
 <layoutdefaults spacing="6" margin="11"/>

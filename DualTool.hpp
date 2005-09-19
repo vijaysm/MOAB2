@@ -202,6 +202,9 @@ public:
   MBErrorCode list_entities(const MBEntityHandle *entities,
                             const int num_entities) const;
   
+    //! delete all the dual data
+  MBErrorCode delete_whole_dual();
+  
 private:
 
     //! construct dual vertices for specified regions

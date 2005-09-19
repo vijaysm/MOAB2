@@ -99,7 +99,17 @@ void uiQVDual::fileSaveAs(const QString &filename)
   if(filename == QString::null)
     return;
 
+  resetDisplay();
+  
+  DualTool(vtkMOABUtils::mbImpl).delete_whole_dual();
+
+  computeDual = false;
+
+  vtkMOABUtils::assign_global_ids();
+  
   vtkMOABUtils::mbImpl->write_mesh(filename.ascii());
+
+  redrawDisplay();
 }
 
 
@@ -173,7 +183,7 @@ void uiQVDual::constructDual()
   DualTool dt(vtkMOABUtils::mbImpl);
   MBErrorCode result = dt.construct_hex_dual(NULL, 0);
 
-  resetDisplay();
+  redrawDisplay();
   
   QListViewItemIterator it = QListViewItemIterator(TagListView1);
   while ( it.current() ) {
@@ -748,7 +758,7 @@ void uiQVDual::APbutton_clicked()
   if (!success)
     std::cerr << "Problem drawing dual surfaces from atomic pillow." << std::endl;
 
-  resetDisplay();
+  redrawDisplay();
 }
 
 
@@ -814,7 +824,7 @@ void uiQVDual::negAPbutton_clicked()
     std::cerr << "Problem drawing other dual surfaces from reverse atomic pillow." 
               << std::endl;
 
-  resetDisplay();
+  redrawDisplay();
 }
 
 
@@ -878,7 +888,7 @@ void uiQVDual::FOCbutton_clicked()
   if (!success)
     std::cerr << "Problem drawing previously-drawn dual surfaces." << std::endl;
 
-  resetDisplay();
+  redrawDisplay();
 }
 
 
@@ -943,7 +953,7 @@ void uiQVDual::FSbutton_clicked()
     std::cerr << "Couldn't get parent dual surfaces of dual edge." << std::endl;
   }
 
-  resetDisplay();
+  redrawDisplay();
 }
 
 
@@ -1009,7 +1019,7 @@ void uiQVDual::negFCbutton_clicked()
     std::cerr << "Couldn't get parent dual surfaces of dual edge." << std::endl;
   }
 
-  resetDisplay();
+  redrawDisplay();
 }
 
 
@@ -1046,6 +1056,12 @@ void uiQVDual::resetDisplay()
     vtkWidget = NULL;
   }
 
+}
+
+
+void uiQVDual::redrawDisplay()
+{
+  resetDisplay();
   
   this->init();
   

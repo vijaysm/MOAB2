@@ -1203,19 +1203,52 @@ void vtkMOABUtils::reset_drawing_data()
   
   //! tag indicating whether a given set is in top contains assy
   MBErrorCode result = mbImpl->tag_delete(vtkTopContainsTag);
-  if (MB_SUCCESS != result) std::cout << "Trouble deleting tag." << std::endl;
+  if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
+    std::cout << "Trouble deleting tag." << std::endl;
 
   //! tag indicating whether a given set is in top parent assy
   result = mbImpl->tag_delete(vtkTopParentTag);
-  if (MB_SUCCESS != result) std::cout << "Trouble deleting tag." << std::endl;
+  if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
+    std::cout << "Trouble deleting tag." << std::endl;
   result = mbImpl->tag_delete(vtkCellTag);
-  if (MB_SUCCESS != result) std::cout << "Trouble deleting tag." << std::endl;
+  if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
+    std::cout << "Trouble deleting tag." << std::endl;
   result = mbImpl->tag_delete(vtkSetActorTag);
-  if (MB_SUCCESS != result) std::cout << "Trouble deleting tag." << std::endl;
+  if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
+    std::cout << "Trouble deleting tag." << std::endl;
   result = mbImpl->tag_delete(vtkSetPropAssemblyTag);
-  if (MB_SUCCESS != result) std::cout << "Trouble deleting tag." << std::endl;
+  if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
+    std::cout << "Trouble deleting tag." << std::endl;
   result = mbImpl->tag_delete(vtkPointAllocatedTag);
-  if (MB_SUCCESS != result) std::cout << "Trouble deleting tag." << std::endl;
+  if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
+    std::cout << "Trouble deleting tag." << std::endl;
 }
 
+void vtkMOABUtils::assign_global_ids()
+{
+  MBRange ents;
+  std::vector<int> ids;
+  MBTag gid = globalId_tag();
+  MBErrorCode result;
   
+  result = mbImpl->get_entities_by_handle(0, ents);
+  if (MB_SUCCESS != result) return;
+  
+  ids.resize(ents.size());
+  std::fill(ids.begin(), ids.end(), 0);
+  mbImpl->tag_get_data(gid, ents, &ids[0]);
+
+  bool need_set = false;
+  
+  int i = 0;
+  MBRange::iterator rit = ents.begin();
+  
+  for (; i < ids.size(); i++, rit++) {
+    if (0 == ids[i]) {
+      ids[i] = mbImpl->id_from_handle(*rit);
+      need_set = true;
+    }
+  }
+  
+  if (need_set) mbImpl->tag_set_data(gid, ents, &ids[0]);
+}
