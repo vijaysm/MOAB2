@@ -111,6 +111,16 @@ DrawDual::~DrawDual()
   if (0 != gvEntityHandle)
     MBI->tag_delete(gvEntityHandle);
 
+  if (NULL != dualPicker) {
+    dualPicker->Delete();
+    dualPicker = NULL;
+  }
+  
+  if (NULL != vtkMOABUtils::eventCallbackCommand) {
+    vtkMOABUtils::eventCallbackCommand->Delete();
+    vtkMOABUtils::eventCallbackCommand = NULL;
+  }
+  
   if (NULL != gDrawDual) gDrawDual = NULL;
   if (NULL != dualTool) delete dualTool;
 

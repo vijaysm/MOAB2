@@ -247,7 +247,7 @@ public:
   //! inserted item
   iterator insert(MBEntityHandle val1, MBEntityHandle val2);
   
-  //! remove an item from the list
+    //! remove an item from this list and return an iterator to the next item
   iterator erase(iterator iter);
 
   //! remove a range of items from the list

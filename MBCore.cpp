@@ -728,9 +728,7 @@ MBErrorCode MBCore::get_connectivity(const MBEntityHandle entity_handle,
     return MB_TYPE_OUT_OF_RANGE;
 
   else if (type == MBVERTEX) {
-    connectivity = &entity_handle;
-    number_nodes = 1;
-    return MB_SUCCESS;
+    return MB_FAILURE;
   }
   
   MBEntitySequence* seq = 0;
@@ -1632,13 +1630,23 @@ MBErrorCode MBCore::list_entities(const MBEntityHandle *entities,
     for (MBEntityType this_type = MBVERTEX; this_type < MBMAXTYPE; this_type++) {
       result = get_entities_by_type(0, this_type, temp_range);
     }
+
+    return list_entities(temp_range);
   }
 
   else {
-    std::copy(entities, entities+num_entities, mb_range_inserter(temp_range));
+    MBErrorCode tmp_result;
+    for (int i = 0; i < num_entities; i++) {
+      MBEntityType this_type = TYPE_FROM_HANDLE(entities[i]);
+      std::cout << MBCN::EntityTypeName(this_type) << " " 
+                << ID_FROM_HANDLE(entities[i]) << ":" << endl;
+
+      tmp_result = (const_cast<MBCore*>(this))->list_entity(entities[i]);
+      if (MB_SUCCESS != tmp_result) result = tmp_result;
+    }
   }
 
-  return list_entities(temp_range);
+  return result;
 }
 
 MBErrorCode MBCore::list_entities(const MBRange &temp_range) const

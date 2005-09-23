@@ -39,6 +39,44 @@ MBErrorCode MeshTopoUtil::construct_aentities(const MBRange &vertices)
   return result;
 }
 
+//! given an entity, get its average position (avg vertex locations)
+MBErrorCode MeshTopoUtil::get_average_position(MBRange &entities,
+                                               double *avg_position) 
+{
+  std::vector<MBEntityHandle> ent_vec;
+  std::copy(entities.begin(), entities.end(), std::back_inserter(ent_vec));
+  return get_average_position(&ent_vec[0], ent_vec.size(), avg_position);
+}
+
+//! given an entity, get its average position (avg vertex locations)
+MBErrorCode MeshTopoUtil::get_average_position(const MBEntityHandle *entities,
+                                               const int num_entities,
+                                               double *avg_position) 
+{
+  double dum_pos[3];
+  avg_position[0] = avg_position[1] = avg_position[2] = 0.0;
+
+  MBRange connect;
+  MBErrorCode result = mbImpl->get_adjacencies(entities, num_entities, 0, false,
+                                               connect, MBInterface::UNION);
+  if (MB_SUCCESS != result) return result;
+
+  if (connect.empty()) return MB_FAILURE;
+  
+  for (MBRange::iterator rit = connect.begin(); rit != connect.end(); rit++) {
+    result = mbImpl->get_coords(&(*rit), 1, dum_pos);
+    if (MB_SUCCESS != result) return result;
+    avg_position[0] += dum_pos[0]; 
+    avg_position[1] += dum_pos[1]; 
+    avg_position[2] += dum_pos[2]; 
+  }
+  avg_position[0] /= (double) connect.size();
+  avg_position[1] /= (double) connect.size();
+  avg_position[2] /= (double) connect.size();
+
+  return MB_SUCCESS;
+}
+  
     //! given an entity, get its average position (avg vertex locations)
 MBErrorCode MeshTopoUtil::get_average_position(const MBEntityHandle entity,
                                                double *avg_position) 
@@ -50,20 +88,8 @@ MBErrorCode MeshTopoUtil::get_average_position(const MBEntityHandle entity,
     
   MBErrorCode result = mbImpl->get_connectivity(entity, connect, num_connect);
   if (MB_SUCCESS != result) return result;
-  double dum_pos[3];
-  avg_position[0] = avg_position[1] = avg_position[2] = 0.0;
-  for (int i = 0; i < num_connect; i++) {
-    result = mbImpl->get_coords(connect+i, 1, dum_pos);
-    if (MB_SUCCESS != result) return result;
-    avg_position[0] += dum_pos[0]; 
-    avg_position[1] += dum_pos[1]; 
-    avg_position[2] += dum_pos[2]; 
-  }
-  avg_position[0] /= (double) num_connect;
-  avg_position[1] /= (double) num_connect;
-  avg_position[2] /= (double) num_connect;
 
-  return MB_SUCCESS;
+  return get_average_position(connect, num_connect, avg_position);
 }
 
   // given an entity, find the entities of next higher dimension around
@@ -92,7 +118,8 @@ MBErrorCode MeshTopoUtil::star_entities(const MBEntityHandle star_center,
       // special case: if starting_star_entity isn't connected to any entities of next
       // higher dimension, it's the only entity in the star; put it on the list and return
     if (star_entities.empty() && next_entity == 0 && next_dp1 == 0 &&
-        star_candidates_dp1 == NULL) {
+        (star_candidates_dp1 == NULL || 
+         star_candidates_dp1->find(last_entity) != star_candidates_dp1->end())) {
       star_entities.push_back(last_entity);
       bdy_entity = true;
       return MB_SUCCESS;
@@ -197,6 +224,135 @@ MBErrorCode MeshTopoUtil::star_next_entity(const MBEntityHandle star_center,
   return MB_SUCCESS;
 }
 
+MBErrorCode MeshTopoUtil::star_entities_nonmanifold(const MBEntityHandle star_entity,
+                                                    std::vector<std::vector<MBEntityHandle> > &stars,
+                                                    std::vector<bool> *bdy_flags,
+                                                    std::vector<std::vector<MBEntityHandle> > *dp2_stars) 
+{
+    // Get a series of (d+1)-dimensional stars around a d-dimensional entity, such that
+    // each star is on a (d+2)-manifold containing the d-dimensional entity; each star
+    // is either open or closed, and also defines a (d+2)-star whose entities are bounded by
+    // (d+1)-entities on the star and on the (d+2)-manifold
+    //
+    // Algorithm:
+    // get the (d+2)-manifold entities; for d=1 / d+2=3, just assume all connected elements, since
+    //   we don't do 4d yet
+    // get intersection of (d+1)-entities adjacent to star and union of (d+1)-entities 
+    //   adjacent to (d+2)-manifold entities
+    // while (d+1)-entities
+    //   remove (d+1)-entity from (d+1)-entities
+    //   get the (d+1)-star and (d+2)-star around that (d+1)-entity (using star_entities)
+    //   save that star to the star list, and the bdy flag and (d+2)-star if requested
+    //   remove (d+2)-entities from the (d+2)-manifold entities
+    //   remove (d+1)-entities from the (d+1)-entities
+    // (end while)
+
+  int this_dim = mbImpl->dimension_from_handle(star_entity);
+  if (3 <= this_dim || 0 > this_dim) return MB_FAILURE;
+  
+    // get the (d+2)-manifold entities; for d=1 / d+2=3, just assume all connected elements, since
+    //   we don't do 4d yet
+  MBRange dp2_manifold;
+  MBErrorCode result = get_manifold(star_entity, this_dim+2, dp2_manifold);
+  if (MB_SUCCESS != result) return result;
+  
+    // get intersection of (d+1)-entities adjacent to star and union of (d+1)-entities 
+    //   adjacent to (d+2)-manifold entities; also add manifold (d+1)-entities, to catch
+    //   any not connected to (d+2)-entities
+  MBRange dp1_manifold;
+  result = mbImpl->get_adjacencies(dp2_manifold, this_dim+1, false, dp1_manifold,
+                                   MBInterface::UNION);
+  if (MB_SUCCESS != result) return result;
+
+  result = mbImpl->get_adjacencies(&star_entity, 1, this_dim+1, false, dp1_manifold);
+  if (MB_SUCCESS != result) return result;
+
+  result = get_manifold(star_entity, this_dim+1, dp1_manifold);
+  if (MB_SUCCESS != result) return result;
+  
+    // while (d+1)-entities
+  while (!dp1_manifold.empty()) {
+    
+      //   get (d+1)-entity from (d+1)-entities (don't remove it until after star,
+      //     since the star entities must come from dp1_manifold)
+    MBEntityHandle this_ent = *dp1_manifold.begin();
+    
+      //   get the (d+1)-star and (d+2)-star around that (d+1)-entity (using star_entities)
+    std::vector<MBEntityHandle> this_star_dp1, this_star_dp2;
+    bool on_bdy;
+    result = star_entities(star_entity, this_star_dp1, on_bdy, this_ent, &this_star_dp2, 
+                           &dp2_manifold);
+    if (MB_SUCCESS != result) return result;
+
+      // if there's no star entities, it must mean this_ent isn't bounded by any dp2 
+      // entities (wasn't put into star in star_entities 'cuz we're passing in non-null
+      // dp2_manifold above); put it in
+    if (this_star_dp1.empty()) {
+      MBRange dum_range;
+      result = mbImpl->get_adjacencies(&this_ent, 1, this_dim+2, false, dum_range);
+      if (MB_SUCCESS != result) return result;
+      if (dum_range.empty()) this_star_dp1.push_back(this_ent);
+    }
+    
+      // now we can remove it
+    dp1_manifold.erase(dp1_manifold.begin());
+
+      //   save that star to the star list, and the bdy flag and (d+2)-star if requested
+    if (!this_star_dp1.empty()) {
+      stars.push_back(this_star_dp1);
+      if (NULL != bdy_flags) bdy_flags->push_back(on_bdy);
+      if (NULL != dp2_stars) dp2_stars->push_back(this_star_dp2);
+    }
+    
+      //   remove (d+2)-entities from the (d+2)-manifold entities
+    for (std::vector<MBEntityHandle>::iterator vit = this_star_dp2.begin(); 
+         vit != this_star_dp2.end(); vit++)
+      dp2_manifold.erase(*vit);
+    
+      //   remove (d+1)-entities from the (d+1)-entities
+    for (std::vector<MBEntityHandle>::iterator vit = this_star_dp1.begin(); 
+         vit != this_star_dp1.end(); vit++)
+      dp1_manifold.erase(*vit);
+    
+      // (end while)
+  }
+
+  return MB_SUCCESS;
+}
+
+//! get (target_dim)-dimensional manifold entities connected to star_entity; that is,
+//! the entities with <= 1 connected (target_dim+2)-dimensional adjacent entities;
+//! for target_dim=3, just return all of them
+//! just insert into the list, w/o clearing manifold list first
+MBErrorCode MeshTopoUtil::get_manifold(const MBEntityHandle star_entity,
+                                       const int target_dim,
+                                       MBRange &manifold) 
+{
+    // get all the entities of target dimension connected to star
+  MBRange tmp_range;
+  MBErrorCode result = mbImpl->get_adjacencies(&star_entity, 1, target_dim, false, tmp_range);
+  if (MB_SUCCESS != result) return result;
+  
+    // now save the ones which are (target_dim+1)-dimensional manifold;
+    // for target_dim=3, just return whole range, since we don't do 4d
+  if (target_dim == 3) {
+    manifold.merge(tmp_range);
+    return MB_SUCCESS;
+  }
+  
+  for (MBRange::iterator rit = tmp_range.begin(); rit != tmp_range.end(); rit++) {
+    MBRange dum_range;
+      // get (target_dim+1)-dimensional entities
+    result = mbImpl->get_adjacencies(&(*rit), 1, target_dim+1, false, dum_range);
+    if (MB_SUCCESS != result) return result;
+    
+      // if there are only 1 or zero, add to manifold list
+    if (1 >= dum_range.size()) manifold.insert(*rit);
+  }
+  
+  return MB_SUCCESS;
+}
+
     //! get "bridge" or "2nd order" adjacencies, going through dimension bridge_dim
 MBErrorCode MeshTopoUtil::get_bridge_adjacencies(const MBEntityHandle from_entity,
                                                  const int bridge_dim,
@@ -206,10 +362,17 @@ MBErrorCode MeshTopoUtil::get_bridge_adjacencies(const MBEntityHandle from_entit
     // get pointer to connectivity for this entity
   const MBEntityHandle *connect;
   int num_connect;
-  MBErrorCode result = mbImpl->get_connectivity(from_entity, connect, num_connect);
-  if (MB_SUCCESS != result) return result;
-  
+  MBErrorCode result = MB_SUCCESS;
   MBEntityType from_type = TYPE_FROM_HANDLE(from_entity);
+  if (from_type == MBVERTEX) {
+    connect = &from_entity;
+    num_connect = 1;
+  }
+  else {
+    result = mbImpl->get_connectivity(from_entity, connect, num_connect);
+    if (MB_SUCCESS != result) return result;
+  }
+  
   if (from_type >= MBENTITYSET) return MB_FAILURE;
 
   int from_dim = MBCN::Dimension(from_type);
@@ -323,10 +486,9 @@ MBErrorCode MeshTopoUtil::split_entities_manifold(MBEntityHandle *entities,
       // can only do a split_manifold if there are at most 2 entities of each
       // higher dimension; otherwise it's a split non-manifold
     bool valid_up_adjs = true;
-    for (unsigned int dim = MBCN::Dimension(TYPE_FROM_HANDLE(entities[i]))+1; 
-         dim <= 3; dim++) {
+    for (int dim = 1; dim <= 3; dim++) {
       tmp_result = mbImpl->get_adjacencies(entities+i, 1, dim, false, up_adjs[dim]); TC;
-      if (up_adjs[dim].size() > 2) {
+      if (dim > MBCN::Dimension(TYPE_FROM_HANDLE(entities[i])) && up_adjs[dim].size() > 2) {
         valid_up_adjs = false;
         break;
       }
@@ -342,19 +504,31 @@ MBErrorCode MeshTopoUtil::split_entities_manifold(MBEntityHandle *entities,
       // by definition, new entity and original will be equivalent; need to add explicit
       // adjs to distinguish them; don't need to check if there's already one there,
       // 'cuz add_adjacency does that for us
-    for (int dim = MBCN::Dimension(TYPE_FROM_HANDLE(entities[i]))+1; dim <= 3; dim++) {
-      if (up_adjs[dim].empty()) continue;
-        // first the new entity; if there's only one up_adj of this dimension, make the
-        // new entity adjacent to it, so that any bdy information is preserved on the
-        // original entity
-      tmp_result = mbImpl->remove_adjacencies(entities[i], &(*(up_adjs[dim].begin())), 1);
-        // (ok if there's an error, that just means there wasn't an explicit adj)
-      MBEntityHandle tmp_ent = *(up_adjs[dim].begin());
-      tmp_result = mbImpl->add_adjacencies(new_entity, &tmp_ent, 1, false); TC;
-      if (up_adjs[dim].size() < 2) continue;
-        // add adj to other up_adj
-      tmp_ent = *(up_adjs[dim].rbegin());
-      tmp_result = mbImpl->add_adjacencies(entities[i], &tmp_ent, 1, false); TC;
+    for (int dim = 1; dim <= 3; dim++) {
+      if (up_adjs[dim].empty() || dim == MBCN::Dimension(TYPE_FROM_HANDLE(entities[i]))) continue;
+
+      if (dim < MBCN::Dimension(TYPE_FROM_HANDLE(entities[i]))) {
+          // adjacencies from other entities to this one; if any of those are equivalent entities,
+          // need to make explicit adjacency to new entity too
+        for (MBRange::iterator rit = up_adjs[dim].begin(); rit != up_adjs[dim].end(); rit++) {
+          if (equivalent_entities(*rit))
+            result = mbImpl->add_adjacencies(*rit, &new_entity, 1, false);
+        }
+      }
+      else {
+        
+          // first the new entity; if there's only one up_adj of this dimension, make the
+          // new entity adjacent to it, so that any bdy information is preserved on the
+          // original entity
+        tmp_result = mbImpl->remove_adjacencies(entities[i], &(*(up_adjs[dim].begin())), 1);
+          // (ok if there's an error, that just means there wasn't an explicit adj)
+        MBEntityHandle tmp_ent = *(up_adjs[dim].begin());
+        tmp_result = mbImpl->add_adjacencies(new_entity, &tmp_ent, 1, false); TC;
+        if (up_adjs[dim].size() < 2) continue;
+          // add adj to other up_adj
+        tmp_ent = *(up_adjs[dim].rbegin());
+        tmp_result = mbImpl->add_adjacencies(entities[i], &tmp_ent, 1, false); TC;
+      }
     }
 
       // if we're asked to build a next-higher-dimension object, do so
@@ -400,45 +574,10 @@ MBErrorCode MeshTopoUtil::split_entity_nonmanifold(MBEntityHandle split_ent,
 
     // split an entity into multiple entities, one per (d+2)-connected region
     // in the (d+1)-star around the entity
-
-    // get the regions
-    // get the connected (d+1)-entities
-  MBRange dp1_ents;
-  int dim = mbImpl->dimension_from_handle(split_ent);
-  MBErrorCode result = mbImpl->get_adjacencies(&split_ent, 1, dim+1, false, dp1_ents);
-  if (MB_SUCCESS != result) return result;
-  
-    // while there are still entities, get another region
   std::vector<std::vector<MBEntityHandle> > star_regions;
-  while (!dp1_ents.empty()) {
-    std::vector<MBEntityHandle> this_region, this_region_dp2;
-    bool is_bdy;
-    result = star_entities(split_ent, this_region, is_bdy, *dp1_ents.begin(),
-                           &this_region_dp2);
-    if (MB_SUCCESS != result) return result;
-    else if (!is_bdy) return MB_FAILURE;
-      // star should include starting entity
-    assert(std::find(this_region.begin(), this_region.end(), *dp1_ents.begin()) != 
-           this_region.end());
-    
-      // fold the dp2-entities into the star then put in the list
-    assert(this_region_dp2.size() == this_region.size()-1);
-    std::vector<MBEntityHandle> folded_star;
-    std::vector<MBEntityHandle>::iterator dp1_it = this_region.begin(),
-      dp2_it = this_region_dp2.begin();
-    for (; dp2_it != this_region_dp2.end(); dp1_it++, dp2_it++) {
-      folded_star.push_back(*dp1_it);
-      folded_star.push_back(*dp2_it);
-    }
-      // should be 1 more dp1 entity
-    folded_star.push_back(*dp1_it);
-    star_regions.push_back(folded_star);
-
-      // remove these dp1 entities from the list
-    MBRange dp1_copy;
-    std::copy(this_region.begin(), this_region.end(), mb_range_inserter(dp1_copy));
-    dp1_ents = dp1_ents.subtract(dp1_copy);
-  }
+  std::vector<bool> bdy_flags;
+  MBErrorCode result = star_entities_nonmanifold(split_ent, star_regions);
+  if (MB_SUCCESS != result) return result;
 
     // should be at least 2 regions
   if (star_regions.size() < 2) return MB_FAILURE;
@@ -447,31 +586,76 @@ MBErrorCode MeshTopoUtil::split_entity_nonmanifold(MBEntityHandle split_ent,
   std::vector<std::vector<MBEntityHandle> >::iterator vvit = star_regions.begin();
   const MBEntityHandle *connect;
   int num_connect;
-  result = mbImpl->get_connectivity(split_ent, connect, num_connect);
-  if (MB_SUCCESS != result) return result;
   MBEntityType split_type = mbImpl->type_from_handle(split_ent);
+  if (split_type != MBVERTEX) {
+    result = mbImpl->get_connectivity(split_ent, connect, num_connect);
+    if (MB_SUCCESS != result) return result;
+  }
+  
   for (; vvit != star_regions.end(); vvit++) {
       // create the new entity
     MBEntityHandle new_entity;
     if (vvit != star_regions.begin()) {
-      result = mbImpl->create_element(split_type, connect, num_connect, new_entity);
-      if (MB_SUCCESS != result) return result;
-      else if (0 == new_entity) return MB_FAILURE;
+      if (MBVERTEX == split_type) {
+        double coords[3];
+        result = mbImpl->get_coords(&split_ent, 1, coords);
+        if (MB_SUCCESS != result) return result;
+        result = mbImpl->create_vertex(coords, new_entity);
+        if (MB_SUCCESS != result) return result;
+      }
+      else {
+        result = mbImpl->create_element(split_type, connect, num_connect, new_entity);
+        if (MB_SUCCESS != result) return result;
+
+          // remove any explicit adjacencies with split entity
+        result = mbImpl->remove_adjacencies(split_ent, &(*vvit)[0], vvit->size());
+        if (MB_SUCCESS != result) return result;
+      }
+      
       new_ents.insert(new_entity);
     }
     else {
       new_entity = split_ent;
     }
-    
-      // remove any explicit adjacencies with split entity
-    if (new_entity != split_ent) {
-      result = mbImpl->remove_adjacencies(split_ent, &(*vvit)[0], vvit->size());
+
+    if (MBVERTEX != split_type) {
+        //  add adjacency with new entity
+      result = mbImpl->add_adjacencies(new_entity, &(*vvit)[0], vvit->size(), false);
       if (MB_SUCCESS != result) return result;
     }
-    
-      //  add adjacency with new entity
-    result = mbImpl->add_adjacencies(new_entity, &(*vvit)[0], vvit->size(), false);
-    if (MB_SUCCESS != result) return result;
+    else if (split_ent != new_entity) {
+        // need to get all entities adjacent to edges in this star, and replace one
+        // vertex with another
+      MBRange star_ents;
+      result = mbImpl->get_adjacencies(&(*vvit)[0], vvit->size(), 2, false, star_ents,
+                                       MBInterface::UNION);
+      if (MB_SUCCESS != result) return result;
+
+        // add edges adjacent to these faces which are also adjacent to split_ent
+      MBRange dum_range, dum_range_2;
+      result = mbImpl->get_adjacencies(&split_ent, 1, 1, false, dum_range);
+      if (MB_SUCCESS != result) return result;
+      result = mbImpl->get_adjacencies(star_ents, 1, false, dum_range_2, MBInterface::UNION);
+      if (MB_SUCCESS != result) return result;
+      dum_range = dum_range.intersect(dum_range_2);
+      star_ents.merge(dum_range);
+      
+      result = mbImpl->get_adjacencies(&(*vvit)[0], vvit->size(), 3, false, star_ents,
+                                       MBInterface::UNION);
+      if (MB_SUCCESS != result) return result;
+      std::copy(vvit->begin(), vvit->end(), mb_range_inserter(star_ents));
+      
+        // shouldn't matter which order we do this...
+      std::vector<MBEntityHandle> connect;
+      for (MBRange::iterator rit = star_ents.begin(); rit != star_ents.end(); rit++) {
+        connect.clear();
+        result = mbImpl->get_connectivity(&(*rit), 1, connect);
+        if (MB_SUCCESS != result) return result;
+        std::replace(connect.begin(), connect.end(), split_ent, new_entity);
+        
+        result = mbImpl->set_connectivity(*rit, &connect[0], connect.size());
+      }
+    }
   }
   
   return result;

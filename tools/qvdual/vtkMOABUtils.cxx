@@ -8,7 +8,6 @@
 #include "vtkActor2D.h"
 #include "vtkActorCollection.h"
 #include "vtkIdList.h"
-#include "vtkCellPicker.h"
 #include "vtkPropCollection.h"
 #include "vtkObjectFactory.h"
 #include "vtkRenderer.h"
@@ -28,6 +27,7 @@
 
 #include <assert.h>
 
+#include "DrawDual.hpp"
 #include "DualTool.hpp"
 #include "MBTagConventions.hpp"
 
@@ -116,13 +116,15 @@ MBTag vtkMOABUtils::vtkPointAllocatedTag = 0;
   //! name for vtkPointAllocatedTag
 char *vtkMOABUtils::vtkPointAllocatedTagName = "__vtkPointAllocatedTag";
 
-MBRange vtkMOABUtils::pickedEntities;
-vtkCellPicker *vtkMOABUtils::cellPicker = NULL;
+DrawDual *vtkMOABUtils::drawDual = NULL;
+
 vtkCallbackCommand *vtkMOABUtils::eventCallbackCommand = NULL;
 
 MBTag vtkMOABUtils::globalIdTag = 0;
 MBTag vtkMOABUtils::categoryTag = 0;
 
+bool debug = false;
+    
 //vtkStandardNewMacro(vtkMOABUtils);
   
 MBErrorCode vtkMOABUtils::init(MBInterface *impl, vtkRenderer *this_ren)
@@ -434,9 +436,18 @@ MBErrorCode vtkMOABUtils::update_set_actors(const MBRange &update_sets,
       // if the actor already exists, replace its id list with this one and go on
       // to next set
     if (NULL != this_actor) {
+      
         // get ec from this actor
       vtkSource *this_source = this_actor->GetMapper()->GetInput()->GetSource();
       ec = vtkExtractCells::SafeDownCast(this_source);
+
+      if (debug) {
+        std::cout << "Set " << mbImpl->id_from_handle(*rit) << ", actor " << this_actor
+                  << ", extractcells = ";
+        if (NULL == ec) std::cout << "(null)";
+        else std::cout << ec;
+        std::cout << std::endl;
+      }
 
         // don't act on root entity set (that'll be the only one not connected
         // to an extract cells filter)
@@ -454,6 +465,15 @@ MBErrorCode vtkMOABUtils::update_set_actors(const MBRange &update_sets,
     ec->SetInput(ug);
     ec->AddCellList(ids);
 
+    if (debug) {
+      std::cout << "Set " << mbImpl->id_from_handle(*rit) << ", actor " << this_actor
+                << ", extractcells = ";
+      if (NULL == ec) std::cout << "(null)";
+      else std::cout << ec;
+      std::cout << std::endl;
+      std::cout << "Number of ids is " << ids->GetNumberOfIds() << std::endl;
+    }
+    
       // if tube filter is requested, do special stuff to extract edges and
       // wrap them in tubes, returning a mapper
     if (tubed) vtkMOABUtils::setup_tube_filter(*rit, ec, this_mapper);
@@ -561,12 +581,12 @@ MBErrorCode vtkMOABUtils::get_id_list(MBRange &ents, vtkIdList *&ids)
     if (vtkMOABUtils::mbImpl->type_from_handle(*rit) == MBENTITYSET) continue;
     tmp_result = vtkMOABUtils::mbImpl->tag_get_data(vtkCellTag, &(*rit), 1, &this_id);
     if (MB_SUCCESS != tmp_result) result = tmp_result;
-    else {
+    else if (this_id != -1) {
       ids->InsertNextId(this_id);
     }
   }
 
-  return MB_SUCCESS;
+  return result;
 }
 
 MBErrorCode vtkMOABUtils::empty_assy(vtkPropAssembly *this_assy) 
@@ -688,6 +708,7 @@ vtkActor *vtkMOABUtils::get_actor(MBEntityHandle this_set,
     else
       vtkMOABUtils::mbImpl->tag_set_data(vtkSetActorTag, &this_set, 
                                                   1, &this_actor);
+
   }
   
   return this_actor;
@@ -1097,6 +1118,7 @@ void vtkMOABUtils::update_display(vtkUnstructuredGrid *ug)
       // to be shaded in red
     vtkMOABUtils::actorProperties[mesh_actor] = NULL;
     vtkProperty *this_prop = vtkMOABUtils::get_property(mesh_actor, true);
+    vtkMOABUtils::actorProperties[mesh_actor] = this_prop;
     this_prop->SetRepresentationToSurface();
     this_prop->SetColor(0.0, 1.0, 0.0);
     this_prop->SetEdgeColor(0.0, 1.0, 0.0);
@@ -1161,12 +1183,6 @@ void vtkMOABUtils::update_display(vtkUnstructuredGrid *ug)
   //! get rid of all the vtk drawing stuff
 void vtkMOABUtils::reset_drawing_data() 
 {
-    // could it be this easy???
-  if (NULL != myUG) {
-    myUG->Delete();
-    myUG = NULL;
-  }
-
   if (NULL != myRen) {
     myRen->Delete();
     myRen = NULL;
@@ -1200,6 +1216,11 @@ void vtkMOABUtils::reset_drawing_data()
     topParentAssy->Delete();
     topParentAssy = NULL;
   }
+
+  if (NULL != lookupTable) {
+    lookupTable->Delete();
+    lookupTable = NULL;
+  }
   
   //! tag indicating whether a given set is in top contains assy
   MBErrorCode result = mbImpl->tag_delete(vtkTopContainsTag);
@@ -1222,6 +1243,16 @@ void vtkMOABUtils::reset_drawing_data()
   result = mbImpl->tag_delete(vtkPointAllocatedTag);
   if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
     std::cout << "Trouble deleting tag." << std::endl;
+
+  if (NULL != drawDual) {
+    delete drawDual;
+    drawDual = NULL;
+  }
+  
+  if (NULL != myUG) {
+    myUG->Delete();
+    myUG = NULL;
+  }
 }
 
 void vtkMOABUtils::assign_global_ids()

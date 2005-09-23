@@ -304,18 +304,26 @@ private:
     //! around the side of the structure
   MBErrorCode fsr_get_fourth_quad(std::vector<MBEntityHandle> *connects,
                                   std::vector<MBEntityHandle> *side_quads);
-  
+
+/*  
     //! get pairs of entities to be merged as part of foc operation
   MBErrorCode foc_get_merge_ents(MBEntityHandle *quads, MBEntityHandle *new_quads, 
-                                 MBEntityHandle edge, MBEntityHandle new_edge,
+                                 MBRange &edge, MBRange &new_edge,
                                  std::vector<MBEntityHandle> &merge_ents);
-  
+*/
+
     //! function for deleting dual prior to foc operation; special because in
     //! many cases need to delete a sheet in preparation for merging onto another
   MBErrorCode foc_delete_dual(MBEntityHandle edge,
                               MBEntityHandle ocl,
                               MBEntityHandle ocr,
                               MBRange &hexes);
+
+    //! split a pair of entities such that the new pair shares as many (d-1)-
+    //! and (d-2)-dimensional entities as the original pair did
+  MBErrorCode split_pair_nonmanifold(MBEntityHandle *ents,
+                                     const int ents_size,
+                                     std::vector<MBEntityHandle> &merge_ents);
   
     //! private copy of interface *
   MBInterface *mbImpl;

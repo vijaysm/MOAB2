@@ -23,6 +23,7 @@ class vtkProperty;
 class vtkPropAssembly;
 class vtkImplicitFunction;
 class vtkLookupTable;
+class DrawDual;
 
 class VTK_EXPORT vtkMOABUtils //: public vtkObject
 {
@@ -100,9 +101,8 @@ public:
     //! picked entities
   static MBRange pickedEntities;
 
-    //! central picker
-  static vtkCellPicker *cellPicker;
-
+  static DrawDual *drawDual;
+  
     //! vtk command structure for processing pick events; modeled after
     //! vtkInteractorStyle::EventCallbackCommand
   static vtkCallbackCommand *eventCallbackCommand;

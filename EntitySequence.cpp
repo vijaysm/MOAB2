@@ -221,7 +221,8 @@ ElementEntitySequence::ElementEntitySequence(EntitySequenceManager* seq_manager,
   else
   {
     seq_manager->notify_not_full(this);
-    std::vector<bool>(mNumAllocated, true).swap(mFreeEntities);
+    std::vector<bool> tmp_vec(mNumAllocated, true);
+    tmp_vec.swap(mFreeEntities);
     mNumEntities = 0;
     mFirstFreeIndex = 0;
     if (nodes_per_element)

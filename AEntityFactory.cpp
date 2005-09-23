@@ -1274,13 +1274,13 @@ MBErrorCode AEntityFactory::check_equiv_entities(MBEntityHandle entity_to_keep,
 
 MBErrorCode AEntityFactory::create_explicit_adjs(MBEntityHandle this_ent) 
 {
-    //     - get all adjacent entities of higher dimension
+    //     - get adjacent entities of next higher dimension
   MBRange all_adjs;
   MBErrorCode result;
-  for (int dim = thisMB->dimension_from_handle(this_ent)+1; dim <= 3; dim++) {
-    result = thisMB->get_adjacencies(&this_ent, 1, dim, true, all_adjs, MBInterface::UNION);
-    if (MB_SUCCESS != result) return result;
-  }
+  result = thisMB->get_adjacencies(&this_ent, 1, 
+                                   thisMB->dimension_from_handle(this_ent)+1, 
+                                   true, all_adjs, MBInterface::UNION);
+  if (MB_SUCCESS != result) return result;
   
     //     - create explicit adjacency to these entities
   for (MBRange::iterator rit = all_adjs.begin(); rit != all_adjs.end(); rit++) {

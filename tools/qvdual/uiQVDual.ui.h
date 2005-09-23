@@ -166,7 +166,7 @@ void uiQVDual::init()
 
   computeDual = false;
 
-  drawDual = NULL;
+  vtkMOABUtils::drawDual = NULL;
 }
 
 
@@ -203,8 +203,8 @@ void uiQVDual::constructDual()
 
   if (!sheet_sets.empty()) {
       // draw the first sheet
-    if (NULL == drawDual) drawDual = new DrawDual(pickline1, pickline2);
-    drawDual->draw_dual_surf(*sheet_sets.begin());
+    if (NULL == vtkMOABUtils::drawDual) vtkMOABUtils::drawDual = new DrawDual(pickline1, pickline2);
+    vtkMOABUtils::drawDual->draw_dual_surf(*sheet_sets.begin());
   }
 }
 
@@ -701,10 +701,10 @@ void uiQVDual::displayDrawSheetAction_activated()
       dual_surfs.insert(*rit);
   }
 
-  if (NULL == drawDual) drawDual = new DrawDual(pickline1, pickline2);
+  if (NULL == vtkMOABUtils::drawDual) vtkMOABUtils::drawDual = new DrawDual(pickline1, pickline2);
 
   // now draw them
-  drawDual->draw_dual_surfs(dual_surfs);
+  vtkMOABUtils::drawDual->draw_dual_surfs(dual_surfs);
 }
 
 
@@ -712,7 +712,7 @@ void uiQVDual::APbutton_clicked()
 {
 
     // make sure the last picked entity is an edge
-  MBEntityHandle edge = drawDual->lastPickedEnt;
+  MBEntityHandle edge = vtkMOABUtils::drawDual->lastPickedEnt;
   if (0 == edge) {
     std::cerr << "Didn't find a picked entity." << std::endl;
     return;
@@ -754,7 +754,7 @@ void uiQVDual::APbutton_clicked()
   std::cerr << "AP succeeded; new dual surface id = " << id << "." << std::endl;
 
     // now draw the sheets affected
-  bool success = drawDual->draw_dual_surfs(sheets, true);
+  bool success = vtkMOABUtils::drawDual->draw_dual_surfs(sheets, true);
   if (!success)
     std::cerr << "Problem drawing dual surfaces from atomic pillow." << std::endl;
 
@@ -765,7 +765,7 @@ void uiQVDual::APbutton_clicked()
 void uiQVDual::negAPbutton_clicked()
 {
     // make sure the last picked entity is a 2cell
-  MBEntityHandle tcell = drawDual->lastPickedEnt;
+  MBEntityHandle tcell = vtkMOABUtils::drawDual->lastPickedEnt;
   if (0 == tcell) {
     std::cerr << "Didn't find a picked entity." << std::endl;
     return;
@@ -805,7 +805,7 @@ void uiQVDual::negAPbutton_clicked()
     // otherwise, do the -AP
   
     // reset the drawing for the pillow sheet
-  result = drawDual->reset_drawing_data(sheet);
+  result = vtkMOABUtils::drawDual->reset_drawing_data(sheet);
   if (MB_SUCCESS != result) {
     std::cerr << "Couldn't reset drawing data, exiting." << std::endl;
     return;
@@ -819,7 +819,7 @@ void uiQVDual::negAPbutton_clicked()
   }
 
     // now draw the other sheets
-  bool success = drawDual->draw_dual_surfs(other_sheets, true);
+  bool success = vtkMOABUtils::drawDual->draw_dual_surfs(other_sheets, true);
   if (!success)
     std::cerr << "Problem drawing other dual surfaces from reverse atomic pillow." 
               << std::endl;
@@ -831,8 +831,8 @@ void uiQVDual::negAPbutton_clicked()
 void uiQVDual::FOCbutton_clicked()
 {
     // make sure the last picked entities are edges
-  MBEntityHandle edge1 = drawDual->lastPickedEnt,
-    edge2 = drawDual->secondLastPickedEnt,;
+  MBEntityHandle edge1 = vtkMOABUtils::drawDual->lastPickedEnt,
+    edge2 = vtkMOABUtils::drawDual->secondLastPickedEnt,;
   if (0 == edge1 || 0 == edge2) {
     std::cerr << "Didn't find a picked entity." << std::endl;
     return;
@@ -859,7 +859,7 @@ void uiQVDual::FOCbutton_clicked()
 
     // reset any drawn sheets (will get redrawn later)
   MBRange drawn_sheets;
-  result = drawDual->reset_drawn_sheets(&drawn_sheets);
+  result = vtkMOABUtils::drawDual->reset_drawn_sheets(&drawn_sheets);
   
     // otherwise, do the FOC
   result = dt.face_open_collapse(edge1, edge2);
@@ -884,7 +884,7 @@ void uiQVDual::FOCbutton_clicked()
       dum_sheets.push_back(*rit);
     }
   }
-  bool success = drawDual->draw_dual_surfs(dum_sheets, true);
+  bool success = vtkMOABUtils::drawDual->draw_dual_surfs(dum_sheets, true);
   if (!success)
     std::cerr << "Problem drawing previously-drawn dual surfaces." << std::endl;
 
@@ -895,7 +895,7 @@ void uiQVDual::FOCbutton_clicked()
 void uiQVDual::FSbutton_clicked()
 {
     // make sure the last picked entity is an edge
-  MBEntityHandle edge = drawDual->lastPickedEnt;
+  MBEntityHandle edge = vtkMOABUtils::drawDual->lastPickedEnt;
   if (0 == edge) {
     std::cerr << "Didn't find a picked entity." << std::endl;
     return;
@@ -914,7 +914,7 @@ void uiQVDual::FSbutton_clicked()
 
     // reset any drawn sheets (will get redrawn later)
   MBRange drawn_sheets;
-  MBErrorCode result = drawDual->reset_drawn_sheets(&drawn_sheets);
+  MBErrorCode result = vtkMOABUtils::drawDual->reset_drawn_sheets(&drawn_sheets);
   
     // otherwise, do the FS
   result = dt.face_shrink(edge);
@@ -944,7 +944,7 @@ void uiQVDual::FSbutton_clicked()
     
     std::copy(sheets.begin(), sheets.end(), std::back_inserter(dum_sheets));
     
-    bool success = drawDual->draw_dual_surfs(dum_sheets, true);
+    bool success = vtkMOABUtils::drawDual->draw_dual_surfs(dum_sheets, true);
     if (!success)
       std::cerr << "Problem drawing dual surfaces for face shrink." << std::endl;
     
@@ -960,7 +960,7 @@ void uiQVDual::FSbutton_clicked()
 void uiQVDual::negFCbutton_clicked()
 {
     // make sure the last picked entity is an edge
-  MBEntityHandle edge = drawDual->lastPickedEnt;
+  MBEntityHandle edge = vtkMOABUtils::drawDual->lastPickedEnt;
   if (0 == edge) {
     std::cerr << "Didn't find a picked entity." << std::endl;
     return;
@@ -979,13 +979,13 @@ void uiQVDual::negFCbutton_clicked()
 
     // reset any drawn sheets (will get redrawn later)
   MBRange drawn_sheets;
-  MBErrorCode result = drawDual->reset_drawn_sheets(&drawn_sheets);
+  MBErrorCode result = vtkMOABUtils::drawDual->reset_drawn_sheets(&drawn_sheets);
   
     // otherwise, do the rev FS
   result = dt.rev_face_shrink(edge);
   if (MB_SUCCESS != result) {
     std::cerr << "Reverse FS failed." << std::endl;
-    drawDual->draw_dual_surfs(drawn_sheets);
+    vtkMOABUtils::drawDual->draw_dual_surfs(drawn_sheets);
     return;
   }
 
@@ -1010,8 +1010,8 @@ void uiQVDual::negFCbutton_clicked()
     
     std::copy(sheets.begin(), sheets.end(), std::back_inserter(dum_sheets));
     
-    if (NULL == drawDual) drawDual = new DrawDual(pickline1, pickline2);
-    bool success = drawDual->draw_dual_surfs(dum_sheets, true);
+    if (NULL == vtkMOABUtils::drawDual) vtkMOABUtils::drawDual = new DrawDual(pickline1, pickline2);
+    bool success = vtkMOABUtils::drawDual->draw_dual_surfs(dum_sheets, true);
     if (!success)
       std::cerr << "Problem drawing dual surfaces for reverse face shrink." << std::endl;
     
@@ -1041,13 +1041,10 @@ void uiQVDual::resetDisplay()
 {
   bool save_compute = computeDual;
 
-  if (NULL != drawDual) {
+  if (NULL != vtkMOABUtils::drawDual) {
     MBRange sheets;
-    drawDual->reset_drawn_sheets(&sheets);
-    delete drawDual;
-    drawDual = NULL;
+    vtkMOABUtils::drawDual->reset_drawn_sheets(&sheets);
 
-    if (!sheets.empty()) computeDual = true;
   }
 
   vtkMOABUtils::reset_drawing_data();
@@ -1057,6 +1054,7 @@ void uiQVDual::resetDisplay()
     vtkWidget = NULL;
   }
 
+  computeDual = save_compute;
 }
 
 

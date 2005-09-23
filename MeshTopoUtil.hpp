@@ -37,9 +37,26 @@ public:
   MBErrorCode construct_aentities(const MBRange &vertices);
 
     //! given an entity, get its average position (avg vertex locations)
+  MBErrorCode get_average_position(MBRange &entities,
+                                   double *avg_position);
+
+    //! given an entity, get its average position (avg vertex locations)
   MBErrorCode get_average_position(const MBEntityHandle entity,
                                    double *avg_position);
 
+    //! given a set of entities, get their average position (avg vertex locations)
+  MBErrorCode get_average_position(const MBEntityHandle *entities,
+                                   const int num_entities,
+                                   double *avg_position);
+
+    //! get (target_dim)-dimensional manifold entities connected to star_entity; that is,
+    //! the entities with <= 1 connected (target_dim+2)-dimensional adjacent entities;
+    //! for target_dim=3, just return all of them
+    //! just insert into the list, w/o clearing manifold list first
+  MBErrorCode get_manifold(const MBEntityHandle star_entity,
+                           const int target_dim,
+                           MBRange &manifold);
+  
   //! given an entity, find the entities of next higher dimension around
   //! that entity, ordered by connection through next higher dimension entities; 
   //! if any of the star entities is in only entity of next higher dimension, 
@@ -50,6 +67,15 @@ public:
                             const MBEntityHandle starting_star_entity = 0,
                             std::vector<MBEntityHandle> *star_entities_dp1 = NULL,
                             MBRange *star_entities_candidates_dp1 = NULL);
+
+    //! Get a series of (d+1)-dimensional stars around a d-dimensional entity, such that
+    //! each star is on a (d+2)-manifold containing the d-dimensional entity; each star
+    //! is either open or closed, and also defines a (d+2)-star whose entities are bounded by
+    //! (d+1)-entities on the star and on the (d+2)-manifold
+  MBErrorCode star_entities_nonmanifold(const MBEntityHandle star_entity,
+                                        std::vector<std::vector<MBEntityHandle> > &stars,
+                                        std::vector<bool> *bdy_flags = NULL,
+                                        std::vector<std::vector<MBEntityHandle> > *dp2_stars = NULL);
 
     //! given a star_center, a last_entity (whose dimension should be 1 greater than center)
     //! and last_dp1 (dimension 2 higher than center), returns the next star entity across
