@@ -1390,7 +1390,8 @@ MBEntityHandle DualTool::get_extra_dual_entity(const MBEntityHandle this_ent)
   else return dual_ent;
 }
 
-MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &new_hp) 
+MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &quad1,
+                                    MBEntityHandle &quad2) 
 {
   if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
 
@@ -1420,13 +1421,13 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &new_h
   result = delete_dual_entities(star_2cells);RR;
 
     // grab the quad before deleting the odedge
-  MBEntityHandle quad = get_dual_entity(odedge);
-  assert(0 != quad);
+  quad1 = get_dual_entity(odedge);
+  assert(0 != quad1);
   result = delete_dual_entities(&odedge, 1); RR;
 
     // now change the quad to an ap
   std::vector<MBEntityHandle> verts;
-  result = mbImpl->get_connectivity(&quad, 1, verts); RR;
+  result = mbImpl->get_connectivity(&quad1, 1, verts); RR;
   
     // get average position of vertices
   double coords[12], avg[3] = {0.0, 0.0, 0.0};
@@ -1452,32 +1453,31 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &new_h
 
     // get the hexes connected to the quad
   MBRange hexes;
-  result = mbImpl->get_adjacencies(&quad, 1, 3, false, hexes); RR;
+  result = mbImpl->get_adjacencies(&quad1, 1, 3, false, hexes); RR;
   
     // remove any explicit adjacency from the first hex, since that'll get connected
     // to the new outer quad; add adjacency between quad and other hex
-  result = mbImpl->remove_adjacencies(quad, &(*hexes.begin()), 1); RR;
+  result = mbImpl->remove_adjacencies(quad1, &(*hexes.begin()), 1); RR;
   if (hexes.size() == 2) {
-    result = mbImpl->add_adjacencies(quad, &(*hexes.rbegin()), 1, false);
+    result = mbImpl->add_adjacencies(quad1, &(*hexes.rbegin()), 1, false);
     RR;
   }
   
     // create the new, outer quad, and make it explicitly adjacent to 1st hex
-  MBEntityHandle new_quad;
-  result = mbImpl->create_element(MBQUAD, &verts[0], 4, new_quad); RR;
-  result = mbImpl->add_adjacencies(new_quad, &(*hexes.begin()), 1, false); RR;
+  result = mbImpl->create_element(MBQUAD, &verts[0], 4, quad2); RR;
+  result = mbImpl->add_adjacencies(quad2, &(*hexes.begin()), 1, false); RR;
   
     // now make two inner hexes, connect each to one of the quads; note connectivity
     // array is flipped for the two hexes
   MBEntityHandle new_hexes[2];
   result = mbImpl->create_element(MBHEX, &verts[0], 8, new_hexes[0]); RR;
-  result = mbImpl->add_adjacencies(quad, &new_hexes[0], 1, false); RR;
+  result = mbImpl->add_adjacencies(quad1, &new_hexes[0], 1, false); RR;
   
     // reverse the connectivities for the 2nd hex
   std::reverse(verts.begin(), verts.begin()+4);
   std::reverse(verts.begin()+4, verts.end());
   result = mbImpl->create_element(MBHEX, &verts[0], 8, new_hexes[1]); RR;
-  result = mbImpl->add_adjacencies(new_quad, &new_hexes[1], 1, false); RR;
+  result = mbImpl->add_adjacencies(quad2, &new_hexes[1], 1, false); RR;
 
   if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
 
@@ -1490,7 +1490,6 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &new_h
   verts[1] = verts[4];
   result = mbImpl->get_adjacencies(&verts[0], 2, 1, false, new_edge);
   if (MB_SUCCESS != result || new_edge.size() != 1) return result;
-  new_hp = get_dual_hyperplane(get_dual_entity(*new_edge.begin()));
   
   return MB_SUCCESS;
 }

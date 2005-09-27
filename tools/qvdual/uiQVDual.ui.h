@@ -42,7 +42,12 @@
 
 void uiQVDual::fileNew()
 {
+  resetDisplay();
   
+  delete vtkMOABUtils::mbImpl;
+  vtkMOABUtils::mbImpl = NULL;
+  
+  redrawDisplay();
 }
 
 
@@ -166,7 +171,8 @@ void uiQVDual::init()
 
   computeDual = false;
 
-  vtkMOABUtils::drawDual = NULL;
+  if (NULL == vtkMOABUtils::drawDual) 
+    vtkMOABUtils::drawDual = new DrawDual(pickline1, pickline2);
 }
 
 
@@ -725,40 +731,33 @@ void uiQVDual::APbutton_clicked()
 
   DualTool dt(vtkMOABUtils::mbImpl);
 
-    // get the dual surfaces for that edge
-  MBEntityHandle chord = dt.get_dual_hyperplane(edge);
-  std::vector<MBEntityHandle> sheets;
-  MBErrorCode result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
-  if (MB_SUCCESS != result) {
-    std::cerr << "Couldn't get parent dual surfaces of dual edge." << std::endl;
-    return;
-  }
-  
     // otherwise, do the AP
-  MBEntityHandle new_hp;
-  result = dt.atomic_pillow(edge, new_hp);
+  MBEntityHandle quad1, quad2;
+  MBErrorCode result = dt.atomic_pillow(edge, quad1, quad2);
   if (MB_SUCCESS != result) {
     std::cerr << "AP failed." << std::endl;
     return;
   }
 
-  sheets.push_back(new_hp);
+    // get the dual surfaces for those quads
+  MBEntityHandle chord = dt.get_dual_hyperplane(dt.get_dual_entity(quad1));
+  if (0 == chord) return;
   
-  int id;
-  result = vtkMOABUtils::mbImpl->tag_get_data(dt.globalId_tag(), &new_hp, 1, &id);
+  std::vector<MBEntityHandle> sheets;
+  result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
   if (MB_SUCCESS != result) {
-    std::cerr << "AP succeeded, but couldn't get id of new dual surface." << std::endl;
+    std::cerr << "Couldn't get parent dual surfaces of dual edge." << std::endl;
     return;
   }
   
-  std::cerr << "AP succeeded; new dual surface id = " << id << "." << std::endl;
+  std::cerr << "AP succeeded" << std::endl;
+
+  redrawDisplay();
 
     // now draw the sheets affected
   bool success = vtkMOABUtils::drawDual->draw_dual_surfs(sheets, true);
   if (!success)
     std::cerr << "Problem drawing dual surfaces from atomic pillow." << std::endl;
-
-  redrawDisplay();
 }
 
 
@@ -818,13 +817,13 @@ void uiQVDual::negAPbutton_clicked()
     return;
   }
 
+  redrawDisplay();
+
     // now draw the other sheets
   bool success = vtkMOABUtils::drawDual->draw_dual_surfs(other_sheets, true);
   if (!success)
     std::cerr << "Problem drawing other dual surfaces from reverse atomic pillow." 
               << std::endl;
-
-  redrawDisplay();
 }
 
 
@@ -870,6 +869,8 @@ void uiQVDual::FOCbutton_clicked()
 
   std::cerr << "FOC succeeded." << std::endl;
 
+  redrawDisplay();
+
     // get the dual surfaces for the edges
   edge1 = dt.get_dual_entity(quad);
   MBEntityHandle chord = dt.get_dual_hyperplane(edge1);
@@ -887,8 +888,6 @@ void uiQVDual::FOCbutton_clicked()
   bool success = vtkMOABUtils::drawDual->draw_dual_surfs(dum_sheets, true);
   if (!success)
     std::cerr << "Problem drawing previously-drawn dual surfaces." << std::endl;
-
-  redrawDisplay();
 }
 
 
@@ -925,6 +924,8 @@ void uiQVDual::FSbutton_clicked()
 
   std::cerr << "FS succeeded." << std::endl;
 
+  redrawDisplay();
+
     // get the dual surfaces for that edge
   edge = dt.get_dual_entity(quad);
   MBEntityHandle chord = dt.get_dual_hyperplane(edge);
@@ -952,8 +953,6 @@ void uiQVDual::FSbutton_clicked()
   else {
     std::cerr << "Couldn't get parent dual surfaces of dual edge." << std::endl;
   }
-
-  redrawDisplay();
 }
 
 
@@ -989,6 +988,8 @@ void uiQVDual::negFCbutton_clicked()
     return;
   }
 
+  redrawDisplay();
+
   std::cerr << "Reverse FS succeeded." << std::endl;
 
     // get the dual surfaces for that edge
@@ -1019,8 +1020,6 @@ void uiQVDual::negFCbutton_clicked()
   else {
     std::cerr << "Couldn't get parent dual surfaces of dual edge." << std::endl;
   }
-
-  redrawDisplay();
 }
 
 

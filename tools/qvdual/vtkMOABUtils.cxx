@@ -1222,6 +1222,18 @@ void vtkMOABUtils::reset_drawing_data()
     lookupTable = NULL;
   }
   
+  if (NULL != drawDual) {
+    delete drawDual;
+    drawDual = NULL;
+  }
+  
+  if (NULL != myUG) {
+    myUG->Delete();
+    myUG = NULL;
+  }
+
+  if (NULL == mbImpl) return;
+  
   //! tag indicating whether a given set is in top contains assy
   MBErrorCode result = mbImpl->tag_delete(vtkTopContainsTag);
   if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
@@ -1244,15 +1256,6 @@ void vtkMOABUtils::reset_drawing_data()
   if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
     std::cout << "Trouble deleting tag." << std::endl;
 
-  if (NULL != drawDual) {
-    delete drawDual;
-    drawDual = NULL;
-  }
-  
-  if (NULL != myUG) {
-    myUG->Delete();
-    myUG = NULL;
-  }
 }
 
 void vtkMOABUtils::assign_global_ids()

@@ -168,7 +168,8 @@ public:
                                         const int dimension);
   
     //! effect atomic pillow operation
-  MBErrorCode atomic_pillow(MBEntityHandle odedge, MBEntityHandle &new_hp);
+  MBErrorCode atomic_pillow(MBEntityHandle odedge, MBEntityHandle &quad1,
+                            MBEntityHandle &quad2);
 
     //! effect reverse atomic pillow operation
   MBErrorCode rev_atomic_pillow(MBEntityHandle pillow, MBRange &chords);

@@ -501,7 +501,8 @@ MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf,
   if (my_debug) agwrite(this_gw.gvizGraph, stdout);
 
   int *old_pos = this_gw.qvtkWidget->GetRenderWindow()->GetPosition();
-  int new_pos[2] = {(int) ((double)old_pos[0]*(1.0+.1*offset_num)), old_pos[1]};
+  int *win_siz = this_gw.qvtkWidget->GetRenderWindow()->GetSize();
+  int new_pos[2] = {(int) ((double)old_pos[0] + win_siz[0]*(.1*offset_num)), old_pos[1]};
   this_gw.qvtkWidget->GetRenderWindow()->SetPosition(new_pos);
   
   return success;
