@@ -274,31 +274,31 @@ clean_pcom :
 # .cpp.o rule for building regular object files
 .cpp.o:
 	${ECHO_COMMAND} 
-	${PREFIX} ${CXX} -DIS_BUILDING_MB ${MACH_CXXFLAGS} \
+	${PREFIX} ${CXX} ${DEBUG_FLAG} -DIS_BUILDING_MB ${MACH_CXXFLAGS} \
 	${NETCDF_INCLUDE} $(MHDF_FLAGS) -c -o $@ $<
 
 # .cpp.static.o rule for building regular object files
 .cpp.static.o:
 	${ECHO_COMMAND} 
-	${PREFIX} ${CXX} -DIS_BUILDING_MB -DMB_STATIC \
+	${PREFIX} ${CXX} ${DEBUG_FLAG} -DIS_BUILDING_MB -DMB_STATIC \
 	${MACH_CXXFLAGS} ${NETCDF_INCLUDE} $(MHDF_FLAGS) -c -o $@ $<
 
 # .cpp.o_test for building object files which have an individual component test in them
 # meaning they have their own main() defined
 .cpp.o_test:
 	${ECHO_COMMAND}
-	${PREFIX} ${CXX} -DIS_BUILDING_MB -DTEST \
+	${PREFIX} ${CXX} ${DEBUG_FLAG} -DIS_BUILDING_MB -DTEST \
 	${MACH_CXXFLAGS} ${NETCDF_INCLUDE} $(MHDF_FLAGS) -c -o $@ $<
 
 # .cpp.xpcom.o rule for building object files to work with xpcom
 .cpp.xpcom.o:
 	${ECHO_COMMAND} 
-	${PREFIX} ${CXX} ${MACH_CXXFLAGS} ${XPCOM_MACH_CXXFLAGS} \
+	${PREFIX} ${CXX} ${DEBUG_FLAG} ${MACH_CXXFLAGS} ${XPCOM_MACH_CXXFLAGS} \
 	${NETCDF_INCLUDE} $(MHDF_FLAGS) -c -o $@ $<
 
 WriteHDF5Parallel.o: WriteHDF5Parallel.cpp
 	$(ECHO_COMMAND)
-	$(PREFIX) $(MPICXX) $(DEBUG_FLAG) $(MACH_CXXFLAGS) \
+	$(PREFIX) $(MPICXX) ${DEBUG_FLAG} $(DEBUG_FLAG) $(MACH_CXXFLAGS) \
 	$(MHDF_FLAGS) -DIS_BUILDING_MB -c -o $@ $<
 
 
