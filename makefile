@@ -41,6 +41,7 @@ MB_LIB_SRCS = \
 	EntitySequence.cpp \
 	EntitySequenceManager.cpp \
 	ExoIIUtil.cpp \
+	FileTokenizer.cpp \
 	GeomTopoTool.cpp \
 	HigherOrderFactory.cpp \
 	HomXform.cpp \

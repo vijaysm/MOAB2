@@ -1,17 +1,26 @@
+/**
+ * MOAB, a Mesh-Oriented datABase, is a software component for creating,
+ * storing and accessing finite element mesh data.
+ * 
+ * Copyright 2004 Sandia Corporation.  Under the terms of Contract
+ * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
+ * retains certain rights in this software.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ */
+
 #ifndef FILE_TOKENIZER_HPP
 #define FILE_TOKENIZER_HPP
 
-#ifdef MSQ_USE_OLD_C_HEADERS
-#  include <stdio.h>
-#else
-#  include <cstdio>
-#endif
-//#include <sys/types.h>
+#include "MBInterface.hpp"
+#include <cstdio>
+#include <sys/types.h>
 
-namespace Mesquite
-{
-
-  class MsqError;
+class MBReadUtilIface;
 
 /** 
  * \class  FileTokenizer
@@ -37,9 +46,11 @@ class FileTokenizer
       /** \brief constructor 
        * 
        * \param file_ptr The file to read from.
+       * \param read_util_ptr Pointer to ReadUtilIface to use for
+       *                      reporting errors.
        */
-    FileTokenizer(FILE* file_ptr,
-                   MBReadUtilIface *iface);
+    FileTokenizer( std::FILE* file_ptr,
+                   MBReadUtilIface* read_util_ptr );
     
       /** \brief destructor : closes file.
        *
@@ -61,7 +72,7 @@ class FileTokenizer
        * \return A pointer to the buffer space containing the string,
        *         or NULL if an error occured.
        */
-    const char* get_string( MsqError& err );
+    const char* get_string( );
     
       /** \brief check for newline
        *
@@ -73,7 +84,7 @@ class FileTokenizer
        * \return True if a newline was found before any non-space
        *         character.  False otherwise.
        */
-    bool get_newline( MsqError& err );
+    bool get_newline( );
     
     
       /** \brief Parse a sequence of double values.
@@ -84,7 +95,7 @@ class FileTokenizer
        * \param array   The memory at which to store the values.
        * \return true if successful, false otherwise.
        */
-    bool get_doubles( size_t count, double* array, MsqError& err );
+    bool get_doubles( size_t count, double* array );
      
     
       /** \brief Parse a sequence of float values.
@@ -95,7 +106,7 @@ class FileTokenizer
        * \param array   The memory at which to store the values.
        * \return true if successful, false otherwise.
        */
-    bool get_floats( size_t count, float* array, MsqError& err );
+    bool get_floats( size_t count, float* array );
    
       /** \brief Parse a sequence of integer values.
        *
@@ -105,7 +116,7 @@ class FileTokenizer
        * \param array   The memory at which to store the values.
        * \return true if successful, false otherwise.
        */
-    bool get_integers( size_t count, int* array, MsqError& err );
+    bool get_integers( size_t count, int* array );
    
       /** \brief Parse a sequence of integer values.
        *
@@ -115,7 +126,7 @@ class FileTokenizer
        * \param array   The memory at which to store the values.
        * \return true if successful, false otherwise.
        */
-    bool get_long_ints( size_t count, long* array, MsqError& err );
+    bool get_long_ints( size_t count, long* array );
    
       /** \brief Parse a sequence of integer values.
        *
@@ -125,7 +136,7 @@ class FileTokenizer
        * \param array   The memory at which to store the values.
        * \return true if successful, false otherwise.
        */
-    bool get_short_ints( size_t count, short* array, MsqError& err );
+    bool get_short_ints( size_t count, short* array );
    
       /** \brief Parse a sequence of integer values.
        *
@@ -135,7 +146,7 @@ class FileTokenizer
        * \param array   The memory at which to store the values.
        * \return true if successful, false otherwise.
        */
-    bool get_bytes( size_t count, unsigned char* array, MsqError& err );
+    bool get_bytes( size_t count, unsigned char* array );
     
       /** \brief Parse a sequence of bit or boolean values.
        *
@@ -145,7 +156,7 @@ class FileTokenizer
        * \param array   The memory at which to store the values.
        * \return true if successful, false otherwise.
        */
-    bool get_booleans( size_t count, bool* array, MsqError& err );
+    bool get_booleans( size_t count, bool* array );
   
       /** 
        * Check for end-of-file condition.
@@ -166,7 +177,7 @@ class FileTokenizer
        * Match current token to passed string.  If token
        * doesn't match, set error message.
        */
-    bool match_token( const char* string, MsqError& err );
+    bool match_token( const char* string, bool print_error = true );
     
       /**
        * Match the current token to one of an array of strings.  
@@ -177,29 +188,31 @@ class FileTokenizer
        * \return One greater than the index of the matched
        *         string, or zero if no match.
        */
-    int match_token( const char* const* string_list, MsqError& err );
+    int match_token( const char* const* string_list, bool print_error = true );
   
   private:
   
       /** Internal implementation of \ref get_doubles */
-    bool get_double_internal( double& result, MsqError& err );
+    bool get_double_internal( double& result );
       /** Internal implementation of \ref get_long_ints */
-    bool get_long_int_internal( long& result, MsqError& err );
+    bool get_long_int_internal( long& result );
       /** Internal implementation of \ref get_Booleans */
-    bool get_boolean_internal( bool& result, MsqError& err );
+    bool get_boolean_internal( bool& result );
   
       /** Internal implementation of \ref get_floats */
-    bool get_float_internal( float& result, MsqError& err );
+    bool get_float_internal( float& result );
       /** Internal implementation of \ref get_integers */
-    bool get_integer_internal( int& result, MsqError& err );
+    bool get_integer_internal( int& result );
       /** Internal implementation of \ref get_short_ints */
-    bool get_short_int_internal( short& result, MsqError& err );
+    bool get_short_int_internal( short& result );
       /** Internal implementation of \ref get_bytes */
-    bool get_byte_internal( unsigned char& result, MsqError& err );
+    bool get_byte_internal( unsigned char& result );
   
       /** Pointer to standard C FILE struct */
-    FILE* filePtr;
-    MBReadUtilIface *readIface;
+    std::FILE* filePtr;
+    
+      /** Pointer to MOAB ReadUtil Interface */
+    MBReadUtilIface* readUtilPtr;
     
       /** Input buffer */
     char buffer[512];
@@ -219,7 +232,5 @@ class FileTokenizer
        */
     char lastChar;
 };
-
-} // namespace Mesquite
 
 #endif

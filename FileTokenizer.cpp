@@ -1,12 +1,28 @@
+/**
+ * MOAB, a Mesh-Oriented datABase, is a software component for creating,
+ * storing and accessing finite element mesh data.
+ * 
+ * Copyright 2004 Sandia Corporation.  Under the terms of Contract
+ * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
+ * retains certain rights in this software.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ */
 
 #include "FileTokenizer.hpp"
+#include "MBReadUtilIface.hpp"
+#include <cstring>
+#include <cctype>
 #include <string>
 using namespace std;
 
-FileTokenizer::FileTokenizer( FILE* file_ptr,
-                              MBReadUtilIface *iface )
+FileTokenizer::FileTokenizer( FILE* file_ptr, MBReadUtilIface* rif_ptr )
   : filePtr( file_ptr ),
-    readIface(iface),
+    readUtilPtr( rif_ptr ),
     nextToken( buffer ),
     bufferEnd( buffer ),
     lineNumber( 1 ),
@@ -19,7 +35,7 @@ FileTokenizer::~FileTokenizer()
 bool FileTokenizer::eof() const
   { return nextToken == bufferEnd && feof(filePtr); }
 
-const char* FileTokenizer::get_string(  )
+const char* FileTokenizer::get_string( )
 {
     // If the whitepsace character marking the end of the
     // last token was a newline, increment the line count.
@@ -37,9 +53,9 @@ const char* FileTokenizer::get_string(  )
       if (!count)
       {
         if (feof(filePtr))
-          readIface->report_error( "File truncated.\n");
+          readUtilPtr->report_error( "File truncated at line %d\n", line_number() );
         else
-          readIface->report_error("IO Error.");
+          readUtilPtr->report_error( "I/O Error\n" );
         return NULL;
       }
       
@@ -81,7 +97,7 @@ const char* FileTokenizer::get_string(  )
     size_t count = fread( nextToken, 1, sizeof(buffer) - remaining - 1, filePtr );
     if (!count && !feof(filePtr))
     {
-      readIface->report_error( "I/O error.\n");
+      readUtilPtr->report_error( "I/O Error\n" );
       return NULL;
     }
     bufferEnd = nextToken + count;
@@ -107,11 +123,11 @@ const char* FileTokenizer::get_string(  )
   return result;
 }
 
-bool FileTokenizer::get_double_internal( double& result,  )
+bool FileTokenizer::get_double_internal( double& result )
 {
     // Get a token
-  const char *token_end, *token = get_string( err );
-  if (MSQ_CHKERR(err))
+  const char *token_end, *token = get_string( );
+  if (!token)
     return false;
   
     // Check for hex value -- on some platforms (e.g. Linux), strtod
@@ -119,10 +135,9 @@ bool FileTokenizer::get_double_internal( double& result,  )
     // failure on hex numbers for consistancy.
   if (token[0] && token[1] && token[0] == '0' && toupper(token[1]) == 'X')
   {
-    char err[80];
-    sprintf(err, "Syntax error at line %d: expected number, got \"%s\"",
-            line_number(), token );
-    readIface->report_error(err);
+    readUtilPtr->report_error(
+      "Syntax error at line %d: expected number, got \"%s\"",
+      line_number(), token );
     return false;
   }
   
@@ -135,38 +150,30 @@ bool FileTokenizer::get_double_internal( double& result,  )
     // then parse failed.
   if (*token_end)
   {
-    char err[80];
-    sprintf(err, "Syntax error at line %d: expected number, got \"%s\"",
-            line_number(), token );
-    readIface->report_error(err);
+    readUtilPtr->report_error(
+      "Syntax error at line %d: expected number, got \"%s\"",
+      line_number(), token );
     return false;
   }
   
   return true;
 }
 
-bool FileTokenizer::get_float_internal( float& result,  )
+bool FileTokenizer::get_float_internal( float& result )
 {
   double d;
-  get_double_internal( d, err );
-  if (MSQ_CHKERR(err))
+  if (!get_double_internal( d ))
     return false;
   
   result = (float)d;
-  if (d != (double)result)
-  {
-    readIface->report_error("Numeric overflow.");
-    return false;
-  }
-  
   return true;
 }
 
-bool FileTokenizer::get_long_int_internal( long& result,  )
+bool FileTokenizer::get_long_int_internal( long& result )
 {
     // Get a token
-  const char *token_end, *token = get_string( err );
-  if (MSQ_CHKERR(err))
+  const char *token_end, *token = get_string( );
+  if (!token)
     return false;
   
     // Parse token as long
@@ -177,81 +184,75 @@ bool FileTokenizer::get_long_int_internal( long& result,  )
     // then parse failed.
   if (*token_end)
   {
-    char err[80];
-    sprintf(err, "Syntax error at line %d: expected integer, got \"%s\"",
-            line_number(), token );
-    readIface->report_error(err);
+    readUtilPtr->report_error(
+      "Syntax error at line %d: expected integer, got \"%s\"",
+      line_number(), token );
     return false;
   }
 
   return true;
 }
 
-bool FileTokenizer::get_byte_internal( unsigned char& result,  )
+bool FileTokenizer::get_byte_internal( unsigned char& result )
 {
   long i;
-  get_long_int_internal( i, err );
-  if (MSQ_CHKERR(err))
+  if (!get_long_int_internal( i ))
     return false;
   
   result = (unsigned char)i;
   if (i != (long)result)
   {
-    readIface->report_error( MsqError::PARSE_ERROR, "Numeric overflow.");
+    readUtilPtr->report_error( "Numberic overflow at line %d.", line_number() );
     return false;
   }
   
   return true;
 }
 
-bool FileTokenizer::get_short_int_internal( short& result,  )
+bool FileTokenizer::get_short_int_internal( short& result )
 {
   long i;
-  get_long_int_internal( i, err );
-  if (MSQ_CHKERR(err))
+  if (!get_long_int_internal( i ))
     return false;
   
   result = (short)i;
   if (i != (long)result)
   {
-    readIface->report_error( "Numeric overflow.");
+    readUtilPtr->report_error( "Numberic overflow at line %d.", line_number() );
     return false;
   }
   
   return true;
 }
 
-bool FileTokenizer::get_integer_internal( int& result,  )
+bool FileTokenizer::get_integer_internal( int& result )
 {
   long i;
-  get_long_int_internal( i, err );
-  if (MSQ_CHKERR(err))
+  if (!get_long_int_internal( i ))
     return false;
   
   result = (int)i;
   if (i != (long)result)
   {
-    readIface->report_error("Numeric overflow.");
+    readUtilPtr->report_error( "Numberic overflow at line %d.", line_number() );
     return false;
   }
   
   return true;
 }
 
-bool FileTokenizer::get_boolean_internal( bool& result,  )
+bool FileTokenizer::get_boolean_internal( bool& result )
 {
     // Get a token
-  const char *token = get_string( err );
-  if (MSQ_CHKERR(err))
+  const char *token = get_string( );
+  if (!token)
     return false;
   
   if (token[1] || (token[0] != '0' && token[0] != '1'))
   {
-    char err[80];
-    sprintf(err, "Syntax error at line %d: expected 0 or 1, got \"%s\"",
-            line_number(), token );
-    
-    readIface->report_error(err);
+    readUtilPtr->report_error( 
+      "Syntax error at line %d: expected 0 or 1, got \"%s\"",
+      line_number(), token );
     return false;
   }
 
@@ -259,47 +260,44 @@ bool FileTokenizer::get_boolean_internal( bool& result,  )
   return true;
 }
 
-bool FileTokenizer::get_floats( size_t count, float* array,  )
+bool FileTokenizer::get_floats( size_t count, float* array )
 {
   for (size_t i = 0; i < count; ++i)
   {
-    if (!get_float_internal( *array, err ))
+    if (!get_float_internal( *array ))
       return false;
     ++array;
   }
   return true;
 }
 
-bool FileTokenizer::get_doubles( size_t count, double* array,  )
+bool FileTokenizer::get_doubles( size_t count, double* array )
 {
   for (size_t i = 0; i < count; ++i)
   {
-    get_double_internal( *array, err );
-    if (MSQ_CHKERR(err))
+    if (!get_double_internal( *array ))
       return false;
     ++array;
   }
   return true;
 }
 
-bool FileTokenizer::get_bytes( size_t count, unsigned char* array,  )
+bool FileTokenizer::get_bytes( size_t count, unsigned char* array )
 {
   for (size_t i = 0; i < count; ++i)
   {
-    get_byte_internal( *array, err );
-    if (MSQ_CHKERR(err))
+    if (!get_byte_internal( *array ))
       return false;
     ++array;
   }
   return true;
 }
 
-bool FileTokenizer::get_short_ints( size_t count, short* array,  )
+bool FileTokenizer::get_short_ints( size_t count, short* array )
 {
   for (size_t i = 0; i < count; ++i)
   {
-    get_short_int_internal( *array, err );
-    if (MSQ_CHKERR(err))
+    if (!get_short_int_internal( *array ))
       return false;
     ++array;
   }
@@ -307,36 +305,33 @@ bool FileTokenizer::get_short_ints( size_t count, short* array,  )
 }
 
 
-bool FileTokenizer::get_integers( size_t count, int* array,  )
+bool FileTokenizer::get_integers( size_t count, int* array )
 {
   for (size_t i = 0; i < count; ++i)
   {
-    get_integer_internal( *array, err );
-    if (MSQ_CHKERR(err))
+    if (!get_integer_internal( *array ))
       return false;
     ++array;
   }
   return true;
 }
 
-bool FileTokenizer::get_long_ints( size_t count, long* array,  )
+bool FileTokenizer::get_long_ints( size_t count, long* array )
 {
   for (size_t i = 0; i < count; ++i)
   {
-    get_long_int_internal( *array, err );
-    if (MSQ_CHKERR(err))
+    if (!get_long_int_internal( *array ))
       return false;
     ++array;
   }
   return true;
 }
 
-bool FileTokenizer::get_booleans( size_t count, bool* array,  )
+bool FileTokenizer::get_booleans( size_t count, bool* array )
 {
   for (size_t i = 0; i < count; ++i)
   {
-    get_boolean_internal( *array, err );
-    if (MSQ_CHKERR(err))
+    if (!get_boolean_internal( *array ))
       return false;
     ++array;
   }
@@ -360,11 +355,11 @@ void FileTokenizer::unget_token()
   lastChar = '\0';
 }
 
-bool FileTokenizer::match_token( const char* str,  )
+bool FileTokenizer::match_token( const char* str, bool print_error )
 {
     // Get a token
-  const char *token = get_string( err );
-  if (MSQ_CHKERR(err))
+  const char *token = get_string( );
+  if (!token)
     return false;
 
     // Check if it matches
@@ -372,19 +367,18 @@ bool FileTokenizer::match_token( const char* str,  )
     return true;
   
     // Construct error message
-  char err[80];
-  sprintf(err, "Syntax error at line %d: expected \"%s\", got \"%s\"",
-          line_number(), str, token );
-  readIface->report_error(err);
+  if (print_error)
+    readUtilPtr->report_error( "Syntax error at line %d: expected \"%s\", got \"%s\"",
+                                line_number(), str, token );
   return false;
 }  // namespace Mesquite
 
 
-int FileTokenizer::match_token( const char* const* list,  )
+int FileTokenizer::match_token( const char* const* list, bool print_error )
 {
     // Get a token
-  const char *token = get_string( err );
-  if (MSQ_CHKERR(err))
+  const char *token = get_string( );
+  if (!token)
     return false;
 
     // Check if it matches any input string
@@ -393,8 +387,11 @@ int FileTokenizer::match_token( const char* const* list,  )
     if (0 == strcmp( token, *ptr ))
       return ptr - list + 1;
   
+  if (!print_error)
+    return false;
+  
     // No match, constuct error message
-  msq_std::string message( "Parsing error at line " );
+  std::string message( "Parsing error at line " );
   char lineno[16];
   sprintf( lineno, "%d", line_number() );
   message += lineno;
@@ -407,11 +404,11 @@ int FileTokenizer::match_token( const char* const* list,  )
   message += " } got \"";
   message += token;
   message += "\"";
-  readIface->report_error( message);
+  readUtilPtr->report_error( message );
   return false;
 }
 
-bool FileTokenizer::get_newline(  )
+bool FileTokenizer::get_newline( )
 {
   if (lastChar == '\n')
   {
@@ -431,9 +428,9 @@ bool FileTokenizer::get_newline(  )
       if (!count)
       {
         if (eof())
-          readIface->report_error( "File truncated.");
+          readUtilPtr->report_error( "File truncated at line %d.", line_number() );
         else
-          readIface->report_error("IO error." );
+          readUtilPtr->report_error( "I/O Error" );
         return false;
       }
       
@@ -444,9 +441,7 @@ bool FileTokenizer::get_newline(  )
       // If the current character is not a space, the we've failed.
     if (!isspace(*nextToken))
     {
-      char err[80];
-      sprintf(err, "Expected newline at line %d.", line_number() );
-      readIface->report_error(err);
+      readUtilPtr->report_error( "Expected newline at line %d.", line_number() );
       return false;
     }
       

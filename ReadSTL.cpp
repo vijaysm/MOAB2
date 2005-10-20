@@ -20,7 +20,7 @@
  */
 
 #include "ReadSTL.hpp"
-#include "ReadVtk.hpp" // for FileTokenizer
+#include "FileTokenizer.hpp" // for FileTokenizer
 #include "MBInternals.hpp"
 #include "MBInterface.hpp"
 #include "MBReadUtilIface.hpp"
