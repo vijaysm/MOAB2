@@ -191,7 +191,7 @@ MBErrorCode ReadGmsh::load_file_impl( const char* filename,
         !tokens.get_doubles( 1, z++ ))
       return MB_FILE_WRITE_ERROR;
     
-    if (!node_id_map.insert( std::pair<size_t,MBEntityHandle>( id, handle++ ) ).second)
+    if (!node_id_map.insert( std::pair<long,MBEntityHandle>( id, handle++ ) ).second)
     {
       readMeshIface->report_error( "Dulicate node ID at line %d\n",
                                    tokens.line_number() );

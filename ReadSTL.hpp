@@ -84,8 +84,6 @@ public:
                                  
   static long get_file_size( FILE* file );
 
-protected:
-
     // An object to hold vertex coordinates, and an operator
     // for storing them in a STL tree-based container.
   struct Point {
@@ -96,6 +94,8 @@ protected:
   struct Triangle {
     Point points[3];
   };
+
+protected:
   
     // I/O-specific part of reader.  Read list of triangles
     // from file.

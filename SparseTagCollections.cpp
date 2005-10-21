@@ -311,7 +311,7 @@ MBErrorCode SparseTagCollection::set_data(const MBEntityHandle entity_handle, co
   {
     void* new_data = mAllocator.allocate(mDataSize);
     memcpy(new_data, data, mDataSize);
-    mData.insert( iterator, std::make_pair(entity_handle, new_data));
+    mData.insert(iterator, std::pair<const MBEntityHandle,void*>(entity_handle, new_data));
     ret_val = MB_SUCCESS;
   }
 
