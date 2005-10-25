@@ -1,3 +1,10 @@
+/*
+ * Sphere decomp tool.  Meshes a group of spheres and the interstices between with
+ * hex elements, by triangulating the vertices corresponding to sphere centers
+ * and subdividing those tets.  For a description of the subdivision template used,
+ * see comments in the subdivide_tet function below.
+ */
+
 #include "MBCore.hpp"
 #include "MBRange.hpp"
 #include "MeshTopoUtil.hpp"
@@ -159,7 +166,34 @@ MBErrorCode subdivide_tet(MBEntityHandle tet,
   }
 
     // ok, subdiv_verts are in canonical order; now create the hexes, using pre-computed templates
-    // first, interstices hexes
+
+    // Templates are specified in terms of the vertices making up each hex; vertices are specified 
+    // by specifying the facet index and type they resolve, and the index of that vertex in that facet's
+    // subdivision vertices list.
+
+    // Each facet is subdivided into:
+    // - a mid vertex
+    // - one vertex for each corner vertex on the facet (located on a line between the mid vertex and
+    //   the corresponding corner vertex, a distance equal to the sphere radius away from the corner
+    //   vertex)
+    // - one vertex midway between each corner vertex and the corresponding "sphere surface" vertex
+    // For edges, tris and tets this gives 5, 7 and 9 subdivision vertices, respectively.  Subdivision vertices
+    // appear in the list in the order: sphere surface vertices, mid vertex, sphere interior vertices.  In
+    // each of those sub lists, vertices are listed in the canonical order of the corresponding corner vertices
+    // for that facet.
+
+    // Subdivision vertices for facetes are indexed by listing the facet type they resolve (EDGE, FACE, TET), the index of
+    // that facet (integer = 0..5, 0..3, 0 for edges, tris, tet, resp), and subdivision index (AINDEX..EINDEX for
+    // edges, AINDEX..GINDEX for tris, AINDEX..IINDEX for tets).
+
+    // Subdivision vertices for all facets of a tet are stored in one subdivision vertex vector, in order of increasing
+    // facet dimension and index (index varies fastest).  The ESV, FSV, and TSV macros are used to compute the
+    // indices into that vector for various parameters.  The CV macro is used to index into the tet connectivity
+    // vector.
+
+    // Subdivision templates for splitting the tet into 28 hexes were derived by hand, and are listed below 
+    // (using the indexing scheme described above).
+
 #define EDGE 0
 #define FACE 1
 #define TET 2
@@ -183,6 +217,7 @@ MBErrorCode subdivide_tet(MBEntityHandle tet,
 
   MBEntityHandle this_connect[8], this_hex;
 
+    // first, interstices hexes, three per vertex/spherical surface
 // V0:
   int i = 0;
   this_connect[i++]=ESV(0,AINDEX); this_connect[i++]=ESV(0,CINDEX); this_connect[i++]=FSV(3,DINDEX); this_connect[i++]=FSV(3,AINDEX); 
@@ -262,6 +297,7 @@ MBErrorCode subdivide_tet(MBEntityHandle tet,
   result = gMB->create_element(MBHEX, this_connect, 8, this_hex); RR;
   interstic_hexes.push_back(this_hex);
 
+    // now, the sphere interiors, four hexes per vertex sphere
 
 // V0:
   i = 0;
