@@ -25,7 +25,7 @@
 #         !!!!! warning: if you have another version of libxpcom.so, you'll get conflicts      !!!!!
 #
 
-MOAB_IMPL_VERSION = 1.01
+MOAB_IMPL_VERSION = pre2.0
 
 SHELL = /bin/sh
 
