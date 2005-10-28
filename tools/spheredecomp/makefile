@@ -16,10 +16,10 @@
 MOAB_DIR = ../..
 include $(MOAB_DIR)/MB.common
 
-spheredecomp: spheredecomp.cpp 
+spheredecomp: spheredecomp.cpp SphereDecomp.cpp SphereDecomp.hpp
 	$(CXX) $(DEBUG_FLAG) $(MACH_CXXFLAGS) \
 	-I$(MOAB_DIR) -L$(MOAB_DIR) -lMOAB \
-	spheredecomp.cpp -o spheredecomp $(MOAB_APP_LIBS) \
+	spheredecomp.cpp SphereDecomp.cpp -o spheredecomp $(MOAB_APP_LIBS) \
 	-Wl,-rpath,`pwd`/../..
 
 ../../libMOAB.so:
