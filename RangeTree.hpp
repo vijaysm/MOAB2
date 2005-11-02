@@ -130,6 +130,114 @@ class RangeTree
       { return span_iterator( set_.end() ); }
 };
 
-#include "RangeTree.cpp"
+
+template <class T> typename RangeTree<T>::const_iterator& 
+RangeTree<T>::const_iterator::operator++()
+{
+  if (span_ == end_)
+    return *this;
+  
+  if (value_ == span_->last)
+  {
+    ++span_;
+    value_ = (span_ == end_) ? 0 : span_->first;
+  }
+  else
+  { 
+    ++value_;
+  }
+  
+  return *this;
+}
+
+
+template <class T> typename RangeTree<T>::const_iterator& 
+RangeTree<T>::const_iterator::operator--()
+{
+  if (span_ == end_)
+  {
+    --span_;
+    value_ = span_->last;
+  }
+  
+  else if (value_ == span_->first && span_ != beg_)
+  {
+    --span_;
+    value_ = span_->first;
+  }
+  
+  else
+  { 
+    --value_;
+  }
+  
+  return *this;
+}
+
+template <class T> typename RangeTree<T>::const_iterator
+RangeTree<T>::find( T value ) const
+{
+  Span span = { value, value };
+  typename SpanTree::iterator iter = set_.find( span );
+  if (iter == set_.end())
+    return end();
+  else
+    return const_iterator( iter, set_.end(), value );  
+}
+
+template <class T> typename RangeTree<T>::const_iterator
+RangeTree<T>::insert( T value )
+{
+  Span span = { value, value };
+  typename SpanTree::iterator iter = set_.find( span );
+  if (iter != set_.end()) 
+    return const_iterator(iter, set_.end(), value);
+  
+  --span.first;
+  iter = set_.find( span );
+  if (iter != set_.end())
+  {
+    typename SpanTree::iterator next = iter;
+    ++next;
+    if (next != set_.end() && next->first - 1 == value )
+    {
+      T tmp = next->last;
+      set_.erase( next );
+      iter->last = tmp;
+    }
+    else
+    {
+      ++iter->last;
+    }
+    return const_iterator(iter, set_.end(), value);
+  }
+  ++span.first;
+  
+  ++span.last;
+  iter = set_.find( span );
+  if (iter != set_.end())
+  {
+    iter->first--;
+    return const_iterator(iter, set_.end(), value);
+  }
+  --span.last;
+  
+  iter = set_.insert( span ).first;
+  return const_iterator(iter, set_.end(), value);
+}
+
+template <class T> T RangeTree<T>::size( ) const
+{
+  T count = 0;
+  for (typename SpanTree::iterator iter = set_.begin(); iter != set_.end(); ++iter)
+    count += iter->last - iter->first + 1;
+  return count;
+}
+
+template <class T> bool RangeTree<T>::empty() const
+{
+  return set_.empty();
+}
+
 
 #endif
