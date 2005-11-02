@@ -1014,7 +1014,7 @@ int main()
   MBTag tag_handle = (MBTag)3245;
 
 
-  tag_server.add_tag("densex", 4, TAG_BIT_PROPERTIES[MB_TAG_DENSE]);
+  tag_server.add_tag("densex", 4, MB_TAG_DENSE, MB_TYPE_OPAQUE, my_tag_handle);
 
   // test for robustness
   tag_server.get_data(tag_handle, 324, tag_data);
@@ -1035,11 +1035,11 @@ int main()
     // random entity type
     entity_type = (0x3 & rand()) + 1;
 
-    if((my_tag_handle = tag_server.add_tag(tag_name, tag_size, TAG_BIT_PROPERTIES[MB_TAG_SPARSE])) != 0)
+    if(MB_SUCCESS == tag_server.add_tag(tag_name.c_str(), tag_size, MB_TAG_SPARSE, MB_TYPE_OPAQUE, my_tag_handle))
     {
       std::cout << "adding tag - " << tag_name << " " << my_tag_handle << " with entity type " << entity_type << " of size " << static_cast<int>(tag_size) << std::endl;
 
-      MBTag tmp_tag_handle = tag_server.get_handle(tag_name);
+      MBTag tmp_tag_handle = tag_server.get_handle(tag_name.c_str());
 
       if(tmp_tag_handle != my_tag_handle)
       {
@@ -1079,7 +1079,7 @@ int main()
     {
       unsigned int entity_type_tmp = (0x3 & rand()) + 1;
       // try to get the handle and remove it
-      MBTag tmp = tag_server.get_handle(tag_name); 
+      MBTag tmp = tag_server.get_handle(tag_name.c_str()); 
       if(tmp)
       {
         std::cout << " removing tag - " << tag_name << " with entity type " << entity_type_tmp << std::endl;

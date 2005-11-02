@@ -1537,10 +1537,10 @@ int main(int argc, char* argv[])
   }
 
   MBCore my_impl;
-  mdbImpl = &my_impl;
+  MBInterface* mdbImpl = &my_impl;
   Tqdcfr my_tqd(&my_impl);
 
-  my_tqd.load_file(std::string(argv[1]));
+  my_tqd.load_file(argv[1], 0, 0);
   
 }
 #endif

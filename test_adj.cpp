@@ -26,29 +26,32 @@
 
 #include <iostream>
 #include "MBCore.hpp"
-#include "ReadWriteExoII.hpp"
 
+#ifndef IS_BUILDING_MB
+#define IS_BUILDING_MB
+#endif
+#include "MBInternals.hpp"
 
 int main()
 {
 
   MBInterface* iface = new MBCore;
 
-  ReadWriteExoII exo_reader( static_cast<MBCore*>(iface));
-  exo_reader.load_file("../test/quad/quad1.gen", 0);
+  iface->load_mesh( "../test/quad/quad1.gen" );
 
   std::vector<MBEntityHandle> nodes;
   int err;
-  iface->get_adjacencies( CREATE_HANDLE(MBQUAD, 0, err), 0, nodes, &err);
+  MBEntityHandle h = CREATE_HANDLE(MBQUAD, 0, err);
+  err = iface->get_adjacencies( &h, 1, 0, true, nodes);
 
   std::vector<MBEntityHandle> tris;
-  iface->get_adjacencies( CREATE_HANDLE(MBQUAD, 0, err), 1, tris, &err);
+  err = iface->get_adjacencies( &h, 1, 1, true, tris);
 
   //faces to nodes
 
   for(int i=0; i<tris.size(); i++)
   {
-    iface->get_adjacencies( tris[i], 0, nodes, &err );
+    err = iface->get_adjacencies( &tris[i], 1, 0, true, nodes );
     std::cout << "edge " << ID_FROM_HANDLE(tris[i]) << std::endl;
     std::cout << "nodes = ";
     for(int j=0; j<nodes.size(); j++)
