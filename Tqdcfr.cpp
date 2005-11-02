@@ -1530,17 +1530,20 @@ int main(int argc, char* argv[])
 {
 
     // Check command line arg
+  const char* file = "test/block.cub";
   if (argc < 2)
   {
     std::cout << "Usage: tqdcfr <cub_file_name>" << std::endl;
-    exit(1);
+    //exit(1);
   }
+  else
+    file = argv[1];
 
   MBCore my_impl;
   MBInterface* mdbImpl = &my_impl;
   Tqdcfr my_tqd(&my_impl);
 
-  my_tqd.load_file(argv[1], 0, 0);
+  my_tqd.load_file(file, 0, 0);
   
 }
 #endif
