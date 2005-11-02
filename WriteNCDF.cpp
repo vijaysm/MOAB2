@@ -249,7 +249,7 @@ MBErrorCode WriteNCDF::write_file(const char *exodus_file_name,
   }
 
   if( write_header(mesh_info, block_info, sideset_info,
-                   nodeset_info,exodusFile.c_str()) != MB_SUCCESS)
+                   nodeset_info, exodus_file_name) != MB_SUCCESS)
   {
     reset_block(block_info);
     return MB_FAILURE;
@@ -852,7 +852,7 @@ MBErrorCode WriteNCDF::write_header(ExodusMeshInfo& mesh_info,
   char date[TIME_STR_LEN];
   time_and_date(time,date);
 
-  std::string title_string = "VERDE"; 
+  std::string title_string = "MOAB"; 
   title_string.append( "(" );
   title_string.append( filename );
   title_string.append( "): ");
@@ -1415,7 +1415,7 @@ MBErrorCode WriteNCDF::initialize_exodus_file(ExodusMeshInfo &mesh_info,
     mWriteIface->report_error("WriteNCDF: failed to define api_version attribute");
     return (MB_FAILURE);
   }
-  dum_vers = 99.9F;
+  dum_vers = 2.05F;
   if (!ncFile->add_att("version", dum_vers)) {
     mWriteIface->report_error("WriteNCDF: failed to define version attribute");
     return (MB_FAILURE);

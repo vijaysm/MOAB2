@@ -2148,7 +2148,7 @@ MBErrorCode DualTool::get_dual_entities(const MBEntityHandle dual_ent,
                                         MBRange *dverts_loop,
                                         MBRange *dedges_loop)
 {
-  MBErrorCode result;
+  MBErrorCode result = MB_SUCCESS;
 
   if (NULL != dcells) {
     result = mbImpl->get_entities_by_type(dual_ent, MBPOLYGON, *dcells);

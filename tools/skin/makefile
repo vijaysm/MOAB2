@@ -20,7 +20,7 @@ skin: skin.cpp
 	$(CXX) $(DEBUG_FLAG) $(MACH_CXXFLAGS) \
 	-I$(MOAB_DIR) -L$(MOAB_DIR) -lMOAB \
 	skin.cpp -o skin $(MOAB_APP_LIBS) \
-	-Wl,-rpath,`pwd`/../..
+	-Wl,-rpath,`pwd`/../.. -Wl,-rpath,${HDF5_DIR}
 
 ../../libMOAB.so:
 	cd ../.. && make libMOAB.so
