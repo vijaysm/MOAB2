@@ -93,6 +93,7 @@ class MBUnknownInterface
 public:
    virtual int QueryInterface
       ( const MBuuid&, MBUnknownInterface** ) = 0;
+   virtual ~MBUnknownInterface() {};
 };
 
 
