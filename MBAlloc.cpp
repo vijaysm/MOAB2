@@ -19,14 +19,14 @@
 
 
 // C malloc/free fucntions
-void* mdb_malloc(size_t size, const char* filename=NULL, int linenumber=0)
+void* mdb_malloc(size_t size, const char* filename, int linenumber)
 {
   filename = filename;
   linenumber = linenumber;
   return malloc(size);
 }
 
-void* mdb_calloc(size_t size, const char* filename=NULL, int linenumber=0)
+void* mdb_calloc(size_t size, const char* filename, int linenumber)
 {
   filename = filename;
   linenumber = linenumber;
