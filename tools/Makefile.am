@@ -20,6 +20,9 @@ endif
 if ENABLE_mbtagprop
   SUBDIRS += tagprop
 endif
+if ENABLE_spheredecomp
+  SUBDIRS += spheredecomp
+endif
 # if ENABLE_vtkMOABReader
 #   SUBDIRS += vtkMOABReader
 # endif

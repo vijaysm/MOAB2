@@ -1,0 +1,49 @@
+There are two ways a tool can be configured by:
+ 1) the main MOAB configure script directly
+ 2) its own configure script, called by the main MOAB one
+
+
+
+Method 1:
+---------
+
+1) Create a Makefile.am in the directory.  See converter/Makefile.am as 
+   an example.
+
+2) Add a call in the main MOAB configure.in to the MB_OPTIONAL_TOOL macro 
+   with three arguments:
+     a) The name of the tool
+     b) an empty string (two brackets: [])
+     c) either "[yes]" or "[no]" indicating if the tool is to be build by default
+
+3) Add the Makefile to the list of files passed to AC_CONFIG_FILES at the
+   end of the main MOAB configure.in (e.g. tools/<dir>/Makefile)
+
+4) Add a conditional to the tools/Makefile.am file for the tool:
+     if ENABLE_<name>
+       SUBDIRS += <dir>
+     endif
+   Where <name> is the name specified in the MB_OPTIONAL_TOOL macro and
+   <dir> is the subdirectory, as specified in the AC_CONFIG_FILES macro.
+
+
+
+Method 2:
+---------
+
+1) Create makefiles, configure scripts, etc for tool.
+
+2) Add a call in the main MOAB configure.in to the MB_OPTIONAL_TOOL macro 
+   with three arguments:
+     a) The name of the tool
+     b) The path to the tool (e.g: [tools/<dir>])
+     c) either "[yes]" or "[no]" indicating if the tool is to be build by default
+
+3) Add a conditional to the tools/Makefile.am file for the tool:
+     if ENABLE_<name>
+       SUBDIRS += <dir>
+     endif
+   Where <name> and <dir> match the values specified for the MB_OPTIONAL_TOOL 
+   macro.
+
+
