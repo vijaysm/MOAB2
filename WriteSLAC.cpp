@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <iostream>
 
+#include "netcdf.hh"
 #include "MBInterface.hpp"
 #include "MBRange.hpp"
 #include "MBCN.hpp"

@@ -34,8 +34,6 @@
 #error "WriteAns.hpp isn't supposed to be included into an application"
 #endif
 
-#include "netcdf.hh"
-
 #include <set>
 #include <map>
 #include <vector>

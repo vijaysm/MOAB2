@@ -34,8 +34,6 @@
 #error "WriteSLAC.hpp isn't supposed to be included into an application"
 #endif
 
-#include "netcdf.hh"
-
 #include <set>
 #include <map>
 #include <vector>
@@ -48,6 +46,8 @@
 #include "MBWriteUtilIface.hpp"
 #include "ExoIIInterface.hpp"
 #include "MBWriterIface.hpp"
+
+class NcFile;
 
 class MB_DLL_EXPORT WriteSLAC : public MBWriterIface
 {
