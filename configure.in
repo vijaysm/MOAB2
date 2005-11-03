@@ -15,16 +15,16 @@ AC_PROG_MAKE_SET
 # Need to check this early so we can look for the correct compiler
 AC_ARG_WITH( [mpi], AC_HELP_STRING([[--with-mpi(=DIR)]], [Enable parallel support]),
              [WITH_MPI=$withval],[WITH_MPI=no] )
-case "$WITH_MPI" in
-  no)
+case "x$WITH_MPI" in
+  xno)
     AC_PROG_CC( [cc gcc cl egcs] )
     AC_PROG_CXX( [CC aCC cxx xlC xlC_r pgCC c++ g++ gpp cc++ cl FCC KCC RCC] )
     ;;
-  yes)
+  xyes)
     AC_PROG_CC( [mpicc] )
     AC_PROG_CXX([mpiCC] )
     ;;
-  *)
+  x*)
     AC_PROG_CC( [${WITH_MPI}/bin/mpicc] )
     AC_PROG_CXX([${WITH_MPI}/bin/mpiCC] )
     ;;
@@ -53,6 +53,7 @@ if test "x" = "x$ZCAT"; then
 fi
 AC_SUBST([ZCAT])
 AM_CONDITIONAL([HAVE_ZCAT],[test "x" = "x$ZCAT"])
+LIBS="-lm"
 
 
 ################################################################################
@@ -298,7 +299,7 @@ MB_OPTIONAL_TOOL([qvdual],       [tools/qvdual]       ,[no] )
 MB_OPTIONAL_TOOL([mbsize],       []                   ,[no] )
 MB_OPTIONAL_TOOL([mbskin],       []                   ,[no] )
 MB_OPTIONAL_TOOL([mbtagprop],    []                   ,[no] )
-MB_OPTIONAL_TOOL([vtkMOABReader],[tools/vtkMOABReader],[no] )
+dnl MB_OPTIONAL_TOOL([vtkMOABReader],[tools/vtkMOABReader],[no] )
 
 
 
