@@ -1,0 +1,216 @@
+# Don't require GNU-standard files (Changelog, README, etc.)
+AUTOMAKE_OPTIONS = foreign
+
+
+
+# Subdirectories to build
+#SUBDIRS = test tools doc
+SUBDIRS = test tools
+if HDF5_FILE
+  SUBDIRS += mhdf
+endif
+if ENABLE_DOXYGEN
+  SUBDIRS += doxygen
+endif
+
+
+# Things to build
+lib_LTLIBRARIES = libMOAB.la
+check_PROGRAMS = moab_test \
+                 homxform_test \
+                 scdseq_test \
+                 tqdcfr \
+                 test_adj \
+                 range_tree
+#                 merge_test \         # input files no longer exist?
+#                 test_tag_server \    # fails
+TESTS = $(check_PROGRAMS) \
+        test/dual/dual_test \
+        test/h5file/h5file_test 
+         
+#noinst_PROGRAMS = scdseq_timing
+
+
+# Some variables
+DEFS = $(DEFINES) -DIS_BUILDING_MB
+
+
+# The directory in which to install headers
+libMOAB_la_includedir = $(includedir)
+
+
+
+# Conditional sources
+MOAB_EXTRA_SRCS =
+MOAB_EXTRA_HDRS =
+if EXODUS_FILE
+  MOAB_EXTRA_SRCS += ReadNCDF.cpp ReadNCDF.hpp WriteNCDF.cpp WriteNCDF.hpp
+endif
+if PARALLEL
+  MOAB_PARALLEL_SRCS = WriteHDF5Parallel.cpp
+  MOAB_PARALLEL_HDRS = WriteHDF5.hpp WriteHDF5Parallel.hpp
+  PARALLEL_TESTS = test/h5file/parallel
+else
+  MOAB_PARALLEL_SRCS = WriteHDF5.hpp
+  MOAB_PARALLEL_HDRS =
+  PARALLEL_TESTS =
+endif
+if HDF5_FILE
+  libMOAB_la_LIBADD = $(top_builddir)/mhdf/libmhdf.la
+  INCLUDES += -Imhdf/include
+  MOAB_EXTRA_SRCS += RangeTree.hpp ReadHDF5.cpp ReadHDF5.hpp WriteHDF5.cpp $(MOAB_PARALLEL_SRCS)
+  MOAB_EXTRA_HDRS += $(MOAB_PARALLEL_HDRS)
+  TESTS += $(PARALLEL_TESTS)
+endif
+
+
+
+# The list of source files, and any header files that do not need to be installed
+libMOAB_la_SOURCES = \
+  AEntityFactory.cpp \
+  AEntityFactory.hpp \
+  DenseTagCollections.cpp \
+  DenseTagCollections.hpp \
+  DualTool.cpp \
+  EntitySequence.cpp \
+  EntitySequence.hpp \
+  EntitySequenceManager.cpp \
+  EntitySequenceManager.hpp \
+  ExoIIDefines.hpp \
+  ExoIIUtil.cpp \
+  ExoIIUtil.hpp \
+  FileTokenizer.cpp \
+  FileTokenizer.hpp \
+  GeomTopoTool.cpp \
+  HigherOrderFactory.cpp \
+  HomXform.cpp \
+  MBAlloc.cpp \
+  MBAlloc.hpp \
+  MBBits.cpp \
+  MBBits.hpp \
+  MBCN.cpp \
+  MBCore.cpp \
+  MBCore.hpp \
+  MBError.hpp \
+  MBFactory.cpp \
+  MBInternals.hpp \
+  MBMem.cpp \
+  MBMem.hpp \
+  MBMeshSet.cpp \
+  MBMeshSet.hpp \
+  MBRange.cpp \
+  MBReadUtil.cpp \
+  MBReadUtil.hpp \
+  MBReaderWriterSet.cpp \
+  MBSkinner.cpp \
+  MBUtil.cpp \
+  MBWriteUtil.cpp \
+  MBWriteUtil.hpp \
+  MeshTopoUtil.cpp \
+  PolyEntitySequence.cpp \
+  PolyEntitySequence.hpp \
+  ReadGmsh.cpp \
+  ReadGmsh.hpp \
+  ReadSTL.cpp \
+  ReadSTL.hpp \
+  ReadVtk.cpp \
+  ReadVtk.hpp \
+  ScdElementSeq.cpp \
+  ScdElementSeq.hpp \
+  ScdVertexSeq.cpp \
+  ScdVertexSeq.hpp \
+  SparseTagCollections.cpp \
+  SparseTagCollections.hpp \
+  TagServer.cpp \
+  TagServer.hpp \
+  Tqdcfr.cpp \
+  Tqdcfr.hpp \
+  VtkUtil.cpp \
+  VtkUtil.hpp \
+  WriteAns.cpp \
+  WriteAns.hpp \
+  WriteGMV.cpp \
+  WriteGMV.hpp \
+  WriteGmsh.cpp \
+  WriteGmsh.hpp \
+  WriteSLAC.cpp \
+  WriteSLAC.hpp \
+  WriteSTL.cpp \
+  WriteSTL.hpp \
+  WriteTemplate.cpp \
+  WriteVtk.cpp \
+  WriteVtk.hpp \
+  $(MOAB_EXTRA_SRCS)
+
+
+
+# The list of header files which are to be installed
+libMOAB_la_include_HEADERS = \
+  DualTool.hpp \
+  ExoIIInterface.hpp \
+  GeomTopoTool.hpp \
+  HigherOrderFactory.hpp \
+  HomXform.hpp \
+  MBCN.hpp \
+  MBInterface.hpp \
+  MBParallelConventions.h \
+  MBRange.hpp \
+  MBReadUtilIface.hpp \
+  MBReaderIface.hpp \
+  MBReaderWriterSet.hpp \
+  MBSkinner.hpp \
+  MBTagConventions.hpp \
+  MBUnknownInterface.h \
+  MBUtil.hpp \
+  MBWriteUtilIface.hpp \
+  MBWriterIface.hpp \
+  MeshTopoUtil.hpp \
+  ReadWriteDefines.h \
+  WriteTemplate.hpp \
+  $(MOAB_EXTRA_HDRS)
+
+
+# Tests and such
+LDADD = $(top_builddir)/libMOAB.la
+                 
+moab_test_SOURCES = MBTest.cpp
+#moab_test_LDADD = $(top_builddir)/libMOAB.la -ldl
+moab_test_LDADD = -ldl
+moab_test_DEPENDENCIES = test/mb_big_test.g
+
+homxform_test_SOURCES = HomXform.cpp
+#homxform_test_LDADD = $(top_builddir)/libMOAB.la
+homxform_test_CXXFLAGS = -DTEST $(CXXFLAGS)
+
+scdseq_test_SOURCES = scdseq_test.cpp
+#scdseq_test_LDADD = $(top_builddir)/libMOAB.la
+
+#scdseq_timing_SOURCES = scdseq_timing.cpp
+#scdseq_timing_LDADD = $(top_builddir)/libMOAB.la
+
+tqdcfr_SOURCES = Tqdcfr.cpp
+#tqdcfr_LDADD = $(top_builddir)/libMOAB.la
+tqdcfr_CXXFLAGS = -DTEST_TQDCFR $(CXXFLAGS)
+
+#test_rms_SOURCES = test_rms.cpp
+#test_rms_LDADD = $(top_builddir)/libMOAB.la
+
+#merge_test_SOURCES = merge_test.cpp
+#merge_test_LDADD = $(top_builddir)/libMOAB.la
+
+#test_exo_SOURCES = test_exo.cpp
+#test_exo_LDADD = $(top_builddir)/libMOAB.la
+
+#test_tag_server_SOURCES = TagServer.cpp
+#test_tag_server_LDADD = $(top_builddir)/libMOAB.la
+#test_tag_server_CXXFLAGS = -DTEST $(CXXFLAGS)
+
+test_adj_SOURCES = test_adj.cpp
+test_adj_LDADD = $(top_builddir)/libMOAB.la
+
+range_tree_SOURCES = RangeTree.cpp
+#range_tree_LDADD = $(top_builddir)/libMOAB.la
+range_tree_CXXFLAGS = -DDEBUG_TEST $(CXXFLAGS)
+
+test/mb_big_test.g: test/mb_big_test.g.gz
+	$(ZCAT) $< > $@

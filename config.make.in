@@ -1,0 +1,1 @@
+MOAB_EXTRA_LIBS = @LIBS@
