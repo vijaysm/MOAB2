@@ -229,7 +229,7 @@ RangeTree<T>::insert( T value )
 template <class T> T RangeTree<T>::size( ) const
 {
   T count = 0;
-  for (typename SpanTree::iterator iter = set_.begin(); iter != set_.end(); ++iter)
+  for (typename SpanTree::const_iterator iter = set_.begin(); iter != set_.end(); ++iter)
     count += iter->last - iter->first + 1;
   return count;
 }

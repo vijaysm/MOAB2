@@ -49,7 +49,7 @@ void HigherOrderFactory::initialize_map()
   for(MBEntityType i=MBVERTEX; i<MBMAXTYPE; i++)
   {
     const MBCN::ConnMap& canon_map = MBCN::mConnectivityMap[i][0];
-    unsigned char (*this_map)[8] = const_cast<unsigned char(*)[8]>(mNodeMap[i]);
+    unsigned char (&this_map)[8][8] = mNodeMap[i];
     int num_node = MBCN::VerticesPerEntity(i);
     for(int j=0; j<canon_map.num_sub_elements; j++)
     {
