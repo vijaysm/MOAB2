@@ -55,9 +55,9 @@ int main(int argc, char* argv[])
     // construct the dual for this mesh
   DualTool dt(gMB);
   if (num_quad == num_2d && num_hex == num_3d)
-    result = dt.construct_hex_dual();
+    result = dt.construct_hex_dual(0,0);
   else
-    result = dt.construct_dual();
+    result = dt.construct_dual(0,0);
   if (MB_SUCCESS != result) {
     std::cout << "Problems constructing dual." << std::endl;
     return 0;
@@ -65,14 +65,14 @@ int main(int argc, char* argv[])
   
     // print information about the dual
   MBRange dual_cells, dual_faces;
-  result = dt.get_dual_entities(2, dual_faces);
+  result = dt.get_dual_entities(0,0, 2, dual_faces);
   if (MB_SUCCESS != result)
     std::cout << "Problem getting dual faces." << std::endl;
   else
     std::cout << "Found " << dual_faces.size() << "/" <<  num_edges << " dual faces." 
               << std::endl;
     
-  result = dt.get_dual_entities(3, dual_cells);
+  result = dt.get_dual_entities(0,0, 3, dual_cells);
   if (MB_SUCCESS != result)
     std::cout << "Problem getting dual cells." << std::endl;
   else
