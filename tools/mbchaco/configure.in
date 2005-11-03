@@ -1,0 +1,326 @@
+################################################################################
+#                           Standard Stuff
+################################################################################
+AC_INIT(MOAB, 1.1)
+AC_CANONICAL_SYSTEM
+AM_INIT_AUTOMAKE(MOAB,1.1)
+
+AC_PROG_LN_S
+AC_PROG_MAKE_SET
+
+
+###############################################################################
+#                           Parallel
+###############################################################################
+# Need to check this early so we can look for the correct compiler
+AC_ARG_WITH( [mpi], AC_HELP_STRING([[--with-mpi(=DIR)]], [Enable parallel support]),
+             [WITH_MPI=$withval],[WITH_MPI=no] )
+case "x$WITH_MPI" in
+  xno)
+    AC_PROG_CC( [cc gcc cl egcs] )
+    AC_PROG_CXX( [CC aCC cxx xlC xlC_r pgCC c++ g++ gpp cc++ cl FCC KCC RCC] )
+    ;;
+  xyes)
+    AC_PROG_CC( [mpicc] )
+    AC_PROG_CXX([mpiCC] )
+    ;;
+  x*)
+    AC_PROG_CC( [${WITH_MPI}/bin/mpicc] )
+    AC_PROG_CXX([${WITH_MPI}/bin/mpiCC] )
+    ;;
+esac
+AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" != "xno"])
+
+
+################################################################################
+#                           Standard Stuff
+################################################################################
+AC_PROG_CXXCPP
+# Try to determine compiler-specific flags.  This must be done
+# before setting up libtool so that it can override libtool settings.
+SNL_CC_FLAGS
+SNL_CXX_FLAGS
+CFLAGS="$SNL_CC_SPECIAL"
+CXXFLAGS="$SNL_CXX_SPECIAL"
+AC_PROG_LIBTOOL
+
+AC_CHECK_PROG([ZCAT],[gunzip],[gunzip -c],[])
+AC_CHECK_PROG([ZCAT],[gzip],[gzip -cd],[])
+AC_CHECK_PROG([ZCAT],[zcat],[zcat],[])
+if test "x" = "x$ZCAT"; then
+  AC_MSG_WARN([[Cannot run tests: no way to uncompress input files.]])
+fi
+AC_SUBST([ZCAT])
+AM_CONDITIONAL([HAVE_ZCAT],[test "x" = "x$ZCAT"])
+LIBS="-lm"
+
+
+################################################################################
+#                           COMPILER OPTIONS
+################################################################################
+AC_ARG_ENABLE( debug, AC_HELP_STRING([--enable-debug],[Debug symbols (-g)]),
+               [enable_debug=$enableval], [enable_debug=] )  
+AC_ARG_ENABLE( optimize, AC_HELP_STRING([--enable-optimize],[Compile optimized (-O2)]),
+               [enable_optimize=$enableval], 
+	       [enable_optimize=
+		if test "x" == "x$enable_debug"; then
+		  enable_optimize=yes
+		fi ] )
+
+# Choose compiler flags from CLI args
+if test "xyes" = "x$enable_debug"; then
+  CXXFLAGS="$CXXFLAGS -g"
+  CFLAGS="$CLFAGS -g"
+fi
+if test "xyes" = "x$enable_optimize"; then
+  CXXFLAGS="$CXXFLAGS -O2"
+  CFLAGS="$CFLAGS -O2"
+fi
+
+# This requires SNL_CXX_FLAGS and SNL_CC_FLAGS to have been called first
+AC_ARG_ENABLE( 32bit, AC_HELP_STRING([--enable-32bit],[Force 32-bit objects]),
+[
+  if test "xyes" != "x$enableval"; then
+    AC_MSG_ERROR([Unknown argument --enable-32bit=$enableval])
+  elif test "x" = "x$SNL_CXX_32BIT"; then
+    AC_MSG_ERROR([Don't know how to force 32-bit C++ on this platform.  Try setting CXXFLAGS manually])
+  elif test "x" = "x$SNL_CC_32BIT"; then
+    AC_MSG_ERROR([Don't know how to force 32-bit C on this platform.  Try setting CFLAGS manually])
+  fi
+  CXXFLAGS="$CXXFLAGS $SNL_CXX_32BIT"
+  CFLAGS="$CFLAGS $SNL_CC_32BIT"
+  enable_32bit=yes
+])
+# This requires SNL_CXX_FLAGS and SNL_CC_FLAGS to have been called first
+AC_ARG_ENABLE( 64bit, AC_HELP_STRING([--enable-64bit],[Force 64-bit objects]),
+[
+  if test "xyes" != "x$enableval"; then
+    AC_MSG_ERROR([Unknown argument --enable-64bit=$enableval])
+  elif test "x" = "x$SNL_CXX_64BIT"; then
+    AC_MSG_ERROR([Don't know how to force 64-bit C++ on this platform.  Try setting CXXFLAGS manually])
+  elif test "x" = "x$SNL_CC_64BIT"; then
+    AC_MSG_ERROR([Don't know how to force 64-bit C on this platform.  Try setting CFLAGS manually])
+  elif test "xyes" = "x$enable_32bit"; then
+    AC_MSG_ERROR([Cannot do both --enable-32bit and --enable-64bit])
+  fi
+  CXXFLAGS="$CXXFLAGS $SNL_CXX_64BIT"
+  CFLAGS="$CFLAGS $SNL_CC_64BIT"
+])
+
+
+################################################################################
+#                           HDF5 OPTIONS
+################################################################################
+
+AC_MSG_CHECKING([if HDF5 support is enabled])
+AC_ARG_WITH(hdf5, 
+[AC_HELP_STRING([--with-hdf5=DIR], [Specify HDF5 library to use for native file format])
+AC_HELP_STRING([--without-hdf5], [Disable support for native HDF5 file format])],
+[HDF5_ARG=$withval], [HDF5_ARG=yes])
+if test "xno" = "x$HDF5_ARG"; then
+  AC_MSG_RESULT([no])
+  AC_MSG_WARN([Support for native HDF5 file format disabled])
+else
+  AC_MSG_RESULT([yes])
+fi
+
+ # if HDF5 support is not disabled
+if test "xno" != "x$HDF5_ARG"; then
+    # Add flag to defines
+  DEFINES="$DEFINES -DHDF5_FILE"
+
+    # if a path is specified, update LIBS and INCLUDES accordingly
+  if test "xyes" != "x$HDF5_ARG"; then
+    if test -d "${HDF5_ARG}/lib"; then
+      LIBS="$LIBS -L${HDF5_ARG}/lib"
+    elif test -d "${HDF5_ARG}"; then
+      LIBS="$LIBS -L${HDF5_ARG}"
+    else
+      AC_MSG_ERROR("$HDF5_ARG is not a directory.")
+    fi
+    if test -d "${HDF5_ARG}/include"; then
+      INCLUDES="$INCLUDES -I${HDF5_ARG}/include"
+    else
+      INCLUDES="$INCLUDES -I${HDF5_ARG}"
+    fi
+  fi
+  
+    # check for libraries and headers
+  old_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $INCLUDES"
+  AC_CHECK_HEADERS( [hdf5.h], [], [AC_MSG_ERROR("HDF5 header not found")] )
+  CPPFLAGS="$old_CPPFLAGSS"
+  AC_CHECK_LIB( [hdf5], [H5Fopen], [], [AC_MSG_ERROR("HDF5 library not found")] )
+  LIBS="$LIBS -lhdf5"
+fi
+AM_CONDITIONAL(HDF5_FILE, [test "xno" != "x$HDF5_ARG"])
+
+
+################################################################################
+#                           NetCDF OPTIONS
+################################################################################
+
+AC_MSG_CHECKING([if ExodusII support is enabled])
+AC_ARG_WITH(netcdf, 
+[AC_HELP_STRING([--with-netcdf=DIR], [Specify NetCDF library to use for ExodusII file format])
+AC_HELP_STRING([--without-netcdf], [Disable support for ExodusII file format])],
+[NETCDF_ARG=$withval], [NETCDF_ARG=yes])
+if test "xno" = "x$NETCDF_ARG"; then
+  AC_MSG_RESULT([no])
+  AC_MSG_WARN([Support for ExodusII file format disabled])
+else
+  AC_MSG_RESULT([yes])
+fi
+
+ # if NetCDF support is not disabled
+if test "xno" != "x$NETCDF_ARG"; then
+    # Add flag to defines
+  DEFINES="$DEFINES -DNETCDF_FILE"
+
+    # Check for stream headers and set STRSTREAM_H_SPEC accordingly
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_CHECK_HEADER( [strstream.h], [NETCDF_DEF="-DSTRSTREAM_H_SPEC=<strstream.h>"], [
+    AC_CHECK_HEADER( [sstream.h], [NETCDF_DEF="-DSTRSTREAM_H_SPEC=<sstream.h>"], [
+      AC_CHECK_HEADER( [strstream], [NETCDF_DEF="-DSTRSTREAM_H_SPEC=<strstream>"], [
+        AC_CHECK_HEADER( [sstream], [NETCDF_DEF="-DSTRSTREAM_H_SPEC=<sstream>"] )
+  ] ) ] ) ] )
+  AC_LANG_RESTORE
+
+    # if a path is specified, update LIBS and INCLUDES accordingly
+  if test "xyes" != "x$NETCDF_ARG"; then
+    if test -d "${NETCDF_ARG}/lib"; then
+      LIBS="$LIBS -L${NETCDF_ARG}/lib"
+    elif test -d "${NETCDF_ARG}"; then
+      LIBS="$LIBS -L${NETCDF_ARG}"
+    else
+      AC_MSG_ERROR("$NETCDF_ARG is not a directory.")
+    fi
+    if test -d "${NETCDF_ARG}/include"; then
+      INCLUDES="$INCLUDES -I${NETCDF_ARG}/include"
+    elif test -d "${NETCDF_ARG}/inc"; then
+      INCLUDES="$INCLUDES -I${NETCDF_ARG}/inc"
+    else
+      INCLUDES="$INCLUDES -I${NETCDF_ARG}"
+    fi
+  fi
+  
+  old_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $INCLUDES $NETCDF_DEF"
+  old_CXXCPPFLAGS="$CXXCPPFLAGS"
+  CXXCPPFLAGS="$CXXCPPFLAGS $INCLUDES $NETCDF_DEF"
+  old_CXXFLAGS="$CXXFLAGS"
+  CXXFLAGS="$CXXFLAGS $INCLUDES $NETCDF_DEF"
+   # Check for C library
+  AC_CHECK_HEADERS( [netcdf.h], [], [AC_MSG_ERROR("NetCDF header not found")] )
+  AC_CHECK_LIB( [netcdf], [nc_open], [], [AC_MSG_ERROR("NetCDF library not found")] )
+  LIBS="$LIBS -lnetcdf_c++ -lnetcdf"
+   # Check for C++ library
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_CHECK_HEADERS( [netcdf.hh], [], [AC_MSG_ERROR([[NetCDF C++ headers not found.]])] )
+  AC_MSG_CHECKING([[for netcdf_c++ library]])
+  AC_TRY_LINK(
+    [#include <netcdf.hh>], [NcFile ncf("foo",NcFile::ReadOnly);],
+    [AC_MSG_RESULT([yes])], [AC_MSG_RESULT([no]); AC_MSG_ERROR([NetCDF C++ API not found])] )
+  AC_LANG_RESTORE
+  CPPFLAGS="$old_CPPFLAGS"
+  CXXCPPFLAGS="$old_CXXCPPFLAGS"
+  CXXFLAGS="$old_CXXFLAGS"
+  DEFINES="$DEFINES '$NETCDF_DEF'"
+fi
+AM_CONDITIONAL(NETCDF_FILE, [test "xno" != "x$NETCDF_ARG"])
+
+
+################################################################################
+#                           Chaco
+################################################################################
+AC_ARG_WITH(chaco, 
+[AC_HELP_STRING([--with-chaco=DIR], [Specify directory containing chaco source and library])],
+[CHACO_DIR=$withval], [CHACO_DIR=])
+case "x$CHACO_DIR" in
+  xyes|xno|x)
+    AC_MSG_ERROR([--with-chaco=DIR is required])
+    ;;
+esac
+if ! test -d "$CHACO_DIR"; then
+  AC_MSG_ERROR([$CHACO_DIR : not a directory.])
+fi
+AC_CHECK_FILES([${CHACO_DIR}/code/main/defs.h ${CHACO_DIR}/code/main/params.h],
+              [], AC_MSG_ERROR([$CHACO_DIR : not a valid chaco source]))
+old_LIBS="$LIBS"
+LIBS="-L${CHACO_DIR}/code"
+AC_CHECK_LIB([chaco],[read_params],[],
+             [AC_MSG_ERROR([Could not find libchaco in ${CHACO_DIR}/code])],[-lm])
+INCLUDES="${INCLUDES} -I${CHACO_DIR}/code/main"
+LIBS="$old_LIBS -L${CHACO_DIR}/code -lchaco -lm"
+
+
+################################################################################
+#                            MOAB
+################################################################################
+AC_ARG_WITH(MOAB,
+[AC_HELP_STRING([--with-MOAB=DIR], [Specify directory containing MOAB])],
+[MOAB_DIR=$withval],[MOAB_DIR=../..])
+case "x$CHACO_DIR" in
+  xno)
+    AC_MSG_ERROR([Invalid option: --without-MOAB])
+    ;;
+  xyes|x)
+    AC_MSG_ERROR([--with-MOAB=DIR requires an argument])
+    ;;
+esac
+
+AC_LANG_SAVE
+AC_LANG_CPLUSPLUS
+
+MOAB_INC_DIR=
+old_CXXCPPFLAGS="$CXXCPPFLAGS"
+old_CXXFLAGS="$CXXFLAGS"
+old_CPPFLAGS="$CPPFLAGS"
+for dir in ${MOAB_DIR} ${MAOB_DIR}/include; do
+  if test "x$MOAB_INC_DIR" = "x"; then
+    CXXCPPFLAGS="-I$dir"
+    CXXFLAGS="$CXXCPPFLAGS"
+    CPPFLAGS="$CXXCPPFLAGS"
+    unset ac_cv_header_MBInterface_hpp
+    AC_CHECK_HEADER([MBInterface.hpp],[MOAB_INC_DIR="$dir"])
+  fi
+done
+if test "x$MOAB_INC_DIR" = "x"; then
+  AC_MSG_ERROR([Couldn't find MOAB header: MBInterface.hpp"])
+else
+  AC_MSG_RESULT([Found MBInterface.hpp in $MOAB_INC_DIR])
+fi
+CXXCPPFLAGS="$old_CXXCPPFLAGS"
+CXXFLAGS="$old_CXXFLAGS"
+CPPFLAGS="$old_CPPFLAGS"
+INCLUDES="-I$MOAB_INC_DIR $INCLUDES"
+
+MOAB_LIB_DIR=
+old_LIBS="$LIBS"
+for dir in ${MOAB_DIR}/.libs ${MOAB_DIR} ${MAOB_DIR}/lib; do
+  if test "x$MOAB_LIB_DIR" = "x"; then
+    LIBS="$old_LIBS -L$dir"
+    unset ac_cv_lib_MOAB_main
+    AC_CHECK_LIB([MOAB],[main],[MOAB_LIB_DIR="$dir"])
+  fi
+done
+if test "x$MOAB_LIB_DIR" = "x"; then
+  AC_MSG_ERROR([Couldn't find MOAB library (-lMOAB)"])
+else
+  AC_MSG_RESULT([Found -lMOAB in $MOAB_LIB_DIR])
+fi
+LIBS="$old_LIBS -L$MOAB_LIB_DIR -lMOAB"
+
+AC_LANG_RESTORE
+
+
+################################################################################
+#                           Output Files
+################################################################################
+AC_SUBST([INCLUDES])
+AC_SUBST([DEFINES])
+AC_MSG_RESULT([CXXFLAGS = $CXXFLAGS])
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT
