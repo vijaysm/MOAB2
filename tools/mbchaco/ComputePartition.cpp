@@ -299,7 +299,7 @@ MBErrorCode ComputePartition::write_partition(const int nprocs, MBRange &elems,
 
     // allocate integer-size partitions
   MBTag elem_part_set_tag;
-  int dum_id = -1;
+  dum_id = -1;
   result = mbImpl->tag_create("ELEM_PARALLEL_PARTITION", 4, MB_TAG_SPARSE, MB_TYPE_INTEGER,
                               elem_part_set_tag, &dum_id); RR;
   result = mbImpl->tag_set_data(part_set_tag, elems, (void*) tag_data);
