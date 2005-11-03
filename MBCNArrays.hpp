@@ -13,8 +13,8 @@
  * 
  */
 
-#ifndef MB_ARRAYS_CPP
-#define MB_ARRAYS_CPP
+#ifndef MBCN_ARRAYS_HPP
+#define MBCN_ARRAYS_HPP
 const MBCN::ConnMap MBCN::mConnectivityMap[MBMAXTYPE][3] =
 {
     // vertex-edge

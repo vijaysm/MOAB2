@@ -4,14 +4,14 @@ AUTOMAKE_OPTIONS = foreign
 
 
 # Subdirectories to build
-#SUBDIRS = test tools doc
-SUBDIRS = test tools
+SUBDIRS = 
 if HDF5_FILE
   SUBDIRS += mhdf
 endif
-if ENABLE_DOXYGEN
-  SUBDIRS += doxygen
-endif
+SUBDIRS += . test tools
+# if ENABLE_DOXYGEN
+#   SUBDIRS += doxygen
+# endif
 
 
 # Things to build
@@ -91,6 +91,7 @@ libMOAB_la_SOURCES = \
   MBBits.cpp \
   MBBits.hpp \
   MBCN.cpp \
+  MBCNArrays.hpp \
   MBCore.cpp \
   MBCore.hpp \
   MBError.hpp \

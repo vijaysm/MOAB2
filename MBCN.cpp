@@ -14,7 +14,7 @@
  */
 
 #include "MBCN.hpp"
-#include "MBCNArrays.cpp"
+#include "MBCNArrays.hpp"
 #include <assert.h>
 
 const char *MBCN::entityTypeNames[] = {
