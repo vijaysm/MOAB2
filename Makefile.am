@@ -24,9 +24,7 @@ check_PROGRAMS = moab_test \
                  range_tree
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
-TESTS = $(check_PROGRAMS) \
-        test/dual/dual_test \
-        test/h5file/h5file_test 
+TESTS = $(check_PROGRAMS) 
          
 #noinst_PROGRAMS = scdseq_timing
 
@@ -172,25 +170,23 @@ libMOAB_la_include_HEADERS = \
 
 
 # Tests and such
-LDADD = $(top_builddir)/libMOAB.la
-                 
+
 moab_test_SOURCES = MBTest.cpp
-#moab_test_LDADD = $(top_builddir)/libMOAB.la -ldl
-moab_test_LDADD = -ldl
+moab_test_LDADD = $(top_builddir)/libMOAB.la -ldl
 moab_test_DEPENDENCIES = test/mb_big_test.g
 
 homxform_test_SOURCES = HomXform.cpp
-#homxform_test_LDADD = $(top_builddir)/libMOAB.la
+homxform_test_LDADD = $(top_builddir)/libMOAB.la
 homxform_test_CXXFLAGS = -DTEST $(CXXFLAGS)
 
 scdseq_test_SOURCES = scdseq_test.cpp
-#scdseq_test_LDADD = $(top_builddir)/libMOAB.la
+scdseq_test_LDADD = $(top_builddir)/libMOAB.la
 
 #scdseq_timing_SOURCES = scdseq_timing.cpp
 #scdseq_timing_LDADD = $(top_builddir)/libMOAB.la
 
 tqdcfr_SOURCES = Tqdcfr.cpp
-#tqdcfr_LDADD = $(top_builddir)/libMOAB.la
+tqdcfr_LDADD = $(top_builddir)/libMOAB.la
 tqdcfr_CXXFLAGS = -DTEST_TQDCFR $(CXXFLAGS)
 
 #test_rms_SOURCES = test_rms.cpp
@@ -210,8 +206,8 @@ test_adj_SOURCES = test_adj.cpp
 test_adj_LDADD = $(top_builddir)/libMOAB.la
 
 range_tree_SOURCES = RangeTree.cpp
-#range_tree_LDADD = $(top_builddir)/libMOAB.la
+range_tree_LDADD = $(top_builddir)/libMOAB.la
 range_tree_CXXFLAGS = -DDEBUG_TEST $(CXXFLAGS)
 
 test/mb_big_test.g: test/mb_big_test.g.gz
-	$(ZCAT) $< > $@
+	$(ZCAT) test/mb_big_test.g.gz > test/mb_big_test.g

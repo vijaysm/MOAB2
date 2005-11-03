@@ -7,6 +7,15 @@ AC_DEFUN([SNL_CXX_FLAGS], [
 AC_REQUIRE([AC_PROG_CXX])
 
 # Detect compiler 
+
+# First check for mpiCC and extract real compiler
+SNL_OLD_CXX="$CXX"
+if $CXX -help 2>&1 | grep MPI > /dev/null; then
+  CXX=`$CXX -compile-info | cut -d ' ' -f 1`
+  AC_CHECK_PROG([CXX],[$CXX],[$CXX],[$SNL_OLD_CXX])
+  if $CXX -v 2>&1 | grep gcc > /dev/null; then GXX=yes; fi
+fi
+
 AC_MSG_CHECKING([for known c++ compilers])
 # Autoconf does G++ for us
 if test x$GXX = xyes; then
@@ -104,6 +113,7 @@ case "$cxx_compiler:$host_cpu" in
     ;;
 esac
 AC_MSG_RESULT([$cxx_compiler:$host_cpu])
+CXX="$SNL_OLD_CXX"
 ]) # end SNL_CXX_FLAGS
 
 # Check for compiler-specific flags.
@@ -115,6 +125,15 @@ AC_DEFUN([SNL_CC_FLAGS], [
 AC_REQUIRE([AC_PROG_CC])
 
 # Detect compiler 
+
+# First check for mpicc and extract real compiler
+SNL_OLD_CC="$CC"
+if $CC -help 2>&1 | grep MPI > /dev/null; then
+  CC=`$CC -compile-info | cut -d ' ' -f 1`
+  AC_CHECK_PROG([CC],[$CC],[$CC],[$SNL_OLD_CC])
+  if $CC -v 2>&1 | grep gcc > /dev/null; then GCC=yes; fi
+fi
+
 AC_MSG_CHECKING([for known C compilers])
 # Autoconf does gcc for us
 if test x$GCC = xyes; then
@@ -191,7 +210,6 @@ case "$cc_compiler:$host_cpu" in
   VisualAge:*)
     SNL_CC_32BIT=-q32
     SNL_CC_64BIT=-q64
-    # Do V5.0 namemangling for compatibility with ACIS, and enable RTTI
     AR="ar -X 32_64"
     NM="nm -B -X 32_64"
     ;;
@@ -211,6 +229,7 @@ case "$cc_compiler:$host_cpu" in
     ;;
 esac
 AC_MSG_RESULT([$cc_compiler:$host_cpu])
+CC="$SNL_OLD_CC"
 ]) # end SNL_CC_FLAGS
 
 

@@ -16,4 +16,4 @@ libmhdf_la_SOURCES = include/mhdf.h \
                      src/util.c \
                      src/util.h
 
-DEFS = -Iinclude
+DEFS = -Iinclude -DNDEBUG
