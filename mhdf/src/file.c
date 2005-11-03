@@ -226,7 +226,7 @@ scan_for_max_id( FileHandle* file_ptr, mhdf_Status* status )
   }
   
     /* Check node table too */
-  rval = get_max_id( group_id, NODE_GROUP_NAME, "coordinates", &file_ptr->max_id );
+  rval = get_max_id( group_id, NODE_GROUP_NAME, "coordinates", (unsigned long*)(&file_ptr->max_id) );
   if (rval)
   {
     H5Gclose( group_id );
@@ -241,7 +241,7 @@ scan_for_max_id( FileHandle* file_ptr, mhdf_Status* status )
     H5Gclose( group_id );
     return !rval;
   }
-  rval = get_max_id( group_id, SET_GROUP_NAME, SET_META_NAME, &file_ptr->max_id );
+  rval = get_max_id( group_id, SET_GROUP_NAME, SET_META_NAME, (unsigned long*)(&file_ptr->max_id) );
   H5Gclose( group_id );
   if (rval)
   {
@@ -341,7 +341,7 @@ mhdf_getElemName( mhdf_FileHandle file_handle,
   if (enum_id < 0)
     return;
   
-  rval = H5Tconvert( H5T_NATIVE_UINT, H5Tget_super(enum_id), 1, &index, NULL, H5P_DEFAULT );
+  rval = H5Tconvert( H5T_NATIVE_UINT, H5Tget_super(enum_id), 1, &type_index, NULL, H5P_DEFAULT );
   if (rval < 0)
   {
     H5Tclose( enum_id );
@@ -349,7 +349,7 @@ mhdf_getElemName( mhdf_FileHandle file_handle,
     return;
   }
   
-  rval = H5Tenum_nameof( enum_id, &index, buffer, buf_size );
+  rval = H5Tenum_nameof( enum_id, &type_index, buffer, buf_size );
   H5Tclose( enum_id );
   if (rval < 0)
     mhdf_setFail( status, "H5Tenum_nameof failed.  Invalid type index?" );
@@ -398,7 +398,7 @@ mhdf_closeFile( mhdf_FileHandle handle,
     return;
   } 
   
-  bzero( file_ptr, sizeof(FileHandle) );
+  memset( file_ptr, 0, sizeof(FileHandle) );
   free( file_ptr );
   mhdf_setOkay( status );
   API_END_H( -1 );

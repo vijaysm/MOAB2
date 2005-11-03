@@ -28,10 +28,10 @@ class RangeTree
       mutable T first, last;
       bool operator<( const Span& oth ) const { return last < oth.first; }
     };
- 
-  private:
   
     typedef std::set<Span> SpanTree;
+ 
+  private:
     SpanTree set_;
   
   public:

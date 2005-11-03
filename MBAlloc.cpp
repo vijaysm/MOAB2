@@ -15,7 +15,8 @@
 
 
 #include "MBAlloc.hpp"
-#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 
 // C malloc/free fucntions

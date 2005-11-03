@@ -33,6 +33,9 @@
 #include "ReadHDF5.hpp"
 //#include "WriteHDF5.hpp"
 
+#include <stdlib.h>
+#include <string.h>
+
 #undef DEBUG
 
 #ifdef DEBUG
@@ -308,7 +311,7 @@ MBErrorCode ReadHDF5::read_nodes()
     }
   }
   for (int j = dim; j < cdim; j++)
-    bzero( arrays[j], count * sizeof(double) );
+    memset( arrays[j], 0, count * sizeof(double) );
   
   mhdf_closeData( filePtr, data_id, &status );
   if (mhdf_isError( &status ))

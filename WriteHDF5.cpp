@@ -32,6 +32,8 @@
 #include <assert.h>
 #include <sys/time.h>
 #include <time.h>
+#include <stdlib.h>
+#include <string.h>
 #include <H5Tpublic.h>
 #include "MBInterface.hpp"
 #include "MBInternals.hpp"
@@ -742,7 +744,7 @@ MBErrorCode WriteHDF5::write_nodes( )
       }
       else
       {
-        bzero( buffer, count * sizeof(double) );
+        memset( buffer, 0, count * sizeof(double) );
       }
     
       mhdf_writeNodeCoord( node_table, offset, count, d, buffer, &status );
@@ -1521,7 +1523,7 @@ DEBUGOUT((std::string("Tag: ") + name + "\n").c_str());
       // write "chunk_size" blocks of data
     long count = (unsigned long)remaining > chunk_size ? chunk_size : remaining;
     remaining -= count;
-    bzero( tag_buffer, count * mb_size );
+    memset( tag_buffer, 0, count * mb_size );
     MBRange::const_iterator stop = iter;
     stop += count;
     range.clear();
@@ -1777,7 +1779,7 @@ DEBUGOUT( "Gathering Tags\n" );
   CHK_MB_ERR_0(rval);
   
   const char* type_names[MBMAXTYPE];
-  bzero( type_names, MBMAXTYPE * sizeof(char*) );
+  memset( type_names, 0, MBMAXTYPE * sizeof(char*) );
   for (MBEntityType i = MBEDGE; i < MBENTITYSET; ++i)
     type_names[i] = MBCN::EntityTypeName( i );
  
