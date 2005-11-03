@@ -43,8 +43,10 @@ libMOAB_la_includedir = $(includedir)
 # Conditional sources
 MOAB_EXTRA_SRCS =
 MOAB_EXTRA_HDRS =
-if EXODUS_FILE
-  MOAB_EXTRA_SRCS += ReadNCDF.cpp ReadNCDF.hpp WriteNCDF.cpp WriteNCDF.hpp
+if NETCDF_FILE
+  MOAB_EXTRA_SRCS +=  ReadNCDF.cpp  ReadNCDF.hpp \
+                     WriteNCDF.cpp WriteNCDF.hpp \
+                     WriteSLAC.cpp WriteSLAC.hpp 
 endif
 if PARALLEL
   MOAB_PARALLEL_SRCS = WriteHDF5Parallel.cpp
@@ -133,8 +135,6 @@ libMOAB_la_SOURCES = \
   WriteGMV.hpp \
   WriteGmsh.cpp \
   WriteGmsh.hpp \
-  WriteSLAC.cpp \
-  WriteSLAC.hpp \
   WriteSTL.cpp \
   WriteSTL.hpp \
   WriteTemplate.cpp \

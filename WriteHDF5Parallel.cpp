@@ -6,6 +6,10 @@
 #  include <stdarg.h>
 #endif
 
+#ifndef HDF5_FILE
+#  error Attempt to compile WriteHDF5Parallel with HDF5 support disabled
+#endif
+
 #include <vector>
 #include <set>
 #include <map>

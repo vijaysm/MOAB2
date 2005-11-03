@@ -22,7 +22,9 @@
 #endif
 #endif
 
-
+#ifndef NETCDF_FILE
+#  error Attempt to compile WriteNCDF with NetCDF support disabled
+#endif
 
 #include "WriteNCDF.hpp"
 

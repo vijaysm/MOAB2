@@ -22,6 +22,9 @@
 #endif
 #endif
 
+#ifndef NETCDF_FILE
+#  error Attempt to compile WriteSLAC with NetCDF disabled.
+#endif
 
 #include "WriteSLAC.hpp"
 

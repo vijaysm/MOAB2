@@ -20,7 +20,6 @@
 #include "MBReaderIface.hpp"
 #include "MBWriterIface.hpp"
 
-#include "ReadNCDF.hpp"
 #include "ReadVtk.hpp"
 #include "ReadSTL.hpp"
 #include "ReadGmsh.hpp"
@@ -29,10 +28,14 @@
 #include "WriteAns.hpp"
 #include "WriteVtk.hpp"
 #include "WriteGMV.hpp"
-#include "WriteNCDF.hpp"
-#include "WriteSLAC.hpp"
 #include "WriteSTL.hpp"
 #include "WriteGmsh.hpp"
+
+#ifdef NETCDF_FILE
+#  include "ReadNCDF.hpp"
+#  include "WriteNCDF.hpp"
+#  include "WriteSLAC.hpp"
+#endif
 
 #ifdef HDF5_FILE
 #  include "ReadHDF5.hpp"
@@ -47,18 +50,22 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
   register_factory(  ReadHDF5::factory, WriteHDF5::factory, "MOAB HDF5", hdf5_list );
 #endif
 
+#ifdef NETCDF_FILE
   const char* exo_list[] = { "exo", "exoII", "exo2", "g", "gen", NULL };
   register_factory( ReadNCDF::factory, WriteNCDF::factory, "Exodus II", exo_list );
+#endif
   
   const char* vtk_list[] = { "vtk", NULL };
   register_factory( ReadVtk::factory, WriteVtk::factory, "Kitware VTK", vtk_list );
   
   const char* cub_list[] = { "cub", NULL };
   register_factory( Tqdcfr::factory, NULL, "Cubit", cub_list );
-  
+
+#ifdef NETCDF_FILE  
   const char* slac_list[] = { "slac", NULL };
   register_factory( NULL, WriteSLAC::factory, "SLAC", slac_list );
-  
+#endif
+
   const char* gmv_list[] = { "gmv", NULL };
   register_factory( NULL, WriteGMV::factory, "GMV", gmv_list );
   

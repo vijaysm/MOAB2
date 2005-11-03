@@ -25,6 +25,10 @@
 // Creation Date : 04/01/04
 //-------------------------------------------------------------------------
 
+#ifndef HDF5_FILE
+#  error Attempt to compile WriteHDF5 with HDF5 support disabled
+#endif
+
 #include <assert.h>
 #include <sys/time.h>
 #include <time.h>

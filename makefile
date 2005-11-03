@@ -247,8 +247,8 @@ mhdf/%: force_rebuild
 
 # build the dependencies
 depend : 
-	$(PREFIX) ${MAKEDEPEND} -DIS_BUILDING_MB ${NETCDF_INCLUDE} ${PLATFORM_INCLUDE} $(MHDF_FLAGS) ${MB_LIB_SRCS} MBTest.cpp > make.dependencies
-	$(PREFIX) ${MAKEDEPEND} -DIS_BUILDING_MB ${PLATFORM_INCLUDE} scdseq_test.cpp >> make.dependencies
+	$(PREFIX) ${MAKEDEPEND} -DIS_BUILDING_MB -DNETCDF_FILE ${NETCDF_INCLUDE} ${PLATFORM_INCLUDE} $(MHDF_FLAGS) ${MB_LIB_SRCS} MBTest.cpp > make.dependencies
+	$(PREFIX) ${MAKEDEPEND} -DIS_BUILDING_MB -DNETCDF_FILE ${PLATFORM_INCLUDE} scdseq_test.cpp >> make.dependencies
 
 # clean up intermediate files
 clean_all : clean
@@ -275,20 +275,20 @@ clean_pcom :
 # .cpp.o rule for building regular object files
 .cpp.o:
 	${ECHO_COMMAND} 
-	${PREFIX} ${CXX} ${DEBUG_FLAG} -DIS_BUILDING_MB ${MACH_CXXFLAGS} \
+	${PREFIX} ${CXX} ${DEBUG_FLAG} -DIS_BUILDING_MB -DNETCDF_FILE ${MACH_CXXFLAGS} \
 	${NETCDF_INCLUDE} $(MHDF_FLAGS) -c -o $@ $<
 
 # .cpp.static.o rule for building regular object files
 .cpp.static.o:
 	${ECHO_COMMAND} 
-	${PREFIX} ${CXX} ${DEBUG_FLAG} -DIS_BUILDING_MB -DMB_STATIC \
+	${PREFIX} ${CXX} ${DEBUG_FLAG} -DIS_BUILDING_MB -DNETCDF_FILE -DMB_STATIC \
 	${MACH_CXXFLAGS} ${NETCDF_INCLUDE} $(MHDF_FLAGS) -c -o $@ $<
 
 # .cpp.o_test for building object files which have an individual component test in them
 # meaning they have their own main() defined
 .cpp.o_test:
 	${ECHO_COMMAND}
-	${PREFIX} ${CXX} ${DEBUG_FLAG} -DIS_BUILDING_MB -DTEST \
+	${PREFIX} ${CXX} ${DEBUG_FLAG} -DIS_BUILDING_MB -DNETCDF_FILE -DTEST \
 	${MACH_CXXFLAGS} ${NETCDF_INCLUDE} $(MHDF_FLAGS) -c -o $@ $<
 
 # .cpp.xpcom.o rule for building object files to work with xpcom

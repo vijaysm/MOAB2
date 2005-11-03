@@ -38,7 +38,16 @@
 #include "MBReaderWriterSet.hpp"
 #include "MBReaderIface.hpp"
 #include "MBWriterIface.hpp"
-#include "WriteNCDF.hpp"
+#ifdef HDF5_FILE
+#  include "WriteHDF5.hpp"
+   typedef WriteHDF5 DefaultWriter;
+#elif defined(NETCDF_FILE)
+#  include "WriteNCDF.hpp"
+   typedef WriteNCDF DefaultWriter;
+#else
+#  include "WriteVtk.hpp"
+   typedef WriteVtk DefaultWriter;
+#endif
 #include "MBTagConventions.hpp"
 #include "ExoIIUtil.hpp"
 #ifdef LINUX
@@ -345,7 +354,7 @@ MBErrorCode  MBCore::write_mesh(const char *file_name,
   MBWriterIface* writer = set->get_file_extension_writer( file_name );
   if (writer == NULL)
   {
-    WriteNCDF exowriter(this);
+    DefaultWriter exowriter(this);
     rval = exowriter.write_file(file_name, overwrite, output_list, num_sets, qa_records, 0);
   }
   else

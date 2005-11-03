@@ -121,7 +121,7 @@ fi
  # if HDF5 support is not disabled
 if test "xno" != "x$HDF5_ARG"; then
     # Add flag to defines
-  DEFINES="$DEFINES -DMB_HDF5_FILE"
+  DEFINES="$DEFINES -DHDF5_FILE"
 
     # if a path is specified, update LIBS and INCLUDES accordingly
   if test "xyes" != "x$HDF5_ARG"; then
@@ -169,7 +169,7 @@ fi
  # if NetCDF support is not disabled
 if test "xno" != "x$NETCDF_ARG"; then
     # Add flag to defines
-  DEFINES="$DEFINES -DMB_EXODUS_FILE"
+  DEFINES="$DEFINES -DNETCDF_FILE"
 
     # Check for stream headers and set STRSTREAM_H_SPEC accordingly
   AC_LANG_SAVE
@@ -223,7 +223,7 @@ if test "xno" != "x$NETCDF_ARG"; then
   CXXFLAGS="$old_CXXFLAGS"
   DEFINES="$DEFINES '$NETCDF_DEF'"
 fi
-AM_CONDITIONAL(EXODUS_FILE, [test "xno" != "x$NETCDF_ARG"])
+AM_CONDITIONAL(NETCDF_FILE, [test "xno" != "x$NETCDF_ARG"])
 
 
 
