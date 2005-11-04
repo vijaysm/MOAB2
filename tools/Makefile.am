@@ -8,9 +8,9 @@ endif
 if ENABLE_mbchaco
   SUBDIRS += mbchaco
 endif
-# if ENABLE_qvdual
-#   SUBDIRS += qvdual
-# endif
+if ENABLE_qvdual
+  SUBDIRS += qvdual
+endif
 if ENABLE_mbsize
   SUBDIRS += size
 endif
