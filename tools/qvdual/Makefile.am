@@ -29,6 +29,7 @@ extra_depends = \
   QVTKWidget.moc.o 
 
 qvdual_LDADD = $(extra_depends) $(LIBS)
+qvdual_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 .ui.h: 
 	$(UIC) -o $@ $<

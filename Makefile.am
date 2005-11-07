@@ -173,41 +173,51 @@ libMOAB_la_include_HEADERS = \
 
 moab_test_SOURCES = MBTest.cpp
 moab_test_LDADD = $(top_builddir)/libMOAB.la
-moab_test_DEPENDENCIES = test/mb_big_test.g
+moab_test_DEPENDENCIES = test/mb_big_test.g $(top_builddir)/libMOAB.la
 
 homxform_test_SOURCES = HomXform.cpp
 homxform_test_LDADD = $(top_builddir)/libMOAB.la
 homxform_test_CXXFLAGS = -DTEST $(CXXFLAGS)
+homxform_test_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 scdseq_test_SOURCES = scdseq_test.cpp
 scdseq_test_LDADD = $(top_builddir)/libMOAB.la
+scdseq_test_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 #scdseq_timing_SOURCES = scdseq_timing.cpp
 #scdseq_timing_LDADD = $(top_builddir)/libMOAB.la
+#scdseq_timing_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 tqdcfr_SOURCES = Tqdcfr.cpp
 tqdcfr_LDADD = $(top_builddir)/libMOAB.la
 tqdcfr_CXXFLAGS = -DTEST_TQDCFR $(CXXFLAGS)
+tqdcfr_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 #test_rms_SOURCES = test_rms.cpp
 #test_rms_LDADD = $(top_builddir)/libMOAB.la
+#test_rms_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 #merge_test_SOURCES = merge_test.cpp
 #merge_test_LDADD = $(top_builddir)/libMOAB.la
+#merge_test_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 #test_exo_SOURCES = test_exo.cpp
 #test_exo_LDADD = $(top_builddir)/libMOAB.la
+#test_exo_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 #test_tag_server_SOURCES = TagServer.cpp
 #test_tag_server_LDADD = $(top_builddir)/libMOAB.la
 #test_tag_server_CXXFLAGS = -DTEST $(CXXFLAGS)
+#test_tag_server_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 test_adj_SOURCES = test_adj.cpp
 test_adj_LDADD = $(top_builddir)/libMOAB.la
+test_adj_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 range_tree_SOURCES = RangeTree.cpp
 range_tree_LDADD = $(top_builddir)/libMOAB.la
 range_tree_CXXFLAGS = -DDEBUG_TEST $(CXXFLAGS)
+range_tree_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 test/mb_big_test.g: test/mb_big_test.g.gz
 	$(ZCAT) test/mb_big_test.g.gz > test/mb_big_test.g
