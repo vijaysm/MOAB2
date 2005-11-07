@@ -292,7 +292,7 @@ mhdf_openPolyConnectivity( mhdf_FileHandle file_handle,
   }
   *data_list_length_out = (long)row_count;
     
-  if (!mhdf_read_scalar_attrib( table_id, START_ID_ATTRIB, H5T_NATIVE_INT, 
+  if (!mhdf_read_scalar_attrib( table_id, START_ID_ATTRIB, H5T_NATIVE_LONG, 
                                 first_poly_id_out, status ))
   {
     H5Dclose( table_id );
