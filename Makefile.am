@@ -172,7 +172,7 @@ libMOAB_la_include_HEADERS = \
 # Tests and such
 
 moab_test_SOURCES = MBTest.cpp
-moab_test_LDADD = $(top_builddir)/libMOAB.la -ldl
+moab_test_LDADD = $(top_builddir)/libMOAB.la
 moab_test_DEPENDENCIES = test/mb_big_test.g
 
 homxform_test_SOURCES = HomXform.cpp
