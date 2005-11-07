@@ -3,6 +3,7 @@
 #include "MBRange.hpp"
 #include "MBCN.hpp"
 #include <math.h>
+#include <assert.h>
 
 #define RR if (MB_SUCCESS != result) return result
 
