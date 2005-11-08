@@ -549,7 +549,7 @@ MBErrorCode WriteHDF5Parallel::create_file( const char* filename,
   for (int i = 0; i < num_tags; ++i, ++tag_iter)
   {
     tag_iter->offset = tag_offsets[i];
-    tag_iter->write = tag_counts[i[ > 0;
+    tag_iter->write = tag_counts[i] > 0;
   }
 
   #ifdef DEBUG
