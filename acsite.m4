@@ -14,6 +14,10 @@ if $CXX -help 2>&1 | grep MPI > /dev/null; then
   CXX=`$CXX -compile-info | cut -d ' ' -f 1`
   AC_CHECK_PROG([CXX],[$CXX],[$CXX],[$SNL_OLD_CXX])
   if $CXX -v 2>&1 | grep gcc > /dev/null; then GXX=yes; fi
+elif $CXX 2>&1 | grep xlC > /dev/null; then
+  CXX=xlC
+  AC_CHECK_PROG([CXX],[xlC],[xlC],[$SNL_OLD_CXX])
+  GXX=no
 fi
 
 AC_MSG_CHECKING([for known c++ compilers])
@@ -132,6 +136,10 @@ if $CC -help 2>&1 | grep MPI > /dev/null; then
   CC=`$CC -compile-info | cut -d ' ' -f 1`
   AC_CHECK_PROG([CC],[$CC],[$CC],[$SNL_OLD_CC])
   if $CC -v 2>&1 | grep gcc > /dev/null; then GCC=yes; fi
+elif $CC 2>&1 | grep xlc > /dev/null; then
+  CXX=xlc
+  AC_CHECK_PROG([CC],[xlc],[xlc],[$SNL_OLD_CC])
+  GCC=no
 fi
 
 AC_MSG_CHECKING([for known C compilers])

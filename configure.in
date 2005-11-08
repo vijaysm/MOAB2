@@ -21,12 +21,12 @@ case "x$WITH_MPI" in
     AC_PROG_CXX( [CC aCC cxx xlC xlC_r pgCC c++ g++ gpp cc++ cl FCC KCC RCC] )
     ;;
   xyes)
-    AC_PROG_CC( [mpicc] )
-    AC_PROG_CXX([mpiCC] )
+    AC_PROG_CC( [mpicc mpcc] )
+    AC_PROG_CXX([mpiCC mpCC] )
     ;;
   x*)
-    AC_PROG_CC( [${WITH_MPI}/bin/mpicc] )
-    AC_PROG_CXX([${WITH_MPI}/bin/mpiCC] )
+    AC_PROG_CC( [${WITH_MPI}/bin/mpicc ${WITH_MPI}/bin/mpcc] )
+    AC_PROG_CXX([${WITH_MPI}/bin/mpiCC ${WITH_MPI}/bin/mpCC] )
     ;;
 esac
 AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" != "xno"])
