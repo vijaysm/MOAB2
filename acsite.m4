@@ -40,6 +40,11 @@ SNL_CXX_FLAGS
 CFLAGS="$SNL_CC_SPECIAL"
 CXXFLAGS="$SNL_CXX_SPECIAL"
 
+# On IBM/AIX, the check for OBJEXT fails for the mpcc compiler.
+if test "x$OBJEXT" = "x"; then
+  OBJEXT=o
+fi
+
   # Check for debug flags
 AC_ARG_ENABLE( debug, AC_HELP_STRING([--enable-debug],[Debug symbols (-g)]),
                [enable_debug=$enableval], [enable_debug=] )  
