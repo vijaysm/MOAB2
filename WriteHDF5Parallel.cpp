@@ -10,6 +10,9 @@
 #  error Attempt to compile WriteHDF5Parallel with HDF5 support disabled
 #endif
 
+#include <stdlib.h>
+#include <string.h>
+
 #include <vector>
 #include <set>
 #include <map>
@@ -19,6 +22,7 @@
 
 #include <H5Tpublic.h>
 #include <H5Ppublic.h>
+#include <H5FDmpi.h>
 #include <H5FDmpio.h>
 
 #include "mhdf.h"
@@ -428,7 +432,7 @@ MBErrorCode WriteHDF5Parallel::create_file( const char* filename,
   {
       // create the file
     const char* type_names[MBMAXTYPE];
-    bzero( type_names, MBMAXTYPE * sizeof(char*) );
+    memset( type_names, 0, MBMAXTYPE * sizeof(char*) );
     for (MBEntityType i = MBEDGE; i < MBENTITYSET; ++i)
       type_names[i] = MBCN::EntityTypeName( i );
    
@@ -987,7 +991,7 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
   
     // For each element type for which there is no adjacency data,
     // send -1 to all processors as the offset
-  for (i = 0; i < num_types; ++i)
+  for (i = 0; i < numtypes; ++i)
     if (all[numtypes*numProc+i] == 0)
       for (j = 0; j < numProc; ++j)
         all[j*numtypes+i] = -1;
