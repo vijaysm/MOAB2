@@ -85,6 +85,8 @@ protected:
     { return MB_SUCCESS;}
   virtual MBErrorCode write_shared_set_children( hid_t )
     { return MB_SUCCESS;}
+  virtual MBErrorCode write_shared_set_parents( hid_t )
+    { return MB_SUCCESS;}
   virtual MBErrorCode write_finished();
 
  
@@ -125,7 +127,8 @@ protected:
   MBErrorCode count_set_size( const MBRange& sets,
                               MBRange& compressed_sets_out,
                               long& contents_length_out,
-                              long& children_length_out );
+                              long& children_length_out,
+                              long& parents_length_out );
   
   /** Helper function for create-file
    *
@@ -137,7 +140,9 @@ protected:
    *
    * Create zero-ed tables where set data will be written.
    */
-  MBErrorCode create_set_tables( long contents_length, long children_length );
+  MBErrorCode create_set_tables( long contents_length, 
+                                 long children_length,
+                                 long parents_length );
 
   /** Helper function for create-file
    *
@@ -228,7 +233,7 @@ protected:
   //! Offset into set contents table (zero except for parallel)
   unsigned long setContentsOffset;
   //! Offset into set children table (zero except for parallel)
-  unsigned long setChildrenOffset;
+  unsigned long setChildrenOffset, setParentsOffset;
   //! Flags idicating if set data should be written.
   //! For the normal (non-parallel) case, these values
   //! will depend only on whether or not there is any
@@ -236,7 +241,7 @@ protected:
   //! the data table is collective so the values must
   //! depend on whether or not any processor has meshsets
   //! to be written.
-  bool writeSets, writeSetContents, writeSetChildren;
+  bool writeSets, writeSetContents, writeSetChildren, writeSetParents;
   
   //! The list of tags to export
   std::list<SparseTag> tagList;
@@ -280,6 +285,7 @@ private:
   MBErrorCode get_set_info( MBEntityHandle set,
                             long& num_entities,
                             long& num_children,
+                            long& num_parents,
                             unsigned long& flags );
 
 protected:

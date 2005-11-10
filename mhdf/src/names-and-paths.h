@@ -54,6 +54,8 @@
 #define SET_META_PATH          SET_GROUP  SET_META_NAME
 #define SET_CHILD_NAME         "children"
 #define SET_CHILD_PATH         SET_GROUP  SET_CHILD_NAME
+#define SET_PARENT_NAME        "parents"
+#define SET_PARENT_PATH        SET_GROUP  SET_PARENT_NAME
 #define SET_DATA_NAME          "contents"
 #define SET_DATA_PATH          SET_GROUP  SET_DATA_NAME
 #define SET_TAG_GROUP          SET_GROUP  DENSE_TAG_SUBGROUP

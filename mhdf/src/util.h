@@ -140,7 +140,7 @@ void mhdf_api_end_internal( int expected_diff,
 int mhdf_write_max_id( FileHandle* file_ptr, mhdf_Status* status );
                             
                             
-#ifdef NDEBUG
+#ifndef DEBUG_OPEN_HANDLES
 #  define API_BEGIN
 #  define API_END_H(n)
 #else

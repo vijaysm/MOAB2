@@ -1037,10 +1037,11 @@ mhdf_readAdjacency( hid_t data_handle,
 /** \brief Create table holding list of meshsets and their properties.
  * 
  * The set table contains description of sets, but not contents or
- * children.  The table is a <code>n x 3</code> matrix of values.  
+ * children.  The table is a <code>n x 4</code> matrix of values.  
  * One row for each of <code>n</code> sets.  Each row contains the end index
  * for the set in the contents table, the end index for the set in the children
- * table, and the set flags, respectively. The \ref mhdf_SET_RANGE_BIT
+ * table, the end index for the set in the parents table, and the set flags, 
+ * respectively. The \ref mhdf_SET_RANGE_BIT
  * bit in the flags specifies the format of the contents list for each set.
  * See a description of the \ref mhdf_SET_RANGE_BIT flag for a description
  * of the two possbile data formats.  The index values in the first two columns
@@ -1073,6 +1074,8 @@ mhdf_createSetMeta( mhdf_FileHandle file_handle,
  *                          of set contents, zero otherwise.
  *\param have_set_child_out If non-null set to 1 if file contains table
  *                          of set children, zero otherwise.
+ *\param have_set_parents_out If non-null set to 1 if file contains table
+ *                          of set parents, zero otherwise.
  * \param status       Passed back status of API call.
  *\return Zero if the file does not contain any sets, one if it does.
  */
@@ -1080,6 +1083,7 @@ int
 mhdf_haveSets( mhdf_FileHandle file,
                int* have_set_data_out,
                int* have_set_child_out,
+               int* have_set_parents_out,
                mhdf_Status* status );
 
 /** \brief Open table holding list of meshsets and their properties.
@@ -1249,13 +1253,13 @@ mhdf_readSetData( hid_t set_handle,
  * Create a data group for the list of set children.  
  * The format of this data is the concatenation of the lists of
  * global IDs of child sets for each set.  The order of the sets and
- * the number of children for each set is contained in teh set metatable.
+ * the number of children for each set is contained in the set metatable.
  * (See \ref mhdf_createSetMeta ).
  *
  *\param file_handle      The file
  *\param child_list_size  The total length of the data (the sum of the 
  *                        number of children for each set.)
- *\param status      Passed back status of API call.
+ *\param status           Passed back status of API call.
  *\return A handle to the data object in the file.
  */
 hid_t
@@ -1265,14 +1269,14 @@ mhdf_createSetChildren( mhdf_FileHandle file_handle,
 
 /** \brief Open the file object containing the set child list 
  *
- * Open the data group conjtaining the list of set children.  
+ * Open the data group containing the list of set children.  
  * See \ref mhdf_createSetChildren and \ref mhdf_createSetMeta for 
  * a description of this data.
  *
  *\param file_handle      The file
  *\param child_list_size  The total length of the data (the sum of the 
  *                        number of children for each set.)
- *\param status      Passed back status of API call.
+ *\param status           Passed back status of API call.
  *\return A handle to the data object in the file.
  */
 hid_t
@@ -1280,9 +1284,45 @@ mhdf_openSetChildren( mhdf_FileHandle file_handle,
                       long* child_list_size,
                       mhdf_Status* status );
 
-/** \brief Write set child list
+/** \brief Create file object for storing the set parent list 
  *
- * Write the list of child IDs for sets.
+ * Create a data group for the list of set prents.  
+ * The format of this data is the concatenation of the lists of
+ * global IDs of parent sets for each set.  The order of the sets and
+ * the number of parents for each set is contained in the set metatable.
+ * (See \ref mhdf_createSetMeta ).
+ *
+ *\param file_handle       The file
+ *\param parent_list_size  The total length of the data (the sum of the 
+ *                         number of parents for each set.)
+ *\param status            Passed back status of API call.
+ *\return A handle to the data object in the file.
+ */
+hid_t
+mhdf_createSetParents( mhdf_FileHandle file_handle,
+                       long parent_list_size,
+                       mhdf_Status* status );
+
+/** \brief Open the file object containing the set parent list 
+ *
+ * Open the data group containing the list of set parents.  
+ * See \ref mhdf_createSetParents and \ref mhdf_createSetMeta for 
+ * a description of this data.
+ *
+ *\param file_handle       The file
+ *\param parent_list_size  The total length of the data (the sum of the 
+ *                         number of parents for each set.)
+ *\param status            Passed back status of API call.
+ *\return A handle to the data object in the file.
+ */
+hid_t
+mhdf_openSetParents( mhdf_FileHandle file_handle,
+                     long* parent_list_size,
+                     mhdf_Status* status );
+
+/** \brief Write set parent/child list
+ *
+ * Write the list of parent or child IDs for sets.
  * See \ref mhdf_createSetChildren and \ref mhdf_createSetMeta for 
  * a description of this data.
  * 
@@ -1294,20 +1334,20 @@ mhdf_openSetChildren( mhdf_FileHandle file_handle,
  *                   Typically <code>H5T_NATIVE_INT</code> or
  *                   <code>N5T_NATIVE_LONG</code> as defined in <i>H5Tpublic.h</i>.
  *                   The HDF class of this type object <em>must</em> be H5T_INTEGER
- *\param child_id_list The data to write.
+ *\param id_list     The data to write.
  *\param status      Passed back status of API call.
  */
 void
-mhdf_writeSetChildren( hid_t data_handle,
-                       long offset,
-                       long count,
-                       hid_t hdf_integer_type,
-                       const void* child_id_list,
-                       mhdf_Status* status );
+mhdf_writeSetParentsChildren( hid_t data_handle,
+                              long offset,
+                              long count,
+                              hid_t hdf_integer_type,
+                              const void* id_list,
+                              mhdf_Status* status );
 
-/** \brief Read set child list
+/** \brief Read set parent/child list
  *
- * Read from the list of child IDs for sets.
+ * Read from the list of parent or child IDs for sets.
  * See \ref mhdf_createSetChildren and \ref mhdf_createSetMeta for 
  * a description of this data.
  * 
@@ -1319,16 +1359,16 @@ mhdf_writeSetChildren( hid_t data_handle,
  *                   Typically <code>H5T_NATIVE_INT</code> or
  *                   <code>N5T_NATIVE_LONG</code> as defined in <i>H5Tpublic.h</i>.
  *                   The HDF class of this type object <em>must</em> be H5T_INTEGER
- *\param child_id_list Pointer to memory at which to store read data.
+ *\param id_list     Pointer to memory in which to the read data.
  *\param status      Passed back status of API call.
  */
 void
-mhdf_readSetChildren( hid_t data_handle,
-                      long offset,
-                      long count,
-                      hid_t hdf_integer_type,
-                      void* child_id_list,
-                      mhdf_Status* status );
+mhdf_readSetParentsChildren( hid_t data_handle,
+                             long offset,
+                             long count,
+                             hid_t hdf_integer_type,
+                             void* id_list,
+                             mhdf_Status* status );
 
 /*@}*/
 

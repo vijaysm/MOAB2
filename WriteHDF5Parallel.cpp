@@ -1209,7 +1209,7 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   
   
     // Communicate sizes for remote sets
-  long data_offsets[2] = { 0, 0 };
+  long data_offsets[3] = { 0, 0, 0 };
   for (i = 0; i < (int)remote_set_data.size(); ++i)
   {
     rval = negotiate_remote_set_contents( remote_set_data[i], data_offsets ); 
@@ -1221,46 +1221,50 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   //rval = communicate_remote_ids( MBENTITYSET ); assert(MB_SUCCESS == rval);
   
     // Communicate counts for local sets
-  long data_counts[2];
-  rval = count_set_size( setSet.range, rangeSets, data_counts[0], data_counts[1] );
+  long data_counts[3];
+  rval = count_set_size( setSet.range, rangeSets, data_counts[0], data_counts[1], data_counts[2] );
   if (MB_SUCCESS != rval) return rval;
-  std::vector<long> set_counts(2*numProc);
-  result = MPI_Gather( data_counts,    2, MPI_LONG,
-                       &set_counts[0], 2, MPI_LONG,
+  std::vector<long> set_counts(3*numProc);
+  result = MPI_Gather( data_counts,    3, MPI_LONG,
+                       &set_counts[0], 3, MPI_LONG,
                        0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
-  for (i = 0; i < 2*numProc; ++i)
+  for (i = 0; i < 3*numProc; ++i)
   {
     long tmp = set_counts[i];
-    set_counts[i] = data_offsets[i%2];
-    data_offsets[i%2] += tmp;
+    set_counts[i] = data_offsets[i%3];
+    data_offsets[i%3] += tmp;
   }
-  long all_counts[] = {data_offsets[0], data_offsets[1]};
-  result = MPI_Scatter( &set_counts[0], 2, MPI_LONG,
-                        data_offsets,   2, MPI_LONG,
+  long all_counts[] = {data_offsets[0], data_offsets[1], data_offsets[2]};
+  result = MPI_Scatter( &set_counts[0], 3, MPI_LONG,
+                        data_offsets,   3, MPI_LONG,
                         0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
   setContentsOffset = data_offsets[0];
   setChildrenOffset = data_offsets[1];
+  setParentsOffset = data_offsets[2];
   
     // Create set contents and set children tables
   if (myRank == 0)
   {
-    rval = create_set_tables( all_counts[0], all_counts[1] );
+    rval = create_set_tables( all_counts[0], all_counts[1], all_counts[2] );
     if (MB_SUCCESS != rval) return rval;
   }
   
     // Send totals to all processors
-  result = MPI_Bcast( all_counts, 2, MPI_LONG, 0, MPI_COMM_WORLD );
+  result = MPI_Bcast( all_counts, 3, MPI_LONG, 0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
   writeSetContents = all_counts[0] > 0;
   writeSetChildren = all_counts[1] > 0;
+  writeSetParents  = all_counts[2] > 0;
 
   START_SERIAL;  
   printdebug("Non-shared set contents: %ld local, %ld global, offset = %ld\n",
     data_counts[0], all_counts[0], data_offsets[0] );
   printdebug("Non-shared set children: %ld local, %ld global, offset = %ld\n",
     data_counts[1], all_counts[1], data_offsets[1] );
+  printdebug("Non-shared set parents: %ld local, %ld global, offset = %ld\n",
+    data_counts[2], all_counts[2], data_offsets[2] );
   END_SERIAL;
   
   return MB_SUCCESS;
@@ -1304,7 +1308,7 @@ void WriteHDF5Parallel::remove_remote_entities( std::vector<MBEntityHandle>& vec
 
 
 MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& data,
-                                                              long* offsets /* long[2] */ )
+                                                              long* offsets /* long[3] */ )
 {
   unsigned i;
   MBErrorCode rval;
@@ -1315,7 +1319,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
   std::vector<int>::iterator viter;
 
     // Calculate counts for each meshset
-  std::vector<long> local_sizes(2*count);
+  std::vector<long> local_sizes(3*count);
   std::vector<long>::iterator sizes_iter = local_sizes.begin();
   MBRange tmp_range;
   std::vector<MBEntityHandle> child_list;
@@ -1355,17 +1359,35 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
         ++*sizes_iter;
     }
     ++sizes_iter;
+    
+      // Count parents
+    *sizes_iter = 0;
+    child_list.clear();
+    rval = iFace->get_parent_meshsets( *riter, child_list );
+    remove_remote_entities( child_list );
+    assert (MB_SUCCESS == rval);
+    for (std::vector<MBEntityHandle>::iterator iter = child_list.begin();
+         iter != child_list.end(); ++iter)
+    {
+      int id = 0;
+      rval = iFace->tag_get_data( idTag, &*iter, 1, &id );
+      if (rval != MB_TAG_NOT_FOUND && rval != MB_SUCCESS)
+        { assert(0); return MB_FAILURE; }
+      if (id > 0)
+        ++*sizes_iter;
+    }
+    ++sizes_iter;
   }
   
     // Exchange sizes for sets between all processors.
-  std::vector<long> all_sizes(2*total);
+  std::vector<long> all_sizes(3*total);
   std::vector<int> counts(numProc), displs(numProc);
   for (i = 0; i < (unsigned)numProc; i++)
-    counts[i] = 2 * data.counts[i];
+    counts[i] = 3 * data.counts[i];
   displs[0] = 0;
   for (i = 1; i < (unsigned)numProc; i++)
     displs[i] = displs[i-1] + counts[i-1];
-  result = MPI_Allgatherv( &local_sizes[0], 2*count, MPI_LONG,
+  result = MPI_Allgatherv( &local_sizes[0], 3*count, MPI_LONG,
                            &all_sizes[0], &counts[0], &displs[0], MPI_LONG,
                            MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
@@ -1381,7 +1403,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
     // which the set data is to be written.  Store the offset of the data
     // on this processor for the set *relative* to the start of the
     // data of *the set*.
-  std::vector<long> local_offsets(2*count);
+  std::vector<long> local_offsets(3*count);
   std::map<int,int> tagsort;  // Map of {tag value, index of first set w/ value}
   for (i = 0; i < total; ++i)
   {
@@ -1397,7 +1419,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
         // If within the range for this processor, save offsets
       if (r < (unsigned)count) 
       {
-        local_offsets[2*r] = local_offsets[2*r+1] = 0;
+        local_offsets[3*r] = local_offsets[3*r+1] = 0;
       }
     }
       // Otherwise update the total size in the table
@@ -1410,13 +1432,15 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
       int j = p->second;
       if (r < (unsigned)count) 
       {
-        local_offsets[2*r  ] = all_sizes[2*j  ];
-        local_offsets[2*r+1] = all_sizes[2*j+1];
+        local_offsets[3*r  ] = all_sizes[3*j  ];
+        local_offsets[3*r+1] = all_sizes[3*j+1];
+        local_offsets[3*r+2] = all_sizes[3*j+2];
       }
       
-      all_sizes[2*j  ] += all_sizes[2*i  ];
-      all_sizes[2*j+1] += all_sizes[2*i+1];
-      all_sizes[2*i  ]  = all_sizes[2*i+1] = -1;
+      all_sizes[3*j  ] += all_sizes[3*i  ];
+      all_sizes[3*j+1] += all_sizes[3*i+1];
+      all_sizes[3*j+2] += all_sizes[3*i+2];
+      all_sizes[3*i  ] = all_sizes[3*i+1] = all_sizes[3*i+2] = -1;
     }
   }  
 
@@ -1432,9 +1456,10 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
   {
     const std::map<int,int>::iterator p = tagsort.find( *viter ); ++viter;
     assert( p != tagsort.end() );
-    int j = 2 * p->second;
+    int j = 3 * p->second;
     *sizes_iter = all_sizes[j  ]; ++sizes_iter;
     *sizes_iter = all_sizes[j+1]; ++sizes_iter;
+    *sizes_iter = all_sizes[j+2]; ++sizes_iter;
   }
   
     // Now calculate the offset of the data for each (entire, parallel) set in
@@ -1443,7 +1468,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
   {
     if (all_sizes[i] >= 0)
     {
-      int j = i % 2;              // contents or children list ?
+      int j = i % 3;              // contents or children list ?
       long tmp = offsets[j];      // save current, running offset
       offsets[j] += all_sizes[i]; // next set's offset is current plus the size of this set
       all_sizes[i] = tmp;         // size of this set is running offset.
@@ -1459,9 +1484,10 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
   {
     const std::map<int,int>::iterator p = tagsort.find( *viter ); ++viter;
     assert( p != tagsort.end() );
-    int j = 2 * p->second;
+    int j = 3 * p->second;
     *sizes_iter += all_sizes[j  ]; ++sizes_iter;
     *sizes_iter += all_sizes[j+1]; ++sizes_iter;
+    *sizes_iter += all_sizes[j+2]; ++sizes_iter;
   }
 
 #ifdef DEBUG  
@@ -1490,8 +1516,10 @@ printdebug("                            %13d %13d\n", local_offsets[d], local_si
     info.handle = *riter;
     info.contentsOffset = *offset_iter; ++offset_iter;
     info.childrenOffset = *offset_iter; ++offset_iter;
+    info.parentsOffset = *offset_iter; ++offset_iter;
     info.contentsCount = *sizes_iter; ++sizes_iter;
     info.childrenCount = *sizes_iter; ++sizes_iter;
+    info.parentsCount = *sizes_iter; ++sizes_iter;
     info.description = *all_iter >= 0; all_iter += 2;
     parallelSets.push_back( info );
   }
@@ -1541,8 +1569,9 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table )
     assert( MB_SUCCESS == rval );
       
       // Write the data
-    long data[3] = { iter->contentsOffset + iter->contentsCount - 1, 
+    long data[4] = { iter->contentsOffset + iter->contentsCount - 1, 
                      iter->childrenOffset + iter->childrenCount - 1, 
+                     iter->parentsOffset  + iter->parentsCount  - 1,
                      flags };
     mhdf_writeSetMeta( table, file_id, 1, H5T_NATIVE_LONG, data, &status );
     if (mhdf_isError(&status))
@@ -1623,12 +1652,54 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_children( hid_t table )
     
     if (!id_list.empty())
     {
-      mhdf_writeSetChildren( table, 
-                             iter->childrenOffset, 
-                             id_list.size(),
-                             id_type,
-                             &id_list[0],
-                             &status );
+      mhdf_writeSetParentsChildren( table, 
+                                    iter->childrenOffset, 
+                                    id_list.size(),
+                                    id_type,
+                                    &id_list[0],
+                                    &status );
+      assert(!mhdf_isError(&status));
+    }
+  }
+
+  return MB_SUCCESS;
+}
+    
+
+MBErrorCode WriteHDF5Parallel::write_shared_set_parents( hid_t table )
+{
+  MBErrorCode rval;
+  mhdf_Status status;
+  std::vector<MBEntityHandle> handle_list;
+  std::vector<id_t> id_list;
+  
+  printdebug("Writing %d parallel sets.\n", parallelSets.size());
+  for( std::list<ParallelSet>::iterator iter = parallelSets.begin();
+        iter != parallelSets.end(); ++iter)
+  {
+    handle_list.clear();
+    rval = iFace->get_parent_meshsets( iter->handle, handle_list );
+    assert( MB_SUCCESS == rval );
+    remove_remote_entities( handle_list );
+    
+    id_list.clear();
+    for (unsigned int i = 0; i < handle_list.size(); ++i)
+    {
+      int id;
+      rval = iFace->tag_get_data( idTag, &handle_list[i], 1, &id );
+      assert( MB_SUCCESS == rval );
+      if (id > 0)
+        id_list.push_back(id);
+    }
+    
+    if (!id_list.empty())
+    {
+      mhdf_writeSetParentsChildren( table, 
+                                    iter->childrenOffset, 
+                                    id_list.size(),
+                                    id_type,
+                                    &id_list[0],
+                                    &status );
       assert(!mhdf_isError(&status));
     }
   }

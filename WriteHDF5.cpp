@@ -181,9 +181,11 @@ WriteHDF5::WriteHDF5( MBInterface* iface )
     idTag( 0 ),
     setContentsOffset( 0 ),
     setChildrenOffset( 0 ),
+    setParentsOffset( 0 ),
     writeSets(false),
     writeSetContents(false),
-    writeSetChildren(false)
+    writeSetChildren(false),
+    writeSetParents(false)
 {
 }
 
@@ -879,6 +881,7 @@ MBErrorCode WriteHDF5::write_poly( ExportSet& elems )
 MBErrorCode WriteHDF5::get_set_info( MBEntityHandle set,
                                      long& num_entities,
                                      long& num_children,
+                                     long& num_parents,
                                      unsigned long& flags )
 {
   MBErrorCode rval;
@@ -893,6 +896,10 @@ MBErrorCode WriteHDF5::get_set_info( MBEntityHandle set,
   CHK_MB_ERR_0(rval);
   num_children = i;
 
+  rval = iFace->num_parent_meshsets( set, &i );
+  CHK_MB_ERR_0(rval);
+  num_parents = i;
+
   rval = iFace->get_meshset_options( set, u );
   CHK_MB_ERR_0(rval);
   flags = u;
@@ -906,8 +913,8 @@ MBErrorCode WriteHDF5::write_sets( )
   mhdf_Status status;
   MBRange& sets = setSet.range;
   MBErrorCode rval;
-  long first_id, meta_size, data_size, child_size;
-  hid_t set_table = 0, content_table = 0, child_table = 0;
+  long first_id, meta_size, data_size, child_size, parent_size;
+  hid_t set_table = 0, content_table = 0, child_table = 0, parent_table = -1;
   
   /* If no sets, just return success */
   if (!writeSets)
@@ -930,16 +937,17 @@ MBErrorCode WriteHDF5::write_sets( )
   MBRange::const_iterator iter = sets.begin();
   MBRange::const_iterator comp = rangeSets.begin();
   const MBRange::const_iterator end = sets.end();
-  long set_data[3];
+  long set_data[4];
   long set_offset = setSet.offset;
   long content_offset = setContentsOffset;
   long child_offset = setChildrenOffset;
+  long parent_offset = setParentsOffset;
   unsigned long flags;
   std::vector<id_t> id_list;
   std::vector<MBEntityHandle> handle_list;
   for ( ; iter != end; ++iter )
   {
-    rval = get_set_info( *iter, data_size, child_size, flags );
+    rval = get_set_info( *iter, data_size, child_size, parent_size, flags );
     CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
     
     id_list.clear();
@@ -971,9 +979,11 @@ MBErrorCode WriteHDF5::write_sets( )
     }
     
     child_offset += child_size;
+    parent_offset += parent_size;
     set_data[0] = content_offset + data_size - 1;
     set_data[1] = child_offset - 1;
-    set_data[2] = flags;
+    set_data[2] = parent_offset - 1;
+    set_data[3] = flags;
 
     mhdf_writeSetMeta( set_table, set_offset++, 1L, H5T_NATIVE_LONG, set_data, &status );
     CHK_MHDF_ERR_2C(status, set_table, writeSetContents, content_table );
@@ -1002,43 +1012,79 @@ MBErrorCode WriteHDF5::write_sets( )
     CHK_MB_ERR_0( rval );
   }
   
-  if (!writeSetChildren)
-    return MB_SUCCESS;
-      
-  
-  /* Write set children */
-  
-  child_offset = setChildrenOffset;
-  child_table = mhdf_openSetChildren( filePtr, &child_size, &status );
-  CHK_MHDF_ERR_0(status);
-   
-  for (iter = sets.begin(); iter != end; ++iter)
+    /* Write set children */
+  if (writeSetChildren)
   {
-    handle_list.clear();
-    id_list.clear();
-    rval = iFace->get_child_meshsets( *iter, handle_list, 1 );
-    CHK_MB_ERR_1(rval, child_table, status);
 
-    if (handle_list.size() == 0)
-      continue;
+    child_offset = setChildrenOffset;
+    child_table = mhdf_openSetChildren( filePtr, &child_size, &status );
+    CHK_MHDF_ERR_0(status);
 
-    rval = vector_to_id_list( handle_list, id_list );
-    CHK_MB_ERR_1(rval, child_table, status);
+    for (iter = sets.begin(); iter != end; ++iter)
+    {
+      handle_list.clear();
+      id_list.clear();
+      rval = iFace->get_child_meshsets( *iter, handle_list, 1 );
+      CHK_MB_ERR_1(rval, child_table, status);
+
+      if (handle_list.size() == 0)
+        continue;
+
+      rval = vector_to_id_list( handle_list, id_list );
+      CHK_MB_ERR_1(rval, child_table, status);
 
 
-    mhdf_writeSetChildren( child_table, 
-                           child_offset, 
-                           id_list.size(), 
-                           id_type, 
-                           &id_list[0], 
-                           &status );
-    CHK_MHDF_ERR_1(status, child_table);
-    child_offset += id_list.size();
+      mhdf_writeSetParentsChildren( child_table, 
+                                    child_offset, 
+                                    id_list.size(), 
+                                    id_type, 
+                                    &id_list[0], 
+                                    &status );
+      CHK_MHDF_ERR_1(status, child_table);
+      child_offset += id_list.size();
+    }
+
+    rval = write_shared_set_children( child_table );
+    mhdf_closeData( filePtr, child_table, &status );
+    CHK_MB_ERR_0(rval);
   }
   
-  rval = write_shared_set_children( child_table );
-  mhdf_closeData( filePtr, child_table, &status );
-  CHK_MB_ERR_0(rval);
+    /* Write set parents */
+  if (writeSetParents)
+  {
+
+    parent_offset = setParentsOffset;
+    parent_table = mhdf_openSetParents( filePtr, &parent_size, &status );
+    CHK_MHDF_ERR_0(status);
+
+    for (iter = sets.begin(); iter != end; ++iter)
+    {
+      handle_list.clear();
+      id_list.clear();
+      rval = iFace->get_parent_meshsets( *iter, handle_list, 1 );
+      CHK_MB_ERR_1(rval, parent_table, status);
+
+      if (handle_list.size() == 0)
+        continue;
+
+      rval = vector_to_id_list( handle_list, id_list );
+      CHK_MB_ERR_1(rval, parent_table, status);
+
+
+      mhdf_writeSetParentsChildren( parent_table, 
+                                    parent_offset, 
+                                    id_list.size(), 
+                                    id_type, 
+                                    &id_list[0], 
+                                    &status );
+      CHK_MHDF_ERR_1(status, parent_table);
+      parent_offset += id_list.size();
+    }
+
+    rval = write_shared_set_parents( parent_table );
+    mhdf_closeData( filePtr, parent_table, &status );
+    CHK_MB_ERR_0(rval);
+  }
 
   return MB_SUCCESS;
 }
@@ -1856,24 +1902,26 @@ DEBUGOUT( "Gathering Tags\n" );
   writeSets = !setSet.range.empty();
   if (writeSets)
   {
-    long contents_len, children_len;
+    long contents_len, children_len, parents_len;
     writeSets = true;
     
     rval = create_set_meta( setSet.range.size(), first_id );
     writeUtil->assign_ids( setSet.range, idTag, (id_t)first_id );
     
-    rval = count_set_size( setSet.range, rangeSets, contents_len, children_len );
+    rval = count_set_size( setSet.range, rangeSets, contents_len, children_len, parents_len );
     CHK_MB_ERR_0(rval);
     
-    rval = create_set_tables( contents_len, children_len );
+    rval = create_set_tables( contents_len, children_len, parents_len );
     CHK_MB_ERR_0(rval);
    
     setSet.first_id = (id_t)first_id;
     setSet.offset = 0;
     setContentsOffset = 0;
     setChildrenOffset = 0;
+    setParentsOffset = 0;
     writeSetContents = !!contents_len;
     writeSetChildren = !!children_len;
+    writeSetParents = !!parents_len;
   } // if(!setSet.range.empty())
   
     // Create the tags and tag data tables
@@ -1966,21 +2014,24 @@ MBErrorCode WriteHDF5::create_poly_tables( MBEntityType mb_type,
 MBErrorCode WriteHDF5::count_set_size( const MBRange& sets, 
                                        MBRange& compressed_sets,
                                        long& contents_length_out,
-                                       long& children_length_out )
+                                       long& children_length_out,
+                                       long& parents_length_out )
 {
   MBErrorCode rval;
   MBRange set_contents;
   MBRange::const_iterator iter = sets.begin();
   const MBRange::const_iterator end = sets.end();
-  long contents_length_set, children_length_set;
+  long contents_length_set, children_length_set, parents_length_set;
   unsigned long flags;
   
   contents_length_out = 0;
   children_length_out = 0;
+  parents_length_out = 0;
   
   for (; iter != end; ++iter)
   {
-    rval = get_set_info( *iter, contents_length_set, children_length_set, flags );
+    rval = get_set_info( *iter, contents_length_set, children_length_set,
+                         parents_length_set, flags );
     CHK_MB_ERR_0(rval);
     
       // check if can and should compress as ranges
@@ -2003,6 +2054,7 @@ MBErrorCode WriteHDF5::count_set_size( const MBRange& sets,
     
     contents_length_out += contents_length_set;
     children_length_out += children_length_set;
+    parents_length_out += parents_length_set;
   }
   
   return MB_SUCCESS;
@@ -2022,7 +2074,8 @@ MBErrorCode WriteHDF5::create_set_meta( id_t num_sets, long& first_id_out )
 
 
 MBErrorCode WriteHDF5::create_set_tables( long num_set_contents,
-                                          long num_set_children )
+                                          long num_set_children,
+                                          long num_set_parents )
 {
   hid_t handle;
   mhdf_Status status;
@@ -2037,6 +2090,13 @@ MBErrorCode WriteHDF5::create_set_tables( long num_set_contents,
   if (num_set_children > 0)
   {
     handle = mhdf_createSetChildren( filePtr, num_set_children, &status );
+    CHK_MHDF_ERR_0(status);
+    mhdf_closeData( filePtr, handle, &status );
+  }
+  
+  if (num_set_parents > 0)
+  {
+    handle = mhdf_createSetParents( filePtr, num_set_parents, &status );
     CHK_MHDF_ERR_0(status);
     mhdf_closeData( filePtr, handle, &status );
   }

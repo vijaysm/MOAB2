@@ -116,6 +116,12 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
       //! the normal (single-processor) meshset children have
       //! been written.
     MBErrorCode write_shared_set_children( hid_t table );
+       
+      //! Write set children for multi-processor meshsets.
+      //! Virtual function called by non-parallel code after
+      //! the normal (single-processor) meshset children have
+      //! been written.
+    MBErrorCode write_shared_set_parents( hid_t table );
   
       //! Virtual function overridden from WriteHDF5.  
       //! Release memory by clearing member lists.
@@ -142,8 +148,10 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
       MBEntityHandle handle;
       long contentsOffset;
       long childrenOffset;
+      long parentsOffset;
       long contentsCount;
       long childrenCount;
+      long parentsCount;
       bool description;
     };
     
