@@ -149,7 +149,7 @@ DEBUGOUT("Reading element connectivity.\n");
   if (mhdf_isError( &status ))
   {
     readUtil->report_error( mhdf_message( &status ));
-    return MB_FAILURE;
+    goto read_fail;
   }
 
   for (i = 0; i < num_groups; ++i)
@@ -158,7 +158,7 @@ DEBUGOUT("Reading element connectivity.\n");
     if (mhdf_isError( &status ))
     {
       readUtil->report_error( mhdf_message( &status ));
-      return MB_FAILURE;
+      goto read_fail;
     }
 
     if (poly)
@@ -189,7 +189,7 @@ DEBUGOUT("Reading tags.\n");
   if (mhdf_isError( &status ))
   {
     readUtil->report_error( mhdf_message( &status ));
-    return MB_FAILURE;
+    goto read_fail;
   }
   
   for (int t = 0; t < num_tags; ++t)
