@@ -26,8 +26,22 @@ case "x$WITH_MPI" in
     AC_PROG_CXX([mpiCC mpCC] )
     ;;
   x*)
-    AC_PROG_CC( [${WITH_MPI}/bin/mpicc ${WITH_MPI}/bin/mpcc] )
-    AC_PROG_CXX([${WITH_MPI}/bin/mpiCC ${WITH_MPI}/bin/mpCC] )
+    if test -z "$CC";then
+      for prog in mpicc mpcc; do
+        if test -x ${WITH_MPI}/bin/$prog; then
+          CC="${WITH_MPI}/bin/$prog"
+        fi
+      done
+    fi
+    if test -z "$CXX";then
+      for prog in mpicxx mpiCC mpCC; do
+        if test -x ${WITH_MPI}/bin/$prog; then
+          CXX="${WITH_MPI}/bin/$prog"
+        fi
+      done
+    fi
+    AC_PROG_CC( [mpicc mpcc] )
+    AC_PROG_CXX([mpiCC mpCC mpicxx] )
     WITH_MPI=yes
     ;;
 esac
@@ -62,7 +76,7 @@ if test "xyes" = "x$enable_debug"; then
 fi
 if test "xyes" = "x$enable_optimize"; then
   CXXFLAGS="$CXXFLAGS -O2"
-  CFLAGS="$CFLAGS -O2"
+  CFLAGS="$CFLAGS -O2 -DNDEBUG"
 fi
 
   # Check for 32/64 bit.
