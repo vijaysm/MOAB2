@@ -80,8 +80,12 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
     
       //! Setup meshsets spanning multiple processors
     MBErrorCode get_remote_set_data( const char* tagname,
+                                     const char* tagname2 /* = 0 */,
                                      RemoteSetData& data,
                                      long& offset );
+                                     
+      //! Setup interface meshsets spanning multiple processors
+    MBErrorCode get_interface_set_data( RemoteSetData& data, long& offset );
     
       //! Determine offsets in contents and children tables for 
       //! meshsets shared between processors.
@@ -145,18 +149,23 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
     
       //! Struct describing a multi-processor meshset
     struct ParallelSet {
-      MBEntityHandle handle;
-      long contentsOffset;
-      long childrenOffset;
-      long parentsOffset;
-      long contentsCount;
-      long childrenCount;
-      long parentsCount;
-      bool description;
+      MBEntityHandle handle;// set handle on this processor
+      long contentsOffset;  // offset in table at which to write set contents
+      long childrenOffset;  // offset in table at which to write set children
+      long parentsOffset;   // offset in table at which to write set parents
+      long contentsCount;   // total size of set contents (all processors)
+      long childrenCount;   // total number of set children (all processors)
+      long parentsCount;    // total numoer of set parents (all processors)
+      bool description;     // true if this processor 'ownes' the set
     };
     
       //! List of multi-processor meshsets
     std::list<ParallelSet> parallelSets;
+    
+      //! List of sets in parallelSets that this processor is responsible
+      //! for.  This list is constructed and used before parallelSets has
+      //! been populates, and is retained for convenience.
+    MBRange myParallelSets;
     
     void printrange( MBRange& );
 };
