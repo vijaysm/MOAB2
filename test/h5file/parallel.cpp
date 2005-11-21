@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 /*#include <assert.h>*/
 #include <mpi.h>
 #include "MBCore.hpp"
@@ -51,6 +52,12 @@ static void printerror( const char* format, ... )
       
 void create_interface( MBEntityHandle geom, int proc );
 
+volatile int go = 0;
+
+extern "C" void handle_signal( int sig )
+{
+  go = 1;
+}
 
 int main( int argc, char* argv[] )
 {
@@ -63,11 +70,28 @@ int main( int argc, char* argv[] )
   MPI_Comm_size( MPI_COMM_WORLD, &numproc );
   MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
   
-  if (argc < 3)
+  int in_file_idx = 2;
+  const char* out_file = argv[1];
+  bool wait_for_sig = false;
+  if (!strcmp( out_file, "-w" )) 
   {
-    printerror( "Usage: %s <output file> <input file list>", argv[0] );
+    out_file = argv[2];
+    in_file_idx = 3;
+    wait_for_sig = true;
+  }
+  
+  if (argc < (in_file_idx+1))
+  {
+    printerror( "Usage: %s [-w] <output file> <input file list>", argv[0] );
     exit( 1 );
   }
+  
+  if (wait_for_sig)
+  {
+    signal( SIGUSR1, &handle_signal );
+    while (!go) sleep(1);
+  }
+    
   
   printerror ( "MPI Initialized." );
 
@@ -75,8 +99,7 @@ int main( int argc, char* argv[] )
   getcwd( wd, sizeof(wd) );
   printerror ("WorkingDir: %s\n", wd);
   
-  
-  for (i = 2; i < argc; ++i)
+  for (i = in_file_idx; i < argc; ++i)
   {
     printerror ( "Reading \"%s\"...", argv[i] );
     rval = iFace.load_mesh( argv[i], 0, 0 );
@@ -155,27 +178,31 @@ START_SERIAL;
     for (riter = geometry.begin(); riter != geometry.end(); ++riter)
     {
       volumes.clear();
-      iFace.get_parent_meshsets( *riter, volumes, 3 - dimension );
+      rval = iFace.get_parent_meshsets( *riter, volumes, 3 - dimension );
+      assert(MB_SUCCESS == rval);
+
 int id2;
 char tmpcstr[32];
-/*
+
 rval = iFace.tag_get_data( idTag, &*riter, 1, &id2 ); assert(!rval);
 std::string s = dimension == 2 ? "surface" : dimension == 1 ? "curve" : dimension == 0 ? "vertex" : "UNKNOWN";
 sprintf(tmpcstr," %d", id2);
 s += tmpcstr;
 s += " : volumes:";
+sprintf(tmpcstr," %d :", volumes.size());
+s += tmpcstr;
 for (viter = volumes.begin(); viter != volumes.end(); ++viter)
 {
   int dim;
   rval = iFace.tag_get_data( geomTag, &*viter, 1, &dim ); assert(!rval);
   if (dim != 3) // not a volume 
-    continue;
+    {continue;}
   rval = iFace.tag_get_data( idTag, &*viter, 1, &id2 ); assert(!rval);
   sprintf(tmpcstr," %d", id2);
   s += tmpcstr;
 }
 printerror("%s", s.c_str());
-*/
+
       for (viter = volumes.begin(); viter != volumes.end(); ++viter)
       {
           // Is the adjacent volume local or remote?
@@ -297,14 +324,15 @@ END_SERIAL;
   
     // Assign global ID tag to all entities to make sure
     // all procs are starting out with the same thing.
-  MBRange everything;
-  iFace.get_entities_by_handle( 0, everything );
+  MBRange everything, extra;
+  iFace.get_entities_by_handle( 0, everything ); // doesn't include meshsets
+  iFace.get_entities_by_type( 0, MBENTITYSET, extra );
+  everything.merge( extra );
   for (MBRange::iterator all_iter = everything.begin();
-       all_iter != everything.end() &&
-       iFace.type_from_handle(*all_iter) != MBENTITYSET;
-       ++all_iter)
+       all_iter != everything.end(); ++all_iter) {
     rval = iFace.tag_set_data( gidTag, &*all_iter, 1,  &*all_iter );  assert(!rval); 
-    
+  }
+     
     // Copy dimension from non-parallel geometry tag to parallel geometry tag
   everything.clear();
   iFace.get_entities_by_type_and_tag(  0, MBENTITYSET, &geomTag, 0, 1, everything );
@@ -319,7 +347,7 @@ END_SERIAL;
     // Write all the mesh in a single, serial file to compare with
     // the parallel output.
   if (0 == rank) {
-    std::string sname = argv[1];
+    std::string sname = out_file;
     sname += ".serial.h5m";
     rval = iFace.write_mesh( sname.c_str() );
     if (MB_SUCCESS != rval)
@@ -336,11 +364,11 @@ END_SERIAL;
     // Write individual file from each processor
   char str_rank[6];
   sprintf(str_rank, ".%02d", rank );
-  char* ptr = strrchr( argv[1], '.' );
+  char* ptr = strrchr( out_file, '.' );
   if (ptr && strcmp(ptr, ".h5m")) ptr = 0;
   if (ptr)
     *ptr = '\0';
-  std::string name = argv[1];
+  std::string name = out_file;
   if (ptr)
     *ptr = '.';
   name += str_rank;
@@ -368,15 +396,16 @@ END_SERIAL;
   qa.push_back( qa3 );
   WriteHDF5Parallel writer( &iFace );
   
-  printerror ("Writing parallel file: \"%s\"", argv[1] );
-  rval = writer.write_file( argv[1], true, &list[0], list.size(), qa );
+  printerror ("Writing parallel file: \"%s\"", out_file );
+  rval = writer.write_file( out_file, true, &list[0], list.size(), qa );
   if (MB_SUCCESS != rval)
   {
-    printerror( "Failed to write parallel file: \"%s\"", argv[1] );
+    printerror( "Failed to write parallel file: \"%s\"", out_file );
     exit( 127 );
   }
-  printerror( "Wrote parallel file: \"%s\"", argv[1] );
+  printerror( "Wrote parallel file: \"%s\"", out_file );
   
+  H5close();
   MPI_Finalize();
   return 0;
 }
