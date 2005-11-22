@@ -17,21 +17,77 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
 {
   public:
     
+      /** Consturctor
+       *
+       * This constructor will automatically register the tags for
+       * material set (block), dirichlet set (nodeset), neumann set
+       * (sideset), and geometry grouping sets for use in identifying
+       * sets that are shared across multiple processors.  To explicitly
+       * disable this functionality, call one of the other construtors
+       * with an empty list of tags.
+       */
+    WriteHDF5Parallel( MBInterface* iface );
+     
+    
       /** Constructor
        *\param multiproc_set_tags Null-terminated list strings.
        *
-       *multiproc_set_tags is a null-terminated list of tag names.
-       *Each tag specified must have an native integer (int) data 
-       *type.  The tag data is used to identify meshsets that span
-       *multiple processors such that they are written as a single
-       *meshset in the resulting file.  The default behavior if the
-       *argument is null is to use MATERIAL_SET_TAG_NAME, 
-       *DIRICHLET_SET_TAG_NAME, and NEUMANN_SET_TAG_NAME.  To 
-       *disable this functionality entirely, pass in an array containing
-       *only the terminated NULL.
+       * multiproc_set_tags is a null-terminated list of tag names.
+       * Each tag specified must have an native integer (int) data 
+       * type.  The tag data is used to identify meshsets that span
+       * multiple processors such that they are written as a single
+       * meshset in the resulting file.  
+       *
+       * NOTE: This list must be identical on all processors, including
+       *       the order!
        */
     WriteHDF5Parallel( MBInterface* iface,
-                       const char** multiproc_set_tags = 0 );
+                       const std::vector<std::string>& multiproc_set_tags );
+    
+    /**\brief Define tags used to identify sets spanning multiple procesors */
+    class MultiProcSetTags {
+      friend class WriteHDF5Parallel;
+      public:
+
+        /**Specify the name of a tag used to identify parallel entity sets.
+         * The tag must have an native integer (int) data type.  The value
+         * of the tag will be used to match sets on different processors.
+         */
+      void add( const std::string& name );
+ 
+        /**Specify separate tags for identifying parallel entity sets and
+         * matching them across processors.
+         *\param filter_name The name of a tag used to identify parallel entity sets
+         *\param value_name  The name of a tag having a native integer (int) data
+         *                   type.  The value of this tag is used as an ID to match
+         *                   entity sets on different processors.
+         */
+      void add( const std::string& filter_name, const std::string& value_name );
+ 
+        /**Specify separate tags for identifying parallel entity sets and
+         * matching them across processors.
+         *\param filter_name The name of a tag used to identify parallel entity sets.
+         *                   The data type of this tag must be a native integer (int).
+         *\param filter_value The value of the filter_name tag to use to identify
+         *                   parallel entity sets.
+         *\param value_name  The name of a tag having a native integer (int) data
+         *                   type.  The value of this tag is used as an ID to match
+         *                   entity sets on different processors.
+         */
+      void add( const std::string& filter_name, int filter_value, const std::string& value_name );
+      
+      private:
+      class Data;
+      std::vector<Data> list;
+    };
+     
+      /** Constructor
+       *\param multiproc_set_tags Data used to identify sets spanning multiple processors.
+       *                          NOTE:  This must be identical on all processors, including
+       *                          the order in which tags were added to the object!
+       */
+    WriteHDF5Parallel( MBInterface* iface, const MultiProcSetTags& multiproc_set_tags );
+      
     
   
   protected:
@@ -79,8 +135,7 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
     MBErrorCode negotiate_shared_meshsets( long* offsets );
     
       //! Setup meshsets spanning multiple processors
-    MBErrorCode get_remote_set_data( const char* tagname,
-                                     const char* tagname2 /* = 0 */,
+    MBErrorCode get_remote_set_data( const MultiProcSetTags::Data& tag,
                                      RemoteSetData& data,
                                      long& offset );
                                      
@@ -145,7 +200,7 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
     std::vector<MBRange> remoteMesh;
     
       //! Tag names for identifying multi-processor meshsets
-    std::vector<std::string> multiProcSetTags;
+    MultiProcSetTags multiProcSetTags;
     
       //! Struct describing a multi-processor meshset
     struct ParallelSet {
@@ -168,6 +223,24 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
     MBRange myParallelSets;
     
     void printrange( MBRange& );
+};
+
+
+
+class WriteHDF5Parallel::MultiProcSetTags::Data
+{
+  public:
+  Data( const std::string& name ) 
+   : filterTag(name), dataTag(name), useFilterValue(false) {}
+  Data( const std::string& fname, const std::string& dname )
+   : filterTag(fname), dataTag(dname), useFilterValue(false) {}
+  Data( const std::string& fname, const std::string& dname, int fval )
+   : filterTag(fname), dataTag(dname), filterValue(fval), useFilterValue(true) {}
+   
+  std::string filterTag;
+  std::string dataTag;
+  int filterValue;
+  bool useFilterValue;
 };
 
 #endif
