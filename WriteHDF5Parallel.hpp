@@ -187,8 +187,10 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
     MBErrorCode write_finished();
     
       //! Remove any remote mesh entities from the passed range.
-    void remove_remote_entities( MBRange& range );
-    void remove_remote_entities( std::vector<MBEntityHandle>& vect );
+    void remove_remote_entities( MBEntityHandle relative, MBRange& range );
+    void remove_remote_entities( MBEntityHandle relative, std::vector<MBEntityHandle>& vect );
+    void remove_remote_sets( MBEntityHandle relative, MBRange& range );
+    void remove_remote_sets( MBEntityHandle relative, std::vector<MBEntityHandle>& vect );
     
   private:
     
@@ -217,10 +219,12 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
       //! List of multi-processor meshsets
     std::list<ParallelSet> parallelSets;
     
-      //! List of sets in parallelSets that this processor is responsible
-      //! for.  This list is constructed and used before parallelSets has
-      //! been populates, and is retained for convenience.
-    MBRange myParallelSets;
+      //! Vector indexed by MPI rank, containing the list
+      //! of parallel sets that each processor knows about.
+    std::vector<MBRange> cpuParallelSets;
+    
+      //! List of parallel sets "owned" by this processor
+    //MBRange myParallelSets;
     
     void printrange( MBRange& );
 };

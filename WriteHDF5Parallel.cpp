@@ -1095,6 +1095,8 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
   MBErrorCode rval;
   int i, result;
   MBRange::iterator riter;
+  
+  cpuParallelSets.resize( numProc );
     
   rval = iFace->tag_get_handle( tags.filterTag.c_str(), data.filter_tag );
   if (rval != MB_SUCCESS) return rval;
@@ -1233,21 +1235,33 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
     // Identify which meshsets will be managed by this processor and
     // the corresponding offset in the set description table. 
   std::map<int,int> val_id_map;
+  int cpu = 0;
   for (i = 0; i < total; ++i)
   {
+    if (data.displs[cpu+1] == i)
+      ++cpu;
+
     int id = 0;
     std::map<int,int>::iterator p = val_id_map.find( data.all_values[i] );
     if (p == val_id_map.end())
     {
       id = (int)++offset;
       val_id_map[data.all_values[i]] = id;
-      const unsigned int values_offset = (unsigned)i - (unsigned)data.displs[myRank];
-      if (values_offset < (unsigned)count)
-      {
-        riter = data.range.begin();
-        riter += values_offset;
-        myParallelSets.insert( *riter );
-      }
+      //const unsigned int values_offset = (unsigned)i - (unsigned)data.displs[myRank];
+      //if (values_offset < (unsigned)count)
+      //{
+      //  riter = data.range.begin();
+      //  riter += values_offset;
+      //  myParallelSets.insert( *riter );
+      //}
+    }
+    std::vector<int>::iterator loc 
+      = std::find( data.local_values.begin(), data.local_values.end(), data.all_values[i] );
+    if (loc != data.local_values.end()) 
+    {
+      riter = data.range.begin();
+      riter += loc - data.local_values.begin();
+      cpuParallelSets[cpu].insert( *riter );
     }
   }
   riter = data.range.begin();
@@ -1330,6 +1344,8 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   START_SERIAL;  
   printdebug("Non-shared sets: %ld local, %ld global, offset = %ld, first_id = %ld\n",
     local_count, total_count_and_start_id[0], sets_offset, total_count_and_start_id[1] );
+  printdebug("my Parallel Sets:\n");
+  print_type_sets(iFace, myRank, numProc, cpuParallelSets[myRank] );
   END_SERIAL;
   
     // Not writing any sets??
@@ -1403,7 +1419,8 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   return MB_SUCCESS;
 }
 
-void WriteHDF5Parallel::remove_remote_entities( MBRange& range )
+void WriteHDF5Parallel::remove_remote_entities( MBEntityHandle relative,
+                                                MBRange& range )
 {
   MBRange result;
   result.merge( range.intersect( nodeSet.range ) );
@@ -1413,17 +1430,51 @@ void WriteHDF5Parallel::remove_remote_entities( MBRange& range )
   {
     result.merge( range.intersect( eiter->range ) );
   }
-  result.merge( range.intersect( myParallelSets ) );
+  //result.merge( range.intersect( myParallelSets ) );
+  MBRange sets;
+  int junk;
+  sets.merge( MBRange::lower_bound( range.begin(), range.end(), CREATE_HANDLE(MBENTITYSET, 0, junk )), range.end() );
+  remove_remote_sets( relative, sets );
+  result.merge( sets );
   range.swap(result);
 }
 
-void WriteHDF5Parallel::remove_remote_entities( std::vector<MBEntityHandle>& vect )
+void WriteHDF5Parallel::remove_remote_sets( MBEntityHandle relative, 
+                                            MBRange& range )
+{
+  MBRange result( range.intersect( setSet.range ) );
+  //result.merge( range.intersect( myParallelSets ) );
+  MBRange remaining( range.subtract( result ) );
+  
+  for(MBRange::iterator i = remaining.begin(); i != remaining.end(); ++i)
+  {
+      // Look for the first CPU which knows about both sets.
+    int cpu;
+    for (cpu = 0; cpu < numProc; ++cpu)
+      if (cpuParallelSets[cpu].find(relative) != cpuParallelSets[cpu].end() &&
+          cpuParallelSets[cpu].find(*i) != cpuParallelSets[*i].end())
+        break;
+      // If we didn't find one, something's messed up because the
+      // link must exist on at least this or we wouldn't be here.
+    assert(cpu < numProc);
+      // If I'm the first set that knows about both, I'll handle it.
+    if (cpu == myRank)
+      result.insert( *i );
+  }
+  
+  range.swap( result );
+}
+  
+  
+
+void WriteHDF5Parallel::remove_remote_entities( MBEntityHandle relative,
+                                                std::vector<MBEntityHandle>& vect )
 {
   MBRange intrsct;
   for (std::vector<MBEntityHandle>::const_iterator iter = vect.begin();
        iter != vect.end(); ++iter)
     intrsct.insert(*iter);
-  remove_remote_entities( intrsct );
+  remove_remote_entities( relative, intrsct );
   
   unsigned int read, write;
   for (read = write = 0; read < vect.size(); ++read)
@@ -1439,6 +1490,30 @@ void WriteHDF5Parallel::remove_remote_entities( std::vector<MBEntityHandle>& vec
     vect.resize(write);
 }
 
+  
+
+void WriteHDF5Parallel::remove_remote_sets( MBEntityHandle relative,
+                                            std::vector<MBEntityHandle>& vect )
+{
+  MBRange intrsct;
+  for (std::vector<MBEntityHandle>::const_iterator iter = vect.begin();
+       iter != vect.end(); ++iter)
+    intrsct.insert(*iter);
+  remove_remote_sets( relative, intrsct );
+  
+  unsigned int read, write;
+  for (read = write = 0; read < vect.size(); ++read)
+  {
+    if (intrsct.find(vect[read]) != intrsct.end())
+    {
+      if (read != write)
+        vect[write] = vect[read];
+      ++write;
+    }
+  }
+  if (write != vect.size())
+    vect.resize(write);
+}
 
 // Given a RemoteSetData object describing the set information for a 
 // single tag (or tag pair), populate the list of parallel sets
@@ -1465,7 +1540,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
     *sizes_iter = 0;
     tmp_range.clear();
     rval = iFace->get_entities_by_handle( *riter, tmp_range );
-    remove_remote_entities( tmp_range );
+    remove_remote_entities( *riter, tmp_range );
     assert (MB_SUCCESS == rval);
     for (MBRange::iterator iter = tmp_range.begin(); iter != tmp_range.end(); ++iter)
     {
@@ -1482,7 +1557,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
     *sizes_iter = 0;
     child_list.clear();
     rval = iFace->get_child_meshsets( *riter, child_list );
-    remove_remote_entities( child_list );
+    remove_remote_sets( *riter, child_list );
     assert (MB_SUCCESS == rval);
     for (std::vector<MBEntityHandle>::iterator iter = child_list.begin();
          iter != child_list.end(); ++iter)
@@ -1500,7 +1575,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
     *sizes_iter = 0;
     child_list.clear();
     rval = iFace->get_parent_meshsets( *riter, child_list );
-    remove_remote_entities( child_list );
+    remove_remote_sets( *riter, child_list );
     assert (MB_SUCCESS == rval);
     for (std::vector<MBEntityHandle>::iterator iter = child_list.begin();
          iter != child_list.end(); ++iter)
@@ -1666,8 +1741,6 @@ printdebug("                           (parents) %13d %12d\n", local_offsets[d],
 } 
 }
 } 
-printdebug("myParallelSets:\n");
-print_type_sets(iFace, myRank, numProc, myParallelSets );
 END_SERIAL;
 #endif
   
@@ -1761,7 +1834,7 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_contents( hid_t table )
     handle_list.clear();
     rval = iFace->get_entities_by_handle( iter->handle, handle_list );
     assert( MB_SUCCESS == rval );
-    remove_remote_entities( handle_list );
+    remove_remote_entities( iter->handle, handle_list );
     
     id_list.clear();
     for (unsigned int i = 0; i < handle_list.size(); ++i)
@@ -1803,7 +1876,7 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_children( hid_t table )
     handle_list.clear();
     rval = iFace->get_child_meshsets( iter->handle, handle_list );
     assert( MB_SUCCESS == rval );
-    remove_remote_entities( handle_list );
+    remove_remote_sets( iter->handle, handle_list );
     
     id_list.clear();
     for (unsigned int i = 0; i < handle_list.size(); ++i)
@@ -1845,7 +1918,7 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_parents( hid_t table )
     handle_list.clear();
     rval = iFace->get_parent_meshsets( iter->handle, handle_list );
     assert( MB_SUCCESS == rval );
-    remove_remote_entities( handle_list );
+    remove_remote_sets( iter->handle, handle_list );
     
     id_list.clear();
     for (unsigned int i = 0; i < handle_list.size(); ++i)
@@ -1875,6 +1948,8 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_parents( hid_t table )
 MBErrorCode WriteHDF5Parallel::write_finished()
 {
   parallelSets.clear();
+  cpuParallelSets.clear();
+  //myParallelSets.clear();
   return WriteHDF5::write_finished();
 }
 
