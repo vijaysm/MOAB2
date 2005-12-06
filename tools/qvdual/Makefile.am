@@ -25,15 +25,29 @@ extra_depends = \
   uiQVDual.o \
   moc_uiQVDual.o \
   CropToolpopup.o \
-  CropToolpopup.moc.o \
-  QVTKWidget.moc.o 
+  moc_CropToolpopup.o \
+  moc_QVTKWidget.o 
 
 qvdual_LDADD = $(extra_depends) $(LIBS)
-qvdual_DEPENDENCIES = $(top_builddir)/libMOAB.la
+qvdual_DEPENDENCIES = $(extra_depends)
+
+uiQVDual.cpp: uiQVDual.h uiQVDual.ui 
+	$(UIC) -impl uiQVDual.h -o $@ uiQVDual.ui 
+
+CropToolpopup.cpp: CropToolpopup.h CropToolpopup.ui 
+	$(UIC) -impl CropToolpopup.h -o $@ CropToolpopup.ui 
+
+moc_uiQVDual.cpp: uiQVDual.h
+	$(MOC) -o $@ uiQVDual.h 
+
+moc_CropToolpopup.cpp: CropToolpopup.h 
+	$(MOC) -o $@ CropToolpopup.h 
+
+moc_QVTKWidget.cpp: QVTKWidget.h 
+	$(MOC) -o $@ QVTKWidget.h 
 
 .ui.h: 
 	$(UIC) -o $@ $<
 
-.cxx.moc.cxx: 
-	$(MOC) -o $@ $<
+main.o: uiQVDual.h
 

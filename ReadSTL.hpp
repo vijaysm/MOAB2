@@ -54,6 +54,7 @@
 #ifndef READ_STL_HPP
 #define READ_STL_HPP
 
+#include <stdio.h>
 #include "MBInterface.hpp"
 #include "MBReaderIface.hpp"
 

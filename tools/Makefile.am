@@ -1,28 +1,56 @@
-SUBDIRS =
 if ENABLE_mbconvert
-  SUBDIRS += converter
+  converter_DIR = converter
+else
+  converter_DIR=
 endif
+
 if ENABLE_hexmodops
-  SUBDIRS += hexmodops
+  hexmodops_DIR = hexmodops
+else
+  hexmodops_DIR=
 endif
+
 if ENABLE_mbchaco
-  SUBDIRS += mbchaco
+  mbchaco_DIR = mbchaco
+else
+  mbchaco_DIR=
 endif
+
 if ENABLE_qvdual
-  SUBDIRS += qvdual
+  qvdual_DIR = qvdual
+else
+  qvdual_DIR=
 endif
+
 if ENABLE_mbsize
-  SUBDIRS += size
+  size_DIR = size
+else
+  size_DIR=
 endif
+
 if ENABLE_mbskin
-  SUBDIRS += skin
+  skin_DIR = skin
+else
+  skin_DIR=
 endif
+
 if ENABLE_mbtagprop
-  SUBDIRS += tagprop
+  tagprop_DIR = tagprop
+else
+  tagprop_DIR=
 endif
+
 if ENABLE_spheredecomp
-  SUBDIRS += spheredecomp
+  spheredecomp_DIR = spheredecomp
+else
+  spheredecomp_DIR=
 endif
-# if ENABLE_vtkMOABReader
-#   SUBDIRS += vtkMOABReader
-# endif
+
+SUBDIRS = $(converter_DIR) \
+          $(hexmodops_DIR) \
+          $(mbchaco_DIR) \
+          $(qvdual_DIR) \
+          $(size_DIR) \
+          $(skin_DIR) \
+          $(tagprop_DIR) \
+          $(spheredecomp_DIR)

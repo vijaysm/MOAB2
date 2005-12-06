@@ -22,64 +22,14 @@ SNL_CHECK_NETCDF
 
 
 ################################################################################
-#                                  MOAB
+#                       Possible Error conditions
+#                       Wait until end of script to print messages
 ################################################################################
-AC_ARG_WITH(MOAB,
-[AC_HELP_STRING([--with-MOAB=DIR], [Specify directory containing MOAB])],
-[MOAB_DIR=$withval],[MOAB_DIR=../..])
-case "x$MOAB_DIR" in
-  xno)
-    AC_MSG_ERROR([Invalid option: --without-MOAB])
-    ;;
-  xyes|x)
-    AC_MSG_ERROR([--with-MOAB=DIR requires an argument])
-    ;;
-esac
-
-AC_LANG_SAVE
-AC_LANG_CPLUSPLUS
-
-MOAB_INC_DIR=
-old_CXXCPPFLAGS="$CXXCPPFLAGS"
-old_CXXFLAGS="$CXXFLAGS"
-old_CPPFLAGS="$CPPFLAGS"
-for dir in ${MOAB_DIR} ${MAOB_DIR}/include; do
-  if test "x$MOAB_INC_DIR" = "x"; then
-    CXXCPPFLAGS="-I$dir"
-    CXXFLAGS="$CXXCPPFLAGS"
-    CPPFLAGS="$CXXCPPFLAGS"
-    unset ac_cv_header_MBInterface_hpp
-    AC_CHECK_HEADER([MBInterface.hpp],[MOAB_INC_DIR="$dir"])
-  fi
-done
-if test "x$MOAB_INC_DIR" = "x"; then
-  AC_MSG_ERROR([Couldn't find MOAB header: MBInterface.hpp"])
-else
-  AC_MSG_RESULT([Found MBInterface.hpp in $MOAB_INC_DIR])
-fi
-CXXCPPFLAGS="$old_CXXCPPFLAGS"
-CXXFLAGS="$old_CXXFLAGS"
-CPPFLAGS="$old_CPPFLAGS"
-INCLUDES="-I$MOAB_INC_DIR $INCLUDES"
-
-MOAB_LIB_DIR=
-old_LIBS="$LIBS"
-for dir in ${MOAB_DIR}/.libs ${MOAB_DIR} ${MAOB_DIR}/lib; do
-  if test "x$MOAB_LIB_DIR" = "x"; then
-    LIBS="$old_LIBS -L$dir"
-    unset ac_cv_lib_MOAB
-    AC_HAVE_LIBRARY([MOAB],[MOAB_LIB_DIR="$dir"])
-  fi
-done
-if test "x$MOAB_LIB_DIR" = "x"; then
-  AC_MSG_ERROR([Couldn't find MOAB library (-lMOAB)"])
-else
-  AC_MSG_RESULT([Found -lMOAB in $MOAB_LIB_DIR])
-fi
-LIBS="$old_LIBS -L$MOAB_LIB_DIR -lMOAB"
-
-AC_LANG_RESTORE
-
+GRAPHVIZ_MISSING=no
+X_MISSING=no
+VTK_MISSING=no
+QT_MISSING=no
+MOAB_MISSING=no
 
 ################################################################################
 #                               GraphViz
@@ -90,7 +40,7 @@ AC_ARG_WITH([graphviz],
 
 case "x$GRAPH_DIR" in
   xno)
-    AC_MSG_ERROR([Invalid option: --without-graphviz])
+    GRAPHVIZ_MISSING=yes
     ;;
   xyes|x)
     GRAPH_INC_DIR=
@@ -126,7 +76,7 @@ case "x$GRAPH_DIR" in
     AC_MSG_CHECKING([for GraphViz include dir])
     if test "x" = x"$GRAPH_INC_DIR"; then
       AC_MSG_RESULT([no])
-      AC_MSG_ERROR([Cannot find GraphViz headers in $GRAPH_DIR])
+      GRAPHVIZ_MISSING=yes
     else
       AC_MSG_RESULT([$GRAPH_INC_DIR])
     fi
@@ -141,7 +91,7 @@ case "x$GRAPH_DIR" in
     done
     if test "x" = x"$GRAPH_LIB_DIR"; then
       AC_MSG_RESULT([no])
-      AC_MSG_ERROR([Cannot find GraphViz libraries in $GRAPH_DIR])
+      GRAPHVIZ_MISSING=yes
     else
       AC_MSG_RESULT([$GRAPH_LIB_DIR])
     fi
@@ -150,13 +100,13 @@ esac
 
 old_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $GRAPH_INC_DIR"
-AC_CHECK_HEADERS([dotneato.h],[],[AC_MSG_ERROR([Missing GraphViz header])])
+AC_CHECK_HEADERS([dotneato.h],[],[AC_MSG_WARN([Missing GraphViz header]); GRAPHVIZ_MISSING=yes])
 CPPFLAGS="$old_CPPFLAGS"
 INCLUDES="$INCLUDES $GRAPH_INC_DIR"
 
 LIBS="$LIBS $GRAPH_LIB_DIR"
-AC_CHECK_LIB([graph],[aginitlib],[],[AC_MSG_ERROR([Cannot find GraphViz library: -lgraph])])
-AC_CHECK_LIB([dotneato],[gvContext],[],[AC_MSG_ERROR([Cannot find GraphViz library: -ldotneato])],[-lgraph])
+AC_CHECK_LIB([graph],[aginitlib],[],[AC_MSG_WARN([Cannot find GraphViz library: -lgraph]); GRAPHVIZ_MISSING=yes])
+AC_CHECK_LIB([dotneato],[gvContext],[],[AC_MSG_WARN([Cannot find GraphViz library: -ldotneato]); GRAPHVIZ_MISSING=yes],[-lgraph])
 LIBS="$LIBS -ldotneato -lgraph"
 
 
@@ -166,7 +116,7 @@ LIBS="$LIBS -ldotneato -lgraph"
 AC_PATH_X
 AC_PATH_XTRA
 if test "xyes" = "x$no_x"; then
-  AC_MSG_ERROR([Cannot build qvdual without X])
+  X_MISSING=yes
 fi
 
 
@@ -182,43 +132,56 @@ AC_ARG_WITH([vtk],
 
 case "x$VTK_DIR" in
   xno)
-    AC_MSG_ERROR([Invalid option: --without-vtk])
+    VTK_MISSING=yes
     ;;
   xyes|x)
     VTK_LIB_DIR=
     VTK_INC_DIR=
     for dir in /usr/include/vtk /usr/local/include/vtk /include/vtk; do
       if test "x" = "x$VTK_INC_DIR"; then
-        AC_CHECK_FILE([${dir}/vtkRenderer.h],[VTK_INC_DIR="$dir"])
+        AC_CHECK_FILE([${dir}/vtkRenderer.h],[VTK_INC_DIR="-I$dir"])
       fi
     done
     if test x = x"$VTK_INC_DIR"; then
       AC_CHECK_HEADER([vtkRenderer.h],[],
-                      [AC_MSG_ERROR("Could not find VTK header 'vtkRenderer.h'")])
+                      [VTK_MISSING=yes])
     else
-      INCLUDES="$INCLUDES -I$VTK_INC_DIR"
+      INCLUDES="$INCLUDES $VTK_INC_DIR"
     fi
     ;;
   x?*)
     for dir in ${VTK_DIR}/include/vtk ${VTK_DIR}/include ${VTK_DIR}; do
       if test "x" = "x$VTK_INC_DIR"; then
-        AC_CHECK_FILE([${dir}/vtkRenderer.h],[VTK_INC_DIR="$dir"])
+        AC_CHECK_FILE([${dir}/vtkRenderer.h],[VTK_INC_DIR="-I$dir"])
       fi
     done
     if test "x" = "x$VTK_INC_DIR"; then
-      AC_MSG_ERROR("Could not find vtkRenderer.h in $VTK_DIR")
+      # Check for non-installed VTK source
+      AC_CHECK_FILE([${VTK_DIR}/Rendering/vtkRenderer.h],[
+        for subdir in . Common Filtering GenericFiltering Graphics Hybrid Imaging Parallel Patented Rendering Utilities Utilities/vtkexpat Utilities/expat Utilities/DICOMParser Utilties/vtkpng Utilities/vtkzlib Utilities/freetype/include/freetype Wrapping; do
+	  AC_MSG_CHECKING([for directory ${VTK_DIR}/$subdir])
+	  if test -d ${VTK_DIR}/$subdir; then
+	    VTK_INC_DIR="$VTK_INC_DIR -I${VTK_DIR}/$subdir"
+	    AC_MSG_RESULT([yes])
+	  else
+	    AC_MSG_RESULT([no])
+	  fi
+	done
+	],[VTK_MISSING=yes]
+      )
     fi
-    INCLUDES="$INCLUDES -I$VTK_INC_DIR"
+    INCLUDES="$INCLUDES $VTK_INC_DIR"
     old_LIBS="$LIBS"
-    for dir in ${VTK_DIR}/lib/vtk ${VTK_DIR}/lib ${VTK_DIR}; do
+    for dir in ${VTK_DIR}/lib/vtk ${VTK_DIR}/lib ${VTK_DIR}/bin ${VTK_DIR}; do
       if test "x" = "x$VTK_LIB_DIR"; then
         LIBS="$old_LIBS -L$dir"
         unset ac_cv_lib_vtkexpat
+	unset ac_cv_lib_vtkexpat_main
         AC_HAVE_LIBRARY([vtkexpat],[VTK_LIB_DIR="-L$dir"])
       fi
     done
     if test "x" = "x$VTK_LIB_DIR"; then
-      AC_MSG_ERROR([Could not find vtkexpat in $VTK_DIR])
+      VTK_MISSING=yes
     fi
     LIBS="$old_LIBS"
     ;;
@@ -267,13 +230,16 @@ SNL_CHECK_LIB_LIST([vtkImaging],    [vtk_libs],[$vtk_libs_arg],[$VTK_LIB_DIR])
 SNL_CHECK_LIB_LIST([vtkGraphics],   [vtk_libs],[$vtk_libs_arg],[$VTK_LIB_DIR])
 SNL_CHECK_LIB_LIST([vtkIO],         [vtk_libs],[$vtk_libs_arg],[$VTK_LIB_DIR])
 SNL_CHECK_LIB_LIST([vtkRendering],  [vtk_libs],[$vtk_libs_arg],[$VTK_LIB_DIR])
+SNL_CHECK_LIB_LIST([vtkParallel],   [vtk_libs],[$vtk_libs_arg],[$VTK_LIB_DIR])
 
  # Make sure we found at least vtkCommon and vtkRendering
 if ! echo "x $vtk_libs" | grep lvtkCommon >/dev/null; then
-  AC_MSG_ERROR("VTK library 'vtkCommon' not found.")
+  AC_MSG_WARN("VTK library 'vtkCommon' not found.")
+  VTK_MISSING=yes
 fi
 if ! echo "x $vtk_libs" | grep lvtkRendering >/dev/null; then
-  AC_MSG_ERROR("VTK library 'vtkRendering' not found.")
+  AC_MSG_WARN("VTK library 'vtkRendering' not found.")
+  VTK_MISSING=yes
 fi
 
 AC_LANG_RESTORE
@@ -304,12 +270,14 @@ fi
 
 AC_PATH_PROG([MOC],[moc],[],[$search_path])
 if test x = x"$MOC";then
-  echo "Cannot find moc (Qt meta object compiler)"
+  AC_MSG_WARN([Cannot find moc (Qt meta object compiler)])
+  QT_MISSING=yes
 fi
 AC_SUBST(MOC)
 AC_PATH_PROG([UIC],[uic],[],[$search_path])
 if test x = x"$UIC";then
-  echo "Cannot find uic (Qt user interface compiler)"
+  AC_MSG_WARN([Cannot find uic (Qt user interface compiler)])
+  QT_MISSING=yes
 fi
 AC_SUBST(UIC)
 
@@ -320,7 +288,7 @@ CPPFLAGS="$incdir"
 AC_CHECK_HEADERS([qlineedit.h qevent.h qapplication.h \
                   qwidget.h qtimer.h qpixmap.h qwidgetplugin.h \
                   qobject.h qmetaobject.h],[],
-                 [AC_MSG_ERROR([Required QT header not found])])
+                 [QT_MISSING=yes])
 CXXFLAGS="$old_CXXFLAGS"
 CPPFLAGS="$old_CPPFLAGS"
 INCLUDES="$incdir $INCLUDES"
@@ -336,7 +304,7 @@ AC_TRY_LINK_FUNC(main,[AC_MSG_RESULT([yes])],[
   AC_MSG_RESULT([no])
   LIBS="$old_LIBS"
   AC_HAVE_LIBRARY([qt],[LIBS="$LIBS -lqt"],[
-    AC_MSG_ERROR([Cannot find QT library])
+    QT_MISSING=yes
   ])
 ])
 
@@ -363,7 +331,53 @@ AC_DEFUN([SNL_MERGE_LISTS],[
 SNL_MERGE_LISTS([XLIBS],[$X_EXTRA_LIBS -lX11 $X_PRE_LIBS],[$vtk_x_libs])
 SNL_MERGE_LISTS([XLIBS_tmp],[$QT_LIBS],[$XLIBS])
 SNL_MERGE_LISTS([XLIBS],[$vtk_sys_libs],[$XLIBS_tmp])
-LIBS="$LIBS $vtk_libs $XLIBS"
+LIBS="$LIBS $VTK_LIB_DIR $vtk_libs $XLIBS"
+
+
+################################################################################
+#                                  MOAB
+################################################################################
+AC_ARG_WITH(MOAB,
+[AC_HELP_STRING([--with-MOAB=DIR], [Specify directory containing MOAB])],
+[MOAB_DIR=$withval],[MOAB_DIR=../..])
+case "x$MOAB_DIR" in
+  xno)
+    MOAB_MISSING=yes
+    ;;
+  xyes|x)
+    AC_MSG_ERROR([--with-MOAB=DIR requires an argument])
+    ;;
+esac
+
+AC_LANG_SAVE
+AC_LANG_CPLUSPLUS
+
+MOAB_INC_DIR=
+old_CXXCPPFLAGS="$CXXCPPFLAGS"
+old_CXXFLAGS="$CXXFLAGS"
+old_CPPFLAGS="$CPPFLAGS"
+for dir in ${MOAB_DIR} ${MAOB_DIR}/include; do
+  if test "x$MOAB_INC_DIR" = "x"; then
+    CXXCPPFLAGS="-I$dir"
+    CXXFLAGS="$CXXCPPFLAGS"
+    CPPFLAGS="$CXXCPPFLAGS"
+    unset ac_cv_header_MBInterface_hpp
+    AC_CHECK_HEADER([MBInterface.hpp],[MOAB_INC_DIR="$dir"])
+  fi
+done
+if test "x$MOAB_INC_DIR" = "x"; then
+  AC_MSG_WARN([Couldn't find MOAB header: MBInterface.hpp"])
+  MOAB_MISSING=yes
+else
+  AC_MSG_RESULT([Found MBInterface.hpp in $MOAB_INC_DIR])
+fi
+CXXCPPFLAGS="$old_CXXCPPFLAGS"
+CXXFLAGS="$old_CXXFLAGS"
+CPPFLAGS="$old_CPPFLAGS"
+INCLUDES="-I$MOAB_INC_DIR $INCLUDES"
+LIBS="-L${MOAB_DIR} -lMOAB $LIBS"
+
+AC_LANG_RESTORE
 
 
 ################################################################################
@@ -374,3 +388,24 @@ AC_SUBST([DEFINES])
 AC_MSG_RESULT([CXXFLAGS = $CXXFLAGS])
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
+
+
+###############################################################################
+#                    Print post-output errors
+###############################################################################
+if test "x$MOAB_MISSING" = "xyes"; then
+  AC_MSG_WARN([Could not find MOAB.  Build will FAIL!!! Try \"--with-MOAB=DIR\"])
+fi
+if test "x$GRAPHVIZ_MISSING" = "xyes"; then
+  AC_MSG_WARN([Could not find GraphViz library.  Build will FAIL!!! Try \"--with-graphviz=DIR\"])
+fi
+if test "x$X_MISSING" = "xyes"; then
+  AC_MSG_WARN([Cound not find X client.  Build will FAIL!!!])
+else
+  if test "x$QT_MISSING" = "xyes"; then
+    AC_MSG_WARN([Cound not find QT.  Build will FAIL!!! Try setting \"QTDIR\"])
+  fi
+  if test "x$VTK_MISSING" = "xyes"; then
+    AC_MSG_WARN([Count not find VTK.  Build will FAIL!!! Try \"--with-VTK=DIR\"])
+  fi
+fi
