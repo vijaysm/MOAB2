@@ -109,7 +109,12 @@ MB_OPTIONAL_TOOL([mbsize],       [no] )
 MB_OPTIONAL_TOOL([mbskin],       [no] )
 MB_OPTIONAL_TOOL([mbtagprop],    [no] )
 MB_OPTIONAL_TOOL([spheredecomp], [no] )
-AC_CONFIG_SUBDIRS([tools/mbchaco tools/qvdual])
+if test "x$ENABLE_qvdual" = "xyes"; then
+  AC_CONFIG_SUBDIRS([tools/qvdual])
+fi
+if test "x$ENABLE_mbchaco" = "xyes"; then
+  AC_CONFIG_SUBDIRS([tools/mbchaco])
+fi
 
 
 ################################################################################

@@ -3,11 +3,11 @@ To create a distributable tarball from a working source directory, do
   
 To create a distributable tarball from a clean check-out of the MOAB
 source, do:
-  SETUP="aclocal; libtoolize; automake -a; autoconf"
-  cd MAOB
-  $SETUP
-  (cd tools/qvdual && ($SETUP))
-  (cd tools/mbchaco && ($SETUP))
+  cd MOAB
+  aclocal
+  libtoolize
+  automake -a
+  autoconf
   ./configure --without-netcdf --without-hdf5
   make dist
 
