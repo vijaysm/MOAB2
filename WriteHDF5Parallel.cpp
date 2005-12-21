@@ -1,5 +1,5 @@
 
-#define DEBUG
+#undef DEBUG
 
 #ifdef DEBUG
 #  include <stdio.h>
@@ -962,16 +962,26 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
   MBErrorCode rval;
   mhdf_Status status;
   int i, j, result;
+#ifdef WRITE_NODE_ADJACENCIES  
+  const int numtypes = exportList.size()+1;
+#else
   const int numtypes = exportList.size();
+#endif
   std::vector<long>::iterator viter;
   std::list<ExportSet>::iterator ex_iter;
   std::vector<long> local(numtypes), all(numProc * numtypes + numtypes);
   
     // Get adjacency counts for local processor
   viter = local.begin();
+  id_t num_adj;
+#ifdef WRITE_NODE_ADJACENCIES  
+  rval = count_adjacencies( nodeSet.range, num_adj );
+  assert (MB_SUCCESS == rval);
+  *viter = num_adj; ++viter;
+#endif
+
   for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
   {
-    id_t num_adj;
     rval = count_adjacencies( ex_iter->range, num_adj );
     assert (MB_SUCCESS == rval);
     *viter = num_adj; ++viter;
@@ -1010,6 +1020,9 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
   
     // Record the adjacency offset in each ExportSet
   viter = local.begin();
+#ifdef WRITE_NODE_ADJACENCIES  
+  nodeSet.adj_offset = *viter; ++viter;
+#endif
   for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
     { ex_iter->adj_offset = *viter; ++viter; }
   
@@ -1017,6 +1030,21 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
   if (myRank == 0)
   {
     viter = all.begin() + (numtypes * numProc);
+#ifdef WRITE_NODE_ADJACENCIES  
+    if (*viter) {
+      hid_t handle = mhdf_createAdjacency( filePtr, 
+                                           mhdf_node_type_handle(),
+                                           *viter,
+                                           &status );
+      if (mhdf_isError( &status ))
+      {
+        writeUtil->report_error( "%s\n", mhdf_message( &status ) );
+        return MB_FAILURE;
+      }
+      mhdf_closeData( filePtr, handle, &status );
+    }
+    ++viter;
+#endif
     for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter, ++viter)
     {
       if (!*viter) 
@@ -1095,8 +1123,6 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
   MBErrorCode rval;
   int i, result;
   MBRange::iterator riter;
-  
-  cpuParallelSets.resize( numProc );
     
   rval = iFace->tag_get_handle( tags.filterTag.c_str(), data.filter_tag );
   if (rval != MB_SUCCESS) return rval;
@@ -1290,6 +1316,7 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   END_SERIAL;
 
     // Gather data about multi-processor meshsets - removes sets from setSet.range
+  cpuParallelSets.resize( numProc );
   std::vector<RemoteSetData> remote_set_data( multiProcSetTags.list.size() );
   for (i = 0; i< (int)multiProcSetTags.list.size(); i++)
   {
@@ -1452,11 +1479,13 @@ void WriteHDF5Parallel::remove_remote_sets( MBEntityHandle relative,
     int cpu;
     for (cpu = 0; cpu < numProc; ++cpu)
       if (cpuParallelSets[cpu].find(relative) != cpuParallelSets[cpu].end() &&
-          cpuParallelSets[cpu].find(*i) != cpuParallelSets[*i].end())
+          cpuParallelSets[cpu].find(*i) != cpuParallelSets[cpu].end())
         break;
-      // If we didn't find one, something's messed up because the
-      // link must exist on at least this or we wouldn't be here.
-    assert(cpu < numProc);
+      // If we didn't find one, it may indicate a bug.  However,
+      // it could also indicate that it is a link to some set that
+      // exists on this processor but is not being written, because
+      // the caller requested that some subset of the mesh be written.
+    //assert(cpu < numProc);
       // If I'm the first set that knows about both, I'll handle it.
     if (cpu == myRank)
       result.insert( *i );

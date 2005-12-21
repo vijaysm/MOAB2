@@ -30,6 +30,10 @@
 #include "MBRange.hpp"
 #include "MBWriterIface.hpp"
 
+
+/* If this define is not set, node->entity adjacencies will not be written */
+#undef WRITE_NODE_ADJACENCIES
+
 class MB_DLL_EXPORT WriteHDF5 : public MBWriterIface
 {
 public:
@@ -293,7 +297,7 @@ protected:
   /** Get possibly compacted list of IDs for passed entities
    *
    * For the passed range of entities, determine if IDs
-   * can be compacted and optionally write IDs to passed list.
+   * can be compacted and write IDs to passed list.
    *
    * If the IDs are not compacted, the output list will contain
    * a simple ordered list of IDs.
@@ -301,12 +305,11 @@ protected:
    * If IDs are compacted, the output list will contain 
    * {start,count} pairs.
    *
-   * If the ID list is compacted, output_length will be less than
+   * If the ID list is compacted, the length will be less than
    * range.size().
    */
   MBErrorCode range_to_id_list( const MBRange& input_range,
-                                std::vector<id_t>* output_id_list,
-                                id_t& output_length );
+                                std::vector<id_t>& output_id_list );
   
   //! Get IDs for entities 
   MBErrorCode vector_to_id_list( const std::vector<MBEntityHandle>& input,

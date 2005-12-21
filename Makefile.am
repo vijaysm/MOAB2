@@ -20,8 +20,7 @@ check_PROGRAMS = moab_test \
                  homxform_test \
                  scdseq_test \
                  tqdcfr \
-                 test_adj \
-                 range_tree
+                 test_adj 
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 TESTS = $(check_PROGRAMS) 
@@ -58,7 +57,7 @@ endif
 if HDF5_FILE
   libMOAB_la_LIBADD = $(top_builddir)/mhdf/libmhdf.la
   INCLUDES += -Imhdf/include
-  MOAB_EXTRA_SRCS += RangeTree.hpp ReadHDF5.cpp ReadHDF5.hpp WriteHDF5.cpp $(MOAB_PARALLEL_SRCS)
+  MOAB_EXTRA_SRCS += ReadHDF5.cpp ReadHDF5.hpp WriteHDF5.cpp $(MOAB_PARALLEL_SRCS)
   MOAB_EXTRA_HDRS += $(MOAB_PARALLEL_HDRS)
   TESTS += $(PARALLEL_TESTS)
 endif
@@ -213,11 +212,6 @@ tqdcfr_DEPENDENCIES = $(top_builddir)/libMOAB.la
 test_adj_SOURCES = test_adj.cpp
 test_adj_LDADD = $(top_builddir)/libMOAB.la
 test_adj_DEPENDENCIES = $(top_builddir)/libMOAB.la
-
-range_tree_SOURCES = RangeTree.cpp
-range_tree_LDADD = $(top_builddir)/libMOAB.la
-range_tree_CXXFLAGS = -DDEBUG_TEST $(CXXFLAGS)
-range_tree_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 test/mb_big_test.g: test/mb_big_test.g.gz
 	$(ZCAT) test/mb_big_test.g.gz > test/mb_big_test.g
