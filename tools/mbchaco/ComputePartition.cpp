@@ -27,7 +27,7 @@
 #undef IS_BUILDING_MB
 #include "MBRange.hpp"
 #include "MBWriteUtilIface.hpp"
-#include "MBSkinner.hpp"
+#include "MeshTopoUtil.hpp"
 
 #include "defs.h"
 #include "params.h"
@@ -224,9 +224,9 @@ MBErrorCode ComputePartition::assemble_graph(const int dimension,
   
   result = iface->assign_ids(elems, gvert_id, START_ID); RR;
   
-    // now assemble the graph, calling MBSkinner to get bridge adjacencies through d-1 dimensional
+    // now assemble the graph, calling MeshTopoUtil to get bridge adjacencies through d-1 dimensional
     // neighbors
-  MBSkinner skinner(mbImpl);
+  MeshTopoUtil mtu(mbImpl);
   MBRange adjs;
     // can use a fixed-size array 'cuz the number of lower-dimensional neighbors is limited
     // by MBCN
@@ -236,7 +236,7 @@ MBErrorCode ComputePartition::assemble_graph(const int dimension,
 
       // get bridge adjacencies
     adjs.clear();
-    result = skinner.get_bridge_adjacencies(*rit, dimension-1, dimension, adjs); RR;
+    result = mtu.get_bridge_adjacencies(*rit, dimension-1, dimension, adjs); RR;
     
     
       // get the graph vertex ids of those

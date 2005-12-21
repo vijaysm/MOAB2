@@ -9,7 +9,11 @@ if ENABLE_hexmodops
 else
   hexmodops_DIR=
 endif
-
+if ENABLE_mbperf
+  mbperf_DIR = mbperf
+else
+  mbperf_DIR =
+endif
 if ENABLE_mbchaco
   mbchaco_DIR = mbchaco
 else
@@ -49,6 +53,7 @@ endif
 SUBDIRS = $(converter_DIR) \
           $(hexmodops_DIR) \
           $(mbchaco_DIR) \
+          $(mbperf_DIR) \
           $(qvdual_DIR) \
           $(size_DIR) \
           $(skin_DIR) \
