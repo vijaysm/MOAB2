@@ -60,34 +60,3 @@ SUBDIRS = $(converter_DIR) \
           $(tagprop_DIR) \
           $(spheredecomp_DIR)
 
-# For targets that require a Makefile even for tools that 
-# are not enabled, and if that tool has it's own configure
-# script, create the Makefile if necessary
-.PHONY: tool-makefiles
-
-distdir mostlyclean-recursive clean-recursive distclean-recursive \
-maintainer-clean-recursive: tool-makefiles
-
-tool-makefiles: qvdual/Makefile mbchaco/Makefile
-
-qvdual/Makefile: qvdual/Makefile.in qvdual/config.status
-	(cd qvdual && ./config.status Makefile)
-qvdual/config.status: qvdual/configure
-	eval `grep -e ^ac_configure_extra_args= $(top_builddir)/config.status`; \
-	cd qvdual; \
-	./configure $$ac_configure_extra_args
-qvdual/Makefile.in: qvdual/configure.in qvdual/Makefile.am
-	(cd qvdual && $(AUTOMAKE))
-qvdual/configure: qvdual/configure.in qvdual/aclocal.m4 qvdual/acsite.m4
-	(cd qvdual && $(AUTOCONF))
-
-mbchaco/Makefile: mbchaco/Makefile.in mbchaco/config.status
-	(cd mbchaco && ./config.status Makefile)
-mbchaco/config.status: mbchaco/configure
-	eval `grep -e ^ac_configure_extra_args= $(top_builddir)/config.status`; \
-	cd mbchaco; \
-	./configure $$ac_configure_extra_args
-mbchaco/Makefile.in: mbchaco/configure.in mbchaco/Makefile.am
-	(cd mbchaco && $(AUTOMAKE))
-mbchaco/configure: mbchaco/configure.in mbchaco/aclocal.m4 mbchaco/acsite.m4
-	(cd mbchaco && $(AUTOCONF))
