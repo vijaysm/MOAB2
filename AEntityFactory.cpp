@@ -466,30 +466,33 @@ MBErrorCode AEntityFactory::remove_all_adjacencies(MBEntityHandle base_entity,
   if (TYPE_FROM_HANDLE(base_entity) == MBENTITYSET) 
     return thisMB->clear_meshset(&base_entity, 1);
 
-    // clean out explicit adjacencies to this entity first
-  for (int dim = 1; dim < thisMB->dimension_from_handle(base_entity); dim++) {
-    MBRange ents;
-    result = thisMB->get_adjacencies(&base_entity, 1, dim, false, ents);
-    if (MB_SUCCESS != result && MB_MULTIPLE_ENTITIES_FOUND != result) continue;
-    for (MBRange::iterator rit = ents.begin(); rit != ents.end(); rit++) {
-      if (explicitly_adjacent(*rit, base_entity))
-        remove_adjacency(*rit, base_entity);
+    // clean out explicit adjacencies to this entity first, but only if vertex-element
+    // adjacencies have been created (since the get_adjacencies call below otherwise
+    // creates all vertex-element adjacencies, which might not be what we want)
+  if (vert_elem_adjacencies()) {
+    for (int dim = 1; dim < thisMB->dimension_from_handle(base_entity); dim++) {
+      MBRange ents;
+      result = thisMB->get_adjacencies(&base_entity, 1, dim, false, ents);
+      if (MB_SUCCESS != result && MB_MULTIPLE_ENTITIES_FOUND != result) continue;
+      for (MBRange::iterator rit = ents.begin(); rit != ents.end(); rit++) {
+        if (explicitly_adjacent(*rit, base_entity))
+          remove_adjacency(*rit, base_entity);
+      }
     }
   }
   
-    // clear out vertex-entity adjacencies next
+    // clear out vertex-entity adjacencies next; don't bother checking for vertex-element
+    // adjacencies, the code below works the same either way
   MBErrorCode tmp_result;
-  if (vert_elem_adjacencies()) {
-    std::vector<MBEntityHandle> verts;
-    if (TYPE_FROM_HANDLE(base_entity) == MBPOLYHEDRON)
-      tmp_result = get_adjacencies(base_entity, 0, false, verts);
-    else
-      tmp_result = thisMB->get_connectivity(&base_entity, 1, verts);
-    if (tmp_result == MB_SUCCESS) {
-      for (std::vector<MBEntityHandle>::iterator vit = verts.begin(); vit != verts.end(); vit++) {
-        tmp_result = remove_adjacency(*vit, base_entity);
-        if (MB_SUCCESS != tmp_result) result = tmp_result;
-      }
+  std::vector<MBEntityHandle> verts;
+  if (TYPE_FROM_HANDLE(base_entity) == MBPOLYHEDRON)
+    tmp_result = get_adjacencies(base_entity, 0, false, verts);
+  else
+    tmp_result = thisMB->get_connectivity(&base_entity, 1, verts);
+  if (tmp_result == MB_SUCCESS) {
+    for (std::vector<MBEntityHandle>::iterator vit = verts.begin(); vit != verts.end(); vit++) {
+      tmp_result = remove_adjacency(*vit, base_entity);
+      if (MB_SUCCESS != tmp_result) result = tmp_result;
     }
   }
   

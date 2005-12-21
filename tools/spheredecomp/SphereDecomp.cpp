@@ -37,6 +37,8 @@ MBErrorCode SphereDecomp::build_sphere_mesh(const char *sphere_radii_tag_name)
   std::vector<MBEntityHandle> sphere_hexes, interstic_hexes;
   result = build_hexes(sphere_hexes, interstic_hexes); 
 
+  result = mbImpl->tag_delete(subdivVerticesTag); RR;
+
   return result;
 }
 

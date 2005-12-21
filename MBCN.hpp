@@ -42,6 +42,8 @@
 // the maximum number of nodes an n-1 dimensional element may have
 #define MB_MAX_SUB_ENTITY_VERTICES 16
 
+// the maximum possible number of vertices, including higher-order
+#define MB_MAX_NUM_VERTICES 27
 
 /*! Entity types defined in MOAB and MBCN
  *  The ordering here must ensure that all element types are 
@@ -95,9 +97,6 @@ private:
 //! the basis of the numbering system (normally 0 or 1, 0 by default)
   static int numberBasis;
 
-//! switch the basis
-  static void SwitchBasis(const int old_basis, const int new_basis);
-  
 public:
 
     //! enum used to specify operation type
@@ -132,7 +131,7 @@ public:
     //  conn[k][l] (l=0..MBCN::VerticesPerEntity[target_type[k]]) = vertex connectivity of sub-facet k,
     //    with respect to entity i's canonical vertex ordering, or self (j=2)
     // (not documented with Doxygen)
-  static const ConnMap mConnectivityMap[MBMAXTYPE][3];
+  static ConnMap mConnectivityMap[MBMAXTYPE][3];
 
     // structure used to define reverse canonical ordering information
     // (not documented with Doxygen)
@@ -149,7 +148,7 @@ public:
     // connectivity data in this table must be in ascending order (used for
     // efficient sorting)
     // (not documented with Doxygen)
-  static const UpConnMap mUpConnMap[MBMAXTYPE][4][4];
+  static UpConnMap mUpConnMap[MBMAXTYPE][4][4];
 
   //! this const vector defines the starting and ending MBEntityType for 
   //! each dimension, e.g. TypeDimensionMap[2] returns a pair of MBEntityTypes 
@@ -316,6 +315,8 @@ public:
   //! \return index Index of sub-entity's higher-order node
   static int HONodeIndex(const MBEntityType this_type, const int num_verts,
                          const int subfacet_dim, const int subfacet_index);
+
+    //! 
 };
 
   //! get the basis of the numbering system

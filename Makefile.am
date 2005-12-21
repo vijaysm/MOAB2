@@ -95,7 +95,6 @@ libMOAB_la_SOURCES = \
   MBError.hpp \
   MBFactory.cpp \
   MBInternals.hpp \
-  MBMem.cpp \
   MBMem.hpp \
   MBMeshSet.cpp \
   MBMeshSet.hpp \
@@ -141,6 +140,7 @@ libMOAB_la_SOURCES = \
   WriteVtk.hpp \
   $(MOAB_EXTRA_SRCS)
 
+#  MBMem.cpp
 
 
 # The list of header files which are to be installed

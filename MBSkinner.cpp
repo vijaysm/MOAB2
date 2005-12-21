@@ -30,6 +30,17 @@
 #include "MBInternals.hpp"
 #include "MBTagConventions.hpp"
 
+#ifndef IS_BUILDING_MB
+#define IS_BUILDING_MB
+#define I_CREATED_BUILDING
+#endif
+#include "MBCore.hpp"
+#include "AEntityFactory.hpp"
+#ifdef I_CREATED_BUILDING
+#undef IS_BUILDING_MB
+#undef I_CREATED_BUILDING
+#endif
+
 #define SKINNER_PI 3.1415926535897932384626
 
 
@@ -41,7 +52,7 @@ MBSkinner::~MBSkinner()
 }
 
 
-void MBSkinner::initialize()
+void MBSkinner::initialize(const bool use_adjs)
 {
   // go through and mark all the target dimension entities
   // that already exist as not deleteable
@@ -53,47 +64,60 @@ void MBSkinner::initialize()
   void* null_ptr = NULL;
   MBErrorCode result;
 
-  if(mAdjTag == 0)
+  if(mAdjTag == 0 && !use_adjs)
   {
     result = thisMB->tag_create("skinner adj", sizeof(void*), MB_TAG_DENSE, mAdjTag, &null_ptr);
     assert(MB_SUCCESS == result);
   }
 
-  result = thisMB->tag_create("skinner deletable", 1, MB_TAG_BIT, mDeletableMBTag, NULL);
-  assert(MB_SUCCESS == result);
+  if(mDeletableMBTag == 0 && !use_adjs) {
+    result = thisMB->tag_create("skinner deletable", 1, MB_TAG_BIT, mDeletableMBTag, NULL);
+    assert(MB_SUCCESS == result);
+  }
   
   MBRange entities;
- 
-  // go through each type at this dimension 
-  for(type = target_ent_types.first; type <= target_ent_types.second; ++type)
-  {
-    // get the entities of this type in the MB
-    thisMB->get_entities_by_type(0, type, entities);
 
-    // go through each entity of this type in the MB
-    // and set its deletable tag to NO
-    MBRange::iterator iter, end_iter;
-    end_iter = entities.end();
-    for(iter = entities.begin(); iter != end_iter; ++iter)
+    // only need to mark entities if we're not using adjacencies
+  if (!use_adjs) {
+    
+      // go through each type at this dimension 
+    for(type = target_ent_types.first; type <= target_ent_types.second; ++type)
     {
-      unsigned char bit = 0x1;
-      result = thisMB->tag_set_data(mDeletableMBTag, &(*iter), 1, &bit);
-      assert(MB_SUCCESS == result);
-      // add adjacency information too
-      add_adjacency(*iter);
+        // get the entities of this type in the MB
+      thisMB->get_entities_by_type(0, type, entities);
+
+        // go through each entity of this type in the MB
+        // and set its deletable tag to NO
+      MBRange::iterator iter, end_iter;
+      end_iter = entities.end();
+      for(iter = entities.begin(); iter != end_iter; ++iter)
+      {
+        unsigned char bit = 0x1;
+        result = thisMB->tag_set_data(mDeletableMBTag, &(*iter), 1, &bit);
+        assert(MB_SUCCESS == result);
+          // add adjacency information too
+        add_adjacency(*iter);
+      }
     }
   }
 }
 
 void MBSkinner::deinitialize()
 {
-  MBErrorCode result = thisMB->tag_delete( mDeletableMBTag);
-  assert(MB_SUCCESS == result);
+  MBErrorCode result = MB_SUCCESS;
+  
+  if (0 != mDeletableMBTag) {
+    result = thisMB->tag_delete( mDeletableMBTag);
+    mDeletableMBTag = 0;
+    assert(MB_SUCCESS == result);
+  }
 
   // remove the adjaceny tag
-  result = thisMB->tag_delete(mAdjTag);
-  assert(MB_SUCCESS == result);
-  mAdjTag = NULL;
+  if (0 != mAdjTag) {
+    result = thisMB->tag_delete(mAdjTag);
+    mAdjTag = 0;
+    assert(MB_SUCCESS == result);
+  }
 }
 
 
@@ -222,8 +246,13 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
   if(mTargetDim < 0 || source_dim > 3)
     return MB_FAILURE;
 
+  MBCore *this_core = dynamic_cast<MBCore*>(thisMB);
+  bool use_adjs = false;
+  if (this_core->a_entity_factory()->vert_elem_adjacencies())
+    use_adjs = true;
+  
   // initialize
-  initialize();
+  initialize(use_adjs);
 
   MBRange::const_iterator iter, end_iter;
   end_iter = source_entities.end();
@@ -246,6 +275,7 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
     
     type = thisMB->type_from_handle(*iter);
     MBRange::iterator seek_iter;
+    MBRange dum_elems, dum_sub_elems;
     
     // get connectivity of each n-1 dimension entity
     const struct MBCN::ConnMap* conn_map = &(MBCN::mConnectivityMap[type][mTargetDim-1]);
@@ -256,56 +286,99 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
       for(int j=0; j<num_sub_nodes; j++)
         sub_conn[j] = conn[conn_map->conn[i][j]];
       
-      // see if we can match this connectivity with
-      // an existing entity
-      find_match( conn_map->target_type[i], sub_conn, num_sub_nodes, match, direct );
-  
-      // if there is no match, create a new entity
-      if(match == 0)
-      {
-        MBEntityHandle tmphndl=0;
-        result = thisMB->create_element(conn_map->target_type[i], sub_conn, num_sub_nodes,
-                                tmphndl);
-        assert(MB_SUCCESS == result);
-        add_adjacency(tmphndl, sub_conn, num_sub_nodes);
-        forward_target_entities.insert(tmphndl);
+      if (use_adjs) {
+        dum_elems.clear();
+        result = thisMB->get_adjacencies(sub_conn, num_sub_nodes, source_dim, false,
+                                         dum_elems);
+        if (MB_SUCCESS != result) return result;
+        assert(0 < dum_elems.size() && 3 > dum_elems.size());
+        if (1 == dum_elems.size() ||
+            (2 == dum_elems.size() && 
+             (source_entities.find(*dum_elems.begin()) == source_entities.end() ||
+              source_entities.find(*dum_elems.rbegin()) == source_entities.end()))) {
+            // this sub_element is on the skin
+
+            // check for existing entity
+          dum_sub_elems.clear();
+          result = thisMB->get_adjacencies(sub_conn, num_sub_nodes, source_dim-1, false,
+                                           dum_sub_elems);
+          if (MB_SUCCESS != result) return result;
+          if (dum_sub_elems.empty()) {
+              // need to create one
+            MBEntityHandle tmphndl=0;
+            result = thisMB->create_element(conn_map->target_type[i], sub_conn, num_sub_nodes,
+                                            tmphndl);
+            forward_target_entities.insert(tmphndl);
+          }
+          else {
+              // else find the relative sense of this entity to the source_entity in this set
+            int side_no, sense = 0, offset;
+            if (source_entities.find(*dum_elems.begin()) == source_entities.end()) {
+              result = thisMB->side_number(*dum_elems.rbegin(), *dum_sub_elems.begin(),
+                                           side_no, sense, offset);
+            }
+            else {
+              result = thisMB->side_number(*dum_elems.begin(), *dum_sub_elems.begin(),
+                                           side_no, sense, offset);
+            }
+            if (-1 == sense) reverse_target_entities.insert(*dum_sub_elems.begin());
+            else if (1 == sense) forward_target_entities.insert(*dum_sub_elems.begin());
+            else return MB_FAILURE;
+          }
+        }
       }
-      // if there is a match, delete the matching entity
-      // if we can. 
-      else
-      {
-        if ( (seek_iter = forward_target_entities.find(match)) != forward_target_entities.end())
+      else {
+        
+          // see if we can match this connectivity with
+          // an existing entity
+        find_match( conn_map->target_type[i], sub_conn, num_sub_nodes, match, direct );
+  
+          // if there is no match, create a new entity
+        if(match == 0)
         {
-          forward_target_entities.erase(seek_iter);
-          remove_adjacency(match);
-          if(entity_deletable(match))
-          {
-            result = thisMB->delete_entities(&match, 1);
-            assert(MB_SUCCESS == result);
-          }
+          MBEntityHandle tmphndl=0;
+          result = thisMB->create_element(conn_map->target_type[i], sub_conn, num_sub_nodes,
+                                          tmphndl);
+          assert(MB_SUCCESS == result);
+          add_adjacency(tmphndl, sub_conn, num_sub_nodes);
+          forward_target_entities.insert(tmphndl);
         }
-        else if ( (seek_iter = reverse_target_entities.find(match)) != reverse_target_entities.end())
-        {
-          reverse_target_entities.erase(seek_iter);
-          remove_adjacency(match);
-          if(entity_deletable(match))
-          {
-            result = thisMB->delete_entities(&match, 1);
-            assert(MB_SUCCESS == result);
-          }
-        }
+          // if there is a match, delete the matching entity
+          // if we can. 
         else
         {
-          if(direct == FORWARD)
+          if ( (seek_iter = forward_target_entities.find(match)) != forward_target_entities.end())
           {
-            forward_target_entities.insert(match);
+            forward_target_entities.erase(seek_iter);
+            remove_adjacency(match);
+            if(!use_adjs && entity_deletable(match))
+            {
+              result = thisMB->delete_entities(&match, 1);
+              assert(MB_SUCCESS == result);
+            }
+          }
+          else if ( (seek_iter = reverse_target_entities.find(match)) != reverse_target_entities.end())
+          {
+            reverse_target_entities.erase(seek_iter);
+            remove_adjacency(match);
+            if(!use_adjs && entity_deletable(match))
+            {
+              result = thisMB->delete_entities(&match, 1);
+              assert(MB_SUCCESS == result);
+            }
           }
           else
           {
-            reverse_target_entities.insert(match);
+            if(direct == FORWARD)
+            {
+              forward_target_entities.insert(match);
+            }
+            else
+            {
+              reverse_target_entities.insert(match);
+            }
           }
         }
-        
       }
     }
   }

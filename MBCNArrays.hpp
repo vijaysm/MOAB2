@@ -15,7 +15,7 @@
 
 #ifndef MBCN_ARRAYS_HPP
 #define MBCN_ARRAYS_HPP
-const MBCN::ConnMap MBCN::mConnectivityMap[MBMAXTYPE][3] =
+MBCN::ConnMap MBCN::mConnectivityMap[MBMAXTYPE][3] =
 {
     // vertex-edge
   {{ 0, 0 , {0}, {MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, 
@@ -154,7 +154,7 @@ const MBCN::ConnMap MBCN::mConnectivityMap[MBMAXTYPE][3] =
     // maxtype
 };
 
-const MBCN::UpConnMap MBCN::mUpConnMap[MBMAXTYPE][4][4] =
+MBCN::UpConnMap MBCN::mUpConnMap[MBMAXTYPE][4][4] =
 {
   { // type MBVERTEX
     {{{1}, {{0}} }, {{0}, {{0}} }, {{0}, {{0}} }, {{0}, {{0}} }}, // source dim 0
@@ -687,4 +687,122 @@ const MBCN::UpConnMap MBCN::mUpConnMap[MBMAXTYPE][4][4] =
     {{{0}, {{0}} }, {{0}, {{0}} }, {{0}, {{0}} }} // source dim 3
   } // end type MBENTITYSET
 };
+/*
+const int PermuteToPatran[MBMAXTYPE][2][MB_MAX_SUB_ENTITIES] = 
+{
+// type vertex
+  {{0}},
+// type edge
+  {{1, 2, 3}},
+// type tri
+  {
+    {1, 2, 3, 4, 5, 6, 7}, // vertices
+    {1, 2, 3}, // edges
+    {1} // faces
+  },
+// type quad
+  {
+    {1, 2, 3, 4, 5, 6, 7, 8, 9}, // vertices
+    {1, 2, 3, 4}, // edges
+    {1} // faces
+  },
+// type polygon
+  {{-1}},
+// type tet
+  {
+    {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, -1}, // vertices
+    {1, 2, 3, 4, 5, 6}, // edges
+    {2, 3, 4, 1} // faces
+  },
+// type pyramid
+  {{-1}},
+    
+// type prism
+  {
+    {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, -1}, // vertices
+    {1, 3, 2, 8, 7, 9, 4, 6, 5}, // edges
+    {1, 2, 3, 4, 5} // faces
+  },
+    
+// type knife
+  {{-1}},
+    
+// type hex
+  {
+    {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26}, // vertices
+    {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, // edges
+    {0, 1, 2, 3, 4, 5} // faces
+  },
+    
+// type polyhedron
+  {{-1}},
+    
+// type entityset
+  {{-1}},
+    
+// type maxtype
+  {{-1}},
+    
+}
+
+const int PermuteFromPatran[MBMAXTYPE][2][MB_MAX_SUB_ENTITIES] = 
+{
+// type vertex
+  {{0, 0}},
+// type edge
+  {{0, 0, 1, 2}},
+// type tri
+  {
+    {0, 0, 1, 2, 3, 4, 5, 6}, // vertices
+    {0, 0, 1, 2}, // edges
+    {0, 0} // faces
+  },
+// type quad
+  {
+    {0, 0, 1, 2, 3, 4, 5, 6, 7, 8}, // vertices
+    {0, 0, 1, 2, 3}, // edges
+    {0, 0} // faces
+  },
+// type polygon
+  {{-1}},
+// type tet
+  {
+    {0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, -1}, // vertices
+    {0, 0, 1, 2, 3, 4, 5}, // edges
+    {0, 4, 1, 2, 3} // faces
+  },
+// type pyramid
+  {{-1}},
+    
+// type prism
+  {
+    {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, -1}, // vertices
+    {0, 0, 2, 1, 6, 8, 7, 4, 3, 5}, // edges
+    {0, 3, 4, 0, 2, 1} // faces
+  },
+    
+// type knife
+  {{-1}},
+    
+// type hex
+  {
+    {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26}, // vertices
+    {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, // edges
+    {0, 1, 2, 3, 4, 5} // faces
+  },
+    
+// type polyhedron
+  {{-1}},
+    
+// type entityset
+  {{-1}},
+    
+// type maxtype
+  {{-1}},
+    
+}
+*/
+    
+
+
 #endif

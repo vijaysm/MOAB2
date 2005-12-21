@@ -2347,8 +2347,11 @@ MBMeshSet* MBCore::update_cache( const MBEntityHandle ms_handle ) const
   //update cached values
   if( ms_handle != cachedEntityHandle )
   {
-    std::map<MBEntityHandle, MBMeshSet*>::const_iterator ms_iter
-      = global_mesh_set_list.find( ms_handle ); 
+    std::map<MBEntityHandle, MBMeshSet*>::const_iterator ms_iter;
+    if (0 != ms_handle)
+      ms_iter = global_mesh_set_list.find( ms_handle ); 
+    else
+      ms_iter = global_mesh_set_list.find( myMeshSet ); 
 
     if( ms_iter == global_mesh_set_list.end() )
     {

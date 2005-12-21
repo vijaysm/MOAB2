@@ -104,6 +104,7 @@ AC_HELP_STRING([--disable-tools],[Disable all tools by default])],
 MB_OPTIONAL_TOOL([mbconvert],    [yes])
 MB_OPTIONAL_TOOL([hexmodops],    [no] )
 MB_OPTIONAL_TOOL([mbchaco],      [no] )
+MB_OPTIONAL_TOOL([mbperf],       [no] )
 MB_OPTIONAL_TOOL([qvdual],       [no] )
 MB_OPTIONAL_TOOL([mbsize],       [no] )
 MB_OPTIONAL_TOOL([mbskin],       [no] )
@@ -132,6 +133,7 @@ AC_CONFIG_FILES([Makefile
                  tools/Makefile
                  tools/converter/Makefile
                  tools/hexmodops/Makefile
+                 tools/mbperf/Makefile
                  tools/size/Makefile
                  tools/skin/Makefile
                  tools/tagprop/Makefile

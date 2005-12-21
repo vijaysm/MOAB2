@@ -49,7 +49,37 @@ const MBDimensionPair MBCN::TypeDimensionMap[] =
 //! member variable
 void MBCN::SetBasis(const int in_basis) 
 {
+  int basis_diff = in_basis - numberBasis;
+  
   numberBasis = in_basis;
+
+    // now, change the static arrays to reflect this; first the down-connectivity map
+  for (MBEntityType this_type = MBVERTEX; this_type < MBMAXTYPE; this_type++) {
+    for (int dim = 0; dim < 3; dim++) {
+      for (int num_subents = 0; num_subents < NumSubEntities(this_type, dim); num_subents++) {
+        for (int num_nodes = 0; 
+             num_nodes < VerticesPerEntity(SubEntityType(this_type, dim, num_subents)); 
+             num_nodes++) {
+          mConnectivityMap[this_type][dim].conn[num_subents][num_nodes] += basis_diff;
+        }
+      }
+    }
+  }
+  
+    // now the up-connectivity map
+  for (MBEntityType this_type = MBVERTEX; this_type < MBMAXTYPE; this_type++) {
+    for (int source_dim = 0; source_dim < 4; source_dim++) {
+        for (int num_subents = 0; num_subents < NumSubEntities(this_type, source_dim); num_subents++) {
+          for (int targ_dim = 0; targ_dim < 4; targ_dim++) {
+            for (int index = 0; index < mUpConnMap[this_type][source_dim][targ_dim].num_targets_per_source_element[num_subents];
+                 index++) {
+              mUpConnMap[this_type][source_dim][targ_dim].targets_per_source_element[num_subents][index] 
+                += basis_diff;
+            }
+          }
+        }
+    }
+  }
 }
 
 //! return a type for the given name

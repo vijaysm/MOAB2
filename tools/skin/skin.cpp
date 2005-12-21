@@ -1,11 +1,28 @@
 #include <iostream>
+#include <time.h>
 #include <vector>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "MBInterface.hpp"
 #include "MBTagConventions.hpp"
 #include "MBCore.hpp"
 #include "MBRange.hpp"
 #include "MBSkinner.hpp"
 
+void get_time_mem(double &tot_time, double &tot_mem);
+
+// Different platforms follow different conventions for usage
+#ifndef NT
+#include <sys/resource.h>
+#endif
+#ifdef SOLARIS
+extern "C" int getrusage(int, struct rusage *);
+#ifndef RUSAGE_SELF
+#include </usr/ucbinclude/sys/rusage.h>
+#endif
+#endif
 
 const char FIXED_TAG[] = "fixed"; 
 
@@ -18,10 +35,12 @@ int main( int argc, char* argv[] )
   if (argc < 3)
   {
     std::cerr << "Usage: " << argv[0] 
-              << " [-b <block_num> [-b ...] ] [-s <sideset_num>] [-t] [-w]"
-              << " <input_file> <output_file>" << std::endl;
+              << " [-b <block_num> [-b ...] ] [-p] [-s <sideset_num>] [-t] [-w]"
+              << " <input_file> [<output_file>]" << std::endl;
     std::cerr << "Options: " << std::endl;
+    std::cerr << "-a : Compute skin using vert-elem adjacencies (more memory, less time)." << std::endl;
     std::cerr << "-b <block_num> : Compute skin only for material set/block <block_num>." << std::endl;
+    std::cerr << "-p : Print cpu & memory performance." << std::endl;
     std::cerr << "-s <sideset_num> : Put skin in neumann set/sideset <sideset_num>." << std::endl;
     std::cerr << "-t : Set 'FIXED' tag on skin vertices." << std::endl;
     std::cerr << "-w : Write out whole mesh (otherwise just writes skin)." << std::endl;
@@ -33,12 +52,22 @@ int main( int argc, char* argv[] )
   std::vector<int> matsets;
   int neuset_num = -1;
   bool write_tag = false, write_whole_mesh = false;
+  bool print_perf = false;
+  bool use_vert_elem_adjs = false;
   
   while (i < argc) {
-    if (!strcmp(argv[i], "-b")) {
+    if (!strcmp(argv[i], "-a")) {
+      i++;
+      use_vert_elem_adjs = true;
+    }
+    else if (!strcmp(argv[i], "-b")) {
       i++;
       matsets.push_back(atoi(argv[i]));
       i++;
+    }
+    else if (!strcmp(argv[i], "-p")) {
+      i++;
+      print_perf = true;
     }
     else if (!strcmp(argv[i], "-s")) {
       i++;
@@ -60,13 +89,21 @@ int main( int argc, char* argv[] )
   }
   
   const char* input_file = argv[i++];
-  const char* output_file = argv[i++];
+  const char* output_file = NULL;
+  if (i < argc) 
+    output_file = argv[i++];
   
   MBErrorCode result;
   MBCore mbimpl;
   MBInterface* iface = &mbimpl;
-  MBSkinner tool( iface );
   
+  if (print_perf) {
+    double tmp_time1, tmp_mem1;
+    get_time_mem(tmp_time1, tmp_mem1);
+    std::cout << "Before reading: cpu time = " << tmp_time1 << ", memory = " 
+              << tmp_mem1/1.0e6 << "MB." << std::endl;
+  }
+
     // read input file
   result = iface->load_mesh( input_file );
   if (MB_SUCCESS != result)
@@ -75,6 +112,12 @@ int main( int argc, char* argv[] )
     return 2;
   }
   std::cerr << "Read \"" << input_file << "\"" << std::endl;
+  if (print_perf) {
+    double tmp_time2, tmp_mem2;
+    get_time_mem(tmp_time2, tmp_mem2);
+    std::cout << "After reading: cpu time = " << tmp_time2 << ", memory = " 
+              << tmp_mem2/1.0e6 << "MB." << std::endl;
+  }
   
     // get entities of largest dimension
   int dim = 4;
@@ -124,9 +167,24 @@ int main( int argc, char* argv[] )
     std::cerr << "No entities for which to compute skin; exiting." << std::endl;
     return 1;
   }
+
+  if (use_vert_elem_adjs) {
+      // make a call which we know will generate vert-elem adjs
+    MBRange dum_range;
+    result = iface->get_adjacencies(&(*skin_ents.begin()), 1, 1, false,
+                                    dum_range);
+  }
   
+  double tmp_time = 0.0, tmp_mem = 0.0;
+  if (print_perf) {
+    get_time_mem(tmp_time, tmp_mem);
+    std::cout << "Before skinning: cpu time = " << tmp_time << ", memory = " 
+              << tmp_mem/1.0e6 << "MB." << std::endl;
+  }
+
     // skin the mesh
   MBRange forward_lower, reverse_lower;
+  MBSkinner tool( iface );
   result = tool.find_skin( skin_ents, forward_lower, reverse_lower );
   MBRange boundary;
   boundary.merge( forward_lower );
@@ -220,7 +278,7 @@ int main( int argc, char* argv[] )
     }
   }
 
-  if (write_whole_mesh) {
+  if (NULL != output_file && write_whole_mesh) {
     
       // write output file
     result = iface->write_mesh( output_file);
@@ -231,7 +289,7 @@ int main( int argc, char* argv[] )
     }
     std::cerr << "Wrote \"" << output_file << "\"" << std::endl;
   }
-  else {
+  else if (NULL != output_file) {
       // write only skin; write them as one set
     MBEntityHandle skin_set;
     result = iface->create_meshset(MESHSET_SET, skin_set);
@@ -258,13 +316,72 @@ int main( int argc, char* argv[] )
     }
     std::cerr << "Wrote \"" << output_file << "\"" << std::endl;
   }
-  
+
+  if (print_perf) {
+    double tot_time, tot_mem;
+    get_time_mem(tot_time, tot_mem);
+    std::cout << "Total cpu time = " << tot_time << " seconds." << std::endl;
+    std::cout << "Total skin cpu time = " << tot_time-tmp_time << " seconds." << std::endl;
+    std::cout << "Total memory = " << tot_mem/1.0e6 << " MB." << std::endl;
+    std::cout << "Total skin memory = " << (tot_mem-tmp_mem)/1.0e6 << " MB." << std::endl;
+    std::cout << "Entities: " << std::endl;
+    iface->list_entities(0, 0);
+  }
   
   return 0;
 }
 
-  
-      
+void get_time_mem(double &tot_time, double &tot_mem) 
+{
+  struct rusage r_usage;
+  getrusage(RUSAGE_SELF, &r_usage);
+  double utime = (double)r_usage.ru_utime.tv_sec +
+    ((double)r_usage.ru_utime.tv_usec/1.e6);
+  double stime = (double)r_usage.ru_stime.tv_sec +
+    ((double)r_usage.ru_stime.tv_usec/1.e6);
+  tot_time = utime + stime;
+  tot_mem = 0;
+  if (0 != r_usage.ru_maxrss) {
+    tot_mem = r_usage.ru_idrss; 
+  }
+  else {
+      // this machine doesn't return rss - try going to /proc
+      // print the file name to open
+    char file_str[4096], dum_str[4096];
+    int file_ptr = -1, file_len;
+    file_ptr = open("/proc/self/stat", O_RDONLY);
+    file_len = read(file_ptr, file_str, sizeof(file_str)-1);
+    if (file_len == 0) return;
+    
+    close(file_ptr);
+    file_str[file_len] = '\0';
+      // read the preceeding fields and the ones we really want...
+    int dum_int;
+    unsigned int dum_uint, vm_size, rss;
+    int num_fields = sscanf(file_str, 
+                            "%d " // pid
+                            "%s " // comm
+                            "%c " // state
+                            "%d %d %d %d %d " // ppid, pgrp, session, tty, tpgid
+                            "%u %u %u %u %u " // flags, minflt, cminflt, majflt, cmajflt
+                            "%d %d %d %d %d %d " // utime, stime, cutime, cstime, counter, priority
+                            "%u %u " // timeout, itrealvalue
+                            "%d " // starttime
+                            "%u %u", // vsize, rss
+                            &dum_int, 
+                            dum_str, 
+                            dum_str, 
+                            &dum_int, &dum_int, &dum_int, &dum_int, &dum_int, 
+                            &dum_uint, &dum_uint, &dum_uint, &dum_uint, &dum_uint,
+                            &dum_int, &dum_int, &dum_int, &dum_int, &dum_int, &dum_int, 
+                            &dum_uint, &dum_uint, 
+                            &dum_int,
+                            &vm_size, &rss);
+    if (num_fields == 24)
+      tot_mem = ((double)vm_size);
+  }
+}
+
   
   
   

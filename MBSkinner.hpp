@@ -36,7 +36,7 @@ protected:
 public:
   //! constructor, takes mdb instance
   MBSkinner(MBInterface* mdb) 
-    : thisMB(mdb), mAdjTag(0){}
+    : thisMB(mdb), mDeletableMBTag(0), mAdjTag(0){}
 
   //! destructor
   ~MBSkinner();
@@ -69,7 +69,7 @@ public:
 
 protected:
   
-  void initialize();
+  void initialize(const bool use_adjs = false);
   
   void deinitialize();
 
