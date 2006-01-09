@@ -8,7 +8,8 @@ class SphereDecomp
 public:
   SphereDecomp(MBInterface *impl);
 
-  MBErrorCode build_sphere_mesh(const char *sphere_radii_tag_name);
+  MBErrorCode build_sphere_mesh(const char *sphere_radii_tag_name, 
+                                MBEntityHandle *hex_set = NULL);
   
 private:
 

@@ -4,6 +4,7 @@
 #include "MBCN.hpp"
 #include <math.h>
 #include <assert.h>
+#include <iostream>
 
 #define RR if (MB_SUCCESS != result) return result
 
@@ -14,7 +15,8 @@ SphereDecomp::SphereDecomp(MBInterface *impl)
   mbImpl = impl;
 }
 
-MBErrorCode SphereDecomp::build_sphere_mesh(const char *sphere_radii_tag_name) 
+MBErrorCode SphereDecomp::build_sphere_mesh(const char *sphere_radii_tag_name,
+                                            MBEntityHandle *hex_set) 
 {
   MBErrorCode result = mbImpl->tag_get_handle(sphere_radii_tag_name, sphereRadiiTag); RR;
 
@@ -39,6 +41,21 @@ MBErrorCode SphereDecomp::build_sphere_mesh(const char *sphere_radii_tag_name)
 
   result = mbImpl->tag_delete(subdivVerticesTag); RR;
 
+  if (NULL != hex_set) {
+    if (0 == *hex_set) {
+      MBEntityHandle this_set;
+        // make a new set
+      result = mbImpl->create_meshset(MESHSET_SET, this_set); RR;
+      *hex_set = this_set;
+    }
+    
+      // save all the hexes to this set
+    result = mbImpl->add_entities(*hex_set, &sphere_hexes[0], 
+                                  sphere_hexes.size()); RR;
+    result = mbImpl->add_entities(*hex_set, &interstic_hexes[0], 
+                                  interstic_hexes.size()); RR;
+  }
+      
   return result;
 }
 
@@ -80,15 +97,25 @@ MBErrorCode SphereDecomp::compute_nodes(const int dim)
       // compute subdiv vertex position for each vertex
     for (int i = 0; i < num_verts; i++) {
       for (int j = 0; j < 3; j++) unitv[j] = avg_pos[j] - vert_pos[3*i+j];
-      double invlength = 1.0 / sqrt(unitv[0]*unitv[0] + unitv[1]*unitv[1] + unitv[2]*unitv[2]);
-      for (int j = 0; j < 3; j++) unitv[j] *= invlength;
+      double vlength = sqrt(unitv[0]*unitv[0] + unitv[1]*unitv[1] + unitv[2]*unitv[2]);
+      if (vlength < radii[i]) {
+        std::cout << "Radius too large at vertex " << i << std::endl;
+        result = MB_FAILURE;
+        continue;
+      }
+      
+      
+      for (int j = 0; j < 3; j++) unitv[j] /= vlength;
           
       for (int j = 0; j < 3; j++)
         new_vert_pos[3*i+j] = vert_pos[3*i+j] + radii[i] * unitv[j];
 
       // create vertex at this position
-      result = mbImpl->create_vertex(&new_vert_pos[3*i], subdiv_vertices[i]); RR;
+      MBErrorCode tmp_result = mbImpl->create_vertex(&new_vert_pos[3*i], subdiv_vertices[i]);
+      if (MB_SUCCESS != tmp_result) result = tmp_result;
     }
+    
+    if (MB_SUCCESS != result) return result;
     
       // compute subdiv vertex positions for vertices inside spheres; just mid-pt between
       // previous subdiv vertex and corner vertex
@@ -359,7 +386,7 @@ MBErrorCode SphereDecomp::subdivide_tet(MBEntityHandle tet,
 
 // V3:
   i = 0;
-  this_connect[i++]=FSV(0,CINDEX); this_connect[i++]=ESV(4,BINDEX); this_connect[i++]=FSV(1,EINDEX); this_connect[i++]=TSV(0,DINDEX); 
+  this_connect[i++]=FSV(0,CINDEX); this_connect[i++]=ESV(4,BINDEX); this_connect[i++]=FSV(1,CINDEX); this_connect[i++]=TSV(0,DINDEX); 
   this_connect[i++]=FSV(0,GINDEX); this_connect[i++]=ESV(4,EINDEX); this_connect[i++]=FSV(1,GINDEX); this_connect[i++]=TSV(0,IINDEX);
   result = mbImpl->create_element(MBHEX, this_connect, 8, this_hex); RR;
   sphere_hexes.push_back(this_hex);
