@@ -19,6 +19,11 @@ if ENABLE_mbchaco
 else
   mbchaco_DIR=
 endif
+if ENABLE_mbzoltan
+  mbzoltan_DIR = mbzoltan
+else
+  mbzoltan_DIR=
+endif
 
 if ENABLE_qvdual
   qvdual_DIR = qvdual
@@ -53,6 +58,7 @@ endif
 SUBDIRS = $(converter_DIR) \
           $(hexmodops_DIR) \
           $(mbchaco_DIR) \
+          $(mbzoltan_DIR) \
           $(mbperf_DIR) \
           $(qvdual_DIR) \
           $(size_DIR) \
