@@ -10,6 +10,8 @@ configuration when you built the Zoltan library.
 
 The Zoltan directory must be parallel to the MOAB directory.
 
+Also, the static MOAB and HDF5 libraries must be in /usr/local/.
+
 Note that C++ implementations vary widely.  If you have trouble
 building the example, try defining or not defining
 the MPI_CPP or NAMESPACES_OK values in the source file.
