@@ -8,6 +8,9 @@ gmake ZOLTAN_ARCH={arch} all
 "arch" is the same name you used to specify your build
 configuration when you built the Zoltan library.
 
+The Zoltan library must be compiled with PARMETIS to use any of the PARMETIS
+methods.
+
 The Zoltan directory must be parallel to the MOAB directory.
 
 Also, the static MOAB and HDF5 libraries must be in /usr/local/.
@@ -19,4 +22,4 @@ the MPI_CPP or NAMESPACES_OK values in the source file.
 To run the example, launch it on any number of processes as you would 
 any MPI application:
 
-mpirun -np 4 mbzoltan <mesh_file> <write_out(y/n)> <output_mesh_file> <method(RCB/RIB/HSFC)>
+mpirun -np 4 mbzoltan <mesh_file> <write_out(y/n)> <output_mesh_file> <method(RCB/RIB/HSFC/PARMETIS)> [<parmetis_method>]
