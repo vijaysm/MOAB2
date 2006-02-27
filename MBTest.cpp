@@ -48,6 +48,8 @@
  using namespace std;
 
  MBInterface* gMB = 0;
+ 
+ string TestDir("./test");
 
  /*!
  prints out a result string based on the value of error_code
@@ -95,9 +97,9 @@
  */
  MBErrorCode mb_load_mesh_test(MBInterface *mb)
  {
-   std::string file_name1 = "test/mbtest1.g";
-   std::string file_name2 = "test/mbtest2.g";
-   std::string file_name3 = "test/mbtest3.g";
+   std::string file_name1 = TestDir + "/mbtest1.g";
+   std::string file_name2 = TestDir + "/mbtest2.g";
+   std::string file_name3 = TestDir + "/mbtest3.g";
 
 
    //test loading just two blocks
@@ -1187,7 +1189,7 @@
       return error;
 
     // load the mesh again 
-    std::string file_name = "test/mbtest1.g";
+    std::string file_name = TestDir + "/mbtest1.g";
     error = gMB->load_mesh(file_name.c_str(), NULL, 0);
     if (error != MB_SUCCESS)
       return error;
@@ -1232,7 +1234,7 @@ MBErrorCode mb_meshset_tracking_test( MBInterface *MB )
 {
 
     //read in a file so you have some data in the database
-  std::string file_name = "test/mbtest1.g";
+  std::string file_name = TestDir + "/mbtest1.g";
   MBErrorCode error = MB->load_mesh(file_name.c_str(), NULL, 0);
   if (error != MB_SUCCESS)
     return error;
@@ -2192,7 +2194,7 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
     return error;
 
   //read in a file so you have some data in the database
-  std::string file_name = "test/mbtest3.g";
+  std::string file_name = TestDir + "/mbtest3.g";
   error = MB->load_mesh(file_name.c_str(), NULL, 0);
   if (error != MB_SUCCESS)
     return error;
@@ -2230,7 +2232,7 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
 
 
 
-  file_name = "test/mbtest3.g";
+  file_name = TestDir + "/mbtest3.g";
   error = MB->load_mesh(file_name.c_str(), NULL, 0);
   if (error != MB_SUCCESS)
     return error;
@@ -2263,7 +2265,7 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
 
 
 
-  file_name = "test/mbtest3.g";
+  file_name = TestDir + "/mbtest3.g";
   error = MB->load_mesh(file_name.c_str(), NULL, 0);
   if (error != MB_SUCCESS)
     return error;
@@ -2307,7 +2309,7 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
 
 
 
-  file_name = "test/mbtest1.g";
+  file_name = TestDir + "/mbtest1.g";
   error = MB->load_mesh(file_name.c_str(), NULL, 0);
   if (error != MB_SUCCESS)
     return error;
@@ -2338,7 +2340,7 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
 
   
   
-  file_name = "test/mbtest1.g";
+  file_name = TestDir + "/mbtest1.g";
   error = MB->load_mesh(file_name.c_str(), NULL, 0);
   if (error != MB_SUCCESS)
     return error;
@@ -2373,7 +2375,7 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
 
 
 
-  file_name = "test/mbtest1.g";
+  file_name = TestDir + "/mbtest1.g";
   error = MB->load_mesh(file_name.c_str(), NULL, 0);
   if (error != MB_SUCCESS)
     return error;
@@ -2405,7 +2407,7 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
   
   
   
-  file_name = "test/mbtest1.g";
+  file_name = TestDir + "/mbtest1.g";
   error = MB->load_mesh(file_name.c_str(), NULL, 0);
   if (error != MB_SUCCESS)
     return error;
@@ -3954,6 +3956,12 @@ MBErrorCode mb_split_test(MBInterface *gMB)
   return MB_SUCCESS;
 }
 
+static void usage(const char* exe) {
+  cerr << "Usage: " << exe << " [-nostress] [-d input_file_dir]\n";
+  exit (1);
+}
+
+
 /*!
 main routine for test harness 
 */
@@ -3964,13 +3972,17 @@ int main(int argc, char* argv[])
 
   // Check command line arg to see if we should avoid doing the stress test
   bool stress_test = true;
-
-  if (argc > 1)
-  {
-    std::string input(argv[1]);
-    if (input == "-nostress")
-    {
+  
+  for (int i = 1; i < argc; ++i) {
+    if (string(argv[i]) == "-nostress")
       stress_test = false;
+    else if (string(argv[i]) == "-d" && (i+1) < argc)
+      TestDir = argv[++i];
+    else if (string(argv[i]) == "-h" || string(argv[i]) == "--help")
+      usage( argv[0] );
+    else {
+      cerr << "Invalid argument: " << argv[i] << endl;
+      usage( argv[0] );
     }
   }
 

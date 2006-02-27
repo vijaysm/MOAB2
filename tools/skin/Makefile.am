@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = foreign
 DEFS = $(DEFINES)
-INCLUDES += -I$(top_builddir)
+INCLUDES += -I$(top_srcdir)
 bin_PROGRAMS = mbskin
 mbskin_SOURCES = skin.cpp
 LDADD = $(top_builddir)/libMOAB.la

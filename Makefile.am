@@ -23,7 +23,11 @@ check_PROGRAMS = moab_test \
                  test_adj 
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
-TESTS = $(check_PROGRAMS) 
+TESTS = run_moab_test \
+        homxform_test \
+        scdseq_test \
+        tqdcfr \
+        test_adj
          
 #noinst_PROGRAMS = scdseq_timing
 
@@ -56,7 +60,7 @@ else
 endif
 if HDF5_FILE
   libMOAB_la_LIBADD = $(top_builddir)/mhdf/libmhdf.la
-  INCLUDES += -Imhdf/include
+  INCLUDES += -I$(srcdir)/mhdf/include
   MOAB_EXTRA_SRCS += ReadHDF5.cpp ReadHDF5.hpp WriteHDF5.cpp $(MOAB_PARALLEL_SRCS)
   MOAB_EXTRA_HDRS += $(MOAB_PARALLEL_HDRS)
   TESTS += $(PARALLEL_TESTS)
@@ -172,7 +176,7 @@ libMOAB_la_include_HEADERS = \
 
 moab_test_SOURCES = MBTest.cpp
 moab_test_LDADD = $(top_builddir)/libMOAB.la
-moab_test_DEPENDENCIES = test/mb_big_test.g $(top_builddir)/libMOAB.la
+moab_test_DEPENDENCIES = test/mb_big_test.g test/cell1.gen test/cell2.gen $(top_builddir)/libMOAB.la
 
 homxform_test_SOURCES = HomXform.cpp
 homxform_test_LDADD = $(top_builddir)/libMOAB.la
@@ -213,5 +217,14 @@ test_adj_SOURCES = test_adj.cpp
 test_adj_LDADD = $(top_builddir)/libMOAB.la
 test_adj_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
-test/mb_big_test.g: test/mb_big_test.g.gz
-	$(ZCAT) test/mb_big_test.g.gz > test/mb_big_test.g
+test/mb_big_test.g: $(top_srcdir)/test/mb_big_test.g.gz
+	$(ZCAT) $(top_srcdir)/test/mb_big_test.g.gz > test/mb_big_test.g
+
+test/cell1.gen: $(top_srcdir)/test/cell1.gen.gz
+	$(ZCAT) $(top_srcdir)/test/cell1.gen.gz > test/cell1.gen
+
+test/cell2.gen: $(top_srcdir)/test/cell2.gen.gz
+	$(ZCAT) $(top_srcdir)/test/cell2.gen.gz > test/cell2.gen
+
+run_moab_test: moab_test
+	./moab_test -d $(top_srcdir)/test
