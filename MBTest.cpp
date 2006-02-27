@@ -1853,7 +1853,7 @@ MBErrorCode mb_higher_order_test(MBInterface *MB)
 
 
    //create the nodes
-   std::vector<MBEntityHandle> connectivity(6);
+   std::vector<MBEntityHandle> connectivity(8);
    MBEntityHandle node_handle;
    int i;
    for( i=0; i<7; i++)
