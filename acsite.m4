@@ -626,7 +626,7 @@ else
       SNL_TRY_COMPILER_DEFINE([__IBMCPP__],[cxx_compiler=VisualAge])
       ;;
     solaris*|sunos*)
-      SNL_TRY_COMPILER_DEFINE([__SUNPRO_CC],[cxx_compiler=SunWorkstop])
+      SNL_TRY_COMPILER_DEFINE([__SUNPRO_CC],[cxx_compiler=SunWorkshop])
       ;;
     irix*)
       SNL_TRY_COMPILER_DEFINE([__sgi],[cxx_compiler=MIPSpro])
