@@ -76,13 +76,12 @@ AM_CONDITIONAL([ENABLE_DOXYGEN],[test "x$ENABLE_DOXYGEN" != "xno"])
 #                           Optional Tools
 ###############################################################################
   # Define a macro to avoid typing this for each individual tool
-  # Usage: MB_OPTIOANL_TOOL( name, configdir, default )
+  # Usage: MB_OPTIOANL_TOOL( name, default )
   #  name      - name of option
   #  default   - yes/no, $ENABLE_TOOLS overrides this if set
   # Actions:
   #  sets ENABLE_${tool} to 'yes' or 'no'
   #  creates ENABLE_${tool} automake conditional
-  #  optionally does recursive configure
 AC_DEFUN([MB_OPTIONAL_TOOL],[
   mb_default_$1=$2
   if test "x" != "x$ENABLE_TOOLS"; then
@@ -111,7 +110,7 @@ MB_OPTIONAL_TOOL([mbsize],                    [no] )
 MB_OPTIONAL_TOOL([mbskin],                    [no] )
 MB_OPTIONAL_TOOL([mbtagprop],                 [no] )
 MB_OPTIONAL_TOOL([spheredecomp],              [no] )
-MB_OPTIONAL_TOOL([mbzoltan],[tools/mbzoltan], [no] )
+MB_OPTIONAL_TOOL([mbzoltan],                  [no] )
 
 ################################################################################
 #                           Chaco
