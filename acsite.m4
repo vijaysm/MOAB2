@@ -15,8 +15,8 @@ AC_DEFUN([SNL_CHECK_COMPILERS], [
   # Save these before calling AC_PROG_CC or AC_PROG_CXX
   # because those macros will modify them, and we want
   # the original user values, not the autoconf defaults.
-USER_CXX_FLAGS="$CXXFLAGS"
-USER_CC_FLAGS="$CFLAGS"
+USER_CXXFLAGS="$CXXFLAGS"
+USER_CCFLAGS="$CFLAGS"
 
   # Check for Parallel
   # Need to check this early so we can look for the correct compiler
@@ -77,19 +77,35 @@ CXXFLAGS="$USER_CXXFLAGS $SNL_CXX_SPECIAL"
 AC_ARG_ENABLE( debug, AC_HELP_STRING([--enable-debug],[Debug symbols (-g)]),
                [enable_debug=$enableval], [enable_debug=] )  
 AC_ARG_ENABLE( optimize, AC_HELP_STRING([--enable-optimize],[Compile optimized (-O2)]),
-               [enable_optimize=$enableval], 
-	       [enable_optimize=
-		if test "x" == "x$enable_debug"; then
-		  enable_optimize=yes
-		fi ] )
+               [enable_cxx_optimize=$enableval
+                enable_cc_optimize=$enableval], 
+               [enable_cxx_optimize=
+                enable_cc_optimize=] )
+
+# Do enable_optimize by default, unless user has specified
+# custom CXXFLAGS or CFLAGS
+if test "x$enable_debug" = "x"; then
+  if test "x$enable_cxx_optimize" = "x"; then
+    if test "x$USER_CXXFLAGS" = "x"; then
+      enable_cxx_optimize=yes
+    fi
+  fi
+  if test "x$enable_cc_optimize" = "x"; then
+    if test "x$USER_CFLAGS" = "x"; then
+      enable_cc_optimize=yes
+    fi
+  fi
+fi
 
 # Choose compiler flags from CLI args
 if test "xyes" = "x$enable_debug"; then
   CXXFLAGS="$CXXFLAGS -g"
   CFLAGS="$CLFAGS -g"
 fi
-if test "xyes" = "x$enable_optimize"; then
+if test "xyes" = "x$enable_cxx_optimize"; then
   CXXFLAGS="$CXXFLAGS -O2 -DNDEBUG"
+fi
+if test "xyes" = "x$enable_cc_optimize"; then
   CFLAGS="$CFLAGS -O2 -DNDEBUG"
 fi
 
@@ -779,7 +795,7 @@ case "$cc_compiler:$host_cpu" in
   MIPSpro:*)
     SNL_CC_SPECIAL=-LANG:std
     ;;
-  Sun:sparc*)
+  SunWorkshop:sparc*)
     SNL_CC_32BIT=-xarch=generic
     SNL_CC_64BIT=-xarch=generic64
     ;;
