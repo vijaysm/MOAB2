@@ -94,8 +94,6 @@ libMOAB_la_SOURCES = \
   MBCN.cpp \
   MBCNArrays.hpp \
   MBCore.cpp \
-  MBCore.hpp \
-  MBError.hpp \
   MBFactory.cpp \
   MBInternals.hpp \
   MBMem.hpp \
@@ -154,6 +152,8 @@ libMOAB_la_include_HEADERS = \
   HigherOrderFactory.hpp \
   HomXform.hpp \
   MBCN.hpp \
+  MBCore.hpp \
+  MBError.hpp \
   MBInterface.hpp \
   MBParallelConventions.h \
   MBRange.hpp \
