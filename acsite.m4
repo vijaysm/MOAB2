@@ -12,52 +12,66 @@
 #######################################################################################
 AC_DEFUN([SNL_CHECK_COMPILERS], [
 
+  # Save these before calling AC_PROG_CC or AC_PROG_CXX
+  # because those macros will modify them, and we want
+  # the original user values, not the autoconf defaults.
+USER_CXX_FLAGS="$CXXFLAGS"
+USER_CC_FLAGS="$CFLAGS"
+
   # Check for Parallel
   # Need to check this early so we can look for the correct compiler
 AC_ARG_WITH( [mpi], AC_HELP_STRING([[--with-mpi(=DIR)]], [Enable parallel support]),
              [WITH_MPI=$withval],[WITH_MPI=no] )
 case "x$WITH_MPI" in
   xno)
-    AC_PROG_CC( [cc gcc cl egcs] )
-    AC_PROG_CXX( [CC aCC cxx xlC xlC_r pgCC c++ g++ gpp cc++ cl FCC KCC RCC] )
+    CC_LIST="cc gcc cl egcs"
+    CXX_LIST="CC aCC cxx xlC_r xlC pgCC c++ g++ gpp cc++ cl FCC KCC RCC"
     ;;
   xyes)
-    AC_PROG_CC( [mpicc mpcc] )
-    AC_PROG_CXX([mpiCC mpCC] )
+    CC_LIST="mpicc mpcc"
+    CXX_LIST="mpiCC mpCC"
     ;;
   x*)
     if test -z "$CC";then
       for prog in mpicc mpcc; do
         if test -x ${WITH_MPI}/bin/$prog; then
           CC="${WITH_MPI}/bin/$prog"
+          CC_LIST="$prog"
         fi
       done
+    else
+      CC_LIST="$CC"
     fi
     if test -z "$CXX";then
       for prog in mpicxx mpiCC mpCC; do
         if test -x ${WITH_MPI}/bin/$prog; then
           CXX="${WITH_MPI}/bin/$prog"
+          CXX_LIST="$prog"
         fi
       done
+    else
+      CXX_LIST="$CXX"
     fi
-    AC_PROG_CC( [mpicc mpcc] )
-    AC_PROG_CXX([mpiCC mpCC mpicxx] )
     WITH_MPI=yes
     ;;
 esac
-
+AC_PROG_CC( [$CC_LIST] )
+AC_PROG_CPP
+AC_PROG_CXX( [$CXX_LIST] )
 AC_PROG_CXXCPP
+
 # Try to determine compiler-specific flags.  This must be done
 # before setting up libtool so that it can override libtool settings.
 SNL_CC_FLAGS
 SNL_CXX_FLAGS
-CFLAGS="$SNL_CC_SPECIAL"
-CXXFLAGS="$SNL_CXX_SPECIAL"
+CFLAGS="$USER_CFLAGS $SNL_CC_SPECIAL"
+CXXFLAGS="$USER_CXXFLAGS $SNL_CXX_SPECIAL"
 
 # On IBM/AIX, the check for OBJEXT fails for the mpcc compiler.
-if test "x$OBJEXT" = "x"; then
-  OBJEXT=o
-fi
+# (Comment out this hack, it should be fixed correctly now)
+#if test "x$OBJEXT" = "x"; then
+#  OBJEXT=o
+#fi
 
   # Check for debug flags
 AC_ARG_ENABLE( debug, AC_HELP_STRING([--enable-debug],[Debug symbols (-g)]),
@@ -75,7 +89,7 @@ if test "xyes" = "x$enable_debug"; then
   CFLAGS="$CLFAGS -g"
 fi
 if test "xyes" = "x$enable_optimize"; then
-  CXXFLAGS="$CXXFLAGS -O2"
+  CXXFLAGS="$CXXFLAGS -O2 -DNDEBUG"
   CFLAGS="$CFLAGS -O2 -DNDEBUG"
 fi
 
@@ -554,6 +568,21 @@ LIBS="$old_LIBS"
 # *******************************************************************************
 #######################################################################################
 
+#################################################################################
+# Check if the compiler defines a specific preprocessor macro
+# Arguments:
+#  - preprocessor define to check for
+#  - action upon success
+#  - action upon failure
+#################################################################################
+AC_DEFUN([SNL_TRY_COMPILER_DEFINE], [
+AC_COMPILE_IFELSE([
+AC_LANG_PROGRAM( [[#ifndef $1
+  choke me
+#endif]], []) ],
+[$2],[$3])
+])
+
 
 #######################################################################################
 # Check for compiler-specific flags.
@@ -566,71 +595,48 @@ AC_DEFUN([SNL_CXX_FLAGS], [
 AC_REQUIRE([AC_PROG_CXX])
 
 # Detect compiler 
-
-# First check for mpiCC and extract real compiler
-SNL_OLD_CXX="$CXX"
-if $CXX -help 2>&1 | grep MPI > /dev/null; then
-  CXX=`$CXX -compile-info | cut -d ' ' -f 1`
-  AC_CHECK_PROG([CXX],[$CXX],[$CXX],[$SNL_OLD_CXX])
-  if $CXX -v 2>&1 | grep gcc > /dev/null; then GXX=yes; fi
-elif $CXX 2>&1 | grep xlC > /dev/null; then
-  CXX=xlC
-  AC_CHECK_PROG([CXX],[xlC],[xlC],[$SNL_OLD_CXX])
-  GXX=no
-fi
-
 AC_MSG_CHECKING([for known c++ compilers])
 # Autoconf does G++ for us
 if test x$GXX = xyes; then
   cxx_compiler=GNU
-  SNL_CXX_SPECIAL="-Wall -pipe"
-# Detect IBM VisualAge compiler
-elif $CXX 2>&1 | grep VisualAge > /dev/null; then
-  cxx_compiler=VisualAge
-# Sun Workshop/Forte
-elif $CXX -V 2>&1 | grep Sun > /dev/null; then
-  cxx_compiler=Sun
-# Intel Compiler
-elif $CXX -V 2>&1 | grep Intel > /dev/null; then
-  cxx_compiler=Intel
-# Compaq compiler
-elif $CXX -V 2>&1 | grep Compaq > /dev/null; then
-  cxx_compiler=Compaq
-# IRIX
-elif $CXX -version 2>&1 | grep MIPSpro > /dev/null; then
-  cxx_compiler=MIPSpro
+# Search for other compiler types
+# For efficiency, limit checks to relevant OSs
 else
-  # Try deciding based on compiler name
-  case "$CXX" in
-    xlC*)
-      cxx_compiler=VisualAge
-      ;;
-    aCC)
-      cxx_compiler=HP
-      ;;
-    icc)
-      cxx_compiler=Intel
-      ;;
-    cl|cl.exe)
-      cxx_compiler=VisualStudio
-      ;;
-    CC)
-      case "$target_os" in
-        solaris*)
-          cxx_compiler=Sun
-          ;;
-        irix*)
-          cxx_compiler=MIPSpro
-          ;;
-      esac
-  esac
-fi
-if test x$cxx_compiler = x; then
-  AC_MSG_RESULT([unknown])
-  AC_MSG_WARN([Unrecognized c++ compiler: $CXX])
   cxx_compiler=unknown
-else
-  AC_MSG_RESULT([$cxx_compiler])
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  case "$target_os" in
+    aix*)
+      SNL_TRY_COMPILER_DEFINE([__IBMCPP__],[cxx_compiler=VisualAge])
+      ;;
+    solaris*|sunos*)
+      SNL_TRY_COMPILER_DEFINE([__SUNPRO_CC],[cxx_compiler=SunWorkstop])
+      ;;
+    irix*)
+      SNL_TRY_COMPILER_DEFINE([__sgi],[cxx_compiler=MIPSpro])
+      ;;
+    linux*)
+      SNL_TRY_COMPILER_DEFINE([__INTEL_COMPILER],[cxx_compiler=Intel])
+      SNL_TRY_COMPILER_DEFINE([__IBMCPP__],[cxx_compiler=VisualAge])
+      SNL_TRY_COMPILER_DEFINE([__DECCXX_VER],[cxx_compiler=Compaq])
+      ;;
+    hpux*)
+      SNL_TRY_COMPILER_DEFINE([__HP_aCC],[cxx_compiler=HP])
+      ;;
+    windows*)
+      SNL_TRY_COMPILER_DEFINE([__MSC_VER],[cxx_compiler=VisualStudio])
+      SNL_TRY_COMPILER_DEFINE([__INTEL_COMPILER],[cxx_compiler=Intel])
+      SNL_TRY_COMPILER_DEFINE([__DECCXX_VER],[cxx_compiler=Compaq])
+      SNL_TRY_COMPILER_DEFINE([__BORLANDC__],[cxx_compiler=Borland])
+      SNL_TRY_COMPILER_DEFINE([__CYGWIN__],[cxx_compiler=Cygwin])
+      SNL_TRY_COMPILER_DEFINE([__MINGW32__],[cxx_compiler=MinGW])
+      ;;
+  esac
+  AC_LANG_RESTORE
+fi
+AC_MSG_RESULT([$cxx_compiler])
+if test "x$cxx_compiler" = "xunknown"; then
+  AC_MSG_WARN([Unrecognized C++ compiler: $CXX])
 fi
 
 # Now decide special compiler flags using compiler/cpu combination
@@ -639,18 +645,22 @@ case "$cxx_compiler:$host_cpu" in
   GNU:sparc*)
     SNL_CXX_32BIT=-m32
     SNL_CXX_64BIT=-m64
+    SNL_CXX_SPECIAL="-Wall -pipe"
     ;;
   GNU:powerpc*)
     SNL_CXX_32BIT=-m32
     SNL_CXX_64BIT=-m64
+    SNL_CXX_SPECIAL="-Wall -pipe"
     ;;
   GNU:i?86)
     SNL_CXX_32BIT=-m32
     SNL_CXX_64BIT=-m64
+    SNL_CXX_SPECIAL="-Wall -pipe"
     ;;
   GNU:mips*)
     SNL_CXX_32BIT="-mips32 -mabi=32"
     SNL_CXX_64BIT="-mips64 -mabi=64"
+    SNL_CXX_SPECIAL="-Wall -pipe"
     ;;
   VisualAge:*)
     SNL_CXX_32BIT=-q32
@@ -668,7 +678,7 @@ case "$cxx_compiler:$host_cpu" in
   MIPSpro:*)
     SNL_CXX_SPECIAL=-LANG:std
     ;;
-  Sun:sparc*)
+  SunWorkshop:sparc*)
     SNL_CXX_32BIT=-xarch=generic
     SNL_CXX_64BIT=-xarch=generic64
     ;;
@@ -676,7 +686,6 @@ case "$cxx_compiler:$host_cpu" in
     ;;
 esac
 AC_MSG_RESULT([$cxx_compiler:$host_cpu])
-CXX="$SNL_OLD_CXX"
 ]) # end SNL_CXX_FLAGS
 
 #######################################################################################
@@ -691,70 +700,46 @@ AC_REQUIRE([AC_PROG_CC])
 
 # Detect compiler 
 
-# First check for mpicc and extract real compiler
-SNL_OLD_CC="$CC"
-if $CC -help 2>&1 | grep MPI > /dev/null; then
-  CC=`$CC -compile-info | cut -d ' ' -f 1`
-  AC_CHECK_PROG([CC],[$CC],[$CC],[$SNL_OLD_CC])
-  if $CC -v 2>&1 | grep gcc > /dev/null; then GCC=yes; fi
-elif $CC 2>&1 | grep xlc > /dev/null; then
-  CC=xlc
-  AC_CHECK_PROG([CC],[xlc],[xlc],[$SNL_OLD_CC])
-  GCC=no
-fi
-
 AC_MSG_CHECKING([for known C compilers])
 # Autoconf does gcc for us
 if test x$GCC = xyes; then
   cc_compiler=GNU
-  SNL_CC_SPECIAL="-Wall -pipe"
-# Detect IBM VisualAge compiler
-elif $CC 2>&1 | grep VisualAge > /dev/null; then
-  cc_compiler=VisualAge
-# Sun Workshop/Forte
-elif $CC -V 2>&1 | grep Sun > /dev/null; then
-  cc_compiler=Sun
-# Intel Compiler
-elif $CC -V 2>&1 | grep Intel > /dev/null; then
-  cc_compiler=Intel
-# Compaq compiler
-elif $CC -V 2>&1 | grep Compaq > /dev/null; then
-  cc_compiler=Compaq
-# IRIX
-elif $CC -version 2>&1 | grep MIPSpro > /dev/null; then
-  cc_compiler=MIPSpro
+# Search for other compiler types
+# For efficiency, limit checks to relevant OSs
 else
-  # Try deciding based on compiler name
-  case "$CC" in
-    xlC*)
-      cc_compiler=VisualAge
+  cc_compiler=unknown
+  case "$target_os" in
+    aix*)
+      SNL_TRY_COMPILER_DEFINE([__IBMC__],[cc_compiler=VisualAge])
       ;;
-    aCC)
-      cc_compiler=HP
+    solaris*|sunos*)
+      SNL_TRY_COMPILER_DEFINE([__SUNPRO_C],[cc_compiler=SunWorkshop])
       ;;
-    icc)
-      cc_compiler=Intel
+    irix*)
+      SNL_TRY_COMPILER_DEFINE([__sgi],[cc_compiler=MIPSpro])
       ;;
-    cl|cl.exe)
-      cc_compiler=VisualStudio
+    linux*)
+      SNL_TRY_COMPILER_DEFINE([__INTEL_COMPILER],[cc_compiler=Intel])
+      SNL_TRY_COMPILER_DEFINE([__IBMC__],[cc_compiler=VisualAge])
+      SNL_TRY_COMPILER_DEFINE([__DECC_VER],[cc_compiler=Compaq])
       ;;
-    CC)
-      case "$target_os" in
-        solaris*)
-          cc_compiler=Sun
-          ;;
-        irix*)
-          cc_compiler=MIPSpro
-          ;;
-      esac
+    hpux*)
+      SNL_TRY_COMPILER_DEFINE([__HP_cc],[cc_compiler=HP])
+      ;;
+    windows*)
+      SNL_TRY_COMPILER_DEFINE([__MSC_VER],[cc_compiler=VisualStudio])
+      SNL_TRY_COMPILER_DEFINE([__INTEL_COMPILER],[cc_compiler=Intel])
+      SNL_TRY_COMPILER_DEFINE([__DECC_VER],[cc_compiler=Compaq])
+      SNL_TRY_COMPILER_DEFINE([__BORLANDC__],[cc_compiler=Borland])
+      SNL_TRY_COMPILER_DEFINE([__TURBOC__],[cc_compiler=TurboC])
+      SNL_TRY_COMPILER_DEFINE([__CYGWIN__],[cc_compiler=Cygwin])
+      SNL_TRY_COMPILER_DEFINE([__MINGW32__],[cc_compiler=MinGW])
+      ;;
   esac
 fi
-if test x$cc_compiler = x; then
-  AC_MSG_RESULT([unknown])
-  AC_MSG_WARN([Unrecognized C compiler: $CC])
-  cc_compiler=unknown
-else
-  AC_MSG_RESULT([$cc_compiler])
+AC_MSG_RESULT([$cc_compiler])
+if test "x$cc_compiler" = "xunknown"; then
+  AC_MSG_WARN([Unrecognized C compiler: $CXX])
 fi
 
 # Now decide special compiler flags using compiler/cpu combination
@@ -763,18 +748,22 @@ case "$cc_compiler:$host_cpu" in
   GNU:sparc*)
     SNL_CC_32BIT=-m32
     SNL_CC_64BIT=-m64
+    SNL_CC_SPECIAL="-Wall -pipe"
     ;;
   GNU:powerpc*)
     SNL_CC_32BIT=-m32
     SNL_CC_64BIT=-m64
+    SNL_CC_SPECIAL="-Wall -pipe"
     ;;
   GNU:i?86)
     SNL_CC_32BIT=-m32
     SNL_CC_64BIT=-m64
+    SNL_CC_SPECIAL="-Wall -pipe"
     ;;
   GNU:mips*)
     SNL_CC_32BIT="-mips32 -mabi=32"
     SNL_CC_64BIT="-mips64 -mabi=64"
+    SNL_CC_SPECIAL="-Wall -pipe"
     ;;
   VisualAge:*)
     SNL_CC_32BIT=-q32
@@ -798,7 +787,6 @@ case "$cc_compiler:$host_cpu" in
     ;;
 esac
 AC_MSG_RESULT([$cc_compiler:$host_cpu])
-CC="$SNL_OLD_CC"
 ]) # end SNL_CC_FLAGS
 
 
