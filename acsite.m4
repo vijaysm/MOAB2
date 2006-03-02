@@ -668,7 +668,7 @@ case "$cxx_compiler:$host_cpu" in
     SNL_CXX_64BIT=-m64
     SNL_CXX_SPECIAL="-Wall -pipe"
     ;;
-  GNU:i?86)
+  GNU:i?86|GNU:x86_64)
     SNL_CXX_32BIT=-m32
     SNL_CXX_64BIT=-m64
     SNL_CXX_SPECIAL="-Wall -pipe"
@@ -771,7 +771,7 @@ case "$cc_compiler:$host_cpu" in
     SNL_CC_64BIT=-m64
     SNL_CC_SPECIAL="-Wall -pipe"
     ;;
-  GNU:i?86)
+  GNU:i?86|GNU:x86_64)
     SNL_CC_32BIT=-m32
     SNL_CC_64BIT=-m64
     SNL_CC_SPECIAL="-Wall -pipe"
