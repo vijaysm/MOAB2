@@ -16,7 +16,9 @@
 #include "MBCore.hpp"
 #include "MBRange.hpp"
 #include "MBTagConventions.hpp"
+#include "MBReaderWriterSet.hpp"
 #include <iostream>
+#include <iomanip>
 #include <set>
 #ifndef WIN32
 #  include <sys/times.h>
@@ -36,14 +38,16 @@
 const char acis_dump_file_tag_name[] = "__ACISDumpFile";
 
 
-void usage_error( const char* name )
+void print_usage( const char* name, std::ostream& stream )
 {
-  std::cerr << "Usage: " << name << 
+  stream << "Usage: " << name << 
     " [-a <sat_file>|-A] [-t] [subset options] <input_file> <output_file>" << std::endl
     << "\t-a <acis_file> - ACIS SAT file dumped by .cub reader" << std::endl
     << "\t-A             - .cub file reader should not dump a SAT file" << std::endl
     << "\t-t             - Time read and write of files." << std::endl
     << "\t-g             - Enable verbose/debug output." << std::endl
+    << "\t-h             - Print this help text and exit." << std::endl
+    << "\t-l             - List available file formats and exit." << std::endl
     << "\t--             - treat all subsequent options as file names" << std::endl
     << "\t                 (allows file names beginning with '-')" << std::endl
     << "  subset options: " << std::endl
@@ -59,11 +63,36 @@ void usage_error( const char* name )
     << "\t-d  - Dirchlet set (nodeset)" << std::endl
     << "\t-n  - Neumann set (sideset)" << std::endl
     ;
-  
-  exit(USAGE_ERROR);
 }
 
+void print_help( const char* name )
+{
+  std::cout << 
+  " This program can be used to convert between mesh file\n"
+  " formats, extract a subset of a mesh file to a separate\n"
+  " file, or both.  The type of file to write is determined\n"
+  " from the file extension (e.g. \".vtk\") protion of the\n"
+  " output file name.\n"
+  " \n"
+  " While MOAB strives to export and import all data from\n"
+  " each supported file format, most file formats do\n"
+  " not support MOAB's entire data model.  Thus MOAB cannot\n"
+  " guarantee lossless conversion for any file formats\n"
+  " other than the native HDF5 representation.\n"
+  "\n";
+  
+  print_usage( name, std::cout );
+  exit(0);
+}
 
+void usage_error( const char* name )
+{
+  print_usage( name, std::cerr );
+  exit(USAGE_ERROR);
+} 
+
+
+void list_formats( MBInterface* );
 bool parse_id_list( const char* string, std::set<int>&  );
 void print_id_list( const char*, std::ostream& stream, const std::set<int>& list );
 void reset_times();
@@ -74,6 +103,9 @@ int main(int argc, char* argv[])
   MBInterface* gMB;
   MBErrorCode result;
   MBRange range;
+  
+    // Get MB instance
+  gMB = new MBCore();
 
   int i, dim;
   const char* in = NULL;    // input file name
@@ -108,10 +140,13 @@ int main(int argc, char* argv[])
       switch ( argv[i][1] )
       {
           // do flag arguments:
-        case '-': do_flag = false;    break;
-        case 'g': verbose = true;     break;
-        case 't': print_times = true; break;
-        case 'A': no_acis = true;     break;
+        case '-': do_flag = false;       break;
+        case 'g': verbose = true;        break;
+        case 't': print_times = true;    break;
+        case 'A': no_acis = true;        break;
+        case 'h': 
+        case 'H': print_help( argv[0] ); break;
+        case 'l': list_formats( gMB );   break;
           // do options that require additional args:
         default: 
           ++i;
@@ -147,9 +182,6 @@ int main(int argc, char* argv[])
   }
   if (!in || !out)
     usage_error(argv[0]);
-  
-    // Get MB instance
-  gMB = new MBCore();
   
     // If requested, set mesh tag to indicate SAT file name to
     // dump from .cub file reader.
@@ -495,3 +527,51 @@ void write_times( std::ostream& stream )
 }
 
 #endif
+
+void list_formats( MBInterface* gMB )
+{
+  const char iface_name[] = "MBReaderWriterSet";
+  MBErrorCode err;
+  void* void_ptr = 0;
+  MBReaderWriterSet* set;
+  MBReaderWriterSet::iter_type i;
+  std::ostream& str = std::cout;
+    
+    // get MBReaderWriterSet
+  err = gMB->query_interface( iface_name, &void_ptr );
+  if (err != MB_SUCCESS || !void_ptr) {
+    std::cerr << "Internal error:  Interface \"" << iface_name 
+              << "\" not available.\n";
+    exit(OTHER_ERROR);
+  }
+  set = (MBReaderWriterSet*)void_ptr;
+  
+    // get field with for format description
+  size_t w = 0;
+  for (i = set->begin(); i != set->end(); ++i)
+    if (i->description().length() > w)
+      w = i->description().length();
+  
+    // write table header
+  str << std::setw(w) << std::left << "Format"
+      << "  Read  Write  Extensions\n"
+      << std::setw(w) << std::setfill('-') << "" << std::setfill(' ')
+      << "  ----  -----  ----------\n";
+      
+    // write table data
+  for (i = set->begin(); i != set->end(); ++i)
+  {
+    std::vector<std::string> ext;
+    i->get_extensions( ext );
+    str << std::setw(w) << std::left << i->description() << "  "
+        << (i->have_reader() ?  " yes" :  "  no") << "  "
+        << (i->have_writer() ? "  yes" : "   no") << " ";
+    for (std::vector<std::string>::iterator j = ext.begin(); j != ext.end(); ++j)
+      str << " " << *j;
+    str << std::endl;
+  }
+  str << std::endl;
+  
+  exit(0);
+}
+
