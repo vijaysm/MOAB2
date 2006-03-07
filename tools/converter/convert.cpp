@@ -486,7 +486,7 @@ void print_time( const char* prefix, clock_t ticks, std::ostream& stream )
 
 clock_t usr_time, sys_time, abs_time;
 
-#ifdef WIN32
+#ifdef __MSC_VER
 
 void reset_times() 
 {
@@ -572,6 +572,7 @@ void list_formats( MBInterface* gMB )
   }
   str << std::endl;
   
+  gMB->release_interface( iface_name, void_ptr );
   exit(0);
 }
 
