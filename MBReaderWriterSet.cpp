@@ -47,7 +47,7 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
 {
 #ifdef HDF5_FILE
   const char* hdf5_list[] = { "h5m", "mhdf", NULL };
-  register_factory(  ReadHDF5::factory, WriteHDF5::factory, "MOAB HDF5", hdf5_list );
+  register_factory(  ReadHDF5::factory, WriteHDF5::factory, "MOAB native (HDF5)", hdf5_list );
 #endif
 
 #ifdef NETCDF_FILE
