@@ -13,6 +13,13 @@
  * 
  */
 
+// If Microsoft compiler, then WIN32
+#ifdef __MSC_VER
+#  ifndef WIN32
+#    define WIN32
+#  endif
+#endif
+
 #include "MBCore.hpp"
 #include "MBRange.hpp"
 #include "MBTagConventions.hpp"
@@ -23,7 +30,7 @@
 #ifndef WIN32
 #  include <sys/times.h>
 #  include <limits.h>
-#include <unistd.h>
+#  include <unistd.h>
 #endif
 #include <time.h>
 
@@ -486,7 +493,7 @@ void print_time( const char* prefix, clock_t ticks, std::ostream& stream )
 
 clock_t usr_time, sys_time, abs_time;
 
-#ifdef __MSC_VER
+#ifdef WIN32
 
 void reset_times() 
 {
@@ -554,9 +561,9 @@ void list_formats( MBInterface* gMB )
   
     // write table header
   str << std::setw(w) << std::left << "Format"
-      << "  Read  Write  Extensions\n"
+      << "  Read  Write  File Name Suffixes\n"
       << std::setw(w) << std::setfill('-') << "" << std::setfill(' ')
-      << "  ----  -----  ----------\n";
+      << "  ----  -----  ------------------\n";
       
     // write table data
   for (i = set->begin(); i != set->end(); ++i)
