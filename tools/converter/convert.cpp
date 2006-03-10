@@ -69,6 +69,12 @@ void print_usage( const char* name, std::ostream& stream )
     << "\t-m  - material set (block)" << std::endl
     << "\t-d  - Dirchlet set (nodeset)" << std::endl
     << "\t-n  - Neumann set (sideset)" << std::endl
+    << "\tThe presence of one or more of the following flags limits " << std::endl
+    << "\tthe exported mesh to only elements of the corresponding " << std::endl
+    << "\tdimension.  Vertices are always exported." << std::endl
+    << "\t-1  - edges " << std::endl
+    << "\t-2  - tri, quad, polygon " << std::endl
+    << "\t-3  - tet, hex, prism, etc. " << std::endl
     ;
 }
 
@@ -104,6 +110,7 @@ bool parse_id_list( const char* string, std::set<int>&  );
 void print_id_list( const char*, std::ostream& stream, const std::set<int>& list );
 void reset_times();
 void write_times( std::ostream& stream );
+void remove_entities_from_sets( MBInterface* gMB, MBRange& dead_entities, MBRange& empty_sets );
 
 int main(int argc, char* argv[])
 {
@@ -115,6 +122,7 @@ int main(int argc, char* argv[])
   gMB = new MBCore();
 
   int i, dim;
+  bool dims[4] = {false, false, false, false};
   const char* in = NULL;    // input file name
   const char* out = NULL;   // output file name
   const char* acis = NULL;  // file to which to write geom data from .cub files.
@@ -154,6 +162,8 @@ int main(int argc, char* argv[])
         case 'h': 
         case 'H': print_help( argv[0] ); break;
         case 'l': list_formats( gMB );   break;
+        case '1': case '2': case '3':
+          dims[argv[i][1] - '0'] = true; break;
           // do options that require additional args:
         default: 
           ++i;
@@ -230,6 +240,37 @@ int main(int argc, char* argv[])
   }
   std::cerr << "Read \"" << in << "\"" << std::endl;
   if (print_times) write_times( std::cerr );
+  
+  
+    // Check if output is limited to certain dimensions of elements
+  bool bydim = false;
+  for (dim = 1; dim < 4; ++dim)
+    if (dims[dim])
+      bydim = true;
+      
+    // Delete any entities not of the dimensions to be exported
+  if (bydim) {
+      // Get list of dead elements
+    MBRange dead_entities , tmp_range;
+    for (dim = 1; dim <= 3; ++dim) {
+      if (dims[dim])
+        continue;
+      gMB->get_entities_by_dimension(0, dim, tmp_range );
+      dead_entities.merge( tmp_range );
+    }
+      // Remove dead entities from all sets, and add all 
+      // empty sets to list of dead entities.
+    MBRange empty_sets;
+    remove_entities_from_sets( gMB, dead_entities, empty_sets );
+    while (!empty_sets.empty()) {
+      dead_entities.merge( empty_sets );
+      MBRange tmp_range;
+      remove_entities_from_sets( gMB, empty_sets, tmp_range );
+      empty_sets = tmp_range.subtract( dead_entities );
+    }
+      // Destroy dead entities
+    result = gMB->delete_entities( dead_entities );
+  }
   
     // Determine if the user has specified any geometry sets to write
   bool have_geom = false;
@@ -581,5 +622,22 @@ void list_formats( MBInterface* gMB )
   
   gMB->release_interface( iface_name, void_ptr );
   exit(0);
+}
+
+void remove_entities_from_sets( MBInterface* gMB, MBRange& dead_entities, MBRange& empty_sets )
+{
+  empty_sets.clear();
+  MBRange sets;
+  gMB->get_entities_by_type( 0, MBENTITYSET, sets );
+  for (MBRange::iterator i = sets.begin(); i != sets.end(); ++i) {
+    MBRange set_contents;
+    gMB->get_entities_by_handle( *i, set_contents, false );
+    set_contents = set_contents.intersect( dead_entities );
+    gMB->remove_entities( *i, set_contents );
+    set_contents.clear();
+    gMB->get_entities_by_handle( *i, set_contents, false );
+    if (set_contents.empty())
+      empty_sets.insert( *i );
+  }
 }
 
