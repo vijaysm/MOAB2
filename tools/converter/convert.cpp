@@ -352,7 +352,7 @@ int main(int argc, char* argv[])
       
     if (verbose)
       std::cout << "Found " << (set_list.size()-init_count) << ' '
-                << mesh_tag_names[dim] << " sets" << std::endl;
+                << mesh_tag_names[i] << " sets" << std::endl;
   }
   
     // If user specified sets to write, but none were found, exit.
