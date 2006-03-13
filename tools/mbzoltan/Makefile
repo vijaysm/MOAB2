@@ -15,12 +15,14 @@
 #                    in Zoltan/Utilities/Config.
 ##############################################################################
 
+include Config.moab
+
 #
 # relative to this directory
 #
-ZOLTAN_TOP = ../../../Zoltan
-ZOLTAN_UTIL = ../../../Zoltan/Utilities
 MOAB_TOP = ../..
+ZOLTAN_TOP = $(MOAB_TOP)/$(ZOLTAN_DIR)
+ZOLTAN_UTIL = $(ZOLTAN_TOP)/Utilities
 
 #
 # relative to the subdirectories
@@ -116,6 +118,8 @@ mbzoltan: mbzoltanLibrary
 			"INCLUDE=$(INCLUDE)" \
 			  "LIBDIR=$(LIBDIR)" "LIBS=$(LIBS)"
 
+install:
+	@cd mbzoltan; $(MAKE) install "MTOP=$(MTOP)"
 
 clean:
 	@cd lib; $(MAKE) clean
