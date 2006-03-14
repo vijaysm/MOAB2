@@ -106,6 +106,7 @@ INCLUDE = -I../lib $(ZOLTAN_INCLUDE) $(MOAB_INCLUDE) $(INCLUDE_PATH)
 ##############################################################################
 
 TARGETS = mbzoltanLibrary mbzoltan
+DISTFILES = Makefile README
 DIST_SUBDIRS = lib mbzoltan
 PATH_SEPARATOR = :
 am__cd = CDPATH="$${ZSH_VERSION+.}$(PATH_SEPARATOR)" && cd
@@ -124,9 +125,11 @@ mbzoltan: mbzoltanLibrary
 install:
 	@cd mbzoltan; $(MAKE) install "MTOP=$(MTOP)"
 
-distdir: Makefile
-	@cp -p ./Makefile $(distdir)/Makefile \
-	|| exit 1;
+distdir: $(DISTFILES)
+	@list='$(DISTFILES)'; for file in $$list; do \
+	  cp -p ./$$file $(distdir)/$$file \
+	  || exit 1; \
+	done
 	list='$(DIST_SUBDIRS)'; for subdir in $$list; do \
 	  mkdir -p -- "$(distdir)/$$subdir" \
 	  || exit 1; \
@@ -143,4 +146,7 @@ distdir: Makefile
 clean:
 	@cd lib; $(MAKE) clean
 	@cd mbzoltan; $(MAKE) clean
+
+distclean: clean
+	rm -f Config.moab
 
