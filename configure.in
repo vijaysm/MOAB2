@@ -116,7 +116,7 @@ MB_OPTIONAL_TOOL([mbzoltan],                  [no] )
 #                           Zoltan
 ################################################################################
   AC_ARG_WITH([zoltan], 
-   [AC_HELP_STRING([--with-zoltan=DIR],[Specify directory, relative to this directory, containing Zoltan])],
+   [AC_HELP_STRING([--with-zoltan=DIR],[Specify directory containing Zoltan])],
    [ZOLTAN_DIR="$withval"],[ZOLTAN_DIR=unknown])
   AC_SUBST(ZOLTAN_DIR)
   AC_ARG_WITH([zoltan-arch],
