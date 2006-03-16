@@ -63,7 +63,7 @@ SUBDIRS = lib mbzoltan
 #                 LIBRARIES
 ############################################################################
 #
-LIBDIR = -L../lib -L$(ZOLTAN_LIB_DIR) $(MPI_LIBPATH)
+LIBDIR = -L../lib -L$(MTOP)/.libs -L$(ZOLTAN_LIB_DIR) $(MPI_LIBPATH)
 
 THIRD_PARTY_LIBS=
 
