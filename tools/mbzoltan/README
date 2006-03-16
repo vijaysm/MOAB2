@@ -3,17 +3,17 @@ A simple C++ example in the "mbzoltan" directory.
 The example is built with the Makefile found in
 this directory, with the command:
 
-gmake ZOLTAN_ARCH={arch} all
-
-"arch" is the same name you used to specify your build
-configuration when you built the Zoltan library.
+gmake
 
 The Zoltan library must be compiled with PARMETIS to use any of the PARMETIS
 methods.
 
-The Zoltan directory must be parallel to the MOAB directory.
+The Zoltan directory must be given relative to the MOAB directory when MOAB is
+configured.
 
-Also, the static MOAB and HDF5 libraries must be in /usr/local/.
+The Zoltan "arch" is the same name you used to specify your build
+configuration when you built the Zoltan library and also must be given when
+MOAB is configured.
 
 Note that C++ implementations vary widely.  If you have trouble
 building the example, try defining or not defining
@@ -22,4 +22,4 @@ the MPI_CPP or NAMESPACES_OK values in the source file.
 To run the example, launch it on any number of processes as you would 
 any MPI application:
 
-mpirun -np 4 mbzoltan <mesh_file> <write_out(y/n)> <output_mesh_file> <method(RCB/RIB/HSFC/PARMETIS)> [<parmetis_method>]
+mpirun -np 4 mbzoltan <mesh_file> <write_out(y/n)> <output_mesh_file> <method(RCB/RIB/HSFC/PARMETIS/OCTPART)> [<parmetis_method/oct_method>]
