@@ -9,10 +9,7 @@
 # Makefile for simple example which uses the Zoltan and MOAB libraries
 #
 # To compile the example, type
-#    gmake ZOLTAN_ARCH=<targetmachine> 
-# where
-#    targetmachine = the suffix of one of the configuration files Config.*
-#                    in Zoltan/Utilities/Config.
+#    gmake 
 ##############################################################################
 
 include Config.moab
@@ -21,15 +18,17 @@ include Config.moab
 # relative to this directory
 #
 MOAB_TOP = ../..
-ZOLTAN_TOP = $(MOAB_TOP)/$(ZOLTAN_DIR)
+
+ZOLTAN_TOP = $(ZOLTAN_DIR)
 ZOLTAN_UTIL = $(ZOLTAN_TOP)/Utilities
 
 #
 # relative to the subdirectories
 #
-ZTOP = ../$(ZOLTAN_TOP)
-ZUTIL = ../$(ZOLTAN_UTIL)
 MTOP = ../$(MOAB_TOP)
+
+ZTOP = $(ZOLTAN_TOP)
+ZUTIL = $(ZOLTAN_UTIL)
 
 ##############################################################################
 # Process architecture flag

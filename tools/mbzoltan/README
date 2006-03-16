@@ -8,8 +8,7 @@ gmake
 The Zoltan library must be compiled with PARMETIS to use any of the PARMETIS
 methods.
 
-The Zoltan directory must be given relative to the MOAB directory when MOAB is
-configured.
+The Zoltan directory must be given when MOAB is configured.
 
 The Zoltan "arch" is the same name you used to specify your build
 configuration when you built the Zoltan library and also must be given when
