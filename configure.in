@@ -506,6 +506,22 @@ AC_CONFIG_FILES([Makefile
                  tools/tagprop/Makefile
                  tools/spheredecomp/Makefile
                  ])
+
+################################################################################
+#                           Define some standard make variables
+################################################################################
+# goofy tests to make sure prefix and exec_prefix get their default values
+#
+test "x$prefix" = "xNONE" && prefix="$ac_default_prefix"
+test "x$exec_prefix" = "xNONE" && exec_prefix="$prefix"
+MOAB_PREFIX=`eval echo "$prefix"`
+MOAB_INCLUDEDIR=`eval echo "$includedir"`
+MOAB_LIBDIR=`eval echo "$libdir"`
+
+AC_SUBST(MOAB_LIBDIR)
+AC_SUBST(MOAB_INCLUDEDIR)
+AC_SUBST(MOAB_PREFIX)
+
 AC_OUTPUT
 
 AC_MSG_RESULT([C:   $CC $CFLAGS])
