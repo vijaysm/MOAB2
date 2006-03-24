@@ -514,13 +514,15 @@ AC_CONFIG_FILES([Makefile
 #
 test "x$prefix" = "xNONE" && prefix="$ac_default_prefix"
 test "x$exec_prefix" = "xNONE" && exec_prefix="$prefix"
-MOAB_PREFIX=`eval echo "$prefix"`
-MOAB_INCLUDEDIR=`eval echo "$includedir"`
-MOAB_LIBDIR=`eval echo "$libdir"`
+eval "MOAB_PREFIX=\"$prefix\""
+eval "MOAB_EXEC_PREFIX=\"$exec_prefix\""
+eval "MOAB_INCLUDEDIR=\"$includedir\""
+eval "MOAB_LIBDIR=\"$libdir\""
 
 AC_SUBST(MOAB_LIBDIR)
 AC_SUBST(MOAB_INCLUDEDIR)
 AC_SUBST(MOAB_PREFIX)
+AC_SUBST(MOAB_EXEC_PREFIX)
 
 AC_OUTPUT
 
