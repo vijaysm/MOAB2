@@ -169,6 +169,7 @@ libMOAB_la_include_HEADERS = \
   MeshTopoUtil.hpp \
   ReadWriteDefines.h \
   WriteTemplate.hpp \
+  config.make \
   $(MOAB_EXTRA_HDRS)
 
 
