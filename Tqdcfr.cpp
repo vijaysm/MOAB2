@@ -55,6 +55,7 @@ const int Tqdcfr::cub_elem_num_verts[] = {
   1, // sphere
   2, 2, 3, // bars
   2, 2, 3, // beams
+  2, 2, 3, // truss
   2, // spring
   3, 3, 6, 7, // tris
   3, 3, 6, 7, // trishells
@@ -346,7 +347,7 @@ MBErrorCode Tqdcfr::read_nodeset(Tqdcfr::ModelEntry *model,
       // now get the ids
     FREADI(num_ents);
     
-    MBErrorCode result = get_entities(this_type, &int_buf[0], num_ents, 
+    MBErrorCode result = get_entities(this_type+2, &int_buf[0], num_ents, 
                                       ns_entities, excl_entities);
     if (MB_SUCCESS != result) return result;
   }
@@ -383,7 +384,7 @@ MBErrorCode Tqdcfr::read_sideset(const double data_version,
         // now get the ids
       FREADI(num_ents);
     
-      MBErrorCode result = get_entities(this_type, &int_buf[0], num_ents, 
+      MBErrorCode result = get_entities(this_type+2, &int_buf[0], num_ents, 
                                         ss_entities, excl_entities);
       if (MB_SUCCESS != result) return result;
 
@@ -427,7 +428,7 @@ MBErrorCode Tqdcfr::read_sideset(const double data_version,
       FREADIA(num_wrts, &wrt_ents[0]);
       
       std::vector<MBEntityHandle> ss_entities;
-      MBErrorCode result = get_entities(&mem_types[0], &mem_ids[0], num_ents, 
+      MBErrorCode result = get_entities(&mem_types[0], &mem_ids[0], num_ents, false,
                                         ss_entities);
       if (MB_SUCCESS != result) return result;
 
@@ -525,7 +526,8 @@ MBErrorCode Tqdcfr::process_sideset_11(std::vector<MBEntityHandle> &ss_entities,
   
   for (int i = 0; i < num_ents; i++) {
     
-    int num_wrt = *wrt_it++;
+    int num_wrt = 0;
+    if (!wrt_ents.empty()) num_wrt = *wrt_it++;
     for (int j = 0; j < num_wrt; j++) wrt_it += 2;
     forward.push_back(ss_entities[i]);
       // assume here that if it's in the list twice, we get both senses
@@ -593,7 +595,7 @@ MBErrorCode Tqdcfr::read_block(const double data_version,
       // now get the ids
     FREADI(num_ents);
 
-    MBErrorCode result = get_entities(this_type, &int_buf[0], num_ents, 
+    MBErrorCode result = get_entities(this_type+2, &int_buf[0], num_ents, 
                                       block_entities, excl_entities);
     if (MB_SUCCESS != result) return result;
   }
@@ -717,14 +719,20 @@ MBErrorCode Tqdcfr::put_into_set(MBEntityHandle set_handle,
   return MB_SUCCESS;
 }
 
-MBErrorCode Tqdcfr::get_entities(const int *mem_types,
+MBErrorCode Tqdcfr::get_entities(const int *mem_types, 
                                  int *id_buf, const int id_buf_size,
+                                 const bool is_group,
                                  std::vector<MBEntityHandle> &entities) 
 {
   MBErrorCode tmp_result, result = MB_SUCCESS;
   
   for (int i = 0; i < id_buf_size; i++) {
-    tmp_result = get_entities(mem_types[i], id_buf+i, 1, entities, entities);
+    if (is_group)
+      tmp_result = get_entities(mem_types[i], id_buf+i, 1, entities, entities);
+    else
+        // for blocks/nodesets/sidesets, use CSOEntityType, which is 2 greater than
+        // group entity types
+      tmp_result = get_entities(mem_types[i]+2, id_buf+i, 1, entities, entities);
     if (MB_SUCCESS != tmp_result) result = tmp_result;
   }
   return result;
@@ -738,9 +746,9 @@ MBErrorCode Tqdcfr::get_entities(const int this_type,
   MBErrorCode result = MB_FAILURE;
   
   if (this_type >= GROUP && this_type <= VERTEX)
-    result = get_ref_entities(this_type, &int_buf[0], id_buf_size, entities);
+    result = get_ref_entities(this_type, id_buf, id_buf_size, entities);
   else if (this_type >= HEX && this_type <= NODE)
-    result = get_mesh_entities(this_type, &int_buf[0], id_buf_size, entities, excl_entities);
+    result = get_mesh_entities(this_type, id_buf, id_buf_size, entities, excl_entities);
 
   return result;
 }

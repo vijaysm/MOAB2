@@ -394,9 +394,11 @@ private:
     //! mapping from mesh packet type to moab type
   static const MBEntityType mp_type_to_mb_type[];
   
-    //! get entities with individually-specified types
+    //! get entities with individually-specified types; if is_group is false, 
+    //! increment each mem_type by 2 since they're CSOEntityType's and not group types
   MBErrorCode get_entities(const int *mem_types,
                            int *id_buf, const int id_buf_size,
+                           const bool is_group,
                            std::vector<MBEntityHandle> &entities);
   
     //! get entities specified by type and ids, append to entities
