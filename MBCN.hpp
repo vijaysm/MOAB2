@@ -42,8 +42,6 @@
 // the maximum number of nodes an n-1 dimensional element may have
 #define MB_MAX_SUB_ENTITY_VERTICES 16
 
-// the maximum possible number of vertices, including higher-order
-#define MB_MAX_NUM_VERTICES 27
 
 /*! Entity types defined in MOAB and MBCN
  *  The ordering here must ensure that all element types are 
@@ -97,6 +95,9 @@ private:
 //! the basis of the numbering system (normally 0 or 1, 0 by default)
   static int numberBasis;
 
+//! switch the basis
+  static void SwitchBasis(const int old_basis, const int new_basis);
+  
 public:
 
     //! enum used to specify operation type
@@ -131,7 +132,7 @@ public:
     //  conn[k][l] (l=0..MBCN::VerticesPerEntity[target_type[k]]) = vertex connectivity of sub-facet k,
     //    with respect to entity i's canonical vertex ordering, or self (j=2)
     // (not documented with Doxygen)
-  static ConnMap mConnectivityMap[MBMAXTYPE][3];
+  static const ConnMap mConnectivityMap[MBMAXTYPE][3];
 
     // structure used to define reverse canonical ordering information
     // (not documented with Doxygen)
@@ -148,7 +149,7 @@ public:
     // connectivity data in this table must be in ascending order (used for
     // efficient sorting)
     // (not documented with Doxygen)
-  static UpConnMap mUpConnMap[MBMAXTYPE][4][4];
+  static const UpConnMap mUpConnMap[MBMAXTYPE][4][4];
 
   //! this const vector defines the starting and ending MBEntityType for 
   //! each dimension, e.g. TypeDimensionMap[2] returns a pair of MBEntityTypes 
@@ -286,7 +287,7 @@ public:
   //!    (i=0), mid-face (i=1), and/or mid-region (i=2) nodes are likely
   static void HasMidNodes(const MBEntityType this_type, 
                           const int num_verts, 
-                          bool mid_nodes[3]);
+                          int mid_nodes[4]);
 
   //! given data about an element and a vertex in that element, return the dimension
   //! and index of the sub-entity that the vertex resolves.  If it does not resolve a
@@ -315,8 +316,6 @@ public:
   //! \return index Index of sub-entity's higher-order node
   static int HONodeIndex(const MBEntityType this_type, const int num_verts,
                          const int subfacet_dim, const int subfacet_index);
-
-    //! 
 };
 
   //! get the basis of the numbering system
@@ -421,20 +420,22 @@ inline bool MBCN::HasMidRegionNodes(const MBEntityType this_type,
 }
 
 inline void MBCN::HasMidNodes(const MBEntityType this_type, const int num_nodes,
-                                  bool mid_nodes[3])
+                              int mid_nodes[4])
 {
   if (num_nodes <= VerticesPerEntity(this_type) ||
     // poly elements never have mid nodes as far as canonical ordering is concerned
       MBPOLYGON == this_type || MBPOLYHEDRON == this_type) {
-    mid_nodes[0] = false;
-    mid_nodes[1] = false;
-    mid_nodes[2] = false;
+    mid_nodes[0] = 0;
+    mid_nodes[1] = 0;
+    mid_nodes[2] = 0;
+    mid_nodes[3] = 0;
     return;
   }
   
-  mid_nodes[0] = HasMidEdgeNodes(this_type, num_nodes);
-  mid_nodes[1] = HasMidFaceNodes(this_type, num_nodes);
-  mid_nodes[2] = HasMidRegionNodes(this_type, num_nodes);
+  mid_nodes[0] = 0;
+  mid_nodes[1] = HasMidEdgeNodes(this_type, num_nodes);
+  mid_nodes[2] = HasMidFaceNodes(this_type, num_nodes);
+  mid_nodes[3] = HasMidRegionNodes(this_type, num_nodes);
 }
 
 

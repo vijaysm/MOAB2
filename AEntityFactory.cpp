@@ -466,33 +466,30 @@ MBErrorCode AEntityFactory::remove_all_adjacencies(MBEntityHandle base_entity,
   if (TYPE_FROM_HANDLE(base_entity) == MBENTITYSET) 
     return thisMB->clear_meshset(&base_entity, 1);
 
-    // clean out explicit adjacencies to this entity first, but only if vertex-element
-    // adjacencies have been created (since the get_adjacencies call below otherwise
-    // creates all vertex-element adjacencies, which might not be what we want)
-  if (vert_elem_adjacencies()) {
-    for (int dim = 1; dim < thisMB->dimension_from_handle(base_entity); dim++) {
-      MBRange ents;
-      result = thisMB->get_adjacencies(&base_entity, 1, dim, false, ents);
-      if (MB_SUCCESS != result && MB_MULTIPLE_ENTITIES_FOUND != result) continue;
-      for (MBRange::iterator rit = ents.begin(); rit != ents.end(); rit++) {
-        if (explicitly_adjacent(*rit, base_entity))
-          remove_adjacency(*rit, base_entity);
-      }
+    // clean out explicit adjacencies to this entity first
+  for (int dim = 1; dim < thisMB->dimension_from_handle(base_entity); dim++) {
+    MBRange ents;
+    result = thisMB->get_adjacencies(&base_entity, 1, dim, false, ents);
+    if (MB_SUCCESS != result && MB_MULTIPLE_ENTITIES_FOUND != result) continue;
+    for (MBRange::iterator rit = ents.begin(); rit != ents.end(); rit++) {
+      if (explicitly_adjacent(*rit, base_entity))
+        remove_adjacency(*rit, base_entity);
     }
   }
   
-    // clear out vertex-entity adjacencies next; don't bother checking for vertex-element
-    // adjacencies, the code below works the same either way
+    // clear out vertex-entity adjacencies next
   MBErrorCode tmp_result;
-  std::vector<MBEntityHandle> verts;
-  if (TYPE_FROM_HANDLE(base_entity) == MBPOLYHEDRON)
-    tmp_result = get_adjacencies(base_entity, 0, false, verts);
-  else
-    tmp_result = thisMB->get_connectivity(&base_entity, 1, verts);
-  if (tmp_result == MB_SUCCESS) {
-    for (std::vector<MBEntityHandle>::iterator vit = verts.begin(); vit != verts.end(); vit++) {
-      tmp_result = remove_adjacency(*vit, base_entity);
-      if (MB_SUCCESS != tmp_result) result = tmp_result;
+  if (vert_elem_adjacencies()) {
+    std::vector<MBEntityHandle> verts;
+    if (TYPE_FROM_HANDLE(base_entity) == MBPOLYHEDRON)
+      tmp_result = get_adjacencies(base_entity, 0, false, verts);
+    else
+      tmp_result = thisMB->get_connectivity(&base_entity, 1, verts);
+    if (tmp_result == MB_SUCCESS) {
+      for (std::vector<MBEntityHandle>::iterator vit = verts.begin(); vit != verts.end(); vit++) {
+        tmp_result = remove_adjacency(*vit, base_entity);
+        if (MB_SUCCESS != tmp_result) result = tmp_result;
+      }
     }
   }
   
@@ -836,7 +833,7 @@ MBErrorCode AEntityFactory::get_down_adjacency_elements(MBEntityHandle source_en
   MBErrorCode result = thisMB->get_connectivity(source_entity, vertices, num_verts);
   if (MB_SUCCESS != result) return result;
 
-  bool has_mid_nodes[3];
+  int has_mid_nodes[4];
   MBCN::HasMidNodes(source_type, num_verts, has_mid_nodes);
   
   std::vector<int> index_list;
@@ -854,7 +851,7 @@ MBErrorCode AEntityFactory::get_down_adjacency_elements(MBEntityHandle source_en
       vertex_array[i] = vertices[cmap.conn[j][i]];
 
       // get the ho nodes for sub-subfacets
-    if (has_mid_nodes[0] && target_dimension > 1) {
+    if (has_mid_nodes[1] && target_dimension > 1) {
         // has edge mid-nodes; for each edge, get the right mid-node and put in vertices
         // first get the edge indices
       index_list.clear();
@@ -871,7 +868,7 @@ MBErrorCode AEntityFactory::get_down_adjacency_elements(MBEntityHandle source_en
       }
     }
       // get the ho nodes for the target dimension
-    if (has_mid_nodes[target_dimension-1]) {
+    if (has_mid_nodes[target_dimension]) {
         // get the ho node index for this subfacet
       int tmp_index = MBCN::HONodeIndex(source_type, num_verts,
                                           target_dimension, j);

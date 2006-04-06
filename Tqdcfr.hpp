@@ -70,30 +70,30 @@
 
 
 class MBReadUtilIface;
+class FEModelHeader;
+class GeomHeader;
+class GroupHeader;
+class BlockHeader;
+class NodesetHeader;
+class SidesetHeader;
+
 
 class Tqdcfr : public MBReaderIface
 {
 public:  
+
+    // class for holding the file table of contents
   class FileTOC
   {
   public:
     int fileEndian, fileSchema, numModels, modelTableOffset, 
       modelMetaDataOffset, activeFEModel;
 
-    FileTOC() 
-        : fileEndian(0), fileSchema(0), numModels(0), modelTableOffset(0), 
-          modelMetaDataOffset(0), activeFEModel(0) {}
-
-    void print() 
-      {
-        std::cout << "FileTOC:End, Sch, #Mdl, TabOff, "
-                  << "MdlMDOff, actFEMdl = ";
-        std::cout << fileEndian << ", " << fileSchema << ", " << numModels 
-                  << ", " << modelTableOffset << ", " 
-                  << modelMetaDataOffset << ", " << activeFEModel << std::endl;
-      }
+    FileTOC();
+    void print();
   };
 
+    // 
   class FEModelHeader 
   {
   public:
@@ -104,18 +104,10 @@ public:
     public:
       int numEntities, tableOffset, metaDataOffset;
 
-      ArrayInfo() : numEntities(0), tableOffset(0), metaDataOffset(0) 
-        {}
+      ArrayInfo();
       
-      void print() 
-        {
-          std::cout << "ArrayInfo:numEntities, tableOffset, metaDataOffset = "
-                    << numEntities << ", " << tableOffset << ", " << metaDataOffset << std::endl;
-        }
-      void init( const std::vector<int>& int_buf )
-        {
-          numEntities = int_buf[0]; tableOffset = int_buf[1]; metaDataOffset = int_buf[2];
-        }
+      void print();
+      void init(const std::vector<int>& int_buf);
     };
     
     ArrayInfo geomArray, nodeArray, elementArray, groupArray, 
@@ -123,57 +115,9 @@ public:
 
     void init(const int offset, Tqdcfr* instance );
         
-    void print() 
-      {
-        std::cout << "FEModelHeader:feEndian, feSchema, feCompressFlag, feLength = "
-                  << feEndian << ", " << feSchema << ", " << feCompressFlag << ", " << feLength << std::endl;
-        
-        std::cout << "geomArray: "; geomArray.print();
-        std::cout << "nodeArray: "; nodeArray.print();
-        std::cout << "elementArray: "; elementArray.print();
-        std::cout << "groupArray: "; groupArray.print();
-        std::cout << "blockArray: "; blockArray.print();
-        std::cout << "nodesetArray: "; nodesetArray.print();
-        std::cout << "sidesetArray: "; sidesetArray.print();
-      }
+    void print();
   };
 
-  class EntityHeader 
-  {
-  public:
-    int entityID, entityType, numNodes, nodeOffset, numElements, elementOffset,
-      numTypes, entityColor, entityLength,
-      pyrType, matType, blockDimension, shellsFlag;
-
-    MBEntityHandle setHandle;
-
-    void print() 
-      {
-        std::cout << "EH:uid, Typ, #N, NO, #E, EO, #Typ, Col, EntL, "
-                  << "pyrTyp, matTyp, Dim, shlFlag = " << std::endl;
-        std::cout << entityID << ", " << entityType << ", " << numNodes << ", " 
-                  << nodeOffset << ", " << numElements 
-                  << ", " << elementOffset << ", " << numTypes << ", " << entityColor 
-                  << ", " << entityLength << ", " << pyrType << ", " << matType << ", "
-                  << blockDimension << ", " << shellsFlag << std::endl;
-      }
-
-    enum {geom, group, block, nodeset, sideset};
-    
-    static void read_info_header(const int model_offset, 
-                                 const FEModelHeader::ArrayInfo &info,
-                                 const int info_type,
-                                 Tqdcfr* instance,
-                                 EntityHeader *&entity_headers);
-
-    EntityHeader() 
-        : entityID(0), entityType(0), numNodes(0), nodeOffset(0), numElements(0), 
-          elementOffset(0), numTypes(0), entityColor(0), entityLength(0),
-          pyrType(0), matType(0), blockDimension(0), shellsFlag(0),
-          setHandle(0)
-      {}
-  };
-  
   class MetaDataContainer
   {
   public:
@@ -188,83 +132,157 @@ public:
       double mdDblValue;
       std::vector<double> mdDblArrayValue;
       
-      MetaDataEntry() : mdOwner(0), mdDataType(0), mdIntValue(0), 
-                        mdName("(uninit)"), mdStringValue("(uninit)"), mdDblValue(0) 
-        {}
+      MetaDataEntry();
 
-      void print() 
-        {
-          std::cout << "MetaDataEntry:own, typ, name, I, D, S = "
-                    << mdOwner << ", " << mdName << ", " << mdIntValue << ", " 
-                    << mdDblValue << ", " << mdStringValue;
-          unsigned int i;
-          if (mdIntArrayValue.size()) {
-            std::cout << std::endl << "IArray = " << mdIntArrayValue[0];
-            for (i = 1; i < mdIntArrayValue.size(); i++)
-              std::cout << ", " << mdIntArrayValue[i];
-          }
-          if (mdDblArrayValue.size()) {
-            std::cout << std::endl << "DArray = " << mdDblArrayValue[0];
-            for (i = 1; i < mdDblArrayValue.size(); i++)
-              std::cout << ", " << mdDblArrayValue[i];
-          }
-          std::cout << std::endl;
-        }
+      void print();
     };
 
-    void print() 
-      {
-        std::cout << "MetaDataContainer:mdSchema, compressFlag, numDatums = "
-                  << mdSchema << ", " << compressFlag << ", " << numDatums << std::endl;
+    void print();
 
-        for (int i = 0; i < numDatums; i++)
-          metadataEntries[i].print();
-      }
-
+    int get_md_entry(const int owner, const std::string &name);
+    
     MetaDataEntry *metadataEntries;
-    MetaDataContainer() : mdSchema(0), compressFlag(0), numDatums(0), metadataEntries(NULL) {}
-    ~MetaDataContainer() {if (NULL != metadataEntries) delete [] metadataEntries;}
+    MetaDataContainer();
+    ~MetaDataContainer();
   };
 
+  class GeomHeader 
+  {
+  public:
+    int geomID, nodeCt, nodeOffset, elemCt, elemOffset, 
+      elemTypeCt, elemLength;
+
+    MBEntityHandle setHandle;
+
+    void print();
+
+    static MBErrorCode read_info_header(const int model_offset, 
+                                        const FEModelHeader::ArrayInfo &info,
+                                        Tqdcfr* instance,
+                                        GeomHeader *&entity_headers);
+
+    GeomHeader();
+  };
+  
+  class GroupHeader 
+  {
+  public:
+    int grpID, grpType, memCt, memOffset, memTypeCt, grpLength;
+
+    MBEntityHandle setHandle;
+
+    void print();
+
+    static MBErrorCode read_info_header(const int model_offset, 
+                                 const FEModelHeader::ArrayInfo &info,
+                                 Tqdcfr* instance,
+                                 GroupHeader *&entity_headers);
+
+    GroupHeader();
+  };
+  
+  class BlockHeader 
+  {
+  public:
+    int blockID, blockElemType, memCt, memOffset, memTypeCt, attribOrder, blockCol,
+      blockMixElemType, blockPyrType, blockMat, blockLength, blockDim;
+
+    MBEntityHandle setHandle;
+
+    MBEntityType blockEntityType;
+
+    void print();
+
+    static MBErrorCode read_info_header(const double data_version,
+                                        const int model_offset, 
+                                        const FEModelHeader::ArrayInfo &info,
+                                        Tqdcfr* instance,
+                                        BlockHeader *&block_headers);
+
+    BlockHeader();
+  };
+  
+  class NodesetHeader 
+  {
+  public:
+    int nsID, memCt, memOffset, memTypeCt, pointSym, nsCol, nsLength;
+
+    MBEntityHandle setHandle;
+
+    void print();
+
+    static MBErrorCode read_info_header(const int model_offset, 
+                                 const FEModelHeader::ArrayInfo &info,
+                                 Tqdcfr* instance,
+                                 NodesetHeader *&entity_headers);
+
+    NodesetHeader();
+  };
+  
+  class SidesetHeader 
+  {
+  public:
+    int ssID, memCt, memOffset, memTypeCt, numDF, ssCol, useShell, ssLength;
+
+    MBEntityHandle setHandle;
+
+    void print();
+
+    static MBErrorCode read_info_header(const int model_offset, 
+                                 const FEModelHeader::ArrayInfo &info,
+                                 Tqdcfr* instance,
+                                 SidesetHeader *&entity_headers);
+
+    SidesetHeader();
+  };
+  
+    // class to hold model entry data for various kinds of models 
+    // (acis, free mesh, etc.)
   class ModelEntry
   {
   public:
-    ModelEntry() 
-        : modelHandle(0), modelOffset(0), 
-          modelLength(0), modelType(0), modelOwner(0), modelPad(0),
-          feGeomH(NULL), feGroupH(NULL), feBlockH(NULL), 
-          feNodeSetH(NULL), feSideSetH(NULL)
-      {}
+    ModelEntry();
 
-    ~ModelEntry() 
-      {
-        delete [] feGeomH; delete [] feGroupH; delete [] feBlockH;
-        delete [] feNodeSetH; delete [] feSideSetH;
-      }
+    ~ModelEntry();
     
     int modelHandle, modelOffset, modelLength, modelType, modelOwner, modelPad;
 
     FEModelHeader feModelHeader;
-    EntityHeader *feGeomH, *feGroupH, *feBlockH, *feNodeSetH, *feSideSetH;
+    GeomHeader *feGeomH;
+    GroupHeader *feGroupH;
+    BlockHeader *feBlockH;
+    NodesetHeader *feNodeSetH;
+    SidesetHeader *feSideSetH;
+    
     MetaDataContainer geomMD, nodeMD, elementMD, groupMD, blockMD, nodesetMD, sidesetMD;
     
-    void print() 
-      {
-        std::cout << "ModelEntry: Han, Of, Len, Tp, Own, Pd = "
-                  << modelHandle << ", " << modelOffset << ", " << modelLength 
-                  << ", " << modelType << ", " << modelOwner << ", " << modelPad
-                  << std::endl;
-      }
+    void print();
 
-    void print_header(const char *prefix,
-                      FEModelHeader::ArrayInfo &info,
-                      EntityHeader *header);
+    void print_geom_headers(const char *prefix,
+                            GeomHeader *header,
+                            int num_headers);
+
+    void print_group_headers(const char *prefix,
+                             GroupHeader *header,
+                             const int num_headers);
+
+    void print_block_headers(const char *prefix,
+                             BlockHeader *header,
+                             const int num_headers);
+
+    void print_nodeset_headers(const char *prefix,
+                               NodesetHeader *header,
+                               const int num_headers);
+
+    void print_sideset_headers(const char *prefix,
+                               SidesetHeader *header,
+                               const int num_headers);
     
-    void read_header_info( Tqdcfr* instance );
-    void read_metadata_info(Tqdcfr *tqd);
+    MBErrorCode read_header_info( Tqdcfr* instance, const double data_version);
+    MBErrorCode read_metadata_info(Tqdcfr *tqd);
   };
 
-  enum {BODY, LUMP, SHELL, FACE, LOOP, COEDGE, EDGE, VERTEX, ATTRIB, UNKNOWN};
+  enum {aBODY, LUMP, SHELL, FACE, LOOP, COEDGE, aEDGE, aVERTEX, ATTRIB, UNKNOWN};
   
   const int *ACIS_DIMS;
   
@@ -288,7 +306,7 @@ public:
   MetaDataContainer modelMetaData;
   int currNodeIdOffset;
   int currElementIdOffset[MBMAXTYPE];
-  MBTag globalIdTag, geomTag, uniqueIdTag, groupTag, blockTag, nsTag, ssTag,
+  MBTag globalIdTag, cubIdTag, geomTag, uniqueIdTag, groupTag, blockTag, nsTag, ssTag,
     attribVectorTag, entityNameTag, categoryTag;
 
   std::vector<int> int_buf;
@@ -301,29 +319,31 @@ public:
   MBErrorCode load_file(const char *file_name,
                         const int* block_list,
                         int num_blocks );
-  void read_nodeset(ModelEntry *model,
-                    EntityHeader *nodeseth);
-  void read_sideset(ModelEntry *model,
-                    EntityHeader *sideseth);
-  void read_block(ModelEntry *model,
-                  EntityHeader *blockh);
-  void read_group(ModelEntry *model,
-                  EntityHeader *grouph);
-  void read_nodes(ModelEntry *model,
-                  EntityHeader *entity);
-  void read_elements(ModelEntry *model,
-                     EntityHeader *entity);
-  void read_file_header();
-  void read_model_entries();
+  MBErrorCode read_nodeset(ModelEntry *model,
+                    NodesetHeader *nodeseth);
+  MBErrorCode read_sideset(const double data_version,
+                    ModelEntry *model,
+                    SidesetHeader *sideseth);
+  MBErrorCode read_block(const double data_version,
+                  ModelEntry *model,
+                  BlockHeader *blockh);
+  MBErrorCode read_group(const int gr_index,
+                         ModelEntry *model,
+                         GroupHeader *grouph);
+  MBErrorCode read_nodes(const int gindex,
+                  ModelEntry *model,
+                  GeomHeader *entity);
+  MBErrorCode read_elements(ModelEntry *model,
+                     GeomHeader *entity);
+  MBErrorCode read_file_header();
+  MBErrorCode read_model_entries();
   int find_model(const int model_type);
-  void read_meta_data(const int metadata_offset, 
+  MBErrorCode read_meta_data(const int metadata_offset, 
                       MetaDataContainer &mc);
-  void read_md_string(std::string &name);
+  MBErrorCode read_md_string(std::string &name);
   
   enum {mesh, acist, acisb, facet, exodusmesh};
   MBEntityType type_from_cub_type(const int cub_type, const int nodes_per_elem);
-  void add_set_entities(const int this_type, const int num_ents,
-                        const int *ints, MBEntityHandle &set_handle);
   int check_contiguous(const int num_ents);
 
   Tqdcfr(MBInterface *impl);
@@ -335,21 +355,84 @@ private:
 
   MBErrorCode convert_nodesets_sidesets();
 
-  void read_acis_records();
+  MBErrorCode read_acis_records();
   
-  void parse_acis_attribs(const int entity_rec_num,
+  MBErrorCode parse_acis_attribs(const int entity_rec_num,
                           std::vector<AcisRecord> &records);
-  void interpret_acis_records(std::vector<AcisRecord> &records);
+  MBErrorCode interpret_acis_records(std::vector<AcisRecord> &records);
 
-  void reset_record(AcisRecord &this_record);
+  MBErrorCode reset_record(AcisRecord &this_record);
   
-  void process_record(AcisRecord &this_record);
+  MBErrorCode process_record(AcisRecord &this_record);
   
   static const char geom_categories[][CATEGORY_TAG_NAME_LENGTH];
   
   Tqdcfr *const instance;
   
   FILE* acisDumpFile;
+
+    // enum used to identify element/entity type in groups
+  enum {GROUP = 0, BODY, VOLUME, SURFACE, CURVE, VERTEX, HEX, TET, PYRAMID, QUAD, TRI, EDGE, NODE};
+  static const MBEntityType group_type_to_mb_type[];
+
+  enum {SPHERE_EXO=0,
+        BAR, BAR2, BAR3,
+        BEAM, BEAM2, BEAM3,
+        TRUSS, TRUSS2, TRUSS3,
+        SPRING,
+        TRIthree, TRI3, TRI6, TRI7,
+        TRISHELL, TRISHELL3, TRISHELL6, TRISHELL7,
+        SHEL, SHELL4, SHELL8, SHELL9,
+        QUADfour, QUAD4, QUAD5, QUAD8, QUAD9,
+        TETRAfour, TETRA4, TETRA8, TETRA10, TETRA14,
+        PYRAMIDfive, PYRAMID5, PYRAMID8, PYRAMID13, PYRAMID18,
+        HEXeight, HEX8, HEX9, HEX20, HEX27, HEXSHELL, 
+        INVALID_ELEMENT_TYPE};
+  static const MBEntityType block_type_to_mb_type[];
+  static const int cub_elem_num_verts[];
+
+    //! mapping from mesh packet type to moab type
+  static const MBEntityType mp_type_to_mb_type[];
+  
+    //! get entities with individually-specified types
+  MBErrorCode get_entities(const int *mem_types,
+                           int *id_buf, const int id_buf_size,
+                           std::vector<MBEntityHandle> &entities);
+  
+    //! get entities specified by type and ids, append to entities
+  MBErrorCode get_entities(const int this_type, 
+                           int *id_buf, const int id_buf_size,
+                           std::vector<MBEntityHandle> &entities,
+                           std::vector<MBEntityHandle> &excl_entities);
+  
+    //! get ref entity sets with specified type and ids
+  MBErrorCode get_ref_entities(const int this_type, 
+                               int *id_buf, const int id_buf_size,
+                               std::vector<MBEntityHandle> &entities);
+  
+    //! get mesh entities with specified type and ids
+  MBErrorCode get_mesh_entities(const int this_type, 
+                                int *id_buf, const int id_buf_size,
+                                std::vector<MBEntityHandle> &entities,
+                                std::vector<MBEntityHandle> &excl_entities);
+  
+    //! process entities in a sideset according to sense flags stored in int_buf
+    //! or char_buf (depending on sense_size)
+  MBErrorCode process_sideset_10(const int this_type, const int num_ents,
+                                 const int sense_size,
+                                 std::vector<MBEntityHandle> &ss_entities,
+                                 Tqdcfr::SidesetHeader *sideseth);
+
+  MBErrorCode process_sideset_11(std::vector<MBEntityHandle> &ss_entities,
+                                 std::vector<int> &wrt_ents,
+                                 Tqdcfr::SidesetHeader *sideseth);
+  
+    // put entities into the specfied set, and excluded entities into a 
+    // std::vector pointed to by the "Exclude_Entities" tag on that set
+  MBErrorCode put_into_set(MBEntityHandle set_handle,
+                           std::vector<MBEntityHandle> &entities,
+                           std::vector<MBEntityHandle> &excl_entities);
+  
 };
 
 #endif

@@ -299,6 +299,8 @@ public:
   };
 
   
+  MBEntityHandle operator[](const int index);
+  
 protected:
 
   //! the head of the list that contains pairs that represent the ranges 
@@ -317,6 +319,7 @@ public:
     friend class MBRange;
   public:
     pair_iterator() : mNode(NULL) {}
+    pair_iterator(PairNode *node) : mNode(node) {}
     pair_iterator(const pair_iterator& copy)
       : mNode(copy.mNode) {}
     pair_iterator(const const_iterator& copy)
@@ -549,6 +552,7 @@ public:
 
   class const_pair_iterator {
     public:
+      const_pair_iterator() : myNode(NULL) {}
       const_pair_iterator( const PairNode* node ) : myNode(node) {}
       
       const std::pair<MBEntityHandle, MBEntityHandle> operator*() const
@@ -576,8 +580,11 @@ public:
       const PairNode* myNode;
   };
   
-  const_pair_iterator pair_begin() const { return const_pair_iterator( mHead.mNext ); }
-  const_pair_iterator pair_end() const { return const_pair_iterator( &mHead ); }
+  pair_iterator pair_begin() { return pair_iterator(mHead.mNext); }
+  pair_iterator pair_end() { return pair_iterator(&mHead); }
+
+  const_pair_iterator const_pair_begin() const { return const_pair_iterator( mHead.mNext ); }
+  const_pair_iterator const_pair_end() const { return const_pair_iterator( &mHead ); }
 };
 
 //! Use as you would an STL back_inserter

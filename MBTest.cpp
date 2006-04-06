@@ -1903,7 +1903,7 @@ MBErrorCode mb_higher_order_test(MBInterface *MB)
      return result;
 
    unsigned int k;
-   for( k=0; k< connectivity.size(); k++)
+   for( k=0; k< retrieved_conn.size(); k++)
      if( connectivity[k] != retrieved_conn[k] )
        return MB_FAILURE;
 
@@ -3617,7 +3617,7 @@ MBErrorCode mb_range_test(MBInterface *)
   r1.insert( h1 );
   r1.insert( h4 );
   r1.insert( h5 );
-  MBRange::const_pair_iterator pair_iter = r1.pair_begin();
+  MBRange::const_pair_iterator pair_iter = r1.const_pair_begin();
   MBEntityHandle cpi_h1 = (*pair_iter).first;
   MBEntityHandle cpi_h2 = (*pair_iter).second;
   ++pair_iter;
@@ -3626,7 +3626,7 @@ MBErrorCode mb_range_test(MBInterface *)
   ++pair_iter;
   if (cpi_h1 != h1 || cpi_h2 != h1 || 
       cpi_h3 != h4 || cpi_h4 != h5 ||
-      pair_iter != r1.pair_end()) {
+      pair_iter != r1.const_pair_end()) {
     result = MB_FAILURE;
     std::cout << "Range::const_pair_iterator test failed.\n" << std::endl;
   }

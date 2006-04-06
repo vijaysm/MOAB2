@@ -49,37 +49,7 @@ const MBDimensionPair MBCN::TypeDimensionMap[] =
 //! member variable
 void MBCN::SetBasis(const int in_basis) 
 {
-  int basis_diff = in_basis - numberBasis;
-  
   numberBasis = in_basis;
-
-    // now, change the static arrays to reflect this; first the down-connectivity map
-  for (MBEntityType this_type = MBVERTEX; this_type < MBMAXTYPE; this_type++) {
-    for (int dim = 0; dim < 3; dim++) {
-      for (int num_subents = 0; num_subents < NumSubEntities(this_type, dim); num_subents++) {
-        for (int num_nodes = 0; 
-             num_nodes < VerticesPerEntity(SubEntityType(this_type, dim, num_subents)); 
-             num_nodes++) {
-          mConnectivityMap[this_type][dim].conn[num_subents][num_nodes] += basis_diff;
-        }
-      }
-    }
-  }
-  
-    // now the up-connectivity map
-  for (MBEntityType this_type = MBVERTEX; this_type < MBMAXTYPE; this_type++) {
-    for (int source_dim = 0; source_dim < 4; source_dim++) {
-        for (int num_subents = 0; num_subents < NumSubEntities(this_type, source_dim); num_subents++) {
-          for (int targ_dim = 0; targ_dim < 4; targ_dim++) {
-            for (int index = 0; index < mUpConnMap[this_type][source_dim][targ_dim].num_targets_per_source_element[num_subents];
-                 index++) {
-              mUpConnMap[this_type][source_dim][targ_dim].targets_per_source_element[num_subents][index] 
-                += basis_diff;
-            }
-          }
-        }
-    }
-  }
 }
 
 //! return a type for the given name
@@ -339,11 +309,11 @@ int MBCN::HONodeIndex(const MBEntityType this_type, const int num_verts,
                         const int subfacet_dim, const int subfacet_index) 
 {
   int i;
-  bool has_mids[3];
+  int has_mids[4];
   HasMidNodes(this_type, num_verts, has_mids);
 
     // if we have no mid nodes on the subfacet_dim, we have no index
-  if (subfacet_index != -1 && !has_mids[subfacet_dim-1]) return -1;
+  if (subfacet_index != -1 && !has_mids[subfacet_dim]) return -1;
 
     // put start index at last index (one less than the number of vertices 
     // plus the index basis)
@@ -352,15 +322,15 @@ int MBCN::HONodeIndex(const MBEntityType this_type, const int num_verts,
     // for each subfacet dimension less than the target subfacet dim which has mid nodes, 
     // add the number of subfacets of that dimension to the index
   for (i = 1; i < subfacet_dim; i++)
-    if (has_mids[i-1]) index += NumSubEntities(this_type, i);
+    if (has_mids[i]) index += NumSubEntities(this_type, i);
     
 
     // now add the index of this subfacet, or one if we're asking about the entity as a whole
-  if (subfacet_index == -1 && has_mids[subfacet_dim-1])
+  if (subfacet_index == -1 && has_mids[subfacet_dim])
       // want the index of the last ho node on this subfacet
     index += NumSubEntities(this_type, subfacet_dim);
   
-  else if (subfacet_index != -1 && has_mids[subfacet_dim-1])
+  else if (subfacet_index != -1 && has_mids[subfacet_dim])
     index += subfacet_index + 1 - numberBasis;
 
     // that's it
@@ -394,7 +364,7 @@ void MBCN::HONodeParent(const void *elem_conn, const MBEntityType elem_type,
     return;
     
     // given the number of verts and the element type, get the hasmidnodes solution
-  bool has_mids[3];
+  int has_mids[4];
   HasMidNodes(elem_type, num_verts, has_mids);
 
   int index = VerticesPerEntity(elem_type)-1;
@@ -402,7 +372,7 @@ void MBCN::HONodeParent(const void *elem_conn, const MBEntityType elem_type,
     // keep a running sum of the ho node indices for this type of element, and stop
     // when you get to the dimension which has the ho node
   for (int i = 1; i <= Dimension(elem_type); i++) {
-    if (has_mids[i-1]) {
+    if (has_mids[i]) {
       if (ho_index <= index + NumSubEntities(elem_type, i)) {
           // the ho_index resolves an entity of dimension i, so set the return values
           // and break out of the loop

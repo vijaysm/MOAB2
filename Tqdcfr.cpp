@@ -27,7 +27,44 @@ const char default_acis_dump_file[] = "dumped_acis.sat";
 const char acis_dump_file_tag_name[] = "__ACISDumpFile";
 const char Tqdcfr::geom_categories[][CATEGORY_TAG_NAME_LENGTH] = 
 {"Vertex\0", "Curve\0", "Surface\0", "Volume\0"};
-  
+const MBEntityType Tqdcfr::group_type_to_mb_type[] = {
+  MBENTITYSET, MBENTITYSET, MBENTITYSET, // group, body, volume
+  MBENTITYSET, MBENTITYSET, MBENTITYSET, // surface, curve, vertex
+  MBHEX, MBTET, MBPYRAMID, MBQUAD, MBTRI, MBEDGE, MBVERTEX};
+const MBEntityType Tqdcfr::block_type_to_mb_type[] = {
+  MBVERTEX,
+  MBEDGE, MBEDGE, MBEDGE, MBEDGE, MBEDGE, MBEDGE, MBEDGE, MBEDGE, MBEDGE, MBEDGE,
+  MBTRI, MBTRI, MBTRI, MBTRI, MBTRI, MBTRI, MBTRI, MBTRI, 
+  MBQUAD, MBQUAD, MBQUAD, MBQUAD, MBQUAD, 
+  MBTET, MBTET, MBTET, MBTET, MBTET, 
+  MBPYRAMID, MBPYRAMID, MBPYRAMID, MBPYRAMID, MBPYRAMID, 
+  MBHEX, MBHEX, MBHEX, MBHEX, MBHEX, MBHEX, MBMAXTYPE
+};
+
+// mapping from mesh packet type to moab type
+const MBEntityType Tqdcfr::mp_type_to_mb_type[] = {
+  MBHEX, MBHEX, MBHEX, MBHEX, MBHEX, MBHEX, MBHEX, MBHEX, 
+  MBTET, MBTET, MBTET, MBTET, MBTET, MBTET, MBTET, MBTET, 
+  MBPYRAMID, MBPYRAMID, MBPYRAMID, MBPYRAMID, 
+  MBQUAD, MBQUAD, MBQUAD, MBQUAD, 
+  MBTRI, MBTRI, MBTRI, MBTRI, 
+  MBEDGE, MBEDGE, MBVERTEX
+};
+
+const int Tqdcfr::cub_elem_num_verts[] = {
+  1, // sphere
+  2, 2, 3, // bars
+  2, 2, 3, // beams
+  2, // spring
+  3, 3, 6, 7, // tris
+  3, 3, 6, 7, // trishells
+  4, 4, 8, 9, // shells
+  4, 4, 5, 8, 9, // quads
+  4, 4, 8, 10, 14, // tets
+  5, 5, 8, 13, 18, // pyramids
+  8, 8, 9, 20, 27, 12, // hexes (incl. hexshell at end)
+  0};
+
 char *Tqdcfr::BLOCK_NODESET_OFFSET_TAG_NAME = "BLOCK_NODESET_OFFSET";
 char *Tqdcfr::BLOCK_SIDESET_OFFSET_TAG_NAME = "BLOCK_SIDESET_OFFSET";
 
@@ -35,10 +72,10 @@ char *Tqdcfr::BLOCK_SIDESET_OFFSET_TAG_NAME = "BLOCK_SIDESET_OFFSET";
 // enum {BODY, LUMP, SHELL, FACE, LOOP, COEDGE, EDGE, VERTEX, ATTRIB, UNKNOWN} 
 
 MBReaderIface* Tqdcfr::factory( MBInterface* iface )
-  { return new Tqdcfr( iface ); }
+{ return new Tqdcfr( iface ); }
 
 Tqdcfr::Tqdcfr(MBInterface *impl) 
-    : cubFile(NULL), globalIdTag(0), geomTag(0), uniqueIdTag(0), groupTag(0), 
+    : cubFile(NULL), globalIdTag(0), cubIdTag(0), geomTag(0), uniqueIdTag(0), groupTag(0), 
       blockTag(0), nsTag(0), ssTag(0), attribVectorTag(0), entityNameTag(0),
       categoryTag(0), instance(this)
 {
@@ -55,6 +92,14 @@ Tqdcfr::Tqdcfr(MBInterface *impl)
   mdbImpl->tag_get_handle(MATERIAL_SET_TAG_NAME, blockTag);
   mdbImpl->tag_get_handle(DIRICHLET_SET_TAG_NAME, nsTag);
   mdbImpl->tag_get_handle(NEUMANN_SET_TAG_NAME, ssTag);
+
+  MBErrorCode result = mdbImpl->tag_get_handle("cubIdTag", cubIdTag);
+  if (MB_SUCCESS != result || MB_TAG_NOT_FOUND == result) {
+    int default_val = -1;
+    result = mdbImpl->tag_create("cubIdTag", 4, MB_TAG_DENSE, 
+                                 cubIdTag, &default_val);
+    assert (MB_SUCCESS == result);
+  }
 }
 
 Tqdcfr::~Tqdcfr() 
@@ -76,40 +121,53 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
     // verify magic string
   FREADC(4);
   if (!(char_buf[0] == 'C' && char_buf[1] == 'U' && 
-         char_buf[2] == 'B' && char_buf[3] == 'E')) 
+        char_buf[2] == 'B' && char_buf[3] == 'E')) 
     return MB_FAILURE;
 
     // ***********************
     // read model header type information...
     // ***********************
+  if (debug) std::cout << "Reading file header." << std::endl;
   read_file_header();
 
+  if (debug) std::cout << "Reading model entries." << std::endl;
   read_model_entries();
   
     // read model metadata
+  if (debug) std::cout << "Reading model metadata." << std::endl;
   read_meta_data(fileTOC.modelMetaDataOffset, modelMetaData);
 
+  double data_version;
+  int md_index = modelMetaData.get_md_entry(2, "DataVersion");
+  if (-1 == md_index) data_version = 1.0;
+  else data_version = modelMetaData.metadataEntries[md_index].mdDblValue;
+  
     // ***********************
     // read mesh...
     // ***********************
-  int index = find_model(mesh); assert(-1 != index);
+  int index = find_model(mesh); 
+  if (-1 == index) return MB_FAILURE;
   ModelEntry *mesh_model = &modelEntries[index];
   
     // first the header & metadata info
-  mesh_model->read_header_info(this);
+  if (debug) std::cout << "Reading mesh model header and metadata." << std::endl;
+  mesh_model->read_header_info(this, data_version);
   mesh_model->read_metadata_info(this);
 
     // now read in mesh for each geometry entity
   for (int gindex = 0; 
        gindex < mesh_model->feModelHeader.geomArray.numEntities;
        gindex++) {
-    EntityHeader *geom_header = &mesh_model->feGeomH[gindex];
+    Tqdcfr::GeomHeader *geom_header = &mesh_model->feGeomH[gindex];
 
       // read nodes
-    read_nodes(mesh_model, geom_header);
+    if (debug) std::cout << "Reading geom index " << gindex << " mesh: nodes... ";
+    read_nodes(gindex, mesh_model, geom_header);
     
       // read elements
+    if (debug) std::cout << "elements... ";
     read_elements(mesh_model, geom_header);
+    if (debug) std::cout << std::endl;
   }
 
     // ***********************
@@ -120,21 +178,23 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
     // ***********************
     // read groups...
     // ***********************
+  if (debug) std::cout << "Reading groups." << std::endl;
   for (int grindex = 0; 
        grindex < mesh_model->feModelHeader.groupArray.numEntities;
        grindex++) {
-    EntityHeader *group_header = &mesh_model->feGroupH[grindex];
-    read_group(mesh_model, group_header);
+    GroupHeader *group_header = &mesh_model->feGroupH[grindex];
+    read_group(grindex, mesh_model, group_header);
   }
   
     // ***********************
     // read blocks...
     // ***********************
+  if (debug) std::cout << "Reading blocks." << std::endl;
   for (int blindex = 0; 
        blindex < mesh_model->feModelHeader.blockArray.numEntities;
        blindex++) {
-    EntityHeader *block_header = &mesh_model->feBlockH[blindex];
-    read_block(mesh_model, block_header);
+    BlockHeader *block_header = &mesh_model->feBlockH[blindex];
+    read_block(data_version, mesh_model, block_header);
   }
 
     // ***********************
@@ -143,7 +203,7 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
   for (int nsindex = 0; 
        nsindex < mesh_model->feModelHeader.nodesetArray.numEntities;
        nsindex++) {
-    EntityHeader *nodeset_header = &mesh_model->feNodeSetH[nsindex];
+    NodesetHeader *nodeset_header = &mesh_model->feNodeSetH[nsindex];
     read_nodeset(mesh_model, nodeset_header);
   }
 
@@ -153,8 +213,8 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
   for (int ssindex = 0; 
        ssindex < mesh_model->feModelHeader.sidesetArray.numEntities;
        ssindex++) {
-    EntityHeader *sideset_header = &mesh_model->feSideSetH[ssindex];
-    read_sideset(mesh_model, sideset_header);
+    SidesetHeader *sideset_header = &mesh_model->feSideSetH[ssindex];
+    read_sideset(data_version, mesh_model, sideset_header);
   }
 
   if (debug) {
@@ -169,7 +229,7 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
   GeomTopoTool gtt(mdbImpl);
   MBErrorCode result = gtt.restore_topology();
 
-  // convert blocks to nodesets/sidesets if tag is set
+    // convert blocks to nodesets/sidesets if tag is set
   result = convert_nodesets_sidesets();
   
   return result;
@@ -178,12 +238,12 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
 MBErrorCode Tqdcfr::convert_nodesets_sidesets() 
 {
 
-  // look first for the nodeset and sideset offset flags; if they're not
-  // set, we don't need to convert
+    // look first for the nodeset and sideset offset flags; if they're not
+    // set, we don't need to convert
   int nodeset_offset, sideset_offset;
   MBTag tmp_tag;
   MBErrorCode result = mdbImpl->tag_get_handle(BLOCK_NODESET_OFFSET_TAG_NAME,
-					       tmp_tag);
+                                               tmp_tag);
   if (MB_SUCCESS != result) nodeset_offset = 0;
   else {
     result = mdbImpl->tag_get_data(tmp_tag, 0, 0, &nodeset_offset);
@@ -191,7 +251,7 @@ MBErrorCode Tqdcfr::convert_nodesets_sidesets()
   }
 
   result = mdbImpl->tag_get_handle(BLOCK_SIDESET_OFFSET_TAG_NAME,
-				   tmp_tag);
+                                   tmp_tag);
   if (MB_SUCCESS != result) sideset_offset = 0;
   else {
     result = mdbImpl->tag_get_data(tmp_tag, 0, 0, &sideset_offset);
@@ -200,14 +260,14 @@ MBErrorCode Tqdcfr::convert_nodesets_sidesets()
 
   if (0 == nodeset_offset && 0 == sideset_offset) return MB_SUCCESS;
 
-  // look for all blocks
+    // look for all blocks
   MBRange blocks;
   result = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET,
-							     &blockTag, NULL, 1,
-							     blocks);
+                                                 &blockTag, NULL, 1,
+                                                 blocks);
   if (MB_SUCCESS != result || blocks.empty()) return result;
   
-  // get the id tag for them
+    // get the id tag for them
   std::vector<int> block_ids(blocks.size());
   result = mdbImpl->tag_get_data(globalIdTag, blocks, &block_ids[0]);
   if (MB_SUCCESS != result) return result;
@@ -219,20 +279,20 @@ MBErrorCode Tqdcfr::convert_nodesets_sidesets()
   for (; rit != blocks.end(); i++, rit++) {
     if (0 != nodeset_offset && block_ids[i] >= nodeset_offset && 
         (nodeset_offset > sideset_offset || block_ids[i] < sideset_offset)) {
-      // this is a nodeset
+        // this is a nodeset
       new_nodesets.insert(*rit);
       new_nodeset_ids.push_back(block_ids[i]);
     }
     else if (0 != sideset_offset && block_ids[i] >= sideset_offset && 
-        (sideset_offset > nodeset_offset || block_ids[i] < nodeset_offset)) {
-      // this is a sideset
+             (sideset_offset > nodeset_offset || block_ids[i] < nodeset_offset)) {
+        // this is a sideset
       new_sidesets.insert(*rit);
       new_sideset_ids.push_back(block_ids[i]);
     }
   }
 
-  // ok, have the new nodesets and sidesets; now remove the block tags, and
-  // add nodeset and sideset tags
+    // ok, have the new nodesets and sidesets; now remove the block tags, and
+    // add nodeset and sideset tags
   MBErrorCode tmp_result = MB_SUCCESS;
   if (0 != nodeset_offset) {
     if (0 == nsTag) {
@@ -266,19 +326,18 @@ MBErrorCode Tqdcfr::convert_nodesets_sidesets()
   return result;
 }
 
-void Tqdcfr::read_nodeset(Tqdcfr::ModelEntry *model,
-                          Tqdcfr::EntityHeader *nodeseth)  
+MBErrorCode Tqdcfr::read_nodeset(Tqdcfr::ModelEntry *model,
+                                 Tqdcfr::NodesetHeader *nodeseth)  
 {
-  if (nodeseth->numTypes == 0) return;
-
-  Tqdcfr* instance = this;
+  if (nodeseth->memTypeCt == 0) return MB_SUCCESS;
 
     // position file
-  FSEEK(model->modelOffset+nodeseth->nodeOffset);
+  FSEEK(model->modelOffset+nodeseth->memOffset);
   
     // read ids for each entity type
   int this_type, num_ents;
-  for (int i = 0; i < nodeseth->numTypes; i++) {
+  std::vector<MBEntityHandle> ns_entities, excl_entities;
+  for (int i = 0; i < nodeseth->memTypeCt; i++) {
       // get how many and what type
     FREADI(2);
     this_type = int_buf[0];
@@ -287,71 +346,245 @@ void Tqdcfr::read_nodeset(Tqdcfr::ModelEntry *model,
       // now get the ids
     FREADI(num_ents);
     
-      // get the entity handles (sets or entities) corresponding to this type
-      // and put into this ns's set
-    add_set_entities(this_type, num_ents, &(int_buf[0]), nodeseth->setHandle);
+    MBErrorCode result = get_entities(this_type, &int_buf[0], num_ents, 
+                                      ns_entities, excl_entities);
+    if (MB_SUCCESS != result) return result;
   }
+
+    // and put entities into this nodeset's set
+  MBErrorCode result = put_into_set(nodeseth->setHandle, ns_entities, excl_entities);
+  if (MB_SUCCESS != result) return result;
+
+  return result;
 }
 
-void Tqdcfr::read_sideset(Tqdcfr::ModelEntry *model,
-                          Tqdcfr::EntityHeader *sideseth)  
+MBErrorCode Tqdcfr::read_sideset(const double data_version,
+                                 Tqdcfr::ModelEntry *model,
+                                 Tqdcfr::SidesetHeader *sideseth)  
 {
-  if (sideseth->numTypes == 0) return;
+  if (sideseth->memCt == 0) return MB_SUCCESS;
 
     // position file
-  FSEEK(model->modelOffset+sideseth->nodeOffset);
+  FSEEK(model->modelOffset+sideseth->memOffset);
   
     // read ids for each entity type
   int this_type, num_ents, sense_size;
-  for (int i = 0; i < sideseth->numTypes; i++) {
-      // get how many and what type
-    FREADI(3);
-    this_type = int_buf[0];
-    num_ents = int_buf[1];
-    sense_size = int_buf[2];
 
-      // now get the ids
-    FREADI(num_ents);
+  std::vector<MBEntityHandle> ss_entities, excl_entities;
+  std::vector<double> ss_dfs;
+  if (data_version <= 1.0) {
+    for (int i = 0; i < sideseth->memTypeCt; i++) {
+        // get how many and what type
+      FREADI(3);
+      this_type = int_buf[0];
+      num_ents = int_buf[1];
+      sense_size = int_buf[2];
+
+        // now get the ids
+      FREADI(num_ents);
     
-      // get the entity handles (sets or entities) corresponding to this type
-      // and put into this ns's set
-    add_set_entities(this_type, num_ents, &(int_buf[0]), sideseth->setHandle);
+      MBErrorCode result = get_entities(this_type, &int_buf[0], num_ents, 
+                                        ss_entities, excl_entities);
+      if (MB_SUCCESS != result) return result;
 
-    if (sense_size == 1) {
+      if (sense_size == 1) {
+          // byte-size sense flags; make sure read ends aligned...
+        int read_length = (num_ents / 8) * 8;
+        if (read_length < num_ents) read_length += 8;
+        FREADC(read_length);
+      
+      }
+      else if (sense_size == 2) {
+          // int-size sense flags
+        FREADI(num_ents);
+      }
+
+        // now do something with them...
+      process_sideset_10(this_type, num_ents, sense_size, ss_entities, sideseth);
+    }
+
+  }
+  else {
+    for (int i = 0; i < sideseth->memTypeCt; i++) {
+        // get how many and what type
+      FREADI(1);
+      num_ents = int_buf[0];
+
+        // get the types, and ids
+      std::vector<int> mem_types(num_ents), mem_ids(num_ents);
+      FREADIA(num_ents, &mem_types[0]);
+      FREADIA(num_ents, &mem_ids[0]);
+
         // byte-size sense flags; make sure read ends aligned...
       int read_length = (num_ents / 8) * 8;
       if (read_length < num_ents) read_length += 8;
       FREADC(read_length);
+
+        // wrt entities
+      FREADI(1);
+      int num_wrts = int_buf[0];
+      std::vector<int> wrt_ents(num_wrts);
+      FREADIA(num_wrts, &wrt_ents[0]);
       
-        // now do something with them...
-    }
-    else if (sense_size == 2) {
-        // int-size sense flags
-      FREADI(num_ents);
-      
-        // now do something with them...
+      std::vector<MBEntityHandle> ss_entities;
+      MBErrorCode result = get_entities(&mem_types[0], &mem_ids[0], num_ents, 
+                                        ss_entities);
+      if (MB_SUCCESS != result) return result;
+
+      result = process_sideset_11(ss_entities, wrt_ents, sideseth);
+      if (MB_SUCCESS != result) return result;
     }
   }
 
-  if (sideseth->numElements > 0) {
+    // now set the dist factors
+  if (sideseth->numDF > 0) {
       // have to read dist factors
-    FREADD(sideseth->numElements);
-    
-      // now do something with them...
+    FREADD(sideseth->numDF);
+    MBTag distFactorTag;
+    double *dum_val = NULL;
+    MBErrorCode result = mdbImpl->tag_create("distFactor", sizeof(double*), MB_TAG_SPARSE, distFactorTag, 
+                              &dum_val);
+    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
+    double *dist_data = new double[ss_dfs.size()];
+    memcpy(dist_data, &dbl_buf[0], sideseth->numDF*sizeof(double));
+    result = mdbImpl->tag_set_data(distFactorTag, &sideseth->setHandle, 1, &dist_data);
+    if (MB_SUCCESS != result) return result;
   }
+  
+  return MB_SUCCESS;
 }
 
-void Tqdcfr::read_block(Tqdcfr::ModelEntry *model,
-                        Tqdcfr::EntityHeader *blockh)  
+MBErrorCode Tqdcfr::process_sideset_10(const int this_type, const int num_ents,
+                                       const int sense_size,
+                                       std::vector<MBEntityHandle> &ss_entities,
+                                       Tqdcfr::SidesetHeader *sideseth) 
 {
-  if (blockh->numTypes == 0) return;
+  std::vector<MBEntityHandle> forward, reverse;
+  if (this_type == 3 // surface
+      && sense_size == 1 // byte size 
+      ) {
+      // interpret sense flags w/o reference to anything
+    for (int i = 0; i < num_ents; i++) {
+      if ((int) char_buf[i] == 0) forward.push_back(ss_entities[i]);
+      else if ((int) char_buf[i] == 1) reverse.push_back(ss_entities[i]);
+      if ((int) char_buf[i] == -1) { // -1 means "unknown", which means both
+        forward.push_back(ss_entities[i]);
+        reverse.push_back(ss_entities[i]);
+      }
+    }
+  }
+  else if (this_type == 4 // curve
+           && sense_size == 2 // int32 size
+           ) {
+    for (int i = 0; i < num_ents; i++) {
+      if (int_buf[i] == 0) forward.push_back(ss_entities[i]);
+      else if (int_buf[i] == 1) reverse.push_back(ss_entities[i]);
+      if (int_buf[i] == -1) { // -1 means "unknown", which means both
+        forward.push_back(ss_entities[i]);
+        reverse.push_back(ss_entities[i]);
+      }
+    }
+  }
+  
+    // now actually put them in the set
+  MBErrorCode result = MB_SUCCESS;
+  if (!forward.empty()) {
+    MBErrorCode tmp_result = mdbImpl->add_entities(sideseth->setHandle, &forward[0], forward.size());
+    if (tmp_result != MB_SUCCESS) result = tmp_result;
+  }
+  if (!reverse.empty()) {
+      // need to make a new set, add a reverse sense tag, then add to the sideset
+    MBEntityHandle reverse_set;
+    MBErrorCode tmp_result = mdbImpl->create_meshset(MESHSET_SET, reverse_set);
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
+    tmp_result = mdbImpl->add_entities(reverse_set, &reverse[0], reverse.size());
+    if (tmp_result != MB_SUCCESS) result = tmp_result;
+    int def_val = 1;
+    MBTag sense_tag;
+    tmp_result = mdbImpl->tag_create("SENSE", sizeof(int), 
+                                     MB_TAG_SPARSE, sense_tag, &def_val);
+    if (tmp_result != MB_SUCCESS && tmp_result != MB_ALREADY_ALLOCATED) result = tmp_result;
+    def_val = -1;
+    tmp_result = mdbImpl->tag_set_data(sense_tag, &reverse_set, 1, &def_val);
+    if (tmp_result != MB_SUCCESS) result = tmp_result;
+    tmp_result = mdbImpl->add_entities(sideseth->setHandle, &reverse_set, 1);
+    if (tmp_result != MB_SUCCESS) result = tmp_result;
+  }
+
+  return result;
+}
+
+MBErrorCode Tqdcfr::process_sideset_11(std::vector<MBEntityHandle> &ss_entities,
+                                       std::vector<int> &wrt_ents,
+                                       Tqdcfr::SidesetHeader *sideseth)
+{
+  std::vector<MBEntityHandle> forward, reverse;
+
+  int num_ents = ss_entities.size();
+  std::vector<int>::iterator wrt_it = wrt_ents.begin();
+  
+  for (int i = 0; i < num_ents; i++) {
+    
+    int num_wrt = *wrt_it++;
+    for (int j = 0; j < num_wrt; j++) wrt_it += 2;
+    forward.push_back(ss_entities[i]);
+      // assume here that if it's in the list twice, we get both senses
+    if (num_wrt > 1) {
+      forward.push_back(ss_entities[i]);
+      reverse.push_back(ss_entities[i]);
+    }
+    else {
+        // else interpret the sense flag
+      if ((int) char_buf[i] == 0) forward.push_back(ss_entities[i]);
+      else if ((int) char_buf[i] == 1) reverse.push_back(ss_entities[i]);
+      if ((int) char_buf[i] == -1) { // -1 means "unknown", which means both
+        forward.push_back(ss_entities[i]);
+        reverse.push_back(ss_entities[i]);
+      }
+    }
+  }
+  
+    // now actually put them in the set
+  MBErrorCode result = MB_SUCCESS;
+  if (!forward.empty()) {
+    MBErrorCode tmp_result = mdbImpl->add_entities(sideseth->setHandle, &forward[0], forward.size());
+    if (tmp_result != MB_SUCCESS) result = tmp_result;
+  }
+  if (!reverse.empty()) {
+      // need to make a new set, add a reverse sense tag, then add to the sideset
+    MBEntityHandle reverse_set;
+    MBErrorCode tmp_result = mdbImpl->create_meshset(MESHSET_SET, reverse_set);
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
+    tmp_result = mdbImpl->add_entities(reverse_set, &reverse[0], reverse.size());
+    if (tmp_result != MB_SUCCESS) result = tmp_result;
+    int def_val = 1;
+    MBTag sense_tag;
+    tmp_result = mdbImpl->tag_create("SENSE", sizeof(int), 
+                                     MB_TAG_SPARSE, sense_tag, &def_val);
+    if (tmp_result != MB_SUCCESS && tmp_result != MB_ALREADY_ALLOCATED) result = tmp_result;
+    def_val = -1;
+    tmp_result = mdbImpl->tag_set_data(sense_tag, &reverse_set, 1, &def_val);
+    if (tmp_result != MB_SUCCESS) result = tmp_result;
+    tmp_result = mdbImpl->add_entities(sideseth->setHandle, &reverse_set, 1);
+    if (tmp_result != MB_SUCCESS) result = tmp_result;
+  }
+
+  return result;
+}
+
+MBErrorCode Tqdcfr::read_block(const double data_version,
+                               Tqdcfr::ModelEntry *model,
+                               Tqdcfr::BlockHeader *blockh)  
+{
+  if (blockh->memCt == 0) return MB_SUCCESS;
   
     // position file
-  FSEEK(model->modelOffset+blockh->nodeOffset);
+  FSEEK(model->modelOffset+blockh->memOffset);
   
     // read ids for each entity type
   int this_type, num_ents;
-  for (int i = 0; i < blockh->numTypes; i++) {
+  std::vector<MBEntityHandle> block_entities, excl_entities;
+  for (int i = 0; i < blockh->memTypeCt; i++) {
       // get how many and what type
     FREADI(2);
     this_type = int_buf[0];
@@ -359,108 +592,45 @@ void Tqdcfr::read_block(Tqdcfr::ModelEntry *model,
 
       // now get the ids
     FREADI(num_ents);
-    
-      // get the entity handles (sets or entities) corresponding to this type
-      // and put into this block's set
-    add_set_entities(this_type, num_ents, &(int_buf[0]), blockh->setHandle);
-  }
 
+    MBErrorCode result = get_entities(this_type, &int_buf[0], num_ents, 
+                                      block_entities, excl_entities);
+    if (MB_SUCCESS != result) return result;
+  }
+  
+    // and put entities into this block's set
+  MBErrorCode result = put_into_set(blockh->setHandle, block_entities, excl_entities);
+  if (MB_SUCCESS != result) return result;
+  
     // read attribs if there are any
-  if (blockh->numElements > 0) {
+  if (blockh->attribOrder > 0) {
     MBTag block_attribs;
     
-    FREADD(blockh->numElements);
+    FREADD(blockh->attribOrder);
       // now do something with them...
     MBErrorCode result = mdbImpl->tag_create("Block_Attributes", 
-                                              blockh->numElements*sizeof(double), MB_TAG_SPARSE, 
-                                              block_attribs, NULL);
-    assert(MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
+                                             blockh->attribOrder*sizeof(double), MB_TAG_SPARSE, 
+                                             block_attribs, NULL);
+    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
     result = mdbImpl->tag_set_data(block_attribs, &(blockh->setHandle), 1,
                                    &(dbl_buf[0]));
-    assert(MB_SUCCESS == result);
+    if (MB_SUCCESS != result) return result;
   }
+
+  return MB_SUCCESS;
 }
 
-void Tqdcfr::add_set_entities(const int this_type, const int num_ents,
-                              const int *ids, MBEntityHandle &set_handle) 
-{
-    // parse the entity type
-  MBEntityType set_type = MBMAXTYPE;
-  if (0 <= this_type && 3 >= this_type) 
-    set_type = MBENTITYSET;
-  else if (4 == this_type)
-    set_type = MBHEX;
-  else if (5 == this_type)
-    set_type = MBTET;
-  else if (6 == this_type)
-    set_type = MBPYRAMID;
-  else if (7 == this_type)
-    set_type = MBQUAD;
-  else if (8 == this_type)
-    set_type = MBTRI;
-  else if (9 == this_type)
-    set_type = MBEDGE;
-  else if (10 == this_type)
-    set_type = MBVERTEX;
-  else {
-    assert(false);
-    return;
-  }
-  
-  MBRange temp_entities, add_entities;
-  MBEntityHandle dum_ent;
-  int i;
-  MBErrorCode result;
-  
-  if (set_type == MBENTITYSET) {
-      // get an entity set with the right dimension & global id tag
-    const void *values[2];
-    const MBTag tags[2] = {geomTag, globalIdTag};
-    int dum_dim = 3 - this_type;
-    values[0] = &dum_dim;
-
-    for (i = 0; i < num_ents; i++) {
-      values[1] = ids+i;
-      temp_entities.clear();
-      result = 
-        mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, tags, values, 2, temp_entities);
-      assert(MB_FAILURE != result);
-      if (temp_entities.size() == 1)
-        add_entities.insert(*temp_entities.begin());
-      else
-        std::cout << "Warning: Tqdcfr::add_set_entities supposed to find a set with geom dimension "
-                  << dum_dim << " and id " << *(ids+i) << " but didn't!" << std::endl;
-    }
-  }
-  
-  else {
-      // else offset the id, then look for that entity
-    for (i = 0; i < num_ents; i++) {
-      result = mdbImpl->handle_from_id(set_type, int_buf[i], dum_ent);
-      if (MB_SUCCESS == result) add_entities.insert(dum_ent);
-    }
-  }
-
-    // now add the entities to the set
-  if ((int) add_entities.size() != num_ents)
-    std::cout << "Warning: Tqdcfr::add_entities: didn't find the expected number of entities."
-              << std::endl;
-  
-  if (!add_entities.empty()) {
-    result = mdbImpl->add_entities(set_handle, add_entities);
-    assert(MB_SUCCESS == result);
-  }
-}
-
-void Tqdcfr::read_group(Tqdcfr::ModelEntry *model,
-                        Tqdcfr::EntityHeader *grouph)  
+MBErrorCode Tqdcfr::read_group(const int group_index,
+                               Tqdcfr::ModelEntry *model,
+                               Tqdcfr::GroupHeader *grouph)  
 {
     // position file
-  FSEEK(model->modelOffset+grouph->nodeOffset);
+  FSEEK(model->modelOffset+grouph->memOffset);
   
     // read ids for each entity type
   int this_type, num_ents;
-  for (int i = 0; i < grouph->numTypes; i++) {
+  std::vector<MBEntityHandle> grp_entities, excl_entities;
+  for (int i = 0; i < grouph->memTypeCt; i++) {
       // get how many and what type
     FREADI(2);
     this_type = int_buf[0];
@@ -469,29 +639,201 @@ void Tqdcfr::read_group(Tqdcfr::ModelEntry *model,
       // now get the ids
     FREADI(num_ents);
     
-      // now do something with them...
+      // get the entities in this group
+    MBErrorCode result = get_entities(this_type, &int_buf[0], num_ents, grp_entities, excl_entities);
+    if (MB_SUCCESS != result) return result;
   }
+
+    // now add the entities
+  MBErrorCode result = put_into_set(grouph->setHandle, grp_entities, excl_entities);
+  if (MB_SUCCESS != result) return result;
+  
+    // now get group names, if any
+  int md_index = model->groupMD.get_md_entry(group_index, "NAME");
+  if (-1 != md_index) {
+    MetaDataContainer::MetaDataEntry *md_entry = model->groupMD.metadataEntries+md_index;
+    if (0 == entityNameTag) {
+      result = mdbImpl->tag_get_handle("NAME", entityNameTag);
+      if (MB_SUCCESS != result || 0 == entityNameTag) {
+        char *dum_val = NULL;
+        result = mdbImpl->tag_create("NAME", sizeof(char*), MB_TAG_SPARSE, 
+                                     entityNameTag, &dum_val);
+      }
+    }
+    if (0 == entityNameTag) return MB_FAILURE;
+    char *this_char = new char[md_entry->mdStringValue.length()+1];
+    strcpy(this_char, md_entry->mdStringValue.c_str());
+    result = mdbImpl->tag_set_data(entityNameTag, &grouph->setHandle, 1, &this_char);
+    
+      // look for extra names
+    md_index = model->groupMD.get_md_entry(group_index, "NumExtraNames");
+    if (-1 != md_index) {
+      int num_names = model->groupMD.metadataEntries[md_index].mdIntValue;
+      char extra_name_label[32];
+      for (int i = 0; i < num_names; i++) {
+        sprintf(extra_name_label, "ExtraName%d", i);
+        md_index = model->groupMD.get_md_entry(group_index, extra_name_label);
+        if (-1 != md_index) {
+          md_entry = model->groupMD.metadataEntries+md_index;
+          this_char = new char[md_entry->mdStringValue.length()+1];
+          strcpy(this_char, md_entry->mdStringValue.c_str());
+          MBTag extra_name_tag;
+          result = mdbImpl->tag_get_handle(extra_name_label, extra_name_tag);
+          if (MB_SUCCESS != result || 0 == extra_name_tag) {
+            char *dum_val = NULL;
+            result = mdbImpl->tag_create(extra_name_label, sizeof(char*), MB_TAG_SPARSE, 
+                                         extra_name_tag, &dum_val);
+          }
+          result = mdbImpl->tag_set_data(extra_name_tag, &grouph->setHandle, 1, &this_char);
+        }
+      }
+    }
+  }
+  
+  return result;
 }
 
-void Tqdcfr::read_nodes(Tqdcfr::ModelEntry *model,
-                        Tqdcfr::EntityHeader *entity) 
+MBErrorCode Tqdcfr::put_into_set(MBEntityHandle set_handle,
+                                 std::vector<MBEntityHandle> &entities,
+                                 std::vector<MBEntityHandle> &excl_entities)
 {
-  if (entity->numNodes == 0) return;
+    // and put entities into this block's set
+  MBErrorCode result = mdbImpl->add_entities(set_handle, &entities[0], entities.size());
+  if (MB_SUCCESS != result) return result;
+
+    // check for excluded entities, and add them to a vector hung off the block if there
+  MBTag excl_tag;
+  if (!excl_entities.empty()) {
+    MBErrorCode result = mdbImpl->tag_create("Exclude_Entities", 
+                                             sizeof(std::vector<MBEntityHandle>), MB_TAG_SPARSE, 
+                                             excl_tag, NULL);
+    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
+    std::vector<MBEntityHandle> *new_vector = new std::vector<MBEntityHandle>;
+    new_vector->swap(excl_entities);
+    result = mdbImpl->tag_set_data(excl_tag, &set_handle, 1, &new_vector);
+    if (MB_SUCCESS != result) return MB_FAILURE;
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode Tqdcfr::get_entities(const int *mem_types,
+                                 int *id_buf, const int id_buf_size,
+                                 std::vector<MBEntityHandle> &entities) 
+{
+  MBErrorCode tmp_result, result = MB_SUCCESS;
+  
+  for (int i = 0; i < id_buf_size; i++) {
+    tmp_result = get_entities(mem_types[i], id_buf+i, 1, entities, entities);
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
+  }
+  return result;
+}
+  
+MBErrorCode Tqdcfr::get_entities(const int this_type, 
+                                 int *id_buf, const int id_buf_size,
+                                 std::vector<MBEntityHandle> &entities,
+                                 std::vector<MBEntityHandle> &excl_entities) 
+{
+  MBErrorCode result = MB_FAILURE;
+  
+  if (this_type >= GROUP && this_type <= VERTEX)
+    result = get_ref_entities(this_type, &int_buf[0], id_buf_size, entities);
+  else if (this_type >= HEX && this_type <= NODE)
+    result = get_mesh_entities(this_type, &int_buf[0], id_buf_size, entities, excl_entities);
+
+  return result;
+}
+
+MBErrorCode Tqdcfr::get_ref_entities(const int this_type, 
+                                     int *id_buf, const int id_buf_size,
+                                     std::vector<MBEntityHandle> &entities) 
+{
+  MBErrorCode result = MB_SUCCESS;
+  MBTag tags[2] = {geomTag, globalIdTag};
+  int tag_vals[2];
+  const void *tag_vals_ptr[2] = {tag_vals, tag_vals+1};
+  if (this_type == GROUP || this_type == BODY) tag_vals[0] = 4;
+  else tag_vals[0] = 5 - this_type;
+  
+  MBRange tmp_ents;
+  
+  for (int i = 0; i < id_buf_size; i++) {
+    tmp_ents.clear();
+      // set id tag value
+    tag_vals[1] = id_buf[i];
+    
+    MBErrorCode tmp_result = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, tags, 
+                                                                   tag_vals_ptr, 2, tmp_ents);
+    if (MB_SUCCESS != tmp_result && MB_TAG_NOT_FOUND != tmp_result) result = tmp_result;
+    
+    if (MB_SUCCESS == tmp_result && tmp_ents.size() == 1)
+      entities.push_back(*tmp_ents.begin());
+  }
+
+  return result;
+}
+
+MBErrorCode Tqdcfr::get_mesh_entities(const int this_type, 
+                                      int *id_buf, const int id_buf_size,
+                                      std::vector<MBEntityHandle> &entities,
+                                      std::vector<MBEntityHandle> &excl_entities) 
+{
+  MBErrorCode result = MB_SUCCESS;
+  std::vector<MBEntityHandle> *ent_list = NULL;
+  MBEntityType this_ent_type;
+  if (this_type > 1000) {
+    this_ent_type = group_type_to_mb_type[this_type-1000];
+    ent_list = &excl_entities;
+  }
+  else {
+    this_ent_type = group_type_to_mb_type[this_type];
+    ent_list = &entities;
+  }
+  
+    // get entities with this type, and get their cub id tags
+  MBRange tmp_ents;
+  result = mdbImpl->get_entities_by_type(0, this_ent_type, tmp_ents);
+  if (MB_SUCCESS != result) return result;
+  if (tmp_ents.empty() && 0 != id_buf_size) return MB_FAILURE;
+  
+  std::vector<int> cub_ids(id_buf_size);
+  result = mdbImpl->tag_get_data(cubIdTag, tmp_ents, &cub_ids[0]);
+  if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) return result;
+  
+    // now go through id list, finding each entity by id
+  for (int i = 0; i < id_buf_size; i++) {
+    std::vector<int>::iterator vit = std::find(cub_ids.begin(), cub_ids.end(), id_buf[i]);
+    if (vit != cub_ids.end()) {
+      MBEntityHandle this_ent = tmp_ents[vit-cub_ids.begin()];
+      if (mdbImpl->type_from_handle(this_ent) != MBMAXTYPE) ent_list->push_back(this_ent);
+    }
+  }
+
+  return result;
+}
+
+MBErrorCode Tqdcfr::read_nodes(const int gindex,
+                               Tqdcfr::ModelEntry *model,
+                               Tqdcfr::GeomHeader *entity) 
+{
+  if (entity->nodeCt == 0) return MB_SUCCESS;
   
     // get the ids & coords in separate calls to minimize memory usage
     // position the file
   FSEEK(model->modelOffset+entity->nodeOffset);
     // get node ids in int_buf
-  FREADI(entity->numNodes);
+  FREADI(entity->nodeCt);
 
-      // check to see if ids are contiguous...
-    if (0 == check_contiguous(entity->numNodes))
-      std::cout << "Node ids are not contiguous!" << std::endl;
+    // check to see if ids are contiguous...
+  int contig = check_contiguous(entity->nodeCt);
+  if (0 == contig)
+    std::cout << "Node ids are not contiguous!" << std::endl;
     
     // get a space for reading nodal data directly into MB
   MBEntityHandle node_handle = 0;
   std::vector<double*> arrays;
-  readUtilIface->get_node_arrays(3, entity->numNodes,
+  readUtilIface->get_node_arrays(3, entity->nodeCt,
                                  int_buf[0], node_handle, arrays);
   long unsigned int node_offset;
   node_offset = mdbImpl->id_from_handle( node_handle);
@@ -500,46 +842,89 @@ void Tqdcfr::read_nodes(Tqdcfr::ModelEntry *model,
   if (-1 == currNodeIdOffset)
     currNodeIdOffset = node_offset;
   else
-    assert((long unsigned int) currNodeIdOffset == node_offset);
+    if ((long unsigned int) currNodeIdOffset != node_offset) return MB_FAILURE;
 
     // get node x's in arrays[0]
-  FREADDA(entity->numNodes, arrays[0]);
+  FREADDA(entity->nodeCt, arrays[0]);
     // get node y's in arrays[1]
-  FREADDA(entity->numNodes, arrays[1]);
+  FREADDA(entity->nodeCt, arrays[1]);
     // get node z's in arrays[2]
-  FREADDA(entity->numNodes, arrays[2]);
+  FREADDA(entity->nodeCt, arrays[2]);
 
     // add these nodes into the entity's set
   MBRange dum_range(node_handle, 
-                     node_handle+entity->numNodes-1);
+                    node_handle+entity->nodeCt-1);
   MBErrorCode result = mdbImpl->add_entities(entity->setHandle, dum_range);
-  assert(MB_SUCCESS == result);
+  if (MB_SUCCESS != result) return result;
 
     // set the dimension to at least zero (entity has at least nodes) on the geom tag
   int max_dim = 0;
   result = mdbImpl->tag_set_data(geomTag, &(entity->setHandle), 1, &max_dim);
-  assert(MB_SUCCESS == result);
+  if (MB_SUCCESS != result) return result;
     // set the category tag just in case there're only vertices in this set
   result = mdbImpl->tag_set_data(categoryTag, &entity->setHandle, 1, 
                                  &geom_categories[0]);
-  assert(MB_SUCCESS == result);
+  if (MB_SUCCESS != result) return result;
+
+    // set cub ids
+  result = mdbImpl->tag_set_data(cubIdTag, dum_range, &int_buf[0]);
+  if (MB_SUCCESS != result) return result;
   
-    // don't bother with FixedNode metadata for now...
+    // get fixed node data and assign
+  int md_index = model->nodeMD.get_md_entry(gindex, "FixedNodes");
+  if (-1 == md_index) return MB_SUCCESS;
+  MetaDataContainer::MetaDataEntry *md_entry = model->nodeMD.metadataEntries+md_index;
+  
+  std::vector<int> fixed_flags(entity->nodeCt);
+  std::fill(fixed_flags.begin(), fixed_flags.end(), 0);
+  if (md_entry->mdDataType != 3) return MB_FAILURE;
+    // if contiguous, we can use the node id as an offset
+  if (contig) {
+    for (std::vector<int>::iterator vit = md_entry->mdIntArrayValue.begin();
+         vit != md_entry->mdIntArrayValue.end(); vit++) {
+      if (*vit - int_buf[0] < entity->nodeCt) return MB_FAILURE;
+      fixed_flags[*vit - int_buf[0]] = 1;
+    }
+  }
+    // else we have to find the position of each node in the node ids, then set the
+    // equivalent position in the fixed flags
+  else {
+    int *buf_end = &int_buf[0]+entity->nodeCt;
+    for (std::vector<int>::iterator vit = md_entry->mdIntArrayValue.begin();
+         vit != md_entry->mdIntArrayValue.end(); vit++) {
+      int *vit2 = std::find(&int_buf[0], buf_end, *vit);
+      if (vit2 != buf_end) fixed_flags[vit2 - &int_buf[0]] = 1;
+    }
+  }
+
+  static MBTag fixedFlagTag = 0;
+  if (0 == fixedFlagTag) {
+    result = mdbImpl->tag_get_handle("NodeFixed", fixedFlagTag);
+    if (MB_SUCCESS != result || 0 == fixedFlagTag) {
+      int dum_val = 0;
+      result = mdbImpl->tag_create("NodeFixed", sizeof(int), MB_TAG_SPARSE, 
+                                   fixedFlagTag, &dum_val);
+      if (MB_SUCCESS != result) return result;
+    }
+  }
+  result = mdbImpl->tag_set_data(fixedFlagTag, dum_range, &fixed_flags[0]);
+
+  return result;
 }
 
-void Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
-                           Tqdcfr::EntityHeader *entity) 
+MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
+                                  Tqdcfr::GeomHeader *entity) 
 {
-  if (entity->numTypes == 0) return;
+  if (entity->elemTypeCt == 0) return MB_SUCCESS;
   
     // get data in separate calls to minimize memory usage
     // position the file
-  FSEEK(model->modelOffset+entity->elementOffset);
+  FSEEK(model->modelOffset+entity->elemOffset);
 
   int int_type, nodes_per_elem, num_elem;
   int max_dim = -1;
   MBErrorCode result;
-  for (int i = 0; i < entity->numTypes; i++) {
+  for (int i = 0; i < entity->elemTypeCt; i++) {
       // for this elem type, get the type, nodes per elem, num elems
     FREADI(3);
     int_type = int_buf[0];
@@ -547,14 +932,15 @@ void Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     num_elem = int_buf[2];
 
       // get MB element type from cub file's 
-    MBEntityType elem_type = type_from_cub_type(int_type, nodes_per_elem);
+    MBEntityType elem_type = mp_type_to_mb_type[int_type];
     max_dim = (max_dim < MBCN::Dimension(elem_type) ? MBCN::Dimension(elem_type) : max_dim);
     
       // get element ids
     FREADI(num_elem);
     
       // check to see if ids are contiguous...
-    if (0 == check_contiguous(num_elem))
+    int contig = check_contiguous(num_elem);
+    if (0 == contig)
       std::cout << "Element ids are not contiguous!" << std::endl;
     
       // get a space for reading connectivity data directly into MB
@@ -570,7 +956,7 @@ void Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     else
       ;
     
-        //assert((long unsigned int) currElementIdOffset[elem_type] == elem_offset);
+      //assert((long unsigned int) currElementIdOffset[elem_type] == elem_offset);
 
       // now do something with them...
 
@@ -585,24 +971,30 @@ void Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
         // do it this way to avoid the cost of checking in optimized code
       new_node_handle = CREATE_HANDLE(MBVERTEX, currNodeIdOffset+conn[i], dum_err);
       assert(MB_SUCCESS == mdbImpl->handle_from_id(MBVERTEX, currNodeIdOffset+conn[i],
-                                                    dum_handle));
+                                                   dum_handle));
       conn[i] = new_node_handle;
     }
 
       // add these elements into the entity's set
     MBRange dum_range(start_handle, start_handle+num_elem-1);
     result = mdbImpl->add_entities(entity->setHandle, dum_range);
-    assert(MB_SUCCESS == result);
+    if (MB_SUCCESS != result) return result;
+
+      // set cub ids
+    result = mdbImpl->tag_set_data(cubIdTag, dum_range, &int_buf[0]);
+    if (MB_SUCCESS != result) return result;
   }
 
     // set the dimension on the geom tag
   result = mdbImpl->tag_set_data(geomTag, &entity->setHandle, 1, &max_dim);
-  assert(MB_SUCCESS == result);
+  if (MB_SUCCESS != result) return result;
   if (max_dim != -1) {
     result = mdbImpl->tag_set_data(categoryTag, &entity->setHandle, 1, 
                                    &geom_categories[max_dim]);
-    assert(MB_SUCCESS == result);
+    if (MB_SUCCESS != result) return result;
   }
+
+  return MB_SUCCESS;
 }
 
 int Tqdcfr::check_contiguous(const int num_ents) 
@@ -643,39 +1035,6 @@ int Tqdcfr::check_contiguous(const int num_ents)
   return 0;
 }
   
-MBEntityType Tqdcfr::type_from_cub_type(const int cub_type, const int nodes_per_elem) 
-{
-  bool mid_nodes[3];
-  
-  MBEntityType ret_type = MBMAXTYPE;
-  
-    // test the cub_type, and verify it's a valid element
-  if (0 <= cub_type && 7 >= cub_type)
-    ret_type = MBHEX;
-  else if (8 <= cub_type && 15 >= cub_type)
-    ret_type = MBTET;
-  else if (16 <= cub_type && 19 >= cub_type)
-    ret_type = MBPYRAMID;
-  else if (20 <= cub_type && 23 >= cub_type)
-    ret_type = MBQUAD;
-  else if (24 <= cub_type && 27 >= cub_type)
-    ret_type = MBTRI;
-  else if (28 <= cub_type && 29 >= cub_type)
-    ret_type = MBEDGE;
-  else if (30 <= cub_type && 30 >= cub_type)
-    ret_type = MBVERTEX;
-  else 
-    assert(false);
-
-    // check to see that the number of nodes passed in represents a valid
-    // number of nodes wrt mid nodes
-  MBCN::HasMidNodes(ret_type, nodes_per_elem, mid_nodes);
-  assert(nodes_per_elem == MBCN::HONodeIndex(ret_type, nodes_per_elem, 
-                                               MBCN::Dimension(ret_type), -1)+1);
-
-  return ret_type;
-}
-
 void Tqdcfr::FEModelHeader::init(const int offset, Tqdcfr* instance ) 
 {
   FSEEK(offset);
@@ -695,7 +1054,7 @@ void Tqdcfr::FEModelHeader::init(const int offset, Tqdcfr* instance )
   FREADI(1);
 }
 
-void Tqdcfr::read_file_header() 
+MBErrorCode Tqdcfr::read_file_header() 
 {
     // read file header
   FSEEK(4);
@@ -707,16 +1066,18 @@ void Tqdcfr::read_file_header()
   fileTOC.modelMetaDataOffset = int_buf[4];
   fileTOC.activeFEModel = int_buf[5];
   if (debug) fileTOC.print();
+
+  return MB_SUCCESS;
 }
 
-void Tqdcfr::read_model_entries() 
+MBErrorCode Tqdcfr::read_model_entries() 
 {
   
     // read model entries
   FSEEK(fileTOC.modelTableOffset);
   FREADI(fileTOC.numModels*6);
   modelEntries = new ModelEntry[fileTOC.numModels];
-  assert(NULL != modelEntries);
+  if (NULL == modelEntries) return MB_FAILURE;
   std::vector<int>::iterator int_it = int_buf.begin();
   for (int i = 0; i < fileTOC.numModels; i++) {
     modelEntries[i].modelHandle = *int_it++;
@@ -725,9 +1086,11 @@ void Tqdcfr::read_model_entries()
     modelEntries[i].modelType = *int_it++;
     modelEntries[i].modelOwner = *int_it++;
     modelEntries[i].modelPad = *int_it++;
-    assert(int_it != int_buf.end() || i == fileTOC.numModels-1);
+    if (int_it == int_buf.end() && i != fileTOC.numModels-1) return MB_FAILURE;
     if (debug) modelEntries[i].print();
   }
+
+  return MB_SUCCESS;
 }
 
 int Tqdcfr::find_model(const int model_type) 
@@ -738,8 +1101,8 @@ int Tqdcfr::find_model(const int model_type)
   return -1;
 }
 
-void Tqdcfr::read_meta_data(const int metadata_offset, 
-                            Tqdcfr::MetaDataContainer &mc) 
+MBErrorCode Tqdcfr::read_meta_data(const int metadata_offset, 
+                                   Tqdcfr::MetaDataContainer &mc) 
 {
     // read the metadata header
   FSEEK(metadata_offset);
@@ -782,7 +1145,7 @@ void Tqdcfr::read_meta_data(const int metadata_offset,
       FREADI(mc.metadataEntries[i].mdIntArrayValue.size());
       std::copy(int_buf.begin(), 
                 int_buf.begin() + mc.metadataEntries[i].mdIntArrayValue.size(),
-                std::back_inserter(mc.metadataEntries[i].mdIntArrayValue));
+                mc.metadataEntries[i].mdIntArrayValue.begin());
     }
     else if (mc.metadataEntries[i].mdDataType == 4) {
         // double array
@@ -791,15 +1154,17 @@ void Tqdcfr::read_meta_data(const int metadata_offset,
       FREADD(mc.metadataEntries[i].mdDblArrayValue.size());
       std::copy(dbl_buf.begin(), 
                 dbl_buf.begin() + mc.metadataEntries[i].mdDblArrayValue.size(),
-                std::back_inserter(mc.metadataEntries[i].mdDblArrayValue));
+                mc.metadataEntries[i].mdDblArrayValue.begin());
     }
     else
-      assert("Bad metadata type" && false);
+      return MB_FAILURE;
   }
   if (debug) mc.print();
+
+  return MB_SUCCESS;
 }
 
-void Tqdcfr::read_md_string(std::string &name) 
+MBErrorCode Tqdcfr::read_md_string(std::string &name) 
 {
   FREADI(1);
   int str_size = int_buf[0];
@@ -810,22 +1175,23 @@ void Tqdcfr::read_md_string(std::string &name)
     char_buf[str_size] = '\0';
     name = (char *) &char_buf[0];
       // read pad if any
-    int num_word = str_size/4;
-    if (4*num_word != str_size) {
+    int extra = str_size % sizeof(int);
+    if (extra) {
         // read extra chars to end of pad
-      str_size = (num_word+1)*4 - str_size;
+      str_size = sizeof(int) - extra;
       FREADC(str_size);
     }
   }
+
+  return MB_SUCCESS;
 }
   
-void Tqdcfr::EntityHeader::read_info_header(const int model_offset, 
-                                            const Tqdcfr::FEModelHeader::ArrayInfo &info,
-                                            const int info_type,
-                                            Tqdcfr* instance,
-                                            Tqdcfr::EntityHeader *&entity_headers) 
+MBErrorCode Tqdcfr::GeomHeader::read_info_header(const int model_offset, 
+                                                 const Tqdcfr::FEModelHeader::ArrayInfo &info,
+                                                 Tqdcfr* instance,
+                                                 Tqdcfr::GeomHeader *&geom_headers) 
 {
-  entity_headers = new EntityHeader[info.numEntities];
+  geom_headers = new GeomHeader[info.numEntities];
   FSEEK(model_offset+info.tableOffset);
   int dum_int;
   MBErrorCode result;
@@ -834,190 +1200,326 @@ void Tqdcfr::EntityHeader::read_info_header(const int model_offset,
     static const char val[CATEGORY_TAG_NAME_LENGTH] = "\0";
     result = instance->mdbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_NAME_LENGTH,
                                            MB_TAG_SPARSE, instance->categoryTag, val);
-    assert (MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
+    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
   }
 
   for (int i = 0; i < info.numEntities; i++) {
 
       // create an entity set for this entity
-    result = instance->mdbImpl->create_meshset(MESHSET_SET, entity_headers[i].setHandle);
-    assert(MB_SUCCESS == result);
-    static const char group_category[CATEGORY_TAG_NAME_LENGTH] = "Group\0";
-    static const char material_category[CATEGORY_TAG_NAME_LENGTH] = "Material Set\0";
-    static const char dirichlet_category[CATEGORY_TAG_NAME_LENGTH] = "Dirichlet Set\0";
-    static const char neumann_category[CATEGORY_TAG_NAME_LENGTH] = "Neumann Set\0";
+    result = instance->mdbImpl->create_meshset(MESHSET_SET, geom_headers[i].setHandle);
+    if (MB_SUCCESS != result) return result;
     
-    switch (info_type) {
-      case geom:
-        FREADI(8);
-        entity_headers[i].numNodes = instance->int_buf[0];
-        entity_headers[i].nodeOffset = instance->int_buf[1];
-        entity_headers[i].numElements = instance->int_buf[2];
-        entity_headers[i].elementOffset = instance->int_buf[3];
-        entity_headers[i].numTypes = instance->int_buf[4];
-        entity_headers[i].entityLength = instance->int_buf[5];
-        entity_headers[i].entityID = instance->int_buf[6];
-        entity_headers[i].entityType = 
-          entity_headers[i].entityColor = 
-          entity_headers[i].pyrType = 
-          entity_headers[i].matType = 
-          entity_headers[i].blockDimension = 
-          entity_headers[i].shellsFlag = -1;
+    FREADI(8);
+    geom_headers[i].nodeCt = instance->int_buf[0];
+    geom_headers[i].nodeOffset = instance->int_buf[1];
+    geom_headers[i].elemCt = instance->int_buf[2];
+    geom_headers[i].elemOffset = instance->int_buf[3];
+    geom_headers[i].elemTypeCt = instance->int_buf[4];
+    geom_headers[i].elemLength = instance->int_buf[5];
+    geom_headers[i].geomID = instance->int_buf[6];
 
-          // set the dimension to -1; will have to reset later, after elements are read
-        dum_int = -1;
-        result = instance->mdbImpl->tag_set_data(instance->geomTag, 
-                                                           &(entity_headers[i].setHandle), 1, &dum_int);
-        assert(MB_SUCCESS == result);
+      // set the dimension to -1; will have to reset later, after elements are read
+    dum_int = -1;
+    result = instance->mdbImpl->tag_set_data(instance->geomTag, 
+                                             &(geom_headers[i].setHandle), 1, &dum_int);
+    if (MB_SUCCESS != result) return result;
 
-          // set a unique id tag
-        result = instance->mdbImpl->tag_set_data(instance->uniqueIdTag, 
-                                                           &(entity_headers[i].setHandle), 1, 
-                                                           &(entity_headers[i].entityID));
-        assert(MB_SUCCESS == result);
-        
-        break;
-      case group:
-        FREADI(6);
-        entity_headers[i].entityID = instance->int_buf[0];
-        entity_headers[i].entityType = instance->int_buf[1];
-        entity_headers[i].numNodes = instance->int_buf[2];
-        entity_headers[i].nodeOffset = instance->int_buf[3];
-        entity_headers[i].numTypes = instance->int_buf[4];
-        entity_headers[i].entityLength = instance->int_buf[5];
-        entity_headers[i].numElements = 
-          entity_headers[i].elementOffset = 
-          entity_headers[i].entityColor = 
-          entity_headers[i].pyrType = 
-          entity_headers[i].matType = 
-          entity_headers[i].blockDimension = 
-          entity_headers[i].shellsFlag = -1;
-
-          // set the group tag to 1 to signify this is a group
-        dum_int = 1;
-        result = instance->mdbImpl->tag_set_data(instance->groupTag, 
-                                                           &(entity_headers[i].setHandle), 1, &dum_int);
-        assert(MB_SUCCESS == result);
-        result = instance->mdbImpl->tag_set_data(instance->categoryTag, 
-                                                 &(entity_headers[i].setHandle), 1, 
-                                                 group_category);
-        assert(MB_SUCCESS == result);
-
-          // set a global id tag
-        result = instance->mdbImpl->tag_set_data(instance->globalIdTag, 
-                                                           &(entity_headers[i].setHandle), 1, 
-                                               &(entity_headers[i].entityID));
-        assert(MB_SUCCESS == result);
-        
-        break;
-      case block:
-        FREADI(12);
-        entity_headers[i].entityID = instance->int_buf[0];
-        entity_headers[i].entityType = instance->int_buf[1];
-        entity_headers[i].numNodes = instance->int_buf[2];
-        entity_headers[i].nodeOffset = instance->int_buf[3];
-        entity_headers[i].numTypes = instance->int_buf[4];
-        entity_headers[i].numElements = instance->int_buf[5]; // attrib order
-        entity_headers[i].entityColor = instance->int_buf[6];
-        entity_headers[i].elementOffset = instance->int_buf[7]; // mixed elem type
-        entity_headers[i].pyrType = instance->int_buf[8];
-        entity_headers[i].matType = instance->int_buf[9];
-        entity_headers[i].entityLength = instance->int_buf[10];
-        entity_headers[i].blockDimension = instance->int_buf[11];
-        entity_headers[i].shellsFlag = -1;
-
-          // set the material set tag and id tag both to id
-        result = instance->mdbImpl->tag_set_data(instance->blockTag, &(entity_headers[i].setHandle), 1, 
-                                               &(entity_headers[i].entityID));
-        assert(MB_SUCCESS == result);
-        result = instance->mdbImpl->tag_set_data(instance->globalIdTag, &(entity_headers[i].setHandle), 1, 
-                                               &(entity_headers[i].entityID));
-        assert(MB_SUCCESS == result);
-        result = instance->mdbImpl->tag_set_data(instance->categoryTag, 
-                                                 &(entity_headers[i].setHandle), 1, 
-                                                 material_category);
-        assert(MB_SUCCESS == result);
-        
-        break;
-      case nodeset:
-        FREADI(8);
-        entity_headers[i].entityID = instance->int_buf[0];
-        entity_headers[i].numNodes = instance->int_buf[1];
-        entity_headers[i].nodeOffset = instance->int_buf[2];
-        entity_headers[i].numTypes = instance->int_buf[3];
-        entity_headers[i].pyrType = instance->int_buf[4];  // point sym
-        entity_headers[i].entityColor = instance->int_buf[5];
-        entity_headers[i].entityLength = instance->int_buf[6];
-          // pad
-
-        entity_headers[i].entityType =
-          entity_headers[i].numElements =
-          entity_headers[i].elementOffset =
-          entity_headers[i].matType =
-          entity_headers[i].blockDimension =
-          entity_headers[i].shellsFlag = -1;
-
-          // set the dirichlet set tag and id tag both to id
-        result = instance->mdbImpl->tag_set_data(instance->nsTag, &(entity_headers[i].setHandle), 1, 
-                                               &(entity_headers[i].entityID));
-        assert(MB_SUCCESS == result);
-        result = instance->mdbImpl->tag_set_data(instance->globalIdTag, &(entity_headers[i].setHandle), 1, 
-                                               &(entity_headers[i].entityID));
-        assert(MB_SUCCESS == result);
-        result = instance->mdbImpl->tag_set_data(instance->categoryTag, 
-                                                 &(entity_headers[i].setHandle), 1, 
-                                                 dirichlet_category);
-        assert(MB_SUCCESS == result);
-        
-        break;
-      case sideset:
-        FREADI(8);
-        entity_headers[i].entityID = instance->int_buf[0];
-        entity_headers[i].numNodes = instance->int_buf[1];
-        entity_headers[i].nodeOffset = instance->int_buf[2];
-        entity_headers[i].numTypes = instance->int_buf[3];
-        entity_headers[i].numElements = instance->int_buf[4]; // num dist factors
-        entity_headers[i].entityColor = instance->int_buf[5];
-        entity_headers[i].shellsFlag = instance->int_buf[6];
-        entity_headers[i].entityLength = instance->int_buf[7];
-
-        entity_headers[i].pyrType =
-          entity_headers[i].entityType =
-          entity_headers[i].elementOffset =
-          entity_headers[i].pyrType =
-          entity_headers[i].matType =
-          entity_headers[i].blockDimension = -1;
-
-          // set the neumann set tag and id tag both to id
-        result = instance->mdbImpl->tag_set_data(instance->ssTag, &(entity_headers[i].setHandle), 1, 
-                                               &(entity_headers[i].entityID));
-        assert(MB_SUCCESS == result);
-        result = instance->mdbImpl->tag_set_data(instance->globalIdTag, &(entity_headers[i].setHandle), 1, 
-                                               &(entity_headers[i].entityID));
-        assert(MB_SUCCESS == result);
-        result = instance->mdbImpl->tag_set_data(instance->categoryTag, 
-                                                 &(entity_headers[i].setHandle), 1, 
-                                                 neumann_category);
-        assert(MB_SUCCESS == result);
-        
-        break;
-      default:
-        assert(false);
-    }
+      // set a unique id tag
+    result = instance->mdbImpl->tag_set_data(instance->uniqueIdTag, 
+                                             &(geom_headers[i].setHandle), 1, 
+                                             &(geom_headers[i].geomID));
+    if (MB_SUCCESS != result) return result;
   }
+
+  return MB_SUCCESS;
 }
 
-void Tqdcfr::ModelEntry::print_header(const char *prefix,
-                                      Tqdcfr::FEModelHeader::ArrayInfo &info,
-                                      Tqdcfr::EntityHeader *header) 
+MBErrorCode Tqdcfr::GroupHeader::read_info_header(const int model_offset, 
+                                           const Tqdcfr::FEModelHeader::ArrayInfo &info,
+                                           Tqdcfr* instance,
+                                           Tqdcfr::GroupHeader *&group_headers) 
+{
+  group_headers = new GroupHeader[info.numEntities];
+  FSEEK(model_offset+info.tableOffset);
+  int dum_int;
+  MBErrorCode result;
+
+  if (0 == instance->categoryTag) {
+    static const char val[CATEGORY_TAG_NAME_LENGTH] = "\0";
+    result = instance->mdbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_NAME_LENGTH,
+                                           MB_TAG_SPARSE, instance->categoryTag, val);
+    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
+  }
+
+  for (int i = 0; i < info.numEntities; i++) {
+
+      // create an entity set for this entity
+    result = instance->mdbImpl->create_meshset(MESHSET_SET, group_headers[i].setHandle);
+    if (MB_SUCCESS != result) return result;
+    static const char group_category[CATEGORY_TAG_NAME_LENGTH] = "Group\0";
+    
+    FREADI(6);
+    group_headers[i].grpID = instance->int_buf[0];
+    group_headers[i].grpType = instance->int_buf[1];
+    group_headers[i].memCt = instance->int_buf[2];
+    group_headers[i].memOffset = instance->int_buf[3];
+    group_headers[i].memTypeCt = instance->int_buf[4];
+    group_headers[i].grpLength = instance->int_buf[5];
+
+      // set the group tag to 1 to signify this is a group
+    dum_int = 1;
+    result = instance->mdbImpl->tag_set_data(instance->groupTag, 
+                                             &(group_headers[i].setHandle), 1, &dum_int);
+    if (MB_SUCCESS != result) return result;
+    result = instance->mdbImpl->tag_set_data(instance->categoryTag, 
+                                             &(group_headers[i].setHandle), 1, 
+                                             group_category);
+    if (MB_SUCCESS != result) return result;
+
+      // set a global id tag
+    result = instance->mdbImpl->tag_set_data(instance->globalIdTag, 
+                                             &(group_headers[i].setHandle), 1, 
+                                             &(group_headers[i].grpID));
+    if (MB_SUCCESS != result) return result;
+        
+    break;
+  }
+
+  return MB_SUCCESS;
+}
+
+MBErrorCode Tqdcfr::BlockHeader::read_info_header(const double data_version,
+                                                  const int model_offset, 
+                                                  const Tqdcfr::FEModelHeader::ArrayInfo &info,
+                                                  Tqdcfr* instance,
+                                                  Tqdcfr::BlockHeader *&block_headers) 
+{
+  block_headers = new BlockHeader[info.numEntities];
+  FSEEK(model_offset+info.tableOffset);
+  MBErrorCode result;
+
+  if (0 == instance->categoryTag) {
+    static const char val[CATEGORY_TAG_NAME_LENGTH] = "\0";
+    result = instance->mdbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_NAME_LENGTH,
+                                           MB_TAG_SPARSE, instance->categoryTag, val);
+    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
+  }
+
+  for (int i = 0; i < info.numEntities; i++) {
+
+      // create an entity set for this entity
+    result = instance->mdbImpl->create_meshset(MESHSET_SET, block_headers[i].setHandle);
+    if (MB_SUCCESS != result) return result;
+    static const char material_category[CATEGORY_TAG_NAME_LENGTH] = "Material Set\0";
+    
+    FREADI(12);
+    block_headers[i].blockID = instance->int_buf[0];
+    block_headers[i].blockElemType = instance->int_buf[1];
+    block_headers[i].memCt = instance->int_buf[2];
+    block_headers[i].memOffset = instance->int_buf[3];
+    block_headers[i].memTypeCt = instance->int_buf[4];
+    block_headers[i].attribOrder = instance->int_buf[5]; // attrib order
+    block_headers[i].blockCol = instance->int_buf[6];
+    block_headers[i].blockMixElemType = instance->int_buf[7]; // mixed elem type
+    block_headers[i].blockPyrType = instance->int_buf[8];
+    block_headers[i].blockMat = instance->int_buf[9];
+    block_headers[i].blockLength = instance->int_buf[10];
+    block_headers[i].blockDim = instance->int_buf[11];
+
+      // adjust element type for data version; older element types didn't include
+      // 4 new trishell element types
+    if (data_version <= 1.0 && block_headers[i].blockElemType >= 15)
+      block_headers[i].blockElemType += 4;
+
+      // set the material set tag and id tag both to id
+    result = instance->mdbImpl->tag_set_data(instance->blockTag, &(block_headers[i].setHandle), 1, 
+                                             &(block_headers[i].blockID));
+    if (MB_SUCCESS != result) return result;
+    result = instance->mdbImpl->tag_set_data(instance->globalIdTag, &(block_headers[i].setHandle), 1, 
+                                             &(block_headers[i].blockID));
+    if (MB_SUCCESS != result) return result;
+    result = instance->mdbImpl->tag_set_data(instance->categoryTag, 
+                                             &(block_headers[i].setHandle), 1, 
+                                             material_category);
+    if (MB_SUCCESS != result) return result;
+
+      // check the number of vertices in the element type, and set the has mid nodes tag
+      // accordingly
+    int num_verts = cub_elem_num_verts[block_headers[i].blockElemType];
+    block_headers[i].blockEntityType = block_type_to_mb_type[block_headers[i].blockElemType];
+    if (num_verts != MBCN::VerticesPerEntity(block_headers[i].blockEntityType)) {
+        // not a linear element; try to find hasMidNodes values
+      int has_mid_nodes[] = {0, 0, 0, 0};
+      static MBTag hasMidNodesTag = 0;
+      if (0 == hasMidNodesTag) {
+        result = instance->mdbImpl->tag_create(HAS_MID_NODES_TAG_NAME, 4*sizeof(int), MB_TAG_SPARSE, hasMidNodesTag,
+                                               has_mid_nodes);
+        if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
+      }
+      
+      MBCN::HasMidNodes(block_headers[i].blockEntityType, num_verts, has_mid_nodes);
+
+        // now set the tag on this set
+      result = instance->mdbImpl->tag_set_data(hasMidNodesTag, &block_headers[i].setHandle, 1,
+                                               has_mid_nodes);
+      if (MB_SUCCESS != result) return result;
+    }
+  }
+
+  return MB_SUCCESS;
+}
+
+MBErrorCode Tqdcfr::NodesetHeader::read_info_header(const int model_offset, 
+                                             const Tqdcfr::FEModelHeader::ArrayInfo &info,
+                                             Tqdcfr* instance,
+                                             Tqdcfr::NodesetHeader *&nodeset_headers) 
+{
+  nodeset_headers = new NodesetHeader[info.numEntities];
+  FSEEK(model_offset+info.tableOffset);
+  MBErrorCode result;
+
+  if (0 == instance->categoryTag) {
+    static const char val[CATEGORY_TAG_NAME_LENGTH] = "\0";
+    result = instance->mdbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_NAME_LENGTH,
+                                           MB_TAG_SPARSE, instance->categoryTag, val);
+    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
+  }
+
+  for (int i = 0; i < info.numEntities; i++) {
+
+      // create an entity set for this entity
+    result = instance->mdbImpl->create_meshset(MESHSET_SET, nodeset_headers[i].setHandle);
+    if (MB_SUCCESS != result) return result;
+    static const char dirichlet_category[CATEGORY_TAG_NAME_LENGTH] = "Dirichlet Set\0";
+    
+    FREADI(8);
+    nodeset_headers[i].nsID = instance->int_buf[0];
+    nodeset_headers[i].memCt = instance->int_buf[1];
+    nodeset_headers[i].memOffset = instance->int_buf[2];
+    nodeset_headers[i].memTypeCt = instance->int_buf[3];
+    nodeset_headers[i].pointSym = instance->int_buf[4];  // point sym
+    nodeset_headers[i].nsCol = instance->int_buf[5];
+    nodeset_headers[i].nsLength = instance->int_buf[6];
+      // pad
+
+      // set the dirichlet set tag and id tag both to id
+    result = instance->mdbImpl->tag_set_data(instance->nsTag, &(nodeset_headers[i].setHandle), 1, 
+                                             &(nodeset_headers[i].nsID));
+    if (MB_SUCCESS != result) return result;
+    result = instance->mdbImpl->tag_set_data(instance->globalIdTag, &(nodeset_headers[i].setHandle), 1, 
+                                             &(nodeset_headers[i].nsID));
+    if (MB_SUCCESS != result) return result;
+    result = instance->mdbImpl->tag_set_data(instance->categoryTag, 
+                                             &(nodeset_headers[i].setHandle), 1, 
+                                             dirichlet_category);
+    if (MB_SUCCESS != result) return result;
+        
+  }
+
+  return MB_SUCCESS;
+}
+
+MBErrorCode Tqdcfr::SidesetHeader::read_info_header(const int model_offset, 
+                                             const Tqdcfr::FEModelHeader::ArrayInfo &info,
+                                             Tqdcfr* instance,
+                                             Tqdcfr::SidesetHeader *&sideset_headers) 
+{
+  sideset_headers = new SidesetHeader[info.numEntities];
+  FSEEK(model_offset+info.tableOffset);
+  MBErrorCode result;
+
+  if (0 == instance->categoryTag) {
+    static const char val[CATEGORY_TAG_NAME_LENGTH] = "\0";
+    result = instance->mdbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_NAME_LENGTH,
+                                           MB_TAG_SPARSE, instance->categoryTag, val);
+    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
+  }
+
+  for (int i = 0; i < info.numEntities; i++) {
+
+      // create an entity set for this entity
+    result = instance->mdbImpl->create_meshset(MESHSET_SET, sideset_headers[i].setHandle);
+    if (MB_SUCCESS != result) return result;
+    static const char neumann_category[CATEGORY_TAG_NAME_LENGTH] = "Neumann Set\0";
+    
+    FREADI(8);
+    sideset_headers[i].ssID = instance->int_buf[0];
+    sideset_headers[i].memCt = instance->int_buf[1];
+    sideset_headers[i].memOffset = instance->int_buf[2];
+    sideset_headers[i].memTypeCt = instance->int_buf[3];
+    sideset_headers[i].numDF = instance->int_buf[4]; // num dist factors
+    sideset_headers[i].ssCol = instance->int_buf[5];
+    sideset_headers[i].useShell = instance->int_buf[6];
+    sideset_headers[i].ssLength = instance->int_buf[7];
+
+      // set the neumann set tag and id tag both to id
+    result = instance->mdbImpl->tag_set_data(instance->ssTag, &(sideset_headers[i].setHandle), 1, 
+                                             &(sideset_headers[i].ssID));
+    if (MB_SUCCESS != result) return result;
+    result = instance->mdbImpl->tag_set_data(instance->globalIdTag, &(sideset_headers[i].setHandle), 1, 
+                                             &(sideset_headers[i].ssID));
+    if (MB_SUCCESS != result) return result;
+    result = instance->mdbImpl->tag_set_data(instance->categoryTag, 
+                                             &(sideset_headers[i].setHandle), 1, 
+                                             neumann_category);
+    if (MB_SUCCESS != result) return result;
+        
+  }
+
+  return MB_SUCCESS;
+}
+
+void Tqdcfr::ModelEntry::print_geom_headers(const char *prefix,
+                                           GeomHeader *header,
+                                            const int num_headers)
 {
   if (!debug) return;
   std::cout << prefix << std::endl;
-  for (int i = 0; i < info.numEntities; i++)
-    header[i].print();
+  if (NULL != header)
+    for (int i = 0; i < num_headers; i++) header[i].print();
 }
-          
-void Tqdcfr::ModelEntry::read_header_info( Tqdcfr* instance )
+
+void Tqdcfr::ModelEntry::print_group_headers(const char *prefix,
+                                            GroupHeader *header,
+                                            const int num_headers)
+{
+  if (!debug) return;
+  std::cout << prefix << std::endl;
+  if (NULL != header)
+    for (int i = 0; i < num_headers; i++) header[i].print();
+}
+
+void Tqdcfr::ModelEntry::print_block_headers(const char *prefix,
+                                            BlockHeader *header,
+                                            const int num_headers)
+{
+  if (!debug) return;
+  std::cout << prefix << std::endl;
+  if (NULL != header)
+    for (int i = 0; i < num_headers; i++) header[i].print();
+}
+
+void Tqdcfr::ModelEntry::print_nodeset_headers(const char *prefix,
+                                              NodesetHeader *header,
+                                            const int num_headers)
+{
+  if (!debug) return;
+  std::cout << prefix << std::endl;
+  if (NULL != header)
+    for (int i = 0; i < num_headers; i++) header[i].print();
+}
+
+void Tqdcfr::ModelEntry::print_sideset_headers(const char *prefix,
+                                              SidesetHeader *header,
+                                            const int num_headers)
+{
+  if (!debug) return;
+  std::cout << prefix << std::endl;
+  if (NULL != header)
+    for (int i = 0; i < num_headers; i++) header[i].print();
+}
+    
+MBErrorCode Tqdcfr::ModelEntry::read_header_info( Tqdcfr* instance, const double data_version)
 {
   feModelHeader.init(modelOffset, instance);
   int default_val = -1;
@@ -1025,83 +1527,78 @@ void Tqdcfr::ModelEntry::read_header_info( Tqdcfr* instance )
 
   result = instance->mdbImpl->tag_create(GLOBAL_ID_TAG_NAME, 4, MB_TAG_DENSE, 
                                          instance->globalIdTag, &default_val);
-  assert(MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
+  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
 
   if (feModelHeader.geomArray.numEntities > 0) {
     result = instance->mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4, MB_TAG_SPARSE, 
-                                                instance->geomTag, &default_val);
-    assert(MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
+                                           instance->geomTag, &default_val);
+    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
     
     result = instance->mdbImpl->tag_create("UNIQUE_ID", 4, MB_TAG_SPARSE, 
-                                                            instance->uniqueIdTag, &default_val);
-    assert(MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
+                                           instance->uniqueIdTag, &default_val);
+    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
     
-    Tqdcfr::EntityHeader::read_info_header(modelOffset, 
-                                           feModelHeader.geomArray, 
-                                           Tqdcfr::EntityHeader::geom, 
-                                           instance,
-                                           feGeomH);
-    print_header("Geom headers:", feModelHeader.geomArray,
-                 feGeomH);
+    result = Tqdcfr::GeomHeader::read_info_header(modelOffset, 
+                                                  feModelHeader.geomArray, 
+                                                  instance,
+                                                  feGeomH);
+    print_geom_headers("Geom headers:", feGeomH, feModelHeader.geomArray.numEntities);
+    if (MB_SUCCESS != result) return result;
   }
   
   if (feModelHeader.groupArray.numEntities > 0) {
     result = instance->mdbImpl->tag_create("GROUP_SET", 4, MB_TAG_SPARSE, 
-                                                instance->groupTag, &default_val);
-    assert(MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
+                                           instance->groupTag, &default_val);
+    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
     
-    Tqdcfr::EntityHeader::read_info_header(modelOffset, 
-                                           feModelHeader.groupArray, 
-                                           Tqdcfr::EntityHeader::group,
-                                           instance,
-                                           feGroupH);
-    print_header("Group headers:", feModelHeader.groupArray,
-                 feGroupH);
+    result = Tqdcfr::GroupHeader::read_info_header(modelOffset, 
+                                                   feModelHeader.groupArray, 
+                                                   instance,
+                                                   feGroupH);
+    print_group_headers("Group headers:", feGroupH, feModelHeader.groupArray.numEntities);
+    if (MB_SUCCESS != result) return result;
   }
 
   if (feModelHeader.blockArray.numEntities > 0) {
     result = instance->mdbImpl->tag_create(MATERIAL_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
-                                                instance->blockTag, &default_val);
-    assert(MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
+                                           instance->blockTag, &default_val);
+    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
     
-    Tqdcfr::EntityHeader::read_info_header(modelOffset, 
-                                           feModelHeader.blockArray, 
-                                           Tqdcfr::EntityHeader::block, 
-                                           instance,
-                                           feBlockH);
-    print_header("Block headers:", feModelHeader.blockArray,
-                 feBlockH);
+    result = Tqdcfr::BlockHeader::read_info_header(data_version, modelOffset, 
+                                                   feModelHeader.blockArray, 
+                                                   instance,
+                                                   feBlockH);
+    if (MB_SUCCESS != result) return result;
+    print_block_headers("Block headers:", feBlockH, feModelHeader.blockArray.numEntities);
   }
   if (feModelHeader.nodesetArray.numEntities > 0) {
     result = instance->mdbImpl->tag_create(DIRICHLET_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
-                                                instance->nsTag, &default_val);
-    assert(MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
+                                           instance->nsTag, &default_val);
+    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
     
-    Tqdcfr::EntityHeader::read_info_header(modelOffset, 
-                                           feModelHeader.nodesetArray, 
-                                           Tqdcfr::EntityHeader::nodeset, 
-                                           instance,
-                                           feNodeSetH);
-    print_header("Nodeset headers:", feModelHeader.nodesetArray,
-                 feNodeSetH);
+    result = Tqdcfr::NodesetHeader::read_info_header(modelOffset, 
+                                                     feModelHeader.nodesetArray, 
+                                                     instance,
+                                                     feNodeSetH);
+    if (MB_SUCCESS != result) return result;
+    print_nodeset_headers("Nodeset headers:", feNodeSetH, feModelHeader.nodesetArray.numEntities);
   }
   if (feModelHeader.sidesetArray.numEntities > 0) {
     result = instance->mdbImpl->tag_create(NEUMANN_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
-                                                instance->ssTag, &default_val);
-    assert(MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
+                                           instance->ssTag, &default_val);
+    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
     
-    Tqdcfr::EntityHeader::read_info_header(modelOffset, 
-                                           feModelHeader.sidesetArray, 
-                                           Tqdcfr::EntityHeader::sideset, 
-                                           instance,
-                                           feSideSetH);
-    print_header("SideSet headers:", feModelHeader.sidesetArray,
-                 feSideSetH);
+    result = Tqdcfr::SidesetHeader::read_info_header(modelOffset, 
+                                                     feModelHeader.sidesetArray, 
+                                                     instance,
+                                                     feSideSetH);
+    print_sideset_headers("SideSet headers:", feSideSetH, feModelHeader.sidesetArray.numEntities);
   }
 
+  return MB_SUCCESS;
 }
 
-void Tqdcfr::ModelEntry::read_metadata_info(Tqdcfr *tqd) 
+MBErrorCode Tqdcfr::ModelEntry::read_metadata_info(Tqdcfr *tqd) 
 {
   if (debug) std::cout << "Geom metadata:" << std::endl;
   tqd->read_meta_data(modelOffset+feModelHeader.geomArray.metaDataOffset,
@@ -1124,9 +1621,11 @@ void Tqdcfr::ModelEntry::read_metadata_info(Tqdcfr *tqd)
   if (debug) std::cout << "Sideset metadata:" << std::endl;
   tqd->read_meta_data(modelOffset+feModelHeader.sidesetArray.metaDataOffset,
                       sidesetMD);
+
+  return MB_SUCCESS;
 }
 
-void Tqdcfr::read_acis_records() 
+MBErrorCode Tqdcfr::read_acis_records() 
 {
 
     // get the acis model location
@@ -1141,7 +1640,7 @@ void Tqdcfr::read_acis_records()
     }
   }
   
-  if (acis_model_length == 0) return;
+  if (acis_model_length == 0) return MB_SUCCESS;
   
   std::vector<AcisRecord> records;
 
@@ -1189,7 +1688,7 @@ void Tqdcfr::read_acis_records()
     if (bytes_left == acis_model_length) {
         // look for 3 newlines
       ret = strchr(&(char_buf[0]), '\n'); ret = strchr(ret+1, '\n'); ret = strchr(ret+1, '\n');
-      assert(NULL != ret);
+      if (NULL == ret) return MB_FAILURE;
       buf_pos += ret - &(char_buf[0]) + 1;
     }
       
@@ -1232,16 +1731,18 @@ void Tqdcfr::read_acis_records()
   
   if (NULL != acisDumpFile)
     fclose(acisDumpFile);
+
+  return MB_SUCCESS;
 }
 
-void Tqdcfr::interpret_acis_records(std::vector<AcisRecord> &records) 
+MBErrorCode Tqdcfr::interpret_acis_records(std::vector<AcisRecord> &records) 
 {
     // make a tag for the vector holding unrecognized attributes
   void *default_val = NULL;
   MBErrorCode result = 
     mdbImpl->tag_create("ATTRIB_VECTOR", sizeof(void*), MB_TAG_SPARSE, 
-                         attribVectorTag, &default_val);
-  assert(MB_SUCCESS == result || MB_ALREADY_ALLOCATED == result);
+                        attribVectorTag, &default_val);
+  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
 
   int current_record = 0;
 
@@ -1268,10 +1769,12 @@ void Tqdcfr::interpret_acis_records(std::vector<AcisRecord> &records)
     
     current_record++;
   }
+
+  return MB_SUCCESS;
 }
 
-void Tqdcfr::parse_acis_attribs(const int entity_rec_num,
-                                std::vector<AcisRecord> &records) 
+MBErrorCode Tqdcfr::parse_acis_attribs(const int entity_rec_num,
+                                       std::vector<AcisRecord> &records) 
 {
   int num_read;
   std::vector<std::string> *attrib_vec = NULL;
@@ -1282,7 +1785,7 @@ void Tqdcfr::parse_acis_attribs(const int entity_rec_num,
   MBErrorCode result;
   
   int current_attrib = records[entity_rec_num].first_attrib;
-  if (-1 == current_attrib) return;
+  if (-1 == current_attrib) return MB_SUCCESS;
 
   if (NULL != acisDumpFile) {
     fwrite("-----------------------------------------------------------------------\n", 1, 72, acisDumpFile);
@@ -1291,9 +1794,9 @@ void Tqdcfr::parse_acis_attribs(const int entity_rec_num,
   }
 
   while (-1 != current_attrib) {
-    assert(records[current_attrib].rec_type == Tqdcfr::UNKNOWN ||
-           (records[current_attrib].att_next == next_attrib &&
-            records[current_attrib].att_ent_num == entity_rec_num));
+    if (records[current_attrib].rec_type != Tqdcfr::UNKNOWN &&
+           (records[current_attrib].att_next != next_attrib ||
+            records[current_attrib].att_ent_num != entity_rec_num)) return MB_FAILURE;
     
     if (NULL != acisDumpFile)
       fwrite(records[current_attrib].att_string.c_str(), sizeof(char), 
@@ -1306,7 +1809,7 @@ void Tqdcfr::parse_acis_attribs(const int entity_rec_num,
       num_read = sscanf(records[current_attrib].att_string.c_str(), "ENTITY_NAME @%d %s", &num_chars, temp_name);
       if (num_read != 2)
         num_read = sscanf(records[current_attrib].att_string.c_str(), "ENTITY_NAME %d %s", &num_chars, temp_name);
-      assert(num_read == 2);
+      if (num_read != 2) return MB_FAILURE;
 
         // put the name on the entity
       name_tag = new char[num_chars+1];
@@ -1330,12 +1833,12 @@ void Tqdcfr::parse_acis_attribs(const int entity_rec_num,
         std::cout << "Warning: bad ENTITY_ID attribute in .sat file, record number " << entity_rec_num
                   << ", record follows:" << std::endl
                   << records[current_attrib].att_string.c_str() << std::endl;
-;
+      ;
     }
     else if (strncmp(records[current_attrib].att_string.c_str(), "UNIQUE_ID", 9) == 0) {
         // parse uid
       num_read = sscanf(records[current_attrib].att_string.c_str(), "UNIQUE_ID 1 0 1 %d", &uid);
-      assert(1 == num_read);
+      if (1 != num_read) return MB_FAILURE;
     }
     else {
       if (attrib_vec == NULL) attrib_vec = new std::vector<std::string>;
@@ -1349,31 +1852,31 @@ void Tqdcfr::parse_acis_attribs(const int entity_rec_num,
 
     // at this point, there aren't entity sets for entity types which don't contain mesh
     // in this case, just return
-  if (records[entity_rec_num].rec_type == BODY ||
+  if (records[entity_rec_num].rec_type == aBODY ||
       (records[entity_rec_num].entity == 0 && uid == -1)) {
-    return;
+    return MB_SUCCESS;
       // Warning: couldn't resolve entity of type 1 because no uid was found.
       // ddriv: GeomTopoTool.cpp:172: MBErrorCode GeomTopoTool::separate_by_dimension(const MBRange&, MBRange*, void**): Assertion `false' failed.
-     // xxx
+      // xxx
   }
   
     // parsed the data; now put on mdb entities; first we need to find the entity
   if (records[entity_rec_num].entity == 0) {
       // get the choices of entity
     MBRange entities;
-    assert(uid != -1);
+    if (uid == -1) return MB_FAILURE;
     const void *dum_ptr = &uid;
     result = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &uniqueIdTag, 
                                                    &dum_ptr, 1, entities);
-    assert(MB_SUCCESS == result);
-    if (entities.size() != 1) return;
+    if (MB_SUCCESS != result) return result;
+    if (entities.size() != 1) return MB_FAILURE;
     else records[entity_rec_num].entity = *entities.begin();
   }
   
     // set the id
   if (id != -1) {
     result = mdbImpl->tag_set_data(globalIdTag, &(records[entity_rec_num].entity), 1, &id);
-    assert(MB_SUCCESS == result);
+    if (MB_SUCCESS != result) return result;
   }
   
     // set the name
@@ -1386,21 +1889,21 @@ void Tqdcfr::parse_acis_attribs(const int entity_rec_num,
                                      entityNameTag, &dum_val);
       }
     }
-    assert(0 != entityNameTag);
+    if (0 == entityNameTag) return MB_FAILURE;
 
     result = mdbImpl->tag_set_data(entityNameTag, &(records[entity_rec_num].entity), 1, &name_tag);
-    assert(MB_SUCCESS == result);
+    if (MB_SUCCESS != result) return result;
   }
 
   if (NULL != attrib_vec) {
       // put the attrib vector in a tag on the entity
     std::vector<std::string> *dum_vec;
     result = mdbImpl->tag_get_data(attribVectorTag, &(records[entity_rec_num].entity), 1, &dum_vec);
-    assert(MB_SUCCESS == result || MB_TAG_NOT_FOUND == result);
+    if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) return result;
     if (MB_TAG_NOT_FOUND == result || dum_vec == NULL) {
         // put this list directly on the entity
       result = mdbImpl->tag_set_data(attribVectorTag, &(records[entity_rec_num].entity), 1, &attrib_vec);
-      assert(MB_SUCCESS == result);
+      if (MB_SUCCESS != result) return result;
     }
     else {
         // copy this list over, and delete this list
@@ -1410,9 +1913,10 @@ void Tqdcfr::parse_acis_attribs(const int entity_rec_num,
     }
   }
   
+  return MB_SUCCESS;
 }
 
-void Tqdcfr::reset_record(AcisRecord &this_record) 
+MBErrorCode Tqdcfr::reset_record(AcisRecord &this_record) 
 {
   this_record.rec_type = Tqdcfr::UNKNOWN;
   static std::string blank;
@@ -1421,9 +1925,11 @@ void Tqdcfr::reset_record(AcisRecord &this_record)
     this_record.att_next = this_record.att_ent_num = -1;
   this_record.processed = false;
   this_record.entity = 0;
+
+  return MB_SUCCESS;
 }
   
-void Tqdcfr::process_record(AcisRecord &this_record)
+MBErrorCode Tqdcfr::process_record(AcisRecord &this_record)
 {
     // get the entity type
   const char *type_substr;
@@ -1437,26 +1943,26 @@ void Tqdcfr::process_record(AcisRecord &this_record)
       simple_attrib = true;
     else {
       this_record.rec_type = Tqdcfr::UNKNOWN;
-      return;
+      return MB_SUCCESS;
     }
 
       // find next space
     type_substr = strchr(type_substr, ' ');
-    assert(NULL != type_substr);
+    if (NULL == type_substr) return MB_FAILURE;
     
       // read the numbers from there
     int num_converted = sscanf(type_substr, " $-1 -1 $%d $%d $%d -1", &(this_record.att_prev), 
                                &(this_record.att_next), &(this_record.att_ent_num));
-    assert(num_converted == 3);
+    if (num_converted != 3) return MB_FAILURE;
     
       // trim the string to the attribute, if it's a simple attrib
     if (simple_attrib) {
       type_substr = strstr(this_record.att_string.c_str(), "NEW_SIMPLE_ATTRIB");
-      assert(NULL != type_substr);
+      if (NULL == type_substr) return MB_FAILURE;
       type_substr = strstr(type_substr, "@");
-      assert(NULL != type_substr);
+      if (NULL == type_substr) return MB_FAILURE;
       type_substr = strstr(type_substr, " ") + 1;
-      assert(NULL != type_substr);
+      if (NULL == type_substr) return MB_FAILURE;
         // copy the rest of the string to a dummy string
       std::string dum_str(type_substr);
       this_record.att_string = dum_str;
@@ -1466,7 +1972,7 @@ void Tqdcfr::process_record(AcisRecord &this_record)
       // else it's a topological entity, I think
     if ((type_substr = strstr(this_record.att_string.c_str(), "body")) != NULL 
         && type_substr-this_record.att_string.c_str() < 20) {
-      this_record.rec_type = Tqdcfr::BODY;
+      this_record.rec_type = Tqdcfr::aBODY;
     }
     else if ((type_substr = strstr(this_record.att_string.c_str(), "lump")) != NULL  && 
              type_substr-this_record.att_string.c_str() < 20) {
@@ -1498,11 +2004,11 @@ void Tqdcfr::process_record(AcisRecord &this_record)
     }
     else if ((type_substr = strstr(this_record.att_string.c_str(), "edge")) != NULL && 
              type_substr-this_record.att_string.c_str() < 20) {
-      this_record.rec_type = Tqdcfr::EDGE;
+      this_record.rec_type = Tqdcfr::aEDGE;
     }
     else if ((type_substr = strstr(this_record.att_string.c_str(), "vertex")) != NULL && 
              type_substr-this_record.att_string.c_str() < 20) {
-      this_record.rec_type = Tqdcfr::VERTEX;
+      this_record.rec_type = Tqdcfr::aVERTEX;
     }
     else 
       this_record.rec_type = Tqdcfr::UNKNOWN;
@@ -1515,14 +2021,223 @@ void Tqdcfr::process_record(AcisRecord &this_record)
 
         // scan ahead to the next white space
       type_substr = strchr(type_substr, ' ');
-      assert(NULL != type_substr);
+      if (NULL == type_substr) return MB_FAILURE;
       
         // get the id of the first attrib
       int num_converted = sscanf(type_substr, " $%d", &(this_record.first_attrib));
-      assert(num_converted == 1);
+      if (num_converted != 1) return MB_FAILURE;
     }
   }
+
+  return MB_SUCCESS;
 }
+
+Tqdcfr::FileTOC::FileTOC()
+    : fileEndian(0), fileSchema(0), numModels(0), modelTableOffset(0), 
+      modelMetaDataOffset(0), activeFEModel(0) {}
+    
+void Tqdcfr::FileTOC::print()
+{
+  std::cout << "FileTOC:End, Sch, #Mdl, TabOff, "
+            << "MdlMDOff, actFEMdl = ";
+  std::cout << fileEndian << ", " << fileSchema << ", " << numModels 
+            << ", " << modelTableOffset << ", " 
+            << modelMetaDataOffset << ", " << activeFEModel << std::endl;
+}
+
+Tqdcfr::FEModelHeader::ArrayInfo::ArrayInfo()
+    : numEntities(0), tableOffset(0), metaDataOffset(0) 
+{}
+
+      
+void Tqdcfr::FEModelHeader::ArrayInfo::print()
+{
+  std::cout << "ArrayInfo:numEntities, tableOffset, metaDataOffset = "
+            << numEntities << ", " << tableOffset << ", " << metaDataOffset << std::endl;
+}
+
+void Tqdcfr::FEModelHeader::ArrayInfo::init(const std::vector<int>& int_buf)
+{
+  numEntities = int_buf[0]; tableOffset = int_buf[1]; metaDataOffset = int_buf[2];
+}
+
+void Tqdcfr::FEModelHeader::print()
+{
+  std::cout << "FEModelHeader:feEndian, feSchema, feCompressFlag, feLength = "
+            << feEndian << ", " << feSchema << ", " << feCompressFlag << ", " << feLength << std::endl;
+        
+  std::cout << "geomArray: "; geomArray.print();
+  std::cout << "nodeArray: "; nodeArray.print();
+  std::cout << "elementArray: "; elementArray.print();
+  std::cout << "groupArray: "; groupArray.print();
+  std::cout << "blockArray: "; blockArray.print();
+  std::cout << "nodesetArray: "; nodesetArray.print();
+  std::cout << "sidesetArray: "; sidesetArray.print();
+}
+
+Tqdcfr::GeomHeader::GeomHeader()
+    : geomID(0), nodeCt(0), nodeOffset(0), elemCt(0), elemOffset(0), 
+      elemTypeCt(0), elemLength(0), setHandle(0)
+{}
+
+void Tqdcfr::GeomHeader::print() 
+{
+  std::cout << "geomID = " << geomID << std::endl;
+  std::cout << "nodeCt = " << nodeCt << std::endl;
+  std::cout << "nodeOffset = " << nodeOffset << std::endl;
+  std::cout << "elemCt = " << elemCt << std::endl;
+  std::cout << "elemOffset = " << elemOffset << std::endl;
+  std::cout << "elemTypeCt = " << elemTypeCt << std::endl;
+  std::cout << "elemLength = " << elemLength << std::endl;
+  std::cout << "setHandle = " << setHandle << std::endl;
+}
+
+Tqdcfr::GroupHeader::GroupHeader()
+    : grpID(0), grpType(0), memCt(0), memOffset(0), memTypeCt(0), grpLength(0),
+      setHandle(0)
+{}
+
+void Tqdcfr::GroupHeader::print() 
+{
+  std::cout << "grpID = " << grpID << std::endl;
+  std::cout << "grpType = " << grpType << std::endl;
+  std::cout << "memCt = " << memCt << std::endl;
+  std::cout << "memOffset = " << memOffset << std::endl;
+  std::cout << "memTypeCt = " << memTypeCt << std::endl;
+  std::cout << "grpLength = " << grpLength << std::endl;
+  std::cout << "setHandle = " << setHandle << std::endl;
+}
+
+Tqdcfr::BlockHeader::BlockHeader()
+    : blockID(0), blockElemType(0), memCt(0), memOffset(0), memTypeCt(0), attribOrder(0), blockCol(0),
+      blockMixElemType(0), blockPyrType(0), blockMat(0), blockLength(0), blockDim(0),
+      setHandle(0), blockEntityType(MBMAXTYPE)
+{}
+
+void Tqdcfr::BlockHeader::print() 
+{
+  std::cout << "blockID = " << blockID << std::endl;
+  std::cout << "blockElemType = " << blockElemType << std::endl;
+  std::cout << "memCt = " << memCt << std::endl;
+  std::cout << "memOffset = " << memOffset << std::endl;
+  std::cout << "memTypeCt = " << memTypeCt << std::endl;
+  std::cout << "attribOrder = " << attribOrder << std::endl;
+  std::cout << "blockCol = " << blockCol << std::endl;
+  std::cout << "blockMixElemType = " << blockMixElemType << std::endl;
+  std::cout << "blockPyrType = " << blockPyrType << std::endl;
+  std::cout << "blockMat = " << blockMat << std::endl;
+  std::cout << "blockLength = " << blockLength << std::endl;
+  std::cout << "blockDim = " << blockDim << std::endl;
+  std::cout << "setHandle = " << setHandle << std::endl;
+  std::cout << "blockEntityType = " << blockEntityType << std::endl;
+    }
+
+Tqdcfr::NodesetHeader::NodesetHeader()
+    : nsID(0), memCt(0), memOffset(0), memTypeCt(0), pointSym(0), nsCol(0), nsLength(0),
+      setHandle(0)
+{}
+
+void Tqdcfr::NodesetHeader::print() 
+{
+  std::cout << "nsID = " << nsID << std::endl;
+  std::cout << "memCt = " << memCt << std::endl;
+  std::cout << "memOffset = " << memOffset << std::endl;
+  std::cout << "memTypeCt = " << memTypeCt << std::endl;
+  std::cout << "pointSym = " << pointSym << std::endl;
+  std::cout << "nsCol = " << nsCol << std::endl;
+  std::cout << "nsLength = " << nsLength << std::endl;
+  std::cout << "setHandle = " << setHandle << std::endl;
+    }
+
+Tqdcfr::SidesetHeader::SidesetHeader()
+    : ssID(0), memCt(0), memOffset(0), memTypeCt(0), numDF(0), ssCol(0), useShell(0), ssLength(0),
+      setHandle(0)
+{}
+
+void Tqdcfr::SidesetHeader::print() 
+{
+  std::cout << "ssID = " << ssID << std::endl;
+  std::cout << "memCt = " << memCt << std::endl;
+  std::cout << "memOffset = " << memOffset << std::endl;
+  std::cout << "memTypeCt = " << memTypeCt << std::endl;
+  std::cout << "numDF = " << numDF << std::endl;
+  std::cout << "ssCol = " << ssCol << std::endl;
+  std::cout << "useShell = " << useShell << std::endl;
+  std::cout << "ssLength = " << ssLength << std::endl;
+  std::cout << "setHandle = " << setHandle << std::endl;
+}
+
+Tqdcfr::MetaDataContainer::MetaDataEntry::MetaDataEntry()
+    : mdOwner(0), mdDataType(0), mdIntValue(0), 
+      mdName("(uninit)"), mdStringValue("(uninit)"), mdDblValue(0) 
+{}
+
+void Tqdcfr::MetaDataContainer::MetaDataEntry::print()
+{
+  std::cout << "MetaDataEntry:own, typ, name, I, D, S = "
+            << mdOwner << ", " << mdDataType << ", " << mdName << ", " << mdIntValue << ", " 
+            << mdDblValue << ", " << mdStringValue;
+  unsigned int i;
+  if (mdIntArrayValue.size()) {
+    std::cout << std::endl << "IArray = " << mdIntArrayValue[0];
+    for (i = 1; i < mdIntArrayValue.size(); i++)
+      std::cout << ", " << mdIntArrayValue[i];
+  }
+  if (mdDblArrayValue.size()) {
+    std::cout << std::endl << "DArray = " << mdDblArrayValue[0];
+    for (i = 1; i < mdDblArrayValue.size(); i++)
+      std::cout << ", " << mdDblArrayValue[i];
+  }
+  std::cout << std::endl;
+}
+
+void Tqdcfr::MetaDataContainer::print()
+{
+  std::cout << "MetaDataContainer:mdSchema, compressFlag, numDatums = "
+            << mdSchema << ", " << compressFlag << ", " << numDatums << std::endl;
+
+  for (int i = 0; i < numDatums; i++)
+    metadataEntries[i].print();
+}
+
+Tqdcfr::MetaDataContainer::MetaDataContainer()
+    : mdSchema(0), compressFlag(0), numDatums(0), metadataEntries(NULL) 
+{}
+
+Tqdcfr::MetaDataContainer::~MetaDataContainer()
+{
+  if (NULL != metadataEntries) delete [] metadataEntries;
+}
+
+int Tqdcfr::MetaDataContainer::get_md_entry(const int owner, const std::string &name) 
+{
+  for (int i = 0; i < numDatums; i++)
+    if (owner == metadataEntries[i].mdOwner && name == metadataEntries[i].mdName) return i;
+    
+  return -1;
+}
+
+Tqdcfr::ModelEntry::ModelEntry()
+    : modelHandle(0), modelOffset(0), 
+      modelLength(0), modelType(0), modelOwner(0), modelPad(0),
+      feGeomH(NULL), feGroupH(NULL), feBlockH(NULL), 
+      feNodeSetH(NULL), feSideSetH(NULL)
+{}
+
+Tqdcfr::ModelEntry::~ModelEntry()
+{
+  delete [] feGeomH; delete [] feGroupH; delete [] feBlockH;
+  delete [] feNodeSetH; delete [] feSideSetH;
+}
+
+void Tqdcfr::ModelEntry::print()
+{
+  std::cout << "ModelEntry: Han, Of, Len, Tp, Own, Pd = "
+            << modelHandle << ", " << modelOffset << ", " << modelLength 
+            << ", " << modelType << ", " << modelOwner << ", " << modelPad
+            << std::endl;
+}
+
 
 #ifdef TEST_TQDCFR
 #include "MBCore.hpp"
@@ -1534,7 +2249,7 @@ int main(int argc, char* argv[])
   if (argc < 2)
   {
     std::cout << "Usage: tqdcfr <cub_file_name>" << std::endl;
-    //exit(1);
+      //exit(1);
   }
   else
     file = argv[1];

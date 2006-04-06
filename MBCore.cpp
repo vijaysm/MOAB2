@@ -1825,12 +1825,12 @@ MBErrorCode MBCore::high_order_node(const MBEntityHandle parent_handle,
   if (result != MB_SUCCESS) return result;
 
     // find whether this entity has ho nodes
-  bool mid_nodes[3];
+  int mid_nodes[4];
   MBCN::HasMidNodes(parent_type, num_parent_vertices, mid_nodes);
 
     // check whether this entity has mid nodes on this dimension subfacet; 
     // use dimension-1 because vertices don't have mid nodes
-  if (!mid_nodes[MBCN::Dimension(subfacet_type)-1]) return MB_SUCCESS;
+  if (!mid_nodes[MBCN::Dimension(subfacet_type)]) return MB_SUCCESS;
 
     // ok, we have mid nodes; now must compute expected index in connectivity array; 
     // ho nodes stored for edges, faces then entity
@@ -1844,7 +1844,7 @@ MBErrorCode MBCore::high_order_node(const MBEntityHandle parent_handle,
       // if this entity has midnodes in that dimension, increment offset by # 
       // of subfacets of that dimension; use dimension-1 in loop because 
       // canon numbering table only has 2 positions, for edges and faces;
-    if (mid_nodes[i]) offset += MBCN::mConnectivityMap[parent_type][i].num_sub_elements;
+    if (mid_nodes[i+1]) offset += MBCN::mConnectivityMap[parent_type][i].num_sub_elements;
 
     // now add the index of this subfacet; only need to if it's not the highest dimension
   if (subfacet_type != parent_type) {
@@ -2347,11 +2347,8 @@ MBMeshSet* MBCore::update_cache( const MBEntityHandle ms_handle ) const
   //update cached values
   if( ms_handle != cachedEntityHandle )
   {
-    std::map<MBEntityHandle, MBMeshSet*>::const_iterator ms_iter;
-    if (0 != ms_handle)
-      ms_iter = global_mesh_set_list.find( ms_handle ); 
-    else
-      ms_iter = global_mesh_set_list.find( myMeshSet ); 
+    std::map<MBEntityHandle, MBMeshSet*>::const_iterator ms_iter
+      = global_mesh_set_list.find( ms_handle ); 
 
     if( ms_iter == global_mesh_set_list.end() )
     {

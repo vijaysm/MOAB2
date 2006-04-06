@@ -30,6 +30,7 @@
 
 #include <assert.h>
 #include "MBRange.hpp"
+#include "MBInternals.hpp"
 #include <stdio.h>
 
 /*! 
@@ -529,4 +530,22 @@ void MBRange::swap( MBRange &range )
   mHead.mNext = (range_empty ? &mHead : range_next);
   mHead.mPrev = (range_empty ? &mHead : range_prev);
 
+}
+
+MBEntityHandle MBRange::operator[](const int index) 
+{
+  int this_ind = -1;
+  MBRange::pair_iterator iter;
+  for (iter = pair_begin(); iter != pair_end(); iter++)
+  {
+    this_ind += iter->second - iter->first + 1;
+    if (this_ind >= index)
+    {
+      return iter->second - (this_ind - index);
+    }
+  }
+
+  int err;
+  MBEntityHandle ret_val = CREATE_HANDLE(MBMAXTYPE, 0, err);
+  return ret_val;
 }
