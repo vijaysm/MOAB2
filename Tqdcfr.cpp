@@ -69,6 +69,8 @@ const int Tqdcfr::cub_elem_num_verts[] = {
 char *Tqdcfr::BLOCK_NODESET_OFFSET_TAG_NAME = "BLOCK_NODESET_OFFSET";
 char *Tqdcfr::BLOCK_SIDESET_OFFSET_TAG_NAME = "BLOCK_SIDESET_OFFSET";
 
+#define RR if (MB_SUCCESS != result) return result
+
 // acis dimensions for each entity type, to match
 // enum {BODY, LUMP, SHELL, FACE, LOOP, COEDGE, EDGE, VERTEX, ATTRIB, UNKNOWN} 
 
@@ -114,6 +116,7 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
                               const int*, const int) 
 {
   Tqdcfr* instance = this;
+  MBErrorCode result;
   
     // open file
   cubFile = fopen(file_name, "rb");
@@ -129,14 +132,14 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
     // read model header type information...
     // ***********************
   if (debug) std::cout << "Reading file header." << std::endl;
-  read_file_header();
+  result = read_file_header(); RR;
 
   if (debug) std::cout << "Reading model entries." << std::endl;
-  read_model_entries();
+  result = read_model_entries(); RR;
   
     // read model metadata
   if (debug) std::cout << "Reading model metadata." << std::endl;
-  read_meta_data(fileTOC.modelMetaDataOffset, modelMetaData);
+  result = read_meta_data(fileTOC.modelMetaDataOffset, modelMetaData); RR;
 
   double data_version;
   int md_index = modelMetaData.get_md_entry(2, "DataVersion");
@@ -152,8 +155,8 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
   
     // first the header & metadata info
   if (debug) std::cout << "Reading mesh model header and metadata." << std::endl;
-  mesh_model->read_header_info(this, data_version);
-  mesh_model->read_metadata_info(this);
+  result = mesh_model->read_header_info(this, data_version); RR;
+  result = mesh_model->read_metadata_info(this); RR;
 
     // now read in mesh for each geometry entity
   for (int gindex = 0; 
@@ -163,60 +166,71 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
 
       // read nodes
     if (debug) std::cout << "Reading geom index " << gindex << " mesh: nodes... ";
-    read_nodes(gindex, mesh_model, geom_header);
+    result = read_nodes(gindex, mesh_model, geom_header); RR;
     
       // read elements
     if (debug) std::cout << "elements... ";
-    read_elements(mesh_model, geom_header);
+    result = read_elements(mesh_model, geom_header); RR;
     if (debug) std::cout << std::endl;
   }
 
     // ***********************
     // read acis records...
     // ***********************
-  read_acis_records();
+  result = read_acis_records(); RR;
 
     // ***********************
     // read groups...
     // ***********************
-  if (debug) std::cout << "Reading groups." << std::endl;
+  if (debug) std::cout << "Reading groups... ";
   for (int grindex = 0; 
        grindex < mesh_model->feModelHeader.groupArray.numEntities;
        grindex++) {
     GroupHeader *group_header = &mesh_model->feGroupH[grindex];
-    read_group(grindex, mesh_model, group_header);
+    result = read_group(grindex, mesh_model, group_header); RR;
   }
+  if (debug) std::cout << mesh_model->feModelHeader.groupArray.numEntities 
+                       << " read successfully." << std::endl;;
   
     // ***********************
     // read blocks...
     // ***********************
-  if (debug) std::cout << "Reading blocks." << std::endl;
+  if (debug) std::cout << "Reading blocks... ";
   for (int blindex = 0; 
        blindex < mesh_model->feModelHeader.blockArray.numEntities;
        blindex++) {
     BlockHeader *block_header = &mesh_model->feBlockH[blindex];
-    read_block(data_version, mesh_model, block_header);
+    result = read_block(data_version, mesh_model, block_header); RR;
   }
+  if (debug) std::cout << mesh_model->feModelHeader.blockArray.numEntities 
+                       << " read successfully." << std::endl;;
+  
 
     // ***********************
     // read nodesets...
     // ***********************
+  if (debug) std::cout << "Reading nodesets... ";
   for (int nsindex = 0; 
        nsindex < mesh_model->feModelHeader.nodesetArray.numEntities;
        nsindex++) {
     NodesetHeader *nodeset_header = &mesh_model->feNodeSetH[nsindex];
-    read_nodeset(mesh_model, nodeset_header);
+    result = read_nodeset(mesh_model, nodeset_header); RR;
   }
+  if (debug) std::cout << mesh_model->feModelHeader.nodesetArray.numEntities 
+                       << " read successfully." << std::endl;;
 
     // ***********************
     // read sidesets...
     // ***********************
+  if (debug) std::cout << "Reading sidesets...";
   for (int ssindex = 0; 
        ssindex < mesh_model->feModelHeader.sidesetArray.numEntities;
        ssindex++) {
     SidesetHeader *sideset_header = &mesh_model->feSideSetH[ssindex];
-    read_sideset(data_version, mesh_model, sideset_header);
+    result = read_sideset(data_version, mesh_model, sideset_header); RR;
   }
+  if (debug) std::cout << mesh_model->feModelHeader.sidesetArray.numEntities 
+                       << " read successfully." << std::endl;;
 
   if (debug) {
     std::cout << "Read the following mesh:" << std::endl;
@@ -228,7 +242,7 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
     // restore geometric topology
     // **************************
   GeomTopoTool gtt(mdbImpl);
-  MBErrorCode result = gtt.restore_topology();
+  result = gtt.restore_topology();
 
     // convert blocks to nodesets/sidesets if tag is set
   result = convert_nodesets_sidesets();
@@ -2266,7 +2280,11 @@ int main(int argc, char* argv[])
   MBInterface* mdbImpl = &my_impl;
   Tqdcfr my_tqd(&my_impl);
 
-  my_tqd.load_file(file, 0, 0);
+  MBErrorCode result = my_tqd.load_file(file, 0, 0);
+
+  if (MB_SUCCESS == result) std::cout << "Success." << std::endl;
+  else
+    std::cout << "load_file returned error." << std::endl;
   
 }
 #endif

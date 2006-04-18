@@ -1,4 +1,7 @@
 Version beta: 
+- Corrected set-related functions when inputting '0' (which is taken to mean 
+the interface set, i.e. the whole mesh); in this case, one can't add parent/child
+sets, but one can request them (return no sets in that case)
 - Added functions to support tag semantics 
 - Added num_hops argument for num_child_meshsets and num_parent_meshsets.
 - Removed default value for default value in tag_create function (this

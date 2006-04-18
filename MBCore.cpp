@@ -2093,6 +2093,8 @@ MBErrorCode MBCore::get_parent_meshsets(const MBEntityHandle meshset,
                                           std::vector<MBEntityHandle> &parents,
                                           const int num_hops) const
 {
+  if (0 == meshset) return MB_SUCCESS;
+
   MBMeshSet *ms_ptr = update_cache( meshset );
   if( !ms_ptr )
     return MB_ENTITY_NOT_FOUND;
@@ -2104,6 +2106,8 @@ MBErrorCode MBCore::get_parent_meshsets(const MBEntityHandle meshset,
                                         MBRange &parents,
                                           const int num_hops) const
 {
+  if (0 == meshset) return MB_SUCCESS;
+
   std::vector<MBEntityHandle> parent_vec;
   MBErrorCode result = get_parent_meshsets(meshset, parent_vec, num_hops);
   if (MB_SUCCESS != result) return result;
@@ -2115,6 +2119,8 @@ MBErrorCode MBCore::get_child_meshsets(const MBEntityHandle meshset,
                                          std::vector<MBEntityHandle> &children,
                                          const int num_hops) const
 {
+  if (0 == meshset) return MB_SUCCESS;
+  
   MBMeshSet *ms_ptr = update_cache( meshset );
   if( !ms_ptr )
     return MB_ENTITY_NOT_FOUND;
@@ -2126,6 +2132,8 @@ MBErrorCode MBCore::get_child_meshsets(const MBEntityHandle meshset,
                                         MBRange &children,
                                           const int num_hops) const
 {
+  if (0 == meshset) return MB_SUCCESS;
+
   std::vector<MBEntityHandle> child_vec;
   MBErrorCode result = get_child_meshsets(meshset, child_vec, num_hops);
   if (MB_SUCCESS != result) return result;
@@ -2136,7 +2144,11 @@ MBErrorCode MBCore::get_child_meshsets(const MBEntityHandle meshset,
 MBErrorCode MBCore::num_parent_meshsets(const MBEntityHandle meshset, int* number,
                                         const int num_hops) const
 {
-
+  if (0 == meshset) {
+    *number = 0;
+    return MB_SUCCESS;
+  }
+  
   MBMeshSet *ms_ptr = update_cache( meshset );
   if( !ms_ptr )
     return MB_ENTITY_NOT_FOUND;
@@ -2150,6 +2162,10 @@ MBErrorCode MBCore::num_parent_meshsets(const MBEntityHandle meshset, int* numbe
 MBErrorCode MBCore::num_child_meshsets(const MBEntityHandle meshset, int* number,
                                        const int num_hops) const
 {
+  if (0 == meshset) {
+    *number = 0;
+    return MB_SUCCESS;
+  }
 
   MBMeshSet *ms_ptr = update_cache( meshset );
   if( !ms_ptr )
@@ -2165,6 +2181,8 @@ MBErrorCode MBCore::num_child_meshsets(const MBEntityHandle meshset, int* number
 MBErrorCode MBCore::add_parent_meshset(MBEntityHandle meshset, 
                                          const MBEntityHandle parent_meshset)
 {
+    // can't add parents/children to the root set
+  if (0 == meshset) return MB_FAILURE;
 
   MBMeshSet *parent_ms_ptr = update_cache( parent_meshset );
   if( !parent_ms_ptr )
@@ -2182,6 +2200,8 @@ MBErrorCode MBCore::add_parent_meshset(MBEntityHandle meshset,
 MBErrorCode MBCore::add_child_meshset(MBEntityHandle meshset, 
                                         const MBEntityHandle child_meshset)
 {
+    // can't add parents/children to the root set
+  if (0 == meshset) return MB_FAILURE;
 
   MBMeshSet *child_ms_ptr = update_cache( child_meshset );
   if( !child_ms_ptr )
@@ -2200,6 +2220,9 @@ MBErrorCode MBCore::add_child_meshset(MBEntityHandle meshset,
 MBErrorCode MBCore::add_parent_child(MBEntityHandle parent, 
                                        MBEntityHandle child)
 {
+    // can't add parents/children to the root set
+  if (0 == parent || 0 == child) return MB_FAILURE;
+
   MBMeshSet *parent_ms_ptr = update_cache( parent );
   if( !parent_ms_ptr )
     return MB_ENTITY_NOT_FOUND;
@@ -2215,6 +2238,9 @@ MBErrorCode MBCore::add_parent_child(MBEntityHandle parent,
 MBErrorCode MBCore::remove_parent_child(MBEntityHandle parent, 
                                           MBEntityHandle child)
 {
+    // can't add parents/children to the root set
+  if (0 == parent || 0 == child) return MB_FAILURE;
+
   MBMeshSet *parent_ms_ptr = update_cache( parent );
   if( !parent_ms_ptr )
     return MB_ENTITY_NOT_FOUND;
@@ -2230,6 +2256,8 @@ MBErrorCode MBCore::remove_parent_child(MBEntityHandle parent,
 MBErrorCode MBCore::remove_parent_meshset(MBEntityHandle meshset, 
                                             const MBEntityHandle parent_meshset)
 {
+    // can't add parents/children to the root set
+  if (0 == parent_meshset || 0 == meshset) return MB_FAILURE;
 
   MBMeshSet *parent_ms_ptr = update_cache( parent_meshset );
   if( !parent_ms_ptr )
@@ -2247,6 +2275,8 @@ MBErrorCode MBCore::remove_parent_meshset(MBEntityHandle meshset,
 MBErrorCode MBCore::remove_child_meshset(MBEntityHandle meshset, 
                                            const MBEntityHandle child_meshset)
 {
+    // can't add parents/children to the root set
+  if (0 == meshset || 0 == child_meshset) return MB_FAILURE;
 
   MBMeshSet *child_ms_ptr = update_cache( child_meshset );
   if( !child_ms_ptr )
