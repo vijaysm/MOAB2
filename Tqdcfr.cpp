@@ -111,6 +111,10 @@ Tqdcfr::~Tqdcfr()
 {
   std::string iface_name = "MBReadUtilIface";
   mdbImpl->release_interface(iface_name, readUtilIface);
+
+  if (NULL != cubMOABVertexMap) delete cubMOABVertexMap;
+  
+  if (0 != cubIdTag) mdbImpl->tag_delete(cubIdTag);
 }
 
   
@@ -816,21 +820,38 @@ MBErrorCode Tqdcfr::get_mesh_entities(const int this_type,
   }
   
     // get entities with this type, and get their cub id tags
-  MBRange tmp_ents;
-  result = mdbImpl->get_entities_by_type(0, this_ent_type, tmp_ents);
-  if (MB_SUCCESS != result) return result;
-  if (tmp_ents.empty() && 0 != id_buf_size) return MB_FAILURE;
+  if (MBVERTEX == this_ent_type) {
+      // use either vertex offset or cubMOABVertexMap
+    if (NULL == cubMOABVertexMap) {
+      for (int i = 0; i < id_buf_size; i++)
+        ent_list->push_back(int_buf[i]+currNodeIdOffset);
+    }
+    else {
+      for (int i = 0; i < id_buf_size; i++)
+        ent_list->push_back((*cubMOABVertexMap)[int_buf[i]]);
+    }
+  }
+  else {
+    MBRange tmp_ents;
+    result = mdbImpl->get_entities_by_type(0, this_ent_type, tmp_ents);
+    if (MB_SUCCESS != result) return result;
+    if (tmp_ents.empty() && 0 != id_buf_size) return MB_FAILURE;
   
-  std::vector<int> cub_ids(id_buf_size);
-  result = mdbImpl->tag_get_data(cubIdTag, tmp_ents, &cub_ids[0]);
-  if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) return result;
+    std::vector<int> cub_ids(id_buf_size);
+    result = mdbImpl->tag_get_data(cubIdTag, tmp_ents, &cub_ids[0]);
+    if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) return result;
   
-    // now go through id list, finding each entity by id
-  for (int i = 0; i < id_buf_size; i++) {
-    std::vector<int>::iterator vit = std::find(cub_ids.begin(), cub_ids.end(), id_buf[i]);
-    if (vit != cub_ids.end()) {
-      MBEntityHandle this_ent = tmp_ents[vit-cub_ids.begin()];
-      if (mdbImpl->type_from_handle(this_ent) != MBMAXTYPE) ent_list->push_back(this_ent);
+      // now go through id list, finding each entity by id
+    for (int i = 0; i < id_buf_size; i++) {
+      std::vector<int>::iterator vit = std::find(cub_ids.begin(), cub_ids.end(), id_buf[i]);
+      if (vit != cub_ids.end()) {
+        MBEntityHandle this_ent = tmp_ents[vit-cub_ids.begin()];
+        if (mdbImpl->type_from_handle(this_ent) != MBMAXTYPE) ent_list->push_back(this_ent);
+      }
+      else {
+        std::cout << "Warning: didn't find " << MBCN::EntityTypeName(this_ent_type) 
+                  << " " << *vit << std::endl;
+      }
     }
   }
 
