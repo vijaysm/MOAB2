@@ -103,6 +103,8 @@ Tqdcfr::Tqdcfr(MBInterface *impl)
                                  cubIdTag, &default_val);
     assert (MB_SUCCESS == result);
   }
+
+  cubMOABVertexMap = NULL;
 }
 
 Tqdcfr::~Tqdcfr() 
@@ -847,25 +849,11 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
     // get node ids in int_buf
   FREADI(entity->nodeCt);
 
-    // check to see if ids are contiguous...
-  int contig = check_contiguous(entity->nodeCt);
-  if (0 == contig)
-    std::cout << "Node ids are not contiguous!" << std::endl;
-    
-    // get a space for reading nodal data directly into MB
+    // get a space for reading nodal data directly into MB, and read that data
   MBEntityHandle node_handle = 0;
   std::vector<double*> arrays;
   readUtilIface->get_node_arrays(3, entity->nodeCt,
                                  int_buf[0], node_handle, arrays);
-  long unsigned int node_offset;
-  node_offset = mdbImpl->id_from_handle( node_handle);
-  
-  node_offset -= int_buf[0];
-  if (-1 == currNodeIdOffset)
-    currNodeIdOffset = node_offset;
-  else
-    if ((long unsigned int) currNodeIdOffset != node_offset) return MB_FAILURE;
-
     // get node x's in arrays[0]
   FREADDA(entity->nodeCt, arrays[0]);
     // get node y's in arrays[1]
@@ -879,6 +867,51 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
   MBErrorCode result = mdbImpl->add_entities(entity->setHandle, dum_range);
   if (MB_SUCCESS != result) return result;
 
+    // check for id contiguity
+  long unsigned int node_offset = mdbImpl->id_from_handle( node_handle);
+
+  int max_id = -1;
+  int contig;
+  check_contiguous(entity->nodeCt, contig, max_id);
+
+  if (NULL == cubMOABVertexMap) {
+      // haven't needed one yet, see if we need to keep a map to orig cub ids
+
+    if (contig == 1) node_offset -= int_buf[0];
+    else if (contig == -1) node_offset -= int_buf[entity->nodeCt-1];
+  
+    if (contig && -1 == currNodeIdOffset)
+      currNodeIdOffset = node_offset;
+    else if ((contig && (long unsigned int) currNodeIdOffset != node_offset) ||
+             !contig) {
+      // node offsets no longer valid - need to build cub id - vertex handle map
+      cubMOABVertexMap = new std::vector<MBEntityHandle>(node_offset+entity->nodeCt);
+
+      if (-1 != currNodeIdOffset && currNodeIdOffset != (int) node_offset) {
+          // now fill the missing values for vertices which already exist
+        MBRange vrange;
+        result = mdbImpl->get_entities_by_type(0, MBVERTEX, vrange); RR;
+        MBRange::const_iterator rit = vrange.lower_bound(vrange.begin(), vrange.end(),
+                                                         currNodeIdOffset);
+        for (; *rit != node_offset; rit++)
+          (*cubMOABVertexMap)[*rit] = *rit;
+      }
+    }
+  }
+  
+  if (NULL != cubMOABVertexMap) {
+      // expand the size if necessary
+    if (max_id > (int) cubMOABVertexMap->size()-1) cubMOABVertexMap->resize(max_id+1);
+    
+      // now set the new values
+    std::vector<int>::iterator vit;
+    MBRange::iterator rit;
+    for (vit = int_buf.begin(), rit = dum_range.begin(); rit != dum_range.end(); vit++, rit++) {
+      assert(0 < *vit && *vit < (int)cubMOABVertexMap->size());
+      (*cubMOABVertexMap)[*vit] = *rit;
+    }
+  }
+
     // set the dimension to at least zero (entity has at least nodes) on the geom tag
   int max_dim = 0;
   result = mdbImpl->tag_set_data(geomTag, &(entity->setHandle), 1, &max_dim);
@@ -888,10 +921,8 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
                                  &geom_categories[0]);
   if (MB_SUCCESS != result) return result;
 
-    // set cub ids
-  result = mdbImpl->tag_set_data(cubIdTag, dum_range, &int_buf[0]);
-  if (MB_SUCCESS != result) return result;
-  
+    // don't need cub ids for vertices because of cubMOABVertexMap
+
     // get fixed node data and assign
   int md_index = model->nodeMD.get_md_entry(gindex, "FixedNodes");
   if (-1 == md_index) return MB_SUCCESS;
@@ -901,7 +932,7 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
   std::fill(fixed_flags.begin(), fixed_flags.end(), 0);
   if (md_entry->mdDataType != 3) return MB_FAILURE;
     // if contiguous, we can use the node id as an offset
-  if (contig) {
+  if (1 == contig) {
     for (std::vector<int>::iterator vit = md_entry->mdIntArrayValue.begin();
          vit != md_entry->mdIntArrayValue.end(); vit++) {
       if (*vit - int_buf[0] < entity->nodeCt) return MB_FAILURE;
@@ -961,7 +992,8 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     FREADI(num_elem);
     
       // check to see if ids are contiguous...
-    int contig = check_contiguous(num_elem);
+    int contig, max_id;
+    check_contiguous(num_elem, contig, max_id);
     if (0 == contig)
       std::cout << "Element ids are not contiguous!" << std::endl;
     
@@ -975,11 +1007,7 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     elem_offset = mdbImpl->id_from_handle( start_handle) - int_buf[0];
     if (-1 == currElementIdOffset[elem_type])
       currElementIdOffset[elem_type] = elem_offset;
-    else
-      ;
     
-      //assert((long unsigned int) currElementIdOffset[elem_type] == elem_offset);
-
       // now do something with them...
 
       // get the connectivity array
@@ -987,14 +1015,16 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     FREADIA(total_conn, conn);
 
       // post-process connectivity into handles
-    MBEntityHandle new_node_handle, dum_handle;
+    MBEntityHandle new_handle, dum_handle;
     int dum_err;
     for (i = 0; i < total_conn; i++) {
-        // do it this way to avoid the cost of checking in optimized code
-      new_node_handle = CREATE_HANDLE(MBVERTEX, currNodeIdOffset+conn[i], dum_err);
-      assert(MB_SUCCESS == mdbImpl->handle_from_id(MBVERTEX, currNodeIdOffset+conn[i],
-                                                   dum_handle));
-      conn[i] = new_node_handle;
+      if (NULL == cubMOABVertexMap)
+        new_handle = CREATE_HANDLE(MBVERTEX, currNodeIdOffset+conn[i], dum_err);
+      else new_handle = (*cubMOABVertexMap)[conn[i]];
+      assert(MB_SUCCESS == 
+             mdbImpl->handle_from_id(MBVERTEX, mdbImpl->id_from_handle(new_handle), 
+                                     dum_handle));
+      conn[i] = new_handle;
     }
 
       // add these elements into the entity's set
@@ -1019,10 +1049,11 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
   return MB_SUCCESS;
 }
 
-int Tqdcfr::check_contiguous(const int num_ents) 
+void Tqdcfr::check_contiguous(const int num_ents, int &contig, int &max_id) 
 {
   std::vector<int>::iterator id_it;
   int curr_id, i;
+  max_id = -1;
 
     // check in forward-contiguous direction
   id_it = int_buf.begin();
@@ -1036,7 +1067,11 @@ int Tqdcfr::check_contiguous(const int num_ents)
   }
 
     // if we got here and we're at the end of the loop, it's forward-contiguous
-  if (i == num_ents) return 1;
+  if (i == num_ents) {
+    max_id = int_buf[i-1];
+    contig = 1;
+    return;
+  }
 
 // check in reverse-contiguous direction
   id_it = int_buf.begin();
@@ -1051,10 +1086,25 @@ int Tqdcfr::check_contiguous(const int num_ents)
 
 
     // if we got here and we're at the end of the loop, it's reverse-contiguous
-  if (i == num_ents) return -1;
+  if (i == num_ents) {
+    max_id = int_buf[0];
+    contig = -1;
+    return;
+  }
+
+    // one final check, for contiguous but out of order
+  int min_id = -1;
+  max_id = -1;
+  
+    // need to loop over i, b/c int_buf is bigger than num_ents
+  for (id_it = int_buf.begin(), i = 0; i < num_ents; id_it++, i++) {
+    if (*id_it < min_id || -1 == min_id) min_id = *id_it;
+    if (*id_it > max_id || -1 == max_id) max_id = *id_it;
+  }
+  if (max_id - min_id + 1 == num_ents) contig = min_id;
 
     // else it's not contiguous at all
-  return 0;
+  contig = 0;
 }
   
 void Tqdcfr::FEModelHeader::init(const int offset, Tqdcfr* instance ) 

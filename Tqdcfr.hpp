@@ -344,7 +344,7 @@ public:
   
   enum {mesh, acist, acisb, facet, exodusmesh};
   MBEntityType type_from_cub_type(const int cub_type, const int nodes_per_elem);
-  int check_contiguous(const int num_ents);
+  void check_contiguous(const int num_ents, int &contig, int &max_id);
 
   Tqdcfr(MBInterface *impl);
 
@@ -371,6 +371,9 @@ private:
   
   FILE* acisDumpFile;
 
+    // map between cub ids and MOAB handles
+  std::vector<MBEntityHandle> *cubMOABVertexMap;
+  
     // enum used to identify element/entity type in groups
   enum {GROUP = 0, BODY, VOLUME, SURFACE, CURVE, VERTEX, HEX, TET, PYRAMID, QUAD, TRI, EDGE, NODE};
   static const MBEntityType group_type_to_mb_type[];
