@@ -3,7 +3,13 @@
 # Copyright (c) 2000,2001,2002, Sandia National Laboratories.                #
 # For more info, see the README file in the top-level Zoltan directory.      # 
 ##############################################################################
-#	Author:  Vitus Leung
+##############################################################################
+# CVS File Information
+#    $RCSfile$
+#    $Author$
+#    $Date$
+#    $Revision$
+##############################################################################
 
 ##############################################################################
 # Makefile for simple example which uses the Zoltan and MOAB libraries
