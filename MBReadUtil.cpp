@@ -39,6 +39,7 @@ MBErrorCode MBReadUtil::get_node_arrays(
     const int /*num_arrays*/,
     const int num_nodes, 
     const int preferred_start_id,
+    const int preferred_start_proc,
     MBEntityHandle& actual_start_handle, 
     std::vector<double*>& arrays)
 {
@@ -48,11 +49,12 @@ MBErrorCode MBReadUtil::get_node_arrays(
 
   MBEntityHandle preferred_start_handle;
   static int err;
-  preferred_start_handle = CREATE_HANDLE(MBVERTEX, preferred_start_id, err);
+  preferred_start_handle = CREATE_HANDLE(MBVERTEX, preferred_start_id, 
+                                         preferred_start_proc, err);
  
   // create an entity sequence for these nodes 
   error = mMB->sequence_manager()->create_entity_sequence(
-      MBVERTEX, num_nodes, 0, preferred_start_handle, actual_start_handle,
+      MBVERTEX, num_nodes, 0, preferred_start_handle, preferred_start_proc, actual_start_handle,
       seq);
 
   if(error != MB_SUCCESS)
@@ -69,7 +71,8 @@ MBErrorCode MBReadUtil::get_element_array(
     const int num_elements, 
     const int verts_per_element,
     const MBEntityType mdb_type,
-    int preferred_start_id, 
+    const int preferred_start_id, 
+    const int preferred_start_proc, 
     MBEntityHandle& actual_start_handle, 
     MBEntityHandle*& array)
 {
@@ -82,7 +85,8 @@ MBErrorCode MBReadUtil::get_element_array(
 
   // make an entity sequence to hold these elements
   error = mMB->sequence_manager()->create_entity_sequence(
-      mdb_type, num_elements, verts_per_element, preferred_start_id, actual_start_handle, seq);
+      mdb_type, num_elements, verts_per_element, preferred_start_id, 
+      preferred_start_proc, actual_start_handle, seq);
   if (MB_SUCCESS != error)
     return error;
 
@@ -97,7 +101,8 @@ MBErrorCode MBReadUtil::get_poly_element_array(
       const int num_poly, 
       const int conn_list_length,
       const MBEntityType mdb_type,
-      int preferred_start_id, 
+      const int preferred_start_id, 
+      const int preferred_start_proc,
       MBEntityHandle& actual_start_handle, 
       int*& last_index_array,
       MBEntityHandle*& connectivity_array )
@@ -110,7 +115,8 @@ MBErrorCode MBReadUtil::get_poly_element_array(
     return MB_TYPE_OUT_OF_RANGE;
 
   error = mMB->sequence_manager()->create_entity_sequence(
-      mdb_type, num_poly, conn_list_length, preferred_start_id, actual_start_handle, seq);
+      mdb_type, num_poly, conn_list_length, preferred_start_id, 
+      preferred_start_proc, actual_start_handle, seq);
   if (MB_SUCCESS != error || NULL == seq)
     return error;
 

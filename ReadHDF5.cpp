@@ -288,7 +288,7 @@ MBErrorCode ReadHDF5::read_nodes()
   
   MBEntityHandle handle;
   std::vector<double*> arrays(dim);
-  rval = readUtil->get_node_arrays( dim, (int)count, (int)first_id, handle, arrays );
+  rval = readUtil->get_node_arrays( dim, (int)count, (int)first_id, MB_PROC_RANK, handle, arrays );
   if (MB_SUCCESS != rval)
   {
     mhdf_closeData( filePtr, data_id, &status );
@@ -372,7 +372,7 @@ MBErrorCode ReadHDF5::read_elems( const char* elem_group )
   rval = readUtil->get_element_array( (int)count,
                                        nodes_per_elem,
                                        elems.type,
-                                       (int)first_id,
+                                      (int)first_id, -1,
                                        handle, 
                                        array );
   if (MB_SUCCESS != rval)
@@ -445,7 +445,7 @@ MBErrorCode ReadHDF5::read_poly( const char* elem_group )
   MBEntityHandle* conn_array;
   int* index_array;
   rval = readUtil->get_poly_element_array( count, data_len, elems.type, 
-                             first_id, handle, index_array, conn_array );
+                                           first_id, MB_PROC_RANK, handle, index_array, conn_array );
   if (MB_SUCCESS != rval)
   {
     mhdf_closeData( filePtr, handles[0], &status );

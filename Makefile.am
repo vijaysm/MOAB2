@@ -99,6 +99,7 @@ libMOAB_la_SOURCES = \
   MBMem.hpp \
   MBMeshSet.cpp \
   MBMeshSet.hpp \
+  MBParallelComm.cpp \
   MBRange.cpp \
   MBReadUtil.cpp \
   MBReadUtil.hpp \
@@ -155,6 +156,7 @@ libMOAB_la_include_HEADERS = \
   MBCore.hpp \
   MBError.hpp \
   MBInterface.hpp \
+  MBParallelComm.cpp \
   MBParallelConventions.h \
   MBRange.hpp \
   MBReadUtilIface.hpp \

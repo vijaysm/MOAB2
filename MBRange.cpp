@@ -549,3 +549,14 @@ MBEntityHandle MBRange::operator[](const int index)
   MBEntityHandle ret_val = CREATE_HANDLE(MBMAXTYPE, 0, err);
   return ret_val;
 }
+
+    //! return a subset of this range, by type
+MBRange MBRange::subset(const MBEntityType t) 
+{
+  int err;
+  MBEntityHandle start_han = CREATE_HANDLE(t, 0, MB_START_ID, err),
+    end_han = CREATE_HANDLE(t+1, 0, MB_START_ID, err);
+  MBRange retval(start_han, end_han);
+  return retval.intersect(*this);
+}
+

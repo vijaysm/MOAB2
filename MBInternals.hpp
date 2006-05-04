@@ -41,9 +41,10 @@
  *  Note that for specialized databases (such as all hex) 16 bits are not
  *  required for the entity type and the id space can be increased to over 2B.
  */
-
-#define MB_HANDLE_SHIFT_WIDTH (8*sizeof(MBEntityHandle)-4)
+#define MB_TYPE_WIDTH 4
+#define MB_HANDLE_SHIFT_WIDTH (8*sizeof(MBEntityHandle)-MB_TYPE_WIDTH-MB_PROC_WIDTH)
 #define MB_HANDLE_MASK ((MBEntityHandle)0xF << MB_HANDLE_SHIFT_WIDTH)
+#define MB_PROC_MASK (((MBEntityHandle)0xF << (MB_TYPE_WIDTH + MB_HANDLE_SHIFT_WIDTH)) >> MB_TYPE_WIDTH)
 
 
 #define MB_START_ID 1              //!< All entity id's currently start at 1
@@ -65,6 +66,25 @@ inline MBEntityHandle CREATE_HANDLE(int type, MBEntityHandle id, int& err)
   }
   
   MBEntityHandle handle = type;
+  handle = (handle << MB_PROC_WIDTH) + MB_PROC_RANK;
+  handle = (handle << MB_HANDLE_SHIFT_WIDTH) + id;
+
+  return handle;
+}
+
+//! Given a type and an id create a handle.  
+inline MBEntityHandle CREATE_HANDLE(const int type, const MBEntityHandle id, const int proc, int& err) 
+{
+  err = 0; //< Assume that there is a real error value defined somewhere
+
+  if (id > ~MB_HANDLE_MASK || type > MBMAXTYPE)
+  {
+    err = 1;   //< Assume that there is a real error value defined somewhere
+    return 1;  //<You've got to return something.  What do you return?
+  }
+  
+  MBEntityHandle handle = type;
+  handle = (handle << MB_PROC_WIDTH) + proc;
   handle = (handle << MB_HANDLE_SHIFT_WIDTH) + id;
 
   return handle;
@@ -76,12 +96,18 @@ inline unsigned long ID_FROM_HANDLE (MBEntityHandle handle)
   return (handle & ~MB_HANDLE_MASK);
 }
 
-//! Get the type out of the handle.
+//! Get the type out of the handle.  Can do a simple shift because
+//! handles are unsigned (therefore shifting fills with zero's)
 inline MBEntityType TYPE_FROM_HANDLE(MBEntityHandle handle) 
 {
-  return static_cast<MBEntityType> (
-      ((handle) & MB_HANDLE_MASK) >> MB_HANDLE_SHIFT_WIDTH);
+  return static_cast<MBEntityType> (handle >> (MB_HANDLE_SHIFT_WIDTH+MB_PROC_WIDTH));
+}
 
+//! Get the type out of the handle.  Can do a simple shift because
+//! handles are unsigned (therefore shifting fills with zero's)
+inline unsigned int PROC_FROM_HANDLE(MBEntityHandle handle) 
+{
+  return (handle & MB_PROC_MASK) >> MB_HANDLE_SHIFT_WIDTH;
 }
 
 //! base id of tag handles
@@ -92,12 +118,13 @@ typedef unsigned int MBTagId;
  * Z - reserved for internal sub-tag id
  * X - reserved for internal properties & lookup speed
  */
-#define TAG_ID_MASK              0x00FFFFFF
-#define TAG_PROP_MASK            0xFF000000
+#define MB_TAG_PROP_WIDTH 8
+#define MB_TAG_SHIFT_WIDTH (8*sizeof(MBTagId)-MB_TAG_PROP_WIDTH-MB_PROC_WIDTH)
+#define MB_TAG_PROP_MASK ((MBTagId)0xF << MB_TAG_SHIFT_WIDTH)
 
 inline MBTagId ID_FROM_TAG_HANDLE(MBTag tag_handle) 
 {
-  return static_cast<MBTagId>( (reinterpret_cast<long>(tag_handle)) & TAG_ID_MASK );
+  return static_cast<MBTagId>( (reinterpret_cast<unsigned long>(tag_handle)) & ~MB_TAG_PROP_MASK );
 }
 
   //! defines relatively how many entities this tag will be
@@ -116,7 +143,8 @@ const int TAG_BIT_PROPERTIES[] =
 
 inline MBTag TAG_HANDLE_FROM_ID(MBTagId tag_id, MBTagType prop) 
 {
-  return reinterpret_cast<MBTag>(tag_id | TAG_BIT_PROPERTIES[prop]);
+  return reinterpret_cast<MBTag>(tag_id | TAG_BIT_PROPERTIES[prop] | 
+                                 (MB_PROC_RANK << MB_TAG_SHIFT_WIDTH));
 }
 
 //! define non-inline versions of these functions for debugging

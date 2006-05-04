@@ -94,7 +94,7 @@ MBErrorCode EntitySequenceManager::create_scd_sequence(const int imin, const int
   }
   
     // get a start handle
-  start_handle = get_start_handle(hint_start_id, type, num_ent);
+  start_handle = get_start_handle(hint_start_id, MB_PROC_RANK, type, num_ent);
   assert(0 != start_handle);
   if (0 == start_handle) return MB_FAILURE;
   
@@ -118,21 +118,22 @@ MBErrorCode EntitySequenceManager::create_scd_sequence(const int imin, const int
   returns the actual start handle and the entity sequence pointer
 */
 MBErrorCode EntitySequenceManager::create_entity_sequence( MBEntityType type, int num_ent, int num_nodes,
-                                                            int hint_start, MBEntityHandle& start_handle, 
+                                                           int hint_start, int hint_start_proc, 
+                                                           MBEntityHandle& start_handle, 
                                                             MBEntitySequence*& seq)
 {
-  start_handle = get_start_handle(hint_start, type, num_ent);
+  start_handle = get_start_handle(hint_start, hint_start_proc, type, num_ent);
   
   // actually create the sequence
   return private_create_entity_sequence( start_handle, num_ent, num_nodes, true, seq);
 }
 
-MBEntityHandle EntitySequenceManager::get_start_handle(int hint_start, MBEntityType type,
+MBEntityHandle EntitySequenceManager::get_start_handle(int hint_start, int hint_start_proc, MBEntityType type,
                                                         int num_ent) 
 {
   // need to find unused space in the MBEntityHandle ID space
   int dum = 0;
-  MBEntityHandle start_hint_handle = CREATE_HANDLE(type, hint_start, dum);
+  MBEntityHandle start_hint_handle = CREATE_HANDLE(type, hint_start, hint_start_proc, dum);
  
   // this is the first of this type we are making 
   if(mSequenceMap[type].empty())

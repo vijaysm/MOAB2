@@ -72,105 +72,89 @@ MBErrorCode MBWriteUtil::get_node_arrays(
     const int start_node_id,
     std::vector<double*>& arrays)
 {
-  MBErrorCode error = MB_SUCCESS;
-
-  TagServer* tag_server = mMB->tag_server();
-
   // check the data coming into the function
   // dimension should be proper
   if(num_arrays < 1 || num_arrays > 3)
     return MB_FAILURE;
 
-  // number of nodes should be greater than zero
-  if(num_nodes < 1)
-    return MB_FAILURE;
-  
   // there should be some entities
   if(entities.empty())
     return MB_FAILURE;
 
   // memory should already be allocated for us
-  for(int check_array=0; check_array<num_arrays; check_array++)
-  {
-    if(arrays[check_array] == NULL)
-      return MB_FAILURE;
-  }
+  int tmp_num_arrays = 0;
+  for (unsigned int i = 0; i < 3; i++)
+    if (i+1 <= arrays.size() && NULL != arrays[i]) tmp_num_arrays++;
+  if (0 == tmp_num_arrays)
+    return MB_FAILURE;
 
-  // lets get ready to iterate the entity sequences and copy data
-  // we'll iterate the map in the sequence manager and
-  // the entities range at the same time
-
-  MBRange::const_iterator range_iter = entities.begin();
-  MBRange::const_iterator range_iter_end = entities.end();
-
-  std::map<MBEntityHandle, MBEntitySequence*>::const_iterator seq_iter
-    = mMB->sequence_manager()->entity_map(MBVERTEX)->begin();
+  // Sequence iterators
+  std::map<MBEntityHandle, MBEntitySequence*>::const_iterator seq_iter, seq_end;
+  seq_iter = mMB->sequence_manager()->entity_map(MBVERTEX)->begin();
+  seq_end = mMB->sequence_manager()->entity_map(MBVERTEX)->end();
   
-  std::map<MBEntityHandle, MBEntitySequence*>::const_iterator seq_iter_end
-    = mMB->sequence_manager()->entity_map(MBVERTEX)->end();
-
-  // lets find the entity sequence which holds the first entity
-  std::map<MBEntityHandle, MBEntitySequence*>::const_iterator seq_iter_lookahead = seq_iter;
-  seq_iter_lookahead++;
-  for( ; seq_iter_lookahead != seq_iter_end && 
-      seq_iter_lookahead->second->get_start_handle() < *range_iter; )
-  {
-    ++seq_iter;
-    ++seq_iter_lookahead;
+  // loop over range, getting coordinate value
+  double* output_iter[3] = {NULL, NULL, NULL};
+  double* output_end[3] = {NULL, NULL, NULL};
+  for (unsigned int i = 0; i < 3; i++) {
+    if (i+1 <= arrays.size() && NULL != arrays[i]){
+      output_iter[i] = arrays[i];
+      output_end[i] = arrays[i] + num_nodes;
+    }
   }
-
-  // a look ahead iterator
-  MBRange::const_iterator range_iter_lookahead = range_iter;
-
-  int node_id = start_node_id;
-  int node_index = 0;
-
-  // our main loop
-  for(; range_iter != range_iter_end && seq_iter != seq_iter_end; /* ++ is handled in loop*/ )
+  
+  MBRange::const_iterator iter = entities.begin(), end = entities.end();
+  
+  while (iter != end)
   {
-    // find a range that fits in the current entity sequence
-    for(; range_iter_lookahead != range_iter_end && 
-        *range_iter_lookahead <= seq_iter->second->get_end_handle(); 
-        ++range_iter_lookahead)
-    {}
-
-    // get the coordinate array
+      // Find the sqeuence containing the current handle
+    while (seq_iter != seq_end && seq_iter->second->get_end_handle() < *iter)
+      ++seq_iter;
+    if (seq_iter == seq_end || *iter < seq_iter->second->get_start_handle())
+      return MB_FAILURE;
+    
+      // Determine how much of the sequence we want.
+    MBRange::pair_iterator pair(iter);
+    MBRange::const_iterator prev(end);
+    --prev;
+    MBEntityHandle range_end = pair->second;
+    MBEntityHandle sequence_end = seq_iter->second->get_end_handle();
+    MBEntityHandle end_handle = range_end > sequence_end ? sequence_end : range_end;
+    if (end_handle > *prev)
+      end_handle = *prev;
+    MBEntityHandle count = end_handle - *iter + 1;
+    
+      // Get offset in sequence to start at
+    assert( *iter >= seq_iter->second->get_start_handle() );
+    MBEntityHandle offset = *iter - seq_iter->second->get_start_handle();
+    
+      // Get coordinate arrays from sequence
     double* coord_array[3];
-    static_cast<VertexEntitySequence*>(seq_iter->second)->get_coordinate_arrays(
-        coord_array[0], coord_array[1], coord_array[2]);
-    MBEntityHandle start_ent = seq_iter->second->get_start_handle();
-
-    // for each of the entities in this entity sequence, copy data
-    for(MBRange::const_iterator tmp_iter = range_iter; 
-        tmp_iter != range_iter_lookahead;
-        ++tmp_iter)
-    {
-      arrays[0][node_index] = coord_array[0][*tmp_iter - start_ent];
-      arrays[1][node_index] = coord_array[1][*tmp_iter - start_ent];
-
-      if( num_arrays == 3 )
-        arrays[2][node_index] = coord_array[2][*tmp_iter - start_ent];
-
-      ++node_index;
-      tag_server->set_data(node_id_tag, *tmp_iter, &node_id);
-      node_id++;
+    static_cast<VertexEntitySequence*>(seq_iter->second)
+      ->get_coordinate_arrays( coord_array[0], coord_array[1], coord_array[2]);
+    
+      // Copy data to ouput buffer
+    if (output_iter[0] + count > output_end[0])
+      return MB_FAILURE;
+    for (int i = 0; i < 3; i++) {
+      if (output_iter[i]) {
+        memcpy( output_iter[i], coord_array[i] + offset, count * sizeof(double) );
+        output_iter[i] += count;
+      }
     }
 
-    // go to the next entity sequence
-    ++seq_iter;
-    // start with the next entities
-    range_iter = range_iter_lookahead;
+    iter += count;
   }
 
+  if (0 == node_id_tag) return MB_SUCCESS;
+  
+    // now assign tags
+  std::vector<int> ids(num_nodes);
+  int node_id = start_node_id;
+  for (int i = 0; i < num_nodes; i++) ids[i] = node_id++;
+  MBErrorCode result = mMB->tag_set_data(node_id_tag, entities, &ids[0]);
 
-  // we need to make sure we found all the nodes we were supposed to find
-  // if not, we screwed up in this function
-  assert(node_id == start_node_id + num_nodes);
-  // if we hit this assert, then something wrong happened in MB.  The user only specifies meshsets to write out.
-  // Therefore, we should always have valid entity handles and we should always be able to get the nodes we want.
-
-  return error;
-
+  return result;
 }
 
 MBErrorCode MBWriteUtil::get_node_array(

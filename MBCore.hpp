@@ -631,7 +631,9 @@ public:
 
   //! creates a mesh set
   virtual MBErrorCode create_meshset(const unsigned int options, 
-                                      MBEntityHandle &ms_handle);
+                                     MBEntityHandle &ms_handle,
+                                     int start_id = 0,
+                                     int start_proc = -1);
 
   //! Empty a vector of mesh set
   /** Empty a mesh set.

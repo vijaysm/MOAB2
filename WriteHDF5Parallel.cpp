@@ -2031,8 +2031,8 @@ MBErrorCode WriteHDF5Parallel::communicate_remote_ids( MBEntityType type )
   
     // Get the ranges in the set
   std::vector<unsigned long> myranges;
-  MBRange::const_pair_iterator p_iter( export_set->range.pair_begin() );
-  const MBRange::const_pair_iterator p_end( export_set->range.pair_end() );
+  MBRange::const_pair_iterator p_iter = export_set->range.const_pair_begin();
+  const MBRange::const_pair_iterator p_end = export_set->range.const_pair_end();
   for ( ; p_iter != p_end; ++p_iter)
   {
     myranges.push_back( (*p_iter).first );

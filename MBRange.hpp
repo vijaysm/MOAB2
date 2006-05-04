@@ -283,7 +283,9 @@ public:
     //! check for internal consistency
   void sanity_check() const;
 
-
+    //! return a subset of this range, by type
+  MBRange subset(MBEntityType t);
+  
   struct PairNode
   {
 

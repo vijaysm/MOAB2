@@ -540,7 +540,7 @@ MBErrorCode ReadNCDF::read_nodes()
   MBEntityHandle node_handle = 0;
   std::vector<double*> arrays;
   readMeshIface->get_node_arrays(3, numberNodes_loading, 
-      MB_START_ID, node_handle, arrays);
+      MB_START_ID, MB_PROC_RANK, node_handle, arrays);
   
   vertexOffset = ID_FROM_HANDLE( node_handle ) - MB_START_ID;
 
@@ -842,7 +842,7 @@ MBErrorCode ReadNCDF::read_elements()
         (*this_it).numElements,
         verts_per_element,
         ExoIIUtil::ExoIIElementMBEntity[(*this_it).elemType],
-        (*this_it).startExoId,
+        (*this_it).startExoId, MB_PROC_RANK,
         (*this_it).startMBId,
         conn);
         

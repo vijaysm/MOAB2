@@ -41,7 +41,7 @@ public:
 
     //! Given information about the nodes to be written, and pointers to memory
     //! to which coordinates will be written, writes coordinate data there, and
-    //! also assigns global ids to nodes & writes to a tag
+    //! also assigns global ids to nodes & writes to a tag, if a tag is specified
     //! \param num_arrays Number of coordinate arrays requested
     //! \param num_nodes Number of nodes to be written
     //! \param entities Range of nodes to be written

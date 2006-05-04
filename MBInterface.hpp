@@ -135,6 +135,11 @@ typedef void** MBTag;
 #define MESHSET_SET          0x2
 #define MESHSET_ORDERED      0x4
 
+//! Proc width, rank: used to embed processor rank into handles; normally 0 on serial codes;
+//! set in constructor based on parallel or serial run characteristics
+#define MB_PROC_WIDTH MBInterface::procWidth
+#define MB_PROC_RANK MBInterface::procRank
+
 //! convenience items: not critical to the representation, but useful enough to appear here
 
 //! global pointer for easy access to a single MB database, declared here but defined by
@@ -1098,7 +1103,9 @@ public:
         \param ms_handle Handle for the meshset created
     */
   virtual MBErrorCode create_meshset(const unsigned int options, 
-                                     MBEntityHandle &ms_handle) = 0;
+                                     MBEntityHandle &ms_handle,
+                                     int start_id = 0,
+                                     int start_proc = -1) = 0;
 
     //! Empty a vector of mesh set
     /** Empty a mesh set.
@@ -1326,6 +1333,13 @@ public:
   virtual std::string get_error_string(const MBErrorCode code) const = 0;
 
     //@}
+
+    //! Number of bits used for rank
+  static int procWidth;
+  
+    //! Rank of this processor
+  static int procRank;
+  
 };
 
 //! predicate for STL algorithms.  Returns true if the entity handle is

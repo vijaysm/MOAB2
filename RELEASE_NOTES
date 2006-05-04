@@ -1,4 +1,11 @@
 Version beta: 
+- Added processor rank to entity handle, right below entity type and above id
+fields; width of this field is computed at initialization, and depends on the
+number of processors being used.  On serial versions, zero bits are used so
+handles are as before.
+- Added option to specify requested start id and processor id when creating
+a mesh set.
+- Added functionality (in MBParallelComm class) for passing mesh between processors.
 - Corrected set-related functions when inputting '0' (which is taken to mean 
 the interface set, i.e. the whole mesh); in this case, one can't add parent/child
 sets, but one can request them (return no sets in that case)

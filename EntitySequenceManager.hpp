@@ -77,8 +77,8 @@ public:
   //! for the start handle if possible
   //! returns the start handle and a pointer to the entity sequence.
   MBErrorCode create_entity_sequence(MBEntityType type, int num_ent, int num_nodes_per, 
-                                      int hint_start_id,
-                                      MBEntityHandle& start, MBEntitySequence *&);
+                                     int hint_start_id, int hint_start_proc,
+                                     MBEntityHandle& start, MBEntitySequence *&);
 
   //! finds the specific MBEntitySequence in which MBEntityHandle resides
   MBErrorCode find( MBEntityHandle     entity_handle,
@@ -132,7 +132,7 @@ private:
   std::map< MBEntityHandle, MBEntitySequence* >  mPartlyFullSequenceMap[MBMAXTYPE];
 
     //! get a valid start handle for this type and a hinted-at start id
-  MBEntityHandle get_start_handle(int hint_start, MBEntityType type, int num_ent);
+  MBEntityHandle get_start_handle(int hint_start, int hint_proc, MBEntityType type, int num_ent);
   
 };
 

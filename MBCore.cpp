@@ -48,6 +48,9 @@
 #  include "WriteVtk.hpp"
    typedef WriteVtk DefaultWriter;
 #endif
+#ifdef USE_MPI
+#include "mpi.h"
+#endif
 #include "MBTagConventions.hpp"
 #include "ExoIIUtil.hpp"
 #ifdef LINUX
@@ -77,11 +80,28 @@ const char *MBCore::errorStrings[] = {
   "MB_FAILURE",
 };
 
+int MBInterface::procWidth = 0;
+int MBInterface::procRank = 0;
+
 //! Constructor
 MBCore::MBCore() 
 {
 #ifdef XPCOM_MB
   NS_INIT_ISUPPORTS();
+#endif
+
+#ifdef USE_MPI
+  int ierror, initd;
+  ierror = MPI_Initialized(&initd);
+  if (!initd) 
+    ierror = MPI_Init(NULL, NULL);
+    
+  ierror = MPI_Comm_rank(MPI_COMM_WORLD, &procRank);
+  int num_procs, tmp_procs = 1;
+  ierror = MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+  for (procWidth = 0; procWidth < (int) (8*sizeof(MBEntityHandle)-MB_TYPE_WIDTH); procWidth++) 
+    if ((tmp_procs << procWidth) >= num_procs) 
+      break;
 #endif
 
   if (initialize() != MB_SUCCESS)
@@ -1910,11 +1930,22 @@ MBErrorCode MBCore::side_element(const MBEntityHandle source_entity,
 
 
 MBErrorCode MBCore::create_meshset(const unsigned int options, 
-                                     MBEntityHandle &ms_handle)
+                                   MBEntityHandle &ms_handle,
+                                   int start_id,
+                                   int start_proc)
 {
   int error;
-  ms_handle = CREATE_HANDLE(MBENTITYSET, maxMeshSetid, error );
 
+  if (0 == start_id) start_id = maxMeshSetid;
+  if (-1 == start_proc) start_proc = procRank;
+  
+  ms_handle = CREATE_HANDLE(MBENTITYSET, start_id, start_proc, error );
+  if (start_id < maxMeshSetid) {
+      // check for same-valued set
+    MBMeshSet *ms_ptr = update_cache( ms_handle );
+    if (NULL != ms_ptr) return MB_ALREADY_ALLOCATED;
+  }
+      
   //create the mesh set
   MBMeshSet *mesh_set = NULL;
   if(options & MESHSET_SET)
@@ -1935,7 +1966,7 @@ MBErrorCode MBCore::create_meshset(const unsigned int options,
   //add it to global map & update cached iter
   global_mesh_set_list.insert( std::pair<MBEntityHandle,MBMeshSet*>(ms_handle,mesh_set)); 
       
-  maxMeshSetid++;
+  if (start_id == maxMeshSetid) maxMeshSetid++;
 
   //update cached values
   cachedMsPtr = mesh_set;

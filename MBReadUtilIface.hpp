@@ -48,6 +48,7 @@ public:
     const int num_arrays,
     const int num_nodes, 
     const int preferred_start_id,
+    const int preferred_start_proc,
     MBEntityHandle& actual_start_handle, 
     std::vector<double*>& arrays
     ) = 0;
@@ -66,7 +67,8 @@ public:
     const int num_elements, 
     const int verts_per_element,
     const MBEntityType mdb_type,
-    int preferred_start_id, 
+    const int preferred_start_id, 
+    const int preferred_start_proc, 
     MBEntityHandle& actual_start_handle, 
     MBEntityHandle*& array
     ) = 0;
@@ -98,7 +100,8 @@ public:
       const int num_poly, 
       const int conn_list_length,
       const MBEntityType mdb_type,
-      int preferred_start_id, 
+      const int preferred_start_id, 
+      const int preferred_start_proc, 
       MBEntityHandle& actual_start_handle, 
       int*& last_index_array,
       MBEntityHandle*& connectivity_array 

@@ -61,11 +61,11 @@ int TagInfo::size_from_data_type( MBDataType t )
 TagServer::TagServer()
 {
   //sanity checks
-  assert((TAG_PROP_MASK | TAG_BIT_PROPERTIES[MB_TAG_BIT]) == TAG_PROP_MASK);
-  assert((TAG_PROP_MASK | TAG_BIT_PROPERTIES[MB_TAG_SPARSE]) == TAG_PROP_MASK);
-  assert((TAG_PROP_MASK | TAG_BIT_PROPERTIES[MB_TAG_DENSE]) == TAG_PROP_MASK);
-  assert((TAG_PROP_MASK | TAG_BIT_PROPERTIES[MB_TAG_MESH]) == TAG_PROP_MASK);
-  //assert((TAG_PROP_MASK | TAG_BIT_PROPERTIES[MB_TAG_STATIC) == TAG_PROP_MASK);
+  assert((MB_TAG_PROP_MASK | TAG_BIT_PROPERTIES[MB_TAG_BIT]) == MB_TAG_PROP_MASK);
+  assert((MB_TAG_PROP_MASK | TAG_BIT_PROPERTIES[MB_TAG_SPARSE]) == MB_TAG_PROP_MASK);
+  assert((MB_TAG_PROP_MASK | TAG_BIT_PROPERTIES[MB_TAG_DENSE]) == MB_TAG_PROP_MASK);
+  assert((MB_TAG_PROP_MASK | TAG_BIT_PROPERTIES[MB_TAG_MESH]) == MB_TAG_PROP_MASK);
+  //assert((MB_TAG_PROP_MASK | TAG_BIT_PROPERTIES[MB_TAG_STATIC) == MB_TAG_PROP_MASK);
 
   // we need these tag properties to be in order.
   // if this order is changed, then change reset_data() as well

@@ -29,7 +29,7 @@ case "x$WITH_MPI" in
     ;;
   xyes)
     CC_LIST="mpicc mpcc"
-    CXX_LIST="mpiCC mpCC"
+    CXX_LIST="mpiCC mpCC mpicxx"
     ;;
   x*)
     if test -z "$CC";then
@@ -43,7 +43,7 @@ case "x$WITH_MPI" in
       CC_LIST="$CC"
     fi
     if test -z "$CXX";then
-      for prog in mpicxx mpiCC mpCC; do
+      for prog in mpicxx mpiCC mpCC mpicxx; do
         if test -x ${WITH_MPI}/bin/$prog; then
           CXX="${WITH_MPI}/bin/$prog"
           CXX_LIST="$prog"
