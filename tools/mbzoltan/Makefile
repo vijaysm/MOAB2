@@ -123,8 +123,8 @@ mbzoltanLibrary:
                             "INCLUDE=$(INCLUDE)" 
 
 mbzoltan: mbzoltanLibrary
-	@cd mbzoltan; $(MAKE) all "CC=$(CPPC)" "CFLAGS=$(CFLAGS)" \
-			"INCLUDE=$(INCLUDE)" \
+	@cd mbzoltan; $(MAKE) all "ZOLTAN_LIB_DIR=$(ZOLTAN_LIB_DIR)" \
+		"CC=$(CPPC)" "CFLAGS=$(CFLAGS)" "INCLUDE=$(INCLUDE)" \
 			  "LIBDIR=$(LIBDIR)" "LIBS=$(LIBS)"
 
 install:
