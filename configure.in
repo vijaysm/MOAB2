@@ -119,6 +119,7 @@ MB_OPTIONAL_TOOL([mbsize],                    [no] )
 MB_OPTIONAL_TOOL([mbskin],                    [no] )
 MB_OPTIONAL_TOOL([mbtagprop],                 [no] )
 MB_OPTIONAL_TOOL([spheredecomp],              [no] )
+MB_OPTIONAL_TOOL([mbsurfplot],                [no] )
 MB_OPTIONAL_TOOL([mbzoltan],                  [no] )
 
 ################################################################################
@@ -132,7 +133,6 @@ MB_OPTIONAL_TOOL([mbzoltan],                  [no] )
    [AC_HELP_STRING([--with-zoltan-arch=OS],[Specify zoltan architecture])],
    [ZOLTAN_ARCH="$withval"],[ZOLTAN_ARCH=unknown])
   AC_SUBST(ZOLTAN_ARCH)
-
 
 ################################################################################
 #                           Chaco
@@ -514,6 +514,7 @@ AC_CONFIG_FILES([Makefile
                  tools/skin/Makefile
                  tools/tagprop/Makefile
                  tools/spheredecomp/Makefile
+                 tools/surfplot/Makefile
                  ])
 
 ################################################################################

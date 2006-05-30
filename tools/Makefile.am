@@ -55,6 +55,12 @@ else
   spheredecomp_DIR=
 endif
 
+if ENABLE_mbsurfplot
+  mbsurfplot_DIR = surfplot
+else
+  mbsurfplot_DIR=
+endif
+
 SUBDIRS = $(converter_DIR) \
           $(hexmodops_DIR) \
           $(mbchaco_DIR) \
@@ -64,5 +70,6 @@ SUBDIRS = $(converter_DIR) \
           $(size_DIR) \
           $(skin_DIR) \
           $(tagprop_DIR) \
-          $(spheredecomp_DIR)
+          $(spheredecomp_DIR) \
+          $(mbsurfplot_DIR)
 
