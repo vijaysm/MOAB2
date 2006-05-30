@@ -86,42 +86,34 @@ CartVect3D operator*( const CartVect3D a, const CartVect3D b )
 CartVect3D& CartVect3D::operator*=( const CartVect3D& o )
   { *this = *this * o; return *this; }
 
-static void fit_plane( const std::vector<CartVect3D>& points,
-                       CartVect3D& plane_normal_out,
-                       double& plane_constant_out )
-{
-  CartVect3D point(0,0,0), normal(0,0,0);
-  for (unsigned i = 0; i < points.size(); ++i) {
-    const CartVect3D& p1 = points[i];
-    const CartVect3D& p2 = points[(i+1)%points.size()];
-    point += p1;
-    normal += (p2 - p1) * (p2 + p1);
-  }
-  point /= points.size();
-  plane_constant_out = point % normal;
-  plane_normal_out = normal;
-}
-
 static void find_rotation( CartVect3D plane_normal,
                            double matrix[3][3] )
 {
     // normalize
   plane_normal /= plane_normal.len();
+  if (fabs(plane_normal.x) < 0.1)
+    plane_normal.x = 0.0;
+  if (fabs(plane_normal.y) < 0.1)
+    plane_normal.y = 0.0;
+  if (fabs(plane_normal.z) < 0.1)
+    plane_normal.z = 0.0;
   
     // calculate vector to rotate about
-  const CartVect3D vector = plane_normal * CartVect3D(0,0,1);
+  const CartVect3D Z(0,0,1);
+  CartVect3D vector = plane_normal * Z;
+  const double len = vector.len();
   
     // If vector is zero, no rotation
-  if (vector.len() < 1e-6) {
+  if (len < 1e-2) {
     matrix[0][0] = matrix[1][1] = matrix[2][2] = 1.0;
     matrix[0][1] = matrix[1][0] = 0.0;
     matrix[0][2] = matrix[2][0] = 0.0;
     matrix[1][2] = matrix[2][1] = 0.0;
     return;
   }
-  
-  const double cosine = (plane_normal % vector) /
-                        (plane_normal.len() * vector.len());
+  vector /= len;
+
+  const double cosine = plane_normal % Z;
   const double sine = sqrt( 1 - cosine*cosine );
   
   std::cerr << "Rotation: " << acos(cosine) << " [" << vector.x << ' ' << vector.y << ' ' << vector.z << ']' << std::endl;
@@ -253,6 +245,36 @@ int main(int argc, char* argv[])
     return OTHER_ERROR;
   }
   
+    // Calculate average corner normal in surface mesh
+  CartVect3D normal(0,0,0);
+  std::vector<MBEntityHandle> vertices;
+  std::vector<CartVect3D> coords;
+  for (MBRange::iterator i = elements.begin(); i != elements.end(); ++i)
+  {
+    vertices.clear();
+    result = moab->get_connectivity( &*i, 1, vertices, true );
+    if (MB_SUCCESS != result) {
+      std::cerr << "Internal error\n";
+      return OTHER_ERROR;
+    }
+    coords.clear();
+    coords.resize( vertices.size() );
+    result = moab->get_coords( &vertices[0], vertices.size(),
+                               reinterpret_cast<double*>(&coords[0]) );
+    if (MB_SUCCESS != result) {
+      std::cerr << "Internal error\n";
+      return OTHER_ERROR;
+    }
+    
+    for (size_t j = 0; j < coords.size(); ++j) {
+      CartVect3D v1 = coords[(j+1)%coords.size()] - coords[j];
+      CartVect3D v2 = coords[(j+1)%coords.size()] - coords[(j+2)%coords.size()];
+      normal += (v1 * v2);
+    }
+  }
+  normal /= normal.len();
+
+  
     // Get edges from elements
   MBRange edge_range;
   result = moab->get_adjacencies( elements, 1, true, edge_range, MBInterface::UNION );
@@ -264,33 +286,33 @@ int main(int argc, char* argv[])
     // Get vertex coordinates for each edge
   std::vector<MBEntityHandle> edges( edge_range.size() );
   std::copy( edge_range.begin(), edge_range.end(), edges.begin() );
-  std::vector<MBEntityHandle> vertices;
+  vertices.clear();
   result = moab->get_connectivity( &edges[0], edges.size(), vertices, true );
   if (MB_SUCCESS != result) {
     std::cerr << "Internal error\n";
     return OTHER_ERROR;
   }
-  std::vector<CartVect3D> coords( vertices.size() );
+  coords.clear();
+  coords.resize( vertices.size() );
   result = moab->get_coords( &vertices[0], vertices.size(), 
                              reinterpret_cast<double*>(&coords[0]) );
   if (MB_SUCCESS != result) {
     std::cerr << "Internal error\n";
     return OTHER_ERROR;
   }
-
-    // Rotate and project
-  CartVect3D normal;
-  double constant;
-  fit_plane( coords, normal, constant );
+  
+    // Rotate points such that the projection into the view plane
+    // can be accomplished by disgarding the 'z' coordinate of each
+    // point.
   
   std::cerr << "Plane normal: [" << normal.x << ' ' << normal.y << ' ' << normal.z << ']' << std::endl;
-  
-  
   double transform[3][3];
   find_rotation( normal, transform );
   
   for (iter = coords.begin(); iter != coords.end(); ++iter)
     transform_point( *iter, transform );
+  
+    // Write the file.
   
   switch (type) {
     case POSTSCRIPT:
