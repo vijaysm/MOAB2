@@ -89,6 +89,9 @@ libMOAB_la_SOURCES = \
   MBBits.hpp \
   MBCN.cpp \
   MBCNArrays.hpp \
+  MBCartVect.cpp \
+  MBMatrix3.cpp \
+  MBMatrix3.hpp \
   MBCore.cpp \
   MBFactory.cpp \
   MBInternals.hpp \
@@ -149,6 +152,7 @@ libMOAB_la_include_HEADERS = \
   HigherOrderFactory.hpp \
   HomXform.hpp \
   MBCN.hpp \
+  MBCartVect.hpp \
   MBCore.hpp \
   MBError.hpp \
   MBInterface.hpp \
