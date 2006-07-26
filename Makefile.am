@@ -20,7 +20,8 @@ check_PROGRAMS = moab_test \
                  homxform_test \
                  scdseq_test \
                  tqdcfr \
-                 test_adj 
+                 test_adj \
+                 obb_test
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 TESTS = $(check_PROGRAMS)
@@ -98,6 +99,8 @@ libMOAB_la_SOURCES = \
   MBMem.hpp \
   MBMeshSet.cpp \
   MBMeshSet.hpp \
+  MBOrientedBox.cpp \
+  MBOrientedBoxTreeTool.cpp \
   MBParallelComm.cpp \
   MBRange.cpp \
   MBReadUtil.cpp \
@@ -156,6 +159,8 @@ libMOAB_la_include_HEADERS = \
   MBCore.hpp \
   MBError.hpp \
   MBInterface.hpp \
+  MBOrientedBox.hpp \
+  MBOrientedBoxTreeTool.hpp \
   MBParallelComm.cpp \
   MBParallelConventions.h \
   MBRange.hpp \
@@ -219,6 +224,10 @@ tqdcfr_DEPENDENCIES = $(top_builddir)/libMOAB.la
 test_adj_SOURCES = test_adj.cpp
 test_adj_LDADD = $(top_builddir)/libMOAB.la
 test_adj_DEPENDENCIES = $(top_builddir)/libMOAB.la
+
+obb_test_SOURCES = obb_test.cpp
+obb_test_LDADD = $(top_builddir)/libMOAB.la
+obb_test_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 test/mb_big_test.g: $(top_srcdir)/test/mb_big_test.g.gz
 	$(ZCAT) $(top_srcdir)/test/mb_big_test.g.gz > test/mb_big_test.g

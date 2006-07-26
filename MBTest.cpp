@@ -38,6 +38,8 @@
  #include "MBSkinner.hpp"
  #include "MeshTopoUtil.hpp"
  #include "MBCN.hpp"
+ #include "MBOrientedBox.hpp"
+ #include "MBCartVect.hpp"
 
  #ifndef IS_BUILDING_MB
  #define IS_BUILDING_MB
@@ -3957,6 +3959,76 @@ MBErrorCode mb_split_test(MBInterface *gMB)
   return MB_SUCCESS;
 }
 
+MBErrorCode mb_obb_test(MBInterface *gMB) 
+{
+  MBErrorCode rval;
+  const double vertex_coords[] =
+    { 0, 0, 0,
+      1, 0, 0,
+      1, 1, 0,
+      0, 1, 0,
+      0, 0, 1,
+      1, 0, 1,
+      1, 1, 1,
+      0, 1, 1 };
+  const int num_double = sizeof(vertex_coords) / (sizeof(double));
+  const int num_vertex = num_double / 3;
+  assert (0 == num_double%3);
+  
+  MBRange vertices;
+  double min[3] = { HUGE_VAL,  HUGE_VAL,  HUGE_VAL};
+  double max[3] = {-HUGE_VAL, -HUGE_VAL, -HUGE_VAL};
+  for (int i = 0; i < num_vertex; ++i) {
+    MBEntityHandle h;
+    rval = gMB->create_vertex( vertex_coords + 3*i, h );
+    if (MB_SUCCESS != rval) return rval;
+    vertices.insert(h);
+    for (int j = 0; j < 3; ++j) {
+      const double c = vertex_coords[3*i+j];
+      if (c < min[j]) min[j] = c;
+      if (c > max[j]) max[j] = c;
+    }
+  }
+  
+  MBOrientedBox box;
+  rval = MBOrientedBox::compute_from_vertices( box, gMB, vertices );
+  if (MB_SUCCESS != rval) return rval;
+  
+  for (int i = 0; i < num_vertex; ++i) {
+    int result = box.contained( MBCartVect(vertex_coords[3*i]), 1e-6 );
+    if (!result) {
+      cout << "Box doesn't contain vertex " << i << std::endl;
+      rval = MB_FAILURE;
+    }
+  }
+  
+  double center[3] = { 0.5 * (max[0] + min[0]),
+                       0.5 * (max[1] + min[1]),
+                       0.5 * (max[2] + min[2]) };
+  double diag[3] = { max[0] - min[0],
+                     max[1] - min[1],
+                     max[2] - min[2] };
+  double outside1[3] = { center[0] + diag[0],
+                         center[1] + diag[1],
+                         center[2] + diag[2] };
+  double outside2[3] = { center[0] + diag[0],
+                         center[1] + diag[1],
+                         center[2] };
+  double outside3[3] = { center[0] + diag[0],
+                         center[1],
+                         center[2] };
+  double *outside[3] = {outside1, outside2, outside3};
+  for (int i = 0; i < 3; ++i) {
+    int result = box.contained( MBCartVect(outside[i]), 1e-6 );
+    if (result) {
+      cout << "point containment test incorrect for vertex outside box" << std::endl;
+      rval = MB_FAILURE;
+    }
+  } 
+  
+  return rval;
+}  
+
 static void usage(const char* exe) {
   cerr << "Usage: " << exe << " [-nostress] [-d input_file_dir]\n";
   exit (1);
@@ -4225,6 +4297,15 @@ int main(int argc, char* argv[])
     // split test
   result = mb_split_test(gMB);
   cout << "   mb_split_test: ";
+  handle_error_code(result, number_tests_failed,
+		    number_tests_not_implemented,
+		    number_tests_successful);
+  number_tests++;
+  cout << "\n";
+
+    // test oriented box
+  result = mb_obb_test(gMB);
+  cout << "   mb_obb_test: ";
   handle_error_code(result, number_tests_failed,
 		    number_tests_not_implemented,
 		    number_tests_successful);
