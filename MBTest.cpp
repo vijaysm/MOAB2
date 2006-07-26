@@ -49,7 +49,8 @@
 
  MBInterface* gMB = 0;
  
- string TestDir("./test");
+ #include "testdir.h"
+ string TestDir( TEST_DIR );
 
  /*!
  prints out a result string based on the value of error_code
