@@ -509,6 +509,49 @@ MBRange::const_iterator MBRange::lower_bound(MBRange::const_iterator first,
     return last;
 }
 
+MBRange::const_iterator MBRange::lower_bound( MBEntityType type ) const
+{
+  int err;
+  MBEntityHandle handle = CREATE_HANDLE( type, 0, err );
+  return err ? end() : lower_bound( begin(), end(), handle );
+}
+MBRange::const_iterator MBRange::upper_bound( MBEntityType type ) const
+{
+    // if (type+1) overflows, err will be true and we return end().
+  int err; 
+  MBEntityHandle handle = CREATE_HANDLE( type + 1, 0, err );
+  return err ? end() : lower_bound( begin(), end(), handle );
+}
+MBRange::const_iterator MBRange::lower_bound( int dimension ) const
+{
+  if (dimension < 3)
+    return lower_bound( (MBEntityType)dimension );
+  else if (dimension == 3)
+    return lower_bound( MBTET );
+  else
+    return end();
+} 
+MBRange::const_iterator MBRange::upper_bound( int dimension ) const
+{
+  // lower bound returns end() for error (e.g. dimension to large)
+  return lower_bound( dimension + 1 );
+} 
+
+bool MBRange::all_of_type( MBEntityType type ) const
+{
+  return empty() 
+      || (TYPE_FROM_HANDLE(mHead.mNext->first) == type
+       && TYPE_FROM_HANDLE(mHead.mPrev->second) == type);
+}
+
+bool MBRange::all_of_dimension( int dimension ) const
+{
+  return empty() 
+      || (MBCN::Dimension(TYPE_FROM_HANDLE(mHead.mNext->first)) == dimension
+       && MBCN::Dimension(TYPE_FROM_HANDLE(mHead.mPrev->second)) == dimension);
+}
+
+
 //! swap the contents of this range with another one
 //! THIS FUNCTION MUST NOT BE INLINED, THAT WILL ELIMINATE RANGE_EMPTY AND THIS_EMPTY
 //! BY SUBSTITUTION AND THE FUNCTION WON'T WORK RIGHT!
@@ -553,10 +596,8 @@ MBEntityHandle MBRange::operator[](const int index)
     //! return a subset of this range, by type
 MBRange MBRange::subset(const MBEntityType t) 
 {
-  int err;
-  MBEntityHandle start_han = CREATE_HANDLE(t, 0, MB_START_ID, err),
-    end_han = CREATE_HANDLE(t+1, 0, MB_START_ID, err);
-  MBRange retval(start_han, end_han);
-  return retval.intersect(*this);
+  MBRange result;
+  result.merge( lower_bound(t), upper_bound(t) );
+  return result;
 }
 

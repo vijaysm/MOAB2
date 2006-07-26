@@ -264,6 +264,18 @@ public:
                                     const_iterator last,
                                     MBEntityHandle val);
   
+  const_iterator lower_bound( MBEntityType type ) const;
+  const_iterator upper_bound( MBEntityType type ) const;
+  const_iterator lower_bound( int dimension ) const;
+  const_iterator upper_bound( int dimension ) const;
+  
+  //! True if all entities in range are of passed type 
+  //! (also true if range is empty)
+  bool all_of_type( MBEntityType type ) const;
+  //! True if all entities in range are of passed dimension 
+  //! (also true if range is empty)
+  bool all_of_dimension( int dimension ) const;
+  
   //! clears the contents of the list 
   void clear();
   
