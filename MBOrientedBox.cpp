@@ -366,7 +366,6 @@ bool MBOrientedBox::contained( const MBCartVect& point, double tol ) const
          fabs(from_center % axis[2]) - length[2] <= tol ;
 #else
   for (int i = 0; i < 3; ++i) {
-    double numerator = from_center % axis[i];
     double length = axis[i].length();
     if (fabs(from_center % axis[i]) - length*length > length*tol)
       return false;
