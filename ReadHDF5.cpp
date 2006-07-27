@@ -497,6 +497,7 @@ MBErrorCode ReadHDF5::read_sets()
   MBErrorCode rval;
   mhdf_Status status;
   hid_t meta_id, data_id, child_id, parent_id;
+  MBEntityHandle prev_handle = 0;
   
     // Check what data is in the file for sets
   int have_sets, have_data, have_children, have_parents;

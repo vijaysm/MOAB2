@@ -654,6 +654,7 @@ MBErrorCode WriteHDF5::gather_all_mesh( )
   
     // MOAB always returns the default set / global mesh
     // Don't want it.
+  int size;
   MBRange::iterator gs = setSet.range.begin();
   assert( gs != setSet.range.end() &&
           MB_SUCCESS == iFace->get_number_entities_by_handle( *gs, size ) && 
