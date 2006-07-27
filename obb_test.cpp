@@ -352,18 +352,23 @@ MBErrorCode TreeValidator::operator()( MBEntityHandle node,
     for (std::vector<MBCartVect>::iterator j = coords.begin(); j != coords.end(); ++j) {
       if (!box.contained( *j, epsilon ))
         outside = true;
-      else for (int d = 0; d < 3; ++d)
-        for (int s = 0; s < 2; ++s) {
-          const double sign[] = {-1, 1};
+      else for (int d = 0; d < 3; ++d) {
 #ifdef MB_ORIENTED_BOX_UNIT_VECTORS
-          MBCartVect v = sign[s] * box.length[d] * box.axis[d];
-#else 
-          MBCartVect v = sign[s] * box.axis[d];
+        double n = box.axis[d] % (*j - box.center);
+        if (fabs(n - box.length[d]) <= epsilon)
+          boundary[2*d] = true;
+        if (fabs(n + box.length[d]) <= epsilon)
+          boundary[2*d+1] = true;
+#else
+        double ln = box.axis[d].length();
+        MBCartVect v1 = *j - box.center - box.axis[d];
+        MBCartVect v2 = *j - box.center + box.axis[d];
+        if (fabs(v1 % box.axis[d]) <= ln * epsilon)
+          boundary[2*d] = true;
+        if (fabs(v2 % box.axis[d]) <= ln * epsilon)
+          boundary[2*d+1] = true;
 #endif
-          v *= ((*j - box.center - v) % v) / (v % v);
-           if (v.length() <= epsilon)
-            boundary[2*d+s] = true;
-        }
+      }
     }
     if (outside)
       ++num_outside;
