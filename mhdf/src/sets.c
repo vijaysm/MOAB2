@@ -205,7 +205,6 @@ mhdf_readwriteSetMeta( hid_t table_id, int read,
   hsize_t offsets[2], counts[2], mcounts[2] = {count,4}, moffsets[2] = {0,0};
   herr_t rval = 0;
   int dims, i;
-  long j;
   
   if (offset < 0 || count < 0)
   {

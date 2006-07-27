@@ -121,7 +121,6 @@ Tqdcfr::~Tqdcfr()
 MBErrorCode Tqdcfr::load_file(const char *file_name,
                               const int*, const int) 
 {
-  Tqdcfr* instance = this;
   MBErrorCode result;
   
     // open file
@@ -1036,7 +1035,7 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     FREADIA(total_conn, conn);
 
       // post-process connectivity into handles
-    MBEntityHandle new_handle, dum_handle;
+    MBEntityHandle new_handle;
     int dum_err;
     for (i = 0; i < total_conn; i++) {
       if (NULL == cubMOABVertexMap)
