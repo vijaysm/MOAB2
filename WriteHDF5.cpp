@@ -1820,8 +1820,8 @@ MBErrorCode WriteHDF5::create_file( const char* filename,
   
   const char* type_names[MBMAXTYPE];
   memset( type_names, 0, MBMAXTYPE * sizeof(char*) );
-  for (int i = (int)MBEDGE; i < MBENTITYSET; ++i)
-    type_names[i] = MBCN::EntityTypeName( (MBEntityType)i );
+  for (MBEntityType i = MBEDGE; i < MBENTITYSET; ++i)
+    type_names[i] = MBCN::EntityTypeName( i );
  
     // Create the file
   filePtr = mhdf_createFile( filename, overwrite, type_names, MBMAXTYPE, &status );

@@ -68,16 +68,18 @@ enum MBEntityType
 
 typedef void* Handle;
 
-//! postfix increment operator for MBEntityType
-inline MBEntityType operator++(MBEntityType &type, int)
-{
-  return static_cast<MBEntityType>(reinterpret_cast<int&>(type)++);
-}  
-
 //! prefix increment operator for MBEntityType
 inline MBEntityType & operator++(MBEntityType &type)
 {
-  return reinterpret_cast<MBEntityType&>(++reinterpret_cast<int&>(type));
+  return type = static_cast<MBEntityType>(type+1);
+}
+
+//! postfix increment operator for MBEntityType
+inline MBEntityType operator++(MBEntityType &type, int)
+{
+  MBEntityType oldval = type;
+  ++type;
+  return oldval;
 }
 
 typedef std::pair<MBEntityType, MBEntityType> MBDimensionPair;
