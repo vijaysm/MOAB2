@@ -26,7 +26,8 @@
 
 #include <iosfwd>
 
-#define MB_ORIENTED_BOX_UNIT_VECTORS
+#define MB_ORIENTED_BOX_UNIT_VECTORS 1
+#define MB_ORIENTED_BOX_OUTER_RADIUS 1
 
 class MBRange;
 
@@ -37,15 +38,19 @@ struct MBOrientedBox
 {
   MBCartVect center;  //!< Box center
   MBCartVect axis[3]; //!< Box axes, unit vectors sorted by extent of box along axis
-#ifdef MB_ORIENTED_BOX_UNIT_VECTORS
+#if MB_ORIENTED_BOX_UNIT_VECTORS
   MBCartVect length;  //!< distance from center to plane along each axis
 #endif
+#if MB_ORIENTED_BOX_OUTER_RADIUS
+  double radius;
+#endif
 
-  double inner_radius() const; // radius of inscribed sphere
-  double outer_radius() const; // radius of circumscribed sphere
-  double volume() const;
-  MBCartVect dimensions() const;
-  double area() const; // max of area of sides of box
+  inline double inner_radius() const; // radius of inscribed sphere
+  inline double outer_radius() const; // radius of circumscribed sphere
+  inline double outer_radius_squared() const;
+  inline double volume() const;
+  inline MBCartVect dimensions() const;
+  inline double area() const; // max of area of sides of box
   
   bool contained( const MBCartVect& point, double tolerance ) const;
   
@@ -76,8 +81,68 @@ struct MBOrientedBox
   static MBErrorCode compute_from_2d_cells( MBOrientedBox& result,
                                             MBInterface* instance,
                                             const MBRange& elements );
+                                    
 };
 
 std::ostream& operator<<( std::ostream&, const MBOrientedBox& );
+
+double MBOrientedBox::inner_radius() const
+{
+#if MB_ORIENTED_BOX_UNIT_VECTORS
+  return length[0];
+#else
+  return axis[0].length();
+#endif
+}
+
+double MBOrientedBox::outer_radius() const
+{
+#if MB_ORIENTED_BOX_OUTER_RADIUS
+  return radius;
+#elif MB_ORIENTED_BOX_UNIT_VECTORS
+  return length.length();
+#else
+  return (axis[0] + axis[1] + axis[2]).length();
+#endif
+}
+
+double MBOrientedBox::outer_radius_squared() const
+{
+#if MB_ORIENTED_BOX_OUTER_RADIUS
+  return radius * radius;
+#elif MB_ORIENTED_BOX_UNIT_VECTORS
+  return length % length;
+#else
+  const MBCartVect half_diag = axis[0] + axis[1] + axis[2];
+  return half_diag % half_diag;
+#endif
+}
+
+double MBOrientedBox::volume() const
+{
+#if MB_ORIENTED_BOX_UNIT_VECTORS
+  return 8 * length[0] * length[1] * length[2];
+#else
+  return fabs(8 * axis[0] % (axis[1] * axis[2]));
+#endif
+}
+
+MBCartVect MBOrientedBox::dimensions() const
+{
+#if MB_ORIENTED_BOX_UNIT_VECTORS
+  return 2.0 * length;
+#else
+  return 2.0 * MBCartVect( axis[0].length(), axis[1].length(), axis[2].length() );
+#endif
+}
+
+double MBOrientedBox::area() const
+{
+#if MB_ORIENTED_BOX_UNIT_VECTORS
+  return 4 * length[1] * length[2];
+#else
+  return 4 * (axis[1] * axis[2]).length();
+#endif
+}
 
 #endif

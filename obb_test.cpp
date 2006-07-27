@@ -211,6 +211,7 @@ class TreeValidator : public MBOrientedBoxTreeTool::Op
     unsigned unsorted_axis_count;
     unsigned non_unit_count;
     unsigned duplicate_entity_count;
+    unsigned bad_outer_radius_count;
     std::set<MBEntityHandle> seen;
 
     TreeValidator( MBInterface* instance_ptr, 
@@ -237,14 +238,16 @@ class TreeValidator : public MBOrientedBoxTreeTool::Op
         entity_invalid_count(0),
         unsorted_axis_count(0),
         non_unit_count(0),
-        duplicate_entity_count(0)
+        duplicate_entity_count(0),
+        bad_outer_radius_count(0)
       {}
     
     bool is_valid() const 
       { return 0 == loose_box_count+child_outside_count+entity_outside_count+
                     num_entities_outside+non_ortho_count+error_count+
                     empty_leaf_count+non_empty_non_leaf_count+entity_invalid_count
-                    +unsorted_axis_count+non_unit_count+duplicate_entity_count; }
+                    +unsorted_axis_count+non_unit_count+duplicate_entity_count
+                    +bad_outer_radius_count; }
     
     virtual MBErrorCode operator()( MBEntityHandle node,
                                     int depth,
@@ -353,7 +356,7 @@ MBErrorCode TreeValidator::operator()( MBEntityHandle node,
       if (!box.contained( *j, epsilon ))
         outside = true;
       else for (int d = 0; d < 3; ++d) {
-#ifdef MB_ORIENTED_BOX_UNIT_VECTORS
+#if MB_ORIENTED_BOX_UNIT_VECTORS
         double n = box.axis[d] % (*j - box.center);
         if (fabs(n - box.length[d]) <= epsilon)
           boundary[2*d] = true;
@@ -380,7 +383,7 @@ MBErrorCode TreeValidator::operator()( MBEntityHandle node,
   }
   
   MBCartVect alength( box.axis[0].length(), box.axis[1].length(), box.axis[2].length() );
-#ifdef MB_ORIENTED_BOX_UNIT_VECTORS
+#if MB_ORIENTED_BOX_UNIT_VECTORS
   MBCartVect length = box.length;
 #else
   MBCartVect length = alength;
@@ -391,12 +394,19 @@ MBErrorCode TreeValidator::operator()( MBEntityHandle node,
     print( node, "Box axes are not ordered from shortest to longest." );
   }
   
-#ifdef MB_ORIENTED_BOX_UNIT_VECTORS
+#if MB_ORIENTED_BOX_UNIT_VECTORS
   if (fabs(alength[0] - 1.0) > epsilon ||
       fabs(alength[1] - 1.0) > epsilon ||
       fabs(alength[2] - 1.0) > epsilon) {
     ++non_unit_count;
     print( node, "Box axes are not unit vectors.");
+  }
+#endif
+
+#if MB_ORIENTED_BOX_OUTER_RADIUS
+  if (fabs(length.length() - box.radius) > tolerance) {
+    ++bad_outer_radius_count;
+    print( node, "Box has incorrect outer radius.");
   }
 #endif
 
@@ -473,7 +483,7 @@ MBErrorCode CubitWriter::operator()( MBEntityHandle node,
   for (int i = 0; i < 2; ++i)
     for (int j = 0; j < 2; ++j)
       for (int k = 0; k < 2; ++k) {
-#ifdef MB_ORIENTED_BOX_UNIT_VECTORS
+#if MB_ORIENTED_BOX_UNIT_VECTORS
         MBCartVect corner = box.center + box.length[0] * sign[i] * box.axis[0] +
                                          box.length[1] * sign[j] * box.axis[1] +
                                          box.length[2] * sign[k] * box.axis[2];
@@ -660,6 +670,8 @@ static bool do_file( const char* filename )
       std::cout << "* " << op.non_ortho_count << " boxes with non-orthononal axes." << std::endl;
     if (op.non_unit_count)
       std::cout << "* " << op.non_unit_count << " boxes with non-unit axes." << std::endl;
+    if (op.bad_outer_radius_count)
+      std::cout << "* " << op.bad_outer_radius_count << " boxes incorrect outer radius." << std::endl;
     if (op.unsorted_axis_count)
       std::cout << "* " << op.unsorted_axis_count << " boxes axes in unsorted order." << std::endl;
     if (op.loose_box_count)

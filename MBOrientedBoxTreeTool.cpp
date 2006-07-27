@@ -541,11 +541,7 @@ MBErrorCode TreeNodePrinter::print_geometry( MBEntityHandle node )
   if (MB_SUCCESS != rval)
     return rval;
   
-#ifndef MB_ORIENTED_BOX_UNIT_VECTORS
-  MBCartVect length( box.axis[0].length(), box.axis[1].length(), box.axis[2].length() );
-#else
-  MBCartVect length( box.length );
-#endif
+  MBCartVect length = box.dimensions();
   
   outputStream << box.center << "  Radius: " 
                << box.inner_radius() << " - " << box.outer_radius() << std::endl

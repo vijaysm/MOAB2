@@ -42,67 +42,21 @@ std::ostream& operator<<( std::ostream& s, const MBOrientedBox& b )
   return s << b.center 
            << " + " 
            << b.axis[0] 
-#ifdef MB_ORIENTED_BOX_UNIT_VECTORS
+#if MB_ORIENTED_BOX_UNIT_VECTORS
            << ":" << b.length[0] 
 #endif
            << " x " 
            << b.axis[1] 
-#ifdef MB_ORIENTED_BOX_UNIT_VECTORS
+#if MB_ORIENTED_BOX_UNIT_VECTORS
            << ":" << b.length[1] 
 #endif
            << " x " 
            << b.axis[2]
-#ifdef MB_ORIENTED_BOX_UNIT_VECTORS
+#if MB_ORIENTED_BOX_UNIT_VECTORS
            << ":" << b.length[2] 
 #endif
             ;
 }
-
-double MBOrientedBox::inner_radius() const
-{
-#ifndef MB_ORIENTED_BOX_UNIT_VECTORS
-  return axis[0].length();
-#else
-  return length[0];
-#endif
-}
-
-double MBOrientedBox::outer_radius() const
-{
-#ifndef MB_ORIENTED_BOX_UNIT_VECTORS
-  return (axis[0] + axis[1] + axis[2]).length();
-#else
-  return length.length();
-#endif
-}
-
-double MBOrientedBox::volume() const
-{
-#ifdef MB_ORIENTED_BOX_UNIT_VECTORS
-  return 8 * length[0] * length[1] * length[2];
-#else
-  return fabs(8 * axis[0] % (axis[1] * axis[2]));
-#endif
-}
-
-MBCartVect MBOrientedBox::dimensions() const
-{
-#ifdef MB_ORIENTED_BOX_UNIT_VECTORS
-  return 2.0 * length;
-#else
-  return 2.0 * MBCartVect( axis[0].length(), axis[1].length(), axis[2].length() );
-#endif
-}
-
-double MBOrientedBox::area() const
-{
-#ifdef MB_ORIENTED_BOX_UNIT_VECTORS
-  return 4 * length[1] * length[2];
-#else
-  return 4 * (axis[1] * axis[2]).length();
-#endif
-}
-
 
 /**\brief Find closest point on line
  *
@@ -119,7 +73,7 @@ static double point_perp( const MBCartVect& p,   // closest to this point
                           const MBCartVect& b,   // point on line
                           const MBCartVect& m )  // line direction
 {
-#ifdef MB_ORIENTED_BOX_UNIT_VECTORS
+#if MB_ORIENTED_BOX_UNIT_VECTORS
   double t = (m % (p - b));
 #else
   double t = (m % (p - b)) / (m % m);
@@ -134,10 +88,15 @@ MBErrorCode MBOrientedBox::tag_handle( MBTag& handle_out,
 {
     // We're going to assume this when mapping the MBOrientedBox
     // to tag data, so assert it.  
-#ifdef MB_ORIENTED_BOX_UNIT_VECTORS
-  const size_t SIZE = 15 * sizeof(double);
+#if MB_ORIENTED_BOX_OUTER_RADIUS
+  const size_t rad_size = sizeof(double);
 #else
-  const size_t SIZE = 12 * sizeof(double);
+  const size_t rad_size = 0;
+#endif
+#if MB_ORIENTED_BOX_UNIT_VECTORS
+  const size_t SIZE = rad_size + 15 * sizeof(double);
+#else
+  const size_t SIZE = rad_size + 12 * sizeof(double);
 #endif
   assert( sizeof(MBOrientedBox) == SIZE );
   
@@ -242,13 +201,18 @@ static MBErrorCode box_from_axes( MBOrientedBox& result,
   }
 
     // scale axis to encompass all points, divide in half
-#ifdef MB_ORIENTED_BOX_UNIT_VECTORS
+#if MB_ORIENTED_BOX_UNIT_VECTORS
   result.length = range;
 #else
   result.axis[0] *= range[0];
   result.axis[1] *= range[1];
   result.axis[2] *= range[2];
 #endif
+
+#if MB_ORIENTED_BOX_OUTER_RADIUS
+  result.radius = range.length();
+#endif
+
   return MB_SUCCESS;
 }
 
@@ -360,7 +324,7 @@ MBErrorCode MBOrientedBox::compute_from_2d_cells( MBOrientedBox& result,
 bool MBOrientedBox::contained( const MBCartVect& point, double tol ) const
 {
   MBCartVect from_center = point - center;
-#ifdef MB_ORIENTED_BOX_UNIT_VECTORS
+#if MB_ORIENTED_BOX_UNIT_VECTORS
   return fabs(from_center % axis[0]) - length[0] <= tol &&
          fabs(from_center % axis[1]) - length[1] <= tol &&
          fabs(from_center % axis[2]) - length[2] <= tol ;
