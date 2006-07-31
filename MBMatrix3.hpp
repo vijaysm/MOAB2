@@ -169,6 +169,20 @@ inline MBMatrix3 outer_product( const MBCartVect& u,
                     u[2] * v[0], u[2] * v[1], u[2] * v[2] );
 }
 
+inline MBCartVect operator*( const MBCartVect& v, const MBMatrix3& m )
+{
+  return MBCartVect( v[0] * m(0,0) + v[1] * m(1,0) + v[2] * m(2,0),
+                     v[0] * m(0,1) + v[1] * m(1,1) + v[2] * m(2,1),
+                     v[0] * m(0,2) + v[1] * m(1,2) + v[2] * m(2,2) );
+}
+
+inline MBCartVect operator*( const MBMatrix3& m, const MBCartVect& v )
+{
+  return MBCartVect( v[0] * m(0,0) + v[1] * m(0,1) + v[2] * m(0,2),
+                     v[0] * m(1,0) + v[1] * m(1,1) + v[2] * m(1,2),
+                     v[0] * m(2,0) + v[1] * m(2,1) + v[2] * m(2,2) );
+} 
+
 inline double MBMatrix3::determinant() const
 {
   return d[0] * d[4] * d[8] 
