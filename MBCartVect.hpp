@@ -39,13 +39,13 @@ class MBCartVect
       { d[0] = d[1] = d[2] = v; }
     inline MBCartVect( double i, double j, double k )
       { d[0] = i; d[1] = j; d[2] = k; }
-    explicit inline MBCartVect( double a[3] )
+    explicit inline MBCartVect( const double a[3] )
       { d[0] = a[0]; d[1] = a[1]; d[2] = a[2]; }
     inline MBCartVect( const MBCartVect& v )
       { d[0] = v.d[0]; d[1] = v.d[1]; d[2] = v.d[2]; }
     inline MBCartVect& operator=( const MBCartVect& v )
       { d[0] = v.d[0]; d[1] = v.d[1]; d[2] = v.d[2]; return *this; }
-    inline MBCartVect& operator=( double v[3] )
+    inline MBCartVect& operator=( const double v[3] )
       { d[0]= v[0]; d[1] = v[1]; d[2] = v[2]; return *this; }
     
     inline double& operator[]( unsigned i )
