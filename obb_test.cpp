@@ -4,6 +4,7 @@
 #include "MBOrientedBox.hpp"
 
 #include <iostream>
+#include <sstream>
 #include <stdlib.h>
 #include <limits>
 #include <set>
@@ -35,8 +36,10 @@ static void usage( const char* error, const char* opt )
         << " -h  print help text. " << std::endl
         << " -v  verbose output (may be specified multiple times) " << std::endl
         << " -q  quite (minimal output) " << std::endl
+        << " -f <x>:<y>:<z>:<i>:<j>:<k> Do ray fire" << std::endl
         << " -c  write box geometry to Cubit journal file." << std::endl
         << " -k  write leaf contents to vtk files." << std::endl
+        << " -K  write contents of leaf boxes intersected by rays to vtk file." << std::endl
         << " -t <real> specify tolerance" << std::endl
         << " -n <int>  specify max entities per leaf node " << std::endl
         << " -l <int>  specify max tree levels" << std::endl
@@ -91,6 +94,10 @@ MBOrientedBoxTreeTool::Settings settings;
 double tolerance = 1e-6;
 bool write_cubit = false;
 bool write_vtk = false;
+bool write_ray_vtk = false;
+std::vector<MBCartVect> rays;
+
+void parse_ray( int& i, int argc, char* argv[] );
 
 int main( int argc, char* argv[] )
 {
@@ -101,13 +108,14 @@ int main( int argc, char* argv[] )
       if (!argv[i][1] || argv[i][2])
         usage(0,argv[i]);
       switch (argv[i][1]) {
-        default:  usage( 0, argv[i] );break;
-        case '-': flags = false;      break;
-        case 'v': ++verbosity;        break;
-        case 'q': verbosity = 0;      break;
-        case 'h': usage( 0, 0 );      break;
-        case 'c': write_cubit = true; break;
-        case 'k': write_vtk = true;   break;
+        default:  usage( 0, argv[i] );  break;
+        case '-': flags = false;        break;
+        case 'v': ++verbosity;          break;
+        case 'q': verbosity = 0;        break;
+        case 'h': usage( 0, 0 );        break;
+        case 'c': write_cubit = true;   break;
+        case 'k': write_vtk = true;     break;
+        case 'K': write_ray_vtk = true; break;
         case 'n': 
           settings.max_leaf_entities = get_int_option( i, argc, argv );
           break;
@@ -127,6 +135,9 @@ int main( int argc, char* argv[] )
 #endif
         case 't':
           tolerance = get_double_option( i, argc, argv );
+          break;
+        case 'f':
+          parse_ray( i, argc, argv );
           break;
       }
     }
@@ -165,6 +176,10 @@ int main( int argc, char* argv[] )
     }
   }
   
+  if (rays.empty()) {
+    std::cerr << "No ray specified, selecting default using outer box." << std::endl;
+  }
+  
   int exit_val = 0;
   for (unsigned j = 0; j < file_names.size(); ++j)
     if (!do_file( file_names[j] ))
@@ -172,6 +187,20 @@ int main( int argc, char* argv[] )
   
   return exit_val ? exit_val + 2 : 0;
 }
+
+
+void parse_ray( int& i, int argc, char* argv[] )
+{
+  MBCartVect point, direction;
+  if (6 != sscanf( get_option( i, argc, argv ), "%lf:%lf:%lf:%lf:%lf:%lf",
+                   &point[0], &point[1], &point[2],
+                   &direction[0], &direction[1], &direction[2] ))
+    usage( "Expected ray specified as <x>:<y>:<z>:<i>:<j>:<k>", 0 );
+  direction.normalize();
+  rays.push_back( point );
+  rays.push_back( direction );
+}
+ 
 
 class TreeValidator : public MBOrientedBoxTreeTool::Op
 {
@@ -549,7 +578,11 @@ MBErrorCode VtkWriter::operator()( MBEntityHandle node,
   
   return instance->write_mesh( file_name.c_str(), &node, 1 );
 }
+
   
+static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool, 
+                              MBEntityHandle root_set,
+                              const char* filename );
   
 static bool do_file( const char* filename )
 {
@@ -685,6 +718,12 @@ static bool do_file( const char* filename )
     if (!result)
       std::cout << "************************************************************" << std::endl;
   }
+  
+  if (!do_ray_fire_test( tool, root, filename )) {
+    if (verbosity)
+      std::cout << "Ray fire test failed." << std::endl;
+    result = false;
+  }
 
   rval = tool.delete_tree( root );
   if (MB_SUCCESS != rval) {
@@ -696,4 +735,118 @@ static bool do_file( const char* filename )
   return result;
 }
 
+struct RayTest {
+  const char* description;
+  unsigned expected_hits;
+  MBCartVect point, direction;
+};
 
+static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool, 
+                              MBEntityHandle root_set,
+                              const char* filename )
+{
+  if (verbosity > 1)
+    std::cout << "beginning ray fire tests" << std::endl;
+ 
+  MBOrientedBox box;
+  MBErrorCode rval = tool.box( root_set, box );
+  if (MB_SUCCESS != rval) {
+    if (verbosity)
+      std::cerr << "Error getting box for tree root set" << std::endl;
+    return false;
+  }
+  
+  RayTest tests[] = { 
+   { "half-diagonal from center", 1, box.center,                            1.5 * box.dimensions() },
+   { "large axis through box",    2, box.center - 1.2 * box.scaled_axis(2), box.axis[2] },
+   { "small axis through box",    2, box.center - 1.2 * box.scaled_axis(0), box.axis[0] },
+   { "parallel miss",             0, box.center + 2.0 * box.scaled_axis(1), box.axis[2] },
+   { "skew miss",                 0, box.center + box.dimensions(),          box.dimensions() * box.axis[2] }
+   };
+  
+  bool result = true;
+  const size_t num_test = sizeof(tests)/sizeof(tests[0]);
+  for (size_t i = 0; i < num_test; ++i) {
+    tests[i].direction.normalize();
+    if (verbosity > 2) 
+      std::cout << "  " << tests[i].description << " " << tests[i].point << " " << tests[i].direction << std::endl;
+    
+    std::vector<double> intersections;
+    rval = tool.ray_intersect_triangles( intersections, root_set, tolerance, tests[i].point.array(), tests[i].direction.array(), 0 );
+    if (MB_SUCCESS != rval) {
+      if (verbosity)
+        std::cout << "  Call to MBOrientedBoxTreeTool::fire_ray failed." << std::endl;
+      result = false;
+      continue;
+    }
+    
+    if (intersections.size() != tests[i].expected_hits) {
+      if (verbosity > 2)
+        std::cout << "  Expected " << tests[i].expected_hits << " and got "
+                  << intersections.size() << " hits for ray fire of " 
+                  << tests[i].description << std::endl;
+      if (verbosity > 3) {
+        for (unsigned j = 0; j < intersections.size(); ++j)
+          std::cout << "  " << intersections[j];
+        std::cout << std::endl;
+      }
+      result = false;
+    }
+  }
+  
+  for (size_t i = 0; i < rays.size(); i += 2) {
+    std::cout << rays[i] << "+" << rays[i+1] << " : ";
+    MBRange leaves;
+    std::vector<double> intersections;
+    rval = tool.ray_intersect_boxes( leaves, root_set, tolerance, rays[i].array(), rays[i+1].array(), 0 );
+    if (MB_SUCCESS != rval) {
+      std::cout << "FAILED" << std::endl;
+      result = false;
+      continue;
+    }
+    
+    if (!leaves.empty() && write_ray_vtk) {
+      std::string num, name(filename);
+      std::stringstream s;
+      s << (i/2);
+      s >> num;
+      name += "-ray";
+      name += num;
+      name += ".vtk";
+      
+      std::vector<MBEntityHandle> sets(leaves.size());
+      std::copy( leaves.begin(), leaves.end(), sets.begin() );
+      tool.get_moab_instance()->write_mesh( name.c_str(), &sets[0], sets.size() );
+      if (verbosity)
+        std::cout << "(Wrote " << name << ") ";
+    }      
+    
+    rval = tool.ray_intersect_triangles( intersections, leaves, tolerance, rays[i].array(), rays[i+1].array(), 0 );
+    if (MB_SUCCESS != rval) {
+      std::cout << "FAILED" << std::endl;
+      result = false;
+      continue;
+    }
+    
+    if (intersections.empty()) {
+      std::cout << "(none)" << std::endl;
+      continue;
+    }
+    
+    std::cout << intersections[0];
+    for (unsigned j = 1; j < intersections.size(); ++j)
+      std::cout << ", " << intersections[j];
+    std::cout << std::endl;
+    
+    if (!leaves.empty() && write_cubit && verbosity > 2) {
+      std::cout << "  intersected boxes:";
+      for (MBRange::iterator i= leaves.begin(); i!= leaves.end(); ++i)
+        std::cout << " " << tool.get_moab_instance()->id_from_handle(*i);
+      std::cout << std::endl;
+    }
+  }
+  
+  return result;
+}
+
+    

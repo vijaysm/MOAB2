@@ -48,9 +48,11 @@ struct MBOrientedBox
   inline double inner_radius() const; // radius of inscribed sphere
   inline double outer_radius() const; // radius of circumscribed sphere
   inline double outer_radius_squared() const;
+  inline double inner_radius_squared() const;
   inline double volume() const;
   inline MBCartVect dimensions() const;
   inline double area() const; // max of area of sides of box
+  inline MBCartVect scaled_axis( int index ) const;
   
   bool contained( const MBCartVect& point, double tolerance ) const;
   
@@ -81,6 +83,13 @@ struct MBOrientedBox
   static MBErrorCode compute_from_2d_cells( MBOrientedBox& result,
                                             MBInterface* instance,
                                             const MBRange& elements );
+
+  bool intersect_ray( const MBCartVect& ray_start_point,
+                      const MBCartVect& ray_unit_direction,
+                      double distance_tolerance,
+                      const double* segment_length = 0 ) const;
+                      
+  MBErrorCode make_hex( MBEntityHandle& hex, MBInterface* instance );
                                     
 };
 
@@ -118,6 +127,15 @@ double MBOrientedBox::outer_radius_squared() const
 #endif
 }
 
+double MBOrientedBox::inner_radius_squared() const
+{
+#if MB_ORIENTED_BOX_UNIT_VECTORS
+  return length[0] * length[0];
+#else
+  return axis[0] % axis[0];
+#endif
+}
+
 double MBOrientedBox::volume() const
 {
 #if MB_ORIENTED_BOX_UNIT_VECTORS
@@ -144,5 +162,15 @@ double MBOrientedBox::area() const
   return 4 * (axis[1] * axis[2]).length();
 #endif
 }
+
+MBCartVect MBOrientedBox::scaled_axis( int index ) const
+{
+#if MB_ORIENTED_BOX_UNIT_VECTORS
+  return length[index] * axis[index];
+#else
+  return axis[index];
+#endif
+}
+
 
 #endif

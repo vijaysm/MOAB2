@@ -106,6 +106,28 @@ class MBOrientedBoxTreeTool
                        MBEntityHandle& set_handle_out,
                        const Settings* settings = 0 );
     
+    MBErrorCode ray_intersect_boxes( MBRange& boxes_out,
+                                     MBEntityHandle root_set,
+                                     double tolerance,
+                                     const double ray_point[3],
+                                     const double unit_ray_dir[3],
+                                     const double* ray_length = 0 );
+
+    MBErrorCode ray_intersect_triangles( std::vector<double>& distances_out,
+                                         MBEntityHandle root_set,
+                                         double tolerance,
+                                         const double ray_point[3],
+                                         const double unit_ray_dir[3],
+                                         const double* ray_length = 0 );
+                          
+    MBErrorCode ray_intersect_triangles( 
+                          std::vector<double>& intersection_distances_out,
+                          const MBRange& leaf_boxes_containing_tris,
+                          double tolerance,
+                          const double ray_point[3],
+                          const double unit_ray_dir[3],
+                          const double* ray_length = 0 );
+    
     /**\brief Get oriented box at node in tree
      *
      * Get the oriented box for a node in an oriented bounding box tree.

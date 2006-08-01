@@ -95,6 +95,7 @@ libMOAB_la_SOURCES = \
   MBMatrix3.hpp \
   MBCore.cpp \
   MBFactory.cpp \
+  MBGeometry.cpp \
   MBInternals.hpp \
   MBMem.hpp \
   MBMeshSet.cpp \

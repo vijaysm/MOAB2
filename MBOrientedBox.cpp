@@ -365,3 +365,177 @@ bool MBOrientedBox::contained( const MBCartVect& point, double tol ) const
 //  return true;
 //}
 
+
+/* This implementation copied from cgmMC (overlap.C).
+ * Original author:  Tim Taugtes?
+ */
+bool MBOrientedBox::intersect_ray( const MBCartVect& b,
+                                   const MBCartVect& m,
+                                   double reps,
+                                   const double* len ) const
+{
+    // test distance from box center to line
+  const MBCartVect cx = center - b;
+  double dist_s = cx % m;
+  double dist_sq = cx % cx - (dist_s*dist_s);
+  double max_diagsq = outer_radius_squared();
+  
+    // if greater than the longest diagonal, we don't hit
+  if (dist_sq > max_diagsq+reps)
+    return false;
+  if (len && dist_s - max_diagsq > *len)
+    return false;
+  
+    // if smaller than shortest diagonal, we do hit
+  if (dist_sq < inner_radius_squared() - reps && dist_s >= 0.0)
+    return true;
+    
+    // get transpose of axes
+    // Note: if axes were stored as a matrix, could skip
+    // transpose and just switch order of operands in
+    // matrix-vector multiplies below. - J.K.
+  //MBMatrix3 B( axis[0][0], axis[1][0], axis[2][0],
+  //             axis[0][1], axis[1][1], axis[2][1],
+  //             axis[0][2], axis[1][2], axis[2][2] );
+  MBMatrix3 B( axis[0][0], axis[0][1], axis[0][2],
+               axis[1][0], axis[1][1], axis[1][2],
+               axis[2][0], axis[2][1], axis[2][2] );
+  //MBCartVect T = B * -center;
+  
+    // transform ray to box coordintae system
+  //MBCartVect par_pos = T + B * b;
+  MBCartVect par_pos = B * (b - center);
+  MBCartVect par_dir = B * m;
+  
+    //fast rejection test
+  const double half_x = length[0] + reps;
+  if ((par_pos[0] >  half_x && par_dir[0] >= 0) ||
+      (par_pos[0] < -half_x && par_dir[0] <= 0))
+    return false;
+  
+  const double half_y = length[1] + reps;
+  if ((par_pos[1] >  half_y && par_dir[1] >= 0) ||
+      (par_pos[1] < -half_y && par_dir[1] <= 0))
+    return false;
+    
+  const double half_z = length[2] + reps;
+  if ((par_pos[2] >  half_z && par_dir[2] >= 0) ||
+      (par_pos[2] < -half_z && par_dir[2] <= 0))
+    return false;
+  
+    // test if point is inside
+  if (par_pos[0] <= half_x && par_pos[0] >= -half_x &&
+      par_pos[1] <= half_y && par_pos[1] >= -half_y &&
+      par_pos[2] <= half_z && par_pos[2] >= -half_z)
+    return true;
+  
+  // then outside case
+//bool write = false;
+//if (write) {
+//  FILE* file = fopen("dump","w+");
+//  fprintf(file,"create vertex %f %f %f\n", -half_x, -half_y, -half_z );
+//  fprintf(file,"create vertex %f %f %f\n",  half_x, -half_y, -half_z );
+//  fprintf(file,"create vertex %f %f %f\n",  half_x,  half_y, -half_z );
+//  fprintf(file,"create vertex %f %f %f\n", -half_x,  half_y, -half_z );
+//  fprintf(file,"create vertex %f %f %f\n", -half_x, -half_y, +half_z );
+//  fprintf(file,"create vertex %f %f %f\n",  half_x, -half_y, +half_z );
+//  fprintf(file,"create vertex %f %f %f\n",  half_x,  half_y, +half_z );
+//  fprintf(file,"create vertex %f %f %f\n", -half_x,  half_y, +half_z );
+//  fprintf(file,"create surface vertex 1 2 6 5\n");
+//  fprintf(file,"create surface vertex 2 3 7 6\n");
+//  fprintf(file,"create surface vertex 3 4 8 7\n");
+//  fprintf(file,"create surface vertex 4 1 5 8\n");
+//  fprintf(file,"create surface vertex 4 3 2 1\n");
+//  fprintf(file,"create surface vertex 5 6 7 8\n");
+//  fprintf(file,"create volume surface all\n");
+//  fprintf(file,"delete vertex all\n");
+//  fprintf(file,"compress ids\n");
+//  fprintf(file,"create vertex %f %f %f\n", par_pos[0], par_pos[1], par_pos[2]);
+//  fprintf(file,"create vertex %f %f %f\n", par_pos[0] + 1000 * par_dir[0],
+//                                           par_pos[1] + 1000 * par_dir[1],
+//                                           par_dir[2] + 1000 * par_dir[2] );
+//  fprintf(file,"create curve vertex 9 10\n");
+//  fclose(file);
+//}
+
+    //test two xy plane
+  if ((half_z - par_pos[2]) * par_dir[2] >= 0 &&
+      fabs(par_dir[0] * (half_z - par_pos[2]) + par_dir[2] * par_pos[0]) 
+        <= fabs(par_dir[2] * half_x) && 
+      fabs(par_dir[1] * (half_z - par_pos[2]) + par_dir[2] * par_pos[1]) 
+        <= fabs(par_dir[2] * half_y)) 
+    return true;
+  if ((-half_z - par_pos[2]) * par_dir[2] >= 0 &&
+      fabs(par_dir[0] * (-half_z - par_pos[2]) + par_dir[2] * par_pos[0]) 
+        <= fabs(par_dir[2] * half_x) && 
+      fabs(par_dir[1] * (-half_z - par_pos[2]) + par_dir[2] * par_pos[1]) 
+        <= fabs(par_dir[2] * half_y))
+    return true;
+
+    //test two xz plane
+  if ((half_y - par_pos[1]) * par_dir[1] >= 0 &&
+      fabs(par_dir[0] * (half_y - par_pos[1]) + par_dir[1] * par_pos[0]) 
+        <= fabs(par_dir[1] * half_x) && 
+      fabs(par_dir[2] * (half_y - par_pos[1]) + par_dir[1] * par_pos[2]) 
+        <= fabs(par_dir[1] * half_z))
+    return true;
+  if ((-half_y - par_pos[1]) * par_dir[1] >= 0 &&
+      fabs(par_dir[0] * (-half_y - par_pos[1]) + par_dir[1] * par_pos[0]) 
+        <= fabs(par_dir[1] * half_x)  && 
+      fabs(par_dir[2] * (-half_y - par_pos[1]) + par_dir[1] * par_pos[2])
+        <= fabs(par_dir[1] * half_z))
+    return true;
+
+    //test two yz plane
+  if ((half_x - par_pos[0]) * par_dir[0] >= 0 &&
+      fabs(par_dir[1] * (half_x - par_pos[0]) + par_dir[0] * par_pos[1]) 
+        <= fabs(par_dir[0] * half_y) &&
+      fabs(par_dir[2] * (half_x - par_pos[0]) + par_dir[0] * par_pos[2]) 
+        <= fabs(par_dir[0] * half_z))
+    return true;
+  if ((-half_x - par_pos[0]) * par_dir[0] >= 0 &&
+      fabs(par_dir[1] * (-half_x - par_pos[0]) + par_dir[0] * par_pos[1])
+        <= fabs(par_dir[0] * half_y) &&
+      fabs(par_dir[2] * (-half_x - par_pos[0]) + par_dir[0] * par_pos[2]) 
+        <= fabs(par_dir[0] * half_z))
+    return true;
+
+  return false;
+}
+
+MBErrorCode MBOrientedBox::make_hex( MBEntityHandle& hex, MBInterface* instance )
+{
+  MBErrorCode rval;
+  int signs[8][3] = { { -1, -1, -1 },
+                      {  1, -1, -1 },
+                      {  1,  1, -1 },
+                      { -1,  1, -1 },
+                      { -1, -1,  1 },
+                      {  1, -1,  1 },
+                      {  1,  1,  1 },
+                      { -1,  1,  1 } };
+                      
+  std::vector<MBEntityHandle> vertices;
+  for (int i = 0; i < 8; ++i)
+  {
+    MBCartVect coords(center);
+    for (int j = 0; j < 3; ++j)
+      coords += signs[i][j] * axis[j];
+    MBEntityHandle handle;
+    rval = instance->create_vertex( coords.array(), handle );
+    if (MB_SUCCESS != rval) {
+      instance->delete_entities( &vertices[0], vertices.size() );
+      return rval;
+    }
+    vertices.push_back( handle );
+  }
+  
+  rval = instance->create_element( MBHEX, &vertices[0], vertices.size(), hex );
+  if (MB_SUCCESS != rval) {
+    instance->delete_entities( &vertices[0], vertices.size() );
+    return rval;
+  }
+  
+  return MB_SUCCESS;
+}
+  

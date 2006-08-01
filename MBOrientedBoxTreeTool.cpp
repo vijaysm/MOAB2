@@ -22,6 +22,7 @@
 #include "MBOrientedBox.hpp"
 #include "MBRange.hpp"
 #include "MBCN.hpp"
+#include "MBGeometry.hpp"
 #include <iostream>
 #include <iomanip>
 #include <algorithm>
@@ -399,6 +400,104 @@ MBErrorCode MBOrientedBoxTreeTool::preorder_traverse( MBEntityHandle set,
   }
   
   return MB_SUCCESS;
+}
+
+    
+MBErrorCode MBOrientedBoxTreeTool::ray_intersect_triangles( 
+                          std::vector<double>& intersection_distances_out,
+                          const MBRange& boxes,
+                          double tolerance,
+                          const double ray_point[3],
+                          const double unit_ray_dir[3],
+                          const double* ray_length )
+{
+  MBErrorCode rval;
+  intersection_distances_out.clear();
+    
+  const MBCartVect point( ray_point );
+  const MBCartVect dir( unit_ray_dir );
+  
+  for (MBRange::iterator b = boxes.begin(); b != boxes.end(); ++b)
+  {
+    MBRange tris;
+    rval = instance->get_entities_by_type( *b, MBTRI, tris );
+    if (MB_SUCCESS != rval)
+      return rval;
+    
+    for (MBRange::iterator t = tris.begin(); t != tris.end(); ++t)
+    {
+      const MBEntityHandle* conn;
+      int len;
+      rval = instance->get_connectivity( *t, conn, len, true );
+      if (MB_SUCCESS != rval)
+        return rval;
+      
+      MBCartVect coords[3];
+      rval = instance->get_coords( conn, 3, coords[0].array() );
+      if (MB_SUCCESS != rval)
+        return rval;
+      
+      double t;
+      if (MBGeometry::ray_tri_intersect( coords, point, dir, tolerance, t, ray_length ))
+        intersection_distances_out.push_back(t);
+    }
+  }
+  
+  return MB_SUCCESS;
+}                    
+
+MBErrorCode MBOrientedBoxTreeTool::ray_intersect_triangles( 
+                          std::vector<double>& intersection_distances_out,
+                          MBEntityHandle root_set,
+                          double tolerance,
+                          const double ray_point[3],
+                          const double unit_ray_dir[3],
+                          const double* ray_length )
+{
+  MBRange boxes;
+  MBErrorCode rval;
+  
+  rval = ray_intersect_boxes( boxes, root_set, tolerance, ray_point, unit_ray_dir, ray_length );
+  if (MB_SUCCESS != rval)
+    return rval;
+    
+  return ray_intersect_triangles( intersection_distances_out, boxes, tolerance, ray_point, unit_ray_dir, ray_length );
+}
+                    
+MBErrorCode MBOrientedBoxTreeTool::ray_intersect_boxes( 
+                          MBRange& boxes_out,
+                          MBEntityHandle root_set,
+                          double tolerance,
+                          const double ray_point[3],
+                          const double unit_ray_dir[3],
+                          const double* ray_length )
+{
+  RayIntersector op( this, ray_point, unit_ray_dir, ray_length, tolerance, boxes_out );
+  return preorder_traverse( root_set, op );
+}
+
+MBErrorCode RayIntersector::operator()( MBEntityHandle node,
+                                        int ,
+                                        bool& descend ) 
+{
+  MBOrientedBox box;
+  MBErrorCode rval = tool->box( node, box );
+  if (MB_SUCCESS != rval)
+    return rval;
+//int id = tool->get_moab_instance()->id_from_handle(node);
+//std::cout << "{" << id << "}" << std::endl;
+  
+  descend = box.intersect_ray( b, m, tol, len);
+  if (!descend)
+    return MB_SUCCESS;
+    
+  bool leaf = false;
+  rval = tool->children( node, leaf );
+  if (leaf) {
+    boxes.insert(node);
+    descend = false;
+  }
+  return rval;
 }
 
 class TreeLayoutPrinter : public MBOrientedBoxTreeTool::Op
@@ -883,3 +982,29 @@ MBErrorCode MBOrientedBoxTreeTool::stats( MBEntityHandle set, std::ostream& s )
   return MB_SUCCESS;
 }
 
+class RayIntersector : public MBOrientedBoxTreeTool::Op
+{
+  private:
+    MBOrientedBoxTreeTool* tool;
+    const MBCartVect b, m;
+    const double* len;
+    const double tol;
+    MBRange& boxes;
+    
+  public:
+    RayIntersector( MBOrientedBoxTreeTool* tool_ptr,
+                    const double* ray_point,
+                    const double* unit_ray_dir,
+                    const double *ray_length,
+                    double tolerance,
+                    MBRange& leaf_boxes )
+      : tool(tool_ptr),
+        b(ray_point), m(unit_ray_dir),
+        len(ray_length), tol(tolerance),
+        boxes(leaf_boxes) 
+      { }
+  
+    virtual MBErrorCode operator()( MBEntityHandle node,
+                                    int depth,
+                                    bool& descend );
+};
