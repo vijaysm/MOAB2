@@ -2202,17 +2202,31 @@ MBErrorCode WriteHDF5::create_tag( MBTag tag_id, id_t num_sparse_entities )
   
     // check for default and global/mesh values
   assert( 2*tag_size + sizeof(long) < (unsigned long)bufferSize );
-  bool have_default = true;
-  bool have_global = true;
+ 
+  bool have_default = false;
   rval = iFace->tag_get_default_value( tag_id, dataBuffer );
-  if (MB_ENTITY_NOT_FOUND == rval)
-    have_default = false;
-  else if(MB_SUCCESS != rval)
+  if (MB_SUCCESS == rval) {
+    have_default = true;
+    if (mb_type == MB_TYPE_HANDLE) {
+      int id;
+      rval = iFace->tag_get_data( idTag, (MBEntityHandle*)dataBuffer, 1, &id );
+      *(int*)dataBuffer = rval == MB_SUCCESS ? id : 0;
+    }
+  }
+  else if(MB_ENTITY_NOT_FOUND != rval)
     return rval;
+
+ bool have_global = false;
   rval = iFace->tag_get_data( tag_id, 0, 0, dataBuffer + tag_size );
-  if (MB_TAG_NOT_FOUND == rval)
-    have_global = false;
-  else if(MB_SUCCESS != rval)
+  if (MB_SUCCESS == rval) {
+    have_global = true;
+    if (mb_type == MB_TYPE_HANDLE) {
+      int id;
+      rval = iFace->tag_get_data( idTag, (MBEntityHandle*)(dataBuffer+tag_size), 1, &id );
+      *(int*)(dataBuffer+tag_size) = rval == MB_SUCCESS ? id : 0;
+    }
+  }
+  else if(MB_TAG_NOT_FOUND != rval)
     return rval;
 
 

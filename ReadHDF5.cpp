@@ -1057,6 +1057,17 @@ MBErrorCode ReadHDF5::read_tag( const char* name )
       readUtil->report_error( mhdf_message( &status ) );
       return MB_FAILURE;
     }
+    
+    if (have_default) {
+      rval = convert_id_to_handle( (MBEntityHandle*)dataBuffer, 1 );
+      if (MB_SUCCESS != rval)
+        have_default = 0;
+    }
+    if (have_global) {
+      rval = convert_id_to_handle( (MBEntityHandle*)(dataBuffer+tag_size), 1 );
+      if (MB_SUCCESS != rval)
+        have_global = 0;
+    }
   }
   
   
@@ -1101,7 +1112,12 @@ MBErrorCode ReadHDF5::read_tag( const char* name )
     // error
   else
     return rval;
-  
+    
+  if (have_global) {
+    rval = iFace->tag_set_data( handle, 0, 0, dataBuffer + tag_size );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
   
     // Read tag data
   MBErrorCode tmp = MB_SUCCESS;
