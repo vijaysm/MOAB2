@@ -5,6 +5,8 @@ EXTRA_DIST  = 125hex.g \
               1hex.g \
               1khex.g \
               1tet.g \
+              3k-tri-sphere.vtk \
+              4k-tri-plane.vtk \
               4tet.g \
               8hex.g \
               block.cub \
@@ -17,5 +19,5 @@ EXTRA_DIST  = 125hex.g \
               test.g \
               testquad-cyl.g \
               testquad.g \
-              testtet.g
+              testtet.g 
 

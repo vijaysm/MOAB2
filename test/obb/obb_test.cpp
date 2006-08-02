@@ -11,8 +11,8 @@
 
 #include "testdir.h"
 const char* NAME = "obb_test";
-const char* DEFAULT_FILES[] = { TEST_DIR "/3k-tri-sphere.vtk",
-                                TEST_DIR "/4k-tri-plane.vtk",
+const char* DEFAULT_FILES[] = { "../../" TEST_DIR "/3k-tri-sphere.vtk",
+                                "../../" TEST_DIR "/4k-tri-plane.vtk",
                                 0 };
 
 static void usage( const char* error, const char* opt )
