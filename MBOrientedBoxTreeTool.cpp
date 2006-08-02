@@ -402,6 +402,33 @@ MBErrorCode MBOrientedBoxTreeTool::preorder_traverse( MBEntityHandle set,
   return MB_SUCCESS;
 }
 
+
+class RayIntersector : public MBOrientedBoxTreeTool::Op
+{
+  private:
+    MBOrientedBoxTreeTool* tool;
+    const MBCartVect b, m;
+    const double* len;
+    const double tol;
+    MBRange& boxes;
+    
+  public:
+    RayIntersector( MBOrientedBoxTreeTool* tool_ptr,
+                    const double* ray_point,
+                    const double* unit_ray_dir,
+                    const double *ray_length,
+                    double tolerance,
+                    MBRange& leaf_boxes )
+      : tool(tool_ptr),
+        b(ray_point), m(unit_ray_dir),
+        len(ray_length), tol(tolerance),
+        boxes(leaf_boxes) 
+      { }
+  
+    virtual MBErrorCode operator()( MBEntityHandle node,
+                                    int depth,
+                                    bool& descend );
+};
     
 MBErrorCode MBOrientedBoxTreeTool::ray_intersect_triangles( 
                           std::vector<double>& intersection_distances_out,
@@ -981,30 +1008,3 @@ MBErrorCode MBOrientedBoxTreeTool::stats( MBEntityHandle set, std::ostream& s )
   
   return MB_SUCCESS;
 }
-
-class RayIntersector : public MBOrientedBoxTreeTool::Op
-{
-  private:
-    MBOrientedBoxTreeTool* tool;
-    const MBCartVect b, m;
-    const double* len;
-    const double tol;
-    MBRange& boxes;
-    
-  public:
-    RayIntersector( MBOrientedBoxTreeTool* tool_ptr,
-                    const double* ray_point,
-                    const double* unit_ray_dir,
-                    const double *ray_length,
-                    double tolerance,
-                    MBRange& leaf_boxes )
-      : tool(tool_ptr),
-        b(ray_point), m(unit_ray_dir),
-        len(ray_length), tol(tolerance),
-        boxes(leaf_boxes) 
-      { }
-  
-    virtual MBErrorCode operator()( MBEntityHandle node,
-                                    int depth,
-                                    bool& descend );
-};
