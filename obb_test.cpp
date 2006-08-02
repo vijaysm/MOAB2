@@ -40,6 +40,7 @@ static void usage( const char* error, const char* opt )
         << " -c  write box geometry to Cubit journal file." << std::endl
         << " -k  write leaf contents to vtk files." << std::endl
         << " -K  write contents of leaf boxes intersected by rays to vtk file." << std::endl
+        << " -o <name> Save file containing tree and triangles.  Mesh tag \"OBB_ROOT\"." << std::endl
         << " -t <real> specify tolerance" << std::endl
         << " -n <int>  specify max entities per leaf node " << std::endl
         << " -l <int>  specify max tree levels" << std::endl
@@ -96,6 +97,7 @@ bool write_cubit = false;
 bool write_vtk = false;
 bool write_ray_vtk = false;
 std::vector<MBCartVect> rays;
+const char* save_file_name = 0;
 
 void parse_ray( int& i, int argc, char* argv[] );
 
@@ -116,6 +118,10 @@ int main( int argc, char* argv[] )
         case 'c': write_cubit = true;   break;
         case 'k': write_vtk = true;     break;
         case 'K': write_ray_vtk = true; break;
+        case 'o':
+          save_file_name = get_option( i, argc, argv );
+          DEFAULT_FILES[1] = 0; // only one file can be saved, so by default only do one.
+          break;
         case 'n': 
           settings.max_leaf_entities = get_int_option( i, argc, argv );
           break;
@@ -176,8 +182,9 @@ int main( int argc, char* argv[] )
     }
   }
   
-  if (rays.empty()) {
-    std::cerr << "No ray specified, selecting default using outer box." << std::endl;
+  if (save_file_name && file_names.size() != 1) {
+    std::cerr << "Only one input file allowed if \"-o\" option is specified." << std::endl;
+    return 1;
   }
   
   int exit_val = 0;
@@ -583,6 +590,10 @@ MBErrorCode VtkWriter::operator()( MBEntityHandle node,
 static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool, 
                               MBEntityHandle root_set,
                               const char* filename );
+
+static MBErrorCode save_tree( MBInterface* instance,
+                              const char* filename,
+                              MBEntityHandle tree_root );
   
 static bool do_file( const char* filename )
 {
@@ -724,6 +735,13 @@ static bool do_file( const char* filename )
       std::cout << "Ray fire test failed." << std::endl;
     result = false;
   }
+  
+  if (result && save_file_name) {
+    if (MB_SUCCESS == save_tree( iface, save_file_name, root ))
+      std::cerr << "Wrote '" << save_file_name << "'" << std::endl;
+    else
+      std::cerr << "FAILED TO WRITE '" << save_file_name << "'" << std::endl;
+  }
 
   rval = tool.delete_tree( root );
   if (MB_SUCCESS != rval) {
@@ -849,4 +867,41 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
   return result;
 }
 
-    
+
+MBErrorCode save_tree( MBInterface* instance,
+                       const char* filename,
+                       MBEntityHandle tree_root )
+{
+  MBErrorCode rval;
+  MBTag tag;
+  
+  rval = instance->tag_get_handle( "OBB_ROOT", tag );
+  if (MB_SUCCESS == rval) {
+    int size;
+    MBDataType type;
+    rval = instance->tag_get_size( tag, size );
+    if (MB_SUCCESS != rval)
+      return rval;
+    rval = instance->tag_get_data_type( tag, type );
+    if (MB_SUCCESS != rval)
+      return rval;
+
+    if (size != sizeof(MBEntityHandle) || type != MB_TYPE_HANDLE)
+      return MB_FAILURE;
+  }
+  else {
+    rval = instance->tag_create( "OBB_ROOT", sizeof(MBEntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, tag, 0 );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  
+  rval = instance->tag_set_data( tag, 0, 0, &tree_root );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  return instance->write_mesh( filename );
+}
+
+
+  
+
