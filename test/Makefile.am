@@ -1,5 +1,5 @@
 
-SUBDIRS = dual h5file
+SUBDIRS = dual h5file obb
 
 EXTRA_DIST  = 125hex.g \
               1hex.g \
