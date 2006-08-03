@@ -578,10 +578,9 @@ MBErrorCode  MBCore::get_coords(const MBEntityHandle* entities,
                                   const int num_entities, 
                                   double *coords) const
 {
-  MBErrorCode status = MB_SUCCESS;
-
+  MBErrorCode status;
+  MBEntitySequence* seq;
   const MBEntityHandle* const end = entities + num_entities;
-  MBEntitySequence* seq = 0;
 
   for(const MBEntityHandle* iter = entities; iter != end; ++iter)
   {
