@@ -172,12 +172,6 @@ void VertexEntitySequence::free_handle(MBEntityHandle handle)
 
 }
 
-bool VertexEntitySequence::is_valid_entity(MBEntityHandle entity) const
-{
-  return !mFreeEntities[entity - mStartEntityHandle];
-}
-
-
 void VertexEntitySequence::get_entities(MBRange& entities) const
 {
   MBRange::iterator iter = entities.insert(mStartEntityHandle, mStartEntityHandle+mNumAllocated-1);

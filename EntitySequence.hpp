@@ -71,7 +71,7 @@ public:
   //! returns the number of entities space was allocated for
   int number_allocated() const { return mNumAllocated; }
   
-  virtual bool is_valid_entity(MBEntityHandle entity) const = 0;
+  inline bool is_valid_entity(MBEntityHandle entity) const;
 
   //! get an unused handle
   virtual MBEntityHandle get_unused_handle() = 0;
@@ -131,7 +131,6 @@ public:
 
   MBEntityHandle get_unused_handle();
   virtual void free_handle(MBEntityHandle handle);
-  virtual bool is_valid_entity(MBEntityHandle entity) const;
 
   MBErrorCode get_coordinates(MBEntityHandle entity,
                                double& x, double& y, double& z) const;
@@ -198,8 +197,6 @@ public:
   virtual bool has_mid_face_nodes() const;
   virtual bool has_mid_volume_nodes() const;
 
-  virtual bool is_valid_entity(MBEntityHandle entity) const;
-
 protected:
   
   unsigned short mNodesPerElement;
@@ -209,6 +206,11 @@ protected:
 
 };
 
+
+inline bool MBEntitySequence::is_valid_entity(MBEntityHandle entity) const
+{
+  return mFirstFreeIndex == -1 || !mFreeEntities[entity-mStartEntityHandle];
+}
 
 
 
@@ -258,12 +260,6 @@ inline MBErrorCode VertexEntitySequence::get_coordinate_arrays(double*& x, doubl
   y = mCoords[1];
   z = mCoords[2]; 
   return MB_SUCCESS;
-}
-
-inline bool ElementEntitySequence::is_valid_entity(MBEntityHandle entity) const
-{
-  // Do a quick check first to see if there are any empty slots
-  return mNumAllocated == mNumEntities ? true : !mFreeEntities[entity-mStartEntityHandle];
 }
 
 inline MBErrorCode ElementEntitySequence::get_connectivity(MBEntityHandle entity,
