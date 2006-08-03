@@ -80,8 +80,29 @@ const char *MBCore::errorStrings[] = {
   "MB_FAILURE",
 };
 
-int MBInterface::procWidth = 0;
-int MBInterface::procRank = 0;
+/* Initialize constants for serial (1 CPU) */
+unsigned MB_PROC_WIDTH = 0;
+unsigned MB_PROC_RANK = 0;
+unsigned MB_PROC_COUNT = 1;
+MBEntityHandle MB_PROC_MASK = 0;
+MBEntityHandle MB_ID_MASK = ~MB_TYPE_MASK;
+
+/** Calculate ceiling of log 2 of a positive integer */
+static unsigned ceil_log_2( unsigned n )
+{
+  unsigned result;
+  for (result = 0; n > (((MBEntityHandle)1)<<result); ++result);
+  return result;
+}
+
+void MB_SET_PROC( int num_cpu, int rank )
+{
+  MB_PROC_WIDTH = ceil_log_2( num_cpu );
+  MB_PROC_RANK = rank;
+  MB_PROC_COUNT = num_cpu;
+  MB_ID_MASK = (~MB_TYPE_MASK) >> MB_PROC_WIDTH;
+  MB_PROC_MASK = ~(MB_ID_MASK|MB_TYPE_MASK);
+}
 
 //! Constructor
 MBCore::MBCore() 
@@ -95,13 +116,11 @@ MBCore::MBCore()
   ierror = MPI_Initialized(&initd);
   if (!initd) 
     ierror = MPI_Init(NULL, NULL);
-    
-  ierror = MPI_Comm_rank(MPI_COMM_WORLD, &procRank);
-  int num_procs, tmp_procs = 1;
+  
+  int rank, num_procs;
+  ierror = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   ierror = MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
-  for (procWidth = 0; procWidth < (int) (8*sizeof(MBEntityHandle)-MB_TYPE_WIDTH); procWidth++) 
-    if ((tmp_procs << procWidth) >= num_procs) 
-      break;
+  MB_SET_PROC( num_procs, rank );
 #endif
 
   if (initialize() != MB_SUCCESS)
@@ -1937,7 +1956,7 @@ MBErrorCode MBCore::create_meshset(const unsigned int options,
   int error;
 
   if (0 == start_id) start_id = maxMeshSetid;
-  if (-1 == start_proc) start_proc = procRank;
+  if (-1 == start_proc) start_proc = MB_PROC_RANK;
   
   ms_handle = CREATE_HANDLE(MBENTITYSET, start_id, start_proc, error );
   if (start_id < maxMeshSetid) {

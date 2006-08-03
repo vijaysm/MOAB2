@@ -135,11 +135,6 @@ typedef void** MBTag;
 #define MESHSET_SET          0x2
 #define MESHSET_ORDERED      0x4
 
-//! Proc width, rank: used to embed processor rank into handles; normally 0 on serial codes;
-//! set in constructor based on parallel or serial run characteristics
-#define MB_PROC_WIDTH MBInterface::procWidth
-#define MB_PROC_RANK MBInterface::procRank
-
 //! convenience items: not critical to the representation, but useful enough to appear here
 
 //! global pointer for easy access to a single MB database, declared here but defined by
@@ -1333,12 +1328,6 @@ public:
   virtual std::string get_error_string(const MBErrorCode code) const = 0;
 
     //@}
-
-    //! Number of bits used for rank
-  static int procWidth;
-  
-    //! Rank of this processor
-  static int procRank;
   
 };
 

@@ -42,72 +42,69 @@
  *  required for the entity type and the id space can be increased to over 2B.
  */
 #define MB_TYPE_WIDTH 4
-#define MB_HANDLE_SHIFT_WIDTH (8*sizeof(MBEntityHandle)-MB_TYPE_WIDTH-MB_PROC_WIDTH)
-#define MB_HANDLE_MASK ((MBEntityHandle)0xF << MB_HANDLE_SHIFT_WIDTH)
-#define MB_PROC_MASK (((MBEntityHandle)0xF << (MB_TYPE_WIDTH + MB_HANDLE_SHIFT_WIDTH)) >> MB_TYPE_WIDTH)
-
+#define MB_PROC_AND_ID_WIDTH (8*sizeof(MBEntityHandle)-MB_TYPE_WIDTH)
+#define MB_ID_WIDTH (MB_PROC_AND_ID_WIDTH-MB_PROC_WIDTH)
+#define MB_TYPE_MASK ((MBEntityHandle)0xF << MB_PROC_AND_ID_WIDTH)
 
 #define MB_START_ID 1              //!< All entity id's currently start at 1
-#define MB_END_ID ~MB_HANDLE_MASK //!< Last id is the complement of the MASK
+#define MB_END_ID MB_ID_MASK //!< Last id is the complement of the MASK
 
 //! define non-inline versions of these functions for debugging
 extern MBEntityHandle ifh(MBEntityHandle handle);
 extern MBEntityType tfh(MBEntityHandle handle);
 
-//! Given a type and an id create a handle.  
-inline MBEntityHandle CREATE_HANDLE(int type, MBEntityHandle id, int& err) 
-{
-  err = 0; //< Assume that there is a real error value defined somewhere
+extern unsigned MB_PROC_WIDTH;
+extern unsigned MB_PROC_RANK;
+extern unsigned MB_PROC_COUNT;
+extern MBEntityHandle MB_PROC_MASK;
+extern MBEntityHandle MB_ID_MASK;
 
-  if (id > ~MB_HANDLE_MASK || type > MBMAXTYPE)
-  {
-    err = 1;   //< Assume that there is a real error value defined somewhere
-    return 1;  //<You've got to return something.  What do you return?
-  }
-  
-  MBEntityHandle handle = type;
-  handle = (handle << MB_PROC_WIDTH) + MB_PROC_RANK;
-  handle = (handle << MB_HANDLE_SHIFT_WIDTH) + id;
-
-  return handle;
-}
+/**\brief Initialize data for parallel mode
+ *
+ * Set data used for constructing entity handles in parallel mode.
+ */
+void MB_SET_PROC( int num_cpu, int rank );
 
 //! Given a type and an id create a handle.  
 inline MBEntityHandle CREATE_HANDLE(const int type, const MBEntityHandle id, const int proc, int& err) 
 {
   err = 0; //< Assume that there is a real error value defined somewhere
 
-  if (id > ~MB_HANDLE_MASK || type > MBMAXTYPE)
+  if (id > MB_END_ID || type > MBMAXTYPE)
   {
     err = 1;   //< Assume that there is a real error value defined somewhere
     return 1;  //<You've got to return something.  What do you return?
   }
   
-  MBEntityHandle handle = type;
-  handle = (handle << MB_PROC_WIDTH) + proc;
-  handle = (handle << MB_HANDLE_SHIFT_WIDTH) + id;
+  MBEntityHandle type_bits = (MBEntityHandle)type << MB_PROC_AND_ID_WIDTH;
+  MBEntityHandle proc_bits = ((MBEntityHandle)proc << MB_PROC_WIDTH)&MB_PROC_MASK;
+  return (MBEntityHandle)(type_bits|proc_bits|id);
+}
 
-  return handle;
+//! Given a type and an id create a handle.  
+inline MBEntityHandle CREATE_HANDLE(int type, MBEntityHandle id, int& err) 
+{
+  return CREATE_HANDLE( type, id, MB_PROC_RANK, err );
 }
 
 //! Get the entity id out of the handle.
 inline unsigned long ID_FROM_HANDLE (MBEntityHandle handle)
 {
-  return (handle & ~MB_HANDLE_MASK);
+  return (handle & MB_ID_MASK);
 }
 
 //! Get the type out of the handle.  Can do a simple shift because
 //! handles are unsigned (therefore shifting fills with zero's)
 inline MBEntityType TYPE_FROM_HANDLE(MBEntityHandle handle) 
 {
-  return static_cast<MBEntityType> (handle >> (MB_HANDLE_SHIFT_WIDTH+MB_PROC_WIDTH));
+  return static_cast<MBEntityType> (handle >> MB_PROC_AND_ID_WIDTH);
 }
 
 //! Get the type out of the handle.  Can do a simple shift because
 //! handles are unsigned (therefore shifting fills with zero's)
 inline unsigned int PROC_FROM_HANDLE(MBEntityHandle handle) 
 {
-  return (handle & MB_PROC_MASK) >> MB_HANDLE_SHIFT_WIDTH;
+  return (handle & MB_PROC_MASK) >> MB_ID_WIDTH;
 }
 
 //! base id of tag handles
