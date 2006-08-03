@@ -580,7 +580,7 @@ MBErrorCode  MBCore::get_coords(const MBEntityHandle* entities,
 {
   MBErrorCode status = MB_SUCCESS;
 
-  const MBEntityHandle* end = entities + num_entities;
+  const MBEntityHandle* const end = entities + num_entities;
   MBEntitySequence* seq = 0;
 
   for(const MBEntityHandle* iter = entities; iter != end; ++iter)
@@ -589,15 +589,11 @@ MBErrorCode  MBCore::get_coords(const MBEntityHandle* entities,
       return MB_TYPE_OUT_OF_RANGE;
 
     status = sequence_manager()->find(*iter, seq);
-    if(seq == NULL || status != MB_SUCCESS || !seq->is_valid_entity(*iter) )
+    if(status != MB_SUCCESS || !seq->is_valid_entity(*iter) )
       return MB_ENTITY_NOT_FOUND;
     
-    status = static_cast<VertexEntitySequence*>(seq)->get_coordinates(*iter, coords);
-
+    static_cast<VertexEntitySequence*>(seq)->get_coordinates(*iter, coords);
     coords += 3;
-
-    if(status != MB_SUCCESS)
-      return status;
   }
 
   return MB_SUCCESS; 
