@@ -6,6 +6,8 @@
 #include <iostream>
 #include <cmath>
 #include <time.h>
+#include <signal.h>
+#include <assert.h>
 
 const int NUM_RAYS = 20000;
 const int NUM_XSCT = 10000;
@@ -28,15 +30,16 @@ void generate_ray( const MBCartVect& sphere_center,
                    MBCartVect& dir )
 {
   const int H = RAND_MAX/2;
-  point[0] = (double)rand()/H - 1;
-  point[1] = (double)rand()/H - 1;
-  point[2] = std::sqrt( 1 - point[0] * point[0] - point[1] * point[1] );
-  point *= sphere_radius;
+  point[0] = -(double)rand() ;// - H;
+  point[1] = -(double)rand() ;// - H;
+  point[2] = -(double)rand() ;// - H;
+  point *= sphere_radius / (1.7320508075688772 * RAND_MAX);
   point += sphere_center;
   
-  dir[0] = (double)rand()/H - 1;
-  dir[1] = (double)rand()/H - 1;
-  dir[2] = std::sqrt( 1 - dir[0] * dir[0] - dir[1] * dir[1] );
+  dir[0] = (double)rand() ;// - H;
+  dir[1] = (double)rand() ;// - H;
+  dir[2] = (double)rand() ;// - H;
+  dir.normalize();
 }
 
 MBErrorCode read_tree( MBInterface* instance,
@@ -67,11 +70,30 @@ MBErrorCode read_tree( MBInterface* instance,
   return instance->tag_get_data( tag, 0, 0, &tree_root_out );
 }
 
+// global variables for CLI options
+int num_rays = NUM_RAYS;
+int num_xsct = NUM_XSCT;
+const char* filename = 0;
+
+// global to make accessable to signal handler
+int rays = 0, xsct = 0, gen = 0;
+clock_t t;
+
+extern "C" {
+  void signal_handler( int ) {
+    t = clock() - t;
+    std::cout << filename << ":" << std::endl
+              << rays << " of " << num_rays << " ray fires done" << std::endl
+              << xsct << " of " << num_xsct << " intersecting fires" << std::endl
+              << gen  << " unique rays used" << std::endl
+              << (double)t/CLOCKS_PER_SEC << " seconds" << std::endl;
+    exit(1);
+  }
+}
+
 int main( int argc, char* argv[] )
 {
-  int num_rays = NUM_RAYS;
-  int num_xsct = NUM_XSCT;
-  const char* filename = 0;
+  signal( SIGINT, &signal_handler );
   
   for (int i = 1; i < argc; ++i)
   {
@@ -140,8 +162,7 @@ int main( int argc, char* argv[] )
   randrays.reserve( cached );
   int cached_idx = 0;
   
-  clock_t t = clock();
-  int rays = 0, xsct = 0, gen = 0;
+  t = clock();
   for (;;) {
     if (!num_rays) {
       if (xsct >= num_xsct)
