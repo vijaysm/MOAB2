@@ -30,7 +30,6 @@
 #include "ScdElementSeq.hpp"
 #include "ScdVertexSeq.hpp"
 #include <assert.h>
-#include <iostream>
 #include <algorithm>
 
 
@@ -391,167 +390,120 @@ MBErrorCode EntitySequenceManager::delete_entity( MBEntityHandle entity )
 #ifdef TEST
 
 #include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
 
-#include <exodusII.h>
+#define check( A ) \
+  do {  \
+    if ((A) == MB_SUCCESS) break; \
+    std::cerr << "Error at " << __FILE__ << ":" << __LINE__ << std::endl; \
+    return 1; \
+  } while(false)
+  
+#define ensure( A ) \
+  do { \
+    if ((A)) break; \
+    std::cerr << "Failed test at " << __FILE__ << ":" << __LINE__ << std::endl; \
+    std::cerr << "  " #A << std::endl; \
+    return 1; \
+  } while(false)
+    
 
 int main()
 {
-  EntitySequenceManager *seq_manager =  new EntitySequenceManager;
-
-  MBEntityHandle start_ids[4] = {1};
-  start_ids[1] = static_cast<MBEntityHandle>((rand()/(RAND_MAX+1.0))*1000 + 100);
-  start_ids[2] = static_cast<MBEntityHandle>((rand()/(RAND_MAX+1.0))*1000+start_ids[1]);
-  start_ids[3] = static_cast<MBEntityHandle>(start_ids[2]+100);
-  std::cout << "start ids " << start_ids[0] << " " << start_ids[1] << " " << start_ids[2] << std::endl;
-
-  MBEntitySequence* e_seqs[3];
-  seq_manager->create_entity_sequence(start_ids[0], start_ids[1]-start_ids[0], true, e_seqs[0]);
-  seq_manager->create_entity_sequence(start_ids[1], start_ids[2]-start_ids[1], true, e_seqs[1]);
-  seq_manager->create_entity_sequence(start_ids[2], start_ids[3]-start_ids[2], true, e_seqs[2]);
-
-  MBTag tags[5] = {0,1,2,3,4};
-  int junk_data = 100;
-  int tmp;
-
-  for(int i=0; i<1000; i++)
-  { 
-    junk_data = tmp = rand();
-    MBEntityHandle ent_hndl = static_cast<MBEntityHandle>((rand()/(RAND_MAX+1.0))*(start_ids[1]-start_ids[0]));
-    e_seqs[0]->set_tag_data(ent_hndl, tags[1],&junk_data, 4, 0);  
-    junk_data = rand();
-    e_seqs[0]->get_tag_data(ent_hndl, tags[1],&junk_data);  
-    assert(tmp == junk_data);
-  }  
-
-  // clean up
-  delete seq_manager;
-
-  seq_manager =  new EntitySequenceManager;
-
-  char filename[100];
-  strcpy(filename, "mdbtest.g");
-
-  float exodus_version;
-  int CPU_WORD_SIZE = sizeof(double);  // With ExodusII version 2, all floats
-  int IO_WORD_SIZE = sizeof(double);   // should be changed to doubles
-
-  int exodusFile = ex_open ( filename, EX_READ, &CPU_WORD_SIZE,
-                         &IO_WORD_SIZE, &exodus_version );
-
-  if(exodusFile == -1)
-  {
-    std::cout << "couldn't open file " << filename << std::endl;
-    return 1;
-  }
-
-  int numberDimensions = 0;
-  int numberNodes_loading = 0;
-  int numberElements_loading = 0;
-  int numberElementBlocks_loading = 0; 
-  int numberNodeSets_loading = 0;
-  int numberSideSets_loading = 0;
-
-
-  char title[MAX_LINE_LENGTH+1];
-  int error = ex_get_init ( exodusFile,
-                            title,
-                            &numberDimensions,
-                            &numberNodes_loading,
-                            &numberElements_loading,
-                            &numberElementBlocks_loading,
-                            &numberNodeSets_loading,
-                            &numberSideSets_loading);
-
-
-  // create a sequence to hold the node coordinates
-  MBEntitySequence* nodes;
-  seq_manager->create_entity_sequence(1, numberNodes_loading+1, true, nodes);
-  double *x_array=0;
-  double *y_array=0;
-  double *z_array=0;
+  EntitySequenceManager manager;
+  MBEntitySequence* seq;
+  MBErrorCode rval;
   
-  nodes->get_tag_array_ptr(reinterpret_cast<void**>(&x_array), sizeof(double), 0);
-  nodes->get_tag_array_ptr(reinterpret_cast<void**>(&y_array), sizeof(double), 1);
-  nodes->get_tag_array_ptr(reinterpret_cast<void**>(&z_array), sizeof(double), 2);
-
-  // read in the coordinates
-  error = ex_get_coord( exodusFile, x_array, y_array, z_array );
-  std::vector<int> block_ids(numberElementBlocks_loading);
-  error = ex_get_elem_blk_ids(exodusFile, &block_ids[0]);
-
-  std::vector<MBEntitySequence*> blocks;
-  int elementid = 1;
-
-  for(unsigned int num_blocks = 0; num_blocks < block_ids.size(); num_blocks++)
-  {
-     int block_handle = block_ids[num_blocks];
-     int num_elements, num_nodes_per_element, num_attribs;
-     char element_type[MAX_STR_LENGTH+1];
-
-     error = ex_get_elem_block ( exodusFile,
-                                      block_handle,
-                                      element_type,
-                                      &num_elements,
-                                      &num_nodes_per_element,
-                                      &num_attribs );
-
-    
-     MBEntitySequence *block; 
-     seq_manager->create_entity_sequence( elementid, num_elements, true, block);
-     blocks.push_back( block );
-     int* conn = 0;
-     blocks[num_blocks]->get_tag_array_ptr(reinterpret_cast<void**>(&conn), sizeof(int)*num_nodes_per_element, 0);
-     error = ex_get_elem_conn ( exodusFile,
-                                 block_handle,
-                                 conn);
-     
-
-     elementid += num_elements;
-  }
-
+  // create some sequences
+  const unsigned NV[] = { 100, 5, 1000 };
+  MBEntityHandle vh[3];
+  MBEntitySequence* vs[3];
+  MBEntityHandle th;
+  MBEntitySequence *ts;
+  const unsigned TRI_START_ID = 3;
+  const unsigned NT = 640;
+  check(manager.create_entity_sequence( MBVERTEX, NV[0], 0, 1, 0, vh[0], vs[0] ));
+  check(manager.create_entity_sequence( MBVERTEX, NV[1], 0, 1, 0, vh[1], vs[1] ));
+  check(manager.create_entity_sequence( MBVERTEX, NV[2], 0, 1, 0, vh[2], vs[2] ));
+  check(manager.create_entity_sequence( MBTRI, NT, TRI_START_ID, 50, 0, th, ts ));
   
-  int num_nodes;
-  for(num_nodes = 0; num_nodes < numberNodes_loading; num_nodes++)
-  {
-    double x,y,z;
-    nodes->get_tag_data(num_nodes, 0, &x);
-    nodes->get_tag_data(num_nodes, 1, &y);
-    nodes->get_tag_data(num_nodes, 2, &z);
-
-    //std::cout << "node " << num_nodes << " x=" << x << " y=" << y << " z=" << z << std::endl;
-
-  }
-
-  int entity_handle = 0;
-  for(unsigned int j=0; j<blocks.size(); j++)
-  {
-    MBEntitySequence *seq_pointer = blocks[j];
-
-    int number_elements = seq_pointer->get_num_entities();
+  // check that returned entity sequences are valid
+  ensure( ID_FROM_HANDLE(vh[0]) > 0 && TYPE_FROM_HANDLE(vh[0]) == MBVERTEX );
+  ensure( ID_FROM_HANDLE(vh[0]) > 0 && TYPE_FROM_HANDLE(vh[1]) == MBVERTEX );
+  ensure( ID_FROM_HANDLE(vh[0]) > 0 && TYPE_FROM_HANDLE(vh[2]) == MBVERTEX );
+  ensure( ID_FROM_HANDLE( th  ) > 0 && TYPE_FROM_HANDLE( th  ) == MBTRI    );
+  //ensure( ID_FROM_HANDLE(th) == TRI_START_ID );
+  ensure( vs[0] );
+  ensure( vs[1] );  
+  ensure( vs[2] );  
+  ensure( ts );  
+  ensure( vs[0]->get_type() == MBVERTEX );
+  ensure( vs[1]->get_type() == MBVERTEX );
+  ensure( vs[2]->get_type() == MBVERTEX );
+  ensure( ts   ->get_type() == MBTRI    );
+  ensure( vs[0]->get_start_handle() == vh[0] );
+  ensure( vs[1]->get_start_handle() == vh[1] );
+  ensure( vs[2]->get_start_handle() == vh[2] );
+  ensure( ts   ->get_start_handle() == th    );
+  ensure( vs[0]->get_end_handle() - vs[0]->get_start_handle() == NV[0] - 1 );
+  ensure( vs[1]->get_end_handle() - vs[1]->get_start_handle() == NV[1] - 1 );
+  ensure( vs[2]->get_end_handle() - vs[2]->get_start_handle() == NV[2] - 1 );
+  ensure( ts   ->get_end_handle() - ts   ->get_start_handle() == NT    - 1 );
   
-      int conn_array[8] = {0};
-
-    for(int k=0; k<number_elements; k++)
-    {
-      seq_pointer->get_tag_data(k+entity_handle,0,conn_array);
-      //std::cout << "conn is for element " << k+entity_handle << " is ";
-      //for(int kk=0; kk<8; kk++)
-      //  std::cout<<" "<<conn_array[kk];
-      //std::cout<<std::endl;
-      
-    }
-
-      entity_handle += number_elements;
-  }
-
-
-  ex_close(exodusFile);
-
-  delete seq_manager;
-
-  std::cout << "success" << std::endl;
+  // construct ranges
+  MBRange vertices;
+  vertices.insert( vs[0]->get_start_handle(), vs[0]->get_end_handle() );
+  vertices.insert( vs[1]->get_start_handle(), vs[1]->get_end_handle() );
+  vertices.insert( vs[2]->get_start_handle(), vs[2]->get_end_handle() );
+  MBRange tris( ts->get_start_handle(), ts->get_end_handle() );
+  
+  // check find sequence given first
+  check( manager.find( vs[0]->get_start_handle(), seq ) );
+  ensure( seq == vs[0] );
+  check( manager.find( vs[1]->get_start_handle(), seq ) );
+  ensure( seq == vs[1] );
+  check( manager.find( vs[2]->get_start_handle(), seq ) );
+  ensure( seq == vs[2] );
+  check( manager.find( ts   ->get_start_handle(), seq ) );
+  ensure( seq == ts    );
+  
+  // check find sequence given last
+  check( manager.find( vs[0]->get_end_handle(), seq ) );
+  ensure( seq == vs[0] );
+  check( manager.find( vs[1]->get_end_handle(), seq ) );
+  ensure( seq == vs[1] );
+  check( manager.find( vs[2]->get_end_handle(), seq ) );
+  ensure( seq == vs[2] );
+  check( manager.find( ts   ->get_end_handle(), seq ) );
+  ensure( seq == ts    );
+  
+  // check find of invalid handle
+  MBEntityHandle badhandle = (MBEntityHandle)(ts->get_end_handle() + 1);
+  ensure( manager.find( badhandle, seq ) == MB_ENTITY_NOT_FOUND );
+  
+  // check find of invalid type
+  int junk;
+  badhandle = CREATE_HANDLE( MBTET, 1, junk );
+  //ensure( manager.find( badhandle, seq ) == MB_ENTITY_NOT_FOUND );
+  
+  // check get_entities
+  MBRange chkverts, chktris, chkhexes;
+  check( manager.get_entities( MBVERTEX, chkverts ) );
+  check( manager.get_entities( MBTRI   , chktris  ) );
+  check( manager.get_entities( MBHEX   , chkhexes ) );
+  ensure( chkverts.size() == vertices.size() && 
+          std::equal(chkverts.begin(), chkverts.end(), vertices.begin() ) );
+  ensure( chktris.size() == tris.size() && 
+          std::equal(chktris.begin(), chktris.end(), tris.begin() ) );
+  ensure( chkhexes.empty()     );
+  
+  // check get_number_entities
+  int num_vtx, num_tri, num_hex;
+  check( manager.get_number_entities( MBVERTEX, num_vtx ) );
+  check( manager.get_number_entities( MBTRI,    num_tri ) );
+  check( manager.get_number_entities( MBHEX,    num_hex ) );
+  ensure( num_vtx >= 0 &&  (unsigned)num_vtx == chkverts.size() );
+  ensure( num_tri >= 0 &&  (unsigned)num_tri == chktris .size() );
+  ensure( num_hex == 0 );
   
   return 0;
 }
