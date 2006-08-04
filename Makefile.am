@@ -96,6 +96,7 @@ libMOAB_la_SOURCES = \
   MBCore.cpp \
   MBFactory.cpp \
   MBGeometry.cpp \
+  MBGeometry.hpp \
   MBInternals.hpp \
   MBMem.hpp \
   MBMeshSet.cpp \
@@ -162,7 +163,7 @@ libMOAB_la_include_HEADERS = \
   MBInterface.hpp \
   MBOrientedBox.hpp \
   MBOrientedBoxTreeTool.hpp \
-  MBParallelComm.cpp \
+  MBParallelComm.hpp \
   MBParallelConventions.h \
   MBRange.hpp \
   MBReadUtilIface.hpp \
