@@ -523,6 +523,7 @@ AC_CONFIG_FILES([Makefile
                  tools/mbperf/Makefile
                  tools/mbchaco/Makefile
 		 tools/mbzoltan/Config.moab
+                 tools/mbzoltan/Makefile
                  tools/qvdual/Makefile
                  tools/size/Makefile
                  tools/skin/Makefile

@@ -73,3 +73,15 @@ SUBDIRS = $(converter_DIR) \
           $(spheredecomp_DIR) \
           $(mbsurfplot_DIR)
 
+EXTRA_DIST = mbzoltan/Config.moab.in \
+	     mbzoltan/Makefile \
+	     mbzoltan/Makefile.zoltan \
+	     mbzoltan/README \
+             mbzoltan/lib/Makefile \
+             mbzoltan/lib/mbmesh.c \
+             mbzoltan/lib/mbmisc.c \
+             mbzoltan/lib/mbzoltan.h \
+             mbzoltan/mbzoltan/MBZoltan.cpp \
+             mbzoltan/mbzoltan/MBZoltan.hpp \
+             mbzoltan/mbzoltan/Makefile \
+             mbzoltan/mbzoltan/main.cpp 	    
