@@ -20,7 +20,7 @@
 
 TARGETS = mbzoltanLibrary mbzoltan
 SUBDIRS = lib mbzoltan
-DISTFILES = Makefile README
+DISTFILES = Makefile Makefile.zoltan README
 DIST_SUBDIRS = lib mbzoltan
 PATH_SEPARATOR = :
 am__cd = CDPATH="$${ZSH_VERSION+.}$(PATH_SEPARATOR)" && cd
