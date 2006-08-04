@@ -551,7 +551,7 @@ MBErrorCode MeshTopoUtil::split_entities_manifold(MBEntityHandle *entities,
         case 2:
           tmp_ents[0] = entities[i];
           tmp_ents[1] = new_entity;
-          tmp_result = mbImpl->create_element(MBPOLYHEDRON, connect, 2, fill_entity); TC;
+          tmp_result = mbImpl->create_element(MBPOLYHEDRON, tmp_ents, 2, fill_entity); TC;
           break;
       }
       if (0 == fill_entity) {
