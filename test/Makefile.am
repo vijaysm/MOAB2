@@ -21,3 +21,18 @@ EXTRA_DIST  = 125hex.g \
               testquad.g \
               testtet.g 
 
+CLEANFILES = mb_big_test.g \
+             cell1.gen \
+             cell2.gen
+
+MOSTLYCLEANFILES = mb_write.g \
+                   mb_write2.g \
+                   hex_mid_volume_nodes.g \
+                   hex_mid_edge_face_vol_nodes.g \
+                   hex_mid_edge_nodes.g \
+                   tet_mid_edge_nodes.g \
+                   tet_mid_face_nodes.g \
+                   tet_mid_edge_face_nodes.g \
+                   tri_mid_edge_face_nodes.g \
+                   mb_stress_out.g \
+                   merge_test.ncdf
