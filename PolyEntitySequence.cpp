@@ -105,11 +105,10 @@ MBErrorCode PolyEntitySequence::add_entity(const MBEntityHandle *conn,
                                            const int num_conn, MBEntityHandle &handle)
 {
     // make sure input connectivity is the right type
-#ifdef NDEBUG
-  MBEntityType target_type = (TYPE_FROM_HANDLE(mStartEntityHandle) == MBPOLYGON ? 
-                              MBVERTEX : MBPOLYGON);
+#ifndef NDEBUG
+  const int conn_dim = get_type() == MBPOLYGON ? 0 : 2;
   for (const MBEntityHandle *it = conn; it < conn+num_conn; it++) {
-    if (TYPE_FROM_HANDLE(*it) != target_type)
+    if (MBCN::Dimension(TYPE_FROM_HANDLE(*it)) != conn_dim)
       return MB_FAILURE;
   }
 #endif
