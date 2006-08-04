@@ -99,7 +99,9 @@ AC_DEFUN([MB_OPTIONAL_TOOL],[
   AC_ARG_ENABLE( [$1],
 [AC_HELP_STRING([--enable-$1],[Build tool: $1])
 AC_HELP_STRING([--disable-$1],[Don't build $1])],
-                 [ENABLE_$1=$enableval],[ENABLE_$1=${mb_default_$1}] )
+                 [ENABLE_$1=$enableval
+DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-$1=\"${enableval}\""
+],[ENABLE_$1=${mb_default_$1}] )
   AM_CONDITIONAL([ENABLE_$1],[test "x${ENABLE_$1}" != "xno"])
   AC_MSG_CHECKING([if $1 is to be built])
   AC_MSG_RESULT([${ENABLE_$1}])
@@ -127,7 +129,9 @@ MB_OPTIONAL_TOOL([mbzoltan],                  [no] )
 ################################################################################
   AC_ARG_WITH([zoltan], 
    [AC_HELP_STRING([--with-zoltan=DIR],[Specify directory containing Zoltan])],
-   [ZOLTAN_DIR="$withval"],[ZOLTAN_DIR=unknown])
+   [ZOLTAN_DIR="$withval"
+    DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-zoltan=\"${withval}\""
+   ],[ZOLTAN_DIR=unknown])
   AC_SUBST(ZOLTAN_DIR)
   AC_ARG_WITH([zoltan-arch],
    [AC_HELP_STRING([--with-zoltan-arch=OS],[Specify zoltan architecture])],
@@ -140,7 +144,9 @@ MB_OPTIONAL_TOOL([mbzoltan],                  [no] )
 if test $ENABLE_mbchaco = yes; then
   AC_ARG_WITH(chaco, 
   [AC_HELP_STRING([--with-chaco=DIR], [Specify directory containing chaco source and library])],
-  [CHACO_DIR=$withval], [CHACO_DIR=])
+  [CHACO_DIR=$withval
+   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-chaco=\"${withval}\""
+   ], [CHACO_DIR=])
   case "x$CHACO_DIR" in
     xno|x)
       CHACO_MISSING=yes
@@ -184,7 +190,9 @@ if test $ENABLE_qvdual = yes; then
 ################################################################################
   AC_ARG_WITH([graphviz],
   [AC_HELP_STRING([--with-graphviz=DIR], [Specify directory containing GraphViz])],
-  [GRAPH_DIR=$withval],[GRAPH_DIR=])
+  [GRAPH_DIR=$withval
+   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-graphviz=\"${withval}\""
+  ],[GRAPH_DIR=])
 
   case "x$GRAPH_DIR" in
     xno)
@@ -279,7 +287,9 @@ if test $ENABLE_qvdual = yes; then
   
   AC_ARG_WITH([vtk],
   [AC_HELP_STRING([--with-vtk=DIR], [Specify directory containing VTK])],
-  [VTK_DIR=$withval],[VTK_DIR=])
+  [VTK_DIR=$withval
+   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-vtk=\"${withval}\""
+  ],[VTK_DIR=])
 
   VTK_INCLUDES=  
   case "x$VTK_DIR" in
@@ -497,6 +507,8 @@ fi
 ################################################################################
 AC_SUBST([INCLUDES])
 AC_SUBST([DEFINES])
+AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
+
 AC_CONFIG_FILES([Makefile 
                  config.make 
                  testdir.h

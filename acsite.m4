@@ -268,7 +268,9 @@ AC_DEFUN([SNL_CHECK_HDF5],[
   # CLI option for linking zlib
 AC_ARG_WITH(zlib,
   [AC_HELP_STRING([--with-zlib=DIR],[HDF5 requires zlib, and zlib can be found at...])],
-  [WITH_ZLIB=$withval],[WITH_ZLIB=])
+  [WITH_ZLIB=$withval
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-zlib=\"${withval}\""
+  ],[WITH_ZLIB=])
 case "x$WITH_ZLIB" in
   xyes|xno|x)
     ;;
@@ -288,7 +290,9 @@ fi
   # CLI option for linking szip
 AC_ARG_WITH(szip,
   [AC_HELP_STRING([--with-szip=DIR],[HDF5 requires szip, and szip an be found at...])],
-  [WITH_SZIP=$withval],[WITH_SZIP=])
+  [WITH_SZIP=$withval
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-szip=\"${withval}\""
+  ],[WITH_SZIP=])
 case "x$WITH_SZIP" in
   xyes|xno|x)
     ;;
@@ -308,7 +312,9 @@ fi
   # CLI option for extra HDF5 link flags
 AC_ARG_WITH([--with-hdf5-ldflags],[AC_HELP_STRING([--with-hdf5-ldflags=...],
  [Extra LDFLAGS required for HDF5 library (e.g. parallel IO lib)])],
- [HDF5_LDFLAGS="$withval"],[HDF5_LDFLAGS=])
+ [HDF5_LDFLAGS="$withval"
+ DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-hdf5-ldflags=\"${withval}\""
+],[HDF5_LDFLAGS=])
 case "x$HDF5_LDFLAGS" in
   xno)
     AC_MSG_ERROR("Invalid argument: --without-hdf5-ldflags")
@@ -324,7 +330,9 @@ AC_MSG_CHECKING([if HDF5 support is enabled])
 AC_ARG_WITH(hdf5, 
 [AC_HELP_STRING([--with-hdf5=DIR], [Specify HDF5 library to use for native file format])
 AC_HELP_STRING([--without-hdf5], [Disable support for native HDF5 file format])],
-[HDF5_ARG=$withval], [HDF5_ARG=yes])
+[HDF5_ARG=$withval
+ DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-hdf5=\"${withval}\""
+], [HDF5_ARG=yes])
 if test "xno" = "x$HDF5_ARG"; then
   AC_MSG_RESULT([no])
 else
@@ -411,7 +419,10 @@ AC_MSG_CHECKING([if NetCDF support is enabled])
 AC_ARG_WITH(netcdf, 
 [AC_HELP_STRING([--with-netcdf=DIR], [Specify NetCDF library to use for ExodusII file format])
 AC_HELP_STRING([--without-netcdf], [Disable support for ExodusII file format])],
-[NETCDF_ARG=$withval], [NETCDF_ARG=yes])
+[NETCDF_ARG=$withval
+DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-netcdf=\"${withval}\""
+]
+, [NETCDF_ARG=yes])
 if test "xno" = "x$NETCDF_ARG"; then
   AC_MSG_RESULT([no])
 else
