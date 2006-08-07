@@ -172,6 +172,9 @@ public:
   
   //! return the topological entity dimension
   static int Dimension(const MBEntityType t);
+  
+  //! return first MBEntityType of passed dimension
+  static MBEntityType lower_bound( int dimension );
 
   //! return the number of (corner) vertices contained in the specified type.  
   static int VerticesPerEntity(const MBEntityType t);

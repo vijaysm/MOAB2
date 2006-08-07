@@ -265,8 +265,8 @@ MBErrorCode MBOrientedBox::compute_from_2d_cells( MBOrientedBox& result,
                                                   const MBRange& elements )
 {
   MBErrorCode rval;
-  const MBRange::iterator begin = elements.lower_bound( 2 );
-  const MBRange::iterator end = elements.lower_bound( 3 );
+  const MBRange::iterator begin = elements.lower_bound( MBCN::lower_bound(2) );
+  const MBRange::iterator end = elements.lower_bound( MBCN::lower_bound(3) );
   
     // compute mean and moments
   MBMatrix3 a(0.0);

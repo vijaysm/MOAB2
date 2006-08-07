@@ -266,8 +266,6 @@ public:
   
   const_iterator lower_bound( MBEntityType type ) const;
   const_iterator upper_bound( MBEntityType type ) const;
-  const_iterator lower_bound( int dimension ) const;
-  const_iterator upper_bound( int dimension ) const;
   std::pair<const_iterator, const_iterator>
     MBRange::equal_range( MBEntityType type ) const;
   

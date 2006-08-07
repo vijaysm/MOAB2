@@ -535,21 +535,6 @@ MBRange::equal_range( MBEntityType type ) const
   return result;
 }
   
-MBRange::const_iterator MBRange::lower_bound( int dimension ) const
-{
-  if (dimension < 3)
-    return lower_bound( (MBEntityType)dimension );
-  else if (dimension == 3)
-    return lower_bound( MBTET );
-  else
-    return end();
-} 
-MBRange::const_iterator MBRange::upper_bound( int dimension ) const
-{
-  // lower bound returns end() for error (e.g. dimension to large)
-  return lower_bound( dimension + 1 );
-} 
-
 bool MBRange::all_of_type( MBEntityType type ) const
 {
   return empty() 
