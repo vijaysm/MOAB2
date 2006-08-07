@@ -90,8 +90,8 @@ MBErrorCode HigherOrderFactory::convert(const MBEntityHandle meshset, const bool
       continue;
 
     MBEntitySequence* seq = NULL;
-    seq_manager->find(*p_iter, seq);
-    if(seq)
+    MBErrorCode rval = seq_manager->find(*p_iter, seq);
+    if(MB_SUCCESS == rval)
     {
       if(sequence_range_pairs.empty() || seq != sequence_range_pairs.rbegin()->first)
       {
