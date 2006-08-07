@@ -41,7 +41,7 @@ int main()
 
   std::vector<MBEntityHandle> nodes;
   int err;
-  MBEntityHandle h = CREATE_HANDLE(MBQUAD, 0, err);
+  MBEntityHandle h = CREATE_HANDLE(MBQUAD, MB_START_ID, err);
   err = iface->get_adjacencies( &h, 1, 0, true, nodes);
 
   std::vector<MBEntityHandle> tris;
