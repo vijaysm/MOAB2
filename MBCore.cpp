@@ -1024,11 +1024,18 @@ MBErrorCode MBCore::get_entities_by_type(const MBEntityHandle meshset,
   if (0 != meshset) {
     MBMeshSet *ms_ptr = update_cache(meshset);
     if(NULL == ms_ptr) return MB_ENTITY_NOT_FOUND;
-    MBRange dum_range;
-    result = ms_ptr->get_entities(dum_range, recursive);
-    if (MB_SUCCESS != result) return result;
-    for (MBRange::reverse_iterator it = dum_range.rbegin(); it != dum_range.rend(); it++)
-      if (TYPE_FROM_HANDLE(*it) == type) entities.insert(*it);
+    
+    if (!recursive)
+      return ms_ptr->get_entities_by_type( type, entities );
+    
+    MBRange temp_range;
+    result = ms_ptr->get_entities(temp_range, true);
+    if (MB_SUCCESS != result)
+      return result;
+      
+    std::pair<MBRange::const_iterator,MBRange::const_iterator> its;
+    its = temp_range.equal_range( type );
+    entities.merge( its.first, its.second );
   }
   else if (type == MBENTITYSET) {
     for (std::map< MBEntityHandle, MBMeshSet*>::const_iterator it = 

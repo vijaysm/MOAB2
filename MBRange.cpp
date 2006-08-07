@@ -522,6 +522,19 @@ MBRange::const_iterator MBRange::upper_bound( MBEntityType type ) const
   MBEntityHandle handle = CREATE_HANDLE( type + 1, 0, err );
   return err ? end() : lower_bound( begin(), end(), handle );
 }
+std::pair<MBRange::const_iterator, MBRange::const_iterator>
+MBRange::equal_range( MBEntityType type ) const
+{
+  std::pair<MBRange::const_iterator, MBRange::const_iterator> result;
+  int err;
+  MBEntityHandle handle = CREATE_HANDLE( type, 0, err );
+  result.first = err ? end() : lower_bound( begin(), end(), handle );
+    // if (type+1) overflows, err will be true and we return end().
+  handle = CREATE_HANDLE( type+1, 0, err );
+  result.second = err ? end() : lower_bound( result.first, end(), handle );
+  return result;
+}
+  
 MBRange::const_iterator MBRange::lower_bound( int dimension ) const
 {
   if (dimension < 3)

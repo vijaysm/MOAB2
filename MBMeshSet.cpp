@@ -269,62 +269,36 @@ MBErrorCode MBMeshSet_MBRange::get_entities(std::vector<MBEntityHandle>& entity_
 MBErrorCode MBMeshSet_MBRange::get_entities(MBRange& entity_list,
                                                 const bool recursive) const
 {
-    
-  for(MBRange::const_iterator iter = mRange.begin();
-      iter != mRange.end(); ++iter)
-  {
-    if (recursive && TYPE_FROM_HANDLE(*iter) == MBENTITYSET) {
-      if (NULL != mMB) mMB->get_entities_by_handle(*iter, entity_list, recursive);
-    }
-    else
-      entity_list.insert(*iter);
+  MBRange::const_iterator iter = recursive ? 
+                                 mRange.lower_bound( MBENTITYSET ) :
+                                 mRange.end();
+    // merge entities (except entitysets if recursive)
+  entity_list.merge( mRange.begin(), iter );
+    // if recursive, get entities in contained sets
+  for ( ; iter != mRange.end(); ++iter) {
+    MBErrorCode rval = mMB->get_entities_by_handle( *iter, entity_list, true );
+    if (MB_SUCCESS != rval)
+      return rval;
   }
-  
   return MB_SUCCESS;
 }
 
 MBErrorCode MBMeshSet_MBRange::get_entities_by_type(MBEntityType type,
     std::vector<MBEntityHandle>& entity_list) const
 {
-  MBRange::pair_iterator iter = mRange.begin(), end_iter = mRange.end();
-  
-  for(; iter != end_iter; ++iter)
-    if(TYPE_FROM_HANDLE(iter->first) == type)
-      break;
-
-  for(; iter != end_iter; ++iter)
-  {
-    if (TYPE_FROM_HANDLE(iter->first) != type) break;
-    for(MBEntityHandle curr_handle = iter->first;
-        curr_handle <= iter->second; ++curr_handle)
-    {
-      assert(TYPE_FROM_HANDLE(curr_handle) == type);
-      entity_list.push_back(curr_handle);
-    }
-  }
-
+  std::pair<MBRange::const_iterator,MBRange::const_iterator> its;
+  its = mRange.equal_range( type );
+  std::copy( its.first, its.second, std::back_inserter( entity_list ) );
   return MB_SUCCESS;
-
 }
 
 MBErrorCode MBMeshSet_MBRange::get_entities_by_type(MBEntityType type,
     MBRange& entity_list) const
 {
-
-  MBRange::pair_iterator iter = mRange.begin(), end_iter = mRange.end();
-  
-  for(; iter != end_iter; ++iter)
-    if(TYPE_FROM_HANDLE(iter->first) == type)
-      break;
-
-  for(; iter != end_iter; ++iter)
-    if(TYPE_FROM_HANDLE(iter->first) == type)
-      entity_list.insert(iter->first, iter->second);
-    else
-      break;
-  
+  std::pair<MBRange::const_iterator,MBRange::const_iterator> its;
+  its = mRange.equal_range( type );
+  entity_list.merge( its.first, its.second );
   return MB_SUCCESS;
-
 }
 
 MBErrorCode MBMeshSet_MBRange::add_entities(const MBEntityHandle *entities,
