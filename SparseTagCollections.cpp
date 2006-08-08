@@ -36,7 +36,7 @@
   SparseTagSuperCollection functions -----------------------------
 */
 
-#define get_collection( A ) ((A) < mDataTags.size() ? mDataTags[(A)] : 0);
+#define get_collection( A ) ((A) < mDataTags.size() ? mDataTags[(A)] : 0)
 
 SparseTagSuperCollection::~SparseTagSuperCollection()
 {
