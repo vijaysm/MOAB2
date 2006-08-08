@@ -786,7 +786,11 @@ public:
   
     //! return whether the input handle is valid or not
   bool is_valid(const MBEntityHandle this_ent);
-  
+
+protected:
+
+  MBErrorCode recursive_get_sets( MBEntityHandle start_set,
+                              std::vector<MBMeshSet*>& sets ) const;
 private:
 
     //! database init and de-init routines

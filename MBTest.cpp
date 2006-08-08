@@ -880,7 +880,6 @@
 
     MBRange temp_range;
     std::vector<MBEntityHandle> temp_vector;
-    MBTag tag_handle;
     MBEntityType ent_type;
 
     MBEntityHandle ms_array[MBENTITYSET] = {0};
@@ -894,11 +893,8 @@
       if( result != MB_SUCCESS )
         return result;
 
-      result = MB->tag_get_handle("connectivity", tag_handle );
-      if( result != MB_SUCCESS )
-        continue;
       temp_range.clear();
-      result = MB->get_entities_by_type_and_tag(0, ent_type, &tag_handle, NULL, 1, temp_range );
+      result = MB->get_entities_by_type(0, ent_type, temp_range );
       if( result != MB_SUCCESS ) 
         return result;
       result = MB->add_entities( ms_array[ent_type], temp_range);
@@ -927,7 +923,120 @@
         cout<<"Number of entities in meshset test is not correct"<<endl;
         return MB_FAILURE; 
       }
+      
+      temp_range.clear();
+      result = MB->get_entities_by_type( ms_array[ent_type], ent_type, temp_range);
+      if(result != MB_SUCCESS)
+        return result;
+      if(number_array[ent_type] != temp_range.size())
+      {
+        cout<<"Number of entities by type in meshset test is not correct"<<endl;
+        return MB_FAILURE; 
+      }
+      
+      temp_range.clear();
+      result = MB->get_entities_by_dimension( ms_array[ent_type], MBCN::Dimension(ent_type), temp_range);
+      if(result != MB_SUCCESS)
+        return result;
+      if(number_array[ent_type] != temp_range.size())
+      {
+        cout<<"Number of entities by dimension in meshset test is not correct"<<endl;
+        return MB_FAILURE; 
+      }
     }
+
+    //----------TEST RECURSIVE OPERATIONS----------------//
+    MBEntityHandle recursive1, recursive2;
+    result = MB->create_meshset( MESHSET_SET, recursive1 );
+    if( result != MB_SUCCESS )
+      return result;
+    result = MB->create_meshset( 0, recursive2 );
+    if( result != MB_SUCCESS )
+      return result;
+    unsigned num_sets = MBENTITYSET-MBEDGE;
+    result = MB->add_entities( recursive2, ms_array+MBEDGE, num_sets );
+    if (MB_SUCCESS != result)
+      return result;
+    result = MB->add_entities( recursive1, &recursive2, 1 );
+    if (MB_SUCCESS != result)
+      return result;
+
+    temp_range.clear();
+    result = MB->get_entities_by_type( recursive1, MBENTITYSET, temp_range );
+    if (MB_SUCCESS != result)
+      return result;
+    if (temp_range.size() != 1)
+      return MB_FAILURE;
+
+    temp_range.clear();
+    result = MB->get_entities_by_type( recursive2, MBENTITYSET, temp_range );
+    if (MB_SUCCESS != result)
+      return result;
+    if (temp_range.size() != num_sets)
+      return MB_FAILURE;
+
+    temp_range.clear();
+    result = MB->get_entities_by_handle( recursive1, temp_range );
+    if (MB_SUCCESS != result)
+      return result;
+    if (temp_range.size() != 1)
+      return MB_FAILURE;
+
+    temp_range.clear();
+    result = MB->get_entities_by_handle( recursive2, temp_range );
+    if (MB_SUCCESS != result)
+      return result;
+    if (temp_range.size() != num_sets)
+      return MB_FAILURE;
+    
+    
+    unsigned total = 0;
+    for (ent_type = MBEDGE; ent_type != MBENTITYSET; ent_type++) 
+    {
+      total += number_array[ent_type];
+      temp_range.clear();
+      result = MB->get_entities_by_type( recursive1, ent_type, temp_range, true );
+      if(result != MB_SUCCESS)
+        return result;
+      if(number_array[ent_type] != temp_range.size())
+      {
+        cout<<"Recursive number of entities by type in meshset test is not correct"<<endl;
+        return MB_FAILURE; 
+      }
+    }
+    if (0 == total) {
+      cout << "Invalid test input.  No entities!" << endl;
+      return MB_FAILURE;
+    }
+
+    temp_range.clear();
+    result = MB->get_entities_by_handle( recursive1, temp_range, true );
+    if(result != MB_SUCCESS)
+      return result;
+    if(total != temp_range.size())
+    {
+      cout<<"Recursive number of entities in meshset test is not correct"<<endl;
+      return MB_FAILURE; 
+    }
+    
+    // try circular relation
+    result = MB->add_entities( recursive2, &recursive1, 1 );
+    if (MB_SUCCESS != result) {
+      std::cout << "Failed to create circular set containment" << std::endl;
+      return result;
+    }
+    temp_range.clear();
+    result = MB->get_entities_by_handle( recursive1, temp_range, true );
+    if(result != MB_SUCCESS)
+      return result;
+    if(total != temp_range.size())
+    {
+      cout<<"Recursive number of entities in meshset test is not correct"<<endl;
+      return MB_FAILURE; 
+    }
+    
+    
+      
 
     //----------TEST BOOLEAN OPERATIONS----------------//
 

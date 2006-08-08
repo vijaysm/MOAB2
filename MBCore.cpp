@@ -235,6 +235,32 @@ void MBCore::deinitialize()
   mError = 0;
 }
 
+MBErrorCode MBCore::recursive_get_sets( MBEntityHandle start_set, 
+                                std::vector<MBMeshSet*>& sets ) const
+{
+  std::set<MBEntityHandle> visited;
+  std::vector<MBEntityHandle> stack;
+  stack.push_back( start_set );
+  while (!stack.empty()) {
+    MBEntityHandle set = stack.back();
+    stack.pop_back();
+    
+    if (!visited.insert(set).second)
+      continue;
+    
+    MBMeshSet *ms_ptr = update_cache(set);
+    if(NULL == ms_ptr) 
+      return MB_ENTITY_NOT_FOUND;
+    sets.push_back( ms_ptr );
+    
+    MBRange tmp_range;
+    ms_ptr->get_entities_by_type( MBENTITYSET, tmp_range );
+    std::copy( tmp_range.begin(), tmp_range.end(), std::back_inserter( stack ) );
+  }
+    
+  return MB_SUCCESS;
+}
+
 MBErrorCode MBCore::query_interface(const std::string& iface_name, void** iface)
 {
   if(iface_name == "MBReadUtilIface")
@@ -985,31 +1011,38 @@ MBErrorCode MBCore::get_entities_by_dimension(const MBEntityHandle meshset,
                                                 const bool recursive) const
 {
   MBErrorCode result = MB_SUCCESS;
-  if (0 != meshset) {
-    MBMeshSet *ms_ptr = update_cache(meshset);
-    if(NULL == ms_ptr) return MB_ENTITY_NOT_FOUND;
-    MBRange dum_range;
-    result = ms_ptr->get_entities(dum_range, recursive);
-    if (MB_SUCCESS != result) return result;
-    for (MBRange::reverse_iterator it = dum_range.rbegin(); it != dum_range.rend(); it++)
-      if (MBCN::Dimension(TYPE_FROM_HANDLE(*it)) == dimension) entities.insert(*it);
+  if (meshset) {
+    if (recursive) {
+      std::vector<MBMeshSet*> list;
+      result = recursive_get_sets( meshset, list );
+      if (MB_SUCCESS != result) 
+        return result;
+      
+      for (std::vector<MBMeshSet*>::iterator i = list.begin(); i != list.end(); ++i)
+        (*i)->get_entities_by_dimension( dimension, entities );
+    }
+    else {
+      MBMeshSet *ms_ptr = update_cache(meshset);
+      if(NULL == ms_ptr) return MB_ENTITY_NOT_FOUND;
+      ms_ptr->get_entities_by_dimension( dimension, entities );
+    }
   }
+  else if (dimension > 3) {
+    for (std::map< MBEntityHandle, MBMeshSet*>::const_iterator it = 
+           global_mesh_set_list.begin(); it != global_mesh_set_list.end(); ++it)
+      entities.insert((*it).first);
+  } 
   else {
     for (MBEntityType this_type = MBCN::TypeDimensionMap[dimension].first;
          this_type <= MBCN::TypeDimensionMap[dimension].second;
          this_type++) {
-      if (this_type == MBENTITYSET) {
-        for (std::map< MBEntityHandle, MBMeshSet*>::const_iterator it = 
-               global_mesh_set_list.begin(); it != global_mesh_set_list.end(); it++)
-          entities.insert((*it).first);
-        result = MB_SUCCESS;
-      }
-      else
-        result = sequence_manager()->get_entities( this_type, entities );
+      result = sequence_manager()->get_entities( this_type, entities );
+      if (MB_SUCCESS != result)
+        return result;
     }
   }
 
-  return result;
+  return MB_SUCCESS;
 }
 
 MBErrorCode MBCore::get_entities_by_type(const MBEntityHandle meshset,
@@ -1020,22 +1053,22 @@ MBErrorCode MBCore::get_entities_by_type(const MBEntityHandle meshset,
   if (recursive && type == MBENTITYSET)  // will never return anything
     return MB_TYPE_OUT_OF_RANGE;
   
-  MBErrorCode result;
-  if (0 != meshset) {
-    MBMeshSet *ms_ptr = update_cache(meshset);
-    if(NULL == ms_ptr) return MB_ENTITY_NOT_FOUND;
-    
-    if (!recursive)
-      return ms_ptr->get_entities_by_type( type, entities );
-    
-    MBRange temp_range;
-    result = ms_ptr->get_entities(temp_range, true);
-    if (MB_SUCCESS != result)
-      return result;
+  MBErrorCode result = MB_SUCCESS;
+  if (meshset) {
+    if (recursive) {
+      std::vector<MBMeshSet*> list;
+      result = recursive_get_sets( meshset, list );
+      if (MB_SUCCESS != result) 
+        return result;
       
-    std::pair<MBRange::const_iterator,MBRange::const_iterator> its;
-    its = temp_range.equal_range( type );
-    entities.merge( its.first, its.second );
+      for (std::vector<MBMeshSet*>::iterator i = list.begin(); i != list.end(); ++i)
+        (*i)->get_entities_by_type( type, entities );
+    }
+    else {
+      MBMeshSet *ms_ptr = update_cache(meshset);
+      if(NULL == ms_ptr) return MB_ENTITY_NOT_FOUND;
+      ms_ptr->get_entities_by_type( type, entities );
+    }
   }
   else if (type == MBENTITYSET) {
     for (std::map< MBEntityHandle, MBMeshSet*>::const_iterator it = 
@@ -1062,13 +1095,12 @@ MBErrorCode MBCore::get_entities_by_type_and_tag(const MBEntityHandle meshset,
     return MB_TYPE_OUT_OF_RANGE;
   
   MBErrorCode result;
-  if (0 != meshset) {
-    MBMeshSet *ms_ptr = update_cache(meshset);
-    if(NULL == ms_ptr) return MB_ENTITY_NOT_FOUND;
-    MBRange dum_range;
-    result = ms_ptr->get_entities(dum_range, recursive);
-    if (MB_SUCCESS != result) return result;
-    result = tagServer->get_entities_with_tag_values(dum_range, type, 
+  if (meshset) {
+    MBRange tmp_range;
+    result = get_entities_by_type( meshset, type, tmp_range, recursive );
+    if (MB_SUCCESS != result)
+      return result;
+    result = tagServer->get_entities_with_tag_values(tmp_range, type, 
                                                      tags, values, num_tags, 
                                                      entities, condition);  
   }
@@ -1085,19 +1117,28 @@ MBErrorCode MBCore::get_entities_by_handle(const MBEntityHandle meshset,
                                              MBRange &entities,
                                              const bool recursive) const
 {
-  MBErrorCode result;
-  if (0 != meshset) {
-    MBMeshSet *ms_ptr = update_cache(meshset);
-    if(NULL == ms_ptr) return MB_ENTITY_NOT_FOUND;
-    MBRange dum_range;
-    result = ms_ptr->get_entities(entities, recursive);
-    if (MB_SUCCESS != result) return result;
+  MBErrorCode result = MB_SUCCESS;
+  if (meshset) {
+    if (recursive) {
+      std::vector<MBMeshSet*> sets;
+      result = recursive_get_sets( meshset, sets );
+      for (std::vector<MBMeshSet*>::iterator i = sets.begin(); i != sets.end(); ++i)
+        (*i)->get_non_set_entities( entities );
+    }
+    else {
+      MBMeshSet *ms_ptr = update_cache(meshset);
+      if(NULL == ms_ptr) 
+        result = MB_ENTITY_NOT_FOUND;
+      else
+        ms_ptr->get_entities( entities );
+    }
   }
   else {
-    result = MB_SUCCESS;
-    for (MBEntityType tp = MBVERTEX; tp < MBMAXTYPE; tp++) {
-      MBErrorCode tmp_result = sequence_manager()->get_entities( tp, entities );
-      if (tmp_result != MB_SUCCESS) result = tmp_result;
+    // iterate backards so range insertion is quicker
+    for (MBEntityType type = MBENTITYSET; type >= MBVERTEX; --type) {
+      result = sequence_manager()->get_entities( type, entities );
+      if (MB_SUCCESS != result) 
+        break;
     }
   }
 
@@ -1109,27 +1150,20 @@ MBErrorCode MBCore::get_entities_by_handle(const MBEntityHandle meshset,
                                    std::vector<MBEntityHandle> &entities,
                                    const bool recursive) const
 {
-  MBErrorCode result;
-  if (0 != meshset) {
-    MBMeshSet *ms_ptr = update_cache(meshset);
-    if(NULL == ms_ptr) return MB_ENTITY_NOT_FOUND;
-    MBRange dum_range;
-    result = ms_ptr->get_entities(entities, recursive);
-    if (MB_SUCCESS != result) return result;
+  if (recursive || !meshset) {
+    MBRange tmp_range;
+    MBErrorCode result = get_entities_by_handle( meshset, tmp_range, recursive);
+    size_t offset = entities.size();
+    entities.resize( offset + tmp_range.size() );
+    std::copy( tmp_range.begin(), tmp_range.end(), entities.begin() + offset );
+    return result;
   }
   else {
-    MBRange dum_range;
-    result = get_entities_by_handle(meshset, dum_range, recursive);
-    if (MB_SUCCESS != result) 
-      return result;
-    entities.reserve(entities.size() + dum_range.size());
-    for (MBRange::const_iterator it = dum_range.begin();
-         it != dum_range.end();
-         ++it)
-      entities.push_back(*it);
+    MBMeshSet *ms_ptr = update_cache(meshset);
+    if(NULL == ms_ptr) return MB_ENTITY_NOT_FOUND;
+    ms_ptr->get_entities( entities );
+    return MB_SUCCESS;
   }
-  
-  return result;
 }
 
   //! get # entities of a given dimension
@@ -1138,33 +1172,32 @@ MBErrorCode MBCore::get_number_entities_by_dimension(const MBEntityHandle meshse
                                                        int &number,
                                                        const bool recursive) const
 {
-  MBErrorCode result;
-  
-  number = 0;
-
-  if (0 != meshset) {
+  MBErrorCode result = MB_SUCCESS;
+ 
+  if (!meshset) {
+    number = 0;
+    for (MBEntityType this_type = MBCN::TypeDimensionMap[dim].first;
+         this_type <= MBCN::TypeDimensionMap[dim].second;
+         this_type++) {
+      int dummy = 0;
+      result = sequence_manager()->get_number_entities( this_type, dummy );
+      if (result != MB_SUCCESS) 
+        break;
+      number += dummy;
+    }
+  }
+  else if (!recursive) {
     MBMeshSet *ms_ptr = update_cache(meshset);
     if(NULL == ms_ptr) return MB_ENTITY_NOT_FOUND;
-    MBRange dum_range;
-    result = ms_ptr->get_entities(dum_range, recursive);
-    for (MBRange::iterator it = dum_range.begin(); it != dum_range.end(); it++)
-      if (MBCN::Dimension(TYPE_FROM_HANDLE(*it)) == dim) number++;
-    return result;
+    number = ms_ptr->num_entities_by_dimension( dim );
   }
-
-  for (MBEntityType this_type = MBCN::TypeDimensionMap[dim].first;
-       this_type <= MBCN::TypeDimensionMap[dim].second;
-       this_type++) {
-    int dummy = 0;
-    result = get_number_entities_by_type(0, this_type, dummy);
-    if (result != MB_SUCCESS) {
-      number = 0;
-      return result;
-    }
-    number += dummy;
+  else {
+    MBRange range;
+    result = get_entities_by_dimension( meshset, dim, range, recursive );
+    number = range.size();
   }
   
-  return MB_SUCCESS;
+  return result;
 }
 
 //! returns the number of entities with a given type and tag
@@ -1173,9 +1206,22 @@ MBErrorCode MBCore::get_number_entities_by_type(const MBEntityHandle meshset,
                                                   int& num_ent,
                                                   const bool recursive) const
 {
-  MBRange dum_ents;
-  MBErrorCode result = get_entities_by_type(meshset, type, dum_ents, recursive);
-  num_ent = dum_ents.size();
+  MBErrorCode result = MB_SUCCESS;
+ 
+  if (!meshset) {
+    result = sequence_manager()->get_number_entities( type, num_ent );
+  }
+  else if (!recursive) {
+    MBMeshSet *ms_ptr = update_cache(meshset);
+    if(NULL == ms_ptr) return MB_ENTITY_NOT_FOUND;
+    num_ent = ms_ptr->num_entities_by_type( type );
+  }
+  else {
+    MBRange range;
+    result = get_entities_by_dimension( meshset, type, range, recursive );
+    num_ent = range.size();
+  }
+  
   return result;
 }
 
@@ -1199,13 +1245,19 @@ MBErrorCode MBCore::get_number_entities_by_handle(const MBEntityHandle meshset,
                                           const bool recursive) const
 {
   MBErrorCode result;
-  if (0 != meshset) {
-    MBMeshSet *ms_ptr = update_cache(meshset);
-    if(NULL == ms_ptr) return MB_ENTITY_NOT_FOUND;
-    MBRange dum_range;
-    result = ms_ptr->get_entities(dum_range, recursive);
-    num_ent = dum_range.size();
-    return result;
+  if (meshset) {
+    if (recursive) {
+      MBRange range;
+      result = get_entities_by_handle( meshset, range, recursive );
+      num_ent = range.size();
+      return result;
+    }
+    else {
+      MBMeshSet *ms_ptr = update_cache(meshset);
+      if(NULL == ms_ptr) return MB_ENTITY_NOT_FOUND;
+      num_ent = ms_ptr->num_entities();
+      return MB_SUCCESS;
+    }
   }
 
   num_ent = 0;
@@ -1970,14 +2022,14 @@ MBErrorCode MBCore::create_meshset(const unsigned int options,
   //create the mesh set
   MBMeshSet *mesh_set = NULL;
   if(options & MESHSET_SET)
-    mesh_set = new MBMeshSet_MBRange( ms_handle, this, a_entity_factory(), 
+    mesh_set = new MBMeshSet_MBRange( ms_handle, a_entity_factory(), 
                                          options & MESHSET_TRACK_OWNER  );
   else if(options & MESHSET_ORDERED)
-    mesh_set = new MBMeshSet_Vector(ms_handle, this, a_entity_factory(), 
+    mesh_set = new MBMeshSet_Vector(ms_handle, a_entity_factory(), 
                                       options & MESHSET_TRACK_OWNER );
   else {
       // unspecified - create as a set
-    mesh_set = new MBMeshSet_MBRange( ms_handle, this, a_entity_factory(), 
+    mesh_set = new MBMeshSet_MBRange( ms_handle, a_entity_factory(), 
                                          options & MESHSET_TRACK_OWNER  );
   }
 
@@ -2366,7 +2418,7 @@ void MBCore::print(const MBEntityHandle ms_handle, const char *prefix,
     if( !ms_ptr )
       return;
 
-    ms_ptr->get_entities(entities, false);
+    ms_ptr->get_entities(entities);
     if (!first_call)
       std::cout << prefix << "MBENTITYSET " << ID_FROM_HANDLE(ms_handle) 
                 << std::endl;

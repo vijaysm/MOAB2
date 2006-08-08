@@ -42,7 +42,7 @@ class MBMeshSet
 public:
 
   //! create an empty meshset
-  MBMeshSet( MBEntityHandle entity_handle , MBInterface* mdb, AEntityFactory* a_entity_factory, bool track_ownership );
+  MBMeshSet( MBEntityHandle entity_handle, AEntityFactory* a_entity_factory, bool track_ownership );
 
   //! virtual destructor
   virtual ~MBMeshSet();
@@ -94,11 +94,9 @@ public:
 
   virtual MBErrorCode clear() = 0;
 
-  virtual MBErrorCode get_entities(std::vector<MBEntityHandle>& entities,
-                                    const bool recursive) const = 0;
+  virtual MBErrorCode get_entities(std::vector<MBEntityHandle>& entities) const = 0;
   
-  virtual MBErrorCode get_entities(MBRange& entities,
-                                    const bool recursive) const = 0;
+  virtual MBErrorCode get_entities(MBRange& entities) const = 0;
   
     //! get all entities in this MeshSet with the specified type
   virtual MBErrorCode get_entities_by_type(MBEntityType entity_type,
@@ -106,6 +104,14 @@ public:
   
   virtual MBErrorCode get_entities_by_type(MBEntityType type,
       MBRange& entity_list) const = 0;
+      
+  virtual MBErrorCode get_entities_by_dimension( int dimension,
+      std::vector<MBEntityHandle> &entity_list) const = 0;
+
+  virtual MBErrorCode get_entities_by_dimension( int dimension,
+      MBRange& entity_list) const = 0;
+      
+  virtual MBErrorCode get_non_set_entities( MBRange& range ) const = 0;
     
   //! subtract/intersect/unite meshset_2 from/with/into meshset_1; modifies meshset_1
   virtual MBErrorCode subtract(const MBMeshSet *meshset_2) = 0;
@@ -129,10 +135,13 @@ public:
                                        const int num_entities)=0;
 
     //! return the number of entities contained in this meshset
-  virtual unsigned int num_entities(int *) const = 0;
+  virtual unsigned int num_entities() const = 0;
     
     //! return the number of entities with the given type contained in this meshset
   virtual unsigned int num_entities_by_type(MBEntityType entity_type) const = 0;
+    
+    //! return the number of entities with the given type contained in this meshset
+  virtual unsigned int num_entities_by_dimension(int dimension) const = 0;
 
     //! rebuild parent-child relations for geometry
   static MBErrorCode rebuild_geometry_relations();
@@ -150,24 +159,28 @@ protected:
   
   //! adjacency factory to handle adjacencies
   AEntityFactory* mAdjFact;
-
-  //! the interface object that this meshset belongs to
-  MBInterface* mMB;
-
 };
 
 #define MESH_SET_VIRTUAL_FUNCTIONS      \
   virtual MBErrorCode clear();                                                          \
   \
-  virtual MBErrorCode get_entities(std::vector<MBEntityHandle>& entities, const bool recursive) const;       \
+  virtual MBErrorCode get_entities(std::vector<MBEntityHandle>& entities) const;       \
   \
-  virtual MBErrorCode get_entities(MBRange& entities, const bool recursive) const;                           \
+  virtual MBErrorCode get_entities(MBRange& entities) const;                           \
   \
   virtual MBErrorCode get_entities_by_type(MBEntityType type,                          \
       std::vector<MBEntityHandle>& entity_list) const;                                  \
   \
   virtual MBErrorCode get_entities_by_type(MBEntityType type,                          \
       MBRange& entity_list) const;                                                      \
+  \
+  virtual MBErrorCode get_entities_by_dimension(int dimension,                          \
+      std::vector<MBEntityHandle>& entity_list) const;                                  \
+  \
+  virtual MBErrorCode get_entities_by_dimension(int dimension,                          \
+      MBRange& entity_list) const;                                                      \
+  \
+  virtual MBErrorCode get_non_set_entities( MBRange& range ) const; \
   \
   virtual MBErrorCode subtract(const MBMeshSet*);                                     \
   \
@@ -185,9 +198,11 @@ protected:
   virtual MBErrorCode remove_entities(const MBEntityHandle *entities, \
                                        const int num_entities);    \
   \
-  virtual unsigned int num_entities(int *) const;                                        \
+  virtual unsigned int num_entities() const;                                        \
   \
-  virtual unsigned int num_entities_by_type(MBEntityType entity_type) const;    
+  virtual unsigned int num_entities_by_type(MBEntityType entity_type) const;            \
+  \
+  virtual unsigned int num_entities_by_dimension(int dimesion) const;
 
 
 
@@ -195,8 +210,8 @@ class MBMeshSet_MBRange : public MBMeshSet
 {
 public:
 
-  MBMeshSet_MBRange(MBEntityHandle handle, MBInterface* mdb, AEntityFactory* adj_fact, bool track_ownership) 
-    : MBMeshSet(handle, mdb, adj_fact, track_ownership) {}
+  MBMeshSet_MBRange(MBEntityHandle handle, AEntityFactory* adj_fact, bool track_ownership) 
+    : MBMeshSet(handle, adj_fact, track_ownership) {}
   virtual ~MBMeshSet_MBRange();
 
   MESH_SET_VIRTUAL_FUNCTIONS
@@ -210,8 +225,8 @@ class MBMeshSet_Vector : public MBMeshSet
 {
 public:
 
-  MBMeshSet_Vector(MBEntityHandle handle, MBInterface* mdb, AEntityFactory* adj_fact, bool track_ownership) 
-    : MBMeshSet(handle, mdb, adj_fact, track_ownership) {}
+  MBMeshSet_Vector(MBEntityHandle handle, AEntityFactory* adj_fact, bool track_ownership) 
+    : MBMeshSet(handle, adj_fact, track_ownership) {}
 
   virtual ~MBMeshSet_Vector();
 
