@@ -884,7 +884,9 @@
 
     MBEntityHandle ms_array[MBENTITYSET] = {0};
     unsigned int number_array[MBENTITYSET] = {0};
+    unsigned int num_dim_array[4] = { 0, 0, 0, 0 };
     MBErrorCode result;
+    int count;
 
     //add entities to meshsets 
     for (ent_type = MBEDGE; ent_type != MBENTITYSET; ent_type++) 
@@ -897,11 +899,17 @@
       result = MB->get_entities_by_type(0, ent_type, temp_range );
       if( result != MB_SUCCESS ) 
         return result;
+      result = MB->get_number_entities_by_type(0, ent_type, count);
+      if (result != MB_SUCCESS)
+        return result;
+      if ((unsigned)count != temp_range.size())
+        return MB_FAILURE;
       result = MB->add_entities( ms_array[ent_type], temp_range);
       if( result != MB_SUCCESS )
         return result;
 
       number_array[ent_type] = temp_range.size(); //KGM
+      num_dim_array[MBCN::Dimension(ent_type)] += count;
 
       //Check to make sure mesh set really has correct number of entities in it
       temp_range.clear();
@@ -914,6 +922,8 @@
         cout<<"Number of entities in meshset test is not correct"<<endl;
         return MB_FAILURE; 
       }
+      if (!temp_range.all_of_type( ent_type ))
+        return MB_FAILURE;
 
       result = MB->get_entities_by_handle(ms_array[ent_type], temp_vector);
       if(result != MB_SUCCESS)
@@ -933,6 +943,15 @@
         cout<<"Number of entities by type in meshset test is not correct"<<endl;
         return MB_FAILURE; 
       }
+      if (!temp_range.all_of_type( ent_type ))
+        return MB_FAILURE;
+      
+      temp_range.clear();
+      result = MB->get_entities_by_type( ms_array[ent_type], MBVERTEX, temp_range);
+      if(result != MB_SUCCESS)
+        return result;
+      if(0 != temp_range.size())
+        return MB_FAILURE;
       
       temp_range.clear();
       result = MB->get_entities_by_dimension( ms_array[ent_type], MBCN::Dimension(ent_type), temp_range);
@@ -943,6 +962,56 @@
         cout<<"Number of entities by dimension in meshset test is not correct"<<endl;
         return MB_FAILURE; 
       }
+      if (!temp_range.all_of_type( ent_type ))
+        return MB_FAILURE;
+      
+      temp_range.clear();
+      result = MB->get_entities_by_dimension( ms_array[ent_type], 0, temp_range);
+      if(result != MB_SUCCESS)
+        return result;
+      if(0 != temp_range.size())
+      {
+        cout<<"Number of entities by dimension in meshset test is not correct"<<endl;
+        return MB_FAILURE; 
+      }
+      
+      result = MB->get_number_entities_by_handle( ms_array[ent_type], count );
+      if (result != MB_SUCCESS)
+        return result;
+      if ((unsigned)count != number_array[ent_type])
+        return MB_FAILURE;
+      
+      result = MB->get_number_entities_by_type( ms_array[ent_type], ent_type, count );
+      if (result != MB_SUCCESS)
+        return result;
+      if ((unsigned)count != number_array[ent_type])
+        return MB_FAILURE;
+      
+      result = MB->get_number_entities_by_type( ms_array[ent_type], MBVERTEX, count );
+      if (result != MB_SUCCESS)
+        return result;
+      if (count != 0)
+        return MB_FAILURE;
+        
+      result = MB->get_number_entities_by_dimension( ms_array[ent_type], MBCN::Dimension(ent_type), count );
+      if (result != MB_SUCCESS)
+        return result;
+      if ((unsigned)count != number_array[ent_type])
+        return MB_FAILURE;
+      
+      result = MB->get_number_entities_by_dimension( ms_array[ent_type], 0, count );
+      if (result != MB_SUCCESS)
+        return result;
+      if (count != 0)
+        return MB_FAILURE;
+    }
+
+    for (int dim = 1; dim < 4; ++dim) {
+      result = MB->get_number_entities_by_dimension( 0, dim, count );
+      if (MB_SUCCESS != result)
+        return MB_FAILURE;
+      if ((unsigned)count != num_dim_array[dim])
+        return MB_FAILURE;
     }
 
     //----------TEST RECURSIVE OPERATIONS----------------//
@@ -965,28 +1034,28 @@
     result = MB->get_entities_by_type( recursive1, MBENTITYSET, temp_range );
     if (MB_SUCCESS != result)
       return result;
-    if (temp_range.size() != 1)
+    if (temp_range.size() != 1 || *(temp_range.begin()) != recursive2)
       return MB_FAILURE;
 
     temp_range.clear();
     result = MB->get_entities_by_type( recursive2, MBENTITYSET, temp_range );
     if (MB_SUCCESS != result)
       return result;
-    if (temp_range.size() != num_sets)
+    if (temp_range.size() != num_sets || !temp_range.all_of_type(MBENTITYSET))
       return MB_FAILURE;
 
     temp_range.clear();
     result = MB->get_entities_by_handle( recursive1, temp_range );
     if (MB_SUCCESS != result)
       return result;
-    if (temp_range.size() != 1)
+    if (temp_range.size() != 1 || *(temp_range.begin()) != recursive2)
       return MB_FAILURE;
 
     temp_range.clear();
     result = MB->get_entities_by_handle( recursive2, temp_range );
     if (MB_SUCCESS != result)
       return result;
-    if (temp_range.size() != num_sets)
+    if (temp_range.size() != num_sets || !temp_range.all_of_type(MBENTITYSET))
       return MB_FAILURE;
     
     
@@ -1003,10 +1072,38 @@
         cout<<"Recursive number of entities by type in meshset test is not correct"<<endl;
         return MB_FAILURE; 
       }
+      if (!temp_range.all_of_type( ent_type ))
+        return MB_FAILURE;
+      result = MB->get_number_entities_by_type( recursive1, ent_type, count, true );
+      if(result != MB_SUCCESS)
+        return result;
+      if(number_array[ent_type] != (unsigned)count)
+      {
+        cout<<"Recursive number of entities by type in meshset test is not correct"<<endl;
+        return MB_FAILURE; 
+      }
+      if (!temp_range.all_of_type( ent_type ))
+        return MB_FAILURE;
     }
     if (0 == total) {
       cout << "Invalid test input.  No entities!" << endl;
       return MB_FAILURE;
+    }
+
+    for (int dim = 1; dim < 4; ++dim) {
+      temp_range.clear();
+      result = MB->get_entities_by_dimension( recursive1, dim, temp_range, true );
+      if (MB_SUCCESS != result)
+        return MB_FAILURE;
+      if (temp_range.size() != num_dim_array[dim])
+        return MB_FAILURE;
+      if (!temp_range.all_of_dimension(dim))
+        return MB_FAILURE;
+      result = MB->get_number_entities_by_dimension( recursive1, dim, count, true );
+      if (MB_SUCCESS != result)
+        return MB_FAILURE;
+      if ((unsigned)count != num_dim_array[dim])
+        return MB_FAILURE;
     }
 
     temp_range.clear();

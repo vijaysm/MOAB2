@@ -556,7 +556,7 @@ unsigned MBRange::num_of_type( MBEntityType type ) const
     ++iter;
   
   unsigned count = 0;
-  while (iter != const_pair_end())
+  for ( ; iter != const_pair_end(); ++iter)
   {
     MBEntityType start_type = TYPE_FROM_HANDLE((*iter).first);
     MBEntityType end_type = TYPE_FROM_HANDLE((*iter).second);
@@ -579,7 +579,7 @@ unsigned MBRange::num_of_dimension( int dim ) const
   
   int junk;
   unsigned count = 0;
-  while (iter != const_pair_end())
+  for ( ; iter != const_pair_end(); ++iter)
   {
     int start_dim = MBCN::Dimension(TYPE_FROM_HANDLE((*iter).first));
     int end_dim = MBCN::Dimension(TYPE_FROM_HANDLE((*iter).second));

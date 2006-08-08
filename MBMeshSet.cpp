@@ -282,8 +282,8 @@ MBErrorCode MBMeshSet_MBRange::get_entities_by_type(MBEntityType type,
 MBErrorCode MBMeshSet_MBRange::get_entities_by_dimension(int dim,
     std::vector<MBEntityHandle>& entity_list) const
 {
-  MBRange::const_iterator beg = mRange.lower_bound(MBCN::lower_bound(dim));
-  MBRange::const_iterator end = mRange.lower_bound(MBCN::lower_bound(dim+1));
+  MBRange::const_iterator beg = mRange.lower_bound(MBCN::TypeDimensionMap[dim].first);
+  MBRange::const_iterator end = mRange.lower_bound(MBCN::TypeDimensionMap[dim+1].first);
   std::copy( beg, end, std::back_inserter( entity_list ) );
   return MB_SUCCESS;
 }
@@ -291,8 +291,8 @@ MBErrorCode MBMeshSet_MBRange::get_entities_by_dimension(int dim,
 MBErrorCode MBMeshSet_MBRange::get_entities_by_dimension(int dim,
     MBRange& entity_list) const
 {
-  MBRange::const_iterator beg = mRange.lower_bound(MBCN::lower_bound(dim));
-  MBRange::const_iterator end = mRange.lower_bound(MBCN::lower_bound(dim+1));
+  MBRange::const_iterator beg = mRange.lower_bound(MBCN::TypeDimensionMap[dim].first);
+  MBRange::const_iterator end = mRange.lower_bound(MBCN::TypeDimensionMap[dim+1].first);
   entity_list.merge( beg, end );
   return MB_SUCCESS;
 }

@@ -1218,7 +1218,7 @@ MBErrorCode MBCore::get_number_entities_by_type(const MBEntityHandle meshset,
   }
   else {
     MBRange range;
-    result = get_entities_by_dimension( meshset, type, range, recursive );
+    result = get_entities_by_type( meshset, type, range, recursive );
     num_ent = range.size();
   }
   
