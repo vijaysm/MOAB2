@@ -21,7 +21,8 @@ check_PROGRAMS = moab_test \
                  scdseq_test \
                  tqdcfr \
                  test_adj \
-                 seq_man_test
+                 seq_man_test \
+		 internals_test
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 TESTS = $(check_PROGRAMS)
@@ -148,7 +149,6 @@ libMOAB_la_SOURCES = \
 
 #  MBMem.cpp
 
-
 # The list of header files which are to be installed
 libMOAB_la_include_HEADERS = \
   DualTool.hpp \
@@ -187,6 +187,9 @@ libMOAB_la_include_HEADERS = \
 moab_test_SOURCES = MBTest.cpp
 moab_test_LDADD = $(top_builddir)/libMOAB.la
 moab_test_DEPENDENCIES = test/mb_big_test.g test/cell1.gen test/cell2.gen $(top_builddir)/libMOAB.la
+
+internals_test_SOURCES = internals_test.cpp
+internals_test_LDADD = $(top_builddir)/libMOAB.la
 
 homxform_test_SOURCES = HomXform.cpp
 homxform_test_LDADD = $(top_builddir)/libMOAB.la

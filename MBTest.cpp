@@ -2253,14 +2253,34 @@ MBErrorCode mb_tags_test(MBInterface *MB)
   result = MB->tag_set_data(stale_bits, &stale_handle1, 1, &bits);
   if (MB_SUCCESS != result)
     return result;
+  bits = 0;
+  result = MB->tag_get_data(stale_bits, &stale_handle1, 1, &bits);
+  if (MB_SUCCESS != result)
+    return result;
+  if (bits != 0x5)
+    return MB_FAILURE;
+    
   def_data = 1;
   result = MB->tag_set_data(stale_dense, &stale_handle1, 1, &def_data);
   if (MB_SUCCESS != result)
     return result;
+  def_data = 0;
+  result = MB->tag_get_data(stale_dense, &stale_handle1, 1, &def_data);
+  if (MB_SUCCESS != result)
+    return result;
+  if (def_data != 1)
+    return MB_FAILURE;
+    
   def_data = 100;
   result = MB->tag_set_data(stale_sparse, &stale_handle1, 1, &def_data);
   if (MB_SUCCESS != result)
     return result;
+  def_data = 0;
+  result = MB->tag_get_data(stale_sparse, &stale_handle1, 1, &def_data);
+  if (MB_SUCCESS != result)
+    return result;
+  if (def_data != 100)
+    return MB_FAILURE;
 
   result = MB->delete_entities(&stale_handle1, 1);
   if (MB_SUCCESS != result)

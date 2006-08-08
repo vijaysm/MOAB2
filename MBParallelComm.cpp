@@ -633,7 +633,7 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
       const TagInfo *tinfo = tagServer->get_tag_info(*tag_it);
       int this_count = 0;
       MBRange tmp_range;
-      if (reinterpret_cast<long>((*tag_it)) & TAG_BIT_PROPERTIES[MB_TAG_DENSE]) {
+      if (PROP_FROM_TAG_HANDLE(*tag_it) == MB_TAG_DENSE) {
         this_count += whole_size * tinfo->get_size();
       }
       else {
@@ -706,7 +706,7 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
         // name
       PACK_CHAR_64(buff_ptr, tinfo->get_name().c_str());
       
-      if (reinterpret_cast<long>(*tag_it) & TAG_BIT_PROPERTIES[MB_TAG_DENSE]) {
+      if (PROP_FROM_TAG_HANDLE(*tag_it) == MB_TAG_DENSE) {
         tag_data.reserve((whole_size+1) * tinfo->get_size() / sizeof(int));
         result = mbImpl->tag_get_data(*tag_it, whole_range, &tag_data[0]);
         PACK_VOID(buff_ptr, &tag_data[0], whole_size*tinfo->get_size());
@@ -773,7 +773,7 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
                                 def_val_ptr); RR;
     
       // set the tag data
-    if (reinterpret_cast<long>(tag_handle) & TAG_BIT_PROPERTIES[MB_TAG_DENSE]) {
+    if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE) {
       result = mbImpl->tag_set_data(tag_handle, entities, buff_ptr); RR;
       buff_ptr += entities.size() * tag_size;
     }

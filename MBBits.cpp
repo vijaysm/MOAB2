@@ -47,37 +47,33 @@ const int MBBitPage::mPageSize = 512;
 /*! returns an available tag id to use when getting and setting bits */
 MBErrorCode MBBitServer::reserve_tag_id(int num_bits, MBTagId& tag_id)
 {
+  tag_id = 0;
+
   // make sure we get a good number of bits
   if(num_bits <= 0 || num_bits >8)
-  {
-    tag_id = 0;
     return MB_FAILURE;
-  }
 
   // see if we have any bit page groups that aren't being used
-  int which_one=-1;
   for(std::vector<MBBitPageGroup*>::iterator iter = (*mBitPageGroups).begin();
-      (iter != (*mBitPageGroups).end()) && (which_one == -1);
-      ++iter)
+      iter != (*mBitPageGroups).end(); ++iter)
   {
     if(*iter == NULL)
     {
-      which_one = iter - (*mBitPageGroups).begin();
+      tag_id = iter - (*mBitPageGroups).begin() + 1;
+      break;
     }
   }
 
   // if they are all being used, make space for a new one
-  if(which_one == -1)
+  if(!tag_id)
   {
     for(int i=0; i<(int)MBMAXTYPE; i++)
       mBitPageGroups[i].push_back( NULL );
-    which_one = (*mBitPageGroups).size() - 1;
+    tag_id = (*mBitPageGroups).size();
   }
 
   for(int i=0; i<(int)MBMAXTYPE; i++)
-    mBitPageGroups[i][which_one] = new MBBitPageGroup(num_bits);
-
-  tag_id = which_one;
+    mBitPageGroups[i][tag_id-1] = new MBBitPageGroup(num_bits);
 
   mBitPageGroupsSize = (*mBitPageGroups).size();
 
@@ -90,6 +86,9 @@ MBErrorCode MBBitServer::reserve_tag_id(int num_bits, MBTagId& tag_id)
 /*! give back a tag id that was used to set and get bits */
 MBErrorCode MBBitServer::release_tag_id(MBTagId tag_id)
 {
+  // tag ids begin with 1
+  --tag_id;
+  
   // make sure tag_id is good
   if(tag_id >= (*mBitPageGroups).size())
     return MB_TAG_NOT_FOUND;
@@ -164,11 +163,11 @@ MBErrorCode MBBitPageGroup::get_entities(MBEntityType type, MBRange& entities)
 MBErrorCode MBBitServer::get_entities(const MBRange &range, MBTagId tag_id, MBEntityType type, 
                                         MBRange& entities)
 {
-  if(tag_id >= mBitPageGroupsSize || (*mBitPageGroups)[tag_id] == NULL)
+  if(tag_id > mBitPageGroupsSize || (*mBitPageGroups)[tag_id-1] == NULL)
     return MB_FAILURE;
 
   MBRange dum_range;
-  MBErrorCode result = mBitPageGroups[type][tag_id]->get_entities(type, dum_range);
+  MBErrorCode result = mBitPageGroups[type][tag_id-1]->get_entities(type, dum_range);
   if (MB_FAILURE == result) return result;
 
   std::set_intersection(dum_range.begin(), dum_range.end(),

@@ -1373,7 +1373,7 @@ MBErrorCode  MBCore::tag_delete_data(const MBTag tag_handle,
                                        const MBEntityHandle *entity_handles,
                                        const int num_handles)
 {
-  if (reinterpret_cast<long>(tag_handle) & TAG_BIT_PROPERTIES[MB_TAG_DENSE])
+  if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
     return MB_FAILURE;
 
   MBErrorCode status = MB_SUCCESS, temp_status;
@@ -1392,7 +1392,7 @@ MBErrorCode  MBCore::tag_delete_data(const MBTag tag_handle,
 MBErrorCode  MBCore::tag_delete_data(const MBTag tag_handle, 
                                      const MBRange &entity_handles)
 {
-  if (reinterpret_cast<long>(tag_handle) & TAG_BIT_PROPERTIES[MB_TAG_DENSE])
+  if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
     return MB_FAILURE;
 
   MBErrorCode status = MB_SUCCESS, temp_status;
@@ -1482,20 +1482,8 @@ MBErrorCode MBCore::tag_get_default_value(const MBTag tag_handle, void *def_valu
   //! get type of tag (sparse, dense, etc.; 0 = dense, 1 = sparse, 2 = bit, 3 = static)
 MBErrorCode MBCore::tag_get_type(const MBTag tag_handle, MBTagType &tag_type) const
 {
-  if( reinterpret_cast<long>(tag_handle) & TAG_BIT_PROPERTIES[MB_TAG_DENSE])
-    tag_type = MB_TAG_DENSE;
-  else if( reinterpret_cast<long>(tag_handle) & TAG_BIT_PROPERTIES[MB_TAG_SPARSE])
-    tag_type = MB_TAG_SPARSE;
-  else if( reinterpret_cast<long>(tag_handle) & TAG_BIT_PROPERTIES[MB_TAG_BIT])
-    tag_type = MB_TAG_BIT;
-  else if( reinterpret_cast<long>(tag_handle) & TAG_BIT_PROPERTIES[MB_TAG_MESH])
-    tag_type = MB_TAG_MESH;
-  else {
-    tag_type = MB_TAG_LAST;
-    return MB_TAG_NOT_FOUND;
-  }
-  
-  return MB_SUCCESS;
+  tag_type = PROP_FROM_TAG_HANDLE(tag_handle);
+  return tag_type < MB_TAG_LAST ? MB_SUCCESS : MB_TAG_NOT_FOUND;
 }
 
   //! get handles for all tags defined

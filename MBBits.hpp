@@ -504,6 +504,7 @@ private:
 inline MBErrorCode MBBitServer::get_bits(MBTagId tag_id, 
     MBEntityHandle handle, unsigned char& bits)
 {
+  --tag_id; // First ID is 1.
   if(tag_id >= (*mBitPageGroups).size() || (*mBitPageGroups)[tag_id] == NULL)
     return MB_FAILURE;
 
@@ -515,6 +516,7 @@ inline MBErrorCode MBBitServer::get_bits(MBTagId tag_id,
 inline MBErrorCode MBBitServer::set_bits(MBTagId tag_id, 
     MBEntityHandle handle, unsigned char bits)
 {
+  --tag_id; // First ID is 1.
   if(tag_id >= mBitPageGroupsSize || (*mBitPageGroups)[tag_id] == NULL)
     return MB_FAILURE;
 
@@ -525,6 +527,7 @@ inline MBErrorCode MBBitServer::set_bits(MBTagId tag_id,
 inline MBErrorCode MBBitServer::weak_set_bits(MBTagId tag_id, 
     MBEntityHandle handle, unsigned char bits)
 {
+  --tag_id; // First ID is 1.
   if(tag_id >= mBitPageGroupsSize || (*mBitPageGroups)[tag_id] == NULL)
     return MB_SUCCESS;
 
@@ -533,6 +536,7 @@ inline MBErrorCode MBBitServer::weak_set_bits(MBTagId tag_id,
 
 inline MBErrorCode MBBitServer::get_entities(MBTagId tag_id, MBEntityType type, MBRange& entities)
 {
+  --tag_id; // First ID is 1.
   if(tag_id >= mBitPageGroupsSize || (*mBitPageGroups)[tag_id] == NULL)
     return MB_FAILURE;
 
@@ -549,7 +553,7 @@ inline MBErrorCode MBBitServer::get_tags(const MBEntityHandle entity,
   for (long i = 0; i < (long) mBitPageGroups[this_type].size(); i++) {
     if (mBitPageGroups[this_type][i] != NULL &&
         mBitPageGroups[this_type][i]->contains(entity))
-      tags.push_back(TAG_HANDLE_FROM_ID(i, MB_TAG_BIT));
+      tags.push_back(TAG_HANDLE_FROM_ID(i+1, MB_TAG_BIT));
   }
   return MB_SUCCESS;
 }
