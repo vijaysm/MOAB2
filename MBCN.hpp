@@ -82,6 +82,20 @@ inline MBEntityType operator++(MBEntityType &type, int)
   return oldval;
 }
 
+//! prefix increment operator for MBEntityType
+inline MBEntityType & operator--(MBEntityType &type)
+{
+  return type = static_cast<MBEntityType>(type-1);
+}
+
+//! postfix increment operator for MBEntityType
+inline MBEntityType operator--(MBEntityType &type, int)
+{
+  MBEntityType oldval = type;
+  --type;
+  return oldval;
+}
+
 typedef std::pair<MBEntityType, MBEntityType> MBDimensionPair;
 
 class MBCN
