@@ -9,8 +9,8 @@
 #include <signal.h>
 #include <assert.h>
 
-const int NUM_RAYS = 20000;
-const int NUM_XSCT = 10000;
+const int NUM_RAYS = 40000;
+const int NUM_XSCT = 20000;
 
 static void usage( )
 {
