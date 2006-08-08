@@ -124,24 +124,22 @@ MBErrorCode TagServer::add_tag( const char *tag_name,
   int typesize = TagInfo::size_from_data_type( data_type );
   if (data_size % typesize)
     return MB_FAILURE;
-
-  if(storage == MB_TAG_BIT)
-  {
-    if (data_type != MB_TYPE_BIT)
-      return MB_FAILURE;
-    result = mBitServer->reserve_tag_id(data_size, id);
-  }
-  else if(storage == MB_TAG_SPARSE || storage == MB_TAG_MESH)
-  {
-    result = mSparseData->reserve_tag_id(data_size, id);
-  }
-  else if(storage == MB_TAG_DENSE)
-  {
-    result = mDenseData->reserve_tag_id(data_size, default_value, id);
-  }
-  else
-  {
-    return MB_FAILURE;
+    
+  switch(storage) {
+    case MB_TAG_BIT:
+      if (data_type != MB_TYPE_BIT)
+        return MB_FAILURE;
+      result = mBitServer->reserve_tag_id(data_size, id);
+      break;
+    case MB_TAG_SPARSE:
+    case MB_TAG_MESH:
+      result = mSparseData->reserve_tag_id(data_size, id);
+      break;
+    case MB_TAG_DENSE:
+      result = mDenseData->reserve_tag_id(data_size, default_value, id);
+      break;
+    default:
+      result = MB_FAILURE;
   }
   
   if(result != MB_SUCCESS)
@@ -170,19 +168,21 @@ MBErrorCode TagServer::remove_tag(const MBTag tag_handle)
 
   mTagTable.erase(iterator);
   MBErrorCode status = MB_TAG_NOT_FOUND;
-
-  if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
-  {
-    status = mDenseData->release_tag_id(ID_FROM_TAG_HANDLE(tag_handle));
-  }
-  else if((PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_SPARSE) ||
-          (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_MESH))
-  {
-    status = mSparseData->release_tag_id(ID_FROM_TAG_HANDLE(tag_handle));
-  }
-  else if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
-  {
-    status = mBitServer->release_tag_id(ID_FROM_TAG_HANDLE(tag_handle));
+  
+  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+    case MB_TAG_BIT:
+      status = mBitServer->release_tag_id(id);
+      break;
+    case MB_TAG_SPARSE:
+    case MB_TAG_MESH:
+      status = mSparseData->release_tag_id(id);
+      break;
+    case MB_TAG_DENSE:
+      status = mDenseData->release_tag_id(id);
+      break;
+    default:
+      status = MB_FAILURE;
   }
 
   return status;
@@ -213,14 +213,14 @@ MBErrorCode TagServer::reset_data(MBEntityHandle entity_handle)
 
   // now clean out the sparse data
   max_tag = TAG_HANDLE_FROM_ID(0,MB_TAG_DENSE);
-  for(iter = mTagTable.begin(); iter != mTagTable.end() && iter->first < max_tag; ++iter)
+  for( ; iter != mTagTable.end() && iter->first < max_tag; ++iter)
   {
     mSparseData->remove_data(ID_FROM_TAG_HANDLE(iter->first), entity_handle);
   }
   
   // now clean out the dense data
   max_tag = TAG_HANDLE_FROM_ID(0,MB_TAG_MESH);
-  for(iter = mTagTable.begin(); iter != mTagTable.end() && iter->first < max_tag; ++iter)
+  for( ; iter != mTagTable.end() && iter->first < max_tag; ++iter)
   {
     mDenseData->remove_data(ID_FROM_TAG_HANDLE(iter->first), entity_handle,
         iter->second.default_value());
@@ -257,28 +257,17 @@ MBErrorCode TagServer::set_data(const MBTag tag_handle,
   if(TYPE_FROM_HANDLE(entity_handle) >= MBMAXTYPE)
     return MB_TYPE_OUT_OF_RANGE;
   
-  if( PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
-  {
-    return mDenseData->set_data(ID_FROM_TAG_HANDLE(tag_handle), entity_handle, data);
+  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+    case MB_TAG_BIT:
+      return set_bits(tag_handle, entity_handle, *((unsigned char *)data));
+    case MB_TAG_SPARSE:
+      return mSparseData->set_data(id, entity_handle, data);
+    case MB_TAG_DENSE:
+      return mDenseData->set_data(id, entity_handle, data);
+    default:
+      return MB_TAG_NOT_FOUND;
   }
-  else if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_SPARSE)
-  {
-    return mSparseData->set_data(ID_FROM_TAG_HANDLE(tag_handle), entity_handle, data);
-  }
-  else if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
-  {
-    return set_bits(tag_handle, entity_handle, *((unsigned char *)data));
-  }
-  else {
-      // if we get here, we didn't find the right tag to set
-    return MB_TAG_NOT_FOUND;
-  }
-  //else if(reinterpret_cast<long>(tag_handle) & TAG_BIT_PROPERTIES[MB_TAG_STATIC)
-  //{
-    //return mStaticSparseData.set_data(ID_FROM_TAG_HANDLE(tag_handle), data);
-  //}
-  
-  return MB_SUCCESS;
 }
 
 
@@ -409,22 +398,17 @@ MBErrorCode TagServer::get_data(const MBTag tag_handle,
   if(TYPE_FROM_HANDLE(entity_handle) >= MBMAXTYPE)
     return MB_TYPE_OUT_OF_RANGE;
 
-  if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
-  {
-    result = mDenseData->get_data(ID_FROM_TAG_HANDLE(tag_handle), entity_handle, data);
+  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+    case MB_TAG_DENSE:
+      result = mDenseData->get_data(ID_FROM_TAG_HANDLE(tag_handle), entity_handle, data);
+      break;
+    case MB_TAG_SPARSE:
+      result = mSparseData->get_data(ID_FROM_TAG_HANDLE(tag_handle), entity_handle, data);
+      break;
+    case MB_TAG_BIT:
+      result = get_bits(tag_handle, entity_handle, *((unsigned char *)data));
+      break;
   }
-  else if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_SPARSE)
-  {
-    result = mSparseData->get_data(ID_FROM_TAG_HANDLE(tag_handle), entity_handle, data);
-  }
-  else if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
-  {
-    result = get_bits(tag_handle, entity_handle, *((unsigned char *)data));
-  }
-  //else if(reinterpret_cast<long>(tag_handle) & TAG_BIT_PROPERTIES[MB_TAG_STATIC)
-  //{
-    //result = mStaticSparseData.get_data(ID_FROM_TAG_HANDLE(tag_handle), data);
-  //}
 
   // if we couldn't get a value
   // try to get a default value
@@ -714,17 +698,17 @@ MBErrorCode TagServer::get_entities(const MBTag tag_handle, const MBEntityType t
                                      MBRange &entities)
 {
   MBErrorCode result = MB_TAG_NOT_FOUND;
-  if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_SPARSE)
-  {
-    result = mSparseData->get_entities(ID_FROM_TAG_HANDLE(tag_handle), type, entities);
-  }
-  else if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
-  {
-    result = mDenseData->get_entities(ID_FROM_TAG_HANDLE(tag_handle), type, entities);
-  }
-  else if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
-  {
-    result = mBitServer->get_entities(ID_FROM_TAG_HANDLE(tag_handle), type, entities);
+  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+    case MB_TAG_SPARSE:
+      result = mSparseData->get_entities(id, type, entities);
+      break;
+    case MB_TAG_DENSE:
+      result = mDenseData->get_entities(id, type, entities);
+      break;
+    case MB_TAG_BIT:
+      result = mBitServer->get_entities(id, type, entities);
+      break;
   }
   
   return result;
@@ -736,17 +720,17 @@ MBErrorCode TagServer::get_entities(const MBRange &range,
                                      MBRange &entities)
 {
   MBErrorCode result = MB_TAG_NOT_FOUND;
-  if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_SPARSE)
-  {
-    result = mSparseData->get_entities(range, ID_FROM_TAG_HANDLE(tag_handle), type, entities);
-  }
-  else if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
-  {
-    result = mDenseData->get_entities(range, ID_FROM_TAG_HANDLE(tag_handle), type, entities);
-  }
-  else if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
-  {
-    result = mBitServer->get_entities(range, ID_FROM_TAG_HANDLE(tag_handle), type, entities);
+  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+    case MB_TAG_SPARSE:
+      result = mSparseData->get_entities(range, id, type, entities);
+      break;
+    case MB_TAG_DENSE:
+      result = mDenseData->get_entities(range, id, type, entities);
+      break;
+    case MB_TAG_BIT:
+      result = mBitServer->get_entities(range, id, type, entities);
+      break;
   }
   
   return result;
@@ -759,19 +743,18 @@ MBErrorCode TagServer::get_entities_with_tag_value( const MBEntityType type,
 {
 
   MBErrorCode result = MB_TAG_NOT_FOUND;
-
-  if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_SPARSE)
-  {
-    result = mSparseData->get_entities_with_tag_value(ID_FROM_TAG_HANDLE(tag_handle), type, entities, value);
-  }
-  else if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
-  {
-    result = mDenseData->get_entities_with_tag_value(ID_FROM_TAG_HANDLE(tag_handle), type, entities, value);
-  }
-  else if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
-  {
-    result = mBitServer->get_entities_with_tag_value(ID_FROM_TAG_HANDLE(tag_handle), type, 
-                                                     entities, *((const unsigned char*)value));
+  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+    case MB_TAG_SPARSE:
+      result = mSparseData->get_entities_with_tag_value(id, type, entities, value);
+      break;
+    case MB_TAG_DENSE:
+      result = mDenseData->get_entities_with_tag_value(id, type, entities, value);
+      break;
+    case MB_TAG_BIT:
+      result = mBitServer->get_entities_with_tag_value(id, type, 
+                                entities, *((const unsigned char*)value));
+      break;
   }
 
   return result;
@@ -786,20 +769,18 @@ MBErrorCode TagServer::get_entities_with_tag_value( const MBRange &range,
 {
 
   MBErrorCode result = MB_TAG_NOT_FOUND;
-
-  if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_SPARSE)
-  {
-    result = mSparseData->get_entities_with_tag_value(range, ID_FROM_TAG_HANDLE(tag_handle), type, entities, value);
-  }
-  else if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
-  {
-    result = mDenseData->get_entities_with_tag_value(range, ID_FROM_TAG_HANDLE(tag_handle), type, entities, value);
-  }
-
-  else if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
-  {
-    result = mBitServer->get_entities_with_tag_value(range, ID_FROM_TAG_HANDLE(tag_handle), type, 
-                                                     entities, *((const unsigned char*)value));
+  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+    case MB_TAG_SPARSE:
+      result = mSparseData->get_entities_with_tag_value(range, id, type, entities, value);
+      break;
+    case MB_TAG_DENSE:
+      result = mDenseData->get_entities_with_tag_value(range, id, type, entities, value);
+      break;
+    case MB_TAG_BIT:
+      result = mBitServer->get_entities_with_tag_value(range, id, type, 
+                                   entities, *((const unsigned char*)value));
+      break;
   }
 
   return result;
@@ -939,17 +920,14 @@ MBErrorCode TagServer::get_number_entities( const MBTag tag_handle,
                                              const MBEntityType type,
                                              int& num_entities)
 {
-  if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_SPARSE)
-  {
-    return mSparseData->get_number_entities(ID_FROM_TAG_HANDLE(tag_handle), type, num_entities);
-  }
-  else if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
-  {
-    return mDenseData->get_number_entities(ID_FROM_TAG_HANDLE(tag_handle), type, num_entities);
-  }
-  else if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
-  {
-    return mBitServer->get_number_entities(ID_FROM_TAG_HANDLE(tag_handle), type, num_entities);
+  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+    case MB_TAG_SPARSE:
+      return mSparseData->get_number_entities(id, type, num_entities);
+    case MB_TAG_DENSE:
+      return mDenseData->get_number_entities(id, type, num_entities);
+    case MB_TAG_BIT:
+      return mBitServer->get_number_entities(id, type, num_entities);
   }
   return MB_TAG_NOT_FOUND;
 }
@@ -959,17 +937,14 @@ MBErrorCode TagServer::get_number_entities( const MBRange &range,
                                              const MBEntityType type,
                                              int& num_entities)
 {
-  if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_SPARSE)
-  {
-    return mSparseData->get_number_entities(range, ID_FROM_TAG_HANDLE(tag_handle), type, num_entities);
-  }
-  else if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
-  {
-    return mDenseData->get_number_entities(range, ID_FROM_TAG_HANDLE(tag_handle), type, num_entities);
-  }
-  else if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
-  {
-    return mBitServer->get_number_entities(range, ID_FROM_TAG_HANDLE(tag_handle), type, num_entities);
+  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+    case MB_TAG_SPARSE:
+      return mSparseData->get_number_entities(range, id, type, num_entities);
+    case MB_TAG_DENSE:
+      return mDenseData->get_number_entities(range, id, type, num_entities);
+    case MB_TAG_BIT:
+      return mBitServer->get_number_entities(range, id, type, num_entities);
   }
   return MB_TAG_NOT_FOUND;
 }
