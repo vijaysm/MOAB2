@@ -45,16 +45,6 @@ const MBDimensionPair MBCN::TypeDimensionMap[] =
   MBDimensionPair(MBMAXTYPE, MBMAXTYPE)
 };
 
-MBEntityType MBCN::lower_bound( int dimension )
-{
-  if (dimension < 3)
-    return static_cast<MBEntityType>(dimension);
-  else if (dimension == 3)
-    return MBTET;
-  else
-    return MBMAXTYPE;
-}
-
   //! set the basis of the numbering system; may or may not do things besides setting the
 //! member variable
 void MBCN::SetBasis(const int in_basis) 
