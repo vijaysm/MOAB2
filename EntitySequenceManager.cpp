@@ -297,11 +297,11 @@ MBErrorCode EntitySequenceManager::get_entities(MBEntityType type, MBRange &enti
   return MB_SUCCESS;
 }
 
-MBErrorCode EntitySequenceManager::get_number_entities(MBEntityType type, int& num_entities) 
+MBErrorCode EntitySequenceManager::get_number_entities(MBEntityType type, int& num_entities) const 
 {
   num_entities = 0;
   //index into the static sequence map to get the sequences according to type only 
-  std::map<MBEntityHandle, MBEntitySequence*>::iterator beg_seq, end_seq;
+  std::map<MBEntityHandle, MBEntitySequence*>::const_iterator beg_seq, end_seq;
   beg_seq = mSequenceMap[type].begin();
   end_seq = mSequenceMap[type].end();
 

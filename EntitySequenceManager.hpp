@@ -89,7 +89,7 @@ public:
                             MBRange &entities) const;
   
   //! get entities from the entity sequences according to type 
-  MBErrorCode get_number_entities(MBEntityType, int& entities);
+  MBErrorCode get_number_entities(MBEntityType, int& entities) const;
 
   //! deletes an entity from the database
   MBErrorCode delete_entity( MBEntityHandle entity );
