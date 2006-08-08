@@ -193,8 +193,7 @@ public:
 
 private:
 
-  //! map of tag_ids with tag containers
-  std::map< MBTagId /*tag_handle*/ , SparseTagCollection* > mDataTags;
+  std::vector<SparseTagCollection*> mDataTags;
 };
 
 

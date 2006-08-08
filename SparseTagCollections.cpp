@@ -36,29 +36,26 @@
   SparseTagSuperCollection functions -----------------------------
 */
 
+#define get_collection( A ) ((A) < mDataTags.size() ? mDataTags[(A)] : 0);
 
 SparseTagSuperCollection::~SparseTagSuperCollection()
 {
-  SparseTagCollection* tag_collection = NULL;
-
-  std::map<MBTagId, SparseTagCollection*>::iterator tag_iterator;
+  std::vector<SparseTagCollection*>::iterator tag_iterator;
   for(tag_iterator = mDataTags.begin(); tag_iterator != mDataTags.end(); ++tag_iterator)
-  {
-    tag_collection = (*tag_iterator).second;
-    if(tag_collection != NULL)
-      delete tag_collection;
-  }
+    delete *tag_iterator;
   mDataTags.clear();
 }
 
 void SparseTagSuperCollection::reset_data()
 {
-  std::map<MBTagId, SparseTagCollection*>::iterator tag_iterator;
+  std::vector<SparseTagCollection*>::iterator tag_iterator;
   for(tag_iterator = mDataTags.begin(); tag_iterator != mDataTags.end(); ++tag_iterator)
   {
-    int data_size = tag_iterator->second->tag_size();
-    delete tag_iterator->second;
-    tag_iterator->second = new SparseTagCollection(data_size);
+    if (*tag_iterator) {
+      int data_size = (*tag_iterator)->tag_size();
+      delete *tag_iterator;
+      *tag_iterator = new SparseTagCollection(data_size);
+    }
   }
   
 }
@@ -71,94 +68,59 @@ MBErrorCode SparseTagSuperCollection::reserve_tag_id(int data_size, MBTagId& tag
   // start at 1
   tag_id = 1;
  
-  // go until we find one that isn't used 
-  for( std::map<MBTagId, SparseTagCollection*>::iterator iter = mDataTags.begin();
-       iter != mDataTags.end(); ++iter)
-  {
-    if(tag_id == iter->first)
-      tag_id++;
-    else
-      break;
-  }
-
-  SparseTagCollection* new_tag_collection = new SparseTagCollection(data_size);
-  std::pair<MBTagId,SparseTagCollection*> tmp(tag_id, new_tag_collection);
-  mDataTags.insert( tmp );
-
+  while (tag_id < mDataTags.size() && mDataTags[tag_id])
+    ++tag_id;
+  
+  if (tag_id >= mDataTags.size())
+    mDataTags.resize( tag_id+1, 0 );
+    
+  mDataTags[tag_id] = new SparseTagCollection(data_size);
   return MB_SUCCESS;
 }
 
 MBErrorCode SparseTagSuperCollection::release_tag_id(MBTagId tag_id)
 {
-  std::map<MBTagId, SparseTagCollection*>::iterator iterator =
-    mDataTags.find(tag_id);
-
-  if(iterator != mDataTags.end())
-  {
-    delete iterator->second;
-    mDataTags.erase(iterator);
-    return MB_SUCCESS;
-  }
-  return MB_TAG_NOT_FOUND;
+  if (tag_id >= mDataTags.size() || !mDataTags[tag_id])
+    return MB_TAG_NOT_FOUND;
+  
+  delete mDataTags[tag_id];
+  mDataTags[tag_id] = 0;
+  return MB_SUCCESS;
 }
 
 int SparseTagSuperCollection::tag_size(const MBTagId tag_id) const
 {
-  std::map<MBTagId, SparseTagCollection*>::const_iterator iterator =
-    mDataTags.find(tag_id);
-  if(iterator != mDataTags.end())
-  {
-    return iterator->second->tag_size();
-  }
-  return 0;
+  SparseTagCollection* coll = get_collection(tag_id);
+  return coll ? coll->tag_size() : 0;
 }
 
 MBErrorCode SparseTagSuperCollection::set_data(const MBTagId tag_handle, 
     const MBEntityHandle entity_handle, const void* data)
 {
-  std::map<MBTagId, SparseTagCollection*>::iterator iterator =
-    mDataTags.find(tag_handle);
-
-  if(iterator != mDataTags.end())
-    return iterator->second->set_data(entity_handle, data);
-  else
-    return MB_TAG_NOT_FOUND;
+  SparseTagCollection* coll = get_collection(tag_handle);
+  return coll ? coll->set_data( entity_handle, data ) : MB_TAG_NOT_FOUND;
 }
 
-MBErrorCode SparseTagSuperCollection::get_data(const MBTagId tag_handle, const MBEntityHandle entity_handle, void* data)
+MBErrorCode SparseTagSuperCollection::get_data(const MBTagId tag_handle, 
+    const MBEntityHandle entity_handle, void* data)
 {
-  std::map<MBTagId, SparseTagCollection*>::iterator iterator =
-    mDataTags.find(tag_handle);
-
-  if(iterator != mDataTags.end())
-    return iterator->second->get_data(entity_handle, data);
-  else
-    return MB_TAG_NOT_FOUND;
+  SparseTagCollection* coll = get_collection(tag_handle);
+  return coll ? coll->get_data( entity_handle, data ) : MB_TAG_NOT_FOUND;
 }
 
 
-MBErrorCode SparseTagSuperCollection::remove_data( const MBTagId tag_handle, const MBEntityHandle entity_handle )
+MBErrorCode SparseTagSuperCollection::remove_data( const MBTagId tag_handle, 
+    const MBEntityHandle entity_handle )
 {
-  std::map<MBTagId, SparseTagCollection*>::iterator iterator =
-    mDataTags.find(tag_handle);
-
-  if(iterator != mDataTags.end())
-    return iterator->second->remove_data(entity_handle);
-
-  return MB_TAG_NOT_FOUND;
+  SparseTagCollection* coll = get_collection(tag_handle);
+  return coll ? coll->remove_data( entity_handle ) : MB_TAG_NOT_FOUND;
 }
 
 
 MBEntityHandle SparseTagSuperCollection::find_entity( const MBTagId tag_handle, const void* data )
 {
-  std::map<MBTagId, SparseTagCollection*>::iterator iterator =
-    mDataTags.find(tag_handle);
-
-  if(iterator != mDataTags.end())
-    return iterator->second->find_entity(data);
-  else
-    return 0;
-
+  SparseTagCollection* coll = get_collection(tag_handle);
+  return coll ? coll->find_entity( data ) : MB_TAG_NOT_FOUND;
 }
 
 
@@ -166,13 +128,8 @@ MBEntityHandle SparseTagSuperCollection::find_entity( const MBTagId tag_handle, 
 MBErrorCode SparseTagSuperCollection::get_entities(const MBTagId tag_handle, const MBEntityType type,
                                                     MBRange &entities)
 {
-  std::map<MBTagId, SparseTagCollection*>::iterator iterator =
-    mDataTags.find(tag_handle);
-
-  if(iterator != mDataTags.end())
-    return iterator->second->get_entities(type, entities);
-
-  return MB_TAG_NOT_FOUND;
+  SparseTagCollection* coll = get_collection(tag_handle);
+  return coll ? coll->get_entities(type, entities) : MB_TAG_NOT_FOUND;
 }
 
 //! gets all entity handles that match a type and tag
@@ -180,14 +137,12 @@ MBErrorCode SparseTagSuperCollection::get_entities(const MBRange &range,
                                                     const MBTagId tag_handle, const MBEntityType type,
                                                     MBRange &entities)
 {
-  std::map<MBTagId, SparseTagCollection*>::iterator iterator =
-    mDataTags.find(tag_handle);
-
-  MBErrorCode result = MB_TAG_NOT_FOUND;
-  MBRange dum_range;
+  SparseTagCollection* coll = get_collection(tag_handle);
+  if (!coll)
+    return MB_TAG_NOT_FOUND;
   
-  if(iterator != mDataTags.end())
-    result = iterator->second->get_entities(type, dum_range);
+  MBRange dum_range;
+  MBErrorCode result = coll->get_entities(type, dum_range);
 
   std::set_intersection(dum_range.begin(), dum_range.end(),
                         range.begin(), range.end(),
@@ -199,11 +154,9 @@ MBErrorCode SparseTagSuperCollection::get_entities(const MBRange &range,
 MBErrorCode SparseTagSuperCollection::get_tags(const MBEntityHandle entity,
                                                 std::vector<MBTag> &all_tags)
 {
-  std::map<MBTagId, SparseTagCollection*>::iterator tag_it;
-  for (tag_it = mDataTags.begin(); tag_it != mDataTags.end(); tag_it++) {
-    if (tag_it->second->contains(entity))
-      all_tags.push_back(TAG_HANDLE_FROM_ID(tag_it->first, MB_TAG_SPARSE));
-  }
+  for (MBTagId id = 0; id < mDataTags.size(); ++id)
+    if (mDataTags[id] && mDataTags[id]->contains(entity))
+      all_tags.push_back( TAG_HANDLE_FROM_ID( id, MB_TAG_SPARSE ) );
   
   return MB_SUCCESS;
 }
@@ -212,13 +165,11 @@ MBErrorCode SparseTagSuperCollection::get_tags(const MBEntityHandle entity,
 MBErrorCode SparseTagSuperCollection::get_entities_with_tag_value(const MBTagId tag_handle, const MBEntityType type,
                                                                    MBRange &entities, const void* tag_value)
 {
-  std::map<MBTagId, SparseTagCollection*>::iterator iterator =
-    mDataTags.find(tag_handle);
-
-  if(iterator != mDataTags.end())
-    return iterator->second->get_entities_with_tag_value(type, entities, tag_value);
-
-  return MB_TAG_NOT_FOUND;
+  SparseTagCollection* coll = get_collection(tag_handle);
+  if (!coll)
+    return MB_TAG_NOT_FOUND;
+  
+  return coll->get_entities_with_tag_value(type, entities, tag_value);
 }
 
 //! gets all entity handles that match a type and tag
@@ -226,14 +177,12 @@ MBErrorCode SparseTagSuperCollection::get_entities_with_tag_value(const MBRange 
                                                                    const MBTagId tag_handle, const MBEntityType type,
                                                                    MBRange &entities, const void* tag_value)
 {
-  std::map<MBTagId, SparseTagCollection*>::iterator iterator =
-    mDataTags.find(tag_handle);
+  SparseTagCollection* coll = get_collection(tag_handle);
+  if (!coll)
+    return MB_TAG_NOT_FOUND;
 
   MBRange dum_range;
-  MBErrorCode result = MB_TAG_NOT_FOUND;
-
-  if(iterator != mDataTags.end())
-    result = iterator->second->get_entities_with_tag_value(type, dum_range, tag_value);
+  MBErrorCode result = coll->get_entities_with_tag_value(type, dum_range, tag_value);
 
     // do this the hard way to preserve order in the vector
   std::set_intersection(range.begin(), range.end(),
@@ -247,13 +196,8 @@ MBErrorCode SparseTagSuperCollection::get_entities_with_tag_value(const MBRange 
 MBErrorCode SparseTagSuperCollection::get_number_entities(const MBTagId tag_handle, const MBEntityType type,
                                                            int& num_entities)
 {
-  std::map<MBTagId, SparseTagCollection*>::iterator iterator =
-    mDataTags.find(tag_handle);
-
-  if(iterator == mDataTags.end())
-    return MB_TAG_NOT_FOUND;
-
-  return iterator->second->get_number_entities(type, num_entities);
+  SparseTagCollection* coll = get_collection(tag_handle);
+  return coll ? coll->get_number_entities( type, num_entities ) : MB_TAG_NOT_FOUND;
 }
 
 //! gets all entity handles that match a type and tag
@@ -263,8 +207,6 @@ MBErrorCode SparseTagSuperCollection::get_number_entities(const MBRange &range,
 {
   MBRange dum_range;
   MBErrorCode result = get_entities(range, tag_handle, type, dum_range);
-  if (MB_SUCCESS != result) return result;
-  
   num_entities = dum_range.size();
   return result;
 }
