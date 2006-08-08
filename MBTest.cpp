@@ -875,7 +875,7 @@
     return MB_SUCCESS;
   }
 
-  MBErrorCode mb_mesh_sets_test(MBInterface * MB)
+  MBErrorCode mb_mesh_sets_test(MBInterface * MB, int flags)
   {
 
     MBRange temp_range;
@@ -891,7 +891,7 @@
     //add entities to meshsets 
     for (ent_type = MBEDGE; ent_type != MBENTITYSET; ent_type++) 
     {
-      result = MB->create_meshset( MESHSET_SET, ms_array[ent_type] );
+      result = MB->create_meshset( flags, ms_array[ent_type] );
       if( result != MB_SUCCESS )
         return result;
 
@@ -1138,10 +1138,10 @@
     //----------TEST BOOLEAN OPERATIONS----------------//
 
     MBEntityHandle temp_ms1, temp_ms2; 
-    result = MB->create_meshset(MESHSET_SET, temp_ms1);
+    result = MB->create_meshset(flags, temp_ms1);
     if(result  != MB_SUCCESS ) 
       return result;
-    result = MB->create_meshset(MESHSET_SET, temp_ms2);
+    result = MB->create_meshset(flags, temp_ms2);
     if(result != MB_SUCCESS )
       return result;
 
@@ -1322,7 +1322,7 @@
     //Add 2 meshsets as children to another
 
     MBEntityHandle parent_child_meshset = 0;
-    result = MB->create_meshset( MESHSET_SET, parent_child_meshset ) ;
+    result = MB->create_meshset( flags, parent_child_meshset ) ;
     if(result != MB_SUCCESS )
       return result;
     //add parents
@@ -1382,6 +1382,16 @@
 
     return MB_SUCCESS;
   }
+  
+  MBErrorCode mb_mesh_sets_set_test( MBInterface* mb )
+  {
+    return mb_mesh_sets_test( mb, MESHSET_SET );
+  }
+  
+  MBErrorCode mb_mesh_sets_list_test( MBInterface* mb )
+  {
+    return mb_mesh_sets_test( mb, MESHSET_ORDERED );
+  } 
 
 
   // number of entities of type MBVERTEX, MBEDGE, MBDTri, MBQUAD, MBTET, and MBHEX
@@ -4381,8 +4391,15 @@ int main(int argc, char* argv[])
   cout << "\n";
 
   // MB meshsets 
-  cout << "   mb_mesh_sets_test: ";
-  result = mb_mesh_sets_test(gMB);
+  cout << "   mb_mesh_sets_set_test: ";
+  result = mb_mesh_sets_set_test(gMB);
+  handle_error_code(result, number_tests_failed,
+                    number_tests_not_implemented,
+                    number_tests_successful);
+  number_tests++;
+  cout << "\n";
+  cout << "   mb_mesh_sets_list_test: ";
+  result = mb_mesh_sets_list_test(gMB);
   handle_error_code(result, number_tests_failed,
                     number_tests_not_implemented,
                     number_tests_successful);
