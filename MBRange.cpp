@@ -549,6 +549,57 @@ bool MBRange::all_of_dimension( int dimension ) const
        && MBCN::Dimension(TYPE_FROM_HANDLE(mHead.mPrev->second)) == dimension);
 }
 
+unsigned MBRange::num_of_type( MBEntityType type ) const
+{
+  const_pair_iterator iter = const_pair_begin();
+  while(iter != const_pair_end() && TYPE_FROM_HANDLE((*iter).second) < type)
+    ++iter;
+  
+  unsigned count = 0;
+  while (iter != const_pair_end())
+  {
+    MBEntityType start_type = TYPE_FROM_HANDLE((*iter).first);
+    MBEntityType end_type = TYPE_FROM_HANDLE((*iter).second);
+    if (start_type > type)
+      break;
+   
+    int sid = start_type < type ? 1 : ID_FROM_HANDLE((*iter).first);
+    int eid = end_type > type ? MB_END_ID : ID_FROM_HANDLE((*iter).second);
+    count += eid - sid + 1;
+  }
+
+  return count;
+}
+  
+unsigned MBRange::num_of_dimension( int dim ) const
+{
+  const_pair_iterator iter = const_pair_begin();
+  while(iter != const_pair_end() && MBCN::Dimension(TYPE_FROM_HANDLE((*iter).second)) < dim)
+    ++iter;
+  
+  int junk;
+  unsigned count = 0;
+  while (iter != const_pair_end())
+  {
+    int start_dim = MBCN::Dimension(TYPE_FROM_HANDLE((*iter).first));
+    int end_dim = MBCN::Dimension(TYPE_FROM_HANDLE((*iter).second));
+    if (start_dim > dim)
+      break;
+      
+    MBEntityHandle sh = start_dim < dim ? 
+                        CREATE_HANDLE( MBCN::TypeDimensionMap[dim].first, 1, junk ) :
+                        (*iter).first;
+    MBEntityHandle eh = end_dim > dim ?
+                        CREATE_HANDLE( MBCN::TypeDimensionMap[dim].second, MB_END_ID, junk ) :
+                        (*iter).second;
+    count += eh - sh + 1;
+  }
+
+  return count;
+}
+  
+    
+
 
 //! swap the contents of this range with another one
 //! THIS FUNCTION MUST NOT BE INLINED, THAT WILL ELIMINATE RANGE_EMPTY AND THIS_EMPTY

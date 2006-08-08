@@ -276,6 +276,9 @@ public:
   //! (also true if range is empty)
   bool all_of_dimension( int dimension ) const;
   
+  unsigned num_of_type( MBEntityType type ) const;
+  unsigned num_of_dimension( int dim ) const;
+  
   //! clears the contents of the list 
   void clear();
   
@@ -315,15 +318,15 @@ public:
   
   MBEntityHandle operator[](const int index);
   
+  MBRange::iterator insert( MBRange::iterator prev,
+                            MBEntityHandle first,
+                            MBEntityHandle last );
+  
 protected:
 
   //! the head of the list that contains pairs that represent the ranges 
   //! this list is sorted and unique at all times
   PairNode mHead;
-  
-  MBRange::iterator insert( MBRange::iterator prev,
-                            MBEntityHandle first,
-                            MBEntityHandle last );
 
 public:
 
