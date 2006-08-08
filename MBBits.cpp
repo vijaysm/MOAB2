@@ -163,11 +163,12 @@ MBErrorCode MBBitPageGroup::get_entities(MBEntityType type, MBRange& entities)
 MBErrorCode MBBitServer::get_entities(const MBRange &range, MBTagId tag_id, MBEntityType type, 
                                         MBRange& entities)
 {
-  if(tag_id > mBitPageGroupsSize || (*mBitPageGroups)[tag_id-1] == NULL)
+  --tag_id;
+  if(tag_id >= mBitPageGroupsSize || (*mBitPageGroups)[tag_id] == NULL)
     return MB_FAILURE;
 
   MBRange dum_range;
-  MBErrorCode result = mBitPageGroups[type][tag_id-1]->get_entities(type, dum_range);
+  MBErrorCode result = mBitPageGroups[type][tag_id]->get_entities(type, dum_range);
   if (MB_FAILURE == result) return result;
 
   std::set_intersection(dum_range.begin(), dum_range.end(),
