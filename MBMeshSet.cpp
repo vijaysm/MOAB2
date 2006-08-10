@@ -55,159 +55,32 @@ MBMeshSet::~MBMeshSet()
 {
 }
 
-
-MBErrorCode MBMeshSet::get_children(const int num_hops, 
-                                    std::vector<MBEntityHandle> &children) const
+static inline int insert_in_vector( MBMeshSet::LinkSet& s, MBEntityHandle h )
 {
-    // compute new value of num_hops, either decremented or equal to -1
-  int this_hops = (-1 == num_hops ? -1 : num_hops-1);
-
-  std::vector<MBMeshSet*>::const_iterator i = childMeshSets.begin();
-    // go through child sets; if we find a unique child, and we haven't exceeded
-    // the hops, recurse
-  while (i != childMeshSets.end()) 
-  {
-    std::vector<MBEntityHandle>::iterator j = std::find(children.begin(), children.end(), (*i)->mEntityHandle);
-    if (j == children.end()) 
-    {
-      children.push_back((*i)->mEntityHandle);
-      if (0 != this_hops)
-        (*i)->get_children(this_hops, children);
-    }
-    i++;
-  }
-
-  return MB_SUCCESS;
-}
-
-
-MBErrorCode MBMeshSet::get_parents(const int num_hops, 
-                                   std::vector<MBEntityHandle> &parents) const
-{
-    // compute new value of num_hops, either decremented or equal to -1
-  int this_hops = (-1 == num_hops ? -1 : num_hops-1);
-
-  std::vector<MBMeshSet*>::const_iterator i = parentMeshSets.begin();
-    // go through parent sets; if we find a unique parent, and we haven't exceeded
-    // the hops, recurse
-  while (i != parentMeshSets.end()) 
-  {
-    std::vector<MBEntityHandle>::iterator j = std::find(parents.begin(), parents.end(), (*i)->mEntityHandle );
-    if (j == parents.end()) 
-    {
-      parents.push_back( (*i)->mEntityHandle );
-      if (0 != this_hops)
-        (*i)->get_parents(this_hops, parents);
-    }
-    i++;
-  }
-
-  return MB_SUCCESS;
-}
-
-  //! add a parent/child link between the meshsets; returns error if entities are already
-  //! related or if child is already a parent of parent
-MBErrorCode MBMeshSet::add_parent_child(MBMeshSet* parent_meshset, 
-                                 MBMeshSet* child_meshset) 
-{ 
-  parent_meshset->add_child(child_meshset);
-  child_meshset->add_parent(parent_meshset);
-  return MB_SUCCESS;
-}
-
-  //! remove a parent/child link between the meshsets; returns error if entities
-  //! are not related
-MBErrorCode MBMeshSet::remove_parent_child(MBMeshSet* parent_meshset, 
-                                    MBMeshSet* child_meshset) 
-{ 
-  parent_meshset->remove_child(child_meshset);
-  child_meshset->remove_parent(parent_meshset);
-  return MB_SUCCESS;
-}
-
-
-int MBMeshSet::add_parent(MBMeshSet *parent) 
-{
-  //add parent to this's parent-mesh-set-list
-  if (std::find(parentMeshSets.begin(),
-                parentMeshSets.end(), parent) == parentMeshSets.end()) 
-  {
-    parentMeshSets.push_back(parent);
-    return 1; 
-  }
-
-  else 
+  MBMeshSet::LinkSet::iterator i = find( s.begin(), s.end(), h );
+  if (i != s.end())
     return 0;
-
+  s.push_back( h );
+  return 1;
 }
+int MBMeshSet::add_parent( MBEntityHandle parent )
+  { return insert_in_vector( parentMeshSets, parent ); }
+int MBMeshSet::add_child( MBEntityHandle child )
+  { return insert_in_vector( childMeshSets, child ); }
 
-int MBMeshSet::add_child(MBMeshSet *child) 
+static inline int remove_from_vector( MBMeshSet::LinkSet& s, MBEntityHandle h )
 {
-  //add child to this's child-mesh-set-list
-  if (std::find(childMeshSets.begin(),
-                childMeshSets.end(), child) == childMeshSets.end()) 
-  {
-    childMeshSets.push_back(child);
-    return 1; 
-  }
-
-  else 
+  MBMeshSet::LinkSet::iterator i = find( s.begin(), s.end(), h );
+  if (i == s.end())
     return 0;
+  s.erase( i );
+  return 1;
 }
-
-int MBMeshSet::remove_parent(MBMeshSet *parent) 
-{
-  //erace position from this's parent-mesh-set-list
-  std::vector<MBMeshSet*>::iterator position = 
-    std::find(parentMeshSets.begin(), parentMeshSets.end(), parent);
-
-  if ( position != parentMeshSets.end()) 
-  {
-    parentMeshSets.erase(position);
-    return 1; 
-  }
-
-  else 
-    return 0;
-}
-
-int MBMeshSet::remove_child(MBMeshSet *child) 
-{
-  //erace position from this's child-mesh-set-list
-  std::vector<MBMeshSet*>::iterator position = 
-    std::find(childMeshSets.begin(), childMeshSets.end(), child);
+int MBMeshSet::remove_parent( MBEntityHandle parent )
+  { return remove_from_vector( parentMeshSets, parent ); }
+int MBMeshSet::remove_child( MBEntityHandle child )
+  { return remove_from_vector( childMeshSets, child ); }
   
-  if ( position != childMeshSets.end()) 
-  {
-    childMeshSets.erase(position);
-    return 1; 
-  }
-
-  else 
-    return 0;
-}
-
-  //! return the number of child/parent relations for this meshset
-int MBMeshSet::num_children(int *,
-                            const int num_hops) const
-{ 
-  static std::vector<MBEntityHandle> children;
-  children.clear();
-  MBErrorCode result = get_children(num_hops, children);
-  if (MB_SUCCESS != result) return -1;
-  else return children.size();
-}
-
-int MBMeshSet::num_parents(int *,
-                           const int num_hops) const
-{ 
-  static std::vector<MBEntityHandle> parents;
-  parents.clear();
-  MBErrorCode result = get_parents(num_hops, parents);
-  if (MB_SUCCESS != result) return -1;
-  else return parents.size();
-}
-
 
 MBMeshSet_MBRange::~MBMeshSet_MBRange()
 {
@@ -220,19 +93,6 @@ MBMeshSet_MBRange::~MBMeshSet_MBRange()
       mAdjFact->remove_adjacency(*iter, mEntityHandle);
     }
   }
-
-  std::vector<MBMeshSet*> temp;
-  std::copy(parentMeshSets.begin(), parentMeshSets.end(),
-            std::back_inserter(temp));
-  for (std::vector<MBMeshSet*>::iterator vit = temp.begin(); vit != temp.end(); vit++)
-    remove_parent_child(*vit, this);
-
-  temp.clear();
-  std::copy(childMeshSets.begin(), childMeshSets.end(),
-            std::back_inserter(temp));
-  for (std::vector<MBMeshSet*>::iterator vit = temp.begin(); vit != temp.end(); vit++)
-    remove_parent_child(this, *vit);
-
 }
 
 MBErrorCode MBMeshSet_MBRange::clear()
@@ -450,19 +310,6 @@ MBMeshSet_Vector::~MBMeshSet_Vector()
       mAdjFact->remove_adjacency(*iter, mEntityHandle);
     }
   }
-
-  std::vector<MBMeshSet*> temp;
-  std::copy(parentMeshSets.begin(), parentMeshSets.end(),
-            std::back_inserter(temp));
-  for (std::vector<MBMeshSet*>::iterator vit = temp.begin(); vit != temp.end(); vit++)
-    remove_parent_child(*vit, this);
-
-  temp.clear();
-  std::copy(childMeshSets.begin(), childMeshSets.end(),
-            std::back_inserter(temp));
-  for (std::vector<MBMeshSet*>::iterator vit = temp.begin(); vit != temp.end(); vit++)
-    remove_parent_child(this, *vit);
-
 }
 
 MBErrorCode MBMeshSet_Vector::clear()

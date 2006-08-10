@@ -48,42 +48,34 @@ public:
   virtual ~MBMeshSet();
 
     //! get all children pointed to by this meshset
-  MBErrorCode get_children(const int num_hops, std::vector<MBEntityHandle> &children) const;
+  const std::vector<MBEntityHandle>& get_children() const 
+    { return childMeshSets; }
 
     //! get all parents pointed to by this meshset
-  MBErrorCode get_parents(const int num_hops, std::vector<MBEntityHandle> &parents) const;
-    
-  //! add a parent/child link between the meshsets; returns error if entities are already
-  //! related or if child is already a parent of parent
-  static MBErrorCode add_parent_child(MBMeshSet *parent_meshset, 
-                             MBMeshSet *child_meshset);
-
-  //! remove a parent/child link between the meshsets; returns error if entities
-  //! are not related
-  static MBErrorCode remove_parent_child(MBMeshSet *parent_meshset, 
-                                MBMeshSet *child_meshset);
+  const std::vector<MBEntityHandle>& get_parents() const
+    { return parentMeshSets; }
 
     //! return the number of children pointed to by this meshset
-  int num_children(int *, const int num_hops) const;
+  int num_children() const { return childMeshSets.size(); }
     
     //! return the number of parents pointed to by this meshset
-  int num_parents(int *, const int num_hops) const;
+  int num_parents() const { return parentMeshSets.size(); }
 
     //! add a parent to this meshset; returns true if parent was added, 0 if it was
     //! already a parent of this meshset
-  int add_parent(MBMeshSet *parent);
+  int add_parent(MBEntityHandle parent);
     
     //! add a child to this meshset; returns true if child was added, 0 if it was
     //! already a child of this meshset
-  int add_child(MBMeshSet *child);
+  int add_child(MBEntityHandle child);
     
     //! remove a parent from this meshset; returns true if parent was removed, 0 if it was
     //! not a parent of this meshset
-  int remove_parent(MBMeshSet *parent);
+  int remove_parent(MBEntityHandle parent);
     
     //! remove a child from this meshset; returns true if child was removed, 0 if it was
     //! not a child of this meshset
-  int remove_child(MBMeshSet *child);
+  int remove_child(MBEntityHandle child);
    
   //! returns whether entities of meshsets know this meshset 
   bool tracking() { return mTracking; }
@@ -146,10 +138,12 @@ public:
     //! rebuild parent-child relations for geometry
   static MBErrorCode rebuild_geometry_relations();
   
+  typedef std::vector<MBEntityHandle> LinkSet;
+
 protected:
 
     //! links to parents/children
-  std::vector<MBMeshSet*> parentMeshSets, childMeshSets;
+  LinkSet parentMeshSets, childMeshSets;
    
   MBEntityHandle mEntityHandle;
   
