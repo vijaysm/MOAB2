@@ -25,11 +25,11 @@
 class MBWriteUtil;
 class MBReadUtil;
 class AEntityFactory;
-class MBMeshSet;
 class EntitySequenceManager;
 class TagServer;
 class MBError;
 class MBReaderWriterSet;
+class MeshSetManager;
 
 #ifdef XPCOM_MB
 
@@ -787,25 +787,6 @@ public:
     //! return whether the input handle is valid or not
   bool is_valid(const MBEntityHandle this_ent);
 
-protected:
-
-  //! Recursively get all contained entity sets.
-  MBErrorCode recursive_get_sets( MBEntityHandle start_set,
-                              std::vector<MBMeshSet*>& sets ) const;
-  
-  //! Do breadth-first search.  Get parent or child entity sets.
-  //!\param meshset The set to start the query from
-  //!\param results As output, a sorted list of entity set handles.
-  //!               Any entity sets in this list when it is passed in
-  //!               will be skipped during the traversal (except for 
-  //!               the input set, which is always traversed.)
-  //!\param depth   Get all sets within this many hops from the input
-  //!               set.
-  //!\param parents If true, traverse parent links.  If false, traverse
-  //!               child links.
-  MBErrorCode get_parent_child_meshsets( MBEntityHandle meshset,
-                                    std::vector<MBEntityHandle>& results,
-                                    int depth, bool parents ) const;
 private:
 
     //! database init and de-init routines
@@ -814,8 +795,6 @@ private:
 
     //! return the entity set representing the whole mesh
   MBEntityHandle get_root_set();
-  
-  MBErrorCode delete_mesh_set( MBEntityHandle set );
   
     // other interfaces for MB
   MBWriteUtil* mMBWriteUtil;
@@ -854,16 +833,7 @@ private:
 
 //------------MeshSet Interface Private Functions & Data------------//
 
-  mutable MBMeshSet *cachedMsPtr;
-  mutable MBEntityHandle cachedEntityHandle;
-  std::map< MBEntityHandle, MBMeshSet*> global_mesh_set_list;
-
-  //! the id of this meshset (unique among all meshsets
-  //! in this interface instance)
-  int maxMeshSetid;
-  
-  MBMeshSet* update_cache( const MBEntityHandle ms_handle ) const;
-
+  MeshSetManager* mMeshSetManager;
 };
 
 inline float MBCore::impl_version(std::string *version_string) 

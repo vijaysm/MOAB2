@@ -113,6 +113,8 @@ libMOAB_la_SOURCES = \
   MBUtil.cpp \
   MBWriteUtil.cpp \
   MBWriteUtil.hpp \
+  MeshSetManager.cpp \
+  MeshSetManager.hpp \
   MeshTopoUtil.cpp \
   PolyEntitySequence.cpp \
   PolyEntitySequence.hpp \

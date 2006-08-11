@@ -42,7 +42,7 @@ class MBMeshSet
 public:
 
   //! create an empty meshset
-  MBMeshSet( MBEntityHandle entity_handle, AEntityFactory* a_entity_factory, bool track_ownership );
+  MBMeshSet( bool track_ownership );
 
   //! virtual destructor
   virtual ~MBMeshSet();
@@ -80,11 +80,9 @@ public:
   //! returns whether entities of meshsets know this meshset 
   bool tracking() { return mTracking; }
 
-  void set_adj_factory(AEntityFactory* adj_fact) { mAdjFact = adj_fact; }
-
    //!  PURE VIRTUAL FUNCTIONS overwritten by derived classes  *******************
 
-  virtual MBErrorCode clear() = 0;
+  virtual MBErrorCode clear( MBEntityHandle myhandle, AEntityFactory* adjacencies ) = 0;
 
   virtual MBErrorCode get_entities(std::vector<MBEntityHandle>& entities) const = 0;
   
@@ -106,25 +104,39 @@ public:
   virtual MBErrorCode get_non_set_entities( MBRange& range ) const = 0;
     
   //! subtract/intersect/unite meshset_2 from/with/into meshset_1; modifies meshset_1
-  virtual MBErrorCode subtract(const MBMeshSet *meshset_2) = 0;
+  virtual MBErrorCode subtract(const MBMeshSet *meshset_2,
+                               MBEntityHandle my_handle,
+                               AEntityFactory* adjacencies) = 0;
 
-  virtual MBErrorCode intersect(const MBMeshSet *meshset_2) = 0;
+  virtual MBErrorCode intersect(const MBMeshSet *meshset_2,
+                                MBEntityHandle my_handle,
+                                AEntityFactory* adjacencies) = 0;
 
-  virtual MBErrorCode unite(const MBMeshSet *meshset_2)=0;
+  virtual MBErrorCode unite(const MBMeshSet *meshset_2,
+                            MBEntityHandle my_handle,
+                            AEntityFactory* adjacencies)=0;
 
   //! add these entities to this meshset
   virtual MBErrorCode add_entities(const MBEntityHandle *entity_handles,
-                                    const int num_entities) = 0;
+                                   const int num_entities,
+                                   MBEntityHandle my_handle,
+                                   AEntityFactory* adjacencies) = 0;
     
     //! add these entities to this meshset
-  virtual MBErrorCode add_entities(const MBRange &entities)=0;
+  virtual MBErrorCode add_entities(const MBRange &entities,
+                                   MBEntityHandle my_handle,
+                                   AEntityFactory* adjacencies)=0;
     
     //! add these entities to this meshset
-  virtual MBErrorCode remove_entities(const MBRange& entities)=0;
+  virtual MBErrorCode remove_entities(const MBRange& entities,
+                                      MBEntityHandle my_handle,
+                                      AEntityFactory* adjacencies)=0;
    
     //! remove these entities from this meshset
   virtual MBErrorCode remove_entities(const MBEntityHandle *entities,
-                                       const int num_entities)=0;
+                                      const int num_entities,
+                                      MBEntityHandle my_handle,
+                                      AEntityFactory* adjacencies)=0;
 
     //! return the number of entities contained in this meshset
   virtual unsigned int num_entities() const = 0;
@@ -144,19 +156,14 @@ protected:
 
     //! links to parents/children
   LinkSet parentMeshSets, childMeshSets;
-   
-  MBEntityHandle mEntityHandle;
   
   //!flag to indicate whether 'tracking' is occuring on this meshset
   //ie. all entities of the meshset know they belong to this meshset 
   bool mTracking;
-  
-  //! adjacency factory to handle adjacencies
-  AEntityFactory* mAdjFact;
 };
 
 #define MESH_SET_VIRTUAL_FUNCTIONS      \
-  virtual MBErrorCode clear();                                                          \
+  virtual MBErrorCode clear( MBEntityHandle my_handle, AEntityFactory* adjacencies);                                                          \
   \
   virtual MBErrorCode get_entities(std::vector<MBEntityHandle>& entities) const;       \
   \
@@ -176,21 +183,35 @@ protected:
   \
   virtual MBErrorCode get_non_set_entities( MBRange& range ) const; \
   \
-  virtual MBErrorCode subtract(const MBMeshSet*);                                     \
+  virtual MBErrorCode subtract(const MBMeshSet*,                          \
+                               MBEntityHandle my_handle,                  \
+                               AEntityFactory* adjacencies);              \
   \
-  virtual MBErrorCode intersect(const MBMeshSet *meshset_2);                          \
+  virtual MBErrorCode intersect(const MBMeshSet *meshset_2,               \
+                                MBEntityHandle my_handle,                 \
+                                AEntityFactory* adjacencies);             \
   \
-  virtual MBErrorCode unite(const MBMeshSet *meshset_2);                              \
+  virtual MBErrorCode unite(const MBMeshSet *meshset_2,                   \
+                            MBEntityHandle my_handle,                     \
+                            AEntityFactory* adjacencies);                 \
   \
   virtual MBErrorCode add_entities(const MBEntityHandle *entity_handles,  \
-                                    const int num_entities); \
+                                   const int num_entities,                \
+                                   MBEntityHandle my_handle,              \
+                                   AEntityFactory* adjacencies);          \
   \
-  virtual MBErrorCode add_entities(const MBRange &entities);                           \
+  virtual MBErrorCode add_entities(const MBRange &entities,               \
+                                   MBEntityHandle my_handle,              \
+                                   AEntityFactory* adjacencies);          \
   \
-  virtual MBErrorCode remove_entities(const MBRange& entities);                        \
+  virtual MBErrorCode remove_entities(const MBRange& entities,            \
+                                      MBEntityHandle my_handle,           \
+                                      AEntityFactory* adjacencies);       \
   \
-  virtual MBErrorCode remove_entities(const MBEntityHandle *entities, \
-                                       const int num_entities);    \
+  virtual MBErrorCode remove_entities(const MBEntityHandle *entities,     \
+                                      const int num_entities,             \
+                                      MBEntityHandle my_handle,           \
+                                      AEntityFactory* adjacencies);       \
   \
   virtual unsigned int num_entities() const;                                        \
   \
@@ -204,8 +225,8 @@ class MBMeshSet_MBRange : public MBMeshSet
 {
 public:
 
-  MBMeshSet_MBRange(MBEntityHandle handle, AEntityFactory* adj_fact, bool track_ownership) 
-    : MBMeshSet(handle, adj_fact, track_ownership) {}
+  MBMeshSet_MBRange(bool track_ownership) 
+    : MBMeshSet(track_ownership) {}
   virtual ~MBMeshSet_MBRange();
 
   MESH_SET_VIRTUAL_FUNCTIONS
@@ -219,8 +240,8 @@ class MBMeshSet_Vector : public MBMeshSet
 {
 public:
 
-  MBMeshSet_Vector(MBEntityHandle handle, AEntityFactory* adj_fact, bool track_ownership) 
-    : MBMeshSet(handle, adj_fact, track_ownership) {}
+  MBMeshSet_Vector(bool track_ownership) 
+    : MBMeshSet(track_ownership) {}
 
   virtual ~MBMeshSet_Vector();
 

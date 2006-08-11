@@ -45,10 +45,8 @@
 
 using namespace std;
 
-MBMeshSet::MBMeshSet( MBEntityHandle handle, AEntityFactory* a_fact, bool track_ownership ) 
-  : mEntityHandle(handle), 
-    mTracking(track_ownership),
-    mAdjFact(a_fact)
+MBMeshSet::MBMeshSet( bool track_ownership ) 
+  : mTracking(track_ownership)
   {}
 
 MBMeshSet::~MBMeshSet() 
@@ -84,18 +82,10 @@ int MBMeshSet::remove_child( MBEntityHandle child )
 
 MBMeshSet_MBRange::~MBMeshSet_MBRange()
 {
-  // clean up usage tracking  
-  if(mTracking && mAdjFact)
-  {
-    for(MBRange::iterator iter = mRange.begin();
-        iter != mRange.end(); ++iter)
-    {
-      mAdjFact->remove_adjacency(*iter, mEntityHandle);
-    }
-  }
 }
 
-MBErrorCode MBMeshSet_MBRange::clear()
+MBErrorCode MBMeshSet_MBRange::clear( MBEntityHandle mEntityHandle,
+                                      AEntityFactory* mAdjFact )
 {
   if(mTracking && mAdjFact)
   {
@@ -163,8 +153,10 @@ MBErrorCode MBMeshSet_MBRange::get_non_set_entities( MBRange& range ) const
   return MB_SUCCESS;
 }
 
-MBErrorCode MBMeshSet_MBRange::add_entities(const MBEntityHandle *entities,
-                                                const int num_entities)
+MBErrorCode MBMeshSet_MBRange::add_entities( const MBEntityHandle *entities,
+                                             const int num_entities,
+                                             MBEntityHandle mEntityHandle,
+                                             AEntityFactory* mAdjFact )
 {
   int i;
   for(i = 0; i < num_entities; i++)
@@ -179,8 +171,9 @@ MBErrorCode MBMeshSet_MBRange::add_entities(const MBEntityHandle *entities,
 }
 
 
-MBErrorCode MBMeshSet_MBRange::add_entities(
-    const MBRange& entities)
+MBErrorCode MBMeshSet_MBRange::add_entities( const MBRange& entities,
+                                             MBEntityHandle mEntityHandle,
+                                             AEntityFactory* mAdjFact )
 {
 
   mRange.merge(entities);
@@ -195,8 +188,9 @@ MBErrorCode MBMeshSet_MBRange::add_entities(
   return MB_SUCCESS;
 }
 
-MBErrorCode MBMeshSet_MBRange::remove_entities(
-    const MBRange& entities)
+MBErrorCode MBMeshSet_MBRange::remove_entities( const MBRange& entities,
+                                                MBEntityHandle mEntityHandle,
+                                                AEntityFactory* mAdjFact )
 {
   MBRange::const_iterator iter = entities.begin();
   for(; iter != entities.end(); ++iter)
@@ -214,8 +208,10 @@ MBErrorCode MBMeshSet_MBRange::remove_entities(
 
 }
 
-MBErrorCode MBMeshSet_MBRange::remove_entities(const MBEntityHandle *entities,
-                                                   const int num_entities)
+MBErrorCode MBMeshSet_MBRange::remove_entities( const MBEntityHandle *entities,
+                                                const int num_entities,
+                                                MBEntityHandle mEntityHandle,
+                                                AEntityFactory* mAdjFact )
 {
   for(int i = 0; i < num_entities; i++)
   {
@@ -248,15 +244,19 @@ unsigned int MBMeshSet_MBRange::num_entities_by_dimension(int dimension) const
 }
 
 
-MBErrorCode MBMeshSet_MBRange::subtract(const MBMeshSet *meshset_2)
+MBErrorCode MBMeshSet_MBRange::subtract( const MBMeshSet *meshset_2,
+                                         MBEntityHandle handle,
+                                         AEntityFactory* adj_fact )
 {
   MBRange other_range;
   meshset_2->get_entities(other_range);
 
-  return remove_entities(other_range);
+  return remove_entities( other_range, handle, adj_fact );
 }
 
-MBErrorCode MBMeshSet_MBRange::intersect(const MBMeshSet *meshset_2)
+MBErrorCode MBMeshSet_MBRange::intersect( const MBMeshSet *meshset_2,
+                                          MBEntityHandle mEntityHandle,
+                                          AEntityFactory* mAdjFact )
 {
   MBRange other_range;
   meshset_2->get_entities(other_range);
@@ -289,11 +289,13 @@ MBErrorCode MBMeshSet_MBRange::intersect(const MBMeshSet *meshset_2)
   return MB_SUCCESS;
 }
 
-MBErrorCode MBMeshSet_MBRange::unite(const MBMeshSet *meshset_2)
+MBErrorCode MBMeshSet_MBRange::unite( const MBMeshSet *meshset_2,
+                                      MBEntityHandle handle,
+                                      AEntityFactory* adj_fact )
 {
   MBRange other_range;
   meshset_2->get_entities(other_range);
-  return add_entities(other_range);
+  return add_entities( other_range, handle, adj_fact );
 }
 
 
@@ -301,18 +303,10 @@ MBErrorCode MBMeshSet_MBRange::unite(const MBMeshSet *meshset_2)
 
 MBMeshSet_Vector::~MBMeshSet_Vector()
 {
-  // clean up usage tracking  
-  if(mTracking && mAdjFact)
-  {
-    for(std::vector<MBEntityHandle>::iterator iter = mVector.begin();
-        iter != mVector.end(); ++iter)
-    {
-      mAdjFact->remove_adjacency(*iter, mEntityHandle);
-    }
-  }
 }
 
-MBErrorCode MBMeshSet_Vector::clear()
+MBErrorCode MBMeshSet_Vector::clear( MBEntityHandle mEntityHandle, 
+                                     AEntityFactory* mAdjFact)
 {
   if(mTracking && mAdjFact)
   {
@@ -435,8 +429,10 @@ MBErrorCode MBMeshSet_Vector::get_non_set_entities( MBRange& entities ) const
   return MB_SUCCESS;
 }
 
-MBErrorCode MBMeshSet_Vector::add_entities(const MBEntityHandle *entities,
-                                              const int num_entities)
+MBErrorCode MBMeshSet_Vector::add_entities( const MBEntityHandle *entities,
+                                            const int num_entities,
+                                            MBEntityHandle mEntityHandle,
+                                            AEntityFactory* mAdjFact )
 {
   unsigned int prev_size = mVector.size();
   mVector.resize(prev_size + num_entities);
@@ -452,8 +448,9 @@ MBErrorCode MBMeshSet_Vector::add_entities(const MBEntityHandle *entities,
 }
 
 
-MBErrorCode MBMeshSet_Vector::add_entities(
-    const MBRange& entities)
+MBErrorCode MBMeshSet_Vector::add_entities( const MBRange& entities,
+                                            MBEntityHandle mEntityHandle,
+                                            AEntityFactory* mAdjFact )
 {
 
   unsigned int prev_size = mVector.size();
@@ -471,8 +468,9 @@ MBErrorCode MBMeshSet_Vector::add_entities(
 }
 
 
-MBErrorCode MBMeshSet_Vector::remove_entities(
-    const MBRange& entities)
+MBErrorCode MBMeshSet_Vector::remove_entities( const MBRange& entities,
+                                               MBEntityHandle mEntityHandle,
+                                               AEntityFactory* mAdjFact )
 {
   std::vector<MBEntityHandle>::iterator iter = mVector.begin();
   for(; iter < mVector.end(); )
@@ -491,8 +489,10 @@ MBErrorCode MBMeshSet_Vector::remove_entities(
 
 }
 
-MBErrorCode MBMeshSet_Vector::remove_entities(const MBEntityHandle *entities, 
-                                                 const int num_entities)
+MBErrorCode MBMeshSet_Vector::remove_entities( const MBEntityHandle *entities, 
+                                               const int num_entities,
+                                               MBEntityHandle mEntityHandle,
+                                               AEntityFactory* mAdjFact )
 {
   std::vector<MBEntityHandle>::iterator temp_iter;
   for(int i = 0; i != num_entities; i++ )
@@ -525,15 +525,19 @@ unsigned int MBMeshSet_Vector::num_entities_by_dimension( int dim ) const
 }
 
 
-MBErrorCode MBMeshSet_Vector::subtract(const MBMeshSet *meshset_2)
+MBErrorCode MBMeshSet_Vector::subtract( const MBMeshSet *meshset_2,
+                                        MBEntityHandle my_handle,
+                                        AEntityFactory* adj_fact )
 {
   std::vector<MBEntityHandle> other_vector;
   meshset_2->get_entities(other_vector);
 
-  return remove_entities(&other_vector[0], other_vector.size());
+  return remove_entities(&other_vector[0], other_vector.size(), my_handle, adj_fact);
 }
 
-MBErrorCode MBMeshSet_Vector::intersect(const MBMeshSet *meshset_2)
+MBErrorCode MBMeshSet_Vector::intersect( const MBMeshSet *meshset_2,
+                                         MBEntityHandle mEntityHandle,
+                                         AEntityFactory* mAdjFact )
 {
   MBRange other_range;
   meshset_2->get_entities(other_range);
@@ -564,10 +568,12 @@ MBErrorCode MBMeshSet_Vector::intersect(const MBMeshSet *meshset_2)
   return MB_SUCCESS;
 }
 
-MBErrorCode MBMeshSet_Vector::unite(const MBMeshSet *meshset_2)
+MBErrorCode MBMeshSet_Vector::unite( const MBMeshSet *meshset_2,
+                                     MBEntityHandle my_handle,
+                                     AEntityFactory* adj_fact )
 {
   std::vector<MBEntityHandle> other_vector;
   meshset_2->get_entities(other_vector);
-  return add_entities(&other_vector[0], other_vector.size());
+  return add_entities(&other_vector[0], other_vector.size(), my_handle, adj_fact);
 }
 
