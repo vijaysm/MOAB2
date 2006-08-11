@@ -107,7 +107,7 @@ private:
   //!               set.
   //!\param parents If true, traverse parent links.  If false, traverse
   //!               child links.
-  MBErrorCode MeshSetManager::get_parent_child_meshsets( MBEntityHandle meshset,
+  MBErrorCode get_parent_child_meshsets( MBEntityHandle meshset,
                                     std::vector<MBEntityHandle>& results,
                                     int num_hops, bool parents ) const;
 
