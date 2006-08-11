@@ -105,7 +105,7 @@ MBErrorCode MBOrientedBox::tag_handle( MBTag& handle_out,
   {
     rval = instance->tag_create( name, 
                                  SIZE,
-                                 MB_TAG_SPARSE,
+                                 MB_TAG_DENSE,
                                  MB_TYPE_DOUBLE,
                                  handle_out,
                                  0 );
