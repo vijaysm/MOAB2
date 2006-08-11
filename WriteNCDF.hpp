@@ -57,7 +57,7 @@ struct MaterialSetData
   int number_nodes_per_element;
   int number_attributes;
   ExoIIElementType element_type;
-  MBRange *elements;
+  MBRange elements;
 };
 
 //! struct used to hold data for each nodeset to be output in Exodus; used by

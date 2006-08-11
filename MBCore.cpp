@@ -220,6 +220,9 @@ void MBCore::deinitialize()
 
   delete mMeshSetManager;
   mMeshSetManager = 0;
+  
+  delete readerWriterSet;
+  readerWriterSet = 0;
 
   if(mError)
     delete mError;

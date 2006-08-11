@@ -155,7 +155,7 @@ private:
   MBErrorCode create_sideset_element( std::vector<MBEntityHandle>, MBEntityType, MBEntityHandle&);
 
   //! I think this ought to be moved to MBCore. KGM
-  MBErrorCode check_file_status(const char *&file_name,
+  MBErrorCode check_file_status(std::string& filename,
                                  bool& previously_read);
 
   int get_number_nodes( MBEntityHandle handle );

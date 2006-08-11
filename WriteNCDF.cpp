@@ -121,7 +121,7 @@ void WriteNCDF::reset_block(std::vector<MaterialSetData> &block_info)
   
   for (iter = block_info.begin(); iter != block_info.end(); iter++)
   {
-    delete (*iter).elements;
+    iter->elements.clear();
   }
 }
 
@@ -343,7 +343,6 @@ MBErrorCode WriteNCDF::gather_mesh_information(
   {
        
     MaterialSetData block_data;
-    block_data.elements = new MBRange;
 
     //for the purpose of qa records, get the parents of these blocks 
     if( mdbImpl->get_parent_meshsets( *vector_iter, parent_meshsets ) != MB_SUCCESS )
@@ -368,10 +367,10 @@ MBErrorCode WriteNCDF::gather_mesh_information(
       entity_iter++;
     
     if (entity_iter != dummy_range.end())
-      std::copy(entity_iter, dummy_range.end(), mb_range_inserter(*(block_data.elements)));
+      std::copy(entity_iter, dummy_range.end(), mb_range_inserter(block_data.elements));
 
-    assert(block_data.elements->begin() == block_data.elements->end() ||
-           MBCN::Dimension(TYPE_FROM_HANDLE(*(block_data.elements->begin()))) == this_dim);
+    assert(block_data.elements.begin() == block_data.elements.end() ||
+           MBCN::Dimension(TYPE_FROM_HANDLE(*(block_data.elements.begin()))) == this_dim);
     
     // end of -- wait a minute, we are doing some filtering here that doesn't make sense at this level CJS
    
@@ -387,8 +386,8 @@ MBErrorCode WriteNCDF::gather_mesh_information(
  
      // iterate through all the elements in the meshset
     MBRange::iterator elem_range_iter, end_elem_range_iter;
-    elem_range_iter = block_data.elements->begin();
-    end_elem_range_iter = block_data.elements->end();
+    elem_range_iter = block_data.elements.begin();
+    end_elem_range_iter = block_data.elements.end();
 
       // get the entity type for this block, verifying that it's the same for all elements
       // THIS ASSUMES HANDLES SORT BY TYPE!!!
@@ -411,7 +410,7 @@ MBErrorCode WriteNCDF::gather_mesh_information(
       highest_dimension_of_element_blocks = dimension;
 
     std::vector<MBEntityHandle> tmp_conn;
-    mdbImpl->get_connectivity(&(*(block_data.elements->begin())), 1, tmp_conn);
+    mdbImpl->get_connectivity(&(*(block_data.elements.begin())), 1, tmp_conn);
     block_data.element_type = ExoIIUtil::get_element_type_from_num_verts(tmp_conn.size(), entity_type, dimension);
     
     if (block_data.element_type == EXOII_MAX_ELEM_TYPE) {
@@ -422,19 +421,19 @@ MBErrorCode WriteNCDF::gather_mesh_information(
     block_data.number_nodes_per_element = ExoIIUtil::VerticesPerElement[block_data.element_type];
 
     // number of nodes for this block
-    block_data.number_elements = block_data.elements->size();
+    block_data.number_elements = block_data.elements.size();
 
     // total number of elements
     mesh_info.num_elements += block_data.number_elements;
 
     // get the nodes for the elements
-    mWriteIface->gather_nodes_from_elements(*block_data.elements, mEntityMark, mesh_info.nodes);
+    mWriteIface->gather_nodes_from_elements(block_data.elements, mEntityMark, mesh_info.nodes);
 
     if(!sidesets.empty())
     {
       // if there are sidesets, keep track of which elements are being written out
-      for(MBRange::iterator iter = block_data.elements->begin(); 
-          iter != block_data.elements->end(); ++iter)
+      for(MBRange::iterator iter = block_data.elements.begin(); 
+          iter != block_data.elements.end(); ++iter)
       {
         unsigned char bit = 0x1;
         mdbImpl->tag_set_data(mEntityMark, &(*iter), 1, &bit);
@@ -888,7 +887,7 @@ MBErrorCode WriteNCDF::write_elementblocks(std::vector<MaterialSetData> &block_d
 
   for(i=0; i< block_data.size(); i++)
   {
-    MaterialSetData block = block_data[i];
+    MaterialSetData& block = block_data[i];
 
     unsigned int num_nodes_per_elem = block.number_nodes_per_element; 
                                      
@@ -921,7 +920,7 @@ MBErrorCode WriteNCDF::write_elementblocks(std::vector<MaterialSetData> &block_d
     int* connectivity = new int[num_nodes];
 
     MBErrorCode result = mWriteIface->get_element_array(
-        num_elem, num_nodes_per_elem, mGlobalIdTag, *block.elements, mGlobalIdTag, exodus_id ,connectivity);
+        num_elem, num_nodes_per_elem, mGlobalIdTag, block.elements, mGlobalIdTag, exodus_id ,connectivity);
 
     if(result != MB_SUCCESS) {
       mWriteIface->report_error("Couldn't get element array to write from.");

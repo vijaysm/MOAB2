@@ -154,10 +154,11 @@ ReadNCDF::~ReadNCDF()
 // file type.  There is no exodus specific code here although the
 // loaded_blocks tag does get used later on and it does save the
 // current mesh handle.  But that could be handled differently.
-MBErrorCode ReadNCDF::check_file_status(const char *&exodus_file_name,
+MBErrorCode ReadNCDF::check_file_status( std::string& exodus_file_name,
                                           bool& previously_read) 
 {
   MBErrorCode status = MB_FAILURE;
+  char mesh_tag_buffer[256] = "";
 
   // assume that this is the first time reading this file
   previously_read = false;
@@ -174,12 +175,9 @@ MBErrorCode ReadNCDF::check_file_status(const char *&exodus_file_name,
     MBRange::iterator iter;
     for (iter = mesh_range.begin(); iter != mesh_range.end(); iter++)
     {
-      std::string* filename = NULL; 
-      mdbImpl->tag_get_data(mesh_tag, &(*iter), 1, &filename);
+      mdbImpl->tag_get_data(mesh_tag, &(*iter), 1, mesh_tag_buffer);
 
-      if (filename && 
-          (NULL == exodus_file_name || 
-           (strcmp(filename->c_str(), exodus_file_name) == 0)))
+      if (exodus_file_name.empty() || exodus_file_name == mesh_tag_buffer)
       {
         // found it, there should only be one.  Set the mesh handle and the flag
         // indicating that the mesh has been previously read and use the
@@ -187,8 +185,8 @@ MBErrorCode ReadNCDF::check_file_status(const char *&exodus_file_name,
         mCurrentMeshHandle = *iter;
         previously_read = true;
 
-        if (NULL == exodus_file_name)
-          exodus_file_name = filename->c_str();
+        if (exodus_file_name.empty())
+          exodus_file_name = mesh_tag_buffer;
         
         return MB_SUCCESS;
       }
@@ -197,12 +195,12 @@ MBErrorCode ReadNCDF::check_file_status(const char *&exodus_file_name,
 
   // if we get to this point, this mesh has never been seen before; if the
   // file name is null, that means no file was read
-  if (NULL == exodus_file_name)
+  if (exodus_file_name.empty())
     return MB_FILE_DOES_NOT_EXIST;
 
     // ok, it's a valid name; make sure file exists
   FILE* infile = NULL;
-  infile = fopen(exodus_file_name, "r");
+  infile = fopen(exodus_file_name.c_str(), "r");
   if (!infile) 
     return MB_FILE_DOES_NOT_EXIST;
   else 
@@ -211,8 +209,9 @@ MBErrorCode ReadNCDF::check_file_status(const char *&exodus_file_name,
   // get the handle if it exists otherwise create a new "__mesh" handle
   if (mdbImpl->tag_get_handle("__mesh", mesh_tag) != MB_SUCCESS)
   {
-    if( mdbImpl->tag_create("__mesh", sizeof(void*), MB_TAG_SPARSE,
-                            mesh_tag, 0) != MB_SUCCESS )
+    memset( mesh_tag_buffer, 0, sizeof(mesh_tag_buffer) );
+    if( mdbImpl->tag_create("__mesh", sizeof(mesh_tag_buffer), MB_TAG_SPARSE,
+                            mesh_tag, mesh_tag_buffer) != MB_SUCCESS )
       return MB_FAILURE;
   }
 
@@ -389,8 +388,9 @@ MBErrorCode ReadNCDF::check_file_status(const char *&exodus_file_name,
 
 
   // save the filename on the mesh_tag
-  std::string* filename = new std::string(exodus_file_name);
-  status = mdbImpl->tag_set_data(mesh_tag, &mesh_handle, 1, &filename);
+  strncpy( mesh_tag_buffer, exodus_file_name.c_str(), sizeof(mesh_tag_buffer) - 1 );
+  mesh_tag_buffer[sizeof(mesh_tag_buffer)-1] = '\0';
+  status = mdbImpl->tag_set_data(mesh_tag, &mesh_handle, 1, mesh_tag_buffer);
   if (status != MB_SUCCESS )
     return MB_FAILURE;
 
@@ -413,7 +413,8 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
     // 0. Check for previously read file.
   reset();
   bool previously_loaded = false;
-  MBErrorCode status = check_file_status(exodus_file_name, previously_loaded);
+  std::string filename( exodus_file_name );
+  MBErrorCode status = check_file_status(filename, previously_loaded);
   if (MB_SUCCESS != status) 
     return status;
 
