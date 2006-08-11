@@ -135,45 +135,29 @@ MBEntityHandle EntitySequenceManager::get_start_handle(int hint_start, int hint_
   MBEntityHandle start_hint_handle = CREATE_HANDLE(type, hint_start, hint_start_proc, dum);
  
   // this is the first of this type we are making 
-  if(mSequenceMap[type].empty())
-    return start_hint_handle;
+  if(mSequenceMap[type].empty()) {
+    if (hint_start < MB_START_ID)
+      return CREATE_HANDLE( type, MB_START_ID, hint_start_proc, dum );
+    else
+      return start_hint_handle;
+  }
 
   // see if we can use the start hint
-  bool can_use_start_hint = false;
   std::map<MBEntityHandle, MBEntitySequence*>::iterator iter =
-    mSequenceMap[type].lower_bound(start_hint_handle);
-  
-  if(iter == mSequenceMap[type].begin())
-  {
-    if(iter->second->get_start_handle() >= (start_hint_handle + num_ent))
-    {
-      can_use_start_hint = true;
-    }
-  }
-  else if(iter == mSequenceMap[type].end())
-  {
-    --iter;
-    if(iter->second->get_end_handle() < start_hint_handle)
-    {
-      can_use_start_hint = true;
-    }
-  } 
-  else 
-  {
-    std::map<MBEntityHandle, MBEntitySequence*>::iterator jter = iter;
-    --jter;
-    if((jter->second->get_end_handle() < start_hint_handle) && 
-        (iter->second->get_start_handle() >= (start_hint_handle+num_ent)) )
-    {
-      can_use_start_hint = true;
-    }
-  } 
+    mSequenceMap[type].upper_bound(start_hint_handle);
 
-  // can we use the start hint?
-  if(can_use_start_hint)
-    return start_hint_handle;
+  MBEntityHandle last_of_type;
+  if (iter == mSequenceMap[type].end())
+    last_of_type = CREATE_HANDLE( type, MB_END_ID, MB_PROC_COUNT - 1, dum );
   else
-    return mSequenceMap[type].rbegin()->second->get_end_handle() + 1;
+    last_of_type = iter->second->get_start_handle() - 1;
+  
+  --iter;
+  if (start_hint_handle > iter->second->get_end_handle()
+   && start_hint_handle + num_ent <= last_of_type) 
+    return start_hint_handle;
+  
+  return mSequenceMap[type].rbegin()->second->get_end_handle() + 1;
 }
 
 MBErrorCode EntitySequenceManager::private_create_entity_sequence(MBEntityHandle start,
@@ -343,8 +327,8 @@ MBErrorCode EntitySequenceManager::find( MBEntityHandle entity_handle,
 
   if ( !mSequenceMap[ent_type].empty() )
   {
-    if (ID_FROM_HANDLE(entity_handle) == 0) 
-      return MB_FAILURE;
+    if (ID_FROM_HANDLE(entity_handle) < MB_START_ID) 
+      return MB_INDEX_OUT_OF_RANGE;
 
     // create an iterator to look for which sequence entity handle will be found in
     // using lower bounds function of map
@@ -367,7 +351,7 @@ MBErrorCode EntitySequenceManager::find( MBEntityHandle entity_handle,
       return MB_ENTITY_NOT_FOUND;
   }
 
-  return MB_FAILURE;
+  return MB_ENTITY_NOT_FOUND;
 }
 
 
@@ -411,7 +395,6 @@ int main()
 {
   EntitySequenceManager manager;
   MBEntitySequence* seq;
-  MBErrorCode rval;
   
   // create some sequences
   const unsigned NV[] = { 100, 5, 1000 };
@@ -424,14 +407,14 @@ int main()
   check(manager.create_entity_sequence( MBVERTEX, NV[0], 0, 1, 0, vh[0], vs[0] ));
   check(manager.create_entity_sequence( MBVERTEX, NV[1], 0, 1, 0, vh[1], vs[1] ));
   check(manager.create_entity_sequence( MBVERTEX, NV[2], 0, 1, 0, vh[2], vs[2] ));
-  check(manager.create_entity_sequence( MBTRI, NT, TRI_START_ID, 50, 0, th, ts ));
+  check(manager.create_entity_sequence( MBTRI, NT, 3, TRI_START_ID, 0, th, ts ));
   
   // check that returned entity sequences are valid
   ensure( ID_FROM_HANDLE(vh[0]) > 0 && TYPE_FROM_HANDLE(vh[0]) == MBVERTEX );
   ensure( ID_FROM_HANDLE(vh[0]) > 0 && TYPE_FROM_HANDLE(vh[1]) == MBVERTEX );
   ensure( ID_FROM_HANDLE(vh[0]) > 0 && TYPE_FROM_HANDLE(vh[2]) == MBVERTEX );
   ensure( ID_FROM_HANDLE( th  ) > 0 && TYPE_FROM_HANDLE( th  ) == MBTRI    );
-  //ensure( ID_FROM_HANDLE(th) == TRI_START_ID );
+  ensure( ID_FROM_HANDLE(th) == TRI_START_ID );
   ensure( vs[0] );
   ensure( vs[1] );  
   ensure( vs[2] );  
@@ -483,7 +466,7 @@ int main()
   // check find of invalid type
   int junk;
   badhandle = CREATE_HANDLE( MBTET, 1, junk );
-  //ensure( manager.find( badhandle, seq ) == MB_ENTITY_NOT_FOUND );
+  ensure( manager.find( badhandle, seq ) == MB_ENTITY_NOT_FOUND );
   
   // check get_entities
   MBRange chkverts, chktris, chkhexes;
