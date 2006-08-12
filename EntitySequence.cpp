@@ -185,7 +185,23 @@ void VertexEntitySequence::get_entities(MBRange& entities) const
 
 }
 
+int VertexEntitySequence::get_next_free_index( int prev_free_index ) const
+{
+  if (prev_free_index < 0)
+    return mFirstFreeIndex;
+  assert( (unsigned)prev_free_index < mFreeEntities.size() 
+          && mFreeEntities[prev_free_index] );
+  return reinterpret_cast<int&>(mCoords[0][prev_free_index]);
+}
 
+int ElementEntitySequence::get_next_free_index( int prev_free_index ) const
+{
+  if (prev_free_index < 0)
+    return mFirstFreeIndex;
+  assert( (unsigned)prev_free_index < mFreeEntities.size() 
+          && mFreeEntities[prev_free_index] );
+  return reinterpret_cast<int&>(mElements[prev_free_index*mNodesPerElement]);
+}
 
 ElementEntitySequence::ElementEntitySequence(EntitySequenceManager* seq_manager,
                         MBEntityHandle start_handle, int num_entities,

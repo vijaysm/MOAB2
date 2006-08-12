@@ -381,11 +381,14 @@ public:
     PairNode* mNode;
   };
 
+  class const_pair_iterator;
+
   //! a const iterator which iterates over an MBRange
   class const_iterator : public range_base_iter
   {
     friend class MBRange;
     friend class pair_iterator;
+    friend class const_pair_iterator;
   public:
     //! default constructor - intialize base default constructor
     const_iterator() : mNode(NULL), mValue(0) {}
@@ -570,6 +573,7 @@ public:
     public:
       const_pair_iterator() : myNode(NULL) {}
       const_pair_iterator( const PairNode* node ) : myNode(node) {}
+      const_pair_iterator( const const_iterator& i ) : myNode(i.mNode) {}
       
       const std::pair<MBEntityHandle, MBEntityHandle> operator*() const
         { return std::pair<MBEntityHandle,MBEntityHandle>(myNode->first, myNode->second); }

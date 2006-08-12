@@ -92,6 +92,8 @@ public:
     new_sequence = NULL;
     return MB_FAILURE;
   }
+  
+  virtual int get_next_free_index( int prev_free_index ) const = 0;
 
 protected:
 
@@ -149,6 +151,8 @@ public:
   MBErrorCode get_coordinate_arrays(double*& x, double*& y, double*& z);
 
   virtual void get_entities(MBRange& entities) const;
+  
+  virtual int get_next_free_index( int prev_free_index ) const;
 
 private:
 
@@ -185,6 +189,8 @@ public:
   virtual MBErrorCode get_connectivity_array(MBEntityHandle*& conn_array);
   
   virtual void get_entities(MBRange& entities) const;
+  
+  virtual int get_next_free_index( int prev_free_index ) const;
   
   virtual MBErrorCode split(MBEntityHandle split_location, MBEntitySequence*& new_sequence);
 
