@@ -154,7 +154,7 @@ MBEntityHandle EntitySequenceManager::get_start_handle(int hint_start, int hint_
   
   --iter;
   if (start_hint_handle > iter->second->get_end_handle()
-   && start_hint_handle + num_ent <= last_of_type) 
+   && start_hint_handle + num_ent - 1 <= last_of_type) 
     return start_hint_handle;
   
   return mSequenceMap[type].rbegin()->second->get_end_handle() + 1;
