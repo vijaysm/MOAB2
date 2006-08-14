@@ -177,11 +177,32 @@ class MBOrientedBoxTreeTool
      */
     MBErrorCode stats( MBEntityHandle tree_root_set, std::ostream& stream );
   
+    /** \brief Implement this and pass instance to preorder_traverse
+     * 
+     * This interface may be implemented and an instance passed to
+     * preorder_traverse to define some operation to do when traversing
+     * the tree.
+     */
     class Op {
       public:
-        virtual MBErrorCode operator()( MBEntityHandle node,
-                                        int depth,
-                                        bool& descend ) = 0;
+
+        /**\brief Visit a node in the tree during a traversal.
+         *
+         * This method is called for each node in the tree visited
+         * during a pre-order traversal.  
+         *\param node The MBEntityHandle for the entity set for the tree node.
+         *\param depth The current depth in the tree.
+         *\param descend Output: if false, traversal will skip children
+         *             of the current node, or if the current node is a
+         *             leaf, the 'leaf' method will not be called.
+         */
+        virtual MBErrorCode visit( MBEntityHandle node,
+                                   int depth,
+                                   bool& descend ) = 0;
+       
+        /**\brief Process a leaf node during tree traversal */
+        virtual MBErrorCode leaf( MBEntityHandle node ) = 0;
+
         virtual ~Op(); // probably isn't necessary in this case, and
                        // does nothing, but lots of compilers warn if
                        // virtual function but no virtual destructor.

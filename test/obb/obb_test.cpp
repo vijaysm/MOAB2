@@ -285,15 +285,17 @@ class TreeValidator : public MBOrientedBoxTreeTool::Op
                     +unsorted_axis_count+non_unit_count+duplicate_entity_count
                     +bad_outer_radius_count; }
     
-    virtual MBErrorCode operator()( MBEntityHandle node,
-                                    int depth,
-                                    bool& descend );
+    virtual MBErrorCode visit( MBEntityHandle node,
+                               int depth,
+                               bool& descend );
+                               
+    virtual MBErrorCode leaf( MBEntityHandle ) { return MB_SUCCESS; }
 };
 
 
-MBErrorCode TreeValidator::operator()( MBEntityHandle node,
-                                       int depth,
-                                       bool& descend )
+MBErrorCode TreeValidator::visit( MBEntityHandle node,
+                                  int depth,
+                                  bool& descend )
 {
   MBErrorCode rval;
   descend = true;
@@ -496,18 +498,19 @@ class CubitWriter : public MBOrientedBoxTreeTool::Op
                  MBOrientedBoxTreeTool* tool_ptr )
       : file(file_ptr), tool(tool_ptr) {}
     
-    MBErrorCode operator() ( MBEntityHandle node,
-                             int depth,
-                             bool& descend );
+    MBErrorCode visit ( MBEntityHandle node,
+                        int depth,
+                        bool& descend );
+    MBErrorCode leaf( MBEntityHandle ) { return MB_SUCCESS; }
     
   private:
     FILE* file;
     MBOrientedBoxTreeTool* tool;
 };
 
-MBErrorCode CubitWriter::operator()( MBEntityHandle node,
-                                     int ,
-                                     bool& descend )
+MBErrorCode CubitWriter::visit( MBEntityHandle node,
+                                int ,
+                                bool& descend )
 {
   descend = true;
   MBOrientedBox box;
@@ -553,18 +556,20 @@ class VtkWriter : public MBOrientedBoxTreeTool::Op
                MBInterface* interface )
       : baseName(base_name), instance(interface) {}
     
-    MBErrorCode operator() ( MBEntityHandle node,
-                             int depth,
-                             bool& descend );
+    MBErrorCode visit ( MBEntityHandle node,
+                        int depth,
+                        bool& descend );
+                        
+    MBErrorCode leaf( MBEntityHandle node ) { return MB_SUCCESS; }
     
   private:
     std::string baseName;
     MBInterface* instance;
 };
 
-MBErrorCode VtkWriter::operator()( MBEntityHandle node,
-                                   int ,
-                                   bool& descend )
+MBErrorCode VtkWriter::visit( MBEntityHandle node,
+                              int ,
+                              bool& descend )
 {
   descend = true;
   

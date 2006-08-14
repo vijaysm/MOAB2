@@ -378,7 +378,7 @@ MBErrorCode MBOrientedBoxTreeTool::preorder_traverse( MBEntityHandle set,
     the_stack.pop_back();
     
     bool descend = true;
-    rval = operation( data.set, data.depth, descend );
+    rval = operation.visit( data.set, data.depth, descend );
     if (MB_SUCCESS != rval)
       return rval;
     
@@ -390,7 +390,12 @@ MBErrorCode MBOrientedBoxTreeTool::preorder_traverse( MBEntityHandle set,
     rval = this->children( data.set, leaf, children );
     if (MB_SUCCESS != rval)
       return rval;
-    if (!leaf) {
+    if (leaf) {
+      rval = operation.leaf( data.set );
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
+    else {
       data.depth++;
       data.set = children[0];
       the_stack.push_back( data );
@@ -425,9 +430,10 @@ class RayIntersector : public MBOrientedBoxTreeTool::Op
         boxes(leaf_boxes) 
       { }
   
-    virtual MBErrorCode operator()( MBEntityHandle node,
-                                    int depth,
-                                    bool& descend );
+    virtual MBErrorCode visit( MBEntityHandle node,
+                               int depth,
+                               bool& descend );
+    virtual MBErrorCode leaf( MBEntityHandle node );
 };
     
 MBErrorCode MBOrientedBoxTreeTool::ray_intersect_triangles( 
@@ -503,28 +509,23 @@ MBErrorCode MBOrientedBoxTreeTool::ray_intersect_boxes(
   return preorder_traverse( root_set, op );
 }
 
-MBErrorCode RayIntersector::operator()( MBEntityHandle node,
-                                        int ,
-                                        bool& descend ) 
+MBErrorCode RayIntersector::visit( MBEntityHandle node,
+                                   int ,
+                                   bool& descend ) 
 {
   MBOrientedBox box;
   MBErrorCode rval = tool->box( node, box );
   if (MB_SUCCESS != rval)
     return rval;
-//int id = tool->get_moab_instance()->id_from_handle(node);
-//std::cout << "{" << id << "}" << std::endl;
   
   descend = box.intersect_ray( b, m, tol, len);
-  if (!descend)
-    return MB_SUCCESS;
-    
-  bool leaf = false;
-  rval = tool->children( node, leaf );
-  if (leaf) {
-    boxes.insert(node);
-    descend = false;
-  }
-  return rval;
+  return MB_SUCCESS;
+}
+
+MBErrorCode RayIntersector::leaf( MBEntityHandle node )
+{
+  boxes.insert(node);
+  return MB_SUCCESS;
 }
 
 class TreeLayoutPrinter : public MBOrientedBoxTreeTool::Op
@@ -533,9 +534,10 @@ class TreeLayoutPrinter : public MBOrientedBoxTreeTool::Op
     TreeLayoutPrinter( std::ostream& stream,
                        MBInterface* instance );
     
-    virtual MBErrorCode operator()( MBEntityHandle node, 
-                                    int depth,
-                                    bool& descend );
+    virtual MBErrorCode visit( MBEntityHandle node, 
+                               int depth,
+                               bool& descend );
+    virtual MBErrorCode leaf( MBEntityHandle node );
   private:
 
     MBInterface* instance;
@@ -549,9 +551,9 @@ TreeLayoutPrinter::TreeLayoutPrinter( std::ostream& stream,
     outputStream(stream)
   {}
 
-MBErrorCode TreeLayoutPrinter::operator()( MBEntityHandle node, 
-                                           int depth,
-                                           bool& descend )
+MBErrorCode TreeLayoutPrinter::visit( MBEntityHandle node, 
+                                      int depth,
+                                      bool& descend )
 {
   descend = true;
   
@@ -580,6 +582,8 @@ MBErrorCode TreeLayoutPrinter::operator()( MBEntityHandle node,
   outputStream << instance->id_from_handle( node ) << std::endl;
   return MB_SUCCESS;
 }
+
+MBErrorCode TreeLayoutPrinter::leaf( MBEntityHandle ) { return MB_SUCCESS; }
     
 
 class TreeNodePrinter : public MBOrientedBoxTreeTool::Op
@@ -591,9 +595,11 @@ class TreeNodePrinter : public MBOrientedBoxTreeTool::Op
                      const char* id_tag_name,
                      MBOrientedBoxTreeTool* tool_ptr );
     
-    virtual MBErrorCode operator()( MBEntityHandle node, 
-                                    int depth,
-                                    bool& descend );
+    virtual MBErrorCode visit( MBEntityHandle node, 
+                               int depth,
+                               bool& descend );
+                               
+    virtual MBErrorCode leaf( MBEntityHandle ) { return MB_SUCCESS; }
   private:
   
     MBErrorCode print_geometry( MBEntityHandle node );
@@ -647,8 +653,7 @@ TreeNodePrinter::TreeNodePrinter( std::ostream& stream,
   }
 }   
 
-MBErrorCode TreeNodePrinter::operator()( MBEntityHandle node,
-                                         int, bool& descend )
+MBErrorCode TreeNodePrinter::visit( MBEntityHandle node, int, bool& descend )
 {
   descend = true;
   
