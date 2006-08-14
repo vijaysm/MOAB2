@@ -334,6 +334,8 @@ MBErrorCode EntitySequenceManager::find( MBEntityHandle entity_handle,
     // using lower bounds function of map
     std::map<MBEntityHandle, MBEntitySequence*>::const_iterator iter =
       mSequenceMap[ent_type].upper_bound(entity_handle);
+    if (iter == mSequenceMap[ent_type].begin())
+      return MB_ENTITY_NOT_FOUND;
     --iter;
 
     // ensure that the entity is bounded by this sequence.  
