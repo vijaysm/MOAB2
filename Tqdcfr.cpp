@@ -2333,11 +2333,13 @@ void Tqdcfr::ModelEntry::print()
 
 #ifdef TEST_TQDCFR
 #include "MBCore.hpp"
+#include "testdir.h"
+
 int main(int argc, char* argv[])
 {
 
     // Check command line arg
-  const char* file = "test/block.cub";
+  const char* file = TEST_DIR "/block.cub";
   if (argc < 2)
   {
     std::cout << "Usage: tqdcfr <cub_file_name>" << std::endl;
@@ -2352,9 +2354,11 @@ int main(int argc, char* argv[])
 
   MBErrorCode result = my_tqd.load_file(file, 0, 0);
 
-  if (MB_SUCCESS == result) std::cout << "Success." << std::endl;
-  else
+  if (MB_SUCCESS == result)
+    std::cout << "Success." << std::endl;
+  else 
     std::cout << "load_file returned error." << std::endl;
-  
+
+  return result;
 }
 #endif
