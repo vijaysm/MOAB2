@@ -27,6 +27,8 @@
 class EntitySequenceManager;
 class MBEntitySequence;
 
+#define MB_RANGE_SEQ_INTERSECT_ITER_STATS 0
+
 /** \brief Iterate over the blocks of MBEntityHandles in an MBRange that
  *         are in the same MBEntitySequence.
  *
@@ -98,6 +100,11 @@ public:
     /** Get last handle in block */
   MBEntityHandle get_end_handle() const
     { return mEndHandle; }
+
+#if MB_RANGE_SEQ_INTERSECT_ITER_STATS
+  static double fragmentation() 
+    { return (doubleNumCalls + intNumCalls) / (doubleEntCount + intEntCount); }
+#endif
     
 private:
 
@@ -129,6 +136,12 @@ private:
   MBEntityHandle mStartHandle, mEndHandle; //!< Subset of current MBEntitySequence
   MBEntityHandle mLastHandle;              //!< The last of the list of all handles in the MBRange
   int freeIndex;                           //!< Current position in free list of mSequence
+
+#if MB_RANGE_SEQ_INTERSECT_ITER_STATS
+  static double doubleNumCalls, doubleEntCount;
+  static unsigned long intNumCalls, intEntCount;
+  static void update_stats( unsigned long num_ents);
+#endif
 };
 
 #endif

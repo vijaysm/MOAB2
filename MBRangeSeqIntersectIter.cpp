@@ -41,8 +41,14 @@ MBErrorCode MBRangeSeqIntersectIter::init( MBRange::const_iterator start,
   mEndHandle = (*rangeIter).second;
   if (mEndHandle > mLastHandle)
     mEndHandle = mLastHandle;
-  
+
+#if MB_RANGE_SEQ_INTERSECT_ITER_STATS
+  MBErrorCode result = update_entity_sequence();
+  update_stats(mEndHandle - mStartHandle + 1);
+  return result;
+#else
   return update_entity_sequence();
+#endif
 }
   
 
@@ -69,7 +75,13 @@ MBErrorCode MBRangeSeqIntersectIter::step()
   
     // Now trim up the range (decrease mEndHandle) as necessary
     // for the corresponding EntitySquence
+#if MB_RANGE_SEQ_INTERSECT_ITER_STATS
+  MBErrorCode result = update_entity_sequence();
+  update_stats(mEndHandle - mStartHandle + 1);
+  return result;
+#else
   return update_entity_sequence();
+#endif
 }
 
 MBErrorCode MBRangeSeqIntersectIter::update_entity_sequence()
@@ -170,3 +182,27 @@ MBErrorCode MBRangeSeqIntersectIter::find_deleted_range()
   return MB_ENTITY_NOT_FOUND;
 }
         
+#if MB_RANGE_SEQ_INTERSECT_ITER_STATS
+double MBRangeSeqIntersectIter::doubleNumCalls = 0;
+double MBRangeSeqIntersectIter::doubleEntCount = 0;
+unsigned long MBRangeSeqIntersectIter::intNumCalls = 0;
+unsigned long MBRangeSeqIntersectIter::intEntCount = 0;
+
+void MBRangeSeqIntersectIter::update_stats( unsigned long num_ents )
+{
+  if (std::numeric_limits<unsigned long>::max() == intNumCalls) {
+    doubleNumCalls += intNumCalls;
+    intNumCalls = 0;
+  }
+  ++intNumCalls;
+  
+  if (std::numeric_limits<unsigned long>::max() - intEntCount > num_ents) {
+    doubleNumCalls += intEntCount;
+    intEntCount = num_ents;
+  }
+  else {
+    intEntCount += num_ents;
+  }
+}
+#endif
+
