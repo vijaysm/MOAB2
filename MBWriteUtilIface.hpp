@@ -255,7 +255,11 @@ public:
   
     //! overloaded report_error behaves like the above
     //! \return status Return status
-  virtual MBErrorCode report_error( const char* error, ... ) = 0;
+  virtual MBErrorCode report_error( const char* error, ... ) 
+#ifdef __GNUC__
+__attribute__((format(printf,2,3)))
+#endif
+  = 0;
 
 };
 

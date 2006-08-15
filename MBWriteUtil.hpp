@@ -216,8 +216,11 @@ public:
   //! it makes sense to have this as long as MBInterface has a write_mesh function
   MBErrorCode report_error( const std::string& error );
 
-  MBErrorCode report_error( const char* error, ... );
-
+  MBErrorCode report_error( const char* error, ... )
+#ifdef __GNUC__
+ __attribute__((format(printf,2,3)))
+#endif
+  ;
 };
 
 #endif

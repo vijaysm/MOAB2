@@ -1254,7 +1254,7 @@ MBErrorCode WriteNCDF::write_BCs(std::vector<NeumannSetData> &sidesets,
                                                   &(*begin_iter), 
                                                   1, &exodus_id);
       if (MB_FAILURE == result) {
-        mWriteIface->report_error("Problem getting exodus id for sideset element %u", ID_FROM_HANDLE(*begin_iter));
+        mWriteIface->report_error("Problem getting exodus id for sideset element %lu", ID_FROM_HANDLE(*begin_iter));
         return result;
       }
       
@@ -1552,7 +1552,7 @@ MBErrorCode WriteNCDF::initialize_exodus_file(ExodusMeshInfo &mesh_info,
 
     if (!connect->add_att("elem_type", element_type_string))
     {
-      mWriteIface->report_error("WriteNCDF: failed to store element type name %s", block.element_type);
+      mWriteIface->report_error("WriteNCDF: failed to store element type name %d", (int)block.element_type);
       return (MB_FAILURE);
     }
   }

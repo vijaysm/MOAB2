@@ -62,18 +62,11 @@ public:
     return MB_SUCCESS; 
   }
 
-  MBErrorCode set_last_error(const char* fmt, ...)
-  {
-    MBErrorCode result = MB_FAILURE;
-    if (fmt)
-    {
-      va_list args;
-      va_start( args, fmt );
-      result = set_last_error( fmt, args );
-      va_end( args );
-    }
-    return result;
-  }
+  inline MBErrorCode set_last_error(const char* fmt, ...)
+#ifdef __GNUC__
+__attribute__((format(printf,2,3)))
+#endif
+  ;
   
   MBErrorCode set_last_error( const char* fmt, va_list args )
   {
@@ -91,6 +84,18 @@ public:
 
 };
 
+inline MBErrorCode MBError::set_last_error(const char* fmt, ...)
+{
+  MBErrorCode result = MB_FAILURE;
+  if (fmt)
+  {
+    va_list args;
+    va_start( args, fmt );
+    result = set_last_error( fmt, args );
+    va_end( args );
+  }
+  return result;
+}
 
 
 #endif

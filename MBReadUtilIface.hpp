@@ -129,8 +129,11 @@ public:
   virtual MBErrorCode report_error( const std::string& error ) = 0;
 
     //! overloaded report_error behaves like the above
-  virtual MBErrorCode report_error( const char* error, ... ) = 0;
-
+  virtual MBErrorCode report_error( const char* error, ... )
+#ifdef __GNUC__
+__attribute__((format(printf,2,3)))
+#endif
+  = 0;
 };
 
 #endif 

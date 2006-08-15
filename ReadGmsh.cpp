@@ -143,7 +143,7 @@ MBErrorCode ReadGmsh::load_file_impl( const char* filename,
       return MB_FILE_WRITE_ERROR;
     
     if (version != 2.0) {
-      readMeshIface->report_error( "%s: unknown format version: %d\n", filename, version );
+      readMeshIface->report_error( "%s: unknown format version: %f\n", filename, version );
       return MB_FILE_DOES_NOT_EXIST;
     }
     
