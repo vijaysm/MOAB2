@@ -244,7 +244,7 @@ MBErrorCode ReadGmsh::load_file_impl( const char* filename,
         return MB_FILE_WRITE_ERROR;
       tag_data[0] = int_data[2];
       tag_data[1] = int_data[3];
-      if (int_data[4] != typemap[int_data[2]].nodes)
+      if (int_data[4] != typemap[int_data[1]].nodes)
       {
         readMeshIface->report_error( "Invalid node count for element type at line %d\n",
                                      tokens.line_number() );
