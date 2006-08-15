@@ -29,45 +29,6 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
-/*
-#define CHECK_SIZE(buf_vec, new_size)  \
-    if (buf_vec.size() < (unsigned int) new_size) buf_vec.resize(new_size)
-#define FSEEK(offset) assert(0 == fseek(Tqdcfr::instance()->cubFile, offset, SEEK_SET))
-#define FREADI(num_ents) \
-   {CHECK_SIZE(Tqdcfr::instance()->int_buf, num_ents); \
-   assert(fread(&Tqdcfr::instance()->int_buf[0], 4, num_ents, Tqdcfr::instance()->cubFile) == (unsigned int) num_ents);}
-#define FREADD(num_ents) \
-   {CHECK_SIZE(dbl_buf, num_ents); \
-    assert(fread(&dbl_buf[0], 8, num_ents, Tqdcfr::instance()->cubFile) == (unsigned int) num_ents);}
-#define FREADC(num_ents) \
-   {CHECK_SIZE(char_buf, num_ents); \
-    assert(fread(&char_buf[0], 1, num_ents, Tqdcfr::instance()->cubFile) == (unsigned int) num_ents);}
-#define FREADIA(num_ents,array) \
-   {assert(fread(array, 4, num_ents, Tqdcfr::instance()->cubFile) == (unsigned int) num_ents);}
-#define FREADDA(num_ents,array) \
-   {assert(fread(array, 8, num_ents, Tqdcfr::instance()->cubFile) == (unsigned int) num_ents);}
-#define FREADCA(num_ents,array) \
-   {assert(fread(array, 1, num_ents, Tqdcfr::instance()->cubFile) == (unsigned int) num_ents);}
-*/
-#define CHECK_SIZE(buf_vec, new_size)  \
-    if (buf_vec.size() < (unsigned int) new_size) buf_vec.resize(new_size)
-#define FSEEK(offset) assert(0 == fseek(instance->cubFile, offset, SEEK_SET))
-#define FREADI(num_ents) \
-   {CHECK_SIZE(instance->int_buf, num_ents); \
-   assert(fread(&instance->int_buf[0], 4, num_ents, instance->cubFile) == (unsigned int) num_ents);}
-#define FREADD(num_ents) \
-   {CHECK_SIZE(dbl_buf, num_ents); \
-    assert(fread(&dbl_buf[0], 8, num_ents, instance->cubFile) == (unsigned int) num_ents);}
-#define FREADC(num_ents) \
-   {CHECK_SIZE(char_buf, num_ents); \
-    assert(fread(&char_buf[0], 1, num_ents, instance->cubFile) == (unsigned int) num_ents);}
-#define FREADIA(num_ents,array) \
-   {assert(fread(array, 4, num_ents, instance->cubFile) == (unsigned int) num_ents);}
-#define FREADDA(num_ents,array) \
-   {assert(fread(array, 8, num_ents, instance->cubFile) == (unsigned int) num_ents);}
-#define FREADCA(num_ents,array) \
-   {assert(fread(array, 1, num_ents, instance->cubFile) == (unsigned int) num_ents);}
-
 
 class MBReadUtilIface;
 class FEModelHeader;
@@ -81,6 +42,14 @@ class SidesetHeader;
 class Tqdcfr : public MBReaderIface
 {
 public:  
+
+  void FSEEK( long offset );        // set cubFile offset to specified value
+  void FREADI( unsigned num_ents ); // read integers into int_buf
+  void FREADD( unsigned num_ents ); // read doubles into dbl_buf
+  void FREADC( unsigned num_ents ); // read characters into char_buf
+  void FREADIA( unsigned num_ents,    int* array ); // read integers
+  void FREADDA( unsigned num_ents, double* array ); // read doubles
+  void FREADCA( unsigned num_ents,   char* arrat ); // read bytes
 
     // class for holding the file table of contents
   class FileTOC
@@ -366,8 +335,6 @@ private:
   MBErrorCode process_record(AcisRecord &this_record);
   
   static const char geom_categories[][CATEGORY_TAG_NAME_LENGTH];
-  
-  Tqdcfr *const instance;
   
   FILE* acisDumpFile;
 

@@ -74,13 +74,60 @@ char *Tqdcfr::BLOCK_SIDESET_OFFSET_TAG_NAME = "BLOCK_SIDESET_OFFSET";
 // acis dimensions for each entity type, to match
 // enum {BODY, LUMP, SHELL, FACE, LOOP, COEDGE, EDGE, VERTEX, ATTRIB, UNKNOWN} 
 
+#define IO_ASSERT(C) INT_IO_ERROR(C,__LINE__)
+
+static inline void INT_IO_ERROR( bool condition, unsigned line ) {
+  if (!condition) {
+    char buffer[] = __FILE__ "             ";
+    sprintf( buffer, "%s:%u", __FILE__, line );
+    fflush( stderr );
+    perror( buffer );
+    abort();
+  }
+}
+
+void Tqdcfr::FSEEK( long offset ) {
+  int rval = fseek( cubFile, offset, SEEK_SET );
+  IO_ASSERT( !rval );
+}
+
+void Tqdcfr::FREADI( unsigned num_ents ) {
+  int_buf.resize( num_ents );
+  FREADIA( num_ents, &int_buf[0] );
+}
+
+void Tqdcfr::FREADD( unsigned num_ents ) {
+  dbl_buf.resize( num_ents );
+  FREADDA( num_ents, &dbl_buf[0] );
+}
+
+void Tqdcfr::FREADC( unsigned num_ents ) {
+  char_buf.resize( num_ents );
+  FREADCA( num_ents, &char_buf[0] );
+}
+
+void Tqdcfr::FREADIA( unsigned num_ents, int* array ) {
+  unsigned rval = fread( array, sizeof(int), num_ents, cubFile );
+  IO_ASSERT( rval == num_ents );
+}
+
+void Tqdcfr::FREADDA( unsigned num_ents, double* array ) {
+  unsigned rval = fread( array, sizeof(double), num_ents, cubFile );
+  IO_ASSERT( rval == num_ents );
+}
+
+void Tqdcfr::FREADCA( unsigned num_ents, char* array ) {
+  unsigned rval = fread( array, sizeof(char), num_ents, cubFile );
+  IO_ASSERT( rval == num_ents );
+}
+
 MBReaderIface* Tqdcfr::factory( MBInterface* iface )
 { return new Tqdcfr( iface ); }
 
 Tqdcfr::Tqdcfr(MBInterface *impl) 
     : cubFile(NULL), globalIdTag(0), cubIdTag(0), geomTag(0), uniqueIdTag(0), groupTag(0), 
       blockTag(0), nsTag(0), ssTag(0), attribVectorTag(0), entityNameTag(0),
-      categoryTag(0), instance(this)
+      categoryTag(0)
 {
   assert(NULL != impl);
   mdbImpl = impl;
@@ -317,8 +364,8 @@ MBErrorCode Tqdcfr::convert_nodesets_sidesets()
   if (0 != nodeset_offset) {
     if (0 == nsTag) {
       int default_val = 0;
-      tmp_result = instance->mdbImpl->tag_create(DIRICHLET_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
-                                                 instance->nsTag, &default_val);
+      tmp_result = mdbImpl->tag_create(DIRICHLET_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
+                                                 nsTag, &default_val);
       if (MB_SUCCESS != tmp_result) result = tmp_result;
     }
     if (MB_SUCCESS == tmp_result)
@@ -331,8 +378,8 @@ MBErrorCode Tqdcfr::convert_nodesets_sidesets()
   if (0 != sideset_offset) {
     if (0 == ssTag) {
       int default_val = 0;
-      tmp_result = instance->mdbImpl->tag_create(NEUMANN_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
-                                                 instance->ssTag, &default_val);
+      tmp_result = mdbImpl->tag_create(NEUMANN_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
+                                                 ssTag, &default_val);
       if (MB_SUCCESS != tmp_result) result = tmp_result;
     }
     if (MB_SUCCESS == tmp_result) 
@@ -1032,7 +1079,8 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
 
       // get the connectivity array
     int total_conn = num_elem * nodes_per_elem;
-    FREADIA(total_conn, conn);
+    assert(sizeof(MBEntityHandle) == sizeof(int));
+    FREADIA(total_conn, reinterpret_cast<int*>(conn));
 
       // post-process connectivity into handles
     MBEntityHandle new_handle, dum_handle;
@@ -1129,21 +1177,21 @@ void Tqdcfr::check_contiguous(const int num_ents, int &contig, int &max_id)
   
 void Tqdcfr::FEModelHeader::init(const int offset, Tqdcfr* instance ) 
 {
-  FSEEK(offset);
-  FREADI(4);
+  instance->FSEEK(offset);
+  instance->FREADI(4);
   feEndian = instance->int_buf[0];
   feSchema = instance->int_buf[1];
   feCompressFlag = instance->int_buf[2];
   feLength = instance->int_buf[3];
-  FREADI(3); geomArray.init(instance->int_buf);
-  FREADI(2);
+  instance->FREADI(3); geomArray.init(instance->int_buf);
+  instance->FREADI(2);
   nodeArray.metaDataOffset = instance->int_buf[0];
   elementArray.metaDataOffset = instance->int_buf[1];
-  FREADI(3); groupArray.init(instance->int_buf);
-  FREADI(3); blockArray.init(instance->int_buf);
-  FREADI(3); nodesetArray.init(instance->int_buf);
-  FREADI(3); sidesetArray.init(instance->int_buf);
-  FREADI(1);
+  instance->FREADI(3); groupArray.init(instance->int_buf);
+  instance->FREADI(3); blockArray.init(instance->int_buf);
+  instance->FREADI(3); nodesetArray.init(instance->int_buf);
+  instance->FREADI(3); sidesetArray.init(instance->int_buf);
+  instance->FREADI(1);
 }
 
 MBErrorCode Tqdcfr::read_file_header() 
@@ -1284,7 +1332,7 @@ MBErrorCode Tqdcfr::GeomHeader::read_info_header(const int model_offset,
                                                  Tqdcfr::GeomHeader *&geom_headers) 
 {
   geom_headers = new GeomHeader[info.numEntities];
-  FSEEK(model_offset+info.tableOffset);
+  instance->FSEEK(model_offset+info.tableOffset);
   int dum_int;
   MBErrorCode result;
 
@@ -1301,7 +1349,7 @@ MBErrorCode Tqdcfr::GeomHeader::read_info_header(const int model_offset,
     result = instance->mdbImpl->create_meshset(MESHSET_SET, geom_headers[i].setHandle);
     if (MB_SUCCESS != result) return result;
     
-    FREADI(8);
+    instance->FREADI(8);
     geom_headers[i].nodeCt = instance->int_buf[0];
     geom_headers[i].nodeOffset = instance->int_buf[1];
     geom_headers[i].elemCt = instance->int_buf[2];
@@ -1332,7 +1380,7 @@ MBErrorCode Tqdcfr::GroupHeader::read_info_header(const int model_offset,
                                            Tqdcfr::GroupHeader *&group_headers) 
 {
   group_headers = new GroupHeader[info.numEntities];
-  FSEEK(model_offset+info.tableOffset);
+  instance->FSEEK(model_offset+info.tableOffset);
   int dum_int;
   MBErrorCode result;
 
@@ -1350,7 +1398,7 @@ MBErrorCode Tqdcfr::GroupHeader::read_info_header(const int model_offset,
     if (MB_SUCCESS != result) return result;
     static const char group_category[CATEGORY_TAG_NAME_LENGTH] = "Group\0";
     
-    FREADI(6);
+    instance->FREADI(6);
     group_headers[i].grpID = instance->int_buf[0];
     group_headers[i].grpType = instance->int_buf[1];
     group_headers[i].memCt = instance->int_buf[2];
@@ -1387,7 +1435,7 @@ MBErrorCode Tqdcfr::BlockHeader::read_info_header(const double data_version,
                                                   Tqdcfr::BlockHeader *&block_headers) 
 {
   block_headers = new BlockHeader[info.numEntities];
-  FSEEK(model_offset+info.tableOffset);
+  instance->FSEEK(model_offset+info.tableOffset);
   MBErrorCode result;
 
   if (0 == instance->categoryTag) {
@@ -1404,7 +1452,7 @@ MBErrorCode Tqdcfr::BlockHeader::read_info_header(const double data_version,
     if (MB_SUCCESS != result) return result;
     static const char material_category[CATEGORY_TAG_NAME_LENGTH] = "Material Set\0";
     
-    FREADI(12);
+    instance->FREADI(12);
     block_headers[i].blockID = instance->int_buf[0];
     block_headers[i].blockElemType = instance->int_buf[1];
     block_headers[i].memCt = instance->int_buf[2];
@@ -1467,7 +1515,7 @@ MBErrorCode Tqdcfr::NodesetHeader::read_info_header(const int model_offset,
                                              Tqdcfr::NodesetHeader *&nodeset_headers) 
 {
   nodeset_headers = new NodesetHeader[info.numEntities];
-  FSEEK(model_offset+info.tableOffset);
+  instance->FSEEK(model_offset+info.tableOffset);
   MBErrorCode result;
 
   if (0 == instance->categoryTag) {
@@ -1484,7 +1532,7 @@ MBErrorCode Tqdcfr::NodesetHeader::read_info_header(const int model_offset,
     if (MB_SUCCESS != result) return result;
     static const char dirichlet_category[CATEGORY_TAG_NAME_LENGTH] = "Dirichlet Set\0";
     
-    FREADI(8);
+    instance->FREADI(8);
     nodeset_headers[i].nsID = instance->int_buf[0];
     nodeset_headers[i].memCt = instance->int_buf[1];
     nodeset_headers[i].memOffset = instance->int_buf[2];
@@ -1517,7 +1565,7 @@ MBErrorCode Tqdcfr::SidesetHeader::read_info_header(const int model_offset,
                                              Tqdcfr::SidesetHeader *&sideset_headers) 
 {
   sideset_headers = new SidesetHeader[info.numEntities];
-  FSEEK(model_offset+info.tableOffset);
+  instance->FSEEK(model_offset+info.tableOffset);
   MBErrorCode result;
 
   if (0 == instance->categoryTag) {
@@ -1534,7 +1582,7 @@ MBErrorCode Tqdcfr::SidesetHeader::read_info_header(const int model_offset,
     if (MB_SUCCESS != result) return result;
     static const char neumann_category[CATEGORY_TAG_NAME_LENGTH] = "Neumann Set\0";
     
-    FREADI(8);
+    instance->FREADI(8);
     sideset_headers[i].ssID = instance->int_buf[0];
     sideset_headers[i].memCt = instance->int_buf[1];
     sideset_headers[i].memOffset = instance->int_buf[2];
@@ -1762,7 +1810,8 @@ MBErrorCode Tqdcfr::read_acis_records()
     // make the char buffer at least buf_size+1 long, to fit null char
   const int buf_size = 1023;
   
-  CHECK_SIZE(char_buf, buf_size+1);
+  //CHECK_SIZE(char_buf, buf_size+1);
+  char_buf.resize(buf_size+1);
   
   while (0 != bytes_left) {
       // read the next buff characters, or bytes_left if smaller
