@@ -238,6 +238,9 @@ seq_man_test_SOURCES = EntitySequenceManager.cpp
 seq_man_test_LDADD = $(top_builddir)/libMOAB.la
 seq_man_test_CXXFLAGS = -DTEST $(CXXFLAGS)
 
+# Other files to clean up (e.g. output from tests)
+MOSTLYCLEANFILES = dumped_acis.sat
+
 test/mb_big_test.g: $(top_srcdir)/test/mb_big_test.g.gz
 	$(ZCAT) $(top_srcdir)/test/mb_big_test.g.gz > test/mb_big_test.g
 
