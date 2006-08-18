@@ -24,93 +24,136 @@
 
 #include <set>
 
+static inline MBEntityType split_handle( MBEntityHandle handle, 
+                                         unsigned& i, 
+                                         unsigned& j, 
+                                         unsigned& k )
+{
+  k = handle & (MESHSET_MANAGER_LEVEL_THREE_COUNT-1);
+  handle = handle >> MESHSET_MANAGER_LEVEL_THREE_BITS;
+  j = handle & (MESHSET_MANAGER_LEVEL_TWO_COUNT-1);
+  handle = handle >> MESHSET_MANAGER_LEVEL_TWO_BITS;
+  i = handle & (MESHSET_MANAGER_LEVEL_ONE_COUNT-1);
+  handle = handle >> MESHSET_MANAGER_LEVEL_ONE_BITS;
+  return (MBEntityType)handle;
+}
+
+static inline MBEntityHandle make_handle( unsigned i, unsigned j, unsigned k )
+
+{
+  MBEntityHandle result = (MBEntityHandle)MBENTITYSET;
+  result = (result << MESHSET_MANAGER_LEVEL_ONE_BITS) | i;
+  result = (result << MESHSET_MANAGER_LEVEL_TWO_BITS) | j;
+  result = (result << MESHSET_MANAGER_LEVEL_THREE_BITS) | k;
+  return result;
+}
+
 MeshSetManager::MeshSetManager( AEntityFactory* a_ent_fact )
-  : procSet( MB_PROC_COUNT ),
-    aEntityFactory( a_ent_fact )
-  {}
+  : aEntityFactory( a_ent_fact )
+{
+  memset( setArrays, 0, sizeof(setArrays) );
+}
   
 MeshSetManager::~MeshSetManager()
 {
-  std::vector<ProcData>::iterator p;
-  std::vector<MBMeshSet*>::iterator i;
-  for (p = procSet.begin(); p != procSet.end(); ++p) 
-    for (i = p->list.begin(); i != p->list.end(); ++i) 
-      delete *i;
+  for (unsigned i = 0; i < MESHSET_MANAGER_LEVEL_ONE_COUNT; ++i) {
+    if (!setArrays[i])
+      continue;
+    for (unsigned j = 0; j < MESHSET_MANAGER_LEVEL_TWO_COUNT; ++j) {
+      if (!setArrays[i][j])
+        continue;
+      for (unsigned k = 0; k < MESHSET_MANAGER_LEVEL_THREE_COUNT; ++k) {
+        delete setArrays[i][j][k];
+      }
+      free( setArrays[i][j] );
+    }
+    free( setArrays[i] );
+  }
 }  
+
+MBEntityHandle MeshSetManager::find_next_free_handle(unsigned proc_id)
+{
+  if (proc_id >= lastID.size())
+    lastID.resize( proc_id + 1, MB_START_ID - 1 );
+  
+  int junk;
+  MBEntityHandle start_id = lastID[proc_id];
+  MBEntityHandle id = start_id;
+  MBEntityHandle handle;
+
+  do {
+    ++id;
+    if (id > MB_END_ID)
+      id = MB_START_ID;
+    if (id == start_id)
+      return 0; // exhausted ID space??
+    
+    handle = CREATE_HANDLE( MBENTITYSET, id, proc_id, junk );  
+  } while (get_mesh_set( handle ));
+  
+  lastID[proc_id] = id;
+  return handle;
+}
+
 
 MBErrorCode MeshSetManager::create_mesh_set( unsigned options, 
                                              MBEntityHandle start_id,
                                              unsigned int proc_id,
                                              MBEntityHandle& handle )
 {
-    // Get data for specified processor
-  if (proc_id >= procSet.size())
-    return MB_INDEX_OUT_OF_RANGE;
-  ProcData& data = procSet[proc_id];
-  
-    // Don't put first index into data.free because an
-    // ID of zero isn't valid.  Allocate it w/out putting
-    // it in the free list so it is never used.
-  if (data.list.empty()) 
-    data.list.resize(MB_START_ID,0);
-  
-    // Get id for mesh set
-  if (start_id) {
-    if (start_id <= MB_START_ID)
-      return MB_INDEX_OUT_OF_RANGE;
-    if (start_id < data.list.size() && data.list[start_id])
-      return MB_ALREADY_ALLOCATED;
-  }
-  else if (!data.free.empty()) {
-    start_id = data.free.front(); data.free.pop_front();
+    // get handle
+  if (start_id == 0) {
+    handle = find_next_free_handle( proc_id );
+    if (!handle) // no free handles
+      return MB_FAILURE;
   }
   else {
-    start_id = data.list.size();
+    int junk;
+    handle = CREATE_HANDLE( MBENTITYSET, start_id, proc_id, junk );
+    if (get_mesh_set( handle ))
+      return MB_ALREADY_ALLOCATED;
   }
   
-    // Create handle
-  int err;
-  handle = CREATE_HANDLE( MBENTITYSET, start_id, proc_id, err );
-  if (err)
-    return MB_INDEX_OUT_OF_RANGE;
-  
-    // Create hole in the ID space necessary to accomodate
-    // the requested start_id.
-  while (start_id > data.list.size()) {
-      // normally, deleted sets go on the back because we want to delay
-      // reusing them as long as possible.  These were never used, so
-      // put on the front.
-    data.free.push_front( data.list.size() );
-      // set pointer for unused spots to NULL
-    data.list.push_back( 0 );
+    // Make sure slot is allocated in array
+  unsigned i, j, k;
+  split_handle( handle, i, j, k );
+  MBMeshSet*** two = setArrays[i];
+  if (!two) {
+    size_t size = sizeof(MBMeshSet**) * MESHSET_MANAGER_LEVEL_TWO_COUNT;
+    two = setArrays[i] = (MBMeshSet***)malloc( size );
+    memset( two, 0, size );
   }
-  
+  MBMeshSet** three = two[j];
+  if (!three) {
+    size_t size = sizeof(MBMeshSet*) * MESHSET_MANAGER_LEVEL_THREE_COUNT;
+    three = two[j] = (MBMeshSet**)malloc( size );
+    memset( three, 0, size );
+  }
+  MBMeshSet *& ms_ptr = three[k];
+
     // Create mesh set instance
-  MBMeshSet* ms_ptr = 0;
   bool track = options & MESHSET_TRACK_OWNER ? true : false;
   if (options & MESHSET_ORDERED) 
     ms_ptr = new MBMeshSet_Vector( track );
   else 
     ms_ptr = new MBMeshSet_MBRange( track );
   
-    // Put a pointer to the MBMeshSet in the list of sets
-  if (start_id == data.list.size()) 
-    data.list.push_back( ms_ptr );
-  else
-    data.list[start_id] = ms_ptr;
-
   return MB_SUCCESS;
 }
 
 MBMeshSet* MeshSetManager::get_mesh_set( MBEntityHandle handle ) const
 {
-  if (TYPE_FROM_HANDLE(handle) != MBENTITYSET)
+  unsigned i, j, k;
+  if (split_handle(handle,i,j,k) != MBENTITYSET)
     return 0;
-  unsigned proc = PROC_FROM_HANDLE(handle);
-  MBEntityHandle id = ID_FROM_HANDLE(handle);
-  if (proc >= procSet.size() || id >= procSet[proc].list.size())
+  
+  MBMeshSet*** two = setArrays[i];
+  if (!two)
     return 0;
-  return procSet[proc].list[id];
+  MBMeshSet** three = two[j];
+  if (!three)
+    return 0;
+  return three[k];
 }
 
 MBErrorCode MeshSetManager::get_options( MBEntityHandle handle, 
@@ -135,21 +178,37 @@ MBErrorCode MeshSetManager::get_options( MBEntityHandle handle,
 
 MBErrorCode MeshSetManager::destroy_mesh_set( MBEntityHandle handle )
 {
-  if (TYPE_FROM_HANDLE(handle) != MBENTITYSET)
+  unsigned i, j, k;
+  if (split_handle(handle,i,j,k) != MBENTITYSET)
     return MB_TYPE_OUT_OF_RANGE;
   
-    // get location
-  unsigned proc = PROC_FROM_HANDLE(handle);
-  MBEntityHandle id = ID_FROM_HANDLE(handle);
-  if (proc >= procSet.size() || 
-      id >= procSet[proc].list.size() ||
-      !procSet[proc].list[id])
+    // Get MeshSet pointer
+  MBMeshSet*** two = setArrays[i];
+  if (!two)
     return MB_ENTITY_NOT_FOUND;
+  MBMeshSet** three = two[j];
+  if (!three || !three[k])
+    return MB_ENTITY_NOT_FOUND;
+  MBMeshSet* ms_ptr = three[k];
   
-    // remove from global list
-  MBMeshSet* ms_ptr = procSet[proc].list[id];
-  procSet[proc].list[id] = 0;
-  procSet[proc].free.push_back( id );
+    // Remove from global array
+  three[k] = 0;
+    // Check entire block is empty
+  MBMeshSet **iter3, **end3 = three + MESHSET_MANAGER_LEVEL_THREE_COUNT;
+  for (iter3 = three; iter3 != end3 && *iter3; ++iter3);
+  if (iter3 == end3) {
+      // free block
+    free( three );
+    two[j] = 0;
+      // check if entire superblock is empty
+    MBMeshSet ***iter2, ***end2 = two + MESHSET_MANAGER_LEVEL_TWO_COUNT;
+    for (iter2 = two; iter2 != end2 && *iter2; ++iter2);
+    if (iter2 == end2) {
+        // free superblock
+      free( two );
+      setArrays[i] = 0;
+    }
+  }
   
     // update parents
   const std::vector<MBEntityHandle>& parents = ms_ptr->get_parents();
@@ -179,31 +238,29 @@ MBErrorCode MeshSetManager::clear_mesh_set( MBEntityHandle handle )
 
 void MeshSetManager::get_all_mesh_sets( MBRange& range ) const
 {
-  int junk;
   MBRange::iterator ins_pos = range.lower_bound( MBENTITYSET );
   
-  for (unsigned p = 0; p < procSet.size(); ++p) {
-    const ProcData& data = procSet[p];
-    const MBEntityHandle count = data.list.size();
-    MBEntityHandle i = MB_START_ID;
-    for (;;) {
-        // skip unoccupied slots
-      for (; i < count && !data.list[i]; ++i); //<- Note ending ';'
-        // check loop termination condition
-      if (i >= count)
-        break;
-        // store first used entity handle
-      const MBEntityHandle beg = CREATE_HANDLE( MBENTITYSET, i, p, junk );
-        // loop over all occupied slots
-      for (++i; i < count && data.list[i]; ++i); //<- Note ending ';'
-        // insert into range
-      const MBEntityHandle end = CREATE_HANDLE( MBENTITYSET, i-1, p, junk );
-      ins_pos = range.insert( ins_pos, beg, end );
-        // we know the current one is NULL, so don't bother checking
-        // it at the start of the next iteration.
-      ++i;
-    }
-  }
+  for (unsigned i = 0; i < MESHSET_MANAGER_LEVEL_ONE_COUNT; ++i) {
+    MBMeshSet*** two = setArrays[i];
+    if (!two)
+      continue;
+    
+    for (unsigned j = 0; j < MESHSET_MANAGER_LEVEL_TWO_COUNT; ++j) {
+      MBMeshSet** three = two[j];
+      if (!three) 
+        continue;
+      
+      unsigned k = 0;
+      for (;;) {
+        for (; k < MESHSET_MANAGER_LEVEL_THREE_COUNT && !three[k]; ++k);
+        if (k == MESHSET_MANAGER_LEVEL_THREE_COUNT)
+          break;
+        unsigned k0 = k;
+        for (; k < MESHSET_MANAGER_LEVEL_THREE_COUNT && three[k]; ++k);
+        ins_pos = range.insert( ins_pos, make_handle( i, j, k0 ), make_handle( i, j, k-1 ) );
+      }
+    } // for j
+  } // for k
 }
 
 MBErrorCode MeshSetManager::get_entities( MBEntityHandle handle,

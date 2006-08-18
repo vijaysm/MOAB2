@@ -22,13 +22,26 @@
 #define MB_MESH_SET_MANAGER_HPP
 
 #include "MBInterface.hpp"
+#include "MBInternals.hpp"
 
 #include <vector>
-#include <deque>
 
 class MBMeshSet;
 class AEntityFactory;
 
+#ifdef USE_64_BIT_HANDLES
+#  define MESHSET_MANAGER_LEVEL_TWO_BITS 20u
+#  define MESHSET_MANAGER_LEVEL_THREE_BITS 20u
+#else
+#  define MESHSET_MANAGER_LEVEL_TWO_BITS 10u
+#  define MESHSET_MANAGER_LEVEL_THREE_BITS 10u
+#endif
+
+#define MESHSET_MANAGER_LEVEL_ONE_BITS (sizeof(MBEntityHandle)*8 - MB_TYPE_WIDTH - MESHSET_MANAGER_LEVEL_TWO_BITS - MESHSET_MANAGER_LEVEL_THREE_BITS)
+#define MESHSET_MANAGER_LEVEL_ONE_COUNT   (1u << MESHSET_MANAGER_LEVEL_ONE_BITS)
+#define MESHSET_MANAGER_LEVEL_TWO_COUNT   (1u << MESHSET_MANAGER_LEVEL_TWO_BITS)
+#define MESHSET_MANAGER_LEVEL_THREE_COUNT (1u << MESHSET_MANAGER_LEVEL_THREE_BITS)
+  
 /**\brief Manage global list of MBMeshSets 
  *
  * Maintain the global list of MBMeshSets.  Provide
@@ -93,6 +106,8 @@ public:
 
 private:
 
+  MBEntityHandle find_next_free_handle( unsigned proc_id );
+
   //! Recursively get all contained entity sets.
   MBErrorCode recursive_get_sets( MBEntityHandle start_set, 
                                 std::vector<MBMeshSet*>& sets ) const;
@@ -119,17 +134,13 @@ private:
    */
   MBMeshSet* get_mesh_set( MBEntityHandle handle ) const;
   
-  struct ProcData {
-    std::vector<MBMeshSet*> list;
-    std::deque<MBEntityHandle> free;
-  };
-
-    // Keep separate lists for each processor, otherwise
-    // will end up with big holes (unused blocks) in the
-    // std::vector.
-  std::vector<ProcData> procSet; 
+  MBMeshSet*** setArrays[MESHSET_MANAGER_LEVEL_ONE_COUNT];
   
   AEntityFactory* aEntityFactory;
+  
+  // ID of last created set for which user didn't specify ID, one value
+  // per CPU ID.
+  std::vector<MBEntityHandle> lastID; 
 };
 
 
