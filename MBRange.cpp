@@ -33,6 +33,25 @@
 #include "MBInternals.hpp"
 #include <stdio.h>
 
+#ifdef HAVE_BOOST_POOL_SINGLETON_POOL_HPP
+#  include <boost/pool/singleton_pool.hpp>
+   typedef boost::singleton_pool< MBRange::PairNode , sizeof(MBRange::PairNode) > 
+    PairAlloc;
+   static inline MBRange::PairNode* alloc_pair()
+    { return new (PairAlloc::malloc()) MBRange::PairNode; }
+   static inline MBRange::PairNode* alloc_pair(MBRange::PairNode* n, MBRange::PairNode* p, MBEntityHandle f, MBEntityHandle s)
+    { return new (PairAlloc::malloc()) MBRange::PairNode(n,p,f,s); }
+   static inline void free_pair( MBRange::PairNode* node )
+    { node->~PairNode(); PairAlloc::free( node ); }
+#else
+   static inline MBRange::PairNode* alloc_pair()
+    { return new MBRange::PairNode; }
+   static inline MBRange::PairNode* alloc_pair(MBRange::PairNode* n, MBRange::PairNode* p, MBEntityHandle f, MBEntityHandle s)
+    { return new MBRange::PairNode(n,p,f,s); }
+   static inline void free_pair( MBRange::PairNode* node )
+    { delete node; }
+#endif
+
 /*! 
   returns the number of values this list represents
  */
@@ -135,6 +154,62 @@ MBRange::const_iterator& MBRange::const_iterator::operator-=( long sstep )
  
   
 
+  //! another constructor that takes an initial range
+MBRange::MBRange( MBEntityHandle val1, MBEntityHandle val2 )
+{
+  mHead.mNext = mHead.mPrev = alloc_pair(&mHead, &mHead, val1, val2);
+  mHead.first = mHead.second = 0;
+}
+
+  //! copy constructor
+MBRange::MBRange(const MBRange& copy)
+{
+    // set the head node to point to itself
+  mHead.mNext = mHead.mPrev = &mHead;
+  mHead.first = mHead.second = 0;
+
+  const PairNode* copy_node = copy.mHead.mNext;
+  PairNode* new_node = &mHead;
+  for(; copy_node != &(copy.mHead); copy_node = copy_node->mNext)
+  {
+    PairNode* tmp_node = alloc_pair(new_node->mNext, new_node, copy_node->first,
+                                      copy_node->second);
+    new_node->mNext->mPrev = tmp_node;
+    new_node->mNext = tmp_node;
+    new_node = tmp_node;
+  }
+}
+
+  //! clears the contents of the list 
+void MBRange::clear()
+{
+  PairNode* tmp_node = mHead.mNext;
+  while(tmp_node != &mHead)
+  {
+    PairNode* to_delete = tmp_node;
+    tmp_node = tmp_node->mNext;
+    free_pair( to_delete );
+  }
+  mHead.mNext = &mHead;
+  mHead.mPrev = &mHead;
+}
+
+MBRange& MBRange::operator=(const MBRange& copy)
+{
+  clear();
+  const PairNode* copy_node = copy.mHead.mNext;
+  PairNode* new_node = &mHead;
+  for(; copy_node != &(copy.mHead); copy_node = copy_node->mNext)
+  {
+    PairNode* tmp_node = alloc_pair(new_node->mNext, new_node, copy_node->first,
+                                      copy_node->second);
+    new_node->mNext->mPrev = tmp_node;
+    new_node->mNext = tmp_node;
+    new_node = tmp_node;
+  }
+  return *this;
+}
+
 
 /*!
   inserts a single value into this range
@@ -149,7 +224,7 @@ MBRange::iterator MBRange::insert(MBEntityHandle val)
 
   if(&mHead == mHead.mNext)
   {
-    mHead.mNext = mHead.mPrev = new PairNode(&mHead, &mHead, val, val);
+    mHead.mNext = mHead.mPrev = alloc_pair(&mHead, &mHead, val, val);
     return iterator(mHead.mNext, val);
   }
   
@@ -183,7 +258,7 @@ MBRange::iterator MBRange::insert(MBEntityHandle val)
       jter->second = iter->second;
       iter->mPrev->mNext = iter->mNext;
       iter->mNext->mPrev = iter->mPrev;
-      delete iter;
+      free_pair( iter );
       return iterator( jter, val );
     }
     else
@@ -201,7 +276,7 @@ MBRange::iterator MBRange::insert(MBEntityHandle val)
   // make a new range
   else
   {
-    PairNode* new_node = new PairNode(iter, iter->mPrev, val, val);
+    PairNode* new_node = alloc_pair(iter, iter->mPrev, val, val);
     iter->mPrev = new_node->mPrev->mNext = new_node;
     return iterator(new_node, val);
   }
@@ -231,7 +306,7 @@ MBRange::iterator MBRange::insert( MBRange::iterator prev,
   if (mHead.mNext == &mHead)
   {
     assert( prev == end() );
-    PairNode* new_node = new PairNode( &mHead, &mHead, val1, val2 );
+    PairNode* new_node = alloc_pair( &mHead, &mHead, val1, val2 );
     mHead.mNext = mHead.mPrev = new_node;
     return iterator( mHead.mNext, val1 );
   }
@@ -243,7 +318,7 @@ MBRange::iterator MBRange::insert( MBRange::iterator prev,
   // Input range is before beginning?
   if (iter->mPrev == &mHead && val2 < iter->first - 1)
   {
-    PairNode* new_node = new PairNode( iter, &mHead,  val1, val2 );
+    PairNode* new_node = alloc_pair( iter, &mHead,  val1, val2 );
     mHead.mNext = iter->mPrev = new_node;
     return iterator( mHead.mNext, val1 );
   }
@@ -256,7 +331,7 @@ MBRange::iterator MBRange::insert( MBRange::iterator prev,
   // Need to insert new pair (don't intersect any existing pair)?
   if (iter == &mHead || iter->first-1 > val2)
   {
-    PairNode* new_node = new PairNode( iter, iter->mPrev, val1, val2 );
+    PairNode* new_node = alloc_pair( iter, iter->mPrev, val1, val2 );
     iter->mPrev = iter->mPrev->mNext = new_node;
     return iterator( iter->mPrev, val1 );
   }
@@ -277,7 +352,7 @@ MBRange::iterator MBRange::insert( MBRange::iterator prev,
     
     if (dead->second > val2)
       iter->second = dead->second;
-    delete dead;
+    free_pair( dead );
   }
   
   return iterator( iter, val1 );
@@ -309,7 +384,7 @@ MBRange::iterator MBRange::erase(iterator iter)
   {
     kter->mNext->mPrev = kter->mPrev;
     kter->mPrev->mNext = kter->mNext;
-    delete kter;
+    free_pair( kter );
     return new_iter;
   }
   // shrink it
@@ -327,7 +402,7 @@ MBRange::iterator MBRange::erase(iterator iter)
   // split the range
   else
   {
-    PairNode* new_node = new PairNode(iter.mNode, iter.mNode->mPrev, kter->first, iter.mValue-1);
+    PairNode* new_node = alloc_pair(iter.mNode, iter.mNode->mPrev, kter->first, iter.mValue-1);
     new_node->mPrev->mNext = new_node->mNext->mPrev = new_node;
     iter.mNode->first = iter.mValue+1;
     return new_iter;

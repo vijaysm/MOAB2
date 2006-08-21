@@ -24,6 +24,12 @@
 #include "MBInterface.hpp"
 #include "MBInternals.hpp"
 
+#ifdef HAVE_BOOST_POOL_OBJECT_POOL_HPP
+#  include <boost/pool/object_pool.hpp>
+  class MBMeshSet_MBRange;
+  class MBMeshSet_Vector;
+#endif
+
 #include <vector>
 
 class MBMeshSet;
@@ -41,7 +47,7 @@ class AEntityFactory;
 #define MESHSET_MANAGER_LEVEL_ONE_COUNT   (1u << MESHSET_MANAGER_LEVEL_ONE_BITS)
 #define MESHSET_MANAGER_LEVEL_TWO_COUNT   (1u << MESHSET_MANAGER_LEVEL_TWO_BITS)
 #define MESHSET_MANAGER_LEVEL_THREE_COUNT (1u << MESHSET_MANAGER_LEVEL_THREE_BITS)
-  
+
 /**\brief Manage global list of MBMeshSets 
  *
  * Maintain the global list of MBMeshSets.  Provide
@@ -141,6 +147,11 @@ private:
   // ID of last created set for which user didn't specify ID, one value
   // per CPU ID.
   std::vector<MBEntityHandle> lastID; 
+  
+#ifdef HAVE_BOOST_POOL_OBJECT_POOL_HPP
+  boost::object_pool<MBMeshSet_MBRange> rangePool;
+  boost::object_pool<MBMeshSet_Vector> vectorPool;
+#endif
 };
 
 

@@ -62,13 +62,22 @@ MeshSetManager::~MeshSetManager()
     for (unsigned j = 0; j < MESHSET_MANAGER_LEVEL_TWO_COUNT; ++j) {
       if (!setArrays[i][j])
         continue;
+#ifndef HAVE_BOOST_POOL_OBJECT_POOL_HPP
       for (unsigned k = 0; k < MESHSET_MANAGER_LEVEL_THREE_COUNT; ++k) {
         delete setArrays[i][j][k];
       }
+#endif
       free( setArrays[i][j] );
     }
     free( setArrays[i] );
   }
+  
+#ifdef HAVE_BOOST_POOL_OBJECT_POOL_HPP
+  rangePool.~object_pool();
+  vectorPool.~object_pool();
+  new (&rangePool) boost::object_pool<MBMeshSet_MBRange>;
+  new (&vectorPool) boost::object_pool<MBMeshSet_Vector>;
+#endif
 }  
 
 MBEntityHandle MeshSetManager::find_next_free_handle(unsigned proc_id)
@@ -133,11 +142,17 @@ MBErrorCode MeshSetManager::create_mesh_set( unsigned options,
 
     // Create mesh set instance
   bool track = options & MESHSET_TRACK_OWNER ? true : false;
+#ifdef HAVE_BOOST_POOL_OBJECT_POOL_HPP
+  if (options & MESHSET_ORDERED) 
+    ms_ptr = vectorPool.construct( track );
+  else 
+    ms_ptr = rangePool.construct( track );
+#else
   if (options & MESHSET_ORDERED) 
     ms_ptr = new MBMeshSet_Vector( track );
   else 
     ms_ptr = new MBMeshSet_MBRange( track );
-  
+#endif
   return MB_SUCCESS;
 }
 
@@ -224,7 +239,14 @@ MBErrorCode MeshSetManager::destroy_mesh_set( MBEntityHandle handle )
 
     // remove contents before deleting so adjacency info is removed
   MBErrorCode rval = ms_ptr->clear( handle, aEntityFactory );
+#ifdef HAVE_BOOST_POOL_OBJECT_POOL_HPP
+  if (dynamic_cast<MBMeshSet_MBRange*>(ms_ptr))
+    rangePool.destroy( (MBMeshSet_MBRange*)ms_ptr );
+  else
+    vectorPool.destroy( (MBMeshSet_Vector*)ms_ptr );
+#else
   delete ms_ptr;
+#endif
   return rval;
 }
 

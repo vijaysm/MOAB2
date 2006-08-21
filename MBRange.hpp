@@ -300,18 +300,16 @@ public:
     //! return a subset of this range, by type
   MBRange subset(MBEntityType t);
   
-  struct PairNode
+  struct PairNode : public std::pair<MBEntityHandle,MBEntityHandle>
   {
 
-    PairNode() : mNext(NULL), mPrev(NULL), first(0), second(0) {}
+    PairNode() : std::pair<MBEntityHandle,MBEntityHandle>(0, 0), mNext(NULL), mPrev(NULL) {}
     PairNode(PairNode* next, PairNode* prev, 
              MBEntityHandle _first, MBEntityHandle _second)
-      : mNext(next), mPrev(prev), first(_first), second(_second) {}
+      : std::pair<MBEntityHandle,MBEntityHandle>(_first,_second), mNext(next), mPrev(prev) {}
 
     PairNode* mNext;
     PairNode* mPrev;
-    MBEntityHandle first;
-    MBEntityHandle second;
   };
 
   
@@ -341,7 +339,7 @@ public:
     pair_iterator(const const_iterator& copy)
       : mNode(copy.mNode) {}
 
-    const PairNode* operator->() { return mNode; }
+    std::pair<MBEntityHandle,MBEntityHandle>* operator->() { return mNode; }
     
     pair_iterator& operator++()
     {
@@ -575,8 +573,11 @@ public:
       const_pair_iterator( const PairNode* node ) : myNode(node) {}
       const_pair_iterator( const const_iterator& i ) : myNode(i.mNode) {}
       
-      const std::pair<MBEntityHandle, MBEntityHandle> operator*() const
-        { return std::pair<MBEntityHandle,MBEntityHandle>(myNode->first, myNode->second); }
+      const std::pair<MBEntityHandle, MBEntityHandle>& operator*() const
+        { return *myNode; }
+      
+      const std::pair<MBEntityHandle, MBEntityHandle>* operator->() const
+        { return myNode; }
       
       const_pair_iterator& operator--()
         { myNode = myNode->mPrev; return *this; }
@@ -646,67 +647,11 @@ inline MBRange::MBRange()
   mHead.mNext = mHead.mPrev = &mHead;
   mHead.first = mHead.second = 0;
 }
-
-  //! copy constructor
-inline MBRange::MBRange(const MBRange& copy)
-{
-    // set the head node to point to itself
-  mHead.mNext = mHead.mPrev = &mHead;
-  mHead.first = mHead.second = 0;
-
-  const PairNode* copy_node = copy.mHead.mNext;
-  PairNode* new_node = &mHead;
-  for(; copy_node != &(copy.mHead); copy_node = copy_node->mNext)
-  {
-    PairNode* tmp_node = new PairNode(new_node->mNext, new_node, copy_node->first,
-                                      copy_node->second);
-    new_node->mNext->mPrev = tmp_node;
-    new_node->mNext = tmp_node;
-    new_node = tmp_node;
-  }
-}
-
-  //! clears the contents of the list 
-inline void MBRange::clear()
-{
-  PairNode* tmp_node = mHead.mNext;
-  while(tmp_node != &mHead)
-  {
-    PairNode* to_delete = tmp_node;
-    tmp_node = tmp_node->mNext;
-    delete to_delete;
-  }
-  mHead.mNext = &mHead;
-  mHead.mPrev = &mHead;
-}
-
-inline MBRange& MBRange::operator=(const MBRange& copy)
-{
-  clear();
-  const PairNode* copy_node = copy.mHead.mNext;
-  PairNode* new_node = &mHead;
-  for(; copy_node != &(copy.mHead); copy_node = copy_node->mNext)
-  {
-    PairNode* tmp_node = new PairNode(new_node->mNext, new_node, copy_node->first,
-                                      copy_node->second);
-    new_node->mNext->mPrev = tmp_node;
-    new_node->mNext = tmp_node;
-    new_node = tmp_node;
-  }
-  return *this;
-}
   
   //! destructor
 inline MBRange::~MBRange()
 {
   clear();
-}
-
-  //! another constructor that takes an initial range
-inline MBRange::MBRange( MBEntityHandle val1, MBEntityHandle val2 )
-{
-  mHead.mNext = mHead.mPrev = new PairNode(&mHead, &mHead, val1, val2);
-  mHead.first = mHead.second = 0;
 }
 
   //! return the beginning const iterator of this range
