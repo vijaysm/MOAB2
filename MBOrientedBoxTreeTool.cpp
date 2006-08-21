@@ -54,7 +54,7 @@ MBOrientedBoxTreeTool::MBOrientedBoxTreeTool( MBInterface* i,
 
 MBOrientedBoxTreeTool::Settings::Settings() 
   : max_leaf_entities( 25 ),
-    max_depth( 12 ),
+    max_depth( 0 ),
     worst_split_ratio( 0.95 ),
     best_split_ratio( 0.4 )
 #if MB_OOB_SPLIT_BY_NON_INTERSECTING
@@ -65,7 +65,7 @@ MBOrientedBoxTreeTool::Settings::Settings()
 bool MBOrientedBoxTreeTool::Settings::valid() const
 {
   return max_leaf_entities > 0 
-      && max_depth > 1
+      && max_depth >= 0
       && worst_split_ratio <= 1.0
       && best_split_ratio >= 0.0
       && worst_split_ratio >= best_split_ratio
@@ -323,7 +323,7 @@ MBErrorCode MBOrientedBoxTreeTool::build_tree( const MBRange& entities,
     // check if should create children
   bool leaf = true;
   ++depth;
-  if (depth < settings.max_depth && 
+  if ((!settings.max_depth || depth < settings.max_depth) && 
       entities.size() > (unsigned)settings.max_leaf_entities) {
       // try splitting with planes normal to each axis of the box
       // until we find an acceptable split

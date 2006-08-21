@@ -75,7 +75,7 @@ class MBOrientedBoxTreeTool
       public:
         Settings();              //!< set defaults
         int max_leaf_entities;   //!< Average number of entities per leaf
-        int max_depth;           //!< Maximum tree depth
+        int max_depth;           //!< Maximum tree depth - 0->no limit
         //! Must be in [best_split_ratio,1.0]
         //! A tree node will not be split if the ratio of children
         //! in the child nodes is greater than this value.
