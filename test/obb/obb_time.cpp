@@ -30,16 +30,17 @@ void generate_ray( const MBCartVect& sphere_center,
                    MBCartVect& dir )
 {
   const int H = RAND_MAX/2;
-  point[0] = -(double)rand() ;// - H;
-  point[1] = -(double)rand() ;// - H;
-  point[2] = -(double)rand() ;// - H;
-  point *= sphere_radius / (1.7320508075688772 * RAND_MAX);
-  point += sphere_center;
+  point[0] = (double)rand()/H - 1;
+  point[1] = (double)rand()/H - 1;
+  point[2] = (double)rand()/H - 1;
+  point *= sphere_radius;
   
-  dir[0] = (double)rand() ;// - H;
-  dir[1] = (double)rand() ;// - H;
-  dir[2] = (double)rand() ;// - H;
+  dir[0] = (double)rand() * -point[0];
+  dir[1] = (double)rand() * -point[1];
+  dir[2] = (double)rand() * -point[2];
   dir.normalize();
+
+  point += sphere_center;
 }
 
 MBErrorCode read_tree( MBInterface* instance,
