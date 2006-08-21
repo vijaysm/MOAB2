@@ -139,10 +139,9 @@ MBErrorCode MBOrientedBox::tag_handle( MBTag& handle_out,
  *\param result.center  As input, the approximate center of the box.
  *                      As output, the exact center of the box.
  *\param result.axes    As input, directions of principal axes corresponding
- *                      to the orientation of the box.  As output, the 
- *                      direction of the principal axes of the box with a 
- *                      length equal to the distance from the center to the
- *                      corresponding side of the box.
+ *                      to the orientation of the box.  Axes are assumed to
+ *                      be unit-length on input.  Output will include extents
+ *                      of box.
  *\param points  The set of points the box should contain.
  */
 static MBErrorCode box_from_axes( MBOrientedBox& result,
@@ -259,19 +258,18 @@ MBErrorCode MBOrientedBox::compute_from_vertices( MBOrientedBox& result,
   return box_from_axes( result, instance, vertices );
 }
 
-
-MBErrorCode MBOrientedBox::compute_from_2d_cells( MBOrientedBox& result,
-                                                  MBInterface* instance,
-                                                  const MBRange& elements )
+MBErrorCode MBOrientedBox::orient_from_2d_cells( OrientMatrix& result,
+                                                 MBInterface* instance,
+                                                 const MBRange& elements )
 {
   MBErrorCode rval;
   const MBRange::iterator begin = elements.lower_bound( MBCN::TypeDimensionMap[2].first );
   const MBRange::iterator end = elements.lower_bound( MBCN::TypeDimensionMap[3].first );
   
     // compute mean and moments
-  MBMatrix3 a(0.0);
+  result.matrix = MBMatrix3(0.0);
   result.center = MBCartVect(0.0);
-  double total_area = 0;
+  result.area = 0.0;
   for (MBRange::iterator i = begin; i != end; ++i)
   {
     const MBEntityHandle* conn;
@@ -294,31 +292,59 @@ MBErrorCode MBOrientedBox::compute_from_2d_cells( MBOrientedBox& result,
       const MBCartVect edge1 = coords[2] - coords[0];
       const MBCartVect centroid = (coords[0] + coords[1] + coords[2]) / 3;
       const double tri_area2 = (edge0 * edge1).length();
-      total_area += tri_area2;
+      result.area += tri_area2;
       result.center += tri_area2 * centroid;
       
-      a += tri_area2 * (9 * outer_product( centroid,  centroid  ) +
-                            outer_product( coords[0], coords[0] ) +
-                            outer_product( coords[1], coords[1] ) +
-                            outer_product( coords[2], coords[2] ));
+      result.matrix += tri_area2 * (9 * outer_product( centroid,  centroid  ) +
+                                    outer_product( coords[0], coords[0] ) +
+                                    outer_product( coords[1], coords[1] ) +
+                                    outer_product( coords[2], coords[2] ));
     } // for each triangle
   } // for each element
-  result.center /= total_area;
-  
-    // get covariance matrix from moments
-  a /= 12 * total_area;
-  a -= outer_product( result.center, result.center );
 
-    // get axes (Eigenvectors) from covariance matrix
-  double lamda[3];
-  EigenDecomp( a, lamda, result.axis );
+  return MB_SUCCESS;
+}
+
+
+MBErrorCode MBOrientedBox::compute_from_2d_cells( MBOrientedBox& result,
+                                                  MBInterface* instance,
+                                                  const MBRange& elements )
+{
+    // Get orientation data from elements
+  OrientMatrix data;
+  MBErrorCode rval = orient_from_2d_cells( data, instance, elements );
+  if (MB_SUCCESS != rval)
+    return rval;
   
-    // Calculate center and extents of box given orientation defined by axes
+    // get vertices from elements
   MBRange points;
   rval = instance->get_adjacencies( elements, 0, false, points, MBInterface::UNION );
   if (MB_SUCCESS != rval)
     return rval;
-  return box_from_axes( result, instance, points );
+    
+    // Calculate box given points and orientation data
+  return compute_from_orient( result, instance, data, points );
+}
+
+MBErrorCode MBOrientedBox::compute_from_orient( MBOrientedBox& result,
+                                                MBInterface* instance,
+                                                OrientMatrix& data,
+                                                const MBRange& vertices )
+{
+    // get center from sum
+  result.center = data.center / data.area;
+
+    // get covariance matrix from moments
+  data.matrix /= 12 * data.area;
+  data.matrix -= outer_product( result.center, result.center );
+
+    // get axes (Eigenvectors) from covariance matrix
+  double lamda[3];
+  EigenDecomp( data.matrix, lamda, result.axis );
+
+    // We now have only the axes.  Calculate proper center
+    // and extents for enclosed points.
+  return box_from_axes( result, instance, vertices );
 }      
 
 bool MBOrientedBox::contained( const MBCartVect& point, double tol ) const
@@ -337,6 +363,23 @@ bool MBOrientedBox::contained( const MBCartVect& point, double tol ) const
   return true;
 #endif
 }
+
+MBErrorCode MBOrientedBox::compute_from_orient( MBOrientedBox& result,
+                                                MBInterface* moab_instance,
+                                                const OrientMatrix* data,
+                                                unsigned data_length,
+                                                const MBRange& vertices )
+{
+  OrientMatrix data_sum = { 0.0, MBCartVect(0.0), 0.0 };
+  for (const OrientMatrix* const end = data+data_length; data != end; ++data) {
+    data_sum.matrix += data->matrix;
+    data_sum.center += data->center;
+    data_sum.area += data->area;
+  }
+  
+  return compute_from_orient( result, moab_instance, data_sum, vertices );
+}
+
 
 
 //bool MBOrientedBox::contained( const MBOrientedBox& box, double tol ) const

@@ -23,6 +23,7 @@
 #include "MBRange.hpp"
 #include "MBCN.hpp"
 #include "MBGeometry.hpp"
+#include "MBTagConventions.hpp"
 #include <iostream>
 #include <iomanip>
 #include <algorithm>
@@ -73,6 +74,10 @@ bool MBOrientedBoxTreeTool::Settings::valid() const
 #endif
       ;
 }
+
+
+/********************** Simple Tree Access Methods ****************************/
+
 
 MBErrorCode MBOrientedBoxTreeTool::box( MBEntityHandle set, MBOrientedBox& obb )
 {
@@ -161,6 +166,17 @@ MBErrorCode MBOrientedBoxTreeTool::children( MBEntityHandle set,
   return MB_SUCCESS;
 }
 
+
+/********************** Tree Construction Code ****************************/
+
+
+struct MBOrientedBoxTreeTool::SetData {
+  MBEntityHandle handle;
+  MBOrientedBox::OrientMatrix box_data;
+  //MBRange vertices;
+};
+
+
 MBErrorCode MBOrientedBoxTreeTool::build( const MBRange& entities,
                                           MBEntityHandle& set_handle_out,
                                           const Settings* settings )
@@ -173,6 +189,42 @@ MBErrorCode MBOrientedBoxTreeTool::build( const MBRange& entities,
   return build_tree( entities, set_handle_out, 0, 
                      settings ? *settings : Settings() );
 }
+
+MBErrorCode MBOrientedBoxTreeTool::set_build( const MBRange& sets,
+                                              MBEntityHandle& set_handle_out,
+                                              const Settings* settings )
+{
+  if (!sets.all_of_type(MBENTITYSET))
+    return MB_TYPE_OUT_OF_RANGE;
+  if (settings && !settings->valid())
+    return MB_FAILURE;
+  
+    // Build initial set data list.
+  std::list<SetData> data;
+  for (MBRange::const_iterator i = sets.begin(); i != sets.end(); ++i) {
+    MBRange elements;
+    MBErrorCode rval = instance->get_entities_by_dimension( *i, 2, elements );
+    if (MB_SUCCESS != rval)
+      return rval;
+    if (elements.empty())
+      continue;
+    
+    data.push_back( SetData() );
+    SetData& set_data = data.back();
+    set_data.handle = *i;
+    rval = MBOrientedBox::orient_from_2d_cells( set_data.box_data, instance, elements );
+    if (MB_SUCCESS != rval)
+      return rval;
+  
+    //rval = instance->get_adjacencies( elements, 0, false, set_data.vertices, MBInterface::UNION );
+    //if (MB_SUCCESS != rval)
+    //  return rval;
+  }
+
+  return build_sets( data, set_handle_out, 0, 
+                     settings ? *settings : Settings() );
+}
+  
 
 /**\brief Split trianges by which side of a plane they are on
  *
@@ -245,7 +297,7 @@ static MBErrorCode split_box( MBInterface* instance,
   
   return MB_SUCCESS;
 }
-  
+
 
 MBErrorCode MBOrientedBoxTreeTool::build_tree( const MBRange& entities,
                                                MBEntityHandle& set,
@@ -339,6 +391,149 @@ MBErrorCode MBOrientedBoxTreeTool::build_tree( const MBRange& entities,
   return MB_SUCCESS;
 }
 
+
+static MBErrorCode split_sets( MBInterface* , 
+                               const MBOrientedBox& box, 
+                               int axis, 
+                               const std::list<MBOrientedBoxTreeTool::SetData>& sets,
+                               std::list<MBOrientedBoxTreeTool::SetData>& left,
+                               std::list<MBOrientedBoxTreeTool::SetData>& right )
+{
+  left.clear();
+  right.clear();
+
+  std::list<MBOrientedBoxTreeTool::SetData>::const_iterator i;
+  for (i = sets.begin(); i != sets.end(); ++i) {
+    MBCartVect centroid(i->box_data.center / i->box_data.area);
+    if ((box.axis[axis] % (centroid - box.center)) < 0.0)
+      left.push_back( *i );
+    else
+      right.push_back( *i );
+  }
+  
+  return MB_SUCCESS;
+}
+
+
+MBErrorCode MBOrientedBoxTreeTool::build_sets( std::list<SetData>& sets,
+                                               MBEntityHandle& node_set,
+                                               int depth,
+                                               const Settings& settings )
+{
+  MBErrorCode rval;
+  int count = sets.size();
+  
+    // If only one surface in list...
+  if (count == 1) {
+    MBEntityHandle set = sets.begin()->handle;
+    MBRange entities;
+    rval = instance->get_entities_by_dimension( set, 2, entities );
+    if (MB_SUCCESS != rval)
+      return rval;
+    rval = build_tree( entities, node_set, depth, settings );
+    if (MB_SUCCESS != rval)
+      return rval;
+    rval = instance->add_entities( node_set, &set, 1 );
+    if (MB_SUCCESS != rval) {
+      delete_tree( node_set );
+      return rval;
+    }
+    return MB_SUCCESS;
+  }
+  
+    // Otherwise must subdivide until only one surface
+  
+    // calculate box
+  MBOrientedBox box;
+
+  // make vector go out of scope when done, so memory is released
+  { 
+    MBRange elems;
+    std::vector<MBOrientedBox::OrientMatrix> data(sets.size());
+    data.clear();
+    for (std::list<SetData>::iterator i = sets.begin(); i != sets.end(); ++i) {
+      data.push_back( i->box_data );
+      rval = instance->get_entities_by_dimension( i->handle, 2, elems );
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
+    
+    MBRange points;
+    rval = instance->get_adjacencies( elems, 0, false, points, MBInterface::UNION );
+    if (MB_SUCCESS != rval)
+      return rval;
+    
+    rval = MBOrientedBox::compute_from_orient( box, instance, &data[0], data.size(), points );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  
+    // create an entity set for the tree node
+  rval = instance->create_meshset( MESHSET_SET, node_set );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  rval = instance->tag_set_data( tagHandle, &node_set, 1, &box );
+  if (MB_SUCCESS != rval) 
+    { delete_tree( node_set ); return rval; }
+  
+  double best_ratio = 2.0; 
+  std::list<SetData> best_left_list, best_right_list;
+  for (int axis = 0; axis < 2; ++axis) {
+    std::list<SetData> left_list, right_list;
+    rval = split_sets( instance, box, axis, sets, left_list, right_list );
+    if (MB_SUCCESS != rval) 
+      { delete_tree( node_set ); return rval; }
+
+    double ratio = fabs((double)right_list.size() - left_list.size()) / sets.size();
+
+    if (ratio < best_ratio) {
+      best_ratio = ratio;
+      best_left_list.swap( left_list );
+      best_right_list.swap( right_list );
+    }
+  }
+  
+    // We must subdivide the list of sets, because we want to guarantee that
+    // there is a node in the tree corresponding to each of the sets.  So if
+    // we couldn't find a usable split plane, just split them in an arbitrary
+    // manner.
+  if (best_left_list.empty() || best_right_list.empty()) {
+    best_left_list.clear();
+    best_right_list.clear();
+    std::list<SetData>* lists[2] = {&best_left_list,&best_right_list};
+    int i = 0;
+    while (!sets.empty()) {
+      lists[i]->push_back( sets.front() );
+      sets.pop_front();
+      i = 1 - i;
+    }
+  }
+  else {
+    sets.clear(); // release memory before recursion
+  }
+  
+    // Create child sets
+    
+  MBEntityHandle child = 0;
+      
+  rval = build_sets( best_left_list, child, depth+1, settings );
+  if (MB_SUCCESS != rval)
+    { delete_tree( node_set ); return rval; }
+  rval = instance->add_child_meshset( node_set, child );
+  if (MB_SUCCESS != rval)
+    { delete_tree( node_set ); delete_tree( child ); return rval; }
+
+  rval = build_sets( best_right_list, child, depth+1, settings );
+  if (MB_SUCCESS != rval)
+    { delete_tree( node_set ); return rval; }
+  rval = instance->add_child_meshset( node_set, child );
+  if (MB_SUCCESS != rval)
+    { delete_tree( node_set ); delete_tree( child ); return rval; }
+  
+  return MB_SUCCESS;
+}
+
 MBErrorCode MBOrientedBoxTreeTool::delete_tree( MBEntityHandle set )
 {
   MBErrorCode rval, tmp_rval;
@@ -362,6 +557,10 @@ MBErrorCode MBOrientedBoxTreeTool::delete_tree( MBEntityHandle set )
   
   return rval;
 }
+
+
+/********************** Generic Tree Traversal ****************************/
+
 
 struct Data { MBEntityHandle set; int depth; };
 MBErrorCode MBOrientedBoxTreeTool::preorder_traverse( MBEntityHandle set,
@@ -406,6 +605,9 @@ MBErrorCode MBOrientedBoxTreeTool::preorder_traverse( MBEntityHandle set,
   
   return MB_SUCCESS;
 }
+
+
+/********************** General Ray/Tree and Ray/Triangel Intersection ***************/
 
 
 class RayIntersector : public MBOrientedBoxTreeTool::Op
@@ -496,7 +698,7 @@ MBErrorCode MBOrientedBoxTreeTool::ray_intersect_triangles(
     
   return ray_intersect_triangles( intersection_distances_out, boxes, tolerance, ray_point, unit_ray_dir, ray_length );
 }
-                    
+
 MBErrorCode MBOrientedBoxTreeTool::ray_intersect_boxes( 
                           MBRange& boxes_out,
                           MBEntityHandle root_set,
@@ -522,11 +724,200 @@ MBErrorCode RayIntersector::visit( MBEntityHandle node,
   return MB_SUCCESS;
 }
 
+
 MBErrorCode RayIntersector::leaf( MBEntityHandle node )
 {
   boxes.insert(node);
   return MB_SUCCESS;
 }
+
+
+/********************** Ray/Set Intersection ****************************/
+
+
+class RayIntersectSets : public MBOrientedBoxTreeTool::Op
+{
+  private:
+    MBOrientedBoxTreeTool* tool;
+    unsigned minTolInt;
+    const MBCartVect b, m;
+    const double* len;
+    const double tol;
+    std::vector<double>& intersections;
+    std::vector<MBEntityHandle>& sets;
+    
+    MBEntityHandle lastSet;
+    int lastSetDepth;
+    
+    void add_intersection( double t );
+    
+  public:
+    RayIntersectSets( MBOrientedBoxTreeTool* tool_ptr,
+                   const double* ray_point,
+                   const double* unit_ray_dir,
+                   const double *ray_length,
+                   double tolerance,
+                   unsigned min_tol_intersections,
+                   std::vector<double>& intersections,
+                   std::vector<MBEntityHandle>& surfaces )
+      : tool(tool_ptr), minTolInt(min_tol_intersections),
+        b(ray_point), m(unit_ray_dir),
+        len(ray_length), tol(tolerance),
+        intersections(intersections),
+        sets(surfaces), lastSet(0)
+      { }
+  
+    virtual MBErrorCode visit( MBEntityHandle node,
+                               int depth,
+                               bool& descend );
+    virtual MBErrorCode leaf( MBEntityHandle node );
+};
+
+MBErrorCode RayIntersectSets::visit( MBEntityHandle node,
+                                     int depth,
+                                     bool& descend ) 
+{
+  MBOrientedBox box;
+  MBErrorCode rval = tool->box( node, box );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  descend = box.intersect_ray( b, m, tol, len);
+  
+  if (lastSet && depth <= lastSetDepth)
+    lastSet = 0;
+
+  if (descend && !lastSet) {
+    MBRange sets;
+    rval = tool->get_moab_instance()->get_entities_by_type( node, MBENTITYSET, sets );
+    if (MB_SUCCESS != rval)
+      return rval;
+
+    if (!sets.empty()) {
+      if (sets.size() > 1)
+        return MB_FAILURE;
+      lastSet = *sets.begin();
+      lastSetDepth = depth;
+    }
+  }
+    
+  return MB_SUCCESS;
+}
+
+MBErrorCode RayIntersectSets::leaf( MBEntityHandle node )
+{
+  if (!lastSet) // if no surface has been visited yet, something's messed up.
+    return MB_FAILURE;
+  
+  MBRange tris;
+  MBErrorCode rval = tool->get_moab_instance()->get_entities_by_type( node, MBTRI, tris );
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  for (MBRange::iterator t = tris.begin(); t != tris.end(); ++t)
+  {
+    const MBEntityHandle* conn;
+    int num_conn;
+    rval = tool->get_moab_instance()->get_connectivity( *t, conn, num_conn, true );
+    if (MB_SUCCESS != rval)
+      return rval;
+
+    MBCartVect coords[3];
+    rval = tool->get_moab_instance()->get_coords( conn, 3, coords[0].array() );
+    if (MB_SUCCESS != rval)
+      return rval;
+
+    double t;
+    if (MBGeometry::ray_tri_intersect( coords, b, m, tol, t, len )) 
+        // NOTE: add_intersection may modify the 'len' member, which
+        //       will affect subsequent calls to ray_tri_intersect in 
+        //       this loop.
+      add_intersection( t );
+  }
+  return MB_SUCCESS;
+}
+
+void RayIntersectSets::add_intersection( double t )
+{
+    // Check if the 'len' pointer is pointing into the intersection
+    // list.  If this is the case, then the list contains, at that
+    // location, an intersection greater than the tolerance away from
+    // the base point of the ray.
+  int len_idx = -1;
+  if (len && len >= &intersections[0] && len < &intersections[0] + intersections.size())
+    len_idx = len - &intersections[0];
+
+    // If the intersection is within tol of the ray base point, we 
+    // always add it to the list.
+  if (t <= tol) {
+      // If the list contains an intersection outside the tolerance...
+    if (len_idx >= 0) {
+        // If we no longer want an intersection outside the tolerance,
+        // remove it.
+      if (intersections.size() >= minTolInt) {
+        intersections[len_idx] = t;
+        sets[len_idx] = lastSet;
+          // From now on, we want only intersections within the tolerance,
+          // so update length accordingly
+        len = &tol;
+      }
+        // Otherwise appended to the list and update pointer
+      else {
+        intersections.push_back(t);
+        sets.push_back(lastSet);
+        len = &intersections[len_idx];
+      }
+    }
+      // Otherwise just append it
+    else {
+      intersections.push_back(t);
+      sets.push_back(lastSet);
+        // If we have all the intersections we want, set
+        // length such that we will only find further intersections
+        // within the tolerance
+      if (intersections.size() >= minTolInt)
+        len = &tol;
+    }
+  }
+    // Otherwise the intersection is outside the tolerance
+    // If we already have an intersection outside the tolerance and
+    // this one is closer, replace the existing one with this one.
+  else if (len_idx >= 0) {
+    if (t <= *len) {
+      intersections[len_idx] = t;
+      sets[len_idx] = lastSet;
+    }
+  }
+    // Otherwise if we want an intersection outside the tolerance
+    // and don'thave one yet, add it.
+  else if (intersections.size() < minTolInt) {
+    intersections.push_back( t );
+    sets.push_back( lastSet );
+      // udpate length.  this is currently the closest intersection, so
+      // only want further intersections that are closer than this one.
+    len = &intersections.back();
+  }
+}
+  
+
+MBErrorCode MBOrientedBoxTreeTool::ray_intersect_sets( 
+                                    std::vector<double>& distances_out,
+                                    std::vector<MBEntityHandle>& sets_out,
+                                    MBEntityHandle root_set,
+                                    double tolerance,
+                                    unsigned min_tolerace_intersections,
+                                    const double ray_point[3],
+                                    const double unit_ray_dir[3],
+                                    const double* ray_length )
+{
+  RayIntersectSets op( this, ray_point, unit_ray_dir, ray_length, tolerance, 
+                       min_tolerace_intersections, distances_out, sets_out );
+  return preorder_traverse( root_set, op );
+}
+
+
+/********************** Tree Printing Code ****************************/
+
 
 class TreeLayoutPrinter : public MBOrientedBoxTreeTool::Op
 {
@@ -609,7 +1000,7 @@ class TreeNodePrinter : public MBOrientedBoxTreeTool::Op
     bool printContents;
     bool printGeometry;
     bool haveTag;
-    MBTag tag;
+    MBTag tag, gidTag, geomTag;
     MBInterface* instance;
     MBOrientedBoxTreeTool* tool;
     std::ostream& outputStream;
@@ -625,12 +1016,14 @@ TreeNodePrinter::TreeNodePrinter( std::ostream& stream,
     printGeometry( list_box ),
     haveTag( false ),
     tag( 0 ),
+    gidTag(0), geomTag(0),
     instance( tool_ptr->get_moab_instance() ),
     tool(tool_ptr),
     outputStream( stream )
 {
+  MBErrorCode rval;
   if (id_tag_name) {
-    MBErrorCode rval = instance->tag_get_handle( id_tag_name, tag );
+    rval = instance->tag_get_handle( id_tag_name, tag );
     if (!rval) {
       std::cerr << "Could not get tag \"" << id_tag_name << "\"\n";
       stream << "Could not get tag \"" << id_tag_name << "\"\n";
@@ -651,18 +1044,48 @@ TreeNodePrinter::TreeNodePrinter( std::ostream& stream,
       }
     }
   }
+  
+  rval = instance->tag_get_handle( GLOBAL_ID_TAG_NAME, gidTag );
+  if (MB_SUCCESS != rval)
+    gidTag = 0;
+  rval = instance->tag_get_handle( GEOM_DIMENSION_TAG_NAME, geomTag );
+  if (MB_SUCCESS != rval)
+    geomTag = 0;
 }   
 
 MBErrorCode TreeNodePrinter::visit( MBEntityHandle node, int, bool& descend )
 {
   descend = true;
+  MBEntityHandle setid = instance->id_from_handle( node );
+  outputStream << setid << ":" << std::endl;
   
-  outputStream << instance->id_from_handle( node ) << ":" << std::endl;
+  MBRange surfs;
+  MBErrorCode r3 = MB_SUCCESS;
+  if (geomTag) {
+    const int two = 2;
+    const void* tagdata[] = {&two};
+    r3 = instance->get_entities_by_type_and_tag( node, MBENTITYSET, &geomTag, tagdata, 1, surfs );
+  
+    if (MB_SUCCESS == r3 && surfs.size() == 1) {
+      MBEntityHandle surf = *surfs.begin();
+      int id;
+      if (gidTag && MB_SUCCESS == instance->tag_get_data( gidTag, &surf, 1, &id ))
+        outputStream << "  Surface " << id << std::endl;
+      else
+        outputStream << "  Surface w/ unknown ID (" << surf << ")" << std::endl;
+    }
+  }
+  
   MBErrorCode r1 = printGeometry ? print_geometry( node ) : MB_SUCCESS;
   MBErrorCode r2 = printContents ? print_contents( node ) : print_counts( node );
   outputStream << std::endl;
   
-  return MB_SUCCESS == r1 ? r2 : r1;
+  if (MB_SUCCESS != r1)
+    return r1;
+  else if (MB_SUCCESS != r2)
+    return r2;
+  else
+    return r3;
 }
 
 MBErrorCode TreeNodePrinter::print_geometry( MBEntityHandle node )
@@ -757,6 +1180,9 @@ void MBOrientedBoxTreeTool::print( MBEntityHandle set, std::ostream& str, bool l
     str << "Errors encountered while printing tree\n";
   }
 }
+
+
+/********************** Tree Statistics Code ****************************/
 
 
 struct StatData {

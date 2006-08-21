@@ -23,6 +23,7 @@
 
 #include "MBInterface.hpp"
 #include "MBCartVect.hpp"
+#include "MBMatrix3.hpp"
 
 #include <iosfwd>
 
@@ -84,13 +85,44 @@ struct MBOrientedBox
                                             MBInterface* instance,
                                             const MBRange& elements );
 
+    // Structure to hold temporary accumulated triangle data for
+    // caculating box orietation.
+  struct OrientMatrix {
+    MBMatrix3 matrix;
+    MBCartVect center;
+    double area;
+  };
+  
+    // Compute temporary orientation data from a set of 2D elements
+  static MBErrorCode orient_from_2d_cells( OrientMatrix& result,
+                                           MBInterface* moab_instance,
+                                           const MBRange& elements );
+  
+    // Compute box orientation given a set of OrientMtarix's output from
+    // 'orient_from_2d_cells' and the set of vertices the box is to enclose.
+  static MBErrorCode compute_from_orient( MBOrientedBox& result,
+                                          MBInterface* moab_instance,
+                                          const OrientMatrix* orient_array,
+                                          unsigned orient_array_length,
+                                          const MBRange& vertices );
+  
+    // Test for intersection of a ray (or line segment) with this box
   bool intersect_ray( const MBCartVect& ray_start_point,
                       const MBCartVect& ray_unit_direction,
                       double distance_tolerance,
                       const double* segment_length = 0 ) const;
                       
+    // Construct a hexahedral element with the same shape as this box.
   MBErrorCode make_hex( MBEntityHandle& hex, MBInterface* instance );
                                     
+  
+    // Compute box orientation given a single OrientMtarix output from
+    // 'orient_from_2d_cells' and the set of vertices the box is to enclose.
+    // Will modify data in passed OrientMatrix.
+  static MBErrorCode compute_from_orient( MBOrientedBox& result,
+                                          MBInterface* moab_instance,
+                                          OrientMatrix& orientation_data,
+                                          const MBRange& vertices );
 };
 
 std::ostream& operator<<( std::ostream&, const MBOrientedBox& );

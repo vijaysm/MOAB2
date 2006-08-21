@@ -24,6 +24,7 @@
 #include "MBInterface.hpp"
 
 #include <iosfwd>
+#include <list>
 
 /** If true, deviate from the VTk algorithm for chosing the
  *  split direction by also considering the number of entities entirely
@@ -105,7 +106,46 @@ class MBOrientedBoxTreeTool
     MBErrorCode build( const MBRange& entities, 
                        MBEntityHandle& set_handle_out,
                        const Settings* settings = 0 );
+     
+    /**\brief Build a tree of traingles contained in sets such that tree contains sets
+     *
+     * Similar to 'build', except that the triangles in the tree are taken from
+     * the passed list of mesh sets and for each of those sets, there is guaranteed 
+     * to be a node in the tree that a) is exactly the set of triangles contained 
+     * the set and b) contains the handle of that set.
+     */
+    MBErrorCode set_build( const MBRange& sets,
+                           MBEntityHandle& root_set_out,
+                           const Settings* settings = 0 );
+
+    /**\brief Intersect a ray with the triangles contained within the tree
+     *
+     * Intersect a ray with the triangles contained in the tree and return
+     * the distance at which the intersection occured.
+     *\param distances_out The output list of intersection points on the ray.
+     *\param root_set      The MBENTITYSET representing the root of the tree.
+     *\param tolerance     The tolerance to use in intersection checks.
+     *\param ray_point     The base point of the ray.
+     *\param unit_ray_dir  The ray direction vector (must be unit length)
+     *\param ray_length    Optional ray length (intersect segment instead of ray.)
+     */
+    MBErrorCode ray_intersect_triangles( std::vector<double>& distances_out,
+                                         MBEntityHandle root_set,
+                                         double tolerance,
+                                         const double ray_point[3],
+                                         const double unit_ray_dir[3],
+                                         const double* ray_length = 0 );
     
+    /**\brief Intersect ray with tree
+     *
+     * Return the tree nodes (as MBENTITYSET handles) for the leaf boxes
+     * of the tree intersected by a ray.
+     *\param boxes_out    The boxes intersected by the ray.
+     *\param tolerance     The tolerance to use in intersection checks.
+     *\param ray_point     The base point of the ray.
+     *\param unit_ray_dir  The ray direction vector (must be unit length)
+     *\param ray_length    Optional ray length (intersect segment instead of ray.)
+     */
     MBErrorCode ray_intersect_boxes( MBRange& boxes_out,
                                      MBEntityHandle root_set,
                                      double tolerance,
@@ -113,20 +153,45 @@ class MBOrientedBoxTreeTool
                                      const double unit_ray_dir[3],
                                      const double* ray_length = 0 );
 
-    MBErrorCode ray_intersect_triangles( std::vector<double>& distances_out,
-                                         MBEntityHandle root_set,
-                                         double tolerance,
-                                         const double ray_point[3],
-                                         const double unit_ray_dir[3],
-                                         const double* ray_length = 0 );
-                          
+    /**\brief Intersect ray with triangles contained in passed MBENTITYSETs */
     MBErrorCode ray_intersect_triangles( 
                           std::vector<double>& intersection_distances_out,
                           const MBRange& leaf_boxes_containing_tris,
                           double tolerance,
                           const double ray_point[3],
                           const double unit_ray_dir[3],
-                          const double* ray_length = 0 );
+                          const double* ray_length = 0);
+                          
+
+    /**\brief Intersect a ray with the triangles contained within the tree
+     *
+     * Intersect a ray with the triangles contained in the tree and return
+     * the distance at which the intersection occured.
+     *\param distances_out The output list of intersection points on the ray.
+     *\param sets_out      The contained set encountered during the tree traversal
+     *                     (see 'set_build').  For the most common use, this is the
+     *                     set corresponding to the geometric surface containing the
+     *                     intersected triangle.
+     *\param root_set      The MBENTITYSET representing the root of the tree.
+     *\param min_tolerance_intersections This method returns all intersections
+     *                     within 'tolerance' of the start of the ray and if 
+     *                     the number of intersections within the 'tolerance' of the
+     *                     ray start point is less than this number, the next closest
+     *                     intersection.  If the desired result is only the closest
+     *                     intersection, pass zero for this argument.
+     *\param tolerance     The tolerance to use in intersection checks.
+     *\param ray_point     The base point of the ray.
+     *\param unit_ray_dir  The ray direction vector (must be unit length)
+     *\param ray_length    Optional ray length (intersect segment instead of ray.)
+     */
+    MBErrorCode ray_intersect_sets( std::vector<double>& distances_out,
+                                    std::vector<MBEntityHandle>& sets_out,
+                                    MBEntityHandle root_set,
+                                    double tolerance,
+                                    unsigned min_tolerace_intersections,
+                                    const double ray_point[3],
+                                    const double unit_ray_dir[3],
+                                    const double* ray_length = 0 );
     
     /**\brief Get oriented box at node in tree
      *
@@ -221,10 +286,16 @@ class MBOrientedBoxTreeTool
   
     MBInterface* get_moab_instance() const { return instance; }
   
+    struct SetData;
   private:
   
     MBErrorCode build_tree( const MBRange& entities, 
                             MBEntityHandle& set, 
+                            int depth,
+                            const Settings& settings );
+  
+    MBErrorCode build_sets( std::list<SetData>& sets,
+                            MBEntityHandle& node_set,
                             int depth,
                             const Settings& settings );
   

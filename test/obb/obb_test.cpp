@@ -2,17 +2,20 @@
 #include "MBRange.hpp"
 #include "MBOrientedBoxTreeTool.hpp"
 #include "MBOrientedBox.hpp"
+#include "MBTagConventions.hpp"
 
 #include <iostream>
 #include <sstream>
 #include <stdlib.h>
 #include <limits>
 #include <set>
+#include <map>
 
 #include "testdir.h"
 const char* NAME = "obb_test";
 const char* DEFAULT_FILES[] = { "../../" TEST_DIR "/3k-tri-sphere.vtk",
                                 //"../../" TEST_DIR "/4k-tri-plane.vtk",
+                                "../../" TEST_DIR "/3k-tri-cube.h5m",
                                 0 };
 
 static void usage( const char* error, const char* opt )
@@ -46,6 +49,9 @@ static void usage( const char* error, const char* opt )
         << " -l <int>  specify max tree levels" << std::endl
         << " -r <real> specify worst cell split ratio" << std::endl
         << " -R <real> specify best cell split ratio" << std::endl
+        << " -s force construction of surface tree" << std::endl
+        << " -S do not build surface tree." << std::endl
+        << "    (Default: surface tree if file contains multiple surfaces" << std::endl
 #if MB_OOB_SPLIT_BY_NON_INTERSECTING
         << " -I <real> specify weight for intersection ratio" << std::endl
 #endif
@@ -90,6 +96,8 @@ static double get_double_option( int& i, int argc, char* argv[] ) {
 static bool do_file( const char* filename );
   
 
+enum TriOption { DISABLE, ENABLE, AUTO };
+
 int verbosity = 1;
 MBOrientedBoxTreeTool::Settings settings;
 double tolerance = 1e-6;
@@ -98,6 +106,7 @@ bool write_vtk = false;
 bool write_ray_vtk = false;
 std::vector<MBCartVect> rays;
 const char* save_file_name = 0;
+TriOption surfTree = AUTO;
 
 void parse_ray( int& i, int argc, char* argv[] );
 
@@ -118,6 +127,8 @@ int main( int argc, char* argv[] )
         case 'c': write_cubit = true;   break;
         case 'k': write_vtk = true;     break;
         case 'K': write_ray_vtk = true; break;
+        case 's': surfTree = ENABLE;    break;
+        case 'S': surfTree = DISABLE;   break;
         case 'o':
           save_file_name = get_option( i, argc, argv );
           DEFAULT_FILES[1] = 0; // only one file can be saved, so by default only do one.
@@ -216,6 +227,7 @@ class TreeValidator : public MBOrientedBoxTreeTool::Op
     MBOrientedBoxTreeTool* const tool;
     const bool printing;
     const double epsilon;
+    bool surfaces;
     std::ostream& stream;
     MBOrientedBoxTreeTool::Settings settings;
     
@@ -248,18 +260,24 @@ class TreeValidator : public MBOrientedBoxTreeTool::Op
     unsigned non_unit_count;
     unsigned duplicate_entity_count;
     unsigned bad_outer_radius_count;
+    unsigned missing_surface_count;
+    unsigned multiple_surface_count;
     std::set<MBEntityHandle> seen;
+    int surface_depth;
+    MBEntityHandle surface_handle;
 
     TreeValidator( MBInterface* instance_ptr, 
                    MBOrientedBoxTreeTool* tool_ptr,
                    bool print_errors,
                    std::ostream& str,
                    double tol,
+                   bool surfs,
                    MBOrientedBoxTreeTool::Settings s )
       : instance(instance_ptr),
         tool(tool_ptr),
         printing(print_errors), 
         epsilon(tol), 
+        surfaces(surfs),
         stream(str),
         settings(s),
         entity_count(0),
@@ -275,7 +293,10 @@ class TreeValidator : public MBOrientedBoxTreeTool::Op
         unsorted_axis_count(0),
         non_unit_count(0),
         duplicate_entity_count(0),
-        bad_outer_radius_count(0)
+        bad_outer_radius_count(0),
+        missing_surface_count(0),
+        multiple_surface_count(0),
+        surface_depth(-1)
       {}
     
     bool is_valid() const 
@@ -283,7 +304,7 @@ class TreeValidator : public MBOrientedBoxTreeTool::Op
                     num_entities_outside+non_ortho_count+error_count+
                     empty_leaf_count+non_empty_non_leaf_count+entity_invalid_count
                     +unsorted_axis_count+non_unit_count+duplicate_entity_count
-                    +bad_outer_radius_count; }
+                    +bad_outer_radius_count+missing_surface_count+multiple_surface_count; }
     
     virtual MBErrorCode visit( MBEntityHandle node,
                                int depth,
@@ -306,6 +327,30 @@ MBErrorCode TreeValidator::visit( MBEntityHandle node,
     return error(node, "Error getting contents of tree node.  Corrupt tree?");
   entity_count += contents.size();
   
+  if (surfaces) {
+      // if no longer in subtree for previous surface, clear
+    if (depth <= surface_depth) 
+      surface_depth = -1;
+      
+    MBEntityHandle surface = 0;
+    MBRange::iterator surf_iter = contents.lower_bound( MBENTITYSET );
+    if (surf_iter != contents.end()) {
+      surface = *surf_iter;
+      contents.erase( surf_iter );
+    }
+    
+    if (surface) {
+      if (surface_depth >=0) {
+        ++multiple_surface_count;
+        print( node, "Multiple surfaces in encountered in same subtree." );
+      }
+      else {
+        surface_depth = depth;
+        surface_handle = surface;
+      }
+    }
+  }
+  
   bool leaf;
   MBEntityHandle children[2];
   rval = tool->children( node, leaf, children );
@@ -324,6 +369,11 @@ MBErrorCode TreeValidator::visit( MBEntityHandle node,
   else if (!leaf && !contents.empty()) {
     ++non_empty_non_leaf_count;
     print( node, "Non-leaf node is not empty." );
+  }
+  
+  if (surfaces && leaf && surface_depth < 0) {
+    ++missing_surface_count;
+    print( node, "Reached leaf node w/out encountering any surface set.");
   }
   
   double dot_epsilon = epsilon*(box.axis[0]+box.axis[1]+box.axis[2]).length();
@@ -594,7 +644,8 @@ MBErrorCode VtkWriter::visit( MBEntityHandle node,
   
 static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool, 
                               MBEntityHandle root_set,
-                              const char* filename );
+                              const char* filename,
+                              bool have_surface_tree );
 
 static MBErrorCode save_tree( MBInterface* instance,
                               const char* filename,
@@ -606,6 +657,7 @@ static bool do_file( const char* filename )
   MBCore instance;
   MBInterface* const iface = &instance;
   MBOrientedBoxTreeTool tool( iface );
+  bool haveSurfTree = false;
   
   if (verbosity) 
     std::cout << filename << std::endl
@@ -618,29 +670,83 @@ static bool do_file( const char* filename )
      return false;
   }
   
-  MBRange entities;
-  rval = iface->get_entities_by_dimension( 0, 2, entities );
-  if (MB_SUCCESS != rval) {
-    std::cerr << "get_entities_by_dimension( 2 ) failed." << std::endl;
-    return false;
+    // IF building from surfaces, get surfaces.
+    // If AUTO and less than two surfaces, don't build from surfaces.
+  MBRange surfaces;
+  if (surfTree != DISABLE) {
+    MBTag surftag;
+    rval = iface->tag_get_handle( GEOM_DIMENSION_TAG_NAME, surftag );
+    if (MB_SUCCESS == rval) {
+      int dim = 2;
+      const void* tagvalues[] = {&dim};
+      rval = iface->get_entities_by_type_and_tag( 0, MBENTITYSET,
+                                &surftag, tagvalues, 1, surfaces );
+      if (MB_SUCCESS != rval && MB_ENTITY_NOT_FOUND != rval)
+        return false;
+    }
+    else if (MB_TAG_NOT_FOUND != rval) 
+      return false;
+    
+    if (ENABLE == surfTree && surfaces.empty()) {
+      std::cerr << "No Surfaces found." << std::endl;
+      return false;
+    }
+    
+    haveSurfTree = (ENABLE == surfTree) || (surfaces.size() > 1);
   }
-  
-  if (entities.empty()) {
-    if (verbosity)
-      std::cout << "File \"" << filename << "\" contains no 2D elements" << std::endl;
-    return false;
-  }
-  
-  if (verbosity) 
-    std::cout << "Building tree from " << entities.size() << " 2D elements" << std::endl;
   
   MBEntityHandle root;
-  rval = tool.build( entities, root, &settings );
-  if (MB_SUCCESS != rval) {
-    if (verbosity)
-      std::cout << "Failed to build tree." << std::endl;
-    return false;
+  MBRange entities;
+  if (!haveSurfTree) {
+    rval = iface->get_entities_by_dimension( 0, 2, entities );
+    if (MB_SUCCESS != rval) {
+      std::cerr << "get_entities_by_dimension( 2 ) failed." << std::endl;
+      return false;
+    }
+  
+    if (entities.empty()) {
+      if (verbosity)
+        std::cout << "File \"" << filename << "\" contains no 2D elements" << std::endl;
+      return false;
+    }
+  
+    if (verbosity) 
+      std::cout << "Building tree from " << entities.size() << " 2D elements" << std::endl;
+
+    rval = tool.build( entities, root, &settings );
+    if (MB_SUCCESS != rval) {
+      if (verbosity)
+        std::cout << "Failed to build tree." << std::endl;
+      return false;
+    }
   }
+  else {
+      // Get list of entities so can verify total count later
+    for (MBRange::iterator s = surfaces.begin(); s != surfaces.end(); ++s) {
+      rval= iface->get_entities_by_dimension( *s, 2, entities );
+      if (MB_SUCCESS != rval)
+        return false;
+    }
+
+    if (verbosity)
+      std::cout << "Building tree from " << surfaces.size() << " surfaces" 
+                << " (" << entities.size() << " elements)" << std::endl;
+    entities.merge( surfaces );
+    
+    rval = tool.set_build( surfaces, root, &settings );
+    if (MB_SUCCESS != rval) {
+      if (verbosity)
+        std::cout << "Failed to build tree." << std::endl;
+      return false;
+    }
+   
+      // Get list of entities so can verify total count later
+    for (MBRange::iterator s = surfaces.begin(); s != surfaces.end(); ++s) {
+      rval= iface->get_entities_by_dimension( *s, 2, entities );
+      if (MB_SUCCESS != rval)
+        return false;
+    }
+  }    
 
   if (write_cubit) {
     std::string name = filename;
@@ -685,7 +791,7 @@ static bool do_file( const char* filename )
       ;
   }  
   
-  TreeValidator op( iface, &tool, print_errors, std::cout, tolerance, settings ); 
+  TreeValidator op( iface, &tool, print_errors, std::cout, tolerance, haveSurfTree, settings ); 
   rval = tool.preorder_traverse( root, op );
   bool result = op.is_valid();
   if (MB_SUCCESS != rval) {
@@ -715,6 +821,10 @@ static bool do_file( const char* filename )
       std::cout << "* " << op.non_empty_non_leaf_count << " non-leaf nodes containing entities." << std::endl;
     if (op.duplicate_entity_count)
       std::cout << "* " << op.duplicate_entity_count << " duplicate entities in leaves." << std::endl;
+    if (op.missing_surface_count)
+      std::cout << "* " << op.missing_surface_count << " leaves outside surface subtrees." << std::endl;
+    if (op.multiple_surface_count)
+      std::cout << "* " << op.multiple_surface_count << " surfaces within other surface subtrees." << std::endl;
     if (op.non_ortho_count)
       std::cout << "* " << op.non_ortho_count << " boxes with non-orthononal axes." << std::endl;
     if (op.non_unit_count)
@@ -735,7 +845,7 @@ static bool do_file( const char* filename )
       std::cout << "************************************************************" << std::endl;
   }
   
-  if (!do_ray_fire_test( tool, root, filename )) {
+  if (!do_ray_fire_test( tool, root, filename, haveSurfTree )) {
     if (verbosity)
       std::cout << "Ray fire test failed." << std::endl;
     result = false;
@@ -766,7 +876,8 @@ struct RayTest {
 
 static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool, 
                               MBEntityHandle root_set,
-                              const char* filename )
+                              const char* filename,
+                              bool haveSurfTree )
 {
   if (verbosity > 1)
     std::cout << "beginning ray fire tests" << std::endl;
@@ -778,6 +889,8 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
       std::cerr << "Error getting box for tree root set" << std::endl;
     return false;
   }
+  
+  /* Do standard ray fire tests */
   
   RayTest tests[] = { 
    { "half-diagonal from center", 1, box.center,                            1.5 * box.dimensions() },
@@ -798,7 +911,7 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
     rval = tool.ray_intersect_triangles( intersections, root_set, tolerance, tests[i].point.array(), tests[i].direction.array(), 0 );
     if (MB_SUCCESS != rval) {
       if (verbosity)
-        std::cout << "  Call to MBOrientedBoxTreeTool::fire_ray failed." << std::endl;
+        std::cout << "  Call to MBOrientedBoxTreeTool::ray_intersect_triangles failed." << std::endl;
       result = false;
       continue;
     }
@@ -815,56 +928,198 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
       }
       result = false;
     }
+    
+    if (!haveSurfTree)
+      continue;
+    
+    const int NUM_NON_TOL_INT = 1;
+    std::vector<double> intersections2;
+    std::vector<MBEntityHandle> surf_handles;
+    rval = tool.ray_intersect_sets( intersections2, surf_handles, root_set, tolerance, NUM_NON_TOL_INT, tests[i].point.array(), tests[i].direction.array(), 0 );
+    if (MB_SUCCESS != rval) {
+      if (verbosity)
+        std::cout << "  Call to MBOrientedBoxTreeTool::ray_intersect_sets failed." << std::endl;
+      result = false;
+      continue;
+    }
+
+    if (surf_handles.size() != intersections2.size()) {
+      if (verbosity)
+        std::cout << "  ray_intersect_sets did not return sets for all intersections." << std::endl;
+      result = false;
+    }
+
+    double non_tol_dist2 = std::numeric_limits<double>::max();
+    int non_tol_count2 = 0;
+    for (size_t i = 0; i < intersections2.size(); ++i) {
+      if (intersections2[i] > tolerance) {
+        ++non_tol_count2;
+        if (intersections2[i] < non_tol_dist2)
+          non_tol_dist2 = intersections2[i];
+      }
+    }
+
+    if (non_tol_count2 > NUM_NON_TOL_INT) {
+      if (verbosity)
+        std::cout << "  Requested " << NUM_NON_TOL_INT << "intersections "
+                  << "  beyond tolernace.  Got " << non_tol_count2 << std::endl;
+      result = false;
+    }
+
+    double non_tol_dist = std::numeric_limits<double>::max();
+    int non_tol_count = 0;
+    for (size_t i = 0; i < intersections.size(); ++i) {
+      if (intersections[i] > tolerance) {
+        ++non_tol_count;
+        if (intersections[i] < non_tol_dist)
+          non_tol_dist = intersections[i];
+      }
+    }
+
+    if (!NUM_NON_TOL_INT)
+      continue;
+
+    if (!non_tol_count && non_tol_count2) {
+      if (verbosity)
+        std::cout << "  ray_intersect_sets returned intersection not found by ray_intersect_triangles" << std::endl;
+      result = false;
+      continue;
+    }
+    else if (non_tol_count && !non_tol_count2) {
+      if (verbosity)
+        std::cout << "  ray_intersect_sets missed intersection found by ray_intersect_triangles" << std::endl;
+      result = false;
+      continue;
+    }
+    else if (non_tol_count && non_tol_count2 && 
+             fabs(non_tol_dist - non_tol_dist2) > tolerance) {
+      if (verbosity)
+        std::cout << "  ray_intersect_sets and ray_intersect_triangles did not find same closest intersection" << std::endl;
+      result = false;
+    }
   }
+  
+  /* Do ray fire for any user-specified rays */
   
   for (size_t i = 0; i < rays.size(); i += 2) {
     std::cout << rays[i] << "+" << rays[i+1] << " : ";
-    MBRange leaves;
-    std::vector<double> intersections;
-    rval = tool.ray_intersect_boxes( leaves, root_set, tolerance, rays[i].array(), rays[i+1].array(), 0 );
-    if (MB_SUCCESS != rval) {
-      std::cout << "FAILED" << std::endl;
-      result = false;
-      continue;
-    }
     
-    if (!leaves.empty() && write_ray_vtk) {
-      std::string num, name(filename);
-      std::stringstream s;
-      s << (i/2);
-      s >> num;
-      name += "-ray";
-      name += num;
-      name += ".vtk";
+    if (!haveSurfTree) {
+      MBRange leaves;
+      std::vector<double> intersections;
+      rval = tool.ray_intersect_boxes( leaves, root_set, tolerance, rays[i].array(), rays[i+1].array(), 0 );
+      if (MB_SUCCESS != rval) {
+        std::cout << "FAILED" << std::endl;
+        result = false;
+        continue;
+      }
+
+      if (!leaves.empty() && write_ray_vtk) {
+        std::string num, name(filename);
+        std::stringstream s;
+        s << (i/2);
+        s >> num;
+        name += "-ray";
+        name += num;
+        name += ".vtk";
+
+        std::vector<MBEntityHandle> sets(leaves.size());
+        std::copy( leaves.begin(), leaves.end(), sets.begin() );
+        tool.get_moab_instance()->write_mesh( name.c_str(), &sets[0], sets.size() );
+        if (verbosity)
+          std::cout << "(Wrote " << name << ") ";
+      }      
+
+      rval = tool.ray_intersect_triangles( intersections, leaves, tolerance, rays[i].array(), rays[i+1].array(), 0 );
+      if (MB_SUCCESS != rval) {
+        std::cout << "FAILED" << std::endl;
+        result = false;
+        continue;
+      }
+
+      if (intersections.empty()) {
+        std::cout << "(none)" << std::endl;
+        continue;
+      }
+
+      std::cout << intersections[0];
+      for (unsigned j = 1; j < intersections.size(); ++j)
+        std::cout << ", " << intersections[j];
+      std::cout << std::endl;
+
+      if (!leaves.empty() && write_cubit && verbosity > 2) {
+        std::cout << "  intersected boxes:";
+        for (MBRange::iterator i= leaves.begin(); i!= leaves.end(); ++i)
+          std::cout << " " << tool.get_moab_instance()->id_from_handle(*i);
+        std::cout << std::endl;
+      }
+    }
+    else {
+      std::vector<double> intersections;
+      std::vector<MBEntityHandle> surfaces;
+
+      rval = tool.ray_intersect_sets( intersections, surfaces, root_set, tolerance, 1000, rays[i].array(), rays[i+1].array(), 0 );
+      if (MB_SUCCESS != rval) {
+        std::cout << "FAILED" << std::endl;
+        result = false;
+        continue;
+      }
+
+      if (!surfaces.empty() && write_ray_vtk) {
+        std::string num, name(filename);
+        std::stringstream s;
+        s << (i/2);
+        s >> num;
+        name += "-ray";
+        name += num;
+        name += ".vtk";
+
+        tool.get_moab_instance()->write_mesh( name.c_str(), &surfaces[0], surfaces.size() );
+        if (verbosity)
+          std::cout << "(Wrote " << name << ") ";
+      }
       
-      std::vector<MBEntityHandle> sets(leaves.size());
-      std::copy( leaves.begin(), leaves.end(), sets.begin() );
-      tool.get_moab_instance()->write_mesh( name.c_str(), &sets[0], sets.size() );
-      if (verbosity)
-        std::cout << "(Wrote " << name << ") ";
-    }      
-    
-    rval = tool.ray_intersect_triangles( intersections, leaves, tolerance, rays[i].array(), rays[i+1].array(), 0 );
-    if (MB_SUCCESS != rval) {
-      std::cout << "FAILED" << std::endl;
-      result = false;
-      continue;
-    }
-    
-    if (intersections.empty()) {
-      std::cout << "(none)" << std::endl;
-      continue;
-    }
-    
-    std::cout << intersections[0];
-    for (unsigned j = 1; j < intersections.size(); ++j)
-      std::cout << ", " << intersections[j];
-    std::cout << std::endl;
-    
-    if (!leaves.empty() && write_cubit && verbosity > 2) {
-      std::cout << "  intersected boxes:";
-      for (MBRange::iterator i= leaves.begin(); i!= leaves.end(); ++i)
-        std::cout << " " << tool.get_moab_instance()->id_from_handle(*i);
+      if (intersections.size() != surfaces.size()) {
+        std::cout << "Mismatched output lists." << std::endl;
+        result = false;
+        continue;
+      }
+      
+      if (intersections.empty()) {
+        std::cout << "(none)" << std::endl;
+        continue;
+      }
+      
+      
+      MBTag idtag;
+      rval = tool.get_moab_instance()->tag_get_handle( GLOBAL_ID_TAG_NAME, idtag );
+      if (MB_SUCCESS != rval) {
+        std::cout << "NO GLOBAL_ID TAG." << std::endl;
+        continue;
+      }
+      std::vector<int> ids(surfaces.size());
+      rval = tool.get_moab_instance()->tag_get_data( idtag, &surfaces[0], surfaces.size(), &ids[0] );
+      if (MB_SUCCESS != rval) {
+        std::cout << "NO GLOBAL_ID TAG ON SURFACE." << std::endl;
+        continue;
+      }
+      
+        // group by surfaces
+      std::map<int,double> intmap;
+      for (unsigned j = 0; j < intersections.size(); ++j)
+        intmap[ids[j]] = intersections[j];
+        
+      std::map<int,double>::iterator it = intmap.begin();
+      int prevsurf = it->first;
+      std::cout << "Surf" << it->first << " " << it->second;
+      for (++it; it != intmap.end(); ++it) {
+        std::cout << ", ";
+        if (it->first != prevsurf) {
+          prevsurf = it->first;
+          std::cout << "Surf" << it->first << " ";
+        }
+        std::cout << it->second;
+      }
       std::cout << std::endl;
     }
   }
