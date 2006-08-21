@@ -1025,7 +1025,8 @@ MBErrorCode MBCore::get_entities_by_type_and_tag(const MBEntityHandle meshset,
       return result;
     result = tagServer->get_entities_with_tag_values(tmp_range, type, 
                                                      tags, values, num_tags, 
-                                                     entities, condition);  
+                                                     entities, condition); 
+    entities.merge( tmp_range ); 
   }
   
   else 
