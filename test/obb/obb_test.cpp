@@ -15,7 +15,9 @@
 const char* NAME = "obb_test";
 const char* DEFAULT_FILES[] = { "../../" TEST_DIR "/3k-tri-sphere.vtk",
                                 //"../../" TEST_DIR "/4k-tri-plane.vtk",
+#ifdef HDF5_FILE
                                 "../../" TEST_DIR "/3k-tri-cube.h5m",
+#endif
                                 0 };
 
 static void usage( const char* error, const char* opt )
