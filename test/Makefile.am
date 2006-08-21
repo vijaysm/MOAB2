@@ -5,6 +5,7 @@ EXTRA_DIST  = 125hex.g \
               1hex.g \
               1khex.g \
               1tet.g \
+              3k-tri-cube.h5m \
               3k-tri-sphere.vtk \
               4k-tri-plane.vtk \
               4tet.g \
