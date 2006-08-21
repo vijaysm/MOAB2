@@ -535,6 +535,8 @@ AC_CONFIG_FILES([Makefile
                  tools/tagprop/Makefile
                  tools/spheredecomp/Makefile
                  tools/surfplot/Makefile
+                 doc/Makefile
+                 doxygen/Makefile
                  ])
 
 ################################################################################

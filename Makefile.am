@@ -4,14 +4,10 @@ AUTOMAKE_OPTIONS = foreign
 
 
 # Subdirectories to build
-SUBDIRS = 
+SUBDIRS = . test tools doc doxygen
 if HDF5_FILE
   SUBDIRS += mhdf
 endif
-SUBDIRS += . test tools
-# if ENABLE_DOXYGEN
-#   SUBDIRS += doxygen
-# endif
 
 
 # Things to build
