@@ -35,53 +35,29 @@ took a bit of time to get compiling ironed out, so make sure you have version 3.
 later.  To get netcdf, search the web or try 
 http://www.unidata.ucar.edu/packages/netcdf/.
 
-The only way to save all the data in MOAB is to write it to a
-MOAB-specific HDF5 file.  Support for HDF5 is turned off by default in
-the distributed version of MOAB.  To turn it on, add the line:
-
-HDF5_FILE = yes
-
-to your MB.local file.  This will add a dependency on HDF5.  To tell
-make where to find HDF5 include and library files, change the
-definition of HDF5_DIR in MB.common to suit your system.
+The only MOAB file format that can represent the entire MOAB data model is
+MOAB's native HDF5-based file format.  Support for this file format requires 
+version 5 of the HDF library. It may be obtained at 
+http://hdf.ncsa.uiuc.edu/HDF5/.
 
 =====================================
 Compiling
 =====================================
 
-1. Unpack the source code in some directory MOAB_DIR.
-2. Touch or create a file named MOAB_DIR/MB.local.
-3. Define an environment variable with your machine type named
-MACHINE_TYPE; options for MOAB are:
-   lin: Linux
-   ss: Sun Solaris
-   sg: SGI
-   da: DEC Alpha
-   hp: HP (HP/UX 11)
-
-4. Edit the information in MOAB_DIR/MB.$(MACHINE_TYPE), changing
-definitions so that things can be found.  Alternatively, you can put
-the modified definitions into MB.local; doing so will mean you won't
-lose those definitions if you unpack an updated version of MOAB (or, if
-you're committing something to CVS repository, you won't change the
-distributed version of the MB.xx files).
-5. If you want HDF5 support, follow directions above under 'Dependencies'
-6. For first-time compiles, touch the file make.dependencies 
-('touch make.dependencies').
-7. Make dependencies ('make depend') (this might generate warnings
-about missing system includes, which you can usually ignore).
-8. Make the MOAB shared library (libMOAB.so) by typing 'make'.  If
-desired, make the static library (libMOAB.a) by typing 'make static'.
-Making the libraries also makes the test programs packaged with MOAB.
-9. Make sure the MOAB shared library location is in your LD_LIBRARY_PATH
-environment variable (see the man page for your shell for instructions on
-how to set environment variables).
-10. Test the code: './moab_test; ./moab_test.static'.  NOTE: one of the tests
-in moab_test requires a vary large file, which is stored in gzipped form in
-the repository.  In order for this test to pass, you must gunzip this file 
-by entering the following command:
-gunzip mb_bit_test.g.gz
-
+1. Unpack the source code in some directory.
+2. Run the 'configure' script in the top source directory with the
+   '--help' option to see a list of available configure options.
+   '--prefix', '--with-netcdf', and '--with-hdf5' are common options
+   specified.
+3. From either the source directory or some other, empty directory,
+   run the 'configure' script in the top source directory with any
+   desired configuration options.
+4. In whichever directory the configure script was run in, issue the
+   command 'make' to compile MOAB and any configured MOAB-based tools.
+5. In whichever directory MOAB was build in, issue the command 
+   'make check' to verify that MOAB compiled and is working correctly.
+6. Optional: Issue the command 'make install' to install the MOAB 
+   library and headers in the configured install directory.
 
 
 =====================================
@@ -89,8 +65,8 @@ Bugs, Correspondence, Contributing
 =====================================
 
 MOAB is LGPL code, and we encourage users to submit bug reports (and,
-if desired, fixes) to moab@sandia.gov.  Users are encouraged to check
-http://software.sandia.gov/moab often for news and updates.
+if desired, fixes) to moab@software.sandia.gov.  Users are encouraged to check
+http://cubit.sandia.gov/moab often for news and updates.
 
 =====================================
 Updates
