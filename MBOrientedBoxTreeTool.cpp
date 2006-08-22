@@ -53,7 +53,7 @@ MBOrientedBoxTreeTool::MBOrientedBoxTreeTool( MBInterface* i,
 }
 
 MBOrientedBoxTreeTool::Settings::Settings() 
-  : max_leaf_entities( 25 ),
+  : max_leaf_entities( 8 ),
     max_depth( 0 ),
     worst_split_ratio( 0.95 ),
     best_split_ratio( 0.4 ),
