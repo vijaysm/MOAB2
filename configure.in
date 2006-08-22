@@ -27,7 +27,7 @@ AM_CONDITIONAL([HAVE_ZCAT],[test "x" = "x$ZCAT"])
 #                             BOOST OPTIONS
 ################################################################################
 
-SNL_CHECK_BOOST( [boost/pool/object_pool.hpp] )
+dnl SNL_CHECK_BOOST( [boost/pool/object_pool.hpp] )
 
 ################################################################################
 #                              MPI OPTIONS
