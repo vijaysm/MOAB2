@@ -30,12 +30,12 @@
 #include <limits>
 #include <assert.h>
 
+#define MB_OBB_USE_VECTOR_QUERIES
+//#define MB_OBB_USE_TYPE_QUERIES
 
-/** If true, get tag value on each child set to verify
- *  that it is a tree node.  If this is not set, use faster implementation
- *  that assumes all child sets are tree nodes.
- */
-#define MB_OOB_ALLOW_OTHER_CHILDREN 0
+#if defined(MB_OBB_USE_VECTOR_QUERIES) && defined(MB_OBB_USE_TYPE_QUERIES)
+# undef MB_OBB_USE_TYPE_QUERIES
+#endif
 
 const char DEFAULT_TAG_NAME[] = "OBB";
 
@@ -56,7 +56,8 @@ MBOrientedBoxTreeTool::Settings::Settings()
   : max_leaf_entities( 25 ),
     max_depth( 0 ),
     worst_split_ratio( 0.95 ),
-    best_split_ratio( 0.4 )
+    best_split_ratio( 0.4 ),
+    set_options( MESHSET_SET )
 #if MB_OOB_SPLIT_BY_NON_INTERSECTING
     , intersect_ratio_factor( 1.0 )
 #endif
@@ -97,73 +98,6 @@ MBErrorCode MBOrientedBoxTreeTool::box( MBEntityHandle set,
   obb.axis[1].get( axis2 );
   obb.axis[2].get( axis3 );
   return rval;
-}
-
-MBErrorCode MBOrientedBoxTreeTool::children( MBEntityHandle set,
-                                             bool& leaf,
-                                             MBEntityHandle* children )
-{
-  MBErrorCode rval;
-  int count = 0;
-
-#if MB_OOB_ALLOW_OTHER_CHILDREN
-
-  std::vector<MBEntityHandle> v(2);
-  MBOrientedBox junk;
-
-  rval = instance->get_child_meshsets( set, v );
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  for (std::vector<MBEntityHandle>::iterator i = v.begin(); i != v.end(); ++i) {
-    rval = instance->tag_get_data( tagHandle, &*i, 1, &junk );
-    if (MB_SUCCESS == rval) {
-      if (children && count < 2)
-        children[count] = *i;
-      ++count;
-    }
-  }
-
-  switch (count) {
-    case 0:
-      leaf = true;
-      break;
-    case 2:
-      leaf = false;
-      break;
-    default:
-        // should be binary tree - something is messed up!
-      return MB_MULTIPLE_ENTITIES_FOUND;
-  }
-  
-#else
-  
-  rval = instance->num_child_meshsets( set, &count );
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  if (count == 0) {
-    leaf = true;
-  }
-  else if (count == 2) {
-    leaf = false;
-    if (children) {
-      std::vector<MBEntityHandle> v;
-      rval = instance->get_child_meshsets( set, v );
-      if (MB_SUCCESS != rval)
-        return rval;
-      children[0] = v[0];
-      children[1] = v[1];
-    }
-  }
-  else {
-        // should be binary tree - something is messed up!
-      return MB_MULTIPLE_ENTITIES_FOUND;
-  }
-
-#endif
-  
-  return MB_SUCCESS;
 }
 
 
@@ -312,7 +246,7 @@ MBErrorCode MBOrientedBoxTreeTool::build_tree( const MBRange& entities,
     return rval;
   
     // create an entity set for the tree node
-  rval = instance->create_meshset( MESHSET_SET, set );
+  rval = instance->create_meshset( settings.set_options, set );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -469,7 +403,7 @@ MBErrorCode MBOrientedBoxTreeTool::build_sets( std::list<SetData>& sets,
   }
   
     // create an entity set for the tree node
-  rval = instance->create_meshset( MESHSET_SET, node_set );
+  rval = instance->create_meshset( settings.set_options, node_set );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -536,26 +470,13 @@ MBErrorCode MBOrientedBoxTreeTool::build_sets( std::list<SetData>& sets,
 
 MBErrorCode MBOrientedBoxTreeTool::delete_tree( MBEntityHandle set )
 {
-  MBErrorCode rval, tmp_rval;
-  bool leaf;
-  MBEntityHandle children[2];
-  rval = this->children( set, leaf, children );
-  if (MB_SUCCESS == rval && !leaf) {
-    for (int i = 0; i < 2; ++i) {
-      tmp_rval = instance->remove_child_meshset( set, children[i] );
-      if (MB_SUCCESS != tmp_rval)
-        rval = tmp_rval;
-      tmp_rval = delete_tree( children[i] );
-      if (MB_SUCCESS != tmp_rval)
-        rval = tmp_rval;
-    }
-  }
+  std::vector<MBEntityHandle> children;
+  MBErrorCode rval = instance->get_child_meshsets( set, children, 0 );
+  if (MB_SUCCESS != rval)
+    return rval;
   
-  tmp_rval = instance->delete_entities( &set, 1 );
-  if (MB_SUCCESS != tmp_rval)
-    rval = tmp_rval;
-  
-  return rval;
+  children.insert( children.begin(), set );
+  return instance->delete_entities( &children[0], children.size() );
 }
 
 
@@ -567,6 +488,7 @@ MBErrorCode MBOrientedBoxTreeTool::preorder_traverse( MBEntityHandle set,
                                                       Op& operation )
 {
   MBErrorCode rval;
+  std::vector<MBEntityHandle> children;
   std::vector<Data> the_stack;
   Data data = { set, 0 };
   the_stack.push_back( data );
@@ -584,23 +506,24 @@ MBErrorCode MBOrientedBoxTreeTool::preorder_traverse( MBEntityHandle set,
     if (!descend)
       continue;
     
-    MBEntityHandle children[2];
-    bool leaf;
-    rval = this->children( data.set, leaf, children );
+    children.clear();
+    rval = instance->get_child_meshsets( data.set, children );
     if (MB_SUCCESS != rval)
       return rval;
-    if (leaf) {
+    if (children.empty()) {
       rval = operation.leaf( data.set );
       if (MB_SUCCESS != rval)
         return rval;
     }
-    else {
+    else if (children.size() == 2) {
       data.depth++;
       data.set = children[0];
       the_stack.push_back( data );
       data.set = children[1];
       the_stack.push_back( data );
     }
+    else
+      return MB_MULTIPLE_ENTITIES_FOUND;
   }
   
   return MB_SUCCESS;
@@ -637,7 +560,19 @@ class RayIntersector : public MBOrientedBoxTreeTool::Op
                                bool& descend );
     virtual MBErrorCode leaf( MBEntityHandle node );
 };
-    
+
+//#include <stdio.h>
+//inline void dump_fragmentation( const MBRange& range ) {
+//  static FILE* file = fopen( "fragmentation", "w" );
+//  unsigned ranges = 0, entities = 0;
+//  for (MBRange::const_pair_iterator i = range.const_pair_begin(); i != range.const_pair_end(); ++i)
+//  {
+//    ++ranges;
+//    entities += i->second - i->first + 1;
+//  }
+//  fprintf( file, "%u %u\n", ranges, entities );
+//}
+
 MBErrorCode MBOrientedBoxTreeTool::ray_intersect_triangles( 
                           std::vector<double>& intersection_distances_out,
                           const MBRange& boxes,
@@ -648,19 +583,39 @@ MBErrorCode MBOrientedBoxTreeTool::ray_intersect_triangles(
 {
   MBErrorCode rval;
   intersection_distances_out.clear();
+  std::vector<MBEntityHandle> tris;
     
   const MBCartVect point( ray_point );
   const MBCartVect dir( unit_ray_dir );
   
   for (MBRange::iterator b = boxes.begin(); b != boxes.end(); ++b)
   {
+#ifndef MB_OBB_USE_VECTOR_QUERIES
     MBRange tris;
+# ifdef MB_OBB_USE_TYPE_QUERIES
     rval = instance->get_entities_by_type( *b, MBTRI, tris );
+# else
+    rval = instance->get_entities_by_handle( *b, tris );
+# endif
+#else
+    tris.clear();
+    rval = instance->get_entities_by_handle( *b, tris );
+#endif
     if (MB_SUCCESS != rval)
       return rval;
+//dump_fragmentation( tris );
     
+#ifndef MB_OBB_USE_VECTOR_QUERIES
     for (MBRange::iterator t = tris.begin(); t != tris.end(); ++t)
+#else
+    for (std::vector<MBEntityHandle>::iterator t = tris.begin(); t != tris.end(); ++t)
+#endif
     {
+#ifndef MB_OBB_USE_TYPE_QUERIES
+      if (instance->type_from_handle(*t) != MBTRI)
+        continue;
+#endif
+    
       const MBEntityHandle* conn;
       int len;
       rval = instance->get_connectivity( *t, conn, len, true );
@@ -809,13 +764,31 @@ MBErrorCode RayIntersectSets::leaf( MBEntityHandle node )
   if (!lastSet) // if no surface has been visited yet, something's messed up.
     return MB_FAILURE;
   
+#ifndef MB_OBB_USE_VECTOR_QUERIES
   MBRange tris;
+# ifdef MB_OBB_USE_TYPE_QUERIES
   MBErrorCode rval = tool->get_moab_instance()->get_entities_by_type( node, MBTRI, tris );
+# else
+  MBErrorCode rval = tool->get_moab_instance()->get_entities_by_handle( node, tris );
+# endif
+#else
+  std::vector<MBEntityHandle> tris;
+  MBErrorCode rval = tool->get_moab_instance()->get_entities_by_handle( node, tris );
+#endif
   if (MB_SUCCESS != rval)
     return rval;
 
+#ifndef MB_OBB_USE_VECTOR_QUERIES
   for (MBRange::iterator t = tris.begin(); t != tris.end(); ++t)
+#else
+  for (std::vector<MBEntityHandle>::iterator t = tris.begin(); t != tris.end(); ++t)
+#endif
   {
+#ifndef MB_OBB_USE_TYPE_QUERIES
+    if (tool->get_moab_instance()->type_from_handle(*t) != MBTRI)
+      continue;
+#endif
+    
     const MBEntityHandle* conn;
     int num_conn;
     rval = tool->get_moab_instance()->get_connectivity( *t, conn, num_conn, true );
@@ -1264,7 +1237,7 @@ static MBErrorCode recursive_stats( MBOrientedBoxTreeTool* tool,
 {
   MBErrorCode rval;
   MBOrientedBox box;
-  MBEntityHandle children[2];
+  std::vector<MBEntityHandle> children(2);
   unsigned counts[2];
   bool isleaf;
   
@@ -1272,8 +1245,12 @@ static MBErrorCode recursive_stats( MBOrientedBoxTreeTool* tool,
   
   rval = tool->box( set, box );
   if (MB_SUCCESS != rval) return rval;
-  rval = tool->children( set, isleaf, children );
+  children.clear();
+  rval = instance->get_child_meshsets( set, children );
   if (MB_SUCCESS != rval) return rval;
+  isleaf = children.empty();
+  if (!isleaf && children.size() != 2)
+    return MB_MULTIPLE_ENTITIES_FOUND;
   
   dimensions_out = box.dimensions();
   data.radius.accum( box.inner_radius() / box.outer_radius());

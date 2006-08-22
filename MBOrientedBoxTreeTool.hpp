@@ -85,6 +85,8 @@ class MBOrientedBoxTreeTool
         //! will stop if at least this ratio is achieved for the number of
         //! entities on each side of the split plane.
         double best_split_ratio;
+        //! Flags used to create entity sets representing tree nodes
+        unsigned int set_options;
 #if MB_OOB_SPLIT_BY_NON_INTERSECTING
         double intersect_ratio_factor;
 #endif
@@ -210,15 +212,6 @@ class MBOrientedBoxTreeTool
                      double axis2[3],
                      double axis3[3] );
                          
-    /**\brief Test for leaf node / get children
-     *
-     * Test if a node in an oriented bouding box tree is a leaf
-     * node and if it is not, get the two child nodes.
-     */
-    MBErrorCode children( MBEntityHandle node_set,
-                          bool& is_leaf,
-                          MBEntityHandle* children = 0 );
-
     MBErrorCode delete_tree( MBEntityHandle root_set );
 
     /**\brief Print out tree

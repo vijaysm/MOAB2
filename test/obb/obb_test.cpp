@@ -54,6 +54,8 @@ static void usage( const char* error, const char* opt )
         << " -s force construction of surface tree" << std::endl
         << " -S do not build surface tree." << std::endl
         << "    (Default: surface tree if file contains multiple surfaces" << std::endl
+        << " -u  use unorderd (MBRange) meshsets for tree nodes" << std::endl
+        << " -U  use ordered (vector) meshsets for tree nodes" << std::endl
 #if MB_OOB_SPLIT_BY_NON_INTERSECTING
         << " -I <real> specify weight for intersection ratio" << std::endl
 #endif
@@ -131,6 +133,8 @@ int main( int argc, char* argv[] )
         case 'K': write_ray_vtk = true; break;
         case 's': surfTree = ENABLE;    break;
         case 'S': surfTree = DISABLE;   break;
+        case 'u': settings.set_options = MESHSET_SET; break;
+        case 'U': settings.set_options = MESHSET_ORDERED; break;
         case 'o':
           save_file_name = get_option( i, argc, argv );
           DEFAULT_FILES[1] = 0; // only one file can be saved, so by default only do one.
@@ -179,6 +183,7 @@ int main( int argc, char* argv[] )
                 << "intersect ratio factor: " << settings.intersect_ratio_factor << std::endl
 #endif
                 << "tolerance:              " << tolerance                       << std::endl
+                << "set type:               " << ((settings.set_options&MESHSET_ORDERED) ? "ordered" : "set") << std::endl
                 << std::endl;
   }
   
@@ -353,10 +358,9 @@ MBErrorCode TreeValidator::visit( MBEntityHandle node,
     }
   }
   
-  bool leaf;
-  MBEntityHandle children[2];
-  rval = tool->children( node, leaf, children );
-  if (MB_SUCCESS != rval) 
+  std::vector<MBEntityHandle> children;
+  rval = tool->get_moab_instance()->get_child_meshsets( node, children );
+  if (MB_SUCCESS != rval || (!children.empty() && children.size() != 2)) 
     return error(node, "Error getting children.  Corrupt tree?");
   
   MBOrientedBox box;
@@ -364,16 +368,16 @@ MBErrorCode TreeValidator::visit( MBEntityHandle node,
   if (MB_SUCCESS != rval) 
     return error(node, "Error getting oriented box from tree node.  Corrupt tree?");
   
-  if (leaf && contents.empty()) {
+  if (children.empty() && contents.empty()) {
     ++empty_leaf_count;
     print( node, "Empty leaf node.\n" );
   }
-  else if (!leaf && !contents.empty()) {
+  else if (!children.empty() && !contents.empty()) {
     ++non_empty_non_leaf_count;
     print( node, "Non-leaf node is not empty." );
   }
   
-  if (surfaces && leaf && surface_depth < 0) {
+  if (surfaces && children.empty() && surface_depth < 0) {
     ++missing_surface_count;
     print( node, "Reached leaf node w/out encountering any surface set.");
   }
@@ -386,7 +390,7 @@ MBErrorCode TreeValidator::visit( MBEntityHandle node,
     print (node, "Box axes are not orthogonal");
   }
   
-  if (!leaf) {
+  if (!children.empty()) {
     for (int i = 0; i < 2; ++i) {
       MBOrientedBox other_box;
       rval = tool->box( children[i], other_box );
