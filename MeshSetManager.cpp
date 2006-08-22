@@ -228,14 +228,14 @@ MBErrorCode MeshSetManager::destroy_mesh_set( MBEntityHandle handle )
     // update parents
   const std::vector<MBEntityHandle>& parents = ms_ptr->get_parents();
   for (size_t i = 0; i < parents.size(); ++i) 
-    if ((ms_ptr = get_mesh_set( parents[i] )))
-      ms_ptr->remove_child( handle );
+    if (MBMeshSet* parent_ptr = get_mesh_set( parents[i] ))
+      parent_ptr->remove_child( handle );
 
     // update children
   const std::vector<MBEntityHandle>& children = ms_ptr->get_children();
   for (size_t i = 0; i < children.size(); ++i) 
-    if ((ms_ptr = get_mesh_set( children[i] )))
-      ms_ptr->remove_parent( handle );
+    if (MBMeshSet* child_ptr = get_mesh_set( children[i] ))
+      child_ptr->remove_parent( handle );
 
     // remove contents before deleting so adjacency info is removed
   MBErrorCode rval = ms_ptr->clear( handle, aEntityFactory );
