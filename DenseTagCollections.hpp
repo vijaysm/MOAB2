@@ -105,7 +105,7 @@ inline MBErrorCode DensePage::get_bytes(int offset, int num_bytes_per_flag, void
   // if no memory has been allocated, get the default value
   if(!mByteArray)
   {
-    return MB_FAILURE;
+    return MB_TAG_NOT_FOUND;
   }
 
   unsigned char* data_to_copy = mByteArray + offset*num_bytes_per_flag;
@@ -467,15 +467,10 @@ inline MBErrorCode DenseTagSuperCollection::get_data(const MBTagId tag_id,
   MBErrorCode result = 
     mDensePageGroups[TYPE_FROM_HANDLE(handle)][tag_id]->get_data(handle, data);
   
-  if(result == MB_FAILURE || result == MB_TAG_NOT_FOUND)
+  if(result == MB_TAG_NOT_FOUND && mDefaultData[tag_id])
   {
-    if(mDefaultData[tag_id])
-    {
-      memcpy(data, mDefaultData[tag_id], (*mDensePageGroups)[tag_id]->tag_size());
-      return MB_SUCCESS;
-    }
-    else
-      return result;
+    memcpy(data, mDefaultData[tag_id], (*mDensePageGroups)[tag_id]->tag_size());
+    return MB_SUCCESS;
   }
   
   return MB_SUCCESS;
