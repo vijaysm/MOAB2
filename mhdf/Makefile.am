@@ -17,3 +17,5 @@ libmhdf_la_SOURCES = include/mhdf.h \
                      src/util.h
 
 DEFS = -I$(srcdir)/include 
+
+EXTRA_DIST = doc/Doxyfile
