@@ -171,7 +171,8 @@ mhdf_createFile( const char* filename,
  * \param status     Passed back status of API call.
  * \param max_id     Used to pass back the maximum global ID used in the
  *                   file.  Provided as an indication to the caller of the
- *                   size of the mesh.
+ *                   size of the mesh.  This parameter is optional.  NULL
+ *                   may be passed.
  * \return An opaque handle to the file.
  */
 mhdf_FileHandle
@@ -195,7 +196,8 @@ mhdf_openFile( const char* filename,
  * \param status     Passed back status of API call.
  * \param max_id     Used to pass back the maximum global ID used in the
  *                   file.  Provided as an indication to the caller of the
- *                   size of the mesh.
+ *                   size of the mesh.  This parameter is optional.  NULL
+ *                   may be passed.
  * \param options    The HDF5 access property list to use when opening
  *                   the file.  See the HDF5 documenation for H5Fopen.
  * \return An opaque handle to the file.
@@ -452,7 +454,7 @@ mhdf_addElement( mhdf_FileHandle file_handle,
  * apply for poly(gons|hedra).
  *
  * \param  file_handle   The file.
- * \param  connt_out     Memory location at which to store the
+ * \param  count_out     Memory location at which to store the
  *                       length of the returned array.
  * \param  status        Passed back status of API call.
  * \return               An array of pointers to element group

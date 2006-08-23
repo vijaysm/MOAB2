@@ -18,4 +18,4 @@ libmhdf_la_SOURCES = include/mhdf.h \
 
 DEFS = -I$(srcdir)/include 
 
-EXTRA_DIST = doc/Doxyfile
+EXTRA_DIST = doc/Doxyfile examples/hexes_to_gmsh.c
