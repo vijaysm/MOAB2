@@ -230,18 +230,15 @@ MBErrorCode DensePageGroup::get_entities_with_tag_value(const MBEntityType type,
   void* test_data = malloc(mBytesPerFlag);
 
   int dum = 0;
-  MBEntityHandle handle = CREATE_HANDLE(type, MB_START_ID, dum);
-  MBEntityHandle end_handle = handle + mDensePages.size() * mOffsetFactor;
-  for(; handle <= end_handle; handle++)
+  MBEntityHandle handle = CREATE_HANDLE(type, MB_START_ID, 0, dum);
+  MBEntityHandle end_handle = handle + mDensePages.size() * DensePage::mPageSize;
+  MBRange::iterator insert_iter = entities.begin();
+  for(; handle < end_handle; handle++)
   {
     MBErrorCode result = get_data(handle, test_data);
-    if(result == MB_SUCCESS)
-    {
-      if(memcmp(test_data, value, mBytesPerFlag) == 0)
-        entities.insert(handle);
-    }
-    else if (result == MB_TAG_NOT_FOUND && equals_default)
-      entities.insert(handle);
+    if((result == MB_SUCCESS && !memcmp(test_data, value, mBytesPerFlag))
+     ||(result == MB_TAG_NOT_FOUND && equals_default))
+        insert_iter = entities.insert(insert_iter, handle, handle);
   }
 
   free(test_data);

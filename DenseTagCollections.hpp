@@ -70,7 +70,7 @@ public:
       const void* default_data);
 
   //! return whether has data or not
-  bool has_data() const { return mByteArray == NULL ? false : true; }
+  bool has_data() const { return mByteArray != 0; }
 
 
 private:
@@ -125,15 +125,18 @@ inline MBErrorCode DensePage::set_bytes(int offset,
   // if memory hasn't been allocated, allocate it and zero the memory
   if(!mByteArray)
   {
-    mByteArray = new unsigned char [mPageSize];
+    mByteArray = new unsigned char [mPageSize*num_bytes_per_flag];
+    if (!mByteArray) 
+      return MB_MEMORY_ALLOCATION_FAILED;
+    
     if(!default_data)
     {
-      memset(mByteArray, 0, mPageSize);
+      memset(mByteArray, 0, mPageSize*num_bytes_per_flag);
     }
     else
     {
       unsigned char* byte_array = mByteArray;
-      unsigned char* byte_array_end = byte_array + mPageSize;
+      unsigned char* byte_array_end = byte_array + mPageSize*num_bytes_per_flag;
       for(; byte_array < byte_array_end; byte_array += num_bytes_per_flag)
       {
         memcpy(byte_array, default_data, num_bytes_per_flag);
@@ -174,9 +177,6 @@ public:
   DensePageGroup(int bytes_per_flag)
       : mBytesPerFlag(bytes_per_flag)
   {
-    //compute the offset factor based on the number of bytes for each entity
-    mOffsetFactor = compute_offset_factor(bytes_per_flag);
-    mDensePagesSize=0;
   }
 
   // default destructor
@@ -218,22 +218,9 @@ public:
   int tag_size() const { return mBytesPerFlag; }
 
 private:
-
-  // compute offset factor to use when computing which page to index into
-  int compute_offset_factor(int num_bytes)
-  {
-    return (DensePage::mPageSize) / num_bytes;
-  }
   
   //!  number of bytes for each entity  
   unsigned short mBytesPerFlag;
-  
-  //! offset factor used when computing which page to jump to
-  //! can think of this as the number of entities per page
-  unsigned short mOffsetFactor;
-
-  //! cached size of mDensePages
-  unsigned int mDensePagesSize;
 
   //! vector of dense byte pages
   std::vector<DensePage*> mDensePages;
@@ -266,27 +253,28 @@ private:
 inline MBErrorCode DensePageGroup::get_data(MBEntityHandle handle, void* data)
 {
   // strip off the entity type
-  unsigned int tmp_handle = ID_FROM_HANDLE(handle);
+  const unsigned int entity_id = ID_FROM_HANDLE(handle);
   // figure out which page to jump to
-  unsigned int which_page = tmp_handle / mOffsetFactor;
+  const unsigned int which_page = entity_id / DensePage::mPageSize;
+  const unsigned int offset = entity_id % DensePage::mPageSize;
   
-  // if the page isn't there, just return failure
-  if(which_page >= mDensePagesSize)
+  std::vector<DensePage*>::iterator page = mDensePages.begin() + which_page;
+  if (page >= mDensePages.end())
     return MB_TAG_NOT_FOUND;
 
   // return data from page
-  return mDensePages[which_page]->get_bytes( (tmp_handle - ( which_page * mOffsetFactor )), mBytesPerFlag, data);
+  return (*page)->get_bytes( offset, mBytesPerFlag, data);
 }
 
 inline bool DensePageGroup::contains(const MBEntityHandle handle) const
 {
   // strip off the entity type
-  unsigned int entity_id = ID_FROM_HANDLE(handle);
+  const unsigned int entity_id = ID_FROM_HANDLE(handle);
   // figure out which page to jump to
-  unsigned int which_page = entity_id / mOffsetFactor;
-  
-  // if the page isn't there, the entity isn't assigned this tag
-  return (which_page >= mDensePagesSize) ? false : true;
+  const unsigned int which_page = entity_id / DensePage::mPageSize;
+
+  std::vector<DensePage*>::const_iterator page = mDensePages.begin() + which_page;
+  return page < mDensePages.end() && (*page)->has_data();
 }
 
 /*! set the data in pages
@@ -296,21 +284,21 @@ inline bool DensePageGroup::contains(const MBEntityHandle handle) const
 inline MBErrorCode DensePageGroup::set_data(MBEntityHandle handle, const void* default_data, const void* data)
 {
   // strip off the entity type
-  handle = ID_FROM_HANDLE(handle);
+  const unsigned int entity_id = ID_FROM_HANDLE(handle);
   // figure out which page to jump to
-  unsigned int which_page = handle / mOffsetFactor;
+  const unsigned int which_page = entity_id / DensePage::mPageSize;
+  const unsigned int offset = entity_id  % DensePage::mPageSize;
 
-  // if the page doesn't exist, make one
-  if(which_page >= mDensePagesSize)
+  std::vector<DensePage*>::iterator page = mDensePages.begin() + which_page;
+  if (page >= mDensePages.end())
   {
-    for(int j= which_page - mDensePagesSize +1; j--;)
+    for(int j= which_page - mDensePages.size() +1; j--;)
       mDensePages.push_back(new DensePage());
-    mDensePagesSize = mDensePages.size();
+    page = mDensePages.end() - 1;
   }
 
   // return data in page
-  return mDensePages[which_page]->set_bytes( (handle - ( which_page * mOffsetFactor )), 
-      mBytesPerFlag, default_data, data);
+  return (*page)->set_bytes( offset, mBytesPerFlag, default_data, data);
 }
 
 
@@ -320,18 +308,20 @@ inline MBErrorCode DensePageGroup::set_data(MBEntityHandle handle, const void* d
 */
 inline MBErrorCode DensePageGroup::remove_data(MBEntityHandle handle, const void* default_data)
 {
-  // strip off entity type
-  handle = ID_FROM_HANDLE(handle);
-  // find out which page to jump to
-  unsigned int which_page = handle / mOffsetFactor;
+  // strip off the entity type
+  const unsigned int entity_id = ID_FROM_HANDLE(handle);
+  // figure out which page to jump to
+  const unsigned int which_page = entity_id / DensePage::mPageSize;
+  const unsigned int offset = entity_id  % DensePage::mPageSize;
   
+  std::vector<DensePage*>::iterator page = mDensePages.begin() + which_page;
   // if the page doesn't exist, return
-  if(which_page >= mDensePagesSize)
+  // Return value changed from MB_SUCCESS to MB_FAILURE - j.k. 2006-8-23
+  if (page >= mDensePages.end())
     return MB_SUCCESS;
  
   // try to clean out data
-  return mDensePages[which_page]->remove_data( (handle - ( which_page * mOffsetFactor )), 
-      mBytesPerFlag, default_data);
+  return (*page)->remove_data( offset, mBytesPerFlag, default_data );
 }
 
 //! get the entities
@@ -341,14 +331,15 @@ inline MBErrorCode DensePageGroup::get_entities(MBEntityType type, MBRange& enti
   int dum =0;
   MBEntityHandle handle = CREATE_HANDLE(type, 0, dum);
   int first_time = 1; // Don't want zero-ID handle at start of range.
+  MBRange::iterator insert_pos = entities.begin();
   for(iter = mDensePages.begin(); iter < mDensePages.end(); ++iter)
   {
     if (*iter && (*iter)->has_data())
     {
-      entities.insert( handle + first_time, handle + mOffsetFactor - 1 );
+      insert_pos = entities.insert( insert_pos, handle + first_time, handle + DensePage::mPageSize - 1 );
     }
     first_time = 0;
-    handle += mOffsetFactor;
+    handle += DensePage::mPageSize;
   }
   return MB_SUCCESS;
 }
@@ -363,7 +354,7 @@ inline MBErrorCode DensePageGroup::get_number_entities(MBEntityType , int& entit
     {
       if((*iter)->has_data())
       {
-        entities += mOffsetFactor;
+        entities += DensePage::mPageSize;
       }        
     }
   }
