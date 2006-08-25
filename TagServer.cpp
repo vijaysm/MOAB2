@@ -222,8 +222,7 @@ MBErrorCode TagServer::reset_data(MBEntityHandle entity_handle)
   max_tag = TAG_HANDLE_FROM_ID(0,MB_TAG_MESH);
   for( ; iter != mTagTable.end() && iter->first < max_tag; ++iter)
   {
-    mDenseData->remove_data(ID_FROM_TAG_HANDLE(iter->first), entity_handle,
-        iter->second.default_value());
+    mDenseData->remove_data(ID_FROM_TAG_HANDLE(iter->first), entity_handle);
   }
 
   return MB_SUCCESS;
@@ -440,8 +439,6 @@ MBErrorCode TagServer::get_data(const MBTag tag_handle,
     const int data_size = mDenseData->tag_size(tag_id);
     for(const MBEntityHandle* iter = entity_handles; iter != end; ++iter)
     {
-      if(TYPE_FROM_HANDLE(*iter) >= MBMAXTYPE)
-        return MB_TYPE_OUT_OF_RANGE;
       result = mDenseData->get_data(tag_id, *iter, mydata);
       if(result == MB_TAG_NOT_FOUND)
       {
@@ -460,8 +457,6 @@ MBErrorCode TagServer::get_data(const MBTag tag_handle,
     const int data_size = mSparseData->tag_size(tag_id);
     for(const MBEntityHandle* iter = entity_handles; iter != end; ++iter)
     {
-      if(TYPE_FROM_HANDLE(*iter) >= MBMAXTYPE)
-        return MB_TYPE_OUT_OF_RANGE;
       result = mSparseData->get_data(tag_id, *iter, mydata);
       if(result == MB_TAG_NOT_FOUND)
       {

@@ -104,6 +104,9 @@ inline int PROC_FROM_HANDLE(MBEntityHandle handle)
   return (handle & MB_PROC_MASK) >> MB_ID_WIDTH;
 }
 
+inline MBEntityHandle PROC_AND_ID_FROM_HANDLE(MBEntityHandle handle)
+  {  return handle & (MB_PROC_MASK|MB_ID_MASK); }
+
 typedef unsigned long MBTagId;
 
 /* MBTag format

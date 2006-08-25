@@ -28,13 +28,12 @@
 
 
 
-AEntityFactory::AEntityFactory(MBInterface *mdb)
+AEntityFactory::AEntityFactory(MBInterface *mdb) 
+: mDensePageGroup(sizeof(void*), 0)
 {
   assert(NULL != mdb);
   thisMB = mdb;
   mVertElemAdj = false;
-  for(int i=0; i<MBMAXTYPE; i++)
-    mDensePageGroups.push_back(new DensePageGroup(sizeof(void*)));
 }
 
 
@@ -51,10 +50,9 @@ AEntityFactory::~AEntityFactory()
     entities.clear();
 
     // get all entities that might have adjacency information on it
-    MBErrorCode result = mDensePageGroups[ent_type]->get_entities(
-        ent_type, entities);
+    MBErrorCode result = mDensePageGroup.get_entities( ent_type, entities);
     if (result != MB_SUCCESS)
-      return;   // if this fails give up.
+      continue;   // if this fails give up.
 
     // iterate through each entity
     MBRange::iterator iter;
@@ -62,17 +60,12 @@ AEntityFactory::~AEntityFactory()
     for(iter = entities.begin(); iter != entities.end(); ++iter)
     {
       adj_vector = NULL;
-      result = mDensePageGroups[ent_type]->get_data(*iter, &adj_vector);
-      if(result == MB_SUCCESS && adj_vector != NULL)
+      result = mDensePageGroup.get_data(*iter, &adj_vector);
+      if(result == MB_SUCCESS)
         delete adj_vector;
     }
 
   }
-
-  for(int i=0; i<MBMAXTYPE; i++)
-    delete mDensePageGroups[i];
-
-  mDensePageGroups.clear();
 }
 
 //! get the elements contained by source_entity, of
@@ -156,8 +149,7 @@ MBErrorCode AEntityFactory::get_associated_meshsets( MBEntityHandle source_entit
     target_entities.clear();
   
   MBAdjacencyVector *adj_vec = NULL;
-  result = mDensePageGroups[TYPE_FROM_HANDLE(source_entity)]->get_data(source_entity, 
-                                                                       &adj_vec);
+  result = mDensePageGroup.get_data(source_entity, &adj_vec);
     // this might return a non-success result, in cases where the adjacencies tag 
     // hasn't been created/allocated yet; that's ok, just means there aren't any
     // adj meshsets
@@ -210,7 +202,7 @@ MBErrorCode AEntityFactory::get_element(const MBEntityHandle *vertex_list,
   
   // get the adjacency list
   MBAdjacencyVector *adj_vec = NULL;
-  result = mDensePageGroups[MBVERTEX]->get_data(vertex_list[0], &adj_vec);
+  result = mDensePageGroup.get_data(vertex_list[0], &adj_vec);
 
   if (MB_SUCCESS != result) 
     return result;
@@ -385,16 +377,13 @@ MBErrorCode AEntityFactory::add_adjacency(MBEntityHandle from_ent,
     return MB_ALREADY_ALLOCATED;
   
   MBAdjacencyVector *adj_list_ptr = NULL;
-  MBErrorCode result = mDensePageGroups[TYPE_FROM_HANDLE(from_ent)]->get_data(
-      from_ent, &adj_list_ptr);
+  MBErrorCode result = mDensePageGroup.get_data(from_ent, &adj_list_ptr);
 
   if (NULL == adj_list_ptr)
   {
       // need to make a new adjacency list first
     adj_list_ptr = new MBAdjacencyVector();
-    void* null_ptr = NULL;
-    result = mDensePageGroups[TYPE_FROM_HANDLE(from_ent)]->set_data(
-        from_ent, null_ptr, &adj_list_ptr);
+    result = mDensePageGroup.set_data(from_ent, &adj_list_ptr);
 
     if (MB_SUCCESS != result) return result;
   }
@@ -434,8 +423,7 @@ MBErrorCode AEntityFactory::remove_adjacency(MBEntityHandle base_entity,
   MBAdjacencyVector *adj_list = NULL;
 
   // get the adjacency data list
-  result = mDensePageGroups[TYPE_FROM_HANDLE(base_entity)]->get_data(
-      base_entity, &adj_list);
+  result = mDensePageGroup.get_data(base_entity, &adj_list);
 
     // workaround - if a dense page hasn't been allocated, it won't have an adjacency tag,
     // even if that tag was assigned a default value; just return success for now
@@ -497,7 +485,7 @@ MBErrorCode AEntityFactory::remove_all_adjacencies(MBEntityHandle base_entity,
   MBAdjacencyVector *adj_list = NULL;
 
   // get the adjacency data list
-  result = mDensePageGroups[TYPE_FROM_HANDLE(base_entity)]->get_data(base_entity, &adj_list);
+  result = mDensePageGroup.get_data(base_entity, &adj_list);
 
     // workaround - if a dense page hasn't been allocated, it won't have an adjacency tag,
     // even if that tag was assigned a default value; just return success for now
@@ -515,9 +503,7 @@ MBErrorCode AEntityFactory::remove_all_adjacencies(MBEntityHandle base_entity,
   if (delete_adj_list) {
     delete adj_list;
     adj_list = NULL;
-    result = 
-      mDensePageGroups[TYPE_FROM_HANDLE(base_entity)]->set_data(base_entity, &adj_list,
-                                                                &adj_list);
+    result = mDensePageGroup.set_data(base_entity, &adj_list);
   }
   
   else
@@ -591,8 +577,7 @@ MBErrorCode AEntityFactory::get_adjacencies(MBEntityHandle entity,
                                             int &num_entities)
 {
   MBAdjacencyVector *adj_vec = NULL;
-  MBErrorCode result = mDensePageGroups[TYPE_FROM_HANDLE(entity)]->get_data(
-      entity, &adj_vec);
+  MBErrorCode result = mDensePageGroup.get_data(entity, &adj_vec);
   if(result != MB_SUCCESS || adj_vec == NULL) {
     adjacent_entities = NULL;
     num_entities = 0;
@@ -608,8 +593,7 @@ MBErrorCode AEntityFactory::get_adjacencies(MBEntityHandle entity,
                                             std::vector<MBEntityHandle>& adjacent_entities)
 {
   MBAdjacencyVector *adj_vec = NULL;
-  MBErrorCode result = mDensePageGroups[TYPE_FROM_HANDLE(entity)]->get_data(
-      entity, &adj_vec);
+  MBErrorCode result = mDensePageGroup.get_data(entity, &adj_vec);
   if(result != MB_SUCCESS || adj_vec == NULL)
     return result;
 
@@ -690,8 +674,7 @@ MBErrorCode AEntityFactory::get_zero_to_n_elements(MBEntityHandle source_entity,
   {
     // get the adjacency vector
     MBAdjacencyVector *adj_vec = NULL;
-    result = mDensePageGroups[TYPE_FROM_HANDLE(source_entity)]->get_data(
-        source_entity, &adj_vec);
+    result = mDensePageGroup.get_data(source_entity, &adj_vec);
     if(result != MB_SUCCESS || adj_vec == NULL)
       return result;
 
@@ -712,8 +695,7 @@ MBErrorCode AEntityFactory::get_zero_to_n_elements(MBEntityHandle source_entity,
   {
     // get the adjacency vector
     MBAdjacencyVector *adj_vec = NULL;
-    result = mDensePageGroups[TYPE_FROM_HANDLE(source_entity)]->get_data(
-        source_entity, &adj_vec);
+    result = mDensePageGroup.get_data(source_entity, &adj_vec);
     if(result != MB_SUCCESS || adj_vec == NULL)
       return result;
   
@@ -758,8 +740,7 @@ MBErrorCode AEntityFactory::get_zero_to_n_elements(MBEntityHandle source_entity,
   {
     // get the adjacency vector
     MBAdjacencyVector *adj_vec = NULL;
-    result = mDensePageGroups[TYPE_FROM_HANDLE(source_entity)]->get_data(
-        source_entity, &adj_vec);
+    result = mDensePageGroup.get_data(source_entity, &adj_vec);
     if(result != MB_SUCCESS || adj_vec == NULL)
       return result;
 
@@ -1054,7 +1035,7 @@ MBErrorCode AEntityFactory::get_up_adjacency_elements(MBEntityHandle source_enti
       // get the adjacency vector
     MBAdjacencyVector *adj_vec = NULL;
     result = 
-      mDensePageGroups[source_type]->get_data(source_entity, &adj_vec);
+      mDensePageGroup.get_data(source_entity, &adj_vec);
                     
     if(result != MB_SUCCESS)
       return result;

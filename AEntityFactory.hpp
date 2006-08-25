@@ -143,7 +143,7 @@ private:
   MBInterface *thisMB;
 
   //! adjacencies collection
-  std::vector<DensePageGroup*> mDensePageGroups;
+  DensePageGroup mDensePageGroup;
 
   //! whether vertex to element adjacencies are begin done
   bool mVertElemAdj;
