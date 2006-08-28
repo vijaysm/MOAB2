@@ -851,17 +851,17 @@ static bool do_file( const char* filename )
       std::cout << "************************************************************" << std::endl;
   }
   
-  if (!do_ray_fire_test( tool, root, filename, haveSurfTree )) {
-    if (verbosity)
-      std::cout << "Ray fire test failed." << std::endl;
-    result = false;
-  }
-  
   if (result && save_file_name) {
     if (MB_SUCCESS == save_tree( iface, save_file_name, root ))
       std::cerr << "Wrote '" << save_file_name << "'" << std::endl;
     else
       std::cerr << "FAILED TO WRITE '" << save_file_name << "'" << std::endl;
+  }
+  
+  if (!do_ray_fire_test( tool, root, filename, haveSurfTree )) {
+    if (verbosity)
+      std::cout << "Ray fire test failed." << std::endl;
+    result = false;
   }
 
   rval = tool.delete_tree( root );

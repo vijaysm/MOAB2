@@ -19,6 +19,7 @@ static void usage( )
       << "       Zero implies unbounded. Default: " << NUM_RAYS << std::endl
       << "  -i - Specify total intersecting rays to fire." << std::endl
       << "       Zero implies unbounded. Default: " << NUM_XSCT << std::endl
+      << "  -s - Use set-based tree." << std::endl
       << "  The input file should be generated using the '-s'" << std::endl
       << "  option with 'obb_test'" << std::endl;
   exit(1);
@@ -75,6 +76,7 @@ MBErrorCode read_tree( MBInterface* instance,
 int num_rays = NUM_RAYS;
 int num_xsct = NUM_XSCT;
 const char* filename = 0;
+bool do_sets = false;
 
 // global to make accessable to signal handler
 int rays = 0, xsct = 0, gen = 0;
@@ -126,6 +128,9 @@ int main( int argc, char* argv[] )
         usage();
       }
     }
+    else if (!strcmp( argv[i], "-s")) {
+      do_sets = true;
+    }
     else if (filename) {
       std::cerr << "Invalid options or multiple file names specified." << std::endl;
         usage();
@@ -158,6 +163,7 @@ int main( int argc, char* argv[] )
   
   const unsigned cached = 1000;
   std::vector<double> intersections;
+  std::vector<MBEntityHandle> sets;
   MBCartVect point, dir;
   std::vector<MBCartVect> randrays;
   randrays.reserve( cached );
@@ -189,7 +195,13 @@ int main( int argc, char* argv[] )
     }
     
     intersections.clear();
-    rval = tool.ray_intersect_triangles( intersections, root, 1e-6, point.array(), dir.array() );
+    if (do_sets) {
+      sets.clear();
+      rval = tool.ray_intersect_sets( intersections, sets, root, 1e-6, 1, point.array(), dir.array() );
+    }
+    else {
+      rval = tool.ray_intersect_triangles( intersections, root, 1e-6, point.array(), dir.array() );
+    }
     if (MB_SUCCESS != rval) {
       std::cerr << "Rayfire #" << rays << " failed." << std::endl;
       return 4;
