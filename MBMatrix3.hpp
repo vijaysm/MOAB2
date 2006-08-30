@@ -39,6 +39,16 @@ public:
       d[1] = d[2] = d[3] = 0;
       d[5] = d[6] = d[7] = 0;
     }
+    
+  inline MBMatrix3( const MBCartVect& diagonal )
+    { 
+      d[0] = diagonal[0];
+      d[4] = diagonal[1],
+      d[8] = diagonal[2];
+      d[1] = d[2] = d[3] = 0;
+      d[5] = d[6] = d[7] = 0;
+    }
+  
   
   inline MBMatrix3( const MBCartVect& row0,
                     const MBCartVect& row1,
