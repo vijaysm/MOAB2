@@ -22,7 +22,7 @@
 #include "MBOrientedBox.hpp"
 #include "MBRange.hpp"
 #include "MBCN.hpp"
-#include "MBGeometry.hpp"
+#include "MBGeomUtil.hpp"
 #include "MBTagConventions.hpp"
 #include <iostream>
 #include <iomanip>
@@ -628,7 +628,7 @@ MBErrorCode MBOrientedBoxTreeTool::ray_intersect_triangles(
         return rval;
       
       double t;
-      if (MBGeometry::ray_tri_intersect( coords, point, dir, tolerance, t, ray_length ))
+      if (MBGeomUtil::ray_tri_intersect( coords, point, dir, tolerance, t, ray_length ))
         intersection_distances_out.push_back(t);
     }
   }
@@ -801,7 +801,7 @@ MBErrorCode RayIntersectSets::leaf( MBEntityHandle node )
       return rval;
 
     double t;
-    if (MBGeometry::ray_tri_intersect( coords, b, m, tol, t, len )) 
+    if (MBGeomUtil::ray_tri_intersect( coords, b, m, tol, t, len )) 
         // NOTE: add_intersection may modify the 'len' member, which
         //       will affect subsequent calls to ray_tri_intersect in 
         //       this loop.

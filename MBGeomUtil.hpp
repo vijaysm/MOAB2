@@ -18,13 +18,13 @@
  *\date 2006-07-27
  */
 
-#ifndef MB_GEOMETRY_HPP
-#define MB_GEOMETRY_HPP
+#ifndef MB_GEOM_UTIL_HPP
+#define MB_GEOM_UTIL_HPP
 
 #include "MBCartVect.hpp"
 #include <cmath>
 
-namespace MBGeometry {
+namespace MBGeomUtil {
 
 bool ray_tri_intersect( const MBCartVect vertices[3],
                         const MBCartVect& ray_point,

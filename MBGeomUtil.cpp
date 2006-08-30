@@ -21,7 +21,7 @@
 #include "MBCartVect.hpp"
 #include <cmath>
 
-namespace MBGeometry {
+namespace MBGeomUtil {
 
 /* Impelementation copied from cgmMC ray_tri_contact (overlap.C) */
 bool ray_tri_intersect( const MBCartVect vertices[3],
