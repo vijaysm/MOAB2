@@ -195,6 +195,22 @@ class MBOrientedBoxTreeTool
                                     const double unit_ray_dir[3],
                                     const double* ray_length = 0 );
     
+    /**\brief Find closest surface, facet in surface, and location on facet
+     *
+     * Find the closest location in the tree to the specified location.
+     *\param point Location to search from
+     *\param point_out Closest location on closest facet
+     *\param facet_out Closest 2D element to input position
+     *\param set_out Set containing closest facet.  0 if tree was not 
+     *               constructed using 'set_build'
+     */
+    MBErrorCode closest_to_location( const double* point,
+                                     MBEntityHandle tree_root,
+                                     double tolerance,
+                                     double* point_out,
+                                     MBEntityHandle& facet_out,
+                                     MBEntityHandle* set_out = 0);
+    
     /**\brief Get oriented box at node in tree
      *
      * Get the oriented box for a node in an oriented bounding box tree.

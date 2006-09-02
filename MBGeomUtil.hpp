@@ -33,6 +33,30 @@ bool ray_tri_intersect( const MBCartVect vertices[3],
                         double& t_out,
                         const double* ray_length = 0 );
 
+/**\brief find closest location on triangle
+ *
+ * Find closest location on linear triangle.
+ *\param location  Input position to evaluate from
+ *\param vertices  Array of three corner vertex coordinates.
+ *\param closest_out Result position 
+ */
+void closest_location_on_tri( const MBCartVect& location,
+                              const MBCartVect* vertices,
+                              MBCartVect& closest_out );
+
+/**\brief find closest location on polygon
+ *
+ * Find closest location on polygon
+ *\param location  Input position to evaluate from
+ *\param vertices  Array of corner vertex coordinates.
+ *\param num_vertices Length of 'vertices' array.
+ *\param closest_out Result position 
+ */
+bool closest_location_on_polygon( const MBCartVect& location,
+                                  const MBCartVect* vertices,
+                                  int num_vertices,
+                                  MBCartVect& closest_out );
+
 } // namespace MBGeoemtry
 
 #endif

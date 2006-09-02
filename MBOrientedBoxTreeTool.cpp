@@ -889,6 +889,139 @@ MBErrorCode MBOrientedBoxTreeTool::ray_intersect_sets(
 }
 
 
+
+/********************** Closest Point code ***************/
+
+struct MBOBBTreeCPFrame {
+  MBOBBTreeCPFrame( double d, MBEntityHandle s )
+    : dist_sqr(d), node(s) {}
+  double dist_sqr;
+  MBEntityHandle node;
+};
+
+MBErrorCode MBOrientedBoxTreeTool::closest_to_location( 
+                                     const double* point,
+                                     MBEntityHandle root,
+                                     double tolerance,
+                                     double* point_out,
+                                     MBEntityHandle& facet_out,
+                                     MBEntityHandle* set_out )
+{
+  MBErrorCode rval;
+  const MBCartVect loc( point );
+  MBCartVect closest_pt;
+  double smallest_dist_sqr = std::numeric_limits<double>::max();
+  
+  std::vector<MBEntityHandle> children(2);
+  MBRange sets;
+  std::vector<double> coords;
+  std::vector<MBOBBTreeCPFrame> stack;
+  stack.push_back( MBOBBTreeCPFrame(0.0, root) );
+  
+  MBEntityHandle current_set = 0;
+  
+  while( !stack.empty() ) {
+
+      // pop from top of stack
+    MBEntityHandle node = stack.back().node;
+    double dist_sqr = stack.back().dist_sqr;
+    stack.pop_back();
+
+      // If current best result is closer than the box, skip this tree node.
+    if (dist_sqr > smallest_dist_sqr + tolerance)
+      continue;
+
+      // Check if this node has a set associated with it
+    if (set_out) {
+      rval = instance->get_entities_by_type( node, MBENTITYSET, sets );
+      if (MB_SUCCESS != rval)
+        return rval;
+      if (!sets.empty()) {
+        if (sets.size() != 1)
+          return MB_MULTIPLE_ENTITIES_FOUND;
+        current_set = *sets.begin();
+      }
+    }
+
+      // Get child boxes
+    children.clear();
+    rval = instance->get_child_meshsets( node, children );
+    if (MB_SUCCESS != rval)
+      return rval;
+
+      // if not a leaf node
+    if (!children.empty()) {
+      if (children.size() != 2)
+        return MB_MULTIPLE_ENTITIES_FOUND;
+    
+        // get boxes
+      MBOrientedBox box1, box2;
+      rval = box( children[0], box1 );
+      if (MB_SUCCESS != rval) return rval;
+      rval = box( children[1], box2 );
+      if (MB_SUCCESS != rval) return rval;
+      
+        // get distance from each box
+      MBCartVect pt1, pt2;
+      box1.closest_position_within_box( loc, pt1 );
+      box2.closest_position_within_box( loc, pt2 );
+      pt1 -= loc;
+      pt2 -= loc;
+      const double dsqr1 = pt1 % pt1;
+      const double dsqr2 = pt2 % pt2;
+      
+        // push children on tree such that closer one is on top
+      if (dsqr1 < dsqr2) {
+        stack.push_back( MBOBBTreeCPFrame(dsqr2, children[1] ) );
+        stack.push_back( MBOBBTreeCPFrame(dsqr1, children[0] ) );
+      }
+      else {
+        stack.push_back( MBOBBTreeCPFrame(dsqr1, children[0] ) );
+        stack.push_back( MBOBBTreeCPFrame(dsqr2, children[1] ) );
+      }
+    }
+    else { // LEAF NODE
+      MBRange facets;
+      rval = instance->get_entities_by_dimension( node, 2, facets );
+      if (MB_SUCCESS != rval)
+        return rval;
+      
+      const MBEntityHandle* conn;
+      int len;
+      MBCartVect tmp, diff;
+       for (MBRange::iterator i = facets.begin(); i != facets.end(); ++i) {
+        rval = instance->get_connectivity( *i, conn, len, true );
+        if (MB_SUCCESS != rval)
+          return rval;
+        
+        coords.resize(3*len);
+        rval = instance->get_coords( conn, len, &coords[0] );
+        if (MB_SUCCESS != rval)
+          return rval;
+        
+        if (len == 3) 
+          MBGeomUtil::closest_location_on_tri( loc, (MBCartVect*)(&coords[0]), tmp );
+        else
+          MBGeomUtil::closest_location_on_polygon( loc, (MBCartVect*)(&coords[0]), len, tmp );
+        
+        diff = tmp - loc;
+        dist_sqr = diff % diff;
+        if (dist_sqr < smallest_dist_sqr) {
+          smallest_dist_sqr = dist_sqr;
+          facet_out = *i;
+          closest_pt = tmp;
+          if (set_out)
+            *set_out = current_set;
+        }
+      }
+    } // LEAF NODE
+  }
+  
+  return MB_SUCCESS;
+}
+    
+    
+
 /********************** Tree Printing Code ****************************/
 
 

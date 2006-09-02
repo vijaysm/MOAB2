@@ -112,6 +112,17 @@ struct MBOrientedBox
                       double distance_tolerance,
                       const double* segment_length = 0 ) const;
                       
+    /**\brief Find closest position on/within box to input position.
+     * 
+     * Find the closest position in the solid box to the input position.
+     * If the input position is on or within the box, then the output
+     * position will be the same as the input position.  If the input
+     * position is outside the box, the outside position will be the
+     * closest point on the box boundary to the input position.
+     */
+  void closest_position_within_box( const MBCartVect& input_position,
+                                    MBCartVect& output_position ) const;
+                      
     // Construct a hexahedral element with the same shape as this box.
   MBErrorCode make_hex( MBEntityHandle& hex, MBInterface* instance );
                                     

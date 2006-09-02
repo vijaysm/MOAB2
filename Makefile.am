@@ -19,7 +19,9 @@ check_PROGRAMS = moab_test \
                  tqdcfr \
                  test_adj \
                  seq_man_test \
-		 internals_test
+		 internals_test \
+                 geom_util_test \
+                 xform_test
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 TESTS = $(check_PROGRAMS)
@@ -82,8 +84,12 @@ libMOAB_la_SOURCES = \
   GeomTopoTool.cpp \
   HigherOrderFactory.cpp \
   HomXform.cpp \
+  MBAffineXform.cpp \
+  MBAffineXform.hpp \
   MBAlloc.cpp \
   MBAlloc.hpp \
+  MBAxisBox.cpp \
+  MBAxisBox.hpp \
   MBBits.cpp \
   MBBits.hpp \
   MBCN.cpp \
@@ -234,6 +240,15 @@ test_adj_DEPENDENCIES = $(top_builddir)/libMOAB.la
 seq_man_test_SOURCES = EntitySequenceManager.cpp 
 seq_man_test_LDADD = $(top_builddir)/libMOAB.la
 seq_man_test_CXXFLAGS = -DTEST $(CXXFLAGS)
+
+geom_util_test_SOURCES = GeomUtilTests.cpp 
+geom_util_test_LDADD = $(top_builddir)/libMOAB.la
+geom_util_test_DEPENDENCIES = $(geom_util_test_LDADD)
+
+xform_test_SOURCES = MBAffineXform.cpp
+xform_test_CXXFLAGS = -DTEST $(CXXFLAGS)
+xform_test_LDADD = $(top_builddir)/libMOAB.la
+xform_test_DEPENDENCIES = $(xform_test_LDADD)
 
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = dumped_acis.sat

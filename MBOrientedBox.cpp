@@ -471,35 +471,6 @@ bool MBOrientedBox::intersect_ray( const MBCartVect& b,
       par_pos[1] <= half_y && par_pos[1] >= -half_y &&
       par_pos[2] <= half_z && par_pos[2] >= -half_z)
     return true;
-  
-  // then outside case
-//bool write = false;
-//if (write) {
-//  FILE* file = fopen("dump","w+");
-//  fprintf(file,"create vertex %f %f %f\n", -half_x, -half_y, -half_z );
-//  fprintf(file,"create vertex %f %f %f\n",  half_x, -half_y, -half_z );
-//  fprintf(file,"create vertex %f %f %f\n",  half_x,  half_y, -half_z );
-//  fprintf(file,"create vertex %f %f %f\n", -half_x,  half_y, -half_z );
-//  fprintf(file,"create vertex %f %f %f\n", -half_x, -half_y, +half_z );
-//  fprintf(file,"create vertex %f %f %f\n",  half_x, -half_y, +half_z );
-//  fprintf(file,"create vertex %f %f %f\n",  half_x,  half_y, +half_z );
-//  fprintf(file,"create vertex %f %f %f\n", -half_x,  half_y, +half_z );
-//  fprintf(file,"create surface vertex 1 2 6 5\n");
-//  fprintf(file,"create surface vertex 2 3 7 6\n");
-//  fprintf(file,"create surface vertex 3 4 8 7\n");
-//  fprintf(file,"create surface vertex 4 1 5 8\n");
-//  fprintf(file,"create surface vertex 4 3 2 1\n");
-//  fprintf(file,"create surface vertex 5 6 7 8\n");
-//  fprintf(file,"create volume surface all\n");
-//  fprintf(file,"delete vertex all\n");
-//  fprintf(file,"compress ids\n");
-//  fprintf(file,"create vertex %f %f %f\n", par_pos[0], par_pos[1], par_pos[2]);
-//  fprintf(file,"create vertex %f %f %f\n", par_pos[0] + 1000 * par_dir[0],
-//                                           par_pos[1] + 1000 * par_dir[1],
-//                                           par_dir[2] + 1000 * par_dir[2] );
-//  fprintf(file,"create curve vertex 9 10\n");
-//  fclose(file);
-//}
 
     //test two xy plane
   if ((half_z - par_pos[2]) * par_dir[2] >= 0 &&
@@ -582,3 +553,38 @@ MBErrorCode MBOrientedBox::make_hex( MBEntityHandle& hex, MBInterface* instance 
   return MB_SUCCESS;
 }
   
+void MBOrientedBox::closest_position_within_box( 
+                                    const MBCartVect& input_position,
+                                    MBCartVect& output_position ) const
+{
+    // get coordinates on box axes
+  const MBCartVect from_center = input_position - center;
+
+#if MB_ORIENTED_BOX_UNIT_VECTORS
+  MBCartVect local( from_center % axis[0],
+                    from_center % axis[1],
+                    from_center % axis[2] );
+
+  for (int i = 0; i < 3; ++i) {
+    if (local[i] < -length[i])
+      local[i] = -length[i];
+    else if (local[i] > length[i])
+      local[i] =  length[i];
+  }
+#else
+  MBCartVect local( (from_center % axis[0]) / (axis[0] % axis[0]),
+                    (from_center % axis[1]) / (axis[1] % axis[1]),
+                    (from_center % axis[2]) / (axis[2] % axis[2]) );
+
+  for (int i = 0; i < 3; ++i) {
+    if (local[i] < -1.0)
+      local[i] = -1.0;
+    else if (local[i] > 1.0)
+      local[i] = 1.0;
+  }
+#endif
+
+  output_position = local[0] * axis[0] 
+                  + local[1] * axis[1]
+                  + local[2] * axis[2];
+}
