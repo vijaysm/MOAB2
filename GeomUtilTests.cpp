@@ -205,6 +205,20 @@ void test_closest_location_on_polygon()
   closest_location_on_polygon(  MBCartVect( 0.5, 0.5,-1.0 ), quad, 4, result );
   ASSERT_VECTORS_EQUAL( result, MBCartVect( 0.5, 0.5, 0.0 ) );
 
+    // test points within square, but not at center
+  input = MBCartVect( 0.25, 0.25, 0 );
+  closest_location_on_polygon( input, quad, 4, result );
+  ASSERT_VECTORS_EQUAL( result, input );
+  input = MBCartVect( 0.75, 0.25, 0 );
+  closest_location_on_polygon( input, quad, 4, result );
+  ASSERT_VECTORS_EQUAL( result, input );
+  input = MBCartVect( 0.75, 0.75, 0 );
+  closest_location_on_polygon( input, quad, 4, result );
+  ASSERT_VECTORS_EQUAL( result, input );
+  input = MBCartVect( 0.25, 0.75, 0 );
+  closest_location_on_polygon( input, quad, 4, result );
+  ASSERT_VECTORS_EQUAL( result, input );
+
     // test at each corner
   closest_location_on_polygon(  quad[0], quad, 4, result );
   ASSERT_VECTORS_EQUAL( result, quad[0] );

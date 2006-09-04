@@ -233,7 +233,7 @@ void closest_location_on_polygon( const MBCartVect& location,
                                   MBCartVect& closest_out )
 {
   const int n = num_vertices;
-  MBCartVect d, q, p, v;
+  MBCartVect d, p, v;
   double shortest_sqr, dist_sqr, t_closest, t;
   int i, e;
   
@@ -241,31 +241,28 @@ void closest_location_on_polygon( const MBCartVect& location,
   e = n - 1;
   v = vertices[0] - vertices[e];
   t_closest = (v % (location - vertices[e])) / (v % v);
-  closest_out = vertices[e] + t_closest * v;
   if (t_closest < 0.0)
     d = location - vertices[e];
   else if (t_closest > 1.0)
     d = location - vertices[0];
-  else
-    d = location - closest_out;
+  else 
+    d = location - vertices[e] - t_closest * v;
   shortest_sqr = d % d;
   for (i = 0; i < n - 1; ++i) {
     v = vertices[i+1] - vertices[i];
     t = (v % (location - vertices[i])) / (v % v);
-    q = vertices[i] + t * v;
     if (t < 0.0)
       d = location - vertices[i];
     else if (t > 1.0)
       d = location - vertices[i+1];
     else
-      d = location - q;
+      d = location - vertices[i] - t * v;
     dist_sqr = d % d;
     if (dist_sqr < shortest_sqr) {
       e = i;
       shortest_sqr = dist_sqr;
       t_closest = t;
     }
-    closest_out += q;
   }
   
     // If we are beyond the bounds of the edge, then
@@ -290,10 +287,10 @@ void closest_location_on_polygon( const MBCartVect& location,
     return;
   }
   
-    // Inside.  closest_out already contains sum of closest
-    // point on each edge.  Return average of closest point
-    // on each edge
-  closest_out *= (1.0 / n);
+    // Inside.  Project to plane defined by point and normal at
+    // closest edge
+  const double D = -(norm % (vertices[e] + t_closest * v1));
+  closest_out = (location - (norm % location + D) * norm)/(norm % norm);
 }
 
 
