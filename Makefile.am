@@ -21,7 +21,8 @@ check_PROGRAMS = moab_test \
                  seq_man_test \
 		 internals_test \
                  geom_util_test \
-                 xform_test
+                 xform_test \
+                 obb_test
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 TESTS = $(check_PROGRAMS)
@@ -249,6 +250,10 @@ xform_test_SOURCES = MBAffineXform.cpp
 xform_test_CXXFLAGS = -DTEST $(CXXFLAGS)
 xform_test_LDADD = $(top_builddir)/libMOAB.la
 xform_test_DEPENDENCIES = $(xform_test_LDADD)
+
+obb_test_SOURCES = OBBTest.cpp
+obb_test_LDADD = $(top_builddir)/libMOAB.la
+obb_test_DEPENDENCIES = $(obb_test_LDADD)
 
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = dumped_acis.sat

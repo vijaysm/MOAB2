@@ -46,6 +46,10 @@ struct MBOrientedBox
   double radius;
 #endif
 
+  inline MBOrientedBox() {}
+
+  MBOrientedBox( const MBCartVect axis[3], const MBCartVect& center );
+
   inline double inner_radius() const; // radius of inscribed sphere
   inline double outer_radius() const; // radius of circumscribed sphere
   inline double outer_radius_squared() const;
@@ -120,8 +124,8 @@ struct MBOrientedBox
      * position is outside the box, the outside position will be the
      * closest point on the box boundary to the input position.
      */
-  void closest_position_within_box( const MBCartVect& input_position,
-                                    MBCartVect& output_position ) const;
+  void closest_location_in_box( const MBCartVect& input_position,
+                                MBCartVect& output_position ) const;
                       
     // Construct a hexahedral element with the same shape as this box.
   MBErrorCode make_hex( MBEntityHandle& hex, MBInterface* instance );

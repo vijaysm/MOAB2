@@ -81,6 +81,43 @@ static double point_perp( const MBCartVect& p,   // closest to this point
   return finite(t) ? t : 0.0;
 }
 
+MBOrientedBox::MBOrientedBox( const MBCartVect axes[3], const MBCartVect& mid )
+  : center(mid)
+{
+    // re-order axes by length
+  MBCartVect len( axes[0].length(), axes[1].length(), axes[2].length() );
+  axis[0] = axes[0];
+  axis[1] = axes[1];
+  axis[2] = axes[2];
+  
+  if (len[2] < len[1])
+  {
+    if (len[2] < len[0]) {
+      std::swap( len[0], len[2] );
+      std::swap( axis[0], axis[2] );
+    }
+  }
+  else if (len[1] < len[0]) {
+    std::swap( len[0], len[1] );
+    std::swap( axis[0], axis[1] );
+  }
+  if (len[1] > len[2]) {
+    std::swap( len[1], len[2] );
+    std::swap( axis[1], axis[2] );
+  }
+  
+#if MB_ORIENTED_BOX_UNIT_VECTORS
+  this->length = len;
+  axis[0] /= len[0];
+  axis[1] /= len[1];
+  axis[2] /= len[2];
+#endif
+
+#if MB_ORIENTED_BOX_OUTER_RADIUS
+  radius = len.length();
+#endif
+}
+
 MBErrorCode MBOrientedBox::tag_handle( MBTag& handle_out,
                                        MBInterface* instance,
                                        const char* name,
@@ -553,7 +590,7 @@ MBErrorCode MBOrientedBox::make_hex( MBEntityHandle& hex, MBInterface* instance 
   return MB_SUCCESS;
 }
   
-void MBOrientedBox::closest_position_within_box( 
+void MBOrientedBox::closest_location_in_box( 
                                     const MBCartVect& input_position,
                                     MBCartVect& output_position ) const
 {
@@ -584,7 +621,8 @@ void MBOrientedBox::closest_position_within_box(
   }
 #endif
 
-  output_position = local[0] * axis[0] 
+  output_position = center
+                  + local[0] * axis[0] 
                   + local[1] * axis[1]
                   + local[2] * axis[2];
 }

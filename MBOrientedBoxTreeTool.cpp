@@ -963,8 +963,8 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location(
       
         // get distance from each box
       MBCartVect pt1, pt2;
-      box1.closest_position_within_box( loc, pt1 );
-      box2.closest_position_within_box( loc, pt2 );
+      box1.closest_location_in_box( loc, pt1 );
+      box2.closest_location_in_box( loc, pt2 );
       pt1 -= loc;
       pt2 -= loc;
       const double dsqr1 = pt1 % pt1;
