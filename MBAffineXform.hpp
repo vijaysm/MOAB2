@@ -46,22 +46,45 @@ class MBAffineXform
     /** scale about origin */
     static inline MBAffineXform scale( const double* fractions );
     
+    /** incorporate the passed transform into this one */
     inline void accumulate( const MBAffineXform& other );
     
+    /** apply transform to a point */
     inline void xform_point( const double* input, double* output ) const;
+    /** apply transform to a point */
     inline void xform_point( double* in_out ) const;
     
+    /** apply transform to a vector */
     inline void xform_vector( const double* input, double* output ) const;
+    /** apply transform to a vector */
     inline void xform_vector( double* in_out ) const;
     
+    /** get transform that is the inverse of this transform */
     MBAffineXform inverse() const;
     
+    /** get a tag that can be used to store an instance of this class */
     static MBErrorCode get_tag( MBTag& tag_handle_out,
                                 MBInterface* moab,
                                 const char* tagname = 0 );
     
+    /** get 3x3 matrix portion of transform */
     const MBMatrix3& matrix() const { return mMatrix; }
+    /** get translation portion of transform */
     const MBCartVect& offset() const { return mOffset; }
+    
+    /** Is this transform a reflection 
+     *
+     * A relfecting transform will require the reversal of the
+     * order of edges in a loop, etc. because it produces a 
+     * mirror-image of the input geometry.  This method tests
+     * if this is such a transform.  A reflection may be created
+     * with by an explicit transform, scaling with a negative
+     * scale factor, etc.  If multiple transforms are combined
+     * such that the transform is no longer a reflection (e.g. 
+     * two reflections that are effectively a rotation), this method
+     * will return false.
+     */
+    inline bool reflection() const;
 
   private:
   
@@ -158,5 +181,8 @@ inline MBAffineXform MBAffineXform::inverse() const
   return MBAffineXform( m, m * -mOffset );
 }
 
-
+inline bool MBAffineXform::reflection() const
+{
+  return mMatrix.determinant() < 0.0;
+}
 #endif

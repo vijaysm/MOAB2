@@ -68,6 +68,7 @@ MBErrorCode MBAffineXform::get_tag( MBTag& tag_out,
 #include <iostream>
 #define ASSERT_VECTORS_EQUAL(A, B) assert_vectors_equal( (A), (B), #A, #B, __LINE__ )
 #define ASSERT_DOUBLES_EQUAL(A, B) assert_doubles_equal( (A), (B), #A, #B, __LINE__ )
+#define ASSERT(B) assert_bool( (B), #B, __LINE__ )
 
 const double TOL = 1e-6;
 
@@ -98,6 +99,14 @@ void assert_doubles_equal( double a, double b, const char* sa, const char* sb, i
   }
 }
 
+void assert_bool( bool b, const char* sb, int lineno )
+{
+  if (!b) {
+    std::cerr << "Assertion failed at line " << lineno << std::endl
+              << "\t" << sb << std::endl;
+    ++error_count;
+  }
+}
 
 
 const MBCartVect point1( 0.0, 0.0, 0.0 ), point2( 3.5, 1000, -200 );
@@ -385,6 +394,37 @@ void test_inversion() {
   ASSERT_VECTORS_EQUAL( vect2, result );
 }
   
+void test_is_reflection()
+{
+  MBAffineXform refl1, refl2, scale;
+  refl1 = MBAffineXform::reflection( MBCartVect( -1, -1, 0).array() );
+  refl2 = MBAffineXform::reflection( MBCartVect(  1,  0, 0).array() );
+  scale = MBAffineXform::scale( MBCartVect( -1, 1, 1 ).array() );
+  
+  ASSERT( refl1.reflection() );
+  ASSERT( refl2.reflection() );
+  ASSERT( scale.reflection() );
+  
+  MBAffineXform inv1, inv2, inv3;
+  inv1 = refl1.inverse();
+  inv2 = refl2.inverse();
+  inv3 = scale.inverse();
+  
+  ASSERT( inv1.reflection() );
+  ASSERT( inv2.reflection() );
+  ASSERT( inv3.reflection() );
+  
+  refl1.accumulate( refl2 );
+  refl2.accumulate( scale );
+  ASSERT( ! refl1.reflection() );
+  ASSERT( ! refl2.reflection() );
+  
+  MBAffineXform rot, mov;
+  rot = MBAffineXform::rotation( M_PI/4, MBCartVect(1,1,1).array() );
+  mov = MBAffineXform::translation( MBCartVect(-5,6,7).array() );
+  ASSERT( !rot.reflection() );
+  ASSERT( !mov.reflection() );
+}
 
 int main()
 {
@@ -395,6 +435,7 @@ int main()
   test_scale();
   test_accumulate();
   test_inversion();
+  test_is_reflection();
   return error_count;
 }
 
