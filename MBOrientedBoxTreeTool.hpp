@@ -26,12 +26,6 @@
 #include <iosfwd>
 #include <list>
 
-/** If true, deviate from the VTk algorithm for chosing the
- *  split direction by also considering the number of entities entirely
- *  to each side of the plane (triangles that do not intersect the plane)
- */
-#define MB_OOB_SPLIT_BY_NON_INTERSECTING 0
-
 class MBRange;
 class MBOrientedBox;
 
