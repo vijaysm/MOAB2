@@ -3,6 +3,7 @@
 #include "MBOrientedBoxTreeTool.hpp"
 #include "MBOrientedBox.hpp"
 #include "MBTagConventions.hpp"
+#include "MBGeomUtil.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -652,6 +653,10 @@ static bool do_ray_fire_test( MBOrientedBoxTreeTool& tool,
                               MBEntityHandle root_set,
                               const char* filename,
                               bool have_surface_tree );
+                              
+static bool do_closest_point_test( MBOrientedBoxTreeTool& tool,
+                                   MBEntityHandle root_set,
+                                   bool have_surface_tree );
 
 static MBErrorCode save_tree( MBInterface* instance,
                               const char* filename,
@@ -861,6 +866,12 @@ static bool do_file( const char* filename )
   if (!do_ray_fire_test( tool, root, filename, haveSurfTree )) {
     if (verbosity)
       std::cout << "Ray fire test failed." << std::endl;
+    result = false;
+  }
+  
+  if (!do_closest_point_test( tool, root, haveSurfTree )) {
+    if (verbosity)
+      std::cout << "Closest point test failed" << std::endl;
     result = false;
   }
 
@@ -1167,6 +1178,177 @@ MBErrorCode save_tree( MBInterface* instance,
   
   return instance->write_mesh( filename );
 }
+
+static MBErrorCode tri_coords( MBInterface* moab,
+                               MBEntityHandle tri,
+                               MBCartVect coords[3] )
+{
+  MBErrorCode rval;
+  const MBEntityHandle* conn;
+  int len;
+  
+  rval = moab->get_connectivity( tri, conn, len, true );
+  if (MB_SUCCESS != rval) return rval;
+  if (len != 3) return MB_FAILURE;
+  rval = moab->get_coords( conn, 3, coords[0].array() );
+  return rval;
+}
+
+static MBErrorCode closest_point_in_triangles( MBInterface* moab,
+                                        const MBCartVect& to_pos,
+                                        MBCartVect& result_pos,
+                                        MBEntityHandle& result_tri )
+{
+  MBErrorCode rval;
+
+  MBRange triangles;
+  rval = moab->get_entities_by_type( 0, MBTRI, triangles );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  if (triangles.empty())
+    return MB_FAILURE;
+  
+  MBRange::iterator i = triangles.begin();
+  MBCartVect coords[3];
+  rval = tri_coords( moab, *i, coords );
+  if (MB_SUCCESS != rval) return rval;
+  result_tri = *i;
+  MBGeomUtil::closest_location_on_tri( to_pos, coords, result_pos );
+  MBCartVect diff = to_pos - result_pos;
+  double shortest_dist_sqr = diff % diff;
+  
+  for (++i; i != triangles.end(); ++i) {
+    rval = tri_coords( moab, *i, coords );
+    if (MB_SUCCESS != rval) return rval;
+    MBCartVect pos;
+    MBGeomUtil::closest_location_on_tri( to_pos, coords, pos );
+    diff = to_pos - pos;
+    double dsqr = diff % diff;
+    if (dsqr < shortest_dist_sqr) {
+      shortest_dist_sqr = dsqr;
+      result_pos = pos;
+      result_tri = *i;
+    }
+  }
+
+  return MB_SUCCESS;
+}
+  
+static bool tri_in_set( MBInterface* moab,
+                        MBEntityHandle set,
+                        MBEntityHandle tri )
+{
+  MBRange tris;
+  MBErrorCode rval = moab->get_entities_by_type( set, MBTRI, tris );
+  if (MB_SUCCESS != rval) return false;
+  MBRange::iterator i = tris.find( tri );
+  return i != tris.end();
+}
+
+static bool do_closest_point_test( MBOrientedBoxTreeTool& tool,
+                                   MBEntityHandle root_set,
+                                   bool have_surface_tree )
+{
+  MBErrorCode rval;
+  MBInterface* moab = tool.get_moab_instance();
+  MBEntityHandle set;
+  MBEntityHandle* set_ptr = have_surface_tree ? &set : 0;
+  bool result = true;
+  
+    // get root box
+  MBOrientedBox box;
+  rval = tool.box( root_set, box );
+  if (MB_SUCCESS != rval) {
+    if (verbosity) std::cerr << "Invalid tree in do_closest_point_test\n";
+    return false;
+  }
+  
+    // chose some points to test
+  MBCartVect points[] = { box.center + box.scaled_axis(0),
+                          box.center + 2 * box.scaled_axis(1),
+                          box.center + 0.5 * box.scaled_axis(2),
+                          box.center + -2*box.scaled_axis(0)
+                                     + -2*box.scaled_axis(1)
+                                     + -2*box.scaled_axis(2),
+                          MBCartVect(100,100,100) };
+  const int num_pts = sizeof(points)/sizeof(points[0]);
+  
+    // test each point
+  for (int i = 0; i < num_pts; ++i) {
+    if (verbosity >= 3) 
+      std::cout << "Evaluating closest point to " << points[i] << std::endl;
+    
+    MBCartVect n_result, t_result;
+    MBEntityHandle n_tri, t_tri;
+    
+      // find closest point the slow way
+    rval = closest_point_in_triangles( moab, points[i], n_result, n_tri );
+    if (MB_SUCCESS != rval) {
+      std::cerr << "Internal MOAB error in do_closest_point_test" << std::endl;
+      result = false;
+      continue;
+    }
+    
+      // find closest point usnig tree
+    rval = tool.closest_to_location( points[i].array(), 
+                                     root_set,
+                                     tolerance,
+                                     t_result.array(),
+                                     t_tri,
+                                     set_ptr );
+    if (MB_SUCCESS != rval) {
+      if (verbosity)
+        std::cout << "MBOrientedBoxTreeTool:: closest_to_location( " << points[i] << " ) FAILED!" << std::endl;
+      result = false;
+      continue;
+    }
+    
+    MBCartVect diff = t_result - n_result;
+    if ( diff.length() > tolerance ) {
+      if (verbosity)
+        std::cout << "Closest point to " << points[i] << " INCORRECT! (" 
+          << t_result << " != " << n_result << ")" << std::endl;
+      result = false;
+      continue;
+    }
+    
+    if (t_tri != n_tri) {
+        // if result point is triangle, then OK because
+        // already tested that it is the same location 
+        // as the expected value.  We just have a case where
+        // the point was on an edge or vertex.
+      MBCartVect coords[3];
+      MBCartVect diff(1,1,1);
+      rval = tri_coords( moab, t_tri, coords );
+      if (MB_SUCCESS == rval) {
+        MBGeomUtil::closest_location_on_tri( points[i], coords, n_result );
+        diff = n_result - t_result;
+      }
+      if ((diff % diff) > tolerance) {
+        if (verbosity)
+          std::cout << "Triangle closest to " << points[i] << " INCORRECT! (" 
+            << t_tri << " != " << n_tri << ")" << std::endl;
+        result = false;
+        continue;
+      }
+    }
+    
+    if (set_ptr && ! tri_in_set( moab, *set_ptr, t_tri )) {
+      if (verbosity)
+        std::cout << "Surface closest to " << points[i] << " INCORRECT!" << std::endl;
+      result = false;
+      continue;
+    }
+  }
+  
+  return result;
+}
+
+    
+    
+ 
+  
 
 
   

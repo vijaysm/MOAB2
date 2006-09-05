@@ -893,10 +893,11 @@ MBErrorCode MBOrientedBoxTreeTool::ray_intersect_sets(
 /********************** Closest Point code ***************/
 
 struct MBOBBTreeCPFrame {
-  MBOBBTreeCPFrame( double d, MBEntityHandle s )
-    : dist_sqr(d), node(s) {}
+  MBOBBTreeCPFrame( double d, MBEntityHandle n, MBEntityHandle s )
+    : dist_sqr(d), node(n), mset(s) {}
   double dist_sqr;
   MBEntityHandle node;
+  MBEntityHandle mset;
 };
 
 MBErrorCode MBOrientedBoxTreeTool::closest_to_location( 
@@ -912,19 +913,20 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location(
   MBCartVect closest_pt;
   double smallest_dist_sqr = std::numeric_limits<double>::max();
   
-  std::vector<MBEntityHandle> children(2);
+  MBEntityHandle current_set = 0;
   MBRange sets;
+  std::vector<MBEntityHandle> children(2);
   std::vector<double> coords;
   std::vector<MBOBBTreeCPFrame> stack;
-  stack.push_back( MBOBBTreeCPFrame(0.0, root) );
-  
-  MBEntityHandle current_set = 0;
+    
+  stack.push_back( MBOBBTreeCPFrame(0.0, root, current_set) );
   
   while( !stack.empty() ) {
 
       // pop from top of stack
     MBEntityHandle node = stack.back().node;
     double dist_sqr = stack.back().dist_sqr;
+    current_set = stack.back().mset;
     stack.pop_back();
 
       // If current best result is closer than the box, skip this tree node.
@@ -932,7 +934,8 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location(
       continue;
 
       // Check if this node has a set associated with it
-    if (set_out) {
+    if (set_out && !current_set) {
+      sets.clear();
       rval = instance->get_entities_by_type( node, MBENTITYSET, sets );
       if (MB_SUCCESS != rval)
         return rval;
@@ -972,12 +975,12 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location(
       
         // push children on tree such that closer one is on top
       if (dsqr1 < dsqr2) {
-        stack.push_back( MBOBBTreeCPFrame(dsqr2, children[1] ) );
-        stack.push_back( MBOBBTreeCPFrame(dsqr1, children[0] ) );
+        stack.push_back( MBOBBTreeCPFrame(dsqr2, children[1], current_set ) );
+        stack.push_back( MBOBBTreeCPFrame(dsqr1, children[0], current_set ) );
       }
       else {
-        stack.push_back( MBOBBTreeCPFrame(dsqr1, children[0] ) );
-        stack.push_back( MBOBBTreeCPFrame(dsqr2, children[1] ) );
+        stack.push_back( MBOBBTreeCPFrame(dsqr1, children[0], current_set ) );
+        stack.push_back( MBOBBTreeCPFrame(dsqr2, children[1], current_set ) );
       }
     }
     else { // LEAF NODE
@@ -989,7 +992,7 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location(
       const MBEntityHandle* conn;
       int len;
       MBCartVect tmp, diff;
-       for (MBRange::iterator i = facets.begin(); i != facets.end(); ++i) {
+      for (MBRange::iterator i = facets.begin(); i != facets.end(); ++i) {
         rval = instance->get_connectivity( *i, conn, len, true );
         if (MB_SUCCESS != rval)
           return rval;
@@ -1016,6 +1019,10 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location(
       }
     } // LEAF NODE
   }
+  
+  point_out[0] = closest_pt[0];
+  point_out[1] = closest_pt[1];
+  point_out[2] = closest_pt[2];
   
   return MB_SUCCESS;
 }
