@@ -58,9 +58,6 @@ MBOrientedBoxTreeTool::Settings::Settings()
     worst_split_ratio( 0.95 ),
     best_split_ratio( 0.4 ),
     set_options( MESHSET_SET )
-#if MB_OOB_SPLIT_BY_NON_INTERSECTING
-    , intersect_ratio_factor( 1.0 )
-#endif
   {}
 
 bool MBOrientedBoxTreeTool::Settings::valid() const
@@ -70,9 +67,6 @@ bool MBOrientedBoxTreeTool::Settings::valid() const
       && worst_split_ratio <= 1.0
       && best_split_ratio >= 0.0
       && worst_split_ratio >= best_split_ratio
-#if MB_OOB_SPLIT_BY_NON_INTERSECTING
-      && intersect_ratio_factor >= 0.0
-#endif
       ;
 }
 
@@ -177,20 +171,12 @@ static MBErrorCode split_box( MBInterface* instance,
                               int axis, 
                               const MBRange& entities, 
                               MBRange& left_list, 
-                              MBRange& right_list
-#if MB_OOB_SPLIT_BY_NON_INTERSECTING
-                              , unsigned &num_intersecting
-#endif
-                              )
+                              MBRange& right_list )
 {
   MBErrorCode rval;
   left_list.clear();
   right_list.clear();
 
-#if MB_OOB_SPLIT_BY_NON_INTERSECTING
-  num_intersecting = 0;
-#endif
-  
   std::vector<MBCartVect> coords;
   for (MBRange::reverse_iterator i = entities.rbegin(); i != entities.rend(); ++i) {
     const MBEntityHandle *conn;
@@ -213,20 +199,6 @@ static MBErrorCode split_box( MBInterface* instance,
       left_list.insert( *i );
     else
       right_list.insert( *i );
-      
-#if MB_OOB_SPLIT_BY_NON_INTERSECTING
-    bool all_left = true;
-    bool all_right = true;
-    for (int j = 0; j < conn_len; ++j) {
-      double n = box.axis[axis] % (coords[j] - box.center);
-      if (n > 0.0)
-        all_left = false;
-      if (n < 0.0)
-        all_right = false;
-    }
-    if (all_left == all_right)
-      ++num_intersecting;
-#endif
   }
   
   return MB_SUCCESS;
@@ -267,23 +239,11 @@ MBErrorCode MBOrientedBoxTreeTool::build_tree( const MBRange& entities,
     for (int axis = 2; best_ratio > settings.best_split_ratio && axis >= 0; --axis) {
       MBRange left_list, right_list;
 
-#if MB_OOB_SPLIT_BY_NON_INTERSECTING
-      unsigned num_intersecting;
-      rval = split_box( instance, box, axis, entities, left_list, right_list, num_intersecting );
-      if (MB_SUCCESS != rval) 
-        { delete_tree( set ); return rval; }
-        
-      double ratio = fabs((double)right_list.size() - left_list.size()) / entities.size();
-      double intersect_ratio = settings.intersect_ratio_factor * num_intersecting / entities.size();
-      if (intersect_ratio > ratio)
-        ratio = intersect_ratio;
-#else
       rval = split_box( instance, box, axis, entities, left_list, right_list );
       if (MB_SUCCESS != rval) 
         { delete_tree( set ); return rval; }
         
       double ratio = fabs((double)right_list.size() - left_list.size()) / entities.size();
-#endif
       
       if (ratio < best_ratio) {
         best_ratio = ratio;

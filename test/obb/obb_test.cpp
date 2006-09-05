@@ -57,9 +57,6 @@ static void usage( const char* error, const char* opt )
         << "    (Default: surface tree if file contains multiple surfaces" << std::endl
         << " -u  use unorderd (MBRange) meshsets for tree nodes" << std::endl
         << " -U  use ordered (vector) meshsets for tree nodes" << std::endl
-#if MB_OOB_SPLIT_BY_NON_INTERSECTING
-        << " -I <real> specify weight for intersection ratio" << std::endl
-#endif
         << " Verbosity (-q sets to 0, each -v increments, default is 1):" << std::endl
         << "  0 - no output" << std::endl
         << "  1 - status messages and error summary" << std::endl
@@ -152,11 +149,6 @@ int main( int argc, char* argv[] )
         case 'R':
           settings.best_split_ratio = get_double_option( i, argc, argv );
           break;
-#if MB_OOB_SPLIT_BY_NON_INTERSECTING
-        case 'I':
-          settings.intersect_ratio_factor = get_double_option( i, argc, argv );
-          break;
-#endif
         case 't':
           tolerance = get_double_option( i, argc, argv );
           break;
@@ -180,9 +172,6 @@ int main( int argc, char* argv[] )
                 << "max_depth:              " << settings.max_depth              << std::endl
                 << "worst_split_ratio:      " << settings.worst_split_ratio      << std::endl
                 << "best_split_ratio:       " << settings.best_split_ratio       << std::endl
-#if MB_OOB_SPLIT_BY_NON_INTERSECTING
-                << "intersect ratio factor: " << settings.intersect_ratio_factor << std::endl
-#endif
                 << "tolerance:              " << tolerance                       << std::endl
                 << "set type:               " << ((settings.set_options&MESHSET_ORDERED) ? "ordered" : "set") << std::endl
                 << std::endl;

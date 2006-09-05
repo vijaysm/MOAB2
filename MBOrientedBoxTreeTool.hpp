@@ -87,9 +87,6 @@ class MBOrientedBoxTreeTool
         double best_split_ratio;
         //! Flags used to create entity sets representing tree nodes
         unsigned int set_options;
-#if MB_OOB_SPLIT_BY_NON_INTERSECTING
-        double intersect_ratio_factor;
-#endif
         //! Check if settings are valid.
         bool valid() const;
     };
