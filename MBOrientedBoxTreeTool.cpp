@@ -94,9 +94,9 @@ MBErrorCode MBOrientedBoxTreeTool::box( MBEntityHandle set,
   MBOrientedBox obb;
   MBErrorCode rval = this->box( set, obb );
   obb.center.get( center );
-  obb.axis[0].get( axis1 );
-  obb.axis[1].get( axis2 );
-  obb.axis[2].get( axis3 );
+  obb.scaled_axis(0).get( axis1 );
+  obb.scaled_axis(1).get( axis2 );
+  obb.scaled_axis(2).get( axis3 );
   return rval;
 }
 
