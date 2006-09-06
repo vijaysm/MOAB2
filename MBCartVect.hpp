@@ -118,7 +118,7 @@ inline void MBCartVect::flip()
 
 //! Interior angle between two vectors
 inline double angle( const MBCartVect& u, const MBCartVect& v )
-  { return std::cos( (u % v) / (u.length() * v.length()) ); }
+  { return std::acos( (u % v) / (u.length() * v.length()) ); }
 
 inline MBCartVect operator-( const MBCartVect& v )
   { return MBCartVect( -v[0], -v[1], -v[2] ); }
