@@ -515,7 +515,7 @@ AC_SUBST([DEFINES])
 AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
 
 AC_CONFIG_FILES([Makefile 
-                 config.make 
+                 moab.make 
                  testdir.h
                  mhdf/Makefile
                  test/Makefile
@@ -538,21 +538,6 @@ AC_CONFIG_FILES([Makefile
                  doc/Makefile
                  doxygen/Makefile
                  ])
-
-################################################################################
-#                           Define some standard make variables
-################################################################################
-# goofy tests to make sure prefix and exec_prefix get their default values
-#
-test "x$prefix" = "xNONE" && prefix="$ac_default_prefix"
-test "x$exec_prefix" = "xNONE" && exec_prefix="$prefix"
-eval "MOAB_PREFIX=\"$prefix\""
-eval "MOAB_INCLUDEDIR=\"$includedir\""
-eval "MOAB_LIBDIR=\"$libdir\""
-
-AC_SUBST(MOAB_LIBDIR)
-AC_SUBST(MOAB_INCLUDEDIR)
-AC_SUBST(MOAB_PREFIX)
 
 AC_OUTPUT
 

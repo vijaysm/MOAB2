@@ -65,6 +65,22 @@ if HDF5_FILE
 endif
 
 
+# Automake doesn't seem to have a directory defined for
+# platform-dependent data (or include) files. So put 
+# in $(libdir).  Define a $(cfgdir) to get around automake's
+# check that only libraries are going in $(libdir)
+cfgdir = $(libdir)
+cfg_DATA = moab.make
+
+# By default, moab.make will define these to $(srcdir).  We
+# want to override that during the INSTALL of the file so
+# that the correct values are set (e.g. if someone does 
+# 'make prefix=/foo install', we don't know the correct install
+# directory until we're doing the install.
+install-data-hook:
+	echo "MOAB_LIBDIR=${libdir}" >> $(cfgdir)/moab.make
+	echo "MOAB_INCLUDEDIR=${includedir}" >> $(cfgdir)/moab.make
+
 
 # The list of source files, and any header files that do not need to be installed
 libMOAB_la_SOURCES = \
@@ -186,7 +202,6 @@ libMOAB_la_include_HEADERS = \
   MeshTopoUtil.hpp \
   ReadWriteDefines.h \
   WriteTemplate.hpp \
-  config.make \
   $(MOAB_EXTRA_HDRS)
 
 
@@ -266,3 +281,4 @@ test/cell1.gen: $(top_srcdir)/test/cell1.gen.gz
 
 test/cell2.gen: $(top_srcdir)/test/cell2.gen.gz
 	$(ZCAT) $(top_srcdir)/test/cell2.gen.gz > test/cell2.gen
+
