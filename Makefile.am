@@ -78,8 +78,8 @@ cfg_DATA = moab.make
 # 'make prefix=/foo install', we don't know the correct install
 # directory until we're doing the install.
 install-data-hook:
-	echo "MOAB_LIBDIR=${libdir}" >> $(cfgdir)/moab.make
-	echo "MOAB_INCLUDEDIR=${includedir}" >> $(cfgdir)/moab.make
+	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/moab.make
+	echo "MOAB_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/moab.make
 
 
 # The list of source files, and any header files that do not need to be installed
