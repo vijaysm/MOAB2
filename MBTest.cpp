@@ -3203,6 +3203,7 @@ MBErrorCode find_coincident_elements(MBRange entities, int num_nodes,
 
 MBErrorCode mb_merge_test(MBInterface *MB)
 { 
+  MB->delete_mesh();
   time_t begin_time = clock();
   unsigned int i;
   MBErrorCode result;
@@ -5037,8 +5038,16 @@ int main(int argc, char* argv[])
   number_tests++;
   cout << "\n";
 
+  // Testing NCDF stuff
+  result = mb_merge_test(gMB);
+  cout << "   mb_merge_test: ";
+  handle_error_code(result, number_tests_failed,
+		    number_tests_not_implemented,
+		    number_tests_successful);
+  number_tests++;
+  cout << "\n";
+
   // MB Stress test.  Read in a large file time and manipulate it then write it out
-  stress_test = true;
   if (stress_test)
   {
     result = mb_stress_test(gMB);
@@ -5049,15 +5058,6 @@ int main(int argc, char* argv[])
     number_tests++;
     cout << "\n";
   }
-
-  // Testing NCDF stuff
-  result = mb_merge_test(gMB);
-  cout << "   mb_merge_test: ";
-  handle_error_code(result, number_tests_failed,
-		    number_tests_not_implemented,
-		    number_tests_successful);
-  number_tests++;
-  cout << "\n";
 
   // summary
 
