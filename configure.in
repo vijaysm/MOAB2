@@ -128,6 +128,7 @@ MB_OPTIONAL_TOOL([mbtagprop],                 [no] )
 MB_OPTIONAL_TOOL([spheredecomp],              [no] )
 MB_OPTIONAL_TOOL([mbsurfplot],                [no] )
 MB_OPTIONAL_TOOL([mbzoltan],                  [no] )
+MB_OPTIONAL_TOOL([cgm2moab],                  [no] )
 
 ################################################################################
 #                           Zoltan
@@ -508,6 +509,41 @@ dnl  - Optional library path linker argument (e.g. -L/opt/foo)
 fi
 
 ################################################################################
+#                           CGM
+################################################################################
+if test $ENABLE_cgm2moab = yes; then
+  AC_ARG_WITH(cgm, 
+  [AC_HELP_STRING([--with-cgm=DIR], [Specify directory containing CGM])],
+  [CGM_DIR=$withval
+   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-cgm=\"${withval}\""
+   ], [CGM_DIR=])
+  case "x$CGM_DIR" in
+    xno|x)
+      CGM_MISSING=yes
+      ;;
+    xyes)
+      AC_MSG_ERROR([--with-cgm requires and argument])
+      ;;
+    *)
+      if ! test -d "$CGM_DIR"; then
+        AC_MSG_WARN([$CGM_DIR : not a directory.])
+      fi
+      CGM_MISSING=no
+      AC_CHECK_FILE([${CGM_DIR}/lib/cgm.make],
+                    [CGM_CONFIG_OPTIONS="include ${CGM_DIR}/lib/cgm.make"],
+                    [AC_CHECK_FILE([${CGM_DIR}/cgm.make],
+                                   [CGM_CONFIG_OPTIONS="include ${CGM_DIR}/cgm.make"],
+                                   [AC_MSG_WARN([$CGM_DIR : not a configured CGM]); 
+                                    CGM_MISSING=yes])
+                    ])
+      ;;
+  esac
+  AC_SUBST(CGM_DIR)
+  AC_SUBST(CGM_CONFIG_OPTIONS)
+fi
+
+
+################################################################################
 #                           Output Files
 ################################################################################
 AC_SUBST([INCLUDES])
@@ -535,6 +571,7 @@ AC_CONFIG_FILES([Makefile
                  tools/tagprop/Makefile
                  tools/spheredecomp/Makefile
                  tools/surfplot/Makefile
+                 tools/cgm2moab/Makefile
                  doc/Makefile
                  doxygen/Makefile
                  ])
@@ -557,4 +594,7 @@ else
   if test "x$VTK_MISSING" = "xyes"; then
     AC_MSG_WARN([Count not find VTK.  Build will FAIL!!! Try \"--with-VTK=DIR\"])
   fi
+fi
+if test "x$CGM_MISSING" = "xyes"; then
+  AC_MSG_WARN([cgm2moab build will fail!  CGM not fould!])
 fi

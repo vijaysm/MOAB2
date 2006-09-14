@@ -61,6 +61,12 @@ else
   mbsurfplot_DIR=
 endif
 
+if ENABLE_cgm2moab
+  cgm2moab_DIR = cgm2moab
+else
+  cgm2moab_DIR = 
+endif 
+
 SUBDIRS = $(converter_DIR) \
           $(hexmodops_DIR) \
           $(mbchaco_DIR) \
@@ -71,7 +77,8 @@ SUBDIRS = $(converter_DIR) \
           $(skin_DIR) \
           $(tagprop_DIR) \
           $(spheredecomp_DIR) \
-          $(mbsurfplot_DIR)
+          $(mbsurfplot_DIR) \
+          $(cgm2moab_DIR)
 
 EXTRA_DIST = mbzoltan/Config.moab.in \
 	     mbzoltan/Makefile \
