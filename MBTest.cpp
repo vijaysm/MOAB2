@@ -52,80 +52,8 @@
 
  using namespace std;
 
- MBInterface* gMB = 0;
- 
  #include "testdir.h"
  string TestDir( TEST_DIR );
-
- /*!
- prints out a result string based on the value of error_code
- */
- void handle_error_code(MBErrorCode error_code,
-                        int &number_failed,
-                        int &number_not_implemented,
-                        int &number_successful)
- {
-   if (error_code == MB_SUCCESS)
-   {
-     cout << "Success";
-     number_successful++;
-   }
-   else if (error_code == MB_NOT_IMPLEMENTED)
-   {
-     cout << "Not Implemented";    
-     number_not_implemented++;
-   }
-   else if (error_code == MB_INDEX_OUT_OF_RANGE)
-   {
-     cout << "Failure:  Index Out of Range ";  
-     number_failed++;
-   }
-   else if (error_code == MB_MEMORY_ALLOCATION_FAILED)
-   {
-     cout << "Failure:  Memory Allocation Failed ";   
-     number_failed++;
-   }
-   else
-   {
-     cout << "Failure " << endl;;
-     std::string error_reason;
-     gMB->get_last_error(error_reason);
-     cout << error_reason.c_str();
-     number_failed++;
-   }
- }
-
-
- /*!
- @test 
- Load MB
- @li Load an Exodus II file
- */
- MBErrorCode mb_load_mesh_test(MBInterface *mb)
- {
-   std::string file_name1 = TestDir + "/mbtest1.g";
-   std::string file_name2 = TestDir + "/mbtest2.g";
-   std::string file_name3 = TestDir + "/mbtest3.g";
-
-
-   //test loading just two blocks
-   std::vector<int> active_blocks;
-   active_blocks.push_back(1);
-   active_blocks.push_back(3);
-   MBErrorCode result = mb->load_mesh(file_name1.c_str(), &active_blocks[0], active_blocks.size());
-   if (result != MB_SUCCESS)
-     return result;
-
-   //load the entire mesh
-   if( mb->load_mesh(file_name1.c_str(), NULL, 0) != MB_SUCCESS )
-     return MB_FAILURE;
-   if (mb->load_mesh(file_name2.c_str(), NULL, 0) != MB_SUCCESS )
-     return MB_FAILURE;
-   if (mb->load_mesh(file_name3.c_str(), NULL, 0) != MB_SUCCESS )
-     return MB_FAILURE;
-
-   return result;
- }
 
 
  /*!
@@ -202,7 +130,7 @@
        node_count++;
    }
    // Number of vertices (node_count) should be 83 assuming no gaps in the handle space
-    if ( node_count != 165 )
+    if ( node_count != 47 )
      return MB_FAILURE;
 
    // Try getting coordinates for a hex (should fail)
@@ -483,10 +411,10 @@
     // from ncdump the connectivity of bar 2 (0 based) is
     //  14, 13 
 
-    if ( conn[0] != 20)
+    if ( conn[0] != 14)
       return MB_FAILURE;
 
-    if ( conn[1] != 11)  
+    if ( conn[1] != 13)  
       return MB_FAILURE;
 
     // Now try getting the connectivity of one of the vertices for fun.
@@ -1401,7 +1329,7 @@
   // in mbtest1.g  (all other values are 0.
   static const unsigned int num_entities[MBMAXTYPE] = {47,12,18,8,22,8};
 
-  MBErrorCode mb_delete_mesh_test(MBInterface *mb)
+  MBErrorCode mb_delete_mesh_test(MBInterface *gMB)
   {
     MBErrorCode error = MB_SUCCESS;
 
@@ -1418,7 +1346,7 @@
 
 
     MBRange entities;
-    error = mb->get_entities_by_type(0,  MBVERTEX, entities);
+    error = gMB->get_entities_by_type(0,  MBVERTEX, entities);
     if (error != MB_SUCCESS)
       return error;
 
@@ -1432,11 +1360,11 @@
     for (type = MBEDGE; type != MBENTITYSET; type++)
     {
       // There should be entities
-      error = mb->tag_get_handle("connectivity", tag_handle);
+      error = gMB->tag_get_handle("connectivity", tag_handle);
       if (error == MB_SUCCESS)
       {
         entities.clear();
-        error = mb->get_entities_by_type_and_tag(0,  type, &tag_handle, NULL, 1, entities);
+        error = gMB->get_entities_by_type_and_tag(0,  type, &tag_handle, NULL, 1, entities);
         if (error != MB_SUCCESS)
           return error;
 
@@ -1674,13 +1602,13 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
     //lets create a block meshset and put some entities and meshsets into it
   MBEntityHandle block_ms;
-  result = gMB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, block_ms );
+  result = MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, block_ms );
   if(result != MB_SUCCESS )
       return result;
 
     //make another meshset to put quads in, so SHELLs can be written out
   MBEntityHandle block_of_shells;
-  result = gMB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, block_of_shells); 
+  result = MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, block_of_shells); 
   if(result != MB_SUCCESS )
       return result;
 
@@ -1731,7 +1659,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
     //make another meshset
   MBEntityHandle ms_of_block_ms;
-  result = gMB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, ms_of_block_ms);
+  result = MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, ms_of_block_ms);
   if(result != MB_SUCCESS )
       return result;
 
@@ -1757,7 +1685,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
     //lets create a sideset meshset and put some entities and meshsets into it
   MBEntityHandle sideset_ms;
-  result = gMB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, sideset_ms );
+  result = MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, sideset_ms );
   if(result != MB_SUCCESS )
       return result;
 
@@ -1793,7 +1721,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
     //make another meshset
   MBEntityHandle ms_of_sideset_ms;
-  result = gMB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, ms_of_sideset_ms);
+  result = MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, ms_of_sideset_ms);
   if(result != MB_SUCCESS )
       return result;
 
@@ -1818,7 +1746,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
     //get all quads whose x-coord = 2.5 and put them into a meshset_a 
   MBEntityHandle meshset_a;
-  result = gMB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, meshset_a );
+  result = MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, meshset_a );
   if(result != MB_SUCCESS )
       return result;
 
@@ -1854,7 +1782,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
     //put these quads into a different meshset_b and tag them with a reverse sense tag
   MBEntityHandle meshset_b;
-  result = gMB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, meshset_b );
+  result = MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, meshset_b );
   if(result != MB_SUCCESS ) 
     return result;
 
@@ -1919,7 +1847,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
   }
 
   MBEntityHandle meshset_c;
-  gMB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, meshset_c );
+  MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, meshset_c );
     
   
   result = MB->tag_get_handle( "SENSE", tag_handle ); 
@@ -1937,7 +1865,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
     //create another meshset_abc, adding meshset_a, meshset_b, meshset_c 
   MBEntityHandle meshset_abc;
-  gMB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, meshset_abc );
+  MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, meshset_abc );
 
   temp_vec.clear();
   temp_vec.push_back( meshset_a );
@@ -1964,7 +1892,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
     //lets create a nodeset meshset and put some entities and meshsets into it
   MBEntityHandle nodeset_ms;
-  gMB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, nodeset_ms );
+  MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, nodeset_ms );
 
     //tag the meshset so it's a nodeset, with id 119
   id = 119;
@@ -2016,7 +1944,7 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
 
     //make another meshset
   MBEntityHandle ms_of_nodeset_ms;
-  gMB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, ms_of_nodeset_ms);
+  MB->create_meshset(MESHSET_ORDERED | MESHSET_TRACK_OWNER, ms_of_nodeset_ms);
 
     //add some entities to it
   temp_vec.clear();
@@ -2405,7 +2333,8 @@ MBErrorCode mb_tags_test(MBInterface *MB)
 class OffsetHexCenterNodes : public MBInterface::HONodeAddedRemoved
 {
   public:
-    OffsetHexCenterNodes(double x, double y, double z)
+    OffsetHexCenterNodes(MBInterface* mb, double x, double y, double z)
+      : gMB(mb)
     { 
       mOffset[0] = x; mOffset[1] = y; mOffset[2] = z; 
     }
@@ -2425,6 +2354,7 @@ class OffsetHexCenterNodes : public MBInterface::HONodeAddedRemoved
     void node_removed( MBEntityHandle /*node*/) {}
 
   private:
+    MBInterface* gMB;
     double mCoords[3];
     double mOffset[3];
 };
@@ -2449,7 +2379,7 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
   MB->add_entities(meshset, entities);
 
 
-  OffsetHexCenterNodes function_object(0.07, 0.15, 0);
+  OffsetHexCenterNodes function_object(MB,0.07, 0.15, 0);
 
   MB->convert_entities(meshset, false, false, true, &function_object);
 
@@ -3035,7 +2965,7 @@ bool points_are_coincident(const double *first, const double *second)
 
   return false;
 }
-MBErrorCode find_coincident_nodes(MBRange vertices,
+MBErrorCode find_coincident_nodes(MBInterface* gMB, MBRange vertices,
   std::vector< std::pair<MBEntityHandle,MBEntityHandle> > &coin_nodes)
 {
   double first_coords[3], second_coords[3];
@@ -3069,7 +2999,7 @@ MBErrorCode find_coincident_nodes(MBRange vertices,
   return MB_SUCCESS;
 }
 
-MBErrorCode find_coincident_elements(MBRange entities, int num_nodes,
+MBErrorCode find_coincident_elements(MBInterface* gMB, MBRange entities, int num_nodes,
   std::vector< std::pair<MBEntityHandle,MBEntityHandle> > &coin)
 {
   double coords1[8][3], coords2[8][3];
@@ -3278,7 +3208,7 @@ MBErrorCode mb_merge_test(MBInterface *MB)
   //  cout <<"Begining sort...\n";
   //  std::sort(nodes.begin(),nodes.end(),lessnodesZ);
   //  cout <<"Ending sort...\n";
-  result = find_coincident_nodes(nodes, coin_nodes);
+  result = find_coincident_nodes(MB,nodes, coin_nodes);
   cout <<"coin_nodes.size() = "<<coin_nodes.size() <<"\n";
   std::vector< std::pair<MBEntityHandle, MBEntityHandle> >::iterator n_iter;
   for (n_iter=coin_nodes.begin(); n_iter != coin_nodes.end(); n_iter++)
@@ -4199,7 +4129,7 @@ MBErrorCode mb_split_test(MBInterface *gMB)
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_range_seq_intersect_test() 
+MBErrorCode mb_range_seq_intersect_test( MBInterface* ) 
 {
   MBErrorCode rval;
   EntitySequenceManager sequences;
@@ -4748,6 +4678,64 @@ MBErrorCode mb_range_seq_intersect_test()
   return MB_SUCCESS;
 }
 
+int number_tests = 0;
+int number_tests_failed = 0;
+#define RUN_TEST( A ) _run_test( (A), #A )
+
+typedef MBErrorCode (*TestFunc)(MBInterface*);
+static void _run_test( TestFunc func, const char* func_str ) 
+{
+  MBErrorCode error;
+  MBCore moab;
+  MBInterface* iface = &moab;
+  
+  std::string file_name = TestDir + "/mbtest1.g";
+  error = iface->load_mesh( file_name.c_str() );
+  if (MB_SUCCESS != error) {
+    std::cout << "Failed to load input file: " << file_name << std::endl;
+    std::string error_reason;
+    iface->get_last_error(error_reason);
+    cout << error_reason << std::endl;
+    abort(); // going to try this for every test, so if it doesn't work, just abort
+  }
+    
+  ++number_tests;
+  cout << "   " << func_str << ": ";
+  error = func( iface );
+  
+  if (MB_SUCCESS == error)
+    std::cout << "Success" << std::endl;
+  else if (MB_FAILURE == error)
+    std::cout << "Failure" << std::endl;
+  else {
+    std::cout << "Failed: ";
+    switch (error) {
+      case MB_INDEX_OUT_OF_RANGE:       std::cout << "Index out of range";   break;
+      case MB_TYPE_OUT_OF_RANGE:        std::cout << "Type out of range";    break;
+      case MB_MEMORY_ALLOCATION_FAILED: std::cout << "Mem. Alloc. Failed";   break;
+      case MB_ENTITY_NOT_FOUND:         std::cout << "Entity Not Found";     break;
+      case MB_MULTIPLE_ENTITIES_FOUND:  std::cout << "Multiple Ents. Found"; break;
+      case MB_TAG_NOT_FOUND:            std::cout << "Tag Not Found";        break;
+      case MB_FILE_DOES_NOT_EXIST:      std::cout << "File doesn't exist";   break;
+      case MB_FILE_WRITE_ERROR:         std::cout << "File Write Error";     break;
+      case MB_NOT_IMPLEMENTED:          std::cout << "Not implemented error";break;
+      case MB_ALREADY_ALLOCATED:        std::cout << "Already Allocated";    break;
+        // these instead of default so gcc warns of unhandled error code
+      case MB_FAILURE: case MB_SUCCESS: break;
+    }
+    std::cout << std::endl;
+  }
+  
+  if (MB_SUCCESS != error) {
+    ++number_tests_failed;
+    
+    std::string error_reason;
+    iface->get_last_error(error_reason);
+    cout << error_reason << std::endl;
+  }
+}
+
+
 static void usage(const char* exe) {
   cerr << "Usage: " << exe << " [-nostress] [-d input_file_dir]\n";
   exit (1);
@@ -4778,296 +4766,45 @@ int main(int argc, char* argv[])
     }
   }
 
-  MBErrorCode result;
-  int number_tests = 0;
-  int number_tests_successful = 0;
-  int number_tests_not_implemented = 0;
-  int number_tests_failed = 0;
-
-  gMB = new MBCore();
-  
-
   // Print out Header information
 
   cout << "\n\nMB TEST PROGRAM:\n\n";
 
-  // load_mesh test
-  cout << "   mb_load_mesh: ";
-  result = mb_load_mesh_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-  // nodal coordinates test
-
-  // element connectivity test
-
-  // MBSet tests
-
-  // sparse tag test (node, element, MBSet, MB, ?)
-
-  // dense tag test
-
- 
-//    // adjacencies test
-  cout << "   mb_adjacencies_test: ";
-  result = mb_adjacencies_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-  // MB vertex coordinate test
-
-  cout << "   mb_vertex_coordinate_test: ";
-  result = mb_vertex_coordinate_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-  // MB vertex tag test
-  cout << "   mb_vertex_tag_test: ";
-  result = mb_vertex_tag_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-  // MB bar connectivity
-  cout << "   mb_bar_connectivity_test: ";
-  result = mb_bar_connectivity_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-  // MB tri connectivity
-  cout << "   mb_tri_connectivity_test: ";
-  result = mb_tri_connectivity_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-  // MB quad connectivity
-  cout << "   mb_quad_connectivity_test: ";
-  result = mb_quad_connectivity_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-  // MB tet connectivity
-  cout << "   mb_tet_connectivity_test: ";
-  result = mb_tet_connectivity_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-  // MB mb_temporary
-  cout << "   mb_temporary_test: ";
-  result = mb_temporary_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-  // MB hex connectivity
-  cout << "   mb_hex_connectivity_test: ";
-  result = mb_hex_connectivity_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-  // MB meshsets 
-  cout << "   mb_mesh_sets_set_test: ";
-  result = mb_mesh_sets_set_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-  cout << "   mb_mesh_sets_list_test: ";
-  result = mb_mesh_sets_list_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-  // MB tags test
-  cout << "   mb_tags_test: ";
-  result = mb_tags_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-  
-  // MB write file
-  cout << "   mb_write_mesh_test: ";
-  result = mb_write_mesh_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-  // MB delete_mesh (reset)
-  cout << "   mb_delete_mesh_test: ";
-  result = mb_delete_mesh_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-  // MB meshset_tracking test 
-  cout << "   mb_meshset_tracking_test: ";
-  result = mb_meshset_tracking_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-
-  // MB higher_order_test 
-  cout << "   mb_higher_order_test: ";
-  result = mb_higher_order_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-  // MB bit_tags_test 
-  cout << "   mb_bit_tags_test: ";
-  result = mb_bit_tags_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-  // MB entity_conversion_test 
-  cout << "   mb_entity_conversion_test: ";
-  result = mb_entity_conversion_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
- 
-  // forced adjacencies test where the application tracks the
-  // adjacencies and not MB.
-  cout << "   mb_forced_adjacencies_test: ";
-  result = mb_forced_adjacencies_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
- 
-  // MB test
-  cout << "   mb_canon_number_test: ";
-  result = mb_canon_number_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
- 
-  // poly test
-  cout << "   mb_poly_test: ";
-  result = mb_poly_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
- 
-  // MBRange test
-  cout << "   mb_range_test: ";
-  result = mb_range_test(gMB);
-  handle_error_code(result, number_tests_failed,
-                    number_tests_not_implemented,
-                    number_tests_successful);
-  number_tests++;
-  cout << "\n";
- 
-    // Mesh Topo Utils test
-  result = mb_topo_util_test(gMB);
-  cout << "   mb_topo_util_test: ";
-  handle_error_code(result, number_tests_failed,
-		    number_tests_not_implemented,
-		    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-    // split test
-  result = mb_split_test(gMB);
-  cout << "   mb_split_test: ";
-  handle_error_code(result, number_tests_failed,
-		    number_tests_not_implemented,
-		    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-    // test MBRangeSeqIntersectIter
-  result = mb_range_seq_intersect_test();
-  cout << "   mb_range_seq_intersect_test: ";
-  handle_error_code(result, number_tests_failed,
-		    number_tests_not_implemented,
-		    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-  // Testing NCDF stuff
-  result = mb_merge_test(gMB);
-  cout << "   mb_merge_test: ";
-  handle_error_code(result, number_tests_failed,
-		    number_tests_not_implemented,
-		    number_tests_successful);
-  number_tests++;
-  cout << "\n";
-
-  // MB Stress test.  Read in a large file time and manipulate it then write it out
-  if (stress_test)
-  {
-    result = mb_stress_test(gMB);
-    cout << "   mb_stress_test: ";
-    handle_error_code(result, number_tests_failed,
-                      number_tests_not_implemented,
-                      number_tests_successful);
-    number_tests++;
-    cout << "\n";
-  }
+  RUN_TEST( mb_adjacencies_test );
+  RUN_TEST( mb_vertex_coordinate_test );
+  RUN_TEST( mb_vertex_tag_test );
+  RUN_TEST( mb_bar_connectivity_test );
+  RUN_TEST( mb_tri_connectivity_test );
+  RUN_TEST( mb_quad_connectivity_test );
+  RUN_TEST( mb_tet_connectivity_test );
+  RUN_TEST( mb_temporary_test );
+  RUN_TEST( mb_hex_connectivity_test );
+  RUN_TEST( mb_mesh_sets_set_test );
+  RUN_TEST( mb_mesh_sets_list_test );
+  RUN_TEST( mb_tags_test );
+  RUN_TEST( mb_write_mesh_test );
+  RUN_TEST( mb_delete_mesh_test );
+  RUN_TEST( mb_meshset_tracking_test );
+  RUN_TEST( mb_higher_order_test );
+  RUN_TEST( mb_bit_tags_test );
+  RUN_TEST( mb_entity_conversion_test );
+  RUN_TEST( mb_forced_adjacencies_test );
+  RUN_TEST( mb_canon_number_test );
+  RUN_TEST( mb_poly_test );
+  RUN_TEST( mb_range_test );
+  RUN_TEST( mb_topo_util_test );
+  RUN_TEST( mb_split_test );
+  RUN_TEST( mb_range_seq_intersect_test );
+  RUN_TEST( mb_merge_test );
+  if (stress_test) RUN_TEST( mb_stress_test );
 
   // summary
 
   cout << "\nMB TEST SUMMARY: \n"
        << "   Number Tests:           " << number_tests << "\n"
-       << "   Number Successful:      " << number_tests_successful << "\n"
-       << "   Number Not Implemented: " << number_tests_not_implemented << "\n"
+       << "   Number Successful:      " << number_tests - number_tests_failed << "\n"
        << "   Number Failed:          " << number_tests_failed 
        << "\n\n";
 
-  delete gMB;
   return number_tests_failed;
 }
