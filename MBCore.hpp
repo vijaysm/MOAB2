@@ -511,6 +511,9 @@ public:
      * \param data    The tag data type.
      * \param handle  The tag handle (output)
      * \param def_val Optional default value for tag.
+     * \param use_existing  If true, and a tag with the same name and
+     *                same description exists, successfully return the
+     *                handle of the tag.
      * \return - MB_ALREADY_ALLOCATED if a tag with name already exists.
      *         - MB_FAILURE if inconsistant arguments
      *         - MB_SUCCESS otherwise.
@@ -520,7 +523,8 @@ public:
                                   const  MBTagType storage,
                                   const MBDataType data,
                                             MBTag& handle,
-                                  const      void* def_val);
+                                  const      void* def_val,
+                                              bool use_existing);
 
   //! Gets the tag name string of the tag_handle.
   /** \param tag_handle MBTag you want the name of.  

@@ -1235,7 +1235,7 @@ MBErrorCode MBCore::tag_create(const char *tag_name,
                                  const void *default_value)
 {
   MBDataType data_type = (tag_type == MB_TAG_BIT) ? MB_TYPE_BIT : MB_TYPE_OPAQUE;
-  return tag_create( tag_name, tag_size, tag_type, data_type, tag_handle, default_value );
+  return tag_create( tag_name, tag_size, tag_type, data_type, tag_handle, default_value, false );
 }
 
 MBErrorCode MBCore::tag_create( const char* name,
@@ -1243,9 +1243,37 @@ MBErrorCode MBCore::tag_create( const char* name,
                                 const MBTagType storage,
                                 const MBDataType data,
                                 MBTag& handle,
-                                const void* def_val )
+                                const void* def_val,
+                                bool use_existing )
 {
-  return tagServer->add_tag( name, size, storage, data, handle, def_val );
+  MBErrorCode rval = tagServer->add_tag( name, size, storage, data, handle, def_val );
+
+    // If it is okay to use an existing tag of the same name, check that it 
+    // matches the input values.  NOTE: we don't check the storage type for 
+    // the tag because the choice of dense vs. sparse is a matter of optimi-
+    // zation, not correctness.  Bit tags require a redundant MB_TYPE_BIT 
+    // for the data type, so we catch those when we check the data type.
+  if (rval == MB_ALREADY_ALLOCATED && use_existing) {
+    handle = tagServer->get_handle( name );
+    const TagInfo* info = tagServer->get_tag_info( handle );
+    if (info->get_size() == size &&  info->get_data_type() == data)  {
+        // If we were not passed a default value, the caller is presumably
+        // OK with an arbitrary default value, so its OK if there is one
+        // set for the tag.
+      if (!def_val)
+        rval = MB_SUCCESS;
+        // If caller specified a default value, there MUST be an existing one
+        // that matches.  We could just set a default value for the tag, but
+        // given the dense tag representation, it isn't feasible to change
+        // the default value once the tag has been created.  For now, don't 
+        // bother because there isn't any mechanism to set it for sparse tags 
+        // anyway.
+      else if (info->default_value() && !memcmp(info->default_value(), def_val, size))
+        rval = MB_SUCCESS;
+    }
+  }
+
+  return rval;
 }
 
 //! removes the tag from the entity
