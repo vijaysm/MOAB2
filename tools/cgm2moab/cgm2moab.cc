@@ -11,6 +11,7 @@
 #include "RefEdge.hpp"
 #include "RefVertex.hpp"
 
+#include "SenseEntity.hpp"
 #include "Surface.hpp"
 #include "Curve.hpp"
 
@@ -23,6 +24,15 @@
 
 #include "cubfile.h"
 #include "geom_file_type.h"
+
+// Tag name used for saving sense of faces in volumes.
+// We assume that the surface occurs in at most two volumes.
+// Code will error out if more than two volumes per surface.
+// The tag data is a pair of tag handles, representing the
+// forward and reverse volumes, respectively.  If a surface
+// is non-manifold in a single volume, the same volume will
+// be listed for both the forward and reverse slots.
+const char GEOM_SENSE_TAG_NAME[] = "GEOM_SENSE_2";
 
 // default settings
 const char DEFAULT_NAME[] = "cgm2moab";
@@ -265,10 +275,12 @@ bool copy_geometry( MBInterface* iface )
   MBErrorCode rval;
 
     // get some tag handles
-  MBTag geom_tag, id_tag;
-  rval = iface->tag_get_handle( GEOM_DIMENSION_TAG_NAME, geom_tag );
+  MBTag geom_tag, id_tag, sense_tag;
+  rval = iface->tag_create( GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, geom_tag, 0, true );
   assert(!rval);
-  rval = iface->tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
+  rval = iface->tag_create( GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, id_tag, 0, true );
+  assert(!rval);
+  rval = iface->tag_create( GEOM_SENSE_TAG_NAME, 2*sizeof(MBEntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, sense_tag, 0, true );
   assert(!rval);
   
     // CGM data
@@ -276,6 +288,7 @@ bool copy_geometry( MBInterface* iface )
   std::map<RefEntity*,MBEntityHandle>::iterator ci;
   const char* const names[] = { "Vertex", "Curve", "Surface", "Volume" };
   DLIList<RefEntity*> entlist;
+  DLIList<ModelEntity*> me_list;
 
     // create entity sets for all geometric entities
   for (int dim = 0; dim < 4; ++dim) {
@@ -318,6 +331,47 @@ bool copy_geometry( MBInterface* iface )
       }
     }
   }
+  
+    // store CoFace senses
+  for (ci = entmap[2].begin(); ci != entmap[2].end(); ++ci) {
+    RefFace* surf = (RefFace*)(ci->first);
+    BasicTopologyEntity *forward = 0, *reverse = 0;
+    for (SenseEntity* cf = surf->get_first_sense_entity_ptr();
+         cf; cf = cf->next_on_bte()) {
+      BasicTopologyEntity* vol = cf->get_parent_basic_topology_entity_ptr();
+      if (cf->get_sense() != CUBIT_FORWARD) {
+        if (reverse) {
+          std::cout << "Surface " << surf->id() << " has reverse senes " <<
+                       "with multiple volume " << reverse->id() << " and " <<
+                       "volume " << vol->id() << std::endl;
+          return false;
+        }
+        reverse = vol;
+      }
+      if (cf->get_sense() != CUBIT_REVERSED) {
+        if (forward) {
+          std::cout << "Surface " << surf->id() << " has forward senes " <<
+                       "with multiple volume " << forward->id() << " and " <<
+                       "volume " << vol->id() << std::endl;
+          return false;
+        }
+        forward = vol;
+      }
+    }
+    
+    if (forward || reverse) {
+      MBEntityHandle tag_data[2] = {0,0};
+      if (forward)
+        tag_data[0] = entmap[3][forward];
+      if (reverse)
+        tag_data[1] = entmap[3][reverse];
+      MBEntityHandle h = ci->second;
+      rval = iface->tag_set_data( sense_tag, &h, 1, tag_data );
+      if (MB_SUCCESS != rval)
+        return false;
+    }
+  }
+      
   
     // done with volumes
   entmap[3].clear();
@@ -426,7 +480,6 @@ bool copy_geometry( MBInterface* iface )
   }
   
     // create geometry for all surfaces
-  DLIList<ModelEntity*> me_list;
   for (ci = entmap[2].begin(); ci != entmap[2].end(); ++ci) {
     RefFace* face = dynamic_cast<RefFace*>(ci->first);
     Surface* surf = face->get_surface_ptr();
