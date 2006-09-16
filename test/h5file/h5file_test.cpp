@@ -26,6 +26,9 @@
 // Pick an ugly name to check special-char escaping in HDF5 file
 #define tagname "foo/\\/\\"
 #define bitname "bar\n"
+#define intname "int tag"
+#define dblname " dbl "
+#define handlename "hanlde"
 
 const int FACE_SET_ID   = 1101;
 const int VERTEX_SET_ID = 1102;
@@ -312,6 +315,37 @@ void create()
   char one  = '\001';
   if (MB_SUCCESS != iface->tag_set_data( tag2, &dodec, 1, &one ))
     moab_error( "tag_set_data" );
+  
+  // Create an integer array tag and set some values on the dodecahedron
+  MBTag itag;
+  if (MB_SUCCESS != iface->tag_create( intname, 2*sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, itag, 0 ))
+    moab_error( "tag_create(MB_TYPE_INT)" );
+  int idata[] = { 0xDEADBEEF, 0xDEFACED };
+  if (MB_SUCCESS != iface->tag_set_data( itag, &dodec, 1, idata ))
+    moab_error( "tag_set_data(itag)" );
+  
+  // Create a double tag with a non-zero default value, and set on dodecahedron
+  MBTag dtag;
+  double ddef = 3.14159;
+  if (MB_SUCCESS != iface->tag_create( dblname, sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, dtag, &ddef ))
+    moab_error( "tag_create(dtag)" );
+  double dval = 0.333;
+  if (MB_SUCCESS != iface->tag_set_data( dtag, &dodec, 1, &dval ))
+    moab_error( "tag_set_data(dtag)" );
+  
+  // Create a tag containing entity handles, with default values
+  MBTag htag;
+  MBEntityHandle hdef[] = { hex, dodec, 0 };
+  if (MB_SUCCESS != iface->tag_create( handlename, 3*sizeof(MBEntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, htag, hdef ))
+    moab_error( "tag_create(htag)" );
+  // Set global (mesh) value for tag
+  MBEntityHandle hgbl[] = { 0, hex, dodec };
+  if (MB_SUCCESS != iface->tag_set_data( htag, 0, 0, hgbl ))
+    moab_error( "tag_set_data(hgbl)" );
+  // Store first three entiries of dodec connectivity on dodec
+  MBEntityHandle hval[] = { faces[0], faces[1], faces[2] };
+  if (MB_SUCCESS != iface->tag_set_data( htag, &dodec, 1, hval ))
+    moab_error( "tag_set_data(hgbl)" );
     
   // create some sets
   MBEntityHandle face_set, vertex_set, region_set, empty_set, set_set;
@@ -599,6 +633,169 @@ bool compare_sets( int id, const char* tag_name = 0 )
   return ok;
 }
 
+bool compare_tags( MBEntityHandle dod[] )
+{
+  MBTag tag;
+  int size;
+  MBDataType type;
+  MBTagType store;
+
+
+    // Get integer tag handle and characterstics
+  if (MB_SUCCESS != iface->tag_get_handle( intname, tag ))
+    moab_error( "tag_get_handle(intname)" );
+  if (MB_SUCCESS!= iface->tag_get_size( tag, size ))
+    moab_error( "tag_get_size()" );
+  if (MB_SUCCESS != iface->tag_get_data_type( tag, type ))
+    moab_error( "tag_get_data_type()" );
+  if (MB_SUCCESS != iface->tag_get_type( tag, store ))
+    moab_error( "tag_get_type()" );
+    
+    // check that integer tag has correct characteristics
+  if (type != MB_TYPE_INTEGER) {
+    fprintf(stderr, "Incorrect MBDataType for integer tag.\n" );
+    return false;
+  }
+  if (size != 2*sizeof(int)) {
+    fprintf(stderr, "Incorrect size for integer tag.\n" );
+    return false;
+  }
+  if (store != MB_TAG_SPARSE) {
+    fprintf(stderr, "Incorrect storage type for integer tag.\n" );
+    return false;
+  }
+  
+    // integer tag should not have a default value
+  int idata[4];
+  if (MB_ENTITY_NOT_FOUND != iface->tag_get_default_value( tag, idata )) {
+    fprintf( stderr, "tag_get_default_value() for nonexistant default integer tag value did not fail correctly.\n");
+    return false;
+  }
+  
+    // check data for integer tag on both dodecahedrons
+  if (MB_SUCCESS != iface->tag_get_data( tag, dod, 2, idata ))
+    moab_error( "tag_get_data(itag)" );
+  if (idata[0] != 0xDEADBEEF || idata[1] != 0xDEFACED ||
+      idata[2] != idata[0]   || idata[3] != idata[1]) {
+    fprintf( stderr, "Incorrect values for integer tag data.\n" );
+    return false;
+  }
+
+
+    // Get double tag handle and characterstics
+  if (MB_SUCCESS != iface->tag_get_handle( dblname, tag ))
+    moab_error( "tag_get_handle(dblname)" );
+  if (MB_SUCCESS!= iface->tag_get_size( tag, size ))
+    moab_error( "tag_get_size()" );
+  if (MB_SUCCESS != iface->tag_get_data_type( tag, type ))
+    moab_error( "tag_get_data_type()" );
+  if (MB_SUCCESS != iface->tag_get_type( tag, store ))
+    moab_error( "tag_get_type()" );
+    
+    // check that double tag has correct characteristics
+  if (type != MB_TYPE_DOUBLE) {
+    fprintf(stderr, "Incorrect MBDataType for double tag.\n" );
+    return false;
+  }
+  if (size != sizeof(double)) {
+    fprintf(stderr, "Incorrect size for double tag.\n" );
+    return false;
+  }
+  if (store != MB_TAG_DENSE) {
+    fprintf(stderr, "Incorrect storage type for double tag.\n" );
+    return false;
+  }
+  
+    // check default value of double tag
+  double ddata[2];
+  if (MB_SUCCESS != iface->tag_get_default_value( tag, ddata ))
+    moab_error( "tag_get_default_value" );
+  if (ddata[0] != 3.14159) {
+    fprintf( stderr, "incorrect default value for double tag.\n");
+    return false;
+  }
+  
+    // check data for double tag on both dodecahedrons
+  if (MB_SUCCESS != iface->tag_get_data( tag, dod, 2, ddata ))
+    moab_error( "tag_get_data()" );
+  if (ddata[0] != .333 || ddata[0] != ddata[1]) {
+    fprintf( stderr, "Incorrect values for double tag data.\n" );
+    return false;
+  }
+ 
+
+    // Get handle tag handle and characterstics
+  if (MB_SUCCESS != iface->tag_get_handle( handlename, tag ))
+    moab_error( "tag_get_handle(handlename)" );
+  if (MB_SUCCESS!= iface->tag_get_size( tag, size ))
+    moab_error( "tag_get_size()" );
+  if (MB_SUCCESS != iface->tag_get_data_type( tag, type ))
+    moab_error( "tag_get_data_type()" );
+  if (MB_SUCCESS != iface->tag_get_type( tag, store ))
+    moab_error( "tag_get_type()" );
+    
+    // check that handle tag has correct characteristics
+  if (type != MB_TYPE_HANDLE) {
+    fprintf(stderr, "Incorrect MBDataType for handle tag.\n" );
+    return false;
+  }
+  if (size != 3*sizeof(MBEntityHandle)) {
+    fprintf(stderr, "Incorrect size for handle tag.\n" );
+    return false;
+  }
+  if (store != MB_TAG_SPARSE) {
+    fprintf(stderr, "Incorrect storage type for handle tag.\n" );
+    return false;
+  }
+  
+    // check default value of handle tag
+    // default value will not change after tag is created.  As we
+    // do multiple iterations of save/restore, we shouldn't expect
+    // the dodecahedron handles to point to the most recent two.
+  MBEntityHandle hdata[6];
+  if (MB_SUCCESS != iface->tag_get_default_value( tag, hdata ))
+    moab_error( "tag_get_default_value" );
+  if (iface->type_from_handle(hdata[0]) != MBHEX ||
+      hdata[2] != 0 ||
+      iface->type_from_handle(hdata[1]) != MBPOLYHEDRON) {
+    fprintf( stderr, "incorrect default value for handle tag.\n");
+    return false;
+  }
+  
+    // check global value for handle tag
+    // global value should be changed each time a new global is read,
+    // so expect one of the two dodecahedrons in the last slot.
+  if (MB_SUCCESS != iface->tag_get_data( tag, 0, 0, hdata ))
+    moab_error( "tag_get_data(0)" );
+  if (iface->type_from_handle(hdata[1]) != MBHEX ||
+      hdata[0] != 0 ||
+      (hdata[2] != dod[0] && hdata[2] != dod[1])) {
+    fprintf( stderr, "incorrect global/mesh value for handle tag.\n");
+    return false;
+  }
+ 
+    // check data on each dodecahedron
+  const MBEntityHandle *conn;
+  int len;
+  if (MB_SUCCESS != iface->tag_get_data( tag, dod, 2, hdata ))
+    moab_error( "tag_get_data()" );
+  if (MB_SUCCESS != iface->get_connectivity( dod[0], conn, len ))
+    moab_error( "get_connectivity" );
+  if (memcmp(conn, hdata, 3*sizeof(MBEntityHandle))) {
+    fprintf( stderr, "Incorrect values for handle tag data.\n" );
+    return false;
+  }
+  if (MB_SUCCESS != iface->get_connectivity( dod[1], conn, len ))
+    moab_error( "get_connectivity" );
+  if (memcmp(conn, hdata+3, 3*sizeof(MBEntityHandle))) {
+    fprintf( stderr, "Incorrect values for handle tag data.\n" );
+    return false;
+  }
+  
+  return true;
+}
+ 
+  
 
 bool compare()
 {
@@ -683,6 +880,10 @@ bool compare()
       !compare_sets( REGION_SET_ID ) ||
       !compare_sets( EMPTY_SET_ID ) ||
       !compare_sets( SET_SET_ID, GLOBAL_ID_TAG_NAME ))
+    return false;
+    
+  // check tags
+  if (!compare_tags( dod ))
     return false;
   
   return true;
