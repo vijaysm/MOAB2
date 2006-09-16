@@ -147,6 +147,45 @@ do if (MB_SUCCESS != (A)) {                     \
   myassert(0);                                  \
 } while(false)
 
+/** When writing tags containing MBEntityHandles to file, need to convert tag
+ *  data from MBEntityHandles to file IDs.  This function does that. 
+ *
+ * If the handle is not valid or does not correspond to an entity that will
+ * be written to the file, the file ID is set to zero.
+ *\param iface MOAB instance
+ *\param tag   The TAG containing file IDs for entities
+ *\param data  The data buffer.  As input, an array of MBEntityHandles.  As
+ *             output an array of file IDS, where the size of each integral
+ *             file ID is the same as the size of MBEntityHandle.
+ *\param count The number of handles in the buffer.
+ *\return true if at least one of the handles is valid and will be written to
+ *             the file or at least one of the handles is NULL (zero). false
+ *             otherwise
+ */
+static bool convert_handle_tag( MBInterface* iface, MBTag tag, void* data, size_t count )
+{
+  bool some_valid = false;
+  MBErrorCode rval;
+  MBEntityHandle* buffer = (MBEntityHandle*)data;
+  MBEntityHandle *const end = buffer + count;
+  for ( ; buffer != end; ++buffer) {
+    if (!*buffer) {
+      some_valid = true;
+    }
+    else {
+      int id;
+      rval = iface->tag_get_data( tag, buffer, 1, &id );
+      if (MB_SUCCESS == rval && id > 0) {
+        some_valid = true;
+        *buffer = (MBEntityHandle)id;
+      }
+      else {
+        *buffer = 0;
+      }
+    }
+  }
+  return some_valid;
+}
 
 const char* WriteHDF5::ExportSet::name() const
 {
@@ -1598,15 +1637,7 @@ DEBUGOUT((std::string("Tag: ") + name + "\n").c_str());
     
       // Convert MBEntityHandles to file ids
     if (mb_data_type == MB_TYPE_HANDLE)
-    {
-      MBEntityHandle* handle_buffer = (MBEntityHandle*)tag_buffer;
-      for (unsigned i = 0; i < (count * mb_size / sizeof(MBEntityHandle)); ++i)
-      {
-        int id;
-        rval = iFace->tag_get_data( idTag, ((MBEntityHandle*)tag_buffer)+i, 1, &id );
-        handle_buffer[i] = (MBEntityHandle)(rval == MB_SUCCESS ? id : 0);
-      }
-    }
+      convert_handle_tag( iFace, idTag, tag_buffer, count * mb_size / sizeof(MBEntityHandle) );
     
       // write the data
     mhdf_writeSparseTagValues( tables[1], offset, count,
@@ -1772,8 +1803,11 @@ MBErrorCode WriteHDF5::gather_tags()
     CHK_MB_ERR_0(result);
     td_iter->range.merge( range.intersect( setSet.range ) );
     
-      // for tags containing entity handles, skip values if
-      // handle doesn't reference something being written to the file
+      // For tags containing entity handles, skip values if
+      // handle doesn't reference something being written to the file.
+      // If the tag contains multiple handle values, write it if any one
+      // of those handles is valid.  Consider special case of 0 handle as
+      // valid.
     MBDataType data_type;
     iFace->tag_get_data_type( handle, data_type );
     if (MB_TYPE_HANDLE == data_type)
@@ -1785,16 +1819,13 @@ MBErrorCode WriteHDF5::gather_tags()
         td_iter->range.clear(); // don't write any values
       
       std::vector<MBEntityHandle> values(tag_size / sizeof(MBEntityHandle));
-      std::vector<id_t> file_ids(tag_size / sizeof(MBEntityHandle));
       MBRange::iterator i = td_iter->range.begin();
       while (i != td_iter->range.end())
       {
         result = iFace->tag_get_data( handle, &*i, 1, &values[0] );
         CHK_MB_ERR_0(result);
-        
-        result = iFace->tag_get_data( idTag, &values[0], values.size(), &file_ids[0] );
-        if (result == MB_SUCCESS && 
-            std::find( file_ids.begin(), file_ids.end(), -1 ) == file_ids.end())
+
+        if (convert_handle_tag( iFace, idTag, &values[0], values.size() ))
           ++i;
         else
           i = td_iter->range.erase( i );
@@ -2122,7 +2153,6 @@ MBErrorCode WriteHDF5::create_set_tables( long num_set_contents,
   return MB_SUCCESS;
 }
 
-
 MBErrorCode WriteHDF5::create_tag( MBTag tag_id, id_t num_sparse_entities )
 {
   MBTagType storage;
@@ -2207,24 +2237,18 @@ MBErrorCode WriteHDF5::create_tag( MBTag tag_id, id_t num_sparse_entities )
   rval = iFace->tag_get_default_value( tag_id, dataBuffer );
   if (MB_SUCCESS == rval) {
     have_default = true;
-    if (mb_type == MB_TYPE_HANDLE) {
-      int id;
-      rval = iFace->tag_get_data( idTag, (MBEntityHandle*)dataBuffer, 1, &id );
-      *(int*)dataBuffer = rval == MB_SUCCESS ? id : 0;
-    }
+    if (mb_type == MB_TYPE_HANDLE) 
+      have_default = convert_handle_tag( iFace, idTag, dataBuffer, mhdf_size );
   }
   else if(MB_ENTITY_NOT_FOUND != rval)
     return rval;
 
- bool have_global = false;
+  bool have_global = false;
   rval = iFace->tag_get_data( tag_id, 0, 0, dataBuffer + tag_size );
   if (MB_SUCCESS == rval) {
     have_global = true;
-    if (mb_type == MB_TYPE_HANDLE) {
-      int id;
-      rval = iFace->tag_get_data( idTag, (MBEntityHandle*)(dataBuffer+tag_size), 1, &id );
-      *(int*)(dataBuffer+tag_size) = rval == MB_SUCCESS ? id : 0;
-    }
+    if (mb_type == MB_TYPE_HANDLE) 
+      have_default = convert_handle_tag( iFace, idTag, dataBuffer+tag_size, mhdf_size );
   }
   else if(MB_TAG_NOT_FOUND != rval)
     return rval;

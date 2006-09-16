@@ -1058,15 +1058,17 @@ MBErrorCode ReadHDF5::read_tag( const char* name )
       return MB_FAILURE;
     }
     
-    if (have_default) {
-      rval = convert_id_to_handle( (MBEntityHandle*)dataBuffer, 1 );
-      if (MB_SUCCESS != rval)
-        have_default = 0;
-    }
-    if (have_global) {
-      rval = convert_id_to_handle( (MBEntityHandle*)(dataBuffer+tag_size), 1 );
-      if (MB_SUCCESS != rval)
-        have_global = 0;
+    if (MB_TYPE_HANDLE == mb_type) {
+      if (have_default) {
+        rval = convert_id_to_handle( (MBEntityHandle*)dataBuffer, array_size );
+        if (MB_SUCCESS != rval)
+          have_default = 0;
+      }
+      if (have_global) {
+        rval = convert_id_to_handle( (MBEntityHandle*)(dataBuffer+tag_size), array_size );
+        if (MB_SUCCESS != rval)
+          have_global = 0;
+      }
     }
   }
   
@@ -1324,14 +1326,14 @@ MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
   size_t chunk_size = (bufferSize - read_size) / (sizeof(MBEntityHandle) + read_size);
   
     // Use the first half of the buffer for the handles.
-  MBEntityHandle* idbuffer = (MBEntityHandle*)dataBuffer;
+  MBEntityHandle* idbuf = (MBEntityHandle*)dataBuffer;
     // Use the latter portion of the buffer for data
-  char* databuffer = dataBuffer + (chunk_size * sizeof(MBEntityHandle));
+  char* databuf = dataBuffer + (chunk_size * sizeof(MBEntityHandle));
     // To be safe, align tag data to the size of an entire tag value
-  if ((size_t)databuffer % read_size)
-    databuffer += read_size - ((size_t)databuffer % read_size);
+  if ((size_t)databuf % read_size)
+    databuf += read_size - ((size_t)databuf % read_size);
       // Make sure the above calculations are correct
-  assert( databuffer + chunk_size*read_size < dataBuffer + bufferSize );
+  assert( databuf + chunk_size*read_size < dataBuffer + bufferSize );
   
   size_t remaining = (size_t)num_values;
   size_t offset = 0;
@@ -1340,7 +1342,7 @@ MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
     size_t count = remaining > chunk_size ? chunk_size : remaining;
     remaining -= count;
     
-    mhdf_readSparseTagEntities( data[0], offset, count, handleType, idbuffer, &status );
+    mhdf_readSparseTagEntities( data[0], offset, count, handleType, idbuf, &status );
     if (mhdf_isError( &status ))
     {
       readUtil->report_error( mhdf_message( &status ) );
@@ -1349,7 +1351,7 @@ MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
       return MB_FAILURE;
     }
     
-    mhdf_readSparseTagValues( data[1], offset, count, hdf_read_type, databuffer, &status );
+    mhdf_readSparseTagValues( data[1], offset, count, hdf_read_type, databuf, &status );
     if (mhdf_isError( &status ))
     {
       readUtil->report_error( mhdf_message( &status ) );
@@ -1360,7 +1362,7 @@ MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
     
     offset += count;
     
-    rval = convert_id_to_handle( idbuffer, count );
+    rval = convert_id_to_handle( idbuf, count );
     if (MB_SUCCESS != rval)
     {
       mhdf_closeData( filePtr, data[0], &status );
@@ -1370,7 +1372,7 @@ MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
     
     if (is_handle_type)
     {
-      rval = convert_id_to_handle( (MBEntityHandle*)dataBuffer, count * read_size / sizeof(MBEntityHandle) );
+      rval = convert_id_to_handle( (MBEntityHandle*)databuf, count * read_size / sizeof(MBEntityHandle) );
       if (MB_SUCCESS != rval)
       {
         mhdf_closeData( filePtr, data[0], &status );
@@ -1384,11 +1386,11 @@ MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
     {
       rval = MB_SUCCESS;
       for (size_t i = 0; MB_SUCCESS == rval && i < count; ++i)
-        rval = iFace->tag_set_data( tag_handle, idbuffer + i, 1, databuffer + i );
+        rval = iFace->tag_set_data( tag_handle, idbuf + i, 1, databuf + i );
     }
     else
     {
-      rval = iFace->tag_set_data( tag_handle, idbuffer, count, databuffer );
+      rval = iFace->tag_set_data( tag_handle, idbuf, count, databuf );
     }
     if (MB_SUCCESS != rval)
     {
@@ -1440,6 +1442,11 @@ MBErrorCode ReadHDF5::convert_id_to_handle( MBEntityHandle* array,
 
   while (array != end)
   {
+      // special case for ZERO
+    if (!*array) {
+      ++array;
+      continue;
+    }
     if (nodeSet.first_id && (*array < offset || *array >= last))
     {
       offset = nodeSet.first_id;
