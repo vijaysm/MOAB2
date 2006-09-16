@@ -4,8 +4,10 @@
 #include "GeometryQueryTool.hpp"
 #include "GeometryQueryEngine.hpp"
 #include "ModelQueryEngine.hpp"
+#include "RefEntityName.hpp"
 #include "GMem.hpp"
 
+#include "RefGroup.hpp"
 #include "RefVolume.hpp"
 #include "RefFace.hpp"
 #include "RefEdge.hpp"
@@ -33,6 +35,9 @@
 // is non-manifold in a single volume, the same volume will
 // be listed for both the forward and reverse slots.
 const char GEOM_SENSE_TAG_NAME[] = "GEOM_SENSE_2";
+
+const char NAME_TAG_NAME[] = "NAME";
+const int NAME_TAG_SIZE = 32;
 
 // default settings
 const char DEFAULT_NAME[] = "cgm2moab";
@@ -275,16 +280,18 @@ bool copy_geometry( MBInterface* iface )
   MBErrorCode rval;
 
     // get some tag handles
-  MBTag geom_tag, id_tag, sense_tag;
+  MBTag geom_tag, id_tag, sense_tag, name_tag;
   rval = iface->tag_create( GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, geom_tag, 0, true );
   assert(!rval);
   rval = iface->tag_create( GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, id_tag, 0, true );
   assert(!rval);
   rval = iface->tag_create( GEOM_SENSE_TAG_NAME, 2*sizeof(MBEntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, sense_tag, 0, true );
   assert(!rval);
+  rval = iface->tag_create( NAME_TAG_NAME, NAME_TAG_SIZE, MB_TAG_SPARSE, MB_TYPE_OPAQUE, name_tag, 0, true );
+  assert(!rval);
   
     // CGM data
-  std::map<RefEntity*,MBEntityHandle> entmap[4];
+  std::map<RefEntity*,MBEntityHandle> entmap[5]; // one for each dim, and one for groups
   std::map<RefEntity*,MBEntityHandle>::iterator ci;
   const char* const names[] = { "Vertex", "Curve", "Surface", "Volume" };
   DLIList<RefEntity*> entlist;
@@ -371,10 +378,74 @@ bool copy_geometry( MBInterface* iface )
         return false;
     }
   }
-      
   
-    // done with volumes
+    // create entity sets for all ref groups
+  DLIList<CubitString*> name_list;
+  entlist.clean_out();
+  GeometryQueryTool::instance()->ref_entity_list( "group", entlist );
+  entlist.reset();
+  for (int i = entlist.size(); i--; ) {
+    RefEntity* grp = entlist.get_and_step();
+    name_list.clean_out();
+    RefEntityName::instance()->get_refentity_name( grp, name_list, true );
+    if (name_list.size() == 0)
+      continue;
+    CubitString name = *name_list.get();
+    
+    MBEntityHandle h;
+    rval = iface->create_meshset( MESHSET_SET, h );
+    if (MB_SUCCESS != rval)
+      return false;
+    
+    char namebuf[NAME_TAG_SIZE];
+    memset( namebuf, '\0', NAME_TAG_SIZE );
+    strncpy( namebuf, name.c_str(), NAME_TAG_SIZE - 1 );
+    if (name.length() >= (unsigned)NAME_TAG_SIZE) 
+      std::cout << "WARNING: group name '" << name.c_str() 
+                << "' truncated to '" << namebuf << "'" << std::endl;
+    rval = iface->tag_set_data( name_tag, &h, 1, namebuf );
+    if (MB_SUCCESS != rval)
+      return false;
+      
+    int id = grp->id();
+    rval = iface->tag_set_data( id_tag, &h, 1, &id );
+    if (MB_SUCCESS != rval)
+      return false;
+      
+    entmap[4][grp] = h;
+  }
+  
+    // store contents for each group
+  entlist.reset();
+  for (ci = entmap[4].begin(); ci != entmap[4].end(); ++ci) {
+    RefGroup* grp = (RefGroup*)(ci->first);
+    entlist.clean_out();
+    grp->get_child_ref_entities( entlist );
+    
+    MBRange entities;
+    while (entlist.size()) {
+      RefEntity* ent = entlist.pop();
+      int dim = ent->dimension();
+      if (dim < 0) {
+        if (entmap[4].find(ent) != entmap[4].end())
+          entities.insert( entmap[4][ent] );
+      }
+      else if (dim < 4) {
+        if (entmap[dim].find(ent) != entmap[dim].end())
+          entities.insert( entmap[dim][ent] );
+      }
+    }
+    
+    if (!entities.empty()) {
+      rval = iface->add_entities( ci->second, entities );
+      if (MB_SUCCESS != rval)
+        return false;
+    }
+  }
+  
+    // done with volumes and groups
   entmap[3].clear();
+  entmap[4].clear();
   
     // create geometry for all vertices and replace 
     // vertex set handles with vertex handles in map
