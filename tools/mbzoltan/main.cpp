@@ -17,6 +17,8 @@
 
 #define RR if (MB_SUCCESS != result) return result
 
+int MB_PROC_SIZE;
+
 int main(int argc, char *argv[])
 {
   if (argc < 4) {
@@ -34,6 +36,8 @@ int main(int argc, char *argv[])
     std::cout << "Argument 2 must be 'y' or 'n', not '" << argv[2][0] << "'" << std::endl;
     return 1;
   }
+
+  MPI_Comm_size(MPI_COMM_WORLD, &MB_PROC_SIZE);
 
   MBInterface *mbImpl = new MBCore();
   

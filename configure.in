@@ -133,16 +133,52 @@ MB_OPTIONAL_TOOL([cgm2moab],                  [no] )
 ################################################################################
 #                           Zoltan
 ################################################################################
+if test $ENABLE_mbzoltan = yes; then
   AC_ARG_WITH([zoltan], 
    [AC_HELP_STRING([--with-zoltan=DIR],[Specify directory containing Zoltan])],
    [ZOLTAN_DIR="$withval"
     DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-zoltan=\"${withval}\""
    ],[ZOLTAN_DIR=unknown])
-  AC_SUBST(ZOLTAN_DIR)
   AC_ARG_WITH([zoltan-arch],
    [AC_HELP_STRING([--with-zoltan-arch=OS],[Specify zoltan architecture])],
    [ZOLTAN_ARCH="$withval"],[ZOLTAN_ARCH=unknown])
+  case "x$ZOLTAN_DIR" in
+    xno|x)
+      ZOLTAN_MISSING=yes
+      ;;
+    xyes)
+      AC_MSG_ERROR([--with-zoltan requires and argument])
+      ;;
+  esac
+  if ! test -d "$ZOLTAN_DIR"; then
+    AC_MSG_WARN([$ZOLTAN_DIR : not a directory.])
+  fi
+  AC_CHECK_FILES([${ZOLTAN_DIR}/include/zoltan.h],
+                [], [AC_MSG_WARN([$ZOLTAN_DIR : not a valid zoltan source]); ZOLTAN_MISSING=yes])
+
+  ZOLTAN_INCLUDES="-I${ZOLTAN_DIR}/include"
+  ZOLTAN_LIBS="-L${ZOLTAN_DIR}/Obj_${ZOLTAN_ARCH} -lzoltan"
+
+  AC_ARG_WITH(parmetis, 
+  [AC_HELP_STRING([--with-parmetis=DIR], [Specify directory containing parmetis library])],
+  [PARMETIS_DIR=$withval], [PARMETIS_DIR=])
+  case "x$PARMETIS_DIR" in
+    xno|x)
+      PARMETIS_MISSING=yes
+      ;;
+    xyes)
+      AC_MSG_ERROR([--with-parmetis requires an argument])
+      ;;
+  esac
+  if test -d "$PARMETIS_DIR"; then
+    ZOLTAN_LIBS="$ZOLTAN_LIBS -L$PARMETIS_DIR -lparmetis -lmetis"
+  fi
+
+  AC_SUBST(ZOLTAN_DIR)
+  AC_SUBST(ZOLTAN_LIBS)
+  AC_SUBST(ZOLTAN_INCLUDES)
   AC_SUBST(ZOLTAN_ARCH)
+fi
 
 ################################################################################
 #                           Chaco
@@ -564,7 +600,7 @@ AC_CONFIG_FILES([Makefile
                  tools/mbperf/Makefile
                  tools/mbchaco/Makefile
 		 tools/mbzoltan/Config.moab
-                 tools/mbzoltan/Makefile
+		 tools/mbzoltan/Makefile
                  tools/qvdual/Makefile
                  tools/size/Makefile
                  tools/skin/Makefile

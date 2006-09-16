@@ -22,6 +22,9 @@
  *
  */
 
+#ifndef MB_PARALLEL_COMM_HPP
+#define MB_PARALLEL_COMM_HPP
+
 #include "MBInterface.hpp"
 #include "MBRange.hpp"
 
@@ -33,9 +36,13 @@ class MBParallelComm
 public:
 
     //! constructor
-  MBParallelComm(MBInterface *impl,
-                 TagServer *tag_server, 
+  MBParallelComm(MBInterface *impl, TagServer *tag_server, 
                  EntitySequenceManager *sequence_manager);
+
+    //! constructor taking packed buffer, for testing
+  MBParallelComm(MBInterface *impl, TagServer *tag_server, 
+                 EntitySequenceManager *sequence_manager,
+                 std::vector<unsigned char> &tmp_buff);
 
     //! communicate entities from/to this range
   MBErrorCode communicate_entities(const int from_proc, const int to_proc,
@@ -53,6 +60,12 @@ public:
   
     //! unpack a buffer; assume information is already in myBuffer
   MBErrorCode unpack_buffer(MBRange &entities);
+
+    //! set the buffer size; return true if size actually changed
+  bool buffer_size(const unsigned int new_size);
+
+    //! take the buffer from this instance; switches with vector passed in
+  void take_buffer(std::vector<unsigned char> &new_buff);
   
 private:
 
@@ -141,3 +154,5 @@ private:
     //! numbers of parents/children for transferred sets
   std::vector<int> setPcs;
 };
+
+#endif

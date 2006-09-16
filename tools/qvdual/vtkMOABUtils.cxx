@@ -276,7 +276,6 @@ MBErrorCode vtkMOABUtils::make_cells(MBRange &ents,
                                      vtkUnstructuredGrid *&ug) 
 {
     // add a cell for each entity, setting its global id to the cell id
-  vtkIdType gid, point_id;
   std::vector<vtkIdType> pt_ids;
   const MBEntityHandle *connect;
   int num_connect;
@@ -428,7 +427,6 @@ MBErrorCode vtkMOABUtils::update_set_actors(const MBRange &update_sets,
     }
 
       // non-zero list of ids; get an actor to put them in
-    bool new_actor;
     vtkExtractCells *ec;
     vtkMapper *this_mapper;
     this_actor = vtkMOABUtils::get_actor(*rit);
@@ -1062,7 +1060,6 @@ void vtkMOABUtils::update_display(vtkUnstructuredGrid *ug)
     vtkDataSetMapper *set_mapper;
     vtkTubeFilter *tube_filter;
     vtkExtractEdges *edge_filter;
-    vtkExtractCells *cell_filter;
 
     vtkActor *mesh_actor = vtkActor::New();
   

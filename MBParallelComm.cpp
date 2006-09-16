@@ -45,12 +45,19 @@
 
 #define RR if (MB_SUCCESS != result) return result
 
-MBParallelComm::MBParallelComm(MBInterface *impl,
-                               TagServer *tag_server, 
+MBParallelComm::MBParallelComm(MBInterface *impl, TagServer *tag_server, 
                                EntitySequenceManager *sequence_manager) 
-    : mbImpl(impl), tagServer(tag_server), sequenceManager(sequence_manager) 
+    : mbImpl(impl), tagServer(tag_server), sequenceManager(sequence_manager)
 {
   myBuffer.reserve(INITIAL_BUFF_SIZE);
+}
+
+MBParallelComm::MBParallelComm(MBInterface *impl, TagServer *tag_server, 
+                               EntitySequenceManager *sequence_manager,
+                               std::vector<unsigned char> &tmp_buff) 
+    : mbImpl(impl), tagServer(tag_server), sequenceManager(sequence_manager)
+{
+  myBuffer.swap(tmp_buff);
 }
 
 MBErrorCode MBParallelComm::communicate_entities(const int from_proc, const int to_proc,
@@ -65,7 +72,7 @@ MBErrorCode MBParallelComm::communicate_entities(const int from_proc, const int 
   MBErrorCode result = MB_SUCCESS;
   
     // if I'm the from, do the packing and sending
-  if (MB_PROC_RANK == from_proc) {
+  if ((int)MB_PROC_RANK == from_proc) {
     allRanges.clear();
     vertsPerEntity.clear();
     setRange.clear();
@@ -87,6 +94,7 @@ MBErrorCode MBParallelComm::communicate_entities(const int from_proc, const int 
       MPI_Request send_req;
       int success = MPI_Isend(&tmp_buff_size, sizeof(int), MPI_UNSIGNED_CHAR, to_proc, 
                               0, MPI_COMM_WORLD, &send_req);
+      if (!success) return MB_FAILURE;
     }
     
       // allocate space in the buffer
@@ -100,8 +108,9 @@ MBErrorCode MBParallelComm::communicate_entities(const int from_proc, const int 
     MPI_Request send_req;
     int success = MPI_Isend(&myBuffer[0], actual_buff_size, MPI_UNSIGNED_CHAR, to_proc, 
                             0, MPI_COMM_WORLD, &send_req);
+    if (!success) return MB_FAILURE;
   }
-  else if (MB_PROC_RANK == to_proc) {
+  else if ((int)MB_PROC_RANK == to_proc) {
     int buff_size;
     
       // get how much to allocate
@@ -143,21 +152,26 @@ MBErrorCode MBParallelComm::pack_buffer(MBRange &entities,
   buff_size = 0;
   MBRange::const_iterator rit;
   unsigned char *buff_ptr = NULL;
+  if (!just_count) buff_ptr = &myBuffer[0];
   
     // entities
   result = pack_entities(entities, rit, whole_range, buff_ptr, buff_size, just_count); RR;
   
     // sets
-  result = pack_sets(entities, rit, whole_range, buff_ptr, buff_size, just_count); RR;
+  int tmp_size;
+  result = pack_sets(entities, rit, whole_range, buff_ptr, tmp_size, just_count); RR;
+  buff_size += tmp_size;
   
     // adjacencies
   if (adjacencies) {
-    result = pack_adjacencies(entities, rit, whole_range, buff_ptr, buff_size, just_count); RR;
+    result = pack_adjacencies(entities, rit, whole_range, buff_ptr, tmp_size, just_count); RR;
+    buff_size += tmp_size;
   }
     
     // tags
   if (tags) {
-    result = pack_tags(entities, rit, whole_range, buff_ptr, buff_size, just_count); RR;
+    result = pack_tags(entities, rit, whole_range, buff_ptr, tmp_size, just_count); RR;
+    buff_size += tmp_size;
   }
 
   return result;
@@ -165,7 +179,7 @@ MBErrorCode MBParallelComm::pack_buffer(MBRange &entities,
  
 MBErrorCode MBParallelComm::unpack_buffer(MBRange &entities) 
 {
-  if (myBuffer.empty()) return MB_FAILURE;
+  if (myBuffer.capacity() == 0) return MB_FAILURE;
   
   unsigned char *buff_ptr = &myBuffer[0];
   MBErrorCode result = unpack_entities(buff_ptr, entities); RR;
@@ -209,7 +223,6 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
   }
   else {
     PACK_INT(buff_ptr, MBVERTEX);
-    PACK_INT(buff_ptr, vertsPerEntity[0]);
     PACK_RANGE(buff_ptr, allRanges[0]);
     int num_verts = allRanges[0].size();
     std::vector<double*> coords(3);
@@ -221,6 +234,8 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
     result = wu->get_node_arrays(3, num_verts, allRanges[0], 0, 0, coords); RR;
 
     buff_ptr += 3 * num_verts * sizeof(double);
+
+    whole_range = allRanges[0];
   }
 
     // place an iterator at the first non-vertex entity
@@ -307,21 +322,33 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
         // pack the entity type
       PACK_INT(buff_ptr, *et_it);
       
-        // pack the nodes per entity
-      PACK_INT(buff_ptr, *nv_it);
-      
         // pack the range
       PACK_RANGE(buff_ptr, (*allr_it));
 
+        // pack the nodes per entity
+      PACK_INT(buff_ptr, *nv_it);
+      
         // pack the connectivity
       const MBEntityHandle *connect;
       int num_connect;
-      for (MBRange::const_iterator rit = allr_it->begin(); rit != allr_it->end(); rit++) {
-        result = mbImpl->get_connectivity(*rit, connect, num_connect); RR;
-        assert(*et_it == MBPOLYGON || *et_it == MBPOLYHEDRON || num_connect == *nv_it);
-        PACK_INT(buff_ptr, num_connect);
-        PACK_EH(buff_ptr, &connect[0], num_connect);
+      if (*et_it == MBPOLYGON || *et_it == MBPOLYHEDRON) {
+        std::vector<int> num_connects;
+        for (MBRange::const_iterator rit = allr_it->begin(); rit != allr_it->end(); rit++) {
+          result = mbImpl->get_connectivity(*rit, connect, num_connect); RR;
+          num_connects.push_back(num_connect);
+          PACK_EH(buff_ptr, &connect[0], num_connect);
+        }
+        PACK_INTS(buff_ptr, &num_connects[0], num_connects.size());
       }
+      else {
+        for (MBRange::const_iterator rit = allr_it->begin(); rit != allr_it->end(); rit++) {
+          result = mbImpl->get_connectivity(*rit, connect, num_connect); RR;
+          assert(num_connect == *nv_it);
+          PACK_EH(buff_ptr, &connect[0], num_connect);
+        }
+      }
+
+      whole_range.merge(*allr_it);
     }
 
       // pack MBMAXTYPE to indicate end of ranges
@@ -364,7 +391,7 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
         int start_id = ID_FROM_HANDLE((*pit).first);
         int start_proc = PROC_FROM_HANDLE((*pit).first);
         MBEntityHandle actual_start;
-        int tmp_num_verts = (*pit).second - (*pit).first;
+        int tmp_num_verts = (*pit).second - (*pit).first + 1;
         result = ru->get_node_arrays(3, tmp_num_verts, start_id, start_proc, actual_start,
                                      coords); RR;
         if (actual_start != (*pit).first)
@@ -398,7 +425,7 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
         int start_id = ID_FROM_HANDLE((*pit).first);
         int start_proc = PROC_FROM_HANDLE((*pit).first);
         MBEntityHandle actual_start;
-        int num_elems = (*pit).second - (*pit).first;
+        int num_elems = (*pit).second - (*pit).first + 1;
         MBEntityHandle *connect;
         int *connect_offsets;
         if (this_type == MBPOLYGON || this_type == MBPOLYHEDRON)
@@ -690,6 +717,10 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
         // tag handle
       PACK_EH(buff_ptr, &(*tag_it), 1);
       
+        // size, data type
+      PACK_INT(buff_ptr, tinfo->get_size());
+      PACK_INT(buff_ptr, tinfo->get_data_type());
+      
         // default value
       if (NULL == tinfo->default_value()) {
         PACK_INT(buff_ptr, 0);
@@ -698,10 +729,6 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
         PACK_INT(buff_ptr, 1);
         PACK_VOID(buff_ptr, tinfo->default_value(), tinfo->get_size());
       }
-      
-        // size, data type
-      PACK_INT(buff_ptr, tinfo->get_size());
-      PACK_INT(buff_ptr, tinfo->get_data_type());
       
         // name
       PACK_CHAR_64(buff_ptr, tinfo->get_name().c_str());
@@ -746,36 +773,85 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
         // tag handle
     MBTag tag_handle;
     UNPACK_EH(buff_ptr, &tag_handle, 1);
-      
+
       // size, data type
     int tag_size, tag_data_type;
     UNPACK_INT(buff_ptr, tag_size);
     UNPACK_INT(buff_ptr, tag_data_type);
       
-      // name
-    char *tag_name = reinterpret_cast<char *>(buff_ptr);
-    buff_ptr += 64;
-
       // default value
-    int def_val_flag;
-    UNPACK_INT(buff_ptr, def_val_flag);
+    int has_def_value;
+    UNPACK_INT(buff_ptr, has_def_value);
     void *def_val_ptr = NULL;
-    if (1 == def_val_flag) {
+    if (1 == has_def_value) {
       def_val_ptr = buff_ptr;
       buff_ptr += tag_size;
     }
+    
+      // name
+    char *tag_name = reinterpret_cast<char *>(buff_ptr);
+    buff_ptr += 64;
 
       // create the tag
     MBTagType tag_type;
     result = mbImpl->tag_get_type(tag_handle, tag_type); RR;
 
     result = mbImpl->tag_create(tag_name, tag_size, tag_type, (MBDataType) tag_data_type, tag_handle,
-                                def_val_ptr); RR;
+                                def_val_ptr);
+    if (MB_ALREADY_ALLOCATED == result) {
+        // already allocated tag, check to make sure it's the same size, type, etc.
+      const TagInfo *tag_info = tagServer->get_tag_info(tag_name);
+      if (tag_size != tag_info->get_size() ||
+          tag_data_type != tag_info->get_data_type() ||
+          (def_val_ptr && !tag_info->default_value() ||
+           !def_val_ptr && tag_info->default_value()))
+        return MB_FAILURE;
+      MBTagType this_type;
+      result = mbImpl->tag_get_type(tag_handle, this_type);
+      if (MB_SUCCESS != result || this_type != tag_type) return MB_FAILURE;
+    }
+    else if (MB_SUCCESS != result) return result;
     
       // set the tag data
     if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE) {
-      result = mbImpl->tag_set_data(tag_handle, entities, buff_ptr); RR;
-      buff_ptr += entities.size() * tag_size;
+      if (NULL != def_val_ptr && tag_data_type != MB_TYPE_OPAQUE) {
+          // only set the tags whose values aren't the default value; only works
+          // if it's a known type
+        MBRange::iterator start_rit = entities.begin(), end_rit = start_rit;
+        MBRange set_ents;
+        while (end_rit != entities.end()) {
+          while (start_rit != entities.end() &&
+                 ((tag_data_type == MB_TYPE_INTEGER && *((int*)def_val_ptr) == *((int*)buff_ptr)) ||
+                  (tag_data_type == MB_TYPE_DOUBLE && *((double*)def_val_ptr) == *((double*)buff_ptr)) ||
+                  (tag_data_type == MB_TYPE_HANDLE && *((MBEntityHandle*)def_val_ptr) == *((MBEntityHandle*)buff_ptr)))) {
+            start_rit++;
+            buff_ptr += tag_size;
+          }
+          end_rit = start_rit;
+          void *end_ptr = buff_ptr;
+          while (start_rit != entities.end() && end_rit != entities.end() &&
+                 ((tag_data_type == MB_TYPE_INTEGER && *((int*)def_val_ptr) == *((int*)end_ptr)) ||
+                  (tag_data_type == MB_TYPE_DOUBLE && *((double*)def_val_ptr) == *((double*)end_ptr)) ||
+                  (tag_data_type == MB_TYPE_HANDLE && *((MBEntityHandle*)def_val_ptr) == *((MBEntityHandle*)end_ptr)))) {
+            set_ents.insert(*end_rit);
+            end_rit++;
+            buff_ptr += tag_size;
+          }
+          
+          if (!set_ents.empty()) {
+            result = mbImpl->tag_set_data(tag_handle, set_ents, buff_ptr); RR;
+          }
+          if (start_rit != entities.end()) {
+            end_rit++;
+            start_rit = end_rit;
+            buff_ptr += tag_size;
+          }
+        }
+      }
+      else {
+        result = mbImpl->tag_set_data(tag_handle, entities, buff_ptr); RR;
+        buff_ptr += entities.size() * tag_size;
+      }
     }
     else {
       MBRange tag_range;
@@ -788,3 +864,88 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
   return MB_SUCCESS;
 }
 
+bool MBParallelComm::buffer_size(const unsigned int new_size) 
+{
+  unsigned int old_size = myBuffer.size();
+  myBuffer.reserve(new_size);
+  return (new_size == old_size);
+}
+
+void MBParallelComm::take_buffer(std::vector<unsigned char> &new_buffer) 
+{
+  new_buffer.swap(myBuffer);
+}
+
+#ifdef TEST_PARALLELCOMM
+
+#include <iostream>
+
+#include "MBCore.hpp"
+#include "MBParallelComm.hpp"
+#include "MBRange.hpp"
+
+int main(int argc, char* argv[])
+{
+
+    // Check command line arg
+  if (argc < 2)
+  {
+    std::cout << "Usage: " << argv[0] << " <mesh_file_name>" << std::endl;
+    exit(1);
+  }
+
+  const char* file = argv[1];
+  MBCore *my_impl = new MBCore(0, 2);
+  MBInterface* mbImpl = my_impl;
+
+    // create a communicator class, which will start mpi too
+  MBParallelComm pcomm(mbImpl, my_impl->tag_server(), my_impl->sequence_manager());
+  MBErrorCode result;
+
+    // load the mesh
+  result = mbImpl->load_mesh(file, 0, 0);
+  if (MB_SUCCESS != result) return result;
+
+    // get the mesh
+  MBRange all_mesh, whole_range;
+  result = mbImpl->get_entities_by_dimension(0, 3, all_mesh);
+  if (MB_SUCCESS != result) return result;
+    
+  int buff_size;
+  result = pcomm.pack_buffer(all_mesh, false, true, true, whole_range, buff_size); RR;
+
+    // allocate space in the buffer
+  pcomm.buffer_size(buff_size);
+
+    // pack the actual buffer
+  int actual_buff_size;
+  result = pcomm.pack_buffer(whole_range, false, true, false, all_mesh, actual_buff_size); RR;
+
+    // list the entities that got packed
+  std::cout << "ENTITIES PACKED:" << std::endl;
+  mbImpl->list_entities(all_mesh);
+
+    // get the buffer
+  std::vector<unsigned char> tmp_buffer;
+  pcomm.take_buffer(tmp_buffer);
+    
+    // stop and restart MOAB
+  delete mbImpl;
+  my_impl = new MBCore(1, 2);
+  mbImpl = my_impl;
+    
+    // create a new communicator class, using our old buffer
+  MBParallelComm pcomm2(mbImpl, my_impl->tag_server(), my_impl->sequence_manager(),
+                        tmp_buffer);
+
+    // unpack the results
+  all_mesh.clear();
+  result = pcomm2.unpack_buffer(all_mesh); RR;
+  std::cout << "ENTITIES UNPACKED:" << std::endl;
+  mbImpl->list_entities(all_mesh);
+  
+  std::cout << "Success, processor " << mbImpl->proc_rank() << "." << std::endl;
+  
+  return 1;
+}
+#endif

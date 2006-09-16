@@ -52,7 +52,7 @@
 
 extern unsigned MB_PROC_WIDTH;
 extern unsigned MB_PROC_RANK;
-extern unsigned MB_PROC_COUNT;
+extern unsigned MB_PROC_SIZE;
 extern MBEntityHandle MB_PROC_MASK;
 extern MBEntityHandle MB_ID_MASK;
 
