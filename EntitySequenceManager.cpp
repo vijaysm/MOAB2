@@ -148,7 +148,7 @@ MBEntityHandle EntitySequenceManager::get_start_handle(int hint_start, int hint_
 
   MBEntityHandle last_of_type;
   if (iter == mSequenceMap[type].end())
-    last_of_type = CREATE_HANDLE( type, MB_END_ID, MB_PROC_COUNT - 1, dum );
+    last_of_type = CREATE_HANDLE( type, MB_END_ID, MB_PROC_SIZE - 1, dum );
   else
     last_of_type = iter->second->get_start_handle() - 1;
   

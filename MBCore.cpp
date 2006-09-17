@@ -83,7 +83,7 @@ const char *MBCore::errorStrings[] = {
 /* Initialize constants for serial (1 CPU) */
 unsigned MB_PROC_WIDTH = 0;
 unsigned MB_PROC_RANK = 0;
-unsigned MB_PROC_COUNT = 1;
+unsigned MB_PROC_SIZE = 1;
 MBEntityHandle MB_PROC_MASK = 0;
 MBEntityHandle MB_ID_MASK = ~MB_TYPE_MASK;
 
@@ -99,7 +99,7 @@ void MB_SET_PROC( int num_cpu, int rank )
 {
   MB_PROC_WIDTH = ceil_log_2( num_cpu );
   MB_PROC_RANK = rank;
-  MB_PROC_COUNT = num_cpu;
+  MB_PROC_SIZE = num_cpu;
   MB_ID_MASK = (~MB_TYPE_MASK) >> MB_PROC_WIDTH;
   MB_PROC_MASK = ~(MB_ID_MASK|MB_TYPE_MASK);
 }

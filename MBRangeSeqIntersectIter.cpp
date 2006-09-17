@@ -146,7 +146,7 @@ MBErrorCode MBRangeSeqIntersectIter::find_invalid_range()
       // If end type not the same as start type, split on type
     if (type != TYPE_FROM_HANDLE( mEndHandle )) {
       int junk;
-      mEndHandle = CREATE_HANDLE( type, MB_END_ID, MB_PROC_COUNT-1, junk );
+      mEndHandle = CREATE_HANDLE( type, MB_END_ID, MB_PROC_SIZE-1, junk );
     }
   }
     // otherwise invalid range ends at min(mEndHandle, sequence start handle - 1)
