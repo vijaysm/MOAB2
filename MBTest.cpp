@@ -4144,7 +4144,7 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface* )
   if (MB_SUCCESS != rval) return rval;
   rval = sequences.create_entity_sequence( MBTRI, nt2, 6, 0, 0, th2, ts2 );
   if (MB_SUCCESS != rval) return rval;
-  rval = sequences.create_entity_sequence( MBTRI, nt3, 3, MB_END_ID, MB_PROC_COUNT-1, th3, ts3 );
+  rval = sequences.create_entity_sequence( MBTRI, nt3, 3, MB_END_ID, MB_PROC_SIZE-1, th3, ts3 );
   if (MB_SUCCESS != rval) return rval;
   rval = sequences.create_entity_sequence( MBQUAD, nq1, 4, 0, 0, qh1, qs1 );
   if (MB_SUCCESS != rval) return rval;
