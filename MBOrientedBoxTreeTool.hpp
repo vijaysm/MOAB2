@@ -29,6 +29,7 @@
 class MBRange;
 class MBOrientedBox;
 
+#define MB_OBB_TREE_SET_TAG_NAME "OBB_TREE"
 
 class MBOrientedBoxTreeTool
 {

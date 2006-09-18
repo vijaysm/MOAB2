@@ -332,6 +332,17 @@ MBErrorCode MBOrientedBoxTreeTool::build_sets( std::list<SetData>& sets,
       delete_tree( node_set );
       return rval;
     }
+    MBTag tag;
+    rval = instance->tag_create( MB_OBB_TREE_SET_TAG_NAME, sizeof(MBEntityHandle), MB_TAG_DENSE, MB_TYPE_HANDLE, tag, 0, true );
+    if (MB_SUCCESS != rval) {
+      delete_tree( node_set );
+      return rval;
+    }
+    rval = instance->tag_set_data( tag, &set, 1, &node_set );
+    if (MB_SUCCESS != rval) {
+      delete_tree( node_set );
+      return rval;
+    }
     return MB_SUCCESS;
   }
   
