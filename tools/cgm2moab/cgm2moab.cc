@@ -341,23 +341,25 @@ bool copy_geometry( MBInterface* iface )
   
     // store CoFace senses
   for (ci = entmap[2].begin(); ci != entmap[2].end(); ++ci) {
-    RefFace* surf = (RefFace*)(ci->first);
+    RefFace* face = (RefFace*)(ci->first);
     BasicTopologyEntity *forward = 0, *reverse = 0;
-    for (SenseEntity* cf = surf->get_first_sense_entity_ptr();
+    for (SenseEntity* cf = face->get_first_sense_entity_ptr();
          cf; cf = cf->next_on_bte()) {
       BasicTopologyEntity* vol = cf->get_parent_basic_topology_entity_ptr();
-      if (cf->get_sense() != CUBIT_FORWARD) {
+      if (cf->get_sense() == CUBIT_UNKNOWN || 
+          cf->get_sense() != face->get_surface_ptr()->bridge_sense()) {
         if (reverse) {
-          std::cout << "Surface " << surf->id() << " has reverse senes " <<
+          std::cout << "Surface " << face->id() << " has reverse senes " <<
                        "with multiple volume " << reverse->id() << " and " <<
                        "volume " << vol->id() << std::endl;
           return false;
         }
         reverse = vol;
       }
-      if (cf->get_sense() != CUBIT_REVERSED) {
+      if (cf->get_sense() == CUBIT_UNKNOWN || 
+          cf->get_sense() == face->get_surface_ptr()->bridge_sense()) {
         if (forward) {
-          std::cout << "Surface " << surf->id() << " has forward senes " <<
+          std::cout << "Surface " << face->id() << " has forward senes " <<
                        "with multiple volume " << forward->id() << " and " <<
                        "volume " << vol->id() << std::endl;
           return false;
