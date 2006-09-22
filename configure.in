@@ -147,9 +147,12 @@ if test $ENABLE_mbzoltan = yes; then
       ZOLTAN_MISSING=yes
       ;;
     xyes)
-      AC_MSG_ERROR([--with-zoltan requires and argument])
+      AC_MSG_ERROR([--enable-zoltan requires an argument])
       ;;
   esac
+  if test "x$WITH_MPI" == "xno"; then
+     AC_MSG_ERROR([--enable-zoltan requires --with-mpi too!])
+  fi
   if ! test -d "$ZOLTAN_DIR"; then
     AC_MSG_WARN([$ZOLTAN_DIR : not a directory.])
   fi
