@@ -834,6 +834,46 @@ MBErrorCode MBOrientedBoxTreeTool::ray_intersect_sets(
 
 /********************** Closest Point code ***************/
 
+MBErrorCode MBOrientedBoxTreeTool::closest_to_location( 
+                                     const double* point,
+                                     MBEntityHandle root,
+                                     double tolerance,
+                                     double* point_out,
+                                     MBEntityHandle& facet_out,
+                                     MBEntityHandle* set_out ) 
+{
+  std::vector<MBEntityHandle> facets(1), sets;
+  MBErrorCode rval = closest_to_location( point, root, tolerance, facets, set_out ? &sets : 0 );
+  if (MB_SUCCESS != rval)
+    return rval;
+  if (facets.empty())
+    return MB_ENTITY_NOT_FOUND;
+  facet_out = facets.front();
+  if (set_out)
+    *set_out = sets.front();
+  
+  const MBEntityHandle* conn;
+  int len;
+  rval = instance->get_connectivity( facet_out, conn, len, true );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  std::vector<MBCartVect> coords( len );
+  rval = instance->get_coords( conn, len, coords[0].array() );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  if (len == 3)
+    MBGeomUtil::closest_location_on_tri( *reinterpret_cast<const MBCartVect*>(point), 
+                             &coords[0], 
+                             *reinterpret_cast<MBCartVect*>(point_out) );
+  else
+    MBGeomUtil::closest_location_on_polygon( *reinterpret_cast<const MBCartVect*>(point), 
+                                 &coords[0], len,
+                                 *reinterpret_cast<MBCartVect*>(point_out) );
+  return MB_SUCCESS;
+}
+
 struct MBOBBTreeCPFrame {
   MBOBBTreeCPFrame( double d, MBEntityHandle n, MBEntityHandle s )
     : dist_sqr(d), node(n), mset(s) {}
@@ -841,19 +881,17 @@ struct MBOBBTreeCPFrame {
   MBEntityHandle node;
   MBEntityHandle mset;
 };
-
-MBErrorCode MBOrientedBoxTreeTool::closest_to_location( 
-                                     const double* point,
+                                     
+MBErrorCode MBOrientedBoxTreeTool::closest_to_location( const double* point,
                                      MBEntityHandle root,
                                      double tolerance,
-                                     double* point_out,
-                                     MBEntityHandle& facet_out,
-                                     MBEntityHandle* set_out )
+                                     std::vector<MBEntityHandle>& facets_out,
+                                     std::vector<MBEntityHandle>* sets_out )
 {
   MBErrorCode rval;
   const MBCartVect loc( point );
-  MBCartVect closest_pt;
   double smallest_dist_sqr = std::numeric_limits<double>::max();
+  double smallest_dist = smallest_dist_sqr;
   
   MBEntityHandle current_set = 0;
   MBRange sets;
@@ -876,7 +914,7 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location(
       continue;
 
       // Check if this node has a set associated with it
-    if (set_out && !current_set) {
+    if (sets_out && !current_set) {
       sets.clear();
       rval = instance->get_entities_by_type( node, MBENTITYSET, sets );
       if (MB_SUCCESS != rval)
@@ -952,19 +990,29 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location(
         diff = tmp - loc;
         dist_sqr = diff % diff;
         if (dist_sqr < smallest_dist_sqr) {
+          if (dist_sqr < smallest_dist_sqr + tolerance*(tolerance - 2*smallest_dist)) {
+            facets_out.clear();
+            if (sets_out)
+              sets_out->clear();
+          }
           smallest_dist_sqr = dist_sqr;
-          facet_out = *i;
-          closest_pt = tmp;
-          if (set_out)
-            *set_out = current_set;
+          smallest_dist = sqrt(smallest_dist_sqr);
+            // put closest result at start of lists
+          facets_out.push_back( *i );
+          std::swap( facets_out.front(), facets_out.back() );
+          if (sets_out) {
+            sets_out->push_back( current_set );
+            std::swap( sets_out->front(), sets_out->back() );
+          }
+        }
+        else if (dist_sqr <= smallest_dist_sqr + tolerance*(tolerance + 2*smallest_dist)) {
+          facets_out.push_back(*i);
+          if (sets_out)
+            sets_out->push_back( current_set );
         }
       }
     } // LEAF NODE
   }
-  
-  point_out[0] = closest_pt[0];
-  point_out[1] = closest_pt[1];
-  point_out[2] = closest_pt[2];
   
   return MB_SUCCESS;
 }

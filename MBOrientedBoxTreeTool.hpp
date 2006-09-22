@@ -207,6 +207,19 @@ class MBOrientedBoxTreeTool
                                      double* point_out,
                                      MBEntityHandle& facet_out,
                                      MBEntityHandle* set_out = 0);
+                                     
+    /**\brief Find closest facet(s) to input position.
+     *
+     * Find the closest location(s) in the tree to the specified location.
+     *\param point Location to search from
+     *\param facets_out Closest 2D elements to input position are appended to this list
+     *\param sets_out If non-null, sets owning facets are appended to this list.
+     */
+    MBErrorCode closest_to_location( const double* point,
+                                     MBEntityHandle tree_root,
+                                     double tolerance,
+                                     std::vector<MBEntityHandle>& facets_out,
+                                     std::vector<MBEntityHandle>* sets_out = 0 );
     
     /**\brief Get oriented box at node in tree
      *
