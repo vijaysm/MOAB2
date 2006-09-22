@@ -36,9 +36,6 @@
 // be listed for both the forward and reverse slots.
 const char GEOM_SENSE_TAG_NAME[] = "GEOM_SENSE_2";
 
-const char NAME_TAG_NAME[] = "NAME";
-const int NAME_TAG_SIZE = 32;
-
 // default settings
 const char DEFAULT_NAME[] = "cgm2moab";
 const double DEFAULT_DISTANCE = 0.001;

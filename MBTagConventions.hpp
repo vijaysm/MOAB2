@@ -93,4 +93,13 @@
 #define CATEGORY_TAG_NAME "CATEGORY"
 #define CATEGORY_TAG_NAME_LENGTH 32
 
+/* NAME tag:
+ * A fixed length NULL-padded string containing a name.
+ * All values should be assumed to be of type char[NAME_TAG_SIZE].
+ * The string need not be null terminated.  All values used for
+ * storing or searching for a value must be padded with '\0' chars.
+ */
+#define NAME_TAG_NAME "NAME"
+#define NAME_TAG_SIZE 32
+
 #endif
