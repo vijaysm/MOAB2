@@ -225,6 +225,41 @@ void closest_location_on_tri( const MBCartVect& location,
     }
   }
 }
+
+void closest_location_on_tri( const MBCartVect& location,
+                              const MBCartVect* vertices,
+                              double tolerance,
+                              MBCartVect& closest_out,
+                              int& closest_topo )
+{
+  const double tsqr = tolerance*tolerance;
+  int i;
+  MBCartVect pv[3], ev, ep;
+  double t;
+
+  closest_location_on_tri( location, vertices, closest_out );
+  
+  for (i = 0; i < 3; ++i) {
+    pv[i] = vertices[i] - closest_out;
+    if ((pv[i] % pv[i]) <= tsqr) {
+      closest_topo = i;
+      return;
+    }
+  }
+  
+  for (i = 0; i < 3; ++i) {
+    ev = vertices[(i+1)%3] - vertices[i];
+    t = (ev % pv[i]) / (ev % ev);
+    ep = closest_out - (vertices[i] + t * ev);
+    if ((ep % ep) <= tsqr) {
+      closest_topo = i+3;
+      return;
+    }
+  }
+  
+  closest_topo = 6;
+}
+ 
     
 // We assume polygon is *convex*, but *not* planar.
 void closest_location_on_polygon( const MBCartVect& location,

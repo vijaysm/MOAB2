@@ -57,6 +57,24 @@ bool closest_location_on_polygon( const MBCartVect& location,
                                   int num_vertices,
                                   MBCartVect& closest_out );
 
+/**\brief find closest topological location on triangle
+ *
+ * Find closest location on linear triangle.
+ *\param location  Input position to evaluate from
+ *\param vertices  Array of three corner vertex coordinates.
+ *\param tolerance Tolerance to use when comparing to corners and edges
+ *\param closest_out Result position 
+ *\param closest_topo Closest topological entity
+ *                     0-2 : vertex index
+ *                     3-5 : edge beginning at closest_topo - 3
+ *                       6 : triangle interior
+ */
+void closest_location_on_tri( const MBCartVect& location,
+                              const MBCartVect* vertices,
+                              double tolerance,
+                              MBCartVect& closest_out,
+                              int& closest_topo );
+
 } // namespace MBGeoemtry
 
 #endif
