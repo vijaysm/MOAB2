@@ -29,8 +29,6 @@
 class MBRange;
 class MBOrientedBox;
 
-#define MB_OBB_TREE_SET_TAG_NAME "OBB_TREE"
-
 class MBOrientedBoxTreeTool
 {
   public:
@@ -101,16 +99,23 @@ class MBOrientedBoxTreeTool
                        MBEntityHandle& set_handle_out,
                        const Settings* settings = 0 );
      
-    /**\brief Build a tree of traingles contained in sets such that tree contains sets
+    /**\brief Build a tree of sets, where each set contains triangles.
      *
-     * Similar to 'build', except that the triangles in the tree are taken from
-     * the passed list of mesh sets and for each of those sets, there is guaranteed 
-     * to be a node in the tree that a) is exactly the set of triangles contained 
-     * the set and b) contains the handle of that set.
+     * Build a tree of sets.  Each set must contain at least one triangle
+     * to define it's geometry.  Each passed set will become a leaf of
+     * the OBB tree.  Settings controlling tree depth are ignored by
+     * this method.  The tree will be as deep as it needs to be for each
+     * input set to be a leaf.
+     *
+     * To build a tree representing the surfaces of a geometric volume,
+     * 1) Build and OBB tree for each surface using the 'build' method
+     * 2) Add each surface to the contents of the resulting OBB tree root set
+     * 3) Build a tree from all the surface OBB tree root sets using this
+     *    method to get a combined tree for the volume.
      */
-    MBErrorCode set_build( const MBRange& sets,
-                           MBEntityHandle& root_set_out,
-                           const Settings* settings = 0 );
+    MBErrorCode join_trees( const MBRange& tree_roots,
+                            MBEntityHandle& root_set_out,
+                            const Settings* settings = 0 );
 
     /**\brief Intersect a ray with the triangles contained within the tree
      *

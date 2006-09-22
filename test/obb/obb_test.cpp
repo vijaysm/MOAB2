@@ -721,31 +721,43 @@ static bool do_file( const char* filename )
     }
   }
   else {
-      // Get list of entities so can verify total count later
+
+    if (verbosity)
+      std::cout << "Building tree from " << surfaces.size() << " surfaces" << std::endl;
+
+      // Build subtree for each surface, get list of all entities to use later
+    MBRange surf_trees, surf_tris;
+    MBEntityHandle surf_root;
     for (MBRange::iterator s = surfaces.begin(); s != surfaces.end(); ++s) {
-      rval= iface->get_entities_by_dimension( *s, 2, entities );
+      surf_tris.clear();
+      rval= iface->get_entities_by_dimension( *s, 2, surf_tris );
+      if (MB_SUCCESS != rval)
+        return false;
+      rval = tool.build( surf_tris, surf_root, &settings );
+      if (MB_SUCCESS != rval) {
+        if (verbosity)
+          std::cout << "Failed to build tree for surface." << std::endl;
+        return false;
+      }
+      surf_trees.insert( surf_root );
+      entities.merge( surf_tris );
+      rval = iface->add_entities( surf_root, &*s, 1 );
       if (MB_SUCCESS != rval)
         return false;
     }
-
-    if (verbosity)
-      std::cout << "Building tree from " << surfaces.size() << " surfaces" 
-                << " (" << entities.size() << " elements)" << std::endl;
-    entities.merge( surfaces );
     
-    rval = tool.set_build( surfaces, root, &settings );
+    rval = tool.join_trees( surf_trees, root, &settings );
     if (MB_SUCCESS != rval) {
       if (verbosity)
         std::cout << "Failed to build tree." << std::endl;
       return false;
     }
-   
-      // Get list of entities so can verify total count later
-    for (MBRange::iterator s = surfaces.begin(); s != surfaces.end(); ++s) {
-      rval= iface->get_entities_by_dimension( *s, 2, entities );
-      if (MB_SUCCESS != rval)
-        return false;
-    }
+    
+    if (verbosity)
+      std::cout << "Built tree from " << surfaces.size() << " surfaces" 
+                << " (" << entities.size() - surfaces.size() << " elements)" << std::endl;
+
+    entities.merge( surfaces );
   }    
 
   if (write_cubit) {
@@ -1334,11 +1346,23 @@ static bool do_closest_point_test( MBOrientedBoxTreeTool& tool,
   return result;
 }
 
+#define IS_BUILDING_MB
+#include "MBInternals.hpp"
     
-    
- 
-  
+void print_mb_range( const MBRange& range )
+{
+  MBRange::const_pair_iterator i = range.const_pair_begin();
+  for (; i != range.const_pair_end(); ++i) {
+    MBEntityType type1 = TYPE_FROM_HANDLE( i->first );
+    MBEntityType type2 = TYPE_FROM_HANDLE( i->second );
+    int id1 = ID_FROM_HANDLE( i->first );
+    int id2 = ID_FROM_HANDLE( i->second );
+    std::cout << MBCN::EntityTypeName( type1 ) << " " << id1;
+    if (i->first != i->second) 
+      std::cout << " to " << MBCN::EntityTypeName( type2 ) << " " << id2;
+    std::cout << std::endl;
+  }
+}
 
-
-  
+      
 

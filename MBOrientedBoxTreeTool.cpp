@@ -118,9 +118,9 @@ MBErrorCode MBOrientedBoxTreeTool::build( const MBRange& entities,
                      settings ? *settings : Settings() );
 }
 
-MBErrorCode MBOrientedBoxTreeTool::set_build( const MBRange& sets,
-                                              MBEntityHandle& set_handle_out,
-                                              const Settings* settings )
+MBErrorCode MBOrientedBoxTreeTool::join_trees( const MBRange& sets,
+                                               MBEntityHandle& set_handle_out,
+                                               const Settings* settings )
 {
   if (!sets.all_of_type(MBENTITYSET))
     return MB_TYPE_OUT_OF_RANGE;
@@ -131,7 +131,7 @@ MBErrorCode MBOrientedBoxTreeTool::set_build( const MBRange& sets,
   std::list<SetData> data;
   for (MBRange::const_iterator i = sets.begin(); i != sets.end(); ++i) {
     MBRange elements;
-    MBErrorCode rval = instance->get_entities_by_dimension( *i, 2, elements );
+    MBErrorCode rval = instance->get_entities_by_dimension( *i, 2, elements, true );
     if (MB_SUCCESS != rval)
       return rval;
     if (elements.empty())
@@ -143,10 +143,6 @@ MBErrorCode MBOrientedBoxTreeTool::set_build( const MBRange& sets,
     rval = MBOrientedBox::orient_from_2d_cells( set_data.box_data, instance, elements );
     if (MB_SUCCESS != rval)
       return rval;
-  
-    //rval = instance->get_adjacencies( elements, 0, false, set_data.vertices, MBInterface::UNION );
-    //if (MB_SUCCESS != rval)
-    //  return rval;
   }
 
   return build_sets( data, set_handle_out, 0, 
@@ -317,37 +313,6 @@ MBErrorCode MBOrientedBoxTreeTool::build_sets( std::list<SetData>& sets,
   MBErrorCode rval;
   int count = sets.size();
   
-    // If only one surface in list...
-  if (count == 1) {
-    MBEntityHandle set = sets.begin()->handle;
-    MBRange entities;
-    rval = instance->get_entities_by_dimension( set, 2, entities );
-    if (MB_SUCCESS != rval)
-      return rval;
-    rval = build_tree( entities, node_set, depth, settings );
-    if (MB_SUCCESS != rval)
-      return rval;
-    rval = instance->add_entities( node_set, &set, 1 );
-    if (MB_SUCCESS != rval) {
-      delete_tree( node_set );
-      return rval;
-    }
-    MBTag tag;
-    rval = instance->tag_create( MB_OBB_TREE_SET_TAG_NAME, sizeof(MBEntityHandle), MB_TAG_DENSE, MB_TYPE_HANDLE, tag, 0, true );
-    if (MB_SUCCESS != rval) {
-      delete_tree( node_set );
-      return rval;
-    }
-    rval = instance->tag_set_data( tag, &set, 1, &node_set );
-    if (MB_SUCCESS != rval) {
-      delete_tree( node_set );
-      return rval;
-    }
-    return MB_SUCCESS;
-  }
-  
-    // Otherwise must subdivide until only one surface
-  
     // calculate box
   MBOrientedBox box;
 
@@ -358,7 +323,7 @@ MBErrorCode MBOrientedBoxTreeTool::build_sets( std::list<SetData>& sets,
     data.clear();
     for (std::list<SetData>::iterator i = sets.begin(); i != sets.end(); ++i) {
       data.push_back( i->box_data );
-      rval = instance->get_entities_by_dimension( i->handle, 2, elems );
+      rval = instance->get_entities_by_dimension( i->handle, 2, elems, true );
       if (MB_SUCCESS != rval)
         return rval;
     }
@@ -371,6 +336,12 @@ MBErrorCode MBOrientedBoxTreeTool::build_sets( std::list<SetData>& sets,
     rval = MBOrientedBox::compute_from_orient( box, instance, &data[0], data.size(), points );
     if (MB_SUCCESS != rval)
       return rval;
+  }
+  
+    // If only one set in list...
+  if (count == 1) {
+    node_set = sets.front().handle;
+    return instance->tag_set_data( tagHandle, &node_set, 1, &box );
   }
   
     // create an entity set for the tree node
