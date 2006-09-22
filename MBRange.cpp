@@ -410,6 +410,33 @@ MBRange::iterator MBRange::erase(iterator iter)
 
 }
 
+void MBRange::delete_pair_node( PairNode* node )
+{
+  if (node != &mHead) { // pop_front() and pop_back() rely on this check
+    node->mPrev->mNext = node->mNext;
+    node->mNext->mPrev = node->mPrev;
+    free_pair( node );
+  }
+}
+
+  //! remove first entity from range
+void MBRange::pop_front()
+{
+  if (mHead.mNext->first == mHead.mNext->second) // need to remove pair from range
+    delete_pair_node( mHead.mNext );
+  else 
+    ++(mHead.mNext->first); // otherwise just adjust start value of pair
+}
+
+  //! remove last entity from range
+void MBRange::pop_back()
+{
+  if (mHead.mPrev->first == mHead.mPrev->second) // need to remove pair from range
+    delete_pair_node( mHead.mPrev );
+  else
+    --(mHead.mPrev->second); // otherwise just adjust end value of pair
+}
+
 /*!
   finds a value in the list.
   this method is preferred over other algorithms because
@@ -613,15 +640,15 @@ MBRange::equal_range( MBEntityType type ) const
 bool MBRange::all_of_type( MBEntityType type ) const
 {
   return empty() 
-      || (TYPE_FROM_HANDLE(mHead.mNext->first) == type
-       && TYPE_FROM_HANDLE(mHead.mPrev->second) == type);
+      || (TYPE_FROM_HANDLE(front()) == type
+       && TYPE_FROM_HANDLE(back()) == type);
 }
 
 bool MBRange::all_of_dimension( int dimension ) const
 {
   return empty() 
-      || (MBCN::Dimension(TYPE_FROM_HANDLE(mHead.mNext->first)) == dimension
-       && MBCN::Dimension(TYPE_FROM_HANDLE(mHead.mPrev->second)) == dimension);
+      || (MBCN::Dimension(TYPE_FROM_HANDLE(front())) == dimension
+       && MBCN::Dimension(TYPE_FROM_HANDLE(back())) == dimension);
 }
 
 unsigned MBRange::num_of_type( MBEntityType type ) const

@@ -256,6 +256,15 @@ public:
   //! erases a value from this container
   iterator erase(MBEntityHandle val);
   
+  //! get first entity in range
+  const MBEntityHandle& front() const;
+  //! get last entity in range
+  const MBEntityHandle& back() const;
+  //! remove first entity from range
+  void pop_front();
+  //! remove last entity from range
+  void pop_back();
+  
   //! find an item int the list and return an iterator at that value
   const_iterator find(MBEntityHandle val) const;
 
@@ -324,6 +333,9 @@ protected:
   //! the head of the list that contains pairs that represent the ranges 
   //! this list is sorted and unique at all times
   PairNode mHead;
+  
+  //! if dead_node is not mHead, remove it from the list and free it's memory.
+  void delete_pair_node( PairNode* dead_node );
 
 public:
 
@@ -699,6 +711,12 @@ inline MBRange::iterator MBRange::erase(MBEntityHandle val)
   return erase(find(val)); 
 }
   
+  //! get first entity in range
+inline const MBEntityHandle& MBRange::front() const
+  { return mHead.mNext->first; }
+  //! get last entity in range
+inline const MBEntityHandle& MBRange::back() const
+  { return mHead.mPrev->second; }
 
 
 #endif // MB_RANGE_HPP
