@@ -1,6 +1,7 @@
 #include "DrawDual.hpp"
 #include "MeshTopoUtil.hpp"
 #include "MBTagConventions.hpp"
+#include "MBCN.hpp"
 #include "DualTool.hpp"
 #include "vtkMOABUtils.h"
 #include "vtkPolyData.h"
@@ -246,9 +247,6 @@ void DrawDual::process_pick()
     
   if (0 == picked_actor) return;
 
-  vtkPolyDataMapper *this_mapper = 
-    vtkPolyDataMapper::SafeDownCast(picked_actor->GetMapper());
-
   if (dualPicker->GetCellId() != -1) {
 
       // get picked entity based on cell id and set
@@ -331,8 +329,6 @@ void DrawDual::update_high_polydatas()
       vtkPolyData::SafeDownCast(mit->second.pickActor->GetMapper()->GetInput())->Reset();
   }
 
-  MBEntityHandle gv_verts[20];
-  
     // now go through highlight entities, adding to highlight poly in each window
   MBErrorCode result;
   std::vector<MBEntityHandle> dual_sets;
@@ -348,7 +344,6 @@ void DrawDual::update_high_polydatas()
   id_list->Allocate(1);
   
   for (i = 0, rit = pickRange.begin(); rit != pickRange.end(); i++, rit++) {
-    int dim = MBCN::Dimension(MBI->type_from_handle(*rit));
       // can be up to 3 instances of this entity
     for (j = 0; j < 3; j++) {
       if (gvents[i]->myActors[j] == NULL) continue;
@@ -629,7 +624,6 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
     }
     else if (adj_2cells.size() == 1) {
       assert(adj_1cells.size() == 2);
-      Agnode_t *edge_pts[2];
 
         // get vertices making up degen 2cell and their avg position
       const MBEntityHandle *connect;
@@ -1044,7 +1038,6 @@ MBErrorCode DrawDual::get_xform(MBEntityHandle dual_surf, Agsym_t *asym_pos,
   gv_verts.reserve(face_verts.size());
   result = MBI->tag_get_data(gvEntityHandle, face_verts, &gv_verts[0]);
   if (MB_SUCCESS != result) return result;
-  char dum_str[80];
 
     // find a vertex with non-zero x, y coordinates
   for (std::vector<GVEntity*>::iterator vit = gv_verts.begin(); vit != gv_verts.end(); vit++) {
@@ -1290,7 +1283,7 @@ MBErrorCode DrawDual::construct_graphviz_edges(MBEntityHandle dual_surf,
       int index0 = dvert_gv[0]->get_index(dual_surf);
       int index1 = dvert_gv[1]->get_index(dual_surf);
       assert(index0 >= 0 && index1 >= 0);
-      sprintf(dum_str, "%g", *rit);
+      sprintf(dum_str, "%d", *rit);
 
         // first, check to see if it's degenerate; if so, add a mid-pt
       MBRange tmp_edges;
@@ -1660,14 +1653,12 @@ MBErrorCode DrawDual::label_other_sheets(MBEntityHandle dual_surf,
       continue;
     }
     
-    int low_edge = -1, high_edge = -1;
     int edge_vtk_vs[2];
     GVEntity *gv_verts[2];
     const MBEntityHandle *edge_vs;
     int num_edge_vs;
     int edge_num;
     int index;
-    vtkIdList *ids = vtkIdList::New();
     for (rit = dedges.begin(), edge_num = 0; rit != dedges.end(); rit++, edge_num++) {
       tmp_result = MBI->get_connectivity(*rit, edge_vs, num_edge_vs);
       if (MB_SUCCESS != tmp_result) {
@@ -1749,7 +1740,7 @@ void DrawDual::label_interior_verts(MBEntityHandle dual_surf,
   int_ids->SetName("VertexIds");
   int_ids->SetNumberOfValues(dverts.size());
 
-  for (int i = 0; i != dverts.size(); i++) {
+  for (unsigned int i = 0; i != dverts.size(); i++) {
     int index = gv_ents[i]->get_index(dual_surf);
     assert(index >= 0);
     

@@ -134,7 +134,6 @@ MBErrorCode vtkMOABUtils::init(MBInterface *impl, vtkRenderer *this_ren)
 
   if (NULL == impl && NULL == mbImpl) {
     impl = new MBCore();
-    gMB = impl;
     vtkMOABUtils::mbImpl = impl;
   }
 
@@ -386,7 +385,7 @@ MBErrorCode vtkMOABUtils::update_all_actors(MBEntityHandle this_set,
   result = vtkMOABUtils::update_set_actors(sheet_sets, vtkMOABUtils::myUG, true, false, true);
   if (MB_SUCCESS != result) return result;
 
-  int table_size = (chord_sets.size()+sheet_sets.size() > vtkMOABUtils::totalColors ? 
+  int table_size = ((int) chord_sets.size()+sheet_sets.size() > vtkMOABUtils::totalColors ? 
                     chord_sets.size()+sheet_sets.size() : vtkMOABUtils::totalColors);
   vtkMOABUtils::construct_lookup_table(table_size);
   
@@ -779,7 +778,7 @@ void vtkMOABUtils::change_set_visibility( MBRange &visible_sets, MBRange &invisi
   if (MB_SUCCESS != result) {
     ; // do nothing, just place to stop the debugger
   }
-  for (int i = 0; i < invisible_sets.size(); i++)
+  for (unsigned int i = 0; i < invisible_sets.size(); i++)
     if (NULL != tmp_actors[i]) tmp_actors[i]->VisibilityOff();
 
   tmp_actors.reserve(visible_sets.size());
@@ -787,7 +786,7 @@ void vtkMOABUtils::change_set_visibility( MBRange &visible_sets, MBRange &invisi
   if (MB_SUCCESS != result) {
     ; // do nothing, just place to stop the debugger
   }
-  for (int i = 0; i < visible_sets.size(); i++)
+  for (unsigned int i = 0; i < visible_sets.size(); i++)
     if (NULL != tmp_actors[i]) tmp_actors[i]->VisibilityOn();
     
 }
@@ -1271,7 +1270,7 @@ void vtkMOABUtils::assign_global_ids()
 
   bool need_set = false;
   
-  int i = 0;
+  unsigned int i = 0;
   MBRange::iterator rit = ents.begin();
   
   for (; i < ids.size(); i++, rit++) {

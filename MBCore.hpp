@@ -835,6 +835,10 @@ private:
 
   static const char *errorStrings[];
 
+    //! true if MPI was initialized in constructor; if so, MPI will be
+    //! finalized in destructor
+  bool iInitializedMPI;
+  
 //------------MeshSet Interface Private Functions & Data------------//
 
   MeshSetManager* mMeshSetManager;

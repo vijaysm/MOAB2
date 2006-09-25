@@ -421,21 +421,27 @@ void MBRange::delete_pair_node( PairNode* node )
 }
 
   //! remove first entity from range
-void MBRange::pop_front()
+MBEntityHandle MBRange::pop_front()
 {
+  MBEntityHandle retval = front();
   if (mHead.mNext->first == mHead.mNext->second) // need to remove pair from range
     delete_pair_node( mHead.mNext );
   else 
     ++(mHead.mNext->first); // otherwise just adjust start value of pair
+
+  return retval;
 }
 
   //! remove last entity from range
-void MBRange::pop_back()
+MBEntityHandle MBRange::pop_back()
 {
+  MBEntityHandle retval = back();
   if (mHead.mPrev->first == mHead.mPrev->second) // need to remove pair from range
     delete_pair_node( mHead.mPrev );
   else
     --(mHead.mPrev->second); // otherwise just adjust end value of pair
+
+  return retval;
 }
 
 /*!

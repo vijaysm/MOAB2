@@ -6,6 +6,7 @@
 #include "EntitySequenceManager.hpp"
 #include "EntitySequence.hpp"
 #include "TagServer.hpp"
+#include "MBTagConventions.hpp"
 
 #include <assert.h>
 
@@ -64,6 +65,65 @@ MBParallelComm::MBParallelComm(MBInterface *impl, TagServer *tag_server,
   myBuffer.swap(tmp_buff);
 }
 
+//! assign a global id space, for largest-dimension or all entities (and
+//! in either case for vertices too)
+MBErrorCode MBParallelComm::assign_global_ids(const int dimension, const bool largest_dim_only) 
+{
+  MBRange entities[4];
+  int local_num_elements[4];
+  MBErrorCode result;
+  for (int dim = 0; dim <= dimension; dim++) {
+    if (dim == 0 || !largest_dim_only || dim == dimension) {
+      result = mbImpl->get_entities_by_dimension(0, dim, entities[dim]); RR;
+    }
+
+      // need to filter out non-locally-owned entities!!!
+    MBRange dum_range;
+    for (MBRange::iterator rit = entities[dim].begin(); rit != entities[dim].end(); rit++)
+      if (PROC_FROM_HANDLE(*rit) != MB_PROC_RANK) dum_range.insert(*rit);
+    entities[dim] = entities[dim].subtract(dum_range);
+    
+    local_num_elements[dim] = entities[dim].size();
+  }
+  
+    // communicate numbers
+  std::vector<int> num_elements(MB_PROC_SIZE*4);
+  if (MB_PROC_SIZE == 1) {
+    for (int dim = 0; dim < 4; dim++) num_elements[dim] = local_num_elements[dim];
+  }
+  else {
+    int retval = MPI_Alltoall(local_num_elements, 4, MPI_INTEGER,
+                              &num_elements[0], MB_PROC_SIZE*4, 
+                              MPI_INTEGER, MPI_COMM_WORLD);
+    if (0 != retval) return MB_FAILURE;
+  }
+  
+    // my entities start at one greater than total_elems[d]
+  int total_elems[4] = {1, 1, 1, 1};
+  for (unsigned int proc = 0; proc < MB_PROC_RANK; proc++) {
+    for (int dim = 0; dim < 4; dim++) total_elems[dim] += num_elements[4*proc + dim];
+  }
+  
+    //.assign global ids now
+  MBTag gid_tag;
+  int zero = 0;
+  result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, 1, MB_TAG_DENSE, MB_TYPE_INTEGER, gid_tag,
+                              &zero, true);
+  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
+  
+  for (int dim = 0; dim < 4; dim++) {
+    if (entities[dim].empty()) continue;
+    num_elements.reserve(entities[dim].size());
+    int i = 0;
+    for (MBRange::iterator rit = entities[dim].begin(); rit != entities[dim].end(); rit++)
+      num_elements[i++] = total_elems[dim]++;
+    
+    result = mbImpl->tag_set_data(gid_tag, entities[dim], &num_elements[0]); RR;
+  }
+  
+  return MB_SUCCESS;
+}
+  
 MBErrorCode MBParallelComm::communicate_entities(const int from_proc, const int to_proc,
                                                  MBRange &entities,
                                                  const bool adjacencies,

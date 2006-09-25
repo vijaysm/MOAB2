@@ -97,7 +97,7 @@ inline MBEntityType TYPE_FROM_HANDLE(MBEntityHandle handle)
 
 //! Get the type out of the handle.  Can do a simple shift because
 //! handles are unsigned (therefore shifting fills with zero's)
-inline int PROC_FROM_HANDLE(MBEntityHandle handle) 
+inline unsigned long PROC_FROM_HANDLE(MBEntityHandle handle) 
 {
   return (handle & MB_PROC_MASK) >> MB_ID_WIDTH;
 }

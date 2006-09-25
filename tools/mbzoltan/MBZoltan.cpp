@@ -30,6 +30,9 @@
 #include "MBRange.hpp"
 #include "MBWriteUtilIface.hpp"
 #include "MeshTopoUtil.hpp"
+#include "MBParallelComm.hpp"
+#include "MBTagConventions.hpp"
+#include "MBCN.hpp"
 
 #define RR if (MB_SUCCESS != result) return result
 
@@ -39,6 +42,8 @@ static int NumPoints=0;
 static int *NumEdges=NULL;
 static int *NborGlobalId=NULL;
 static int *NborProcs=NULL;
+
+const bool debug = true;
 
 MBZoltan::~MBZoltan() 
 {
@@ -53,7 +58,7 @@ MBErrorCode MBZoltan::balance_mesh(const char *zmethod,
       !strcmp(zmethod, "PHG") && !strcmp(zmethod, "PARMETIS") &&
       !strcmp(zmethod, "OCTPART")) 
   {
-    std::cout << "ERROR node " << MB_PROC_RANK << ": Argument 4 must be "
+    std::cout << "ERROR node " << MB_PROC_RANK << ": Method must be "
               << "RCB, RIB, HSFC, Hypergraph (PHG), PARMETIS, or OCTPART"
               << std::endl;
     return MB_FAILURE;
@@ -86,7 +91,7 @@ MBErrorCode MBZoltan::balance_mesh(const char *zmethod,
   // Create Zoltan object.  This calls Zoltan_Create.  
   if (NULL == myZZ) myZZ = new Zoltan(MPI_COMM_WORLD);
 
-  if (!strcmp(zmethod, "RCB"))
+  if (NULL == zmethod || !strcmp(zmethod, "RCB"))
     SetRCB_Parameters();
   else if (!strcmp(zmethod, "RIB"))
     SetRIB_Parameters();
@@ -134,10 +139,10 @@ MBErrorCode MBZoltan::balance_mesh(const char *zmethod,
   int *exportToPart;
 
   int rc = myZZ->LB_Partition(changes, numGidEntries, numLidEntries, 
-                              numImport, importGlobalIds, importLocalIds, 
-                              importProcs, importToPart,
-                              numExport, exportGlobalIds, exportLocalIds, 
-                              exportProcs, exportToPart);
+                            numImport, importGlobalIds, importLocalIds, 
+                            importProcs, importToPart,
+                            numExport, exportGlobalIds, exportLocalIds, 
+                            exportProcs, exportToPart);
 
   rc = mbGlobalSuccess(rc);
   
@@ -157,7 +162,7 @@ MBErrorCode MBZoltan::balance_mesh(const char *zmethod,
                    exportProcs, &assignment);
   
   if (MB_PROC_RANK == 0) {
-    MBErrorCode result = write_partition(elems, assignment);
+    MBErrorCode result = write_partition(MB_PROC_SIZE, elems, assignment);
 
     if (MB_SUCCESS != result) return result;
 
@@ -183,6 +188,120 @@ MBErrorCode MBZoltan::balance_mesh(const char *zmethod,
   return MB_SUCCESS;
 }
 
+MBErrorCode MBZoltan::partition_mesh(const int nparts,
+                                     const char *zmethod,
+                                     const char *other_method) 
+{
+    // should only be called in serial
+  if (MB_PROC_SIZE != 1) return MB_FAILURE;
+  
+  if (NULL != zmethod && strcmp(zmethod, "RCB") && strcmp(zmethod, "RIB") &&
+      strcmp(zmethod, "HSFC") && strcmp(zmethod, "Hypergraph") &&
+      strcmp(zmethod, "PHG") && strcmp(zmethod, "PARMETIS") &&
+      strcmp(zmethod, "OCTPART")) 
+  {
+    std::cout << "ERROR node " << MB_PROC_RANK << ": Method must be "
+              << "RCB, RIB, HSFC, Hypergraph (PHG), PARMETIS, or OCTPART"
+              << std::endl;
+    return MB_FAILURE;
+  }
+
+  std::vector<double> pts; // x[0], y[0], z[0], ... from MOAB
+  std::vector<int> ids; // point ids from MOAB
+  std::vector<int> adjs, length;
+  MBRange elems;
+
+  // Get a mesh from MOAB and divide it across processors.
+
+  MBErrorCode result;
+  
+  result = assemble_graph(3, pts, ids, adjs, length, elems); RR;
+  
+  myNumPts = mbInitializePoints((int)ids.size(), &pts[0], &ids[0], &adjs[0],
+                                &length[0]);
+
+  // Initialize Zoltan.  This is a C call.  The simple C++ code 
+  // that creates Zoltan objects does not keep track of whether 
+  // Zoltan_Initialize has been called.
+
+  float version;
+
+  Zoltan_Initialize(0, NULL, &version); 
+
+  // Create Zoltan object.  This calls Zoltan_Create.  
+  if (NULL == myZZ) myZZ = new Zoltan(MPI_COMM_WORLD);
+
+  if (NULL == zmethod || !strcmp(zmethod, "RCB"))
+    SetRCB_Parameters();
+  else if (!strcmp(zmethod, "RIB"))
+    SetRIB_Parameters();
+  else if (!strcmp(zmethod, "HSFC"))
+    SetHSFC_Parameters();
+  else if (!strcmp(zmethod, "Hypergraph") || !strcmp(zmethod, "PHG"))
+    if (NULL == other_method)
+      SetHypergraph_Parameters("auto");
+    else
+      SetHypergraph_Parameters(other_method);
+  else if (!strcmp(zmethod, "PARMETIS"))
+    if (NULL == other_method)
+      SetPARMETIS_Parameters("RepartGDiffusion");
+    else
+      SetPARMETIS_Parameters(other_method);
+  else if (!strcmp(zmethod, "OCTPART"))
+    if (NULL == other_method)
+      SetOCTPART_Parameters("2");
+    else
+      SetOCTPART_Parameters(other_method);
+
+    // set # requested partitions
+  char buff[10];
+  sprintf(buff, "%d", nparts);
+  int retval = myZZ->Set_Param("NUM_GLOBAL_PARTITIONS", buff);
+  if (ZOLTAN_OK != retval) return MB_FAILURE;
+
+    // request only partition assignments
+  retval = myZZ->Set_Param("RETURN_LISTS", "PARTITION ASSIGNMENTS");
+  if (ZOLTAN_OK != retval) return MB_FAILURE;
+  
+  // Call backs:
+
+  myZZ->Set_Num_Obj_Fn(mbGetNumberOfAssignedObjects, NULL);
+  myZZ->Set_Obj_List_Fn(mbGetObjectList, NULL);
+  myZZ->Set_Num_Geom_Fn(mbGetObjectSize, NULL);
+  myZZ->Set_Geom_Multi_Fn(mbGetObject, NULL);
+  myZZ->Set_Num_Edges_Multi_Fn(mbGetNumberOfEdges, NULL);
+  myZZ->Set_Edge_List_Multi_Fn(mbGetEdgeList, NULL);
+
+  // Perform the load balancing partitioning
+
+  int changes;
+  int numGidEntries;
+  int numLidEntries;
+  int dumnum1;
+  ZOLTAN_ID_PTR dum_local, dum_global;
+  int *dum1, *dum2;
+  int num_assign;
+  ZOLTAN_ID_PTR assign_gid, assign_lid;
+  int *assign_procs, *assign_parts;
+
+  retval = myZZ->LB_Partition(changes, numGidEntries, numLidEntries, 
+                              dumnum1, dum_global, dum_local, dum1, dum2,
+                              num_assign, assign_gid, assign_lid,
+                              assign_procs, assign_parts);
+  if (ZOLTAN_OK != retval) return MB_FAILURE;
+  
+  // take results & write onto MOAB partition sets
+  result = write_partition(nparts, elems, assign_parts);
+
+  if (MB_SUCCESS != result) return result;
+
+
+  // Free the memory allocated for lists returned by LB_Parition()
+  myZZ->LB_Free_Part(&assign_gid, &assign_lid, &assign_procs, &assign_parts);
+
+  return MB_SUCCESS;
+}
+
 MBErrorCode MBZoltan::assemble_graph(const int dimension,
                                      std::vector<double> &coords,
                                      std::vector<int> &moab_ids,
@@ -197,20 +316,10 @@ MBErrorCode MBZoltan::assemble_graph(const int dimension,
   MBErrorCode result = mbImpl->get_entities_by_dimension(0, dimension, elems);
   if (MB_SUCCESS != result || elems.empty()) return result;
   
-    // get a tag for graph vertex number
-  MBTag gvert_id;
-  result = mbImpl->tag_create("__graph_vertex_id", 4, MB_TAG_DENSE, gvert_id, NULL);
-  if (MB_SUCCESS != result) return result;
-  
-    // assign increasing graph vertex ids
-  MBWriteUtilIface *iface = NULL;
-  result = mbImpl->query_interface("MBWriteUtilIface", reinterpret_cast<void**>(&iface));
-  if (MB_SUCCESS != result || NULL == iface) return (MB_SUCCESS != result ? result : MB_FAILURE);
+    // assign global ids
+  MBParallelComm mbpc(mbImpl, NULL, NULL);
+  result = mbpc.assign_global_ids(dimension); RR;
 
-#define START_ID 0
-  
-  result = iface->assign_ids(elems, gvert_id, START_ID); RR;
-  
     // now assemble the graph, calling MeshTopoUtil to get bridge adjacencies through d-1 dimensional
     // neighbors
   MeshTopoUtil mtu(mbImpl);
@@ -221,6 +330,12 @@ MBErrorCode MBZoltan::assemble_graph(const int dimension,
   double avg_position[3];
   int moab_id = 0;
   
+    // get the global id tag hanlde
+  MBTag gid;
+  result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, 4, MB_TAG_DENSE, MB_TYPE_INTEGER,
+                              gid, NULL, true);
+  if (MB_SUCCESS != result) return result;
+  
   for (MBRange::iterator rit = elems.begin(); rit != elems.end(); rit++) {
 
       // get bridge adjacencies
@@ -230,7 +345,7 @@ MBErrorCode MBZoltan::assemble_graph(const int dimension,
     
       // get the graph vertex ids of those
     if (!adjs.empty()) {
-      result = mbImpl->tag_get_data(gvert_id, adjs, neighbors); RR;
+      result = mbImpl->tag_get_data(gid, adjs, neighbors); RR;
     }
 
       // copy those into adjacencies vector
@@ -245,65 +360,86 @@ MBErrorCode MBZoltan::assemble_graph(const int dimension,
     moab_ids.push_back(moab_id++);
     std::copy(avg_position, avg_position+3, std::back_inserter(coords));
   }
-  
-  std::cout << "Length vector: " << std::endl;
-  std::copy(length.begin(), length.end(), std::ostream_iterator<int>(std::cout, ", "));
-  std::cout << std::endl;
-  std::cout << "Adjacencies vector: " << std::endl;
-  std::copy(adjacencies.begin(), adjacencies.end(), std::ostream_iterator<int>(std::cout, ", "));
-  std::cout << std::endl;
-  std::cout << "Moab_ids vector: " << std::endl;
-  std::copy(moab_ids.begin(), moab_ids.end(), std::ostream_iterator<int>(std::cout, ", "));
-  std::cout << std::endl;
-  std::cout << "Coords vector: " << std::endl;
-  std::copy(coords.begin(), coords.end(), std::ostream_iterator<double>(std::cout, ", "));
-  std::cout << std::endl;
 
- 
+  if (debug) {
+    std::cout << "Length vector: " << std::endl;
+    std::copy(length.begin(), length.end(), std::ostream_iterator<int>(std::cout, ", "));
+    std::cout << std::endl;
+    std::cout << "Adjacencies vector: " << std::endl;
+    std::copy(adjacencies.begin(), adjacencies.end(), std::ostream_iterator<int>(std::cout, ", "));
+    std::cout << std::endl;
+    std::cout << "Moab_ids vector: " << std::endl;
+    std::copy(moab_ids.begin(), moab_ids.end(), std::ostream_iterator<int>(std::cout, ", "));
+    std::cout << std::endl;
+    std::cout << "Coords vector: " << std::endl;
+    std::copy(coords.begin(), coords.end(), std::ostream_iterator<double>(std::cout, ", "));
+    std::cout << std::endl;
+  }
+
   return MB_SUCCESS;
 }
 
-MBErrorCode MBZoltan::write_partition(MBRange &elems, 
+MBErrorCode MBZoltan::write_partition(const int nparts,
+                                      MBRange &elems, 
                                       const int *assignment) 
 {
+  MBErrorCode result;
+
+    // get the partition set tag
+  MBTag part_set_tag;
+  int dum_id = -1;
+  result = mbImpl->tag_create("PARALLEL_PARTITION", 4, MB_TAG_SPARSE, MB_TYPE_INTEGER, part_set_tag, &dum_id,
+                              true); RR;
+  
+    // get any sets already with this tag, and clear them
+  MBRange tagged_sets;
+  result = mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &part_set_tag, NULL, 1,
+                                                tagged_sets, MBInterface::UNION); RR;
+  if (!tagged_sets.empty()) {
+    result = mbImpl->clear_meshset(tagged_sets); RR;
+  }
+  
     // first, create partition sets and store in vector
-  MBEntityHandle *part_sets = new MBEntityHandle[MB_PROC_SIZE];
+  MBEntityHandle *part_sets = new MBEntityHandle[nparts];
   if (NULL == part_sets) return MB_FAILURE;
   
-  MBErrorCode result;
-  for (int i = 0; i < MB_PROC_SIZE; i++) {
-    result = mbImpl->create_meshset(MESHSET_SET, part_sets[i]); RR;
+  if (nparts > (int) tagged_sets.size()) {
+      // too few partition sets - create missing ones
+    int num_new = nparts - tagged_sets.size();
+    for (int i = 0; i < num_new; i++) {
+      MBEntityHandle new_set;
+      result = mbImpl->create_meshset(MESHSET_SET, new_set); RR;
+      tagged_sets.insert(new_set);
+    }
   }
+  else if (nparts < (int) tagged_sets.size()) {
+      // too many partition sets - delete extras
+    int num_del = tagged_sets.size() - nparts;
+    for (int i = 0; i < num_del; i++) {
+      MBEntityHandle old_set = tagged_sets.pop_back();
+      result = mbImpl->delete_entities(&old_set, 1); RR;
+    }
+  }
+  
+    // assign partition sets to vector
+  MBRange::iterator rit = tagged_sets.begin();
+  int i = 0;
+  for (; i < nparts; rit++, i++) part_sets[i] = *rit;
   
     // write a tag to those sets denoting they're partition sets, with a value of the
     // proc number
-  MBTag part_set_tag;
-  int dum_id = -1;
-  result = mbImpl->tag_create("PARALLEL_PARTITION", 4, MB_TAG_SPARSE, part_set_tag, &dum_id); RR;
+  int *dum_ids = new int[nparts];
+  for (int i = 0; i < nparts; i++) dum_ids[i] = i;
   
-  int *dum_ids = new int[MB_PROC_SIZE];
-  for (int i = 0; i < MB_PROC_SIZE; i++) dum_ids[i] = i;
-  
-  result = mbImpl->tag_set_data(part_set_tag, part_sets, MB_PROC_SIZE, dum_ids); RR;
-  
+  result = mbImpl->tag_set_data(part_set_tag, part_sets, nparts, dum_ids); RR;
 
     // assign entities to the relevant sets
-  MBRange::iterator rit;
-  int i;
-  int *tag_data = new int[elems.size()];
   for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
-    int part = assignment[i];
-    result = mbImpl->add_entities(part_sets[part], &(*rit), 1); RR;
-    tag_data[i] = part;
+    result = mbImpl->add_entities(part_sets[assignment[i]], &(*rit), 1); RR;
   }
 
     // allocate integer-size partitions
-  MBTag elem_part_set_tag;
-  dum_id = -1;
-  result = mbImpl->tag_create("ELEM_PARALLEL_PARTITION", 4, MB_TAG_SPARSE, MB_TYPE_INTEGER,
-                              elem_part_set_tag, &dum_id); RR;
-  result = mbImpl->tag_set_data(part_set_tag, elems, (void*) tag_data);
-  if (MB_SUCCESS != result) return result;
+  result = mbImpl->tag_set_data(part_set_tag, elems, assignment); RR;
 
   return MB_SUCCESS;
 }
@@ -393,7 +529,8 @@ void MBZoltan::SetOCTPART_Parameters(const char *oct_method)
 int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids, 
                                  int *adjs, int *length)
 {
-  int i, j;
+  unsigned int i;
+  int j;
   int *numPts, *nborProcs;
   int sum, ptsPerProc, ptsAssigned, mySize;
   MPI_Status stat;
@@ -524,7 +661,7 @@ void MBZoltan::mbFinalizePoints(int npts, int numExport,
 
       recvA = MyAssignment + NumPoints;
 
-      for (i=1; i<MB_PROC_SIZE; i++)
+      for (i=1; i< (int) MB_PROC_SIZE; i++)
 	{
 	  MPI_Recv(&numPts, 1, MPI_INT, i, 0x04, MPI_COMM_WORLD, &stat);
 	  MPI_Recv(recvA, numPts, MPI_INT, i, 0x05, MPI_COMM_WORLD, &stat);
@@ -544,7 +681,7 @@ void MBZoltan::mbFinalizePoints(int npts, int numExport,
 int MBZoltan::mbGlobalSuccess(int rc)
 {
   int fail = 0;
-  int i;
+  unsigned int i;
   int *vals = (int *)malloc(MB_PROC_SIZE * sizeof(int));
 
   MPI_Allgather(&rc, 1, MPI_INT, vals, 1, MPI_INT, MPI_COMM_WORLD);
@@ -565,7 +702,7 @@ int MBZoltan::mbGlobalSuccess(int rc)
 void MBZoltan::mbPrintGlobalResult(char *s, 
                                    int begin, int import, int exp, int change)
 {
-  int i;
+  unsigned int i;
   int *v1 = (int *)malloc(4 * sizeof(int));
   int *v2 = NULL;
   int *v;

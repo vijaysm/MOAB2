@@ -112,11 +112,15 @@ MBCore::MBCore()
   NS_INIT_ISUPPORTS();
 #endif
 
+  iInitializedMPI = false;
+  
 #ifdef USE_MPI
   int ierror, initd;
   ierror = MPI_Initialized(&initd);
-  if (!initd) 
+  if (!initd) {
     ierror = MPI_Init(NULL, NULL);
+    iInitializedMPI = true;
+  }
   
   int rank, num_procs;
   ierror = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -144,6 +148,10 @@ MBCore::~MBCore()
   mMBReadUtil = NULL;
 
   deinitialize();
+
+#ifdef USE_MPI  
+  if (iInitializedMPI) MPI_Finalize();
+#endif
 }
 
 

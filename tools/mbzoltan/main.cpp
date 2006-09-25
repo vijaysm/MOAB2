@@ -17,41 +17,41 @@
 
 #define RR if (MB_SUCCESS != result) return result
 
-int MB_PROC_SIZE;
-
 int main(int argc, char *argv[])
 {
   if (argc < 4) {
     std::cout << "Usage: mpirun -np <nprocs> " << argv[0]
-	      << " <mesh_file> <write_out(y/n)> <output_mesh_file> "
+              << " <# partitions> "
+              << " <mesh_file> <write_out(y/n)> <output_mesh_file> "
               << "[<method(RCB/RIB/HSFC/Hypergraph(PHG)/PARMETIS/OCTPART)>] "
               << "[<parmetis_method>/<oct_method>]" << std::endl;
     return 1;
   }
 
   bool write_output = false;
-  if (argv[2][0] == 'y') write_output = true;
-  else if (argv[2][0] == 'n') write_output = false;
+  if (argv[3][0] == 'y') write_output = true;
+  else if (argv[3][0] == 'n') write_output = false;
   else {
-    std::cout << "Argument 2 must be 'y' or 'n', not '" << argv[2][0] << "'" << std::endl;
+    std::cout << "Argument 2 must be 'y' or 'n', not '" << argv[3][0] << "'" << std::endl;
     return 1;
   }
 
-  MPI_Comm_size(MPI_COMM_WORLD, &MB_PROC_SIZE);
-
   MBInterface *mbImpl = new MBCore();
   
-  MBErrorCode result = mbImpl->load_mesh(argv[1]); RR;
+  MBErrorCode result = mbImpl->load_mesh(argv[2]); RR;
   
   MBZoltan *mbz = new MBZoltan(mbImpl);
 
-  const char *other_method = NULL;
-  if (argc > 5) other_method = argv[5];
+  const char *other_method = NULL, *method = NULL;
+  if (argc > 5) method = argv[5];
+  if (argc > 6) other_method = argv[6];
   
-  result = mbz->balance_mesh(argv[4], other_method); RR;
+  int nparts = atoi(argv[1]);
+  
+  result = mbz->partition_mesh(nparts, method, other_method); RR;
   
   if (write_output) {
-    result = mbImpl->write_mesh(argv[3]); RR;
+    result = mbImpl->write_mesh(argv[4]); RR;
   }
 
   delete mbz;

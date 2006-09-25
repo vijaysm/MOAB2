@@ -44,6 +44,10 @@ public:
                  EntitySequenceManager *sequence_manager,
                  std::vector<unsigned char> &tmp_buff);
 
+    //! assign a global id space, for largest-dimension or all entities (and
+    //! in either case for vertices too)
+  MBErrorCode assign_global_ids(const int dimension, const bool largest_dim_only = true);
+
     //! communicate entities from/to this range
   MBErrorCode communicate_entities(const int from_proc, const int to_proc,
                                    MBRange &entities,

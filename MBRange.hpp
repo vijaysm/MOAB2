@@ -261,9 +261,9 @@ public:
   //! get last entity in range
   const MBEntityHandle& back() const;
   //! remove first entity from range
-  void pop_front();
+  MBEntityHandle pop_front();
   //! remove last entity from range
-  void pop_back();
+  MBEntityHandle pop_back();
   
   //! find an item int the list and return an iterator at that value
   const_iterator find(MBEntityHandle val) const;

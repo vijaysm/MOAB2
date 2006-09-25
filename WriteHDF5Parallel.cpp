@@ -31,6 +31,8 @@
 #include "MBInternals.hpp"
 #include "MBTagConventions.hpp"
 #include "MBParallelConventions.h"
+#include "MBCN.hpp"
+#include "MBWriteUtilIface.hpp"
 
 #include "WriteHDF5Parallel.hpp"
 

@@ -71,13 +71,17 @@ extern "C"
     MBErrorCode balance_mesh(const char *zmethod,
                              const char *other_method);
     
+    MBErrorCode partition_mesh(const int nparts,
+                               const char *zmethod,
+                               const char *other_method);
+    
     int get_mesh(std::vector<double> &pts, std::vector<int> &ids,
                  std::vector<int> &adjs, std::vector<int> &length,
                  MBRange &elems);
 
       // given a processor assignment returned from Zoltan, write that as a
       // processor assignment to MOAB
-    MBErrorCode write_partition(MBRange &elems, const int *assignment);
+    MBErrorCode write_partition(const int nparts, MBRange &elems, const int *assignment);
 
     MBErrorCode write_file(const char *filename, const char *out_file);
   
