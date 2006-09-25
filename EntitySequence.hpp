@@ -38,6 +38,7 @@
 #include "MBInternals.hpp"
 #include "MBRange.hpp"
 #include "MBCore.hpp"
+#include "MBCN.hpp"
 #include <set>
 #include <assert.h>
 

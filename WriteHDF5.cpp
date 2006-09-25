@@ -38,6 +38,7 @@
 #include "MBInterface.hpp"
 #include "MBInternals.hpp"
 #include "MBTagConventions.hpp"
+#include "MBCN.hpp"
 #include "WriteHDF5.hpp"
 #include "mhdf.h"
 /* Access HDF5 file handle for debugging

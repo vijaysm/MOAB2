@@ -42,6 +42,7 @@
 #include "MBInternals.hpp"
 #include "MBMeshSet.hpp"
 #include "AEntityFactory.hpp"
+#include "MBCN.hpp"
 
 using namespace std;
 

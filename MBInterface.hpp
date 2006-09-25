@@ -32,7 +32,7 @@
 #include <string>
 #include <functional>
 
-#include "MBCN.hpp"
+#include "MBEntityType.h"
 
 //! forward declarations
 class MBRange;

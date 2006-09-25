@@ -31,6 +31,7 @@
 #include <assert.h>
 #include "MBRange.hpp"
 #include "MBInternals.hpp"
+#include "MBCN.hpp"
 #include <stdio.h>
 
 #ifdef HAVE_BOOST_POOL_SINGLETON_POOL_HPP

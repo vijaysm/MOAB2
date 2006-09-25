@@ -30,7 +30,8 @@
  *\author Jason Kraftcheck (kraftche@cae.wisc.edu)
  *\date 2006-07-18
  */
- 
+
+#include "MBCN.hpp"
 #include "MBOrientedBox.hpp"
 #include "MBRange.hpp"
 #include "MBMatrix3.hpp"

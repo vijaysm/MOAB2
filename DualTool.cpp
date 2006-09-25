@@ -23,6 +23,7 @@
 #include "MBCore.hpp"
 #include "MeshTopoUtil.hpp"
 #include "AEntityFactory.hpp"
+#include "MBCN.hpp"
 #include <string>
 #include <algorithm>
 #include <iostream>

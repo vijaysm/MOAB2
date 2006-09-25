@@ -31,6 +31,7 @@
 #include "MBInternals.hpp"
 #include "MBTagConventions.hpp"
 #include "ReadHDF5.hpp"
+#include "MBCN.hpp"
 //#include "WriteHDF5.hpp"
 
 #include <stdlib.h>

@@ -36,37 +36,13 @@
 #include <vector>
 #include <algorithm>
 
+#include "MBEntityType.h"
+
 // the maximum number n-1 dimension adjacencies a element may have
 #define MB_MAX_SUB_ENTITIES  24
 
 // the maximum number of nodes an n-1 dimensional element may have
 #define MB_MAX_SUB_ENTITY_VERTICES 16
-
-
-/*! Entity types defined in MOAB and MBCN
- *  The ordering here must ensure that all element types are 
- *  grouped together and all elements of similar dimension are
- *  grouped together.
- */
-enum MBEntityType
-{
-  MBVERTEX = 0, //!< Mesh Vertex AKA node
-  MBEDGE,       //!< Mesh Edge
-  MBTRI,        //!< Triangular element (including shells)
-  MBQUAD,       //!< Quadrilateral element (including shells)
-  MBPOLYGON,    //!< Polygon
-  MBTET,        //!< Tetrahedral element
-  MBPYRAMID,    //!< Pyramid element (where are the face ids for this defined?)
-  MBPRISM,      //!< Wedge element (Exodus has one, Cubit doesn't. Does Mesh need it?)
-  MBKNIFE,      //!< Knife element
-  MBHEX,        //!< Hexahedral element
-  MBPOLYHEDRON, //!< Polyhedron
-  MBENTITYSET,    //!< MeshSet
-  MBMAXTYPE  //!< Just a place keeper - must be the # of entities, for array
-    //!< dimensioning purposes 
-};
-
-typedef void* Handle;
 
 //! prefix increment operator for MBEntityType
 inline MBEntityType & operator++(MBEntityType &type)

@@ -182,6 +182,7 @@ libMOAB_la_include_HEADERS = \
   MBCN.hpp \
   MBCartVect.hpp \
   MBCore.hpp \
+  MBEntityType.h \
   MBError.hpp \
   MBGeomUtil.hpp \
   MBInterface.hpp \

@@ -19,6 +19,7 @@
 #include "MBReadUtilIface.hpp"
 #include "GeomTopoTool.hpp"
 #include "MBTagConventions.hpp"
+#include "MBCN.hpp"
 #include <assert.h>
 
 const bool debug = false;

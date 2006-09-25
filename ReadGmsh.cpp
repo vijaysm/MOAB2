@@ -27,6 +27,7 @@
 #include "MBRange.hpp"
 #include "MBTagConventions.hpp"
 #include "MBParallelConventions.h"
+#include "MBCN.hpp"
 
 #include <errno.h>
 #include <string.h>
