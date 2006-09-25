@@ -191,7 +191,7 @@ public:
   
   MBErrorCode get_entities_with_tag_values( MBEntityType type,
                                              const MBTag *tags,
-                                             const void** values,
+                                             const void* const* values,
                                              const int num_tags,
                                              MBRange &entities,
                                              const int condition);
@@ -199,7 +199,7 @@ public:
   MBErrorCode get_entities_with_tag_values( const MBRange &input_range,
                                              const MBEntityType type,
                                              const MBTag *tags,
-                                             const void** values,
+                                             const void* const* values,
                                              const int num_tags,
                                              MBRange &entities,
                                              const int condition);

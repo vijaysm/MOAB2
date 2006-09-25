@@ -784,7 +784,7 @@ MBErrorCode TagServer::get_entities_with_tag_value( const MBRange &range,
 
 MBErrorCode TagServer::get_entities_with_tag_values( MBEntityType type,
                                                       const MBTag *tags,
-                                                      const void** values,
+                                                      const void* const* values,
                                                       const int num_tags,
                                                       MBRange &entities,
                                                       const int condition) 
@@ -845,7 +845,7 @@ MBErrorCode TagServer::get_entities_with_tag_values( MBEntityType type,
 MBErrorCode TagServer::get_entities_with_tag_values( const MBRange &range,
                                                       const MBEntityType type,
                                                       const MBTag *tags,
-                                                      const void** values,
+                                                      const void* const* values,
                                                       const int num_tags,
                                                       MBRange &entities,
                                                       const int condition) 

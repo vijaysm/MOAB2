@@ -592,7 +592,7 @@ public:
   virtual MBErrorCode get_entities_by_type_and_tag(const MBEntityHandle meshset,
                                                    const MBEntityType type,
                                                    const MBTag *tag_handles,
-                                                   const void** values,
+                                                   const void* const* values,
                                                    const int num_tags,
                                                    MBRange &entities,
                                                    const int condition = MBInterface::INTERSECT,
