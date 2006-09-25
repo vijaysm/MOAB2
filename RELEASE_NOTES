@@ -1,4 +1,25 @@
 Version beta: 
+- Separate type definitions from interface definitions.  MBEntityType.h 
+  contains the definition of MBEntityType and MBTypes.h contains the
+  definitions of all other types and includes MBEntityType.h.  MBInterface 
+  now includes MBTypes.h rather than MBCN.hpp so some applications using
+  MBCN.hpp may have to add an explicit include.
+- Add methods to MBRange to check if all contained entities are of a given
+  type or dimension
+- Change internal storage of entity set parent/child lists so that we have
+  better behavior parent/child links become stale (don't try to delete/deref
+  stale pointers.)
+- Add lower_bound, upper_bound, equal_range methods that accept an MBEntityType
+  as input to MBRange.
+- Add front, back, pop_front and pop_back methods to MBRange
+- Change internal MBRange::PairNode definition so that the 
+  MBRange::const_pair_iterator::operator->() works correctly.
+- Added 'bool' value to tag_create, defaulting to false.  When true, tag_create
+  will return MB_SUCCESS if the tag already exists *and* matches the tag
+  creation parameters.
+- Fixed bugs saving/restoring of mesh and default values for tags containing 
+  MBEntityHandles to/from HDF5 files.
+- Allow special case null (zero) value for MBEntityHandle tags in HDF5 files
 - Added processor rank to entity handle, right below entity type and above id
 fields; width of this field is computed at initialization, and depends on the
 number of processors being used.  On serial versions, zero bits are used so
