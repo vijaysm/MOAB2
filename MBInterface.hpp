@@ -27,17 +27,11 @@
 #define MOAB_API_VERSION 1.01
 #define MOAB_API_VERSION_STRING "1.01"
 
-#include "MBTypes.h"
+#include "MBForward.hpp"
 
 // include files
-#include <vector>
 #include <string>
 #include <functional>
-
-// forward declarations
-class MBRange;
-class MBInterface;
-typedef std::vector<MBEntityHandle> MBHandleVec;
 
 
 //! component architecture definitions
