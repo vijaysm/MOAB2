@@ -93,7 +93,6 @@ libMOAB_la_SOURCES = \
   EntitySequence.hpp \
   EntitySequenceManager.cpp \
   EntitySequenceManager.hpp \
-  ExoIIDefines.hpp \
   ExoIIUtil.cpp \
   ExoIIUtil.hpp \
   FileTokenizer.cpp \
