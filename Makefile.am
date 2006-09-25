@@ -117,7 +117,6 @@ libMOAB_la_SOURCES = \
   MBCore.cpp \
   MBFactory.cpp \
   MBGeomUtil.cpp \
-  MBGeomUtil.hpp \
   MBInternals.hpp \
   MBMem.hpp \
   MBMeshSet.cpp \
@@ -184,6 +183,7 @@ libMOAB_la_include_HEADERS = \
   MBCartVect.hpp \
   MBCore.hpp \
   MBError.hpp \
+  MBGeomUtil.hpp \
   MBInterface.hpp \
   MBOrientedBox.hpp \
   MBOrientedBoxTreeTool.hpp \
