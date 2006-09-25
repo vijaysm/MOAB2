@@ -196,6 +196,7 @@ libMOAB_la_include_HEADERS = \
   MBReaderWriterSet.hpp \
   MBSkinner.hpp \
   MBTagConventions.hpp \
+  MBTypes.h \
   MBUnknownInterface.h \
   MBUtil.hpp \
   MBWriteUtilIface.hpp \

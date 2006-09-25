@@ -27,16 +27,17 @@
 #define MOAB_API_VERSION 1.01
 #define MOAB_API_VERSION_STRING "1.01"
 
-//! include files
+#include "MBTypes.h"
+
+// include files
 #include <vector>
 #include <string>
 #include <functional>
 
-#include "MBEntityType.h"
-
-//! forward declarations
+// forward declarations
 class MBRange;
 class MBInterface;
+typedef std::vector<MBEntityHandle> MBHandleVec;
 
 
 //! component architecture definitions
@@ -75,78 +76,6 @@ static const MBuuid IDD_MBCore = MBuuid( 0x8956e0a, 0xc300, 0x4005,
 #define MB_DLL_EXPORT
 #endif
 
-//! \name Types and names
-//! Definitions of types used in the interface
-
-  //@{
-
-//! first, specific error codes returned from MB
-enum MBErrorCode { MB_SUCCESS = 0,
-                   MB_INDEX_OUT_OF_RANGE,
-                   MB_TYPE_OUT_OF_RANGE,
-                   MB_MEMORY_ALLOCATION_FAILED,
-                   MB_ENTITY_NOT_FOUND,
-                   MB_MULTIPLE_ENTITIES_FOUND,
-                   MB_TAG_NOT_FOUND,
-                   MB_FILE_DOES_NOT_EXIST,
-                   MB_FILE_WRITE_ERROR,
-                   MB_NOT_IMPLEMENTED,
-                   MB_ALREADY_ALLOCATED,
-                   MB_FAILURE};
-
-//! tag types: for a more detailed description, see the MB User's Guide
-//! MB_TAG_BIT: size measured in bits instead of bytes, otherwise identical to sparse
-//! MB_TAG_SPARSE: tags stored in (entity handle, tag value) pairs
-//! MB_TAG_DENSE: tags stored in vectors directly on entity sequences, cheaper for tags
-//!     which go on lots of entities
-enum MBTagType {
-  MB_TAG_BIT = 0, 
-  MB_TAG_SPARSE, 
-  MB_TAG_DENSE, 
-  MB_TAG_MESH, 
-  MB_TAG_LAST};
-
-enum MBDataType {
-  MB_TYPE_OPAQUE  = 0,
-  MB_TYPE_INTEGER = 1,
-  MB_TYPE_DOUBLE  = 2,
-  MB_TYPE_BIT     = 3,
-  MB_TYPE_HANDLE  = 4 };
-
-//! entity handle: data type used to access all entity types in MB; high-order 4 bits
-//! stores the entity type (defined in Mesh), the rest is id
-#ifdef USE_64_BIT_HANDLES
-  // use 64 bit entity handles on a 64 bit machine
-typedef unsigned long MBEntityHandle;
-#else
-  // use 32 bit integer entity handles on 32/64 bit machines.
-typedef unsigned int MBEntityHandle;
-#endif
- 
-//! Tag handle: used to reference tags; since they're so different from entities, we
-//! use void** instead of a uint to prevent them from being confused as entity handles.
-typedef void** MBTag;
-
-//! Meshset options: used to pass property options through the interface
-//! MESHSET_TRACK_OWNER: enable entity to meshset adjacencies
-//! MESHSET_SET: stores an MBRange of handles
-//! MESHSET_ORDERED: stores a vector of handles
-#define MESHSET_TRACK_OWNER  0x1
-#define MESHSET_SET          0x2
-#define MESHSET_ORDERED      0x4
-
-//! convenience items: not critical to the representation, but useful enough to appear here
-
-//! global pointer for easy access to a single MB database, declared here but defined by
-//! the application.  Applications are not required to define, since this variable is not used
-//! inside MB.  Note that users of multiple simultaneous MB databases will have to manage 
-//! their own MB instance pointers.
-extern MBInterface* gMB;
-
-//! typedef for handle vectors
-typedef std::vector<MBEntityHandle> MBHandleVec;
-
-  //@}
 
 #if defined(XPCOM_MB)
 class NS_NO_VTABLE MBInterface : public nsISupports {
