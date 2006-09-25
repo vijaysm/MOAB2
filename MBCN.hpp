@@ -44,34 +44,6 @@
 // the maximum number of nodes an n-1 dimensional element may have
 #define MB_MAX_SUB_ENTITY_VERTICES 16
 
-//! prefix increment operator for MBEntityType
-inline MBEntityType & operator++(MBEntityType &type)
-{
-  return type = static_cast<MBEntityType>(type+1);
-}
-
-//! postfix increment operator for MBEntityType
-inline MBEntityType operator++(MBEntityType &type, int)
-{
-  MBEntityType oldval = type;
-  ++type;
-  return oldval;
-}
-
-//! prefix increment operator for MBEntityType
-inline MBEntityType & operator--(MBEntityType &type)
-{
-  return type = static_cast<MBEntityType>(type-1);
-}
-
-//! postfix increment operator for MBEntityType
-inline MBEntityType operator--(MBEntityType &type, int)
-{
-  MBEntityType oldval = type;
-  --type;
-  return oldval;
-}
-
 typedef std::pair<MBEntityType, MBEntityType> MBDimensionPair;
 
 class MBCN

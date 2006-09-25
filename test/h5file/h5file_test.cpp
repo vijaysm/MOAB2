@@ -19,6 +19,7 @@
 #include "MBCore.hpp"
 #include "MBRange.hpp"
 #include "MBTagConventions.hpp"
+#include "MBCN.hpp"
 
 #define filename "h5test.h5m"
 

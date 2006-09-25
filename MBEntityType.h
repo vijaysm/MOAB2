@@ -45,6 +45,36 @@ enum MBEntityType
 
 #ifdef __cplusplus
 } // extern "C"
+
+
+//! prefix increment operator for MBEntityType
+inline MBEntityType & operator++(MBEntityType &type)
+{
+  return type = static_cast<MBEntityType>(type+1);
+}
+
+//! postfix increment operator for MBEntityType
+inline MBEntityType operator++(MBEntityType &type, int)
+{
+  MBEntityType oldval = type;
+  ++type;
+  return oldval;
+}
+
+//! prefix increment operator for MBEntityType
+inline MBEntityType & operator--(MBEntityType &type)
+{
+  return type = static_cast<MBEntityType>(type-1);
+}
+
+//! postfix increment operator for MBEntityType
+inline MBEntityType operator--(MBEntityType &type, int)
+{
+  MBEntityType oldval = type;
+  --type;
+  return oldval;
+}
+
 #endif
 
 #endif

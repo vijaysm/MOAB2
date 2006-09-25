@@ -4,6 +4,7 @@
 #include "MBOrientedBox.hpp"
 #include "MBTagConventions.hpp"
 #include "MBGeomUtil.hpp"
+#include "MBCN.hpp"
 
 #include <iostream>
 #include <sstream>
