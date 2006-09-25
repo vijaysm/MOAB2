@@ -40,6 +40,10 @@
 #include <assert.h>
 #include "TagServer.hpp"
 #include "MBRange.hpp"
+#include "SparseTagCollections.hpp"
+#include "MBBits.hpp"
+#include "DenseTagCollections.hpp"
+#include "MBInterface.hpp"
 
 using namespace std;
 

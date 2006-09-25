@@ -32,6 +32,7 @@
 #include "MBCN.hpp"
 #include "ScdVertexSeq.hpp"
 #include "MBInternals.hpp"
+#include "MBRange.hpp"
 
 #include <vector>
 

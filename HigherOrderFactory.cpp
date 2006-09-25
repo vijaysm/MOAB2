@@ -24,6 +24,7 @@
 
 #include "HigherOrderFactory.hpp"
 #include "EntitySequenceManager.hpp"
+#include "EntitySequence.hpp"
 #include "AEntityFactory.hpp"
 #include "MBCore.hpp"
 #include "MBCN.hpp"

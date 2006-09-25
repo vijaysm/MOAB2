@@ -1,9 +1,13 @@
 #include "MBInternals.hpp"
 #include "MBParallelComm.hpp"
+#include "MBInterface.hpp"
 #include "MBWriteUtilIface.hpp"
 #include "MBReadUtilIface.hpp"
 #include "EntitySequenceManager.hpp"
+#include "EntitySequence.hpp"
 #include "TagServer.hpp"
+
+#include <assert.h>
 
 #ifdef USE_MPI
 #include "mpi.h"

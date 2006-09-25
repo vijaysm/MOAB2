@@ -39,15 +39,11 @@
 #pragma warning(disable : 4786)
 #endif
 
-
-// system includes
 #include <map>
+#include <vector>
 
-// 3rd party includes
-
-// our includes
+#include "MBTypes.h"
 #include "MBInternals.hpp"
-
 class MBRange;
 
 //! allocator for tag data

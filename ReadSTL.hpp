@@ -55,7 +55,7 @@
 #define READ_STL_HPP
 
 #include <stdio.h>
-#include "MBInterface.hpp"
+#include "MBForward.hpp"
 #include "MBReaderIface.hpp"
 
 class MBReadUtilIface;

@@ -20,6 +20,7 @@
 #include "MeshTopoUtil.hpp"
 #include "MBRange.hpp"
 #include "MBInternals.hpp"
+#include "MBInterface.hpp"
 #include "MBCN.hpp"
 
 #include <assert.h>

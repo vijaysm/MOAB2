@@ -28,10 +28,11 @@
 #error "DenseTagCollections.hpp isn't supposed to be included into an application"
 #endif
 
-#include "MBInterface.hpp"
 #include "MBInternals.hpp"
+#include "MBTypes.h"
 #include "MBRange.hpp"
 
+#include <vector>
 #include <assert.h>
 
 

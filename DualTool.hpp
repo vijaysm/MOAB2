@@ -25,7 +25,7 @@
 #ifndef DUAL_TOOL_HPP
 #define DUAL_TOOL_HPP
 
-#include "MBInterface.hpp"
+#include "MBForward.hpp"
 
 class DualTool
 {

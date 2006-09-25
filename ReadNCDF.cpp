@@ -29,8 +29,10 @@
 #include "MBCN.hpp"
 #include "MBRange.hpp"
 #include "MBInterface.hpp"
-#include "ExoIIInterface.hpp"
+#include "ExoIIUtil.hpp"
 #include "MBTagConventions.hpp"
+#include "MBInternals.hpp"
+#include "MBReadUtilIface.hpp"
 
 #define INS_ID(stringvar, prefix, id) \
           sprintf(stringvar, prefix, id)

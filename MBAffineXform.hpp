@@ -23,6 +23,7 @@
 #ifndef MB_AFFINE_XFORM_HPP
 #define MB_AFFINE_XFORM_HPP
 
+#include "MBForward.hpp"
 #include "MBCartVect.hpp"
 #include "MBMatrix3.hpp"
 

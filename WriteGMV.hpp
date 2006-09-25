@@ -29,9 +29,9 @@
 #ifndef WRITEGMV_HPP
 #define WRITEGMV_HPP
 
-#include "MBInterface.hpp"
-#include "MBWriteUtilIface.hpp"
+#include "MBForward.hpp"
 #include "MBWriterIface.hpp"
+class MBWriteUtilIface;
 
 //! Output Exodus File for VERDE
 class MB_DLL_EXPORT WriteGMV : public MBWriterIface

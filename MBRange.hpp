@@ -171,7 +171,7 @@
 #define MB_RANGE_HPP
 
 #include <iterator>
-#include "MBInterface.hpp"
+#include "MBTypes.h"
 
 struct range_iter_tag : public std::bidirectional_iterator_tag {};
 

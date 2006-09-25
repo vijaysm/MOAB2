@@ -34,17 +34,13 @@
 #error "ReadNCDF.hpp isn't supposed to be included into an application"
 #endif
 
-#include <set>
 #include <vector>
-#include <deque>
-#include <functional>
 #include <string>
 
-#include "MBReadUtilIface.hpp"
-#include "MBRange.hpp"
-#include "MBInternals.hpp"
-#include "ExoIIUtil.hpp"
+#include "MBForward.hpp"
 #include "MBReaderIface.hpp"
+#include "ExoIIInterface.hpp"
+class MBReadUtilIface;
 
 struct ReadBlockData
 {

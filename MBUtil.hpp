@@ -34,7 +34,7 @@
 #ifndef MB_UTIL_HPP
 #define MB_UTIL_HPP
 
-#include "MBInterface.hpp"
+#include "MBForward.hpp"
 
 struct  MBCoord
 {

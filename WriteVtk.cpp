@@ -27,6 +27,7 @@
 #include "VtkUtil.hpp"
 
 #include <fstream>
+#include <iostream>
 #include <stdio.h>
 #include <assert.h>
 

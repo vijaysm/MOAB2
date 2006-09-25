@@ -20,6 +20,9 @@
 #include "GeomTopoTool.hpp"
 #include "MBTagConventions.hpp"
 #include "MBCN.hpp"
+#include "MBInternals.hpp"
+
+#include <iostream>
 #include <assert.h>
 
 const bool debug = false;

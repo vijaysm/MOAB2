@@ -24,7 +24,7 @@
 #ifndef MESH_TOPO_UTIL_HPP
 #define MESH_TOPO_UTIL_HPP
 
-#include "MBInterface.hpp"
+#include "MBForward.hpp"
 
 class MeshTopoUtil
 {

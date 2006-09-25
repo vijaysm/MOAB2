@@ -21,7 +21,7 @@
 #ifndef MB_MESH_SET_MANAGER_HPP
 #define MB_MESH_SET_MANAGER_HPP
 
-#include "MBInterface.hpp"
+#include "MBForward.hpp"
 #include "MBInternals.hpp"
 
 #ifdef HAVE_BOOST_POOL_OBJECT_POOL_HPP
@@ -29,8 +29,6 @@
   class MBMeshSet_MBRange;
   class MBMeshSet_Vector;
 #endif
-
-#include <vector>
 
 class MBMeshSet;
 class AEntityFactory;

@@ -17,12 +17,13 @@
 
 #include "AEntityFactory.hpp"
 #include "MBInternals.hpp"
+#include "MBInterface.hpp"
 #include "MBRange.hpp"
 #include "MBError.hpp"
 #include "MBCN.hpp"
 #include "MeshTopoUtil.hpp"
 
-#include "assert.h"
+#include <assert.h>
 #include <algorithm>
 #include <set>
 

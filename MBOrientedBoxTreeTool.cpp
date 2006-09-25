@@ -18,6 +18,7 @@
  *\date 2006-07-18
  */
 
+#include "MBInterface.hpp"
 #include "MBOrientedBoxTreeTool.hpp"
 #include "MBOrientedBox.hpp"
 #include "MBRange.hpp"

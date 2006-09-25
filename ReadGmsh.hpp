@@ -23,7 +23,7 @@
 #ifndef READ_GMSH_HPP
 #define READ_GMSH_HPP
 
-#include "MBInterface.hpp"
+#include "MBForward.hpp"
 #include "MBReaderIface.hpp"
 #include "MBRange.hpp"
 

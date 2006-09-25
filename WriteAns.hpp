@@ -34,18 +34,14 @@
 #error "WriteAns.hpp isn't supposed to be included into an application"
 #endif
 
-#include <set>
-#include <map>
-#include <vector>
-#include <deque>
-#include <functional>
 #include <string>
 
+#include "MBForward.hpp"
 #include "MBRange.hpp"
-#include "MBInterface.hpp"
-#include "MBWriteUtilIface.hpp"
 #include "ExoIIInterface.hpp"
 #include "MBWriterIface.hpp"
+
+class MBWriteUtilIface;
 
 class MB_DLL_EXPORT WriteAns : public MBWriterIface
 {

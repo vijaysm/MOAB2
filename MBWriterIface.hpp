@@ -26,7 +26,7 @@
 
 #include <vector>
 #include <string>
-#include "MBInterface.hpp"
+#include "MBTypes.h"
 
 class MBWriterIface
 {

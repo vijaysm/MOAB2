@@ -19,6 +19,7 @@
 
 #include "PolyEntitySequence.hpp"
 #include "EntitySequenceManager.hpp"
+#include "MBRange.hpp"
 
 #define CHUNK_SIZE 4096
 

@@ -21,11 +21,10 @@
 #ifndef TQDCFR
 #define TQDCFR
 
-#include "MBInternals.hpp"
+#include "MBForward.hpp"
 #include "MBReaderIface.hpp"
 #include "MBTagConventions.hpp"
 
-#include <iostream>
 #include <stdio.h>
 #include <string>
 #include <vector>

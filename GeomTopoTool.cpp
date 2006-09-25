@@ -16,6 +16,7 @@
 #include "GeomTopoTool.hpp"
 #include "MBRange.hpp"
 #include "MBTagConventions.hpp"
+#include "MBInterface.hpp"
 #include <assert.h>
 
     //! Restore parent/child links between GEOM_TOPO mesh sets

@@ -24,6 +24,7 @@
 #include "ReadVtk.hpp"
 #include "MBRange.hpp"
 #include "MBInternals.hpp"
+#include "MBInterface.hpp"
 #include "MBReadUtilIface.hpp"
 #include "FileTokenizer.hpp"
 #include "VtkUtil.hpp"

@@ -28,6 +28,7 @@
 #include "MBCN.hpp"
 #include <assert.h>
 #include "AEntityFactory.hpp" 
+#include "MBCore.hpp"
 
 using namespace std;
 

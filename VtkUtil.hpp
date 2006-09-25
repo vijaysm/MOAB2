@@ -16,7 +16,7 @@
 #ifndef VTK_UTIL_HPP
 #define VTK_UTIL_HPP
 
-#include "MBInterface.hpp"
+#include "MBEntityType.h"
 
 //! Structure defining relation between MOAB and VTK element
 //! types.  VTK had different types for quadratic than linear

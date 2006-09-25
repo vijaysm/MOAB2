@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <list>
 #include "mhdf.h"
-#include "MBInterface.hpp"
+#include "MBForward.hpp"
 #include "MBReadUtilIface.hpp"
 #include "MBRange.hpp"
 #include "MBReaderIface.hpp"

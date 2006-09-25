@@ -29,6 +29,7 @@
 #include "MBRange.hpp"
 #include "MBCN.hpp"
 #include "MBTagConventions.hpp"
+#include "MBWriteUtilIface.hpp"
 #include <fstream>
 #include <assert.h>
 

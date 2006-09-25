@@ -41,12 +41,11 @@
 #error "EntitySequenceManager.hpp isn't supposed to be included into an application"
 #endif
 
-#include "MBInterface.hpp"
-#include "EntitySequence.hpp"
-#include "MBInternals.hpp"
-#include "MBRange.hpp"
-#include "HomXform.hpp"
+#include "MBForward.hpp"
 #include <map>
+
+class MBEntitySequence;
+class HomCoord;
 
 //! class for managing entity sequences
 class EntitySequenceManager
@@ -135,20 +134,6 @@ private:
   MBEntityHandle get_start_handle(int hint_start, int hint_proc, MBEntityType type, int num_ent);
   
 };
-
-  //! create a structured sequence of vertices or elements
-inline MBErrorCode EntitySequenceManager::create_scd_sequence(const HomCoord &coord_min,
-                                                               const HomCoord &coord_max,
-                                                               const MBEntityType type,
-                                                               const int hint_start_id,
-                                                               MBEntityHandle &start_handle,
-                                                               MBEntitySequence *&seq) 
-{
-  return create_scd_sequence(coord_min.i(), coord_min.j(), coord_min.k(), 
-                             coord_max.i(), coord_max.j(), coord_max.k(), 
-                             type, hint_start_id,
-                             start_handle, seq);
-}
 
 #endif
 

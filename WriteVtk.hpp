@@ -17,10 +17,9 @@
 #ifndef WRITE_VTK_HPP
 #define WRITE_VTK_HPP
 
-#include <vector>
-#include <iostream>
+#include <iosfwd>
 
-#include "MBInterface.hpp"
+#include "MBForward.hpp"
 #include "MBWriterIface.hpp"
 
 class MBWriteUtilIface;

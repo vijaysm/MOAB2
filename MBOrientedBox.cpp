@@ -31,6 +31,7 @@
  *\date 2006-07-18
  */
 
+#include "MBInterface.hpp"
 #include "MBCN.hpp"
 #include "MBOrientedBox.hpp"
 #include "MBRange.hpp"

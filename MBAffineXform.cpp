@@ -21,6 +21,7 @@
  */
 
 #include "MBAffineXform.hpp"
+#include "MBInterface.hpp"
 #include <assert.h>
 
 #ifndef TEST

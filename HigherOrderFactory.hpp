@@ -29,7 +29,6 @@
 #endif
 
 #include "MBInterface.hpp"
-#include "MBRange.hpp"
 class ElementEntitySequence;
 class MBCore;
 

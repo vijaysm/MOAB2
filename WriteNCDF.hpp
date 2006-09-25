@@ -34,19 +34,16 @@
 #error "WriteNCDF.hpp isn't supposed to be included into an application"
 #endif
 
-#include <set>
-#include <map>
 #include <vector>
-#include <deque>
-#include <functional>
 #include <string>
 
 #include "netcdf.hh"
+#include "MBForward.hpp"
 #include "MBRange.hpp"
-#include "MBInterface.hpp"
-#include "MBWriteUtilIface.hpp"
 #include "ExoIIInterface.hpp"
 #include "MBWriterIface.hpp"
+
+class MBWriteUtilIface;
 
 //! struct used to hold data for each block to be output in Exodus; used by
 //! initialize_exodus_file to initialize the file header for increased speed

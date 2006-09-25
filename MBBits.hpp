@@ -28,7 +28,7 @@
 #error "MBBits.hpp isn't supposed to be included into an application"
 #endif
 
-#include "MBInterface.hpp"
+#include "MBForward.hpp"
 #include "MBInternals.hpp"
 
 #include <assert.h>

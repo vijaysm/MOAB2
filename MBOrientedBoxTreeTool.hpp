@@ -21,7 +21,7 @@
 #ifndef MB_ORIENTED_BOX_TREE_TOOL_HPP
 #define MB_ORIENTED_BOX_TREE_TOOL_HPP
 
-#include "MBInterface.hpp"
+#include "MBForward.hpp"
 
 #include <iosfwd>
 #include <list>

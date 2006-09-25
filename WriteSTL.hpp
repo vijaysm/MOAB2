@@ -32,11 +32,12 @@
 #ifndef WRITE_STL_HPP
 #define WRITE_STL_HPP
 
-#include "MBInterface.hpp"
+#include "MBForward.hpp"
 #include "MBWriterIface.hpp"
-#include "MBWriteUtilIface.hpp"
 
 #include <stdio.h>
+
+class MBWriteUtilIface;
 
 class WriteSTL : public MBWriterIface
 {

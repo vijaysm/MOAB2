@@ -40,6 +40,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#include "MBTypes.h"
+
 #ifdef WIN32
 #define VSNPRINTF _vsnprintf
 #else

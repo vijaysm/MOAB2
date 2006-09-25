@@ -25,11 +25,11 @@
 
 #include <list>
 #include "mhdf.h"
-#include "MBInterface.hpp"
-#include "MBWriteUtilIface.hpp"
+#include "MBForward.hpp"
 #include "MBRange.hpp"
 #include "MBWriterIface.hpp"
 
+class MBWriteUtilIface;
 
 /* If this define is not set, node->entity adjacencies will not be written */
 #undef WRITE_NODE_ADJACENCIES

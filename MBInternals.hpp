@@ -25,9 +25,7 @@
 #error "MBInternals.hpp isn't supposed to be included into an application"
 #endif
 
-#include <vector>
-
-#include "MBInterface.hpp"
+#include "MBTypes.h"
 
 /*! Define MBEntityHandle for both 32 bit and 64 bit systems.
  *  The decision to use 64 bit handles must be made at compile time.

@@ -40,7 +40,7 @@ enum ExoIIElementType
 #define MAX_STR_LENGTH 33
 #define MAX_LINE_LENGTH 80
 
-#include "MBInterface.hpp"
+#include "MBTypes.h"
 
 class MB_DLL_EXPORT ExoIIInterface
 {

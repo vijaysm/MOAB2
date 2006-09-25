@@ -30,9 +30,9 @@
 #ifndef WRITE_GMSH_HPP
 #define WRITE_GMSH_HPP
 
-#include "MBInterface.hpp"
+#include "MBForward.hpp"
 #include "MBWriterIface.hpp"
-#include "MBWriteUtilIface.hpp"
+class MBWriteUtilIface;
 
 #include <stdio.h>
 

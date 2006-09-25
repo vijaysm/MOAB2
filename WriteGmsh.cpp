@@ -2,6 +2,9 @@
 #include "MBCN.hpp"
 #include "MBTagConventions.hpp"
 #include "MBParallelConventions.h"
+#include "MBInterface.hpp"
+#include "MBRange.hpp"
+#include "MBWriteUtilIface.hpp"
 
 #include <fstream>
 #include <map>

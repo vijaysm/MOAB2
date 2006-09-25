@@ -40,6 +40,7 @@
 #include "MBTagConventions.hpp"
 #include "MBCN.hpp"
 #include "WriteHDF5.hpp"
+#include "MBWriteUtilIface.hpp"
 #include "mhdf.h"
 /* Access HDF5 file handle for debugging
 #include <H5Fpublic.h>

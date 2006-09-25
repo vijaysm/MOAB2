@@ -18,7 +18,7 @@
 #ifndef MB_SKINNER_HPP
 #define MB_SKINNER_HPP
 
-#include "MBInterface.hpp"
+#include "MBForward.hpp"
 #include <vector>
 
 class MBSkinner 

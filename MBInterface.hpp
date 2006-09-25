@@ -60,16 +60,6 @@ static const MBuuid IDD_MBCore = MBuuid( 0x8956e0a, 0xc300, 0x4005,
                                          0xbd, 0xf6, 0xc3, 0x4e, 0xf7, 0x1f, 0x5a, 0x52 );
 
 
-#ifdef WIN32
-#ifdef MB_EXPORTS
-#define MB_DLL_EXPORT __declspec(dllexport)
-#else
-#define MB_DLL_EXPORT
-#endif
-#else
-#define MB_DLL_EXPORT
-#endif
-
 
 #if defined(XPCOM_MB)
 class NS_NO_VTABLE MBInterface : public nsISupports {

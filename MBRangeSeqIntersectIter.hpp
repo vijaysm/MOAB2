@@ -21,7 +21,7 @@
 #ifndef MB_RANGE_SEQ_INTERSECT_ITER_HPP
 #define MB_RANGE_SEQ_INTERSECT_ITER_HPP
 
-#include "MBInterface.hpp"
+#include "MBTypes.h"
 #include "MBRange.hpp"
 
 class EntitySequenceManager;

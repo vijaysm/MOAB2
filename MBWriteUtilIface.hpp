@@ -18,10 +18,8 @@
 #define MB_WRITE_UTIL_IFACE_HPP
 
 
-#include <vector>
-#include "MBInterface.hpp"
-#include <stdarg.h>
 #include "MBRange.hpp"
+#include <vector>
 
 //! Interface implemented in MOAB which provides memory for mesh reading utilities
 class MB_DLL_EXPORT MBWriteUtilIface

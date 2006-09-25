@@ -16,7 +16,7 @@
 #ifndef READ_VTK_HPP
 #define READ_VTK_HPP
 
-#include "MBInterface.hpp"
+#include "MBForward.hpp"
 #include "MBReaderIface.hpp"
 
 class MBReadUtilIface;

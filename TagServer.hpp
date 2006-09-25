@@ -35,20 +35,16 @@
 #error "TagServer.hpp isn't supposed to be included into an application"
 #endif
 
-
-// system includes
 #include <string>
 #include <vector>
+#include <map>
 
-// 3rd party includes
-
-// our includes
-#include "MBInternals.hpp"
-#include "SparseTagCollections.hpp"
-#include "MBBits.hpp"
-#include "DenseTagCollections.hpp"
+#include "MBTypes.h"
 
 class MBRange;
+class DenseTagSuperCollection;
+class SparseTagSuperCollection;
+class MBBitServer;
 
 // ! stores information about a tag
 class TagInfo

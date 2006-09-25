@@ -53,6 +53,7 @@
 #endif
 #include "MBTagConventions.hpp"
 #include "ExoIIUtil.hpp"
+#include "EntitySequence.hpp"
 #ifdef LINUX
 # include <dlfcn.h>
 # include <dirent.h>

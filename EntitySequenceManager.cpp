@@ -110,7 +110,21 @@ MBErrorCode EntitySequenceManager::create_scd_sequence(const int imin, const int
   else return MB_SUCCESS;
 }
 
-  
+
+  //! create a structured sequence of vertices or elements
+MBErrorCode EntitySequenceManager::create_scd_sequence(const HomCoord &coord_min,
+                                                       const HomCoord &coord_max,
+                                                       const MBEntityType type,
+                                                       const int hint_start_id,
+                                                       MBEntityHandle &start_handle,
+                                                       MBEntitySequence *&seq) 
+{
+  return create_scd_sequence(coord_min.i(), coord_min.j(), coord_min.k(), 
+                             coord_max.i(), coord_max.j(), coord_max.k(), 
+                             type, hint_start_id,
+                             start_handle, seq);
+}
+
 /*!
   creates an entity sequence based on number of entities and type.
   uses the hint_start as the start id for the entity handles if possible

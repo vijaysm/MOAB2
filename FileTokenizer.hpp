@@ -16,7 +16,7 @@
 #ifndef FILE_TOKENIZER_HPP
 #define FILE_TOKENIZER_HPP
 
-#include "MBInterface.hpp"
+#include "MBTypes.h"
 #include <cstdio>
 #include <sys/types.h>
 

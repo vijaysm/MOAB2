@@ -26,7 +26,7 @@
 
 #include <list>
 #include <string>
-#include "MBInterface.hpp"
+#include "MBTypes.h"
 
 class MBReaderIface;
 class MBWriterIface;

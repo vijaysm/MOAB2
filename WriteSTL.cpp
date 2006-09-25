@@ -22,6 +22,9 @@
 
 #include "WriteSTL.hpp"
 #include "MBCN.hpp"
+#include "MBInterface.hpp"
+#include "MBRange.hpp"
+#include "MBWriteUtilIface.hpp"
 
 #include <stdio.h>
 #include <sys/types.h>

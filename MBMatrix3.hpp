@@ -22,7 +22,7 @@
 #define MB_MATRIX_3_HPP
 
 #include "MBCartVect.hpp"
-#include "MBInterface.hpp"
+#include "MBTypes.h"
 #include <iosfwd>
 
 class MBMatrix3 

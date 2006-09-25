@@ -34,15 +34,14 @@
 #error "EntitySequence.hpp isn't supposed to be included into an application"
 #endif
 
-#include "MBInterface.hpp"
+#include "MBForward.hpp"
 #include "MBInternals.hpp"
-#include "MBRange.hpp"
-#include "MBCore.hpp"
 #include "MBCN.hpp"
 #include <set>
 #include <assert.h>
 
 class EntitySequenceManager;
+class MBCore;
 
 class MBEntitySequence
 {

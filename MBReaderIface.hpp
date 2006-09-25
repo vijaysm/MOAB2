@@ -24,9 +24,7 @@
 #ifndef MB_READER_IFACE_HPP
 #define MB_READER_IFACE_HPP
 
-#include <vector>
-#include <string>
-#include "MBInterface.hpp"
+#include "MBTypes.h"
 
 class MBReaderIface
 {

@@ -20,7 +20,7 @@
 #error "AEntityFactory.hpp isn't supposed to be included into an application"
 #endif
 
-#include "MBInterface.hpp"
+#include "MBForward.hpp"
 #include "DenseTagCollections.hpp"
 #include <vector>
 

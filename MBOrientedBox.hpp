@@ -21,7 +21,7 @@
 #ifndef MB_ORIENTED_BOX_HPP
 #define MB_ORIENTED_BOX_HPP
 
-#include "MBInterface.hpp"
+#include "MBForward.hpp"
 #include "MBCartVect.hpp"
 #include "MBMatrix3.hpp"
 

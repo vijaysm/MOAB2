@@ -25,7 +25,7 @@
 #ifndef MB_PARALLEL_COMM_HPP
 #define MB_PARALLEL_COMM_HPP
 
-#include "MBInterface.hpp"
+#include "MBForward.hpp"
 #include "MBRange.hpp"
 
 class TagServer;

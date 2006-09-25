@@ -32,8 +32,10 @@
 #error "MB_MeshSet.hpp isn't supposed to be included into an application"
 #endif
 
-#include "MBInterface.hpp"
+#include "MBTypes.h"
 #include "MBRange.hpp"
+
+#include <vector>
 
 class AEntityFactory;
 

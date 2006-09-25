@@ -31,7 +31,7 @@
 */
 
 #include "MBAlloc.hpp"
-#include "MBInterface.hpp"
+#include "MBTypes.h"
 
 // define the allocators to use in various parts of MB
 
