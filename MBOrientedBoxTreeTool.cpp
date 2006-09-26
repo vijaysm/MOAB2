@@ -101,7 +101,7 @@ MBErrorCode MBOrientedBoxTreeTool::box( MBEntityHandle set,
 
 struct MBOrientedBoxTreeTool::SetData {
   MBEntityHandle handle;
-  MBOrientedBox::OrientMatrix box_data;
+  MBOrientedBox::CovarienceData box_data;
   //MBRange vertices;
 };
 
@@ -141,7 +141,7 @@ MBErrorCode MBOrientedBoxTreeTool::join_trees( const MBRange& sets,
     data.push_back( SetData() );
     SetData& set_data = data.back();
     set_data.handle = *i;
-    rval = MBOrientedBox::orient_from_2d_cells( set_data.box_data, instance, elements );
+    rval = MBOrientedBox::covarience_data_from_tris( set_data.box_data, instance, elements );
     if (MB_SUCCESS != rval)
       return rval;
   }
@@ -320,7 +320,7 @@ MBErrorCode MBOrientedBoxTreeTool::build_sets( std::list<SetData>& sets,
   // make vector go out of scope when done, so memory is released
   { 
     MBRange elems;
-    std::vector<MBOrientedBox::OrientMatrix> data(sets.size());
+    std::vector<MBOrientedBox::CovarienceData> data(sets.size());
     data.clear();
     for (std::list<SetData>::iterator i = sets.begin(); i != sets.end(); ++i) {
       data.push_back( i->box_data );
@@ -334,7 +334,7 @@ MBErrorCode MBOrientedBoxTreeTool::build_sets( std::list<SetData>& sets,
     if (MB_SUCCESS != rval)
       return rval;
     
-    rval = MBOrientedBox::compute_from_orient( box, instance, &data[0], data.size(), points );
+    rval = MBOrientedBox::compute_from_covarience_data( box, instance, &data[0], data.size(), points );
     if (MB_SUCCESS != rval)
       return rval;
   }

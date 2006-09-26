@@ -43,22 +43,23 @@ struct MBOrientedBox
   MBCartVect length;  //!< distance from center to plane along each axis
 #endif
 #if MB_ORIENTED_BOX_OUTER_RADIUS
-  double radius;
+  double radius;      //!< outer radius (1/2 diagonal length) of box
 #endif
 
   inline MBOrientedBox() {}
 
   MBOrientedBox( const MBCartVect axis[3], const MBCartVect& center );
 
-  inline double inner_radius() const; // radius of inscribed sphere
-  inline double outer_radius() const; // radius of circumscribed sphere
-  inline double outer_radius_squared() const;
-  inline double inner_radius_squared() const;
-  inline double volume() const;
-  inline MBCartVect dimensions() const;
-  inline double area() const; // max of area of sides of box
-  inline MBCartVect scaled_axis( int index ) const;
+  inline double inner_radius() const; //!< radius of inscribed sphere
+  inline double outer_radius() const; //!< radius of circumscribed sphere
+  inline double outer_radius_squared() const; //!< square of radius of circumsphere
+  inline double inner_radius_squared() const; //!< square of radius if inscribed sphere
+  inline double volume() const;               //!< volume of box
+  inline MBCartVect dimensions() const;       //!< number of dimensions for which box is not flat
+  inline double area() const;                 //!< largest side area
+  inline MBCartVect scaled_axis( int index ) const; //!< get vector in direction of axis, from box center to face
   
+  /** Test if point is contained in box */
   bool contained( const MBCartVect& point, double tolerance ) const;
   
   //bool contained( const MBOrientedBox& other, double tolerance ) const;
@@ -89,28 +90,37 @@ struct MBOrientedBox
                                             MBInterface* instance,
                                             const MBRange& elements );
 
-    // Structure to hold temporary accumulated triangle data for
-    // caculating box orietation.
-  struct OrientMatrix {
-    MBMatrix3 matrix;
-    MBCartVect center;
-    double area;
+    /** Structure to hold temporary accumulated triangle data for
+     *  caculating box orietation.  See box_from_covarience_data
+     *  to see how this is used to calculate the final covarience matrix
+     *  and resulting box orientation.
+     */
+  struct CovarienceData {
+    MBMatrix3 matrix;    //!< Running sum for covarience matrix
+    MBCartVect center;   //!< Sum of triangle centroids weighted by 2*triangle area
+    double area;         //!< 2x the sum of the triangle areas
   };
   
-    // Compute temporary orientation data from a set of 2D elements
-  static MBErrorCode orient_from_2d_cells( OrientMatrix& result,
-                                           MBInterface* moab_instance,
-                                           const MBRange& elements );
+    /** Calculate a CovarienceData struct from a list of triangles */
+  static MBErrorCode covarience_data_from_tris( CovarienceData& result,
+                                                MBInterface* moab_instance,
+                                                const MBRange& elements );
   
-    // Compute box orientation given a set of OrientMtarix's output from
-    // 'orient_from_2d_cells' and the set of vertices the box is to enclose.
-  static MBErrorCode compute_from_orient( MBOrientedBox& result,
+    /** Calculate an MBOrientedBox given an arrray of CovarienceData and 
+     *  the list  of vertices the box is to bound.
+     */
+  static MBErrorCode compute_from_covarience_data( MBOrientedBox& result,
                                           MBInterface* moab_instance,
-                                          const OrientMatrix* orient_array,
+                                          const CovarienceData* orient_array,
                                           unsigned orient_array_length,
                                           const MBRange& vertices );
   
-    // Test for intersection of a ray (or line segment) with this box
+    /** Test for intersection of a ray (or line segment) with this box
+     *\param ray_start_point The base point of the ray
+     *\param ray_unit_direction The direction of the ray (must be unit length)
+     *\param distance_tolerance Tolerance to use in intersection checks
+     *\param segment_length Optional length of ray
+     */
   bool intersect_ray( const MBCartVect& ray_start_point,
                       const MBCartVect& ray_unit_direction,
                       double distance_tolerance,
@@ -127,16 +137,16 @@ struct MBOrientedBox
   void closest_location_in_box( const MBCartVect& input_position,
                                 MBCartVect& output_position ) const;
                       
-    // Construct a hexahedral element with the same shape as this box.
+    //! Construct a hexahedral element with the same shape as this box.
   MBErrorCode make_hex( MBEntityHandle& hex, MBInterface* instance );
                                     
   
-    // Compute box orientation given a single OrientMtarix output from
-    // 'orient_from_2d_cells' and the set of vertices the box is to enclose.
-    // Will modify data in passed OrientMatrix.
-  static MBErrorCode compute_from_orient( MBOrientedBox& result,
+    /** Calculate an MBOrientedBox given a CovarienceData struct and
+     *  the list of points the box is to bound.
+     */
+  static MBErrorCode compute_from_covarience_data( MBOrientedBox& result,
                                           MBInterface* moab_instance,
-                                          OrientMatrix& orientation_data,
+                                          CovarienceData& orientation_data,
                                           const MBRange& vertices );
 };
 

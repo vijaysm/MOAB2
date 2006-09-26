@@ -297,7 +297,7 @@ MBErrorCode MBOrientedBox::compute_from_vertices( MBOrientedBox& result,
   return box_from_axes( result, instance, vertices );
 }
 
-MBErrorCode MBOrientedBox::orient_from_2d_cells( OrientMatrix& result,
+MBErrorCode MBOrientedBox::covarience_data_from_tris( CovarienceData& result,
                                                  MBInterface* instance,
                                                  const MBRange& elements )
 {
@@ -350,8 +350,8 @@ MBErrorCode MBOrientedBox::compute_from_2d_cells( MBOrientedBox& result,
                                                   const MBRange& elements )
 {
     // Get orientation data from elements
-  OrientMatrix data;
-  MBErrorCode rval = orient_from_2d_cells( data, instance, elements );
+  CovarienceData data;
+  MBErrorCode rval = covarience_data_from_tris( data, instance, elements );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -362,12 +362,13 @@ MBErrorCode MBOrientedBox::compute_from_2d_cells( MBOrientedBox& result,
     return rval;
     
     // Calculate box given points and orientation data
-  return compute_from_orient( result, instance, data, points );
+  return compute_from_covarience_data( result, instance, data, points );
 }
 
-MBErrorCode MBOrientedBox::compute_from_orient( MBOrientedBox& result,
+MBErrorCode MBOrientedBox::compute_from_covarience_data(
+                                                MBOrientedBox& result,
                                                 MBInterface* instance,
-                                                OrientMatrix& data,
+                                                CovarienceData& data,
                                                 const MBRange& vertices )
 {
     // get center from sum
@@ -403,20 +404,21 @@ bool MBOrientedBox::contained( const MBCartVect& point, double tol ) const
 #endif
 }
 
-MBErrorCode MBOrientedBox::compute_from_orient( MBOrientedBox& result,
+MBErrorCode MBOrientedBox::compute_from_covarience_data( MBOrientedBox& result,
                                                 MBInterface* moab_instance,
-                                                const OrientMatrix* data,
+                                                const CovarienceData* data,
                                                 unsigned data_length,
                                                 const MBRange& vertices )
 {
-  OrientMatrix data_sum = { 0.0, MBCartVect(0.0), 0.0 };
-  for (const OrientMatrix* const end = data+data_length; data != end; ++data) {
+    // Sum input CovarienceData structures
+  CovarienceData data_sum = { 0.0, MBCartVect(0.0), 0.0 };
+  for (const CovarienceData* const end = data+data_length; data != end; ++data) {
     data_sum.matrix += data->matrix;
     data_sum.center += data->center;
     data_sum.area += data->area;
   }
-  
-  return compute_from_orient( result, moab_instance, data_sum, vertices );
+    // Compute box from sum of structs
+  return compute_from_covarience_data( result, moab_instance, data_sum, vertices );
 }
 
 
