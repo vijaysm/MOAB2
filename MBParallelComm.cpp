@@ -88,15 +88,16 @@ MBErrorCode MBParallelComm::assign_global_ids(const int dimension, const bool la
   
     // communicate numbers
   std::vector<int> num_elements(MB_PROC_SIZE*4);
-  if (MB_PROC_SIZE == 1) {
-    for (int dim = 0; dim < 4; dim++) num_elements[dim] = local_num_elements[dim];
-  }
-  else {
+#ifdef USE_MPI
+  if (MB_PROC_SIZE > 1) {
     int retval = MPI_Alltoall(local_num_elements, 4, MPI_INTEGER,
                               &num_elements[0], MB_PROC_SIZE*4, 
                               MPI_INTEGER, MPI_COMM_WORLD);
     if (0 != retval) return MB_FAILURE;
   }
+  else
+#endif
+    for (int dim = 0; dim < 4; dim++) num_elements[dim] = local_num_elements[dim];
   
     // my entities start at one greater than total_elems[d]
   int total_elems[4] = {1, 1, 1, 1};
