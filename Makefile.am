@@ -50,18 +50,15 @@ endif
 if PARALLEL
   MOAB_PARALLEL_SRCS = WriteHDF5Parallel.cpp
   MOAB_PARALLEL_HDRS = WriteHDF5.hpp WriteHDF5Parallel.hpp
-  PARALLEL_TESTS = test/h5file/parallel
 else
   MOAB_PARALLEL_SRCS = WriteHDF5.hpp
   MOAB_PARALLEL_HDRS =
-  PARALLEL_TESTS =
 endif
 if HDF5_FILE
   libMOAB_la_LIBADD = $(top_builddir)/mhdf/libmhdf.la
   INCLUDES += -I$(srcdir)/mhdf/include
   MOAB_EXTRA_SRCS += ReadHDF5.cpp ReadHDF5.hpp WriteHDF5.cpp $(MOAB_PARALLEL_SRCS)
   MOAB_EXTRA_HDRS += $(MOAB_PARALLEL_HDRS)
-  TESTS += $(PARALLEL_TESTS)
 endif
 
 
