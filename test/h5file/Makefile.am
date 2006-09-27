@@ -1,5 +1,5 @@
 DEFS = $(DEFINES)
-INCLUDES += -I$(top_srcdir) -I$(top_srcdir)/mhdf/include
+INCLUDES += -I$(top_srcdir) -I$(top_srcdir)/mhdf/include -I$(top_builddir)
 check_PROGRAMS = h5test
 if PARALLEL
   check_PROGRAMS += parallel

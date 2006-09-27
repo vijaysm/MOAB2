@@ -10,6 +10,8 @@
 #include "MBParallelConventions.h"
 #include "WriteHDF5Parallel.hpp"
 
+#include "testdir.h"
+
 int numproc, rank;
 
 #ifndef NDEBUG
@@ -70,21 +72,23 @@ int main( int argc, char* argv[] )
   MPI_Comm_size( MPI_COMM_WORLD, &numproc );
   MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
   
-  int in_file_idx = 2;
-  const char* out_file = argv[1];
+  char* defaults[] = { "out.blocks.h5m", "../../" TEST_DIR "/h5file/blocks.h5m" };
   bool wait_for_sig = false;
-  if (!strcmp( out_file, "-w" )) 
-  {
-    out_file = argv[2];
-    in_file_idx = 3;
-    wait_for_sig = true;
+  char** fnames = argv + 1;
+  int fname_count = argc - 1;
+  if (argc > 1 && !strcmp( argv[i], "-w" )) {
+    ++fnames;
+    --fname_count;
   }
-  
-  if (argc < (in_file_idx+1))
-  {
-    printerror( "Usage: %s [-w] <output file> <input file list>", argv[0] );
-    exit( 1 );
+  if (0 == fname_count) {
+    fnames = defaults;
+    fname_count = 2;
   }
+  else if (1 == fname_count) {
+    fprintf(stderr, "Usage: %s [-w] output_file input_file [input_file2 ...]\n", argv[0] );
+    return 1;
+  }
+
   
   if (wait_for_sig)
   {
@@ -99,18 +103,18 @@ int main( int argc, char* argv[] )
   getcwd( wd, sizeof(wd) );
   printerror ("WorkingDir: %s\n", wd);
   
-  for (i = in_file_idx; i < argc; ++i)
+  for (i = 1; i < fname_count; ++i)
   {
-    printerror ( "Reading \"%s\"...", argv[i] );
-    rval = iFace.load_mesh( argv[i], 0, 0 );
+    printerror ( "Reading \"%s\"...", fnames[i] );
+    rval = iFace.load_mesh( fnames[i], 0, 0 );
     if (MB_SUCCESS != rval)
     {
-      printerror( "Failed to read mesh file: \"%s\"", argv[i] );
+      printerror( "Failed to read mesh file: \"%s\"", fnames[i] );
       exit( i+1 );
     }
   }
   
-  printerror( "Read %d files.", argc-2 );
+  printerror( "Read %d files.", fname_count - 1 );
   MPI_Barrier( MPI_COMM_WORLD );  
   
   printerror( "Getting/creating tags...");
@@ -347,7 +351,7 @@ END_SERIAL;
     // Write all the mesh in a single, serial file to compare with
     // the parallel output.
   if (0 == rank) {
-    std::string sname = out_file;
+    std::string sname = fnames[0];
     sname += ".serial.h5m";
     rval = iFace.write_mesh( sname.c_str() );
     if (MB_SUCCESS != rval)
@@ -363,16 +367,13 @@ END_SERIAL;
   
     // Write individual file from each processor
   char str_rank[6];
-  sprintf(str_rank, ".%02d", rank );
-  char* ptr = strrchr( out_file, '.' );
-  if (ptr && strcmp(ptr, ".h5m")) ptr = 0;
-  if (ptr)
-    *ptr = '\0';
-  std::string name = out_file;
-  if (ptr)
-    *ptr = '.';
-  name += str_rank;
-  name += ".h5m";
+  sprintf(str_rank, "%02d", rank );
+  std::string name( str_rank );
+  name += ".";
+  name += fnames[0];
+  char* ptr = strrchr( fnames[0], '.' );
+  if (ptr && strcmp(ptr, ".h5m"))
+    name += ".h5m";
 
   printerror ("Writing individual file: \"%s\"", name.c_str() );
   rval = iFace.write_mesh( name.c_str(), &list[0], list.size() ); 
@@ -396,14 +397,14 @@ END_SERIAL;
   qa.push_back( qa3 );
   WriteHDF5Parallel writer( &iFace );
   
-  printerror ("Writing parallel file: \"%s\"", out_file );
-  rval = writer.write_file( out_file, true, &list[0], list.size(), qa );
+  printerror ("Writing parallel file: \"%s\"", fnames[0] );
+  rval = writer.write_file( fnames[0], true, &list[0], list.size(), qa );
   if (MB_SUCCESS != rval)
   {
-    printerror( "Failed to write parallel file: \"%s\"", out_file );
+    printerror( "Failed to write parallel file: \"%s\"", fnames[0] );
     exit( 127 );
   }
-  printerror( "Wrote parallel file: \"%s\"", out_file );
+  printerror( "Wrote parallel file: \"%s\"", fnames[0] );
   
   H5close();
   MPI_Finalize();
