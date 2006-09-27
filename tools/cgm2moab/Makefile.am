@@ -13,4 +13,4 @@ cgm2moab_SOURCES = cgm2moab.cc \
                    
 LDADD = $(top_builddir)/libMOAB.la $(CGM_LIBS_LINK)
 cgm2moab_DEPENDENCIES = $(top_builddir)/libMOAB.la
-man1_MANS = cgm2moab.man
+dist_man1_MANS = cgm2moab.man
