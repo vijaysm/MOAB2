@@ -106,27 +106,13 @@ void MB_SET_PROC( int num_cpu, int rank )
 }
 
 //! Constructor
-MBCore::MBCore() 
+MBCore::MBCore( int rank, int num_procs ) 
 {
 #ifdef XPCOM_MB
   NS_INIT_ISUPPORTS();
 #endif
-
-  iInitializedMPI = false;
   
-#ifdef USE_MPI
-  int ierror, initd;
-  ierror = MPI_Initialized(&initd);
-  if (!initd) {
-    ierror = MPI_Init(NULL, NULL);
-    iInitializedMPI = true;
-  }
-  
-  int rank, num_procs;
-  ierror = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  ierror = MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
   MB_SET_PROC( num_procs, rank );
-#endif
 
   if (initialize() != MB_SUCCESS)
   {
@@ -148,10 +134,6 @@ MBCore::~MBCore()
   mMBReadUtil = NULL;
 
   deinitialize();
-
-#ifdef USE_MPI  
-  if (iInitializedMPI) MPI_Finalize();
-#endif
 }
 
 

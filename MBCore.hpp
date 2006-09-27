@@ -47,7 +47,7 @@ class MBCore : public MBInterface
 public:
 
   //!constructor
-  MB_DLL_EXPORT MBCore();
+  MB_DLL_EXPORT MBCore( int rank = 0, int num_cpu = 1 );
 
   //!destructor
   MB_DLL_EXPORT ~MBCore();
@@ -834,10 +834,6 @@ private:
   MBError* mError;
 
   static const char *errorStrings[];
-
-    //! true if MPI was initialized in constructor; if so, MPI will be
-    //! finalized in destructor
-  bool iInitializedMPI;
   
 //------------MeshSet Interface Private Functions & Data------------//
 
