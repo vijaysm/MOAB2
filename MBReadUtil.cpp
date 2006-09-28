@@ -34,6 +34,8 @@ MBReadUtil::MBReadUtil(MBCore* mdb, MBError* error_handler)
 {
 }
 
+unsigned  MBReadUtil::parallel_rank() const
+  { return mMB->proc_config().rank(); }
 
 MBErrorCode MBReadUtil::get_node_arrays(
     const int /*num_arrays*/,
@@ -49,8 +51,8 @@ MBErrorCode MBReadUtil::get_node_arrays(
 
   MBEntityHandle preferred_start_handle;
   static int err;
-  preferred_start_handle = CREATE_HANDLE(MBVERTEX, preferred_start_id, 
-                                         preferred_start_proc, err);
+  preferred_start_handle = CREATE_HANDLE(MBVERTEX, mMB->proc_config().id(preferred_start_id, 
+                                         preferred_start_proc), err);
  
   // create an entity sequence for these nodes 
   error = mMB->sequence_manager()->create_entity_sequence(
@@ -72,7 +74,7 @@ MBErrorCode MBReadUtil::get_element_array(
     const int verts_per_element,
     const MBEntityType mdb_type,
     const int preferred_start_id, 
-    const int preferred_start_proc, 
+    const int proc, 
     MBEntityHandle& actual_start_handle, 
     MBEntityHandle*& array)
 {
@@ -84,9 +86,10 @@ MBErrorCode MBReadUtil::get_element_array(
     return MB_TYPE_OUT_OF_RANGE;
 
   // make an entity sequence to hold these elements
+  unsigned proc_id = proc < 0 ? parallel_rank() : proc;
   error = mMB->sequence_manager()->create_entity_sequence(
       mdb_type, num_elements, verts_per_element, preferred_start_id, 
-      preferred_start_proc, actual_start_handle, seq);
+      proc_id, actual_start_handle, seq);
   if (MB_SUCCESS != error)
     return error;
 

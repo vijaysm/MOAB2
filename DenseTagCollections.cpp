@@ -182,7 +182,7 @@ MBErrorCode DensePageGroup::get_entities_with_tag_value(const MBEntityType type,
     return MB_FAILURE;
 
   int dum = 0;
-  MBEntityHandle handle = CREATE_HANDLE(type, MB_START_ID, 0, dum);
+  MBEntityHandle handle = CREATE_HANDLE(type, MB_START_ID, dum);
   MBEntityHandle end_handle = handle + mDensePages[type].size() * DensePage::mPageSize;
   MBRange::iterator insert_iter = entities.begin();
   for(; handle < end_handle; handle++)

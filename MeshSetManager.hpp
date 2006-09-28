@@ -23,6 +23,7 @@
 
 #include "MBForward.hpp"
 #include "MBInternals.hpp"
+#include "MBProcConfig.hpp"
 
 #ifdef HAVE_BOOST_POOL_OBJECT_POOL_HPP
 #  include <boost/pool/object_pool.hpp>
@@ -54,7 +55,7 @@ class AEntityFactory;
 class MeshSetManager {
 public:
 
-  MeshSetManager( AEntityFactory* a_ent_fact );
+  MeshSetManager( AEntityFactory* a_ent_fact, const MBProcConfig& procinfo );
   ~MeshSetManager();
   
   MBErrorCode create_mesh_set( unsigned options, 
@@ -141,6 +142,8 @@ private:
   MBMeshSet*** setArrays[MESHSET_MANAGER_LEVEL_ONE_COUNT];
   
   AEntityFactory* aEntityFactory;
+  
+  MBProcConfig procInfo;
   
   // ID of last created set for which user didn't specify ID, one value
   // per CPU ID.

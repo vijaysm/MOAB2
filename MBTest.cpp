@@ -4132,7 +4132,7 @@ MBErrorCode mb_split_test(MBInterface *gMB)
 MBErrorCode mb_range_seq_intersect_test( MBInterface* ) 
 {
   MBErrorCode rval;
-  EntitySequenceManager sequences;
+  EntitySequenceManager sequences( MBProcConfig( 0, 1 ) );
   MBRangeSeqIntersectIter iter( &sequences );
   MBRange range;
 
@@ -4144,7 +4144,7 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface* )
   if (MB_SUCCESS != rval) return rval;
   rval = sequences.create_entity_sequence( MBTRI, nt2, 6, 0, 0, th2, ts2 );
   if (MB_SUCCESS != rval) return rval;
-  rval = sequences.create_entity_sequence( MBTRI, nt3, 3, MB_END_ID, MB_PROC_SIZE-1, th3, ts3 );
+  rval = sequences.create_entity_sequence( MBTRI, nt3, 3, MB_END_ID, 0, th3, ts3 );
   if (MB_SUCCESS != rval) return rval;
   rval = sequences.create_entity_sequence( MBQUAD, nq1, 4, 0, 0, qh1, qs1 );
   if (MB_SUCCESS != rval) return rval;
@@ -4314,7 +4314,7 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface* )
 
   MBRange big;
   int junk;
-  MBEntityHandle last = CREATE_HANDLE(MBQUAD+1, 0, 0, junk);
+  MBEntityHandle last = CREATE_HANDLE(MBQUAD+1, 0, junk);
   big.insert( ts1->get_start_handle() - 1, last );
 
     // first some invalid handles in the beginning of the range

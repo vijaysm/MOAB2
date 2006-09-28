@@ -1,6 +1,9 @@
 #include "MBInternals.hpp"
+#include "MBProcConfig.hpp"
 #include <iostream>
 using namespace std;
+
+MBProcConfig procInfo(0,1);
 
 bool internal_assert( bool c ) { return !c; }
 
@@ -13,7 +16,7 @@ bool internal_assert( bool c ) { return !c; }
 bool handle_test( MBEntityType type, MBEntityHandle id, int proc, bool should_fail )
 {
   int err = 0;
-  MBEntityHandle handle = CREATE_HANDLE( type, id, proc, err );
+  MBEntityHandle handle = CREATE_HANDLE( type, procInfo.id(id, proc), err );
   if (should_fail) {
     handle_test_assert( err )
     return true;
@@ -23,10 +26,10 @@ bool handle_test( MBEntityType type, MBEntityHandle id, int proc, bool should_fa
   MBEntityType type_from_handle = TYPE_FROM_HANDLE(handle);
   handle_test_assert( type_from_handle == type )
   
-  unsigned long id_from_handle = ID_FROM_HANDLE(handle);
+  unsigned long id_from_handle = procInfo.id(handle);
   handle_test_assert( id_from_handle == id )
   
-  int proc_from_handle = PROC_FROM_HANDLE(handle);
+  int proc_from_handle = procInfo.rank(handle);
   handle_test_assert( proc_from_handle == proc )
   
   return true;
@@ -79,10 +82,10 @@ int main()
   
   for (int num_cpu = 0; num_cpu < num_cpus; ++num_cpu) {
     
-    MB_SET_PROC(cpus[num_cpu], 0);
+    procInfo = MBProcConfig( 0, cpus[num_cpu] );
     
     // init these after setting num_cpu, because max id depends on num cpu.
-    const MBEntityHandle ids[] = {0, 1, MB_END_ID/2, MB_END_ID-1, MB_END_ID};
+    const MBEntityHandle ids[] = {0, 1, procInfo.max_id()/2, procInfo.max_id()-1, procInfo.max_id()};
     const MBTagId tids[] = {0, 1, MB_TAG_PROP_MASK/2, MB_TAG_PROP_MASK-1, MB_TAG_PROP_MASK};
     const int num_ids = sizeof(ids)/sizeof(ids[0]);
     const int num_tids = sizeof(tids)/sizeof(tids[0]);
@@ -111,7 +114,7 @@ int main()
   }
   
     // test some stuff that should fail
-  MB_SET_PROC(16, 0);
+  procInfo = MBProcConfig(0, 16);
   ++tests;
   if (!handle_test( MBVERTEX, MB_END_ID+1, 0, true)) {
     cout << "Failed to catch ID overflow" << endl;

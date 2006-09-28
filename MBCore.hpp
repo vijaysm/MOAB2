@@ -20,6 +20,7 @@
 #define MOAB_IMPL_VERSION_STRING "1.01"
 
 #include "MBInterface.hpp"
+#include "MBProcConfig.hpp"
 #include <map>
 
 class MBWriteUtil;
@@ -385,6 +386,21 @@ public:
                                         const int num_nodes, 
                                         MBEntityHandle &element_handle);
 
+      /**\brief Create element given CPU ID and connectivity.
+       *
+       * Create an element with the specified processor ID
+       *\param type The type of the element
+       *\param processor_id The ID of the CPU on owning the element
+       *\param connectivity The connectivity list for the element
+       *\param num_nodes The length of the connectivity list
+       *\param element_handle Output handle value.
+       */
+    virtual MBErrorCode create_element (const MBEntityType type, 
+                                        const unsigned processor_id,
+                                        const MBEntityHandle *connectivity,
+                                        const int num_nodes, 
+                                        MBEntityHandle &element_handle);
+
       //! Creates a vertex based on coordinates.  
       /**
          \param coordinates Array that has 3 doubles in it.
@@ -398,6 +414,17 @@ public:
          MBEntityHandle entity_handle = 0;
          create_vertex( coordinates, entity_handle ); \endcode */
     virtual MBErrorCode create_vertex(const double coordinates[3], 
+                                       MBEntityHandle &entity_handle );
+
+      /**\brief Create vertex given CPU ID and coordinates.
+       *
+       * Create a vertex with the specified processor ID
+       *\param processor_id The ID of the CPU on owning the element
+       *\param coordinates The vertex coordinates
+       *\param entity_handle Output handle value.
+       */
+    virtual MBErrorCode create_vertex( const unsigned processor_id,
+                                       const double coordinates[3], 
                                        MBEntityHandle &entity_handle );
 
       //! merges two entities
@@ -790,8 +817,15 @@ public:
   
     //! return whether the input handle is valid or not
   bool is_valid(const MBEntityHandle this_ent);
+  
+  
+  
+  const MBProcConfig& proc_config() const 
+    { return procInfo; }
 
 private:
+
+  const MBProcConfig procInfo;
 
     //! database init and de-init routines
   MBErrorCode initialize();

@@ -39,6 +39,9 @@ public:
 
   //! destructor
   ~MBReadUtil(){}
+  
+  //! Get Processor ID
+  unsigned parallel_rank() const;
 
   //! gets arrays for coordinate data from the MB
   MBErrorCode get_node_arrays(

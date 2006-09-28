@@ -42,6 +42,7 @@
 #endif
 
 #include "MBForward.hpp"
+#include "MBProcConfig.hpp"
 #include <map>
 
 class MBEntitySequence;
@@ -53,7 +54,7 @@ class EntitySequenceManager
 public:
 
   //! constructor
-  EntitySequenceManager();
+  EntitySequenceManager( const MBProcConfig& proc_info );
 
   //! destructor
   ~EntitySequenceManager();
@@ -94,12 +95,15 @@ public:
   MBErrorCode delete_entity( MBEntityHandle entity );
 
   //! creates a vertex in the database
-  MBErrorCode create_vertex(const double coords[3], MBEntityHandle& vertex);
+  MBErrorCode create_vertex( const unsigned processor_id,
+                             const double coords[3], 
+                             MBEntityHandle& vertex );
 
   //! creates an element in the database
-  MBErrorCode create_element(MBEntityType type, 
+  MBErrorCode create_element( MBEntityType type, 
+                              const unsigned processor_id,
                               const MBEntityHandle *conn_array,
-                              const int num_vertices,
+                              const unsigned num_vertices,
                               MBEntityHandle& element);
 
   //! return a const reference to the map of sequences
@@ -125,14 +129,16 @@ private:
   mutable MBEntitySequence* mLastAccessed[MBMAXTYPE];
   
   //! map of all the EntitySequences that are created 
-  //! each entity type has its own map
-  std::map< MBEntityHandle, MBEntitySequence* >  mSequenceMap[MBMAXTYPE];
-
-  std::map< MBEntityHandle, MBEntitySequence* >  mPartlyFullSequenceMap[MBMAXTYPE];
+  //! each entity type has its own map, and each processor
+  //! ID has it's own map.
+  typedef std::map< MBEntityHandle, MBEntitySequence* > SeqMap;
+  SeqMap mSequenceMap[MBMAXTYPE];
+  SeqMap mPartlyFullSequenceMap[MBMAXTYPE];
 
     //! get a valid start handle for this type and a hinted-at start id
   MBEntityHandle get_start_handle(int hint_start, int hint_proc, MBEntityType type, int num_ent);
   
+  const MBProcConfig procInfo;
 };
 
 #endif

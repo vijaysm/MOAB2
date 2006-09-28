@@ -81,45 +81,19 @@ const char *MBCore::errorStrings[] = {
   "MB_FAILURE",
 };
 
-/* Initialize constants for serial (1 CPU) */
-unsigned MB_PROC_WIDTH = 0;
-unsigned MB_PROC_RANK = 0;
-unsigned MB_PROC_SIZE = 1;
-MBEntityHandle MB_PROC_MASK = 0;
-MBEntityHandle MB_ID_MASK = ~MB_TYPE_MASK;
-
-/** Calculate ceiling of log 2 of a positive integer */
-static unsigned ceil_log_2( unsigned n )
-{
-  unsigned result;
-  for (result = 0; n > (((MBEntityHandle)1)<<result); ++result);
-  return result;
-}
-
-void MB_SET_PROC( int num_cpu, int rank )
-{
-  MB_PROC_WIDTH = ceil_log_2( num_cpu );
-  MB_PROC_RANK = rank;
-  MB_PROC_SIZE = num_cpu;
-  MB_ID_MASK = (~MB_TYPE_MASK) >> MB_PROC_WIDTH;
-  MB_PROC_MASK = ~(MB_ID_MASK|MB_TYPE_MASK);
-}
-
 //! Constructor
 MBCore::MBCore( int rank, int num_procs ) 
+  : procInfo( rank, num_procs )
 {
 #ifdef XPCOM_MB
   NS_INIT_ISUPPORTS();
 #endif
-  
-  MB_SET_PROC( num_procs, rank );
 
   if (initialize() != MB_SUCCESS)
   {
     printf("Error initializing MB\n");
     exit(1);
   }
-
 }
 
 //! destructor
@@ -150,7 +124,7 @@ MBErrorCode MBCore::initialize()
   if (!tagServer)
     return MB_MEMORY_ALLOCATION_FAILED;
   
-  sequenceManager = new EntitySequenceManager();
+  sequenceManager = new EntitySequenceManager( procInfo );
   if (!sequenceManager)
     return MB_MEMORY_ALLOCATION_FAILED;
 
@@ -158,7 +132,7 @@ MBErrorCode MBCore::initialize()
   if (!aEntityFactory)
     return MB_MEMORY_ALLOCATION_FAILED;
     
-  mMeshSetManager = new MeshSetManager( aEntityFactory );
+  mMeshSetManager = new MeshSetManager( aEntityFactory, procInfo );
   if (!mMeshSetManager)
     return MB_MEMORY_ALLOCATION_FAILED;
 
@@ -408,10 +382,10 @@ MBErrorCode MBCore::delete_mesh()
   
   if (sequenceManager)
     delete sequenceManager;
-  sequenceManager = new EntitySequenceManager();
+  sequenceManager = new EntitySequenceManager( procInfo );
 
   delete mMeshSetManager;
-  mMeshSetManager = new MeshSetManager( aEntityFactory );
+  mMeshSetManager = new MeshSetManager( aEntityFactory, procInfo );
 
   result = create_meshset(0, myMeshSet);
 
@@ -1446,24 +1420,42 @@ MBErrorCode MBCore::create_element(const MBEntityType type,
                                    const int num_nodes, 
                                    MBEntityHandle &handle)
 {
+  return create_element( type, procInfo.rank(), connectivity, num_nodes, handle );
+}
 
+MBErrorCode MBCore::create_element( const MBEntityType type,
+                                    const unsigned processor_id,
+                                    const MBEntityHandle* connectivity,
+                                    const int num_nodes,
+                                    MBEntityHandle& handle )
+{
     // make sure we have enough vertices for this entity type
   if(num_nodes < MBCN::VerticesPerEntity(type))
     return MB_FAILURE;
   
-  MBErrorCode status = sequence_manager()->create_element(type, connectivity, num_nodes, handle);
+  if (processor_id >= procInfo.size())
+    return MB_INDEX_OUT_OF_RANGE;
+  
+  MBErrorCode status = sequence_manager()->create_element(type, processor_id, connectivity, num_nodes, handle);
   if (MB_SUCCESS == status)
     status = aEntityFactory->notify_create_entity( handle, connectivity, num_nodes); 
 
   return status;
-
-}
+}  
 
 //! creates a vertex based on coordinates, returns a handle and error code
 MBErrorCode MBCore::create_vertex(const double coords[3], MBEntityHandle &handle )
 {
+  return create_vertex( procInfo.rank(), coords, handle );
+}
+
+MBErrorCode MBCore::create_vertex( const unsigned processor_id, const double* coords, MBEntityHandle& handle )
+{
+  if (processor_id >= procInfo.size())
+    return MB_INDEX_OUT_OF_RANGE;
+    
     // get an available vertex handle
-  return sequence_manager()->create_vertex(coords, handle);
+  return sequence_manager()->create_vertex( processor_id, coords, handle );
 }
 
 //! merges two  entities
@@ -1891,7 +1883,7 @@ MBErrorCode MBCore::create_meshset(const unsigned int options,
                                    int start_id,
                                    int start_proc)
 {
-  if (-1 == start_proc) start_proc = MB_PROC_RANK;
+  if (-1 == start_proc) start_proc = procInfo.rank();
   return mMeshSetManager->create_mesh_set( options, start_id, start_proc, ms_handle );
 }
 

@@ -238,7 +238,7 @@ inline MBErrorCode DensePageGroup::get_data(MBEntityHandle handle, void* data)
 {
   // strip off the entity type
   const MBEntityType type = TYPE_FROM_HANDLE( handle );
-  const MBEntityHandle entity_id = PROC_AND_ID_FROM_HANDLE(handle);
+  const MBEntityHandle entity_id = ID_FROM_HANDLE(handle);
   // figure out which page to jump to
   const unsigned int which_page = entity_id / DensePage::mPageSize;
   const unsigned int offset = entity_id % DensePage::mPageSize;
@@ -254,7 +254,7 @@ inline bool DensePageGroup::contains(const MBEntityHandle handle) const
 {
   // strip off the entity type
   const MBEntityType type = TYPE_FROM_HANDLE( handle );
-  const MBEntityHandle entity_id = PROC_AND_ID_FROM_HANDLE(handle);
+  const MBEntityHandle entity_id = ID_FROM_HANDLE(handle);
   // figure out which page to jump to
   const unsigned int which_page = entity_id / DensePage::mPageSize;
 
@@ -270,7 +270,7 @@ inline MBErrorCode DensePageGroup::set_data(MBEntityHandle handle, const void* d
 {
   // strip off the entity type
   const MBEntityType type = TYPE_FROM_HANDLE( handle );
-  const MBEntityHandle entity_id = PROC_AND_ID_FROM_HANDLE(handle);
+  const MBEntityHandle entity_id = ID_FROM_HANDLE(handle);
   // figure out which page to jump to
   const unsigned int which_page = entity_id / DensePage::mPageSize;
   const unsigned int offset = entity_id  % DensePage::mPageSize;
@@ -294,7 +294,7 @@ inline MBErrorCode DensePageGroup::remove_data(MBEntityHandle handle)
 {
   // strip off the entity type
   const MBEntityType type = TYPE_FROM_HANDLE( handle );
-  const MBEntityHandle entity_id = PROC_AND_ID_FROM_HANDLE(handle);
+  const MBEntityHandle entity_id = ID_FROM_HANDLE(handle);
   // figure out which page to jump to
   const unsigned int which_page = entity_id / DensePage::mPageSize;
   const unsigned int offset = entity_id  % DensePage::mPageSize;

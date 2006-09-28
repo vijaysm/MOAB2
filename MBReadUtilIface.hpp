@@ -31,6 +31,9 @@ public:
 
     //! destructor
   virtual ~MBReadUtilIface(){}
+  
+  //! Get Processor ID
+  virtual unsigned parallel_rank() const = 0;
 
     //! Given a requested number of vertices and number of coordinates, returns
     //! memory space which will be used to store vertex coordinates and information

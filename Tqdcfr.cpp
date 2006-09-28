@@ -924,7 +924,9 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
   MBEntityHandle node_handle = 0;
   std::vector<double*> arrays;
   readUtilIface->get_node_arrays(3, entity->nodeCt,
-                                 int_buf[0], MB_PROC_RANK, node_handle, arrays);
+                                 int_buf[0], 
+                                 readUtilIface->parallel_rank(), 
+                                 node_handle, arrays);
     // get node x's in arrays[0]
   FREADDA(entity->nodeCt, arrays[0]);
     // get node y's in arrays[1]
@@ -1072,7 +1074,9 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     MBEntityHandle *conn, start_handle;
     
     readUtilIface->get_element_array(num_elem, nodes_per_elem,
-                                     elem_type, int_buf[0], MB_PROC_RANK, start_handle, conn);
+                                     elem_type, int_buf[0], 
+                                     readUtilIface->parallel_rank(), 
+                                     start_handle, conn);
         
     long unsigned int elem_offset;
     elem_offset = mdbImpl->id_from_handle( start_handle) - int_buf[0];

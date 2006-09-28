@@ -27,20 +27,22 @@
 
 #include "MBForward.hpp"
 #include "MBRange.hpp"
+#include "MBProcConfig.hpp"
 
 class TagServer;
 class EntitySequenceManager;
+class MBCore;
 
 class MBParallelComm 
 {
 public:
 
     //! constructor
-  MBParallelComm(MBInterface *impl, TagServer *tag_server, 
+  MBParallelComm(MBCore *impl, TagServer *tag_server, 
                  EntitySequenceManager *sequence_manager);
 
     //! constructor taking packed buffer, for testing
-  MBParallelComm(MBInterface *impl, TagServer *tag_server, 
+  MBParallelComm(MBCore *impl, TagServer *tag_server, 
                  EntitySequenceManager *sequence_manager,
                  std::vector<unsigned char> &tmp_buff);
 
@@ -118,6 +120,9 @@ private:
 
     //! MB interface associated with this writer
   MBInterface *mbImpl;
+  
+    //! Processor informatino
+  const MBProcConfig procInfo;
   
     //! Tag server, so we can get more info about tags
   TagServer *tagServer;

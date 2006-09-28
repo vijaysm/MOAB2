@@ -48,8 +48,9 @@ static inline MBEntityHandle make_handle( unsigned i, unsigned j, unsigned k )
   return result;
 }
 
-MeshSetManager::MeshSetManager( AEntityFactory* a_ent_fact )
-  : aEntityFactory( a_ent_fact )
+MeshSetManager::MeshSetManager( AEntityFactory* a_ent_fact, 
+                                const MBProcConfig& proc_info )
+  : aEntityFactory( a_ent_fact ), procInfo( proc_info )
 {
   memset( setArrays, 0, sizeof(setArrays) );
 }
@@ -92,12 +93,12 @@ MBEntityHandle MeshSetManager::find_next_free_handle(unsigned proc_id)
 
   do {
     ++id;
-    if (id > MB_END_ID)
+    if (id > procInfo.max_id())
       id = MB_START_ID;
     if (id == start_id)
       return 0; // exhausted ID space??
     
-    handle = CREATE_HANDLE( MBENTITYSET, id, proc_id, junk );  
+    handle = CREATE_HANDLE( MBENTITYSET, procInfo.id(id, proc_id), junk );  
   } while (get_mesh_set( handle ));
   
   lastID[proc_id] = id;
@@ -118,7 +119,7 @@ MBErrorCode MeshSetManager::create_mesh_set( unsigned options,
   }
   else {
     int junk;
-    handle = CREATE_HANDLE( MBENTITYSET, start_id, proc_id, junk );
+    handle = CREATE_HANDLE( MBENTITYSET, procInfo.id(start_id, proc_id), junk );
     if (get_mesh_set( handle ))
       return MB_ALREADY_ALLOCATED;
   }

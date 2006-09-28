@@ -1,6 +1,6 @@
 #include "MBInternals.hpp"
 #include "MBParallelComm.hpp"
-#include "MBInterface.hpp"
+#include "MBCore.hpp"
 #include "MBWriteUtilIface.hpp"
 #include "MBReadUtilIface.hpp"
 #include "EntitySequenceManager.hpp"
@@ -50,17 +50,17 @@
 
 #define RR if (MB_SUCCESS != result) return result
 
-MBParallelComm::MBParallelComm(MBInterface *impl, TagServer *tag_server, 
+MBParallelComm::MBParallelComm(MBCore *impl, TagServer *tag_server, 
                                EntitySequenceManager *sequence_manager) 
-    : mbImpl(impl), tagServer(tag_server), sequenceManager(sequence_manager)
+    : mbImpl(impl), procInfo(impl->proc_config()), tagServer(tag_server), sequenceManager(sequence_manager)
 {
   myBuffer.reserve(INITIAL_BUFF_SIZE);
 }
 
-MBParallelComm::MBParallelComm(MBInterface *impl, TagServer *tag_server, 
+MBParallelComm::MBParallelComm(MBCore *impl, TagServer *tag_server, 
                                EntitySequenceManager *sequence_manager,
                                std::vector<unsigned char> &tmp_buff) 
-    : mbImpl(impl), tagServer(tag_server), sequenceManager(sequence_manager)
+    : mbImpl(impl), procInfo(impl->proc_config()), tagServer(tag_server), sequenceManager(sequence_manager)
 {
   myBuffer.swap(tmp_buff);
 }
@@ -80,18 +80,18 @@ MBErrorCode MBParallelComm::assign_global_ids(const int dimension, const bool la
       // need to filter out non-locally-owned entities!!!
     MBRange dum_range;
     for (MBRange::iterator rit = entities[dim].begin(); rit != entities[dim].end(); rit++)
-      if (PROC_FROM_HANDLE(*rit) != MB_PROC_RANK) dum_range.insert(*rit);
+      if (procInfo.rank(*rit) != procInfo.rank()) dum_range.insert(*rit);
     entities[dim] = entities[dim].subtract(dum_range);
     
     local_num_elements[dim] = entities[dim].size();
   }
   
     // communicate numbers
-  std::vector<int> num_elements(MB_PROC_SIZE*4);
+  std::vector<int> num_elements(procInfo.size()*4);
 #ifdef USE_MPI
-  if (MB_PROC_SIZE > 1) {
+  if (procInfo.size() > 1) {
     int retval = MPI_Alltoall(local_num_elements, 4, MPI_INTEGER,
-                              &num_elements[0], MB_PROC_SIZE*4, 
+                              &num_elements[0], procInfo.size()*4, 
                               MPI_INTEGER, MPI_COMM_WORLD);
     if (0 != retval) return MB_FAILURE;
   }
@@ -101,7 +101,7 @@ MBErrorCode MBParallelComm::assign_global_ids(const int dimension, const bool la
   
     // my entities start at one greater than total_elems[d]
   int total_elems[4] = {1, 1, 1, 1};
-  for (unsigned int proc = 0; proc < MB_PROC_RANK; proc++) {
+  for (unsigned int proc = 0; proc < procInfo.rank(); proc++) {
     for (int dim = 0; dim < 4; dim++) total_elems[dim] += num_elements[4*proc + dim];
   }
   
@@ -137,7 +137,7 @@ MBErrorCode MBParallelComm::communicate_entities(const int from_proc, const int 
   MBErrorCode result = MB_SUCCESS;
   
     // if I'm the from, do the packing and sending
-  if ((int)MB_PROC_RANK == from_proc) {
+  if ((int)procInfo.rank() == from_proc) {
     allRanges.clear();
     vertsPerEntity.clear();
     setRange.clear();
@@ -175,7 +175,7 @@ MBErrorCode MBParallelComm::communicate_entities(const int from_proc, const int 
                             0, MPI_COMM_WORLD, &send_req);
     if (!success) return MB_FAILURE;
   }
-  else if ((int)MB_PROC_RANK == to_proc) {
+  else if ((int)procInfo.rank() == to_proc) {
     int buff_size;
     
       // get how much to allocate
@@ -453,8 +453,8 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
       for (MBRange::const_pair_iterator pit = this_range.const_pair_begin(); 
            pit != this_range.const_pair_end(); pit++) {
           // allocate handles
-        int start_id = ID_FROM_HANDLE((*pit).first);
-        int start_proc = PROC_FROM_HANDLE((*pit).first);
+        int start_id = procInfo.id((*pit).first);
+        int start_proc = procInfo.rank((*pit).first);
         MBEntityHandle actual_start;
         int tmp_num_verts = (*pit).second - (*pit).first + 1;
         result = ru->get_node_arrays(3, tmp_num_verts, start_id, start_proc, actual_start,
@@ -487,8 +487,8 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
       for (MBRange::const_pair_iterator pit = this_range.const_pair_begin(); 
            pit != this_range.const_pair_end(); pit++) {
           // allocate handles, connect arrays
-        int start_id = ID_FROM_HANDLE((*pit).first);
-        int start_proc = PROC_FROM_HANDLE((*pit).first);
+        int start_id = procInfo.id((*pit).first);
+        int start_proc = procInfo.rank((*pit).first);
         MBEntityHandle actual_start;
         int num_elems = (*pit).second - (*pit).first + 1;
         MBEntityHandle *connect;
@@ -646,7 +646,7 @@ MBErrorCode MBParallelComm::unpack_sets(unsigned char *&buff_ptr,
       
       // create the set
     MBEntityHandle set_handle;
-    result = mbImpl->create_meshset(opt, set_handle, ID_FROM_HANDLE(*rit), PROC_FROM_HANDLE(*rit)); RR;
+    result = mbImpl->create_meshset(opt, set_handle, procInfo.id(*rit), procInfo.rank(*rit)); RR;
     if (set_handle != *rit)
       return MB_FAILURE;
 

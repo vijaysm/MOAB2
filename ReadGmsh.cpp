@@ -168,7 +168,8 @@ MBErrorCode ReadGmsh::load_file_impl( const char* filename,
     // allocate nodes
   std::vector<double*> coord_arrays;
   MBEntityHandle handle = 0;
-  result = readMeshIface->get_node_arrays( 3, num_nodes, MB_START_ID, MB_PROC_RANK,
+  result = readMeshIface->get_node_arrays( 3, num_nodes, MB_START_ID, 
+                                           readMeshIface->parallel_rank(),
                                            handle, coord_arrays );
   if (MB_SUCCESS != result)
     return result;
@@ -372,7 +373,9 @@ MBErrorCode ReadGmsh::create_elements( const ElementType& type,
   MBEntityHandle handle = 0;
   MBEntityHandle* conn_array;
   result = readMeshIface->get_element_array( num_elem, node_per_elem, type.mbtype,
-                                             MB_START_ID, MB_PROC_RANK, handle, conn_array );
+                                             MB_START_ID, 
+                                             readMeshIface->parallel_rank(), 
+                                             handle, conn_array );
   if (MB_SUCCESS != result)
     return result;
   

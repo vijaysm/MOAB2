@@ -33,7 +33,8 @@
 #include <algorithm>
 
 
-EntitySequenceManager::EntitySequenceManager()
+EntitySequenceManager::EntitySequenceManager( const MBProcConfig& proc_info )
+  : procInfo( proc_info )
 {
   memset(mLastAccessed, 0, MBMAXTYPE*sizeof(void*));
 }
@@ -93,7 +94,7 @@ MBErrorCode EntitySequenceManager::create_scd_sequence(const int imin, const int
   }
   
     // get a start handle
-  start_handle = get_start_handle(hint_start_id, MB_PROC_RANK, type, num_ent);
+  start_handle = get_start_handle(hint_start_id, procInfo.rank(), type, num_ent);
   assert(0 != start_handle);
   if (0 == start_handle) return MB_FAILURE;
   
@@ -141,28 +142,29 @@ MBErrorCode EntitySequenceManager::create_entity_sequence( MBEntityType type, in
   return private_create_entity_sequence( start_handle, num_ent, num_nodes, true, seq);
 }
 
-MBEntityHandle EntitySequenceManager::get_start_handle(int hint_start, int hint_start_proc, MBEntityType type,
+MBEntityHandle EntitySequenceManager::get_start_handle( int hint_start, 
+                                                        int proc, 
+                                                        MBEntityType type,
                                                         int num_ent) 
 {
   // need to find unused space in the MBEntityHandle ID space
   int dum = 0;
-  MBEntityHandle start_hint_handle = CREATE_HANDLE(type, hint_start, hint_start_proc, dum);
+  MBEntityHandle start_hint_handle = CREATE_HANDLE(type, procInfo.id(hint_start, proc), dum);
  
   // this is the first of this type we are making 
   if(mSequenceMap[type].empty()) {
     if (hint_start < MB_START_ID)
-      return CREATE_HANDLE( type, MB_START_ID, hint_start_proc, dum );
+      return CREATE_HANDLE( type, procInfo.first_id(proc), dum );
     else
       return start_hint_handle;
   }
 
   // see if we can use the start hint
-  std::map<MBEntityHandle, MBEntitySequence*>::iterator iter =
-    mSequenceMap[type].upper_bound(start_hint_handle);
+  SeqMap::iterator iter = mSequenceMap[type].upper_bound(start_hint_handle);
 
   MBEntityHandle last_of_type;
   if (iter == mSequenceMap[type].end())
-    last_of_type = CREATE_HANDLE( type, MB_END_ID, MB_PROC_SIZE - 1, dum );
+    last_of_type = CREATE_HANDLE( type, procInfo.last_id(proc), dum );
   else
     last_of_type = iter->second->get_start_handle() - 1;
   
@@ -171,7 +173,15 @@ MBEntityHandle EntitySequenceManager::get_start_handle(int hint_start, int hint_
    && start_hint_handle + num_ent - 1 <= last_of_type) 
     return start_hint_handle;
   
-  return mSequenceMap[type].rbegin()->second->get_end_handle() + 1;
+  // Find end of sequences with specified processor id.
+  // Assume that the call to lower_bound always produces
+  // an entity sequence with the input processor id. If this
+  // were not the case, we shouldn't be here because the 
+  // start_hint_handle should have been avaliable.
+  MBEntityHandle proc_last = CREATE_HANDLE( type, procInfo.last_id(proc), dum );
+  iter = mSequenceMap[type].lower_bound( proc_last );
+  --iter;
+  return iter->second->get_end_handle() + 1;
 }
 
 MBErrorCode EntitySequenceManager::private_create_entity_sequence(MBEntityHandle start,
@@ -191,88 +201,70 @@ MBErrorCode EntitySequenceManager::private_create_entity_sequence(MBEntityHandle
 }
 
 
-MBErrorCode EntitySequenceManager::create_vertex(const double coords[3], MBEntityHandle& handle)
+MBErrorCode EntitySequenceManager::create_vertex( const unsigned processor_id,
+                                                  const double coords[3], 
+                                                  MBEntityHandle& handle )
 {
-    
+  VertexEntitySequence* seq = 0;
+
   // see if there is an existing sequence that can take this new vertex
-  if(!mPartlyFullSequenceMap[MBVERTEX].empty())
-  {
-    MBEntitySequence* seq = mPartlyFullSequenceMap[MBVERTEX].begin()->second;
-    handle = seq->get_unused_handle();
-    
-    static_cast<VertexEntitySequence*>(seq)->
-      set_coordinates(handle, coords[0], coords[1], coords[2]);
-
-    return MB_SUCCESS;
+  SeqMap& seq_map = mPartlyFullSequenceMap[MBVERTEX];
+  for (SeqMap::iterator i = seq_map.begin(); i != seq_map.end(); ++i) {
+    if (procInfo.rank(i->second->get_start_handle()) == processor_id) {
+      seq = static_cast<VertexEntitySequence*>(i->second);
+      break;
+    }
   }
 
-  // we need to make a new entity sequence
-  if(!mSequenceMap[MBVERTEX].empty())
-  {
-    handle = mSequenceMap[MBVERTEX].rbegin()->second->get_end_handle() + 1;
-  }
-  else
-  {
-    int err=0;
-    handle = CREATE_HANDLE(MBVERTEX, MB_START_ID, err);
+  if (!seq) {
+    handle = get_start_handle( MB_START_ID, processor_id, MBVERTEX, 4096 );
+    seq = new VertexEntitySequence( this, handle, 4096, false );
   }
 
-  VertexEntitySequence* seq = new VertexEntitySequence(this, handle, 4096, false);
   handle = seq->get_unused_handle();
   seq->set_coordinates(handle, coords[0], coords[1], coords[2]);
   
   return MB_SUCCESS;
-
 }
 
 
-MBErrorCode EntitySequenceManager::create_element(MBEntityType type, 
+MBErrorCode EntitySequenceManager::create_element( MBEntityType type, 
+                                                   const unsigned processor_id,
                                                    const MBEntityHandle *conn, 
-                                                   const int num_vertices,
-                                                   MBEntityHandle& handle)
+                                                   const unsigned num_vertices,
+                                                   MBEntityHandle& handle )
 {
-  // see if there is an existing sequence that can take this new element
-  std::map<MBEntityHandle, MBEntitySequence*>::iterator iter;
-  for(iter = mPartlyFullSequenceMap[type].begin();
-      iter != mPartlyFullSequenceMap[type].end();
-      ++iter)
-  {
-    ElementEntitySequence* seq = dynamic_cast<ElementEntitySequence*>(iter->second);
-    if(seq->nodes_per_element() == (unsigned int) num_vertices ||
-       seq->nodes_per_element() == 0)
-    {
-      if (MBPOLYGON == type || MBPOLYHEDRON == type) {
-        return dynamic_cast<PolyEntitySequence*>(iter->second)->add_entity(conn, num_vertices, handle);
-      }
-      else {
-        handle = seq->get_unused_handle();
-        return seq->set_connectivity(handle, conn, num_vertices);
-      }
+  const bool poly = (MBPOLYGON == type || MBPOLYHEDRON == type);
+  const unsigned connlen = poly ? 0 : num_vertices;
+  
+  ElementEntitySequence* seq = 0;
+  SeqMap& seq_map = mPartlyFullSequenceMap[type];
+  for (SeqMap::iterator i = seq_map.begin(); i != seq_map.end(); ++i) {
+    ElementEntitySequence* tseq = reinterpret_cast<ElementEntitySequence*>(i->second);
+    if (tseq->nodes_per_element() == connlen && 
+        procInfo.rank( tseq->get_start_handle() ) == processor_id) {
+      seq = tseq;
+      break;
     }
-
   }
-
-  // we need to make a new entity sequence
-  if(!mSequenceMap[type].empty())
-  {
-    handle = mSequenceMap[type].rbegin()->second->get_end_handle() + 1;
+  
+  if (poly) {
+    PolyEntitySequence* pseq = reinterpret_cast<PolyEntitySequence*>(seq);
+    if (!pseq) {
+      handle = get_start_handle( MB_START_ID, processor_id, type, 4096 );
+      pseq = new PolyEntitySequence(this, handle, 4096, 0, false);
+    }
+    handle = pseq->get_unused_handle();
+    return pseq->add_entity(conn, num_vertices, handle);
   }
-  else
-  {
-    int err=0;
-    handle = CREATE_HANDLE(type, MB_START_ID, err);
-  }
-
-  ElementEntitySequence* seq;
-  if (MBPOLYGON == type || MBPOLYHEDRON == type)
-    seq = new PolyEntitySequence(this, handle, 0, 0, false);
-  else
+  
+  if (!seq) {
+    handle = get_start_handle( MB_START_ID, processor_id, type, 4096 );
     seq = new ElementEntitySequence(this, handle, 4096, num_vertices, false);
+  } 
 
   handle = seq->get_unused_handle();
-  MBErrorCode result = seq->set_connectivity(handle, conn, num_vertices);
-  
-  return result;
+  return seq->set_connectivity(handle, conn, num_vertices);
 }
 
 
@@ -409,7 +401,7 @@ MBErrorCode EntitySequenceManager::delete_entity( MBEntityHandle entity )
 
 int main()
 {
-  EntitySequenceManager manager;
+  EntitySequenceManager manager( MBProcConfig(0,1) );
   MBEntitySequence* seq;
   
   // create some sequences

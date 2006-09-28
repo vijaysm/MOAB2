@@ -120,6 +120,7 @@ libMOAB_la_SOURCES = \
   MBOrientedBox.cpp \
   MBOrientedBoxTreeTool.cpp \
   MBParallelComm.cpp \
+  MBProcConfig.cpp \
   MBRange.cpp \
   MBRangeSeqIntersectIter.cpp \
   MBRangeSeqIntersectIter.hpp \
@@ -187,6 +188,7 @@ libMOAB_la_include_HEADERS = \
   MBOrientedBoxTreeTool.hpp \
   MBParallelComm.hpp \
   MBParallelConventions.h \
+  MBProcConfig.hpp \
   MBRange.hpp \
   MBReadUtilIface.hpp \
   MBReaderIface.hpp \
