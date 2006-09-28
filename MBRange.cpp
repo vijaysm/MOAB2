@@ -32,7 +32,7 @@
 #include "MBRange.hpp"
 #include "MBInternals.hpp"
 #include "MBCN.hpp"
-#include <stdio.h>
+#include <iostream>
 
 #ifdef HAVE_BOOST_POOL_SINGLETON_POOL_HPP
 #  include <boost/pool/singleton_pool.hpp>
@@ -301,7 +301,7 @@ MBRange::iterator MBRange::insert( MBRange::iterator prev,
                                    MBEntityHandle val1, 
                                    MBEntityHandle val2 )
 {
-  assert( val1 <= val2  );
+  assert( val1 <= val2 && val1 );
 
   // Empty 
   if (mHead.mNext == &mHead)
@@ -537,10 +537,28 @@ void MBRange::sanity_check() const
 // for debugging
 void MBRange::print() const
 {
-  printf("List contents:\n");
-  for(PairNode* iter = mHead.mNext; iter != &mHead; iter = iter->mNext)
-  {
-    printf("%u   %u\n", iter->first, iter->second);
+  print( std::cout );
+}
+
+void MBRange::print( std::ostream& stream ) const
+{
+  if (empty()) {
+    stream << "\tempty" << std::endl;
+    return;
+  }
+  
+  for (const_pair_iterator i = const_pair_begin(); i != const_pair_end(); ++i) {
+    MBEntityType t1 = TYPE_FROM_HANDLE( i->first );
+    MBEntityType t2 = TYPE_FROM_HANDLE( i->second );
+  
+    stream << "\t" << MBCN::EntityTypeName( t1 ) << " " << ID_FROM_HANDLE( i->first );
+    if(i->first != i->second) {
+      stream << " - ";
+      if (t1 != t2) 
+        stream << MBCN::EntityTypeName( t2 ) << " ";
+      stream << ID_FROM_HANDLE( i->second );
+    }
+    stream << std::endl;
   }
 }
 
@@ -616,6 +634,16 @@ MBRange::const_iterator MBRange::lower_bound(MBRange::const_iterator first,
     return const_iterator( iter, val );
   else
     return last;
+}
+
+MBRange::const_iterator MBRange::upper_bound(MBRange::const_iterator first,
+                                             MBRange::const_iterator last,
+                                             MBEntityHandle val)
+{
+  MBRange::const_iterator result = lower_bound( first, last, val );
+  if (result != last && *result == val)
+    ++result;
+  return result;
 }
 
 MBRange::const_iterator MBRange::lower_bound( MBEntityType type ) const
@@ -757,5 +785,19 @@ MBRange MBRange::subset(const MBEntityType t)
   MBRange result;
   result.merge( lower_bound(t), upper_bound(t) );
   return result;
+}
+
+
+bool operator==( const MBRange& r1, const MBRange& r2 )
+{
+  MBRange::const_pair_iterator i1, i2;
+  i1 = r1.const_pair_begin();
+  i2 = r2.const_pair_begin();
+  for ( ; i1 != r1.const_pair_end(); ++i1, ++i2) 
+    if (i2 == r2.const_pair_end() ||
+        i1->first != i2->first ||
+        i1->second != i2->second)
+      return false;
+  return i2 == r2.const_pair_end();
 }
 

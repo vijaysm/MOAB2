@@ -17,6 +17,7 @@
 #define MB_PROC_CONFIG_HPP
 
 #include "MBTypes.h"
+#include "MBRange.hpp"
 
 /**\brief Multi-CPU information for parallel MOAB */
 class MBProcConfig {
@@ -64,6 +65,17 @@ class MBProcConfig {
     MBEntityHandle handle( MBEntityType type, 
                            unsigned sub_id, 
                            unsigned proc ) const;
+                           
+
+    MBRange::const_iterator lower_bound( MBEntityType type, unsigned proc, const MBRange& ) const;
+    MBRange::const_iterator upper_bound( MBEntityType type, unsigned proc, const MBRange& ) const;
+    
+    std::pair<MBRange::const_iterator,MBRange::const_iterator>
+    equal_range( MBEntityType type, unsigned proc, const MBRange& ) const;
+    
+      //! get subset of range by processor type
+    MBRange subset( unsigned proc, const MBRange& ) const;
+    
   private:
   
     unsigned procRank;    //!< ID of this processor

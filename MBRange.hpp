@@ -171,6 +171,7 @@
 #define MB_RANGE_HPP
 
 #include <iterator>
+#include <iosfwd>
 #include "MBTypes.h"
 
 struct range_iter_tag : public std::bidirectional_iterator_tag {};
@@ -272,6 +273,9 @@ public:
   static const_iterator lower_bound(const_iterator first,
                                     const_iterator last,
                                     MBEntityHandle val);
+  static const_iterator upper_bound(const_iterator first,
+                                    const_iterator last,
+                                    MBEntityHandle val);
   
   const_iterator lower_bound( MBEntityType type ) const;
   const_iterator upper_bound( MBEntityType type ) const;
@@ -292,6 +296,7 @@ public:
   
   //! for debugging
   void print() const;
+  void print( std::ostream& s ) const;
 
   //! merges this MBRange with another range
   void merge( const MBRange& range );
@@ -718,6 +723,12 @@ inline const MBEntityHandle& MBRange::front() const
 inline const MBEntityHandle& MBRange::back() const
   { return mHead.mPrev->second; }
 
+inline std::ostream& operator<<( std::ostream& s, const MBRange& r )
+  { r.print(s); return s; }
+  
+bool operator==( const MBRange& r1, const MBRange& r2 );
+inline bool operator!=( const MBRange& r1, const MBRange& r2 )
+  { return !(r1 == r2); }
 
 #endif // MB_RANGE_HPP
 
