@@ -1,4 +1,12 @@
 Version beta: 
+- Add upper_bound method for MBRange.
+- Make parallel configuration (MPI rank and size) per-MOAB-instance values,
+  and add utility methods for querying/manipulating processor ID portion
+  of entity handles.
+- Fix allocation of handles such that they are allocated with the 
+  correct processor ID for parallel 
+- Remove MPI calls from MOAB constructor.  Make paralle config (MPI
+  rank and size) arguments to the MOAB constuctor.
 - Separate type definitions from interface definitions.  MBEntityType.h 
   contains the definition of MBEntityType and MBTypes.h contains the
   definitions of all other types and includes MBEntityType.h.  MBInterface 
