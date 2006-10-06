@@ -1,5 +1,5 @@
-MOAB_LIBDIR = $(srcdir)
-MOAB_INCLUDEDIR = $(srcdir)
+MOAB_LIBDIR = @abs_builddir@/.libs
+MOAB_INCLUDEDIR = @abs_srcdir@
 
 MOAB_CXXFLAGS = @CXXFLAGS@ 
 MOAB_CFLAGS = @CFLAGS@
