@@ -1072,9 +1072,17 @@ MBErrorCode MBCore::get_number_entities_by_type(const MBEntityHandle meshset,
                                                   const bool recursive) const
 {
   MBErrorCode result = MB_SUCCESS;
- 
+
+  if (recursive && type == MBENTITYSET)  // will never return anything
+    return MB_TYPE_OUT_OF_RANGE;
+  
   if (meshset)
     result = mMeshSetManager->num_type( meshset, type, num_ent, recursive );
+  else if (type == MBENTITYSET) {
+    MBRange entities;
+    mMeshSetManager->get_all_mesh_sets( entities );
+    num_ent = entities.size();
+  }
   else
     result = sequence_manager()->get_number_entities( type, num_ent );
   
