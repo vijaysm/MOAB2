@@ -72,7 +72,7 @@ public:
 
     //! take the buffer from this instance; switches with vector passed in
   void take_buffer(std::vector<unsigned char> &new_buff);
-  
+
 private:
 
   int num_subranges(const MBRange &this_range);

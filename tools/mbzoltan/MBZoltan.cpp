@@ -713,14 +713,14 @@ void MBZoltan::mbPrintGlobalResult(char *s,
   v1[3] = change;
 
   if (MB_PROC_RANK == 0){
-    v2 = (int *)malloc(4 * MB_PROC_RANK * sizeof(int));
+    v2 = (int *)malloc(4 * MB_PROC_SIZE * sizeof(int));
   }
 
   MPI_Gather(v1, 4, MPI_INT, v2, 4, MPI_INT, 0, MPI_COMM_WORLD);
 
   if (MB_PROC_RANK == 0){
     fprintf(stdout,"======%s======\n",s);
-    for (i=0, v=v2; i<MB_PROC_RANK; i++, v+=4){
+    for (i=0, v=v2; i<MB_PROC_SIZE; i++, v+=4){
       fprintf(stdout,"%d: originally had %d, import %d, exp %d, %s\n",
         i, v[0], v[1], v[2],
         v[3] ? "a change of partitioning" : "no change");
