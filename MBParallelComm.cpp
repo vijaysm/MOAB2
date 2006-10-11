@@ -1,6 +1,5 @@
-#include "MBInternals.hpp"
+#include "MBInterface.hpp"
 #include "MBParallelComm.hpp"
-#include "MBCore.hpp"
 #include "MBWriteUtilIface.hpp"
 #include "MBReadUtilIface.hpp"
 #include "EntitySequenceManager.hpp"
@@ -50,14 +49,14 @@
 
 #define RR if (MB_SUCCESS != result) return result
 
-MBParallelComm::MBParallelComm(MBCore *impl, TagServer *tag_server, 
+MBParallelComm::MBParallelComm(MBInterface *impl, TagServer *tag_server, 
                                EntitySequenceManager *sequence_manager) 
     : mbImpl(impl), procInfo(impl->proc_config()), tagServer(tag_server), sequenceManager(sequence_manager)
 {
   myBuffer.reserve(INITIAL_BUFF_SIZE);
 }
 
-MBParallelComm::MBParallelComm(MBCore *impl, TagServer *tag_server, 
+MBParallelComm::MBParallelComm(MBInterface *impl, TagServer *tag_server, 
                                EntitySequenceManager *sequence_manager,
                                std::vector<unsigned char> &tmp_buff) 
     : mbImpl(impl), procInfo(impl->proc_config()), tagServer(tag_server), sequenceManager(sequence_manager)

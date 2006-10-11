@@ -820,7 +820,7 @@ public:
   
   
   
-  const MBProcConfig& proc_config() const 
+  virtual const MBProcConfig& proc_config() const 
     { return procInfo; }
 
 private:

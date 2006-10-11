@@ -21,6 +21,8 @@
 
 class MBInterface;
 class MBRange;
+class MBProcConfig;
+
 typedef std::vector<MBEntityHandle> MBHandleVec;
 
 #endif

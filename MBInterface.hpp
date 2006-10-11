@@ -1246,6 +1246,10 @@ public:
 
     //@}
   
+    //! Return the MBProcConfig object for this instance, contains the rank and
+    //! size if running in parallel
+  virtual const MBProcConfig& proc_config() const = 0;
+
 };
 
 //! predicate for STL algorithms.  Returns true if the entity handle is

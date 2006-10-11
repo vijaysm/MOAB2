@@ -31,18 +31,17 @@
 
 class TagServer;
 class EntitySequenceManager;
-class MBCore;
 
 class MBParallelComm 
 {
 public:
 
     //! constructor
-  MBParallelComm(MBCore *impl, TagServer *tag_server, 
+  MBParallelComm(MBInterface *impl, TagServer *tag_server, 
                  EntitySequenceManager *sequence_manager);
 
     //! constructor taking packed buffer, for testing
-  MBParallelComm(MBCore *impl, TagServer *tag_server, 
+  MBParallelComm(MBInterface *impl, TagServer *tag_server, 
                  EntitySequenceManager *sequence_manager,
                  std::vector<unsigned char> &tmp_buff);
 
