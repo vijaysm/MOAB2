@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
   
   MBErrorCode result = mbImpl->load_mesh(argv[2]); RR;
   
-  MBZoltan *mbz = new MBZoltan(mbImpl);
+  MBZoltan *mbz = new MBZoltan(mbImpl, false, argc, argv);
 
   const char *other_method = NULL, *method = NULL;
   if (argc > 5) method = argv[5];

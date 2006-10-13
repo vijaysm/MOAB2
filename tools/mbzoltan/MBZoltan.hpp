@@ -62,8 +62,10 @@ extern "C"
   {
 
   public:
-    MBZoltan(MBInterface *impl = NULL, const bool use_coords = false) 
-        : mbImpl(impl), myZZ(NULL), newMoab(false), useCoords(use_coords)
+    MBZoltan(MBInterface *impl = NULL, const bool use_coords = false,
+             int argc = 0, char **argv = NULL) 
+        : mbImpl(impl), myZZ(NULL), newMoab(false), useCoords(use_coords),
+          argcArg(argc), argvArg(argv)
       {}
 
     ~MBZoltan();
@@ -110,6 +112,10 @@ extern "C"
     bool write_output;
 
     int myNumPts;
+
+    int argcArg;
+    
+    char **argvArg;
 
     int mbGlobalSuccess(int rc);
   

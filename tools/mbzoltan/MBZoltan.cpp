@@ -86,7 +86,7 @@ MBErrorCode MBZoltan::balance_mesh(const char *zmethod,
 
   float version;
 
-  Zoltan_Initialize(0, NULL, &version); 
+  Zoltan_Initialize(argcArg, argvArg, &version); 
 
   // Create Zoltan object.  This calls Zoltan_Create.  
   if (NULL == myZZ) myZZ = new Zoltan(MPI_COMM_WORLD);
@@ -226,7 +226,7 @@ MBErrorCode MBZoltan::partition_mesh(const int nparts,
 
   float version;
 
-  Zoltan_Initialize(0, NULL, &version); 
+  Zoltan_Initialize(argcArg, argvArg, &version); 
 
   // Create Zoltan object.  This calls Zoltan_Create.  
   if (NULL == myZZ) myZZ = new Zoltan(MPI_COMM_WORLD);
@@ -318,7 +318,7 @@ MBErrorCode MBZoltan::assemble_graph(const int dimension,
   
     // assign global ids
   MBParallelComm mbpc(mbImpl, NULL, NULL);
-  result = mbpc.assign_global_ids(dimension); RR;
+  result = mbpc.assign_global_ids(dimension, 1); RR;
 
     // now assemble the graph, calling MeshTopoUtil to get bridge adjacencies through d-1 dimensional
     // neighbors
@@ -328,7 +328,7 @@ MBErrorCode MBZoltan::assemble_graph(const int dimension,
     // by MBCN
   int neighbors[MB_MAX_SUB_ENTITIES];
   double avg_position[3];
-  int moab_id = 0;
+  int moab_id;
   
     // get the global id tag hanlde
   MBTag gid;
@@ -353,11 +353,14 @@ MBErrorCode MBZoltan::assemble_graph(const int dimension,
     std::copy(neighbors, neighbors+adjs.size(), std::back_inserter(adjacencies));
 
 
-      // get average position of vertex
+      // get average position of vertices
     result = mtu.get_average_position(*rit, avg_position); RR;
     
+      // get the graph vertex id for this element
+    result = mbImpl->tag_get_data(gid, &(*rit), 1, &moab_id); RR;
+
       // copy those into coords vector
-    moab_ids.push_back(moab_id++);
+    moab_ids.push_back(moab_id);
     std::copy(avg_position, avg_position+3, std::back_inserter(coords));
   }
 

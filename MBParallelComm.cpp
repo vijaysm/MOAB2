@@ -66,7 +66,9 @@ MBParallelComm::MBParallelComm(MBInterface *impl, TagServer *tag_server,
 
 //! assign a global id space, for largest-dimension or all entities (and
 //! in either case for vertices too)
-MBErrorCode MBParallelComm::assign_global_ids(const int dimension, const bool largest_dim_only) 
+MBErrorCode MBParallelComm::assign_global_ids(const int dimension, 
+                                              const int start_id,
+                                              const bool largest_dim_only) 
 {
   MBRange entities[4];
   int local_num_elements[4];
@@ -99,7 +101,8 @@ MBErrorCode MBParallelComm::assign_global_ids(const int dimension, const bool la
     for (int dim = 0; dim < 4; dim++) num_elements[dim] = local_num_elements[dim];
   
     // my entities start at one greater than total_elems[d]
-  int total_elems[4] = {1, 1, 1, 1};
+  int total_elems[4] = {start_id, start_id, start_id, start_id};
+  
   for (unsigned int proc = 0; proc < procInfo.rank(); proc++) {
     for (int dim = 0; dim < 4; dim++) total_elems[dim] += num_elements[4*proc + dim];
   }
