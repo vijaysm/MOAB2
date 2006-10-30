@@ -2406,7 +2406,6 @@ int main(int argc, char* argv[])
     file = argv[1];
 
   MBCore my_impl;
-  MBInterface* mdbImpl = &my_impl;
   Tqdcfr my_tqd(&my_impl);
 
   MBErrorCode result = my_tqd.load_file(file, 0, 0);
