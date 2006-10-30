@@ -36,7 +36,7 @@ void do_assert( const char* file, int line, bool condition, const char* condstr 
      }                                     \
      MPI_Barrier( MPI_COMM_WORLD )
 
-MBCore iFace;
+MBCore *iFace = NULL;
 MBTag blockTag, geomTag, pGeomTag, ifaceTag, idTag, gidTag;
 
 static void printerror( const char* format, ... )
@@ -71,6 +71,8 @@ int main( int argc, char* argv[] )
   MPI_Init( &argc, &argv );
   MPI_Comm_size( MPI_COMM_WORLD, &numproc );
   MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
+
+  iFace = new MBCore();
   
   char* defaults[] = { "out.blocks.h5m", "../../" TEST_DIR "/h5file/blocks.h5m" };
   bool wait_for_sig = false;
@@ -106,7 +108,7 @@ int main( int argc, char* argv[] )
   for (i = 1; i < fname_count; ++i)
   {
     printerror ( "Reading \"%s\"...", fnames[i] );
-    rval = iFace.load_mesh( fnames[i], 0, 0 );
+    rval = iFace->load_mesh( fnames[i], 0, 0 );
     if (MB_SUCCESS != rval)
     {
       printerror( "Failed to read mesh file: \"%s\"", fnames[i] );
@@ -118,14 +120,14 @@ int main( int argc, char* argv[] )
   MPI_Barrier( MPI_COMM_WORLD );  
   
   printerror( "Getting/creating tags...");
-  rval = iFace.tag_get_handle( MATERIAL_SET_TAG_NAME, blockTag ); assert(!rval);
-  rval = iFace.tag_get_handle( GEOM_DIMENSION_TAG_NAME, geomTag ); assert(!rval);
-  rval = iFace.tag_get_handle( GLOBAL_ID_TAG_NAME, idTag ); assert(!rval);
-  rval = iFace.tag_create( PARALLEL_GEOM_TOPO_TAG_NAME, sizeof(int), 
+  rval = iFace->tag_get_handle( MATERIAL_SET_TAG_NAME, blockTag ); assert(!rval);
+  rval = iFace->tag_get_handle( GEOM_DIMENSION_TAG_NAME, geomTag ); assert(!rval);
+  rval = iFace->tag_get_handle( GLOBAL_ID_TAG_NAME, idTag ); assert(!rval);
+  rval = iFace->tag_create( PARALLEL_GEOM_TOPO_TAG_NAME, sizeof(int), 
                            MB_TAG_SPARSE, pGeomTag, 0 ); assert(!rval);
-  rval = iFace.tag_create( PARALLEL_INTERFACE_TAG_NAME, 2*sizeof(int),
+  rval = iFace->tag_create( PARALLEL_INTERFACE_TAG_NAME, 2*sizeof(int),
                            MB_TAG_SPARSE, ifaceTag, 0 ); assert(!rval);
-  rval = iFace.tag_create( PARALLEL_GLOBAL_ID_TAG_NAME, sizeof(MBEntityHandle),
+  rval = iFace->tag_create( PARALLEL_GLOBAL_ID_TAG_NAME, sizeof(MBEntityHandle),
                            MB_TAG_SPARSE, gidTag, 0 ); assert(!rval);
   
     // Get the list of geometry volumes this processor is to export
@@ -134,7 +136,7 @@ int main( int argc, char* argv[] )
   MBRange myvolumes;
   int dim = 3;
   const void* dimarray[] = {&dim};
-  rval = iFace.get_entities_by_type_and_tag( 0, MBENTITYSET, &geomTag, dimarray, 1, myvolumes ); assert(!rval);
+  rval = iFace->get_entities_by_type_and_tag( 0, MBENTITYSET, &geomTag, dimarray, 1, myvolumes ); assert(!rval);
   if (myvolumes.empty())
   {
     printerror ("Mesh contains no geometry sets.");
@@ -144,7 +146,7 @@ int main( int argc, char* argv[] )
   while (riter != myvolumes.end())
   {
     int id;
-    rval = iFace.tag_get_data( idTag, &*riter, 1, &id ); assert(!rval);
+    rval = iFace->tag_get_data( idTag, &*riter, 1, &id ); assert(!rval);
     if (id % numproc == rank)
       ++riter;
     else
@@ -167,11 +169,11 @@ START_SERIAL;
     for (riter = myvolumes.begin(); riter != myvolumes.end(); ++riter)
     {
       children.clear();
-      rval = iFace.get_child_meshsets( *riter, children, 3 - dimension ); assert(!rval);
+      rval = iFace->get_child_meshsets( *riter, children, 3 - dimension ); assert(!rval);
       for (viter = children.begin(); viter != children.end(); ++viter)
       {
         int dim;
-        rval = iFace.tag_get_data( geomTag, &*viter, 1, &dim );assert(!rval);
+        rval = iFace->tag_get_data( geomTag, &*viter, 1, &dim );assert(!rval);
         if (dim == dimension)
           geometry.insert(*viter);
       }
@@ -182,13 +184,13 @@ START_SERIAL;
     for (riter = geometry.begin(); riter != geometry.end(); ++riter)
     {
       volumes.clear();
-      rval = iFace.get_parent_meshsets( *riter, volumes, 3 - dimension );
+      rval = iFace->get_parent_meshsets( *riter, volumes, 3 - dimension );
       assert(MB_SUCCESS == rval);
 
 int id2;
 char tmpcstr[32];
 
-rval = iFace.tag_get_data( idTag, &*riter, 1, &id2 ); assert(!rval);
+rval = iFace->tag_get_data( idTag, &*riter, 1, &id2 ); assert(!rval);
 std::string s = dimension == 2 ? "surface" : dimension == 1 ? "curve" : dimension == 0 ? "vertex" : "UNKNOWN";
 sprintf(tmpcstr," %d", id2);
 s += tmpcstr;
@@ -198,10 +200,10 @@ s += tmpcstr;
 for (viter = volumes.begin(); viter != volumes.end(); ++viter)
 {
   int dim;
-  rval = iFace.tag_get_data( geomTag, &*viter, 1, &dim ); assert(!rval);
+  rval = iFace->tag_get_data( geomTag, &*viter, 1, &dim ); assert(!rval);
   if (dim != 3) // not a volume 
     {continue;}
-  rval = iFace.tag_get_data( idTag, &*viter, 1, &id2 ); assert(!rval);
+  rval = iFace->tag_get_data( idTag, &*viter, 1, &id2 ); assert(!rval);
   sprintf(tmpcstr," %d", id2);
   s += tmpcstr;
 }
@@ -211,10 +213,10 @@ printerror("%s", s.c_str());
       {
           // Is the adjacent volume local or remote?
         int id, proc, dim;
-        rval = iFace.tag_get_data( geomTag, &*viter, 1, &dim ); assert(!rval);
+        rval = iFace->tag_get_data( geomTag, &*viter, 1, &dim ); assert(!rval);
         if (dim != 3) // not a volume 
           continue;
-        rval = iFace.tag_get_data( idTag, &*viter, 1, &id ); assert(!rval);
+        rval = iFace->tag_get_data( idTag, &*viter, 1, &id ); assert(!rval);
         proc = id % numproc;
         if (proc == rank) 
           continue;
@@ -224,7 +226,7 @@ printerror("%s", s.c_str());
           // Get list of immediate parents.
         parents.clear();
         if (2 - dimension > 0)  // empty list for surfaces.
-          iFace.get_parent_meshsets( *riter, parents, 1 );
+          iFace->get_parent_meshsets( *riter, parents, 1 );
         
           // Check if any parent entity is the remote volume
         bool skip = false;
@@ -232,7 +234,7 @@ printerror("%s", s.c_str());
              piter != parents.end(); ++piter)
         {
           parent_vols.clear();
-          iFace.get_parent_meshsets( *piter, parent_vols, 2 - dimension );
+          iFace->get_parent_meshsets( *piter, parent_vols, 2 - dimension );
           if (std::find( parent_vols.begin(), parent_vols.end(), *viter ) != parent_vols.end() )
           {
             skip = true;
@@ -243,7 +245,7 @@ printerror("%s", s.c_str());
 
         if (!skip)
         {
-rval = iFace.tag_get_data( idTag, &*riter, 1, &id2 ); assert(!rval);
+rval = iFace->tag_get_data( idTag, &*riter, 1, &id2 ); assert(!rval);
 printerror("Creating interface for %s %d in remote volume %d",
 dimension == 2 ? "surface" : dimension == 1 ? "curve" : dimension == 0 ? "vertex" : "UNKNOWN",
 id2, id );
@@ -258,7 +260,7 @@ END_SERIAL;
     // Find any blocks containing my volumes
   printerror( "Getting element blocks...");
   MBRange blocks, myblocks;
-  rval = iFace.get_entities_by_type_and_tag( 0, MBENTITYSET, &blockTag, 0, 1, blocks ); assert(!rval);
+  rval = iFace->get_entities_by_type_and_tag( 0, MBENTITYSET, &blockTag, 0, 1, blocks ); assert(!rval);
   MBRange export_list, block_contents;
   for (riter = myvolumes.begin(); riter != myvolumes.end(); ++riter)
   {
@@ -266,7 +268,7 @@ END_SERIAL;
     for (MBRange::iterator biter = blocks.begin(); biter != blocks.end(); ++biter)
     {
       block_contents.clear();
-      rval = iFace.get_entities_by_type( *biter, MBENTITYSET, block_contents ); assert(!rval);
+      rval = iFace->get_entities_by_type( *biter, MBENTITYSET, block_contents ); assert(!rval);
       if (block_contents.find(*riter) != block_contents.end())
       {
         export_list.insert( *biter );
@@ -284,12 +286,12 @@ END_SERIAL;
     // Remove from blocks any volumes not to be exported by this processor
   for (riter = myblocks.begin(); riter != myblocks.end(); ++riter )
   {
-    rval = iFace.get_entities_by_type( *riter, MBENTITYSET, block_contents ); assert(!rval);
+    rval = iFace->get_entities_by_type( *riter, MBENTITYSET, block_contents ); assert(!rval);
     for (MBRange::iterator biter = block_contents.begin(); biter != block_contents.end(); ++biter)
     {
       if (myvolumes.find(*biter) == myvolumes.end())
       {
-        rval = iFace.remove_entities( *riter, &*biter, 1 );
+        rval = iFace->remove_entities( *riter, &*biter, 1 );
         assert(MB_SUCCESS == rval);
       }
     }
@@ -302,12 +304,12 @@ END_SERIAL;
   for (riter = export_list.begin(); riter != export_list.end(); ++riter)
   {
     int id, dimension;
-    if (MB_SUCCESS == iFace.tag_get_data( blockTag, &*riter, 1, &id ))
+    if (MB_SUCCESS == iFace->tag_get_data( blockTag, &*riter, 1, &id ))
       printerror( "\tblock %d", id );
-    else if(MB_SUCCESS == iFace.tag_get_data( geomTag, &*riter, 1, &dimension ))
+    else if(MB_SUCCESS == iFace->tag_get_data( geomTag, &*riter, 1, &dimension ))
     {
       id = -1;
-      iFace.tag_get_data( idTag, &*riter, 1, &id );
+      iFace->tag_get_data( idTag, &*riter, 1, &id );
       printerror( "\t%s %d", dimension == 0 ? "vertex" :
                              dimension == 1 ? "curve" :
                              dimension == 2 ? "surface" :
@@ -329,22 +331,22 @@ END_SERIAL;
     // Assign global ID tag to all entities to make sure
     // all procs are starting out with the same thing.
   MBRange everything, extra;
-  iFace.get_entities_by_handle( 0, everything ); // doesn't include meshsets
-  iFace.get_entities_by_type( 0, MBENTITYSET, extra );
+  iFace->get_entities_by_handle( 0, everything ); // doesn't include meshsets
+  iFace->get_entities_by_type( 0, MBENTITYSET, extra );
   everything.merge( extra );
   for (MBRange::iterator all_iter = everything.begin();
        all_iter != everything.end(); ++all_iter) {
-    rval = iFace.tag_set_data( gidTag, &*all_iter, 1,  &*all_iter );  assert(!rval); 
+    rval = iFace->tag_set_data( gidTag, &*all_iter, 1,  &*all_iter );  assert(!rval); 
   }
      
     // Copy dimension from non-parallel geometry tag to parallel geometry tag
   everything.clear();
-  iFace.get_entities_by_type_and_tag(  0, MBENTITYSET, &geomTag, 0, 1, everything );
+  iFace->get_entities_by_type_and_tag(  0, MBENTITYSET, &geomTag, 0, 1, everything );
   for (riter = everything.begin(); riter != everything.end(); ++riter)
   { 
     int dim;
-    rval = iFace.tag_get_data( geomTag, &*riter, 1, &dim ); assert(!rval);
-    rval = iFace.tag_set_data( pGeomTag, &*riter, 1, &dim ); assert(!rval);
+    rval = iFace->tag_get_data( geomTag, &*riter, 1, &dim ); assert(!rval);
+    rval = iFace->tag_set_data( pGeomTag, &*riter, 1, &dim ); assert(!rval);
   }
 
 
@@ -353,7 +355,7 @@ END_SERIAL;
   if (0 == rank) {
     std::string sname = fnames[0];
     sname += ".serial.h5m";
-    rval = iFace.write_mesh( sname.c_str() );
+    rval = iFace->write_mesh( sname.c_str() );
     if (MB_SUCCESS != rval)
     {
       printerror("Failed to write serial file: \"%s\"", sname.c_str());
@@ -376,8 +378,8 @@ END_SERIAL;
     name += ".h5m";
 
   printerror ("Writing individual file: \"%s\"", name.c_str() );
-  rval = iFace.write_mesh( name.c_str(), &list[0], list.size() ); 
-  //rval = iFace.write_mesh( name.c_str() );
+  rval = iFace->write_mesh( name.c_str(), &list[0], list.size() ); 
+  //rval = iFace->write_mesh( name.c_str() );
   if (MB_SUCCESS != rval)
   {
     printerror( "Failed to write per-processor file: \"%s\"", name.c_str() );
@@ -395,10 +397,10 @@ END_SERIAL;
   std::string qa3( "Processor " );
   qa3 += rank;
   qa.push_back( qa3 );
-  WriteHDF5Parallel writer( &iFace );
+  WriteHDF5Parallel *writer = new WriteHDF5Parallel( iFace );
   
   printerror ("Writing parallel file: \"%s\"", fnames[0] );
-  rval = writer.write_file( fnames[0], true, &list[0], list.size(), qa );
+  rval = writer->write_file( fnames[0], true, &list[0], list.size(), qa );
   if (MB_SUCCESS != rval)
   {
     printerror( "Failed to write parallel file: \"%s\"", fnames[0] );
@@ -408,6 +410,10 @@ END_SERIAL;
   
   H5close();
   MPI_Finalize();
+
+  delete writer;
+  delete iFace;
+  
   return 0;
 }
 
@@ -430,19 +436,19 @@ void create_interface( MBEntityHandle geom, int proc )
      procs[1] = proc;
    }
 
-   rval = iFace.create_meshset( MESHSET_SET, iface_set ); assert(!rval);
-   rval = iFace.tag_set_data( ifaceTag, &iface_set, 1, procs ); assert(!rval);
+   rval = iFace->create_meshset( MESHSET_SET, iface_set ); assert(!rval);
+   rval = iFace->tag_set_data( ifaceTag, &iface_set, 1, procs ); assert(!rval);
    std::vector<MBEntityHandle> children;
-   rval = iFace.get_child_meshsets( geom, children, 0 ); assert(!rval);
+   rval = iFace->get_child_meshsets( geom, children, 0 ); assert(!rval);
    children.push_back(geom);
-   rval = iFace.add_entities( iface_set, &children[0], children.size() ); assert(!rval);
+   rval = iFace->add_entities( iface_set, &children[0], children.size() ); assert(!rval);
    
    for (std::vector<MBEntityHandle>::iterator iter = children.begin();
         iter != children.end(); ++iter)
    {
       // Set global ID tag
      std::vector<MBEntityHandle> contents;
-     rval = iFace.get_entities_by_handle( *iter, contents ); assert(!rval);
-     rval = iFace.tag_set_data( gidTag, &contents[0], contents.size(), &contents[0] );  assert(!rval); 
+     rval = iFace->get_entities_by_handle( *iter, contents ); assert(!rval);
+     rval = iFace->tag_set_data( gidTag, &contents[0], contents.size(), &contents[0] );  assert(!rval); 
    }
 }
