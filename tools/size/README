@@ -1,0 +1,6 @@
+Print entity counts by geometric owner or block/boundary.
+
+Usage:
+size [-g] [-m] <mesh file list>
+  -g : print counts by geometric owner"
+  -m : print counts per block/boundary"

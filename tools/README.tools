@@ -1,3 +1,28 @@
+This directory contains miscellaneous tools built on MOAB.  Some of
+them, like convert and size, are useful examples of how to write MOAB
+applications.  Others, like mbzoltan, are useful both as standalone
+tools and as functionality to include in other applications.
+
+Brief description of tools below this directory:
+cgm2moab: grabs facets from geometric model & saves as MOAB model
+converter: converts mesh between any two formats read/written by MOAB
+hexmodops: dual-based hex meshing research support
+mbchaco: static partitioner based on Sandia CHACO library
+mbperf: performance tests for MOAB, unstructured and structured
+mbzoltan: static and dynamic partitioner / load balancer, based on
+  Sandia Zoltan library
+qvdual: mesh visualization tool, based on Qt and Vtk; can visualize
+  hex mesh dual, among other things
+size: reads mesh and prints size by geometric owner or block/boundary
+skin: computes and outputs mesh skin
+spheredecomp: decompose a tet mesh into hex elements which resolve
+  spheres centered at vertices
+surfplot: plot the mesh of a geometric surface projected to a plane
+tagprop: propagate tags from entity sets to entities in those sets
+vtkMOABReader: MOAB reader plugin for VTK
+
+
+
 There are two ways a tool can be configured by:
  1) the main MOAB configure script directly
  2) its own configure script, called by the main MOAB one

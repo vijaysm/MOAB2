@@ -1,0 +1,6 @@
+Partition meshes for parallel solution using the CHACO library.
+Partition sets are written as entity sets tagged with
+PARALLEL_PARTITION tag (value is the processor rank); this tag is also
+written to elements in the mesh.
+
+Usage: mbchaco <mesh_file> <write_out(y/n)> <output_mesh_file> <nprocs> 
