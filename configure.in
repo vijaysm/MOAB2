@@ -1,9 +1,9 @@
 ################################################################################
 #                           Standard Stuff
 ################################################################################
-AC_INIT(MOAB, 1.1)
+AC_INIT(MOAB, 2.0)
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(MOAB,1.1)
+AM_INIT_AUTOMAKE(MOAB,2.0)
 
 SNL_CHECK_COMPILERS
 AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" != "xno"])

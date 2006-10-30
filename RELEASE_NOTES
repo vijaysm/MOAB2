@@ -1,4 +1,6 @@
 Version beta: 
+
+Version 2.00 (CVS tag version_200):
 - Add upper_bound method for MBRange.
 - Make parallel configuration (MPI rank and size) per-MOAB-instance values,
   and add utility methods for querying/manipulating processor ID portion

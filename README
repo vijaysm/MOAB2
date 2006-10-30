@@ -2,8 +2,8 @@
 MOAB: Mesh-Oriented datA Base
 Read Me
 
-API version: 1.00
-Implementation version: 1.00
+API version: 1.01
+Implementation version: 2.00
 =====================================
 
 MOAB is a component for representing and evaluating mesh data.  MOAB
@@ -73,8 +73,10 @@ Updates
 =====================================
 
 API:
+1.01 (11/1/06): Slight modifications to interface
 1.00 (2/1/04): Initial release (woo-hoo!)
 
 Implementation:
+2.00 (11/1/06): LOTS of bug fixes & improvements
 1.00 (2/1/04): Initial release
 
