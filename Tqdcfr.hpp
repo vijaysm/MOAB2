@@ -274,7 +274,7 @@ public:
   MetaDataContainer modelMetaData;
   int currNodeIdOffset;
   int currElementIdOffset[MBMAXTYPE];
-  MBTag globalIdTag, cubIdTag, geomTag, uniqueIdTag, groupTag, blockTag, nsTag, ssTag,
+  MBTag globalIdTag, cubIdTag, geomTag, uniqueIdTag, blockTag, nsTag, ssTag,
     attribVectorTag, entityNameTag, categoryTag;
 
   std::vector<int> int_buf;
@@ -333,7 +333,7 @@ private:
   
   MBErrorCode process_record(AcisRecord &this_record);
   
-  static const char geom_categories[][CATEGORY_TAG_NAME_LENGTH];
+  static const char geom_categories[][CATEGORY_TAG_SIZE];
   
   FILE* acisDumpFile;
 

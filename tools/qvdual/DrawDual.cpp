@@ -1557,7 +1557,7 @@ MBErrorCode DrawDual::draw_labels(MBEntityHandle dual_surf, vtkPolyData *pd,
     this_gw.qvtkWidget->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
 
     // sheet id first
-  char set_name[CATEGORY_TAG_NAME_LENGTH];
+  char set_name[CATEGORY_TAG_SIZE];
   int dum;
   MBErrorCode result = vtkMOABUtils::MBI->tag_get_data(vtkMOABUtils::globalId_tag(),
                                                           &dual_surf, 1, &dum);

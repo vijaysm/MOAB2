@@ -81,8 +81,8 @@ DualTool::DualTool(MBInterface *impl)
                               extraDualEntityTag, &dummy);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
   
-  static const char dum_name[CATEGORY_TAG_NAME_LENGTH] = "\0";
-  result = mbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_NAME_LENGTH, MB_TAG_SPARSE, 
+  static const char dum_name[CATEGORY_TAG_SIZE] = "\0";
+  result = mbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_SIZE, MB_TAG_SPARSE, 
                               categoryTag, dum_name);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
   
@@ -1064,7 +1064,7 @@ MBErrorCode DualTool::construct_new_hyperplane(const int dim,
   result = mbImpl->tag_set_data(hp_tag, &new_hyperplane, 1, &new_hyperplane);
 
     // assign a category name to these sets
-  static const char dual_category_names[2][CATEGORY_TAG_NAME_LENGTH] = 
+  static const char dual_category_names[2][CATEGORY_TAG_SIZE] = 
     {"Chord\0", "Sheet\0"};
     
   result = mbImpl->tag_set_data(categoryTag, &new_hyperplane, 1, dual_category_names[dim-1]);

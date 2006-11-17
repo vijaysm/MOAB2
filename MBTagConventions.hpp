@@ -91,7 +91,7 @@
  * value = NULL-terminated string denoting category name
  */
 #define CATEGORY_TAG_NAME "CATEGORY"
-#define CATEGORY_TAG_NAME_LENGTH 32
+#define CATEGORY_TAG_SIZE 32
 
 /* NAME tag:
  * A fixed length NULL-padded string containing a name.

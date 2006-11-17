@@ -742,7 +742,7 @@ MBErrorCode vtkMOABUtils::get_set_category_name( MBEntityHandle this_set,
   if (MB_SUCCESS != result) return result;
   
     // get the id of the set
-  char cat_name[CATEGORY_TAG_NAME_LENGTH];
+  char cat_name[CATEGORY_TAG_SIZE];
   sprintf(cat_name, "\0");
   if (0 != vtkMOABUtils::category_tag())
     result = vtkMOABUtils::mbImpl->tag_get_data(vtkMOABUtils::category_tag(),

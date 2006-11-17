@@ -29,7 +29,7 @@ const bool debug = false;
 const int ACIS_DIMS[] = {-1, 3, -1, 2, -1, -1, 1, 0, -1, -1};
 const char default_acis_dump_file[] = "dumped_acis.sat";
 const char acis_dump_file_tag_name[] = "__ACISDumpFile";
-const char Tqdcfr::geom_categories[][CATEGORY_TAG_NAME_LENGTH] = 
+const char Tqdcfr::geom_categories[][CATEGORY_TAG_SIZE] = 
 {"Vertex\0", "Curve\0", "Surface\0", "Volume\0"};
 const MBEntityType Tqdcfr::group_type_to_mb_type[] = {
   MBENTITYSET, MBENTITYSET, MBENTITYSET, // group, body, volume
@@ -129,7 +129,7 @@ MBReaderIface* Tqdcfr::factory( MBInterface* iface )
 { return new Tqdcfr( iface ); }
 
 Tqdcfr::Tqdcfr(MBInterface *impl) 
-    : cubFile(NULL), globalIdTag(0), cubIdTag(0), geomTag(0), uniqueIdTag(0), groupTag(0), 
+    : cubFile(NULL), globalIdTag(0), cubIdTag(0), geomTag(0), uniqueIdTag(0), 
       blockTag(0), nsTag(0), ssTag(0), attribVectorTag(0), entityNameTag(0),
       categoryTag(0)
 {
@@ -725,10 +725,10 @@ MBErrorCode Tqdcfr::read_group(const int group_index,
   if (-1 != md_index) {
     MetaDataContainer::MetaDataEntry *md_entry = model->groupMD.metadataEntries+md_index;
     if (0 == entityNameTag) {
-      result = mdbImpl->tag_get_handle("NAME", entityNameTag);
+      result = mdbImpl->tag_get_handle(NAME_TAG_NAME, entityNameTag);
       if (MB_SUCCESS != result || 0 == entityNameTag) {
-        char *dum_val = NULL;
-        result = mdbImpl->tag_create("NAME", sizeof(char*), MB_TAG_SPARSE, 
+        char dum_val[NAME_TAG_SIZE]; dum_val[0] = '\0';
+        result = mdbImpl->tag_create(NAME_TAG_NAME, NAME_TAG_SIZE, MB_TAG_SPARSE, 
                                      entityNameTag, &dum_val);
       }
     }
@@ -741,19 +741,20 @@ MBErrorCode Tqdcfr::read_group(const int group_index,
     md_index = model->groupMD.get_md_entry(group_index, "NumExtraNames");
     if (-1 != md_index) {
       int num_names = model->groupMD.metadataEntries[md_index].mdIntValue;
-      char extra_name_label[32];
+      char extra_name_label[NAME_TAG_SIZE], moab_extra_name[NAME_TAG_SIZE];
       for (int i = 0; i < num_names; i++) {
         sprintf(extra_name_label, "ExtraName%d", i);
+        sprintf(moab_extra_name, "%s%s%d", "EXTRA_", NAME_TAG_NAME, i);
         md_index = model->groupMD.get_md_entry(group_index, extra_name_label);
         if (-1 != md_index) {
           md_entry = model->groupMD.metadataEntries+md_index;
           this_char = new char[md_entry->mdStringValue.length()+1];
           strcpy(this_char, md_entry->mdStringValue.c_str());
           MBTag extra_name_tag;
-          result = mdbImpl->tag_get_handle(extra_name_label, extra_name_tag);
+          result = mdbImpl->tag_get_handle(moab_extra_name, extra_name_tag);
           if (MB_SUCCESS != result || 0 == extra_name_tag) {
-            char *dum_val = NULL;
-            result = mdbImpl->tag_create(extra_name_label, sizeof(char*), MB_TAG_SPARSE, 
+            char dum_val[NAME_TAG_SIZE]; dum_val[0] = '\0';
+            result = mdbImpl->tag_create(moab_extra_name, NAME_TAG_SIZE, MB_TAG_SPARSE, 
                                          extra_name_tag, &dum_val);
           }
           result = mdbImpl->tag_set_data(extra_name_tag, &grouph->setHandle, 1, &this_char);
@@ -1345,8 +1346,8 @@ MBErrorCode Tqdcfr::GeomHeader::read_info_header(const int model_offset,
   MBErrorCode result;
 
   if (0 == instance->categoryTag) {
-    static const char val[CATEGORY_TAG_NAME_LENGTH] = "\0";
-    result = instance->mdbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_NAME_LENGTH,
+    static const char val[CATEGORY_TAG_SIZE] = "\0";
+    result = instance->mdbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_SIZE,
                                            MB_TAG_SPARSE, instance->categoryTag, val);
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
   }
@@ -1389,12 +1390,11 @@ MBErrorCode Tqdcfr::GroupHeader::read_info_header(const int model_offset,
 {
   group_headers = new GroupHeader[info.numEntities];
   instance->FSEEK(model_offset+info.tableOffset);
-  int dum_int;
   MBErrorCode result;
 
   if (0 == instance->categoryTag) {
-    static const char val[CATEGORY_TAG_NAME_LENGTH] = "\0";
-    result = instance->mdbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_NAME_LENGTH,
+    static const char val[CATEGORY_TAG_SIZE] = "\0";
+    result = instance->mdbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_SIZE,
                                            MB_TAG_SPARSE, instance->categoryTag, val);
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
   }
@@ -1404,7 +1404,7 @@ MBErrorCode Tqdcfr::GroupHeader::read_info_header(const int model_offset,
       // create an entity set for this entity
     result = instance->mdbImpl->create_meshset(MESHSET_SET, group_headers[i].setHandle);
     if (MB_SUCCESS != result) return result;
-    static const char group_category[CATEGORY_TAG_NAME_LENGTH] = "Group\0";
+    static const char group_category[CATEGORY_TAG_SIZE] = "Group\0";
     
     instance->FREADI(6);
     group_headers[i].grpID = instance->int_buf[0];
@@ -1414,11 +1414,7 @@ MBErrorCode Tqdcfr::GroupHeader::read_info_header(const int model_offset,
     group_headers[i].memTypeCt = instance->int_buf[4];
     group_headers[i].grpLength = instance->int_buf[5];
 
-      // set the group tag to 1 to signify this is a group
-    dum_int = 1;
-    result = instance->mdbImpl->tag_set_data(instance->groupTag, 
-                                             &(group_headers[i].setHandle), 1, &dum_int);
-    if (MB_SUCCESS != result) return result;
+      // set the category tag to signify this is a group
     result = instance->mdbImpl->tag_set_data(instance->categoryTag, 
                                              &(group_headers[i].setHandle), 1, 
                                              group_category);
@@ -1447,8 +1443,8 @@ MBErrorCode Tqdcfr::BlockHeader::read_info_header(const double data_version,
   MBErrorCode result;
 
   if (0 == instance->categoryTag) {
-    static const char val[CATEGORY_TAG_NAME_LENGTH] = "\0";
-    result = instance->mdbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_NAME_LENGTH,
+    static const char val[CATEGORY_TAG_SIZE] = "\0";
+    result = instance->mdbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_SIZE,
                                            MB_TAG_SPARSE, instance->categoryTag, val);
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
   }
@@ -1458,7 +1454,7 @@ MBErrorCode Tqdcfr::BlockHeader::read_info_header(const double data_version,
       // create an entity set for this entity
     result = instance->mdbImpl->create_meshset(MESHSET_SET, block_headers[i].setHandle);
     if (MB_SUCCESS != result) return result;
-    static const char material_category[CATEGORY_TAG_NAME_LENGTH] = "Material Set\0";
+    static const char material_category[CATEGORY_TAG_SIZE] = "Material Set\0";
     
     instance->FREADI(12);
     block_headers[i].blockID = instance->int_buf[0];
@@ -1527,8 +1523,8 @@ MBErrorCode Tqdcfr::NodesetHeader::read_info_header(const int model_offset,
   MBErrorCode result;
 
   if (0 == instance->categoryTag) {
-    static const char val[CATEGORY_TAG_NAME_LENGTH] = "\0";
-    result = instance->mdbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_NAME_LENGTH,
+    static const char val[CATEGORY_TAG_SIZE] = "\0";
+    result = instance->mdbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_SIZE,
                                            MB_TAG_SPARSE, instance->categoryTag, val);
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
   }
@@ -1538,7 +1534,7 @@ MBErrorCode Tqdcfr::NodesetHeader::read_info_header(const int model_offset,
       // create an entity set for this entity
     result = instance->mdbImpl->create_meshset(MESHSET_SET, nodeset_headers[i].setHandle);
     if (MB_SUCCESS != result) return result;
-    static const char dirichlet_category[CATEGORY_TAG_NAME_LENGTH] = "Dirichlet Set\0";
+    static const char dirichlet_category[CATEGORY_TAG_SIZE] = "Dirichlet Set\0";
     
     instance->FREADI(8);
     nodeset_headers[i].nsID = instance->int_buf[0];
@@ -1577,8 +1573,8 @@ MBErrorCode Tqdcfr::SidesetHeader::read_info_header(const int model_offset,
   MBErrorCode result;
 
   if (0 == instance->categoryTag) {
-    static const char val[CATEGORY_TAG_NAME_LENGTH] = "\0";
-    result = instance->mdbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_NAME_LENGTH,
+    static const char val[CATEGORY_TAG_SIZE] = "\0";
+    result = instance->mdbImpl->tag_create(CATEGORY_TAG_NAME, CATEGORY_TAG_SIZE,
                                            MB_TAG_SPARSE, instance->categoryTag, val);
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
   }
@@ -1588,7 +1584,7 @@ MBErrorCode Tqdcfr::SidesetHeader::read_info_header(const int model_offset,
       // create an entity set for this entity
     result = instance->mdbImpl->create_meshset(MESHSET_SET, sideset_headers[i].setHandle);
     if (MB_SUCCESS != result) return result;
-    static const char neumann_category[CATEGORY_TAG_NAME_LENGTH] = "Neumann Set\0";
+    static const char neumann_category[CATEGORY_TAG_SIZE] = "Neumann Set\0";
     
     instance->FREADI(8);
     sideset_headers[i].ssID = instance->int_buf[0];
@@ -1695,10 +1691,6 @@ MBErrorCode Tqdcfr::ModelEntry::read_header_info( Tqdcfr* instance, const double
   }
   
   if (feModelHeader.groupArray.numEntities > 0) {
-    result = instance->mdbImpl->tag_create("GROUP_SET", 4, MB_TAG_SPARSE, 
-                                           instance->groupTag, &default_val);
-    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
-    
     result = Tqdcfr::GroupHeader::read_info_header(modelOffset, 
                                                    feModelHeader.groupArray, 
                                                    instance,

@@ -277,7 +277,7 @@ bool copy_geometry( MBInterface* iface )
   MBErrorCode rval;
 
     // get some tag handles
-  MBTag geom_tag, id_tag, sense_tag, name_tag;
+  MBTag geom_tag, id_tag, sense_tag, name_tag, category_tag;
   rval = iface->tag_create( GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, geom_tag, 0, true );
   assert(!rval);
   rval = iface->tag_create( GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, id_tag, 0, true );
@@ -287,10 +287,16 @@ bool copy_geometry( MBInterface* iface )
   rval = iface->tag_create( NAME_TAG_NAME, NAME_TAG_SIZE, MB_TAG_SPARSE, MB_TYPE_OPAQUE, name_tag, 0, true );
   assert(!rval);
   
+  rval = iface->tag_create( CATEGORY_TAG_NAME, CATEGORY_TAG_SIZE, 
+                            MB_TAG_SPARSE, MB_TYPE_OPAQUE, category_tag, 0, true );
+  assert(!rval);
+  
     // CGM data
   std::map<RefEntity*,MBEntityHandle> entmap[5]; // one for each dim, and one for groups
   std::map<RefEntity*,MBEntityHandle>::iterator ci;
-  const char* const names[] = { "Vertex", "Curve", "Surface", "Volume" };
+  const char geom_categories[][CATEGORY_TAG_SIZE] = 
+    {"Vertex\0", "Curve\0", "Surface\0", "Volume\0", "Group\0"};
+  const char* const names[] = { "Vertex", "Curve", "Surface", "Volume"};
   DLIList<RefEntity*> entlist;
   DLIList<ModelEntity*> me_list;
 
@@ -314,6 +320,10 @@ bool copy_geometry( MBInterface* iface )
         return rval;
       int id = ent->id();
       rval = iface->tag_set_data( id_tag, &handle, 1, &id );
+      if (MB_SUCCESS != rval)
+        return rval;
+
+      rval = iface->tag_set_data( category_tag, &handle, 1, &geom_categories[dim] );
       if (MB_SUCCESS != rval)
         return rval;
     }
@@ -408,6 +418,10 @@ bool copy_geometry( MBInterface* iface )
       
     int id = grp->id();
     rval = iface->tag_set_data( id_tag, &h, 1, &id );
+    if (MB_SUCCESS != rval)
+      return false;
+      
+    rval = iface->tag_set_data( category_tag, &h, 1, &geom_categories[4] );
     if (MB_SUCCESS != rval)
       return false;
       
