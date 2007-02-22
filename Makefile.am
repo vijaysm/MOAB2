@@ -178,6 +178,7 @@ libMOAB_la_include_HEADERS = \
   HomXform.hpp \
   MBCN.hpp \
   MBCartVect.hpp \
+  MBConfig.h \
   MBCore.hpp \
   MBEntityType.h \
   MBError.hpp \

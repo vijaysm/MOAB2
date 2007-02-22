@@ -24,6 +24,29 @@ AC_SUBST([ZCAT])
 AM_CONDITIONAL([HAVE_ZCAT],[test "x" = "x$ZCAT"])
 
 ################################################################################
+#                              HANDLE SIZE
+################################################################################
+HANDLE_TYPE=
+AC_CHECK_HEADERS([inttypes.h stdint.h],[INT_TYPE_INCLUDE="#include \"${ac_header}\""; break])
+AC_ARG_ENABLE([64bit-handles],[AC_HELP_STRING([--enable-64-bit-handles],[Force MBEntityHandle to be 64 bits])],
+[AC_CHECK_TYPE([uint64_t],,[AC_MSG_ERROR([Platform does not have uint64_t. Cannot Force 64-bit handles])])
+ HANDLE_TYPE='uint64_t'
+])
+AC_ARG_ENABLE([32bit-handles],[AC_HELP_STRING([--enable-32-bit-handles],[Force MBEntityHandle to be 32 bits])],
+[AC_CHECK_TYPE([uint32_t],,[AC_MSG_ERROR([Platform does not have uint32_t. Cannot Force 32-bit handles])])
+ HANDLE_TYPE='uint32_t'
+])
+if test "x$HANDLE_TYPE" = "x"; then
+  AC_CHECK_TYPE([size_t],
+  [INT_TYPE_INCLUDE='#include "stdlib.h"'; HANDLE_TYPE='size_t'],
+  [AC_MSG_WARN([size_t not defined, assuming sizeof(void*) == sizeof(long)])
+   INT_TYPE_INCLUDE=""; HANDLE_TYPE='unsigned long']
+  )
+fi
+AC_SUBST(INT_TYPE_INCLUDE)
+AC_SUBST(HANDLE_TYPE)
+
+################################################################################
 #                             BOOST OPTIONS
 ################################################################################
 
@@ -590,6 +613,7 @@ AC_SUBST([DEFINES])
 AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
 
 AC_CONFIG_FILES([Makefile 
+                 MBConfig.h
                  moab.make 
                  testdir.h
                  mhdf/Makefile

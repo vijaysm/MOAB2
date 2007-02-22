@@ -17,6 +17,7 @@
 #define MB_TYPES_H
 
 #include "MBEntityType.h"
+#include "MBConfig.h"
 
 /**\name Types and names
  * Types used in the MOAB interface
@@ -68,18 +69,6 @@ enum MBDataType {
   MB_TYPE_HANDLE  = 4  /**< MBEntityHandle */
 };
 
-/**\typedef MBEntityHandle
- * Data type used to access all entity types in MB; high-order 4 bits
- * stores the entity type, the rest is id
- */
-#ifdef USE_64_BIT_HANDLES
-  /* use 64 bit entity handles on a 64 bit machine */
-typedef unsigned long MBEntityHandle;
-#else
-  /* use 32 bit integer entity handles on 32/64 bit machines. */
-typedef unsigned int MBEntityHandle;
-#endif
- 
 /** Used to reference tags; since they're so different from entities, we
  *  use void** instead of a uint to prevent them from being confused as 
  *  entity handles.

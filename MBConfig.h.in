@@ -1,0 +1,27 @@
+#ifndef MB_CONFIG_H
+#define MB_CONFIG_H
+
+/* This file (MBConfig.h) is generated from MBConfig.h.in by
+ * configure.  Any changes must be made in MBConfig.h.in, not
+ * MBConfig.h
+ */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Include necessary header for integer type definitions */
+@INT_TYPE_INCLUDE@
+
+/* Define type (size) of MBEntityHandle */
+/**\typedef MBEntityHandle
+ * Data type used to access all entity types in MB; high-order 4 bits
+ * stores the entity type, the rest is id
+ */
+typedef @HANDLE_TYPE@ MBEntityHandle;
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
+
+#endif
