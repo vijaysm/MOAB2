@@ -59,7 +59,7 @@ inline MBEntityHandle CREATE_HANDLE(const unsigned type, const MBEntityHandle id
     return 1;  //<You've got to return something.  What do you return?
   }
   
-  return (MBEntityHandle)((type << MB_ID_WIDTH)|id);
+  return (((MBEntityHandle)type) << MB_ID_WIDTH)|id;
 }
 
 //! Get the entity id out of the handle.
