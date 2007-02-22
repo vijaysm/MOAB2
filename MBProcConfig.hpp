@@ -48,8 +48,8 @@ class MBProcConfig {
       
       //! Create the ID portion of a handle by combining
       //! an actual ID and a processor number
-    MBEntityHandle id( unsigned sub_id, unsigned proc ) const
-      { return (proc << idWidth) | sub_id; }
+    MBEntityHandle id( MBEntityHandle sub_id, unsigned proc ) const
+      { return ((MBEntityHandle)proc << idWidth) | (MBEntityHandle)sub_id; }
       
       //! Extract non-rank portion of entity ID from handle
     MBEntityHandle id( MBEntityHandle h ) const
