@@ -19,6 +19,7 @@
  */
 
 #include "MBInterface.hpp"
+#include "MBInternals.hpp"
 #include "MBOrientedBoxTreeTool.hpp"
 #include "MBOrientedBox.hpp"
 #include "MBRange.hpp"
@@ -31,7 +32,7 @@
 #include <limits>
 #include <assert.h>
 
-#define MB_OBB_USE_VECTOR_QUERIES
+//#define MB_OBB_USE_VECTOR_QUERIES
 //#define MB_OBB_USE_TYPE_QUERIES
 
 #if defined(MB_OBB_USE_VECTOR_QUERIES) && defined(MB_OBB_USE_TYPE_QUERIES)
@@ -555,7 +556,7 @@ MBErrorCode MBOrientedBoxTreeTool::ray_intersect_triangles(
 #endif
     {
 #ifndef MB_OBB_USE_TYPE_QUERIES
-      if (instance->type_from_handle(*t) != MBTRI)
+      if (TYPE_FROM_HANDLE(*t) != MBTRI)
         continue;
 #endif
     
@@ -728,7 +729,7 @@ MBErrorCode RayIntersectSets::leaf( MBEntityHandle node )
 #endif
   {
 #ifndef MB_OBB_USE_TYPE_QUERIES
-    if (tool->get_moab_instance()->type_from_handle(*t) != MBTRI)
+    if (TYPE_FROM_HANDLE(*t) != MBTRI)
       continue;
 #endif
     

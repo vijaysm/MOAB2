@@ -13,8 +13,8 @@
  * 
  */
  
- #ifndef MB_TAG_CONVENTIONS_HPP
- #define MB_TAG_CONVENTIONS_HPP
+#ifndef MB_TAG_CONVENTIONS_HPP
+#define MB_TAG_CONVENTIONS_HPP
 
 //! Conventional tag names used for some often-used sets
 

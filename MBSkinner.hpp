@@ -78,7 +78,7 @@ protected:
   void add_adjacency(MBEntityHandle entity, const MBEntityHandle *conn,
                      const int num_nodes);
 
-  void remove_adjacency(MBEntityHandle entity);
+  MBErrorCode remove_adjacency(MBEntityHandle entity);
 
   bool entity_deletable(MBEntityHandle entity);
 

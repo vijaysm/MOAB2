@@ -102,7 +102,10 @@ MBErrorCode MBMeshSet_MBRange::clear( MBEntityHandle mEntityHandle,
 
 MBErrorCode MBMeshSet_MBRange::get_entities(std::vector<MBEntityHandle>& entity_list) const
 {
-  std::copy( mRange.begin(), mRange.end(), std::back_inserter( entity_list ) );
+  unsigned int old_size = entity_list.size();
+  entity_list.resize(old_size + mRange.size());
+  for (MBRange::iterator rit = mRange.begin(); rit != mRange.end(); rit++)
+    entity_list[old_size++] = *rit;
   return MB_SUCCESS;
 }
 

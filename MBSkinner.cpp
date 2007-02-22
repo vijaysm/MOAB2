@@ -483,16 +483,16 @@ bool MBSkinner::connectivity_match( const MBEntityHandle *conn1,
 }
 
   
-void MBSkinner::remove_adjacency(MBEntityHandle entity)
+MBErrorCode MBSkinner::remove_adjacency(MBEntityHandle entity)
 {
   std::vector<MBEntityHandle> nodes, *adj = NULL;
   MBErrorCode result = thisMB->get_connectivity(&entity, 1, nodes);
-  assert(MB_SUCCESS == result);
+  if (MB_SUCCESS != result) return result;
   std::vector<MBEntityHandle>::iterator iter = 
     std::min_element(nodes.begin(), nodes.end());
 
   if(iter == nodes.end())
-    return;
+    return MB_FAILURE;
 
   // remove this entity from the node
   if(thisMB->tag_get_data(mAdjTag, &(*iter), 1, &adj) == MB_SUCCESS && adj != NULL)
@@ -501,6 +501,8 @@ void MBSkinner::remove_adjacency(MBEntityHandle entity)
     if(iter != adj->end())
       adj->erase(iter);
   }
+
+  return result;
 }
 
 bool MBSkinner::entity_deletable(MBEntityHandle entity)
@@ -508,7 +510,7 @@ bool MBSkinner::entity_deletable(MBEntityHandle entity)
   unsigned char deletable=0;
   MBErrorCode result = thisMB->tag_get_data(mDeletableMBTag, &entity, 1, &deletable);
   assert(MB_SUCCESS == result);
-  if(deletable == 1)
+  if(MB_SUCCESS == result && deletable == 1)
     return false;
   return true;
 }

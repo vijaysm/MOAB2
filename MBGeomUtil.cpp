@@ -67,11 +67,9 @@ bool ray_tri_intersect( const MBCartVect vertices[3],
   if (ray_length && t > *ray_length)
     return false;
   
-  if (beta < 0 || gamma < 0)
-    return false;
-  if (beta + gamma > 1)
-    return false;
-  if (t < 0.0)
+  if (beta < 0 || gamma < 0 ||
+      beta + gamma > 1 ||
+      t < 0.0)
     return false;
   
   t_out = t;

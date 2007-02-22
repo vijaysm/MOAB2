@@ -33,8 +33,8 @@ class MBCartVect
   
   public:
     
-    inline MBCartVect() 
-      {}
+  inline MBCartVect() 
+      {d[0] = d[1] = d[2] = 0.0;}
     explicit inline MBCartVect( double v ) 
       { d[0] = d[1] = d[2] = v; }
     inline MBCartVect( double i, double j, double k )

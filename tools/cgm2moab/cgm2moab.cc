@@ -278,14 +278,19 @@ bool copy_geometry( MBInterface* iface )
 
     // get some tag handles
   MBTag geom_tag, id_tag, sense_tag, name_tag, category_tag;
-  rval = iface->tag_create( GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, geom_tag, 0, true );
+  rval = iface->tag_create( GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_SPARSE, 
+                            MB_TYPE_INTEGER, geom_tag, 0, true );
   assert(!rval);
-  rval = iface->tag_create( GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, id_tag, 0, true );
+  rval = iface->tag_create( GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, 
+                            MB_TYPE_INTEGER, id_tag, 0, true );
   assert(!rval);
-  rval = iface->tag_create( GEOM_SENSE_TAG_NAME, 2*sizeof(MBEntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, sense_tag, 0, true );
+  rval = iface->tag_create( GEOM_SENSE_TAG_NAME, 2*sizeof(MBEntityHandle), MB_TAG_SPARSE, 
+                            MB_TYPE_HANDLE, sense_tag, 0, true );
   assert(!rval);
-  rval = iface->tag_create( NAME_TAG_NAME, NAME_TAG_SIZE, MB_TAG_SPARSE, MB_TYPE_OPAQUE, name_tag, 0, true );
+  rval = iface->tag_create( NAME_TAG_NAME, NAME_TAG_SIZE, MB_TAG_SPARSE, 
+                            MB_TYPE_OPAQUE, name_tag, 0, true );
   assert(!rval);
+  std::vector<MBTag> extra_name_tags;
   
   rval = iface->tag_create( CATEGORY_TAG_NAME, CATEGORY_TAG_SIZE, 
                             MB_TAG_SPARSE, MB_TYPE_OPAQUE, category_tag, 0, true );
@@ -399,6 +404,7 @@ bool copy_geometry( MBInterface* iface )
     RefEntityName::instance()->get_refentity_name( grp, name_list, true );
     if (name_list.size() == 0)
       continue;
+    name_list.reset();
     CubitString name = *name_list.get();
     
     MBEntityHandle h;
@@ -424,6 +430,28 @@ bool copy_geometry( MBInterface* iface )
     rval = iface->tag_set_data( category_tag, &h, 1, &geom_categories[4] );
     if (MB_SUCCESS != rval)
       return false;
+      
+    if (name_list.size() > 1) {
+      for (int j = extra_name_tags.size(); j < name_list.size(); ++j) {
+        sprintf( namebuf, "EXTRA_%s%d", NAME_TAG_NAME, j );
+        MBTag t;
+        rval = iface->tag_create( namebuf, NAME_TAG_SIZE, MB_TAG_SPARSE, MB_TYPE_OPAQUE, t, 0, true );
+        assert(!rval);
+        extra_name_tags.push_back(t);
+      }
+        
+      for (int j = 0; j < name_list.size(); ++j) {
+        name = *name_list.get_and_step();
+        memset( namebuf, '\0', NAME_TAG_SIZE );
+        strncpy( namebuf, name.c_str(), NAME_TAG_SIZE - 1 );
+        if (name.length() >= (unsigned)NAME_TAG_SIZE) 
+          std::cout << "WARNING: group name '" << name.c_str() 
+                    << "' truncated to '" << namebuf << "'" << std::endl;
+        rval = iface->tag_set_data( extra_name_tags[j], &h, 1, namebuf );
+        if (MB_SUCCESS != rval)
+          return false;
+      }
+    }
       
     entmap[4][grp] = h;
   }

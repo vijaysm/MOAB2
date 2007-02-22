@@ -337,9 +337,14 @@ MBErrorCode SparseTagCollection::get_entities_with_tag_value(MBEntityType type,
 
   for(iter = mData.begin(); iter != mData.end(); ++iter)
   {
-    if(TYPE_FROM_HANDLE(iter->first) == type)
+    if(TYPE_FROM_HANDLE(iter->first) == type) {
+#ifndef NDEBUG
+      MBEntityHandle this_ent = iter->first;
+      void *this_tag = iter->second;
+#endif
       if( memcmp( iter->second, tag_value, mDataSize ) == 0) 
         entities.insert(iter->first);    
+    }
   }
 
   return MB_SUCCESS;

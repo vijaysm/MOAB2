@@ -44,6 +44,7 @@ void usage( const char* exe )
 {
   std::cerr << "Usage: " << exe << " [-g] [-m] <mesh file list>" << std::endl
             << "-g : print counts by geometric owner" << std::endl
+            << "-l : print counts of mesh" << std::endl
             << "-m : print counts per block/boundary" << std::endl
             ;
   exit(1);
@@ -289,6 +290,7 @@ int main( int argc, char* argv[] )
 {
   bool geom_owners = false;
   bool mesh_owners = false;
+  bool just_list = false;
   std::vector<std::string> file_list;
   set_stats total_stats, file_stats;
   
@@ -296,6 +298,8 @@ int main( int argc, char* argv[] )
   {
     if (!strcmp(argv[i],"-g"))
       geom_owners = true;
+    else if (!strcmp(argv[i],"-l"))
+      just_list = true;
     else if (!strcmp(argv[i],"-m"))
       mesh_owners = true;
     else if (*argv[i] && *argv[i] != '-')
@@ -445,6 +449,8 @@ int main( int argc, char* argv[] )
       }
     }
 
+    if (just_list) moab.list_entities(0, 1);
+    
     moab.delete_mesh();
   }
   
