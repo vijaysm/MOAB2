@@ -4,13 +4,19 @@ AUTOMAKE_OPTIONS = foreign
 
 DEFS = $(DEFINES)
 INCLUDES += -I$(top_srcdir) $(CGM_INCLUDES)
+
 bin_PROGRAMS = cgm2moab
-cgm2moab_SOURCES = cgm2moab.cc \
-                   cubfile.c \
-                   cubfile.h \
-                   geom_file_type.c \
-                   geom_file_type.h
+cgm2moab_SOURCES = main.cc cubfile.c
+
+libcgm2moab_la_SOURCES = \
+	cgm2moab.cc
                    
-LDADD = $(top_builddir)/libMOAB.la $(CGM_LIBS_LINK)
+libMOAB_la_include_HEADERS = cgm2moab.hpp cubfile.h
+
+lib_LTLIBRARIES = libcgm2moab.la
+
+libMOAB_la_includedir = $(includedir)
+
+LDADD = libcgm2moab.la $(top_builddir)/libMOAB.la $(CGM_LIBS_LINK)
 cgm2moab_DEPENDENCIES = $(top_builddir)/libMOAB.la
 dist_man1_MANS = cgm2moab.man

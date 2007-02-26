@@ -24,8 +24,7 @@
 
 #include <stdio.h>
 
-#include "cubfile.h"
-#include "geom_file_type.h"
+#include "cgm2moab.hpp"
 
 // Tag name used for saving sense of faces in volumes.
 // We assume that the surface occurs in at most two volumes.
@@ -38,241 +37,17 @@ const char GEOM_SENSE_TAG_NAME[] = "GEOM_SENSE_2";
 
 // default settings
 const char DEFAULT_NAME[] = "cgm2moab";
-const double DEFAULT_DISTANCE = 0.001;
-const int DEFAULT_NORMAL = 5;
 
 // settings
 const char* name = DEFAULT_NAME;
-double dist_tol = DEFAULT_DISTANCE;
-int norm_tol = DEFAULT_NORMAL;
-double len_tol = 0.0;
-bool have_dist_tol = true;
-bool have_norm_tol = true;
-bool have_len_tol = false;
-bool actuate_attribs = true;
-bool have_actuate_attribs = false;
 const char* file_type = 0;
 
-void print_usage()
-{
-  std::cout << name << 
-      " [-d <tol>|-D] [-n <tol>|-N] [-l <tol>|-L] [-A|-a] [-t <type>] <input_file> <outupt_file>" <<
-      std::endl;
-  std::cout << name << " -h" << std::endl;
-}
-
-void usage()
-{
-  print_usage();
-  exit(1);
-}
-
-void help()
-{
-  print_usage();
-  std::cout << "\t-d  max. distance deviation between facet and geometry" << std::endl
-            << "\t-D  no distance tolerance" << std::endl
-            << "\t    (default:" << DEFAULT_DISTANCE << ")" <<std::endl
-            << "\t-n  max. normal angle deviation (degrees) between facet and geometry" << std::endl
-            << "\t-N  no normal tolerance" << std::endl
-            << "\t-l  max. facet edge length" << std::endl
-            << "\t-L  no facet edge length maximum" << std::endl
-            << "\t    (default:none)" << std::endl
-            << "\t-a  force actuation of all CGM attributes" << std::endl
-            << "\t-A  disable all CGM attributes" << std::endl
-            << "\t-t  specify input file type (default is autodetect)" << std::endl
-            << std::endl;
-  exit(0);
-}
-
-
-double parse_tol( char* argv[], int argc, int& i );
-bool copy_geometry( MBInterface* to_this );
-
-int main( int argc, char* argv[] )
-{
-  name = argv[0];
-  
-  const char* input_name = 0;
-  const char* output_name = 0;
-  
-    // Process CL args
-  bool process_options = true;
-  for (int i = 1; i < argc; ++i) {
-    if (!process_options || argv[i][0] != '-') {
-      if (output_name) {
-        std::cerr << "Unexpected argument: " << argv[i] << std::endl;
-        usage();
-      }
-      else if (input_name)
-        output_name = argv[i];
-      else 
-        input_name = argv[i];
-      continue;
-    }
-    
-    if (!argv[i][1] || argv[i][2]) {  // two chars long
-      std::cerr << "Invalid option: " << argv[i] << std::endl;
-      usage();
-    }
-    
-    switch(argv[i][1]) {
-      default:
-        std::cerr << "Invalid option: " << argv[i] << std::endl;
-        usage();
-      case 'd':
-        dist_tol = parse_tol( argv, argc, i );
-        have_dist_tol = true;
-        break;
-      case 'D':
-        have_dist_tol = false;
-        break;
-      case 'n':
-        norm_tol = (int)round(parse_tol( argv, argc, i ));
-        have_norm_tol = true;
-        break;
-      case 'N':
-        have_norm_tol = false;
-        break;
-      case 'l':
-        len_tol = parse_tol( argv, argc, i );
-        have_len_tol = true;
-        break;
-      case 'L':
-        have_len_tol = false;
-        break;
-      case 'a':
-        actuate_attribs = true;
-        have_actuate_attribs = true;
-        break;
-      case 'A':
-        actuate_attribs = false;
-        have_actuate_attribs = true;
-        break;
-      case 't':
-        ++i;
-        if (i == argc) {
-          std::cerr << "Expected argument following '-t'" << std::endl;
-          usage();
-        }
-        file_type = argv[i];
-        break;
-      case 'h':
-        help();
-      case '-':
-        process_options = false;
-        break;
-    }
-  }
-  
-  if (!output_name)
-    usage();
-        
-  
-    // Initialize CGM
-  CGMApp::instance()->startup( 0, NULL );
-  AcisQueryEngine::instance();
-  AcisModifyEngine::instance();
-  if (have_actuate_attribs) {
-    CGMApp::instance()->attrib_manager()->set_all_auto_read_flags( actuate_attribs );
-    CGMApp::instance()->attrib_manager()->set_all_auto_actuate_flags( actuate_attribs );
-  }
-  
-  
-    // Intitalize MOAB
-  MBCore moab;
-  MBInterface* iface = &moab;
-  
-    // Get CGM file type
-  if (!file_type) {
-    file_type = get_geom_file_type( input_name );
-    if (!file_type) {
-      std::cerr << input_name << " : unknown file type, try '-t'" << std::endl;
-      exit(1);
-    }
-  }
-  
-    // If CUB file, extract ACIS geometry
-  CubitStatus s;
-  if (!strcmp( file_type, "CUBIT" )) {
-    char* temp_name = tempnam( 0, "cgm" );
-    if (!temp_name) {
-      perror(name);
-      exit(2);
-    }
-    
-    FILE* cub_file = fopen( input_name, "r" );
-    if (!cub_file) {
-      free(temp_name);
-      perror(input_name);
-      exit(2);
-    }
-    
-    FILE* tmp_file = fopen( temp_name, "w" );
-    if (!tmp_file) {
-      free(temp_name);
-      perror(temp_name);
-      exit(2);
-    }
-    
-    int rval = cub_file_type( cub_file, tmp_file, CUB_FILE_ACIS );
-    fclose( cub_file );
-    fclose( tmp_file );
-    if (rval) {
-      remove( temp_name );
-      free( temp_name );
-      exit(2);
-    }
-    
-    s = GeometryQueryTool::instance()->import_solid_model( temp_name, "ACIS_SAT" );
-    remove( temp_name );
-    free( temp_name );
-  }
-  else {
-    s = GeometryQueryTool::instance()->import_solid_model( input_name, file_type );
-  }
-  if (CUBIT_SUCCESS != s) {
-    std::cerr << "Failed to read '" << input_name << "' of type '" << file_type << "'" << std::endl;
-    exit(2);
-  }
-  
-    // copy geometry facets into mesh database
-  if (!copy_geometry( iface )) {
-    std::cerr << "Internal error copying geometry" << std::endl;
-    exit(5);
-  }
-  
-    // write mesh database
-  MBErrorCode rval = iface->write_mesh( output_name );
-  if (MB_SUCCESS != rval) {
-    std::cerr << "Failed to write '" << output_name << "'" << std::endl;
-    exit(2);
-  }
-  
-  return 0;
-}
-
-// parse double CL arg
-double parse_tol( char* argv[], int argc, int& i )
-{
-  ++i;
-  if (i == argc) {
-    std::cerr << "Expected value following option '" << argv[i-1] << "'" << std::endl;
-    usage();
-  }
-  
-  char* endptr = 0;
-  double val = strtod( argv[i], &endptr );
-  if (!endptr || *endptr || val < DBL_EPSILON) {
-    std::cerr << "Invalid tolerance value for '" << argv[i-1] <<"': " << argv[i] << std::endl;
-    usage();
-  }
-  
-  return val;
-}
-
 // copy geometry into mesh database
-bool copy_geometry( MBInterface* iface )
+bool cgm2moab(MBInterface* iface,
+              double dist_tol,
+              int norm_tol,
+              double len_tol,
+              int actuate_attribs)
 {
   MBErrorCode rval;
 
@@ -513,7 +288,7 @@ bool copy_geometry( MBInterface* iface )
     GeometryQueryEngine* gqe = curve->get_geometry_query_engine();
     data.clean_out();
     int count;
-    CubitStatus s = gqe->get_graphics( curve, count, &data, have_dist_tol ? dist_tol : 0.0 );
+    CubitStatus s = gqe->get_graphics( curve, count, &data, dist_tol);
     if (CUBIT_SUCCESS != s)
       return false;
       
@@ -599,9 +374,7 @@ bool copy_geometry( MBInterface* iface )
     data.clean_out();
     int nt, np, nf;
     CubitStatus s = gqe->get_graphics( surf, nt, np, nf, &data, 
-                                       have_norm_tol ? norm_tol : 0, 
-                                       have_dist_tol ? dist_tol : 0.0,
-                                       have_len_tol  ?  len_tol : 0.0  );
+                                       norm_tol, dist_tol, len_tol);
     if (CUBIT_SUCCESS != s)
       return false;
 
