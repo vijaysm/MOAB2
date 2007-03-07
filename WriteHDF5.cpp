@@ -168,24 +168,43 @@ static bool convert_handle_tag( MBInterface* iface, MBTag tag, void* data, size_
 {
   bool some_valid = false;
   MBErrorCode rval;
-  MBEntityHandle* buffer = (MBEntityHandle*)data;
-  MBEntityHandle *const end = buffer + count;
-  for ( ; buffer != end; ++buffer) {
+  
+  // if same saize
+  MBEntityHandle *buffer, *end;
+  id_t* witer;
+  int step;
+  if (sizeof(MBEntityHandle) >= sizeof(id_t)) {
+    buffer = (MBEntityHandle*)data;
+    end = buffer + count;
+    witer = (id_t*)data;
+    step = 1;
+  }
+  else {
+    // iterate in reverse order if sizeof(id_t) > sizeof(MBEntityHandle)
+    buffer = (MBEntityHandle*)data + count - 1;
+    end = (MBEntityHandle*)data - 1;
+    witer = (id_t*)data + count - 1;
+    step = -1;
+  }
+  for ( ; buffer != end; buffer += step, witer += step) {
     if (!*buffer) {
       some_valid = true;
+      *witer = 0;
     }
     else {
       int id;
       rval = iface->tag_get_data( tag, buffer, 1, &id );
       if (MB_SUCCESS == rval && id > 0) {
         some_valid = true;
-        *buffer = (MBEntityHandle)id;
+        *witer = id;
       }
       else {
         *buffer = 0;
+        *witer = 0;
       }
     }
   }
+
   return some_valid;
 }
 
