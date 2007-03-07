@@ -96,7 +96,7 @@ int main()
         ++tests;
          if (!handle_test( type, ids[id], cpu, false )) {
             cout << "Test of handle with type=" << type << ", id=" << ids[id]
-                 << ", proc=" << cpu << ", and numproc=" << num_cpu << endl;
+                 << ", proc=" << cpu << ", and numproc=" << cpus[num_cpu] << endl;
             ++errors;
           }
         }
@@ -106,7 +106,7 @@ int main()
           ++tests;
           if (!tag_test( tids[id], (MBTagType)prop )) {
             cout << "Test of tag handle with prop=" << prop << ", id=" << tids[id]
-                 << ", proc=" << cpu << ", and numproc=" << num_cpu << endl;
+                 << ", proc=" << cpu << ", and numproc=" << cpus[num_cpu] << endl;
             ++errors;
           }
         }
