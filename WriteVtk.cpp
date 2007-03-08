@@ -183,7 +183,7 @@ MBErrorCode WriteVtk::gather_mesh( const MBEntityHandle* set_list,
 
 MBErrorCode WriteVtk::write_header( std::ostream& stream )
 {
-  stream << "# vtk DataFile Version 2.0" << std::endl;
+  stream << "# vtk DataFile Version 3.0" << std::endl;
   stream << "MOAB Version " << MOAB_API_VERSION_STRING << std::endl;
   stream << "ASCII" << std::endl;
   stream << "DATASET UNSTRUCTURED_GRID" << std::endl;

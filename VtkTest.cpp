@@ -511,7 +511,7 @@ bool test_structured_3d( const char* file );
 bool test_structured_points_2d()
 {
   const char file[] = 
-   "# vtk DataFile Version 2.0\n"
+   "# vtk DataFile Version 3.0\n"
    "MOAB Version 1.00\n"
    "ASCII\n"
    "DATASET STRUCTURED_POINTS\n"
@@ -522,7 +522,7 @@ bool test_structured_points_2d()
   
     // test again w/ old 1.0 ASPECT_RATIO keyword
   const char file2[] = 
-   "# vtk DataFile Version 2.0\n"
+   "# vtk DataFile Version 3.0\n"
    "MOAB Version 1.00\n"
    "ASCII\n"
    "DATASET STRUCTURED_POINTS\n"
@@ -537,7 +537,7 @@ bool test_structured_points_2d()
 bool test_structured_grid_2d()
 {
   char file[4096] =
-   "# vtk DataFile Version 2.0\n"
+   "# vtk DataFile Version 3.0\n"
    "MOAB Version 1.00\n"
    "ASCII\n"
    "DATASET STRUCTURED_GRID\n"
@@ -553,7 +553,7 @@ bool test_structured_grid_2d()
 bool test_rectilinear_grid_2d()
 {
   const char file[] =
-   "# vtk DataFile Version 2.0\n"
+   "# vtk DataFile Version 3.0\n"
    "MOAB Version 1.00\n"
    "ASCII\n"
    "DATASET RECTILINEAR_GRID\n"
@@ -568,7 +568,7 @@ bool test_rectilinear_grid_2d()
 bool test_structured_points_3d()
 {
   const char file[] = 
-   "# vtk DataFile Version 2.0\n"
+   "# vtk DataFile Version 3.0\n"
    "MOAB Version 1.00\n"
    "ASCII\n"
    "DATASET STRUCTURED_POINTS\n"
@@ -581,7 +581,7 @@ bool test_structured_points_3d()
 bool test_structured_grid_3d()
 {
   char file[4096] =
-   "# vtk DataFile Version 2.0\n"
+   "# vtk DataFile Version 3.0\n"
    "MOAB Version 1.00\n"
    "ASCII\n"
    "DATASET STRUCTURED_GRID\n"
@@ -598,7 +598,7 @@ bool test_structured_grid_3d()
 bool test_rectilinear_grid_3d()
 {
   const char file[] =
-   "# vtk DataFile Version 2.0\n"
+   "# vtk DataFile Version 3.0\n"
    "MOAB Version 1.00\n"
    "ASCII\n"
    "DATASET RECTILINEAR_GRID\n"
@@ -986,7 +986,7 @@ bool test_read_write_element( const double* coords, unsigned num_verts,
 {
     // construct VTK file
   char file[4096] = 
-   "# vtk DataFile Version 2.0\n"
+   "# vtk DataFile Version 3.0\n"
    "MOAB Version 1.00\n"
    "ASCII\n"
    "DATASET UNSTRUCTURED_GRID\n";
@@ -1047,7 +1047,7 @@ bool test_structured_3d( const char* file )
 }
 
 const char two_quad_mesh[] =
-   "# vtk DataFile Version 2.0\n"
+   "# vtk DataFile Version 3.0\n"
    "MOAB Version 1.00\n"
    "ASCII\n"
    "DATASET UNSTRUCTURED_GRID\n"
