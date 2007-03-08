@@ -355,7 +355,7 @@ MBErrorCode ReadVtk::vtk_read_structured_points( FileTokenizer& tokens,
       for (i = 0; i < dims[0]; ++i)
       {
         *x = origin[0] + i*space[0]; ++x;
-        *y = origin[1] + j+space[1]; ++y;
+        *y = origin[1] + j*space[1]; ++y;
         *z = origin[2] + k*space[2]; ++z;
       }
 
@@ -432,8 +432,7 @@ MBErrorCode ReadVtk::vtk_read_rectilinear_grid( FileTokenizer& tokens,
     long count;
     if (!tokens.match_token( labels[i] )      ||
         !tokens.get_long_ints( 1, &count )    ||
-        !tokens.match_token( vtk_type_names ) ||
-        !tokens.get_newline( ))
+        !tokens.match_token( vtk_type_names ))
       return MB_FAILURE;
     
     if (count != dims[i])
@@ -692,7 +691,7 @@ MBErrorCode ReadVtk::vtk_read_unstructured_grid( FileTokenizer& tokens,
         // For poly elements, store end index
       if (index_array)
       {
-        index_array_prev += *conn_iter;
+        index_array_prev += num_vtx = *conn_iter;
         *index_array = index_array_prev;
         ++index_array;
       }

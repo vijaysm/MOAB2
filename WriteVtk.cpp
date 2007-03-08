@@ -246,14 +246,6 @@ MBErrorCode WriteVtk::write_elems( std::ostream& stream, const MBRange& elems )
   {
       // Get type information for element
     MBEntityType type = TYPE_FROM_HANDLE(*i);
-    const VtkElemType* vtk_type = 
-      VtkUtil::get_vtk_type( type, MBCN::VerticesPerEntity(type));
-    if (!vtk_type) {
-      writeTool->report_error( "Vtk file format does not support elements "
-        "of type %s (%d).\n", MBCN::EntityTypeName(type), 
-        (int)type);
-      continue;
-    }
 
       // Get element connectivity
     const MBEntityHandle* conn;
@@ -262,6 +254,15 @@ MBErrorCode WriteVtk::write_elems( std::ostream& stream, const MBRange& elems )
     if (MB_SUCCESS != rval)
       return rval;
 
+      // Get VTK type
+    const VtkElemType* vtk_type = VtkUtil::get_vtk_type( type, conn_len );
+    if (!vtk_type) {
+      writeTool->report_error( "Vtk file format does not support elements "
+        "of type %s (%d) with %d nodes.\n", MBCN::EntityTypeName(type), 
+        (int)type, conn_len);
+      continue;
+    }
+
       // Get IDs from vertex handles
     assert( conn_len > 0 );
      if (conn_data.size() < (unsigned)conn_len)
@@ -269,20 +270,6 @@ MBErrorCode WriteVtk::write_elems( std::ostream& stream, const MBRange& elems )
     rval = mbImpl->tag_get_data( globalId, conn, conn_len, &conn_data[0] );
     if (MB_SUCCESS != rval)
       return rval;
-
-        // check for higher-order nodes and whether this linear type is supported
-    if (!vtk_type && conn_len != MBCN::VerticesPerEntity(type)) {
-      vtk_type = VtkUtil::get_vtk_type(type, MBCN::VerticesPerEntity(type));
-      if (vtk_type) conn_len = MBCN::VerticesPerEntity(type);
-    }
-      
-    if (!vtk_type)
-    {
-      writeTool->report_error( "Vtk file format does not support elements "
-        "of type %s (%d) with %d nodes.\n", MBCN::EntityTypeName(type), 
-        (int)type, conn_len );
-      continue;
-    }
     
       // Save VTK type index for later
     *t = vtk_type->vtk_type;
@@ -354,19 +341,6 @@ MBErrorCode WriteVtk::write_tags( std::ostream& stream, bool nodes, const MBRang
       return rval;
     if (type == MB_TYPE_HANDLE)
       continue;
-      
-      // Print warning and skip BIT tags
-    MBTagType storage;
-    rval = mbImpl->tag_get_type( *i, storage );
-    if (MB_SUCCESS != rval)
-      return rval;
-    if (storage == MB_TAG_BIT)
-    {
-      std::string name( "<error>" );
-      mbImpl->tag_get_name( *i, name );
-      std::cerr << "Cannot write BIT tags. Skipping tag: " << name << std::endl;
-      continue;
-    }
     
       // Get subset of input entities that have the tag set
     MBRange tagged;
@@ -486,6 +460,62 @@ MBErrorCode WriteVtk::write_tag( std::ostream& stream, MBTag tag, const MBRange&
   return MB_SUCCESS;
 }
 
+MBErrorCode WriteVtk::write_bit_tag( std::ostream& stream, 
+                                     MBTag tag, 
+                                     const MBRange& entities, 
+                                     const MBRange& tagged )
+{
+  MBErrorCode rval;
+  const unsigned long n = entities.size();
+  
+    // Get tag properties  
+
+  std::string name;
+  int vals_per_tag;
+  if (MB_SUCCESS != mbImpl->tag_get_name( tag, name ) ||
+      MB_SUCCESS != mbImpl->tag_get_size( tag, vals_per_tag ) )
+    return MB_FAILURE;
+
+  if (vals_per_tag > 8) {
+    writeTool->report_error( "Invalid tag size for bit tag \"%s\"\n", name.c_str() );
+    return MB_FAILURE;
+  } 
+  
+    // Get a tag value for each entity.  
+    // Get bits for each entity and unpack into
+    // one integer in the 'data' array for each bit.
+    // Initialise 'data' to zero because we will skip
+    // those entities for which the tag is not set.
+  std::vector<unsigned short> data;
+  data.resize( n * vals_per_tag, 0 );
+  MBRange::const_iterator t = tagged.begin();
+  std::vector<unsigned short>::iterator d = data.begin();
+  for (MBRange::const_iterator i = entities.begin(); 
+       i != entities.end() && t != tagged.end(); ++i)
+  {
+    if (*i == *t)
+    {
+      ++t;
+      unsigned char value;
+      rval = mbImpl->tag_get_data( tag, &*i, 1, &value );
+      for (int j = 0; j < vals_per_tag; ++j, ++d)
+        *d = value & (1<<j) ? 1 : 0;
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
+    else
+    {
+      // if tag is not set for entity, skip values in array
+      d += vals_per_tag;
+    }
+  }
+  
+    // Write the tag values, one entity per line.
+  write_data( stream, data, vals_per_tag );
+  
+  return MB_SUCCESS;
+}
+
 MBErrorCode WriteVtk::write_tag( std::ostream& s, MBTag tag,
                                  const MBRange& entities,
                                  const MBRange& tagged )
@@ -509,6 +539,7 @@ MBErrorCode WriteVtk::write_tag( std::ostream& s, MBTag tag,
     case MB_TYPE_OPAQUE:  type_size = 1;              break;
     case MB_TYPE_INTEGER: type_size = sizeof(int);    break;
     case MB_TYPE_DOUBLE:  type_size = sizeof(double); break;
+    case MB_TYPE_BIT:     type_size = 1;              break;
     default: return MB_FAILURE;
   }
   
@@ -540,6 +571,7 @@ MBErrorCode WriteVtk::write_tag( std::ostream& s, MBTag tag,
     case MB_TYPE_OPAQUE:  return write_tag<unsigned char>(s, tag, entities, tagged, 0 );
     case MB_TYPE_INTEGER: return write_tag<          int>(s, tag, entities, tagged, 0 );
     case MB_TYPE_DOUBLE:  return write_tag<       double>(s, tag, entities, tagged, 0 );
+    case MB_TYPE_BIT:     return write_bit_tag(s, tag, entities, tagged );
     default:              return MB_FAILURE;
   }
 }

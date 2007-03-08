@@ -75,6 +75,7 @@ private:
   MBErrorCode write_tag( std::ostream& stream, MBTag tag, const MBRange& entities, const MBRange& tagged_entities,
                          const int);
 
+  MBErrorCode write_bit_tag( std::ostream& stream, MBTag tag, const MBRange& entities, const MBRange& tagged_entities );
     //! Write a list of values
   template <typename T>
   void write_data( std::ostream& stream, const std::vector<T>& data, unsigned vals_per_tag );
