@@ -22,7 +22,8 @@ check_PROGRAMS = moab_test \
 		 internals_test \
                  geom_util_test \
                  xform_test \
-                 obb_test
+                 obb_test \
+		 vtk_test
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 TESTS = $(check_PROGRAMS)
@@ -271,6 +272,11 @@ xform_test_DEPENDENCIES = $(xform_test_LDADD)
 obb_test_SOURCES = OBBTest.cpp
 obb_test_LDADD = $(top_builddir)/libMOAB.la
 obb_test_DEPENDENCIES = $(obb_test_LDADD)
+
+vtk_test_SOURCES = VtkTest.cpp
+vtk_test_LDADD = $(top_builddir)/libMOAB.la
+vtk_test_DEPENDENCIES = $(vtk_test_LDADD)
+
 
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = dumped_acis.sat
