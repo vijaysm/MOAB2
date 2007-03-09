@@ -13,7 +13,7 @@ bool internal_assert( bool c ) { return !c; }
     return false; \
   }
 
-bool handle_test( MBEntityType type, MBEntityHandle id, int proc, bool should_fail )
+bool handle_test( MBEntityType type, MBEntityID id, int proc, bool should_fail )
 {
   int err = 0;
   MBEntityHandle handle = CREATE_HANDLE( type, procInfo.id(id, proc), err );
@@ -26,7 +26,7 @@ bool handle_test( MBEntityType type, MBEntityHandle id, int proc, bool should_fa
   MBEntityType type_from_handle = TYPE_FROM_HANDLE(handle);
   handle_test_assert( type_from_handle == type )
   
-  unsigned long id_from_handle = procInfo.id(handle);
+  MBEntityID id_from_handle = procInfo.id(handle);
   handle_test_assert( id_from_handle == id )
   
   int proc_from_handle = procInfo.rank(handle);
@@ -85,7 +85,7 @@ int main()
     procInfo = MBProcConfig( 0, cpus[num_cpu] );
     
     // init these after setting num_cpu, because max id depends on num cpu.
-    const MBEntityHandle ids[] = {0, 1, procInfo.max_id()/2, procInfo.max_id()-1, procInfo.max_id()};
+    const MBEntityID ids[] = {0, 1, procInfo.max_id()/2, procInfo.max_id()-1, procInfo.max_id()};
     const MBTagId tids[] = {0, 1, MB_TAG_PROP_MASK/2, MB_TAG_PROP_MASK-1, MB_TAG_PROP_MASK};
     const int num_ids = sizeof(ids)/sizeof(ids[0]);
     const int num_tids = sizeof(tids)/sizeof(tids[0]);

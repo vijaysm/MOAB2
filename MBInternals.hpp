@@ -44,12 +44,12 @@
 #define MB_TYPE_MASK ((MBEntityHandle)0xF << MB_ID_WIDTH)
 //             2^MB_TYPE_WIDTH-1 ------^
 
-#define MB_START_ID 1              //!< All entity id's currently start at 1
-#define MB_END_ID MB_ID_MASK //!< Last id is the complement of the MASK
+#define MB_START_ID ((MBEntityID)1)        //!< All entity id's currently start at 1
+#define MB_END_ID ((MBEntityID)MB_ID_MASK) //!< Last id is the complement of the MASK
 #define MB_ID_MASK (~MB_TYPE_MASK)
 
 //! Given a type and an id create a handle.  
-inline MBEntityHandle CREATE_HANDLE(const unsigned type, const MBEntityHandle id, int& err) 
+inline MBEntityHandle CREATE_HANDLE(const unsigned type, const MBEntityID id, int& err) 
 {
   err = 0; //< Assume that there is a real error value defined somewhere
 
@@ -63,7 +63,7 @@ inline MBEntityHandle CREATE_HANDLE(const unsigned type, const MBEntityHandle id
 }
 
 //! Get the entity id out of the handle.
-inline unsigned long ID_FROM_HANDLE (MBEntityHandle handle)
+inline MBEntityID ID_FROM_HANDLE (MBEntityHandle handle)
 {
   return (handle & MB_ID_MASK);
 }
