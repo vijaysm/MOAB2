@@ -326,8 +326,13 @@ MBErrorCode WriteBinarySTL::write_triangles( FILE* file,
   } 
   else if (MB_TAG_NOT_FOUND != rval)
     return rval;
+    
+  if (triangles.size() > INT_MAX) // can't write that many triangles
+    return MB_FAILURE;  
   
-  int32_t count = swap_bytes ? byte_swap(triangles.size()) : triangles.size();
+  uint32_t count = (uint32_t)triangles.size();
+  if (swap_bytes)
+    count = byte_swap(count);
   if (fwrite( &count, 4, 1, file ) != 1)
     return MB_FILE_WRITE_ERROR;
 
