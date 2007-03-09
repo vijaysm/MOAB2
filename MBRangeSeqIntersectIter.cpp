@@ -109,7 +109,7 @@ MBErrorCode MBRangeSeqIntersectIter::update_entity_sequence()
   }
   
     // Find first hole in sequence after mStartHandle
-  int start_index = mStartHandle - mSequence->get_start_handle();
+  MBEntityID start_index = mStartHandle - mSequence->get_start_handle();
   while (start_index > freeIndex) {
     freeIndex = mSequence->get_next_free_index( freeIndex );
     if (freeIndex == -1)
@@ -120,7 +120,7 @@ MBErrorCode MBRangeSeqIntersectIter::update_entity_sequence()
     
     // if mEndHandle is past end of sequence or block of used
     // handles within sequence, shorten it.
-  int end_index = mEndHandle - mSequence->get_start_handle();
+  MBEntityID end_index = mEndHandle - mSequence->get_start_handle();
   if(end_index >= freeIndex)
     mEndHandle = mSequence->get_start_handle() + (freeIndex-1);
     
@@ -164,9 +164,9 @@ MBErrorCode MBRangeSeqIntersectIter::find_deleted_range()
   assert (mSequence->get_start_handle() + freeIndex >= mStartHandle);
 
     // Find the last deleted entity before mEndHandle
-  int end_index = mEndHandle - mSequence->get_start_handle();
+  MBEntityID end_index = mEndHandle - mSequence->get_start_handle();
   while (freeIndex < end_index) {
-    int index = mSequence->get_next_free_index( freeIndex );
+    MBEntityID index = mSequence->get_next_free_index( freeIndex );
       // If there was a break in the span of deleted entities before
       // mEndHandle, then set mEndHandle to the end of the span of
       // deleted entities and stop.  In the case where we've reached
