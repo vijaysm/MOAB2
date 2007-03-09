@@ -87,8 +87,8 @@ MBEntityHandle MeshSetManager::find_next_free_handle(unsigned proc_id)
     lastID.resize( proc_id + 1, MB_START_ID - 1 );
   
   int junk;
-  MBEntityHandle start_id = lastID[proc_id];
-  MBEntityHandle id = start_id;
+  MBEntityID start_id = lastID[proc_id];
+  MBEntityID id = start_id;
   MBEntityHandle handle;
 
   do {
@@ -107,7 +107,7 @@ MBEntityHandle MeshSetManager::find_next_free_handle(unsigned proc_id)
 
 
 MBErrorCode MeshSetManager::create_mesh_set( unsigned options, 
-                                             MBEntityHandle start_id,
+                                             MBEntityID start_id,
                                              unsigned int proc_id,
                                              MBEntityHandle& handle )
 {

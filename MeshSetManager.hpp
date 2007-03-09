@@ -55,7 +55,7 @@ public:
   ~MeshSetManager();
   
   MBErrorCode create_mesh_set( unsigned options, 
-                               MBEntityHandle start_id,
+                               MBEntityID start_id,
                                unsigned int proc_id,
                                MBEntityHandle& output_handle );
   
@@ -143,7 +143,7 @@ private:
   
   // ID of last created set for which user didn't specify ID, one value
   // per CPU ID.
-  std::vector<MBEntityHandle> lastID; 
+  std::vector<MBEntityID> lastID; 
   
 #ifdef HAVE_BOOST_POOL_OBJECT_POOL_HPP
   boost::object_pool<MBMeshSet_MBRange> rangePool;
