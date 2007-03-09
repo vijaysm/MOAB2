@@ -38,32 +38,32 @@ class MBProcConfig {
       { return (handle & procMask) >> idWidth; }
       
       //! Get CPU number from ID
-    unsigned rank_from_id( unsigned id ) const
+    unsigned rank_from_id( MBEntityID id ) const
       { return id >> idWidth; }
       
       //! Get maximum entity ID that can be stored in a
       //! a handle, allowing for the processor number
-    unsigned max_id() const
+    MBEntityID max_id() const
       { return idMask; }
       
       //! Create the ID portion of a handle by combining
       //! an actual ID and a processor number
-    MBEntityHandle id( MBEntityHandle sub_id, unsigned proc ) const
+    MBEntityID id( MBEntityID sub_id, unsigned proc ) const
       { return ((MBEntityHandle)proc << idWidth) | (MBEntityHandle)sub_id; }
       
       //! Extract non-rank portion of entity ID from handle
-    MBEntityHandle id( MBEntityHandle h ) const
+    MBEntityID id( MBEntityHandle h ) const
       { return h & idMask; }
       
-    MBEntityHandle first_id( unsigned proc ) const
+    MBEntityID first_id( unsigned proc ) const
       { return id( 1, proc ); }
     
-    MBEntityHandle last_id( unsigned proc ) const
+    MBEntityID last_id( unsigned proc ) const
       { return id( max_id(), proc ); }
       
       //! Create an entity handle given type, rank, and id
     MBEntityHandle handle( MBEntityType type, 
-                           unsigned sub_id, 
+                           MBEntityID sub_id, 
                            unsigned proc ) const;
                            
 

@@ -36,7 +36,7 @@ MBProcConfig::MBProcConfig( unsigned rank, unsigned size )
 {}
 
 MBEntityHandle MBProcConfig::handle( MBEntityType type, 
-                                     unsigned sub_id, 
+                                     MBEntityID sub_id, 
                                      unsigned proc ) const
 {
   int err;
