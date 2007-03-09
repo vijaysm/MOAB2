@@ -1222,6 +1222,8 @@ MBErrorCode WriteNCDF::write_BCs(std::vector<NeumannSetData> &sidesets,
 
 
     //now do sidesets 
+  int ss_index = 0; // index of sideset - not the same as 'i' because 
+                    // only writing non-empty side sets
   for( i=0; i<sidesets.size(); i++)
   { 
 
@@ -1269,9 +1271,10 @@ MBErrorCode WriteNCDF::write_BCs(std::vector<NeumannSetData> &sidesets,
 
       int num_values = 1;
     
+        // ss_prop1[ss_index] = side_set_id
       MBErrorCode result = write_exodus_integer_variable("ss_prop1",
                                                           &side_set_id, 
-                                                          i,num_values);
+                                                          ss_index,num_values);
 
       if (result != MB_SUCCESS)
       {
@@ -1279,22 +1282,34 @@ MBErrorCode WriteNCDF::write_BCs(std::vector<NeumannSetData> &sidesets,
         return MB_FAILURE; 
       }
 
-
+        // FIXME : Something seems wrong here.  The we are within a block
+        // started with if(number_elements), so this condition is always
+        // false.  This code seems to indicate that we want to write all
+        // sidesets, not just empty ones.  But the code both here and in
+        // initialize_exodus_file() skip empty side sets.
+        //  - j.k. 2007-03-09
       int status = 1;
       if (!number_elements)
         status = 0;
 
+        // ss_status[ss_index] = status
       result = write_exodus_integer_variable("ss_status",
                                              &status, 
-                                             i, num_values);
+                                             ss_index, num_values);
       if (result != MB_SUCCESS)
       {
         mWriteIface->report_error("Problem writing side set status");
         return MB_FAILURE; 
       }
+      
+        // Increment ss_index now because we want a) we need to 
+        // increment it somewhere within the if(number_elements)
+        // block and b) the above calls need a zero-based index
+        // while the following use a one-based index.
+      ++ss_index;
 
       char wname[80];
-      INS_ID(wname, "elem_ss%d", i+1);
+      INS_ID(wname, "elem_ss%d", ss_index);
       NcVar *ssvar = ncFile->get_var(wname);
       if (NULL == ssvar) return MB_FAILURE;
       NcBool error = ssvar->put(output_element_ids, number_elements);
@@ -1304,7 +1319,7 @@ MBErrorCode WriteNCDF::write_BCs(std::vector<NeumannSetData> &sidesets,
         return MB_FAILURE;
       }
 
-      INS_ID(wname, "side_ss%d", i+1);
+      INS_ID(wname, "side_ss%d", ss_index);
       ssvar = ncFile->get_var(wname);
       if (NULL == ssvar) return MB_FAILURE;
       error = ssvar->put(output_element_side_numbers, number_elements);
@@ -1314,7 +1329,7 @@ MBErrorCode WriteNCDF::write_BCs(std::vector<NeumannSetData> &sidesets,
         return MB_FAILURE;
       }
 
-      INS_ID(wname, "dist_fact_ss%d", i+1);
+      INS_ID(wname, "dist_fact_ss%d", ss_index);
       ssvar = ncFile->get_var(wname);
       if (NULL == ssvar) return MB_FAILURE;
       error = ssvar->put(&(sideset_data.ss_dist_factors[0]), sideset_data.ss_dist_factors.size());
@@ -1650,9 +1665,17 @@ MBErrorCode WriteNCDF::initialize_exodus_file(ExodusMeshInfo &mesh_info,
 
 /* side set id array: */
 
-   if (sideset_data.size() > 0) {
+  long non_empty_ss = 0;
+    // need to go through nodesets to compute # nodesets, some might be empty
+  std::vector<NeumannSetData>::iterator ss_it;
+  for( ss_it = sideset_data.begin();
+       ss_it != sideset_data.end(); ss_it++) {
+    if (0 != (*ss_it).number_elements) non_empty_ss++;
+  }
+
+   if (non_empty_ss > 0) {
      NcDim *num_ss;
-     if ((num_ss = ncFile->add_dim("num_side_sets", (long)sideset_data.size())) == NULL)
+     if ((num_ss = ncFile->add_dim("num_side_sets", non_empty_ss)) == NULL)
      {
        mWriteIface->report_error("WriteNCDF: failed to define number of side sets");
        return (MB_FAILURE);
