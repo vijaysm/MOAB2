@@ -235,7 +235,7 @@ public:
   const_reverse_iterator rend() const;
 
   //! return the number of values this Ranges represents
-  MBEntityID size() const;
+  MBEntityHandle size() const;
   
   //! return whether empty or not 
   //! always use "if(!Ranges::empty())" instead of "if(Ranges::size())"

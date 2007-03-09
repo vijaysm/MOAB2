@@ -56,11 +56,11 @@
 /*! 
   returns the number of values this list represents
  */
-MBEntityID MBRange::size() const
+MBEntityHandle MBRange::size() const
 {
   // go through each pair and add up the number of values
   // we have.
-  MBEntityID size=0;
+  MBEntityHandle size=0;
   for(PairNode* iter = mHead.mNext; iter != &mHead; iter = iter->mNext)
   {
     size += ((iter->second - iter->first) + 1);
