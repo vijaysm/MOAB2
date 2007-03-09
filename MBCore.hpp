@@ -77,11 +77,11 @@ public:
   virtual MBEntityType type_from_handle(const MBEntityHandle handle) const;
   
   //! get the id from a handle, returns id
-  virtual unsigned int id_from_handle(const MBEntityHandle handle) const;
+  virtual MBEntityID id_from_handle(const MBEntityHandle handle) const;
   
   //! get a handle from an id and type
   virtual MBErrorCode handle_from_id(const MBEntityType type, 
-                                      const unsigned int id, 
+                                      const MBEntityID id, 
                                       MBEntityHandle& handle) const;
   
   virtual int dimension_from_handle( const MBEntityHandle ) const;

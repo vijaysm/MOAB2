@@ -278,15 +278,15 @@ MBEntityType MBCore::type_from_handle(const MBEntityHandle handle) const
 }
   
 //! get the id from a handle, returns id
-unsigned int MBCore::id_from_handle(const MBEntityHandle handle) const
+MBEntityID MBCore::id_from_handle(const MBEntityHandle handle) const
 {
   return ID_FROM_HANDLE(handle);
 }
 
 //! get a handle from an id and type
-MBErrorCode MBCore::handle_from_id(const MBEntityType type, 
-                                     const unsigned int id, 
-                                     MBEntityHandle& handle) const
+MBErrorCode MBCore::handle_from_id( const MBEntityType type, 
+                                    const MBEntityID id, 
+                                    MBEntityHandle& handle) const
 {
   static int err;
   handle = CREATE_HANDLE(type, id, err);

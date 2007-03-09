@@ -130,7 +130,7 @@ public:
         Example: \code
         int id = id_from_handle(handle); \endcode 
     */
-  virtual unsigned int id_from_handle(const MBEntityHandle handle) const =0;
+  virtual MBEntityID id_from_handle(const MBEntityHandle handle) const =0;
 
     //! Returns the topological dimension of an entity
     /** Returns the MBEntityType (ie, MeshVertex, MeshQuad, MeshHex ) of <em>handle</em>.
@@ -156,7 +156,8 @@ public:
         MBErrorCode error_code = handle_from_id(MeshTri, 204, handle );
         if( error_code == MB_ENTITY_NOT_FOUND ) ... \endcode
     */
-  virtual MBErrorCode handle_from_id(const MBEntityType type, const unsigned int id, 
+  virtual MBErrorCode handle_from_id(const MBEntityType type, 
+                                     const MBEntityID, 
                                      MBEntityHandle& handle) const =0;
 
     //@}
