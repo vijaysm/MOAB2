@@ -28,7 +28,7 @@ AM_CONDITIONAL([HAVE_ZCAT],[test "x" = "x$ZCAT"])
 ################################################################################
 HANDLE_TYPE=
 HANDLE_ID_TYPE=
-AC_CHECK_HEADERS([inttypes.h stdint.h sys/types.h],[INT_TYPE_INCLUDE="#include \"${ac_header}\""; break],[INT_TYPE_INCLUDE=''])
+AC_CHECK_HEADERS([inttypes.h stdint.h sys/types.h],[INT_TYPE_INCLUDE="#include <${ac_header}>"; break],[INT_TYPE_INCLUDE=''])
 AC_ARG_ENABLE([64bit-handles],
   [AC_HELP_STRING([--enable-64-bit-handles],[Force MBEntityHandle to be 64 bits])],
   [AC_CHECK_TYPE([uint64_t],[HANDLE_TYPE='uint64_t';HANDLE_ID_TYPE='int64_t'],
@@ -40,14 +40,14 @@ AC_ARG_ENABLE([32bit-handles],
     [AC_MSG_ERROR([Platform does not have uint32_t. Cannot force 32-bit handles])])
 ])
 if test "x$HANDLE_TYPE" = "x"; then
-  AC_CHECK_HEADERS([stddef.h stdlib.h stdio.h sys/types.h],[INT_TYPE_INCLUDE="#include \"${ac_header}\""; break],[INT_TYPE_INCLUDE=''])
+  AC_CHECK_HEADERS([stddef.h stdlib.h stdio.h sys/types.h],[INT_TYPE_INCLUDE="#include <${ac_header}>"; break],[INT_TYPE_INCLUDE=''])
   AC_CHECK_TYPE([size_t], [HANDLE_TYPE='size_t'],
    [AC_MSG_WARN([size_t not defined, assuming sizeof(void*) == sizeof(long)])
     INT_TYPE_INCLUDE=""; HANDLE_TYPE='unsigned long']
   )
   AC_CHECK_TYPE([ptrdiff_t], [HANDLE_ID_TYPE='ptrdiff_t'],
    [AC_MSG_WARN([ptrdiff_t not defined, assuming sizeof(void*) == sizeof(long)])
-    INT_TYPE_INCLUDE=""; HANDLE_ID_TYPE='long']
+    HANDLE_ID_TYPE='long']
   )
 fi
 AC_SUBST(INT_TYPE_INCLUDE)
