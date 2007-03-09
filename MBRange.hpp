@@ -179,7 +179,7 @@ struct range_iter_tag : public std::bidirectional_iterator_tag {};
 struct range_base_iter
 {
   typedef range_iter_tag iterator_category;
-  typedef int difference_type;
+  typedef MBEntityID difference_type;
   typedef MBEntityHandle value_type;
   typedef MBEntityHandle* pointer;
   typedef MBEntityHandle& reference;
@@ -235,7 +235,7 @@ public:
   const_reverse_iterator rend() const;
 
   //! return the number of values this Ranges represents
-  unsigned int size() const;
+  MBEntityID size() const;
   
   //! return whether empty or not 
   //! always use "if(!Ranges::empty())" instead of "if(Ranges::size())"
@@ -327,7 +327,7 @@ public:
   };
 
   
-  MBEntityHandle operator[](const int index);
+  MBEntityHandle operator[](MBEntityID index) const;
   
   MBRange::iterator insert( MBRange::iterator prev,
                             MBEntityHandle first,
@@ -471,12 +471,12 @@ public:
     //! Advance iterator specified amount.
     //! Potentially O(n), but typically better.  Always
     //! more efficient than calling operator++ step times.
-    const_iterator& operator+=( long step );
+    const_iterator& operator+=( MBEntityID step );
     
     //! Regress iterator specified amount.
     //! Potentially O(n), but typically better.  Always
     //! more efficient than calling operator-- step times.
-    const_iterator& operator-=( long step );
+    const_iterator& operator-=( MBEntityID step );
 
     //! equals operator
     bool operator==( const const_iterator& other ) const
@@ -549,7 +549,7 @@ public:
     //! Advance iterator specified amount.
     //! Potentially O(n), but typically better.  Always
     //! more efficient than calling operator++ step times.
-    const_reverse_iterator& operator+=( long step )
+    const_reverse_iterator& operator+=( MBEntityID step )
     {
       myIter -= step;
       return *this;
@@ -558,7 +558,7 @@ public:
     //! Regress iterator specified amount.
     //! Potentially O(n), but typically better.  Always
     //! more efficient than calling operator-- step times.
-    const_reverse_iterator& operator-=( long step )
+    const_reverse_iterator& operator-=( MBEntityID step )
     {
       myIter += step;
       return *this;
@@ -651,7 +651,7 @@ public:
   mb_range_inserter& operator++(int) { return *this; }
 
   typedef MBEntityHandle            value_type;
-  typedef MBEntityHandle            difference_type;
+  typedef MBEntityID                difference_type;
   typedef std::output_iterator_tag  iterator_category;
   typedef MBEntityHandle*           pointer;
   typedef MBEntityHandle&           reference;

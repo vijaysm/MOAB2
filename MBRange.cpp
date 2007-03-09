@@ -56,11 +56,11 @@
 /*! 
   returns the number of values this list represents
  */
-unsigned int MBRange::size() const
+MBEntityID MBRange::size() const
 {
   // go through each pair and add up the number of values
   // we have.
-  unsigned int size=0;
+  MBEntityID size=0;
   for(PairNode* iter = mHead.mNext; iter != &mHead; iter = iter->mNext)
   {
     size += ((iter->second - iter->first) + 1);
@@ -71,14 +71,14 @@ unsigned int MBRange::size() const
 /*!
   advance iterator
 */
-MBRange::const_iterator& MBRange::const_iterator::operator+=( long sstep )
+MBRange::const_iterator& MBRange::const_iterator::operator+=( MBEntityID sstep )
 {
     // Check negative now to avoid infinite loop below.
   if (sstep < 0)
   {
     return operator-=( -sstep );
   }
-  unsigned long step = sstep;
+  MBEntityHandle step = sstep;
   
     // Handle current PairNode.  Either step is within the current
     // node or need to remove the remainder of the current node
@@ -114,14 +114,14 @@ MBRange::const_iterator& MBRange::const_iterator::operator+=( long sstep )
 /*!
   regress iterator
 */
-MBRange::const_iterator& MBRange::const_iterator::operator-=( long sstep )
+MBRange::const_iterator& MBRange::const_iterator::operator-=( MBEntityID sstep )
 {
     // Check negative now to avoid infinite loop below.
   if (sstep < 0)
   {
     return operator+=( -sstep );
   }
-  unsigned long step = sstep;
+  MBEntityHandle step = sstep;
   
     // Handle current PairNode.  Either step is within the current
     // node or need to remove the remainder of the current node
@@ -761,22 +761,11 @@ void MBRange::swap( MBRange &range )
 
 }
 
-MBEntityHandle MBRange::operator[](const int index) 
+MBEntityHandle MBRange::operator[](MBEntityID index) const
 {
-  int this_ind = -1;
-  MBRange::pair_iterator iter;
-  for (iter = pair_begin(); iter != pair_end(); iter++)
-  {
-    this_ind += iter->second - iter->first + 1;
-    if (this_ind >= index)
-    {
-      return iter->second - (this_ind - index);
-    }
-  }
-
-  int err;
-  MBEntityHandle ret_val = CREATE_HANDLE(MBMAXTYPE, 0, err);
-  return ret_val;
+  MBRange::const_iterator i = begin();
+  i += index;
+  return *i;
 }
 
     //! return a subset of this range, by type
