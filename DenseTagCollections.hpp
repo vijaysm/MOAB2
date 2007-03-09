@@ -238,9 +238,9 @@ inline MBErrorCode DensePageGroup::get_data(MBEntityHandle handle, void* data)
 {
   // strip off the entity type
   const MBEntityType type = TYPE_FROM_HANDLE( handle );
-  const MBEntityHandle entity_id = ID_FROM_HANDLE(handle);
+  const MBEntityID entity_id = ID_FROM_HANDLE(handle);
   // figure out which page to jump to
-  const unsigned int which_page = entity_id / DensePage::mPageSize;
+  const MBEntityID which_page = entity_id / DensePage::mPageSize;
   const unsigned int offset = entity_id % DensePage::mPageSize;
   
   std::vector<DensePage>::iterator page = mDensePages[type].begin() + which_page;
@@ -254,9 +254,9 @@ inline bool DensePageGroup::contains(const MBEntityHandle handle) const
 {
   // strip off the entity type
   const MBEntityType type = TYPE_FROM_HANDLE( handle );
-  const MBEntityHandle entity_id = ID_FROM_HANDLE(handle);
+  const MBEntityID entity_id = ID_FROM_HANDLE(handle);
   // figure out which page to jump to
-  const unsigned int which_page = entity_id / DensePage::mPageSize;
+  const MBEntityID which_page = entity_id / DensePage::mPageSize;
 
   std::vector<DensePage>::const_iterator page = mDensePages[type].begin() + which_page;
   return page < mDensePages[type].end() && page->has_data();
@@ -270,9 +270,9 @@ inline MBErrorCode DensePageGroup::set_data(MBEntityHandle handle, const void* d
 {
   // strip off the entity type
   const MBEntityType type = TYPE_FROM_HANDLE( handle );
-  const MBEntityHandle entity_id = ID_FROM_HANDLE(handle);
+  const MBEntityID entity_id = ID_FROM_HANDLE(handle);
   // figure out which page to jump to
-  const unsigned int which_page = entity_id / DensePage::mPageSize;
+  const MBEntityID which_page = entity_id / DensePage::mPageSize;
   const unsigned int offset = entity_id  % DensePage::mPageSize;
 
   std::vector<DensePage>::iterator page = mDensePages[type].begin() + which_page;
@@ -294,9 +294,9 @@ inline MBErrorCode DensePageGroup::remove_data(MBEntityHandle handle)
 {
   // strip off the entity type
   const MBEntityType type = TYPE_FROM_HANDLE( handle );
-  const MBEntityHandle entity_id = ID_FROM_HANDLE(handle);
+  const MBEntityID entity_id = ID_FROM_HANDLE(handle);
   // figure out which page to jump to
-  const unsigned int which_page = entity_id / DensePage::mPageSize;
+  const MBEntityID which_page = entity_id / DensePage::mPageSize;
   const unsigned int offset = entity_id  % DensePage::mPageSize;
   
   std::vector<DensePage>::iterator page = mDensePages[type].begin() + which_page;
@@ -316,7 +316,7 @@ inline MBErrorCode DensePageGroup::get_entities(MBEntityType type, MBRange& enti
   const std::vector<DensePage>::iterator end = mDensePages[type].end();
   int dum =0;
   MBEntityHandle handle = CREATE_HANDLE(type, 0, dum);
-  int first_time = MB_START_ID; // Don't want zero-ID handle at start of range.
+  MBEntityID first_time = MB_START_ID; // Don't want zero-ID handle at start of range.
   MBRange::iterator insert_pos = entities.begin();
   for(iter = mDensePages[type].begin(); iter != end; ++iter, handle += DensePage::mPageSize)
   {
@@ -333,7 +333,7 @@ inline MBErrorCode DensePageGroup::get_number_entities(MBEntityType type, int& e
   entities = 0;
   std::vector<DensePage>::iterator iter;
   const std::vector<DensePage>::iterator end = mDensePages[type].end();
-  int first_time = MB_START_ID;
+  MBEntityID first_time = MB_START_ID;
   for(iter = mDensePages[type].begin(); iter != end; ++iter) {
     if(iter->has_data())
       entities += DensePage::mPageSize - first_time;
