@@ -34,7 +34,7 @@ using namespace std;
 
 //Constructor
 MBEntitySequence::MBEntitySequence(EntitySequenceManager* seq_manager,
-  MBEntityHandle start_handle, int num_entities )
+  MBEntityHandle start_handle, MBEntityID num_entities )
   : mSequenceManager(seq_manager)
 {
   assert(MB_START_ID <= ID_FROM_HANDLE(start_handle));
@@ -59,10 +59,15 @@ MBEntitySequence::~MBEntitySequence()
 
 
 VertexEntitySequence::VertexEntitySequence(EntitySequenceManager* seq_manager,
-                                           MBEntityHandle start_handle, int num_entities,
+                                           MBEntityHandle start_handle, 
+                                           MBEntityID num_entities,
                                            bool all_handles_used)
 : MBEntitySequence(seq_manager, start_handle, num_entities)
 {
+  // we are assuming this through most of this class, so make
+  // sure it's true. - j.k. 2007-03-09
+  assert(sizeof(MBEntityID) <= sizeof(double));
+
   seq_manager->entity_sequence_created(this);
 
   // allocate the arrays
@@ -83,11 +88,11 @@ VertexEntitySequence::VertexEntitySequence(EntitySequenceManager* seq_manager,
     std::vector<bool>(mNumAllocated, true).swap(mFreeEntities);
     mNumEntities = 0;
     mFirstFreeIndex = 0;
-    for(int i=0; i<num_entities; i++)
+    for(MBEntityID i=0; i<num_entities; i++)
     {
-      reinterpret_cast<int&>(mCoords[0][i]) = i+1;
+      reinterpret_cast<MBEntityID&>(mCoords[0][i]) = i+1;
     }
-    reinterpret_cast<int&>(mCoords[0][num_entities-1]) = -1;
+    reinterpret_cast<MBEntityID&>(mCoords[0][num_entities-1]) = -1;
   }
 }
 
@@ -109,14 +114,14 @@ MBEntityHandle VertexEntitySequence::get_unused_handle()
   MBEntityHandle new_handle = mStartEntityHandle + mFirstFreeIndex;
   mFreeEntities[mFirstFreeIndex] = false;
 
-  mFirstFreeIndex = reinterpret_cast<int&>(mCoords[0][mFirstFreeIndex]);
+  mFirstFreeIndex = reinterpret_cast<MBEntityID&>(mCoords[0][mFirstFreeIndex]);
 
   mNumEntities++;
 
   if(mNumEntities == mNumAllocated)
     mSequenceManager->notify_full(this);
 
-  if( mLastDeletedIndex == (int)( new_handle - mStartEntityHandle ))
+  if( mLastDeletedIndex == (MBEntityID)( new_handle - mStartEntityHandle ))
     mLastDeletedIndex = -1;
 
   return new_handle;
@@ -133,10 +138,10 @@ void VertexEntitySequence::free_handle(MBEntityHandle handle)
 
   mFreeEntities[handle - mStartEntityHandle] = true;
 
-  int prev_free_handle = -1;
-  const int handle_index = handle - mStartEntityHandle;
+  MBEntityID prev_free_handle = -1;
+  const MBEntityID handle_index = handle - mStartEntityHandle;
   
-  int index = mFirstFreeIndex;
+  MBEntityID index = mFirstFreeIndex;
   if( mLastDeletedIndex != -1 && handle_index > mLastDeletedIndex)
     index = mLastDeletedIndex;
 
@@ -144,7 +149,7 @@ void VertexEntitySequence::free_handle(MBEntityHandle handle)
 
   for(;
       (index != -1) && (index < handle_index); 
-      index = reinterpret_cast<int&>(mCoords[0][index]) )
+      index = reinterpret_cast<MBEntityID&>(mCoords[0][index]) )
   {
     prev_free_handle = index;
   }
@@ -153,20 +158,20 @@ void VertexEntitySequence::free_handle(MBEntityHandle handle)
   if(prev_free_handle == -1 && mFirstFreeIndex == -1)
   {
     mFirstFreeIndex = handle_index;
-    reinterpret_cast<int&>(mCoords[0][handle_index]) = -1;
+    reinterpret_cast<MBEntityID&>(mCoords[0][handle_index]) = -1;
   }
   // insert before all free handles
   else if(prev_free_handle == -1)
   {
-    reinterpret_cast<int&>(mCoords[0][handle_index]) = mFirstFreeIndex;
+    reinterpret_cast<MBEntityID&>(mCoords[0][handle_index]) = mFirstFreeIndex;
     mFirstFreeIndex = handle_index;
   }
   // insert in middle or end
   else
   {
-    reinterpret_cast<int&>(mCoords[0][handle_index]) = 
-      reinterpret_cast<int&>(mCoords[0][prev_free_handle]);
-    reinterpret_cast<int&>(mCoords[0][prev_free_handle]) = handle_index;
+    reinterpret_cast<MBEntityID&>(mCoords[0][handle_index]) = 
+      reinterpret_cast<MBEntityID&>(mCoords[0][prev_free_handle]);
+    reinterpret_cast<MBEntityID&>(mCoords[0][prev_free_handle]) = handle_index;
   }
 
   mNumEntities--;
@@ -177,8 +182,8 @@ void VertexEntitySequence::get_entities(MBRange& entities) const
 {
   MBRange::iterator iter = entities.insert(mStartEntityHandle, mStartEntityHandle+mNumAllocated-1);
   
-  for(int index = mFirstFreeIndex; (index != -1); 
-      index = reinterpret_cast<int&>(mCoords[0][index]))
+  for(MBEntityID index = mFirstFreeIndex; (index != -1); 
+      index = reinterpret_cast<MBEntityID&>(mCoords[0][index]))
   {
     for(; *iter != (mStartEntityHandle+index); ++iter);
     entities.erase(iter);
@@ -186,30 +191,35 @@ void VertexEntitySequence::get_entities(MBRange& entities) const
 
 }
 
-int VertexEntitySequence::get_next_free_index( int prev_free_index ) const
+MBEntityID VertexEntitySequence::get_next_free_index( MBEntityID prev_free_index ) const
 {
   if (prev_free_index < 0)
     return mFirstFreeIndex;
-  assert( (unsigned)prev_free_index < mFreeEntities.size() 
+  assert( (MBEntityHandle)prev_free_index < mFreeEntities.size() 
           && mFreeEntities[prev_free_index] );
-  return reinterpret_cast<int&>(mCoords[0][prev_free_index]);
+  return reinterpret_cast<MBEntityID&>(mCoords[0][prev_free_index]);
 }
 
-int ElementEntitySequence::get_next_free_index( int prev_free_index ) const
+MBEntityID ElementEntitySequence::get_next_free_index( MBEntityID prev_free_index ) const
 {
   if (prev_free_index < 0)
     return mFirstFreeIndex;
-  assert( (unsigned)prev_free_index < mFreeEntities.size() 
+  assert( (MBEntityHandle)prev_free_index < mFreeEntities.size() 
           && mFreeEntities[prev_free_index] );
-  return reinterpret_cast<int&>(mElements[prev_free_index*mNodesPerElement]);
+  return reinterpret_cast<MBEntityID&>(mElements[prev_free_index*mNodesPerElement]);
 }
 
 ElementEntitySequence::ElementEntitySequence(EntitySequenceManager* seq_manager,
-                        MBEntityHandle start_handle, int num_entities,
+                        MBEntityHandle start_handle, MBEntityID num_entities,
                         int nodes_per_element, bool all_handles_used,
                                              bool allocate_connect)
 : MBEntitySequence(seq_manager, start_handle, num_entities)
 {
+  // this should never fail unless something when seriously wrong 
+  // during the configure phase, but make sure anyway because we're
+  // doing reintepret_casts
+  assert(sizeof(MBEntityHandle)>=sizeof(MBEntityID));
+
   assert(nodes_per_element < 28);
   if (allocate_connect) {
     mElements = new MBEntityHandle[num_entities*nodes_per_element];
@@ -238,12 +248,12 @@ ElementEntitySequence::ElementEntitySequence(EntitySequenceManager* seq_manager,
     mFirstFreeIndex = 0;
     if (nodes_per_element)
     {
-      int max = (num_entities-1)*nodes_per_element;
-      for(int i=0; i<max ; i+=nodes_per_element)
+      MBEntityID max = (num_entities-1)*nodes_per_element;
+      for(MBEntityID i=0; i<max ; i+=nodes_per_element)
       {
         mElements[i] = (i/nodes_per_element)+1;
       }
-      reinterpret_cast<int&>(mElements[max]) = -1;
+      reinterpret_cast<MBEntityID&>(mElements[max]) = -1;
     }
   }
 }
@@ -264,14 +274,14 @@ MBEntityHandle ElementEntitySequence::get_unused_handle()
   mFreeEntities[mFirstFreeIndex] = false;
   MBEntityHandle new_handle = mStartEntityHandle + mFirstFreeIndex;
 
-  mFirstFreeIndex = reinterpret_cast<int&>(mElements[mFirstFreeIndex*mNodesPerElement]);
+  mFirstFreeIndex = reinterpret_cast<MBEntityID&>(mElements[mFirstFreeIndex*mNodesPerElement]);
 
   mNumEntities++;
 
   if(mNumEntities == mNumAllocated)
     mSequenceManager->notify_full(this);
   
-  if( mLastDeletedIndex == (int)( new_handle - mStartEntityHandle ))
+  if( mLastDeletedIndex == (MBEntityID)( new_handle - mStartEntityHandle ))
     mLastDeletedIndex = -1;
 
   return new_handle;
@@ -287,10 +297,10 @@ void ElementEntitySequence::free_handle(MBEntityHandle handle)
 
   mFreeEntities[handle-mStartEntityHandle] = true;
   
-  int prev_free_index = -1;
-  const int handle_index = handle - mStartEntityHandle;
+  MBEntityID prev_free_index = -1;
+  const MBEntityID handle_index = handle - mStartEntityHandle;
 
-  int index = mFirstFreeIndex;
+  MBEntityID index = mFirstFreeIndex;
   if( mLastDeletedIndex != -1 && handle_index > mLastDeletedIndex)
     index = mLastDeletedIndex;
 
@@ -298,7 +308,7 @@ void ElementEntitySequence::free_handle(MBEntityHandle handle)
   
   for(;
       (index != -1) && (index < handle_index); 
-      index = reinterpret_cast<int&>(mElements[index*mNodesPerElement]) )
+      index = reinterpret_cast<MBEntityID&>(mElements[index*mNodesPerElement]) )
   {
     prev_free_index = index;
   }
@@ -309,19 +319,19 @@ void ElementEntitySequence::free_handle(MBEntityHandle handle)
   if(prev_free_index == -1 && mFirstFreeIndex == -1)
   {
     mFirstFreeIndex = handle_index;
-    reinterpret_cast<int&>(mElements[handle_index*mNodesPerElement]) = -1;
+    reinterpret_cast<MBEntityID&>(mElements[handle_index*mNodesPerElement]) = -1;
   }
   // insert before all free handles
   else if(prev_free_index == -1)
   {
-    reinterpret_cast<int&>(mElements[handle_index*mNodesPerElement]) = mFirstFreeIndex;
+    reinterpret_cast<MBEntityID&>(mElements[handle_index*mNodesPerElement]) = mFirstFreeIndex;
     mFirstFreeIndex = handle_index;
   }
   // insert in middle or end
   else
   {
     mElements[handle_index*mNodesPerElement] = mElements[prev_free_index*mNodesPerElement];
-    reinterpret_cast<int&>(mElements[prev_free_index*mNodesPerElement]) = handle_index;
+    reinterpret_cast<MBEntityID&>(mElements[prev_free_index*mNodesPerElement]) = handle_index;
   }
 
   mNumEntities--;
@@ -334,8 +344,8 @@ void ElementEntitySequence::get_entities(MBRange& entities) const
 {
   MBRange::iterator iter = entities.insert(mStartEntityHandle, mStartEntityHandle+mNumAllocated-1);
   
-  for(int index = mFirstFreeIndex; index != -1;
-      index = reinterpret_cast<int&>(mElements[index*mNodesPerElement]) )
+  for(MBEntityID index = mFirstFreeIndex; index != -1;
+      index = reinterpret_cast<MBEntityID&>(mElements[index*mNodesPerElement]) )
   {
     for(; *iter != (mStartEntityHandle+index); ++iter);
     entities.erase(iter);
@@ -383,14 +393,14 @@ MBErrorCode ElementEntitySequence::split(MBEntityHandle split_location,
   
   std::vector<bool>::reverse_iterator iter = mFreeEntities.rbegin();
   std::vector<bool>::reverse_iterator end_iter = mFreeEntities.rend();
-  int index = mFreeEntities.size() - 1;
-  int last_index = -1;
+  MBEntityID index = mFreeEntities.size() - 1;
+  MBEntityID last_index = -1;
 
   for(; iter != end_iter; )
   {
     if(*iter == true)
     {
-      reinterpret_cast<int&>(mElements[index*mNodesPerElement]) = last_index;
+      reinterpret_cast<MBEntityID&>(mElements[index*mNodesPerElement]) = last_index;
       last_index = index;
     }
     else
@@ -421,7 +431,7 @@ MBErrorCode ElementEntitySequence::split(MBEntityHandle split_location,
   {
     if(*iter == true)
     {
-      reinterpret_cast<int&>(seq->mElements[index*mNodesPerElement]) = last_index;
+      reinterpret_cast<MBEntityID&>(seq->mElements[index*mNodesPerElement]) = last_index;
       last_index = index;
     }
     else
@@ -717,7 +727,7 @@ bool ElementEntitySequence::tag_for_deletion( MBEntityHandle &node, MBCore *MB )
       adj_list_1.erase(std::remove_if(adj_list_1.begin(), adj_list_1.end(), 
            std::bind2nd(std::greater<MBEntityHandle>(),low_meshset)), adj_list_1.end());
 
-      unsigned int i; 
+      size_t i; 
       for( i=1; i<connectivity.size(); i++)
       {
         adj_list_2.clear();

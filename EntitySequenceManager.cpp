@@ -72,7 +72,7 @@ void EntitySequenceManager::notify_not_full(MBEntitySequence* seq)
 MBErrorCode EntitySequenceManager::create_scd_sequence(const int imin, const int jmin, const int kmin,
                                                         const int imax, const int jmax, const int kmax,
                                                         const MBEntityType type,
-                                                        const int hint_start_id,
+                                                        const MBEntityID hint_start_id,
                                                         MBEntityHandle &start_handle,
                                                         MBEntitySequence *&seq) 
 {
@@ -84,9 +84,9 @@ MBErrorCode EntitySequenceManager::create_scd_sequence(const int imin, const int
          (this_dim < 1 || imax > imin));
 
     // compute # entities; not as easy as it would appear...
-  int num_ent;
+  MBEntityID num_ent;
   if (MBVERTEX == type)
-    num_ent = (imax-imin+1)*(jmax-jmin+1)*(kmax-kmin+1);
+    num_ent = (MBEntityID)(imax-imin+1)*(MBEntityID)(jmax-jmin+1)*(MBEntityID)(kmax-kmin+1);
   else {
     num_ent = (imax-imin) *
       (this_dim >= 2 ? (jmax-jmin) : 1) *
@@ -116,7 +116,7 @@ MBErrorCode EntitySequenceManager::create_scd_sequence(const int imin, const int
 MBErrorCode EntitySequenceManager::create_scd_sequence(const HomCoord &coord_min,
                                                        const HomCoord &coord_max,
                                                        const MBEntityType type,
-                                                       const int hint_start_id,
+                                                       const MBEntityID hint_start_id,
                                                        MBEntityHandle &start_handle,
                                                        MBEntitySequence *&seq) 
 {
@@ -131,8 +131,8 @@ MBErrorCode EntitySequenceManager::create_scd_sequence(const HomCoord &coord_min
   uses the hint_start as the start id for the entity handles if possible
   returns the actual start handle and the entity sequence pointer
 */
-MBErrorCode EntitySequenceManager::create_entity_sequence( MBEntityType type, int num_ent, int num_nodes,
-                                                           int hint_start, int hint_start_proc, 
+MBErrorCode EntitySequenceManager::create_entity_sequence( MBEntityType type, MBEntityID num_ent, int num_nodes,
+                                                           MBEntityID hint_start, int hint_start_proc, 
                                                            MBEntityHandle& start_handle, 
                                                             MBEntitySequence*& seq)
 {
@@ -142,10 +142,10 @@ MBErrorCode EntitySequenceManager::create_entity_sequence( MBEntityType type, in
   return private_create_entity_sequence( start_handle, num_ent, num_nodes, true, seq);
 }
 
-MBEntityHandle EntitySequenceManager::get_start_handle( int hint_start, 
+MBEntityHandle EntitySequenceManager::get_start_handle( MBEntityID hint_start, 
                                                         int proc, 
                                                         MBEntityType type,
-                                                        int num_ent) 
+                                                        MBEntityID num_ent) 
 {
   // need to find unused space in the MBEntityHandle ID space
   int dum = 0;
@@ -185,7 +185,7 @@ MBEntityHandle EntitySequenceManager::get_start_handle( int hint_start,
 }
 
 MBErrorCode EntitySequenceManager::private_create_entity_sequence(MBEntityHandle start,
-                                                           int num_ent, int num_nodes,
+                                                           MBEntityID num_ent, int num_nodes,
                                                            bool full,
                                                            MBEntitySequence *& seq)
 {
@@ -287,7 +287,7 @@ MBErrorCode EntitySequenceManager::get_entities(MBEntityType type, MBRange &enti
   return MB_SUCCESS;
 }
 
-MBErrorCode EntitySequenceManager::get_number_entities(MBEntityType type, int& num_entities) const 
+MBErrorCode EntitySequenceManager::get_number_entities(MBEntityType type, MBEntityID& num_entities) const 
 {
   num_entities = 0;
   //index into the static sequence map to get the sequences according to type only 
@@ -410,7 +410,7 @@ int main()
   MBEntitySequence* vs[3];
   MBEntityHandle th;
   MBEntitySequence *ts;
-  const unsigned TRI_START_ID = 3;
+  const MBEntityID TRI_START_ID = 3;
   const unsigned NT = 640;
   check(manager.create_entity_sequence( MBVERTEX, NV[0], 0, 1, 0, vh[0], vs[0] ));
   check(manager.create_entity_sequence( MBVERTEX, NV[1], 0, 1, 0, vh[1], vs[1] ));
@@ -488,7 +488,7 @@ int main()
   ensure( chkhexes.empty()     );
   
   // check get_number_entities
-  int num_vtx, num_tri, num_hex;
+  MBEntityID num_vtx, num_tri, num_hex;
   check( manager.get_number_entities( MBVERTEX, num_vtx ) );
   check( manager.get_number_entities( MBTRI,    num_tri ) );
   check( manager.get_number_entities( MBHEX,    num_hex ) );

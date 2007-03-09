@@ -62,22 +62,22 @@ public:
   MBErrorCode create_scd_sequence(const int imin, const int jmin, const int kmin,
                                    const int imax, const int jmax, const int kmax,
                                    const MBEntityType type,
-                                   const int hint_start_id,
+                                   const MBEntityID hint_start_id,
                                    MBEntityHandle &start,
                                    MBEntitySequence *&seq);
   
   MBErrorCode create_scd_sequence(const HomCoord &coord_min,
                                    const HomCoord &coord_max,
                                    const MBEntityType type,
-                                   const int hint_start_id,
+                                   const MBEntityID hint_start_id,
                                    MBEntityHandle &start,
                                    MBEntitySequence *&seq);
   
   //! creates an entity sequence that will fit number of entities.  uses hint_start
   //! for the start handle if possible
   //! returns the start handle and a pointer to the entity sequence.
-  MBErrorCode create_entity_sequence(MBEntityType type, int num_ent, int num_nodes_per, 
-                                     int hint_start_id, int hint_start_proc,
+  MBErrorCode create_entity_sequence(MBEntityType type, MBEntityID num_ent, int num_nodes_per, 
+                                     MBEntityID hint_start_id, int hint_start_proc,
                                      MBEntityHandle& start, MBEntitySequence *&);
 
   //! finds the specific MBEntitySequence in which MBEntityHandle resides
@@ -89,7 +89,7 @@ public:
                             MBRange &entities) const;
   
   //! get entities from the entity sequences according to type 
-  MBErrorCode get_number_entities(MBEntityType, int& entities) const;
+  MBErrorCode get_number_entities(MBEntityType, MBEntityID& entities) const;
 
   //! deletes an entity from the database
   MBErrorCode delete_entity( MBEntityHandle entity );
@@ -119,7 +119,7 @@ private:
   
   //! creates an entity sequence with a start handle and number of entities
   MBErrorCode private_create_entity_sequence(MBEntityHandle start,
-                                      int num_ent, int num_nodes,
+                                      MBEntityID num_ent, int num_nodes,
                                       bool full, MBEntitySequence *&);
 
   void delete_all();
@@ -136,7 +136,7 @@ private:
   SeqMap mPartlyFullSequenceMap[MBMAXTYPE];
 
     //! get a valid start handle for this type and a hinted-at start id
-  MBEntityHandle get_start_handle(int hint_start, int hint_proc, MBEntityType type, int num_ent);
+  MBEntityHandle get_start_handle(MBEntityID hint_start, int hint_proc, MBEntityType type, MBEntityID num_ent);
   
   const MBProcConfig procInfo;
 };

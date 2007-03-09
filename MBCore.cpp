@@ -1052,7 +1052,7 @@ MBErrorCode MBCore::get_number_entities_by_dimension(const MBEntityHandle meshse
     for (MBEntityType this_type = MBCN::TypeDimensionMap[dim].first;
          this_type <= MBCN::TypeDimensionMap[dim].second;
          this_type++) {
-      int dummy = 0;
+      MBEntityID dummy = 0;
       result = sequence_manager()->get_number_entities( this_type, dummy );
       if (result != MB_SUCCESS) 
         break;
@@ -1083,8 +1083,11 @@ MBErrorCode MBCore::get_number_entities_by_type(const MBEntityHandle meshset,
     mMeshSetManager->get_all_mesh_sets( entities );
     num_ent = entities.size();
   }
-  else
-    result = sequence_manager()->get_number_entities( type, num_ent );
+  else {
+    MBEntityID tmp;
+    result = sequence_manager()->get_number_entities( type, tmp );
+    num_ent = tmp;
+  }
   
   return result;
 }

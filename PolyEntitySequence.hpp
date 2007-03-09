@@ -38,7 +38,9 @@ class PolyEntitySequence : public ElementEntitySequence
 {
 public:
   
-  PolyEntitySequence(EntitySequenceManager* seq_manager, MBEntityHandle start_handle, int num_entities,
+  PolyEntitySequence(EntitySequenceManager* seq_manager, 
+                     MBEntityHandle start_handle, 
+                     MBEntityID num_entities,
                      int nodes_per_element, bool all_handles_used,
                      bool allocate_connect = true);
   virtual ~PolyEntitySequence();

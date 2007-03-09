@@ -24,7 +24,8 @@
 #define CHUNK_SIZE 4096
 
 PolyEntitySequence::PolyEntitySequence(EntitySequenceManager* seq_manager,
-                                       MBEntityHandle start_handle, int num_entities,
+                                       MBEntityHandle start_handle, 
+                                       MBEntityID num_entities,
                                        int nodes_per_element, bool all_handles_used,
                                        bool allocate_connect)
 : ElementEntitySequence(seq_manager, start_handle, num_entities, 0, all_handles_used, false)
@@ -58,7 +59,7 @@ MBErrorCode PolyEntitySequence::get_connectivity(MBEntityHandle entity,
                                                  int &num_vertices,
                                                  const bool /*topological_connectivity*/) const
 {
-  int index = entity - mStartEntityHandle;
+  MBEntityID index = entity - mStartEntityHandle;
   if (!is_valid_entity(entity))
     return MB_ENTITY_NOT_FOUND;
   
@@ -181,7 +182,7 @@ void PolyEntitySequence::get_entities(MBRange& entities) const
 void PolyEntitySequence::free_handle(MBEntityHandle entity) 
 {
     // add this handle to the dead list, and zero out its connectivity
-  int index = entity - mStartEntityHandle;
+  MBEntityID index = entity - mStartEntityHandle;
   if (!is_valid_entity(entity)) return;
   
   int start_index;

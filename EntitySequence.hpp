@@ -50,7 +50,9 @@ public:
   //! Constructor-- takes a start handle, and number of entities
   //!  if all_handles_used is true, then there is no room to create
   //!  new entities
-  MBEntitySequence(EntitySequenceManager* manager, MBEntityHandle start_handle, int num_entities);
+  MBEntitySequence( EntitySequenceManager* manager, 
+                    MBEntityHandle start_handle, 
+                    MBEntityID num_entities);
 
   //! Destructor
   virtual ~MBEntitySequence();
@@ -66,10 +68,10 @@ public:
   MBEntityType get_type() const { return TYPE_FROM_HANDLE(mStartEntityHandle); }
 
   //! returns number of MBEntityHandles in MBEntitySequence
-  int number_entities() const {return mNumEntities;}
+  MBEntityID number_entities() const {return mNumEntities;}
 
   //! returns the number of entities space was allocated for
-  int number_allocated() const { return mNumAllocated; }
+  MBEntityID number_allocated() const { return mNumAllocated; }
   
   inline bool is_valid_entity(MBEntityHandle entity) const;
 
@@ -93,7 +95,7 @@ public:
     return MB_FAILURE;
   }
   
-  virtual int get_next_free_index( int prev_free_index ) const = 0;
+  virtual MBEntityID get_next_free_index( MBEntityID prev_free_index ) const = 0;
 
 protected:
 
@@ -103,17 +105,17 @@ protected:
   MBEntityHandle       mStartEntityHandle;
 
   //!number of Entities in EntitySequence 
-  int                   mNumEntities;
+  MBEntityID           mNumEntities;
   
   //!the number of entities that space has been allocated for
-  int                   mNumAllocated;
+  MBEntityID            mNumAllocated;
 
   //! the head to the list of unused handles, -1 is no free handles
-  int                   mFirstFreeIndex;
+  MBEntityID            mFirstFreeIndex;
 
   //! the last entity deleted, for speed when deleting entities sequentially
   //! -1 is means no last index
-  int                   mLastDeletedIndex;
+  MBEntityID            mLastDeletedIndex;
 
   //! a list of whether entities are free or not
   std::vector<bool>     mFreeEntities;
@@ -127,7 +129,7 @@ class VertexEntitySequence : public MBEntitySequence
 public:
   //! constructor
   VertexEntitySequence(EntitySequenceManager* seq_manager,
-        MBEntityHandle start_handle, int num_entities, bool all_handles_used);
+        MBEntityHandle start_handle, MBEntityID num_entities, bool all_handles_used);
   //! destructor
   virtual ~VertexEntitySequence();
 
@@ -152,7 +154,7 @@ public:
 
   virtual void get_entities(MBRange& entities) const;
   
-  virtual int get_next_free_index( int prev_free_index ) const;
+  virtual MBEntityID get_next_free_index( MBEntityID prev_free_index ) const;
 
 private:
 
@@ -165,7 +167,9 @@ private:
 class ElementEntitySequence: public MBEntitySequence
 {
 public:
-  ElementEntitySequence(EntitySequenceManager* seq_manager, MBEntityHandle start_handle, int num_entities,
+  ElementEntitySequence(EntitySequenceManager* seq_manager, 
+                        MBEntityHandle start_handle, 
+                        MBEntityID num_entities,
                         int nodes_per_element, bool all_handles_used,
                         bool allocate_connect = true);
   virtual ~ElementEntitySequence();
@@ -190,7 +194,7 @@ public:
   
   virtual void get_entities(MBRange& entities) const;
   
-  virtual int get_next_free_index( int prev_free_index ) const;
+  virtual MBEntityID get_next_free_index( MBEntityID prev_free_index ) const;
   
   virtual MBErrorCode split(MBEntityHandle split_location, MBEntitySequence*& new_sequence);
 
