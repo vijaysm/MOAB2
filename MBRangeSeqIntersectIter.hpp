@@ -135,7 +135,7 @@ private:
   MBRange::const_pair_iterator rangeIter;  //!< Current position in MBRange.
   MBEntityHandle mStartHandle, mEndHandle; //!< Subset of current MBEntitySequence
   MBEntityHandle mLastHandle;              //!< The last of the list of all handles in the MBRange
-  int freeIndex;                           //!< Current position in free list of mSequence
+  MBEntityID freeIndex;                    //!< Current position in free list of mSequence
 
 #if MB_RANGE_SEQ_INTERSECT_ITER_STATS
   static double doubleNumCalls, doubleEntCount;
