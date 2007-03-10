@@ -168,10 +168,10 @@ public:
   //! \param sub_entity_conn Connectivity of sub-entity, based on parent_conn and canonical
   //!           ordering for parent_type
   //! \param num_sub_vertices Number of vertices in sub-entity
-  static void SubEntityConn(const void *parent_conn, const MBEntityType parent_type,
-                            const int sub_dimension,
-                            const int sub_index,
-                            void *sub_entity_conn, int &num_sub_vertices);
+//  static void SubEntityConn(const void *parent_conn, const MBEntityType parent_type,
+//                            const int sub_dimension,
+//                            const int sub_index,
+//                            void *sub_entity_conn, int &num_sub_vertices);
 
   //! For a specified set of sides of given dimension, return the intersection 
   //! or union of all sides of specified target dimension adjacent to those sides.
@@ -202,8 +202,23 @@ public:
   //! \param sense Sense of child entity with respect to order in <em>child_conn</em> (returned)
   //! \param offset Offset of <em>child_conn</em> with respect to canonical ordering data (returned)
   //! \return status Returns zero if successful, -1 if not
-  static int SideNumber(const void *parent_conn, const MBEntityType parent_type,
-                        const void *child_conn, const int child_num_verts,
+//  static int SideNumber(const void *parent_conn, const MBEntityType parent_type,
+//                        const void *child_conn, const int child_num_verts,
+//                        const int child_dim,
+//                        int &side_number, int &sense, int &offset);
+
+  //! return the side index represented in the input sub-entity connectivity
+  //! \param parent_type Entity type of parent entity
+  //! \param child_conn_indices Child connectivity to query, specified as indices
+  //!                           into the connectivity list of the parent.
+  //! \param child_num_verts Number of values in <em>child_conn_indices</em>
+  //! \param child_dim Dimension of child entity being queried
+  //! \param side_number Side number of child entity (returned)
+  //! \param sense Sense of child entity with respect to order in <em>child_conn</em> (returned)
+  //! \param offset Offset of <em>child_conn</em> with respect to canonical ordering data (returned)
+  //! \return status Returns zero if successful, -1 if not
+  static int SideNumber(const MBEntityType parent_type,
+                        const int *child_conn_indices, const int child_num_verts,
                         const int child_dim,
                         int &side_number, int &sense, int &offset);
 
@@ -214,10 +229,26 @@ public:
   //! \param direct If positive, entities have the same sense (returned)
   //! \param offset Offset of <em>conn2</em>'s first vertex in <em>conn1</em>
   //! \return bool Returns true if <em>conn1</em> and <em>conn2</em> match
-  static bool ConnectivityMatch(const void *conn1,
-                                const void *conn2,
+  static bool ConnectivityMatch(const int *conn1,
+                                const int *conn2,
                                 const int num_vertices,
                                 int &direct, int &offset);
+  static bool ConnectivityMatch(const unsigned int *conn1,
+                                const unsigned int *conn2,
+                                const int num_vertices,
+                                int &direct, int &offset);
+  static bool ConnectivityMatch(const long* conn1,
+                                const long* conn2,
+                                const int num_vertices,
+                                int& direct, int& offset );
+  static bool ConnectivityMatch(const unsigned long* conn1,
+                                const unsigned long* conn2,
+                                const int num_vertices,
+                                int &direct, int& offset );
+  static bool ConnectivityMatch(void* const* conn1,
+                                void* const* conn2,
+                                const int num_vertices,
+                                int& direct, int& offset );
 
   //! true if entities of a given type and number of nodes indicates mid edge nodes are present.
   //! \param this_type Type of entity for which sub-entity connectivity is being queried
@@ -256,19 +287,17 @@ public:
   //! given data about an element and a vertex in that element, return the dimension
   //! and index of the sub-entity that the vertex resolves.  If it does not resolve a
   //! sub-entity, either because it's a corner node or it's not in the element, -1 is
-  //! returned in both return values
-  //! \param elem_conn Connectivity of the entity being queried
+  //! returned in both return values.
   //! \param elem_type Type of entity being queried
-  //! \param num_verts Number of vertices in <em>elem_conn</em>
-  //! \param ho_node Handle of high-order node being queried
+  //! \param num_nodes The number of nodes in the element connectivity
+  //! \param ho_node_index The position of the HO node in the connectivity list (zero based)
   //! \param parent_dim Dimension of sub-entity high-order node resolves (returned)
   //! \param parent_index Index of sub-entity high-order node resolves (returned)
-  static void HONodeParent(const void *elem_conn, 
-                           const MBEntityType elem_type,
-                           const int num_verts, 
-                           const void *ho_node,
-                           int &parent_dim, 
-                           int &parent_index);
+  static void HONodeParent( MBEntityType elem_type,
+                            int num_nodes, 
+                            int ho_node_index,
+                            int &parent_dim, 
+                            int &parent_index );
 
   //! for an entity of this type with num_verts vertices, and a specified subfacet 
   //! (dimension and index), return the index of the higher order node for that entity 

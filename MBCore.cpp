@@ -1748,8 +1748,21 @@ MBErrorCode MBCore::side_number(const MBEntityHandle parent,
     // call handle vector-based function
   if (TYPE_FROM_HANDLE(parent) != MBPOLYGON &&
       TYPE_FROM_HANDLE(parent) != MBPOLYHEDRON) {
-    int temp_result = MBCN::SideNumber(parent_conn, TYPE_FROM_HANDLE(parent),
-                                       child_conn, num_child_vertices, 
+
+      // find indices into parent_conn for each entry in child_conn
+    int child_conn_indices[10];
+    assert((unsigned)num_child_vertices <= sizeof(child_conn_indices)/sizeof(child_conn_indices[0]));
+    for (int i = 0; i < num_child_vertices; ++i) {
+      child_conn_indices[i] = std::find( parent_conn,
+        parent_conn + num_parent_vertices, child_conn[i] ) - parent_conn;
+      if (child_conn_indices[i] >= num_parent_vertices) {
+        side_number = -1;
+        return MB_SUCCESS;
+      }
+    }
+    
+    int temp_result = MBCN::SideNumber(TYPE_FROM_HANDLE(parent),
+                                       child_conn_indices, num_child_vertices, 
                                        MBCN::Dimension(TYPE_FROM_HANDLE(child)), 
                                        side_number, sense, offset);
     return (0 == temp_result ? MB_SUCCESS : MB_FAILURE);
@@ -1828,10 +1841,23 @@ MBErrorCode MBCore::high_order_node(const MBEntityHandle parent_handle,
 
     // now add the index of this subfacet; only need to if it's not the highest dimension
   if (subfacet_type != parent_type) {
+
+      // find indices into parent_conn for each entry in child_conn
+    unsigned subfacet_size = MBCN::VerticesPerEntity(subfacet_type);
+    int subfacet_indices[10];
+    assert(subfacet_size <= sizeof(subfacet_indices)/sizeof(subfacet_indices[0]));
+    for (unsigned i = 0; i < subfacet_size; ++i) {
+      subfacet_indices[i] = std::find( parent_conn,
+        parent_conn + num_parent_vertices, subfacet_conn[i] ) - parent_conn;
+      if (subfacet_indices[i] >= num_parent_vertices) {
+        return MB_FAILURE;
+      }
+    }
+
     int dum, side_no, temp_offset;
     int temp_result = 
-      MBCN::SideNumber(parent_conn, parent_type, subfacet_conn, 
-                         MBCN::VerticesPerEntity(subfacet_type), subfacet_type,
+      MBCN::SideNumber(  parent_type, subfacet_indices, 
+                         subfacet_size, subfacet_type,
                          side_no, dum, temp_offset);
     if(temp_result != 0) return MB_FAILURE;
 

@@ -3476,7 +3476,6 @@ MBErrorCode mb_canon_number_test(MBInterface *MB)
   int side, sense, offset;
   
   MBEntityHandle this_entity;
-  MBHandleVec sub_verts;
   
   for (this_type = MBEDGE; this_type != MBKNIFE; this_type++) {
     
@@ -3512,18 +3511,10 @@ MBErrorCode mb_canon_number_test(MBInterface *MB)
       const MBCN::ConnMap &cm = MBCN::mConnectivityMap[this_type][dim-1];
 
       for (int side_no = 0; side_no < MBCN::NumSubEntities(this_type, dim); side_no++) {
-        
-          // get the vertices making up this side
-        sub_verts.clear();
-        for (int vert_num = 0; 
-             vert_num < MBCN::VerticesPerEntity(MBCN::SubEntityType(this_type, dim, side_no)); 
-             vert_num++)
-          sub_verts.push_back(entity_vertices[cm.conn[side_no][vert_num]]);
 
-          // get the side number
         int temp_result = 
-          MBCN::SideNumber(entity_vertices, this_type,
-                           &sub_verts[0], 
+          MBCN::SideNumber(this_type,
+                           cm.conn[side_no], 
                            MBCN::VerticesPerEntity(MBCN::SubEntityType(this_type, dim, side_no)),
                            dim, side, sense, offset);
         if (0 != temp_result) {
@@ -4760,9 +4751,9 @@ MBErrorCode mb_proc_subset_test( MBInterface* )
       ASSERT_EQUAL( TYPE_FROM_HANDLE( *i1 ), t );
       ASSERT_EQUAL( procInfo.rank( *i1 ), proc );
       if (!proc && t == MBVERTEX) 
-        ASSERT_EQUAL( procInfo.id( *i1 ), (MBEntityHandle)1 );
+        ASSERT_EQUAL( procInfo.id( *i1 ), (MBEntityID)1 );
       else
-        ASSERT_EQUAL( procInfo.id( *i1 ), (MBEntityHandle)0 );
+        ASSERT_EQUAL( procInfo.id( *i1 ), (MBEntityID)0 );
       
       i2 = procInfo.upper_bound( t, proc, range );
         // Because the number of processors is not a power
@@ -4785,7 +4776,7 @@ MBErrorCode mb_proc_subset_test( MBInterface* )
         ASSERT_NOT_EQUAL( i2, range.end() );
         ASSERT_EQUAL( TYPE_FROM_HANDLE( *i2 ), t );
         ASSERT_EQUAL( procInfo.rank( *i2 ), proc+1 );
-        ASSERT_EQUAL( procInfo.id( *i2 ), (MBEntityHandle)0 );
+        ASSERT_EQUAL( procInfo.id( *i2 ), (MBEntityID)0 );
       }
       
       ip = procInfo.equal_range( t, proc, range );

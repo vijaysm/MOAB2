@@ -71,21 +71,21 @@ MBEntityType MBCN::EntityTypeFromName(const char *name)
 //! \param sub_entity_conn Connectivity of sub-entity, based on parent_conn and canonical
 //!           ordering for parent_type
 //! \param num_sub_vertices Number of vertices in sub-entity
-void MBCN::SubEntityConn(const void *parent_conn, const MBEntityType parent_type,
-                         const int sub_dimension,
-                         const int sub_index,
-                         void *sub_entity_conn, int &num_sub_vertices) 
-{
-  static int sub_indices[MB_MAX_SUB_ENTITY_VERTICES];
-  
-  SubEntityVertexIndices(parent_type, sub_dimension, sub_index, sub_indices);
-  
-  num_sub_vertices = VerticesPerEntity(SubEntityType(parent_type, sub_dimension, sub_index));
-  void **parent_conn_ptr = static_cast<void **>(const_cast<void *>(parent_conn));
-  void **sub_conn_ptr = static_cast<void **>(sub_entity_conn);
-  for (int i = 0; i < num_sub_vertices; i++)
-    sub_conn_ptr[i] = parent_conn_ptr[sub_indices[i]];
-}
+//void MBCN::SubEntityConn(const void *parent_conn, const MBEntityType parent_type,
+//                         const int sub_dimension,
+//                         const int sub_index,
+//                         void *sub_entity_conn, int &num_sub_vertices) 
+//{
+//  static int sub_indices[MB_MAX_SUB_ENTITY_VERTICES];
+//  
+//  SubEntityVertexIndices(parent_type, sub_dimension, sub_index, sub_indices);
+//  
+//  num_sub_vertices = VerticesPerEntity(SubEntityType(parent_type, sub_dimension, sub_index));
+//  void **parent_conn_ptr = static_cast<void **>(const_cast<void *>(parent_conn));
+//  void **sub_conn_ptr = static_cast<void **>(sub_entity_conn);
+//  for (int i = 0; i < num_sub_vertices; i++)
+//    sub_conn_ptr[i] = parent_conn_ptr[sub_indices[i]];
+//}
 
 //! given an entity and a target dimension & side number, get that entity
 int MBCN::AdjacentSubEntities(const MBEntityType this_type,
@@ -163,7 +163,7 @@ int MBCN::AdjacentSubEntities(const MBEntityType this_type,
   
   return 0;
 }
-
+/*
 int MBCN::SideNumber(const void *parent_conn, 
                        const MBEntityType parent_type,
                        const void *child_conn,
@@ -228,17 +228,72 @@ int MBCN::SideNumber(const void *parent_conn,
     // return value is still success, we didn't have any fatal errors or anything
   return 0;
 }
+*/
+int MBCN::SideNumber( const MBEntityType parent_type,
+                      const int *child_conn_indices,
+                      const int child_num_verts,
+                      const int child_dim,
+                      int &side_no,
+                      int &sense,
+                      int &offset )
+{
+  int parent_dim = Dimension(parent_type);
+  int parent_num_verts = VerticesPerEntity(parent_type);
 
-bool MBCN::ConnectivityMatch(const void *conn1,
-                               const void *conn2,
-                               const int num_vertices,
-                               int &direct, int &offset)
+    // degenerate case (vertex), output == input
+  if (child_dim == 0) {
+    if (child_num_verts != 1)
+      return -1;
+    side_no = *child_conn_indices;
+    sense = offset = 0;
+  }
+    
+    // given a parent and child element, find the corresponding side number
+
+    // dim_diff should be -1, 0 or 1 (same dimension, one less dimension, two less, resp.)
+  if (child_dim > parent_dim || child_dim < 0)
+    return -1;
+
+    // different types of same dimension won't be the same
+  if (parent_dim == child_dim &&
+      parent_num_verts != child_num_verts) {
+    side_no = -1;
+    sense = 0;
+    return 0;
+  }
+
+    // loop over the sub-elements, comparing to child connectivity
+  int sub_conn_indices[10];
+  for (int i = 0; i < NumSubEntities(parent_type, child_dim); i++) {
+    int sub_size = VerticesPerEntity(SubEntityType(parent_type, child_dim, i));
+    if (sub_size != child_num_verts) 
+      continue;
+
+    SubEntityVertexIndices(parent_type, child_dim, i, sub_conn_indices);
+    bool they_match = ConnectivityMatch(child_conn_indices, 
+                                        sub_conn_indices, sub_size, 
+                                        sense, offset);
+    if (they_match) {
+      side_no = i;
+      return 0;
+    }
+  }
+
+    // if we've gotten here, we don't match
+  side_no = -1;
+
+    // return value is still success, we didn't have any fatal errors or anything
+  return 0;
+}
+
+template <typename T> 
+static inline bool connectivity_match( const T* conn1_i,
+                                       const T* conn2_i,
+                                       const int num_vertices,
+                                       int& direct, int& offset )
 {
 
   bool they_match;
-
-  const int *conn1_i = static_cast<const int *>(conn1);
-  const int *conn2_i = static_cast<const int *>(conn2);
   
     // special test for 2 handles, since we don't want to wrap the list in this
     // case
@@ -257,7 +312,7 @@ bool MBCN::ConnectivityMatch(const void *conn1,
   }
 
   else {
-    const int *iter;
+    const T *iter;
     iter = std::find(&conn2_i[0], &conn2_i[num_vertices], conn1_i[0]);
     if(iter == &conn2_i[num_vertices])
       return false;
@@ -303,6 +358,49 @@ bool MBCN::ConnectivityMatch(const void *conn1,
   return they_match;
 }
 
+
+bool MBCN::ConnectivityMatch( const int *conn1_i,
+                              const int *conn2_i,
+                              const int num_vertices,
+                              int &direct, int &offset )
+{
+  return connectivity_match<int>(conn1_i, conn2_i, num_vertices, direct, offset );
+}
+
+bool MBCN::ConnectivityMatch( const unsigned int *conn1_i,
+                              const unsigned int *conn2_i,
+                              const int num_vertices,
+                              int &direct, int &offset )
+{
+  return connectivity_match<unsigned int>(conn1_i, conn2_i, num_vertices, direct, offset );
+}
+
+bool MBCN::ConnectivityMatch( const long *conn1_i,
+                              const long *conn2_i,
+                              const int num_vertices,
+                              int &direct, int &offset )
+{
+  return connectivity_match<long>(conn1_i, conn2_i, num_vertices, direct, offset );
+}
+
+bool MBCN::ConnectivityMatch( const unsigned long *conn1_i,
+                              const unsigned long *conn2_i,
+                              const int num_vertices,
+                              int &direct, int &offset )
+{
+  return connectivity_match<unsigned long>(conn1_i, conn2_i, num_vertices, direct, offset );
+}
+
+bool MBCN::ConnectivityMatch( void* const *conn1_i,
+                              void* const *conn2_i,
+                              const int num_vertices,
+                              int &direct, int &offset )
+{
+  return connectivity_match<void*>(conn1_i, conn2_i, num_vertices, direct, offset );
+}
+
+
+
   //! for an entity of this type and a specified subfacet (dimension and index), return
   //! the index of the higher order node for that entity in this entity's connectivity array
 int MBCN::HONodeIndex(const MBEntityType this_type, const int num_verts,
@@ -341,55 +439,42 @@ int MBCN::HONodeIndex(const MBEntityType this_type, const int num_verts,
   //! and index of the sub-entity that the vertex resolves.  If it does not resolve a
   //! sub-entity, either because it's a corner node or it's not in the element, -1 is
   //! returned in both return values
-void MBCN::HONodeParent(const void *elem_conn, const MBEntityType elem_type,
-                          const int num_verts, const void *ho_node,
-                          int &parent_dim, int &parent_index) 
+void MBCN::HONodeParent( MBEntityType elem_type,
+                         int num_verts, 
+                         int ho_index,
+                         int& parent_dim,
+                         int& parent_index )
 {
-  const int *elem_conn_i = static_cast<const int *>(elem_conn);
-  const int *ho_node_i = static_cast<const int *>(ho_node);
-
-    // pre-set return values to error values
-  parent_dim = -1;
-  parent_index = -1;
-
-    // check for invalid input
-  if (NULL == elem_conn || NULL == ho_node || elem_type < MBVERTEX ||
-      elem_type > MBMAXTYPE || num_verts < VerticesPerEntity(elem_type))
-    return;
-  
-    // find the index of the node in the connectivity array
-  int ho_index = std::find(elem_conn_i, elem_conn_i+num_verts, *ho_node_i) - 
-    elem_conn_i;
-  if (ho_index < VerticesPerEntity(elem_type) || ho_index >= num_verts)
-    return;
-    
+    // begin with error values
+  parent_dim = parent_index = -1;
+     
     // given the number of verts and the element type, get the hasmidnodes solution
   int has_mids[4];
   HasMidNodes(elem_type, num_verts, has_mids);
 
   int index = VerticesPerEntity(elem_type)-1;
+  const int dim = Dimension(elem_type);
 
     // keep a running sum of the ho node indices for this type of element, and stop
     // when you get to the dimension which has the ho node
-  for (int i = 1; i <= Dimension(elem_type); i++) {
+  for (int i = 1; i < dim; i++) {
     if (has_mids[i]) {
       if (ho_index <= index + NumSubEntities(elem_type, i)) {
           // the ho_index resolves an entity of dimension i, so set the return values
           // and break out of the loop
         parent_dim = i;
         parent_index = ho_index - index - 1;
-        break;
+        return;
       }
-      else if( NumSubEntities(elem_type, i) == 0 && ho_index == index+1 ) //mid region node case
-      {
-        parent_dim = i;
-        parent_index = 0; 
-      }
-
-
-      else index += NumSubEntities(elem_type, i);
+      else {
+       index += NumSubEntities(elem_type, i);
+      } 
     }
   }
   
-  return;
+    // mid region node case  
+  if( has_mids[dim] && ho_index == index+1 ) {
+    parent_dim = dim;
+    parent_index = 0; 
+  }
 }

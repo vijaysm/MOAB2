@@ -29,6 +29,7 @@
 #include <assert.h>
 #include "AEntityFactory.hpp" 
 #include "MBCore.hpp"
+#include <set>
 
 using namespace std;
 
@@ -511,9 +512,7 @@ MBErrorCode ElementEntitySequence::convert_realloc(bool& mid_edge_nodes,
     old_end_handle = mElements + mNodesPerElement*mNumAllocated;
     old_iter = mElements + MBCN::VerticesPerEntity(this_type);
 
-    std::vector<MBEntityHandle> nodes_processed; 
-    std::vector<MBEntityHandle>::iterator tmp_iter; 
-    
+    std::set<MBEntityHandle> nodes_processed; 
     for(; old_iter < old_end_handle; )
     {
       //tag each node-to-delete with parent element entity handle and number 
@@ -521,14 +520,11 @@ MBErrorCode ElementEntitySequence::convert_realloc(bool& mid_edge_nodes,
       for(int i=0; i<number_to_delete; i++)
       {
         //see if node has been processed yet
-        tmp_iter = std::find( nodes_processed.begin(), nodes_processed.end(), old_iter[i] );
-        if( tmp_iter == nodes_processed.end() && old_iter[i] != 0 )
+        if( old_iter[i] && nodes_processed.insert(old_iter[i]).second )
         {
-          nodes_processed.push_back( old_iter[i] );
-
           //determines if node should be deleted or not
           //(makes sure it's not on other entities besides those in this sequence) 
-          if( tag_for_deletion( old_iter[i], MB ) )
+          if( tag_for_deletion( old_iter - mElements, MB ) )
           {
             //tag node as deletable
             unsigned char bit = 0x1;
@@ -568,9 +564,7 @@ MBErrorCode ElementEntitySequence::convert_realloc(bool& mid_edge_nodes,
     if(has_mid_edge_nodes())
       old_iter+=MBCN::mConnectivityMap[this_type][0].num_sub_elements;
 
-    std::vector<MBEntityHandle> nodes_processed; 
-    std::vector<MBEntityHandle>::iterator tmp_iter; 
-
+    std::set<MBEntityHandle> nodes_processed; 
     for(; old_iter < old_end_handle; )
     {
       //tag each node-to-delete with parent element entity handle and number 
@@ -578,14 +572,11 @@ MBErrorCode ElementEntitySequence::convert_realloc(bool& mid_edge_nodes,
       for(int i=0; i<number_to_delete; i++)
       {
         //see if node has been processed yet
-        tmp_iter = std::find( nodes_processed.begin(), nodes_processed.end(), old_iter[i] );
-        if( tmp_iter == nodes_processed.end() && old_iter[i] != 0 )
+        if( old_iter[i] && nodes_processed.insert(old_iter[i]).second )
         {
-          nodes_processed.push_back( old_iter[i] );
-
           //determines if node should be deleted or not
           //(makes sure it's not on other entities besides those in this sequence) 
-          if( tag_for_deletion( old_iter[i], MB ) )
+          if( tag_for_deletion( old_iter - mElements, MB ) )
           {
             //tag node as deletable
             unsigned char bit = 0x1;
@@ -628,7 +619,7 @@ MBErrorCode ElementEntitySequence::convert_realloc(bool& mid_edge_nodes,
    
     for(; old_iter < old_end_handle; )
     {
-      if( *old_iter != 0 && tag_for_deletion( *old_iter, MB ) )
+      if( *old_iter != 0 && tag_for_deletion( old_iter - mElements, MB ) )
       {
         //tag node as deletable
         unsigned char bit = 0x1;
@@ -671,26 +662,24 @@ bool ElementEntitySequence::has_mid_volume_nodes() const
   return MBCN::HasMidRegionNodes(get_type(), mNodesPerElement);
 }
 
-bool ElementEntitySequence::tag_for_deletion( MBEntityHandle &node, MBCore *MB ) 
+bool ElementEntitySequence::tag_for_deletion( MBEntityID node_index, 
+                                              MBCore *MB ) 
 {
   //get type of this sequence
   MBEntityType this_type = get_type();
 
   //find 'parent' element (in this sequence)
-  MBEntityHandle parent_handle = 0;
-  parent_handle = ( ( &node - mElements ) / mNodesPerElement ) + mStartEntityHandle;
+  const MBEntityHandle elem_index = node_index / mNodesPerElement;
+  const int            conn_index = node_index % mNodesPerElement;
+  const MBEntityHandle parent_handle = elem_index + mStartEntityHandle;
 
   //get dimension of 'parent' element
   int this_dimension = MB->dimension_from_handle( parent_handle );
 
-  //get connectivity of 'parent' element
-  std::vector<MBEntityHandle> connectivity;
-  MB->get_connectivity( &parent_handle, 1, connectivity);
-
   //tells us if higher order node is on 
   int dimension, side_number; 
-  MBCN::HONodeParent( &(connectivity[0]), this_type, connectivity.size(),
-                        &node, dimension, side_number );  
+  MBCN::HONodeParent( this_type, mNodesPerElement,
+                      conn_index, dimension, side_number );  
 
   //it MUST be a higher-order node
   bool delete_node = false;
@@ -700,6 +689,7 @@ bool ElementEntitySequence::tag_for_deletion( MBEntityHandle &node, MBCore *MB )
 
   //could be a mid-volume/face/edge node on a hex/face/edge respectively
   //if so...delete it bc/ no one else owns it too
+  std::vector<MBEntityHandle> connectivity;
   if( dimension == this_dimension && side_number == 0 )
     delete_node = true;
   else //the node could also be on a lower order entity of 'tmp_entity' 

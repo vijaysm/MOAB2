@@ -386,11 +386,15 @@ MBErrorCode MeshTopoUtil::get_bridge_adjacencies(const MBEntityHandle from_entit
   if (bridge_dim < from_dim) {
       // looping over each sub-entity of dimension bridge_dim...
     static MBEntityHandle bridge_verts[MB_MAX_SUB_ENTITIES];
+    int bridge_indices[MB_MAX_SUB_ENTITIES];
     for (int i = 0; i < MBCN::NumSubEntities(from_type, bridge_dim); i++) {
 
         // get the vertices making up this sub-entity
-      int num_bridge_verts;
-      MBCN::SubEntityConn(connect, from_type, bridge_dim, i, &bridge_verts[0], num_bridge_verts);
+      int num_bridge_verts = MBCN::VerticesPerEntity( MBCN::SubEntityType( from_type, bridge_dim, i ) );
+      MBCN::SubEntityVertexIndices( from_type, bridge_dim, i, bridge_indices );
+      for (int j = 0; j < num_bridge_verts; ++i)
+        bridge_verts[j]= connect[bridge_indices[j]];
+      //MBCN::SubEntityConn(connect, from_type, bridge_dim, i, &bridge_verts[0], num_bridge_verts);
     
         // get the to_dim entities adjacent
       to_ents.clear();

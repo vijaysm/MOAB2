@@ -212,7 +212,11 @@ protected:
   unsigned short mNodesPerElement;
 
   MBEntityHandle* mElements;
-  bool tag_for_deletion( MBEntityHandle &node, MBCore *MB );
+
+    /** Check if HO node should be deleted when removed from element.
+     *\param node_index Location of node in connectivity array of this sequence
+     */
+  bool tag_for_deletion( MBEntityID node_index, MBCore *MB );
 
 };
 
