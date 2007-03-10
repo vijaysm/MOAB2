@@ -873,74 +873,23 @@ MBErrorCode ReadNCDF::read_elements()
       
     // just a check because the following code won't work if this case fails
     assert(sizeof(MBEntityHandle) >= sizeof(int));
+
+    // tmp_ptr is of type int* and points at the same place as conn
+    int* tmp_ptr = reinterpret_cast<int*>(conn);
     
-    unsigned long siz = sizeof(int); // temporary variable to prevent warnings on some platforms about unreachable code
-
-    if(siz == sizeof(MBEntityHandle))  //Using 32 Bit EntityHandles 
-    {
-      // read the connetivity into that memory
-      NcBool status = temp_var->get(reinterpret_cast<int*>(conn), (*this_it).numElements,
-                    verts_per_element);
-      if (status == 0) {
-        readMeshIface->report_error("MBCN:: Problem getting connectivity.");
-        return MB_FAILURE;
-      }
-
-      if(vertexOffset != 0)
-      {
-        //Put all the nodes you are using into a range
-        for(int k = 0; k<number_nodes; k++) 
-        {
-          // nodesInLoadedBlocks is the size of nodes in this block.
-          // set the value prior to the offset
-          nodesInLoadedBlocks[conn[k]] = 1;
-          conn[k] += vertexOffset;
-        }
-
-      }
-      else
-      {
-        //Put all the nodes you are using into a range
-        for(int k = 0; k<number_nodes; k++) 
-        {
-          nodesInLoadedBlocks[conn[k]] = 1;
-        }
-      }
-      
+    // read the connetivity into that memory,  this will take only part of the array
+    // 1/2 if sizeof(MBEntityHandle) == 64 bits.
+    NcBool status = temp_var->get(tmp_ptr, this_it->numElements, verts_per_element);
+    if (status == 0) {
+      readMeshIface->report_error("MBCN:: Problem getting connectivity.");
+      return MB_FAILURE;
     }
-    else  //Not Using 32 Bit EntityHandles
+      // Convert from exodus indices to vertex handles.
+      // Iterate backwards in case handles are larger than ints.
+    for (int i = number_nodes - 1; i >= 0; --i)
     {
-
-      // tmp_ptr is of type int* and points at the same place as conn
-      int* tmp_ptr = reinterpret_cast<int*>(conn);
-      
-      // read the connetivity into that memory,  this will take only part of the array
-      // 1/2 if sizeof(MBEntityHandle) == 64 bits.
-      NcBool status = temp_var->get(reinterpret_cast<int*>(conn), (*this_it).numElements,
-                    verts_per_element);
-      if (status == 0) {
-        readMeshIface->report_error("MBCN:: Problem getting connectivity.");
-        return MB_FAILURE;
-      }
-      if(vertexOffset != 0)
-      {
-        // copy the int data into MBEntityHandle data
-        for(int i = number_nodes-1; i--; )
-        {
-          nodesInLoadedBlocks[tmp_ptr[i]] = 1;
-          conn[i] = static_cast<MBEntityHandle>(tmp_ptr[i]) + vertexOffset;
-        }
-      }
-      else
-      {
-        // copy the int data into MBEntityHandle data
-        for(int i = number_nodes; i--; )
-        {
-          nodesInLoadedBlocks[tmp_ptr[i]] = 1;
-          conn[i] = static_cast<MBEntityHandle>(tmp_ptr[i]) + vertexOffset;
-        }
-
-      }
+      nodesInLoadedBlocks[tmp_ptr[i]] = 1;
+      conn[i] = static_cast<MBEntityHandle>(tmp_ptr[i]) + vertexOffset;
     }
       
     readMeshIface->update_adjacencies((*this_it).startMBId, (*this_it).numElements,
