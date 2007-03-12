@@ -553,7 +553,7 @@ AC_DEFUN([SNL_ACIS_ENV], [
 
 AC_CHECK_FILE([$ACIS_DIR/include/acis.hxx], [], [AC_MSG_ERROR("Invalid ACIS path")])
  
-if test "x" == "x$ACIS_SYSTEM"; then
+if test "x" = "x$ACIS_SYSTEM"; then
   dir_list="$ACIS_DIR/bin/*"
 else
   dir_list="$ACIS_DIR/bin/$ACIS_SYSTEM"

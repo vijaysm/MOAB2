@@ -74,7 +74,7 @@ AM_CONDITIONAL(USE_MPI, [test "xno" != "x$WITH_MPI"])
 ################################################################################
 
 SNL_CHECK_HDF5
-if test "xno" == "x$HAVE_HDF5"; then
+if test "xno" = "x$HAVE_HDF5"; then
   AC_MSG_WARN([Support for native HDF5 file format disabled])
 else
   DEFINES="$DEFINES -DHDF5_FILE"
@@ -96,7 +96,7 @@ AM_CONDITIONAL(PARALLEL_HDF5, [test "xno" != "x$HAVE_HDF5_PARALLEL"])
 ################################################################################
 
 SNL_CHECK_NETCDF
-if test "xno" == "x$HAVE_NETCDF"; then
+if test "xno" = "x$HAVE_NETCDF"; then
   AC_MSG_WARN([Support for ExodusII file format disabled])
 else
   DEFINES="$DEFINES -DNETCDF_FILE"
@@ -190,7 +190,7 @@ if test $ENABLE_mbzoltan = yes; then
       AC_MSG_ERROR([--enable-zoltan requires an argument])
       ;;
   esac
-  if test "x$WITH_MPI" == "xno"; then
+  if test "x$WITH_MPI" = "xno"; then
      AC_MSG_ERROR([--enable-zoltan requires --with-mpi too!])
   fi
   if ! test -d "$ZOLTAN_DIR"; then
