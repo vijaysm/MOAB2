@@ -48,7 +48,7 @@ if NETCDF_FILE
                      WriteNCDF.cpp WriteNCDF.hpp \
                      WriteSLAC.cpp WriteSLAC.hpp 
 endif
-if PARALLEL
+if PARALLEL_HDF5
   MOAB_PARALLEL_SRCS = WriteHDF5Parallel.cpp
   MOAB_PARALLEL_HDRS = WriteHDF5.hpp WriteHDF5Parallel.hpp
 else

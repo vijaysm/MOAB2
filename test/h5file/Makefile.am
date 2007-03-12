@@ -1,7 +1,7 @@
 DEFS = $(DEFINES)
 INCLUDES += -I$(top_srcdir) -I$(top_srcdir)/mhdf/include -I$(top_builddir)
 check_PROGRAMS = h5test
-if PARALLEL
+if PARALLEL_HDF5
   check_PROGRAMS += parallel
 endif
 h5test_SOURCES = h5file_test.cpp
