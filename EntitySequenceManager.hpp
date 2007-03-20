@@ -136,7 +136,18 @@ private:
   SeqMap mPartlyFullSequenceMap[MBMAXTYPE];
 
     //! get a valid start handle for this type and a hinted-at start id
-  MBEntityHandle get_start_handle(MBEntityID hint_start, int hint_proc, MBEntityType type, MBEntityID num_ent);
+  MBErrorCode get_start_handle( MBEntityID hint_start, 
+                                int hint_proc, 
+                                MBEntityType type, 
+                                MBEntityID num_ent,
+                                MBEntityHandle& start_handle );
+                                
+    //! helper function for get_start_handle, if the requested entity ID
+    //! is not available, find any available range of handles
+  MBErrorCode find_free_handles( int proc, 
+                                 MBEntityType type, 
+                                 MBEntityID num_ent,
+                                 MBEntityHandle& start_handle );
   
   const MBProcConfig procInfo;
 };
