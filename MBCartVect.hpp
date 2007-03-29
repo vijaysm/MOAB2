@@ -35,16 +35,14 @@ class MBCartVect
     
   inline MBCartVect() 
       {d[0] = d[1] = d[2] = 0.0;}
+      /**Initialze all three values to same scalar (typically zero)*/
     explicit inline MBCartVect( double v ) 
       { d[0] = d[1] = d[2] = v; }
     inline MBCartVect( double i, double j, double k )
       { d[0] = i; d[1] = j; d[2] = k; }
+      /**Initialze from array*/
     explicit inline MBCartVect( const double a[3] )
       { d[0] = a[0]; d[1] = a[1]; d[2] = a[2]; }
-    inline MBCartVect( const MBCartVect& v )
-      { d[0] = v.d[0]; d[1] = v.d[1]; d[2] = v.d[2]; }
-    inline MBCartVect& operator=( const MBCartVect& v )
-      { d[0] = v.d[0]; d[1] = v.d[1]; d[2] = v.d[2]; return *this; }
     inline MBCartVect& operator=( const double v[3] )
       { d[0]= v[0]; d[1] = v[1]; d[2] = v[2]; return *this; }
     
@@ -57,6 +55,7 @@ class MBCartVect
       { d[0] += v.d[0]; d[1] += v.d[1]; d[2] += v.d[2]; return *this; }
     inline MBCartVect& operator-=( const MBCartVect& v )
       { d[0] -= v.d[0]; d[1] -= v.d[1]; d[2] -= v.d[2]; return *this; }
+      /** Assign cross product to this */
     inline MBCartVect& operator*=( const MBCartVect& v );
 
     inline MBCartVect& operator+=( double s )
@@ -74,6 +73,7 @@ class MBCartVect
     
     inline void flip(); //!< flip direction
     
+      /** per-element scalar multiply (this[0] *= v[0], this[1] *= v[1], ...) */
     inline void scale( const MBCartVect& v )
       { d[0] *= v.d[0]; d[1] *= v.d[1]; d[2] *= v.d[2]; }
     
@@ -83,6 +83,7 @@ class MBCartVect
     inline const double* array() const
       { return d; }
       
+      /** initialize array from this */
     inline void get( double v[3] ) const
       { v[0] = d[0]; v[1] = d[1]; v[2] = d[2]; }
 };
@@ -93,6 +94,7 @@ inline MBCartVect operator+( const MBCartVect& u, const MBCartVect& v )
 inline MBCartVect operator-( const MBCartVect& u, const MBCartVect& v )
   { return MBCartVect( u[0] - v[0], u[1] - v[1], u[2] - v[2] ); }
 
+/** cross product */
 inline MBCartVect operator*( const MBCartVect& u, const MBCartVect& v )
 {
   return MBCartVect( u[1] * v[2] - u[2] * v[1],
@@ -118,7 +120,7 @@ inline void MBCartVect::flip()
 
 //! Interior angle between two vectors
 inline double angle( const MBCartVect& u, const MBCartVect& v )
-  { return std::acos( (u % v) / (u.length() * v.length()) ); }
+  { return std::acos( (u % v) / std::sqrt((u % u) * (v % v)) ); }
 
 inline MBCartVect operator-( const MBCartVect& v )
   { return MBCartVect( -v[0], -v[1], -v[2] ); }
