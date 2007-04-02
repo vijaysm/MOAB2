@@ -33,6 +33,75 @@ bool ray_tri_intersect( const MBCartVect vertices[3],
                         double& t_out,
                         const double* ray_length = 0 );
 
+/**\brief Test if plane intersects axis-aligned box
+ *
+ * Test for intersection between an unbounded plane and
+ * an axis-aligned box.
+ *\param plane_normal Vector in plane normal direction (need *not*
+ *                    be a unit vector).  The N in 
+ *                    the plane equation: N . X + D = 0
+ *\param plane_coeff  The scalar 'D' term in the plane equation:
+ *                    N . X + D = 0
+ *\param box_min_corner The smallest coordinates of the box along each
+ *                    axis.  The corner of the box for which all three
+ *                    coordinate values are smaller than those of any
+ *                    other corner.  The X, Y, Z values for the planes
+ *                    normal to those axes and bounding the box on the
+ *                    -X, -Y, and -Z sides respectively.
+ *\param box_max_corner The largest coordinates of the box along each
+ *                    axis.  The corner of the box for which all three
+ *                    coordinate values are larger than those of any
+ *                    other corner.  The X, Y, Z values for the planes
+ *                    normal to those axes and bounding the box on the
+ *                    +X, +Y, and +Z sides respectively.
+ *\return true if overlap, false otherwise.
+ */
+bool box_plane_overlap( const MBCartVect& plane_normal, 
+                        double            plane_coeff,
+                        MBCartVect        box_min_corner, 
+                        MBCartVect        box_max_corner );
+
+/**\brief Test if triangle intersects axis-aligned box
+ *
+ * Test if a triangle intersects an axis-aligned box.
+ *\param triangle_corners  The corners of the triangle.
+ *\param box_min_corner The smallest coordinates of the box along each
+ *                    axis.  The corner of the box for which all three
+ *                    coordinate values are smaller than those of any
+ *                    other corner.  The X, Y, Z values for the planes
+ *                    normal to those axes and bounding the box on the
+ *                    -X, -Y, and -Z sides respectively.
+ *\param box_max_corner The largest coordinates of the box along each
+ *                    axis.  The corner of the box for which all three
+ *                    coordinate values are larger than those of any
+ *                    other corner.  The X, Y, Z values for the planes
+ *                    normal to those axes and bounding the box on the
+ *                    +X, +Y, and +Z sides respectively.
+ *\param tolerance    The tolerance used in the intersection test.  The box
+ *                    size is increased by this amount before the intersection
+ *                    test.
+ *\return true if overlap, false otherwise.
+ */
+bool box_tri_overlap( const MBCartVect  triangle_corners[3],
+                      const MBCartVect& box_min_corner,
+                      const MBCartVect& box_max_corner,
+                      double            tolerance );
+
+/**\brief Test if triangle intersects axis-aligned box
+ *
+ * Test if a triangle intersects an axis-aligned box.
+ *\param triangle_corners  The corners of the triangle.
+ *\param box_center   The center of the box.
+ *\param box_hanf_dims The distance along each axis, respectively, from the
+ *                    box_center to the boundary of the box.
+ *\return true if overlap, false otherwise.
+ */
+bool box_tri_overlap( const MBCartVect  triangle_corners[3],
+                      const MBCartVect& box_center,
+                      const MBCartVect& box_half_dims );
+
+                       
+
 /**\brief find closest location on triangle
  *
  * Find closest location on linear triangle.

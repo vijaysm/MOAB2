@@ -47,6 +47,332 @@ void assert_bool( bool b, const char* sb, int lineno )
 }
 
 
+void test_box_plane_norm( MBCartVect norm, 
+                          MBCartVect min,
+                          MBCartVect max )
+{
+  MBCartVect c_lower = min;
+  MBCartVect c_upper = max;
+  for (int i = 0; i < 3; ++i)
+    if (norm[i] < 0.0)
+      std::swap(c_lower[i],c_upper[i]);
+  
+  MBCartVect p_below = c_lower - norm;
+  MBCartVect p_lower = c_lower + norm;
+  MBCartVect p_upper = c_upper - norm;
+  MBCartVect p_above = c_upper + norm;
+  
+  double below = -(p_below % norm);
+  double lower = -(p_lower % norm);
+  double upper = -(p_upper % norm);
+  double above = -(p_above % norm);
+  
+  ASSERT( !box_plane_overlap( norm, below, min, max ) );
+  ASSERT(  box_plane_overlap( norm, lower, min, max ) );
+  ASSERT(  box_plane_overlap( norm, upper, min, max ) );
+  ASSERT( !box_plane_overlap( norm, above, min, max ) );
+}
+
+void test_box_plane_axis( int axis, double ns, 
+                          const MBCartVect& min, 
+                          const MBCartVect& max )
+{
+  MBCartVect norm(0.0);
+  norm[axis] = ns;
+  test_box_plane_norm( norm, min, max );
+}
+
+void test_box_plane_edge( int axis1, int axis2, bool flip_axis2,
+                          MBCartVect min, MBCartVect max )
+{
+  MBCartVect norm(0.0);
+  norm[axis1] = max[axis1] - min[axis1];
+  if (flip_axis2)
+    norm[axis2] = min[axis2] - max[axis2];
+  else
+    norm[axis2] = max[axis2] - min[axis2];
+  norm.normalize();
+  
+  test_box_plane_norm( norm, min, max );
+}
+
+void test_box_plane_corner( int xdir, int ydir, int zdir, 
+                            MBCartVect min, MBCartVect max )
+{
+  MBCartVect norm(max - min);
+  norm[0] *= xdir;
+  norm[1] *= ydir;
+  norm[2] *= zdir;
+  test_box_plane_norm( norm, min, max );
+}
+
+void test_box_plane_overlap()
+{
+  const MBCartVect min( -1, -2, -3 );
+  const MBCartVect max(  6,  4,  2 );
+  
+    // test with planes orthogonal to Z axis
+  test_box_plane_axis( 2, 2.0, min, max );
+    // test with planes orthogonal to X axis
+  test_box_plane_axis( 1,-2.0, min, max );
+    // test with planes orthogonal to Y axis
+  test_box_plane_axis( 1, 1.0, min, max );
+
+    // test with plane orthogonal to face diagonals
+  test_box_plane_edge( 0, 1, true,  min, max );
+  test_box_plane_edge( 0, 1, false, min, max );
+  test_box_plane_edge( 0, 2, true,  min, max );
+  test_box_plane_edge( 0, 2, false, min, max );
+  test_box_plane_edge( 2, 1, true,  min, max );
+  test_box_plane_edge( 2, 1, false, min, max );
+  
+    // test with plane orthogonal to box diagonals
+  test_box_plane_corner( 1, 1, 1, min, max );
+  test_box_plane_corner( 1, 1,-1, min, max );
+  test_box_plane_corner( 1,-1,-1, min, max );
+  test_box_plane_corner( 1,-1, 1, min, max );
+}     
+
+void test_box_tri_overlap()
+{
+  MBCartVect coords[3];
+  MBCartVect center, dims;
+  
+    // test box projection within triangle, z-plane
+  coords[0] = MBCartVect( 0, 0, 0 );
+  coords[1] = MBCartVect( 0, 4, 0 );
+  coords[2] = MBCartVect(-4, 0, 0 );
+  center = MBCartVect( -2, 1, 0 );
+  dims = MBCartVect( 1, 0.5, 3 );
+  ASSERT(  box_tri_overlap( coords, center, dims ) );
+    // move box below plane of triangle
+  center[2] = -4;
+  ASSERT( !box_tri_overlap( coords, center, dims ) );
+    // move box above plane of triangle
+  center[2] =  4;
+  ASSERT( !box_tri_overlap( coords, center, dims ) );
+  
+    // test box projection within triangle, x-plane
+  coords[0] = MBCartVect( 3, 3, 0 );
+  coords[1] = MBCartVect( 3, 3, 1 );
+  coords[2] = MBCartVect( 3, 0, 0 );
+  center = MBCartVect( 3, 2.5, .25 );
+  dims = MBCartVect( 0.001, 0.4, .2 );
+  ASSERT(  box_tri_overlap( coords, center, dims ) );
+    // move box below plane of triangle
+  center[0] = 2;
+  ASSERT( !box_tri_overlap( coords, center, dims ) );
+    // move box above plane of triangle
+  center[0] = 4;
+  ASSERT( !box_tri_overlap( coords, center, dims ) );
+  
+    // test tri slices corner at +x,+y,+z
+  coords[0] = MBCartVect(3,1,1);
+  coords[1] = MBCartVect(1,3,1);
+  coords[2] = MBCartVect(1,1,3);
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri above the corner
+  ASSERT( !box_tri_overlap( coords, MBCartVect(0,0,0), MBCartVect(1,1,1) ) );
+    // test tri slices corner at -x,-y,-z
+  coords[0] = MBCartVect(-1,1,1);
+  coords[1] = MBCartVect(1,-1,1);
+  coords[2] = MBCartVect(1,1,-1);
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri below the corner
+  ASSERT( !box_tri_overlap( coords, MBCartVect(2,2,2),MBCartVect(1,1,1) ) );
+  
+    // test tri slices corner at -x,+y,+z
+  coords[0] = MBCartVect( 0.5, 0.0, 2.5);
+  coords[1] = MBCartVect( 0.5, 2.5, 0.0);
+  coords[2] = MBCartVect(-0.5, 0.0, 0.0);
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri above the corner
+  ASSERT( !box_tri_overlap( coords, MBCartVect(2,1,1), MBCartVect(1,1,1) ) );
+  
+    // test tri slices corner at +x,-y,-z
+  coords[0] = MBCartVect( 0.5, 0.0,-1.5);
+  coords[1] = MBCartVect( 0.5,-1.5, 0.0);
+  coords[2] = MBCartVect( 1.5, 0.0, 0.0);
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri above the corner
+  ASSERT( !box_tri_overlap( coords, MBCartVect(0,1,1), MBCartVect(1,1,1) ) );
+
+    // test tri slices corner at +x,-y,+z
+  coords[0] = MBCartVect( 1.0, 1.0, 2.5 );
+  coords[1] = MBCartVect( 2.5, 1.0, 1.0 );
+  coords[2] = MBCartVect( 1.0,-0.5, 1.0 );
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri above the corner
+  ASSERT( !box_tri_overlap( coords, MBCartVect(-1,1,1), MBCartVect(1,1,1) ) );
+
+    // test tri slices corner at -x,+y,-z  
+  coords[0] = MBCartVect( 1.0,  1.0,-0.5 );
+  coords[1] = MBCartVect(-0.5,  1.0, 1.0 );
+  coords[2] = MBCartVect( 1.0,  2.5, 1.0 );
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri above the corner
+  ASSERT( !box_tri_overlap( coords, MBCartVect(3,1,1), MBCartVect(1,1,1) ) );
+
+    // test tri slices corner at +x,+y,-z
+  coords[0] = MBCartVect(-0.1, 1.0, 1.0);
+  coords[1] = MBCartVect( 1.0,-0.1, 1.0);
+  coords[2] = MBCartVect( 1.0, 1.0,-0.1);
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(1,1,3), MBCartVect(1,1,1) ) );
+  
+    // test tri slices corner at -x,-y,+z
+  coords[0] = MBCartVect( 2.1, 1.0, 1.0);
+  coords[1] = MBCartVect( 1.0, 2.1, 1.0);
+  coords[2] = MBCartVect( 1.0, 1.0, 2.1);
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(1,1,-1), MBCartVect(1,1,1) ) );
+  
+    // box edge parallel to x at +y,+z passes through triangle
+  coords[0] = MBCartVect( 1.0, 1.0, 3.0);
+  coords[1] = MBCartVect( 1.0, 3.0, 3.0);
+  coords[2] = MBCartVect( 1.0, 3.0, 1.0);
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(1,1,0.3), MBCartVect(1,1,1) ) );
+  
+    // box edge parallel to x at +y,-z passes through triangle
+  coords[0] = MBCartVect( 1.0, 3.0, 1.0);
+  coords[1] = MBCartVect( 1.0, 3.0,-1.0);
+  coords[2] = MBCartVect( 1.0, 1.0,-1.0);
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(1,1,1.7), MBCartVect(1,1,1) ) );
+  
+    // box edge parallel to x at -y,-z passes through triangle
+  coords[0] = MBCartVect( 1.0,-1.0, 1.0);
+  coords[1] = MBCartVect( 1.0,-1.0,-1.0);
+  coords[2] = MBCartVect( 1.0, 1.0,-1.0);
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(1,1,1.7), MBCartVect(1,1,1) ) );
+  
+    // box edge parallel to x at -y,+z passes through triangle
+  coords[0] = MBCartVect( 1.0,-1.0, 1.0);
+  coords[1] = MBCartVect( 1.0,-1.0, 3.0);
+  coords[2] = MBCartVect( 1.0, 1.0, 3.0);
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(1,1,0.3), MBCartVect(1,1,1) ) );
+  
+    // box edge parallel to y at +x,+z passes through triangle
+  coords[0] = MBCartVect( 1.0, 1.0, 3.0);
+  coords[1] = MBCartVect( 3.0, 1.0, 3.0);
+  coords[2] = MBCartVect( 3.0, 1.0, 1.0);
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(1,1,0.3), MBCartVect(1,1,1) ) );
+  
+    // box edge parallel to y at -x,+z passes through triangle
+  coords[0] = MBCartVect( 1.0, 1.0, 3.0);
+  coords[1] = MBCartVect(-1.0, 1.0, 3.0);
+  coords[2] = MBCartVect(-1.0, 1.0, 1.0);
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(1,1,0.3), MBCartVect(1,1,1) ) );
+  
+    // box edge parallel to y at +x,-z passes through triangle
+  coords[0] = MBCartVect( 1.0, 1.0,-1.0);
+  coords[1] = MBCartVect( 3.0, 1.0,-1.0);
+  coords[2] = MBCartVect( 3.0, 1.0, 1.0);
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(1,1,1.7), MBCartVect(1,1,1) ) );
+  
+    // box edge parallel to y at -x,-z passes through triangle
+  coords[0] = MBCartVect( 1.0, 1.0,-1.0);
+  coords[1] = MBCartVect(-1.0, 1.0,-1.0);
+  coords[2] = MBCartVect(-1.0, 1.0, 1.0);
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(1,1,1.7), MBCartVect(1,1,1) ) );
+  
+    // box edge parallel to z at +x,+y passes through triangle
+  coords[0] = MBCartVect( 1.0, 3.0, 1.0);
+  coords[1] = MBCartVect( 3.0, 3.0, 1.0);
+  coords[2] = MBCartVect( 3.0, 1.0, 1.0);
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(0.3,1,1), MBCartVect(1,1,1) ) );
+  
+    // box edge parallel to z at +x,-y passes through triangle
+  coords[0] = MBCartVect( 1.0,-1.0, 1.0);
+  coords[1] = MBCartVect( 3.0,-1.0, 1.0);
+  coords[2] = MBCartVect( 3.0, 1.0, 1.0);
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(0.3,1,1), MBCartVect(1,1,1) ) );
+  
+    // box edge parallel to z at -x,+y passes through triangle
+  coords[0] = MBCartVect( 1.0, 3.0, 1.0);
+  coords[1] = MBCartVect(-1.0, 3.0, 1.0);
+  coords[2] = MBCartVect(-1.0, 1.0, 1.0);
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(1.7,1,1), MBCartVect(1,1,1) ) );
+  
+    // box edge parallel to z at -x,-y passes through triangle
+  coords[0] = MBCartVect( 1.0,-1.0, 1.0);
+  coords[1] = MBCartVect(-1.0,-1.0, 1.0);
+  coords[2] = MBCartVect(-1.0, 1.0, 1.0);
+  ASSERT(  box_tri_overlap( coords, MBCartVect(1,1,1), MBCartVect(1,1,1) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(1.7,1,1), MBCartVect(1,1,1) ) );
+  
+    // triangle penetrates +x face
+  coords[0] = MBCartVect( 2.0, 2.0, 2.0 );
+  coords[1] = MBCartVect( 5.0, 3.0, 2.0 );
+  coords[2] = MBCartVect( 5.0, 1.0, 2.0 );
+  ASSERT(  box_tri_overlap( coords, MBCartVect(2,2,2), MBCartVect(2,2,2) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(-1,2,2), MBCartVect(2,2,2) ) );
+  
+    // triangle penetrates -x face
+  coords[0] = MBCartVect( 2.0, 2.0, 2.0 );
+  coords[1] = MBCartVect(-1.0, 3.0, 2.0 );
+  coords[2] = MBCartVect(-1.0, 1.0, 2.0 );
+  ASSERT(  box_tri_overlap( coords, MBCartVect(2,2,2), MBCartVect(2,2,2) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(5,2,2), MBCartVect(2,2,2) ) );
+  
+    // triangle penetrates +y face
+  coords[0] = MBCartVect( 2.0, 2.0, 2.0 );
+  coords[1] = MBCartVect( 3.0, 5.0, 2.0 );
+  coords[2] = MBCartVect( 1.0, 5.0, 2.0 );
+  ASSERT(  box_tri_overlap( coords, MBCartVect(2,2,2), MBCartVect(2,2,2) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(2,-1,2), MBCartVect(2,2,2) ) );
+  
+    // triangle penetrates -y face
+  coords[0] = MBCartVect( 2.0, 2.0, 2.0 );
+  coords[1] = MBCartVect( 3.0,-1.0, 2.0 );
+  coords[2] = MBCartVect( 1.0,-1.0, 2.0 );
+  ASSERT(  box_tri_overlap( coords, MBCartVect(2,2,2), MBCartVect(2,2,2) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(2,5,2), MBCartVect(2,2,2) ) );
+  
+    // triangle penetrates +z face
+  coords[0] = MBCartVect( 2.0, 2.0, 2.0 );
+  coords[1] = MBCartVect( 2.0, 3.0, 5.0 );
+  coords[2] = MBCartVect( 2.0, 1.0, 5.0 );
+  ASSERT(  box_tri_overlap( coords, MBCartVect(2,2,2), MBCartVect(2,2,2) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(2,2,-1), MBCartVect(2,2,2) ) );
+  
+    // triangle penetrates -z face
+  coords[0] = MBCartVect( 2.0, 2.0, 2.0 );
+  coords[1] = MBCartVect( 2.0, 3.0,-1.0 );
+  coords[2] = MBCartVect( 2.0, 1.0,-1.0 );
+  ASSERT(  box_tri_overlap( coords, MBCartVect(2,2,2), MBCartVect(2,2,2) ) );
+    // test with tri outside box
+  ASSERT( !box_tri_overlap( coords, MBCartVect(2,2,5), MBCartVect(2,2,2) ) );
+}
 
 void test_ray_tri_intersect()
 {
@@ -271,6 +597,8 @@ void test_closest_location_on_polygon()
 
 int main()
 {
+  test_box_plane_overlap();
+  test_box_tri_overlap();
   test_ray_tri_intersect();
   test_closest_location_on_tri();
   test_closest_location_on_polygon();

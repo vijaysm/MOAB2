@@ -20,6 +20,7 @@
 
 #include "MBCartVect.hpp"
 #include <cmath>
+#include <algorithm>
 
 namespace MBGeomUtil {
 
@@ -75,6 +76,144 @@ bool ray_tri_intersect( const MBCartVect vertices[3],
   t_out = t;
   return true;
 }
+
+bool box_plane_overlap( const MBCartVect& normal,
+                        double d,
+                        MBCartVect min,
+                        MBCartVect max )
+{
+  if (normal[0] < 0.0)
+    std::swap( min[0], max[0] );
+  if (normal[1] < 0.0)
+    std::swap( min[1], max[1] );
+  if (normal[2] < 0.0)
+    std::swap( min[2], max[2] );
+  
+  return (normal % min <= -d) && (normal % max >= -d);
+}
+
+
+#define CHECK_RANGE( A, B, R ) \
+  if ((A) < (B)) { \
+    if ((A) > (R) || (B) < -(R)) \
+      return false; \
+  } \
+  else if ((B) > (R) || (A) < -(R)) \
+    return false
+
+/* Adapted from: http://jgt.akpeters.com/papers/AkenineMoller01/tribox.html
+ * Use separating axis theorem to test for overlap between triangle
+ * and axis-aligned box.
+ *
+ * Test for overlap in these directions:
+ * 1) {x,y,z}-directions 
+ * 2) normal of triangle
+ * 3) crossprod of triangle edge with {x,y,z}-direction
+ */
+bool box_tri_overlap( const MBCartVect vertices[3],
+                      const MBCartVect& box_center,
+                      const MBCartVect& box_dims )
+{
+    // translate everthing such that box is centered at origin
+  const MBCartVect v0( vertices[0] - box_center );
+  const MBCartVect v1( vertices[1] - box_center );
+  const MBCartVect v2( vertices[2] - box_center );
+
+  // do case 1) tests
+  if (v0[0] > box_dims[0] && v1[0] > box_dims[0] && v2[0] > box_dims[0])
+    return false;
+  if (v0[1] > box_dims[1] && v1[1] > box_dims[1] && v2[1] > box_dims[1])
+    return false;
+  if (v0[2] > box_dims[2] && v1[2] > box_dims[2] && v2[2] > box_dims[2])
+    return false;
+  if (v0[0] < -box_dims[0] && v1[0] < -box_dims[0] && v2[0] < -box_dims[0])
+    return false;
+  if (v0[1] < -box_dims[1] && v1[1] < -box_dims[1] && v2[1] < -box_dims[1])
+    return false;
+  if (v0[2] < -box_dims[2] && v1[2] < -box_dims[2] && v2[2] < -box_dims[2])
+    return false;
+  
+    // compute triangle edge vectors
+  const MBCartVect e0( vertices[1] - vertices[0] );
+  const MBCartVect e1( vertices[2] - vertices[1] );
+  const MBCartVect e2( vertices[0] - vertices[2] );
+  
+    // do case 3) tests 
+  double fex, fey, fez, p0, p1, p2, rad;
+  fex = fabs(e0[0]);
+  fey = fabs(e0[1]);
+  fez = fabs(e0[2]);
+  
+  p0 = e0[2]*v0[1] - e0[1]*v0[2];
+  p2 = e0[2]*v2[1] - e0[1]*v2[2];
+  rad = fez * box_dims[1] + fey * box_dims[2];
+  CHECK_RANGE( p0, p2, rad );
+  
+  p0 = -e0[2]*v0[0] + e0[0]*v0[2];
+  p2 = -e0[2]*v2[0] + e0[0]+v2[2];
+  rad = fez * box_dims[0] + fex * box_dims[2];
+  CHECK_RANGE( p0, p2, rad );
+    
+  p1 = e0[1]*v1[0] - e0[0]*v1[1];
+  p2 = e0[1]*v2[0] - e0[0]*v2[1];
+  rad = fey * box_dims[0] + fex * box_dims[1];
+  CHECK_RANGE( p1, p2, rad );
+  
+  fex = fabs(e1[0]);
+  fey = fabs(e1[1]);
+  fez = fabs(e1[2]);
+  
+  p0 = e1[2]*v0[1] - e1[1]*v0[2];
+  p2 = e1[2]*v2[1] - e1[1]*v2[2];
+  rad = fez * box_dims[1] + fey * box_dims[2];
+  CHECK_RANGE( p0, p2, rad );
+  
+  p0 = -e1[2]*v0[0] + e1[0]*v0[2];
+  p2 = -e1[2]*v2[0] + e1[0]*v2[2];
+  rad = fez * box_dims[0] + fex * box_dims[2];
+  CHECK_RANGE( p0, p2, rad );
+  
+  p0 = e1[1]*v0[0] - e1[0]*v0[1];
+  p1 = e1[1]*v1[0] - e1[0]*v1[1];
+  rad = fey * box_dims[0] + fex * box_dims[1];
+  CHECK_RANGE( p0, p1, rad );
+  
+  fex = fabs(e2[0]);
+  fey = fabs(e2[1]);
+  fez = fabs(e2[2]);
+  
+  p0 = e2[2]*v0[1] - e2[1]*v0[2];
+  p1 = e2[2]*v1[1] - e2[1]*v1[2];
+  rad = fez * box_dims[1] + fey * box_dims[2];
+  CHECK_RANGE( p0, p1, rad );
+  
+  p0 = -e2[2]*v0[0] + e2[0]*v0[2];
+  p1 = -e2[2]*v1[0] + e2[0]*v1[2];
+  rad = fez * box_dims[0] + fex * box_dims[2];
+  CHECK_RANGE( p0, p1, rad );
+  
+  p1 = e2[1]*v1[0] - e2[0]*v1[1];
+  p2 = e2[1]*v2[0] - e2[0]*v2[1];
+  rad = fey * box_dims[0] + fex * box_dims[1];
+  CHECK_RANGE( p1, p2, rad );
+  
+  // do case 2) test
+  MBCartVect n = e0 * e1;
+  return box_plane_overlap( n, -(n % v0), -box_dims, box_dims );
+}
+  
+
+bool box_tri_overlap( const MBCartVect  triangle_corners[3],
+                      const MBCartVect& box_min_corner,
+                      const MBCartVect& box_max_corner,
+                      double            tolerance )
+{
+  const MBCartVect box_center = 0.5 * (box_max_corner + box_min_corner);
+  const MBCartVect box_hf_dim = 0.5 * (box_max_corner - box_min_corner);
+  return box_tri_overlap( triangle_corners,
+                          box_center,
+                          box_hf_dim + MBCartVect(tolerance) );
+} 
 
 //from: http://www.geometrictools.com/Documentation/DistancePoint3Triangle3.pdf#search=%22closest%20point%20on%20triangle%22
 /*       t
