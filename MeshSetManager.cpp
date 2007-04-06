@@ -227,14 +227,15 @@ MBErrorCode MeshSetManager::destroy_mesh_set( MBEntityHandle handle )
   }
   
     // update parents
-  const std::vector<MBEntityHandle>& parents = ms_ptr->get_parents();
-  for (size_t i = 0; i < parents.size(); ++i) 
+  int count;
+  const MBEntityHandle* parents = ms_ptr->get_parents(count);
+  for (int i = 0; i < count; ++i) 
     if (MBMeshSet* parent_ptr = get_mesh_set( parents[i] ))
       parent_ptr->remove_child( handle );
 
     // update children
-  const std::vector<MBEntityHandle>& children = ms_ptr->get_children();
-  for (size_t i = 0; i < children.size(); ++i) 
+  const MBEntityHandle* children = ms_ptr->get_children( count );
+  for (int i = 0; i < count; ++i) 
     if (MBMeshSet* child_ptr = get_mesh_set( children[i] ))
       child_ptr->remove_parent( handle );
 
@@ -528,7 +529,8 @@ MBErrorCode MeshSetManager::get_parent_child_meshsets( MBEntityHandle meshset,
 {
   MBErrorCode result = MB_SUCCESS;
   std::vector<MBEntityHandle>::iterator i;
-  std::vector<MBEntityHandle>::const_iterator k;
+  const MBEntityHandle* array;
+  int k, count;
   
     // Skip any meshsets already in input vector (yes, don't
     // get their children either even if num_hops would indicate
@@ -554,14 +556,12 @@ MBErrorCode MeshSetManager::get_parent_child_meshsets( MBEntityHandle meshset,
         continue;
       }
       
-        // querying for parents or childre?
-      const std::vector<MBEntityHandle>& setlist = parents ?
-                                     ms_ptr->get_parents() : 
-                                     ms_ptr->get_children();
+        // querying for parents or children?
+      array = parents ? ms_ptr->get_parents(count) : ms_ptr->get_children(count);
         // copy any parents/children we haven't visited yet into list
-      for (k = setlist.begin(); k != setlist.end(); ++k) 
-        if (visited.insert(*k).second) 
-          lists[1-index].push_back(*k);
+      for (k = 0; k < count; ++k) 
+        if (visited.insert(array[k]).second) 
+          lists[1-index].push_back(array[k]);
     }
     
       // iterate
@@ -586,13 +586,15 @@ MBErrorCode MeshSetManager::get_parents( MBEntityHandle handle,
     MBMeshSet *ms_ptr = get_mesh_set( handle );
     if( !ms_ptr )
       return MB_ENTITY_NOT_FOUND;
-      
-    const std::vector<MBEntityHandle>& sp = ms_ptr->get_parents();
+    
+    int count;
+    const MBEntityHandle* array = ms_ptr->get_parents(count);  
     if (parents.empty()) {
-      parents = sp;
+      parents.resize(count);
+      std::copy( array, array + count, parents.begin() );
       return MB_SUCCESS;
     }
-    else if (sp.empty()) {
+    else if (!count) {
       return MB_SUCCESS;
     }
   }
@@ -612,12 +614,14 @@ MBErrorCode MeshSetManager::get_children( MBEntityHandle handle,
     if( !ms_ptr )
       return MB_ENTITY_NOT_FOUND;
       
-    const std::vector<MBEntityHandle>& sp = ms_ptr->get_children();
+    int count;
+    const MBEntityHandle* array = ms_ptr->get_children(count);  
     if (children.empty()) {
-      children = sp;
+      children.resize(count);
+      std::copy( array, array + count, children.begin() );
       return MB_SUCCESS;
     }
-    else if (sp.empty()) {
+    else if (!count) {
       return MB_SUCCESS;
     }
   }
@@ -727,9 +731,7 @@ MBErrorCode MeshSetManager::remove_parent( MBEntityHandle from_handle,
   if (!from_ptr)
     return MB_ENTITY_NOT_FOUND;
   
-  if (!from_ptr->remove_parent( parent_handle ))
-    return MB_FAILURE;
-  
+  from_ptr->remove_parent( parent_handle );
   return MB_SUCCESS;
 }
 
@@ -740,9 +742,7 @@ MBErrorCode MeshSetManager::remove_child( MBEntityHandle from_handle,
   if (!from_ptr)
     return MB_ENTITY_NOT_FOUND;
   
-  if (!from_ptr->remove_child( child_handle ))
-    return MB_FAILURE;
-  
+  from_ptr->remove_child( child_handle );
   return MB_SUCCESS;
 }
 

@@ -1270,73 +1270,516 @@ MBErrorCode mb_mesh_sets_test(MBInterface * MB, int flags)
   result = check_esets(MB, start_num_sets + MBENTITYSET - MBEDGE + 4);
   if (MB_SUCCESS != result) return result;
 
-    //Test parent/child stuff in meshsets
-
-    //Add 2 meshsets as children to another
-
-  MBEntityHandle parent_child_meshset = 0;
-  result = MB->create_meshset( flags, parent_child_meshset ) ;
-  if(result != MB_SUCCESS )
-    return result;
-    //add parents
-  result = MB->add_parent_meshset( parent_child_meshset, ms_array[MBQUAD] ) ;
-  if(result != MB_SUCCESS )
-    return result;
-  result = MB->add_parent_meshset( parent_child_meshset, ms_array[MBTRI] ) ;
-  if(result != MB_SUCCESS )
-    return result;
-
-    //add children
-  result = MB->add_child_meshset( parent_child_meshset, ms_array[MBTET] ) ;
-  if(result != MB_SUCCESS )
-    return result;
-  result = MB->add_child_meshset( parent_child_meshset, ms_array[MBHEX] ) ;
-  if(result != MB_SUCCESS )
-    return result;
-  result = MB->add_child_meshset( parent_child_meshset, ms_array[MBEDGE] ) ;
-  if(result != MB_SUCCESS )
-    return result;
-
-    //get number child meshsets
-  int temp_numb = -99023;
-  result = MB->num_parent_meshsets( parent_child_meshset, &temp_numb ) ;
-  if(result != MB_SUCCESS )
-    return result;
-  if( temp_numb != 2 )
-    return MB_FAILURE;
-  result = MB->num_child_meshsets( parent_child_meshset, &temp_numb ) ;
-  if(result != MB_SUCCESS )
-    return result;
-  if( temp_numb != 3 )
-    return MB_FAILURE;
-
-    //get the meshsets
-  std::vector< MBEntityHandle > junk_vector;
-  result = MB->get_parent_meshsets( parent_child_meshset, junk_vector ) ;
-  if(result != MB_SUCCESS )
-    return result;
-  if( junk_vector.size() != 2 )
-    return MB_FAILURE;
-
-  junk_vector.clear();
-  result = MB->get_child_meshsets( parent_child_meshset, junk_vector ) ;
-  if(result != MB_SUCCESS )
-    return result;
-  if( junk_vector.size() != 3 )
-    return MB_FAILURE;
-
-  junk_vector.clear();
-  result = MB->get_entities_by_handle( parent_child_meshset, junk_vector ) ;
-  if(result != MB_SUCCESS )
-    return result;
-    // should be zero, since parent/child meshsets aren't IN the set, just related to it
-  if( junk_vector.size() != 0 )
-    return MB_FAILURE;
-
-  result = check_esets(MB, start_num_sets + MBENTITYSET - MBEDGE + 5);
-  if (MB_SUCCESS != result) return result;
-
   return MB_SUCCESS;
+}
+
+static bool compare_lists( std::vector<MBEntityHandle> vect,
+                           const MBEntityHandle* array, 
+                           int count,
+                           bool ordered = true )
+{
+  if (vect.size() != (size_t)count)
+    return false;
+  for (int i = 0; i < count; ++i) {
+    if (ordered) { 
+      if (vect[i] != array[i])
+        return false;
+    }
+    else if (std::find(vect.begin(),vect.end(),array[i]) == vect.end())
+      return false;
+  }
+  return true;
+}
+
+    //Test parent/child stuff in meshsets
+MBErrorCode mb_mesh_set_parent_child_test(MBInterface *MB)
+{
+  MBErrorCode rval;
+  std::vector<MBEntityHandle> list;
+  MBRange range;
+  MBRange::iterator iter;
+  int count;
+
+    // create a few mesh sets
+  const int num_sets = 10;
+  MBEntityHandle sets[num_sets];
+  for (int i = 0; i < num_sets; ++i) {
+    rval = MB->create_meshset( i % 2 ? MESHSET_SET : 0, sets[i] );
+    if (MB_SUCCESS != rval) 
+      return rval;
+  }
+  
+    // test adding child meshsets
+    
+    // add first child
+  rval = MB->add_child_meshset( sets[0], sets[1] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_child_meshsets( sets[0], list );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 1 ))
+    return MB_FAILURE;
+    // try to add child again
+  rval = MB->add_child_meshset( sets[0], sets[1] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_child_meshsets( sets[0], list );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 1 ))
+    return MB_FAILURE;
+    
+    // add second child
+  rval = MB->add_child_meshset( sets[0], sets[2] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_child_meshsets( sets[0], list );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 2 ))
+    return MB_FAILURE;
+    // try adding child again
+  rval = MB->add_child_meshset( sets[0], sets[1] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_child_meshsets( sets[0], list );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 2 ))
+    return MB_FAILURE;
+  
+    // add third child
+  rval = MB->add_child_meshset( sets[0], sets[3] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_child_meshsets( sets[0], list );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 3 ))
+    return MB_FAILURE;
+    // try adding child again
+  rval = MB->add_child_meshset( sets[0], sets[1] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_child_meshsets( sets[0], list );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 3 ))
+    return MB_FAILURE;
+  
+    // add fourth child
+  rval = MB->add_child_meshset( sets[0], sets[4] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_child_meshsets( sets[0], list );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 4 ))
+    return MB_FAILURE;
+  
+    // make sure range query returns same result
+  std::sort( list.begin(), list.end() );
+  rval = MB->get_child_meshsets( sets[0], range );
+  iter = range.begin();
+  for (unsigned i = 0; i < 4; ++i, ++iter)
+    if (*iter != list[i])
+      return MB_FAILURE;
+  
+    // remove first child
+  rval = MB->remove_child_meshset( sets[0], sets[1] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_child_meshsets( sets[0], list );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+2, 3 ))
+    return MB_FAILURE;
+    // try removing child again
+  rval = MB->remove_child_meshset( sets[0], sets[1] );
+  if (MB_SUCCESS != rval) return rval;
+  
+    // remove second child
+  rval = MB->remove_child_meshset( sets[0], sets[2] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_child_meshsets( sets[0], list );
+  if (!compare_lists( list, sets+3, 2 ))
+    return MB_FAILURE;
+    // try removing child again
+  rval = MB->remove_child_meshset( sets[0], sets[2] );
+  if (MB_SUCCESS != rval) return rval;
+  
+    // remove third child
+  rval = MB->remove_child_meshset( sets[0], sets[3] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_child_meshsets( sets[0], list );
+  if (list.size() != 1 || list[0] != sets[4])
+    return MB_FAILURE;
+  
+    // remove fourth child
+  rval = MB->remove_child_meshset( sets[0], sets[4] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_child_meshsets( sets[0], list );
+  if (!list.empty())
+    return MB_FAILURE;
+
+  
+    // test adding parent meshsets
+    
+    // add first parent
+  rval = MB->add_parent_meshset( sets[0], sets[1] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_parent_meshsets( sets[0], list );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 1 ))
+    return MB_FAILURE;
+    // try to add parent again
+  rval = MB->add_parent_meshset( sets[0], sets[1] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_parent_meshsets( sets[0], list );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 1 ))
+    return MB_FAILURE;
+    
+    // add second parent
+  rval = MB->add_parent_meshset( sets[0], sets[2] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_parent_meshsets( sets[0], list );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 2 ))
+    return MB_FAILURE;
+    // try adding parent again
+  rval = MB->add_parent_meshset( sets[0], sets[1] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_parent_meshsets( sets[0], list );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 2 ))
+    return MB_FAILURE;
+  
+    // add third parent
+  rval = MB->add_parent_meshset( sets[0], sets[3] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_parent_meshsets( sets[0], list );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 3 ))
+    return MB_FAILURE;
+    // try adding parent again
+  rval = MB->add_parent_meshset( sets[0], sets[1] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_parent_meshsets( sets[0], list );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 3 ))
+    return MB_FAILURE;
+  
+    // add fourth parent
+  rval = MB->add_parent_meshset( sets[0], sets[4] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_parent_meshsets( sets[0], list );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 4 ))
+    return MB_FAILURE;
+  
+    // make sure range query returns same result
+  std::sort( list.begin(), list.end() );
+  rval = MB->get_parent_meshsets( sets[0], range );
+  iter = range.begin();
+  for (unsigned i = 0; i < 4; ++i, ++iter)
+    if (*iter != list[i])
+      return MB_FAILURE;
+  
+    // remove first parent
+  rval = MB->remove_parent_meshset( sets[0], sets[1] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_parent_meshsets( sets[0], list );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+2, 3 ))
+    return MB_FAILURE;
+    // try removing parent again
+  rval = MB->remove_parent_meshset( sets[0], sets[1] );
+  if (MB_SUCCESS != rval) return rval;
+  
+    // remove second parent
+  rval = MB->remove_parent_meshset( sets[0], sets[2] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_parent_meshsets( sets[0], list );
+  if (!compare_lists( list, sets+3, 2 ))
+    return MB_FAILURE;
+    // try removing parent again
+  rval = MB->remove_parent_meshset( sets[0], sets[2] );
+  if (MB_SUCCESS != rval) return rval;
+  
+    // remove third parent
+  rval = MB->remove_parent_meshset( sets[0], sets[3] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_parent_meshsets( sets[0], list );
+  if (list.size() != 1 || list[0] != sets[4])
+    return MB_FAILURE;
+  
+    // remove fourth parent
+  rval = MB->remove_parent_meshset( sets[0], sets[4] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_parent_meshsets( sets[0], list );
+  if (!list.empty())
+    return MB_FAILURE;
+    
+    
+    // setup tests of recursive child query
+    //              0
+    //            /   \         .
+    //          1       2
+    //        /   \   /   \       .
+    //      3       4       5
+    //        \   /   \   /
+    //          6       7
+  rval = MB->add_child_meshset( sets[0], sets[1] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->add_child_meshset( sets[0], sets[2] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->add_child_meshset( sets[1], sets[3] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->add_child_meshset( sets[1], sets[4] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->add_child_meshset( sets[2], sets[4] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->add_child_meshset( sets[2], sets[5] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->add_child_meshset( sets[3], sets[6] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->add_child_meshset( sets[4], sets[6] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->add_child_meshset( sets[4], sets[7] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->add_child_meshset( sets[5], sets[7] );
+  if (MB_SUCCESS != rval) return rval;
+  
+    // test query at depth of 1
+  list.clear();
+  rval = MB->get_child_meshsets( sets[0], list, 1 );
+  if (MB_SUCCESS != rval) return rval;
+  if (list.size() != 2 || list[0] != sets[1] || list[1] != sets[2])
+    return MB_FAILURE;
+  rval = MB->num_child_meshsets( sets[0], &count, 1 );
+  if (MB_SUCCESS != rval) return rval;
+  if (count != 2)
+    return MB_FAILURE;
+  
+    // test query at depth of 2
+  list.clear();
+  rval = MB->get_child_meshsets( sets[0], list, 2 );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 5, false ))
+    return MB_FAILURE;  
+  rval = MB->num_child_meshsets( sets[0], &count, 2 );
+  if (MB_SUCCESS != rval) return rval;
+  if (count != 5)
+    return MB_FAILURE;
+  
+    // test query at depth of 3
+  list.clear();
+  rval = MB->get_child_meshsets( sets[0], list, 3 );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 7, false ))
+    return MB_FAILURE;  
+  rval = MB->num_child_meshsets( sets[0], &count, 3 );
+  if (MB_SUCCESS != rval) return rval;
+  if (count != 7)
+    return MB_FAILURE;
+  
+    // test query at depth of 4
+  list.clear();
+  rval = MB->get_child_meshsets( sets[0], list, 4 );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 7, false ))
+    return MB_FAILURE;  
+  rval = MB->num_child_meshsets( sets[0], &count, 4 );
+  if (MB_SUCCESS != rval) return rval;
+  if (count != 7)
+    return MB_FAILURE;
+  
+    // test query at all
+  list.clear();
+  rval = MB->get_child_meshsets( sets[0], list, 0 );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 7, false ))
+    return MB_FAILURE;  
+  rval = MB->num_child_meshsets( sets[0], &count, 0 );
+  if (MB_SUCCESS != rval) return rval;
+  if (count != 7)
+    return MB_FAILURE;
+    
+    // clean up child links
+  rval = MB->remove_child_meshset( sets[0], sets[1] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->remove_child_meshset( sets[0], sets[2] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->remove_child_meshset( sets[1], sets[3] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->remove_child_meshset( sets[1], sets[4] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->remove_child_meshset( sets[2], sets[4] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->remove_child_meshset( sets[2], sets[5] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->remove_child_meshset( sets[3], sets[6] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->remove_child_meshset( sets[4], sets[6] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->remove_child_meshset( sets[4], sets[7] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->remove_child_meshset( sets[5], sets[7] );
+  if (MB_SUCCESS != rval) return rval;
+  for (int i = 0; i < 5; ++i)
+    if (MB_SUCCESS != MB->num_child_meshsets(sets[i], &count) || count)
+      return MB_FAILURE;
+     
+    // setup tests of recursive parent query
+    //          6       7
+    //        /   \   /   \       .
+    //      3       4       5
+    //        \   /   \   /
+    //          1       2
+    //            \   / 
+    //              0
+  rval = MB->add_parent_meshset( sets[0], sets[1] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->add_parent_meshset( sets[0], sets[2] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->add_parent_meshset( sets[1], sets[3] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->add_parent_meshset( sets[1], sets[4] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->add_parent_meshset( sets[2], sets[4] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->add_parent_meshset( sets[2], sets[5] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->add_parent_meshset( sets[3], sets[6] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->add_parent_meshset( sets[4], sets[6] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->add_parent_meshset( sets[4], sets[7] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->add_parent_meshset( sets[5], sets[7] );
+  if (MB_SUCCESS != rval) return rval;
+  
+    // test query at depth of 1
+  list.clear();
+  rval = MB->get_parent_meshsets( sets[0], list, 1 );
+  if (MB_SUCCESS != rval) return rval;
+  if (list.size() != 2 || list[0] != sets[1] || list[1] != sets[2])
+    return MB_FAILURE;
+  rval = MB->num_parent_meshsets( sets[0], &count, 1 );
+  if (MB_SUCCESS != rval) return rval;
+  if (count != 2)
+    return MB_FAILURE;
+  
+    // test query at depth of 2
+  list.clear();
+  rval = MB->get_parent_meshsets( sets[0], list, 2 );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 5, false ))
+    return MB_FAILURE;  
+  rval = MB->num_parent_meshsets( sets[0], &count, 2 );
+  if (MB_SUCCESS != rval) return rval;
+  if (count != 5)
+    return MB_FAILURE;
+  
+    // test query at depth of 3
+  list.clear();
+  rval = MB->get_parent_meshsets( sets[0], list, 3 );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 7, false ))
+    return MB_FAILURE;  
+  rval = MB->num_parent_meshsets( sets[0], &count, 3 );
+  if (MB_SUCCESS != rval) return rval;
+  if (count != 7)
+    return MB_FAILURE;
+  
+    // test query at depth of 4
+  list.clear();
+  rval = MB->get_parent_meshsets( sets[0], list, 4 );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 7, false ))
+    return MB_FAILURE;  
+  rval = MB->num_parent_meshsets( sets[0], &count, 4 );
+  if (MB_SUCCESS != rval) return rval;
+  if (count != 7)
+    return MB_FAILURE;
+  
+    // test query at all
+  list.clear();
+  rval = MB->get_parent_meshsets( sets[0], list, 0 );
+  if (MB_SUCCESS != rval) return rval;
+  if (!compare_lists( list, sets+1, 7, false ))
+    return MB_FAILURE;  
+  rval = MB->num_parent_meshsets( sets[0], &count, 0 );
+  if (MB_SUCCESS != rval) return rval;
+  if (count != 7)
+    return MB_FAILURE;
+    
+    // clean up parent links
+  rval = MB->remove_parent_meshset( sets[0], sets[1] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->remove_parent_meshset( sets[0], sets[2] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->remove_parent_meshset( sets[1], sets[3] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->remove_parent_meshset( sets[1], sets[4] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->remove_parent_meshset( sets[2], sets[4] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->remove_parent_meshset( sets[2], sets[5] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->remove_parent_meshset( sets[3], sets[6] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->remove_parent_meshset( sets[4], sets[6] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->remove_parent_meshset( sets[4], sets[7] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->remove_parent_meshset( sets[5], sets[7] );
+  if (MB_SUCCESS != rval) return rval;
+  for (int i = 0; i < 5; ++i)
+    if (MB_SUCCESS != MB->num_parent_meshsets(sets[i], &count) || count)
+      return MB_FAILURE;
+   
+    
+    // test combined parent/child links
+
+    // test creation
+  rval = MB->add_parent_child( sets[9], sets[8] );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_child_meshsets( sets[9], list );
+  if (MB_SUCCESS != rval) return rval;
+  if (list.size() != 1 || list[0] != sets[8])
+    return MB_FAILURE;  
+  list.clear();
+  rval = MB->get_parent_meshsets( sets[8], list );
+  if (MB_SUCCESS != rval) return rval;
+  if (list.size() != 1 || list[0] != sets[9])
+    return MB_FAILURE;  
+
+    // test deletion of parent/child
+  rval = MB->add_parent_child( sets[7], sets[9] );
+  if (MB_SUCCESS != rval) return rval;
+  rval = MB->delete_entities( &sets[9], 1 );
+  if (MB_SUCCESS != rval) return rval;
+  list.clear();
+  rval = MB->get_parent_meshsets( sets[8], list );
+  if (!list.empty())
+    return MB_FAILURE;
+  list.clear();
+  rval = MB->get_child_meshsets( sets[7], list );
+  if (!list.empty())
+    return MB_FAILURE;
+  
+    // clean up remaining sets
+  return MB->delete_entities( sets, 9 );
 }
   
 MBErrorCode mb_mesh_sets_set_test( MBInterface* mb )
@@ -5055,6 +5498,7 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_hex_connectivity_test );
   RUN_TEST( mb_mesh_sets_set_test );
   RUN_TEST( mb_mesh_sets_list_test );
+  RUN_TEST( mb_mesh_set_parent_child_test );
   RUN_TEST( mb_tags_test );
   RUN_TEST( mb_write_mesh_test );
   RUN_TEST( mb_delete_mesh_test );

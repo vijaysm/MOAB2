@@ -37,6 +37,10 @@
 
 #include <vector>
 
+
+//#define MB_MESH_SET_COMPACT_PARENT_CHILD_LISTS
+
+
 class AEntityFactory;
 
 class MBMeshSet
@@ -49,19 +53,65 @@ public:
   //! virtual destructor
   virtual ~MBMeshSet();
 
+#ifndef MB_MESH_SET_COMPACT_PARENT_CHILD_LISTS
     //! get all children pointed to by this meshset
-  const std::vector<MBEntityHandle>& get_children() const 
-    { return childMeshSets; }
+  const MBEntityHandle* get_children( int& count_out ) const 
+    { count_out = childMeshSets.size(); return &childMeshSets[0]; }
 
     //! get all parents pointed to by this meshset
-  const std::vector<MBEntityHandle>& get_parents() const
-    { return parentMeshSets; }
+  const MBEntityHandle* get_parents( int& count_out ) const
+    { count_out = parentMeshSets.size(); return &parentMeshSets[0]; }
 
     //! return the number of children pointed to by this meshset
   int num_children() const { return childMeshSets.size(); }
     
     //! return the number of parents pointed to by this meshset
   int num_parents() const { return parentMeshSets.size(); }
+
+#else
+    //! get all children pointed to by this meshset
+  const MBEntityHandle* get_children( int& count_out ) const 
+    { 
+      count_out = mChildCount;
+      if (count_out > 2) {
+        count_out = childMeshSets.ptr[1] - childMeshSets.ptr[0];
+        return childMeshSets.ptr[0];
+      }
+      else
+        return childMeshSets.hnd;
+    }
+
+    //! get all parents pointed to by this meshset
+  const MBEntityHandle* get_parents( int& count_out ) const
+    { 
+      count_out = mParentCount;
+      if (count_out > 2) {
+        count_out = parentMeshSets.ptr[1] - parentMeshSets.ptr[0];
+        return parentMeshSets.ptr[0];
+      }
+      else
+        return parentMeshSets.hnd;
+    }
+
+    //! return the number of children pointed to by this meshset
+  int num_children() const 
+  {
+    if (mChildCount < 3)
+      return mChildCount;
+    else
+      return childMeshSets.ptr[1] - childMeshSets.ptr[0];
+  }
+    
+    //! return the number of parents pointed to by this meshset
+  int num_parents() const
+  {
+    if (mParentCount < 3)
+      return mParentCount;
+    else
+      return parentMeshSets.ptr[1] - parentMeshSets.ptr[0];
+  }
+#endif
+  
 
     //! add a parent to this meshset; returns true if parent was added, 0 if it was
     //! already a parent of this meshset
@@ -149,19 +199,32 @@ public:
     //! return the number of entities with the given type contained in this meshset
   virtual unsigned int num_entities_by_dimension(int dimension) const = 0;
 
-    //! rebuild parent-child relations for geometry
-  static MBErrorCode rebuild_geometry_relations();
-  
   typedef std::vector<MBEntityHandle> LinkSet;
 
 protected:
 
+#ifndef MB_MESH_SET_COMPACT_PARENT_CHILD_LISTS
     //! links to parents/children
   LinkSet parentMeshSets, childMeshSets;
   
   //!flag to indicate whether 'tracking' is occuring on this meshset
   //ie. all entities of the meshset know they belong to this meshset 
   bool mTracking;
+#else
+
+public:  
+  enum Count { ZERO=0, ONE=1, TWO=2, MANY=3 };
+  union CompactList {
+    MBEntityHandle hnd[2];
+    MBEntityHandle* ptr[2];
+  };
+protected:
+  bool mTracking;
+  Count mParentCount : 2;
+  Count mChildCount : 2;
+private:
+  CompactList parentMeshSets, childMeshSets;
+#endif
 };
 
 #define MESH_SET_VIRTUAL_FUNCTIONS      \

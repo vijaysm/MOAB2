@@ -46,6 +46,8 @@
 
 using namespace std;
 
+#ifndef MB_MESH_SET_COMPACT_PARENT_CHILD_LISTS
+
 MBMeshSet::MBMeshSet( bool track_ownership ) 
   : mTracking(track_ownership)
   {}
@@ -79,6 +81,166 @@ int MBMeshSet::remove_parent( MBEntityHandle parent )
   { return remove_from_vector( parentMeshSets, parent ); }
 int MBMeshSet::remove_child( MBEntityHandle child )
   { return remove_from_vector( childMeshSets, child ); }
+
+#else 
+
+MBMeshSet::MBMeshSet( bool track_ownership ) 
+  : mTracking(track_ownership),
+    mParentCount(ZERO),
+    mChildCount(ZERO)
+  {}
+
+MBMeshSet::~MBMeshSet() 
+{
+  if (mParentCount > 2)
+    free( parentMeshSets.ptr[0] );
+  if (mChildCount > 2)
+    free( childMeshSets.ptr[0] );
+}
+
+static inline 
+MBMeshSet::Count insert_in_vector( const MBMeshSet::Count count, 
+                                MBMeshSet::CompactList& list,
+                                const MBEntityHandle h,
+                                int &result )
+{
+  switch (count) {
+    case MBMeshSet::ZERO:
+      list.hnd[0] = h;
+      result = true;
+      return MBMeshSet::ONE;
+    case MBMeshSet::ONE:
+      if (list.hnd[0] == h) {
+        result = false;
+        return MBMeshSet::ONE;
+      }
+      else {
+        result = true;
+        list.hnd[1] = h;
+        return MBMeshSet::TWO;
+      }
+    case MBMeshSet::TWO:
+      if (list.hnd[0] == h || list.hnd[1] == h) {
+        result = false;
+        return MBMeshSet::TWO;
+      }
+      else {
+        MBEntityHandle* ptr = (MBEntityHandle*)malloc(3*sizeof(MBEntityHandle));
+        ptr[0] = list.hnd[0];
+        ptr[1] = list.hnd[1];
+        ptr[2] = h;
+        list.ptr[0] = ptr;
+        list.ptr[1] = ptr + 3;
+        result = true;
+        return MBMeshSet::MANY;
+      }
+    case MBMeshSet::MANY:
+      if (find( list.ptr[0], list.ptr[1], h ) != list.ptr[1]) {
+        result = false;
+      }
+      else {
+        int size = list.ptr[1] - list.ptr[0];
+        list.ptr[0] = (MBEntityHandle*)realloc( list.ptr[0], (size+1)*sizeof(MBEntityHandle) );
+        list.ptr[0][size] = h;
+        list.ptr[1] = list.ptr[0] + size + 1;
+        result = true;
+      }
+      return MBMeshSet::MANY;
+  }
+}
+
+int MBMeshSet::add_parent( MBEntityHandle parent )
+{ 
+  int result;
+  mParentCount = insert_in_vector( mParentCount, parentMeshSets, parent, result );
+  return result;
+}
+int MBMeshSet::add_child( MBEntityHandle child )
+{ 
+  int result;
+  mChildCount = insert_in_vector( mChildCount, childMeshSets, child, result );
+  return result;
+}
+
+static inline
+MBMeshSet::Count remove_from_vector( const MBMeshSet::Count count, 
+                                  MBMeshSet::CompactList& list,
+                                  const MBEntityHandle h,
+                                  int &result )
+{
+  switch (count) {
+    case MBMeshSet::ZERO:
+      result = false;
+      return MBMeshSet::ZERO;
+    case MBMeshSet::ONE:
+      if (h == list.hnd[0]) {
+        result = true;
+        return MBMeshSet::ZERO;
+      }
+      else {
+        result = false;
+        return MBMeshSet::ONE;
+      }
+    case MBMeshSet::TWO:
+      if (h == list.hnd[0]) {
+        list.hnd[0] = list.hnd[1];
+        result = true;
+        return MBMeshSet::ONE;
+      } 
+      else if (h == list.hnd[1]) {
+        result = true;
+        return MBMeshSet::ONE;
+      }
+      else {
+        result = false;
+        return MBMeshSet::TWO;
+      }
+    case MBMeshSet::MANY: {
+      MBEntityHandle *i, *j, *p;
+      i = std::find( list.ptr[0], list.ptr[1], h );
+      if (i == list.ptr[1]) {
+        result = false;
+        return MBMeshSet::MANY;
+      }
+      
+      result = true;
+      p = list.ptr[1] - 1;
+      while (i != p) {
+        j = i + 1;
+        *i = *j;
+        i = j;
+      }
+      int size = p - list.ptr[0];
+      if (size == 2) {
+        p = list.ptr[0];
+        list.hnd[0] = p[0];
+        list.hnd[1] = p[1];
+        free( p );
+        return MBMeshSet::TWO;
+      }
+      else {
+        list.ptr[0] = (MBEntityHandle*)realloc( list.ptr[0], size*sizeof(MBEntityHandle) );
+        list.ptr[1] = list.ptr[0] + size;
+        return MBMeshSet::MANY;
+      }
+    }
+  }
+}
+
+int MBMeshSet::remove_parent( MBEntityHandle parent )
+{ 
+  int result;
+  mParentCount = remove_from_vector( mParentCount, parentMeshSets, parent, result );
+  return result;
+}
+int MBMeshSet::remove_child( MBEntityHandle child )
+{ 
+  int result;
+  mChildCount = remove_from_vector( mChildCount, childMeshSets, child, result );
+  return result;
+}
+
+#endif
   
 
 MBMeshSet_MBRange::~MBMeshSet_MBRange()
