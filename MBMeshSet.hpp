@@ -73,43 +73,41 @@ public:
   const MBEntityHandle* get_children( int& count_out ) const 
     { 
       count_out = mChildCount;
-      if (count_out > 2) {
-        count_out = childMeshSets.ptr[1] - childMeshSets.ptr[0];
-        return childMeshSets.ptr[0];
-      }
-      else
+      if (count_out < MANY)
         return childMeshSets.hnd;
+      
+      count_out = childMeshSets.ptr[1] - childMeshSets.ptr[0];
+      return childMeshSets.ptr[0];
     }
 
     //! get all parents pointed to by this meshset
   const MBEntityHandle* get_parents( int& count_out ) const
     { 
       count_out = mParentCount;
-      if (count_out > 2) {
-        count_out = parentMeshSets.ptr[1] - parentMeshSets.ptr[0];
-        return parentMeshSets.ptr[0];
-      }
-      else
+      if (count_out < MANY)
         return parentMeshSets.hnd;
+        
+      count_out = parentMeshSets.ptr[1] - parentMeshSets.ptr[0];
+      return parentMeshSets.ptr[0];
     }
 
     //! return the number of children pointed to by this meshset
   int num_children() const 
-  {
-    if (mChildCount < 3)
-      return mChildCount;
-    else
-      return childMeshSets.ptr[1] - childMeshSets.ptr[0];
-  }
+    {
+      if (mChildCount < MANY)
+        return mChildCount;
+      else
+        return childMeshSets.ptr[1] - childMeshSets.ptr[0];
+    }
     
     //! return the number of parents pointed to by this meshset
   int num_parents() const
-  {
-    if (mParentCount < 3)
-      return mParentCount;
-    else
-      return parentMeshSets.ptr[1] - parentMeshSets.ptr[0];
-  }
+    {
+      if (mParentCount < MANY)
+        return mParentCount;
+      else
+        return parentMeshSets.ptr[1] - parentMeshSets.ptr[0];
+    }
 #endif
   
 
@@ -213,16 +211,32 @@ protected:
 #else
 
 public:  
+    //! Possible values of mParentCount and mChildCount
   enum Count { ZERO=0, ONE=1, TWO=2, MANY=3 };
+    //! If the number of entities is less than 3, store
+    //! the handles directly in the hnd member.  Otherwise
+    //! use the ptr member to hold the beginning and end
+    //! of a dynamically allocated array.
   union CompactList {
-    MBEntityHandle hnd[2];
-    MBEntityHandle* ptr[2];
+    MBEntityHandle hnd[2];  //!< Two handles
+    MBEntityHandle* ptr[2]; //!< begin and end pointers for array
   };
 protected:
+  //!flag to indicate whether 'tracking' is occuring on this meshset
+  //!ie. all entities of the meshset know they belong to this meshset 
   bool mTracking;
+  //! If less than MANY, the number of parents stored inline in
+  //! parentMeshSets.hnd.  If MANY, then parentMeshSets.ptr contains
+  //! array begin and end pointers for a dynamically allocated array
+  //! of parent handles.
   Count mParentCount : 2;
+  //! If less than MANY, the number of children stored inline in
+  //! childMeshSets.hnd.  If MANY, then childMeshSets.ptr contains
+  //! array begin and end pointers for a dynamically allocated array
+  //! of child handles.
   Count mChildCount : 2;
 private:
+  //! Storage for parent and child lists
   CompactList parentMeshSets, childMeshSets;
 #endif
 };
