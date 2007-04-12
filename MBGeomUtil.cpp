@@ -24,6 +24,47 @@
 
 namespace MBGeomUtil {
 
+bool segment_box_intersect( MBCartVect box_min,
+                            MBCartVect box_max,
+                            const MBCartVect& seg_pt,
+                            const MBCartVect& seg_unit_dir,
+                            double& seg_start, double& seg_end )
+{
+    // translate so that seg_pt is at origin
+  box_min -= seg_pt;
+  box_max -= seg_pt;
+  
+  for (unsigned i = 0; i < 3; ++i) {  // X, Y, and Z slabs
+
+      // intersect line with slab planes
+    const double t_min = box_min[i] / seg_unit_dir[i];
+    const double t_max = box_max[i] / seg_unit_dir[i];
+    
+      // check if line is parallel to planes
+    if (!finite(t_min)) {
+      if (box_min[i] > 0.0 || box_max[i] < 0.0)
+        return false; 
+      continue;
+    }
+
+    if (seg_unit_dir[i] < 0) {
+      if (t_min < seg_end) 
+        seg_end = t_min;
+      if (t_max > seg_start)
+        seg_start = t_max;
+    }
+    else { // seg_unit_dir[i] > 0
+      if (t_min > seg_start)
+        seg_start = t_min; 
+      if (t_max < seg_end)
+        seg_end = t_max;
+    }
+  }
+
+  return seg_start <= seg_end;
+}
+
+
 /* Impelementation copied from cgmMC ray_tri_contact (overlap.C) */
 bool ray_tri_intersect( const MBCartVect vertices[3],
                         const MBCartVect& b,
@@ -465,6 +506,14 @@ void closest_location_on_polygon( const MBCartVect& location,
   closest_out = (location - (norm % location + D) * norm)/(norm % norm);
 }
 
-
+void closest_location_on_box( const MBCartVect& min,
+                              const MBCartVect& max,
+                              const MBCartVect& point,
+                              MBCartVect& closest )
+{
+  closest[0] = point[0] < min[0] ? min[0] : point[0] > max[0] ? max[0] : point[0];
+  closest[1] = point[1] < min[1] ? min[1] : point[1] > max[1] ? max[1] : point[1];
+  closest[2] = point[2] < min[2] ? min[2] : point[2] > max[2] ? max[2] : point[2];
+}
 
 } // namespace MBGeoemtry

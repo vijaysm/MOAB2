@@ -26,6 +26,37 @@
 
 namespace MBGeomUtil {
 
+/** Given a line segment and an axis-aligned box, 
+ *  return the sub-segment of the line segment that 
+ *  itersects the box.
+ *  
+ *  Can be used to intersect ray with box by passing seg_end
+ *  as HUGE_VAL or std::numeric_limits<double>::maximum().
+ *
+ *\param box_min   Minimum corner of axis-aligned box
+ *\param box_max   Maximum corner of axis-aligned box
+ *\param seg_pt    A point in the line containing the segement
+ *\param seg_unit_dir A unit vector in the direction of the line 
+ *                 containing the semgent.
+ *\param seg_start The distance from seg_pt in the direction of
+ *                 seg_unit_dir at which the segment begins.
+ *                 As input, the start of the original segment, as output, the
+ *                 start of the sub-segment intersecting the box.
+ *                 Note:  seg_start must be less than seg_end
+ *\param seg_end   The distance from seg_pt in the direction of 
+ *                 seg_unit_dir at which the segment ends.
+ *                 As input, the end of the original segment, as output, the
+ *                 end of the sub-segment intersecting the box.
+ *                 Note:  seg_start must be less than seg_end
+ *\return true if line semgent intersects box, false otherwise.
+ */
+bool segment_box_intersect( MBCartVect box_min,
+                            MBCartVect box_max,
+                            const MBCartVect& seg_pt,
+                            const MBCartVect& seg_unit_dir,
+                            double& seg_start, double& seg_end );
+
+
 bool ray_tri_intersect( const MBCartVect vertices[3],
                         const MBCartVect& ray_point,
                         const MBCartVect& ray_unit_direction,
@@ -101,6 +132,11 @@ bool box_tri_overlap( const MBCartVect  triangle_corners[3],
                       const MBCartVect& box_half_dims );
 
                        
+
+void closest_location_on_box( const MBCartVect& box_min_corner,
+                              const MBCartVect& box_max_corner,
+                              const MBCartVect& point,
+                              MBCartVect& closest );
 
 /**\brief find closest location on triangle
  *

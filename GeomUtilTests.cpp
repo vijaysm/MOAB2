@@ -595,6 +595,206 @@ void test_closest_location_on_polygon()
   ASSERT_VECTORS_EQUAL( result, input );
 }
 
+void test_segment_box_intersect()
+{
+  const double box_min = 0.0;
+  const double box_max = 2.0;
+  const double box_wid = box_max - box_min;
+  const double box_mid = 0.5 * (box_min + box_max);
+  const MBCartVect min( box_min );
+  const MBCartVect max( box_max );
+  const MBCartVect X(1,0,0), Y(0,1,0), Z(0,0,1);
+  MBCartVect pt;
+  double start, end;
+  bool r;
+  
+    // test line through box in +x direction
+  double offset = 1;
+  pt = MBCartVect( box_min - offset, box_mid, box_mid );
+  start = -HUGE_VAL; end = HUGE_VAL;
+  r = segment_box_intersect( min, max, pt, X, start, end );
+  ASSERT( r );
+  ASSERT_DOUBLES_EQUAL( start, box_min + offset );
+  ASSERT_DOUBLES_EQUAL( end - start, box_wid);
+  
+    // test with ray ending left of the box
+  start = -HUGE_VAL; end = 0;
+  r = segment_box_intersect( min, max, pt, X, start, end );
+  ASSERT( !r );
+  
+    // test with ray ending within box
+  start = -HUGE_VAL; end = box_mid + offset;
+  r = segment_box_intersect( min, max, pt, X, start, end );
+  ASSERT( r );
+  ASSERT_DOUBLES_EQUAL( start, box_min + offset );
+  ASSERT_DOUBLES_EQUAL( end, box_mid + offset );
+  
+    // test with ray beginning within box
+  start = box_mid + offset; end = HUGE_VAL;
+  r = segment_box_intersect( min, max, pt, X, start, end );
+  ASSERT( r );
+  ASSERT_DOUBLES_EQUAL( start, box_mid + offset );
+  ASSERT_DOUBLES_EQUAL( end, box_max + offset );
+    
+    // test with ray right of box
+  start = offset + offset + box_max; end = HUGE_VAL;
+  r = segment_box_intersect( min, max, pt, X, start, end );
+  ASSERT( !r );
+  
+   
+    // test line through box in -y direction
+  offset = 1;
+  pt = MBCartVect( box_mid, box_min - offset, box_mid );
+  start = -HUGE_VAL; end = HUGE_VAL;
+  r = segment_box_intersect( min, max, pt, -Y, start, end );
+  ASSERT( r );
+  ASSERT_DOUBLES_EQUAL( end - start, box_wid );
+  ASSERT_DOUBLES_EQUAL( end, box_min - offset);
+  
+    // test with ray ending left of the box
+  start = box_min; end = HUGE_VAL;
+  r = segment_box_intersect( min, max, pt, -Y, start, end );
+  ASSERT( !r );
+  
+    // test with ray beginning within box
+  start = -box_mid - offset; end = HUGE_VAL;
+  r = segment_box_intersect( min, max, pt, -Y, start, end );
+  ASSERT( r );
+  ASSERT_DOUBLES_EQUAL( start, -box_mid - offset );
+  ASSERT_DOUBLES_EQUAL( end, box_min - offset );
+  
+    // test with ray ending within box
+  start = -HUGE_VAL; end = -box_mid - offset;
+  r = segment_box_intersect( min, max, pt, -Y, start, end );
+  ASSERT( r );
+  ASSERT_DOUBLES_EQUAL( start, -box_max - offset );
+  ASSERT_DOUBLES_EQUAL( end, -box_mid - offset );
+    
+    // test with ray right of box
+  start = -HUGE_VAL; end = -box_max - offset - offset;
+  r = segment_box_intersect( min, max, pt, -Y, start, end );
+  ASSERT( !r );
+ 
+    // test ray outside in Z direction, parallel to Z plane, and
+    // intersecting in projections into other planes
+  pt = MBCartVect( box_mid, box_mid, box_max + 1 );
+  start = 0; end = box_wid;
+  r = segment_box_intersect( min, max, pt,  X, start, end );
+  ASSERT( !r );
+  start = 0; end = box_wid;
+  r = segment_box_intersect( min, max, pt, -X, start, end );
+  ASSERT( !r );
+  start = 0; end = box_wid;
+  r = segment_box_intersect( min, max, pt,  Y, start, end );
+  ASSERT( !r );
+  start = 0; end = box_wid;
+  r = segment_box_intersect( min, max, pt, -Y, start, end );
+  ASSERT( !r );
+  
+    // try the other side (less than the min Z);
+  pt = MBCartVect( box_mid, box_mid, box_min - 1 );
+  start = 0; end = box_wid;
+  r = segment_box_intersect( min, max, pt,  X, start, end );
+  ASSERT( !r );
+  start = 0; end = box_wid;
+  r = segment_box_intersect( min, max, pt, -X, start, end );
+  ASSERT( !r );
+  start = 0; end = box_wid;
+  r = segment_box_intersect( min, max, pt,  Y, start, end );
+  ASSERT( !r );
+  start = 0; end = box_wid;
+  r = segment_box_intersect( min, max, pt, -Y, start, end );
+  ASSERT( !r );
+  
+    // now move the ray such that it lies exactly on the side of the box
+  pt = MBCartVect( box_mid, box_mid, box_min );
+  start = 0; end = box_wid;
+  r = segment_box_intersect( min, max, pt,  X, start, end );
+  ASSERT( r );
+  ASSERT_DOUBLES_EQUAL( start, 0 );
+  ASSERT_DOUBLES_EQUAL( end, 0.5 * box_wid );
+  start = 0; end = box_wid;
+  r = segment_box_intersect( min, max, pt, -X, start, end );
+  ASSERT( r );
+  ASSERT_DOUBLES_EQUAL( start, 0 );
+  ASSERT_DOUBLES_EQUAL( end, 0.5 * box_wid );
+  start = 0; end = box_wid;
+  r = segment_box_intersect( min, max, pt,  Y, start, end );
+  ASSERT( r );
+  ASSERT_DOUBLES_EQUAL( start, 0 );
+  ASSERT_DOUBLES_EQUAL( end, 0.5 * box_wid );
+  start = 0; end = box_wid;
+  r = segment_box_intersect( min, max, pt, -Y, start, end );
+  ASSERT( r );
+  ASSERT_DOUBLES_EQUAL( start, 0 );
+  ASSERT_DOUBLES_EQUAL( end, 0.5 * box_wid );
+  
+    // try a skew line segment
+  pt = MBCartVect( box_min - 0.25 * box_wid, box_mid, box_mid );
+  MBCartVect dir( 1.0/sqrt(2.0), 1.0/sqrt(2.0), 0 );
+  start = 0; end = 1.5 / sqrt(2.0) * box_wid;
+  r = segment_box_intersect( min, max, pt, dir, start, end );
+  ASSERT( r );
+  ASSERT_DOUBLES_EQUAL( start, 0.5 / sqrt(2.0) * box_wid );
+  ASSERT_DOUBLES_EQUAL( end, box_wid / sqrt(2.0) );
+  
+    // try with skew line segment that just touches edge of box
+  pt = MBCartVect( box_min - 0.5 * box_wid, box_mid, box_mid );
+  start = 0; end = 3.0 / sqrt(2.0) * box_wid;
+  r = segment_box_intersect( min, max, pt, dir, start, end );
+  ASSERT( r );
+  ASSERT_DOUBLES_EQUAL( start, box_wid / sqrt(2.0) );
+  ASSERT_DOUBLES_EQUAL( end, box_wid / sqrt(2.0) );
+
+    // try with skew line segment outside of box
+  pt = MBCartVect( box_min - 0.75 * box_wid, box_mid, box_mid );
+  start = 0; end = 3.0 / sqrt(2.0) * box_wid;
+  r = segment_box_intersect( min, max, pt, dir, start, end );
+  ASSERT( !r );
+}
+
+void test_closest_location_on_box()
+{
+  const MBCartVect min(0,0,0), max(1,2,3);
+  MBCartVect pt;
+  
+    // inside
+  closest_location_on_box( min, max, MBCartVect(0.5,0.5,0.5), pt );
+  ASSERT_VECTORS_EQUAL( MBCartVect(0.5,0.5,0.5), pt );
+  
+    // closest to min x side
+  closest_location_on_box( min, max, MBCartVect(-1.0,0.5,0.5), pt );
+  ASSERT_VECTORS_EQUAL( MBCartVect(0.0,0.5,0.5), pt );
+  
+    // closest to max x side
+  closest_location_on_box( min, max, MBCartVect(2.0,0.5,0.5), pt );
+  ASSERT_VECTORS_EQUAL( MBCartVect(1.0,0.5,0.5), pt );
+  
+    // closest to min y side
+  closest_location_on_box( min, max, MBCartVect(0.5,-1.0,0.5), pt );
+  ASSERT_VECTORS_EQUAL( MBCartVect(0.5,0.0,0.5), pt );
+  
+    // closest to max y side
+  closest_location_on_box( min, max, MBCartVect(0.5,2.5,0.5), pt );
+  ASSERT_VECTORS_EQUAL( MBCartVect(0.5,2.0,0.5), pt );
+  
+    // closest to min z side
+  closest_location_on_box( min, max, MBCartVect(0.5,0.5,-0.1), pt );
+  ASSERT_VECTORS_EQUAL( MBCartVect(0.5,0.5,0.0), pt );
+  
+    // closest to max z side
+  closest_location_on_box( min, max, MBCartVect(0.5,0.5,100.0), pt );
+  ASSERT_VECTORS_EQUAL( MBCartVect(0.5,0.5,3.0), pt );
+  
+    // closest to min corner
+  closest_location_on_box( min, max, MBCartVect(-1,-1,-1), pt );
+  ASSERT_VECTORS_EQUAL( min, pt );
+  
+    // closest to max corner
+  closest_location_on_box( min, max, MBCartVect(2,3,4), pt );
+  ASSERT_VECTORS_EQUAL( max, pt );
+}
+
 int main()
 {
   test_box_plane_overlap();
@@ -602,5 +802,7 @@ int main()
   test_ray_tri_intersect();
   test_closest_location_on_tri();
   test_closest_location_on_polygon();
+  test_segment_box_intersect();
+  test_closest_location_on_box();
   return error_count;
 }
