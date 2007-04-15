@@ -23,7 +23,8 @@ check_PROGRAMS = moab_test \
                  geom_util_test \
                  xform_test \
                  obb_test \
-		 vtk_test
+		 vtk_test \
+		 adaptive_kd_tree_tests
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 TESTS = $(check_PROGRAMS)
@@ -98,6 +99,7 @@ libMOAB_la_SOURCES = \
   GeomTopoTool.cpp \
   HigherOrderFactory.cpp \
   HomXform.cpp \
+  MBAdaptiveKDTree.cpp \
   MBAffineXform.cpp \
   MBAffineXform.hpp \
   MBAlloc.cpp \
@@ -177,6 +179,7 @@ libMOAB_la_include_HEADERS = \
   GeomTopoTool.hpp \
   HigherOrderFactory.hpp \
   HomXform.hpp \
+  MBAdaptiveKDTree.hpp \
   MBCN.hpp \
   MBCartVect.hpp \
   MBConfig.h \
@@ -276,6 +279,10 @@ obb_test_DEPENDENCIES = $(obb_test_LDADD)
 vtk_test_SOURCES = VtkTest.cpp
 vtk_test_LDADD = $(top_builddir)/libMOAB.la
 vtk_test_DEPENDENCIES = $(vtk_test_LDADD)
+
+adaptive_kd_tree_tests_SOURCES = adaptive_kd_tree_tests.cpp
+adaptive_kd_tree_tests_LDADD = $(top_builddir)/libMOAB.la
+adaptive_kd_tree_tests_DEPENDENCIES = $(adaptive_kd_tree_tests_LDADD)
 
 
 # Other files to clean up (e.g. output from tests)
