@@ -228,8 +228,14 @@ public:
   MBErrorCode get_default_data_ref(const MBTag tag_handle, const void *& data);
 
   //! get information about a tag
-  const TagInfo* get_tag_info(const char *tag_name );
-  const TagInfo* get_tag_info( MBTag tag_handle );
+  const TagInfo* get_tag_info(const char *tag_name ) const;
+  const TagInfo* get_tag_info( MBTag tag_handle ) const;
+  
+  unsigned long get_memory_use( MBTag tag_handle ) const;
+  
+  MBErrorCode get_memory_use( MBTag tag_handle,
+                              unsigned long& total,
+                              unsigned long& per_entity ) const;
 
 private:
 
@@ -318,12 +324,12 @@ inline TagInfo::~TagInfo()
 }
 
 
-inline const TagInfo* TagServer::get_tag_info( const char *tag_name )
+inline const TagInfo* TagServer::get_tag_info( const char *tag_name ) const
 {
   if(NULL == tag_name || strcmp(tag_name, "") == 0)
     return NULL;
 
-  std::map<MBTag, TagInfo>::iterator iterator;
+  std::map<MBTag, TagInfo>::const_iterator iterator;
   const std::string temp_name = tag_name;
   for(iterator = mTagTable.begin(); iterator != mTagTable.end(); ++iterator)
   {
@@ -336,9 +342,9 @@ inline const TagInfo* TagServer::get_tag_info( const char *tag_name )
   return NULL;
 }
 
-inline const TagInfo* TagServer::get_tag_info( MBTag tag_handle )
+inline const TagInfo* TagServer::get_tag_info( MBTag tag_handle ) const
 {
-  std::map<MBTag, TagInfo>::iterator iterator = mTagTable.find(tag_handle);
+  std::map<MBTag, TagInfo>::const_iterator iterator = mTagTable.find(tag_handle);
 
   if ( iterator != mTagTable.end() )
   {

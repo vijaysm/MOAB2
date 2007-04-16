@@ -203,3 +203,24 @@ MBEntityHandle PolyEntitySequence::get_unused_handle()
   return mNumEntities + mDeadEntities.size() + mStartEntityHandle;
 }
 
+
+unsigned long PolyEntitySequence::get_memory_use() const
+{
+  return sizeof(*this)
+       + mFreeEntities.size() / 8
+       + polyConn.capacity() * sizeof(MBEntityHandle)
+       + mLastIndex.capacity() * sizeof(int)
+       + mDeadEntities.capacity() * sizeof(MBEntityHandle)
+       ;
+}
+
+unsigned long PolyEntitySequence::get_memory_use( MBEntityHandle h ) const
+{
+  MBEntityID id = h - get_start_handle();
+  unsigned long result = 0;
+  if (!h)
+    result = mLastIndex[h];
+  else if (h < mLastIndex.size())
+    result = mLastIndex[h] - mLastIndex[h-1];
+  return result * sizeof(MBEntityHandle) + sizeof(int);
+}

@@ -1274,5 +1274,64 @@ MBErrorCode AEntityFactory::create_explicit_adjs(MBEntityHandle this_ent)
 }
 
   
-
+unsigned long AEntityFactory::get_memory_use()
+{
+  unsigned long total, per_ent;
+  mDensePageGroup.get_memory_use( total, per_ent );
+  
+  MBAdjacencyVector *adj_vector;
+  for (unsigned i = 0; i < MBMAXTYPE; ++i) {
+    MBRange ents;
+    mDensePageGroup.get_entities( (MBEntityType)i, ents );
     
+     // iterate through each entity
+    for(MBRange::iterator i = ents.begin(); i != ents.end(); ++i)
+    {
+      MBErrorCode result = mDensePageGroup.get_data(*i, &adj_vector);
+      if(result == MB_SUCCESS && adj_vector)
+        total += sizeof(MBEntityHandle) * adj_vector->capacity()
+               + sizeof(MBAdjacencyVector);
+    }
+  }
+ 
+  total += sizeof(*this);
+  return total;
+}
+  
+    
+MBErrorCode AEntityFactory::get_memory_use( const MBRange& ents_in,
+                                       unsigned long& min_per_ent,
+                                       unsigned long& amortized )
+{
+    // get subset of entities for which adjacency space is allocated
+  MBRange tmp_range, tag_range, ents;
+  for (unsigned i = 0; i < MBMAXTYPE; ++i) {
+    tmp_range.clear();
+    mDensePageGroup.get_entities( (MBEntityType)i, tmp_range );
+    tag_range.merge( tmp_range );
+  }
+
+  if (tag_range.empty()) {
+    min_per_ent = amortized = 0;
+    return MB_SUCCESS;
+  }
+  ents = ents_in.intersect( tag_range );
+
+  MBAdjacencyVector *adj_vector;
+  unsigned long total, per_ent;
+  mDensePageGroup.get_memory_use( total, per_ent );
+  amortized = total * ents.size() / tag_range.size();
+  
+  min_per_ent = 0;
+  for(MBRange::iterator i = ents.begin(); i != ents.end(); ++i)
+  {
+    MBErrorCode result = mDensePageGroup.get_data(*i, &adj_vector);
+    if(result == MB_SUCCESS && adj_vector)
+      min_per_ent += sizeof(MBEntityHandle) * adj_vector->capacity()
+                  + sizeof(MBAdjacencyVector);
+  }
+ 
+  amortized += min_per_ent;
+  return MB_SUCCESS;
+}
+  

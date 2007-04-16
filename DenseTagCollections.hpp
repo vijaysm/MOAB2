@@ -207,6 +207,9 @@ public:
   int tag_size() const { return mBytesPerFlag; }
   
   const void* get_default_value() const { return mDefaultValue; }
+  
+  MBErrorCode get_memory_use( unsigned long& total,
+                              unsigned long& per_entity );
 
 private:
   
@@ -399,6 +402,9 @@ public:
   MBErrorCode get_tags(const MBEntityHandle entity,
                        std::vector<MBTag> &tags);
   
+  MBErrorCode get_memory_use( MBTagId tag_id,
+                              unsigned long& total,
+                              unsigned long& per_entity );
 private:
 
   //! clean things out

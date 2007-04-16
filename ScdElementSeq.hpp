@@ -169,6 +169,9 @@ public:
   virtual MBErrorCode convert_realloc(bool& , bool& , bool& , 
                                       MBCore*, MBTag );
   
+  virtual unsigned long get_memory_use() const;
+  virtual unsigned long get_memory_use( MBEntityHandle h ) const;
+  
 };
 
 inline MBEntityHandle ScdElementSeq::get_element(const int i, const int j, const int k) const

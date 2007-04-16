@@ -171,6 +171,30 @@ MBErrorCode DenseTagSuperCollection::get_entities_with_tag_value(const MBRange &
   return result;
 }
 
+MBErrorCode DenseTagSuperCollection::get_memory_use( MBTagId tag_id,
+                                             unsigned long& total,
+                                             unsigned long& per_entity )
+{
+  std::vector<DensePageGroup*>::iterator group;
+  
+    // get memory use by dense page group
+  group = mDensePageGroups.begin() + tag_id;
+  if (group >= mDensePageGroups.end() || !*group)
+    return MB_TAG_NOT_FOUND;
+  (*group)->get_memory_use( total, per_entity );
+  
+    // count number of occupied slots in mDensePageGroups
+  unsigned num_used = 0;
+  for (group = mDensePageGroups.begin(); group != mDensePageGroups.end(); ++group)
+    if (*group)
+      ++num_used;
+  
+    // add in amortized storage in mDensePageGroups vector
+  total += sizeof(DensePageGroup*) * mDensePageGroups.capacity() / num_used;
+
+  return MB_SUCCESS;
+}
+
 MBErrorCode DensePageGroup::get_entities_with_tag_value(const MBEntityType type,
                                                         const void* value, 
                                                         MBRange &entities)
@@ -197,3 +221,21 @@ MBErrorCode DensePageGroup::get_entities_with_tag_value(const MBEntityType type,
   return MB_SUCCESS;
 }
 
+MBErrorCode DensePageGroup::get_memory_use( unsigned long& total,
+                                            unsigned long& per_entity )
+{
+  per_entity = tag_size();
+  
+  total = sizeof(*this);
+  if (mDefaultValue)
+    total += tag_size();
+  
+  for (unsigned i = 0; i < MBMAXTYPE; ++i) {
+    total += mDensePages[i].capacity() * sizeof(DensePage);
+    for (unsigned long j = 0; j < mDensePages[i].size(); ++j)
+      if (mDensePages[i][j].has_data())
+        total += DensePage::mPageSize * tag_size();
+  }
+  
+  return MB_SUCCESS;
+}

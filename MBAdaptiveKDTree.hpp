@@ -74,6 +74,9 @@ public:
                            const double box_max[3],
                            MBEntityHandle& root_handle );
 
+  //! Find all tree roots
+  MBErrorCode find_all_trees( MBRange& results );
+
   //! Destroy a tree
   MBErrorCode delete_tree( MBEntityHandle root_handle );
 

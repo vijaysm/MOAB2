@@ -132,6 +132,38 @@ void MBBitServer::reset_data()
   }
 }
 
+MBErrorCode MBBitServer::get_memory_use( MBTagId tag_id,
+                                         unsigned long& total,
+                                         unsigned long& per_entity ) const
+{
+  per_entity = 1; // cannot return fraction of bytes
+  
+  unsigned max_num_tags = 0;
+  for (unsigned i = 0; i < MBMAXTYPE; ++i) {
+    if (mBitPageGroups[i].size() > max_num_tags)
+      max_num_tags = mBitPageGroups[i].size();
+
+    if (tag_id >= mBitPageGroups[i].size())
+      continue;
+      
+    total += mBitPageGroups[i][tag_id]->get_memory_use();
+    total += sizeof(MBBitPageGroup*) * mBitPageGroups[i].capacity() / mBitPageGroups[i].size();
+  }
+  total += sizeof( std::vector<MBBitPageGroup*> );
+  total += sizeof(*this) / max_num_tags;
+
+  return MB_SUCCESS;
+}
+
+unsigned long MBBitPageGroup::get_memory_use() const
+{
+  unsigned long result = sizeof(*this);
+  result += sizeof(MBBitPage*) * mBitPages.capacity();
+  for (unsigned long i = 0; i < mBitPages.size(); ++i)
+    if (mBitPages[i] && mBitPages[i]->has_data())
+      result += MBBitPage::mPageSize;
+  return result;
+}
 
 //! get the entities
 MBErrorCode MBBitPageGroup::get_entities(MBEntityType type, MBRange& entities)

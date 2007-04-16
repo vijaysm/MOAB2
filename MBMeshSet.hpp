@@ -198,8 +198,12 @@ public:
   virtual unsigned int num_entities_by_dimension(int dimension) const = 0;
 
   typedef std::vector<MBEntityHandle> LinkSet;
+  
+  virtual unsigned long get_memory_use() const = 0;
 
 protected:
+
+  unsigned long parent_child_memory_use() const;
 
 #ifndef MB_MESH_SET_COMPACT_PARENT_CHILD_LISTS
     //! links to parents/children
@@ -296,7 +300,9 @@ private:
   \
   virtual unsigned int num_entities_by_type(MBEntityType entity_type) const;            \
   \
-  virtual unsigned int num_entities_by_dimension(int dimesion) const;
+  virtual unsigned int num_entities_by_dimension(int dimesion) const; \
+  \
+  virtual unsigned long get_memory_use() const;
 
 
 

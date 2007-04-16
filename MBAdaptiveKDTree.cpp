@@ -246,6 +246,13 @@ MBErrorCode MBAdaptiveKDTree::delete_tree( MBEntityHandle root_handle )
   return moab()->delete_entities( &dead_sets[0], dead_sets.size() );
 }
 
+MBErrorCode MBAdaptiveKDTree::find_all_trees( MBRange& results )
+{
+  return moab()->get_entities_by_type_and_tag( 0, MBENTITYSET, 
+                                               &rootTag, 0, 1,
+                                               results );
+}
+
 MBErrorCode MBAdaptiveKDTree::get_tree_iterator( MBEntityHandle root,
                                  MBAdaptiveKDTreeIter& iter )
 {

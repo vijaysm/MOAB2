@@ -948,6 +948,63 @@ MBErrorCode TagServer::get_number_entities( const MBRange &range,
   return MB_TAG_NOT_FOUND;
 }
 
+unsigned long TagServer::get_memory_use( MBTag tag_handle ) const
+{
+  if (mTagTable.find(tag_handle) == mTagTable.end())
+    return 0;
+
+  unsigned long result = 0, tmp;
+  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+    case MB_TAG_SPARSE:
+      mSparseData->get_memory_use( id, result, tmp );
+      break;
+    case MB_TAG_DENSE:
+      mDenseData->get_memory_use( id, result, tmp );
+      break;
+    case MB_TAG_BIT:
+      mBitServer->get_memory_use( id, result, tmp );
+      break;
+    default:
+      break;
+  }
+
+    // add in size of entry in mTagTable
+  return result + sizeof(MBTag) + sizeof(TagInfo)  + 3*sizeof(void*);
+}
+
+MBErrorCode TagServer::get_memory_use( MBTag tag_handle,
+                                       unsigned long& total,
+                                       unsigned long& per_entity ) const
+{
+  const TagInfo* tag_info = get_tag_info(tag_handle);
+  if(!tag_info)
+    return MB_TAG_NOT_FOUND;
+
+  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+    case MB_TAG_SPARSE:
+      mSparseData->get_memory_use( id, total, per_entity );
+      break;
+    case MB_TAG_DENSE:
+      mDenseData->get_memory_use( id, total, per_entity );
+      break;
+    case MB_TAG_BIT:
+      mBitServer->get_memory_use( id, total, per_entity );
+      break;
+    default:
+      break;
+  }
+  
+    // size of entry in mTagTable map
+  total = sizeof(MBTag) + sizeof(TagInfo) + 3*sizeof(void*);
+  if (tag_info->default_value())
+    total += tag_info->get_size();
+  total += tag_info->get_name().size();
+  
+  return MB_SUCCESS;
+}
+
 #ifdef TEST
 
 #include <iostream>

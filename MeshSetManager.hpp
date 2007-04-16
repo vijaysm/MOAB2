@@ -105,6 +105,11 @@ public:
   MBErrorCode remove_child ( MBEntityHandle from, MBEntityHandle child  );
   MBErrorCode remove_parent_child( MBEntityHandle parent, MBEntityHandle child );
 
+  unsigned long get_memory_use() const;
+  MBErrorCode get_memory_use( const MBRange& entities,
+                              unsigned long& min_per_ent,
+                              unsigned long& amortized );
+
 private:
 
   MBEntityHandle find_next_free_handle( unsigned proc_id );

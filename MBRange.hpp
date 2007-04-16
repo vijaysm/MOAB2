@@ -297,6 +297,8 @@ public:
   //! for debugging
   void print() const;
   void print( std::ostream& s ) const;
+  
+  unsigned long get_memory_use() const;
 
   //! merges this MBRange with another range
   void merge( const MBRange& range );

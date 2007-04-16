@@ -86,6 +86,10 @@ public:
 
   //! get number of entities of type
   MBErrorCode get_number_entities(MBEntityType type, int& num_entities);
+  
+  //! get number of entities
+  unsigned long get_number_entities()
+    { return mData.size(); }
 
   //! gets all entity handles that match a type and tag
   MBErrorCode get_entities(MBEntityType type, MBRange &entities);
@@ -99,7 +103,6 @@ public:
   bool contains(const MBEntityHandle entity) const;
   
   int tag_size() const { return mDataSize; }
-
 
 protected:
   
@@ -186,6 +189,10 @@ public:
   //! gets the number of entities that match a tag
   MBErrorCode get_number_entities(const MBRange &range,
                                    const MBTagId tag_handle, const MBEntityType type, int& num_ent);
+
+  MBErrorCode get_memory_use( MBTagId tag_id, 
+                              unsigned long& total,
+                              unsigned long& per_entity );
 
 private:
 

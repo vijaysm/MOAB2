@@ -134,6 +134,11 @@ public:
   MBErrorCode merge_adjust_adjacencies(MBEntityHandle entity_to_keep,
                                        MBEntityHandle entity_to_remove);
   
+  unsigned long get_memory_use();
+  MBErrorCode get_memory_use( const MBRange& entities,
+                              unsigned long& min_per_entity,
+                              unsigned long& amortized );
+  
 private:
 
   //! private constructor to prevent the construction of a default one

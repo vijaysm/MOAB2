@@ -114,6 +114,11 @@ public:
   void entity_sequence_deleted(MBEntitySequence* seq);
   void notify_full(MBEntitySequence* seq);
   void notify_not_full(MBEntitySequence* seq);
+  
+  unsigned long get_memory_use();
+  MBErrorCode get_memory_use( const MBRange& entities,
+                              unsigned long& min_per_entity,
+                              unsigned long& amortized_per_entity );
 
 private:
   

@@ -2304,3 +2304,80 @@ bool MBCore::is_valid(const MBEntityHandle this_ent)
   else return true;
 }
 
+unsigned long MBCore::estimated_memory_use() const
+{
+  unsigned long result = sequenceManager->get_memory_use();
+  result += aEntityFactory->get_memory_use();
+  result += mMeshSetManager->get_memory_use();
+  
+  std::vector<MBTag> tags;
+  tag_get_tags( tags );
+  for (unsigned i = 0; i < tags.size(); ++i)
+    result += tagServer->get_memory_use( tags[i] );
+  
+  return result;
+}
+
+unsigned long MBCore::estimated_memory_use( MBTag tag ) const
+{
+  return tagServer->get_memory_use( tag );
+}
+
+MBErrorCode MBCore::estimated_memory_use( const MBRange& entities,
+                                          unsigned long& min_per_entity,
+                                          unsigned long& amortized ) const
+{
+  MBErrorCode rval, result = MB_SUCCESS;
+  unsigned long tmp_min, tmp_am;
+  min_per_entity = amortized = 0;
+  
+  rval = sequenceManager->get_memory_use( entities, tmp_min, tmp_am );
+  if (MB_SUCCESS != rval)
+    result = rval;
+  min_per_entity += tmp_min;
+  amortized += tmp_am;
+  
+  rval = mMeshSetManager->get_memory_use( entities, tmp_min, tmp_am );
+  if (MB_SUCCESS != rval)
+    result = rval;
+  min_per_entity += tmp_min;
+  amortized += tmp_am;
+  
+  rval = aEntityFactory->get_memory_use( entities, tmp_min, tmp_am );
+  if (MB_SUCCESS != rval)
+    result = rval;
+  min_per_entity += tmp_min;
+  amortized += tmp_am;
+  
+  std::vector<MBTag> tags;
+  rval = tag_get_tags( tags );
+  if (MB_SUCCESS != rval)
+    return rval;
+    
+  for (unsigned i = 0; i < tags.size(); ++i) {
+    rval = tagServer->get_memory_use( tags[i], tmp_am, tmp_min );
+    if (MB_SUCCESS != rval) {
+      result = rval;
+      continue;
+    }
+
+    MBRange tag_ents;
+    for (MBEntityType t = (MBEntityType)0; t < MBMAXTYPE; ++t) {
+      MBRange tmp_ents;
+      rval = tagServer->get_entities( tags[i], t, tmp_ents );
+      if (MB_SUCCESS != rval)
+        result = rval;
+      else
+        tag_ents.merge( tmp_ents );
+    }
+    if (tag_ents.empty())
+      continue;
+    
+    MBRange in_tag_ents = tag_ents.intersect( entities );
+    min_per_entity += tmp_min * in_tag_ents.size();
+    amortized += tmp_am * in_tag_ents.size() / tag_ents.size();
+  }
+  
+  return result;
+}
+

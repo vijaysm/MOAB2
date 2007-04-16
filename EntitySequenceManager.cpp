@@ -449,6 +449,56 @@ MBErrorCode EntitySequenceManager::delete_entity( MBEntityHandle entity )
   return MB_FAILURE;
 }
 
+unsigned long EntitySequenceManager::get_memory_use()
+{
+  unsigned long total = 0;
+  for (unsigned type = 0; type < MBMAXTYPE; ++type)
+    for (SeqMap::iterator i = mSequenceMap[type].begin(); i != mSequenceMap[type].end(); ++i)
+      total += i->second->get_memory_use();
+  return total;
+}
+
+MBErrorCode EntitySequenceManager::get_memory_use( 
+                                     const MBRange& entities,
+                                     unsigned long& min_per_entity,
+                                     unsigned long& amortized )
+{
+  min_per_entity = 0;
+  amortized =0;
+  if (entities.empty())
+    return MB_SUCCESS;
+  
+  MBRange::iterator e, i = entities.begin();
+  for (unsigned type = TYPE_FROM_HANDLE( *i ); type < MBENTITYSET; ++type) {
+    if (i == entities.end())
+      break;
+    
+    SeqMap& map = mSequenceMap[type];
+    if (map.empty())
+      continue;
+      
+    for (SeqMap::iterator j = map.begin(); j != map.end(); ++j)
+    {
+      MBEntitySequence* seq = j->second;
+      if (seq->get_end_handle() < *i)
+        continue;
+      
+      if (*i < seq->get_start_handle())
+        return MB_ENTITY_NOT_FOUND;
+      
+      e = entities.upper_bound( i, entities.end(), seq->get_end_handle() );
+      MBEntityID count = 0;
+      for (; i != e; ++i) {
+        min_per_entity += seq->get_memory_use( *i );
+        ++count;
+      }
+      amortized += count * seq->get_memory_use() / seq->number_entities();
+    }
+  }
+        
+  return MB_SUCCESS;
+}
+
 
 #ifdef TEST
 

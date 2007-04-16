@@ -304,6 +304,8 @@ public:
   bool contains(const MBEntityHandle handle) const;
 
   int tag_size() const { return mBitsPerFlag; }
+  
+  unsigned long get_memory_use( ) const;
 
 private:
 
@@ -493,6 +495,9 @@ public:
                                     const MBEntityType type,
                                     int& num_entities);
   
+  MBErrorCode get_memory_use( MBTagId tag,
+                              unsigned long& total,
+                              unsigned long& per_entity ) const;
 private:
   //! bit pages are indexed by tag id and entity type
   std::vector< MBBitPageGroup* > mBitPageGroups[MBMAXTYPE];

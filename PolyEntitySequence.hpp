@@ -84,6 +84,9 @@ public:
   virtual void get_entities(MBRange& entities) const;
 
   virtual void free_handle(MBEntityHandle entity);
+
+  virtual unsigned long get_memory_use() const;
+  virtual unsigned long get_memory_use( MBEntityHandle handle ) const;
   
 private:
 

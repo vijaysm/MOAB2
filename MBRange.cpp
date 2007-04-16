@@ -790,3 +790,11 @@ bool operator==( const MBRange& r1, const MBRange& r2 )
   return i2 == r2.const_pair_end();
 }
 
+unsigned long MBRange::get_memory_use() const
+{
+  unsigned long result = 0;
+  for (const PairNode* n = mHead.mNext; n != &mHead; n = n->mNext)
+    result += sizeof(PairNode);
+  return result;
+}
+

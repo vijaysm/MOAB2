@@ -746,5 +746,63 @@ MBErrorCode MeshSetManager::remove_child( MBEntityHandle from_handle,
   return MB_SUCCESS;
 }
 
+unsigned long MeshSetManager::get_memory_use() const
+{
+  unsigned long result = sizeof(*this);
+  result += sizeof(MBEntityID) * lastID.capacity();
+
+  for (MBEntityID i = 0; i < MESHSET_MANAGER_LEVEL_ONE_COUNT; ++i) {
+    if (!setArrays[i])
+      continue;
+    result += sizeof(MBMeshSet**) * MESHSET_MANAGER_LEVEL_TWO_COUNT;
+    for (MBEntityID j = 0; j < MESHSET_MANAGER_LEVEL_TWO_COUNT; ++j) {
+      if (!setArrays[i][j])
+        continue;
+      result += sizeof(MBMeshSet*) * MESHSET_MANAGER_LEVEL_THREE_COUNT;
+      for (MBEntityID k = 0; k < MESHSET_MANAGER_LEVEL_THREE_COUNT; ++k) {
+        if (setArrays[i][j][k])
+          result += setArrays[i][j][k]->get_memory_use();
+      }
+    }
+  }
+  return result;
+}
+
+MBErrorCode MeshSetManager::get_memory_use( const MBRange& range,
+                                            unsigned long& per_entity,
+                                            unsigned long& amortized )
+{
+  per_entity =0;
+  amortized = 0;
+  MBRange::iterator r = range.lower_bound( MBENTITYSET );
+
+  unsigned long ent_count = 0, total_count = 0;
+  for (MBEntityID i = 0; i < MESHSET_MANAGER_LEVEL_ONE_COUNT; ++i) {
+    if (!setArrays[i]) 
+      continue;
+    amortized += sizeof(MBMeshSet**) * MESHSET_MANAGER_LEVEL_TWO_COUNT;
+    for (MBEntityID j = 0; j < MESHSET_MANAGER_LEVEL_TWO_COUNT; ++j) {
+      if (!setArrays[i][j]) 
+        continue;
+      amortized += sizeof(MBMeshSet*) * MESHSET_MANAGER_LEVEL_THREE_COUNT;
+      for (MBEntityID k = 0; k < MESHSET_MANAGER_LEVEL_THREE_COUNT; ++k) {
+        if (!setArrays[i][j][k])
+          continue;
+        
+        ++total_count;
+        MBEntityHandle h = make_handle(i,j,k);
+        r = range.lower_bound( r, range.end(), h );
+        if (r != range.end() && *r == h) {
+          ++ent_count;
+          per_entity += setArrays[i][j][k]->get_memory_use();
+        }
+      }
+    }
+  }
   
+  amortized += sizeof(*this) + sizeof(MBEntityID) * lastID.capacity();
+  amortized *= ent_count;
+  amortized /= total_count;
+  return MB_SUCCESS;
+}
 

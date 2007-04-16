@@ -57,8 +57,6 @@ MBEntitySequence::MBEntitySequence(EntitySequenceManager* seq_manager,
 MBEntitySequence::~MBEntitySequence()
 { }
 
-
-
 VertexEntitySequence::VertexEntitySequence(EntitySequenceManager* seq_manager,
                                            MBEntityHandle start_handle, 
                                            MBEntityID num_entities,
@@ -199,6 +197,18 @@ MBEntityID VertexEntitySequence::get_next_free_index( MBEntityID prev_free_index
   assert( (MBEntityHandle)prev_free_index < mFreeEntities.size() 
           && mFreeEntities[prev_free_index] );
   return reinterpret_cast<MBEntityID&>(mCoords[0][prev_free_index]);
+}
+
+unsigned long VertexEntitySequence::get_memory_use() const
+{
+  return sizeof(*this)
+       + mFreeEntities.size() / 8
+       + number_allocated() * get_memory_use((MBEntityHandle)0);
+}
+
+unsigned long VertexEntitySequence::get_memory_use( MBEntityHandle ) const
+{
+  return 3 * sizeof(double);
 }
 
 MBEntityID ElementEntitySequence::get_next_free_index( MBEntityID prev_free_index ) const
@@ -757,4 +767,16 @@ bool ElementEntitySequence::tag_for_deletion( MBEntityID node_index,
 
   return delete_node;
 
+}
+
+unsigned long ElementEntitySequence::get_memory_use() const
+{
+  return sizeof(*this)
+       + mFreeEntities.size() / 8
+       + number_allocated() * get_memory_use((MBEntityHandle)0);
+}
+
+unsigned long ElementEntitySequence::get_memory_use( MBEntityHandle ) const
+{
+  return sizeof(MBEntityHandle) * nodes_per_element();
 }

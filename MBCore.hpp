@@ -818,7 +818,20 @@ public:
     //! return whether the input handle is valid or not
   bool is_valid(const MBEntityHandle this_ent);
   
-  
+//-----------------Memory Functions------------------//
+    //! estimate memory used by MOAB for storing data
+  unsigned long estimated_memory_use() const;
+    //! estimated memory used for storing tag data
+  unsigned long estimated_memory_use( MBTag tag ) const;
+    //! estimate memory used for storing specified entities,
+    //! including tag data, adjacencies, etc.
+    //!\param minimum_storage Total size of data stored for entities
+    //!\param amortized_overhead Total size for stored entities, including
+    //!                       overhead in structures, amortized per entity.
+  MBErrorCode estimated_memory_use( const MBRange& entities,
+                                    unsigned long& minimum_storage,
+                                    unsigned long& amortized_overhead ) const; 
+                                     
   
   virtual const MBProcConfig& proc_config() const 
     { return procInfo; }

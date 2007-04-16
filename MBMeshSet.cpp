@@ -82,6 +82,12 @@ int MBMeshSet::remove_parent( MBEntityHandle parent )
 int MBMeshSet::remove_child( MBEntityHandle child )
   { return remove_from_vector( childMeshSets, child ); }
 
+unsigned long MBMeshSet::parent_child_memory_use() const
+{
+  return (parentMeshSets.capacity() + childMeshSets.capacity())
+       * sizeof(MBEntityHandle);
+}
+
 #else 
 
 MBMeshSet::MBMeshSet( bool track_ownership ) 
@@ -237,6 +243,16 @@ int MBMeshSet::remove_child( MBEntityHandle child )
 { 
   int result;
   mChildCount = remove_from_vector( mChildCount, childMeshSets, child, result );
+  return result;
+}
+
+unsigned long MBMeshSet::parent_child_memory_use() const
+{
+  unsigned long result = 0;
+  if (num_children() > 2)
+    result += sizeof(MBEntityHandle) * num_children();
+  if (num_parents() > 2)
+    result += sizeof(MBEntityHandle) * num_parents();
   return result;
 }
 
@@ -464,7 +480,10 @@ MBErrorCode MBMeshSet_MBRange::unite( const MBMeshSet *meshset_2,
   return add_entities( other_range, handle, adj_fact );
 }
 
-
+unsigned long MBMeshSet_MBRange::get_memory_use() const
+{
+  return parent_child_memory_use() + mRange.get_memory_use() + sizeof(*this);
+}
 
 
 MBMeshSet_Vector::~MBMeshSet_Vector()
@@ -741,5 +760,12 @@ MBErrorCode MBMeshSet_Vector::unite( const MBMeshSet *meshset_2,
   std::vector<MBEntityHandle> other_vector;
   meshset_2->get_entities(other_vector);
   return add_entities(&other_vector[0], other_vector.size(), my_handle, adj_fact);
+}
+
+unsigned long MBMeshSet_Vector::get_memory_use() const
+{
+  return parent_child_memory_use() 
+       + mVector.capacity()*sizeof(MBEntityHandle) 
+       + sizeof(*this);
 }
 

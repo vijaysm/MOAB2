@@ -212,6 +212,34 @@ MBErrorCode SparseTagSuperCollection::get_number_entities(const MBRange &range,
 }
 
 
+MBErrorCode SparseTagSuperCollection::get_memory_use( MBTagId tag_id,
+                                              unsigned long& total,
+                                              unsigned long& per_entity )
+{
+  SparseTagCollection* coll = get_collection(tag_id);
+  if (!coll)
+    return MB_TAG_NOT_FOUND;
+
+    // 3*sizeof(void*)                      - std::map RB tree node
+    // sizeof(void*)*sizeof(MBEntityHandle) - data in std::map node
+    // coll->tag_size()                     - the actual tag data
+  per_entity = 4*sizeof(void*)+sizeof(MBEntityHandle)+coll->tag_size();
+    
+    // Count number of occupied slots in mDataTags vector
+  unsigned num_coll =0;
+  for (unsigned i = 0; i < mDataTags.size(); ++i)
+    if (mDataTags[i])
+      ++num_coll;
+
+    // amortized space in mDataTags vector
+  total = sizeof(SparseTagCollection*) * mDataTags.capacity() / num_coll;
+    // SparseTagCollection object for this tag
+  total += sizeof(SparseTagCollection);
+    // Per-entity data in SparseTagCollection
+  total += per_entity * coll->get_number_entities();
+  return MB_SUCCESS;
+}
+
 /*
   SparseTagCollection functions ----------------------------------
 */
