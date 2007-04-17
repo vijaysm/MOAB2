@@ -598,41 +598,33 @@ static MBErrorCode intersect_children_with_tris( MBInterface* moab,
     bool lo = MBGeomUtil::box_tri_overlap( coords, box_min, left_max, 0.0);
     bool ro = MBGeomUtil::box_tri_overlap( coords, right_min, box_max, 0.0);
     
+      // didn't intersect either - tolerance issue
+    while (!lo && !ro) {
+        // calculate a good tolerance
+      MBCartVect dim = box_max - box_min;
+      double max_dim;
+      if (dim[0] > dim[1] && dim[1] > dim[2])
+        max_dim = dim[0];
+      else if (dim[1] > dim[2])
+        max_dim = dim[1];
+      else
+        max_dim = dim[2];
+        // loop with increasing tolerance until we intersect something
+      double tol = std::numeric_limits<double>::epsilon();
+      while (!lo && !ro) {
+        lo = MBGeomUtil::box_tri_overlap( coords, box_min, left_max, tol*max_dim);
+        ro = MBGeomUtil::box_tri_overlap( coords, right_min, box_max, tol*max_dim);
+        tol *= 10.0;
+        if (tol > 1e-3)
+          return MB_FAILURE;
+      }
+    }
     if (lo && ro)
       both_tris.insert( *i );
     else if (lo)
       left_tris.insert( *i );
-    else if (ro)
+    else //if (ro)
       right_tris.insert( *i );
-    else {
-      // if didn't insertsect either, then some kind of tolerance issue
-      // insert in closest box
-      double shortest_dist;
-      bool left_closest = true;
-      MBCartVect pos;
-      MBGeomUtil::closest_location_on_box( box_min, left_max, coords[0], pos );
-      shortest_dist = pos % pos;
-      MBGeomUtil::closest_location_on_box( box_min, left_max, coords[1], pos );
-      if (pos % pos < shortest_dist)
-        shortest_dist = pos % pos;
-      MBGeomUtil::closest_location_on_box( box_min, left_max, coords[2], pos );
-      if (pos % pos < shortest_dist)
-        shortest_dist = pos % pos;
-      MBGeomUtil::closest_location_on_box( right_min, box_max, coords[0], pos );
-      if (pos % pos < shortest_dist)
-        { shortest_dist = pos % pos; left_closest = false; }
-      MBGeomUtil::closest_location_on_box( right_min, box_max, coords[1], pos );
-      if (pos % pos < shortest_dist)
-        { shortest_dist = pos % pos; left_closest = false; }
-      MBGeomUtil::closest_location_on_box( right_min, box_max, coords[2], pos );
-      if (pos % pos < shortest_dist)
-        { shortest_dist = pos % pos; left_closest = false; }
-        
-      if (left_closest)
-        left_tris.insert( *i );
-      else
-        right_tris.insert( *i );
-    }
   }
   
   return MB_SUCCESS;
