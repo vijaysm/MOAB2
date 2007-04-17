@@ -191,7 +191,7 @@ bool box_tri_overlap( const MBCartVect vertices[3],
   CHECK_RANGE( p0, p2, rad );
   
   p0 = -e0[2]*v0[0] + e0[0]*v0[2];
-  p2 = -e0[2]*v2[0] + e0[0]+v2[2];
+  p2 = -e0[2]*v2[0] + e0[0]*v2[2];
   rad = fez * box_dims[0] + fex * box_dims[2];
   CHECK_RANGE( p0, p2, rad );
     
