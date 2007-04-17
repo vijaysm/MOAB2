@@ -642,11 +642,13 @@ MBErrorCode MBAdaptiveKDTree::build_tree_bisect_triangles( MBRange& triangles,
                                        MBEntityHandle& root_set_out,
                                        const Settings* settings_ptr )
 {
-  const double SPLIT_RATIO_THRESHOLD = 0.1;
-
   Settings settings;
   if (settings_ptr)
     settings = *settings_ptr;
+  if (settings.maxEntPerLeaf < 1)
+    settings.maxEntPerLeaf = 1;
+  if (settings.maxTreeDepth < 1)
+    settings.maxTreeDepth = std::numeric_limits<unsigned>::max();
   
     // calculate bounding box of triangles
     
@@ -685,15 +687,17 @@ MBErrorCode MBAdaptiveKDTree::build_tree_bisect_triangles( MBRange& triangles,
     if (MB_SUCCESS != rval)
       break;
     
-    size_t count = entities.size();
-    if ((!settings.maxEntPerLeaf || (settings.maxEntPerLeaf < count)) &&
-        (!settings.maxTreeDepth || (settings.maxTreeDepth > iter.depth())) &&
-        count > 1) {
+    const size_t p_count = entities.size();
+    if (settings.maxEntPerLeaf < p_count && settings.maxTreeDepth > iter.depth())
+    {
       MBRange best_left, best_right, best_both;
       int best_axis = -1;
-      double best_val = SPLIT_RATIO_THRESHOLD;
+      double best_val = HUGE_VAL;
       const MBCartVect min(iter.box_min()), max(iter.box_max());
       const MBCartVect mid = 0.5 * (min + max);
+      const MBCartVect dim = max - min;
+      const MBCartVect area( dim[1]*dim[2], dim[2]*dim[0], dim[0]*dim[1] );
+      const double p_area = area[0] + area[1] + area[2];
       for (int axis = 0; axis < 3; ++axis) {
         MBAdaptiveKDTree::Plane plane = { mid[axis], axis };
         MBRange left, right, both;
@@ -701,8 +705,10 @@ MBErrorCode MBAdaptiveKDTree::build_tree_bisect_triangles( MBRange& triangles,
                         plane, min, max, left, right, both );
         if (MB_SUCCESS != rval)
           return rval;
-        double val = (left.size() + right.size()) / (double)count;
-        if (!left.empty() && !right.empty() && val > best_val) {
+        
+        const size_t b_count = both.size();
+        double val = (b_count + p_count) * (p_area + area[axis]);
+        if (b_count < p_count && val < best_val) {
           best_axis = axis;
           best_left.swap(left);
           best_right.swap(right);
@@ -719,13 +725,21 @@ MBErrorCode MBAdaptiveKDTree::build_tree_bisect_triangles( MBRange& triangles,
         if (MB_SUCCESS != rval)
           return rval;
       }
+      else {
+        rval = iter.step();
+        if (MB_ENTITY_NOT_FOUND == rval) 
+          return MB_SUCCESS;  // at end
+        else if (MB_SUCCESS != rval)
+          break;
+      }
     } 
-    
-    rval = iter.step();
-    if (MB_ENTITY_NOT_FOUND == rval) 
-      return MB_SUCCESS;  // at end
-    else if (MB_SUCCESS != rval)
-      break;
+    else {
+      rval = iter.step();
+      if (MB_ENTITY_NOT_FOUND == rval) 
+        return MB_SUCCESS;  // at end
+      else if (MB_SUCCESS != rval)
+        break;
+    }
   }
   
   delete_tree( root_set_out );
