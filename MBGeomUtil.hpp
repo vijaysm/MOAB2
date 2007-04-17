@@ -131,7 +131,10 @@ bool box_tri_overlap( const MBCartVect  triangle_corners[3],
                       const MBCartVect& box_center,
                       const MBCartVect& box_half_dims );
 
-                       
+bool box_point_overlap( const MBCartVect& box_min_corner,
+                        const MBCartVect& box_max_corner,
+                        const MBCartVect& point,
+                        double tolerance );
 
 void closest_location_on_box( const MBCartVect& box_min_corner,
                               const MBCartVect& box_max_corner,

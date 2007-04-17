@@ -516,4 +516,15 @@ void closest_location_on_box( const MBCartVect& min,
   closest[2] = point[2] < min[2] ? min[2] : point[2] > max[2] ? max[2] : point[2];
 }
 
+bool box_point_overlap( const MBCartVect& box_min_corner,
+                        const MBCartVect& box_max_corner,
+                        const MBCartVect& point,
+                        double tolerance )
+{
+  MBCartVect closest;
+  closest_location_on_box( box_min_corner, box_max_corner, point, closest );
+  closest -= point;
+  return closest % closest < tolerance * tolerance;
+}
+
 } // namespace MBGeoemtry
