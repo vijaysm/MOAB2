@@ -997,7 +997,7 @@ MBErrorCode TagServer::get_memory_use( MBTag tag_handle,
   }
   
     // size of entry in mTagTable map
-  total = sizeof(MBTag) + sizeof(TagInfo) + 3*sizeof(void*);
+  total += sizeof(MBTag) + sizeof(TagInfo) + 3*sizeof(void*);
   if (tag_info->default_value())
     total += tag_info->get_size();
   total += tag_info->get_name().size();

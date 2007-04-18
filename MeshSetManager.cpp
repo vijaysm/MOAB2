@@ -803,6 +803,7 @@ MBErrorCode MeshSetManager::get_memory_use( const MBRange& range,
   amortized += sizeof(*this) + sizeof(MBEntityID) * lastID.capacity();
   amortized *= ent_count;
   amortized /= total_count;
+  amortized += per_entity;
   return MB_SUCCESS;
 }
 
