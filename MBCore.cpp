@@ -2020,7 +2020,8 @@ MBErrorCode MBCore::get_parent_meshsets(const MBEntityHandle meshset,
   std::vector<MBEntityHandle> parent_vec;
   MBErrorCode result = get_parent_meshsets(meshset, parent_vec, num_hops);
   if (MB_SUCCESS != result) return result;
-  std::copy(parent_vec.begin(), parent_vec.end(), mb_range_inserter(parents));
+  std::sort( parent_vec.begin(), parent_vec.end() );
+  std::copy(parent_vec.rbegin(), parent_vec.rend(), mb_range_inserter(parents));
   return MB_SUCCESS;
 }
 
@@ -2043,7 +2044,8 @@ MBErrorCode MBCore::get_child_meshsets(const MBEntityHandle meshset,
   std::vector<MBEntityHandle> child_vec;
   MBErrorCode result = get_child_meshsets(meshset, child_vec, num_hops);
   if (MB_SUCCESS != result) return result;
-  std::copy(child_vec.begin(), child_vec.end(), mb_range_inserter(children));
+  std::sort( child_vec.begin(), child_vec.end() );
+  std::copy(child_vec.rbegin(), child_vec.rend(), mb_range_inserter(children));
   return MB_SUCCESS;
 }
 
