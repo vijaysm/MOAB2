@@ -34,7 +34,7 @@ TESTS = $(check_PROGRAMS)
 
 # Some variables
 DEFS = $(DEFINES) -DIS_BUILDING_MB
-
+INCLUDES += -I$(top_builddir) 
 
 # The directory in which to install headers
 libMOAB_la_includedir = $(includedir)
