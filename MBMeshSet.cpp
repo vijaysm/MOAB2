@@ -502,6 +502,7 @@ MBErrorCode MBMeshSet_Vector::clear( MBEntityHandle mEntityHandle,
     }
   }
   mVector.clear();
+  mVector.reserve(0);
   return MB_SUCCESS;
 }
 
