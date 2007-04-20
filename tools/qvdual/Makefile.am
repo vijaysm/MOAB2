@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = foreign
 DEFS = $(DEFINES)
-INCLUDES += -I$(top_srcdir) $(QVDUAL_INCLUDES)
+INCLUDES += -I$(top_srcdir) -I$(top_builddir) $(QVDUAL_INCLUDES)
 bin_PROGRAMS = qvdual
 qvdual_SOURCES = \
   CropTool.cpp \

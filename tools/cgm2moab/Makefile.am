@@ -3,7 +3,7 @@ AUTOMAKE_OPTIONS = foreign
 @CGM_CONFIG_OPTIONS@
 
 DEFS = $(DEFINES)
-INCLUDES += -I$(top_srcdir) $(CGM_INCLUDES)
+INCLUDES += -I$(top_srcdir) -I$(top_builddir) $(CGM_INCLUDES)
 
 bin_PROGRAMS = cgm2moab
 cgm2moab_SOURCES = main.cc cubfile.c

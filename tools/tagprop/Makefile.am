@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = foreign
 DEFS = $(DEFINES)
-INCLUDES += -I$(top_srcdir)
+INCLUDES += -I$(top_srcdir) -I$(top_builddir)
 bin_PROGRAMS = mbtagprop
 mbtagprop_SOURCES = parse.cpp parse.hpp propagate_tags.cpp
 LDADD = $(top_builddir)/libMOAB.la
