@@ -38,7 +38,7 @@
 #include <vector>
 
 
-//#define MB_MESH_SET_COMPACT_PARENT_CHILD_LISTS
+#define MB_MESH_SET_COMPACT_PARENT_CHILD_LISTS
 
 
 class AEntityFactory;

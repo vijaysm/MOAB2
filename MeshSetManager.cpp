@@ -746,26 +746,28 @@ MBErrorCode MeshSetManager::remove_child( MBEntityHandle from_handle,
   return MB_SUCCESS;
 }
 
-unsigned long MeshSetManager::get_memory_use() const
+void MeshSetManager::get_memory_use( unsigned long& entity_total,
+                                     unsigned long& memory_total) const
 {
-  unsigned long result = sizeof(*this);
-  result += sizeof(MBEntityID) * lastID.capacity();
+  memory_total = sizeof(*this);
+  memory_total += sizeof(MBEntityID) * lastID.capacity();
+  entity_total = 0;
 
   for (MBEntityID i = 0; i < MESHSET_MANAGER_LEVEL_ONE_COUNT; ++i) {
     if (!setArrays[i])
       continue;
-    result += sizeof(MBMeshSet**) * MESHSET_MANAGER_LEVEL_TWO_COUNT;
+    memory_total += sizeof(MBMeshSet**) * MESHSET_MANAGER_LEVEL_TWO_COUNT;
     for (MBEntityID j = 0; j < MESHSET_MANAGER_LEVEL_TWO_COUNT; ++j) {
       if (!setArrays[i][j])
         continue;
-      result += sizeof(MBMeshSet*) * MESHSET_MANAGER_LEVEL_THREE_COUNT;
+      memory_total += sizeof(MBMeshSet*) * MESHSET_MANAGER_LEVEL_THREE_COUNT;
       for (MBEntityID k = 0; k < MESHSET_MANAGER_LEVEL_THREE_COUNT; ++k) {
         if (setArrays[i][j][k])
-          result += setArrays[i][j][k]->get_memory_use();
+          entity_total += setArrays[i][j][k]->get_memory_use();
       }
     }
   }
-  return result;
+  memory_total += entity_total;
 }
 
 MBErrorCode MeshSetManager::get_memory_use( const MBRange& range,
@@ -801,8 +803,7 @@ MBErrorCode MeshSetManager::get_memory_use( const MBRange& range,
   }
   
   amortized += sizeof(*this) + sizeof(MBEntityID) * lastID.capacity();
-  amortized *= ent_count;
-  amortized /= total_count;
+  amortized = (unsigned long)( (double)amortized * ent_count / total_count );
   amortized += per_entity;
   return MB_SUCCESS;
 }

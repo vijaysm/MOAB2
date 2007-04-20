@@ -97,7 +97,8 @@ public:
   
   virtual MBEntityID get_next_free_index( MBEntityID prev_free_index ) const = 0;
 
-  virtual unsigned long get_memory_use() const = 0;
+  virtual void get_memory_use( unsigned long& used,
+                               unsigned long& allocated ) const = 0;
   virtual unsigned long get_memory_use( MBEntityHandle handle ) const = 0;
 
 protected:
@@ -159,7 +160,7 @@ public:
   
   virtual MBEntityID get_next_free_index( MBEntityID prev_free_index ) const;
 
-  virtual unsigned long get_memory_use() const;
+  virtual void get_memory_use( unsigned long& used, unsigned long& allocated ) const;
   virtual unsigned long get_memory_use( MBEntityHandle handle ) const;
 private:
 
@@ -212,7 +213,7 @@ public:
   virtual bool has_mid_face_nodes() const;
   virtual bool has_mid_volume_nodes() const;
 
-  virtual unsigned long get_memory_use() const;
+  virtual void get_memory_use( unsigned long& used, unsigned long& allocated ) const;
   virtual unsigned long get_memory_use( MBEntityHandle handle ) const;
 
 protected:

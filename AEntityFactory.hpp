@@ -134,10 +134,11 @@ public:
   MBErrorCode merge_adjust_adjacencies(MBEntityHandle entity_to_keep,
                                        MBEntityHandle entity_to_remove);
   
-  unsigned long get_memory_use();
+  void get_memory_use( unsigned long& total_entity_storage,
+                       unsigned long& total_storage );
   MBErrorCode get_memory_use( const MBRange& entities,
-                              unsigned long& min_per_entity,
-                              unsigned long& amortized );
+                              unsigned long& total_entity_storage,
+                              unsigned long& total_amortized_storage );
   
 private:
 

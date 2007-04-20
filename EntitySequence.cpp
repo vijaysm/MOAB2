@@ -199,11 +199,12 @@ MBEntityID VertexEntitySequence::get_next_free_index( MBEntityID prev_free_index
   return reinterpret_cast<MBEntityID&>(mCoords[0][prev_free_index]);
 }
 
-unsigned long VertexEntitySequence::get_memory_use() const
+void VertexEntitySequence::get_memory_use( unsigned long& used,
+                                           unsigned long& allocated) const
 {
-  return sizeof(*this)
-       + mFreeEntities.size() / 8
-       + number_allocated() * get_memory_use((MBEntityHandle)0);
+  unsigned long per_ent = get_memory_use((MBEntityHandle)0);
+  allocated = sizeof(*this) + mFreeEntities.size()/8 + per_ent*number_allocated();
+  used = per_ent * number_entities();
 }
 
 unsigned long VertexEntitySequence::get_memory_use( MBEntityHandle ) const
@@ -769,11 +770,12 @@ bool ElementEntitySequence::tag_for_deletion( MBEntityID node_index,
 
 }
 
-unsigned long ElementEntitySequence::get_memory_use() const
+void ElementEntitySequence::get_memory_use( unsigned long& used,
+                                            unsigned long& allocated) const
 {
-  return sizeof(*this)
-       + mFreeEntities.size() / 8
-       + number_allocated() * get_memory_use((MBEntityHandle)0);
+  unsigned long per_ent = get_memory_use((MBEntityHandle)0);
+  allocated = sizeof(*this) + mFreeEntities.size()/8 + per_ent*number_allocated();
+  used = per_ent * number_entities();
 }
 
 unsigned long ElementEntitySequence::get_memory_use( MBEntityHandle ) const

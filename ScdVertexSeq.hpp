@@ -93,7 +93,7 @@ public:
   
   MBEntityHandle get_unused_handle();
 
-  virtual unsigned long get_memory_use() const;
+  virtual void get_memory_use( unsigned long& used, unsigned long& allocated ) const;
 };
 
 inline MBEntityHandle ScdVertexSeq::get_vertex(const int i, const int j, 

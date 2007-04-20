@@ -2306,80 +2306,227 @@ bool MBCore::is_valid(const MBEntityHandle this_ent)
   else return true;
 }
 
-unsigned long MBCore::estimated_memory_use() const
+static unsigned long get_num_entities_with_tag( TagServer* ts, 
+                                                MBTag tag,
+                                                const MBRange& entities )
 {
-  unsigned long result = sequenceManager->get_memory_use();
-  result += aEntityFactory->get_memory_use();
-  result += mMeshSetManager->get_memory_use();
+  if (entities.empty())
+    return 0;
   
-  std::vector<MBTag> tags;
-  tag_get_tags( tags );
-  for (unsigned i = 0; i < tags.size(); ++i)
-    result += tagServer->get_memory_use( tags[i] );
-  
-  return result;
-}
-
-unsigned long MBCore::estimated_memory_use( MBTag tag ) const
-{
-  return tagServer->get_memory_use( tag );
-}
-
-MBErrorCode MBCore::estimated_memory_use( const MBRange& entities,
-                                          unsigned long& min_per_entity,
-                                          unsigned long& amortized ) const
-{
-  MBErrorCode rval, result = MB_SUCCESS;
-  unsigned long tmp_min, tmp_am;
-  min_per_entity = amortized = 0;
-  
-  rval = sequenceManager->get_memory_use( entities, tmp_min, tmp_am );
-  if (MB_SUCCESS != rval)
-    result = rval;
-  min_per_entity += tmp_min;
-  amortized += tmp_am;
-  
-  rval = mMeshSetManager->get_memory_use( entities, tmp_min, tmp_am );
-  if (MB_SUCCESS != rval)
-    result = rval;
-  min_per_entity += tmp_min;
-  amortized += tmp_am;
-  
-  rval = aEntityFactory->get_memory_use( entities, tmp_min, tmp_am );
-  if (MB_SUCCESS != rval)
-    result = rval;
-  min_per_entity += tmp_min;
-  amortized += tmp_am;
-  
-  std::vector<MBTag> tags;
-  rval = tag_get_tags( tags );
-  if (MB_SUCCESS != rval)
-    return rval;
-    
-  for (unsigned i = 0; i < tags.size(); ++i) {
-    rval = tagServer->get_memory_use( tags[i], tmp_am, tmp_min );
-    if (MB_SUCCESS != rval) {
-      result = rval;
-      continue;
-    }
-
-    MBRange tag_ents;
-    for (MBEntityType t = (MBEntityType)0; t < MBMAXTYPE; ++t) {
-      MBRange tmp_ents;
-      rval = tagServer->get_entities( tags[i], t, tmp_ents );
-      if (MB_SUCCESS != rval)
-        result = rval;
-      else
-        tag_ents.merge( tmp_ents );
-    }
-    if (tag_ents.empty())
-      continue;
-    
-    MBRange in_tag_ents = tag_ents.intersect( entities );
-    min_per_entity += tmp_min * in_tag_ents.size();
-    amortized += tmp_am * in_tag_ents.size() / tag_ents.size();
+  int tmp;
+  unsigned long total = 0;
+  MBEntityType t = TYPE_FROM_HANDLE( entities.front() );
+  MBEntityType e = TYPE_FROM_HANDLE( entities.back() );
+  ++e;
+  for (; t != e; ++t) {
+    tmp = 0;
+    if (MB_SUCCESS == ts->get_number_entities( entities, tag, t, tmp ))
+      total += tmp;
   }
   
-  return result;
+  return total;
 }
 
+void MBCore::estimated_memory_use_internal( const MBRange* ents,
+                                  unsigned long* total_storage,
+                                  unsigned long* total_amortized_storage,
+                                  unsigned long* entity_storage,
+                                  unsigned long* amortized_entity_storage,
+                                  unsigned long* adjacency_storage,
+                                  unsigned long* amortized_adjacency_storage,
+                                  const MBTag* tag_array,
+                                  unsigned num_tags,
+                                  unsigned long* tag_storage,
+                                  unsigned long* amortized_tag_storage )
+{
+    // Figure out which values we need to calulate
+  unsigned long i_entity_storage,    ia_entity_storage, 
+                i_adjacency_storage, ia_adjacency_storage, 
+                i_tag_storage,       ia_tag_storage,
+                i_set_storage,       ia_set_storage;
+  unsigned long *total_tag_storage = 0, 
+                *amortized_total_tag_storage =0;
+  if (!tag_array) {
+    total_tag_storage = tag_storage;
+    amortized_total_tag_storage = amortized_tag_storage;
+  }
+  if (total_storage || total_amortized_storage) {
+    if (!entity_storage)
+      entity_storage = &i_entity_storage;
+    if (!amortized_entity_storage)
+      amortized_entity_storage = &ia_entity_storage;
+    if (!adjacency_storage)
+      adjacency_storage = &i_adjacency_storage;
+    if (!amortized_adjacency_storage)
+      amortized_adjacency_storage = &ia_adjacency_storage;
+  }
+  else {
+    if (entity_storage || amortized_entity_storage) {
+      if (!amortized_entity_storage)
+        amortized_entity_storage = &ia_entity_storage;
+      else if (!entity_storage)
+        entity_storage = &i_entity_storage;
+    }
+    if (adjacency_storage || amortized_adjacency_storage) {
+      if (!amortized_adjacency_storage)
+        amortized_adjacency_storage = &ia_adjacency_storage;
+      else if (!adjacency_storage)
+        adjacency_storage = &i_adjacency_storage;
+    }
+  }
+  if (!total_tag_storage && total_storage)
+    total_tag_storage = &i_tag_storage;
+  if (!amortized_total_tag_storage && total_amortized_storage)
+    amortized_total_tag_storage = &ia_tag_storage;
+    
+    // get entity storage
+  if (amortized_entity_storage) {
+    if (ents) {
+      sequenceManager->get_memory_use( *ents, *entity_storage, *amortized_entity_storage );
+      mMeshSetManager->get_memory_use( *ents, i_set_storage, ia_set_storage );
+    } 
+    else {
+      sequenceManager->get_memory_use( *entity_storage, *amortized_entity_storage );
+      mMeshSetManager->get_memory_use( i_set_storage, ia_set_storage );
+    }
+    *entity_storage += i_set_storage;
+    *amortized_entity_storage += ia_set_storage;
+  }
+  
+    // get adjacency storage
+  if (amortized_adjacency_storage) {
+    if (ents)
+      aEntityFactory->get_memory_use( *ents, *adjacency_storage, *amortized_adjacency_storage );
+    else
+      aEntityFactory->get_memory_use( *adjacency_storage, *amortized_adjacency_storage );
+  }
+  
+    // get storage for requested list of tags
+  if (tag_array) {
+    for (unsigned i = 0; i < num_tags; ++i) {
+      unsigned long total, per_ent, count;
+      tagServer->get_memory_use( tag_array[i], total, per_ent );
+      
+      if (ents) {
+        count = get_num_entities_with_tag( tagServer, tag_array[i], *ents );
+        if (tag_storage)
+          tag_storage[i] = count * per_ent;
+        if (amortized_tag_storage) {
+          tagServer->get_number_entities( tag_array[i], per_ent );
+          if (per_ent)
+            amortized_tag_storage[i] = (unsigned long)((double)total * count / per_ent);
+        }
+      }
+      else {
+        if (tag_storage) {
+          tagServer->get_number_entities( tag_array[i], count );
+          tag_storage[i] = count * per_ent;
+        }
+        if (amortized_tag_storage)
+          amortized_tag_storage[i] = total;
+      }
+    }
+  }
+  
+    // get storage for all tags
+  if (total_tag_storage || amortized_total_tag_storage) {
+    if (amortized_total_tag_storage)
+      *amortized_total_tag_storage = 0;
+    if (total_tag_storage)
+      *total_tag_storage =0;
+      
+    std::vector<MBTag> tags;
+    tag_get_tags( tags );
+    for (unsigned i = 0; i < tags.size(); ++i) {
+      unsigned long total, per_ent, count;
+      tagServer->get_memory_use( tags[i], total, per_ent );
+      
+      if (ents) {
+        count = get_num_entities_with_tag( tagServer, tags[i], *ents );
+        if (total_tag_storage)
+          *total_tag_storage += count * per_ent;
+        if (amortized_total_tag_storage) {
+          tagServer->get_number_entities( tags[i], per_ent );
+          if (per_ent)
+            *amortized_total_tag_storage += (unsigned long)((double)total * count / per_ent);
+        }
+      }
+      else {
+        if (total_tag_storage) {
+          tagServer->get_number_entities( tags[i], count );
+          *total_tag_storage += count * per_ent;
+        }
+        if (amortized_total_tag_storage)
+          *amortized_total_tag_storage += total;
+      }
+    }
+  }
+  
+    // calculate totals
+  if (total_storage)
+    *total_storage = *entity_storage + *adjacency_storage + *total_tag_storage;
+  
+  if (total_amortized_storage)
+    *total_amortized_storage = *amortized_entity_storage 
+                             + *amortized_adjacency_storage
+                             + *amortized_total_tag_storage;
+}
+
+
+void  MBCore::estimated_memory_use( const MBEntityHandle* ent_array,
+                                    unsigned long num_ents,
+                                    unsigned long* total_storage,
+                                    unsigned long* total_amortized_storage,
+                                    unsigned long* entity_storage,
+                                    unsigned long* amortized_entity_storage,
+                                    unsigned long* adjacency_storage,
+                                    unsigned long* amortized_adjacency_storage,
+                                    const MBTag* tag_array,
+                                    unsigned num_tags,
+                                    unsigned long* tag_storage,
+                                    unsigned long* amortized_tag_storage ) 
+{
+  MBRange range;
+  
+    // If non-empty entity list, call range version of function
+  if (ent_array) {
+    if (num_ents > 20) {
+      std::vector<MBEntityHandle> list(num_ents);
+      std::copy(ent_array, ent_array+num_ents, list.begin());
+      std::sort( list.begin(), list.end() );
+      MBRange::iterator j = range.begin();
+      for (std::vector<MBEntityHandle>::reverse_iterator i = list.rbegin(); i != list.rend(); ++i)
+        j = range.insert( j, *i, *i );
+    }
+    else {
+      std::copy( ent_array, ent_array + num_ents, mb_range_inserter(range) );
+    }
+  }
+  
+  estimated_memory_use_internal( ent_array ? &range : 0,
+                         total_storage,     total_amortized_storage,
+                         entity_storage,    amortized_entity_storage,
+                         adjacency_storage, amortized_adjacency_storage,
+                         tag_array,         num_tags,
+                         tag_storage,       amortized_tag_storage );
+}
+
+void MBCore::estimated_memory_use( const MBRange& ents,
+                                   unsigned long* total_storage,
+                                   unsigned long* total_amortized_storage,
+                                   unsigned long* entity_storage,
+                                   unsigned long* amortized_entity_storage,
+                                   unsigned long* adjacency_storage,
+                                   unsigned long* amortized_adjacency_storage,
+                                   const MBTag* tag_array,
+                                   unsigned num_tags,
+                                   unsigned long* tag_storage,
+                                   unsigned long* amortized_tag_storage )
+{
+  estimated_memory_use_internal( &ents,
+                         total_storage,     total_amortized_storage,
+                         entity_storage,    amortized_entity_storage,
+                         adjacency_storage, amortized_adjacency_storage,
+                         tag_array,         num_tags,
+                         tag_storage,       amortized_tag_storage );
+}

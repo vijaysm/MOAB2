@@ -5398,7 +5398,8 @@ MBErrorCode mb_proc_subset_test( MBInterface* )
 MBErrorCode mb_memory_use_test( MBInterface* ) 
 {
   MBCore mb;
-  unsigned long init_total = mb.estimated_memory_use();
+  unsigned long init_total, total_with_elem, total_with_tag, total_with_tag_data;
+  mb.estimated_memory_use(0,0,0,&init_total);
   
   double coords[12] = { 1, 2, 0, 3, 4, 0, 5, 6, 0, 7, 8, 0 };
   MBEntityHandle verts[4];
@@ -5409,47 +5410,43 @@ MBErrorCode mb_memory_use_test( MBInterface* )
   MBEntityHandle elem;
   mb.create_element( MBQUAD, verts, 4, elem );
   
-  unsigned long total_with_elem = mb.estimated_memory_use();
+  mb.estimated_memory_use(0,0,0,&total_with_elem);
   if (total_with_elem <= init_total)
     return MB_FAILURE;
   
   unsigned long min, am;
   MBRange r;
   r.insert( elem );
-  if (MB_SUCCESS != mb.estimated_memory_use( r, min, am ))
-    return MB_FAILURE;
+  mb.estimated_memory_use( r, &min, &am );
   if (min != 4*sizeof(MBEntityHandle))
     return MB_FAILURE;
   
   r.clear();
   r.insert( verts[0] );
   r.insert( verts[1] );
-  if (MB_SUCCESS != mb.estimated_memory_use( r, min, am ))
-    return MB_FAILURE;
+  mb.estimated_memory_use( r, &min, &am );
   if (min != 6*sizeof(double))
     return MB_FAILURE;
   
   MBTag tag;
   if (MB_SUCCESS != mb.tag_create( "TMP_TAG", sizeof(int), MB_TAG_SPARSE, tag, 0 ))
     return MB_FAILURE;
-  if (MB_SUCCESS != mb.estimated_memory_use( r, min, am ))
-    return MB_FAILURE;
+  mb.estimated_memory_use( r, &min, &am );
   if (min != 6*sizeof(double))
     return MB_FAILURE;
     
-  unsigned long total_with_tag = mb.estimated_memory_use();
+  mb.estimated_memory_use(0,0,0,&total_with_tag);
   if (total_with_tag <= total_with_elem)
     return MB_FAILURE;
 
   int tag_data[] = { 0xA, 0xB };
   if (MB_SUCCESS != mb.tag_set_data( tag, r, &tag_data ))
     return MB_FAILURE;
-  if (MB_SUCCESS != mb.estimated_memory_use( r, min, am ))
-    return MB_FAILURE;
+  mb.estimated_memory_use( r, &min, &am );
   if (min <= 6*sizeof(double))
     return MB_FAILURE;
     
-  unsigned long total_with_tag_data = mb.estimated_memory_use();
+  mb.estimated_memory_use(0,0,0,&total_with_tag_data);
   if (total_with_tag_data <= total_with_tag)
     return MB_FAILURE;
   

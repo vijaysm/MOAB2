@@ -1274,11 +1274,12 @@ MBErrorCode AEntityFactory::create_explicit_adjs(MBEntityHandle this_ent)
 }
 
   
-unsigned long AEntityFactory::get_memory_use()
+void AEntityFactory::get_memory_use( unsigned long& entity_total,
+                                     unsigned long& memory_total )
 {
-  unsigned long total, per_ent;
-  mDensePageGroup.get_memory_use( total, per_ent );
-  
+  mDensePageGroup.get_memory_use( memory_total, entity_total );
+  entity_total = 0;  
+
   MBAdjacencyVector *adj_vector;
   for (unsigned i = 0; i < MBMAXTYPE; ++i) {
     MBRange ents;
@@ -1289,13 +1290,12 @@ unsigned long AEntityFactory::get_memory_use()
     {
       MBErrorCode result = mDensePageGroup.get_data(*i, &adj_vector);
       if(result == MB_SUCCESS && adj_vector)
-        total += sizeof(MBEntityHandle) * adj_vector->capacity()
-               + sizeof(MBAdjacencyVector);
+        entity_total += sizeof(MBEntityHandle) * adj_vector->capacity()
+                      + sizeof(MBAdjacencyVector);
     }
   }
  
-  total += sizeof(*this);
-  return total;
+  memory_total += sizeof(*this) + entity_total;
 }
   
     

@@ -204,14 +204,19 @@ MBEntityHandle PolyEntitySequence::get_unused_handle()
 }
 
 
-unsigned long PolyEntitySequence::get_memory_use() const
+void PolyEntitySequence::get_memory_use( unsigned long& used, 
+                                         unsigned long& allocated) const
 {
-  return sizeof(*this)
+  allocated = sizeof(*this)
        + mFreeEntities.size() / 8
        + polyConn.capacity() * sizeof(MBEntityHandle)
        + mLastIndex.capacity() * sizeof(int)
        + mDeadEntities.capacity() * sizeof(MBEntityHandle)
        ;
+  used = 0;
+  for (MBEntityHandle h = get_start_handle(); h <= get_end_handle(); ++h)
+    if (is_valid_entity(h))
+      used += get_memory_use( h );
 }
 
 unsigned long PolyEntitySequence::get_memory_use( MBEntityHandle h ) const

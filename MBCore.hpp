@@ -819,24 +819,108 @@ public:
   bool is_valid(const MBEntityHandle this_ent);
   
 //-----------------Memory Functions------------------//
-    //! estimate memory used by MOAB for storing data
-  unsigned long estimated_memory_use() const;
-    //! estimated memory used for storing tag data
-  unsigned long estimated_memory_use( MBTag tag ) const;
-    //! estimate memory used for storing specified entities,
-    //! including tag data, adjacencies, etc.
-    //!\param minimum_storage Total size of data stored for entities
-    //!\param amortized_overhead Total size for stored entities, including
-    //!                       overhead in structures, amortized per entity.
-  MBErrorCode estimated_memory_use( const MBRange& entities,
-                                    unsigned long& minimum_storage,
-                                    unsigned long& amortized_overhead ) const; 
+
+
+  /**\brief Calculate amount of memory used to store MOAB data
+   *
+   * This function calculates the amount of memory used to store
+   * MOAB data.  
+   *
+   * There are two possible values for each catagory of memory use.
+   * The exact value and the amortized value.  The exact value is the
+   * amount of memory used to store the data for the specified entities.
+   * The amortized value includes the exact value and an amortized 
+   * estimate of the memory consumed in overhead for storing the values
+   * (indexing structures, access structures, etc.)  
+   *
+   * Note: If ent_array is NULL, the total memory used by MOAB for storing
+   *       data will be returned in the address pointed to by
+   *       total_amortized_storage, if total_amortized_storage is not NULL.
+   *
+   *\param ent_array Array of entities for which to estimate the memory use.
+   *                 If NULL, estimate is done for all entities.
+   *\param num_ents The length of ent_array.  Not used if ent_rray is NULL.
+   *\param total_(amortized_)storage The sum of the memory entity, adjacency, and all tag storage.
+   *\param (amortized_)entity_storage The storage for the entity definitions
+   *                 (connectivity arrays for elements, coordinates for vertices,
+   *                  list storage within sets, etc.)
+   *\param (amortized_)adjacency_storage The storage for adjacency data.
+   *\param tag_array  An array of tags for which to calculate the memory use.
+   *\param num_tags   The lenght of tag_array
+   *\param (amortized_)tag_storage If tag_array is not NULL, then one value
+   *                   for each tag specifying the memory used for storing that
+   *                   tag.  If tag_array is NULL and this value is not, the
+   *                   location at which to store the total memory used for
+   *                   all tags.
+   */
+  void estimated_memory_use( const MBEntityHandle* ent_array = 0,
+                             unsigned long  num_ents = 0,
+                             unsigned long* total_storage = 0,
+                             unsigned long* total_amortized_storage = 0,
+                             unsigned long* entity_storage = 0,
+                             unsigned long* amortized_entity_storage = 0,
+                             unsigned long* adjacency_storage = 0,
+                             unsigned long* amortized_adjacency_storage = 0,
+                             const MBTag*   tag_array = 0,
+                             unsigned       num_tags = 0,
+                             unsigned long* tag_storage = 0,
+                             unsigned long* amortized_tag_storage = 0 );
+
+  /**\brief Calculate amount of memory used to store MOAB data
+   *
+   * This function calculates the amount of memory used to store
+   * MOAB data.  
+   *
+   * There are two possible values for each catagory of memory use.
+   * The exact value and the amortized value.  The exact value is the
+   * amount of memory used to store the data for the specified entities.
+   * The amortized value includes the exact value and an amortized 
+   * estimate of the memory consumed in overhead for storing the values
+   * (indexing structures, access structures, etc.)  
+   *
+   *\param ents      Entities for which to estimate the memory use.
+   *\param total_(amortized_)storage The sum of the memory entity, adjacency, and all tag storage.
+   *\param (amortized_)entity_storage The storage for the entity definitions
+   *                 (connectivity arrays for elements, coordinates for vertices,
+   *                  list storage within sets, etc.)
+   *\param (amortized_)adjacency_storage The storage for adjacency data.
+   *\param tag_array  An array of tags for which to calculate the memory use.
+   *\param num_tags   The lenght of tag_array
+   *\param (amortized_)tag_storage If tag_array is not NULL, then one value
+   *                   for each tag specifying the memory used for storing that
+   *                   tag.  If tag_array is NULL and this value is not, the
+   *                   location at which to store the total memory used for
+   *                   all tags.
+   */
+  void estimated_memory_use( const MBRange& ents,
+                             unsigned long* total_storage = 0,
+                             unsigned long* total_amortized_storage = 0,
+                             unsigned long* entity_storage = 0,
+                             unsigned long* amortized_entity_storage = 0,
+                             unsigned long* adjacency_storage = 0,
+                             unsigned long* amortized_adjacency_storage = 0,
+                             const MBTag*   tag_array = 0,
+                             unsigned       num_tags = 0,
+                             unsigned long* tag_storage = 0,
+                             unsigned long* amortized_tag_storage = 0 );
                                      
   
   virtual const MBProcConfig& proc_config() const 
     { return procInfo; }
 
 private:
+
+  void estimated_memory_use_internal( const MBRange* ents,
+                            unsigned long* total_storage,
+                            unsigned long* total_amortized_storage,
+                            unsigned long* entity_storage,
+                            unsigned long* amortized_entity_storage,
+                            unsigned long* adjacency_storage,
+                            unsigned long* amortized_adjacency_storage,
+                            const MBTag*   tag_array,
+                            unsigned       num_tags,
+                            unsigned long* tag_storage,
+                            unsigned long* amortized_tag_storage );
 
   const MBProcConfig procInfo;
 

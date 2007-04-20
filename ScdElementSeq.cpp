@@ -133,9 +133,10 @@ bool ScdElementSeq::boundary_complete() const
   return false;
 }
 
-unsigned long ScdElementSeq::get_memory_use() const
+void ScdElementSeq::get_memory_use( unsigned long& used, 
+                                    unsigned long& allocated) const
 { 
-  return sizeof(*this) + sizeof(VertexSeqRef) * vertexSeqRefs.capacity();
+  allocated = used = sizeof(*this) + sizeof(VertexSeqRef) * vertexSeqRefs.capacity();
 }
 
 unsigned long ScdElementSeq::get_memory_use( MBEntityHandle ) const

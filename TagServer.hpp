@@ -204,6 +204,9 @@ public:
   MBErrorCode get_number_entities( const MBTag tag_handle, const MBEntityType type,
                              int& num_entities);
 
+  //! get number of entities with tag set
+  MBErrorCode get_number_entities( const MBTag tag_handle, unsigned long& num_ents );
+
   //! gets number of entities that match a type and tag
   MBErrorCode get_number_entities(const MBRange &input_range,
                                    const MBTag tag_handle, const MBEntityType type,

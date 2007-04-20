@@ -115,10 +115,11 @@ public:
   void notify_full(MBEntitySequence* seq);
   void notify_not_full(MBEntitySequence* seq);
   
-  unsigned long get_memory_use();
+  void get_memory_use( unsigned long& total_entity_storage,
+                       unsigned long& total_storage ) const;
   MBErrorCode get_memory_use( const MBRange& entities,
-                              unsigned long& min_per_entity,
-                              unsigned long& amortized_per_entity );
+                              unsigned long& total_entity_storage,
+                              unsigned long& total_amortized_storage ) const;
 
 private:
   

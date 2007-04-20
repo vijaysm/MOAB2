@@ -449,19 +449,23 @@ MBErrorCode EntitySequenceManager::delete_entity( MBEntityHandle entity )
   return MB_FAILURE;
 }
 
-unsigned long EntitySequenceManager::get_memory_use()
+void EntitySequenceManager::get_memory_use( unsigned long& entity,
+                                            unsigned long& total) const
 {
-  unsigned long total = 0;
+  total = entity = 0;
+  unsigned long used, allocated;
   for (unsigned type = 0; type < MBMAXTYPE; ++type)
-    for (SeqMap::iterator i = mSequenceMap[type].begin(); i != mSequenceMap[type].end(); ++i)
-      total += i->second->get_memory_use();
-  return total;
+    for (SeqMap::const_iterator i = mSequenceMap[type].begin(); i != mSequenceMap[type].end(); ++i) {
+      i->second->get_memory_use( used, allocated );
+      entity += used;
+      total += allocated;
+    }
 }
 
 MBErrorCode EntitySequenceManager::get_memory_use( 
                                      const MBRange& entities,
                                      unsigned long& min_per_entity,
-                                     unsigned long& amortized )
+                                     unsigned long& amortized ) const
 {
   min_per_entity = 0;
   amortized =0;
@@ -473,11 +477,11 @@ MBErrorCode EntitySequenceManager::get_memory_use(
     if (i == entities.end())
       break;
     
-    SeqMap& map = mSequenceMap[type];
+    const SeqMap& map = mSequenceMap[type];
     if (map.empty())
       continue;
       
-    for (SeqMap::iterator j = map.begin(); j != map.end(); ++j)
+    for (SeqMap::const_iterator j = map.begin(); j != map.end(); ++j)
     {
       MBEntitySequence* seq = j->second;
       if (seq->get_end_handle() < *i)
@@ -492,7 +496,10 @@ MBErrorCode EntitySequenceManager::get_memory_use(
         min_per_entity += seq->get_memory_use( *i );
         ++count;
       }
-      amortized += count * seq->get_memory_use() / seq->number_entities();
+      
+      unsigned long used, allocated;
+      seq->get_memory_use( used, allocated );
+      amortized += (unsigned long)( (double)count * allocated / seq->number_entities() );
     }
   }
         

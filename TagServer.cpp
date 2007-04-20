@@ -915,6 +915,20 @@ MBErrorCode TagServer::get_entities_with_tag_values( const MBRange &range,
   return MB_SUCCESS;
 }
 
+MBErrorCode TagServer::get_number_entities( const MBTag tag_handle,
+                                            unsigned long& num_entities )
+{
+  num_entities = 0;
+  for (MBEntityType t = MBVERTEX; t < MBMAXTYPE; ++t) {
+    int type_num_entities;
+    MBErrorCode rval = get_number_entities( tag_handle, t, type_num_entities );
+    if (MB_SUCCESS != rval) 
+      return rval;
+    num_entities += type_num_entities;
+  }
+  return MB_SUCCESS;
+}
+
 MBErrorCode TagServer::get_number_entities( const MBTag tag_handle, 
                                              const MBEntityType type,
                                              int& num_entities)

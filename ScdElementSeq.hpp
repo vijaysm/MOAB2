@@ -169,7 +169,7 @@ public:
   virtual MBErrorCode convert_realloc(bool& , bool& , bool& , 
                                       MBCore*, MBTag );
   
-  virtual unsigned long get_memory_use() const;
+  virtual void get_memory_use( unsigned long& used, unsigned long& allocated ) const;
   virtual unsigned long get_memory_use( MBEntityHandle h ) const;
   
 };

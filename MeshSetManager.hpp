@@ -105,10 +105,11 @@ public:
   MBErrorCode remove_child ( MBEntityHandle from, MBEntityHandle child  );
   MBErrorCode remove_parent_child( MBEntityHandle parent, MBEntityHandle child );
 
-  unsigned long get_memory_use() const;
+  void get_memory_use( unsigned long& entity_total,
+                       unsigned long& total ) const;
   MBErrorCode get_memory_use( const MBRange& entities,
-                              unsigned long& min_per_ent,
-                              unsigned long& amortized );
+                              unsigned long& total_entity_storage,
+                              unsigned long& total_amortized_storage );
 
 private:
 

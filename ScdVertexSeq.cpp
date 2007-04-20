@@ -43,8 +43,10 @@ MBEntityHandle ScdVertexSeq::get_unused_handle()
   return 0;
 }
 
-unsigned long ScdVertexSeq::get_memory_use() const
+void ScdVertexSeq::get_memory_use( unsigned long& used, 
+                                   unsigned long& allocated) const
 {
-  return VertexEntitySequence::get_memory_use() + sizeof(*this) - sizeof(VertexEntitySequence);
+  VertexEntitySequence::get_memory_use( used, allocated );
+  allocated += sizeof(*this) - sizeof(VertexEntitySequence);
 }
 
