@@ -114,6 +114,20 @@ private:
   //! Read sets
   MBErrorCode read_sets( );
   
+  //! Read set contents
+  MBErrorCode read_set_contents( hid_t set_description_handle,
+                                 hid_t set_contents_handle,
+                                 MBEntityHandle start_handle,
+                                 unsigned long count );
+  
+  //! Read set parents/children
+  MBErrorCode read_parents_children( bool parents, 
+                                     hid_t set_description_handle,
+                                     hid_t set_contents_handle,
+                                     MBEntityHandle start_handle,
+                                     id_t start_file_id,
+                                     unsigned long count );
+  
   //! Read element adjacencies
   MBErrorCode read_adjacencies( ElemSet& for_this_set );
   
