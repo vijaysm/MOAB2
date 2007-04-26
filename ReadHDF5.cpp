@@ -495,12 +495,19 @@ MBErrorCode ReadHDF5::read_poly( const char* elem_group )
 }
 
 
+struct SetMetaData {
+  long entEnd, childEnd, parentEnd, flags;
+};
+
 MBErrorCode ReadHDF5::read_sets()
 {
   MBErrorCode rval;
   mhdf_Status status;
-  hid_t meta_id, data_id, child_id, parent_id;
   MBEntityHandle prev_handle = 0;
+  MBEntityHandle* buffer = (MBEntityHandle*)dataBuffer;
+  size_t chunk_size = bufferSize / sizeof(MBEntityHandle);
+  if (chunk_size % 2)
+    --chunk_size; // makes reading range data easier.
   
     // Check what data is in the file for sets
   int have_sets, have_data, have_children, have_parents;
@@ -516,7 +523,7 @@ MBErrorCode ReadHDF5::read_sets()
   
     // Open the list of sets
   long num_sets, first_id;
-  meta_id = mhdf_openSetMeta( filePtr, &num_sets, &first_id, &status );
+  hid_t meta_id = mhdf_openSetMeta( filePtr, &num_sets, &first_id, &status );
   if (mhdf_isError( &status ))
   {
     readUtil->report_error( mhdf_message( &status ) );
@@ -526,310 +533,364 @@ MBErrorCode ReadHDF5::read_sets()
   setSet.type = MBENTITYSET;
   setSet.type2 = mhdf_set_type_handle();
   
+
+    // read all set metadata
+  std::vector<SetMetaData> meta( num_sets );
+  mhdf_readSetMeta( meta_id, 0, num_sets, H5T_NATIVE_LONG, &meta[0], &status );
+  mhdf_closeData( filePtr, meta_id, &status );
+  if (mhdf_isError( &status ))
+  {
+    readUtil->report_error( mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
+  
     // Create all the sets (empty)
     // Must do this before any set children/contents are read
     // to ensure that any sets referred to in the contents or
     // child list exist.
   
     // Iterate over sets one at a time
-  long i, set_data[4];
+  long i;
+  MBEntityHandle start_handle = 0, handle = 0;
   for (i = 0; i < num_sets; i++)  // for each set
   {
-      // Get set description
-    mhdf_readSetMeta( meta_id, i, 1, H5T_NATIVE_LONG, set_data, &status );
-    if (mhdf_isError( &status ))
-    {
-      readUtil->report_error( mhdf_message( &status ) );
-      mhdf_closeData( filePtr, meta_id, &status );
-      return MB_FAILURE;
-    }
-     
       // Clear ranged-storage bit.  It is internal data, not one
       // of MOABs set flags.
-    set_data[3] &= ~(long)mhdf_SET_RANGE_BIT;
-    
+    unsigned flags = meta[i].flags & ~(unsigned)mhdf_SET_RANGE_BIT;
+     
       // Create the set
-    MBEntityHandle handle;
-    rval = iFace->create_meshset( set_data[3], handle );
+    rval = iFace->create_meshset( flags, handle );
     if (MB_SUCCESS != rval)
-    {
-      mhdf_closeData( filePtr, meta_id, &status );
       return rval;
-    }
     
-    assert( handle > prev_handle && (prev_handle = handle));
-    setSet.range.insert( handle );
+    // We are going to assume that set handles are allocated
+    // consecutively.  If this assumption is ever broken,
+    // perhaps we should add a function to create a consecutive
+    // block of sets.
+    // Yes, that is supposed to be an assignment (one '=')!
+    assert( (!prev_handle || (handle - prev_handle) == 1) && (prev_handle = handle) ); 
+  }
+  if (num_sets) {
+    start_handle = handle + 1 - num_sets;
+    setSet.range.insert( start_handle, handle );
   }
 
   
-    // Open the list of set contents
-  long data_len = 0;
-  data_id = -1;
+    // Read set contents
   if (have_data)
   {
-    data_id = mhdf_openSetData( filePtr, &data_len, &status );
+    long data_len = 0;
+    hid_t data_id = mhdf_openSetData( filePtr, &data_len, &status );
     if (mhdf_isError( &status ))
     {
       readUtil->report_error( mhdf_message( &status ) );
-      mhdf_closeData( filePtr, meta_id, &status );
       return MB_FAILURE;
     }
-  }
-  
-    // Open the list of set children
-  long child_len = 0;
-  child_id = -1;
-  if (have_children)
-  {
-    child_id = mhdf_openSetChildren( filePtr, &child_len, &status );
-    if (mhdf_isError( &status ))
+    if (data_len <= meta[num_sets-1].entEnd) 
     {
-      readUtil->report_error( mhdf_message( &status ) );
-      mhdf_closeData( filePtr, meta_id, &status );
+      readUtil->report_error( "Invalid file.  Set contents table too short." );
       mhdf_closeData( filePtr, data_id, &status );
-      return MB_FAILURE;
-    }
-  }
-  
-    // Open the list of set parents
-  long parent_len = 0;
-  parent_id = -1;
-  if (have_parents)
-  {
-    parent_id = mhdf_openSetParents( filePtr, &parent_len, &status );
-    if (mhdf_isError( &status ))
-    {
-      readUtil->report_error( mhdf_message( &status ) );
-      mhdf_closeData( filePtr, meta_id, &status );
-      mhdf_closeData( filePtr, data_id, &status );
-      mhdf_closeData( filePtr, child_id, &status );
-      return MB_FAILURE;
-    }
-  }
-  
-    // Set up buffer for set contents
-  size_t chunk_size = bufferSize / sizeof(MBEntityHandle);
-  if (chunk_size % 2)
-    --chunk_size; // makes reading range data easier.
-  MBEntityHandle* buffer = (MBEntityHandle*)dataBuffer;
-  
-    // Iterate over sets one at a time
-  long data_offset = 0, child_offset = 0, parent_offset = 0;
-  MBRange range;
-  MBRange::const_iterator set_iter = setSet.range.begin();
-  for (i = 0; i < num_sets; i++)  // for each set
-  {
-      // Get set description
-    mhdf_readSetMeta( meta_id, i, 1, H5T_NATIVE_LONG, set_data, &status );
-    if (mhdf_isError( &status ))
-    {
-      readUtil->report_error( mhdf_message( &status ) );
-      mhdf_closeData( filePtr, meta_id, &status );
-      mhdf_closeData( filePtr, data_id, &status );
-      mhdf_closeData( filePtr, child_id, &status );
-      mhdf_closeData( filePtr, parent_id, &status );
       return MB_FAILURE;
     }
     
-      // Check if set contents are stored as ranges or a simple list
-    bool ranged = (0 != (set_data[3] & (long)mhdf_SET_RANGE_BIT));
-   
-      // Read set contents
+    long r = 0;           // number of sets for which data has been read.
+    long file_offset = 0; // current offset in table at which to read.
+
+    while (r < num_sets) { // until we've read them all
+      for (i = r; i < num_sets; ++i) // figure out how many we can read at once
+        if ((size_t)(meta[i].entEnd + 1 - file_offset) > chunk_size)
+          break;
       
-      // Check if we are reading past the end of the data
-      // (shouldn't happen if file is vaild.)
-      // Note: this will also catch the case where the set
-      // contents list didn't exist, as data_len will be zero.
-    if (set_data[0] >= data_len)
-      { assert(0); return MB_FAILURE; }
+        // special case: contents of one set greater than buffer
+      if (i == r) {
+           // Check if set contents are stored as ranges or a simple list
+        bool ranged = (0 != (meta[r].flags & (long)mhdf_SET_RANGE_BIT));
 
-      // Loop until all the entities in the set are read.
-      // The buffer is rather large, so it is unlikely that
-      // we'll loop more than once.
-    if (data_offset > (set_data[0] + 1))
-      { assert(0); return MB_FAILURE; }
-    size_t remaining = set_data[0] + 1 - data_offset;
-    while (remaining)
-    {
-      size_t count = remaining > chunk_size ? chunk_size : remaining;
-      remaining -= count;
-      mhdf_readSetData( data_id, data_offset, count, handleType, buffer, &status );
-      if (mhdf_isError( &status ))
-      {
-        readUtil->report_error( mhdf_message( &status ) );
-        mhdf_closeData( filePtr, meta_id, &status );
-        mhdf_closeData( filePtr, data_id, &status );
-        mhdf_closeData( filePtr, child_id, &status );
-        mhdf_closeData( filePtr, parent_id, &status );
-        return MB_FAILURE;
-      }
-      data_offset += count;
+          // loop until we've read all the set contents (remaining == 0)
+        size_t remaining = meta[r].entEnd + 1 - file_offset;
+        while (remaining)
+        {
+            // how much to read 
+          size_t count = remaining > chunk_size ? chunk_size : remaining;
+          remaining -= count;
+          
+            // read block of set contents
+          mhdf_readSetData( data_id, file_offset, count, handleType, buffer, &status );
+          if (mhdf_isError( &status ))
+          {
+            readUtil->report_error( mhdf_message( &status ) );
+            mhdf_closeData( filePtr, data_id, &status );
+            return MB_FAILURE;
+          }
+          file_offset += count;
 
-      if (ranged)
-      {
-        assert(count % 2 == 0);
-        range.clear();
-        rval = convert_range_to_handle( buffer, count / 2, range );
-        if (MB_SUCCESS == rval)
-          rval = iFace->add_entities( *set_iter, range );
-      }
-      else
-      {
-        rval = convert_id_to_handle( buffer, count );
-        if (MB_SUCCESS == rval)
-          rval = iFace->add_entities( *set_iter, buffer, count );
-      }
+            // convert data from file ids to MBEntityHandles and add to set
+          if (ranged)
+          {
+            assert(count % 2 == 0);
+            MBRange range;
+            rval = convert_range_to_handle( buffer, count / 2, range );
+            if (MB_SUCCESS == rval)
+              rval = iFace->add_entities( start_handle + r, range );
+          }
+          else
+          {
+            rval = convert_id_to_handle( buffer, count );
+            if (MB_SUCCESS == rval)
+              rval = iFace->add_entities( start_handle + r, buffer, count );
+          }
 
-      if (MB_SUCCESS != rval)
-      {
-        mhdf_closeData( filePtr, meta_id, &status );
-        mhdf_closeData( filePtr, data_id, &status );
-        mhdf_closeData( filePtr, child_id, &status );
-        mhdf_closeData( filePtr, parent_id, &status );
-        return rval;
-      }
-    } // while(remaining)
+          if (MB_SUCCESS != rval)
+          {
+            mhdf_closeData( filePtr, data_id, &status );
+            return rval;
+          }
+        } // while(remaining)
+        ++r;
+     } // end special case (really big set)
+      
+        // normal case - read data for several sets
+      else {
         
-    
-      // Read set children
-    
-    if (have_children)
-    {
-        // Check if we are reading past the end of the data
-        // (shouldn't happen if file is vaild.)
-        // Note: this will also catch the case where the set
-        // contents list didn't exist, as data_len will be zero.
-      if (set_data[1] >= child_len)
-        { assert(0); return MB_FAILURE; }
-
-        // Loop until all the children are read.
-        // The buffer is rather large, so it is unlikely that
-        // we'll loop more than once.
-      if (child_offset > (set_data[1] + 1))
-        { assert(0); return MB_FAILURE; }
-      remaining = set_data[1] + 1 - child_offset;
-      while (remaining)
-      {
-        size_t count = remaining > chunk_size ? chunk_size : remaining;
-        remaining -= count;
-        mhdf_readSetParentsChildren( child_id, child_offset, count, handleType, buffer, &status );
+          // read data for sets in [r,i)
+        size_t count = meta[i-1].entEnd + 1 - file_offset;
+        mhdf_readSetData( data_id, file_offset, count, handleType, buffer, &status );
         if (mhdf_isError( &status ))
         {
           readUtil->report_error( mhdf_message( &status ) );
-          mhdf_closeData( filePtr, meta_id, &status );
           mhdf_closeData( filePtr, data_id, &status );
-          mhdf_closeData( filePtr, child_id, &status );
-          mhdf_closeData( filePtr, parent_id, &status );
           return MB_FAILURE;
         }
-        child_offset += count;
+          
+          // add contents to each set
+        size_t mem_offset = 0; // offset in block of data read from file
+        for (; r < i; ++r) {
+          bool ranged = (0 != (meta[r].flags & (long)mhdf_SET_RANGE_BIT));
+          count = meta[r].entEnd + 1 - file_offset;
+          file_offset += count;
+          if (ranged)
+          {
+            assert(count % 2 == 0);
+            MBRange range;
+            rval = convert_range_to_handle( buffer+mem_offset, count / 2, range );
+            if (MB_SUCCESS == rval)
+              rval = iFace->add_entities( start_handle + r, range );
+          }
+          else
+          {
+            rval = convert_id_to_handle( buffer+mem_offset, count );
+            if (MB_SUCCESS == rval)
+              rval = iFace->add_entities( start_handle + r, buffer+mem_offset, count );
+          }
 
-        rval = convert_id_to_handle( setSet, buffer, count );
-        if (MB_SUCCESS != rval)
-        {
-          mhdf_closeData( filePtr, meta_id, &status );
-          mhdf_closeData( filePtr, data_id, &status );
-          mhdf_closeData( filePtr, child_id, &status );
-          mhdf_closeData( filePtr, parent_id, &status );
-          return rval;
+          if (MB_SUCCESS != rval)
+          {
+            mhdf_closeData( filePtr, data_id, &status );
+            return rval;
+          }
+          mem_offset += count;
         }
-
-        rval = MB_SUCCESS;
-        for (size_t j = 0; MB_SUCCESS == rval && j < count; j++)
-          rval = iFace->add_child_meshset( *set_iter, buffer[j] );
-        if (MB_SUCCESS != rval)
-        {
-          mhdf_closeData( filePtr, meta_id, &status );
-          mhdf_closeData( filePtr, data_id, &status );
-          mhdf_closeData( filePtr, child_id, &status );
-          mhdf_closeData( filePtr, parent_id, &status );
-          return rval;
-        }
-      } // while(remaining)
-    } // if (have_children)
+      }
+    } // while(rcount < num_sets)
     
-    
-      // Read set parents
-    
-    if (have_parents)
-    {
-        // Check if we are reading past the end of the data
-        // (shouldn't happen if file is vaild.)
-        // Note: this will also catch the case where the set
-        // contents list didn't exist, as data_len will be zero.
-      if (set_data[2] >= parent_len)
-        { assert(0); return MB_FAILURE; }
-
-        // Loop until all the children are read.
-        // The buffer is rather large, so it is unlikely that
-        // we'll loop more than once.
-      if (parent_offset > (set_data[2] + 1))
-        { assert(0); return MB_FAILURE; }
-      remaining = set_data[2] + 1 - parent_offset;
-      while (remaining)
-      {
-        size_t count = remaining > chunk_size ? chunk_size : remaining;
-        remaining -= count;
-        mhdf_readSetParentsChildren( parent_id, parent_offset, count, handleType, buffer, &status );
-        if (mhdf_isError( &status ))
-        {
-          readUtil->report_error( mhdf_message( &status ) );
-          mhdf_closeData( filePtr, meta_id, &status );
-          mhdf_closeData( filePtr, data_id, &status );
-          mhdf_closeData( filePtr, child_id, &status );
-          mhdf_closeData( filePtr, parent_id, &status );
-          return MB_FAILURE;
-        }
-        parent_offset += count;
-
-        rval = convert_id_to_handle( setSet, buffer, count );
-        if (MB_SUCCESS != rval)
-        {
-          mhdf_closeData( filePtr, meta_id, &status );
-          mhdf_closeData( filePtr, data_id, &status );
-          mhdf_closeData( filePtr, child_id, &status );
-          mhdf_closeData( filePtr, parent_id, &status );
-          return rval;
-        }
-
-        rval = MB_SUCCESS;
-        for (size_t j = 0; MB_SUCCESS == rval && j < count; j++)
-          rval = iFace->add_parent_meshset( *set_iter, buffer[j] );
-        if (MB_SUCCESS != rval)
-        {
-          mhdf_closeData( filePtr, meta_id, &status );
-          mhdf_closeData( filePtr, data_id, &status );
-          mhdf_closeData( filePtr, child_id, &status );
-          mhdf_closeData( filePtr, parent_id, &status );
-          return rval;
-        }
-      } // while(remaining)
-    } // if (have_parents)
-    
-    ++set_iter;
-  } // for (meshsets)
-  
-  
-    // Close open data tables and return
-  
-  int error = 0;
-  mhdf_closeData( filePtr, meta_id, &status );
-  if (mhdf_isError( &status ))
-    { readUtil->report_error( mhdf_message( &status ) ); error = 1; }
-  if (have_data)
     mhdf_closeData( filePtr, data_id, &status );
-  if (mhdf_isError( &status ))
-    { readUtil->report_error( mhdf_message( &status ) ); error = 1; }
-  if (have_children)
-    mhdf_closeData( filePtr, child_id, &status );
-  if (mhdf_isError( &status ))
-    { readUtil->report_error( mhdf_message( &status ) ); error = 1; }
-  if (have_parents)
-    mhdf_closeData( filePtr, parent_id, &status );
-  if (mhdf_isError( &status ))
-    { readUtil->report_error( mhdf_message( &status ) ); error = 1; }
+  } // if(have_data)
+
+
   
-  return error ? MB_FAILURE : MB_SUCCESS;
+    // Read set children
+  if (have_children)
+  {
+    long data_len = 0;
+    hid_t data_id = mhdf_openSetChildren( filePtr, &data_len, &status );
+    if (mhdf_isError( &status ))
+    {
+      readUtil->report_error( mhdf_message( &status ) );
+      return MB_FAILURE;
+    }
+    if (data_len <= meta[num_sets-1].childEnd) 
+    {
+      readUtil->report_error( "Invalid file.  Set child table too short." );
+      mhdf_closeData( filePtr, data_id, &status );
+      return MB_FAILURE;
+    }
+    
+    long r = 0;           // number of sets for which data has been read.
+    long file_offset = 0; // current offset in table at which to read.
+
+    while (r < num_sets) { // until we've read them all
+      for (i = r; i < num_sets; ++i) // figure out how many we can read at once
+        if ((size_t)(meta[i].childEnd + 1 - file_offset) > chunk_size)
+          break;
+      
+        // special case: children of one set greater than buffer
+      if (i == r) {
+        size_t remaining = meta[r].childEnd + 1 - file_offset;
+        while (remaining)
+        {
+          size_t count = remaining > chunk_size ? chunk_size : remaining;
+          remaining -= count;
+          mhdf_readSetParentsChildren( data_id, file_offset, count, handleType, buffer, &status );
+          if (mhdf_isError( &status ))
+          {
+            readUtil->report_error( mhdf_message( &status ) );
+            mhdf_closeData( filePtr, data_id, &status );
+            return MB_FAILURE;
+          }
+          file_offset += count;
+
+          rval = convert_id_to_handle( buffer, count );
+          if (MB_SUCCESS != rval) {
+            mhdf_closeData( filePtr, data_id, &status );
+            return rval;
+          }
+          
+          rval = iFace->add_child_meshsets( start_handle + r, buffer, count );
+          if (MB_SUCCESS != rval) {
+            mhdf_closeData( filePtr, data_id, &status );
+            return rval;
+          }
+        } // while(remaining)
+        ++r;
+      } // end special case (really big set)
+      
+        // normal case - read data for several sets
+      else {
+        
+          // read data for sets in [r,i)
+        size_t count = meta[i-1].childEnd + 1 - file_offset;
+        mhdf_readSetParentsChildren( data_id, file_offset, count, handleType, buffer, &status );
+        if (mhdf_isError( &status ))
+        {
+          readUtil->report_error( mhdf_message( &status ) );
+          mhdf_closeData( filePtr, data_id, &status );
+          return MB_FAILURE;
+        }
+          
+          // add children to each set
+        size_t mem_offset = 0;
+        for (; r < i; ++r) {
+          count = meta[r].childEnd + 1 - file_offset;
+          file_offset += count;
+          
+          rval = convert_id_to_handle( buffer+mem_offset, count );
+          if (MB_SUCCESS != rval){
+            mhdf_closeData( filePtr, data_id, &status );
+            return rval;
+          }
+          
+          rval = iFace->add_child_meshsets( start_handle + r, buffer+mem_offset, count );
+          if (MB_SUCCESS != rval){
+            mhdf_closeData( filePtr, data_id, &status );
+            return rval;
+          }
+
+          mem_offset += count;
+        }
+      }
+    } // while(rcount < num_sets)
+    
+    mhdf_closeData( filePtr, data_id, &status );
+  } // if(have_children)
+
+
+  
+    // Read set parents
+  if (have_parents)
+  {
+    long data_len = 0;
+    hid_t data_id = mhdf_openSetParents( filePtr, &data_len, &status );
+    if (mhdf_isError( &status ))
+    {
+      readUtil->report_error( mhdf_message( &status ) );
+      return MB_FAILURE;
+    }
+    if (data_len <= meta[num_sets-1].parentEnd) 
+    {
+      readUtil->report_error( "Invalid file.  Set child table too short." );
+      mhdf_closeData( filePtr, data_id, &status );
+      return MB_FAILURE;
+    }
+    
+    long r = 0;           // number of sets for which data has been read.
+    long file_offset = 0; // current offset in table at which to read.
+
+    while (r < num_sets) { // until we've read them all
+      for (i = r; i < num_sets; ++i) // figure out how many we can read at once
+        if ((size_t)(meta[i].parentEnd + 1 - file_offset) > chunk_size)
+          break;
+      
+        // special case: parents of one set greater than buffer
+      if (i == r) {
+        size_t remaining = meta[r].parentEnd + 1 - file_offset;
+        while (remaining)
+        {
+          size_t count = remaining > chunk_size ? chunk_size : remaining;
+          remaining -= count;
+          mhdf_readSetParentsChildren( data_id, file_offset, count, handleType, buffer, &status );
+          if (mhdf_isError( &status ))
+          {
+            readUtil->report_error( mhdf_message( &status ) );
+            mhdf_closeData( filePtr, data_id, &status );
+            return MB_FAILURE;
+          }
+          file_offset += count;
+
+          rval = convert_id_to_handle( buffer, count );
+          if (MB_SUCCESS != rval) {
+            mhdf_closeData( filePtr, data_id, &status );
+            return rval;
+          }
+          
+          rval = iFace->add_parent_meshsets( start_handle + r, buffer, count );
+          if (MB_SUCCESS != rval) {
+            mhdf_closeData( filePtr, data_id, &status );
+            return rval;
+          }
+        } // while(remaining)
+        ++r;
+      } // end special case (really big set)
+      
+        // normal case - read data for several sets
+      else {
+        
+          // read data for sets from rcount up to i
+        size_t count = meta[i-1].parentEnd + 1 - file_offset;
+        mhdf_readSetParentsChildren( data_id, file_offset, count, handleType, buffer, &status );
+        if (mhdf_isError( &status ))
+        {
+          readUtil->report_error( mhdf_message( &status ) );
+          mhdf_closeData( filePtr, data_id, &status );
+          return MB_FAILURE;
+        }
+          
+          // add parents to each set
+        size_t mem_offset = 0;
+        for (; r < i; ++r) {
+          size_t count = meta[r].parentEnd + 1 - file_offset;
+          file_offset += count;
+          rval = convert_id_to_handle( buffer+mem_offset, count );
+
+          if (MB_SUCCESS != rval){
+            mhdf_closeData( filePtr, data_id, &status );
+            return rval;
+          }
+          
+          rval = iFace->add_parent_meshsets( start_handle + r, buffer+mem_offset, count );
+          if (MB_SUCCESS != rval){
+            mhdf_closeData( filePtr, data_id, &status );
+            return rval;
+          }
+
+          mem_offset += count;
+        }
+      }
+    } // while(rcount < num_sets)
+    
+    mhdf_closeData( filePtr, data_id, &status );
+  } // if (have_parents)
+  
+  return MB_SUCCESS;
 }
 
 

@@ -749,9 +749,19 @@ public:
   virtual MBErrorCode add_parent_meshset(MBEntityHandle meshset, 
                                           const MBEntityHandle parent_meshset);
 
+  //! add parent meshsets
+  virtual MBErrorCode add_parent_meshsets(MBEntityHandle meshset, 
+                                          const MBEntityHandle* parent_meshsets,
+                                          int num_parent_meshsets);
+
   //! add a child meshset
   virtual MBErrorCode add_child_meshset(MBEntityHandle meshset, 
                                          const MBEntityHandle child_meshset);
+
+  //! add parent meshsets
+  virtual MBErrorCode add_child_meshsets(MBEntityHandle meshset, 
+                                         const MBEntityHandle* child_meshsets,
+                                         int num_child_meshsets);
 
   //! adds 'parent' to child's parent list and adds 'child' to parent's child list
   virtual MBErrorCode add_parent_child( MBEntityHandle parent, 

@@ -671,27 +671,45 @@ MBErrorCode MeshSetManager::num_children( MBEntityHandle handle,
   return result;
 }
 
-MBErrorCode MeshSetManager::add_parent( MBEntityHandle to_handle,
-                                        MBEntityHandle parent_handle )
+MBErrorCode MeshSetManager::add_parents( MBEntityHandle to_handle,
+                                         const MBEntityHandle* parents,
+                                         int count )
 {
+    // get target meshset
   MBMeshSet* to_set_ptr = get_mesh_set( to_handle );
-  MBMeshSet* parent_ptr = get_mesh_set( parent_handle );
-  if (!to_set_ptr || !parent_ptr)
+  if (!to_set_ptr)
     return MB_ENTITY_NOT_FOUND;
   
-  to_set_ptr->add_parent( parent_handle );
+    // make sure all parent handles are valid
+  for (int i = 0; i < count; ++i)
+    if (!get_mesh_set( parents[i] ))
+      return MB_ENTITY_NOT_FOUND;
+  
+    // add parent handles to child list on target meshset
+  for (int i = 0; i < count; ++i)
+    to_set_ptr->add_parent( parents[i] );
+    
   return MB_SUCCESS;
 }
 
-MBErrorCode MeshSetManager::add_child( MBEntityHandle to_handle,
-                                        MBEntityHandle child_handle )
+MBErrorCode MeshSetManager::add_children( MBEntityHandle to_handle,
+                                          const MBEntityHandle* children,
+                                          int count )
 {
+    // get target meshset
   MBMeshSet* to_set_ptr = get_mesh_set( to_handle );
-  MBMeshSet* child_ptr = get_mesh_set( child_handle );
-  if (!to_set_ptr || !child_ptr)
+  if (!to_set_ptr)
     return MB_ENTITY_NOT_FOUND;
   
-  to_set_ptr->add_child( child_handle );
+    // make sure all child handles are valid
+  for (int i = 0; i < count; ++i)
+    if (!get_mesh_set( children[i] ))
+      return MB_ENTITY_NOT_FOUND;
+  
+    // add child handles to parent list on target meshset
+  for (int i = 0; i < count; ++i)
+    to_set_ptr->add_child( children[i] );
+    
   return MB_SUCCESS;
 }
 

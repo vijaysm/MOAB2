@@ -1186,6 +1186,16 @@ public:
   virtual MBErrorCode add_parent_meshset(MBEntityHandle child_meshset, 
                                          const MBEntityHandle parent_meshset) = 0;
 
+    //! Add a parent mesh sets to a mesh set
+    /** Make <em>parent_meshset</em> a new parent of <em>child_meshset</em>.  This function does 
+        <em>not</em> add a corresponding child link to <em>parent_meshset</em>.
+        \param child_meshset The child mesh set being given a new parent.
+        \param parent_meshset The parent being added to <em>child_meshset</em>
+    */
+  virtual MBErrorCode add_parent_meshsets(MBEntityHandle child_meshset, 
+                                          const MBEntityHandle* parent_meshsets,
+                                          int num_parent_meshsets ) = 0;
+
     //! Add a child mesh set to a mesh set
     /** Make <em>child_meshset</em> a new child of <em>parent_meshset</em>.  This function does 
         <em>not</em> add a corresponding parent link to <em>child_meshset</em>.
@@ -1194,6 +1204,16 @@ public:
     */
   virtual MBErrorCode add_child_meshset(MBEntityHandle parent_meshset, 
                                         const MBEntityHandle child_meshset) = 0;
+
+    //! Add a child mesh sets to a mesh set
+    /** Make <em>child_meshset</em> a new child of <em>parent_meshset</em>.  This function does 
+        <em>not</em> add a corresponding parent link to <em>child_meshset</em>.
+        \param parent_meshset The parent mesh set being given a new child.
+        \param child_meshset The child being added to <em>parent_meshset</em>
+    */
+  virtual MBErrorCode add_child_meshsets(MBEntityHandle parent_meshset, 
+                                         const MBEntityHandle* child_meshsets,
+                                         int num_child_meshsets ) = 0;
 
     //! Add parent and child links between mesh sets
     /** Makes <em>child_meshset</em> a new child of <em>parent_meshset</em>, and vica versa.

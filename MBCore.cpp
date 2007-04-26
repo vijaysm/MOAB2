@@ -2075,19 +2075,31 @@ MBErrorCode MBCore::num_child_meshsets(const MBEntityHandle meshset, int* number
 MBErrorCode MBCore::add_parent_meshset(MBEntityHandle meshset, 
                                          const MBEntityHandle parent_meshset)
 {
-    // can't add parents/children to the root set
-  if (0 == meshset || 0 == parent_meshset) return MB_FAILURE;
+    // MeshSetManager validates handles
+  return mMeshSetManager->add_parents( meshset, &parent_meshset, 1 );
+}
 
-  return mMeshSetManager->add_parent( meshset, parent_meshset );
+MBErrorCode MBCore::add_parent_meshsets( MBEntityHandle meshset, 
+                                         const MBEntityHandle* parents,
+                                         int count )
+{
+    // MeshSetManager validates handles
+  return mMeshSetManager->add_parents( meshset, parents, count );
 }
 
 MBErrorCode MBCore::add_child_meshset(MBEntityHandle meshset, 
                                         const MBEntityHandle child_meshset)
 {
-    // can't add parents/children to the root set
-  if (0 == meshset || 0 == child_meshset) return MB_FAILURE;
+    // MeshSetManager validates handles
+  return mMeshSetManager->add_children( meshset, &child_meshset, 1 );
+}
 
-  return mMeshSetManager->add_child( meshset, child_meshset );
+MBErrorCode MBCore::add_child_meshsets( MBEntityHandle meshset, 
+                                        const MBEntityHandle* children,
+                                        int count )
+{
+    // MeshSetManager validates handles
+  return mMeshSetManager->add_children( meshset, children, count );
 }
 
 

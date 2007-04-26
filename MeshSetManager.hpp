@@ -97,8 +97,8 @@ public:
   MBErrorCode num_parents ( MBEntityHandle of, int& number, int num_hops ) const;
   MBErrorCode num_children( MBEntityHandle of, int& number, int num_hops ) const;
   
-  MBErrorCode add_parent( MBEntityHandle to, MBEntityHandle parent );
-  MBErrorCode add_child ( MBEntityHandle to, MBEntityHandle child );
+  MBErrorCode add_parents ( MBEntityHandle to, const MBEntityHandle* parents,  int count );
+  MBErrorCode add_children( MBEntityHandle to, const MBEntityHandle* children, int count );
   MBErrorCode add_parent_child( MBEntityHandle parent, MBEntityHandle child );
   
   MBErrorCode remove_parent( MBEntityHandle from, MBEntityHandle parent );
