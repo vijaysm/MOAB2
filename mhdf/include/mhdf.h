@@ -1131,6 +1131,96 @@ mhdf_readSetMeta( hid_t data_handle,
                   void* set_desc_data,  
                   mhdf_Status* status );
 
+/** \brief Read only the flags portion of the set description table
+ *
+ * Read flags for each set from the set description table.
+ * See \ref mhdf_createSetMeta for a description of this data.
+ *\param data_handle The handle returnd from mdhf_createSetMeta or mhdf_openSetMeta
+ *\param offset      The offset (set index) at which to begin reading.
+ *\param count       The number of values (number of sets) to read.
+ *\param hdf_integer_type The integer type of the input array 'set_flag_data'.
+ *\param set_flag_data Array of integers.
+ *\param status      Location at which to store status of API call.
+ */
+void
+mhdf_readSetFlags( hid_t data_handle,
+                   long offset,
+                   long count,
+                   hid_t hdf_integer_type,
+                   void* set_flag_data,
+                   mhdf_Status* status );
+
+
+/** \brief Read only the content end indices portion of the set description table
+ *
+ * For each set, read the last index of that set's data in the set
+ * contents table. 
+ *
+ * NOTE: This is a signed value.  Any sets w/out contents that occur
+ *       first in the list will have an end index of -1.
+ * 
+ *\param data_handle The handle returnd from mdhf_createSetMeta or mhdf_openSetMeta
+ *\param offset      The offset (set index) at which to begin reading.
+ *\param count       The number of values (number of sets) to read.
+ *\param hdf_integer_type The integer type of the input array 'set_flag_data'.
+ *\param end_indices_out Array of indices.
+ *\param status      Location at which to store status of API call.
+ */
+void
+mhdf_readSetContentEndIndices( hid_t data_handle,
+                               long offset,
+                               long count,
+                               hid_t hdf_integer_type,
+                               void* end_indices_out,
+                               mhdf_Status* status );
+
+/** \brief Read only the child end indices portion of the set description table
+ *
+ * For each set, read the last index of that set's data in the set
+ * children table. 
+ *
+ * NOTE: This is a signed value.  Any sets w/out contents that occur
+ *       first in the list will have an end index of -1.
+ * 
+ *\param data_handle The handle returnd from mdhf_createSetMeta or mhdf_openSetMeta
+ *\param offset      The offset (set index) at which to begin reading.
+ *\param count       The number of values (number of sets) to read.
+ *\param hdf_integer_type The integer type of the input array 'set_flag_data'.
+ *\param end_indices_out Array of indices.
+ *\param status      Location at which to store status of API call.
+ */
+void
+mhdf_readSetChildEndIndices( hid_t data_handle,
+                             long offset,
+                             long count,
+                             hid_t hdf_integer_type,
+                             void* end_indices_out,
+                             mhdf_Status* status );
+
+/** \brief Read only the parent end indices portion of the set description table
+ *
+ * For each set, read the last index of that set's data in the set
+ * parents table. 
+ *
+ * NOTE: This is a signed value.  Any sets w/out contents that occur
+ *       first in the list will have an end index of -1.
+ * 
+ *\param data_handle The handle returnd from mdhf_createSetMeta or mhdf_openSetMeta
+ *\param offset      The offset (set index) at which to begin reading.
+ *\param count       The number of values (number of sets) to read.
+ *\param hdf_integer_type The integer type of the input array 'set_flag_data'.
+ *\param end_indices_out Array of indices.
+ *\param status      Location at which to store status of API call.
+ */
+void
+mhdf_readSetParentEndIndices( hid_t data_handle,
+                              long offset,
+                              long count,
+                              hid_t hdf_integer_type,
+                              void* end_indices_out,
+                              mhdf_Status* status );
+
+
 /** \brief Write list of sets and meta-information about sets.
  *
  * Write set descriptions.  See \ref mhdf_createSetMeta or \ref mhdf_set for a 

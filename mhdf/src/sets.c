@@ -205,6 +205,7 @@ mhdf_readwriteSetMeta( hid_t table_id, int read,
   hsize_t offsets[2], counts[2], mcounts[2] = {count,4}, moffsets[2] = {0,0};
   herr_t rval = 0;
   int dims, i;
+  const int fill_val = -1;
   
   if (offset < 0 || count < 0)
   {
@@ -326,7 +327,7 @@ mhdf_readwriteSetMeta( hid_t table_id, int read,
       mcounts[1] = 1;
       moffsets[1] = 2;
       H5Sselect_hyperslab( mem_id, H5S_SELECT_SET, moffsets, NULL, mcounts, NULL );
-      rval = H5Dfill( NULL, type, data, type, mem_id );
+      rval = H5Dfill( &fill_val, H5T_NATIVE_INT, data, type, mem_id );
     }
   }
   else
@@ -348,7 +349,6 @@ mhdf_readwriteSetMeta( hid_t table_id, int read,
   mhdf_setOkay( status );
   return 1;
 }
-
 
 void
 mhdf_readSetMeta( hid_t table_id,
@@ -376,7 +376,187 @@ mhdf_writeSetMeta( hid_t table_id,
   API_END;
 }
 
-                  
+
+enum SetMetaCol {
+  CONTENT = 0,
+  CHILDREN = 1,
+  PARENTS = 2,
+  FLAGS = 3 
+};
+
+static int
+mhdf_readSetMetaColumn( hid_t table_id,
+                        enum SetMetaCol column, 
+                        long offset, long count,
+                        hid_t type, void* data,
+                        mhdf_Status* status )
+{
+  hid_t slab_id, sslab_id, smem_id, mem_id;
+  hsize_t offsets[2], counts[2], mcount = count;
+  herr_t rval = 0;
+  int dims;
+  const int fill_val = -1;
+  
+  if (offset < 0 || count < 0) {
+    mhdf_setFail( status, "Invalid input for reading set description column: "
+                          "offset = %ld, count = %ld\n", offset, count );
+    return 0;
+  }
+  
+  /* Get dimensions of table, and check against requested count and offset */
+  
+  slab_id = H5Dget_space( table_id );
+  if (slab_id < 0) {
+    mhdf_setFail( status, "Internal error calling H5Dget_space.");
+    return 0;
+  }
+  
+  dims = H5Sget_simple_extent_ndims( slab_id );
+  if (dims != 2) {
+    H5Sclose( slab_id );
+    mhdf_setFail( status, "Internal error: unexpected dataset rank: %d.", dims);
+    return 0;
+  }
+  
+  dims = H5Sget_simple_extent_dims( slab_id, counts, NULL );
+  if (dims < 0) {
+    H5Sclose( slab_id );
+    mhdf_setFail( status, "Internal error calling H5Sget_simple_extend_dims.");
+    return 0;
+  }
+ 
+  if ((unsigned long)(offset + count) > counts[0]) {
+    H5Sclose( slab_id );
+    mhdf_setFail( status, 
+      "Requested read of rows %ld to %ld of a %ld row table.\n",
+      offset, offset+count-1, (long)counts[dims-1]);
+    return 0;
+  }
+
+
+    /* Create a slab definition for the block of memory we're reading into */
+
+  mem_id = H5Screate_simple( 1, &mcount, NULL );
+  if (mem_id < 0) {
+    H5Sclose( slab_id );
+    mhdf_setFail( status, "Internal error calling H5Sselect_hyperslab." );
+    return 0;
+  }
+  
+    /* Old, 3-column table.
+     * New table is {contents, children, parents, flags}
+     * Old table is {contents, children, flags}
+     * If asking for parents, just return zeros.
+     * If asking for flags, fix column value.
+     */
+  offsets[1] = column; 
+  if (counts[1] == 3) {
+    if (column == PARENTS) {
+      rval = H5Dfill( &fill_val, H5T_NATIVE_INT, data, type, mem_id );
+      H5Sclose( mem_id );
+      H5Sclose( slab_id );
+      if (rval < 0) {
+        mhdf_setFail( status, "Internal error calling H5Dfill" );
+        return 0;
+      }
+      else {
+        mhdf_setOkay( status );
+        return 1;
+      }
+    }
+    else if (column == FLAGS)
+      --offsets[1];
+  }
+  else if (counts[1] != 4) {
+    H5Sclose( mem_id );
+    H5Sclose( slab_id );
+    mhdf_setFail( status, "Invalid dimension for meshset metadata table." );
+    return 0;
+  }
+  
+    /* Create a slab defintion for the portion of the table we want to read. */
+  
+  /* offsets[1] was initialized in the above block of code. */
+  offsets[0] = (hsize_t)offset;
+  counts[0] = (hsize_t)count;
+  counts[1] = 1; /* one column */
+  rval = H5Sselect_hyperslab( slab_id, H5S_SELECT_SET, offsets, NULL, counts, NULL );
+  if (rval < 0)
+  {
+    H5Sclose( mem_id );
+    H5Sclose( slab_id );
+    mhdf_setFail( status, "Internal error calling H5Sselect_hyperslab." );
+    return 0;
+  }
+  
+    /* Read the data */
+  
+  rval = H5Dread( table_id, type, mem_id, slab_id, H5P_DEFAULT, data );
+  H5Sclose( mem_id );
+  H5Sclose( slab_id );
+  if (rval < 0)
+  {
+    mhdf_setFail( status, "Internal error calling H5Dread." );
+    return 0;
+  }
+
+  mhdf_setOkay( status );
+  return 1;
+}
+
+
+void
+mhdf_readSetFlags( hid_t table_id,
+                   long offset,
+                   long count,
+                   hid_t type,
+                   void* data,
+                   mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_readSetMetaColumn( table_id, FLAGS, offset, count, type, data, status );
+  API_END;
+}
+
+
+void
+mhdf_readSetContentEndIndices( hid_t table_id,
+                               long offset,
+                               long count,
+                               hid_t type,
+                               void* data,
+                               mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_readSetMetaColumn( table_id, CONTENT, offset, count, type, data, status );
+  API_END;
+}
+
+void
+mhdf_readSetChildEndIndices( hid_t table_id,
+                             long offset,
+                             long count,
+                             hid_t type,
+                             void* data,
+                             mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_readSetMetaColumn( table_id, CHILDREN, offset, count, type, data, status );
+  API_END;
+}
+
+void
+mhdf_readSetParentEndIndices( hid_t table_id,
+                              long offset,
+                              long count,
+                              hid_t type,
+                              void* data,
+                              mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_readSetMetaColumn( table_id, PARENTS, offset, count, type, data, status );
+  API_END;
+}
 
 hid_t
 mhdf_createSetData( mhdf_FileHandle file_handle,
