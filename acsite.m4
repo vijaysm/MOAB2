@@ -16,7 +16,7 @@ AC_DEFUN([SNL_CHECK_COMPILERS], [
   # because those macros will modify them, and we want
   # the original user values, not the autoconf defaults.
 USER_CXXFLAGS="$CXXFLAGS"
-USER_CCFLAGS="$CFLAGS"
+USER_CFLAGS="$CFLAGS"
 
   # Check for Parallel
   # Need to check this early so we can look for the correct compiler
