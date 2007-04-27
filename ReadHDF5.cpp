@@ -494,6 +494,32 @@ MBErrorCode ReadHDF5::read_poly( const char* elem_group )
   return convert_id_to_handle( conn_array, (size_t)data_len );
 }
 
+template <typename T>
+class auto_array {
+private:
+  T* data;
+public:
+  auto_array( size_t s ) : data(new T[s]) {}
+  auto_array()           : data(0)        {}
+  T*       get       ()                 { return data;    }
+  const T* get       ()           const { return data;    }
+  T&       operator[]( size_t i )       { return data[i]; }
+  const T& operator[]( size_t i ) const { return data[i]; }
+  T&       operator* ()                 { return *data;   }
+  const T* operator* ()           const { return *data;   }
+  T*       operator->()                 { return data;    }
+  const T* operator->()           const { return data;    }
+// auto_ptr-style destrutive assigment
+  auto_array( auto_array<T>& c ) {
+    data = c.data;
+    const_cast<auto_array<T>&>(c).data = 0;
+  }
+  auto_array<T>& operator=( auto_array<T>& c ) {
+    data = c.data;
+    const_cast<auto_array<T>&>(c).data = 0;
+  }
+};
+  
 
 MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id,
                                          hid_t data_id,
@@ -505,8 +531,8 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id,
   
     // create extra buffers for storing end indices and flags
   const unsigned long offset_size = bufferSize / sizeof(long);
-  std::vector<long> offsets(offset_size);
-  std::vector<unsigned short> flags(offset_size);  
+  auto_array<long> offsets(offset_size);
+  auto_array<unsigned short> flags(offset_size);
   
   MBEntityHandle* buffer = (MBEntityHandle*)dataBuffer;
   size_t chunk_size = bufferSize / sizeof(MBEntityHandle);
@@ -521,13 +547,13 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id,
       // read end indices from meta data
     unsigned long set_count = sets_remaining < offset_size ? sets_remaining : offset_size;
     mhdf_readSetContentEndIndices( meta_id, set_offset, set_count, 
-                                   H5T_NATIVE_LONG, &offsets[0], &status );
+                                   H5T_NATIVE_LONG, offsets.get(), &status );
     if (mhdf_isError( &status )) {
       readUtil->report_error( mhdf_message( &status ) );
       return MB_FAILURE;
     }
     mhdf_readSetFlags( meta_id, set_offset, set_count, H5T_NATIVE_USHORT, 
-                       &flags[0], &status );
+                       flags.get(), &status );
     if (mhdf_isError( &status )) {
       readUtil->report_error( mhdf_message( &status ) );
       return MB_FAILURE;
@@ -648,7 +674,7 @@ MBErrorCode ReadHDF5::read_parents_children( bool parents,
   
   // create an extra buffer for storing offsets
   const unsigned long offset_size = bufferSize / sizeof(long);
-  std::vector<long> offsets(offset_size);
+  auto_array<long> offsets( offset_size );
   // use the existing buffer for storing set child lists
   MBEntityHandle* buffer = (MBEntityHandle*)dataBuffer;
   size_t chunk_size = bufferSize / sizeof(MBEntityHandle);
@@ -661,10 +687,10 @@ MBErrorCode ReadHDF5::read_parents_children( bool parents,
     unsigned long set_count = sets_remaining < offset_size ? sets_remaining : offset_size;
     if (parents)
       mhdf_readSetParentEndIndices( meta_id, set_offset, set_count, 
-                                    H5T_NATIVE_LONG, &offsets[0], &status );
+                                    H5T_NATIVE_LONG, offsets.get(), &status );
     else
       mhdf_readSetChildEndIndices(  meta_id, set_offset, set_count, 
-                                    H5T_NATIVE_LONG, &offsets[0], &status );
+                                    H5T_NATIVE_LONG, offsets.get(), &status );
     if (mhdf_isError( &status )) {
       readUtil->report_error( mhdf_message( &status ) );
       return MB_FAILURE;
