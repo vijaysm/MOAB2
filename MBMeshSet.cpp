@@ -406,7 +406,7 @@ MBErrorCode MBMeshSet_MBRange::unite( const MBMeshSet *meshset_2,
 
 unsigned long MBMeshSet_MBRange::get_memory_use() const
 {
-  return parent_child_memory_use() + mRange.get_memory_use() + sizeof(*this);
+  return parent_child_memory_use() + mRange.get_memory_use();
 }
 
 

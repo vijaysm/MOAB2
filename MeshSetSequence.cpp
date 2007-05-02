@@ -177,15 +177,18 @@ void MeshSetSequence::get_memory_use( unsigned long& used,
   for (MBEntityHandle h = get_start_handle(); h <= get_end_handle(); ++h) {
     if (is_valid_entity(h)) {
       unsigned long m = get_set(h)->get_memory_use();
-      used += SET_SIZE + m;
+      used += m;
       allocated += m;
+    }
+    else {
+      allocated += SET_SIZE;
     }
   }
 }
 
 unsigned long MeshSetSequence::get_memory_use( MBEntityHandle h ) const
 {
-  return get_set(h)->get_memory_use();
+  return SET_SIZE + get_set(h)->get_memory_use();
 }
 
 MBErrorCode MeshSetSequence::get_entities( MBEntityHandle handle,
