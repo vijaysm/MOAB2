@@ -5478,6 +5478,7 @@ static void _run_test( TestFunc func, const char* func_str )
     
   ++number_tests;
   cout << "   " << func_str << ": ";
+  cout.flush();
   error = func( iface );
   
   if (MB_SUCCESS == error)
