@@ -570,7 +570,7 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id,
         // special case: set content list for single set greater than buffer
       if (i == r) {
            // Check if set contents are stored as ranges or a simple list
-        bool ranged = (0 != (flags[5] & (unsigned short)mhdf_SET_RANGE_BIT));
+        bool ranged = (0 != (flags[r] & (unsigned short)mhdf_SET_RANGE_BIT));
 
         MBEntityHandle h = start_handle + set_offset + r;
         size_t remaining = offsets[r] + 1 - file_offset;
