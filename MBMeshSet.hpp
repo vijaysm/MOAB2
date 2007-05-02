@@ -34,6 +34,7 @@
 
 #include "MBTypes.h"
 #include "MBRange.hpp"
+#include "MBCN.hpp"
 
 #include <vector>
 
@@ -45,13 +46,15 @@ class AEntityFactory;
 
 class MBMeshSet
 {
-public:
+protected:
 
   //! create an empty meshset
-  MBMeshSet( bool track_ownership );
+  MBMeshSet( unsigned flags );
 
-  //! virtual destructor
-  virtual ~MBMeshSet();
+  //! destructor
+  ~MBMeshSet();
+
+public:
 
 #ifndef MB_MESH_SET_COMPACT_PARENT_CHILD_LISTS
     //! get all children pointed to by this meshset
@@ -126,80 +129,84 @@ public:
     //! remove a child from this meshset; returns true if child was removed, 0 if it was
     //! not a child of this meshset
   int remove_child(MBEntityHandle child);
-   
+  
+  unsigned flags() const { return mFlags; }
   //! returns whether entities of meshsets know this meshset 
-  bool tracking() { return mTracking; }
+  int tracking()     const { return mFlags & MESHSET_TRACK_OWNER; }
+  int set()          const { return mFlags & MESHSET_SET; }
+  int ordered()      const { return mFlags & MESHSET_ORDERED; }
+  int vector_based() const { return ordered(); }
 
    //!  PURE VIRTUAL FUNCTIONS overwritten by derived classes  *******************
 
-  virtual MBErrorCode clear( MBEntityHandle myhandle, AEntityFactory* adjacencies ) = 0;
+  inline MBErrorCode clear( MBEntityHandle myhandle, AEntityFactory* adjacencies );
 
-  virtual MBErrorCode get_entities(std::vector<MBEntityHandle>& entities) const = 0;
+  inline MBErrorCode get_entities(std::vector<MBEntityHandle>& entities) const;
   
-  virtual MBErrorCode get_entities(MBRange& entities) const = 0;
+  inline MBErrorCode get_entities(MBRange& entities) const;
   
     //! get all entities in this MeshSet with the specified type
-  virtual MBErrorCode get_entities_by_type(MBEntityType entity_type,
-      std::vector<MBEntityHandle> &entity_list) const = 0;
+  inline MBErrorCode get_entities_by_type(MBEntityType entity_type,
+      std::vector<MBEntityHandle> &entity_list) const;
   
-  virtual MBErrorCode get_entities_by_type(MBEntityType type,
-      MBRange& entity_list) const = 0;
+  inline MBErrorCode get_entities_by_type(MBEntityType type,
+      MBRange& entity_list) const;
       
-  virtual MBErrorCode get_entities_by_dimension( int dimension,
-      std::vector<MBEntityHandle> &entity_list) const = 0;
+  inline MBErrorCode get_entities_by_dimension( int dimension,
+      std::vector<MBEntityHandle> &entity_list) const;
 
-  virtual MBErrorCode get_entities_by_dimension( int dimension,
-      MBRange& entity_list) const = 0;
+  inline MBErrorCode get_entities_by_dimension( int dimension,
+      MBRange& entity_list) const;
       
-  virtual MBErrorCode get_non_set_entities( MBRange& range ) const = 0;
+  inline MBErrorCode get_non_set_entities( MBRange& range ) const;
     
   //! subtract/intersect/unite meshset_2 from/with/into meshset_1; modifies meshset_1
-  virtual MBErrorCode subtract(const MBMeshSet *meshset_2,
+  inline MBErrorCode subtract(const MBMeshSet *meshset_2,
                                MBEntityHandle my_handle,
-                               AEntityFactory* adjacencies) = 0;
+                               AEntityFactory* adjacencies);
 
-  virtual MBErrorCode intersect(const MBMeshSet *meshset_2,
+  inline MBErrorCode intersect(const MBMeshSet *meshset_2,
                                 MBEntityHandle my_handle,
-                                AEntityFactory* adjacencies) = 0;
+                                AEntityFactory* adjacencies);
 
-  virtual MBErrorCode unite(const MBMeshSet *meshset_2,
+  inline MBErrorCode unite(const MBMeshSet *meshset_2,
                             MBEntityHandle my_handle,
-                            AEntityFactory* adjacencies)=0;
+                            AEntityFactory* adjacencies);
 
   //! add these entities to this meshset
-  virtual MBErrorCode add_entities(const MBEntityHandle *entity_handles,
+  inline MBErrorCode add_entities(const MBEntityHandle *entity_handles,
                                    const int num_entities,
                                    MBEntityHandle my_handle,
-                                   AEntityFactory* adjacencies) = 0;
+                                   AEntityFactory* adjacencies);
     
     //! add these entities to this meshset
-  virtual MBErrorCode add_entities(const MBRange &entities,
+  inline MBErrorCode add_entities(const MBRange &entities,
                                    MBEntityHandle my_handle,
-                                   AEntityFactory* adjacencies)=0;
+                                   AEntityFactory* adjacencies);
     
     //! add these entities to this meshset
-  virtual MBErrorCode remove_entities(const MBRange& entities,
+  inline MBErrorCode remove_entities(const MBRange& entities,
                                       MBEntityHandle my_handle,
-                                      AEntityFactory* adjacencies)=0;
+                                      AEntityFactory* adjacencies);
    
     //! remove these entities from this meshset
-  virtual MBErrorCode remove_entities(const MBEntityHandle *entities,
+  inline MBErrorCode remove_entities(const MBEntityHandle *entities,
                                       const int num_entities,
                                       MBEntityHandle my_handle,
-                                      AEntityFactory* adjacencies)=0;
+                                      AEntityFactory* adjacencies);
 
     //! return the number of entities contained in this meshset
-  virtual unsigned int num_entities() const = 0;
+  inline unsigned int num_entities() const;
     
     //! return the number of entities with the given type contained in this meshset
-  virtual unsigned int num_entities_by_type(MBEntityType entity_type) const = 0;
+  inline unsigned int num_entities_by_type(MBEntityType entity_type) const;
     
     //! return the number of entities with the given type contained in this meshset
-  virtual unsigned int num_entities_by_dimension(int dimension) const = 0;
+  inline unsigned int num_entities_by_dimension(int dimension) const;
 
   typedef std::vector<MBEntityHandle> LinkSet;
   
-  virtual unsigned long get_memory_use() const = 0;
+  inline unsigned long get_memory_use() const;
 
 protected:
 
@@ -226,9 +233,8 @@ public:
     MBEntityHandle* ptr[2]; //!< begin and end pointers for array
   };
 protected:
-  //!flag to indicate whether 'tracking' is occuring on this meshset
-  //!ie. all entities of the meshset know they belong to this meshset 
-  bool mTracking;
+  //!Meshset propery flags
+  unsigned char mFlags;
   //! If less than MANY, the number of parents stored inline in
   //! parentMeshSets.hnd.  If MANY, then parentMeshSets.ptr contains
   //! array begin and end pointers for a dynamically allocated array
@@ -246,63 +252,63 @@ private:
 };
 
 #define MESH_SET_VIRTUAL_FUNCTIONS      \
-  virtual MBErrorCode clear( MBEntityHandle my_handle, AEntityFactory* adjacencies);                                                          \
+  MBErrorCode clear( MBEntityHandle my_handle, AEntityFactory* adjacencies);                                                          \
   \
-  virtual MBErrorCode get_entities(std::vector<MBEntityHandle>& entities) const;       \
+  inline MBErrorCode get_entities(std::vector<MBEntityHandle>& entities) const;       \
   \
-  virtual MBErrorCode get_entities(MBRange& entities) const;                           \
+  inline MBErrorCode get_entities(MBRange& entities) const;                           \
   \
-  virtual MBErrorCode get_entities_by_type(MBEntityType type,                          \
+  inline MBErrorCode get_entities_by_type(MBEntityType type,                          \
       std::vector<MBEntityHandle>& entity_list) const;                                  \
   \
-  virtual MBErrorCode get_entities_by_type(MBEntityType type,                          \
+  inline MBErrorCode get_entities_by_type(MBEntityType type,                          \
       MBRange& entity_list) const;                                                      \
   \
-  virtual MBErrorCode get_entities_by_dimension(int dimension,                          \
+  inline MBErrorCode get_entities_by_dimension(int dimension,                          \
       std::vector<MBEntityHandle>& entity_list) const;                                  \
   \
-  virtual MBErrorCode get_entities_by_dimension(int dimension,                          \
+  inline MBErrorCode get_entities_by_dimension(int dimension,                          \
       MBRange& entity_list) const;                                                      \
   \
-  virtual MBErrorCode get_non_set_entities( MBRange& range ) const; \
+  inline MBErrorCode get_non_set_entities( MBRange& range ) const; \
   \
-  virtual MBErrorCode subtract(const MBMeshSet*,                          \
+  MBErrorCode subtract(const MBMeshSet*,                          \
                                MBEntityHandle my_handle,                  \
                                AEntityFactory* adjacencies);              \
   \
-  virtual MBErrorCode intersect(const MBMeshSet *meshset_2,               \
+  MBErrorCode intersect(const MBMeshSet *meshset_2,               \
                                 MBEntityHandle my_handle,                 \
                                 AEntityFactory* adjacencies);             \
   \
-  virtual MBErrorCode unite(const MBMeshSet *meshset_2,                   \
+  MBErrorCode unite(const MBMeshSet *meshset_2,                   \
                             MBEntityHandle my_handle,                     \
                             AEntityFactory* adjacencies);                 \
   \
-  virtual MBErrorCode add_entities(const MBEntityHandle *entity_handles,  \
+  MBErrorCode add_entities(const MBEntityHandle *entity_handles,  \
                                    const int num_entities,                \
                                    MBEntityHandle my_handle,              \
                                    AEntityFactory* adjacencies);          \
   \
-  virtual MBErrorCode add_entities(const MBRange &entities,               \
+  MBErrorCode add_entities(const MBRange &entities,               \
                                    MBEntityHandle my_handle,              \
                                    AEntityFactory* adjacencies);          \
   \
-  virtual MBErrorCode remove_entities(const MBRange& entities,            \
+  MBErrorCode remove_entities(const MBRange& entities,            \
                                       MBEntityHandle my_handle,           \
                                       AEntityFactory* adjacencies);       \
   \
-  virtual MBErrorCode remove_entities(const MBEntityHandle *entities,     \
+  MBErrorCode remove_entities(const MBEntityHandle *entities,     \
                                       const int num_entities,             \
                                       MBEntityHandle my_handle,           \
                                       AEntityFactory* adjacencies);       \
   \
-  virtual unsigned int num_entities() const;                                        \
+  inline unsigned int num_entities() const;                                        \
   \
-  virtual unsigned int num_entities_by_type(MBEntityType entity_type) const;            \
+  inline unsigned int num_entities_by_type(MBEntityType entity_type) const;            \
   \
-  virtual unsigned int num_entities_by_dimension(int dimesion) const; \
+  inline unsigned int num_entities_by_dimension(int dimesion) const; \
   \
-  virtual unsigned long get_memory_use() const;
+  unsigned long get_memory_use() const;
 
 
 
@@ -311,8 +317,9 @@ class MBMeshSet_MBRange : public MBMeshSet
 public:
 
   MBMeshSet_MBRange(bool track_ownership) 
-    : MBMeshSet(track_ownership) {}
-  virtual ~MBMeshSet_MBRange();
+    : MBMeshSet(track_ownership ? 
+                MESHSET_SET|MESHSET_TRACK_OWNER :
+                MESHSET_SET) {}
 
   MESH_SET_VIRTUAL_FUNCTIONS
 
@@ -326,15 +333,371 @@ class MBMeshSet_Vector : public MBMeshSet
 public:
 
   MBMeshSet_Vector(bool track_ownership) 
-    : MBMeshSet(track_ownership) {}
-
-  virtual ~MBMeshSet_Vector();
+    : MBMeshSet(track_ownership ?
+                MESHSET_ORDERED|MESHSET_TRACK_OWNER :
+                MESHSET_ORDERED) {}
 
   MESH_SET_VIRTUAL_FUNCTIONS
 
 private:
+  static void vector_to_range( std::vector<MBEntityHandle>& vect, MBRange& range );
+
+  struct not_type_test {
+      inline not_type_test( MBEntityType type ) : mType(type) {}
+      inline bool operator()( MBEntityHandle handle )
+        { return TYPE_FROM_HANDLE(handle) != mType; }
+      MBEntityType mType;
+  };
+
+  struct type_test {
+      inline type_test( MBEntityType type ) : mType(type) {}
+      inline bool operator()( MBEntityHandle handle )
+        { return TYPE_FROM_HANDLE(handle) == mType; }
+      MBEntityType mType;
+  };
+
+  struct not_dim_test {
+      inline not_dim_test( int dimension ) : mDim(dimension) {}
+      inline bool operator()( MBEntityHandle handle ) const
+        { return MBCN::Dimension(TYPE_FROM_HANDLE(handle)) != mDim; }
+      int mDim;
+  };
+
+  struct dim_test {
+      inline dim_test( int dimension ) : mDim(dimension) {}
+      inline bool operator()( MBEntityHandle handle ) const
+        { return MBCN::Dimension(TYPE_FROM_HANDLE(handle)) == mDim; }
+      int mDim;
+  };
+
+
     std::vector<MBEntityHandle> mVector;
 };
+
+inline MBErrorCode 
+MBMeshSet::clear( MBEntityHandle myhandle, AEntityFactory* adjacencies )
+{ 
+  return vector_based() ?
+    reinterpret_cast<MBMeshSet_Vector* >(this)->clear( myhandle, adjacencies ) :
+    reinterpret_cast<MBMeshSet_MBRange*>(this)->clear( myhandle, adjacencies ) ;
+}
+
+inline MBErrorCode
+MBMeshSet::get_entities(std::vector<MBEntityHandle>& entities) const
+{ 
+  return vector_based() ?
+    reinterpret_cast<const MBMeshSet_Vector* >(this)->get_entities( entities ) :
+    reinterpret_cast<const MBMeshSet_MBRange*>(this)->get_entities( entities ) ;
+}
+
+inline MBErrorCode
+MBMeshSet::get_entities(MBRange& entities) const
+{ 
+  return vector_based() ?
+    reinterpret_cast<const MBMeshSet_Vector* >(this)->get_entities( entities ) :
+    reinterpret_cast<const MBMeshSet_MBRange*>(this)->get_entities( entities ) ;
+}
+
+  //! get all entities in this MeshSet with the specified type
+inline MBErrorCode
+MBMeshSet::get_entities_by_type(MBEntityType type, std::vector<MBEntityHandle> &entities) const
+{ 
+  return vector_based() ?
+    reinterpret_cast<const MBMeshSet_Vector* >(this)->get_entities_by_type( type, entities ) :
+    reinterpret_cast<const MBMeshSet_MBRange*>(this)->get_entities_by_type( type, entities ) ;
+}
+
+inline MBErrorCode
+MBMeshSet::get_entities_by_type(MBEntityType type, MBRange& entities) const
+{ 
+  return vector_based() ?
+    reinterpret_cast<const MBMeshSet_Vector* >(this)->get_entities_by_type( type, entities ) :
+    reinterpret_cast<const MBMeshSet_MBRange*>(this)->get_entities_by_type( type, entities ) ;
+}
+    
+inline MBErrorCode
+MBMeshSet::get_entities_by_dimension( int dim, std::vector<MBEntityHandle> &entities) const
+{ 
+  return vector_based() ?
+    reinterpret_cast<const MBMeshSet_Vector* >(this)->get_entities_by_dimension( dim, entities ) :
+    reinterpret_cast<const MBMeshSet_MBRange*>(this)->get_entities_by_dimension( dim, entities ) ;
+}
+
+inline MBErrorCode
+MBMeshSet::get_entities_by_dimension( int dim, MBRange& entities) const
+{ 
+  return vector_based() ?
+    reinterpret_cast<const MBMeshSet_Vector* >(this)->get_entities_by_dimension( dim, entities ) :
+    reinterpret_cast<const MBMeshSet_MBRange*>(this)->get_entities_by_dimension( dim, entities ) ;
+}
+    
+inline MBErrorCode
+MBMeshSet::get_non_set_entities( MBRange& entities ) const
+{ 
+  return vector_based() ?
+    reinterpret_cast<const MBMeshSet_Vector* >(this)->get_non_set_entities( entities ) :
+    reinterpret_cast<const MBMeshSet_MBRange*>(this)->get_non_set_entities( entities ) ;
+}
+  
+//! subtract/intersect/unite meshset_2 from/with/into meshset_1; modifies meshset_1
+inline MBErrorCode
+MBMeshSet::subtract( const MBMeshSet *meshset_2,
+                     MBEntityHandle my_handle,
+                     AEntityFactory* adjacencies)
+{ 
+  return vector_based() ?
+    reinterpret_cast<MBMeshSet_Vector* >(this)->subtract( meshset_2, my_handle, adjacencies ) :
+    reinterpret_cast<MBMeshSet_MBRange*>(this)->subtract( meshset_2, my_handle, adjacencies ) ;
+}
+
+inline MBErrorCode
+MBMeshSet::intersect( const MBMeshSet *meshset_2,
+                      MBEntityHandle my_handle,
+                      AEntityFactory* adjacencies)
+{ 
+  return vector_based() ?
+    reinterpret_cast<MBMeshSet_Vector* >(this)->intersect( meshset_2, my_handle, adjacencies ) :
+    reinterpret_cast<MBMeshSet_MBRange*>(this)->intersect( meshset_2, my_handle, adjacencies ) ;
+}
+
+inline MBErrorCode
+MBMeshSet::unite( const MBMeshSet *meshset_2,
+                  MBEntityHandle my_handle,
+                  AEntityFactory* adjacencies)
+{ 
+  return vector_based() ?
+    reinterpret_cast<MBMeshSet_Vector* >(this)->unite( meshset_2, my_handle, adjacencies ) :
+    reinterpret_cast<MBMeshSet_MBRange*>(this)->unite( meshset_2, my_handle, adjacencies ) ;
+}
+
+//! add these entities to this meshset
+inline MBErrorCode
+MBMeshSet::add_entities( const MBEntityHandle *entities,
+                         const int num_entities,
+                         MBEntityHandle my_handle,
+                         AEntityFactory* adjacencies)
+{ 
+  return vector_based() ?
+    reinterpret_cast<MBMeshSet_Vector* >(this)->add_entities( entities, num_entities, my_handle, adjacencies ) :
+    reinterpret_cast<MBMeshSet_MBRange*>(this)->add_entities( entities, num_entities, my_handle, adjacencies ) ;
+}
+  
+  //! add these entities to this meshset
+inline MBErrorCode
+MBMeshSet::add_entities( const MBRange &entities,
+                         MBEntityHandle my_handle,
+                         AEntityFactory* adjacencies)
+{ 
+  return vector_based() ?
+    reinterpret_cast<MBMeshSet_Vector* >(this)->add_entities( entities, my_handle, adjacencies ) :
+    reinterpret_cast<MBMeshSet_MBRange*>(this)->add_entities( entities, my_handle, adjacencies ) ;
+}
+  
+  //! add these entities to this meshset
+inline MBErrorCode
+MBMeshSet::remove_entities( const MBRange& entities,
+                            MBEntityHandle my_handle,
+                            AEntityFactory* adjacencies)
+{ 
+  return vector_based() ?
+    reinterpret_cast<MBMeshSet_Vector* >(this)->remove_entities( entities, my_handle, adjacencies ) :
+    reinterpret_cast<MBMeshSet_MBRange*>(this)->remove_entities( entities, my_handle, adjacencies ) ;
+}
+ 
+  //! remove these entities from this meshset
+inline MBErrorCode
+MBMeshSet::remove_entities( const MBEntityHandle *entities,
+                            const int num_entities,
+                            MBEntityHandle my_handle,
+                            AEntityFactory* adjacencies)
+{ 
+  return vector_based() ?
+    reinterpret_cast<MBMeshSet_Vector* >(this)->remove_entities( entities, num_entities, my_handle, adjacencies ) :
+    reinterpret_cast<MBMeshSet_MBRange*>(this)->remove_entities( entities, num_entities, my_handle, adjacencies ) ;
+}
+
+  //! return the number of entities contained in this meshset
+inline unsigned int MBMeshSet::num_entities() const
+{ 
+  return vector_based() ?
+    reinterpret_cast<const MBMeshSet_Vector* >(this)->num_entities() :
+    reinterpret_cast<const MBMeshSet_MBRange*>(this)->num_entities() ;
+}
+  
+  //! return the number of entities with the given type contained in this meshset
+inline unsigned int
+MBMeshSet::num_entities_by_type(MBEntityType type) const
+{ 
+  return vector_based() ?
+    reinterpret_cast<const MBMeshSet_Vector* >(this)->num_entities_by_type(type) :
+    reinterpret_cast<const MBMeshSet_MBRange*>(this)->num_entities_by_type(type) ;
+}
+  
+  //! return the number of entities with the given type contained in this meshset
+inline unsigned int
+MBMeshSet::num_entities_by_dimension(int dim) const
+{ 
+  return vector_based() ?
+    reinterpret_cast<const MBMeshSet_Vector* >(this)->num_entities_by_dimension(dim) :
+    reinterpret_cast<const MBMeshSet_MBRange*>(this)->num_entities_by_dimension(dim) ;
+}
+
+inline unsigned long MBMeshSet::get_memory_use() const
+{ 
+  return vector_based() ?
+    reinterpret_cast<const MBMeshSet_Vector* >(this)->get_memory_use() :
+    reinterpret_cast<const MBMeshSet_MBRange*>(this)->get_memory_use() ;
+}
+
+inline MBErrorCode MBMeshSet_MBRange::get_entities(std::vector<MBEntityHandle>& entity_list) const
+{
+  size_t old_size = entity_list.size();
+  entity_list.resize(old_size + mRange.size());
+  std::copy( mRange.begin(), mRange.end(), entity_list.begin()+old_size );
+  return MB_SUCCESS;
+}
+
+inline MBErrorCode MBMeshSet_MBRange::get_entities(MBRange& entity_list) const
+{
+  entity_list.merge( mRange );
+  return MB_SUCCESS;
+}
+
+inline MBErrorCode MBMeshSet_MBRange::get_entities_by_type(MBEntityType type,
+    std::vector<MBEntityHandle>& entity_list) const
+{
+  std::pair<MBRange::const_iterator,MBRange::const_iterator> its;
+  its = mRange.equal_range( type );
+  std::copy( its.first, its.second, std::back_inserter( entity_list ) );
+  return MB_SUCCESS;
+}
+
+inline MBErrorCode MBMeshSet_MBRange::get_entities_by_type(MBEntityType type,
+    MBRange& entity_list) const
+{
+  std::pair<MBRange::const_iterator,MBRange::const_iterator> its;
+  its = mRange.equal_range( type );
+  entity_list.merge( its.first, its.second );
+  return MB_SUCCESS;
+}
+
+inline MBErrorCode MBMeshSet_MBRange::get_entities_by_dimension(int dim,
+    std::vector<MBEntityHandle>& entity_list) const
+{
+  MBRange::const_iterator beg = mRange.lower_bound(MBCN::TypeDimensionMap[dim].first);
+  MBRange::const_iterator end = mRange.lower_bound(MBCN::TypeDimensionMap[dim+1].first);
+  std::copy( beg, end, std::back_inserter( entity_list ) );
+  return MB_SUCCESS;
+}
+
+inline MBErrorCode MBMeshSet_MBRange::get_entities_by_dimension(int dim,
+    MBRange& entity_list) const
+{
+  MBRange::const_iterator beg = mRange.lower_bound(MBCN::TypeDimensionMap[dim].first);
+  MBRange::const_iterator end = mRange.lower_bound(MBCN::TypeDimensionMap[dim+1].first);
+  entity_list.merge( beg, end );
+  return MB_SUCCESS;
+}
+
+inline MBErrorCode MBMeshSet_MBRange::get_non_set_entities( MBRange& range ) const
+{
+  range.merge( mRange.begin(), mRange.lower_bound( MBENTITYSET ) );
+  return MB_SUCCESS;
+}
+
+inline unsigned int MBMeshSet_MBRange::num_entities() const
+{
+  return mRange.size();
+}
+
+inline unsigned int MBMeshSet_MBRange::num_entities_by_type(MBEntityType type) const
+{
+  return mRange.num_of_type( type );
+}
+
+inline unsigned int MBMeshSet_MBRange::num_entities_by_dimension(int dimension) const
+{
+  return mRange.num_of_dimension( dimension );
+}
+
+inline MBErrorCode MBMeshSet_Vector::get_entities(std::vector<MBEntityHandle>& entity_list) const
+{
+  size_t old_size = entity_list.size();
+  entity_list.resize( mVector.size() + old_size );
+  std::copy( mVector.begin(), mVector.end(), entity_list.begin()+old_size );
+  return MB_SUCCESS;
+}
+
+inline MBErrorCode MBMeshSet_Vector::get_entities(MBRange& entity_list) const
+{
+  std::vector<MBEntityHandle> tmp_vect( mVector );
+  vector_to_range( tmp_vect, entity_list );
+  return MB_SUCCESS;
+}
+
+inline MBErrorCode MBMeshSet_Vector::get_entities_by_type(MBEntityType type,
+    std::vector<MBEntityHandle>& entity_list) const
+{
+  std::remove_copy_if( mVector.begin(), mVector.end(), 
+                       std::back_inserter( entity_list ),
+                       not_type_test(type) );
+  return MB_SUCCESS;
+}
+
+inline MBErrorCode MBMeshSet_Vector::get_entities_by_type(MBEntityType type,
+    MBRange& entity_list) const
+{
+  std::vector<MBEntityHandle> tmp_vect;
+  get_entities_by_type( type, tmp_vect );
+  vector_to_range( tmp_vect, entity_list );
+  return MB_SUCCESS;
+}
+
+inline MBErrorCode MBMeshSet_Vector::get_entities_by_dimension( int dimension, 
+    std::vector<MBEntityHandle>& entity_list) const
+{
+  std::remove_copy_if( mVector.begin(), mVector.end(), 
+                       std::back_inserter( entity_list ),
+                       not_dim_test(dimension) );
+  return MB_SUCCESS;
+}
+
+inline MBErrorCode MBMeshSet_Vector::get_entities_by_dimension( int dimension, 
+    MBRange& entity_list) const
+{
+  std::vector<MBEntityHandle> tmp_vect;
+  get_entities_by_dimension( dimension, tmp_vect );
+  vector_to_range( tmp_vect, entity_list );
+  return MB_SUCCESS;
+}
+
+inline MBErrorCode MBMeshSet_Vector::get_non_set_entities( MBRange& entities ) const
+{
+  std::vector<MBEntityHandle> tmp_vect;
+  std::remove_copy_if( mVector.begin(), mVector.end(), 
+                       std::back_inserter( tmp_vect ),
+                       type_test(MBENTITYSET) );
+  vector_to_range( tmp_vect, entities );
+  return MB_SUCCESS;
+}
+
+
+
+inline unsigned int MBMeshSet_Vector::num_entities() const
+{
+  return mVector.size();
+}
+
+inline unsigned int MBMeshSet_Vector::num_entities_by_type(MBEntityType type) const
+{
+  return std::count_if( mVector.begin(), mVector.end(), type_test(type) );
+}
+
+inline unsigned int MBMeshSet_Vector::num_entities_by_dimension( int dim ) const
+{
+  return std::count_if( mVector.begin(), mVector.end(), dim_test(dim) );
+}
+
 
 
 #endif

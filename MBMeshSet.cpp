@@ -48,8 +48,8 @@ using namespace std;
 
 #ifndef MB_MESH_SET_COMPACT_PARENT_CHILD_LISTS
 
-MBMeshSet::MBMeshSet( bool track_ownership ) 
-  : mTracking(track_ownership)
+MBMeshSet::MBMeshSet( unsigned flags ) 
+  : mFlags(flags)
   {}
 
 MBMeshSet::~MBMeshSet() 
@@ -90,8 +90,8 @@ unsigned long MBMeshSet::parent_child_memory_use() const
 
 #else 
 
-MBMeshSet::MBMeshSet( bool track_ownership ) 
-  : mTracking(track_ownership),
+MBMeshSet::MBMeshSet( unsigned flags ) 
+  : mFlags(flags),
     mParentCount(ZERO),
     mChildCount(ZERO)
   {}
@@ -259,14 +259,10 @@ unsigned long MBMeshSet::parent_child_memory_use() const
 #endif
   
 
-MBMeshSet_MBRange::~MBMeshSet_MBRange()
-{
-}
-
 MBErrorCode MBMeshSet_MBRange::clear( MBEntityHandle mEntityHandle,
                                       AEntityFactory* mAdjFact )
 {
-  if(mTracking && mAdjFact)
+  if(tracking() && mAdjFact)
   {
     for(MBRange::iterator iter = mRange.begin();
         iter != mRange.end(); ++iter)
@@ -278,62 +274,6 @@ MBErrorCode MBMeshSet_MBRange::clear( MBEntityHandle mEntityHandle,
   return MB_SUCCESS;
 }
 
-MBErrorCode MBMeshSet_MBRange::get_entities(std::vector<MBEntityHandle>& entity_list) const
-{
-  unsigned int old_size = entity_list.size();
-  entity_list.resize(old_size + mRange.size());
-  for (MBRange::iterator rit = mRange.begin(); rit != mRange.end(); rit++)
-    entity_list[old_size++] = *rit;
-  return MB_SUCCESS;
-}
-
-MBErrorCode MBMeshSet_MBRange::get_entities(MBRange& entity_list) const
-{
-  entity_list.merge( mRange );
-  return MB_SUCCESS;
-}
-
-MBErrorCode MBMeshSet_MBRange::get_entities_by_type(MBEntityType type,
-    std::vector<MBEntityHandle>& entity_list) const
-{
-  std::pair<MBRange::const_iterator,MBRange::const_iterator> its;
-  its = mRange.equal_range( type );
-  std::copy( its.first, its.second, std::back_inserter( entity_list ) );
-  return MB_SUCCESS;
-}
-
-MBErrorCode MBMeshSet_MBRange::get_entities_by_type(MBEntityType type,
-    MBRange& entity_list) const
-{
-  std::pair<MBRange::const_iterator,MBRange::const_iterator> its;
-  its = mRange.equal_range( type );
-  entity_list.merge( its.first, its.second );
-  return MB_SUCCESS;
-}
-
-MBErrorCode MBMeshSet_MBRange::get_entities_by_dimension(int dim,
-    std::vector<MBEntityHandle>& entity_list) const
-{
-  MBRange::const_iterator beg = mRange.lower_bound(MBCN::TypeDimensionMap[dim].first);
-  MBRange::const_iterator end = mRange.lower_bound(MBCN::TypeDimensionMap[dim+1].first);
-  std::copy( beg, end, std::back_inserter( entity_list ) );
-  return MB_SUCCESS;
-}
-
-MBErrorCode MBMeshSet_MBRange::get_entities_by_dimension(int dim,
-    MBRange& entity_list) const
-{
-  MBRange::const_iterator beg = mRange.lower_bound(MBCN::TypeDimensionMap[dim].first);
-  MBRange::const_iterator end = mRange.lower_bound(MBCN::TypeDimensionMap[dim+1].first);
-  entity_list.merge( beg, end );
-  return MB_SUCCESS;
-}
-
-MBErrorCode MBMeshSet_MBRange::get_non_set_entities( MBRange& range ) const
-{
-  range.merge( mRange.begin(), mRange.lower_bound( MBENTITYSET ) );
-  return MB_SUCCESS;
-}
 
 MBErrorCode MBMeshSet_MBRange::add_entities( const MBEntityHandle *entities,
                                              const int num_entities,
@@ -344,7 +284,7 @@ MBErrorCode MBMeshSet_MBRange::add_entities( const MBEntityHandle *entities,
   for(i = 0; i < num_entities; i++)
     mRange.insert(entities[i]);
 
-  if(mTracking && mAdjFact)
+  if(tracking() && mAdjFact)
   {
     for(i = 0; i < num_entities; i++)
       mAdjFact->add_adjacency(entities[i], mEntityHandle);
@@ -360,7 +300,7 @@ MBErrorCode MBMeshSet_MBRange::add_entities( const MBRange& entities,
 
   mRange.merge(entities);
   
-  if(mTracking && mAdjFact)
+  if(tracking() && mAdjFact)
   {
     for(MBRange::const_iterator iter = entities.begin();
         iter != entities.end(); ++iter)
@@ -381,7 +321,7 @@ MBErrorCode MBMeshSet_MBRange::remove_entities( const MBRange& entities,
     if(found != mRange.end())
     {
       mRange.erase(found);
-      if(mTracking && mAdjFact)
+      if(tracking() && mAdjFact)
         mAdjFact->remove_adjacency(*iter, mEntityHandle);
     }
   }
@@ -401,7 +341,7 @@ MBErrorCode MBMeshSet_MBRange::remove_entities( const MBEntityHandle *entities,
     if(found != mRange.end())
     {
       mRange.erase(found);
-      if(mTracking && mAdjFact)
+      if(tracking() && mAdjFact)
         mAdjFact->remove_adjacency(entities[i], mEntityHandle);
     }
   }
@@ -409,22 +349,6 @@ MBErrorCode MBMeshSet_MBRange::remove_entities( const MBEntityHandle *entities,
   return MB_SUCCESS;
 
 }
-
-unsigned int MBMeshSet_MBRange::num_entities() const
-{
-  return mRange.size();
-}
-
-unsigned int MBMeshSet_MBRange::num_entities_by_type(MBEntityType type) const
-{
-  return mRange.num_of_type( type );
-}
-
-unsigned int MBMeshSet_MBRange::num_entities_by_dimension(int dimension) const
-{
-  return mRange.num_of_dimension( dimension );
-}
-
 
 MBErrorCode MBMeshSet_MBRange::subtract( const MBMeshSet *meshset_2,
                                          MBEntityHandle handle,
@@ -457,7 +381,7 @@ MBErrorCode MBMeshSet_MBRange::intersect( const MBMeshSet *meshset_2,
   }
 
   //track owner
-  if(mTracking && mAdjFact)
+  if(tracking() && mAdjFact)
   {
     tmp.clear();
     std::set_difference(mRange.begin(), mRange.end(), other_range.begin(), other_range.end(),
@@ -486,14 +410,10 @@ unsigned long MBMeshSet_MBRange::get_memory_use() const
 }
 
 
-MBMeshSet_Vector::~MBMeshSet_Vector()
-{
-}
-
 MBErrorCode MBMeshSet_Vector::clear( MBEntityHandle mEntityHandle, 
                                      AEntityFactory* mAdjFact)
 {
-  if(mTracking && mAdjFact)
+  if(tracking() && mAdjFact)
   {
     for(std::vector<MBEntityHandle>::iterator iter = mVector.begin();
         iter != mVector.end(); ++iter)
@@ -506,7 +426,7 @@ MBErrorCode MBMeshSet_Vector::clear( MBEntityHandle mEntityHandle,
   return MB_SUCCESS;
 }
 
-static void vector_to_range( std::vector<MBEntityHandle>& vect, MBRange& range )
+void MBMeshSet_Vector::vector_to_range( std::vector<MBEntityHandle>& vect, MBRange& range )
 {
   std::sort( vect.begin(), vect.end() );
   MBRange::iterator insert_iter = range.begin();
@@ -520,101 +440,6 @@ static void vector_to_range( std::vector<MBEntityHandle>& vect, MBRange& range )
   }
 }
 
-class not_type_test {
-  public:
-    inline not_type_test( MBEntityType type ) : mType(type) {}
-    inline bool operator()( MBEntityHandle handle )
-      { return TYPE_FROM_HANDLE(handle) != mType; }
-  private:
-    MBEntityType mType;
-};
-
-class type_test {
-  public:
-    inline type_test( MBEntityType type ) : mType(type) {}
-    inline bool operator()( MBEntityHandle handle )
-      { return TYPE_FROM_HANDLE(handle) == mType; }
-  private:
-    MBEntityType mType;
-};
-
-class not_dim_test {
-  public:
-    inline not_dim_test( int dimension ) : mDim(dimension) {}
-    inline bool operator()( MBEntityHandle handle ) const
-      { return MBCN::Dimension(TYPE_FROM_HANDLE(handle)) != mDim; }
-  private:
-    int mDim;
-};
-
-class dim_test {
-  public:
-    inline dim_test( int dimension ) : mDim(dimension) {}
-    inline bool operator()( MBEntityHandle handle ) const
-      { return MBCN::Dimension(TYPE_FROM_HANDLE(handle)) == mDim; }
-  private:
-    int mDim;
-};
-
-MBErrorCode MBMeshSet_Vector::get_entities(std::vector<MBEntityHandle>& entity_list) const
-{
-  std::copy( mVector.begin(), mVector.end(), std::back_inserter(entity_list) );
-  return MB_SUCCESS;
-}
-
-MBErrorCode MBMeshSet_Vector::get_entities(MBRange& entity_list) const
-{
-  std::vector<MBEntityHandle> tmp_vect( mVector );
-  vector_to_range( tmp_vect, entity_list );
-  return MB_SUCCESS;
-}
-
-MBErrorCode MBMeshSet_Vector::get_entities_by_type(MBEntityType type,
-    std::vector<MBEntityHandle>& entity_list) const
-{
-  std::remove_copy_if( mVector.begin(), mVector.end(), 
-                       std::back_inserter( entity_list ),
-                       not_type_test(type) );
-  return MB_SUCCESS;
-}
-
-MBErrorCode MBMeshSet_Vector::get_entities_by_type(MBEntityType type,
-    MBRange& entity_list) const
-{
-  std::vector<MBEntityHandle> tmp_vect;
-  get_entities_by_type( type, tmp_vect );
-  vector_to_range( tmp_vect, entity_list );
-  return MB_SUCCESS;
-}
-
-MBErrorCode MBMeshSet_Vector::get_entities_by_dimension( int dimension, 
-    std::vector<MBEntityHandle>& entity_list) const
-{
-  std::remove_copy_if( mVector.begin(), mVector.end(), 
-                       std::back_inserter( entity_list ),
-                       not_dim_test(dimension) );
-  return MB_SUCCESS;
-}
-
-MBErrorCode MBMeshSet_Vector::get_entities_by_dimension( int dimension, 
-    MBRange& entity_list) const
-{
-  std::vector<MBEntityHandle> tmp_vect;
-  get_entities_by_dimension( dimension, tmp_vect );
-  vector_to_range( tmp_vect, entity_list );
-  return MB_SUCCESS;
-}
-
-MBErrorCode MBMeshSet_Vector::get_non_set_entities( MBRange& entities ) const
-{
-  std::vector<MBEntityHandle> tmp_vect;
-  std::remove_copy_if( mVector.begin(), mVector.end(), 
-                       std::back_inserter( tmp_vect ),
-                       type_test(MBENTITYSET) );
-  vector_to_range( tmp_vect, entities );
-  return MB_SUCCESS;
-}
-
 MBErrorCode MBMeshSet_Vector::add_entities( const MBEntityHandle *entities,
                                             const int num_entities,
                                             MBEntityHandle mEntityHandle,
@@ -624,7 +449,7 @@ MBErrorCode MBMeshSet_Vector::add_entities( const MBEntityHandle *entities,
   mVector.resize(prev_size + num_entities);
   std::copy(entities, entities+num_entities, &mVector[prev_size]);
 
-  if(mTracking && mAdjFact)
+  if(tracking() && mAdjFact)
   {
     for(int i = 0; i < num_entities; i++)
       mAdjFact->add_adjacency(entities[i], mEntityHandle);
@@ -643,7 +468,7 @@ MBErrorCode MBMeshSet_Vector::add_entities( const MBRange& entities,
   mVector.resize(prev_size + entities.size());
   std::copy(entities.begin(), entities.end(), &mVector[prev_size]);
   
-  if(mTracking && mAdjFact)
+  if(tracking() && mAdjFact)
   {
     for(MBRange::const_iterator iter = entities.begin();
         iter != entities.end(); ++iter)
@@ -663,7 +488,7 @@ MBErrorCode MBMeshSet_Vector::remove_entities( const MBRange& entities,
   {
     if(entities.find(*iter) != entities.end())
     {
-      if(mTracking && mAdjFact)
+      if(tracking() && mAdjFact)
         mAdjFact->remove_adjacency(*iter, mEntityHandle);
       iter = mVector.erase(iter);
     }
@@ -686,30 +511,13 @@ MBErrorCode MBMeshSet_Vector::remove_entities( const MBEntityHandle *entities,
     temp_iter = std::find( mVector.begin(), mVector.end(), entities[i]); 
     if( temp_iter != mVector.end() )
     {
-      if(mTracking && mAdjFact)
+      if(tracking() && mAdjFact)
         mAdjFact->remove_adjacency(entities[i], mEntityHandle);
       mVector.erase(temp_iter);
     }
   }
   return MB_SUCCESS;
 }
-
-
-unsigned int MBMeshSet_Vector::num_entities() const
-{
-  return mVector.size();
-}
-
-unsigned int MBMeshSet_Vector::num_entities_by_type(MBEntityType type) const
-{
-  return std::count_if( mVector.begin(), mVector.end(), type_test(type) );
-}
-
-unsigned int MBMeshSet_Vector::num_entities_by_dimension( int dim ) const
-{
-  return std::count_if( mVector.begin(), mVector.end(), dim_test(dim) );
-}
-
 
 MBErrorCode MBMeshSet_Vector::subtract( const MBMeshSet *meshset_2,
                                         MBEntityHandle my_handle,
@@ -744,7 +552,7 @@ MBErrorCode MBMeshSet_Vector::intersect( const MBMeshSet *meshset_2,
   std::set_difference(mVector.begin(), mVector.end(), other_range.begin(), other_range.end(),
       std::inserter< std::set<MBEntityHandle> >(tmp, tmp.end()));
 
-  if(mTracking && mAdjFact)
+  if(tracking() && mAdjFact)
   {
     for(std::set<MBEntityHandle>::iterator iter = tmp.begin();
         iter != tmp.end(); ++iter)
@@ -766,7 +574,6 @@ MBErrorCode MBMeshSet_Vector::unite( const MBMeshSet *meshset_2,
 unsigned long MBMeshSet_Vector::get_memory_use() const
 {
   return parent_child_memory_use() 
-       + mVector.capacity()*sizeof(MBEntityHandle) 
-       + sizeof(*this);
+       + mVector.capacity()*sizeof(MBEntityHandle);
 }
 
