@@ -46,14 +46,6 @@ PolyEntitySequence::~PolyEntitySequence()
   mElements = NULL;
 }
 
-bool PolyEntitySequence::is_valid_entity(MBEntityHandle entity) const
-{
-  return ( (entity-mStartEntityHandle) < (mNumEntities + mDeadEntities.size()) && 
-           entity >= mStartEntityHandle &&
-           std::find(mDeadEntities.begin(), mDeadEntities.end(), entity) == 
-           mDeadEntities.end());
-}
-
 MBErrorCode PolyEntitySequence::get_connectivity(MBEntityHandle entity,
                                                  const MBEntityHandle*& conn,
                                                  int &num_vertices,
@@ -147,6 +139,12 @@ MBErrorCode PolyEntitySequence::add_entity(const MBEntityHandle *conn,
     mLastIndex.push_back(mLastIndex[mNumEntities+mDeadEntities.size()-1]+num_conn);
 
   mNumEntities++;
+  if (mNumEntities == mNumAllocated)  {
+    std::vector<bool> empty;
+    mFreeEntities.swap( empty );
+    mSequenceManager->notify_full(this);
+  }
+  mFreeEntities[handle - get_start_handle()] = false;
   
     // put the connectivity on the end of that array
   polyConn.insert(polyConn.end(), conn, conn+num_conn);
@@ -193,6 +191,9 @@ void PolyEntitySequence::free_handle(MBEntityHandle entity)
 
     // now add it to the dead list
   mDeadEntities.push_back(entity);
+  if (mFreeEntities.empty())
+    mFreeEntities.resize( mNumAllocated, false );
+  mFreeEntities[index] = true;
 
     // decrement number of entities
   mNumEntities--;
@@ -208,7 +209,7 @@ void PolyEntitySequence::get_memory_use( unsigned long& used,
                                          unsigned long& allocated) const
 {
   allocated = sizeof(*this)
-       + mFreeEntities.size() / 8
+       + mFreeEntities.capacity() / 8
        + polyConn.capacity() * sizeof(MBEntityHandle)
        + mLastIndex.capacity() * sizeof(int)
        + mDeadEntities.capacity() * sizeof(MBEntityHandle)

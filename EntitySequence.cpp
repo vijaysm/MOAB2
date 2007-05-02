@@ -75,16 +75,16 @@ VertexEntitySequence::VertexEntitySequence(EntitySequenceManager* seq_manager,
   mCoords[1] = new double[num_entities];
   mCoords[2] = new double[num_entities];
   
+  mFreeEntities.clear();
   if(all_handles_used)
   {
     mNumEntities = num_entities;
     mFirstFreeIndex = -1;
-    std::vector<bool>(mNumAllocated, false).swap(mFreeEntities);
   }
   else
   {
     seq_manager->notify_not_full(this);
-    std::vector<bool>(mNumAllocated, true).swap(mFreeEntities);
+    mFreeEntities.resize(mNumAllocated, true);
     mNumEntities = 0;
     mFirstFreeIndex = 0;
     for(MBEntityID i=0; i<num_entities; i++)
@@ -117,8 +117,11 @@ MBEntityHandle VertexEntitySequence::get_unused_handle()
 
   mNumEntities++;
 
-  if(mNumEntities == mNumAllocated)
+  if(mNumEntities == mNumAllocated) {
     mSequenceManager->notify_full(this);
+    std::vector<bool> empty;
+    mFreeEntities.swap(empty);
+  }
 
   if( mLastDeletedIndex == (MBEntityID)( new_handle - mStartEntityHandle ))
     mLastDeletedIndex = -1;
@@ -132,8 +135,10 @@ void VertexEntitySequence::free_handle(MBEntityHandle handle)
   if(!is_valid_entity(handle))
     return;
 
-  if(mNumEntities == mNumAllocated)
+  if(mNumEntities == mNumAllocated) {
     mSequenceManager->notify_not_full(this);
+    mFreeEntities.resize( mNumAllocated, false );
+  }
 
   mFreeEntities[handle - mStartEntityHandle] = true;
 
@@ -194,8 +199,6 @@ MBEntityID VertexEntitySequence::get_next_free_index( MBEntityID prev_free_index
 {
   if (prev_free_index < 0)
     return mFirstFreeIndex;
-  assert( (MBEntityHandle)prev_free_index < mFreeEntities.size() 
-          && mFreeEntities[prev_free_index] );
   return reinterpret_cast<MBEntityID&>(mCoords[0][prev_free_index]);
 }
 
@@ -203,7 +206,7 @@ void VertexEntitySequence::get_memory_use( unsigned long& used,
                                            unsigned long& allocated) const
 {
   unsigned long per_ent = get_memory_use((MBEntityHandle)0);
-  allocated = sizeof(*this) + mFreeEntities.size()/8 + per_ent*number_allocated();
+  allocated = sizeof(*this) + mFreeEntities.capacity()/8 + per_ent*number_allocated();
   used = per_ent * number_entities();
 }
 
@@ -216,8 +219,6 @@ MBEntityID ElementEntitySequence::get_next_free_index( MBEntityID prev_free_inde
 {
   if (prev_free_index < 0)
     return mFirstFreeIndex;
-  assert( (MBEntityHandle)prev_free_index < mFreeEntities.size() 
-          && mFreeEntities[prev_free_index] );
   return reinterpret_cast<MBEntityID&>(mElements[prev_free_index*mNodesPerElement]);
 }
 
@@ -245,17 +246,16 @@ ElementEntitySequence::ElementEntitySequence(EntitySequenceManager* seq_manager,
 
   seq_manager->entity_sequence_created(this);
 
+  mFreeEntities.clear();
   if(all_handles_used)
   {
     mNumEntities = num_entities;
-    std::vector<bool>(mNumAllocated, false).swap(mFreeEntities);
     mFirstFreeIndex = -1;
   }
   else
   {
     seq_manager->notify_not_full(this);
-    std::vector<bool> tmp_vec(mNumAllocated, true);
-    tmp_vec.swap(mFreeEntities);
+    mFreeEntities.resize( mNumAllocated, true );
     mNumEntities = 0;
     mFirstFreeIndex = 0;
     if (nodes_per_element)
@@ -290,8 +290,11 @@ MBEntityHandle ElementEntitySequence::get_unused_handle()
 
   mNumEntities++;
 
-  if(mNumEntities == mNumAllocated)
+  if(mNumEntities == mNumAllocated) {
     mSequenceManager->notify_full(this);
+    std::vector<bool> empty;
+    mFreeEntities.swap(empty);
+  }
   
   if( mLastDeletedIndex == (MBEntityID)( new_handle - mStartEntityHandle ))
     mLastDeletedIndex = -1;
@@ -304,8 +307,10 @@ void ElementEntitySequence::free_handle(MBEntityHandle handle)
   if(!is_valid_entity(handle))
     return;
 
-  if(mNumEntities == mNumAllocated)
+  if(mNumEntities == mNumAllocated) {
     mSequenceManager->notify_not_full(this);
+    mFreeEntities.resize( mNumAllocated, false );
+  }
 
   mFreeEntities[handle-mStartEntityHandle] = true;
   
@@ -374,24 +379,36 @@ MBErrorCode ElementEntitySequence::split(MBEntityHandle split_location,
   assert(get_end_handle() >= split_location);
 
   // make a new sequence
+  const bool all_used = mFreeEntities.empty();
   ElementEntitySequence* seq = new ElementEntitySequence( mSequenceManager, split_location, 
-      get_end_handle() - split_location + 1 , mNodesPerElement, false);
+      get_end_handle() - split_location + 1 , mNodesPerElement, all_used);
   new_sequence = seq;
 
   // copy data into new sequence
   memcpy(seq->mElements, &mElements[mNodesPerElement*(split_location - mStartEntityHandle)],
          seq->mNumAllocated*mNodesPerElement*sizeof(MBEntityHandle));
 
-  //copy free handles over too
-  std::copy(mFreeEntities.begin()+(split_location-mStartEntityHandle), mFreeEntities.end(), 
-      seq->mFreeEntities.begin());
- 
   // make a new shorter array for this sequence and copy data over 
   mNumAllocated = split_location - mStartEntityHandle;
   MBEntityHandle* tmp = new MBEntityHandle[mNumAllocated*mNodesPerElement];
   memcpy(tmp, mElements, mNumAllocated*mNodesPerElement*sizeof(MBEntityHandle));
   delete [] mElements;
   mElements = tmp;
+
+  if (all_used) {
+    mNumEntities = split_location - get_start_handle();
+    assert( mFirstFreeIndex == -1 );
+    assert( mLastDeletedIndex == -1 );
+    assert( seq->mFirstFreeIndex == -1 );
+    assert( seq->mLastDeletedIndex == -1 );
+    assert( mNumEntities == mNumAllocated );
+    assert( seq->mNumEntities == seq->mNumAllocated );
+    return MB_SUCCESS;
+  }
+
+  //copy free handles over too
+  std::copy(mFreeEntities.begin()+(split_location-mStartEntityHandle),
+            mFreeEntities.end(), seq->mFreeEntities.begin());
 
   // shrink capacity to what we need
   mFreeEntities.resize(mNumAllocated);
@@ -425,8 +442,11 @@ MBErrorCode ElementEntitySequence::split(MBEntityHandle split_location,
   }
   mFirstFreeIndex = last_index;
 
-  if(mNumEntities == mNumAllocated)
+  if(mNumEntities == mNumAllocated) {
     mSequenceManager->notify_full(this);
+    std::vector<bool> empty;
+    mFreeEntities.swap( empty );
+  }
   else
     mSequenceManager->notify_not_full(this);
   
@@ -456,8 +476,11 @@ MBErrorCode ElementEntitySequence::split(MBEntityHandle split_location,
   }
   seq->mFirstFreeIndex = last_index;
   
-  if(seq->mNumEntities == seq->mNumAllocated)
+  if(seq->mNumEntities == seq->mNumAllocated) {
     mSequenceManager->notify_full(seq);
+    std::vector<bool> empty;
+    seq->mFreeEntities.swap( empty );
+  }
   else
     mSequenceManager->notify_not_full(seq);
 
@@ -774,7 +797,7 @@ void ElementEntitySequence::get_memory_use( unsigned long& used,
                                             unsigned long& allocated) const
 {
   unsigned long per_ent = get_memory_use((MBEntityHandle)0);
-  allocated = sizeof(*this) + mFreeEntities.size()/8 + per_ent*number_allocated();
+  allocated = sizeof(*this) + mFreeEntities.capacity()/8 + per_ent*number_allocated();
   used = per_ent * number_entities();
 }
 

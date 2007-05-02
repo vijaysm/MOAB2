@@ -74,8 +74,6 @@ public:
   bool has_mid_face_nodes() const {return false;}
   bool has_mid_volume_nodes() const {return false;}
 
-  virtual bool is_valid_entity(MBEntityHandle entity) const;
-
   MBErrorCode add_entity(const MBEntityHandle *conn,
                          const int num_conn, MBEntityHandle &handle);
   

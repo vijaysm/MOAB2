@@ -232,7 +232,7 @@ protected:
 
 inline bool MBEntitySequence::is_valid_entity(MBEntityHandle entity) const
 {
-  return mLastDeletedIndex == -1 || !mFreeEntities[entity-mStartEntityHandle];
+  return mFreeEntities.empty() || !mFreeEntities[entity-mStartEntityHandle];
 }
 
 
