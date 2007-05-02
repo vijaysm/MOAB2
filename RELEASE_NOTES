@@ -1,6 +1,11 @@
 Version beta: 
 
 Version 2.00 (CVS tag version_200):
+- Speed up reading of entity sets in .h5m files.
+- Store sets in entity sequences
+- Remove use of virtual functions from MBMeshSet
+- Add API for quering total and break-down of memory use by MOAB.
+- Add initial Adaptive kD-tree implementation.
 - Add upper_bound method for MBRange.
 - Make parallel configuration (MPI rank and size) per-MOAB-instance values,
   and add utility methods for querying/manipulating processor ID portion
