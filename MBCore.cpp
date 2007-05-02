@@ -1930,7 +1930,7 @@ MBErrorCode MBCore::get_meshset_options( const MBEntityHandle ms_handle,
   return mMeshSetManager->get_options( ms_handle, options );
 }
 
-MBErrorCode MBCore::clear_meshset(MBEntityHandle *ms_handles,
+MBErrorCode MBCore::clear_meshset( const MBEntityHandle *ms_handles,
                                     const int num_meshsets)
 {
   MBErrorCode result = MB_SUCCESS, temp_result;
@@ -1944,7 +1944,7 @@ MBErrorCode MBCore::clear_meshset(MBEntityHandle *ms_handles,
   return result;
 }
 
-MBErrorCode MBCore::clear_meshset(MBRange &ms_handles)
+MBErrorCode MBCore::clear_meshset(const MBRange &ms_handles)
 {
   MBErrorCode result = MB_SUCCESS, temp_result;
   

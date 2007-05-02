@@ -1025,13 +1025,14 @@ public:
         \param ms_handles 1d vector of handles of sets being emptied
         \param num_meshsets Number of entities in 1d vector
     */
-  virtual MBErrorCode clear_meshset(MBEntityHandle *ms_handles, const int num_meshsets) = 0;
+  virtual MBErrorCode clear_meshset( const MBEntityHandle *ms_handles, 
+                                     const int num_meshsets) = 0;
 
     //! Empty a range of mesh set
     /** Empty a mesh set.
         \param ms_handles Range of handles of sets being emptied
     */
-  virtual MBErrorCode clear_meshset(MBRange &ms_handles) = 0;
+  virtual MBErrorCode clear_meshset( const MBRange &ms_handles) = 0;
 
     //! Get the options of a mesh set
     /** Get the options of a mesh set.
