@@ -29,6 +29,7 @@
 #include "MBRange.hpp"
 #include "ScdElementSeq.hpp"
 #include "ScdVertexSeq.hpp"
+#include "MeshSetSequence.hpp"
 #include <assert.h>
 #include <algorithm>
 
@@ -124,6 +125,22 @@ MBErrorCode EntitySequenceManager::create_scd_sequence(const HomCoord &coord_min
                              type, hint_start_id,
                              start_handle, seq);
 }
+
+MBErrorCode EntitySequenceManager::create_meshset_sequence( MBEntityID num_ent,
+                                                            MBEntityID hint_start_id,
+                                                            int hint_start_proc,
+                                                            const unsigned* flags,
+                                                            MBEntitySequence *&seq )
+{
+  MBEntityHandle start_handle;
+  MBErrorCode rval = get_start_handle(hint_start_id, hint_start_proc, MBENTITYSET, num_ent, start_handle);
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  seq = new MeshSetSequence( this, start_handle, num_ent, flags );
+  return MB_SUCCESS;
+}
+
 
 /*!
   creates an entity sequence based on number of entities and type.
@@ -338,6 +355,32 @@ MBErrorCode EntitySequenceManager::create_element( MBEntityType type,
   return seq->set_connectivity(handle, conn, num_vertices);
 }
 
+MBErrorCode EntitySequenceManager::create_mesh_set( unsigned proc_id,
+                                                    unsigned flags,
+                                                    MBEntityHandle& h )
+{
+  MeshSetSequence* seq = 0;
+
+  // see if there is an existing sequence that can take this new vertex
+  SeqMap& seq_map = mPartlyFullSequenceMap[MBENTITYSET];
+  for (SeqMap::iterator i = seq_map.begin(); i != seq_map.end(); ++i) {
+    if (procInfo.rank(i->second->get_start_handle()) == proc_id) {
+      seq = static_cast<MeshSetSequence*>(i->second);
+      break;
+    }
+  }
+
+  if (!seq) {
+    MBErrorCode rval = get_start_handle( MB_START_ID, proc_id, MBENTITYSET, 4096, h );
+    if (MB_SUCCESS != rval)
+      return rval;
+    seq = new MeshSetSequence( this, h, 4096, (const unsigned*)0 );
+  }
+
+  h = seq->add_meshset( flags );
+  return MB_SUCCESS;
+}
+
 
 MBErrorCode EntitySequenceManager::get_entities(MBEntityType type, MBRange &entities) const
 {
@@ -454,13 +497,26 @@ void EntitySequenceManager::get_memory_use( unsigned long& entity,
 {
   total = entity = 0;
   unsigned long used, allocated;
-  for (unsigned type = 0; type < MBMAXTYPE; ++type)
-    for (SeqMap::const_iterator i = mSequenceMap[type].begin(); i != mSequenceMap[type].end(); ++i) {
-      i->second->get_memory_use( used, allocated );
-      entity += used;
-      total += allocated;
-    }
+  for (MBEntityType type = MBVERTEX; type < MBMAXTYPE; ++type) {
+    get_memory_use( type, used, allocated );
+    total += allocated;
+    entity += used;
+  }
 }
+
+void EntitySequenceManager::get_memory_use( MBEntityType type,
+                                            unsigned long& entity,
+                                            unsigned long& total ) const
+{
+  entity = total = 0;
+  unsigned long used, allocated;
+  for (SeqMap::const_iterator i = mSequenceMap[type].begin(); i != mSequenceMap[type].end(); ++i) {
+    i->second->get_memory_use( used, allocated );
+    entity += used;
+    total += allocated;
+  }
+}
+  
 
 MBErrorCode EntitySequenceManager::get_memory_use( 
                                      const MBRange& entities,
@@ -473,7 +529,7 @@ MBErrorCode EntitySequenceManager::get_memory_use(
     return MB_SUCCESS;
   
   MBRange::iterator e, i = entities.begin();
-  for (unsigned type = TYPE_FROM_HANDLE( *i ); type < MBENTITYSET; ++type) {
+  for (unsigned type = TYPE_FROM_HANDLE( *i ); type < MBMAXTYPE; ++type) {
     if (i == entities.end())
       break;
     

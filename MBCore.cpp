@@ -26,7 +26,7 @@
 #include <algorithm>
 #include "MBCore.hpp"
 #include "TagServer.hpp"
-#include "MeshSetManager.hpp"
+#include "MeshSetSequence.hpp"
 #include "assert.h"
 #include "AEntityFactory.hpp"
 #include "MBReadUtil.hpp"
@@ -81,6 +81,17 @@ const char *MBCore::errorStrings[] = {
   "MB_FAILURE",
 };
 
+static inline MBMeshSet* get_mesh_set( const EntitySequenceManager* sm,
+                                       MBEntityHandle h )
+{
+  MBEntitySequence* seq;
+  if (MBENTITYSET != TYPE_FROM_HANDLE(h) ||
+      MB_SUCCESS != sm->find( h, seq ) || 
+      !seq->is_valid_entity(h))
+    return 0;
+  return reinterpret_cast<MeshSetSequence*>(seq)->get_set(h);
+}
+
 //! Constructor
 MBCore::MBCore( int rank, int num_procs ) 
   : procInfo( rank, num_procs )
@@ -131,10 +142,6 @@ MBErrorCode MBCore::initialize()
   aEntityFactory = new AEntityFactory(this);
   if (!aEntityFactory)
     return MB_MEMORY_ALLOCATION_FAILED;
-    
-  mMeshSetManager = new MeshSetManager( aEntityFactory, procInfo );
-  if (!mMeshSetManager)
-    return MB_MEMORY_ALLOCATION_FAILED;
 
   mError = new MBError;
 
@@ -182,9 +189,6 @@ void MBCore::deinitialize()
     delete sequenceManager;
 
   sequenceManager = 0;
-
-  delete mMeshSetManager;
-  mMeshSetManager = 0;
   
   delete readerWriterSet;
   readerWriterSet = 0;
@@ -383,9 +387,6 @@ MBErrorCode MBCore::delete_mesh()
   if (sequenceManager)
     delete sequenceManager;
   sequenceManager = new EntitySequenceManager( procInfo );
-
-  delete mMeshSetManager;
-  mMeshSetManager = new MeshSetManager( aEntityFactory, procInfo );
 
   result = create_meshset(0, myMeshSet);
 
@@ -933,10 +934,15 @@ MBErrorCode MBCore::get_entities_by_dimension(const MBEntityHandle meshset,
 {
   MBErrorCode result = MB_SUCCESS;
   if (meshset) {
-    result = mMeshSetManager->get_dimension( meshset, dimension, entities, recursive );
+    MBEntitySequence* seq;
+    result = sequence_manager()->find( meshset, seq );
+    if (MB_SUCCESS != result)
+      return result;
+    MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+    result = mseq->get_dimension( meshset, dimension, entities, recursive );
   }
   else if (dimension > 3) {
-    mMeshSetManager->get_all_mesh_sets( entities );
+    result = sequence_manager()->get_entities( MBENTITYSET, entities );
   } 
   else {
     for (MBEntityType this_type = MBCN::TypeDimensionMap[dimension].first;
@@ -960,10 +966,14 @@ MBErrorCode MBCore::get_entities_by_type(const MBEntityHandle meshset,
     return MB_TYPE_OUT_OF_RANGE;
   
   MBErrorCode result = MB_SUCCESS;
-  if (meshset)
-    result = mMeshSetManager->get_type( meshset, type, entities, recursive );
-  else if (type == MBENTITYSET)
-    mMeshSetManager->get_all_mesh_sets( entities );
+  if (meshset) {
+    MBEntitySequence* seq;
+    result = sequence_manager()->find( meshset, seq );
+    if (MB_SUCCESS != result)
+      return result;
+    MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+    result = mseq->get_type( meshset, type, entities, recursive );
+  }  
   else
     result = sequence_manager()->get_entities( type, entities );
 
@@ -1007,8 +1017,14 @@ MBErrorCode MBCore::get_entities_by_handle(const MBEntityHandle meshset,
                                              const bool recursive) const
 {
   MBErrorCode result = MB_SUCCESS;
-  if (meshset) 
-    result = mMeshSetManager->get_entities( meshset, entities, recursive );
+  if (meshset) {
+    MBEntitySequence* seq;
+    result = sequence_manager()->find( meshset, seq );
+    if (MB_SUCCESS != result)
+      return result;
+    MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+    result = mseq->get_entities( meshset, entities, recursive );
+  }  
   else {
     // iterate backards so range insertion is quicker
     for (MBEntityType type = MBENTITYSET; type >= MBVERTEX; --type) {
@@ -1026,17 +1042,23 @@ MBErrorCode MBCore::get_entities_by_handle(const MBEntityHandle meshset,
                                    std::vector<MBEntityHandle> &entities,
                                    const bool recursive) const
 {
+  MBErrorCode result;
   if (recursive || !meshset) {
     MBRange tmp_range;
-    MBErrorCode result = get_entities_by_handle( meshset, tmp_range, recursive);
+    result = get_entities_by_handle( meshset, tmp_range, recursive);
     size_t offset = entities.size();
     entities.resize( offset + tmp_range.size() );
     std::copy( tmp_range.begin(), tmp_range.end(), entities.begin() + offset );
-    return result;
   }
   else {
-    return mMeshSetManager->get_entities( meshset, entities );
-  }
+    MBEntitySequence* seq;
+    result = sequence_manager()->find( meshset, seq );
+    if (MB_SUCCESS != result)
+      return result;
+    MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+    result = mseq->get_entities( meshset, entities );
+  }  
+  return result;
 }
 
   //! get # entities of a given dimension
@@ -1059,8 +1081,14 @@ MBErrorCode MBCore::get_number_entities_by_dimension(const MBEntityHandle meshse
       number += dummy;
     }
   }
-  else 
-    result = mMeshSetManager->num_dimension( meshset, dim, number, recursive );
+  else {
+    MBEntitySequence* seq;
+    result = sequence_manager()->find( meshset, seq );
+    if (MB_SUCCESS != result)
+      return result;
+    MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+    result = mseq->num_dimension( meshset, dim, number, recursive );
+  }  
   
   return result;
 }
@@ -1076,12 +1104,13 @@ MBErrorCode MBCore::get_number_entities_by_type(const MBEntityHandle meshset,
   if (recursive && type == MBENTITYSET)  // will never return anything
     return MB_TYPE_OUT_OF_RANGE;
   
-  if (meshset)
-    result = mMeshSetManager->num_type( meshset, type, num_ent, recursive );
-  else if (type == MBENTITYSET) {
-    MBRange entities;
-    mMeshSetManager->get_all_mesh_sets( entities );
-    num_ent = entities.size();
+  if (meshset) {
+    MBEntitySequence* seq;
+    result = sequence_manager()->find( meshset, seq );
+    if (MB_SUCCESS != result)
+      return result;
+    MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+    result = mseq->num_type( meshset, type, num_ent, recursive );
   }
   else {
     MBEntityID tmp;
@@ -1113,7 +1142,12 @@ MBErrorCode MBCore::get_number_entities_by_handle(const MBEntityHandle meshset,
 {
   MBErrorCode result;
   if (meshset) {
-    return mMeshSetManager->num_entities( meshset, num_ent, recursive );
+    MBEntitySequence* seq;
+    result = sequence_manager()->find( meshset, seq );
+    if (MB_SUCCESS != result)
+      return result;
+    MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+    return mseq->num_entities( meshset, num_ent, recursive );
   }
 
   num_ent = 0;
@@ -1530,21 +1564,9 @@ MBErrorCode MBCore::merge_entities( MBEntityHandle entity_to_keep,
 MBErrorCode MBCore::delete_entities(const MBEntityHandle *entities,
                                       const int num_entities)
 {
-  std::vector<MBEntityHandle> adj_list;
   MBErrorCode result = MB_SUCCESS, temp_result;
   
   for (int i = 0; i < num_entities; i++) {
-    
-    MBEntityType type = TYPE_FROM_HANDLE(entities[i]);
-
-      // delete sets a different way
-    if (MBENTITYSET == type) {
-      tagServer->reset_data( entities[i] );
-      temp_result = mMeshSetManager->destroy_mesh_set( entities[i] );
-      if (MB_SUCCESS != temp_result)
-        result = temp_result;
-      continue;
-    }
     
       // tell AEntityFactory that this element is going away
     temp_result = aEntityFactory->notify_delete_entity(entities[i]);
@@ -1558,6 +1580,20 @@ MBErrorCode MBCore::delete_entities(const MBEntityHandle *entities,
     if (MB_SUCCESS != temp_result) {
       result = temp_result;
       continue;
+    }
+
+    if (TYPE_FROM_HANDLE(entities[i]) == MBENTITYSET) {
+      if (MBMeshSet* ptr = get_mesh_set( sequence_manager(), entities[i] )) {
+        int j, count;
+        const MBEntityHandle* rel;
+        ptr->clear( entities[i], a_entity_factory() );
+        rel = ptr->get_parents( count );
+        for (j = 0; j < count; ++j)
+          remove_child_meshset( rel[j], entities[i] );
+        rel = ptr->get_children( count );
+        for (j = 0; j < count; ++j)
+          remove_parent_meshset( rel[j], entities[i] );
+      }
     }
 
       // now delete the entity
@@ -1575,10 +1611,11 @@ MBErrorCode MBCore::delete_entities(const MBEntityHandle *entities,
 //! deletes an entity range
 MBErrorCode MBCore::delete_entities(const MBRange &range)
 {
-  std::vector<MBEntityHandle> entity_vec;
-  std::copy(range.rbegin(), range.rend(),
-            std::back_inserter(entity_vec));
-  return delete_entities(&entity_vec[0], entity_vec.size());
+  MBErrorCode result = MB_SUCCESS, rval;
+  for (MBRange::iterator i = range.begin(); i != range.end(); ++i)
+    if (MB_SUCCESS != (rval = delete_entities( &*i, 1)))
+      result = rval;
+  return rval;
 }
 
 MBErrorCode MBCore::list_entities(const MBEntityHandle *entities,
@@ -1914,31 +1951,36 @@ MBErrorCode MBCore::side_element(const MBEntityHandle source_entity,
 
 //-------------------------MBSet Functions---------------------//
 
-
 MBErrorCode MBCore::create_meshset(const unsigned int options, 
                                    MBEntityHandle &ms_handle,
-                                   int start_id,
+                                   int ,
                                    int start_proc)
 {
   if (-1 == start_proc) start_proc = procInfo.rank();
-  return mMeshSetManager->create_mesh_set( options, start_id, start_proc, ms_handle );
+  return sequence_manager()->create_mesh_set( start_proc, options, ms_handle );
 }
 
 MBErrorCode MBCore::get_meshset_options( const MBEntityHandle ms_handle, 
                                           unsigned int& options) const
 {
-  return mMeshSetManager->get_options( ms_handle, options );
+  MBMeshSet* set = get_mesh_set( sequence_manager(), ms_handle );
+  if (!set)
+    return MB_ENTITY_NOT_FOUND;
+  
+  options = set->flags();
+  return MB_SUCCESS;
 }
 
 MBErrorCode MBCore::clear_meshset( const MBEntityHandle *ms_handles,
                                     const int num_meshsets)
 {
-  MBErrorCode result = MB_SUCCESS, temp_result;
-  
+  MBErrorCode result = MB_SUCCESS;
   for (int i = 0; i < num_meshsets; ++i) {
-    temp_result = mMeshSetManager->clear_mesh_set( ms_handles[i] );
-    if (MB_SUCCESS != temp_result) 
-      result = temp_result;
+    MBMeshSet* set = get_mesh_set( sequence_manager(), ms_handles[i]);
+    if (set)
+      set->clear(ms_handles[i], a_entity_factory());
+    else
+      result = MB_ENTITY_NOT_FOUND;
   }
 
   return result;
@@ -1946,11 +1988,13 @@ MBErrorCode MBCore::clear_meshset( const MBEntityHandle *ms_handles,
 
 MBErrorCode MBCore::clear_meshset(const MBRange &ms_handles)
 {
-  MBErrorCode result = MB_SUCCESS, temp_result;
-  
-  for (MBRange::iterator it = ms_handles.begin(); it != ms_handles.end(); it++) {
-    temp_result = mMeshSetManager->clear_mesh_set( *it );
-    if (MB_SUCCESS != temp_result) result = temp_result;
+  MBErrorCode result = MB_SUCCESS;
+  for (MBRange::iterator i = ms_handles.begin(); i != ms_handles.end(); ++i) {
+    MBMeshSet* set = get_mesh_set( sequence_manager(), *i);
+    if (set)
+      set->clear(*i, a_entity_factory());
+    else
+      result = MB_ENTITY_NOT_FOUND;
   }
 
   return result;
@@ -1958,31 +2002,54 @@ MBErrorCode MBCore::clear_meshset(const MBRange &ms_handles)
 
 MBErrorCode MBCore::subtract_meshset(MBEntityHandle meshset1, const MBEntityHandle meshset2)
 { 
-  return mMeshSetManager->subtract( meshset1, meshset2 );
+  MBMeshSet *set1 = get_mesh_set( sequence_manager(), meshset1 );
+  MBMeshSet *set2 = get_mesh_set( sequence_manager(), meshset2 );
+  if (!set1 || !set2)
+    return MB_ENTITY_NOT_FOUND;
+  
+  return set1->subtract( set2, meshset1, a_entity_factory() );
 }
 
 
 MBErrorCode MBCore::intersect_meshset(MBEntityHandle meshset1, const MBEntityHandle meshset2)
 {
-  return mMeshSetManager->intersect( meshset1, meshset2 );
+  MBMeshSet *set1 = get_mesh_set( sequence_manager(), meshset1 );
+  MBMeshSet *set2 = get_mesh_set( sequence_manager(), meshset2 );
+  if (!set1 || !set2)
+    return MB_ENTITY_NOT_FOUND;
+  
+  return set1->intersect( set2, meshset1, a_entity_factory() );
 }
 
 MBErrorCode MBCore::unite_meshset(MBEntityHandle meshset1, const MBEntityHandle meshset2)
 {
-  return mMeshSetManager->unite( meshset1, meshset2 );
+  MBMeshSet *set1 = get_mesh_set( sequence_manager(), meshset1 );
+  MBMeshSet *set2 = get_mesh_set( sequence_manager(), meshset2 );
+  if (!set1 || !set2)
+    return MB_ENTITY_NOT_FOUND;
+  
+  return set1->unite( set2, meshset1, a_entity_factory() );
 }
 
 MBErrorCode MBCore::add_entities(MBEntityHandle meshset, 
                                    const MBRange &entities)
 {
-  return mMeshSetManager->add_entities( meshset, entities );
+  MBMeshSet* set = get_mesh_set( sequence_manager(), meshset );
+  if (set)
+    return set->add_entities( entities, meshset, a_entity_factory() );
+  else
+    return MB_ENTITY_NOT_FOUND;
 }
 
 MBErrorCode MBCore::add_entities(MBEntityHandle meshset, 
                                    const MBEntityHandle *entities,
                                    const int num_entities)
 {
-  return mMeshSetManager->add_entities( meshset, entities, num_entities );
+  MBMeshSet* set = get_mesh_set( sequence_manager(), meshset );
+  if (set)
+    return set->add_entities( entities, num_entities, meshset, a_entity_factory() );
+  else
+    return MB_ENTITY_NOT_FOUND;
 }
 
 
@@ -1990,7 +2057,11 @@ MBErrorCode MBCore::add_entities(MBEntityHandle meshset,
 MBErrorCode MBCore::remove_entities(MBEntityHandle meshset, 
                                       const MBRange &entities)
 {
-  return mMeshSetManager->remove_entities( meshset, entities );
+  MBMeshSet* set = get_mesh_set( sequence_manager(), meshset );
+  if (set)
+    return set->remove_entities( entities, meshset, a_entity_factory() );
+  else
+    return MB_ENTITY_NOT_FOUND;
 }
 
 //! remove a vector of entities from a meshset
@@ -1998,17 +2069,26 @@ MBErrorCode MBCore::remove_entities( MBEntityHandle meshset,
                                        const MBEntityHandle *entities,
                                        const int num_entities)
 {
-  return mMeshSetManager->remove_entities( meshset, entities, num_entities );
+  MBMeshSet* set = get_mesh_set( sequence_manager(), meshset );
+  if (set)
+    return set->remove_entities( entities, num_entities, meshset, a_entity_factory() );
+  else
+    return MB_ENTITY_NOT_FOUND;
 }
 
 MBErrorCode MBCore::get_parent_meshsets(const MBEntityHandle meshset,
                                           std::vector<MBEntityHandle> &parents,
                                           const int num_hops) const
 {
-  if (0 == meshset) 
-    return MB_SUCCESS;
+  if (0 == meshset) return MB_SUCCESS;
 
-  return mMeshSetManager->get_parents( meshset, parents, num_hops );
+  MBEntitySequence *seq;
+  MBErrorCode rval = sequence_manager()->find( meshset, seq );
+  if (MB_SUCCESS != rval || !seq->is_valid_entity(meshset))
+    return MB_ENTITY_NOT_FOUND;
+  MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+
+  return mseq->get_parents( meshset, parents, num_hops );
 }
 
 MBErrorCode MBCore::get_parent_meshsets(const MBEntityHandle meshset,
@@ -2029,10 +2109,15 @@ MBErrorCode MBCore::get_child_meshsets(const MBEntityHandle meshset,
                                          std::vector<MBEntityHandle> &children,
                                          const int num_hops) const
 {
-  if (0 == meshset) 
-    return MB_SUCCESS;
+  if (0 == meshset) return MB_SUCCESS;
 
-  return mMeshSetManager->get_children( meshset, children, num_hops );
+  MBEntitySequence *seq;
+  MBErrorCode rval = sequence_manager()->find( meshset, seq );
+  if (MB_SUCCESS != rval || !seq->is_valid_entity(meshset))
+    return MB_ENTITY_NOT_FOUND;
+  MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+
+  return mseq->get_children( meshset, children, num_hops );
 }
 
 MBErrorCode MBCore::get_child_meshsets(const MBEntityHandle meshset,
@@ -2056,8 +2141,14 @@ MBErrorCode MBCore::num_parent_meshsets(const MBEntityHandle meshset, int* numbe
     *number = 0;
     return MB_SUCCESS;
   }
-  
-  return mMeshSetManager->num_parents( meshset, *number, num_hops );
+
+  MBEntitySequence *seq;
+  MBErrorCode rval = sequence_manager()->find( meshset, seq );
+  if (MB_SUCCESS != rval || !seq->is_valid_entity(meshset))
+    return MB_ENTITY_NOT_FOUND;
+  MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+
+  return mseq->num_parents( meshset, *number, num_hops );
 }
 
 MBErrorCode MBCore::num_child_meshsets(const MBEntityHandle meshset, int* number,
@@ -2068,76 +2159,120 @@ MBErrorCode MBCore::num_child_meshsets(const MBEntityHandle meshset, int* number
     return MB_SUCCESS;
   }
   
-  return mMeshSetManager->num_children( meshset, *number, num_hops );
+  MBEntitySequence *seq;
+  MBErrorCode rval = sequence_manager()->find( meshset, seq );
+  if (MB_SUCCESS != rval || !seq->is_valid_entity(meshset))
+    return MB_ENTITY_NOT_FOUND;
+  MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+
+  return mseq->num_children( meshset, *number, num_hops );
 }
 
 
-MBErrorCode MBCore::add_parent_meshset(MBEntityHandle meshset, 
-                                         const MBEntityHandle parent_meshset)
+MBErrorCode MBCore::add_parent_meshset( MBEntityHandle meshset, 
+                                        const MBEntityHandle parent_meshset)
 {
-    // MeshSetManager validates handles
-  return mMeshSetManager->add_parents( meshset, &parent_meshset, 1 );
+  MBMeshSet* set_ptr = get_mesh_set( sequence_manager(), meshset );
+  MBMeshSet* parent_ptr = get_mesh_set( sequence_manager(), parent_meshset );
+  if (!set_ptr || !parent_ptr)
+    return MB_ENTITY_NOT_FOUND;
+
+  set_ptr->add_parent( parent_meshset );
+  return MB_SUCCESS;
 }
 
 MBErrorCode MBCore::add_parent_meshsets( MBEntityHandle meshset, 
                                          const MBEntityHandle* parents,
                                          int count )
 {
-    // MeshSetManager validates handles
-  return mMeshSetManager->add_parents( meshset, parents, count );
+  MBMeshSet* set_ptr = get_mesh_set( sequence_manager(), meshset );
+  if (!set_ptr)
+    return MB_ENTITY_NOT_FOUND;
+
+  for (int i = 0; i < count; ++i)
+    if (!get_mesh_set( sequence_manager(), parents[i] ))
+      return MB_ENTITY_NOT_FOUND;
+    
+  for (int i = 0; i < count; ++i)
+    set_ptr->add_parent( parents[i] );
+  return MB_SUCCESS;
 }
 
 MBErrorCode MBCore::add_child_meshset(MBEntityHandle meshset, 
                                         const MBEntityHandle child_meshset)
 {
-    // MeshSetManager validates handles
-  return mMeshSetManager->add_children( meshset, &child_meshset, 1 );
+  MBMeshSet* set_ptr = get_mesh_set( sequence_manager(), meshset );
+  MBMeshSet* child_ptr = get_mesh_set( sequence_manager(), child_meshset );
+  if (!set_ptr || !child_ptr)
+    return MB_ENTITY_NOT_FOUND;
+
+  set_ptr->add_child( child_meshset );
+  return MB_SUCCESS;
 }
 
 MBErrorCode MBCore::add_child_meshsets( MBEntityHandle meshset, 
                                         const MBEntityHandle* children,
                                         int count )
 {
-    // MeshSetManager validates handles
-  return mMeshSetManager->add_children( meshset, children, count );
+  MBMeshSet* set_ptr = get_mesh_set( sequence_manager(), meshset );
+  if (!set_ptr)
+    return MB_ENTITY_NOT_FOUND;
+
+  for (int i = 0; i < count; ++i)
+    if (!get_mesh_set( sequence_manager(), children[i] ))
+      return MB_ENTITY_NOT_FOUND;
+    
+  for (int i = 0; i < count; ++i)
+    set_ptr->add_child( children[i] );
+  return MB_SUCCESS;
 }
 
 
 MBErrorCode MBCore::add_parent_child(MBEntityHandle parent, 
                                        MBEntityHandle child)
 {
-    // can't add parents/children to the root set
-  if (0 == parent || 0 == child) return MB_FAILURE;
-
-  return mMeshSetManager->add_parent_child( parent, child );
+  MBMeshSet* parent_ptr = get_mesh_set( sequence_manager(), parent );
+  MBMeshSet* child_ptr = get_mesh_set( sequence_manager(), child );
+  if (!parent_ptr || !child_ptr)
+    return MB_ENTITY_NOT_FOUND;
+  
+  parent_ptr->add_child( child );
+  child_ptr->add_parent( parent );
+  return MB_SUCCESS;
 }
 
 MBErrorCode MBCore::remove_parent_child(MBEntityHandle parent, 
                                           MBEntityHandle child)
 {
-    // can't add parents/children to the root set
-  if (0 == parent || 0 == child) return MB_FAILURE;
-
-  return mMeshSetManager->remove_parent_child( parent, child );
+  MBMeshSet* parent_ptr = get_mesh_set( sequence_manager(), parent );
+  MBMeshSet* child_ptr = get_mesh_set( sequence_manager(), child );
+  if (!parent_ptr || !child_ptr)
+    return MB_ENTITY_NOT_FOUND;
+  
+  parent_ptr->remove_child( child );
+  child_ptr->remove_parent( parent );
+  return MB_SUCCESS;
 }
 
 
 MBErrorCode MBCore::remove_parent_meshset(MBEntityHandle meshset, 
                                             const MBEntityHandle parent_meshset)
 {
-    // can't add parents/children to the root set
-  if (0 == meshset) return MB_FAILURE;
-
-  return mMeshSetManager->remove_parent( meshset, parent_meshset );
+  MBMeshSet* set_ptr = get_mesh_set( sequence_manager(), meshset );
+  if (!set_ptr)
+    return MB_ENTITY_NOT_FOUND;
+  set_ptr->remove_parent( parent_meshset );
+  return MB_SUCCESS;
 }
 
 MBErrorCode MBCore::remove_child_meshset(MBEntityHandle meshset, 
                                            const MBEntityHandle child_meshset)
 {
-    // can't add parents/children to the root set
-  if (0 == meshset || 0 == child_meshset) return MB_FAILURE;
-
-  return mMeshSetManager->remove_child( meshset, child_meshset );
+  MBMeshSet* set_ptr = get_mesh_set( sequence_manager(), meshset );
+  if (!set_ptr)
+    return MB_ENTITY_NOT_FOUND;
+  set_ptr->remove_child( child_meshset );
+  return MB_SUCCESS;
 }
 
 
@@ -2354,8 +2489,7 @@ void MBCore::estimated_memory_use_internal( const MBRange* ents,
     // Figure out which values we need to calulate
   unsigned long i_entity_storage,    ia_entity_storage, 
                 i_adjacency_storage, ia_adjacency_storage, 
-                i_tag_storage,       ia_tag_storage,
-                i_set_storage,       ia_set_storage;
+                i_tag_storage,       ia_tag_storage;
   unsigned long *total_tag_storage = 0, 
                 *amortized_total_tag_storage =0;
   if (!tag_array) {
@@ -2393,16 +2527,10 @@ void MBCore::estimated_memory_use_internal( const MBRange* ents,
     
     // get entity storage
   if (amortized_entity_storage) {
-    if (ents) {
+    if (ents)
       sequenceManager->get_memory_use( *ents, *entity_storage, *amortized_entity_storage );
-      mMeshSetManager->get_memory_use( *ents, i_set_storage, ia_set_storage );
-    } 
-    else {
+    else
       sequenceManager->get_memory_use( *entity_storage, *amortized_entity_storage );
-      mMeshSetManager->get_memory_use( i_set_storage, ia_set_storage );
-    }
-    *entity_storage += i_set_storage;
-    *amortized_entity_storage += ia_set_storage;
   }
   
     // get adjacency storage

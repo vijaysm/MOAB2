@@ -80,6 +80,15 @@ public:
                                      MBEntityID hint_start_id, int hint_start_proc,
                                      MBEntityHandle& start, MBEntitySequence *&);
 
+  //! Create entity sequence for mesh sets.  If flags is NULL, 
+  //! sequence will be created with all handles unused.  If
+  //! flags is not NULL, it should be an array of num_ent values.
+  MBErrorCode create_meshset_sequence( MBEntityID num_ent,
+                                       MBEntityID hint_start_id,
+                                       int hint_start_proc,
+                                       const unsigned* flags,
+                                       MBEntitySequence *&seq );
+                                       
   //! finds the specific MBEntitySequence in which MBEntityHandle resides
   MBErrorCode find( MBEntityHandle     entity_handle,
                      MBEntitySequence*& sequence ) const;
@@ -106,6 +115,10 @@ public:
                               const unsigned num_vertices,
                               MBEntityHandle& element);
 
+  MBErrorCode create_mesh_set( unsigned proc_id,
+                               unsigned flags,
+                               MBEntityHandle& h );
+
   //! return a const reference to the map of sequences
   const std::map<MBEntityHandle, MBEntitySequence*>*
     entity_map( MBEntityType type ) const { return &(mSequenceMap[type]); }
@@ -116,6 +129,9 @@ public:
   void notify_not_full(MBEntitySequence* seq);
   
   void get_memory_use( unsigned long& total_entity_storage,
+                       unsigned long& total_storage ) const;
+  void get_memory_use( MBEntityType type,
+                       unsigned long& total_entity_storage,
                        unsigned long& total_storage ) const;
   MBErrorCode get_memory_use( const MBRange& entities,
                               unsigned long& total_entity_storage,

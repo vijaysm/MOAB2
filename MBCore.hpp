@@ -30,7 +30,6 @@ class EntitySequenceManager;
 class TagServer;
 class MBError;
 class MBReaderWriterSet;
-class MeshSetManager;
 
 #ifdef XPCOM_MB
 
@@ -977,9 +976,6 @@ private:
 
   static const char *errorStrings[];
   
-//------------MeshSet Interface Private Functions & Data------------//
-
-  MeshSetManager* mMeshSetManager;
 };
 
 inline float MBCore::impl_version(std::string *version_string) 

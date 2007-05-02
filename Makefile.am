@@ -13,21 +13,22 @@ SUBDIRS += . test tools doc doxygen
 
 # Things to build
 lib_LTLIBRARIES = libMOAB.la
-check_PROGRAMS = moab_test \
-                 homxform_test \
-                 scdseq_test \
-                 tqdcfr \
-                 test_adj \
-                 seq_man_test \
-		 internals_test \
-                 geom_util_test \
-                 xform_test \
-                 obb_test \
-		 vtk_test \
-		 adaptive_kd_tree_tests
+TESTS = moab_test \
+        homxform_test \
+        scdseq_test \
+        tqdcfr \
+        test_adj \
+        seq_man_test \
+	internals_test \
+        geom_util_test \
+        xform_test \
+        obb_test \
+	vtk_test \
+	adaptive_kd_tree_tests
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
-TESTS = $(check_PROGRAMS)
+
+check_PROGRAMS = $(TESTS) 
          
 #noinst_PROGRAMS = scdseq_timing
 
@@ -134,8 +135,8 @@ libMOAB_la_SOURCES = \
   MBUtil.cpp \
   MBWriteUtil.cpp \
   MBWriteUtil.hpp \
-  MeshSetManager.cpp \
-  MeshSetManager.hpp \
+  MeshSetSequence.cpp \
+  MeshSetSequence.hpp \
   MeshTopoUtil.cpp \
   PolyEntitySequence.cpp \
   PolyEntitySequence.hpp \
@@ -284,6 +285,13 @@ adaptive_kd_tree_tests_SOURCES = adaptive_kd_tree_tests.cpp
 adaptive_kd_tree_tests_LDADD = $(top_builddir)/libMOAB.la
 adaptive_kd_tree_tests_DEPENDENCIES = $(adaptive_kd_tree_tests_LDADD)
 
+kd_tree_tool_SOURCES = kd_tree_tool.cpp
+kd_tree_tool_LDADD = $(top_builddir)/libMOAB.la
+kd_tree_tool_DEPENDENCIES = $(kd_tree_tool_LDADD)
+
+kd_tree_time_SOURCES = kd_tree_time.cpp
+kd_tree_time_LDADD = $(top_builddir)/libMOAB.la
+kd_tree_time_DEPENDENCIES = $(kd_tree_time_LDADD)
 
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = dumped_acis.sat
