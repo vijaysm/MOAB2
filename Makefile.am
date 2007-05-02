@@ -285,14 +285,6 @@ adaptive_kd_tree_tests_SOURCES = adaptive_kd_tree_tests.cpp
 adaptive_kd_tree_tests_LDADD = $(top_builddir)/libMOAB.la
 adaptive_kd_tree_tests_DEPENDENCIES = $(adaptive_kd_tree_tests_LDADD)
 
-kd_tree_tool_SOURCES = kd_tree_tool.cpp
-kd_tree_tool_LDADD = $(top_builddir)/libMOAB.la
-kd_tree_tool_DEPENDENCIES = $(kd_tree_tool_LDADD)
-
-kd_tree_time_SOURCES = kd_tree_time.cpp
-kd_tree_time_LDADD = $(top_builddir)/libMOAB.la
-kd_tree_time_DEPENDENCIES = $(kd_tree_time_LDADD)
-
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = dumped_acis.sat
 
