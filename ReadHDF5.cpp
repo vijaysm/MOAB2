@@ -521,10 +521,7 @@ public:
 };
   
 
-MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id,
-                                         hid_t data_id,
-                                         MBEntityHandle start_handle,
-                                         unsigned long num_sets )
+MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id, hid_t data_id )
 {
   MBErrorCode rval;
   mhdf_Status status;
@@ -541,8 +538,9 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id,
   
   
   unsigned long set_offset = 0;  /* running offset into description table */
-  unsigned long sets_remaining = num_sets;
+  unsigned long sets_remaining = setSet.range.size();
   unsigned long file_offset = 0; /* running offset into child table */
+  MBRange::const_iterator set_iter = setSet.range.begin();
   while (sets_remaining) {
       // read end indices from meta data
     unsigned long set_count = sets_remaining < offset_size ? sets_remaining : offset_size;
@@ -572,7 +570,8 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id,
            // Check if set contents are stored as ranges or a simple list
         bool ranged = (0 != (flags[r] & (unsigned short)mhdf_SET_RANGE_BIT));
 
-        MBEntityHandle h = start_handle + set_offset + r;
+        assert( set_iter != setSet.range.end() );
+        MBEntityHandle h = *set_iter; ++set_iter;
         size_t remaining = offsets[r] + 1 - file_offset;
         while (remaining)
         {
@@ -621,12 +620,13 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id,
           return MB_FAILURE;
         }
           
-          // add children to each set
-        MBEntityHandle h = start_handle + set_offset + r;
+          // add contents to each set
         size_t mem_offset = 0;
-        for (; r < i; ++r, ++h) {
+        for (; r < i; ++r) {
           bool ranged = (0 != (flags[r] & (long)mhdf_SET_RANGE_BIT));
           count = offsets[r] + 1 - file_offset;
+          assert( set_iter != setSet.range.end() );
+          MBEntityHandle h = *set_iter; ++set_iter;
 
           if (ranged)
           {
@@ -659,15 +659,13 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id,
     sets_remaining -= set_count;
   } // while (sets_remaining)
 
+  assert( set_iter == setSet.range.end() );
   return MB_SUCCESS;
 }
 
 MBErrorCode ReadHDF5::read_parents_children( bool parents,
                                              hid_t meta_id, 
-                                             hid_t data_id,
-                                             MBEntityHandle start_handle,
-                                             id_t start_file_id,
-                                             unsigned long num_sets )
+                                             hid_t data_id )
 {
   MBErrorCode rval;
   mhdf_Status status;
@@ -680,8 +678,9 @@ MBErrorCode ReadHDF5::read_parents_children( bool parents,
   size_t chunk_size = bufferSize / sizeof(MBEntityHandle);
   
   unsigned long set_offset = 0;  /* running offset into description table */
-  unsigned long sets_remaining = num_sets;
+  unsigned long sets_remaining = setSet.range.size();
   unsigned long file_offset = 0; /* running offset into child table */
+  MBRange::const_iterator set_iter = setSet.range.begin();
   while (sets_remaining) {
       // read end indices from meta data
     unsigned long set_count = sets_remaining < offset_size ? sets_remaining : offset_size;
@@ -706,7 +705,8 @@ MBErrorCode ReadHDF5::read_parents_children( bool parents,
     
         // special case: children of one set greater than buffer
       if (i == r) {
-        MBEntityHandle h = start_handle + set_offset + r;
+        assert( set_iter != setSet.range.end() );
+        MBEntityHandle h = *set_iter; ++set_iter;
         size_t remaining = offsets[r] + 1 - file_offset;
         while (remaining)
         {
@@ -720,8 +720,8 @@ MBErrorCode ReadHDF5::read_parents_children( bool parents,
           file_offset += count;
 
             // convert from file_ids to set handles
-          for (size_t j = 0; j < count; ++j)
-            buffer[j] = buffer[j] - start_file_id + start_handle;
+          for (size_t j = 0; j < count; ++j) 
+            buffer[j] = *(setSet.range.begin() += (buffer[j] - setSet.first_id));
 
           if (parents)
             rval = iFace->add_parent_meshsets( h, buffer, count );
@@ -746,12 +746,13 @@ MBErrorCode ReadHDF5::read_parents_children( bool parents,
         
           // convert from file_ids to set handles
         for (size_t j = 0; j < count; ++j)
-          buffer[j] = buffer[j] - start_file_id + start_handle;
+          buffer[j] = *(setSet.range.begin() += (buffer[j] - setSet.first_id));
           
           // add children to each set
-        MBEntityHandle h = start_handle + set_offset + r;
         size_t mem_offset = 0;
-        for (; r < i; ++r, ++h) {
+        for (; r < i; ++r) {
+          assert( set_iter != setSet.range.end() );
+          MBEntityHandle h = *set_iter; ++set_iter;
           count = offsets[r] + 1 - file_offset;
           if (parents)
             rval = iFace->add_parent_meshsets( h, buffer+mem_offset, count );
@@ -770,6 +771,7 @@ MBErrorCode ReadHDF5::read_parents_children( bool parents,
     sets_remaining -= set_count;
   } // while (sets_remaining)
 
+  assert( set_iter == setSet.range.end() );
   return MB_SUCCESS;
 }
 
@@ -809,18 +811,27 @@ MBErrorCode ReadHDF5::read_sets()
     return MB_SUCCESS;
   }
   
+    // Get last used MeshSet handle
+  MBRange junk;
+  iFace->get_entities_by_type( 0, MBENTITYSET, junk );
+  MBEntityHandle start_handle = junk.empty() ? 1 : junk.back() + 1;
+  junk.clear();
+  bool first = true;
+  
+  
     // Iterate over set metadata, creating all the sets.
     // Don't read any contents or parent/child links yet.
     // Create all the sets first, so all the contents
     // and parent/child links are valid.
-  MBEntityHandle handle, prev_handle = 0, start_handle = 0;
-  size_t chunk_size = bufferSize / sizeof(unsigned short);
-  unsigned short* buffer = reinterpret_cast<unsigned short*>(dataBuffer);
+  MBEntityHandle handle;
+  size_t chunk_size = bufferSize / sizeof(unsigned);
+  unsigned * buffer = reinterpret_cast<unsigned*>(dataBuffer);
   size_t remaining = num_sets, offset = 0;
+  MBRange::iterator insert_iter = setSet.range.begin();
   while (remaining) {
       // Get a block of set flags
     size_t count = remaining > chunk_size ? chunk_size : remaining;
-    mhdf_readSetFlags( meta_id, offset, count, H5T_NATIVE_USHORT, buffer, &status );
+    mhdf_readSetFlags( meta_id, offset, count, H5T_NATIVE_UINT, buffer, &status );
     if (mhdf_isError( &status )) {
       readUtil->report_error( mhdf_message( &status ) );
       mhdf_closeData( filePtr, meta_id, &status );
@@ -829,32 +840,37 @@ MBErrorCode ReadHDF5::read_sets()
     offset += count;
     remaining -= count;
     
-      // create each set
-    for (size_t i = 0; i < count; ++i) {
-        // Clear ranged-storage bit.  It is internal data, not one
-        // of MOABs set flags.
-      unsigned flags = buffer[i] & ~(unsigned)mhdf_SET_RANGE_BIT;
-
-        // Create the set
-      rval = iFace->create_meshset( flags, handle );
-      if (MB_SUCCESS != rval) {
-        mhdf_closeData( filePtr, meta_id, &status );
-        readUtil->report_error( "create_meshset failed" );
-        return rval;
-      }
-
-      // We are going to assume that set handles are allocated
-      // consecutively.  If this assumption is ever broken,
-      // perhaps we should add a function to create a consecutive
-      // block of sets.
-      // Yes, that is supposed to be an assignment (one '=')!
-      assert( (!prev_handle || (handle - prev_handle) == 1) && (prev_handle = handle) ); 
+      // clear ranged-storage bit.  Its internal data for the file
+      // format, not one of MOAB's set flags.
+    for (size_t i = 0;i < count; ++i)
+      buffer[i] &= ~(unsigned)mhdf_SET_RANGE_BIT;
+      
+      // create block of sets
+    rval = readUtil->create_entity_sets( count,
+                                         buffer, 
+                                         ID_FROM_HANDLE(start_handle),
+                                         readUtil->parallel_rank(),
+                                         handle );
+    if (MB_SUCCESS != rval) {
+      mhdf_closeData( filePtr, meta_id, &status );
+      return rval;
     }
+    
+      // We are careful to request start IDs such that the
+      // resulting MBEntityHandles are always increasing.
+      // We are relying on increasing handles, so make sure
+      // that's what we get.
+    if (!first && handle < start_handle) {
+      readUtil->report_error( "Non-increasing handle space for mesh sets" );
+      mhdf_closeData( filePtr, meta_id, &status );
+      return MB_FAILURE;
+    }
+    first = false;
+    start_handle = handle + count;
+    
+    insert_iter = setSet.range.insert( insert_iter, handle, handle + count - 1 );
   }
-
-    // record set handles in internal lists
-  start_handle = handle + 1 - num_sets;
-  setSet.range.insert( start_handle, handle );
+  assert( setSet.range.size() == (size_t)num_sets );
   
   MBErrorCode result = MB_SUCCESS;
   if (have_data) {
@@ -865,7 +881,7 @@ MBErrorCode ReadHDF5::read_sets()
       result = MB_FAILURE;
     }
     else {
-      rval = read_set_contents( meta_id, data_id, start_handle, num_sets );
+      rval = read_set_contents( meta_id, data_id );
       mhdf_closeData( filePtr, data_id, &status );
       if (MB_SUCCESS != rval)
         result = rval;
@@ -880,7 +896,7 @@ MBErrorCode ReadHDF5::read_sets()
       result = MB_FAILURE;
     }
     else {
-      rval = read_parents_children( false, meta_id, data_id, start_handle, first_id, num_sets );
+      rval = read_parents_children( false, meta_id, data_id );
       mhdf_closeData( filePtr, data_id, &status );
       if (MB_SUCCESS != rval)
         result = rval;
@@ -895,7 +911,7 @@ MBErrorCode ReadHDF5::read_sets()
       result = MB_FAILURE;
     }
     else {
-      rval = read_parents_children( true, meta_id, data_id, start_handle, first_id, num_sets );
+      rval = read_parents_children( true, meta_id, data_id );
       mhdf_closeData( filePtr, data_id, &status );
       if (MB_SUCCESS != rval)
         result = rval;

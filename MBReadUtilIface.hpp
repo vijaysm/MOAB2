@@ -108,6 +108,14 @@ public:
       int*& last_index_array,
       MBEntityHandle*& connectivity_array 
    ) = 0;
+   
+  virtual MBErrorCode create_entity_sets(
+    MBEntityID num_sets,
+    const unsigned* set_flags,
+    MBEntityID preffered_start_id,
+    int preffered_start_proc,
+    MBEntityHandle& actual_start_handle
+  ) = 0;
 
     //! update adjacencies
     //! given information about new elements, adjacency information will be updated

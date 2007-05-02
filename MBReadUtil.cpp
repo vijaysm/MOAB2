@@ -131,6 +131,23 @@ MBErrorCode MBReadUtil::get_poly_element_array(
   return MB_SUCCESS;
 }
 
+MBErrorCode MBReadUtil::create_entity_sets( MBEntityID num_sets,
+                                            const unsigned* flags ,
+                                            MBEntityID start_id,
+                                            int proc,
+                                            MBEntityHandle& start_handle )
+{
+  MBErrorCode error;
+  MBEntitySequence* seq;
+  error = mMB->sequence_manager()->create_meshset_sequence( num_sets,
+                                                            start_id,
+                                                            proc,
+                                                            flags,
+                                                            seq );
+  if (seq)
+    start_handle = seq->get_start_handle();
+  return error;
+}
 
 
 MBErrorCode MBReadUtil::update_adjacencies(
