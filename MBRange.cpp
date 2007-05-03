@@ -313,8 +313,10 @@ MBRange::iterator MBRange::insert( MBRange::iterator prev,
   }
   
   PairNode* iter = prev.mNode;
-  assert( iter != &mHead );
-  assert( iter->mPrev == &mHead || iter->mPrev->second+1 < val1 );
+  if (iter == &mHead)
+    iter = mHead.mPrev;
+  if ( iter->mPrev == &mHead || iter->mPrev->second+1 < val1 )
+    iter = mHead.mNext;
   
   // Input range is before beginning?
   if (iter->mPrev == &mHead && val2 < iter->first - 1)
