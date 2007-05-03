@@ -352,8 +352,8 @@ DEBUGOUT("Gathering Mesh\n");
     //if (MB_SUCCESS != result) goto write_fail;
   }
   
-  if (nodeSet.range.size() == 0)
-    goto write_fail;
+  //if (nodeSet.range.size() == 0)
+  //  goto write_fail;
   
 DEBUGOUT("Checking ID space\n");
 
@@ -393,7 +393,7 @@ DEBUGOUT( "Creating File\n" );
 DEBUGOUT("Writing Nodes.\n");
   
     // Write node coordinates
-  if (write_nodes() != MB_SUCCESS)
+  if (!nodeSet.range.empty() && write_nodes() != MB_SUCCESS)
     goto write_fail;
 
 DEBUGOUT("Writing connectivity.\n");
@@ -1884,12 +1884,17 @@ MBErrorCode WriteHDF5::create_file( const char* filename,
   CHK_MB_ERR_0(rval);
   
     // Create node table
-  handle = mhdf_createNodeCoords( filePtr, dimension, nodeSet.range.size(), &first_id, &status );
-  CHK_MHDF_ERR_0(status);
-  mhdf_closeData( filePtr, handle, &status );
-  CHK_MHDF_ERR_0(status);
-  writeUtil->assign_ids( nodeSet.range, idTag, (id_t)first_id );
-  nodeSet.first_id = (id_t)first_id;
+  if (nodeSet.range.size()) {
+    handle = mhdf_createNodeCoords( filePtr, dimension, nodeSet.range.size(), &first_id, &status );
+    CHK_MHDF_ERR_0(status);
+    mhdf_closeData( filePtr, handle, &status );
+    CHK_MHDF_ERR_0(status);
+    writeUtil->assign_ids( nodeSet.range, idTag, (id_t)first_id );
+    nodeSet.first_id = (id_t)first_id;
+  }
+  else {
+    nodeSet.first_id = std::numeric_limits<id_t>::max();
+  } 
   nodeSet.offset = 0;
 
     // Create element tables

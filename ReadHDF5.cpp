@@ -118,6 +118,7 @@ MBErrorCode ReadHDF5::load_file( const char* filename, const int*, const int num
   std::list<ElemSet>::iterator el_itor;
   unsigned int i, num_groups;
   MBEntityHandle all;  // meshset of everything in file.
+  bool have_nodes = true;
 
   if (num_blocks)
     return MB_FAILURE;
@@ -141,8 +142,11 @@ DEBUGOUT( "Opening File\n" );
 
 DEBUGOUT("Reading Nodes.\n");
   
-  if (read_nodes() != MB_SUCCESS)
-    goto read_fail;
+  if (read_nodes() != MB_SUCCESS) {
+    DEBUGOUT("No nodes in file.!\n");
+    have_nodes = false;
+    //goto read_fail;
+  }
 
 DEBUGOUT("Reading element connectivity.\n");
 
@@ -276,7 +280,12 @@ MBErrorCode ReadHDF5::read_nodes()
   hid_t data_id = mhdf_openNodeCoords( filePtr, &count, &dim, &first_id, &status );
   if (mhdf_isError( &status ))
   {
-    readUtil->report_error( mhdf_message( &status ));
+    //readUtil->report_error( mhdf_message( &status ));
+    // Failed because no node data in file?
+    nodeSet.range.clear();
+    nodeSet.first_id = std::numeric_limits<long>::max();
+    nodeSet.type = MBVERTEX;
+    nodeSet.type2 = mhdf_node_type_handle();
     return MB_FAILURE;
   }
   
