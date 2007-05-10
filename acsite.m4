@@ -340,7 +340,9 @@ else
 fi
 
  # if HDF5 support is not disabled, check to make sure we have HDF5
+HAVE_HDF5=no
 if test "xno" != "x$HDF5_ARG"; then
+  HAVE_HDF5=yes
     # Check for IBM parallel IO library
   if test "x$WITH_MPI" != "xno"; then
     AC_CHECK_LIB([gpfs],[gpfs_stat],[LIBS="-lgpfs $LIBS"])
@@ -368,7 +370,7 @@ if test "xno" != "x$HDF5_ARG"; then
     # check for libraries and headers
   old_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $INCLUDES"
-  AC_CHECK_HEADERS( [hdf5.h], [], [AC_MSG_ERROR("HDF5 header not found")] )
+  AC_CHECK_HEADERS( [hdf5.h], [], [HAVE_HDF5=no] )
   CPPFLAGS="$old_CPPFLAGSS"
   
   HAVE_LIB_HDF5=no
@@ -393,13 +395,14 @@ if test "xno" != "x$HDF5_ARG"; then
       fi
     fi
   fi
-  if test HAVE_LIB_HDF5 = no; then
-    AC_MSG_ERROR([Could not find HDF5 library (-lhdf5)])
+  if test "x$HAVE_LIB_HDF5" = "xno"; then
+    AC_MSG_WARN([Could not find HDF5 library (-lhdf5)])
+    HAVE_HDF5=no
   fi
-  LIBS="-lhdf5 $LIBS"
-  HAVE_HDF5=yes
-else
-  HAVE_HDF5=no
+  
+  if test "x$HAVE_HDF5" = "xyes"; then
+    LIBS="-lhdf5 $LIBS"
+  fi
 fi
 
 
@@ -430,7 +433,9 @@ else
 fi
 
  # if NetCDF support is not disabled
+HAVE_NETCDF=no
 if test "xno" != "x$NETCDF_ARG"; then
+  HAVE_NETCDF=yes
     # Add flag to defines
   DEFINES="$DEFINES -DNETCDF_FILE"
 
@@ -466,8 +471,10 @@ if test "xno" != "x$NETCDF_ARG"; then
   CPPFLAGS="$CPPFLAGS $INCLUDES"
   old_CXXFLAGS="$CXXFLAGS"
   CXXFLAGS="$CXXFLAGS $INCLUDES"
+  old_LIBS="$LIBS"
+  
    # Check for C library
-  AC_CHECK_HEADERS( [netcdf.h], [], [AC_MSG_ERROR([[NetCDF header not found.]])] )
+  AC_CHECK_HEADERS( [netcdf.h], [], [AC_MSG_WARN([[NetCDF header not found.]]); HAVE_NETCDF=no] )
   AC_MSG_CHECKING([for netcdf.hh])
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
@@ -479,7 +486,8 @@ if test "xno" != "x$NETCDF_ARG"; then
  #include "netcdf.hh"], [], [HAVE_NETCDF_HH=yes], [NAVE_NETCDF_HH=no])])
   AC_MSG_RESULT([$HAVE_NETCDF_HH])
   if test $HAVE_NETCDF_HH != yes; then
-    AC_MSG_ERROR([NetCDF C++ header not found])
+    AC_MSG_WARN([NetCDF C++ header not found])
+    HAVE_NETCDF=no
   fi
   if test "x$NETCDF_DEF" != "x"; then
   CPPFLAGS="$CPPFLAGS -DSTRSTREAM_H_SPEC=$NETCDF_DEF"
@@ -489,17 +497,20 @@ if test "xno" != "x$NETCDF_ARG"; then
   LIBS="$LIBS -lnetcdf_c++ -lnetcdf"
   AC_TRY_LINK(
     [#include <netcdf.hh>], [NcFile ncf("foo",NcFile::ReadOnly);],
-    [AC_MSG_RESULT([yes])], [AC_MSG_RESULT([no]); AC_MSG_ERROR([NetCDF C++ API not found])] )
+    [AC_MSG_RESULT([yes])], 
+    [AC_MSG_RESULT([no]); 
+     AC_MSG_ERROR([NetCDF C++ API not found])
+     HAVE_NETCDF=no] )
   AC_LANG_RESTORE
   CPPFLAGS="$old_CPPFLAGS"
   CXXFLAGS="$old_CXXFLAGS"
   if test "x$NETCDF_DEF" != "x"; then
     DEFINES="$DEFINES '-DSTRSTREAM_H_SPEC=$NETCDF_DEF'"
   fi
-  
-  HAVE_NETCDF=yes
-else
-  HAVE_NETCDF=no
+  if test "x$HAVE_NETCDF" = "xno"; then
+    AC_MSG_WARN("NetCDF support disabled")
+    LIBS="$old_LIBS"
+  fi
 fi
 
 ]) # SNL_HAVE_NETCDF
