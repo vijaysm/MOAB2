@@ -66,8 +66,8 @@ public:
   
   //! Set bounding box for entire tree
   MBErrorCode set_tree_box( MBEntityHandle root_node,
-                            const double box_min_out[3], 
-                            const double box_max_out[3] );
+                            const double box_min[3], 
+                            const double box_max[3] );
   
   //! Create tree root node
   MBErrorCode create_tree( const double box_min[3],
