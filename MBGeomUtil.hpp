@@ -136,6 +136,38 @@ bool box_point_overlap( const MBCartVect& box_min_corner,
                         const MBCartVect& point,
                         double tolerance );
 
+/**\brief Test if the specified element intersects an axis-aligned box.
+ *
+ * Test if element intersects axis-aligned box.  Use element-specific
+ * optimization if available, otherwise call box_general_elem_overlap.
+ *
+ *\param elem_corners The coordinates of the element vertices
+ *\param elem_type    The toplogy of the element.
+ *\param box_center   The center of the axis-aligned box
+ *\param box_half_dims Half of the width of the box in each axial
+ *                     direction.
+ */
+bool box_elem_overlap( const MBCartVect *elem_corners,
+                       MBEntityType elem_type,
+                       const MBCartVect& box_center,
+                       const MBCartVect& box_half_dims ); 
+
+/**\brief Test if the specified element intersects an axis-aligned box.
+ *
+ * Uses MBCN and separating axis theorem for general algorithm that
+ * works for all fixed-size elements (not poly*).
+ *
+ *\param elem_corners The coordinates of the element vertices
+ *\param elem_type    The toplogy of the element.
+ *\param box_center   The center of the axis-aligned box
+ *\param box_half_dims Half of the width of the box in each axial
+ *                     direction.
+ */
+bool box_general_elem_overlap( const MBCartVect *elem_corners,
+                               MBEntityType elem_type,
+                               const MBCartVect& box_center,
+                               const MBCartVect& box_half_dims ); 
+
 void closest_location_on_box( const MBCartVect& box_min_corner,
                               const MBCartVect& box_max_corner,
                               const MBCartVect& point,
@@ -160,7 +192,7 @@ void closest_location_on_tri( const MBCartVect& location,
  *\param num_vertices Length of 'vertices' array.
  *\param closest_out Result position 
  */
-bool closest_location_on_polygon( const MBCartVect& location,
+void closest_location_on_polygon( const MBCartVect& location,
                                   const MBCartVect* vertices,
                                   int num_vertices,
                                   MBCartVect& closest_out );

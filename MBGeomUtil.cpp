@@ -19,8 +19,11 @@
  */
 
 #include "MBCartVect.hpp"
+#include "MBCN.hpp"
+#include "MBGeomUtil.hpp"
 #include <cmath>
 #include <algorithm>
+#include <assert.h>
 
 namespace MBGeomUtil {
 
@@ -255,6 +258,125 @@ bool box_tri_overlap( const MBCartVect  triangle_corners[3],
                           box_center,
                           box_hf_dim + MBCartVect(tolerance) );
 } 
+
+bool box_elem_overlap( const MBCartVect *elem_corners,
+                       MBEntityType elem_type,
+                       const MBCartVect& center,
+                       const MBCartVect& dims )
+{
+  switch (elem_type) {
+    case MBTRI:
+      return box_tri_overlap( elem_corners, center, dims );
+    case MBPOLYGON:
+    case MBPOLYHEDRON:
+      assert(false);
+      return false;
+    default:
+      return box_general_elem_overlap( elem_corners, elem_type, center, dims );
+  }
+}
+
+bool box_general_elem_overlap( const MBCartVect *elem_corners,
+                               MBEntityType elem_type,
+                               const MBCartVect& box_center,
+                               const MBCartVect& dims )
+{
+  const int num_corner = MBCN::VerticesPerEntity(elem_type);
+  int i, j, k;
+  MBCartVect corners[16];
+  if (num_corner > (int)(sizeof(corners)/sizeof(corners[0])))
+    { assert(false); return false; }
+  
+    // translate everything such that box center is at origin
+  for (i = 0; i < num_corner; ++i)
+    corners[i] = elem_corners[i] - box_center;
+  
+    // use separating axis theorem....
+  
+    // first test overlap in direction of box faces (on principal axes)
+  bool all_less[] = { true, true, true };
+  bool all_greater[] = { true, true, true };
+  for (i = 0; i < num_corner; ++i) {
+    for (j = 0; j< 3; ++j) {
+      if (-dims[j] <= corners[i][j])
+        all_less[j] = false;
+      if (dims[j] >= corners[i][j])
+        all_greater[j] = false;
+    }
+  }
+  if (all_less[0] || all_less[1] || all_less[2] ||
+      all_greater[0] || all_greater[1] || all_greater[2])
+    return false;
+  
+    // next test overlap on edge-edge cross products
+  const int num_edge = MBCN::NumSubEntities( elem_type, 1 );
+  int edge_verts[2];
+  for (i = 0; i < num_edge; ++i) {
+    MBCN::SubEntityVertexIndices( elem_type, 1, i, edge_verts );
+    const MBCartVect dir( corners[edge_verts[1]] - corners[edge_verts[0]] );
+      // the range of the projection of the box onto each
+      // cross product (e.g. x-axis cross dir).  The principal
+      // axes are the directions of the box edges.
+    const MBCartVect d( fabs( dims[1] * dir[2] ) + fabs( dims[2] * dir[1] ),
+                        fabs( dims[0] * dir[2] ) + fabs( dims[2] * dir[0] ),
+                        fabs( dims[0] * dir[1] ) + fabs( dims[1] * dir[0] ) );
+    all_less[0] = all_less[1] = all_less[2] = true;
+    all_greater[0] = all_greater[1] = all_greater[2] = true;
+    for (j = 0; j < num_corner; ++j) {
+      const MBCartVect v( corners[j][2] * dir[1] - corners[j][1] * dir[2], 
+                          corners[j][0] * dir[2] - corners[j][2] * dir[0], 
+                          corners[j][1] * dir[0] - corners[j][0] * dir[1] );
+      for (k = 0; k < 3; ++k) {
+        if (v[k] >= -d[k])
+          all_less[k] = false;
+        if (v[k] <= d[k])
+          all_greater[k] = false;
+      }
+    }
+    
+    if (all_less[0] || all_less[1] || all_less[2] ||
+        all_greater[0] || all_greater[1] || all_greater[2])
+      return false;
+  }
+  
+    // next test overlap in direction of element face normals
+  const int num_face = MBCN::NumSubEntities( elem_type, 2 );
+  int face[4], overlap;
+  MBCartVect n;
+  for (i = 0; i < num_face; ++i) {
+    MBEntityType type = MBCN::SubEntityType( elem_type, 2, i );
+    switch (type) {
+      case MBTRI:
+        MBCN::SubEntityVertexIndices( elem_type, 2, i, face );
+        n = (corners[face[1]] - corners[face[0]]) * (corners[face[2]] - corners[face[0]]);
+        if (!box_plane_overlap( n, -(n % corners[face[0]]), -dims, dims ))
+          return false;
+        break;
+      case MBQUAD:
+        MBCN::SubEntityVertexIndices( elem_type, 2, i, face );
+        overlap = 0;
+        for (j = 0; j < 4; ++j) {
+          int c1 = face[j];
+          int c2 = face[(j+1)%4];
+          int c3 = face[(j+3)%4];
+          n = (corners[c2] - corners[c1]) * (corners[c3] - corners[c1]);
+          if (box_plane_overlap( n, -(n % corners[c1]), -dims, dims ))
+            overlap = 1;
+        }
+        if (!overlap)
+          return false;
+        break;
+      default:
+        assert(false);
+        return false;
+    }
+  }
+  
+  return true;
+}
+        
+ 
+  
 
 //from: http://www.geometrictools.com/Documentation/DistancePoint3Triangle3.pdf#search=%22closest%20point%20on%20triangle%22
 /*       t
