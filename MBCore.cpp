@@ -552,18 +552,18 @@ MBErrorCode MBCore::get_coords( const MBRange& entities,
       // get data for sequence
     VertexEntitySequence* seq = static_cast<VertexEntitySequence*>(seq_iter->second);
     const MBEntityHandle start_ent = seq->get_start_handle();
-    const MBEntityHandle end_ent = seq->get_end_handle() + 1;
+    const MBEntityHandle end_ent = seq->get_end_handle();
     double *seq_x, *seq_y, *seq_z;
     seq->get_coordinate_arrays( seq_x, seq_y, seq_z );
 
       // for each entity in range and sequence 
-    while (iter != end && *iter < end_ent) {
+    while (iter != end && *iter <= end_ent) {
     
         // get block of consecutive handles
       const MBEntityHandle range_start = *iter;
       iter = iter.end_of_block();
-      if (*iter >= end_ent) // trim block to those in the sequence
-        iter -= (*iter - end_ent + 1);
+      if (*iter > end_ent) // trim block to those in the sequence
+        iter -= *iter - end_ent;
        
       const MBEntityID offset = start_ent - range_start;
       const MBEntityID count = *iter - range_start + 1;
