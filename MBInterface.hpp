@@ -259,6 +259,25 @@ public:
                                   const int num_entities, 
                                   double *coords) const =0;
   
+  /**\brief Get vertex coordinates in blocks by dimension.
+   *
+   * Get the X, Y, and Z coordinates of a group of vertices.  
+   * Coordinates are returned in separate arrays, one for each 
+   * dimension.  Each coordinate array must be of sufficient
+   * length to hold the coordinate value for each vertex.  Array
+   * pointers may be NULL if coordinates in the the respective 
+   * dimension are not desired.
+   *\param entity_handles  The group of vertex handles for which to get the coordiantes.
+   *\param x_coords        Output: the X coordinate of each vertex.  May be NULL.
+   *\param y_coords        Output: the Y coordinate of each vertex.  May be NULL.
+   *\param z_coords        Output: the Z coordinate of each vertex.  May be NULL.
+   */
+  virtual MBErrorCode get_coords( const MBRange& entity_handles,
+                                  double* x_coords,
+                                  double* y_coords,
+                                  double* z_coords ) const = 0;
+  
+  
     //! Sets the xyz coordinates for a vector of vertices
     /** An error is returned if any entities in the vector are not vertices.
         \param entity_handles MBEntityHandle's to set coordinates of. (Must be of type MeshVertex)

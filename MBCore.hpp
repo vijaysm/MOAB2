@@ -124,6 +124,11 @@ public:
   virtual MBErrorCode  get_coords(const MBEntityHandle entity_handle, 
                                    const double *& x, const double *& y, const double *& z) const;
  
+  virtual MBErrorCode get_coords( const MBRange& entity_handles,
+                                  double* x_coords,
+                                  double* y_coords,
+                                  double* z_coords ) const;
+
   //! set the coordinate information for this handle if it is of type Vertex
   //! otherwise, return an error
   virtual MBErrorCode  set_coords(MBEntityHandle *entity_handles, 

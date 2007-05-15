@@ -494,6 +494,21 @@ public:
       // call == operator and not it.
       return (mNode != other.mNode) || (mValue != other.mValue);
     }
+    
+    /**\brief get an iterator at the end of the block
+     *
+     * Get an iterator at the end of the block of consecutive
+     * handles that this iterator is currently contained in.
+     * That is, if the range contains blocks of consecutive 
+     * handles of the form { [1,5], [7,100], ... } and this
+     * iterator is at any handle in the range [7,100], return
+     * an iterator at the '100' handle.
+     *
+     * Never returns begin() or end() unless this iterator is
+     * at begin() or end().  May return the same location as
+     * this iterator.
+     */
+    inline const_iterator end_of_block() const;
 
   protected:
 
@@ -718,6 +733,9 @@ inline MBRange::iterator MBRange::erase(MBEntityHandle val)
   return erase(find(val)); 
 }
   
+inline MBRange::const_iterator MBRange::const_iterator::end_of_block() const
+  { return MBRange::const_iterator( mNode, mNode->second ); }
+
   //! get first entity in range
 inline const MBEntityHandle& MBRange::front() const
   { return mHead.mNext->first; }

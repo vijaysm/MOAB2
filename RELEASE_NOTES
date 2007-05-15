@@ -1,6 +1,7 @@
 Version beta: 
 
 Version 2.00 (CVS tag version_200):
+- New MBInterface method to get blocked coordinate data for vertices.
 - Speed up reading of entity sets in .h5m files.
 - Store sets in entity sequences
 - Remove use of virtual functions from MBMeshSet

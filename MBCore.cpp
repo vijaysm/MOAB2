@@ -522,6 +522,72 @@ MBErrorCode  MBCore::get_coords(const MBRange& entities, double *coords) const
   return MB_SUCCESS;
 }
 
+/**\author Jason Kraftcheck <kraftche@cae.wisc.edu> - 2007-5-15 */
+MBErrorCode MBCore::get_coords( const MBRange& entities, 
+                                double *x_coords,
+                                double *y_coords,
+                                double *z_coords ) const
+{
+    // declare some iterators
+  MBRange::const_iterator iter = entities.begin();
+  const MBRange::const_iterator end = entities.end();
+  std::map<MBEntityHandle, MBEntitySequence*>::const_iterator seq_iter
+    = sequence_manager()->entity_map(MBVERTEX)->begin();
+  const std::map<MBEntityHandle, MBEntitySequence*>::const_iterator seq_end
+    = sequence_manager()->entity_map(MBVERTEX)->end();
+
+    // if no vertices in database, give up now
+  if (seq_iter == seq_end)
+    return MB_ENTITY_NOT_FOUND;
+
+    // loop over all entities in range
+  while(iter != end) {
+      // find sequence for vertex at *iter
+    while (seq_iter->second->get_end_handle() < *iter)
+       if (++seq_iter == seq_end)
+        return MB_ENTITY_NOT_FOUND;
+    if (*iter < seq_iter->second->get_start_handle())
+      return MB_ENTITY_NOT_FOUND;
+
+      // get data for sequence
+    VertexEntitySequence* seq = static_cast<VertexEntitySequence*>(seq_iter->second);
+    const MBEntityHandle start_ent = seq->get_start_handle();
+    const MBEntityHandle end_ent = seq->get_end_handle() + 1;
+    double *seq_x, *seq_y, *seq_z;
+    seq->get_coordinate_arrays( seq_x, seq_y, seq_z );
+
+      // for each entity in range and sequence 
+    while (iter != end && *iter < end_ent) {
+    
+        // get block of consecutive handles
+      const MBEntityHandle range_start = *iter;
+      iter = iter.end_of_block();
+      if (*iter >= end_ent) // trim block to those in the sequence
+        iter -= (*iter - end_ent + 1);
+       
+      const MBEntityID offset = start_ent - range_start;
+      const MBEntityID count = *iter - range_start + 1;
+      ++iter; // done with iter for this iteration, advance to next handle
+      
+        // copy coordinate data
+      if (x_coords) {
+        memcpy( seq_x + offset, x_coords, sizeof(double)*count );
+        x_coords += count;
+      }
+      if (y_coords) {
+        memcpy( seq_y + offset, y_coords, sizeof(double)*count );
+        y_coords += count;
+      }
+      if (z_coords) {
+        memcpy( seq_z + offset, z_coords, sizeof(double)*count );
+        z_coords += count;
+      }
+    }
+  }
+
+  return MB_SUCCESS;
+}
+
 MBErrorCode  MBCore::get_coords(const MBEntityHandle* entities, 
                                   const int num_entities, 
                                   double *coords) const

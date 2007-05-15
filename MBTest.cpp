@@ -122,15 +122,34 @@ MBErrorCode mb_vertex_coordinate_test(MBInterface *MB)
     return error;
 
   int node_count = 0;
+  double all_coords[3*47];
+  double* coord_iter = all_coords;
   for ( MBRange::iterator iter = vertices.begin();
         iter != vertices.end(); ++iter)
   {
-    error = MB->get_coords(&(*iter), 1, coords );
+    error = MB->get_coords(&(*iter), 1, coord_iter );
+    coord_iter += 3;
     if (error == MB_SUCCESS)
       node_count++;
   }
     // Number of vertices (node_count) should be 83 assuming no gaps in the handle space
   if ( node_count != 47 )
+    return MB_FAILURE;
+    
+    
+    // check blocked coordinates
+  double x[47], y[47], z[47];
+  error = MB->get_coords( vertices, x, y, z );
+  int num_inequal = 0;
+  for (int i = 0; i < 47; ++i) {
+    if (x[i] != all_coords[3*i  ])
+      ++num_inequal;
+    if (y[i] != all_coords[3*i+1])
+      ++num_inequal;
+    if (z[i] != all_coords[3*i+2])
+      ++num_inequal;
+  }
+  if (num_inequal)
     return MB_FAILURE;
 
     // Try getting coordinates for a hex (should fail)
