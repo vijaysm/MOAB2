@@ -138,7 +138,7 @@ MBErrorCode mb_vertex_coordinate_test(MBInterface *MB)
     
     
     // check blocked coordinates
-  double x[47], y[47], z[47];
+  double x[48], y[48], z[48];
   error = MB->get_coords( vertices, x, y, z );
   int num_inequal = 0;
   for (int i = 0; i < 47; ++i) {
@@ -151,6 +151,12 @@ MBErrorCode mb_vertex_coordinate_test(MBInterface *MB)
   }
   if (num_inequal)
     return MB_FAILURE;
+    
+    // add invalid handle to end of range and try query again
+  vertices.insert( vertices.back() + 1 );
+  error = MB->get_coords( vertices, x, y, z );
+  if (MB_ENTITY_NOT_FOUND != error)
+    return MB_FAILURE;  
 
     // Try getting coordinates for a hex (should fail)
   handle = CREATE_HANDLE(MBHEX, 0, err);
