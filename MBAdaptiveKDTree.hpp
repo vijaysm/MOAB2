@@ -117,17 +117,32 @@ public:
                           const std::vector<MBEntityHandle>& right_entities );
   
   
-  struct Settings {
-    Settings(); // initialize to defaults
-    unsigned maxEntPerLeaf; //! split leafs with more entities than this
-    unsigned maxTreeDepth;  //! limit on the depth of the tree
+    //! methods for selecting candidate split planes
+  enum CandidatePlaneSet {
+    //! Candidiate planes at evenly spaced intervals 
+    SUBDIVISION,
+    //! Like SUBDIVISION, except snap to closest vertex coordinate
+    SUBDIVISION_SNAP,
+    //! Median vertex coodinate values
+    VERTEX_MEDIAN,
+    //! Random sampling of vertex coordinate values
+    VERTEX_SAMPLE,
   };
   
-  //! Build tree from triangles using simple bisection of nodes.
-  //! Builds tree quicker, but results in less efficient tree.
-  MBErrorCode build_tree_bisect_triangles( MBRange& triangles, 
-                                           MBEntityHandle& root_set_out,
-                                           const Settings* settings = 0 );
+    //! Settings used for tree construction
+  struct Settings {
+    Settings(); //!< initialize to defaults
+    unsigned maxEntPerLeaf; //!< split leafs with more entities than this
+    unsigned maxTreeDepth;  //!< limit on the depth of the tree
+    unsigned candidateSplitsPerDir; //!< number of cadiditate split planes to consider in each axial direction
+    CandidatePlaneSet candidatePlaneSet;
+    double minBoxWidth; //!< Tolerance
+  };
+  
+  //! Build a tree
+  MBErrorCode build_tree( MBRange& entities,
+                          MBEntityHandle& root_set_out,
+                          const Settings* settings = 0 );
   
   //! Find triangle closest to input position. 
   //!\param from_coords  The input position to test against
@@ -169,6 +184,7 @@ public:
                                       const double from_point[3],
                                       const double distance,
                                       std::vector<MBEntityHandle>& leaves_out );
+
 };
                     
 
@@ -204,6 +220,9 @@ public:
                           MBEntityHandle root,
                           const double box_min[3],
                           const double box_max[3] );
+
+  MBAdaptiveKDTree* tool() const
+    { return treeTool; }
 
     //! Get handle for current leaf
   MBEntityHandle handle() const

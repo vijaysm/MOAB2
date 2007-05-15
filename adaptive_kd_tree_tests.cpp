@@ -679,30 +679,32 @@ bool test_build_tree_bisect_triangles( )
   
   MBAdaptiveKDTree::Settings settings;
   settings.maxEntPerLeaf = 1;
+  settings.candidateSplitsPerDir = 1;
+  settings.candidatePlaneSet = MBAdaptiveKDTree::SUBDIVISION;
   MBEntityHandle root;
   MBErrorCode rval;
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_small( &moab, box_tris );
-  rval = tool.build_tree_bisect_triangles( box_tris, root, &settings );
+  rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
   CHECK( test_valid_tree( &tool, root, settings, box_tris ) );
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_octahedron( &moab, box_tris );
-  rval = tool.build_tree_bisect_triangles( box_tris, root, &settings );
+  rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
   CHECK( test_valid_tree( &tool, root, settings, box_tris ) );
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_large( &moab, box_tris );
-  rval = tool.build_tree_bisect_triangles( box_tris, root, &settings );
+  rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
   CHECK( test_valid_tree( &tool, root, settings, box_tris ) );
   
   settings.maxTreeDepth = 2;
   build_triangle_box_large( &moab, box_tris );
-  rval = tool.build_tree_bisect_triangles( box_tris, root, &settings );
+  rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
   CHECK( test_valid_tree( &tool, root, settings, box_tris ) );
   
@@ -717,13 +719,15 @@ bool test_closest_triangle()
   
   MBAdaptiveKDTree::Settings settings;
   settings.maxEntPerLeaf = 1;
+  settings.candidateSplitsPerDir = 1;
+  settings.candidatePlaneSet = MBAdaptiveKDTree::SUBDIVISION;
   MBEntityHandle root;
   MBErrorCode rval;
   MBEntityHandle tri;
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_small( &moab, box_tris );
-  rval = tool.build_tree_bisect_triangles( box_tris, root, &settings );
+  rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
   CHECK( test_valid_tree( &tool, root, settings, box_tris ) );
 
@@ -780,7 +784,7 @@ bool test_closest_triangle()
     // now do it all again with a lot more triangles
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_large( &moab, box_tris );
-  rval = tool.build_tree_bisect_triangles( box_tris, root, &settings );
+  rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
   CHECK( test_valid_tree( &tool, root, settings, box_tris ) );
 
@@ -845,13 +849,15 @@ bool test_sphere_intersect_triangles()
   
   MBAdaptiveKDTree::Settings settings;
   settings.maxEntPerLeaf = 1;
+  settings.candidateSplitsPerDir = 1;
+  settings.candidatePlaneSet = MBAdaptiveKDTree::SUBDIVISION;
   MBEntityHandle root;
   MBErrorCode rval;
   std::vector<MBEntityHandle> triangles;
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_small( &moab, box_tris );
-  rval = tool.build_tree_bisect_triangles( box_tris, root, &settings );
+  rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
   CHECK( test_valid_tree( &tool, root, settings, box_tris ) );
 
@@ -875,7 +881,7 @@ bool test_sphere_intersect_triangles()
 
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_large( &moab, box_tris );
-  rval = tool.build_tree_bisect_triangles( box_tris, root, &settings );
+  rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
   CHECK( test_valid_tree( &tool, root, settings, box_tris ) );
 
@@ -906,6 +912,8 @@ bool test_ray_intersect_triangles()
   
   MBAdaptiveKDTree::Settings settings;
   settings.maxEntPerLeaf = 1;
+  settings.candidateSplitsPerDir = 1;
+  settings.candidatePlaneSet = MBAdaptiveKDTree::SUBDIVISION;
   MBEntityHandle root;
   MBErrorCode rval;
   std::vector<MBEntityHandle> tris;
@@ -913,7 +921,7 @@ bool test_ray_intersect_triangles()
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_small( &moab, box_tris );
-  rval = tool.build_tree_bisect_triangles( box_tris, root, &settings );
+  rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
   CHECK( test_valid_tree( &tool, root, settings, box_tris ) );
   

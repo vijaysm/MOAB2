@@ -22,13 +22,18 @@
 #include "MBInterface.hpp"
 #include "MBGeomUtil.hpp"
 #include "MBRange.hpp"
+#include "MBInternals.hpp"
 
 #include <assert.h>
 #include <algorithm>
+#include <limits>
 
 MBAdaptiveKDTree::Settings::Settings()
   : maxEntPerLeaf(6), 
-    maxTreeDepth(30) 
+    maxTreeDepth(30),
+    candidateSplitsPerDir(5),
+    candidatePlaneSet(SUBDIVISION_SNAP),
+    minBoxWidth( std::numeric_limits<double>::epsilon() )
   {}
 
 
@@ -565,38 +570,48 @@ MBErrorCode MBAdaptiveKDTreeIter::get_neighbors(
   return MB_SUCCESS;
 }
 
-static MBErrorCode intersect_children_with_tris( MBInterface* moab,
-                                        const MBRange& triangles,
+static MBErrorCode intersect_children_with_elems( MBInterface* moab,
+                                        const MBRange& elems,
                                         MBAdaptiveKDTree::Plane plane,
-                                        const MBCartVect& box_min,
-                                        const MBCartVect& box_max,
+                                        MBCartVect box_min,
+                                        MBCartVect box_max,
                                         MBRange& left_tris,
                                         MBRange& right_tris,
-                                        MBRange& both_tris )
+                                        MBRange& both_tris,
+                                        double& metric_value )
 {
   left_tris.clear();
   right_tris.clear();
   both_tris.clear();
-  MBCartVect coords[3];
-  if (!triangles.all_of_type(MBTRI))
-    return MB_TYPE_OUT_OF_RANGE;
+  MBCartVect coords[8];
   
     // get extents of boxes for left and right sides
   MBCartVect right_min( box_min ), left_max( box_max );
   right_min[plane.norm] = left_max[plane.norm] = plane.coord;
+  right_min *= 0.5;
+  left_max *= 0.5;
+  box_min *= 0.5;
+  box_max *= 0.5;
+  const MBCartVect left_cen = left_max + box_min;
+  const MBCartVect left_dim = left_max - box_min;
+  const MBCartVect right_cen = box_max + right_min;
+  const MBCartVect right_dim = box_max - right_min;
+  
   
     // test each triangle
   MBErrorCode rval;
   int count;
   const MBEntityHandle* conn;
-  for (MBRange::reverse_iterator i = triangles.rbegin(); i != triangles.rend(); ++i) {
+  for (MBRange::reverse_iterator i = elems.rbegin(); i != elems.rend(); ++i) {
     rval = moab->get_connectivity( *i, conn, count, true );
     if (MB_SUCCESS != rval) return rval;
-    rval = moab->get_coords( &conn[0], 3, coords[0].array() );
+    if (count > (int)(sizeof(coords)/sizeof(coords[0])))
+      return MB_FAILURE;
+    rval = moab->get_coords( &conn[0], count, coords[0].array() );
     if (MB_SUCCESS != rval) return rval;
     
-    bool lo = MBGeomUtil::box_tri_overlap( coords, box_min, left_max, 0.0);
-    bool ro = MBGeomUtil::box_tri_overlap( coords, right_min, box_max, 0.0);
+    bool lo = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i), left_cen, left_dim );
+    bool ro = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i),right_cen,right_dim );
     
       // didn't intersect either - tolerance issue
     while (!lo && !ro) {
@@ -612,8 +627,8 @@ static MBErrorCode intersect_children_with_tris( MBInterface* moab,
         // loop with increasing tolerance until we intersect something
       double tol = std::numeric_limits<double>::epsilon();
       while (!lo && !ro) {
-        lo = MBGeomUtil::box_tri_overlap( coords, box_min, left_max, tol*max_dim);
-        ro = MBGeomUtil::box_tri_overlap( coords, right_min, box_max, tol*max_dim);
+        lo = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i), left_cen,tol*max_dim* left_dim );
+        ro = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i),right_cen,tol*max_dim*right_dim );
         tol *= 10.0;
         if (tol > 1e-3)
           return MB_FAILURE;
@@ -627,10 +642,317 @@ static MBErrorCode intersect_children_with_tris( MBInterface* moab,
       right_tris.insert( *i );
   }
   
+  MBCartVect box_dim = box_max - box_min;
+  double area_left = left_dim[0]*left_dim[1] + left_dim[1]*left_dim[2] + left_dim[2]*left_dim[0];
+  double area_right = right_dim[0]*right_dim[1] + right_dim[1]*right_dim[2] + right_dim[2]*right_dim[0];
+  double area_both = box_dim[0]*box_dim[1] + box_dim[1]*box_dim[2] + box_dim[2]*box_dim[0];
+  metric_value = (area_left * left_tris.size() + area_right * right_tris.size()) / area_both + both_tris.size();
   return MB_SUCCESS;
 }
 
-MBErrorCode MBAdaptiveKDTree::build_tree_bisect_triangles( MBRange& triangles,
+static MBErrorCode best_subdivision_plane( int num_planes,
+                                           const MBAdaptiveKDTreeIter& iter,
+                                           MBRange& best_left,
+                                           MBRange& best_right,
+                                           MBRange& best_both,
+                                           MBAdaptiveKDTree::Plane& best_plane,
+                                           double eps )
+{
+  double metric_val = std::numeric_limits<unsigned>::max();
+  
+  MBErrorCode r;
+  const MBCartVect box_min(iter.box_min());
+  const MBCartVect box_max(iter.box_max());
+  const MBCartVect diff(box_max - box_min);
+  
+  MBRange entities;
+  r = iter.tool()->moab()->get_entities_by_handle( iter.handle(), entities );
+  if (MB_SUCCESS != r)
+    return r;
+  const size_t p_count = entities.size();
+  
+  for (int axis = 0; axis < 3; ++axis) {
+    int plane_count = num_planes;
+    if ((num_planes+1)*eps >= diff[axis])
+      plane_count = (int)(diff[axis] / eps) - 1;
+  
+    for (int p = 1; p <= plane_count; ++p) {
+      MBAdaptiveKDTree::Plane plane = { box_min[axis] + (p/(1.0+plane_count)) * diff[axis], axis };
+      MBRange left, right, both;
+      double val;
+      r = intersect_children_with_elems( iter.tool()->moab(),
+                                         entities, plane,
+                                         box_min, box_max,
+                                         left, right, both, 
+                                         val );
+      if (MB_SUCCESS != r)
+        return r;
+      const size_t diff = p_count - both.size();
+      if (left.size() == diff || right.size() == diff)
+        continue;
+      
+      if (val >= metric_val)
+        continue;
+      
+      metric_val = val;
+      best_plane = plane;
+      best_left.swap(left);
+      best_right.swap(right);
+      best_both.swap(both);
+    }
+  }
+      
+  return MB_SUCCESS;
+}
+
+
+static MBErrorCode best_subdivision_snap_plane( int num_planes,
+                                           const MBAdaptiveKDTreeIter& iter,
+                                           MBRange& best_left,
+                                           MBRange& best_right,
+                                           MBRange& best_both,
+                                           MBAdaptiveKDTree::Plane& best_plane,
+                                           std::vector<double>& tmp_data,
+                                           double eps )
+{
+  double metric_val = std::numeric_limits<unsigned>::max();
+  
+  MBErrorCode r;
+  const MBCartVect box_min(iter.box_min());
+  const MBCartVect box_max(iter.box_max());
+  const MBCartVect diff(box_max - box_min);
+  
+  MBRange entities, vertices;
+  r = iter.tool()->moab()->get_entities_by_handle( iter.handle(), entities );
+  if (MB_SUCCESS != r)
+    return r;
+  const size_t p_count = entities.size();
+  r = iter.tool()->moab()->get_adjacencies( entities, 0, false, vertices, MBInterface::UNION );
+  if (MB_SUCCESS != r)
+    return r;
+
+  tmp_data.resize( vertices.size() );
+  for (int axis = 0; axis < 3; ++axis) {
+    int plane_count = num_planes;
+    if ((num_planes+1)*eps >= diff[axis])
+      plane_count = (int)(diff[axis] / eps) - 1;
+
+    double *ptrs[] = { 0, 0, 0 };
+    ptrs[axis] = &tmp_data[0];
+    r = iter.tool()->moab()->get_coords( vertices, ptrs[0], ptrs[1], ptrs[2] );
+    if (MB_SUCCESS != r)
+      return r;
+  
+    for (int p = 1; p <= plane_count; ++p) {
+      double coord = box_min[axis] + (p/(1.0+plane_count)) * diff[axis];
+      double closest_coord = tmp_data[0];
+      for (unsigned i = 1; i < tmp_data.size(); ++i) 
+        if (fabs(coord-tmp_data[i]) < fabs(coord-closest_coord))
+          closest_coord = tmp_data[i];
+      if (closest_coord <= box_min[axis] || closest_coord >= box_max[axis])
+        continue;
+      MBAdaptiveKDTree::Plane plane = { closest_coord, axis };
+      MBRange left, right, both;
+      double val;
+      r = intersect_children_with_elems( iter.tool()->moab(),
+                                         entities, plane,
+                                         box_min, box_max,
+                                         left, right, both, 
+                                         val );
+      if (MB_SUCCESS != r)
+        return r;
+      const size_t diff = p_count - both.size();
+      if (left.size() == diff || right.size() == diff)
+        continue;
+      
+      if (val >= metric_val)
+        continue;
+      
+      metric_val = val;
+      best_plane = plane;
+      best_left.swap(left);
+      best_right.swap(right);
+      best_both.swap(both);
+    }
+  }
+      
+  return MB_SUCCESS;
+}
+
+static MBErrorCode best_vertex_median_plane( int num_planes,
+                                           const MBAdaptiveKDTreeIter& iter,
+                                           MBRange& best_left,
+                                           MBRange& best_right,
+                                           MBRange& best_both,
+                                           MBAdaptiveKDTree::Plane& best_plane,
+                                           std::vector<double>& coords,
+                                           double eps)
+{
+  double metric_val = std::numeric_limits<unsigned>::max();
+  
+  MBErrorCode r;
+  const MBCartVect box_min(iter.box_min());
+  const MBCartVect box_max(iter.box_max());
+  
+  MBRange entities, vertices;
+  r = iter.tool()->moab()->get_entities_by_handle( iter.handle(), entities );
+  if (MB_SUCCESS != r)
+    return r;
+  const size_t p_count = entities.size();
+  r = iter.tool()->moab()->get_adjacencies( entities, 0, false, vertices, MBInterface::UNION );
+  if (MB_SUCCESS != r)
+    return r;
+
+  coords.resize( vertices.size() );
+  for (int axis = 0; axis < 3; ++axis) {
+    if (box_max[axis] - box_min[axis] <= 2*eps)
+      continue;
+  
+    double *ptrs[] = { 0, 0, 0 };
+    ptrs[axis] = &coords[0];
+    r = iter.tool()->moab()->get_coords( vertices, ptrs[0], ptrs[1], ptrs[2] );
+    if (MB_SUCCESS != r)
+      return r;
+  
+    std::sort( coords.begin(), coords.end() );
+    std::vector<double>::iterator citer;
+    citer = std::upper_bound( coords.begin(), coords.end(), box_min[axis] + eps );
+    const size_t count = std::upper_bound( citer, coords.end(), box_max[axis] - eps ) - citer;
+    size_t step;
+    if ((int)count < 2*num_planes) {
+      step = 1; num_planes = count - 1;
+    }
+    else {
+      step = count / (num_planes + 1);
+    }
+  
+    for (int p = 1; p <= num_planes; ++p) {
+      
+      citer += step;
+      MBAdaptiveKDTree::Plane plane = { *citer, axis };
+      MBRange left, right, both;
+      double val;
+      r = intersect_children_with_elems( iter.tool()->moab(),
+                                         entities, plane,
+                                         box_min, box_max,
+                                         left, right, both, 
+                                         val );
+      if (MB_SUCCESS != r)
+        return r;
+      const size_t diff = p_count - both.size();
+      if (left.size() == diff || right.size() == diff)
+        continue;
+      
+      if (val >= metric_val)
+        continue;
+      
+      metric_val = val;
+      best_plane = plane;
+      best_left.swap(left);
+      best_right.swap(right);
+      best_both.swap(both);
+    }
+  }
+      
+  return MB_SUCCESS;
+}
+
+
+static MBErrorCode best_vertex_sample_plane( int num_planes,
+                                           const MBAdaptiveKDTreeIter& iter,
+                                           MBRange& best_left,
+                                           MBRange& best_right,
+                                           MBRange& best_both,
+                                           MBAdaptiveKDTree::Plane& best_plane,
+                                           std::vector<double>& coords,
+                                           std::vector<size_t>& indices,
+                                           double eps )
+{
+  double metric_val = std::numeric_limits<unsigned>::max();
+  
+  MBErrorCode r;
+  const MBCartVect box_min(iter.box_min());
+  const MBCartVect box_max(iter.box_max());
+  
+  MBRange entities, vertices;
+  r = iter.tool()->moab()->get_entities_by_handle( iter.handle(), entities );
+  if (MB_SUCCESS != r)
+    return r;
+  const size_t p_count = entities.size();
+  r = iter.tool()->moab()->get_adjacencies( entities, 0, false, vertices, MBInterface::UNION );
+  if (MB_SUCCESS != r)
+    return r;
+
+  coords.resize( vertices.size() );
+  for (int axis = 0; axis < 3; ++axis) {
+    if (box_max[axis] - box_min[axis] <= 2*eps)
+      continue;
+  
+    double *ptrs[] = { 0, 0, 0 };
+    ptrs[axis] = &coords[0];
+    r = iter.tool()->moab()->get_coords( vertices, ptrs[0], ptrs[1], ptrs[2] );
+    if (MB_SUCCESS != r)
+      return r;
+      
+    size_t num_valid_coords = 0;
+    for (size_t i = 0; i < coords.size(); ++i) 
+      if (coords[i] > box_min[axis]+eps && coords[i] < box_max[axis]-eps)
+        ++num_valid_coords;
+      
+    if (2*(size_t)num_planes > num_valid_coords) {
+      indices.clear();
+      for (size_t i = 0; i < coords.size(); ++i) 
+        if (coords[i] > box_min[axis]+eps && coords[i] < box_max[axis]-eps)
+          indices.push_back( i );
+    }
+    else {
+      indices.resize( num_planes );
+        // make sure random indices are sufficient to cover entire range
+      const int num_rand = coords.size() / RAND_MAX + 1;
+      for (int j = 0; j < num_planes; ++j)
+      {
+        size_t rnd;
+        do { 
+          size_t rnd = rand();
+          for (int i = num_rand; i > 1; --i)
+            rnd *= rand();
+          rnd %= coords.size();
+        } while (coords[rnd] <= box_min[axis]+eps || coords[rnd] >= box_max[axis]-eps);
+        indices[j] = rnd;
+      }
+    }
+  
+    for (unsigned p = 0; p <= indices.size(); ++p) {
+      
+      MBAdaptiveKDTree::Plane plane = { coords[indices[p]], axis };
+      MBRange left, right, both;
+      double val;
+      r = intersect_children_with_elems( iter.tool()->moab(),
+                                         entities, plane,
+                                         box_min, box_max,
+                                         left, right, both, 
+                                         val );
+      if (MB_SUCCESS != r)
+        return r;
+      const size_t diff = p_count - both.size();
+      if (left.size() == diff || right.size() == diff)
+        continue;
+      
+      if (val >= metric_val)
+        continue;
+      
+      metric_val = val;
+      best_plane = plane;
+      best_left.swap(left);
+      best_right.swap(right);
+      best_both.swap(both);
+    }
+  }
+      
+  return MB_SUCCESS;
+}
+
+MBErrorCode MBAdaptiveKDTree::build_tree( MBRange& elems,
                                        MBEntityHandle& root_set_out,
                                        const Settings* settings_ptr )
 {
@@ -641,11 +963,15 @@ MBErrorCode MBAdaptiveKDTree::build_tree_bisect_triangles( MBRange& triangles,
     settings.maxEntPerLeaf = 1;
   if (settings.maxTreeDepth < 1)
     settings.maxTreeDepth = std::numeric_limits<unsigned>::max();
+  if (settings.candidateSplitsPerDir < 1)
+    settings.candidateSplitsPerDir = 1;
   
-    // calculate bounding box of triangles
+    // calculate bounding box of elements
     
+  std::vector<double> tmp_data;
+  std::vector<size_t> tmp_data2;
   MBRange vertices;
-  MBErrorCode rval = moab()->get_adjacencies( triangles, 0, false, vertices, MBInterface::UNION );
+  MBErrorCode rval = moab()->get_adjacencies( elems, 0, false, vertices, MBInterface::UNION );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -666,7 +992,7 @@ MBErrorCode MBAdaptiveKDTree::build_tree_bisect_triangles( MBRange& triangles,
   rval = create_tree( bmin.array(), bmax.array(), root_set_out );
   if (MB_SUCCESS != rval)
     return rval;
-  rval = moab()->add_entities( root_set_out, triangles );
+  rval = moab()->add_entities( root_set_out, elems );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -674,57 +1000,72 @@ MBErrorCode MBAdaptiveKDTree::build_tree_bisect_triangles( MBRange& triangles,
   iter.initialize( this, root_set_out, bmin.array(), bmax.array() );
   
   for (;;) {
-    MBRange entities;
-    rval = moab()->get_entities_by_handle( iter.handle(), entities );
+  
+    int pcount;
+    rval = moab()->get_number_entities_by_handle( iter.handle(), pcount );
     if (MB_SUCCESS != rval)
       break;
-    
-    const size_t p_count = entities.size();
-    if (settings.maxEntPerLeaf < p_count && settings.maxTreeDepth > iter.depth())
-    {
-      MBRange best_left, best_right, best_both;
-      int best_axis = -1;
-      double best_val = HUGE_VAL;
-      const MBCartVect min(iter.box_min()), max(iter.box_max());
-      const MBCartVect mid = 0.5 * (min + max);
-      const MBCartVect dim = max - min;
-      const MBCartVect area( dim[1]*dim[2], dim[2]*dim[0], dim[0]*dim[1] );
-      const double p_area = area[0] + area[1] + area[2];
-      for (int axis = 0; axis < 3; ++axis) {
-        MBAdaptiveKDTree::Plane plane = { mid[axis], axis };
-        MBRange left, right, both;
-        rval = intersect_children_with_tris( moab(), entities, 
-                        plane, min, max, left, right, both );
-        if (MB_SUCCESS != rval)
-          return rval;
-        
-        const size_t b_count = both.size();
-        double val = (b_count + p_count) * (p_area + area[axis]);
-        if (b_count < p_count && val < best_val) {
-          best_axis = axis;
-          best_left.swap(left);
-          best_right.swap(right);
-          best_both.swap(both);
-          best_val = val;
-        }
-      }
-      
-      if (best_axis >= 0) {
-        MBAdaptiveKDTree::Plane plane = { mid[best_axis], best_axis };
-        best_left.merge( best_both );
-        best_right.merge( best_both );
-        rval = split_leaf( iter, plane,  best_left, best_right );
-        if (MB_SUCCESS != rval)
-          return rval;
-      }
-      else {
-        rval = iter.step();
-        if (MB_ENTITY_NOT_FOUND == rval) 
-          return MB_SUCCESS;  // at end
-        else if (MB_SUCCESS != rval)
+
+    const size_t p_count = pcount;
+    MBRange best_left, best_right, best_both;
+    Plane best_plane = { HUGE_VAL, -1 };
+    if (p_count > settings.maxEntPerLeaf && iter.depth() < settings.maxTreeDepth) {
+      switch (settings.candidatePlaneSet) {
+        case MBAdaptiveKDTree::SUBDIVISION:
+          rval = best_subdivision_plane( settings.candidateSplitsPerDir, 
+                                               iter, 
+                                               best_left, 
+                                               best_right, 
+                                               best_both, 
+                                               best_plane, 
+                                               settings.minBoxWidth );
           break;
+        case MBAdaptiveKDTree::SUBDIVISION_SNAP:
+          rval = best_subdivision_snap_plane( settings.candidateSplitsPerDir, 
+                                               iter, 
+                                               best_left, 
+                                               best_right, 
+                                               best_both, 
+                                               best_plane, 
+                                               tmp_data, 
+                                               settings.minBoxWidth );
+          break;
+        case MBAdaptiveKDTree::VERTEX_MEDIAN:
+          rval = best_vertex_median_plane( settings.candidateSplitsPerDir, 
+                                               iter, 
+                                               best_left, 
+                                               best_right, 
+                                               best_both, 
+                                               best_plane, 
+                                               tmp_data, 
+                                               settings.minBoxWidth );
+          break;
+        case MBAdaptiveKDTree::VERTEX_SAMPLE:
+          rval = best_vertex_sample_plane( settings.candidateSplitsPerDir, 
+                                               iter, 
+                                               best_left, 
+                                               best_right, 
+                                               best_both, 
+                                               best_plane, 
+                                               tmp_data, 
+                                               tmp_data2,
+                                               settings.minBoxWidth );
+          break;
+        default:
+          rval = MB_FAILURE;
       }
-    } 
+    
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
+    
+    if (best_plane.norm >= 0) {
+      best_left.merge( best_both );
+      best_right.merge( best_both );
+      rval = split_leaf( iter, best_plane,  best_left, best_right );
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
     else {
       rval = iter.step();
       if (MB_ENTITY_NOT_FOUND == rval) 
