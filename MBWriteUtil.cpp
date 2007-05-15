@@ -88,71 +88,21 @@ MBErrorCode MBWriteUtil::get_node_arrays(
   if (0 == tmp_num_arrays)
     return MB_FAILURE;
 
-  // Sequence iterators
-  std::map<MBEntityHandle, MBEntitySequence*>::const_iterator seq_iter, seq_end;
-  seq_iter = mMB->sequence_manager()->entity_map(MBVERTEX)->begin();
-  seq_end = mMB->sequence_manager()->entity_map(MBVERTEX)->end();
-  
-  // loop over range, getting coordinate value
-  double* output_iter[3] = {NULL, NULL, NULL};
-  double* output_end[3] = {NULL, NULL, NULL};
-  for (unsigned int i = 0; i < 3; i++) {
-    if (i+1 <= arrays.size() && NULL != arrays[i]){
-      output_iter[i] = arrays[i];
-      output_end[i] = arrays[i] + num_nodes;
-    }
-  }
-  
-  MBRange::const_iterator iter = entities.begin(), end = entities.end();
-  
-  while (iter != end)
-  {
-      // Find the sqeuence containing the current handle
-    while (seq_iter != seq_end && seq_iter->second->get_end_handle() < *iter)
-      ++seq_iter;
-    if (seq_iter == seq_end || *iter < seq_iter->second->get_start_handle())
-      return MB_FAILURE;
-    
-      // Determine how much of the sequence we want.
-    MBRange::pair_iterator pair(iter);
-    MBRange::const_iterator prev(end);
-    --prev;
-    MBEntityHandle range_end = pair->second;
-    MBEntityHandle sequence_end = seq_iter->second->get_end_handle();
-    MBEntityHandle end_handle = range_end > sequence_end ? sequence_end : range_end;
-    if (end_handle > *prev)
-      end_handle = *prev;
-    MBEntityHandle count = end_handle - *iter + 1;
-    
-      // Get offset in sequence to start at
-    assert( *iter >= seq_iter->second->get_start_handle() );
-    MBEntityHandle offset = *iter - seq_iter->second->get_start_handle();
-    
-      // Get coordinate arrays from sequence
-    double* coord_array[3];
-    static_cast<VertexEntitySequence*>(seq_iter->second)
-      ->get_coordinate_arrays( coord_array[0], coord_array[1], coord_array[2]);
-    
-      // Copy data to ouput buffer
-    if (output_iter[0] + count > output_end[0])
-      return MB_FAILURE;
-    for (int i = 0; i < 3; i++) {
-      if (output_iter[i]) {
-        memcpy( output_iter[i], coord_array[i] + offset, count * sizeof(double) );
-        output_iter[i] += count;
-      }
-    }
+  // get coordinate data
+  MBErrorCode result = mMB->get_coords( entities, 
+                   num_arrays < 1 || arrays.size() < 1 ? NULL : arrays[0],
+                   num_arrays < 2 || arrays.size() < 2 ? NULL : arrays[1],
+                   num_arrays < 3 || arrays.size() < 3 ? NULL : arrays[2] );
+                   
 
-    iter += count;
-  }
-
-  if (0 == node_id_tag) return MB_SUCCESS;
+  if (0 == node_id_tag || MB_SUCCESS != result) 
+    return result;
   
     // now assign tags
   std::vector<int> ids(num_nodes);
   int node_id = start_node_id;
   for (int i = 0; i < num_nodes; i++) ids[i] = node_id++;
-  MBErrorCode result = mMB->tag_set_data(node_id_tag, entities, &ids[0]);
+  result = mMB->tag_set_data(node_id_tag, entities, &ids[0]);
 
   return result;
 }
