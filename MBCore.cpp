@@ -571,15 +571,15 @@ MBErrorCode MBCore::get_coords( const MBRange& entities,
       
         // copy coordinate data
       if (x_coords) {
-        memcpy( seq_x + offset, x_coords, sizeof(double)*count );
+        memcpy( x_coords, seq_x + offset, sizeof(double)*count );
         x_coords += count;
       }
       if (y_coords) {
-        memcpy( seq_y + offset, y_coords, sizeof(double)*count );
+        memcpy( y_coords, seq_y + offset, sizeof(double)*count );
         y_coords += count;
       }
       if (z_coords) {
-        memcpy( seq_z + offset, z_coords, sizeof(double)*count );
+        memcpy( z_coords, seq_z + offset, sizeof(double)*count );
         z_coords += count;
       }
     }
