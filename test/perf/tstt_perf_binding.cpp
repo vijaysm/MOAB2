@@ -21,7 +21,7 @@ extern "C" int getrusage(int, struct rusage *);
 #include <iostream>
 
 #include <iostream>
-#include "TSTTM_MOAB.h"
+#include "iMesh.h"
 
 // needed to get the proper size for handles
 
@@ -30,12 +30,12 @@ using namespace std;
 double LENGTH = 1.0;
 
 // forward declare some functions
-void query_elem_to_vert(TSTTM_Instance mesh);
-void query_vert_to_elem(TSTTM_Instance mesh);
+void query_elem_to_vert(iMesh_Instance mesh);
+void query_vert_to_elem(iMesh_Instance mesh);
 void print_time(const bool print_em, double &tot_time, double &utime, double &stime);
 void build_connect(const int nelem, const int vstart, int *&connect);
-void testB(TSTTM_Instance mesh, const int nelem, const double *coords, const int *connect);
-void testC(TSTTM_Instance mesh, const int nelem, const double *coords);
+void testB(iMesh_Instance mesh, const int nelem, const double *coords, const int *connect);
+void testC(iMesh_Instance mesh, const int nelem, const double *coords);
 void compute_edge(double *start, const int nelem,  const double xint,
                   const int stride);
 void compute_face(double *a, const int nelem,  const double xint,
@@ -78,9 +78,10 @@ int main( int argc, char *argv[] )
     // test B: create mesh using bulk interface
 
     // create an implementation
-  TSTTM_Instance mesh;
-  TSTT_ErrorType result = TSTTM_ctor(&mesh);
-  if (TSTT_SUCCESS != result) {
+  iMesh_Instance mesh;
+  int result;
+  iMesh_newMesh(NULL, 0, &mesh, &result);
+  if (iBase_SUCCESS != result) {
     cerr << "Couldn't create mesh instance." << endl;
     return 1;
   }
@@ -100,7 +101,7 @@ int main( int argc, char *argv[] )
   return 0;
 }
 
-void testB(TSTTM_Instance mesh, 
+void testB(iMesh_Instance mesh, 
            const int nelem, const double *coords,
            const int *connect) 
 {
@@ -111,12 +112,13 @@ void testB(TSTTM_Instance mesh,
   int num_elems = nelem*nelem*nelem;
   
     // create vertices as a block; initialize to NULL so allocation is done in interface
-  TSTTM_EntityHandle *vertices = NULL;
+  iBase_EntityHandle *vertices = NULL;
   int vertices_allocated = 0, vertices_size;
-  TSTT_ErrorType result = TSTTM_createVtxArr(mesh, num_verts, TSTTM_BLOCKED, 
-                                             coords, 3*num_verts, 3*num_verts,
-                                             &vertices, &vertices_allocated, &vertices_size);
-  if (TSTT_SUCCESS != result) {
+  int result;
+  iMesh_createVtxArr(mesh, num_verts, iBase_BLOCKED, 
+                     coords, 3*num_verts, 
+                     &vertices, &vertices_allocated, &vertices_size, &result);
+  if (iBase_SUCCESS != result) {
     cerr << "Couldn't create vertices in bulk call" << endl;
     return;
   }
@@ -124,7 +126,7 @@ void testB(TSTTM_Instance mesh,
     // need to explicitly fill connectivity array, since we don't know
     // the format of entity handles
   int nconnect = 8 * num_elems;
-  TSTTM_EntityHandle *sidl_connect = (TSTTM_EntityHandle*) malloc(nconnect*sizeof(TSTTM_EntityHandle));
+  iBase_EntityHandle *sidl_connect = (iBase_EntityHandle*) malloc(nconnect*sizeof(iBase_EntityHandle));
   
   for (int i = 0; i < nconnect; i++) {
       // use connect[i]-1 because we used starting vertex index (vstart) of 1
@@ -133,15 +135,15 @@ void testB(TSTTM_Instance mesh,
   }
   
     // create the entities
-  TSTTM_EntityHandle *new_hexes = NULL;
+  iBase_EntityHandle *new_hexes = NULL;
   int new_hexes_allocated = 0, new_hexes_size;
-  TSTTM_CreationStatus *status = NULL;
+  int *status = NULL;
   int status_allocated = 0, status_size;
   
-  result = TSTTM_createEntArr(mesh, TSTTM_HEXAHEDRON, sidl_connect, nconnect, nconnect,
-                              &new_hexes, &new_hexes_allocated, &new_hexes_size,
-                              &status, &status_allocated, &status_size);
-  if (TSTT_SUCCESS != result) {
+  iMesh_createEntArr(mesh, iMesh_HEXAHEDRON, sidl_connect, nconnect, 
+                     &new_hexes, &new_hexes_allocated, &new_hexes_size,
+                     &status, &status_allocated, &status_size, &result);
+  if (iBase_SUCCESS != result) {
     cerr << "Couldn't create hex elements in bulk call" << endl;
     return;
   }
@@ -165,7 +167,7 @@ void testB(TSTTM_Instance mesh,
             << std::endl;
 }
 
-void testC(TSTTM_Instance mesh, const int nelem, const double *coords) 
+void testC(iMesh_Instance mesh, const int nelem, const double *coords) 
 {
   double utime, stime, ttime0, ttime1, ttime2, ttime3;
   print_time(false, ttime0, utime, stime);
@@ -177,22 +179,23 @@ void testC(TSTTM_Instance mesh, const int nelem, const double *coords)
 #define VINDEX(i,j,k) (i + (j*numv) + (k*numv_sq))
 
     // array to hold vertices created individually
-  TSTTM_EntityHandle *sidl_vertices = (TSTTM_EntityHandle*) malloc(num_verts*sizeof(TSTTM_EntityHandle));
+  iBase_EntityHandle *sidl_vertices = (iBase_EntityHandle*) malloc(num_verts*sizeof(iBase_EntityHandle));
   int one_a = 1, one_b = 1;
-  TSTT_ErrorType result;
+  int result;
 
   for (int i = 0; i < num_verts; i++) {
 
       // create the vertex
-    result = TSTTM_createVtx(mesh, coords+3*i, 3, 3, sidl_vertices+i);
-    if (TSTT_SUCCESS != result) {
+    iMesh_createVtx(mesh, coords[3*i], coords[3*i+1], coords[3*i+2],
+                    sidl_vertices+i, &result);
+    if (iBase_SUCCESS != result) {
       cerr << "Couldn't create vertex in individual call" << endl;
       return;
     }
 
   }
   
-  TSTTM_EntityHandle tmp_conn[8], new_hex;
+  iBase_EntityHandle tmp_conn[8], new_hex;
 
   for (int i=0; i < nelem; i++) {
     for (int j=0; j < nelem; j++) {
@@ -209,9 +212,10 @@ void testC(TSTTM_Instance mesh, const int nelem, const double *coords)
         
           // create the entity
   
-        TSTTM_CreationStatus status;
-        result = TSTTM_createEnt(mesh, TSTTM_HEXAHEDRON, tmp_conn, 8, 8, &new_hex, &status);
-        if (TSTT_SUCCESS != result) {
+        int status;
+        iMesh_createEnt(mesh, iMesh_HEXAHEDRON, tmp_conn, 8, 
+                        &new_hex, &status, &result);
+        if (iBase_SUCCESS != result) {
           cerr << "Couldn't create hex element in individual call" << endl;
           return;
         }
@@ -238,42 +242,45 @@ void testC(TSTTM_Instance mesh, const int nelem, const double *coords)
             << std::endl;
 }
 
-void query_elem_to_vert(TSTTM_Instance mesh)
+void query_elem_to_vert(iMesh_Instance mesh)
 {
-  TSTTM_EntityHandle *all_hexes = NULL;
+  iBase_EntityHandle *all_hexes = NULL;
   int all_hexes_size, all_hexes_allocated = 0;
 
     // get all the hex elements
-  TSTT_ErrorType success = TSTTM_getEntities(mesh, 0, TSTTM_REGION, 
-                                             TSTTM_HEXAHEDRON, 
-                                             &all_hexes, &all_hexes_allocated, 
-                                             &all_hexes_size);
-  if (TSTT_SUCCESS != success) {
+  int success;
+  iMesh_getEntities(mesh, 0, iBase_REGION, 
+                    iMesh_HEXAHEDRON, 
+                    &all_hexes, &all_hexes_allocated, 
+                    &all_hexes_size, &success);
+  if (iBase_SUCCESS != success) {
     cerr << "Couldn't get all hex elements in query_mesh" << endl;
     return;
   }
 
     // now loop over elements
-  TSTTM_EntityHandle *dum_connect = NULL;
+  iBase_EntityHandle *dum_connect = NULL;
   int dum_connect_allocated = 0, dum_connect_size;
   double *dum_coords = NULL;
   int dum_coords_size, dum_coords_allocated = 0;
   for (int i = 0; i < all_hexes_size; i++) {
       // get the connectivity of this element; will allocate space on 1st iteration,
       // but will have correct size on subsequent ones
-    success = TSTTM_getEntAdj(mesh, all_hexes[i], TSTTM_VERTEX,
-                              &dum_connect, &dum_connect_allocated, &dum_connect_size);
+    iMesh_getEntAdj(mesh, all_hexes[i], iBase_VERTEX,
+                    &dum_connect, &dum_connect_allocated, &dum_connect_size, 
+                    &success);
 
-    if (TSTT_SUCCESS == success) {
+    if (iBase_SUCCESS == success) {
         // get vertex coordinates; ; will allocate space on 1st iteration,
         // but will have correct size on subsequent ones
-      TSTTM_StorageOrder order = TSTTM_UNDETERMINED;
-      success = TSTTM_getVtxArrCoords(mesh, dum_connect, dum_connect_allocated, 
-                                      dum_connect_size, &order,
-                                      &dum_coords, &dum_coords_allocated, &dum_coords_size);
+      int order = iBase_UNDETERMINED;
+      iMesh_getVtxArrCoords(mesh, dum_connect, dum_connect_size, 
+                            &order,
+                            &dum_coords, &dum_coords_allocated, 
+                            &dum_coords_size, &success);
 
       double centroid[3] = {0.0, 0.0, 0.0};
-      if (order == TSTTM_BLOCKED) {
+      if (order == iBase_BLOCKED) {
         for (int j = 0; j < 8; j++) {
           centroid[0] += dum_coords[j];
           centroid[1] += dum_coords[8+j];
@@ -289,28 +296,29 @@ void query_elem_to_vert(TSTTM_Instance mesh)
       }
     }
       
-    if (TSTT_SUCCESS != success) {
+    if (iBase_SUCCESS != success) {
       cerr << "Problem getting connectivity or vertex coords." << endl;
       return;
     }
   }
 }
 
-void query_vert_to_elem(TSTTM_Instance mesh)
+void query_vert_to_elem(iMesh_Instance mesh)
 {
-  TSTTM_EntityHandle *all_verts = NULL;
+  iBase_EntityHandle *all_verts = NULL;
   int all_verts_allocated = 0, all_verts_size;
 
     // get all the vertices elements
-  TSTT_ErrorType success = TSTTM_getEntities(mesh, 0, TSTTM_VERTEX, 
-                                              TSTTM_POINT, &all_verts, 
-                                              &all_verts_allocated, &all_verts_size);
-  if (TSTT_SUCCESS != success) {
+  int success;
+  iMesh_getEntities(mesh, 0, iBase_VERTEX, 
+                    iMesh_POINT, &all_verts, 
+                    &all_verts_allocated, &all_verts_size, &success);
+  if (iBase_SUCCESS != success) {
     cerr << "Couldn't get all vertices in query_vert_to_elem" << endl;
     return;
   }
 
-  TSTTM_EntityHandle *dum_hexes = NULL;
+  iBase_EntityHandle *dum_hexes = NULL;
   int dum_hexes_allocated = 0, dum_hexes_size;
 
     // now loop over vertices
@@ -318,9 +326,10 @@ void query_vert_to_elem(TSTTM_Instance mesh)
 
         // get the connectivity of this element; will have to allocate space on every
         // iteration, since size can vary
-    success = TSTTM_getEntAdj(mesh, all_verts[i], TSTTM_REGION,
-                              &dum_hexes, &dum_hexes_allocated, &dum_hexes_size);
-    if (TSTT_SUCCESS != success) {
+    iMesh_getEntAdj(mesh, all_verts[i], iBase_REGION,
+                    &dum_hexes, &dum_hexes_allocated, &dum_hexes_size,
+                    &success);
+    if (iBase_SUCCESS != success) {
       cerr << "Problem getting connectivity or vertex coords." << endl;
       return;
     }
