@@ -1,0 +1,8 @@
+AC_INIT()
+
+AC_PROG_CC
+AC_PROG_FC
+AC_FC_WRAPPERS
+
+AC_OUTPUT(iMesh_fcdefs.inc)
+

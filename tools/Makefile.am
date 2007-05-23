@@ -67,6 +67,12 @@ else
   cgm2moab_DIR = 
 endif 
 
+if ENABLE_imesh
+  imesh_DIR = iMesh
+else
+  imesh_DIR = 
+endif 
+
 SUBDIRS = $(converter_DIR) \
           $(hexmodops_DIR) \
           $(mbchaco_DIR) \
@@ -78,6 +84,7 @@ SUBDIRS = $(converter_DIR) \
           $(tagprop_DIR) \
           $(spheredecomp_DIR) \
           $(mbsurfplot_DIR) \
-          $(cgm2moab_DIR)
+          $(cgm2moab_DIR) \
+          $(imesh_DIR)
 
 EXTRA_DIST = mbzoltan/README 

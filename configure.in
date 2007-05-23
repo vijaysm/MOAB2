@@ -12,6 +12,8 @@ LIBS="-lm"
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
 AC_DISABLE_SHARED
+AC_PROG_FC
+
 AC_PROG_LIBTOOL
 
 AC_CHECK_PROG([ZCAT],[gunzip],[gunzip -c],[])
@@ -169,6 +171,7 @@ MB_OPTIONAL_TOOL([spheredecomp],              [no] )
 MB_OPTIONAL_TOOL([mbsurfplot],                [no] )
 MB_OPTIONAL_TOOL([mbzoltan],                  [no] )
 MB_OPTIONAL_TOOL([cgm2moab],                  [no] )
+MB_OPTIONAL_TOOL([imesh],                     [no] )
 
 ################################################################################
 #                           Zoltan
@@ -623,6 +626,34 @@ fi
 
 
 ################################################################################
+#                           iMesh
+################################################################################
+if test $ENABLE_imesh = yes; then
+  AC_ARG_WITH(babel, 
+  [AC_HELP_STRING([--with-babel=DIR], [Specify directory containing babel])],
+  [BABEL_DIR=$withval
+   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-babel=\"${withval}\""
+   ], [BABEL_DIR=no])
+  case "x$BABEL_DIR" in
+    xno)
+      BABEL_DIR=
+      USE_BABEL=no
+      ;;
+    xyes|x)
+      BABEL_DIR=/usr/local
+      AC_CHECK_FILE([${BABEL_DIR}/bin/babel], [USE_BABEL=yes], [USE_BABEL=no])
+      ;;
+    *)
+      AC_CHECK_FILE([${BABEL_DIR}/bin/babel], [USE_BABEL=yes], [USE_BABEL=no])
+      ;;
+  esac
+  AC_SUBST(BABEL_DIR)
+  AC_SUBST(USE_BABEL)
+fi
+AM_CONDITIONAL(USE_BABEL, [test "xno" != "$USE_BABEL"])
+
+
+################################################################################
 #                           Output Files
 ################################################################################
 AC_SUBST([INCLUDES])
@@ -646,12 +677,14 @@ AC_CONFIG_FILES([Makefile
 		 tools/mbzoltan/Config.moab
 		 tools/mbzoltan/Makefile
                  tools/qvdual/Makefile
-                 tools/size/Makefile
+                                          tools/size/Makefile
                  tools/skin/Makefile
                  tools/tagprop/Makefile
                  tools/spheredecomp/Makefile
                  tools/surfplot/Makefile
                  tools/cgm2moab/Makefile
+                 tools/iMesh/Makefile
+                 tools/iMesh/iMesh-Defs.inc
                  doc/Makefile
                  doxygen/Makefile
                  ])
