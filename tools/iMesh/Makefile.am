@@ -18,7 +18,7 @@ lib_LTLIBRARIES = libiMesh.la
 
 libMOAB_la_includedir = $(includedir)
 
-libiMesh_la_LIBADD = $(top_builddir)/libMOAB.la
+libiMesh_la_LIBADD = $(top_builddir)/../../libMOAB.la
 
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put 
