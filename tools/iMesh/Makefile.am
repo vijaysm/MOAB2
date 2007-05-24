@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = foreign
 
-INCLUDES = -I$(top_srcdir) -I$(top_builddir)
+INCLUDES = -I$(top_srcdir)/../.. -I$(top_builddir)/../.. -I$(top_srcdir)
 
 DEFS += $(DEFINES) $(IMESH_FCDEFS)
 
