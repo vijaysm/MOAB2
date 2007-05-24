@@ -10,9 +10,8 @@ libiMesh_la_SOURCES = \
 libMOAB_la_include_HEADERS = iMesh.h \
                              iMesh_f.h \
                              iMesh_protos.h \
-                             iMesh_params.h \
-                             iBase_params.h \
-                             iBase.h
+                             iBase.h \
+                             iBase_f.h
 
 lib_LTLIBRARIES = libiMesh.la
 
