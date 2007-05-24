@@ -1,8 +1,8 @@
 AUTOMAKE_OPTIONS = foreign
 
-INCLUDES = -I$(top_srcdir)/../.. -I$(top_builddir)/../.. -I$(top_srcdir)
+INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I.
 
-DEFS += $(DEFINES) $(IMESH_FCDEFS)
+DEFS += $(DEFINES)
 
 libiMesh_la_SOURCES = \
 	iMesh_MOAB.cpp
@@ -18,7 +18,7 @@ lib_LTLIBRARIES = libiMesh.la
 
 libMOAB_la_includedir = $(includedir)
 
-libiMesh_la_LIBADD = $(top_builddir)/../../libMOAB.la
+libiMesh_la_LIBADD = $(top_builddir)/libMOAB.la
 
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put 

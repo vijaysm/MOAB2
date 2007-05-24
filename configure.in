@@ -15,6 +15,7 @@ AC_DISABLE_SHARED
 AC_PROG_FC
 
 AC_PROG_LIBTOOL
+AC_FC_WRAPPERS
 
 AC_CHECK_PROG([ZCAT],[gunzip],[gunzip -c],[])
 AC_CHECK_PROG([ZCAT],[gzip],[gzip -cd],[])
@@ -661,7 +662,6 @@ AC_SUBST([DEFINES])
 AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
 
 AC_ARG_VAR([FC], [FORTRAN compiler command])
-AC_CONFIG_SUBDIRS([tools/iMesh])
 AC_CONFIG_FILES([Makefile 
                  MBConfig.h
                  moab.make 
@@ -674,6 +674,8 @@ AC_CONFIG_FILES([Makefile
                  tools/Makefile
                  tools/converter/Makefile
                  tools/hexmodops/Makefile
+		 tools/iMesh/Makefile
+		 tools/iMesh/iMesh-Defs.inc
                  tools/mbperf/Makefile
                  tools/mbchaco/Makefile
 		 tools/mbzoltan/Config.moab
