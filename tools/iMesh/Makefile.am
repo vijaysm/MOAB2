@@ -1,21 +1,24 @@
-include iMesh_fcdefs.inc
-
 AUTOMAKE_OPTIONS = foreign
 
-INCLUDES += -I$(top_srcdir) -I$(top_builddir)
+INCLUDES = -I$(top_srcdir) -I$(top_builddir)
 
 DEFS += $(DEFINES) $(IMESH_FCDEFS)
 
 libiMesh_la_SOURCES = \
 	iMesh_MOAB.cpp
                    
-libMOAB_la_include_HEADERS = iMesh.h iMesh_f.h iMesh_protos.h iMesh_params.h iBase_params.h iBase.h
+libMOAB_la_include_HEADERS = iMesh.h \
+                             iMesh_f.h \
+                             iMesh_protos.h \
+                             iMesh_params.h \
+                             iBase_params.h \
+                             iBase.h
 
 lib_LTLIBRARIES = libiMesh.la
 
 libMOAB_la_includedir = $(includedir)
 
-LDADD = libiMesh.la $(top_builddir)/libMOAB.la
+libiMesh_la_LIBADD = $(top_builddir)/libMOAB.la
 
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put 
@@ -32,12 +35,3 @@ cfg_DATA = iMesh-Defs.inc
 install-data-hook:
 	echo "IMESH_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 	echo "IMESH_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
-
-
-$(LTLIBRARIES): all-local
-
-all-local:
-	autoconf && ./configure FC=$(FC)
-
-all-hook:
-	autoconf && ./configure FC=$(FC)

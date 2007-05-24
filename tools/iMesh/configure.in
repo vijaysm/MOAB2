@@ -1,8 +1,13 @@
-AC_INIT()
+AC_INIT(iMesh-MOAB,0.1)
+AM_INIT_AUTOMAKE([foreign])
 
-AC_PROG_CC
+SNL_CHECK_COMPILERS
 AC_PROG_FC
 AC_FC_WRAPPERS
+AC_ARG_VAR([FC], [FORTRAN compiler command])
+AC_PROG_LIBTOOL
 
-AC_OUTPUT(iMesh_fcdefs.inc)
+AC_CONFIG_FILES( [Makefile iMesh_fcdefs.inc iMesh-Defs.inc] )
+
+AC_OUTPUT
 

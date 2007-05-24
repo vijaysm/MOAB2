@@ -660,6 +660,8 @@ AC_SUBST([INCLUDES])
 AC_SUBST([DEFINES])
 AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
 
+AC_ARG_VAR([FC], [FORTRAN compiler command])
+AC_CONFIG_SUBDIRS([tools/iMesh])
 AC_CONFIG_FILES([Makefile 
                  MBConfig.h
                  moab.make 
@@ -677,14 +679,12 @@ AC_CONFIG_FILES([Makefile
 		 tools/mbzoltan/Config.moab
 		 tools/mbzoltan/Makefile
                  tools/qvdual/Makefile
-                                          tools/size/Makefile
+                 tools/size/Makefile
                  tools/skin/Makefile
                  tools/tagprop/Makefile
                  tools/spheredecomp/Makefile
                  tools/surfplot/Makefile
                  tools/cgm2moab/Makefile
-                 tools/iMesh/Makefile
-                 tools/iMesh/iMesh-Defs.inc
                  doc/Makefile
                  doxygen/Makefile
                  ])
