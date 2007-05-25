@@ -15,7 +15,9 @@ AC_DISABLE_SHARED
 AC_PROG_FC
 
 AC_PROG_LIBTOOL
-AC_FC_WRAPPERS
+if test "x" != "x$FC"; then
+  AC_FC_WRAPPERS
+fi
 
 AC_CHECK_PROG([ZCAT],[gunzip],[gunzip -c],[])
 AC_CHECK_PROG([ZCAT],[gzip],[gzip -cd],[])

@@ -1,4 +1,5 @@
 #include "iMesh_FCDefs.h"
+#ifdef FC_FUNC_
 
 #define iMesh_getErrorType FC_FUNC_(imesh_geterrortype, IMESH_GETERRORTYPE)
 #define iMesh_getDescription FC_FUNC_(imesh_getdescription, IMESH_GETDESCRIPTION)
@@ -108,3 +109,5 @@
 #define iMesh_intersect FC_FUNC_(imesh_intersect, IMESH_INTERSECT)
 #define iMesh_unite FC_FUNC_(imesh_unite, IMESH_UNITE)
 #define iMesh_free FC_FUNC_(imesh_free, IMESH_FREE)
+
+#endif
