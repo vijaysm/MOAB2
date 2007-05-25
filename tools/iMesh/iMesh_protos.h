@@ -1,3 +1,5 @@
+#include "iMesh_FCDefs.h"
+
 #define iMesh_getErrorType FC_FUNC_(imesh_geterrortype, IMESH_GETERRORTYPE)
 #define iMesh_getDescription FC_FUNC_(imesh_getdescription, IMESH_GETDESCRIPTION)
 #define iMesh_newMesh FC_FUNC_(imesh_newmesh, IMESH_NEWMESH)
