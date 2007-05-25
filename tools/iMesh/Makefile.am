@@ -12,7 +12,7 @@ libMOAB_la_include_HEADERS = iMesh.h \
                              iMesh_protos.h \
                              iBase.h \
                              iBase_f.h \
-			     iMesh-FCDefs.h
+			     iMesh_FCDefs.h 
 
 lib_LTLIBRARIES = libiMesh.la
 
