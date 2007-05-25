@@ -348,15 +348,12 @@ if test "xno" != "x$HDF5_ARG"; then
     AC_CHECK_LIB([gpfs],[gpfs_stat],[LIBS="-lgpfs $LIBS"])
   fi
 
-    # Add flag to defines
-  LIBS="$HDF5_LDFLAGS $LIBS"
-
     # if a path is specified, update LIBS and INCLUDES accordingly
   if test "xyes" != "x$HDF5_ARG"; then
     if test -d "${HDF5_ARG}/lib"; then
-      LIBS="$LIBS -L${HDF5_ARG}/lib"
+      HDF5_LDFLAGS="$HDF5_LDFLAGS -L${HDF5_ARG}/lib"
     elif test -d "${HDF5_ARG}"; then
-      LIBS="$LIBS -L${HDF5_ARG}"
+      HDF5_LDFLAGS="$HDF5_LDFLAGS -L${HDF5_ARG}"
     else
       AC_MSG_ERROR("$HDF5_ARG is not a directory.")
     fi
@@ -366,6 +363,10 @@ if test "xno" != "x$HDF5_ARG"; then
       INCLUDES="$INCLUDES -I${HDF5_ARG}"
     fi
   fi
+  
+    # Add flag to defines
+  old_LIBS="$LIBS"
+  LIBS="$LIBS $HDF5_LDFLAGS"
   
     # check for libraries and headers
   old_CPPFLAGS="$CPPFLAGS"
@@ -378,20 +379,20 @@ if test "xno" != "x$HDF5_ARG"; then
   if test $HAVE_LIB_HDF5 = no; then
     if test $HAVE_ZLIB = yes; then
       unset ac_cv_lib_hdf5_H5Fopen
-      AC_CHECK_LIB( [hdf5], [H5Fopen], [HAVE_LIB_HDF5=yes; LIBS="-lz $LIBS"], [], [-lz] )
+      AC_CHECK_LIB( [hdf5], [H5Fopen], [HAVE_LIB_HDF5=yes; old_LIBS="-lz $old_LIBS"], [], [-lz] )
     fi
   fi
   if test $HAVE_LIB_HDF5 = no; then
     if test $HAVE_SZIP = yes; then
       unset ac_cv_lib_hdf5_H5Fopen
-      AC_CHECK_LIB( [hdf5], [H5Fopen], [HAVE_LIB_HDF5=yes; LIBS="-lsz $LIBS"], [], [-lsz] )
+      AC_CHECK_LIB( [hdf5], [H5Fopen], [HAVE_LIB_HDF5=yes; old_LIBS="-lsz $old_LIBS"], [], [-lsz] )
     fi
   fi
   if test $HAVE_LIB_HDF5 = no; then
     if test $HAVE_SZIP = yes; then
       if test $HAVE_ZLIB = yes; then
         unset ac_cv_lib_hdf5_H5Fopen
-        AC_CHECK_LIB( [hdf5], [H5Fopen], [HAVE_LIB_HDF5=yes; LIBS="-lsz -lz $LIBS"], [], [-lz -lsz] )
+        AC_CHECK_LIB( [hdf5], [H5Fopen], [HAVE_LIB_HDF5=yes; old_LIBS="-lsz -lz $old_LIBS"], [], [-lz -lsz] )
       fi
     fi
   fi
@@ -401,7 +402,9 @@ if test "xno" != "x$HDF5_ARG"; then
   fi
   
   if test "x$HAVE_HDF5" = "xyes"; then
-    LIBS="-lhdf5 $LIBS"
+    LIBS="$HDF5_LDFLAGS -lhdf5 $old_LIBS"
+  else
+    LIBS="$old_LIBS"
   fi
 fi
 
