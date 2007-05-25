@@ -1,15 +1,15 @@
 #ifndef __iBase_INC__
 #define __iBase_INC__
 
-#ifdef __cplusplus
+#include <stdlib.h>
 
-extern "C" 
-{
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-  typedef int iBase_EntityHandle;
-  typedef int iBase_EntitySetHandle;
-  typedef int iBase_TagHandle;
+  typedef size_t iBase_EntityHandle;
+  typedef size_t iBase_EntitySetHandle;
+  typedef size_t iBase_TagHandle;
 
   enum iBase_EntityType {       
     iBase_VERTEX, 

@@ -2544,5 +2544,5 @@ void cfptr_(void **instance)
 
 void cfptr2_(void *instance) 
 {
-  std::cout << "Instance ptr = " << (int) instance << std::endl;
+  std::cout << "Instance ptr = " << (size_t) instance << std::endl;
 }
