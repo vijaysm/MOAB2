@@ -198,8 +198,9 @@ void iMesh_load(iMesh_Instance instance,
 {
     // get filename & attempt to NULL-terminate
   char tmp_filename[1024];
+  std::fill(tmp_filename, tmp_filename+1024, '\0');
   strncpy(tmp_filename, name, name_len);
-  tmp_filename[1023] = '\0';
+  tmp_filename[MIN(1023, name_len)] = '\0';
   char *tmp_pos = strchr(tmp_filename, '.');
   if (NULL != tmp_pos) {
     tmp_pos = strchr(tmp_pos, ' ');
@@ -911,21 +912,6 @@ void iMesh_getEntArrAdj(iMesh_Instance instance,
 {
   MBErrorCode result = MB_SUCCESS;
 
-/*
-  if (NULL != *offset && 0 != *offset_allocated && *offset_allocated < (*offset_size)) {
-    iMesh_processError(iBase_MEMORY_ALLOCATION_FAILED, 
-          "Allocated array not large enough to hold returned contents.");
-    RETURN(iBase_MEMORY_ALLOCATION_FAILED);
-  }
-  if (NULL == *offset) {
-    *offset = (int*)malloc((entity_handles_size+1)*sizeof(int));
-    *offset_allocated=(*offset_size);
-    if (NULL == *offset) {iMesh_processError(iBase_MEMORY_ALLOCATION_FAILED, 
-          "Couldn't allocate array.");RETURN(iBase_MEMORY_ALLOCATION_FAILED);}
-  }
-
-*/
-
   CHECK_SIZE(*offset, *offset_allocated, entity_handles_size+1, 
              int, iBase_MEMORY_ALLOCATION_FAILED);
   
@@ -953,7 +939,7 @@ void iMesh_getEntArrAdj(iMesh_Instance instance,
     prev_off += adj_ents.size();
   }
   *off_iter = prev_off;
-  
+
   CHECK_SIZE(*adjacentEntityHandles, *adjacentEntityHandles_allocated, 
              (int)all_adj_ents.size(), 
              iBase_EntityHandle, iBase_MEMORY_ALLOCATION_FAILED);
