@@ -357,11 +357,74 @@ MBErrorCode MBAdaptiveKDTree::split_leaf( MBAdaptiveKDTreeIter& leaf,
   return MB_FAILURE;
 }
 
+MBErrorCode MBAdaptiveKDTree::merge_leaf( MBAdaptiveKDTreeIter& iter )
+{
+  MBErrorCode rval;
+  if (iter.depth() == 1) // at root
+    return MB_FAILURE;
+  
+    // Move iter to parent
+  
+  MBAdaptiveKDTreeIter::StackObj node = iter.mStack.back();
+  iter.mStack.pop_back();
+  
+  iter.childVect.clear();
+  rval = moab()->get_child_meshsets( iter.mStack.back().entity, iter.childVect );
+  if (MB_SUCCESS != rval)
+    return rval;
+  Plane plane;
+  rval = get_split_plane( iter.mStack.back().entity, plane );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  int child_idx = iter.childVect[0] == node.entity ? 0 : 1;
+  assert(iter.childVect[child_idx] == node.entity);
+  iter.mBox[1-child_idx][plane.norm] = node.coord;
+  
+
+    // Get all entities from children and put them in parent
+  MBEntityHandle parent = iter.handle();
+  moab()->remove_child_meshset( parent, iter.childVect[0] );
+  moab()->remove_child_meshset( parent, iter.childVect[1] );
+  std::vector<MBEntityHandle> stack( iter.childVect );
+  
+  MBRange range;
+  while (!stack.empty()) {
+    MBEntityHandle h = stack.back();
+    stack.pop_back();
+    range.clear();
+    rval = moab()->get_entities_by_handle( h, range );
+    if (MB_SUCCESS != rval)
+      return rval;
+    rval = moab()->add_entities( parent, range );
+    if (MB_SUCCESS != rval)
+      return rval;
+    
+    iter.childVect.clear();
+    moab()->get_child_meshsets( h, iter.childVect );
+    if (!iter.childVect.empty()) {
+     moab()->remove_child_meshset( h, iter.childVect[0] );
+     moab()->remove_child_meshset( h, iter.childVect[1] );
+     stack.push_back( iter.childVect[0] );
+     stack.push_back( iter.childVect[1] );
+    }
+  
+    rval = moab()->delete_entities( &h, 1 );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  
+  return MB_SUCCESS;
+}
+
+  
+
 MBErrorCode MBAdaptiveKDTreeIter::initialize( MBAdaptiveKDTree* tool,
                                               MBEntityHandle root,
                                               const double box_min[3],
                                               const double box_max[3] )
 {
+  mStack.clear();
   treeTool = tool;
   mBox[BMIN][0] = box_min[0];
   mBox[BMIN][1] = box_min[1];

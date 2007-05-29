@@ -386,33 +386,7 @@ bool check_point_in_triangles( MBInterface* moab,
   }
   return true;
 }
-   
-bool leaf_iterator_test()
-{
-  MBErrorCode rval;
-  MBCore moab;
-  MBInterface* mb = &moab;
-  MBAdaptiveKDTree tool(mb);
 
-    // create a single-node tree
-  MBEntityHandle root;
-  double min[3] = { -5, -4, -1 };
-  double max[3] = {  5,  4,  1 };
-  rval = tool.create_tree( min, max, root );
-  CHECK( MB_SUCCESS == rval );
-
-    // get iterator for tree
-  MBAdaptiveKDTreeIter iter;
-  rval = tool.get_tree_iterator( root, iter );
-  CHECK( MB_SUCCESS == rval );
-  CHECK( box_equal(iter, -5, -4, -1, 5, 4, 1 ) );
-
-    // check that steping the iterator fails correctly.
-  rval = iter.step();
-  CHECK( MB_ENTITY_NOT_FOUND == rval );
-  rval = iter.step();
-  CHECK( MB_SUCCESS != rval );
-  
   /* Create the following 2D tree (no Z splits)
   
           (6) X = -3    (5) X = 0
@@ -433,11 +407,25 @@ bool leaf_iterator_test()
                     |                |
                     (2) X = -1      (4) X = 4
    */
-  
-  MBEntityHandle leaves[9];
+bool create_simple_2d_tree( MBAdaptiveKDTree& tool, 
+                            MBEntityHandle& root,
+                            MBEntityHandle leaves[9] )
+{
+  MBErrorCode rval;
+  MBInterface* mb = tool.moab();
   MBAdaptiveKDTree::Plane plane;
+
+    // create a single-node tree
+  double min[3] = { -5, -4, -1 };
+  double max[3] = {  5,  4,  1 };
+  rval = tool.create_tree( min, max, root );
+  CHECK( MB_SUCCESS == rval );
+
+    // get iterator for tree
+  MBAdaptiveKDTreeIter iter;
   rval = tool.get_tree_iterator( root, iter );
   CHECK( MB_SUCCESS == rval );
+  CHECK( box_equal(iter, -5, -4, -1, 5, 4, 1 ) );
    
    // split plane (1)
   plane.norm = MBAdaptiveKDTree::Y;
@@ -534,7 +522,46 @@ bool leaf_iterator_test()
     // the end
   rval = iter.step();
   CHECK( MB_ENTITY_NOT_FOUND == rval );
+
+  return true;
+}
+
+bool leaf_iterator_test()
+{
+  MBErrorCode rval;
+  MBCore moab;
+  MBInterface* mb = &moab;
+  MBAdaptiveKDTree tool(mb);
+
+
+    // create a single-node tree
+  MBEntityHandle root;
+  double min[3] = { -3, -2, -1 };
+  double max[3] = {  1,  2,  3 };
+  rval = tool.create_tree( min, max, root );
+  CHECK( MB_SUCCESS == rval );
+
+    // get iterator for tree
+  MBAdaptiveKDTreeIter iter;
+  rval = tool.get_tree_iterator( root, iter );
+  CHECK( MB_SUCCESS == rval );
+  CHECK( box_equal(iter, -3, -2, -1, 1, 2, 3 ) );
+
+    // check that steping the iterator fails correctly.
+  rval = iter.step();
+  CHECK( MB_ENTITY_NOT_FOUND == rval );
+  rval = iter.step();
+  CHECK( MB_SUCCESS != rval );
+
+  rval = tool.delete_tree( root );
+  CHECK( MB_SUCCESS == rval );
+  root = 0;
   
+  
+    // construct a simple 2D tree for remaining tests
+  MBEntityHandle leaves[9];
+  CHECK( create_simple_2d_tree( tool, root, leaves ) );
+
   
   /**** Now traverse tree again, and check neighbors of each leaf *****/
   std::vector<MBAdaptiveKDTreeIter> list;
@@ -669,6 +696,42 @@ bool leaf_iterator_test()
   CHECK( iter.handle() == leaves[8] );
   
   return true;
+}
+
+bool test_tree_merge_nodes()
+{
+    // build simple tree for tests
+  MBErrorCode rval;
+  MBCore moab;
+  MBInterface* mb = &moab;
+  MBAdaptiveKDTree tool(mb);
+  MBEntityHandle root;
+  MBEntityHandle leaves[9];
+  CHECK( create_simple_2d_tree( tool, root, leaves ) );
+
+    // get iterator for tree
+  MBAdaptiveKDTreeIter iter;
+  rval = tool.get_tree_iterator( root, iter );
+  CHECK( MB_SUCCESS == rval );
+
+    // merge leaves 1 and 2
+  rval = tool.merge_leaf( iter );
+  CHECK( MB_SUCCESS == rval );
+  CHECK( box_equal( iter, -5, -4, -1, -1, 0, 1 ) );
+  
+    // merge leaf 1,2 with 3,4 (implicity merges 3 and 4)
+  rval = tool.merge_leaf( iter );
+  CHECK( MB_SUCCESS == rval );
+  CHECK( box_equal( iter, -5, -4, -1, 5, 0, 1 ) );
+  
+    // make sure iterator remains valid
+  rval = iter.step();
+  CHECK( MB_SUCCESS == rval );
+    // leaf 5
+  CHECK( box_equal( iter, -5, 0, -1, -3, 4, 1 ) );
+  CHECK( iter.handle() == leaves[5] );
+  
+  return true;  
 }
 
 bool test_build_tree_bisect_triangles( )
@@ -1039,5 +1102,6 @@ int main()
   error_count += !test_closest_triangle();
   error_count += !test_sphere_intersect_triangles();
   error_count += !test_ray_intersect_triangles();
+  error_count += !test_tree_merge_nodes();
   return error_count;
 }

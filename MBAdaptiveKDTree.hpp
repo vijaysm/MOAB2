@@ -116,6 +116,10 @@ public:
                           const std::vector<MBEntityHandle>& left_entities,
                           const std::vector<MBEntityHandle>& right_entities );
   
+  //! Merge the leaf pointed to by the current iterator with it's
+  //! sibling.  If the sibling is not a leaf, multiple merges may
+  //! be done.
+  MBErrorCode merge_leaf( MBAdaptiveKDTreeIter& iter );
   
     //! methods for selecting candidate split planes
   enum CandidatePlaneSet {
