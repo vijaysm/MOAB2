@@ -8,12 +8,12 @@ Where's the configure script?
     
   If for some reason, the autoreconf command is not available,
   the following sequence of commands should have the same result:
-  
+    
+    autoheader
     aclocal
     libtoolize
     automake -a
-    automake
-    autoconf
+    autoconf 
     
 
 Why aren't the configure script and other generated files in the
