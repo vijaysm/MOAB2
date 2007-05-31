@@ -55,6 +55,7 @@ void print_usage( const char* name, std::ostream& stream )
     << "\t-g             - Enable verbose/debug output." << std::endl
     << "\t-h             - Print this help text and exit." << std::endl
     << "\t-l             - List available file formats and exit." << std::endl
+    << "\t-I <dim>       - Generate internal entities of specified dimension." << std::endl
     << "\t--             - treat all subsequent options as file names" << std::endl
     << "\t                 (allows file names beginning with '-')" << std::endl
     << "  subset options: " << std::endl
@@ -111,6 +112,7 @@ void print_id_list( const char*, std::ostream& stream, const std::set<int>& list
 void reset_times();
 void write_times( std::ostream& stream );
 void remove_entities_from_sets( MBInterface* gMB, MBRange& dead_entities, MBRange& empty_sets );
+void remove_from_vector( std::vector<MBEntityHandle>& vect, const MBRange& ents_to_remove );
 
 int main(int argc, char* argv[])
 {
@@ -141,6 +143,7 @@ int main(int argc, char* argv[])
     // scan arguments
   bool do_flag = true;
   bool print_times = false;
+  bool generate[] = { false, false, false };
   bool pval;
   for (i = 1; i < argc; i++)
   {
@@ -170,6 +173,15 @@ int main(int argc, char* argv[])
           if (i == argc || argv[i][0] == '-') {
             std::cerr << "Expected argument following " << argv[i-1] << std::endl;
             usage_error(argv[0]);
+          }
+          if (argv[i-1][1] == 'I') {
+            int dim = atoi( argv[i] );
+            if (dim < 1 || dim > 2) {
+              std::cerr << "Invalid dimension value following -I" << std::endl;
+              usage_error(argv[0]);
+            }
+            generate[dim] = true;
+            continue;
           }
           pval = false;
           switch ( argv[i-1][1] )
@@ -240,37 +252,6 @@ int main(int argc, char* argv[])
   }
   std::cerr << "Read \"" << in << "\"" << std::endl;
   if (print_times) write_times( std::cerr );
-  
-  
-    // Check if output is limited to certain dimensions of elements
-  bool bydim = false;
-  for (dim = 1; dim < 4; ++dim)
-    if (dims[dim])
-      bydim = true;
-      
-    // Delete any entities not of the dimensions to be exported
-  if (bydim) {
-      // Get list of dead elements
-    MBRange dead_entities , tmp_range;
-    for (dim = 1; dim <= 3; ++dim) {
-      if (dims[dim])
-        continue;
-      gMB->get_entities_by_dimension(0, dim, tmp_range );
-      dead_entities.merge( tmp_range );
-    }
-      // Remove dead entities from all sets, and add all 
-      // empty sets to list of dead entities.
-    MBRange empty_sets;
-    remove_entities_from_sets( gMB, dead_entities, empty_sets );
-    while (!empty_sets.empty()) {
-      dead_entities.merge( empty_sets );
-      MBRange tmp_range;
-      remove_entities_from_sets( gMB, empty_sets, tmp_range );
-      empty_sets = tmp_range.subtract( dead_entities );
-    }
-      // Destroy dead entities
-    result = gMB->delete_entities( dead_entities );
-  }
   
     // Determine if the user has specified any geometry sets to write
   bool have_geom = false;
@@ -394,6 +375,75 @@ int main(int argc, char* argv[])
     if (verbose)
       std::cout << "Found " << (set_list.size()-init_count) << ' '
                 << mesh_tag_names[i] << " sets" << std::endl;
+  }
+  
+    // Check if output is limited to certain dimensions of elements
+  bool bydim = false;
+  for (dim = 1; dim < 4; ++dim)
+    if (dims[dim])
+      bydim = true;
+  
+    // Check conflicting input
+  if (bydim) {
+    if (generate[1] && !dims[1]) {
+      std::cerr << "Warning: Request to generate 1D internal entities but not export them." << std::endl;
+      generate[1] = false;
+    } 
+     if (generate[2] && !dims[2]) {
+      std::cerr << "Warning: Request to generate 2D internal entities but not export them." << std::endl;
+      generate[2] = false;
+    } 
+  }
+ 
+    // Generate any internal entities
+  if (generate[1] || generate[2]) {
+    MBEntityHandle all_mesh = 0;
+    const MBEntityHandle* sets = &all_mesh;
+    int num_sets = 1;
+    if (have_sets) {
+      num_sets = set_list.size();
+      sets = &set_list[0];
+    }
+    for (i = 0; i < num_sets; ++i) {
+      MBRange dim3, dim2, adj;
+      gMB->get_entities_by_dimension( sets[i], 3, dim3 );
+      if (generate[1]) {
+        gMB->get_entities_by_dimension( sets[i], 2, dim2 );
+        gMB->get_adjacencies( dim3, 1, true, adj, MBInterface::UNION );
+        gMB->get_adjacencies( dim2, 1, true, adj, MBInterface::UNION );
+      }
+      if (generate[2]) {
+        gMB->get_adjacencies( dim3, 2, true, adj, MBInterface::UNION );
+      }
+      if (sets[i])
+        gMB->add_entities( sets[i], adj );
+    }
+  }
+      
+    // Delete any entities not of the dimensions to be exported
+  if (bydim) {
+      // Get list of dead elements
+    MBRange dead_entities , tmp_range;
+    for (dim = 1; dim <= 3; ++dim) {
+      if (dims[dim])
+        continue;
+      gMB->get_entities_by_dimension(0, dim, tmp_range );
+      dead_entities.merge( tmp_range );
+    }
+      // Remove dead entities from all sets, and add all 
+      // empty sets to list of dead entities.
+    MBRange empty_sets;
+    remove_entities_from_sets( gMB, dead_entities, empty_sets );
+    while (!empty_sets.empty()) {
+      if (!set_list.empty())
+        remove_from_vector( set_list, empty_sets );
+      dead_entities.merge( empty_sets );
+      MBRange tmp_range;
+      remove_entities_from_sets( gMB, empty_sets, tmp_range );
+      empty_sets = tmp_range.subtract( dead_entities );
+    }
+      // Destroy dead entities
+    result = gMB->delete_entities( dead_entities );
   }
   
     // If user specified sets to write, but none were found, exit.
@@ -641,3 +691,13 @@ void remove_entities_from_sets( MBInterface* gMB, MBRange& dead_entities, MBRang
   }
 }
 
+void remove_from_vector( std::vector<MBEntityHandle>& vect, const MBRange& ents_to_remove )
+{
+  MBRange::const_iterator i;
+  std::vector<MBEntityHandle>::iterator j;
+  for (i = ents_to_remove.begin(); i != ents_to_remove.end(); ++i) {
+    j = std::find( vect.begin(), vect.end(), *i );
+    if (j != vect.end())
+      vect.erase( j );
+  }
+}
