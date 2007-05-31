@@ -4,6 +4,7 @@ AUTOMAKE_OPTIONS = foreign
 
 DEFS = $(DEFINES)
 INCLUDES += -I$(top_srcdir) -I$(top_builddir) $(CGM_INCLUDES)
+CPPFLAGS += $(TEMPLATE_DEFS_INCLUDED)
 
 bin_PROGRAMS = cgm2moab
 cgm2moab_SOURCES = main.cc cubfile.c
