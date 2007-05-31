@@ -137,7 +137,7 @@ struct RangeIterator
   int requestedSize;
 };
 
-#define MBI static_cast<MBInterface*>(instance)
+#define MBI reinterpret_cast<MBInterface*>(instance)
 
 #define RETURN(a) {iMesh_LAST_ERROR.error_type = a; *err = a;return;}
 #define iMesh_processError(a, b) {sprintf(iMesh_LAST_ERROR.description, b); iMesh_LAST_ERROR.error_type = a;}
@@ -166,13 +166,30 @@ void iMesh_getDescription(iMesh_Instance instance,
   RETURN(iBase_SUCCESS);
 }
 
+void iMesh_setError(iMesh_Instance instance,
+                    int err_type, char *descr, int *err, int descr_len) 
+{
+  iMesh_LAST_ERROR.error_type = static_cast<iBase_ErrorType>(err_type);
+  strncpy(iMesh_LAST_ERROR.description, descr, descr_len);
+  RETURN(iBase_SUCCESS);
+}
+
+void iMesh_getError(iMesh_Instance instance,
+                    int *err_type, char *descr, int *err, int descr_len) 
+{
+  *err_type = iMesh_LAST_ERROR.error_type;
+  strncpy(descr, iMesh_LAST_ERROR.description,
+          MIN(strlen(iMesh_LAST_ERROR.description), (unsigned int)descr_len));
+  RETURN(iBase_SUCCESS);
+}
+
 void iMesh_newMesh(const char *options, 
                    iMesh_Instance *instance, int *err, int options_len) 
 {
-  if (NULL != *instance) delete (MBCore*) *instance;
+  if (0 != *instance) delete (MBCore*) *instance;
   
-  *instance = new MBCore();
-  if (NULL == *instance) {
+  *instance = reinterpret_cast<iMesh_Instance>(new MBCore());
+  if (0 == *instance) {
     iMesh_processError(iBase_FAILURE, "Failed to instantiate mesh instance.");
     RETURN(iBase_FAILURE);
   }
@@ -187,7 +204,7 @@ void iMesh_newMesh(const char *options,
 
 void iMesh_dtor(iMesh_Instance instance, int *err) 
 {
-  delete static_cast<MBCore*>(instance);
+  delete reinterpret_cast<MBCore*>(instance);
   RETURN(iBase_SUCCESS);
 }
    
@@ -769,7 +786,7 @@ void iMesh_initEntArrIter (iMesh_Instance instance,
   MBEntityType req_type = mb_topology_table[requested_entity_topology];
   int req_dimension = (req_type == MBMAXTYPE ? (int) requested_entity_type : -1);
   RangeIterator *new_it = new RangeIterator;
-  *entArr_iterator = new_it;
+  *entArr_iterator = reinterpret_cast<iMesh_EntityIterator>(new_it);
   new_it->requestedSize = requested_array_size;
   
   MBErrorCode result;

@@ -1,4 +1,5 @@
 #ifndef IMESH_CBIND_H__
+#define IMESH_CBIND_H__
 
 #include "iBase.h"
 #include "iMesh_protos.h"
@@ -7,14 +8,9 @@
 
 extern "C" {
 
-void cfunc_(int arg3, char *mystr, char *mystr2, int arg2, int strsz, int strsz2);
-void cfptr_(void **instance);
-void cfptr2_(void *instance);
-  
-
-  typedef void* iMesh_Instance;
-  typedef void* iMesh_EntityIterator;
-  typedef void* iMesh_EntityArrIterator;
+  typedef size_t iMesh_Instance;
+  typedef size_t iMesh_EntityIterator;
+  typedef size_t iMesh_EntityArrIterator;
 
   enum iMesh_EntityTopology {
     iMesh_POINT = 0,              /**< a general zero-dimensional entity  */
@@ -50,6 +46,12 @@ void cfptr2_(void *instance);
   
   void iMesh_getDescription(iMesh_Instance instance, 
                             char *descr, int *err, int descr_len);
+
+  void iMesh_setError(iMesh_Instance instance,
+                      int err_type, char *descr, int *err, int descr_len);
+
+  void iMesh_getError(iMesh_Instance instance,
+                      int *err_type, char *descr, int *err, int descr_len);
 
   void iMesh_newMesh(const char *options, 
                      iMesh_Instance *instance, int *err, int options_len);
@@ -338,10 +340,10 @@ void cfptr2_(void *instance);
   
   void iMesh_createTag(iMesh_Instance instance,
                             /*in*/ const char* tag_name,
-                            /*in*/ const int tag_name_len,
                             /*in*/ const int tag_size,
                             /*in*/ const int tag_type,
-                            /*out*/ iBase_TagHandle* tag_handle, int *err);
+                            /*out*/ iBase_TagHandle* tag_handle, int *err,
+                       /*in*/ const int tag_name_len);
 
   
   void iMesh_destroyTag(iMesh_Instance instance,
@@ -350,8 +352,8 @@ void cfptr2_(void *instance);
 
   void iMesh_getTagName(iMesh_Instance instance,
                              /*in*/ const iBase_TagHandle tag_handle,
-                             char *name, 
-                             int name_len, int *err);
+                             char *name, int *err, 
+                             int name_len);
 
   void iMesh_getTagSizeValues(iMesh_Instance instance,
                                    /*in*/ const iBase_TagHandle tag_handle,
@@ -363,8 +365,8 @@ void cfptr2_(void *instance);
 
   void iMesh_getTagHandle(iMesh_Instance instance,
                                /*in*/ const char* tag_name,
-                               int tag_name_len,
-                               iBase_TagHandle *tag_handle, int *err);
+                               iBase_TagHandle *tag_handle, int *err,
+                               int tag_name_len);
 
   void iMesh_getTagType(iMesh_Instance instance,
                              /*in*/ const iBase_TagHandle tag_handle,
@@ -578,7 +580,6 @@ void cfptr2_(void *instance);
                              /*in*/ const int tag_value, int *err);
 
   void iMesh_setDblData(iMesh_Instance instance,
-                   
                              /*in*/ iBase_EntityHandle entity_handle,
                              /*in*/ const iBase_TagHandle tag_handle,
                              /*in*/ const double tag_value, int *err);
@@ -654,8 +655,6 @@ void cfptr2_(void *instance);
                         /*in*/ const iBase_EntitySetHandle entity_set_1,
                         /*in*/ const iBase_EntitySetHandle entity_set_2,
                         /*out*/ iBase_EntitySetHandle* result_entity_set, int *err);
-
-  void iMesh_free(iBase_EntityHandle *ptr, int *err);
 
 #ifdef __cplusplus
 }
