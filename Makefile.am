@@ -28,7 +28,9 @@ TESTS = moab_test \
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 
-check_PROGRAMS = $(TESTS) 
+check_PROGRAMS = $(TESTS) \
+		 kd_tree_tool \
+		 kd_tree_time
          
 #noinst_PROGRAMS = scdseq_timing
 
@@ -284,6 +286,14 @@ vtk_test_DEPENDENCIES = $(vtk_test_LDADD)
 adaptive_kd_tree_tests_SOURCES = adaptive_kd_tree_tests.cpp
 adaptive_kd_tree_tests_LDADD = $(top_builddir)/libMOAB.la
 adaptive_kd_tree_tests_DEPENDENCIES = $(adaptive_kd_tree_tests_LDADD)
+
+kd_tree_tool_SOURCES = kd_tree_tool.cpp
+kd_tree_tool_LDADD = $(top_builddir)/libMOAB.la
+kd_tree_tool_DEPENDENCIES = $(kd_tree_tool_LDADD)
+
+kd_tree_time_SOURCES = kd_tree_time.cpp
+kd_tree_time_LDADD = $(top_builddir)/libMOAB.la
+kd_tree_time_DEPENDENCIES = $(kd_tree_time_LDADD)
 
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = dumped_acis.sat
