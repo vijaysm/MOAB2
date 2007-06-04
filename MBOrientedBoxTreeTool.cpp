@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <limits>
 #include <assert.h>
+#include <math.h>
 
 //#define MB_OBB_USE_VECTOR_QUERIES
 //#define MB_OBB_USE_TYPE_QUERIES
@@ -1515,7 +1516,7 @@ MBErrorCode MBOrientedBoxTreeTool::stats( MBEntityHandle set, std::ostream& s )
   double f = 60.0 / max_leaf_per_depth;
   for (i = min_leaf_depth; i < d.leaf_depth.size(); ++i)
     s << std::setw(2) << i << " " << std::setw(5) << d.leaf_depth[i] << " |"
-      << std::setfill('*') << std::setw((int)round(f*d.leaf_depth[i])) << "" 
+      << std::setfill('*') << std::setw((int)floor(f*d.leaf_depth[i]+0.5)) << "" 
       << std::setfill(' ') << std::endl;
   s <<std::endl;
   
@@ -1523,7 +1524,7 @@ MBErrorCode MBOrientedBoxTreeTool::stats( MBEntityHandle set, std::ostream& s )
   f = 60.0 / *(std::max_element(d.volume.hist, d.volume.hist+10));
   for (i = 0; i < 10u; ++i)
     s << "0." << i << " " << std::setw(5) << d.volume.hist[i] << " |"
-      << std::setfill('*') << std::setw((int)round(f*d.volume.hist[i])) << ""
+      << std::setfill('*') << std::setw((int)floor(f*d.volume.hist[i]+0.5)) << ""
       << std::setfill(' ') << std::endl;
   s <<std::endl;
   
@@ -1531,7 +1532,7 @@ MBErrorCode MBOrientedBoxTreeTool::stats( MBEntityHandle set, std::ostream& s )
   f = 60.0 / *(std::max_element(d.entities.hist, d.entities.hist+10));
   for (i = 0; i < 10u; ++i)
     s << "0." << i << " " << std::setw(5) << d.entities.hist[i] << " |"
-      << std::setfill('*') << std::setw((int)round(f*d.entities.hist[i])) << ""
+      << std::setfill('*') << std::setw((int)floor(f*d.entities.hist[i]+0.5)) << ""
       << std::setfill(' ') << std::endl;
   s <<std::endl;
   
@@ -1542,7 +1543,7 @@ MBErrorCode MBOrientedBoxTreeTool::stats( MBEntityHandle set, std::ostream& s )
   f = 60.0 / *(std::max_element(d.entities.hist, d.entities.hist+7));
   for (i = 0; i < 7u; ++i)
     s << "0." << i << " " << std::setw(5) << d.entities.hist[i] << " |"
-      << std::setfill('*') << std::setw((int)round(f*d.entities.hist[i])) << ""
+      << std::setfill('*') << std::setw((int)floor(f*d.entities.hist[i]+0.5)) << ""
       << std::setfill(' ') << std::endl;
   s <<std::endl;
   
