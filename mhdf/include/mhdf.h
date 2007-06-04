@@ -3,7 +3,7 @@
  * storing and accessing finite element mesh data.
  * 
  * Copyright 2004 Sandia Corporation.  Under the terms of Contract
- * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
+ * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
  * retains certain rights in this software.
  * 
  * This library is free software; you can redistribute it and/or
@@ -143,11 +143,11 @@ typedef void* mhdf_FileHandle;
  *                   defined constant (\ref mhdf_type), that constant
  *                   should be used.  If a constant does not exist for
  *                   the type, a similar naming pattern should be used
- *                   (accepted name for type, first charaster uppercase,
+ *                   (accepted name for type, first character uppercase,
  *                   subsequent characters lowercase.)  The element type
  *                   index passed to \ref mhdf_addElement is then an
  *                   index into this list.  The array may contain
- *                   null entires to allow the caller some control over
+ *                   null entries to allow the caller some control over
  *                   the assigned indices without creating dummy types
  *                   which may confuse readers.
  * \param elem_type_list_len The length of <code>elem_type_list</code>.
@@ -167,7 +167,7 @@ mhdf_createFile( const char* filename,
  * <code>mhdf_closeFile</code> to avoid resource loss.
  *
  * \param filename   The path and name of the file to open
- * \param writeable  If non-zero, open read-write.  Otherwise readonly.
+ * \param writable  If non-zero, open read-write.  Otherwise read-only.
  * \param status     Passed back status of API call.
  * \param max_id     Used to pass back the maximum global ID used in the
  *                   file.  Provided as an indication to the caller of the
@@ -177,7 +177,7 @@ mhdf_createFile( const char* filename,
  */
 mhdf_FileHandle
 mhdf_openFile( const char* filename,
-               int writeable,
+               int writable,
                unsigned long* max_id,
                mhdf_Status* status );
 
@@ -192,19 +192,19 @@ mhdf_openFile( const char* filename,
  * for writing the file in parallel.
  *
  * \param filename   The path and name of the file to open
- * \param writeable  If non-zero, open read-write.  Otherwise readonly.
+ * \param writable  If non-zero, open read-write.  Otherwise read-only.
  * \param status     Passed back status of API call.
  * \param max_id     Used to pass back the maximum global ID used in the
  *                   file.  Provided as an indication to the caller of the
  *                   size of the mesh.  This parameter is optional.  NULL
  *                   may be passed.
  * \param options    The HDF5 access property list to use when opening
- *                   the file.  See the HDF5 documenation for H5Fopen.
+ *                   the file.  See the HDF5 documentation for H5Fopen.
  * \return An opaque handle to the file.
  */
 mhdf_FileHandle
 mhdf_openFileWithOpt( const char* filename,
-                      int writeable,
+                      int writable,
                       unsigned long* max_id,
                       hid_t options,
                       mhdf_Status* status );
@@ -212,7 +212,7 @@ mhdf_openFileWithOpt( const char* filename,
 /** \brief Given an element type Id, get the name. 
  * Fails if buffer is not of sufficient size.
  * \param file_handle The file.
- * \param type_index The type index.  Corresponds to indicies into
+ * \param type_index The type index.  Corresponds to indices into
  *                   the element type list passed to \ref mhdf_createFile.
  * \param buffer     The buffer into which to copy the name.
  * \param buffer_size The length of <code>buffer</code>.
@@ -235,8 +235,8 @@ mhdf_closeFile( mhdf_FileHandle handle,
 /** \brief Common close function for all data handle types.
  *
  * Close an hid_t-type handle returned from any of the following
- * functions.  Any hid_t passed-back or returnd must be closed via
- * this function to avoid resouce loss.
+ * functions.  Any hid_t passed-back or returned must be closed via
+ * this function to avoid resource loss.
  *
  * \param file   The file the object pointed to by the passed data
  *               handled exists int.
@@ -296,7 +296,7 @@ mhdf_readHistory( mhdf_FileHandle file,
  * \param dimension    Number of coordinate values per node.
  * \param num_nodes    The number of nodes the table will contain.
  * \param first_node_id_out  Nodes are assigned IDs sequentially in the
- *             order they occur in the table, where the ID of the fisrt
+ *             order they occur in the table, where the ID of the first
  *             node in the table is this passed-back value.
  * \param status     Passed back status of API call.
  * \return An HDF5 handle to the coordinate table.
@@ -314,7 +314,7 @@ mhdf_createNodeCoords( mhdf_FileHandle file_handle,
  * \param dimension_out    Number of coordinate values per node.
  * \param num_nodes_out    The number of nodes the table contains.
  * \param first_node_id_out  Nodes are assigned IDs sequentially in the
- *             order they occur in the table, where the ID of the fisrt
+ *             order they occur in the table, where the ID of the first
  *             node in the table is this passed-back value.
  * \param status     Passed back status of API call.
  * \return An HDF5 handle to the coordinate table.
@@ -426,7 +426,7 @@ mhdf_readNodeCoord( hid_t data_handle,
  *
  * \param file_handle  File in which to create the element type.
  * \param elem_handle  The name to use for the element data.  This
- *                     name is used as an identifer to reference the
+ *                     name is used as an identifier to reference the
  *                     data for this element type later.  The selected
  *                     name also appears explicitly in the file and 
  *                     therefore should be something
@@ -487,7 +487,7 @@ mhdf_getElemTypeName( mhdf_FileHandle file_handle,
 
 /** \brief Check if an element group contains polygon or polyhedron
  *
- * Check if an element group contains general polyhon or polyhedrons
+ * Check if an element group contains general polygon or polyhedrons
  * rather than typically fixed-connectivity elements.  
  *
  * \param file_handle The file.
@@ -632,7 +632,7 @@ mhdf_readConnectivity( hid_t data_handle,
  * \param elem_handle  The element group.
  * \param num_poly     The total number number of polygons or polyhedra to
  *                     be written in the table.
- * \param data_list_length The tolal number of values to be written to the
+ * \param data_list_length The total number of values to be written to the
  *                     table (the number of polys plus the sum of the number
  *                     of entities in each poly's connectivity data.)
  * \param first_id_out Elements are assigned global IDs in 
@@ -672,7 +672,7 @@ mhdf_createPolyConnectivity( mhdf_FileHandle file_handle,
  * \param elem_handle  The element group.
  * \param num_poly_out The total number number of polygons or polyhedra to
  *                     be written in the table.
- * \param data_list_length_out The tolal number of values to be written to the
+ * \param data_list_length_out The total number of values to be written to the
  *                     table (the number of polys plus the sum of the number
  *                     of entities in each poly's connectivity data.)
  * \param first_id_out Elements are assigned global IDs in 
@@ -710,11 +710,11 @@ mhdf_openPolyConnectivity( mhdf_FileHandle file_handle,
  *
  * This function writes the index list.
  *
- * \param poly_handle  The handle returnded from 
+ * \param poly_handle  The handle returned from 
  *                     <code>mhdf_createPolyConnectivity</code> or
  *                     <code>mhdf_openPolyConnectivity</code>.
  * \param offset       The offset in the table at which to write.  The
- *                     offset is in terms of the integer valus in the table,
+ *                     offset is in terms of the integer values in the table,
  *                     not the count of polys.
  * \param count        The size of the integer list to write.
  * \param hdf_integer_type The type of the integer data in <code>id_list</code>.
@@ -745,11 +745,11 @@ mhdf_writePolyConnIndices( hid_t poly_handle,
  *
  * This function writes the connectivity/ID list.
  *
- * \param poly_handle  The handle returnded from 
+ * \param poly_handle  The handle returned from 
  *                     <code>mhdf_createPolyConnectivity</code> or
  *                     <code>mhdf_openPolyConnectivity</code>.
  * \param offset       The offset in the table at which to write.  The
- *                     offset is in terms of the integer valus in the table,
+ *                     offset is in terms of the integer values in the table,
  *                     not the count of polys.
  * \param count        The size of the integer list to write.
  * \param hdf_integer_type The type of the integer data in <code>id_list</code>.
@@ -779,11 +779,11 @@ mhdf_writePolyConnIDs( hid_t poly_handle,
  * contains the global IDs of faces (either polygons or 2D fixed-connectivity
  * elements.)
  *
- * \param poly_handle  The handle returnded from 
+ * \param poly_handle  The handle returned from 
  *                     <code>mhdf_createPolyConnectivity</code> or
  *                     <code>mhdf_openPolyConnectivity</code>.
  * \param offset       The offset in the table at which to read.  The
- *                     offset is in terms of the integer valus in the table,
+ *                     offset is in terms of the integer values in the table,
  *                     not the count of polys.
  * \param count        The size of the integer list to read.
  * \param hdf_integer_type The type of the integer data as written into memory.
@@ -812,11 +812,11 @@ mhdf_readPolyConnIndices( hid_t poly_handle,
  * contains the global IDs of faces (either polygons or 2D fixed-connectivity
  * elements.)
  *
- * \param poly_handle  The handle returnded from 
+ * \param poly_handle  The handle returned from 
  *                     <code>mhdf_createPolyConnectivity</code> or
  *                     <code>mhdf_openPolyConnectivity</code>.
  * \param offset       The offset in the table at which to read.  The
- *                     offset is in terms of the integer valus in the table,
+ *                     offset is in terms of the integer values in the table,
  *                     not the count of polys.
  * \param count        The size of the integer list to read.
  * \param hdf_integer_type The type of the integer data as written into memory.
@@ -1019,7 +1019,7 @@ mhdf_readAdjacency( hid_t data_handle,
 /** \brief Make entities in set aware of owning set (MOAB-specific?)*/
 #define mhdf_SET_OWNER_BIT 0x1  
 /** \brief Set cannot contain duplicates */ 
-#define mhdf_SET_UNIQE_BIT 0x2  
+#define mhdf_SET_UNIQUE_BIT 0x2  
 /** \brief Set order is preserved */
 #define mhdf_SET_ORDER_BIT 0x4  
 
@@ -1046,11 +1046,11 @@ mhdf_readAdjacency( hid_t data_handle,
  * respectively. The \ref mhdf_SET_RANGE_BIT
  * bit in the flags specifies the format of the contents list for each set.
  * See a description of the \ref mhdf_SET_RANGE_BIT flag for a description
- * of the two possbile data formats.  The index values in the first two columns
+ * of the two possible data formats.  The index values in the first two columns
  * of the table are the index of the <em>last</em> value for the set in the corresponding
  * contents and children lists.  The first index is always one greater than the last index
  * for the previous set in the table.  The first index of the first set in the table is
- * implicitly zero.  A special value of -1 in the appropraite column should be used to 
+ * implicitly zero.  A special value of -1 in the appropriate column should be used to 
  * indicate that the first set contains no contents or has no children.  For any other set,
  * if the last index for the set is the same as that of the previous set, it has no data
  * in the corresponding list. 
@@ -1061,7 +1061,7 @@ mhdf_readAdjacency( hid_t data_handle,
  *                    set in the table.  All subsequent sets in the table
  *                    will be assigned sequential global IDs.
  * \param status       Passed back status of API call.
- *\return The handle to the set metadata table.  
+ *\return The handle to the set meta-data table.  
  */
 hid_t
 mhdf_createSetMeta( mhdf_FileHandle file_handle,
@@ -1099,7 +1099,7 @@ mhdf_haveSets( mhdf_FileHandle file,
  *                    set in the table.  All subsequent sets in the table
  *                    have sequential global IDs.
  * \param status       Passed back status of API call.
- *\return The handle to the set metadata table.  
+ *\return The handle to the set meta-data table.  
  */
 hid_t
 mhdf_openSetMeta( mhdf_FileHandle file_handle,
@@ -1135,7 +1135,7 @@ mhdf_readSetMeta( hid_t data_handle,
  *
  * Read flags for each set from the set description table.
  * See \ref mhdf_createSetMeta for a description of this data.
- *\param data_handle The handle returnd from mdhf_createSetMeta or mhdf_openSetMeta
+ *\param data_handle The handle returned from mdhf_createSetMeta or mhdf_openSetMeta
  *\param offset      The offset (set index) at which to begin reading.
  *\param count       The number of values (number of sets) to read.
  *\param hdf_integer_type The integer type of the input array 'set_flag_data'.
@@ -1159,7 +1159,7 @@ mhdf_readSetFlags( hid_t data_handle,
  * NOTE: This is a signed value.  Any sets w/out contents that occur
  *       first in the list will have an end index of -1.
  * 
- *\param data_handle The handle returnd from mdhf_createSetMeta or mhdf_openSetMeta
+ *\param data_handle The handle returned from mdhf_createSetMeta or mhdf_openSetMeta
  *\param offset      The offset (set index) at which to begin reading.
  *\param count       The number of values (number of sets) to read.
  *\param hdf_integer_type The integer type of the input array 'set_flag_data'.
@@ -1182,7 +1182,7 @@ mhdf_readSetContentEndIndices( hid_t data_handle,
  * NOTE: This is a signed value.  Any sets w/out contents that occur
  *       first in the list will have an end index of -1.
  * 
- *\param data_handle The handle returnd from mdhf_createSetMeta or mhdf_openSetMeta
+ *\param data_handle The handle returned from mdhf_createSetMeta or mhdf_openSetMeta
  *\param offset      The offset (set index) at which to begin reading.
  *\param count       The number of values (number of sets) to read.
  *\param hdf_integer_type The integer type of the input array 'set_flag_data'.
@@ -1205,7 +1205,7 @@ mhdf_readSetChildEndIndices( hid_t data_handle,
  * NOTE: This is a signed value.  Any sets w/out contents that occur
  *       first in the list will have an end index of -1.
  * 
- *\param data_handle The handle returnd from mdhf_createSetMeta or mhdf_openSetMeta
+ *\param data_handle The handle returned from mdhf_createSetMeta or mhdf_openSetMeta
  *\param offset      The offset (set index) at which to begin reading.
  *\param count       The number of values (number of sets) to read.
  *\param hdf_integer_type The integer type of the input array 'set_flag_data'.
@@ -1250,7 +1250,7 @@ mhdf_writeSetMeta( hid_t data_handle,
  * Create set contents data object.
  * The format of this data is a vector of integer values which is the
  * concatenation of the contents list for all the meshsets.  The length
- * and format of the data for each set is stored in the set metatable.
+ * and format of the data for each set is stored in the set meta table.
  * See \ref mhdf_createSetMeta and \ref mhdf_SET_RANGE_BIT for a 
  * description of that data.
  *
@@ -1270,7 +1270,7 @@ mhdf_createSetData( mhdf_FileHandle file_handle,
  * Open set contents data object.
  * The format of this data is a vector of integer values which is the
  * concatenation of the contents list for all the meshsets.  The length
- * and format of the data for each set is stored in the set metatable.
+ * and format of the data for each set is stored in the set meta table.
  * See \ref mhdf_createSetMeta and \ref mhdf_SET_RANGE_BIT for a 
  * description of that data.
  *
@@ -1289,7 +1289,7 @@ mhdf_openSetData( mhdf_FileHandle file_handle,
  * Write data specifying entities contained in sets.
  * The format of this data is a vector of integer values which is the
  * concatenation of the contents list for all the meshsets.  The length
- * and format of the data for each set is stored in the set metatable.
+ * and format of the data for each set is stored in the set meta table.
  * See \ref mhdf_createSetMeta and \ref mhdf_SET_RANGE_BIT for a 
  * description of that data.
  *
@@ -1317,7 +1317,7 @@ mhdf_writeSetData( hid_t set_handle,
  * Read data specifying entities contained in sets.
  * The format of this data is a vector of integer values which is the
  * concatenation of the contents list for all the meshsets.  The length
- * and format of the data for each set is stored in the set metatable.
+ * and format of the data for each set is stored in the set meta table.
  * See \ref mhdf_createSetMeta and \ref mhdf_SET_RANGE_BIT for a 
  * description of that data.
  *
@@ -1345,7 +1345,7 @@ mhdf_readSetData( hid_t set_handle,
  * Create a data group for the list of set children.  
  * The format of this data is the concatenation of the lists of
  * global IDs of child sets for each set.  The order of the sets and
- * the number of children for each set is contained in the set metatable.
+ * the number of children for each set is contained in the set meta table.
  * (See \ref mhdf_createSetMeta ).
  *
  *\param file_handle      The file
@@ -1378,10 +1378,10 @@ mhdf_openSetChildren( mhdf_FileHandle file_handle,
 
 /** \brief Create file object for storing the set parent list 
  *
- * Create a data group for the list of set prents.  
+ * Create a data group for the list of set parents.  
  * The format of this data is the concatenation of the lists of
  * global IDs of parent sets for each set.  The order of the sets and
- * the number of parents for each set is contained in the set metatable.
+ * the number of parents for each set is contained in the set meta table.
  * (See \ref mhdf_createSetMeta ).
  *
  *\param file_handle       The file
@@ -1479,7 +1479,7 @@ mhdf_readSetParentsChildren( hid_t data_handle,
  * are associated with the corresponding element in the connectivity table.
  *
  * Sparse tag data is stored as a global table pair for each tag type.  The first
- * if the pair of tables is a list of Global IDs.  The second is the correspoding
+ * if the pair of tables is a list of Global IDs.  The second is the corresponding
  * tag value for each entity in the ID list.
  */
 /*@{*/
@@ -1507,7 +1507,7 @@ mhdf_readSetParentsChildren( hid_t data_handle,
  * that matches the class of the passed type and is the specified
  * size. 
  *
- * This function is providied to allow converting the stored tag
+ * This function is provided to allow converting the stored tag
  * type in a file to the preferred type for it's representation 
  * in memory when reading tag values.
  *
@@ -1588,14 +1588,14 @@ mhdf_getTagNames( mhdf_FileHandle file_handle,
  * Get everything about a tag except the actual values.
  *
  *\param file_handle      The file.
- *\param tag_name         The name of the tag to retreive the data for.
+ *\param tag_name         The name of the tag to retrieve the data for.
  *\param class_out        The TSTT class of the tag data.
  *\param size_out         Depends on value of class_out:
  *                        - mhdf_OPAQUE  - size of opaque data in bytes
  *                        - mhdf_BITFIELD - number of bits
- *                        - for everything else, if the tag dats is an
- *                          array, the length of the array.  1 otherwize.
- *\param tstt_storage_out The value of the TSTT enum for storage (dense, spase, etc.)
+ *                        - for everything else, if the tag data is an
+ *                          array, the length of the array.  1 otherwise.
+ *\param tstt_storage_out The value of the TSTT enum for storage (dense, sparse, etc.)
  *\param have_default_out Non-zero if file contains a default value for the tag.
  *\param have_global_out  Non-zero if the file contains a global/mesh value for the tag.
  *\param have_sparse_out  Non-zero if the file contains a sparse data table for this tag.
@@ -1636,7 +1636,7 @@ mhdf_getTagValues( mhdf_FileHandle file_handle,
 
 /** \brief Check if the file contains dense tag data for the specified tag and element group.
  *
- * Check if there is dense tag data for a given element type for the specfiied
+ * Check if there is dense tag data for a given element type for the specified
  * tag.  
  *
  *\param file_handle  The file.
