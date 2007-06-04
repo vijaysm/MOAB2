@@ -725,6 +725,7 @@ else
       SNL_TRY_COMPILER_DEFINE([__INTEL_COMPILER],[cxx_compiler=Intel])
       SNL_TRY_COMPILER_DEFINE([__IBMCPP__],[cxx_compiler=VisualAge])
       SNL_TRY_COMPILER_DEFINE([__DECCXX_VER],[cxx_compiler=Compaq])
+      SNL_TRY_COMPILER_DEFINE([__SUNPRO_CC],[cxx_compiler=SunWorkshop])
       ;;
     hpux*)
       SNL_TRY_COMPILER_DEFINE([__HP_aCC],[cxx_compiler=HP])
@@ -828,6 +829,7 @@ else
       SNL_TRY_COMPILER_DEFINE([__INTEL_COMPILER],[cc_compiler=Intel])
       SNL_TRY_COMPILER_DEFINE([__IBMC__],[cc_compiler=VisualAge])
       SNL_TRY_COMPILER_DEFINE([__DECC_VER],[cc_compiler=Compaq])
+      SNL_TRY_COMPILER_DEFINE([__SUNPRO_C],[cc_compiler=SunWorkshop])
       ;;
     hpux*)
       SNL_TRY_COMPILER_DEFINE([__HP_cc],[cc_compiler=HP])
