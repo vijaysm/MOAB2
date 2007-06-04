@@ -37,7 +37,7 @@
 #include "MBCN.hpp"
 
 #include <vector>
-
+#include <algorithm>
 
 #define MB_MESH_SET_COMPACT_PARENT_CHILD_LISTS
 
@@ -690,12 +690,24 @@ inline unsigned int MBMeshSet_Vector::num_entities() const
 
 inline unsigned int MBMeshSet_Vector::num_entities_by_type(MBEntityType type) const
 {
+#ifndef __SUNPRO_CC
   return std::count_if( mVector.begin(), mVector.end(), type_test(type) );
+#else
+  unsigned int result = 0;
+  std::count_if( mVector.begin(), mVector.end(), type_test(type), result );
+  return result;
+#endif
 }
 
 inline unsigned int MBMeshSet_Vector::num_entities_by_dimension( int dim ) const
 {
+#ifndef __SUNPRO_CC
   return std::count_if( mVector.begin(), mVector.end(), dim_test(dim) );
+#else
+  unsigned int result = 0;
+  std::count_if( mVector.begin(), mVector.end(), dim_test(dim), result );
+  return result;
+#endif
 }
 
 
