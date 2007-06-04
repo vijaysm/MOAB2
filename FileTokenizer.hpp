@@ -3,7 +3,7 @@
  * storing and accessing finite element mesh data.
  * 
  * Copyright 2004 Sandia Corporation.  Under the terms of Contract
- * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
+ * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
  * retains certain rights in this software.
  * 
  * This library is free software; you can redistribute it and/or
@@ -64,19 +64,19 @@ class FileTokenizer
     
       /** \brief get next token
        *
-       * Get the next whitesapce-deliminated token from the file.
+       * Get the next whitespace-delimited token from the file.
        * NOTE: The returned string is only valid until the next
        *       call to any of the functions in this class that
        *       read from the file.
        *
        * \return A pointer to the buffer space containing the string,
-       *         or NULL if an error occured.
+       *         or NULL if an error occurred.
        */
     const char* get_string( );
     
       /** \brief check for newline
        *
-       * Consume whitespace upto and including the next newline.
+       * Consume whitespace up to and including the next newline.
        * If a non-space character is found before a newline, 
        * the function will stop, set the error message, and
        * return false.
@@ -89,7 +89,7 @@ class FileTokenizer
     
       /** \brief Parse a sequence of double values.
        *
-       * Read the specified number of space-deliminated doubles.
+       * Read the specified number of space-delimited doubles.
        *
        * \param count   The number of values to read.
        * \param array   The memory at which to store the values.
@@ -100,7 +100,7 @@ class FileTokenizer
     
       /** \brief Parse a sequence of float values.
        *
-       * Read the specified number of space-deliminated doubles.
+       * Read the specified number of space-delimited doubles.
        *
        * \param count   The number of values to read.
        * \param array   The memory at which to store the values.
@@ -110,7 +110,7 @@ class FileTokenizer
    
       /** \brief Parse a sequence of integer values.
        *
-       * Read the specified number of space-deliminated ints.
+       * Read the specified number of space-delimited ints.
        *
        * \param count   The number of values to read.
        * \param array   The memory at which to store the values.
@@ -120,7 +120,7 @@ class FileTokenizer
    
       /** \brief Parse a sequence of integer values.
        *
-       * Read the specified number of space-deliminated ints.
+       * Read the specified number of space-delimited ints.
        *
        * \param count   The number of values to read.
        * \param array   The memory at which to store the values.
@@ -130,7 +130,7 @@ class FileTokenizer
    
       /** \brief Parse a sequence of integer values.
        *
-       * Read the specified number of space-deliminated ints.
+       * Read the specified number of space-delimited ints.
        *
        * \param count   The number of values to read.
        * \param array   The memory at which to store the values.
@@ -140,7 +140,7 @@ class FileTokenizer
    
       /** \brief Parse a sequence of integer values.
        *
-       * Read the specified number of space-deliminated ints.
+       * Read the specified number of space-delimited ints.
        *
        * \param count   The number of values to read.
        * \param array   The memory at which to store the values.
@@ -150,7 +150,7 @@ class FileTokenizer
     
       /** \brief Parse a sequence of bit or boolean values.
        *
-       * Read the specified number of space-deliminated values.
+       * Read the specified number of space-delimited values.
        *
        * \param count   The number of values to read.
        * \param array   The memory at which to store the values.
