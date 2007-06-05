@@ -789,6 +789,10 @@ case "$cxx_compiler:$host_cpu" in
     SNL_CXX_32BIT=-xarch=generic
     SNL_CXX_64BIT=-xarch=generic64
     ;;
+  SunWorkshop:i?86|SunWorkshop:x86_64)
+    SNL_CXX_32BIT=-m32
+    SNL_CXX_64BIT=-m64
+    ;;
   *)
     ;;
 esac
@@ -890,6 +894,10 @@ case "$cc_compiler:$host_cpu" in
   SunWorkshop:sparc*)
     SNL_CC_32BIT=-xarch=generic
     SNL_CC_64BIT=-xarch=generic64
+    ;;
+  SunWorkshop:i?86|SunWorkshop:x86_64)
+    SNL_CC_32BIT=-m32
+    SNL_CC_64BIT=-m64
     ;;
   *)
     ;;
