@@ -169,7 +169,7 @@ MB_OPTIONAL_TOOL([mbtagprop],                 [no] )
 MB_OPTIONAL_TOOL([spheredecomp],              [no] )
 MB_OPTIONAL_TOOL([mbsurfplot],                [no] )
 MB_OPTIONAL_TOOL([mbzoltan],                  [no] )
-MB_OPTIONAL_TOOL([cgm2moab],                  [no] )
+MB_OPTIONAL_TOOL([dagmc],                     [no] )
 
 
 ################################################################################
@@ -624,7 +624,7 @@ fi
 ################################################################################
 #                           CGM
 ################################################################################
-if test $ENABLE_cgm2moab = yes; then
+if test $ENABLE_dagmc = yes; then
   AC_ARG_WITH(cgm, 
   [AC_HELP_STRING([--with-cgm=DIR], [Specify directory containing CGM])],
   [CGM_DIR=$withval
@@ -635,7 +635,7 @@ if test $ENABLE_cgm2moab = yes; then
       CGM_MISSING=yes
       ;;
     xyes)
-      AC_MSG_ERROR([--with-cgm requires and argument])
+      AC_MSG_ERROR([--with-cgm requires an argument])
       ;;
     *)
       if ! test -d "$CGM_DIR"; then
@@ -643,9 +643,11 @@ if test $ENABLE_cgm2moab = yes; then
       fi
       CGM_MISSING=no
       AC_CHECK_FILE([${CGM_DIR}/lib/cgm.make],
-                    [CGM_CONFIG_OPTIONS="include ${CGM_DIR}/lib/cgm.make"],
+                    [CGM_CONFIG_OPTIONS="include ${CGM_DIR}/lib/cgm.make";
+                     DEFINES="$DEFINES -DCGM"],
                     [AC_CHECK_FILE([${CGM_DIR}/cgm.make],
-                                   [CGM_CONFIG_OPTIONS="include ${CGM_DIR}/cgm.make"],
+                                   [CGM_CONFIG_OPTIONS="include ${CGM_DIR}/cgm.make";
+                     DEFINES="$DEFINES -DCGM"],
                                    [AC_MSG_WARN([$CGM_DIR : not a configured CGM]); 
                                     CGM_MISSING=yes])
                     ])
@@ -717,7 +719,8 @@ AC_CONFIG_FILES([Makefile
                  tools/tagprop/Makefile
                  tools/spheredecomp/Makefile
                  tools/surfplot/Makefile
-                 tools/cgm2moab/Makefile
+                 tools/dagmc/Makefile
+                 tools/dagmc/dagmc.make
                  doc/Makefile
                  doxygen/Makefile
                  ])
@@ -742,7 +745,7 @@ else
   fi
 fi
 if test "x$CGM_MISSING" = "xyes"; then
-  AC_MSG_WARN([cgm2moab build will fail!  CGM not fould!])
+  AC_MSG_WARN([cgm2moab/dagmc build will fail!  CGM not found!])
 fi
 
 if test "x$HAVE_HDF5" = "xno"; then

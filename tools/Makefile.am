@@ -61,10 +61,10 @@ else
   mbsurfplot_DIR=
 endif
 
-if ENABLE_cgm2moab
-  cgm2moab_DIR = cgm2moab
+if ENABLE_dagmc
+  dagmc_DIR = dagmc
 else
-  cgm2moab_DIR = 
+  dagmc_DIR = 
 endif 
 
 if ENABLE_imesh
@@ -84,7 +84,7 @@ SUBDIRS = $(converter_DIR) \
           $(tagprop_DIR) \
           $(spheredecomp_DIR) \
           $(mbsurfplot_DIR) \
-          $(cgm2moab_DIR) \
+          $(dagmc_DIR) \
           $(imesh_DIR)
 
 EXTRA_DIST = mbzoltan/README 

@@ -1,0 +1,18 @@
+#
+# Include this file in dagmc applications just after including
+# moab.make (in mcnpx, this is done using a @MOAB_CONFIG_OPTIONS@
+# whose value is set in the mcnpx configure script)
+#
+# To build applications with dagmc, add ${MOAB_LIBS_LINK} to the link
+# line and ${MOAB_INCLUDES} and ${MOAB_CXXFLAGS} to the default
+# C++ compile line.
+#
+@CGM_CONFIG_OPTIONS@
+
+MOAB_CPPFLAGS += -DDAGMC ${CGM_CPPFLAGS}
+MOAB_CXXFLAGS += ${CGM_CXXFLAGS} 
+MOAB_INCLUDES += ${CGM_INCLUDES}
+MOAB_LDFLAGS += -Wl,${CGM_LIBS_LTFLAGS}
+DAGMC_LIBS_LINK = -L${MOAB_LIBDIR} -ldagmc ${MOAB_LIBS_LINK} ${CGM_LIBS_LINK}
+
+
