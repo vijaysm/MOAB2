@@ -5,7 +5,18 @@
 #define iBase_EntitySetHandle integer
 #define iBase_TagHandle integer
 
-
+      integer iMesh_POINT
+      integer iMesh_LINE_SEGMENT
+      integer iMesh_POLYGON
+      integer iMesh_TRIANGLE
+      integer iMesh_QUADRILATERAL
+      integer iMesh_POLYHEDRON
+      integer iMesh_TETRAHEDRON
+      integer iMesh_HEXAHEDRON
+      integer iMesh_PRISM
+      integer iMesh_PYRAMID
+      integer iMesh_SEPTAHEDRON
+      integer iMesh_ALL_TOPOLOGIES
 
       parameter (iMesh_POINT = 0)
       parameter (iMesh_LINE_SEGMENT = 1)
@@ -19,6 +30,12 @@
       parameter (iMesh_PYRAMID = 9)
       parameter (iMesh_SEPTAHEDRON = 10)
       parameter (iMesh_ALL_TOPOLOGIES = 11)
+
+
+      integer iMesh_UNAVAILABLE
+      integer iMesh_IMMEDIATE
+      integer iMesh_LOCAL_TRAVERSAL
+      integer iMesh_GLOBAL_TRAVERSAL
 
       parameter (iMesh_UNAVAILABLE = 0)
       parameter (iMesh_IMMEDIATE = 1)
