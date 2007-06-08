@@ -26,7 +26,7 @@ CVS repository?
   repository are from a different version of the GNU autotools.
   
 
-Aren't we requiring users to have MOAB autotools installed in order 
+Aren't we requiring users to have GNU autotools installed in order 
 to configure MOAB?
 
   No.  Developers (or anyone else using source directly from the CVS
