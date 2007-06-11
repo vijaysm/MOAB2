@@ -37,8 +37,8 @@
 #define CONST_HANDLE_ARRAY_PTR(array) reinterpret_cast<const MBEntityHandle*>(array)
 #define TAG_HANDLE(handle) reinterpret_cast<MBTag>(handle)
 #define CONST_TAG_HANDLE(handle) static_cast<const MBTag>(handle)
-#define ENTITY_HANDLE(handle) static_cast<MBEntityHandle>(handle)
-#define CONST_ENTITY_HANDLE(handle) static_cast<const MBEntityHandle>(handle)
+#define ENTITY_HANDLE(handle) reinterpret_cast<MBEntityHandle>(handle)
+#define CONST_ENTITY_HANDLE(handle) reinterpret_cast<const MBEntityHandle>(handle)
 #define RANGE_ITERATOR(it) reinterpret_cast<RangeIterator*>(it)
 #define CAST_TO_VOID(ptr) reinterpret_cast<void*>(ptr)
 
@@ -586,12 +586,12 @@ void iMesh_getEntities(iMesh_Instance instance,
     // filter out entity sets here
   if (iBase_ALL_TYPES == entity_type && iMesh_ALL_TOPOLOGIES == entity_topology) {
     for (; iter != end_iter && MBI->type_from_handle(*iter) != MBENTITYSET; iter++)
-      (*entity_handles)[k++] = *iter;
+      (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
     *entity_handles_size = k;
   }
   else {
     for (; iter != end_iter; iter++)
-      (*entity_handles)[k++] = *iter;
+      (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
   }
 
     // now it's safe to set the size
@@ -753,7 +753,7 @@ void iMesh_getAdjEntities(iMesh_Instance instance,
     
     for (std::vector<MBEntityHandle>::iterator vit = adj_ents.begin(); 
          vit != adj_ents.end(); vit++) {
-      (*adj_entity_handles)[num_sub] = *vit;
+      (*adj_entity_handles)[num_sub] = (iBase_EntityHandle)*vit;
       if (0 == in_set || entities.find(*vit) != endr)
         (*in_entity_set)[num_sub] = 1;
       else
@@ -846,7 +846,7 @@ void iMesh_getNextEntArrIter (iMesh_Instance instance,
       RETURN(iBase_SUCCESS);
     }
     
-    (*entity_handles)[i] = *this_it->currentPos;
+    (*entity_handles)[i] = (iBase_EntityHandle)*this_it->currentPos;
   }
   
   *is_end = true;
@@ -986,7 +986,7 @@ void iMesh_createEntSet(iMesh_Instance instance,
   }
   
     // return EntitySet_Handle
-  *entity_set_created = meshset;
+  *entity_set_created = (iBase_EntityHandle)meshset;
   RETURN(iBase_ERROR_MAP[result]);
 }
 
@@ -1070,7 +1070,7 @@ void iMesh_getEntSets(iMesh_Instance instance,
   int k = 0;
 
   for (; iter != end_iter; iter++)
-    (*contained_entset_handles)[k++] = *iter;
+    (*contained_entset_handles)[k++] = (iBase_EntityHandle)*iter;
 
   *contained_entset_handles_size = sets.size();
   RETURN(iBase_SUCCESS);
@@ -1151,7 +1151,7 @@ void iMesh_rmvEntSet(iMesh_Instance instance,
                     /*inout*/ iBase_EntitySetHandle *entity_set_handle, int *err)
 {
   MBErrorCode result = MBI->remove_entities
-    (*entity_set_handle, CONST_HANDLE_ARRAY_PTR(&entity_set_to_remove), 1);
+    (ENTITY_HANDLE(*entity_set_handle), CONST_HANDLE_ARRAY_PTR(&entity_set_to_remove), 1);
   
   if (result != MB_SUCCESS) {
     std::string msg("iMesh_rmvEntSet:ERROR removing entitysets in EntitySet, "
@@ -2390,7 +2390,7 @@ void iMesh_subtract(iMesh_Instance instance,
     iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
   }
 
-  *result_entity_set = temp_set;
+  *result_entity_set = (iBase_EntitySetHandle)temp_set;
 
   RETURN(iBase_ERROR_MAP[result]);
 }
@@ -2415,7 +2415,7 @@ void iMesh_intersect(iMesh_Instance instance,
     iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
   }
 
-  *result_entity_set = temp_set;
+  *result_entity_set = (iBase_EntitySetHandle)temp_set;
 
   RETURN(iBase_ERROR_MAP[result]);
 }
@@ -2440,7 +2440,7 @@ void iMesh_unite(iMesh_Instance instance,
     iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
   }
 
-  *result_entity_set = temp_set;
+  *result_entity_set = (iBase_EntitySetHandle)temp_set;
 
   RETURN(iBase_ERROR_MAP[result]);
 }
