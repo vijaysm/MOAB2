@@ -6,7 +6,45 @@
 #include <iostream>
 #define MIN(a,b) (a < b ? a : b)
 
-const char* EH_VALID_TAG = "ITAPS_EH_VALID";
+class MBiMesh : public MBCore
+{
+private:
+  bool haveDeletedEntities;
+public:
+  MBiMesh() : haveDeletedEntities(false) {}
+  virtual ~MBiMesh();
+  bool have_deleted_ents( bool reset ) {
+    bool result = haveDeletedEntities;
+    if (reset)
+      haveDeletedEntities = false;
+    return result;
+  }
+
+  virtual MBErrorCode delete_mesh();
+  virtual MBErrorCode delete_entities( const MBEntityHandle*, const int );
+  virtual MBErrorCode delete_entities( const MBRange& );
+};
+
+MBiMesh::~MBiMesh() {}
+
+MBErrorCode MBiMesh::delete_mesh() {
+  haveDeletedEntities = true;
+  return MBCore::delete_mesh();
+}
+
+MBErrorCode MBiMesh::delete_entities( const MBEntityHandle* a, const int n )
+{
+  if (n > 0)
+    haveDeletedEntities = true;
+  return MBCore::delete_entities( a, n );
+}
+
+MBErrorCode MBiMesh::delete_entities( const MBRange& r )
+{
+  if (!r.empty())
+    haveDeletedEntities = true;
+  return MBCore::delete_entities( r );
+}
 
 #define CHECK_SIZE(array, allocated, size, type, retval)  \
   if (NULL != array && 0 != array ## _allocated && array ## _allocated < (size)) {\
@@ -194,7 +232,7 @@ void iMesh_newMesh(const char *options,
 {
   if (0 != *instance) delete (MBCore*) *instance;
   
-  MBInterface* core = new MBCore();
+  MBInterface* core = new MBiMesh();
   *instance = reinterpret_cast<iMesh_Instance>(core);
   if (0 == *instance) {
     iMesh_processError(iBase_FAILURE, "Failed to instantiate mesh instance.");
@@ -206,26 +244,12 @@ void iMesh_newMesh(const char *options,
     RETURN(iBase_NOT_SUPPORTED);
   }
   
-  MBTag tag;
-  MBErrorCode err1 = core->tag_create( EH_VALID_TAG, 
-                                      sizeof(int),
-                                      MB_TAG_MESH,
-                                      MB_TYPE_INTEGER,
-                                      tag, 0 );
-  const int zero = 0;
-  if (err1 != MB_SUCCESS || MB_SUCCESS != core->tag_set_data( tag, 0, 0, &zero )) {
-    delete core;
-    *instance = 0;
-    RETURN(iBase_FAILURE);
-    return;
-  }
-  
   RETURN(iBase_SUCCESS);
 }
 
 void iMesh_dtor(iMesh_Instance instance, int *err) 
 {
-  delete reinterpret_cast<MBCore*>(instance);
+  delete dynamic_cast<MBiMesh*>(MBI);
   RETURN(iBase_SUCCESS);
 }
    
@@ -370,24 +394,13 @@ void iMesh_areEHValid( iMesh_Instance instance,
                        int* areHandlesInvarient, 
                        int* err )
 {
-  MBTag tag = 0;
-  MBI->tag_get_handle( EH_VALID_TAG, tag );
-  int val;
-  MBErrorCode err1 = MBI->tag_get_data( tag, 0, 0, &val );
-  if (MB_SUCCESS != err1) {
+  MBiMesh* mbi = dynamic_cast<MBiMesh*>(MBI);
+  if (!mbi) {
     RETURN(iBase_FAILURE);
   }
-  *areHandlesInvarient = !val;
   
-  if (doReset) {
-    val = 0;
-    err1 = MBI->tag_set_data( tag, 0, 0, &val );
-    if (MB_SUCCESS != err1) {
-      RETURN(iBase_FAILURE);
-    }
-  }
-  
-  RETURN(iBase_SUCCESS);  
+  *areHandlesInvarient = !mbi->have_deleted_ents( !!doReset );
+  RETURN(iBase_SUCCESS);
 }
 
 
@@ -1041,11 +1054,6 @@ void iMesh_destroyEntSet (iMesh_Instance instance,
   MBErrorCode result = MBI->delete_entities(HANDLE_ARRAY_PTR(&entity_set), 1);
   if (MB_SUCCESS != result)
     iMesh_processError(iBase_ERROR_MAP[result], "iMesh_destroyEntSet: couldn't delete the set.");
-  
-  MBTag mtag;
-  MBI->tag_get_handle( EH_VALID_TAG, mtag );
-  int val = 1;
-  MBI->tag_set_data( mtag, 0, 0, &val );
 
   RETURN(iBase_SUCCESS);
 }
@@ -1570,11 +1578,6 @@ void iMesh_deleteEntArr(iMesh_Instance instance,
                                             entity_handles_size);
   if (MB_SUCCESS != result)
     iMesh_processError(iBase_ERROR_MAP[result], "iMesh_deleteEntArr: trouble deleting entities.");
-  
-  MBTag mtag;
-  MBI->tag_get_handle( EH_VALID_TAG, mtag );
-  int val = 1;
-  MBI->tag_set_data( mtag, 0, 0, &val );
 
   RETURN(iBase_ERROR_MAP[result]);
 }
