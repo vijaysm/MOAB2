@@ -33,5 +33,6 @@ cfg_DATA = iMesh-Defs.inc
 # 'make prefix=/foo install', we don't know the correct install
 # directory until we're doing the install.
 install-data-hook:
+	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 	echo "IMESH_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 	echo "IMESH_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
