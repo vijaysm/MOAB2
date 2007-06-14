@@ -726,6 +726,7 @@ else
       SNL_TRY_COMPILER_DEFINE([__IBMCPP__],[cxx_compiler=VisualAge])
       SNL_TRY_COMPILER_DEFINE([__DECCXX_VER],[cxx_compiler=Compaq])
       SNL_TRY_COMPILER_DEFINE([__SUNPRO_CC],[cxx_compiler=SunWorkshop])
+      SNL_TRY_COMPILER_DEFINE([__PGI],[cxx_cmopiler=PortlandGroup])
       ;;
     hpux*)
       SNL_TRY_COMPILER_DEFINE([__HP_aCC],[cxx_compiler=HP])
@@ -737,6 +738,9 @@ else
       SNL_TRY_COMPILER_DEFINE([__BORLANDC__],[cxx_compiler=Borland])
       SNL_TRY_COMPILER_DEFINE([__CYGWIN__],[cxx_compiler=Cygwin])
       SNL_TRY_COMPILER_DEFINE([__MINGW32__],[cxx_compiler=MinGW])
+      ;;
+    *)
+      SNL_TRY_COMPILER_DEFINE([__PGI],[cc_cmopiler=PortlandGroup])
       ;;
   esac
   AC_LANG_RESTORE
@@ -834,6 +838,7 @@ else
       SNL_TRY_COMPILER_DEFINE([__IBMC__],[cc_compiler=VisualAge])
       SNL_TRY_COMPILER_DEFINE([__DECC_VER],[cc_compiler=Compaq])
       SNL_TRY_COMPILER_DEFINE([__SUNPRO_C],[cc_compiler=SunWorkshop])
+      SNL_TRY_COMPILER_DEFINE([__PGI],[cc_cmopiler=PortlandGroup])
       ;;
     hpux*)
       SNL_TRY_COMPILER_DEFINE([__HP_cc],[cc_compiler=HP])
@@ -846,6 +851,9 @@ else
       SNL_TRY_COMPILER_DEFINE([__TURBOC__],[cc_compiler=TurboC])
       SNL_TRY_COMPILER_DEFINE([__CYGWIN__],[cc_compiler=Cygwin])
       SNL_TRY_COMPILER_DEFINE([__MINGW32__],[cc_compiler=MinGW])
+      ;;
+    *)
+      SNL_TRY_COMPILER_DEFINE([__PGI],[cc_cmopiler=PortlandGroup])
       ;;
   esac
 fi
