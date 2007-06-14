@@ -10,7 +10,7 @@
 # 
 #
 
-ITAPS_DIR = ${HOME}/ITAPSclean/MOAB/tools/iMesh/SIDL
+ITAPS_DIR = ${HOME}/MOAB/tools/iMesh/SIDL
 iMesh_DIR = $(ITAPS_DIR)
 ITAPSG_DIR = $(ITAPS_DIR)
 ITAPSR_DIR = $(ITAPS_DIR)

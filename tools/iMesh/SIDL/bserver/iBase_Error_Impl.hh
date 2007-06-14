@@ -3,15 +3,15 @@
 // Symbol:        iBase.Error-v0.7
 // Symbol Type:   class
 // Babel Version: 0.10.12
-// sidl Created:  20070614 16:53:23 CDT
-// Generated:     20070614 16:53:28 CDT
+// sidl Created:  20070614 17:39:09 CDT
+// Generated:     20070614 17:39:14 CDT
 // Description:   Server-side implementation for iBase.Error
 // 
 // WARNING: Automatically generated; only changes within splicers preserved
 // 
 // babel-version = 0.10.12
 // source-line   = 60
-// source-url    = file:/home/tautges/ITAPSclean/MOAB/tools/iMesh/SIDL/iBase.sidl
+// source-url    = file:/home/tautges/MOAB/tools/iMesh/SIDL/iBase.sidl
 // 
 
 #ifndef included_iBase_Error_Impl_hh

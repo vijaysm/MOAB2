@@ -121,10 +121,10 @@ bserver/babel.make: brepo/.timestamp iBase.sidl
 	-rm -f $@
 	$(BABEL) -sC++ -o bserver iBase.sidl
 
-libiBaseserver.so: bserver/babel.make ${BSERVER_OFILES}
+${iBase_DIR}/libiBaseserver.so: bserver/babel.make ${BSERVER_OFILES}
 	$(LD) $(LD_FLAGS) $(LD_FLAGS_PIC) -o $@ ${BSERVER_OFILES}
 
-libiBaseserver.a: bserver/babel.make ${BSERVER_OFILES}
+${iBase_DIR}/libiBaseserver.a: bserver/babel.make ${BSERVER_OFILES}
 	$(ARCHIVER) $@ ${BSERVER_OFILES}
 
 #============= iBase =============
@@ -149,17 +149,11 @@ F77client: mrepo/.timestamp brepo/.timestamp iMesh_SIDL.sidl
 ${iMesh_DIR}/libiMesh.a: ${SERVER_IMPL_OFILES}
 	$(ARCHIVER) $@ ${SERVER_IMPL_OFILES}
 
-${iMesh_DIR}/libiMeshserver.so: mserver/babel.make ${SERVER_OFILES} ${iMesh_CBIND_SERVER_FILES}
+${iMesh_DIR}/libiMeshserver.so: mserver/babel.make ${SERVER_OFILES} ${iMesh_CBIND_SERVER_FILES} ${iBase_SERVER_FILES}
 	$(LD) $(LD_FLAGS) $(LD_FLAGS_PIC) -o $@ ${SERVER_OFILES} ${iMesh_CBIND_SERVER_LIBS}
-
-${iMesh_DIR}/libiMeshFactory.so: mserver/babel.make $(FACTORY_OFILES) ${iMesh_CBIND_SERVER_FILES}
-	$(LD) $(LD_FLAGS) $(LD_FLAGS_PIC) -o $@ $(FACTORY_OFILES) ${iMesh_SERVER_LIBS}
 
 libiMeshserver.a: mserver/babel.make ${SERVER_OFILES} ${SERVER_IMPL_OFILES}
 	$(ARCHIVER) $@ ${SERVER_OFILES} ${SERVER_IMPL_OFILES}
-
-libiMeshFactory.a: mserver/babel.make $(FACTORY_OFILES)
-	$(ARCHIVER) -o $@ $(FACTORY_OFILES)
 
 libiMeshCclient.so: Cclient ${CCLIENT_OFILES}
 	$(LD) $(LD_FLAGS) $(LD_FLAGS_PIC) -o $@ ${CCLIENT_OFILES}

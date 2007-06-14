@@ -3,15 +3,15 @@
 // Symbol:        iMesh_SIDL.MeshSidl-v0.2
 // Symbol Type:   class
 // Babel Version: 0.10.12
-// sidl Created:  20070614 16:53:51 CDT
-// Generated:     20070614 16:53:59 CDT
+// sidl Created:  20070614 17:39:48 CDT
+// Generated:     20070614 17:39:55 CDT
 // Description:   Server-side implementation for iMesh_SIDL.MeshSidl
 // 
 // WARNING: Automatically generated; only changes within splicers preserved
 // 
 // babel-version = 0.10.12
 // source-line   = 16
-// source-url    = file:/home/tautges/ITAPSclean/MOAB/tools/iMesh/SIDL/iMesh_SIDL.sidl
+// source-url    = file:/home/tautges/MOAB/tools/iMesh/SIDL/iMesh_SIDL.sidl
 // 
 #include "iMesh_SIDL_MeshSidl_Impl.hh"
 
