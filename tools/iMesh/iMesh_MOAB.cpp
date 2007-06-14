@@ -180,7 +180,7 @@ struct RangeIterator
 #define MBI reinterpret_cast<MBInterface*>(instance)
 
 #define RETURN(a) {iMesh_LAST_ERROR.error_type = a; *err = a;return;}
-#define iMesh_processError(a, b) {sprintf(iMesh_LAST_ERROR.description, b); iMesh_LAST_ERROR.error_type = a;}
+#define iMesh_processError(a, b) {sprintf(iMesh_LAST_ERROR.description, "%s", b); iMesh_LAST_ERROR.error_type = a; *err = a;}
 
 #ifdef __cplusplus
 extern "C" {
@@ -191,7 +191,7 @@ MBErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
                                    const int req_dimension, 
                                    const MBEntityType req_type,
                                    MBTag &tag, MBRange &req_entities, 
-                                   int &num_verts);
+                                   int &num_verts, int *err);
 
 iBase_Error iMesh_LAST_ERROR;
 
@@ -519,7 +519,7 @@ void iMesh_getVtxCoordIndex (iMesh_Instance instance,
   MBErrorCode result = 
     iMesh_tag_set_vertices(instance, in_set, 
                            req_dimension, req_type, 
-                           pos_tag, req_entities, num_verts);
+                           pos_tag, req_entities, num_verts, err);
   if (MB_SUCCESS != result) {
     RETURN(iMesh_LAST_ERROR.error_type);
   }
@@ -1584,10 +1584,11 @@ void iMesh_deleteEntArr(iMesh_Instance instance,
                                                  
 void iMesh_createTag(iMesh_Instance instance,
                     /*in*/ const char* tag_name,
-                    const int /*tag_name_len*/,
                     /*in*/ const int tag_size,
                     /*in*/ const int tag_type,
-                    /*out*/ iBase_TagHandle* tag_handle, int *err)
+                    /*out*/ iBase_TagHandle* tag_handle, 
+                     int *err,
+                     const int tag_name_size)
 {
   MBTag new_tag;
   int this_size = tag_size;
@@ -1663,8 +1664,8 @@ void iMesh_destroyTag(iMesh_Instance instance,
 
 void iMesh_getTagName(iMesh_Instance instance,
                      /*in*/ const iBase_TagHandle tag_handle,
-                     char *out_data,
-                     int out_data_len, int *err)
+                     char *out_data, int *err,
+                     int out_data_len)
 {
   static ::std::string name;
   MBErrorCode result = MBI->tag_get_name(TAG_HANDLE(tag_handle), name);
@@ -1749,8 +1750,8 @@ void iMesh_getTagSizeBytes(iMesh_Instance instance,
 
 void iMesh_getTagHandle(iMesh_Instance instance,
                        /*in*/ const char* tag_name,
-                       const int /*tag_name_len*/,
-                       iBase_TagHandle *tag_handle, int *err)
+                       iBase_TagHandle *tag_handle, int *err,
+                        const int tag_name_len)
 {
   MBErrorCode result = MBI->tag_get_handle(tag_name, (MBTag&)*tag_handle);
     
@@ -1759,7 +1760,7 @@ void iMesh_getTagHandle(iMesh_Instance instance,
     msg += std::string(tag_name) + std::string("'");
     iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
     *tag_handle = 0;
-    RETURN(iMesh_LAST_ERROR.error_type);
+    return;
   }
 
   iMesh_LAST_ERROR.error_type = iBase_SUCCESS;
@@ -2517,7 +2518,7 @@ MBErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
                                    const int req_dimension, 
                                    const MBEntityType req_type,
                                    MBTag &tag, MBRange &req_entities, 
-                                   int &num_verts) 
+                                   int &num_verts, int *err) 
 {
     // get all the entities then vertices
   MBRange vertices, entities;
