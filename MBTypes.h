@@ -17,7 +17,7 @@
 #define MB_TYPES_H
 
 #include "MBEntityType.h"
-#include "MBConfig.h"
+#include "MBEntityHandle.h"
 
 /**\name Types and names
  * Types used in the MOAB interface

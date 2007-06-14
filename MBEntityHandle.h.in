@@ -1,0 +1,73 @@
+#ifndef MB_ENTITY_HANDLE_H
+#define MB_ENTITY_HANDLE_H
+
+
+/* MOAB qualified HAVE_INTTYPES_H */
+#undef MOAB_HAVE_INTTYPES_H
+
+/* MOAB qualified HAVE_STDDEF_H */
+#undef MOAB_HAVE_STDDEF_H
+
+/* MOAB qualified HAVE_STDINT_H */
+#undef MOAB_HAVE_STDINT_H
+
+/* MOAB qualified HAVE_STDLIB_H */
+#undef MOAB_HAVE_STDLIB_H
+
+/* MOAB qualified HAVE_SYS_TYPES_H */
+#undef MOAB_HAVE_SYS_TYPES_H
+
+/* Use int32_t for handles */
+#undef MOAB_FORCE_32_BIT_HANDLES
+
+/* Use int64_t for handles */
+#undef MOAB_FORCE_64_BIT_HANDLES
+
+/* System provides ptrdiff_t typedef */
+#undef MOAB_HAVE_PTRDIFF_T
+
+/* System provides size_t typedef */
+#undef MOAB_HAVE_SIZE_T
+
+#ifdef MOAB_HAVE_INTTYPES_H
+# include <inttypes.h>
+#elif defined (MOAB_HAVE_STDINT_H)
+# include <stdint.h>
+#endif
+
+#ifdef MOAB_HAVE_STDDEF_H
+# include <stddef.h>
+#elif defined (MOAB_HAVE_STDLIB_H)
+# include <stdlib.h>
+#elif defined (HAVE_SYS_TYPES_H)
+# include <sys/types.h>
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifdef MOAB_FORCE_64_BIT_HANDLES
+  typedef uint64_t MBEntityHandle;
+  typedef  int64_t MBEntityID;
+#elif defined (MOAB_FORCE_32_BIT_HANDLES)
+  typedef uint32_t MBEntityHandle;
+  typedef  int32_t MBEntityID;
+#else
+# ifdef MOAB_HAVE_SIZE_T
+    typedef size_t MBEntityHandle;
+# else
+    typedef unsigned long MBEntityHandle;
+# endif
+# ifdef MOAB_HAVE_PTRDIFF_T
+    typedef ptrdiff_t MBEntityID;
+# else
+    typedef long MBEntityID;
+# endif
+#endif 
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
+
+#endif
