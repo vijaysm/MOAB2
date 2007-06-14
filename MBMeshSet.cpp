@@ -153,6 +153,8 @@ MBMeshSet::Count insert_in_vector( const MBMeshSet::Count count,
       }
       return MBMeshSet::MANY;
   }
+
+  return MBMeshSet::ZERO;
 }
 
 int MBMeshSet::add_parent( MBEntityHandle parent )
@@ -231,6 +233,8 @@ MBMeshSet::Count remove_from_vector( const MBMeshSet::Count count,
       }
     }
   }
+
+  return MBMeshSet::ZERO;
 }
 
 int MBMeshSet::remove_parent( MBEntityHandle parent )

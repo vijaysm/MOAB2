@@ -369,6 +369,9 @@ MBErrorCode SparseTagCollection::get_entities_with_tag_value(MBEntityType type,
 #ifndef NDEBUG
       MBEntityHandle this_ent = iter->first;
       void *this_tag = iter->second;
+        // coupla meaningless statements to get rid of compiler warnings
+      if (this_ent);
+      if (this_tag);
 #endif
       if( memcmp( iter->second, tag_value, mDataSize ) == 0) 
         entities.insert(iter->first);    

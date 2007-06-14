@@ -222,7 +222,7 @@ void PolyEntitySequence::get_memory_use( unsigned long& used,
 
 unsigned long PolyEntitySequence::get_memory_use( MBEntityHandle h ) const
 {
-  MBEntityID id = h - get_start_handle();
+    //MBEntityID id = h - get_start_handle();
   unsigned long result = 0;
   if (!h)
     result = mLastIndex[h];

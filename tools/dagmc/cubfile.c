@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <errno.h>
+#include <string.h>
 #include "cubfile.h"
 
 /* Constants from CUBIT source */

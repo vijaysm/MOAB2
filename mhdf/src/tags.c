@@ -559,6 +559,7 @@ mhdf_getTagInfo( mhdf_FileHandle file_handle,
   int rank;
   hsize_t dims[H5S_MAX_RANK];
   int perm[H5S_MAX_RANK];
+  H5T_class_t class_tmp;
 
   API_BEGIN;
 
@@ -636,8 +637,8 @@ mhdf_getTagInfo( mhdf_FileHandle file_handle,
     return ;
   }
   
-  H5T_class_t class = H5Tget_class( type_id );
-  if (class < 0)
+  class_tmp = H5Tget_class( type_id );
+  if (class_tmp < 0)
   {
     mhdf_setFail( status, "H5Tget_class failed." );
     H5Gclose( tag_id );
@@ -654,7 +655,7 @@ mhdf_getTagInfo( mhdf_FileHandle file_handle,
     return;
   }
     
-  switch (class)
+  switch (class_tmp)
   {
     case H5T_INTEGER:
       *class_out = (size == 1) ? mhdf_BOOLEAN : mhdf_INTEGER;
@@ -707,8 +708,8 @@ mhdf_getTagInfo( mhdf_FileHandle file_handle,
         return;
       }
        
-      class = H5Tget_class( super_id );
-      if (class < 0)
+      class_tmp = H5Tget_class( super_id );
+      if (class_tmp < 0)
       {
         mhdf_setFail( status, "H5Tget_class failed." );
         H5Gclose( tag_id );
@@ -728,7 +729,7 @@ mhdf_getTagInfo( mhdf_FileHandle file_handle,
       }
       
       
-      switch (class)
+      switch (class_tmp)
       {
         case H5T_INTEGER:
           *class_out = (sup_size == 1) ? mhdf_BOOLEAN : mhdf_INTEGER;
