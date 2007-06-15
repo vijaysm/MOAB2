@@ -112,12 +112,12 @@ BSERVER_GEN_SRCS := $(IORSRCS) $(SKELSRCS) $(STUBSRCS)
 BSERVER_OFILES := $(subst .cc,.o,$(BSERVER_GEN_SRCS) $(BSERVER_IMPL_SRCS))
 BSERVER_OFILES := $(subst .c,.o, $(BSERVER_OFILES))
 
-brepo/.timestamp: iBase.sidl
-	-rm -rf brepo
-	$(BABEL) -tXML -o brepo iBase.sidl 
+repo/.btimestamp: iBase.sidl
+	-rm -rf repo
+	$(BABEL) -tXML -o repo iBase.sidl 
 	touch $@ 
 
-bserver/babel.make: brepo/.timestamp iBase.sidl
+bserver/babel.make: repo/.btimestamp iBase.sidl
 	-rm -f $@
 	$(BABEL) -sC++ -o bserver iBase.sidl
 
@@ -129,22 +129,21 @@ ${iBase_DIR}/libiBaseserver.a: bserver/babel.make ${BSERVER_OFILES}
 
 #============= iBase =============
 
-mrepo/.timestamp: iMesh.sidl 
-	-rm -rf mrepo
-	$(BABEL) -tXML -o mrepo -Rbrepo iMesh.sidl
+repo/.mtimestamp: iMesh.sidl 
+	$(BABEL) -tXML -o repo -Rrepo iMesh.sidl
 	touch $@ 
 
-mserver/babel.make: mrepo/.timestamp brepo/.timestamp iMesh_SIDL.sidl iMesh.sidl 
+mserver/babel.make: repo/.mtimestamp repo/.btimestamp iMesh_SIDL.sidl iMesh.sidl 
 	-rm -f $@
-	$(BABEL) -R"mrepo;brepo" -sC++ -o mserver iMesh_SIDL.sidl
+	$(BABEL) -R"repo" -sC++ -o mserver iMesh_SIDL.sidl
 
-Cclient: mrepo/.timestamp brepo/.timestamp iMesh_SIDL.sidl
+Cclient: repo/.mtimestamp repo/.mtimestamp iMesh_SIDL.sidl
 	-rm -rf Cclient
-	$(BABEL) -R"mrepo;brepo" -cC -o Cclient iMesh_SIDL.sidl
+	$(BABEL) -R"repo" -cC -o Cclient iMesh_SIDL.sidl
 
-F77client: mrepo/.timestamp brepo/.timestamp iMesh_SIDL.sidl
+F77client: repo/.mtimestamp repo/.btimestamp iMesh_SIDL.sidl
 	-rm -rf F77client
-	$(BABEL) -R"mrepo;brepo" -cF77 -o F77client iMesh_SIDL.sidl
+	$(BABEL) -R"repo" -cF77 -o F77client iMesh_SIDL.sidl
 
 ${iMesh_DIR}/libiMesh.a: ${SERVER_IMPL_OFILES}
 	$(ARCHIVER) $@ ${SERVER_IMPL_OFILES}
@@ -180,7 +179,7 @@ clean:
 	-rm -f *.o *.so testc testcxx *~ core.*
 
 clean_all: clean
-	-rm -rf F77client Cclient mrepo
+	-rm -rf F77client Cclient repo
 	cd mserver; rm -f ${SERVER_GEN_HDRS} ${SERVER_GEN_SRCS}
 
 depend:
