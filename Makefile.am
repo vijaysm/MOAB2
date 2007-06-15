@@ -1,8 +1,6 @@
 # Don't require GNU-standard files (Changelog, README, etc.)
 AUTOMAKE_OPTIONS = foreign
 
-
-
 # Subdirectories to build
 SUBDIRS = 
 if HDF5_FILE
