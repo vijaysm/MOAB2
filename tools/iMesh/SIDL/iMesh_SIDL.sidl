@@ -24,7 +24,7 @@ package iMesh_SIDL version 0.002 {
     iMesh.Modify,
     iMesh.ArrMod
   { 
-    static Mesh newMesh(in string option) throws iBase.Error;
+    static void newMesh(in string option, out Mesh new_mesh) throws iBase.Error;
   };
           
 } // END iMesh_MOAB

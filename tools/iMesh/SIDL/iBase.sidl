@@ -17,6 +17,29 @@
 
 package iBase version 0.7
 {
+   enum EntityType {       
+      VERTEX, 
+      EDGE, 
+      FACE, 
+      REGION,
+      ALL_TYPES
+   };
+
+
+   enum StorageOrder {
+      BLOCKED,
+      INTERLEAVED,
+      UNDETERMINED
+   };
+
+   enum CreationStatus {	
+      NEW,               
+      ALREADY_EXISTED,   
+      CREATED_DUPLICATE,
+      CREATION_FAILED
+   };
+
+
    //====================================================
    //  ERROR FUNCTIONALITY
    //====================================================
@@ -53,24 +76,18 @@ package iBase version 0.7
       ARGUMENT_OUT_OF_RANGE,
       MEMORY_ALLOCATION_FAILED,
       NOT_SUPPORTED,	
+      ENTITY_IN_USE,
       FAILURE	
    }; 
 
 
    class Error extends sidl.SIDLException {
       void set(in ErrorType error, in string description);
-      ErrorType getErrorType();
+     void getErrorType(out ErrorType err_type);
       void get(out ErrorType err, out string description);
-      string getDescription();
+     void getDescription(out string description);
       void echo(in string label);   // prints label and then description string to stderr 
    };
-
-   enum StorageOrder {
-      BLOCKED,
-      INTERLEAVED,
-      UNDETERMINED
-   };
-
 
    //====================================================
    // TAGS
@@ -96,13 +113,17 @@ package iBase version 0.7
                      in TagValueType tag_type,
                      out opaque tag_handle) throws iBase.Error;
       void destroyTag(in opaque tag_handle, in bool forced) throws iBase.Error;
-      string getTagName(in opaque tag_handle) throws iBase.Error;
+      void getTagName(in opaque tag_handle, out string tag_name) throws iBase.Error;
 
-      int getTagSizeValues(in opaque tag_handle) throws iBase.Error;    // number of values
-      int getTagSizeBytes(in opaque tag_handle) throws iBase.Error;     // total number of bytes
+      void getTagSizeValues(in opaque tag_handle,
+                            out int size_values) throws iBase.Error;    // number of values
+      void getTagSizeBytes(in opaque tag_handle,
+                           out int size_bytes) throws iBase.Error;     // total number of bytes
 
-      opaque getTagHandle(in string tag_name) throws iBase.Error;
-      TagValueType getTagType(in opaque tag_handle) throws iBase.Error;
+      void getTagHandle(in string tag_name,
+                        out opaque tag_handle) throws iBase.Error;
+      void getTagType(in opaque tag_handle,
+                      out TagValueType tag_data_type) throws iBase.Error;
    };
 
 
@@ -114,12 +135,15 @@ package iBase version 0.7
                     in opaque tag_handle,
                     inout array<char> tag_value,
                     out int tag_value_size) throws iBase.Error; // in bytes - number of things in the array
-      int getIntData( in opaque entity_handle, 
-                      in opaque tag_handle) throws iBase.Error;
-      double getDblData( in opaque entity_handle, 
-                         in opaque tag_handle) throws iBase.Error;
-      opaque getEHData( in opaque entity_handle, 
-                        in opaque tag_handle) throws iBase.Error;
+      void getIntData( in opaque entity_handle, 
+                       in opaque tag_handle,
+                       out int int_data) throws iBase.Error;
+      void getDblData( in opaque entity_handle, 
+                       in opaque tag_handle,
+                       out double dbl_data) throws iBase.Error;
+      void getEHData( in opaque entity_handle, 
+                        in opaque tag_handle,
+                      out opaque eh_data) throws iBase.Error;
       void setData( in opaque entity_handle, in opaque tag_handle, 
                     in array<char> tag_value, in int tag_value_size) throws iBase.Error; 
       void setIntData( in opaque entity_handle, in opaque tag_handle, 
@@ -217,12 +241,15 @@ package iBase version 0.7
       void getEntSetData( in opaque entity_set,
                           in opaque tag_handle, inout array<char> tag_value, 
                           out int tag_value_size) throws iBase.Error;
-      int getEntSetIntData( in opaque entity_set, 
-                            in opaque tag_handle) throws iBase.Error;
-      double getEntSetDblData( in opaque entity_set, 
-                               in opaque tag_handle) throws iBase.Error;
-      opaque getEntSetEHData( in opaque entity_set, 
-                              in opaque tag_handle) throws iBase.Error;
+      void getEntSetIntData( in opaque entity_set, 
+                            in opaque tag_handle,
+                             out int int_data) throws iBase.Error;
+      void getEntSetDblData( in opaque entity_set, 
+                               in opaque tag_handle,
+                             out double dbl_data) throws iBase.Error;
+      void getEntSetEHData( in opaque entity_set, 
+                              in opaque tag_handle,
+                            out opaque eh_data) throws iBase.Error;
 
       void getAllEntSetTags( in opaque entity_set, 
                              inout array<opaque> tag_handles,
@@ -241,13 +268,15 @@ package iBase version 0.7
       void destroyEntSet( in opaque entity_set) throws iBase.Error;
 
       // is this set ordered?
-      bool isList(in opaque entity_set) throws iBase.Error;
+      void isList(in opaque entity_set,
+                  out int is_list) throws iBase.Error;
 
       // get the entity sets
       // num_hops of >=0 is recurse down that many levels (=0 is that ESet only)
       // num_hops < 0 is recurse forever
-      int getNumEntSets( in opaque entity_set, 
-                         in int num_hops) throws iBase.Error;
+      void getNumEntSets( in opaque entity_set, 
+                         in int num_hops,
+                          out int num_sets) throws iBase.Error;
 
       void getEntSets ( in opaque entity_set, in int num_hops,
                         inout array<opaque> contained_entset_handles,
@@ -286,12 +315,14 @@ package iBase version 0.7
                       throws iBase.Error;
 
       // check whether an entity is contained in the entity set
-      bool isEntContained(in opaque containing_entity_set,
-                          in opaque entity_handle) throws iBase.Error;
+      void isEntContained(in opaque containing_entity_set,
+                          in opaque entity_handle,
+                          out int is_contained) throws iBase.Error;
 
       // check whether an entity set is contained in another
-      bool isEntSetContained(in opaque containing_entity_set,
-                             in opaque contained_entity_set) throws iBase.Error;
+      void isEntSetContained(in opaque containing_entity_set,
+                             in opaque contained_entity_set,
+                             out int is_contained) throws iBase.Error;
    };
 
 
@@ -308,12 +339,15 @@ package iBase version 0.7
       void rmvPrntChld( inout opaque parent_entity_set, 
 			inout opaque child_entity_set) throws iBase.Error;
 
-      bool isChildOf( in opaque parent_entity_set, 
-		      in opaque child_entity_set) throws iBase.Error;
+      void isChildOf( in opaque parent_entity_set, 
+		      in opaque child_entity_set,
+                      out int is_child) throws iBase.Error;
 
-      int  getNumChld( in opaque entity_set, in int num_hops) 
+      void getNumChld( in opaque entity_set, in int num_hops,
+                       out int num_child) 
         throws iBase.Error;
-      int  getNumPrnt( in opaque entity_set, in int num_hops) 
+      void  getNumPrnt( in opaque entity_set, in int num_hops,
+                        out int num_parent) 
         throws iBase.Error;
 
       void getChldn( in opaque from_entity_set, in int num_hops, 

@@ -14,6 +14,7 @@
 #define iMesh_getAdjTable FC_FUNC_(imesh_getadjtable, IMESH_GETADJTABLE)
 #define iMesh_getNumOfType FC_FUNC_(imesh_getnumoftype, IMESH_GETNUMOFTYPE)
 #define iMesh_getNumOfTopo FC_FUNC_(imesh_getnumoftopo, IMESH_GETNUMOFTOPO)
+#define iMesh_areEHValid FC_FUNC_(imesh_areehvalid, IMESH_AREEHVALID)
 #define iMesh_getAllVtxCoords FC_FUNC_(imesh_getallvtxcoords, IMESH_GETALLVTXCOORDS)
 #define iMesh_getVtxCoordIndex FC_FUNC_(imesh_getvtxcoordindex, IMESH_GETVTXCOORDINDEX)
 #define iMesh_fetErrorType FC_FUNC_(imesh_feterrorType, IMESH_FETERRORTYPE)

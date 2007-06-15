@@ -3,8 +3,8 @@
 // Symbol:        iMesh_SIDL.MeshSidl-v0.2
 // Symbol Type:   class
 // Babel Version: 0.10.12
-// sidl Created:  20070614 17:39:48 CDT
-// Generated:     20070614 17:39:54 CDT
+// sidl Created:  20070615 16:29:58 CDT
+// Generated:     20070615 16:30:05 CDT
 // Description:   Server-side implementation for iMesh_SIDL.MeshSidl
 // 
 // WARNING: Automatically generated; only changes within splicers preserved
@@ -26,8 +26,17 @@
 // 
 // Includes for all method dependencies.
 // 
+#ifndef included_iBase_CreationStatus_hh
+#include "iBase_CreationStatus.hh"
+#endif
+#ifndef included_iBase_EntityType_hh
+#include "iBase_EntityType.hh"
+#endif
 #ifndef included_iBase_Error_hh
 #include "iBase_Error.hh"
+#endif
+#ifndef included_iBase_StorageOrder_hh
+#include "iBase_StorageOrder.hh"
 #endif
 #ifndef included_iBase_TagValueType_hh
 #include "iBase_TagValueType.hh"
@@ -35,20 +44,11 @@
 #ifndef included_iMesh_AdjacencyInfo_hh
 #include "iMesh_AdjacencyInfo.hh"
 #endif
-#ifndef included_iMesh_CreationStatus_hh
-#include "iMesh_CreationStatus.hh"
-#endif
 #ifndef included_iMesh_EntityTopology_hh
 #include "iMesh_EntityTopology.hh"
 #endif
-#ifndef included_iMesh_EntityType_hh
-#include "iMesh_EntityType.hh"
-#endif
 #ifndef included_iMesh_Mesh_hh
 #include "iMesh_Mesh.hh"
-#endif
-#ifndef included_iMesh_StorageOrder_hh
-#include "iMesh_StorageOrder.hh"
 #endif
 #ifndef included_iMesh_SIDL_MeshSidl_hh
 #include "iMesh_SIDL_MeshSidl.hh"
@@ -118,9 +118,10 @@ namespace iMesh_SIDL {
     /**
      * user defined static method.
      */
-    static ::iMesh::Mesh
+    static void
     newMesh (
-      /* in */ const ::std::string& option
+      /* in */ const ::std::string& option,
+      /* out */ ::iMesh::Mesh& new_mesh
     )
     throw ( 
       ::iBase::Error
@@ -156,9 +157,10 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    ::std::string
+    void
     getTagName (
-      /* in */ void* tag_handle
+      /* in */ void* tag_handle,
+      /* out */ ::std::string& tag_name
     )
     throw ( 
       ::iBase::Error
@@ -167,9 +169,10 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    int32_t
+    void
     getTagSizeValues (
-      /* in */ void* tag_handle
+      /* in */ void* tag_handle,
+      /* out */ int32_t& size_values
     )
     throw ( 
       ::iBase::Error
@@ -178,9 +181,10 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    int32_t
+    void
     getTagSizeBytes (
-      /* in */ void* tag_handle
+      /* in */ void* tag_handle,
+      /* out */ int32_t& size_bytes
     )
     throw ( 
       ::iBase::Error
@@ -189,9 +193,10 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    void*
+    void
     getTagHandle (
-      /* in */ const ::std::string& tag_name
+      /* in */ const ::std::string& tag_name,
+      /* out */ void*& tag_handle
     )
     throw ( 
       ::iBase::Error
@@ -200,9 +205,10 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    ::iBase::TagValueType
+    void
     getTagType (
-      /* in */ void* tag_handle
+      /* in */ void* tag_handle,
+      /* out */ ::iBase::TagValueType& tag_data_type
     )
     throw ( 
       ::iBase::Error
@@ -225,10 +231,11 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    int32_t
+    void
     getIntData (
       /* in */ void* entity_handle,
-      /* in */ void* tag_handle
+      /* in */ void* tag_handle,
+      /* out */ int32_t& int_data
     )
     throw ( 
       ::iBase::Error
@@ -237,10 +244,11 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    double
+    void
     getDblData (
       /* in */ void* entity_handle,
-      /* in */ void* tag_handle
+      /* in */ void* tag_handle,
+      /* out */ double& dbl_data
     )
     throw ( 
       ::iBase::Error
@@ -249,10 +257,11 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    void*
+    void
     getEHData (
       /* in */ void* entity_handle,
-      /* in */ void* tag_handle
+      /* in */ void* tag_handle,
+      /* out */ void*& eh_data
     )
     throw ( 
       ::iBase::Error
@@ -539,10 +548,11 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    int32_t
+    void
     getEntSetIntData (
       /* in */ void* entity_set,
-      /* in */ void* tag_handle
+      /* in */ void* tag_handle,
+      /* out */ int32_t& int_data
     )
     throw ( 
       ::iBase::Error
@@ -551,10 +561,11 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    double
+    void
     getEntSetDblData (
       /* in */ void* entity_set,
-      /* in */ void* tag_handle
+      /* in */ void* tag_handle,
+      /* out */ double& dbl_data
     )
     throw ( 
       ::iBase::Error
@@ -563,10 +574,11 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    void*
+    void
     getEntSetEHData (
       /* in */ void* entity_set,
-      /* in */ void* tag_handle
+      /* in */ void* tag_handle,
+      /* out */ void*& eh_data
     )
     throw ( 
       ::iBase::Error
@@ -623,9 +635,10 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    bool
+    void
     isList (
-      /* in */ void* entity_set
+      /* in */ void* entity_set,
+      /* out */ int32_t& is_list
     )
     throw ( 
       ::iBase::Error
@@ -634,10 +647,11 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    int32_t
+    void
     getNumEntSets (
       /* in */ void* entity_set,
-      /* in */ int32_t num_hops
+      /* in */ int32_t num_hops,
+      /* out */ int32_t& num_sets
     )
     throw ( 
       ::iBase::Error
@@ -734,10 +748,11 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    bool
+    void
     isEntContained (
       /* in */ void* containing_entity_set,
-      /* in */ void* entity_handle
+      /* in */ void* entity_handle,
+      /* out */ int32_t& is_contained
     )
     throw ( 
       ::iBase::Error
@@ -746,10 +761,11 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    bool
+    void
     isEntSetContained (
       /* in */ void* containing_entity_set,
-      /* in */ void* contained_entity_set
+      /* in */ void* contained_entity_set,
+      /* out */ int32_t& is_contained
     )
     throw ( 
       ::iBase::Error
@@ -782,10 +798,11 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    bool
+    void
     isChildOf (
       /* in */ void* parent_entity_set,
-      /* in */ void* child_entity_set
+      /* in */ void* child_entity_set,
+      /* out */ int32_t& is_child
     )
     throw ( 
       ::iBase::Error
@@ -794,10 +811,11 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    int32_t
+    void
     getNumChld (
       /* in */ void* entity_set,
-      /* in */ int32_t num_hops
+      /* in */ int32_t num_hops,
+      /* out */ int32_t& num_child
     )
     throw ( 
       ::iBase::Error
@@ -806,10 +824,11 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    int32_t
+    void
     getNumPrnt (
       /* in */ void* entity_set,
-      /* in */ int32_t num_hops
+      /* in */ int32_t num_hops,
+      /* out */ int32_t& num_parent
     )
     throw ( 
       ::iBase::Error
@@ -911,24 +930,36 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    void*
-    getRootSet() throw ( 
+    void
+    getRootSet (
+      /* out */ void*& root_set
+    )
+    throw ( 
       ::iBase::Error
     );
+
     /**
      * user defined non-static method.
      */
-    int32_t
-    getGeometricDim() throw ( 
+    void
+    getGeometricDim (
+      /* out */ int32_t& dim
+    )
+    throw ( 
       ::iBase::Error
     );
+
     /**
      * user defined non-static method.
      */
-    ::iMesh::StorageOrder
-    getDfltStorage() throw ( 
+    void
+    getDfltStorage (
+      /* out */ ::iBase::StorageOrder& dflt_storage
+    )
+    throw ( 
       ::iBase::Error
     );
+
     /**
      * user defined non-static method.
      */
@@ -944,9 +975,10 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    bool
+    void
     areEHValid (
-      /* in */ bool reset
+      /* in */ int32_t reset,
+      /* out */ int32_t& are_valid
     )
     throw ( 
       ::iBase::Error
@@ -955,10 +987,11 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    int32_t
+    void
     getNumOfType (
       /* in */ void* entity_set_handle,
-      /* in */ ::iMesh::EntityType entity_type
+      /* in */ ::iBase::EntityType entity_type,
+      /* out */ int32_t& num_type
     )
     throw ( 
       ::iBase::Error
@@ -967,10 +1000,11 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    int32_t
+    void
     getNumOfTopo (
       /* in */ void* entity_set_handle,
-      /* in */ ::iMesh::EntityTopology entity_topology
+      /* in */ ::iMesh::EntityTopology entity_topology,
+      /* out */ int32_t& num_topo
     )
     throw ( 
       ::iBase::Error
@@ -986,7 +1020,7 @@ namespace iMesh_SIDL {
       /* out */ int32_t& coords_size,
       /* inout */ ::sidl::array<int32_t>& in_entity_set,
       /* out */ int32_t& in_entity_set_size,
-      /* inout */ ::iMesh::StorageOrder& storage_order
+      /* inout */ ::iBase::StorageOrder& storage_order
     )
     throw ( 
       ::iBase::Error
@@ -998,9 +1032,9 @@ namespace iMesh_SIDL {
     void
     getVtxCoordIndex (
       /* in */ void* entity_set,
-      /* in */ ::iMesh::EntityType requested_entity_type,
+      /* in */ ::iBase::EntityType requested_entity_type,
       /* in */ ::iMesh::EntityTopology requested_entity_topology,
-      /* in */ ::iMesh::EntityType entity_adjacency_type,
+      /* in */ ::iBase::EntityType entity_adjacency_type,
       /* inout */ ::sidl::array<int32_t>& offset,
       /* out */ int32_t& offset_size,
       /* inout */ ::sidl::array<int32_t>& index,
@@ -1018,7 +1052,7 @@ namespace iMesh_SIDL {
     void
     getEntities (
       /* in */ void* entity_set,
-      /* in */ ::iMesh::EntityType entity_type,
+      /* in */ ::iBase::EntityType entity_type,
       /* in */ ::iMesh::EntityTopology entity_topology,
       /* inout */ ::sidl::array<void*>& entity_handles,
       /* out */ int32_t& entity_handles_size
@@ -1034,7 +1068,7 @@ namespace iMesh_SIDL {
     getVtxArrCoords (
       /* in */ ::sidl::array<void*> vertex_handles,
       /* in */ int32_t vertex_handles_size,
-      /* inout */ ::iMesh::StorageOrder& storage_order,
+      /* inout */ ::iBase::StorageOrder& storage_order,
       /* inout */ ::sidl::array<double>& coords,
       /* out */ int32_t& coords_size
     )
@@ -1048,9 +1082,9 @@ namespace iMesh_SIDL {
     void
     getAdjEntities (
       /* in */ void* entity_set,
-      /* in */ ::iMesh::EntityType entity_type_requestor,
+      /* in */ ::iBase::EntityType entity_type_requestor,
       /* in */ ::iMesh::EntityTopology entity_topology_requestor,
-      /* in */ ::iMesh::EntityType entity_type_requested,
+      /* in */ ::iBase::EntityType entity_type_requested,
       /* inout */ ::sidl::array<void*>& adj_entity_handles,
       /* out */ int32_t& adj_entity_handles_size,
       /* inout */ ::sidl::array<int32_t>& offset,
@@ -1068,7 +1102,7 @@ namespace iMesh_SIDL {
     void
     initEntIter (
       /* in */ void* entity_set_handle,
-      /* in */ ::iMesh::EntityType requested_entity_type,
+      /* in */ ::iBase::EntityType requested_entity_type,
       /* in */ ::iMesh::EntityTopology requested_entity_topology,
       /* out */ void*& entity_iterator
     )
@@ -1079,10 +1113,11 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    bool
+    void
     getNextEntIter (
       /* in */ void* entity_iterator,
-      /* out */ void*& entity_handle
+      /* out */ void*& entity_handle,
+      /* out */ int32_t& at_end
     )
     throw ( 
       ::iBase::Error
@@ -1113,9 +1148,10 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    ::iMesh::EntityTopology
+    void
     getEntTopo (
-      /* in */ void* entity_handle
+      /* in */ void* entity_handle,
+      /* out */ ::iMesh::EntityTopology& ent_topo
     )
     throw ( 
       ::iBase::Error
@@ -1124,9 +1160,10 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    ::iMesh::EntityType
+    void
     getEntType (
-      /* in */ void* entity_handle
+      /* in */ void* entity_handle,
+      /* out */ ::iBase::EntityType& ent_type
     )
     throw ( 
       ::iBase::Error
@@ -1152,7 +1189,7 @@ namespace iMesh_SIDL {
     void
     getEntAdj (
       /* in */ void* entity_handle,
-      /* in */ ::iMesh::EntityType entity_type_requested,
+      /* in */ ::iBase::EntityType entity_type_requested,
       /* inout */ ::sidl::array<void*>& adj_entity_handles,
       /* out */ int32_t& adj_entity_handles_size
     )
@@ -1166,7 +1203,7 @@ namespace iMesh_SIDL {
     void
     initEntArrIter (
       /* in */ void* entity_set_handle,
-      /* in */ ::iMesh::EntityType requested_entity_type,
+      /* in */ ::iBase::EntityType requested_entity_type,
       /* in */ ::iMesh::EntityTopology requested_entity_topology,
       /* in */ int32_t requested_array_size,
       /* out */ void*& entArr_iterator
@@ -1178,11 +1215,12 @@ namespace iMesh_SIDL {
     /**
      * user defined non-static method.
      */
-    bool
+    void
     getNextEntArrIter (
       /* in */ void* entArr_iterator,
       /* inout */ ::sidl::array<void*>& entity_handles,
-      /* out */ int32_t& entity_handles_size
+      /* out */ int32_t& entity_handles_size,
+      /* out */ int32_t& at_end
     )
     throw ( 
       ::iBase::Error
@@ -1231,7 +1269,7 @@ namespace iMesh_SIDL {
     getEntArrType (
       /* in */ ::sidl::array<void*> entity_handles,
       /* in */ int32_t entity_handles_size,
-      /* inout */ ::sidl::array< ::iMesh::EntityType>& type,
+      /* inout */ ::sidl::array< ::iBase::EntityType>& type,
       /* out */ int32_t& type_size
     )
     throw ( 
@@ -1245,7 +1283,7 @@ namespace iMesh_SIDL {
     getEntArrAdj (
       /* in */ ::sidl::array<void*> entity_handles,
       /* in */ int32_t entity_handles_size,
-      /* in */ ::iMesh::EntityType entity_type_requested,
+      /* in */ ::iBase::EntityType entity_type_requested,
       /* inout */ ::sidl::array<void*>& adj_entity_handles,
       /* out */ int32_t& adj_entity_handles_size,
       /* inout */ ::sidl::array<int32_t>& offset,
@@ -1292,7 +1330,7 @@ namespace iMesh_SIDL {
       /* in */ ::sidl::array<void*> lower_order_entity_handles,
       /* in */ int32_t lower_order_entity_handles_size,
       /* out */ void*& new_entity_handle,
-      /* out */ ::iMesh::CreationStatus& status
+      /* out */ ::iBase::CreationStatus& status
     )
     throw ( 
       ::iBase::Error
@@ -1316,7 +1354,7 @@ namespace iMesh_SIDL {
     setVtxArrCoords (
       /* in */ ::sidl::array<void*> vertex_handles,
       /* in */ int32_t vertex_handles_size,
-      /* in */ ::iMesh::StorageOrder storage_order,
+      /* in */ ::iBase::StorageOrder storage_order,
       /* in */ ::sidl::array<double> new_coords,
       /* in */ int32_t new_coords_size
     )
@@ -1330,7 +1368,7 @@ namespace iMesh_SIDL {
     void
     createVtxArr (
       /* in */ int32_t num_verts,
-      /* in */ ::iMesh::StorageOrder storage_order,
+      /* in */ ::iBase::StorageOrder storage_order,
       /* in */ ::sidl::array<double> new_coords,
       /* in */ int32_t new_coords_size,
       /* inout */ ::sidl::array<void*>& new_vertex_handles,
@@ -1350,7 +1388,7 @@ namespace iMesh_SIDL {
       /* in */ int32_t lower_order_entity_handles_size,
       /* inout */ ::sidl::array<void*>& new_entity_handles,
       /* out */ int32_t& new_entity_handles_size,
-      /* inout */ ::sidl::array< ::iMesh::CreationStatus>& status,
+      /* inout */ ::sidl::array< ::iBase::CreationStatus>& status,
       /* out */ int32_t& status_size
     )
     throw ( 

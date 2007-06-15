@@ -141,7 +141,7 @@ bool topology_dimension_test(iMesh::Mesh &mesh)
   sidl::array<Entity_Handle> faces;
   int faces_size;
   try {
-    mesh.getEntities(NULL, iMesh::EntityType_FACE, 
+    mesh.getEntities(NULL, iBase::EntityType_FACE, 
                      iMesh::EntityTopology_ALL_TOPOLOGIES, faces, faces_size);
   } catch (iBase::Error err) {
     cerr << "Failed to get faces in entity_sets_test."
@@ -151,7 +151,7 @@ bool topology_dimension_test(iMesh::Mesh &mesh)
 
   // get dimensions of faces
   //sidl::array<int32_t> dimensions;
-  sidl::array<iMesh::EntityType> dimensions;
+  sidl::array<iBase::EntityType> dimensions;
   
   CAST_IMESH_INTERFACE(mesh, mesh_arr, Arr);
 
@@ -174,7 +174,7 @@ bool topology_dimension_test(iMesh::Mesh &mesh)
   int num_faces = ARRAY_SIZE(faces);
 
   for (int i = 0; i < num_faces; i++) {
-    if (dimensions.get(i) != iMesh::EntityType_FACE) {
+    if (dimensions.get(i) != iBase::EntityType_FACE) {
       return false;
     }
   }
@@ -213,7 +213,7 @@ bool topology_adjacency_test(iMesh::Mesh &mesh)
     sidl::array<Entity_Handle> entities;
     int entities_size;
     try {
-      mesh.getEntities(NULL, iMesh::EntityType_ALL_TYPES,
+      mesh.getEntities(NULL, iBase::EntityType_ALL_TYPES,
                        static_cast<iMesh::EntityTopology>(top),
                        entities, entities_size);
     } catch (iBase::Error err) {
@@ -260,7 +260,8 @@ bool topology_adjacency_test(iMesh::Mesh &mesh)
   for (int top_j = 0; top_j < num_test_top; top_j++) {
     int num_tops = 0;
     try {
-      num_tops = mesh.getNumOfTopo(NULL, static_cast<iMesh::EntityTopology>(top_j));
+      mesh.getNumOfTopo(NULL, static_cast<iMesh::EntityTopology>(top_j), 
+                        num_tops);
     } catch (iBase::Error err) {
       cerr << "Failed to get number of topologies in adjacencies_test." << endl;
       return false;
@@ -293,7 +294,7 @@ bool topology_adjacency_test(iMesh::Mesh &mesh)
 
       int adj_faces_size = 0, face_offsets_size = 0;
       try {
-	mesh_arr.getEntArrAdj(regions, num_region, iMesh::EntityType_FACE,
+	mesh_arr.getEntArrAdj(regions, num_region, iBase::EntityType_FACE,
                                 adj_faces, adj_faces_size, 
                                 face_offsets, face_offsets_size);
       } catch (iBase::Error err) {
@@ -339,7 +340,7 @@ bool topology_adjacency_test(iMesh::Mesh &mesh)
       sidl::array<int> region_offsets;
       int region_offsets_size = 0;
       try {
-        mesh_arr.getEntArrAdj(adj_faces, adj_faces_size, iMesh::EntityType_REGION,
+        mesh_arr.getEntArrAdj(adj_faces, adj_faces_size, iBase::EntityType_REGION,
                               adj_regions, adj_regions_size, 
                               region_offsets, region_offsets_size);
       } catch (iBase::Error err) {
@@ -412,9 +413,9 @@ bool entity_connectivity_test(iMesh::Mesh &mesh)
 {
   CAST_IMESH_INTERFACE(mesh, mesh_arr, Arr);
 
-  int type = iMesh::EntityType_EDGE;
+  int type = iBase::EntityType_EDGE;
 
-  for (; type < iMesh::EntityType_ALL_TYPES; type++) {
+  for (; type < iBase::EntityType_ALL_TYPES; type++) {
     sidl::array<int> offsets;
     int offsets_size;
     sidl::array<int> indices;
@@ -424,9 +425,9 @@ bool entity_connectivity_test(iMesh::Mesh &mesh)
     
     try {
 
-      mesh.getVtxCoordIndex(NULL, static_cast<iMesh::EntityType>(type), 
+      mesh.getVtxCoordIndex(NULL, static_cast<iBase::EntityType>(type), 
                             iMesh::EntityTopology_ALL_TOPOLOGIES,
-                            iMesh::EntityType_VERTEX,
+                            iBase::EntityType_VERTEX,
                             offsets, offsets_size, indices, indices_size,
                             topologies, topologies_size);
     } catch (iBase::Error err) {
@@ -461,8 +462,8 @@ bool entity_connectivity_test(iMesh::Mesh &mesh)
     int entities_size;
 
     try {
-      mesh.getAdjEntities(NULL, static_cast<iMesh::EntityType>(type), 
-                          iMesh::EntityTopology_ALL_TOPOLOGIES, iMesh::EntityType_VERTEX, 
+      mesh.getAdjEntities(NULL, static_cast<iBase::EntityType>(type), 
+                          iMesh::EntityTopology_ALL_TOPOLOGIES, iBase::EntityType_VERTEX, 
                           entities, entities_size,
                           offsets1, offsets1_size,
                           entity_sets, entity_sets_size);
@@ -496,11 +497,11 @@ bool check_esets(iBase::EntSet &mesh_eset, const int num_sets);
 bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
                          int num_iter)
 {
-  int num_type = iMesh::EntityType_ALL_TYPES - iMesh::EntityType_VERTEX;
+  int num_type = iBase::EntityType_ALL_TYPES - iBase::EntityType_VERTEX;
   int num_all_entities_super = 0;
   EntitySet_Handle es_array[num_type];
   int number_array[num_type];
-  int ent_type = iMesh::EntityType_VERTEX;
+  int ent_type = iBase::EntityType_VERTEX;
   
   CAST_IMESH_INTERFACE(mesh, mesh_arr, Arr);
   CAST_IMESH_INTERFACE(mesh, mesh_ent, Entity);
@@ -511,7 +512,7 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
   // get the number of whole mesh
   int n_whole_mesh = 0;
   try {
-    n_whole_mesh = mesh_eset.getNumEntSets(NULL, 1);
+    mesh_eset.getNumEntSets(NULL, 1, n_whole_mesh);
   } catch (iBase::Error) {
     cerr << "Problem to get the number of all entity sets in whole mesh."
 	 << endl;
@@ -532,7 +533,7 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
     sidl::array<Entity_Handle> entities;
     int entities_size = 0;
     try {
-      mesh.getEntities(NULL, static_cast<iMesh::EntityType>(ent_type),
+      mesh.getEntities(NULL, static_cast<iBase::EntityType>(ent_type),
                        iMesh::EntityTopology_ALL_TOPOLOGIES, entities, entities_size);
     } catch (iBase::Error err) {
       cerr << "Failed to get entities by type in entity_sets_test."
@@ -559,9 +560,9 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
     
     // Check to make sure entity set really has correct number of entities in it
     try {
-      number_array[ent_type] = 
-	mesh.getNumOfType(es_array[ent_type],
-                            static_cast<iMesh::EntityType>(ent_type));
+      mesh.getNumOfType(es_array[ent_type],
+                        static_cast<iBase::EntityType>(ent_type), 
+                        number_array[ent_type]);
       
     } catch (iBase::Error) {
       cerr << "Failed to get number of entities by type in entity_sets_test."
@@ -629,7 +630,7 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
   
 
   try {
-    mesh.getEntities(es_array[iMesh::EntityType_EDGE], iMesh::EntityType_EDGE, iMesh::EntityTopology_ALL_TOPOLOGIES, 
+    mesh.getEntities(es_array[iBase::EntityType_EDGE], iBase::EntityType_EDGE, iMesh::EntityTopology_ALL_TOPOLOGIES, 
                      edges, edges_size);
 
   } catch (iBase::Error err) {
@@ -649,7 +650,7 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
 
   // get all FACE entities
   try {
-    mesh.getEntities(es_array[iMesh::EntityType_FACE], iMesh::EntityType_FACE, 
+    mesh.getEntities(es_array[iBase::EntityType_FACE], iBase::EntityType_FACE, 
                      iMesh::EntityTopology_ALL_TOPOLOGIES, 
                      faces, faces_size);
   } catch (iBase::Error err) {
@@ -670,7 +671,7 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
   // subtract EDGEs
   
   try {
-    mesh_esbool.subtract(temp_es1, es_array[iMesh::EntityType_EDGE], temp_es2);
+    mesh_esbool.subtract(temp_es1, es_array[iBase::EntityType_EDGE], temp_es2);
   } catch (iBase::Error) {
     cerr << "Failed to subtract entitysets in entity_sets_test."
 	 << endl;
@@ -678,7 +679,7 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
   }
 
   try {
-    mesh.getEntities(temp_es2, iMesh::EntityType_FACE, iMesh::EntityTopology_ALL_TOPOLOGIES, 
+    mesh.getEntities(temp_es2, iBase::EntityType_FACE, iMesh::EntityTopology_ALL_TOPOLOGIES, 
                      temp_entities1, temp_entities1_size);
   } catch (iBase::Error err) {
     cerr << "Failed to get edge entities in entity_sets_test."
@@ -693,7 +694,7 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
   }
 
   // check there's nothing but faces in face_es
-  sidl::array<iMesh::EntityType> types;
+  sidl::array<iBase::EntityType> types;
   int types_size;
   
   try {
@@ -704,7 +705,7 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
     return false;
   }
   for (int i = 0; i < types_size; i++) {
-    if (types.get(i) != iMesh::EntityType_FACE) {
+    if (types.get(i) != iBase::EntityType_FACE) {
       
       cerr << "wrong entity type for face test in entity_sets_test." << endl;
       return false;
@@ -735,7 +736,7 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
   // check if it is really cleaned out
   int num_rest;
   try {
-    num_rest = mesh.getNumOfType(temp_es1, iMesh::EntityType_FACE);
+    mesh.getNumOfType(temp_es1, iBase::EntityType_FACE, num_rest);
   } catch (iBase::Error) {
     cerr << "Failed to get number of entities by type in entity_sets_test."
 	 << endl;
@@ -768,7 +769,7 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
   // intersect temp_es1 with edges meshset 
   // temp_ms1 entityset is altered
   try {
-    mesh_esbool.intersect(temp_es1, es_array[iMesh::EntityType_EDGE], temp_es2);
+    mesh_esbool.intersect(temp_es1, es_array[iBase::EntityType_EDGE], temp_es2);
   } catch (iBase::Error) {
     cerr << "Failed to intersect in entity_sets_test."
 	 << endl;
@@ -777,7 +778,7 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
 
   // try to get FACEs, but there should be nothing but EDGE
   try {
-    mesh.getEntities(temp_es2, iMesh::EntityType_FACE, iMesh::EntityTopology_ALL_TOPOLOGIES, 
+    mesh.getEntities(temp_es2, iBase::EntityType_FACE, iMesh::EntityTopology_ALL_TOPOLOGIES, 
                      temp_entities2, temp_entities2_size);
   } catch (iBase::Error err) {
     cerr << "Failed to get face entities in entity_sets_test."
@@ -814,8 +815,8 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
   }
 
   try {
-    mesh.getEntities(es_array[iMesh::EntityType_REGION], 
-                     iMesh::EntityType_REGION, 
+    mesh.getEntities(es_array[iBase::EntityType_REGION], 
+                     iBase::EntityType_REGION, 
                      iMesh::EntityTopology_ALL_TOPOLOGIES, 
                      regions, regions_size);
   } catch (iBase::Error err) {
@@ -842,15 +843,14 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
   // perform the check
   int num_regions;
   try {
-    num_regions =
-      mesh.getNumOfType(temp_es3, iMesh::EntityType_REGION);
+    mesh.getNumOfType(temp_es3, iBase::EntityType_REGION, num_regions);
   } catch (iBase::Error) {
     cerr << "Failed to get number of region entities by type in entity_sets_test."
 	 << endl;
     return false;
   }
   
-  if (num_regions != number_array[iMesh::EntityType_REGION]) {
+  if (num_regions != number_array[iBase::EntityType_REGION]) {
     cerr << "different number of regions in entity_sets_test." << endl;
     return false;
   }
@@ -870,7 +870,7 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
   }
 
   try {
-    mesh_esrel.addPrntChld(es_array[iMesh::EntityType_VERTEX], parent_child);
+    mesh_esrel.addPrntChld(es_array[iBase::EntityType_VERTEX], parent_child);
   } catch (iBase::Error) {
     cerr << "Problem add parent in entity_sets_test."
 	 << endl;
@@ -897,7 +897,8 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
   // get the number of child entitysets
   int temp_numb;
   try {
-    temp_numb = mesh_esrel.getNumChld(es_array[iMesh::EntityType_VERTEX], 0);
+    mesh_esrel.getNumChld(es_array[iBase::EntityType_VERTEX], 0,
+                          temp_numb);
   } catch (iBase::Error) {
     cerr << "Problem getting number of children in entity_sets_test."
 	 << endl;
@@ -910,10 +911,13 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
     return false;
   }
 
-  // parent_child and es_array[iMesh::EntityType_VERTEX] should be related
+  // parent_child and es_array[iBase::EntityType_VERTEX] should be related
   try {
-    if (!mesh_esrel.isChildOf(es_array[iMesh::EntityType_VERTEX], parent_child)) {
-      cerr << "parent_child and es_array[iMesh::EntityType_EDGE] should be related" << endl;
+    int is_child;
+    mesh_esrel.isChildOf(es_array[iBase::EntityType_VERTEX], parent_child, 
+                         is_child);
+    if (!is_child) {
+      cerr << "parent_child and es_array[iBase::EntityType_EDGE] should be related" << endl;
       return false;
     }
   } catch (iBase::Error) {
@@ -922,10 +926,14 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
     return false;
   }
     
-  // es_array[iMesh::EntityType_FACE] and es_array[iMesh::EntityType_REGION] are not related
+  // es_array[iBase::EntityType_FACE] and es_array[iBase::EntityType_REGION] are not related
   try {
-    if (mesh_esrel.isChildOf(es_array[iMesh::EntityType_FACE], es_array[iMesh::EntityType_REGION])) {
-      cerr << "es_array[iMesh::EntityType_REGION] and es_array[iMesh::EntityType_FACE] should not be related" << endl;
+    int is_child;
+    mesh_esrel.isChildOf(es_array[iBase::EntityType_FACE], 
+                         es_array[iBase::EntityType_REGION],
+                         is_child);
+    if (is_child) {
+      cerr << "es_array[iBase::EntityType_REGION] and es_array[iBase::EntityType_FACE] should not be related" << endl;
       return false;
     }
   } catch (iBase::Error) {
@@ -953,7 +961,7 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
 
   // get the number of entity sets in super set
   try {
-    num_super = mesh_eset.getNumEntSets(super_set, 0);
+    mesh_eset.getNumEntSets(super_set, 0, num_super);
   } catch (iBase::Error) {
     cerr << "Problem to get the number of all entity sets in super set."
 	 << endl;
@@ -970,7 +978,7 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
   sidl::array<Entity_Handle> all_entities;
   int all_entities_size;
   try {
-    mesh.getEntities(super_set, iMesh::EntityType_ALL_TYPES,
+    mesh.getEntities(super_set, iBase::EntityType_ALL_TYPES,
                      iMesh::EntityTopology_ALL_TOPOLOGIES, 
                      all_entities, all_entities_size);
   } catch (iBase::Error) {
@@ -1030,8 +1038,8 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
   int face_offsets_size, face_in_sets_size;
 
   try {
-    mesh.getAdjEntities(NULL, iMesh::EntityType_ALL_TYPES,
-                        iMesh::EntityTopology_HEXAHEDRON, iMesh::EntityType_FACE,
+    mesh.getAdjEntities(NULL, iBase::EntityType_ALL_TYPES,
+                        iMesh::EntityTopology_HEXAHEDRON, iBase::EntityType_FACE,
                         adj_faces, adj_faces_size,
                         face_offsets, face_offsets_size,
                         face_in_sets, face_in_sets_size);
@@ -1046,7 +1054,7 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
   int hexes_size;
 
   try {
-    mesh.getEntities(NULL, iMesh::EntityType_ALL_TYPES,
+    mesh.getEntities(NULL, iBase::EntityType_ALL_TYPES,
                      iMesh::EntityTopology_HEXAHEDRON, hexes, hexes_size);
   } catch (iBase::Error err) {
     cerr << "Failed to get hexes in entity_sets_test."
@@ -1080,8 +1088,8 @@ bool entity_sets_subtest(iMesh::Mesh &mesh, bool is_list,
 
   try {
     mesh.getAdjEntities(hex_set,
-                        iMesh::EntityType_ALL_TYPES,
-                        iMesh::EntityTopology_HEXAHEDRON, iMesh::EntityType_FACE,
+                        iBase::EntityType_ALL_TYPES,
+                        iMesh::EntityTopology_HEXAHEDRON, iBase::EntityType_FACE,
                         adj_faces1, adj_faces1_size, 
                         face_offsets1, face_offsets1_size,
                         face_in_sets1, face_in_sets1_size);
@@ -1106,7 +1114,7 @@ bool check_esets(iBase::EntSet &mesh_eset, const int num_sets)
   int entity_sets_size;
   
   try {
-    entity_sets_size = mesh_eset.getNumEntSets(NULL, 1);
+    mesh_eset.getNumEntSets(NULL, 1, entity_sets_size);
   } catch (iBase::Error) {
     cerr << "Problem to get all entity sets in mesh."
 	 << endl;
@@ -1151,9 +1159,9 @@ bool vertex_coordinates_test(iMesh::Mesh &mesh)
 {
 
   // check storage order
-  iMesh::StorageOrder this_order = iMesh::StorageOrder_UNDETERMINED;
+  iBase::StorageOrder this_order = iBase::StorageOrder_UNDETERMINED;
   try {
-    this_order = mesh.getDfltStorage();
+    mesh.getDfltStorage(this_order);
   }
   catch (iBase::Error) {
     std::cout << "failed to get preferred storage order in vertex_coordinates_test."
@@ -1194,7 +1202,7 @@ bool vertex_coordinates_test(iMesh::Mesh &mesh)
   sidl::array<void*> verts;
   int verts_size;
   try {
-    mesh.getEntities(0, iMesh::EntityType_VERTEX, 
+    mesh.getEntities(0, iBase::EntityType_VERTEX, 
                      iMesh::EntityTopology_POINT, verts, verts_size);
   }
   catch (iBase::Error) {
@@ -1262,7 +1270,7 @@ bool tag_info_test(iMesh::Mesh &mesh)
 
     // check tag info functions
   std::string dum_name;
-  try {dum_name = mesh_tag.getTagName(tag_handle);}
+  try {mesh_tag.getTagName(tag_handle, dum_name);}
   catch (iBase::Error) {
     std::cerr << "Couldn't get name of tag just created." << std::endl;
     return false;
@@ -1273,7 +1281,7 @@ bool tag_info_test(iMesh::Mesh &mesh)
   }
   
   int dum_size;
-  try {dum_size = mesh_tag.getTagSizeBytes(tag_handle);}
+  try {mesh_tag.getTagSizeBytes(tag_handle, dum_size);}
   catch (iBase::Error) {
     std::cerr << "Couldn't get size of tag just created." << std::endl;
     return false;
@@ -1284,7 +1292,7 @@ bool tag_info_test(iMesh::Mesh &mesh)
   }
 
   void *dum_handle;
-  try {dum_handle = mesh_tag.getTagHandle(tag_name);}
+  try {mesh_tag.getTagHandle(tag_name, dum_handle);}
   catch (iBase::Error) {
     std::cerr << "Couldn't get handle of tag just created." << std::endl;
     return false;
@@ -1304,7 +1312,7 @@ bool tag_info_test(iMesh::Mesh &mesh)
 
     // look for that tag, to make sure it got deleted
   bool error = false;
-  try {dum_handle = mesh_tag.getTagHandle(tag_name);}
+  try {mesh_tag.getTagHandle(tag_name, dum_handle);}
   catch (iBase::Error) {
     error = true;
   }
@@ -1580,7 +1588,7 @@ bool vertex_tag_test(iMesh::Mesh &mesh)
   // get all the vertices
   sidl::array<void*> verts;
   int verts_size;
-  try {mesh.getEntities(NULL, iMesh::EntityType_ALL_TYPES, 
+  try {mesh.getEntities(NULL, iBase::EntityType_ALL_TYPES, 
                         iMesh::EntityTopology_POINT, verts, verts_size);}
   catch(iBase::Error) {
     std::cout << "entitysetGetEntities failed in vertex_tag_test." << std::endl;
@@ -2173,7 +2181,7 @@ int main( int argc, char *argv[] )
   iMesh::Mesh mesh;
   std::string options;
   try {
-    mesh = iMesh_SIDL::MeshSidl::newMesh(options);
+    iMesh_SIDL::MeshSidl::newMesh(options, mesh);
   }
   catch (iBase::Error err) {
     cout << "Trouble creating a mesh instance." << endl;

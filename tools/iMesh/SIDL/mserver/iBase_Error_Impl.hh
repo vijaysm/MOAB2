@@ -3,14 +3,14 @@
 // Symbol:        iBase.Error-v0.7
 // Symbol Type:   class
 // Babel Version: 0.10.12
-// sidl Created:  20070614 17:39:03 CDT
-// Generated:     20070614 17:39:54 CDT
+// sidl Created:  20070615 16:13:46 CDT
+// Generated:     20070615 16:30:05 CDT
 // Description:   Server-side implementation for iBase.Error
 // 
 // WARNING: Automatically generated; only changes within splicers preserved
 // 
 // babel-version = 0.10.12
-// source-line   = 60
+// source-line   = 84
 // source-url    = file:/home/tautges/MOAB/tools/iMesh/SIDL/iBase.sidl
 // xml-url       = /home/tautges/MOAB/tools/iMesh/SIDL/mrepo/iBase.Error-v0.7.xml
 // 
@@ -63,6 +63,8 @@ namespace iBase {
 
     // DO-NOT-DELETE splicer.begin(iBase.Error._implementation)
     // Insert-Code-Here {iBase.Error._implementation} (additional details)
+    ::iBase::ErrorType errorType;
+    std::string errorDescription;
     // DO-NOT-DELETE splicer.end(iBase.Error._implementation)
 
   private:
@@ -104,9 +106,13 @@ namespace iBase {
     /**
      * user defined non-static method.
      */
-    ::iBase::ErrorType
-    getErrorType() throw () 
+    void
+    getErrorType (
+      /* out */ ::iBase::ErrorType& err_type
+    )
+    throw () 
     ;
+
     /**
      * user defined non-static method.
      */
@@ -121,9 +127,13 @@ namespace iBase {
     /**
      * user defined non-static method.
      */
-    ::std::string
-    getDescription() throw () 
+    void
+    getDescription (
+      /* out */ ::std::string& description
+    )
+    throw () 
     ;
+
     /**
      * user defined non-static method.
      */

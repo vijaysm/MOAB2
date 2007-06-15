@@ -3,14 +3,14 @@
 // Symbol:        iBase.Error-v0.7
 // Symbol Type:   class
 // Babel Version: 0.10.12
-// sidl Created:  20070614 17:39:09 CDT
-// Generated:     20070614 17:39:14 CDT
+// sidl Created:  20070615 16:13:52 CDT
+// Generated:     20070615 16:13:57 CDT
 // Description:   Server-side implementation for iBase.Error
 // 
 // WARNING: Automatically generated; only changes within splicers preserved
 // 
 // babel-version = 0.10.12
-// source-line   = 60
+// source-line   = 84
 // source-url    = file:/home/tautges/MOAB/tools/iMesh/SIDL/iBase.sidl
 // 
 
@@ -105,9 +105,13 @@ namespace iBase {
     /**
      * user defined non-static method.
      */
-    ::iBase::ErrorType
-    getErrorType() throw () 
+    void
+    getErrorType (
+      /* out */ ::iBase::ErrorType& err_type
+    )
+    throw () 
     ;
+
     /**
      * user defined non-static method.
      */
@@ -122,9 +126,13 @@ namespace iBase {
     /**
      * user defined non-static method.
      */
-    ::std::string
-    getDescription() throw () 
+    void
+    getDescription (
+      /* out */ ::std::string& description
+    )
+    throw () 
     ;
+
     /**
      * user defined non-static method.
      */
