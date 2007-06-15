@@ -186,7 +186,7 @@ libMOAB_la_include_HEADERS = \
   MBConfig.h \
   MBCore.hpp \
   MBEntityType.h \
-  MBEntityHandle.h      \
+  MBEntityHandle.h \
   MBError.hpp \
   MBForward.hpp \
   MBGeomUtil.hpp \
