@@ -4,6 +4,12 @@ INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I.
 
 DEFS += $(DEFINES)
 
+bin_PROGRAMS = testc_cbind
+testc_cbind_SOURCES = testc_cbind.c
+
+LDADD = libiMesh.la $(top_builddir)/libMOAB.la
+testc_cbind_DEPENDENCIES = libiMesh.la $(top_builddir)/libMOAB.la
+
 libiMesh_la_SOURCES = \
 	iMesh_MOAB.cpp
                    
