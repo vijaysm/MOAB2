@@ -52,7 +52,7 @@ MBErrorCode MBiMesh::delete_entities( const MBRange& r )
           "Allocated array not large enough to hold returned contents.");\
     RETURN(iBase_MEMORY_ALLOCATION_FAILED);\
   }\
-  if (NULL == array) {\
+  if (NULL == array || allocated == 0) {\
     array = (type*)malloc((size)*sizeof(type));\
     allocated=(size);\
     if (NULL == array) {iMesh_processError(iBase_MEMORY_ALLOCATION_FAILED, \
@@ -66,7 +66,7 @@ MBErrorCode MBiMesh::delete_entities( const MBRange& r )
           "Allocated array not large enough to hold returned contents.");\
     RETURN(iBase_MEMORY_ALLOCATION_FAILED);\
   }\
-  if (NULL == array) {\
+  if (NULL == array || allocated == 0) {\
     allocated=(size); \
     if (allocated%sizeof(void*) != 0) allocated=((size)/sizeof(void*)+1)*sizeof(void*);\
     array = (char*)malloc(allocated); \
@@ -230,8 +230,6 @@ void iMesh_getError(iMesh_Instance instance,
 void iMesh_newMesh(const char *options, 
                    iMesh_Instance *instance, int *err, int options_len) 
 {
-  if (0 != *instance) delete (MBCore*) *instance;
-  
   MBInterface* core = new MBiMesh();
   *instance = reinterpret_cast<iMesh_Instance>(core);
   if (0 == *instance) {

@@ -17,17 +17,17 @@ include iMesh-Defs.inc
 default: all
 
 ######## include make.Linux
-CXX = g++
+CXX = g++-4.2
 CXX_FLAGS_REQ = -fpic
 CXX_FLAGS_DBG = -g -Wall
 CXX_FLAGS_OPT = -O 
 
-CC  = gcc
+CC  = gcc-4.2
 CC_FLAGS_REQ = -fpic
 CC_FLAGS_DBG = -g -Wall
 CC_FLAGS_OPT = -O
 
-FC  = g77
+FC  = gfortran-4.2
 #FC   = /usr/apps/pgi/3.3/linux86/bin/pgf77
 FC_FLAGS_REQ = 
 FC_FLAGS_DBG = -g
@@ -44,13 +44,11 @@ LD_FLAGS_OPT = -O
 ARCHIVER = ar cr
 
 
-INCPATH = -I. ${iMesh_SERVER_INCLUDES} -I$(MOAB_INCLUDEDIR)
+INCPATH = -I. ${iMesh_SIDL_SERVER_INCLUDES}
 
 
-#CXX_FLAGS = $(CXX_FLAGS_REQ) $(CXX_FLAGS_OPT) $(INCPATH)
-CXX_FLAGS = $(CXX_FLAGS_REQ) $(CXX_FLAGS_DBG) $(INCPATH) ${iMesh_CLIENT_C_INCLUDES} 
-#CC_FLAGS = $(CC_FLAGS_REQ) $(CC_FLAGS_OPT) $(INCPATH)
-CC_FLAGS = $(CC_FLAGS_REQ) $(CC_FLAGS_DBG) $(INCPATH) ${iMesh_CLIENT_C_INCLUDES} 
+CXX_FLAGS = $(CXX_FLAGS_REQ) $(CXX_FLAGS_DBG) $(INCPATH) ${iMesh_SIDL_CCLIENT_INCLUDES} 
+CC_FLAGS = $(CC_FLAGS_REQ) $(CC_FLAGS_DBG) $(INCPATH) ${iMesh_SIDL_CCLIENT_INCLUDES} 
 FC_FLAGS = $(FC_FLAGS_REQ) $(FC_FLAGS_DBG) $(INCPATH)
 LD_FLAGS = $(LD_FLAGS_REQ) $(LD_FLAGS_DBG) $(INCPATH)
 #LD_FLAGS = $(LD_FLAGS_REQ) $(LD_FLAGS_OPT) $(INCPATH)
@@ -148,11 +146,8 @@ F77client: repo/.mtimestamp repo/.btimestamp iMesh_SIDL.sidl
 ${iMesh_DIR}/libiMesh.a: ${SERVER_IMPL_OFILES}
 	$(ARCHIVER) $@ ${SERVER_IMPL_OFILES}
 
-${iMesh_DIR}/libiMeshserver.so: mserver/babel.make ${SERVER_OFILES} ${iMesh_CBIND_SERVER_FILES} ${iBase_SERVER_FILES}
-	$(LD) $(LD_FLAGS) $(LD_FLAGS_PIC) -o $@ ${SERVER_OFILES} ${iMesh_CBIND_SERVER_LIBS}
-
-libiMeshserver.a: mserver/babel.make ${SERVER_OFILES} ${SERVER_IMPL_OFILES}
-	$(ARCHIVER) $@ ${SERVER_OFILES} ${SERVER_IMPL_OFILES}
+${iMesh_DIR}/libiMeshserver.so: mserver/babel.make ${SERVER_OFILES} ${iBase_SIDL_SERVER_FILES}
+	$(LD) $(LD_FLAGS) $(LD_FLAGS_PIC) -o $@ ${SERVER_OFILES} ${iMesh_SIDL_SERVER_LIBS}
 
 libiMeshCclient.so: Cclient ${CCLIENT_OFILES}
 	$(LD) $(LD_FLAGS) $(LD_FLAGS_PIC) -o $@ ${CCLIENT_OFILES}
@@ -164,16 +159,11 @@ Cclient/babel.make: Cclient
 
 F77client/babel.make: F77client
 
-testcxx: ${iMesh_SERVER_FILES} ${iBase_SERVER_FILES} testcxx.o 
-	$(LD)  ${LD_FLAGS} -o $@ testcxx.o -Wl,-rpath,. -L. ${iMesh_SERVER_LIBS} ${iMesh_CBIND_SERVER_LIBS}
-testc: libiMeshCclient.so ${iMesh_SERVER_FILES} ${iMesh_CLIENT_C_FILES} ${iBase_SERVER_FILES} testc.o 
-	$(LD)  -o $@ testc.o -Wl,-rpath,. -L. ${iMesh_CLIENT_C_LIBS} ${iMesh_SERVER_LIBS}
-
-testc_cbind.o : testc_cbind.c
-	$(CC) -std=c99 -DIS_BUILDING_MB $(CC_FLAGS) -o $@ -c $<
-
-testc_cbind:  ${iMesh_CBIND_SERVER_FILES} ${iBase_CBIND_SERVER_FILES} testc_cbind.o 
-	$(LD)  -o $@ testc_cbind.o ${iMesh_CBIND_SERVER_LIBS}
+testcxx: ${iMesh_SIDL_SERVER_FILES} ${iBase_SIDL_SERVER_FILES} testcxx.o 
+	$(LD)  ${LD_FLAGS} -o $@ testcxx.o -Wl,-rpath,. -L. ${iMesh_SIDL_SERVER_LIBS}
+testc: libiMeshCclient.so ${iMesh_SIDL_SERVER_FILES} ${iMesh_SIDL_CCLIENT_FILES} testc.o 
+	$(LD)  -o $@ testc.o -Wl,-rpath,. -L. ${iMesh_SIDL_CCLIENT_LIBS} \
+              ${iMesh_SIDL_SERVER_LIBS} 
 
 clean:
 	-rm -f *.o *.so testc testcxx *~ core.*
@@ -187,18 +177,18 @@ depend:
 
 
 %.o : %.cxx
-	$(CXX) -DIS_BUILDING_MB $(CXX_FLAGS) -o $@ -c $<
+	$(CXX) $(CXX_FLAGS) -o $@ -c $<
 
 %.o : %.cpp
-	$(CXX) -DIS_BUILDING_MB $(CXX_FLAGS) -o $@ -c $<
+	$(CXX) $(CXX_FLAGS) -o $@ -c $<
 
 %.o : %.cc
-	$(CXX) -DIS_BUILDING_MB $(CXX_FLAGS) -o $@ -c $<
+	$(CXX) $(CXX_FLAGS) -o $@ -c $<
 
 %.o : %.c
-	$(CC) -DIS_BUILDING_MB $(CC_FLAGS) -o $@ -c $<
+	$(CC) $(CC_FLAGS) -o $@ -c $<
 
 %.o : %.f
-	$(FC) -DIS_BUILDING_MB $(FC_FLAGS) -o $@ -c $<
+	$(FC) $(FC_FLAGS) -o $@ -c $<
 
 #include make.dependencies

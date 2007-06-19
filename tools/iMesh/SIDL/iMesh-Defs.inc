@@ -1,37 +1,29 @@
-include Itaps-Defs.inc
+include ${ITAPS_SIDL_DIR}/Itaps-Defs.inc
 
 #=========================================
 # specify implementation includes/libs here
 
-MOAB_DIR=${HOME}/MOAB
-include $(MOAB_DIR)/lib/moab.make
-iMesh_IMPLEMENTATION_DIR = ${MOAB_LIBDIR}
-iMesh_IMPLEMENTATION_LIBS = \
-      ${MOAB_LIBS_LINK} -Wl,-rpath,${MOAB_LIBDIR}
+iMesh_IMPL_DIR=${HOME}/MOAB_gcc4.2
+include ${iMesh_IMPL_DIR}/lib/moab.make
+include ${iMesh_IMPL_DIR}/lib/iMesh-Defs.inc
+iMesh_IMPL_LIBS = ${IMESH_LIBS_LINK}
+iMesh_IMPL_INCLUDES = ${IMESH_INCLUDES}
 #=========================================
 
 include ${iBase_DIR}/iBase-Defs.inc
 
-iMesh_CBIND_SERVER_INCLUDES = \
-      -I${iMesh_DIR} ${iBase_CBIND_SERVER_INCLUDES}
-
-iMesh_CBIND_SERVER_LIBS = \
-      -L${iMesh_IMPLEMENTATION_DIR} -liMesh ${iMesh_IMPLEMENTATION_LIBS}
-
-iMesh_CBIND_SERVER_FILES = \
-      ${iMesh_IMPLEMENTATION_DIR}/libiMesh.a ${iMesh_DIR}/iMesh.h
-
-
-iMesh_SERVER_INCLUDES = \
-      -I${iMesh_DIR}/mserver ${iBase_SERVER_INCLUDES} ${iMesh_CBIND_SERVER_INCLUDES} 
-
-iMesh_SERVER_LIBS = \
+iMesh_SIDL_SERVER_LIBS = \
       -L${iMesh_DIR} -liMeshserver -Wl,-rpath,${iMesh_DIR} \
-      ${iBase_SERVER_LIBS} ${iMesh_CBIND_SERVER_LIBS}
+      ${iBase_SIDL_SERVER_LIBS} \
+      ${iMesh_IMPL_LIBS}
 
-iMesh_SERVER_FILES = \
-      ${iMesh_DIR}/libiMeshserver.so ${iMesh_CBIND_SERVER_FILES}
+iMesh_SIDL_SERVER_FILES = \
+      ${iMesh_DIR}/libiMeshserver.so ${iBase_SIDL_SERVER_FILES}
 
-iMesh_CLIENT_C_INCLUDES = -I${iMesh_DIR}/Cclient 
-iMesh_CLIENT_C_FILES = libiMeshCclient.so ${iMesh_SERVER_FILES}
-iMesh_CLIENT_C_LIBS = -L${iMesh_DIR} -liMeshCclient ${iMesh_SERVER_LIBS}
+iMesh_SIDL_SERVER_INCLUDES = \
+      -I${iMesh_DIR}/mserver ${iBase_SIDL_SERVER_INCLUDES} ${iMesh_IMPL_INCLUDES} 
+
+iMesh_SIDL_CCLIENT_INCLUDES = -I${iMesh_DIR}/Cclient \
+     ${iBase_SIDL_CCLIENT_INCLUDES}
+iMesh_SIDL_CCLIENT_FILES = libiMeshCclient.so ${iBase_SIDL_CCLIENT_FILES}
+iMesh_SIDL_CCLIENT_LIBS = -L${iMesh_DIR} -liMeshCclient

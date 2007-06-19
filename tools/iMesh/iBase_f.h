@@ -1,3 +1,5 @@
+#ifndef IBASE_F_H
+#define IBASE_F_H
       integer iBase_VERTEX
       integer iBase_EDGE
       integer iBase_FACE
@@ -105,3 +107,4 @@
       parameter (iBase_DOUBLE = 1)
       parameter (iBase_ENTITY_HANDLE = 2)
       parameter (iBase_BYTES = 3)
+#endif 

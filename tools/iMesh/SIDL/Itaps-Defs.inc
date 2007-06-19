@@ -12,8 +12,8 @@
 
 ITAPS_DIR = ${HOME}/MOAB/tools/iMesh/SIDL
 iMesh_DIR = $(ITAPS_DIR)
-ITAPSG_DIR = $(ITAPS_DIR)
-ITAPSR_DIR = $(ITAPS_DIR)
+iGeom_DIR = $(ITAPS_DIR)
+iRel_DIR = $(ITAPS_DIR)
 iBase_DIR = $(ITAPS_DIR)
 
 # Babel definitions

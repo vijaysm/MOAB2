@@ -1,3 +1,8 @@
+#ifndef IMESH_F_H
+#define IMESH_F_H
+
+#include "iBase_f.h"
+
 #define iMesh_Instance integer
 #define iMesh_EntityIterator integer
 #define iMesh_EntityArrIterator integer
@@ -41,3 +46,5 @@
       parameter (iMesh_IMMEDIATE = 1)
       parameter (iMesh_LOCAL_TRAVERSAL = 2)
       parameter (iMesh_GLOBAL_TRAVERSAL = 3)
+
+#endif 
