@@ -183,7 +183,6 @@ libMOAB_la_include_HEADERS = \
   MBAdaptiveKDTree.hpp \
   MBCN.hpp \
   MBCartVect.hpp \
-  MBConfig.h \
   MBCore.hpp \
   MBEntityType.h \
   MBEntityHandle.h \
