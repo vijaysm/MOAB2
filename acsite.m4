@@ -1,4 +1,15 @@
 #######################################################################################
+# Get libtool configuration variable
+# Arguments:
+#  libtool config tag (e.g CXX)
+#  libtool variable name
+#  variable in which to store result
+#######################################################################################
+AC_DEFUN( [ITAPS_LIBTOOL_VAR], [
+  $3=`./libtool --tag=$1 --config | sed -e 's/^$2=//p' -e 'd' | tr -d '"\n'`
+])
+
+#######################################################################################
 # Implement checks for C and C++ compilers, with all corresponding options
 #
 # Sets the following variables:
