@@ -3,8 +3,8 @@
 // Symbol:        iBase.Error-v0.7
 // Symbol Type:   class
 // Babel Version: 0.10.12
-// sidl Created:  20070615 16:13:52 CDT
-// Generated:     20070615 16:13:57 CDT
+// sidl Created:  20070619 14:48:48 CDT
+// Generated:     20070619 14:48:53 CDT
 // Description:   Server-side implementation for iBase.Error
 // 
 // WARNING: Automatically generated; only changes within splicers preserved

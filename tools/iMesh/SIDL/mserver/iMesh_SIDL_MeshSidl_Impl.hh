@@ -3,8 +3,8 @@
 // Symbol:        iMesh_SIDL.MeshSidl-v0.2
 // Symbol Type:   class
 // Babel Version: 0.10.12
-// sidl Created:  20070615 16:29:58 CDT
-// Generated:     20070615 16:30:05 CDT
+// sidl Created:  20070619 14:49:21 CDT
+// Generated:     20070619 14:49:27 CDT
 // Description:   Server-side implementation for iMesh_SIDL.MeshSidl
 // 
 // WARNING: Automatically generated; only changes within splicers preserved
