@@ -1830,7 +1830,7 @@ void iMesh_setEntSetEHData (iMesh_Instance instance,
 void iMesh_getEntSetData (iMesh_Instance instance,
                          /*in*/ const iBase_EntitySetHandle entity_set_handle,
                          /*in*/ const iBase_TagHandle tag_handle,
-                         /*inout*/ char** tag_value,
+                      /*inout*/ char** tag_value,
                          /*inout*/ int* tag_value_allocated,
                          /*inout*/ int* tag_value_size, int *err) 
 {
