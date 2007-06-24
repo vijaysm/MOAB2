@@ -704,7 +704,7 @@ AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
 AC_ARG_VAR([FC], [FORTRAN compiler command])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_HEADERS([MBEntityHandle.h])
-AC_CONFIG_HEADERS([tools/iMesh/iMesh_FCDefs.h])
+AC_CONFIG_HEADERS([tools/iMesh/iBase_FCDefs.h])
 AC_CONFIG_FILES([Makefile 
                  moab.make 
                  testdir.h
@@ -718,6 +718,8 @@ AC_CONFIG_FILES([Makefile
                  tools/hexmodops/Makefile
 		 tools/iMesh/Makefile
 		 tools/iMesh/iMesh-Defs.inc
+		 tools/iMesh/SIDL/iMesh-SIDL-Defs.inc
+		 tools/iMesh/SIDL/Makefile
                  tools/mbperf/Makefile
                  tools/mbchaco/Makefile
 		 tools/mbzoltan/Config.moab

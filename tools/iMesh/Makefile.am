@@ -5,7 +5,7 @@ INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I.
 DEFS += $(DEFINES)
 
 # stuff for c test program
-#bin_PROGRAMS = testc_cbind
+bin_PROGRAMS = testc_cbind
 testc_cbind_SOURCES = testc_cbind.c
 
 LDADD = libiMesh.la $(top_builddir)/libMOAB.la
@@ -19,7 +19,7 @@ libMOAB_la_include_HEADERS = iMesh.h \
                              iMesh_protos.h \
                              iBase.h \
                              iBase_f.h \
-			     iMesh_FCDefs.h 
+			     iBase_FCDefs.h 
 
 lib_LTLIBRARIES = libiMesh.la
 
@@ -41,5 +41,13 @@ cfg_DATA = iMesh-Defs.inc
 # directory until we're doing the install.
 install-data-hook:
 	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
-	echo "IMESH_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
-	echo "IMESH_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
+	echo "iMesh_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
+	echo "iMesh_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
+
+if USE_BABEL
+  babel_DIR = SIDL
+else
+  babel_DIR = 
+endif 
+
+SUBDIRS = $(babel_DIR)

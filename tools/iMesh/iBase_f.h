@@ -1,5 +1,10 @@
 #ifndef IBASE_F_H
 #define IBASE_F_H
+
+#define iBase_EntityHandle integer
+#define iBase_EntitySetHandle integer
+#define iBase_TagHandle integer
+
       integer iBase_VERTEX
       integer iBase_EDGE
       integer iBase_FACE

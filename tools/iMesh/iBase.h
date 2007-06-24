@@ -15,6 +15,7 @@ extern "C"
      * TYPEDEF'S
      *==========================================================
      */
+  typedef void* iBase_Instance;
   typedef void* iBase_EntityHandle;
   typedef void* iBase_EntitySetHandle;
   typedef void* iBase_TagHandle;
