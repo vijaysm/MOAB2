@@ -1,6 +1,10 @@
 include @abs_srcdir@/iMesh-SIDL-Defs.inc
 
+vpath = mserver bserver 
+VPATH = mserver bserver 
+
 include mserver/babel.make
+LD_FLAGS_PIC = -fpic -shared
 SERVER_HDRS := iBase_ArrTag_IOR.h iBase_CreationStatus_IOR.h iBase_EntSet_IOR.h    \
   iBase_EntTag_IOR.h iBase_EntityType_IOR.h iBase_ErrorActions_IOR.h          \
   iBase_ErrorType_IOR.h iBase_IOR.h iBase_SetBoolOps_IOR.h  \
@@ -57,9 +61,14 @@ SERVER_OFILES = iMesh_SIDL_MeshSidl_IOR.o                                   \
   iMesh_SIDL_MeshSidl_Impl.o iBase_Error_Impl.o iBase_Error_IOR.o           \
   iBase_Error_Skel.o iBase_Error.o
 
+#testcxx: ${iMesh_SIDL_FILES} testcxx.o 
+#	$(CXX)  ${LD_FLAGS} -o $@ testcxx.o -Wl,-rpath,. -L. ${iMesh_SIDL_LIBS}
 
-all: testcxx
-# testc_cbind
+bin_PROGRAMS = testcxx
+testcxx_SOURCES = testcxx.cpp
+
+LDADD = ../libiMesh.la $(top_builddir)/libMOAB.la @abs_srcdir@/libiMeshserver.so ${BABEL_DIR}/lib/libsidl.la
+testcxx_DEPENDENCIES = ../libiMesh.la $(top_builddir)/libMOAB.la @abs_srcdir@/libiMeshserver.so ${BABEL_DIR}/lib/libsidl.la
 
 settings:
 	@echo "FACTORY_OFILES = $(FACTORY_OFILES)"
@@ -93,8 +102,8 @@ F77client: repo/.mtimestamp repo/.btimestamp iMesh_SIDL.sidl
 	-rm -rf F77client
 	@BABEL_DIR@/bin/babel -R"repo" -cF77 -o F77client iMesh_SIDL.sidl
 
-${iMesh_DIR}/libiMeshserver.so: mserver/babel.make ${SERVER_OFILES}
-	$(LD) $(LD_FLAGS) $(LD_FLAGS_PIC) -o $@ ${SERVER_OFILES}
+${iMesh_SIDLLIBDIR}/libiMeshserver.so: mserver/babel.make ${SERVER_OFILES}
+	$(CXX) $(LD_FLAGS) $(LD_FLAGS_PIC) -o $@ ${SERVER_OFILES}
 
 libiMeshCclient.so: Cclient ${CCLIENT_OFILES}
 	$(LD) $(LD_FLAGS) $(LD_FLAGS_PIC) -o $@ ${CCLIENT_OFILES}
@@ -105,9 +114,6 @@ libiMeshF77client.so: F77client ${F77CLIENT_OFILES}
 Cclient/babel.make: Cclient
 
 F77client/babel.make: F77client
-
-testcxx: ${iMesh_SIDL_FILES} testcxx.o 
-	$(LD)  ${LD_FLAGS} -o $@ testcxx.o -Wl,-rpath,. -L. ${iMesh_SIDL_LIBS}
 
 clean:
 	-rm -f *.o *.so testc testcxx *~ core.*

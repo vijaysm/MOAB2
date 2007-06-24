@@ -6,12 +6,12 @@ iMesh_SIDLINCLUDEDIR = @abs_srcdir@
 iMesh_SIDLLIBDIR = @abs_builddir@
 
 iMesh_SIDL_INCLUDES = \
-      -I${iMesh_SIDLINCLUDEDIR} -I${iMesh_SIDLINCLUDEDIR}/SIDL -I${iMesh_SIDLINCLUDEDIR}/SIDL/bserver \
-       -I${iMesh_SIDLINCLUDEDIR}/SIDL/mserver -I@BABEL_DIR@/include ${iMesh_INCLUDES} 
+      -I${iMesh_SIDLINCLUDEDIR} -I${iMesh_SIDLINCLUDEDIR} -I${iMesh_SIDLINCLUDEDIR}/bserver \
+       -I${iMesh_SIDLINCLUDEDIR}/mserver -I@BABEL_DIR@/include ${iMesh_INCLUDES} 
 
 iMesh_SIDL_LIBS = \
       -L${iMesh_SIDLLIBDIR} -liMeshserver -L@BABEL_DIR@/lib -lsidl \
-      -Wl,-rpath,${iMesh_SIDLLIBDIR} -Wl,-rpath,${iMesh_SIDLLIBDIR} -Wl,-rpath,@BABEL_DIR@/lib ${IMESH_LIBS_LINK}
+      -Wl,-rpath,${iMesh_SIDLLIBDIR} -Wl,-rpath,${iMesh_SIDLLIBDIR} -Wl,-rpath,@BABEL_DIR@/lib ${iMesh_LIBS}
 
 iMesh_SIDL_FILES = \
       ${iMesh_SIDLLIBDIR}/libiMeshserver.so
