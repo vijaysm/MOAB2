@@ -3,7 +3,6 @@ include @abs_srcdir@/iMesh-SIDL-Defs.inc
 vpath = mserver bserver 
 VPATH = mserver bserver 
 
-include mserver/babel.make
 LD_FLAGS_PIC = -fpic -shared
 SERVER_HDRS := iBase_ArrTag_IOR.h iBase_CreationStatus_IOR.h iBase_EntSet_IOR.h    \
   iBase_EntTag_IOR.h iBase_EntityType_IOR.h iBase_ErrorActions_IOR.h          \
