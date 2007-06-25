@@ -13,12 +13,12 @@
    * independent.
    *
    * iRel defines relations as pairwise associations between entities
-   * or entity sets.  Entities can be in the same or different
+   * or entity sets.  Related entities can be in the same or different
    * interfaces.  A given relation is created for a given pair of
-   * interfaces and returned in the form
-   * of a \em Relation \em Handle.  After a specific relation pair has
-   * been created, concrete relations for that given pair can be
-   * assigned and retrieved using set and get functions on the iRel
+   * interfaces and returned in the form of a \em Relation \em Handle.
+   * After a specific relation pair has been created, concrete
+   * relations for that pair can be assigned and retrieved for
+   * specific entities using set and get functions on the iRel
    * interface.  A given interface instance can appear in one or many
    * relation pairs, each identified by the relation handle.
    *
