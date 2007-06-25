@@ -1,3 +1,5 @@
+#ifndef LASSO_HPP
+#define LASSO_HPP
 class AssocPair;
 
 #include <vector>
@@ -28,5 +30,5 @@ private:
   std::vector<AssocPair*> assocPairs;
 };
 
-#endif // ifdef __cplusplus
+#endif // #ifndef LASSO_HPP
 

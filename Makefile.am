@@ -3,19 +3,19 @@ AUTOMAKE_OPTIONS = foreign
 @IGEOM_CONFIG_OPTIONS@
 @IMESH_CONFIG_OPTIONS@
 
-INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I. ${IMESH_INCLUDES} ${IGEOM_CBIND_INCLUDES}
+INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I. ${iMesh_INCLUDES} ${iGeom_INCLUDES}
 
 DEFS += $(DEFINES)
 
-LIBS = $(IMESH_CXX_LDFLAGS) $(IMESH_CXX_LIBS)
+LIBS = $(iMesh_CXX_LDFLAGS) $(iMesh_CXX_LIBS)
 
 # stuff for c test program
 bin_PROGRAMS = rtestc
 rtestc_SOURCES = rtestc.c
 
-LDADD = libiRel.la ${IMESH_LDIR}/libiMesh.la ${IGEOM_LDIR}/libiGeom.la ${IGEOM_CBIND_LIBS_LINK}
+LDADD = libiRel.la ${iMesh_DIR}/lib/libiMesh.la ${iGeom_DIR}/lib/libiGeom.la ${iGeom_LIBS} ${iMesh_LIBS}
 
-rtestc_DEPENDENCIES = libiRel.la ${IMESH_LDIR}/libiMesh.la ${IGEOM_LDIR}/libiGeom.la
+rtestc_DEPENDENCIES = libiRel.la ${iMesh_DIR}/lib/libiMesh.la ${iGeom_DIR}/lib/libiGeom.la
 
 libiRel_la_SOURCES = \
 	iRel_Lasso.cpp \
@@ -24,8 +24,7 @@ libiRel_la_SOURCES = \
                    
 libiRel_la_include_HEADERS = iRel.h \
                              iRel_f.h \
-                             iRel_protos.h \
-			     iRel_FCDefs.h 
+                             iRel_protos.h 
 
 # The directory in which to install headers
 libiRel_la_includedir = $(includedir)
@@ -45,5 +44,5 @@ cfg_DATA = iRel-Defs.inc
 # 'make prefix=/foo install', we don't know the correct install
 # directory until we're doing the install.
 install-data-hook:
-	echo "IREL_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iRel-Defs.inc
-	echo "IREL_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iRel-Defs.inc
+	echo "iRel_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iRel-Defs.inc
+	echo "iRel_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iRel-Defs.inc
