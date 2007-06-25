@@ -46,3 +46,5 @@ cfg_DATA = iRel-Defs.inc
 install-data-hook:
 	echo "iRel_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iRel-Defs.inc
 	echo "iRel_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iRel-Defs.inc
+
+SUBDIRS = . SIDL

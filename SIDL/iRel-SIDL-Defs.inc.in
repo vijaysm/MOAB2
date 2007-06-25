@@ -1,0 +1,20 @@
+iRel_DIR = @abs_srcdir@/..
+
+include ${iRel_DIR}/iRel-Defs.inc
+include ${iGeom_DIR}/lib/iGeom-SIDL-Defs.inc
+include ${iMesh_DIR}/lib/iMesh-SIDL-Defs.inc
+
+iRel_SIDLINCLUDEDIR = @abs_srcdir@
+iRel_SIDLLIBDIR = @abs_builddir@
+
+iRel_SIDL_INCLUDES = \
+      -I${iRel_SIDLINCLUDEDIR} -I${iRel_SIDLINCLUDEDIR} \
+      -I${iRel_SIDLINCLUDEDIR}/server -I@BABEL_DIR@/include ${iRel_INCLUDES} ${iGeom_SIDL_INCLUDES} ${iMesh_SIDL_INCLUDES}
+
+iRel_SIDL_LIBS = \
+      -L${iRel_SIDLLIBDIR} -liRelserver -L@BABEL_DIR@/lib -lsidl \
+      -Wl,-rpath,${iRel_SIDLLIBDIR} -Wl,-rpath,${iRel_SIDLLIBDIR} -Wl,-rpath,@BABEL_DIR@/lib ${iRel_LIBS} ${iGeom_SIDL_LIBS} ${iMesh_SIDL_LIBS}
+
+iRel_SIDL_FILES = \
+      ${iRel_SIDLLIBDIR}/libiRelserver.so ${iGeom_SIDL_FILES} ${iMesh_SIDL_FILES}
+
