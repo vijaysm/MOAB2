@@ -6,7 +6,7 @@ else
   babel_DIR = 
 endif 
 
-SUBDIRS = $(babel_DIR)
+SUBDIRS = . $(babel_DIR)
 
 INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I.
 
@@ -35,8 +35,6 @@ libMOAB_la_includedir = $(includedir)
 
 libiMesh_la_LIBADD = $(top_builddir)/libMOAB.la
 
-all-recursive: ${LTLIBRARIES}
-
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put 
 # in $(libdir).  Define a $(cfgdir) to get around automake's
@@ -50,7 +48,8 @@ cfg_DATA = iMesh-Defs.inc
 # 'make prefix=/foo install', we don't know the correct install
 # directory until we're doing the install.
 install-data-hook:
-	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
-	echo "iMesh_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
+	echo "iMesh_DIR=${DESTDIR}${cfgdir}/.." >> $(DESTDIR)$(cfgdir)/iMesh-SIDL-Defs.inc
 	echo "iMesh_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
+	echo "iMesh_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
+	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 
