@@ -67,8 +67,8 @@ SERVER_OFILES = iMesh_SIDL_MeshSidl_IOR.o                                   \
 bin_PROGRAMS = testcxx
 testcxx_SOURCES = testcxx.cpp
 
-LDADD = ../libiMesh.la $(top_builddir)/libMOAB.la @abs_srcdir@/libiMeshserver.so ${BABEL_DIR}/lib/libsidl.la
-testcxx_DEPENDENCIES = ../libiMesh.la $(top_builddir)/libMOAB.la @abs_srcdir@/libiMeshserver.so ${BABEL_DIR}/lib/libsidl.la
+LDADD = @top_srcdir@/tools/iMesh/libiMesh.la $(top_builddir)/libMOAB.la @abs_srcdir@/libiMeshserver.so ${BABEL_DIR}/lib/libsidl.la
+testcxx_DEPENDENCIES = @top_srcdir@/tools/iMesh/libiMesh.la $(top_builddir)/libMOAB.la @abs_srcdir@/libiMeshserver.so ${BABEL_DIR}/lib/libsidl.la
 
 settings:
 	@echo "FACTORY_OFILES = $(FACTORY_OFILES)"
