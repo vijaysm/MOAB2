@@ -1161,7 +1161,7 @@ int tag_info_test(iMesh_Instance mesh)
     // Create a tag
   int result;
   iBase_TagHandle tag_handle = NULL;
-  char *tag_name = "int_tag";
+  const char *tag_name = "int_tag";
   int tag_name_size = 8;
   iMesh_createTag(mesh, tag_name, 1, iBase_INTEGER, 
                   &tag_handle, &result, tag_name_size);

@@ -205,8 +205,9 @@ void iMesh_getErrorType(iMesh_Instance instance,
 void iMesh_getDescription(iMesh_Instance instance, 
                           char *descr, int *err, int descr_len)
 {
-  strncpy(descr, iMesh_LAST_ERROR.description, 
-          MIN(strlen(iMesh_LAST_ERROR.description), ((unsigned int) descr_len)));
+  unsigned int len = MIN(strlen(iMesh_LAST_ERROR.description), ((unsigned int) descr_len));
+  strncpy(descr, iMesh_LAST_ERROR.description, len);
+  descr[len] = '\0';
   RETURN(iBase_SUCCESS);
 }
 
