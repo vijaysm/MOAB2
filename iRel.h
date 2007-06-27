@@ -85,18 +85,21 @@ extern "C"
 {
 #endif
 
-    //! Type used to store iRel interface handle
-    /** Type used to store iRel interface handle
+    /**\brief  Type used to store iRel interface handle
+     *
+     * Type used to store iRel interface handle
      */
   typedef void* iRel_Instance;
 
-    //! Type used to store references to relation pairs
-    /** Type used to store references to relation pairs
+    /**\brief  Type used to store references to relation pairs
+     *
+     * Type used to store references to relation pairs
      */
   typedef void* iRel_RelationHandle;
 
-    //! \enum IfaceType Enumerator specifying interface types
-    /** Enumerator specifying interface types.  This enumeration is
+    /**\brief  \enum IfaceType Enumerator specifying interface types
+     *
+     * Enumerator specifying interface types.  This enumeration is
      * necessary because functions to get entities of a given dimension
      * are part of the higher-level interfaces (e.g. iGeom, iMesh) instead
      * of iBase.
@@ -110,15 +113,17 @@ extern "C"
 
   extern struct iBase_Error iRel_LAST_ERROR;
 
-    //! iRel_dtor Destroy the interface object
-    /** Calls destructor on interface object
+    /**\brief  iRel_dtor Destroy the interface object
+     *
+     * Calls destructor on interface object
         \param instance Interface object handle to destroy
         \param *ierr Pointer to error value, returned from function
     */
   void iRel_dtor(iRel_Instance instance, int *ierr);
 
-    //! Create a relation pair between two interfaces
-    /** Creates a relation pair between two interfaces, passing
+    /**\brief  Create a relation pair between two interfaces
+     *
+     * Creates a relation pair between two interfaces, passing
      * back a handle to the pair.
         \param instance Interface instance
         \param iface1 1st interface object in the relation pair
@@ -145,8 +150,9 @@ extern "C"
     iRel_RelationHandle *rel,
     int *ierr);
   
-    //! Destroy a relation pair
-    /** Destroy the relation pair corresponding to the handle input
+    /**\brief  Destroy a relation pair
+     *
+     * Destroy the relation pair corresponding to the handle input
         \param instance Interface instance
         \param rel Handle of relation pair to destroy
         \param *ierr Pointer to error value, returned from function
@@ -156,8 +162,9 @@ extern "C"
     iRel_RelationHandle rel,
     int *ierr);
 
-    //! Get interfaces related to specified interface
-    /** Get interfaces related to the specified interface
+    /**\brief  Get interfaces related to specified interface
+     *
+     * Get interfaces related to the specified interface
         \param instance Interface instance
         \param iface Specified interface 
         \param interfaces Pointer to array holding returned interfaces
@@ -174,8 +181,9 @@ extern "C"
     int *interfaces_size,
     int *ierr);
 
-    //! 
-    /** 
+    /**\brief  
+     *
+     * 
         \param instance Interface instance
         \param rel Relation handle being queried
         \param ent1 1st entity of relation being set
@@ -193,8 +201,9 @@ extern "C"
     int is_set2,
     int *ierr);
 
-    //! Set a relation between an entity and several entities
-    /** Set a relation between an entity and several entities.  If either
+    /**\brief  Set a relation between an entity and several entities
+     *
+     * Set a relation between an entity and several entities.  If either
         is a set and that side of the relation is 'both'-type, set relations
         for individual entities in that set too.
         \param instance Interface instance
@@ -220,9 +229,10 @@ extern "C"
     int is_set2,
     int *ierr);
 
-    //! Set relations between arrays of entities pairwise, 
-    //! ent_array_1[i]<->ent_array_2[i]
-    /** Set relations between arrays of entities pairwise, 
+    /**\brief Set relations between arrays of entities pairwise, 
+     *        ent_array_1[i]<->ent_array_2[i]
+     *
+     * Set relations between arrays of entities pairwise, 
         ent_array_1[i]<->ent_array_2[i].  If either array
         contains sets and that side of the relation is 'both'-type, 
         set relations for individual entities in those sets too.
@@ -247,8 +257,9 @@ extern "C"
     int is_set2,
     int *ierr);
 
-    //! Get entity related to specified entity and relation handle
-    /** Get entity related to specified entity and relation handle.  Also
+    /**\brief  Get entity related to specified entity and relation handle
+     *
+     * Get entity related to specified entity and relation handle.  Also
         returns whether the related entity is an entity or a set.
         \param instance Interface instance
         \param rel Relation handle being queried
@@ -271,8 +282,9 @@ extern "C"
     int *is_set2,
     int *ierr);
 
-    //! Get entities related to specified entity and relation
-    /** Get entities related to specified entity and relation; returns
+    /**\brief  Get entities related to specified entity and relation
+     *
+     * Get entities related to specified entity and relation; returns
         entity sets or contained entities, depending on relation type
         (entity, set, or both) and return_sets argument
         \param instance Interface instance
@@ -301,8 +313,9 @@ extern "C"
     int *ent_array_2_size,
     int *ierr);
 
-    //! Get entities related to those in specified array and relation, pairwise
-    /** Get entities related to those in specified array and relation, pairwise.
+    /**\brief  Get entities related to those in specified array and relation, pairwise
+     *
+     * Get entities related to those in specified array and relation, pairwise.
         Returns sets or entities, depending on relation type and entities in 
         ent_array_1.
         \param instance Interface instance
@@ -340,8 +353,9 @@ extern "C"
     int *offset_size,
     int *ierr);
 
-    //! Create a mesh vertex and relate to geometry entity
-    /** Create a mesh vertex and relate to geometry entity.  Relation
+    /**\brief  Create a mesh vertex and relate to geometry entity
+     *
+     * Create a mesh vertex and relate to geometry entity.  Relation
         pair instance must be between geometry instance and mesh instance,
         and must have instances in that order (geometry, mesh).
         \param instance Interface instance
@@ -361,8 +375,9 @@ extern "C"
     iBase_EntityHandle *new_entity_handle,
     int *ierr);
 
-    //! Create a mesh entity and relate to geometry entity
-    /** Create a mesh entity and relate to geometry entity.  Relation
+    /**\brief  Create a mesh entity and relate to geometry entity
+     *
+     * Create a mesh entity and relate to geometry entity.  Relation
         pair instance must be between geometry instance and mesh instance,
         and must have instances in that order (geometry, mesh).
         \param instance Interface instance
@@ -388,8 +403,9 @@ extern "C"
     int *creation_status,
     int *ierr);
 
-    //! Create an array of mesh vertices and relate to geometry entities
-    /** Create an array of mesh vertices and relate to one or more geometry 
+    /**\brief  Create an array of mesh vertices and relate to geometry entities
+     *
+     * Create an array of mesh vertices and relate to one or more geometry 
         entities.  If only one geometry entity is input, vertices are all
         related to that entity; otherwise the number of new vertices and input
         geometric entities must be identical.  Relation
@@ -423,8 +439,9 @@ extern "C"
     int *new_vertex_handles_size,
     int *ierr);
 
-    //! Create an array of mesh entities and relate to geometry entities
-    /** Create an array of mesh entities and relate to one or more geometry 
+    /**\brief  Create an array of mesh entities and relate to geometry entities
+     *
+     * Create an array of mesh entities and relate to one or more geometry 
         entities.  If only one geometry entity is input, entities are all
         related to that entity; otherwise the number of new entities and input
         geometric entities must be identical.  Relation
@@ -472,8 +489,9 @@ extern "C"
     int *status_size,
     int *ierr);
 
-    //! Infer relations between entities in specified pair of interfaces
-    /** Infer relations between entities in specified pair of interfaces.  The
+    /**\brief  Infer relations between entities in specified pair of interfaces
+     *
+     * Infer relations between entities in specified pair of interfaces.  The
         criteria used to infer these relations depends on the interfaces in
         the pair, the iRel implementation, and the source of the data in those
         interfaces.
@@ -486,8 +504,9 @@ extern "C"
     iRel_RelationHandle rel,
     int *ierr);
 
-    //! Infer relations corresponding to specified entity and relation pair
-    /** Infer relations corresponding to specified entity and relation pair.  The
+    /**\brief  Infer relations corresponding to specified entity and relation pair
+     *
+     * Infer relations corresponding to specified entity and relation pair.  The
         criteria used to infer these relations depends on the interfaces in
         the pair, the iRel implementation, and the source of the data in those
         interfaces.
@@ -507,8 +526,9 @@ extern "C"
     int iface_no,
     int *ierr);
 
-    //! Infer relations corresponding to specified entities and relation pair
-    /** Infer relations corresponding to specified entities and relation pair.  The
+    /**\brief  Infer relations corresponding to specified entities and relation pair
+     *
+     * Infer relations corresponding to specified entities and relation pair.  The
         criteria used to infer these relations depends on the interfaces in
         the pair, the iRel implementation, and the source of the data in those
         interfaces.
@@ -530,9 +550,10 @@ extern "C"
     int iface_no,
     int *ierr);
 
-    //! Move related mesh entities to the closest point on the specified 
-    //! geometry entity
-    /** Move related mesh entities to the closest point on the specified 
+    /**\brief Move related mesh entities to the closest point on the specified 
+     *        geometry entity
+     *
+     * Move related mesh entities to the closest point on the specified 
         geometry entity.  There must exist a relation
         pair instance between the input geometry and mesh instances,
         with those instances in that order (geometry, mesh).
@@ -548,8 +569,9 @@ extern "C"
                    iBase_EntityHandle geom_entity_handle,
                    int *ierr);
 
-    //! Create a new iRel instance
-    /** Create a new iRel instance.  Currently no options are implemented.
+    /**\brief  Create a new iRel instance
+     *
+     * Create a new iRel instance.  Currently no options are implemented.
         \param options Options for the implementation
         \param *instance Interface instance
         \param *ierr Pointer to error value, returned from function
