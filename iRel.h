@@ -586,5 +586,5 @@ extern "C"
 } // extern "C"
 #endif
 
-#endif // #ifndef __iRel_LASSO_HPP__
+#endif /* #ifndef __iRel_LASSO_HPP__ */
 
