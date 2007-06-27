@@ -72,23 +72,27 @@
 extern "C" {
 #endif
 
-    //! Type used to store iMesh interface handle
-    /** Type used to store iMesh interface handle
+    /**\brief  Type used to store iMesh interface handle
+     *
+     * Type used to store iMesh interface handle
      */
   typedef void* iMesh_Instance;
 
-    //! Type used to store an iterator returned by iMesh
-    /** Type used to store an iterator returned by iMesh
+    /**\brief  Type used to store an iterator returned by iMesh
+     *
+     * Type used to store an iterator returned by iMesh
      */
   typedef void* iMesh_EntityIterator;
 
-    //! Type used to store an array iterator returned by iMesh
-    /** Type used to store an array iterator returned by iMesh
+    /**\brief  Type used to store an array iterator returned by iMesh
+     *
+     * Type used to store an array iterator returned by iMesh
      */
   typedef void* iMesh_EntityArrIterator;
 
-    //! Enumerator specifying entity topology
-    /** Enumerator specifying entity topology.
+    /**\brief  Enumerator specifying entity topology
+     *
+     * Enumerator specifying entity topology.
      */
   enum iMesh_EntityTopology {
     iMesh_POINT = 0,              /**< a general zero-dimensional entity  */
@@ -112,8 +116,9 @@ extern "C" {
 			       *     about all the topology types */
   };
 
-    //! Get the error type returned from the last iMesh function
-    /** Get the error type returned from the last iMesh function.  Value
+    /**\brief  Get the error type returned from the last iMesh function
+     *
+     * Get the error type returned from the last iMesh function.  Value
      * returned is a member of the iBase_ErrorType enumeration.
      * \param instance iMesh instance handle
      * \param *error_type Error type returned from last iMesh function
@@ -123,8 +128,9 @@ extern "C" {
                           /*out*/ int *error_type, 
                           int *err);
 
-    //! Get a description of the error returned from the last iMesh function
-    /** Get a description of the error returned from the last iMesh function
+    /**\brief  Get a description of the error returned from the last iMesh function
+     *
+     * Get a description of the error returned from the last iMesh function
      * \param instance iMesh instance handle
      * \param descr Pointer to a character string to be filled with a
      *        description of the error from the last iMesh function
@@ -136,8 +142,9 @@ extern "C" {
                             int *err, 
                             /*in*/ int descr_len);
 
-    //! Construct a new iMesh instance
-    /** Construct a new iMesh instance, using implementation-specific
+    /**\brief  Construct a new iMesh instance
+     *
+     * Construct a new iMesh instance, using implementation-specific
      * options
      * \param options Pointer to implementation-specific options string
      * \param instance Pointer to iMesh instance handle returned from function
@@ -149,16 +156,18 @@ extern "C" {
                      /*out*/ int *err, 
                      /*in*/ int options_len);
 
-    //! Destroy an iMesh instance
-    /** Destroy an iMesh instance
+    /**\brief  Destroy an iMesh instance
+     *
+     * Destroy an iMesh instance
      * \param instance iMesh instance to be destroyed
      * \param *err Pointer to error type returned from function
      */
   void iMesh_dtor(iMesh_Instance instance, 
                   /*out*/ int *err);
 
-    //! Load a mesh from a file
-    /** Load a mesh from a file.  If entity set is specified, loaded mesh
+    /**\brief  Load a mesh from a file
+     *
+     * Load a mesh from a file.  If entity set is specified, loaded mesh
      * is added to that set; specify zero if that is not desired.
      * \param instance iMesh instance handle
      * \param entity_set_handle Set to which loaded mesh will be added, zero
@@ -177,8 +186,9 @@ extern "C" {
                   /*in*/ int name_len, 
                   /*in*/ int options_len);
 
-    //! Save a mesh to a file
-    /** Save a mesh to a file.  If entity set is specified, save only the
+    /**\brief  Save a mesh to a file
+     *
+     * Save a mesh to a file.  If entity set is specified, save only the
      * mesh contained in that set.
      * \param instance iMesh instance handle
      * \param entity_set_handle Entity set being saved
@@ -196,8 +206,9 @@ extern "C" {
                   /*in*/ const int name_len, 
                   /*in*/ int options_len);
 
-    //! Get handle of the root set for this instance
-    /** Get handle of the root set for this instance.  All mesh in
+    /**\brief  Get handle of the root set for this instance
+     *
+     * Get handle of the root set for this instance.  All mesh in
      * this instance can be accessed from this set.
      * \param instance iMesh instance handle
      * \param root_set Pointer to set handle returned from function
@@ -207,8 +218,9 @@ extern "C" {
                         /*out*/ iBase_EntitySetHandle *root_set, 
                         /*out*/ int *err);
 
-    //! Get the geometric dimension of mesh represented in this instance
-    /** Get the geometric dimension of mesh represented in this instance
+    /**\brief  Get the geometric dimension of mesh represented in this instance
+     *
+     * Get the geometric dimension of mesh represented in this instance
      * \param instance iMesh instance handle
      * \param geom_dim Pointer to dimension returned from this function
      * \param *err Pointer to error type returned from function
@@ -217,8 +229,9 @@ extern "C" {
                                    /*out*/ int *geom_dim, 
                                    /*out*/ int *err);
 
-    //! Get the default storage order used by this implementation
-    /** Get the default storage order used by this implementation.  Value
+    /**\brief  Get the default storage order used by this implementation
+     *
+     * Get the default storage order used by this implementation.  Value
      * returned is a member of the iBase_StorageOrder enumeration.
      * \param instance iMesh instance handle
      * \param order Pointer to storage order returned from function
@@ -228,8 +241,9 @@ extern "C" {
                             /*out*/ int *order, 
                             /*out*/ int *err);
 
-    //! Get the adjacency table for this implementation
-    /** Get the adjacency table for this implementation.  This table 
+    /**\brief  Get the adjacency table for this implementation
+     *
+     * Get the adjacency table for this implementation.  This table 
      * is a 4x4 array, with indices 0-based, where A(i,j) (i=row, j=column) 
      * represents the relative cost of retrieving adjacencies between
      * entities of dimension i to entities of dimension j
@@ -248,8 +262,9 @@ extern "C" {
                           /*out*/ int* adjacency_table_size, 
                           /*out*/ int *err);
 
-    //! Get the number of entities with the specified type in the instance or set
-    /** Get the number of entities with the specified type in the instance 
+    /**\brief  Get the number of entities with the specified type in the instance or set
+     *
+     * Get the number of entities with the specified type in the instance 
      * or set.  If entity set handle is zero, return information for instance,
      * otherwise for set.  Value of entity type must be from the
      * iBase_EntityType enumeration.  If iBase_ALL_TYPES is specified,
@@ -266,8 +281,9 @@ extern "C" {
                           /*out*/ int *num_type, 
                           /*out*/ int *err);
 
-    //! Get the number of entities with the specified topology in the instance or set
-    /** Get the number of entities with the specified topology in the instance 
+    /**\brief  Get the number of entities with the specified topology in the instance or set
+     *
+     * Get the number of entities with the specified topology in the instance 
      * or set.  If entity set handle is zero, return information for instance,
      * otherwise for set.  Value of entity topology must be from the
      * iMesh_EntityTopology enumeration.  If iMesh_ALL_TOPOLOGIES is specified,
@@ -284,9 +300,10 @@ extern "C" {
                           /*out*/ int *num_topo, 
                           /*out*/ int *err);
 
-    //! Return whether entity handles have changed since last reset or since
-    //! instance construction
-    /** Return whether entity handles have changed since last reset or since
+    /**\brief Return whether entity handles have changed since last reset or since
+     *        instance construction
+     *
+     * Return whether entity handles have changed since last reset or since
      * instance construction.  If non-zero value is returned, it is not
      * guaranteed that a handle from before the last call to this function
      * represents the same entity as the same handle value does now.  If
@@ -302,8 +319,9 @@ extern "C" {
                         /*out*/ int *areHandlesInvariant, 
                         /*out*/ int *err);
 
-    //! Return coordinates of all vertices defined in this instance or set
-    /** Return coordinates of all vertices defined in this instance or set.
+    /**\brief  Return coordinates of all vertices defined in this instance or set
+     *
+     * Return coordinates of all vertices defined in this instance or set.
      * If non-zero set is input, return coordinates for vertices either in
      * the set or contained by entities in the set.  If storage order is
      * a value other than iBase_UNDETERMINED, coordinates are returned with
@@ -339,8 +357,9 @@ extern "C" {
                               /*out*/ int* in_entity_set_size,
                               /*inout*/ int* storage_order, /*out*/ int *err);
 
-    //! Get adjacent entities as connectivity lists
-    /** For a specified set handle, entity type and/or entity topology,
+    /**\brief  Get adjacent entities as connectivity lists
+     *
+     * For a specified set handle, entity type and/or entity topology,
      * return connectivity of adjacent entities of specified dimension.  
      * Connectivity is expressed as index into array of vertices returned
      * by getEntities function.  \em offset[i] is the index of the first
@@ -382,8 +401,9 @@ extern "C" {
                                /*out*/ int* entity_topologies_size, 
                                /*out*/ int *err);
 
-    //! Get entities of specific type and/or topology in set or instance
-    /** Get entities of specific type and/or topology in set or instance.  All 
+    /**\brief  Get entities of specific type and/or topology in set or instance
+     *
+     * Get entities of specific type and/or topology in set or instance.  All 
      * entities of a given type or topology are requested by specifying
      * iBase_ALL_TOPOLOGIES or iBase_ALL_TYPES, respectively.  Specified type
      * or topology must be a value in the iBase_EntityType or iBase_EntityTopology
@@ -408,8 +428,9 @@ extern "C" {
                          /*out*/ int* entity_handles_size,
                          /*out*/ int *err);
 
-    //! Get coordinates of specified vertices
-    /** Get coordinates of specified vertices.  If storage order is passed in
+    /**\brief  Get coordinates of specified vertices
+     *
+     * Get coordinates of specified vertices.  If storage order is passed in
      * with a value other than iBase_UNDETERMINED, coordinates are returned
      * in the specified storage order, otherwise storage order is that native
      * to the implementation.  Storage order of returned coordinates is also
@@ -435,8 +456,9 @@ extern "C" {
                              /*out*/ int *err);
 
 
-    //! Get entities adjacent to those of requested type/topology in set or instance
-    /** Get entities adjacent to those of requested type/topology in set or 
+    /**\brief  Get entities adjacent to those of requested type/topology in set or instance
+     *
+     * Get entities adjacent to those of requested type/topology in set or 
      * instance.  If set is specified, also returns whether each adjacent entity 
      * is in the set ((*in_entity_set)[i]=1 indicates that adjacent entity
      * (*adj_entity_handles)[i] is in the specified set).  If adjacencies for 
@@ -487,9 +509,10 @@ extern "C" {
                             /*out*/ int* in_entity_set_size, 
                             /*out*/ int *err);
 
-    //! Initialize an array iterator over specified entity type, topology, and 
-    //! size
-    /** Initialize an array iterator over specified entity type, topology, and 
+    /**\brief Initialize an array iterator over specified entity type, topology, and 
+     *        size
+     *
+     * Initialize an array iterator over specified entity type, topology, and 
      * size, for a specified set or instance.  Iterator returned can be used 
      * as input to functions returning entities for the iterator.  If all 
      * entities of a specified type and/or topology are to be iterated, 
@@ -513,8 +536,9 @@ extern "C" {
                             /*out*/ iMesh_EntityArrIterator* entArr_iterator,
                             /*out*/ int *err);
 
-    //! Get entities contained in array iterator and increment iterator
-    /** Get the entities contained in an array iterator, and increment the 
+    /**\brief  Get entities contained in array iterator and increment iterator
+     *
+     * Get the entities contained in an array iterator, and increment the 
      * iterator.  Also return whether the next value of the iterator has
      * any entities (if non-zero, next iterator value is the end of the
      * iteration).
@@ -539,8 +563,9 @@ extern "C" {
                                /*out*/ int *err);
 
 
-    //! Reset the array iterator
-    /** Reset the array iterator
+    /**\brief  Reset the array iterator
+     *
+     * Reset the array iterator
      * \param instance iMesh instance handle
      * \param entArr_iterator Iterator to reset
      * \param *err Pointer to error type returned from function
@@ -550,8 +575,9 @@ extern "C" {
                              /*out*/ int *err);
 
 
-    //! Destroy the specified array iterator
-    /** Destroy the specified array iterator
+    /**\brief  Destroy the specified array iterator
+     *
+     * Destroy the specified array iterator
      * \param instance iMesh instance handle
      * \param entArr_iterator Iterator which gets destroyed
      * \param *err Pointer to error type returned from function
@@ -560,8 +586,9 @@ extern "C" {
                            /*in*/ iMesh_EntityArrIterator entArr_iterator, 
                            /*out*/ int *err);
 
-    //! Get the entity topology for the specified entities
-    /** Get the entity topology for the specified entities.  Topologies 
+    /**\brief  Get the entity topology for the specified entities
+     *
+     * Get the entity topology for the specified entities.  Topologies 
      * returned are values in the iMesh_EntityTopology enumeration.
      * \param instance iMesh instance handle
      * \param entity_handles Array of entity handles being queried
@@ -581,8 +608,9 @@ extern "C" {
                            /*out*/ int *err);
 
 
-    //! Get the entity type for the specified entities
-    /** Get the entity type for the specified entities.  Types
+    /**\brief  Get the entity type for the specified entities
+     *
+     * Get the entity type for the specified entities.  Types
      * returned are values in the iBase_EntityType enumeration.
      * \param instance iMesh instance handle
      * \param entity_handles Array of entity handles being queried
@@ -601,8 +629,9 @@ extern "C" {
                            /*out*/ int *err);
 
 
-    //! Get entities of specified type adjacent to entities
-    /** Get entities of specified type adjacent to entities.  Specified type
+    /**\brief  Get entities of specified type adjacent to entities
+     *
+     * Get entities of specified type adjacent to entities.  Specified type
      * must be value in the iBase_EntityType enumeration.  \em offset(i) is
      * index of first entity in adjacentEntityHandles array adjacent to 
      * entity_handles[i].
@@ -633,8 +662,9 @@ extern "C" {
                           /*out*/ int* offset_size,
                           /*out*/ int *err);
 
-    //! Create an entity set
-    /** Create an entity set, either ordered (isList=1) or unordered 
+    /**\brief  Create an entity set
+     *
+     * Create an entity set, either ordered (isList=1) or unordered 
      * (isList=0).  Unordered entity sets can contain a given entity or 
      * set only once.
      * \param instance iMesh instance handle
@@ -648,8 +678,9 @@ extern "C" {
                           /*out*/ iBase_EntitySetHandle* entity_set_created,
                           /*out*/ int *err);
 
-    //! Destroy an entity set
-    /** Destroy an entity set
+    /**\brief  Destroy an entity set
+     *
+     * Destroy an entity set
      * \param instance iMesh instance handle
      * \param entity_set Entity set to be destroyed
      * \param *err Pointer to error type returned from function
@@ -658,8 +689,9 @@ extern "C" {
                            /*in*/ iBase_EntitySetHandle entity_set,
                            /*out*/ int *err);
 
-    //! Return whether a specified set is ordered or unordered
-    /** Return whether a specified set is ordered (*is_list=1) or 
+    /**\brief  Return whether a specified set is ordered or unordered
+     *
+     * Return whether a specified set is ordered (*is_list=1) or 
      * unordered (*is_list=0)
      * \param instance iMesh instance handle
      * \param entity_set Entity set being queried
@@ -671,8 +703,9 @@ extern "C" {
                     /*out*/ int *is_list,
                     /*out*/ int *err);
 
-    //! Get the number of entity sets contained in a set or interface
-    /** Get the number of entity sets contained in a set or interface.  If
+    /**\brief  Get the number of entity sets contained in a set or interface
+     *
+     * Get the number of entity sets contained in a set or interface.  If
      * a set is input which is not the root set, num_hops indicates the 
      * maximum number of contained sets from entity_set_handle to one of the
      * contained sets, inclusive of the contained set.
@@ -690,8 +723,9 @@ extern "C" {
                            /*out*/ int *err);
 
 
-    //! Get the entity sets contained in a set or interface
-    /** Get the entity sets contained in a set or interface.  If
+    /**\brief  Get the entity sets contained in a set or interface
+     *
+     * Get the entity sets contained in a set or interface.  If
      * a set is input which is not the root set, num_hops indicates the 
      * maximum number of contained sets from entity_set_handle to one of the
      * contained sets, inclusive of the contained set.
@@ -715,8 +749,9 @@ extern "C" {
                         /*out*/ int* contained_set_handles_size,
                         /*out*/ int *err);
 
-    //! Add an entity to a set
-    /** Add an entity to a set
+    /**\brief  Add an entity to a set
+     *
+     * Add an entity to a set
      * \param instance iMesh instance handle
      * \param entity_handle The entity being added
      * \param entity_set Pointer to the set being added to
@@ -727,8 +762,9 @@ extern "C" {
                          /*inout*/ iBase_EntitySetHandle* entity_set,
                          /*out*/ int *err);
 
-    //! Remove an entity from a set
-    /** Remove an entity from a set
+    /**\brief  Remove an entity from a set
+     *
+     * Remove an entity from a set
      *
      * \param instance iMesh instance handle
      * \param entity_handle The entity being removed
@@ -741,8 +777,9 @@ extern "C" {
                            /*out*/ int *err);
 
 
-    //! Add an array of entities to a set
-    /** Add an array of entities to a set
+    /**\brief  Add an array of entities to a set
+     *
+     * Add an array of entities to a set
      * \param instance iMesh instance handle
      * \param entity_handles Array of entities being added
      * \param entity_handles_size Number of entities in entity_handles array
@@ -756,8 +793,9 @@ extern "C" {
                             /*out*/ int *err);
 
 
-    //! Remove an array of entities from a set
-    /** Remove an array of entities from a set
+    /**\brief  Remove an array of entities from a set
+     *
+     * Remove an array of entities from a set
      * \param instance iMesh instance handle
      * \param entity_handles Array of entities being remove
      * \param entity_handles_size Number of entities in entity_handles array
@@ -771,8 +809,9 @@ extern "C" {
                               /*out*/ int *err);
 
 
-    //! Add an entity set to a set
-    /** Add an entity set to a set
+    /**\brief  Add an entity set to a set
+     *
+     * Add an entity set to a set
      * \param instance iMesh instance handle
      * \param entity_set_to_add The entity set being added
      * \param entity_set_handle Pointer to the set being added to
@@ -784,8 +823,9 @@ extern "C" {
                        /*out*/ int *err);
 
 
-    //! Remove an entity set from a set
-    /** Remove an entity set from a set
+    /**\brief  Remove an entity set from a set
+     *
+     * Remove an entity set from a set
      * \param instance iMesh instance handle
      * \param entity_set_to_remove The entity set being removed
      * \param entity_set_handle Pointer to the set being removed from
@@ -796,8 +836,9 @@ extern "C" {
                        /*inout*/ iBase_EntitySetHandle* entity_set_handle,
                        /*out*/ int *err);
 
-    //! Return whether an entity is contained in another set
-    /** Return whether an entity is contained (*is_contained=1) or not 
+    /**\brief  Return whether an entity is contained in another set
+     *
+     * Return whether an entity is contained (*is_contained=1) or not 
      * contained (*is_contained=0) in another set
      * \param instance iMesh instance handle
      * \param containing_entity_set Entity set being queried
@@ -812,8 +853,9 @@ extern "C" {
                             /*out*/ int *is_contained,
                             /*out*/ int *err);
 
-    //! Return whether an entity set is contained in another set
-    /** Return whether a set is contained (*is_contained=1) or not contained
+    /**\brief  Return whether an entity set is contained in another set
+     *
+     * Return whether a set is contained (*is_contained=1) or not contained
      * (*is_contained=0) in another set
      * \param instance iMesh instance handle
      * \param containing_entity_set Entity set being queried
@@ -828,8 +870,9 @@ extern "C" {
                                /*out*/ int *is_contained,
                                /*out*/ int *err);
 
-    //! Add parent/child links between two sets
-    /** Add parent/child links between two sets.  Makes parent point to child
+    /**\brief  Add parent/child links between two sets
+     *
+     * Add parent/child links between two sets.  Makes parent point to child
      * and child point to parent.
      * \param instance iMesh instance handle
      * \param parent_entity_set Pointer to parent set
@@ -841,8 +884,9 @@ extern "C" {
                          /*inout*/ iBase_EntitySetHandle* child_entity_set,
                          /*out*/ int *err);
 
-    //! Remove parent/child links between two sets
-    /** Remove parent/child links between two sets.
+    /**\brief  Remove parent/child links between two sets
+     *
+     * Remove parent/child links between two sets.
      * \param instance iMesh instance handle
      * \param parent_entity_set Pointer to parent set
      * \param child_entity_set Pointer to child set
@@ -853,8 +897,9 @@ extern "C" {
                          /*inout*/ iBase_EntitySetHandle* child_entity_set,
                          /*out*/ int *err);
 
-    //! Return whether two sets are related by parent/child links
-    /** Return whether two sets are related (*is_child=1) or not (*is_child=0)
+    /**\brief  Return whether two sets are related by parent/child links
+     *
+     * Return whether two sets are related (*is_child=1) or not (*is_child=0)
      * by parent/child links
      * \param instance iMesh instance handle
      * \param parent_entity_set Pointer to parent set
@@ -868,8 +913,9 @@ extern "C" {
                        /*out*/ int *is_child,
                        /*out*/ int *err);
 
-    //! Get the number of child sets linked from a specified set
-    /** Get the number of child sets linked from a specified set.  If num_hops
+    /**\brief  Get the number of child sets linked from a specified set
+     *
+     * Get the number of child sets linked from a specified set.  If num_hops
      * is non-zero, this represents the maximum hops from entity_set to any
      * child in the count.
      * \param instance iMesh instance handle
@@ -885,8 +931,9 @@ extern "C" {
                         /*out*/ int *num_child,
                         /*out*/ int *err);
 
-    //! Get the number of parent sets linked from a specified set
-    /** Get the number of parent sets linked from a specified set.  If num_hops
+    /**\brief  Get the number of parent sets linked from a specified set
+     *
+     * Get the number of parent sets linked from a specified set.  If num_hops
      * is non-zero, this represents the maximum hops from entity_set to any
      * parent in the count.
      * \param instance iMesh instance handle
@@ -902,8 +949,9 @@ extern "C" {
                         /*out*/ int *num_parent,
                         /*out*/ int *err);
 
-    //! Get the child sets linked from a specified set
-    /** Get the child sets linked from a specified set.  If num_hops
+    /**\brief  Get the child sets linked from a specified set
+     *
+     * Get the child sets linked from a specified set.  If num_hops
      * is non-zero, this represents the maximum hops from entity_set to any
      * child.
      * \param instance iMesh instance handle
@@ -926,8 +974,9 @@ extern "C" {
                       /*out*/ int* entity_set_handles_size,
                       /*out*/ int *err);
 
-    //! Get the parent sets linked from a specified set
-    /** Get the parent sets linked from a specified set.  If num_hops
+    /**\brief  Get the parent sets linked from a specified set
+     *
+     * Get the parent sets linked from a specified set.  If num_hops
      * is non-zero, this represents the maximum hops from entity_set to any
      * parent.
      * \param instance iMesh instance handle
@@ -950,8 +999,9 @@ extern "C" {
                       /*out*/ int* entity_set_handles_size,
                       /*out*/ int *err);
 
-    //! Set coordinates for an array of vertices
-    /** Set coordinates for an array of vertices.  Specified storage 
+    /**\brief  Set coordinates for an array of vertices
+     *
+     * Set coordinates for an array of vertices.  Specified storage 
      * order must be either iBase_INTERLEAVED or iBase_BLOCKED, and 
      * indicates order of x, y, and z coordinates in coordinate array.
      * \param instance iMesh instance handle
@@ -972,8 +1022,9 @@ extern "C" {
                              /*out*/ int *err);
 
 
-    //! Create an array of new vertices at specified coordinates
-    /** Create an array of new vertices at specified coordinates.  Value of
+    /**\brief  Create an array of new vertices at specified coordinates
+     *
+     * Create an array of new vertices at specified coordinates.  Value of
      * storage_order must be either iBase_INTERLEAVED or iBase_BLOCKED.
      * \param instance iMesh instance handle
      * \param num_verts Number of new vertices to be created
@@ -1000,8 +1051,9 @@ extern "C" {
                           /*out*/ int *err);
 
 
-    //! Create an array of new entities with specified lower-order topology
-    /** Create an array of new entities with specified lower-order topology.  
+    /**\brief  Create an array of new entities with specified lower-order topology
+     *
+     * Create an array of new entities with specified lower-order topology.  
      * Specified new_entity_topology must be value in iMesh_EntityTopology
      * enumeration.  Values return in status array must be values in the
      * iBase_CreationStatus enumeration.
@@ -1036,8 +1088,9 @@ extern "C" {
                           /*out*/ int *err);
 
 
-    //! Delete specified entities
-    /** Delete specified entities
+    /**\brief  Delete specified entities
+     *
+     * Delete specified entities
      * \param instance iMesh instance handle
      * \param entity_handles Array of entity handles to be deleted
      * \param entity_handles_size Number of entities in array to be deleted
@@ -1049,8 +1102,9 @@ extern "C" {
                           /*out*/ int *err);
 
 
-    //! Create a tag with specified name, size, and type
-    /** Create a tag with specified name, size, and type.  Tag size is in
+    /**\brief  Create a tag with specified name, size, and type
+     *
+     * Create a tag with specified name, size, and type.  Tag size is in
      * units of size of tag_type data types.  Value input for tag type must be 
      * value in iBase_TagType enumeration.
      * \param instance iMesh instance handle
@@ -1071,8 +1125,9 @@ extern "C" {
                        /*in*/ const int tag_name_len);
 
 
-    //! Destroy a tag
-    /** Destroy a tag.  If forced is non-zero and entities still have values
+    /**\brief  Destroy a tag
+     *
+     * Destroy a tag.  If forced is non-zero and entities still have values
      * set for this tag, tag is deleted anyway and those values disappear,
      * otherwise tag is not deleted.
      * \param instance iMesh instance handle
@@ -1086,8 +1141,9 @@ extern "C" {
                         /*in*/ const int forced,
                         /*out*/ int *err);
 
-    //! Get the name for a given tag handle
-    /** Get the name for a given tag handle
+    /**\brief  Get the name for a given tag handle
+     *
+     * Get the name for a given tag handle
      * \param instance iMesh instance handle
      * \param tag_handle Tag handle being queried
      * \param name Pointer to character string to store name returned from 
@@ -1101,8 +1157,9 @@ extern "C" {
                         /*out*/ int *err,
                         /*in*/ int name_len);
 
-    //! Get size of a tag in units of numbers of tag data type
-    /** Get size of a tag in units of numbers of tag data type
+    /**\brief  Get size of a tag in units of numbers of tag data type
+     *
+     * Get size of a tag in units of numbers of tag data type
      * \param instance iMesh instance handle
      * \param tag_handle Handle of tag being queried
      * \param tag_size Pointer to tag size returned from function
@@ -1113,8 +1170,9 @@ extern "C" {
                               /*out*/ int *tag_size,
                               /*out*/ int *err);
 
-    //! Get size of a tag in units of bytes
-    /** Get size of a tag in units of bytes
+    /**\brief  Get size of a tag in units of bytes
+     *
+     * Get size of a tag in units of bytes
      * \param instance iMesh instance handle
      * \param tag_handle Handle of tag being queried
      * \param tag_size Pointer to tag size returned from function
@@ -1125,8 +1183,9 @@ extern "C" {
                              /*out*/ int *tag_size,
                              /*out*/ int *err);
 
-    //! Get a the handle of an existing tag with the specified name
-    /** Get a the handle of an existing tag with the specified name
+    /**\brief  Get a the handle of an existing tag with the specified name
+     *
+     * Get a the handle of an existing tag with the specified name
      * \param instance iMesh instance handle
      * \param tag_name Name of tag being queried
      * \param tag_handle Pointer to tag handle returned from function
@@ -1139,8 +1198,9 @@ extern "C" {
                           /*out*/ int *err,
                           int tag_name_len);
 
-    //! Get the data type of the specified tag handle
-    /** Get the data type of the specified tag handle.  Tag type is a value in
+    /**\brief  Get the data type of the specified tag handle
+     *
+     * Get the data type of the specified tag handle.  Tag type is a value in
      * the iBase_TagType enumeration.
      * \param instance iMesh instance handle
      * \param tag_handle Handle for the tag being queried
@@ -1152,8 +1212,9 @@ extern "C" {
                         /*out*/ int *tag_type,
                         /*out*/ int *err);
 
-    //! Set a tag value of arbitrary type on an entity set
-    /** Set a tag value of arbitrary type on an entity set.  Tag data is 
+    /**\brief  Set a tag value of arbitrary type on an entity set
+     *
+     * Set a tag value of arbitrary type on an entity set.  Tag data is 
      * passed as char* type,
      * but really represents pointer to arbitrary data.
      * \param instance iMesh instance handle
@@ -1171,8 +1232,9 @@ extern "C" {
                            /*out*/ int *err);
 
 
-    //! Set a tag value of integer type on an entity set
-    /** Set a tag value of integer type on an entity set.
+    /**\brief  Set a tag value of integer type on an entity set
+     *
+     * Set a tag value of integer type on an entity set.
      * \param instance iMesh instance handle
      * \param entity_set Entity set on which tag is being set
      * \param tag_handle Tag being set on an entity set
@@ -1186,8 +1248,9 @@ extern "C" {
                               /*out*/ int *err);
 
 
-    //! Set a tag value of double type on an entity set
-    /** Set a tag value of double type on an entity set.
+    /**\brief  Set a tag value of double type on an entity set
+     *
+     * Set a tag value of double type on an entity set.
      * \param instance iMesh instance handle
      * \param entity_set Entity set on which tag is being set
      * \param tag_handle Tag being set on an entity set
@@ -1201,8 +1264,9 @@ extern "C" {
                               /*out*/ int *err);
 
 
-    //! Set a tag value of entity handle type on an entity set
-    /** Set a tag value of entity handle type on an entity set.
+    /**\brief  Set a tag value of entity handle type on an entity set
+     *
+     * Set a tag value of entity handle type on an entity set.
      * \param instance iMesh instance handle
      * \param entity_set Entity set on which tag is being set
      * \param tag_handle Tag being set on an entity set
@@ -1216,8 +1280,9 @@ extern "C" {
                              /*out*/ int *err);
 
 
-    //! Get the value of a tag of arbitrary type on an entity set
-    /** Get the value of a tag of arbitrary type on an entity set.  Tag data 
+    /**\brief  Get the value of a tag of arbitrary type on an entity set
+     *
+     * Get the value of a tag of arbitrary type on an entity set.  Tag data 
      * is passed back as char* type, but really represents arbitrary data.
      * \param instance iMesh instance handle
      * \param entity_set_handle Entity set on which tag is being set
@@ -1235,8 +1300,9 @@ extern "C" {
                            /*inout*/ int* tag_value_size,
                            /*out*/ int *err);
 
-    //! Get the value of a tag of integer type on an entity set
-    /** Get the value of a tag of integer type on an entity set.
+    /**\brief  Get the value of a tag of integer type on an entity set
+     *
+     * Get the value of a tag of integer type on an entity set.
      * \param instance iMesh instance handle
      * \param entity_set Entity set on which tag is being set
      * \param tag_handle Tag being set on an entity set
@@ -1249,8 +1315,9 @@ extern "C" {
                               /*out*/ int *out_data,
                               /*out*/ int *err);
 
-    //! Get the value of a tag of double type on an entity set
-    /** Get the value of a tag of double type on an entity set.
+    /**\brief  Get the value of a tag of double type on an entity set
+     *
+     * Get the value of a tag of double type on an entity set.
      * \param instance iMesh instance handle
      * \param entity_set Entity set on which tag is being set
      * \param tag_handle Tag being set on an entity set
@@ -1263,8 +1330,9 @@ extern "C" {
                               /*out*/ double *out_data,
                               /*out*/ int *err);
 
-    //! Get the value of a tag of entity handle type on an entity set
-    /** Get the value of a tag of entity handle type on an entity set.
+    /**\brief  Get the value of a tag of entity handle type on an entity set
+     *
+     * Get the value of a tag of entity handle type on an entity set.
      * \param instance iMesh instance handle
      * \param entity_set Entity set on which tag is being set
      * \param tag_handle Tag being set on an entity set
@@ -1277,8 +1345,9 @@ extern "C" {
                              /*out*/ iBase_EntityHandle *out_data,
                              /*out*/ int *err);
 
-    //! Get all the tags associated with a specified entity set
-    /** Get all the tags associated with a specified entity set
+    /**\brief  Get all the tags associated with a specified entity set
+     *
+     * Get all the tags associated with a specified entity set
      * \param instance iMesh instance handle
      * \param entity_set_handle Entity being queried
      * \param *tag_handles Pointer to array of tag_handles returned from 
@@ -1295,8 +1364,9 @@ extern "C" {
                               /*out*/ int* tag_handles_size,
                               /*out*/ int *err);
 
-    //! Remove a tag value from an entity set
-    /** Remove a tag value from an entity set
+    /**\brief  Remove a tag value from an entity set
+     *
+     * Remove a tag value from an entity set
      * \param instance iMesh instance handle
      * \param entity_set_handle Entity set from which tag is being removed
      * \param tag_handle Tag handle of tag being removed
@@ -1307,8 +1377,9 @@ extern "C" {
                           /*in*/ const iBase_TagHandle tag_handle,
                           /*out*/ int *err);
 
-    //! Set coordinates for a vertex
-    /** Set coordinates for a vertex.
+    /**\brief  Set coordinates for a vertex
+     *
+     * Set coordinates for a vertex.
      * \param instance iMesh instance handle
      * \param vertex_handle vertex handle being set
      * \param x x coordinate being set
@@ -1322,8 +1393,9 @@ extern "C" {
                           /*in*/ const double z,
                           /*out*/ int *err);
 
-    //! Create a new vertex at specified coordinates
-    /** Create a new vertex at specified coordinates.
+    /**\brief  Create a new vertex at specified coordinates
+     *
+     * Create a new vertex at specified coordinates.
      * \param instance iMesh instance handle
      * \param x x coordinate of new vertex
      * \param y y coordinate of new vertex
@@ -1338,8 +1410,9 @@ extern "C" {
                        /*out*/ iBase_EntityHandle* new_vertex_handle,
                        /*out*/ int *err);
 
-    //! Create a new entity with specified lower-order topology
-    /** Create a new entity with specified lower-order topology.  
+    /**\brief  Create a new entity with specified lower-order topology
+     *
+     * Create a new entity with specified lower-order topology.  
      * Specified new_entity_topology must be value in iMesh_EntityTopology
      * enumeration.  Value returned as status must be a value in the
      * iBase_CreationStatus enumeration.
@@ -1362,8 +1435,9 @@ extern "C" {
                        /*out*/ int* status,
                        /*out*/ int *err);
 
-    //! Delete specified entity
-    /** Delete specified entity
+    /**\brief  Delete specified entity
+     *
+     * Delete specified entity
      * \param instance iMesh instance handle
      * \param entity_handle Entity to be deleted
      * \param *err Pointer to error type returned from function
@@ -1372,8 +1446,9 @@ extern "C" {
                        /*in*/ iBase_EntityHandle entity_handle,
                        /*out*/ int *err);
 
-    //! Get tag values of arbitrary type for an array of entities
-    /** Get tag values of arbitrary type for an array of entities.  Tag data 
+    /**\brief  Get tag values of arbitrary type for an array of entities
+     *
+     * Get tag values of arbitrary type for an array of entities.  Tag data 
      * is returned as char* type, but really represents arbitrary data.
      * \param instance iMesh instance handle
      * \param entity_handles Entity array on which tag is being set
@@ -1394,8 +1469,9 @@ extern "C" {
                         /*out*/ int* tag_values_size,
                         /*out*/ int *err);
 
-    //! Get tag values of integer type for an array of entities
-    /** Get tag values of integer type for an array of entities.
+    /**\brief  Get tag values of integer type for an array of entities
+     *
+     * Get tag values of integer type for an array of entities.
      * \param instance iMesh instance handle
      * \param entity_handles Entity array on which tag is being set
      * \param entity_handles_size Number of entities in array
@@ -1415,8 +1491,9 @@ extern "C" {
                            /*out*/ int* tag_values_size,
                            /*out*/ int *err);
 
-    //! Get tag values of double type for an array of entities
-    /** Get tag values of double type for an array of entities.
+    /**\brief  Get tag values of double type for an array of entities
+     *
+     * Get tag values of double type for an array of entities.
      * \param instance iMesh instance handle
      * \param entity_handles Entity array on which tag is being set
      * \param entity_handles_size Number of entities in array
@@ -1436,8 +1513,9 @@ extern "C" {
                            /*out*/ int* tag_values_size,
                            /*out*/ int *err);
 
-    //! Get tag values of entity handle type for an array of entities
-    /** Get tag values of entity handle type for an array of entities.
+    /**\brief  Get tag values of entity handle type for an array of entities
+     *
+     * Get tag values of entity handle type for an array of entities.
      * \param instance iMesh instance handle
      * \param entity_handles Entity array on which tag is being set
      * \param entity_handles_size Number of entities in array
@@ -1457,8 +1535,9 @@ extern "C" {
                           /*out*/ int* tag_value_size,
                           /*out*/ int *err);
 
-    //! Set tag values of arbitrary type on an array of entities
-    /** Set tag values of arbitrary type on an array of entities.  Tag data is 
+    /**\brief  Set tag values of arbitrary type on an array of entities
+     *
+     * Set tag values of arbitrary type on an array of entities.  Tag data is 
      * passed as char* type, but really represents pointer to arbitrary data.
      * \param instance iMesh instance handle
      * \param entity_handles Entity array on which tag is being set
@@ -1476,8 +1555,9 @@ extern "C" {
                         /*in*/ const int tag_values_size,
                         /*out*/ int *err);
 
-    //! Set tag values of integer type on an array of entities
-    /** Set tag values of integer type on an array of entities.
+    /**\brief  Set tag values of integer type on an array of entities
+     *
+     * Set tag values of integer type on an array of entities.
      * \param instance iMesh instance handle
      * \param entity_handles Entity array on which tag is being set
      * \param entity_handles_size Number of entities in array
@@ -1494,8 +1574,9 @@ extern "C" {
                            /*in*/ const int tag_values_size,
                            /*out*/ int *err);
 
-    //! Set tag values of double type on an array of entities
-    /** Set tag values of double type on an array of entities.
+    /**\brief  Set tag values of double type on an array of entities
+     *
+     * Set tag values of double type on an array of entities.
      * \param instance iMesh instance handle
      * \param entity_handles Entity array on which tag is being set
      * \param entity_handles_size Number of entities in array
@@ -1512,8 +1593,9 @@ extern "C" {
                            /*in*/ const int tag_values_size,
                            /*out*/ int *err);
 
-    //! Set tag values of entity handle type on an array of entities
-    /** Set tag values of entity handle type on an array of entities.
+    /**\brief  Set tag values of entity handle type on an array of entities
+     *
+     * Set tag values of entity handle type on an array of entities.
      * \param instance iMesh instance handle
      * \param entity_handles Entity array on which tag is being set
      * \param entity_handles_size Number of entities in array
@@ -1531,8 +1613,9 @@ extern "C" {
                           /*in*/ const int tag_values_size,
                           /*out*/ int *err);
 
-    //! Remove a tag value from an array of entities
-    /** Remove a tag value from an array of entities
+    /**\brief  Remove a tag value from an array of entities
+     *
+     * Remove a tag value from an array of entities
      * \param instance iMesh instance handle
      * \param entity_handles Entity from which tag is being removed
      * \param entity_handles_size Number of entities in entity array
@@ -1545,8 +1628,9 @@ extern "C" {
                        /*in*/ const iBase_TagHandle tag_handle,
                        /*out*/ int *err);
 
-    //! Get the value of a tag of arbitrary type on an entity
-    /** Get the value of a tag of arbitrary type on an entity.  Tag data 
+    /**\brief  Get the value of a tag of arbitrary type on an entity
+     *
+     * Get the value of a tag of arbitrary type on an entity.  Tag data 
      * is passed back as char* type, but really represents arbitrary data.
      * \param instance iMesh instance handle
      * \param entity_handle Entity on which tag is being set
@@ -1564,8 +1648,9 @@ extern "C" {
                      /*out*/ int *tag_value_size,
                      /*out*/ int *err);
 
-    //! Get the value of a tag of integer type on an entity
-    /** Get the value of a tag of integer type on an entity.
+    /**\brief  Get the value of a tag of integer type on an entity
+     *
+     * Get the value of a tag of integer type on an entity.
      * \param instance iMesh instance handle
      * \param entity_handle Entity on which tag is being set
      * \param tag_handle Tag being set on an entity
@@ -1578,8 +1663,9 @@ extern "C" {
                         /*out*/ int *out_data,
                         /*out*/ int *err);
 
-    //! Get the value of a tag of double type on an entity
-    /** Get the value of a tag of double type on an entity.
+    /**\brief  Get the value of a tag of double type on an entity
+     *
+     * Get the value of a tag of double type on an entity.
      * \param instance iMesh instance handle
      * \param entity_handle Entity on which tag is being set
      * \param tag_handle Tag being set on an entity
@@ -1592,8 +1678,9 @@ extern "C" {
                         /*out*/ double *out_data,
                         /*out*/ int *err);
 
-    //! Get the value of a tag of entity handle type on an entity
-    /** Get the value of a tag of entity handle type on an entity.
+    /**\brief  Get the value of a tag of entity handle type on an entity
+     *
+     * Get the value of a tag of entity handle type on an entity.
      * \param instance iMesh instance handle
      * \param entity_handle Entity on which tag is being set
      * \param tag_handle Tag being set on an entity
@@ -1606,8 +1693,9 @@ extern "C" {
                        /*out*/ iBase_EntityHandle *out_data,
                        /*out*/ int *err);
 
-    //! Set a tag value of arbitrary type on an entity
-    /** Set a tag value of arbitrary type on an entity.  Tag data is 
+    /**\brief  Set a tag value of arbitrary type on an entity
+     *
+     * Set a tag value of arbitrary type on an entity.  Tag data is 
      * passed as char* type, but really represents pointer to arbitrary data.
      * \param instance iMesh instance handle
      * \param entity_handle Entity on which tag is being set
@@ -1623,8 +1711,9 @@ extern "C" {
                      /*in*/ const int tag_value_size,
                      /*out*/ int *err);
 
-    //! Set a tag value of integer type on an entity
-    /** Set a tag value of integer type on an entity.
+    /**\brief  Set a tag value of integer type on an entity
+     *
+     * Set a tag value of integer type on an entity.
      * \param instance iMesh instance handle
      * \param entity_handle Entity on which tag is being set
      * \param tag_handle Tag being set on an entity
@@ -1637,8 +1726,9 @@ extern "C" {
                         /*in*/ const int tag_value,
                         /*out*/ int *err);
 
-    //! Set a tag value of double type on an entity
-    /** Set a tag value of double type on an entity.
+    /**\brief  Set a tag value of double type on an entity
+     *
+     * Set a tag value of double type on an entity.
      * \param instance iMesh instance handle
      * \param entity_handle Entity on which tag is being set
      * \param tag_handle Tag being set on an entity
@@ -1652,8 +1742,9 @@ extern "C" {
                         /*in*/ const double tag_value,
                         /*out*/ int *err);
 
-    //! Set a tag value of entity handle type on an entity
-    /** Set a tag value of entity handle type on an entity.
+    /**\brief  Set a tag value of entity handle type on an entity
+     *
+     * Set a tag value of entity handle type on an entity.
      * \param instance iMesh instance handle
      * \param entity_handle Entity on which tag is being set
      * \param tag_handle Tag being set on an entity
@@ -1666,8 +1757,9 @@ extern "C" {
                        /*in*/ const iBase_EntityHandle tag_value,
                        /*out*/ int *err);
 
-    //! Get all the tags associated with a specified entity handle
-    /** Get all the tags associated with a specified entity handle
+    /**\brief  Get all the tags associated with a specified entity handle
+     *
+     * Get all the tags associated with a specified entity handle
      * \param instance iMesh instance handle
      * \param entity_handle Entity being queried
      * \param *tag_handles Pointer to array of tag_handles returned from 
@@ -1684,8 +1776,9 @@ extern "C" {
                         /*out*/ int* tag_handles_size,
                         /*out*/ int *err);
 
-    //! Remove a tag value from an entity
-    /** Remove a tag value from an entity
+    /**\brief  Remove a tag value from an entity
+     *
+     * Remove a tag value from an entity
      * \param instance iMesh instance handle
      * \param entity_handle Entity from which tag is being removed
      * \param tag_handle Tag handle of tag being removed
@@ -1696,8 +1789,9 @@ extern "C" {
                     /*in*/ const iBase_TagHandle tag_handle,
                     /*out*/ int *err);
 
-    //! Initialize an iterator over specified entity type, topology, and size
-    /** Initialize an iterator over specified entity type, topology, and size,
+    /**\brief  Initialize an iterator over specified entity type, topology, and size
+     *
+     * Initialize an iterator over specified entity type, topology, and size,
      * for a specified set or instance.  Iterator returned can be used as input
      * to functions returning the entity for the iterator.  If all entities of 
      * a specified type and/or topology are to be iterated, specify 
@@ -1718,8 +1812,9 @@ extern "C" {
                          /*out*/ iMesh_EntityIterator* entity_iterator,
                          /*out*/ int *err);
 
-    //! Get entity corresponding to an iterator and increment iterator
-    /** Get the entity corresponding to an array iterator, and increment the 
+    /**\brief  Get entity corresponding to an iterator and increment iterator
+     *
+     * Get the entity corresponding to an array iterator, and increment the 
      * iterator.  Also return whether the next value of the iterator has
      * an entity (if non-zero, next iterator value is the end of the
      * iteration).
@@ -1737,8 +1832,9 @@ extern "C" {
                             /*out*/ int *has_data,
                             /*out*/ int *err);
 
-    //! Reset the iterator
-    /** Reset the iterator
+    /**\brief  Reset the iterator
+     *
+     * Reset the iterator
      * \param instance iMesh instance handle
      * \param entity_iterator Iterator to reset
      * \param *err Pointer to error type returned from function
@@ -1747,8 +1843,9 @@ extern "C" {
                           /*in*/ iMesh_EntityIterator entity_iterator,
                           /*out*/ int *err);
 
-    //! Destroy the specified iterator
-    /** Destroy the specified iterator
+    /**\brief  Destroy the specified iterator
+     *
+     * Destroy the specified iterator
      * \param instance iMesh instance handle
      * \param entity_iterator Iterator which gets destroyed
      * \param *err Pointer to error type returned from function
@@ -1757,8 +1854,9 @@ extern "C" {
                         /*in*/ iMesh_EntityIterator entity_iterator,
                         /*out*/ int *err);
 
-    //! Get the entity topology for the specified entity
-    /** Get the entity topology for the specified entity.  Topology
+    /**\brief  Get the entity topology for the specified entity
+     *
+     * Get the entity topology for the specified entity.  Topology
      * returned is a value in the iMesh_EntityTopology enumeration.
      * \param instance iMesh instance handle
      * \param entity_handle Entity handle being queried
@@ -1770,8 +1868,9 @@ extern "C" {
                         /*out*/ int *out_topo,
                         /*out*/ int *err);
 
-    //! Get the entity type for the specified entity
-    /** Get the entity type for the specified entity.  Type returned is a value
+    /**\brief  Get the entity type for the specified entity
+     *
+     * Get the entity type for the specified entity.  Type returned is a value
      * in the iBase_EntityType enumeration.
      * \param instance iMesh instance handle
      * \param entity_handle Entity handle being queried
@@ -1783,8 +1882,9 @@ extern "C" {
                         /*out*/ int *out_type,
                         /*out*/ int *err);
 
-    //! Get coordinates of specified vertex
-    /** Get coordinates of specified vertex.
+    /**\brief  Get coordinates of specified vertex
+     *
+     * Get coordinates of specified vertex.
      * \param instance iMesh instance handle
      * \param vertex_handle Mesh vertex being queried
      * \param *x Pointer to x coordinate returned from function
@@ -1797,8 +1897,9 @@ extern "C" {
                          /*out*/ double *x, /*out*/ double *y, /*out*/ double *z,
                          /*out*/ int *err);
 
-    //! Get entities of specified type adjacent to an entity
-    /** Get entities of specified type adjacent to an entity.  Specified type
+    /**\brief  Get entities of specified type adjacent to an entity
+     *
+     * Get entities of specified type adjacent to an entity.  Specified type
      * must be value in the iBase_EntityType enumeration.
      * \param instance iMesh instance handle
      * \param entity_handle Entity handle being queried
@@ -1819,8 +1920,9 @@ extern "C" {
                        /*out*/ int* adj_entity_handles_size,
                        /*out*/ int *err);
 
-    //! Subtract contents of one entity set from another
-    /** Subtract contents of one entity set from another
+    /**\brief  Subtract contents of one entity set from another
+     *
+     * Subtract contents of one entity set from another
      * \param instance iMesh instance handle
      * \param entity_set_1 Entity set from which other set is being subtracted
      * \param entity_set_2 Entity set being subtracted from other set
@@ -1833,8 +1935,9 @@ extern "C" {
                       /*out*/ iBase_EntitySetHandle* result_entity_set,
                       /*out*/ int *err);
 
-    //! Intersect contents of one entity set with another
-    /** Intersect contents of one entity set with another
+    /**\brief  Intersect contents of one entity set with another
+     *
+     * Intersect contents of one entity set with another
      * \param instance iMesh instance handle
      * \param entity_set_1 Entity set being intersected with another
      * \param entity_set_2 Entity set being intersected with another
@@ -1847,8 +1950,9 @@ extern "C" {
                        /*out*/ iBase_EntitySetHandle* result_entity_set,
                        /*out*/ int *err);
 
-    //! Unite contents of one entity set with another
-    /** Unite contents of one entity set with another
+    /**\brief  Unite contents of one entity set with another
+     *
+     * Unite contents of one entity set with another
      * \param instance iMesh instance handle
      * \param entity_set_1 Entity set being united with another
      * \param entity_set_2 Entity set being united with another
