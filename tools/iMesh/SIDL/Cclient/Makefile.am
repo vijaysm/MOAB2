@@ -21,7 +21,7 @@ $(BUILT_SOURCES) : .timestamp
 
 lib_LTLIBRARIES = libiMeshCclient.la
 
-libiMeshCClient_la_LIBADD = ../../libiMesh.la
+libiMeshCclient_la_LIBADD = ../../libiMesh.la
 
 libiMeshCclient_la_includedir = $(includedir)/SIDL
 
