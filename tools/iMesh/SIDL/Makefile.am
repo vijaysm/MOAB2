@@ -67,7 +67,8 @@ bin_PROGRAMS = testcxx
 testcxx_SOURCES = testcxx.cpp
 
 LDADD = @top_srcdir@/tools/iMesh/libiMesh.la $(top_builddir)/libMOAB.la @abs_srcdir@/libiMeshserver.so ${BABEL_DIR}/lib/libsidl.la
-testcxx_DEPENDENCIES = @top_srcdir@/tools/iMesh/libiMesh.la $(top_builddir)/libMOAB.la @abs_srcdir@/libiMeshserver.so ${BABEL_DIR}/lib/libsidl.la
+
+testcxx_DEPENDENCIES = bserver/babel.make @top_srcdir@/tools/iMesh/libiMesh.la $(top_builddir)/libMOAB.la @abs_srcdir@/libiMeshserver.so ${BABEL_DIR}/lib/libsidl.la ${SERVER_OFILES} bserver/babel.make mserver/babel.make
 
 settings:
 	@echo "FACTORY_OFILES = $(FACTORY_OFILES)"
@@ -101,7 +102,7 @@ F77client: repo/.mtimestamp repo/.btimestamp iMesh_SIDL.sidl
 	-rm -rf F77client
 	@BABEL_DIR@/bin/babel -R"repo" -cF77 -o F77client iMesh_SIDL.sidl
 
-${iMesh_SIDLLIBDIR}/libiMeshserver.so: mserver/babel.make ${SERVER_OFILES}
+${iMesh_SIDLLIBDIR}/libiMeshserver.so: bserver/babel.make mserver/babel.make ${SERVER_OFILES}
 	$(CXX) $(LD_FLAGS) $(LD_FLAGS_PIC) -o $@ ${SERVER_OFILES}
 
 libiMeshCclient.so: Cclient ${CCLIENT_OFILES}
