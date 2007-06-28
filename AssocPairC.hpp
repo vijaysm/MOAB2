@@ -2,7 +2,6 @@
 #define ASSOCPAIRC_HPP
 
 #include "AssocPair.hpp"
-#include "sidl.h"
 
 class AssocPairC : public AssocPair 
 {
