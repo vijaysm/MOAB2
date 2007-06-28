@@ -66,6 +66,8 @@ SERVER_OFILES = iMesh_SIDL_MeshSidl_IOR.o                                   \
 bin_PROGRAMS = testcxx
 testcxx_SOURCES = testcxx.cpp
 
+testcxx.o: bserver/babel.make mserver/babel.make
+
 LDADD = @top_srcdir@/tools/iMesh/libiMesh.la $(top_builddir)/libMOAB.la @abs_srcdir@/libiMeshserver.so ${BABEL_DIR}/lib/libsidl.la
 
 testcxx_DEPENDENCIES = bserver/babel.make @top_srcdir@/tools/iMesh/libiMesh.la $(top_builddir)/libMOAB.la @abs_srcdir@/libiMeshserver.so ${BABEL_DIR}/lib/libsidl.la ${SERVER_OFILES} bserver/babel.make mserver/babel.make
@@ -156,3 +158,47 @@ install-data-hook:
 	(cd mserver; install -d ${includedir}/SIDL; install -t ${includedir}/SIDL ${SERVER_HDRS})
 
 #include make.dependencies
+iMesh_SIDL_MeshSidl_IOR.o: mserver/iMesh_SIDL_MeshSidl_IOR.c
+iBase_ArrTag.o: mserver/iBase_ArrTag.cc
+iBase_EntSet.o: mserver/iBase_EntSet.cc
+iBase_EntTag.o: mserver/iBase_EntTag.cc
+iBase_SetBoolOps.o: mserver/iBase_SetBoolOps.cc
+iBase_SetRelation.o: mserver/iBase_SetRelation.cc
+iBase_SetTag.o: mserver/iBase_SetTag.cc
+iBase_Tag.o: mserver/iBase_Tag.cc
+iMesh_Arr.o: mserver/iMesh_Arr.cc
+iMesh_ArrMod.o: mserver/iMesh_ArrMod.cc
+iMesh_Entity.o: mserver/iMesh_Entity.cc
+iMesh_Mesh.o: mserver/iMesh_Mesh.cc
+iMesh_Modify.o: mserver/iMesh_Modify.cc
+iMesh_SIDL_MeshSidl.o: mserver/iMesh_SIDL_MeshSidl.cc
+sidl_BaseClass.o: mserver/sidl_BaseClass.cc
+sidl_BaseException.o: mserver/sidl_BaseException.cc
+sidl_BaseInterface.o: mserver/sidl_BaseInterface.cc
+sidl_ClassInfo.o: mserver/sidl_ClassInfo.cc
+sidl_ClassInfoI.o: mserver/sidl_ClassInfoI.cc
+sidl_DFinder.o: mserver/sidl_DFinder.cc
+sidl_DLL.o: mserver/sidl_DLL.cc
+sidl_Finder.o: mserver/sidl_Finder.cc
+sidl_InvViolation.o: mserver/sidl_InvViolation.cc
+sidl_Loader.o: mserver/sidl_Loader.cc
+sidl_PostViolation.o: mserver/sidl_PostViolation.cc
+sidl_PreViolation.o: mserver/sidl_PreViolation.cc
+sidl_SIDLException.o: mserver/sidl_SIDLException.cc
+sidl_io_Deserializer.o: mserver/sidl_io_Deserializer.cc
+sidl_io_IOException.o: mserver/sidl_io_IOException.cc
+sidl_io_Serializeable.o: mserver/sidl_io_Serializeable.cc
+sidl_io_Serializer.o: mserver/sidl_io_Serializer.cc
+sidl_rmi_ConnectRegistry.o: mserver/sidl_rmi_ConnectRegistry.cc
+sidl_rmi_InstanceHandle.o: mserver/sidl_rmi_InstanceHandle.cc
+sidl_rmi_InstanceRegistry.o: mserver/sidl_rmi_InstanceRegistry.cc
+sidl_rmi_Invocation.o: mserver/sidl_rmi_Invocation.cc
+sidl_rmi_NetworkException.o: mserver/sidl_rmi_NetworkException.cc
+sidl_rmi_ProtocolFactory.o: mserver/sidl_rmi_ProtocolFactory.cc
+sidl_rmi_Response.o: mserver/sidl_rmi_Response.cc
+iMesh_SIDL_MeshSidl_Skel.o: mserver/iMesh_SIDL_MeshSidl_Skel.cc
+iMesh_SIDL_MeshSidl_Impl.o: mserver/iMesh_SIDL_MeshSidl_Impl.cc
+iBase_Error_Impl.o: mserver/iBase_Error_Impl.cc
+iBase_Error_IOR.o: mserver/iBase_Error_IOR.c
+iBase_Error_Skel.o: mserver/iBase_Error_Skel.cc
+iBase_Error.o: mserver/iBase_Error.cc
