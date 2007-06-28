@@ -2,16 +2,16 @@
 // File:          iMesh_SIDL_MeshSidl_Impl.cc
 // Symbol:        iMesh_SIDL.MeshSidl-v0.2
 // Symbol Type:   class
-// Babel Version: 0.10.12
-// sidl Created:  20070624 16:07:30 CDT
-// Generated:     20070624 16:07:39 CDT
+// Babel Version: 0.10.10
+// sidl Created:  20070628 12:47:40 CDT
+// Generated:     20070628 12:47:42 CDT
 // Description:   Server-side implementation for iMesh_SIDL.MeshSidl
 // 
 // WARNING: Automatically generated; only changes within splicers preserved
 // 
-// babel-version = 0.10.12
+// babel-version = 0.10.10
 // source-line   = 5
-// source-url    = file:/home/tautges/MOAB/tools/iMesh/SIDL/iMesh_SIDL.sidl
+// source-url    = file:/home/jason/moab/tmp/tools/iMesh/SIDL/iMesh_SIDL.sidl
 // 
 #include "iMesh_SIDL_MeshSidl_Impl.hh"
 
@@ -19,11 +19,22 @@
 // Insert-Code-Here {iMesh_SIDL.MeshSidl._includes} (additional includes or code)
 #include "iMesh.h"
 extern iBase_Error iMesh_LAST_ERROR;
-#define PROCESS_ERROR if (imeshError != iBase_SUCCESS) this->processError()
-#define PROCESS_ERROR_MSG(a,b) \
-   iMesh_LAST_ERROR.error_type = a; \
+
+#define PROCESS_ERROR do { \
+  if (imeshError != iBase_SUCCESS) { \
+    iMesh_LAST_ERROR.error_type = iBase_ErrorType(imeshError); \
+    sprintf(iMesh_LAST_ERROR.description, "Undescribed error type"); \
+    this->processError(); \
+  } \
+} while (false)
+
+#define PROCESS_ERROR_MSG(a,b) do { \
+   iMesh_LAST_ERROR.error_type = iBase_ErrorType(a); \
    sprintf(iMesh_LAST_ERROR.description, "%s", b);\
-   this->processError()
+   imeshError = a; \
+   if (imeshError != iBase_SUCCESS) \
+     this->processError(); \
+ } while (false)
 
 // need this for definitions in TSTTB_SNL_SIDL_defs.h
 #define LOCAL_IBASE_ERROR iMesh_LAST_ERROR
