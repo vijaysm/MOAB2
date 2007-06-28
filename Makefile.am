@@ -47,4 +47,9 @@ install-data-hook:
 	echo "iRel_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iRel-Defs.inc
 	echo "iRel_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iRel-Defs.inc
 
-SUBDIRS = . SIDL
+if USE_BABEL
+  SIDL_SUBDIR = SIDL
+else
+  SIDL_SUBDIR =
+endif
+SUBDIRS = . $(SIDL_SUBDIR)
