@@ -13,7 +13,7 @@ INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I.
 DEFS += $(DEFINES)
 
 # stuff for c test program
-bin_PROGRAMS = testc_cbind
+check_PROGRAMS = testc_cbind
 testc_cbind_SOURCES = testc_cbind.c
 
 LDADD = libiMesh.la $(top_builddir)/libMOAB.la
