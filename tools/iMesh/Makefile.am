@@ -22,7 +22,7 @@ testc_cbind_DEPENDENCIES = libiMesh.la $(top_builddir)/libMOAB.la
 libiMesh_la_SOURCES = \
 	iMesh_MOAB.cpp
                    
-libMOAB_la_include_HEADERS = iMesh.h \
+libiMesh_la_include_HEADERS = iMesh.h \
                              iMesh_f.h \
                              iMesh_protos.h \
                              iBase.h \
@@ -31,9 +31,10 @@ libMOAB_la_include_HEADERS = iMesh.h \
 
 lib_LTLIBRARIES = libiMesh.la
 
-libMOAB_la_includedir = $(includedir)
+libiMesh_la_includedir = $(includedir)
 
 libiMesh_la_LIBADD = $(top_builddir)/libMOAB.la
+
 
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put 

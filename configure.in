@@ -720,6 +720,9 @@ AC_CONFIG_FILES([Makefile
 		 tools/iMesh/iMesh-Defs.inc
 		 tools/iMesh/SIDL/iMesh-SIDL-Defs.inc
 		 tools/iMesh/SIDL/Makefile
+                 tools/iMesh/SIDL/mserver/Makefile
+                 tools/iMesh/SIDL/Cclient/Makefile
+                 tools/iMesh/SIDL/Fclient/Makefile
                  tools/mbperf/Makefile
                  tools/mbchaco/Makefile
 		 tools/mbzoltan/Config.moab
