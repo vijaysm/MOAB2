@@ -98,6 +98,7 @@ AC_SUBST(IMESH_CONFIG_OPTIONS)
 AC_ARG_ENABLE( babel, AC_HELP_STRING([--enable-babel[=DIR]],[Enable Babel-based interface, with babel executable/libs/includes located under DIR]),
                [enable_babel=$enableval], [enable_babel=no] )  
 
+USE_BABEL=no
 if test "x$enable_babel" != "xno"; then
   if test "x$enable_babel" != "x"; then
      BABEL_DIR=/usr/local
@@ -129,7 +130,7 @@ AC_SUBST(BABEL_DIR)
 AC_SUBST(USE_BABEL)
 AC_SUBST(IGEOM_BABEL_CONFIG_OPTIONS)
 AC_SUBST(IMESH_BABEL_CONFIG_OPTIONS)
-AM_CONDITIONAL(USE_BABEL, [test "xno" != "$USE_BABEL"])
+AM_CONDITIONAL(USE_BABEL, [test "xno" != "x$USE_BABEL"])
 
 
 ################################################################################
