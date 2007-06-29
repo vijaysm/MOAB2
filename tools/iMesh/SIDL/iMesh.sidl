@@ -280,4 +280,8 @@ package iMesh version 0.7
                            in int entity_handles_size) throws iBase.Error;
    };
 
+   class Factory {
+     static void newMesh(in string option, out Mesh new_mesh) throws iBase.Error;
+   };
+
 } // END iMesh

@@ -3,15 +3,15 @@
 // Symbol:        iMesh_SIDL.MeshSidl-v0.2
 // Symbol Type:   class
 // Babel Version: 0.10.12
-// sidl Created:  20070624 16:07:30 CDT
-// Generated:     20070624 16:07:38 CDT
+// sidl Created:  20070628 20:55:25 CDT
+// Generated:     20070628 20:55:32 CDT
 // Description:   Server-side implementation for iMesh_SIDL.MeshSidl
 // 
 // WARNING: Automatically generated; only changes within splicers preserved
 // 
 // babel-version = 0.10.12
 // source-line   = 5
-// source-url    = file:/home/tautges/MOAB/tools/iMesh/SIDL/iMesh_SIDL.sidl
+// source-url    = file:/home/tautges/MOAB/tools/iMesh/SIDL/mserver/../iMesh_SIDL.sidl
 // 
 
 #ifndef included_iMesh_SIDL_MeshSidl_Impl_hh
@@ -47,9 +47,6 @@
 #ifndef included_iMesh_EntityTopology_hh
 #include "iMesh_EntityTopology.hh"
 #endif
-#ifndef included_iMesh_Mesh_hh
-#include "iMesh_Mesh.hh"
-#endif
 #ifndef included_iMesh_SIDL_MeshSidl_hh
 #include "iMesh_SIDL_MeshSidl.hh"
 #endif
@@ -63,6 +60,7 @@
 
 // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl._includes)
 // Insert-Code-Here {iMesh_SIDL.MeshSidl._includes} (includes or arbitrary code)
+#include "iMesh_Factory_Impl.hh"
 #include "iMesh.h"
 // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl._includes)
 
@@ -84,6 +82,7 @@ namespace iMesh_SIDL {
 
     // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl._implementation)
     // Insert-Code-Here {iMesh_SIDL.MeshSidl._implementation} (additional details)
+    friend class iMesh::Factory_impl;
     static iMesh_Instance imeshInstance;
     int imeshError;
     void processError() throw(::iBase::Error);
@@ -115,18 +114,6 @@ namespace iMesh_SIDL {
     static void _load();
 
   public:
-    /**
-     * user defined static method.
-     */
-    static void
-    newMesh (
-      /* in */ const ::std::string& option,
-      /* out */ ::iMesh::Mesh& new_mesh
-    )
-    throw ( 
-      ::iBase::Error
-    );
-
 
     /**
      * user defined non-static method.

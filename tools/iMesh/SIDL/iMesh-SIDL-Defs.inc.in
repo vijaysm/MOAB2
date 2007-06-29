@@ -18,6 +18,6 @@ iMesh_SIDL_LDFLAGS = \
   -L@abs_builddir@/Fclient/.libs
   
 iMesh_SIDL_LIBS = -L@BABEL_DIR@/lib $(iMesh_SIDL_LDFLAGS) $(iMesh_SIDL_libs) \
-                  -liMesh -liMeshserver -lsidl -lMOAB @LIBS@
+                  -liMeshserver -lsidl -liMesh -lMOAB @LIBS@
 
 iMesh_SIDL_FILES = @abs_builddir@/libiMeshserver.la

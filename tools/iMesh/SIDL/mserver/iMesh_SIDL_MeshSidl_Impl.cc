@@ -2,16 +2,16 @@
 // File:          iMesh_SIDL_MeshSidl_Impl.cc
 // Symbol:        iMesh_SIDL.MeshSidl-v0.2
 // Symbol Type:   class
-// Babel Version: 0.10.10
-// sidl Created:  20070628 12:47:40 CDT
-// Generated:     20070628 12:47:42 CDT
+// Babel Version: 0.10.12
+// sidl Created:  20070628 20:55:25 CDT
+// Generated:     20070628 20:55:32 CDT
 // Description:   Server-side implementation for iMesh_SIDL.MeshSidl
 // 
 // WARNING: Automatically generated; only changes within splicers preserved
 // 
-// babel-version = 0.10.10
+// babel-version = 0.10.12
 // source-line   = 5
-// source-url    = file:/home/jason/moab/tmp/tools/iMesh/SIDL/iMesh_SIDL.sidl
+// source-url    = file:/home/tautges/MOAB/tools/iMesh/SIDL/mserver/../iMesh_SIDL.sidl
 // 
 #include "iMesh_SIDL_MeshSidl_Impl.hh"
 
@@ -69,35 +69,7 @@ void iMesh_SIDL::MeshSidl_impl::_load() {
   // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl._load)
 }
 
-// user-defined static methods:
-/**
- * Method:  newMesh[]
- */
-void
-iMesh_SIDL::MeshSidl_impl::newMesh (
-  /* in */ const ::std::string& option,
-  /* out */ ::iMesh::Mesh& new_mesh ) 
-throw ( 
-  ::iBase::Error
-){
-  // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.newMesh)
-  // Insert-Code-Here {iMesh_SIDL.MeshSidl.newMesh} (newMesh method)
-
-  // first create a C-binding instance
-  int ierr;
-  iMesh_newMesh(option.c_str(), &iMesh_SIDL::MeshSidl_impl::imeshInstance, 
-                &ierr, option.length());
-  if (iBase_SUCCESS != ierr) {
-    iBase::Error this_error = iBase::Error::_create();
-    this_error.set((iBase::ErrorType)ierr, "Couldn't create new iMesh instance.");
-    throw this_error;
-  }
-  
-    // then create and return the sidl mesh
-  new_mesh = ::iMesh_SIDL::MeshSidl::_create();
-  // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.newMesh)
-}
-
+// user-defined static methods: (none)
 
 // user-defined non-static methods:
 /**

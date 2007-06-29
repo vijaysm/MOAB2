@@ -26,32 +26,74 @@ libiMeshCclient_la_LIBADD = ../../libiMesh.la
 libiMeshCclient_la_includedir = $(includedir)/SIDL
 
 libiMeshCclient_la_SOURCES = \
-  iBase_ArrTag_IOR.h iBase_CreationStatus_IOR.h iBase_EntSet_IOR.h    \
+iBase_Error_Impl.hh iMesh_Factory_Impl.hh                          \
+  iMesh_SIDL_MeshSidl_Impl.hh iBase_ArrTag_IOR.h iBase_CreationStatus_IOR.h iBase_EntSet_IOR.h    \
   iBase_EntTag_IOR.h iBase_EntityType_IOR.h iBase_ErrorActions_IOR.h          \
   iBase_ErrorType_IOR.h iBase_Error_IOR.h iBase_IOR.h iBase_SetBoolOps_IOR.h  \
   iBase_SetRelation_IOR.h iBase_SetTag_IOR.h iBase_StorageOrder_IOR.h         \
   iBase_TagValueType_IOR.h iBase_Tag_IOR.h iMesh_AdjacencyInfo_IOR.h          \
   iMesh_ArrMod_IOR.h iMesh_Arr_IOR.h iMesh_EntityTopology_IOR.h               \
-  iMesh_Entity_IOR.h iMesh_IOR.h iMesh_Mesh_IOR.h iMesh_Modify_IOR.h          \
-  iMesh_SIDL_IOR.h iMesh_SIDL_MeshSidl_IOR.h \
-  iBase_ArrTag_Stub.c iBase_CreationStatus_Stub.c                    \
-  iBase_EntSet_Stub.c iBase_EntTag_Stub.c iBase_EntityType_Stub.c             \
-  iBase_ErrorActions_Stub.c iBase_ErrorType_Stub.c iBase_Error_Stub.c         \
-  iBase_SetBoolOps_Stub.c iBase_SetRelation_Stub.c iBase_SetTag_Stub.c        \
-  iBase_StorageOrder_Stub.c iBase_TagValueType_Stub.c iBase_Tag_Stub.c        \
-  iMesh_AdjacencyInfo_Stub.c iMesh_ArrMod_Stub.c iMesh_Arr_Stub.c             \
-  iMesh_EntityTopology_Stub.c iMesh_Entity_Stub.c iMesh_Mesh_Stub.c           \
-  iMesh_Modify_Stub.c iMesh_SIDL_MeshSidl_Stub.c
-
+  iMesh_Entity_IOR.h iMesh_Factory_IOR.h iMesh_IOR.h iMesh_Mesh_IOR.h         \
+  iMesh_Modify_IOR.h iMesh_SIDL_IOR.h iMesh_SIDL_MeshSidl_IOR.h iBase.hh iBase_ArrTag.hh iBase_CreationStatus.hh iBase_EntSet.hh   \
+  iBase_EntTag.hh iBase_EntityType.hh iBase_Error.hh iBase_ErrorActions.hh    \
+  iBase_ErrorType.hh iBase_SetBoolOps.hh iBase_SetRelation.hh iBase_SetTag.hh \
+  iBase_StorageOrder.hh iBase_Tag.hh iBase_TagValueType.hh iMesh.hh           \
+  iMesh_AdjacencyInfo.hh iMesh_Arr.hh iMesh_ArrMod.hh iMesh_Entity.hh         \
+  iMesh_EntityTopology.hh iMesh_Factory.hh iMesh_Mesh.hh iMesh_Modify.hh      \
+  iMesh_SIDL.hh iMesh_SIDL_MeshSidl.hh sidl.hh sidl_BaseClass.hh              \
+  sidl_BaseException.hh sidl_BaseInterface.hh sidl_ClassInfo.hh               \
+  sidl_ClassInfoI.hh sidl_DFinder.hh sidl_DLL.hh sidl_Finder.hh               \
+  sidl_InvViolation.hh sidl_Loader.hh sidl_PostViolation.hh                   \
+  sidl_PreViolation.hh sidl_Resolve.hh sidl_SIDLException.hh sidl_Scope.hh    \
+  sidl_io.hh sidl_io_Deserializer.hh sidl_io_IOException.hh                   \
+  sidl_io_Serializeable.hh sidl_io_Serializer.hh sidl_rmi.hh                  \
+  sidl_rmi_ConnectRegistry.hh sidl_rmi_InstanceHandle.hh                      \
+  sidl_rmi_InstanceRegistry.hh sidl_rmi_Invocation.hh                         \
+  sidl_rmi_NetworkException.hh sidl_rmi_ProtocolFactory.hh                    \
+  sidl_rmi_Response.hh \
+\
+iBase_Error_Impl.cc iMesh_Factory_Impl.cc                          \
+  iMesh_SIDL_MeshSidl_Impl.cc iBase_Error_Skel.cc iMesh_Factory_Skel.cc                          \
+  iMesh_SIDL_MeshSidl_Skel.cc iBase_ArrTag.cc iBase_EntSet.cc iBase_EntTag.cc iBase_Error.cc     \
+  iBase_SetBoolOps.cc iBase_SetRelation.cc iBase_SetTag.cc iBase_Tag.cc       \
+  iMesh_Arr.cc iMesh_ArrMod.cc iMesh_Entity.cc iMesh_Factory.cc iMesh_Mesh.cc \
+  iMesh_Modify.cc iMesh_SIDL_MeshSidl.cc sidl_BaseClass.cc                    \
+  sidl_BaseException.cc sidl_BaseInterface.cc sidl_ClassInfo.cc               \
+  sidl_ClassInfoI.cc sidl_DFinder.cc sidl_DLL.cc sidl_Finder.cc               \
+  sidl_InvViolation.cc sidl_Loader.cc sidl_PostViolation.cc                   \
+  sidl_PreViolation.cc sidl_SIDLException.cc sidl_io_Deserializer.cc          \
+  sidl_io_IOException.cc sidl_io_Serializeable.cc sidl_io_Serializer.cc       \
+  sidl_rmi_ConnectRegistry.cc sidl_rmi_InstanceHandle.cc                      \
+  sidl_rmi_InstanceRegistry.cc sidl_rmi_Invocation.cc                         \
+  sidl_rmi_NetworkException.cc sidl_rmi_ProtocolFactory.cc                    \
+  sidl_rmi_Response.cc
 
 libiMeshCclient_la_include_HEADERS = \
-  iBase.h iBase_ArrTag.h iBase_CreationStatus.h iBase_EntSet.h       \
-  iBase_EntTag.h iBase_EntityType.h iBase_Error.h iBase_ErrorActions.h        \
-  iBase_ErrorType.h iBase_SetBoolOps.h iBase_SetRelation.h iBase_SetTag.h     \
-  iBase_StorageOrder.h iBase_Tag.h iBase_TagValueType.h iMesh.h               \
-  iMesh_AdjacencyInfo.h iMesh_Arr.h iMesh_ArrMod.h iMesh_Entity.h             \
-  iMesh_EntityTopology.h iMesh_Mesh.h iMesh_Modify.h iMesh_SIDL.h             \
-  iMesh_SIDL_MeshSidl.h
+iBase_Error_Impl.hh iMesh_Factory_Impl.hh                          \
+  iMesh_SIDL_MeshSidl_Impl.hh iBase_ArrTag_IOR.h iBase_CreationStatus_IOR.h iBase_EntSet_IOR.h    \
+  iBase_EntTag_IOR.h iBase_EntityType_IOR.h iBase_ErrorActions_IOR.h          \
+  iBase_ErrorType_IOR.h iBase_Error_IOR.h iBase_IOR.h iBase_SetBoolOps_IOR.h  \
+  iBase_SetRelation_IOR.h iBase_SetTag_IOR.h iBase_StorageOrder_IOR.h         \
+  iBase_TagValueType_IOR.h iBase_Tag_IOR.h iMesh_AdjacencyInfo_IOR.h          \
+  iMesh_ArrMod_IOR.h iMesh_Arr_IOR.h iMesh_EntityTopology_IOR.h               \
+  iMesh_Entity_IOR.h iMesh_Factory_IOR.h iMesh_IOR.h iMesh_Mesh_IOR.h         \
+  iMesh_Modify_IOR.h iMesh_SIDL_IOR.h iMesh_SIDL_MeshSidl_IOR.h iBase.hh iBase_ArrTag.hh iBase_CreationStatus.hh iBase_EntSet.hh   \
+  iBase_EntTag.hh iBase_EntityType.hh iBase_Error.hh iBase_ErrorActions.hh    \
+  iBase_ErrorType.hh iBase_SetBoolOps.hh iBase_SetRelation.hh iBase_SetTag.hh \
+  iBase_StorageOrder.hh iBase_Tag.hh iBase_TagValueType.hh iMesh.hh           \
+  iMesh_AdjacencyInfo.hh iMesh_Arr.hh iMesh_ArrMod.hh iMesh_Entity.hh         \
+  iMesh_EntityTopology.hh iMesh_Factory.hh iMesh_Mesh.hh iMesh_Modify.hh      \
+  iMesh_SIDL.hh iMesh_SIDL_MeshSidl.hh sidl.hh sidl_BaseClass.hh              \
+  sidl_BaseException.hh sidl_BaseInterface.hh sidl_ClassInfo.hh               \
+  sidl_ClassInfoI.hh sidl_DFinder.hh sidl_DLL.hh sidl_Finder.hh               \
+  sidl_InvViolation.hh sidl_Loader.hh sidl_PostViolation.hh                   \
+  sidl_PreViolation.hh sidl_Resolve.hh sidl_SIDLException.hh sidl_Scope.hh    \
+  sidl_io.hh sidl_io_Deserializer.hh sidl_io_IOException.hh                   \
+  sidl_io_Serializeable.hh sidl_io_Serializer.hh sidl_rmi.hh                  \
+  sidl_rmi_ConnectRegistry.hh sidl_rmi_InstanceHandle.hh                      \
+  sidl_rmi_InstanceRegistry.hh sidl_rmi_Invocation.hh                         \
+  sidl_rmi_NetworkException.hh sidl_rmi_ProtocolFactory.hh                    \
+  sidl_rmi_Response.hh 
 
 
 dist-hook:
