@@ -31,7 +31,7 @@ SUBDIRS = . mserver Cclient Fclient
 cfgdir = $(libdir)
 cfg_DATA = iMesh-SIDL-Defs.inc
 
-EXTRA_DIST = iBase.sidl iMesh.sidl iMesh_SIDL.sidl
+EXTRA_DIST = iBase.sidl iMesh.sidl iMesh_SIDL.sidl iBase_SIDL_defs.h
 
 # By default, iMesh-SIDL-Defs.inc will define these to $(srcdir).  We
 # want to override that during the INSTALL of the file so
