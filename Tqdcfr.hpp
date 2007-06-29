@@ -316,8 +316,8 @@ public:
 
   Tqdcfr(MBInterface *impl);
 
-  static char *BLOCK_NODESET_OFFSET_TAG_NAME;
-  static char *BLOCK_SIDESET_OFFSET_TAG_NAME;
+  static std::string BLOCK_NODESET_OFFSET_TAG_NAME;
+  static std::string BLOCK_SIDESET_OFFSET_TAG_NAME;
 
 private:
 

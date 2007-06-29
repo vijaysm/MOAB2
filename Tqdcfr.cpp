@@ -70,8 +70,8 @@ const int Tqdcfr::cub_elem_num_verts[] = {
   8, 8, 9, 20, 27, 12, // hexes (incl. hexshell at end)
   0};
 
-char *Tqdcfr::BLOCK_NODESET_OFFSET_TAG_NAME = "BLOCK_NODESET_OFFSET";
-char *Tqdcfr::BLOCK_SIDESET_OFFSET_TAG_NAME = "BLOCK_SIDESET_OFFSET";
+std::string Tqdcfr::BLOCK_NODESET_OFFSET_TAG_NAME = "BLOCK_NODESET_OFFSET";
+std::string Tqdcfr::BLOCK_SIDESET_OFFSET_TAG_NAME = "BLOCK_SIDESET_OFFSET";
 
 #define RR if (MB_SUCCESS != result) return result
 
@@ -313,7 +313,7 @@ MBErrorCode Tqdcfr::convert_nodesets_sidesets()
     // set, we don't need to convert
   int nodeset_offset, sideset_offset;
   MBTag tmp_tag;
-  MBErrorCode result = mdbImpl->tag_get_handle(BLOCK_NODESET_OFFSET_TAG_NAME,
+  MBErrorCode result = mdbImpl->tag_get_handle(BLOCK_NODESET_OFFSET_TAG_NAME.c_str(),
                                                tmp_tag);
   if (MB_SUCCESS != result) nodeset_offset = 0;
   else {
@@ -321,7 +321,7 @@ MBErrorCode Tqdcfr::convert_nodesets_sidesets()
     if (MB_SUCCESS != result) return result;
   }
 
-  result = mdbImpl->tag_get_handle(BLOCK_SIDESET_OFFSET_TAG_NAME,
+  result = mdbImpl->tag_get_handle(BLOCK_SIDESET_OFFSET_TAG_NAME.c_str(),
                                    tmp_tag);
   if (MB_SUCCESS != result) sideset_offset = 0;
   else {
@@ -2388,7 +2388,7 @@ int main(int argc, char* argv[])
 {
 
     // Check command line arg
-  const char* file = TEST_DIR "/block.cub";
+  const char* file = TEST_DIR "/brick_cubit10.2.cub";
   if (argc < 2)
   {
     std::cout << "Usage: tqdcfr <cub_file_name>" << std::endl;
