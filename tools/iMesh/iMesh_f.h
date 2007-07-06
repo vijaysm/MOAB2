@@ -1,11 +1,13 @@
 #ifndef IMESH_F_H
 #define IMESH_F_H
 
-#include "iBase_f.h"
-
 #define iMesh_Instance integer
 #define iMesh_EntityIterator integer
 #define iMesh_EntityArrIterator integer
+
+#endif 
+
+#include "iBase_f.h"
 
       integer iMesh_POINT
       integer iMesh_LINE_SEGMENT
@@ -44,4 +46,4 @@
       parameter (iMesh_LOCAL_TRAVERSAL = 2)
       parameter (iMesh_GLOBAL_TRAVERSAL = 3)
 
-#endif 
+

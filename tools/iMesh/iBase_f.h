@@ -5,6 +5,8 @@
 #define iBase_EntitySetHandle integer
 #define iBase_TagHandle integer
 
+#endif
+
       integer iBase_VERTEX
       integer iBase_EDGE
       integer iBase_FACE
@@ -112,4 +114,4 @@
       parameter (iBase_DOUBLE = 1)
       parameter (iBase_ENTITY_HANDLE = 2)
       parameter (iBase_BYTES = 3)
-#endif 
+
