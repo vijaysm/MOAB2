@@ -1,4 +1,4 @@
-INCLUDES += -I@BABEL_DIR@/include -I$(srcdir)/..
+INCLUDES += -I@BABEL_DIR@/include -I@srcdir@/..
 
 BUILT_SOURCES = $(libiMeshserver_la_SOURCES) $(libiMeshserver_la_include_HEADERS)
 

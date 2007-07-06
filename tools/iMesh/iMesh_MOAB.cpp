@@ -601,7 +601,7 @@ void iMesh_getEntities(iMesh_Instance instance,
   bool use_top = false;
   bool use_type = false;
     // initialize just to get rid of compiler warning
-  MBEntityType type = mb_topology_table[iBase_ALL_TYPES];
+  MBEntityType type = mb_topology_table[iMesh_ALL_TOPOLOGIES];
   MBRange out_entities;
  
   if (entity_topology >= iMesh_POINT
@@ -646,15 +646,15 @@ void iMesh_getEntities(iMesh_Instance instance,
   if (iBase_ALL_TYPES == entity_type && iMesh_ALL_TOPOLOGIES == entity_topology) {
     for (; iter != end_iter && MBI->type_from_handle(*iter) != MBENTITYSET; iter++)
       (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
-    *entity_handles_size = k;
   }
   else {
     for (; iter != end_iter; iter++)
       (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
   }
 
-    // now it's safe to set the size
-  *entity_handles_size = out_entities.size();
+    // now it's safe to set the size; set it to k, not out_entities.size(), to
+    // account for sets which might have been removed
+  *entity_handles_size = k;
 
   RETURN(iBase_SUCCESS);
 }
