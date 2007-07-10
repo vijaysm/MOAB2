@@ -664,7 +664,7 @@ if test $ENABLE_dagmc = yes; then
   AC_SUBST(CGM_DIR)
   AC_SUBST(CGM_CONFIG_OPTIONS)
 fi
-
+AM_CONDITIONAL( HAVE_CGM, [test "x$CGM_MISSING" = "xno"] )
 
 ################################################################################
 #                           iMesh Babel
@@ -757,9 +757,6 @@ else
   if test "x$VTK_MISSING" = "xyes"; then
     AC_MSG_WARN([Count not find VTK.  Build will FAIL!!! Try \"--with-VTK=DIR\"])
   fi
-fi
-if test "x$CGM_MISSING" = "xyes"; then
-  AC_MSG_WARN([cgm2moab/dagmc build will fail!  CGM not found!])
 fi
 
 if test "x$HAVE_HDF5" = "xno"; then
