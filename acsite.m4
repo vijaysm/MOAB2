@@ -35,8 +35,8 @@ AC_ARG_WITH( [mpi], AC_HELP_STRING([[--with-mpi(=DIR)]], [Enable parallel suppor
              [WITH_MPI=$withval],[WITH_MPI=no] )
 case "x$WITH_MPI" in
   xno)
-    CC_LIST="cc gcc cl egcs"
-    CXX_LIST="CC aCC cxx xlC_r xlC pgCC c++ g++ gpp cc++ cl FCC KCC RCC"
+    CC_LIST="cc gcc cl egcs pgcc"
+    CXX_LIST="CC aCC cxx xlC_r xlC c++ g++ pgCC gpp cc++ cl FCC KCC RCC"
     ;;
   xyes)
     CC_LIST="mpicc mpcc"
