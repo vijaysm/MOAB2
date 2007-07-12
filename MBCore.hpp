@@ -16,9 +16,6 @@
 #ifndef MB_IMPL_GENERAL_HPP
 #define MB_IMPL_GENERAL_HPP
 
-#define MOAB_IMPL_VERSION 1.01F
-#define MOAB_IMPL_VERSION_STRING "1.01"
-
 #include "MBInterface.hpp"
 #include "MBProcConfig.hpp"
 #include <map>
@@ -983,11 +980,5 @@ private:
   
 };
 
-inline float MBCore::impl_version(std::string *version_string) 
-{
-  if (NULL != version_string)
-    *version_string = std::string("MOAB IMPLEMENTATION version ") + std::string(MOAB_IMPL_VERSION_STRING);
-  return MOAB_IMPL_VERSION;
-}
   
 #endif   // MB_IMPL_GENERAL_HPP

@@ -3,7 +3,7 @@
 ################################################################################
 AC_INIT(MOAB, 3.0)
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(MOAB,3.0)
+AM_INIT_AUTOMAKE
 
 SNL_CHECK_COMPILERS
 AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" != "xno"])
@@ -23,6 +23,30 @@ if test "x" = "x$ZCAT"; then
 fi
 AC_SUBST([ZCAT])
 AM_CONDITIONAL([HAVE_ZCAT],[test "x" = "x$ZCAT"])
+
+
+################################################################################
+#                              Version Stuff
+################################################################################
+
+AC_DEFINE(MB_VERSION,["AC_PACKAGE_VERSION"],[MOAB Version])
+VERSION_MAJOR=`expr AC_PACKAGE_VERSION : '\([[0-9]]\+\)'`
+VERSION_MINOR=`expr AC_PACKAGE_VERSION : '[[0-9]]*\.\([[0-9]]\+\)'`
+VERSION_PATCH=`expr AC_PACKAGE_VERSION : '[[0-9]]*\.[[0-9]]*\.\(.*\)'`
+test "x" != "x$VERSION_MAJOR" || AC_MSG_ERROR("Invalid version string: AC_PACKAGE_VERSION")
+test "x" != "x$VERSION_MINOR" || AC_MSG_ERROR("Invalid version string: AC_PACKAGE_VERSION")
+AC_DEFINE_UNQUOTED(MB_VERSION_MAJOR,$VERSION_MAJOR,[MOAB Major Version])
+AC_DEFINE_UNQUOTED(MB_VERSION_MINOR,$VERSION_MINOR,[MOAB Minor Version])
+if test "x" != "x$VERSION_PATCH"; then
+  AC_DEFINE_UNQUOTED(MB_VERSION_PATCH,$VERSION_PATCH,[MOAB Patch Level])
+  VERSION_STRING="AC_PACKAGE_STRING"
+elif test $VERSION_MINOR -eq 99; then
+  VERSION_STRING="AC_PACKAGE_STRING (Alpha)"
+else
+  VERSION_STRING="AC_PACKAGE_STRING (Beta)"
+fi
+AC_DEFINE_UNQUOTED(MB_VERSION_STRING,"${VERSION_STRING}",[MOAB Version String])
+
 
 ################################################################################
 #                              Extract libtool config
@@ -703,6 +727,7 @@ AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
 
 AC_ARG_VAR([FC], [FORTRAN compiler command])
 AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_HEADERS([MBVersion.h])
 AC_CONFIG_HEADERS([MBEntityHandle.h])
 AC_CONFIG_HEADERS([tools/iMesh/iBase_FCDefs.h])
 AC_CONFIG_FILES([Makefile 

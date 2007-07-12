@@ -1,0 +1,19 @@
+#ifndef MB_VERSION_H
+#define MB_VERSION_H
+
+/* MOAB Version */
+#undef MB_VERSION
+
+/* MOAB Major Version */
+#undef MB_VERSION_MAJOR
+
+/* MOAB Minor Version */
+#undef MB_VERSION_MINOR
+
+/* MOAB Patch Level */
+#undef MB_VERSION_PATCH
+
+/* MOAB Version String */
+#undef MB_VERSION_STRING
+
+#endif

@@ -24,6 +24,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include "MBVersion.h"
 #include "MBCore.hpp"
 #include "TagServer.hpp"
 #include "MeshSetSequence.hpp"
@@ -273,6 +274,14 @@ int MBCore::QueryInterface(const MBuuid& uuid, MBUnknownInterface** iface)
   else
     return 0;
   return 1;
+}
+
+float MBCore::impl_version( std::string *version_string )
+{
+  if (version_string)
+    *version_string = MB_VERSION_STRING;
+  
+  return MB_VERSION_MAJOR + MB_VERSION_MINOR / 100.0;
 }
 
 //! get the type from a handle, returns type
