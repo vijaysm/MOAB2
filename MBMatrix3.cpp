@@ -157,7 +157,7 @@ MBErrorCode EigenDecomp( const MBMatrix3& a_in,
   //// this is NEVER called
   if ( i >= MAX_ROTATIONS )
     {
-      std::cerr << "vtkMath::Jacobi: Error extracting eigenfunctions" << std::endl;
+      std::cerr << "MBMatrix3D: Error extracting eigenfunctions" << std::endl;
       return MB_FAILURE;
     }
 
