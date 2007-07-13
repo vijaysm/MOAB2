@@ -33,8 +33,8 @@ class MBCartVect
   
   public:
     
-  inline MBCartVect() 
-      {d[0] = d[1] = d[2] = 0.0;}
+    inline MBCartVect() 
+      { }
       /**Initialze all three values to same scalar (typically zero)*/
     explicit inline MBCartVect( double v ) 
       { d[0] = d[1] = d[2] = v; }
