@@ -212,9 +212,15 @@ MBErrorCode MBOrientedBoxTreeTool::build_tree( const MBRange& entities,
   MBOrientedBox box;
   MBErrorCode rval;
   
-  rval = MBOrientedBox::compute_from_2d_cells( box, instance, entities );
-  if (MB_SUCCESS != rval)
-    return rval;
+  if (entities.empty()) {
+    MBCartVect axis[3] = { MBCartVect(0.), MBCartVect(0.), MBCartVect(0.) };
+    box = MBOrientedBox( axis, MBCartVect(0.) );
+  }
+  else {
+    rval = MBOrientedBox::compute_from_2d_cells( box, instance, entities );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
   
     // create an entity set for the tree node
   rval = instance->create_meshset( settings.set_options, set );

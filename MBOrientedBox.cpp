@@ -110,9 +110,12 @@ MBOrientedBox::MBOrientedBox( const MBCartVect axes[3], const MBCartVect& mid )
   
 #if MB_ORIENTED_BOX_UNIT_VECTORS
   this->length = len;
-  axis[0] /= len[0];
-  axis[1] /= len[1];
-  axis[2] /= len[2];
+  if (len[0] > 0.0)
+    axis[0] /= len[0];
+  if (len[1] > 0.0)
+    axis[1] /= len[1];
+  if (len[2] > 0.0)
+    axis[2] /= len[2];
 #endif
 
 #if MB_ORIENTED_BOX_OUTER_RADIUS
@@ -371,6 +374,12 @@ MBErrorCode MBOrientedBox::compute_from_covarience_data(
                                                 CovarienceData& data,
                                                 const MBRange& vertices )
 {
+  if (data.area <= 0.0) {
+    MBCartVect axis[3] = { MBCartVect(0.), MBCartVect(0.), MBCartVect(0.) };
+    result = MBOrientedBox( axis, MBCartVect(0.) );
+    return MB_SUCCESS;
+  }
+
     // get center from sum
   result.center = data.center / data.area;
 
