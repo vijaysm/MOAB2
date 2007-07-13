@@ -281,7 +281,7 @@ float MBCore::impl_version( std::string *version_string )
   if (version_string)
     *version_string = MB_VERSION_STRING;
   
-  return MB_VERSION_MAJOR + MB_VERSION_MINOR / 100.0;
+  return MB_VERSION_MAJOR + MB_VERSION_MINOR / 100.0f;
 }
 
 //! get the type from a handle, returns type
