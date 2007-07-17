@@ -36,6 +36,6 @@ cfg_DATA = dagmc.make
 TESTS = test_geom
 check_PROGRAMS = $(TESTS)
 test_geom_SOURCES = test_geom.cc
-test_geom_LDADD = libdagmc.la $(top_builddir)/libMOAB.la
+test_geom_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LIBS_LTFLAGS)  $(CGM_LIBS_LINK)
 
 

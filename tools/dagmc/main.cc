@@ -1,6 +1,5 @@
 #include "GeometryQueryTool.hpp"
-#include "AcisQueryEngine.hpp"
-#include "AcisModifyEngine.hpp"
+#include "InitCGMA.hpp"
 #include "CGMApp.hpp"
 #include "MBCore.hpp"
 #include "cgm2moab.hpp"
@@ -114,9 +113,8 @@ int main( int argc, char* argv[] )
         
   
     // Initialize CGM
-  CGMApp::instance()->startup( 0, NULL );
-  AcisQueryEngine::instance();
-  AcisModifyEngine::instance();
+  InitCGMA::initialize_cgma();
+  InitCGMA::initialize_engine("ACIS");
   if (actuate_attribs) {
     CGMApp::instance()->attrib_manager()->set_all_auto_read_flags( actuate_attribs );
     CGMApp::instance()->attrib_manager()->set_all_auto_actuate_flags( actuate_attribs );

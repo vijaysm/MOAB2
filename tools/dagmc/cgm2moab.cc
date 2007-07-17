@@ -1,6 +1,3 @@
-#include "AcisQueryEngine.hpp"
-#include "AcisModifyEngine.hpp"
-#include "CGMApp.hpp"
 #include "GeometryQueryTool.hpp"
 #include "GeometryQueryEngine.hpp"
 #include "ModelQueryEngine.hpp"
