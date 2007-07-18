@@ -94,6 +94,8 @@ DECLARE_TEST(tensor_attrib_long);
 DECLARE_TEST(tensor_attrib_float);
 DECLARE_TEST(tensor_attrib_double);
 
+DECLARE_TEST(subset);
+
 int main( int argc, char* argv[] )
 {
   int *test_indices = (int*)malloc( sizeof(int) * num_tests );
@@ -1246,3 +1248,100 @@ bool test_tensor_attrib( const char* vtk_type, MBDataType mb_type )
   
   return check_tag_data( file, mb_type, 9 );
 } 
+
+bool test_subset( )
+{
+  MBCore moab_inst;
+  MBInterface& moab = moab_inst;
+  MBErrorCode rval;
+  
+    // create 9 nodes in grid pattern
+  MBEntityHandle verts[9];
+  const double coords[][3] = { { 0, 0, 0 },
+                               { 1, 0, 0 },
+                               { 2, 0, 0 },
+                               { 0, 1, 0 },
+                               { 1, 1, 0 },
+                               { 2, 1, 0 },
+                               { 0, 2, 0 },
+                               { 1, 2, 0 },
+                               { 2, 2, 0 } };
+  for (unsigned i = 0; i < 9; ++i) {
+    rval = moab.create_vertex(coords[i], verts[i]);
+    assert(MB_SUCCESS == rval);
+  }
+  
+    // create 4 quad elements in grid pattern
+  const int conn[][4] = { { 0, 1, 4, 3 },
+                          { 1, 2, 5, 4 },
+                          { 3, 4, 7, 6 },
+                          { 4, 5, 8, 7 } };
+  MBEntityHandle econn[4], elems[4];
+  for (unsigned i = 0; i < 4; ++i) {
+    for (unsigned j = 0; j < 4; ++j)
+      econn[j] = verts[conn[i][j]];
+    rval = moab.create_element( MBQUAD, econn, 4, elems[i] );
+    assert(MB_SUCCESS == rval);
+  }
+  
+    // create 3 meshsets
+  MBEntityHandle sets[3];
+  for (unsigned i = 0;i < 3; ++i) {
+    rval = moab.create_meshset( 0, sets[i] );
+    assert(MB_SUCCESS == rval);
+  }
+  
+    // add element 3 to set 0
+  rval = moab.add_entities( sets[0], elems+3, 1 );
+  assert(MB_SUCCESS == rval);
+    // add node 2 to set 1
+  rval = moab.add_entities( sets[1], verts+2, 1 );
+  assert(MB_SUCCESS == rval);
+    // add element 2 and 3 to set 2
+  rval = moab.add_entities( sets[2], elems+2, 2 );
+  assert(MB_SUCCESS == rval);
+  
+    // make set 2 a child of set 1
+  rval = moab.add_child_meshset( sets[1], sets[2] );
+  assert(MB_SUCCESS == rval);
+    // put set 1 in set 0
+  rval = moab.add_entities( sets[0], sets+1, 1 );
+  assert(MB_SUCCESS == rval);
+  
+    // write sets[0] to vtk file
+  rval = moab.write_mesh(  "tmp_file.vtk", sets, 1 );
+  MBCHECK(rval);
+   
+    // read data back in
+  moab.delete_mesh();
+  rval = moab.load_mesh( "tmp_file.vtk" );
+  remove( "tmp_file.vtk" );
+  MBCHECK(rval);
+  
+    // writer should have written all three sets,
+    // so the resulting mesh should be elems[2], elems[3], 
+    // and verts[2]
+  MBRange new_elems, new_verts;
+  rval = moab.get_entities_by_type( 0, MBQUAD, new_elems );
+  MBCHECK(rval);
+  CHECK( new_elems.size() == 2 );
+  rval = moab.get_entities_by_type( 0, MBVERTEX, new_verts );
+  MBCHECK(rval);
+  CHECK( new_verts.size() == 7 );
+  
+    // vertex not in element closure should have coords of 2,0,0
+  MBRange elem_verts;
+  rval = moab.get_adjacencies( new_elems, 0, false, elem_verts, MBInterface::UNION );
+  MBCHECK(rval);
+  CHECK(elem_verts.size() == 6);
+  MBRange free_verts( new_verts.subtract(elem_verts ) );
+  CHECK(free_verts.size() == 1 );
+  double vcoords[3];
+  rval = moab.get_coords( free_verts, vcoords );
+  CHECK( vcoords[0] == 2 );
+  CHECK( vcoords[1] == 0 );
+  CHECK( vcoords[2] == 0 );
+  
+  return true;
+}
+
