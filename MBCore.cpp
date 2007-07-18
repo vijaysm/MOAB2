@@ -574,7 +574,7 @@ MBErrorCode MBCore::get_coords( const MBRange& entities,
       if (*iter > end_ent) // trim block to those in the sequence
         iter -= *iter - end_ent;
        
-      const MBEntityID offset = start_ent - range_start;
+      const MBEntityID offset = range_start - start_ent;
       const MBEntityID count = *iter - range_start + 1;
       ++iter; // done with iter for this iteration, advance to next handle
       
