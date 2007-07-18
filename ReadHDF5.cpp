@@ -510,6 +510,7 @@ private:
 public:
   auto_array( size_t s ) : data(new T[s]) {}
   auto_array()           : data(0)        {}
+  ~auto_array()                         { delete [] data; }
   T*       get       ()                 { return data;    }
   const T* get       ()           const { return data;    }
   T&       operator[]( size_t i )       { return data[i]; }
