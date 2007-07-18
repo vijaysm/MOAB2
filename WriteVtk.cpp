@@ -30,6 +30,9 @@
 #include <iostream>
 #include <stdio.h>
 #include <assert.h>
+#include <vector>
+#include <set>
+#include <iterator>
 
 #include "MBInterface.hpp"
 #include "MBRange.hpp"
@@ -145,9 +148,18 @@ MBErrorCode WriteVtk::gather_mesh( const MBEntityHandle* set_list,
   }
   else
   {
-    for (int i = 0; i < num_sets; ++i)
-    {
-      MBEntityHandle set = set_list[i];
+    std::set<MBEntityHandle> visited;
+    std::vector<MBEntityHandle> sets;
+    sets.reserve(num_sets);
+    std::copy( set_list, set_list + num_sets, std::back_inserter(sets) );
+    while (!sets.empty()) {
+        // get next set
+      MBEntityHandle set = sets.back();
+      sets.pop_back();
+        // skip sets we've already done
+      if (!visited.insert(set).second)
+        continue;
+      
       MBRange a;
       rval = mbImpl->get_entities_by_handle( set, a );
       if (MB_SUCCESS != rval) return rval;
@@ -158,17 +170,22 @@ MBErrorCode WriteVtk::gather_mesh( const MBEntityHandle* set_list,
       set_i  = a.lower_bound(    elem_i, a.end(), CREATE_HANDLE( MBENTITYSET, 0, e ) );
       nodes.merge( node_i, elem_i );
       elems.merge( elem_i, set_i );
-    }
+      std::copy( set_i, a.end(), std::back_inserter(sets) );
     
-    for (MBRange::const_iterator e = elems.begin(); e != elems.end(); ++e)
-    {
-      const MBEntityHandle* conn;
-      int conn_len;
-      rval = mbImpl->get_connectivity( *e, conn, conn_len );
-      if (MB_SUCCESS != rval) return rval;
+      for (MBRange::const_iterator e = elems.begin(); e != elems.end(); ++e)
+      {
+        const MBEntityHandle* conn;
+        int conn_len;
+        rval = mbImpl->get_connectivity( *e, conn, conn_len );
+        if (MB_SUCCESS != rval) return rval;
+
+        for (int i = 0; i < conn_len; ++i)
+          nodes.insert( conn[i] );
+      }
       
-      for (int i = 0; i < conn_len; ++i)
-        nodes.insert( conn[i] );
+      a.clear();
+      rval = mbImpl->get_child_meshsets( set, a );
+      std::copy( a.begin(), a.end(), std::back_inserter(sets) );
     }
   }
 
