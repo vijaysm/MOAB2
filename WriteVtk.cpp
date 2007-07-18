@@ -171,21 +171,21 @@ MBErrorCode WriteVtk::gather_mesh( const MBEntityHandle* set_list,
       nodes.merge( node_i, elem_i );
       elems.merge( elem_i, set_i );
       std::copy( set_i, a.end(), std::back_inserter(sets) );
-    
-      for (MBRange::const_iterator e = elems.begin(); e != elems.end(); ++e)
-      {
-        const MBEntityHandle* conn;
-        int conn_len;
-        rval = mbImpl->get_connectivity( *e, conn, conn_len );
-        if (MB_SUCCESS != rval) return rval;
-
-        for (int i = 0; i < conn_len; ++i)
-          nodes.insert( conn[i] );
-      }
       
       a.clear();
       rval = mbImpl->get_child_meshsets( set, a );
       std::copy( a.begin(), a.end(), std::back_inserter(sets) );
+    }
+    
+    for (MBRange::const_iterator e = elems.begin(); e != elems.end(); ++e)
+    {
+      const MBEntityHandle* conn;
+      int conn_len;
+      rval = mbImpl->get_connectivity( *e, conn, conn_len );
+      if (MB_SUCCESS != rval) return rval;
+
+      for (int i = 0; i < conn_len; ++i)
+        nodes.insert( conn[i] );
     }
   }
 
