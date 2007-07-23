@@ -480,6 +480,106 @@ MBErrorCode MBOrientedBoxTreeTool::preorder_traverse( MBEntityHandle set,
   return MB_SUCCESS;
 }
 
+/********************** General Sphere/Triangel Intersection ***************/
+
+MBErrorCode MBOrientedBoxTreeTool::sphere_intersect_triangles( 
+                                        const double* center_v,
+                                        double radius,
+                                        MBEntityHandle tree_root,
+                                        std::vector<MBEntityHandle>& facets_out,
+                                        std::vector<MBEntityHandle>* sets_out )
+{
+  const double radsqr = radius * radius;
+  MBOrientedBox b;
+  MBErrorCode rval;
+  MBRange sets;
+  const MBCartVect center(center_v);
+  MBCartVect closest, coords[3];
+  const MBEntityHandle* conn;
+  int num_conn;
+#ifndef MB_OBB_USE_VECTOR_QUERIES
+  MBRange tris;
+  MBRange::const_iterator t;
+#else
+  std::vector<MBEntityHandle> tris;
+  std::vector<MBEntityHandle>::const_iterator t;
+#endif
+  
+  std::vector<MBEntityHandle> stack, children;
+  stack.reserve(60);
+  stack.push_back(tree_root);
+  stack.push_back(0);
+  while (!stack.empty()) {
+    MBEntityHandle surf = stack.back(); stack.pop_back();
+    MBEntityHandle node = stack.back(); stack.pop_back();
+    if (!surf && sets_out) {
+      rval = get_moab_instance()->get_entities_by_type( node, MBENTITYSET, sets );
+      if (!sets.empty())
+        surf = sets.front();
+    }
+    
+      // check if sphere intersects box
+    rval = box( node, b );
+    if (MB_SUCCESS != rval)
+      return rval;
+    b.closest_location_in_box( center, closest );
+    closest -= center;
+    if ((closest % closest) > radsqr)
+      continue;
+    
+      // push child boxes on stack
+    children.clear();
+    rval = instance->get_child_meshsets( node, children );
+    if (MB_SUCCESS != rval)
+      return rval;
+    if (!children.empty()) {
+      assert(children.size() == 2);
+      stack.push_back( children[0] );
+      stack.push_back( surf );
+      stack.push_back( children[1] );
+      stack.push_back( surf );
+      continue;
+    }
+    
+      // if leaf, intersect sphere with triangles
+#ifndef MB_OBB_USE_VECTOR_QUERIES
+# ifdef MB_OBB_USE_TYPE_QUERIES
+    rval = get_moab_instance()->get_entities_by_type( node, MBTRI, tris );
+# else
+    rval = get_moab_instance()->get_entities_by_handle( node, tris );
+# endif
+#else
+    rval = get_moab_instance()->get_entities_by_handle( node, tris );
+#endif
+    if (MB_SUCCESS != rval)
+      return rval;
+    
+    for (t = tris.begin(); t != tris.end(); ++t) {
+      rval = get_moab_instance()->get_connectivity( *t, conn, num_conn, true );
+      if (MB_SUCCESS != rval)
+        return rval;
+      if (num_conn != 3)
+        continue;
+      
+      rval = get_moab_instance()->get_coords( conn, num_conn, coords[0].array() );
+      if (MB_SUCCESS != rval)
+        return rval;
+      
+      MBGeomUtil::closest_location_on_tri( center, coords, closest );
+      closest -= center;
+      if ((closest % closest) <= radsqr &&
+          std::find(facets_out.begin(),facets_out.end(),*t) == facets_out.end()) {
+        facets_out.push_back( *t );
+        if (sets_out)
+          sets_out->push_back( surf );
+      }
+    }
+  }
+  
+  return MB_SUCCESS;
+}
+      
+
 
 /********************** General Ray/Tree and Ray/Triangel Intersection ***************/
 
@@ -843,46 +943,6 @@ MBErrorCode MBOrientedBoxTreeTool::ray_intersect_sets(
 
 /********************** Closest Point code ***************/
 
-MBErrorCode MBOrientedBoxTreeTool::closest_to_location( 
-                                     const double* point,
-                                     MBEntityHandle root,
-                                     double tolerance,
-                                     double* point_out,
-                                     MBEntityHandle& facet_out,
-                                     MBEntityHandle* set_out ) 
-{
-  std::vector<MBEntityHandle> facets(1), sets;
-  MBErrorCode rval = closest_to_location( point, root, tolerance, facets, set_out ? &sets : 0 );
-  if (MB_SUCCESS != rval)
-    return rval;
-  if (facets.empty())
-    return MB_ENTITY_NOT_FOUND;
-  facet_out = facets.front();
-  if (set_out)
-    *set_out = sets.front();
-  
-  const MBEntityHandle* conn;
-  int len;
-  rval = instance->get_connectivity( facet_out, conn, len, true );
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  std::vector<MBCartVect> coords( len );
-  rval = instance->get_coords( conn, len, coords[0].array() );
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  if (len == 3)
-    MBGeomUtil::closest_location_on_tri( *reinterpret_cast<const MBCartVect*>(point), 
-                             &coords[0], 
-                             *reinterpret_cast<MBCartVect*>(point_out) );
-  else
-    MBGeomUtil::closest_location_on_polygon( *reinterpret_cast<const MBCartVect*>(point), 
-                                 &coords[0], len,
-                                 *reinterpret_cast<MBCartVect*>(point_out) );
-  return MB_SUCCESS;
-}
-
 struct MBOBBTreeCPFrame {
   MBOBBTreeCPFrame( double d, MBEntityHandle n, MBEntityHandle s )
     : dist_sqr(d), node(n), mset(s) {}
@@ -890,6 +950,127 @@ struct MBOBBTreeCPFrame {
   MBEntityHandle node;
   MBEntityHandle mset;
 };
+
+MBErrorCode MBOrientedBoxTreeTool::closest_to_location( 
+                                     const double* point,
+                                     MBEntityHandle root,
+                                     double* point_out,
+                                     MBEntityHandle& facet_out,
+                                     MBEntityHandle* set_out ) 
+{
+  MBErrorCode rval;
+  const MBCartVect loc( point );
+  double smallest_dist_sqr = std::numeric_limits<double>::max();
+  
+  MBEntityHandle current_set = 0;
+  MBRange sets;
+  std::vector<MBEntityHandle> children(2);
+  std::vector<double> coords;
+  std::vector<MBOBBTreeCPFrame> stack;
+    
+  stack.push_back( MBOBBTreeCPFrame(0.0, root, current_set) );
+  
+  while( !stack.empty() ) {
+
+      // pop from top of stack
+    MBEntityHandle node = stack.back().node;
+    double dist_sqr = stack.back().dist_sqr;
+    current_set = stack.back().mset;
+    stack.pop_back();
+
+      // If current best result is closer than the box, skip this tree node.
+    if (dist_sqr > smallest_dist_sqr)
+      continue;
+
+      // Check if this node has a set associated with it
+    if (set_out && !current_set) {
+      sets.clear();
+      rval = instance->get_entities_by_type( node, MBENTITYSET, sets );
+      if (MB_SUCCESS != rval)
+        return rval;
+      if (!sets.empty()) {
+        if (sets.size() != 1)
+          return MB_MULTIPLE_ENTITIES_FOUND;
+        current_set = sets.front();
+      }
+    }
+
+      // Get child boxes
+    children.clear();
+    rval = instance->get_child_meshsets( node, children );
+    if (MB_SUCCESS != rval)
+      return rval;
+
+      // if not a leaf node
+    if (!children.empty()) {
+      if (children.size() != 2)
+        return MB_MULTIPLE_ENTITIES_FOUND;
+    
+        // get boxes
+      MBOrientedBox box1, box2;
+      rval = box( children[0], box1 );
+      if (MB_SUCCESS != rval) return rval;
+      rval = box( children[1], box2 );
+      if (MB_SUCCESS != rval) return rval;
+      
+        // get distance from each box
+      MBCartVect pt1, pt2;
+      box1.closest_location_in_box( loc, pt1 );
+      box2.closest_location_in_box( loc, pt2 );
+      pt1 -= loc;
+      pt2 -= loc;
+      const double dsqr1 = pt1 % pt1;
+      const double dsqr2 = pt2 % pt2;
+      
+        // push children on tree such that closer one is on top
+      if (dsqr1 < dsqr2) {
+        stack.push_back( MBOBBTreeCPFrame(dsqr2, children[1], current_set ) );
+        stack.push_back( MBOBBTreeCPFrame(dsqr1, children[0], current_set ) );
+      }
+      else {
+        stack.push_back( MBOBBTreeCPFrame(dsqr1, children[0], current_set ) );
+        stack.push_back( MBOBBTreeCPFrame(dsqr2, children[1], current_set ) );
+      }
+    }
+    else { // LEAF NODE
+      MBRange facets;
+      rval = instance->get_entities_by_dimension( node, 2, facets );
+      if (MB_SUCCESS != rval)
+        return rval;
+      
+      const MBEntityHandle* conn;
+      int len;
+      MBCartVect tmp, diff;
+      for (MBRange::iterator i = facets.begin(); i != facets.end(); ++i) {
+        rval = instance->get_connectivity( *i, conn, len, true );
+        if (MB_SUCCESS != rval)
+          return rval;
+        
+        coords.resize(3*len);
+        rval = instance->get_coords( conn, len, &coords[0] );
+        if (MB_SUCCESS != rval)
+          return rval;
+        
+        if (len == 3) 
+          MBGeomUtil::closest_location_on_tri( loc, (MBCartVect*)(&coords[0]), tmp );
+        else
+          MBGeomUtil::closest_location_on_polygon( loc, (MBCartVect*)(&coords[0]), len, tmp );
+        
+        diff = tmp - loc;
+        dist_sqr = diff % diff;
+        if (dist_sqr < smallest_dist_sqr) {
+          smallest_dist_sqr = dist_sqr;
+          facet_out = *i;
+          tmp.get( point_out );
+          if (set_out)
+            *set_out = current_set;
+        }
+      }
+    } // LEAF NODE
+  }
+  
+  return MB_SUCCESS;
+}
                                      
 MBErrorCode MBOrientedBoxTreeTool::closest_to_location( const double* point,
                                      MBEntityHandle root,

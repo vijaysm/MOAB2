@@ -1295,7 +1295,6 @@ static bool do_closest_point_test( MBOrientedBoxTreeTool& tool,
       // find closest point usnig tree
     rval = tool.closest_to_location( points[i].array(), 
                                      root_set,
-                                     tolerance,
                                      t_result.array(),
                                      t_tri,
                                      set_ptr );

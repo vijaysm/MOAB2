@@ -203,7 +203,6 @@ class MBOrientedBoxTreeTool
      */
     MBErrorCode closest_to_location( const double* point,
                                      MBEntityHandle tree_root,
-                                     double tolerance,
                                      double* point_out,
                                      MBEntityHandle& facet_out,
                                      MBEntityHandle* set_out = 0);
@@ -220,6 +219,23 @@ class MBOrientedBoxTreeTool
                                      double tolerance,
                                      std::vector<MBEntityHandle>& facets_out,
                                      std::vector<MBEntityHandle>* sets_out = 0 );
+    
+    /**\brief Find facets intersected by a sphere 
+     *
+     * Find facets intersected by a spherical volume.
+     *\param center     Sphere center
+     *\param radius     Sphere radius
+     *\param tree_root  Root of OBB tree
+     *\param facets_out List of triangles intersecting sphere
+     *\param sets_out   If not null, sets owning facets are appended to this
+     *                  list in an order corresponding to the entries in 
+     *                  facets_out.
+     */
+    MBErrorCode sphere_intersect_triangles( const double* center,
+                                        double radius,
+                                        MBEntityHandle tree_root,
+                                        std::vector<MBEntityHandle>& facets_out,
+                                        std::vector<MBEntityHandle>* sets_out = 0 );
     
     /**\brief Get oriented box at node in tree
      *
