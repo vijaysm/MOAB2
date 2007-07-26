@@ -531,6 +531,7 @@ dnl  - Optional library path linker argument (e.g. -L/opt/foo)
   SNL_CHECK_LIB_LIST([GL],  [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
   SNL_CHECK_LIB_LIST([GLU], [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
   vtk_libs_arg="-L$x_libraries $vtk_x_libs $X_EXTRA_LIBS -lX11 $X_PRE_LIBS $vtk_sys_libs"
+  SNL_CHECK_LIB_LIST([vtksys],        [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkCommon],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkDICOMParser],[vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkfreetype],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
@@ -542,10 +543,14 @@ dnl  - Optional library path linker argument (e.g. -L/opt/foo)
   SNL_CHECK_LIB_LIST([vtkftgl],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkFiltering],  [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkImaging],    [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  SNL_CHECK_LIB_LIST([verdict112],    [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkGraphics],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  SNL_CHECK_LIB_LIST([vtkNetCDF],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  SNL_CHECK_LIB_LIST([vtkexoIIc],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkIO],         [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkRendering],  [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkParallel],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  SNL_CHECK_LIB_LIST([vtkHybrid],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   
    # Make sure we found at least vtkCommon and vtkRendering
   if ! echo "x $vtk_libs" | grep lvtkCommon >/dev/null; then
