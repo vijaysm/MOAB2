@@ -354,7 +354,7 @@ if test $ENABLE_qvdual = yes; then
       GRAPH_DIR=
       for dir in /usr /usr/local; do
         if test "x" = "x$GRAPH_DIR"; then
-          AC_CHECK_FILE([${dir}/include/graphviz/dotneato.h],[GRAPH_DIR="$dir"])
+          AC_CHECK_FILE([${dir}/include/graphviz/gvc.h],[GRAPH_DIR="$dir"])
         fi
       done
       AC_MSG_CHECKING([for GraphViz include dir])
@@ -377,7 +377,7 @@ if test $ENABLE_qvdual = yes; then
       GRAPH_INC_DIR=
       for dir in ${GRAPH_DIR}/include/graphviz ${GRAPH_DIR}/include ${GRAPH_DIR}; do
         if test "x" = "x$GRAPH_INC_DIR"; then
-          AC_CHECK_FILE([${dir}/dotneato.h],[GRAPH_INC_DIR="-I$dir"])
+          AC_CHECK_FILE([${dir}/gvc.h],[GRAPH_INC_DIR="-I$dir"])
         fi
       done
       AC_MSG_CHECKING([for GraphViz include dir])
@@ -405,16 +405,15 @@ if test $ENABLE_qvdual = yes; then
       ;;
   esac
 
-  GRAPH_LIBS="$GRAPH_LIB_DIR -ldotneato -lgraph"
+  GRAPH_LIBS="$GRAPH_LIB_DIR -lgvc -lgraph"
   old_CXXFLAGS="$CXXFLAGS"
   old_CPPFLAGS="$CPPFLAGS"
   CXXFLAGS="$GRAPH_INC_DIR"
   CPPFLAGS="$GRAPH_INC_DIR"
   old_LIBS="$LIBS"
   LIBS=$GRAPH_LIBS
-  AC_CHECK_HEADERS([dotneato.h],[],[AC_MSG_WARN([Missing GraphViz header]); GRAPHVIZ_MISSING=yes])
-  AC_CHECK_LIB([graph],[aginitlib],[],[AC_MSG_WARN([Cannot find GraphViz library: -lgraph]); GRAPHVIZ_MISSING=yes])
-  AC_CHECK_LIB([dotneato],[gvContext],[],[AC_MSG_WARN([Cannot find GraphViz library: -ldotneato]); GRAPHVIZ_MISSING=yes],[-lgraph])
+  AC_CHECK_HEADERS([gvc.h],[],[AC_MSG_WARN([Missing GraphViz header]); GRAPHVIZ_MISSING=yes])
+  AC_CHECK_LIB([gvc],[gvContext],[],[AC_MSG_WARN([Cannot find GraphViz library: -lgraph]); GRAPHVIZ_MISSING=yes])
   LIBS="$old_LIBS"
   CXXFLAGS="$old_CXXFLAGS"
   CPPFLAGS="$old_CPPFLAGS"
@@ -450,7 +449,7 @@ if test $ENABLE_qvdual = yes; then
     xyes|x)
       VTK_LIB_DIR=
       VTK_INC_DIR=
-      for dir in /usr/include/vtk /usr/local/include/vtk /include/vtk; do
+      for dir in /usr/include/vtk /usr/local/include/vtk /include/vtk /usr/include/vtk-5.0; do
         if test "x" = "x$VTK_INC_DIR"; then
           AC_CHECK_FILE([${dir}/vtkRenderer.h],[VTK_INC_DIR="-I$dir"])
         fi
@@ -461,11 +460,24 @@ if test $ENABLE_qvdual = yes; then
       else
         VTK_INCLUDES="$VTK_INC_DIR"
       fi
+      old_LIBS="$LIBS"
+      for dir in /usr/lib/vtk /usr/lib /usr/bin /usr; do
+        if test "x" = "x$VTK_LIB_DIR"; then
+          LIBS="$old_LIBS -L$dir"
+          unset ac_cv_lib_vtkCommon
+	  unset ac_cv_lib_vtkCommon_main
+          AC_HAVE_LIBRARY([vtkCommon],[VTK_LIB_DIR=$dir])
+        fi
+      done
+      if test "x" = "x$VTK_LIB_DIR"; then
+        VTK_MISSING=yes
+      fi
+      LIBS="$old_LIBS"
       ;;
     x?*)
       VTK_LIB_DIR=
       VTK_INC_DIR=
-      for dir in ${VTK_DIR}/include/vtk ${VTK_DIR}/include ${VTK_DIR}; do
+      for dir in ${VTK_DIR}/include/vtk ${VTK_DIR}/include/vtk/Rendering ${VTK_DIR}/include ${VTK_DIR}; do
         if test "x" = "x$VTK_INC_DIR"; then
           AC_CHECK_FILE([${dir}/vtkRenderer.h],[VTK_INC_DIR="-I$dir"])
         fi
@@ -490,9 +502,9 @@ if test $ENABLE_qvdual = yes; then
       for dir in ${VTK_DIR}/lib/vtk ${VTK_DIR}/lib ${VTK_DIR}/bin ${VTK_DIR}; do
         if test "x" = "x$VTK_LIB_DIR"; then
           LIBS="$old_LIBS -L$dir"
-          unset ac_cv_lib_vtkexpat
-  	unset ac_cv_lib_vtkexpat_main
-          AC_HAVE_LIBRARY([vtkexpat],[VTK_LIB_DIR=$dir])
+          unset ac_cv_lib_vtkCommon
+  	unset ac_cv_lib_vtkCommon_main
+          AC_HAVE_LIBRARY([vtkCommon],[VTK_LIB_DIR=$dir])
         fi
       done
       if test "x" = "x$VTK_LIB_DIR"; then
@@ -549,7 +561,7 @@ dnl  - Optional library path linker argument (e.g. -L/opt/foo)
   SNL_CHECK_LIB_LIST([vtkexoIIc],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkIO],         [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkRendering],  [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkParallel],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  SNL_CHECK_LIB_LIST([vtkParallel],  [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkHybrid],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   
    # Make sure we found at least vtkCommon and vtkRendering

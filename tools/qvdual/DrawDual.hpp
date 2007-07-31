@@ -4,6 +4,7 @@
 class Agnode_t;
 class Agedge_t;
 class Agraph_t;
+
 class QVTKWidget;
 
 #include "MBInterface.hpp"

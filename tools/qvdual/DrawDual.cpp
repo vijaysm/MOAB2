@@ -44,11 +44,11 @@
 
 extern "C" 
 {
-#include "dotneato.h"
+#include "gvc.h"
 //  extern GVC_t *gvContext();
 }
 
-const bool my_debug = false;
+const bool my_debug = true;
 
 const int SHEET_WINDOW_SIZE = 500;
 
@@ -227,7 +227,7 @@ void DrawDual::process_pick()
   else {
       // more than one - traverse, choosing the chord if any first
     actors->InitTraversal();
-    while (tmp_actor = actors->GetNextItem()) {
+    while ((tmp_actor = actors->GetNextItem())) {
       MBEntityHandle this_set = vtkMOABUtils::propSetMap[tmp_actor];
       if (0 == this_set) continue;
         // get whether it's a dual surface or dual curve
@@ -443,7 +443,7 @@ MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf,
     agwrite(this_gw.gvizGraph, stdout);
   }
 //  neato_init_graph(this_gw.gvizGraph);
-  neato_layout(this_gw.gvizGraph);
+  gvLayout(gvContext(), this_gw.gvizGraph, "neato");
 //  adjustNodes(this_gw.gvizGraph);
 //  spline_edges(this_gw.gvizGraph);
 //  dotneato_postprocess(this_gw.gvizGraph, neato_nodesize);
@@ -1320,8 +1320,8 @@ MBErrorCode DrawDual::construct_graphviz_edges(MBEntityHandle dual_surf,
         endloop = loop_verts.end();
       if ((firstv == endloop && lastv != endloop) ||
           (firstv != endloop && lastv == endloop)) {
-        agxset(this_gved, asym_weight->index, "10");
-        agxset(this_gved, asym_len->index, "0.1");
+          //  agxset(this_gved, asym_weight->index, "10");
+          //  agxset(this_gved, asym_len->index, "0.1");
       }
     }
 
@@ -1789,8 +1789,8 @@ MBErrorCode DrawDual::get_primal_ids(const MBRange &ents, std::vector<int> &ids)
 {
     // get the ids of these verts, equal to entity ids of their primal entities
   static std::vector<MBEntityHandle> primals;
-  primals.reserve(ents.size());
-  ids.reserve(ents.size());
+  primals.resize(ents.size());
+  ids.resize(ents.size());
   MBErrorCode result = MBI->tag_get_data(dualEntityTagHandle, ents, &primals[0]);
   if (MB_SUCCESS != result) {
     for (unsigned int i = 0; i < ents.size(); i++) ids[i] = 0;
@@ -1798,6 +1798,9 @@ MBErrorCode DrawDual::get_primal_ids(const MBRange &ents, std::vector<int> &ids)
 
   result = MBI->tag_get_data(vtkMOABUtils::globalId_tag(), &primals[0], ents.size(),
                              &ids[0]);
+  if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result)
+    std::cerr << "tag_get_data returned non-zero result in get_primal_ids." << std::endl;
+    
   for (unsigned int i = 0; i < ents.size(); i++) {
     if (0 == ids[i]) ids[i] = MBI->id_from_handle(primals[i]);
   }
@@ -1838,7 +1841,7 @@ MBErrorCode DrawDual::reset_drawing_data(MBEntityHandle dual_surf)
   MBRange saved_sets;
 
     // get all actors, check sets in propSetMap; save set, remove actor from map
-  while (tmp_actor = acoll->GetNextItem()) {
+  while ((tmp_actor = acoll->GetNextItem())) {
     std::map<vtkProp*,MBEntityHandle>::iterator mit = 
       vtkMOABUtils::propSetMap.find(tmp_actor);
     if (mit == vtkMOABUtils::propSetMap.end()) continue;

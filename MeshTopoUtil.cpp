@@ -392,7 +392,7 @@ MBErrorCode MeshTopoUtil::get_bridge_adjacencies(const MBEntityHandle from_entit
         // get the vertices making up this sub-entity
       int num_bridge_verts = MBCN::VerticesPerEntity( MBCN::SubEntityType( from_type, bridge_dim, i ) );
       MBCN::SubEntityVertexIndices( from_type, bridge_dim, i, bridge_indices );
-      for (int j = 0; j < num_bridge_verts; ++i)
+      for (int j = 0; j < num_bridge_verts; ++j)
         bridge_verts[j]= connect[bridge_indices[j]];
       //MBCN::SubEntityConn(connect, from_type, bridge_dim, i, &bridge_verts[0], num_bridge_verts);
     

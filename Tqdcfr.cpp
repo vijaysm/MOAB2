@@ -150,7 +150,7 @@ Tqdcfr::Tqdcfr(MBInterface *impl)
   MBErrorCode result = mdbImpl->tag_get_handle("cubIdTag", cubIdTag);
   if (MB_SUCCESS != result || MB_TAG_NOT_FOUND == result) {
     int default_val = -1;
-    result = mdbImpl->tag_create("cubIdTag", 4, MB_TAG_DENSE, 
+    result = mdbImpl->tag_create("cubIdTag", sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER,
                                  cubIdTag, &default_val);
     assert (MB_SUCCESS == result);
   }
@@ -368,8 +368,8 @@ MBErrorCode Tqdcfr::convert_nodesets_sidesets()
   if (0 != nodeset_offset) {
     if (0 == nsTag) {
       int default_val = 0;
-      tmp_result = mdbImpl->tag_create(DIRICHLET_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
-                                                 nsTag, &default_val);
+      tmp_result = mdbImpl->tag_create(DIRICHLET_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, 
+                                       MB_TYPE_INTEGER, nsTag, &default_val);
       if (MB_SUCCESS != tmp_result) result = tmp_result;
     }
     if (MB_SUCCESS == tmp_result)
@@ -382,8 +382,8 @@ MBErrorCode Tqdcfr::convert_nodesets_sidesets()
   if (0 != sideset_offset) {
     if (0 == ssTag) {
       int default_val = 0;
-      tmp_result = mdbImpl->tag_create(NEUMANN_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
-                                                 ssTag, &default_val);
+      tmp_result = mdbImpl->tag_create(NEUMANN_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, 
+                                       MB_TYPE_INTEGER, ssTag, &default_val);
       if (MB_SUCCESS != tmp_result) result = tmp_result;
     }
     if (MB_SUCCESS == tmp_result) 
@@ -513,7 +513,8 @@ MBErrorCode Tqdcfr::read_sideset(const double data_version,
     FREADD(sideseth->numDF);
     MBTag distFactorTag;
     double *dum_val = NULL;
-    MBErrorCode result = mdbImpl->tag_create("distFactor", sizeof(double*), MB_TAG_SPARSE, distFactorTag, 
+    MBErrorCode result = mdbImpl->tag_create("distFactor", sizeof(double*), MB_TAG_SPARSE, 
+                                             distFactorTag, 
                               &dum_val);
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
     double *dist_data = new double[ss_dfs.size()];
@@ -573,7 +574,7 @@ MBErrorCode Tqdcfr::process_sideset_10(const int this_type, const int num_ents,
     int def_val = 1;
     MBTag sense_tag;
     tmp_result = mdbImpl->tag_create("SENSE", sizeof(int), 
-                                     MB_TAG_SPARSE, sense_tag, &def_val);
+                                     MB_TAG_SPARSE, MB_TYPE_INTEGER, sense_tag, &def_val);
     if (tmp_result != MB_SUCCESS && tmp_result != MB_ALREADY_ALLOCATED) result = tmp_result;
     def_val = -1;
     tmp_result = mdbImpl->tag_set_data(sense_tag, &reverse_set, 1, &def_val);
@@ -632,7 +633,7 @@ MBErrorCode Tqdcfr::process_sideset_11(std::vector<MBEntityHandle> &ss_entities,
     int def_val = 1;
     MBTag sense_tag;
     tmp_result = mdbImpl->tag_create("SENSE", sizeof(int), 
-                                     MB_TAG_SPARSE, sense_tag, &def_val);
+                                     MB_TAG_SPARSE, MB_TYPE_INTEGER, sense_tag, &def_val);
     if (tmp_result != MB_SUCCESS && tmp_result != MB_ALREADY_ALLOCATED) result = tmp_result;
     def_val = -1;
     tmp_result = mdbImpl->tag_set_data(sense_tag, &reverse_set, 1, &def_val);
@@ -682,7 +683,7 @@ MBErrorCode Tqdcfr::read_block(const double data_version,
       // now do something with them...
     MBErrorCode result = mdbImpl->tag_create("Block_Attributes", 
                                              blockh->attribOrder*sizeof(double), MB_TAG_SPARSE, 
-                                             block_attribs, NULL);
+                                             MB_TYPE_DOUBLE, block_attribs, NULL);
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
     result = mdbImpl->tag_set_data(block_attribs, &(blockh->setHandle), 1,
                                    &(dbl_buf[0]));
@@ -1030,7 +1031,7 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
     if (MB_SUCCESS != result || 0 == fixedFlagTag) {
       int dum_val = 0;
       result = mdbImpl->tag_create("NodeFixed", sizeof(int), MB_TAG_SPARSE, 
-                                   fixedFlagTag, &dum_val);
+                                   MB_TYPE_INTEGER, fixedFlagTag, &dum_val);
       if (MB_SUCCESS != result) return result;
     }
   }
@@ -1496,8 +1497,8 @@ MBErrorCode Tqdcfr::BlockHeader::read_info_header(const double data_version,
       int has_mid_nodes[] = {0, 0, 0, 0};
       static MBTag hasMidNodesTag = 0;
       if (0 == hasMidNodesTag) {
-        result = instance->mdbImpl->tag_create(HAS_MID_NODES_TAG_NAME, 4*sizeof(int), MB_TAG_SPARSE, hasMidNodesTag,
-                                               has_mid_nodes);
+        result = instance->mdbImpl->tag_create(HAS_MID_NODES_TAG_NAME, 4*sizeof(int), MB_TAG_SPARSE, 
+                                               MB_TYPE_INTEGER, hasMidNodesTag, has_mid_nodes);
         if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
       }
       
@@ -1669,16 +1670,16 @@ MBErrorCode Tqdcfr::ModelEntry::read_header_info( Tqdcfr* instance, const double
   int default_val = -1;
   MBErrorCode result;
 
-  result = instance->mdbImpl->tag_create(GLOBAL_ID_TAG_NAME, 4, MB_TAG_DENSE, 
+  result = instance->mdbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER,
                                          instance->globalIdTag, &default_val);
   if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
 
   if (feModelHeader.geomArray.numEntities > 0) {
-    result = instance->mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4, MB_TAG_SPARSE, 
-                                           instance->geomTag, &default_val);
+    result = instance->mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_SPARSE, 
+                                           MB_TYPE_INTEGER, instance->geomTag, &default_val);
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
     
-    result = instance->mdbImpl->tag_create("UNIQUE_ID", 4, MB_TAG_SPARSE, 
+    result = instance->mdbImpl->tag_create("UNIQUE_ID", sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER,
                                            instance->uniqueIdTag, &default_val);
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
     
@@ -1700,8 +1701,8 @@ MBErrorCode Tqdcfr::ModelEntry::read_header_info( Tqdcfr* instance, const double
   }
 
   if (feModelHeader.blockArray.numEntities > 0) {
-    result = instance->mdbImpl->tag_create(MATERIAL_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
-                                           instance->blockTag, &default_val);
+    result = instance->mdbImpl->tag_create(MATERIAL_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, 
+                                           MB_TYPE_INTEGER, instance->blockTag, &default_val);
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
     
     result = Tqdcfr::BlockHeader::read_info_header(data_version, modelOffset, 
@@ -1712,8 +1713,8 @@ MBErrorCode Tqdcfr::ModelEntry::read_header_info( Tqdcfr* instance, const double
     print_block_headers("Block headers:", feBlockH, feModelHeader.blockArray.numEntities);
   }
   if (feModelHeader.nodesetArray.numEntities > 0) {
-    result = instance->mdbImpl->tag_create(DIRICHLET_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
-                                           instance->nsTag, &default_val);
+    result = instance->mdbImpl->tag_create(DIRICHLET_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, 
+                                           MB_TYPE_INTEGER, instance->nsTag, &default_val);
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
     
     result = Tqdcfr::NodesetHeader::read_info_header(modelOffset, 
@@ -1724,8 +1725,8 @@ MBErrorCode Tqdcfr::ModelEntry::read_header_info( Tqdcfr* instance, const double
     print_nodeset_headers("Nodeset headers:", feNodeSetH, feModelHeader.nodesetArray.numEntities);
   }
   if (feModelHeader.sidesetArray.numEntities > 0) {
-    result = instance->mdbImpl->tag_create(NEUMANN_SET_TAG_NAME, 4, MB_TAG_SPARSE, 
-                                           instance->ssTag, &default_val);
+    result = instance->mdbImpl->tag_create(NEUMANN_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, 
+                                           MB_TYPE_INTEGER, instance->ssTag, &default_val);
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
     
     result = Tqdcfr::SidesetHeader::read_info_header(modelOffset, 

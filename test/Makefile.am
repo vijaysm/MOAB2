@@ -10,7 +10,9 @@ EXTRA_DIST  = 125hex.g \
               4k-tri-plane.vtk \
               4tet.g \
               8hex.g \
-              block.cub \
+              brick_cubit10.1.cub \
+              brick_cubit10.2.cub \
+              brick_cubit10.cub \
               cell1.gen.gz \
               cell2.gen.gz \
               mb_big_test.g.gz \

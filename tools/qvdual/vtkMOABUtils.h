@@ -242,6 +242,9 @@ public:
 
     //! assign global ids, in preparation for writing mesh
   static void assign_global_ids();
+
+    //! debug parameter
+  static bool debug;
   
 private:
     //! private constructor so nobody can construct one
