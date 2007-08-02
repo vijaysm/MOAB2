@@ -364,7 +364,7 @@ if test $ENABLE_qvdual = yes; then
       AC_MSG_RESULT([$GRAPH_INC_DIR])
       AC_MSG_CHECKING([for GraphViz library dir])
       GRAPH_LIB_DIR=
-      for dir in ${GRAPH_DIR}/lib/graphviz /usr/lib/graphviz /usr/local/lib/graphviz /lib/graphviz; do
+      for dir in ${GRAPH_DIR}/lib64/graphviz ${GRAPH_DIR}/lib/graphviz /usr/lib64/graphviz /usr/lib/graphviz /usr/local/lib64/graphviz /usr/local/lib/graphviz /lib64/graphviz /lib/graphviz; do
         if test "x" = "x$GRAPH_LIB_DIR"; then
           if test -d $dir; then
             GRAPH_LIB_DIR=-L$dir
@@ -555,10 +555,11 @@ dnl  - Optional library path linker argument (e.g. -L/opt/foo)
   SNL_CHECK_LIB_LIST([vtkftgl],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkFiltering],  [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkImaging],    [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([verdict112],    [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  SNL_CHECK_LIB_LIST([verdict],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkGraphics],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkNetCDF],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkexoIIc],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  SNL_CHECK_LIB_LIST([vtkmetaio],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkIO],         [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkRendering],  [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   SNL_CHECK_LIB_LIST([vtkParallel],  [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
