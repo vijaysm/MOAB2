@@ -1064,7 +1064,7 @@ MBErrorCode DrawDual::get_xform(MBEntityHandle dual_surf, Agsym_t *asym_pos,
   x_xform = 1.0;
   y_xform = 1.0;
 
-  std::cout << "Didn't find transform." << std::endl;
+  if (my_debug) std::cout << "Didn't find transform." << std::endl;
   
   return MB_FAILURE;
 }
@@ -1089,16 +1089,13 @@ void DrawDual::get_clean_pd(MBEntityHandle dual_surf,
     if (MB_SUCCESS != result) {
       std::cerr << "Trouble resetting drawing data for sheet." << std::endl;
     }
-    
-    delete this_wid;
-    this_wid = NULL;
   }
   
   if (NULL == this_wid) {
     vtkRenderer *this_ren = vtkRenderer::New();
     pd = vtkPolyData::New();
     
-    const bool twod = false;
+    const bool twod = true;
     
     if (twod) {
       
@@ -1882,8 +1879,8 @@ MBErrorCode DrawDual::reset_drawing_data(MBEntityHandle dual_surf)
   }
 
   if (NULL != this_gw.qvtkWidget) {
-    delete this_gw.qvtkWidget;
-    this_gw.qvtkWidget = NULL;
+//    delete this_gw.qvtkWidget;
+//    this_gw.qvtkWidget = NULL;
   }
   
 

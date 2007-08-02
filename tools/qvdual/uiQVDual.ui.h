@@ -155,9 +155,9 @@ void uiQVDual::init()
 
   if (NULL == vtkWidget) {
     vtkWidget = new QVTKWidget( centralWidget(), "vtkWidget" );
-    vtkWidget->setGeometry( QRect( 400, 10, 470, 569 ) );
-    vtkWidget->setSizePolicy( QSizePolicy( (QSizePolicy::SizeType)7, (QSizePolicy::SizeType)7, 5, 1, vtkWidget->sizePolicy().hasHeightForWidth() ) );
-    vtkWidget->setMinimumSize( QSize( 0, 0 ) );
+//    vtkWidget->setGeometry( QRect( 400, 10, 470, 569 ) );
+//    vtkWidget->setSizePolicy( QSizePolicy( (QSizePolicy::SizeType)7, (QSizePolicy::SizeType)7, 5, 1, vtkWidget->sizePolicy().hasHeightForWidth() ) );
+//    vtkWidget->setMinimumSize( QSize( 0, 0 ) );
   }
   
   vtkWidget->GetRenderWindow()->AddRenderer(ren);
@@ -193,7 +193,7 @@ void uiQVDual::constructDual()
   
   QListViewItemIterator it = QListViewItemIterator(TagListView1);
   while ( it.current() ) {
-    std::string this_name((*it)->text(0));
+    QString this_name((*it)->text(0));
     
     if (this_name == "DUAL_SURFACE") {
       (*it)->setOpen(true);
@@ -276,7 +276,7 @@ void uiQVDual::updateTagList()
     QListViewItem *set_item;
     for (i = 0, set_it = tag_sets.begin(); set_it != tag_sets.end(); set_it++, i++) {
     // make an item for this set
-      char set_name[CATEGORY_TAG_NAME_LENGTH];
+      char set_name[CATEGORY_TAG_SIZE];
       result = vtkMOABUtils::get_set_category_name(*set_it, set_name);
       if (MB_SUCCESS != result) sprintf(set_name, "(none)\0");
       set_item = new QListViewItem(tags_item, set_name);
@@ -401,7 +401,7 @@ void uiQVDual::updateActorContainsList( QListViewItem *item, MBEntityHandle set_
   }
   
     // has an actor, or contains sets; allocate a list item
-  char set_name[CATEGORY_TAG_NAME_LENGTH];
+  char set_name[CATEGORY_TAG_SIZE];
   vtkMOABUtils::get_set_category_name(set_handle, set_name);
   set_item = new QListViewItem(item, set_name);
   itemSetMap[set_item] = set_handle;
@@ -438,7 +438,7 @@ void uiQVDual::updateActorParentList( QListViewItem *item, MBEntityHandle set_ha
   }
   
     // has an actor, or parent sets; allocate a list item
-  char set_name[CATEGORY_TAG_NAME_LENGTH];
+  char set_name[CATEGORY_TAG_SIZE];
   vtkMOABUtils::get_set_category_name(set_handle, set_name);
   set_item = new QListViewItem(item, set_name);
   itemSetMap[set_item] = set_handle;
@@ -710,7 +710,9 @@ void uiQVDual::displayDrawSheetAction_activated()
   if (NULL == vtkMOABUtils::drawDual) vtkMOABUtils::drawDual = new DrawDual(pickline1, pickline2);
 
   // now draw them
-  vtkMOABUtils::drawDual->draw_dual_surfs(dual_surfs);
+  bool success = vtkMOABUtils::drawDual->draw_dual_surfs(dual_surfs);
+  if (!success) 
+    std::cout << "Problem drawing dual surface(s)." << std::endl;
 }
 
 
@@ -810,7 +812,6 @@ void uiQVDual::negAPbutton_clicked()
     return;
   }
 
-  MBEntityHandle new_hp;
   result = dt.rev_atomic_pillow(sheet, chords);
   if (MB_SUCCESS != result) {
     std::cerr << "-AP failed." << std::endl;
@@ -831,7 +832,7 @@ void uiQVDual::FOCbutton_clicked()
 {
     // make sure the last picked entities are edges
   MBEntityHandle edge1 = vtkMOABUtils::drawDual->lastPickedEnt,
-    edge2 = vtkMOABUtils::drawDual->secondLastPickedEnt,;
+    edge2 = vtkMOABUtils::drawDual->secondLastPickedEnt;
   if (0 == edge1 || 0 == edge2) {
     std::cerr << "Didn't find a picked entity." << std::endl;
     return;
@@ -1059,9 +1060,9 @@ void uiQVDual::resetDisplay()
 
 void uiQVDual::redrawDisplay()
 {
-  resetDisplay();
+    //resetDisplay();
   
-  this->init();
+    //this->init();
   
   vtkMOABUtils::update_display();
 

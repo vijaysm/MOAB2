@@ -9,10 +9,6 @@ qvdual_SOURCES = \
   CropToolpopup.ui.h \
   DrawDual.cpp \
   DrawDual.hpp \
-  QVTKWidget.cxx \
-  QVTKWidget.h \
-  QVTKWidgetPlugin.cxx \
-  QVTKWidgetPlugin.h \
   main.cpp \
   uiQVDual.ui \
   uiQVDual.ui.h \
@@ -25,8 +21,7 @@ extra_depends = \
   uiQVDual.o \
   moc_uiQVDual.o \
   CropToolpopup.o \
-  moc_CropToolpopup.o \
-  moc_QVTKWidget.o 
+  moc_CropToolpopup.o
 
 LDADD = $(extra_depends) $(QVDUAL_LIBS) $(top_builddir)/libMOAB.la 
 AM_LDFLAGS = -R $(VTK_LIB_DIR)
@@ -44,8 +39,9 @@ moc_uiQVDual.cpp: uiQVDual.h
 moc_CropToolpopup.cpp: CropToolpopup.h 
 	$(MOC) -o $@ CropToolpopup.h 
 
-moc_QVTKWidget.cpp: QVTKWidget.h 
-	$(MOC) -o $@ QVTKWidget.h 
+uiQVDual.ui : uiQVDual.ui.h
+
+uiQVDual.o: uiQVDual.cpp
 
 .ui.h: 
 	$(UIC) -o $@ $<
