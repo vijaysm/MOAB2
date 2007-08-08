@@ -8,7 +8,7 @@
         <rect>
             <x>0</x>
             <y>0</y>
-            <width>867</width>
+            <width>1010</width>
             <height>771</height>
         </rect>
     </property>
@@ -23,7 +23,7 @@
     <property name="minimumSize">
         <size>
             <width>21</width>
-            <height>166</height>
+            <height>160</height>
         </size>
     </property>
     <property name="caption">
@@ -231,33 +231,6 @@
             <string>FS</string>
         </property>
     </widget>
-    <widget class="QVTKWidget">
-        <property name="name">
-            <cstring>vtkWidget</cstring>
-        </property>
-        <property name="geometry">
-            <rect>
-                <x>400</x>
-                <y>10</y>
-                <width>470</width>
-                <height>569</height>
-            </rect>
-        </property>
-        <property name="sizePolicy">
-            <sizepolicy>
-                <hsizetype>7</hsizetype>
-                <vsizetype>7</vsizetype>
-                <horstretch>5</horstretch>
-                <verstretch>1</verstretch>
-            </sizepolicy>
-        </property>
-        <property name="minimumSize">
-            <size>
-                <width>0</width>
-                <height>0</height>
-            </size>
-        </property>
-    </widget>
     <widget class="QPushButton">
         <property name="name">
             <cstring>Create_Dual_Button</cstring>
@@ -451,6 +424,33 @@
             </widget>
         </hbox>
     </widget>
+    <widget class="QVTKWidget">
+        <property name="name">
+            <cstring>vtkWidget</cstring>
+        </property>
+        <property name="geometry">
+            <rect>
+                <x>400</x>
+                <y>10</y>
+                <width>600</width>
+                <height>569</height>
+            </rect>
+        </property>
+        <property name="sizePolicy">
+            <sizepolicy>
+                <hsizetype>7</hsizetype>
+                <vsizetype>7</vsizetype>
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+            </sizepolicy>
+        </property>
+        <property name="minimumSize">
+            <size>
+                <width>0</width>
+                <height>0</height>
+            </size>
+        </property>
+    </widget>
 </widget>
 <menubar>
     <property name="name">
@@ -489,25 +489,6 @@
 </menubar>
 <toolbars>
 </toolbars>
-<customwidgets>
-    <customwidget>
-        <class>QVTKWidget</class>
-        <header location="global">QVTKWidget.h</header>
-        <sizehint>
-            <width>-1</width>
-            <height>-1</height>
-        </sizehint>
-        <container>0</container>
-        <sizepolicy>
-            <hordata>5</hordata>
-            <verdata>5</verdata>
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-        </sizepolicy>
-        <pixmap>image0</pixmap>
-        <signal>signal()</signal>
-    </customwidget>
-</customwidgets>
 <actions>
     <action>
         <property name="name">
@@ -772,11 +753,6 @@
         </property>
     </action>
 </actions>
-<images>
-    <image name="image0">
-        <data format="XBM.GZ" length="79">789c534e494dcbcc4b554829cdcdad8c2fcf4c29c95030e0524611cd48cd4ccf28010a1797249664262b2467241641a592324b8aa363156c15aab914146aadb90067111b1f</data>
-    </image>
-</images>
 <connections>
     <connection>
         <sender>ActorListView1</sender>
@@ -1041,6 +1017,6 @@
 <pixmapinproject/>
 <layoutdefaults spacing="6" margin="11"/>
 <includehints>
-    <includehint>qvtkwidget.h</includehint>
+    <includehint>QVTKWidget.h</includehint>
 </includehints>
 </UI>

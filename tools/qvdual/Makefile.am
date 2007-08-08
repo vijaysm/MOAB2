@@ -10,6 +10,8 @@ qvdual_SOURCES = \
   DrawDual.cpp \
   DrawDual.hpp \
   main.cpp \
+  SheetDiagramPopup.ui.h \
+  SheetDiagramPopup.ui \
   uiQVDual.ui \
   uiQVDual.ui.h \
   vtkMOABReader.cxx \
@@ -21,7 +23,10 @@ extra_depends = \
   uiQVDual.o \
   moc_uiQVDual.o \
   CropToolpopup.o \
-  moc_CropToolpopup.o
+  moc_CropToolpopup.o \
+  SheetDiagramPopup.o \
+  moc_SheetDiagramPopup.o
+
 
 LDADD = $(extra_depends) $(QVDUAL_LIBS) $(top_builddir)/libMOAB.la 
 AM_LDFLAGS = -R $(VTK_LIB_DIR)
@@ -33,15 +38,29 @@ uiQVDual.cpp: uiQVDual.h uiQVDual.ui
 CropToolpopup.cpp: CropToolpopup.h CropToolpopup.ui 
 	$(UIC) -impl CropToolpopup.h -o $@ CropToolpopup.ui 
 
+SheetDiagramPopup.cpp: SheetDiagramPopup.h SheetDiagramPopup.ui 
+	$(UIC) -impl SheetDiagramPopup.h -o $@ SheetDiagramPopup.ui 
+
 moc_uiQVDual.cpp: uiQVDual.h
 	$(MOC) -o $@ uiQVDual.h 
 
 moc_CropToolpopup.cpp: CropToolpopup.h 
 	$(MOC) -o $@ CropToolpopup.h 
 
+moc_SheetDiagramPopup.cpp: SheetDiagramPopup.h 
+	$(MOC) -o $@ SheetDiagramPopup.h 
+
 uiQVDual.ui : uiQVDual.ui.h
 
 uiQVDual.o: uiQVDual.cpp
+
+CropToolpopup.ui : CropToolpopup.ui.h
+
+CropToolpopup.o: CropToolpopup.cpp
+
+SheetDiagramPopup.ui : SheetDiagramPopup.ui.h
+
+SheetDiagramPopup.o: SheetDiagramPopup.cpp
 
 .ui.h: 
 	$(UIC) -o $@ $<

@@ -1,4 +1,5 @@
 #include "DrawDual.hpp"
+#include "SheetDiagramPopup.h"
 #include "MeshTopoUtil.hpp"
 #include "MBTagConventions.hpp"
 #include "MBCN.hpp"
@@ -48,7 +49,7 @@ extern "C"
 //  extern GVC_t *gvContext();
 }
 
-const bool my_debug = true;
+const bool my_debug = false;
 
 const int SHEET_WINDOW_SIZE = 500;
 
@@ -362,7 +363,7 @@ void DrawDual::update_high_polydatas()
 
 
       vtkInteractorStyle *this_style = vtkInteractorStyle::SafeDownCast(
-        gw.qvtkWidget->GetRenderWindow()->GetInteractor()->GetInteractorStyle());
+        gw.sheetDiagram->sheet_diagram()->GetRenderWindow()->GetInteractor()->GetInteractorStyle());
       this_style->HighlightProp(gw.pickActor);
     }
   }
@@ -428,7 +429,9 @@ MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf,
     // 3. make a new pd for this drawring
   GraphWindows &this_gw = surfDrawrings[dual_surf];
   vtkPolyData *pd;
-  get_clean_pd(dual_surf, this_gw.qvtkWidget, pd);
+  get_clean_pd(dual_surf, this_gw.sheetDiagram, pd);
+  
+  this_gw.sheetDiagram->show();
   
     // 1. gather/construct data for graphviz
   MBErrorCode success = construct_graphviz_data(dual_surf);
@@ -456,7 +459,7 @@ MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf,
   if (MB_SUCCESS != success) return success;
   
   vtkRenderer *this_ren = 
-    this_gw.qvtkWidget->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
+    this_gw.sheetDiagram->sheet_diagram()->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
 
     // 4. create vtk points, cells for this 2d dual surface drawing
   success = make_vtk_data(dual_surf, pd, this_ren);
@@ -476,7 +479,7 @@ MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf,
     //this_gw.qvtkWidget->GetRenderWindow()->DebugOn();
   
     // 5. render the window
-  this_gw.qvtkWidget->GetRenderWindow()->Render();
+  this_gw.sheetDiagram->sheet_diagram()->GetRenderWindow()->Render();
 
     // now that we've rendered, can get the size of various things
   int *tmp_siz = this_ren->GetSize();
@@ -495,11 +498,12 @@ MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf,
 
   if (my_debug) agwrite(this_gw.gvizGraph, stdout);
 
-  int *old_pos = this_gw.qvtkWidget->GetRenderWindow()->GetPosition();
-  int *win_siz = this_gw.qvtkWidget->GetRenderWindow()->GetSize();
-  int new_pos[2] = {(int) ((double)old_pos[0] + win_siz[0]*(.1*offset_num)), old_pos[1]};
-  this_gw.qvtkWidget->GetRenderWindow()->SetPosition(new_pos);
+  int old_pos[2] = {0, 0};
   
+  int *win_siz = this_gw.sheetDiagram->sheet_diagram()->GetRenderWindow()->GetSize();
+  int new_pos[2] = {(int) ((double)old_pos[0] + win_siz[0]*(.1*offset_num)), old_pos[1]};
+  this_gw.sheetDiagram->sheet_diagram()->GetRenderWindow()->SetPosition(new_pos);
+
   return success;
 }
 
@@ -1069,9 +1073,9 @@ MBErrorCode DrawDual::get_xform(MBEntityHandle dual_surf, Agsym_t *asym_pos,
   return MB_FAILURE;
 }
 
-vtkPolyData *DrawDual::get_polydata(QVTKWidget *this_wid) 
+vtkPolyData *DrawDual::get_polydata(SheetDiagramPopup *this_sdpopup) 
 {
-  vtkRendererCollection *rcoll = this_wid->GetRenderWindow()->GetRenderers();
+  vtkRendererCollection *rcoll = this_sdpopup->sheet_diagram()->GetRenderWindow()->GetRenderers();
   assert(rcoll != NULL);
   rcoll->InitTraversal();
   vtkActorCollection *acoll = rcoll->GetNextItem()->GetActors();
@@ -1081,21 +1085,21 @@ vtkPolyData *DrawDual::get_polydata(QVTKWidget *this_wid)
 }
 
 void DrawDual::get_clean_pd(MBEntityHandle dual_surf,
-                            QVTKWidget *&this_wid,
+                            SheetDiagramPopup *&this_sdpopup,
                             vtkPolyData *&pd)
 {
-  if (NULL != this_wid) {
+  if (NULL != this_sdpopup) {
     MBErrorCode result = reset_drawing_data(dual_surf);
     if (MB_SUCCESS != result) {
       std::cerr << "Trouble resetting drawing data for sheet." << std::endl;
     }
   }
   
-  if (NULL == this_wid) {
+  if (NULL == this_sdpopup) {
     vtkRenderer *this_ren = vtkRenderer::New();
     pd = vtkPolyData::New();
     
-    const bool twod = true;
+    const bool twod = false;
     
     if (twod) {
       
@@ -1153,7 +1157,6 @@ void DrawDual::get_clean_pd(MBEntityHandle dual_surf,
       vtkActor *this_actor = vtkActor::New();
       this_actor->PickableOn();
       vtkMOABUtils::propSetMap[this_actor] = dual_surf;
-//    vtkActor *this_actor = vtkActor::New();
       this_actor->SetMapper(this_mapper);
       this_actor->GetProperty()->SetLineWidth(2.0);
       this_ren->AddActor(this_actor);
@@ -1173,17 +1176,22 @@ void DrawDual::get_clean_pd(MBEntityHandle dual_surf,
 //    camera->SetFocalPoint(72.0,72.0,0);
 //    camera->SetViewUp(0,1,0);
 
-    this_wid = new QVTKWidget();
-    this_wid->GetRenderWindow()->AddRenderer(this_ren);
-    this_wid->GetRenderWindow()->SetSize(SHEET_WINDOW_SIZE, SHEET_WINDOW_SIZE);
+    this_sdpopup = new SheetDiagramPopup();
+    if (my_debug) {
+      this_sdpopup->sheet_diagram()->GetRenderWindow()->DebugOn();
+    }
+    this_sdpopup->sheet_diagram()->GetRenderWindow()->AddRenderer(this_ren);
+    this_sdpopup->sheet_diagram()->GetRenderWindow()->SetSize(SHEET_WINDOW_SIZE, SHEET_WINDOW_SIZE);
 
+    this_sdpopup->show();
+  
     this_ren->ResetCamera();
 
     return;
   }
   
     // trace back until we find the dataset
-  pd = get_polydata(this_wid);
+  pd = get_polydata(this_sdpopup);
   assert(NULL != pd);
     // re-initialize the data, then we're done
 //  pd->Initialize();
@@ -1551,7 +1559,7 @@ MBErrorCode DrawDual::draw_labels(MBEntityHandle dual_surf, vtkPolyData *pd,
     // get the renderer you'll be writing the text to
   GraphWindows &this_gw = surfDrawrings[dual_surf];
   vtkRenderer *ren = 
-    this_gw.qvtkWidget->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
+    this_gw.sheetDiagram->sheet_diagram()->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
 
     // sheet id first
   char set_name[CATEGORY_TAG_SIZE];
@@ -1810,7 +1818,7 @@ MBErrorCode DrawDual::reset_drawn_sheets(MBRange *drawn_sheets)
   MBErrorCode result = MB_SUCCESS, tmp_result;
   for (std::map<MBEntityHandle,GraphWindows>::iterator mit = surfDrawrings.begin();
        mit != surfDrawrings.end(); mit++) {
-    if (NULL != (*mit).second.qvtkWidget) {
+    if (NULL != (*mit).second.sheetDiagram) {
       if (NULL != drawn_sheets) drawn_sheets->insert((*mit).first);
       tmp_result = reset_drawing_data((*mit).first);
       if (MB_SUCCESS != tmp_result) result = tmp_result;
@@ -1829,7 +1837,7 @@ MBErrorCode DrawDual::reset_drawing_data(MBEntityHandle dual_surf)
   GraphWindows &this_gw = surfDrawrings[dual_surf];
   
   vtkRenderer *ren = 
-    this_gw.qvtkWidget->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
+    this_gw.sheetDiagram->sheet_diagram()->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
   
   vtkActorCollection *acoll = ren->GetActors();
   assert(NULL != acoll);
@@ -1877,12 +1885,6 @@ MBErrorCode DrawDual::reset_drawing_data(MBEntityHandle dual_surf)
     this_gw.pickActor->Delete();
     this_gw.pickActor = NULL;
   }
-
-  if (NULL != this_gw.qvtkWidget) {
-//    delete this_gw.qvtkWidget;
-//    this_gw.qvtkWidget = NULL;
-  }
-  
 
   return MB_SUCCESS;
 }

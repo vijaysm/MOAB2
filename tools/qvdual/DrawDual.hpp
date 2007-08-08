@@ -5,7 +5,7 @@ class Agnode_t;
 class Agedge_t;
 class Agraph_t;
 
-class QVTKWidget;
+class SheetDiagramPopup;
 
 #include "MBInterface.hpp"
 #include "MBRange.hpp"
@@ -94,10 +94,10 @@ private:
   {
   public:
     Agraph_t *gvizGraph;
-    QVTKWidget *qvtkWidget;
+    SheetDiagramPopup *sheetDiagram;
     vtkActor *pickActor;
 
-    GraphWindows() : gvizGraph(NULL), qvtkWidget(NULL), pickActor(NULL) {}
+    GraphWindows() : gvizGraph(NULL), sheetDiagram(NULL), pickActor(NULL) {}
   };
   
     //! make sure all dual vertices and edges have graphviz nodes and edges
@@ -127,11 +127,11 @@ private:
                              vtkFloatArray *color_ids);
   
     //! given a qvtk widget, return the first polydata supplying data to it
-  vtkPolyData *get_polydata(QVTKWidget *this_wid);
+  vtkPolyData *get_polydata(SheetDiagramPopup *this_sdpopup);
   
     //! get a clean polydata for this widget
   void get_clean_pd(MBEntityHandle dual_surf,
-                    QVTKWidget *&this_wid, vtkPolyData *&pd);
+                    SheetDiagramPopup *&this_sdpopup, vtkPolyData *&pd);
 
     //! draw various labels with the sheet
   MBErrorCode draw_labels(MBEntityHandle dual_surf,
