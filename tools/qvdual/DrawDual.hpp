@@ -52,6 +52,8 @@ private:
   DualTool *dualTool;
   QLineEdit *pickLine1, *pickLine2;
 
+  static bool useGraphviz;
+
   class GVEntity
   {
   public:
@@ -61,8 +63,8 @@ private:
     int pointPos[3][2];
     int vtkEntityIds[4]; // extra pt for edge mid-pts
     vtkActor *myActors[3];
-    Agnode_t *gvizPoints[5]; // extra 2 for edge mid-pts
-    Agedge_t *gvizEdges[4]; // extra 2 for extra edges
+    void *gvizPoints[5]; // extra 2 for edge mid-pts
+    void *gvizEdges[4]; // extra 2 for extra edges
     
     GVEntity() 
       {
@@ -219,7 +221,21 @@ private:
   void get_points(const MBEntityHandle *ents, const int num_ents, 
                   const bool extra,
                   MBEntityHandle dual_surf, Agnode_t **points);
+
+    //! smooth the points in the dual surface using length-weighted laplacian smoothing
+  MBErrorCode smooth_dual_surf(MBEntityHandle dual_surf);
   
+  MBErrorCode set_graphpoint_pos(void *point, double *pos);
+  
+  MBErrorCode get_graphpoint_pos(void *point, double *pos);
+  
+  void get_graph_points(const MBEntityHandle *ents, const int gnum_ents, 
+                        const bool extra,
+                        MBEntityHandle dual_surf, void **points);
+
+  void get_graph_points(MBRange ents,
+                        const bool extra,
+                        MBEntityHandle dual_surf, void **points);
 };
 
 
