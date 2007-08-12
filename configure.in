@@ -706,6 +706,8 @@ if test $ENABLE_dagmc = yes; then
   esac
   AC_SUBST(CGM_DIR)
   AC_SUBST(CGM_CONFIG_OPTIONS)
+  DAGMC_CONFIG_OPTIONS="include \${MOAB_LIBDIR}/dagmc.make"
+  AC_SUBST(DAGMC_CONFIG_OPTIONS)
 fi
 AM_CONDITIONAL( HAVE_CGM, [test "x$CGM_MISSING" = "xno"] )
 

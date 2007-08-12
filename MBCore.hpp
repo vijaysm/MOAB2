@@ -132,6 +132,11 @@ public:
                                    const int num_entities,
                                    const double *coords);
 
+  //! set the coordinate information for this handle if it is of type Vertex
+  //! otherwise, return an error
+  virtual MBErrorCode  set_coords(MBRange entity_handles,
+                                  const double *coords);
+
       //! get global connectivity array for specified entity type
       /**  Assumes just vertices, no higher order nodes
        */

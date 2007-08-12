@@ -155,9 +155,9 @@ void uiQVDual::init()
 
   if (NULL == vtkWidget) {
     vtkWidget = new QVTKWidget( centralWidget(), "vtkWidget" );
-//    vtkWidget->setGeometry( QRect( 400, 10, 470, 569 ) );
-//    vtkWidget->setSizePolicy( QSizePolicy( (QSizePolicy::SizeType)7, (QSizePolicy::SizeType)7, 5, 1, vtkWidget->sizePolicy().hasHeightForWidth() ) );
-//    vtkWidget->setMinimumSize( QSize( 0, 0 ) );
+    vtkWidget->setGeometry( QRect( 400, 10, 470, 569 ) );
+    vtkWidget->setSizePolicy( QSizePolicy( (QSizePolicy::SizeType)7, (QSizePolicy::SizeType)7, 5, 1, vtkWidget->sizePolicy().hasHeightForWidth() ) );
+    vtkWidget->setMinimumSize( QSize( 0, 0 ) );
   }
   
   vtkWidget->GetRenderWindow()->AddRenderer(ren);

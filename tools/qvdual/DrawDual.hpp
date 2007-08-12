@@ -166,8 +166,14 @@ private:
                              void* clientdata, 
                              void* /*vtkNotUsed(calldata)*/);
   
-  static void process_pick();
+  static void process_pick(vtkRenderer *ren);
 
+    //! given a dual surface and the pick point (in world coords), return a list 
+    //! of picked entities on that sheet drawing
+  MBErrorCode process_pick(MBEntityHandle dual_surf, 
+                           const double x, const double y,
+                           MBRange &picked_ents);
+  
     //! map of dual surfaces and windows they're drawn in
   std::map<MBEntityHandle, GraphWindows> surfDrawrings;
   
@@ -215,7 +221,7 @@ private:
   
   MBErrorCode fixup_degen_bchords(MBEntityHandle dual_surf);
 
-  void print_picked_ent(MBEntityHandle picked_ent);
+  void print_picked_ents(MBRange &picked_ents);
 
     //! given some entities, get the corresponding gviz points on the sheet
   void get_points(const MBEntityHandle *ents, const int num_ents, 
@@ -236,6 +242,9 @@ private:
   void get_graph_points(MBRange ents,
                         const bool extra,
                         MBEntityHandle dual_surf, void **points);
+
+    //! given a renderer, return the sheet that this renderer renders
+  MBEntityHandle get_dual_surf(vtkRenderer *this_ren);
 };
 
 

@@ -2,6 +2,7 @@
 #include "SheetDiagramPopup.h"
 #include "MeshTopoUtil.hpp"
 #include "MBTagConventions.hpp"
+#include "MBCartVect.hpp"
 #include "MBCN.hpp"
 #include "DualTool.hpp"
 #include "vtkMOABUtils.h"
@@ -53,10 +54,10 @@ const bool my_debug = true;
 
 const int SHEET_WINDOW_SIZE = 500;
 
-const int RAD_PTS = 3*72;
-//const int RAD_PTS = 7;
-const int CENT_X = 250;
-const int CENT_Y = 250;
+//const int RAD_PTS = 400;
+const int RAD_PTS = 10;
+const int CENT_X = 0;
+const int CENT_Y = 0;
 
 #define MBI vtkMOABUtils::mbImpl
 #define RR if (MB_SUCCESS != result) return result
@@ -142,7 +143,7 @@ void DrawDual::add_picker(vtkRenderer *this_ren)
     
       // create a cell picker
     dualPicker = vtkCellPicker::New();
-    dualPicker->SetTolerance(0.1);
+    dualPicker->SetTolerance(0.05);
 
       // set up the callback handler for the picker
     vtkMOABUtils::eventCallbackCommand = vtkCallbackCommand::New();
@@ -190,22 +191,41 @@ void DrawDual::process_events(vtkObject *caller,
       style->FindPokedRenderer(rwi->GetEventPosition()[0],
                                rwi->GetEventPosition()[1]);
       rwi->StartPickCallback();
-      dualPicker->Pick(rwi->GetEventPosition()[0],
-                       rwi->GetEventPosition()[1], 
-                       0.0, 
-                       style->GetCurrentRenderer());
-
       vtkRenderer *ren = style->GetCurrentRenderer();
-      ren->SetDisplayPoint(rwi->GetEventPosition()[0],
-                           rwi->GetEventPosition()[1], 0);
-      ren->DisplayToWorld();
-      double tmp_world[4];
-      ren->GetWorldPoint(tmp_world);
+      MBEntityHandle dual_surf = gDrawDual->get_dual_surf(ren);
+      if (0 == dual_surf) return;
+
+      int ix = rwi->GetEventPosition()[0], 
+        iy = rwi->GetEventPosition()[1];
       
-      process_pick();
-    
-//      if (dualPicker->GetProp()) style->HighlightProp(dualPicker->GetProp());
+      double x = (ix - 250) * RAD_PTS/170.0;
+      double y = iy * RAD_PTS/170.0;
       
+      if (my_debug)
+        std::cout << "Picked point: " << rwi->GetEventPosition()[0]
+                  << ", " << rwi->GetEventPosition()[1] << "(screen), "
+                  << dualPicker->GetMapperPosition()[0] << ", "
+                  << dualPicker->GetMapperPosition()[1] << " (mapper)"
+                  << x << ", "
+                  << y << " (world)"
+                  << std::endl;
+
+      MBRange picked_ents;
+      MBErrorCode result = gDrawDual->process_pick(dual_surf, 
+                                                   x, y,
+                                                   picked_ents);
+      if (MB_SUCCESS != result) return;
+
+      gDrawDual->print_picked_ents(picked_ents);
+
+      if (!picked_ents.empty()) {
+          // now update the highlighted polydata
+        gDrawDual->update_high_polydatas();
+
+        gDrawDual->secondLastPickedEnt = gDrawDual->lastPickedEnt;
+        gDrawDual->lastPickedEnt = *picked_ents.begin();
+      }
+
       rwi->EndPickCallback();
     }
   }
@@ -215,108 +235,114 @@ void DrawDual::process_events(vtkObject *caller,
   }
 }
 
-void DrawDual::process_pick() 
+void DrawDual::process_pick(vtkRenderer *ren) 
 {
-  assert(0 != dualCurveTagHandle);
-  
-    // get the actor through the prop, to make sure we get the leaf of an
-    // assembly
-  vtkActorCollection *actors = dualPicker->GetActors();
-  
-  vtkActor *picked_actor = NULL, *tmp_actor;
-  MBEntityHandle picked_sheet = 0, picked_chord = 0;
-  
-  if (actors->GetNumberOfItems() == 1) {
-    picked_actor = vtkActor::SafeDownCast(dualPicker->GetViewProp());
-    picked_sheet = vtkMOABUtils::propSetMap[dualPicker->GetActor()];
-  }
+  MBRange picked_ents;
 
-  else {
-      // more than one - traverse, choosing the chord if any first
+  bool old_picking = false;
+  if (old_picking) {
+    
+    assert(0 != dualCurveTagHandle);
+  
+      // get the actor through the prop, to make sure we get the leaf of an
+      // assembly
+    vtkActorCollection *actors = dualPicker->GetActors();
+  
+    vtkActor *picked_actor = NULL, *tmp_actor;
+    MBEntityHandle picked_sheet = 0, picked_chord = 0;
+  
     actors->InitTraversal();
+    int i = 0;
     while ((tmp_actor = actors->GetNextItem())) {
       MBEntityHandle this_set = vtkMOABUtils::propSetMap[tmp_actor];
-      if (0 == this_set) continue;
+      if (0 == this_set || -1 == dualPicker->GetCellId()) continue;
+
         // get whether it's a dual surface or dual curve
       MBEntityHandle dum_handle = 0;
       MBErrorCode result = MBI->tag_get_data(dualCurveTagHandle, &this_set, 1, 
                                              &dum_handle);
-      if (MB_TAG_NOT_FOUND == result)
+
+      std::cout << "Picked point " << dualPicker->GetCellId() << std::endl;
+    
+      MBEntityHandle picked_ent;
+      if (MB_TAG_NOT_FOUND == result || 0 == dum_handle)
           // must be a sheet
-        picked_sheet = this_set;
+        picked_ent = gDrawDual->get_picked_cell(this_set, 2, dualPicker->GetCellId());
       else {
-        picked_chord = this_set;
-        picked_actor = tmp_actor;
+        picked_ent = gDrawDual->get_picked_cell(this_set, 1, dualPicker->GetCellId());
       }
+      picked_ents.insert(picked_ent);
     }
   }
-  
+  else {
+    MBEntityHandle dual_surf = gDrawDual->get_dual_surf(ren);
+    if (0 == dual_surf) return;
     
-  if (0 == picked_actor) return;
+    MBErrorCode result = gDrawDual->process_pick(dual_surf, 
+                                                 dualPicker->GetPickPosition()[0], 
+                                                 dualPicker->GetPickPosition()[1], 
+                                                 picked_ents);
+    if (MB_SUCCESS != result) return;
+    
+  }
+  
+  if (picked_ents.empty()) return;
 
-  if (dualPicker->GetCellId() != -1) {
-
-      // get picked entity based on cell id and set
-    MBEntityHandle picked_ent = 0;
-    if (picked_chord != 0) 
-      picked_ent = gDrawDual->get_picked_cell(picked_chord, 1, dualPicker->GetCellId());
-    else if (picked_sheet != 0)
-      picked_ent = gDrawDual->get_picked_cell(picked_sheet, 2, dualPicker->GetCellId());
-
-    if (0 != picked_ent)
-      gDrawDual->print_picked_ent(picked_ent);
-    else
-      std::cout << "Couldn't identify picked entity." << std::endl;
+  gDrawDual->print_picked_ents(picked_ents);
   
 //    MBRange::iterator pit = pickRange.find(picked_ent);
 //    if (pit == pickRange.end()) pickRange.insert(picked_ent);
 //    else pickRange.erase(pit);
   
-      // now update the highlighted polydata
-    gDrawDual->update_high_polydatas();
+    // now update the highlighted polydata
+  gDrawDual->update_high_polydatas();
 
-    gDrawDual->secondLastPickedEnt = gDrawDual->lastPickedEnt;
-    gDrawDual->lastPickedEnt = picked_ent;
-  }
-  else
-    std::cout << "Couldn't identify picked entity." << std::endl;
 }
 
-void DrawDual::print_picked_ent(MBEntityHandle picked_ent) 
+void DrawDual::print_picked_ents(MBRange &picked_ents) 
 {
-    // get the vertices
-  std::ostringstream oss;
-  const MBEntityHandle *connect;
-  int num_connect;
-  MBErrorCode result = MBI->get_connectivity(picked_ent, connect, num_connect);
-  if (MB_SUCCESS != result) return;
-  bool first = true;
-  MBEntityHandle primals[20];
-  std::vector<int> ids;
+  for (MBRange::iterator rit = picked_ents.begin(); rit != picked_ents.end(); rit++) {
+    MBEntityHandle picked_ent = *rit;
+    
+      // get the vertices
+    std::ostringstream oss;
+    const MBEntityHandle *connect;
+    int num_connect;
+    MBErrorCode result = MBI->get_connectivity(picked_ent, connect, num_connect);
+    if (MB_SUCCESS != result) return;
+    bool first = true;
+    MBEntityHandle primals[20];
+    std::vector<int> ids;
   
-  assert(num_connect < 20);
-  if (MBI->type_from_handle(picked_ent) == MBPOLYGON) oss << "2-cell: ";
-  else if (MBI->type_from_handle(picked_ent) == MBEDGE) oss << "1-cell: ";
-  else oss << "(unknown):";
-  result = MBI->tag_get_data(dualEntityTagHandle, connect, num_connect, primals);
-  ids.resize(num_connect);
-  result = MBI->tag_get_data(vtkMOABUtils::globalId_tag(), primals, num_connect, &ids[0]);
-  for (int i = 0; i < num_connect; i++) {
-    if (!first) oss << "-";
-    MBEntityType this_type = MBI->type_from_handle(primals[i]);
-    if (this_type == MBHEX) oss << "h";
-    else if (this_type == MBQUAD) oss << "f";
-    else oss << "u";
+    assert(num_connect < 20);
+    if (MBI->type_from_handle(picked_ent) == MBPOLYGON) oss << "2-cell: ";
+    else if (MBI->type_from_handle(picked_ent) == MBEDGE) oss << "1-cell: ";
+    else oss << "(unknown):";
+    result = MBI->tag_get_data(dualEntityTagHandle, connect, num_connect, primals);
+    ids.resize(num_connect);
+    result = MBI->tag_get_data(vtkMOABUtils::globalId_tag(), primals, num_connect, &ids[0]);
+    for (int i = 0; i < num_connect; i++) {
+      if (!first) oss << "-";
+      MBEntityType this_type = MBI->type_from_handle(primals[i]);
+      if (this_type == MBHEX) oss << "h";
+      else if (this_type == MBQUAD) oss << "f";
+      else oss << "u";
 
-    if (ids[i] != 0) oss << ids[i];
-    else oss << MBI->id_from_handle(primals[i]);
+      if (ids[i] != 0) oss << ids[i];
+      else oss << MBI->id_from_handle(primals[i]);
 
-    first = false;
+      first = false;
+    }
+
+    if (picked_ent == *picked_ents.begin()) {
+      std::cout << oss.str() << " (" << picked_ent << ")" << std::endl;
+      pickLine2->setText(pickLine1->displayText());
+      pickLine1->setText(QString(oss.str().c_str()));
+
+      gDrawDual->secondLastPickedEnt = gDrawDual->lastPickedEnt;
+      gDrawDual->lastPickedEnt = picked_ent;
+    }
   }
-
-  std::cout << oss.str() << " (" << picked_ent << ")" << std::endl;
-  pickLine2->setText(pickLine1->displayText());
-  pickLine1->setText(QString(oss.str().c_str()));
 }
 
 void DrawDual::update_high_polydatas() 
@@ -1175,9 +1201,9 @@ void DrawDual::get_clean_pd(MBEntityHandle dual_surf,
       this_mapper->SetScalarModeToUseCellData();
     
         // put an edge extractor before the mapper
-//    vtkExtractEdges *ee = vtkExtractEdges::New();
-//    ee->SetInput(pd);
-//    this_mapper->SetInput(ee->GetOutput());
+      vtkExtractEdges *ee = vtkExtractEdges::New();
+      ee->SetInput(pd);
+      this_mapper->SetInput(ee->GetOutput());
       this_mapper->SetInput(pd);
 
       vtkActor2D *this_actor = vtkActor2D::New();
@@ -1194,13 +1220,11 @@ void DrawDual::get_clean_pd(MBEntityHandle dual_surf,
 
         // need to set a coordinate system for this window, so that display coordinates
         // are re-normalized to window size
-/*
-  vtkCoordinate *this_coord = vtkCoordinate::New();
-  this_coord->SetCoordinateSystemToWorld();
-  this_mapper->SetTransformCoordinate(this_coord);
-*/
+//      vtkCoordinate *this_coord = vtkCoordinate::New();
+//      this_coord->SetCoordinateSystemToWorld();
+//      this_mapper->SetTransformCoordinate(this_coord);
       this_mapper->ScalarVisibilityOn();
-      this_mapper->SetLookupTable(vtkMOABUtils::lookupTable);
+        //this_mapper->SetLookupTable(vtkMOABUtils::lookupTable);
       this_mapper->UseLookupTableScalarRangeOn();
       this_mapper->SetScalarModeToUseCellData();
     
@@ -1215,27 +1239,27 @@ void DrawDual::get_clean_pd(MBEntityHandle dual_surf,
       vtkMOABUtils::propSetMap[this_actor] = dual_surf;
       this_actor->SetMapper(this_mapper);
       this_actor->GetProperty()->SetLineWidth(2.0);
+
+      double red, green, blue;
+      int dum;
+      vtkMOABUtils::get_colors(dual_surf, vtkMOABUtils::totalColors, dum,
+                               red, green, blue);
+      vtkProperty *this_property = this_actor->GetProperty();
+      this_property->SetColor(red, green, blue);
+    
       this_ren->AddActor(this_actor);
     }
 
-//    double red, green, blue;
-//    int dum;
-//    vtkMOABUtils::get_colors(dual_surf, vtkMOABUtils::totalColors, dum,
-//                             red, green, blue);
-//    vtkProperty2D *this_property = this_actor->GetProperty();
-//    this_property->SetColor(red, green, blue);
-//    this_property->SetDisplayLocationToBackground();
-//    this_property->SetOpacity(0.5);
-    
-//    vtkCamera *camera = vtkCamera::New();
-//    camera->SetPosition(72.0,72.0,300);
-//    camera->SetFocalPoint(72.0,72.0,0);
-//    camera->SetViewUp(0,1,0);
+    vtkCamera *camera = vtkCamera::New();
+    camera->SetPosition(CENT_X, CENT_Y, 3);
+    camera->SetFocalPoint(CENT_X, CENT_Y, 0);
+    camera->SetViewUp(0,1,0);
 
     this_sdpopup = new SheetDiagramPopup();
     if (my_debug) {
         //this_sdpopup->sheet_diagram()->GetRenderWindow()->DebugOn();
     }
+
     this_sdpopup->sheet_diagram()->GetRenderWindow()->AddRenderer(this_ren);
     this_sdpopup->sheet_diagram()->GetRenderWindow()->SetSize(SHEET_WINDOW_SIZE, SHEET_WINDOW_SIZE);
 
@@ -1381,12 +1405,16 @@ MBErrorCode DrawDual::construct_graphviz_edges(MBEntityHandle dual_surf,
           result = MBI->create_element(MBEDGE, edge_verts, 2, edge1);
           if (MB_SUCCESS != result) return result;
           this_gv->gvizEdges[dsindex] = (void*)edge1;
+          result = MBI->tag_set_data(dualCurveTagHandle, &edge1, 1, &(*rit));
+          if (MB_SUCCESS != result) return result;
         
           edge_verts[0] = (MBEntityHandle) mid_vert;
           edge_verts[1] = (MBEntityHandle) dvert_gv[1]->gvizPoints[index1];
           result = MBI->create_element(MBEDGE, edge_verts, 2, edge2);
           if (MB_SUCCESS != result) return result;
           this_gv->gvizEdges[dsindex+2] = (void*)edge2;
+          result = MBI->tag_set_data(dualCurveTagHandle, &edge2, 1, &(*rit));
+          if (MB_SUCCESS != result) return result;
         }
       }
       else {
@@ -1403,6 +1431,8 @@ MBErrorCode DrawDual::construct_graphviz_edges(MBEntityHandle dual_surf,
           result = MBI->create_element(MBEDGE, edge_verts, 2, edge1);
           if (MB_SUCCESS != result) return result;
           this_gv->gvizEdges[dsindex] = (void*) edge1;
+          result = MBI->tag_set_data(dualCurveTagHandle, &edge1, 1, &(*rit));
+          if (MB_SUCCESS != result) return result;
         }
       }
 
@@ -1695,7 +1725,7 @@ MBErrorCode DrawDual::draw_labels(MBEntityHandle dual_surf, vtkPolyData *pd,
   double LABEL_FRACTION = .90;
   vtkCoordinate *this_pos = text_actor->GetPositionCoordinate();
   this_pos->SetCoordinateSystemToWorld();
-  this_pos->SetValue(LABEL_FRACTION, LABEL_FRACTION, 0);
+  this_pos->SetValue(LABEL_FRACTION*RAD_PTS+CENT_X, LABEL_FRACTION*RAD_PTS+CENT_Y, 0);
   text_actor->GetTextProperty()->SetColor(1.0, 1.0, 1.0);
   text_actor->GetTextProperty()->BoldOn();
   ren->AddActor(text_actor);
@@ -2098,7 +2128,7 @@ MBErrorCode DrawDual::smooth_dual_surf(MBEntityHandle dual_surf)
     else old_coords.swap(new_coords);
 
     
-    for (int j = 0; j < all_verts.size(); j++) {
+    for (unsigned int j = 0; j < all_verts.size(); j++) {
       MBEntityHandle this_point = graph_points[j];
       
         // get all neighbor verts
@@ -2140,4 +2170,120 @@ MBErrorCode DrawDual::smooth_dual_surf(MBEntityHandle dual_surf)
   return MB_SUCCESS;
 }
 
+MBErrorCode DrawDual::process_pick(MBEntityHandle dual_surf, 
+                                   const double x, const double y,
+                                   MBRange &picked_ents) 
+{
+    // get vertices on interior of 3d sheet
+  MBRange int_verts, face_verts;
+  MBErrorCode result = dualTool->get_dual_entities(dual_surf, NULL, NULL, 
+                                                   &int_verts, &face_verts, NULL);
+  int_verts = int_verts.subtract(face_verts);
+  
+    // get vertices on sheet drawing for that sheet, and their positions
+  std::vector<MBEntityHandle> int_points(int_verts.size());
+  get_graph_points(int_verts, false, dual_surf, (void**) &int_points[0]);
+  std::vector<double> point_coords(3*int_verts.size());
+  result = MBI->get_coords(&int_points[0], int_points.size(), 
+                           &point_coords[0]); RR;
+  
+    // get the closest point to those
+  double dist, closest_coords[3];
+  MBEntityHandle closest_point;
+  for (unsigned int i = 0; i < int_verts.size(); i++) {
+    double this_dist = (point_coords[3*i] - x)*(point_coords[3*i] - x) +
+      (point_coords[3*i+1] - y)*(point_coords[3*i+1] - y);
+    if (0 == i || this_dist < dist) {
+      dist = this_dist;
+      closest_point = int_points[i];
+      for (int j = 0; j < 3; j++) closest_coords[j] = point_coords[3*i+j];
+    }
+  }
+  
+    // get connected edges, points, in star order
+  std::vector<MBEntityHandle> conn_edges(4);
+  MBEntityHandle dual_edges_3d[4], dual_curves[4], conn_verts[4];
+  result = MBI->get_adjacencies(&closest_point, 1, 1, false, conn_edges); RR;
+  assert(4 == conn_edges.size());
+    // conn_edges are on sheet diag; each points to 3d dual edge through curve tag,
+    // and each 3d dual edge points to dual curve set through that same tag
+  result = MBI->tag_get_data(dualCurveTagHandle, &conn_edges[0], 4, 
+                             dual_edges_3d); RR;
+  result = MBI->tag_get_data(dualCurveTagHandle, dual_edges_3d, 4, 
+                             dual_curves); RR;
+    // should only be 2 distinct curves; don't handle all dual curves the same
+    // for now, to avoid geometric check
+  assert((dual_curves[0] == dual_curves[1] && dual_curves[0] != dual_curves[2]) ||
+         (dual_curves[0] == dual_curves[2]) && dual_curves[0] != dual_curves[1]);
+  
+    // if same curves are next to each other, switch edges
+  if (dual_curves[0] == dual_curves[1]) {
+    MBEntityHandle tmp_handle = conn_edges[1];
+    conn_edges[1] = conn_edges[2];
+    conn_edges[2] = tmp_handle;
+    tmp_handle = dual_curves[1];
+    dual_curves[1] = dual_curves[2];
+    dual_curves[2] = tmp_handle;
+    tmp_handle = dual_edges_3d[1];
+    dual_edges_3d[1] = dual_edges_3d[2];
+    dual_edges_3d[2] = tmp_handle;
+  }
+
+    // get connected points & their coords
+  for (int i = 0; i < 4; i++) {
+    const MBEntityHandle *connect;
+    int num_connect;
+    result = MBI->get_connectivity(conn_edges[i], connect, num_connect); RR;
+    if (connect[0] == closest_point) conn_verts[i] = connect[1];
+    else if (connect[1] == closest_point) conn_verts[i] = connect[0];
+    else assert(false);
+  }
+  
+  double conn_coords[12];
+  result = MBI->get_coords(conn_verts, 4, conn_coords); RR;
+  MBCartVect pick_closest(x - closest_coords[0], y - closest_coords[1], 0.0);
+  MBCartVect conn_vects[4];
+
+    // pre-compute normalized vectors from closest to each connected vertex
+  for (int i = 0; i < 4; i++) {
+    conn_vects[i] = MBCartVect(conn_coords[3*i]-closest_coords[0],
+                               conn_coords[3*i+1]-closest_coords[1], 0.0);
+    conn_vects[i].normalize();
+  }
+
+    // now evaluate to see if we picked an edge or 2cell
+  for (int i = 0; i < 4; i++) {
+    double this_dot = conn_vects[i] % pick_closest;
+
+      // if positive dot prod & dist < some tol, picked the edge
+    if (0.0 < this_dot &&
+        abs(dist - this_dot*this_dot) < 1) 
+      picked_ents.insert(dual_edges_3d[i]);
     
+      // else if cross products w/ neighboring vectors opposite, we're in the 2cell
+    else if (0.0 < this_dot &&
+             (conn_vects[i] * pick_closest) % (conn_vects[(i+1)%4] * pick_closest)
+             < 0.0) {
+      MBRange common_2cell;
+      MBEntityHandle edges[2] = {dual_edges_3d[i], dual_edges_3d[(i+1)%4]};
+      result = MBI->get_adjacencies(edges, 2, 2, false, common_2cell);
+      assert(common_2cell.size() > 0);
+      picked_ents.insert(*common_2cell.begin());
+    }
+  }
+
+  return MB_SUCCESS;
+}
+
+MBEntityHandle DrawDual::get_dual_surf(vtkRenderer *this_ren) 
+{
+  std::map<MBEntityHandle, GraphWindows>::iterator mit;
+  
+  for (mit = surfDrawrings.begin(); mit != surfDrawrings.end(); mit++) {
+    vtkRenderer *gw_ren = (*mit).second.sheetDiagram->sheet_diagram()->GetRenderWindow()->
+      GetRenderers()->GetFirstRenderer();    
+    if (gw_ren == this_ren) return (*mit).first;
+  }
+  
+  return 0;
+}

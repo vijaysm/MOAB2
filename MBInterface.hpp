@@ -292,6 +292,19 @@ public:
                                   const int num_entities,
                                   const double *coords)=0;
 
+    //! Sets the xyz coordinates for a vector of vertices
+    /** An error is returned if any entities in the vector are not vertices.
+        \param entity_handles MBEntityHandle's to set coordinates of. (Must be of type MeshVertex)
+        \param num_entities Number of entities in entity_handles
+        \param coords Array containing new xyz coordinates.
+ 
+        Example: \code
+        double coords[3] = {0.234, -2.52, 12.023};
+        set_coords( entity_handle, 1, coords ); \endcode 
+    */
+  virtual MBErrorCode  set_coords(MBRange entity_handles,
+                                  const double *coords)=0;
+
     //@}
 
     //! \name Connectivity functions

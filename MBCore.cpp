@@ -674,6 +674,34 @@ MBErrorCode  MBCore::set_coords(MBEntityHandle *entity_handles, const int num_en
 
 }
 
+//! set the coordinate information for this handle if it is of type Vertex
+//! otherwise, return an error
+MBErrorCode  MBCore::set_coords(MBRange entity_handles, const double *coords)
+{
+
+  MBErrorCode status = MB_SUCCESS;
+
+  int j = 0;
+
+  for (MBRange::iterator rit = entity_handles.begin(); rit != entity_handles.end(); rit++) {
+    if ( TYPE_FROM_HANDLE(*rit) == MBVERTEX )
+    {
+      MBEntitySequence* seq = 0;
+      status = sequence_manager()->find(*rit, seq);
+
+      if (seq != 0 && status == MB_SUCCESS) {
+        status = static_cast<VertexEntitySequence*>(seq)->set_coordinates(*rit, coords[j], coords[j+1], coords[j+2]);
+        j += 3;
+      }
+    }
+    else if (status == MB_SUCCESS)
+      status = MB_TYPE_OUT_OF_RANGE;
+  }
+
+  return status; 
+
+}
+
   //! get global connectivity array for specified entity type
   /**  Assumes just vertices, no higher order nodes
    */
