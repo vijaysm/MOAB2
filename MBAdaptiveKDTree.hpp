@@ -54,10 +54,10 @@ public:
   };
   
   //! Get split plane for tree node
-  MBErrorCode get_split_plane( MBEntityHandle entity, Plane& plane );
+  MBErrorCode get_split_plane( MBEntityHandle node, Plane& plane );
   
   //! Set split plane for tree node
-  MBErrorCode set_split_plane( MBEntityHandle entity, const Plane& plane );
+  MBErrorCode set_split_plane( MBEntityHandle node, const Plane& plane );
   
   //! Get bounding box for entire tree
   MBErrorCode get_tree_box( MBEntityHandle root_node,
@@ -209,7 +209,7 @@ private:
   double mBox[2][3];                //!< min and max corners of bounding box
   MBAdaptiveKDTree* treeTool;       //!< tool for tree
   std::vector<StackObj> mStack;     //!< stack storing path through tree
-  std::vector<MBEntityHandle> childVect; //!< tempory storage of child handles
+  mutable std::vector<MBEntityHandle> childVect; //!< tempory storage of child handles
   
   //! Descend tree to left most leaf from current position
   //! No-op if at leaf.
@@ -247,6 +247,20 @@ public:
     //! Advance to next leaf
     //! Returns MB_ENTITY_NOT_FOUND if at end.
   MBErrorCode step();
+  
+    //! Return the side of the box bounding this tree node
+    //! that is shared with the immediately adjacent sibling
+    //! (the tree node that shares a common parent node with
+    //! this node in the binary tree.)
+    //!
+    //!\param axis_out The principal axis orthogonal to the side of the box
+    //!\param neg_out  true if the side of the box is toward the decreasing
+    //!                direction of the principal axis indicated by axis_out,
+    //!                false if it is toward the increasing direction.
+    //!\return MB_ENTITY_NOT FOUND if root node.
+    //!        MB_FAILURE if internal error.
+    //!        MB_SUCCESS otherwise.
+  MBErrorCode sibling_side( MBAdaptiveKDTree::Axis& axis_out, bool& neg_out ) const;
 
     //! Get adjacent leaf nodes on side indicated by norm and neg.
     //!

@@ -633,6 +633,31 @@ MBErrorCode MBAdaptiveKDTreeIter::get_neighbors(
   return MB_SUCCESS;
 }
 
+MBErrorCode MBAdaptiveKDTreeIter::sibling_side( 
+                            MBAdaptiveKDTree::Axis& axis_out,
+                            bool& neg_out ) const
+{
+  if (mStack.size() < 2) // at tree root
+    return MB_ENTITY_NOT_FOUND;
+  
+  MBEntityHandle parent = mStack[mStack.size()-2].entity;
+  MBAdaptiveKDTree::Plane plane;
+  MBErrorCode rval = tool()->get_split_plane( parent, plane );
+  if (MB_SUCCESS != rval)
+    return MB_FAILURE;
+    
+  childVect.clear();
+  rval = tool()->moab()->get_child_meshsets( parent, childVect );
+  if (MB_SUCCESS != rval || childVect.size() != 2)
+    return MB_FAILURE;
+  
+  axis_out = static_cast<MBAdaptiveKDTree::Axis>(plane.norm);
+  neg_out = (childVect[1] == handle());
+  assert(childVect[neg_out] == handle());
+  return MB_SUCCESS;
+}
+
+
 static MBErrorCode intersect_children_with_elems( MBInterface* moab,
                                         const MBRange& elems,
                                         MBAdaptiveKDTree::Plane plane,
