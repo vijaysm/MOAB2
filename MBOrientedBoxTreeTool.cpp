@@ -548,13 +548,22 @@ MBErrorCode MBOrientedBoxTreeTool::sphere_intersect_triangles(
 # else
     rval = get_moab_instance()->get_entities_by_handle( node, tris );
 # endif
+    t = tris.begin();
 #else
     rval = get_moab_instance()->get_entities_by_handle( node, tris );
+    t = tris.lower_bound( MBTRI );
 #endif
     if (MB_SUCCESS != rval)
       return rval;
     
     for (t = tris.begin(); t != tris.end(); ++t) {
+#ifndef MB_OBB_USE_VECTOR_QUERIES
+      if (TYPE_FROM_HANDLE(*t) != MBTRI)
+        break;
+#elif !defined(MB_OBB_USE_TYPE_QUERIES)
+      if (TYPE_FROM_HANDLE(*t) != MBTRI)
+        continue;
+#endif      
       rval = get_moab_instance()->get_connectivity( *t, conn, num_conn, true );
       if (MB_SUCCESS != rval)
         return rval;
