@@ -83,7 +83,7 @@ namespace iMesh_SIDL {
     // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl._implementation)
     // Insert-Code-Here {iMesh_SIDL.MeshSidl._implementation} (additional details)
     friend class iMesh::Factory_impl;
-    static iMesh_Instance imeshInstance;
+    iMesh_Instance imeshInstance;
     int imeshError;
     void processError() throw(::iBase::Error);
     

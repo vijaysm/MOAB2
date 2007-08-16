@@ -41,14 +41,13 @@ extern iBase_Error iMesh_LAST_ERROR;
 #include "iBase_SIDL_defs.h"
 #include <iostream>
 
-iMesh_Instance iMesh_SIDL::MeshSidl_impl::imeshInstance = 0;
-
 // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl._includes)
 
 // user-defined constructor.
 void iMesh_SIDL::MeshSidl_impl::_ctor() {
   // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl._ctor)
-  // Insert-Code-Here {iMesh_SIDL.MeshSidl._ctor} (constructor)
+  iMesh_newMesh( 0, &imeshInstance, &imeshError, 0 );
+  PROCESS_ERROR;
   // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl._ctor)
 }
 
