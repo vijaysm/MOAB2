@@ -2181,7 +2181,8 @@ int main( int argc, char *argv[] )
   iMesh::Mesh mesh;
   std::string options;
   try {
-    iMesh_SIDL::MeshSidl::newMesh(options, mesh);
+//    iMesh_SIDL::MeshSidl::newMesh(options, mesh);
+    mesh = iMesh_SIDL::MeshSidl::_create();
   }
   catch (iBase::Error err) {
     cout << "Trouble creating a mesh instance." << endl;
