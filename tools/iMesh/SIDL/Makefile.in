@@ -189,10 +189,12 @@ recursive: mserver/babel.make Cclient/babel.make Fclient/babel.make common.make
 # set of permissions (writable, owned by person running make, etc.)
 mserver/babel.make: $(SIDL_FILES_PATH) $(SERVER_FILES_PATH)
 	test -d mserver || $(mkdir_p) mserver || exit 1
-	@for p in $(SERVER_FILES); do \
-	  $(ECHO) "cat $(srcdir)/$$p > $$p"; \
-	  cat $(srcdir)/$$p > $$p; \
-	done
+	@if test "x$(srcdir)" != "x."; then \
+	  for p in $(SERVER_FILES); do \
+	    $(ECHO) "cat $(srcdir)/$$p > $$p"; \
+	    cat $(srcdir)/$$p > $$p; \
+	  done \
+	fi
 	@if test "x$(USE_BABEL)" = "xyes"; then \
 	  $(ECHO) '$(BABEL) -sC++ $(SIDL_FILES_PATH) -o mserver' ; \
 	  $(BABEL) -sC++ $(SIDL_FILES_PATH) -o mserver; \
