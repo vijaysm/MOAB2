@@ -107,16 +107,30 @@ all: $(MAKE_INC) recursive
 	fi
 
 clean: 
-	rm -rf Cclient Fclient mserver
+	rm -rf Cclient Fclient
 	rm -rf testcxx testcxx.lo testcxx.o .deps .libs
+	if test "x$(srcdir)" != "x."; then \
+	  rm -rf mserver; \
+	else \
+	  for file in mserver/*; do \
+	    found=0; \
+	    for sfile in $(SERVER_FILES); do \
+	      if test "x$$file" = "x$$sfile"; then \
+	        found=1; \
+              fi ; \
+            done ; \
+            if test "$$found" -eq 0; then rm -f $$file; fi ; \
+	  done ; \
+	fi
 
 distclean: clean
 	rm -f Makefile iMesh-SIDL-Defs.inc.in
 
 mostlyclean: 
-	rm -rf Cclient/*.o Cclient/*.lo \
-	       Fclient/*.o Fclient/*.lo \
-               server/*.o server/*.lo
+	for dir in Cclient Fclient mclient; do \
+	  rm -f $$dir/*.o $$dir/*.o $$dir/*.la $$dir/*.a $$dir/*.so; \
+	  rm -rf $$dir/.libs; \
+	done
 
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
