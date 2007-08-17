@@ -192,30 +192,27 @@ mserver/babel.make: $(SIDL_FILES_PATH) $(SERVER_FILES_PATH)
 	@if test "x$(srcdir)" != "x."; then \
 	  for p in $(SERVER_FILES); do \
 	    $(ECHO) "cat $(srcdir)/$$p > $$p"; \
-	    cat $(srcdir)/$$p > $$p; \
+	    cat $(srcdir)/$$p > $$p || exit 1; \
 	  done \
 	fi
 	@if test "x$(USE_BABEL)" = "xyes"; then \
 	  $(ECHO) '$(BABEL) -sC++ $(SIDL_FILES_PATH) -o mserver' ; \
-	  $(BABEL) -sC++ $(SIDL_FILES_PATH) -o mserver; \
+	  $(BABEL) -sC++ $(SIDL_FILES_PATH) -o mserver && touch $@; \
 	fi
-	touch $@ 
 
 Cclient/babel.make: $(SIDL_FILES)
 	test -d Cclient || $(mkdir_p) Cclient || exit 1
 	@if test "x$(USE_BABEL)" = "xyes"; then \
 	  $(ECHO) '$(BABEL) -cC $(SIDL_FILES_PATH) -o Cclient' ; \
-	  $(BABEL) -cC $(SIDL_FILES_PATH) -o Cclient; \
+	  $(BABEL) -cC $(SIDL_FILES_PATH) -o Cclient && touch $@; \
 	fi
-	touch $@
 
 Fclient/babel.make: $(SIDL_FILES)
 	test -d Fclient || $(mkdir_p) Fclient || exit 1
 	@if test "x$(USE_BABEL)" = "xyes"; then \
 	  $(ECHO) '$(BABEL) -cF77 $(SIDL_FILES_PATH) -o Fclient' ; \
-	  $(BABEL) -cF77 $(SIDL_FILES_PATH) -o Fclient; \
+	  $(BABEL) -cF77 $(SIDL_FILES_PATH) -o Fclient && touch $@; \
 	fi
-	touch $@
 
 .SUFFIXES: .cpp .cc .c .lo
 
@@ -226,8 +223,12 @@ run_testcxx: testcxx
 	@$(ECHO) "./$< $(top_srcdir)/test/3k-tri-sphere.vtk"
 	@./$< $(top_srcdir)/test/3k-tri-sphere.vtk || $(ECHO) "<<<<<<<<<<<<<<<< testcxx FAILED >>>>>>>>>>>>>>>>>>>"
 
-testcxx : testcxx.lo all
+testcxx : testcxx.lo mserver/libiMeshserver.la
 	$(CXXLINK) $< mserver/libiMeshserver.la
+
+mserver/libiMeshserver.la : all
+
+testcxx.lo : mserver/babel.make
 
 .cpp.lo:
 	$(LTCXXCOMPILE) -c -o $@ $<

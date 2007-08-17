@@ -1,8 +1,6 @@
 @SET_MAKE@
 
-LIBS = $(imesh_builddir)/libiMesh.la \
-       $(top_builddir)/libMOAB.la \
-       -L$(BABEL_DIR)/lib -lsidl
+LIBS = $(LTLIBS) -L$(BABEL_DIR)/lib -lsidl
 
 INCLUDES = -I$(BABEL_DIR)/include \
 	   -I$(builddir) -I$(srcdir) \
@@ -11,10 +9,10 @@ INCLUDES = -I$(BABEL_DIR)/include \
            -I$(sidl_srcdir) 
 
 imesh_srcdir = $(sidl_srcdir)/..
-imesh_builddir = $(sidl_builddir)/..
-sidl_srcdir = $(srcdir)/..
-sidl_builddir = $(builddir)/..
-srcdir = ../@srcdir@
+imesh_builddir = ../..
+sidl_srcdir = ../@srcdir@
+sidl_builddir = ..
+srcdir = ../@srcdir@/$(bdir)
 top_srcdir = ../@top_srcdir@
 VPATH = 
 pkgdatadir = $(datadir)/@PACKAGE@
@@ -168,13 +166,22 @@ SOURCES = $(C_SRCS) $(CXX_SRCS)
 OBJECTS = $(C_SRCS:.c=.lo) $(CXX_SRCS:.cc=.lo)
 HEADERS = $(IMPLHDRS) $(IORHDRS) $(STUBHDRS)
 
-all: $(TARGET_LIB)
+all: debug $(TARGET_LIB)
+
+debug:
+	pwd
+	@echo "srcdir = $(srcdir)"
+	@echo "builddir = $(builddir)"
+	@echo "sidl_srcdir = $(sidl_srcdir)"
+	@echo "sidl_builddir = $(sidl_builddir)"
+	@echo "imesh_srcdir = $(imesh_srcdir)"
+	@echo "imesh_builddir = $(imesh_builddir)"
 
 install: install-lib install-headers
 
 uninstall: uninstall-lib uninstall-headers
 
-$(TARGET_LIB): $(OBJECTS)
+$(TARGET_LIB): $(OBJECTS) $(LTLIBS)
 	$(LIBLINK) -rpath $(libdir) $(LDFLAGS) $(OBJECTS) $(LIBADD) $(LIBS)
 
 
@@ -211,3 +218,22 @@ uninstall-headers:
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
+
+
+# dependencies
+#
+# babel generates a babel.make.dependencies, but at least for 
+# 0.10.10, everything it lists depends either directly or 
+# indirectly on the SIDL file.  As we're using the 'babel.make'
+# as a timestamp, just depend on that to achieve nearly the 
+# same effect.
+$(OBJECTS) : babel.make
+
+# server implementation files also depend on the C interface
+IMESH_C_INC = $(imesh_srcdir)/iBase.h \
+              $(imesh_srcdir)/iMesh.h \
+              $(imesh_builddir)/iBase_FCDefs.h \
+	      $(imesh_srcdir)/iMesh_protos.h
+
+IMPLOBJS = $(IMPLSRCS:.cc=.lo)
+$(IMPLOBJS) : $(IMESH_C_INC)
