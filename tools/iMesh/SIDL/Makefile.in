@@ -124,7 +124,7 @@ clean:
 	fi
 
 distclean: clean
-	rm -f Makefile iMesh-SIDL-Defs.inc.in
+	rm -f Makefile iMesh-SIDL-Defs.inc
 
 mostlyclean: 
 	for dir in Cclient Fclient mclient; do \
