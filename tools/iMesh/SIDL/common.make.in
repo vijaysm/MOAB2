@@ -166,16 +166,7 @@ SOURCES = $(C_SRCS) $(CXX_SRCS)
 OBJECTS = $(C_SRCS:.c=.lo) $(CXX_SRCS:.cc=.lo)
 HEADERS = $(IMPLHDRS) $(IORHDRS) $(STUBHDRS)
 
-all: debug $(TARGET_LIB)
-
-debug:
-	pwd
-	@echo "srcdir = $(srcdir)"
-	@echo "builddir = $(builddir)"
-	@echo "sidl_srcdir = $(sidl_srcdir)"
-	@echo "sidl_builddir = $(sidl_builddir)"
-	@echo "imesh_srcdir = $(imesh_srcdir)"
-	@echo "imesh_builddir = $(imesh_builddir)"
+all: $(TARGET_LIB)
 
 install: install-lib install-headers
 
