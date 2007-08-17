@@ -158,16 +158,34 @@ uninstall: uninstall-recursive
 
 install-recursive: recursive
 	if test "x$(USE_BABEL)" = "xyes"; then \
-	  (cd mserver && $(MAKE) -f ../$(srcdir)/mserver.make install DESTDIR="$(DESTDIR)") && \
-	  (cd Cclient && $(MAKE) -f ../$(srcdir)/Cclient.make install DESTDIR="$(DESTDIR)") && \
-	  (cd Fclient && $(MAKE) -f ../$(srcdir)/Fclient.make install DESTDIR="$(DESTDIR)") ; \
+	  for lib in mserver Cclient Fclient; do \
+	    (cd $$lib && \
+	      $(MAKE) -f ../$(srcdir)/$${lib}.make install \
+	         DESTDIR="$(DESTDIR)" \
+	         prefix="$(prefix)" \
+	         exec_prefix="$(exec_prefix)" \
+	         libdir="$(libdir)" \
+	         datarootdir="$(datarootdir)" \
+	         datadir="$(datadir)" \
+	         includedir="$(includedir)" \
+	    ) || exit 1; \
+	  done ; \
 	fi
 
 uninstall-recursive: recursive
 	if test "x$(USE_BABEL)" = "xyes"; then \
-	  (cd mserver && $(MAKE) -f ../$(srcdir)/mserver.make uninstall DESTDIR="$(DESTDIR)") && \
-	  (cd Cclient && $(MAKE) -f ../$(srcdir)/Cclient.make uninstall DESTDIR="$(DESTDIR)") && \
-	  (cd Fclient && $(MAKE) -f ../$(srcdir)/Fclient.make uninstall DESTDIR="$(DESTDIR)") ; \
+	  for lib in mserver Cclient Fclient; do \
+	    (cd $$lib && \
+	      $(MAKE) -f ../$(srcdir)/$${lib}.make uninstall \
+	         DESTDIR="$(DESTDIR)" \
+	         prefix="$(prefix)" \
+	         exec_prefix="$(exec_prefix)" \
+	         libdir="$(libdir)" \
+	         datarootdir="$(datarootdir)" \
+	         datadir="$(datadir)" \
+	         includedir="$(includedir)" \
+	    ) || exit 1; \
+	  done ; \
 	fi
 
 distdir: $(DIST_FILES)
