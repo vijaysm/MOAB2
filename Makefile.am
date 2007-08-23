@@ -22,7 +22,8 @@ TESTS = moab_test \
         xform_test \
         obb_test \
 	vtk_test \
-	adaptive_kd_tree_tests
+	adaptive_kd_tree_tests \
+	file_options_test 
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 
@@ -95,6 +96,8 @@ libMOAB_la_SOURCES = \
   EntitySequenceManager.hpp \
   ExoIIUtil.cpp \
   ExoIIUtil.hpp \
+  FileOptions.cpp \
+  FileOptions.hpp \
   FileTokenizer.cpp \
   FileTokenizer.hpp \
   GeomTopoTool.cpp \
@@ -292,6 +295,9 @@ kd_tree_tool_DEPENDENCIES = $(kd_tree_tool_LDADD)
 kd_tree_time_SOURCES = kd_tree_time.cpp
 kd_tree_time_LDADD = $(top_builddir)/libMOAB.la
 kd_tree_time_DEPENDENCIES = $(kd_tree_time_LDADD)
+
+file_options_test_SOURCES = FileOptions.cpp 
+file_options_test_CPPFLAGS = -DTEST
 
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = dumped_acis.sat
