@@ -61,6 +61,8 @@ const int CENT_Y = 0;
 
 #define MBI vtkMOABUtils::mbImpl
 #define RR if (MB_SUCCESS != result) return result
+#define SWAP(a,b) {MBEntityHandle tmp_ent = a; a = b; b = tmp_ent;}
+
 vtkCellPicker *DrawDual::dualPicker = NULL;
 
 MBTag DrawDual::dualCurveTagHandle = 0;
@@ -220,10 +222,6 @@ void DrawDual::process_events(vtkObject *caller,
 
       if (!picked_ents.empty()) {
           // now update the highlighted polydata
-        gDrawDual->update_high_polydatas();
-
-        gDrawDual->secondLastPickedEnt = gDrawDual->lastPickedEnt;
-        gDrawDual->lastPickedEnt = *picked_ents.begin();
       }
 
       rwi->EndPickCallback();
@@ -341,6 +339,8 @@ void DrawDual::print_picked_ents(MBRange &picked_ents)
 
       gDrawDual->secondLastPickedEnt = gDrawDual->lastPickedEnt;
       gDrawDual->lastPickedEnt = picked_ent;
+
+      gDrawDual->update_high_polydatas();
     }
   }
 }
@@ -425,29 +425,39 @@ MBEntityHandle DrawDual::get_picked_cell(MBEntityHandle cell_set,
 }
 
 bool DrawDual::draw_dual_surfs(MBRange &dual_surfs,
-                               const bool use_offsets) 
+                               const bool /*use_offsets*/) 
 {
   MBErrorCode success = MB_SUCCESS;
   int offset = 0;
   for (MBRange::reverse_iterator rit = dual_surfs.rbegin(); rit != dual_surfs.rend(); rit++) {
-    MBErrorCode tmp_success = draw_dual_surf(*rit, offset);
+    MBEntityHandle dum_handle = 0;
+    MBErrorCode tmp_success = MBI->tag_get_data(dualSurfaceTagHandle, &(*rit), 1, 
+                                           &dum_handle);
+    if (MB_TAG_NOT_FOUND == tmp_success || dum_handle == 0) continue;
+  
+    tmp_success = draw_dual_surf(*rit, offset);
     if (MB_SUCCESS != tmp_success) success = tmp_success;
-    if (use_offsets) offset++;
+      // if (use_offsets) offset++;
   }
   
   return (MB_SUCCESS == success ? true : false);
 }
 
 bool DrawDual::draw_dual_surfs(std::vector<MBEntityHandle> &dual_surfs,
-                               const bool use_offsets) 
+                               const bool /*use_offsets*/) 
 {
   MBErrorCode success = MB_SUCCESS;
   int offset = 0;
   for (std::vector<MBEntityHandle>::reverse_iterator vit = dual_surfs.rbegin();
        vit != dual_surfs.rend(); vit++) {
-    MBErrorCode tmp_success = draw_dual_surf(*vit, offset);
+    MBEntityHandle dum_handle = 0;
+    MBErrorCode tmp_success = MBI->tag_get_data(dualSurfaceTagHandle, &(*vit), 1, 
+                                           &dum_handle);
+    if (MB_TAG_NOT_FOUND == tmp_success || dum_handle == 0) continue;
+  
+    tmp_success = draw_dual_surf(*vit, offset);
     if (MB_SUCCESS != tmp_success) success = tmp_success;
-    if (use_offsets) offset++;
+      //if (use_offsets) offset++;
   }
   
   return (MB_SUCCESS == success ? true : false);
@@ -465,8 +475,17 @@ MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf,
   
   this_gw.sheetDiagram->show();
 
+    // get the cells and vertices on this dual surface
+  MBRange dcells, dedges, dverts, face_verts, loop_edges;
+  MBErrorCode result = dualTool->get_dual_entities(dual_surf, &dcells, &dedges, 
+                                                   &dverts, &face_verts, &loop_edges);
+  if (MB_SUCCESS != result) return result;
+
+  if (dcells.empty() || dedges.empty() || dverts.empty()) return MB_FAILURE;
+  
     // 1. gather/construct data for graphviz
-  MBErrorCode success = construct_graphviz_data(dual_surf);
+  MBErrorCode success = construct_graphviz_data(dual_surf, dcells, dedges, dverts, 
+                                                face_verts, loop_edges);
   if (MB_SUCCESS != success) return success;
 
 
@@ -479,7 +498,8 @@ MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf,
   }
 //  neato_init_graph(this_gw.gvizGraph);
   if (useGraphviz) gvLayout(gvContext(), this_gw.gvizGraph, "neato");
-  else smooth_dual_surf(dual_surf);
+  else smooth_dual_surf(dual_surf, dcells, dedges, dverts, 
+                        face_verts, loop_edges);
   
   if (my_debug) {
     std::cout << "After layout, before vtk:" << std::endl;
@@ -502,7 +522,7 @@ MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf,
 
     // 5. generate "other sheet" labels
   vtkPolyData *new_pd;
-  MBErrorCode result = label_other_sheets(dual_surf, pd, new_pd);
+  result = label_other_sheets(dual_surf, pd, new_pd);
   if (MB_SUCCESS != result) return result;
 
   pd->Update();
@@ -648,8 +668,8 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
             avg_pos1[1] += dum_pos0[1];
           }
         }
-        avg_pos1[0] = (.2*avg_pos1[0]/(num_connect-2) + .8*avg_pos0[0]);
-        avg_pos1[1] = (.2*avg_pos1[1]/(num_connect-2) + .8*avg_pos0[1]);
+        avg_pos1[0] = (.4*avg_pos1[0]/(num_connect-2) + .6*avg_pos0[0]);
+        avg_pos1[1] = (.4*avg_pos1[1]/(num_connect-2) + .6*avg_pos0[1]);
         get_graph_points(&(*rit), 1, true, dual_surf, &tc_points[0]);
         set_graphpoint_pos(tc_points[0], avg_pos1);
       }
@@ -724,13 +744,13 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
         }
       
         get_graph_points(&edges[0], 4, true, dual_surf, edge_pts);
-        dum_pos0[0] = CENT_X; dum_pos0[1] = CENT_Y+.5*RAD_PTS;
-        dum_pos1[0] = CENT_X; dum_pos1[1] = CENT_Y-.5*RAD_PTS;
+        dum_pos0[0] = CENT_X; dum_pos0[1] = CENT_Y+RAD_PTS;
+        dum_pos1[0] = CENT_X; dum_pos1[1] = CENT_Y-RAD_PTS;
         set_graphpoint_pos(vert_pts[0], dum_pos0);
         set_graphpoint_pos(vert_pts[1], dum_pos1);
         for (int i = 0; i < 4; i++) {
-          dum_pos0[0] = CENT_X; dum_pos0[1] = (i+1)*SHEET_WINDOW_SIZE/5.0;
-          set_graphpoint_pos(edge_pts[i], dum_pos1);
+          dum_pos0[1] = CENT_Y; dum_pos0[0] = CENT_X + (2*i-3)*2*RAD_PTS/5.0;
+          set_graphpoint_pos(edge_pts[i], dum_pos0);
         }
       }
       else if (3 == chords.size()) {
@@ -1274,10 +1294,13 @@ void DrawDual::get_clean_pd(MBEntityHandle dual_surf,
   pd = get_polydata(this_sdpopup);
   assert(NULL != pd);
     // re-initialize the data, then we're done
-//  pd->Initialize();
+  pd->Initialize();
 }
 
-MBErrorCode DrawDual::construct_graphviz_data(MBEntityHandle dual_surf) 
+MBErrorCode DrawDual::construct_graphviz_data(MBEntityHandle dual_surf,
+                                              MBRange &dcells, MBRange &dedges,
+                                              MBRange &dverts, MBRange &face_verts,
+                                              MBRange &loop_edges) 
 {
     // gather/construct the data for graphviz
 
@@ -1291,17 +1314,9 @@ MBErrorCode DrawDual::construct_graphviz_data(MBEntityHandle dual_surf)
     if (this_gw.gvizGraph == NULL) return MB_FAILURE;
   }
     
-    // get the cells and vertices on this dual surface
-  MBRange dcells, dedges, dverts, face_verts, loop_edges;
-  MBErrorCode result = dualTool->get_dual_entities(dual_surf, &dcells, &dedges, 
-                                                   &dverts, &face_verts, &loop_edges);
-  if (MB_SUCCESS != result) return result;
-
-  if (dcells.empty() || dedges.empty() || dverts.empty()) return MB_FAILURE;
-  
     // for each vertex, allocate a graphviz point if it doesn't already have one
   GVEntity **dvert_gv = new GVEntity*[dverts.size()];
-  result = MBI->tag_get_data(gvEntityHandle, dverts, dvert_gv); RR;
+  MBErrorCode result = MBI->tag_get_data(gvEntityHandle, dverts, dvert_gv); RR;
   Agsym_t *asym_pos = (useGraphviz ? get_asym(dual_surf, 0, "pos") : NULL);
 
   result = construct_graphviz_points(dual_surf, dverts, asym_pos, dvert_gv); RR;
@@ -1313,10 +1328,6 @@ MBErrorCode DrawDual::construct_graphviz_data(MBEntityHandle dual_surf)
   result = construct_graphviz_edges(dual_surf, dedges, face_verts, asym_pos, 
                                     dvert_gv, dedge_gv); RR;
   
-    // compute the starting positions of the boundary points, and fix them;
-    // has to come after construct_graphviz_edges 'cuz we need edge gventities for 2-pt loops
-  result = compute_fixed_points(dual_surf, dverts, face_verts, loop_edges); RR;
-
   delete [] dvert_gv;
   delete [] dedge_gv;
 
@@ -1540,20 +1551,21 @@ MBErrorCode DrawDual::compute_fixed_points(MBEntityHandle dual_surf, MBRange &dv
                                            MBRange &face_verts, MBRange &loop_edges) 
 {
   std::vector<std::vector<MBEntityHandle> > loops;
+  MBRange new_face_verts(face_verts);
 
-  while (!face_verts.empty()) {
+  while (!new_face_verts.empty()) {
       // get the next first vertex on the loop
-    MBEntityHandle this_v = *face_verts.begin();
+    MBEntityHandle this_v = *new_face_verts.begin();
     MBEntityHandle first_v = 0, last_v = 0;
     std::vector<MBEntityHandle> loop_vs;
     MBRange temp_face_verts;
 
-    if (face_verts.size() == 2) {
+    if (new_face_verts.size() == 2) {
         // quick way to do this, assuming both vertices are on the loop
-      loop_vs.push_back(*face_verts.begin());
-      loop_vs.push_back(*face_verts.rbegin());
-      temp_face_verts.insert(*face_verts.begin());
-      temp_face_verts.insert(*face_verts.rbegin());
+      loop_vs.push_back(*new_face_verts.begin());
+      loop_vs.push_back(*new_face_verts.rbegin());
+      temp_face_verts.insert(*new_face_verts.begin());
+      temp_face_verts.insert(*new_face_verts.rbegin());
       this_v = first_v;
     }
     
@@ -1573,8 +1585,8 @@ MBErrorCode DrawDual::compute_fixed_points(MBEntityHandle dual_surf, MBRange &dv
     loops.push_back(loop_vs);
     
       // ok, we've got them all; first, remove them from face_verts
-    MBRange temp_range = face_verts.subtract(temp_face_verts);
-    face_verts.swap(temp_range);
+    MBRange temp_range = new_face_verts.subtract(temp_face_verts);
+    new_face_verts.swap(temp_range);
   }
   
     // now compute vertex coordinates for each loop
@@ -1583,6 +1595,9 @@ MBErrorCode DrawDual::compute_fixed_points(MBEntityHandle dual_surf, MBRange &dv
     asym_pos = get_asym(dual_surf, 0, "pos");
     asym_pin = get_asym(dual_surf, 0, "pin", "false");
   }
+
+  if (loops.empty()) 
+    return compute_pillow_fixed_points(dual_surf, face_verts, loop_edges);
   
   char tmp_pos[80];
   int loop_num, num_loops = loops.size();
@@ -1674,6 +1689,56 @@ MBErrorCode DrawDual::compute_fixed_points(MBEntityHandle dual_surf, MBRange &dv
   }
 
   return MB_SUCCESS;
+}
+
+MBErrorCode DrawDual::compute_pillow_fixed_points(MBEntityHandle dual_surf, 
+                                                  MBRange &face_verts, 
+                                                  MBRange &face_edges) 
+{
+    // find the points we'll call fixed for this sheet
+    // first, get the chords, in an ordered list
+  std::vector<MBEntityHandle> chords;
+  MBErrorCode result = MBI->get_child_meshsets(dual_surf, chords);
+  if (MB_SUCCESS != result) return result;
+
+    // if there are only two, don't bother, they'll get fixed up later
+  if (chords.size() <= 2) return MB_SUCCESS;
+  
+    // if more, get the first two vertices on the first chord, then a 3rd
+    // from another that's not in the 1st set
+  MBEntityHandle dum_verts[3];
+  MBRange tmp_range;
+  result = MBI->get_entities_by_dimension(chords[0], 1, tmp_range); RR;
+  assert(3 < tmp_range.size());
+  const MBEntityHandle *connect;
+  int num_connect;
+  result = MBI->get_connectivity(*tmp_range.begin(), connect, num_connect); RR;
+  face_verts.insert(connect[0]);
+  face_verts.insert(connect[1]);
+  tmp_range.clear();
+  MBRange tmp_verts;
+  result = MBI->get_entities_by_dimension(chords[1], 1, tmp_range); RR;
+  result = MBI->get_adjacencies(tmp_range, 0, false, tmp_verts, MBInterface::UNION); RR;
+  tmp_verts = tmp_verts.subtract(face_verts);
+  assert(!tmp_verts.empty());
+  face_verts.insert(*tmp_verts.begin());
+  
+    // should have 3; put at equal angles round the circle
+//  double PI = acos(-1.0);
+  double dum_pos[9];
+  dum_pos[0] = CENT_X;
+  dum_pos[1] = RAD_PTS;
+  dum_pos[3] = CENT_X - RAD_PTS*cos(PI/6.0);
+  dum_pos[4] = CENT_Y - RAD_PTS*sin(PI/6.0);
+  dum_pos[6] = CENT_X + RAD_PTS*cos(PI/6.0);
+  dum_pos[7] = dum_pos[4];
+  dum_pos[2] = dum_pos[5] = dum_pos[8] = 0.0;
+
+  std::vector<MBEntityHandle> graph_points(face_verts.size());
+  get_graph_points(face_verts, false, dual_surf, (void**) &graph_points[0]);
+  result = MBI->set_coords(&graph_points[0], face_verts.size(), dum_pos); RR;
+  
+  return result;
 }
 
 void DrawDual::get_loop_vertex_pos(unsigned int vert_num, 
@@ -1967,14 +2032,32 @@ MBErrorCode DrawDual::reset_drawn_sheets(MBRange *drawn_sheets)
   MBErrorCode result = MB_SUCCESS, tmp_result;
   for (std::map<MBEntityHandle,GraphWindows>::iterator mit = surfDrawrings.begin();
        mit != surfDrawrings.end(); mit++) {
-    if (NULL != (*mit).second.sheetDiagram) {
-      if (NULL != drawn_sheets) drawn_sheets->insert((*mit).first);
-      tmp_result = reset_drawing_data((*mit).first);
-      if (MB_SUCCESS != tmp_result) result = tmp_result;
-    }
+    if (NULL != drawn_sheets &&
+        NULL != (*mit).second.sheetDiagram) 
+      drawn_sheets->insert((*mit).first);
+    tmp_result = (*mit).second.reset((*mit).first);
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
   }
   
   return tmp_result;
+}
+
+MBErrorCode DrawDual::GraphWindows::reset(MBEntityHandle dual_surf) 
+{
+  MBErrorCode result = MB_SUCCESS;
+  
+  if (sheetDiagram) {
+    result = gDrawDual->reset_drawing_data(dual_surf);
+    delete sheetDiagram;
+    sheetDiagram = NULL;
+  }
+  
+  if (pickActor) {
+    pickActor->Delete();
+    pickActor = NULL;
+  }
+
+  return result;
 }
 
 MBErrorCode DrawDual::reset_drawing_data(MBEntityHandle dual_surf) 
@@ -2014,7 +2097,7 @@ MBErrorCode DrawDual::reset_drawing_data(MBEntityHandle dual_surf)
   result = MBI->get_adjacencies(tcells, 1, false, all_cells, MBInterface::UNION);
   if (MB_SUCCESS != result) return result;
   
-  for (MBRange::iterator rit = all_cells.begin(); rit != all_cells.end(); rit++) {
+  for (MBRange::const_reverse_iterator rit = all_cells.rbegin(); rit != all_cells.rend(); rit++) {
       // get the GVEntity
     GVEntity *gv_ent;
     result = MBI->tag_get_data(gvEntityHandle, &(*rit), 1, &gv_ent);
@@ -2050,18 +2133,31 @@ void DrawDual::GVEntity::reset(const int index)
     // use gvizEdges to tell whether we're an edge or not
   if (0 == dim) {
     if (gvizPoints[index]) {
-      free(gvizPoints[index]);
+      if (useGraphviz)
+        free(gvizPoints[index]);
+      else 
+        MBI->delete_entities((MBEntityHandle*)&gvizPoints[index], 1);
       gvizPoints[index] = NULL;
     }
   }
   else if (1 == dim) {
     vtkEntityIds[index+2] = -1;
     if (gvizEdges[index]) {
-      free(gvizEdges[index]);
+      if (useGraphviz)
+        free(gvizEdges[index]);
+      else {
+        assert(gvizEdges[index]);
+        MBI->delete_entities((MBEntityHandle*)&gvizEdges[index], 1);
+      }
       gvizEdges[index] = NULL;
     }
     if (gvizEdges[index+2]) {
-      free(gvizEdges[index+2]);
+      if (useGraphviz)
+        free(gvizEdges[index+2]);
+      else {
+        assert(gvizEdges[index+2]);
+        MBI->delete_entities((MBEntityHandle*)&gvizEdges[index+2], 1);
+      }
       gvizEdges[index+2] = NULL;
     }
   }
@@ -2101,23 +2197,26 @@ void DrawDual::get_graph_points(MBRange ents,
   }
 }
 
-MBErrorCode DrawDual::smooth_dual_surf(MBEntityHandle dual_surf) 
+MBErrorCode DrawDual::smooth_dual_surf(MBEntityHandle dual_surf, 
+                                       MBRange &dcells,
+                                       MBRange &dedges, MBRange &dverts,
+                                       MBRange &face_verts, MBRange &loop_edges) 
 {
-  MBRange all_verts, face_verts;
+    // compute the starting positions of the boundary points, and fix them;
+    // has to come after construct_graphviz_edges 'cuz we need edge gventities for 2-pt loops
+    // copy face_verts 'cuz compute_fixed_points may add face verts for pillow sheets
+  MBErrorCode result = compute_fixed_points(dual_surf, dverts, 
+                                            face_verts, loop_edges); RR;
 
-  MBErrorCode result = dualTool->get_dual_entities(dual_surf, NULL, NULL, 
-                                                   &all_verts, &face_verts, NULL);
-  if (MB_SUCCESS != result) return result;
-  
   const int num_its = 10;
   
-  all_verts = all_verts.subtract(face_verts);
-  std::vector<double> new_coords(3*all_verts.size()), old_coords(3*all_verts.size());
+  dverts = dverts.subtract(face_verts);
+  std::vector<double> new_coords(3*dverts.size()), old_coords(3*dverts.size());
   double tmp_coords[12];
   MeshTopoUtil mtu(vtkMOABUtils::mbImpl);
 
-  std::vector<MBEntityHandle> graph_points(all_verts.size());
-  get_graph_points(all_verts, false, dual_surf, (void**) &graph_points[0]);
+  std::vector<MBEntityHandle> graph_points(dverts.size());
+  get_graph_points(dverts, false, dual_surf, (void**) &graph_points[0]);
   
   for (int i = 0; i < num_its; i++) {
       // get starting coords for all verts
@@ -2128,7 +2227,7 @@ MBErrorCode DrawDual::smooth_dual_surf(MBEntityHandle dual_surf)
     else old_coords.swap(new_coords);
 
     
-    for (unsigned int j = 0; j < all_verts.size(); j++) {
+    for (unsigned int j = 0; j < dverts.size(); j++) {
       MBEntityHandle this_point = graph_points[j];
       
         // get all neighbor verts
@@ -2214,20 +2313,23 @@ MBErrorCode DrawDual::process_pick(MBEntityHandle dual_surf,
     // should only be 2 distinct curves; don't handle all dual curves the same
     // for now, to avoid geometric check
   assert((dual_curves[0] == dual_curves[1] && dual_curves[0] != dual_curves[2]) ||
-         (dual_curves[0] == dual_curves[2]) && dual_curves[0] != dual_curves[1]);
+         (dual_curves[0] == dual_curves[2]) && dual_curves[0] != dual_curves[1] ||
+         (dual_curves[0] == dual_curves[3]) && dual_curves[0] != dual_curves[1]);
   
     // if same curves are next to each other, switch edges
   if (dual_curves[0] == dual_curves[1]) {
-    MBEntityHandle tmp_handle = conn_edges[1];
-    conn_edges[1] = conn_edges[2];
-    conn_edges[2] = tmp_handle;
-    tmp_handle = dual_curves[1];
-    dual_curves[1] = dual_curves[2];
-    dual_curves[2] = tmp_handle;
-    tmp_handle = dual_edges_3d[1];
-    dual_edges_3d[1] = dual_edges_3d[2];
-    dual_edges_3d[2] = tmp_handle;
+    SWAP(conn_edges[1], conn_edges[2]);
+    SWAP(dual_curves[1], dual_curves[2]);
+    SWAP(dual_edges_3d[1], dual_edges_3d[2]);
   }
+
+  else if (dual_curves[1] == dual_curves[2]) {
+    SWAP(conn_edges[0], conn_edges[1]);
+    SWAP(dual_curves[0], dual_curves[1]);
+    SWAP(dual_edges_3d[0], dual_edges_3d[1]);
+  }
+  assert(dual_curves[0] == dual_curves[2] &&
+         dual_curves[1] == dual_curves[3]);
 
     // get connected points & their coords
   for (int i = 0; i < 4; i++) {
@@ -2280,8 +2382,10 @@ MBEntityHandle DrawDual::get_dual_surf(vtkRenderer *this_ren)
   std::map<MBEntityHandle, GraphWindows>::iterator mit;
   
   for (mit = surfDrawrings.begin(); mit != surfDrawrings.end(); mit++) {
-    vtkRenderer *gw_ren = (*mit).second.sheetDiagram->sheet_diagram()->GetRenderWindow()->
-      GetRenderers()->GetFirstRenderer();    
+    vtkRenderer *gw_ren = NULL;
+    if ((*mit).second.sheetDiagram) 
+      gw_ren = (*mit).second.sheetDiagram->sheet_diagram()->GetRenderWindow()->
+        GetRenderers()->GetFirstRenderer();    
     if (gw_ren == this_ren) return (*mit).first;
   }
   

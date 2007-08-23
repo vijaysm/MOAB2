@@ -2489,6 +2489,8 @@ MBErrorCode MBCore::check_adjacencies(const MBEntityHandle *ents, int num_ents)
     }
 
     else {
+      if (TYPE_FROM_HANDLE(this_ent) == MBENTITYSET) continue;
+      
         // get adjacencies for this entity
       MBRange adjs;
       for (int dim = 0; dim <= 3; dim++) {

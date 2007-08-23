@@ -31,6 +31,7 @@
 #include <assert.h>
 
 #define RR if (MB_SUCCESS != result) return result
+#define SWAP(a,b) {MBEntityHandle tmp_ent = a; a = b; b = tmp_ent;}
 
 bool debug = false;
 bool debug_ap = true;
@@ -1056,7 +1057,12 @@ MBErrorCode DualTool::construct_new_hyperplane(const int dim,
   if (-1 == id) {
     MBRange all_hyperplanes;
     result = get_dual_hyperplanes(mbImpl, dim, all_hyperplanes); RR;
-    id = all_hyperplanes.size() + 1;
+    std::vector<int> gids(all_hyperplanes.size());
+    result = mbImpl->tag_get_data(globalIdTag, all_hyperplanes, &gids[0]); RR;
+    for (unsigned int i = 0; i < gids.size(); i++) 
+      if (gids[i] > id) id = gids[i];
+    id++;
+    if (0 == id) id++;
   }
     
   result = mbImpl->tag_set_data(globalId_tag(), &new_hyperplane, 1, &id); RR;
@@ -1464,21 +1470,33 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &quad1
     RR;
   }
   
-    // create the new, outer quad, and make it explicitly adjacent to 1st hex
-  result = mbImpl->create_element(MBQUAD, &verts[0], 4, quad2); RR;
-  result = mbImpl->add_adjacencies(quad2, &(*hexes.begin()), 1, false); RR;
+    // create the new, outer quad, and make it explicitly adjacent to 1st hex;
+    // make the connectivity of this quad reversed from the original one
+  std::vector<MBEntityHandle> tmp_verts;
+  std::copy(verts.begin(), verts.end(), std::back_inserter(tmp_verts));
+  std::reverse(tmp_verts.begin(), tmp_verts.begin()+4);
+  std::reverse(tmp_verts.begin()+4, tmp_verts.end());
   
-    // now make two inner hexes, connect each to one of the quads; note connectivity
-    // array is flipped for the two hexes
+  result = mbImpl->create_element(MBQUAD, &tmp_verts[0], 4, quad2); RR;
+  
+    // now make two inner hexes; note connectivity array is flipped for the two hexes
   MBEntityHandle new_hexes[2];
   result = mbImpl->create_element(MBHEX, &verts[0], 8, new_hexes[0]); RR;
+  result = mbImpl->create_element(MBHEX, &tmp_verts[0], 8, new_hexes[1]); RR;
+
+    // by definition, quad1 is adj to new_hexes[0]
   result = mbImpl->add_adjacencies(quad1, &new_hexes[0], 1, false); RR;
-  
-    // reverse the connectivities for the 2nd hex
-  std::reverse(verts.begin(), verts.begin()+4);
-  std::reverse(verts.begin()+4, verts.end());
-  result = mbImpl->create_element(MBHEX, &verts[0], 8, new_hexes[1]); RR;
   result = mbImpl->add_adjacencies(quad2, &new_hexes[1], 1, false); RR;
+
+    // not sure for this one, should be opposite sense with quad
+  int side_no, sense, offset;
+  result = mbImpl->side_number(*hexes.begin(), quad1, side_no, sense, offset); RR;
+  if (sense == 1) {
+    result = mbImpl->add_adjacencies(quad1, &(*hexes.begin()), 1, false); RR;
+  }
+  else {
+    result = mbImpl->add_adjacencies(quad2, &(*hexes.begin()), 1, false); RR;
+  }
 
   if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
 
@@ -2644,7 +2662,10 @@ MBErrorCode DualTool::rev_face_shrink(MBEntityHandle odedge)
 MBErrorCode DualTool::fsr_get_fourth_quad(std::vector<MBEntityHandle> *connects,
                                           std::vector<MBEntityHandle> *side_quads) 
 {
-    // given the first three quad connectivities in ordered vectors, get the fourth
+    // given the first three quad connectivities in ordered vectors, get the fourth,
+    // where the fourth is really the 4 vertices originally shared by the 2 hexes
+    // before the face shrink on them
+
     // get all verts in quads 0 and 2
   MBRange outside_verts, all_verts;
   std::copy(connects[0].begin(), connects[0].end(), mb_range_inserter(outside_verts));
@@ -2666,10 +2687,18 @@ MBErrorCode DualTool::fsr_get_fourth_quad(std::vector<MBEntityHandle> *connects,
     // now align with other quads
     // first get them in the right sequence by verifying shared edges
   if (0 == mtu.common_entity(connects[3][0], connects[3][1], 1)) {
-    MBEntityHandle dum = connects[3][0];
-    connects[3][0] = connects[3][1];
-    connects[3][1] = dum;
+    MBEntityHandle dum = connects[3][1];
+    connects[3][1] = connects[3][2];
+    connects[3][2] = dum;
   }
+  if (0 == mtu.common_entity(connects[3][1], connects[3][2], 1)) {
+    MBEntityHandle dum = connects[3][2];
+    connects[3][2] = connects[3][3];
+    connects[3][3] = dum;
+  }
+  assert(0 != mtu.common_entity(connects[3][0], connects[3][1], 1) &&
+         0 == mtu.common_entity(connects[3][0], connects[3][2], 1));
+  
     // now get offset, sense
   int index = -1, sense = 0;
   for (int i = 0; i < 4; i++) {

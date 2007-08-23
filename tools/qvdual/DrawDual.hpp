@@ -100,15 +100,24 @@ private:
     vtkActor *pickActor;
 
     GraphWindows() : gvizGraph(NULL), sheetDiagram(NULL), pickActor(NULL) {}
+    MBErrorCode reset(MBEntityHandle dual_surf);
   };
   
     //! make sure all dual vertices and edges have graphviz nodes and edges
-  MBErrorCode construct_graphviz_data(MBEntityHandle dual_surf);
+  MBErrorCode construct_graphviz_data(MBEntityHandle dual_surf,
+                                      MBRange &dcells, MBRange &dedges,
+                                      MBRange &dverts, MBRange &face_verts,
+                                      MBRange &loop_edges);
   
     //! given the loop vertices, compute and fix their points
   MBErrorCode compute_fixed_points(MBEntityHandle dual_surf, MBRange &dverts,
                                    MBRange &face_verts, MBRange &loop_edges);
 
+    //! compute fixed points for a pillow sheet
+  MBErrorCode compute_pillow_fixed_points(MBEntityHandle dual_surf, 
+                                          MBRange &face_verts, 
+                                          MBRange &face_edges);
+  
     //! compute the position on the loop, accounting for multiple loops
   void get_loop_vertex_pos(unsigned int vert_num, 
                            unsigned int loop_num, 
@@ -229,7 +238,10 @@ private:
                   MBEntityHandle dual_surf, Agnode_t **points);
 
     //! smooth the points in the dual surface using length-weighted laplacian smoothing
-  MBErrorCode smooth_dual_surf(MBEntityHandle dual_surf);
+  MBErrorCode smooth_dual_surf(MBEntityHandle dual_surf,
+                               MBRange &dcells, MBRange &dedges,
+                               MBRange &dverts, MBRange &face_verts,
+                               MBRange &loop_edges);
   
   MBErrorCode set_graphpoint_pos(void *point, double *pos);
   
