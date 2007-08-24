@@ -132,6 +132,7 @@ MBErrorCode WriteGMV::write_file(const char *file_name,
 
 MBErrorCode WriteGMV::write_file( const char* filename,
                                   const bool ,
+                                  const FileOptions& opts,
                                   const MBEntityHandle* output_sets,
                                   const int num_output_sets,
                                   std::vector<std::string>& ,

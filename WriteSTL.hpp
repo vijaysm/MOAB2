@@ -44,10 +44,8 @@ class WriteSTL : public MBWriterIface
  
 public:
   
-    //! factory method for binary STL writer
-  static MBWriterIface* binary_instance( MBInterface* );
-    //! factory method for ASCII STL writer.
-  static MBWriterIface* ascii_instance( MBInterface* );
+    //! factory method forSTL writer
+  static MBWriterIface* factory( MBInterface* );
 
    //! Constructor
   WriteSTL(MBInterface *impl);
@@ -58,6 +56,7 @@ public:
     //! writes out a file
   MBErrorCode write_file(const char *file_name,
                          const bool overwrite,
+                         const FileOptions& opts,
                          const MBEntityHandle *output_list,
                          const int num_sets,
                          std::vector<std::string>& qa_list,
@@ -65,16 +64,17 @@ public:
 
 protected:
   
+  enum ByteOrder { STL_BIG_ENDIAN, STL_LITTLE_ENDIAN, STL_UNKNOWN_BYTE_ORDER };
+  
     //! Write list of triangles to an STL file.  
-    //! Subclasses provide format-specific implementations 
-    //! of this function.
-  virtual MBErrorCode write_triangles( FILE* file,
-                                       const char header[82],
-                                       const MBRange& triangles ) = 0;
-
-    //! Allow subclasses to request that file be opened in "binary"
-    //! mode (a windows thing).
-  virtual bool need_binary_io() const = 0;
+  MBErrorCode ascii_write_triangles( FILE* file,
+                                     const char header[82],
+                                     const MBRange& triangles );
+    //! Write list of triangles to an STL file.  
+  MBErrorCode binary_write_triangles( FILE* file,
+                                      const char header[82],
+                                      ByteOrder byte_order,
+                                      const MBRange& triangles );
 
     //! Given an array of vertex coordinates for a triangle,
     //! pass back individual point coordinates as floats and 
@@ -103,47 +103,8 @@ private:
   
     //! Open a file, respecting passed overwrite value and
     //! subclass-specified value for need_binary_io().
-  FILE* open_file( const char* name, bool overwrite );
+  FILE* open_file( const char* name, bool overwrite, bool binary );
 };
 
-
-//! Specialize WriteSTL for writing ASCII STL Files.
-class WriteASCIISTL : public WriteSTL
-{
- 
-public:
-
-  WriteASCIISTL(MBInterface *impl) : WriteSTL(impl) {}
-
-  virtual ~WriteASCIISTL() {}
-
-protected:
-
-  virtual bool need_binary_io() const { return false; }
-  
-  virtual MBErrorCode write_triangles( FILE* file,
-                                       const char header[81],
-                                       const MBRange& triangles );
-};
-
-
-//! Specialize WriteSTL for writing binary STL Files.
-class WriteBinarySTL : public WriteSTL
-{
- 
-public:
-
-  WriteBinarySTL(MBInterface *impl) : WriteSTL(impl) {}
-
-  virtual ~WriteBinarySTL() {}
-
-protected:
-
-  virtual bool need_binary_io() const { return true; }
-  
-  virtual MBErrorCode write_triangles( FILE* file,
-                                       const char header[81],
-                                       const MBRange& triangles );
-};
 
 #endif

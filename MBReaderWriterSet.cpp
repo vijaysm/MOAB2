@@ -70,7 +70,7 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
   const char* gmsh_sufxs[] = { "msh", "gmsh", NULL };
   register_factory( ReadGmsh::factory, WriteGmsh::factory, "Gmsh mesh file", gmsh_sufxs, "GMSH" );
   
-  register_factory( ReadSTL::ascii_instance, WriteSTL::ascii_instance, "Stereo Lithography File (STL)", "stl", "STL" );
+  register_factory( ReadSTL::factory, WriteSTL::factory, "Stereo Lithography File (STL)", "stl", "STL" );
 }
 
 

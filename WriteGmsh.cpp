@@ -48,6 +48,7 @@ struct ElemInfo {
     //! writes out a file
 MBErrorCode WriteGmsh::write_file(const char *file_name,
                                   const bool overwrite,
+                                  const FileOptions&,
                                   const MBEntityHandle *output_list,
                                   const int num_sets,
                                   std::vector<std::string>& ,

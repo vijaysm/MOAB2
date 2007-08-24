@@ -356,29 +356,31 @@ MBErrorCode MBCore::load_file( const char* file_name,
   }
   
     // Try using the file extension to select a reader
+  FileOptions opts(options);
   MBReaderIface* reader = set->get_file_extension_reader( file_name );
   if (reader)
   { 
-    rval = reader->load_file( file_name, file_set, block_id_list, num_blocks );
+    rval = reader->load_file( file_name, file_set, opts, block_id_list, num_blocks );
     delete reader;
-    return rval;
   }
-  
-    // Try all the readers
-  MBReaderWriterSet::iterator iter;
-  for (iter = set->begin(); iter != set->end(); ++iter)
-  {
-    MBReaderIface* reader = iter->make_reader( this );
-    if (NULL != reader)
+  else
+  {  
+      // Try all the readers
+    MBReaderWriterSet::iterator iter;
+    for (iter = set->begin(); iter != set->end(); ++iter)
     {
-      rval = reader->load_file( file_name, file_set, block_id_list, num_blocks );
-      delete reader;
-      if (MB_SUCCESS == rval)
-        return MB_SUCCESS;
+      MBReaderIface* reader = iter->make_reader( this );
+      if (NULL != reader)
+      {
+        rval = reader->load_file( file_name, file_set, opts, block_id_list, num_blocks );
+        delete reader;
+        if (MB_SUCCESS == rval)
+          break;
+      }
     }
   }
 
-  return MB_FAILURE; 
+  return rval; 
 }
   
 
@@ -452,7 +454,7 @@ MBErrorCode MBCore::write_file( const char* file_name,
   
     // write the file
   std::vector<std::string> qa_records;
-  rval = writer->write_file(file_name, overwrite, &list[0], list.size(), qa_records );
+  rval = writer->write_file(file_name, overwrite, opts, &list[0], list.size(), qa_records );
   delete writer;
   
   return rval;

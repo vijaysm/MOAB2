@@ -40,6 +40,7 @@ public:
 
   MBErrorCode load_file(const char *file_name,
                         MBEntityHandle& file_set,
+                        const FileOptions& opts,
                         const int* material_set_list,
                         const int num_material_sets );
   

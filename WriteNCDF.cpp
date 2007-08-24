@@ -146,6 +146,7 @@ void WriteNCDF::time_and_date(char* time_string, char* date_string)
 
 MBErrorCode WriteNCDF::write_file(const char *exodus_file_name, 
                                     const bool overwrite,
+                                    const FileOptions&,
                                     const MBEntityHandle *ent_handles,
                                     const int num_sets,
                                     std::vector<std::string> &qa_records,

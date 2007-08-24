@@ -286,6 +286,7 @@ public:
     // read cub file
   MBErrorCode load_file(const char *file_name,
                         MBEntityHandle& file_set,
+                        const FileOptions& opts,
                         const int* block_list,
                         int num_blocks );
   MBErrorCode read_nodeset(ModelEntry *model,
@@ -328,7 +329,7 @@ private:
 
   MBErrorCode convert_nodesets_sidesets();
 
-  MBErrorCode read_acis_records();
+  MBErrorCode read_acis_records( const char* sat_file_name = 0 );
   
   MBErrorCode parse_acis_attribs(const int entity_rec_num,
                           std::vector<AcisRecord> &records);

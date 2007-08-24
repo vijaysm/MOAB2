@@ -54,6 +54,7 @@ const char* const vtk_type_names[] = { "bit",
 
 MBErrorCode ReadVtk::load_file(const char *filename,
                                MBEntityHandle& file_set,
+                               const FileOptions&,
                                const int*, const int) 
 {
   MBErrorCode result;

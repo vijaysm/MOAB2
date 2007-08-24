@@ -78,6 +78,7 @@ const int max_type_int = sizeof(typemap) / sizeof(typemap[0]) - 1;
 
 MBErrorCode ReadGmsh::load_file( const char* filename, 
                                  MBEntityHandle& file_set,
+                                 const FileOptions& ,
                                  const int* blocks,
                                  const int num_blocks )
 {

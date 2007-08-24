@@ -25,6 +25,7 @@
 #include "MBInterface.hpp"
 #include "MBReadUtilIface.hpp"
 #include "MBRange.hpp"
+#include "FileOptions.hpp"
 
 #include <inttypes.h>  // for int32_t
 #include <errno.h>
@@ -80,11 +81,12 @@ bool ReadSTL::Point::operator<( const ReadSTL::Point& other ) const
 
 MBErrorCode ReadSTL::load_file( const char* filename,
                                 MBEntityHandle& file_set, 
+                                const FileOptions& opts,
                                 const int* blocks, 
                                 const int num_blocks )
 {
   mCurrentMeshHandle = 0;
-  const MBErrorCode result = load_file_impl( filename, blocks, num_blocks );
+  const MBErrorCode result = load_file_impl( filename, opts, blocks, num_blocks );
   
     // If file read has failed, destroy anything that was
     // created during the read.
@@ -105,14 +107,49 @@ MBErrorCode ReadSTL::load_file( const char* filename,
 // pure-virtual function implemented in subclasses to read
 // the data from the file.
 MBErrorCode ReadSTL::load_file_impl(const char *filename,
+                                    const FileOptions& opts,
                                     const int*, const int) 
 {
   MBErrorCode result;
 
   std::vector<ReadSTL::Triangle> triangles;
  
-  result = this->read_triangles( filename, triangles );
-  if (MB_SUCCESS != result) return result; 
+  bool is_ascii = false, is_binary = false;
+  if (MB_SUCCESS == opts.get_null_option( "ASCII" ))
+    is_ascii = true;
+  if (MB_SUCCESS == opts.get_null_option( "BINARY" ))
+    is_binary = true;
+  if (is_ascii && is_binary) {
+    readMeshIface->report_error( "Conflicting options: BINARY ASCII\n" );
+    return MB_FAILURE;
+  }
+  
+  bool big_endian = false, little_endian = false;
+  if (MB_SUCCESS == opts.get_null_option( "BIG_ENDIAN" ))
+    big_endian = true;
+  if (MB_SUCCESS == opts.get_null_option( "LITTLE_ENDIAN" ))
+    little_endian = true;
+  if (big_endian && little_endian) {
+    readMeshIface->report_error( "Conflicting options: BIG_ENDIAN LITTLE_ENDIAN\n" );
+    return MB_FAILURE;
+  }
+  ByteOrder byte_order =    big_endian ? STL_BIG_ENDIAN 
+                       : little_endian ? STL_LITTLE_ENDIAN 
+                       :                 STL_UNKNOWN_BYTE_ORDER;
+ 
+  if (is_ascii) 
+    result = ascii_read_triangles( filename, triangles );
+  else if (is_binary)
+    result = binary_read_triangles( filename, byte_order, triangles );
+  else {
+      // try ASCII first
+    result = ascii_read_triangles( filename, triangles );
+    if (MB_SUCCESS != result) 
+        // ASCII failed, try binary
+      result = binary_read_triangles( filename, byte_order, triangles );
+  }
+  if (MB_SUCCESS != result)
+    return result;
 
     // make a meshset for this mesh
   result = mdbImpl->create_meshset(MESHSET_SET, mCurrentMeshHandle);
@@ -203,7 +240,7 @@ long ReadSTL::get_file_size( FILE* file )
 
 
 // Read ASCII file
-MBErrorCode ReadASCIISTL::read_triangles( const char* name,
+MBErrorCode ReadSTL::ascii_read_triangles( const char* name,
                                           std::vector<ReadSTL::Triangle>& tris )
 {
   FILE* file = fopen( name, "r" );
@@ -281,7 +318,8 @@ struct BinaryTri {
 };
 
 // Read a binary STL file
-MBErrorCode ReadBinarySTL::read_triangles( const char* name,
+MBErrorCode ReadSTL::binary_read_triangles( const char* name,
+                                           ReadSTL::ByteOrder byte_order,
                                            std::vector<ReadSTL::Triangle>& tris )
 {
   FILE* file = fopen( name, "rb" );
@@ -300,22 +338,10 @@ MBErrorCode ReadBinarySTL::read_triangles( const char* name,
     return MB_FILE_WRITE_ERROR;
   }
   
-  bool swap_bytes = !is_platform_little_endian();  // default to little endian
-
-    // Check for tag specifying file byte order
-  MBTag bo_tag = 0;
-  MBErrorCode rval = mdbImpl->tag_get_handle( "__STL_BYTE_ORDER", bo_tag );
-  if (MB_SUCCESS == rval)
-  {
-    int value;
-    rval = mdbImpl->tag_get_data( bo_tag, 0, 1, &value );
-    if (MB_SUCCESS != rval) 
-      return rval;
-    bool is_file_little_endian = (0 == value);
-    swap_bytes = (is_platform_little_endian() != is_file_little_endian);
-  } 
-  else if (MB_TAG_NOT_FOUND != rval)
-    return rval;
+    // Allow user setting for byte order, default to little endian
+  const bool want_big_endian = (byte_order == STL_BIG_ENDIAN);
+  const bool am_big_endian = !is_platform_little_endian();
+  bool swap_bytes = (want_big_endian == am_big_endian);
   
     // Compare the number of triangles to the length of the file.  
     // The file must contain an 80-byte description, a 4-byte 
@@ -343,7 +369,7 @@ MBErrorCode ReadBinarySTL::read_triangles( const char* name,
         // Unless the byte order was specified explicitly in the 
         // tag, try the opposite byte order.
       unsigned long num_tri_swap = byte_swap( (uint32_t)num_tri );
-      if (bo_tag || // If byte order was specified in tag, fail now
+      if (byte_order != STL_UNKNOWN_BYTE_ORDER || // If byte order was specified, fail now
           ULONG_MAX / 50 - 84 < num_tri_swap  || // watch for overflow in next line
           84 + 50 * num_tri_swap != (unsigned long)filesize)
       {
@@ -383,8 +409,5 @@ MBErrorCode ReadBinarySTL::read_triangles( const char* name,
 }
 
 
-MBReaderIface* ReadSTL::ascii_instance( MBInterface* iface )
-  { return new ReadASCIISTL(iface); }
-
-MBReaderIface* ReadSTL::binary_instance( MBInterface* iface )
-  { return new ReadBinarySTL(iface); }
+MBReaderIface* ReadSTL::factory( MBInterface* iface )
+  { return new ReadSTL(iface); }

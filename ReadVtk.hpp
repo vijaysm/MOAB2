@@ -32,6 +32,7 @@ public:
     //! load a file
   MBErrorCode load_file(const char *file_name,
                         MBEntityHandle& file_set,
+                        const FileOptions&,
                         const int* material_set_list,
                         const int num_material_sets );
   

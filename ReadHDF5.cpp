@@ -107,7 +107,11 @@ ReadHDF5::~ReadHDF5()
   H5Tclose( handleType );
 }
 
-MBErrorCode ReadHDF5::load_file( const char* filename, MBEntityHandle& file_set, const int*, const int num_blocks )
+MBErrorCode ReadHDF5::load_file( const char* filename, 
+                                 MBEntityHandle& file_set, 
+                                 const FileOptions&,
+                                 const int*, 
+                                 const int num_blocks )
 {
   MBErrorCode rval;
   mhdf_Status status;

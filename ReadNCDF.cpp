@@ -407,6 +407,7 @@ MBErrorCode ReadNCDF::check_file_status( std::string& exodus_file_name,
 
 MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
                                   MBEntityHandle& file_set,
+                                  const FileOptions&,
                                   const int *blocks_to_load,
                                   const int num_blocks) 
 {

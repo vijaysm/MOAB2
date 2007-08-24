@@ -61,6 +61,7 @@ public:
    */
   MBErrorCode write_file( const char* filename,
                           bool overwrite,
+                          const FileOptions& opts,
                           const MBEntityHandle* export_sets,
                           const int export_set_count,
                           std::vector<std::string>& qa_records,

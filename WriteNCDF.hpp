@@ -98,6 +98,7 @@ public:
     //! writes out an ExoII file
   MBErrorCode write_file(const char *exodus_file_name,
                          const bool overwrite,
+                         const FileOptions& opts,
                           const MBEntityHandle *output_list,
                           const int num_sets,
                           std::vector<std::string> &qa_records, 

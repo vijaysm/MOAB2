@@ -26,6 +26,8 @@
 
 #include "MBTypes.h"
 
+class FileOptions;
+
 class MBReaderIface
 {
   public:
@@ -46,6 +48,7 @@ class MBReaderIface
      */
     virtual MBErrorCode load_file( const char* file_name,
                                    MBEntityHandle& file_set,
+                                   const FileOptions& opts,
                                    const int* material_set_list,
                                    const int material_set_list_len ) = 0;
 };

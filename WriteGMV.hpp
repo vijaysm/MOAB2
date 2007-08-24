@@ -49,6 +49,7 @@ public:
 
   MBErrorCode write_file( const char* filename,
                           const bool overwite,
+                          const FileOptions& opts,
                           const MBEntityHandle* output_sets,
                           const int num_output_sets,
                           std::vector<std::string>& qa_list,

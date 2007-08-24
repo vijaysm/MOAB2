@@ -66,15 +66,14 @@ class ReadSTL : public MBReaderIface
    
 public:
 
-    //! factory method for binary STL reader
-  static MBReaderIface* binary_instance( MBInterface* );
-    //! factory method for ASCII STL reader.
-  static MBReaderIface* ascii_instance( MBInterface* );
+    //! factory method for STL reader
+  static MBReaderIface* factory( MBInterface* );
 
     //! Generic file loading code for both binary and ASCII readers.
     //! Calls reader-specific read_triangles function to do actual I/O.
   MBErrorCode load_file(const char *file_name,
                         MBEntityHandle& file_set,
+                        const FileOptions& opts,
                         const int* material_set_list,
                         const int num_material_sets );
   
@@ -96,14 +95,19 @@ public:
   struct Triangle {
     Point points[3];
   };
+  
+  enum ByteOrder { STL_BIG_ENDIAN, STL_LITTLE_ENDIAN, STL_UNKNOWN_BYTE_ORDER };
 
 protected:
-  
-    // I/O-specific part of reader.  Read list of triangles
-    // from file.
-  virtual MBErrorCode read_triangles( const char* name, 
-                                      std::vector<Triangle>& tris_out 
-                                    ) = 0;
+
+    // I/O specific part of reader - read ASCII file
+  MBErrorCode ascii_read_triangles( const char* file_name, 
+                                    std::vector<Triangle>& tris_out );
+
+    // I/O specific part of reader - read binary file
+  MBErrorCode binary_read_triangles( const char* file_name, 
+                                     ByteOrder byte_order,
+                                     std::vector<Triangle>& tris_out );
 
   MBReadUtilIface* readMeshIface;
 
@@ -113,43 +117,14 @@ protected:
 private:
 
     //! Generic file loading code for both binary and ASCII readers.
-    //! Calls reader-specific read_triangles function to do actual I/O.
+    //! Calls reader-specific *_read_triangles function to do actual I/O.
   MBErrorCode load_file_impl(const char *file_name,
+                             const FileOptions& opts,
                              const int* material_set_list,
                              const int num_material_sets );
 
     //! Meshset Handle for the mesh that is currently being read
   MBEntityHandle mCurrentMeshHandle;
-};
-
-
-//! Specialize ReadSTL for reading ASCII STL files
-class ReadASCIISTL : public ReadSTL
-{
-public:
-  
-  ReadASCIISTL(MBInterface* impl = NULL) : ReadSTL(impl) {}
-
-  virtual ~ReadASCIISTL() {}
-  
-protected:
-
-  MBErrorCode read_triangles( const char* name, std::vector<Triangle>& tris_out );
-};
-
-
-//! Specialize ReadSTL for reading binary STL files
-class ReadBinarySTL : public ReadSTL
-{
-public:
-
-  ReadBinarySTL(MBInterface* impl = NULL) : ReadSTL(impl) {}
-
-  virtual ~ReadBinarySTL() { }
-  
-protected:
-  
-  MBErrorCode read_triangles( const char* name, std::vector<Triangle>& tris_out );
 };
 
 #endif

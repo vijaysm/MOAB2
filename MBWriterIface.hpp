@@ -28,6 +28,8 @@
 #include <string>
 #include "MBTypes.h"
 
+class FileOptions;
+
 class MBWriterIface
 {
   public:
@@ -55,6 +57,7 @@ class MBWriterIface
      */
     virtual MBErrorCode write_file( const char* file_name,
                                     const bool overwrite,
+                                    const FileOptions& opts,
                                     const MBEntityHandle* meshset_list,
                                     const int num_sets,
                                     std::vector<std::string>& qa_records,

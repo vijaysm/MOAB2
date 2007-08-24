@@ -65,6 +65,7 @@ public:
     //! load an ExoII file
   MBErrorCode load_file(const char *exodus_file_name,
                          MBEntityHandle& file_set,
+                         const FileOptions& opts,
                          const int* blocks_to_load,
                          const int num_blocks);
   

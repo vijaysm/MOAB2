@@ -25,6 +25,7 @@
 #include "MBInterface.hpp"
 #include "MBRange.hpp"
 #include "MBWriteUtilIface.hpp"
+#include "FileOptions.hpp"
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -73,11 +74,8 @@ inline static bool is_platform_little_endian()
 }
 
 
-MBWriterIface *WriteSTL::ascii_instance( MBInterface* iface )
-  { return new WriteASCIISTL( iface ); }
-
-MBWriterIface *WriteSTL::binary_instance( MBInterface* iface )
-  { return new WriteBinarySTL( iface ); }
+MBWriterIface *WriteSTL::factory( MBInterface* iface )
+  { return new WriteSTL( iface ); }
 
 WriteSTL::WriteSTL(MBInterface *impl) 
     : mbImpl(impl)
@@ -93,6 +91,7 @@ WriteSTL::~WriteSTL()
 
 MBErrorCode WriteSTL::write_file(const char *file_name, 
                                  const bool overwrite,
+                                 const FileOptions& opts,
                                  const MBEntityHandle *ent_handles,
                                  const int num_sets,
                                  std::vector<std::string>& qa_list, 
@@ -109,18 +108,43 @@ MBErrorCode WriteSTL::write_file(const char *file_name,
   rval = get_triangles( ent_handles, num_sets, triangles );
   if (MB_SUCCESS != rval)
     return rval;
+
+ 
+  bool is_ascii = false, is_binary = false;
+  if (MB_SUCCESS == opts.get_null_option( "ASCII" ))
+    is_ascii = true;
+  if (MB_SUCCESS == opts.get_null_option( "BINARY" ))
+    is_binary = true;
+  if (is_ascii && is_binary) {
+    mWriteIface->report_error( "Conflicting options: BINARY ASCII\n" );
+    return MB_FAILURE;
+  }
+  
+  bool big_endian = false, little_endian = false;
+  if (MB_SUCCESS == opts.get_null_option( "BIG_ENDIAN" ))
+    big_endian = true;
+  if (MB_SUCCESS == opts.get_null_option( "LITTLE_ENDIAN" ))
+    little_endian = true;
+  if (big_endian && little_endian) {
+    mWriteIface->report_error( "Conflicting options: BIG_ENDIAN LITTLE_ENDIAN\n" );
+    return MB_FAILURE;
+  }
+  ByteOrder byte_order = big_endian ? STL_BIG_ENDIAN : little_endian ? STL_LITTLE_ENDIAN : STL_UNKNOWN_BYTE_ORDER;
     
-  FILE* file = open_file( file_name, overwrite );
+  FILE* file = open_file( file_name, overwrite, is_binary );
   if (!file)
     return MB_FILE_DOES_NOT_EXIST; 
   
-  rval = write_triangles( file, header, triangles );
+  if (is_binary)
+    rval = binary_write_triangles( file, header, byte_order, triangles );
+  else
+    rval = ascii_write_triangles( file, header, triangles );
   fclose( file );
   return rval;
 }
 
 
-FILE* WriteSTL::open_file( const char* name, bool overwrite )
+FILE* WriteSTL::open_file( const char* name, bool overwrite, bool binary )
 {
     // Open file with write access, and create it if it doesn't exist.
   int flags = O_WRONLY|O_CREAT;
@@ -135,7 +159,7 @@ FILE* WriteSTL::open_file( const char* name, bool overwrite )
     // flags (i.e. we're building on windows), then set it
     // if we're writing a binary file.
 #ifdef O_BINARY
-  if (need_binary_io())
+  if (binary)
     flags |= O_BINARY;
 #endif
 
@@ -154,7 +178,7 @@ FILE* WriteSTL::open_file( const char* name, bool overwrite )
     mWriteIface->report_error( "%s: %s\n", name, strerror(errno) );
     return 0;
   }
-  FILE* result = fdopen( fd, need_binary_io() ? "wb": "w" );
+  FILE* result = fdopen( fd, binary ? "wb": "w" );
   if (!result)
     close( fd );
   
@@ -236,9 +260,9 @@ MBErrorCode WriteSTL::get_triangle_data( const double coords[9],
 }
 
 
-MBErrorCode WriteASCIISTL::write_triangles( FILE* file,
-                                            const char header[81],
-                                            const MBRange& triangles )
+MBErrorCode WriteSTL::ascii_write_triangles( FILE* file,
+                                             const char header[81],
+                                             const MBRange& triangles )
 {
   const char solid_name[] = "MOAB";
   
@@ -273,7 +297,7 @@ MBErrorCode WriteASCIISTL::write_triangles( FILE* file,
     if (MB_SUCCESS != rval)
       return rval;
    
-    fprintf( file, "facet normal %e %e %e\n", n[0], n[1], n[2] );
+    fprintf( file,"facet normal %e %e %e\n", n[0], n[1], n[2] );
     fprintf( file,"outer loop\n" );
     fprintf( file,"vertex %e %e %e\n", v1[0], v1[1], v1[2] );
     fprintf( file,"vertex %e %e %e\n", v2[0], v2[1], v2[2] );
@@ -302,30 +326,19 @@ static inline void byte_swap( float vect[3] )
   vect[2] = byte_swap( vect[2] );
 }
 
-MBErrorCode WriteBinarySTL::write_triangles( FILE* file,
+MBErrorCode WriteSTL::binary_write_triangles( FILE* file,
                                              const char header[81],
+                                             ByteOrder byte_order,
                                              const MBRange& triangles )
 {
   MBErrorCode rval;
   if (fwrite( header, 80, 1, file ) != 1)
     return MB_FILE_WRITE_ERROR;
   
-  bool swap_bytes = !is_platform_little_endian();  // default to little endian
-
-    // Check for tag specifying file byte order
-  MBTag bo_tag = 0;
-  rval = mbImpl->tag_get_handle( "__STL_BYTE_ORDER", bo_tag );
-  if (MB_SUCCESS == rval)
-  {
-    int value;
-    rval = mbImpl->tag_get_data( bo_tag, 0, 1, &value );
-    if (MB_SUCCESS != rval) 
-      return rval;
-    bool is_file_little_endian = (0 == value);
-    swap_bytes = (is_platform_little_endian() != is_file_little_endian);
-  } 
-  else if (MB_TAG_NOT_FOUND != rval)
-    return rval;
+    // default to little endian if byte_order == UNKNOWN_BYTE_ORDER
+  const bool want_big_endian = (byte_order == STL_BIG_ENDIAN);
+  const bool am_big_endian = !is_platform_little_endian();
+  const bool swap_bytes = (want_big_endian == am_big_endian);
     
   if (triangles.size() > INT_MAX) // can't write that many triangles
     return MB_FAILURE;  

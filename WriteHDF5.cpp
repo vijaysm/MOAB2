@@ -312,6 +312,7 @@ WriteHDF5::~WriteHDF5()
 
 MBErrorCode WriteHDF5::write_file( const char* filename,
                                    bool overwrite,
+                                   const FileOptions& ,
                                    const MBEntityHandle* set_array,
                                    const int num_sets,
                                    std::vector<std::string>& qa_records,

@@ -21,14 +21,13 @@
 #include "MBTagConventions.hpp"
 #include "MBCN.hpp"
 #include "MBInternals.hpp"
+#include "FileOptions.hpp"
 
 #include <iostream>
 #include <assert.h>
 
 const bool debug = false;
 const int ACIS_DIMS[] = {-1, 3, -1, 2, -1, -1, 1, 0, -1, -1};
-const char default_acis_dump_file[] = "dumped_acis.sat";
-const char acis_dump_file_tag_name[] = "__ACISDumpFile";
 const char Tqdcfr::geom_categories[][CATEGORY_TAG_SIZE] = 
 {"Vertex\0", "Curve\0", "Surface\0", "Volume\0"};
 const MBEntityType Tqdcfr::group_type_to_mb_type[] = {
@@ -171,6 +170,7 @@ Tqdcfr::~Tqdcfr()
   
 MBErrorCode Tqdcfr::load_file(const char *file_name,
                               MBEntityHandle& file_set,
+                              const FileOptions& opts,
                               const int*, const int) 
 {
   MBErrorCode result;
@@ -241,7 +241,10 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
     // ***********************
     // read acis records...
     // ***********************
-  result = read_acis_records(); RR;
+  std::string sat_file_name;
+  if (MB_SUCCESS != opts.get_str_option( "SAT_FILE", sat_file_name))
+    sat_file_name.clear();
+  result = read_acis_records( sat_file_name.empty() ? NULL : sat_file_name.c_str() ); RR;
 
     // ***********************
     // read groups...
@@ -1778,7 +1781,7 @@ MBErrorCode Tqdcfr::ModelEntry::read_metadata_info(Tqdcfr *tqd)
   return MB_SUCCESS;
 }
 
-MBErrorCode Tqdcfr::read_acis_records() 
+MBErrorCode Tqdcfr::read_acis_records( const char* sat_filename ) 
 {
 
     // get the acis model location
@@ -1797,18 +1800,12 @@ MBErrorCode Tqdcfr::read_acis_records()
   
   std::vector<AcisRecord> records;
 
-    // get name for acis dump file
-  MBTag acis_file_tag;
-  MBErrorCode rval;
-  rval = mdbImpl->tag_get_handle( acis_dump_file_tag_name, acis_file_tag );
-  const char* filename = default_acis_dump_file;
-  if (MB_SUCCESS == rval)
-    mdbImpl->tag_get_data( acis_file_tag, 0, 0, &filename );
-  
   acisDumpFile = NULL;
-  if (filename && *filename)
+  if (sat_filename)
   {
-    acisDumpFile = fopen( filename, "w+" );
+    acisDumpFile = fopen( sat_filename, "w+" );
+    if (NULL == acisDumpFile)
+      return MB_FAILURE;
   }
 
     // position the file at the start of the acis model
@@ -2426,8 +2423,9 @@ int main(int argc, char* argv[])
   MBCore my_impl;
   Tqdcfr my_tqd(&my_impl);
   MBEntityHandle file_set;
-
-  MBErrorCode result = my_tqd.load_file(file, file_set, 0, 0);
+  FileOptions opts(NULL);
+  
+  MBErrorCode result = my_tqd.load_file(file, file_set, opts, 0, 0);
 
   if (MB_SUCCESS == result)
     std::cout << "Success." << std::endl;

@@ -118,6 +118,7 @@ void WriteTEMPLATE::reset_matset(std::vector<WriteTEMPLATE::MaterialSetData> &ma
 
 MBErrorCode WriteTEMPLATE::write_file(const char *file_name, 
                                       const bool /* overwrite (commented out to remove warning) */,
+                                      const FileOptions& opts,
                                       const MBEntityHandle *ent_handles,
                                       const int num_sets,
                                       std::vector<std::string>&, int )

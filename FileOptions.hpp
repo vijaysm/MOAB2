@@ -42,30 +42,31 @@ public:
    */
   FileOptions( const char* option_string );
   
+  FileOptions( const FileOptions& copy );
+  FileOptions& operator=( const FileOptions& copy );
+  
   ~FileOptions();
   
   /**\brief Check for option with no value 
    *
    * Check for and remove an option w/out a value.
    *\param name The option name
-   *\param remove If true (default), remove the option from the list.
    *\return - MB_SUCCESS if option is found
    *        - MB_TYPE_OUT_OF_RANGE if options is found, but has value
    *        - MB_ENTITY_NOT_FOUND if option is not found.
    */
-  MBErrorCode get_null_option( const char* name, bool remove = true );
+  MBErrorCode get_null_option( const char* name ) const;
   
   /**\brief Check for option with an integer value.
    *
    * Check for and remove an option with an integer value
    *\param name The option name
    *\param value Output. The value.
-   *\param remove If true (default), remove the option from the list.
    *\return - MB_SUCCESS if option is found
    *        - MB_TYPE_OUT_OF_RANGE if options is found, but does not have an integer value
    *        - MB_ENTITY_NOT_FOUND if option is not found.
    */
-  MBErrorCode get_int_option( const char* name, int& value, bool remove = true );
+  MBErrorCode get_int_option( const char* name, int& value ) const;
   
   /**\brief Check for option with a double value.
    *
@@ -77,7 +78,7 @@ public:
    *        - MB_TYPE_OUT_OF_RANGE if options is found, but does not have a double value
    *        - MB_ENTITY_NOT_FOUND if option is not found.
    */
-  MBErrorCode get_real_option( const char* name, double& value, bool remove = true );
+  MBErrorCode get_real_option( const char* name, double& value ) const;
   
   /**\brief Check for option with any value.
    *
@@ -89,7 +90,7 @@ public:
    *        - MB_TYPE_OUT_OF_RANGE if options is found, but does not have a value
    *        - MB_ENTITY_NOT_FOUND if option is not found.
    */
-  MBErrorCode get_str_option( const char* name, std::string& value, bool remove = true );
+  MBErrorCode get_str_option( const char* name, std::string& value ) const;
   
   /**\brief Check for option 
    *
@@ -99,7 +100,7 @@ public:
    *\param remove If true (default), remove the option from teh list.
    *\return MB_SUCCESS or MB_ENTITY_NOT_FOUND
    */
-  MBErrorCode get_option( const char* name, std::string& value, bool remove = true );
+  MBErrorCode get_option( const char* name, std::string& value ) const;
    
   /**\brief Check for option for which the value is an ID list
    *
@@ -117,22 +118,18 @@ public:
    */
   //MBErrorCode get_id_list_option( const char* name, std::vector<unsigned>& value, bool remove = true );
   
-  /** number of remaining options */
+  /** number of options */
   inline unsigned size() const 
     { return mOptions.size(); }
   
-  /** true if no remaining options */
+  /** true if no options */
   inline bool empty() const 
     { return mOptions.empty(); }
   
-  /** Get list of remaining options by name */
+  /** Get list of options */
   void get_options( std::vector<std::string>& list ) const;
   
 private:
-
-    /* Don't allow copying */
-  FileOptions( const FileOptions& other );
-  void operator=( const FileOptions& other );
   
   /**\brief Check for option 
    *
@@ -142,13 +139,10 @@ private:
    *\param remove If true (default), remove the option from teh list.
    *\return MB_SUCCESS or MB_ENTITY_NOT_FOUND
    */
-  MBErrorCode get_option( const char* name, const char*& value);
-
-  MBErrorCode remove_last_option(bool remove_arg);  
+  MBErrorCode get_option( const char* name, const char*& value) const;
 
   char* mData;
   std::vector<const char*> mOptions;
-  std::vector<const char*>::iterator lastOpt;
 
     /** Case-insensitive compare of name with option value. */
   static bool compare( const char* name, const char* option );

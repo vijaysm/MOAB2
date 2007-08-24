@@ -124,6 +124,7 @@ void WriteSLAC::reset_matset(std::vector<WriteSLAC::MaterialSetData> &matset_inf
 
 MBErrorCode WriteSLAC::write_file(const char *file_name, 
                                   const bool overwrite,
+                                  const FileOptions&,
                                   const MBEntityHandle *ent_handles,
                                   const int num_sets,
                                   std::vector<std::string>&, int )
