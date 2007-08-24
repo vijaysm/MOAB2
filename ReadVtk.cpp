@@ -53,9 +53,11 @@ const char* const vtk_type_names[] = { "bit",
 
 
 MBErrorCode ReadVtk::load_file(const char *filename,
+                               MBEntityHandle& file_set,
                                const int*, const int) 
 {
   MBErrorCode result;
+  file_set = 0;
 
   int major, minor;
   char vendor_string[257];
@@ -182,6 +184,7 @@ MBErrorCode ReadVtk::load_file(const char *filename,
       return result;
   }
   
+  file_set = mCurrentMeshHandle;
   return MB_SUCCESS;
 }
 

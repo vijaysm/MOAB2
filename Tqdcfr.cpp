@@ -170,9 +170,11 @@ Tqdcfr::~Tqdcfr()
 
   
 MBErrorCode Tqdcfr::load_file(const char *file_name,
+                              MBEntityHandle& file_set,
                               const int*, const int) 
 {
   MBErrorCode result;
+  file_set = mFileSet = 0;
   
     // open file
   cubFile = fopen(file_name, "rb");
@@ -183,6 +185,12 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
   if (!(char_buf[0] == 'C' && char_buf[1] == 'U' && 
         char_buf[2] == 'B' && char_buf[3] == 'E')) 
     return MB_FAILURE;
+  
+    // create meshset to contain file
+  result = mdbImpl->create_meshset( MESHSET_SET, file_set );
+  if (MB_SUCCESS != result) 
+    return result;
+  mFileSet = file_set;
 
     // ***********************
     // read model header type information...
@@ -567,7 +575,7 @@ MBErrorCode Tqdcfr::process_sideset_10(const int this_type, const int num_ents,
   if (!reverse.empty()) {
       // need to make a new set, add a reverse sense tag, then add to the sideset
     MBEntityHandle reverse_set;
-    MBErrorCode tmp_result = mdbImpl->create_meshset(MESHSET_SET, reverse_set);
+    MBErrorCode tmp_result = create_set(reverse_set);
     if (MB_SUCCESS != tmp_result) result = tmp_result;
     tmp_result = mdbImpl->add_entities(reverse_set, &reverse[0], reverse.size());
     if (tmp_result != MB_SUCCESS) result = tmp_result;
@@ -626,7 +634,7 @@ MBErrorCode Tqdcfr::process_sideset_11(std::vector<MBEntityHandle> &ss_entities,
   if (!reverse.empty()) {
       // need to make a new set, add a reverse sense tag, then add to the sideset
     MBEntityHandle reverse_set;
-    MBErrorCode tmp_result = mdbImpl->create_meshset(MESHSET_SET, reverse_set);
+    MBErrorCode tmp_result = create_set(reverse_set);
     if (MB_SUCCESS != tmp_result) result = tmp_result;
     tmp_result = mdbImpl->add_entities(reverse_set, &reverse[0], reverse.size());
     if (tmp_result != MB_SUCCESS) result = tmp_result;
@@ -941,6 +949,8 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
                     node_handle+entity->nodeCt-1);
   MBErrorCode result = mdbImpl->add_entities(entity->setHandle, dum_range);
   if (MB_SUCCESS != result) return result;
+  result = mdbImpl->add_entities( mFileSet, dum_range );
+  if (MB_SUCCESS != result) return result;
 
     // check for id contiguity
   long unsigned int node_offset = mdbImpl->id_from_handle( node_handle);
@@ -1108,6 +1118,8 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
       // add these elements into the entity's set
     MBRange dum_range(start_handle, start_handle+num_elem-1);
     result = mdbImpl->add_entities(entity->setHandle, dum_range);
+    if (MB_SUCCESS != result) return result;
+    result = mdbImpl->add_entities(mFileSet, dum_range);
     if (MB_SUCCESS != result) return result;
 
       // set cub ids
@@ -1356,7 +1368,7 @@ MBErrorCode Tqdcfr::GeomHeader::read_info_header(const int model_offset,
   for (int i = 0; i < info.numEntities; i++) {
 
       // create an entity set for this entity
-    result = instance->mdbImpl->create_meshset(MESHSET_SET, geom_headers[i].setHandle);
+    result = instance->create_set(geom_headers[i].setHandle);
     if (MB_SUCCESS != result) return result;
     
     instance->FREADI(8);
@@ -1403,7 +1415,7 @@ MBErrorCode Tqdcfr::GroupHeader::read_info_header(const int model_offset,
   for (int i = 0; i < info.numEntities; i++) {
 
       // create an entity set for this entity
-    result = instance->mdbImpl->create_meshset(MESHSET_SET, group_headers[i].setHandle);
+    result = instance->create_set(group_headers[i].setHandle);
     if (MB_SUCCESS != result) return result;
     static const char group_category[CATEGORY_TAG_SIZE] = "Group\0";
     
@@ -1453,7 +1465,7 @@ MBErrorCode Tqdcfr::BlockHeader::read_info_header(const double data_version,
   for (int i = 0; i < info.numEntities; i++) {
 
       // create an entity set for this entity
-    result = instance->mdbImpl->create_meshset(MESHSET_SET, block_headers[i].setHandle);
+    result = instance->create_set(block_headers[i].setHandle);
     if (MB_SUCCESS != result) return result;
     static const char material_category[CATEGORY_TAG_SIZE] = "Material Set\0";
     
@@ -1533,7 +1545,7 @@ MBErrorCode Tqdcfr::NodesetHeader::read_info_header(const int model_offset,
   for (int i = 0; i < info.numEntities; i++) {
 
       // create an entity set for this entity
-    result = instance->mdbImpl->create_meshset(MESHSET_SET, nodeset_headers[i].setHandle);
+    result = instance->create_set(nodeset_headers[i].setHandle);
     if (MB_SUCCESS != result) return result;
     static const char dirichlet_category[CATEGORY_TAG_SIZE] = "Dirichlet Set\0";
     
@@ -1583,7 +1595,7 @@ MBErrorCode Tqdcfr::SidesetHeader::read_info_header(const int model_offset,
   for (int i = 0; i < info.numEntities; i++) {
 
       // create an entity set for this entity
-    result = instance->mdbImpl->create_meshset(MESHSET_SET, sideset_headers[i].setHandle);
+    result = instance->create_set(sideset_headers[i].setHandle);
     if (MB_SUCCESS != result) return result;
     static const char neumann_category[CATEGORY_TAG_SIZE] = "Neumann Set\0";
     
@@ -2380,6 +2392,19 @@ void Tqdcfr::ModelEntry::print()
             << std::endl;
 }
 
+MBErrorCode Tqdcfr::create_set( MBEntityHandle& h, int flags )
+{
+  MBErrorCode rval;
+  if (!mFileSet)
+    return MB_FAILURE;
+  rval = mdbImpl->create_meshset( flags, h );
+  if (MB_SUCCESS != rval)
+    return rval;
+  rval = mdbImpl->add_entities( mFileSet, &h, 1 );
+  if (MB_SUCCESS != rval)
+    mdbImpl->delete_entities( &h, 1 );
+  return rval;
+}
 
 #ifdef TEST_TQDCFR
 #include "MBCore.hpp"
@@ -2400,8 +2425,9 @@ int main(int argc, char* argv[])
 
   MBCore my_impl;
   Tqdcfr my_tqd(&my_impl);
+  MBEntityHandle file_set;
 
-  MBErrorCode result = my_tqd.load_file(file, 0, 0);
+  MBErrorCode result = my_tqd.load_file(file, file_set, 0, 0);
 
   if (MB_SUCCESS == result)
     std::cout << "Success." << std::endl;

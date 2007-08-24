@@ -406,9 +406,11 @@ MBErrorCode ReadNCDF::check_file_status( std::string& exodus_file_name,
 
 
 MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
+                                  MBEntityHandle& file_set,
                                   const int *blocks_to_load,
                                   const int num_blocks) 
 {
+  file_set = 0;
     // this function directs the reading of an exoii file, but doesn't do any of
     // the actual work
   
@@ -460,6 +462,7 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
 
     // what about properties???
 
+  file_set = mCurrentMeshHandle;
   return MB_SUCCESS;
 }
 

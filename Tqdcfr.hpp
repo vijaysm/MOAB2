@@ -285,6 +285,7 @@ public:
   
     // read cub file
   MBErrorCode load_file(const char *file_name,
+                        MBEntityHandle& file_set,
                         const int* block_list,
                         int num_blocks );
   MBErrorCode read_nodeset(ModelEntry *model,
@@ -318,8 +319,12 @@ public:
 
   static std::string BLOCK_NODESET_OFFSET_TAG_NAME;
   static std::string BLOCK_SIDESET_OFFSET_TAG_NAME;
+  
+  MBErrorCode create_set( MBEntityHandle& h, int flags = MESHSET_SET );
 
 private:
+
+  MBEntityHandle mFileSet; // set containing read entities.
 
   MBErrorCode convert_nodesets_sidesets();
 

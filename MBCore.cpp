@@ -359,7 +359,7 @@ MBErrorCode MBCore::load_file( const char* file_name,
   MBReaderIface* reader = set->get_file_extension_reader( file_name );
   if (reader)
   { 
-    rval = reader->load_file( file_name, block_id_list, num_blocks );
+    rval = reader->load_file( file_name, file_set, block_id_list, num_blocks );
     delete reader;
     return rval;
   }
@@ -371,7 +371,7 @@ MBErrorCode MBCore::load_file( const char* file_name,
     MBReaderIface* reader = iter->make_reader( this );
     if (NULL != reader)
     {
-      rval = reader->load_file( file_name, block_id_list, num_blocks );
+      rval = reader->load_file( file_name, file_set, block_id_list, num_blocks );
       delete reader;
       if (MB_SUCCESS == rval)
         return MB_SUCCESS;

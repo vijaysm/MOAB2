@@ -77,6 +77,7 @@ const int max_type_int = sizeof(typemap) / sizeof(typemap[0]) - 1;
 
 
 MBErrorCode ReadGmsh::load_file( const char* filename, 
+                                 MBEntityHandle& file_set,
                                  const int* blocks,
                                  const int num_blocks )
 {
@@ -94,6 +95,7 @@ MBErrorCode ReadGmsh::load_file( const char* filename,
     mCurrentMeshHandle = 0;
   }
   
+  file_set = mCurrentMeshHandle;
   return result;
 }
 

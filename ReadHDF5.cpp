@@ -107,7 +107,7 @@ ReadHDF5::~ReadHDF5()
   H5Tclose( handleType );
 }
 
-MBErrorCode ReadHDF5::load_file( const char* filename, const int*, const int num_blocks )
+MBErrorCode ReadHDF5::load_file( const char* filename, MBEntityHandle& file_set, const int*, const int num_blocks )
 {
   MBErrorCode rval;
   mhdf_Status status;
@@ -116,9 +116,11 @@ MBErrorCode ReadHDF5::load_file( const char* filename, const int*, const int num
   char** tag_names = NULL;
   char** groups = NULL;
   std::list<ElemSet>::iterator el_itor;
+  std::list<ElemSet>::reverse_iterator rel_itor;
   unsigned int i, num_groups;
   MBEntityHandle all;  // meshset of everything in file.
   bool have_nodes = true;
+  file_set = 0;
 
   if (num_blocks)
     return MB_FAILURE;
@@ -211,6 +213,18 @@ DEBUGOUT("Reading tags.\n");
 DEBUGOUT("Finishing read.\n");
   if (MB_SUCCESS != read_qa( all ))
     goto read_fail;
+    
+DEBUGOUT("Creating entity set for file contents\n")
+  if (MB_SUCCESS != iFace->create_meshset( MESHSET_SET, file_set ))
+    goto read_fail;
+  if (MB_SUCCESS != iFace->add_entities( file_set, setSet.range ))
+    goto read_fail;
+  for (rel_itor = elemList.rbegin(); rel_itor != elemList.rend(); ++rel_itor)
+    if (MB_SUCCESS != iFace->add_entities( file_set, rel_itor->range))
+      goto read_fail;
+  if (MB_SUCCESS != iFace->add_entities( file_set, nodeSet.range ))
+    goto read_fail;
+  
 
     // Clean up and exit.
   free( dataBuffer );
@@ -222,6 +236,9 @@ DEBUGOUT("Finishing read.\n");
   return MB_SUCCESS;
   
 read_fail:
+  
+  if (file_set)
+    iFace->delete_entities( &file_set, 1 );
   
   if (dataBuffer)
   {

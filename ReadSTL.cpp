@@ -78,9 +78,10 @@ bool ReadSTL::Point::operator<( const ReadSTL::Point& other ) const
 }
 
 
-MBErrorCode ReadSTL::load_file( const char* filename, 
-                                 const int* blocks,
-                                 const int num_blocks )
+MBErrorCode ReadSTL::load_file( const char* filename,
+                                MBEntityHandle& file_set, 
+                                const int* blocks, 
+                                const int num_blocks )
 {
   mCurrentMeshHandle = 0;
   const MBErrorCode result = load_file_impl( filename, blocks, num_blocks );
@@ -96,6 +97,7 @@ MBErrorCode ReadSTL::load_file( const char* filename,
     mCurrentMeshHandle = 0;
   }
   
+  file_set = mCurrentMeshHandle;
   return result;
 }
 

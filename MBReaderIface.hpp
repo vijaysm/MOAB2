@@ -38,12 +38,14 @@ class MBReaderIface
      * Method all readers must provide to import a mesh.
      *
      *\param file_name           The file to read.
+     *\param file_set            Output: a new entity set containing all data read from file.
      *\param material_set_list   A list of material sets to read, or NULL
      *                           if the entire file is to be read.
      *\param material_set_list_len The length of <code>material_set_list</code>
      *\author Jason Kraftcheck
      */
     virtual MBErrorCode load_file( const char* file_name,
+                                   MBEntityHandle& file_set,
                                    const int* material_set_list,
                                    const int material_set_list_len ) = 0;
 };

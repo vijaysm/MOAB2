@@ -47,6 +47,7 @@ public:
    * \param export_set_count Length of <code>export_sets</code> array.
    */
   MBErrorCode load_file( const char* filename,
+                         MBEntityHandle& file_set,
                          const int* material_set_list,
                          int material_set_count  );
 
