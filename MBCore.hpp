@@ -87,10 +87,34 @@ public:
   virtual MBErrorCode load_mesh(const char *file_name,
                                  const int *active_block_id_list = NULL,
                                  const int num_blocks = 0);
+
+  /**Load or import a file. */
+  virtual MBErrorCode load_file( const char* file_name,
+                                 MBEntityHandle& file_set,
+                                 const char* options = 0,
+                                 const char* set_tag_name = 0,
+                                 const int* set_tag_values = 0,
+                                 int num_set_tag_values = 0 );
   
   virtual MBErrorCode write_mesh(const char *file_name,
                                   const MBEntityHandle *output_list = NULL,
                                   const int num_sets = 0);
+  /** Write or export a file. */
+  virtual MBErrorCode write_file( const char* file_name,
+                                  const char* file_type = 0,
+                                  const char* options = 0,
+                                  const MBEntityHandle* output_sets = 0,
+                                  int num_output_sets = 0,
+                                  const MBTag* tag_list = 0,
+                                  int num_tags = 0 );
+
+  /** Write or export a file */
+  virtual MBErrorCode write_file( const char* file_name,
+                                  const char* file_type,
+                                  const char* options,
+                                  const MBRange& output_sets,
+                                  const MBTag* tag_list = 0,
+                                  int num_tags = 0 );
 
   //! deletes all mesh entities from this datastore
   virtual MBErrorCode delete_mesh();
@@ -816,6 +840,7 @@ public:
     //! return set of registered IO tools
   MBReaderWriterSet* reader_writer_set() { return readerWriterSet; }
 
+  MBError* get_error_handler() { return mError; }
 
 //-----------------MeshSet Interface Functions------------------//
 

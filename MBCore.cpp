@@ -55,6 +55,7 @@
 #include "MBTagConventions.hpp"
 #include "ExoIIUtil.hpp"
 #include "EntitySequence.hpp"
+#include "FileOptions.hpp"
 #ifdef LINUX
 # include <dlfcn.h>
 # include <dirent.h>
@@ -324,8 +325,35 @@ MBErrorCode  MBCore::load_mesh( const char *file_name,
                                 const int* block_id_list,
                                 const int num_blocks )
 {
+  MBEntityHandle file_set;
+  return load_file( file_name, file_set, 0, MATERIAL_SET_TAG_NAME, block_id_list, num_blocks );
+}
+
+MBErrorCode MBCore::load_file( const char* file_name,
+                               MBEntityHandle& file_set,
+                               const char* options,
+                               const char* set_tag_name,
+                               const int* set_tag_values,
+                               int num_set_tag_values )
+{
+  if (num_set_tag_values < 0)
+    return MB_INDEX_OUT_OF_RANGE;
+   
+    // feature not implemented yet
+  file_set = 0;
+  
   MBErrorCode rval;
   const MBReaderWriterSet* set = reader_writer_set();
+  
+    // convert from to old block-based reader interface
+  const int* block_id_list = 0;
+  int num_blocks = 0;
+  if (set_tag_name) {
+    if (strcmp(set_tag_name, MATERIAL_SET_TAG_NAME ))
+      return MB_NOT_IMPLEMENTED;
+    block_id_list = set_tag_values;
+    num_blocks = num_set_tag_values;
+  }
   
     // Try using the file extension to select a reader
   MBReaderIface* reader = set->get_file_extension_reader( file_name );
@@ -337,7 +365,7 @@ MBErrorCode  MBCore::load_mesh( const char *file_name,
   }
   
     // Try all the readers
-  MBReaderWriterSet::iter_type iter;
+  MBReaderWriterSet::iterator iter;
   for (iter = set->begin(); iter != set->end(); ++iter)
   {
     MBReaderIface* reader = iter->make_reader( this );
@@ -352,33 +380,85 @@ MBErrorCode  MBCore::load_mesh( const char *file_name,
 
   return MB_FAILURE; 
 }
+  
+
 
 MBErrorCode  MBCore::write_mesh(const char *file_name,
                                   const MBEntityHandle *output_list,
                                   const int num_sets)
 {
-  MBErrorCode rval;
-  const MBReaderWriterSet* set = reader_writer_set();
-  std::vector<std::string> qa_records;
-  const bool overwrite = true;
-
-  MBWriterIface* writer = set->get_file_extension_writer( file_name );
-  if (writer == NULL)
-  {
-    DefaultWriter exowriter(this);
-    rval = exowriter.write_file(file_name, overwrite, output_list, num_sets, qa_records, 0);
-  }
-  else
-  {
-    rval = writer->write_file(file_name, overwrite, output_list, num_sets, qa_records );
-    delete writer;
-  }
-  
-  return rval; 
+  return write_file( file_name, 0, 0, output_list, num_sets );
 }
 
+MBErrorCode MBCore::write_file( const char* file_name,
+                                const char* file_type,
+                                const char* options,
+                                const MBEntityHandle* output_sets,
+                                int num_output_sets,
+                                const MBTag* tag_list,
+                                int num_tags )
+{
+  MBRange range;
+  std::copy( output_sets, output_sets+num_output_sets, mb_range_inserter(range) );
+  return write_file( file_name, file_type, options, range, tag_list, num_tags );
+}
 
+MBErrorCode MBCore::write_file( const char* file_name,
+                                const char* file_type,
+                                const char* options_string,
+                                const MBRange& output_sets,
+                                const MBTag* tag_list,
+                                int num_tags )
+{
+    // convert range to vector
+  std::vector<MBEntityHandle> list( output_sets.size() );
+  std::copy( output_sets.begin(), output_sets.end(), list.begin() );
+  
+    // parse some options
+  FileOptions opts( options_string );
+  MBErrorCode rval;
+  
+  rval = opts.get_null_option( "CREATE" );
+  if (rval == MB_TYPE_OUT_OF_RANGE) {
+    mError->set_last_error( "Unexpected value for CREATE option\n" );
+    return MB_FAILURE;
+  }
+  bool overwrite = (rval == MB_ENTITY_NOT_FOUND);
 
+    // Get the file writer
+  MBReaderWriterSet::iterator i;
+  if (file_type) {
+    i = reader_writer_set()->handler_by_name( file_type );
+    if (i == reader_writer_set()->end()) {
+      mError->set_last_error( "Unknown file type: %s\n", file_type );
+      return MB_NOT_IMPLEMENTED;
+    }
+  }
+  else {
+    std::string ext = MBReaderWriterSet::extension_from_filename( file_name );
+    i = reader_writer_set()->handler_from_extension( ext );
+  }
+  
+  MBWriterIface* writer;
+  if (i == reader_writer_set()->end())
+    writer = new DefaultWriter(this);
+  else
+    writer = i->make_writer( this );
+  
+  if (!writer) {
+    mError->set_last_error( "File format supported for reading only.\n" );
+    return MB_NOT_IMPLEMENTED;
+  }
+  
+    // write the file
+  std::vector<std::string> qa_records;
+  rval = writer->write_file(file_name, overwrite, &list[0], list.size(), qa_records );
+  delete writer;
+  
+  return rval;
+}
+   
+  
 
 //! deletes all mesh entities from this datastore
 MBErrorCode MBCore::delete_mesh()

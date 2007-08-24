@@ -53,12 +53,19 @@ class MBReaderWriterSet
      *\param writer_fact  A factory method to create an instance of the reader
      *\param description  A short description of the file format.
      *\param extensions   A null-terminated list of file extensions
+     *\param name         File format identifier string.
      */
     MBErrorCode register_factory( reader_factory_t reader_fact,
                                   writer_factory_t writer_fact,
                                   const char* description,
-                                  const char** extensions );
-    
+                                  const char* const* extensions,
+                                  const char* name );
+    MBErrorCode register_factory( reader_factory_t reader_fact,
+                                  writer_factory_t writer_fact,
+                                  const char* description,
+                                  const char* extension,
+                                  const char* name );
+  
     /** 
      * Create a reader object for the passed file name 
      * according to the dot-extension of the file name.
@@ -75,6 +82,20 @@ class MBReaderWriterSet
      */
     MBWriterIface* get_file_extension_writer( const std::string& filename ) const;
     
+    /**
+     * Create a reader object for the passed file format type.
+     * Caller is responsible for deletion of returned object.
+     * Returns NULL if no match.
+     */
+    MBReaderIface* get_file_reader( const char* format_name ) const; 
+     
+    /**
+     * Create a writer object for the passed file format type.
+     * Caller is responsible for deletion of returned object.
+     * Returns NULL if no match.
+     */
+    MBWriterIface* get_file_writer( const char* format_name ) const; 
+    
     /** 
      * Get the file extension from a file name
      */
@@ -88,10 +109,12 @@ class MBReaderWriterSet
       
       Handler( reader_factory_t read_f,
                writer_factory_t write_f,
+               const char* name,
                const char* desc, 
-               const char** ext, 
+               const char* const* ext, 
                int num_ext );
       
+      inline const std::string& name() const { return mName; }
       inline const std::string& description() const { return mDescription; }
       inline void get_extensions( std::vector<std::string>& list_out ) const
         { list_out = mExtensions; }
@@ -105,25 +128,29 @@ class MBReaderWriterSet
       inline MBWriterIface* make_writer( MBInterface* iface ) const
         { return have_writer() ? mWriter(iface) : NULL; }
       
+      bool operator==( const char* name ) const;
+      
       private:
       
       reader_factory_t mReader;
       writer_factory_t mWriter;
       
-      std::string mDescription;
+      std::string mName, mDescription;
       std::vector<std::string> mExtensions;
     };
     
-    typedef std::list<Handler>::const_iterator iter_type;
+    typedef std::list<Handler>::const_iterator iterator;
     
-    inline iter_type begin() const { return handlerList.begin(); }
+    inline iterator begin() const { return handlerList.begin(); }
     
-    inline iter_type end()   const { return handlerList.end();   }
+    inline iterator end()   const { return handlerList.end();   }
     
     
-    iter_type handler_from_extension( const std::string& extension,
+    iterator handler_from_extension( const std::string& extension,
                                       bool with_reader = false, 
                                       bool with_writer = false) const;
+    
+    iterator handler_by_name( const char* name ) const;
     
   private:
   

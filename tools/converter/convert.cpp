@@ -48,7 +48,8 @@ const char acis_dump_file_tag_name[] = "__ACISDumpFile";
 void print_usage( const char* name, std::ostream& stream )
 {
   stream << "Usage: " << name << 
-    " [-a <sat_file>|-A] [-t] [subset options] <input_file> <output_file>" << std::endl
+    " [-a <sat_file>|-A] [-t] [subset options] [-f format] <input_file> <output_file>" << std::endl
+    << "\t-f <format>    - Specify output file format" << std::endl
     << "\t-a <acis_file> - ACIS SAT file dumped by .cub reader" << std::endl
     << "\t-A             - .cub file reader should not dump a SAT file" << std::endl
     << "\t-t             - Time read and write of files." << std::endl
@@ -125,6 +126,7 @@ int main(int argc, char* argv[])
 
   int i, dim;
   bool dims[4] = {false, false, false, false};
+  const char* format = NULL; // output file format
   const char* in = NULL;    // input file name
   const char* out = NULL;   // output file name
   const char* acis = NULL;  // file to which to write geom data from .cub files.
@@ -186,6 +188,7 @@ int main(int argc, char* argv[])
           pval = false;
           switch ( argv[i-1][1] )
           {
+            case 'f': format = argv[i]; pval = true;            break;
             case 'a': acis = argv[i]; pval = true;              break;
             case 'v': pval = parse_id_list( argv[i], geom[3] ); break;
             case 's': pval = parse_id_list( argv[i], geom[2] ); break;
@@ -464,10 +467,10 @@ int main(int argc, char* argv[])
   
     // Write the output file
   reset_times();
-  if (have_sets)
-    result = gMB->write_mesh( out, &set_list[0], set_list.size() );
+  if (have_sets) 
+    result = gMB->write_file( out, format, 0, &set_list[0], set_list.size() );
   else
-    result = gMB->write_mesh( out );
+    result = gMB->write_file( out, format );
   if (MB_SUCCESS != result)
   { 
     std::cerr << "Failed to write \"" << out << "\"." << std::endl; 
@@ -632,7 +635,7 @@ void list_formats( MBInterface* gMB )
   MBErrorCode err;
   void* void_ptr = 0;
   MBReaderWriterSet* set;
-  MBReaderWriterSet::iter_type i;
+  MBReaderWriterSet::iterator i;
   std::ostream& str = std::cout;
     
     // get MBReaderWriterSet
@@ -651,9 +654,9 @@ void list_formats( MBInterface* gMB )
       w = i->description().length();
   
     // write table header
-  str << std::setw(w) << std::left << "Format"
+  str << "Format  " << std::setw(w) << std::left << "Description"
       << "  Read  Write  File Name Suffixes\n"
-      << std::setw(w) << std::setfill('-') << "" << std::setfill(' ')
+      << "------  " << std::setw(w) << std::setfill('-') << "" << std::setfill(' ')
       << "  ----  -----  ------------------\n";
       
     // write table data
@@ -661,7 +664,8 @@ void list_formats( MBInterface* gMB )
   {
     std::vector<std::string> ext;
     i->get_extensions( ext );
-    str << std::setw(w) << std::left << i->description() << "  "
+    str << std::setw(6) << i->name() << "  " 
+        << std::setw(w) << std::left << i->description() << "  "
         << (i->have_reader() ?  " yes" :  "  no") << "  "
         << (i->have_writer() ? "  yes" : "   no") << " ";
     for (std::vector<std::string>::iterator j = ext.begin(); j != ext.end(); ++j)

@@ -167,30 +167,66 @@ public:
     //@{
 
     //! Loads a mesh file into the database.
-    /** Loads the file 'file_name'; types of mesh which can be loaded depend on modules available
-        at MB compile time.  If active_block_id_list is NULL, all material sets (blocks in the 
-        ExodusII jargon) are loaded.  Individual material sets  can be loaded by specifying their 
-        ids in 'active_block_id_list'.  All nodes are loaded on first call for a given file.  
-        Subsequent calls for a file load any material sets not loaded in previous calls.
+    /** Loads the file 'file_name'; types of mesh which can be loaded 
+        depend on modules available at MB compile time.  If 
+        active_block_id_list is NULL, all material sets (blocks in the 
+        ExodusII jargon) are loaded.  Individual material sets  can be 
+        loaded by specifying their ids in 'active_block_id_list'.  All 
+        nodes are loaded on first call for a given file.  Subsequent 
+        calls for a file load any material sets not loaded in previous 
+        calls.
         \param file_name Name of file to load into database.
-        \param active_block_id_list Material set/block ids to load.  If NULL, ALL blocks of 
-        <em>file_name</em> are loaded.
+        \param active_block_id_list Material set/block ids to load.  
+                If NULL, ALL blocks of <em>file_name</em> are loaded.
         \param num_blocks Number of blocks in active_block_id_list
 
         Example: \code
         std::vector<int> active_block_id_list;
         int active_block_id_list[] = {1, 4, 10};
-        load_mesh( "temp.gen", active_block_id_list, 3 );  //load blocks 1, 4, 10 \endcode 
+        load_mesh( "temp.gen", active_block_id_list, 3 );  //load blocks 1, 4, 10 
+        \endcode 
     */
   virtual MBErrorCode load_mesh(const char *file_name,
                                 const int *active_block_id_list = NULL,
                                 const int num_blocks = 0)=0;
 
+  /**\brief Load or import a file.
+   *
+   * Load a MOAB-native file or import data from some other supported
+   * file format.
+   *
+   *\param file_name The location of the file to read.
+   *\param file_set  Output: a handle to a new set containing all entities 
+   *                        read or imported from the file.
+   *\param options A list of string options, separated by semicolons (;).
+   *               See README.IO for more information.  Typical options
+   *               include the file type, parallel options, and options
+   *               specific to certain file formats.
+   *\param set_tag_name The name of a tag used to designate the subset
+   *               of the file to read.  The name must correspond to 
+   *               data in the file that will be instantiated in MOAB
+   *               as a tag.  
+   *\param set_tag_values If the name specified in 'set_tag_name'
+   *               corresponds to a tag with a single integer value,
+   *               the values in this tag can be used to further
+   *               limit the subset of data written from the file to
+   *               only those entities or sets that have a value for
+   *               the tag that is one of the values in this array.
+   *\param num_set_tag_values The length of set_tag_values.
+   */
+  virtual MBErrorCode load_file( const char* file_name,
+                                 MBEntityHandle& file_set,
+                                 const char* options = 0,
+                                 const char* set_tag_name = 0,
+                                 const int* set_tag_values = 0,
+                                 int num_set_tag_values = 0 ) = 0;
+
     //! Writes mesh to a file.
-    /** Write mesh to file 'file_name'; if output_list is non-NULL, only material sets contained
-        in that list will be written.
+    /** Write mesh to file 'file_name'; if output_list is non-NULL, only 
+        material sets contained in that list will be written.
         \param file_name Name of file to write.
-        \param output_list 1d array of material set handles to write; if NULL, all sets are written
+        \param output_list 1d array of material set handles to write; if 
+                           NULL, all sets are written
         \param num_sets Number of sets in output_list array
 
         Example: \code
@@ -200,6 +236,70 @@ public:
   virtual MBErrorCode write_mesh(const char *file_name,
                                  const MBEntityHandle *output_list = NULL,
                                  const int num_sets = 0) = 0;
+
+  /**\brief Write or export a file.
+   * 
+   * Write a MOAB-native file or export data to some other supported
+   * file format.
+   *
+   *\param file_name The location of the file to write.
+   *\param file_type The type of the file.  If this value is NULL, 
+   *                 then file type will be determined using the 
+   *                 file name suffix.  
+   *\param options   A semicolon-separated list of options.
+   *                 See README.IO for more information.  Typical options
+   *                 include the file type, parallel options, and options
+   *                 specific to certain file formats.
+   *\param output_sets A list of entity sets to write to the file.  If
+   *                 no sets are sepcified, the default behavior is to
+   *                 write all data that is supported by the target file
+   *                 type.
+   *\param num_output_sets The length of the output_sets array.
+   *\param tag_list A list of tags for which to write the tag data.  The
+   *                write may fail if a tag list is specified but the 
+   *                target file type is not capable of representing the
+   *                data.  If no tags are specified, the default is to
+   *                write whatever data the target file format supports.
+   *\param num_tags The length of tag_list.
+   */
+  virtual MBErrorCode write_file( const char* file_name,
+                                  const char* file_type = 0,
+                                  const char* options = 0,
+                                  const MBEntityHandle* output_sets = 0,
+                                  int num_output_sets = 0,
+                                  const MBTag* tag_list = 0,
+                                  int num_tags = 0 ) = 0;
+
+  /**\brief Write or export a file.
+   * 
+   * Write a MOAB-native file or export data to some other supported
+   * file format.
+   *
+   *\param file_name The location of the file to write.
+   *\param file_type The type of the file.  If this value is NULL, 
+   *                 then file type will be determined using the 
+   *                 file name suffix.  
+   *\param options   A semicolon-separated list of options.
+   *                 See README.IO for more information.  Typical options
+   *                 include the file type, parallel options, and options
+   *                 specific to certain file formats.
+   *\param output_sets A list of entity sets to write to the file.  If
+   *                 no sets are sepcified, the default behavior is to
+   *                 write all data that is supported by the target file
+   *                 type.
+   *\param tag_list A list of tags for which to write the tag data.  The
+   *                write may fail if a tag list is specified but the 
+   *                target file type is not capable of representing the
+   *                data.  If no tags are specified, the default is to
+   *                write whatever data the target file format supports.
+   *\param num_tags The length of tag_list.
+   */
+  virtual MBErrorCode write_file( const char* file_name,
+                                  const char* file_type,
+                                  const char* options,
+                                  const MBRange& output_sets,
+                                  const MBTag* tag_list = 0,
+                                  int num_tags = 0 ) = 0;
 
     //! Deletes all mesh entities from this MB instance
   virtual MBErrorCode delete_mesh()=0;

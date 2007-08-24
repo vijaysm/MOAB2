@@ -46,40 +46,31 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
   : mbCore( mdb ), mbError( handler ) 
 {
 #ifdef HDF5_FILE
-  const char* hdf5_list[] = { "h5m", "mhdf", NULL };
-  register_factory(  ReadHDF5::factory, WriteHDF5::factory, "MOAB native (HDF5)", hdf5_list );
+  const char* hdf5_sufxs[] = { "h5m", "mhdf", NULL };
+  register_factory(  ReadHDF5::factory, WriteHDF5::factory, "MOAB native (HDF5)", hdf5_sufxs, "MOAB" );
 #endif
 
 #ifdef NETCDF_FILE
-  const char* exo_list[] = { "exo", "exoII", "exo2", "g", "gen", NULL };
-  register_factory( ReadNCDF::factory, WriteNCDF::factory, "Exodus II", exo_list );
+  const char* exo_sufxs[] = { "exo", "exoII", "exo2", "g", "gen", NULL };
+  register_factory( ReadNCDF::factory, WriteNCDF::factory, "Exodus II", exo_sufxs, "EXODUS" );
 #endif
   
-  const char* vtk_list[] = { "vtk", NULL };
-  register_factory( ReadVtk::factory, WriteVtk::factory, "Kitware VTK", vtk_list );
+  register_factory( ReadVtk::factory, WriteVtk::factory, "Kitware VTK", "vtk", "VTK" );
   
-  const char* cub_list[] = { "cub", NULL };
-  register_factory( Tqdcfr::factory, NULL, "Cubit", cub_list );
+  register_factory( Tqdcfr::factory, NULL, "Cubit", "cub", "CUBIT" );
 
 #ifdef NETCDF_FILE  
-  const char* slac_list[] = { "slac", NULL };
-  register_factory( NULL, WriteSLAC::factory, "SLAC", slac_list );
+  register_factory( NULL, WriteSLAC::factory, "SLAC", "slac", "SLAC" );
 #endif
 
-  const char* gmv_list[] = { "gmv", NULL };
-  register_factory( NULL, WriteGMV::factory, "GMV", gmv_list );
+  register_factory( NULL, WriteGMV::factory, "GMV", "gmv", "GMV" );
   
-  const char* ans_list[] = { "ans", NULL };
-  register_factory( NULL, WriteAns::factory, "Ansys", ans_list );
+  register_factory( NULL, WriteAns::factory, "Ansys", "ans", "ANSYS" );
   
-  const char* gmsh_list[] = { "msh", "gmsh", NULL };
-  register_factory( ReadGmsh::factory, WriteGmsh::factory, "Gmsh mesh file", gmsh_list );
+  const char* gmsh_sufxs[] = { "msh", "gmsh", NULL };
+  register_factory( ReadGmsh::factory, WriteGmsh::factory, "Gmsh mesh file", gmsh_sufxs, "GMSH" );
   
-  const char* stl_list[] = { "stl", NULL };
-  register_factory( ReadSTL::ascii_instance, WriteSTL::ascii_instance, "Stereo Lithography File (STL)", stl_list );
-  
-  const char* stlb_list[] = { "stlb", NULL };
-  register_factory( ReadSTL::binary_instance, WriteSTL::binary_instance, "Binary Stereo Lithography (STL)", stlb_list );
+  register_factory( ReadSTL::ascii_instance, WriteSTL::ascii_instance, "Stereo Lithography File (STL)", "stl", "STL" );
 }
 
 
@@ -90,16 +81,17 @@ MBReaderWriterSet::~MBReaderWriterSet()
 MBErrorCode MBReaderWriterSet::register_factory( reader_factory_t reader,
                                                  writer_factory_t writer,
                                                  const char* description,
-                                                 const char** extensions )
+                                                 const char* const* extensions,
+                                                 const char* name )
 {
   if (!reader && !writer)
     return MB_FAILURE;
   
     // count extensions and check for duplicates
-  const char** iter;
+  const char* const* iter;
   for (iter = extensions; *iter; ++iter)
   {
-    iter_type h = handler_from_extension( *iter );
+    iterator h = handler_from_extension( *iter );
     if (h != end())
     {
       if (NULL != reader && h->have_reader())
@@ -112,15 +104,26 @@ MBErrorCode MBReaderWriterSet::register_factory( reader_factory_t reader,
                                  *iter, h->description().c_str(), description );
     }
   }
-  handlerList.push_back( Handler(reader, writer, description, extensions, iter - extensions) );
+  handlerList.push_back( Handler(reader, writer, name, description, extensions, iter - extensions) );
   return MB_SUCCESS;
 }    
+
+MBErrorCode MBReaderWriterSet::register_factory( reader_factory_t reader,
+                                                 writer_factory_t writer,
+                                                 const char* description,
+                                                 const char* extension,
+                                                 const char* name )
+{
+  const char* extensions[2] = {extension, NULL};
+  return register_factory( reader, writer, description, extensions, name );
+}
+
   
 MBReaderIface* MBReaderWriterSet::get_file_extension_reader( 
                                   const std::string& filename ) const
 {
   std::string ext = extension_from_filename( filename );
-  iter_type handler = handler_from_extension( ext, true, false );
+  iterator handler = handler_from_extension( ext, true, false );
   return handler == end() ? NULL : handler->make_reader(mbCore);
 }
 
@@ -128,7 +131,7 @@ MBWriterIface* MBReaderWriterSet::get_file_extension_writer(
                                   const std::string& filename ) const
 {
   std::string ext = extension_from_filename( filename );
-  iter_type handler = handler_from_extension( ext, false, true );
+  iterator handler = handler_from_extension( ext, false, true );
   return handler == end() ? NULL : handler->make_writer(mbCore);
 }
 
@@ -144,10 +147,11 @@ std::string MBReaderWriterSet::extension_from_filename(
 
 MBReaderWriterSet::Handler::Handler( reader_factory_t read_f, 
                                      writer_factory_t write_f,
+                                     const char* name,
                                      const char* desc, 
-                                     const char** ext, 
+                                     const char* const* ext, 
                                      int num_ext )
- : mReader(read_f), mWriter(write_f), mDescription(desc), mExtensions(num_ext)
+ : mReader(read_f), mWriter(write_f), mName(name), mDescription(desc), mExtensions(num_ext)
 {
   for (int i = 0; i < num_ext; ++i)
     mExtensions[i] = ext[i];
@@ -157,12 +161,12 @@ MBReaderWriterSet::Handler::Handler( reader_factory_t read_f,
 #define strcasecmp(A,B) _stricmp( A, B )
 #endif
 
-MBReaderWriterSet::iter_type 
+MBReaderWriterSet::iterator 
 MBReaderWriterSet::handler_from_extension( const std::string& ext,
                                            bool with_reader,
                                            bool with_writer ) const
 {
-  iter_type iter;
+  iterator iter;
   std::vector<std::string>::const_iterator siter;
   
     // try case-sensitive compare
@@ -191,4 +195,21 @@ MBReaderWriterSet::handler_from_extension( const std::string& ext,
   
   return end();
 }
-                                       
+
+MBReaderWriterSet::iterator
+MBReaderWriterSet::handler_by_name( const char* name ) const
+{
+  return std::find( begin(), end(), name );
+}
+
+bool MBReaderWriterSet::Handler::operator==( const char* name ) const
+{
+    // do case-insensitive comparison
+  std::string::const_iterator siter = mName.begin();
+  for (; *name; ++name, ++siter)
+    if (siter == mName.end() || tolower(*name) != tolower(*siter))
+      return false;
+  return *name == '\0';
+}
+
+
