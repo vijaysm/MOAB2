@@ -50,8 +50,9 @@ void print_usage( const char* name, std::ostream& stream )
   stream << "Usage: " << name << 
     " [-a <sat_file>|-A] [-t] [subset options] [-f format] <input_file> <output_file>" << std::endl
     << "\t-f <format>    - Specify output file format" << std::endl
-    << "\t-a <acis_file> - ACIS SAT file dumped by .cub reader" << std::endl
-    << "\t-A             - .cub file reader should not dump a SAT file" << std::endl
+    << "\t-a <acis_file> - ACIS SAT file dumped by .cub reader (same as \"-o SAT_FILE=acis_file\"" << std::endl
+    << "\t-A             - .cub file reader should not dump a SAT file (depricated default)" << std::endl
+    << "\t-o option      - Specify write option." << std::endl
     << "\t-t             - Time read and write of files." << std::endl
     << "\t-g             - Enable verbose/debug output." << std::endl
     << "\t-h             - Print this help text and exit." << std::endl
@@ -129,11 +130,10 @@ int main(int argc, char* argv[])
   const char* format = NULL; // output file format
   const char* in = NULL;    // input file name
   const char* out = NULL;   // output file name
-  const char* acis = NULL;  // file to which to write geom data from .cub files.
-  bool no_acis = false;
   bool verbose = false;
   std::set<int> geom[4], mesh[3];       // user-specified IDs 
   std::vector<MBEntityHandle> set_list; // list of user-specified sets to write
+  std::vector<std::string> options;
   const char* const mesh_tag_names[] = { DIRICHLET_SET_TAG_NAME,
                                          NEUMANN_SET_TAG_NAME,
                                          MATERIAL_SET_TAG_NAME };
@@ -163,7 +163,7 @@ int main(int argc, char* argv[])
         case '-': do_flag = false;       break;
         case 'g': verbose = true;        break;
         case 't': print_times = true;    break;
-        case 'A': no_acis = true;        break;
+        case 'A':                        break;
         case 'h': 
         case 'H': print_help( argv[0] ); break;
         case 'l': list_formats( gMB );   break;
@@ -188,8 +188,12 @@ int main(int argc, char* argv[])
           pval = false;
           switch ( argv[i-1][1] )
           {
-            case 'f': format = argv[i]; pval = true;            break;
-            case 'a': acis = argv[i]; pval = true;              break;
+            case 'a': 
+              options.push_back( std::string("SAT_FILE=") + argv[i] );
+              pval = true;
+              break;
+            case 'f': format = argv[i];           pval = true;  break;
+            case 'o': options.push_back(argv[i]); pval = true;  break;
             case 'v': pval = parse_id_list( argv[i], geom[3] ); break;
             case 's': pval = parse_id_list( argv[i], geom[2] ); break;
             case 'c': pval = parse_id_list( argv[i], geom[1] ); break;
@@ -214,36 +218,42 @@ int main(int argc, char* argv[])
   }
   if (!in || !out)
     usage_error(argv[0]);
-  
-    // If requested, set mesh tag to indicate SAT file name to
-    // dump from .cub file reader.
-  if (no_acis || acis)
-  {
-    MBTag tag;
-    result = gMB->tag_get_handle( acis_dump_file_tag_name, tag );
-    if (result == MB_TAG_NOT_FOUND)
-      result = gMB->tag_create( acis_dump_file_tag_name, sizeof(char*), MB_TAG_SPARSE, tag, NULL );
-    else if(result != MB_SUCCESS)
-    {
-      std::cerr << "Failed to set ACIS dump file." << std::endl;
-      return OTHER_ERROR;
-    }
 
-    result = gMB->tag_set_data( tag, 0, 0, &acis );
-    if (result != MB_SUCCESS)
-    {
-      std::cerr << "Failed to set ACIS dump file." << std::endl;
-      return OTHER_ERROR;
+    // construct options string from individual options
+  std::string opts;
+  if (!options.empty()) {
+    std::vector<std::string>::const_iterator i;
+    char separator = '\0';
+    const char* alt_separators = ";+,:\t\n";
+    for (const char* sep_ptr = alt_separators; *sep_ptr; ++sep_ptr) {
+      bool seen = false;
+      for (i = options.begin(); i != options.end(); ++i)
+        if (i->find( *sep_ptr, 0 ) == std::string::npos) {
+          seen = true;
+          break;
+        }
+      if (!seen) {
+        separator = *sep_ptr;
+        break;
+      }
     }
-    
-    if (verbose)
-    {
-      if (no_acis)
-        std::cout << "Disabling write of ACIS geometry data." << std::endl;
-      else
-        std::cout << "ACIS geometry data will be written to: " << acis << std::endl;
+    if (!separator) {
+      std::cerr << "Error: cannot find separator character for options string" << std::endl;
+      return 2;
     }
-  }
+    std::string opts;
+    if (separator != ';') {
+      opts = ";";
+      opts += separator;
+    }
+    i = options.begin();
+    opts += *i;
+    for (++i; i != options.end(); ++i) {
+      opts += separator;
+      opts += *i;
+    }
+  }  
+  
   
     // Read the input file.
   reset_times();
@@ -467,10 +477,11 @@ int main(int argc, char* argv[])
   
     // Write the output file
   reset_times();
+  const char* opt_str = opts.empty() ? NULL : opts.c_str();
   if (have_sets) 
-    result = gMB->write_file( out, format, 0, &set_list[0], set_list.size() );
+    result = gMB->write_file( out, format, opt_str, &set_list[0], set_list.size() );
   else
-    result = gMB->write_file( out, format );
+    result = gMB->write_file( out, format, opt_str );
   if (MB_SUCCESS != result)
   { 
     std::cerr << "Failed to write \"" << out << "\"." << std::endl; 
