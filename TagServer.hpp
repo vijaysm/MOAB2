@@ -40,6 +40,7 @@
 #include <map>
 
 #include "MBTypes.h"
+#include "MBInternals.hpp"
 
 class MBRange;
 class DenseTagSuperCollection;
@@ -102,6 +103,8 @@ public:
   static int size_from_data_type( MBDataType t );
 
 private:    
+
+  MBErrorCode reserve_mesh_tag_id( int& id_out );
 
   //! stores the tag name
   std::string mTagName;
@@ -271,6 +274,8 @@ public:
                               unsigned long& per_entity ) const;
 
 private:
+
+  MBErrorCode reserve_mesh_tag_id( MBTagId& id_out ) const;
 
   //! table of tag ids and tag information
   //! do we really need to do it this way?
