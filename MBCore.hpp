@@ -1001,9 +1001,6 @@ private:
   
   MBReaderWriterSet* readerWriterSet;
 
-    //! a meshset for the overall mesh; used primarily to set tags on entire mesh
-  MBEntityHandle myMeshSet;
-
   MBError* mError;
 
   static const char *errorStrings[];

@@ -52,19 +52,24 @@ class TagInfo
 public:
 
   //! constructor
-  TagInfo() : mTagName(""), mDataSize(0), mDefaultValue(NULL) {}
+  TagInfo() : mTagName(""), 
+              mDataSize(0), 
+              mDefaultValue(NULL), 
+              mMeshValue(NULL),
+              dataType(MB_TYPE_OPAQUE)
+              {}
   
   //! destructor
-  ~TagInfo();
+  inline ~TagInfo();
   
   //! copy constructor
-  TagInfo(const TagInfo&);
+  inline TagInfo(const TagInfo&);
 
   //! constructor that takes all parameters
-  TagInfo(const char *, int, MBDataType type, const void *);
+  inline TagInfo(const char *, int, MBDataType type, const void *);
 
   //! assignment operator
-  TagInfo &operator=(const TagInfo &rhs);
+  inline TagInfo &operator=(const TagInfo &rhs);
   
   //! set the name of the tag
   void set_name( const std::string& name) { mTagName = name; }
@@ -80,6 +85,15 @@ public:
 
     //! get the default data
   const void *default_value() const  { return mDefaultValue;}
+  
+    //! set mesh value
+  void set_mesh_value( const void* data );
+  
+    //! get mesh value
+  const void* get_mesh_value() const { return mMeshValue; }
+  
+    //! remove mesh value
+  void remove_mesh_value();
   
   inline MBDataType get_data_type() const     { return dataType; }
   
@@ -97,6 +111,9 @@ private:
 
   //! stores the default data, if any
   unsigned char *mDefaultValue;
+  
+  //! store the mesh value, if any
+  unsigned char *mMeshValue;
   
   //! type of tag data
   MBDataType dataType;
@@ -138,12 +155,18 @@ public:
   //! cleans out all data tagged on all entities
   MBErrorCode reset_all_data();
 
+  //! set global/mesh value of tag
+  MBErrorCode set_mesh_data( const MBTag tag_handle, const void* data );
+
   //! set the value of a tag
   MBErrorCode set_data(const MBTag tag_handle, const MBEntityHandle entity_handle, const void* data );
   
   MBErrorCode set_data(const MBTag tag_handle, const MBEntityHandle* entity_handles, const int num_entities, const void* data );
   
   MBErrorCode set_data(const MBTag tag_handle, const MBRange& entity_handles, const void* data );
+
+  //! get global/mesh value of tag
+  MBErrorCode get_mesh_data( const MBTag tag_handle, void* data ) const;
 
   //! get the value of a tag
   MBErrorCode get_data(const MBTag tag_handle, const MBEntityHandle entity_handle, void* data );
@@ -157,6 +180,9 @@ public:
 
   //! get the value of a tag
   MBErrorCode get_bits(const MBTag tag_handle, const MBEntityHandle entity_handle, unsigned char& data );
+
+  //! remove global/mesh value of tag
+  MBErrorCode remove_mesh_data( const MBTag tag_handle );
 
   //! remove the tag data on an entity
   MBErrorCode remove_data( const MBTag tag_handle, const MBEntityHandle entity_handle );
@@ -220,7 +246,10 @@ public:
 
   //! get all the tags which have been defined for this entity
   MBErrorCode get_tags(const MBEntityHandle entity, std::vector<MBTag> &all_tags);
-  
+ 
+  //! get all the tags which have a global/mesh value
+  MBErrorCode get_mesh_tags(std::vector<MBTag> &all_tags) const;
+ 
   //! get all the tags which have been defined
   MBErrorCode get_tags(std::vector<MBTag> &all_tags);
   
@@ -233,6 +262,7 @@ public:
   //! get information about a tag
   const TagInfo* get_tag_info(const char *tag_name ) const;
   const TagInfo* get_tag_info( MBTag tag_handle ) const;
+  TagInfo* get_tag_info( MBTag tag_handle );
   
   unsigned long get_memory_use( MBTag tag_handle ) const;
   
@@ -268,15 +298,19 @@ private:
 inline TagInfo::TagInfo(const TagInfo& copy)
   : mTagName( copy.mTagName ),
     mDataSize( copy.mDataSize ),
+    mDefaultValue( 0 ),
+    mMeshValue( 0 ),
     dataType( copy.dataType )
 {
-  if (NULL != copy.mDefaultValue)
-  {
+  if (copy.mDefaultValue) {
     mDefaultValue = new unsigned char[mDataSize];
     memcpy(mDefaultValue, copy.mDefaultValue, mDataSize);
   }
-  else 
-    mDefaultValue = NULL;
+  
+  if (copy.mMeshValue) {
+    mMeshValue = new unsigned char[mDataSize];
+    memcpy(mMeshValue, copy.mMeshValue, mDataSize);
+  }
 }
 
 inline TagInfo::TagInfo( const char* name, 
@@ -285,35 +319,34 @@ inline TagInfo::TagInfo( const char* name,
                          const void* default_value)
  : mTagName( name ),
    mDataSize( size ),
+   mDefaultValue( 0 ),
+   mMeshValue( 0 ),
    dataType( type )
 {
-  if (NULL != default_value) 
-  {
+  if (default_value) {
     mDefaultValue = new unsigned char[size];
     memcpy(mDefaultValue, default_value, size);
   }
-  else 
-    mDefaultValue = NULL;
 }
 
 inline TagInfo &TagInfo::operator=(const TagInfo &rhs)
 {
   mTagName = rhs.mTagName;
   mDataSize = rhs.mDataSize;
-  if (NULL != rhs.mDefaultValue) 
-  {
-    // delete the old data and make a new one (could be different size)
-    if(mDefaultValue != NULL)
-      delete [] mDefaultValue;
+  
+  delete [] mDefaultValue;
+  delete [] mMeshValue;
+  mDefaultValue = 0;
+  mMeshValue = 0;
+  
+  if (rhs.mDefaultValue) {
     mDefaultValue = new unsigned char[mDataSize];
-    memcpy(mDefaultValue, rhs.mDefaultValue, mDataSize);
+    memcpy( mDefaultValue, rhs.mDefaultValue, mDataSize );
   }
-  else
-  {
-    // delete old data
-    if(mDefaultValue != NULL)
-      delete [] mDefaultValue;
-    mDefaultValue = NULL;
+  
+  if (rhs.mMeshValue) {
+    mMeshValue = new unsigned char[mDataSize];
+    memcpy( mMeshValue, rhs.mMeshValue, mDataSize );
   }
   
   return *this;
@@ -322,10 +355,23 @@ inline TagInfo &TagInfo::operator=(const TagInfo &rhs)
 inline TagInfo::~TagInfo() 
 {
   // clean up default value
-  if (NULL != mDefaultValue)
-    delete [] mDefaultValue;
+  delete [] mDefaultValue;
+  delete [] mMeshValue;
 }
 
+
+inline void TagInfo::set_mesh_value( const void* data )
+{
+  if (!mMeshValue)
+    mMeshValue = new unsigned char[mDataSize];
+  memcpy( mMeshValue, data, mDataSize );
+}
+
+inline void TagInfo::remove_mesh_value()
+{ 
+  delete [] mMeshValue;
+  mMeshValue = 0;
+}
 
 inline const TagInfo* TagServer::get_tag_info( const char *tag_name ) const
 {
@@ -357,6 +403,11 @@ inline const TagInfo* TagServer::get_tag_info( MBTag tag_handle ) const
   return NULL;
 }
 
+inline TagInfo* TagServer::get_tag_info( MBTag tag_handle )
+{
+  std::map<MBTag, TagInfo>::iterator i = mTagTable.find(tag_handle);
+  return (i == mTagTable.end()) ? (TagInfo*)0 : &(i->second);
+}
 
 #endif //TAG_SERVER_HPP
 

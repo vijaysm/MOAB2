@@ -158,9 +158,6 @@ MBErrorCode MBCore::initialize()
   readerWriterSet = new MBReaderWriterSet( this, mError );
   if (!readerWriterSet)
     return MB_MEMORY_ALLOCATION_FAILED;
-
-  MBErrorCode result = create_meshset(0, myMeshSet);
-  if (MB_SUCCESS != result) return result;
   
   material_tag();
   neumannBC_tag();
@@ -173,7 +170,7 @@ MBErrorCode MBCore::initialize()
 
 MBEntityHandle MBCore::get_root_set() 
 {
-  return myMeshSet;
+  return 0;
 }
 
 void MBCore::deinitialize()
@@ -551,8 +548,6 @@ MBErrorCode MBCore::delete_mesh()
   if (sequenceManager)
     delete sequenceManager;
   sequenceManager = new EntitySequenceManager( procInfo );
-
-  result = create_meshset(0, myMeshSet);
 
   return result;
 }
@@ -1430,11 +1425,8 @@ MBErrorCode  MBCore::tag_get_data(const MBTag tag_handle,
                                     const int num_entities,
                                     void *tag_data) const
 {
-  MBTagType tag_type;
-  
-  if (NULL == entity_handles && 0 == num_entities && 
-      MB_SUCCESS == tag_get_type(tag_handle, tag_type))
-    return tagServer->get_data(tag_handle, &myMeshSet, 1, tag_data);
+  if (NULL == entity_handles && 0 == num_entities)
+    return tagServer->get_mesh_data(tag_handle, tag_data);
 
   else return tagServer->get_data(tag_handle, entity_handles, num_entities, tag_data);
 }
@@ -1453,11 +1445,8 @@ MBErrorCode  MBCore::tag_set_data(const MBTag tag_handle,
                                     const int num_entities,
                                     const void *tag_data)
 {
-  MBTagType tag_type;
-  
-  if (NULL == entity_handles && 0 == num_entities && 
-      MB_SUCCESS == tag_get_type(tag_handle, tag_type))
-    return tagServer->set_data(tag_handle, &myMeshSet, 1, tag_data);
+  if (NULL == entity_handles && 0 == num_entities)
+    return tagServer->set_mesh_data(tag_handle, tag_data);
 
   //verify handles
   MBEntitySequence* seq;
@@ -1555,7 +1544,7 @@ MBErrorCode  MBCore::tag_delete_data(const MBTag tag_handle,
   MBErrorCode status = MB_SUCCESS, temp_status;
   for (int i = 0; i < num_handles; i++) {
     if (0 == entity_handles[i])
-      temp_status = tagServer->remove_data(tag_handle, myMeshSet);
+      temp_status = tagServer->remove_mesh_data(tag_handle);
     else
       temp_status = tagServer->remove_data(tag_handle, entity_handles[i]);
     if (temp_status != MB_SUCCESS) status = temp_status;
@@ -1673,7 +1662,7 @@ MBErrorCode MBCore::tag_get_tags_on_entity(const MBEntityHandle entity,
                                             std::vector<MBTag> &tag_handles) const 
 {
   if (0 == entity)
-    return tagServer->get_tags(myMeshSet, tag_handles);
+    return tagServer->get_mesh_tags(tag_handles);
   else return tagServer->get_tags(entity, tag_handles);
 }
 

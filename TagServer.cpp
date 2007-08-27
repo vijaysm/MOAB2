@@ -170,7 +170,6 @@ MBErrorCode TagServer::remove_tag(const MBTag tag_handle)
   if(iterator == mTagTable.end())
     return MB_TAG_NOT_FOUND;
 
-  mTagTable.erase(iterator);
   MBErrorCode status = MB_TAG_NOT_FOUND;
   
   MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
@@ -189,6 +188,10 @@ MBErrorCode TagServer::remove_tag(const MBTag tag_handle)
       status = MB_FAILURE;
   }
 
+  if (MB_SUCCESS == status) {
+    mTagTable.erase(iterator);
+  }
+  
   return status;
 
 }
@@ -247,6 +250,17 @@ MBErrorCode TagServer::get_bits(const MBTag tag_handle, const MBEntityHandle ent
   if(TYPE_FROM_HANDLE(entity_handle) >= MBMAXTYPE)
     return MB_TYPE_OUT_OF_RANGE;
   return mBitServer->get_bits(ID_FROM_TAG_HANDLE(tag_handle), entity_handle, data);
+}
+
+MBErrorCode TagServer::set_mesh_data( const MBTag tag_handle,
+                                      const void* data )
+{
+  TagInfo* info = get_tag_info( tag_handle );
+  if (!info)
+    return MB_TAG_NOT_FOUND;
+  
+  info->set_mesh_value( data );
+  return MB_SUCCESS;
 }
 
 MBErrorCode TagServer::set_data(const MBTag tag_handle, 
@@ -390,6 +404,17 @@ MBErrorCode TagServer::set_data(const MBTag tag_handle,
   return MB_SUCCESS;
 }
 
+
+MBErrorCode TagServer::get_mesh_data( const MBTag tag_handle,
+                                      void* data ) const
+{
+  const TagInfo* info = get_tag_info( tag_handle );
+  if (!info || !info->get_mesh_value())
+    return MB_TAG_NOT_FOUND;
+  
+  memcpy( data, info->get_mesh_value(), info->get_size() );
+  return MB_SUCCESS;
+}
 
 MBErrorCode TagServer::get_data(const MBTag tag_handle,
                        const MBEntityHandle entity_handle,
@@ -603,6 +628,15 @@ MBErrorCode TagServer::get_tags(const MBEntityHandle entity, std::vector<MBTag> 
   return result;
 }
 
+MBErrorCode TagServer::get_mesh_tags( std::vector<MBTag>& all_tags ) const
+{
+  std::map<MBTag,TagInfo>::const_iterator i;
+  for (i = mTagTable.begin(); i != mTagTable.end(); ++i)
+    if (i->second.get_mesh_value())
+      all_tags.push_back( i->first );
+  return MB_SUCCESS;
+}
+
 MBErrorCode TagServer::get_default_data_ref(const MBTag tag_handle, const void *& data) 
 {
 
@@ -641,6 +675,16 @@ MBErrorCode TagServer::get_default_data(const MBTag tag_handle, void *data)
   }
   return MB_FAILURE;
 
+}
+
+
+MBErrorCode TagServer::remove_mesh_data( const MBTag tag_handle )
+{
+  TagInfo* info = get_tag_info( tag_handle );
+  if (!info || !info->get_mesh_value())
+    return MB_TAG_NOT_FOUND;
+  info->remove_mesh_value();
+  return MB_SUCCESS;
 }
 
 
