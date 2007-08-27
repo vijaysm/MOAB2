@@ -530,8 +530,7 @@ MBErrorCode MBCore::write_file( const char* file_name,
   rval = writer->write_file(file_name, overwrite, opts, &list[0], list.size(), qa_records );
   delete writer;
   
- std::cerr << "proc " << proc_config().rank() << " leaving MBCore::write_file" << std::endl;
- return rval;
+  return rval;
 }
    
   
