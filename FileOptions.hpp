@@ -101,7 +101,21 @@ public:
    *\return MB_SUCCESS or MB_ENTITY_NOT_FOUND
    */
   MBErrorCode get_option( const char* name, std::string& value ) const;
-   
+  
+  /**\brief Check the string value of an option
+   *
+   * Check which of a list of possible values a string option contains.
+   *\param name The option name
+   *\param values A NULL-terminated array of C-style strings enumerating
+   *              the possible option values.
+   *\param index  Output: The index into <code>values</code> for the
+   *              option value.
+   *\return MB_SUCCESS if matched name and value.
+   *        MB_ENTITY_NOT_FOUND if the option was not specified
+   *        MB_FAILURE if the option value is not in the input <code>values</code> array.
+   */
+  MBErrorCode match_option( const char* name, const char* const* values, int& index ) const;
+  
   /**\brief Check for option for which the value is an ID list
    *
    * Check for and remove an ID list option.  The value is expected to

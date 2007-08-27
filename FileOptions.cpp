@@ -191,6 +191,24 @@ MBErrorCode FileOptions::get_option( const char* name, const char*& value ) cons
   return MB_ENTITY_NOT_FOUND;
 }
 
+MBErrorCode FileOptions::match_option( const char* name, 
+                                       const char* const* values, 
+                                       int& index ) const
+{
+  const char* optval;
+  MBErrorCode rval = get_option( name, optval );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  for (index = 0; values[index]; ++index)
+    if (compare( optval, values[index] ))
+      return MB_SUCCESS;
+  
+  index = -1;
+  return MB_FAILURE;
+}
+
+
 bool FileOptions::compare( const char* name, const char* option )
 {
   while (!strempty(name) && toupper(*name) == toupper(*option)) {
