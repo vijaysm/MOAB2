@@ -56,6 +56,7 @@
 #include "ExoIIUtil.hpp"
 #include "EntitySequence.hpp"
 #include "FileOptions.hpp"
+#include "MBParallelComm.hpp"
 #ifdef LINUX
 # include <dlfcn.h>
 # include <dirent.h>
@@ -339,7 +340,7 @@ MBErrorCode MBCore::load_file( const char* file_name,
   if (num_set_tag_values < 0)
     return MB_INDEX_OUT_OF_RANGE;
    
-    // feature not implemented yet
+  FileOptions opts(options);
   file_set = 0;
   
   MBErrorCode rval;
@@ -355,31 +356,103 @@ MBErrorCode MBCore::load_file( const char* file_name,
     num_blocks = num_set_tag_values;
   }
   
-    // Try using the file extension to select a reader
-  FileOptions opts(options);
-  MBReaderIface* reader = set->get_file_extension_reader( file_name );
-  if (reader)
-  { 
-    rval = reader->load_file( file_name, file_set, opts, block_id_list, num_blocks );
-    delete reader;
+    // Get parallel settings
+  int parallel_mode;
+  const char* parallel_opts[] = { "NONE", "SEND", "FORMAT", 0 };
+  rval = opts.match_option( "PARALLEL", parallel_opts, parallel_mode );
+  if (MB_FAILURE == rval) {
+    mError->set_last_error( "Unexpected value for 'PARALLEL' option\n" );
+    return MB_FAILURE;
   }
-  else
-  {  
-      // Try all the readers
-    MBReaderWriterSet::iterator iter;
-    for (iter = set->begin(); iter != set->end(); ++iter)
-    {
-      MBReaderIface* reader = iter->make_reader( this );
-      if (NULL != reader)
+  else if (MB_ENTITY_NOT_FOUND == rval) {
+    parallel_mode = 0;
+  }
+    // Get partition setting
+  bool do_partition = false;
+  rval = opts.get_null_option( "PARTITION" );
+  if (MB_SUCCESS == rval) 
+    do_partition = true;
+  else if (MB_ENTITY_NOT_FOUND != rval) {
+    mError->set_last_error( "Unexpected value for 'PARTITION' option\n" );
+    return MB_FAILURE;
+  }
+    // get MPI IO processor rank
+  int reader_rank;
+  rval = opts.get_int_option( "MPI_IO_RANK", reader_rank );
+  if (MB_ENTITY_NOT_FOUND == rval)
+    reader_rank = 0;
+  else if (MB_SUCCESS != rval) {
+    mError->set_last_error( "Unexpected value for 'MPI_IO_RANK' option\n" );
+    return MB_FAILURE;
+  }
+  
+  
+    // now that we've parsed all the parallel options, return
+    // failure for most of them because we haven't implemented 
+    // most of them yet.
+  if (parallel_mode == 2) {
+    mError->set_last_error( "Access to format-specific parallel read not implemented.\n");
+    return MB_NOT_IMPLEMENTED;
+  }
+  if (do_partition && parallel_mode == 1) {
+    mError->set_last_error( "Partitioning for PARALLEL=SEND not supported yet.\n");
+    return MB_NOT_IMPLEMENTED;
+  }
+  
+  if (parallel_mode != 1 || reader_rank == (int)proc_config().rank()) {
+      // Try using the file extension to select a reader
+    MBReaderIface* reader = set->get_file_extension_reader( file_name );
+    if (reader)
+    { 
+      rval = reader->load_file( file_name, file_set, opts, block_id_list, num_blocks );
+      delete reader;
+    }
+    else
+    {  
+        // Try all the readers
+      MBReaderWriterSet::iterator iter;
+      for (iter = set->begin(); iter != set->end(); ++iter)
       {
-        rval = reader->load_file( file_name, file_set, opts, block_id_list, num_blocks );
-        delete reader;
-        if (MB_SUCCESS == rval)
-          break;
+        MBReaderIface* reader = iter->make_reader( this );
+        if (NULL != reader)
+        {
+          rval = reader->load_file( file_name, file_set, opts, block_id_list, num_blocks );
+          delete reader;
+          if (MB_SUCCESS == rval)
+            break;
+        }
       }
     }
   }
-
+  else {
+    rval = MB_SUCCESS;
+  }
+  
+  if (parallel_mode == 1) {
+    MBRange entities; 
+    if (MB_SUCCESS == rval && reader_rank == (int)proc_config().rank()) {
+      rval = get_entities_by_handle( file_set, entities );
+      if (MB_SUCCESS != rval)
+        entities.clear();
+    }
+    
+    MBParallelComm tool( this, tagServer, sequenceManager );
+    MBErrorCode tmp_rval = tool.broadcast_entities( reader_rank, entities );
+    if (MB_SUCCESS != rval)
+      tmp_rval = rval;
+      
+    if (MB_SUCCESS == rval && reader_rank != (int)proc_config().rank()) {
+      rval = create_meshset( MESHSET_SET, file_set );
+      if (MB_SUCCESS == rval) {
+        rval = add_entities( file_set, entities );
+        if (MB_SUCCESS != rval) {
+          delete_entities( &file_set, 1 );
+          file_set = 0;
+        }
+      }
+    }
+  } 
+  
   return rval; 
 }
   
@@ -457,7 +530,8 @@ MBErrorCode MBCore::write_file( const char* file_name,
   rval = writer->write_file(file_name, overwrite, opts, &list[0], list.size(), qa_records );
   delete writer;
   
-  return rval;
+ std::cerr << "proc " << proc_config().rank() << " leaving MBCore::write_file" << std::endl;
+ return rval;
 }
    
   
