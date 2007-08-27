@@ -57,6 +57,11 @@ public:
                                    const bool adjacencies = false,
                                    const bool tags = true);
   
+  MBErrorCode broadcast_entities( const int from_proc,
+                                  MBRange& entities,
+                                  const bool adjacencies = false,
+                                  const bool tags = true );
+  
     //! pack a buffer (stored in this class instance) with ALL data for these entities
   MBErrorCode pack_buffer(MBRange &entities, 
                           const bool adjacencies,

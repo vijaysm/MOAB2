@@ -206,6 +206,59 @@ MBErrorCode MBParallelComm::communicate_entities(const int from_proc, const int 
 #endif
 }
 
+MBErrorCode MBParallelComm::broadcast_entities( const int from_proc,
+                                                MBRange &entities,
+                                                const bool adjacencies,
+                                                const bool tags) 
+{
+#ifndef USE_MPI
+  return MB_FAILURE;
+#else
+  
+  MBErrorCode result = MB_SUCCESS;
+  int success;
+  MBRange whole_range;
+  int buff_size;
+  
+  allRanges.clear();
+  vertsPerEntity.clear();
+  setRange.clear();
+  setRanges.clear();
+  allTags.clear();
+  setSizes.clear();
+  optionsVec.clear();
+  setPcs.clear();
+
+  if ((int)procInfo.rank() == from_proc) {
+    result = pack_buffer( entities, adjacencies, tags, true, whole_range, buff_size ); RR;
+  }
+
+  success = MPI_Bcast( &buff_size, 1, MPI_INT, from_proc, MPI_COMM_WORLD );
+  if (MPI_SUCCESS != success)
+    return MB_FAILURE;
+  
+  if (!buff_size) // no data
+    return MB_SUCCESS;
+  
+  myBuffer.reserve( buff_size );
+  
+  if ((int)procInfo.rank() == from_proc) {
+    int actual_buffer_size;
+    result = pack_buffer( entities, adjacencies, tags, false, whole_range, actual_buffer_size ); RR;
+  }
+
+  success = MPI_Bcast( &myBuffer[0], buff_size, MPI_UNSIGNED_CHAR, from_proc, MPI_COMM_WORLD );
+  if (MPI_SUCCESS != success)
+    return MB_FAILURE;
+  
+  if ((int)procInfo.rank() != from_proc) {
+    result = unpack_buffer( entities ); RR;
+  }
+
+  return MB_SUCCESS;
+#endif
+}
+
 MBErrorCode MBParallelComm::pack_buffer(MBRange &entities, 
                                         const bool adjacencies,
                                         const bool tags,
