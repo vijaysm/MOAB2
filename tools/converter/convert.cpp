@@ -33,6 +33,9 @@
 #  include <unistd.h>
 #endif
 #include <time.h>
+#ifdef USE_MPI
+#  include <mpi.h>
+#endif
 
 /* Exit values */
 #define USAGE_ERROR 1
@@ -53,11 +56,15 @@ void print_usage( const char* name, std::ostream& stream )
     << "\t-a <acis_file> - ACIS SAT file dumped by .cub reader (same as \"-o SAT_FILE=acis_file\"" << std::endl
     << "\t-A             - .cub file reader should not dump a SAT file (depricated default)" << std::endl
     << "\t-o option      - Specify write option." << std::endl
+    << "\t-O option      - Specify read option." << std::endl
     << "\t-t             - Time read and write of files." << std::endl
     << "\t-g             - Enable verbose/debug output." << std::endl
     << "\t-h             - Print this help text and exit." << std::endl
     << "\t-l             - List available file formats and exit." << std::endl
     << "\t-I <dim>       - Generate internal entities of specified dimension." << std::endl
+#ifdef USE_MPI
+    << "\t-P             - Append processor ID to file name" << std::endl
+#endif
     << "\t--             - treat all subsequent options as file names" << std::endl
     << "\t                 (allows file names beginning with '-')" << std::endl
     << "  subset options: " << std::endl
@@ -115,16 +122,26 @@ void reset_times();
 void write_times( std::ostream& stream );
 void remove_entities_from_sets( MBInterface* gMB, MBRange& dead_entities, MBRange& empty_sets );
 void remove_from_vector( std::vector<MBEntityHandle>& vect, const MBRange& ents_to_remove );
+bool make_opts_string( std::vector<std::string> options, std::string& result );
 
 int main(int argc, char* argv[])
 {
   MBInterface* gMB;
   MBErrorCode result;
   MBRange range;
-  
-    // Get MB instance
-  gMB = new MBCore();
 
+#ifdef USE_MPI
+  MPI_Init( &argc, &argv );
+  int proc_id, num_proc;
+  MPI_Comm_rank( MPI_COMM_WORLD, &proc_id );
+  MPI_Comm_size( MPI_COMM_WORLD, &num_proc );
+  gMB = new MBCore( proc_id, num_proc );
+#else
+  int proc_id = 0;
+  gMB = new MBCore();
+#endif  
+
+  bool append_rank = false;
   int i, dim;
   bool dims[4] = {false, false, false, false};
   const char* format = NULL; // output file format
@@ -133,7 +150,7 @@ int main(int argc, char* argv[])
   bool verbose = false;
   std::set<int> geom[4], mesh[3];       // user-specified IDs 
   std::vector<MBEntityHandle> set_list; // list of user-specified sets to write
-  std::vector<std::string> options;
+  std::vector<std::string> write_opts, read_opts;
   const char* const mesh_tag_names[] = { DIRICHLET_SET_TAG_NAME,
                                          NEUMANN_SET_TAG_NAME,
                                          MATERIAL_SET_TAG_NAME };
@@ -167,6 +184,9 @@ int main(int argc, char* argv[])
         case 'h': 
         case 'H': print_help( argv[0] ); break;
         case 'l': list_formats( gMB );   break;
+#ifdef USE_MPI
+        case 'P': append_rank = true;    break;
+#endif
         case '1': case '2': case '3':
           dims[argv[i][1] - '0'] = true; break;
           // do options that require additional args:
@@ -189,11 +209,12 @@ int main(int argc, char* argv[])
           switch ( argv[i-1][1] )
           {
             case 'a': 
-              options.push_back( std::string("SAT_FILE=") + argv[i] );
+              write_opts.push_back( std::string("SAT_FILE=") + argv[i] );
               pval = true;
               break;
-            case 'f': format = argv[i];           pval = true;  break;
-            case 'o': options.push_back(argv[i]); pval = true;  break;
+            case 'f': format = argv[i]; pval = true;              break;
+            case 'o': write_opts.push_back(argv[i]); pval = true; break;
+            case 'O':  read_opts.push_back(argv[i]); pval = true; break;
             case 'v': pval = parse_id_list( argv[i], geom[3] ); break;
             case 's': pval = parse_id_list( argv[i], geom[2] ); break;
             case 'c': pval = parse_id_list( argv[i], geom[1] ); break;
@@ -204,8 +225,10 @@ int main(int argc, char* argv[])
             default: std::cerr << "Invalid option: " << argv[i] << std::endl;
           }
           
-          if (!pval)
+          if (!pval) {
+            std::cerr << "Invalid flag or flag value: " << argv[i-1] << " " << argv[i] << std::endl;
             usage_error(argv[0]);
+          }
       }
     }
       // do file names
@@ -213,51 +236,36 @@ int main(int argc, char* argv[])
       in = argv[i];
     else if (!out)
       out = argv[i];
-    else  // too many file names
+    else  { // too many file names
+      std::cerr << "Unexpexed argument: " << argv[i] << std::endl;
       usage_error(argv[0]);
+    }
   }
-  if (!in || !out)
+  if (!in || !out) {
+    std::cerr << "No output file name specified." << std::endl;
     usage_error(argv[0]);
+  }
+    
+  std::string mod_out;
+  if (append_rank) {
+    char buffer[16];
+    sprintf(buffer,".%d",proc_id);
+    mod_out = out;
+    mod_out += buffer;
+    out = mod_out.c_str();
+  }
 
     // construct options string from individual options
-  std::string opts;
-  if (!options.empty()) {
-    std::vector<std::string>::const_iterator i;
-    char separator = '\0';
-    const char* alt_separators = ";+,:\t\n";
-    for (const char* sep_ptr = alt_separators; *sep_ptr; ++sep_ptr) {
-      bool seen = false;
-      for (i = options.begin(); i != options.end(); ++i)
-        if (i->find( *sep_ptr, 0 ) == std::string::npos) {
-          seen = true;
-          break;
-        }
-      if (!seen) {
-        separator = *sep_ptr;
-        break;
-      }
-    }
-    if (!separator) {
-      std::cerr << "Error: cannot find separator character for options string" << std::endl;
-      return 2;
-    }
-    std::string opts;
-    if (separator != ';') {
-      opts = ";";
-      opts += separator;
-    }
-    i = options.begin();
-    opts += *i;
-    for (++i; i != options.end(); ++i) {
-      opts += separator;
-      opts += *i;
-    }
-  }  
+  std::string read_options, write_options;
+  if (!make_opts_string(  read_opts,  read_options ) ||
+      !make_opts_string( write_opts, write_options ))
+    return USAGE_ERROR;
   
   
     // Read the input file.
   reset_times();
-  result = gMB->load_mesh( in );
+  MBEntityHandle read_meshset;
+  result = gMB->load_file( in, read_meshset, read_options.c_str() );
   if (MB_SUCCESS != result)
   { 
     std::cerr << "Failed to load \"" << in << "\"." << std::endl; 
@@ -477,11 +485,10 @@ int main(int argc, char* argv[])
   
     // Write the output file
   reset_times();
-  const char* opt_str = opts.empty() ? NULL : opts.c_str();
   if (have_sets) 
-    result = gMB->write_file( out, format, opt_str, &set_list[0], set_list.size() );
+    result = gMB->write_file( out, format, write_options.c_str(), &set_list[0], set_list.size() );
   else
-    result = gMB->write_file( out, format, opt_str );
+    result = gMB->write_file( out, format, write_options.c_str() );
   if (MB_SUCCESS != result)
   { 
     std::cerr << "Failed to write \"" << out << "\"." << std::endl; 
@@ -490,6 +497,9 @@ int main(int argc, char* argv[])
   std::cerr << "Wrote \"" << out << "\"" << std::endl;
   if (print_times) write_times( std::cerr );
 
+#ifdef USE_MPI
+  MPI_Finalize();
+#endif
   return 0;
 }
 
@@ -639,6 +649,49 @@ void write_times( std::ostream& stream )
 }
 
 #endif
+
+bool make_opts_string( std::vector<std::string> options, std::string& opts )
+{
+  opts.clear();
+  if (options.empty())
+    return true;
+
+    // choose a separator character
+  std::vector<std::string>::const_iterator i;
+  char separator = '\0';
+  const char* alt_separators = ";+,:\t\n";
+  for (const char* sep_ptr = alt_separators; *sep_ptr; ++sep_ptr) {
+    bool seen = false;
+    for (i = options.begin(); i != options.end(); ++i)
+      if (i->find( *sep_ptr, 0 ) != std::string::npos) {
+        seen = true;
+        break;
+      }
+    if (!seen) {
+      separator = *sep_ptr;
+      break;
+    }
+  }
+  if (!separator) {
+    std::cerr << "Error: cannot find separator character for options string" << std::endl;
+    return false;
+  }
+  if (separator != ';') {
+    opts = ";";
+    opts += separator;
+  }
+  
+    // concatenate options
+  i = options.begin();
+  opts += *i;
+  for (++i; i != options.end(); ++i) {
+    opts += separator;
+    opts += *i;
+  }
+
+  return true;
+}
+
 
 void list_formats( MBInterface* gMB )
 {
