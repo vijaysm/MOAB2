@@ -1775,7 +1775,11 @@ MBErrorCode WriteHDF5::gather_tags()
     result = iFace->tag_get_name( *t_itor, tagname );
     if (MB_SUCCESS != result)
       return result;
-    if (tagname[0] == '_' && tagname[1] == '_')
+      // Skip anonymous tags
+    if (tagname.empty())
+      continue;
+      // skip tags for which the name begins with two underscores
+    if (tagname.size() >= 2 && tagname[0] == '_' && tagname[1] == '_')
       continue;
   
       // Add tag to export list
