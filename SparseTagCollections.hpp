@@ -137,8 +137,8 @@ public:
 
   void reset_data();
 
-  //! reserves an MBTagId for use
-  MBErrorCode reserve_tag_id(int data_size, MBTagId& tag_id);
+  //! allocate new tag id
+  MBErrorCode reserve_tag_id(int data_size, MBTagId tag_id);
 
   //! releases an MBTagId
   MBErrorCode release_tag_id(MBTagId tag_id);

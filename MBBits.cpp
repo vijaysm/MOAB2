@@ -45,41 +45,22 @@ const unsigned int MBBitManipulator::masks[9] =
 const int MBBitPage::mPageSize = 512;
 
 /*! returns an available tag id to use when getting and setting bits */
-MBErrorCode MBBitServer::reserve_tag_id(int num_bits, MBTagId& tag_id)
+MBErrorCode MBBitServer::reserve_tag_id(int num_bits, MBTagId tag_id)
 {
-  tag_id = 0;
-
-  // make sure we get a good number of bits
-  if(num_bits <= 0 || num_bits >8)
-    return MB_FAILURE;
-
-  // see if we have any bit page groups that aren't being used
-  for(std::vector<MBBitPageGroup*>::iterator iter = (*mBitPageGroups).begin();
-      iter != (*mBitPageGroups).end(); ++iter)
-  {
-    if(*iter == NULL)
-    {
-      tag_id = iter - (*mBitPageGroups).begin() + 1;
-      break;
-    }
-  }
-
-  // if they are all being used, make space for a new one
-  if(!tag_id)
-  {
-    for(int i=0; i<(int)MBMAXTYPE; i++)
-      mBitPageGroups[i].push_back( NULL );
-    tag_id = (*mBitPageGroups).size();
-  }
+  for(int i=0; i<(int)MBMAXTYPE; i++)
+    if (tag_id >= mBitPageGroups[i].size())
+      mBitPageGroups[i].resize( tag_id + 1, 0 );
+  
+  for(int i=0; i<(int)MBMAXTYPE; i++)
+    if (mBitPageGroups[i][tag_id-1])
+      return MB_FAILURE;
 
   for(int i=0; i<(int)MBMAXTYPE; i++)
     mBitPageGroups[i][tag_id-1] = new MBBitPageGroup(num_bits);
 
   mBitPageGroupsSize = (*mBitPageGroups).size();
 
-  // can we really fail?
   return MB_SUCCESS;
-  
 }
 
 

@@ -60,19 +60,16 @@ void SparseTagSuperCollection::reset_data()
   
 }
 
-MBErrorCode SparseTagSuperCollection::reserve_tag_id(int data_size, MBTagId& tag_id)
+MBErrorCode SparseTagSuperCollection::reserve_tag_id(int data_size, MBTagId tag_id)
 {
   if(data_size<=0)
     return MB_FAILURE;
 
-  // start at 1
-  tag_id = 1;
- 
-  while (tag_id < mDataTags.size() && mDataTags[tag_id])
-    ++tag_id;
-  
   if (tag_id >= mDataTags.size())
     mDataTags.resize( tag_id+1, 0 );
+    
+  if (mDataTags[tag_id])
+    return MB_FAILURE;
     
   mDataTags[tag_id] = new SparseTagCollection(data_size);
   return MB_SUCCESS;

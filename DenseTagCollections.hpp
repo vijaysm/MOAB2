@@ -362,8 +362,8 @@ public:
 
   void reset_data();
 
-  //! return an available tag id for use
-  MBErrorCode reserve_tag_id(int data_size, const void* default_data, MBTagId& tag_id);
+  //! allocate new tag id
+  MBErrorCode reserve_tag_id(int data_size, const void* default_data, MBTagId tag_id);
   //! release a tag id for reuse
   MBErrorCode release_tag_id(MBTagId tag_id);
   //! get the tag size

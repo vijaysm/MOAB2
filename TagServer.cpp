@@ -58,19 +58,24 @@ int TagInfo::size_from_data_type( MBDataType t )
    return sizes[t];
 }
 
+
+void TagInfo::invalidate()
+{
+  mTagName.clear();
+  isValid = false;
+  delete [] mDefaultValue;
+  mDefaultValue = 0;
+  delete [] mMeshValue;
+  mMeshValue = 0;
+}
+  
+
 /*
   TagServer functions ----------------------------------
 */
 
 TagServer::TagServer()
 {
-  // we need these tag properties to be in order.
-  // if this order is changed, then change reset_data() as well
-  assert(MB_TAG_BIT    < MB_TAG_SPARSE);
-  assert(MB_TAG_SPARSE < MB_TAG_DENSE );
-  assert(MB_TAG_DENSE  < MB_TAG_MESH  );
-  assert(MB_TAG_MESH   < MB_TAG_LAST  );
-  
   mSparseData = new SparseTagSuperCollection;
   mDenseData = new DenseTagSuperCollection;
   mBitServer = new MBBitServer;
@@ -78,12 +83,9 @@ TagServer::TagServer()
 
 TagServer::~TagServer()
 {
-  if(mSparseData)
-    delete mSparseData;
-  if(mDenseData)
-    delete mDenseData;
-  if(mBitServer)
-    delete mBitServer;
+  delete mSparseData;
+  delete mDenseData;
+  delete mBitServer;
 }
 
 
@@ -104,96 +106,90 @@ MBErrorCode TagServer::add_tag( const char *tag_name,
                                 MBTag &tag_handle,
                                 const void *default_value)
 {
-
-  if(NULL != tag_name && strcmp(tag_name, "") != 0)
-  {
-    // verify that the name doesn't already exist for this entity type
-    for(std::map<MBTag, TagInfo>::iterator tag_iterator = mTagTable.begin();
-        tag_iterator != mTagTable.end();
-        ++tag_iterator)
-    {
-      // if the type and name matches, another tag, return a "null" handle
-      if(strcmp(tag_name, tag_iterator->second.get_name().c_str()) == 0)
-      {
-        tag_handle = tag_iterator->first;
-        return MB_ALREADY_ALLOCATED;
-      }
-    }
-  }
-    
-  MBErrorCode result = MB_FAILURE;;
-  MBTagId id;
+    // Check if name is already in use
+    // if so, pass back the existing tag handle.
+    // NOTE: If name is NULL or empty (tag is unnamed),
+    // get_handle will return zero, so no explicit 
+    // check is required here.
+  tag_handle = get_handle( tag_name );
+  if (tag_handle)
+    return MB_ALREADY_ALLOCATED;
 
     // Input size must be a multiple of the size of the data type.
   int typesize = TagInfo::size_from_data_type( data_type );
   if (data_size % typesize)
     return MB_FAILURE;
-    
-  switch(storage) {
+  
+    // data type must be BIT of tag storage type is BIT
+  if (storage == MB_TAG_BIT && data_type != MB_TYPE_BIT)
+    return MB_FAILURE;
+  
+    // find an unused tag id
+  std::vector<TagInfo>& list = mTagTable[storage];
+  std::vector<TagInfo>::iterator i;
+  for (i = list.begin(); i != list.end(); ++i)
+    if (!i->is_valid())
+      break;
+
+    // add TagInfo entry for new tag
+  if (i == list.end()) 
+    i = list.insert( i, TagInfo( tag_name, data_size, data_type, default_value ) );
+  else
+    *i = TagInfo( tag_name, data_size, data_type, default_value );
+
+
+  MBTagId tag_id = i - list.begin() + 1;
+  tag_handle = TAG_HANDLE_FROM_ID( tag_id, storage );
+
+  MBErrorCode result = MB_FAILURE;
+  switch (storage) {
     case MB_TAG_BIT:
-      if (data_type != MB_TYPE_BIT)
-        return MB_FAILURE;
-      result = mBitServer->reserve_tag_id(data_size, id);
+      result = mBitServer->reserve_tag_id( data_size, tag_id );
       break;
     case MB_TAG_SPARSE:
-      result = mSparseData->reserve_tag_id(data_size, id);
+      result = mSparseData->reserve_tag_id(data_size, tag_id);
       break;
     case MB_TAG_DENSE:
-      result = mDenseData->reserve_tag_id(data_size, default_value, id);
+      result = mDenseData->reserve_tag_id(data_size, default_value, tag_id);
       break;
     case MB_TAG_MESH:
-      result = reserve_mesh_tag_id( id );
+      result = MB_SUCCESS;
       break;
   }
   
-  if(result != MB_SUCCESS)
-    return result;
-
-  tag_handle = TAG_HANDLE_FROM_ID( id, storage );
-
-  // we have a valid id, lets register it
-  if(tag_handle > 0)
-  {
-    TagInfo tag_info(tag_name, data_size, data_type, default_value);
-    mTagTable.insert( std::pair<MBTag, TagInfo>( tag_handle, tag_info ) );
-  }
-
-  return MB_SUCCESS;
+  if (MB_SUCCESS != result)
+    i->invalidate();
+  return result;
 }
 
 
 MBErrorCode TagServer::remove_tag(const MBTag tag_handle)
 {
-
-  const std::map<MBTag, TagInfo>::iterator iterator = mTagTable.find(tag_handle);
-  
-  if(iterator == mTagTable.end())
+  const MBTagId tag_id = ID_FROM_TAG_HANDLE( tag_handle );
+  const MBTagType tag_type = PROP_FROM_TAG_HANDLE( tag_handle );
+  const unsigned tag_idx = tag_id - 1;
+  if (tag_idx >= mTagTable[tag_type].size() ||
+      !mTagTable[tag_type][tag_idx].is_valid())
     return MB_TAG_NOT_FOUND;
-
-  MBErrorCode status = MB_FAILURE;
   
-  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
-  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+  MBErrorCode status = MB_FAILURE;
+  switch (tag_type) {
     case MB_TAG_BIT:
-      status = mBitServer->release_tag_id(id);
+      status = mBitServer->release_tag_id(tag_id);
       break;
     case MB_TAG_SPARSE:
-      status = mSparseData->release_tag_id(id);
+      status = mSparseData->release_tag_id(tag_id);
       break;
     case MB_TAG_DENSE:
-      status = mDenseData->release_tag_id(id);
+      status = mDenseData->release_tag_id(tag_id);
       break;
     case MB_TAG_MESH:
       status = MB_SUCCESS;
       break;
   }
-
-  if (MB_SUCCESS == status) {
-    mTagTable.erase(iterator);
-  }
   
+  mTagTable[tag_type][tag_idx].invalidate();
   return status;
-
 }
 
 
@@ -201,36 +197,22 @@ MBErrorCode TagServer::remove_tag(const MBTag tag_handle)
 //! this is used to clean out stale data that might be referenced again
 MBErrorCode TagServer::reset_data(MBEntityHandle entity_handle)
 {
-  // note: this algorithm assumes that tag properties are
-  // BITS < SPARSE < DENSE < STATIC.
-  // if that is not the case anymore, then rearrange this algorithm
+  std::vector<TagInfo>::iterator i;
 
-  if(TYPE_FROM_HANDLE(entity_handle) >= MBMAXTYPE)
-    return MB_TYPE_OUT_OF_RANGE;
+  MBTagId tag_id;
 
-  std::map<MBTag, TagInfo>::iterator iter;
+  for (tag_id = 1; tag_id <= mTagTable[MB_TAG_BIT].size(); ++tag_id) 
+    if (mTagTable[MB_TAG_BIT][tag_id-1].is_valid())
+        // default data for bits is zero
+      mBitServer->weak_set_bits( tag_id, entity_handle, 0 );
 
-  // go through and clean out the bits
-  MBTag max_tag = TAG_HANDLE_FROM_ID(0,MB_TAG_SPARSE);
-  for(iter = mTagTable.begin(); iter != mTagTable.end() && iter->first < max_tag; ++iter)
-  {
-    // default data for bits is zero
-    mBitServer->weak_set_bits(ID_FROM_TAG_HANDLE(iter->first), entity_handle, 0);
-  }
+  for (tag_id = 1; tag_id <= mTagTable[MB_TAG_SPARSE].size(); ++tag_id) 
+    if (mTagTable[MB_TAG_SPARSE][tag_id-1].is_valid())
+      mSparseData->remove_data( tag_id, entity_handle );
 
-  // now clean out the sparse data
-  max_tag = TAG_HANDLE_FROM_ID(0,MB_TAG_DENSE);
-  for( ; iter != mTagTable.end() && iter->first < max_tag; ++iter)
-  {
-    mSparseData->remove_data(ID_FROM_TAG_HANDLE(iter->first), entity_handle);
-  }
-  
-  // now clean out the dense data
-  max_tag = TAG_HANDLE_FROM_ID(0,MB_TAG_MESH);
-  for( ; iter != mTagTable.end() && iter->first < max_tag; ++iter)
-  {
-    mDenseData->remove_data(ID_FROM_TAG_HANDLE(iter->first), entity_handle);
-  }
+  for (tag_id = 1; tag_id <= mTagTable[MB_TAG_DENSE].size(); ++tag_id) 
+    if (mTagTable[MB_TAG_DENSE][tag_id-1].is_valid())
+      mDenseData->remove_data( tag_id, entity_handle );
 
   return MB_SUCCESS;
 }
@@ -588,30 +570,23 @@ MBErrorCode TagServer::get_data(const MBTag tag_handle,
   return MB_SUCCESS;
 }
 
-MBTag TagServer::get_handle(const char *tag_name)
+MBTag TagServer::get_handle(const char *tag_name) const
 {
-
-  // perhaps speed this up since tag handles are sorted by tag properties
-  // then sorted by entity type
-  std::map<MBTag, TagInfo>::iterator iterator;
-  for(iterator = mTagTable.begin(); iterator != mTagTable.end(); ++iterator)
-  {
-    if (strcmp(tag_name, iterator->second.get_name().c_str()) == 0)
-    {
-        return iterator->first;
-    }
-  }
-
+  if (tag_name && *tag_name)
+    for (int i = 0; i < MB_TAG_LAST; ++i) 
+      for (MBTagId j = 0; j < mTagTable[i].size(); ++j) 
+        if (mTagTable[i][j].is_valid() && mTagTable[i][j].get_name() == tag_name)
+          return TAG_HANDLE_FROM_ID( j + 1, (MBTagType)i );
+  
   return 0;
 }
 
 MBErrorCode TagServer::get_tags(std::vector<MBTag> &all_tags)
 {
-  std::map<MBTag, TagInfo>::iterator iterator;
-  for(iterator = mTagTable.begin(); iterator != mTagTable.end(); ++iterator)
-  {
-    all_tags.push_back(iterator->first);
-  }
+  for (int i = 0; i < MB_TAG_LAST; ++i) 
+    for (MBTagId j = 0; j < mTagTable[i].size(); ++j) 
+      if (mTagTable[i][j].is_valid())
+        all_tags.push_back( TAG_HANDLE_FROM_ID( j + 1, (MBTagType)i ) );
 
   return MB_SUCCESS;
 }
@@ -634,10 +609,11 @@ MBErrorCode TagServer::get_tags(const MBEntityHandle entity, std::vector<MBTag> 
 
 MBErrorCode TagServer::get_mesh_tags( std::vector<MBTag>& all_tags ) const
 {
-  std::map<MBTag,TagInfo>::const_iterator i;
-  for (i = mTagTable.begin(); i != mTagTable.end(); ++i)
-    if (i->second.get_mesh_value())
-      all_tags.push_back( i->first );
+  for (int i = 0; i < MB_TAG_LAST; ++i) 
+    for (MBTagId j = 0; j < mTagTable[i].size(); ++j) 
+      if (mTagTable[i][j].is_valid() && mTagTable[i][j].get_mesh_value())
+        all_tags.push_back( TAG_HANDLE_FROM_ID( j + 1, (MBTagType)i ) );
+  
   return MB_SUCCESS;
 }
 
@@ -1014,7 +990,7 @@ MBErrorCode TagServer::get_number_entities( const MBRange &range,
 
 unsigned long TagServer::get_memory_use( MBTag tag_handle ) const
 {
-  if (mTagTable.find(tag_handle) == mTagTable.end())
+  if (!get_tag_info(tag_handle))
     return 0;
 
   unsigned long result = 0, tmp;
@@ -1068,23 +1044,6 @@ MBErrorCode TagServer::get_memory_use( MBTag tag_handle,
     total += tag_info->get_size();
   total += tag_info->get_name().size();
   
-  return MB_SUCCESS;
-}
-
-MBErrorCode TagServer::reserve_mesh_tag_id( MBTagId& id_out ) const
-{
-  MBTag tag = TAG_HANDLE_FROM_ID( 1, MB_TAG_MESH );
-  std::map<MBTag,TagInfo>::const_iterator i = mTagTable.lower_bound( tag );
-  if (i == mTagTable.end() || i->first > tag) {
-    id_out = 1;
-    return MB_SUCCESS;
-  }
-  
-  tag = i->first + 1;
-  for (++i; i != mTagTable.end() && tag == i->first; ++i)
-    tag = i->first + 1;
-  
-  id_out = ID_FROM_TAG_HANDLE( tag );
   return MB_SUCCESS;
 }
     

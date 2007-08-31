@@ -37,7 +37,6 @@
 
 #include <string>
 #include <vector>
-#include <map>
 
 #include "MBTypes.h"
 #include "MBInternals.hpp"
@@ -55,6 +54,7 @@ public:
   //! constructor
   TagInfo() : mTagName(""), 
               mDataSize(0), 
+              isValid(false),
               mDefaultValue(NULL), 
               mMeshValue(NULL),
               dataType(MB_TYPE_OPAQUE)
@@ -101,6 +101,9 @@ public:
   inline void set_data_type( MBDataType t )   { dataType = t; }
 
   static int size_from_data_type( MBDataType t );
+  
+  bool is_valid() const { return isValid; }
+  void invalidate();
 
 private:    
 
@@ -111,6 +114,9 @@ private:
 
   //! stores the size of the data for this tag
   unsigned short mDataSize;
+  
+  //! flag to mark unused entries
+  bool isValid;
 
   //! stores the default data, if any
   unsigned char *mDefaultValue;
@@ -245,7 +251,7 @@ public:
   MBEntityHandle find_entity( const MBTag tag_handle, const void* data );
 
   //! gets a tag handle by name and entity handle
-  MBTag get_handle(const char *tag_name);
+  MBTag get_handle(const char *tag_name) const;
 
   //! get all the tags which have been defined for this entity
   MBErrorCode get_tags(const MBEntityHandle entity, std::vector<MBTag> &all_tags);
@@ -275,13 +281,10 @@ public:
 
 private:
 
-  MBErrorCode reserve_mesh_tag_id( MBTagId& id_out ) const;
-
-  //! table of tag ids and tag information
-  //! do we really need to do it this way?
-  //! we at least need a table between names and tag ids
-  //! and we need information between tag ids and tag usage
-  std::map< MBTag, TagInfo >  mTagTable;
+  //! Table of tag ids and tag information
+  //! Primary (array) index is tag type.  
+  //! Secondary (std::vector) index is tag id less one (tag ids begin with 1).
+  std::vector<TagInfo> mTagTable[MB_TAG_LAST];
 
   //! container for storing the sparse data and tag ids
   SparseTagSuperCollection* mSparseData;
@@ -303,6 +306,7 @@ private:
 inline TagInfo::TagInfo(const TagInfo& copy)
   : mTagName( copy.mTagName ),
     mDataSize( copy.mDataSize ),
+    isValid( copy.isValid ),
     mDefaultValue( 0 ),
     mMeshValue( 0 ),
     dataType( copy.dataType )
@@ -324,6 +328,7 @@ inline TagInfo::TagInfo( const char* name,
                          const void* default_value)
  : mTagName( name ),
    mDataSize( size ),
+   isValid( true ),
    mDefaultValue( 0 ),
    mMeshValue( 0 ),
    dataType( type )
@@ -338,6 +343,7 @@ inline TagInfo &TagInfo::operator=(const TagInfo &rhs)
 {
   mTagName = rhs.mTagName;
   mDataSize = rhs.mDataSize;
+  isValid = rhs.isValid;
   
   delete [] mDefaultValue;
   delete [] mMeshValue;
@@ -380,38 +386,28 @@ inline void TagInfo::remove_mesh_value()
 
 inline const TagInfo* TagServer::get_tag_info( const char *tag_name ) const
 {
-  if(NULL == tag_name || strcmp(tag_name, "") == 0)
-    return NULL;
-
-  std::map<MBTag, TagInfo>::const_iterator iterator;
-  const std::string temp_name = tag_name;
-  for(iterator = mTagTable.begin(); iterator != mTagTable.end(); ++iterator)
-  {
-      if ( temp_name.size()  == iterator->second.get_name().size() &&
-           std::equal(temp_name.begin(), temp_name.end(), iterator->second.get_name().begin() ) )
-      {
-        return &(iterator->second);
-      }
-  }
-  return NULL;
+  const MBTag handle = get_handle( tag_name );
+  return handle ? get_tag_info( handle ) : 0;
 }
 
 inline const TagInfo* TagServer::get_tag_info( MBTag tag_handle ) const
 {
-  std::map<MBTag, TagInfo>::const_iterator iterator = mTagTable.find(tag_handle);
-
-  if ( iterator != mTagTable.end() )
-  {
-    return &(iterator->second);
-  }
-  
-  return NULL;
+  const MBTagId id = ID_FROM_TAG_HANDLE( tag_handle );
+  const MBTagType type = PROP_FROM_TAG_HANDLE( tag_handle );
+  if (id <= mTagTable[type].size() && mTagTable[type][id-1].is_valid())
+    return &mTagTable[type][id-1];
+  else
+    return NULL;
 }
 
 inline TagInfo* TagServer::get_tag_info( MBTag tag_handle )
 {
-  std::map<MBTag, TagInfo>::iterator i = mTagTable.find(tag_handle);
-  return (i == mTagTable.end()) ? (TagInfo*)0 : &(i->second);
+  const MBTagId id = ID_FROM_TAG_HANDLE( tag_handle );
+  const MBTagType type = PROP_FROM_TAG_HANDLE( tag_handle );
+  if (id <= mTagTable[type].size() && mTagTable[type][id-1].is_valid())
+    return &mTagTable[type][id-1];
+  else
+    return NULL;
 }
 
 #endif //TAG_SERVER_HPP

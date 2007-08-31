@@ -36,25 +36,23 @@
 const int DensePage::mPageSize = 1024;
 
 /*! returns an available tag id to use when getting and setting data */
-MBErrorCode DenseTagSuperCollection::reserve_tag_id(int num_bytes, const void* default_data, MBTagId& tag_id)
+MBErrorCode DenseTagSuperCollection::reserve_tag_id(int num_bytes, const void* default_data, MBTagId tag_id)
 {
   // make sure we get a good number of bytes
   if(num_bytes <= 0 )
-  {
-    tag_id = 0;
     return MB_FAILURE;
-  }
   
-  for (tag_id = 0; tag_id < mDensePageGroups.size(); ++tag_id)
-    if (!mDensePageGroups[tag_id])
-      break;
+  // make sure we have storage for tag id
+  if (mDensePageGroups.size() <= tag_id)
+    mDensePageGroups.resize( tag_id+1, 0 );
   
-  if (tag_id == mDensePageGroups.size()) 
-    mDensePageGroups.push_back( new DensePageGroup( num_bytes, default_data ) );
-  else
-    mDensePageGroups[tag_id] = new DensePageGroup( num_bytes, default_data ) ;
+  // make sure tag_id isn't already in use
+  if (mDensePageGroups[tag_id])
+    return MB_FAILURE;
+    
+  // allocate tag data
+  mDensePageGroups[tag_id] = new DensePageGroup( num_bytes, default_data ) ;
 
-  // can we really fail?
   return MB_SUCCESS;
   
 }

@@ -453,8 +453,8 @@ public:
 
   void reset_data();
 
-  //! return an available tag id for use
-  MBErrorCode reserve_tag_id(int num_bits, MBTagId& tag_id);
+  //! allocate data for tag with specified ID
+  MBErrorCode reserve_tag_id(int num_bits, MBTagId tag_id);
   //! release a tag id for reuse
   MBErrorCode release_tag_id(MBTagId tag_id);
 
