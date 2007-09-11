@@ -2558,9 +2558,13 @@ MBErrorCode DualTool::rev_face_shrink(MBEntityHandle odedge)
   MBEntityHandle quads[4], hexes[2];
   std::vector<MBEntityHandle> connects[4], side_quads[2];
 
+    // get three quads (shared quad & 2 end quads), hexes, and quad
+    // connects
   MBErrorCode result = fs_get_quads(odedge, quads, hexes, connects);
   if (MB_SUCCESS != result) return result;
   
+    // adjust sense & rotation so they're aligned, together & wrt first
+    // hex
   result = fs_check_quad_sense(hexes[0], quads[0], connects);
   if (MB_SUCCESS != result) return result;
 
@@ -2615,25 +2619,40 @@ MBErrorCode DualTool::rev_face_shrink(MBEntityHandle odedge)
     }
   }
     
-    // delete the interior entities
-  result = mbImpl->delete_entities(adj_ents);
-  if (MB_SUCCESS != result) return result;
-  
-    // re-build the two hexes
+    // before re-connecting two hexes, check for existing quad on 4th quad vertices; 
+    // if there is a quad there, need to add explicit adjs to any adj hexes, since
+    // by definition there'll be another quad on those vertices
+  bool need_explicit = false;
+  MBRange adj_quads;
+  result = mbImpl->get_adjacencies(&connects[3][0], 4, 2, false, adj_quads);
+  if (MB_MULTIPLE_ENTITIES_FOUND == result || !adj_quads.empty()) {
+      // there's already a quad for these 4 vertices; by definition,
+      // we'll be creating equivalent entities, so that original quad
+      // needs explicit adj's to its bounding elements
+    need_explicit = true;
+    for (MBRange::iterator rit = adj_quads.begin(); rit != adj_quads.end(); 
+         rit++) {
+      MBRange adj_hexes;
+      result = mbImpl->get_adjacencies(&(*rit), 1, 3, false, adj_hexes); RR;
+      result = mbImpl->add_adjacencies(*rit, adj_hexes, false); RR;
+    }
+  }
+    
+    // re-connect the two hexes
   std::vector<MBEntityHandle> new_connect;
   std::copy(connects[3].begin(), connects[3].end(), std::back_inserter(new_connect));
   std::copy(connects[2].begin(), connects[2].end(), std::back_inserter(new_connect));
-  result = mbImpl->create_element(MBHEX, &new_connect[0], 8, hexes[0]);
+  result = mbImpl->set_connectivity(hexes[0], &new_connect[0], 8);
   if (MB_SUCCESS != result) return result;
 
   new_connect.clear();
   std::copy(connects[0].begin(), connects[0].end(), std::back_inserter(new_connect));
   std::copy(connects[3].begin(), connects[3].end(), std::back_inserter(new_connect));
-  result = mbImpl->create_element(MBHEX, &new_connect[0], 8, hexes[1]);
+  result = mbImpl->set_connectivity(hexes[1], &new_connect[0], 8);
   if (MB_SUCCESS != result) return result;
 
-    // test for equiv entities from the side quads, and make explicit adjacencies
-    // if there are any
+    // test for equiv entities from the side quads, and make explicit 
+    // adjacencies if there are any
   MeshTopoUtil mtu(mbImpl);
   for (int j = 0; j < 2; j++) {
     for (int i = 0; i < 4; i++) {
@@ -2644,12 +2663,20 @@ MBErrorCode DualTool::rev_face_shrink(MBEntityHandle odedge)
     }
   }
   
-    // check for and fix any explicit adjacencies on either end quad
-  if (mtu.equivalent_entities(quads[0]))
-      mbImpl->add_adjacencies(quads[0], &hexes[1], 1, false);
-  if (mtu.equivalent_entities(quads[2]))
-      mbImpl->add_adjacencies(quads[2], &hexes[0], 1, false);
+    // remove hexes we want to keep
+  adj_ents.erase(hexes[0]);
+  adj_ents.erase(hexes[1]);
+  
+    // delete the other interior entities
+  result = mbImpl->delete_entities(adj_ents);
+  if (MB_SUCCESS != result) return result;
 
+  MBEntityHandle new_quad;
+  result = mbImpl->create_element(MBQUAD, &connects[3][0], 4, new_quad); RR;
+  if (need_explicit) {
+    result = mbImpl->add_adjacencies(new_quad, hexes, 2, false); RR;
+  }
+  
   if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
 
     // now update the dual
@@ -2666,66 +2693,17 @@ MBErrorCode DualTool::fsr_get_fourth_quad(std::vector<MBEntityHandle> *connects,
     // where the fourth is really the 4 vertices originally shared by the 2 hexes
     // before the face shrink on them
 
-    // get all verts in quads 0 and 2
-  MBRange outside_verts, all_verts;
-  std::copy(connects[0].begin(), connects[0].end(), mb_range_inserter(outside_verts));
-  std::copy(connects[2].begin(), connects[2].end(), mb_range_inserter(outside_verts));
-    // get all verts in all hexes by getting bridge adjacencies from inner quad;
-    // only need to do 2 verts, since that covers all the hexes
-  MeshTopoUtil mtu(mbImpl);
-  MBErrorCode result = mtu.get_bridge_adjacencies(connects[1][0], 3, 0, all_verts);
-  if (MB_SUCCESS != result) return result;
-  result = mtu.get_bridge_adjacencies(connects[1][2], 3, 0, all_verts);
-  if (MB_SUCCESS != result) return result;
-  for (int i = 0; i < 4; i++)
-    all_verts.erase(connects[1][i]);
-    // outside 4 verts are just difference
-  all_verts = all_verts.subtract(outside_verts);
-  if (all_verts.size() != 4) return MB_FAILURE;
-  std::copy(all_verts.begin(), all_verts.end(), std::back_inserter(connects[3]));
-  
-    // now align with other quads
-    // first get them in the right sequence by verifying shared edges
-  if (0 == mtu.common_entity(connects[3][0], connects[3][1], 1)) {
-    MBEntityHandle dum = connects[3][1];
-    connects[3][1] = connects[3][2];
-    connects[3][2] = dum;
-  }
-  if (0 == mtu.common_entity(connects[3][1], connects[3][2], 1)) {
-    MBEntityHandle dum = connects[3][2];
-    connects[3][2] = connects[3][3];
-    connects[3][3] = dum;
-  }
-  assert(0 != mtu.common_entity(connects[3][0], connects[3][1], 1) &&
-         0 == mtu.common_entity(connects[3][0], connects[3][2], 1));
-  
-    // now get offset, sense
-  int index = -1, sense = 0;
+    // vertex on 4th quad is in quad adj to other 3 verts
   for (int i = 0; i < 4; i++) {
-    if (0 != mtu.common_entity(connects[0][0], connects[3][i], 1)) {
-      index = i;
-      if (0 != mtu.common_entity(connects[0][1], connects[3][(i+1)%4], 1))
-        sense = 1;
-      else if (0 != mtu.common_entity(connects[0][1], connects[3][(i+4-1)%4], 1))
-        sense = -1;
-      break;
-    }
-  }
-
-  assert(index != -1 && sense != 0);
-  
-  if (sense == -1) {
-    MBEntityHandle dumh = connects[3][0];
-    connects[3][0] = connects[3][2];
-    connects[3][2] = dumh;
-    index = (index + 2)%4;
-  }
-
-  if (index != 0) {
-    std::vector<MBEntityHandle> tmpc;
-    for (int i = 0; i < 4; i++)
-      tmpc.push_back(connects[3][(index+i)%4]);
-    connects[3].swap(tmpc);
+    MBRange start_verts, tmp_verts, quads;
+    for (int j = 0; j < 3; j++) start_verts.insert(connects[j][i]);
+    MBErrorCode result = mbImpl->get_adjacencies(start_verts, 2, false, quads);
+    if (MB_SUCCESS != result) return result;
+    assert(quads.size() == 1);
+    result = mbImpl->get_adjacencies(&(*quads.begin()), 1, 0, false, tmp_verts); RR;
+    tmp_verts = tmp_verts.subtract(start_verts);
+    assert(1 == tmp_verts.size());
+    connects[3].push_back(*tmp_verts.begin());
   }
     
     // now get the side quads
@@ -2734,7 +2712,7 @@ MBErrorCode DualTool::fsr_get_fourth_quad(std::vector<MBEntityHandle> *connects,
     dum_ents.insert(connects[1][i]);
     dum_ents.insert(connects[1][(i+1)%4]);
     dum_ents.insert(connects[3][i]);
-    result = mbImpl->get_adjacencies(dum_ents, 3, false, hexes);
+    MBErrorCode result = mbImpl->get_adjacencies(dum_ents, 3, false, hexes);
     if (MB_SUCCESS != result) return result;
     assert(1 == hexes.size());
     

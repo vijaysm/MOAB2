@@ -137,6 +137,15 @@ MBErrorCode vtkMOABUtils::init(MBInterface *impl, vtkRenderer *this_ren)
     vtkMOABUtils::mbImpl = impl;
   }
 
+  MBErrorCode result = create_tags();
+  
+  make_properties();
+
+  return result;
+}
+
+MBErrorCode vtkMOABUtils::create_tags() 
+{
   MBErrorCode result = vtkMOABUtils::mbImpl->tag_get_handle(vtkCellTagName, vtkCellTag);
   if (MB_TAG_NOT_FOUND == result) {
     int def_val = -1;
@@ -179,9 +188,7 @@ MBErrorCode vtkMOABUtils::init(MBInterface *impl, vtkRenderer *this_ren)
                                 vtkPointAllocatedTag, &def_val);
   }
 
-  make_properties();
-
-  return result;
+  return MB_SUCCESS;
 }
 
 void vtkMOABUtils::make_properties() 
@@ -1106,7 +1113,7 @@ void vtkMOABUtils::update_display(vtkUnstructuredGrid *ug)
                                                             NULL, 0, &mesh_actor);
 
     if (MB_SUCCESS != result) {
-      std::cerr << "Failed to set actor for mesh in vtkMOABReader::Execute()." << std::endl;
+      std::cerr << "Failed to set actor for mesh in vtkMOABUtils::update_display()." << std::endl;
       return;
     }
     
@@ -1179,23 +1186,6 @@ void vtkMOABUtils::update_display(vtkUnstructuredGrid *ug)
   //! get rid of all the vtk drawing stuff
 void vtkMOABUtils::reset_drawing_data() 
 {
-  if (NULL != myRen) {
-    myRen->Delete();
-    myRen = NULL;
-  }
-
-  //! the default property
-  if (NULL != topProperty) {
-    topProperty->Delete();
-    topProperty = NULL;
-  }
-  
-  //! the highlight property
-  if (NULL != highlightProperty) {
-    highlightProperty->Delete();
-    highlightProperty = NULL;
-  }
-  
   actorProperties.clear();
 
     //! map between props (actor2d's and actors) and sets they represent (0 if no set, 
@@ -1213,11 +1203,6 @@ void vtkMOABUtils::reset_drawing_data()
     topParentAssy = NULL;
   }
 
-  if (NULL != lookupTable) {
-    lookupTable->Delete();
-    lookupTable = NULL;
-  }
-  
   if (NULL != drawDual) {
     delete drawDual;
     drawDual = NULL;
@@ -1234,24 +1219,31 @@ void vtkMOABUtils::reset_drawing_data()
   MBErrorCode result = mbImpl->tag_delete(vtkTopContainsTag);
   if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
     std::cout << "Trouble deleting tag." << std::endl;
+  vtkTopContainsTag = NULL;
 
   //! tag indicating whether a given set is in top parent assy
   result = mbImpl->tag_delete(vtkTopParentTag);
   if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
     std::cout << "Trouble deleting tag." << std::endl;
+  vtkTopParentTag = NULL;
   result = mbImpl->tag_delete(vtkCellTag);
   if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
     std::cout << "Trouble deleting tag." << std::endl;
+  vtkCellTag = NULL;
   result = mbImpl->tag_delete(vtkSetActorTag);
   if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
     std::cout << "Trouble deleting tag." << std::endl;
+  vtkSetActorTag = NULL;
   result = mbImpl->tag_delete(vtkSetPropAssemblyTag);
   if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
     std::cout << "Trouble deleting tag." << std::endl;
+  vtkSetPropAssemblyTag = NULL;
   result = mbImpl->tag_delete(vtkPointAllocatedTag);
   if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
     std::cout << "Trouble deleting tag." << std::endl;
+  vtkPointAllocatedTag = NULL;
 
+  create_tags();
 }
 
 void vtkMOABUtils::assign_global_ids()

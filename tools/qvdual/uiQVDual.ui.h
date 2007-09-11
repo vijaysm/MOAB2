@@ -106,12 +106,13 @@ void uiQVDual::fileSaveAs(const QString &filename)
 
   resetDisplay();
   
-  DualTool(vtkMOABUtils::mbImpl).delete_whole_dual();
+  DualTool dt(vtkMOABUtils::mbImpl);
+  dt.delete_whole_dual();
 
   computeDual = false;
 
   vtkMOABUtils::assign_global_ids();
-  
+
   vtkMOABUtils::mbImpl->write_mesh(filename.ascii());
 
   redrawDisplay();
@@ -1039,17 +1040,10 @@ void uiQVDual::resetDisplay()
   bool save_compute = computeDual;
 
   if (NULL != vtkMOABUtils::drawDual) {
-    MBRange sheets;
-    vtkMOABUtils::drawDual->reset_drawn_sheets(&sheets);
-
+    vtkMOABUtils::drawDual->reset_drawn_sheets();
   }
 
   vtkMOABUtils::reset_drawing_data();
-
-  if (NULL != vtkWidget) {
-    delete vtkWidget;
-    vtkWidget = NULL;
-  }
 
   computeDual = save_compute;
 }
@@ -1057,10 +1051,6 @@ void uiQVDual::resetDisplay()
 
 void uiQVDual::redrawDisplay()
 {
-    //resetDisplay();
-  
-    //this->init();
-  
   vtkMOABUtils::update_display();
 
   this->updateMesh();

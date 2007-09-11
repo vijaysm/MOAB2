@@ -246,6 +246,8 @@ public:
     //! debug parameter
   static bool debug;
   
+  static MBErrorCode create_tags();
+  
 private:
     //! private constructor so nobody can construct one
   vtkMOABUtils();

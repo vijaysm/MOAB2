@@ -1,7 +1,7 @@
 /****************************************************************************
 ** uiQVDual meta object code from reading C++ file 'uiQVDual.h'
 **
-** Created: Wed Aug 22 09:12:40 2007
+** Created: Mon Sep 10 16:49:21 2007
 **      by: The Qt MOC ($Id: qt/moc_yacc.cpp   3.3.7   edited Oct 19 16:22 $)
 **
 ** WARNING! All changes made in this file will be lost!

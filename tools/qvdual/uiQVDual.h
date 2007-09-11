@@ -1,7 +1,7 @@
 /****************************************************************************
 ** Form interface generated from reading ui file 'uiQVDual.ui'
 **
-** Created: Wed Aug 8 03:15:38 2007
+** Created: Mon Sep 10 16:49:13 2007
 **      by: The User Interface Compiler ($Id: qt/main.cpp   3.3.7   edited Aug 31 2005 $)
 **
 ** WARNING! All changes made in this file will be lost!
