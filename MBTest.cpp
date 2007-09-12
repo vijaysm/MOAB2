@@ -2815,6 +2815,38 @@ MBErrorCode mb_tags_test(MBInterface *MB)
   if( entities.size() != times)  //should get as many hexes as you perviously marked
     return MB_FAILURE;
 
+    // test fetch by tag value again, this time limiting the results
+    // to the contents of an entity set
+  MBEntityHandle meshset;
+  result = MB->create_meshset( MESHSET_SET, meshset );
+  if (MB_SUCCESS != result)
+    return result;
+  result = MB->add_entities( meshset, test_range );
+  if (MB_SUCCESS != result)
+    return result;
+  
+  
+    //fetch the hex entities of type--MBHEX, tag-"junk_tag", and tag value -- 3489
+  entities.clear();
+  result = MB->get_entities_by_type_and_tag(meshset, MBHEX, &junk_tag, 
+                                      &ptr_data, 1, entities );
+  if (MB_SUCCESS != result)
+    return result;
+ 
+  if( entities.size() != times)  //should get as many hexes as you perviously marked
+    return MB_FAILURE;
+
+    //fetch the hex entities of type--MBHEX, tag-"stale_bits", and tag value -- 0x5
+  entities.clear();
+  result = MB->get_entities_by_type_and_tag(meshset, MBHEX, &stale_bits, 
+                                      &ptr_bits, 1, entities );
+  if (MB_SUCCESS != result)
+    return result;
+ 
+  if( entities.size() != times)  //should get as many hexes as you perviously marked
+    return MB_FAILURE;
+
+
   result = MB->tag_delete(stale_bits);
   if (MB_SUCCESS != result)
     return result;
