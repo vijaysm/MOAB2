@@ -2847,6 +2847,24 @@ MBErrorCode mb_tags_test(MBInterface *MB)
     return MB_FAILURE;
 
 
+    // now try the query with an empty meshset, expecting to get back
+    // an empty MBRange
+
+  result = MB->create_meshset( MESHSET_SET, meshset );
+  if (MB_SUCCESS != result)
+    return result;
+    
+  entities.clear();
+  result = MB->get_entities_by_type_and_tag(meshset, MBHEX, &junk_tag, 
+                                      &ptr_data, 1, entities );
+  if (MB_SUCCESS != result)
+    return result;
+    
+  if(!entities.empty())
+    return MB_FAILURE;
+  
+
+
   result = MB->tag_delete(stale_bits);
   if (MB_SUCCESS != result)
     return result;
