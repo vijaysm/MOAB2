@@ -58,7 +58,7 @@ enum MBTagType {
   MB_TAG_SPARSE,  /**< tags stored in (entity handle, tag value) pairs */
   MB_TAG_DENSE,   /**< tags stored in vectors directly on entity sequences, cheaper for tags which go on lots of entities */ 
   MB_TAG_MESH, 
-  MB_TAG_LAST};
+  MB_TAG_LAST=MB_TAG_MESH};
 
 /** Specify data type for tags. */
 enum MBDataType {

@@ -1,4 +1,27 @@
 Version beta: 
+- Fixed bug in get_entities_by_type_and_tag for cases with non-zero
+input set which has or doesn't have entities
+
+Version 3.0.0 (SVN tag 3.0.0):
+- Updated QVDual to work with new versions of VTK and removed
+dependence on graphviz
+- Move ITAPS/TSTT interface implementation into tools/iMesh and make
+it work with configure system
+- Implement new version number system
+- Incorporate DagMC library (does fast facet-based
+ray tracing) into tools/dagmc
+- Prefer g++ to pgCC in configure scripts
+- Many improvements in kd tree functionality, performance
+- Move entity sets to be stored in sequences, better performance &
+functionality
+- Improved various file writers/readers, including:
+. Better performance of HDF5 file reader
+. Configuration with/without HDF5, netcdf
+. Vtk writer improvements
+- Added functions to MBInterface to get memory usage of MOAB
+- Fixes to various MBCN functions for 64-bit builds
+- Small changes to #defines of some tag names in MBTagConventions.hpp
+
 
 Version 2.00 (CVS tag version_200):
 - New MBInterface method to get blocked coordinate data for vertices.

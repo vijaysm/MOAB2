@@ -5,6 +5,7 @@
 #include "MBError.hpp"
 #include "MBReaderWriterSet.hpp"
 #include "MBParallelComm.hpp"
+#include "MBCN.hpp"
 
 #define RR if (MB_SUCCESS != result) return result
 
@@ -175,15 +176,21 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &partition_name,
     // merge partition ents into pre-existing entities
   exist_ents.merge(partition_ents);
   
-    // gather adjacent verts and add to existing ents
+    // gather adjacent ents of lower dimension and add to existing ents
   MBRange tmp_ents;
-  MBRange::iterator bit = exist_ents.lower_bound(MBEDGE),
-    eit = exist_ents.upper_bound(MBENTITYSET);
-  MBRange from_ents(*bit, *eit);
-  from_ents = from_ents.intersect(exist_ents);
-  result = mbImpl->get_adjacencies(from_ents, 0, false, tmp_ents, 
-                                   MBInterface::UNION); RR;
-  exist_ents.merge(tmp_ents);
+  for (int dim = 2; dim >= 0; dim--) {
+    MBEntityType lower_type = MBVERTEX, upper_type = MBENTITYSET;
+    while (MBMAXTYPE != lower_type && MBCN::Dimension(lower_type) < dim+1) lower_type++;
+    
+    MBRange::iterator bit = exist_ents.lower_bound(lower_type),
+      eit = exist_ents.upper_bound(upper_type);
+    MBRange from_ents(*bit, *eit);
+    from_ents = from_ents.intersect(exist_ents);
+    tmp_ents.clear();
+    result = mbImpl->get_adjacencies(from_ents, dim, false, tmp_ents, 
+                                     MBInterface::UNION); RR;
+    exist_ents.merge(tmp_ents);
+  }
   
     // subtract from all ents to get deletable ents
   all_ents = all_ents.subtract(exist_ents);
@@ -193,7 +200,7 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &partition_name,
   result = mbImpl->get_entities_by_type(0, MBENTITYSET, all_sets);
   for (MBRange::iterator rit = all_sets.begin(); rit != all_sets.end(); rit++) {
     tmp_ents.clear();
-    result = mbImpl->get_entities_by_handle(*rit, tmp_ents); RR;
+    result = mbImpl->get_entities_by_handle(*rit, tmp_ents, true); RR;
     tmp_ents = tmp_ents.intersect(exist_ents);
     
       // if the intersection is empty, set is deletable

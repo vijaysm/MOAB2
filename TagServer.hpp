@@ -277,7 +277,7 @@ private:
   //! Table of tag ids and tag information
   //! Primary (array) index is tag type.  
   //! Secondary (std::vector) index is tag id less one (tag ids begin with 1).
-  std::vector<TagInfo> mTagTable[MB_TAG_LAST];
+  std::vector<TagInfo> mTagTable[MB_TAG_LAST+1];
 
   //! container for storing the sparse data and tag ids
   SparseTagSuperCollection* mSparseData;

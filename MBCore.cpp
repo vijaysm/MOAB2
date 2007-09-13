@@ -1589,7 +1589,7 @@ MBErrorCode MBCore::tag_get_default_value(const MBTag tag_handle, void *def_valu
 MBErrorCode MBCore::tag_get_type(const MBTag tag_handle, MBTagType &tag_type) const
 {
   tag_type = PROP_FROM_TAG_HANDLE(tag_handle);
-  return tag_type < MB_TAG_LAST ? MB_SUCCESS : MB_TAG_NOT_FOUND;
+  return tag_type < MB_TAG_LAST+1 ? MB_SUCCESS : MB_TAG_NOT_FOUND;
 }
 
   //! get handles for all tags defined

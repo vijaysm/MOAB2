@@ -61,7 +61,7 @@ int main()
   const unsigned cpus[] = { 1, 4, 16, 5, 20 };
   const int num_cpus = sizeof(cpus)/sizeof(cpus[0]);
   unsigned errors = 0, tests = 0;
-  const int num_prop = MB_TAG_LAST;
+  const int num_prop = MB_TAG_LAST+1;
   
   ++tests;
   if (MB_TAG_LAST > num_prop) {
