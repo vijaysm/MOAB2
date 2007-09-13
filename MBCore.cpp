@@ -39,6 +39,8 @@
 #include "MBReaderWriterSet.hpp"
 #include "MBReaderIface.hpp"
 #include "MBWriterIface.hpp"
+#include "ReadParallel.hpp"
+
 #ifdef HDF5_FILE
 #  include "WriteHDF5.hpp"
    typedef WriteHDF5 DefaultWriter;
@@ -353,107 +355,40 @@ MBErrorCode MBCore::load_file( const char* file_name,
     num_blocks = num_set_tag_values;
   }
   
-    // Get parallel settings
-  int parallel_mode;
-  const char* parallel_opts[] = { "NONE", "SEND", "FORMAT", 0 };
-  rval = opts.match_option( "PARALLEL", parallel_opts, parallel_mode );
-  if (MB_FAILURE == rval) {
-    mError->set_last_error( "Unexpected value for 'PARALLEL' option\n" );
-    return MB_FAILURE;
+    // if reading in parallel, call a different reader
+  std::string parallel_opt;
+  rval = opts.get_option( "PARALLEL", parallel_opt);
+  if (MB_SUCCESS == rval && !parallel_opt.empty()) {
+    return ReadParallel(this).load_file(file_name, file_set, opts,
+                                        block_id_list, num_blocks);
   }
-  else if (MB_ENTITY_NOT_FOUND == rval) {
-    parallel_mode = 0;
+
+    // otherwise try using the file extension to select a reader
+  MBReaderIface* reader = set->get_file_extension_reader( file_name );
+  if (reader)
+  { 
+    rval = reader->load_file( file_name, file_set, opts, block_id_list, num_blocks );
+    delete reader;
   }
-    // Get partition setting
-  bool do_partition = false;
-  rval = opts.get_null_option( "PARTITION" );
-  if (MB_SUCCESS == rval) 
-    do_partition = true;
-  else if (MB_ENTITY_NOT_FOUND != rval) {
-    mError->set_last_error( "Unexpected value for 'PARTITION' option\n" );
-    return MB_FAILURE;
-  }
-    // get MPI IO processor rank
-  int reader_rank;
-  rval = opts.get_int_option( "MPI_IO_RANK", reader_rank );
-  if (MB_ENTITY_NOT_FOUND == rval)
-    reader_rank = 0;
-  else if (MB_SUCCESS != rval) {
-    mError->set_last_error( "Unexpected value for 'MPI_IO_RANK' option\n" );
-    return MB_FAILURE;
-  }
-  
-  
-    // now that we've parsed all the parallel options, return
-    // failure for most of them because we haven't implemented 
-    // most of them yet.
-  if (parallel_mode == 2) {
-    mError->set_last_error( "Access to format-specific parallel read not implemented.\n");
-    return MB_NOT_IMPLEMENTED;
-  }
-  if (do_partition && parallel_mode == 1) {
-    mError->set_last_error( "Partitioning for PARALLEL=SEND not supported yet.\n");
-    return MB_NOT_IMPLEMENTED;
-  }
-  
-  if (parallel_mode != 1 || reader_rank == (int)proc_config().rank()) {
-      // Try using the file extension to select a reader
-    MBReaderIface* reader = set->get_file_extension_reader( file_name );
-    if (reader)
-    { 
-      rval = reader->load_file( file_name, file_set, opts, block_id_list, num_blocks );
-      delete reader;
-    }
-    else
-    {  
-        // Try all the readers
-      MBReaderWriterSet::iterator iter;
-      for (iter = set->begin(); iter != set->end(); ++iter)
+  else
+  {  
+      // Try all the readers
+    MBReaderWriterSet::iterator iter;
+    for (iter = set->begin(); iter != set->end(); ++iter)
+    {
+      MBReaderIface* reader = iter->make_reader( this );
+      if (NULL != reader)
       {
-        MBReaderIface* reader = iter->make_reader( this );
-        if (NULL != reader)
-        {
-          rval = reader->load_file( file_name, file_set, opts, block_id_list, num_blocks );
-          delete reader;
-          if (MB_SUCCESS == rval)
-            break;
-        }
+        rval = reader->load_file( file_name, file_set, opts, block_id_list, num_blocks );
+        delete reader;
+        if (MB_SUCCESS == rval)
+          break;
       }
     }
   }
-  else {
-    rval = MB_SUCCESS;
-  }
-  
-  if (parallel_mode == 1) {
-    MBRange entities; 
-    if (MB_SUCCESS == rval && reader_rank == (int)proc_config().rank()) {
-      rval = get_entities_by_handle( file_set, entities );
-      if (MB_SUCCESS != rval)
-        entities.clear();
-    }
-    
-    MBParallelComm tool( this, tagServer, sequenceManager );
-    MBErrorCode tmp_rval = tool.broadcast_entities( reader_rank, entities );
-    if (MB_SUCCESS != rval)
-      tmp_rval = rval;
-      
-    if (MB_SUCCESS == rval && reader_rank != (int)proc_config().rank()) {
-      rval = create_meshset( MESHSET_SET, file_set );
-      if (MB_SUCCESS == rval) {
-        rval = add_entities( file_set, entities );
-        if (MB_SUCCESS != rval) {
-          delete_entities( &file_set, 1 );
-          file_set = 0;
-        }
-      }
-    }
-  } 
   
   return rval; 
 }
-  
-
 
 MBErrorCode  MBCore::write_mesh(const char *file_name,
                                   const MBEntityHandle *output_list,
@@ -1244,26 +1179,32 @@ MBErrorCode MBCore::get_entities_by_type_and_tag(const MBEntityHandle meshset,
 {
   if (recursive && type == MBENTITYSET)  // will never return anything
     return MB_TYPE_OUT_OF_RANGE;
-  
+
   MBErrorCode result;
-  if (meshset) {
-    MBRange tmp_range;
-    result = get_entities_by_type( meshset, type, tmp_range, recursive );
-    if (MB_SUCCESS != result)
-      return result;
-    result = tagServer->get_entities_with_tag_values(tmp_range, type, 
-                                                     tags, values, num_tags, 
-                                                     entities, condition); 
-    entities.merge( tmp_range ); 
+  MBRange tmp_range;
+
+  result = get_entities_by_type( meshset, type, tmp_range, recursive );
+  if (MB_SUCCESS != result)
+    return result;
+
+    // if range is empty, return right away; if intersecting condition, 
+    // empty the list too
+  if (tmp_range.empty()) {
+    if (MBInterface::INTERSECT == condition) entities.clear();
+    return MB_SUCCESS;
   }
-  
-  else 
-    result = tagServer->get_entities_with_tag_values( type, tags, values, num_tags, 
-                                                      entities, condition);
+  else if (!entities.empty() && MBInterface::INTERSECT == condition) {
+    entities = entities.intersect(tmp_range);
+    if (entities.empty()) return MB_SUCCESS;
+    tmp_range = entities;
+  }
+    
+  result = tagServer->get_entities_with_tag_values(tmp_range, type, 
+                                                   tags, values, num_tags, 
+                                                   entities, condition); 
   
   return result;
 }
-
 
 MBErrorCode MBCore::get_entities_by_handle(const MBEntityHandle meshset,
                                              MBRange &entities,

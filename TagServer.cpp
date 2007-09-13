@@ -155,6 +155,9 @@ MBErrorCode TagServer::add_tag( const char *tag_name,
     case MB_TAG_MESH:
       result = MB_SUCCESS;
       break;
+    case MB_TAG_LAST:
+      assert(false);
+      break;
   }
   
   if (MB_SUCCESS != result)
@@ -185,6 +188,9 @@ MBErrorCode TagServer::remove_tag(const MBTag tag_handle)
       break;
     case MB_TAG_MESH:
       status = MB_SUCCESS;
+      break;
+    case MB_TAG_LAST:
+      assert(false);
       break;
   }
   
@@ -265,6 +271,8 @@ MBErrorCode TagServer::set_data(const MBTag tag_handle,
     case MB_TAG_DENSE:
       return mDenseData->set_data(id, entity_handle, data);
     case MB_TAG_MESH:
+      return MB_FAILURE;
+    case MB_TAG_LAST:
       return MB_FAILURE;
   }
   return MB_FAILURE;
@@ -420,6 +428,10 @@ MBErrorCode TagServer::get_data(const MBTag tag_handle,
       result = get_bits(tag_handle, entity_handle, *((unsigned char *)data));
       break;
     case MB_TAG_MESH:
+      result = MB_FAILURE;
+      break;
+    case MB_TAG_LAST:
+      assert(false);
       result = MB_FAILURE;
       break;
   }
@@ -679,6 +691,8 @@ MBErrorCode TagServer::remove_data( const MBTag tag_handle, const MBEntityHandle
       return MB_FAILURE;
     case MB_TAG_MESH:
       return MB_FAILURE;
+    case MB_TAG_LAST:
+      return MB_FAILURE;
   }
   
   return MB_TAG_NOT_FOUND;
@@ -721,6 +735,9 @@ MBErrorCode TagServer::get_entities(const MBTag tag_handle, const MBEntityType t
     case MB_TAG_MESH:
       result = MB_TYPE_OUT_OF_RANGE;
       break;
+    case MB_TAG_LAST:
+      result = MB_TYPE_OUT_OF_RANGE;
+      break;
   }
   
   return result;
@@ -744,6 +761,9 @@ MBErrorCode TagServer::get_entities(const MBRange &range,
       result = mBitServer->get_entities(range, id, type, entities);
       break;
     case MB_TAG_MESH:
+      result = MB_TYPE_OUT_OF_RANGE;
+      break;
+    case MB_TAG_LAST:
       result = MB_TYPE_OUT_OF_RANGE;
       break;
   }
@@ -773,6 +793,9 @@ MBErrorCode TagServer::get_entities_with_tag_value( const MBEntityType type,
     case MB_TAG_MESH:
       result = MB_TYPE_OUT_OF_RANGE;
       break;
+    case MB_TAG_LAST:
+      result = MB_TYPE_OUT_OF_RANGE;
+      break;
   }
 
   return result;
@@ -780,10 +803,10 @@ MBErrorCode TagServer::get_entities_with_tag_value( const MBEntityType type,
 }
 
 MBErrorCode TagServer::get_entities_with_tag_value( const MBRange &range,
-                                                     const MBEntityType type,
-                                                     const MBTag tag_handle,
-                                                     const void* value,
-                                                     MBRange &entities ) 
+                                                    const MBEntityType type,
+                                                    const MBTag tag_handle,
+                                                    const void* value,
+                                                    MBRange &entities ) 
 {
 
   MBErrorCode result = MB_TAG_NOT_FOUND;
@@ -802,73 +825,16 @@ MBErrorCode TagServer::get_entities_with_tag_value( const MBRange &range,
     case MB_TAG_MESH:
       result = MB_TYPE_OUT_OF_RANGE;
       break;
+    case MB_TAG_LAST:
+      result = MB_TYPE_OUT_OF_RANGE;
+      break;
   }
 
   return result;
   
 }
 
-MBErrorCode TagServer::get_entities_with_tag_values( MBEntityType type,
-                                                      const MBTag *tags,
-                                                      const void* const* values,
-                                                      const int num_tags,
-                                                      MBRange &entities,
-                                                      const int condition) 
-{
-  MBErrorCode result;
-  MBRange temp1, temp2;
-
-  if (condition != MBInterface::INTERSECT &&
-      condition != MBInterface::UNION)
-    return MB_FAILURE;
-
-    // if there aren't any values we're looking for, it has to be union
-  //This doesn't make sense to me so I removed it -- J.Kraftcheck
-  //int temp_condition = (NULL == values ? MBInterface::UNION : condition);
-  
-  for (unsigned int it = 0; it < (unsigned int) num_tags; it++) {
-      // get all entities with this tag/value combo
-
-      // running result is in entities; temp1 and temp2 are working lists
-    temp1.clear();
-    temp2.clear();
-
-      // get the sets with this tag/value combo in temp1
-    if (NULL == values || NULL == values[it]) 
-      result = get_entities(tags[it], type, temp1);
-    else
-      result = get_entities_with_tag_value(type, tags[it], values[it], temp1);
-
-      // if we're doing a running intersection and we're just starting and
-      // the list comes in empty, the 1st result is the start
-    if (0 == it && condition == MBInterface::INTERSECT && entities.empty()) {
-      entities = temp1;
-      if (entities.empty()) return MB_SUCCESS;
-    }
-
-      // else if we're doing a running intersection, intersect this result (temp1)
-      // with the running result (entities) into temp2, then move that to the running
-      // result (entities)
-    else if (condition == MBInterface::INTERSECT) {
-      std::set_intersection(entities.begin(), entities.end(),
-                            temp1.begin(), temp1.end(),
-                            mb_range_inserter(temp2));
-      entities = temp2;
-      if (entities.empty()) return MB_SUCCESS;
-    }
-
-      // else if we're doing a union, put these results (temp1) into the running result (entities)
-      // and re-sort the running result
-    else if (condition == MBInterface::UNION) {
-      entities.merge(temp1);
-    }
-  }
-
-    // running result is in entities, where it should be
-  return MB_SUCCESS;
-}
-
-MBErrorCode TagServer::get_entities_with_tag_values( const MBRange &range,
+MBErrorCode TagServer::get_entities_with_tag_values( const MBRange &input_range,
                                                       const MBEntityType type,
                                                       const MBTag *tags,
                                                       const void* const* values,
@@ -876,62 +842,54 @@ MBErrorCode TagServer::get_entities_with_tag_values( const MBRange &range,
                                                       MBRange &entities,
                                                       const int condition) 
 {
+    // range should never come in empty
+  assert(!input_range.empty());
+  if (input_range.empty()) return MB_FAILURE;
+  MBRange range = input_range;
+  
   MBErrorCode result;
-  MBRange temp1, temp2;
+  MBRange temp1;
 
   if (condition != MBInterface::INTERSECT &&
       condition != MBInterface::UNION)
     return MB_FAILURE;
 
-    // if there aren't any values we're looking for, it has to be union
-  //This doesn't make sense to me so I removed it -- J.Kraftcheck
-  //int temp_condition = (NULL == values ? MBInterface::UNION : condition);
-  
   for (unsigned int it = 0; it < (unsigned int) num_tags; it++) {
       // get all entities with this tag/value combo
 
       // running result is in entities; temp1 and temp2 are working lists
     temp1.clear();
-    temp2.clear();
 
       // get the sets with this tag/value combo in temp1
     if (NULL == values || NULL == values[it]) 
-      result = get_entities(tags[it], type, temp1);
+      result = get_entities(range, tags[it], type, temp1);
     else
-      result = get_entities_with_tag_value(type, tags[it], values[it], temp1);
+      result = get_entities_with_tag_value(range, type, tags[it], values[it], temp1);
 
       // if we're doing a running intersection and we're just starting and
       // the list comes in empty, the 1st result is the start
     if (0 == it && condition == MBInterface::INTERSECT && entities.empty()) {
-      temp1 = entities;
+      entities = temp1.intersect(range);
     }
 
       // else if we're doing a running intersection, intersect this result (temp1)
       // with the running result (entities) into temp2, then move that to the running
       // result (entities)
     else if (condition == MBInterface::INTERSECT) {
-      std::set_intersection(entities.begin(), entities.end(),
-                            temp1.begin(), temp1.end(),
-                            mb_range_inserter(temp2));
-      entities = temp2;
+      entities = entities.intersect(temp1);
       if (entities.empty()) return MB_SUCCESS;
+
+        // also restrict the range at which we look; entities has already been 
+        // intersected with range (through input to get_entities above) so just assign
+      range = entities;
     }
 
-      // else if we're doing a union, put these results (temp1) into the running result (entities)
-      // and re-sort the running result
+      // else if we're doing a union, put these results (temp1) into the running 
+      // result (entities)
     else if (condition == MBInterface::UNION) {
       entities.merge(temp1);
     }
-
-    if (!range.empty()) {
-        // need to intersect results with what's in range
-      temp1.clear();
-      std::set_intersection(entities.begin(), entities.end(),
-                            range.begin(), range.end(),
-                            mb_range_inserter(temp1));
-    }
   }
-
 
     // running result is in entities, where it should be
   return MB_SUCCESS;
@@ -965,6 +923,8 @@ MBErrorCode TagServer::get_number_entities( const MBTag tag_handle,
       return mBitServer->get_number_entities(id, type, num_entities);
     case MB_TAG_MESH:
       return MB_TYPE_OUT_OF_RANGE;
+    case MB_TAG_LAST:
+      return MB_TYPE_OUT_OF_RANGE;
   }
   return MB_TAG_NOT_FOUND;
 }
@@ -983,6 +943,8 @@ MBErrorCode TagServer::get_number_entities( const MBRange &range,
     case MB_TAG_BIT:
       return mBitServer->get_number_entities(range, id, type, num_entities);
     case MB_TAG_MESH:
+      return MB_TYPE_OUT_OF_RANGE;
+    case MB_TAG_LAST:
       return MB_TYPE_OUT_OF_RANGE;
   }
   return MB_TAG_NOT_FOUND;
@@ -1006,6 +968,8 @@ unsigned long TagServer::get_memory_use( MBTag tag_handle ) const
       mBitServer->get_memory_use( id, result, tmp );
       break;
     case MB_TAG_MESH:
+      break;
+    case MB_TAG_LAST:
       break;
   }
 
@@ -1033,6 +997,8 @@ MBErrorCode TagServer::get_memory_use( MBTag tag_handle,
       mBitServer->get_memory_use( id, total, per_entity );
       break;
     case MB_TAG_MESH:
+      break;
+    case MB_TAG_LAST:
       break;
   }
   

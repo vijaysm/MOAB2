@@ -220,13 +220,6 @@ public:
                                             const void* value,
                                             MBRange &entities );
   
-  MBErrorCode get_entities_with_tag_values( MBEntityType type,
-                                             const MBTag *tags,
-                                             const void* const* values,
-                                             const int num_tags,
-                                             MBRange &entities,
-                                             const int condition);
-  
   MBErrorCode get_entities_with_tag_values( const MBRange &input_range,
                                              const MBEntityType type,
                                              const MBTag *tags,

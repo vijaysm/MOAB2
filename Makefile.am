@@ -145,6 +145,8 @@ libMOAB_la_SOURCES = \
   PolyEntitySequence.hpp \
   ReadGmsh.cpp \
   ReadGmsh.hpp \
+  ReadParallel.hpp \
+  ReadParallel.cpp \
   ReadSTL.cpp \
   ReadSTL.hpp \
   ReadVtk.cpp \
