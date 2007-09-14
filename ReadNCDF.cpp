@@ -600,7 +600,17 @@ MBErrorCode ReadNCDF::read_nodes()
     }
   }
 
-  return MB_SUCCESS;
+    // loaded successfully; add these nodes to loading set
+  int ierr = 0;
+  MBEntityHandle end_handle = CREATE_HANDLE(MBVERTEX, 
+                                            ID_FROM_HANDLE(node_handle)+
+                                            numberNodes_loading-1,
+                                            ierr);
+  if (0 != ierr) return MB_FAILURE;
+  MBErrorCode result = mdbImpl->add_entities(mCurrentMeshHandle,
+                                             MBRange(node_handle, end_handle));
+  
+  return result;
 }
 
 MBErrorCode ReadNCDF::read_block_headers(const int *blocks_to_load,
@@ -725,13 +735,13 @@ MBErrorCode ReadNCDF::remove_previously_loaded_blocks(const int *blocks_to_load,
   // that were read before.
 
   //get all the blocks of mCurrentMeshHandle
-  std::vector< MBEntityHandle > child_meshsets; 
-  if(mdbImpl->get_child_meshsets( mCurrentMeshHandle, child_meshsets ) != MB_SUCCESS )
+  MBRange child_meshsets; 
+  if(mdbImpl->get_entities_by_type(mCurrentMeshHandle, MBENTITYSET, child_meshsets ) != MB_SUCCESS )
     return MB_FAILURE;
 
   MBTag tag_handle;
 
-  std::vector<MBEntityHandle>::iterator iter, end_iter;
+  MBRange::iterator iter, end_iter;
  
   //get the block id offset 
   int id_offset = 0;
@@ -872,7 +882,7 @@ MBErrorCode ReadNCDF::read_elements()
         return MB_FAILURE;
 
       //add the meshset to the mCurrentMeshHandle
-      if( mdbImpl->add_parent_child( mCurrentMeshHandle, ms_handle ) != MB_SUCCESS )
+      if( mdbImpl->add_entities( mCurrentMeshHandle, &ms_handle, 1 ) != MB_SUCCESS )
         return MB_FAILURE;
       
     // just a check because the following code won't work if this case fails
@@ -913,6 +923,9 @@ MBErrorCode ReadNCDF::read_elements()
     if( mdbImpl->tag_set_data( mGlobalIdTag, &ms_handle, 1, &block_id ) != MB_SUCCESS )
       return MB_FAILURE;
 
+      // success; add new elements to file set
+    if (mdbImpl->add_entities( mCurrentMeshHandle, new_range) != MB_SUCCESS)
+      return MB_FAILURE;
   }
 
   delete [] temp_string;
@@ -1064,11 +1077,12 @@ MBErrorCode ReadNCDF::read_nodesets()
     }
 
       // Maybe there is already a nodesets meshset here we can append to 
-    std::vector<MBEntityHandle> child_meshsets;
-    if( mdbImpl->get_child_meshsets( mCurrentMeshHandle, child_meshsets ) != MB_SUCCESS ) 
+    MBRange child_meshsets;
+    if( mdbImpl->get_entities_by_handle( mCurrentMeshHandle, 
+                                         child_meshsets ) != MB_SUCCESS ) 
       return MB_FAILURE;
 
-    std::vector<MBEntityHandle>::iterator iter, end_iter;
+    MBRange::iterator iter, end_iter;
     iter = child_meshsets.begin();
     end_iter = child_meshsets.end();
 
@@ -1126,7 +1140,7 @@ MBErrorCode ReadNCDF::read_nodesets()
     {
       if( mdbImpl->create_meshset( MESHSET_ORDERED | MESHSET_TRACK_OWNER, ns_handle ) != MB_SUCCESS) 
         return MB_FAILURE;
-      if( mdbImpl->add_parent_child( mCurrentMeshHandle, ns_handle ) != MB_SUCCESS )
+      if( mdbImpl->add_entities( mCurrentMeshHandle, &ns_handle, 1 ) != MB_SUCCESS )
         return MB_FAILURE;
 
         // set a tag signifying dirichlet bc
@@ -1213,11 +1227,12 @@ MBErrorCode ReadNCDF::read_sidesets()
     return MB_FAILURE;
 
   // Maybe there is already a sidesets meshset here we can append to 
-  std::vector<MBEntityHandle> child_meshsets;
-  if( mdbImpl->get_child_meshsets( mCurrentMeshHandle, child_meshsets ) != MB_SUCCESS ) 
+  MBRange child_meshsets;
+  if( mdbImpl->get_entities_by_type( mCurrentMeshHandle, MBENTITYSET, 
+                                     child_meshsets ) != MB_SUCCESS ) 
     return MB_FAILURE;
 
-  std::vector<MBEntityHandle>::iterator iter, end_iter;
+  MBRange::iterator iter, end_iter;
 
   int i;
   char *temp_string = new char[max_str_length+1];
@@ -1308,7 +1323,7 @@ MBErrorCode ReadNCDF::read_sidesets()
           return MB_FAILURE;
         if( mdbImpl->tag_set_data(mGlobalIdTag, &ss_handle, 1, &sideset_id ) != MB_SUCCESS)
           return MB_FAILURE;
-        if( mdbImpl->add_parent_child( mCurrentMeshHandle, ss_handle ) != MB_SUCCESS )
+        if( mdbImpl->add_entities( mCurrentMeshHandle, &ss_handle, 1 ) != MB_SUCCESS )
           return MB_FAILURE;
 
         if (!reverse_entities.empty()) {
