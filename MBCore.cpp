@@ -1884,6 +1884,11 @@ MBErrorCode MBCore::list_entity(const MBEntityHandle entity) const
   MBErrorCode result;
   MBHandleVec adj_vec;
 
+  if (!is_valid(entity)) {
+    std::cout << "(invalid)" << std::endl;
+    return MB_SUCCESS;
+  }
+
   if (0 != globalIdTag) {
     int dum;
     result = tag_get_data(globalIdTag, &entity, 1, &dum);
@@ -2498,17 +2503,7 @@ void MBCore::print(const MBEntityHandle ms_handle, const char *prefix,
     
   std::string indent_prefix = prefix;
   indent_prefix += "  ";
-  for (MBRange::iterator it = entities.begin(); 
-       it != entities.end(); it++) 
-  {
-    if (TYPE_FROM_HANDLE(*it) == MBENTITYSET) {
-      print(*it, indent_prefix.c_str(), false);
-    }
-    else if (first_call) {
-      std::cout << prefix << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*it)) << " " 
-                << ID_FROM_HANDLE(*it) << std::endl;
-    }
-  }
+  entities.print(indent_prefix.c_str());
 
   if (!first_call || !ms_handle) return;
   
@@ -2536,7 +2531,48 @@ void MBCore::print(const MBEntityHandle ms_handle, const char *prefix,
     }
     std::cout << std::endl;
   }
+
+    // print all sparse tags
+  std::vector<MBTag> set_tags;
+  MBErrorCode result = this->tag_get_tags_on_entity(ms_handle, set_tags);
+  std::cout << indent_prefix << "Sparse tags:" << std::endl;
+  indent_prefix += "  ";
   
+  for (std::vector<MBTag>::iterator vit = set_tags.begin(); 
+       vit != set_tags.end(); vit++) {
+    MBTagType this_type;
+    result = this->tag_get_type(*vit, this_type);
+    if (MB_SUCCESS != result || MB_TAG_SPARSE != this_type) continue;
+    MBDataType this_data_type;
+    result = this->tag_get_data_type(*vit, this_data_type);
+    int this_size;
+    result = this->tag_get_size(*vit, this_size);
+    if (MB_SUCCESS != result || (int) sizeof(double) < this_size) continue;
+      // use double since this is largest single-valued tag
+    double this_val;
+    result = this->tag_get_data(*vit, &ms_handle, 1, &this_val);
+    if (MB_SUCCESS != result) continue;
+    std::string tag_name;
+    result = this->tag_get_name(*vit, tag_name);
+    if (MB_SUCCESS != result) continue;
+    switch (this_data_type) {
+      case MB_TYPE_INTEGER:
+        std::cout << indent_prefix << tag_name << " = " 
+                  << *((int*)&this_val) << std::endl;
+        break;
+      case MB_TYPE_DOUBLE:
+        std::cout << indent_prefix << tag_name << " = " 
+                  << this_val << std::endl;
+        break;
+      case MB_TYPE_HANDLE:
+        std::cout << indent_prefix << tag_name << " = " 
+                  << *((MBEntityID*)&this_val) << std::endl;
+        break;
+      case MB_TYPE_BIT:
+      case MB_TYPE_OPAQUE:
+        break;
+    }
+  }
 }
 
 MBErrorCode MBCore::check_adjacencies() 
@@ -2635,7 +2671,7 @@ MBErrorCode MBCore::check_adjacencies(const MBEntityHandle *ents, int num_ents)
   return MB_SUCCESS;
 }
 
-bool MBCore::is_valid(const MBEntityHandle this_ent) 
+bool MBCore::is_valid(const MBEntityHandle this_ent) const
 {
   MBEntitySequence* seq = 0;
   MBErrorCode result = sequence_manager()->find(this_ent, seq);

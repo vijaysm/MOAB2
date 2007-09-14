@@ -126,7 +126,7 @@ MBErrorCode gather_set_stats( MBEntityHandle set, set_stats& stats )
     int num_edges = MBCN::NumSubEntities( type, 1 );
     
     MBRange range;
-    rval = moab.get_entities_by_type( set, type, range, false );
+    rval = moab.get_entities_by_type( set, type, range, true );
     if (MB_SUCCESS != rval) return rval;
     for (MBRange::iterator i = range.begin(); i != range.end(); ++i)
     {

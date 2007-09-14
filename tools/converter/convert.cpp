@@ -431,9 +431,9 @@ int main(int argc, char* argv[])
     }
     for (i = 0; i < num_sets; ++i) {
       MBRange dim3, dim2, adj;
-      gMB->get_entities_by_dimension( sets[i], 3, dim3 );
+      gMB->get_entities_by_dimension( sets[i], 3, dim3, true );
       if (generate[1]) {
-        gMB->get_entities_by_dimension( sets[i], 2, dim2 );
+        gMB->get_entities_by_dimension( sets[i], 2, dim2, true );
         gMB->get_adjacencies( dim3, 1, true, adj, MBInterface::UNION );
         gMB->get_adjacencies( dim2, 1, true, adj, MBInterface::UNION );
       }

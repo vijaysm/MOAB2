@@ -537,15 +537,18 @@ void MBRange::sanity_check() const
 }
 
 // for debugging
-void MBRange::print() const
+void MBRange::print(const char *indent_prefix) const
 {
-  print( std::cout );
+  print(std::cout, indent_prefix);
 }
 
-void MBRange::print( std::ostream& stream ) const
+void MBRange::print(std::ostream& stream, const char *indent_prefix) const
 {
+  std::string indent_prefix_str;
+  if (NULL != indent_prefix) indent_prefix_str += indent_prefix;
+  
   if (empty()) {
-    stream << "\tempty" << std::endl;
+    stream << indent_prefix_str << "\tempty" << std::endl;
     return;
   }
   
@@ -553,7 +556,8 @@ void MBRange::print( std::ostream& stream ) const
     MBEntityType t1 = TYPE_FROM_HANDLE( i->first );
     MBEntityType t2 = TYPE_FROM_HANDLE( i->second );
   
-    stream << "\t" << MBCN::EntityTypeName( t1 ) << " " << ID_FROM_HANDLE( i->first );
+    stream << indent_prefix_str << "\t" << MBCN::EntityTypeName( t1 ) << " " 
+           << ID_FROM_HANDLE( i->first );
     if(i->first != i->second) {
       stream << " - ";
       if (t1 != t2) 

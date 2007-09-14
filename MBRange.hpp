@@ -295,8 +295,8 @@ public:
   void clear();
   
   //! for debugging
-  void print() const;
-  void print( std::ostream& s ) const;
+  void print(const char *indent_prefix = NULL) const;
+  void print(std::ostream& s, const char *indent_prefix = NULL) const;
   
   unsigned long get_memory_use() const;
 

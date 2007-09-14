@@ -179,13 +179,13 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &partition_name,
     // gather adjacent ents of lower dimension and add to existing ents
   MBRange tmp_ents;
   for (int dim = 2; dim >= 0; dim--) {
-    MBEntityType lower_type = MBVERTEX, upper_type = MBENTITYSET;
-    while (MBMAXTYPE != lower_type && MBCN::Dimension(lower_type) < dim+1) lower_type++;
+    MBEntityType lower_type = MBCN::TypeDimensionMap[dim+1].first,
+      upper_type = MBCN::TypeDimensionMap[3].second;
     
-    MBRange::iterator bit = exist_ents.lower_bound(lower_type),
+    MBRange::const_iterator bit = exist_ents.lower_bound(lower_type),
       eit = exist_ents.upper_bound(upper_type);
-    MBRange from_ents(*bit, *eit);
-    from_ents = from_ents.intersect(exist_ents);
+    MBRange from_ents;
+    from_ents.merge(bit, eit);
     tmp_ents.clear();
     result = mbImpl->get_adjacencies(from_ents, dim, false, tmp_ents, 
                                      MBInterface::UNION); RR;
@@ -195,43 +195,42 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &partition_name,
     // subtract from all ents to get deletable ents
   all_ents = all_ents.subtract(exist_ents);
   
-    // now go through the sets to see if we should keep any
+    // go through the sets to which ones we should keep
   MBRange all_sets, deletable_sets;
   result = mbImpl->get_entities_by_type(0, MBENTITYSET, all_sets);
   for (MBRange::iterator rit = all_sets.begin(); rit != all_sets.end(); rit++) {
     tmp_ents.clear();
     result = mbImpl->get_entities_by_handle(*rit, tmp_ents, true); RR;
-    tmp_ents = tmp_ents.intersect(exist_ents);
+    MBRange tmp_ents2 = tmp_ents.intersect(exist_ents);
     
       // if the intersection is empty, set is deletable
-    if (tmp_ents.empty()) deletable_sets.insert(*rit);
+    if (tmp_ents2.empty()) deletable_sets.insert(*rit);
+    
+    else if (tmp_ents.size() > tmp_ents2.size()) {
+        // more elements in set or contained sets than we're keeping; delete 
+        // the difference from just this set, to remove entities to be deleted below
+        // it's ok if entity isn't contained, doesn't generate an error
+      tmp_ents = tmp_ents.subtract(tmp_ents2);
+      result = mbImpl->remove_entities(*rit, tmp_ents); RR;
+    }
   }
+
+    // take the deletable sets out of other sets so we don't end up
+    // with stale set handles
+  for (MBRange::iterator rit = all_sets.begin(); rit != all_sets.end(); rit++) {
+    if (deletable_sets.find(*rit) == deletable_sets.end()) {
+      result = mbImpl->remove_entities(*rit, deletable_sets); RR;
+    }
+  }
+
+    // remove sets from all_ents, since they're dealt with separately
+  all_ents = all_ents.subtract(all_sets);
   
     // now delete sets first, then ents
   result = mbImpl->delete_entities(deletable_sets); RR;
   result = mbImpl->delete_entities(all_ents); RR;
   
-    // finally, look for sparse tags which have no entities, and delete
-    // those too
-  std::vector<MBTag> all_tags;
-  result = mbImpl->tag_get_tags(all_tags);
-  MBTag *tag_vec = &all_tags[0];
-  for (unsigned int i = 0; i < all_tags.size(); i++) {
-      // get type first, and continue if not sparse
-    MBTagType this_type;
-    result = mbImpl->tag_get_type(tag_vec[i], this_type); RR;
-    if (MB_TAG_SPARSE != this_type) continue;
-    
-      // get ents with this tag; should be efficient for sparse tags
-    tmp_ents.clear();
-    result = mbImpl->get_entities_by_type_and_tag(0, MBMAXTYPE, 
-                                                  tag_vec+i, NULL,
-                                                  1, tmp_ents); RR;
-    if (tmp_ents.empty()) {
-        // no entities with this tag - delete the tag
-      result = mbImpl->tag_delete(tag_vec[i]); RR;
-    }
-  }
+  result = ((MBCore*)mbImpl)->check_adjacencies();
   
-  return MB_SUCCESS;
+  return result;
 }

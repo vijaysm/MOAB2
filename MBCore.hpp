@@ -858,7 +858,7 @@ public:
   MBErrorCode check_adjacencies(const MBEntityHandle *ents, int num_ents);
   
     //! return whether the input handle is valid or not
-  bool is_valid(const MBEntityHandle this_ent);
+  bool is_valid(const MBEntityHandle this_ent) const;
   
 //-----------------Memory Functions------------------//
 
