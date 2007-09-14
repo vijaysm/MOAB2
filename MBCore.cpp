@@ -302,7 +302,7 @@ MBErrorCode MBCore::handle_from_id( const MBEntityType type,
                                     const MBEntityID id, 
                                     MBEntityHandle& handle) const
 {
-  static int err;
+  int err;
   handle = CREATE_HANDLE(type, id, err);
 
     //check to see if handle exists 
@@ -934,9 +934,6 @@ MBErrorCode  MBCore::set_connectivity(const MBEntityHandle entity_handle,
     // WARNING: This is very dependent on the ordering of the MBEntityType enum
   MBEntityType type = TYPE_FROM_HANDLE(entity_handle);
   
-  static std::vector<MBEntityHandle> tmp;
-  tmp.clear();
-  
   MBEntitySequence* seq = 0;
 
   if (type < MBVERTEX || type > MBENTITYSET)
@@ -946,15 +943,19 @@ MBErrorCode  MBCore::set_connectivity(const MBEntityHandle entity_handle,
   if (seq == 0 || status != MB_SUCCESS || !seq->is_valid_entity(entity_handle))
     return (status != MB_SUCCESS ? status : MB_ENTITY_NOT_FOUND);
 
-  status = static_cast<ElementEntitySequence*>(seq)->get_connectivity(entity_handle, tmp);
-  if (status != MB_SUCCESS) return status;
-  
-  status = static_cast<ElementEntitySequence*>(seq)->set_connectivity(entity_handle, 
-                                                                      connect, num_connect);
+  const MBEntityHandle* old_conn;
+  int len;
+  status = static_cast<ElementEntitySequence*>(seq)->get_connectivity(entity_handle, old_conn, len);
   if (status != MB_SUCCESS) return status;
 
   aEntityFactory->notify_change_connectivity(
-    entity_handle, &tmp[0], connect, num_connect);
+    entity_handle, old_conn, connect, num_connect);
+  
+  status = static_cast<ElementEntitySequence*>(seq)->set_connectivity(entity_handle, 
+                                                                      connect, num_connect);
+  if (status != MB_SUCCESS) 
+    aEntityFactory->notify_change_connectivity(
+      entity_handle, connect, old_conn, num_connect);
 
   return status;
 }
