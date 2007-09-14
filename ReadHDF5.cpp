@@ -618,11 +618,16 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id, hid_t data_id )
             // convert data from file ids to MBEntityHandles and add to set
           if (ranged)
           {
-            assert(count % 2 == 0);
+            if (count % 2 != 0) {
+              readUtil->report_error( "Invalid ranged set contents spec." );
+              return MB_FAILURE;
+            }
             MBRange range;
             rval = convert_range_to_handle( buffer, count / 2, range );
-            if (MB_SUCCESS != rval)
+            if (MB_SUCCESS != rval) {
+              readUtil->report_error( "Invalid entities in set contents" );
               return rval;
+            }
             rval = iFace->add_entities( h, range );
             if (MB_SUCCESS != rval)
               return rval;
@@ -630,8 +635,10 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id, hid_t data_id )
           else
           {
             rval = convert_id_to_handle( buffer, count );
-            if (MB_SUCCESS != rval)
+            if (MB_SUCCESS != rval) {
+              readUtil->report_error( "Invalid entities in set contents" );
               return rval;
+            }
             rval = iFace->add_entities( h, buffer, count );
             if (MB_SUCCESS != rval)
               return rval;
@@ -645,7 +652,7 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id, hid_t data_id )
         
           // read data for sets in [r,i)
         size_t count = offsets[i-1] + 1 - file_offset;
-        mhdf_readSetParentsChildren( data_id, file_offset, count, handleType, buffer, &status );
+        mhdf_readSetData( data_id, file_offset, count, handleType, buffer, &status );
         if (mhdf_isError( &status )) {
           readUtil->report_error( mhdf_message( &status ) );
           return MB_FAILURE;
@@ -661,11 +668,16 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id, hid_t data_id )
 
           if (ranged)
           {
-            assert(count % 2 == 0);
+            if (count % 2 != 0) {
+              readUtil->report_error( "Invalid ranged set contenst spec." );
+              return MB_FAILURE;
+            }
             MBRange range;
             rval = convert_range_to_handle( buffer+mem_offset, count / 2, range );
-            if (MB_SUCCESS != rval)
+            if (MB_SUCCESS != rval) {
+              readUtil->report_error( "Invalid entities in set contents" );
               return rval;
+            }
             rval = iFace->add_entities( h, range );
             if (MB_SUCCESS != rval)
               return rval;
@@ -673,8 +685,10 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id, hid_t data_id )
           else
           {
             rval = convert_id_to_handle( buffer+mem_offset, count );
-            if (MB_SUCCESS != rval)
+            if (MB_SUCCESS != rval) {
+              readUtil->report_error( "Invalid entities in set contents" );
               return rval;
+            }
             rval = iFace->add_entities( h, buffer+mem_offset, count );
             if (MB_SUCCESS != rval)
               return rval;
@@ -707,6 +721,7 @@ MBErrorCode ReadHDF5::read_parents_children( bool parents,
   // use the existing buffer for storing set child lists
   MBEntityHandle* buffer = (MBEntityHandle*)dataBuffer;
   size_t chunk_size = bufferSize / sizeof(MBEntityHandle);
+  const size_t total_sets = setSet.range.size();
   
   unsigned long set_offset = 0;  /* running offset into description table */
   unsigned long sets_remaining = setSet.range.size();
@@ -751,8 +766,14 @@ MBErrorCode ReadHDF5::read_parents_children( bool parents,
           file_offset += count;
 
             // convert from file_ids to set handles
-          for (size_t j = 0; j < count; ++j) 
-            buffer[j] = *(setSet.range.begin() += (buffer[j] - setSet.first_id));
+          for (size_t j = 0; j < count; ++j) {
+            buffer[j] -= setSet.first_id;
+            if (buffer[j] >= total_sets) { 
+              readUtil->report_error("Invalid set %s ID", parents ? "parent" : "child" );
+              return MB_FAILURE;
+            }
+            buffer[j] += setSet.range.front();
+          }
 
           if (parents)
             rval = iFace->add_parent_meshsets( h, buffer, count );
@@ -776,8 +797,14 @@ MBErrorCode ReadHDF5::read_parents_children( bool parents,
         }
         
           // convert from file_ids to set handles
-        for (size_t j = 0; j < count; ++j)
-          buffer[j] = *(setSet.range.begin() += (buffer[j] - setSet.first_id));
+        for (size_t j = 0; j < count; ++j) {
+          buffer[j] -= setSet.first_id;
+          if (buffer[j] >= total_sets) { 
+            readUtil->report_error("Invalid set %s ID", parents ? "parent" : "child" );
+            return MB_FAILURE;
+          }
+          buffer[j] += setSet.range.front();
+        }
           
           // add children to each set
         size_t mem_offset = 0;
