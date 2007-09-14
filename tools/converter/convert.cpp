@@ -268,7 +268,11 @@ int main(int argc, char* argv[])
   result = gMB->load_file( in, read_meshset, read_options.c_str() );
   if (MB_SUCCESS != result)
   { 
-    std::cerr << "Failed to load \"" << in << "\"." << std::endl; 
+    std::cerr << "Failed to load \"" << in << "\"." << std::endl;
+    std::cerr  << "Error code: " << gMB->get_error_string(result) << " (" << result << ")" << std::endl;
+    std::string message;
+    if (MB_SUCCESS == gMB->get_last_error(message) && !message.empty())
+      std::cerr << "Error message: " << message << std::endl;
     return READ_ERROR;
   }
   std::cerr << "Read \"" << in << "\"" << std::endl;
@@ -492,6 +496,10 @@ int main(int argc, char* argv[])
   if (MB_SUCCESS != result)
   { 
     std::cerr << "Failed to write \"" << out << "\"." << std::endl; 
+    std::cerr  << "Error code: " << gMB->get_error_string(result) << " (" << result << ")" << std::endl;
+    std::string message;
+    if (MB_SUCCESS == gMB->get_last_error(message) && !message.empty())
+      std::cerr << "Error message: " << message << std::endl;
     return WRITE_ERROR;
   }
   std::cerr << "Wrote \"" << out << "\"" << std::endl;
