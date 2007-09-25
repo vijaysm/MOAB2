@@ -514,8 +514,8 @@ MBErrorCode AEntityFactory::remove_all_adjacencies(MBEntityHandle base_entity,
 {
   MBErrorCode result;
 
-  //if (TYPE_FROM_HANDLE(base_entity) == MBENTITYSET) 
-  //  return thisMB->clear_meshset(&base_entity, 1);
+  if (TYPE_FROM_HANDLE(base_entity) == MBENTITYSET) 
+    return thisMB->clear_meshset(&base_entity, 1);
 
     // clean out explicit adjacencies to this entity first
   for (int dim = 1; dim < thisMB->dimension_from_handle(base_entity); dim++) {
