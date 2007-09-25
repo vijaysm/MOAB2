@@ -17,7 +17,7 @@
 
 #include "AEntityFactory.hpp"
 #include "MBInternals.hpp"
-#include "MBInterface.hpp"
+#include "MBCore.hpp"
 #include "MBRange.hpp"
 #include "MBError.hpp"
 #include "MBCN.hpp"
@@ -27,9 +27,51 @@
 #include <algorithm>
 #include <set>
 
+#ifdef MOAB_WITH_REFCOUNT
+MBErrorCode AEntityFactory::decrement_reference_count( const MBEntityHandle* arr, size_t len )
+  { return thisMB->decrement_reference_count( arr, len ); }
+MBErrorCode AEntityFactory::increment_reference_count( const MBEntityHandle* arr, size_t len )
+  { return thisMB->increment_reference_count( arr, len ); }
+MBErrorCode AEntityFactory::decrement_referenced_entities( MBEntityHandle h )
+{
+  const MBEntityHandle* adj;
+  int num_adj;
+  MBErrorCode rval = get_adjacencies( h, adj, num_adj );
+  if (MB_SUCCESS != rval || num_adj == 0)
+    return rval;
+  
+  MBEntityType type = TYPE_FROM_HANDLE(h);
+  if (type == MBVERTEX)
+    return MB_SUCCESS;
+  --type;
+    
+  int junk;
+  const MBEntityHandle* end 
+    = std::lower_bound( adj, adj+num_adj, CREATE_HANDLE( type, 0, junk ) );
+  return decrement_reference_count( adj, end - adj );
+}
+MBErrorCode AEntityFactory::increment_referenced_entities( MBEntityHandle h )
+{
+  const MBEntityHandle* adj;
+  int num_adj;
+  MBErrorCode rval = get_adjacencies( h, adj, num_adj );
+  if (MB_SUCCESS != rval || num_adj == 0)
+    return rval;
+  
+  MBEntityType type = TYPE_FROM_HANDLE(h);
+  if (type == MBVERTEX)
+    return MB_SUCCESS;
+  --type;
+    
+  int junk;
+  const MBEntityHandle* end 
+    = std::lower_bound( adj, adj+num_adj, CREATE_HANDLE( type, 0, junk ) );
+  return increment_reference_count( adj, end - adj );
+}
+#endif
 
 
-AEntityFactory::AEntityFactory(MBInterface *mdb) 
+AEntityFactory::AEntityFactory(MBCore *mdb) 
 : mDensePageGroup(sizeof(void*), 0)
 {
   assert(NULL != mdb);
@@ -385,10 +427,10 @@ MBErrorCode AEntityFactory::add_adjacency(MBEntityHandle from_ent,
       // need to make a new adjacency list first
     adj_list_ptr = new MBAdjacencyVector();
     result = mDensePageGroup.set_data(from_ent, &adj_list_ptr);
-
+ 
     if (MB_SUCCESS != result) return result;
   }
-
+  
     // get an iterator to the right spot in this sorted vector
   MBAdjacencyVector::iterator adj_iter;
   if (!adj_list_ptr->empty()) 
@@ -399,10 +441,19 @@ MBErrorCode AEntityFactory::add_adjacency(MBEntityHandle from_ent,
     if ( adj_iter == adj_list_ptr->end() || to_ent != *adj_iter )
     {
       adj_list_ptr->insert(adj_iter, to_ent);
+#ifdef MOAB_WITH_REFCOUNT
+      if (TYPE_FROM_HANDLE(from_ent) > TYPE_FROM_HANDLE(to_ent))
+        increment_reference_count( to_ent );
+#endif
     }
   }
-  else
+  else {
     adj_list_ptr->push_back(to_ent);
+#ifdef MOAB_WITH_REFCOUNT
+    if (TYPE_FROM_HANDLE(from_ent) > TYPE_FROM_HANDLE(to_ent))
+      increment_reference_count( to_ent );
+#endif
+  }
 
     // if both_ways is true, recursively call this function
   if (true == both_ways && to_type != MBVERTEX)
@@ -413,7 +464,8 @@ MBErrorCode AEntityFactory::add_adjacency(MBEntityHandle from_ent,
 
 //! remove an adjacency from from the base_entity.
 MBErrorCode AEntityFactory::remove_adjacency(MBEntityHandle base_entity,
-                              MBEntityHandle adj_to_remove)
+                              MBEntityHandle adj_to_remove,
+                              bool update_reference_count)
 {
   MBErrorCode result;
 
@@ -435,25 +487,35 @@ MBErrorCode AEntityFactory::remove_adjacency(MBEntityHandle base_entity,
 
   // remove the specified entity from the adjacency list and truncate
   // the list to the new length
-  adj_list->erase(std::remove(adj_list->begin(), adj_list->end(), adj_to_remove), 
-                  adj_list->end());
+  std::vector<MBEntityHandle>::iterator iter 
+    = std::lower_bound( adj_list->begin(), adj_list->end(), adj_to_remove );
+  if (iter == adj_list->end() || *iter != adj_to_remove)
+    return MB_FAILURE;
+  
+  adj_list->erase( iter );
+#ifdef MOAB_WITH_REFCOUNT
+  if (update_reference_count && 
+      TYPE_FROM_HANDLE(base_entity) > TYPE_FROM_HANDLE(adj_to_remove))
+    decrement_reference_count( adj_to_remove );
+#endif
   
   // reset the adjacency data list
   //result = thisMB->tag_set_data(adj_tag, base_entity, &adj_list);
   //if (result != MB_SUCCESS)
     //return result;
 
-  return result;
+  return MB_SUCCESS;
 }
 
 //! remove all adjacencies from from the base_entity.
 MBErrorCode AEntityFactory::remove_all_adjacencies(MBEntityHandle base_entity,
-                                                   const bool delete_adj_list)
+                                                   const bool delete_adj_list,
+                                                   bool update_reference_counts)
 {
   MBErrorCode result;
 
-  if (TYPE_FROM_HANDLE(base_entity) == MBENTITYSET) 
-    return thisMB->clear_meshset(&base_entity, 1);
+  //if (TYPE_FROM_HANDLE(base_entity) == MBENTITYSET) 
+  //  return thisMB->clear_meshset(&base_entity, 1);
 
     // clean out explicit adjacencies to this entity first
   for (int dim = 1; dim < thisMB->dimension_from_handle(base_entity); dim++) {
@@ -462,7 +524,7 @@ MBErrorCode AEntityFactory::remove_all_adjacencies(MBEntityHandle base_entity,
     if (MB_SUCCESS != result && MB_MULTIPLE_ENTITIES_FOUND != result) continue;
     for (MBRange::iterator rit = ents.begin(); rit != ents.end(); rit++) {
       if (explicitly_adjacent(*rit, base_entity))
-        remove_adjacency(*rit, base_entity);
+        remove_adjacency(*rit, base_entity, update_reference_counts);
     }
   }
   

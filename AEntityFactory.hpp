@@ -26,13 +26,15 @@
 
 typedef std::vector<MBEntityHandle> MBAdjacencyVector;
 
+class MBCore;
+
 //! class AEntityFactory
 class AEntityFactory 
 {
 public:
 
   //! require an MBInterface object in order to access tags on that interface
-  AEntityFactory(MBInterface *mdb);
+  AEntityFactory(MBCore *mdb);
 
   //! destructor
   ~AEntityFactory();
@@ -47,11 +49,13 @@ public:
 
 //! remove an adjacency from from the base_entity.
   MBErrorCode remove_adjacency(MBEntityHandle base_entity,
-                                MBEntityHandle adjacency_to_remove);
+                                MBEntityHandle adjacency_to_remove,
+                                bool update_reference_count = true);
 
 //! remove all adjacencies from from the base_entity.
   MBErrorCode remove_all_adjacencies(MBEntityHandle base_entity,
-                                     const bool delete_adj_list = false);
+                                     const bool delete_adj_list = false,
+                                     bool update_reference_counts = true);
   
 //! get the elements contained by source_entity, of
 //! type target_type, passing back in target_entities; if create_if_missing
@@ -140,13 +144,23 @@ public:
                               unsigned long& total_entity_storage,
                               unsigned long& total_amortized_storage );
   
+#ifdef MOAB_WITH_REFCOUNT
+  MBErrorCode decrement_reference_count( const MBEntityHandle* arr, size_t len );
+  MBErrorCode increment_reference_count( const MBEntityHandle* arr, size_t len );
+  MBErrorCode decrement_reference_count( MBEntityHandle ent )
+    { return decrement_reference_count( &ent, 1 ); }
+  MBErrorCode increment_reference_count( MBEntityHandle ent )
+    { return increment_reference_count( &ent, 1 ); }
+  MBErrorCode decrement_referenced_entities( MBEntityHandle h );
+  MBErrorCode increment_referenced_entities( MBEntityHandle h );
+#endif
 private:
 
   //! private constructor to prevent the construction of a default one
   AEntityFactory();
 
   //! interface associated with this tool
-  MBInterface *thisMB;
+  MBCore *thisMB;
 
   //! adjacencies collection
   DensePageGroup mDensePageGroup;
@@ -203,7 +217,7 @@ private:
 inline MBErrorCode AEntityFactory::notify_delete_entity(MBEntityHandle entity)
 {
   // remove any references to this entity from other entities
-  return remove_all_adjacencies(entity, true);
+  return remove_all_adjacencies(entity, true, false);
 }
 
 

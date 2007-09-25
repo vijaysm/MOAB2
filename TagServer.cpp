@@ -591,6 +591,16 @@ MBErrorCode TagServer::get_tags(std::vector<MBTag> &all_tags)
   return MB_SUCCESS;
 }
 
+MBErrorCode TagServer::get_tags(MBDataType type, std::vector<MBTag> &all_tags)
+{
+  for (int i = 0; i < MB_TAG_LAST+1; ++i) 
+    for (MBTagId j = 0; j < mTagTable[i].size(); ++j) 
+      if (mTagTable[i][j].is_valid() && mTagTable[i][j].get_data_type() == type)
+        all_tags.push_back( TAG_HANDLE_FROM_ID( j + 1, (MBTagType)i ) );
+
+  return MB_SUCCESS;
+}
+
 MBErrorCode TagServer::get_tags(const MBEntityHandle entity, std::vector<MBTag> &all_tags)
 {
   MBErrorCode result = MB_SUCCESS;
