@@ -255,6 +255,9 @@ public:
   //! get all the tags which have been defined
   MBErrorCode get_tags(std::vector<MBTag> &all_tags);
   
+  //! get all tags that store a specified data type
+  MBErrorCode get_tags( MBDataType type, std::vector<MBTag>& tags );
+  
     //! get the default value for a given tag
   MBErrorCode get_default_data(const MBTag tag_handle, void *data);
 

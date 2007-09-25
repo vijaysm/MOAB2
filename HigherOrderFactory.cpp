@@ -234,6 +234,10 @@ MBErrorCode HigherOrderFactory::convert_sequence(ElementEntitySequence* seq, con
   if(this_type == MBTRI || this_type == MBQUAD)
     temp_mid_volume = false;
 
+#ifdef MOAB_WITH_REFCOUNT
+  seq->convert_realloc(temp_mid_edge, temp_mid_face, temp_mid_volume, mMB);
+
+#else
   MBTag deletable_nodes;
   mMB->tag_create("", 1, MB_TAG_BIT, deletable_nodes, NULL);
 
@@ -262,6 +266,7 @@ MBErrorCode HigherOrderFactory::convert_sequence(ElementEntitySequence* seq, con
   }
   
   mMB->tag_delete(deletable_nodes);
+#endif
 
   // create mid edge nodes if necessary
   if(temp_mid_edge)
@@ -327,6 +332,9 @@ MBErrorCode HigherOrderFactory::add_mid_volume_nodes(ElementEntitySequence* seq)
 
     // create a new vertex at the centroid
     mMB->create_vertex(sum_coords, element[new_node_index]);
+#ifdef MOAB_WITH_REFCOUNT
+    mMB->increment_reference_count( element[new_node_index] );
+#endif
     
     if(mHONodeAddedRemoved)
       mHONodeAddedRemoved->node_added(element[new_node_index], curr_handle);
@@ -413,6 +421,9 @@ MBErrorCode HigherOrderFactory::add_mid_face_nodes(ElementEntitySequence* seq)
 
         mMB->create_vertex(sum_coords, element[i+num_edges+num_vertices]);
       }
+#ifdef MOAB_WITH_REFCOUNT
+      mMB->increment_reference_count( element[i+num_edges+num_vertices] );
+#endif
 
       if(mHONodeAddedRemoved)
         mHONodeAddedRemoved->node_added(element[i+num_edges+num_vertices], curr_handle);
@@ -498,6 +509,9 @@ MBErrorCode HigherOrderFactory::add_mid_edge_nodes(ElementEntitySequence* seq)
 
         mMB->create_vertex(sum_coords, element[i+num_vertices]);
       }
+#ifdef MOAB_WITH_REFCOUNT
+      mMB->increment_reference_count( element[i+num_vertices] );
+#endif
 
       if(mHONodeAddedRemoved)
         mHONodeAddedRemoved->node_added(element[i+num_vertices], curr_handle);

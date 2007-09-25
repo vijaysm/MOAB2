@@ -88,6 +88,12 @@ public:
       int*& last_index_array,
       MBEntityHandle*& connectivity_array
       );
+   
+  /** Update reference counts for connectivity links.  Does nothing if 
+   *  not compiled with reference counting enabled.   
+   */
+  virtual MBErrorCode increment_reference_count( const MBEntityHandle* ent_array,
+                                                 size_t num_ent );
 
   MBErrorCode create_entity_sets(
     MBEntityID num_sets,

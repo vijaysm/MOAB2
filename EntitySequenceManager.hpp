@@ -43,9 +43,9 @@
 
 #include "MBForward.hpp"
 #include "MBProcConfig.hpp"
+#include "EntitySequence.hpp"
 #include <map>
 
-class MBEntitySequence;
 class HomCoord;
 
 //! class for managing entity sequences
@@ -137,6 +137,12 @@ public:
                               unsigned long& total_entity_storage,
                               unsigned long& total_amortized_storage ) const;
 
+#ifdef MOAB_WITH_REFCOUNT
+  inline unsigned increment_reference_count( MBEntityHandle handle );
+  inline unsigned decrement_reference_count( MBEntityHandle handle );
+  inline unsigned get_reference_count( MBEntityHandle handle ) const;
+#endif
+
 private:
   
   //! creates an entity sequence with a start handle and number of entities
@@ -173,6 +179,24 @@ private:
   
   const MBProcConfig procInfo;
 };
+
+#ifdef MOAB_WITH_REFCOUNT
+unsigned EntitySequenceManager::increment_reference_count( MBEntityHandle handle )
+{
+  MBEntitySequence* seq;
+  return MB_SUCCESS == find( handle, seq ) ? seq->increment_reference_count(handle) : 0;
+}
+unsigned EntitySequenceManager::decrement_reference_count( MBEntityHandle handle )
+{
+  MBEntitySequence* seq;
+  return MB_SUCCESS == find( handle, seq ) ? seq->decrement_reference_count(handle) : 0;
+}
+unsigned EntitySequenceManager::get_reference_count( MBEntityHandle handle ) const
+{
+  MBEntitySequence* seq;
+  return MB_SUCCESS == find( handle, seq ) ? seq->get_reference_count(handle) : 0;
+}
+#endif
 
 #endif
 

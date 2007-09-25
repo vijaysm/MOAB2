@@ -950,6 +950,17 @@ public:
   virtual const MBProcConfig& proc_config() const 
     { return procInfo; }
 
+  MBErrorCode increment_reference_count( MBEntityHandle h )
+    { return increment_reference_count( &h, 1 ); }
+  MBErrorCode decrement_reference_count( MBEntityHandle h )
+    { return decrement_reference_count( &h, 1 ); }
+  MBErrorCode increment_reference_count( const MBEntityHandle* handles, size_t size );
+  MBErrorCode decrement_reference_count( const MBEntityHandle* handles, size_t size );
+  unsigned get_reference_count( MBEntityHandle handle );
+  MBErrorCode decrement_all_referenced_entities( MBEntityHandle handle, const std::vector<MBTag>& handle_tags );
+  MBErrorCode increment_all_referenced_entities( MBEntityHandle handle, const std::vector<MBTag>& handle_tags );
+
+  MBErrorCode find_all_referencing_entities( MBEntityHandle entity, MBRange& results );
 private:
 
   void estimated_memory_use_internal( const MBRange* ents,
@@ -963,6 +974,8 @@ private:
                             unsigned       num_tags,
                             unsigned long* tag_storage,
                             unsigned long* amortized_tag_storage );
+
+  MBErrorCode delete_entity( MBEntityHandle handle );
 
   const MBProcConfig procInfo;
 
