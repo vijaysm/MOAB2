@@ -905,7 +905,6 @@ MBErrorCode ReadNCDF::read_elements()
       nodesInLoadedBlocks[tmp_ptr[i]] = 1;
       conn[i] = static_cast<MBEntityHandle>(tmp_ptr[i]) + vertexOffset;
     }
-    readMeshIface->increment_reference_count( conn, number_nodes );
       
     readMeshIface->update_adjacencies((*this_it).startMBId, (*this_it).numElements,
                                       ExoIIUtil::VerticesPerElement[(*this_it).elemType], conn);

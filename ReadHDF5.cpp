@@ -429,9 +429,7 @@ MBErrorCode ReadHDF5::read_elems( const char* elem_group )
     return MB_FAILURE;
   }
   
-  rval = convert_id_to_handle( nodeSet, array, (size_t)nodes_per_elem*count );
-  if (MB_SUCCESS == rval) 
-    readUtil->increment_reference_count( array, (size_t)nodes_per_elem*count );
+  rval = convert_id_to_handle( nodeSet, array, (size_t)(nodes_per_elem*count) );
   return rval;
 }
 
@@ -523,10 +521,7 @@ MBErrorCode ReadHDF5::read_poly( const char* elem_group )
     return MB_FAILURE;
   }
   
-  rval = convert_id_to_handle( conn_array, (size_t)data_len );
-  if (MB_SUCCESS == rval) 
-    readUtil->increment_reference_count( conn_array, (size_t)data_len );
-  return rval;
+  return convert_id_to_handle( conn_array, (size_t)data_len );
 }
 
 template <typename T>

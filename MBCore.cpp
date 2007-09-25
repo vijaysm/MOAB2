@@ -950,23 +950,13 @@ MBErrorCode  MBCore::set_connectivity(const MBEntityHandle entity_handle,
 
   aEntityFactory->notify_change_connectivity(
     entity_handle, old_conn, connect, num_connect);
-#ifdef MOAB_WITH_REFCOUNT
-  decrement_reference_count( old_conn, num_connect );
-#endif
   
   status = static_cast<ElementEntitySequence*>(seq)->set_connectivity(entity_handle, 
                                                                       connect, num_connect);
-  if (status != MB_SUCCESS) {
+  if (status != MB_SUCCESS) 
     aEntityFactory->notify_change_connectivity(
       entity_handle, connect, old_conn, num_connect);
-#ifdef MOAB_WITH_REFCOUNT
-    increment_reference_count( old_conn, num_connect );
-  }
-  else {
-    increment_reference_count( connect, num_connect );
-#endif
-  }
-  
+
   return status;
 }
 
@@ -1397,86 +1387,22 @@ MBErrorCode  MBCore::tag_set_data(const MBTag tag_handle,
                                     const int num_entities,
                                     const void *tag_data)
 {
-  MBErrorCode rval;
-#ifdef MOAB_WITH_REFCOUNT
-  std::vector<MBEntityHandle> old_data;
-  std::vector<MBEntityHandle> unique_handles;
-  const TagInfo* tag_info = tagServer->get_tag_info( tag_handle );
-  if(!tag_info)
-    return MB_TAG_NOT_FOUND;
-  int count;
-#endif
+  if (NULL == entity_handles && 0 == num_entities)
+    return tagServer->set_mesh_data(tag_handle, tag_data);
 
-  if (NULL == entity_handles && 0 == num_entities) {
-#ifdef MOAB_WITH_REFCOUNT   
-    if (tag_info->get_data_type() == MB_TYPE_HANDLE) {
-      count = tag_info->get_size() / sizeof(MBEntityHandle);
-      old_data.resize( count );
-      rval = tagServer->get_mesh_data( tag_handle, &old_data[0] );
-      if (MB_SUCCESS == rval) {
-        rval = decrement_reference_count( &old_data[0], count );
-        if (MB_SUCCESS != rval)
-          return rval;
-      }
-      else 
-        old_data.clear();
-    }
-#endif  
-    rval = tagServer->set_mesh_data(tag_handle, tag_data);
-  }
-  else {
   //verify handles
-    MBEntitySequence* seq;
-    const MBEntityHandle* iter;
-    const MBEntityHandle* end = entity_handles + num_entities;
-    for(iter = entity_handles; iter != end; ++iter)
-    {
-      if (TYPE_FROM_HANDLE(*iter) == MBENTITYSET) continue;
-
-      else if(sequenceManager->find(*iter, seq) != MB_SUCCESS)
-        return MB_ENTITY_NOT_FOUND;
-    }
+  MBEntitySequence* seq;
+  const MBEntityHandle* iter;
+  const MBEntityHandle* end = entity_handles + num_entities;
+  for(iter = entity_handles; iter != end; ++iter)
+  {
+    if (TYPE_FROM_HANDLE(*iter) == MBENTITYSET) continue;
     
-#ifdef MOAB_WITH_REFCOUNT   
-    if (tag_info->get_data_type() == MB_TYPE_HANDLE) {
-      unique_handles.resize( num_entities );
-      std::copy( entity_handles, entity_handles+num_entities, unique_handles.begin() );
-      std::sort( unique_handles.begin(), unique_handles.end() );
-      unique_handles.erase( std::unique( unique_handles.begin(), unique_handles.end() ), unique_handles.end() );
-      
-      count = tag_info->get_size() * unique_handles.size() / sizeof(MBEntityHandle);
-      old_data.resize( count );
-      rval = tagServer->get_mesh_data( tag_handle, &old_data[0] );
-      if (MB_SUCCESS == rval) {
-        rval = decrement_reference_count( &old_data[0], count );
-        if (MB_SUCCESS != rval)
-          return rval;
-      }
-      else 
-        old_data.clear();
-    }
-#endif
-
-    rval = tagServer->set_data(tag_handle, entity_handles, num_entities, tag_data);
+    else if(sequenceManager->find(*iter, seq) != MB_SUCCESS)
+      return MB_ENTITY_NOT_FOUND;
   }
 
-#ifdef MOAB_WITH_REFCOUNT
-  if (tag_info->get_data_type() == MB_TYPE_HANDLE) {
-    if (MB_SUCCESS == rval) {
-      if (unique_handles.size()) {
-        tag_server()->get_data( tag_handle, &unique_handles[0], unique_handles.size(), &old_data[0] );
-        rval = increment_reference_count( &old_data[0], count );
-      }
-      else {
-        rval = increment_reference_count( (const MBEntityHandle*)tag_data, count );
-      }
-    }
-    else if (!old_data.empty())
-      increment_reference_count( &old_data[0], count );  
-  }
-#endif
-
-  return rval;
+  return tagServer->set_data(tag_handle, entity_handles, num_entities, tag_data);
 }
 
 //! set the data  for given EntityHandles and MBTag
@@ -1497,39 +1423,7 @@ MBErrorCode  MBCore::tag_set_data(const MBTag tag_handle,
       return result;
   }
 
-#ifdef MOAB_WITH_REFCOUNT
-  std::vector<MBEntityHandle> old_data;
-  const TagInfo* tag_info = tagServer->get_tag_info( tag_handle );
-  if(!tag_info)
-    return MB_TAG_NOT_FOUND;
-  int count;
-  if (tag_info->get_data_type() == MB_TYPE_HANDLE) {
-    count = tag_info->get_size() * entity_handles.size() / sizeof(MBEntityHandle);
-    old_data.resize( count );
-    result = tagServer->get_data( tag_handle, entity_handles, &old_data[0] );
-    if (MB_SUCCESS != result)
-      old_data.clear();
-    else {
-      result = decrement_reference_count( &old_data[0], count );
-      if (MB_SUCCESS != result)
-        return result;
-    }
-  }
-#endif
-
-  result = tagServer->set_data(tag_handle, entity_handles, tag_data);
-
-#ifdef MOAB_WITH_REFCOUNT
-  if (tag_info->get_data_type() == MB_TYPE_HANDLE) {
-    if (MB_SUCCESS == result) 
-      result = increment_reference_count( (const MBEntityHandle*)tag_data, count );
-    else if (!old_data.empty())
-      increment_reference_count( &old_data[0], count );  
-  }
-#endif
-
-  return result;
-
+  return tagServer->set_data(tag_handle, entity_handles, tag_data);
 }
 
 //! adds a sparse tag for this specific EntityHandle/tag_name combination
@@ -1551,17 +1445,6 @@ MBErrorCode MBCore::tag_create( const char* name,
                                 const void* def_val,
                                 bool use_existing )
 {
-#ifdef MOAB_WITH_REFCOUNT
-    // don't allow a non-zero default value for handle-type tags
-    // if reference counting is enabled.
-  if (data == MB_TYPE_HANDLE && def_val) {
-    const MBEntityHandle* handles = (const MBEntityHandle*)def_val;
-    for (size_t i = 0; i < size / sizeof(MBEntityHandle); ++i)
-      if (handles[i])
-        return MB_FAILURE;
-  }
-#endif
-
   MBErrorCode rval = tagServer->add_tag( name, size, storage, data, handle, def_val );
 
     // If it is okay to use an existing tag of the same name, check that it 
@@ -1601,32 +1484,11 @@ MBErrorCode  MBCore::tag_delete_data(const MBTag tag_handle,
     return MB_FAILURE;
 
   MBErrorCode status = MB_SUCCESS, temp_status;
-#ifdef MOAB_WITH_REFCOUNT
-  std::vector<MBEntityHandle> old_data;
-  const TagInfo* tag_info = tagServer->get_tag_info( tag_handle );
-  if(!tag_info)
-    return MB_TAG_NOT_FOUND;
-  if (tag_info->get_data_type() == MB_TYPE_HANDLE)
-    old_data.resize( tag_info->get_size()/sizeof(MBEntityHandle) );
-#endif
-
   for (int i = 0; i < num_handles; i++) {
-    if (0 == entity_handles[i]) {
-#ifdef MOAB_WITH_REFCOUNT
-      if (tag_info->get_data_type() == MB_TYPE_HANDLE &&
-          MB_SUCCESS == tagServer->get_mesh_data( tag_handle, &old_data[0] ))
-        decrement_reference_count( &old_data[0], old_data.size() );
-#endif
+    if (0 == entity_handles[i])
       temp_status = tagServer->remove_mesh_data(tag_handle);
-    }
-    else {
-#ifdef MOAB_WITH_REFCOUNT
-      if (tag_info->get_data_type() == MB_TYPE_HANDLE &&
-          MB_SUCCESS == tagServer->get_data( tag_handle, entity_handles+i, 1, &old_data[0] ))
-        decrement_reference_count( &old_data[0], old_data.size() );
-#endif
+    else
       temp_status = tagServer->remove_data(tag_handle, entity_handles[i]);
-    }
     if (temp_status != MB_SUCCESS) status = temp_status;
   }
 
@@ -1640,22 +1502,8 @@ MBErrorCode  MBCore::tag_delete_data(const MBTag tag_handle,
   if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
     return MB_FAILURE;
 
-#ifdef MOAB_WITH_REFCOUNT
-  std::vector<MBEntityHandle> old_data;
-  const TagInfo* tag_info = tagServer->get_tag_info( tag_handle );
-  if(!tag_info)
-    return MB_TAG_NOT_FOUND;
-  if (tag_info->get_data_type() == MB_TYPE_HANDLE)
-    old_data.resize( tag_info->get_size()/sizeof(MBEntityHandle) );
-#endif
-
   MBErrorCode status = MB_SUCCESS, temp_status;
   for (MBRange::const_iterator it = entity_handles.begin(); it != entity_handles.end(); it++) {
-#ifdef MOAB_WITH_REFCOUNT
-    if (tag_info->get_data_type() == MB_TYPE_HANDLE &&
-        MB_SUCCESS == tagServer->get_data( tag_handle, &*it, 1, &old_data[0] ))
-      decrement_reference_count( &old_data[0], old_data.size() );
-#endif
     temp_status = tagServer->remove_data(tag_handle, *it);
     if (temp_status != MB_SUCCESS) status = temp_status;
   }
@@ -1666,21 +1514,6 @@ MBErrorCode  MBCore::tag_delete_data(const MBTag tag_handle,
 //! removes the tag from MB
 MBErrorCode  MBCore::tag_delete(MBTag tag_handle)
 {
-#ifdef MOAB_WITH_REFCOUNT
-  const TagInfo* tag_info = tagServer->get_tag_info( tag_handle );
-  if(!tag_info)
-    return MB_TAG_NOT_FOUND;
-  if (tag_info->get_data_type() == MB_TYPE_HANDLE) {
-    std::vector<MBEntityHandle> tag_data;
-    for (MBEntityType t = MBVERTEX; t <= MBENTITYSET; ++t) {
-      MBRange entities;
-      tagServer->get_entities( tag_handle, t, entities );
-      tag_data.resize( entities.size() );
-      tagServer->get_data( tag_handle, entities, &tag_data[0] );
-      decrement_reference_count( &tag_data[0], tag_data.size() );
-    }
-  }
-#endif
   return tag_server()->remove_tag(tag_handle);
 }
 
@@ -1916,82 +1749,50 @@ MBErrorCode MBCore::merge_entities( MBEntityHandle entity_to_keep,
 }
 
 
-MBErrorCode MBCore::delete_entity( MBEntityHandle handle )
-{
-  MBErrorCode result;
-
-    // tell AEntityFactory that this element is going away
-  result = aEntityFactory->notify_delete_entity(handle);
-  if (MB_SUCCESS != result) 
-    return result;
-
-    // reset and/or clean out data associated with this entity handle
-  result = tagServer->reset_data(handle);
-  if (MB_SUCCESS != result) 
-    return result;
-
-  if (TYPE_FROM_HANDLE(handle) == MBENTITYSET) {
-    if (MBMeshSet* ptr = get_mesh_set( sequence_manager(), handle )) {
-      int j, count;
-      const MBEntityHandle* rel;
-      ptr->clear( handle, a_entity_factory() );
-      rel = ptr->get_parents( count );
-      for (j = 0; j < count; ++j)
-        remove_child_meshset( rel[j], handle );
-      rel = ptr->get_children( count );
-      for (j = 0; j < count; ++j)
-        remove_parent_meshset( rel[j],handle );
-    }
-  }
-
-    // now delete the entity
-  result = sequence_manager()->delete_entity(handle);
-  if (MB_SUCCESS != result) 
-    return result;
-  
-  return MB_SUCCESS;
-}
-
 //! deletes an entity vector
 MBErrorCode MBCore::delete_entities(const MBEntityHandle *entities,
                                       const int num_entities)
 {
-  // If reference counting is enabled, make sure all entities 
-  // are unreferenced, assuming all other entities in the list
-  // are also deleted.
-#ifdef MOAB_WITH_REFCOUNT
-  std::vector<MBTag> handle_tags;
-  tag_server()->get_tags( MB_TYPE_HANDLE, handle_tags );
-  
-  int ii, jj;
-    // before deleting each entity, decrement the reference count on
-    // everything that entity references.
-  for (ii = 0; ii < num_entities; ++ii) 
-    if (MB_SUCCESS != decrement_all_referenced_entities( entities[ii], handle_tags )) 
-      break;
-    // make sure everything that is to be deleted has a reference count 
-    // of 1 (only referenced by the containing sequence).
-  if (ii == num_entities) 
-    for (jj = 0; jj < num_entities; ++jj) 
-      if (get_reference_count( entities[jj] ) != 1)
-        break;
-    // if we can't delete the entities, but the reference counts back
-    // to what they were before and return failure.
-  if (ii < num_entities || jj < num_entities) {
-    while (ii > 0)
-      increment_all_referenced_entities( entities[--ii], handle_tags );
-    return MB_FAILURE;
-  }
-  
-#endif  
-
   MBErrorCode result = MB_SUCCESS, temp_result;
+  
   for (int i = 0; i < num_entities; i++) {
-    temp_result = delete_entity( entities[i] );
-    if (MB_SUCCESS != temp_result)
-      result = temp_result;
-  }
     
+      // tell AEntityFactory that this element is going away
+    temp_result = aEntityFactory->notify_delete_entity(entities[i]);
+    if (MB_SUCCESS != temp_result) {
+      result = temp_result;
+      continue;
+    }
+
+      // reset and/or clean out data associated with this entity handle
+    temp_result = tagServer->reset_data(entities[i]);
+    if (MB_SUCCESS != temp_result) {
+      result = temp_result;
+      continue;
+    }
+
+    if (TYPE_FROM_HANDLE(entities[i]) == MBENTITYSET) {
+      if (MBMeshSet* ptr = get_mesh_set( sequence_manager(), entities[i] )) {
+        int j, count;
+        const MBEntityHandle* rel;
+        ptr->clear( entities[i], a_entity_factory() );
+        rel = ptr->get_parents( count );
+        for (j = 0; j < count; ++j)
+          remove_child_meshset( rel[j], entities[i] );
+        rel = ptr->get_children( count );
+        for (j = 0; j < count; ++j)
+          remove_parent_meshset( rel[j], entities[i] );
+      }
+    }
+
+      // now delete the entity
+    temp_result = sequence_manager()->delete_entity(entities[i]);
+    if (MB_SUCCESS != temp_result) {
+      result = temp_result;
+      continue;
+    }
+  }
+
   return result;
 }
 
@@ -1999,36 +1800,9 @@ MBErrorCode MBCore::delete_entities(const MBEntityHandle *entities,
 //! deletes an entity range
 MBErrorCode MBCore::delete_entities(const MBRange &range)
 {
-  // If reference counting is enabled, make sure all entities 
-  // are unreferenced, assuming all other entities in the list
-  // are also deleted.
-#ifdef MOAB_WITH_REFCOUNT
-  std::vector<MBTag> handle_tags;
-  tag_server()->get_tags( MB_TYPE_HANDLE, handle_tags );
-  
-  MBRange::const_iterator ii, jj;
-    // before deleting each entity, decrement the reference count on
-    // everything that entity references.
-  for (ii = range.begin(); ii != range.end(); ++ii) 
-    if (MB_SUCCESS != decrement_all_referenced_entities( *ii, handle_tags )) 
-      break;
-    // make sure everything that is to be deleted has a reference count 
-    // of 1 (only referenced by the containing sequence).
-  if (ii == range.end()) 
-    for (jj = range.begin(); jj != range.end(); ++jj) 
-      if (get_reference_count( *jj ) != 1)
-        break;
-    // if we can't delete the entities, but the reference counts back
-    // to what they were before and return failure.
-  if (ii != range.end() || jj != range.end()) {
-    while (ii != range.begin())
-      increment_all_referenced_entities( *--ii, handle_tags );
-    return MB_FAILURE;
-  }
-#endif  
   MBErrorCode result = MB_SUCCESS, rval;
   for (MBRange::iterator i = range.begin(); i != range.end(); ++i)
-    if (MB_SUCCESS != (rval = delete_entity( *i )))
+    if (MB_SUCCESS != (rval = delete_entities( &*i, 1)))
       result = rval;
   return rval;
 }
@@ -2592,7 +2366,13 @@ MBErrorCode MBCore::num_child_meshsets(const MBEntityHandle meshset, int* number
 MBErrorCode MBCore::add_parent_meshset( MBEntityHandle meshset, 
                                         const MBEntityHandle parent_meshset)
 {
-  return add_parent_meshsets( meshset, &parent_meshset, 1 );
+  MBMeshSet* set_ptr = get_mesh_set( sequence_manager(), meshset );
+  MBMeshSet* parent_ptr = get_mesh_set( sequence_manager(), parent_meshset );
+  if (!set_ptr || !parent_ptr)
+    return MB_ENTITY_NOT_FOUND;
+
+  set_ptr->add_parent( parent_meshset );
+  return MB_SUCCESS;
 }
 
 MBErrorCode MBCore::add_parent_meshsets( MBEntityHandle meshset, 
@@ -2607,21 +2387,21 @@ MBErrorCode MBCore::add_parent_meshsets( MBEntityHandle meshset,
     if (!get_mesh_set( sequence_manager(), parents[i] ))
       return MB_ENTITY_NOT_FOUND;
     
-#ifdef MOAB_WITH_REFCOUNT
-  for (int i = 0; i < count; ++i)
-    if (set_ptr->add_parent( parents[i] ))
-      increment_reference_count( parents + i, 1 );
-#else
   for (int i = 0; i < count; ++i)
     set_ptr->add_parent( parents[i] );
-#endif
   return MB_SUCCESS;
 }
 
 MBErrorCode MBCore::add_child_meshset(MBEntityHandle meshset, 
                                         const MBEntityHandle child_meshset)
 {
-  return add_child_meshsets( meshset, &child_meshset, 1 );
+  MBMeshSet* set_ptr = get_mesh_set( sequence_manager(), meshset );
+  MBMeshSet* child_ptr = get_mesh_set( sequence_manager(), child_meshset );
+  if (!set_ptr || !child_ptr)
+    return MB_ENTITY_NOT_FOUND;
+
+  set_ptr->add_child( child_meshset );
+  return MB_SUCCESS;
 }
 
 MBErrorCode MBCore::add_child_meshsets( MBEntityHandle meshset, 
@@ -2636,14 +2416,8 @@ MBErrorCode MBCore::add_child_meshsets( MBEntityHandle meshset,
     if (!get_mesh_set( sequence_manager(), children[i] ))
       return MB_ENTITY_NOT_FOUND;
     
-#ifdef MOAB_WITH_REFCOUNT
-  for (int i = 0; i < count; ++i)
-    if (set_ptr->add_child( children[i] ))
-      increment_reference_count( children+i, 1 );
-#else
   for (int i = 0; i < count; ++i)
     set_ptr->add_child( children[i] );
-#endif
   return MB_SUCCESS;
 }
 
@@ -2655,16 +2429,9 @@ MBErrorCode MBCore::add_parent_child(MBEntityHandle parent,
   MBMeshSet* child_ptr = get_mesh_set( sequence_manager(), child );
   if (!parent_ptr || !child_ptr)
     return MB_ENTITY_NOT_FOUND;
-
-#ifdef MOAB_WITH_REFCOUNT
-  if (parent_ptr->add_child( child ))
-    increment_reference_count( &child, 1 );
-  if (child_ptr->add_parent( parent ))
-    increment_reference_count( &parent, 1 );
-#else
+  
   parent_ptr->add_child( child );
   child_ptr->add_parent( parent );
-#endif
   return MB_SUCCESS;
 }
 
@@ -2676,15 +2443,8 @@ MBErrorCode MBCore::remove_parent_child(MBEntityHandle parent,
   if (!parent_ptr || !child_ptr)
     return MB_ENTITY_NOT_FOUND;
   
-#ifdef MOAB_WITH_REFCOUNT
-  if (parent_ptr->remove_child( child ))
-    decrement_reference_count( &child, 1 );
-  if (child_ptr->remove_parent( parent ))
-    decrement_reference_count( &parent, 1 );
-#else
   parent_ptr->remove_child( child );
   child_ptr->remove_parent( parent );
-#endif
   return MB_SUCCESS;
 }
 
@@ -2695,12 +2455,7 @@ MBErrorCode MBCore::remove_parent_meshset(MBEntityHandle meshset,
   MBMeshSet* set_ptr = get_mesh_set( sequence_manager(), meshset );
   if (!set_ptr)
     return MB_ENTITY_NOT_FOUND;
-#ifdef MOAB_WITH_REFCOUNT
-  if (set_ptr->remove_parent( parent_meshset ))
-    decrement_reference_count( &parent_meshset, 1 );
-#else
   set_ptr->remove_parent( parent_meshset );
-#endif
   return MB_SUCCESS;
 }
 
@@ -2710,12 +2465,7 @@ MBErrorCode MBCore::remove_child_meshset(MBEntityHandle meshset,
   MBMeshSet* set_ptr = get_mesh_set( sequence_manager(), meshset );
   if (!set_ptr)
     return MB_ENTITY_NOT_FOUND;
-#ifdef MOAB_WITH_REFCOUNT
-  if (set_ptr->remove_child( child_meshset ))
-    decrement_reference_count( &child_meshset, 1 );
-#else
   set_ptr->remove_child( child_meshset );
-#endif
   return MB_SUCCESS;
 }
 
@@ -3147,265 +2897,3 @@ void MBCore::estimated_memory_use( const MBRange& ents,
                          tag_array,         num_tags,
                          tag_storage,       amortized_tag_storage );
 }
-
-#ifdef MOAB_WITH_REFCOUNT
-
-MBErrorCode MBCore::increment_reference_count( const MBEntityHandle* array, size_t count )
-{
-  MBErrorCode result = MB_SUCCESS, tmp;
-  for (size_t i = 0; i < count; ++i) {
-    MBEntitySequence* seq;
-    tmp = sequence_manager()->find( array[i], seq );
-    if (MB_SUCCESS != tmp)
-      result = tmp;
-    else if (!seq->is_valid_entity(array[i]))
-      result = MB_ENTITY_NOT_FOUND;
-    else
-      seq->increment_reference_count( array[i] );
-  }
-  return result;
-}
-
-MBErrorCode MBCore::decrement_reference_count( const MBEntityHandle* array, size_t count )
-{
-  MBErrorCode result = MB_SUCCESS, tmp;
-  for (size_t i = 0; i < count; ++i) {
-    MBEntitySequence* seq;
-    tmp = sequence_manager()->find( array[i], seq );
-    if (MB_SUCCESS != tmp)
-      result = tmp;
-    else if (!seq->is_valid_entity(array[i]))
-      result = MB_ENTITY_NOT_FOUND;
-    else
-      seq->decrement_reference_count( array[i] );
-  }
-  return result;
-}
-
-unsigned MBCore::get_reference_count( MBEntityHandle handle )
-{
-  MBEntitySequence* seq;
-  MBErrorCode rval = sequence_manager()->find( handle, seq );
-  return MB_SUCCESS == rval ? seq->get_reference_count(handle) : 0;
-}
-
-MBErrorCode MBCore::decrement_all_referenced_entities( MBEntityHandle handle,
-                                   const std::vector<MBTag>& handle_tags )
-{
-  MBEntitySequence* seq;
-  MBErrorCode rval = sequence_manager()->find( handle, seq );
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  seq->decrement_all_referenced_entities( handle, a_entity_factory() );
-    
-  rval = a_entity_factory()->decrement_referenced_entities( handle );
-  if (MB_SUCCESS != rval) {
-    seq->increment_all_referenced_entities( handle, a_entity_factory() );
-    return rval;
-  }
-  
-  std::vector<MBEntityHandle> tag_data;
-  for (std::vector<MBTag>::const_iterator i = handle_tags.begin(); 
-       i != handle_tags.end(); ++i) {
-    int size;
-    tag_get_size( *i, size );
-    size /= sizeof(MBEntityHandle);
-    tag_data.resize( size );
-    rval = tag_server()->get_data( *i, &handle, 1, &tag_data[0] );
-    if (MB_SUCCESS == rval) 
-      decrement_reference_count( &tag_data[0], size );
-  }
-  return MB_SUCCESS;
-}
-
-
-MBErrorCode MBCore::increment_all_referenced_entities( MBEntityHandle handle,
-                                   const std::vector<MBTag>& handle_tags )
-{
-  MBEntitySequence* seq;
-  MBErrorCode rval = sequence_manager()->find( handle, seq );
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  seq->increment_all_referenced_entities( handle, a_entity_factory() );
-    
-  rval = a_entity_factory()->increment_referenced_entities( handle );
-  if (MB_SUCCESS != rval) {
-    seq->decrement_all_referenced_entities( handle, a_entity_factory() );
-    return rval;
-  }
-  
-  std::vector<MBEntityHandle> tag_data;
-  for (std::vector<MBTag>::const_iterator i = handle_tags.begin(); 
-       i != handle_tags.end(); ++i) {
-    int size;
-    tag_get_size( *i, size );
-    size /= sizeof(MBEntityHandle);
-    tag_data.resize( size );
-    rval = tag_server()->get_data( *i, &handle, 1, &tag_data[0] );
-    if (MB_SUCCESS == rval) 
-      increment_reference_count( &tag_data[0], size );
-  }
-  return MB_SUCCESS;
-}
-
-#else
-
-MBErrorCode MBCore::increment_reference_count( const MBEntityHandle* , size_t  )
-{
-  abort();
-  return MB_FAILURE;
-}
-
-MBErrorCode MBCore::decrement_reference_count( const MBEntityHandle* , size_t  )
-{
-  abort();
-  return MB_FAILURE;
-}
-
-unsigned MBCore::get_reference_count( MBEntityHandle  )
-{
-  abort();
-  return (unsigned)-1;
-}
-
-MBErrorCode MBCore::decrement_all_referenced_entities( MBEntityHandle,
-                                   const std::vector<MBTag>&  )
-{
-  abort();
-  return MB_FAILURE;
-}
-
-
-MBErrorCode MBCore::increment_all_referenced_entities( MBEntityHandle ,
-                                   const std::vector<MBTag>&  )
-{
-  abort();
-  return MB_FAILURE;
-}
-
-#endif
-
-
-MBErrorCode MBCore::find_all_referencing_entities( MBEntityHandle entity,
-                                                   MBRange& results )
-{
-  MBErrorCode rval;
-  MBRange entities;
-
-    // if entity is a vertex, check all connectivity lists
-  if (TYPE_FROM_HANDLE(entity) == MBVERTEX) {
-    for (MBEntityType t = MBEDGE; t < MBENTITYSET; ++t) {
-      if (t == MBPOLYHEDRON)
-        continue;
-      entities.clear();
-      rval = get_entities_by_type( 0, t, entities );
-      if (MB_SUCCESS != rval)
-        return rval;
-      for (MBRange::iterator i = entities.begin(); i != entities.end(); ++i) {
-        const MBEntityHandle* conn;
-        int len;
-        rval = get_connectivity( *i, conn, len );
-        if (MB_SUCCESS != rval)
-          return rval;
-        if (std::find( conn, conn+len, entity ) - conn < len)
-          results.insert( *i );
-      }
-    }
-  }
-  
-    // if entity type is a face, check polyhedron connectivity
-  if (MBCN::Dimension( TYPE_FROM_HANDLE(entity) ) == 2) {
-    entities.clear();
-    rval = get_entities_by_type( 0, MBPOLYHEDRON, entities );
-    if (MB_SUCCESS != rval)
-      return rval;
-    for (MBRange::iterator i = entities.begin(); i != entities.end(); ++i) {
-      const MBEntityHandle* conn;
-      int len;
-      rval = get_connectivity( *i, conn, len );
-      if (MB_SUCCESS != rval)
-        return rval;
-      if (std::find( conn, conn+len, entity ) - conn < len)
-        results.insert( *i );
-    }
-  }
-  
-    // check all adjacnecy data
-  entities.clear();
-  rval = get_entities_by_handle( 0, entities );
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  for (MBRange::iterator i = entities.begin(); i != entities.end(); ++i) {
-    const MBEntityHandle* adj;
-    int len;
-    rval = a_entity_factory()->get_adjacencies( *i, adj, len );
-    if (MB_SUCCESS != rval)
-      return rval;
-    
-    if (std::find( adj, adj+len, entity ) - adj < len)
-      results.insert( *i );
-  }
-  
-    // check set contents
-  entities.clear();
-  rval = get_entities_by_type( 0, MBENTITYSET, entities );
-  if (MB_SUCCESS != rval)
-    return rval;
-  for (MBRange::iterator i = entities.begin(); i != entities.end(); ++i) {
-    MBRange contents;
-    rval = get_entities_by_handle( *i, contents );
-    if (contents.find( entity ) != contents.end())
-      results.insert( *i );
-  }
-  
-    // if entity is a set, check set parent/child links
-  if (TYPE_FROM_HANDLE(entity) == MBENTITYSET) {
-    for (MBRange::iterator i = entities.begin(); i != entities.end(); ++i) {
-      MBRange parents, children;
-      rval = get_parent_meshsets( *i, parents );
-      if (MB_SUCCESS != rval)
-        return rval;
-      rval = get_child_meshsets( *i, children );
-      if (MB_SUCCESS != rval)
-        return rval;
-      if (parents.find(entity) != parents.end() || children.find(entity) != children.end())
-        results.insert( *i );
-    }
-  }
-  
-    // check all handle tags
-  std::vector<MBTag> tags;
-  rval = tag_server()->get_tags( MB_TYPE_HANDLE, tags );
-  while (!tags.empty()) {
-    MBTag tag = tags.back();
-    tags.pop_back();
-    int size;
-    rval = tag_get_size( tag, size );
-    if (MB_SUCCESS != rval)
-      return rval;
-    std::vector<MBEntityHandle> tag_values(size/sizeof(MBEntityHandle));;
-    
-    for (MBEntityType t = MBVERTEX; t <= MBENTITYSET; ++t) {
-      entities.clear();
-      rval = get_entities_by_type_and_tag( 0, t, &tag, 0, 1, entities );
-      if (MB_SUCCESS != rval)
-        return rval;
-  
-      for (MBRange::iterator i = entities.begin(); i != entities.end(); ++i) {
-        rval = tag_get_data( tag, &*i, 1, &tag_values[0] );
-        if (MB_SUCCESS != rval)
-          return rval;
-        if (std::find(tag_values.begin(), tag_values.end(), entity) != tag_values.end())
-          results.insert( *i );
-      }
-    }
-  }
-  
-  return MB_SUCCESS;
-}
-
-    
-    

@@ -120,7 +120,7 @@ libMOAB_la_SOURCES = \
   MBMatrix3.hpp \
   MBCore.cpp \
   MBFactory.cpp \
-  MBFileReadTool.hpp \
+  MBFileReadTool.cpp \
   MBFileReadTool.hpp \
   MBGeomUtil.cpp \
   MBInternals.hpp \

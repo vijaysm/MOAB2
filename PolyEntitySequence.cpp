@@ -140,17 +140,11 @@ MBErrorCode PolyEntitySequence::add_entity(const MBEntityHandle *conn,
 
   mNumEntities++;
   if (mNumEntities == mNumAllocated)  {
-#ifndef MOAB_WITH_REFCOUNT
     std::vector<bool> empty;
     mFreeEntities.swap( empty );
-#endif
     mSequenceManager->notify_full(this);
   }
-#ifndef MOAB_WITH_REFCOUNT
   mFreeEntities[handle - get_start_handle()] = false;
-#else
-  mRefCount[handle - get_start_handle()] = 1;
-#endif
   
     // put the connectivity on the end of that array
   polyConn.insert(polyConn.end(), conn, conn+num_conn);
@@ -188,12 +182,6 @@ void PolyEntitySequence::free_handle(MBEntityHandle entity)
     // add this handle to the dead list, and zero out its connectivity
   MBEntityID index = entity - mStartEntityHandle;
   if (!is_valid_entity(entity)) return;
-
-#ifdef MOAB_WITH_REFCOUNT
-  if (get_reference_count(entity) != 1) // only referenced by this sequence
-    return;
-  decrement_reference_count(entity);
-#endif
   
   int start_index;
   if (0 == index) start_index = 0;
@@ -203,11 +191,9 @@ void PolyEntitySequence::free_handle(MBEntityHandle entity)
 
     // now add it to the dead list
   mDeadEntities.push_back(entity);
-#ifndef MOAB_WITH_REFCOUNT
   if (mFreeEntities.empty())
     mFreeEntities.resize( mNumAllocated, false );
   mFreeEntities[index] = true;
-#endif
 
     // decrement number of entities
   mNumEntities--;
@@ -223,17 +209,11 @@ void PolyEntitySequence::get_memory_use( unsigned long& used,
                                          unsigned long& allocated) const
 {
   allocated = sizeof(*this)
+       + mFreeEntities.capacity() / 8
        + polyConn.capacity() * sizeof(MBEntityHandle)
        + mLastIndex.capacity() * sizeof(int)
        + mDeadEntities.capacity() * sizeof(MBEntityHandle)
        ;
-
-#ifdef MOAB_WITH_REFCOUNT
-  allocated += mRefCount.capacity() * sizeof(unsigned);
-#else
-  allocated += mFreeEntities.capacity() / 8;
-#endif
-
   used = 0;
   for (MBEntityHandle h = get_start_handle(); h <= get_end_handle(); ++h)
     if (is_valid_entity(h))

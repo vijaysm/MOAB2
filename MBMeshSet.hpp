@@ -208,11 +208,6 @@ public:
   
   inline unsigned long get_memory_use() const;
 
-#ifdef MOAB_WITH_REFCOUNT
-  void increment_all_referenced_entities( AEntityFactory* f );
-  void decrement_all_referenced_entities( AEntityFactory* f );
-#endif
-
 protected:
 
   unsigned long parent_child_memory_use() const;
@@ -313,7 +308,7 @@ private:
   \
   inline unsigned int num_entities_by_dimension(int dimesion) const; \
   \
-  unsigned long get_memory_use() const;  
+  unsigned long get_memory_use() const;
 
 
 
@@ -327,11 +322,6 @@ public:
                 MESHSET_SET) {}
 
   MESH_SET_VIRTUAL_FUNCTIONS
-
-#ifdef MOAB_WITH_REFCOUNT
-  void decrement_all_referenced_entities( AEntityFactory* f);
-  void increment_all_referenced_entities( AEntityFactory* f);
-#endif
 
 private:
   MBRange mRange;
@@ -348,11 +338,6 @@ public:
                 MESHSET_ORDERED) {}
 
   MESH_SET_VIRTUAL_FUNCTIONS
-
-#ifdef MOAB_WITH_REFCOUNT
-  void decrement_all_referenced_entities( AEntityFactory* f);
-  void increment_all_referenced_entities( AEntityFactory* f);
-#endif
 
 private:
   static void vector_to_range( std::vector<MBEntityHandle>& vect, MBRange& range );

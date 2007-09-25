@@ -49,13 +49,7 @@ void MeshSetSequence::initialize( EntitySequenceManager* man,
   
     // allocate storage
   mSets = new unsigned char[SET_SIZE * num_entities];
-#ifdef MOAB_WITH_REFCOUNT
-  mRefCount.clear();
-  mRefCount.resize( num_entities, flags ? 1 : 0 );
-#else
   mFreeEntities.clear();
-#endif
-
   if (flags) {
     mNumEntities = num_entities;
     mFirstFreeIndex = -1;
@@ -66,9 +60,7 @@ void MeshSetSequence::initialize( EntitySequenceManager* man,
     man->notify_not_full( this );
     mNumEntities = 0;
     mFirstFreeIndex = 0;
-#ifndef MOAB_WITH_REFCOUNT
     mFreeEntities.resize( mNumAllocated, true );
-#endif
     for (MBEntityID i = 0; i < num_entities; ++i)
       next_free(i) = i + 1;
     next_free(num_entities-1) = -1; 
@@ -97,11 +89,7 @@ MBEntityHandle MeshSetSequence::add_meshset( unsigned flags )
     return 0;
   const MBEntityID index = mFirstFreeIndex;
   
-#ifndef MOAB_WITH_REFCOUNT
   mFreeEntities[index] = false;
-#else
-  mRefCount[index] = 1;
-#endif
   mFirstFreeIndex = next_free(index);
   if (mLastDeletedIndex == index) 
     mLastDeletedIndex = -1;
@@ -110,10 +98,8 @@ MBEntityHandle MeshSetSequence::add_meshset( unsigned flags )
   mNumEntities++;
   if (mNumEntities == mNumAllocated) {
     mSequenceManager->notify_full(this);
-#ifndef MOAB_WITH_REFCOUNT
     std::vector<bool> empty;
     mFreeEntities.swap( empty);
-#endif
   }
   
   return get_start_handle() + index;
@@ -124,12 +110,6 @@ void MeshSetSequence::free_handle( MBEntityHandle handle )
   if (!is_valid_entity(handle))
     return;
   const MBEntityID index = handle - get_start_handle();
-
-#ifdef MOAB_WITH_REFCOUNT
-  if (get_reference_count(handle) != 1)
-    return;
-  decrement_reference_count(handle);
-#endif
   
     // free any memory allocated by the MBMeshSet
   deallocate_set( index );
@@ -137,17 +117,12 @@ void MeshSetSequence::free_handle( MBEntityHandle handle )
     // decerement count of valid entities
   if(mNumEntities == mNumAllocated) {
     mSequenceManager->notify_not_full(this);
-#ifndef MOAB_WITH_REFCOUNT
     mFreeEntities.resize( mNumAllocated, false );
-#endif
   }
   --mNumEntities;
 
     // mark this entity as invalid
-
-#ifndef MOAB_WITH_REFCOUNT
   mFreeEntities[index] = true;
-#endif
   
     // Add this entity to the free list.
     // Free list is maintained in sorted order.
@@ -197,12 +172,7 @@ void MeshSetSequence::get_memory_use( unsigned long& used,
                                       unsigned long& allocated ) const
 {
   used = 0;
-  allocated = sizeof(*this);
-#ifdef MOAB_WITH_REFCOUNT
-  allocated += mRefCount.capacity() * sizeof(unsigned);
-#else  
-  allocated += mFreeEntities.capacity()/8;
-#endif
+  allocated = sizeof(*this) + mFreeEntities.capacity()/8;
   allocated += mNumAllocated * SET_SIZE;
   for (MBEntityHandle h = get_start_handle(); h <= get_end_handle(); ++h) {
     if (is_valid_entity(h)) {
@@ -531,16 +501,3 @@ MBErrorCode MeshSetSequence::num_children( MBEntityHandle handle,
   number = children.size();
   return result;
 }
-
-#ifdef MOAB_WITH_REFCOUNT
-void MeshSetSequence::decrement_all_referenced_entities( MBEntityHandle handle, AEntityFactory* f)
-{
-  if (is_valid_entity(handle))
-    get_set( handle )->decrement_all_referenced_entities( f );
-}
-void MeshSetSequence::increment_all_referenced_entities( MBEntityHandle handle, AEntityFactory* f)
-{
-  if (is_valid_entity(handle))
-    get_set( handle )->increment_all_referenced_entities( f );
-}
-#endif

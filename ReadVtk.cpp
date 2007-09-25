@@ -573,8 +573,6 @@ MBErrorCode ReadVtk::vtk_read_polygons( FileTokenizer& tokens,
     }
   } 
   
-  readMeshIface->increment_reference_count( conn_array, size[1] - size[0] );
-  
   return MB_SUCCESS;
 }
 
@@ -659,11 +657,11 @@ MBErrorCode ReadVtk::vtk_read_unstructured_grid( FileTokenizer& tokens,
     MBEntityHandle* conn_array;
     int* index_array = 0;
     
-    long conn_len = 0;
     if (type == MBPOLYGON)
     {
         // Calculate total length of connectivity list
       std::vector<long>::iterator conn_iter2 = conn_iter;
+      long conn_len = 0;
       for (i = 0; i < num_elem; ++i)
       {
         conn_len += *conn_iter2;
@@ -676,7 +674,6 @@ MBErrorCode ReadVtk::vtk_read_unstructured_grid( FileTokenizer& tokens,
     }
     else
     {
-      conn_len = num_elem * num_vtx;
       result = allocate_elements( num_elem, num_vtx, type, start_handle,
                                   conn_array, elem_list );
     }
@@ -735,9 +732,7 @@ MBErrorCode ReadVtk::vtk_read_unstructured_grid( FileTokenizer& tokens,
 
       conn_array += num_vtx;
     }
-
-    readMeshIface->increment_reference_count( conn_array, conn_len );
-  }
+  }      
 
   return MB_SUCCESS;
 }
@@ -798,8 +793,6 @@ MBErrorCode ReadVtk::vtk_create_structured_elems( const long* dims,
           *conn_array = index + corners[j] + first_vtx;
       }
   
-
-  readMeshIface->increment_reference_count( conn_array, vert_per_elem * num_elems );
   return MB_SUCCESS;
 }
 
