@@ -36,20 +36,6 @@ MBReadUtil::MBReadUtil(MBCore* mdb, MBError* error_handler)
 
 unsigned  MBReadUtil::parallel_rank() const
   { return mMB->proc_config().rank(); }
-   
-  /** Update reference counts for connectivity links.  Does nothing if 
-   *  not compiled with reference counting enabled.   
-   */
-MBErrorCode MBReadUtil::increment_reference_count( 
-                               const MBEntityHandle* ent_array,
-                               size_t num_ent )
-{
-#ifdef MOAB_WITH_REFCOUNT
-  return mMB->increment_reference_count( ent_array, num_ent );
-#else
-  return MB_SUCCESS;
-#endif
-}
 
 MBErrorCode MBReadUtil::get_node_arrays(
     const int /*num_arrays*/,

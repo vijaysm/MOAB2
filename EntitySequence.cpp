@@ -37,9 +37,6 @@ using namespace std;
 MBEntitySequence::MBEntitySequence(EntitySequenceManager* seq_manager,
   MBEntityHandle start_handle, MBEntityID num_entities )
   : mSequenceManager(seq_manager)
-#ifdef MOAB_WTIH_REFCOUNT
-  , mRefCount( num_entities, 0 )
-#endif
 {
   assert(MB_START_ID <= ID_FROM_HANDLE(start_handle));
   assert(TYPE_FROM_HANDLE(start_handle) < MBMAXTYPE);
@@ -78,13 +75,7 @@ VertexEntitySequence::VertexEntitySequence(EntitySequenceManager* seq_manager,
   mCoords[1] = new double[num_entities];
   mCoords[2] = new double[num_entities];
   
-#ifdef MOAB_WITH_REFCOUNT
-  mRefCount.clear();
-  mRefCount.resize( num_entities, all_handles_used ? 1 : 0 );
-#else
   mFreeEntities.clear();
-#endif
-
   if(all_handles_used)
   {
     mNumEntities = num_entities;
@@ -93,9 +84,7 @@ VertexEntitySequence::VertexEntitySequence(EntitySequenceManager* seq_manager,
   else
   {
     seq_manager->notify_not_full(this);
-#ifndef MOAB_WITH_REFCOUNT
     mFreeEntities.resize(mNumAllocated, true);
-#endif
     mNumEntities = 0;
     mFirstFreeIndex = 0;
     for(MBEntityID i=0; i<num_entities; i++)
@@ -122,11 +111,7 @@ MBEntityHandle VertexEntitySequence::get_unused_handle()
     return 0;
 
   MBEntityHandle new_handle = mStartEntityHandle + mFirstFreeIndex;
-#ifdef MOAB_WITH_REFCOUNT
-  mRefCount[mFirstFreeIndex] = 1;
-#else
   mFreeEntities[mFirstFreeIndex] = false;
-#endif
 
   mFirstFreeIndex = reinterpret_cast<MBEntityID&>(mCoords[0][mFirstFreeIndex]);
 
@@ -134,10 +119,8 @@ MBEntityHandle VertexEntitySequence::get_unused_handle()
 
   if(mNumEntities == mNumAllocated) {
     mSequenceManager->notify_full(this);
-#ifndef MOAB_WITH_REFCOUNT
     std::vector<bool> empty;
     mFreeEntities.swap(empty);
-#endif
   }
 
   if( mLastDeletedIndex == (MBEntityID)( new_handle - mStartEntityHandle ))
@@ -152,21 +135,12 @@ void VertexEntitySequence::free_handle(MBEntityHandle handle)
   if(!is_valid_entity(handle))
     return;
 
-#ifdef MOAB_WITH_REFCOUNT
-  if (get_reference_count(handle) != 1) // only referenced by this sequence
-    return;
-  decrement_reference_count(handle);
-#endif
-
   if(mNumEntities == mNumAllocated) {
     mSequenceManager->notify_not_full(this);
-#ifndef MOAB_WITH_REFCOUNT
     mFreeEntities.resize( mNumAllocated, false );
-#endif
   }
-#ifndef MOAB_WITH_REFCOUNT
+
   mFreeEntities[handle - mStartEntityHandle] = true;
-#endif
 
   MBEntityID prev_free_handle = -1;
   const MBEntityID handle_index = handle - mStartEntityHandle;
@@ -232,22 +206,13 @@ void VertexEntitySequence::get_memory_use( unsigned long& used,
                                            unsigned long& allocated) const
 {
   unsigned long per_ent = get_memory_use((MBEntityHandle)0);
-  allocated = sizeof(*this) + per_ent*number_allocated();
-#ifdef MOAB_WITH_REFCOUNT
-  allocated += mRefCount.capacity() * sizeof(int);
-#else
-  allocated += mFreeEntities.capacity()/8;
-#endif
+  allocated = sizeof(*this) + mFreeEntities.capacity()/8 + per_ent*number_allocated();
   used = per_ent * number_entities();
 }
 
 unsigned long VertexEntitySequence::get_memory_use( MBEntityHandle ) const
 {
-#ifdef MOAB_WITH_REFCOUNT
-  return 3 * sizeof(double) + sizeof(unsigned);
-#else
   return 3 * sizeof(double);
-#endif
 }
 
 MBEntityID ElementEntitySequence::get_next_free_index( MBEntityID prev_free_index ) const
@@ -281,13 +246,7 @@ ElementEntitySequence::ElementEntitySequence(EntitySequenceManager* seq_manager,
 
   seq_manager->entity_sequence_created(this);
 
-#ifdef MOAB_WITH_REFCOUNT
-    mRefCount.clear();
-    mRefCount.resize( num_entities, all_handles_used ? 1 : 0 );
-#else
   mFreeEntities.clear();
-#endif
-
   if(all_handles_used)
   {
     mNumEntities = num_entities;
@@ -296,9 +255,7 @@ ElementEntitySequence::ElementEntitySequence(EntitySequenceManager* seq_manager,
   else
   {
     seq_manager->notify_not_full(this);
-#ifndef MOAB_WITH_REFCOUNT
     mFreeEntities.resize( mNumAllocated, true );
-#endif
     mNumEntities = 0;
     mFirstFreeIndex = 0;
     if (nodes_per_element)
@@ -326,11 +283,7 @@ MBEntityHandle ElementEntitySequence::get_unused_handle()
   if(mFirstFreeIndex == -1)
     return 0;
 
-#ifdef MOAB_WITH_REFCOUNT
-  mRefCount[mFirstFreeIndex] = 1;
-#else
   mFreeEntities[mFirstFreeIndex] = false;
-#endif
   MBEntityHandle new_handle = mStartEntityHandle + mFirstFreeIndex;
 
   mFirstFreeIndex = reinterpret_cast<MBEntityID&>(mElements[mFirstFreeIndex*mNodesPerElement]);
@@ -340,9 +293,7 @@ MBEntityHandle ElementEntitySequence::get_unused_handle()
   if(mNumEntities == mNumAllocated) {
     mSequenceManager->notify_full(this);
     std::vector<bool> empty;
-#ifndef MOAB_WITH_REFCOUNT
     mFreeEntities.swap(empty);
-#endif
   }
   
   if( mLastDeletedIndex == (MBEntityID)( new_handle - mStartEntityHandle ))
@@ -356,22 +307,12 @@ void ElementEntitySequence::free_handle(MBEntityHandle handle)
   if(!is_valid_entity(handle))
     return;
 
-#ifdef MOAB_WITH_REFCOUNT
-  if (get_reference_count(handle) != 1)
-    return;
-  decrement_reference_count(handle);
-#endif
-
   if(mNumEntities == mNumAllocated) {
     mSequenceManager->notify_not_full(this);
-#ifndef MOAB_WITH_REFCOUNT
     mFreeEntities.resize( mNumAllocated, false );
-#endif
   }
 
-#ifndef MOAB_WITH_REFCOUNT
   mFreeEntities[handle-mStartEntityHandle] = true;
-#endif
   
   MBEntityID prev_free_index = -1;
   const MBEntityID handle_index = handle - mStartEntityHandle;
@@ -438,7 +379,7 @@ MBErrorCode ElementEntitySequence::split(MBEntityHandle split_location,
   assert(get_end_handle() >= split_location);
 
   // make a new sequence
-  const bool all_used = (mNumEntities == mNumAllocated);
+  const bool all_used = mFreeEntities.empty();
   ElementEntitySequence* seq = new ElementEntitySequence( mSequenceManager, split_location, 
       get_end_handle() - split_location + 1 , mNodesPerElement, all_used);
   new_sequence = seq;
@@ -464,15 +405,6 @@ MBErrorCode ElementEntitySequence::split(MBEntityHandle split_location,
     assert( seq->mNumEntities == seq->mNumAllocated );
     return MB_SUCCESS;
   }
-  
-#ifdef MOAB_WITH_REFCOUNT
-  const MBEntityHandle count = split_location - get_start_handle();
-  seq->mRefCount = mRefCount;
-  mRefCount.resize( count );
-  seq->mRefCount.erase( seq->mRefCount.begin(), seq->mRefCount.begin() + count );
-  std::vector<unsigned>(mRefCount).swap(mRefCount);
-  std::vector<unsigned>(seq->mRefCount).swap(seq->mRefCount);
-#else
 
   //copy free handles over too
   std::copy(mFreeEntities.begin()+(split_location-mStartEntityHandle),
@@ -481,26 +413,21 @@ MBErrorCode ElementEntitySequence::split(MBEntityHandle split_location,
   // shrink capacity to what we need
   mFreeEntities.resize(mNumAllocated);
   std::vector<bool>(mFreeEntities).swap(mFreeEntities);
-#endif
+
 
   // need to recompute : mNumEntities, mFirstFreeIndex for both sequences
   
   mNumEntities = 0;
   mFirstFreeIndex = -1;
   
-#ifdef MOAB_WITH_REFCOUNT
-  std::vector<unsigned>::reverse_iterator iter = mRefCount.rbegin();
-  std::vector<unsigned>::reverse_iterator end_iter = mRefCount.rend();
-#else
   std::vector<bool>::reverse_iterator iter = mFreeEntities.rbegin();
   std::vector<bool>::reverse_iterator end_iter = mFreeEntities.rend();
-#endif
-  MBEntityID index = mNumAllocated - 1;
+  MBEntityID index = mFreeEntities.size() - 1;
   MBEntityID last_index = -1;
 
   for(; iter != end_iter; )
   {
-    if(*iter)
+    if(*iter == true)
     {
       reinterpret_cast<MBEntityID&>(mElements[index*mNodesPerElement]) = last_index;
       last_index = index;
@@ -517,10 +444,8 @@ MBErrorCode ElementEntitySequence::split(MBEntityHandle split_location,
 
   if(mNumEntities == mNumAllocated) {
     mSequenceManager->notify_full(this);
-#ifndef MOAB_WITH_REFCOUNT
     std::vector<bool> empty;
     mFreeEntities.swap( empty );
-#endif
   }
   else
     mSequenceManager->notify_not_full(this);
@@ -529,20 +454,14 @@ MBErrorCode ElementEntitySequence::split(MBEntityHandle split_location,
   seq->mNumEntities = 0;
   seq->mFirstFreeIndex = -1;
   
-#ifdef MOAB_WITH_REFCOUNT
-  iter = seq->mRefCount.rbegin();
-  end_iter = seq->mRefCount.rend();
-  index = seq->mRefCount.size() - 1;
-#else
   iter = seq->mFreeEntities.rbegin();
   end_iter = seq->mFreeEntities.rend();
   index = seq->mFreeEntities.size() - 1;
-#endif
   last_index = -1;
 
   for(; iter != end_iter; )
   {
-    if(*iter)
+    if(*iter == true)
     {
       reinterpret_cast<MBEntityID&>(seq->mElements[index*mNodesPerElement]) = last_index;
       last_index = index;
@@ -559,10 +478,8 @@ MBErrorCode ElementEntitySequence::split(MBEntityHandle split_location,
   
   if(seq->mNumEntities == seq->mNumAllocated) {
     mSequenceManager->notify_full(seq);
-#ifndef MOAB_WITH_REFCOUNT
     std::vector<bool> empty;
     seq->mFreeEntities.swap( empty );
-#endif
   }
   else
     mSequenceManager->notify_not_full(seq);
@@ -573,15 +490,10 @@ MBErrorCode ElementEntitySequence::split(MBEntityHandle split_location,
 
 
 MBErrorCode ElementEntitySequence::convert_realloc(bool& mid_edge_nodes,
-    bool& mid_face_nodes, bool& mid_volume_nodes, MBCore* MB
-#ifndef MOAB_WITH_REFCOUNT
-    , MBTag delete_mark_bit 
-#endif
-    )
+    bool& mid_face_nodes, bool& mid_volume_nodes, MBCore* MB, 
+    MBTag delete_mark_bit )
 {
-#ifdef MOAB_WITH_REFCOUNT
-  MBRange dead_nodes;
-#endif
+
   MBEntityType this_type = get_type();
 
   // figure out how many nodes per element we'll end up with
@@ -634,22 +546,13 @@ MBErrorCode ElementEntitySequence::convert_realloc(bool& mid_edge_nodes,
     old_end_handle = mElements + mNodesPerElement*mNumAllocated;
     old_iter = mElements + MBCN::VerticesPerEntity(this_type);
 
-#ifndef MOAB_WITH_REFCOUNT
     std::set<MBEntityHandle> nodes_processed; 
-#endif
     for(; old_iter < old_end_handle; )
     {
       //tag each node-to-delete with parent element entity handle and number 
       //of elements it is found on
       for(int i=0; i<number_to_delete; i++)
       {
-#ifdef MOAB_WITH_REFCOUNT
-        if (old_iter[i]) {
-          MB->decrement_reference_count( old_iter[i] );
-          if (MB->get_reference_count( old_iter[i] ) == 1)
-            dead_nodes.insert( old_iter[i] );
-        }
-#else
         //see if node has been processed yet
         if( old_iter[i] && nodes_processed.insert(old_iter[i]).second )
         {
@@ -662,7 +565,6 @@ MBErrorCode ElementEntitySequence::convert_realloc(bool& mid_edge_nodes,
             MB->tag_set_data(delete_mark_bit, &(old_iter[i]), 1, &bit);
           }
         }
-#endif
       }
       old_iter += mNodesPerElement;
     }
@@ -696,22 +598,13 @@ MBErrorCode ElementEntitySequence::convert_realloc(bool& mid_edge_nodes,
     if(has_mid_edge_nodes())
       old_iter+=MBCN::mConnectivityMap[this_type][0].num_sub_elements;
 
-#ifndef MOAB_WITH_REFCOUNT
     std::set<MBEntityHandle> nodes_processed; 
-#endif
     for(; old_iter < old_end_handle; )
     {
       //tag each node-to-delete with parent element entity handle and number 
       //of elements it is found on
       for(int i=0; i<number_to_delete; i++)
       {
-#ifdef MOAB_WITH_REFCOUNT
-        if (old_iter[i]) {
-          MB->decrement_reference_count( old_iter[i] );
-          if (MB->get_reference_count( old_iter[i] ) == 1)
-            dead_nodes.insert( old_iter[i] );
-        }
-#else
         //see if node has been processed yet
         if( old_iter[i] && nodes_processed.insert(old_iter[i]).second )
         {
@@ -724,7 +617,6 @@ MBErrorCode ElementEntitySequence::convert_realloc(bool& mid_edge_nodes,
             MB->tag_set_data(delete_mark_bit, &(old_iter[i]), 1, &bit);
           }
         }
-#endif
       }
       old_iter += mNodesPerElement;
     }
@@ -761,20 +653,12 @@ MBErrorCode ElementEntitySequence::convert_realloc(bool& mid_edge_nodes,
    
     for(; old_iter < old_end_handle; )
     {
-#ifdef MOAB_WITH_REFCOUNT
-      if (*old_iter) {
-        MB->sequence_manager()->decrement_reference_count( *old_iter );
-        if (MB->get_reference_count( *old_iter ) == 1)
-          dead_nodes.insert( *old_iter );
-      }
-#else
       if( *old_iter != 0 && tag_for_deletion( old_iter - mElements, MB ) )
       {
         //tag node as deletable
         unsigned char bit = 0x1;
         MB->tag_set_data(delete_mark_bit, &(*old_iter), 1, &bit);
       }
-#endif
       old_iter += mNodesPerElement;
     }
 
@@ -793,12 +677,8 @@ MBErrorCode ElementEntitySequence::convert_realloc(bool& mid_edge_nodes,
   mElements = new_array;
 
   mNodesPerElement = new_nodes_per_element;
-
-#ifdef MOAB_WITH_REFCOUNT
-  return MB->delete_entities( dead_nodes );
-#else  
+  
   return MB_SUCCESS;
-#endif
 }
 
 bool ElementEntitySequence::has_mid_edge_nodes() const
@@ -917,37 +797,11 @@ void ElementEntitySequence::get_memory_use( unsigned long& used,
                                             unsigned long& allocated) const
 {
   unsigned long per_ent = get_memory_use((MBEntityHandle)0);
-  allocated = sizeof(*this) + per_ent*number_allocated();
-#ifdef MOAB_WITH_REFCOUNT
-  allocated += mRefCount.capacity() * sizeof(unsigned);
-#else
-  allocated += mFreeEntities.capacity()/8;
-#endif
+  allocated = sizeof(*this) + mFreeEntities.capacity()/8 + per_ent*number_allocated();
   used = per_ent * number_entities();
 }
 
 unsigned long ElementEntitySequence::get_memory_use( MBEntityHandle ) const
 {
-#ifdef MOAB_WITH_REFCOUNT
-  return sizeof(MBEntityHandle) * nodes_per_element() + sizeof(unsigned);
-#else
   return sizeof(MBEntityHandle) * nodes_per_element();
-#endif
 }
-
-#ifdef MOAB_WITH_REFCOUNT
-void ElementEntitySequence::decrement_all_referenced_entities( MBEntityHandle entity, AEntityFactory* f)
-{
-  const MBEntityHandle* conn;
-  int len;
-  if (MB_SUCCESS == get_connectivity( entity, conn, len )) 
-    f->decrement_reference_count( conn, len );
-}  
-void ElementEntitySequence::increment_all_referenced_entities( MBEntityHandle entity, AEntityFactory* f)
-{
-  const MBEntityHandle* conn;
-  int len;
-  if (MB_SUCCESS == get_connectivity( entity, conn, len )) 
-    f->increment_reference_count( conn, len );
-}  
-#endif

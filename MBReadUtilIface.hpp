@@ -109,12 +109,6 @@ public:
       MBEntityHandle*& connectivity_array 
    ) = 0;
    
-  /** Update reference counts for connectivity links.  Does nothing if 
-   *  not compiled with reference counting enabled.   
-   */
-  virtual MBErrorCode increment_reference_count( const MBEntityHandle* ent_array,
-                                                 size_t num_ent ) = 0;
-  
   virtual MBErrorCode create_entity_sets(
     MBEntityID num_sets,
     const unsigned* set_flags,

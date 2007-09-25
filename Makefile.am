@@ -29,8 +29,7 @@ TESTS = moab_test \
 
 check_PROGRAMS = $(TESTS) \
 		 kd_tree_tool \
-		 kd_tree_time \
-		 range_map_test
+		 kd_tree_time
          
 #noinst_PROGRAMS = scdseq_timing
 
@@ -120,8 +119,6 @@ libMOAB_la_SOURCES = \
   MBMatrix3.hpp \
   MBCore.cpp \
   MBFactory.cpp \
-  MBFileReadTool.hpp \
-  MBFileReadTool.hpp \
   MBGeomUtil.cpp \
   MBInternals.hpp \
   MBMem.hpp \
@@ -146,7 +143,6 @@ libMOAB_la_SOURCES = \
   MeshTopoUtil.cpp \
   PolyEntitySequence.cpp \
   PolyEntitySequence.hpp \
-  RangeMap.hpp \
   ReadGmsh.cpp \
   ReadGmsh.hpp \
   ReadParallel.hpp \
@@ -304,8 +300,6 @@ kd_tree_time_DEPENDENCIES = $(kd_tree_time_LDADD)
 
 file_options_test_SOURCES = FileOptions.cpp 
 file_options_test_CPPFLAGS = -DTEST
-
-range_map_test_sources = RangeMapTest.cpp RangeMap.hpp
 
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = dumped_acis.sat

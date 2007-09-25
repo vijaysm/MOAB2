@@ -42,7 +42,6 @@
 
 class EntitySequenceManager;
 class MBCore;
-class AEntityFactory;
 
 class MBEntitySequence
 {
@@ -102,18 +101,6 @@ public:
                                unsigned long& allocated ) const = 0;
   virtual unsigned long get_memory_use( MBEntityHandle handle ) const = 0;
 
-#ifdef MOAB_WITH_REFCOUNT
-  unsigned increment_reference_count( MBEntityHandle entity )
-    { return ++mRefCount[entity-get_start_handle()]; }
-  unsigned decrement_reference_count( MBEntityHandle entity )
-    { return --mRefCount[entity-get_start_handle()]; }
-  unsigned get_reference_count( MBEntityHandle entity) const
-    { return mRefCount[entity-get_start_handle()]; }
-  
-  virtual void decrement_all_referenced_entities( MBEntityHandle entity, AEntityFactory* ) = 0;
-  virtual void increment_all_referenced_entities( MBEntityHandle entity, AEntityFactory* ) = 0;
-#endif
-
 protected:
 
   EntitySequenceManager* mSequenceManager;
@@ -135,11 +122,8 @@ protected:
   MBEntityID            mLastDeletedIndex;
 
   //! a list of whether entities are free or not
-#ifdef MOAB_WITH_REFCOUNT
-  std::vector<unsigned> mRefCount;
-#else
   std::vector<bool>     mFreeEntities;
-#endif
+
 };
 
 
@@ -178,11 +162,6 @@ public:
 
   virtual void get_memory_use( unsigned long& used, unsigned long& allocated ) const;
   virtual unsigned long get_memory_use( MBEntityHandle handle ) const;
-
-#ifdef MOAB_WITH_REFCOUNT
-  virtual void decrement_all_referenced_entities( MBEntityHandle , AEntityFactory* ) {}
-  virtual void increment_all_referenced_entities( MBEntityHandle , AEntityFactory* ) {}
-#endif
 private:
 
   // coordinate arrays x,y,z
@@ -228,11 +207,7 @@ public:
   // reallocated the sequence to hold extra/less nodes, pass in what you want, and will return whether it needed
   // reallocate space for those nodes
   virtual MBErrorCode convert_realloc(bool& mid_edge_nodes, bool& mid_face_nodes, bool& mid_volume_nodes, 
-      MBCore* MB
-#ifndef MOAB_WITH_REFCOUNT
-      , MBTag bit_delete_mark 
-#endif
-      );
+      MBCore* MB, MBTag bit_delete_mark );
   
   virtual bool has_mid_edge_nodes() const;
   virtual bool has_mid_face_nodes() const;
@@ -241,10 +216,6 @@ public:
   virtual void get_memory_use( unsigned long& used, unsigned long& allocated ) const;
   virtual unsigned long get_memory_use( MBEntityHandle handle ) const;
 
-#ifdef MOAB_WITH_REFCOUNT
-  virtual void decrement_all_referenced_entities( MBEntityHandle entity, AEntityFactory* f);
-  virtual void increment_all_referenced_entities( MBEntityHandle entity, AEntityFactory* f);
-#endif
 protected:
   
   unsigned short mNodesPerElement;
@@ -261,11 +232,7 @@ protected:
 
 inline bool MBEntitySequence::is_valid_entity(MBEntityHandle entity) const
 {
-#ifdef MOAB_WITH_REFCOUNT
-  return 0 != get_reference_count(entity);
-#else
   return mFreeEntities.empty() || !mFreeEntities[entity-mStartEntityHandle];
-#endif
 }
 
 

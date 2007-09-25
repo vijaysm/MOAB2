@@ -218,8 +218,6 @@ MBErrorCode ReadSTL::load_file_impl(const char *filename,
     *connectivity = vertex_map[i->points[2]]; ++connectivity;
   }
   
-  readMeshIface->increment_reference_count( connectivity, 3*triangles.size() );
-  
   return MB_SUCCESS;
 }
 

@@ -1333,13 +1333,6 @@ MBErrorCode mb_mesh_set_parent_child_test(MBInterface *MB)
     if (MB_SUCCESS != rval) 
       return rval;
   }
-
-#ifdef MOAB_WITH_REFCOUNT
-  MBCore* core = dynamic_cast<MBCore*>(MB);
-  for (int i = 0; i < num_sets; ++i)
-    if (core->get_reference_count(sets[i]) != 1)
-      return MB_FAILURE;
-#endif
   
     // test adding child meshsets
     
@@ -1369,7 +1362,7 @@ MBErrorCode mb_mesh_set_parent_child_test(MBInterface *MB)
   if (!compare_lists( list, sets+1, 2 ))
     return MB_FAILURE;
     // try adding child again
-  rval = MB->add_child_meshset( sets[0], sets[2] );
+  rval = MB->add_child_meshset( sets[0], sets[1] );
   if (MB_SUCCESS != rval) return rval;
   list.clear();
   rval = MB->get_child_meshsets( sets[0], list );
@@ -1386,7 +1379,7 @@ MBErrorCode mb_mesh_set_parent_child_test(MBInterface *MB)
   if (!compare_lists( list, sets+1, 3 ))
     return MB_FAILURE;
     // try adding child again
-  rval = MB->add_child_meshset( sets[0], sets[3] );
+  rval = MB->add_child_meshset( sets[0], sets[1] );
   if (MB_SUCCESS != rval) return rval;
   list.clear();
   rval = MB->get_child_meshsets( sets[0], list );
@@ -1402,14 +1395,6 @@ MBErrorCode mb_mesh_set_parent_child_test(MBInterface *MB)
   if (MB_SUCCESS != rval) return rval;
   if (!compare_lists( list, sets+1, 4 ))
     return MB_FAILURE;
-
-#ifdef MOAB_WITH_REFCOUNT
-  for (int i = 1; i < 5; ++i)
-    if (core->get_reference_count(sets[i]) != 2)
-      return MB_FAILURE;
-#endif
-
-
   
     // make sure range query returns same result
   std::sort( list.begin(), list.end() );
@@ -1458,12 +1443,6 @@ MBErrorCode mb_mesh_set_parent_child_test(MBInterface *MB)
   if (!list.empty())
     return MB_FAILURE;
 
-#ifdef MOAB_WITH_REFCOUNT
-  for (int i = 1; i < 5; ++i)
-    if (core->get_reference_count(sets[i]) != 1)
-      return MB_FAILURE;
-#endif
-
   
     // test adding parent meshsets
     
@@ -1493,7 +1472,7 @@ MBErrorCode mb_mesh_set_parent_child_test(MBInterface *MB)
   if (!compare_lists( list, sets+1, 2 ))
     return MB_FAILURE;
     // try adding parent again
-  rval = MB->add_parent_meshset( sets[0], sets[2] );
+  rval = MB->add_parent_meshset( sets[0], sets[1] );
   if (MB_SUCCESS != rval) return rval;
   list.clear();
   rval = MB->get_parent_meshsets( sets[0], list );
@@ -1510,7 +1489,7 @@ MBErrorCode mb_mesh_set_parent_child_test(MBInterface *MB)
   if (!compare_lists( list, sets+1, 3 ))
     return MB_FAILURE;
     // try adding parent again
-  rval = MB->add_parent_meshset( sets[0], sets[3] );
+  rval = MB->add_parent_meshset( sets[0], sets[1] );
   if (MB_SUCCESS != rval) return rval;
   list.clear();
   rval = MB->get_parent_meshsets( sets[0], list );
@@ -1526,12 +1505,6 @@ MBErrorCode mb_mesh_set_parent_child_test(MBInterface *MB)
   if (MB_SUCCESS != rval) return rval;
   if (!compare_lists( list, sets+1, 4 ))
     return MB_FAILURE;
-
-#ifdef MOAB_WITH_REFCOUNT
-  for (int i = 1; i < 5; ++i)
-    if (core->get_reference_count(sets[i]) != 2)
-      return MB_FAILURE;
-#endif
   
     // make sure range query returns same result
   std::sort( list.begin(), list.end() );
@@ -1579,12 +1552,6 @@ MBErrorCode mb_mesh_set_parent_child_test(MBInterface *MB)
   rval = MB->get_parent_meshsets( sets[0], list );
   if (!list.empty())
     return MB_FAILURE;
-
-#ifdef MOAB_WITH_REFCOUNT
-  for (int i = 1; i < 5; ++i)
-    if (core->get_reference_count(sets[i]) != 1)
-      return MB_FAILURE;
-#endif
     
     
     // setup tests of recursive child query
@@ -1615,13 +1582,6 @@ MBErrorCode mb_mesh_set_parent_child_test(MBInterface *MB)
   if (MB_SUCCESS != rval) return rval;
   rval = MB->add_child_meshset( sets[5], sets[7] );
   if (MB_SUCCESS != rval) return rval;
-
-#ifdef MOAB_WITH_REFCOUNT
-  unsigned expref1[num_sets] = { 1, 2, 2, 2, 3, 2, 3, 3, 1, 1 };
-  for (int i = 0; i < num_sets; ++i)
-    if (core->get_reference_count(sets[i]) != expref1[i])
-      return MB_FAILURE;
-#endif
   
     // test query at depth of 1
   list.clear();
@@ -1702,13 +1662,7 @@ MBErrorCode mb_mesh_set_parent_child_test(MBInterface *MB)
   for (int i = 0; i < 5; ++i)
     if (MB_SUCCESS != MB->num_child_meshsets(sets[i], &count) || count)
       return MB_FAILURE;
-
-#ifdef MOAB_WITH_REFCOUNT
-  for (int i = 0; i < num_sets; ++i)
-    if (core->get_reference_count(sets[i]) != 1)
-      return MB_FAILURE;
-#endif
-
+     
     // setup tests of recursive parent query
     //          6       7
     //        /   \   /   \       .
@@ -1737,12 +1691,6 @@ MBErrorCode mb_mesh_set_parent_child_test(MBInterface *MB)
   if (MB_SUCCESS != rval) return rval;
   rval = MB->add_parent_meshset( sets[5], sets[7] );
   if (MB_SUCCESS != rval) return rval;
-
-#ifdef MOAB_WITH_REFCOUNT
-  for (int i = 0; i < num_sets; ++i)
-    if (core->get_reference_count(sets[i]) != expref1[i])
-      return MB_FAILURE;
-#endif
   
     // test query at depth of 1
   list.clear();
@@ -1823,25 +1771,13 @@ MBErrorCode mb_mesh_set_parent_child_test(MBInterface *MB)
   for (int i = 0; i < 5; ++i)
     if (MB_SUCCESS != MB->num_parent_meshsets(sets[i], &count) || count)
       return MB_FAILURE;
-
-#ifdef MOAB_WITH_REFCOUNT
-  for (int i = 0; i < num_sets; ++i)
-    if (core->get_reference_count(sets[i]) != 1)
-      return MB_FAILURE;
-#endif
+   
     
     // test combined parent/child links
 
     // test creation
   rval = MB->add_parent_child( sets[9], sets[8] );
   if (MB_SUCCESS != rval) return rval;
-
-#ifdef MOAB_WITH_REFCOUNT
-  if (core->get_reference_count(sets[9]) != 2 ||
-      core->get_reference_count(sets[8]) != 2)
-    return MB_FAILURE;
-#endif
-
   list.clear();
   rval = MB->get_child_meshsets( sets[9], list );
   if (MB_SUCCESS != rval) return rval;
@@ -1854,7 +1790,6 @@ MBErrorCode mb_mesh_set_parent_child_test(MBInterface *MB)
     return MB_FAILURE;  
 
     // test deletion of parent/child
-#ifndef MOAB_WITH_REFCOUNT
   rval = MB->add_parent_child( sets[7], sets[9] );
   if (MB_SUCCESS != rval) return rval;
   rval = MB->delete_entities( &sets[9], 1 );
@@ -1870,10 +1805,6 @@ MBErrorCode mb_mesh_set_parent_child_test(MBInterface *MB)
   
     // clean up remaining sets
   return MB->delete_entities( sets, 9 );
-#else
-    // clean up remaining sets
-  return MB->delete_entities( sets, 10 );
-#endif
 }
   
 MBErrorCode mb_mesh_sets_set_test( MBInterface* mb )
@@ -1996,19 +1927,6 @@ MBErrorCode mb_meshset_tracking_test( MBInterface *MB )
   if( hexes.size() + tets.size() != dim_3_range.size() )
     return MB_FAILURE;
 
-#ifdef MOAB_WITH_REFCOUNT
-  MBCore* core = dynamic_cast<MBCore*>(MB);
-  if (core->get_reference_count( ms1 ) != 1)
-    return MB_FAILURE;
-  if (core->get_reference_count( ms2 ) != 1)
-    return MB_FAILURE;
-  if (core->get_reference_count( ms3 ) != 1)
-    return MB_FAILURE;
-  std::vector<unsigned> hex_refs;
-  for (MBRange::iterator i = hexes.begin(); i != hexes.end(); ++i)
-    hex_refs.push_back( core->get_reference_count(*i) );
-#endif
-
     //put all hexes in ms1, ms2, ms3
   result = MB->add_entities(ms1, hexes); //add ents in a range 
   if(result != MB_SUCCESS )
@@ -2023,19 +1941,6 @@ MBErrorCode mb_meshset_tracking_test( MBInterface *MB )
   result = MB->add_entities(ms3, hexes);
   if(result != MB_SUCCESS )
     return result;
-
-#ifdef MOAB_WITH_REFCOUNT
-  if (core->get_reference_count( ms1 ) != 1)
-    return MB_FAILURE;
-  if (core->get_reference_count( ms2 ) != 1)
-    return MB_FAILURE;
-  if (core->get_reference_count( ms3 ) != 1)
-    return MB_FAILURE;
-  std::vector<unsigned>::iterator j = hex_refs.begin();
-  for (MBRange::iterator i = hexes.begin(); i != hexes.end(); ++i, ++j)
-    if (core->get_reference_count(*i) != 3+*j)
-      return MB_FAILURE;
-#endif
 
     //put all tets in ms1, ms2
   if(MB->add_entities(ms1, &tets[0], tets.size()) != MB_SUCCESS )  //add ents in a vector
@@ -2164,20 +2069,14 @@ MBErrorCode mb_meshset_tracking_test( MBInterface *MB )
   MB->get_number_entities_by_handle(ms2, num_before);
   vec_iter = tets.begin();
   result = MB->delete_entities( &(*vec_iter), 1);
-#ifdef MOAB_WITH_REFCOUNT
-  if (result == MB_SUCCESS)
-    return MB_FAILURE;
-#else
   if(result != MB_SUCCESS )
     return result;
-#endif
 
   int num_after = 0;
   MB->get_number_entities_by_handle(ms2, num_after);
-#ifndef MOAB_WITH_REFCOUNT
   if( num_before != num_after + 1)
     return MB_FAILURE;
-#endif
+
 
   return MB_SUCCESS;
 
@@ -3088,7 +2987,6 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
 
   entities.clear();
   MB->get_entities_by_type(0, MBVERTEX, entities);
-  
   unsigned int original_num_nodes = entities.size();
   entities.clear();
   MB->get_entities_by_type(0, MBHEX, entities);
@@ -3107,7 +3005,6 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
 
   entities.clear();
   MB->get_entities_by_type(0, MBVERTEX, entities);
-  
     // make sure the higher order nodes really were deleted
   if(entities.size() != original_num_nodes)
     return MB_FAILURE;
@@ -3224,38 +3121,17 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
 
   
   
-  MBEntityHandle file_set;
+  
   file_name = TestDir + "/mbtest1.g";
-  error = MB->load_file(file_name.c_str(), file_set);
+  error = MB->load_mesh(file_name.c_str(), NULL, 0);
   if (error != MB_SUCCESS)
-    return error;
-  error = MB->delete_entities( &file_set, 1 );
-  if (MB_SUCCESS != error)
     return error;
 
     // delete all MBTRI's
-  MBRange tri_sets;
-  MBTag matset_tag;
-  if (MB_SUCCESS == MB->tag_get_handle( MATERIAL_SET_TAG_NAME, matset_tag )) {
-    error = MB->get_entities_by_type_and_tag( 0, MBENTITYSET, &matset_tag, 0, 1, tri_sets, MBInterface::UNION );
-    if (MB_SUCCESS != error)
-      return error;
-//MBRange users2;
-//error = dynamic_cast<MBCore*>(MB)->find_all_referencing_entities( tri_sets.front(), users2 );
-//assert(MB_SUCCESS == error);
-//users2.print();
-    error = MB->delete_entities( tri_sets );
-    if (MB_SUCCESS != error)
-      return error;
-  }
   entities.clear();
   error = MB->get_entities_by_type(0, MBTRI, entities);
   if (MB_SUCCESS != error)
     return error;
-//MBRange users;
-//error = dynamic_cast<MBCore*>(MB)->find_all_referencing_entities( entities.front(), users );
-//assert(MB_SUCCESS == error);
-//users.print();
   error = MB->delete_entities(entities);
   if (MB_SUCCESS != error)
     return error;

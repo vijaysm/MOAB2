@@ -399,8 +399,6 @@ MBErrorCode ReadGmsh::create_elements( const ElementType& type,
   {
     memcpy( conn_array, &connectivity[0], connectivity.size() * sizeof(MBEntityHandle) );
   }
-  
-  readMeshIface->increment_reference_count( conn_array, num_elem * node_per_elem );
 
     // Store element IDs
   result = mdbImpl->tag_set_data( globalId, elements, &elem_ids[0] );

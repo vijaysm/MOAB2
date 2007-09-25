@@ -274,11 +274,6 @@ MBErrorCode MBMeshSet_MBRange::clear( MBEntityHandle mEntityHandle,
       mAdjFact->remove_adjacency(*iter, mEntityHandle);
     }
   }
-#ifdef MOAB_WITH_REFCOUNT
-  for (MBRange::iterator i = mRange.begin(); i != mRange.end(); ++i)
-    mAdjFact->decrement_reference_count( *i );
-#endif
-    
   mRange.clear();
   return MB_SUCCESS;
 }
@@ -291,17 +286,7 @@ MBErrorCode MBMeshSet_MBRange::add_entities( const MBEntityHandle *entities,
 {
   int i;
   for(i = 0; i < num_entities; i++)
-#ifndef MOAB_WITH_REFCOUNT
     mRange.insert(entities[i]);
-#else
-  {
-    MBRange::iterator j = MBRange::lower_bound( mRange.begin(), mRange.end(), entities[i] );
-    if (j == mRange.end() || *j != entities[i]) {
-      mRange.insert( entities[i] );
-      mAdjFact->increment_reference_count( entities[i] );
-    }
-  }
-#endif
 
   if(tracking() && mAdjFact)
   {
@@ -316,27 +301,8 @@ MBErrorCode MBMeshSet_MBRange::add_entities( const MBRange& entities,
                                              MBEntityHandle mEntityHandle,
                                              AEntityFactory* mAdjFact )
 {
-#ifdef MOAB_WITH_REFCOUNT
-  if (entities.size() > mRange.size()) {
-    MBRange::const_iterator i;
-    for (i = mRange.begin(); i != mRange.end(); ++i)
-      mAdjFact->decrement_reference_count( * i );
-    
-    mRange.merge( entities );
-    for (i = mRange.begin(); i != mRange.end(); ++i)
-      mAdjFact->increment_reference_count( * i );
-  }
-  else {
-    // do this in this way because we expect duplicate to be empty
-    MBRange duplicate = mRange.intersect( entities );
-    for (MBRange::const_iterator i = entities.begin(); i != entities.end(); ++i)
-      if (duplicate.find(*i) == duplicate.end())
-        mAdjFact->increment_reference_count( *i );
-     mRange.merge(entities);
-  }
-#else
+
   mRange.merge(entities);
-#endif
   
   if(tracking() && mAdjFact)
   {
@@ -359,9 +325,6 @@ MBErrorCode MBMeshSet_MBRange::remove_entities( const MBRange& entities,
     if(found != mRange.end())
     {
       mRange.erase(found);
-#ifdef MOAB_WITH_REFCOUNT
-      mAdjFact->decrement_reference_count( *iter );
-#endif
       if(tracking() && mAdjFact)
         mAdjFact->remove_adjacency(*iter, mEntityHandle);
     }
@@ -382,9 +345,6 @@ MBErrorCode MBMeshSet_MBRange::remove_entities( const MBEntityHandle *entities,
     if(found != mRange.end())
     {
       mRange.erase(found);
-#ifdef MOAB_WITH_REFCOUNT
-      mAdjFact->decrement_reference_count( entities[i] );
-#endif
       if(tracking() && mAdjFact)
         mAdjFact->remove_adjacency(entities[i], mEntityHandle);
     }
@@ -408,12 +368,6 @@ MBErrorCode MBMeshSet_MBRange::intersect( const MBMeshSet *meshset_2,
                                           MBEntityHandle mEntityHandle,
                                           AEntityFactory* mAdjFact )
 {
-#ifdef MOAB_WITH_REFCOUNT
-  MBRange::const_iterator i;
-  for (i = mRange.begin(); i != mRange.end(); ++i)
-    mAdjFact->decrement_reference_count( * i );
-#endif    
-
   MBRange other_range;
   meshset_2->get_entities(other_range);
 
@@ -429,11 +383,6 @@ MBErrorCode MBMeshSet_MBRange::intersect( const MBMeshSet *meshset_2,
   {
     mRange.insert(*iter);
   }
-
-#ifdef MOAB_WITH_REFCOUNT
-  for (i = mRange.begin(); i != mRange.end(); ++i)
-    mAdjFact->increment_reference_count( * i );
-#endif    
 
   //track owner
   if(tracking() && mAdjFact)
@@ -468,10 +417,6 @@ unsigned long MBMeshSet_MBRange::get_memory_use() const
 MBErrorCode MBMeshSet_Vector::clear( MBEntityHandle mEntityHandle, 
                                      AEntityFactory* mAdjFact)
 {
-#ifdef MOAB_WITH_REFCOUNT
-  mAdjFact->decrement_reference_count( &mVector[0], mVector.size() );
-#endif
-
   if(tracking() && mAdjFact)
   {
     for(std::vector<MBEntityHandle>::iterator iter = mVector.begin();
@@ -508,10 +453,6 @@ MBErrorCode MBMeshSet_Vector::add_entities( const MBEntityHandle *entities,
   mVector.resize(prev_size + num_entities);
   std::copy(entities, entities+num_entities, &mVector[prev_size]);
 
-#ifdef MOAB_WITH_REFCOUNT
-  mAdjFact->increment_reference_count( entities, num_entities );
-#endif
-
   if(tracking() && mAdjFact)
   {
     for(int i = 0; i < num_entities; i++)
@@ -530,11 +471,6 @@ MBErrorCode MBMeshSet_Vector::add_entities( const MBRange& entities,
   unsigned int prev_size = mVector.size();
   mVector.resize(prev_size + entities.size());
   std::copy(entities.begin(), entities.end(), &mVector[prev_size]);
-
-#ifdef MOAB_WITH_REFCOUNT
-  for (MBRange::const_iterator i = entities.begin(); i != entities.end(); ++i)
-    mAdjFact->increment_reference_count( *i );
-#endif
   
   if(tracking() && mAdjFact)
   {
@@ -556,9 +492,6 @@ MBErrorCode MBMeshSet_Vector::remove_entities( const MBRange& entities,
   {
     if(entities.find(*iter) != entities.end())
     {
-#ifdef MOAB_WITH_REFCOUNT
-      mAdjFact->decrement_reference_count( *iter );
-#endif
       if(tracking() && mAdjFact)
         mAdjFact->remove_adjacency(*iter, mEntityHandle);
       iter = mVector.erase(iter);
@@ -582,9 +515,6 @@ MBErrorCode MBMeshSet_Vector::remove_entities( const MBEntityHandle *entities,
     temp_iter = std::find( mVector.begin(), mVector.end(), entities[i]); 
     if( temp_iter != mVector.end() )
     {
-#ifdef MOAB_WITH_REFCOUNT
-      mAdjFact->decrement_reference_count( *temp_iter );
-#endif
       if(tracking() && mAdjFact)
         mAdjFact->remove_adjacency(entities[i], mEntityHandle);
       mVector.erase(temp_iter);
@@ -607,10 +537,6 @@ MBErrorCode MBMeshSet_Vector::intersect( const MBMeshSet *meshset_2,
                                          MBEntityHandle mEntityHandle,
                                          AEntityFactory* mAdjFact )
 {
-#ifdef MOAB_WITH_REFCOUNT
-  mAdjFact->decrement_reference_count( &mVector[0], mVector.size() );
-#endif
-
   MBRange other_range;
   meshset_2->get_entities(other_range);
 
@@ -637,10 +563,6 @@ MBErrorCode MBMeshSet_Vector::intersect( const MBMeshSet *meshset_2,
       mAdjFact->remove_adjacency(*iter, mEntityHandle);
   }
 
-#ifdef MOAB_WITH_REFCOUNT
-  mAdjFact->increment_reference_count( &mVector[0], mVector.size() );
-#endif
-
   return MB_SUCCESS;
 }
 
@@ -659,60 +581,3 @@ unsigned long MBMeshSet_Vector::get_memory_use() const
        + mVector.capacity()*sizeof(MBEntityHandle);
 }
 
-#ifdef MOAB_WITH_REFCOUNT
-
-void MBMeshSet::increment_all_referenced_entities( AEntityFactory* f )
-{
-  int count;
-  const MBEntityHandle* array;
-  
-  array = get_children(count);
-  f->increment_reference_count( array, count );
-  
-  array = get_parents(count);
-  f->increment_reference_count( array, count );
-  
-  if (vector_based())
-    reinterpret_cast<MBMeshSet_Vector* >(this)->increment_all_referenced_entities( f );
-  else
-    reinterpret_cast<MBMeshSet_MBRange*>(this)->increment_all_referenced_entities( f );
-}
-
-void MBMeshSet::decrement_all_referenced_entities( AEntityFactory* f )
-{
-  int count;
-  const MBEntityHandle* array;
-  
-  array = get_children(count);
-  f->decrement_reference_count( array, count );
-  
-  array = get_parents(count);
-  f->decrement_reference_count( array, count );
-  
-  if (vector_based())
-    reinterpret_cast<MBMeshSet_Vector* >(this)->decrement_all_referenced_entities( f );
-  else
-    reinterpret_cast<MBMeshSet_MBRange*>(this)->decrement_all_referenced_entities( f );
-}
-    
-void MBMeshSet_Vector::increment_all_referenced_entities( AEntityFactory* f )
-{
-  f->increment_reference_count( &mVector[0], mVector.size() );
-}
-void MBMeshSet_Vector::decrement_all_referenced_entities( AEntityFactory* f )
-{
-  f->decrement_reference_count( &mVector[0], mVector.size() );
-}
-
-void MBMeshSet_MBRange::increment_all_referenced_entities( AEntityFactory* f )
-{
-  for (MBRange::const_iterator i = mRange.begin(); i != mRange.end(); ++i)
-    f->increment_reference_count( *i );
-}
-void MBMeshSet_MBRange::decrement_all_referenced_entities( AEntityFactory* f )
-{
-  for (MBRange::const_iterator i = mRange.begin(); i != mRange.end(); ++i)
-    f->decrement_reference_count( *i );
-}
-
-#endif

@@ -64,10 +64,6 @@ public:
   MBErrorCode num_parents ( MBEntityHandle of, int& number, int num_hops ) const;
   MBErrorCode num_children( MBEntityHandle of, int& number, int num_hops ) const;
   
-#ifdef MOAB_WITH_REFCOUNT
-  virtual void decrement_all_referenced_entities( MBEntityHandle , AEntityFactory* );
-  virtual void increment_all_referenced_entities( MBEntityHandle , AEntityFactory* );
-#endif
 private:
 
   void initialize( EntitySequenceManager* seq_man,

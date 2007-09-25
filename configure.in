@@ -47,15 +47,6 @@ else
 fi
 AC_DEFINE_UNQUOTED(MB_VERSION_STRING,"${VERSION_STRING}",[MOAB Version String])
 
-################################################################################
-#                              Debugging Features
-################################################################################
-AC_MSG_CHECKING([if reference counting is enabled])
-AC_ARG_ENABLE([refcounts],
-              [AC_HELP_STRING([enable-refcounts],[Enable reference counting])],
-              [DEFINES="$DEFINES -DMOAB_WITH_REFCOUNT"; AC_MSG_RESULT([yes])],
-              [AC_MSG_RESULT([no])])
-
 
 ################################################################################
 #                              Extract libtool config
