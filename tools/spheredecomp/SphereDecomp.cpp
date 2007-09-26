@@ -431,8 +431,11 @@ MBErrorCode SphereDecomp::retrieve_subdiv_verts(MBEntityHandle tet, MBEntityHand
   result = mbImpl->get_connectivity(&this_ent, 1, this_conn); RR;
   
     // get relative orientation
+  std::vector<int> conn_tet_indices(this_conn.size());
+  for (size_t i = 0; i < this_conn.size(); ++i)
+    conn_tet_indices[i] = std::find(tet_conn, tet_conn+4, this_conn[i]) - tet_conn;
   int sense, side_no, offset;
-  int success = MBCN::SideNumber(tet_conn, MBTET, &this_conn[0],
+  int success = MBCN::SideNumber(MBTET, &conn_tet_indices[0],
                                  this_conn.size(), dim, side_no, sense, offset);
   if (-1 == success) return MB_FAILURE;
   

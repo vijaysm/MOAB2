@@ -516,6 +516,7 @@ MBErrorCode MBOrientedBoxTreeTool::sphere_intersect_triangles(
       rval = get_moab_instance()->get_entities_by_type( node, MBENTITYSET, sets );
       if (!sets.empty())
         surf = sets.front();
+      sets.clear();
     }
     
       // check if sphere intersects box

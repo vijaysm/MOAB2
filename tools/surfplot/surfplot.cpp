@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <limits>
+#include <math.h>
 
 /* Exit values */
 #define USAGE_ERROR 1

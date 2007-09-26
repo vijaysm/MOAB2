@@ -525,7 +525,7 @@ void testB(const int nelem, const double *coords, const MBEntityHandle *connect)
   // create a sequence to hold the node coordinates
   // get the current number of entities and start at the next slot
   std::vector<double*> coord_arrays;
-  MBErrorCode result = readMeshIface->get_node_arrays(3, num_verts, 1, vstart, coord_arrays);
+  MBErrorCode result = readMeshIface->get_node_arrays(3, num_verts, 1, 0, vstart, coord_arrays);
   assert(MB_SUCCESS == result && 1 == vstart &&
          coord_arrays[0] && coord_arrays[1] && coord_arrays[2]);
     // memcpy the coordinate data into place
@@ -534,7 +534,7 @@ void testB(const int nelem, const double *coords, const MBEntityHandle *connect)
   memcpy(coord_arrays[2], &coords[2*num_verts], sizeof(double)*num_verts);
   
   MBEntityHandle *conn = 0;
-  result = readMeshIface->get_element_array(num_elems, 8, MBHEX, 1, estart, conn);
+  result = readMeshIface->get_element_array(num_elems, 8, MBHEX, 1, 0, estart, conn);
   assert(MB_SUCCESS == result);
   memcpy(conn, connect, num_elems*8*sizeof(MBEntityHandle));
   result = readMeshIface->update_adjacencies(estart, num_elems, 8, conn);
