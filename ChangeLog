@@ -1,0 +1,9 @@
+3.0.1:
+------
+
+r1293 2007-26-9
+o Fix bug in MBOrientedBoxTreeTool::sphere_intersect_triangles
+o Fix build issues resulting from API changes in tools: mbperf SphereDecomp
+o Fix missing #include in surfplot
+o Fix separate-build-tree build issue for surfplot tool
+
