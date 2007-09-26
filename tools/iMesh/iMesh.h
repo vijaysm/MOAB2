@@ -662,6 +662,38 @@ extern "C" {
                           /*out*/ int* offset_size,
                           /*out*/ int *err);
 
+/**\brief Get "2nd order" adjacencies to an array of entities
+ * Get "2nd order" adjacencies to an array of entities, that is, from each 
+ * entity, through other entities of a specified "bridge" dimension, to other 
+ * entities of another specified "to" dimension.
+ *
+ * \param instance iMesh instance for this call
+ * \param entity_handles Entities from which adjacencies are requested
+ * \param entity_handles_size Number of entities whose adjacencies are requested
+ * \param bridge_dimension Bridge dimension for 2nd order adjacencies
+ * \param to_dimension Dimension of adjacent entities returned
+ * \param adj_entity_handles Adjacent entities
+ * \param adj_entity_handles_allocated Allocated size of returned array
+ * \param adj_entity_handles_size Occupied size of returned array
+ * \param offset Offset[i] is offset into adj_entity_handles of 2nd order 
+ *        adjacencies of ith entity in entity_handles
+ * \param offset_allocated Allocated size of offset array
+ * \param offset_size Occupied size of offset array
+ * \param err 
+ */
+  void iMesh_getEntArr2ndAdj( iMesh_Instance instance,
+                              iBase_EntityHandle const* entity_handles,
+                              int entity_handles_size,
+                              int order_adjacent_key,
+                              int requested_entity_type,
+                              iBase_EntityHandle** adj_entity_handles,
+                              int* adj_entity_handles_allocated,
+                              int* adj_entity_handles_size,
+                              int** offset,
+                              int* offset_allocated,
+                              int* offset_size,
+                              int* err );
+
     /**\brief  Create an entity set
      *
      * Create an entity set, either ordered (isList=1) or unordered 
@@ -1919,6 +1951,28 @@ extern "C" {
                        /*inout*/ int* adj_entity_handles_allocated,
                        /*out*/ int* adj_entity_handles_size,
                        /*out*/ int *err);
+
+/**\brief Get "2nd order" adjacencies to an entity
+ * Get "2nd order" adjacencies to an entity, that is, from an entity, through
+ * other entities of a specified "bridge" dimension, to other entities of another 
+ * specified "to" dimension.
+ * \param instance iMesh instance for this call
+ * \param entity_handle Entity from which adjacencies are requested
+ * \param bridge_dimension Bridge dimension for 2nd order adjacencies
+ * \param to_dimension Dimension of adjacent entities returned
+ * \param adjacent_entities Adjacent entities
+ * \param adjacent_entities_allocated Allocated size of returned array
+ * \param adjacent_entities_size Occupied size of returned array
+ * \param err 
+ */
+  void iMesh_getEnt2ndAdj( iMesh_Instance instance,
+                           iBase_EntityHandle entity_handle,
+                           int order_adjacent_key,
+                           int requested_entity_type,
+                           iBase_EntityHandle** adjacent_entities,
+                           int* adjacent_entities_allocated,
+                           int* adjacent_entities_size,
+                           int* err );
 
     /**\brief  Subtract contents of one entity set from another
      *

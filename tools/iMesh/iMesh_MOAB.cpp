@@ -2,6 +2,7 @@
 #include "MBCore.hpp"
 #include "MBRange.hpp"
 #include "MBCN.hpp"
+#include "MeshTopoUtil.hpp"
 
 #include <iostream>
 #define MIN(a,b) (a < b ? a : b)
@@ -1020,6 +1021,62 @@ void iMesh_getEntArrAdj(iMesh_Instance instance,
   memcpy(*adjacentEntityHandles, &all_adj_ents[0], sizeof(MBEntityHandle) * all_adj_ents.size() );
 
   *adjacentEntityHandles_size = all_adj_ents.size();
+  *offset_size = entity_handles_size+1;
+  RETURN(iBase_SUCCESS);
+}
+
+void iMesh_getEntArr2ndAdj( iMesh_Instance instance,
+                            iBase_EntityHandle const* entity_handles,
+                            int entity_handles_size,
+                            int order_adjacent_key,
+                            int requested_entity_type,
+                            iBase_EntityHandle** adj_entity_handles,
+                            int* adj_entity_handles_allocated,
+                            int* adj_entity_handles_size,
+                            int** offset,
+                            int* offset_allocated,
+                            int* offset_size,
+                            int* err )
+{
+  MBErrorCode result = MB_SUCCESS;
+
+  CHECK_SIZE(*offset, *offset_allocated, entity_handles_size+1, 
+             int, iBase_MEMORY_ALLOCATION_FAILED);
+  
+  const MBEntityHandle* entity_iter = (const MBEntityHandle*)entity_handles;
+  const MBEntityHandle* const entity_end = entity_iter + entity_handles_size;
+  int* off_iter = *offset;
+  int prev_off = 0;
+  
+  std::vector<MBEntityHandle> all_adj_ents;
+  MeshTopoUtil mtu(MBI);
+    
+  for ( ; entity_iter != entity_end; ++entity_iter)
+  {
+    *off_iter = prev_off;
+    off_iter++;
+    MBRange adj_ents;
+
+    result = mtu.get_bridge_adjacencies( *entity_iter,
+                                         order_adjacent_key,
+                                         requested_entity_type, adj_ents );
+    if (MB_SUCCESS != result) {
+      iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getEntArrAdj: trouble getting adjacency list.");
+      RETURN(iBase_ERROR_MAP[result]);
+    }
+
+    std::copy(adj_ents.begin(), adj_ents.end(), std::back_inserter(all_adj_ents));
+    prev_off += adj_ents.size();
+  }
+  *off_iter = prev_off;
+
+  CHECK_SIZE(*adj_entity_handles, *adj_entity_handles_allocated, 
+             (int)all_adj_ents.size(), 
+             iBase_EntityHandle, iBase_MEMORY_ALLOCATION_FAILED);
+  memcpy(*adj_entity_handles, &all_adj_ents[0], 
+         sizeof(MBEntityHandle)*all_adj_ents.size() );
+
+  *adj_entity_handles_size = all_adj_ents.size();
   *offset_size = entity_handles_size+1;
   RETURN(iBase_SUCCESS);
 }
@@ -2427,6 +2484,27 @@ void iMesh_getEntAdj(iMesh_Instance instance,
                      &offset_size, err);
 }
  
+void iMesh_getEnt2ndAdj( iMesh_Instance instance,
+                         iBase_EntityHandle entity_handle,
+                         int order_adjacent_key,
+                         int requested_entity_type,
+                         iBase_EntityHandle** adj_entities,
+                         int* adj_entities_allocated,
+                         int* adj_entities_size,
+                         int* err ) 
+{
+  int offsets[2];
+  int *offsets_ptr = offsets;
+  int offset_size, offset_allocated = 2;
+  
+  iMesh_getEntArr2ndAdj(instance,
+                        &entity_handle, 1, order_adjacent_key,
+                        requested_entity_type,
+                        adj_entities, adj_entities_allocated, 
+                        adj_entities_size, &offsets_ptr, &offset_allocated, 
+                        &offset_size, err);
+}
+
 void iMesh_subtract(iMesh_Instance instance,
                    /*in*/ const iBase_EntitySetHandle entity_set_1,
                    /*in*/ const iBase_EntitySetHandle entity_set_2,
