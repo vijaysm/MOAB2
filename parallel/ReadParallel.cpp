@@ -4,6 +4,7 @@
 #include "FileOptions.hpp"
 #include "MBError.hpp"
 #include "MBReaderWriterSet.hpp"
+#include "MBReadUtilIface.hpp"
 #include "MBParallelComm.hpp"
 #include "MBCN.hpp"
 
@@ -36,10 +37,10 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
     parallel_mode = 0;
   }
     // Get partition setting
-  std::string partition_tag;
-  rval = opts.get_option("PARTITION", partition_tag);
-  if (MB_ENTITY_NOT_FOUND == rval || partition_tag.empty())
-    partition_tag += "PARTITION";
+  std::string partition_tag_name;
+  rval = opts.get_option("PARTITION", partition_tag_name);
+  if (MB_ENTITY_NOT_FOUND == rval || partition_tag_name.empty())
+    partition_tag_name += "PARTITION";
 
     // get MPI IO processor rank
   int reader_rank;
@@ -63,9 +64,9 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
     merror->set_last_error( "Partitioning for PARALLEL=SCATTER not supported yet.\n");
     return MB_NOT_IMPLEMENTED;
   }
-  
+
   if (parallel_mode != POPT_SCATTER || 
-      reader_rank == (int)(mbImpl->proc_config().rank())) {
+      reader_rank == (int)(mbImpl->proc_rank())) {
       // Try using the file extension to select a reader
     const MBReaderWriterSet* set = impl->reader_writer_set();
     MBReaderIface* reader = set->get_file_extension_reader( file_name );
@@ -101,20 +102,20 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
       parallel_mode == POPT_BCAST_DELETE) {
     MBRange entities; 
     if (MB_SUCCESS == rval && 
-        reader_rank == (int)(mbImpl->proc_config().rank())) {
+        reader_rank == (int)(mbImpl->proc_rank())) {
       rval = mbImpl->get_entities_by_handle( file_set, entities );
       if (MB_SUCCESS != rval)
         entities.clear();
     }
     
-    MBParallelComm tool( mbImpl, impl->tag_server(), impl->sequence_manager());
+    MBParallelComm tool( mbImpl);
     MBErrorCode tmp_rval = tool.broadcast_entities( reader_rank, entities );
-    if (MB_SUCCESS != rval && mbImpl->proc_config().size() != 1)
+    if (MB_SUCCESS != rval && mbImpl->proc_size() != 1)
       tmp_rval = rval;
     else if (MB_SUCCESS != rval) rval = MB_SUCCESS;
       
     if (MB_SUCCESS == rval && 
-        reader_rank != (int)(mbImpl->proc_config().rank())) {
+        reader_rank != (int)(mbImpl->proc_rank())) {
       rval = mbImpl->create_meshset( MESHSET_SET, file_set );
       if (MB_SUCCESS == rval) {
         rval = mbImpl->add_entities( file_set, entities );
@@ -126,19 +127,76 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
     }
 
     if (parallel_mode == POPT_BCAST_DELETE)
-      rval = delete_nonlocal_entities(partition_tag, file_set);
+      rval = delete_nonlocal_entities(partition_tag_name, file_set);
     
   }
   
   return rval;
 }
 
-MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &partition_name,
+MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
+                                                   MBEntityHandle file_set) 
+{
+  MBRange partition_sets;
+  MBErrorCode result;
+
+  MBTag ptag;
+  result = mbImpl->tag_get_handle(ptag_name.c_str(), ptag); RR;
+  
+  result = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET,
+                                                &ptag, NULL, 1,
+                                                partition_sets); RR;
+
+  return delete_nonlocal_entities(partition_sets, file_set);
+}
+
+MBErrorCode ReadParallel::delete_nonlocal_entities(MBRange &partition_sets,
                                                    MBEntityHandle file_set) 
 {
   MBErrorCode result;
   MBError *merror = ((MBCore*)mbImpl)->get_error_handler();
+
+    // get partition entities and ents related to/used by those
+    // get ents in the partition
+  std::string iface_name = "MBReadUtilIface";
+  MBReadUtilIface *read_iface;
+  mbImpl->query_interface(iface_name, reinterpret_cast<void**>(&read_iface));
+  MBRange partition_ents, all_sets;
+  result = read_iface->gather_related_ents(partition_sets, partition_ents,
+                                           &all_sets);
+  RR;
+
+    // get pre-existing entities
+  MBRange file_ents;
+  result = mbImpl->get_entities_by_handle(file_set, file_ents); RR;
+
+    // get deletable entities by subtracting partition ents from file ents
+  MBRange deletable_ents = file_ents.subtract(partition_ents);
+
+    // cache deletable vs. keepable sets
+  MBRange deletable_sets = all_sets.intersect(deletable_ents);
+  MBRange keepable_sets = all_sets.subtract(deletable_sets);
   
+    // remove deletable ents from all keepable sets
+  for (MBRange::iterator rit = keepable_sets.begin();
+       rit != keepable_sets.end(); rit++) {
+    result = mbImpl->remove_entities(*rit, deletable_ents); RR;
+  }
+
+    // delete sets, then ents
+  result = mbImpl->delete_entities(deletable_sets); RR;
+
+  deletable_ents = deletable_ents.subtract(deletable_sets);
+  result = mbImpl->delete_entities(deletable_ents); RR;
+  
+  result = ((MBCore*)mbImpl)->check_adjacencies();
+
+  return result;
+
+/*  
+
+
+// ================================  
     // get entities in this partition
   int my_rank = (int)mbImpl->proc_config().rank();
   if (my_rank == 0 && mbImpl->proc_config().size() == 1) my_rank = 1;
@@ -161,7 +219,6 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &partition_name,
   
   MBRange file_ents, partition_ents, exist_ents, all_ents;
 
-    // get ents in the partition
   for (MBRange::iterator rit = partition_sets.begin(); 
        rit != partition_sets.end(); rit++) {
     result = mbImpl->get_entities_by_handle(*rit, partition_ents, 
@@ -233,4 +290,6 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &partition_name,
   result = ((MBCore*)mbImpl)->check_adjacencies();
   
   return result;
+
+*/
 }

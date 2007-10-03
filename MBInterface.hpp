@@ -60,6 +60,7 @@ static const MBuuid IDD_MBCore = MBuuid( 0x8956e0a, 0xc300, 0x4005,
                                          0xbd, 0xf6, 0xc3, 0x4e, 0xf7, 0x1f, 0x5a, 0x52 );
 
 
+class MBHandleUtils;
 
 #if defined(XPCOM_MB)
 class NS_NO_VTABLE MBInterface : public nsISupports {
@@ -775,6 +776,39 @@ public:
   virtual MBErrorCode create_vertex(const double coordinates[3], 
                                     MBEntityHandle &entity_handle ) = 0;
 
+      /**\brief Create vertex given CPU ID and coordinates.
+       *
+       * Create a vertex with the specified processor ID
+       *\param processor_id The ID of the CPU on owning the element
+       *\param coordinates The vertex coordinates
+       *\param entity_handle Output handle value.
+       */
+    virtual MBErrorCode create_vertex( const unsigned processor_id,
+                                       const double coordinates[3], 
+                                       MBEntityHandle &entity_handle ) = 0;
+
+    //! Create a set of vertices with the specified coordinates
+    /**
+       \param coordinates Array that has 3*n doubles in it.
+       \param nverts Number of vertices to create
+       \param entity_handles MBRange passed back with new vertex handles
+    */
+  virtual MBErrorCode create_vertices(const double *coordinates, 
+                                      const int nverts,
+                                      MBRange &entity_handles ) = 0;
+
+    //! Create a set of vertices with the specified coordinates and proc id
+    /**
+       \param processor_id Processor id for these vertices
+       \param coordinates Array that has 3*n doubles in it.
+       \param nverts Number of vertices to create
+       \param entity_handles MBRange passed back with new vertex handles
+    */
+  virtual MBErrorCode create_vertices(const unsigned processor_id,
+                                      const double *coordinates, 
+                                      const int nverts,
+                                      MBRange &entity_handles ) = 0;
+
     //! Merge two entities into a single entity
     /** Merge two entities into a single entities, with <em>entity_to_keep</em> receiving
         adjacencies that were on <em>entity_to_remove</em>.
@@ -1486,10 +1520,14 @@ public:
                              unsigned long* amortized_tag_storage = 0 ) = 0;
                                      
   
-    //! Return the MBProcConfig object for this instance, contains the rank and
-    //! size if running in parallel
-  virtual const MBProcConfig& proc_config() const = 0;
+    //! Return the rank of this processor
+  virtual const int proc_rank() const = 0;
 
+    //! Return the number of processors
+  virtual const int proc_size() const = 0;
+
+    //! Return the utility for dealing with entity handles
+  virtual const MBHandleUtils &handle_utils() const = 0;
 };
 
 //! predicate for STL algorithms.  Returns true if the entity handle is

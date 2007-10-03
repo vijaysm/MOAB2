@@ -6,6 +6,9 @@ SUBDIRS =
 if HDF5_FILE
   SUBDIRS += mhdf
 endif
+if PARALLEL
+  SUBDIRS += parallel
+endif
 SUBDIRS += . test tools doc doxygen
 
 
@@ -23,7 +26,7 @@ TESTS = moab_test \
         obb_test \
 	vtk_test \
 	adaptive_kd_tree_tests \
-	file_options_test 
+	file_options_test
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 
@@ -31,6 +34,10 @@ check_PROGRAMS = $(TESTS) \
 		 kd_tree_tool \
 		 kd_tree_time
          
+if PARALLEL 
+  check_PROGRAMS += mbparallelcomm_test
+endif
+
 #noinst_PROGRAMS = scdseq_timing
 
 
@@ -51,20 +58,17 @@ if NETCDF_FILE
                      WriteNCDF.cpp WriteNCDF.hpp \
                      WriteSLAC.cpp WriteSLAC.hpp 
 endif
-if PARALLEL_HDF5
-  MOAB_PARALLEL_SRCS = WriteHDF5Parallel.cpp
-  MOAB_PARALLEL_HDRS = WriteHDF5.hpp WriteHDF5Parallel.hpp
-else
-  MOAB_PARALLEL_SRCS = WriteHDF5.hpp
-  MOAB_PARALLEL_HDRS =
-endif
+libMOAB_la_LIBADD = 
 if HDF5_FILE
-  libMOAB_la_LIBADD = $(top_builddir)/mhdf/libmhdf.la
+  libMOAB_la_LIBADD += $(top_builddir)/mhdf/libmhdf.la
   INCLUDES += -I$(srcdir)/mhdf/include
-  MOAB_EXTRA_SRCS += ReadHDF5.cpp ReadHDF5.hpp WriteHDF5.cpp $(MOAB_PARALLEL_SRCS)
-  MOAB_EXTRA_HDRS += $(MOAB_PARALLEL_HDRS)
+  MOAB_EXTRA_SRCS += ReadHDF5.cpp ReadHDF5.hpp WriteHDF5.cpp WriteHDF5.hpp
 endif
 
+if PARALLEL
+  libMOAB_la_LIBADD += $(top_builddir)/parallel/libMOABpar.la
+  INCLUDES += -I$(srcdir)/parallel
+endif
 
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put 
@@ -115,6 +119,7 @@ libMOAB_la_SOURCES = \
   MBCN.cpp \
   MBCNArrays.hpp \
   MBCartVect.cpp \
+  MBHandleUtils.cpp \
   MBMatrix3.cpp \
   MBMatrix3.hpp \
   MBCore.cpp \
@@ -126,8 +131,6 @@ libMOAB_la_SOURCES = \
   MBMeshSet.hpp \
   MBOrientedBox.cpp \
   MBOrientedBoxTreeTool.cpp \
-  MBParallelComm.cpp \
-  MBProcConfig.cpp \
   MBRange.cpp \
   MBRangeSeqIntersectIter.cpp \
   MBRangeSeqIntersectIter.hpp \
@@ -145,8 +148,6 @@ libMOAB_la_SOURCES = \
   PolyEntitySequence.hpp \
   ReadGmsh.cpp \
   ReadGmsh.hpp \
-  ReadParallel.hpp \
-  ReadParallel.cpp \
   ReadSTL.cpp \
   ReadSTL.hpp \
   ReadVtk.cpp \
@@ -194,12 +195,11 @@ libMOAB_la_include_HEADERS = \
   MBError.hpp \
   MBForward.hpp \
   MBGeomUtil.hpp \
+  MBHandleUtils.cpp \
   MBInterface.hpp \
   MBOrientedBox.hpp \
   MBOrientedBoxTreeTool.hpp \
-  MBParallelComm.hpp \
   MBParallelConventions.h \
-  MBProcConfig.hpp \
   MBRange.hpp \
   MBReadUtilIface.hpp \
   MBReaderIface.hpp \
@@ -297,6 +297,12 @@ kd_tree_tool_DEPENDENCIES = $(kd_tree_tool_LDADD)
 kd_tree_time_SOURCES = kd_tree_time.cpp
 kd_tree_time_LDADD = $(top_builddir)/libMOAB.la
 kd_tree_time_DEPENDENCIES = $(kd_tree_time_LDADD)
+
+if PARALLEL
+mbparallelcomm_test_SOURCES = mbparallelcomm_test.cpp
+mbparallelcomm_test_LDADD = $(top_builddir)/libMOAB.la
+mbparallelcomm_test_DEPENDENCIES = $(mbparallelcomm_test_LDADD)
+endif
 
 file_options_test_SOURCES = FileOptions.cpp 
 file_options_test_CPPFLAGS = -DTEST

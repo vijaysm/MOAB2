@@ -1,6 +1,12 @@
 #ifndef MB_PARALLEL_CONVENTIONS_H
 #define MB_PARALLEL_CONVENTIONS_H
 
+/** Tag conventions for naming parallel things.  Note this header
+ * file belongs in the main MOAB directory because even serial
+ * applications (e.g. partitioners) may write tags for use in
+ * parallel applications.
+ */
+
 /** \brief Meshset tag name for interfaces between processors
  *
  * Meshset containing the interface between two processors.
@@ -37,5 +43,19 @@
  * processor ID (MPI rank).
  */
 #define PARALLEL_PARTITION_TAG_NAME "PARALLEL_PARTITION"
+ 
+/** \brief Tag storing which other processor a given entity is shared with
+ *
+ * This single-valued tag implies an entity is shared with one other proc
+ */
+#define PARALLEL_SHARED_PROC_TAG_NAME "PARALLEL_SHARED_PROC"
+ 
+/** \brief Tag storing which other processorS a given entity is shared with
+ *
+ * This multiple-valued tag implies an entity is shared with multiple
+ * other processors.  Length of tag is application-dependent, and depends on
+ * what the maximum number of processors is which share an entity
+ */
+#define PARALLEL_SHARED_PROCS_TAG_NAME "PARALLEL_SHARED_PROCS"
  
 #endif

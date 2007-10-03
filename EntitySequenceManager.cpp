@@ -30,12 +30,13 @@
 #include "ScdElementSeq.hpp"
 #include "ScdVertexSeq.hpp"
 #include "MeshSetSequence.hpp"
+#include "MBHandleUtils.hpp"
 #include <assert.h>
 #include <algorithm>
 
 
-EntitySequenceManager::EntitySequenceManager( const MBProcConfig& proc_info )
-  : procInfo( proc_info )
+EntitySequenceManager::EntitySequenceManager( const MBHandleUtils &handle_utils)
+  : handleUtils(handle_utils)
 {
   memset(mLastAccessed, 0, MBMAXTYPE*sizeof(void*));
 }
@@ -95,7 +96,7 @@ MBErrorCode EntitySequenceManager::create_scd_sequence(const int imin, const int
   }
   
     // get a start handle
-  MBErrorCode rval = get_start_handle(hint_start_id, procInfo.rank(), type, num_ent, start_handle);
+  MBErrorCode rval = get_start_handle(hint_start_id, handleUtils.proc_rank(), type, num_ent, start_handle);
   if (MB_SUCCESS != rval) return rval;
   
   if (MBVERTEX == type)
@@ -171,9 +172,9 @@ MBErrorCode EntitySequenceManager::get_start_handle( MBEntityID hint_start,
 
   // Create handles from input parameters
   int dum = 0;
-  start_hint_handle = CREATE_HANDLE(type, procInfo.id(hint_start, proc), dum);
+  start_hint_handle = CREATE_HANDLE(type, handleUtils.create_id(hint_start, proc), dum);
   MBEntityHandle end_hint_handle = start_hint_handle + num_ent - 1;
-  MBEntityHandle last_handle = CREATE_HANDLE( type, procInfo.last_id(proc), dum );
+  MBEntityHandle last_handle = CREATE_HANDLE( type, handleUtils.last_id(proc), dum );
   
   // Check if the handle type can accomodate the requested number of handles
   if (end_hint_handle > last_handle)
@@ -207,8 +208,8 @@ MBErrorCode EntitySequenceManager::find_free_handles( int proc,
   int dum = 0;
 
     // get first and largest possible handle for specified proc and type
-  MBEntityHandle last_handle = CREATE_HANDLE( type, procInfo.last_id(proc), dum );
-  handle_out = CREATE_HANDLE( type, procInfo.first_id(proc), dum );
+  MBEntityHandle last_handle = CREATE_HANDLE( type, handleUtils.last_id(proc), dum );
+  handle_out = CREATE_HANDLE( type, handleUtils.first_id(proc), dum );
 
     // check that handle space is large enough to accomodate requested
     // number of entities
@@ -229,7 +230,7 @@ MBErrorCode EntitySequenceManager::find_free_handles( int proc,
     // If previous sequence is for previous processor, then there
     // are currently no handles allocated for this type and proc.
     // Return the first handle.
-  if (procInfo.rank(iter->second->get_end_handle()) < (unsigned)proc)
+  if (handleUtils.rank_from_handle(iter->second->get_end_handle()) < (unsigned)proc)
     return MB_SUCCESS;
 
     // Otherwise try the handle after those currently allocated
@@ -247,8 +248,8 @@ MBErrorCode EntitySequenceManager::find_free_handles( int proc,
     MBEntityHandle last_start = iter->second->get_start_handle();
       // If this is the first sequence for this processor
     if (iter == mSequenceMap[type].begin() ||
-        procInfo.rank((--iter)->second->get_end_handle()) < (unsigned)proc) {
-      MBEntityHandle first_handle = CREATE_HANDLE( type, procInfo.first_id(proc), dum );
+        handleUtils.rank_from_handle((--iter)->second->get_end_handle()) < (unsigned)proc) {
+      MBEntityHandle first_handle = CREATE_HANDLE( type, handleUtils.first_id(proc), dum );
       if (first_handle - last_start > (MBEntityHandle)num_ent) {
         handle_out = last_start - num_ent;
         return MB_SUCCESS;
@@ -291,7 +292,7 @@ MBErrorCode EntitySequenceManager::create_vertex( const unsigned processor_id,
   // see if there is an existing sequence that can take this new vertex
   SeqMap& seq_map = mPartlyFullSequenceMap[MBVERTEX];
   for (SeqMap::iterator i = seq_map.begin(); i != seq_map.end(); ++i) {
-    if (procInfo.rank(i->second->get_start_handle()) == processor_id) {
+    if (handleUtils.rank_from_handle(i->second->get_start_handle()) == processor_id) {
       seq = static_cast<VertexEntitySequence*>(i->second);
       break;
     }
@@ -326,7 +327,7 @@ MBErrorCode EntitySequenceManager::create_element( MBEntityType type,
   for (SeqMap::iterator i = seq_map.begin(); i != seq_map.end(); ++i) {
     ElementEntitySequence* tseq = reinterpret_cast<ElementEntitySequence*>(i->second);
     if (tseq->nodes_per_element() == connlen && 
-        procInfo.rank( tseq->get_start_handle() ) == processor_id) {
+        handleUtils.rank_from_handle( tseq->get_start_handle() ) == processor_id) {
       seq = tseq;
       break;
     }
@@ -364,7 +365,7 @@ MBErrorCode EntitySequenceManager::create_mesh_set( unsigned proc_id,
   // see if there is an existing sequence that can take this new vertex
   SeqMap& seq_map = mPartlyFullSequenceMap[MBENTITYSET];
   for (SeqMap::iterator i = seq_map.begin(); i != seq_map.end(); ++i) {
-    if (procInfo.rank(i->second->get_start_handle()) == proc_id) {
+    if (handleUtils.rank_from_handle(i->second->get_start_handle()) == proc_id) {
       seq = static_cast<MeshSetSequence*>(i->second);
       break;
     }
@@ -585,7 +586,7 @@ MBErrorCode EntitySequenceManager::get_memory_use(
 
 int main()
 {
-  EntitySequenceManager manager( MBProcConfig(0,1) );
+  EntitySequenceManager manager( MBHandleUtils(0,1) );
   MBEntitySequence* seq;
   
   // create some sequences

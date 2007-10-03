@@ -40,6 +40,7 @@
 #include "MBCN.hpp"
 #include "MBOrientedBox.hpp"
 #include "MBCartVect.hpp"
+#include "MBHandleUtils.hpp"
 
 #ifndef IS_BUILDING_MB
 #define IS_BUILDING_MB
@@ -4663,10 +4664,10 @@ MBErrorCode mb_split_test(MBInterface *gMB)
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_range_seq_intersect_test( MBInterface* ) 
+MBErrorCode mb_range_seq_intersect_test( MBInterface*) 
 {
   MBErrorCode rval;
-  EntitySequenceManager sequences( MBProcConfig( 0, 1 ) );
+  EntitySequenceManager sequences(MBHandleUtils( 0, 1 ));
   MBRangeSeqIntersectIter iter( &sequences );
   MBRange range;
 
@@ -4812,7 +4813,7 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface* )
    
     // Iterate over two subsets of the quad sequence
     
-  MBRange quads = range.subset( MBQUAD );
+  MBRange quads = range.subset_by_type( MBQUAD );
   MBEntityHandle removed = qs1->get_start_handle() + nq1/2;
   if (quads.erase( removed ) == quads.end())
     return MB_FAILURE;
@@ -5255,49 +5256,49 @@ MBErrorCode mb_proc_subset_test( MBInterface* )
   MBRange range;
   MBRange::iterator i1, i2;
   std::pair<MBRange::iterator,MBRange::iterator> ip;
-  MBProcConfig procInfo( 1, 5 ); // second of five CPUs
+  MBHandleUtils handle_utils( 1, 5 ); // second of five CPUs
   
     // make an range containing everything
-  range.insert( 1, procInfo.handle( MBENTITYSET, procInfo.max_id(), procInfo.size()-1 ) );
+  range.insert( 1, handle_utils.create_handle( MBENTITYSET, handle_utils.max_id(), handle_utils.proc_size()-1 ) );
   
     // check type/proc subset stuff for each processor for each entity type
-  for (unsigned proc = 0; proc < procInfo.size(); ++proc) {
+  for (unsigned proc = 0; proc < handle_utils.proc_size(); ++proc) {
     MBRange proc_range;
     for (MBEntityType t = MBVERTEX; t < MBMAXTYPE; ++t) {
-      i1 = procInfo.lower_bound( t, proc, range );
+      i1 = handle_utils.lower_bound( t, proc, range );
       ASSERT_NOT_EQUAL( i1, range.end() );
       ASSERT_EQUAL( TYPE_FROM_HANDLE( *i1 ), t );
-      ASSERT_EQUAL( procInfo.rank( *i1 ), proc );
+      ASSERT_EQUAL( handle_utils.rank_from_handle( *i1 ), proc );
       if (!proc && t == MBVERTEX) 
-        ASSERT_EQUAL( procInfo.id( *i1 ), (MBEntityID)1 );
+        ASSERT_EQUAL( handle_utils.id_from_handle( *i1 ), (MBEntityID)1 );
       else
-        ASSERT_EQUAL( procInfo.id( *i1 ), (MBEntityID)0 );
+        ASSERT_EQUAL( handle_utils.id_from_handle( *i1 ), (MBEntityID)0 );
       
-      i2 = procInfo.upper_bound( t, proc, range );
+      i2 = handle_utils.upper_bound( t, proc, range );
         // Because the number of processors is not a power
         // of two, we've inserted handles w/ invalid processor
         // IDs into the range for all types except MBENTITYSET
-        //if (proc + 1 == procInfo.size()) {
+        //if (proc + 1 == handle_utils.proc_size()) {
         //  if (t == MBENTITYSET)
         //    ASSERT_EQUAL( i2, range.end() );
         //  else {
         //    ASSERT_NOT_EQUAL( i2, range.end() );
         //    MBEntityType n = t; ++n;
         //    ASSERT_EQUAL( TYPE_FROM_HANDLE( *i2 ), n );
-        //    ASSERT_EQUAL( procInfo.rank( *i2 ), (unsigned)0 );
-        //    ASSERT_EQUAL( procInfo.id( *i2 ), (MBEntityHandle)0 );
+        //    ASSERT_EQUAL( handle_utils.rank_from_handle( *i2 ), (unsigned)0 );
+        //    ASSERT_EQUAL( handle_utils.id_from_handle( *i2 ), (MBEntityHandle)0 );
         //  }
         //}
-      if (proc + 1 == procInfo.size() && t == MBENTITYSET)
+      if (proc + 1 == handle_utils.proc_size() && t == MBENTITYSET)
         ASSERT_EQUAL( i2, range.end() );
       else {
         ASSERT_NOT_EQUAL( i2, range.end() );
         ASSERT_EQUAL( TYPE_FROM_HANDLE( *i2 ), t );
-        ASSERT_EQUAL( procInfo.rank( *i2 ), proc+1 );
-        ASSERT_EQUAL( procInfo.id( *i2 ), (MBEntityID)0 );
+        ASSERT_EQUAL( handle_utils.rank_from_handle( *i2 ), proc+1 );
+        ASSERT_EQUAL( handle_utils.id_from_handle( *i2 ), (MBEntityID)0 );
       }
       
-      ip = procInfo.equal_range( t, proc, range );
+      ip = handle_utils.equal_range( t, proc, range );
       ASSERT_EQUAL( i1, ip.first );
       ASSERT_EQUAL( i2, ip.second );
     
@@ -5305,166 +5306,166 @@ MBErrorCode mb_proc_subset_test( MBInterface* )
     }
     
       // get subset by processor ID and check results
-    MBRange proc_range2 = procInfo.subset( proc, range );
+    MBRange proc_range2 = handle_utils.subset_by_proc( proc, range );
     ASSERT_EQUAL( proc_range, proc_range2 );
   }
   
     // make a range containing some entities, but not all handles
   range.clear();
-  range.insert( procInfo.handle( MBVERTEX, 100, 0 ), 
-                procInfo.handle( MBVERTEX, 110, 0 ) );
-  range.insert( procInfo.handle( MBVERTEX, 100, 2 ),
-                procInfo.handle( MBVERTEX, 110, 2 ) );
-  range.insert( procInfo.handle( MBENTITYSET, 5, 0 ),
-                procInfo.handle( MBENTITYSET, 9, 0 ) );
-  range.insert( procInfo.handle( MBENTITYSET, 1, 3 ),
-                procInfo.handle( MBENTITYSET, 1, 3 ) );
+  range.insert( handle_utils.create_handle( MBVERTEX, 100, 0 ), 
+                handle_utils.create_handle( MBVERTEX, 110, 0 ) );
+  range.insert( handle_utils.create_handle( MBVERTEX, 100, 2 ),
+                handle_utils.create_handle( MBVERTEX, 110, 2 ) );
+  range.insert( handle_utils.create_handle( MBENTITYSET, 5, 0 ),
+                handle_utils.create_handle( MBENTITYSET, 9, 0 ) );
+  range.insert( handle_utils.create_handle( MBENTITYSET, 1, 3 ),
+                handle_utils.create_handle( MBENTITYSET, 1, 3 ) );
   
     // test lower_bound
 
-  i1 = procInfo.lower_bound( MBVERTEX, 0, range );
+  i1 = handle_utils.lower_bound( MBVERTEX, 0, range );
   ASSERT_NOT_EQUAL( i1, range.end() );
-  ASSERT_EQUAL( *i1, procInfo.handle( MBVERTEX, 100, 0 ) );
+  ASSERT_EQUAL( *i1, handle_utils.create_handle( MBVERTEX, 100, 0 ) );
 
-  i1 = procInfo.lower_bound( MBVERTEX, 1, range );
+  i1 = handle_utils.lower_bound( MBVERTEX, 1, range );
   ASSERT_NOT_EQUAL( i1, range.end() );
-  ASSERT_EQUAL( *i1, procInfo.handle( MBVERTEX, 100, 2 ) );
+  ASSERT_EQUAL( *i1, handle_utils.create_handle( MBVERTEX, 100, 2 ) );
 
-  i1 = procInfo.lower_bound( MBVERTEX, 2, range );
+  i1 = handle_utils.lower_bound( MBVERTEX, 2, range );
   ASSERT_NOT_EQUAL( i1, range.end() );
-  ASSERT_EQUAL( *i1, procInfo.handle( MBVERTEX, 100, 2 ) );
+  ASSERT_EQUAL( *i1, handle_utils.create_handle( MBVERTEX, 100, 2 ) );
 
-  i1 = procInfo.lower_bound( MBVERTEX, 3, range );
+  i1 = handle_utils.lower_bound( MBVERTEX, 3, range );
   ASSERT_NOT_EQUAL( i1, range.end() );
-  ASSERT_EQUAL( *i1, procInfo.handle( MBENTITYSET, 5, 0 ) );
+  ASSERT_EQUAL( *i1, handle_utils.create_handle( MBENTITYSET, 5, 0 ) );
 
-  i1 = procInfo.lower_bound( MBEDGE, 0, range );
+  i1 = handle_utils.lower_bound( MBEDGE, 0, range );
   ASSERT_NOT_EQUAL( i1, range.end() );
-  ASSERT_EQUAL( *i1, procInfo.handle( MBENTITYSET, 5, 0 ) );
+  ASSERT_EQUAL( *i1, handle_utils.create_handle( MBENTITYSET, 5, 0 ) );
 
-  i1 = procInfo.lower_bound( MBTRI, 0, range );
+  i1 = handle_utils.lower_bound( MBTRI, 0, range );
   ASSERT_NOT_EQUAL( i1, range.end() );
-  ASSERT_EQUAL( *i1, procInfo.handle( MBENTITYSET, 5, 0 ) );
+  ASSERT_EQUAL( *i1, handle_utils.create_handle( MBENTITYSET, 5, 0 ) );
 
-  i1 = procInfo.lower_bound( MBENTITYSET, 0, range );
+  i1 = handle_utils.lower_bound( MBENTITYSET, 0, range );
   ASSERT_NOT_EQUAL( i1, range.end() );
-  ASSERT_EQUAL( *i1, procInfo.handle( MBENTITYSET, 5, 0 ) );
+  ASSERT_EQUAL( *i1, handle_utils.create_handle( MBENTITYSET, 5, 0 ) );
 
-  i1 = procInfo.lower_bound( MBENTITYSET, 1, range );
+  i1 = handle_utils.lower_bound( MBENTITYSET, 1, range );
   ASSERT_NOT_EQUAL( i1, range.end() );
-  ASSERT_EQUAL( *i1, procInfo.handle( MBENTITYSET, 1, 3 ) );
+  ASSERT_EQUAL( *i1, handle_utils.create_handle( MBENTITYSET, 1, 3 ) );
 
-  i1 = procInfo.lower_bound( MBENTITYSET, 3, range );
+  i1 = handle_utils.lower_bound( MBENTITYSET, 3, range );
   ASSERT_NOT_EQUAL( i1, range.end() );
-  ASSERT_EQUAL( *i1, procInfo.handle( MBENTITYSET, 1, 3 ) );
+  ASSERT_EQUAL( *i1, handle_utils.create_handle( MBENTITYSET, 1, 3 ) );
 
-  i1 = procInfo.lower_bound( MBENTITYSET, 4, range );
+  i1 = handle_utils.lower_bound( MBENTITYSET, 4, range );
   ASSERT_EQUAL( i1, range.end() );
 
     // test upper_bound  
-  i1 = procInfo.upper_bound( MBVERTEX, 0, range );
+  i1 = handle_utils.upper_bound( MBVERTEX, 0, range );
   ASSERT_NOT_EQUAL( i1, range.end() );
-  ASSERT_EQUAL( *i1, procInfo.handle( MBVERTEX, 100, 2 ) );
+  ASSERT_EQUAL( *i1, handle_utils.create_handle( MBVERTEX, 100, 2 ) );
 
-  i1 = procInfo.upper_bound( MBVERTEX, 1, range );
+  i1 = handle_utils.upper_bound( MBVERTEX, 1, range );
   ASSERT_NOT_EQUAL( i1, range.end() );
-  ASSERT_EQUAL( *i1, procInfo.handle( MBVERTEX, 100, 2 ) );
+  ASSERT_EQUAL( *i1, handle_utils.create_handle( MBVERTEX, 100, 2 ) );
 
-  i1 = procInfo.upper_bound( MBVERTEX, 2, range );
+  i1 = handle_utils.upper_bound( MBVERTEX, 2, range );
   ASSERT_NOT_EQUAL( i1, range.end() );
-  ASSERT_EQUAL( *i1, procInfo.handle( MBENTITYSET, 5, 0 ) );
+  ASSERT_EQUAL( *i1, handle_utils.create_handle( MBENTITYSET, 5, 0 ) );
 
-  i1 = procInfo.upper_bound( MBVERTEX, 3, range );
+  i1 = handle_utils.upper_bound( MBVERTEX, 3, range );
   ASSERT_NOT_EQUAL( i1, range.end() );
-  ASSERT_EQUAL( *i1, procInfo.handle( MBENTITYSET, 5, 0 ) );
+  ASSERT_EQUAL( *i1, handle_utils.create_handle( MBENTITYSET, 5, 0 ) );
 
-  i1 = procInfo.upper_bound( MBEDGE, 0, range );
+  i1 = handle_utils.upper_bound( MBEDGE, 0, range );
   ASSERT_NOT_EQUAL( i1, range.end() );
-  ASSERT_EQUAL( *i1, procInfo.handle( MBENTITYSET, 5, 0 ) );
+  ASSERT_EQUAL( *i1, handle_utils.create_handle( MBENTITYSET, 5, 0 ) );
 
-  i1 = procInfo.upper_bound( MBTRI, 0, range );
+  i1 = handle_utils.upper_bound( MBTRI, 0, range );
   ASSERT_NOT_EQUAL( i1, range.end() );
-  ASSERT_EQUAL( *i1, procInfo.handle( MBENTITYSET, 5, 0 ) );
+  ASSERT_EQUAL( *i1, handle_utils.create_handle( MBENTITYSET, 5, 0 ) );
 
-  i1 = procInfo.upper_bound( MBENTITYSET, 0, range );
+  i1 = handle_utils.upper_bound( MBENTITYSET, 0, range );
   ASSERT_NOT_EQUAL( i1, range.end() );
-  ASSERT_EQUAL( *i1, procInfo.handle( MBENTITYSET, 1, 3 ) );
+  ASSERT_EQUAL( *i1, handle_utils.create_handle( MBENTITYSET, 1, 3 ) );
 
-  i1 = procInfo.upper_bound( MBENTITYSET, 1, range );
+  i1 = handle_utils.upper_bound( MBENTITYSET, 1, range );
   ASSERT_NOT_EQUAL( i1, range.end() );
-  ASSERT_EQUAL( *i1, procInfo.handle( MBENTITYSET, 1, 3 ) );
+  ASSERT_EQUAL( *i1, handle_utils.create_handle( MBENTITYSET, 1, 3 ) );
 
-  i1 = procInfo.upper_bound( MBENTITYSET, 3, range );
+  i1 = handle_utils.upper_bound( MBENTITYSET, 3, range );
   ASSERT_EQUAL( i1, range.end() );
 
-  i1 = procInfo.upper_bound( MBENTITYSET, 4, range );
+  i1 = handle_utils.upper_bound( MBENTITYSET, 4, range );
   ASSERT_EQUAL( i1, range.end() );
   
     // test equal_range
-  ip = procInfo.equal_range( MBVERTEX, 0, range );
-  ASSERT_EQUAL( procInfo.lower_bound( MBVERTEX, 0, range ), ip.first );
-  ASSERT_EQUAL( procInfo.upper_bound( MBVERTEX, 0, range ), ip.second );
+  ip = handle_utils.equal_range( MBVERTEX, 0, range );
+  ASSERT_EQUAL( handle_utils.lower_bound( MBVERTEX, 0, range ), ip.first );
+  ASSERT_EQUAL( handle_utils.upper_bound( MBVERTEX, 0, range ), ip.second );
 
-  ip = procInfo.equal_range( MBVERTEX, 1, range );
-  ASSERT_EQUAL( procInfo.lower_bound( MBVERTEX, 1, range ), ip.first );
-  ASSERT_EQUAL( procInfo.upper_bound( MBVERTEX, 1, range ), ip.second );
+  ip = handle_utils.equal_range( MBVERTEX, 1, range );
+  ASSERT_EQUAL( handle_utils.lower_bound( MBVERTEX, 1, range ), ip.first );
+  ASSERT_EQUAL( handle_utils.upper_bound( MBVERTEX, 1, range ), ip.second );
 
-  ip = procInfo.equal_range( MBVERTEX, 2, range );
-  ASSERT_EQUAL( procInfo.lower_bound( MBVERTEX, 2, range ), ip.first );
-  ASSERT_EQUAL( procInfo.upper_bound( MBVERTEX, 2, range ), ip.second );
+  ip = handle_utils.equal_range( MBVERTEX, 2, range );
+  ASSERT_EQUAL( handle_utils.lower_bound( MBVERTEX, 2, range ), ip.first );
+  ASSERT_EQUAL( handle_utils.upper_bound( MBVERTEX, 2, range ), ip.second );
 
-  ip = procInfo.equal_range( MBVERTEX, 3, range );
-  ASSERT_EQUAL( procInfo.lower_bound( MBVERTEX, 3, range ), ip.first );
-  ASSERT_EQUAL( procInfo.upper_bound( MBVERTEX, 3, range ), ip.second );
+  ip = handle_utils.equal_range( MBVERTEX, 3, range );
+  ASSERT_EQUAL( handle_utils.lower_bound( MBVERTEX, 3, range ), ip.first );
+  ASSERT_EQUAL( handle_utils.upper_bound( MBVERTEX, 3, range ), ip.second );
 
-  ip = procInfo.equal_range( MBEDGE, 0, range );
-  ASSERT_EQUAL( procInfo.lower_bound( MBEDGE, 0, range ), ip.first );
-  ASSERT_EQUAL( procInfo.upper_bound( MBEDGE, 0, range ), ip.second );
+  ip = handle_utils.equal_range( MBEDGE, 0, range );
+  ASSERT_EQUAL( handle_utils.lower_bound( MBEDGE, 0, range ), ip.first );
+  ASSERT_EQUAL( handle_utils.upper_bound( MBEDGE, 0, range ), ip.second );
 
-  ip = procInfo.equal_range( MBTRI, 0, range );
-  ASSERT_EQUAL( procInfo.lower_bound( MBTRI, 0, range ), ip.first );
-  ASSERT_EQUAL( procInfo.upper_bound( MBTRI, 0, range ), ip.second );
+  ip = handle_utils.equal_range( MBTRI, 0, range );
+  ASSERT_EQUAL( handle_utils.lower_bound( MBTRI, 0, range ), ip.first );
+  ASSERT_EQUAL( handle_utils.upper_bound( MBTRI, 0, range ), ip.second );
 
-  ip = procInfo.equal_range( MBENTITYSET, 0, range );
-  ASSERT_EQUAL( procInfo.lower_bound( MBENTITYSET, 0, range ), ip.first );
-  ASSERT_EQUAL( procInfo.upper_bound( MBENTITYSET, 0, range ), ip.second );
+  ip = handle_utils.equal_range( MBENTITYSET, 0, range );
+  ASSERT_EQUAL( handle_utils.lower_bound( MBENTITYSET, 0, range ), ip.first );
+  ASSERT_EQUAL( handle_utils.upper_bound( MBENTITYSET, 0, range ), ip.second );
 
-  ip = procInfo.equal_range( MBENTITYSET, 1, range );
-  ASSERT_EQUAL( procInfo.lower_bound( MBENTITYSET, 1, range ), ip.first );
-  ASSERT_EQUAL( procInfo.upper_bound( MBENTITYSET, 1, range ), ip.second );
+  ip = handle_utils.equal_range( MBENTITYSET, 1, range );
+  ASSERT_EQUAL( handle_utils.lower_bound( MBENTITYSET, 1, range ), ip.first );
+  ASSERT_EQUAL( handle_utils.upper_bound( MBENTITYSET, 1, range ), ip.second );
 
-  ip = procInfo.equal_range( MBENTITYSET, 3, range );
-  ASSERT_EQUAL( procInfo.lower_bound( MBENTITYSET, 3, range ), ip.first );
-  ASSERT_EQUAL( procInfo.upper_bound( MBENTITYSET, 3, range ), ip.second );
+  ip = handle_utils.equal_range( MBENTITYSET, 3, range );
+  ASSERT_EQUAL( handle_utils.lower_bound( MBENTITYSET, 3, range ), ip.first );
+  ASSERT_EQUAL( handle_utils.upper_bound( MBENTITYSET, 3, range ), ip.second );
 
-  ip = procInfo.equal_range( MBENTITYSET, 4, range );
-  ASSERT_EQUAL( procInfo.lower_bound( MBENTITYSET, 4, range ), ip.first );
-  ASSERT_EQUAL( procInfo.upper_bound( MBENTITYSET, 4, range ), ip.second );
+  ip = handle_utils.equal_range( MBENTITYSET, 4, range );
+  ASSERT_EQUAL( handle_utils.lower_bound( MBENTITYSET, 4, range ), ip.first );
+  ASSERT_EQUAL( handle_utils.upper_bound( MBENTITYSET, 4, range ), ip.second );
   
   MBRange sub, expected;
   
   sub.clear(); expected.clear();
-  sub = procInfo.subset( 0, range );
-  expected.insert( procInfo.handle( MBVERTEX, 100, 0 ), 
-                   procInfo.handle( MBVERTEX, 110, 0 ) );
-  expected.insert( procInfo.handle( MBENTITYSET, 5, 0 ),
-                   procInfo.handle( MBENTITYSET, 9, 0 ) );
+  sub = handle_utils.subset_by_proc( 0, range );
+  expected.insert( handle_utils.create_handle( MBVERTEX, 100, 0 ), 
+                   handle_utils.create_handle( MBVERTEX, 110, 0 ) );
+  expected.insert( handle_utils.create_handle( MBENTITYSET, 5, 0 ),
+                   handle_utils.create_handle( MBENTITYSET, 9, 0 ) );
   ASSERT_EQUAL( sub, expected );
   
   sub.clear();
-  sub = procInfo.subset( 1, range );
+  sub = handle_utils.subset_by_proc( 1, range );
   ASSERT_EQUAL( sub.empty(), true );
   
   sub.clear(); expected.clear();
-  sub = procInfo.subset( 2, range );
-  expected.insert( procInfo.handle( MBVERTEX, 100, 2 ),
-                   procInfo.handle( MBVERTEX, 110, 2 ) );
+  sub = handle_utils.subset_by_proc( 2, range );
+  expected.insert( handle_utils.create_handle( MBVERTEX, 100, 2 ),
+                   handle_utils.create_handle( MBVERTEX, 110, 2 ) );
   ASSERT_EQUAL( sub, expected );
   
   sub.clear(); expected.clear();
-  sub = procInfo.subset( 3, range );
-  expected.insert( procInfo.handle( MBENTITYSET, 1, 3 ),
-                   procInfo.handle( MBENTITYSET, 1, 3 ) );
+  sub = handle_utils.subset_by_proc( 3, range );
+  expected.insert( handle_utils.create_handle( MBENTITYSET, 1, 3 ),
+                   handle_utils.create_handle( MBENTITYSET, 1, 3 ) );
   ASSERT_EQUAL( sub, expected );
  
   return MB_SUCCESS;

@@ -28,6 +28,7 @@
 #include "EntitySequenceManager.hpp"
 #include "PolyEntitySequence.hpp"
 
+#define RR if (MB_SUCCESS != result) return result
 
 MBReadUtil::MBReadUtil(MBCore* mdb, MBError* error_handler) 
     : MBReadUtilIface(), mMB(mdb), mError(error_handler)
@@ -35,7 +36,7 @@ MBReadUtil::MBReadUtil(MBCore* mdb, MBError* error_handler)
 }
 
 unsigned  MBReadUtil::parallel_rank() const
-  { return mMB->proc_config().rank(); }
+  { return mMB->proc_rank(); }
 
 MBErrorCode MBReadUtil::get_node_arrays(
     const int /*num_arrays*/,
@@ -50,14 +51,16 @@ MBErrorCode MBReadUtil::get_node_arrays(
   MBEntitySequence* seq = 0;
 
   MBEntityHandle preferred_start_handle;
-  static int err;
-  preferred_start_handle = CREATE_HANDLE(MBVERTEX, mMB->proc_config().id(preferred_start_id, 
-                                         preferred_start_proc), err);
+  preferred_start_handle = 
+    mMB->handle_utils().create_handle(MBVERTEX, 
+                                      preferred_start_id, 
+                                      preferred_start_proc);
  
   // create an entity sequence for these nodes 
   error = mMB->sequence_manager()->create_entity_sequence(
-      MBVERTEX, num_nodes, 0, preferred_start_handle, preferred_start_proc, actual_start_handle,
-      seq);
+    MBVERTEX, num_nodes, 0, preferred_start_handle, 
+    preferred_start_proc, actual_start_handle,
+    seq);
 
   if(error != MB_SUCCESS)
     return error;
@@ -194,4 +197,59 @@ MBErrorCode MBReadUtil::report_error( const char* error, ... )
   return result;
 }
 
+MBErrorCode MBReadUtil::gather_related_ents(MBRange &partition,
+                                            MBRange &related_ents,
+                                            MBRange *all_sets) 
+{
+    // first, related ents includes the partition itself
+  related_ents.merge(partition);
+  
+    // loop over any sets, getting contained ents
+  std::pair<MBRange::const_iterator, MBRange::const_iterator> pair_it =
+    partition.equal_range(MBENTITYSET);
 
+  MBErrorCode result;
+  for (MBRange::const_iterator rit = pair_it.first; 
+       rit != pair_it.second; rit++) {
+    MBErrorCode tmp_result = 
+      mMB->get_entities_by_handle(*rit, related_ents, 
+                                  MBInterface::UNION);
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
+  }
+  RR;
+
+    // gather adjacent ents of lower dimension
+  MBRange tmp_ents;
+  for (int dim = 2; dim >= 0; dim--) {
+    MBEntityType lower_type = MBCN::TypeDimensionMap[dim+1].first,
+      upper_type = MBCN::TypeDimensionMap[3].second;
+    
+    MBRange::const_iterator bit = related_ents.lower_bound(lower_type),
+      eit = related_ents.upper_bound(upper_type);
+    MBRange from_ents;
+    from_ents.merge(bit, eit);
+    tmp_ents.clear();
+    MBErrorCode tmp_result = mMB->get_adjacencies(from_ents, dim, false, 
+                                                  tmp_ents, 
+                                                  MBInterface::UNION);
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
+    else related_ents.merge(tmp_ents);
+  }
+  RR;
+  
+    // get related sets
+  MBRange tmp_ents3;
+  if (!all_sets) all_sets = &tmp_ents3;
+  result = mMB->get_entities_by_type(0, MBENTITYSET, *all_sets);
+  for (MBRange::iterator rit = all_sets->begin(); 
+       rit != all_sets->end(); rit++) {
+    tmp_ents.clear();
+    result = mMB->get_entities_by_handle(*rit, tmp_ents, true); RR;
+    MBRange tmp_ents2 = tmp_ents.intersect(related_ents);
+    
+      // if the intersection is not empty, set is related
+    if (!tmp_ents2.empty()) related_ents.insert(*rit);
+  }
+
+  return MB_SUCCESS;
+}

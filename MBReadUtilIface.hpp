@@ -21,6 +21,8 @@
 #include <vector>
 #include "MBTypes.h"
 
+class MBRange;
+
 //! Interface implemented in MOAB which provides memory for mesh reading utilities
 class MB_DLL_EXPORT MBReadUtilIface
 {
@@ -75,6 +77,19 @@ public:
     MBEntityHandle*& array
     ) = 0;
 
+    /**
+     *\brief Gather entities related to those in the partition
+     * Gather entities related to those in the input partition.  Related
+     * means down-adjacent to, contained in, etc.
+     * \param partition Entities for which to gather related entities
+     * \param related_ents Related entities
+     * \param all_sets If non-NULL, all sets in mesh instance are returned
+     * in the pointed-to range
+     */
+  virtual MBErrorCode gather_related_ents(MBRange &partition,
+                                          MBRange &related_ents,
+                                          MBRange *all_sets) = 0;
+  
   /** Allocate storage for poly (polygon or polyhedron elements) 
    * 
    * Allocate storage for poly (polygon or polyhedron elements) and

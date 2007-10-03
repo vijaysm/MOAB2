@@ -658,6 +658,7 @@ MBRange::const_iterator MBRange::lower_bound( MBEntityType type ) const
   MBEntityHandle handle = CREATE_HANDLE( type, 0, err );
   return err ? end() : lower_bound( begin(), end(), handle );
 }
+
 MBRange::const_iterator MBRange::upper_bound( MBEntityType type ) const
 {
     // if (type+1) overflows, err will be true and we return end().
@@ -665,6 +666,7 @@ MBRange::const_iterator MBRange::upper_bound( MBEntityType type ) const
   MBEntityHandle handle = CREATE_HANDLE( type + 1, 0, err );
   return err ? end() : lower_bound( begin(), end(), handle );
 }
+
 std::pair<MBRange::const_iterator, MBRange::const_iterator>
 MBRange::equal_range( MBEntityType type ) const
 {
@@ -775,13 +777,12 @@ MBEntityHandle MBRange::operator[](MBEntityID index) const
 }
 
     //! return a subset of this range, by type
-MBRange MBRange::subset(const MBEntityType t) 
+MBRange MBRange::subset_by_type(const MBEntityType t) 
 {
   MBRange result;
   result.merge( lower_bound(t), upper_bound(t) );
   return result;
 }
-
 
 bool operator==( const MBRange& r1, const MBRange& r2 )
 {

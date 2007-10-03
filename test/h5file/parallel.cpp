@@ -9,6 +9,7 @@
 #include "MBTagConventions.hpp"
 #include "MBParallelConventions.h"
 #include "WriteHDF5Parallel.hpp"
+#include "FileOptions.hpp"
 
 #include "testdir.h"
 
@@ -400,7 +401,9 @@ END_SERIAL;
   WriteHDF5Parallel *writer = new WriteHDF5Parallel( iFace );
   
   printerror ("Writing parallel file: \"%s\"", fnames[0] );
-  rval = writer->write_file( fnames[0], true, &list[0], list.size(), qa );
+  rval = writer->write_file( fnames[0], true, 
+                             FileOptions("PARALLEL"),
+                             &list[0], list.size(), qa );
   if (MB_SUCCESS != rval)
   {
     printerror( "Failed to write parallel file: \"%s\"", fnames[0] );

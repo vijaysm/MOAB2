@@ -852,3 +852,21 @@ bool MBSkinner::has_larger_angle(MBEntityHandle &entity1,
   return false;
 }
 
+  // get skin entities of prescribed dimension
+MBErrorCode MBSkinner::find_skin(const MBRange &entities,
+                                 int dim,
+                                 MBRange &skin_entities) 
+{
+  if (MBCN::Dimension(TYPE_FROM_HANDLE(*entities.begin())) !=
+      MBCN::Dimension(TYPE_FROM_HANDLE(*entities.rbegin())))
+    return MB_FAILURE;
+  
+  MBRange tmp_skin_for, tmp_skin_rev;
+  MBErrorCode result = find_skin(entities, tmp_skin_for, tmp_skin_rev);
+  if (MB_SUCCESS != result) return result;
+  
+  tmp_skin_for.merge(tmp_skin_rev);
+  result = thisMB->get_adjacencies(tmp_skin_for, dim, true, skin_entities);
+  return result;
+}
+

@@ -51,6 +51,7 @@ class MBReaderIface
                                    const FileOptions& opts,
                                    const int* material_set_list,
                                    const int material_set_list_len ) = 0;
+
 };
 
 #endif

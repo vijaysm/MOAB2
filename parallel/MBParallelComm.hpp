@@ -37,13 +37,13 @@ class MBParallelComm
 public:
 
     //! constructor
-  MBParallelComm(MBInterface *impl, TagServer *tag_server, 
-                 EntitySequenceManager *sequence_manager);
+  MBParallelComm(MBInterface *impl,
+                 MPI_Comm comm = MPI_COMM_WORLD);
 
     //! constructor taking packed buffer, for testing
-  MBParallelComm(MBInterface *impl, TagServer *tag_server, 
-                 EntitySequenceManager *sequence_manager,
-                 std::vector<unsigned char> &tmp_buff);
+  MBParallelComm(MBInterface *impl,
+                 std::vector<unsigned char> &tmp_buff,
+                 MPI_Comm comm = MPI_COMM_WORLD);
 
     //! assign a global id space, for largest-dimension or all entities (and
     //! in either case for vertices too)
@@ -61,6 +61,20 @@ public:
                                   MBRange& entities,
                                   const bool adjacencies = false,
                                   const bool tags = true );
+
+    /** Resolve shared entities between processors
+     * Resolve shared entities between processors for entities in proc_ents,
+     * by comparing global id tag values on vertices on skin of elements in
+     * proc_ents.  Shared entities are assigned a tag that's either
+     * PARALLEL_SHARED_PROC_TAG_NAME, which is 2 integers in length, or 
+     * PARALLEL_SHARED_PROCS_TAG_NAME, whose length depends on the maximum
+     * number of sharing processors.  Values in these tags denote the ranks
+     * of sharing processors, and the list ends with the value -10*#procs.
+     *
+     * \param proc_ents Entities for which to resolve shared entities
+     * \param dim Dimension of entities in proc_ents
+     */
+  MBErrorCode resolve_shared_ents(MBRange &proc_ents, const int dim);
   
     //! pack a buffer (stored in this class instance) with ALL data for these entities
   MBErrorCode pack_buffer(MBRange &entities, 
@@ -79,6 +93,10 @@ public:
     //! take the buffer from this instance; switches with vector passed in
   void take_buffer(std::vector<unsigned char> &new_buff);
 
+    //! Get proc config for this communication object
+  const MBProcConfig &proc_config() const {return procConfig;}
+  
+      
 private:
 
   int num_subranges(const MBRange &this_range);
@@ -126,9 +144,9 @@ private:
 
     //! MB interface associated with this writer
   MBInterface *mbImpl;
-  
-    //! Processor informatino
-  const MBProcConfig procInfo;
+
+    //! Proc config object, keeps info on parallel stuff
+  MBProcConfig procConfig;
   
     //! Tag server, so we can get more info about tags
   TagServer *tagServer;

@@ -42,7 +42,7 @@
 #endif
 
 #include "MBForward.hpp"
-#include "MBProcConfig.hpp"
+#include "MBHandleUtils.hpp"
 #include <map>
 
 class MBEntitySequence;
@@ -54,7 +54,7 @@ class EntitySequenceManager
 public:
 
   //! constructor
-  EntitySequenceManager( const MBProcConfig& proc_info );
+  EntitySequenceManager( const MBHandleUtils &handle_utils);
 
   //! destructor
   ~EntitySequenceManager();
@@ -171,7 +171,7 @@ private:
                                  MBEntityID num_ent,
                                  MBEntityHandle& start_handle );
   
-  const MBProcConfig procInfo;
+  const MBHandleUtils handleUtils;
 };
 
 #endif

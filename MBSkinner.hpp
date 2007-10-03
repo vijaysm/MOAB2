@@ -49,6 +49,11 @@ public:
                         MBRange &forward_lower_entities,
                         MBRange &reverse_lower_entities);
 
+    // get skin entities of prescribed dimension
+  MBErrorCode find_skin(const MBRange &entities,
+                        int dim,
+                        MBRange &skin_entities);
+
   MBErrorCode classify_2d_boundary( const MBRange &boundary,
                                      const MBRange &bar_elements,
                                      MBEntityHandle boundary_edges,

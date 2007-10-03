@@ -17,7 +17,7 @@
 #define MB_IMPL_GENERAL_HPP
 
 #include "MBInterface.hpp"
-#include "MBProcConfig.hpp"
+#include "MBHandleUtils.hpp"
 #include <map>
 
 class MBWriteUtil;
@@ -27,6 +27,7 @@ class EntitySequenceManager;
 class TagServer;
 class MBError;
 class MBReaderWriterSet;
+class MBHandleUtils;
 
 #ifdef XPCOM_MB
 
@@ -456,6 +457,28 @@ public:
     virtual MBErrorCode create_vertex( const unsigned processor_id,
                                        const double coordinates[3], 
                                        MBEntityHandle &entity_handle );
+
+    //! Create a set of vertices with the specified coordinates
+    /**
+       \param coordinates Array that has 3*n doubles in it.
+       \param nverts Number of vertices to create
+       \param entity_handles MBRange passed back with new vertex handles
+    */
+  virtual MBErrorCode create_vertices(const double *coordinates, 
+                                      const int nverts,
+                                      MBRange &entity_handles );
+
+    //! Create a set of vertices with the specified coordinates and proc id
+    /**
+       \param processor_id Processor id for these vertices
+       \param coordinates Array that has 3*n doubles in it.
+       \param nverts Number of vertices to create
+       \param entity_handles MBRange passed back with new vertex handles
+    */
+  virtual MBErrorCode create_vertices(const unsigned processor_id,
+                                      const double *coordinates, 
+                                      const int nverts,
+                                      MBRange &entity_handles );
 
       //! merges two entities
     virtual MBErrorCode merge_entities(MBEntityHandle entity_to_keep, 
@@ -947,8 +970,14 @@ public:
                              unsigned long* amortized_tag_storage = 0 );
                                      
   
-  virtual const MBProcConfig& proc_config() const 
-    { return procInfo; }
+    //! Return the rank of this processor
+  virtual const int proc_rank() const;
+
+    //! Return the number of processors
+  virtual const int proc_size() const;
+
+    //! Return the utility for dealing with entity handles
+  virtual const MBHandleUtils &handle_utils() const;
 
 private:
 
@@ -963,8 +992,6 @@ private:
                             unsigned       num_tags,
                             unsigned long* tag_storage,
                             unsigned long* amortized_tag_storage );
-
-  const MBProcConfig procInfo;
 
     //! database init and de-init routines
   MBErrorCode initialize();
@@ -985,6 +1012,9 @@ private:
 
     //! the overall geometric dimension of this mesh
   int geometricDimension;
+
+    //! utility for dealing with handles, proc's, etc.
+  MBHandleUtils handleUtils;
 
   MBTag materialTag;
   MBTag neumannBCTag;

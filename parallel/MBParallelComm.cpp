@@ -6,6 +6,15 @@
 #include "EntitySequence.hpp"
 #include "TagServer.hpp"
 #include "MBTagConventions.hpp"
+#include "MBSkinner.hpp"
+#include "MBParallelConventions.h"
+#include "MBCore.hpp"
+
+extern "C" 
+{
+#include "gs.h"
+#include "tuple_list.h"
+}
 
 #include <assert.h>
 
@@ -49,17 +58,19 @@
 
 #define RR if (MB_SUCCESS != result) return result
 
-MBParallelComm::MBParallelComm(MBInterface *impl, TagServer *tag_server, 
-                               EntitySequenceManager *sequence_manager) 
-    : mbImpl(impl), procInfo(impl->proc_config()), tagServer(tag_server), sequenceManager(sequence_manager)
+MBParallelComm::MBParallelComm(MBInterface *impl, MPI_Comm comm) 
+    : mbImpl(impl), procConfig(comm)
 {
   myBuffer.reserve(INITIAL_BUFF_SIZE);
+
+  tagServer = dynamic_cast<MBCore*>(mbImpl)->tag_server();
+  sequenceManager = dynamic_cast<MBCore*>(mbImpl)->sequence_manager();
 }
 
-MBParallelComm::MBParallelComm(MBInterface *impl, TagServer *tag_server, 
-                               EntitySequenceManager *sequence_manager,
-                               std::vector<unsigned char> &tmp_buff) 
-    : mbImpl(impl), procInfo(impl->proc_config()), tagServer(tag_server), sequenceManager(sequence_manager)
+MBParallelComm::MBParallelComm(MBInterface *impl,
+                               std::vector<unsigned char> &tmp_buff, 
+                               MPI_Comm comm) 
+    : mbImpl(impl), procConfig(comm)
 {
   myBuffer.swap(tmp_buff);
 }
@@ -81,19 +92,21 @@ MBErrorCode MBParallelComm::assign_global_ids(const int dimension,
       // need to filter out non-locally-owned entities!!!
     MBRange dum_range;
     for (MBRange::iterator rit = entities[dim].begin(); rit != entities[dim].end(); rit++)
-      if (procInfo.rank(*rit) != procInfo.rank()) dum_range.insert(*rit);
+      if (mbImpl->handle_utils().rank_from_handle(*rit) != 
+          (unsigned int) mbImpl->proc_rank()) 
+        dum_range.insert(*rit);
     entities[dim] = entities[dim].subtract(dum_range);
     
     local_num_elements[dim] = entities[dim].size();
   }
   
     // communicate numbers
-  std::vector<int> num_elements(procInfo.size()*4);
+  std::vector<int> num_elements(procConfig.proc_size()*4);
 #ifdef USE_MPI
-  if (procInfo.size() > 1) {
+  if (procConfig.proc_size() > 1) {
     int retval = MPI_Alltoall(local_num_elements, 4, MPI_INTEGER,
-                              &num_elements[0], procInfo.size()*4, 
-                              MPI_INTEGER, MPI_COMM_WORLD);
+                              &num_elements[0], procConfig.proc_size()*4, 
+                              MPI_INTEGER, procConfig.proc_comm());
     if (0 != retval) return MB_FAILURE;
   }
   else
@@ -103,14 +116,15 @@ MBErrorCode MBParallelComm::assign_global_ids(const int dimension,
     // my entities start at one greater than total_elems[d]
   int total_elems[4] = {start_id, start_id, start_id, start_id};
   
-  for (unsigned int proc = 0; proc < procInfo.rank(); proc++) {
+  for (unsigned int proc = 0; proc < procConfig.proc_rank(); proc++) {
     for (int dim = 0; dim < 4; dim++) total_elems[dim] += num_elements[4*proc + dim];
   }
   
     //.assign global ids now
   MBTag gid_tag;
   int zero = 0;
-  result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, 1, MB_TAG_DENSE, MB_TYPE_INTEGER, gid_tag,
+  result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), 
+                              MB_TAG_DENSE, MB_TYPE_INTEGER, gid_tag,
                               &zero, true);
   if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
   
@@ -139,7 +153,7 @@ MBErrorCode MBParallelComm::communicate_entities(const int from_proc, const int 
   MBErrorCode result = MB_SUCCESS;
   
     // if I'm the from, do the packing and sending
-  if ((int)procInfo.rank() == from_proc) {
+  if ((int)procConfig.proc_rank() == from_proc) {
     allRanges.clear();
     vertsPerEntity.clear();
     setRange.clear();
@@ -160,7 +174,7 @@ MBErrorCode MBParallelComm::communicate_entities(const int from_proc, const int 
       int tmp_buff_size = -buff_size;
       MPI_Request send_req;
       int success = MPI_Isend(&tmp_buff_size, sizeof(int), MPI_UNSIGNED_CHAR, to_proc, 
-                              0, MPI_COMM_WORLD, &send_req);
+                              0, procConfig.proc_comm(), &send_req);
       if (!success) return MB_FAILURE;
     }
     
@@ -174,16 +188,16 @@ MBErrorCode MBParallelComm::communicate_entities(const int from_proc, const int 
       // send it
     MPI_Request send_req;
     int success = MPI_Isend(&myBuffer[0], actual_buff_size, MPI_UNSIGNED_CHAR, to_proc, 
-                            0, MPI_COMM_WORLD, &send_req);
+                            0, procConfig.proc_comm(), &send_req);
     if (!success) return MB_FAILURE;
   }
-  else if ((int)procInfo.rank() == to_proc) {
+  else if ((int)procConfig.proc_rank() == to_proc) {
     int buff_size;
     
       // get how much to allocate
     MPI_Status status;
     int success = MPI_Recv(&myBuffer[0], myBuffer.size(), MPI_UNSIGNED_CHAR, from_proc, 
-                           MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+                           MPI_ANY_TAG, procConfig.proc_comm(), &status);
     int num_recd;
     success = MPI_Get_count(&status, MPI_UNSIGNED_CHAR, &num_recd);
     
@@ -194,7 +208,7 @@ MBErrorCode MBParallelComm::communicate_entities(const int from_proc, const int 
     
       // receive the real message
       success = MPI_Recv(&myBuffer[0], buff_size, MPI_UNSIGNED_CHAR, from_proc, 
-                         MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+                         MPI_ANY_TAG, procConfig.proc_comm(), &status);
     }
     
       // unpack the buffer
@@ -229,11 +243,11 @@ MBErrorCode MBParallelComm::broadcast_entities( const int from_proc,
   optionsVec.clear();
   setPcs.clear();
 
-  if ((int)procInfo.rank() == from_proc) {
+  if ((int)procConfig.proc_rank() == from_proc) {
     result = pack_buffer( entities, adjacencies, tags, true, whole_range, buff_size ); RR;
   }
 
-  success = MPI_Bcast( &buff_size, 1, MPI_INT, from_proc, MPI_COMM_WORLD );
+  success = MPI_Bcast( &buff_size, 1, MPI_INT, from_proc, procConfig.proc_comm() );
   if (MPI_SUCCESS != success)
     return MB_FAILURE;
   
@@ -242,16 +256,16 @@ MBErrorCode MBParallelComm::broadcast_entities( const int from_proc,
   
   myBuffer.reserve( buff_size );
   
-  if ((int)procInfo.rank() == from_proc) {
+  if ((int)procConfig.proc_rank() == from_proc) {
     int actual_buffer_size;
     result = pack_buffer( entities, adjacencies, tags, false, whole_range, actual_buffer_size ); RR;
   }
 
-  success = MPI_Bcast( &myBuffer[0], buff_size, MPI_UNSIGNED_CHAR, from_proc, MPI_COMM_WORLD );
+  success = MPI_Bcast( &myBuffer[0], buff_size, MPI_UNSIGNED_CHAR, from_proc, procConfig.proc_comm() );
   if (MPI_SUCCESS != success)
     return MB_FAILURE;
   
-  if ((int)procInfo.rank() != from_proc) {
+  if ((int)procConfig.proc_rank() != from_proc) {
     result = unpack_buffer( entities ); RR;
   }
 
@@ -339,7 +353,7 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
   if (just_count) {
     entTypes.push_back(MBVERTEX);
     vertsPerEntity.push_back(1);
-    allRanges.push_back(entities.subset(MBVERTEX));
+    allRanges.push_back(entities.subset_by_type(MBVERTEX));
   }
   else {
     PACK_INT(buff_ptr, MBVERTEX);
@@ -508,8 +522,8 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
       for (MBRange::const_pair_iterator pit = this_range.const_pair_begin(); 
            pit != this_range.const_pair_end(); pit++) {
           // allocate handles
-        int start_id = procInfo.id((*pit).first);
-        int start_proc = procInfo.rank((*pit).first);
+        int start_id = mbImpl->handle_utils().id_from_handle((*pit).first);
+        int start_proc = mbImpl->handle_utils().rank_from_handle((*pit).first);
         MBEntityHandle actual_start;
         int tmp_num_verts = (*pit).second - (*pit).first + 1;
         result = ru->get_node_arrays(3, tmp_num_verts, start_id, start_proc, actual_start,
@@ -542,8 +556,8 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
       for (MBRange::const_pair_iterator pit = this_range.const_pair_begin(); 
            pit != this_range.const_pair_end(); pit++) {
           // allocate handles, connect arrays
-        int start_id = procInfo.id((*pit).first);
-        int start_proc = procInfo.rank((*pit).first);
+        int start_id = mbImpl->handle_utils().id_from_handle((*pit).first);
+        int start_proc = mbImpl->handle_utils().rank_from_handle((*pit).first);
         MBEntityHandle actual_start;
         int num_elems = (*pit).second - (*pit).first + 1;
         MBEntityHandle *connect;
@@ -701,7 +715,9 @@ MBErrorCode MBParallelComm::unpack_sets(unsigned char *&buff_ptr,
       
       // create the set
     MBEntityHandle set_handle;
-    result = mbImpl->create_meshset(opt, set_handle, procInfo.id(*rit), procInfo.rank(*rit)); RR;
+    result = mbImpl->create_meshset(opt, set_handle, 
+                                    mbImpl->handle_utils().id_from_handle(*rit), 
+                                    mbImpl->handle_utils().rank_from_handle(*rit)); RR;
     if (set_handle != *rit)
       return MB_FAILURE;
 
@@ -996,6 +1012,182 @@ void MBParallelComm::take_buffer(std::vector<unsigned char> &new_buffer)
   new_buffer.swap(myBuffer);
 }
 
+MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
+                                                const int dim) 
+{
+  MBRange::iterator rit;
+  MBSkinner skinner(mbImpl);
+  
+    // get the skin entities by dimension
+  MBRange skin_ents[3];
+  MBErrorCode result;
+  int upper_dim = MBCN::Dimension(TYPE_FROM_HANDLE(*proc_ents.begin()));
+
+  if (upper_dim > 0) {
+      // first get d-1 skin ents
+    result = skinner.find_skin(proc_ents, skin_ents[upper_dim-1],
+                               skin_ents[upper_dim-1]);
+    if (MB_SUCCESS != result) return result;
+      // then get d-2, d-3, etc. entities adjacent to skin ents 
+    for (int this_dim = upper_dim-1; this_dim >= 0; this_dim--) {
+      result = mbImpl->get_adjacencies(skin_ents[upper_dim-1], this_dim,
+                                       true, skin_ents[this_dim]);
+      if (MB_SUCCESS != result) return result;
+    }
+  }
+  else skin_ents[0] = proc_ents;
+  
+    // global id tag
+  MBTag gid_tag; int def_val = -1;
+  result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int),
+                              MB_TAG_DENSE, MB_TYPE_INTEGER, gid_tag,
+                              &def_val, true);
+  if (MB_FAILURE == result) return result;
+  else if (MB_ALREADY_ALLOCATED != result) {
+      // just created it, so we need global ids
+    result = assign_global_ids(dim);
+    if (MB_SUCCESS != result) return result;
+  }
+
+    // store index in temp tag; reuse gid_data 
+  std::vector<int> gid_data(skin_ents[0].size());
+  int idx = 0;
+  for (MBRange::iterator rit = skin_ents[0].begin(); 
+       rit != skin_ents[0].end(); rit++) 
+    gid_data[idx] = idx, idx++;
+  MBTag idx_tag;
+  result = mbImpl->tag_create("__idx_tag", sizeof(int), MB_TAG_DENSE,
+                              MB_TYPE_INTEGER, idx_tag, &def_val, true);
+  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
+  result = mbImpl->tag_set_data(idx_tag, skin_ents[0], &gid_data[0]);
+  if (MB_SUCCESS != result) return result;
+
+    // get gids for skin verts in a vector, to pass to gs
+  result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &gid_data[0]);
+  if (MB_SUCCESS != result) return result;
+
+    // get a crystal router
+  crystal_data *cd = procConfig.crystal_router();
+  
+    // get total number of verts; will overshoot highest global id, but
+    // that's ok
+  int nverts_total, nverts_local;
+  result = mbImpl->get_number_entities_by_dimension(0, 0, nverts_local);
+  if (MB_SUCCESS != result) return result;
+  int failure = MPI_Allreduce(&nverts_local, &nverts_total, 1,
+                              MPI_INTEGER, MPI_SUM, procConfig.proc_comm());
+  if (failure) return MB_FAILURE;
+  
+    // call gather-scatter to get shared ids & procs
+  gs_data *gsd = gs_data_setup(skin_ents[0].size(), (const ulong_*)&gid_data[0], 1, cd);
+  if (NULL == gsd) return MB_FAILURE;
+  
+    // get shared proc tags
+#define MAX_SHARING_PROCS 10  
+  int def_vals[2] = {-10*procConfig.proc_size(), -10*procConfig.proc_size()};
+  MBTag sharedp_tag, sharedps_tag;
+  result = mbImpl->tag_create(PARALLEL_SHARED_PROC_TAG_NAME, 2*sizeof(int), 
+                              MB_TAG_DENSE,
+                              MB_TYPE_INTEGER, sharedp_tag, &def_vals, true);
+  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
+  result = mbImpl->tag_create(PARALLEL_SHARED_PROCS_TAG_NAME, 
+                              MAX_SHARING_PROCS*sizeof(int), 
+                              MB_TAG_SPARSE,
+                              MB_TYPE_INTEGER, sharedps_tag, NULL, true);
+  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
+
+    // load shared vertices into a tuple, then sort by index
+  tuple_list shared_verts;
+  tuple_list_init_max(&shared_verts, 0, 2, 0, 
+                      skin_ents[0].size()*MAX_SHARING_PROCS);
+  int i = 0, j = 0;
+  for (unsigned int p = 0; p < gsd->nlinfo->np; p++) 
+    for (unsigned int np = 0; np < gsd->nlinfo->nshared[p]; np++) 
+      shared_verts.vl[i++] = gsd->nlinfo->sh_ind[j++],
+        shared_verts.vl[i++] = gsd->nlinfo->target[p],
+        shared_verts.n++;
+  std::vector<int> sort_buffer(skin_ents[0].size()*MAX_SHARING_PROCS);
+  tuple_list_sort(&shared_verts, 0,(buffer*)&sort_buffer[0]);
+
+    // set sharing procs tags on skin vertices
+  int maxp = -10*procConfig.proc_size();
+  int sharing_procs[MAX_SHARING_PROCS] = {maxp};
+  j = 0;
+  while (j < 2*shared_verts.n) {
+      // count & accumulate sharing procs
+    int nump = 0, this_idx = shared_verts.vl[j];
+    while (shared_verts.vl[j] == this_idx)
+      j++, sharing_procs[nump++] = shared_verts.vl[j++];
+
+    sharing_procs[nump++] = procConfig.proc_rank();
+    MBEntityHandle this_ent = skin_ents[0][this_idx];
+    if (2 == nump)
+      result = mbImpl->tag_set_data(sharedp_tag, &this_ent, 1,
+                                    sharing_procs);
+    else
+      result = mbImpl->tag_set_data(sharedps_tag, &this_ent, 1,
+                                    sharing_procs);
+    if (MB_SUCCESS != result) return result;
+
+      // reset sharing proc(s) tags
+    std::fill(sharing_procs, sharing_procs+nump, maxp);
+  }
+  
+    // set sharing procs tags on other skin ents
+  const MBEntityHandle *connect; int num_connect;
+  for (int d = dim-1; d > 0; d--) {
+    for (MBRange::iterator rit = skin_ents[d].begin();
+         rit != skin_ents[d].end(); rit++) {
+        // get connectivity
+      result = mbImpl->get_connectivity(*rit, connect, num_connect);
+      if (MB_SUCCESS != result) return result;
+      MBRange sp_range, vp_range;
+      for (int nc = 0; nc < num_connect; nc++) {
+          // get sharing procs
+        result = mbImpl->tag_get_data(sharedp_tag, &(*rit), 1, sharing_procs);
+        if (MB_SUCCESS != result) return result;
+        if (sharing_procs[0] == maxp) {
+          result = mbImpl->tag_get_data(sharedps_tag, &(*rit), 1, sharing_procs);
+          if (MB_SUCCESS != result) return result;
+        }
+          // build range of sharing procs for this vertex
+        unsigned int p = 0; vp_range.clear();
+        while (sharing_procs[p] != maxp && p < MAX_SHARING_PROCS)
+          vp_range.insert(sharing_procs[p]), p++;
+        assert(p < MAX_SHARING_PROCS);
+          // intersect with range for this skin ent
+        if (0 != nc) sp_range = sp_range.intersect(vp_range);
+        else sp_range = vp_range;
+      }
+        // intersection is the owning proc(s) for this skin ent; should
+        // not be empty
+      assert(!sp_range.empty());
+      MBRange::iterator rit2;
+        // set tag for this ent
+      for (j = 0, rit2 = sp_range.begin(); 
+           rit2 != sp_range.end(); rit2++, j++)
+        sharing_procs[j] = *rit;
+      if (2 >= j)
+        result = mbImpl->tag_set_data(sharedp_tag, &(*rit), 1,
+                                      sharing_procs);
+      else
+        result = mbImpl->tag_set_data(sharedps_tag, &(*rit), 1,
+                                      sharing_procs);
+
+      if (MB_SUCCESS != result) return result;
+      
+        // reset sharing proc(s) tags
+      std::fill(sharing_procs, sharing_procs+j, maxp);
+    }
+  }
+
+    // done
+  return result;
+}
+
+
+  
+  
 #ifdef TEST_PARALLELCOMM
 
 #include <iostream>

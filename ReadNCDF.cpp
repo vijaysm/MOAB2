@@ -940,12 +940,12 @@ MBErrorCode ReadNCDF::read_global_ids()
 
   NcVar *temp_var = ncFile->get_var("elem_map");
   if (NULL == temp_var || !temp_var->is_valid()) {
-    readMeshIface->report_error("MBCN:: Problem getting element number map variable.");
+    readMeshIface->report_error("ReadNCDF:: Problem getting element number map variable.");
     return MB_FAILURE;
   }
   NcBool status = temp_var->get(ptr, numberElements_loading);
   if (0 == status) {
-    readMeshIface->report_error("MBCN:: Problem getting element number map data.");
+    readMeshIface->report_error("ReadNCDF:: Problem getting element number map data.");
     delete [] ptr;
     return MB_FAILURE;
   }

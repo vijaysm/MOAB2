@@ -754,6 +754,7 @@ AC_CONFIG_HEADERS([tools/iMesh/iBase_FCDefs.h])
 AC_CONFIG_FILES([Makefile 
                  moab.make 
                  testdir.h
+		 parallel/Makefile
                  mhdf/Makefile
                  test/Makefile
                  test/h5file/Makefile

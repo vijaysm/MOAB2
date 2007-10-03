@@ -4,6 +4,8 @@
 #include "MBForward.hpp"
 #include "MBReaderIface.hpp"
 
+#include <string>
+
 class MBReadUtilIface;
 
 class ReadParallel : public MBReaderIface
@@ -31,7 +33,10 @@ protected:
 private:
   MBInterface *mbImpl;
   
-  MBErrorCode delete_nonlocal_entities(std::string &partition_name,
+  MBErrorCode delete_nonlocal_entities(std::string &ptag_name,
+                                       MBEntityHandle file_set);
+  
+  MBErrorCode delete_nonlocal_entities(MBRange &partition_sets,
                                        MBEntityHandle file_set);
 };
 

@@ -64,6 +64,19 @@ public:
       MBEntityHandle*& array
       );
 
+    /**
+     *\brief Gather entities related to those in the partition
+     * Gather entities related to those in the input partition.  Related
+     * means down-adjacent to, contained in, etc.
+     * \param partition Entities for which to gather related entities
+     * \param related_ents Related entities
+     * \param all_sets If non-NULL, all sets in mesh instance are returned
+     * in the pointed-to range
+     */
+  MBErrorCode gather_related_ents(MBRange &partition,
+                                  MBRange &related_ents,
+                                  MBRange *all_sets);
+  
   /** Allocate storage for poly (polygon or polyhedron elements) 
    * 
    * Allocate storage for poly (polygon or polyhedron elements) and

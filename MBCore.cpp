@@ -39,7 +39,13 @@
 #include "MBReaderWriterSet.hpp"
 #include "MBReaderIface.hpp"
 #include "MBWriterIface.hpp"
+#include "MBHandleUtils.hpp"
+
+#ifdef MPI
+#include "mpi.h"
+#include "MBParallelComm.hpp"
 #include "ReadParallel.hpp"
+#endif
 
 #ifdef HDF5_FILE
 #  include "WriteHDF5.hpp"
@@ -51,14 +57,10 @@
 #  include "WriteVtk.hpp"
    typedef WriteVtk DefaultWriter;
 #endif
-#ifdef USE_MPI
-#include "mpi.h"
-#endif
 #include "MBTagConventions.hpp"
 #include "ExoIIUtil.hpp"
 #include "EntitySequence.hpp"
 #include "FileOptions.hpp"
-#include "MBParallelComm.hpp"
 #ifdef LINUX
 # include <dlfcn.h>
 # include <dirent.h>
@@ -99,7 +101,7 @@ static inline MBMeshSet* get_mesh_set( const EntitySequenceManager* sm,
 
 //! Constructor
 MBCore::MBCore( int rank, int num_procs ) 
-  : procInfo( rank, num_procs )
+    : handleUtils(rank, num_procs)
 {
 #ifdef XPCOM_MB
   NS_INIT_ISUPPORTS();
@@ -140,7 +142,7 @@ MBErrorCode MBCore::initialize()
   if (!tagServer)
     return MB_MEMORY_ALLOCATION_FAILED;
   
-  sequenceManager = new EntitySequenceManager( procInfo );
+  sequenceManager = new EntitySequenceManager( handleUtils );
   if (!sequenceManager)
     return MB_MEMORY_ALLOCATION_FAILED;
 
@@ -359,8 +361,14 @@ MBErrorCode MBCore::load_file( const char* file_name,
   std::string parallel_opt;
   rval = opts.get_option( "PARALLEL", parallel_opt);
   if (MB_SUCCESS == rval && !parallel_opt.empty()) {
+#ifdef MPI    
     return ReadParallel(this).load_file(file_name, file_set, opts,
                                         block_id_list, num_blocks);
+#else
+    mError->set_last_error( "PARALLEL option not valid, this instance"
+                            " compiled for serial execution.\n" );
+    return MB_NOT_IMPLEMENTED;
+#endif
   }
 
     // otherwise try using the file extension to select a reader
@@ -482,7 +490,7 @@ MBErrorCode MBCore::delete_mesh()
   
   if (sequenceManager)
     delete sequenceManager;
-  sequenceManager = new EntitySequenceManager( procInfo );
+  sequenceManager = new EntitySequenceManager( handleUtils );
 
   return result;
 }
@@ -1654,7 +1662,8 @@ MBErrorCode MBCore::create_element(const MBEntityType type,
                                    const int num_nodes, 
                                    MBEntityHandle &handle)
 {
-  return create_element( type, procInfo.rank(), connectivity, num_nodes, handle );
+  return create_element( type, handleUtils.proc_rank(), 
+                         connectivity, num_nodes, handle );
 }
 
 MBErrorCode MBCore::create_element( const MBEntityType type,
@@ -1667,7 +1676,7 @@ MBErrorCode MBCore::create_element( const MBEntityType type,
   if(num_nodes < MBCN::VerticesPerEntity(type))
     return MB_FAILURE;
   
-  if (processor_id >= procInfo.size())
+  if (processor_id >= handleUtils.proc_size())
     return MB_INDEX_OUT_OF_RANGE;
   
   MBErrorCode status = sequence_manager()->create_element(type, processor_id, connectivity, num_nodes, handle);
@@ -1680,17 +1689,56 @@ MBErrorCode MBCore::create_element( const MBEntityType type,
 //! creates a vertex based on coordinates, returns a handle and error code
 MBErrorCode MBCore::create_vertex(const double coords[3], MBEntityHandle &handle )
 {
-  return create_vertex( procInfo.rank(), coords, handle );
+  return create_vertex( handleUtils.proc_rank(), coords, handle );
 }
 
 MBErrorCode MBCore::create_vertex( const unsigned processor_id, const double* coords, MBEntityHandle& handle )
 {
-  if (processor_id >= procInfo.size())
+  if (processor_id >= handleUtils.proc_size())
     return MB_INDEX_OUT_OF_RANGE;
     
     // get an available vertex handle
   return sequence_manager()->create_vertex( processor_id, coords, handle );
 }
+
+MBErrorCode MBCore::create_vertices(const double *coordinates, 
+                                    const int nverts,
+                                    MBRange &entity_handles ) 
+{
+  return create_vertices(handleUtils.proc_rank(), coordinates,
+                         nverts, entity_handles);
+}
+
+MBErrorCode MBCore::create_vertices(const unsigned processor_id,
+                                    const double *coordinates, 
+                                    const int nverts,
+                                    MBRange &entity_handles ) 
+{
+    // Create vertices
+  MBReadUtilIface *read_iface;
+  MBErrorCode result = 
+    this->query_interface("MBReadUtilIface", 
+                          reinterpret_cast<void**>(&read_iface));
+  if (MB_SUCCESS != result) return result;
+  
+  std::vector<double*> arrays;
+  MBEntityHandle start_handle_out = 0;
+  result = read_iface->get_node_arrays( 3, nverts, MB_START_ID, 
+                                        processor_id,
+                                        start_handle_out, arrays);
+  if (MB_SUCCESS != result) return result;
+  for (int i = 0; i < nverts; i++) {
+    arrays[0][i] = coordinates[3*i];
+    arrays[1][i] = coordinates[3*i+1];
+    arrays[2][i] = coordinates[3*i+2];
+  }
+
+  entity_handles.clear();
+  entity_handles.insert(start_handle_out, start_handle_out+nverts-1);
+  
+  return MB_SUCCESS;
+}
+
 
 //! merges two  entities
 MBErrorCode MBCore::merge_entities( MBEntityHandle entity_to_keep, 
@@ -2150,7 +2198,7 @@ MBErrorCode MBCore::create_meshset(const unsigned int options,
                                    int ,
                                    int start_proc)
 {
-  if (-1 == start_proc) start_proc = procInfo.rank();
+  if (-1 == start_proc) start_proc = handleUtils.proc_rank();
   return sequence_manager()->create_mesh_set( start_proc, options, ms_handle );
 }
 
@@ -2897,3 +2945,23 @@ void MBCore::estimated_memory_use( const MBRange& ents,
                          tag_array,         num_tags,
                          tag_storage,       amortized_tag_storage );
 }
+
+    //! Return the rank of this processor
+const int MBCore::proc_rank() const 
+{
+  return handleUtils.proc_rank();
+}
+
+    //! Return the number of processors
+const int MBCore::proc_size() const 
+{
+  return handleUtils.proc_size();
+}
+
+    //! Return the utility for dealing with entity handles
+const MBHandleUtils &MBCore::handle_utils() const 
+{
+  return handleUtils;
+}
+
+
