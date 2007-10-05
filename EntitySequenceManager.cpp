@@ -382,6 +382,34 @@ MBErrorCode EntitySequenceManager::create_mesh_set( unsigned proc_id,
   return MB_SUCCESS;
 }
 
+MBErrorCode EntitySequenceManager::allocate_mesh_set( MBEntityHandle handle, unsigned flags )
+{
+  std::map<MBEntityHandle, MBEntitySequence*>::iterator seq_itr;
+  seq_itr = mSequenceMap[MBENTITYSET].lower_bound( handle );
+  if (seq_itr != mSequenceMap[MBENTITYSET].begin())
+    --seq_itr;
+  
+  for (; seq_itr != mSequenceMap[MBENTITYSET].end() && 
+         seq_itr->second->get_end_handle() < handle;
+         ++seq_itr );
+  
+  MeshSetSequence* seq;
+  if (seq_itr != mSequenceMap[MBENTITYSET].end() && 
+      seq_itr->second->get_start_handle() <= handle)
+    seq = reinterpret_cast<MeshSetSequence*>(seq_itr->second);
+  else {
+    MBEntityID new_seq_size = 4096;
+    if (seq_itr != mSequenceMap[MBENTITYSET].end()) {
+      MBEntityID diff = seq_itr->second->get_start_handle() - handle;
+      if (diff < new_seq_size)
+        new_seq_size = diff;
+    }
+    seq = new MeshSetSequence( this, handle, new_seq_size, (const unsigned*)0 );
+  }
+  
+  return seq->add_meshset( handle, flags );
+}
+
 
 MBErrorCode EntitySequenceManager::get_entities(MBEntityType type, MBRange &entities) const
 {
@@ -680,6 +708,71 @@ int main()
   ensure( num_vtx >= 0 &&  (unsigned)num_vtx == chkverts.size() );
   ensure( num_tri >= 0 &&  (unsigned)num_tri == chktris .size() );
   ensure( num_hex == 0 );
+  
+  // check allocation of meshsets with caller-specified handles
+  EntitySequenceManager setman( MBHandleUtils(0,1) );
+  MBEntityHandle start_handle = CREATE_HANDLE( MBENTITYSET, 1, junk );
+  // ID space: {}
+  check( setman.allocate_mesh_set( start_handle + 2, 0 ) );
+  // get current sequence
+  MBEntitySequence* b_seq_ptr;
+  check( setman.find( start_handle + 2, b_seq_ptr ) );
+  MeshSetSequence* seq_ptr = dynamic_cast<MeshSetSequence*>(b_seq_ptr);
+  check( seq_ptr->is_valid() );
+  ensure( seq_ptr->number_entities() == 1 );
+  // ID space: {3}
+  check( setman.allocate_mesh_set( start_handle + 4, 0 ) );
+  check( seq_ptr->is_valid() );
+  ensure( seq_ptr->number_entities() == 2 );
+  // ID space: {3,5}
+  check( setman.allocate_mesh_set( start_handle + 5, 0 ) );
+  check( seq_ptr->is_valid() );
+  ensure( seq_ptr->number_entities() == 3 );
+  // ID space: {3,5,6}
+  check( setman.allocate_mesh_set( start_handle + 3, 0 ) );
+  check( seq_ptr->is_valid() );
+  ensure( seq_ptr->number_entities() == 4 );
+  // ID space: {3-6}
+  // create new sequence after current one, with a single ID whole between them
+  MBEntityHandle offset_handle = seq_ptr->get_end_handle();
+  check( setman.allocate_mesh_set( offset_handle + 2, 0 ) );
+  // now fill in that whole (with a 1-entity sequence?)
+  check( setman.allocate_mesh_set( offset_handle + 1, 0 ) );
+  // make sure all sequences are valid
+  MBEntityHandle prev_handle = 0;
+  const std::map<MBEntityHandle, MBEntitySequence*>& map = *setman.entity_map( MBENTITYSET );
+  for (std::map<MBEntityHandle, MBEntitySequence*>::const_iterator mi = map.begin();
+       mi != map.end(); ++mi) {
+    seq_ptr = dynamic_cast<MeshSetSequence*>(mi->second);
+    check( seq_ptr->is_valid());
+    ensure( seq_ptr->get_start_handle() == mi->first );
+    ensure( seq_ptr->get_start_handle() > prev_handle );
+    ensure( seq_ptr->number_entities() <= seq_ptr->number_allocated() );
+    ensure( seq_ptr->number_entities() > 0 );
+    prev_handle = mi->second->get_end_handle();
+  }
+  // make sure attempt to re-allocate existing set fails
+  ensure( MB_ALREADY_ALLOCATED == setman.allocate_mesh_set( start_handle + 2, 0 ) );
+  ensure( MB_ALREADY_ALLOCATED == setman.allocate_mesh_set( start_handle + 3, 0 ) );
+  ensure( MB_ALREADY_ALLOCATED == setman.allocate_mesh_set( start_handle + 4, 0 ) );
+  ensure( MB_ALREADY_ALLOCATED == setman.allocate_mesh_set( start_handle + 5, 0 ) );
+  // some consistency checks
+  MBEntityID count;
+  check( setman.get_number_entities( MBENTITYSET, count ) );
+  ensure( 6 == count );
+  MBRange setlist;
+  check( setman.get_entities( MBENTITYSET, setlist ) );
+  MBRange setlist2;
+  setlist2.insert( start_handle + 2, start_handle + 5 );
+  setlist2.insert( offset_handle + 1, offset_handle + 2 );
+  if (setlist != setlist2) {
+    std::cout << "Expected:\n";
+    setlist2.print( std::cout );
+    std::cout << "Actual:\n";
+    setlist.print( std::cout );
+  }
+  ensure( setlist2 == setlist );
+  
   
   return 0;
 }

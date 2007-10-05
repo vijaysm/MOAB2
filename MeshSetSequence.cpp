@@ -83,6 +83,51 @@ MBEntityHandle MeshSetSequence::get_unused_handle()
   return 0;
 }
 
+
+MBErrorCode MeshSetSequence::add_meshset( MBEntityHandle handle, unsigned flags )
+{
+  if (handle < get_start_handle() || handle > get_end_handle())
+    return MB_INDEX_OUT_OF_RANGE;
+    // check and update allocated flag
+  const MBEntityID index = handle - get_start_handle();
+  if (mFreeEntities.empty() || !mFreeEntities[index])
+    return MB_ALREADY_ALLOCATED;
+  mFreeEntities[index] = false;
+  
+    // remove from linked list of free entities
+  if (mFirstFreeIndex == index) 
+    mFirstFreeIndex = next_free(index);
+  else if (next_free(mFirstFreeIndex) == index)
+    next_free(mFirstFreeIndex) = next_free(index);
+  else {
+#ifndef NDEBUG
+    int counter = 0;
+#endif
+    MBEntityID i = next_free(mFirstFreeIndex);
+    while (next_free(i) != index) {
+      assert( ++counter <= (number_allocated() - number_entities()) );
+      i = next_free(i);
+    }
+    next_free(i) = next_free(index);
+  }
+  
+    // update last-deleted index
+  if (mLastDeletedIndex == index)
+    mLastDeletedIndex = -1;
+  
+    // initialze entity set
+  allocate_set( flags, index );
+  mNumEntities++;
+  if (mNumEntities == mNumAllocated) {
+    mSequenceManager->notify_full(this);
+    std::vector<bool> empty;
+    mFreeEntities.swap( empty);
+  }
+  
+  return MB_SUCCESS;
+}
+  
+
 MBEntityHandle MeshSetSequence::add_meshset( unsigned flags )
 {
   if (mFirstFreeIndex == -1)
@@ -104,6 +149,66 @@ MBEntityHandle MeshSetSequence::add_meshset( unsigned flags )
   
   return get_start_handle() + index;
 }
+
+MBErrorCode MeshSetSequence::is_valid() const
+{
+  if (mFirstFreeIndex >= number_allocated())
+    return MB_FAILURE;
+
+    // if entity sequence is full by any indicator, ensure
+    // all indicators are consistant
+  if (number_entities() == number_allocated() || mFreeEntities.empty() || mFirstFreeIndex < 0) {
+    if (number_entities() != number_allocated())
+      return MB_FAILURE;
+    if (!mFreeEntities.empty())
+      return MB_FAILURE;
+    if (mFirstFreeIndex >= 0)
+      return MB_FAILURE;
+    
+    return MB_SUCCESS;
+  }
+  
+    // make sure mFreeEntities is correctly allocated
+  if (mFreeEntities.size() != (size_t)number_allocated())
+    return MB_FAILURE;
+  
+    // count number of unallocated entities
+  size_t count = 0;
+  for (size_t i = 0; i < mFreeEntities.size(); ++i)
+    if (mFreeEntities[i])
+      ++count;
+  
+    // check number of free entities
+  if (count != (size_t)(number_allocated() - number_entities()))
+    return MB_FAILURE;
+  
+    // check linked list of free entities
+  for (MBEntityID i = mFirstFreeIndex; i != -1; i = next_free(i)) {
+    --count;
+    if (i < 0)
+      return MB_FAILURE;
+    if (i >= number_allocated())
+      return MB_FAILURE;
+    if (!mFreeEntities[i])
+      return MB_FAILURE;
+  }
+  
+    // check length of linked list
+  if (count != 0)
+    return MB_FAILURE;
+    
+    // check last deleted
+  if (mLastDeletedIndex != -1) {
+    if (mLastDeletedIndex < 0)
+      return MB_FAILURE;
+    if (mLastDeletedIndex >= number_allocated())
+      return MB_FAILURE;
+    if (!mFreeEntities[mLastDeletedIndex])
+      return MB_FAILURE;
+  }
+  
+  return MB_SUCCESS;
+}  
 
 void MeshSetSequence::free_handle( MBEntityHandle handle )
 {

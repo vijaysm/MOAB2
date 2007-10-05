@@ -41,6 +41,7 @@ public:
   virtual ~MeshSetSequence();
   virtual MBEntityHandle get_unused_handle();
   MBEntityHandle add_meshset( unsigned flags );
+  MBErrorCode add_meshset( MBEntityHandle handle, unsigned flags );
   virtual void free_handle( MBEntityHandle handle );
   virtual void get_entities( MBRange& entities ) const;
   virtual MBEntityID get_next_free_index( MBEntityID prev_free_index ) const;
@@ -63,6 +64,8 @@ public:
   MBErrorCode get_children( MBEntityHandle of, std::vector<MBEntityHandle>& children, int num_hops ) const;
   MBErrorCode num_parents ( MBEntityHandle of, int& number, int num_hops ) const;
   MBErrorCode num_children( MBEntityHandle of, int& number, int num_hops ) const;
+  
+  MBErrorCode is_valid() const;
   
 private:
 

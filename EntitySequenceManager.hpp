@@ -118,6 +118,8 @@ public:
   MBErrorCode create_mesh_set( unsigned proc_id,
                                unsigned flags,
                                MBEntityHandle& h );
+                               
+  MBErrorCode allocate_mesh_set( MBEntityHandle handle, unsigned flags );
 
   //! return a const reference to the map of sequences
   const std::map<MBEntityHandle, MBEntitySequence*>*
