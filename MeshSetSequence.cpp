@@ -97,13 +97,11 @@ MBErrorCode MeshSetSequence::add_meshset( MBEntityHandle handle, unsigned flags 
     // remove from linked list of free entities
   if (mFirstFreeIndex == index) 
     mFirstFreeIndex = next_free(index);
-  else if (next_free(mFirstFreeIndex) == index)
-    next_free(mFirstFreeIndex) = next_free(index);
   else {
 #ifndef NDEBUG
     int counter = 0;
 #endif
-    MBEntityID i = next_free(mFirstFreeIndex);
+    MBEntityID i = mFirstFreeIndex;
     while (next_free(i) != index) {
       assert( ++counter <= (number_allocated() - number_entities()) );
       i = next_free(i);
