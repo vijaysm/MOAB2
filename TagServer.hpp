@@ -201,6 +201,10 @@ public:
                              const MBEntityType type,
                              MBRange &entities);
 
+  //! gets all entity handles that match a tag
+  MBErrorCode get_entities( const MBTag tag_handle, 
+                             MBRange &entities);
+
   //! gets all entity handles that match a type and tag
   MBErrorCode get_entities( const MBRange &input_range,
                              const MBTag tag_handle, 

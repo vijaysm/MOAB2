@@ -16,7 +16,7 @@ DEFS += $(DEFINES)
 check_PROGRAMS = testc_cbind
 testc_cbind_SOURCES = testc_cbind.c
 
-LDADD = libiMesh.la $(top_builddir)/libMOAB.la
+LDADD = libiMesh.la $(top_builddir)/libMOAB.la ${MOAB_CXX_LDFLAGS} ${MOAB_CXX_LIBS}
 testc_cbind_DEPENDENCIES = libiMesh.la $(top_builddir)/libMOAB.la
 
 libiMesh_la_SOURCES = \

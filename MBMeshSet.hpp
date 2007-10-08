@@ -129,7 +129,7 @@ public:
     //! remove a child from this meshset; returns true if child was removed, 0 if it was
     //! not a child of this meshset
   int remove_child(MBEntityHandle child);
-  
+
   unsigned flags() const { return mFlags; }
   //! returns whether entities of meshsets know this meshset 
   int tracking()     const { return mFlags & MESHSET_TRACK_OWNER; }
@@ -139,6 +139,12 @@ public:
 
    //!  PURE VIRTUAL FUNCTIONS overwritten by derived classes  *******************
 
+    //! replace one entity with another in the set (contents and parent/child
+    //! lists); returns whether it was replaced or not
+  inline bool replace_entities(MBEntityHandle my_handle, 
+                               MBEntityHandle *entities, int num_entities,
+                               AEntityFactory* mAdjFact);
+  
   inline MBErrorCode clear( MBEntityHandle myhandle, AEntityFactory* adjacencies );
 
   inline MBErrorCode get_entities(std::vector<MBEntityHandle>& entities) const;
@@ -252,7 +258,10 @@ private:
 };
 
 #define MESH_SET_VIRTUAL_FUNCTIONS      \
-  MBErrorCode clear( MBEntityHandle my_handle, AEntityFactory* adjacencies);                                                          \
+  MBErrorCode clear( MBEntityHandle my_handle, AEntityFactory* adjacencies); \
+  \
+  bool replace_entities(MBEntityHandle my_handle, MBEntityHandle *entities, \
+                                       int num_entities, AEntityFactory* mAdjFact); \
   \
   inline MBErrorCode get_entities(std::vector<MBEntityHandle>& entities) const;       \
   \
@@ -373,6 +382,18 @@ private:
 
     std::vector<MBEntityHandle> mVector;
 };
+
+inline bool
+MBMeshSet::replace_entities( MBEntityHandle my_handle, 
+                             MBEntityHandle *entities, int num_entities,
+                             AEntityFactory* mAdjFact)
+{ 
+  return vector_based() ?
+    reinterpret_cast<MBMeshSet_Vector* >(this)->replace_entities(my_handle, entities, num_entities,
+                                                                 mAdjFact) :
+    reinterpret_cast<MBMeshSet_MBRange*>(this)->replace_entities(my_handle, entities, num_entities,
+                                                                 mAdjFact);
+}
 
 inline MBErrorCode 
 MBMeshSet::clear( MBEntityHandle myhandle, AEntityFactory* adjacencies )

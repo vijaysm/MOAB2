@@ -279,6 +279,35 @@ MBErrorCode MBMeshSet_MBRange::clear( MBEntityHandle mEntityHandle,
 }
 
 
+bool MBMeshSet_MBRange::replace_entities(MBEntityHandle set_handle,
+                                         MBEntityHandle *entities,
+                                         int num_entities,
+                                         AEntityFactory* mAdjFact)
+{
+  bool was_contained = false;
+  MBRange::iterator rit;
+  for (int i = 0; i < num_entities; i += 2) {
+    if ((rit = mRange.find(entities[i])) != mRange.end()) {
+      mRange.erase(rit);
+      mRange.insert(entities[i+1]);
+      was_contained = true;
+
+      if (tracking() && mAdjFact)
+        mAdjFact->remove_adjacency(entities[i], set_handle),
+          mAdjFact->add_adjacency(entities[i+1], set_handle);
+    }
+    
+    if (remove_parent(entities[i]))
+      add_parent(entities[i+1]), was_contained = true;
+
+    if (remove_child(entities[i]))
+      add_child(entities[i+1]), was_contained = true;
+  }
+  
+  return was_contained;
+}
+
+
 MBErrorCode MBMeshSet_MBRange::add_entities( const MBEntityHandle *entities,
                                              const int num_entities,
                                              MBEntityHandle mEntityHandle,
@@ -429,6 +458,35 @@ MBErrorCode MBMeshSet_Vector::clear( MBEntityHandle mEntityHandle,
   mVector.reserve(0);
   return MB_SUCCESS;
 }
+
+bool MBMeshSet_Vector::replace_entities(MBEntityHandle set_handle,
+                                        MBEntityHandle *entities,
+                                        int num_entities,
+                                        AEntityFactory* mAdjFact)
+{
+  bool was_contained = false;
+  std::vector<MBEntityHandle>::iterator vit;
+  for (int i = 0; i < num_entities; i += 2) {
+    if ((vit = std::find(mVector.begin(), mVector.end(), entities[i])) 
+        != mVector.end()) {
+      *vit = entities[i+1];
+      was_contained = true;
+
+      if(tracking() && mAdjFact)
+        mAdjFact->remove_adjacency(entities[i], set_handle),
+          mAdjFact->add_adjacency(entities[i+1], set_handle);
+    }
+    
+    if (remove_parent(entities[i]))
+      add_parent(entities[i+1]), was_contained = true;
+
+    if (remove_child(entities[i]))
+      add_child(entities[i+1]), was_contained = true;
+  }
+  
+  return was_contained;
+}
+
 
 void MBMeshSet_Vector::vector_to_range( std::vector<MBEntityHandle>& vect, MBRange& range )
 {

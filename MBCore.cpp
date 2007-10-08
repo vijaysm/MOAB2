@@ -41,7 +41,7 @@
 #include "MBWriterIface.hpp"
 #include "MBHandleUtils.hpp"
 
-#ifdef MPI
+#ifdef USE_MPI
 #include "mpi.h"
 #include "MBParallelComm.hpp"
 #include "ReadParallel.hpp"
@@ -361,7 +361,7 @@ MBErrorCode MBCore::load_file( const char* file_name,
   std::string parallel_opt;
   rval = opts.get_option( "PARALLEL", parallel_opt);
   if (MB_SUCCESS == rval && !parallel_opt.empty()) {
-#ifdef MPI    
+#ifdef USE_MPI    
     return ReadParallel(this).load_file(file_name, file_set, opts,
                                         block_id_list, num_blocks);
 #else
@@ -2316,6 +2316,21 @@ MBErrorCode MBCore::remove_entities( MBEntityHandle meshset,
     return set->remove_entities( entities, num_entities, meshset, a_entity_factory() );
   else
     return MB_ENTITY_NOT_FOUND;
+}
+
+// replace entities in a meshset; entities appear in pairs,
+// old then new entity in each pair
+bool MBCore::replace_entities(MBEntityHandle meshset, 
+                              MBEntityHandle *entities,
+                              int num_entities) 
+{
+  if (0 == meshset) return false;
+  
+  MBMeshSet* set = get_mesh_set( sequence_manager(), meshset );
+  if (set)
+    return set->replace_entities( meshset, entities, num_entities, a_entity_factory() );
+  else
+    return false;
 }
 
 MBErrorCode MBCore::get_parent_meshsets(const MBEntityHandle meshset,

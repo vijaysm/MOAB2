@@ -465,6 +465,8 @@ public:
   //! set the bits associated with an entity handle, only if memory has been allocated
   MBErrorCode weak_set_bits(MBTagId tag_id, MBEntityHandle handle, unsigned char bits);
 
+  MBErrorCode get_entities(MBTagId tag_id, MBRange& entities);
+
   MBErrorCode get_entities(MBTagId tag_id, MBEntityType type, MBRange& entities);
 
   MBErrorCode get_entities_with_tag_value(MBTagId tag_id, 
@@ -537,6 +539,22 @@ inline MBErrorCode MBBitServer::weak_set_bits(MBTagId tag_id,
     return MB_SUCCESS;
 
   return mBitPageGroups[TYPE_FROM_HANDLE(handle)][tag_id]->weak_set_bits(handle, bits);
+}
+
+inline MBErrorCode MBBitServer::get_entities(MBTagId tag_id, MBRange& entities)
+{
+  --tag_id; // First ID is 1.
+  MBErrorCode result = MB_SUCCESS;
+  if(tag_id >= mBitPageGroupsSize || (*mBitPageGroups)[tag_id] == NULL)
+    result = MB_FAILURE;
+  else {
+    for (MBEntityType type = MBVERTEX; type != MBMAXTYPE; type++) {
+      MBErrorCode tmp_result = mBitPageGroups[type][tag_id]->get_entities(type, entities);
+      if (MB_SUCCESS != tmp_result) result = tmp_result;
+    }
+  }
+  
+  return result;
 }
 
 inline MBErrorCode MBBitServer::get_entities(MBTagId tag_id, MBEntityType type, MBRange& entities)

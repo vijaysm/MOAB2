@@ -44,7 +44,9 @@
 
 #include "MBTypes.h"
 #include "MBInternals.hpp"
-class MBRange;
+#include "MBRange.hpp"
+
+#define get_collection( A ) ((A) < mDataTags.size() ? mDataTags[(A)] : 0)
 
 //! allocator for tag data
 class SparseTagDataAllocator
@@ -94,6 +96,9 @@ public:
   //! gets all entity handles that match a type and tag
   MBErrorCode get_entities(MBEntityType type, MBRange &entities);
 
+  //! gets all entity handles that match a tag
+  MBErrorCode get_entities(MBRange &entities) const;
+
   //! gets all entity handles that match a type, tag, tag_value
   MBErrorCode get_entities_with_tag_value(MBEntityType type, 
                                            MBRange &entities, 
@@ -123,6 +128,15 @@ protected:
 inline bool SparseTagCollection::contains(const MBEntityHandle entity) const
 {
   return (mData.find(entity) == mData.end() ? false : true);
+}
+
+inline MBErrorCode SparseTagCollection::get_entities(MBRange &entities) const 
+{
+  for (std::map<MBEntityHandle,void*>::const_iterator mit = mData.begin();
+       mit != mData.end(); mit++) 
+    entities.insert((*mit).first);
+
+  return MB_SUCCESS;
 }
 
 //! a collection of SparseTagCollections
@@ -157,6 +171,9 @@ public:
   
   //! finds the entity handle with this data
   MBEntityHandle find_entity( const MBTagId tag_handle, const void* data );
+
+  //! gets all entity handles that match a type and tag
+  MBErrorCode get_entities(const MBTagId tag_handle, MBRange &entities);
 
   //! gets all entity handles that match a tag
   MBErrorCode get_entities(const MBTagId tag_handle, const MBEntityType type,
@@ -198,6 +215,14 @@ private:
 
   std::vector<SparseTagCollection*> mDataTags;
 };
+
+//! gets all entity handles that match a type and tag
+inline MBErrorCode SparseTagSuperCollection::get_entities(const MBTagId tag_handle, 
+                                                          MBRange &entities)
+{
+  SparseTagCollection* coll = get_collection(tag_handle);
+  return coll ? coll->get_entities(entities) : MB_TAG_NOT_FOUND;
+}
 
 
 #endif //SPARSE_TAG_COLLECTIONS_HPP

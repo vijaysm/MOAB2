@@ -208,7 +208,7 @@ MBErrorCode MBReadUtil::gather_related_ents(MBRange &partition,
   std::pair<MBRange::const_iterator, MBRange::const_iterator> pair_it =
     partition.equal_range(MBENTITYSET);
 
-  MBErrorCode result;
+  MBErrorCode result = MB_SUCCESS;
   for (MBRange::const_iterator rit = pair_it.first; 
        rit != pair_it.second; rit++) {
     MBErrorCode tmp_result = 

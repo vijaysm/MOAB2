@@ -767,6 +767,10 @@ public:
                                        const MBEntityHandle *entities,
                                        const int num_entities);
 
+  virtual bool replace_entities(MBEntityHandle meshset, 
+                                MBEntityHandle *entities,
+                                int num_entities);
+
   //------MeshSet Parent/Child functions------
   
   //! get parent meshsets

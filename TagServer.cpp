@@ -726,6 +726,29 @@ MBErrorCode TagServer::get_entities(const MBTag tag_handle, const MBEntityType t
   return result;
 }
 
+//! gets all entity handles that match a tag
+MBErrorCode TagServer::get_entities(const MBTag tag_handle, MBRange &entities)
+{
+  MBErrorCode result = MB_TAG_NOT_FOUND;
+  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+    case MB_TAG_SPARSE:
+      result = mSparseData->get_entities(id, entities);
+      break;
+    case MB_TAG_DENSE:
+      result = mDenseData->get_entities(id, entities);
+      break;
+    case MB_TAG_BIT:
+      result = mBitServer->get_entities(id, entities);
+      break;
+    case MB_TAG_MESH:
+      result = MB_TYPE_OUT_OF_RANGE;
+      break;
+  }
+  
+  return result;
+}
+
 //! gets all entity handles that match a type and tag
 MBErrorCode TagServer::get_entities(const MBRange &range,
                                      const MBTag tag_handle, const MBEntityType type,

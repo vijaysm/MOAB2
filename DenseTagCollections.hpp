@@ -196,6 +196,9 @@ public:
   //! get the entities
   MBErrorCode get_entities(MBEntityType type, MBRange& entities);
   
+  //! get the entities
+  MBErrorCode get_entities(MBRange& entities);
+  
   //! get the entities with a value
   MBErrorCode get_entities_with_tag_value(const MBEntityType type, const void* value, 
                                           MBRange &entities);
@@ -330,6 +333,27 @@ inline MBErrorCode DensePageGroup::get_entities(MBEntityType type, MBRange& enti
   return MB_SUCCESS;
 }
 
+//! get the entities
+inline MBErrorCode DensePageGroup::get_entities(MBRange& entities)
+{
+  std::vector<DensePage>::iterator iter;
+  int dum =0;
+  for (MBEntityType type = MBENTITYSET; type >= MBVERTEX; type--) {
+    const std::vector<DensePage>::iterator end = mDensePages[type].end();
+    MBEntityHandle handle = CREATE_HANDLE(type, 0, dum);
+    MBEntityID first_time = MB_START_ID; // Don't want zero-ID handle at start of range.
+    MBRange::iterator insert_pos = entities.begin();
+    for(iter = mDensePages[type].begin(); iter != end; ++iter, handle += DensePage::mPageSize)
+    {
+      if (iter->has_data())
+        insert_pos = entities.insert( insert_pos, handle + first_time, handle + DensePage::mPageSize - 1 );
+      first_time = 0;
+    }
+  }
+  
+  return MB_SUCCESS;
+}
+
 //! get number of entities of type
 inline MBErrorCode DensePageGroup::get_number_entities(MBEntityType type, int& entities)
 {
@@ -384,6 +408,9 @@ public:
 
   //! get the entities with a tag
   MBErrorCode get_entities(const MBTagId tag_id, const MBEntityType type, MBRange& entities);
+  
+  //! get the entities with a tag
+  MBErrorCode get_entities(const MBTagId tag_id, MBRange& entities);
   
   //! get the entities with a tag
   MBErrorCode get_entities(const MBRange &range,
@@ -472,6 +499,16 @@ inline MBErrorCode DenseTagSuperCollection::get_tags(const MBEntityHandle entity
   return MB_SUCCESS;
 }
 
+// get the entities with a tag
+inline MBErrorCode DenseTagSuperCollection::get_entities(const MBTagId tag_id, 
+                                                         MBRange& entities)
+{
+  std::vector<DensePageGroup*>::iterator group = mDensePageGroups.begin() + tag_id;
+  if (group >= mDensePageGroups.end() || !*group)
+    return MB_TAG_NOT_FOUND;
+
+  return (*group)->get_entities(entities);
+}
 
 #endif
 

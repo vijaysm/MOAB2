@@ -71,11 +71,40 @@ public:
      * number of sharing processors.  Values in these tags denote the ranks
      * of sharing processors, and the list ends with the value -10*#procs.
      *
+     * If shared_dim is input as -1 or not input, a value one less than the
+     * maximum dimension of entities in proc_ents is used.
+     *
      * \param proc_ents Entities for which to resolve shared entities
-     * \param dim Dimension of entities in proc_ents
+     * \param shared_dim Maximum dimension of shared entities to look for
      */
-  MBErrorCode resolve_shared_ents(MBRange &proc_ents, const int dim);
+  MBErrorCode resolve_shared_ents(MBRange &proc_ents, 
+                                  int shared_dim = 0);
   
+    /** Resolve shared entities between processors
+     * Same as resolve_shared_ents(MBRange&), except works for
+     * all entities in instance of dimension dim.  
+     *
+     * If dim = -1 or no dim input, uses entities of maximal
+     * dimension (3) in the instance.
+     *
+     * If shared_dim is input as -1 or not input, a value one less than the
+     * maximum dimension of entities is used.
+
+     * \param dim Maximal dimension of entities to be resolved
+     * \param shared_dim Maximum dimension of shared entities to look for
+     */
+  MBErrorCode resolve_shared_ents(int dim = -1, 
+                                  int shared_dim = 0);
+  
+    /** Get entities shared with other processors, based on 
+     * PARALLEL_SHARED_PROC_TAG_NAME and PARALLEL_SHARED_PROCS_TAG_NAME.
+     *
+     * \param dim Dimension of entities shared with other processors
+     * \param shared_ents Shared entities returned in this range
+     */
+  MBErrorCode get_shared_entities(int dim,
+                                  MBRange &shared_ents);
+
     //! pack a buffer (stored in this class instance) with ALL data for these entities
   MBErrorCode pack_buffer(MBRange &entities, 
                           const bool adjacencies,

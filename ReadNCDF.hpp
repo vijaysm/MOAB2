@@ -40,6 +40,8 @@
 #include "MBForward.hpp"
 #include "MBReaderIface.hpp"
 #include "ExoIIInterface.hpp"
+#include "MBRange.hpp"
+
 class MBReadUtilIface;
 
 struct ReadBlockData
@@ -214,6 +216,9 @@ private:
   MBTag mQaRecordTag;
 
   int max_line_length, max_str_length;
+
+    //! range of entities in initial mesh, before this read
+  MBRange initRange;
 };
 
 // inline functions

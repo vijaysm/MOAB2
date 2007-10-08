@@ -36,8 +36,6 @@
   SparseTagSuperCollection functions -----------------------------
 */
 
-#define get_collection( A ) ((A) < mDataTags.size() ? mDataTags[(A)] : 0)
-
 SparseTagSuperCollection::~SparseTagSuperCollection()
 {
   std::vector<SparseTagCollection*>::iterator tag_iterator;

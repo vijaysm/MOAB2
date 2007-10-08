@@ -256,7 +256,7 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
 
   MBRange::const_iterator iter, end_iter;
   end_iter = source_entities.end();
-  const MBEntityHandle *conn;
+  const MBEntityHandle *tmp_conn, *conn;
   MBEntityHandle match;
 
   direction direct;
@@ -264,14 +264,26 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
     // assume we'll never have more than 32 vertices on a facet (checked
     // with assert later)
   static MBEntityHandle sub_conn[32];
+  static std::vector<MBEntityHandle> tmp_conn_vec;
   int num_nodes;
 
   // for each source entity
   for(iter = source_entities.begin(); iter != end_iter; ++iter)
   {
     // get the connectivity of this entity
-    result = thisMB->get_connectivity(*iter, conn, num_nodes);
-    assert(MB_SUCCESS == result);
+    result = thisMB->get_connectivity(*iter, tmp_conn, num_nodes, true);
+    if (MB_SUCCESS == result)
+      conn = tmp_conn;
+    else {
+        // that didn't work, possibly because it's a structured mesh
+        // which doesn't store connectivity explicitly; use a connect
+        // vector instead
+      tmp_conn_vec.clear();
+      result = thisMB->get_connectivity(&(*iter), 1, tmp_conn_vec, true);
+      if (MB_SUCCESS != result) return MB_FAILURE;
+      conn = &tmp_conn_vec[0];
+      num_nodes = tmp_conn_vec.size();
+    }
     
     type = thisMB->type_from_handle(*iter);
     MBRange::iterator seek_iter;

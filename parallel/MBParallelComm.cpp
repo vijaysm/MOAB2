@@ -9,6 +9,9 @@
 #include "MBSkinner.hpp"
 #include "MBParallelConventions.h"
 #include "MBCore.hpp"
+#include "MBError.hpp"
+
+#define MAX_SHARING_PROCS 10  
 
 extern "C" 
 {
@@ -56,7 +59,9 @@ extern "C"
 #define UNPACK_RANGE(buff, rng) {int num_subs; UNPACK_INTS(buff, &num_subs, 1); MBEntityHandle _eh[2]; \
           for (int i = 0; i < num_subs; i++) { UNPACK_EH(buff_ptr, _eh, 2); rng.insert(_eh[0], _eh[1]);}}
 
-#define RR if (MB_SUCCESS != result) return result
+#define RR(a) if (MB_SUCCESS != result) {\
+          dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(a);\
+          return result;}
 
 MBParallelComm::MBParallelComm(MBInterface *impl, MPI_Comm comm) 
     : mbImpl(impl), procConfig(comm)
@@ -86,7 +91,8 @@ MBErrorCode MBParallelComm::assign_global_ids(const int dimension,
   MBErrorCode result;
   for (int dim = 0; dim <= dimension; dim++) {
     if (dim == 0 || !largest_dim_only || dim == dimension) {
-      result = mbImpl->get_entities_by_dimension(0, dim, entities[dim]); RR;
+      result = mbImpl->get_entities_by_dimension(0, dim, entities[dim]); 
+      RR("Failed to get vertices in assign_global_ids.");
     }
 
       // need to filter out non-locally-owned entities!!!
@@ -135,7 +141,8 @@ MBErrorCode MBParallelComm::assign_global_ids(const int dimension,
     for (MBRange::iterator rit = entities[dim].begin(); rit != entities[dim].end(); rit++)
       num_elements[i++] = total_elems[dim]++;
     
-    result = mbImpl->tag_set_data(gid_tag, entities[dim], &num_elements[0]); RR;
+    result = mbImpl->tag_set_data(gid_tag, entities[dim], &num_elements[0]); 
+    RR("Failed to set global id tag in assign_global_ids.");
   }
   
   return MB_SUCCESS;
@@ -167,7 +174,9 @@ MBErrorCode MBParallelComm::communicate_entities(const int from_proc, const int 
 
     int buff_size;
     
-    result = pack_buffer(entities, adjacencies, tags, true, whole_range, buff_size); RR;
+    result = pack_buffer(entities, adjacencies, tags, true, 
+                         whole_range, buff_size); 
+    RR("Failed to compute buffer size in communicate_entities.");
 
       // if the message is large, send a first message to tell how large
     if (INITIAL_BUFF_SIZE < buff_size) {
@@ -183,7 +192,9 @@ MBErrorCode MBParallelComm::communicate_entities(const int from_proc, const int 
 
       // pack the actual buffer
     int actual_buff_size;
-    result = pack_buffer(entities, adjacencies, tags, false, whole_range, actual_buff_size); RR;
+    result = pack_buffer(entities, adjacencies, tags, false, 
+                         whole_range, actual_buff_size); 
+    RR("Failed to pack buffer in communicate_entities.");
     
       // send it
     MPI_Request send_req;
@@ -212,7 +223,8 @@ MBErrorCode MBParallelComm::communicate_entities(const int from_proc, const int 
     }
     
       // unpack the buffer
-    result = unpack_buffer(entities); RR;
+    result = unpack_buffer(entities); 
+    RR("Failed to unpack buffer in communicate_entities.");
   }
   
   return result;
@@ -244,7 +256,8 @@ MBErrorCode MBParallelComm::broadcast_entities( const int from_proc,
   setPcs.clear();
 
   if ((int)procConfig.proc_rank() == from_proc) {
-    result = pack_buffer( entities, adjacencies, tags, true, whole_range, buff_size ); RR;
+    result = pack_buffer( entities, adjacencies, tags, true, whole_range, buff_size ); 
+    RR("Failed to compute buffer size in broadcast_entities.");
   }
 
   success = MPI_Bcast( &buff_size, 1, MPI_INT, from_proc, procConfig.proc_comm() );
@@ -258,7 +271,9 @@ MBErrorCode MBParallelComm::broadcast_entities( const int from_proc,
   
   if ((int)procConfig.proc_rank() == from_proc) {
     int actual_buffer_size;
-    result = pack_buffer( entities, adjacencies, tags, false, whole_range, actual_buffer_size ); RR;
+    result = pack_buffer( entities, adjacencies, tags, false, 
+                          whole_range, actual_buffer_size );
+    RR("Failed to pack buffer in broadcast_entities.");
   }
 
   success = MPI_Bcast( &myBuffer[0], buff_size, MPI_UNSIGNED_CHAR, from_proc, procConfig.proc_comm() );
@@ -266,7 +281,8 @@ MBErrorCode MBParallelComm::broadcast_entities( const int from_proc,
     return MB_FAILURE;
   
   if ((int)procConfig.proc_rank() != from_proc) {
-    result = unpack_buffer( entities ); RR;
+    result = unpack_buffer( entities );
+    RR("Failed to unpack buffer in broadcast_entities.");
   }
 
   return MB_SUCCESS;
@@ -289,22 +305,29 @@ MBErrorCode MBParallelComm::pack_buffer(MBRange &entities,
   if (!just_count) buff_ptr = &myBuffer[0];
   
     // entities
-  result = pack_entities(entities, rit, whole_range, buff_ptr, buff_size, just_count); RR;
+  result = pack_entities(entities, rit, whole_range, buff_ptr, 
+                         buff_size, just_count); 
+  RR("Packing entities failed.");
   
     // sets
   int tmp_size;
-  result = pack_sets(entities, rit, whole_range, buff_ptr, tmp_size, just_count); RR;
+  result = pack_sets(entities, rit, whole_range, buff_ptr, tmp_size, just_count); 
+  RR("Packing sets failed.");
   buff_size += tmp_size;
   
     // adjacencies
   if (adjacencies) {
-    result = pack_adjacencies(entities, rit, whole_range, buff_ptr, tmp_size, just_count); RR;
+    result = pack_adjacencies(entities, rit, whole_range, buff_ptr, 
+                              tmp_size, just_count);
+    RR("Packing adjs failed.");
     buff_size += tmp_size;
   }
     
     // tags
   if (tags) {
-    result = pack_tags(entities, rit, whole_range, buff_ptr, tmp_size, just_count); RR;
+    result = pack_tags(entities, rit, whole_range, buff_ptr, 
+                       tmp_size, just_count);
+    RR("Packing tags failed.");
     buff_size += tmp_size;
   }
 
@@ -316,9 +339,12 @@ MBErrorCode MBParallelComm::unpack_buffer(MBRange &entities)
   if (myBuffer.capacity() == 0) return MB_FAILURE;
   
   unsigned char *buff_ptr = &myBuffer[0];
-  MBErrorCode result = unpack_entities(buff_ptr, entities); RR;
-  result = unpack_sets(buff_ptr, entities); RR;
-  result = unpack_tags(buff_ptr, entities); RR;
+  MBErrorCode result = unpack_entities(buff_ptr, entities);
+  RR("Unpacking entities failed.");
+  result = unpack_sets(buff_ptr, entities);
+  RR("Unpacking sets failed.");
+  result = unpack_tags(buff_ptr, entities);
+  RR("Unpacking tags failed.");
   
   return MB_SUCCESS;
 }
@@ -346,7 +372,10 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
   MBErrorCode result;
   MBWriteUtilIface *wu = NULL;
   if (!just_count) {
-    result = mbImpl->query_interface(std::string("MBWriteUtilIface"), reinterpret_cast<void**>(&wu)); RR;
+    result = mbImpl->query_interface(std::string("MBWriteUtilIface"), 
+                                     reinterpret_cast<void**>(&wu));
+    RR("Couldn't get MBWriteUtilIface.");
+
   }
   
     // pack vertices
@@ -365,7 +394,8 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
 
     assert(NULL != wu);
     
-    result = wu->get_node_arrays(3, num_verts, allRanges[0], 0, 0, coords); RR;
+    result = wu->get_node_arrays(3, num_verts, allRanges[0], 0, 0, coords);
+    RR("Couldn't allocate node space.");
 
     buff_ptr += 3 * num_verts * sizeof(double);
 
@@ -395,7 +425,9 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
         // get the sequence holding this entity
       MBEntitySequence *seq;
       ElementEntitySequence *eseq;
-      result = sequenceManager->find(*start_rit, seq); RR;
+      result = sequenceManager->find(*start_rit, seq);
+      RR("Couldn't find entity sequence.");
+
       if (NULL == seq) return MB_FAILURE;
       eseq = dynamic_cast<ElementEntitySequence*>(seq);
 
@@ -419,7 +451,9 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
     }
 
       // update vertex range and count those data, now that we know which entities get communicated
-    result = mbImpl->get_adjacencies(whole_range, 0, false, allRanges[0], MBInterface::UNION); RR;
+    result = mbImpl->get_adjacencies(whole_range, 0, false, allRanges[0], 
+                                     MBInterface::UNION);
+    RR("Failed get_adjacencies.");
     whole_range.merge(allRanges[0]);
     count += 3 * sizeof(double) * allRanges[0].size();
     
@@ -468,7 +502,8 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
       if (*et_it == MBPOLYGON || *et_it == MBPOLYHEDRON) {
         std::vector<int> num_connects;
         for (MBRange::const_iterator rit = allr_it->begin(); rit != allr_it->end(); rit++) {
-          result = mbImpl->get_connectivity(*rit, connect, num_connect); RR;
+          result = mbImpl->get_connectivity(*rit, connect, num_connect);
+          RR("Failed to get connectivity.");
           num_connects.push_back(num_connect);
           PACK_EH(buff_ptr, &connect[0], num_connect);
         }
@@ -476,7 +511,8 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
       }
       else {
         for (MBRange::const_iterator rit = allr_it->begin(); rit != allr_it->end(); rit++) {
-          result = mbImpl->get_connectivity(*rit, connect, num_connect); RR;
+          result = mbImpl->get_connectivity(*rit, connect, num_connect);
+          RR("Failed to get connectivity.");
           assert(num_connect == *nv_it);
           PACK_EH(buff_ptr, &connect[0], num_connect);
         }
@@ -500,7 +536,10 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
   MBErrorCode result;
   bool done = false;
   MBReadUtilIface *ru = NULL;
-  result = mbImpl->query_interface(std::string("MBReadUtilIface"), reinterpret_cast<void**>(&ru)); RR;
+  result = mbImpl->query_interface(std::string("MBReadUtilIface"), 
+                                   reinterpret_cast<void**>(&ru));
+  RR("Failed to get MBReadUtilIface.");
+
   
   while (!done) {
     MBEntityType this_type;
@@ -527,7 +566,9 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
         MBEntityHandle actual_start;
         int tmp_num_verts = (*pit).second - (*pit).first + 1;
         result = ru->get_node_arrays(3, tmp_num_verts, start_id, start_proc, actual_start,
-                                     coords); RR;
+                                     coords);
+        RR("Failed to allocate node arrays.");
+
         if (actual_start != (*pit).first)
           return MB_FAILURE;
 
@@ -562,14 +603,19 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
         int num_elems = (*pit).second - (*pit).first + 1;
         MBEntityHandle *connect;
         int *connect_offsets;
-        if (this_type == MBPOLYGON || this_type == MBPOLYHEDRON)
+        if (this_type == MBPOLYGON || this_type == MBPOLYHEDRON) {
           result = ru->get_poly_element_array(num_elems, verts_per_entity, this_type,
                                               start_id, start_proc, actual_start,
-                                              connect_offsets, connect); RR;
-        else
+                                              connect_offsets, connect);
+          RR("Failed to allocate poly element arrays.");
+        }
+
+        else {
           result = ru->get_element_array(num_elems, verts_per_entity, this_type,
                                          start_id, start_proc, actual_start,
-                                         connect); RR;
+                                         connect);
+          RR("Failed to allocate element arrays.");
+        }
 
           // copy connect arrays
         if (this_type != MBPOLYGON && this_type != MBPOLYHEDRON) {
@@ -610,20 +656,24 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
       count += sizeof(MBEntityHandle);
     
       unsigned int options;
-      result = mbImpl->get_meshset_options(*start_rit, options); RR;
+      result = mbImpl->get_meshset_options(*start_rit, options);
+      RR("Failed to get meshset options.");
       optionsVec.push_back(options);
       count += sizeof(unsigned int);
     
       if (options & MESHSET_SET) {
           // range-based set; count the subranges
         setRanges.push_back(MBRange());
-        result = mbImpl->get_entities_by_handle(*start_rit, *setRanges.rbegin()); RR;
+        result = mbImpl->get_entities_by_handle(*start_rit, *setRanges.rbegin());
+        RR("Failed to get set entities.");
         count += 2 * sizeof(MBEntityHandle) * num_subranges(*setRanges.rbegin()) + sizeof(int);
       }
       else if (options & MESHSET_ORDERED) {
           // just get the number of entities in the set
         int num_ents;
-        result = mbImpl->get_number_entities_by_handle(*start_rit, num_ents); RR;
+        result = mbImpl->get_number_entities_by_handle(*start_rit, num_ents);
+        RR("Failed to get number entities in ordered set.");
+        
         count += sizeof(int);
         
         setSizes.push_back(num_ents);
@@ -633,8 +683,11 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
 
         // get numbers of parents/children
       int num_par, num_ch;
-      result = mbImpl->num_child_meshsets(*start_rit, &num_ch); RR;
-      result = mbImpl->num_parent_meshsets(*start_rit, &num_par); RR;
+      result = mbImpl->num_child_meshsets(*start_rit, &num_ch);
+      RR("Failed to get num children.");
+
+      result = mbImpl->num_parent_meshsets(*start_rit, &num_par);
+      RR("Failed to get num parents.");
       count += 2*sizeof(int) + (num_par + num_ch) * sizeof(MBEntityHandle);
     
     }
@@ -663,14 +716,16 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
           // pack entities as vector, with length
         PACK_INT(buff_ptr, *mem_it);
         members.clear();
-        result = mbImpl->get_entities_by_handle(*set_it, members); RR;
+        result = mbImpl->get_entities_by_handle(*set_it, members);
+        RR("Failed to get set entities.");
         PACK_EH(buff_ptr, &members[0], *mem_it);
         mem_it++;
       }
       
         // pack parents
       members.clear();
-      result = mbImpl->get_parent_meshsets(*set_it, members); RR;
+      result = mbImpl->get_parent_meshsets(*set_it, members);
+      RR("Failed to pack parents.");
       PACK_INT(buff_ptr, members.size());
       if (!members.empty()) {
         PACK_EH(buff_ptr, &members[0], members.size());
@@ -678,7 +733,8 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
       
         // pack children
       members.clear();
-      result = mbImpl->get_child_meshsets(*set_it, members); RR;
+      result = mbImpl->get_child_meshsets(*set_it, members);
+      RR("Failed to pack children.");
       PACK_INT(buff_ptr, members.size());
       if (!members.empty()) {
         PACK_EH(buff_ptr, &members[0], members.size());
@@ -703,37 +759,38 @@ MBErrorCode MBParallelComm::unpack_sets(unsigned char *&buff_ptr,
   std::vector<MBRange>::const_iterator rit = setRanges.begin();
   std::vector<int>::const_iterator mem_it = setSizes.begin();
 
-  MBRange set_handles;
+  MBRange set_handles, new_sets;
   UNPACK_RANGE(buff_ptr, set_handles);
   std::vector<MBEntityHandle> members;
   
-  for (MBRange::const_iterator rit = set_handles.begin(); rit != set_handles.end(); rit++) {
+  for (MBRange::const_iterator rit = set_handles.begin(); 
+       rit != set_handles.end(); rit++) {
     
       // option value
     unsigned int opt;
     UNPACK_VOID(buff_ptr, &opt, sizeof(unsigned int));
       
       // create the set
-    MBEntityHandle set_handle;
-    result = mbImpl->create_meshset(opt, set_handle, 
-                                    mbImpl->handle_utils().id_from_handle(*rit), 
-                                    mbImpl->handle_utils().rank_from_handle(*rit)); RR;
-    if (set_handle != *rit)
-      return MB_FAILURE;
+    MBEntityHandle set_handle = *rit;
+    result = sequenceManager->allocate_mesh_set(set_handle, opt);
+    RR("Failed to create set in unpack.");
+    new_sets.insert(set_handle);
 
     int num_ents;
     if (opt & MESHSET_SET) {
         // unpack entities as a range
       MBRange set_range;
       UNPACK_RANGE(buff_ptr, set_range);
-      result = mbImpl->add_entities(*rit, set_range); RR;
+      result = mbImpl->add_entities(*rit, set_range);
+      RR("Failed to add ents to set in unpack.");
     }
     else if (opt & MESHSET_ORDERED) {
         // unpack entities as vector, with length
       UNPACK_INT(buff_ptr, num_ents);
       members.reserve(num_ents);
       UNPACK_EH(buff_ptr, &members[0], num_ents);
-      result = mbImpl->add_entities(*rit, &members[0], num_ents); RR;
+      result = mbImpl->add_entities(*rit, &members[0], num_ents);
+      RR("Failed to add ents to ordered set in unpack.");
     }
       
       // unpack parents/children
@@ -741,15 +798,19 @@ MBErrorCode MBParallelComm::unpack_sets(unsigned char *&buff_ptr,
     members.reserve(num_ents);
     UNPACK_EH(buff_ptr, &members[0], num_ents);
     for (int i = 0; i < num_ents; i++) {
-      result = mbImpl->add_parent_meshset(*rit, members[i]); RR;
+      result = mbImpl->add_parent_meshset(*rit, members[i]);
+      RR("Failed to add parent to set in unpack.");
     }
     UNPACK_INT(buff_ptr, num_ents);
     members.reserve(num_ents);
     UNPACK_EH(buff_ptr, &members[0], num_ents);
     for (int i = 0; i < num_ents; i++) {
-      result = mbImpl->add_child_meshset(*rit, members[i]); RR;
+      result = mbImpl->add_child_meshset(*rit, members[i]);
+      RR("Failed to add child to set in unpack.");
     }
   }
+
+  entities.merge(new_sets);
   
   return MB_SUCCESS;
 }
@@ -785,25 +846,22 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
   count = 0;
   unsigned char *orig_buff_ptr = buff_ptr;
   MBErrorCode result;
-  int whole_size = whole_range.size();
 
   if (just_count) {
 
     std::vector<MBTag> all_tags;
-    result = tagServer->get_tags(all_tags); RR;
+    result = tagServer->get_tags(all_tags);
+    RR("Failed to get tags in pack_tags.");
+
 
     for (std::vector<MBTag>::iterator tag_it = all_tags.begin(); tag_it != all_tags.end(); tag_it++) {
       const TagInfo *tinfo = tagServer->get_tag_info(*tag_it);
       int this_count = 0;
       MBRange tmp_range;
-      if (PROP_FROM_TAG_HANDLE(*tag_it) == MB_TAG_DENSE) {
-        this_count += whole_size * tinfo->get_size();
-      }
-      else {
-        result = tagServer->get_entities(*tag_it, MBMAXTYPE, tmp_range); RR;
-        tmp_range = tmp_range.intersect(whole_range);
-        if (!tmp_range.empty()) this_count = tmp_range.size() * tinfo->get_size();
-      }
+      result = tagServer->get_entities(*tag_it, tmp_range);
+      RR("Failed to get entities for tag in pack_tags.");
+      tmp_range = tmp_range.intersect(whole_range);
+      if (!tmp_range.empty()) this_count = tmp_range.size() * tinfo->get_size();
 
       if (0 == this_count) continue;
 
@@ -869,19 +927,12 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
         // name
       PACK_CHAR_64(buff_ptr, tinfo->get_name().c_str());
       
-      if (PROP_FROM_TAG_HANDLE(*tag_it) == MB_TAG_DENSE) {
-        tag_data.reserve((whole_size+1) * tinfo->get_size() / sizeof(int));
-        result = mbImpl->tag_get_data(*tag_it, whole_range, &tag_data[0]);
-        PACK_VOID(buff_ptr, &tag_data[0], whole_size*tinfo->get_size());
-      }
-      else {
-        tag_data.reserve((tr_it->size()+1) * tinfo->get_size() / sizeof(int));
-        result = mbImpl->tag_get_data(*tag_it, *tr_it, &tag_data[0]); RR;
-        PACK_RANGE(buff_ptr, (*tr_it));
-        PACK_VOID(buff_ptr, &tag_data[0], tr_it->size()*tinfo->get_size());
-        tr_it++;
-      }
-      
+      tag_data.reserve((tr_it->size()+1) * tinfo->get_size() / sizeof(int));
+      result = mbImpl->tag_get_data(*tag_it, *tr_it, &tag_data[0]);
+      RR("Failed to get tag data in pack_tags.");
+      PACK_RANGE(buff_ptr, (*tr_it));
+      PACK_VOID(buff_ptr, &tag_data[0], tr_it->size()*tinfo->get_size());
+      tr_it++;
     }
 
     count = buff_ptr - orig_buff_ptr;
@@ -930,9 +981,10 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
 
       // create the tag
     MBTagType tag_type;
-    result = mbImpl->tag_get_type(tag_handle, tag_type); RR;
-
-    result = mbImpl->tag_create(tag_name, tag_size, tag_type, (MBDataType) tag_data_type, tag_handle,
+    result = mbImpl->tag_get_type(tag_handle, tag_type);
+    RR("Failed to get tag type in unpack_tags.");
+    result = mbImpl->tag_create(tag_name, tag_size, tag_type, 
+                                (MBDataType) tag_data_type, tag_handle,
                                 def_val_ptr);
     if (MB_ALREADY_ALLOCATED == result) {
         // already allocated tag, check to make sure it's the same size, type, etc.
@@ -940,61 +992,24 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
       if (tag_size != tag_info->get_size() ||
           tag_data_type != tag_info->get_data_type() ||
           (def_val_ptr && !tag_info->default_value() ||
-           !def_val_ptr && tag_info->default_value()))
-        return MB_FAILURE;
+           !def_val_ptr && tag_info->default_value())) {
+        RR("Didn't get correct tag info when unpacking tag.");
+      }
       MBTagType this_type;
       result = mbImpl->tag_get_type(tag_handle, this_type);
-      if (MB_SUCCESS != result || this_type != tag_type) return MB_FAILURE;
+      if (MB_SUCCESS != result || this_type != tag_type) {
+        RR("Didn't get correct tag type when unpacking tag.");
+      }
     }
     else if (MB_SUCCESS != result) return result;
     
-      // set the tag data
-    if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE) {
-      if (NULL != def_val_ptr && tag_data_type != MB_TYPE_OPAQUE) {
-          // only set the tags whose values aren't the default value; only works
-          // if it's a known type
-        MBRange::iterator start_rit = entities.begin(), end_rit = start_rit;
-        MBRange set_ents;
-        while (end_rit != entities.end()) {
-          while (start_rit != entities.end() &&
-                 ((tag_data_type == MB_TYPE_INTEGER && *((int*)def_val_ptr) == *((int*)buff_ptr)) ||
-                  (tag_data_type == MB_TYPE_DOUBLE && *((double*)def_val_ptr) == *((double*)buff_ptr)) ||
-                  (tag_data_type == MB_TYPE_HANDLE && *((MBEntityHandle*)def_val_ptr) == *((MBEntityHandle*)buff_ptr)))) {
-            start_rit++;
-            buff_ptr += tag_size;
-          }
-          end_rit = start_rit;
-          void *end_ptr = buff_ptr;
-          while (start_rit != entities.end() && end_rit != entities.end() &&
-                 ((tag_data_type == MB_TYPE_INTEGER && *((int*)def_val_ptr) == *((int*)end_ptr)) ||
-                  (tag_data_type == MB_TYPE_DOUBLE && *((double*)def_val_ptr) == *((double*)end_ptr)) ||
-                  (tag_data_type == MB_TYPE_HANDLE && *((MBEntityHandle*)def_val_ptr) == *((MBEntityHandle*)end_ptr)))) {
-            set_ents.insert(*end_rit);
-            end_rit++;
-            buff_ptr += tag_size;
-          }
-          
-          if (!set_ents.empty()) {
-            result = mbImpl->tag_set_data(tag_handle, set_ents, buff_ptr); RR;
-          }
-          if (start_rit != entities.end()) {
-            end_rit++;
-            start_rit = end_rit;
-            buff_ptr += tag_size;
-          }
-        }
-      }
-      else {
-        result = mbImpl->tag_set_data(tag_handle, entities, buff_ptr); RR;
-        buff_ptr += entities.size() * tag_size;
-      }
-    }
-    else {
-      MBRange tag_range;
-      UNPACK_RANGE(buff_ptr, tag_range);
-      result = mbImpl->tag_set_data(tag_handle, tag_range, buff_ptr); RR;
-      buff_ptr += tag_range.size() * tag_size;
-    }
+      // set the tag data; don't have to worry about dense tags with default
+      // values, as those aren't sent
+    MBRange tag_range;
+    UNPACK_RANGE(buff_ptr, tag_range);
+    result = mbImpl->tag_set_data(tag_handle, tag_range, buff_ptr);
+    RR("Trouble setting range-based tag data when unpacking tag.");
+    buff_ptr += tag_range.size() * tag_size;
   }
   
   return MB_SUCCESS;
@@ -1012,30 +1027,66 @@ void MBParallelComm::take_buffer(std::vector<unsigned char> &new_buffer)
   new_buffer.swap(myBuffer);
 }
 
+MBErrorCode MBParallelComm::resolve_shared_ents(int dim,
+                                                int shared_dim) 
+{
+  MBErrorCode result;
+  MBRange proc_ents;
+  if (-1 == dim) {
+    int this_dim = 3;
+    while (proc_ents.empty() && this_dim >= 0) {
+      result = mbImpl->get_entities_by_dimension(0, this_dim, proc_ents);
+      if (MB_SUCCESS != result) return result;
+      this_dim--;
+    }
+  }
+  else {
+    result = mbImpl->get_entities_by_dimension(0, dim, proc_ents);
+    if (MB_SUCCESS != result) return result;
+  }
+
+  if (proc_ents.empty()) return MB_SUCCESS;
+  
+  return resolve_shared_ents(proc_ents, shared_dim);
+}
+  
 MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
-                                                const int dim) 
+                                                int shared_dim) 
 {
   MBRange::iterator rit;
   MBSkinner skinner(mbImpl);
   
     // get the skin entities by dimension
-  MBRange skin_ents[3];
+  MBRange skin_ents[4];
   MBErrorCode result;
   int upper_dim = MBCN::Dimension(TYPE_FROM_HANDLE(*proc_ents.begin()));
 
-  if (upper_dim > 0) {
-      // first get d-1 skin ents
-    result = skinner.find_skin(proc_ents, skin_ents[upper_dim-1],
-                               skin_ents[upper_dim-1]);
+  int skin_dim;
+  if (shared_dim < upper_dim) {
+      // if shared entity dimension is less than maximal dimension,
+      // start with skin entities
+    skin_dim = upper_dim-1;
+    result = skinner.find_skin(proc_ents, skin_ents[skin_dim],
+                               skin_ents[skin_dim]);
     if (MB_SUCCESS != result) return result;
-      // then get d-2, d-3, etc. entities adjacent to skin ents 
-    for (int this_dim = upper_dim-1; this_dim >= 0; this_dim--) {
-      result = mbImpl->get_adjacencies(skin_ents[upper_dim-1], this_dim,
-                                       true, skin_ents[this_dim]);
-      if (MB_SUCCESS != result) return result;
-    }
   }
-  else skin_ents[0] = proc_ents;
+  else {
+      // otherwise start with original entities
+    skin_ents[upper_dim] = proc_ents;
+    skin_dim = upper_dim;
+  }
+
+    // get entities adjacent to skin ents from shared_dim down to
+    // zero; don't create them if they don't exist already
+  for (int this_dim = shared_dim; this_dim >= 0; this_dim--) {
+
+    if (this_dim == skin_dim) continue;
+      
+    result = mbImpl->get_adjacencies(skin_ents[skin_dim], this_dim,
+                                     false, skin_ents[this_dim],
+                                     MBInterface::UNION);
+    if (MB_SUCCESS != result) return result;
+  }
   
     // global id tag
   MBTag gid_tag; int def_val = -1;
@@ -1043,9 +1094,10 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
                               MB_TAG_DENSE, MB_TYPE_INTEGER, gid_tag,
                               &def_val, true);
   if (MB_FAILURE == result) return result;
+
   else if (MB_ALREADY_ALLOCATED != result) {
       // just created it, so we need global ids
-    result = assign_global_ids(dim);
+    result = assign_global_ids(upper_dim);
     if (MB_SUCCESS != result) return result;
   }
 
@@ -1083,7 +1135,6 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
   if (NULL == gsd) return MB_FAILURE;
   
     // get shared proc tags
-#define MAX_SHARING_PROCS 10  
   int def_vals[2] = {-10*procConfig.proc_size(), -10*procConfig.proc_size()};
   MBTag sharedp_tag, sharedps_tag;
   result = mbImpl->tag_create(PARALLEL_SHARED_PROC_TAG_NAME, 2*sizeof(int), 
@@ -1135,7 +1186,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
   
     // set sharing procs tags on other skin ents
   const MBEntityHandle *connect; int num_connect;
-  for (int d = dim-1; d > 0; d--) {
+  for (int d = shared_dim; d > 0; d--) {
     for (MBRange::iterator rit = skin_ents[d].begin();
          rit != skin_ents[d].end(); rit++) {
         // get connectivity
@@ -1185,8 +1236,57 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
   return result;
 }
 
+MBErrorCode MBParallelComm::get_shared_entities(int dim,
+                                                MBRange &shared_ents) 
+{
+    // check shared entities
+  MBTag sharedproc_tag = 0, sharedprocs_tag = 0;
+  MBErrorCode result = mbImpl->tag_get_handle(PARALLEL_SHARED_PROC_TAG_NAME, 
+                                              sharedproc_tag);
 
-  
+  result = mbImpl->tag_get_handle(PARALLEL_SHARED_PROCS_TAG_NAME, 
+                                  sharedprocs_tag);
+
+  if (0 == sharedproc_tag && 0 == sharedprocs_tag) 
+    return MB_SUCCESS;
+
+    // get the tag values
+  MBEntityType start_type = MBCN::TypeDimensionMap[dim].first,
+    end_type = MBCN::TypeDimensionMap[dim].second;
+  std::vector<int> proc_tags;
+  for (MBEntityType this_type = start_type; this_type <= end_type;
+       this_type++) {
+    MBRange tmp_ents;
+
+      // PARALLEL_SHARED_PROC is a dense tag, so all ents will have a
+      // value (the default value)
+    if (0 != sharedproc_tag) {
+      result = mbImpl->get_entities_by_type(0, this_type, tmp_ents);
+      RR("Trouble getting entities for shared entities.");
+      proc_tags.resize(2*tmp_ents.size());
+      if (!tmp_ents.empty()) {
+        result = mbImpl->tag_get_data(sharedproc_tag, 
+                                      tmp_ents, &proc_tags[0]);
+        RR("Trouble getting tag data for shared entities.");
+      }
+      int i;
+      MBRange::iterator rit;
+      for (i = 0, rit = tmp_ents.begin(); rit != tmp_ents.end(); i+=2, rit++) 
+        if (proc_tags[i] > -1) shared_ents.insert(*rit);
+    }
+    if (0 != sharedprocs_tag) {
+      // PARALLEL_SHARED_PROCS is a sparse tag, so only entities with this
+      // tag set will have one
+      result = mbImpl->get_entities_by_type_and_tag(0, this_type, 
+                                                    &sharedprocs_tag,
+                                                    NULL, 1, tmp_ents,
+                                                    MBInterface::UNION);
+      RR("Trouble getting sharedprocs_tag for shared entities.");
+    }
+  }
+
+  return MB_SUCCESS;
+}
   
 #ifdef TEST_PARALLELCOMM
 
@@ -1195,6 +1295,12 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
 #include "MBCore.hpp"
 #include "MBParallelComm.hpp"
 #include "MBRange.hpp"
+
+#define PM {std::cerr << "Test failed; error message:" << std::endl;\
+          std::string errmsg; \
+          dynamic_cast<MBCore*>(my_impl)->get_last_error(errmsg); \
+          std::cerr << errmsg << std::endl;\
+          return 1;}
 
 int main(int argc, char* argv[])
 {
@@ -1224,14 +1330,18 @@ int main(int argc, char* argv[])
   if (MB_SUCCESS != result) return result;
     
   int buff_size;
-  result = pcomm.pack_buffer(all_mesh, false, true, true, whole_range, buff_size); RR;
+  result = pcomm.pack_buffer(all_mesh, false, true, true, whole_range, buff_size);
+  PM;
+
 
     // allocate space in the buffer
   pcomm.buffer_size(buff_size);
 
     // pack the actual buffer
   int actual_buff_size;
-  result = pcomm.pack_buffer(whole_range, false, true, false, all_mesh, actual_buff_size); RR;
+  result = pcomm.pack_buffer(whole_range, false, true, false, all_mesh, 
+                             actual_buff_size);
+  PM;
 
     // list the entities that got packed
   std::cout << "ENTITIES PACKED:" << std::endl;
@@ -1252,7 +1362,9 @@ int main(int argc, char* argv[])
 
     // unpack the results
   all_mesh.clear();
-  result = pcomm2.unpack_buffer(all_mesh); RR;
+  result = pcomm2.unpack_buffer(all_mesh);
+  PM;
+  
   std::cout << "ENTITIES UNPACKED:" << std::endl;
   mbImpl->list_entities(all_mesh);
   

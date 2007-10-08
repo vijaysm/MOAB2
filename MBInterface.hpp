@@ -1272,6 +1272,17 @@ public:
                                       const MBEntityHandle *entities,
                                       const int num_entities) = 0;
 
+    //! Replace entities in a set with other entities
+    /** Replace entities in a set with other entities; entity list
+     * specified in pairs of (old, new)
+     * \param meshset Mesh set being modified
+     * \param entities Pairs of old/new entities
+     * \param num_entities Number of entities \em{total} in entities list
+     * \return bool If true, one or more entities were replaced
+    */
+  virtual bool replace_entities(MBEntityHandle meshset, 
+                                MBEntityHandle *entities,
+                                int num_entities) = 0;
     //@}
 
     //! \name MeshSet parent/child functions

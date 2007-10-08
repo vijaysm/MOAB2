@@ -411,6 +411,8 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
                                   const int *blocks_to_load,
                                   const int num_blocks) 
 {
+  MBErrorCode status;
+  
   file_set = 0;
     // this function directs the reading of an exoii file, but doesn't do any of
     // the actual work
@@ -419,7 +421,7 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
   reset();
   bool previously_loaded = false;
   std::string filename( exodus_file_name );
-  MBErrorCode status = check_file_status(filename, previously_loaded);
+  status = check_file_status(filename, previously_loaded);
   if (MB_SUCCESS != status) 
     return status;
 
@@ -427,6 +429,9 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
   status = read_exodus_header(exodus_file_name);
   if (MB_FAILURE == status) return status;
   
+  status = mdbImpl->get_entities_by_handle(0, initRange);
+  if (MB_FAILURE == status) return status;
+
     // 2. Read the nodes unless they've already been read before
   if (!previously_loaded)
   {
@@ -461,6 +466,14 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
     if (MB_FAILURE == status) return status;
   }
 
+  
+  MBRange loaded_range;
+  status = mdbImpl->get_entities_by_handle(0, loaded_range);
+  if (MB_FAILURE == status) return status;
+  loaded_range = loaded_range.subtract(initRange);
+  status = mdbImpl->add_entities(mCurrentMeshHandle, loaded_range);
+  if (MB_FAILURE == status) return status;
+  
     // what about properties???
 
   file_set = mCurrentMeshHandle;
@@ -600,17 +613,7 @@ MBErrorCode ReadNCDF::read_nodes()
     }
   }
 
-    // loaded successfully; add these nodes to loading set
-  int ierr = 0;
-  MBEntityHandle end_handle = CREATE_HANDLE(MBVERTEX, 
-                                            ID_FROM_HANDLE(node_handle)+
-                                            numberNodes_loading-1,
-                                            ierr);
-  if (0 != ierr) return MB_FAILURE;
-  MBErrorCode result = mdbImpl->add_entities(mCurrentMeshHandle,
-                                             MBRange(node_handle, end_handle));
-  
-  return result;
+  return MB_SUCCESS;
 }
 
 MBErrorCode ReadNCDF::read_block_headers(const int *blocks_to_load,
@@ -736,8 +739,10 @@ MBErrorCode ReadNCDF::remove_previously_loaded_blocks(const int *blocks_to_load,
 
   //get all the blocks of mCurrentMeshHandle
   MBRange child_meshsets; 
-  if(mdbImpl->get_entities_by_type(mCurrentMeshHandle, MBENTITYSET, child_meshsets ) != MB_SUCCESS )
+  if(mdbImpl->get_entities_by_type(0, MBENTITYSET, child_meshsets ) != MB_SUCCESS )
     return MB_FAILURE;
+
+  child_meshsets = child_meshsets.subtract(initRange);
 
   MBTag tag_handle;
 
@@ -881,10 +886,6 @@ MBErrorCode ReadNCDF::read_elements()
       if( mdbImpl->add_entities( ms_handle, new_range) != MB_SUCCESS )
         return MB_FAILURE;
 
-      //add the meshset to the mCurrentMeshHandle
-      if( mdbImpl->add_entities( mCurrentMeshHandle, &ms_handle, 1 ) != MB_SUCCESS )
-        return MB_FAILURE;
-      
     // just a check because the following code won't work if this case fails
     assert(sizeof(MBEntityHandle) >= sizeof(int));
 
@@ -923,9 +924,6 @@ MBErrorCode ReadNCDF::read_elements()
     if( mdbImpl->tag_set_data( mGlobalIdTag, &ms_handle, 1, &block_id ) != MB_SUCCESS )
       return MB_FAILURE;
 
-      // success; add new elements to file set
-    if (mdbImpl->add_entities( mCurrentMeshHandle, new_range) != MB_SUCCESS)
-      return MB_FAILURE;
   }
 
   delete [] temp_string;
@@ -941,6 +939,7 @@ MBErrorCode ReadNCDF::read_global_ids()
   NcVar *temp_var = ncFile->get_var("elem_map");
   if (NULL == temp_var || !temp_var->is_valid()) {
     readMeshIface->report_error("ReadNCDF:: Problem getting element number map variable.");
+    delete [] ptr;
     return MB_FAILURE;
   }
   NcBool status = temp_var->get(ptr, numberElements_loading);
@@ -951,28 +950,22 @@ MBErrorCode ReadNCDF::read_global_ids()
   }
 
   std::vector<ReadBlockData>::iterator iter;
+  int ptr_pos = 0;
   for(iter = blocksLoading.begin(); iter != blocksLoading.end(); ++iter)
   {
     if (iter->reading_in)
     {
-      MBEntityHandle start_handle = iter->startMBId;
-      
-      if (start_handle != 0)
+      if (iter->startMBId != 0)
       {
-        int i;
-        for (i = 0; i < iter->numElements; i++)
+        MBRange range(iter->startMBId, iter->startMBId+iter->numElements-1);
+        MBErrorCode error = mdbImpl->tag_set_data(mGlobalIdTag, 
+                                                  range, &ptr[ptr_pos]);
+        if (error != MB_SUCCESS)
         {
-          // TODO:  The fact that this must be done one entity at a time is
-          // a tremendous bottle neck in the code.  We need a way of setting
-          // multiple handles and data.
-          MBEntityHandle handle = start_handle + i;
-          MBErrorCode error = mdbImpl->tag_set_data(mGlobalIdTag, &handle, 1, &(ptr[i]));
-          if (error != MB_SUCCESS)
-          {
-            delete [] ptr;
-            return error;
-          }
+          delete [] ptr;
+          return error;
         }
+        ptr_pos += iter->numElements;
       }
       else
       {
@@ -982,9 +975,34 @@ MBErrorCode ReadNCDF::read_global_ids()
     }
   }
 
+    // read in node map next
+  if (numberNodes_loading > numberElements_loading) {
+    delete [] ptr;
+    ptr = new int [numberNodes_loading];
+  }
+
+  temp_var = ncFile->get_var("node_num_map");
+  if (NULL == temp_var || !temp_var->is_valid()) {
+    readMeshIface->report_error("ReadNCDF:: Problem getting node number map variable.");
+    delete [] ptr;
+    return MB_FAILURE;
+  }
+  status = temp_var->get(ptr, numberNodes_loading);
+  if (0 == status) {
+    readMeshIface->report_error("ReadNCDF:: Problem getting node number map data.");
+    delete [] ptr;
+    return MB_FAILURE;
+  }
+
+  MBRange range(1+vertexOffset, 1+vertexOffset+numberNodes_loading-1);
+  MBErrorCode error = mdbImpl->tag_set_data(mGlobalIdTag, 
+                                            range, &ptr[0]);
+  if (MB_SUCCESS != error)
+    readMeshIface->report_error("ReadNCDF:: Problem setting node global ids.");
+
   delete [] ptr;
   
-  return MB_SUCCESS;
+  return error;
 }
 
 MBErrorCode ReadNCDF::read_nodesets() 
@@ -1078,9 +1096,10 @@ MBErrorCode ReadNCDF::read_nodesets()
 
       // Maybe there is already a nodesets meshset here we can append to 
     MBRange child_meshsets;
-    if( mdbImpl->get_entities_by_handle( mCurrentMeshHandle, 
-                                         child_meshsets ) != MB_SUCCESS ) 
+    if( mdbImpl->get_entities_by_handle(0, child_meshsets ) != MB_SUCCESS ) 
       return MB_FAILURE;
+
+    child_meshsets = child_meshsets.subtract(initRange);
 
     MBRange::iterator iter, end_iter;
     iter = child_meshsets.begin();
@@ -1139,8 +1158,6 @@ MBErrorCode ReadNCDF::read_nodesets()
     if( ns_handle == 0)
     {
       if( mdbImpl->create_meshset( MESHSET_ORDERED | MESHSET_TRACK_OWNER, ns_handle ) != MB_SUCCESS) 
-        return MB_FAILURE;
-      if( mdbImpl->add_entities( mCurrentMeshHandle, &ns_handle, 1 ) != MB_SUCCESS )
         return MB_FAILURE;
 
         // set a tag signifying dirichlet bc
@@ -1228,9 +1245,11 @@ MBErrorCode ReadNCDF::read_sidesets()
 
   // Maybe there is already a sidesets meshset here we can append to 
   MBRange child_meshsets;
-  if( mdbImpl->get_entities_by_type( mCurrentMeshHandle, MBENTITYSET, 
-                                     child_meshsets ) != MB_SUCCESS ) 
+  if( mdbImpl->get_entities_by_type(0, MBENTITYSET, 
+                                    child_meshsets ) != MB_SUCCESS ) 
     return MB_FAILURE;
+
+  child_meshsets = child_meshsets.subtract(initRange);
 
   MBRange::iterator iter, end_iter;
 
@@ -1323,14 +1342,13 @@ MBErrorCode ReadNCDF::read_sidesets()
           return MB_FAILURE;
         if( mdbImpl->tag_set_data(mGlobalIdTag, &ss_handle, 1, &sideset_id ) != MB_SUCCESS)
           return MB_FAILURE;
-        if( mdbImpl->add_entities( mCurrentMeshHandle, &ss_handle, 1 ) != MB_SUCCESS )
-          return MB_FAILURE;
 
         if (!reverse_entities.empty()) {
             // also make a reverse set to put in this set
           MBEntityHandle reverse_set;
           if (mdbImpl->create_meshset(MESHSET_SET | MESHSET_TRACK_OWNER, reverse_set) != MB_SUCCESS)
             return MB_FAILURE;
+
 
             // add the reverse set to the sideset set and the entities to the reverse set
           MBErrorCode result = mdbImpl->add_entities(ss_handle, &reverse_set, 1);
@@ -1678,7 +1696,7 @@ MBErrorCode ReadNCDF::create_ss_elements( int *element_ids,
 }
 
 MBErrorCode ReadNCDF::create_sideset_element( std::vector<MBEntityHandle> connectivity, 
-                                                     MBEntityType type, MBEntityHandle& handle)
+                                              MBEntityType type, MBEntityHandle& handle)
 {
   // get adjacent entities
   MBErrorCode error = MB_SUCCESS;
@@ -1746,9 +1764,7 @@ MBErrorCode ReadNCDF::create_sideset_element( std::vector<MBEntityHandle> connec
 
   // if we didn't find a match, create an element
   if(match_found == false)
-  {
     error = mdbImpl->create_element(type, &connectivity[0], connectivity.size(), handle);
-  }
 
   return error;
 }
