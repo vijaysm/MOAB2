@@ -128,7 +128,7 @@ MBReaderIface* Tqdcfr::factory( MBInterface* iface )
 { return new Tqdcfr( iface ); }
 
 Tqdcfr::Tqdcfr(MBInterface *impl) 
-    : cubFile(NULL), globalIdTag(0), cubIdTag(0), geomTag(0), uniqueIdTag(0), 
+    : cubFile(NULL), globalIdTag(0), geomTag(0), uniqueIdTag(0), 
       blockTag(0), nsTag(0), ssTag(0), attribVectorTag(0), entityNameTag(0),
       categoryTag(0)
 {
@@ -146,14 +146,6 @@ Tqdcfr::Tqdcfr(MBInterface *impl)
   mdbImpl->tag_get_handle(DIRICHLET_SET_TAG_NAME, nsTag);
   mdbImpl->tag_get_handle(NEUMANN_SET_TAG_NAME, ssTag);
 
-  MBErrorCode result = mdbImpl->tag_get_handle("cubIdTag", cubIdTag);
-  if (MB_SUCCESS != result || MB_TAG_NOT_FOUND == result) {
-    int default_val = -1;
-    result = mdbImpl->tag_create("cubIdTag", sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER,
-                                 cubIdTag, &default_val);
-    assert (MB_SUCCESS == result);
-  }
-
   cubMOABVertexMap = NULL;
 }
 
@@ -164,7 +156,6 @@ Tqdcfr::~Tqdcfr()
 
   if (NULL != cubMOABVertexMap) delete cubMOABVertexMap;
   
-  if (0 != cubIdTag) mdbImpl->tag_delete(cubIdTag);
 }
 
   
@@ -901,7 +892,7 @@ MBErrorCode Tqdcfr::get_mesh_entities(const int this_type,
     if (tmp_ents.empty() && 0 != id_buf_size) return MB_FAILURE;
   
     std::vector<int> cub_ids(id_buf_size);
-    result = mdbImpl->tag_get_data(cubIdTag, tmp_ents, &cub_ids[0]);
+    result = mdbImpl->tag_get_data(globalIdTag, tmp_ents, &cub_ids[0]);
     if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) return result;
   
       // now go through id list, finding each entity by id
@@ -953,6 +944,10 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
   MBErrorCode result = mdbImpl->add_entities(entity->setHandle, dum_range);
   if (MB_SUCCESS != result) return result;
   result = mdbImpl->add_entities( mFileSet, dum_range );
+  if (MB_SUCCESS != result) return result;
+
+    // set global ids on nodes
+  result = mdbImpl->tag_set_data(globalIdTag, dum_range, &int_buf[0]);
   if (MB_SUCCESS != result) return result;
 
     // check for id contiguity
@@ -1125,8 +1120,8 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     result = mdbImpl->add_entities(mFileSet, dum_range);
     if (MB_SUCCESS != result) return result;
 
-      // set cub ids
-    result = mdbImpl->tag_set_data(cubIdTag, dum_range, &int_buf[0]);
+      // set global ids
+    result = mdbImpl->tag_set_data(globalIdTag, dum_range, &int_buf[0]);
     if (MB_SUCCESS != result) return result;
   }
 

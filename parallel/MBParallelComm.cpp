@@ -721,7 +721,10 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
         PACK_EH(buff_ptr, &members[0], *mem_it);
         mem_it++;
       }
-      
+    }
+    
+    for (MBRange::const_iterator set_it = setRange.begin(); set_it != setRange.end(); 
+         set_it++, opt_it++) {
         // pack parents
       members.clear();
       result = mbImpl->get_parent_meshsets(*set_it, members);
@@ -762,7 +765,10 @@ MBErrorCode MBParallelComm::unpack_sets(unsigned char *&buff_ptr,
   MBRange set_handles, new_sets;
   UNPACK_RANGE(buff_ptr, set_handles);
   std::vector<MBEntityHandle> members;
-  
+  int num_ents;
+
+    // unpack set contents before parent/child relations, to make sure
+    // sets exist before being referenced
   for (MBRange::const_iterator rit = set_handles.begin(); 
        rit != set_handles.end(); rit++) {
     
@@ -776,7 +782,6 @@ MBErrorCode MBParallelComm::unpack_sets(unsigned char *&buff_ptr,
     RR("Failed to create set in unpack.");
     new_sets.insert(set_handle);
 
-    int num_ents;
     if (opt & MESHSET_SET) {
         // unpack entities as a range
       MBRange set_range;
@@ -792,7 +797,11 @@ MBErrorCode MBParallelComm::unpack_sets(unsigned char *&buff_ptr,
       result = mbImpl->add_entities(*rit, &members[0], num_ents);
       RR("Failed to add ents to ordered set in unpack.");
     }
-      
+  }
+
+    // now unpack parent/child links
+  for (MBRange::const_iterator rit = set_handles.begin(); 
+       rit != set_handles.end(); rit++) {
       // unpack parents/children
     UNPACK_INT(buff_ptr, num_ents);
     members.reserve(num_ents);
@@ -1068,7 +1077,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
     skin_dim = upper_dim-1;
     result = skinner.find_skin(proc_ents, skin_ents[skin_dim],
                                skin_ents[skin_dim]);
-    if (MB_SUCCESS != result) return result;
+    RR("Failed to find skin.");
   }
   else {
       // otherwise start with original entities
@@ -1085,7 +1094,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
     result = mbImpl->get_adjacencies(skin_ents[skin_dim], this_dim,
                                      false, skin_ents[this_dim],
                                      MBInterface::UNION);
-    if (MB_SUCCESS != result) return result;
+    RR("Failed getting skin adjacencies.");
   }
   
     // global id tag
@@ -1098,7 +1107,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
   else if (MB_ALREADY_ALLOCATED != result) {
       // just created it, so we need global ids
     result = assign_global_ids(upper_dim);
-    if (MB_SUCCESS != result) return result;
+    RR("Failed assigning global ids.");
   }
 
     // store index in temp tag; reuse gid_data 
@@ -1112,11 +1121,11 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
                               MB_TYPE_INTEGER, idx_tag, &def_val, true);
   if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
   result = mbImpl->tag_set_data(idx_tag, skin_ents[0], &gid_data[0]);
-  if (MB_SUCCESS != result) return result;
+  RR("Couldn't assign index tag.");
 
     // get gids for skin verts in a vector, to pass to gs
   result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &gid_data[0]);
-  if (MB_SUCCESS != result) return result;
+  RR("Couldn't get gid tag for skin vertices.");
 
     // get a crystal router
   crystal_data *cd = procConfig.crystal_router();
@@ -1128,11 +1137,17 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
   if (MB_SUCCESS != result) return result;
   int failure = MPI_Allreduce(&nverts_local, &nverts_total, 1,
                               MPI_INTEGER, MPI_SUM, procConfig.proc_comm());
-  if (failure) return MB_FAILURE;
+  if (failure) {
+    result = MB_FAILURE;
+    RR("Allreduce for total number of vertices failed.");
+  }
   
     // call gather-scatter to get shared ids & procs
   gs_data *gsd = gs_data_setup(skin_ents[0].size(), (const ulong_*)&gid_data[0], 1, cd);
-  if (NULL == gsd) return MB_FAILURE;
+  if (NULL == gsd) {
+    result = MB_FAILURE;
+    RR("Couldn't create gs data.");
+  }
   
     // get shared proc tags
   int def_vals[2] = {-10*procConfig.proc_size(), -10*procConfig.proc_size()};
@@ -1140,13 +1155,18 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
   result = mbImpl->tag_create(PARALLEL_SHARED_PROC_TAG_NAME, 2*sizeof(int), 
                               MB_TAG_DENSE,
                               MB_TYPE_INTEGER, sharedp_tag, &def_vals, true);
-  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
+  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) {
+    RR("Couldn't create shared_proc tag.");
+  }
+  
   result = mbImpl->tag_create(PARALLEL_SHARED_PROCS_TAG_NAME, 
                               MAX_SHARING_PROCS*sizeof(int), 
                               MB_TAG_SPARSE,
                               MB_TYPE_INTEGER, sharedps_tag, NULL, true);
-  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
-
+  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) {
+    RR("Couldn't create shared_procs tag.");
+  }
+  
     // load shared vertices into a tuple, then sort by index
   tuple_list shared_verts;
   tuple_list_init_max(&shared_verts, 0, 2, 0, 
@@ -1178,7 +1198,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
     else
       result = mbImpl->tag_set_data(sharedps_tag, &this_ent, 1,
                                     sharing_procs);
-    if (MB_SUCCESS != result) return result;
+    RR("Failed setting shared_procs tag on skin vertices.");
 
       // reset sharing proc(s) tags
     std::fill(sharing_procs, sharing_procs+nump, maxp);
@@ -1191,15 +1211,15 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
          rit != skin_ents[d].end(); rit++) {
         // get connectivity
       result = mbImpl->get_connectivity(*rit, connect, num_connect);
-      if (MB_SUCCESS != result) return result;
+      RR("Failed to get connectivity on non-vertex skin entities.");
       MBRange sp_range, vp_range;
       for (int nc = 0; nc < num_connect; nc++) {
           // get sharing procs
         result = mbImpl->tag_get_data(sharedp_tag, &(*rit), 1, sharing_procs);
-        if (MB_SUCCESS != result) return result;
+        RR("Couldn't get sharedp_tag on skin vertices in entity.");
         if (sharing_procs[0] == maxp) {
           result = mbImpl->tag_get_data(sharedps_tag, &(*rit), 1, sharing_procs);
-          if (MB_SUCCESS != result) return result;
+          RR("Couldn't get sharedps_tag on skin vertices in entity.");
         }
           // build range of sharing procs for this vertex
         unsigned int p = 0; vp_range.clear();
@@ -1225,7 +1245,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
         result = mbImpl->tag_set_data(sharedps_tag, &(*rit), 1,
                                       sharing_procs);
 
-      if (MB_SUCCESS != result) return result;
+      RR("Failed to set sharedp(s)_tag on non-vertex skin entity.");
       
         // reset sharing proc(s) tags
       std::fill(sharing_procs, sharing_procs+j, maxp);

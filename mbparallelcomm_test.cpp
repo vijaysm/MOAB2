@@ -111,7 +111,8 @@ int main(int argc, char **argv)
       MBParallelComm *pcomm = new MBParallelComm(mbImpl);
       tmp_result = pcomm->resolve_shared_ents();
       if (MB_SUCCESS != tmp_result) {
-        std::cerr << "Couldn't resolve shared entities." << std::endl;
+        std::cerr << "Couldn't resolve shared entities; error message:" << std::endl;
+        PRINT_LAST_ERROR
         result = tmp_result;
         continue;
       }
