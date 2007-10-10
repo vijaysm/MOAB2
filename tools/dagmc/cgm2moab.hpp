@@ -14,7 +14,7 @@
 #define CGM2MOAB_HPP
 
 bool cgm2moab(MBInterface* iface,
-              double dist_tol = 0.001,
+              double faceting_tol = 0.001,
               int norm_tol = 5,
               double len_tol = 0.0,
               int actuate_attribs = true);

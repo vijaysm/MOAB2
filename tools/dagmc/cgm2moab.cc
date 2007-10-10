@@ -41,7 +41,7 @@ const char* file_type = 0;
 
 // copy geometry into mesh database
 bool cgm2moab(MBInterface* iface,
-              double dist_tol,
+              double faceting_tol,
               int norm_tol,
               double len_tol,
               int actuate_attribs)
@@ -285,7 +285,7 @@ bool cgm2moab(MBInterface* iface,
     GeometryQueryEngine* gqe = curve->get_geometry_query_engine();
     data.clean_out();
     int count;
-    CubitStatus s = gqe->get_graphics( curve, count, &data, dist_tol);
+    CubitStatus s = gqe->get_graphics( curve, count, &data, faceting_tol);
     if (CUBIT_SUCCESS != s)
       return false;
       
@@ -371,7 +371,7 @@ bool cgm2moab(MBInterface* iface,
     data.clean_out();
     int nt, np, nf;
     CubitStatus s = gqe->get_graphics( surf, nt, np, nf, &data, 
-                                       norm_tol, dist_tol, len_tol);
+                                       norm_tol, faceting_tol, len_tol);
     if (CUBIT_SUCCESS != s)
       return false;
 
