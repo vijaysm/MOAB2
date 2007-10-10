@@ -249,7 +249,7 @@ void iMesh_newMesh(const char *options,
 
 void iMesh_dtor(iMesh_Instance instance, int *err) 
 {
-  delete dynamic_cast<MBiMesh*>(MBI);
+  delete MBI;
   RETURN(iBase_SUCCESS);
 }
    
@@ -286,16 +286,9 @@ void iMesh_save(iMesh_Instance instance,
                  int *err, const int name_len, int options_len) 
 {
     // get filename & attempt to NULL-terminate
-  char tmp_filename[1024];
-  strncpy(tmp_filename, name, name_len);
-  tmp_filename[1023] = '\0';
-  char *tmp_pos = strchr(tmp_filename, '.');
-  if (NULL != tmp_pos) {
-    tmp_pos = strchr(tmp_pos, ' ');
-    if (NULL != tmp_pos) *tmp_pos = '\0';
-  }
-  
-  MBErrorCode result = MBI->write_mesh(tmp_filename, CONST_HANDLE_ARRAY_PTR(&handle), 1);
+  std::string tmp_filename( name, name_len );
+
+  MBErrorCode result = MBI->write_mesh(tmp_filename.c_str(), CONST_HANDLE_ARRAY_PTR(&handle), 1);
 
   if (MB_SUCCESS != result) {
     std::string msg("iMesh_save:ERROR saving a mesh, with error type: ");
