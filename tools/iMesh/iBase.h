@@ -64,8 +64,6 @@ extern "C"
   enum iBase_ErrorActions {
     iBase_SILENT,
     iBase_WARN_ONLY,
-    iBase_ABORT_ON_ERROR,
-    iBase_PRINT_AND_THROW_ERROR,
     iBase_THROW_ERROR
   };
 

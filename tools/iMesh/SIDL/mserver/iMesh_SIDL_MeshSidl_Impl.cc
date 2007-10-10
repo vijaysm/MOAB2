@@ -3,15 +3,15 @@
 // Symbol:        iMesh_SIDL.MeshSidl-v0.2
 // Symbol Type:   class
 // Babel Version: 0.10.12
-// sidl Created:  20070628 20:55:25 CDT
-// Generated:     20070628 20:55:32 CDT
+// sidl Created:  20070927 14:57:59 CDT
+// Generated:     20070927 14:58:07 CDT
 // Description:   Server-side implementation for iMesh_SIDL.MeshSidl
 // 
 // WARNING: Automatically generated; only changes within splicers preserved
 // 
 // babel-version = 0.10.12
 // source-line   = 5
-// source-url    = file:/home/tautges/MOAB/tools/iMesh/SIDL/mserver/../iMesh_SIDL.sidl
+// source-url    = file:/home/tautges/MOAB/tools/iMesh/SIDL/iMesh_SIDL.sidl
 // 
 #include "iMesh_SIDL_MeshSidl_Impl.hh"
 
@@ -1799,6 +1799,34 @@ throw (
 }
 
 /**
+ * Method:  getEnt2ndAdj[]
+ */
+void
+iMesh_SIDL::MeshSidl_impl::getEnt2ndAdj (
+  /* in */ void* entity_handle,
+  /* in */ ::iBase::EntityType order_adjacent_key,
+  /* in */ ::iBase::EntityType entity_type_requested,
+  /* inout */ ::sidl::array<void*>& adj_entity_handles,
+  /* out */ int32_t& adj_entity_handles_size ) 
+throw ( 
+  ::iBase::Error
+){
+  // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.getEnt2ndAdj)
+  // Insert-Code-Here {iMesh_SIDL.MeshSidl.getEnt2ndAdj} (getEnt2ndAdj method)
+  CREATE_TEMP_EH_ARRAY(adj_entity_handles);
+
+  iMesh_getEnt2ndAdj (imeshInstance, (iBase_EntityHandle) entity_handle,  
+                      (iBase_EntityType)order_adjacent_key,
+                      (iBase_EntityType)entity_type_requested,
+                      TEMP_ARRAY_INOUT(adj_entity_handles), &imeshError);
+  PROCESS_ERROR;
+
+  ASSIGN_TYPED_ARRAY(void*, adj_entity_handles);
+
+  // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.getEnt2ndAdj)
+}
+
+/**
  * Method:  initEntArrIter[]
  */
 void
@@ -1971,6 +1999,41 @@ throw (
   ASSIGN_TYPED_ARRAY(int32_t, offset);
 
   // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.getEntArrAdj)
+}
+
+/**
+ * Method:  getEntArr2ndAdj[]
+ */
+void
+iMesh_SIDL::MeshSidl_impl::getEntArr2ndAdj (
+  /* in */ ::sidl::array<void*> entity_handles,
+  /* in */ int32_t entity_handles_size,
+  /* in */ ::iBase::EntityType order_adjacent_key,
+  /* in */ ::iBase::EntityType entity_type_requested,
+  /* inout */ ::sidl::array<void*>& adj_entity_handles,
+  /* out */ int32_t& adj_entity_handles_size,
+  /* inout */ ::sidl::array<int32_t>& offset,
+  /* out */ int32_t& offset_size ) 
+throw ( 
+  ::iBase::Error
+){
+  // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.getEntArr2ndAdj)
+  // Insert-Code-Here {iMesh_SIDL.MeshSidl.getEntArr2ndAdj} (getEntArr2ndAdj method)
+  CREATE_TEMP_EH_ARRAY(adj_entity_handles);
+  CREATE_TEMP_ARRAY(int32_t, offset);
+
+  iMesh_getEntArr2ndAdj (imeshInstance,
+                         TEMP_TYPED_ARRAY_IN(iBase_EntityHandle, entity_handles),
+                         (iBase_EntityType)order_adjacent_key,
+                         (iBase_EntityType)entity_type_requested,
+                         TEMP_ARRAY_INOUT(adj_entity_handles),
+                         TEMP_ARRAY_INOUT(offset), &imeshError);
+  PROCESS_ERROR;
+
+  ASSIGN_TYPED_ARRAY(void*, adj_entity_handles);
+  ASSIGN_TYPED_ARRAY(int32_t, offset);
+
+  // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.getEntArr2ndAdj)
 }
 
 /**

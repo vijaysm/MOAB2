@@ -182,6 +182,11 @@ package iMesh version 0.7
                       in EntityType entity_type_requested, 
                       inout array<opaque> adj_entity_handles, 
                       out int adj_entity_handles_size) throws iBase.Error;
+      void getEnt2ndAdj( in opaque entity_handle, 
+                         in EntityType order_adjacent_key,
+                         in EntityType entity_type_requested, 
+                         inout array<opaque> adj_entity_handles, 
+                         out int adj_entity_handles_size) throws iBase.Error;
    };
 
 
@@ -227,6 +232,14 @@ package iMesh version 0.7
                          out int adj_entity_handles_size,
                          inout array<int> offset,
                          out int offset_size) throws iBase.Error;
+      void getEntArr2ndAdj( in array<opaque> entity_handles, 
+                            in int entity_handles_size,
+                            in EntityType order_adjacent_key, 
+                            in EntityType entity_type_requested, 
+                            inout array<opaque> adj_entity_handles, 
+                            out int adj_entity_handles_size,
+                            inout array<int> offset,
+                            out int offset_size) throws iBase.Error;
    };
 
 

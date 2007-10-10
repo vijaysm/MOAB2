@@ -3,15 +3,15 @@
 // Symbol:        iMesh_SIDL.MeshSidl-v0.2
 // Symbol Type:   class
 // Babel Version: 0.10.12
-// sidl Created:  20070628 20:55:25 CDT
-// Generated:     20070628 20:55:32 CDT
+// sidl Created:  20070927 14:57:59 CDT
+// Generated:     20070927 14:58:06 CDT
 // Description:   Server-side implementation for iMesh_SIDL.MeshSidl
 // 
 // WARNING: Automatically generated; only changes within splicers preserved
 // 
 // babel-version = 0.10.12
 // source-line   = 5
-// source-url    = file:/home/tautges/MOAB/tools/iMesh/SIDL/mserver/../iMesh_SIDL.sidl
+// source-url    = file:/home/tautges/MOAB/tools/iMesh/SIDL/iMesh_SIDL.sidl
 // 
 
 #ifndef included_iMesh_SIDL_MeshSidl_Impl_hh
@@ -1188,6 +1188,21 @@ namespace iMesh_SIDL {
      * user defined non-static method.
      */
     void
+    getEnt2ndAdj (
+      /* in */ void* entity_handle,
+      /* in */ ::iBase::EntityType order_adjacent_key,
+      /* in */ ::iBase::EntityType entity_type_requested,
+      /* inout */ ::sidl::array<void*>& adj_entity_handles,
+      /* out */ int32_t& adj_entity_handles_size
+    )
+    throw ( 
+      ::iBase::Error
+    );
+
+    /**
+     * user defined non-static method.
+     */
+    void
     initEntArrIter (
       /* in */ void* entity_set_handle,
       /* in */ ::iBase::EntityType requested_entity_type,
@@ -1270,6 +1285,24 @@ namespace iMesh_SIDL {
     getEntArrAdj (
       /* in */ ::sidl::array<void*> entity_handles,
       /* in */ int32_t entity_handles_size,
+      /* in */ ::iBase::EntityType entity_type_requested,
+      /* inout */ ::sidl::array<void*>& adj_entity_handles,
+      /* out */ int32_t& adj_entity_handles_size,
+      /* inout */ ::sidl::array<int32_t>& offset,
+      /* out */ int32_t& offset_size
+    )
+    throw ( 
+      ::iBase::Error
+    );
+
+    /**
+     * user defined non-static method.
+     */
+    void
+    getEntArr2ndAdj (
+      /* in */ ::sidl::array<void*> entity_handles,
+      /* in */ int32_t entity_handles_size,
+      /* in */ ::iBase::EntityType order_adjacent_key,
       /* in */ ::iBase::EntityType entity_type_requested,
       /* inout */ ::sidl::array<void*>& adj_entity_handles,
       /* out */ int32_t& adj_entity_handles_size,

@@ -34,14 +34,10 @@
 
       integer iBase_SILENT
       integer iBase_WARN_ONLY
-      integer iBase_ABORT_ON_ERROR
-      integer iBase_PRINT_AND_THROW_ERROR
       integer iBase_THROW_ERROR
 
       parameter (iBase_SILENT = 0) 
       parameter (iBase_WARN_ONLY = 1) 
-      parameter (iBase_ABORT_ON_ERROR = 2) 
-      parameter (iBase_PRINT_AND_THROW_ERROR = 3) 
       parameter (iBase_THROW_ERROR = 4)
 
 
