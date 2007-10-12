@@ -197,24 +197,26 @@ MBErrorCode DensePageGroup::get_entities_with_tag_value(const MBEntityType type,
                                                         const void* value, 
                                                         MBRange &entities)
 {
-  void* test_data = malloc(mBytesPerFlag);
-
     // for now, return if default value is requested
   if (mDefaultValue && !memcmp(value,mDefaultValue,mBytesPerFlag))
     return MB_FAILURE;
 
-  int dum = 0;
+    // iterate over dense pages
+  std::vector<DensePage>::iterator page_it;
+  const std::vector<DensePage>::iterator end = mDensePages[type].end();
+  int dum =0;
   MBEntityHandle handle = CREATE_HANDLE(type, MB_START_ID, dum);
-  MBEntityHandle end_handle = handle + mDensePages[type].size() * DensePage::mPageSize;
   MBRange::iterator insert_iter = entities.begin();
-  for(; handle < end_handle; handle++)
+  for(page_it = mDensePages[type].begin(); page_it != end; 
+      ++page_it, handle += DensePage::mPageSize)
   {
-    MBErrorCode result = get_data(handle, test_data);
-    if(result == MB_SUCCESS && !memcmp(test_data, value, mBytesPerFlag))
-      insert_iter = entities.insert(insert_iter, handle, handle);
+    if (page_it->has_data()) {
+      for (int i = 1; i <= DensePage::mPageSize; i++) {
+        if (!page_it->memcmp(i, mBytesPerFlag, value))
+          entities.insert(handle+i-1);
+      }
+    }
   }
-
-  free(test_data);
 
   return MB_SUCCESS;
 }

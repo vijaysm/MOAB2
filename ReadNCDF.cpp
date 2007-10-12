@@ -981,28 +981,28 @@ MBErrorCode ReadNCDF::read_global_ids()
     ptr = new int [numberNodes_loading];
   }
 
-  temp_var = ncFile->get_var("node_num_map");
-  if (NULL == temp_var || !temp_var->is_valid()) {
-    readMeshIface->report_error("ReadNCDF:: Problem getting node number map variable.");
-    delete [] ptr;
-    return MB_FAILURE;
+  int varid = -1;
+  int cstatus = nc_inq_varid (ncFile->id(), "node_num_map", &varid);
+  if (cstatus == NC_NOERR && varid != -1) {
+    temp_var = ncFile->get_var("node_num_map");
+    status = temp_var->get(ptr, numberNodes_loading);
+    if (0 == status) {
+      readMeshIface->report_error("ReadNCDF:: Problem getting node number map data.");
+      delete [] ptr;
+      return MB_FAILURE;
+  
+      MBRange range(MB_START_ID+vertexOffset, 
+                    MB_START_ID+vertexOffset+numberNodes_loading-1);
+      MBErrorCode error = mdbImpl->tag_set_data(mGlobalIdTag, 
+                                                range, &ptr[0]);
+      if (MB_SUCCESS != error)
+        readMeshIface->report_error("ReadNCDF:: Problem setting node global ids.");
+    }
   }
-  status = temp_var->get(ptr, numberNodes_loading);
-  if (0 == status) {
-    readMeshIface->report_error("ReadNCDF:: Problem getting node number map data.");
-    delete [] ptr;
-    return MB_FAILURE;
-  }
-
-  MBRange range(1+vertexOffset, 1+vertexOffset+numberNodes_loading-1);
-  MBErrorCode error = mdbImpl->tag_set_data(mGlobalIdTag, 
-                                            range, &ptr[0]);
-  if (MB_SUCCESS != error)
-    readMeshIface->report_error("ReadNCDF:: Problem setting node global ids.");
-
+  
   delete [] ptr;
   
-  return error;
+  return MB_SUCCESS;
 }
 
 MBErrorCode ReadNCDF::read_nodesets() 

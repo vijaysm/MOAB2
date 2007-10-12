@@ -15,6 +15,7 @@
 #include "EntitySequenceManager.hpp"
 #include "mpi.h"
 #include <iostream>
+#include <sstream>
 
 #define REALTFI 1
 
@@ -32,7 +33,8 @@ MBErrorCode create_linear_mesh(MBInterface *mbImpl,
 MBErrorCode create_scd_mesh(MBInterface *mbImpl,
                             int IJK, int &nshared);
 
-MBErrorCode read_file(MBInterface *mbImpl, const char *filename);
+MBErrorCode read_file(MBInterface *mbImpl, const char *filename,
+                      const char *tag_name, int tag_val);
 
 int main(int argc, char **argv) 
 {
@@ -93,8 +95,11 @@ int main(int argc, char **argv)
     }
     else if (2 == i && argc > 4) {
         // read a file in parallel from the filename on the command line
-
-      tmp_result = read_file(mbImpl, argv[4]);
+      const char *tag_name = NULL;
+      int tag_val = -1;
+      if (argc > 5) tag_name = argv[5];
+      if (argc > 6) tag_val = strtol(argv[6], NULL, 0);
+      tmp_result = read_file(mbImpl, argv[4], tag_name, tag_val);
       if (MB_SUCCESS != tmp_result) {
         result = tmp_result;
         std::cerr << "Couldn't read mesh; error message:" << std::endl;
@@ -166,12 +171,19 @@ int main(int argc, char **argv)
   return (MB_SUCCESS == result ? 0 : 1);
 }
 
-MBErrorCode read_file(MBInterface *mbImpl, const char *filename) 
+MBErrorCode read_file(MBInterface *mbImpl, const char *filename,
+                      const char *tag_name, int tag_val) 
 {
-  std::string options = "PARALLEL=BCAST_DELETE;PARTITION=MATERIAL_SET";
+  std::ostringstream options("PARALLEL=BCAST_DELETE;PARTITION=");
+  if (NULL == tag_name) options << "MATERIAL_SET";
+  else options << tag_name;
+  
+  if (-1 != tag_val)
+    options << ";PARTITION_VAL=" << tag_val;
+    
   MBEntityHandle file_set;
   MBErrorCode result = mbImpl->load_file(filename, file_set, 
-                                         options.c_str());
+                                         options.str().c_str());
   return result;
 }
 

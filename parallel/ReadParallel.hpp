@@ -34,6 +34,7 @@ private:
   MBInterface *mbImpl;
   
   MBErrorCode delete_nonlocal_entities(std::string &ptag_name,
+                                       std::vector<int> &ptag_vals,
                                        MBEntityHandle file_set);
   
   MBErrorCode delete_nonlocal_entities(MBRange &partition_sets,

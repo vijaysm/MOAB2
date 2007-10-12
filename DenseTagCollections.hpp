@@ -19,6 +19,12 @@
  *  File   :      DenseTagCollections.hpp
  *  Creator:      Clinton Stimpson
  *  Date   :      10-28-2002
+ *
+ * DenseTagSuperCollection: contains a vector of DensePageGroup objects
+ * DensePageGroup: vector of vectors of DensePage objects, one vector per 
+ *   entity type, blocking possible handles in the type
+ * DensePage: block of values corresponding to a block of handles of a given
+ *   type; may or may not have data allocated
  */
 
 #ifndef DENSE_TAG_COLLECTIONS_HPP
@@ -69,6 +75,8 @@ public:
   //! return whether has data or not
   bool has_data() const { return mByteArray != 0; }
 
+    //! do a memcmp on one of the values in this page
+  bool memcmp(int offset, int num_bytes_per_flag, const void *data);
 
   //!std::auto_ptr-style behavior
   DensePage( const DensePage& other )
@@ -106,6 +114,15 @@ inline MBErrorCode DensePage::get_bytes(int offset, int num_bytes_per_flag, void
   memcpy(data, data_to_copy, num_bytes_per_flag);
 
   return MB_SUCCESS;
+}
+
+//! do a memcmp on one of the values in this page
+inline bool DensePage::memcmp(int offset, int num_bytes_per_flag, const void *data)
+{
+  // if no memory has been allocated, get the default value
+  assert(mByteArray);
+
+  return ::memcmp(mByteArray + offset*num_bytes_per_flag, data, num_bytes_per_flag);
 }
 
 /*! set the bytes in a page

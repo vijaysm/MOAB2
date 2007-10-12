@@ -46,13 +46,15 @@ public:
   // will accept entities all of one dimension
   // and return entities of n-1 dimension
   MBErrorCode find_skin( const MBRange &entities,
-                        MBRange &forward_lower_entities,
-                        MBRange &reverse_lower_entities);
+                         MBRange &forward_lower_entities,
+                         MBRange &reverse_lower_entities,
+                         bool create_vert_elem_adjs = false);
 
     // get skin entities of prescribed dimension
   MBErrorCode find_skin(const MBRange &entities,
                         int dim,
-                        MBRange &skin_entities);
+                        MBRange &skin_entities,
+                        bool create_vert_elem_adjs = false);
 
   MBErrorCode classify_2d_boundary( const MBRange &boundary,
                                      const MBRange &bar_elements,
@@ -74,7 +76,7 @@ public:
 
 protected:
   
-  void initialize(const bool use_adjs = false);
+  void initialize();
   
   void deinitialize();
 

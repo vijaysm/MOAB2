@@ -116,10 +116,11 @@ public:
    */
   MBErrorCode match_option( const char* name, const char* const* values, int& index ) const;
   
-  /**\brief Check for option for which the value is an ID list
+  /**\brief Check for option for which the value is a list of ints
    *
-   * Check for and remove an ID list option.  The value is expected to
-   * be a comma-separated list of ID ranges, where an ID range can be 
+   * Check for and remove an options which is an int list.  The value is 
+   * expected to
+   * be a comma-separated list of int ranges, where an int range can be 
    * either a single integer value or a range of integer values separated
    * by a dash ('-').
    *
@@ -130,7 +131,7 @@ public:
    *        - MB_TYPE_OUT_OF_RANGE if options is found, but does not contain an ID list
    *        - MB_ENTITY_NOT_FOUND if option is not found.
    */
-  //MBErrorCode get_id_list_option( const char* name, std::vector<unsigned>& value, bool remove = true );
+  MBErrorCode get_ints_option( const char* name, std::vector<int>& values) const;
   
   /** number of options */
   inline unsigned size() const 

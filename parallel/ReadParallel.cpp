@@ -9,6 +9,10 @@
 #include "MBParallelConventions.h"
 #include "MBCN.hpp"
 
+#include <iostream>
+
+const bool debug = true;
+
 #define RR(a) if (MB_SUCCESS != result) {\
           dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(a);\
           return result;}
@@ -46,6 +50,10 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
   result = opts.get_option("PARTITION", partition_tag_name);
   if (MB_ENTITY_NOT_FOUND == result || partition_tag_name.empty())
     partition_tag_name += "PARTITION";
+
+    // Get partition tag value(s), if any
+  std::vector<int> partition_tag_vals;
+  result = opts.get_ints_option("PARTITION_VAL", partition_tag_vals);
 
     // get MPI IO processor rank
   int reader_rank;
@@ -110,9 +118,16 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
   if (parallel_mode == POPT_BCAST ||
       parallel_mode == POPT_BCAST_DELETE) {
     MBRange entities; 
+    MBParallelComm pcom( mbImpl);
 
       // get which entities need to be broadcast, only if I'm the reader
     if (reader_rank == (int)(mbImpl->proc_rank())) {
+
+        // if I'm root, check to make sure we have global ids (at least for
+        // vertices, anyway) & generate (in serial) if not
+      result = pcom.check_global_ids(file_set, 0, 1, true, false);
+      RR("Failed to generate/find global ids for parallel read.");
+      
       result = mbImpl->get_entities_by_handle( file_set, entities );
       if (MB_SUCCESS != result)
         entities.clear();
@@ -137,8 +152,7 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
     }
 
       // do the actual broadcast; if single-processor, ignore error
-    MBParallelComm tool( mbImpl);
-    result = tool.broadcast_entities( reader_rank, entities );
+    result = pcom.broadcast_entities( reader_rank, entities );
     if (mbImpl->proc_size() == 1 && MB_SUCCESS != result) 
       result = MB_SUCCESS;
       
@@ -170,7 +184,9 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
 
   if (parallel_mode == POPT_BCAST_DELETE ||
       parallel_mode == POPT_READ_DELETE) {
-    result = delete_nonlocal_entities(partition_tag_name, file_set);
+    result = delete_nonlocal_entities(partition_tag_name, 
+                                      partition_tag_vals, 
+                                      file_set);
     if (MB_SUCCESS != result) return result;
   }
   
@@ -178,6 +194,7 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
 }
 
 MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
+                                                   std::vector<int> &ptag_vals,
                                                    MBEntityHandle file_set) 
 {
   MBRange partition_sets, my_sets;
@@ -187,25 +204,16 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
   result = mbImpl->tag_get_handle(ptag_name.c_str(), ptag); 
   RR("Failed getting tag handle in delete_nonlocal_entities.");
 
-  if (ptag_name == PARALLEL_PARTITION_TAG_NAME) {
-    int my_rank = mbImpl->proc_rank(), *my_rank_ptr = &my_rank;
-    
-    result = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET,
-                                                  &ptag, 
-                                                  (void* const*) &my_rank_ptr, 1,
-                                                  my_sets); 
-    RR("Couldn't get entities with partition tag.");
-  }
-  else {
-      // no explicit stategy to assign sets, so just balance # sets
-    result = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET,
-                                                  &ptag, NULL, 1,
-                                                  partition_sets);
-    RR("Failed to get sets with partition-type tag.");
+  result = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET,
+                                                &ptag, NULL, 1,
+                                                partition_sets);
+  RR("Failed to get sets with partition-type tag.");
 
-    int proc_sz = mbImpl->proc_size();
-    int proc_rk = mbImpl->proc_rank();
-    
+  int proc_sz = mbImpl->proc_size();
+  int proc_rk = mbImpl->proc_rank();
+
+  if (ptag_vals.empty()) {
+      // no values input, just distribute sets
     int num_sets = partition_sets.size() / proc_sz, orig_numsets = num_sets;
     if (partition_sets.size() % proc_sz != 0) {
       num_sets++;
@@ -217,6 +225,19 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
     for (int i = 0; i < num_sets; i++) 
       my_sets.insert(partition_sets[istart+i]);
   }
+  else {
+      // values input, get sets with those values
+    std::vector<int> tag_vals(partition_sets.size());
+    result = mbImpl->tag_get_data(ptag, partition_sets, &tag_vals[0]);
+    RR("Failed to get tag data for partition vals tag.");
+    for (std::vector<int>::iterator pit = ptag_vals.begin(); 
+         pit != ptag_vals.end(); pit++) {
+      std::vector<int>::iterator pit2 = std::find(tag_vals.begin(),
+                                                  tag_vals.end(), *pit);
+      if (pit2 == tag_vals.end()) RR("Couldn't find partition tag value.");
+      my_sets.insert(partition_sets[pit2 - tag_vals.begin()]);
+    }
+  }
   
   return delete_nonlocal_entities(my_sets, file_set);
 }
@@ -224,6 +245,9 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
 MBErrorCode ReadParallel::delete_nonlocal_entities(MBRange &partition_sets,
                                                    MBEntityHandle file_set) 
 {
+
+  if (debug) std::cerr << "Deleting non-local entities." << std::endl;
+  
   MBErrorCode result;
   MBError *merror = ((MBCore*)mbImpl)->get_error_handler();
 
@@ -263,8 +287,9 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBRange &partition_sets,
   deletable_ents = deletable_ents.subtract(deletable_sets);
   result = mbImpl->delete_entities(deletable_ents);
   RR("Failure deleting entities in delete_nonlocal_entities.");
-  
-  result = ((MBCore*)mbImpl)->check_adjacencies();
+
+//  if (debug)
+//    result = ((MBCore*)mbImpl)->check_adjacencies();
 
   return result;
 

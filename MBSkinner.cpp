@@ -52,7 +52,7 @@ MBSkinner::~MBSkinner()
 }
 
 
-void MBSkinner::initialize(const bool use_adjs)
+void MBSkinner::initialize()
 {
   // go through and mark all the target dimension entities
   // that already exist as not deleteable
@@ -64,40 +64,33 @@ void MBSkinner::initialize(const bool use_adjs)
   void* null_ptr = NULL;
   MBErrorCode result;
 
-  if(mAdjTag == 0 && !use_adjs)
-  {
-    result = thisMB->tag_create("skinner adj", sizeof(void*), MB_TAG_DENSE, mAdjTag, &null_ptr);
-    assert(MB_SUCCESS == result);
-  }
+  result = thisMB->tag_create("skinner adj", sizeof(void*), MB_TAG_DENSE, mAdjTag, &null_ptr);
+  assert(MB_SUCCESS == result);
 
-  if(mDeletableMBTag == 0 && !use_adjs) {
+  if(mDeletableMBTag == 0) {
     result = thisMB->tag_create("skinner deletable", 1, MB_TAG_BIT, mDeletableMBTag, NULL);
     assert(MB_SUCCESS == result);
   }
   
   MBRange entities;
 
-    // only need to mark entities if we're not using adjacencies
-  if (!use_adjs) {
-    
-      // go through each type at this dimension 
-    for(type = target_ent_types.first; type <= target_ent_types.second; ++type)
-    {
-        // get the entities of this type in the MB
-      thisMB->get_entities_by_type(0, type, entities);
+    // go through each type at this dimension 
+  for(type = target_ent_types.first; type <= target_ent_types.second; ++type)
+  {
+      // get the entities of this type in the MB
+    thisMB->get_entities_by_type(0, type, entities);
 
-        // go through each entity of this type in the MB
-        // and set its deletable tag to NO
-      MBRange::iterator iter, end_iter;
-      end_iter = entities.end();
-      for(iter = entities.begin(); iter != end_iter; ++iter)
-      {
-        unsigned char bit = 0x1;
-        result = thisMB->tag_set_data(mDeletableMBTag, &(*iter), 1, &bit);
-        assert(MB_SUCCESS == result);
-          // add adjacency information too
-        add_adjacency(*iter);
-      }
+      // go through each entity of this type in the MB
+      // and set its deletable tag to NO
+    MBRange::iterator iter, end_iter;
+    end_iter = entities.end();
+    for(iter = entities.begin(); iter != end_iter; ++iter)
+    {
+      unsigned char bit = 0x1;
+      result = thisMB->tag_set_data(mDeletableMBTag, &(*iter), 1, &bit);
+      assert(MB_SUCCESS == result);
+        // add adjacency information too
+      add_adjacency(*iter);
     }
   }
 }
@@ -231,8 +224,9 @@ MBErrorCode MBSkinner::find_geometric_skin(MBRange &forward_target_entities)
 }
 
 MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
-                                   MBRange &forward_target_entities,
-                                   MBRange &reverse_target_entities)
+                                 MBRange &forward_target_entities,
+                                 MBRange &reverse_target_entities,
+                                 bool create_vert_elem_adjs)
 {
   if(source_entities.empty())
     return MB_FAILURE;
@@ -248,11 +242,14 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
 
   MBCore *this_core = dynamic_cast<MBCore*>(thisMB);
   bool use_adjs = false;
+  if (!this_core->a_entity_factory()->vert_elem_adjacencies() &&
+    create_vert_elem_adjs)
+    this_core->a_entity_factory()->create_vert_elem_adjacencies();
+
   if (this_core->a_entity_factory()->vert_elem_adjacencies())
     use_adjs = true;
   
-  // initialize
-  initialize(use_adjs);
+  else initialize();
 
   MBRange::const_iterator iter, end_iter;
   end_iter = source_entities.end();
@@ -867,18 +864,25 @@ bool MBSkinner::has_larger_angle(MBEntityHandle &entity1,
   // get skin entities of prescribed dimension
 MBErrorCode MBSkinner::find_skin(const MBRange &entities,
                                  int dim,
-                                 MBRange &skin_entities) 
+                                 MBRange &skin_entities,
+                                 bool create_vert_elem_adjs) 
 {
   if (MBCN::Dimension(TYPE_FROM_HANDLE(*entities.begin())) !=
       MBCN::Dimension(TYPE_FROM_HANDLE(*entities.rbegin())))
     return MB_FAILURE;
   
   MBRange tmp_skin_for, tmp_skin_rev;
-  MBErrorCode result = find_skin(entities, tmp_skin_for, tmp_skin_rev);
+  MBErrorCode result = find_skin(entities, tmp_skin_for, tmp_skin_rev, 
+                                 create_vert_elem_adjs);
   if (MB_SUCCESS != result) return result;
   
   tmp_skin_for.merge(tmp_skin_rev);
-  result = thisMB->get_adjacencies(tmp_skin_for, dim, true, skin_entities);
+  if (MBCN::Dimension(TYPE_FROM_HANDLE(*tmp_skin_for.begin())) != dim ||
+      MBCN::Dimension(TYPE_FROM_HANDLE(*tmp_skin_for.rbegin())) != dim)
+    result = thisMB->get_adjacencies(tmp_skin_for, dim, true, skin_entities);
+  else
+    skin_entities.swap(tmp_skin_for);
+  
   return result;
 }
 

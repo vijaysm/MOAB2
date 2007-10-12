@@ -47,9 +47,20 @@ public:
 
     //! assign a global id space, for largest-dimension or all entities (and
     //! in either case for vertices too)
-  MBErrorCode assign_global_ids(const int dimension,
+  MBErrorCode assign_global_ids(MBEntityHandle this_set,
+                                const int dimension,
                                 const int start_id = 1,
-                                const bool largest_dim_only = true);
+                                const bool largest_dim_only = true,
+                                const bool parallel = true);
+
+    //! check for global ids; based only on tag handle being there or not;
+    //! if it's not there, create them for the specified dimensions
+  MBErrorCode check_global_ids(MBEntityHandle this_set,
+                               const int dimension, 
+                               const int start_id = 1,
+                               const bool largest_dim_only = true,
+                               const bool parallel = true);
+  
 
     //! communicate entities from/to this range
   MBErrorCode communicate_entities(const int from_proc, const int to_proc,

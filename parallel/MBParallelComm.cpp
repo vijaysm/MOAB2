@@ -11,7 +11,11 @@
 #include "MBCore.hpp"
 #include "MBError.hpp"
 
+#include <iostream>
+
 #define MAX_SHARING_PROCS 10  
+
+const bool debug = true;
 
 extern "C" 
 {
@@ -82,16 +86,18 @@ MBParallelComm::MBParallelComm(MBInterface *impl,
 
 //! assign a global id space, for largest-dimension or all entities (and
 //! in either case for vertices too)
-MBErrorCode MBParallelComm::assign_global_ids(const int dimension, 
+MBErrorCode MBParallelComm::assign_global_ids(MBEntityHandle this_set,
+                                              const int dimension, 
                                               const int start_id,
-                                              const bool largest_dim_only) 
+                                              const bool largest_dim_only,
+                                              const bool parallel) 
 {
   MBRange entities[4];
   int local_num_elements[4];
   MBErrorCode result;
   for (int dim = 0; dim <= dimension; dim++) {
     if (dim == 0 || !largest_dim_only || dim == dimension) {
-      result = mbImpl->get_entities_by_dimension(0, dim, entities[dim]); 
+      result = mbImpl->get_entities_by_dimension(this_set, dim, entities[dim]); 
       RR("Failed to get vertices in assign_global_ids.");
     }
 
@@ -109,7 +115,7 @@ MBErrorCode MBParallelComm::assign_global_ids(const int dimension,
     // communicate numbers
   std::vector<int> num_elements(procConfig.proc_size()*4);
 #ifdef USE_MPI
-  if (procConfig.proc_size() > 1) {
+  if (procConfig.proc_size() > 1 && parallel) {
     int retval = MPI_Alltoall(local_num_elements, 4, MPI_INTEGER,
                               &num_elements[0], procConfig.proc_size()*4, 
                               MPI_INTEGER, procConfig.proc_comm());
@@ -126,7 +132,7 @@ MBErrorCode MBParallelComm::assign_global_ids(const int dimension,
     for (int dim = 0; dim < 4; dim++) total_elems[dim] += num_elements[4*proc + dim];
   }
   
-    //.assign global ids now
+    //assign global ids now
   MBTag gid_tag;
   int zero = 0;
   result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), 
@@ -1062,6 +1068,8 @@ MBErrorCode MBParallelComm::resolve_shared_ents(int dim,
 MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
                                                 int shared_dim) 
 {
+  if (debug) std::cerr << "Resolving shared entities." << std::endl;
+  
   MBRange::iterator rit;
   MBSkinner skinner(mbImpl);
   
@@ -1076,8 +1084,9 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
       // start with skin entities
     skin_dim = upper_dim-1;
     result = skinner.find_skin(proc_ents, skin_ents[skin_dim],
-                               skin_ents[skin_dim]);
+                               skin_ents[skin_dim], true);
     RR("Failed to find skin.");
+    if (debug) std::cerr << "Found skin, now resolving." << std::endl;
   }
   else {
       // otherwise start with original entities
@@ -1106,7 +1115,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
 
   else if (MB_ALREADY_ALLOCATED != result) {
       // just created it, so we need global ids
-    result = assign_global_ids(upper_dim);
+    result = assign_global_ids(0, upper_dim);
     RR("Failed assigning global ids.");
   }
 
@@ -1308,6 +1317,32 @@ MBErrorCode MBParallelComm::get_shared_entities(int dim,
   return MB_SUCCESS;
 }
   
+MBErrorCode MBParallelComm::check_global_ids(MBEntityHandle this_set,
+                                             const int dimension, 
+                                             const int start_id,
+                                             const bool largest_dim_only,
+                                             const bool parallel)
+{
+    // global id tag
+  MBTag gid_tag; int def_val = -1;
+  MBErrorCode result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int),
+                                          MB_TAG_DENSE, MB_TYPE_INTEGER, gid_tag,
+                                          &def_val, true);
+  if (MB_ALREADY_ALLOCATED != result &&
+      MB_SUCCESS != result) {
+    RR("Failed to create/get gid tag handle.");
+  }
+
+  else if (MB_ALREADY_ALLOCATED != result) {
+      // just created it, so we need global ids
+    result = assign_global_ids(this_set, dimension, start_id, largest_dim_only,
+                               parallel);
+    RR("Failed assigning global ids.");
+  }
+
+  return result;
+}
+
 #ifdef TEST_PARALLELCOMM
 
 #include <iostream>
