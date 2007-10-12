@@ -312,6 +312,8 @@ MBErrorCode create_scd_mesh(MBInterface *mbImpl,
   if (MB_SUCCESS != result) RR("Failed to set global_id tag.", MB_FAILURE);
 
   nshared = (IJK+1) * (IJK+1);
+
+  if (my_rank != 0 && my_rank != mbImpl->proc_size()-1) nshared *= 2;
   
   return result;
 }
