@@ -79,9 +79,16 @@ if ( NOT CGM_LIBRARIES )
 endif ( NOT CGM_LIBRARIES )
 
 if ( CGM_SOURCE_DIR AND CGM_BINARY_DIR AND NOT CGM_INCLUDE_DIRECTORIES )
+  set( cubit_geom_SOURCE_DIR "${CGM_SOURCE_DIR}/geom" )
+  set( cubit_geom_BINARY_DIR "${CGM_BINARY_DIR}/geom" )
+  set( cubit_util_SOURCE_DIR "${CGM_SOURCE_DIR}/util" )
+  set( cubit_util_BINARY_DIR "${CGM_BINARY_DIR}/util" )
+  set( cgma_init_SOURCE_DIR "${CGM_SOURCE_DIR}/init" )
+  set( cgma_init_BINARY_DIR "${CGM_BINARY_DIR}/init" )
   set( CGM_INCLUDE_DIRECTORIES
-    "${CGM_SOURCE_DIR}/util"
-    "${CGM_SOURCE_DIR}/geom"
+    "${cubit_util_SOURCE_DIR}"
+    "${cubit_util_BINARY_DIR}"
+    "${cubit_geom_SOURCE_DIR}"
     "${cubit_geom_SOURCE_DIR}/ACIS"
     "${cubit_geom_SOURCE_DIR}/Cholla"
     "${cubit_geom_SOURCE_DIR}/facet"
@@ -90,8 +97,9 @@ if ( CGM_SOURCE_DIR AND CGM_BINARY_DIR AND NOT CGM_INCLUDE_DIRECTORIES )
     "${cubit_geom_SOURCE_DIR}/parallel"
     "${cubit_geom_SOURCE_DIR}/SolidWorks"
     "${cubit_geom_SOURCE_DIR}/virtual"
-    "${CGM_BINARY_DIR}/util"
-    "${CGM_BINARY_DIR}/geom"
+    "${cubit_geom_BINARY_DIR}"
+    "${cgma_init_SOURCE_DIR}"
+    "${cgma_init_BINARY_DIR}"
     CACHE PATH "Paths to util/CubitUtilConfigure.h.in, util/CubitUtilConfigure.h, geom/CubitGeomConfigure.h.in, AND geom/CubitGeomConfigure.h files." FORCE
   )
 endif ( CGM_SOURCE_DIR AND CGM_BINARY_DIR AND NOT CGM_INCLUDE_DIRECTORIES )
