@@ -34,7 +34,7 @@ MBErrorCode create_scd_mesh(MBInterface *mbImpl,
                             int IJK, int &nshared);
 
 MBErrorCode read_file(MBInterface *mbImpl, const char *filename,
-                      const char *tag_name, int tag_val);
+                      const char *tag_name, int tag_val, int distrib);
 
 int main(int argc, char **argv) 
 {
@@ -58,56 +58,75 @@ int main(int argc, char **argv)
     // get N, M from command line
   int N, M;
   if (argc < 3) {
-    std::cerr << "No arguments passed; assuming N=10, M=2." << std::endl;
-    N = 10;
-    M = 2;
-  }
-  else {
-    N = atoi(argv[1]);
-    M = atoi(argv[2]);
+    if (0 == rank)
+      std::cerr 
+        << "Usage: " << argv[0] 
+        << " <opt> <input> [...] where:" << std::endl
+        << "opt   input" << std::endl
+        << "===   =====" << std::endl
+        << " 1     <linear_ints> <shared_verts> " << std::endl
+        << " 2     <n_ints> " << std::endl
+        << " 3*    <file_name> [<tag_name>=\"MATERIAL_SET\" [tag_val] [distribute=true] ]" << std::endl
+        << "*Note: if opt 3 is used, it must be the last one." << std::endl;
+    
+    err = MPI_Finalize();
+    return 1;
   }
 
-  int max_iter = 2;
-  if (argc > 3) max_iter = atoi(argv[3]);
+  int npos = 1, tag_val, distrib;
+  const char *tag_name, *filename;
 
-  for (int i = 0; i < max_iter; i++) {
-    int nshared;
-    MBErrorCode tmp_result = MB_SUCCESS;
-    if (0 == i) {
-      tmp_result = create_linear_mesh(mbImpl, N, M, nshared);
-      if (MB_SUCCESS != tmp_result) {
-        result = tmp_result;
-        std::cerr << "Couldn't create linear mesh; error message:." 
-                  << std::endl;
-        PRINT_LAST_ERROR
-        continue;
-      }
+  while (npos < argc) {
+    MBErrorCode tmp_result;
+    int nshared = -1;
+    int this_opt = strtol(argv[npos++], NULL, 0);
+    switch (this_opt) {
+      case 1:
+        N = atoi(argv[npos++]);
+        M = atoi(argv[npos++]);
+        tmp_result = create_linear_mesh(mbImpl, N, M, nshared);
+        if (MB_SUCCESS != tmp_result) {
+          result = tmp_result;
+          std::cerr << "Couldn't create linear mesh; error message:." 
+                    << std::endl;
+          PRINT_LAST_ERROR
+        }
+        break;
+      case 2:
+        N = atoi(argv[npos++]);
+        tmp_result = create_scd_mesh(mbImpl, N, nshared);
+        if (MB_SUCCESS != tmp_result) {
+          result = tmp_result;
+          std::cerr << "Couldn't create structured mesh; error message:" 
+                    << std::endl;
+          PRINT_LAST_ERROR
+        }
+        break;
+          
+      case 3:
+          // read a file in parallel from the filename on the command line
+        tag_name = "MATERIAL_SET";
+        tag_val = -1;
+        filename = argv[npos++];
+        if (npos < argc) tag_name = argv[npos++];
+        if (npos < argc) tag_val = strtol(argv[npos++], NULL, 0);
+        if (npos < argc) distrib = strtol(argv[npos++], NULL, 0);
+        else distrib = 1;
+        tmp_result = read_file(mbImpl, filename, tag_name, tag_val,
+                               distrib);
+        if (MB_SUCCESS != tmp_result) {
+          result = tmp_result;
+          std::cerr << "Couldn't read mesh; error message:" << std::endl;
+          PRINT_LAST_ERROR
+        }
+        nshared = -1;
+        break;
+      default:
+        std::cerr << "Unrecognized option \"" << this_opt
+                  << "\"; skipping." << std::endl;
+        tmp_result = MB_FAILURE;
     }
-    else if (1 == i) {
-      tmp_result = create_scd_mesh(mbImpl, N, nshared);
-      if (MB_SUCCESS != tmp_result) {
-        result = tmp_result;
-        std::cerr << "Couldn't create structured mesh; error message:" 
-                  << std::endl;
-        PRINT_LAST_ERROR
-        continue;
-      }
-    }
-    else if (2 == i && argc > 4) {
-        // read a file in parallel from the filename on the command line
-      const char *tag_name = NULL;
-      int tag_val = -1;
-      if (argc > 5) tag_name = argv[5];
-      if (argc > 6) tag_val = strtol(argv[6], NULL, 0);
-      tmp_result = read_file(mbImpl, argv[4], tag_name, tag_val);
-      if (MB_SUCCESS != tmp_result) {
-        result = tmp_result;
-        std::cerr << "Couldn't read mesh; error message:" << std::endl;
-        PRINT_LAST_ERROR
-        continue;
-      }
-      nshared = -1;
-    }
+    
 
     if (MB_SUCCESS == tmp_result) {
         // now figure out which vertices are shared
@@ -135,21 +154,20 @@ int main(int argc, char **argv)
       }
   
         // check # shared entities
-      else if (0 <= nshared && nshared != (int) shared_ents.size()) {
+      if (0 <= nshared && nshared != (int) shared_ents.size()) {
         std::cerr << "Didn't get correct number of shared vertices on "
                   << "processor " << rank << std::endl;
         result = MB_FAILURE;
       }
-      else if (i < 2) {
-        std::cerr << "Proc " << rank;
-        if (0 == i) std::cerr << " linear mesh succeeded." << std::endl;
-        else std::cerr << " structured mesh succeeded." << std::endl;
-        if (0 == rank) std::cerr << "   Time = " << wtime << "." << std::endl;
-      }
-      else {
+
+      else
+        std::cerr << "Proc " << rank << " option " << this_opt
+                << " succeeded." << std::endl;
+
+      if (0 == rank) std::cerr << "   Time = " << wtime << "." << std::endl;
+      if (-1 == nshared)
         std::cerr << "Proc " << rank << " " << shared_ents.size()
                   << " shared entities." << std::endl;
-      }
   
       delete pcomm;
       tmp_result = mbImpl->delete_mesh();
@@ -162,7 +180,6 @@ int main(int argc, char **argv)
     }
   }
   
-  
   err = MPI_Finalize();
 
   if (MB_SUCCESS == result)
@@ -172,14 +189,17 @@ int main(int argc, char **argv)
 }
 
 MBErrorCode read_file(MBInterface *mbImpl, const char *filename,
-                      const char *tag_name, int tag_val) 
+                      const char *tag_name, int tag_val,
+                      int distrib) 
 {
-  std::ostringstream options("PARALLEL=BCAST_DELETE;PARTITION=");
-  if (NULL == tag_name) options << "MATERIAL_SET";
-  else options << tag_name;
+  std::ostringstream options;
+  options << "PARALLEL=BCAST_DELETE;PARTITION=" << tag_name;
   
   if (-1 != tag_val)
     options << ";PARTITION_VAL=" << tag_val;
+
+  if (1 == distrib)
+    options << ";PARTITION_DISTRIBUTE";
     
   MBEntityHandle file_set;
   MBErrorCode result = mbImpl->load_file(filename, file_set, 

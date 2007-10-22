@@ -1060,8 +1060,8 @@ MBErrorCode MBParallelComm::resolve_shared_ents(int dim,
     if (MB_SUCCESS != result) return result;
   }
 
-  if (proc_ents.empty()) return MB_SUCCESS;
-  
+    // must call even if we don't have any entities, to make sure
+    // collective comm'n works
   return resolve_shared_ents(proc_ents, shared_dim);
 }
   
@@ -1070,72 +1070,81 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
 {
   if (debug) std::cerr << "Resolving shared entities." << std::endl;
   
-  MBRange::iterator rit;
-  MBSkinner skinner(mbImpl);
-  
     // get the skin entities by dimension
   MBRange skin_ents[4];
   MBErrorCode result;
-  int upper_dim = MBCN::Dimension(TYPE_FROM_HANDLE(*proc_ents.begin()));
+  std::vector<int> gid_data;
 
-  int skin_dim;
-  if (shared_dim < upper_dim) {
-      // if shared entity dimension is less than maximal dimension,
-      // start with skin entities
-    skin_dim = upper_dim-1;
-    result = skinner.find_skin(proc_ents, skin_ents[skin_dim],
-                               skin_ents[skin_dim], true);
-    RR("Failed to find skin.");
-    if (debug) std::cerr << "Found skin, now resolving." << std::endl;
+  if (!proc_ents.empty()) {
+      // find the skin entities
+    int upper_dim = MBCN::Dimension(TYPE_FROM_HANDLE(*proc_ents.begin()));
+
+    MBRange::iterator rit;
+    MBSkinner skinner(mbImpl);
+  
+    int skin_dim;
+    if (shared_dim < upper_dim) {
+        // if shared entity dimension is less than maximal dimension,
+        // start with skin entities
+      skin_dim = upper_dim-1;
+      result = skinner.find_skin(proc_ents, skin_ents[skin_dim],
+                                 skin_ents[skin_dim], true);
+      RR("Failed to find skin.");
+      if (debug) std::cerr << "Found skin, now resolving." << std::endl;
+    }
+    else {
+        // otherwise start with original entities
+      skin_ents[upper_dim] = proc_ents;
+      skin_dim = upper_dim;
+    }
+
+      // get entities adjacent to skin ents from shared_dim down to
+      // zero; don't create them if they don't exist already
+    for (int this_dim = shared_dim; this_dim >= 0; this_dim--) {
+
+      if (this_dim == skin_dim) continue;
+      
+      result = mbImpl->get_adjacencies(skin_ents[skin_dim], this_dim,
+                                       false, skin_ents[this_dim],
+                                       MBInterface::UNION);
+      RR("Failed getting skin adjacencies.");
+    }
+  
+      // global id tag
+    MBTag gid_tag; int def_val = -1;
+    result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int),
+                                MB_TAG_DENSE, MB_TYPE_INTEGER, gid_tag,
+                                &def_val, true);
+    if (MB_FAILURE == result) return result;
+
+    else if (MB_ALREADY_ALLOCATED != result) {
+        // just created it, so we need global ids
+      result = assign_global_ids(0, upper_dim);
+      RR("Failed assigning global ids.");
+    }
+
+      // store index in temp tag; reuse gid_data 
+    gid_data.resize(skin_ents[0].size());
+    int idx = 0;
+    for (MBRange::iterator rit = skin_ents[0].begin(); 
+         rit != skin_ents[0].end(); rit++) 
+      gid_data[idx] = idx, idx++;
+    MBTag idx_tag;
+    result = mbImpl->tag_create("__idx_tag", sizeof(int), MB_TAG_DENSE,
+                                MB_TYPE_INTEGER, idx_tag, &def_val, true);
+    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
+    result = mbImpl->tag_set_data(idx_tag, skin_ents[0], &gid_data[0]);
+    RR("Couldn't assign index tag.");
+
+      // get gids for skin verts in a vector, to pass to gs
+    result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &gid_data[0]);
+    RR("Couldn't get gid tag for skin vertices.");
   }
   else {
-      // otherwise start with original entities
-    skin_ents[upper_dim] = proc_ents;
-    skin_dim = upper_dim;
-  }
-
-    // get entities adjacent to skin ents from shared_dim down to
-    // zero; don't create them if they don't exist already
-  for (int this_dim = shared_dim; this_dim >= 0; this_dim--) {
-
-    if (this_dim == skin_dim) continue;
-      
-    result = mbImpl->get_adjacencies(skin_ents[skin_dim], this_dim,
-                                     false, skin_ents[this_dim],
-                                     MBInterface::UNION);
-    RR("Failed getting skin adjacencies.");
+      // need to have at least one position so we can get a ptr to it
+    gid_data.resize(1);
   }
   
-    // global id tag
-  MBTag gid_tag; int def_val = -1;
-  result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int),
-                              MB_TAG_DENSE, MB_TYPE_INTEGER, gid_tag,
-                              &def_val, true);
-  if (MB_FAILURE == result) return result;
-
-  else if (MB_ALREADY_ALLOCATED != result) {
-      // just created it, so we need global ids
-    result = assign_global_ids(0, upper_dim);
-    RR("Failed assigning global ids.");
-  }
-
-    // store index in temp tag; reuse gid_data 
-  std::vector<int> gid_data(skin_ents[0].size());
-  int idx = 0;
-  for (MBRange::iterator rit = skin_ents[0].begin(); 
-       rit != skin_ents[0].end(); rit++) 
-    gid_data[idx] = idx, idx++;
-  MBTag idx_tag;
-  result = mbImpl->tag_create("__idx_tag", sizeof(int), MB_TAG_DENSE,
-                              MB_TYPE_INTEGER, idx_tag, &def_val, true);
-  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
-  result = mbImpl->tag_set_data(idx_tag, skin_ents[0], &gid_data[0]);
-  RR("Couldn't assign index tag.");
-
-    // get gids for skin verts in a vector, to pass to gs
-  result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &gid_data[0]);
-  RR("Couldn't get gid tag for skin vertices.");
-
     // get a crystal router
   crystal_data *cd = procConfig.crystal_router();
   
@@ -1157,6 +1166,9 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
     result = MB_FAILURE;
     RR("Couldn't create gs data.");
   }
+
+    // if no entities, no more communication after this, so just return
+  if (proc_ents.empty()) return MB_SUCCESS;
   
     // get shared proc tags
   int def_vals[2] = {-10*procConfig.proc_size(), -10*procConfig.proc_size()};
@@ -1308,7 +1320,7 @@ MBErrorCode MBParallelComm::get_shared_entities(int dim,
       // tag set will have one
       result = mbImpl->get_entities_by_type_and_tag(0, this_type, 
                                                     &sharedprocs_tag,
-                                                    NULL, 1, tmp_ents,
+                                                    NULL, 1, shared_ents,
                                                     MBInterface::UNION);
       RR("Trouble getting sharedprocs_tag for shared entities.");
     }
@@ -1340,7 +1352,7 @@ MBErrorCode MBParallelComm::check_global_ids(MBEntityHandle this_set,
     RR("Failed assigning global ids.");
   }
 
-  return result;
+  return MB_SUCCESS;
 }
 
 #ifdef TEST_PARALLELCOMM

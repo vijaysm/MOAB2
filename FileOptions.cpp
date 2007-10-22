@@ -167,6 +167,8 @@ MBErrorCode FileOptions::get_ints_option( const char* name,
   
     for (int i = sval; i <= eval; i++)
       values.push_back(i);
+
+    s = endptr;
   }
   
   return MB_SUCCESS;
