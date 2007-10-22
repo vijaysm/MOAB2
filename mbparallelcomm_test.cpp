@@ -167,7 +167,7 @@ int main(int argc, char **argv)
       if (0 == rank) std::cerr << "   Time = " << wtime << "." << std::endl;
       if (-1 == nshared)
         std::cerr << "Proc " << rank << " " << shared_ents.size()
-                  << " shared entities." << std::endl;
+                  << " shared vertices." << std::endl;
   
       delete pcomm;
       tmp_result = mbImpl->delete_mesh();
