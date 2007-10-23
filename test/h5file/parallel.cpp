@@ -38,7 +38,7 @@ void do_assert( const char* file, int line, bool condition, const char* condstr 
      MPI_Barrier( MPI_COMM_WORLD )
 
 MBCore *iFace = NULL;
-MBTag blockTag, geomTag, pGeomTag, ifaceTag, idTag, gidTag;
+MBTag blockTag, geomTag, ifaceTag, idTag, gidTag;
 
 static void printerror( const char* format, ... )
 {
@@ -124,11 +124,9 @@ int main( int argc, char* argv[] )
   rval = iFace->tag_get_handle( MATERIAL_SET_TAG_NAME, blockTag ); assert(!rval);
   rval = iFace->tag_get_handle( GEOM_DIMENSION_TAG_NAME, geomTag ); assert(!rval);
   rval = iFace->tag_get_handle( GLOBAL_ID_TAG_NAME, idTag ); assert(!rval);
-  rval = iFace->tag_create( PARALLEL_GEOM_TOPO_TAG_NAME, sizeof(int), 
-                           MB_TAG_SPARSE, pGeomTag, 0 ); assert(!rval);
-  rval = iFace->tag_create( PARALLEL_INTERFACE_TAG_NAME, 2*sizeof(int),
+  rval = iFace->tag_create( PARALLEL_SHARED_PROC_TAG_NAME, 2*sizeof(int),
                            MB_TAG_SPARSE, ifaceTag, 0 ); assert(!rval);
-  rval = iFace->tag_create( PARALLEL_GLOBAL_ID_TAG_NAME, sizeof(MBEntityHandle),
+  rval = iFace->tag_create( PARALLEL_GID_TAG_NAME, sizeof(MBEntityHandle),
                            MB_TAG_SPARSE, gidTag, 0 ); assert(!rval);
   
     // Get the list of geometry volumes this processor is to export
@@ -340,17 +338,6 @@ END_SERIAL;
     rval = iFace->tag_set_data( gidTag, &*all_iter, 1,  &*all_iter );  assert(!rval); 
   }
      
-    // Copy dimension from non-parallel geometry tag to parallel geometry tag
-  everything.clear();
-  iFace->get_entities_by_type_and_tag(  0, MBENTITYSET, &geomTag, 0, 1, everything );
-  for (riter = everything.begin(); riter != everything.end(); ++riter)
-  { 
-    int dim;
-    rval = iFace->tag_get_data( geomTag, &*riter, 1, &dim ); assert(!rval);
-    rval = iFace->tag_set_data( pGeomTag, &*riter, 1, &dim ); assert(!rval);
-  }
-
-
     // Write all the mesh in a single, serial file to compare with
     // the parallel output.
   if (0 == rank) {

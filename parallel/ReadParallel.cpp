@@ -108,6 +108,8 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
 
     case POPT_READ_DELETE:
       pa_vec.push_back(PA_READ);
+      pa_vec.push_back(PA_CHECK_GIDS_SERIAL);
+      pa_vec.push_back(PA_GET_FILESET_ENTS);
       pa_vec.push_back(PA_DELETE_NONLOCAL);
       break;
 

@@ -23,6 +23,7 @@ if USE_MPI
      MBParallelComm.cpp \
      MBParallelConventions.h \
      MBProcConfig.cpp \
+     MBParallelData.cpp \
      ReadParallel.cpp \
      crystal.c crystal.h errmem.h errmem.c \
      transfer.c gs.c gs.h tuple_list.c \
@@ -32,6 +33,7 @@ if USE_MPI
   MOAB_PARALLEL_HDRS += \
      MBParallelComm.hpp \
      MBProcConfig.hpp \
+     MBParallelData.hpp \
      ReadParallel.hpp 
 
 if PARALLEL_HDF5

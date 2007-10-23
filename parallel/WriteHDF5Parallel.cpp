@@ -274,9 +274,9 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
   remoteMesh.resize( numProc );
   
     // Get tag handles
-  result = iFace->tag_get_handle( PARALLEL_INTERFACE_TAG_NAME, iface_tag );
+  result = iFace->tag_get_handle( PARALLEL_SHARED_PROC_TAG_NAME, iface_tag );
   if (MB_SUCCESS != result) return result;
-  result = iFace->tag_get_handle( PARALLEL_GEOM_TOPO_TAG_NAME, geom_tag );
+  result = iFace->tag_get_handle( GEOM_DIMENSION_TAG_NAME, geom_tag );
   if (MB_SUCCESS != result) return result;
   
   
@@ -2068,7 +2068,7 @@ MBErrorCode WriteHDF5Parallel::communicate_remote_ids( MBEntityType type )
   assert(MPI_SUCCESS == result);
   
   MBTag global_id_tag;
-  rval = iFace->tag_get_handle( PARALLEL_GLOBAL_ID_TAG_NAME, global_id_tag );
+  rval = iFace->tag_get_handle( PARALLEL_GID_TAG_NAME, global_id_tag );
   assert(MB_SUCCESS == rval);
   
     // Set file IDs for each communicated entity
