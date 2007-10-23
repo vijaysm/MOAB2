@@ -27,25 +27,29 @@
 #include "MBWriteUtilIface.hpp"
 #include "FileOptions.hpp"
 
+#include "config.h"
+#ifdef MOAB_HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
+#ifdef MOAB_HAVE_STDDEF_H
+#include <stddef.h>
+#endif
+#ifdef MOAB_HAVE_STDINT_H
+#include <stdint.h>
+#endif
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
-#include <inttypes.h>
-#include <unistd.h>
 #include <math.h>
+#include <fcntl.h>
 
 #ifdef _MSC_VER /* windows */
-#  include <io.h>
-#  define O_BINARY _O_BINARY
-#  define O_CREAT  _O_CREAT
-#  define O_EXCL   _O_EXCL
-#  define O_TRUNC  _O_TRUNC
-#  define O_WRONLY _O_WRONLY
-#  define fdopen(A,B)  _fdopen( (A), (B) )
-#  define open(A,B,C)  _open( (A), (B), (C) )
+#  include <BaseTsd.h>
+typedef ULONG32 uint32_t;
 #else  /* posix */
-#  include <fcntl.h>
+#  include <unistd.h>
 #  define _S_IREAD  (S_IRUSR|S_IRGRP|S_IROTH)
 #  define _S_IWRITE (S_IWUSR|S_IWGRP|S_IWOTH)
 #endif
