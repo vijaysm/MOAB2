@@ -76,11 +76,6 @@ project( MOAB )
     find_package( MPI )
   endif ( MOAB_USE_MPI )
 
-  # HDF5
-  find_package( HDF5 )
-  if ( HDF5_FOUND )
-    check_function_exists( H5Pset_fapl_mpio MOAB_HDF_HAVE_PARALLEL )
-  endif ( HDF5_FOUND )
   # NetCDF
   # Documentation
   # Optional tools
@@ -96,23 +91,11 @@ project( MOAB )
   option ( MOAB_BUILD_MBSURFPLOT   "Build the mbsurfplot application?"    ON )
   option ( MOAB_BUILD_MBZOLTAN     "Build the mbzoltan partitioner?"      OFF )
   option ( MOAB_BUILD_DAGMC        "Build the dagmc tool?"                ON )
+
+  option ( MOAB_USE_HDF            "Include HDF I/O in the build?"        OFF )
+
   # iMesh
   option ( MOAB_BUILD_IMESH        "Build the iMesh interface?"           ON )
-
-  include( ${MOAB_SOURCE_DIR}/cmake/AutoconfHeader.cmake )
-  # Define some more variables so they will be substituted properly in the autoconf files.
-  set( MB_VERSION_MAJOR  ${MOAB_VERSION_MAJOR} )
-  set( MB_VERSION_MINOR  ${MOAB_VERSION_MINOR} )
-  set( MB_VERSION_PATCH  ${MOAB_VERSION_PATCH} )
-  set( MB_VERSION_STRING "\"${MOAB_VERSION_STRING}\"" )
-
-  # Best we can do for now since there's no config.h.in in the repository...
-  configure_file( ${MOAB_SOURCE_DIR}/config.h.cmake      ${MOAB_BINARY_DIR}/config.h )
-  # ... but the line below is what should *really* happen
-  #autoconf_header( ${MOAB_SOURCE_DIR}/config.h.in ${MOAB_BINARY_DIR}/config.h )
-
-  autoconf_header( ${MOAB_SOURCE_DIR}/MBVersion.h.in ${MOAB_BINARY_DIR}/MBVersion.h )
-  autoconf_header( ${MOAB_SOURCE_DIR}/MBEntityHandle.h.in ${MOAB_BINARY_DIR}/MBEntityHandle.h )
 
   # MOAB Library
   set ( MOAB_LIB_SRCS
@@ -168,33 +151,41 @@ project( MOAB )
     WriteTemplate.cpp
     WriteVtk.cpp
   )
-  set_source_files_properties( ${MOAB_LIB_SRCS}
-    COMPILE_FLAGS "-DIS_BUILDING_MB"
-  )
   include_directories(
     ${MOAB_SOURCE_DIR}
     ${MOAB_BINARY_DIR}
   )
+
+  if ( MOAB_USE_HDF )
+    # HDF5
+    find_package( HDF5 )
+    if ( HDF5_FOUND )
+      check_function_exists( H5Pset_fapl_mpio MOAB_HDF_HAVE_PARALLEL )
+      set ( MOAB_LIB_SRCS
+        ${MOAB_LIB_SRCS}
+        ReadHDF5.cpp
+        WriteHDF5.cpp
+      )
+      include_directories(
+        ${HDF5_INCLUDE_DIRECTORIES}
+        ${MOAB_SOURCE_DIR}/mhdf/include
+      )
+      add_subdirectory( mhdf )
+    endif ( HDF5_FOUND )
+  endif ( MOAB_USE_HDF )
+
+  set_source_files_properties( ${MOAB_LIB_SRCS}
+    COMPILE_FLAGS "-DIS_BUILDING_MB"
+  )
   add_library( moab
     ${MOAB_LIB_SRCS}
   )
-
-  if ( MOAB_USE_HDF )
-    set ( MOAB_MHDF_LIB_SRCS
-      ReadHDF5.cpp
-      WriteHDF5.cpp
-    )
-    include_directories(
-      ${HDF5_INCLUDE_DIRECTORIES}
-      ${MOAB_SOURCE_DIR}/mhdf/include
-    )
-    add_library( mhdf
-      ${MOAB_MHDF_LIB_SRCS}
-    )
-    target_link_libraries( mdf
+  if ( MOAB_USE_HDF AND HDF5_FOUND )
+    target_link_libraries( moab
+      mhdf
       ${HDF5_LIBRARIES}
     )
-  endif ( MOAB_USE_HDF )
+  endif ( MOAB_USE_HDF AND HDF5_FOUND )
 
   ## Tools/libraries dependent on MOAB:
 
@@ -212,5 +203,20 @@ project( MOAB )
   endif ( MOAB_BUILD_DAGMC )
 
   # iMesh Babel
+
+  include( ${MOAB_SOURCE_DIR}/cmake/AutoconfHeader.cmake )
+  # Define some more variables so they will be substituted properly in the autoconf files.
+  set( MB_VERSION_MAJOR  ${MOAB_VERSION_MAJOR} )
+  set( MB_VERSION_MINOR  ${MOAB_VERSION_MINOR} )
+  set( MB_VERSION_PATCH  ${MOAB_VERSION_PATCH} )
+  set( MB_VERSION_STRING "\"${MOAB_VERSION_STRING}\"" )
+
+  # Best we can do for now since there's no config.h.in in the repository...
+  configure_file( ${MOAB_SOURCE_DIR}/config.h.cmake      ${MOAB_BINARY_DIR}/config.h )
+  # ... but the line below is what should *really* happen
+  #autoconf_header( ${MOAB_SOURCE_DIR}/config.h.in ${MOAB_BINARY_DIR}/config.h )
+
+  autoconf_header( ${MOAB_SOURCE_DIR}/MBVersion.h.in ${MOAB_BINARY_DIR}/MBVersion.h )
+  autoconf_header( ${MOAB_SOURCE_DIR}/MBEntityHandle.h.in ${MOAB_BINARY_DIR}/MBEntityHandle.h )
 
 

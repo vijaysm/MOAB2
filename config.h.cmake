@@ -24,6 +24,7 @@
 #cmakedefine HDF5_FOUND
 #ifdef HDF5_FOUND
 #  define HAVE_HDF5_H
+#  define HDF5_FILE
 #endif /* HDF5_FOUND */
 
 /* Define to 1 if you have the <inttypes.h> header file. */
