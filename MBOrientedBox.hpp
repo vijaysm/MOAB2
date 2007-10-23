@@ -35,8 +35,9 @@ class MBRange;
 
 /**\brief Oriented bounding box
  */
-struct MBOrientedBox
+class MBOrientedBox
 {
+public:
   MBCartVect center;  //!< Box center
   MBCartVect axis[3]; //!< Box axes, unit vectors sorted by extent of box along axis
 #if MB_ORIENTED_BOX_UNIT_VECTORS
