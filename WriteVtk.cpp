@@ -406,29 +406,32 @@ void WriteVtk::write_data( std::ostream& stream,
   {
     for (unsigned j = 0; j < vals_per_tag; ++j, ++d)
     {
-      stream << *d << ' ';
+      if (sizeof(T) == 1) 
+        stream << (unsigned int)*d << ' ';
+      else
+        stream << *d << ' ';
     }
     stream << std::endl;
   }
 }
 
-template <>
-void WriteVtk::write_data<unsigned char>( std::ostream& stream, 
-                                          const std::vector<unsigned char>& data,
-                                          unsigned vals_per_tag )
-{
-  std::vector<unsigned char>::const_iterator d = data.begin();
-  const unsigned long n = data.size() / vals_per_tag;
-  
-  for (unsigned long i = 0; i < n; ++i)
-  {
-    for (unsigned j = 0; j < vals_per_tag; ++j, ++d)
-    {
-      stream << (unsigned int)*d << ' ';
-    }
-    stream << std::endl;
-  }
-}
+//template <>
+//void WriteVtk::write_data<unsigned char>( std::ostream& stream, 
+//                                          const std::vector<unsigned char>& data,
+//                                          unsigned vals_per_tag )
+//{
+//  std::vector<unsigned char>::const_iterator d = data.begin();
+//  const unsigned long n = data.size() / vals_per_tag;
+//  
+//  for (unsigned long i = 0; i < n; ++i)
+//  {
+//    for (unsigned j = 0; j < vals_per_tag; ++j, ++d)
+//    {
+//      stream << (unsigned int)*d << ' ';
+//    }
+//    stream << std::endl;
+//  }
+//}
 
 
 template <typename T>
