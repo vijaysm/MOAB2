@@ -27,7 +27,7 @@
 #include "MBRange.hpp"
 #include "FileOptions.hpp"
 
-#include "config.h"
+#include "MBEntityHandle.h"
 #ifdef MOAB_HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
