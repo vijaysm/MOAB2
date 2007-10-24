@@ -1,6 +1,9 @@
 #ifndef MB_ENTITY_HANDLE_H
 #define MB_ENTITY_HANDLE_H
 
+/* If config.h has already been included, skip this bit. */
+#ifndef PACKAGE
+
 /* Are we building with HDF? */
 /* autoconf may only set HAVE_HDF5_H and not HDF5_FOUND. */
 /* CMake may only set HDF5_FOUND. Having either implies HDF5_FILE */
@@ -39,6 +42,14 @@
 
 /* System provides size_t typedef */
 #undef MOAB_HAVE_SIZE_T
+
+#endif /* Already had config.h */
+
+/* Built with MPI? */
+#undef MOAB_USE_MPI
+#ifdef MOAB_USE_MPI
+#  define USE_MPI
+#endif /* MOAB_USE_MPI */
 
 #ifdef MOAB_HAVE_INTTYPES_H
 # include <inttypes.h>

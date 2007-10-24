@@ -72,9 +72,7 @@ project( MOAB )
 
   # MPI
   option ( MOAB_USE_MPI "Should MOAB be compiled with MPI support?" OFF )
-  if ( MOAB_USE_MPI )
-    find_package( MPI )
-  endif ( MOAB_USE_MPI )
+  option ( MOAB_USE_HDF            "Include HDF I/O in the build?"        OFF )
 
   # NetCDF
   # Documentation
@@ -91,8 +89,6 @@ project( MOAB )
   option ( MOAB_BUILD_MBSURFPLOT   "Build the mbsurfplot application?"    ON )
   option ( MOAB_BUILD_MBZOLTAN     "Build the mbzoltan partitioner?"      OFF )
   option ( MOAB_BUILD_DAGMC        "Build the dagmc tool?"                ON )
-
-  option ( MOAB_USE_HDF            "Include HDF I/O in the build?"        OFF )
 
   # iMesh
   option ( MOAB_BUILD_IMESH        "Build the iMesh interface?"           ON )
@@ -174,18 +170,37 @@ project( MOAB )
     endif ( HDF5_FOUND )
   endif ( MOAB_USE_HDF )
 
+  if ( MOAB_USE_MPI )
+    find_package( MPI )
+    # CMake FindMPI script is sorely lacking:
+    if ( MPI_LIBRARY AND MPI_INCLUDE_PATH )
+      set( MPI_FOUND 1 )
+    endif ( MPI_LIBRARY AND MPI_INCLUDE_PATH )
+
+    if ( MPI_FOUND )
+      include_directories(
+        ${MPI_INCLUDE_PATH}
+        ${MOAB_SOURCE_DIR}/parallel
+      )
+    endif ( MPI_FOUND )
+  endif ( MOAB_USE_MPI )
+
   set_source_files_properties( ${MOAB_LIB_SRCS}
     COMPILE_FLAGS "-DIS_BUILDING_MB"
   )
-  add_library( moab
+  add_library( MOAB
     ${MOAB_LIB_SRCS}
   )
   if ( MOAB_USE_HDF AND HDF5_FOUND )
-    target_link_libraries( moab
+    target_link_libraries( MOAB
       mhdf
       ${HDF5_LIBRARIES}
     )
   endif ( MOAB_USE_HDF AND HDF5_FOUND )
+
+  if ( MOAB_USE_MPI AND MPI_FOUND )
+    add_subdirectory( parallel )
+  endif ( MOAB_USE_MPI AND MPI_FOUND )
 
   ## Tools/libraries dependent on MOAB:
 

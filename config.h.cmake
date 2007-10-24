@@ -20,13 +20,6 @@
 /* Define to 1 if you have the <gvc.h> header file. */
 #undef HAVE_GVC_H
 
-/* Define to 1 if you have the <hdf5.h> header file. */
-#cmakedefine HDF5_FOUND
-#ifdef HDF5_FOUND
-#  define HAVE_HDF5_H
-#  define HDF5_FILE
-#endif /* HDF5_FOUND */
-
 /* Define to 1 if you have the <inttypes.h> header file. */
 #cmakedefine HAVE_INTTYPES_H
 
@@ -105,6 +98,16 @@
 /* MOAB Version String */
 #define MB_VERSION_STRING "@MOAB_VERSION_STRING@"
 
+/* Skip the next bit if we've already included MBEntityHandle.h */
+#ifndef MB_ENTITY_HANDLE_H
+
+/* Define to 1 if you have the <hdf5.h> header file. */
+#cmakedefine HDF5_FOUND
+#ifdef HDF5_FOUND
+#  define HAVE_HDF5_H
+#  define HDF5_FILE
+#endif /* HDF5_FOUND */
+
 /* Use int32_t for handles */
 #cmakedefine MOAB_FORCE_32_BIT_HANDLES
 
@@ -131,6 +134,8 @@
 
 /* MOAB qualified HAVE_SYS_TYPES_H */
 #cmakedefine MOAB_HAVE_SYS_TYPES_H
+
+#endif /* Already included MBEntityHandle.h */
 
 /* Name of package */
 #define PACKAGE "${PROJECT_NAME}"
