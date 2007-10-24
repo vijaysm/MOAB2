@@ -70,11 +70,11 @@ project( MOAB )
     set ( MOAB_HAVE_PTRDIFF_T ${HAVE_PTRDIFF_T} )
   endif ( NOT MOAB_FORCE_64_BIT_HANDLES AND NOT MOAB_FORCE_32_BIT_HANDLES )
 
-  # MPI
-  option ( MOAB_USE_MPI "Should MOAB be compiled with MPI support?" OFF )
-  option ( MOAB_USE_HDF "Include HDF I/O in the build?"             OFF )
-
-  # NetCDF
+  # Build options
+  option ( MOAB_USE_MPI    "Should MOAB be compiled with MPI support?"       OFF )
+  option ( MOAB_USE_HDF    "Include HDF I/O in the build?"                   OFF )
+  option ( MOAB_USE_NETCDF "Include NetCDF support (ExodusII) in the build?" OFF )
+  
   # Documentation
   # Optional tools
   option ( MOAB_BUILD_MBCONVERT    "Build the MOAB mesh converter tool?"  ON )
@@ -155,6 +155,22 @@ project( MOAB )
     ${MOAB_BINARY_DIR}
   )
 
+  if ( MOAB_USE_NETCDF )
+    find_package( NetCDF )
+    if ( NetCDF_FOUND )
+      set ( MOAB_DEFINES "${MOAB_DEFINES} -DNETCDF_FILE" )
+      set ( MOAB_LIB_SRCS
+        ${MOAB_LIB_SRCS}
+        ReadNCDF.cpp
+        WriteNCDF.cpp
+        WriteSLAC.cpp
+      )
+      include_directories(
+        ${NetCDF_INCLUDE_DIRECTORIES}
+      )
+    endif ( NetCDF_FOUND )
+  endif ( MOAB_USE_NETCDF )
+
   if ( MOAB_USE_HDF )
     # HDF5
     find_package( HDF5 )
@@ -193,7 +209,6 @@ project( MOAB )
   set_source_files_properties( ${MOAB_LIB_SRCS}
     COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}"
   )
-  message( "MOAB_DEFINES=\"${MOAB_DEFINES}\"" )
   add_library( MOAB
     ${MOAB_LIB_SRCS}
   )
@@ -211,6 +226,11 @@ project( MOAB )
     )
   endif ( MOAB_USE_MPI AND MPI_FOUND )
 
+  if ( MOAB_USE_NETCDF AND NetCDF_FOUND )
+    target_link_libraries( MOAB
+      ${NetCDF_LIBRARIES}
+    )
+  endif ( MOAB_USE_NETCDF AND NetCDF_FOUND )
   ## Tools/libraries dependent on MOAB:
 
   # Zoltan
