@@ -267,6 +267,31 @@ project( MOAB )
 
   add_executable( moab_test MBTest.cpp )
   target_link_libraries( moab_test MOAB )
-  add_test( moab_test moab_test )
+  add_test( TestMOAB ${EXECUTABLE_OUTPUT_PATH}/moab_test -nostress )
   # FIXME: moab_test depends on: test/mb_big_test.g test/cell1.gen test/cell2.gen
+
+  add_executable( internals_test internals_test.cpp )
+  set_source_files_properties( internals_test.cpp
+    COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}" )
+  target_link_libraries( internals_test MOAB )
+  add_test( TestInternals ${EXECUTABLE_OUTPUT_PATH}/internals_test )
+
+  add_executable( homxform_test HomXform.cpp )
+  set_source_files_properties( HomXform.cpp
+    COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
+  target_link_libraries( homxform_test MOAB )
+  add_test( TestHomXform ${EXECUTABLE_OUTPUT_PATH}/homxform_test )
+
+  add_executable( scdseq_test scdseq_test.cpp )
+  set_source_files_properties( scdseq_test.cpp
+    COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}" )
+  target_link_libraries( scdseq_test MOAB )
+  add_test( TestSCDSeq ${EXECUTABLE_OUTPUT_PATH}/scdseq_test )
+
+  add_executable( tqdcfr Tqdcfr.cpp )
+  set_source_files_properties( Tqdcfr.cpp
+    COMPILE_FLAGS "-DTEST -DIS_BUILDING_MB ${MOAB_DEFINES}" )
+  target_link_libraries( tqdcfr MOAB )
+  add_test( TestTQDCFR ${EXECUTABLE_OUTPUT_PATH}/tqdcfr )
+
 
