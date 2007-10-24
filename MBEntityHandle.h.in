@@ -12,7 +12,7 @@
 #ifdef HDF5_FOUND
 #  define HAVE_HDF5_H
 #endif
-#ifdef HAVE_HDF5_H
+#if defined(HAVE_HDF5_H) && !defined(HDF5_FILE)
 #  define HDF5_FILE
 #endif
 
