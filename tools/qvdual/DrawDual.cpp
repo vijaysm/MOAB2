@@ -960,7 +960,7 @@ MBErrorCode DrawDual::make_vtk_cells(const MBRange &cell_range, const int dim,
   std::vector<GVEntity*> gv_cells;
   int cell_num;
   MBRange::iterator rit;
-  int cell_points[20];
+  vtkIdType cell_points[20];
   static int vtk_cell_type[] = {VTK_VERTEX, VTK_LINE, VTK_POLYGON};
 
   gv_cells.reserve(cell_range.size());
