@@ -72,7 +72,7 @@ project( MOAB )
 
   # MPI
   option ( MOAB_USE_MPI "Should MOAB be compiled with MPI support?" OFF )
-  option ( MOAB_USE_HDF            "Include HDF I/O in the build?"        OFF )
+  option ( MOAB_USE_HDF "Include HDF I/O in the build?"             OFF )
 
   # NetCDF
   # Documentation
@@ -92,6 +92,9 @@ project( MOAB )
 
   # iMesh
   option ( MOAB_BUILD_IMESH        "Build the iMesh interface?"           ON )
+
+  # Compiler defines... this should really be in a config file.
+  set( MOAB_DEFINES "" )
 
   # MOAB Library
   set ( MOAB_LIB_SRCS
@@ -156,6 +159,7 @@ project( MOAB )
     # HDF5
     find_package( HDF5 )
     if ( HDF5_FOUND )
+      set ( MOAB_DEFINES "${MOAB_DEFINES} -DHDF5_FILE" )
       check_function_exists( H5Pset_fapl_mpio MOAB_HDF_HAVE_PARALLEL )
       set ( MOAB_LIB_SRCS
         ${MOAB_LIB_SRCS}
@@ -178,6 +182,7 @@ project( MOAB )
     endif ( MPI_LIBRARY AND MPI_INCLUDE_PATH )
 
     if ( MPI_FOUND )
+      set ( MOAB_DEFINES "${MOAB_DEFINES} -DUSE_MPI" )
       include_directories(
         ${MPI_INCLUDE_PATH}
         ${MOAB_SOURCE_DIR}/parallel
@@ -186,8 +191,9 @@ project( MOAB )
   endif ( MOAB_USE_MPI )
 
   set_source_files_properties( ${MOAB_LIB_SRCS}
-    COMPILE_FLAGS "-DIS_BUILDING_MB"
+    COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}"
   )
+  message( "MOAB_DEFINES=\"${MOAB_DEFINES}\"" )
   add_library( MOAB
     ${MOAB_LIB_SRCS}
   )
@@ -200,6 +206,9 @@ project( MOAB )
 
   if ( MOAB_USE_MPI AND MPI_FOUND )
     add_subdirectory( parallel )
+    target_link_libraries( MOAB
+      MOABpar
+    )
   endif ( MOAB_USE_MPI AND MPI_FOUND )
 
   ## Tools/libraries dependent on MOAB:
@@ -226,12 +235,18 @@ project( MOAB )
   set( MB_VERSION_PATCH  ${MOAB_VERSION_PATCH} )
   set( MB_VERSION_STRING "\"${MOAB_VERSION_STRING}\"" )
 
-  # Best we can do for now since there's no config.h.in in the repository...
-  configure_file( ${MOAB_SOURCE_DIR}/config.h.cmake      ${MOAB_BINARY_DIR}/config.h )
-  # ... but the line below is what should *really* happen
-  #autoconf_header( ${MOAB_SOURCE_DIR}/config.h.in ${MOAB_BINARY_DIR}/config.h )
-
   autoconf_header( ${MOAB_SOURCE_DIR}/MBVersion.h.in ${MOAB_BINARY_DIR}/MBVersion.h )
   autoconf_header( ${MOAB_SOURCE_DIR}/MBEntityHandle.h.in ${MOAB_BINARY_DIR}/MBEntityHandle.h )
 
+
+# Testing
+  # Always build tests
+  enable_testing()
+  # Point to the input decks for the tests
+  configure_file( ${MOAB_SOURCE_DIR}/cmake/TestingConfig.h.in ${MOAB_BINARY_DIR}/testdir.h )
+
+  add_executable( moab_test MBTest.cpp )
+  target_link_libraries( moab_test MOAB )
+  add_test( moab_test moab_test )
+  # FIXME: moab_test depends on: test/mb_big_test.g test/cell1.gen test/cell2.gen
 
