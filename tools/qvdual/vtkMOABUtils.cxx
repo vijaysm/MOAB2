@@ -124,7 +124,7 @@ MBTag vtkMOABUtils::globalIdTag = 0;
 MBTag vtkMOABUtils::categoryTag = 0;
 
 bool vtkMOABUtils::debug = false;
-    
+
 //vtkStandardNewMacro(vtkMOABUtils);
   
 MBErrorCode vtkMOABUtils::init(MBInterface *impl, vtkRenderer *this_ren)
