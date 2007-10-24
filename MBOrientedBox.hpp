@@ -92,25 +92,25 @@ public:
                                             const MBRange& elements );
 
     /** Structure to hold temporary accumulated triangle data for
-     *  caculating box orietation.  See box_from_covarience_data
-     *  to see how this is used to calculate the final covarience matrix
+     *  caculating box orietation.  See box_from_covariance_data
+     *  to see how this is used to calculate the final covariance matrix
      *  and resulting box orientation.
      */
   struct CovarienceData {
-    MBMatrix3 matrix;    //!< Running sum for covarience matrix
+    MBMatrix3 matrix;    //!< Running sum for covariance matrix
     MBCartVect center;   //!< Sum of triangle centroids weighted by 2*triangle area
     double area;         //!< 2x the sum of the triangle areas
   };
   
     /** Calculate a CovarienceData struct from a list of triangles */
-  static MBErrorCode covarience_data_from_tris( CovarienceData& result,
+  static MBErrorCode covariance_data_from_tris( CovarienceData& result,
                                                 MBInterface* moab_instance,
                                                 const MBRange& elements );
   
     /** Calculate an MBOrientedBox given an arrray of CovarienceData and 
      *  the list  of vertices the box is to bound.
      */
-  static MBErrorCode compute_from_covarience_data( MBOrientedBox& result,
+  static MBErrorCode compute_from_covariance_data( MBOrientedBox& result,
                                           MBInterface* moab_instance,
                                           const CovarienceData* orient_array,
                                           unsigned orient_array_length,
@@ -145,7 +145,7 @@ public:
     /** Calculate an MBOrientedBox given a CovarienceData struct and
      *  the list of points the box is to bound.
      */
-  static MBErrorCode compute_from_covarience_data( MBOrientedBox& result,
+  static MBErrorCode compute_from_covariance_data( MBOrientedBox& result,
                                           MBInterface* moab_instance,
                                           CovarienceData& orientation_data,
                                           const MBRange& vertices );

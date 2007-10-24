@@ -143,7 +143,7 @@ MBErrorCode MBOrientedBoxTreeTool::join_trees( const MBRange& sets,
     data.push_back( SetData() );
     SetData& set_data = data.back();
     set_data.handle = *i;
-    rval = MBOrientedBox::covarience_data_from_tris( set_data.box_data, instance, elements );
+    rval = MBOrientedBox::covariance_data_from_tris( set_data.box_data, instance, elements );
     if (MB_SUCCESS != rval)
       return rval;
   }
@@ -342,7 +342,7 @@ MBErrorCode MBOrientedBoxTreeTool::build_sets( std::list<SetData>& sets,
     if (MB_SUCCESS != rval)
       return rval;
     
-    rval = MBOrientedBox::compute_from_covarience_data( box, instance, &data[0], data.size(), points );
+    rval = MBOrientedBox::compute_from_covariance_data( box, instance, &data[0], data.size(), points );
     if (MB_SUCCESS != rval)
       return rval;
   }

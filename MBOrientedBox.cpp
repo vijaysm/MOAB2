@@ -300,7 +300,7 @@ MBErrorCode MBOrientedBox::compute_from_vertices( MBOrientedBox& result,
   return box_from_axes( result, instance, vertices );
 }
 
-MBErrorCode MBOrientedBox::covarience_data_from_tris( CovarienceData& result,
+MBErrorCode MBOrientedBox::covariance_data_from_tris( CovarienceData& result,
                                                  MBInterface* instance,
                                                  const MBRange& elements )
 {
@@ -354,7 +354,7 @@ MBErrorCode MBOrientedBox::compute_from_2d_cells( MBOrientedBox& result,
 {
     // Get orientation data from elements
   CovarienceData data;
-  MBErrorCode rval = covarience_data_from_tris( data, instance, elements );
+  MBErrorCode rval = covariance_data_from_tris( data, instance, elements );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -365,10 +365,10 @@ MBErrorCode MBOrientedBox::compute_from_2d_cells( MBOrientedBox& result,
     return rval;
     
     // Calculate box given points and orientation data
-  return compute_from_covarience_data( result, instance, data, points );
+  return compute_from_covariance_data( result, instance, data, points );
 }
 
-MBErrorCode MBOrientedBox::compute_from_covarience_data(
+MBErrorCode MBOrientedBox::compute_from_covariance_data(
                                                 MBOrientedBox& result,
                                                 MBInterface* instance,
                                                 CovarienceData& data,
@@ -413,7 +413,7 @@ bool MBOrientedBox::contained( const MBCartVect& point, double tol ) const
 #endif
 }
 
-MBErrorCode MBOrientedBox::compute_from_covarience_data( MBOrientedBox& result,
+MBErrorCode MBOrientedBox::compute_from_covariance_data( MBOrientedBox& result,
                                                 MBInterface* moab_instance,
                                                 const CovarienceData* data,
                                                 unsigned data_length,
@@ -427,7 +427,7 @@ MBErrorCode MBOrientedBox::compute_from_covarience_data( MBOrientedBox& result,
     data_sum.area += data->area;
   }
     // Compute box from sum of structs
-  return compute_from_covarience_data( result, moab_instance, data_sum, vertices );
+  return compute_from_covariance_data( result, moab_instance, data_sum, vertices );
 }
 
 
