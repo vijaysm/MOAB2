@@ -1095,23 +1095,31 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     
       // now do something with them...
 
-      // get the connectivity array
+      // get the connectivity array; be careful, the connectivity is stored
+      // in the file as ints, while the connect array is handles, which may
+      // be long; this will lead to problems on 64-bit machines
     int total_conn = num_elem * nodes_per_elem;
-    assert(sizeof(MBEntityHandle) == sizeof(int));
-    FREADIA(total_conn, reinterpret_cast<int*>(conn));
+    int *tmp_conn = reinterpret_cast<int*>(conn);
+    if (sizeof(MBEntityHandle) != sizeof(int))
+      tmp_conn = new int[total_conn];
+    
+    FREADIA(total_conn, tmp_conn);
 
       // post-process connectivity into handles
     MBEntityHandle new_handle, dum_handle;
     int dum_err;
     for (i = 0; i < total_conn; i++) {
       if (NULL == cubMOABVertexMap)
-        new_handle = CREATE_HANDLE(MBVERTEX, currNodeIdOffset+conn[i], dum_err);
-      else new_handle = (*cubMOABVertexMap)[conn[i]];
+        new_handle = CREATE_HANDLE(MBVERTEX, currNodeIdOffset+tmp_conn[i], dum_err);
+      else new_handle = (*cubMOABVertexMap)[tmp_conn[i]];
       assert(MB_SUCCESS == 
              mdbImpl->handle_from_id(MBVERTEX, mdbImpl->id_from_handle(new_handle), 
                                      dum_handle));
       conn[i] = new_handle;
     }
+
+    if (sizeof(MBEntityHandle) != sizeof(int))
+      delete [] tmp_conn;
 
       // add these elements into the entity's set
     MBRange dum_range(start_handle, start_handle+num_elem-1);
