@@ -382,6 +382,11 @@ MBErrorCode EntitySequenceManager::create_mesh_set( unsigned proc_id,
   return MB_SUCCESS;
 }
 
+//MBErrorCode EntitySequenceManager::allocate_handle( MBEntityHandle handle, unsigned flags ) 
+//{
+//  return MB_FAILURE;
+//}
+
 MBErrorCode EntitySequenceManager::allocate_mesh_set( MBEntityHandle handle, unsigned flags )
 {
   std::map<MBEntityHandle, MBEntitySequence*>::iterator seq_itr;

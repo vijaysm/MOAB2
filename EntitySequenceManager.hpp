@@ -108,12 +108,26 @@ public:
                              const double coords[3], 
                              MBEntityHandle& vertex );
 
+  //! creates a vertex in the database with specified id
+  MBErrorCode create_vertex( const unsigned processor_id,
+                             const unsigned entity_id,
+                             const double coords[3], 
+                             MBEntityHandle& vertex ) {return MB_FAILURE;}
+
   //! creates an element in the database
   MBErrorCode create_element( MBEntityType type, 
                               const unsigned processor_id,
                               const MBEntityHandle *conn_array,
                               const unsigned num_vertices,
                               MBEntityHandle& element);
+
+  //! creates an element in the database with specified id
+  MBErrorCode create_element( MBEntityType type, 
+                              const unsigned processor_id,
+                              const unsigned entity_id,
+                              const MBEntityHandle *conn_array,
+                              const unsigned num_vertices,
+                              MBEntityHandle& element) {return MB_FAILURE;}
 
   MBErrorCode create_mesh_set( unsigned proc_id,
                                unsigned flags,

@@ -103,6 +103,9 @@ public:
 
 protected:
 
+    //! allocate the handle passed in, effectively creating the entity
+  virtual MBErrorCode allocate_handle(MBEntityHandle handle) = 0;
+  
   EntitySequenceManager* mSequenceManager;
 
   //!id to 1st element in EntitySequence
@@ -162,6 +165,11 @@ public:
 
   virtual void get_memory_use( unsigned long& used, unsigned long& allocated ) const;
   virtual unsigned long get_memory_use( MBEntityHandle handle ) const;
+
+protected:
+    //! allocate the handle passed in, effectively creating the entity
+  virtual MBErrorCode allocate_handle(MBEntityHandle handle);
+  
 private:
 
   // coordinate arrays x,y,z
@@ -217,6 +225,9 @@ public:
   virtual unsigned long get_memory_use( MBEntityHandle handle ) const;
 
 protected:
+  
+    //! allocate the handle passed in, effectively creating the entity
+  virtual MBErrorCode allocate_handle(MBEntityHandle handle);
   
   unsigned short mNodesPerElement;
 

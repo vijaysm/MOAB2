@@ -53,7 +53,6 @@ MBEntitySequence::MBEntitySequence(EntitySequenceManager* seq_manager,
   mLastDeletedIndex = -1;
 }
 
-
 MBEntitySequence::~MBEntitySequence()
 { }
 
@@ -127,6 +126,11 @@ MBEntityHandle VertexEntitySequence::get_unused_handle()
     mLastDeletedIndex = -1;
 
   return new_handle;
+}
+
+MBErrorCode VertexEntitySequence::allocate_handle(MBEntityHandle handle) 
+{
+  return MB_FAILURE;
 }
 
 void VertexEntitySequence::free_handle(MBEntityHandle handle)
@@ -300,6 +304,11 @@ MBEntityHandle ElementEntitySequence::get_unused_handle()
     mLastDeletedIndex = -1;
 
   return new_handle;
+}
+
+MBErrorCode ElementEntitySequence::allocate_handle(MBEntityHandle handle) 
+{
+  return MB_FAILURE;
 }
 
 void ElementEntitySequence::free_handle(MBEntityHandle handle)

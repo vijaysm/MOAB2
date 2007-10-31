@@ -67,6 +67,10 @@ public:
   
   MBErrorCode is_valid() const;
   
+protected:
+    //! allocate the handle passed in, effectively creating the entity
+  virtual MBErrorCode allocate_handle(MBEntityHandle handle);
+  
 private:
 
   void initialize( EntitySequenceManager* seq_man,

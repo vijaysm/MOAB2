@@ -83,8 +83,7 @@ MBEntityHandle MeshSetSequence::get_unused_handle()
   return 0;
 }
 
-
-MBErrorCode MeshSetSequence::add_meshset( MBEntityHandle handle, unsigned flags )
+MBErrorCode MeshSetSequence::add_meshset(MBEntityHandle handle, unsigned flags) 
 {
   if (handle < get_start_handle() || handle > get_end_handle())
     return MB_INDEX_OUT_OF_RANGE;
@@ -115,16 +114,21 @@ MBErrorCode MeshSetSequence::add_meshset( MBEntityHandle handle, unsigned flags 
   
     // initialze entity set
   allocate_set( flags, index );
+
   mNumEntities++;
   if (mNumEntities == mNumAllocated) {
     mSequenceManager->notify_full(this);
     std::vector<bool> empty;
     mFreeEntities.swap( empty);
   }
-  
+
   return MB_SUCCESS;
 }
-  
+
+MBErrorCode MeshSetSequence::allocate_handle(MBEntityHandle handle) 
+{
+  return MB_FAILURE;
+}
 
 MBEntityHandle MeshSetSequence::add_meshset( unsigned flags )
 {

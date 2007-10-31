@@ -2324,13 +2324,32 @@ bool MBCore::replace_entities(MBEntityHandle meshset,
                               MBEntityHandle *entities,
                               int num_entities) 
 {
-  if (0 == meshset) return false;
+  return false;
+    /*
+    // if a regular entity set, we're simply changing contents of this set
+  if (0 != meshset) {
   
-  MBMeshSet* set = get_mesh_set( sequence_manager(), meshset );
-  if (set)
-    return set->replace_entities( meshset, entities, num_entities, a_entity_factory() );
-  else
-    return false;
+    MBMeshSet* set = get_mesh_set( sequence_manager(), meshset );
+    if (set)
+      return set->replace_entities( meshset, entities, num_entities, a_entity_factory() );
+    else
+      return false;
+  }
+
+    // otherwise, we're actually changing an entity's handle
+    // in preparation, get all the non-tracking sets 
+  MBRange tmp_sets, all_sets;
+  MBErrorCode result = get_entities_by_type(0, MBENTITYSET, tmp_sets);
+  if (MB_SUCCESS != result) return result;
+  unsigned int option;
+  for (MBRange::iterator rit = tmp_sets.begin(); rit != tmp_sets.end(); rit++)
+    if (MB_SUCCESS == get_meshset_options(*rit, option) &&
+        !(option & MESHSET_TRACK_OWNER)) 
+      all_sets.insert(*rit);
+  
+    // now replace each entity
+  double coords[3];
+    */
 }
 
 MBErrorCode MBCore::get_parent_meshsets(const MBEntityHandle meshset,
