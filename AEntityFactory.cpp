@@ -454,63 +454,63 @@ MBErrorCode AEntityFactory::remove_all_adjacencies(MBEntityHandle base_entity,
 
   if (TYPE_FROM_HANDLE(base_entity) == MBENTITYSET) 
     return thisMB->clear_meshset(&base_entity, 1);
+  const int base_ent_dim = MBCN::Dimension( TYPE_FROM_HANDLE( base_entity ) );
 
-    // clean out explicit adjacencies to this entity first
-  for (int dim = 1; dim < thisMB->dimension_from_handle(base_entity); dim++) {
-    MBRange ents;
-    result = thisMB->get_adjacencies(&base_entity, 1, dim, false, ents);
-    if (MB_SUCCESS != result && MB_MULTIPLE_ENTITIES_FOUND != result) continue;
-    for (MBRange::iterator rit = ents.begin(); rit != ents.end(); rit++) {
-      if (explicitly_adjacent(*rit, base_entity))
-        remove_adjacency(*rit, base_entity);
-    }
-  }
-  
-    // clear out vertex-entity adjacencies next
-  MBErrorCode tmp_result;
-  if (vert_elem_adjacencies()) {
-    std::vector<MBEntityHandle> verts;
-    if (TYPE_FROM_HANDLE(base_entity) == MBPOLYHEDRON)
-      tmp_result = get_adjacencies(base_entity, 0, false, verts);
-    else
-      tmp_result = thisMB->get_connectivity(&base_entity, 1, verts);
-    if (tmp_result == MB_SUCCESS) {
-      for (std::vector<MBEntityHandle>::iterator vit = verts.begin(); vit != verts.end(); vit++) {
-        tmp_result = remove_adjacency(*vit, base_entity);
-        if (MB_SUCCESS != tmp_result) result = tmp_result;
+    // Remove adjacencies from element vertices back to 
+    // this element.  Also check any elements adjacent
+    // to the vertex and of higher dimension than this
+    // element for downward adjacencies to this element.
+  if (vert_elem_adjacencies() && TYPE_FROM_HANDLE(base_entity) != MBVERTEX) {
+    MBEntityHandle const *connvect = 0, *adjvect = 0;
+    int numconn = 0, numadj = 0;
+    std::vector<MBEntityHandle> connstorage;
+    result = thisMB->get_connectivity( base_entity, connvect, numconn, false, &connstorage );
+    if (MB_SUCCESS != result) 
+      return result;
+    
+    for (int i = 0; i < numconn; ++i) {
+      result = get_adjacencies( connvect[i], adjvect, numadj );
+      if (MB_SUCCESS != result)
+        return result;
+      
+      bool remove_this = false;
+      for (int j = 0; j < numadj; ++j) {
+        if (adjvect[j] == base_entity)
+          remove_this = true;
+        
+        if (MBCN::Dimension(TYPE_FROM_HANDLE(adjvect[j])) > base_ent_dim 
+         && explicitly_adjacent( adjvect[j], base_entity )) 
+          remove_adjacency( adjvect[j], base_entity );
       }
+      
+      if (remove_this)
+        remove_adjacency( connvect[i], base_entity );
     }
   }
   
   // get the adjacency tag
-  MBAdjacencyVector *adj_list = NULL;
-
-  // get the adjacency data list
+  MBAdjacencyVector *adj_list = 0;
   result = mDensePageGroup.get_data(base_entity, &adj_list);
-
-    // workaround - if a dense page hasn't been allocated, it won't have an adjacency tag,
-    // even if that tag was assigned a default value; just return success for now
-  if (result == MB_TAG_NOT_FOUND)
+  if (MB_TAG_NOT_FOUND == result || !adj_list)
     return MB_SUCCESS;
-  else if (adj_list == NULL || MB_SUCCESS != result)
+  if (MB_SUCCESS != result)
     return result;
-
-  for (MBAdjacencyVector::reverse_iterator it = adj_list->rbegin(); it != adj_list->rend(); it++) {
-    tmp_result = remove_adjacency(*it, base_entity);
-    if (MB_SUCCESS != tmp_result) result = tmp_result;
-  }
-
-    // delete or empty the adjacency list
-  if (delete_adj_list) {
-    delete adj_list;
-    adj_list = NULL;
-    result = mDensePageGroup.set_data(base_entity, &adj_list);
-  }
   
-  else
-    adj_list->clear();
+  
+    // check adjacent entities for references back to this entity
+  for (MBAdjacencyVector::reverse_iterator it = adj_list->rbegin(); it != adj_list->rend(); ++it) 
+    remove_adjacency( *it, base_entity );
+  
+  adj_list->clear();
+  if (delete_adj_list) {
+    MBAdjacencyVector* const null_ptr = 0;
+    result = mDensePageGroup.set_data( base_entity, &null_ptr );
+    if (MB_SUCCESS != result)
+      return result;
+    delete adj_list;
+  }
 
-  return result;
+  return MB_SUCCESS;
 }
 
 MBErrorCode AEntityFactory::create_vert_elem_adjacencies()
