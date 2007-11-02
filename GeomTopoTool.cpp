@@ -25,16 +25,15 @@ MBErrorCode GeomTopoTool::restore_topology()
   
     // look for geometric topology sets and restore parent/child links between them
     // algorithm:
-    // - for each entity
-    //   . get nodes inclusive in range and store as tag on entity
-    // - for each entity of dimension, starting low & working upward:
-    //   . for each vertex: if part of boundary:
-    //     - get all connected entities of dim d-1
-    //     - look for intersections in ranges of (d-1)-entities with d-entity (whole intersection)
-    //     - if whole intersection, make parent/child link between (d-1)- and d-entities
+    // - for each entity of dimension d=D-1..0:
+    //   . get d-dimensional entity in entity
+    //   . get all (d+1)-dim adjs to that entity
+    //   . for each geom entity if dim d+1, if it contains any of the ents,
+    //     add it to list of parents
+    //   . make parent/child links with parents
 
     // get the geom topology tag
-  MBTag geom_tag, verts_tag;
+  MBTag geom_tag;
   MBErrorCode result = mdbImpl->tag_create(GEOM_DIMENSION_TAG_NAME, 4, 
                                             MB_TAG_SPARSE, geom_tag, NULL);
   if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result)
@@ -47,98 +46,45 @@ MBErrorCode GeomTopoTool::restore_topology()
   if (MB_SUCCESS != result || geom_sets.empty()) 
     return result;
 
-    // create the tag holding the vertex ranges
-  MBRange *dum = NULL;
-  result = mdbImpl->tag_create("__vertex_range", sizeof(MBRange*), MB_TAG_SPARSE, verts_tag, &dum);
-  if (MB_SUCCESS != result)
-    return result;
-
-  result = construct_vertex_ranges(geom_sets, verts_tag);
-  if (MB_SUCCESS != result)
-    return result;
-
   MBRange entities[4];
   result = separate_by_dimension(geom_sets, entities, geom_tag);
   if (MB_SUCCESS != result)
     return result;
   
+  std::vector<MBEntityHandle> dp1ents;
+
     // loop over dimensions
-  std::vector<MBRange*> dm1_ranges, d_ranges, d0_ranges;
-  MBRange::iterator d_it, v_it;
-  std::vector<MBRange*>::iterator d_rit, v_rit;
-  MBRange inters;
-  std::vector<MBEntityHandle> dm1_ents;
-  MBRange real_dm1_ents;
+  for (int dim = 2; dim >= 0; dim--) {
+    for (MBRange::iterator d_it = entities[dim].begin(); 
+         d_it != entities[dim].end(); d_it++) {
+      MBRange dents;
+      result = mdbImpl->get_entities_by_dimension(*d_it, dim, dents);
+      if (MB_SUCCESS != result) continue;
+      if (dents.empty()) continue;
+      
+        // get (d+1)-dimensional adjs
+      dp1ents.clear();
+      result = mdbImpl->get_adjacencies(&(*dents.begin()), 1, dim+1, 
+                                        false, dp1ents);
+      if (MB_SUCCESS != result || dp1ents.empty()) continue;
 
-    // pre-load d_ranges with vertex ranges
-  d_ranges.resize(entities[0].size());
-  result = mdbImpl->tag_get_data(verts_tag, entities[0], &d_ranges[0]);
-  if (MB_SUCCESS != result)
-    return result;
-  d0_ranges = d_ranges;
-  
-  for (int dim = 1; dim <= 3; dim++) {
+    //   . for each geom entity if dim d+1, if it contains any of the ents,
+    //     add it to list of parents
 
-        // get the range * for these entities
-    dm1_ranges.swap(d_ranges);
-    d_ranges.resize(entities[dim].size());
-    result = mdbImpl->tag_get_data(verts_tag, entities[dim], &d_ranges[0]);
-    if (MB_SUCCESS != result)
-      return result;
-    
-    for (d_it = entities[dim].begin(), d_rit = d_ranges.begin(); 
-         d_it != entities[dim].end(); d_it++, d_rit++) {
-
-        // iterate over vertices, finding any with intersected ranges
-        //dm1_ents.clear();
-      real_dm1_ents.clear();
-      for (v_it = entities[dim-1].begin(), v_rit = dm1_ranges.begin(); 
-           v_it != entities[dim-1].end(); v_it++, v_rit++) {
-        inters = (*v_rit)->intersect(*(*d_rit));
-        if (!inters.empty() && inters.size() == (*v_rit)->size()) {
-            // non-zero intersection; get possible parent sets
-/*
-          if (dim == 1) dm1_ents.push_back(*v_it);
-          else {
-            result = mdbImpl->get_parent_meshsets(*v_it, dm1_ents);
-            if (MB_SUCCESS != result)
-              return result;
-          }
-*/
-          real_dm1_ents.insert(*v_it);
-        }
-      }
-
-/*
-        // ok, we have possible children; check for real overlap, but only
-        // if we're not doing edges
-      if (dim == 1) std::copy(dm1_ents.begin(), dm1_ents.end(),
-                              mb_range_inserter(real_dm1_ents));
-      else {
-          // reuse v_it, v_rit here
-        for (v_it = entities[dim-1].begin(), v_rit = dm1_ranges.begin();
-             v_it != entities[dim-1].end(); v_it++, v_rit++) {
-
-            // if this isn't one of the possible dm1 entities, go on
-          if (std::find(dm1_ents.begin(), dm1_ents.end(), *v_it) == dm1_ents.end())
-            continue;
-
-            // check for real overlap
-          inters = (*v_rit)->intersect(*(*d_rit));
-          if (!inters.empty()) real_dm1_ents.insert(*v_it);
-        }
-      }
-  
-*/    
-        // ok, we have the real children; add parent/child links; reuse v_it again
-      for (v_it = real_dm1_ents.begin(); v_it != real_dm1_ents.end(); v_it++) {
-        result = mdbImpl->add_parent_child(*d_it, *v_it);
-        if (MB_SUCCESS != result)
-          return result;
+      MBRange parents;      
+      for (MBRange::iterator git = entities[dim+1].begin(); 
+           git != entities[dim+1].end(); git++) {
+        if (mdbImpl->contains_entities(*git, &dp1ents[0], 
+                                       dp1ents.size()))
+          parents.insert(*git);
       }
       
-        
-    } // d_it
+    //   . make parent/child links with parents
+      for (MBRange::iterator pit = parents.begin(); pit != parents.end(); pit++) {
+        result = mdbImpl->add_parent_child(*pit, *d_it);
+      }
+    }
+    
   } // dim
 
   return result;

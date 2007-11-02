@@ -2318,6 +2318,19 @@ MBErrorCode MBCore::remove_entities( MBEntityHandle meshset,
     return MB_ENTITY_NOT_FOUND;
 }
 
+    //! return true if all entities are contained in set
+bool MBCore::contains_entities(MBEntityHandle meshset, 
+                               MBEntityHandle *entities,
+                               int num_entities, 
+                               const int operation_type)
+{
+  MBMeshSet* set = get_mesh_set( sequence_manager(), meshset );
+  if (set)
+    return set->contains_entities(entities, num_entities, operation_type);
+  else
+    return false;
+}
+
 // replace entities in a meshset; entities appear in pairs,
 // old then new entity in each pair
 bool MBCore::replace_entities(MBEntityHandle meshset, 

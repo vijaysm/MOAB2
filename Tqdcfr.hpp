@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
+#include <map>
 
 class MBReadUtilIface;
 class FEModelHeader;
@@ -276,6 +277,8 @@ public:
   int currElementIdOffset[MBMAXTYPE];
   MBTag globalIdTag, cubIdTag, geomTag, uniqueIdTag, blockTag, nsTag, ssTag,
     attribVectorTag, entityNameTag, categoryTag;
+  std::map<int, MBEntityHandle> uidSetMap;
+  std::map<int, MBEntityHandle> gidSetMap[6];
 
   std::vector<int> int_buf;
   std::vector<double> dbl_buf;
@@ -345,7 +348,7 @@ private:
 
     // map between cub ids and MOAB handles
   std::vector<MBEntityHandle> *cubMOABVertexMap;
-  
+
     // enum used to identify element/entity type in groups
   enum {GROUP = 0, BODY, VOLUME, SURFACE, CURVE, VERTEX, HEX, TET, PYRAMID, QUAD, TRI, EDGE, NODE};
   static const MBEntityType group_type_to_mb_type[];

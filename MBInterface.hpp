@@ -1272,6 +1272,19 @@ public:
                                       const MBEntityHandle *entities,
                                       const int num_entities) = 0;
 
+    //! Return whether a set contains entities
+    /** Return whether a set contains entities.  Returns true only
+     * if ALL entities are contained
+     * \param meshset Mesh set being queried
+     * \param entities Entities being queried
+     * \param num_entities Number of entities
+     * \return bool If true, all entities are contained in set
+    */
+  virtual bool contains_entities(MBEntityHandle meshset, 
+                                 MBEntityHandle *entities,
+                                 int num_entities,
+                                 const int operation_type = MBInterface::INTERSECT) = 0;
+
     //! Replace entities in a set with other entities
     /** Replace entities in a set with other entities; entity list
      * specified in pairs of (old, new)

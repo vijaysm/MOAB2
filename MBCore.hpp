@@ -767,6 +767,13 @@ public:
                                        const MBEntityHandle *entities,
                                        const int num_entities);
 
+    //! return true if all entities are contained in set
+  virtual bool contains_entities(MBEntityHandle meshset, 
+                                 MBEntityHandle *entities,
+                                 int num_entities,
+                                 const int operation_type = MBInterface::INTERSECT);
+
+    //! replace entities
   virtual bool replace_entities(MBEntityHandle meshset, 
                                 MBEntityHandle *entities,
                                 int num_entities);

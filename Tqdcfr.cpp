@@ -831,29 +831,10 @@ MBErrorCode Tqdcfr::get_ref_entities(const int this_type,
                                      int *id_buf, const int id_buf_size,
                                      std::vector<MBEntityHandle> &entities) 
 {
-  MBErrorCode result = MB_SUCCESS;
-  MBTag tags[2] = {geomTag, globalIdTag};
-  int tag_vals[2];
-  const void *tag_vals_ptr[2] = {tag_vals, tag_vals+1};
-  if (this_type == GROUP || this_type == BODY) tag_vals[0] = 4;
-  else tag_vals[0] = 5 - this_type;
+  for (int i = 0; i < id_buf_size; i++)
+    entities.push_back((gidSetMap[5-this_type])[id_buf[i]]);
   
-  MBRange tmp_ents;
-  
-  for (int i = 0; i < id_buf_size; i++) {
-    tmp_ents.clear();
-      // set id tag value
-    tag_vals[1] = id_buf[i];
-    
-    MBErrorCode tmp_result = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, tags, 
-                                                                   tag_vals_ptr, 2, tmp_ents);
-    if (MB_SUCCESS != tmp_result && MB_TAG_NOT_FOUND != tmp_result) result = tmp_result;
-    
-    if (MB_SUCCESS == tmp_result && tmp_ents.size() == 1)
-      entities.push_back(*tmp_ents.begin());
-  }
-
-  return result;
+  return MB_SUCCESS;
 }
 
 MBErrorCode Tqdcfr::get_mesh_entities(const int this_type, 
@@ -1373,10 +1354,6 @@ MBErrorCode Tqdcfr::GeomHeader::read_info_header(const int model_offset,
 
   for (int i = 0; i < info.numEntities; i++) {
 
-      // create an entity set for this entity
-    result = instance->create_set(geom_headers[i].setHandle);
-    if (MB_SUCCESS != result) return result;
-    
     instance->FREADI(8);
     geom_headers[i].nodeCt = instance->int_buf[0];
     geom_headers[i].nodeOffset = instance->int_buf[1];
@@ -1386,6 +1363,14 @@ MBErrorCode Tqdcfr::GeomHeader::read_info_header(const int model_offset,
     geom_headers[i].elemLength = instance->int_buf[5];
     geom_headers[i].geomID = instance->int_buf[6];
 
+      // don't represent in MOAB if no mesh
+    if (geom_headers[i].nodeCt == 0 && geom_headers[i].elemCt == 0)
+      continue;
+    
+      // create an entity set for this entity
+    result = instance->create_set(geom_headers[i].setHandle);
+    if (MB_SUCCESS != result) return result;
+    
       // set the dimension to -1; will have to reset later, after elements are read
     dum_int = -1;
     result = instance->mdbImpl->tag_set_data(instance->geomTag, 
@@ -1397,6 +1382,9 @@ MBErrorCode Tqdcfr::GeomHeader::read_info_header(const int model_offset,
                                              &(geom_headers[i].setHandle), 1, 
                                              &(geom_headers[i].geomID));
     if (MB_SUCCESS != result) return result;
+
+      // put the set and uid into a map for later
+    instance->uidSetMap[geom_headers[i].geomID] = geom_headers[i].setHandle;
   }
 
   return MB_SUCCESS;
@@ -1444,8 +1432,8 @@ MBErrorCode Tqdcfr::GroupHeader::read_info_header(const int model_offset,
                                              &(group_headers[i].setHandle), 1, 
                                              &(group_headers[i].grpID));
     if (MB_SUCCESS != result) return result;
-        
-    break;
+
+    instance->gidSetMap[5][group_headers[i].grpID] = group_headers[i].setHandle;
   }
 
   return MB_SUCCESS;
@@ -2016,21 +2004,21 @@ MBErrorCode Tqdcfr::parse_acis_attribs(const int entity_rec_num,
   
     // parsed the data; now put on mdb entities; first we need to find the entity
   if (records[entity_rec_num].entity == 0) {
-      // get the choices of entity
-    MBRange entities;
-    if (uid == -1) return MB_FAILURE;
-    const void *dum_ptr = &uid;
-    result = mdbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &uniqueIdTag, 
-                                                   &dum_ptr, 1, entities);
-    if (MB_SUCCESS != result) return result;
-    if (entities.size() != 1) return MB_FAILURE;
-    else records[entity_rec_num].entity = *entities.begin();
+    records[entity_rec_num].entity = uidSetMap[uid];
   }
   
     // set the id
   if (id != -1) {
     result = mdbImpl->tag_set_data(globalIdTag, &(records[entity_rec_num].entity), 1, &id);
     if (MB_SUCCESS != result) return result;
+
+    int ent_dim = -1;
+    if (records[entity_rec_num].rec_type == aBODY) ent_dim = 4;
+    else if (records[entity_rec_num].rec_type == LUMP) ent_dim = 3;
+    else if (records[entity_rec_num].rec_type == FACE) ent_dim = 2;
+    else if (records[entity_rec_num].rec_type == aEDGE) ent_dim = 1;
+    else if (records[entity_rec_num].rec_type == aVERTEX) ent_dim = 0;
+    if (-1 != ent_dim) gidSetMap[ent_dim][id] = records[entity_rec_num].entity;
   }
   
     // set the name

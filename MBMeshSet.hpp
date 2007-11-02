@@ -34,6 +34,7 @@
 
 #include "MBTypes.h"
 #include "MBRange.hpp"
+#include "MBInterface.hpp"
 #include "MBCN.hpp"
 
 #include <vector>
@@ -165,7 +166,11 @@ public:
       MBRange& entity_list) const;
       
   inline MBErrorCode get_non_set_entities( MBRange& range ) const;
-    
+
+  inline bool contains_entities(MBEntityHandle *entities, 
+                                int num_entities,
+                                const int operation_type) const;
+  
   //! subtract/intersect/unite meshset_2 from/with/into meshset_1; modifies meshset_1
   inline MBErrorCode subtract(const MBMeshSet *meshset_2,
                                MBEntityHandle my_handle,
@@ -278,6 +283,10 @@ private:
   \
   inline MBErrorCode get_entities_by_dimension(int dimension,                          \
       MBRange& entity_list) const;                                                      \
+  \
+  inline bool contains_entities(MBEntityHandle *entities, \
+                                int num_entities, \
+                                const int operation_type) const; \
   \
   inline MBErrorCode get_non_set_entities( MBRange& range ) const; \
   \
@@ -460,6 +469,15 @@ MBMeshSet::get_non_set_entities( MBRange& entities ) const
     reinterpret_cast<const MBMeshSet_MBRange*>(this)->get_non_set_entities( entities ) ;
 }
   
+inline bool
+MBMeshSet::contains_entities(MBEntityHandle *entities, int num_entities,
+                             const int operation_type) const
+{ 
+  return vector_based() ?
+    reinterpret_cast<const MBMeshSet_Vector* >(this)->contains_entities(entities, num_entities, operation_type) :
+    reinterpret_cast<const MBMeshSet_MBRange*>(this)->contains_entities(entities, num_entities, operation_type) ;
+}
+  
 //! subtract/intersect/unite meshset_2 from/with/into meshset_1; modifies meshset_1
 inline MBErrorCode
 MBMeshSet::subtract( const MBMeshSet *meshset_2,
@@ -626,6 +644,20 @@ inline MBErrorCode MBMeshSet_MBRange::get_non_set_entities( MBRange& range ) con
   return MB_SUCCESS;
 }
 
+inline bool MBMeshSet_MBRange::contains_entities(MBEntityHandle *entities,
+                                                 int num_entities,
+                                                 const int op_type) const
+{
+  unsigned int num_in = 0;
+  for (int i = 0; i < num_entities; i++) {
+    if (mRange.find(entities[i]) != mRange.end()) num_in++;
+    else if (MBInterface::INTERSECT == op_type) break;
+  }
+
+  return ((MBInterface::INTERSECT == op_type && num_in == (unsigned int) num_entities) ||
+          MBInterface::UNION == op_type && 0 < num_in);
+}
+
 inline unsigned int MBMeshSet_MBRange::num_entities() const
 {
   return mRange.size();
@@ -702,7 +734,21 @@ inline MBErrorCode MBMeshSet_Vector::get_non_set_entities( MBRange& entities ) c
   return MB_SUCCESS;
 }
 
+inline bool MBMeshSet_Vector::contains_entities(MBEntityHandle *entities,
+                                                int num_entities,
+                                                const int op_type) const
+{
+  unsigned int num_in = 0;
+  for (int i = 0; i < num_entities; i++) {
+    if (std::find(mVector.begin(), mVector.end(), entities[i]) != 
+        mVector.end()) num_in++;
+    else if (MBInterface::INTERSECT == op_type) break;
+  }
 
+  return ((MBInterface::INTERSECT == op_type && 
+           num_in == (unsigned int) num_entities) ||
+          MBInterface::UNION == op_type && 0 < num_in);
+}
 
 inline unsigned int MBMeshSet_Vector::num_entities() const
 {
