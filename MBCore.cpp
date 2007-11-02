@@ -902,7 +902,8 @@ MBErrorCode  MBCore::get_connectivity(const MBEntityHandle *entity_handles,
 MBErrorCode MBCore::get_connectivity(const MBEntityHandle entity_handle, 
                                      const MBEntityHandle*& connectivity,
                                      int& number_nodes,
-                                     bool topological_connectivity) const
+                                     bool topological_connectivity,
+                                     std::vector<MBEntityHandle>* storage) const
 {
 
   MBErrorCode status;
@@ -928,7 +929,8 @@ MBErrorCode MBCore::get_connectivity(const MBEntityHandle entity_handle,
 
   return static_cast<ElementEntitySequence*>(seq)->get_connectivity(entity_handle, connectivity,
                                                                     number_nodes,
-                                                                    topological_connectivity);
+                                                                    topological_connectivity,
+                                                                    storage);
 }
 
 //! set the connectivity for element handles.  For non-element handles, return an error

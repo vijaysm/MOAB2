@@ -199,7 +199,8 @@ public:
   virtual MBErrorCode get_connectivity(MBEntityHandle entity, 
                                         const MBEntityHandle*& connectivity,
                                         int &num_vertices,
-                                       const bool topological_connectivity = false) const;
+                                       const bool topological_connectivity = false,
+                                       std::vector<MBEntityHandle>* storage = 0) const;
 
   virtual MBErrorCode set_connectivity(MBEntityHandle entity, const MBEntityHandle *conn,
                                 const int num_vertices);
@@ -299,7 +300,8 @@ inline MBErrorCode VertexEntitySequence::get_coordinate_arrays(double*& x, doubl
 inline MBErrorCode ElementEntitySequence::get_connectivity(MBEntityHandle entity,
                                                            const MBEntityHandle*& conn,
                                                            int &num_vertices,
-                                                           const bool topological_connectivity) const
+                                                           const bool topological_connectivity,
+                                                           std::vector<MBEntityHandle>* ) const
 {
   num_vertices = mNodesPerElement;
   int index = entity - mStartEntityHandle;

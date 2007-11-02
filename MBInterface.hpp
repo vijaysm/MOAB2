@@ -449,16 +449,41 @@ public:
         entity_handle </em>.  Faster then the other <em>get_connectivity</em> function because no
         data is copied.  The nodes in 'connectivity' are properly ordered according to the 
         element's canonical ordering.
+        
+
+          Example: \code 
+          const MBEntityHandle* conn;
+          int number_nodes = 0;
+          get_connectivity( entity_handle, conn, number_nodes ); \endcode 
+          
+          Example2: \code
+          std::vector<MBEntityHandle> sm_storage;
+          const MBEntityHandle* conn;
+          int number_nodes;
+          get_connectivity( handle, conn, number_nodes, false, &sm_storage );
+          if (conn == &sm_storage[0])
+            std::cout << "Structured mesh element" << std::endl;
+          \endcode
+        
         \param entity_handle MBEntityHandle to get connectivity of.
         \param connectivity Array in which connectivity of <em>entity_handle</em> is returned.
         \param num_nodes Number of MeshVertices in array <em>connectivity</em>. 
         \param topological_connectivity If true, num_nodes will be set to number of corner vertices
         for that element type.
+        \param storage Some elements (e.g. structured mesh) may not have an
+                       explicit connectivity list.  This function will normally
+                       return MB_NOT_IMPLEMENTED for such elements.  However,
+                       if the caller passes in a non-null value for this 
+                       argument, space will be allocated in this vector for
+                       the connectivity data and the connectivity pointer will
+                       be set to the data in this vector.
     */
   virtual MBErrorCode  get_connectivity(const MBEntityHandle entity_handle, 
                                         const MBEntityHandle *&connectivity, 
                                         int &num_nodes, 
-                                        bool topological_connectivity = false) const =0;
+                                        bool topological_connectivity = false,
+                                        std::vector<MBEntityHandle>* storage = 0
+                                        ) const =0;
 
     //! Sets the connectivity for an MBEntityHandle.  For non-element handles, return an error.
     /** Connectivity is stored exactly as it is ordered in vector <em>connectivity</em>. 

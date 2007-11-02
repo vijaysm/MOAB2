@@ -139,7 +139,8 @@ public:
   virtual MBErrorCode get_connectivity(MBEntityHandle entity, 
                                        const MBEntityHandle*& connectivity,
                                        int &num_vertices,
-                                       const bool topological_connectivity = false) const;
+                                       const bool topological_connectivity = false,
+                                       std::vector<MBEntityHandle>* stroage = 0) const;
 
     //! get connectivity of an entity given entity's parameters
   inline MBErrorCode get_params_connectivity(const int i, const int j, const int k,
@@ -326,13 +327,19 @@ inline MBErrorCode ScdElementSeq::get_connectivity(MBEntityHandle entity,
   return get_params_connectivity(i, j, k, connectivity);
 }
 
-inline MBErrorCode ScdElementSeq::get_connectivity(MBEntityHandle , 
-                                                   const MBEntityHandle*& ,
-                                                   int &,
-                                                   const bool) const 
+inline MBErrorCode ScdElementSeq::get_connectivity(MBEntityHandle handle, 
+                                                   const MBEntityHandle*& conn,
+                                                   int &len,
+                                                   const bool topo,
+                                                   std::vector<MBEntityHandle>* storage) const 
 {
-    // this version of get_connectivity isn't supported yet!
-  return MB_NOT_IMPLEMENTED;
+  if (!storage)
+    return MB_NOT_IMPLEMENTED;
+    
+  MBErrorCode result = get_connectivity( handle, *storage, topo );
+  conn = &(*storage)[0];
+  len = storage->size();
+  return result;
 }
 
 inline MBEntityHandle ScdElementSeq::get_vertex(const HomCoord &coords) const

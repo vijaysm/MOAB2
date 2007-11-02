@@ -49,7 +49,8 @@ PolyEntitySequence::~PolyEntitySequence()
 MBErrorCode PolyEntitySequence::get_connectivity(MBEntityHandle entity,
                                                  const MBEntityHandle*& conn,
                                                  int &num_vertices,
-                                                 const bool /*topological_connectivity*/) const
+                                                 const bool /*topological_connectivity*/,
+                                                 std::vector<MBEntityHandle>* ) const
 {
   MBEntityID index = entity - mStartEntityHandle;
   if (!is_valid_entity(entity))

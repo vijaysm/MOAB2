@@ -205,11 +205,23 @@ public:
           Example: \code 
           const MBEntityHandle* conn;
           int number_nodes = 0;
-          get_connectivity( entity_handle, conn, number_nodes ); \endcode */
-    virtual MBErrorCode  get_connectivity(const MBEntityHandle entity_handle, 
+          get_connectivity( entity_handle, conn, number_nodes ); \endcode 
+          
+          Example2: \code
+          std::vector<MBEntityHandle> sm_storage;
+          const MBEntityHandle* conn;
+          int number_nodes;
+          get_connectivity( handle, conn, number_nodes, false, &sm_storage );
+          if (conn == &sm_storage[0])
+            std::cout << "Structured mesh element" << std::endl;
+          \endcode
+        */
+    virtual MBErrorCode  get_connectivity( const MBEntityHandle entity_handle, 
                                            const MBEntityHandle *&connectivity, 
                                            int &num_nodes, 
-                                           bool topological_connectivity = false) const;
+                                           bool topological_connectivity = false,
+                                           std::vector<MBEntityHandle>* storage = 0
+                                          ) const;
 
       //! Sets the connectivity for an MBEntityHandle.  For non-element handles, return an error.
       /** Connectivity is stored exactly as it is ordered in vector <em>connectivity</em>. 
