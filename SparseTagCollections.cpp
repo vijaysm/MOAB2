@@ -330,6 +330,7 @@ MBEntityHandle SparseTagCollection::find_entity( const void* data )
 //! get number of entities of type
 MBErrorCode SparseTagCollection::get_number_entities(MBEntityType type, int& num_entities)
 {
+  num_entities = 0;
   std::map<MBEntityHandle, void*>::iterator iter;
   for(iter = mData.begin(); iter != mData.end(); ++iter)
   {
