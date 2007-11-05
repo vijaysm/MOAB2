@@ -205,16 +205,18 @@ MBErrorCode DensePageGroup::get_entities_with_tag_value(const MBEntityType type,
   std::vector<DensePage>::iterator page_it;
   const std::vector<DensePage>::iterator end = mDensePages[type].end();
   int dum =0;
-  MBEntityHandle handle = CREATE_HANDLE(type, MB_START_ID, dum);
+  MBEntityHandle handle = CREATE_HANDLE(type, 0, dum);
   MBRange::iterator insert_iter = entities.begin();
+  int first_i = MB_START_ID;
   for(page_it = mDensePages[type].begin(); page_it != end; 
       ++page_it, handle += DensePage::mPageSize)
   {
     if (page_it->has_data()) {
-      for (int i = 1; i <= DensePage::mPageSize; i++) {
+      for (int i = first_i; i < DensePage::mPageSize; i++) {
         if (!page_it->memcmp(i, mBytesPerFlag, value))
-          entities.insert(handle+i-1);
+          entities.insert(handle+i);
       }
+      first_i = 0;
     }
   }
 
