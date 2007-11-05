@@ -97,11 +97,11 @@ public:
     //! return const array * for adjacencies
   MBErrorCode get_adjacencies(MBEntityHandle entity,
                                const MBEntityHandle *&adjacent_entities,
-                               int &num_entities);
+                               int &num_entities) const;
   
   //! returns the entities in sorted order
   MBErrorCode get_adjacencies(MBEntityHandle entity,
-                               std::vector<MBEntityHandle>& adjacent_entities);
+                               std::vector<MBEntityHandle>& adjacent_entities) const;
   
 
   //! creates vertex to element adjacency information

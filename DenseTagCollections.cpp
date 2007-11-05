@@ -195,15 +195,15 @@ MBErrorCode DenseTagSuperCollection::get_memory_use( MBTagId tag_id,
 
 MBErrorCode DensePageGroup::get_entities_with_tag_value(const MBEntityType type,
                                                         const void* value, 
-                                                        MBRange &entities)
+                                                        MBRange &entities) const
 {
     // for now, return if default value is requested
   if (mDefaultValue && !memcmp(value,mDefaultValue,mBytesPerFlag))
     return MB_FAILURE;
 
     // iterate over dense pages
-  std::vector<DensePage>::iterator page_it;
-  const std::vector<DensePage>::iterator end = mDensePages[type].end();
+  std::vector<DensePage>::const_iterator page_it;
+  const std::vector<DensePage>::const_iterator end = mDensePages[type].end();
   int dum =0;
   MBEntityHandle handle = CREATE_HANDLE(type, 0, dum);
   MBRange::iterator insert_iter = entities.begin();
@@ -224,7 +224,7 @@ MBErrorCode DensePageGroup::get_entities_with_tag_value(const MBEntityType type,
 }
 
 MBErrorCode DensePageGroup::get_memory_use( unsigned long& total,
-                                            unsigned long& per_entity )
+                                            unsigned long& per_entity ) const
 {
   per_entity = tag_size();
   

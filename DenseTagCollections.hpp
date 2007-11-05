@@ -62,7 +62,7 @@ public:
   
   //! get the bytes from a page
   MBErrorCode get_bytes(int offset, int num_bytes_per_flag, 
-      void* data);
+      void* data) const;
   
   //! set the bytes in a page
   MBErrorCode set_bytes(int offset, int num_bytes_per_flag, 
@@ -76,7 +76,7 @@ public:
   bool has_data() const { return mByteArray != 0; }
 
     //! do a memcmp on one of the values in this page
-  bool memcmp(int offset, int num_bytes_per_flag, const void *data);
+  bool memcmp(int offset, int num_bytes_per_flag, const void *data) const;
 
   //!std::auto_ptr-style behavior
   DensePage( const DensePage& other )
@@ -102,7 +102,7 @@ private:
     takes how many bytes to get
     return data
 */
-inline MBErrorCode DensePage::get_bytes(int offset, int num_bytes_per_flag, void* data)
+inline MBErrorCode DensePage::get_bytes(int offset, int num_bytes_per_flag, void* data) const
 {
   // if no memory has been allocated, get the default value
   if(!mByteArray)
@@ -117,7 +117,7 @@ inline MBErrorCode DensePage::get_bytes(int offset, int num_bytes_per_flag, void
 }
 
 //! do a memcmp on one of the values in this page
-inline bool DensePage::memcmp(int offset, int num_bytes_per_flag, const void *data)
+inline bool DensePage::memcmp(int offset, int num_bytes_per_flag, const void *data) const
 {
   // if no memory has been allocated, get the default value
   assert(mByteArray);
@@ -199,7 +199,7 @@ public:
   ~DensePageGroup() { free(mDefaultValue); }
 
   //! get data from byte pages
-  MBErrorCode get_data(MBEntityHandle handle, void* data);
+  MBErrorCode get_data(MBEntityHandle handle, void* data) const;
 
   //! set data in byte pages
   MBErrorCode set_data(MBEntityHandle handle, const void* data);
@@ -208,17 +208,17 @@ public:
   MBErrorCode remove_data(MBEntityHandle handle);
 
   //! get number of entities of type
-  MBErrorCode get_number_entities(MBEntityType type, int& num_entities);
+  MBErrorCode get_number_entities(MBEntityType type, int& num_entities) const;
 
   //! get the entities
-  MBErrorCode get_entities(MBEntityType type, MBRange& entities);
+  MBErrorCode get_entities(MBEntityType type, MBRange& entities) const;
   
   //! get the entities
-  MBErrorCode get_entities(MBRange& entities);
+  MBErrorCode get_entities(MBRange& entities) const;
   
   //! get the entities with a value
   MBErrorCode get_entities_with_tag_value(const MBEntityType type, const void* value, 
-                                          MBRange &entities);
+                                          MBRange &entities) const;
 
     //! return true if this page group contains this entity, false otherwise
   bool contains(const MBEntityHandle entity) const;
@@ -229,7 +229,7 @@ public:
   const void* get_default_value() const { return mDefaultValue; }
   
   MBErrorCode get_memory_use( unsigned long& total,
-                              unsigned long& per_entity );
+                              unsigned long& per_entity ) const;
 
 private:
   
@@ -257,7 +257,7 @@ private:
     takes entity handle
     return the data
 */
-inline MBErrorCode DensePageGroup::get_data(MBEntityHandle handle, void* data)
+inline MBErrorCode DensePageGroup::get_data(MBEntityHandle handle, void* data) const
 {
   // strip off the entity type
   const MBEntityType type = TYPE_FROM_HANDLE( handle );
@@ -266,7 +266,7 @@ inline MBErrorCode DensePageGroup::get_data(MBEntityHandle handle, void* data)
   const MBEntityID which_page = entity_id / DensePage::mPageSize;
   const unsigned int offset = entity_id % DensePage::mPageSize;
   
-  std::vector<DensePage>::iterator page = mDensePages[type].begin() + which_page;
+  std::vector<DensePage>::const_iterator page = mDensePages[type].begin() + which_page;
   if (page >= mDensePages[type].end())
     return MB_TAG_NOT_FOUND;
   
@@ -333,10 +333,10 @@ inline MBErrorCode DensePageGroup::remove_data(MBEntityHandle handle)
 }
 
 //! get the entities
-inline MBErrorCode DensePageGroup::get_entities(MBEntityType type, MBRange& entities)
+inline MBErrorCode DensePageGroup::get_entities(MBEntityType type, MBRange& entities) const
 {
-  std::vector<DensePage>::iterator iter;
-  const std::vector<DensePage>::iterator end = mDensePages[type].end();
+  std::vector<DensePage>::const_iterator iter;
+  const std::vector<DensePage>::const_iterator end = mDensePages[type].end();
   int dum =0;
   MBEntityHandle handle = CREATE_HANDLE(type, 0, dum);
   MBEntityID first_time = MB_START_ID; // Don't want zero-ID handle at start of range.
@@ -351,12 +351,12 @@ inline MBErrorCode DensePageGroup::get_entities(MBEntityType type, MBRange& enti
 }
 
 //! get the entities
-inline MBErrorCode DensePageGroup::get_entities(MBRange& entities)
+inline MBErrorCode DensePageGroup::get_entities(MBRange& entities) const
 {
-  std::vector<DensePage>::iterator iter;
+  std::vector<DensePage>::const_iterator iter;
   int dum =0;
   for (MBEntityType type = MBENTITYSET; type >= MBVERTEX; type--) {
-    const std::vector<DensePage>::iterator end = mDensePages[type].end();
+    const std::vector<DensePage>::const_iterator end = mDensePages[type].end();
     MBEntityHandle handle = CREATE_HANDLE(type, 0, dum);
     MBEntityID first_time = MB_START_ID; // Don't want zero-ID handle at start of range.
     MBRange::iterator insert_pos = entities.begin();
@@ -372,11 +372,11 @@ inline MBErrorCode DensePageGroup::get_entities(MBRange& entities)
 }
 
 //! get number of entities of type
-inline MBErrorCode DensePageGroup::get_number_entities(MBEntityType type, int& entities)
+inline MBErrorCode DensePageGroup::get_number_entities(MBEntityType type, int& entities) const
 {
   entities = 0;
-  std::vector<DensePage>::iterator iter;
-  const std::vector<DensePage>::iterator end = mDensePages[type].end();
+  std::vector<DensePage>::const_iterator iter;
+  const std::vector<DensePage>::const_iterator end = mDensePages[type].end();
   MBEntityID first_time = MB_START_ID;
   for(iter = mDensePages[type].begin(); iter != end; ++iter) {
     if(iter->has_data())

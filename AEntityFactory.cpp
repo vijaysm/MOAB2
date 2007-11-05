@@ -575,7 +575,7 @@ MBErrorCode AEntityFactory::create_vert_elem_adjacencies()
 
 MBErrorCode AEntityFactory::get_adjacencies(MBEntityHandle entity,
                                             const MBEntityHandle *&adjacent_entities,
-                                            int &num_entities)
+                                            int &num_entities) const
 {
   MBAdjacencyVector *adj_vec = NULL;
   MBErrorCode result = mDensePageGroup.get_data(entity, &adj_vec);
@@ -591,7 +591,7 @@ MBErrorCode AEntityFactory::get_adjacencies(MBEntityHandle entity,
 }
 
 MBErrorCode AEntityFactory::get_adjacencies(MBEntityHandle entity,
-                                            std::vector<MBEntityHandle>& adjacent_entities)
+                                            std::vector<MBEntityHandle>& adjacent_entities) const
 {
   MBAdjacencyVector *adj_vec = NULL;
   MBErrorCode result = mDensePageGroup.get_data(entity, &adj_vec);
