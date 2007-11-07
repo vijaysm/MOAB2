@@ -27,18 +27,15 @@ extern "C" int getrusage(int, struct rusage *);
 #endif
 #endif
 
-#define IS_BUILDING_MB
-
 #include <stdlib.h>
 #include <stdio.h>
-#include <assert.h>
 #include <iostream>
 #include "MBCore.hpp"
 #include "MBReadUtilIface.hpp"
-#include "VertexSequence.hpp"
-#include "StructuredElementSeq.hpp"
+#include "ScdVertexSeq.hpp"
+#include "ScdElementSeq.hpp"
 #include "EntitySequence.hpp"
-#include "SequenceManager.hpp"
+#include "EntitySequenceManager.hpp"
 #include "HomXform.hpp"
 
 double LENGTH = 1.0;
@@ -397,27 +394,27 @@ void testA(const int nelem, const double *coords)
   print_time(false, ttime0, utime, stime);
 
     // make a 3d block of vertices
-  EntitySequence *dum_seq = NULL;
-  ScdVertexData *vseq = NULL;
-  StructuredElementSeq *eseq = NULL;
-  SequenceManager *seq_mgr = dynamic_cast<MBCore*>(gMB)->sequence_manager();
+  MBEntitySequence *dum_seq = NULL;
+  ScdVertexSeq *vseq = NULL;
+  ScdElementSeq *eseq = NULL;
+  EntitySequenceManager *seq_mgr = dynamic_cast<MBCore*>(gMB)->sequence_manager();
   HomCoord vseq_minmax[2] = {HomCoord(0,0,0), 
                              HomCoord(nelem, nelem, nelem)};
   MBEntityHandle vstart, estart;
   
   MBErrorCode result = seq_mgr->create_scd_sequence(vseq_minmax[0], vseq_minmax[1],
-                                                    MBVERTEX, 1, -1, vstart, dum_seq);
-  if (NULL != dum_seq) vseq = dynamic_cast<ScdVertexData*>(dum_seq->data());
+                                                    MBVERTEX, 1, vstart, dum_seq);
+  if (NULL != dum_seq) vseq = dynamic_cast<ScdVertexSeq*>(dum_seq);
   assert (MB_FAILURE != result && vstart != 0 && dum_seq != NULL && vseq != NULL);
     // now the element sequence
   result = seq_mgr->create_scd_sequence(vseq_minmax[0], vseq_minmax[1], 
-                                        MBHEX, 1, -1, estart, dum_seq);
-  if (NULL != dum_seq) eseq = dynamic_cast<StructuredElementSeq*>(dum_seq);
+                                        MBHEX, 1, estart, dum_seq);
+  if (NULL != dum_seq) eseq = dynamic_cast<ScdElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && estart != 0 && dum_seq != NULL && eseq != NULL);
   
     // only need to add one vseq to this, unity transform
     // trick: if I know it's going to be unity, just input 3 sets of equivalent points
-  result = eseq->sdata()->add_vsequence(vseq, vseq_minmax[0], vseq_minmax[0], vseq_minmax[0], 
+  result = eseq->add_vsequence(vseq, vseq_minmax[0], vseq_minmax[0], vseq_minmax[0], 
                                vseq_minmax[0], vseq_minmax[0], vseq_minmax[0]);
   assert(MB_SUCCESS == result);
 
@@ -468,7 +465,7 @@ void testB(const int nelem, const double *coords, const MBEntityHandle *connect)
   // create a sequence to hold the node coordinates
   // get the current number of entities and start at the next slot
   std::vector<double*> coord_arrays;
-  MBErrorCode result = readMeshIface->get_node_arrays(3, num_verts, 1, -1, vstart, coord_arrays);
+  MBErrorCode result = readMeshIface->get_node_arrays(3, num_verts, 1, vstart, coord_arrays);
   assert(MB_SUCCESS == result && 1 == vstart &&
          coord_arrays[0] && coord_arrays[1] && coord_arrays[2]);
     // memcpy the coordinate data into place
@@ -477,7 +474,7 @@ void testB(const int nelem, const double *coords, const MBEntityHandle *connect)
   memcpy(coord_arrays[2], &coords[2*num_verts], sizeof(double)*num_verts);
   
   MBEntityHandle *conn = 0;
-  result = readMeshIface->get_element_array(num_elems, 8, MBHEX, 1, -1, estart, conn);
+  result = readMeshIface->get_element_array(num_elems, 8, MBHEX, 1, estart, conn);
   assert(MB_SUCCESS == result);
   memcpy(conn, connect, num_elems*8*sizeof(MBEntityHandle));
   result = readMeshIface->update_adjacencies(estart, num_elems, 8, conn);
