@@ -316,8 +316,8 @@ int main( int argc, char* argv[] )
     }
   }
   check_default( createList, default_create, ARRSIZE(default_create) );
-  check_default( orderList, default_order, ARRSIZE(default_create) );
-  check_default( deleteList, default_delete, ARRSIZE(default_create) );
+  check_default( orderList, default_order, ARRSIZE(default_order) );
+  check_default( deleteList, default_delete, ARRSIZE(default_delete) );
   
     // Do some initialization.
   
