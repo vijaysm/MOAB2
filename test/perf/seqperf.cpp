@@ -18,7 +18,7 @@
 #endif
 
   // constants
-const bool dump_mesh = false;        //!< write mesh to vtk file
+const bool dump_mesh = true;        //!< write mesh to vtk file
 const int default_intervals = 25;    //!< defaul interval count for cubic structured hex mesh
 const int default_query_count = 100; //!< number of times to do each query set
 const int default_order[] = {0, 1, 2};
@@ -35,7 +35,6 @@ MBCore moab;                         //!< moab instance
 MBInterface& mb = moab;              //!< moab instance
 MBEntityHandle vertStart, elemStart; //!< first handle
 MBReadUtilIface *readTool = 0;       
-double centroid[3];
 long* queryVertPermutation = 0;      //!< pupulated by init(): "random" order for vertices
 long* queryElemPermutation = 0;      //!< pupulated by init(): "random" order for elements
 
@@ -78,17 +77,17 @@ void create_vertices_block( );  //!< create vertices in block using MBReadUtilIf
 void create_elements_single( ); //!< create elements one at a time
 void create_elements_block( );  //!< create elements in block using MBReadUtilIface
  
-void forward_order_query_vertices(); //!< calculate mean of all vertex coordinates
-void reverse_order_query_vertices(); //!< calculate mean of all vertex coordinates
-void  random_order_query_vertices(); //!< calculate mean of all vertex coordinates
+void forward_order_query_vertices(int percent); //!< calculate mean of all vertex coordinates
+void reverse_order_query_vertices(int percent); //!< calculate mean of all vertex coordinates
+void  random_order_query_vertices(int percent); //!< calculate mean of all vertex coordinates
 
-void forward_order_query_elements(); //!< check all element connectivity for valid vertex handles
-void reverse_order_query_elements(); //!< check all element connectivity for valid vertex handles
-void  random_order_query_elements();  //!< check all element connectivity for valid vertex handles
+void forward_order_query_elements(int percent); //!< check all element connectivity for valid vertex handles
+void reverse_order_query_elements(int percent); //!< check all element connectivity for valid vertex handles
+void  random_order_query_elements(int percent);  //!< check all element connectivity for valid vertex handles
 
-void forward_order_query_element_verts(); //!< calculate centroid
-void reverse_order_query_element_verts(); //!< calculate centroid
-void  random_order_query_element_verts(); //!< calculate centroid
+void forward_order_query_element_verts(int percent); //!< calculate centroid
+void reverse_order_query_element_verts(int percent); //!< calculate centroid
+void  random_order_query_element_verts(int percent); //!< calculate centroid
 
 void forward_order_delete_vertices( int percent ); //!< delete x% of vertices
 void reverse_order_delete_vertices( int percent ); //!< delete x% of vertices
@@ -110,15 +109,15 @@ unsigned get_number_sequences( MBEntityType type );
 typedef void (*naf_t)();
 typedef void (*iaf_t)(int);
 
-naf_t query_verts[3] = { &forward_order_query_vertices,
+iaf_t query_verts[3] = { &forward_order_query_vertices,
                          &reverse_order_query_vertices,
                          & random_order_query_vertices };
 
-naf_t query_elems[3] = { &forward_order_query_elements,
+iaf_t query_elems[3] = { &forward_order_query_elements,
                          &reverse_order_query_elements,
                          & random_order_query_elements };
 
-naf_t query_elem_verts[3] = { &forward_order_query_element_verts,
+iaf_t query_elem_verts[3] = { &forward_order_query_element_verts,
                               &reverse_order_query_element_verts,
                               & random_order_query_element_verts };
 
@@ -178,12 +177,12 @@ void TIME( const char* str, void (*func)() )
 }
 
 //! run function query_repeat times, printing time spent 
-void TIME_QRY( const char* str, void (*func)() )
+void TIME_QRY( const char* str, void (*func)(int percent), int percent )
 { 
   std::cout << str << "... " << std::flush; 
   clock_t t = clock();
   for (int i = 0; i < queryCount; ++i)
-    (*func)();
+    (*func)(percent);
   std::cout << ts(clock() - t) << std::endl;
 }
 
@@ -224,8 +223,8 @@ void do_test( int create_mode, //!< 0 == single, 1 == block
   std::cout << order_strs[order] <<
     " order with deletion of " << percent << "% of vertices and elements" << std::endl;
 
-  TIME_DEL( "  Deleting vertices", delete_verts[order], percent );
   TIME_DEL( "  Deleting elements", delete_elems[order], percent );
+  TIME_DEL( "  Deleting vertices", delete_verts[order], percent );
   
   int num_vert = 0;
   int num_elem = 0;
@@ -237,9 +236,9 @@ void do_test( int create_mode, //!< 0 == single, 1 == block
             << get_number_sequences(MBHEX) << " element sequences." << std::endl;
 #endif
 
-  TIME_QRY( "  Quering vertex coordinates", query_verts[order] );
-  TIME_QRY( "  Quering element connectivity", query_elems[order] );
-  TIME_QRY( "  Quering element coordinates", query_elem_verts[order] );
+  TIME_QRY( "  Quering vertex coordinates", query_verts[order], percent );
+  TIME_QRY( "  Quering element connectivity", query_elems[order], percent );
+  TIME_QRY( "  Quering element coordinates", query_elem_verts[order], percent );
 
   TIME_DEL( "  Re-creating vertices", create_missing_vertices, percent );
   TIME_DEL( "  Re-creating elements", create_missing_elements, percent );
@@ -377,6 +376,46 @@ int main( int argc, char* argv[] )
 }
 
 
+inline void vertex_coords( long vert_index, double& x, double& y, double& z )
+{
+  const long vs = numSideInt + 1;
+  x = vert_index % vs;
+  y = (vert_index / vs) % vs;
+  z = (vert_index / vs / vs);
+}
+
+inline long vert_index( long x, long y, long z )
+{
+  const long vs = numSideInt + 1;
+  return x + vs * (y + vs * z);
+}
+
+inline void element_conn( long elem_index, MBEntityHandle conn[8] )
+{
+  const long x = elem_index % numSideInt;
+  const long y = (elem_index / numSideInt) % numSideInt;
+  const long z = (elem_index / numSideInt / numSideInt);
+  conn[0] = vertStart + vert_index(x  ,y  ,z  );
+  conn[1] = vertStart + vert_index(x+1,y  ,z  );
+  conn[2] = vertStart + vert_index(x+1,y+1,z  );
+  conn[3] = vertStart + vert_index(x  ,y+1,z  );
+  conn[4] = vertStart + vert_index(x  ,y  ,z+1);
+  conn[5] = vertStart + vert_index(x+1,y  ,z+1);
+  conn[6] = vertStart + vert_index(x+1,y+1,z+1);
+  conn[7] = vertStart + vert_index(x  ,y+1,z+1);
+}
+
+inline bool deleted_vert( long index, int percent )
+{
+  return index%(numSideInt+1) >= (numSideInt+1)*(100-percent) / 100;
+}
+
+inline bool deleted_elem( long index, int percent )
+{
+  return index % numSideInt + 1 >= (numSideInt+1)*(100-percent) / 100;
+}
+
+
 void create_vertices_single( )
 {
   double coords[3];
@@ -432,104 +471,115 @@ void create_elements_block( )
     element_conn( i, conn + 8*i );
 }
  
-void forward_order_query_vertices()
+void forward_order_query_vertices(int percent)
 {
-  double coords[3], sum[3] = {0,0,0};
-  const MBEntityHandle last = vertStart + numVert;
-  for (MBEntityHandle h = vertStart; h < last; ++h) {
-    mb.get_coords( &h, 1, coords );
-    sum[0] += coords[0];
-    sum[1] += coords[1];
-    sum[2] += coords[2];
+  MBErrorCode r;
+  double coords[3];
+  long x, y, z;
+  const long vert_per_edge = numSideInt + 1;
+  const long deleted_x = (numSideInt+1)*(100-percent) / 100;
+  MBEntityHandle h = vertStart;
+  for (z = 0; z < vert_per_edge; ++z) {
+    for (y = 0; y < vert_per_edge; ++y) {
+      for (x = 0; x < deleted_x; ++x, ++h) {
+        r = mb.get_coords( &h, 1, coords );
+        assert(MB_SUCCESS == r);
+      }
+      h += (vert_per_edge - deleted_x);
+    }
   }
-  
-  centroid[0] = sum[0] / numVert;
-  centroid[1] = sum[1] / numVert;
-  centroid[2] = sum[2] / numVert;
 }
 
-void reverse_order_query_vertices()
+void reverse_order_query_vertices(int percent)
 {
-  double coords[3], sum[3] = {0,0,0};
-  const MBEntityHandle last = vertStart + numVert;
-  for (MBEntityHandle h = last-1; h >= vertStart; --h) {
-    mb.get_coords( &h, 1, coords );
-    sum[0] += coords[0];
-    sum[1] += coords[1];
-    sum[2] += coords[2];
+  MBErrorCode r;
+  double coords[3];
+  long x, y, z;
+  const long vert_per_edge = numSideInt + 1;
+  const long deleted_x = (numSideInt+1)*(100-percent) / 100;
+  MBEntityHandle h = vertStart + numVert - 1;;
+  for (z = vert_per_edge-1; z >= 0; --z) {
+    for (y = vert_per_edge-1; y >= 0; --y) {
+      h -= (vert_per_edge - deleted_x);
+      for (x = deleted_x-1; x >= 0; --x, --h) {
+        r = mb.get_coords( &h, 1, coords );
+        assert(MB_SUCCESS == r);
+      }
+    }
   }
-  
-  centroid[0] = sum[0] / numVert;
-  centroid[1] = sum[1] / numVert;
-  centroid[2] = sum[2] / numVert;
 }
 
-void  random_order_query_vertices()
+void random_order_query_vertices(int percent)
 {
+  MBErrorCode r;
   MBEntityHandle h;
-  double coords[3], sum[3] = {0,0,0};
+  double coords[3];
   for (long i = 0; i < numVert; ++i) {
-    h = vertStart + queryVertPermutation[i];
-    mb.get_coords( &h, 1, coords );
-    sum[0] += coords[0];
-    sum[1] += coords[1];
-    sum[2] += coords[2];
-  }
-  
-  centroid[0] = sum[0] / numVert;
-  centroid[1] = sum[1] / numVert;
-  centroid[2] = sum[2] / numVert;
-}
-
-void forward_order_query_elements()
-{
-  const MBEntityHandle* conn;
-  int len;
-  const MBEntityHandle lastVert = vertStart + numVert - 1;
-  const MBEntityHandle last = elemStart + numElem;
-  for (MBEntityHandle h = elemStart; h < last; ++h) {
-    if (MB_SUCCESS == mb.get_connectivity( h, conn, len )) {
-      assert( 8 == len );
-      for (int j = 0; j < 8; ++j) 
-        if (conn[j] < vertStart || conn[j] > lastVert)
-          std::cerr << "Invalid vertex handle: " << conn[j] << std::endl;
+    if (!deleted_vert(queryVertPermutation[i],percent)) {
+      h = vertStart + queryVertPermutation[i];
+      r = mb.get_coords( &h, 1, coords );
+      assert(MB_SUCCESS == r);
     }
   }
 }
 
-void reverse_order_query_elements()
+void forward_order_query_elements(int percent)
 {
+  MBErrorCode r;
   const MBEntityHandle* conn;
   int len;
-  const MBEntityHandle lastVert = vertStart + numVert - 1;
-  const MBEntityHandle last = elemStart + numElem;
-  for (MBEntityHandle h = last-1; h >= elemStart; --h) {
-    if (MB_SUCCESS == mb.get_connectivity( h, conn, len )) {
-      assert( 8 == len );
-      for (int j = 0; j < 8; ++j) 
-        if (conn[j] < vertStart || conn[j] > lastVert)
-          std::cerr << "Invalid vertex handle: " << conn[j] << std::endl;
+  long x, y, z;
+  const long elem_per_edge = numSideInt;
+  const long deleted_x = (numSideInt+1)*(100-percent) / 100 - 1;
+  MBEntityHandle h = elemStart;
+  for (z = 0; z < elem_per_edge; ++z) {
+    for (y = 0; y < elem_per_edge; ++y) {
+      for (x = 0; x < deleted_x; ++x, ++h) {
+        r = mb.get_connectivity( h, conn, len );
+        assert(MB_SUCCESS == r);
+        assert(conn && 8 == len);
+      }
+      h += (elem_per_edge - deleted_x);
     }
   }
 }
 
-void  random_order_query_elements()
+void reverse_order_query_elements(int percent)
 {
+  MBErrorCode r;
   const MBEntityHandle* conn;
   int len;
-  const MBEntityHandle lastVert = vertStart + numVert - 1;
+  long x, y, z;
+  const long elem_per_edge = numSideInt;
+  const long deleted_x = (numSideInt+1)*(100-percent) / 100 - 1;
+  MBEntityHandle h = elemStart + numElem - 1;;
+  for (z = elem_per_edge-1; z >= 0; --z) {
+    for (y = elem_per_edge-1; y >= 0; --y) {
+      h -= (elem_per_edge - deleted_x);
+      for (x = deleted_x-1; x >= 0; --x, --h) {
+        r = mb.get_connectivity( h, conn, len );
+        assert(MB_SUCCESS == r);
+        assert(conn && 8 == len);
+      }
+    }
+  }
+}
+
+void  random_order_query_elements(int percent)
+{
+  MBErrorCode r;
+  const MBEntityHandle* conn;
+  int len;
   for (long i = 0; i < numElem; ++i) {
-    MBEntityHandle h = elemStart + queryElemPermutation[i];
-    if (MB_SUCCESS == mb.get_connectivity( h, conn, len )) {
-      assert( 8 == len );
-      for (int j = 0; j < 8; ++j) 
-        if (conn[j] < vertStart || conn[j] > lastVert)
-          std::cerr << "Invalid vertex handle: " << conn[j] << std::endl;
+    if (!deleted_elem( queryElemPermutation[i], percent )) {
+      r = mb.get_connectivity( elemStart + queryElemPermutation[i], conn, len );
+      assert(MB_SUCCESS == r);
+      assert(conn && 8 == len);
     }
   }
 }
 
-
+/*
 static double hex_centroid( double coords[24], double cent[3] )
 {
   double a[3], b[3], c[3], vol;
@@ -548,83 +598,71 @@ static double hex_centroid( double coords[24], double cent[3] )
   vol = c[0]*(a[1]*b[2] - a[2]*b[1]) + c[1]*(a[2]*b[0] - a[0]*b[2]) + c[2]*(a[0]*b[1] - a[1]*b[0]);
   return (1./64.) * vol;
 }
+*/
 
-void forward_order_query_element_verts()
+void forward_order_query_element_verts(int percent)
 {
+  MBErrorCode r;
   const MBEntityHandle* conn;
   int len;
-  const MBEntityHandle last = elemStart + numElem;
+  long x, y, z;
   double coords[24];
-  double cent[3], vol, sum_vol = 0.0;
-  centroid[0] = centroid[1] = centroid[2] = 0.0;
-  for (MBEntityHandle h = elemStart; h < last; ++h) {
-    if (MB_SUCCESS == mb.get_connectivity( h, conn, len )) {
-      assert( 8 == len );
-      if (MB_SUCCESS == mb.get_coords( conn, len, coords )) {
-        vol = hex_centroid( coords, cent );
-        centroid[0] += cent[0] * vol;
-        centroid[1] += cent[1] * vol;
-        centroid[2] += cent[2] * vol;
-        sum_vol += vol;
+  const long elem_per_edge = numSideInt;
+  const long deleted_x = (numSideInt+1)*(100-percent) / 100 - 1;
+  MBEntityHandle h = elemStart;
+  for (z = 0; z < elem_per_edge; ++z) {
+    for (y = 0; y < elem_per_edge; ++y) {
+      for (x = 0; x < deleted_x; ++x, ++h) {
+        r = mb.get_connectivity( h, conn, len );
+        assert(MB_SUCCESS == r);
+        assert(conn && 8 == len);
+        r = mb.get_coords( conn, len, coords );
+        assert(MB_SUCCESS == r );
+      }
+      h += (elem_per_edge - deleted_x);
+    }
+  }
+}
+
+void reverse_order_query_element_verts(int percent)
+{
+  MBErrorCode r;
+  const MBEntityHandle* conn;
+  int len;
+  long x, y, z;
+  double coords[24];
+  const long elem_per_edge = numSideInt;
+  const long deleted_x = (numSideInt+1)*(100-percent) / 100 - 1;
+  MBEntityHandle h = elemStart + numElem - 1;;
+  for (z = elem_per_edge-1; z >= 0; --z) {
+    for (y = elem_per_edge-1; y >= 0; --y) {
+      h -= (elem_per_edge - deleted_x);
+      for (x = deleted_x-1; x >= 0; --x, --h) {
+        r = mb.get_connectivity( h, conn, len );
+        assert(MB_SUCCESS == r);
+        assert(conn && 8 == len);
+        r = mb.get_coords( conn, len, coords );
+        assert(MB_SUCCESS == r );
       }
     }
   }
-  
-  centroid[0] /= sum_vol;
-  centroid[1] /= sum_vol;
-  centroid[2] /= sum_vol;
 }
 
-void reverse_order_query_element_verts()
+void  random_order_query_element_verts(int percent)
 {
-  const MBEntityHandle* conn;
-  int len;
-  const MBEntityHandle last = elemStart + numElem;
-  double coords[24];
-  double cent[3], vol, sum_vol = 0.0;
-  centroid[0] = centroid[1] = centroid[2] = 0.0;
-  for (MBEntityHandle h = last-1; h >= elemStart; --h) {
-    if (MB_SUCCESS == mb.get_connectivity( h, conn, len )) {
-      assert( 8 == len );
-      if (MB_SUCCESS == mb.get_coords( conn, len, coords )) {
-        vol = hex_centroid( coords, cent );
-        centroid[0] += cent[0] * vol;
-        centroid[1] += cent[1] * vol;
-        centroid[2] += cent[2] * vol;
-        sum_vol += vol;
-      }
-    }
-  }
-  
-  centroid[0] /= sum_vol;
-  centroid[1] /= sum_vol;
-  centroid[2] /= sum_vol;
-}
-
-void  random_order_query_element_verts()
-{
+  MBErrorCode r;
   const MBEntityHandle* conn;
   int len;
   double coords[24];
-  double cent[3], vol, sum_vol = 0.0;
-  centroid[0] = centroid[1] = centroid[2] = 0.0;
   for (long i = 0; i < numElem; ++i) {
-    MBEntityHandle h = elemStart + queryElemPermutation[i];
-    if (MB_SUCCESS == mb.get_connectivity( h, conn, len )) {
-      assert( 8 == len );
-      if (MB_SUCCESS == mb.get_coords( conn, len, coords )) {
-        vol = hex_centroid( coords, cent );
-        centroid[0] += cent[0] * vol;
-        centroid[1] += cent[1] * vol;
-        centroid[2] += cent[2] * vol;
-        sum_vol += vol;
-      }
+    if (!deleted_elem( queryElemPermutation[i], percent )) {
+      r = mb.get_connectivity( elemStart + queryElemPermutation[i], conn, len );
+      assert(MB_SUCCESS == r);
+      assert(conn && 8 == len);
+      r = mb.get_coords( conn, len, coords );
+      assert(MB_SUCCESS == r );
     }
   }
-  
-  centroid[0] /= sum_vol;
-  centroid[1] /= sum_vol;
-  centroid[2] /= sum_vol;
 }
 
 void forward_order_delete_vertices( int percent )
@@ -688,46 +726,6 @@ void create_missing_elements( int percent )
       rval = mb.create_element( MBHEX, conn, 8, h );
       assert(!rval);
     }
-}
-
-inline void vertex_coords( long vert_index, double& x, double& y, double& z )
-{
-  const long vs = numSideInt + 1;
-  x = vert_index % vs;
-  y = (vert_index / vs) % vs;
-  z = (vert_index / vs / vs);
-}
-
-inline long vert_index( long x, long y, long z )
-{
-  const long vs = numSideInt + 1;
-  return x + vs * (y + vs * z);
-}
-
-inline void element_conn( long elem_index, MBEntityHandle conn[8] )
-{
-  const long x = elem_index % numSideInt;
-  const long y = (elem_index / numSideInt) % numSideInt;
-  const long z = (elem_index / numSideInt / numSideInt);
-  conn[0] = vertStart + vert_index(x  ,y  ,z  );
-  conn[1] = vertStart + vert_index(x+1,y  ,z  );
-  conn[2] = vertStart + vert_index(x+1,y+1,z  );
-  conn[3] = vertStart + vert_index(x  ,y+1,z  );
-  conn[4] = vertStart + vert_index(x  ,y  ,z+1);
-  conn[5] = vertStart + vert_index(x+1,y  ,z+1);
-  conn[6] = vertStart + vert_index(x+1,y+1,z+1);
-  conn[7] = vertStart + vert_index(x  ,y+1,z+1);
-}
-
-
-inline bool deleted_vert( long index, int percent )
-{
-  return index % 100 >= (100-percent);
-}
-
-inline bool deleted_elem( long index, int percent )
-{
-  return index % 100 >= (100-percent);
 }
 
 inline void delete_vert( long index, int percent )
