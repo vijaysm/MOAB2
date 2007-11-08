@@ -27,8 +27,8 @@
  *          
  */ 
 
-#ifndef ENTITY_SEQUENCE_HPP
-#define ENTITY_SEQUENCE_HPP
+#ifndef MB_ENTITY_SEQUENCE_HPP
+#define MB_ENTITY_SEQUENCE_HPP
 
 #ifndef IS_BUILDING_MB
 #error "EntitySequence.hpp isn't supposed to be included into an application"

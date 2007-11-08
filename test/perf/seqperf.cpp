@@ -5,13 +5,26 @@
 #include "MBCore.hpp"
 #include "MBReadUtilIface.hpp"
 
+#define PRINT_SEQUENCE_COUNT
+
+#ifdef PRINT_SEQUENCE_COUNT
+#  define IS_BUILDING_MB
+#  include "EntitySequence.hpp"
+#  ifdef MB_ENTITY_SEQUENCE_HPP
+#    include "EntitySequenceManager.hpp"
+#  else
+#    include "SequenceManager.hpp"
+#  endif
+#endif
+
   // constants
 const bool dump_mesh = false;        //!< write mesh to vtk file
 const int default_intervals = 25;    //!< defaul interval count for cubic structured hex mesh
 const int default_query_count = 100; //!< number of times to do each query set
 const int default_order[] = {0, 1, 2};
 const int default_create[] = {0,1};
-const int default_delete[] = {0,10,20,30,40,50,60,70,80,90};
+const int default_delete[] = {0,10,30,50,70,90};
+#define ARRSIZE(A) (sizeof(A)/sizeof(A[0]))
 
   // input parameters
 long numSideInt, numVert, numElem;   //!< total counts;
@@ -88,6 +101,10 @@ void  random_order_delete_elements( int percent ); //!< delete x% of elements
 void create_missing_vertices( int percent ); //!< re-create deleted vertices
 void create_missing_elements( int percent ); //!< re-create deleted elements
 
+#ifdef PRINT_SEQUENCE_COUNT
+unsigned get_number_sequences( MBEntityType type );
+#endif
+
 /* Build arrays of function pointers, indexed by the order the entities are traversed in */
 
 typedef void (*naf_t)();
@@ -133,7 +150,10 @@ void usage() {
   std::cerr << "Usage: seqperf [-i <intervals>] [-o <order>] [-d <percent>] [-b|-s] [-q <count>]" << std::endl;
   std::cerr << " -i specify size of cubic structured hex mesh in intervals.  Default: " << default_intervals << std::endl;
   std::cerr << " -o one of \"forward\", \"reverse\", or \"random\".  May be specified multiple times.  Default is all." << std::endl;
-  std::cerr << " -d percent of entities to delete.  May be specified multiple times.  Default is {0,10,20,...,90}." << std::endl;
+  std::cerr << " -d percent of entities to delete.  May be specified multiple times.  Default is {";
+  for (unsigned i = 0; i < ARRSIZE(default_delete)-1; ++i)
+    std::cerr << default_delete[i] << ",";
+  std::cerr << default_delete[ARRSIZE(default_delete)-1] << "}" << std::endl;
   std::cerr << " -b block creation of mesh" << std::endl;
   std::cerr << " -s single entity mesh creation" << std::endl;
   std::cerr << " -q number of times to repeat queries.  Default: " << default_query_count << std::endl;
@@ -212,6 +232,10 @@ void do_test( int create_mode, //!< 0 == single, 1 == block
   mb.get_number_entities_by_type( 0, MBVERTEX, num_vert );
   mb.get_number_entities_by_type( 0, MBHEX,    num_elem );
   std::cout << "  " << num_vert << " vertices and " << num_elem << " elements remaining" << std::endl;
+#ifdef PRINT_SEQUENCE_COUNT
+  std::cout << "  " << get_number_sequences(MBVERTEX) << " vertex sequences and "
+            << get_number_sequences(MBHEX) << " element sequences." << std::endl;
+#endif
 
   TIME_QRY( "  Quering vertex coordinates", query_verts[order] );
   TIME_QRY( "  Quering element connectivity", query_elems[order] );
@@ -277,7 +301,6 @@ void check_default( std::vector<int>& list, const int* array, size_t array_len )
     
   
 
-#define ARRSIZE(A) (sizeof(A)/sizeof(A[0]))
 int main( int argc, char* argv[] )
 {
     // Parse arguments
@@ -304,7 +327,7 @@ int main( int argc, char* argv[] )
           case 'o':
             parse_order( argv[i], orderList );
             break;
-          case 'p':
+          case 'd':
             parse_percent( argv[i], deleteList );
             break;
           case 'q':
@@ -725,3 +748,13 @@ inline void delete_elem( long index, int percent )
   }
 }
 
+#ifdef PRINT_SEQUENCE_COUNT
+unsigned get_number_sequences( MBEntityType type )
+{
+#ifdef MB_ENTITY_SEQUENCE_HPP
+  return moab.sequence_manager()->entity_map(type)->size();
+#else
+  return moab.sequence_manager()->entity_map(type).get_sequence_count();
+#endif
+}
+#endif
