@@ -18,7 +18,7 @@
 #endif
 
   // constants
-const bool dump_mesh = true;        //!< write mesh to vtk file
+const bool dump_mesh = false;        //!< write mesh to vtk file
 const int default_intervals = 25;    //!< defaul interval count for cubic structured hex mesh
 const int default_query_count = 100; //!< number of times to do each query set
 const int default_order[] = {0, 1, 2};
