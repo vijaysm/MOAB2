@@ -236,9 +236,9 @@ void do_test( int create_mode, //!< 0 == single, 1 == block
             << get_number_sequences(MBHEX) << " element sequences." << std::endl;
 #endif
 
-  TIME_QRY( "  Quering vertex coordinates", query_verts[order], percent );
-  TIME_QRY( "  Quering element connectivity", query_elems[order], percent );
-  TIME_QRY( "  Quering element coordinates", query_elem_verts[order], percent );
+  TIME_QRY( "  Querying vertex coordinates", query_verts[order], percent );
+  TIME_QRY( "  Querying element connectivity", query_elems[order], percent );
+  TIME_QRY( "  Querying element coordinates", query_elem_verts[order], percent );
 
   TIME_DEL( "  Re-creating vertices", create_missing_vertices, percent );
   TIME_DEL( "  Re-creating elements", create_missing_elements, percent );
