@@ -843,8 +843,8 @@ bool compare()
   
   // compare hexes
   std::vector<MBEntityHandle> conn[2];
-  if (MB_SUCCESS != iface->get_connectivity( hex  , 1, conn[0], true ) ||
-      MB_SUCCESS != iface->get_connectivity( hex+1, 1, conn[1], true ))
+  if (MB_SUCCESS != iface->get_connectivity( hex  , 1, conn[0] ) ||
+      MB_SUCCESS != iface->get_connectivity( hex+1, 1, conn[1] ))
     moab_error( "get_connectivity" );
   if (!compare_conn( conn[0], conn[1] ))
     return false;
@@ -853,8 +853,8 @@ bool compare()
   
   std::vector<MBEntityHandle> face[2];
   conn[0].clear(); conn[1].clear();
-  if (MB_SUCCESS != iface->get_connectivity( dod  , 1, conn[0], true ) ||
-      MB_SUCCESS != iface->get_connectivity( dod+1, 1, conn[1], true ))
+  if (MB_SUCCESS != iface->get_connectivity( dod  , 1, conn[0], false ) ||
+      MB_SUCCESS != iface->get_connectivity( dod+1, 1, conn[1], false ))
     moab_error( "get_connectivity" );
   if (conn[0].size() != 12 || conn[1].size() != 12)
   {
@@ -867,8 +867,8 @@ bool compare()
   for (int i = 0; i < 12; ++i )
   {
     face[0].clear(); face[1].clear();
-    if (MB_SUCCESS != iface->get_connectivity( &conn[0][i], 1, face[0], true) ||
-        MB_SUCCESS != iface->get_connectivity( &conn[1][i], 1, face[1], true))
+    if (MB_SUCCESS != iface->get_connectivity( &conn[0][i], 1, face[0], false) ||
+        MB_SUCCESS != iface->get_connectivity( &conn[1][i], 1, face[1], false))
       moab_error( "get_connectivity" );
     if (!compare_conn( face[0], face[1] ))
       return false;
