@@ -13,16 +13,15 @@
  * 
  */
 
-#include "ScdVertexSeq.hpp"
+#include "ScdVertexData.hpp"
+#include <assert.h>
 
     //! constructor
-ScdVertexSeq::ScdVertexSeq(EntitySequenceManager* seq_mgr,
-                           const MBEntityHandle start_vertex, 
-                           const int imin, const int jmin, const int kmin,
-                           const int imax, const int jmax, const int kmax) 
-    : VertexEntitySequence(seq_mgr, start_vertex, 
-                           (imax-imin+1)*(jmax-jmin+1)*(kmax-kmin+1), 
-                           true)
+ScdVertexData::ScdVertexData(const MBEntityHandle start_vertex, 
+                             const int imin, const int jmin, const int kmin,
+                             const int imax, const int jmax, const int kmax) 
+    : SequenceData( 3, start_vertex, 
+                   start_vertex + (imax-imin+1)*(jmax-jmin+1)*(kmax-kmin+1) - 1 )
 {
     // need to have meaningful parameters
   assert(imax >= imin && jmax >= jmin && kmax >= kmin);
@@ -35,18 +34,16 @@ ScdVertexSeq::ScdVertexSeq(EntitySequenceManager* seq_mgr,
   dIJKm1[0] = dIJK[0]-1;
   dIJKm1[1] = dIJK[1]-1;
   dIJKm1[2] = dIJK[2]-1;
-}
   
-MBEntityHandle ScdVertexSeq::get_unused_handle()
+  create_sequence_data( 0, sizeof(double) );
+  create_sequence_data( 1, sizeof(double) );
+  create_sequence_data( 2, sizeof(double) );
+}
+
+SequenceData* ScdVertexData::subset( MBEntityHandle /*start*/, 
+                                     MBEntityHandle /*end*/,
+                                     const int* /*sequence_data_sizes*/,
+                                     const int* /*tag_data_sizes*/ ) const
 {
-  assert(false);
   return 0;
 }
-
-void ScdVertexSeq::get_memory_use( unsigned long& used, 
-                                   unsigned long& allocated) const
-{
-  VertexEntitySequence::get_memory_use( used, allocated );
-  allocated += sizeof(*this) - sizeof(VertexEntitySequence);
-}
-

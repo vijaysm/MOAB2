@@ -19,8 +19,9 @@
  */
 
 #include "MBRangeSeqIntersectIter.hpp"
-#include "EntitySequenceManager.hpp"
+#include "SequenceManager.hpp"
 #include "EntitySequence.hpp"
+#include <assert.h>
 
 MBErrorCode MBRangeSeqIntersectIter::init( MBRange::const_iterator start,
                                            MBRange::const_iterator end )
@@ -91,44 +92,24 @@ MBErrorCode MBRangeSeqIntersectIter::update_entity_sequence()
     // (reduce mEndHandle) for the current EntitySequence.
   
     // Need to update the sequence pointer?
-  if (!mSequence || mStartHandle > mSequence->get_end_handle()) {
+  if (!mSequence || mStartHandle > mSequence->end_handle()) {
   
-      // Check that the mStartHandle is not a mesh set.
-      // We don't care if mEndHandle is (yet) because the end
-      // will be trimmed to the end of the EntitySequence
-      // containing mStartHandle.
-    if (TYPE_FROM_HANDLE(mStartHandle) >= MBENTITYSET)
+      // Check that the mStartHandle is valid
+    if (TYPE_FROM_HANDLE(mStartHandle) >= MBMAXTYPE)
       return MB_TYPE_OUT_OF_RANGE;
 
     if (MB_SUCCESS != mSequenceManager->find( mStartHandle, mSequence ))
       return find_invalid_range();
-
-    freeIndex = mSequence->get_next_free_index( -1 );
-    if (freeIndex < 0) 
-      freeIndex = mSequence->number_allocated();
   }
-  
-    // Find first hole in sequence after mStartHandle
-  MBEntityID start_index = mStartHandle - mSequence->get_start_handle();
-  while (start_index > freeIndex) {
-    freeIndex = mSequence->get_next_free_index( freeIndex );
-    if (freeIndex == -1)
-      freeIndex = mSequence->number_allocated();
-  }
-  if (start_index == freeIndex) 
-    return find_deleted_range();
     
     // if mEndHandle is past end of sequence or block of used
     // handles within sequence, shorten it.
-  MBEntityID end_index = mEndHandle - mSequence->get_start_handle();
-  if(end_index >= freeIndex)
-    mEndHandle = mSequence->get_start_handle() + (freeIndex-1);
-    
+  if(mEndHandle > mSequence->end_handle())
+    mEndHandle = mSequence->end_handle();
+  
   return MB_SUCCESS;
 }
  
-typedef std::map<MBEntityHandle,MBEntitySequence*> SeqMap;
-
 MBErrorCode MBRangeSeqIntersectIter::find_invalid_range()
 {
   assert(!mSequence);
@@ -139,10 +120,10 @@ MBErrorCode MBRangeSeqIntersectIter::find_invalid_range()
     
     // Find the next MBEntitySequence
   MBEntityType type = TYPE_FROM_HANDLE(mStartHandle);
-  const SeqMap* map = mSequenceManager->entity_map( type );
-  SeqMap::const_iterator iter = map->upper_bound( mStartHandle );
+  const TypeSequenceManager& map = mSequenceManager->entity_map( type );
+  TypeSequenceManager::const_iterator iter = map.upper_bound( mStartHandle );
     // If no next sequence of the same type
-  if (iter == map->end()) {
+  if (iter == map.end()) {
       // If end type not the same as start type, split on type
     if (type != TYPE_FROM_HANDLE( mEndHandle )) {
       int junk;
@@ -150,35 +131,10 @@ MBErrorCode MBRangeSeqIntersectIter::find_invalid_range()
     }
   }
     // otherwise invalid range ends at min(mEndHandle, sequence start handle - 1)
-  else if (iter->second->get_start_handle() <= mEndHandle) {
-    mEndHandle = iter->second->get_start_handle()-1;
+  else if ((*iter)->start_handle() <= mEndHandle) {
+    mEndHandle = (*iter)->start_handle()-1;
   }
   
-  return MB_ENTITY_NOT_FOUND;
-}
-
-MBErrorCode MBRangeSeqIntersectIter::find_deleted_range()
-{ 
-    // If we're here, then its because freeIndex == start_index
-  assert (mSequence);
-  assert (mSequence->get_start_handle() + freeIndex >= mStartHandle);
-
-    // Find the last deleted entity before mEndHandle
-  MBEntityID end_index = mEndHandle - mSequence->get_start_handle();
-  while (freeIndex < end_index) {
-    MBEntityID index = mSequence->get_next_free_index( freeIndex );
-      // If there was a break in the span of deleted entities before
-      // mEndHandle, then set mEndHandle to the end of the span of
-      // deleted entities and stop.  In the case where we've reached
-      // the end of the list (index < 0) then freeIndex will be the
-      // last index in the sequence.
-    if (index < 0 || index - freeIndex > 1) {
-      mEndHandle = mSequence->get_start_handle() + freeIndex;
-      break;
-    }
-    freeIndex = index;
-  }
-
   return MB_ENTITY_NOT_FOUND;
 }
         

@@ -16,6 +16,7 @@
 /**\file MBRangeSeqIntersectIter.hpp
  *\author Jason Kraftcheck (kraftche@cae.wisc.edu)
  *\date 2006-08-11
+ *\date 2007-11-06
  */
 
 #ifndef MB_RANGE_SEQ_INTERSECT_ITER_HPP
@@ -24,48 +25,44 @@
 #include "MBTypes.h"
 #include "MBRange.hpp"
 
-class EntitySequenceManager;
-class MBEntitySequence;
+class SequenceManager;
+class EntitySequence;
 
 #define MB_RANGE_SEQ_INTERSECT_ITER_STATS 0
 
 /** \brief Iterate over the blocks of MBEntityHandles in an MBRange that
- *         are in the same MBEntitySequence.
+ *         are in the same EntitySequence.
  *
  * Iterate over an MBRange, returning blocks of entities that are the 
  * largest ranges of contiguous handles that meet one of the following
  * conditions:
- *  - All are valid handles belonging to the same MBEntitySequence
- *  - All are invalid handles that are holes in the same MBEntitySequence
- *  - All are invalid handles of the same MBEntityType and aren't holes
- *      in any MBEntitySequence.
+ *  - All are valid handles belonging to the same EntitySequence
+ *  - All are invalid handles of the same MBEntityType
  *
  * The return type from init() or step() indicates whether or not the
  * current range contains valid entities.  If the handles are either
- * all valid or all holes in an MBEntitySequence, that sequence can
+ * all valid or all holes in an EntitySequence, that sequence can
  * be obtained with get_sequence().  get_sequence() will return NULL if
- * there is no corresponding MBEntitySequence for the block of handles.
+ * there is no corresponding EntitySequence for the block of handles.
  *
- * This class keeps a data related to the 'current' MBEntitySequence and
+ * This class keeps a data related to the 'current' EntitySequence and
  * references to the MBRange pasesd to init().  Changing either of these
  * while an instance of this class is in use would be bad.
  */
 class MBRangeSeqIntersectIter {
 public:
   
-  MBRangeSeqIntersectIter( EntitySequenceManager* sequences )
+  MBRangeSeqIntersectIter( SequenceManager* sequences )
     : mSequenceManager( sequences ),
       mSequence( 0 ),
       mStartHandle( 0 ),
       mEndHandle( 0 ),
-      mLastHandle( 0 ),
-      freeIndex( 0 )
+      mLastHandle( 0 )
     { }
     
     /** Initialize iterator to first valid subset 
      *\return - MB_SUCCESS : initial position of iterator is valid
      *        - MB_ENITITY_NOT_FOUND : range contains invalid handle -- can step past by calling again
-     *        - MB_TYPE_OUT_OF_RANGE : range contains mesh sets -- cannot step past as sets are at end of range
      *        - MB_FAILURE : No entities (start == end)
      */
   MBErrorCode init( MBRange::const_iterator start, MBRange::const_iterator end );
@@ -73,7 +70,6 @@ public:
     /** Step iterator to next range.  
      *\return - MB_SUCCESS : there is another range, and iter has been changed to it
      *        - MB_ENITITY_NOT_FOUND : range contains invalid handle -- can step past by calling again
-     *        - MB_TYPE_OUT_OF_RANGE : range contains mesh sets -- cannot step past as sets are at end of range
      *        - MB_FAILURE : at end.
      */
   MBErrorCode step();
@@ -90,7 +86,7 @@ public:
     /** Get the MBEntitySequence for the current block.
      *  May be NULL for invaild handles.
      */
-  MBEntitySequence* get_sequence() const
+  EntitySequence* get_sequence() const
     { return mSequence; }
   
     /** Get first handle in block */
@@ -122,20 +118,12 @@ private:
    *\return Always returns MB_ENTITY_NOT_FOUND
    */
   MBErrorCode find_invalid_range();
-  
-  /** Handle error case where mStartHandle corresponds to a hole in an
-   *  entity sequence.  Find the end of the block of invalid entities
-   *  in the sequence.
-   *\return Always returns MB_ENTITY_NOT_FOUND
-   */
-  MBErrorCode find_deleted_range();
 
-  EntitySequenceManager* mSequenceManager; //!< THE EntitySequenceManager
-  MBEntitySequence* mSequence;             //!< MBEntitySequence corresponding to current location
+  SequenceManager* mSequenceManager;       //!< THE EntitySequenceManager
+  EntitySequence* mSequence;               //!< EntitySequence corresponding to current location
   MBRange::const_pair_iterator rangeIter;  //!< Current position in MBRange.
   MBEntityHandle mStartHandle, mEndHandle; //!< Subset of current MBEntitySequence
   MBEntityHandle mLastHandle;              //!< The last of the list of all handles in the MBRange
-  MBEntityID freeIndex;                    //!< Current position in free list of mSequence
 
 #if MB_RANGE_SEQ_INTERSECT_ITER_STATS
   static double doubleNumCalls, doubleEntCount;

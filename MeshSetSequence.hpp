@@ -23,84 +23,101 @@
 
 #include "EntitySequence.hpp"
 #include "MBMeshSet.hpp"
+#include "SequenceData.hpp"
 
-class MeshSetSequence : public MBEntitySequence
+class SequenceManager;
+
+class MeshSetSequence : public EntitySequence
 {
 public:
 
-  MeshSetSequence( EntitySequenceManager* seq_man,
-                   MBEntityHandle start_handle,
-                   MBEntityID num_entities,
-                   unsigned set_flags );
+  MeshSetSequence( MBEntityHandle start,
+                   MBEntityID count,
+                   const unsigned* flags,
+                   SequenceData* data );
+  
+  MeshSetSequence( MBEntityHandle start,
+                   MBEntityID count,
+                   unsigned flags,
+                   SequenceData* data );
 
-  MeshSetSequence( EntitySequenceManager* seq_man,
-                   MBEntityHandle start_handle,
-                   MBEntityID num_entities,
-                   const unsigned* set_flags = 0 );
+  MeshSetSequence( MBEntityHandle start,
+                   MBEntityID count,
+                   const unsigned* flags,
+                   MBEntityID sequence_size );
+  
+  MeshSetSequence( MBEntityHandle start,
+                   MBEntityID count,
+                   unsigned flags,
+                   MBEntityID sequence_size );
 
   virtual ~MeshSetSequence();
-  virtual MBEntityHandle get_unused_handle();
-  MBEntityHandle add_meshset( unsigned flags );
-  MBErrorCode add_meshset( MBEntityHandle handle, unsigned flags );
-  virtual void free_handle( MBEntityHandle handle );
-  virtual void get_entities( MBRange& entities ) const;
-  virtual MBEntityID get_next_free_index( MBEntityID prev_free_index ) const;
-  virtual void get_memory_use( unsigned long& ,unsigned long& ) const;
-  virtual unsigned long get_memory_use( MBEntityHandle ) const;
-  
-  MBMeshSet* get_set( MBEntityHandle h );
-  const MBMeshSet* get_set( MBEntityHandle h ) const;
-  
-  MBErrorCode get_entities( MBEntityHandle set, MBRange& entities, bool recursive ) const;
-  MBErrorCode get_entities( MBEntityHandle set, std::vector<MBEntityHandle>& entities ) const;
-  MBErrorCode get_dimension( MBEntityHandle set, int dim, MBRange& entities, bool recursive ) const;
-  MBErrorCode get_type( MBEntityHandle set, MBEntityType type, MBRange& entities, bool recursive ) const;
-  
-  MBErrorCode num_entities( MBEntityHandle set, int& count, bool recursive ) const;
-  MBErrorCode num_dimension( MBEntityHandle set, int dim, int& count, bool recursive ) const;
-  MBErrorCode num_type( MBEntityHandle set, MBEntityType type, int& count, bool recursive ) const;
 
-  MBErrorCode get_parents ( MBEntityHandle of, std::vector<MBEntityHandle>& parents, int num_hops ) const;
-  MBErrorCode get_children( MBEntityHandle of, std::vector<MBEntityHandle>& children, int num_hops ) const;
-  MBErrorCode num_parents ( MBEntityHandle of, int& number, int num_hops ) const;
-  MBErrorCode num_children( MBEntityHandle of, int& number, int num_hops ) const;
+  EntitySequence* split( MBEntityHandle here );
   
-  MBErrorCode is_valid() const;
+  SequenceData* create_data_subset( MBEntityHandle, MBEntityHandle ) const
+    { return 0; }
   
-protected:
-    //! allocate the handle passed in, effectively creating the entity
-  virtual MBErrorCode allocate_handle(MBEntityHandle handle);
+  MBErrorCode pop_back( MBEntityID count );
+  MBErrorCode pop_front( MBEntityID count );
+  MBErrorCode push_back( MBEntityID count, const unsigned* flags );
+  MBErrorCode push_front( MBEntityID count, const unsigned* flags );
+  
+  void get_const_memory_use( unsigned long& bytes_per_entity,
+                             unsigned long& size_of_sequence ) const;
+  unsigned long get_per_entity_memory_use( MBEntityHandle first,
+                                           MBEntityHandle last ) const;
+
+
+  inline MBMeshSet* get_set( MBEntityHandle h );
+  inline const MBMeshSet* get_set( MBEntityHandle h ) const;
+  
+  MBErrorCode get_entities( MBEntityHandle set, std::vector<MBEntityHandle>& entities ) const;
+  MBErrorCode get_entities(  SequenceManager const* seqman, MBEntityHandle set,                    MBRange& entities, bool recursive ) const;
+  MBErrorCode get_dimension( SequenceManager const* seqman, MBEntityHandle set, int dim,           MBRange& entities, bool recursive ) const;
+  MBErrorCode get_type(      SequenceManager const* seqman, MBEntityHandle set, MBEntityType type, MBRange& entities, bool recursive ) const;
+  
+  MBErrorCode num_entities(  SequenceManager const* seqman, MBEntityHandle set,                    int& count, bool recursive ) const;
+  MBErrorCode num_dimension( SequenceManager const* seqman, MBEntityHandle set, int dim,           int& count, bool recursive ) const;
+  MBErrorCode num_type(      SequenceManager const* seqman, MBEntityHandle set, MBEntityType type, int& count, bool recursive ) const;
+
+  MBErrorCode get_parents ( SequenceManager const* seqman, MBEntityHandle of, std::vector<MBEntityHandle>& parents,  int num_hops ) const;
+  MBErrorCode get_children( SequenceManager const* seqman, MBEntityHandle of, std::vector<MBEntityHandle>& children, int num_hops ) const;
+  MBErrorCode num_parents ( SequenceManager const* seqman, MBEntityHandle of, int& number, int num_hops ) const;
+  MBErrorCode num_children( SequenceManager const* seqman, MBEntityHandle of, int& number, int num_hops ) const;
   
 private:
 
-  void initialize( EntitySequenceManager* seq_man,
-                   MBEntityHandle start_handle,
-                   MBEntityID num_entities,
-                   const unsigned* set_flags );
+  MeshSetSequence( MeshSetSequence& split_from, MBEntityHandle split_at )
+    : EntitySequence( split_from, split_at )
+    {}
+
+  void initialize( const unsigned* set_flags );
   
   MBErrorCode get_parent_child_meshsets( MBEntityHandle meshset,
+                                    SequenceManager const* set_sequences,
                                     std::vector<MBEntityHandle>& results,
                                     int num_hops, bool parents ) const;
                                     
   MBErrorCode recursive_get_sets( MBEntityHandle start_set,
+                            SequenceManager const* set_sequences,
                             std::vector<MBMeshSet*>& sets_out ) const ;
   
   enum {
     SET_SIZE = (sizeof(MBMeshSet_MBRange) > sizeof(MBMeshSet_Vector)) ?
                 sizeof(MBMeshSet_MBRange) : sizeof(MBMeshSet_Vector)
   };
-  
-  unsigned char* mSets;
-  
-  inline MBEntityID& next_free( MBEntityID index )
-    { return *reinterpret_cast<MBEntityID*>(mSets + SET_SIZE * index ); }
-  inline MBEntityID next_free( MBEntityID index ) const
-    { return *reinterpret_cast<MBEntityID*>(mSets + SET_SIZE * index ); }
+
+  inline const unsigned char* array() const
+    { return reinterpret_cast<const unsigned char*>(data()->get_sequence_data(0)); }
+
+  inline unsigned char* array()
+    { return reinterpret_cast<unsigned char*>(data()->get_sequence_data(0)); }
     
   inline void allocate_set( unsigned flags, MBEntityID index )
   {
     const bool tracking = (0 != (flags&MESHSET_TRACK_OWNER));
-    unsigned char* const ptr = mSets + index * SET_SIZE;
+    unsigned char* const ptr = array() + index * SET_SIZE;
     if (flags & MESHSET_ORDERED)
       new (ptr) MBMeshSet_Vector(tracking);
     else
@@ -109,7 +126,7 @@ private:
     
   inline void deallocate_set( MBEntityID index ) 
   {
-    MBMeshSet* set = reinterpret_cast<MBMeshSet*>(mSets + SET_SIZE * index );
+    MBMeshSet* set = reinterpret_cast<MBMeshSet*>(array() + SET_SIZE * index );
     if (set->vector_based())
       reinterpret_cast<MBMeshSet_Vector*>(set)->~MBMeshSet_Vector();
     else
@@ -119,13 +136,11 @@ private:
 
 inline MBMeshSet* MeshSetSequence::get_set( MBEntityHandle h )
 {
-  assert(is_valid_entity(h));
-  return reinterpret_cast<MBMeshSet*>(mSets + SET_SIZE*(h - get_start_handle()));
+  return reinterpret_cast<MBMeshSet*>(array() + SET_SIZE*(h - data()->start_handle()));
 }
 inline const MBMeshSet* MeshSetSequence::get_set( MBEntityHandle h ) const
 {
-  assert(is_valid_entity(h));
-  return reinterpret_cast<MBMeshSet*>(mSets + SET_SIZE*(h - get_start_handle()));
+  return reinterpret_cast<const MBMeshSet*>(array() + SET_SIZE*(h - data()->start_handle()));
 }
 
 #endif

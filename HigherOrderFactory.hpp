@@ -29,7 +29,7 @@
 #endif
 
 #include "MBInterface.hpp"
-class ElementEntitySequence;
+class ElementSequence;
 class MBCore;
 
 class HigherOrderFactory
@@ -52,11 +52,15 @@ private:
   MBCore* mMB;
   MBInterface::HONodeAddedRemoved* mHONodeAddedRemoved;
 
-  MBErrorCode convert_sequence(ElementEntitySequence*, const bool mid_edge_nodes, 
-                                const bool mid_face_nodes, const bool mid_volume_nodes);
-  MBErrorCode add_mid_edge_nodes(ElementEntitySequence*);
-  MBErrorCode add_mid_face_nodes(ElementEntitySequence*);
-  MBErrorCode add_mid_volume_nodes(ElementEntitySequence*);
+  MBErrorCode convert_sequence(ElementSequence* sequence, 
+                               MBEntityHandle sequence_subset_start,
+                               MBEntityHandle sequence_subset_end,
+                               bool mid_edge_nodes, 
+                               bool mid_face_nodes,
+                               bool mid_volume_nodes);
+  MBErrorCode add_mid_edge_nodes(ElementSequence*);
+  MBErrorCode add_mid_face_nodes(ElementSequence*);
+  MBErrorCode add_mid_volume_nodes(ElementSequence*);
 
   //! returns the handle of the first center node found between the two corner nodes.
   //! returns zero if none found
@@ -74,6 +78,38 @@ private:
   bool add_center_node(MBEntityType type, MBEntityHandle* element_conn, int conn_size, 
       MBEntityHandle corner_node1, MBEntityHandle corner_node2, MBEntityHandle center_node);
 
+
+  MBErrorCode copy_corner_nodes( ElementSequence* src, ElementSequence* dst );
+  MBErrorCode copy_mid_edge_nodes( ElementSequence* src, ElementSequence* dst ); 
+  MBErrorCode copy_mid_face_nodes( ElementSequence* src, ElementSequence* dst ); 
+  MBErrorCode copy_mid_volume_nodes( ElementSequence* src, ElementSequence* dst ); 
+  MBErrorCode copy_nodes( ElementSequence* src, 
+                          ElementSequence* dst,
+                          unsigned nodes_per_elem_to_copy,
+                          unsigned src_conn_offset,
+                          unsigned dst_conn_offset ); 
+
+  MBErrorCode remove_mid_edge_nodes( ElementSequence* seq, 
+                                     MBEntityHandle start,
+                                     MBEntityHandle stop,
+                                     MBTag deletable_ndoes );
+  MBErrorCode remove_mid_face_nodes( ElementSequence* seq, 
+                                     MBEntityHandle start,
+                                     MBEntityHandle stop,
+                                     MBTag deletable_ndoes );
+  MBErrorCode remove_mid_volume_nodes( ElementSequence* seq, 
+                                       MBEntityHandle start,
+                                       MBEntityHandle stop,
+                                       MBTag deletable_ndoes );
+  MBErrorCode remove_ho_nodes( ElementSequence* sequence,
+                               MBEntityHandle subset_start_handle,
+                               MBEntityHandle subset_end_handle,
+                               int nodes_per_elem_to_remove,
+                               int elem_conn_offset_to_remove,
+                               MBTag deletable_nodes );
+  bool tag_for_deletion( MBEntityHandle element_with_node,
+                         int node_index_in_elem_connectivity,
+                         ElementSequence* sequence );
 };
 
 

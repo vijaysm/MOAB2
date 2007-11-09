@@ -25,8 +25,9 @@
 #include "MBCore.hpp"
 #include "AEntityFactory.hpp"
 #include "MBError.hpp"
-#include "EntitySequenceManager.hpp"
-#include "PolyEntitySequence.hpp"
+#include "SequenceManager.hpp"
+#include "VertexSequence.hpp"
+#include "ElementSequence.hpp"
 
 #define RR if (MB_SUCCESS != result) return result
 
@@ -48,17 +49,11 @@ MBErrorCode MBReadUtil::get_node_arrays(
 {
 
   MBErrorCode error;
-  MBEntitySequence* seq = 0;
+  EntitySequence* seq = 0;
 
-  MBEntityHandle preferred_start_handle;
-  preferred_start_handle = 
-    mMB->handle_utils().create_handle(MBVERTEX, 
-                                      preferred_start_id, 
-                                      preferred_start_proc);
- 
   // create an entity sequence for these nodes 
   error = mMB->sequence_manager()->create_entity_sequence(
-    MBVERTEX, num_nodes, 0, preferred_start_handle, 
+    MBVERTEX, num_nodes, 0, preferred_start_id, 
     preferred_start_proc, actual_start_handle,
     seq);
 
@@ -67,7 +62,10 @@ MBErrorCode MBReadUtil::get_node_arrays(
 
   arrays.resize(3);
 
-  error = static_cast<VertexEntitySequence*>(seq)->get_coordinate_arrays(arrays[0], arrays[1], arrays[2]);
+  error = static_cast<VertexSequence*>(seq)->get_coordinate_arrays(arrays[0], arrays[1], arrays[2]);
+  for (unsigned i = 0; i< arrays.size(); ++i)
+    if (arrays[i])
+      arrays[i] += (actual_start_handle - seq->start_handle());
   
   return error;
 }
@@ -83,10 +81,10 @@ MBErrorCode MBReadUtil::get_element_array(
 {
 
   MBErrorCode error;
-  MBEntitySequence* seq;
+  EntitySequence* seq;
   
-  if (mdb_type <= MBVERTEX || mdb_type >= MBPOLYHEDRON || mdb_type == MBPOLYGON)
-    return MB_TYPE_OUT_OF_RANGE;
+//  if (mdb_type <= MBVERTEX || mdb_type >= MBPOLYHEDRON || mdb_type == MBPOLYGON)
+//    return MB_TYPE_OUT_OF_RANGE;
 
   // make an entity sequence to hold these elements
   unsigned proc_id = proc < 0 ? parallel_rank() : proc;
@@ -97,41 +95,14 @@ MBErrorCode MBReadUtil::get_element_array(
     return error;
 
   // get an array for the connectivity
-  error = static_cast<ElementEntitySequence*>(seq)->get_connectivity_array(array);
+  array = static_cast<ElementSequence*>(seq)->get_connectivity_array();
+  if (!array)
+    return MB_FAILURE;
+  array += (actual_start_handle - seq->start_handle()) 
+         * static_cast<ElementSequence*>(seq)->nodes_per_element();
 
   return error;
   
-}
-
-MBErrorCode MBReadUtil::get_poly_element_array(
-      const int num_poly, 
-      const int conn_list_length,
-      const MBEntityType mdb_type,
-      const int preferred_start_id, 
-      const int preferred_start_proc,
-      MBEntityHandle& actual_start_handle, 
-      int*& last_index_array,
-      MBEntityHandle*& connectivity_array )
-{
-
-  MBErrorCode error;
-  MBEntitySequence* seq;
-  
-  if (mdb_type != MBPOLYGON && mdb_type != MBPOLYHEDRON)
-    return MB_TYPE_OUT_OF_RANGE;
-
-  error = mMB->sequence_manager()->create_entity_sequence(
-      mdb_type, num_poly, conn_list_length, preferred_start_id, 
-      preferred_start_proc, actual_start_handle, seq);
-  if (MB_SUCCESS != error || NULL == seq)
-    return error;
-
-  PolyEntitySequence *pseq = dynamic_cast<PolyEntitySequence*>(seq);
-  assert(NULL != pseq);
-  
-  pseq->get_connectivity_array( connectivity_array );
-  pseq->get_index_array( last_index_array );
-  return MB_SUCCESS;
 }
 
 MBErrorCode MBReadUtil::create_entity_sets( MBEntityID num_sets,
@@ -141,14 +112,13 @@ MBErrorCode MBReadUtil::create_entity_sets( MBEntityID num_sets,
                                             MBEntityHandle& start_handle )
 {
   MBErrorCode error;
-  MBEntitySequence* seq;
+  EntitySequence* seq;
   error = mMB->sequence_manager()->create_meshset_sequence( num_sets,
                                                             start_id,
                                                             proc,
                                                             flags,
+                                                            start_handle,
                                                             seq );
-  if (seq)
-    start_handle = seq->get_start_handle();
   return error;
 }
 

@@ -19,299 +19,143 @@
  */
 
 #include "MeshSetSequence.hpp"
-#include "EntitySequenceManager.hpp"
+#include "SequenceManager.hpp"
 
-MeshSetSequence::MeshSetSequence( EntitySequenceManager* man,
-                                  MBEntityHandle start_handle,
-                                  MBEntityID num_entities,
-                                  unsigned flags )
-  : MBEntitySequence( man, start_handle, num_entities )
+MeshSetSequence::MeshSetSequence( MBEntityHandle start,
+                                  MBEntityID count,
+                                  const unsigned* flags,
+                                  SequenceData* data )
+  : EntitySequence( start, count, data )
 {
-  std::vector<unsigned> flag_vect(num_entities, flags);
-  initialize( man, start_handle, num_entities, &flag_vect[0] );
+  initialize( flags );
 }
 
-MeshSetSequence::MeshSetSequence( EntitySequenceManager* man,
-                                  MBEntityHandle start_handle,
-                                  MBEntityID num_entities,
-                                  const unsigned* flags )
-  : MBEntitySequence( man, start_handle, num_entities )
+MeshSetSequence::MeshSetSequence( MBEntityHandle start,
+                                  MBEntityID count,
+                                  unsigned flags,
+                                  SequenceData* data )
+  : EntitySequence( start, count, data )
 {
-  initialize( man, start_handle, num_entities, flags );
+  std::vector<unsigned> vect( count, flags );
+  initialize( &vect[0] );
 }
 
-void MeshSetSequence::initialize( EntitySequenceManager* man,
-                                  MBEntityHandle start_handle,
-                                  MBEntityID num_entities,
-                                  const unsigned* flags )
+MeshSetSequence::MeshSetSequence( MBEntityHandle start,
+                                  MBEntityID count,
+                                  const unsigned* flags,
+                                  MBEntityID data_size )
+  : EntitySequence( start, count, new SequenceData( 1, start, start+data_size-1) )
 {
-  man->entity_sequence_created( this );
-  
-    // allocate storage
-  mSets = new unsigned char[SET_SIZE * num_entities];
-  mFreeEntities.clear();
-  if (flags) {
-    mNumEntities = num_entities;
-    mFirstFreeIndex = -1;
-    for (MBEntityID i = 0; i < num_entities; ++i) 
-      allocate_set( flags[i], i );
-  }
-  else {
-    man->notify_not_full( this );
-    mNumEntities = 0;
-    mFirstFreeIndex = 0;
-    mFreeEntities.resize( mNumAllocated, true );
-    for (MBEntityID i = 0; i < num_entities; ++i)
-      next_free(i) = i + 1;
-    next_free(num_entities-1) = -1; 
-  }
+  initialize( flags );
+}
+
+MeshSetSequence::MeshSetSequence( MBEntityHandle start,
+                                  MBEntityID count,
+                                  unsigned flags,
+                                  MBEntityID data_size )
+  : EntitySequence( start, count, new SequenceData( 1, start, start+data_size-1) )
+{
+  std::vector<unsigned> vect( count, flags );
+  initialize( &vect[0] );
+}
+
+void MeshSetSequence::initialize( const unsigned* flags )
+{
+  if (!data()->get_sequence_data(0))
+    data()->create_sequence_data( 0, SET_SIZE );
+ 
+  MBEntityID offset = start_handle() - data()->start_handle();
+  for (MBEntityID i = 0; i < size(); ++i)
+    allocate_set( flags[i], i+offset );
 }
 
 MeshSetSequence::~MeshSetSequence()
 {
-  mSequenceManager->entity_sequence_deleted( this );
-  if (mSets) {
-    for (MBEntityID i = 0; i < mNumAllocated; ++i) 
-      if (is_valid_entity(get_start_handle()+i)) 
-        deallocate_set( i );
-    delete [] mSets;
-  }
+  MBEntityID offset = start_handle() - data()->start_handle();
+  MBEntityID count = size();
+  for (MBEntityID i = 0; i < count; ++i)
+    deallocate_set( i + offset );
 }
 
-MBEntityHandle MeshSetSequence::get_unused_handle()
+EntitySequence* MeshSetSequence::split( MBEntityHandle here )
 {
-  return 0;
+  return new MeshSetSequence( *this, here );
 }
 
-MBErrorCode MeshSetSequence::add_meshset(MBEntityHandle handle, unsigned flags) 
+MBErrorCode MeshSetSequence::pop_back( MBEntityID count )
 {
-  if (handle < get_start_handle() || handle > get_end_handle())
-    return MB_INDEX_OUT_OF_RANGE;
-    // check and update allocated flag
-  const MBEntityID index = handle - get_start_handle();
-  if (mFreeEntities.empty() || !mFreeEntities[index])
-    return MB_ALREADY_ALLOCATED;
-  mFreeEntities[index] = false;
-  
-    // remove from linked list of free entities
-  if (mFirstFreeIndex == index) 
-    mFirstFreeIndex = next_free(index);
-  else {
-#ifndef NDEBUG
-    int counter = 0;
-#endif
-    MBEntityID i = mFirstFreeIndex;
-    while (next_free(i) != index) {
-      assert( ++counter <= (number_allocated() - number_entities()) );
-      i = next_free(i);
-    }
-    next_free(i) = next_free(index);
-  }
-  
-    // update last-deleted index
-  if (mLastDeletedIndex == index)
-    mLastDeletedIndex = -1;
-  
-    // initialze entity set
-  allocate_set( flags, index );
-
-  mNumEntities++;
-  if (mNumEntities == mNumAllocated) {
-    mSequenceManager->notify_full(this);
-    std::vector<bool> empty;
-    mFreeEntities.swap( empty);
-  }
-
-  return MB_SUCCESS;
+  MBEntityID offset = end_handle() + 1 - count - data()->start_handle();
+  MBErrorCode rval = EntitySequence::pop_back(count);
+  if (MB_SUCCESS == rval)
+    for (MBEntityID i = 0; i < count; ++i)
+      deallocate_set( i + offset );
+  return rval;
 }
 
-MBErrorCode MeshSetSequence::allocate_handle(MBEntityHandle handle) 
+MBErrorCode MeshSetSequence::pop_front( MBEntityID count )
 {
-  return MB_FAILURE;
+  MBEntityID offset = start_handle() - data()->start_handle();
+  MBErrorCode rval = EntitySequence::pop_front(count);
+  if (MB_SUCCESS == rval)
+    for (MBEntityID i = 0; i < count; ++i)
+      deallocate_set( i + offset );
+  return rval;
 }
 
-MBEntityHandle MeshSetSequence::add_meshset( unsigned flags )
+MBErrorCode MeshSetSequence::push_back( MBEntityID count, const unsigned* flags )
 {
-  if (mFirstFreeIndex == -1)
-    return 0;
-  const MBEntityID index = mFirstFreeIndex;
-  
-  mFreeEntities[index] = false;
-  mFirstFreeIndex = next_free(index);
-  if (mLastDeletedIndex == index) 
-    mLastDeletedIndex = -1;
-  
-  allocate_set( flags, index );
-  mNumEntities++;
-  if (mNumEntities == mNumAllocated) {
-    mSequenceManager->notify_full(this);
-    std::vector<bool> empty;
-    mFreeEntities.swap( empty);
-  }
-  
-  return get_start_handle() + index;
+  MBEntityID offset = end_handle() + 1 - data()->start_handle();
+  MBErrorCode rval = EntitySequence::append_entities( count );
+  if (MB_SUCCESS == rval)
+    for (MBEntityID i = 0; i < count; ++i)
+      allocate_set( flags[i], i + offset );
+  return rval;
 }
 
-MBErrorCode MeshSetSequence::is_valid() const
+MBErrorCode MeshSetSequence::push_front( MBEntityID count, const unsigned* flags )
 {
-  if (mFirstFreeIndex >= number_allocated())
-    return MB_FAILURE;
-
-    // if entity sequence is full by any indicator, ensure
-    // all indicators are consistant
-  if (number_entities() == number_allocated() || mFreeEntities.empty() || mFirstFreeIndex < 0) {
-    if (number_entities() != number_allocated())
-      return MB_FAILURE;
-    if (!mFreeEntities.empty())
-      return MB_FAILURE;
-    if (mFirstFreeIndex >= 0)
-      return MB_FAILURE;
-    
-    return MB_SUCCESS;
-  }
-  
-    // make sure mFreeEntities is correctly allocated
-  if (mFreeEntities.size() != (size_t)number_allocated())
-    return MB_FAILURE;
-  
-    // count number of unallocated entities
-  size_t count = 0;
-  for (size_t i = 0; i < mFreeEntities.size(); ++i)
-    if (mFreeEntities[i])
-      ++count;
-  
-    // check number of free entities
-  if (count != (size_t)(number_allocated() - number_entities()))
-    return MB_FAILURE;
-  
-    // check linked list of free entities
-  for (MBEntityID i = mFirstFreeIndex; i != -1; i = next_free(i)) {
-    --count;
-    if (i < 0)
-      return MB_FAILURE;
-    if (i >= number_allocated())
-      return MB_FAILURE;
-    if (!mFreeEntities[i])
-      return MB_FAILURE;
-  }
-  
-    // check length of linked list
-  if (count != 0)
-    return MB_FAILURE;
-    
-    // check last deleted
-  if (mLastDeletedIndex != -1) {
-    if (mLastDeletedIndex < 0)
-      return MB_FAILURE;
-    if (mLastDeletedIndex >= number_allocated())
-      return MB_FAILURE;
-    if (!mFreeEntities[mLastDeletedIndex])
-      return MB_FAILURE;
-  }
-  
-  return MB_SUCCESS;
-}  
-
-void MeshSetSequence::free_handle( MBEntityHandle handle )
-{
-  if (!is_valid_entity(handle))
-    return;
-  const MBEntityID index = handle - get_start_handle();
-  
-    // free any memory allocated by the MBMeshSet
-  deallocate_set( index );
-
-    // decerement count of valid entities
-  if(mNumEntities == mNumAllocated) {
-    mSequenceManager->notify_not_full(this);
-    mFreeEntities.resize( mNumAllocated, false );
-  }
-  --mNumEntities;
-
-    // mark this entity as invalid
-  mFreeEntities[index] = true;
-  
-    // Add this entity to the free list.
-    // Free list is maintained in sorted order.
-
-    // insert at beginning?
-  if (mFirstFreeIndex == -1 || mFirstFreeIndex > index) {
-    next_free(index) = mFirstFreeIndex;
-    mFirstFreeIndex = mLastDeletedIndex = index;
-    return;
-  }
-  
-    // Find entry to insert after.
-    
-  MBEntityID prev_index = mFirstFreeIndex;
-    // mLastDeletedIndex is a cache of the last deleted
-    // entity.  Used to speed up sequential deletion.
-  if (mLastDeletedIndex != -1 && mLastDeletedIndex < index)
-     prev_index = mLastDeletedIndex;
-    // Search list for location to insert at
-  MBEntityID next = next_free(prev_index);
-  while (next != -1 && next < index) {
-    prev_index = next;
-    next = next_free(next);
-  }
-    // insert in free list
-  mLastDeletedIndex = index;
-  next_free(index) = next_free(prev_index);
-  next_free(prev_index) = index;
-}  
-
-void MeshSetSequence::get_entities( MBRange& entities ) const
-{
-  MBRange::iterator iter = entities.insert(get_start_handle(), get_end_handle());
-  for(MBEntityID index = mFirstFreeIndex; index != -1; index = next_free(index))
-  {
-    iter += get_start_handle() + index - *iter;
-    iter = entities.erase(iter);
-  }
+  MBEntityID offset = start_handle() - data()->start_handle() - count;
+  MBErrorCode rval = EntitySequence::prepend_entities( count );
+  if (MB_SUCCESS == rval)
+    for (MBEntityID i = 0; i < count; ++i)
+      allocate_set( flags[i], i + offset );
+  return rval;
 }
 
-MBEntityID MeshSetSequence::get_next_free_index( MBEntityID prev_free_index ) const
+void MeshSetSequence::get_const_memory_use( unsigned long& per_ent,
+                                            unsigned long& seq_size ) const
 {
-  return prev_free_index < 0 ? mFirstFreeIndex : next_free(prev_free_index);
+  per_ent = SET_SIZE;
+  seq_size = sizeof(*this);
 }
 
-void MeshSetSequence::get_memory_use( unsigned long& used,
-                                      unsigned long& allocated ) const
+unsigned long MeshSetSequence::get_per_entity_memory_use( MBEntityHandle first,
+                                                          MBEntityHandle last
+                                                        ) const
 {
-  used = 0;
-  allocated = sizeof(*this) + mFreeEntities.capacity()/8;
-  allocated += mNumAllocated * SET_SIZE;
-  for (MBEntityHandle h = get_start_handle(); h <= get_end_handle(); ++h) {
-    if (is_valid_entity(h)) {
-      unsigned long m = get_set(h)->get_memory_use();
-      used += m;
-      allocated += m;
-    }
-    else {
-      allocated += SET_SIZE;
-    }
-  }
+  if (first < start_handle())
+    first = start_handle();
+  if (last > end_handle())
+    last = end_handle();
+  
+  unsigned long sum = 0;
+  for (MBEntityHandle h = first; h <= last; ++h) 
+    sum += get_set(h)->get_memory_use();
+  return sum;
 }
 
-unsigned long MeshSetSequence::get_memory_use( MBEntityHandle h ) const
-{
-  return SET_SIZE + get_set(h)->get_memory_use();
-}
-
-MBErrorCode MeshSetSequence::get_entities( MBEntityHandle handle,
+MBErrorCode MeshSetSequence::get_entities( const SequenceManager* seqman,
+                                           MBEntityHandle handle,
                                            MBRange& entities,
                                            bool recursive ) const
 {
-  if (!is_valid_entity(handle))
-    return MB_ENTITY_NOT_FOUND;
-  
   if (!recursive) {
     get_set(handle)->get_entities( entities );
     return MB_SUCCESS;
   }
   else {
     std::vector<MBMeshSet*> list;
-    MBErrorCode rval = recursive_get_sets( handle, list );
+    MBErrorCode rval = recursive_get_sets( handle, seqman, list );
     for (std::vector<MBMeshSet*>::iterator i = list.begin(); i != list.end(); ++i)
       (*i)->get_non_set_entities( entities );
     return rval;
@@ -321,115 +165,103 @@ MBErrorCode MeshSetSequence::get_entities( MBEntityHandle handle,
 MBErrorCode MeshSetSequence::get_entities( MBEntityHandle handle,
                                 std::vector<MBEntityHandle>& entities ) const
 {
-  if (!is_valid_entity(handle))
-    return MB_ENTITY_NOT_FOUND;
-  
   get_set(handle)->get_entities( entities );
   return MB_SUCCESS;
 }
 
-MBErrorCode MeshSetSequence::get_dimension( MBEntityHandle handle,
+MBErrorCode MeshSetSequence::get_dimension( const SequenceManager* seqman,
+                                            MBEntityHandle handle,
                                             int dimension,
                                             MBRange& entities,
                                             bool recursive ) const
 {
-  if (!is_valid_entity(handle))
-    return MB_ENTITY_NOT_FOUND;
-  
   if (!recursive) {
     get_set(handle)->get_entities_by_dimension( dimension, entities );
     return MB_SUCCESS;
   }
   else {
     std::vector<MBMeshSet*> list;
-    MBErrorCode rval = recursive_get_sets( handle, list );
+    MBErrorCode rval = recursive_get_sets( handle, seqman, list );
     for (std::vector<MBMeshSet*>::iterator i = list.begin(); i != list.end(); ++i)
       (*i)->get_entities_by_dimension( dimension, entities );
     return rval;
   }
 }
 
-MBErrorCode MeshSetSequence::get_type(      MBEntityHandle handle,
+MBErrorCode MeshSetSequence::get_type(      const SequenceManager* seqman,
+                                            MBEntityHandle handle,
                                             MBEntityType type,
                                             MBRange& entities,
                                             bool recursive ) const
 {
-  if (!is_valid_entity(handle))
-    return MB_ENTITY_NOT_FOUND;
-  
   if (!recursive) {
     get_set(handle)->get_entities_by_type( type, entities );
     return MB_SUCCESS;
   }
   else {
     std::vector<MBMeshSet*> list;
-    MBErrorCode rval = recursive_get_sets( handle, list );
+    MBErrorCode rval = recursive_get_sets( handle, seqman, list );
     for (std::vector<MBMeshSet*>::iterator i = list.begin(); i != list.end(); ++i)
       (*i)->get_entities_by_type( type, entities );
     return rval;
   }
 }
 
-MBErrorCode MeshSetSequence::num_entities( MBEntityHandle handle,
+MBErrorCode MeshSetSequence::num_entities( const SequenceManager* seqman,
+                                           MBEntityHandle handle,
                                            int& number,
                                            bool recursive ) const
 {
-  if (!is_valid_entity(handle))
-    return MB_ENTITY_NOT_FOUND;
-  
   if (!recursive) {
     number = get_set(handle)->num_entities();
     return MB_SUCCESS;
   }
   else {
     MBRange range;
-    MBErrorCode result = get_entities( handle, range, true );
+    MBErrorCode result = get_entities( seqman, handle, range, true );
     number = range.size();
     return result;
   }
 }
 
-MBErrorCode MeshSetSequence::num_dimension( MBEntityHandle handle,
+MBErrorCode MeshSetSequence::num_dimension( const SequenceManager* seqman,
+                                            MBEntityHandle handle,
                                             int dimension,
                                             int& number,
                                             bool recursive ) const
 {
-  if (!is_valid_entity(handle))
-    return MB_ENTITY_NOT_FOUND;
-  
   if (!recursive) {
     number = get_set(handle)->num_entities_by_dimension(dimension);
     return MB_SUCCESS;
   }
   else {
     MBRange range;
-    MBErrorCode result = get_dimension( handle, dimension, range, true );
+    MBErrorCode result = get_dimension( seqman, handle, dimension, range, true );
     number = range.size();
     return result;
   }
 }
  
-MBErrorCode MeshSetSequence::num_type( MBEntityHandle handle,
+MBErrorCode MeshSetSequence::num_type( const SequenceManager* seqman,
+                                       MBEntityHandle handle,
                                        MBEntityType type,
                                        int& number,
                                        bool recursive ) const
 {
-  if (!is_valid_entity(handle))
-    return MB_ENTITY_NOT_FOUND;
-  
   if (!recursive) {
     number = get_set(handle)->num_entities_by_type(type);
     return MB_SUCCESS;
   }
   else {
     MBRange range;
-    MBErrorCode result = get_type( handle, type, range, true );
+    MBErrorCode result = get_type( seqman, handle, type, range, true );
     number = range.size();
     return result;
   }
 }
 
 MBErrorCode MeshSetSequence::recursive_get_sets( MBEntityHandle start_set,
+                              const SequenceManager* seq_sets,
                               std::vector<MBMeshSet*>& sets ) const
 {
   std::set<MBEntityHandle> visited;
@@ -442,16 +274,12 @@ MBErrorCode MeshSetSequence::recursive_get_sets( MBEntityHandle start_set,
     if (!visited.insert(handle).second)
       continue;
     
-    MBEntitySequence* seq;
-    MBErrorCode rval = mSequenceManager->find( handle, seq );
+    EntitySequence* seq;
+    MBErrorCode rval = seq_sets->find( handle, seq );
     if (MB_SUCCESS != rval)
       return rval;
     
     MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
-    if (!mseq->is_valid_entity(handle))
-      return MB_ENTITY_NOT_FOUND;
-    
-    
     MBMeshSet *ms_ptr = mseq->get_set( handle );
     sets.push_back( ms_ptr );
     
@@ -464,6 +292,7 @@ MBErrorCode MeshSetSequence::recursive_get_sets( MBEntityHandle start_set,
 }
 
 MBErrorCode MeshSetSequence::get_parent_child_meshsets( MBEntityHandle meshset,
+                                    const SequenceManager* seq_sets,
                                     std::vector<MBEntityHandle>& results,
                                     int num_hops, bool parents ) const
 {
@@ -490,12 +319,10 @@ MBErrorCode MeshSetSequence::get_parent_child_meshsets( MBEntityHandle meshset,
       // for each set at the current num_hops
     for (i = lists[index].begin(); i != lists[index].end(); ++i) {
         // get meshset from handle
-      MBEntitySequence* seq;
-      MBErrorCode rval = mSequenceManager->find( *i, seq );
+      EntitySequence* seq;
+      MBErrorCode rval = seq_sets->find( *i, seq );
       if (MB_SUCCESS != rval)
         return rval;
-      if (!seq->is_valid_entity(*i))
-        return MB_ENTITY_NOT_FOUND;
       MBMeshSet *ms_ptr = reinterpret_cast<MeshSetSequence*>(seq)->get_set( *i );
       
         // querying for parents or children?
@@ -520,14 +347,12 @@ MBErrorCode MeshSetSequence::get_parent_child_meshsets( MBEntityHandle meshset,
   return result;
 }
 
-MBErrorCode MeshSetSequence::get_parents( MBEntityHandle handle,
-                            std::vector<MBEntityHandle>& parents,
-                            int num_hops ) const
+MBErrorCode MeshSetSequence::get_parents( const SequenceManager* seqman,
+                                          MBEntityHandle handle,
+                                          std::vector<MBEntityHandle>& parents,
+                                          int num_hops ) const
 {
   if (num_hops == 1) {
-   if (!is_valid_entity(handle))
-      return MB_ENTITY_NOT_FOUND;
-    
     int count;
     const MBEntityHandle* array = get_set( handle )->get_parents(count);  
     if (parents.empty()) {
@@ -541,19 +366,17 @@ MBErrorCode MeshSetSequence::get_parents( MBEntityHandle handle,
   }
   
   if (num_hops > 0)
-    return get_parent_child_meshsets( handle, parents, num_hops, true );
+    return get_parent_child_meshsets( handle, seqman, parents, num_hops, true );
   else
-    return get_parent_child_meshsets( handle, parents, -1, true );
+    return get_parent_child_meshsets( handle, seqman, parents, -1, true );
 }
 
-MBErrorCode MeshSetSequence::get_children( MBEntityHandle handle,
-                            std::vector<MBEntityHandle>& children,
-                            int num_hops ) const
+MBErrorCode MeshSetSequence::get_children( const SequenceManager* seqman,
+                                           MBEntityHandle handle,
+                                           std::vector<MBEntityHandle>& children,
+                                           int num_hops ) const
 {
   if (num_hops == 1) {
-    if (!is_valid_entity(handle))
-      return MB_ENTITY_NOT_FOUND;
-    
     int count;
     const MBEntityHandle* array = get_set( handle )->get_children(count);  
     if (children.empty()) {
@@ -567,44 +390,40 @@ MBErrorCode MeshSetSequence::get_children( MBEntityHandle handle,
   }
 
   if (num_hops > 0) 
-    return get_parent_child_meshsets( handle, children, num_hops, false );
+    return get_parent_child_meshsets( handle, seqman, children, num_hops, false );
   else 
-    return get_parent_child_meshsets( handle, children, -1, false );
+    return get_parent_child_meshsets( handle, seqman, children, -1, false );
 }
 
-MBErrorCode MeshSetSequence::num_parents( MBEntityHandle handle,
-                                         int& number,
-                                         int num_hops ) const
+MBErrorCode MeshSetSequence::num_parents( const SequenceManager* seqman,
+                                          MBEntityHandle handle,
+                                          int& number,
+                                          int num_hops ) const
 {
   if (num_hops == 1) {
-    if (!is_valid_entity(handle))
-      return MB_ENTITY_NOT_FOUND;
-    
     number = get_set( handle )->num_parents();
     return MB_SUCCESS;
   }
   
   std::vector<MBEntityHandle> parents;
-  MBErrorCode result = get_parents( handle, parents, num_hops );
+  MBErrorCode result = get_parents( seqman, handle, parents, num_hops );
   number = parents.size();
   return result;
 }
 
 
-MBErrorCode MeshSetSequence::num_children( MBEntityHandle handle,
-                                         int& number,
-                                         int num_hops ) const
+MBErrorCode MeshSetSequence::num_children( const SequenceManager* seqman,
+                                           MBEntityHandle handle,
+                                           int& number,
+                                           int num_hops ) const
 {
   if (num_hops == 1) {
-    if (!is_valid_entity(handle))
-      return MB_ENTITY_NOT_FOUND;
-    
     number = get_set( handle )->num_children();
     return MB_SUCCESS;
   }
   
   std::vector<MBEntityHandle> children;
-  MBErrorCode result = get_children( handle, children, num_hops );
+  MBErrorCode result = get_children( seqman, handle, children, num_hops );
   number = children.size();
   return result;
 }

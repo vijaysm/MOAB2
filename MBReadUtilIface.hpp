@@ -90,40 +90,6 @@ public:
                                           MBRange &related_ents,
                                           MBRange *all_sets) = 0;
   
-  /** Allocate storage for poly (polygon or polyhedron elements) 
-   * 
-   * Allocate storage for poly (polygon or polyhedron elements) and
-   * return connectivity arrays for direct read into memory.
-   *
-   * The format of the poly data in memory is two lists.  The array of
-   * entity handles contains a concatenation of the connectivity lists
-   * of all the polys in the sequence, in order.  The second list contains
-   * indices into the connectivity list where each index is the index of
-   * the <em>last</em> handle for the corresponding poly.
-   *
-   * For polygons, the connectivity list contains vertex handles.  For
-   * polyhedra, it contains face (element of dimension 2) handles.
-   *
-   *\param num_poly            The number of polygons to allocate handles for.
-   *\param conn_list_length    The total length of the connectivity list.
-   *\param mdb_type            <code>MBPOLYGON</code> or <code>MBPOLYHEDRON</code>
-   *\param preferred_start_id  Preferred integer id for first element
-   *\param actual_start_handle Actual integer id for first element (returned)
-   *\param last_index_array    Array of indices into <code>connectivity_array</code<
-   *\param connectivity_array  The connectivity array
-   *\author Jason Kraftcheck
-   */
-  virtual MBErrorCode get_poly_element_array(
-      const int num_poly, 
-      const int conn_list_length,
-      const MBEntityType mdb_type,
-      const int preferred_start_id, 
-      const int preferred_start_proc, 
-      MBEntityHandle& actual_start_handle, 
-      int*& last_index_array,
-      MBEntityHandle*& connectivity_array 
-   ) = 0;
-   
   virtual MBErrorCode create_entity_sets(
     MBEntityID num_sets,
     const unsigned* set_flags,

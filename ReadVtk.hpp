@@ -61,14 +61,6 @@ protected:
                                  MBEntityHandle*& conn_array_out,
                                  std::vector<MBRange>& append_to_this );
 
-  MBErrorCode allocate_poly_elems( long num_elements,
-                                   int connectivity_length,
-                                   MBEntityType type,
-                                   MBEntityHandle& start_handle_out,
-                                   MBEntityHandle*& conn_array_out,
-                                   int*& index_array_out,
-                                   std::vector<MBRange>& append_to_this );
-
   MBErrorCode vtk_read_dataset( FileTokenizer& tokens,
                                 MBRange& vertex_list,
                                 std::vector<MBRange>& element_list );

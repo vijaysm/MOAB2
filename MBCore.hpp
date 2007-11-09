@@ -23,7 +23,7 @@
 class MBWriteUtil;
 class MBReadUtil;
 class AEntityFactory;
-class EntitySequenceManager;
+class SequenceManager;
 class TagServer;
 class MBError;
 class MBReaderWriterSet;
@@ -877,11 +877,12 @@ public:
   TagServer* tag_server() {return tagServer;}
 
     //! return a reference to the sequence manager
-  EntitySequenceManager* sequence_manager() { return sequenceManager; }
-  const EntitySequenceManager* sequence_manager() const { return sequenceManager; }
+  SequenceManager* sequence_manager() { return sequenceManager; }
+  const SequenceManager* sequence_manager() const { return sequenceManager; }
 
     //! return the a_entity_factory pointer
   AEntityFactory *a_entity_factory() { return aEntityFactory; }
+  const AEntityFactory *a_entity_factory() const { return aEntityFactory; }
   
     //! return set of registered IO tools
   MBReaderWriterSet* reader_writer_set() { return readerWriterSet; }
@@ -1002,6 +1003,8 @@ public:
     //! Return the utility for dealing with entity handles
   virtual const MBHandleUtils &handle_utils() const;
 
+  void print_database() const;
+
 private:
 
   void estimated_memory_use_internal( const MBRange* ents,
@@ -1048,7 +1051,7 @@ private:
     //! tag server for this interface
   TagServer* tagServer;
 
-  EntitySequenceManager *sequenceManager;
+  SequenceManager *sequenceManager;
 
   AEntityFactory *aEntityFactory;
   

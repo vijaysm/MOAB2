@@ -47,7 +47,7 @@
 #endif
 #include "MBInternals.hpp"
 #include "MBCore.hpp"
-#include "EntitySequenceManager.hpp"
+#include "SequenceManager.hpp"
 #include "EntitySequence.hpp"
 #include "MBRangeSeqIntersectIter.hpp"
 
@@ -2254,12 +2254,13 @@ MBErrorCode mb_write_mesh_test(MBInterface *MB)
   result = MB->get_connectivity(&entity_vec[0], entity_vec.size(), nodes);
   if(result != MB_SUCCESS ) 
     return result;
+  assert( nodes.size() == 4 * temp_range.size() );
   temp_vec.clear(); 
   std::vector<double> coords(3*nodes.size());
   result = MB->get_coords(&nodes[0], nodes.size(), &coords[0]);
   if(result != MB_SUCCESS ) 
     return result;
-   
+  
   unsigned int k = 0;
   for(MBRange::iterator it = temp_range.begin(); it != temp_range.end(); it++) {
     if( coords[12*k] == 2.5 && coords[12*k+3] == 2.5 &&
@@ -3998,6 +3999,11 @@ MBErrorCode mb_canon_number_test(MBInterface *MB)
   
   for (this_type = MBEDGE; this_type != MBKNIFE; this_type++) {
     
+      // skip remainder of the loop for POLYGONS and POLYHEDRA, which don't follow
+      // the standard canonical ordering 
+    if (this_type == MBPOLYGON || this_type == MBPOLYHEDRON)
+      continue;
+    
       // make an entity of this type
     result = MB->create_element(this_type, vertex_handles, 
                                 MBCN::VerticesPerEntity(this_type),
@@ -4007,11 +4013,6 @@ MBErrorCode mb_canon_number_test(MBInterface *MB)
            << MBCN::EntityTypeName(this_type) << endl;
       return MB_FAILURE;
     }
-    
-      // skip remainder of the loop for POLYGONS and POLYHEDRA, which don't follow
-      // the standard canonical ordering 
-    if (this_type == MBPOLYGON || this_type == MBPOLYHEDRON)
-      continue;
 
       // now get the connectivity vector *
     const MBEntityHandle *entity_vertices;
@@ -4667,12 +4668,12 @@ MBErrorCode mb_split_test(MBInterface *gMB)
 MBErrorCode mb_range_seq_intersect_test( MBInterface*) 
 {
   MBErrorCode rval;
-  EntitySequenceManager sequences(MBHandleUtils( 0, 1 ));
+  SequenceManager sequences(MBHandleUtils( 0, 1 ));
   MBRangeSeqIntersectIter iter( &sequences );
   MBRange range;
 
     // create some entity sequences
-  MBEntitySequence *ts1, *ts2, *ts3, *qs1;
+  EntitySequence *ts1, *ts2, *ts3, *qs1;
   MBEntityHandle th1, th2, th3, qh1;
   const int nt1 = 100, nt2 = 10, nt3 = 1, nq1 = 20;
   rval = sequences.create_entity_sequence( MBTRI, nt1, 3, 5, 0, th1, ts1 );
@@ -4690,10 +4691,10 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
   
     // construct an MBRange containing all valid handles;
   range.clear();
-  ts1->get_entities( range );
-  ts2->get_entities( range );
-  ts3->get_entities( range );
-  qs1->get_entities( range );
+  range.insert( ts1->start_handle(), ts1->end_handle() );
+  range.insert( ts2->start_handle(), ts2->end_handle() );
+  range.insert( ts3->start_handle(), ts3->end_handle() );
+  range.insert( qs1->start_handle(), qs1->end_handle() );
   
     // iterate over all and check results
 
@@ -4702,9 +4703,9 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     return rval;
   if (ts1 != iter.get_sequence())
     return MB_FAILURE;
-  if (iter.get_start_handle() != ts1->get_start_handle())
+  if (iter.get_start_handle() != ts1->start_handle())
     return MB_FAILURE;
-  if (iter.get_end_handle() != ts1->get_end_handle())
+  if (iter.get_end_handle() != ts1->end_handle())
     return MB_FAILURE;
 
   rval = iter.step();
@@ -4712,9 +4713,9 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     return rval;
   if (ts2 != iter.get_sequence())
     return MB_FAILURE;
-  if (iter.get_start_handle() != ts2->get_start_handle())
+  if (iter.get_start_handle() != ts2->start_handle())
     return MB_FAILURE;
-  if (iter.get_end_handle() != ts2->get_end_handle())
+  if (iter.get_end_handle() != ts2->end_handle())
     return MB_FAILURE;
 
   rval = iter.step();
@@ -4722,9 +4723,9 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     return rval;
   if (ts3 != iter.get_sequence())
     return MB_FAILURE;
-  if (iter.get_start_handle() != ts3->get_start_handle())
+  if (iter.get_start_handle() != ts3->start_handle())
     return MB_FAILURE;
-  if (iter.get_end_handle() != ts3->get_end_handle())
+  if (iter.get_end_handle() != ts3->end_handle())
     return MB_FAILURE;
 
   rval = iter.step();
@@ -4732,9 +4733,9 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     return rval;
   if (qs1 != iter.get_sequence())
     return MB_FAILURE;
-  if (iter.get_start_handle() != qs1->get_start_handle())
+  if (iter.get_start_handle() != qs1->start_handle())
     return MB_FAILURE;
-  if (iter.get_end_handle() != qs1->get_end_handle())
+  if (iter.get_end_handle() != qs1->end_handle())
     return MB_FAILURE;
   
   if (!iter.is_at_end())
@@ -4750,9 +4751,9 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     return rval;
   if (qs1 != iter.get_sequence())
     return MB_FAILURE;
-  if (iter.get_start_handle() != qs1->get_start_handle())
+  if (iter.get_start_handle() != qs1->start_handle())
     return MB_FAILURE;
-  if (iter.get_end_handle() != qs1->get_end_handle())
+  if (iter.get_end_handle() != qs1->end_handle())
     return MB_FAILURE;
   
   if (!iter.is_at_end())
@@ -4771,9 +4772,9 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     return rval;
   if (ts1 != iter.get_sequence())
     return MB_FAILURE;
-  if (iter.get_start_handle() != ts1->get_start_handle() + 1)
+  if (iter.get_start_handle() != ts1->start_handle() + 1)
     return MB_FAILURE;
-  if (iter.get_end_handle() != ts1->get_end_handle())
+  if (iter.get_end_handle() != ts1->end_handle())
     return MB_FAILURE;
 
   rval = iter.step();
@@ -4781,9 +4782,9 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     return rval;
   if (ts2 != iter.get_sequence())
     return MB_FAILURE;
-  if (iter.get_start_handle() != ts2->get_start_handle())
+  if (iter.get_start_handle() != ts2->start_handle())
     return MB_FAILURE;
-  if (iter.get_end_handle() != ts2->get_end_handle())
+  if (iter.get_end_handle() != ts2->end_handle())
     return MB_FAILURE;
   
   if (!iter.is_at_end())
@@ -4800,9 +4801,9 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     return rval;
   if (qs1 != iter.get_sequence())
     return MB_FAILURE;
-  if (iter.get_start_handle() != qs1->get_start_handle() + 1)
+  if (iter.get_start_handle() != qs1->start_handle() + 1)
     return MB_FAILURE;
-  if (iter.get_end_handle() != qs1->get_end_handle() - 1)
+  if (iter.get_end_handle() != qs1->end_handle() - 1)
     return MB_FAILURE;
   
   if (!iter.is_at_end())
@@ -4814,7 +4815,7 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     // Iterate over two subsets of the quad sequence
     
   MBRange quads = range.subset_by_type( MBQUAD );
-  MBEntityHandle removed = qs1->get_start_handle() + nq1/2;
+  MBEntityHandle removed = qs1->start_handle() + nq1/2;
   if (quads.erase( removed ) == quads.end())
     return MB_FAILURE;
 
@@ -4823,7 +4824,7 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     return rval;
   if (qs1 != iter.get_sequence())
     return MB_FAILURE;
-  if (iter.get_start_handle() != qs1->get_start_handle())
+  if (iter.get_start_handle() != qs1->start_handle())
     return MB_FAILURE;
   if (iter.get_end_handle() != removed - 1)
     return MB_FAILURE;
@@ -4835,7 +4836,7 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     return MB_FAILURE;
   if (iter.get_start_handle() != removed + 1)
     return MB_FAILURE;
-  if (iter.get_end_handle() != qs1->get_end_handle())
+  if (iter.get_end_handle() != qs1->end_handle())
     return MB_FAILURE;
   
   if (!iter.is_at_end())
@@ -4850,7 +4851,7 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
   MBRange big;
   int junk;
   MBEntityHandle last = CREATE_HANDLE(MBQUAD+1, 0, junk);
-  big.insert( ts1->get_start_handle() - 1, last );
+  big.insert( ts1->start_handle() - 1, last );
 
     // first some invalid handles in the beginning of the range
   rval = iter.init( big.begin(), big.end() );
@@ -4860,7 +4861,7 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     return MB_FAILURE;
   if (iter.get_start_handle() != *big.begin())
     return MB_FAILURE;
-  if (iter.get_end_handle() != ts1->get_start_handle() - 1)
+  if (iter.get_end_handle() != ts1->start_handle() - 1)
     return MB_FAILURE;
 
     // next the first triangle sequence
@@ -4869,21 +4870,21 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     return rval;
   if (ts1 != iter.get_sequence())
     return MB_FAILURE;
-  if (iter.get_start_handle() != ts1->get_start_handle())
+  if (iter.get_start_handle() != ts1->start_handle())
     return MB_FAILURE;
-  if (iter.get_end_handle() != ts1->get_end_handle())
+  if (iter.get_end_handle() != ts1->end_handle())
     return MB_FAILURE;
 
     // next the the invalid handles between the first two tri sequences
-  if (ts1->get_end_handle() + 1 != ts2->get_start_handle()) {
+  if (ts1->end_handle() + 1 != ts2->start_handle()) {
     rval = iter.step();
     if (MB_ENTITY_NOT_FOUND != rval) 
       return MB_FAILURE;
     if (NULL != iter.get_sequence())
       return MB_FAILURE;
-    if (iter.get_start_handle() != ts1->get_end_handle()+1)
+    if (iter.get_start_handle() != ts1->end_handle()+1)
       return MB_FAILURE;
-    if (iter.get_end_handle() != ts2->get_start_handle()-1)
+    if (iter.get_end_handle() != ts2->start_handle()-1)
       return MB_FAILURE;
   }
 
@@ -4893,21 +4894,21 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     return rval;
   if (ts2 != iter.get_sequence())
     return MB_FAILURE;
-  if (iter.get_start_handle() != ts2->get_start_handle())
+  if (iter.get_start_handle() != ts2->start_handle())
     return MB_FAILURE;
-  if (iter.get_end_handle() != ts2->get_end_handle())
+  if (iter.get_end_handle() != ts2->end_handle())
     return MB_FAILURE;
 
     // next the the invalid handles between the 2nd and 3rd tri sequences
-  if (ts2->get_end_handle() + 1 != ts3->get_start_handle()) {
+  if (ts2->end_handle() + 1 != ts3->start_handle()) {
     rval = iter.step();
     if (MB_ENTITY_NOT_FOUND != rval) 
       return MB_FAILURE;
     if (NULL != iter.get_sequence())
       return MB_FAILURE;
-    if (iter.get_start_handle() != ts2->get_end_handle()+1)
+    if (iter.get_start_handle() != ts2->end_handle()+1)
       return MB_FAILURE;
-    if (iter.get_end_handle() != ts3->get_start_handle()-1)
+    if (iter.get_end_handle() != ts3->start_handle()-1)
       return MB_FAILURE;
   }
 
@@ -4917,23 +4918,23 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     return rval;
   if (ts3 != iter.get_sequence())
     return MB_FAILURE;
-  if (iter.get_start_handle() != ts3->get_start_handle())
+  if (iter.get_start_handle() != ts3->start_handle())
     return MB_FAILURE;
-  if (iter.get_end_handle() != ts3->get_end_handle())
+  if (iter.get_end_handle() != ts3->end_handle())
     return MB_FAILURE;
 
     // third tri sequence contains the MAX tri handle, so no more
     // invalid triangles.
     // next 1 invalid quad at the before MB_START_ID
-  if (ts3->get_end_handle() + 1 != qs1->get_start_handle()) {
+  if (ts3->end_handle() + 1 != qs1->start_handle()) {
     rval = iter.step();
     if (MB_ENTITY_NOT_FOUND != rval) 
       return MB_FAILURE;
     if (NULL != iter.get_sequence())
       return MB_FAILURE;
-    if (iter.get_start_handle() != ts3->get_end_handle()+1)
+    if (iter.get_start_handle() != ts3->end_handle()+1)
       return MB_FAILURE;
-    if (iter.get_end_handle() != qs1->get_start_handle()-1)
+    if (iter.get_end_handle() != qs1->start_handle()-1)
       return MB_FAILURE;
   }
 
@@ -4943,9 +4944,9 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     return rval;
   if (qs1 != iter.get_sequence())
     return MB_FAILURE;
-  if (iter.get_start_handle() != qs1->get_start_handle())
+  if (iter.get_start_handle() != qs1->start_handle())
     return MB_FAILURE;
-  if (iter.get_end_handle() != qs1->get_end_handle())
+  if (iter.get_end_handle() != qs1->end_handle())
     return MB_FAILURE;
 
     // next remaining invalid quad handles in the range
@@ -4954,7 +4955,7 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     return MB_FAILURE;
   if (0 != iter.get_sequence())
     return MB_FAILURE;
-  if (iter.get_start_handle() != qs1->get_end_handle() + 1)
+  if (iter.get_start_handle() != qs1->end_handle() + 1)
     return MB_FAILURE;
   if (iter.get_end_handle() != last - 1)
     return MB_FAILURE;
@@ -4980,12 +4981,15 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
   
   
     // Create some holes
-  
-  MBEntityHandle dead1 = ts1->get_start_handle() + 1;
-  MBEntityHandle dead2 = ts1->get_start_handle() + 2;
-  MBEntityHandle dead3 = ts2->get_start_handle();
-  MBEntityHandle dead4 = ts2->get_end_handle();
-  MBEntityHandle dead5 = qs1->get_start_handle() + nq1/2;
+  MBEntityHandle ts1s  = ts1->start_handle();
+  MBEntityHandle dead1 = ts1->start_handle() + 1;
+  MBEntityHandle dead2 = ts1->start_handle() + 2;
+  MBEntityHandle ts1e  = ts1->end_handle();
+  MBEntityHandle dead3 = ts2->start_handle();
+  MBEntityHandle dead4 = ts2->end_handle();
+  MBEntityHandle qs1s  = qs1->start_handle();
+  MBEntityHandle qs1e  = qs1->end_handle();
+  MBEntityHandle dead5 = qs1->start_handle() + nq1/2;
   MBEntityHandle dead6 = dead5+1;
   rval = sequences.delete_entity( dead1 );
   if (MB_SUCCESS != rval) return rval;
@@ -5007,9 +5011,11 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
   rval = iter.init( range.begin(), range.end() );
   if (MB_SUCCESS != rval) 
     return rval;
-  if (ts1 != iter.get_sequence())
+  if (0 == iter.get_sequence() ||
+      ts1s != iter.get_sequence()->start_handle() ||
+      dead1-1 != iter.get_sequence()->end_handle())
     return MB_FAILURE;
-  if (iter.get_start_handle() != ts1->get_start_handle())
+  if (iter.get_start_handle() != ts1->start_handle())
     return MB_FAILURE;
   if (iter.get_end_handle() != dead1 - 1)
     return MB_FAILURE;
@@ -5018,7 +5024,7 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
   rval = iter.step( );
   if (MB_ENTITY_NOT_FOUND != rval) 
     return MB_FAILURE;
-  if (ts1 != iter.get_sequence())
+  if (0 != iter.get_sequence())
     return MB_FAILURE;
   if (iter.get_start_handle() != dead1)
     return MB_FAILURE;
@@ -5029,18 +5035,20 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
   rval = iter.step();
   if (MB_SUCCESS != rval) 
     return rval;
-  if (ts1 != iter.get_sequence())
+  if (0 == iter.get_sequence() ||
+      dead2+1 != iter.get_sequence()->start_handle() ||
+      ts1e != iter.get_sequence()->end_handle())
     return MB_FAILURE;
   if (iter.get_start_handle() != dead2+1)
     return MB_FAILURE;
-  if (iter.get_end_handle() != ts1->get_end_handle())
+  if (iter.get_end_handle() != ts1e)
     return MB_FAILURE;
 
     // next an invalid handle at the start of the second sequence
   rval = iter.step();
   if (MB_ENTITY_NOT_FOUND != rval)
     return MB_FAILURE;
-  if (ts2 != iter.get_sequence())
+  if (0 != iter.get_sequence())
     return MB_FAILURE;
   if (iter.get_start_handle() != dead3)
     return MB_FAILURE;
@@ -5051,6 +5059,10 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
   rval = iter.step();
   if (MB_SUCCESS != rval)
     return rval;
+  if (0 == iter.get_sequence() ||
+      dead3+1 != iter.get_sequence()->start_handle() ||
+      dead4-1 != iter.get_sequence()->end_handle())
+    return MB_FAILURE;
   if (ts2 != iter.get_sequence())
     return MB_FAILURE;
   if (iter.get_start_handle() != dead3+1)
@@ -5062,7 +5074,7 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
   rval = iter.step();
   if (MB_ENTITY_NOT_FOUND != rval)
     return MB_FAILURE;
-  if (ts2 != iter.get_sequence())
+  if (0 != iter.get_sequence())
     return MB_FAILURE;
   if (iter.get_start_handle() != dead4)
     return MB_FAILURE;
@@ -5075,18 +5087,22 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     return rval;
   if (ts3 != iter.get_sequence())
     return MB_FAILURE;
-  if (iter.get_start_handle() != ts3->get_start_handle())
+  if (iter.get_start_handle() != ts3->start_handle())
     return MB_FAILURE;
-  if (iter.get_end_handle() != ts3->get_end_handle())
+  if (iter.get_end_handle() != ts3->end_handle())
     return MB_FAILURE;
 
     // next the quad sequence up to the invalid handle in the middle
   rval = iter.step();
   if (MB_SUCCESS != rval)
     return rval;
+  if (0 == iter.get_sequence() ||
+      qs1s != iter.get_sequence()->start_handle() ||
+      dead5-1 != iter.get_sequence()->end_handle())
+    return MB_FAILURE;
   if (qs1 != iter.get_sequence())
     return MB_FAILURE;
-  if (iter.get_start_handle() != qs1->get_start_handle())
+  if (iter.get_start_handle() != qs1s)
     return MB_FAILURE;
   if (iter.get_end_handle() != dead5-1)
     return MB_FAILURE;
@@ -5095,7 +5111,7 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
   rval = iter.step();
   if (MB_ENTITY_NOT_FOUND != rval)
     return MB_FAILURE;
-  if (qs1 != iter.get_sequence())
+  if (0 != iter.get_sequence())
     return MB_FAILURE;
   if (iter.get_start_handle() != dead5)
     return MB_FAILURE;
@@ -5106,11 +5122,13 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
   rval = iter.step();
   if (MB_SUCCESS != rval)
     return rval;
-  if (qs1 != iter.get_sequence())
+  if (0 == iter.get_sequence() ||
+      dead6+1 != iter.get_sequence()->start_handle() ||
+      qs1e != iter.get_sequence()->end_handle())
     return MB_FAILURE;
   if (iter.get_start_handle() != dead6+1)
     return MB_FAILURE;
-  if (iter.get_end_handle() != qs1->get_end_handle())
+  if (iter.get_end_handle() != qs1e)
     return MB_FAILURE;
   
     // now at the end
@@ -5141,9 +5159,11 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
   rval = iter.init( range.begin(), range.end() );
   if (MB_SUCCESS != rval) 
     return rval;
-  if (ts1 != iter.get_sequence())
+  if (0 == iter.get_sequence() ||
+      ts1s != iter.get_sequence()->start_handle() ||
+      dead1-1 != iter.get_sequence()->end_handle())
     return MB_FAILURE;
-  if (iter.get_start_handle() != ts1->get_start_handle())
+  if (iter.get_start_handle() != ts1s)
     return MB_FAILURE;
   if (iter.get_end_handle() != dead1 - 1)
     return MB_FAILURE;
@@ -5152,18 +5172,22 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
   rval = iter.step();
   if (MB_SUCCESS != rval) 
     return rval;
-  if (ts1 != iter.get_sequence())
+  if (0 == iter.get_sequence() ||
+      dead2+1 != iter.get_sequence()->start_handle() ||
+      ts1e != iter.get_sequence()->end_handle())
     return MB_FAILURE;
   if (iter.get_start_handle() != dead2+1)
     return MB_FAILURE;
-  if (iter.get_end_handle() != ts1->get_end_handle())
+  if (iter.get_end_handle() != ts1e)
     return MB_FAILURE;
 
     // next the second sequence between deleted start and end handles
   rval = iter.step();
   if (MB_SUCCESS != rval)
     return rval;
-  if (ts2 != iter.get_sequence())
+  if (0 == iter.get_sequence() ||
+      dead3+1 != iter.get_sequence()->start_handle() ||
+      dead4-1 != iter.get_sequence()->end_handle())
     return MB_FAILURE;
   if (iter.get_start_handle() != dead3+1)
     return MB_FAILURE;
@@ -5176,18 +5200,20 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
     return rval;
   if (ts3 != iter.get_sequence())
     return MB_FAILURE;
-  if (iter.get_start_handle() != ts3->get_start_handle())
+  if (iter.get_start_handle() != ts3->start_handle())
     return MB_FAILURE;
-  if (iter.get_end_handle() != ts3->get_end_handle())
+  if (iter.get_end_handle() != ts3->end_handle())
     return MB_FAILURE;
 
     // next the quad sequence up to the hole in the middle
   rval = iter.step();
   if (MB_SUCCESS != rval)
     return rval;
-  if (qs1 != iter.get_sequence())
+  if (0 == iter.get_sequence() ||
+      qs1s != iter.get_sequence()->start_handle() ||
+      dead5-1 != iter.get_sequence()->end_handle())
     return MB_FAILURE;
-  if (iter.get_start_handle() != qs1->get_start_handle())
+  if (iter.get_start_handle() != qs1s)
     return MB_FAILURE;
   if (iter.get_end_handle() != dead5-1)
     return MB_FAILURE;
@@ -5196,11 +5222,13 @@ MBErrorCode mb_range_seq_intersect_test( MBInterface*)
   rval = iter.step();
   if (MB_SUCCESS != rval)
     return rval;
-  if (qs1 != iter.get_sequence())
+  if (0 == iter.get_sequence() ||
+      dead6+1 != iter.get_sequence()->start_handle() ||
+      qs1e != iter.get_sequence()->end_handle())
     return MB_FAILURE;
   if (iter.get_start_handle() != dead6+1)
     return MB_FAILURE;
-  if (iter.get_end_handle() != qs1->get_end_handle())
+  if (iter.get_end_handle() != qs1e)
     return MB_FAILURE;
   
     // now at the end

@@ -114,16 +114,6 @@ protected:
                                   int nodes_per_element,
                                   id_t number_elements,
                                   long& first_id_out );
-
-  /** Helper function for create-file
-   *
-   * Create zero-ed tables where poly connectivity and 
-   * adjacency data will be stored.
-   */
-  MBErrorCode create_poly_tables( MBEntityType mb_type,
-                                  id_t number_elements,
-                                  id_t connectivity_length,
-                                  long& first_id_out );
   
   /** Helper function for create-file
    *
@@ -256,35 +246,6 @@ private:
 
   //! Zero the ID tag on all entities in the mesh.
   MBErrorCode clear_all_id_tags();
-  
-  /** Get the subset of an entity range that is a specified element type
-   * \param input_range  The range to subset
-   * \param type         The base element type
-   * \param number_nodes The number of nodes per element
-   * \param output_range The result subset of the input range.
-   */
-  MBErrorCode subrange_by_type_and_conn( const MBRange& input_range,
-                                         MBEntityType type,
-                                         int number_nodes,
-                                         MBRange& output_range );
-  
-  /** Get the subrange of a given range containing the specified elem type
-   * \param input_range  The range to subset
-   * \param type         The element type
-   * \param output_range The subset of input_range of type <code>type</code>
-   */
-  MBErrorCode subrange_by_type( const MBRange& input_range,
-                                MBEntityType type,
-                                MBRange& output_range );
-  
-  /** Get higher-order types
-   *
-   * For each higher-order type of the element, append the number of
-   * of nodes beyond those of the base/simplest type that that higher-
-   * order type has.  Also appends zero to the list for the base type.
-   */
-  MBErrorCode midnode_combinations( MBEntityType type,
-                                    std::vector<int>& combinations );
 
   //! Get information about a meshset
   MBErrorCode get_set_info( MBEntityHandle set,
@@ -337,6 +298,9 @@ private:
   
   //! Same as gather_mesh_info, except for entire mesh
   MBErrorCode gather_all_mesh( );
+  
+  //! Initialize internal data structures from gathered mesh
+  MBErrorCode initialize_mesh( const MBRange entities_by_dim[5] );
  
   /** Write out the nodes.
    *
@@ -352,16 +316,6 @@ private:
    * Note: Must do write_nodes first so node IDs get assigned.
    */
   MBErrorCode write_elems( ExportSet& elemset );
-  
-  /** Write out poly(hedr/g)on connectivity
-   *
-   * Write connectivity for passed set of poly
-   *
-   * Note: Assigns element IDs.
-   * Note: Must do write of lower-dimension entities first so
-   *       IDs get assigned to them.
-   */
-  MBErrorCode write_poly( ExportSet& elemset );
   
   /** Write out meshsets
    * 

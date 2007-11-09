@@ -35,12 +35,14 @@ extern "C" int getrusage(int, struct rusage *);
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <assert.h>
 #include "MBCore.hpp"
 #include "MBReadUtilIface.hpp"
-#include "ScdVertexSeq.hpp"
-#include "ScdElementSeq.hpp"
+#include "ScdVertexData.hpp"
+#include "VertexSequence.hpp"
+#include "StructuredElementSeq.hpp"
 #include "EntitySequence.hpp"
-#include "EntitySequenceManager.hpp"
+#include "SequenceManager.hpp"
 #include "HomXform.hpp"
 
 double LENGTH = 1.0;
@@ -450,27 +452,28 @@ void testA(const int nelem, const double *coords)
             << std::endl;
 
     // make a 3d block of vertices
-  MBEntitySequence *dum_seq = NULL;
-  ScdVertexSeq *vseq = NULL;
-  ScdElementSeq *eseq = NULL;
-  EntitySequenceManager *seq_mgr = dynamic_cast<MBCore*>(gMB)->sequence_manager();
+  EntitySequence *dum_seq = NULL;
+  ScdVertexData *vseq = NULL;
+  StructuredElementSeq *eseq = NULL;
+  SequenceManager *seq_mgr = dynamic_cast<MBCore*>(gMB)->sequence_manager();
   HomCoord vseq_minmax[2] = {HomCoord(0,0,0), 
                              HomCoord(nelem, nelem, nelem)};
   MBEntityHandle vstart, estart;
   
   MBErrorCode result = seq_mgr->create_scd_sequence(vseq_minmax[0], vseq_minmax[1],
-                                                    MBVERTEX, 1, vstart, dum_seq);
-  if (NULL != dum_seq) vseq = dynamic_cast<ScdVertexSeq*>(dum_seq);
+                                                    MBVERTEX, 1, 0, vstart, dum_seq);
+  if (NULL != dum_seq) vseq = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && vstart != 0 && dum_seq != NULL && vseq != NULL);
     // now the element sequence
   result = seq_mgr->create_scd_sequence(vseq_minmax[0], vseq_minmax[1], 
-                                        MBHEX, 1, estart, dum_seq);
-  if (NULL != dum_seq) eseq = dynamic_cast<ScdElementSeq*>(dum_seq);
+                                        MBHEX, 1, 0, estart, dum_seq);
+  if (NULL != dum_seq) eseq = dynamic_cast<StructuredElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && estart != 0 && dum_seq != NULL && eseq != NULL);
   
     // only need to add one vseq to this, unity transform
     // trick: if I know it's going to be unity, just input 3 sets of equivalent points
-  result = eseq->add_vsequence(vseq, vseq_minmax[0], vseq_minmax[0], vseq_minmax[0], 
+  result = dynamic_cast<ScdElementData*>(eseq->data())
+         ->add_vsequence(vseq, vseq_minmax[0], vseq_minmax[0], vseq_minmax[0], 
                                vseq_minmax[0], vseq_minmax[0], vseq_minmax[0]);
   assert(MB_SUCCESS == result);
 

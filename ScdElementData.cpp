@@ -13,37 +13,38 @@
  * 
  */
 
-#include "ScdElementSeq.hpp"
-#include "ScdVertexSeq.hpp"
+#include "ScdElementData.hpp"
+#include "ScdVertexData.hpp"
 #include "MBInterface.hpp"
 #include "MBReadUtilIface.hpp"
 #include "MBCN.hpp"
 #include "MBInternals.hpp"
+#include <assert.h>
 
-ScdElementSeq::ScdElementSeq(EntitySequenceManager *seq_mgr,
+MBEntityID ScdElementData::calc_num_entities(MBEntityHandle start_handle,
+                                int irange, int jrange, int krange)
+{
+  size_t result = 1;
+  switch (MBCN::Dimension(TYPE_FROM_HANDLE(start_handle))) {
+    default: result = 0; assert( false ); 
+    case 3: result *= krange;
+    case 2: result *= jrange;
+    case 1: result *= irange;
+  }
+  return result;
+}
+
+ScdElementData::ScdElementData(
                              MBEntityHandle start_handle,
                              const int imin, const int jmin, const int kmin,
                              const int imax, const int jmax, const int kmax) 
-    : ElementEntitySequence(seq_mgr, start_handle,
-                            (imax-imin)*(jmax-jmin)*(kmax-kmin),
-                            MBCN::VerticesPerEntity(TYPE_FROM_HANDLE(start_handle)), 
-                            true, false)
-  
+    : SequenceData(0, start_handle,
+                   start_handle + 
+                   calc_num_entities( start_handle, imax-imin, jmax-jmin, kmax-kmin )
+                   - 1)
 {
     // need to have meaningful parameters
   assert(imax >= imin && jmax >= jmin && kmax >= kmin);
-
-    // correct num entities if necessary
-  if (mNumEntities == 0) {
-    int this_dim = MBCN::Dimension(TYPE_FROM_HANDLE(start_handle));
-    if (this_dim == 1) mNumEntities = imax - imin;
-    else if (this_dim == 2) mNumEntities = (imax - imin)*(jmax - jmin);
-
-      // if neither of the previous two tests passed, it's an error
-    else assert(false);
-
-    assert(mNumEntities > 0);
-  }
     
   elementParams[0] = HomCoord(imin, jmin, kmin);
   elementParams[1] = HomCoord(imax, jmax, kmax);
@@ -58,21 +59,21 @@ ScdElementSeq::ScdElementSeq(EntitySequenceManager *seq_mgr,
   dIJKm1[2] = dIJK[2] - 1;
 }
 
-ScdElementSeq::~ScdElementSeq() 
+ScdElementData::~ScdElementData() 
 {
 }
 
-bool ScdElementSeq::boundary_complete() const
+bool ScdElementData::boundary_complete() const
 {
     // test the bounding vertex sequences to see if they fully define the
     // vertex parameter space for this rectangular block of elements
 
   int p;
-  std::vector<VertexSeqRef> minlist, maxlist;
+  std::vector<VertexDataRef> minlist, maxlist;
 
     // pseudo code:
     // for each vertex sequence v:
-  for (std::vector<VertexSeqRef>::const_iterator vseq = vertexSeqRefs.begin();
+  for (std::vector<VertexDataRef>::const_iterator vseq = vertexSeqRefs.begin();
        vseq != vertexSeqRefs.end(); vseq++)
   {
     //   test min corner mincorner:
@@ -81,7 +82,7 @@ bool ScdElementSeq::boundary_complete() const
     for (p = 0; p < 3; p++) {
 
     //     for each vsequence v' != v:
-      for (std::vector<VertexSeqRef>::const_iterator othervseq = vertexSeqRefs.begin();
+      for (std::vector<VertexDataRef>::const_iterator othervseq = vertexSeqRefs.begin();
            othervseq != vertexSeqRefs.end(); othervseq++) 
       {
         if (othervseq == vseq) continue;        
@@ -100,7 +101,7 @@ bool ScdElementSeq::boundary_complete() const
     for (p = 0; p < 3; p++) {
 
     //     for each vsequence v' != v:
-      for (std::vector<VertexSeqRef>::const_iterator othervseq = vertexSeqRefs.begin();
+      for (std::vector<VertexDataRef>::const_iterator othervseq = vertexSeqRefs.begin();
            othervseq != vertexSeqRefs.end(); othervseq++) 
       {
         if (othervseq == vseq) continue;        
@@ -133,14 +134,16 @@ bool ScdElementSeq::boundary_complete() const
   return false;
 }
 
-void ScdElementSeq::get_memory_use( unsigned long& used, 
-                                    unsigned long& allocated) const
-{ 
-  allocated = used = sizeof(*this) + sizeof(VertexSeqRef) * vertexSeqRefs.capacity();
-}
 
-unsigned long ScdElementSeq::get_memory_use( MBEntityHandle ) const
+SequenceData* ScdElementData::subset( MBEntityHandle /*start*/, 
+                                      MBEntityHandle /*end*/,
+                                      const int* /*sequence_data_sizes*/,
+                                      const int* /*tag_data_sizes*/ ) const
 {
   return 0;
 }
 
+unsigned long ScdElementData::get_memory_use() const
+{
+  return sizeof(*this) + vertexSeqRefs.capacity() * sizeof(VertexDataRef);
+}

@@ -17,27 +17,29 @@
 // test the structured sequence stuff
 //
 
-#include "ScdVertexSeq.hpp"
-#include "ScdElementSeq.hpp"
-#include "EntitySequenceManager.hpp"
-#include "EntitySequence.hpp"
+#include "ScdVertexData.hpp"
+#include "ScdElementData.hpp"
+#include "SequenceManager.hpp"
+#include "StructuredElementSeq.hpp"
+#include "VertexSequence.hpp"
 #include "MBCore.hpp"
 
 #include <iostream>
+#include <assert.h>
 
 int test_vertex_seq(MBCore *gMB);
-MBErrorCode check_vertex_sequence(const ScdVertexSeq *this_seq, 
+MBErrorCode check_vertex_sequence(const ScdVertexData *this_seq, 
                                  const int imin, const int jmin, const int kmin, 
                                  const int imax, const int jmax, const int kmax, 
                                  const MBEntityHandle this_start);
-MBErrorCode evaluate_vertex_sequence(ScdVertexSeq *this_seq);
+MBErrorCode evaluate_vertex_sequence(ScdVertexData *this_seq);
 
 int test_element_seq(MBCore *gMB);
-MBErrorCode check_element_sequence(const ScdElementSeq *this_seq, 
+MBErrorCode check_element_sequence(const StructuredElementSeq *this_seq, 
                                     const HomCoord &min_params,
                                     const HomCoord &max_params,
                                     const MBEntityHandle this_start);
-MBErrorCode evaluate_element_sequence(ScdElementSeq *this_seq);
+MBErrorCode evaluate_element_sequence(StructuredElementSeq *this_seq);
 int eseq_test1a(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max);
 int eseq_test1b(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max);
 int eseq_test1c(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max);
@@ -48,25 +50,25 @@ int eseq_test2d(MBCore *gMB);
 
 int create_1d_3_sequences(MBCore *gMB,
                           HomCoord tmp_min, HomCoord tmp_max,
-                          ScdVertexSeq **vseq, MBEntityHandle *vstart,
-                          ScdElementSeq **eseq, MBEntityHandle *estart);
+                          ScdVertexData **vseq, MBEntityHandle *vstart,
+                          StructuredElementSeq **eseq, MBEntityHandle *estart);
 
 int create_2d_3_sequences(MBCore *gMB,
-                          ScdVertexSeq **vseq, MBEntityHandle *vstart,
-                          ScdElementSeq **eseq, MBEntityHandle *estart);
+                          ScdVertexData **vseq, MBEntityHandle *vstart,
+                          StructuredElementSeq **eseq, MBEntityHandle *estart);
 
 int create_2dtri_3_sequences(MBCore *gMB,
                              const int int1, const int int2, const int int3,
-                             ScdVertexSeq **vseq, MBEntityHandle *vstart,
-                             ScdElementSeq **eseq, MBEntityHandle *estart);
+                             ScdVertexData **vseq, MBEntityHandle *vstart,
+                             StructuredElementSeq **eseq, MBEntityHandle *estart);
 int create_3dtri_3_sequences(MBCore *gMB,
                              const int int1, const int int2, const int int3, const int int4,
-                             ScdVertexSeq **vseq, MBEntityHandle *vstart,
-                             ScdElementSeq **eseq, MBEntityHandle *estart);
+                             ScdVertexData **vseq, MBEntityHandle *vstart,
+                             StructuredElementSeq **eseq, MBEntityHandle *estart);
 
 // first comes general-capability code used by various tests; main and test functions
 // come after these, starting with main
-MBErrorCode check_vertex_sequence(const ScdVertexSeq *this_seq, 
+MBErrorCode check_vertex_sequence(const ScdVertexData *this_seq, 
                                    const int imin, const int jmin, const int kmin, 
                                    const int imax, const int jmax, const int kmax, 
                                    const MBEntityHandle this_start) 
@@ -94,7 +96,7 @@ MBErrorCode check_vertex_sequence(const ScdVertexSeq *this_seq,
     result = MB_FAILURE;
   }
   
-  if (this_start != this_seq->get_start_handle()) {
+  if (this_start != this_seq->start_handle()) {
     std::cout << "Start handle for sequence wrong." << std::endl;
     result = MB_FAILURE;
   }
@@ -102,7 +104,7 @@ MBErrorCode check_vertex_sequence(const ScdVertexSeq *this_seq,
   return result;
 }
   
-MBErrorCode check_element_sequence(const ScdElementSeq *this_seq, 
+MBErrorCode check_element_sequence(const StructuredElementSeq *this_seq, 
                                     const HomCoord &min_params,
                                     const HomCoord &max_params,
                                     const MBEntityHandle this_start) 
@@ -130,7 +132,7 @@ MBErrorCode check_element_sequence(const ScdElementSeq *this_seq,
     result = MB_FAILURE;
   }
   
-  if (this_start != this_seq->get_start_handle()) {
+  if (this_start != this_seq->start_handle()) {
     std::cout << "Start handle for sequence wrong." << std::endl;
     result = MB_FAILURE;
   }
@@ -143,7 +145,7 @@ MBErrorCode check_element_sequence(const ScdElementSeq *this_seq,
   return result;
 }
   
-MBErrorCode evaluate_vertex_sequence(ScdVertexSeq *this_seq) 
+MBErrorCode evaluate_vertex_sequence(ScdVertexData *this_seq) 
 {
   MBErrorCode result = MB_SUCCESS;
   
@@ -153,7 +155,7 @@ MBErrorCode evaluate_vertex_sequence(ScdVertexSeq *this_seq)
   this_seq->max_params(imax, jmax, kmax);
 
     // then the start vertex
-  MBEntityHandle start_handle = this_seq->get_start_handle();
+  MBEntityHandle start_handle = this_seq->start_handle();
   
     // now evaluate all the vertices in forward and reverse
   MBEntityHandle tmp_handle, tmp_handle2;
@@ -200,7 +202,7 @@ MBErrorCode evaluate_vertex_sequence(ScdVertexSeq *this_seq)
   return result;
 }
 
-MBErrorCode evaluate_element_sequence(ScdElementSeq *this_seq) 
+MBErrorCode evaluate_element_sequence(StructuredElementSeq *this_seq) 
 {
   MBErrorCode result = MB_SUCCESS;
   
@@ -282,18 +284,18 @@ int main(int, char**)
 int test_vertex_seq(MBCore *gMB) 
 {
     // get the seq manager from gMB
-  EntitySequenceManager *seq_mgr = gMB->sequence_manager();
+  SequenceManager *seq_mgr = gMB->sequence_manager();
   
   int errors = 0;
   MBEntityHandle oned_start, twod_start, threed_start;
-  MBEntitySequence *dum_seq = NULL;
-  ScdVertexSeq *oned_seq = NULL, *twod_seq = NULL, *threed_seq = NULL;
+  EntitySequence *dum_seq = NULL;
+  ScdVertexData *oned_seq = NULL, *twod_seq = NULL, *threed_seq = NULL;
   
     // make a 1d sequence
   MBErrorCode result = seq_mgr->create_scd_sequence(-10, 0, 0, 10, 0, 0,
-                                                     MBVERTEX, 1,
+                                                     MBVERTEX, 1, 0,
                                                      oned_start, dum_seq);
-  if (NULL != dum_seq) oned_seq = dynamic_cast<ScdVertexSeq*>(dum_seq);
+  if (NULL != dum_seq) oned_seq = dynamic_cast<ScdVertexData*>(dum_seq->data());
   if (MB_FAILURE == result || oned_start == 0 || dum_seq == NULL ||
       oned_seq == NULL) {
     std::cout << "Problems creating a 1d sequence." << std::endl;
@@ -318,9 +320,9 @@ int test_vertex_seq(MBCore *gMB)
     // make a 2d sequence
   dum_seq = NULL;
   result = seq_mgr->create_scd_sequence(-10, -10, 0, 10, 10, 0,
-                                        MBVERTEX, 1,
+                                        MBVERTEX, 1, 0,
                                         twod_start, dum_seq);
-  if (NULL != dum_seq) twod_seq = dynamic_cast<ScdVertexSeq*>(dum_seq);
+  if (NULL != dum_seq) twod_seq = dynamic_cast<ScdVertexData*>(dum_seq->data());
   if (MB_FAILURE == result || twod_start == 0 || dum_seq == NULL ||
       twod_seq == NULL) {
     std::cout << "Problems creating a 2d sequence." << std::endl;
@@ -345,9 +347,9 @@ int test_vertex_seq(MBCore *gMB)
     // make a 3d sequence
   dum_seq = NULL;
   result = seq_mgr->create_scd_sequence(-10, -10, -10, 10, 10, 10,
-                                        MBVERTEX, 1,
+                                        MBVERTEX, 1, 0,
                                         threed_start, dum_seq);
-  if (NULL != dum_seq) threed_seq = dynamic_cast<ScdVertexSeq*>(dum_seq);
+  if (NULL != dum_seq) threed_seq = dynamic_cast<ScdVertexData*>(dum_seq->data());
   if (MB_FAILURE == result || threed_start == 0 || dum_seq == NULL ||
       threed_seq == NULL) {
     std::cout << "Problems creating a 3d sequence." << std::endl;
@@ -404,28 +406,29 @@ int eseq_test1a(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max)
   tmp_min[1] = tmp_min[2] = tmp_max[1] = tmp_max[2] = 0;
 
     // get the seq manager from gMB
-  EntitySequenceManager *seq_mgr = gMB->sequence_manager();
+  SequenceManager *seq_mgr = gMB->sequence_manager();
   
   MBEntityHandle oned_start;
-  MBEntitySequence *dum_seq;
-  ScdVertexSeq *oned_seq = NULL;
+  EntitySequence *dum_seq;
+  ScdVertexData *oned_seq = NULL;
   MBErrorCode result = seq_mgr->create_scd_sequence(tmp_min, tmp_max,
-                                                     MBVERTEX, 1,
+                                                     MBVERTEX, 1, 0,
                                                      oned_start, dum_seq);
-  if (NULL != dum_seq) oned_seq = dynamic_cast<ScdVertexSeq*>(dum_seq);
+  if (NULL != dum_seq) oned_seq = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && oned_start != 0 && dum_seq != NULL && oned_seq != NULL);
 
     // now create the element sequence
   MBEntityHandle eseq_start;
-  ScdElementSeq *eseq = NULL;
+  StructuredElementSeq *eseq = NULL;
   result = seq_mgr->create_scd_sequence(tmp_min, tmp_max,
-                                        MBEDGE, 1,
+                                        MBEDGE, 1, 0,
                                         eseq_start, dum_seq);
-  if (NULL != dum_seq) eseq = dynamic_cast<ScdElementSeq*>(dum_seq);
+  if (NULL != dum_seq) eseq = dynamic_cast<StructuredElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && eseq_start != 0 && dum_seq != NULL && eseq != NULL);
   
     // add vertex seq to element seq
-  result = eseq->add_vsequence(oned_seq,
+  result = dynamic_cast<ScdElementData*>(eseq->data())
+               ->add_vsequence(oned_seq,
                                tmp_min, tmp_min,
                                tmp_max, tmp_max,
                                tmp_min, tmp_min);
@@ -460,30 +463,31 @@ int eseq_test1b(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max)
   tmp_min[2] = tmp_max[2] = 0;
 
     // get the seq manager from gMB
-  EntitySequenceManager *seq_mgr = gMB->sequence_manager();
+  SequenceManager *seq_mgr = gMB->sequence_manager();
   
   MBEntityHandle twod_start;
-  MBEntitySequence *dum_seq;
-  ScdVertexSeq *twod_seq = NULL;
+  EntitySequence *dum_seq;
+  ScdVertexData *twod_seq = NULL;
   MBErrorCode result = seq_mgr->create_scd_sequence(tmp_min, tmp_max,
-                                                     MBVERTEX, 1,
+                                                     MBVERTEX, 1, 0,
                                                      twod_start, dum_seq);
-  if (NULL != dum_seq) twod_seq = dynamic_cast<ScdVertexSeq*>(dum_seq);
+  if (NULL != dum_seq) twod_seq = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && twod_start != 0 && dum_seq != NULL && twod_seq != NULL);
 
     // now create the element sequence
   MBEntityHandle eseq_start;
-  ScdElementSeq *eseq = NULL;
+  StructuredElementSeq *eseq = NULL;
   result = seq_mgr->create_scd_sequence(tmp_min, tmp_max,
-                                        MBQUAD, 1,
+                                        MBQUAD, 1, 0,
                                         eseq_start, dum_seq);
-  if (NULL != dum_seq) eseq = dynamic_cast<ScdElementSeq*>(dum_seq);
+  if (NULL != dum_seq) eseq = dynamic_cast<StructuredElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && eseq_start != 0 && dum_seq != NULL && eseq != NULL);
   
     // add vertex seq to element seq; first need to construct proper 3pt input (p1 is tmp_min)
   HomCoord p2(tmp_max.i(), tmp_min.j(), tmp_min.k());
   HomCoord p3(tmp_min.i(), tmp_max.j(), tmp_min.k());
-  result = eseq->add_vsequence(twod_seq,
+  result = dynamic_cast<ScdElementData*>(eseq->data())
+               ->add_vsequence(twod_seq,
                                tmp_min, tmp_min,
                                p2, p2, p3, p3);
   if (MB_SUCCESS != result) {
@@ -514,31 +518,31 @@ int eseq_test1c(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max)
   int errors = 0;
 
     // get the seq manager from gMB
-  EntitySequenceManager *seq_mgr = gMB->sequence_manager();
+  SequenceManager *seq_mgr = gMB->sequence_manager();
   
   MBEntityHandle threed_start;
-  MBEntitySequence *dum_seq;
-  ScdVertexSeq *threed_seq = NULL;
+  EntitySequence *dum_seq;
+  ScdVertexData *threed_seq = NULL;
   MBErrorCode result = seq_mgr->create_scd_sequence(tmp_min, tmp_max,
-                                                     MBVERTEX, 1,
+                                                     MBVERTEX, 1, 0,
                                                      threed_start, dum_seq);
-  if (NULL != dum_seq) threed_seq = dynamic_cast<ScdVertexSeq*>(dum_seq);
+  if (NULL != dum_seq) threed_seq = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && threed_start != 0 && dum_seq != NULL && threed_seq != NULL);
 
     // now create the element sequence
   MBEntityHandle eseq_start;
-  ScdElementSeq *eseq = NULL;
+  StructuredElementSeq *eseq = NULL;
   result = seq_mgr->create_scd_sequence(tmp_min, tmp_max,
-                                        MBHEX, 1,
+                                        MBHEX, 1, 0,
                                         eseq_start, dum_seq);
-  if (NULL != dum_seq) eseq = dynamic_cast<ScdElementSeq*>(dum_seq);
+  if (NULL != dum_seq) eseq = dynamic_cast<StructuredElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && eseq_start != 0 && dum_seq != NULL && eseq != NULL);
   
     // add vertex seq to element seq; first need to construct proper 3pt input (p1 is tmp_min)
   HomCoord p2(tmp_max.i(), tmp_min.j(), tmp_min.k());
   HomCoord p3(tmp_min.i(), tmp_max.j(), tmp_min.k());
-  result = eseq->add_vsequence(threed_seq,
-                               tmp_min, tmp_min, p2, p2, p3, p3);
+  result = dynamic_cast<ScdElementData*>(eseq->data())
+            ->add_vsequence(threed_seq, tmp_min, tmp_min, p2, p2, p3, p3);
   if (MB_SUCCESS != result) {
     std::cout << "Couldn't add vsequence to 3d single-block element sequence." << std::endl;
     errors++;
@@ -565,8 +569,8 @@ int eseq_test2a(MBCore *gMB, HomCoord tmp_min, HomCoord tmp_max)
     // TEST 2a: 1d composite block, 0d difference between owning/sharing blocks
     // create vertex seq
   
-  ScdVertexSeq *vseq[3];
-  ScdElementSeq *eseq[3];
+  ScdVertexData *vseq[3];
+  StructuredElementSeq *eseq[3];
   MBEntityHandle vstart[3], estart[3];
   
   int errors = create_1d_3_sequences(gMB, tmp_min, tmp_max,
@@ -607,8 +611,8 @@ int eseq_test2b(MBCore *gMB)
     // TEST 2b: 2d composite block, 0d difference between owning/sharing blocks
     // create vertex seq
   
-  ScdVertexSeq *vseq[3];
-  ScdElementSeq *eseq[3];
+  ScdVertexData *vseq[3];
+  StructuredElementSeq *eseq[3];
   MBEntityHandle vstart[3], estart[3];
   
   int errors = create_2d_3_sequences(gMB, vseq, vstart, eseq, estart);
@@ -650,8 +654,8 @@ int eseq_test2c(MBCore *gMB)
     // TEST 2c: 2d composite block, 0d difference between owning/sharing blocks,
     // tri-valent shared vertex between the three blocks
 
-  ScdVertexSeq *vseq[3];
-  ScdElementSeq *eseq[3];
+  ScdVertexData *vseq[3];
+  StructuredElementSeq *eseq[3];
   MBEntityHandle vstart[3], estart[3];
 
     // interval settings: only 3 of them
@@ -685,8 +689,8 @@ int eseq_test2d(MBCore *gMB)
     // TEST 2d: 3d composite block, 0d difference between owning/sharing blocks,
     // tri-valent shared edge between the three blocks
 
-  ScdVertexSeq *vseq[3];
-  ScdElementSeq *eseq[3];
+  ScdVertexData *vseq[3];
+  StructuredElementSeq *eseq[3];
   MBEntityHandle vstart[3], estart[3];
 
     // interval settings: only 3 of them
@@ -717,8 +721,8 @@ int eseq_test2d(MBCore *gMB)
 
 int create_1d_3_sequences(MBCore *gMB,
                           HomCoord tmp_min, HomCoord tmp_max,
-                          ScdVertexSeq **vseq, MBEntityHandle *vstart,
-                          ScdElementSeq **eseq, MBEntityHandle *estart) 
+                          ScdVertexData **vseq, MBEntityHandle *vstart,
+                          StructuredElementSeq **eseq, MBEntityHandle *estart) 
 {
   int errors = 0;
   
@@ -733,32 +737,32 @@ int create_1d_3_sequences(MBCore *gMB,
   HomCoord vseq2_minmax[2] = {HomCoord(tmp_min), HomCoord(tmp_max[0]-5*idiff, tmp_max[1], tmp_max[2])};
   
     // get the seq manager from gMB
-  EntitySequenceManager *seq_mgr = gMB->sequence_manager();
+  SequenceManager *seq_mgr = gMB->sequence_manager();
 
     // create three vertex sequences
-  MBEntitySequence *dum_seq;
+  EntitySequence *dum_seq;
   vseq[0] = vseq[1] = vseq[2] = NULL;
   
 
     // first vertex sequence 
   MBErrorCode result = seq_mgr->create_scd_sequence(vseq0_minmax[0], vseq0_minmax[1],
-                                                     MBVERTEX, 1,
+                                                     MBVERTEX, 1, 0,
                                                      vstart[0], dum_seq);
-  if (NULL != dum_seq) vseq[0] = dynamic_cast<ScdVertexSeq*>(dum_seq);
+  if (NULL != dum_seq) vseq[0] = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && vstart[0] != 0 && dum_seq != NULL && vseq[0] != NULL);
 
     // second vertex sequence 
   result = seq_mgr->create_scd_sequence(vseq1_minmax[0], vseq1_minmax[1],
-                                        MBVERTEX, 1,
+                                        MBVERTEX, 1, 0,
                                         vstart[1], dum_seq);
-  if (NULL != dum_seq) vseq[1] = dynamic_cast<ScdVertexSeq*>(dum_seq);
+  if (NULL != dum_seq) vseq[1] = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && vstart[1] != 0 && dum_seq != NULL && vseq[1] != NULL);
 
     // third vertex sequence 
   result = seq_mgr->create_scd_sequence(vseq2_minmax[0], vseq2_minmax[1],
-                                        MBVERTEX, 1,
+                                        MBVERTEX, 1, 0,
                                         vstart[2], dum_seq);
-  if (NULL != dum_seq) vseq[2] = dynamic_cast<ScdVertexSeq*>(dum_seq);
+  if (NULL != dum_seq) vseq[2] = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && vstart[2] != 0 && dum_seq != NULL && vseq[2] != NULL);
 
     // now create the three element sequences
@@ -766,13 +770,13 @@ int create_1d_3_sequences(MBCore *gMB,
   
     // create the first element sequence
   result = seq_mgr->create_scd_sequence(vseq0_minmax[0], vseq0_minmax[1],
-                                        MBEDGE, 1,
+                                        MBEDGE, 1, 0,
                                         estart[0], dum_seq);
-  if (NULL != dum_seq) eseq[0] = dynamic_cast<ScdElementSeq*>(dum_seq);
+  if (NULL != dum_seq) eseq[0] = dynamic_cast<StructuredElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && estart[0] != 0 && dum_seq != NULL && eseq[0] != NULL);
   
     // add first vertex seq to first element seq, forward orientation, unity transform
-  result = eseq[0]->add_vsequence(vseq[0],
+  result = eseq[0]->sdata()->add_vsequence(vseq[0],
                                   vseq0_minmax[0], vseq0_minmax[0],
                                   vseq0_minmax[1], vseq0_minmax[1],
                                   vseq0_minmax[0], vseq0_minmax[0]);
@@ -786,14 +790,14 @@ int create_1d_3_sequences(MBCore *gMB,
     // end of the previous eseq
   result = seq_mgr->create_scd_sequence(HomCoord(vseq0_minmax[1].i(), 0, 0),
                                         HomCoord(1+vseq0_minmax[1].i()+vseq1_minmax[1].i()-vseq1_minmax[0].i(), 0, 0),
-                                        MBEDGE, 1,
+                                        MBEDGE, 1, 0,
                                         estart[1], dum_seq);
-  if (NULL != dum_seq) eseq[1] = dynamic_cast<ScdElementSeq*>(dum_seq);
+  if (NULL != dum_seq) eseq[1] = dynamic_cast<StructuredElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && estart[1] != 0 && dum_seq != NULL && eseq[1] != NULL);
   
     // add shared vertex from first vseq to this eseq; parameter space should be the same since
     // we're adding to that parameter space
-  result = eseq[1]->add_vsequence(vseq[0],
+  result = eseq[1]->sdata()->add_vsequence(vseq[0],
                                   vseq0_minmax[0], vseq0_minmax[0],
                                   vseq0_minmax[1], vseq0_minmax[1],
                                   vseq0_minmax[0], vseq0_minmax[0],
@@ -807,7 +811,7 @@ int create_1d_3_sequences(MBCore *gMB,
   
     // add second vseq to this eseq, but reversed; parameter space should be such that the
     // last vertex in the second vseq occurs first, and so on
-  result = eseq[1]->add_vsequence(vseq[1],
+  result = eseq[1]->sdata()->add_vsequence(vseq[1],
                                   vseq1_minmax[1], eseq[1]->min_params()+HomCoord::unitv[0],
                                   vseq1_minmax[0], eseq[1]->max_params(),
                                   vseq1_minmax[1], eseq[1]->min_params()+HomCoord::unitv[0]);
@@ -821,14 +825,14 @@ int create_1d_3_sequences(MBCore *gMB,
     // end of the previous eseq
   result = seq_mgr->create_scd_sequence(eseq[1]->max_params(),
                                         HomCoord(eseq[1]->max_params().i()+1+vseq2_minmax[1].i()-vseq2_minmax[0].i(),0,0),
-                                        MBEDGE, 1,
+                                        MBEDGE, 1, 0,
                                         estart[2], dum_seq);
-  if (NULL != dum_seq) eseq[2] = dynamic_cast<ScdElementSeq*>(dum_seq);
+  if (NULL != dum_seq) eseq[2] = dynamic_cast<StructuredElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && estart[2] != 0 && dum_seq != NULL && eseq[2] != NULL);
   
     // add shared vertex from second vseq to this eseq; parameter space mapping such that we get
     // first vertex only of that vseq
-  result = eseq[2]->add_vsequence(vseq[1],
+  result = eseq[2]->sdata()->add_vsequence(vseq[1],
                                   vseq0_minmax[0], eseq[2]->min_params(),
                                   vseq0_minmax[0]+HomCoord::unitv[0], eseq[2]->min_params()-HomCoord::unitv[0],
                                   vseq0_minmax[0], eseq[2]->min_params(),
@@ -841,7 +845,7 @@ int create_1d_3_sequences(MBCore *gMB,
   }
   
     // add third vseq to this eseq, forward orientation
-  result = eseq[2]->add_vsequence(vseq[2],
+  result = eseq[2]->sdata()->add_vsequence(vseq[2],
                                   vseq2_minmax[0], eseq[2]->min_params()+HomCoord::unitv[0],
                                   vseq2_minmax[1], eseq[2]->max_params(),
                                   vseq1_minmax[0], eseq[2]->min_params()+HomCoord::unitv[0]);
@@ -854,8 +858,8 @@ int create_1d_3_sequences(MBCore *gMB,
 }
 
 int create_2d_3_sequences(MBCore *gMB,
-                          ScdVertexSeq **vseq, MBEntityHandle *vstart,
-                          ScdElementSeq **eseq, MBEntityHandle *estart) 
+                          ScdVertexData **vseq, MBEntityHandle *vstart,
+                          StructuredElementSeq **eseq, MBEntityHandle *estart) 
 {
     // create 3 rectangular esequences attached end to end and back (periodic); vsequences are 
     // assorted orientations, esequences have globally-consistent (periodic in i) parameter space
@@ -867,31 +871,31 @@ int create_2d_3_sequences(MBCore *gMB,
   HomCoord vseq2_minmax[2] = {HomCoord(0,0,0), HomCoord(8,5,0)};
 
     // get the seq manager from gMB
-  EntitySequenceManager *seq_mgr = gMB->sequence_manager();
+  SequenceManager *seq_mgr = gMB->sequence_manager();
 
     // create three vertex sequences
-  MBEntitySequence *dum_seq;
+  EntitySequence *dum_seq;
   vseq[0] = vseq[1] = vseq[2] = NULL;
 
     // first vertex sequence 
   MBErrorCode result = seq_mgr->create_scd_sequence(vseq0_minmax[0], vseq0_minmax[1],
-                                                     MBVERTEX, 1,
+                                                     MBVERTEX, 1, 0,
                                                      vstart[0], dum_seq);
-  if (NULL != dum_seq) vseq[0] = dynamic_cast<ScdVertexSeq*>(dum_seq);
+  if (NULL != dum_seq) vseq[0] = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && vstart[0] != 0 && dum_seq != NULL && vseq[0] != NULL);
 
     // second vertex sequence 
   result = seq_mgr->create_scd_sequence(vseq1_minmax[0], vseq1_minmax[1],
-                                        MBVERTEX, 1,
+                                        MBVERTEX, 1, 0,
                                         vstart[1], dum_seq);
-  if (NULL != dum_seq) vseq[1] = dynamic_cast<ScdVertexSeq*>(dum_seq);
+  if (NULL != dum_seq) vseq[1] = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && vstart[1] != 0 && dum_seq != NULL && vseq[1] != NULL);
 
     // third vertex sequence 
   result = seq_mgr->create_scd_sequence(vseq2_minmax[0], vseq2_minmax[1],
-                                        MBVERTEX, 1,
+                                        MBVERTEX, 1, 0,
                                         vstart[2], dum_seq);
-  if (NULL != dum_seq) vseq[2] = dynamic_cast<ScdVertexSeq*>(dum_seq);
+  if (NULL != dum_seq) vseq[2] = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && vstart[2] != 0 && dum_seq != NULL && vseq[2] != NULL);
 
     // now create the three element sequences
@@ -899,13 +903,13 @@ int create_2d_3_sequences(MBCore *gMB,
   
     // create the first element sequence
   result = seq_mgr->create_scd_sequence(vseq0_minmax[0], vseq0_minmax[1],
-                                        MBQUAD, 1,
+                                        MBQUAD, 1, 0,
                                         estart[0], dum_seq);
-  if (NULL != dum_seq) eseq[0] = dynamic_cast<ScdElementSeq*>(dum_seq);
+  if (NULL != dum_seq) eseq[0] = dynamic_cast<StructuredElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && estart[0] != 0 && dum_seq != NULL && eseq[0] != NULL);
   
     // add first vertex seq to first element seq, forward orientation, unity transform
-  result = eseq[0]->add_vsequence(vseq[0],
+  result = eseq[0]->sdata()->add_vsequence(vseq[0],
                                     // p1: imin,jmin
                                   vseq0_minmax[0], vseq0_minmax[0],
                                     // p2: imax,jmin
@@ -925,14 +929,14 @@ int create_2d_3_sequences(MBCore *gMB,
   result = seq_mgr->create_scd_sequence(HomCoord(eseq[0]->max_params().i(), eseq[0]->min_params().j(), 0),
                                         HomCoord(vseq0_minmax[1].i()+1+vseq1_minmax[1].i()-vseq1_minmax[0].i(), 
                                                  eseq[0]->max_params().j(), 0),
-                                        MBQUAD, 1,
+                                        MBQUAD, 1, 0,
                                         estart[1], dum_seq);
-  if (NULL != dum_seq) eseq[1] = dynamic_cast<ScdElementSeq*>(dum_seq);
+  if (NULL != dum_seq) eseq[1] = dynamic_cast<StructuredElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && estart[1] != 0 && dum_seq != NULL && eseq[1] != NULL);
   
     // add shared side from first vseq to this eseq; parameter space should be the same since
     // we're adding to that parameter space
-  result = eseq[1]->add_vsequence(vseq[0],
+  result = eseq[1]->sdata()->add_vsequence(vseq[0],
                                   vseq0_minmax[0], vseq0_minmax[0],
                                   vseq0_minmax[1], vseq0_minmax[1],
                                   vseq0_minmax[0], vseq0_minmax[0],
@@ -946,7 +950,7 @@ int create_2d_3_sequences(MBCore *gMB,
   }
   
     // add second vseq to this eseq, with different orientation but all of it (no bb input)
-  result = eseq[1]->add_vsequence(vseq[1],
+  result = eseq[1]->sdata()->add_vsequence(vseq[1],
                                     // p1: one right of top left
                                   vseq1_minmax[0], 
                                   HomCoord(eseq[1]->min_params().i()+1, eseq[1]->max_params().j(), 0),
@@ -968,14 +972,14 @@ int create_2d_3_sequences(MBCore *gMB,
                                           // add one extra for each of left and right sides
                                         HomCoord(eseq[1]->max_params().i()+1+vseq2_minmax[1].i()-vseq2_minmax[0].i()+1,
                                                  eseq[1]->max_params().j(),0),
-                                        MBEDGE, 1,
+                                        MBEDGE, 1, 0,
                                         estart[2], dum_seq);
-  if (NULL != dum_seq) eseq[2] = dynamic_cast<ScdElementSeq*>(dum_seq);
+  if (NULL != dum_seq) eseq[2] = dynamic_cast<StructuredElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && estart[2] != 0 && dum_seq != NULL && eseq[2] != NULL);
   
     // add shared side from second vseq to this eseq; parameter space mapping such that we get
     // a side only of that vseq
-  result = eseq[2]->add_vsequence(vseq[1],
+  result = eseq[2]->sdata()->add_vsequence(vseq[1],
                                     // p1: bottom left
                                   vseq1_minmax[1], eseq[2]->min_params(),
                                     // p2: one right from p1
@@ -995,7 +999,7 @@ int create_2d_3_sequences(MBCore *gMB,
   
     // add shared side from first vseq to this eseq; parameter space mapping such that we get
     // a side only of that vseq
-  result = eseq[2]->add_vsequence(vseq[0],
+  result = eseq[2]->sdata()->add_vsequence(vseq[0],
                                     // p1: bottom right
                                   vseq1_minmax[0], HomCoord(eseq[2]->max_params().i(), eseq[2]->min_params().j(),0),
                                     // p2: one right from p1
@@ -1015,7 +1019,7 @@ int create_2d_3_sequences(MBCore *gMB,
   
 
     // add third vseq to this eseq
-  result = eseq[2]->add_vsequence(vseq[2],
+  result = eseq[2]->sdata()->add_vsequence(vseq[2],
                                     // p1: top right and left one
                                   vseq2_minmax[0], eseq[2]->max_params()-HomCoord::unitv[0],
                                     // p2: one left of p1
@@ -1033,8 +1037,8 @@ int create_2d_3_sequences(MBCore *gMB,
 
 int create_2dtri_3_sequences(MBCore *gMB,
                              const int int1, const int int2, const int int3,
-                             ScdVertexSeq **vseq, MBEntityHandle *vstart,
-                             ScdElementSeq **eseq, MBEntityHandle *estart) 
+                             ScdVertexData **vseq, MBEntityHandle *vstart,
+                             StructuredElementSeq **eseq, MBEntityHandle *estart) 
 {
     // create 3 rectangular esequences arranged such that the all share a common (tri-valent) corner;
     // orient each region such that its origin is at the tri-valent corner and the k direction is
@@ -1053,31 +1057,31 @@ int create_2dtri_3_sequences(MBCore *gMB,
   HomCoord vseq2_minmax[2] = {HomCoord(0,0,0), HomCoord(int2-1,int3-1,0)};
 
     // get the seq manager from gMB
-  EntitySequenceManager *seq_mgr = gMB->sequence_manager();
+  SequenceManager *seq_mgr = gMB->sequence_manager();
 
     // create three vertex sequences
-  MBEntitySequence *dum_seq;
+  EntitySequence *dum_seq;
   vseq[0] = vseq[1] = vseq[2] = NULL;
 
     // first vertex sequence 
   MBErrorCode result = seq_mgr->create_scd_sequence(vseq0_minmax[0], vseq0_minmax[1],
-                                                     MBVERTEX, 1,
+                                                     MBVERTEX, 1, 0,
                                                      vstart[0], dum_seq);
-  if (NULL != dum_seq) vseq[0] = dynamic_cast<ScdVertexSeq*>(dum_seq);
+  if (NULL != dum_seq) vseq[0] = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && vstart[0] != 0 && dum_seq != NULL && vseq[0] != NULL);
 
     // second vertex sequence 
   result = seq_mgr->create_scd_sequence(vseq1_minmax[0], vseq1_minmax[1],
-                                        MBVERTEX, 1,
+                                        MBVERTEX, 1, 0,
                                         vstart[1], dum_seq);
-  if (NULL != dum_seq) vseq[1] = dynamic_cast<ScdVertexSeq*>(dum_seq);
+  if (NULL != dum_seq) vseq[1] = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && vstart[1] != 0 && dum_seq != NULL && vseq[1] != NULL);
 
     // third vertex sequence 
   result = seq_mgr->create_scd_sequence(vseq2_minmax[0], vseq2_minmax[1],
-                                        MBVERTEX, 1,
+                                        MBVERTEX, 1, 0,
                                         vstart[2], dum_seq);
-  if (NULL != dum_seq) vseq[2] = dynamic_cast<ScdVertexSeq*>(dum_seq);
+  if (NULL != dum_seq) vseq[2] = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && vstart[2] != 0 && dum_seq != NULL && vseq[2] != NULL);
 
 
@@ -1094,13 +1098,13 @@ int create_2dtri_3_sequences(MBCore *gMB,
   
     // create the first element sequence
   result = seq_mgr->create_scd_sequence(eseq0_minmax[0], eseq0_minmax[1], 
-                                        MBQUAD, 1,
+                                        MBQUAD, 1, 0,
                                         estart[0], dum_seq);
-  if (NULL != dum_seq) eseq[0] = dynamic_cast<ScdElementSeq*>(dum_seq);
+  if (NULL != dum_seq) eseq[0] = dynamic_cast<StructuredElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && estart[0] != 0 && dum_seq != NULL && eseq[0] != NULL);
   
     // only need to add one vseq to this, unity transform
-  result = eseq[0]->add_vsequence(vseq[0],
+  result = eseq[0]->sdata()->add_vsequence(vseq[0],
                                     // trick: if I know it's going to be unity, just input
                                     // 3 sets of equivalent points
                                   vseq0_minmax[0], vseq0_minmax[0],
@@ -1114,13 +1118,13 @@ int create_2dtri_3_sequences(MBCore *gMB,
   
     // create the second element sequence
   result = seq_mgr->create_scd_sequence(eseq1_minmax[0], eseq1_minmax[1],
-                                        MBQUAD, 1,
+                                        MBQUAD, 1, 0,
                                         estart[1], dum_seq);
-  if (NULL != dum_seq) eseq[1] = dynamic_cast<ScdElementSeq*>(dum_seq);
+  if (NULL != dum_seq) eseq[1] = dynamic_cast<StructuredElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && estart[1] != 0 && dum_seq != NULL && eseq[1] != NULL);
   
     // add shared side from first vseq to this eseq, with bb to get just the line
-  result = eseq[1]->add_vsequence(vseq[0],
+  result = eseq[1]->sdata()->add_vsequence(vseq[0],
                                     // p1: origin in both systems
                                   vseq0_minmax[0], eseq0_minmax[0],
                                     // p2: one unit along the shared line (i in one, j in other)
@@ -1137,7 +1141,7 @@ int create_2dtri_3_sequences(MBCore *gMB,
   }
   
     // add second vseq to this eseq, with different orientation but all of it (no bb input)
-  result = eseq[1]->add_vsequence(vseq[1],
+  result = eseq[1]->sdata()->add_vsequence(vseq[1],
                                     // p1: origin/i+1 (vseq/eseq)
                                   vseq1_minmax[0], eseq1_minmax[0]+HomCoord::unitv[0],
                                     // p2: j+1 from p1
@@ -1153,13 +1157,13 @@ int create_2dtri_3_sequences(MBCore *gMB,
   
     // create the third element sequence
   result = seq_mgr->create_scd_sequence(eseq2_minmax[0], eseq2_minmax[1],
-                                        MBQUAD, 1,
+                                        MBQUAD, 1, 0,
                                         estart[2], dum_seq);
-  if (NULL != dum_seq) eseq[2] = dynamic_cast<ScdElementSeq*>(dum_seq);
+  if (NULL != dum_seq) eseq[2] = dynamic_cast<StructuredElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && estart[2] != 0 && dum_seq != NULL && eseq[2] != NULL);
   
     // add shared side from second vseq to this eseq
-  result = eseq[2]->add_vsequence(vseq[1],
+  result = eseq[2]->sdata()->add_vsequence(vseq[1],
                                     // p1: origin/j+1 (vseq/eseq)
                                   vseq1_minmax[0], eseq[2]->min_params()+HomCoord::unitv[1],
                                     // p2: i+1/j+2 (vseq/eseq)
@@ -1177,7 +1181,7 @@ int create_2dtri_3_sequences(MBCore *gMB,
   }
   
     // add shared side from first vseq to this eseq
-  result = eseq[2]->add_vsequence(vseq[0],
+  result = eseq[2]->sdata()->add_vsequence(vseq[0],
                                     // p1: origin/origin
                                   vseq1_minmax[0], eseq2_minmax[0],
                                     // p2: j+1/i+1
@@ -1195,7 +1199,7 @@ int create_2dtri_3_sequences(MBCore *gMB,
   }
 
     // add third vseq to this eseq
-  result = eseq[2]->add_vsequence(vseq[2],
+  result = eseq[2]->sdata()->add_vsequence(vseq[2],
                                     // p1: origin/i+1,j+1
                                   vseq2_minmax[0], eseq[2]->min_params()+HomCoord::unitv[0]+HomCoord::unitv[1],
                                     // p2: i+1 from p1
@@ -1212,8 +1216,8 @@ int create_2dtri_3_sequences(MBCore *gMB,
 
 int create_3dtri_3_sequences(MBCore *gMB,
                              const int int1, const int int2, const int int3, const int int4,
-                             ScdVertexSeq **vseq, MBEntityHandle *vstart,
-                             ScdElementSeq **eseq, MBEntityHandle *estart) 
+                             ScdVertexData **vseq, MBEntityHandle *vstart,
+                             StructuredElementSeq **eseq, MBEntityHandle *estart) 
 {
     // create 3 brick esequences arranged such that the all share a common (tri-valent) edge;
     // orient each region similarly to the 2dtri_3_esequences test problem, swept into 3d in the 
@@ -1233,31 +1237,31 @@ int create_3dtri_3_sequences(MBCore *gMB,
   HomCoord vseq2_minmax[2] = {HomCoord(0,0,0), HomCoord(int2-1,int3-1,int4)};
 
     // get the seq manager from gMB
-  EntitySequenceManager *seq_mgr = gMB->sequence_manager();
+  SequenceManager *seq_mgr = gMB->sequence_manager();
 
     // create three vertex sequences
-  MBEntitySequence *dum_seq;
+  EntitySequence *dum_seq;
   vseq[0] = vseq[1] = vseq[2] = NULL;
 
     // first vertex sequence 
   MBErrorCode result = seq_mgr->create_scd_sequence(vseq0_minmax[0], vseq0_minmax[1],
-                                                     MBVERTEX, 1,
+                                                     MBVERTEX, 1, 0,
                                                      vstart[0], dum_seq);
-  if (NULL != dum_seq) vseq[0] = dynamic_cast<ScdVertexSeq*>(dum_seq);
+  if (NULL != dum_seq) vseq[0] = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && vstart[0] != 0 && dum_seq != NULL && vseq[0] != NULL);
 
     // second vertex sequence 
   result = seq_mgr->create_scd_sequence(vseq1_minmax[0], vseq1_minmax[1],
-                                        MBVERTEX, 1,
+                                        MBVERTEX, 1, 0,
                                         vstart[1], dum_seq);
-  if (NULL != dum_seq) vseq[1] = dynamic_cast<ScdVertexSeq*>(dum_seq);
+  if (NULL != dum_seq) vseq[1] = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && vstart[1] != 0 && dum_seq != NULL && vseq[1] != NULL);
 
     // third vertex sequence 
   result = seq_mgr->create_scd_sequence(vseq2_minmax[0], vseq2_minmax[1],
-                                        MBVERTEX, 1,
+                                        MBVERTEX, 1, 0,
                                         vstart[2], dum_seq);
-  if (NULL != dum_seq) vseq[2] = dynamic_cast<ScdVertexSeq*>(dum_seq);
+  if (NULL != dum_seq) vseq[2] = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && vstart[2] != 0 && dum_seq != NULL && vseq[2] != NULL);
 
 
@@ -1274,13 +1278,13 @@ int create_3dtri_3_sequences(MBCore *gMB,
   
     // create the first element sequence
   result = seq_mgr->create_scd_sequence(eseq0_minmax[0], eseq0_minmax[1], 
-                                        MBHEX, 1,
+                                        MBHEX, 1, 0,
                                         estart[0], dum_seq);
-  if (NULL != dum_seq) eseq[0] = dynamic_cast<ScdElementSeq*>(dum_seq);
+  if (NULL != dum_seq) eseq[0] = dynamic_cast<StructuredElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && estart[0] != 0 && dum_seq != NULL && eseq[0] != NULL);
   
     // only need to add one vseq to this, unity transform
-  result = eseq[0]->add_vsequence(vseq[0],
+  result = eseq[0]->sdata()->add_vsequence(vseq[0],
                                     // trick: if I know it's going to be unity, just input
                                     // 3 sets of equivalent points
                                   vseq0_minmax[0], vseq0_minmax[0],
@@ -1294,13 +1298,13 @@ int create_3dtri_3_sequences(MBCore *gMB,
   
     // create the second element sequence
   result = seq_mgr->create_scd_sequence(eseq1_minmax[0], eseq1_minmax[1],
-                                        MBHEX, 1,
+                                        MBHEX, 1, 0,
                                         estart[1], dum_seq);
-  if (NULL != dum_seq) eseq[1] = dynamic_cast<ScdElementSeq*>(dum_seq);
+  if (NULL != dum_seq) eseq[1] = dynamic_cast<StructuredElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && estart[1] != 0 && dum_seq != NULL && eseq[1] != NULL);
   
     // add shared side from first vseq to this eseq, with bb to get just the face
-  result = eseq[1]->add_vsequence(vseq[0],
+  result = eseq[1]->sdata()->add_vsequence(vseq[0],
                                     // p1: origin in both systems
                                   vseq0_minmax[0], eseq0_minmax[0],
                                     // p2: one unit along the shared line (i in one, j in other)
@@ -1318,7 +1322,7 @@ int create_3dtri_3_sequences(MBCore *gMB,
   }
   
     // add second vseq to this eseq, with different orientation but all of it (no bb input)
-  result = eseq[1]->add_vsequence(vseq[1],
+  result = eseq[1]->sdata()->add_vsequence(vseq[1],
                                     // p1: origin/i+1 (vseq/eseq)
                                   vseq1_minmax[0], eseq1_minmax[0]+HomCoord::unitv[0],
                                     // p2: j+1 from p1
@@ -1334,13 +1338,13 @@ int create_3dtri_3_sequences(MBCore *gMB,
   
     // create the third element sequence
   result = seq_mgr->create_scd_sequence(eseq2_minmax[0], eseq2_minmax[1],
-                                        MBHEX, 1,
+                                        MBHEX, 1, 0,
                                         estart[2], dum_seq);
-  if (NULL != dum_seq) eseq[2] = dynamic_cast<ScdElementSeq*>(dum_seq);
+  if (NULL != dum_seq) eseq[2] = dynamic_cast<StructuredElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && estart[2] != 0 && dum_seq != NULL && eseq[2] != NULL);
   
     // add shared side from second vseq to this eseq
-  result = eseq[2]->add_vsequence(vseq[1],
+  result = eseq[2]->sdata()->add_vsequence(vseq[1],
                                     // p1: origin/j+1 (vseq/eseq)
                                   vseq1_minmax[0], eseq[2]->min_params()+HomCoord::unitv[1],
                                     // p2: i+1/j+2 (vseq/eseq)
@@ -1359,7 +1363,7 @@ int create_3dtri_3_sequences(MBCore *gMB,
   }
   
     // add shared side from first vseq to this eseq
-  result = eseq[2]->add_vsequence(vseq[0],
+  result = eseq[2]->sdata()->add_vsequence(vseq[0],
                                     // p1: origin/origin
                                   vseq1_minmax[0], eseq2_minmax[0],
                                     // p2: j+1/i+1
@@ -1378,7 +1382,7 @@ int create_3dtri_3_sequences(MBCore *gMB,
   }
 
     // add third vseq to this eseq
-  result = eseq[2]->add_vsequence(vseq[2],
+  result = eseq[2]->sdata()->add_vsequence(vseq[2],
                                     // p1: origin/i+1,j+1
                                   vseq2_minmax[0], eseq[2]->min_params()+HomCoord::unitv[0]+HomCoord::unitv[1],
                                     // p2: i+1 from p1

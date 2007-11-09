@@ -217,9 +217,6 @@ const char* WriteHDF5::ExportSet::name() const
       return mhdf_node_type_handle();
     case MBENTITYSET:
       return mhdf_set_type_handle();
-    case MBPOLYGON:
-    case MBPOLYHEDRON:
-      return MBCN::EntityTypeName( type );
     default:
       sprintf( buffer, "%s%d", MBCN::EntityTypeName( type ), num_nodes );
       return buffer;
@@ -402,14 +399,16 @@ DEBUGOUT("Writing connectivity.\n");
   
     // Write element connectivity
   for (ex_itor = exportList.begin(); ex_itor != exportList.end(); ++ex_itor)
-  {
-    if (ex_itor->type == MBPOLYGON || ex_itor->type == MBPOLYHEDRON)
-      result = write_poly( *ex_itor );
-    else
-      result = write_elems( *ex_itor );
-    if (MB_SUCCESS != result)
+    if (MB_SUCCESS != write_elems( *ex_itor ))
       goto write_fail;
-  }
+//  {
+//    if (ex_itor->type == MBPOLYGON || ex_itor->type == MBPOLYHEDRON)
+//      result = write_poly( *ex_itor );
+//    else
+//      result = write_elems( *ex_itor );
+//    if (MB_SUCCESS != result)
+//      goto write_fail;
+//  }
 
 DEBUGOUT("Writing sets.\n");
   
@@ -485,84 +484,71 @@ MBErrorCode WriteHDF5::clear_all_id_tags()
   }
   return MB_SUCCESS;
 }
-   
-  // For a given element type, get all higher-order configurations
-  // (and the linear element type) has a list of node counts in
-  // each.
-MBErrorCode WriteHDF5::midnode_combinations( MBEntityType type,
-                                    std::vector<int>& combinations )
+
+MBErrorCode WriteHDF5::initialize_mesh( const MBRange ranges[5] )
 {
-  combinations.clear();
-
-  int dimension = MBCN::Dimension( type );
-  int num_faces = 0;
-  int num_edges = 0;
-  switch (dimension) 
-  {
-    case 3:
-      num_faces = MBCN::NumSubEntities( type, 2 );
-      num_edges = MBCN::NumSubEntities( type, 1 );
-      combinations.push_back(num_faces + num_edges + 1);
-      combinations.push_back(num_faces + num_edges);
-      combinations.push_back(num_faces + 1);
-      combinations.push_back(num_faces);
-    case 2:
-      num_edges = MBCN::NumSubEntities( type, 1 );
-      combinations.push_back(num_edges + 1);
-      combinations.push_back(num_edges);
-    case 1:
-      combinations.push_back(1);
-      combinations.push_back(0);
-      break;
-    default:
-      assert(0);
-      return MB_FAILURE;
-  }
-
-  return MB_SUCCESS;
-}
-
-  // Get the subset of the passed range that matches both the passed
-  // element type and the number of nodes in the element (the
-  // subtype, e.g. HEX20 vs. HEX8).
-MBErrorCode WriteHDF5::subrange_by_type_and_conn( const MBRange& input,
-                                                  MBEntityType type,
-                                                  int nodecount,
-                                                  MBRange& output )
-{
-  MBRange::const_iterator itor;
-  const MBEntityHandle* junk;
   MBErrorCode rval;
-  int num_nodes;
-  output.clear();
-  for (itor = input.begin(); itor != input.end(); ++itor)
-  {
-      // The connectivity pointer (junk) is passed back.  
-    rval = iFace->get_connectivity( *itor, junk, num_nodes, false );
-    CHK_MB_ERR_0(rval);
-    if (num_nodes == nodecount && 
-        iFace->type_from_handle(*itor) == type)
-      output.insert( *itor );
-  }
-  return MB_SUCCESS;
-}
-
-  // Get the subset of a range containing a given element type.
-MBErrorCode WriteHDF5::subrange_by_type( const MBRange& input,
-                                         MBEntityType type,
-                                         MBRange& output )
-{
-  int err;
-  MBEntityHandle first, last;
-  first = CREATE_HANDLE(  type, 0, err ); assert(!err);
-  last = CREATE_HANDLE( type+1, 0, err ); assert(!err);
-  MBRange::const_iterator start, end;
-  start = input.lower_bound( input.begin(), input.end(), first );
-  end = input.lower_bound( start, input.end(), last );
   
-  output.clear();
-  output.merge( start, end );
-  return MB_SUCCESS;
+  if (!ranges[0].all_of_type(MBVERTEX))
+    return MB_FAILURE;
+  nodeSet.range = ranges[0];
+  nodeSet.type = MBVERTEX;
+  nodeSet.num_nodes = 1;
+  
+  if (!ranges[4].all_of_type(MBENTITYSET))
+    return MB_FAILURE;
+  setSet.range = ranges[4];
+  setSet.type = MBENTITYSET;
+  setSet.num_nodes = 0;
+
+  exportList.clear();
+  std::vector<MBRange> bins(1024); // sort entities by connectivity length
+                                   // resize is expensive due to MBRange copy, so start big
+  for (MBEntityType type = MBEDGE; type < MBENTITYSET; ++type)
+  {
+    ExportSet set;
+    const int dim = MBCN::Dimension(type);
+
+      // Group entities by connectivity length
+    bins.clear();
+    std::pair<MBRange::const_iterator,MBRange::const_iterator> p = ranges[dim].equal_range(type);
+    MBRange::const_iterator i = p.first;
+    while (i != p.second) {
+      MBRange::const_iterator first = i;
+      MBEntityHandle const* conn;
+      int len, firstlen;
+      rval = iFace->get_connectivity( *i, conn, firstlen );
+      if (MB_SUCCESS != rval)
+        return rval;
+      
+      for (++i; i != p.second; ++i) {
+        rval = iFace->get_connectivity( *i, conn, len );
+        if (MB_SUCCESS != rval)
+          return rval;
+        
+        if (len != firstlen)
+          break;
+      }
+      
+      if (firstlen >= (int)bins.size())
+        bins.resize(firstlen+1);
+      bins[firstlen].merge( first, i );
+    }
+
+      // Create ExportSet for each group
+    for (std::vector<MBRange>::iterator j = bins.begin(); j != bins.end(); ++j) {
+      if (j->empty())
+        continue;
+        
+      set.range.clear();
+      set.type = type;
+      set.num_nodes = j - bins.begin();
+      exportList.push_back( set );
+      exportList.back().range.swap( *j );
+    }
+  }
+    
+  return MB_SUCCESS;  
 }
 
                                          
@@ -572,13 +558,9 @@ MBErrorCode WriteHDF5::gather_mesh_info(
 {
   MBErrorCode rval;
   
-  nodeSet.range.clear();
-  setSet.range.clear();
-  exportList.clear();
-  
   int dim;
-  MBRange range;
-  MBRange ranges[4];
+  MBRange range;      // temporary storage
+  MBRange ranges[5];  // lists of entities to export, grouped by dimension
   
     // Gather list of all related sets
   std::vector<MBEntityHandle> stack(export_sets);
@@ -587,14 +569,14 @@ MBErrorCode WriteHDF5::gather_mesh_info(
   while( !stack.empty() )
   {
     MBEntityHandle meshset = stack.back(); stack.pop_back();
-    setSet.range.insert( meshset );
+    ranges[4].insert( meshset );
   
       // Get contained sets
     range.clear();
     rval = iFace->get_entities_by_type( meshset, MBENTITYSET, range );
     CHK_MB_ERR_0(rval);
     for (MBRange::iterator ritor = range.begin(); ritor != range.end(); ++ritor)
-      if (setSet.range.find( *ritor ) == setSet.range.end())
+      if (ranges[4].find( *ritor ) == ranges[4].end())
         stack.push_back( *ritor );
     
       // Get child sets
@@ -603,14 +585,14 @@ MBErrorCode WriteHDF5::gather_mesh_info(
     CHK_MB_ERR_0(rval);
     for (std::vector<MBEntityHandle>::iterator vitor = set_children.begin();
          vitor != set_children.end(); ++vitor )
-      if (setSet.range.find( *vitor ) == setSet.range.end())
+      if (ranges[4].find( *vitor ) == ranges[4].end())
         stack.push_back( *vitor );
   }
   
     // Gather list of all mesh entities from list of sets,
     // grouped by dimension.
-  for (MBRange::iterator setitor = setSet.range.begin();
-       setitor != setSet.range.end(); ++setitor)
+  for (MBRange::iterator setitor = ranges[4].begin();
+       setitor != ranges[4].end(); ++setitor)
   {
     for (dim = 0; dim < 4; ++dim)
     {
@@ -639,126 +621,36 @@ MBErrorCode WriteHDF5::gather_mesh_info(
     ranges[0].merge( range );      
   }
   
-    // Split lists by element type and number of nodes
-  nodeSet.range = ranges[0];
-  nodeSet.type = MBVERTEX;
-  nodeSet.num_nodes = 1;
-  setSet.type = MBENTITYSET;
-  setSet.num_nodes = 0;
-  
-  std::vector<int> node_counts;
-  for (MBEntityType type = MBEDGE; type < MBENTITYSET; ++type)
-  {
-    ExportSet set;
-    dim = MBCN::Dimension(type);
-
-    if (ranges[dim].empty())
-      continue;
-    
-    if (type == MBPOLYGON || type == MBPOLYHEDRON)
-    {
-      rval = subrange_by_type( ranges[dim], type, set.range );
-      CHK_MB_ERR_0(rval);
-      
-      if (!set.range.empty())
-      {
-        set.type = type;
-        set.num_nodes = 0;
-        exportList.push_back( set );
-      }
-    }
-    else
-    {      
-      node_counts.clear();
-      rval = midnode_combinations( type, node_counts );
-      CHK_MB_ERR_0(rval);
-
-      const int num_corners = MBCN::VerticesPerEntity( type );
-      for (std::vector<int>::iterator itor = node_counts.begin();
-           itor != node_counts.end(); ++itor)
-      {
-        set.range.clear();
-        int num_nodes = *itor + num_corners;
-        rval = subrange_by_type_and_conn( ranges[dim], type, num_nodes, set.range );
-        CHK_MB_ERR_0(rval);
-
-        if (!set.range.empty())
-        {
-          set.type = type;
-          set.num_nodes = num_nodes;
-          exportList.push_back( set );
-        }
-      }
-    }
-  }
-    
-  return MB_SUCCESS;  
+  return initialize_mesh( ranges );
 }
 
   // Gather all the mesh and related information to be written.
 MBErrorCode WriteHDF5::gather_all_mesh( )
 {
   MBErrorCode rval;
-  
-    // Get all nodes
-  nodeSet.range.clear();
-  rval = iFace->get_entities_by_type( 0, MBVERTEX, nodeSet.range );
-  CHK_MB_ERR_0(rval);
-  nodeSet.type = MBVERTEX;
-  nodeSet.num_nodes = 1;
-  
-    // Get all sets
-  setSet.range.clear();
-  rval = iFace->get_entities_by_type( 0, MBENTITYSET, setSet.range );
-  CHK_MB_ERR_0(rval);
-  setSet.type = MBENTITYSET;
-  setSet.num_nodes = 0;
+  MBRange ranges[5];
 
-    // Get all elements, grouped by type and number of higher-order nodes
-  exportList.clear();
-  std::vector<int> node_counts;
-  for (MBEntityType type = MBEDGE; type < MBENTITYSET; ++type)
-  {
-    ExportSet set;
-    
-    MBRange range;
-    rval = iFace->get_entities_by_type( 0, type, range );
-    CHK_MB_ERR_0(rval);
-      
-    if (range.empty())
-      continue;
-    
-    if (type == MBPOLYGON || type == MBPOLYHEDRON)
-    {
-      set.range = range;
-      set.type = type;
-      set.num_nodes = 0;
-      exportList.push_back( set );
-      continue;
-    }
-    
-    rval = midnode_combinations( type, node_counts );
-    CHK_MB_ERR_0(rval);
-      
-    const int num_corners = MBCN::VerticesPerEntity( type );
-    for (std::vector<int>::iterator itor = node_counts.begin();
-         itor != node_counts.end(); ++itor)
-    {
-      set.range.clear();
-      int num_nodes = *itor + num_corners;
-      rval = subrange_by_type_and_conn( range, type, num_nodes, set.range );
-      CHK_MB_ERR_0(rval);
-      
-      if (!set.range.empty())
-      {
-        set.type = type;
-        set.num_nodes = num_nodes;
-        exportList.push_back( set );
-      }
-    }
-  }
-  
-  return MB_SUCCESS;
+  rval = iFace->get_entities_by_type( 0, MBVERTEX, ranges[0] );
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  rval = iFace->get_entities_by_dimension( 0, 1, ranges[1] );
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  rval = iFace->get_entities_by_dimension( 0, 2, ranges[2] );
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  rval = iFace->get_entities_by_dimension( 0, 3, ranges[3] );
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  rval = iFace->get_entities_by_type( 0, MBENTITYSET, ranges[4] );
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  return initialize_mesh( ranges );
 }
   
 MBErrorCode WriteHDF5::write_nodes( )
@@ -860,70 +752,6 @@ MBErrorCode WriteHDF5::write_elems( ExportSet& elems )
   }
 
   mhdf_closeData( filePtr, elem_table, &status );
-  CHK_MHDF_ERR_0(status);
- 
-  return MB_SUCCESS;
-}
-
-
-MBErrorCode WriteHDF5::write_poly( ExportSet& elems )
-{
-  mhdf_Status status;
-  MBErrorCode rval;
-  long first_id, table_size, poly_count;
-  
-  assert( elems.type == MBPOLYGON || elems.type == MBPOLYHEDRON );
-  
-  const MBRange::const_iterator end = elems.range.end();
-  MBRange::const_iterator iter;
-
-    // Create the tables in the file and assign IDs to polys
-  hid_t handles[2];
-  mhdf_openPolyConnectivity( filePtr, 
-                             MBCN::EntityTypeName(elems.type),
-                             &poly_count,
-                             &table_size,
-                             &first_id,
-                             handles,
-                             &status );
-  CHK_MHDF_ERR_0(status);
-  assert (first_id <= elems.first_id);
-  assert ((unsigned long)poly_count >= elems.offset + elems.range.size());
-  
-    // Split the data buffer into two chunks, one for the indices
-    // and one for the IDs.  Assume average of 4 IDs per poly.
-  
-  size_t chunk_size = bufferSize / (5*sizeof(id_t));
-  id_t* idx_buffer = (id_t*)dataBuffer;
-  id_t* conn_buffer = idx_buffer + chunk_size;
-  
-  long offset[2] = {0,0};
-  id_t index_offset = 0;
-  iter = elems.range.begin();
-  
-  while (iter != end)
-  {
-    size_t num_idx = chunk_size;
-    size_t num_conn = 4*chunk_size;
-    rval = writeUtil->get_poly_arrays( iter, end, idTag,
-                                       num_conn, conn_buffer,
-                                       num_idx,  idx_buffer,
-                                       index_offset );
-    CHK_MB_ERR_2(rval, handles, status);
-    
-    mhdf_writePolyConnIndices( handles[0], offset[0], num_idx, id_type, idx_buffer, &status );
-    CHK_MHDF_ERR_2(status, handles);
-    offset[0] += num_idx;
-    
-    mhdf_writePolyConnIDs( handles[1], offset[1], num_conn, id_type, conn_buffer, &status );
-    CHK_MHDF_ERR_2(status, handles);
-    offset[1] += num_conn;
-  }
-
-  mhdf_closeData( filePtr, handles[0], &status );
-  CHK_MHDF_ERR_1(status,  handles[1]);
-
-  mhdf_closeData( filePtr, handles[1], &status );
   CHK_MHDF_ERR_0(status);
  
   return MB_SUCCESS;
@@ -1893,26 +1721,10 @@ MBErrorCode WriteHDF5::create_file( const char* filename,
     // Create element tables
   for (ex_itor = exportList.begin(); ex_itor != exportList.end(); ++ex_itor)
   {
-    if (ex_itor->type == MBPOLYGON || ex_itor->type == MBPOLYHEDRON)
-    {
-      int mb_count;
-      rval = writeUtil->get_poly_array_size( ex_itor->range.begin(),
-                                             ex_itor->range.end(),
-                                             mb_count );
-      CHK_MB_ERR_0(rval);
-      
-      rval = create_poly_tables( ex_itor->type,
-                                 ex_itor->range.size(),
-                                 mb_count,
-                                 first_id );
-    }
-    else
-    {
-      rval = create_elem_tables( ex_itor->type,
-                                 ex_itor->num_nodes,
-                                 ex_itor->range.size(),
-                                 first_id );
-    }
+    rval = create_elem_tables( ex_itor->type,
+                               ex_itor->num_nodes,
+                               ex_itor->range.size(),
+                               first_id );
     CHK_MB_ERR_0(rval);
       
     writeUtil->assign_ids( ex_itor->range, idTag, (id_t)first_id );
@@ -2050,34 +1862,6 @@ MBErrorCode WriteHDF5::create_elem_tables( MBEntityType mb_type,
   return MB_SUCCESS;
 }
 
-
-
-MBErrorCode WriteHDF5::create_poly_tables( MBEntityType mb_type,
-                                           id_t num_poly,
-                                           id_t connectivity_size,
-                                           long& first_id_out )
-{
-  char name[64];
-  mhdf_Status status;
-  hid_t handles[2];
-  
-  strcpy( name, MBCN::EntityTypeName(mb_type) );
-  mhdf_addElement( filePtr, name, mb_type, &status );
-  CHK_MHDF_ERR_0(status);
-  
-  mhdf_createPolyConnectivity( filePtr, 
-                               name, 
-                               num_poly, 
-                               connectivity_size, 
-                               &first_id_out,
-                               handles,
-                               &status );
-  CHK_MHDF_ERR_0(status);
-  mhdf_closeData( filePtr, handles[0], &status );
-  mhdf_closeData( filePtr, handles[1], &status );
-  
-  return MB_SUCCESS;
-}
 
 MBErrorCode WriteHDF5::count_set_size( const MBRange& sets, 
                                        MBRange& compressed_sets,

@@ -429,7 +429,11 @@ MBErrorCode ReadHDF5::read_elems( const char* elem_group )
     return MB_FAILURE;
   }
   
-  rval = convert_id_to_handle( nodeSet, array, (size_t)(nodes_per_elem*count) );
+  if (elems.type == MBPOLYHEDRON)
+    rval = convert_id_to_handle( array, (size_t)(nodes_per_elem*count) );
+  else
+    rval = convert_id_to_handle( nodeSet, array, (size_t)(nodes_per_elem*count) );
+    
   return rval;
 }
 
@@ -438,29 +442,14 @@ MBErrorCode ReadHDF5::read_poly( const char* elem_group )
   MBErrorCode rval;
   mhdf_Status status;
   char name[64];
-  
-    // Put elem set in list early so clean up code can 
-    // get rid of them if we fail.
-  ElemSet empty_set;
-  empty_set.type2 = elem_group;
-  elemList.push_back( empty_set );
-  std::list<ElemSet>::iterator it = elemList.end();
-  --it;
-  ElemSet& elems = *it;
-  
+   
   mhdf_getElemTypeName( filePtr, elem_group, name, sizeof(name), &status );
   if (mhdf_isError( &status ))
   {
     readUtil->report_error( mhdf_message( &status ) );
     return MB_FAILURE;
   }
-
-  elems.type = MBCN::EntityTypeFromName( name );
-  if (elems.type == MBMAXTYPE)
-  {
-    readUtil->report_error( "Unknown element type: \"%s\".\n", name );
-    return MB_FAILURE;
-  }
+  MBEntityType type = MBCN::EntityTypeFromName( name );
 
   long count, first_id, data_len;
   hid_t handles[2];
@@ -471,57 +460,61 @@ MBErrorCode ReadHDF5::read_poly( const char* elem_group )
     readUtil->report_error( mhdf_message( &status ) );
     return MB_FAILURE;
   }
-  elems.first_id = first_id;
+
+  ElemSet empty_set;
+  empty_set.type = MBCN::EntityTypeFromName( name );
+  empty_set.type2 = elem_group;
   
-  MBEntityHandle handle;
-  MBEntityHandle* conn_array;
-  int* index_array;
-  rval = readUtil->get_poly_element_array( count, data_len, elems.type, 
-                                           first_id, readUtil->parallel_rank(), 
-                                           handle, index_array, conn_array );
-  if (MB_SUCCESS != rval)
-  {
-    mhdf_closeData( filePtr, handles[0], &status );
-    mhdf_closeData( filePtr, handles[1], &status );
-    return rval;
+  MBEntityHandle h;
+  bool first = true;
+  long connend = -1;
+  std::vector<MBEntityHandle> connectivity; 
+  for (long i = 0; i < count; ++i) {
+    long prevend = connend;
+    mhdf_readPolyConnIndices( handles[0], i, 1, H5T_NATIVE_LONG, &connend, &status );
+    if (mhdf_isError( &status ))
+    {
+      readUtil->report_error( mhdf_message( &status ) );
+      mhdf_closeData( filePtr, handles[0], &status );
+      mhdf_closeData( filePtr, handles[1], &status );
+      return MB_FAILURE;
+    }
+    
+    connectivity.resize( connend - prevend );
+    mhdf_readPolyConnIDs( handles[1], prevend+1, connectivity.size(), handleType,
+                          &connectivity[0], &status );
+    if (mhdf_isError( &status ))
+    {
+      readUtil->report_error( mhdf_message( &status ) );
+      mhdf_closeData( filePtr, handles[0], &status );
+      mhdf_closeData( filePtr, handles[1], &status );
+      return MB_FAILURE;
+    }
+    
+    rval = iFace->create_element( type, &connectivity[0], connectivity.size(), h );
+    if (MB_SUCCESS != rval) 
+    {
+      mhdf_closeData( filePtr, handles[0], &status );
+      mhdf_closeData( filePtr, handles[1], &status );
+      return rval;
+    }
+    rval= convert_id_to_handle( &connectivity[0], connectivity.size() );
+    if (MB_SUCCESS != rval) 
+    {
+      mhdf_closeData( filePtr, handles[0], &status );
+      mhdf_closeData( filePtr, handles[1], &status );
+      return rval;
+    }
+    
+    if (first || elemList.back().range.back() + 1 >= h) {
+      elemList.push_back( empty_set );
+      elemList.back().first_id = first_id + i;
+      first = false;
+    }
+    elemList.back().range.insert( h );
   }
-  elems.range.insert( handle, handle + count - 1 );
-  
-  mhdf_readPolyConnIndices( handles[0], 0, count, H5T_NATIVE_INT,  
-                            index_array, &status );
-  if (mhdf_isError( &status ))
-  {
-    readUtil->report_error( mhdf_message( &status ) );
-    mhdf_closeData( filePtr, handles[0], &status );
-    mhdf_closeData( filePtr, handles[1], &status );
-    return MB_FAILURE;
-  }
-  
-  mhdf_readPolyConnIDs( handles[1], 0, data_len, handleType,
-                        conn_array, &status );
-  if (mhdf_isError( &status ))
-  {
-    readUtil->report_error( mhdf_message( &status ) );
-    mhdf_closeData( filePtr, handles[0], &status );
-    mhdf_closeData( filePtr, handles[1], &status );
-    return MB_FAILURE;
-  }
-  
-  mhdf_closeData( filePtr, handles[0], &status );
-  if (mhdf_isError( &status ))
-  {
-    readUtil->report_error( mhdf_message( &status ) );
-    mhdf_closeData( filePtr, handles[0], &status );
-    return MB_FAILURE;
-  }
-  mhdf_closeData( filePtr, handles[1], &status );
-  if (mhdf_isError( &status ))
-  {
-    readUtil->report_error( mhdf_message( &status ) );
-    return MB_FAILURE;
-  }
-  
-  return convert_id_to_handle( conn_array, (size_t)data_len );
+ 
+  return MB_SUCCESS;
 }
 
 template <typename T>

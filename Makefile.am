@@ -94,10 +94,9 @@ libMOAB_la_SOURCES = \
   DenseTagCollections.cpp \
   DenseTagCollections.hpp \
   DualTool.cpp \
+  ElementSequence.hpp \
   EntitySequence.cpp \
   EntitySequence.hpp \
-  EntitySequenceManager.cpp \
-  EntitySequenceManager.hpp \
   ExoIIUtil.cpp \
   ExoIIUtil.hpp \
   FileOptions.cpp \
@@ -144,24 +143,34 @@ libMOAB_la_SOURCES = \
   MeshSetSequence.cpp \
   MeshSetSequence.hpp \
   MeshTopoUtil.cpp \
-  PolyEntitySequence.cpp \
-  PolyEntitySequence.hpp \
   ReadGmsh.cpp \
   ReadGmsh.hpp \
   ReadSTL.cpp \
   ReadSTL.hpp \
   ReadVtk.cpp \
   ReadVtk.hpp \
-  ScdElementSeq.cpp \
-  ScdElementSeq.hpp \
-  ScdVertexSeq.cpp \
-  ScdVertexSeq.hpp \
+  ScdElementData.cpp \
+  ScdElementData.hpp \
+  ScdVertexData.cpp \
+  ScdVertexData.hpp \
+  SequenceData.hpp \
+  SequenceData.cpp \
+  SequenceManager.cpp \
+  SequenceManager.hpp \
   SparseTagCollections.cpp \
   SparseTagCollections.hpp \
+  StructuredElementSeq.cpp \
+  StructuredElementSeq.hpp \
   TagServer.cpp \
   TagServer.hpp \
   Tqdcfr.cpp \
   Tqdcfr.hpp \
+  TypeSequenceManager.cpp \
+  TypeSequenceManager.hpp \
+  UnstructuredElemSeq.cpp \
+  UnstructuredElemSeq.hpp \
+  VertexSequence.hpp \
+  VertexSequence.cpp \
   VtkUtil.cpp \
   VtkUtil.hpp \
   WriteAns.cpp \
@@ -265,7 +274,7 @@ test_adj_SOURCES = test_adj.cpp
 test_adj_LDADD = $(top_builddir)/libMOAB.la
 test_adj_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
-seq_man_test_SOURCES = EntitySequenceManager.cpp 
+seq_man_test_SOURCES = TestTypeSequenceManager.cpp 
 seq_man_test_LDADD = $(top_builddir)/libMOAB.la
 seq_man_test_CXXFLAGS = -DTEST $(CXXFLAGS)
 

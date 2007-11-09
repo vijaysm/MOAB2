@@ -1,0 +1,146 @@
+#ifndef SEQUENCE_MANAGER_HPP
+#define SEQUENCE_MANAGER_HPP
+
+#include "TypeSequenceManager.hpp"
+#include "MBHandleUtils.hpp"
+
+class HomCoord;
+class TagServer;
+
+class SequenceManager 
+{
+  public:
+  
+    SequenceManager( const MBHandleUtils& handle_utils ) 
+      : handleUtils(handle_utils)
+      {}
+    
+    MBErrorCode find( MBEntityHandle handle, EntitySequence*& sequence_out ) const
+      { 
+        return typeData[TYPE_FROM_HANDLE(handle)].find( handle, sequence_out );
+      }
+    
+    void get_entities( MBEntityType type, MBRange& entities_out ) const
+      { typeData[type].get_entities( entities_out ); }
+    
+    MBEntityID get_number_entities( MBEntityType type ) const
+      { return typeData[type].get_number_entities(); }
+    
+    MBErrorCode replace_subsequence( EntitySequence* new_seq, TagServer* ts );
+    
+    MBErrorCode check_valid_entities( const MBRange& entities ) const;
+    
+    MBErrorCode delete_entity( MBEntityHandle entity );
+    
+    MBErrorCode delete_entities( const MBRange& entities );
+    
+    MBErrorCode create_vertex( unsigned processor_id,
+                               const double coords[3],
+                               MBEntityHandle& handle_out );
+    
+    MBErrorCode create_element( MBEntityType type,
+                                unsigned processor_id,
+                                const MBEntityHandle* conn_array,
+                                unsigned num_vertices,
+                                MBEntityHandle& handle_out );
+    
+    MBErrorCode create_mesh_set( unsigned processor_id,
+                                 unsigned flags,
+                                 MBEntityHandle& handle_out );
+    
+    MBErrorCode allocate_mesh_set( MBEntityHandle at_this_handle,
+                                   unsigned flags );
+    
+    MBErrorCode create_entity_sequence( MBEntityType type,
+                                        MBEntityID num_entities,
+                                        int nodes_per_entity,
+                                        MBEntityID start_id_hint,
+                                        int processor_id,
+                                        MBEntityHandle& first_handle_out,
+                                        EntitySequence*& sequence_out );
+    
+    MBErrorCode create_meshset_sequence( MBEntityID num_sets,
+                                         MBEntityID start_id_hint,
+                                         int processor_id,
+                                         const unsigned* flags,
+                                         MBEntityHandle& first_handle_out,
+                                         EntitySequence*& sequence_out );
+    
+    MBErrorCode create_meshset_sequence( MBEntityID num_sets,
+                                         MBEntityID start_id_hint,
+                                         int processor_id,
+                                         unsigned flags,
+                                         MBEntityHandle& first_handle_out,
+                                         EntitySequence*& sequence_out );
+    
+    MBErrorCode create_scd_sequence( int imin, int jmin, int kmin,
+                                     int imax, int jmax, int kmax,
+                                     MBEntityType type,
+                                     MBEntityID start_id_hint,
+                                     int processor_id,
+                                     MBEntityHandle& first_handle_out,
+                                     EntitySequence*& sequence_out );
+    
+    MBErrorCode create_scd_sequence( const HomCoord& coord_min,
+                                     const HomCoord& coord_max,
+                                     MBEntityType type,
+                                     MBEntityID start_id_hint,
+                                     int processor_id,
+                                     MBEntityHandle& first_handle_out,
+                                     EntitySequence*& sequence_out );
+                                     
+    
+    
+    
+    const TypeSequenceManager& entity_map( MBEntityType type ) const
+      { return typeData[type]; }
+    
+    void get_memory_use( unsigned long& total_entity_storage,
+                         unsigned long& total_storage ) const;
+                         
+    void get_memory_use( MBEntityType type,
+                         unsigned long& total_entity_storage,
+                         unsigned long& total_storage ) const;
+    
+    void get_memory_use( const MBRange& entities,
+                         unsigned long& total_entity_storage,
+                         unsigned long& total_amortized_storage ) const;
+    
+  
+  private:
+  
+    /**\brief Utility function for allocate_mesh_set (and similar)
+     *
+     * Given a block of available handles, determine the non-strict
+     * subset at which to create a new EntitySequence.
+     */
+    void trim_sequence_block( MBEntityHandle start_handle,
+                              MBEntityHandle& end_handle_in_out,
+                              unsigned maximum_sequence_size );
+  
+  
+      /**\brief Get range of handles in which to create an entity sequence
+       *
+       * Get range of handles in whcih to place a new entity sequence.
+       *\param type              The MBEntityType for the contents of the sequence
+       *\param entity_count      The number of entities in the range
+       *\param values_per_entity Vertices per element, zero for other types
+       *\param start_id_hint     Preferred id of first handle
+       *\param processor_rank    MPI processor ID
+       *\param data_out  Output: Either NULL or an existing SequenceData
+       *                         with a sufficiently large block to accomodate 
+       *                         the handle range.
+       *\return zero if no available handle range, start handle otherwise.
+       */
+    MBEntityHandle sequence_start_handle(   MBEntityType type,
+                                              MBEntityID entity_count,
+                                                     int values_per_entity,
+                                              MBEntityID start_id_hint,
+                                                     int processor_rank,
+                                          SequenceData*& data_out );
+  
+    const MBHandleUtils handleUtils;
+    TypeSequenceManager typeData[MBMAXTYPE];
+};
+
+#endif

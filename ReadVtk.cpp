@@ -261,32 +261,6 @@ MBErrorCode ReadVtk::allocate_elements( long num_elements,
   return mdbImpl->add_entities(mCurrentMeshHandle, range);
 }
 
-MBErrorCode ReadVtk::allocate_poly_elems( long num_elements,
-                                          int connectivity_length,
-                                          MBEntityType type,
-                                          MBEntityHandle& start_handle_out,
-                                          MBEntityHandle*& conn_array_out,
-                                          int*& index_array_out,
-                                          std::vector<MBRange>& append_to_this )
-{
-  MBErrorCode result;
-  
-  start_handle_out = 0;
-  result = readMeshIface->get_poly_element_array( num_elements,
-                                                  connectivity_length,
-                                                  type,
-                                                  0, 0,
-                                                  start_handle_out,
-                                                  index_array_out,
-                                                  conn_array_out );
-  if (MB_SUCCESS != result)
-    return result;
-  
-  MBRange range(start_handle_out, start_handle_out+num_elements-1);
-  append_to_this.push_back( range );
-  return mdbImpl->add_entities(mCurrentMeshHandle, range);
-}
-
 MBErrorCode ReadVtk::vtk_read_dataset( FileTokenizer& tokens,
                                        MBRange& vertex_list,
                                        std::vector<MBRange>& element_list )
@@ -513,23 +487,28 @@ MBErrorCode ReadVtk::vtk_read_polydata( FileTokenizer& tokens,
   {
     case 0:
       result = MB_FAILURE;
+      break;
     case 1:
       readMeshIface->report_error( 
                        "Vertex element type at line %d",
                        tokens.line_number() );
       result = MB_FAILURE;
+      break;
     case 2:
       readMeshIface->report_error( 
                "Unsupported type: polylines at line %d",
                tokens.line_number() );
       result = MB_FAILURE;
+      break;
     case 3:
       result = vtk_read_polygons( tokens, start_handle, elem_list );
+      break;
     case 4:
       readMeshIface->report_error( 
                "Unsupported type: triangle strips at line %d",
                tokens.line_number() );
       result = MB_FAILURE;
+      break;
   }
   
   return result;
@@ -546,32 +525,41 @@ MBErrorCode ReadVtk::vtk_read_polygons( FileTokenizer& tokens,
       !tokens.get_newline( ))
     return MB_FAILURE;
 
-    // Create polygons
-  MBEntityHandle first_poly = 0;
-  MBEntityHandle* conn_array = 0;
-  int* index_array = 0;
-  result = allocate_poly_elems( size[0], size[1] - size[0], MBPOLYGON,
-                                first_poly, conn_array, index_array,
-                                elem_list );
-  if (MB_SUCCESS != result)
-    return result;
-                                                  
-    // Read connectivity
-  int prev_index = -1;
-  for (int i = 0; i < size[0]; ++i)
-  {
+  const MBRange empty;
+  std::vector<MBEntityHandle> conn_hdl;
+  std::vector<long> conn_idx;
+  MBEntityHandle first = 0, prev = 0, handle;
+  for (int i = 0; i < size[0]; ++i) {
     long count;
-    if (!tokens.get_long_ints( 1, &count ) ||
-        !tokens.get_long_ints( count, (long*)conn_array ))
+    if (!tokens.get_long_ints( 1, &count ))
+      return MB_FAILURE;
+    conn_idx.resize(count);
+    conn_hdl.resize(count);
+    if (!tokens.get_long_ints( count, &conn_idx[0]))
       return MB_FAILURE;
     
-    *index_array = ( prev_index += count );
     for (long j = 0; j < count; ++j)
-    {
-      *conn_array += first_vtx;
-      ++conn_array;
+      conn_hdl[j] = first_vtx + conn_idx[j];
+    
+    result = mdbImpl->create_element( MBPOLYGON, &conn_hdl[0], count, handle );
+    if (MB_SUCCESS != result)
+      return result;
+    
+    if (prev +1 != handle) {
+      if (first) { // true except for first iteration (first == 0)
+        if (first < elem_list.back().front()) // only need new range if order would get mixed up
+          elem_list.push_back( empty );
+        elem_list.back().insert( first, prev );
+      }
+      first = handle;
     }
-  } 
+    prev = handle;
+  }
+  if (first) { // true unless no elements (size[0] == 0)
+    if (first < elem_list.back().front()) // only need new range if order would get mixed up
+      elem_list.push_back( empty );
+    elem_list.back().insert( first, prev );
+  }
   
   return MB_SUCCESS;
 }
@@ -638,51 +626,41 @@ MBErrorCode ReadVtk::vtk_read_unstructured_grid( FileTokenizer& tokens,
       return MB_FAILURE;
       
     MBEntityType type = VtkUtil::vtkElemTypes[vtk_type].mb_type;
-    int num_vtx = VtkUtil::vtkElemTypes[vtk_type].num_nodes;
-    
     if (type == MBMAXTYPE) {
       readMeshIface->report_error( "Unsupported VTK element type: %s (%d)\n",
                                    VtkUtil::vtkElemTypes[vtk_type].name, vtk_type );
       return MB_FAILURE;
     }
     
+    int num_vtx = *conn_iter;
+    if (type != MBPOLYGON && num_vtx != (int)VtkUtil::vtkElemTypes[vtk_type].num_nodes) {
+      readMeshIface->report_error(
+        "Cell %ld is of type '%s' but has %u vertices.\n",
+        id, VtkUtil::vtkElemTypes[vtk_type].name, num_vtx );
+      return MB_FAILURE;
+    }
+    
       // Find any subsequent elements of the same type
-    long end_id = id + 1;
-    while ( end_id < num_elems[0] && (unsigned)types[end_id] == vtk_type)
+    std::vector<long>::iterator conn_iter2 = conn_iter + num_vtx + 1;
+    long end_id = id + 1; 
+    while ( end_id < num_elems[0] && 
+            (unsigned)types[end_id] == vtk_type &&
+            *conn_iter2 == num_vtx) {
       ++end_id;
+      conn_iter2 += num_vtx + 1;
+    }
     
       // Allocate element block
     long num_elem = end_id - id;
     MBEntityHandle start_handle = 0;
     MBEntityHandle* conn_array;
-    int* index_array = 0;
     
-    if (type == MBPOLYGON)
-    {
-        // Calculate total length of connectivity list
-      std::vector<long>::iterator conn_iter2 = conn_iter;
-      long conn_len = 0;
-      for (i = 0; i < num_elem; ++i)
-      {
-        conn_len += *conn_iter2;
-        conn_iter2 += *conn_iter2 + 1;
-      }
-      
-        // Allocate elements
-      result = allocate_poly_elems( num_elem, conn_len, type, start_handle,
-                                    conn_array, index_array, elem_list );
-    }
-    else
-    {
-      result = allocate_elements( num_elem, num_vtx, type, start_handle,
-                                  conn_array, elem_list );
-    }
-    
+    result = allocate_elements( num_elem, num_vtx, type, start_handle,
+                                conn_array, elem_list );
     if (MB_SUCCESS != result)
       return result;
 
       // Store element connectivity
-    int index_array_prev = -1;
     for ( ; id < end_id; ++id)
     {
       if (conn_iter == connectivity.end()) 
@@ -692,15 +670,8 @@ MBErrorCode ReadVtk::vtk_read_unstructured_grid( FileTokenizer& tokens,
         return MB_FAILURE;
       }
 
-        // For poly elements, store end index
-      if (index_array)
-      {
-        index_array_prev += num_vtx = *conn_iter;
-        *index_array = index_array_prev;
-        ++index_array;
-      }
-        // For non-poly elements, make sure connectivity length is correct.
-      else if (*conn_iter != num_vtx)
+        // make sure connectivity length is correct.
+      if (*conn_iter != num_vtx)
       {
         readMeshIface->report_error(
           "Cell %ld is of type '%s' but has %u vertices.\n",
