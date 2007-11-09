@@ -491,14 +491,15 @@ MBErrorCode ReadHDF5::read_poly( const char* elem_group )
       return MB_FAILURE;
     }
     
-    rval = iFace->create_element( type, &connectivity[0], connectivity.size(), h );
+    rval= convert_id_to_handle( &connectivity[0], connectivity.size() );
     if (MB_SUCCESS != rval) 
     {
       mhdf_closeData( filePtr, handles[0], &status );
       mhdf_closeData( filePtr, handles[1], &status );
       return rval;
     }
-    rval= convert_id_to_handle( &connectivity[0], connectivity.size() );
+    
+    rval = iFace->create_element( type, &connectivity[0], connectivity.size(), h );
     if (MB_SUCCESS != rval) 
     {
       mhdf_closeData( filePtr, handles[0], &status );
