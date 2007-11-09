@@ -982,9 +982,10 @@ mhdf_readAdjacency( hid_t data_handle,
  * Meshset data is divided into three groups of data.  The set-list/meta-information table,
  * the set contents table and the set children table.  Each is written and read independently.
  *
- * The set list table contains one row for each set.  Each row contains three values:
- * {content list end index, child list end index, flags}.  The flags is a collection of bits with
- * values from \ref mhdf_set_flag .  The all the flags except \ref mhdf_SET_RANGE_BIT are
+ * The set list table contains one row for each set.  Each row contains four values:
+ * {content list end index, child list end index, parent list end index, and flags}.  The flags 
+ * value is a collection of bits with
+ * values defined in \ref mhdf_set_flag .  The all the flags except \ref mhdf_SET_RANGE_BIT are
  * saved properties of the mesh data and are not relevant to the actual file in any way.  The
  * \ref mhdf_SET_RANGE_BIT flag is a toggle for how the meshset contents (not children) are saved.
  * It is an internal property of the file format and should not be passed on to the mesh database.
