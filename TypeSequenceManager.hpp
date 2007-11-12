@@ -317,6 +317,13 @@ public:
                        
   unsigned long get_sequence_count() const
     { return sequenceSet.size(); }
+    
+    /**\brief Get used size of SequenceData
+     *
+     * Get the sum of the size of all EntitySequences referencing
+     * a SequenceData.  Used for memory use calculations.
+     */
+  MBEntityID get_occupied_size( const SequenceData* ) const;
 };
 
 inline EntitySequence* TypeSequenceManager::find( MBEntityHandle h ) const

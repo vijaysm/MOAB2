@@ -90,7 +90,8 @@ class SequenceManager
                                      EntitySequence*& sequence_out );
                                      
     
-    
+    TypeSequenceManager& entity_map( MBEntityType type )
+      { return typeData[type]; }
     
     const TypeSequenceManager& entity_map( MBEntityType type ) const
       { return typeData[type]; }

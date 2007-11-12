@@ -17,11 +17,15 @@
 
 #include "AEntityFactory.hpp"
 #include "MBInternals.hpp"
-#include "MBInterface.hpp"
+#include "MBCore.hpp"
 #include "MBRange.hpp"
 #include "MBError.hpp"
 #include "MBCN.hpp"
 #include "MeshTopoUtil.hpp"
+#include "EntitySequence.hpp"
+#include "SequenceData.hpp"
+#include "SequenceManager.hpp"
+#include "MBRangeSeqIntersectIter.hpp"
 
 #include <assert.h>
 #include <algorithm>
@@ -29,8 +33,7 @@
 
 
 
-AEntityFactory::AEntityFactory(MBInterface *mdb) 
-: mDensePageGroup(sizeof(void*), 0)
+AEntityFactory::AEntityFactory(MBCore *mdb) 
 {
   assert(NULL != mdb);
   thisMB = mdb;
@@ -41,31 +44,23 @@ AEntityFactory::AEntityFactory(MBInterface *mdb)
 AEntityFactory::~AEntityFactory()
 {
   // clean up all the adjacency information that was created
-  MBRange entities;
   MBEntityType ent_type;
 
   // iterate through each element type
-  for (ent_type = MBVERTEX; ent_type != MBENTITYSET; ent_type++) 
-  {
-    // clear out entities
-    entities.clear();
-
-    // get all entities that might have adjacency information on it
-    MBErrorCode result = mDensePageGroup.get_entities( ent_type, entities);
-    if (result != MB_SUCCESS)
-      continue;   // if this fails give up.
-
-    // iterate through each entity
-    MBRange::iterator iter;
-    MBAdjacencyVector *adj_vector = 0;
-    for(iter = entities.begin(); iter != entities.end(); ++iter)
-    {
-      adj_vector = NULL;
-      result = mDensePageGroup.get_data(*iter, &adj_vector);
-      if(result == MB_SUCCESS)
-        delete adj_vector;
+  for (ent_type = MBVERTEX; ent_type != MBENTITYSET; ent_type++) {
+    TypeSequenceManager::iterator i;
+    TypeSequenceManager& seqman = thisMB->sequence_manager()->entity_map( ent_type );
+    for (i = seqman.begin(); i != seqman.end(); ++i) {
+      std::vector<MBEntityHandle>** adj_list = (*i)->data()->get_adjacency_data();
+      if (!adj_list)
+        continue;
+      adj_list += (*i)->start_handle() - (*i)->data()->start_handle();
+      
+      for (MBEntityID j = 0; j < (*i)->size(); ++j) {
+        delete adj_list[j];
+        adj_list[j] = 0;
+      }
     }
-
   }
 }
 
@@ -149,22 +144,19 @@ MBErrorCode AEntityFactory::get_associated_meshsets( MBEntityHandle source_entit
   if(!target_entities.empty())
     target_entities.clear();
   
-  MBAdjacencyVector *adj_vec = NULL;
-  result = mDensePageGroup.get_data(source_entity, &adj_vec);
-    // this might return a non-success result, in cases where the adjacencies tag 
-    // hasn't been created/allocated yet; that's ok, just means there aren't any
-    // adj meshsets
-  if(result == MB_TAG_NOT_FOUND || adj_vec == NULL)
-    return MB_SUCCESS;
-  else if (result != MB_SUCCESS) return result;
+  const MBEntityHandle* adj_vec;
+  int num_adj;
+  result = get_adjacencies( source_entity, adj_vec, num_adj );
+  if(result != MB_SUCCESS || adj_vec == NULL)
+    return result;
 
   // find the meshsets in this vector 
   MBDimensionPair dim_pair = MBCN::TypeDimensionMap[4];
   int dum;
-  MBAdjacencyVector::iterator start_ent =
-    std::lower_bound(adj_vec->begin(), adj_vec->end(), CREATE_HANDLE(dim_pair.first, MB_START_ID, dum));
-  MBAdjacencyVector::iterator end_ent =
-    std::lower_bound(start_ent, adj_vec->end(), CREATE_HANDLE(dim_pair.second, MB_END_ID, dum));
+  const MBEntityHandle* start_ent =
+    std::lower_bound(adj_vec, adj_vec+num_adj, CREATE_HANDLE(dim_pair.first, MB_START_ID, dum));
+  const MBEntityHandle* end_ent =
+    std::lower_bound(start_ent, adj_vec+num_adj, CREATE_HANDLE(dim_pair.second, MB_END_ID, dum));
 
   // copy the the meshsets 
   target_entities.resize(end_ent - start_ent);
@@ -193,7 +185,7 @@ MBErrorCode AEntityFactory::get_element(const MBEntityHandle *vertex_list,
   // look over nodes to see if this entity already exists
   target_entity = 0;
   MBErrorCode result;
-  std::vector<MBEntityHandle>::iterator i_adj, end_adj;
+  const MBEntityHandle *i_adj, *end_adj;
 
   target_entity = 0;
   
@@ -202,13 +194,10 @@ MBErrorCode AEntityFactory::get_element(const MBEntityHandle *vertex_list,
     create_vert_elem_adjacencies();
   
   // get the adjacency list
-  MBAdjacencyVector *adj_vec = NULL;
-  result = mDensePageGroup.get_data(vertex_list[0], &adj_vec);
-
-  if (MB_SUCCESS != result) 
-    return result;
-
-  if(adj_vec == NULL)
+  const MBEntityHandle* adj_vec;
+  int num_adj;
+  result = get_adjacencies( vertex_list[0], adj_vec, num_adj );
+  if(result != MB_SUCCESS || adj_vec == NULL)
     return result;
 
   // check to see if any of these are equivalent to the vertex list
@@ -218,8 +207,8 @@ MBErrorCode AEntityFactory::get_element(const MBEntityHandle *vertex_list,
   MBEntityHandle temp_vec[15];
   int temp_vec_size = 0;
   
-  i_adj = std::lower_bound(adj_vec->begin(), adj_vec->end(), CREATE_HANDLE(target_type, MB_START_ID, dum));
-  end_adj = std::lower_bound(i_adj, adj_vec->end(), CREATE_HANDLE(target_type, MB_END_ID, dum));
+  i_adj = std::lower_bound(adj_vec, adj_vec+num_adj, CREATE_HANDLE(target_type, MB_START_ID, dum));
+  end_adj = std::lower_bound(i_adj, adj_vec+num_adj, CREATE_HANDLE(target_type, MB_END_ID, dum));
   for (; i_adj != end_adj; ++i_adj)
   {
     if (TYPE_FROM_HANDLE(*i_adj) != target_type) continue;
@@ -377,17 +366,12 @@ MBErrorCode AEntityFactory::add_adjacency(MBEntityHandle from_ent,
   if (to_type == MBVERTEX) 
     return MB_ALREADY_ALLOCATED;
   
+  
+  
   MBAdjacencyVector *adj_list_ptr = NULL;
-  MBErrorCode result = mDensePageGroup.get_data(from_ent, &adj_list_ptr);
-
-  if (NULL == adj_list_ptr)
-  {
-      // need to make a new adjacency list first
-    adj_list_ptr = new MBAdjacencyVector();
-    result = mDensePageGroup.set_data(from_ent, &adj_list_ptr);
-
-    if (MB_SUCCESS != result) return result;
-  }
+  MBErrorCode result = get_adjacencies( from_ent, adj_list_ptr, true );
+  if (MB_SUCCESS != result) 
+    return result;
 
     // get an iterator to the right spot in this sorted vector
   MBAdjacencyVector::iterator adj_iter;
@@ -422,26 +406,14 @@ MBErrorCode AEntityFactory::remove_adjacency(MBEntityHandle base_entity,
 
   // get the adjacency tag
   MBAdjacencyVector *adj_list = NULL;
-
-  // get the adjacency data list
-  result = mDensePageGroup.get_data(base_entity, &adj_list);
-
-    // workaround - if a dense page hasn't been allocated, it won't have an adjacency tag,
-    // even if that tag was assigned a default value; just return success for now
-  if (result == MB_TAG_NOT_FOUND)
-    return MB_SUCCESS;
-  else if (adj_list == NULL || MB_SUCCESS != result)
+  result = get_adjacencies( base_entity, adj_list );
+  if (adj_list == NULL || MB_SUCCESS != result)
     return result;
 
   // remove the specified entity from the adjacency list and truncate
   // the list to the new length
   adj_list->erase(std::remove(adj_list->begin(), adj_list->end(), adj_to_remove), 
                   adj_list->end());
-  
-  // reset the adjacency data list
-  //result = thisMB->tag_set_data(adj_tag, base_entity, &adj_list);
-  //if (result != MB_SUCCESS)
-    //return result;
 
   return result;
 }
@@ -490,10 +462,8 @@ MBErrorCode AEntityFactory::remove_all_adjacencies(MBEntityHandle base_entity,
   
   // get the adjacency tag
   MBAdjacencyVector *adj_list = 0;
-  result = mDensePageGroup.get_data(base_entity, &adj_list);
-  if (MB_TAG_NOT_FOUND == result || !adj_list)
-    return MB_SUCCESS;
-  if (MB_SUCCESS != result)
+  result = get_adjacencies( base_entity, adj_list );
+  if (MB_SUCCESS != result || !adj_list)
     return result;
   
   
@@ -503,10 +473,7 @@ MBErrorCode AEntityFactory::remove_all_adjacencies(MBEntityHandle base_entity,
   
   adj_list->clear();
   if (delete_adj_list) {
-    MBAdjacencyVector* const null_ptr = 0;
-    result = mDensePageGroup.set_data( base_entity, &null_ptr );
-    if (MB_SUCCESS != result)
-      return result;
+    result = set_adjacency_ptr( base_entity, NULL );
     delete adj_list;
   }
 
@@ -577,31 +544,45 @@ MBErrorCode AEntityFactory::get_adjacencies(MBEntityHandle entity,
                                             const MBEntityHandle *&adjacent_entities,
                                             int &num_entities) const
 {
-  MBAdjacencyVector *adj_vec = NULL;
-  MBErrorCode result = mDensePageGroup.get_data(entity, &adj_vec);
-  if(result != MB_SUCCESS || adj_vec == NULL) {
-    adjacent_entities = NULL;
+  MBAdjacencyVector const* vec_ptr = 0;
+  MBErrorCode result = get_adjacency_ptr( entity, vec_ptr );
+  if (MB_SUCCESS != result || !vec_ptr) {
+    adjacent_entities = 0;
     num_entities = 0;
+    return result;
   }
-  else {
-    adjacent_entities = &(*adj_vec)[0];
-    num_entities = adj_vec->size();
-  }
+  
+  num_entities = vec_ptr->size();
+  adjacent_entities = &((*vec_ptr)[0]);
   return MB_SUCCESS;
 }
 
 MBErrorCode AEntityFactory::get_adjacencies(MBEntityHandle entity,
                                             std::vector<MBEntityHandle>& adjacent_entities) const
 {
-  MBAdjacencyVector *adj_vec = NULL;
-  MBErrorCode result = mDensePageGroup.get_data(entity, &adj_vec);
-  if(result != MB_SUCCESS || adj_vec == NULL)
+  MBAdjacencyVector const* vec_ptr = 0;
+  MBErrorCode result = get_adjacency_ptr( entity, vec_ptr );
+  if (MB_SUCCESS != result || !vec_ptr) {
+    adjacent_entities.clear();
     return result;
-
-  adjacent_entities.resize(adj_vec->size());
-  std::copy(adj_vec->begin(), adj_vec->end(), adjacent_entities.begin());
-  return MB_SUCCESS;
+  }
   
+  adjacent_entities = *vec_ptr;
+  return MB_SUCCESS;
+}
+
+MBErrorCode AEntityFactory::get_adjacencies( MBEntityHandle entity,
+                                             std::vector<MBEntityHandle>*& adj_vec,
+                                             bool create )
+{
+  MBErrorCode result = get_adjacency_ptr( entity, adj_vec );
+  if (MB_SUCCESS == result && !adj_vec) {
+    adj_vec = new MBAdjacencyVector;
+    result = set_adjacency_ptr( entity, adj_vec );
+    if (MB_SUCCESS != result)
+      delete adj_vec;
+  }
+  return result;
 }
 
 MBErrorCode AEntityFactory::get_adjacencies(const MBEntityHandle entity,
@@ -675,7 +656,7 @@ MBErrorCode AEntityFactory::get_zero_to_n_elements(MBEntityHandle source_entity,
   {
     // get the adjacency vector
     MBAdjacencyVector *adj_vec = NULL;
-    result = mDensePageGroup.get_data(source_entity, &adj_vec);
+    result = get_adjacencies( source_entity, adj_vec );
     if(result != MB_SUCCESS || adj_vec == NULL)
       return result;
 
@@ -696,7 +677,7 @@ MBErrorCode AEntityFactory::get_zero_to_n_elements(MBEntityHandle source_entity,
   {
     // get the adjacency vector
     MBAdjacencyVector *adj_vec = NULL;
-    result = mDensePageGroup.get_data(source_entity, &adj_vec);
+    result = get_adjacencies( source_entity, adj_vec );
     if(result != MB_SUCCESS || adj_vec == NULL)
       return result;
   
@@ -741,7 +722,7 @@ MBErrorCode AEntityFactory::get_zero_to_n_elements(MBEntityHandle source_entity,
   {
     // get the adjacency vector
     MBAdjacencyVector *adj_vec = NULL;
-    result = mDensePageGroup.get_data(source_entity, &adj_vec);
+    result = get_adjacencies( source_entity, adj_vec );
     if(result != MB_SUCCESS || adj_vec == NULL)
       return result;
 
@@ -1035,8 +1016,7 @@ MBErrorCode AEntityFactory::get_up_adjacency_elements(MBEntityHandle source_enti
 
       // get the adjacency vector
     MBAdjacencyVector *adj_vec = NULL;
-    result = 
-      mDensePageGroup.get_data(source_entity, &adj_vec);
+    result = get_adjacencies( source_entity, adj_vec );
                     
     if(result != MB_SUCCESS)
       return result;
@@ -1273,25 +1253,76 @@ MBErrorCode AEntityFactory::create_explicit_adjs(MBEntityHandle this_ent)
   return MB_SUCCESS;
 }
 
+MBErrorCode AEntityFactory::get_adjacency_ptr( MBEntityHandle entity, 
+                                               std::vector<MBEntityHandle>*& ptr )
+{
+  ptr = 0;
+  
+  EntitySequence* seq;
+  MBErrorCode rval = thisMB->sequence_manager()->find( entity, seq );
+  if (MB_SUCCESS != rval || !seq->data()->get_adjacency_data())
+    return rval;
+  
+  ptr = seq->data()->get_adjacency_data()[entity - seq->data()->start_handle()];
+  return MB_SUCCESS;
+}
+
+MBErrorCode AEntityFactory::get_adjacency_ptr( MBEntityHandle entity, 
+                                               const std::vector<MBEntityHandle>*& ptr ) const
+{
+  ptr = 0;
+  
+  EntitySequence* seq;
+  MBErrorCode rval = thisMB->sequence_manager()->find( entity, seq );
+  if (MB_SUCCESS != rval || !seq->data()->get_adjacency_data())
+    return rval;
+  
+  ptr = seq->data()->get_adjacency_data()[entity - seq->data()->start_handle()];
+  return MB_SUCCESS;
+}
+
+
+MBErrorCode AEntityFactory::set_adjacency_ptr( MBEntityHandle entity, 
+                                               std::vector<MBEntityHandle>* ptr )
+{
+  EntitySequence* seq;
+  MBErrorCode rval = thisMB->sequence_manager()->find( entity, seq );
+  if (MB_SUCCESS != rval)
+    return rval;
+    
+  if (!seq->data()->get_adjacency_data() && !seq->data()->allocate_adjacency_data())
+    return MB_MEMORY_ALLOCATION_FAILED;
+  
+  seq->data()->get_adjacency_data()[entity - seq->data()->start_handle()] = ptr;
+  return MB_SUCCESS;
+}
+
   
 void AEntityFactory::get_memory_use( unsigned long& entity_total,
                                      unsigned long& memory_total )
 {
-  mDensePageGroup.get_memory_use( memory_total, entity_total );
-  entity_total = 0;  
+  entity_total = memory_total = 0;
 
-  MBAdjacencyVector *adj_vector;
-  for (unsigned i = 0; i < MBMAXTYPE; ++i) {
-    MBRange ents;
-    mDensePageGroup.get_entities( (MBEntityType)i, ents );
-    
-     // iterate through each entity
-    for(MBRange::iterator i = ents.begin(); i != ents.end(); ++i)
-    {
-      MBErrorCode result = mDensePageGroup.get_data(*i, &adj_vector);
-      if(result == MB_SUCCESS && adj_vector)
-        entity_total += sizeof(MBEntityHandle) * adj_vector->capacity()
-                      + sizeof(MBAdjacencyVector);
+  // iterate through each element type
+  SequenceData* prev_data = 0;
+  for (MBEntityType t = MBVERTEX; t != MBENTITYSET; t++) {
+    TypeSequenceManager::iterator i;
+    TypeSequenceManager& seqman = thisMB->sequence_manager()->entity_map( t );
+    for (i = seqman.begin(); i != seqman.end(); ++i) {
+      if (!(*i)->data()->get_adjacency_data())
+        continue;
+      
+      if (prev_data != (*i)->data()) {
+        prev_data = (*i)->data();
+        memory_total += prev_data->size() * sizeof(MBAdjacencyVector);
+      }
+      
+      const MBAdjacencyVector* vec;
+      for (MBEntityHandle h = (*i)->start_handle(); h <= (*i)->end_handle(); ++h) {
+        get_adjacency_ptr( h, vec );
+        if (vec) 
+          entity_total += vec->capacity() * sizeof(MBEntityHandle) * sizeof(MBAdjacencyVector);
+      }
     }
   }
  
@@ -1303,35 +1334,34 @@ MBErrorCode AEntityFactory::get_memory_use( const MBRange& ents_in,
                                        unsigned long& min_per_ent,
                                        unsigned long& amortized )
 {
-    // get subset of entities for which adjacency space is allocated
-  MBRange tmp_range, tag_range, ents;
-  for (unsigned i = 0; i < MBMAXTYPE; ++i) {
-    tmp_range.clear();
-    mDensePageGroup.get_entities( (MBEntityType)i, tmp_range );
-    tag_range.merge( tmp_range );
-  }
-
-  if (tag_range.empty()) {
-    min_per_ent = amortized = 0;
-    return MB_SUCCESS;
-  }
-  ents = ents_in.intersect( tag_range );
-
-  MBAdjacencyVector *adj_vector;
-  unsigned long total, per_ent;
-  mDensePageGroup.get_memory_use( total, per_ent );
-  amortized = total * ents.size() / tag_range.size();
+  min_per_ent = amortized = 0;
+  MBRangeSeqIntersectIter iter( thisMB->sequence_manager() );
+  MBErrorCode rval = iter.init( ents_in.begin(), ents_in.end() );
+  if (MB_SUCCESS != rval)
+    return rval;
   
-  min_per_ent = 0;
-  for(MBRange::iterator i = ents.begin(); i != ents.end(); ++i)
-  {
-    MBErrorCode result = mDensePageGroup.get_data(*i, &adj_vector);
-    if(result == MB_SUCCESS && adj_vector)
-      min_per_ent += sizeof(MBEntityHandle) * adj_vector->capacity()
-                  + sizeof(MBAdjacencyVector);
+  while (!iter.is_at_end()) {
+    MBAdjacencyVector** array = iter.get_sequence()->data()->get_adjacency_data();
+    if (!array)
+      continue;
+
+    MBEntityID count = iter.get_end_handle() - iter.get_start_handle() + 1;
+    MBEntityID data_occ = thisMB->sequence_manager()
+                                ->entity_map( iter.get_sequence()->type() )
+                                 .get_occupied_size( iter.get_sequence()->data() );
+    
+    amortized += sizeof(MBAdjacencyVector*) 
+                 * iter.get_sequence()->data()->size()
+                 * count / data_occ;
+                 
+    array += iter.get_start_handle() - iter.get_sequence()->data()->start_handle();
+    for (MBEntityID i = 0; i < count; ++i) {
+      if (array[i]) 
+        min_per_ent += sizeof(MBEntityHandle) * array[i]->capacity() + sizeof(MBAdjacencyVector);
+    }
   }
- 
+  
   amortized += min_per_ent;
   return MB_SUCCESS;
-}
+}   
   

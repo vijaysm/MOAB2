@@ -21,10 +21,10 @@
 #endif
 
 #include "MBForward.hpp"
-#include "DenseTagCollections.hpp"
 #include <vector>
 
 typedef std::vector<MBEntityHandle> MBAdjacencyVector;
+class MBCore;
 
 //! class AEntityFactory
 class AEntityFactory 
@@ -32,7 +32,7 @@ class AEntityFactory
 public:
 
   //! require an MBInterface object in order to access tags on that interface
-  AEntityFactory(MBInterface *mdb);
+  AEntityFactory(MBCore *mdb);
 
   //! destructor
   ~AEntityFactory();
@@ -98,6 +98,10 @@ public:
   MBErrorCode get_adjacencies(MBEntityHandle entity,
                                const MBEntityHandle *&adjacent_entities,
                                int &num_entities) const;
+                               
+  MBErrorCode get_adjacencies( MBEntityHandle entity,
+                               std::vector<MBEntityHandle>*& adj_vec_ptr_out,
+                               bool create_if_missing = false );
   
   //! returns the entities in sorted order
   MBErrorCode get_adjacencies(MBEntityHandle entity,
@@ -142,14 +146,16 @@ public:
   
 private:
 
+  MBErrorCode get_adjacency_ptr( MBEntityHandle, std::vector<MBEntityHandle>*& );
+  MBErrorCode get_adjacency_ptr( MBEntityHandle, const std::vector<MBEntityHandle>*& ) const;
+  MBErrorCode set_adjacency_ptr( MBEntityHandle, std::vector<MBEntityHandle>* );
+  
+
   //! private constructor to prevent the construction of a default one
   AEntityFactory();
 
   //! interface associated with this tool
-  MBInterface *thisMB;
-
-  //! adjacencies collection
-  DensePageGroup mDensePageGroup;
+  MBCore *thisMB;
 
   //! whether vertex to element adjacencies are begin done
   bool mVertElemAdj;

@@ -828,6 +828,14 @@ void TypeSequenceManager::get_memory_use( MBEntityHandle first,
   }
 }
 
+MBEntityID TypeSequenceManager::get_occupied_size( const SequenceData* data ) const
+{
+  MBEntityID result = 0;
+  for (const_iterator i = data->seqManData.firstSequence; i != end() && (*i)->data() == data; ++i)
+    result += (*i)->size();
+  return result;
+}
+
 #ifndef NDEBUG
 bool TypeSequenceManager::check_valid_data( const EntitySequence* seq ) const
 {

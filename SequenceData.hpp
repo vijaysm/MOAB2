@@ -12,7 +12,7 @@ class SequenceData
 {
 public:
 
-  typedef std::vector<MBEntityHandle> AdjacencyDataType;
+  typedef std::vector<MBEntityHandle>* AdjacencyDataType;
 
   inline SequenceData( int num_sequence_arrays, 
                        MBEntityHandle start,
