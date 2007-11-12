@@ -401,14 +401,6 @@ DEBUGOUT("Writing connectivity.\n");
   for (ex_itor = exportList.begin(); ex_itor != exportList.end(); ++ex_itor)
     if (MB_SUCCESS != write_elems( *ex_itor ))
       goto write_fail;
-//  {
-//    if (ex_itor->type == MBPOLYGON || ex_itor->type == MBPOLYHEDRON)
-//      result = write_poly( *ex_itor );
-//    else
-//      result = write_elems( *ex_itor );
-//    if (MB_SUCCESS != result)
-//      goto write_fail;
-//  }
 
 DEBUGOUT("Writing sets.\n");
   
@@ -1730,7 +1722,6 @@ MBErrorCode WriteHDF5::create_file( const char* filename,
     writeUtil->assign_ids( ex_itor->range, idTag, (id_t)first_id );
     ex_itor->first_id = (id_t)first_id;
     ex_itor->offset = 0;
-    ex_itor->poly_offset = 0;
   }
 
     // create node adjacency table

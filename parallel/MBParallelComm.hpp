@@ -30,7 +30,7 @@
 #include "MBProcConfig.hpp"
 
 class TagServer;
-class EntitySequenceManager;
+class SequenceManager;
 
 class MBParallelComm 
 {
@@ -192,7 +192,7 @@ private:
   TagServer *tagServer;
   
     //! Sequence manager, to get more efficient access to entities
-  EntitySequenceManager *sequenceManager;
+  SequenceManager *sequenceManager;
   
     //! data buffer used to communicate
   std::vector<unsigned char> myBuffer;

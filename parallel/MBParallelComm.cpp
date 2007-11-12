@@ -2,7 +2,7 @@
 #include "MBParallelComm.hpp"
 #include "MBWriteUtilIface.hpp"
 #include "MBReadUtilIface.hpp"
-#include "EntitySequenceManager.hpp"
+#include "SequenceManager.hpp"
 #include "EntitySequence.hpp"
 #include "TagServer.hpp"
 #include "MBTagConventions.hpp"
@@ -10,6 +10,8 @@
 #include "MBParallelConventions.h"
 #include "MBCore.hpp"
 #include "MBError.hpp"
+#include "ElementSequence.hpp"
+#include "MBCN.hpp"
 
 #include <iostream>
 
@@ -429,27 +431,28 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
     while (end_rit != entities.end() && TYPE_FROM_HANDLE(*start_rit) != MBENTITYSET) {
 
         // get the sequence holding this entity
-      MBEntitySequence *seq;
-      ElementEntitySequence *eseq;
+      EntitySequence *seq;
+      ElementSequence *eseq;
       result = sequenceManager->find(*start_rit, seq);
       RR("Couldn't find entity sequence.");
 
       if (NULL == seq) return MB_FAILURE;
-      eseq = dynamic_cast<ElementEntitySequence*>(seq);
+      eseq = dynamic_cast<ElementSequence*>(seq);
 
         // if type and nodes per element change, start a new range
-      if (eseq->get_type() != *entTypes.rbegin() || (int) eseq->nodes_per_element() != *vertsPerEntity.rbegin()) {
-        entTypes.push_back(eseq->get_type());
+      if (eseq->type() != *entTypes.rbegin() || (int) eseq->nodes_per_element() != *vertsPerEntity.rbegin()) {
+        entTypes.push_back(eseq->type());
         vertsPerEntity.push_back(eseq->nodes_per_element());
         allRanges.push_back(MBRange());
         allr_it++;
       }
     
         // get position in entities list one past end of this sequence
-      end_rit = entities.lower_bound(start_rit, entities.end(), eseq->get_end_handle()+1);
+      end_rit = entities.lower_bound(start_rit, entities.end(), eseq->end_handle()+1);
 
         // put these entities in the last range
-      eseq->get_entities(*allRanges.rbegin());
+      (*allRanges.rbegin()).insert( eseq->start_handle(), eseq->end_handle() );
+      //eseq->get_entities(*allRanges.rbegin());
       whole_range.merge(*allRanges.rbegin());
       
         // now start where we last left off
@@ -472,11 +475,12 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
       count += 2*sizeof(MBEntityHandle)*num_subranges(*vit);
         // connectivity of subrange
       if (iit != vertsPerEntity.begin()) {
-        if (*eit != MBPOLYGON && *eit != MBPOLYHEDRON) 
+        //if (*eit != MBPOLYGON && *eit != MBPOLYHEDRON) 
             // for non-poly's: #verts/ent * #ents * sizeof handle
-          count += *iit * (*vit).size() * sizeof(MBEntityHandle);
+        //  count += *iit * (*vit).size() * sizeof(MBEntityHandle);
           // for poly's:  length of conn list * handle size + #ents * int size (for offsets)
-        else count += *iit * sizeof(MBEntityHandle) + (*vit).size() * sizeof(int);
+        //else 
+        count += *iit * sizeof(MBEntityHandle) + (*vit).size() * sizeof(int);
       }
     }
       //                                num_verts per subrange    ent type in subrange
@@ -505,24 +509,24 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
         // pack the connectivity
       const MBEntityHandle *connect;
       int num_connect;
-      if (*et_it == MBPOLYGON || *et_it == MBPOLYHEDRON) {
-        std::vector<int> num_connects;
-        for (MBRange::const_iterator rit = allr_it->begin(); rit != allr_it->end(); rit++) {
-          result = mbImpl->get_connectivity(*rit, connect, num_connect);
-          RR("Failed to get connectivity.");
-          num_connects.push_back(num_connect);
-          PACK_EH(buff_ptr, &connect[0], num_connect);
-        }
-        PACK_INTS(buff_ptr, &num_connects[0], num_connects.size());
-      }
-      else {
+      //if (*et_it == MBPOLYGON || *et_it == MBPOLYHEDRON) {
+      //  std::vector<int> num_connects;
+      //  for (MBRange::const_iterator rit = allr_it->begin(); rit != allr_it->end(); rit++) {
+      //    result = mbImpl->get_connectivity(*rit, connect, num_connect);
+      //    RR("Failed to get connectivity.");
+      //    num_connects.push_back(num_connect);
+      //    PACK_EH(buff_ptr, &connect[0], num_connect);
+      //  }
+      //  PACK_INTS(buff_ptr, &num_connects[0], num_connects.size());
+      //}
+      //else {
         for (MBRange::const_iterator rit = allr_it->begin(); rit != allr_it->end(); rit++) {
           result = mbImpl->get_connectivity(*rit, connect, num_connect);
           RR("Failed to get connectivity.");
           assert(num_connect == *nv_it);
           PACK_EH(buff_ptr, &connect[0], num_connect);
         }
-      }
+      //}
 
       whole_range.merge(*allr_it);
     }
@@ -609,30 +613,30 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
         int num_elems = (*pit).second - (*pit).first + 1;
         MBEntityHandle *connect;
         int *connect_offsets;
-        if (this_type == MBPOLYGON || this_type == MBPOLYHEDRON) {
-          result = ru->get_poly_element_array(num_elems, verts_per_entity, this_type,
-                                              start_id, start_proc, actual_start,
-                                              connect_offsets, connect);
-          RR("Failed to allocate poly element arrays.");
-        }
+        //if (this_type == MBPOLYGON || this_type == MBPOLYHEDRON) {
+        //  result = ru->get_poly_element_array(num_elems, verts_per_entity, this_type,
+        //                                      start_id, start_proc, actual_start,
+        //                                      connect_offsets, connect);
+        //  RR("Failed to allocate poly element arrays.");
+        //}
 
-        else {
+        //else {
           result = ru->get_element_array(num_elems, verts_per_entity, this_type,
                                          start_id, start_proc, actual_start,
                                          connect);
           RR("Failed to allocate element arrays.");
-        }
+        //}
 
           // copy connect arrays
-        if (this_type != MBPOLYGON && this_type != MBPOLYHEDRON) {
-          UNPACK_EH(buff_ptr, connect, num_elems * verts_per_entity);
-        }
-        else {
+        //if (this_type != MBPOLYGON && this_type != MBPOLYHEDRON) {
+        //  UNPACK_EH(buff_ptr, connect, num_elems * verts_per_entity);
+        //}
+        //else {
           UNPACK_EH(buff_ptr, connect, verts_per_entity);
           assert(NULL != connect_offsets);
             // and the offsets
           UNPACK_INTS(buff_ptr, connect_offsets, num_elems);
-        }
+        //}
 
         entities.insert((*pit).first, (*pit).second);
       }

@@ -671,9 +671,7 @@ struct elemtype {
   bool operator==( const elemtype& other ) const
   {
     return mbtype == other.mbtype &&
-            (mbtype == MBPOLYGON ||
-             mbtype == MBPOLYHEDRON ||
-             mbtype == MBENTITYSET ||
+            (mbtype == MBENTITYSET ||
              numnode == other.numnode);
   }
   bool operator<( const elemtype& other ) const
@@ -682,9 +680,7 @@ struct elemtype {
       return false;
    
     return mbtype < other.mbtype ||
-           (mbtype != MBPOLYGON &&
-            mbtype != MBPOLYHEDRON &&
-            mbtype != MBENTITYSET &&
+           (mbtype != MBENTITYSET &&
             numnode < other.numnode);
   }
   bool operator!=( const elemtype& other ) const
@@ -798,7 +794,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
       ++ex_iter;
     
     bool equal = ex_iter != exportList.end() && ex_iter->type == mbtype;
-    if (equal && mbtype != MBPOLYGON && mbtype != MBPOLYHEDRON)
+    if (equal)
     {
       while (ex_iter != exportList.end() && ex_iter->num_nodes < numnode)
         ++ex_iter;
@@ -813,7 +809,6 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
       insert.num_nodes = numnode;
       insert.first_id = 0;
       insert.offset = 0;
-      insert.poly_offset = 0;
       insert.adj_offset = 0;
       ex_iter = exportList.insert( ex_iter, insert );
     }
@@ -864,51 +859,6 @@ MBErrorCode WriteHDF5Parallel::create_element_tables()
   for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
     ex_iter->offset = (id_t)*(viter++);
   
-    // If polygons or polyhedra, send calculate offsets for each
-  std::vector<int> perproc(numProc+1);
-  ExportSet *poly[] = {0,0};
-  int polycount[2];
-  for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
-  {
-    if (ex_iter->type == MBPOLYGON)
-    {
-      assert(!poly[0]);
-      poly[0] = &*ex_iter;
-    }
-    else if(ex_iter->type == MBPOLYHEDRON)
-    {
-      assert(!poly[1]);
-      poly[1] = &*ex_iter;
-    }
-  }
-  for (int i = 0; i < 2; i++)
-  {
-    ExportSet* ppoly = poly[i];
-    if (!ppoly)
-      continue;
-  
-    int count;
-    rval = writeUtil->get_poly_array_size( ppoly->range.begin(),
-                                           ppoly->range.end(),
-                                           count );
-    assert(MB_SUCCESS == rval);
-    result = MPI_Gather( &count, 1, MPI_INT, &perproc[0], 1, MPI_INT, 0, MPI_COMM_WORLD );
-    assert(MPI_SUCCESS == result);
-    
-    int prev = 0;
-    for (int j = 1; j <= numProc; j++)
-    {
-      int tmp = perproc[j];
-      perproc[j] = prev;
-      prev += tmp;
-    }
-                                           
-    polycount[i] = perproc[numProc];
-    result = MPI_Scatter( &perproc[0], 1, MPI_INT, &count, 1, MPI_INT, 0, MPI_COMM_WORLD );
-    assert(MPI_SUCCESS == result);
-    ppoly->poly_offset = count;
-  }
-  
     // Create element tables
   std::vector<long> start_ids(numtypes);
   if (myRank == 0)
@@ -917,25 +867,10 @@ MBErrorCode WriteHDF5Parallel::create_element_tables()
     long* citer = &counts[numtypes * numProc];
     for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
     {
-      switch(ex_iter->type) {
-      case MBPOLYGON:
-        rval = create_poly_tables( MBPOLYGON,
-                                   *citer,
-                                   polycount[0],
-                                   *viter );
-        break;
-      case MBPOLYHEDRON:
-        rval = create_poly_tables( MBPOLYHEDRON,
-                                   *citer,
-                                   polycount[1],
-                                   *viter );
-        break;
-      default:
-        rval = create_elem_tables( ex_iter->type,
-                                   ex_iter->num_nodes,
-                                   *citer,
-                                   *viter );
-      }
+      rval = create_elem_tables( ex_iter->type,
+                                 ex_iter->num_nodes,
+                                 *citer,
+                                 *viter );
       assert(MB_SUCCESS == rval);
       ++citer;
       ++viter;

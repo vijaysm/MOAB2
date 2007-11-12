@@ -164,9 +164,6 @@ protected:
     //! The offset at which to begin writting this processor's data.
     //! Always zero except for parallel IO.
     id_t offset;
-    //! Offset for poly connectivity.  Unused for non-poly elements.
-    //! Always zero except for parallel IO.
-    id_t poly_offset;
     //! Offset for adjacency data.  Always zero except for parallel IO
     id_t adj_offset;
     
