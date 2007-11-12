@@ -9,7 +9,7 @@ noinst_LTLIBRARIES = libMOABpar.la
          
 # Some variables
 DEFS = $(DEFINES) -DIS_BUILDING_MB
-INCLUDES += -I$(top_builddir) 
+INCLUDES += -I$(top_srcdir) -I$(top_builddir) 
 
 # The directory in which to install headers
 libMOABpar_la_includedir = $(includedir)
