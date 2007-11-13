@@ -102,7 +102,6 @@ project( MOAB )
     DenseTagCollections.cpp
     DualTool.cpp
     EntitySequence.cpp
-    EntitySequenceManager.cpp
     ExoIIUtil.cpp
     FileOptions.cpp
     FileTokenizer.cpp
@@ -133,15 +132,20 @@ project( MOAB )
     MBWriteUtil.cpp
     MeshSetSequence.cpp
     MeshTopoUtil.cpp
-    PolyEntitySequence.cpp
     ReadGmsh.cpp
     ReadSTL.cpp
     ReadVtk.cpp
-    ScdElementSeq.cpp
-    ScdVertexSeq.cpp
+    ScdElementData.cpp
+    ScdVertexData.cpp
+    SequenceData.cpp
+    SequenceManager.cpp
     SparseTagCollections.cpp
+    StructuredElementSeq.cpp
     TagServer.cpp
     Tqdcfr.cpp
+    TypeSequenceManager.cpp
+    UnstructuredElemSeq.cpp
+    VertexSequence.cpp
     VtkUtil.cpp
     WriteAns.cpp
     WriteGMV.cpp
@@ -268,6 +272,13 @@ project( MOAB )
   add_executable( moab_test MBTest.cpp )
   target_link_libraries( moab_test MOAB )
   add_test( TestMOAB ${EXECUTABLE_OUTPUT_PATH}/moab_test -nostress )
+  # FIXME: moab_test depends on: test/mb_big_test.g test/cell1.gen test/cell2.gen
+
+  add_executable( seq_man_test TestTypeSequenceManager.cpp )
+  target_link_libraries( seq_man_test MOAB )
+  set_source_files_properties( TestTypeSequenceManager.cpp
+    COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}" )
+   add_test( TestTypeSequenceManager ${EXECUTABLE_OUTPUT_PATH}/seq_man_test )
   # FIXME: moab_test depends on: test/mb_big_test.g test/cell1.gen test/cell2.gen
 
   add_executable( internals_test internals_test.cpp )

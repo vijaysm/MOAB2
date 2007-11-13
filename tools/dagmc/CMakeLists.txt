@@ -32,7 +32,7 @@ add_library( dagmc
   ${MOAB_DAGMC_LIB_SRCS}
 )
 target_link_libraries( dagmc
-  moab
+  MOAB
 )
 
 add_executable( test_geom
@@ -40,7 +40,7 @@ add_executable( test_geom
 )
 target_link_libraries( test_geom
   dagmc
-  moab
+  MOAB
 )
 
 if ( CGM_FOUND )
