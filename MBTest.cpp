@@ -3854,9 +3854,11 @@ MBErrorCode mb_merge_test(MBInterface *MB)
   result = find_coincident_nodes(MB,nodes, coin_nodes);
   cout <<"coin_nodes.size() = "<<coin_nodes.size() <<"\n";
   std::vector< std::pair<MBEntityHandle, MBEntityHandle> >::iterator n_iter;
-  for (n_iter=coin_nodes.begin(); n_iter != coin_nodes.end(); n_iter++)
-    MB->merge_entities((*n_iter).first, (*n_iter).second, false, true);
-  
+  for (n_iter=coin_nodes.begin(); n_iter != coin_nodes.end(); n_iter++) {
+    result = MB->merge_entities((*n_iter).first, (*n_iter).second, false, true);
+    if (MB_SUCCESS != result)
+      return result;
+  }
     /*  std::vector<std::pair<MBEntityHandle, MBEntityHandle> > coin_faces;
         int nodes_per_elt = 4;
         result = find_coincident_elements(forward_lower, nodes_per_elt, coin_faces);
