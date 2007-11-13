@@ -2873,6 +2873,104 @@ MBErrorCode mb_tags_test(MBInterface *MB)
 
   return MB_SUCCESS;
 }
+
+MBErrorCode mb_common_tag_test( MBTagType storage, MBInterface* mb )
+{
+  char tagname[64];
+  sprintf( tagname, "t%d", rand() );
+  
+  MBTag tag;
+  const MBEntityHandle def_val = ~(MBEntityHandle)0;
+  MBErrorCode rval = mb->tag_create( tagname, 
+                                     sizeof(MBEntityHandle), 
+                                     storage, 
+                                     MB_TYPE_HANDLE, 
+                                     tag, 
+                                     &def_val );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  
+  MBRange entities;
+  mb->get_entities_by_handle( 0, entities );
+  if (entities.empty())
+    return MB_FAILURE;
+  
+    // set tag on every other entity to be the entities handle
+  MBRange::const_iterator i;
+  bool odd = true;
+  for (i = entities.begin(); i != entities.end(); ++i, odd = !odd) {
+    if (odd) {
+      const MBEntityHandle h = *i;
+      rval = mb->tag_set_data( tag, &h, 1, &h );
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
+  }
+  
+    // check values on every entity -- expect default for every other entity
+  odd = true;
+  for (i = entities.begin(); i != entities.end(); ++i, odd = !odd) {
+    MBEntityHandle val = 0;
+    rval = mb->tag_get_data( tag, &*i, 1, &val );
+    if (MB_SUCCESS != rval)
+      return rval;
+    
+    if (odd) {
+      if (val != *i)
+        return MB_FAILURE;
+    }
+    else {
+      if (val != def_val)
+        return MB_FAILURE;
+    }
+  }
+  
+    // set tag values on all entities
+  std::vector<MBEntityHandle> values( entities.size() );
+  std::copy( entities.begin(), entities.end(), values.begin() );
+  rval = mb->tag_set_data( tag, entities, &values[0] );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+    // check values on every entity -- expect default for every other entity
+  for (i = entities.begin(); i != entities.end(); ++i) {
+    MBEntityHandle val = 0;
+    rval = mb->tag_get_data( tag, &*i, 1, &val );
+    if (MB_SUCCESS != rval)
+      return rval;
+    if (val != *i)
+      return MB_FAILURE;
+  }
+  
+    // find each entity by tag value
+  for (i = entities.begin(); i != entities.end(); ++i) {
+    const MBEntityHandle h = *i;
+    const MBEntityType type = mb->type_from_handle( h );
+    const void* const tag_vals[] = { &h };
+    MBRange result;
+    rval = mb->get_entities_by_type_and_tag( 0, type, &tag, tag_vals, 1, result );
+    if (MB_SUCCESS != rval)
+      return rval;
+    if (result.size() != 1)
+      return MB_FAILURE;
+    if (result.front() != h)
+      return MB_FAILURE;
+  }
+  
+  return MB_SUCCESS;
+}
+
+
+MBErrorCode mb_dense_tag_test( MBInterface* mb )
+{
+  return mb_common_tag_test( MB_TAG_DENSE, mb );
+}
+
+MBErrorCode mb_sparse_tag_test( MBInterface* mb )
+{
+  return mb_common_tag_test( MB_TAG_SPARSE, mb );
+}
   
 // class to offset hex center nodes
 class OffsetHexCenterNodes : public MBInterface::HONodeAddedRemoved
@@ -5665,6 +5763,8 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_mesh_sets_list_test );
   RUN_TEST( mb_mesh_set_parent_child_test );
   RUN_TEST( mb_tags_test );
+  RUN_TEST( mb_dense_tag_test );
+  RUN_TEST( mb_sparse_tag_test );
   RUN_TEST( mb_write_mesh_test );
   RUN_TEST( mb_delete_mesh_test );
   RUN_TEST( mb_meshset_tracking_test );
