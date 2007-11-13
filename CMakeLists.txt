@@ -269,6 +269,14 @@ project( MOAB )
   # Point to the input decks for the tests
   configure_file( ${MOAB_SOURCE_DIR}/cmake/TestingConfig.h.in ${MOAB_BINARY_DIR}/testdir.h )
 
+  if ( MOAB_USE_MPI AND MPI_FOUND )
+     add_executable ( mbparallelcomm_test mbparallelcomm_test.cpp )
+     target_link_libraries( mbparallelcomm_test MOAB )
+     add_test( TestParallelCommunications ${EXECUTABLE_OUTPUT_PATH}/mbparallelcomm_test )
+     set_source_files_properties( mbparallelcomm_test.cpp
+       COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}" )
+  endif ( MOAB_USE_MPI AND MPI_FOUND )
+
   add_executable( moab_test MBTest.cpp )
   target_link_libraries( moab_test MOAB )
   add_test( TestMOAB ${EXECUTABLE_OUTPUT_PATH}/moab_test -nostress )
@@ -279,7 +287,6 @@ project( MOAB )
   set_source_files_properties( TestTypeSequenceManager.cpp
     COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}" )
    add_test( TestTypeSequenceManager ${EXECUTABLE_OUTPUT_PATH}/seq_man_test )
-  # FIXME: moab_test depends on: test/mb_big_test.g test/cell1.gen test/cell2.gen
 
   add_executable( internals_test internals_test.cpp )
   set_source_files_properties( internals_test.cpp
