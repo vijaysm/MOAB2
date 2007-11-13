@@ -99,9 +99,12 @@ private:
                                     std::vector<MBEntityHandle>& results,
                                     int num_hops, bool parents ) const;
                                     
-  MBErrorCode recursive_get_sets( MBEntityHandle start_set,
+  static MBErrorCode recursive_get_sets( MBEntityHandle start_set,
                             SequenceManager const* set_sequences,
-                            std::vector<MBMeshSet*>& sets_out ) const ;
+                            std::vector<const MBMeshSet*>& sets_out );
+  static MBErrorCode recursive_get_sets( MBEntityHandle start_set,
+                            SequenceManager* set_sequences,
+                            std::vector<MBMeshSet*>& sets_out );
   
   enum {
     SET_SIZE = (sizeof(MBMeshSet_MBRange) > sizeof(MBMeshSet_Vector)) ?

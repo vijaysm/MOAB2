@@ -46,13 +46,13 @@ public:
   
   void* create_sequence_data( int array_num, 
                               int bytes_per_ent,
-                              void* initial_val = 0 );
+                              const void* initial_val = 0 );
                              
   void* create_custom_data( int array_num, size_t total_bytes );
   
   AdjacencyDataType* allocate_adjacency_data();
   
-  void* create_tag_data( int tag_num, int bytes_per_ent, void* initial_val = 0 );
+  void* create_tag_data( int tag_num, int bytes_per_ent, const void* initial_val = 0 );
   
   SequenceData* subset( MBEntityHandle start, 
                         MBEntityHandle end,
@@ -73,7 +73,7 @@ protected:
 
 private:
 
-  void* create_data( int index, int bytes_per_ent, void* initial_val = 0 );
+  void* create_data( int index, int bytes_per_ent, const void* initial_val = 0 );
   void copy_data_subset( int index, 
                          int size_per_ent, 
                          const void* source, 

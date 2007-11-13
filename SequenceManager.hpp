@@ -15,7 +15,12 @@ class SequenceManager
       : handleUtils(handle_utils)
       {}
     
-    MBErrorCode find( MBEntityHandle handle, EntitySequence*& sequence_out ) const
+    MBErrorCode find( MBEntityHandle handle, EntitySequence*& sequence_out )
+      { 
+        return typeData[TYPE_FROM_HANDLE(handle)].find( handle, sequence_out );
+      }
+    
+    MBErrorCode find( MBEntityHandle handle, const EntitySequence*& sequence_out ) const
       { 
         return typeData[TYPE_FROM_HANDLE(handle)].find( handle, sequence_out );
       }

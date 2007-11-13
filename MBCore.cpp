@@ -90,7 +90,16 @@ const char *MBCore::errorStrings[] = {
   "MB_FAILURE",
 };
 
-static inline MBMeshSet* get_mesh_set( const SequenceManager* sm,
+static inline const MBMeshSet* get_mesh_set( const SequenceManager* sm,
+                                             MBEntityHandle h )
+{
+  const EntitySequence* seq;
+  if (MBENTITYSET != TYPE_FROM_HANDLE(h) || MB_SUCCESS != sm->find( h, seq ))
+    return 0;
+  return reinterpret_cast<const MeshSetSequence*>(seq)->get_set(h);
+}
+
+static inline MBMeshSet* get_mesh_set( SequenceManager* sm,
                                        MBEntityHandle h )
 {
   EntitySequence* seq;
@@ -308,7 +317,7 @@ MBErrorCode MBCore::handle_from_id( const MBEntityType type,
   handle = CREATE_HANDLE(type, id, err);
 
     //check to see if handle exists 
-  EntitySequence *dummy_seq = 0;
+  const EntitySequence *dummy_seq = 0;
   MBErrorCode error_code = sequence_manager()->find(handle, dummy_seq);
   return error_code; 
 }
@@ -650,7 +659,7 @@ MBErrorCode  MBCore::get_coords(const MBEntityHandle* entities,
                                   double *coords) const
 {
   MBErrorCode status;
-  EntitySequence* seq;
+  const EntitySequence* seq;
   const MBEntityHandle* const end = entities + num_entities;
 
   for(const MBEntityHandle* iter = entities; iter != end; ++iter)
@@ -662,7 +671,7 @@ MBErrorCode  MBCore::get_coords(const MBEntityHandle* entities,
     if(status != MB_SUCCESS )
       return MB_ENTITY_NOT_FOUND;
     
-    static_cast<VertexSequence*>(seq)->get_coordinates(*iter, coords);
+    static_cast<const VertexSequence*>(seq)->get_coordinates(*iter, coords);
     coords += 3;
   }
 
@@ -678,13 +687,13 @@ MBErrorCode  MBCore::get_coords(const MBEntityHandle entity_handle,
 
   if ( TYPE_FROM_HANDLE(entity_handle) == MBVERTEX )
   {
-    EntitySequence* seq = 0;
+    const EntitySequence* seq = 0;
     status = sequence_manager()->find(entity_handle, seq);
 
     if (seq == 0 || status != MB_SUCCESS)
       return MB_ENTITY_NOT_FOUND;
 
-    status = static_cast<VertexSequence*>(seq)->get_coordinates_ref(entity_handle, 
+    status = static_cast<const VertexSequence*>(seq)->get_coordinates_ref(entity_handle, 
                                                                           x, y, z);
 
   }
@@ -826,7 +835,7 @@ MBErrorCode  MBCore::get_connectivity(const MBEntityHandle *entity_handles,
 
   MBErrorCode result = MB_SUCCESS, temp_result;
   for (i = 0; i < num_handles; i++) {
-    EntitySequence* seq = 0;
+    const EntitySequence* seq = 0;
 
       // We know that connectivity is stored in an EntitySequence so jump straight
       // to the entity sequence
@@ -840,7 +849,7 @@ MBErrorCode  MBCore::get_connectivity(const MBEntityHandle *entity_handles,
       continue;
     }
 
-    ElementSequence *elem_seq = static_cast<ElementSequence*>(seq);
+    const ElementSequence *elem_seq = static_cast<const ElementSequence*>(seq);
       // let's be smart about this...
     temp_result = elem_seq->get_connectivity(entity_handles[i], connectivity,
                                              topological_connectivity);
@@ -873,7 +882,7 @@ MBErrorCode MBCore::get_connectivity(const MBEntityHandle entity_handle,
     return MB_FAILURE;
   }
   
-  EntitySequence* seq = 0;
+  const EntitySequence* seq = 0;
 
     // We know that connectivity is stored in an EntitySequence so jump straight
     // to the entity sequence
@@ -881,7 +890,7 @@ MBErrorCode MBCore::get_connectivity(const MBEntityHandle entity_handle,
   if (seq == 0 || status != MB_SUCCESS) 
     return MB_ENTITY_NOT_FOUND;
 
-  return static_cast<ElementSequence*>(seq)->get_connectivity(entity_handle, 
+  return static_cast<const ElementSequence*>(seq)->get_connectivity(entity_handle, 
                                                               connectivity,
                                                               number_nodes,
                                                               topological_connectivity,
@@ -1088,11 +1097,11 @@ MBErrorCode MBCore::get_entities_by_dimension(const MBEntityHandle meshset,
 {
   MBErrorCode result = MB_SUCCESS;
   if (meshset) {
-    EntitySequence* seq;
+    const EntitySequence* seq;
     result = sequence_manager()->find( meshset, seq );
     if (MB_SUCCESS != result)
       return result;
-    MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+    const MeshSetSequence* mseq = reinterpret_cast<const MeshSetSequence*>(seq);
     result = mseq->get_dimension( sequence_manager(), meshset, dimension, entities, recursive );
   }
   else if (dimension > 3) {
@@ -1120,11 +1129,11 @@ MBErrorCode MBCore::get_entities_by_type(const MBEntityHandle meshset,
   
   MBErrorCode result = MB_SUCCESS;
   if (meshset) {
-    EntitySequence* seq;
+    const EntitySequence* seq;
     result = sequence_manager()->find( meshset, seq );
     if (MB_SUCCESS != result)
       return result;
-    MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+    const MeshSetSequence* mseq = reinterpret_cast<const MeshSetSequence*>(seq);
     result = mseq->get_type( sequence_manager(), meshset, type, entities, recursive );
   }  
   else {
@@ -1179,11 +1188,11 @@ MBErrorCode MBCore::get_entities_by_handle(const MBEntityHandle meshset,
 {
   MBErrorCode result = MB_SUCCESS;
   if (meshset) {
-    EntitySequence* seq;
+    const EntitySequence* seq;
     result = sequence_manager()->find( meshset, seq );
     if (MB_SUCCESS != result)
       return result;
-    MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+    const MeshSetSequence* mseq = reinterpret_cast<const MeshSetSequence*>(seq);
     result = mseq->get_entities( sequence_manager(), meshset, entities, recursive );
   }  
   else {
@@ -1209,11 +1218,11 @@ MBErrorCode MBCore::get_entities_by_handle(const MBEntityHandle meshset,
     std::copy( tmp_range.begin(), tmp_range.end(), entities.begin() + offset );
   }
   else {
-    EntitySequence* seq;
+    const EntitySequence* seq;
     result = sequence_manager()->find( meshset, seq );
     if (MB_SUCCESS != result)
       return result;
-    MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+    const MeshSetSequence* mseq = reinterpret_cast<const MeshSetSequence*>(seq);
     result = mseq->get_entities( meshset, entities );
   }  
   return result;
@@ -1236,11 +1245,11 @@ MBErrorCode MBCore::get_number_entities_by_dimension(const MBEntityHandle meshse
     }
   }
   else {
-    EntitySequence* seq;
+    const EntitySequence* seq;
     result = sequence_manager()->find( meshset, seq );
     if (MB_SUCCESS != result)
       return result;
-    MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+    const MeshSetSequence* mseq = reinterpret_cast<const MeshSetSequence*>(seq);
     result = mseq->num_dimension( sequence_manager(), meshset, dim, number, recursive );
   }  
   
@@ -1259,11 +1268,11 @@ MBErrorCode MBCore::get_number_entities_by_type(const MBEntityHandle meshset,
     return MB_TYPE_OUT_OF_RANGE;
   
   if (meshset) {
-    EntitySequence* seq;
+    const EntitySequence* seq;
     result = sequence_manager()->find( meshset, seq );
     if (MB_SUCCESS != result)
       return result;
-    MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+    const MeshSetSequence* mseq = reinterpret_cast<const MeshSetSequence*>(seq);
     result = mseq->num_type( sequence_manager(), meshset, type, num_ent, recursive );
   }
   else {
@@ -1294,11 +1303,11 @@ MBErrorCode MBCore::get_number_entities_by_handle(const MBEntityHandle meshset,
 {
   MBErrorCode result;
   if (meshset) {
-    EntitySequence* seq;
+    const EntitySequence* seq;
     result = sequence_manager()->find( meshset, seq );
     if (MB_SUCCESS != result)
       return result;
-    MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+    const MeshSetSequence* mseq = reinterpret_cast<const MeshSetSequence*>(seq);
     return mseq->num_entities( sequence_manager(), meshset, num_ent, recursive );
   }
 
@@ -1348,7 +1357,7 @@ MBErrorCode  MBCore::tag_set_data(const MBTag tag_handle,
     return tagServer->set_mesh_data(tag_handle, tag_data);
 
   //verify handles
-  EntitySequence* seq;
+  const EntitySequence* seq;
   const MBEntityHandle* iter;
   const MBEntityHandle* end = entity_handles + num_entities;
   for(iter = entity_handles; iter != end; ++iter)
@@ -2143,7 +2152,7 @@ MBErrorCode MBCore::create_meshset(const unsigned int options,
 MBErrorCode MBCore::get_meshset_options( const MBEntityHandle ms_handle, 
                                           unsigned int& options) const
 {
-  MBMeshSet* set = get_mesh_set( sequence_manager(), ms_handle );
+  const MBMeshSet* set = get_mesh_set( sequence_manager(), ms_handle );
   if (!set)
     return MB_ENTITY_NOT_FOUND;
   
@@ -2309,11 +2318,11 @@ MBErrorCode MBCore::get_parent_meshsets(const MBEntityHandle meshset,
 {
   if (0 == meshset) return MB_SUCCESS;
 
-  EntitySequence *seq;
+  const EntitySequence *seq;
   MBErrorCode rval = sequence_manager()->find( meshset, seq );
   if (MB_SUCCESS != rval)
     return MB_ENTITY_NOT_FOUND;
-  MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+  const MeshSetSequence* mseq = reinterpret_cast<const MeshSetSequence*>(seq);
 
   return mseq->get_parents( sequence_manager(), meshset, parents, num_hops );
 }
@@ -2338,11 +2347,11 @@ MBErrorCode MBCore::get_child_meshsets(const MBEntityHandle meshset,
 {
   if (0 == meshset) return MB_SUCCESS;
 
-  EntitySequence *seq;
+  const EntitySequence *seq;
   MBErrorCode rval = sequence_manager()->find( meshset, seq );
   if (MB_SUCCESS != rval)
     return MB_ENTITY_NOT_FOUND;
-  MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+  const MeshSetSequence* mseq = reinterpret_cast<const MeshSetSequence*>(seq);
 
   return mseq->get_children( sequence_manager(), meshset, children, num_hops );
 }
@@ -2369,11 +2378,11 @@ MBErrorCode MBCore::num_parent_meshsets(const MBEntityHandle meshset, int* numbe
     return MB_SUCCESS;
   }
 
-  EntitySequence *seq;
+  const EntitySequence *seq;
   MBErrorCode rval = sequence_manager()->find( meshset, seq );
   if (MB_SUCCESS != rval)
     return MB_ENTITY_NOT_FOUND;
-  MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+  const MeshSetSequence* mseq = reinterpret_cast<const MeshSetSequence*>(seq);
 
   return mseq->num_parents( sequence_manager(), meshset, *number, num_hops );
 }
@@ -2386,11 +2395,11 @@ MBErrorCode MBCore::num_child_meshsets(const MBEntityHandle meshset, int* number
     return MB_SUCCESS;
   }
   
-  EntitySequence *seq;
+  const EntitySequence *seq;
   MBErrorCode rval = sequence_manager()->find( meshset, seq );
   if (MB_SUCCESS != rval)
     return MB_ENTITY_NOT_FOUND;
-  MeshSetSequence* mseq = reinterpret_cast<MeshSetSequence*>(seq);
+  const MeshSetSequence* mseq = reinterpret_cast<const MeshSetSequence*>(seq);
 
   return mseq->num_children( sequence_manager(), meshset, *number, num_hops );
 }
@@ -2706,7 +2715,7 @@ MBErrorCode MBCore::check_adjacencies(const MBEntityHandle *ents, int num_ents)
 
 bool MBCore::is_valid(const MBEntityHandle this_ent) const
 {
-  EntitySequence* seq = 0;
+  const EntitySequence* seq = 0;
   MBErrorCode result = sequence_manager()->find(this_ent, seq);
   return seq != 0 && result == MB_SUCCESS;
 }

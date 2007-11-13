@@ -166,7 +166,8 @@ public:
      *\return EntitySequence for handle, or NULL if no such sequence.
      */
   inline EntitySequence* find( MBEntityHandle h ) const;
-  inline MBErrorCode find( MBEntityHandle h, EntitySequence*& ) const;
+  inline MBErrorCode find( MBEntityHandle h, EntitySequence*& );
+  inline MBErrorCode find( MBEntityHandle h, const EntitySequence*& ) const;
   
     /**\brief Get handles for all entities in all sequences. */
   inline void get_entities( MBRange& entities_out ) const;
@@ -339,7 +340,31 @@ inline EntitySequence* TypeSequenceManager::find( MBEntityHandle h ) const
   }
 }   
 
-inline MBErrorCode TypeSequenceManager::find( MBEntityHandle h, EntitySequence*& seq ) const
+inline MBErrorCode TypeSequenceManager::find( MBEntityHandle h, EntitySequence*& seq )
+{
+  if (!lastReferenced) { // only null if empty
+    seq = 0;
+    return MB_ENTITY_NOT_FOUND;
+  }
+  else if (h >= lastReferenced->start_handle() && h <= lastReferenced->end_handle()) {
+    seq = lastReferenced;
+    return MB_SUCCESS;
+  }
+  else {
+    DummySequence ds(h);
+    iterator i = sequenceSet.lower_bound( &ds );
+    if (i == end() || (*i)->start_handle() > h ) {
+      seq = 0;
+      return MB_ENTITY_NOT_FOUND;
+    }
+    else {
+      seq = lastReferenced = *i;
+      return MB_SUCCESS;
+    }
+  }
+}   
+
+inline MBErrorCode TypeSequenceManager::find( MBEntityHandle h, const EntitySequence*& seq ) const
 {
   if (!lastReferenced) { // only null if empty
     seq = 0;

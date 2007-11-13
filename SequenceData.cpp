@@ -8,7 +8,7 @@ SequenceData::~SequenceData()
   free( arraySet - numSequenceData );
 }
 
-void* SequenceData::create_data( int index, int bytes_per_ent, void* initial_value )
+void* SequenceData::create_data( int index, int bytes_per_ent, const void* initial_value )
 {  
   char* array = (char*)malloc( bytes_per_ent * size() );
   if (initial_value) {
@@ -29,7 +29,7 @@ void* SequenceData::create_data( int index, int bytes_per_ent, void* initial_val
 
 void* SequenceData::create_sequence_data( int array_num,
                                           int bytes_per_ent,
-                                          void* initial_value )
+                                          const void* initial_value )
 {
   const int index = -1 - array_num;
   assert( array_num < numSequenceData );
@@ -61,7 +61,7 @@ SequenceData::AdjacencyDataType* SequenceData::allocate_adjacency_data()
 
 void* SequenceData::create_tag_data( int tag_num,
                                      int bytes_per_ent,
-                                     void* initial_val )
+                                     const void* initial_val )
 {
   const int index = tag_num + 1;
   if (tag_num >= numTagData) {
