@@ -140,6 +140,7 @@ do if (MB_SUCCESS != (A)) {                \
   mhdf_closeData( filePtr, (B)[1], &(C) ); \
   write_finished();                        \
   myassert(0);                             \
+  return (A);                              \
 } while(false)
 
 #define CHK_MB_ERR_2C( A, B, C, D, E )          \
@@ -148,6 +149,7 @@ do if (MB_SUCCESS != (A)) {                     \
   if (C) mhdf_closeData( filePtr, (D), &(E) );  \
   write_finished();                             \
   myassert(0);                                  \
+  return (A);                                   \
 } while(false)
 
 /** When writing tags containing MBEntityHandles to file, need to convert tag
