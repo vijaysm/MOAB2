@@ -224,6 +224,8 @@ protected:
   unsigned long parent_child_memory_use() const;
 
 #ifndef MB_MESH_SET_COMPACT_PARENT_CHILD_LISTS
+  //!Meshset propery flags
+  unsigned char mFlags;
     //! links to parents/children
   LinkSet parentMeshSets, childMeshSets;
   
