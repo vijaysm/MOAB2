@@ -70,6 +70,9 @@ project( MOAB )
     set ( MOAB_HAVE_PTRDIFF_T ${HAVE_PTRDIFF_T} )
   endif ( NOT MOAB_FORCE_64_BIT_HANDLES AND NOT MOAB_FORCE_32_BIT_HANDLES )
 
+  # find Verdict
+  find_package( verdict REQUIRED )
+
   # Build options
   option ( MOAB_USE_MPI    "Should MOAB be compiled with MPI support?"       OFF )
   option ( MOAB_USE_HDF    "Include HDF I/O in the build?"                   OFF )
