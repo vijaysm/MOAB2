@@ -10,12 +10,13 @@
 #include "MBParallelConventions.h"
 #include "MBTagConventions.hpp"
 #include "MBCore.hpp"
-#include "ScdVertexSeq.hpp"
-#include "ScdElementSeq.hpp"
-#include "EntitySequenceManager.hpp"
+#include "ScdVertexData.hpp"
+#include "StructuredElementSeq.hpp"
+#include "SequenceManager.hpp"
 #include "mpi.h"
 #include <iostream>
 #include <sstream>
+#include <assert.h>
 
 #define REALTFI 1
 
@@ -271,10 +272,10 @@ MBErrorCode create_scd_mesh(MBInterface *mbImpl,
   int my_rank = mbImpl->proc_rank();
   
     // make a 3d block of vertices
-  MBEntitySequence *dum_seq = NULL;
-  ScdVertexSeq *vseq = NULL;
-  ScdElementSeq *eseq = NULL;
-  EntitySequenceManager *seq_mgr = 
+  EntitySequence *dum_seq = NULL;
+  ScdVertexData *vseq = NULL;
+  StructuredElementSeq *eseq = NULL;
+  SequenceManager *seq_mgr = 
     dynamic_cast<MBCore*>(mbImpl)->sequence_manager();
   HomCoord vseq_minmax[2] = {HomCoord(0,0,0), 
                              HomCoord(IJK, IJK, IJK)};
@@ -282,20 +283,20 @@ MBErrorCode create_scd_mesh(MBInterface *mbImpl,
   
   MBErrorCode result = 
     seq_mgr->create_scd_sequence(vseq_minmax[0], vseq_minmax[1],
-                                 MBVERTEX, 1, vstart, dum_seq);
-  if (NULL != dum_seq) vseq = dynamic_cast<ScdVertexSeq*>(dum_seq);
+                                 MBVERTEX, 1, -1, vstart, dum_seq);
+  if (NULL != dum_seq) vseq = dynamic_cast<ScdVertexData*>(dum_seq->data());
   assert (MB_FAILURE != result && vstart != 0 && dum_seq != NULL && 
           vseq != NULL);
     // now the element sequence
   result = seq_mgr->create_scd_sequence(vseq_minmax[0], vseq_minmax[1], 
-                                        MBHEX, 1, estart, dum_seq);
-  if (NULL != dum_seq) eseq = dynamic_cast<ScdElementSeq*>(dum_seq);
+                                        MBHEX, 1, -1, estart, dum_seq);
+  if (NULL != dum_seq) eseq = dynamic_cast<StructuredElementSeq*>(dum_seq);
   assert (MB_FAILURE != result && estart != 0 && dum_seq != NULL && 
           eseq != NULL);
   
     // only need to add one vseq to this, unity transform
     // trick: if I know it's going to be unity, just input 3 sets of equivalent points
-  result = eseq->add_vsequence(vseq, vseq_minmax[0], vseq_minmax[0], 
+  result = eseq->sdata()->add_vsequence(vseq, vseq_minmax[0], vseq_minmax[0], 
                                vseq_minmax[0], 
                                vseq_minmax[0], vseq_minmax[0], vseq_minmax[0]);
   assert(MB_SUCCESS == result);
