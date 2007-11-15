@@ -19,24 +19,24 @@ public:
                        unsigned nodes_per_entity,
                        MBEntityID sequence_data_size);
 
-  ~UnstructuredElemSeq();
+  virtual ~UnstructuredElemSeq();
 
   int values_per_entity() const;
   
-  EntitySequence* split( MBEntityHandle here );
+  virtual EntitySequence* split( MBEntityHandle here );
   
   SequenceData* create_data_subset( MBEntityHandle start, MBEntityHandle end ) const;
                        
-  MBErrorCode get_connectivity( MBEntityHandle handle,
-                                std::vector<MBEntityHandle>& connect,
-                                bool topological = false ) const;
+  virtual MBErrorCode get_connectivity( MBEntityHandle handle,
+                                        std::vector<MBEntityHandle>& connect,
+                                        bool topological = false ) const;
   
-  MBErrorCode get_connectivity( MBEntityHandle handle,
-                                MBEntityHandle const*& connect,
-                                int &connect_length,
-                                bool topological = false,
-                                std::vector<MBEntityHandle>* storage = 0
-                               ) const;
+  virtual MBErrorCode get_connectivity( MBEntityHandle handle,
+                                        MBEntityHandle const*& connect,
+                                        int &connect_length,
+                                        bool topological = false,
+                                        std::vector<MBEntityHandle>* storage = 0
+                                       ) const;
 
   MBErrorCode set_connectivity( MBEntityHandle handle,
                                 MBEntityHandle const* connect,

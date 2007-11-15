@@ -150,6 +150,10 @@ private:
   MBErrorCode get_adjacency_ptr( MBEntityHandle, const std::vector<MBEntityHandle>*& ) const;
   MBErrorCode set_adjacency_ptr( MBEntityHandle, std::vector<MBEntityHandle>* );
   
+  MBErrorCode get_vertices( MBEntityHandle h,
+                            const MBEntityHandle*& vect_out,
+                            int& count_out,
+                            std::vector<MBEntityHandle>& storage );
 
   //! private constructor to prevent the construction of a default one
   AEntityFactory();

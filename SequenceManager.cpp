@@ -5,6 +5,7 @@
 #include "MeshSetSequence.hpp"
 #include "StructuredElementSeq.hpp"
 #include "HomXform.hpp"
+#include "PolyElementSeq.hpp"
 
 #include <assert.h>
 
@@ -157,11 +158,19 @@ MBErrorCode SequenceManager::create_element( MBEntityType type,
     if (!handle) 
       return MB_FAILURE;
     
-    if (seq_data) 
-      eseq = new UnstructuredElemSeq( handle, 1, conn_len, seq_data );
-    else
-      eseq = new UnstructuredElemSeq( handle, 1, conn_len, size );
-      
+    if (MBPOLYGON == type || MBPOLYHEDRON == type) {
+      if (seq_data) 
+        eseq = new PolyElementSeq( handle, 1, conn_len, seq_data );
+      else
+        eseq = new PolyElementSeq( handle, 1, conn_len, size );
+    }
+    else {
+      if (seq_data) 
+        eseq = new UnstructuredElemSeq( handle, 1, conn_len, seq_data );
+      else
+        eseq = new UnstructuredElemSeq( handle, 1, conn_len, size );
+    }
+    
     MBErrorCode rval = typeData[type].insert_sequence( eseq );
     if (MB_SUCCESS != rval) {
       SequenceData* vdata = eseq->data();
@@ -370,6 +379,18 @@ SequenceManager::create_entity_sequence( MBEntityType type,
     else 
       sequence = new VertexSequence( handle, count, count );
     
+    break;
+  
+  case MBPOLYGON:
+  case MBPOLYHEDRON:
+    if (size == 0)
+      return MB_INDEX_OUT_OF_RANGE;
+
+    if (data)
+      sequence = new PolyElementSeq( handle, count, size, data );
+    else 
+      sequence = new PolyElementSeq( handle, count, size, count );
+
     break;
   
   default:

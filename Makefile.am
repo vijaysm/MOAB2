@@ -143,6 +143,8 @@ libMOAB_la_SOURCES = \
   MeshSetSequence.cpp \
   MeshSetSequence.hpp \
   MeshTopoUtil.cpp \
+  PolyElementSeq.cpp \
+  PolyElementSeq.hpp \
   ReadGmsh.cpp \
   ReadGmsh.hpp \
   ReadSTL.cpp \

@@ -31,7 +31,23 @@
 #include <algorithm>
 #include <set>
 
-
+MBErrorCode AEntityFactory::get_vertices( MBEntityHandle h,
+                                          const MBEntityHandle*& vect_out,
+                                          int& count_out,
+                                          std::vector<MBEntityHandle>& storage )
+{
+  MBErrorCode result;
+  if (MBPOLYHEDRON == TYPE_FROM_HANDLE(h)) {
+    storage.clear();
+    result = thisMB->get_adjacencies( &h, 1, 0, false, storage );
+    vect_out = &storage[0];
+    count_out = storage.size();
+  }
+  else {
+    result = thisMB->get_connectivity( h, vect_out, count_out, false, &storage );
+  }
+  return result;
+}
 
 AEntityFactory::AEntityFactory(MBCore *mdb) 
 {
@@ -437,18 +453,9 @@ MBErrorCode AEntityFactory::remove_all_adjacencies(MBEntityHandle base_entity,
     MBEntityHandle const *connvect = 0, *adjvect = 0;
     int numconn = 0, numadj = 0;
     std::vector<MBEntityHandle> connstorage;
-    if (base_type != MBPOLYGON) {
-      result = thisMB->get_connectivity( base_entity, connvect, numconn, false, &connstorage );
-      if (MB_SUCCESS != result) 
-        return result;
-    }
-    else {
-      result = thisMB->get_adjacencies(&base_entity, 1, 0, false, connstorage);
-      if (MB_SUCCESS != result) 
-        return result;
-      connvect = &connstorage[0];
-      numconn = connstorage.size();
-    }
+    result = get_vertices( base_entity, connvect, numconn, connstorage );
+    if (MB_SUCCESS != result) 
+      return result;
     
     for (int i = 0; i < numconn; ++i) {
       result = get_adjacencies( connvect[i], adjvect, numadj );
@@ -498,12 +505,10 @@ MBErrorCode AEntityFactory::create_vert_elem_adjacencies()
   MBEntityType ent_type;
   MBRange::iterator i_range;
   const MBEntityHandle *connectivity;
-  std::vector<MBEntityHandle> polyh_connect;
+  std::vector<MBEntityHandle> aux_connect;
   int number_nodes;
   MBErrorCode result;
   MBRange handle_range;
-  static std::vector<MBEntityHandle> aux_connect;
-  
   
   // 1. over all element types, for each element, create vertex-element adjacencies
   for (ent_type = MBEDGE; ent_type != MBENTITYSET; ent_type++) 
@@ -517,27 +522,9 @@ MBErrorCode AEntityFactory::create_vert_elem_adjacencies()
 
     for (i_range = handle_range.begin(); i_range != handle_range.end(); ++i_range) 
     {
-        // get the min-id vertex
-      if (MBPOLYHEDRON != ent_type) {
-        result = this->thisMB->get_connectivity(*i_range, connectivity, number_nodes);
-        if (MB_NOT_IMPLEMENTED == result) {
-            // probably a structured sequence - get the connectivity as a vector and
-            // set connectivity to point to that
-          result = this->thisMB->get_connectivity(&(*i_range), 1, aux_connect);
-          if (MB_SUCCESS != result) return result;
-          connectivity = &aux_connect[0];
-          number_nodes = aux_connect.size();
-        }
-          
-        if (MB_SUCCESS != result) return result;
-      }
-      else {
-        polyh_connect.clear();
-        result = get_adjacencies(*i_range, 0, false, polyh_connect);
-        if (MB_SUCCESS != result) return result;
-        connectivity = &polyh_connect[0];
-        number_nodes = polyh_connect.size();
-      }
+      result = get_vertices( *i_range, connectivity, number_nodes, aux_connect );
+      if (MB_SUCCESS != result)
+        return result;
       
         // add the adjacency
       for( int k=0; k<number_nodes; k++)
@@ -905,7 +892,7 @@ MBErrorCode AEntityFactory::get_down_adjacency_elements_poly(MBEntityHandle sour
           // single edge - don't check adjacencies
         target_entities.push_back(*adj_edges.begin());
       }
-      else {
+      else if (adj_edges.size() != 0) {
           // multiple ones - need to check for explicit adjacencies
         unsigned int start_sz = target_entities.size();
         const MBEntityHandle *explicit_adjs;

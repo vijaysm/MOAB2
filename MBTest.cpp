@@ -5599,6 +5599,49 @@ MBErrorCode mb_proc_subset_test( MBInterface* )
   return MB_SUCCESS;
 }
 
+MBErrorCode mb_poly_adjacency_test( MBInterface* )
+{
+  MBErrorCode rval;
+  MBCore moab(0,1);
+  MBInterface *mbImpl = &moab;
+  
+    // make a couple polygons and a polyhedron
+  double coords[3] = {0,1,2};
+  MBEntityHandle verts[10], polygons[2], polyhedron;
+  
+  for (int i = 0; i < 10; i++) {
+    rval = mbImpl->create_vertex(coords, verts[i]);
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+
+  for (int i = 0; i < 2; i++) {
+    rval = mbImpl->create_element(MBPOLYGON, verts, 5, polygons[i]);
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  rval = mbImpl->create_element(MBPOLYHEDRON, polygons, 2, polyhedron);
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+    // create the aentities
+  MBRange dum_range;
+  for (int dim = 0; dim < 3; dim++) {
+    dum_range.clear();
+    rval = mbImpl->get_adjacencies(&polyhedron, 1, dim, true, dum_range);
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  
+    // delete the polyhedron
+  rval = mbImpl->delete_entities(&polyhedron, 1);
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+    // check adjacencies
+  return moab.check_adjacencies();
+}
+
 MBErrorCode mb_memory_use_test( MBInterface* ) 
 {
   MBCore mb;
@@ -5781,8 +5824,9 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_split_test );
   RUN_TEST( mb_range_seq_intersect_test );
   RUN_TEST( mb_proc_subset_test );
-  RUN_TEST( mb_merge_test );
+  RUN_TEST( mb_poly_adjacency_test );
   RUN_TEST( mb_memory_use_test );
+  RUN_TEST( mb_merge_test );
   if (stress_test) RUN_TEST( mb_stress_test );
 
     // summary
