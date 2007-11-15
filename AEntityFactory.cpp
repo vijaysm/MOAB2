@@ -423,22 +423,32 @@ MBErrorCode AEntityFactory::remove_all_adjacencies(MBEntityHandle base_entity,
                                                    const bool delete_adj_list)
 {
   MBErrorCode result;
+  MBEntityType base_type = TYPE_FROM_HANDLE(base_entity);
 
-  if (TYPE_FROM_HANDLE(base_entity) == MBENTITYSET) 
+  if (base_type == MBENTITYSET) 
     return thisMB->clear_meshset(&base_entity, 1);
-  const int base_ent_dim = MBCN::Dimension( TYPE_FROM_HANDLE( base_entity ) );
+  const int base_ent_dim = MBCN::Dimension( base_type );
 
     // Remove adjacencies from element vertices back to 
     // this element.  Also check any elements adjacent
     // to the vertex and of higher dimension than this
     // element for downward adjacencies to this element.
-  if (vert_elem_adjacencies() && TYPE_FROM_HANDLE(base_entity) != MBVERTEX) {
+  if (vert_elem_adjacencies() && base_type != MBVERTEX) {
     MBEntityHandle const *connvect = 0, *adjvect = 0;
     int numconn = 0, numadj = 0;
     std::vector<MBEntityHandle> connstorage;
-    result = thisMB->get_connectivity( base_entity, connvect, numconn, false, &connstorage );
-    if (MB_SUCCESS != result) 
-      return result;
+    if (base_type != MBPOLYGON) {
+      result = thisMB->get_connectivity( base_entity, connvect, numconn, false, &connstorage );
+      if (MB_SUCCESS != result) 
+        return result;
+    }
+    else {
+      result = thisMB->get_adjacencies(&base_entity, 1, 0, false, connstorage);
+      if (MB_SUCCESS != result) 
+        return result;
+      connvect = &connstorage[0];
+      numconn = connstorage.size();
+    }
     
     for (int i = 0; i < numconn; ++i) {
       result = get_adjacencies( connvect[i], adjvect, numadj );
