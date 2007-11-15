@@ -239,12 +239,12 @@ protected:
   //! parentMeshSets.hnd.  If MANY, then parentMeshSets.ptr contains
   //! array begin and end pointers for a dynamically allocated array
   //! of parent handles.
-  Count mParentCount : 2;
+  unsigned mParentCount : 2;
   //! If less than MANY, the number of children stored inline in
   //! childMeshSets.hnd.  If MANY, then childMeshSets.ptr contains
   //! array begin and end pointers for a dynamically allocated array
   //! of child handles.
-  Count mChildCount : 2;
+  unsigned mChildCount : 2;
 private:
   //! Storage for parent and child lists
   CompactList parentMeshSets, childMeshSets;

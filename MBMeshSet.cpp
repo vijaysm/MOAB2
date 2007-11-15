@@ -160,13 +160,13 @@ MBMeshSet::Count insert_in_vector( const MBMeshSet::Count count,
 int MBMeshSet::add_parent( MBEntityHandle parent )
 { 
   int result;
-  mParentCount = insert_in_vector( mParentCount, parentMeshSets, parent, result );
+  mParentCount = insert_in_vector( (Count)mParentCount, parentMeshSets, parent, result );
   return result;
 }
 int MBMeshSet::add_child( MBEntityHandle child )
 { 
   int result;
-  mChildCount = insert_in_vector( mChildCount, childMeshSets, child, result );
+  mChildCount = insert_in_vector( (Count)mChildCount, childMeshSets, child, result );
   return result;
 }
 
@@ -240,13 +240,13 @@ MBMeshSet::Count remove_from_vector( const MBMeshSet::Count count,
 int MBMeshSet::remove_parent( MBEntityHandle parent )
 { 
   int result;
-  mParentCount = remove_from_vector( mParentCount, parentMeshSets, parent, result );
+  mParentCount = remove_from_vector( (Count)mParentCount, parentMeshSets, parent, result );
   return result;
 }
 int MBMeshSet::remove_child( MBEntityHandle child )
 { 
   int result;
-  mChildCount = remove_from_vector( mChildCount, childMeshSets, child, result );
+  mChildCount = remove_from_vector( (Count)mChildCount, childMeshSets, child, result );
   return result;
 }
 

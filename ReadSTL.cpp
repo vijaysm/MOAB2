@@ -25,8 +25,23 @@
 #include "MBInterface.hpp"
 #include "MBReadUtilIface.hpp"
 #include "MBRange.hpp"
+#include "MBEntityHandle.h"
 
-#include <inttypes.h>  // for int32_t
+#ifdef MOAB_HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
+#ifdef MOAB_HAVE_STDDEF_H
+#include <stddef.h>
+#endif
+#ifdef MOAB_HAVE_STDINT_H
+#include <stdint.h>
+#endif
+
+#ifdef _MSC_VER /* windows */
+#  include <BaseTsd.h>
+typedef ULONG32 uint32_t;
+#endif
+
 #include <errno.h>
 #include <string.h>
 #include <limits.h>
