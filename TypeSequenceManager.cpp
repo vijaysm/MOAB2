@@ -570,8 +570,12 @@ MBErrorCode TypeSequenceManager::erase( MBEntityHandle h )
     return MB_ENTITY_NOT_FOUND;
   
   if (seq->start_handle() == h) {
-    if (seq->end_handle() != h) 
-      return seq->pop_front(1);
+    if (seq->end_handle() != h) {
+      if (seq->using_entire_data())
+        availableList.insert( seq->data() );
+      seq->pop_front(1);
+      return MB_SUCCESS;
+    }
     SequenceData* data = seq->data();
     bool delete_data;
     MBErrorCode rval = remove_sequence( seq, delete_data );
@@ -582,14 +586,21 @@ MBErrorCode TypeSequenceManager::erase( MBEntityHandle h )
       delete data;
     return MB_SUCCESS;
   }
-  else if (seq->end_handle() == h)
-    return seq->pop_back(1);
+  else if (seq->end_handle() == h) {
+    if (seq->using_entire_data())
+      availableList.insert( seq->data() );
+    seq->pop_back(1);
+    return MB_SUCCESS;
+  }
   else {
     iterator i = lower_bound( h );
+    if ((*i)->using_entire_data())
+      availableList.insert( (*i)->data() );
     i = split_sequence( i, h );
     seq = *i;
     assert(seq->start_handle() == h);
-    return seq->pop_front(1);
+    seq->pop_front(1);
+    return MB_SUCCESS;
   }
 }
 
@@ -605,7 +616,7 @@ MBErrorCode TypeSequenceManager::erase( MBEntityHandle first, MBEntityHandle las
     
     // get first sequence intersecting range
   iterator i = lower_bound( first );
-  if (i == end())  // shouuldn't be possible given check_valid_handles call above.
+  if (i == end())  // shouldn't be possible given check_valid_handles call above.
     return MB_ENTITY_NOT_FOUND;
     
     // if range is entirely in interior of sequence, need to split sequence.
