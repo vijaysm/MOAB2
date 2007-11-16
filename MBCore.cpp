@@ -1966,6 +1966,20 @@ MBErrorCode MBCore::side_number(const MBEntityHandle parent,
   int num_parent_vertices, num_child_vertices;
   MBErrorCode result = get_connectivity(parent, parent_conn, num_parent_vertices, true);
   if (MB_SUCCESS != result) return result;
+
+  if (TYPE_FROM_HANDLE(child) == MBVERTEX) {
+    int child_index = std::find(parent_conn, parent_conn+num_parent_vertices,
+                                child) - parent_conn;
+    if (child_index == num_parent_vertices) {
+      side_number = -1;
+      return MB_SUCCESS;
+    }
+    else {
+      side_number = child_index;
+      return MB_SUCCESS;
+    }
+  }
+    
   result = get_connectivity(child, child_conn, num_child_vertices, true);
   if (MB_SUCCESS != result) return result;
 
@@ -2127,8 +2141,9 @@ MBErrorCode MBCore::side_element(const MBEntityHandle source_entity,
   if (MB_SUCCESS != result && MB_MULTIPLE_ENTITIES_FOUND != result) return result;
   
   if (!target_ents.empty() &&
-         TYPE_FROM_HANDLE(*(target_ents.begin())) != 
-         MBCN::mConnectivityMap[source_type][dim-1].target_type[side_number])
+      TYPE_FROM_HANDLE(*(target_ents.begin())) != MBVERTEX &&
+      TYPE_FROM_HANDLE(*(target_ents.begin())) != 
+      MBCN::mConnectivityMap[source_type][dim-1].target_type[side_number])
     return MB_ENTITY_NOT_FOUND;
 
   if (!target_ents.empty()) target_entity = *(target_ents.begin());

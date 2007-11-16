@@ -334,7 +334,7 @@ private:
   MBErrorCode split_pair_nonmanifold(MBEntityHandle *split_quads,
                                      MBEntityHandle *split_edges,
                                      MBEntityHandle split_node,
-                                     MBRange hexes,
+                                     MBRange &hexes,
                                      MBEntityHandle *other_edges,
                                      MBEntityHandle *other_nodes,
                                      std::vector<MBEntityHandle> &merge_ents);

@@ -1732,16 +1732,26 @@ MBErrorCode DualTool::foc_get_ents(MBEntityHandle ocl,
   MeshTopoUtil mtu(mbImpl);
 
   if (common_edges.size() > 1) {
+      // split node is shared by split edges
     split_node = mtu.common_entity(split_edges[0], split_edges[1], 0);
     if (0 == split_node) return MB_FAILURE;
+      // first two other nodes are on split edges opposite split node
+    result = mtu.opposite_entity(split_edges[0], split_node,
+                                 other_nodes[0]); RR;
+    result = mtu.opposite_entity(split_edges[1], split_node,
+                                 other_nodes[1]); RR;
     for (int i = 0; i < 2; i++) {
+        // 1st other edge is opposite second split edge on split quad
       result = mtu.opposite_entity(split_quads[i], 
                                    split_edges[1-i], other_edges[i]); RR;
+        // 2nd other edge is opposite first split edge on split quad
       result = mtu.opposite_entity(split_quads[i], 
                                    split_edges[i], other_edges[2+i]); RR;
+        // last other node is opposite split node on split quad
       result = mtu.opposite_entity(split_quads[i], split_node,
                                    other_nodes[i]); RR;
     }
+    other_edges[4] = other_edges[5] = 0;
   }
   else {
     split_edges[1] = 0;
@@ -1750,26 +1760,40 @@ MBErrorCode DualTool::foc_get_ents(MBEntityHandle ocl,
     int num_connect;
     result = mbImpl->get_connectivity(split_edges[0], connect, num_connect);
     if (MB_SUCCESS != result) return result;
-    
+      // other_nodes[0], [1] are on split edge
+    other_nodes[0] = connect[0];
+    other_nodes[1] = connect[1];
+      
+      // for each of the split quads
     for (int i = 0; i < 2; i++) {
+        // get the other edge on the split quad adj to node 0 on the split edge, by getting
+        // edges adj to split quad and node and removing split edge; that's other_edge[i]
       MBRange tmp_range1, tmp_range2;
-      tmp_range1.insert(connect[i]);
+      tmp_range1.insert(connect[0]);
       tmp_range1.insert(split_quads[i]);
       result = mbImpl->get_adjacencies(tmp_range1, 1, false, tmp_range2);
       if (MB_SUCCESS != result) return result;
       tmp_range2.erase(split_edges[0]);
       assert(tmp_range2.size() == 1);
       other_edges[i] = *tmp_range2.begin();
-      result = mtu.opposite_entity(other_edges[i], connect[i],
-                                   other_nodes[i]); RR;
+        // get edge connected to other node on split edge & split quad; that's
+        // opposite prev other_edges on the split quad; that's other_edges[2+i]
+      result = mtu.opposite_entity(split_quads[i], other_edges[i],
+                                   other_edges[2+i]); RR;
+        // get the edge on the split quad opposite the split edge; that's other_edges[4+i]
       result = mtu.opposite_entity(split_quads[i], split_edges[0],
                                    other_edges[4+i]); RR;
+        // get nodes on other side of split quad from split edge, by getting common
+        // node between top/bottom edge and opposite edge
+      other_nodes[2+i] = mtu.common_entity(other_edges[i], other_edges[4+i], 0);
+      other_nodes[4+i] = mtu.common_entity(other_edges[2+i], other_edges[4+i], 0);
+      if (0 == other_nodes[2+i] || 0 == other_nodes[4+i]) return MB_FAILURE;
     }
   }
 
-  result = mbImpl->get_adjacencies(split_quads, 2, 3, false, hexes, MBInterface::UNION);
+  result = mbImpl->get_adjacencies(split_edges, (split_node ? 2 : 1), 3, false, 
+                                   hexes, MBInterface::UNION);
   if (MB_SUCCESS != result) return result;
-  assert(4 >= hexes.size());
 
   return MB_SUCCESS;
 }
@@ -1777,7 +1801,7 @@ MBErrorCode DualTool::foc_get_ents(MBEntityHandle ocl,
 MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
                                              MBEntityHandle *split_edges,
                                              MBEntityHandle split_node,
-                                             MBRange hexes,
+                                             MBRange &hexes,
                                              MBEntityHandle *other_edges,
                                              MBEntityHandle *other_nodes,
                                              std::vector<MBEntityHandle> &merge_ents) 
@@ -1802,7 +1826,9 @@ MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
     // if we're splitting 2 edges, there might be other edges that have the split
     // node; also need to know which side they're on
   MBRange addl_ents[2];
-  result = foc_get_addl_ents(star_dp1, star_dp2, split_node, addl_ents); RR;
+  if (split_node) {
+    result = foc_get_addl_ents(star_dp1, star_dp2, split_node, addl_ents); RR;
+  }
 
     // now split the edges; just add the star ents to addl_ents to pass into
     // split_nonmanifold
@@ -1907,18 +1933,23 @@ MBErrorCode DualTool::foc_get_stars(MBEntityHandle *split_quads,
       // the hexes in split_hstar[0],[1]
     for (fit = star_tmp[0].begin(), hit = star_tmp[1].begin(); fit != star_tmp[0].end();
          fit++, hit++) {
+        // start of loop, see if we're going from outside to inside
       if (!inside && (*fit == split_quads[0] || *fit == split_quads[1]))
         inside = true;
+        // put current face on right list
       if (inside) split_qstar[0].push_back(*fit);
       else split_qstar[1].push_back(*fit);
+        // decide whether we're going outside after this face
+      if (inside && *fit != *split_qstar[0].begin() &&
+          (*fit == split_quads[0] || *fit == split_quads[1]))
+        inside = false;
+        // save hex based on inside/outside *after* outside test, so that hex
+        // after outside face goes on outside list;
         // only save hex if we're not on the end with a bdy
       if (!on_bdy || fit != star_tmp[0].end()) {
         if (inside) split_hstar[0].push_back(*hit);
         else split_hstar[1].push_back(*hit);
       }
-      if (inside && *fit != *split_qstar[0].begin() &&
-          (*fit == split_quads[0] || *fit == split_quads[1]))
-        inside = false;
     }
 
       // if we're on edge 1, just put the halves into the result vectors

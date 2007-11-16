@@ -306,6 +306,12 @@ int MBCN::OppositeSide(const MBEntityType parent_type,
                        int &opposite_dim) 
 {
   switch (parent_type) {
+    case MBEDGE:
+      if (0 != child_dim) return -1;
+      else opposite_index = 1-child_index;
+      opposite_dim = 0;
+      break;
+      
     case MBTRI:
       switch (child_dim) {
         case 0:
