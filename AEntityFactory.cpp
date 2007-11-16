@@ -1337,7 +1337,7 @@ MBErrorCode AEntityFactory::get_memory_use( const MBRange& ents_in,
   if (MB_SUCCESS != rval)
     return rval;
   
-  while (!iter.is_at_end()) {
+  do {
     MBAdjacencyVector** array = iter.get_sequence()->data()->get_adjacency_data();
     if (!array)
       continue;
@@ -1356,9 +1356,9 @@ MBErrorCode AEntityFactory::get_memory_use( const MBRange& ents_in,
       if (array[i]) 
         min_per_ent += sizeof(MBEntityHandle) * array[i]->capacity() + sizeof(MBAdjacencyVector);
     }
-  }
+  } while (MB_SUCCESS == (rval = iter.step()));
   
   amortized += min_per_ent;
-  return MB_SUCCESS;
+  return (rval == MB_FAILURE) ? MB_SUCCESS : rval;
 }   
   
