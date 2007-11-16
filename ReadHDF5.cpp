@@ -307,7 +307,7 @@ MBErrorCode ReadHDF5::read_nodes()
     nodeSet.first_id = std::numeric_limits<long>::max();
     nodeSet.type = MBVERTEX;
     nodeSet.type2 = mhdf_node_type_handle();
-    return MB_FAILURE;
+    return MB_SUCCESS;
   }
   
   if (cdim < dim)
