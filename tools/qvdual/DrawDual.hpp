@@ -46,6 +46,8 @@ public:
 
   MBErrorCode reset_drawn_sheets(MBRange *drawn_sheets = NULL);
   
+  void print_picked_ents(MBRange &picked_ents);
+
 private:
 
   static DrawDual *gDrawDual;
@@ -229,8 +231,6 @@ private:
                     const char *name, const char *def_val = NULL);
   
   MBErrorCode fixup_degen_bchords(MBEntityHandle dual_surf);
-
-  void print_picked_ents(MBRange &picked_ents);
 
     //! given some entities, get the corresponding gviz points on the sheet
   void get_points(const MBEntityHandle *ents, const int num_ents, 

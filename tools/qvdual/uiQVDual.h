@@ -1,7 +1,7 @@
 /****************************************************************************
 ** Form interface generated from reading ui file 'uiQVDual.ui'
 **
-** Created: Mon Sep 10 16:49:13 2007
+** Created: Mon Nov 5 08:55:16 2007
 **      by: The User Interface Compiler ($Id: qt/main.cpp   3.3.7   edited Aug 31 2005 $)
 **
 ** WARNING! All changes made in this file will be lost!
@@ -124,6 +124,7 @@ public slots:
     virtual void fileSaveAs();
     virtual void resetDisplay();
     virtual void redrawDisplay();
+    virtual void pickline1_returnPressed();
 
 signals:
     void toggled();

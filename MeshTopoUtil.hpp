@@ -99,12 +99,25 @@ public:
                                const MBEntityHandle ent2,
                                const int dim);
   
+  //! return the opposite side entity given a parent and bounding entity.
+  //! This function is only defined for certain types of parent/child types;
+  //! See MBCN.hpp::OppositeSide for details.
+  //!
+  //! \param parent The parent element
+  //! \param child The child element
+  //! \param opposite_element The index of the opposite element
+  MBErrorCode opposite_entity(const MBEntityHandle parent,
+                              const MBEntityHandle child,
+                              MBEntityHandle &opposite_element);
+
     //! split entity which is non-manifold, that is, which has > 2 connected entities
     //! of next higher dimension; assumes that there are >= 2 connected regions of
     //! (d+2)-dimensional entities; a new d-entity is created for each region after the
     //! first, and it's made explicitly-adjacent to the region to which it corresponds
   MBErrorCode split_entity_nonmanifold(MBEntityHandle split_ent,
-                                       MBRange &new_ents);
+                                       MBRange &old_adjs,
+                                       MBRange &new_adjs,
+                                       MBEntityHandle &new_entity);
   
     //! split entities that are manifold (shared by two or less entities of each higher dimension),
     //! optionally creating an entity of next higher dimension to fill the gap

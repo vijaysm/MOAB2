@@ -222,6 +222,25 @@ public:
                         const int child_dim,
                         int &side_number, int &sense, int &offset);
 
+  //! return the dimension and index of the opposite side, given parent entity type and child 
+  //! dimension and index.  This function is only defined for certain types of parent/child types:
+  //! (Parent, Child dim->Opposite dim): 
+  //!  (Tri, 1->0), (Tri, 0->1), (Quad, 1->1), (Quad, 0->0), 
+  //!  (Tet, 2->0), (Tet, 1->1), (Tet, 0->2),
+  //!  (Hex, 2->2), (Hex, 1->1)(diagonally across element), (Hex, 0->0) (diagonally across element)
+  //! All other parent types and child dimensions return an error.
+  //!
+  //! \param parent_type The type of parent element
+  //! \param child_type The type of child element
+  //! \param child_index The index of the child element
+  //! \param opposite_index The index of the opposite element
+  //! \return status Returns 0 if successful, -1 if not
+  static int OppositeSide(const MBEntityType parent_type,
+                          const int child_index,
+                          const int child_dim,
+                          int &opposite_index,
+                          int &opposite_dim);
+
   //! given two connectivity arrays, determine whether or not they represent the same entity.
   //! \param conn1 Connectivity array of first entity
   //! \param conn2 Connectivity array of second entity

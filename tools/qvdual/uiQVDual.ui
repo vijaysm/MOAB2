@@ -922,6 +922,12 @@
         <receiver>uiQVDual</receiver>
         <slot>negFCbutton_clicked()</slot>
     </connection>
+    <connection>
+        <sender>pickline1</sender>
+        <signal>returnPressed()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>pickline1_returnPressed()</slot>
+    </connection>
 </connections>
 <includes>
     <include location="local" impldecl="in declaration">MBInterface.hpp</include>
@@ -1000,6 +1006,7 @@
     <slot>fileSaveAs()</slot>
     <slot>resetDisplay()</slot>
     <slot>redrawDisplay()</slot>
+    <slot>pickline1_returnPressed()</slot>
 </slots>
 <functions>
     <function access="private" specifier="non virtual">init()</function>

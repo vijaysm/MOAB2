@@ -182,6 +182,17 @@ public:
   
     //! effect a face open-collapse operation
   MBErrorCode face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr);
+
+    //! given the two 1-cells involved in the foc, get entities associated with
+    //! the quads being opened/collapsed; see implementation for more details
+  MBErrorCode foc_get_ents(MBEntityHandle ocl, 
+                           MBEntityHandle ocr, 
+                           MBEntityHandle *quads, 
+                           MBEntityHandle *split_edges, 
+                           MBEntityHandle &split_node, 
+                           MBRange &hexes, 
+                           MBEntityHandle *other_edges, 
+                           MBEntityHandle *other_nodes);
   
     //! given a 1-cell and a chord, return the neighboring vertices on the
     //! chord, in the same order as the 1-cell's vertices
@@ -315,16 +326,33 @@ private:
 
     //! function for deleting dual prior to foc operation; special because in
     //! many cases need to delete a sheet in preparation for merging onto another
-  MBErrorCode foc_delete_dual(MBEntityHandle edge,
-                              MBEntityHandle ocl,
-                              MBEntityHandle ocr,
+  MBErrorCode foc_delete_dual(MBEntityHandle *split_quads,
+                              MBEntityHandle *split_edges,
                               MBRange &hexes);
 
-    //! split a pair of entities such that the new pair shares as many (d-1)-
-    //! and (d-2)-dimensional entities as the original pair did
-  MBErrorCode split_pair_nonmanifold(MBEntityHandle *ents,
-                                     const int ents_size,
+    //! split a pair of quads and the edge(s) shared by them
+  MBErrorCode split_pair_nonmanifold(MBEntityHandle *split_quads,
+                                     MBEntityHandle *split_edges,
+                                     MBEntityHandle split_node,
+                                     MBRange hexes,
+                                     MBEntityHandle *other_edges,
+                                     MBEntityHandle *other_nodes,
                                      std::vector<MBEntityHandle> &merge_ents);
+  
+    //! for foc's splitting two shared edges, there might be additional entities
+    //! connected to the split node that also have to be updated
+  MBErrorCode foc_get_addl_ents(std::vector<MBEntityHandle> *star_dp1, 
+                                std::vector<MBEntityHandle> *star_dp2, 
+                                MBEntityHandle split_node,
+                                MBRange *addl_ents);
+  
+    //! given the split quads and edges, get the face and hex stars around the
+    //! edge(s), separated into halves, each of which goes with the new or old entities
+    //! after the split
+  MBErrorCode foc_get_stars(MBEntityHandle *split_quads,
+                            MBEntityHandle *split_edges,
+                            std::vector<MBEntityHandle> *star_dp1,
+                            std::vector<MBEntityHandle> *star_dp2);
   
     //! private copy of interface *
   MBInterface *mbImpl;

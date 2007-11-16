@@ -1461,16 +1461,16 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &quad1
     // get the hexes connected to the quad
   MBRange hexes;
   result = mbImpl->get_adjacencies(&quad1, 1, 3, false, hexes); RR;
+  assert(hexes.size() <= 2);
   
-    // remove any explicit adjacency from the first hex, since that'll get connected
-    // to the new outer quad; add adjacency between quad and other hex
-  result = mbImpl->remove_adjacencies(quad1, &(*hexes.begin()), 1); RR;
+    // remove any explicit adjacency from the second hex, since that'll get connected
+    // to the new quad; add adjacency between quad and first hex
   if (hexes.size() == 2) {
-    result = mbImpl->add_adjacencies(quad1, &(*hexes.rbegin()), 1, false);
-    RR;
+    result = mbImpl->remove_adjacencies(quad1, &(*hexes.rbegin()), 1); RR;
   }
+  result = mbImpl->add_adjacencies(quad1, &(*hexes.begin()), 1, false); RR;
   
-    // create the new, outer quad, and make it explicitly adjacent to 1st hex;
+    // create the new, outer quad, and make it explicitly adjacent to 2nd hex;
     // make the connectivity of this quad reversed from the original one
   std::vector<MBEntityHandle> tmp_verts;
   std::copy(verts.begin(), verts.end(), std::back_inserter(tmp_verts));
@@ -1478,6 +1478,9 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &quad1
   std::reverse(tmp_verts.begin()+4, tmp_verts.end());
   
   result = mbImpl->create_element(MBQUAD, &tmp_verts[0], 4, quad2); RR;
+  if (hexes.size() == 2) {
+    result = mbImpl->add_adjacencies(quad2, &(*hexes.rbegin()), 1, false); RR;
+  }
   
     // now make two inner hexes; note connectivity array is flipped for the two hexes
   MBEntityHandle new_hexes[2];
@@ -1487,16 +1490,6 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &quad1
     // by definition, quad1 is adj to new_hexes[0]
   result = mbImpl->add_adjacencies(quad1, &new_hexes[0], 1, false); RR;
   result = mbImpl->add_adjacencies(quad2, &new_hexes[1], 1, false); RR;
-
-    // not sure for this one, should be opposite sense with quad
-  int side_no, sense, offset;
-  result = mbImpl->side_number(*hexes.begin(), quad1, side_no, sense, offset); RR;
-  if (sense == 1) {
-    result = mbImpl->add_adjacencies(quad1, &(*hexes.begin()), 1, false); RR;
-  }
-  else {
-    result = mbImpl->add_adjacencies(quad2, &(*hexes.begin()), 1, false); RR;
-  }
 
   if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
 
@@ -1648,27 +1641,32 @@ MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr)
   MeshTopoUtil mtu(mbImpl);
 
     // get the primal entities we're dealing with
-  MBEntityHandle quads[2], edge;
-  quads[0] = get_dual_entity(ocl);
-  quads[1] = get_dual_entity(ocr);
-  if (MBQUAD != mbImpl->type_from_handle(quads[0]) ||
-      MBQUAD != mbImpl->type_from_handle(quads[1]))
+  MBEntityHandle split_quads[2], split_edges[2], split_node,
+    other_edges[6], other_nodes[6];
+  MBRange hexes;
+  MBErrorCode result = foc_get_ents(ocl, ocr, split_quads, split_edges, split_node,
+                                    hexes, other_edges, other_nodes); RR;
+
+  if (MBQUAD != mbImpl->type_from_handle(split_quads[0]) ||
+      MBQUAD != mbImpl->type_from_handle(split_quads[1]))
     return MB_TYPE_OUT_OF_RANGE;
   
-  edge = mtu.common_entity(quads[0], quads[1], 1);
-  if (0 == edge) return MB_FAILURE;
-
-  MBRange hexes;
-  MBErrorCode result = mbImpl->get_adjacencies(quads, 2, 3, false, hexes, MBInterface::UNION);
-  if (MB_SUCCESS != result) return result;
-  assert(4 >= hexes.size());
-
-  result = foc_delete_dual(edge, ocl, ocr, hexes);
+  result = foc_delete_dual(split_quads, split_edges, hexes);
   if (MB_SUCCESS != result) return result;
 
   std::vector<MBEntityHandle> merge_ents;
-  result = split_pair_nonmanifold(quads, 2, merge_ents);
+  result = split_pair_nonmanifold(split_quads, split_edges, split_node, hexes,
+                                  other_edges, other_nodes, merge_ents);
   if (MB_SUCCESS != result) return result;
+
+    // put the other entities to be merged on the list
+  for (int i = 0; i < 4; i++) merge_ents.push_back(other_edges[i]);
+  if (!split_node)   
+    for (int i = 4; i < 6; i++) merge_ents.push_back(other_edges[i]);
+  for (int i = 2; i < 4; i++) merge_ents.push_back(other_nodes[i]);
+  if (!split_node)   
+    for (int i = 4; i < 6; i++) merge_ents.push_back(other_nodes[i]);
+  
   
     // now merge them
   for (std::vector<MBEntityHandle>::reverse_iterator vit = merge_ents.rbegin();
@@ -1689,230 +1687,298 @@ MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr)
   return MB_SUCCESS;
 }
 
-MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *ents,
-                                             const int ents_size,
+MBErrorCode DualTool::foc_get_ents(MBEntityHandle ocl, 
+                                   MBEntityHandle ocr, 
+                                   MBEntityHandle *split_quads, 
+                                   MBEntityHandle *split_edges, 
+                                   MBEntityHandle &split_node, 
+                                   MBRange &hexes, 
+                                   MBEntityHandle *other_edges, 
+                                   MBEntityHandle *other_nodes)
+{
+    // get the entities used for foc; ocl and ocr are dual 1-cells 
+    // representing quads to be split; returned from this function:
+    // quads[2] - 2 quads to be split
+    // split_edges[2] - edge(s) to be split (2nd is 0 if only one)
+    // split_node - node to be split, if any (otherwise 0)
+    // hexes - connected hexes to split_edges
+    // other_edges[0], [1] - edges in quads[0] and [1] sharing node with
+    //        one end of split_edges[0]
+    // other_edges[2], [3] - other end of split_edges[0] (or [1] if 2 
+    //        split_edges)
+    // other_edges[4], [5] - edges in quads[0], [1] opposite to split_edges[0]
+    // other_nodes[0], [1] - nodes on other_edges[0], [1] not shared with 
+    //        split_edges[0]
+    // other_nodes[2], [3] - nodes on other_edges[2], [3] not shared with 
+    //        split_edges[0] (if 2 split_edges, there's only 1 opposite node
+    //        in each split quad)
+    // (for diagram, see Tim's notes from 11/12/07)
+
+  split_quads[0] = get_dual_entity(ocl);
+  split_quads[1] = get_dual_entity(ocr);
+  if (MBQUAD != mbImpl->type_from_handle(split_quads[0]) ||
+      MBQUAD != mbImpl->type_from_handle(split_quads[1]))
+    return MB_TYPE_OUT_OF_RANGE;
+
+  MBRange common_edges;
+  MBErrorCode result = mbImpl->get_adjacencies(split_quads, 2, 1, false, 
+                                               common_edges);
+  if (MB_SUCCESS != result) return result;
+  
+  if (common_edges.empty()) return MB_FAILURE;
+  for (unsigned int i = 0; i < common_edges.size(); i++) 
+    split_edges[i] = common_edges[i];
+
+  MeshTopoUtil mtu(mbImpl);
+
+  if (common_edges.size() > 1) {
+    split_node = mtu.common_entity(split_edges[0], split_edges[1], 0);
+    if (0 == split_node) return MB_FAILURE;
+    for (int i = 0; i < 2; i++) {
+      result = mtu.opposite_entity(split_quads[i], 
+                                   split_edges[1-i], other_edges[i]); RR;
+      result = mtu.opposite_entity(split_quads[i], 
+                                   split_edges[i], other_edges[2+i]); RR;
+      result = mtu.opposite_entity(split_quads[i], split_node,
+                                   other_nodes[i]); RR;
+    }
+  }
+  else {
+    split_edges[1] = 0;
+    split_node = 0;
+    const MBEntityHandle *connect;
+    int num_connect;
+    result = mbImpl->get_connectivity(split_edges[0], connect, num_connect);
+    if (MB_SUCCESS != result) return result;
+    
+    for (int i = 0; i < 2; i++) {
+      MBRange tmp_range1, tmp_range2;
+      tmp_range1.insert(connect[i]);
+      tmp_range1.insert(split_quads[i]);
+      result = mbImpl->get_adjacencies(tmp_range1, 1, false, tmp_range2);
+      if (MB_SUCCESS != result) return result;
+      tmp_range2.erase(split_edges[0]);
+      assert(tmp_range2.size() == 1);
+      other_edges[i] = *tmp_range2.begin();
+      result = mtu.opposite_entity(other_edges[i], connect[i],
+                                   other_nodes[i]); RR;
+      result = mtu.opposite_entity(split_quads[i], split_edges[0],
+                                   other_edges[4+i]); RR;
+    }
+  }
+
+  result = mbImpl->get_adjacencies(split_quads, 2, 3, false, hexes, MBInterface::UNION);
+  if (MB_SUCCESS != result) return result;
+  assert(4 >= hexes.size());
+
+  return MB_SUCCESS;
+}
+
+MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
+                                             MBEntityHandle *split_edges,
+                                             MBEntityHandle split_node,
+                                             MBRange hexes,
+                                             MBEntityHandle *other_edges,
+                                             MBEntityHandle *other_nodes,
                                              std::vector<MBEntityHandle> &merge_ents) 
 {
 
     // if there's a bdy in the star around the shared edge(s), get the quads on that
     // bdy so we know which edges to merge after the split-nonmanifold
   MeshTopoUtil mtu(mbImpl);
-  MBRange shared_ents;
+  MBErrorCode result;
 
-  int star_dim = mbImpl->dimension_from_handle(ents[0])-1;
-  MBErrorCode result = mbImpl->get_adjacencies(ents, ents_size,
-                                               star_dim, false, shared_ents);
-  if (MB_SUCCESS != result) return result;
-  else if (shared_ents.empty()) return MB_FAILURE;
+    // get star entities around edges, separated into halves
+  std::vector<MBEntityHandle> star_dp1[2], star_dp2[2];
+  result = foc_get_stars(split_quads, split_edges, star_dp1, star_dp2); RR;
   
-  MBRange bdy_ents[3];
-  int i;
-  MBRange::iterator rit;
-  for (rit = shared_ents.begin(), i = 0; i < 3; i++, rit++) {
-    std::vector<MBEntityHandle> star_ents;
-    bool on_bdy;
-    result = mtu.star_entities(*rit, star_ents, on_bdy);
-    if (MB_SUCCESS != result) return result;
-    if (on_bdy) {
-      bdy_ents[i].insert(*star_ents.begin());
-      bdy_ents[i].insert(*star_ents.rbegin());
-    }
-  }
+    // split manifold each of the split_quads, and put the results on the merge list
+  MBEntityHandle new_quads[2];
+  result = mtu.split_entities_manifold(split_quads, 2, new_quads, NULL); RR;
+  for (int i = 0; i < 2; i++) merge_ents.push_back(split_quads[i]);
+  for (int i = 0; i < 2; i++) merge_ents.push_back(new_quads[i]);
   
-    // split manifold each of the entities
-  std::vector<MBEntityHandle> new_ents(ents_size);
-  result = mtu.split_entities_manifold(ents, ents_size, &new_ents[0], NULL);
-  if (MB_SUCCESS != result) return result;
-  
-    // split non-manifold the shared entities between them
-  MBRange new_shared_ents;
-  for (rit = shared_ents.begin(), i = 0; rit != shared_ents.end(); rit++, i++) {
-    new_shared_ents.clear();
-    result = mtu.split_entity_nonmanifold(*rit, new_shared_ents);
-    if (MB_SUCCESS != result) return result;
 
-    if (new_shared_ents.size() > 2) {
-      std::cerr << "Can't do split_pair_nonmanifold, too many new d-1 entities." << std::endl;
-      return MB_FAILURE;
-    }
-    else if (new_shared_ents.size() == 2) {
-        // need to merge 2 of the entities together, don't know which ones yet but they're adjacent
-        // to bdy_ents and are either in new_shared_ents or are the original *rit
-      assert(!bdy_ents[i].empty());
-      MBRange dum_ents;
-      result = mbImpl->get_adjacencies(bdy_ents[i], star_dim, false, dum_ents, MBInterface::UNION);
-      if (MB_SUCCESS != result) return result;
-      new_shared_ents.insert(*rit);
-      dum_ents = dum_ents.intersect(new_shared_ents);
-      assert(2 == dum_ents.size());
+    // if we're splitting 2 edges, there might be other edges that have the split
+    // node; also need to know which side they're on
+  MBRange addl_ents[2];
+  result = foc_get_addl_ents(star_dp1, star_dp2, split_node, addl_ents); RR;
 
-        // merge them together; will keep lower handle 'cuz they're in a range
-      result = mbImpl->merge_entities(*dum_ents.begin(), *dum_ents.rbegin(), false, true);
-      if (MB_SUCCESS != result) return result;
-    }
-    else {
-      assert(1 == new_shared_ents.size());
-    }
-  }
+    // now split the edges; just add the star ents to addl_ents to pass into
+    // split_nonmanifold
+  for (int i = 0; i < 2; i++) 
+    std::copy(star_dp1[i].begin(), star_dp1[i].end(), mb_range_inserter(addl_ents[i]));
+  
+  MBEntityHandle new_entity;
+  result = mtu.split_entity_nonmanifold(split_edges[0], addl_ents[0], addl_ents[1],
+                                        new_entity); RR;
+  addl_ents[0].insert(split_edges[0]); addl_ents[1].insert(new_entity);
 
-  if (shared_ents.size() != 1 && star_dim > 0) {
+  if (split_edges[1]) {
+    result = mtu.split_entity_nonmanifold(split_edges[1], addl_ents[0], addl_ents[1],
+                                          new_entity); RR;
+    addl_ents[0].insert(split_edges[0]); addl_ents[1].insert(new_entity);
   
-      // need to split-nonmanifold vertices too
-      // get which vertices they are
-    MBRange shared_verts;
-    rit = shared_ents.begin();
-    MBRange::iterator rit2 = rit; rit2++;
-    for (; rit != shared_ents.end(); rit++, rit2++) {
-      if (rit2 == shared_ents.end()) rit2 = shared_ents.begin();
-      MBEntityHandle shared_vert = mtu.common_entity(*rit, *rit2, 0);
-      if (0 != shared_vert) shared_verts.insert(shared_vert);
-    }
-      // now split them
-    assert(shared_verts.size() == shared_ents.size()-1);
-    for (rit = shared_verts.begin(); rit != shared_verts.end(); rit++) {
-      MBRange dum_ents;
-      result = mtu.split_entity_nonmanifold(*rit, dum_ents);
-      if (MB_SUCCESS != result) return result;
-        //assert(1 == dum_ents.size());
-
-        // let's put new vertex in a sane position, too; get the bridge-adjacent vertices
-        // across edges
-      MBEntityHandle this_vert = *dum_ents.begin();
-      dum_ents.clear();
-      result = mtu.get_bridge_adjacencies(this_vert, 1, 0, dum_ents);
-      if (MB_SUCCESS != result) return result;
-        // add the original of the split vertex too
-      dum_ents.insert(*rit);
-      double avg_pos[3];
-      result = mtu.get_average_position(dum_ents, avg_pos);
-      if (MB_SUCCESS != result) return result;
-      result = mbImpl->set_coords(&this_vert, 1, avg_pos);
-      if (MB_SUCCESS != result) return result;
-    }
+      // now split the node too
+    result = mtu.split_entity_nonmanifold(split_node, addl_ents[0], addl_ents[1],
+                                          new_entity); RR;
   }
-  
-    // now need to build vector of entity pairs to merge; this is computed by finding
-    // the two ents from ents, new_ents which have common (d-1)-dimensional entities which
-    // are in shared_ents, and similarly for those adjacent to entities in new_shared_ents
-  
-    // group all ents, new_ents into a range, then intersect that with d-dimensional
-    // entities adjacent to one of the original (d-1)-dimensional shared_ents; those will be 
-    // the first two mergeable d-dimensional entities
-  MBRange dum_ents;
-  dum_ents.insert(ents[0]); dum_ents.insert(ents[1]); 
-  dum_ents.insert(new_ents[0]); dum_ents.insert(new_ents[1]); 
-  MBRange other_dum_ents = dum_ents;
-  result = mbImpl->get_adjacencies(&(*shared_ents.begin()), 1, star_dim+1, false, dum_ents);
-  if (MB_SUCCESS != result) return result;
-  assert(2 == dum_ents.size());
-  other_dum_ents = other_dum_ents.subtract(dum_ents);
-  assert(2 == other_dum_ents.size());
-  merge_ents.push_back(*dum_ents.begin());
-  merge_ents.push_back(*dum_ents.rbegin());
-  if (0 != mtu.common_entity(merge_ents[0], *other_dum_ents.begin(), star_dim)) {
-    merge_ents.push_back(*other_dum_ents.begin());
-    merge_ents.push_back(*other_dum_ents.rbegin());
-  }
-  else {
-    merge_ents.push_back(*other_dum_ents.rbegin());
-    merge_ents.push_back(*other_dum_ents.begin());
-  }
-    
-    // order shared_ents_vec and new_shared_ents_vec such that they're ready for merging
-    // get all the non-shared edges 
-  MBRange unshared_edges;
-  result = mbImpl->get_adjacencies(&merge_ents[0], 2, 1, false, unshared_edges, 
-                                   MBInterface::UNION);
-  if (MB_SUCCESS != result) return result;
-  shared_ents.clear();
-  result = mbImpl->get_adjacencies(&merge_ents[0], 2, 1, false, shared_ents);
-  if (MB_SUCCESS != result) return result;
-  unshared_edges = unshared_edges.subtract(shared_ents);
-  shared_ents.clear();
-  result = mbImpl->get_adjacencies(&merge_ents[2], 2, 1, false, shared_ents);
-  if (MB_SUCCESS != result) return result;
-  unshared_edges = unshared_edges.subtract(shared_ents);
-  assert(2 <= unshared_edges.size());
-  
-  if (2 == unshared_edges.size()) {
-      // only 2, they must be the ones to merge, and no vertices
-    merge_ents.push_back(*unshared_edges.begin());
-    merge_ents.push_back(*unshared_edges.rbegin());
-    return MB_SUCCESS;
-  }
-
-    // otherwise, first ones are adjacent to either shared vertex
-  int unshared_size = unshared_edges.size();
-  dum_ents.clear();
-  MBRange end_verts, all_edges;
-  dum_ents.insert(merge_ents[0]);
-  dum_ents.insert(merge_ents[3]);
-  result = mbImpl->get_adjacencies(dum_ents, 0, false, end_verts);
-  if (MB_SUCCESS != result) return result;
-  assert(2 == end_verts.size());
-  
-  for (rit = end_verts.begin(); rit != end_verts.end(); rit++) {
-      // intersect the unshared edges with the edges adjacent to this vertex
-    dum_ents = unshared_edges;
-    result = mbImpl->get_adjacencies(&(*rit), 1, 1, false, dum_ents);
-    if (MB_SUCCESS != result) return result;
-      // by definition, there should only be 2, and they're to be merged
-    assert(2 == dum_ents.size());
-    merge_ents.push_back(*dum_ents.begin());
-    merge_ents.push_back(*dum_ents.rbegin());
-      // remove these from unshared_edges, since they don't need to be 
-      // considered any more
-    unshared_edges = unshared_edges.subtract(dum_ents);
-  }
-  
-    // if we have any unshared edges left, they should be merged too
-  if (!unshared_edges.empty()) {
-    assert(2 == unshared_edges.size());
-    merge_ents.push_back(*unshared_edges.begin());
-    merge_ents.push_back(*unshared_edges.rbegin());
-  }
-  
-    // now get the vertex or vertices which must also be merged
-  MBEntityHandle ent1 = *merge_ents.rbegin(),
-    ent2 = *(merge_ents.rbegin()+1);
-  
-  for (int i = 0; i < (unshared_size/2)-1; i++) {
-    MBEntityHandle shared_ent = mtu.common_entity(merge_ents[4+2*i], ent1, 0);
-    if (0 == shared_ent) shared_ent = mtu.common_entity(merge_ents[4+2*i], ent2, 0);
-    assert(0 != shared_ent);
-    merge_ents.push_back(shared_ent);
-
-    shared_ent = mtu.common_entity(merge_ents[4+2*i+1], ent1, 0);
-    if (0 == shared_ent || shared_ent == *merge_ents.rbegin()) 
-      shared_ent = mtu.common_entity(merge_ents[4+2*i+1], ent2, 0);
-    assert(0 != shared_ent);
-    merge_ents.push_back(shared_ent);
-  }
-  
   
   return MB_SUCCESS;
 }
 
-MBErrorCode DualTool::foc_delete_dual(MBEntityHandle edge,
-                                      MBEntityHandle ocl,
-                                      MBEntityHandle ocr,
+MBErrorCode DualTool::foc_get_addl_ents(std::vector<MBEntityHandle> *star_dp1, 
+                                        std::vector<MBEntityHandle> *star_dp2, 
+                                        MBEntityHandle split_node,
+                                        MBRange *addl_ents) 
+{
+    // if we're splitting 2 edges, there might be other edges that have the split
+    // node; also need to know which side they're on
+
+    // algorithm:
+    // - start with star entities on search list
+    // - while (search list not empty):
+    // . take face off search list, put on result list
+    // . get all edge-adj faces also adj to split node
+    // . for each of these, if face is not on result list, put on search list
+    // - for each entity on result list:
+    // . get all entities also adj to split node & put on result list
+
+  MBRange node_faces;
+  MeshTopoUtil mtu(mbImpl);
+  MBErrorCode result = mbImpl->get_adjacencies(&split_node, 1, 2, false, node_faces); RR;
+  MBRange::iterator rit;
+
+  for (int i = 0; i < 2; i++) {
+    MBRange slist, rlist, tmp_list;
+    std::copy(star_dp1[i].begin(), star_dp1[i].end(), mb_range_inserter(slist));
+    while (!slist.empty()) {
+      MBEntityHandle this_ent = slist.pop_front();
+      rlist.insert(this_ent);
+      tmp_list.clear();
+      result = mtu.get_bridge_adjacencies(this_ent, 1, 2, tmp_list); RR;
+      tmp_list = tmp_list.intersect(node_faces);
+      for (rit = tmp_list.begin(); rit != tmp_list.end(); rit++)
+        if (rlist.find(*rit) == rlist.end()) slist.insert(*rit);
+    }
+    MBEntityHandle tmp_ents[2];
+    tmp_ents[0] = split_node;
+    MBRange rlist2;
+    for (rit = rlist.begin(); rit != rlist.end(); rit++) {
+      tmp_list.clear();
+      tmp_ents[1] = *rit;
+      result = mbImpl->get_adjacencies(tmp_ents, 2, 1, false, tmp_list); RR;
+      rlist2.merge(tmp_list);
+      tmp_list.clear();
+      result = mbImpl->get_adjacencies(tmp_ents, 2, 3, false, tmp_list); RR;
+      rlist2.merge(tmp_list);
+    }
+
+    for (rit = rlist.begin(); rit != rlist.end(); rit++) 
+      if (std::find(star_dp1[i].begin(), star_dp1[i].end(), *rit) ==
+          star_dp1[i].end()) addl_ents[i].insert(*rit);
+    addl_ents[i].merge(rlist2);
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode DualTool::foc_get_stars(MBEntityHandle *split_quads,
+                                    MBEntityHandle *split_edges,
+                                    std::vector<MBEntityHandle> *star_dp1,
+                                    std::vector<MBEntityHandle> *star_dp2) 
+{
+
+  bool on_bdy;
+  MBErrorCode result;
+  MeshTopoUtil mtu(mbImpl);
+  for (int i = 0; i < 2; i++) {
+      // only do 2nd iteration if we have a 2nd edge
+    if (1 == i && !split_edges[1]) continue;
+
+      // get the star around the split_edge
+    std::vector<MBEntityHandle> star_tmp[2], split_qstar[2], split_hstar[2];
+    result = mtu.star_entities(split_edges[i], star_tmp[0], on_bdy, 0,
+                               &star_tmp[1]); RR;
+    std::vector<MBEntityHandle>::iterator fit, hit;
+    bool inside = false;
+
+      // separate the star into halves; store faces in split_qstar[0],[1], and
+      // the hexes in split_hstar[0],[1]
+    for (fit = star_tmp[0].begin(), hit = star_tmp[1].begin(); fit != star_tmp[0].end();
+         fit++, hit++) {
+      if (!inside && (*fit == split_quads[0] || *fit == split_quads[1]))
+        inside = true;
+      if (inside) split_qstar[0].push_back(*fit);
+      else split_qstar[1].push_back(*fit);
+        // only save hex if we're not on the end with a bdy
+      if (!on_bdy || fit != star_tmp[0].end()) {
+        if (inside) split_hstar[0].push_back(*hit);
+        else split_hstar[1].push_back(*hit);
+      }
+      if (inside && *fit != *split_qstar[0].begin() &&
+          (*fit == split_quads[0] || *fit == split_quads[1]))
+        inside = false;
+    }
+
+      // if we're on edge 1, just put the halves into the result vectors
+    if (0 == i) {
+      star_dp1[0].swap(split_qstar[0]); star_dp1[1].swap(split_qstar[1]);
+      star_dp2[0].swap(split_hstar[0]); star_dp2[1].swap(split_hstar[1]);
+    }
+      // else, align the star halves then add them to the star_dpx lists
+    else {
+        // if the lists are aligned, the hex next to the first face on star_dp1[0]
+        // should also be next to that face on split_qstar, either the front or
+        // the back depending whether that face is 1st or last on split_qstar[0]
+      MBEntityHandle hex1 = *star_dp2[0].begin();
+      MBEntityHandle hex2 = 0;
+      if (*split_qstar[0].begin() == *star_dp1[0].begin())
+        hex2 = *split_hstar[0].begin();
+      else if (*split_qstar[0].rbegin() == *star_dp1[0].begin())
+        hex2 = *split_hstar[0].rbegin();
+      if (hex1 == hex2) {
+        for (int i = 0; i < 2; i++)
+          std::copy(split_qstar[i].begin(), split_qstar[i].end(), 
+                    std::back_inserter(star_dp1[i])),
+            std::copy(split_hstar[i].begin(), split_hstar[i].end(), 
+                      std::back_inserter(star_dp2[i]));
+      }
+      else {
+        for (int i = 0; i < 2; i++)
+          std::copy(split_qstar[(i+1)%2].begin(), split_qstar[(i+1)%2].end(), 
+                    std::back_inserter(star_dp1[i])),
+            std::copy(split_hstar[(i+1)%2].begin(), split_hstar[(i+1)%2].end(), 
+                      std::back_inserter(star_dp2[i]));
+      }
+    }
+  }
+
+  return MB_SUCCESS;
+}
+
+MBErrorCode DualTool::foc_delete_dual(MBEntityHandle *split_quads,
+                                      MBEntityHandle *split_edges,
                                       MBRange &hexes) 
 {
     // special delete dual procedure, because in some cases we need to delete
     // a sheet too since it'll get merged into another
 
     // figure out whether we'll need to delete a sheet
-  MBEntityHandle sheet = get_dual_hyperplane(get_dual_entity(edge));
-  MBEntityHandle chordl = get_dual_hyperplane(ocl);
-  MBEntityHandle chordr = get_dual_hyperplane(ocr);
-  assert(0 != sheet && 0 != chordl && 0 != chordr);
+  MBEntityHandle sheet1, sheet2 = 0;
+  sheet1 = get_dual_hyperplane(get_dual_entity(split_edges[0]));
+  if (split_edges[1]) sheet1 = get_dual_hyperplane(get_dual_entity(split_edges[1]));
+  MBEntityHandle chordl = get_dual_hyperplane(get_dual_entity(split_quads[0]));
+  MBEntityHandle chordr = get_dual_hyperplane(get_dual_entity(split_quads[1]));
+  assert(0 != sheet1 && 0 != chordl && 0 != chordr);
   MBRange parentsl, parentsr;
   MBErrorCode result = mbImpl->get_parent_meshsets(chordl, parentsl);
   if (MB_SUCCESS != result) return result;
   result = mbImpl->get_parent_meshsets(chordr, parentsr);
   if (MB_SUCCESS != result) return result;
-  parentsl.erase(sheet);
-  parentsr.erase(sheet);
+  parentsl.erase(sheet1);
+  parentsr.erase(sheet1);
+  if (sheet2) parentsl.erase(sheet1), parentsr.erase(sheet1);
 
     // before deciding which one to delete, collect the other cells which must
     // be deleted, and all the chords/sheets they're on
@@ -1990,80 +2056,6 @@ MBErrorCode DualTool::foc_delete_dual(MBEntityHandle edge,
 
   return MB_SUCCESS;
 }
-
-/*
-MBErrorCode DualTool::foc_get_merge_ents(MBEntityHandle *quads, MBEntityHandle *new_quads, 
-                                         MBRange &shared_edges, MBRange &new_shared_edges,
-                                         std::vector<MBEntityHandle> &merge_ents)
-{
-  MeshTopoUtil mtu(mbImpl);
-
-    // get the two common vertices
-  MBRange common_verts;
-  MBErrorCode result = mbImpl->get_adjacencies(quads, 2, 0, false, common_verts);
-  if (MB_SUCCESS != result) return result;
-  result = mbImpl->get_adjacencies(new_quads, 2, 0, false, common_verts);
-  if (MB_SUCCESS != result) return result;
-  assert(2 == common_verts.size());
-
-    // get the vertices to merge; each vertex pair is bridge-adjacent (across edges)
-    // to one of the vertices of our edge, and is not the other vertex of our edge
-  const MBEntityHandle *connect;
-  int num_connect;
-  result = mbImpl->get_connectivity(*shared_edges.begin(), connect, num_connect);
-  if (MB_SUCCESS != result) return result;
-  
-  for (int i = 0; i < 2; i++) {
-    MBRange tmp_verts;
-    result = mtu.get_bridge_adjacencies(connect[i], 1, 0, tmp_verts);
-    if (MB_SUCCESS != result) return result;    
-    tmp_verts = tmp_verts.intersect(all_verts);
-
-      // bridge adjacencies don't include connect[i], but will include the other
-    tmp_verts.erase(connect[(i+1)%2]);
-    assert(2 == tmp_verts.size());
-    
-    merge_ents.push_back(*tmp_verts.begin());
-    merge_ents.push_back(*tmp_verts.rbegin());
-  }
-
-    // now edges
-  MBRange all_edges, saved_edges;
-  result = mbImpl->get_adjacencies(quads, 2, 1, false, all_edges, MBInterface::UNION);
-  if (MB_SUCCESS != result) return result;
-  result = mbImpl->get_adjacencies(new_quads, 2, 1, false, all_edges, MBInterface::UNION);
-  if (MB_SUCCESS != result) return result;
-  all_edges.erase(*shared_edges.begin());
-  all_edges.erase(new_edge);
-  assert(6 == all_edges.size());
-
-    // first the ones connected to each vertex of our edge but not edge or new_edge
-  for (int i = 0; i < 2; i++) {
-    MBRange tmp_edges;
-    result = mbImpl->get_adjacencies(&connect[i], 1, 1, false, tmp_edges);
-    if (MB_SUCCESS != result) return result;
-    tmp_edges = tmp_edges.intersect(all_edges);
-    assert(2 == tmp_edges.size());
-    merge_ents.push_back(*tmp_edges.begin());
-    merge_ents.push_back(*tmp_edges.rbegin());
-    saved_edges.merge(tmp_edges);
-  }
-    // last two are the ones left over, not counting edge and new_edge
-  all_edges = all_edges.subtract(saved_edges);
-  assert(2 == all_edges.size());
-  merge_ents.push_back(*all_edges.begin());
-  merge_ents.push_back(*all_edges.rbegin());
-  
-    // now faces; already know which ones, because of code we used before to
-    // store quads and new_quads
-  merge_ents.push_back(quads[0]);
-  merge_ents.push_back(new_quads[0]);
-  merge_ents.push_back(quads[1]);
-  merge_ents.push_back(new_quads[1]);
-  
-  return MB_SUCCESS;
-}
-*/
 
 //! returns true if all vertices are dual to hexes (not faces)
 bool DualTool::is_blind(const MBEntityHandle chord_or_sheet) 

@@ -1055,3 +1055,52 @@ void uiQVDual::redrawDisplay()
 
   this->updateMesh();
 }
+
+
+void uiQVDual::pickline1_returnPressed()
+{
+    // get the currently picked entity
+  QString line = pickline1->text();
+
+  MBRange cell_ents, picked_ents;
+  int last_match = 0, next_match = 0;
+  MBHandleUtils hu(vtkMOABUtils::mbImpl->proc_rank(), 
+                   vtkMOABUtils::mbImpl->proc_size());
+  while (true) {
+    last_match = next_match;
+    if (-1 == last_match) break;
+    if (0 != last_match) last_match++;
+    next_match = line.find("-", last_match);
+    int ent_no = -1;
+    MBEntityType etype = MBMAXTYPE;
+    if (line.ascii()[last_match] == 'h') etype = MBHEX;
+    else if (line.ascii()[last_match] == 'f') etype = MBQUAD;
+    sscanf(line.ascii()+last_match+1, "%d", &ent_no);
+    if (-1 != ent_no && MBMAXTYPE != etype)
+      cell_ents.insert(hu.create_handle(etype, ent_no, 0));
+  }
+#define PR(a) {pickline1->setText(QString(a));return;}
+
+  if (cell_ents.size() < 2) PR("(not a dual entity!)");
+
+  MBErrorCode result;
+  DualTool dt(vtkMOABUtils::mbImpl);
+  if (cell_ents.size() > 2) {
+      // assume it's a dual 2-cell
+    result = vtkMOABUtils::mbImpl->get_adjacencies(cell_ents, 1, false, 
+                                                   picked_ents);
+    if (picked_ents.empty()) PR("(not a dual 2-cell!)");
+  }
+  else {
+    result = vtkMOABUtils::mbImpl->get_adjacencies(cell_ents, 2, false, 
+                                                   picked_ents);
+    if (picked_ents.empty()) PR("(not a dual 1-cell!)");
+  }
+  
+  MBEntityHandle dual_ent = dt.get_dual_entity(*picked_ents.begin());
+  if (0 ==  dual_ent) PR("(no dual entity!)");
+  picked_ents.clear();
+  picked_ents.insert(dual_ent);
+    
+  vtkMOABUtils::drawDual->print_picked_ents(picked_ents);
+}
