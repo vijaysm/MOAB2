@@ -91,8 +91,6 @@ install-data-hook:
 libMOAB_la_SOURCES = \
   AEntityFactory.cpp \
   AEntityFactory.hpp \
-  DenseTagCollections.cpp \
-  DenseTagCollections.hpp \
   DualTool.cpp \
   ElementSequence.hpp \
   EntitySequence.cpp \

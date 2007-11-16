@@ -42,8 +42,8 @@
 #include "MBInternals.hpp"
 
 class MBRange;
-class DenseTagSuperCollection;
 class SparseTagSuperCollection;
+class SequenceManager;
 class MBBitServer;
 
 // ! stores information about a tag
@@ -135,7 +135,7 @@ class TagServer
 {
 public:
   //! constructor
-  TagServer();
+  TagServer( SequenceManager* seqman );
   //! destructor
   virtual ~TagServer();
 
@@ -285,13 +285,9 @@ private:
 
   //! container for storing the sparse data and tag ids
   SparseTagSuperCollection* mSparseData;
-
-  //! container for storing the static sparse data and tag ids
-  //StaticSparseTagCollection* mStaticSparseData;
-  // static tags currently don't fit in OOA
-
-  //! manager for dense data
-  DenseTagSuperCollection* mDenseData;
+  
+  //! SequenceManager required to access dense tag data
+  SequenceManager* sequenceManager;
 
   //! manager for the bit data
   MBBitServer* mBitServer;

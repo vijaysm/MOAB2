@@ -14,6 +14,9 @@ class SequenceManager
     SequenceManager( const MBHandleUtils& handle_utils ) 
       : handleUtils(handle_utils)
       {}
+      
+      /** Delete all contained data */
+    void clear();
     
     MBErrorCode find( MBEntityHandle handle, EntitySequence*& sequence_out )
       { 
@@ -113,6 +116,58 @@ class SequenceManager
                          unsigned long& total_amortized_storage ) const;
     
   
+  
+    /* Dense Tag Functions */
+    
+    void reset_tag_data();
+    
+    MBErrorCode reserve_tag_id( unsigned tag_size, MBTagId tag_id );
+    MBErrorCode release_tag( MBTagId tag_id );
+    
+    MBErrorCode remove_tag_data( MBTagId tag_id, 
+                                 MBEntityHandle handle,
+                                 const void* default_tag_value );
+    MBErrorCode set_tag_data( MBTagId tag_id,
+                              MBEntityHandle handle,
+                              const void* value,
+                              const void* default_value );
+    MBErrorCode set_tag_data( MBTagId tag_id,
+                              const MBRange& handles,
+                              const void* values,
+                              const void* default_value );
+    MBErrorCode get_tag_data( MBTagId tag_id,
+                              MBEntityHandle handle,
+                              void* value ) const;
+    MBErrorCode get_tag_data( MBTagId tag_id,
+                              const MBRange& handles,
+                              void* values,
+                              const void* default_value ) const;
+  
+    MBErrorCode get_entity_tags( MBEntityHandle entity,
+                                 std::vector<MBTag>& tags_out ) const;
+
+    MBErrorCode get_tagged_entities( MBTagId tag_id, 
+                                     MBEntityType type,
+                                     MBRange& entities_out ) const;
+    MBErrorCode count_tagged_entities( MBTagId tag, 
+                                       MBEntityType type, 
+                                       int& result ) const;
+
+    MBErrorCode get_entities_with_tag_value( MBTagId id,
+                                             MBEntityType type,
+                                             MBRange& entities_out,
+                                             const void* value ) const;
+    MBErrorCode get_entities_with_tag_value( const MBRange& range,
+                                             MBTagId id,
+                                             MBEntityType type,
+                                             MBRange& entities_out,
+                                             const void* value ) const;
+    
+    MBErrorCode get_tag_memory_use( MBTagId id, 
+                                    unsigned long& total, 
+                                    unsigned long& per_entity ) const;
+    
+    
   private:
   
     /**\brief Utility function for allocate_mesh_set (and similar)
@@ -147,6 +202,8 @@ class SequenceManager
   
     const MBHandleUtils handleUtils;
     TypeSequenceManager typeData[MBMAXTYPE];
+    
+    std::vector<unsigned> tagSizes;
 };
 
 #endif

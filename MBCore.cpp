@@ -146,13 +146,13 @@ MBErrorCode MBCore::initialize()
   dirichletBCTag   = 0;
   geomDimensionTag = 0;
   globalIdTag      = 0;
-
-  tagServer = new TagServer();
-  if (!tagServer)
-    return MB_MEMORY_ALLOCATION_FAILED;
   
   sequenceManager = new SequenceManager( handleUtils );
   if (!sequenceManager)
+    return MB_MEMORY_ALLOCATION_FAILED;
+
+  tagServer = new TagServer( sequenceManager );
+  if (!tagServer)
     return MB_MEMORY_ALLOCATION_FAILED;
 
   aEntityFactory = new AEntityFactory(this);
@@ -494,9 +494,7 @@ MBErrorCode MBCore::delete_mesh()
 
   tagServer->reset_all_data();
   
-  if (sequenceManager)
-    delete sequenceManager;
-  sequenceManager = new SequenceManager( handleUtils );
+  sequenceManager->clear();
 
   return result;
 }

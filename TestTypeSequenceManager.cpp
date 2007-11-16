@@ -92,7 +92,7 @@ class DumSeq : public EntitySequence {
       { return new DumSeq(*this, here); }
     
     SequenceData* create_data_subset( MBEntityHandle a, MBEntityHandle b ) const
-      { return data()->subset( a, b, 0, 0 ); }
+      { return data()->subset( a, b, 0 ); }
     
     void get_const_memory_use( unsigned long& a, unsigned long& b) const
       { a = b = 0; }

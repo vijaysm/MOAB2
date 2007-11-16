@@ -229,7 +229,7 @@ MBErrorCode TypeSequenceManager::replace_subsequence( EntitySequence* seq_ptr,
     iterator s = j;
     for (++s; p != s; ++p)
       (*p)->data( new_data );
-     dead_data->move_tag_data( new_data, tag_server );
+    dead_data->move_tag_data( new_data, tag_server );
   }
   if (j != n) {
     SequenceData* new_data = (*n)->create_data_subset( (*i)->start_handle(), (*n)->end_handle() );

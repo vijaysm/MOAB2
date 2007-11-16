@@ -8,11 +8,23 @@
 #include "PolyElementSeq.hpp"
 
 #include <assert.h>
+#include <new>
 
 const int DEFAULT_VERTEX_SEQUENCE_SIZE = 4096;
 const int DEFAULT_ELEMENT_SEQUENCE_SIZE = DEFAULT_VERTEX_SEQUENCE_SIZE;
 const int DEFAULT_POLY_SEQUENCE_SIZE = 4 * DEFAULT_ELEMENT_SEQUENCE_SIZE;
 const int DEFAULT_MESHSET_SEQUENCE_SIZE = DEFAULT_VERTEX_SEQUENCE_SIZE;
+
+void SequenceManager::clear()
+{
+    // destroy all TypeSequenceManager instances
+  for (MBEntityType t = MBVERTEX; t < MBMAXTYPE; ++t)
+    typeData[t].~TypeSequenceManager();
+    
+    // now re-create TypeSequenceManager instances
+  for (MBEntityType t = MBVERTEX; t < MBMAXTYPE; ++t)
+    new (typeData+t) TypeSequenceManager();
+}  
 
 MBErrorCode SequenceManager::check_valid_entities( const MBRange& entities ) const
 {
@@ -629,6 +641,344 @@ void SequenceManager::get_memory_use( const MBRange& entities,
     }
   }
 }
+
+void SequenceManager::reset_tag_data() {
+  for (MBEntityType t = MBVERTEX; t <= MBENTITYSET; ++t) {
+    TypeSequenceManager& seqs = entity_map(t);
+    for (TypeSequenceManager::iterator i = seqs.begin(); i != seqs.end(); ++i)
+      (*i)->data()->release_tag_data();
+  }
+}
+
+MBErrorCode SequenceManager::reserve_tag_id( unsigned size, MBTagId tag_id )
+{
+  if (!size)
+    return MB_FAILURE;
+  if (tag_id >= tagSizes.size())
+    tagSizes.resize( tag_id+1, 0 );
+  if (tagSizes[tag_id])
+    return MB_ALREADY_ALLOCATED;
+  tagSizes[tag_id] = size;
+  return MB_SUCCESS;
+}
+
+MBErrorCode SequenceManager::release_tag( MBTagId tag_id )
+{
+  if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
+    return MB_TAG_NOT_FOUND;
+  tagSizes[tag_id] = 0;
+  
+  for (MBEntityType t = MBVERTEX; t <= MBENTITYSET; ++t) {
+    TypeSequenceManager& seqs = entity_map(t);
+    for (TypeSequenceManager::iterator i = seqs.begin(); i != seqs.end(); ++i)
+      (*i)->data()->release_tag_data(tag_id);
+  }
+  return MB_SUCCESS;
+}
+
+MBErrorCode SequenceManager::remove_tag_data( MBTagId tag_id, 
+                                              MBEntityHandle handle,
+                                              const void* default_tag_value )
+{
+  if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
+    return MB_TAG_NOT_FOUND;
+
+  EntitySequence* seq = 0;
+  MBErrorCode rval = find( handle, seq );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  void* tag_array = seq->data()->get_tag_data( tag_id );
+  if (!tag_array)
+    return MB_TAG_NOT_FOUND;
+  
+  char* tag_data = reinterpret_cast<char*>(tag_array) + 
+                   tagSizes[tag_id] * (handle - seq->data()->start_handle());
+  if (default_tag_value)  
+    memcpy( tag_data, default_tag_value, tagSizes[tag_id] );
+  else
+    memset( tag_data, 0, tagSizes[tag_id] );
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
+                                           MBEntityHandle handle,
+                                           const void* value,
+                                           const void* default_value )
+{
+  if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
+    return MB_TAG_NOT_FOUND;
+
+  EntitySequence* seq = 0;
+  MBErrorCode rval = find( handle, seq );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  void* tag_array = seq->data()->get_tag_data( tag_id );
+  if (!tag_array)
+    tag_array = seq->data()->create_tag_data( tag_id, tagSizes[tag_id], default_value );
+  
+  char* tag_data = reinterpret_cast<char*>(tag_array) + 
+                   tagSizes[tag_id] * (handle - seq->data()->start_handle());
+  memcpy( tag_data, value, tagSizes[tag_id] );
+  return MB_SUCCESS;
+}
+
+MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
+                                           const MBRange& handles,
+                                           const void* values,
+                                           const void* default_value )
+{
+  MBErrorCode rval, result = MB_SUCCESS;
+  if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
+    return MB_TAG_NOT_FOUND;
+    
+  const char* data = reinterpret_cast<const char*>(values);
+
+  MBRange::const_pair_iterator p = handles.begin();
+  for (MBRange::const_pair_iterator p = handles.const_pair_begin(); 
+       p != handles.const_pair_end(); ++p) {
+       
+    MBEntityHandle start = p->first;
+    while (start <= p->second) {
+      
+      EntitySequence* seq = 0;
+      rval = find( start, seq );
+      if (MB_SUCCESS != rval) {
+        result = rval;
+        ++start;
+        data += tagSizes[tag_id];
+        continue;
+      }
+      
+      const MBEntityHandle finish = std::min( p->second, seq->end_handle() );
+      const MBEntityID count = finish - start + 1;
+      
+      void* tag_array = seq->data()->get_tag_data( tag_id );
+      if (!tag_array)
+        tag_array = seq->data()->create_tag_data( tag_id, tagSizes[tag_id], default_value );
+
+      char* tag_data = reinterpret_cast<char*>(tag_array) + 
+                       tagSizes[tag_id] * (start - seq->data()->start_handle());
+      memcpy( tag_data, data, tagSizes[tag_id] * count );
+      data += tagSizes[tag_id] * count;
+    
+      start = finish + 1;
+    }
+  }
+  
+  return result;
+}
+      
+
+MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
+                                           MBEntityHandle handle,
+                                           void* value ) const
+{
+  if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
+    return MB_TAG_NOT_FOUND;
+
+  const EntitySequence* seq = 0;
+  MBErrorCode rval = find( handle, seq );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  const void* tag_array = seq->data()->get_tag_data( tag_id );
+  if (!tag_array)
+    return MB_TAG_NOT_FOUND;
+  
+  const char* tag_data = reinterpret_cast<const char*>(tag_array) + 
+                   tagSizes[tag_id] * (handle - seq->data()->start_handle());
+  memcpy( value, tag_data, tagSizes[tag_id] );
+  return MB_SUCCESS;
+}
+
+MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
+                                           const MBRange& handles,
+                                           void* values,
+                                           const void* default_value ) const
+{
+  MBErrorCode rval, result = MB_SUCCESS;;
+  if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
+    return MB_TAG_NOT_FOUND;
+    
+  char* data = reinterpret_cast<char*>(values);
+
+  MBRange::const_pair_iterator p = handles.begin();
+  for (MBRange::const_pair_iterator p = handles.const_pair_begin(); 
+       p != handles.const_pair_end(); ++p) {
+       
+    MBEntityHandle start = p->first;
+    while (start <= p->second) {
+      
+      const EntitySequence* seq = 0;
+      rval = find( start, seq );
+        // keep MOAB 3.0 behavior : return default value for invalid handles
+      if (MB_ENTITY_NOT_FOUND == rval) {
+        if (default_value)
+          memcpy( data, default_value, tagSizes[tag_id] );
+        else
+          memset( data, 0, tagSizes[tag_id] );
+        result = MB_ENTITY_NOT_FOUND;
+        data += tagSizes[tag_id];
+        ++start;
+        continue;
+      }
+      else if (MB_SUCCESS != rval) 
+        return rval;
+     
+      const MBEntityHandle finish = std::min( p->second, seq->end_handle() );
+      const MBEntityID count = finish - start + 1;
+      
+      const void* tag_array = seq->data()->get_tag_data( tag_id );
+      if (!tag_array) 
+        return MB_TAG_NOT_FOUND;
+      
+      const char* tag_data = reinterpret_cast<const char*>(tag_array) + 
+                       tagSizes[tag_id] * (start - seq->data()->start_handle());
+      memcpy( data, tag_data, tagSizes[tag_id] * count );
+      
+      data += tagSizes[tag_id] * count;
+      start = finish + 1;
+    }
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode SequenceManager::get_entity_tags(  MBEntityHandle entity,
+                                 std::vector<MBTag>& tags_out ) const
+{
+  const EntitySequence* seq = 0;
+  MBErrorCode rval = find( entity, seq );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  for (MBTagId i = 0; i < tagSizes.size(); ++i)
+    if (seq->data()->get_tag_data(i))
+      tags_out.push_back( TAG_HANDLE_FROM_ID( i, MB_TAG_DENSE ) );
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode SequenceManager::get_tagged_entities( MBTagId tag_id, 
+                                                  MBEntityType type,
+                                                  MBRange& entities_out ) const
+{
+  if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
+    return MB_TAG_NOT_FOUND;
+
+  MBRange::iterator insert = entities_out.begin();
+  const TypeSequenceManager& map = entity_map( type );
+  for (TypeSequenceManager::const_iterator i = map.begin(); i != map.end(); ++i) 
+    if ((*i)->data()->get_tag_data(tag_id))
+      insert = entities_out.insert( insert, (*i)->start_handle(), (*i)->end_handle() );
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode SequenceManager::count_tagged_entities( MBTagId tag_id, 
+                                                    MBEntityType type,
+                                                    int& count ) const
+{
+  if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
+    return MB_TAG_NOT_FOUND;
+
+  count = 0;
+  const TypeSequenceManager& map = entity_map( type );
+  for (TypeSequenceManager::const_iterator i = map.begin(); i != map.end(); ++i) 
+    if ((*i)->data()->get_tag_data(tag_id))
+      count += (*i)->size();
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode SequenceManager::get_entities_with_tag_value( MBTagId id,
+                                                          MBEntityType type,
+                                                          MBRange& entities_out,
+                                                          const void* value ) const
+{
+  if (id >= tagSizes.size() || !tagSizes[id])
+    return MB_TAG_NOT_FOUND;
+
+  MBRange::iterator insert = entities_out.begin();
+  const TypeSequenceManager& map = entity_map( type );
+  for (TypeSequenceManager::const_iterator i = map.begin(); i != map.end(); ++i) {
+    if (const void* data = (*i)->data()->get_tag_data(id)) {
+      const char* bytes = reinterpret_cast<const char*>(data);
+      for (MBEntityHandle h = (*i)->start_handle(); h <= (*i)->end_handle(); ++h)
+        if (!memcmp( bytes + tagSizes[id] * (h - (*i)->data()->start_handle()), value, tagSizes[id] ))
+          insert = entities_out.insert( insert, h, h );
+    }
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode SequenceManager::get_entities_with_tag_value( const MBRange& range,
+                                                          MBTagId id,
+                                                          MBEntityType type,
+                                                          MBRange& entities_out,
+                                                          const void* value ) const
+{
+  MBErrorCode rval;
+  if (id >= tagSizes.size() || !tagSizes[id])
+    return MB_TAG_NOT_FOUND;
+    
+  MBRange::iterator insert = entities_out.begin();
+  MBRange::const_pair_iterator p = range.lower_bound(type);         
+  for (MBRange::const_pair_iterator p = range.const_pair_begin(); 
+       p != range.const_pair_end() && TYPE_FROM_HANDLE(p->first) == type; 
+       ++p) {
+    
+    MBEntityHandle start = p->first;
+    while (start <= p->second) {
+      
+      const EntitySequence* seq = 0;
+      rval = find( start, seq );
+      if (MB_SUCCESS != rval) 
+        return rval;
+     
+      const MBEntityHandle finish = std::min( p->second, seq->end_handle() );
+      const void* tag_array = seq->data()->get_tag_data( id );
+      if (tag_array) {
+        const char* tag_data = reinterpret_cast<const char*>(tag_array);
+        for (MBEntityHandle h = start; h <= finish; ++h) {
+          if (!memcmp( tag_data + tagSizes[id] * (h - seq->data()->start_handle()), value, tagSizes[id] ))
+            insert = entities_out.insert( insert, h, h );
+        }
+      }
+      start = finish + 1;
+    }
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode SequenceManager::get_tag_memory_use( MBTagId id, 
+                                       unsigned long& total, 
+                                       unsigned long& per_entity ) const
+{
+  if (id >= tagSizes.size() || !tagSizes[id])
+    return MB_TAG_NOT_FOUND;
+    
+  per_entity = tagSizes[id];
+  total = 0;
+  for (MBEntityType t = MBVERTEX; t <= MBENTITYSET; ++t) {
+    const TypeSequenceManager& map = entity_map(t);
+    const SequenceData* prev_data = 0;
+    for (TypeSequenceManager::const_iterator i = map.begin(); i != map.end(); ++i) {
+      if ((*i)->data() != prev_data && (*i)->data()->get_tag_data(id)) {
+        prev_data = (*i)->data();
+        total += tagSizes[id] * (*i)->data()->size();
+      }
+    }
+  }
+      
+  return MB_SUCCESS;
+}
+      
 
 // These are meant to be called from the debugger (not declared in any header)
 // so leave them out of release builds (-DNDEBUG).

@@ -43,7 +43,7 @@ SequenceData*
 UnstructuredElemSeq::create_data_subset( MBEntityHandle start, MBEntityHandle end ) const
 {
   int esize = nodes_per_element() * sizeof(MBEntityHandle);
-  return data()->subset(start, end, &esize, 0 );
+  return data()->subset(start, end, &esize );
 }
 
 

@@ -9,7 +9,7 @@ SequenceData* VertexSequence::create_data_subset( MBEntityHandle start,
                                                   MBEntityHandle end ) const
 {
   const int sizes[] = { sizeof(double), sizeof(double), sizeof(double) };
-  return data()->subset(start, end, sizes, 0 );
+  return data()->subset(start, end, sizes );
 }
   
 MBErrorCode VertexSequence::push_back( MBEntityID count )

@@ -1,9 +1,10 @@
 #include "SequenceData.hpp"
+#include "TagServer.hpp"
 #include <assert.h>
 
 SequenceData::~SequenceData()
 {
-  for (int i = -numSequenceData; i <= numTagData; ++i)
+  for (int i = -numSequenceData; i <= (int)numTagData; ++i)
     free( arraySet[i] );
   free( arraySet - numSequenceData );
 }
@@ -59,36 +60,38 @@ SequenceData::AdjacencyDataType* SequenceData::allocate_adjacency_data()
   return reinterpret_cast<AdjacencyDataType*>(arraySet[0]);
 }
 
-void* SequenceData::create_tag_data( int tag_num,
+void SequenceData::increase_tag_count( unsigned amount )
+{
+  void** list = arraySet - numSequenceData;
+  const size_t size = sizeof(void*) * (numSequenceData + numTagData + amount + 1);
+  list = (void**)realloc( list, size );
+  arraySet = list + numSequenceData;
+  memset( arraySet + numTagData + 1, 0, sizeof(void*) * amount );
+  numTagData += amount;
+}
+
+void* SequenceData::create_tag_data( MBTagId tag_num,
                                      int bytes_per_ent,
                                      const void* initial_val )
 {
-  const int index = tag_num + 1;
-  if (tag_num >= numTagData) {
-    void** list = arraySet - numSequenceData;
-    const size_t size = sizeof(void*) * (numSequenceData + tag_num + 1);
-    list = (void**)realloc( list, size );
-    arraySet = list + numSequenceData;
-    memset( arraySet + numTagData, 0, sizeof(void*) * (tag_num + 1 - numTagData) );
-  }
+  if (tag_num >= numTagData)
+    increase_tag_count( tag_num - numTagData + 1 );
   
-  assert( !arraySet[index] );
-  return create_data( index, bytes_per_ent, initial_val );
+  assert( !arraySet[tag_num + 1] );
+  return create_data( tag_num + 1, bytes_per_ent, initial_val );
 }
 
 SequenceData* SequenceData::subset( MBEntityHandle start,
                                     MBEntityHandle end,
-                                    const int* sequence_data_sizes,
-                                    const int* tag_data_sizes ) const
+                                    const int* sequence_data_sizes ) const
 {
-  return new SequenceData( this, start, end, sequence_data_sizes, tag_data_sizes );
+  return new SequenceData( this, start, end, sequence_data_sizes );
 }
 
 SequenceData::SequenceData( const SequenceData* from,
                             MBEntityHandle start, 
                             MBEntityHandle end,
-                            const int* sequence_data_sizes,
-                            const int* tag_data_sizes )
+                            const int* sequence_data_sizes )
   : numSequenceData( from->numSequenceData ),
     numTagData( from->numTagData ),
     startHandle( start ),
@@ -107,8 +110,8 @@ SequenceData::SequenceData( const SequenceData* from,
   for (int i = 0; i < numSequenceData; ++i)
     copy_data_subset( -1 - i, sequence_data_sizes[i], from->get_sequence_data(i), offset, count );
   copy_data_subset( 0, sizeof(AdjacencyDataType*), from->get_adjacency_data(), offset, count );
-  for (int i = 0; i< numTagData; ++i)
-    copy_data_subset( 1 + i, tag_data_sizes[i], from->get_tag_data(i), offset, count );
+  for (unsigned i = 1; i <= numTagData; ++i)
+    arraySet[i] = 0;
 }
 
 void SequenceData::copy_data_subset( int index, 
@@ -124,6 +127,46 @@ void SequenceData::copy_data_subset( int index,
     memcpy( arraySet[index], 
             (const char*)source + offset * size_per_ent, 
             count * size_per_ent );
+  }
+}
+
+void SequenceData::move_tag_data( SequenceData* destination, TagServer* tag_server )
+{
+  assert( destination->start_handle() >= start_handle() );
+  assert( destination->end_handle() <= end_handle() );
+  const size_t offset = destination->start_handle() - start_handle();
+  const size_t count = destination->size();
+  if (destination->numTagData < numTagData)
+    destination->increase_tag_count( numTagData - destination->numTagData );
+  
+  for (unsigned i = 1; i <= numTagData; ++i) {
+    if (!arraySet[i])
+      continue;
+    
+    const TagInfo* info = tag_server->get_tag_info( TAG_HANDLE_FROM_ID( i-1, MB_TAG_DENSE ) );
+    if (!info)
+      continue;
+    
+    const int tag_size = info->get_size();
+    if (!destination->arraySet[i])
+      destination->arraySet[i] = malloc( count * tag_size );
+    memcpy( destination->arraySet[i], 
+            reinterpret_cast<char*>(arraySet[i]) + offset * tag_size,
+            count * tag_size );
+  }
+}
+
+void SequenceData::release_tag_data()
+{
+  for (unsigned i = 1; i <= numTagData; ++i)
+    release_tag_data( i );
+}
+
+void SequenceData::release_tag_data( MBTagId tag_num )
+{
+  if (tag_num < numTagData) {
+    free( arraySet[tag_num+1] );
+    arraySet[tag_num+1] = 0;
   }
 }
 
