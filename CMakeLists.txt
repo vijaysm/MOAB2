@@ -135,6 +135,7 @@ project( MOAB )
     MBWriteUtil.cpp
     MeshSetSequence.cpp
     MeshTopoUtil.cpp
+    PolyElementSeq.cpp
     ReadGmsh.cpp
     ReadSTL.cpp
     ReadVtk.cpp
