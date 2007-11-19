@@ -59,27 +59,28 @@ const char *DualTool::DUAL_GRAPHICS_POINT_TAG_NAME = "__DUAL_GRAPHICS_POINT";
 DualTool::DualTool(MBInterface *impl) 
     : mbImpl(impl)
 {
-  int dummy = 0;
+  MBEntityHandle dum_handle = 0;
 
   MBErrorCode result = mbImpl->tag_create(DUAL_SURFACE_TAG_NAME, sizeof(MBEntityHandle), 
                                           MB_TAG_SPARSE, 
-                                          dualSurfaceTag, &dummy);
+                                          dualSurfaceTag, &dum_handle);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
   
   result = mbImpl->tag_create(DUAL_CURVE_TAG_NAME, sizeof(MBEntityHandle), MB_TAG_SPARSE, 
-                              dualCurveTag, &dummy);
+                              dualCurveTag, &dum_handle);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
   
+  unsigned int dummy = 0;
   result = mbImpl->tag_create(IS_DUAL_CELL_TAG_NAME, sizeof(unsigned int), MB_TAG_SPARSE, 
                               isDualCellTag, &dummy);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
 
   result = mbImpl->tag_create(DUAL_ENTITY_TAG_NAME, sizeof(MBEntityHandle), MB_TAG_DENSE, 
-                              dualEntityTag, &dummy);
+                              dualEntityTag, &dum_handle);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
 
   result = mbImpl->tag_create(EXTRA_DUAL_ENTITY_TAG_NAME, sizeof(MBEntityHandle), MB_TAG_SPARSE, 
-                              extraDualEntityTag, &dummy);
+                              extraDualEntityTag, &dum_handle);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
   
   static const char dum_name[CATEGORY_TAG_SIZE] = "\0";
@@ -93,8 +94,9 @@ DualTool::DualTool(MBInterface *impl)
                               dualGraphicsPointTag, &dum_pt);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
 
+  int dum_int = 0;
   result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, 
-                              globalIdTag, &dummy);
+                              globalIdTag, &dum_int);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
 }
 
