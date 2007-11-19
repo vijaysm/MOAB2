@@ -2121,12 +2121,23 @@ MBErrorCode MBCore::side_element(const MBEntityHandle source_entity,
   int num_verts;
   MBErrorCode result = get_connectivity(source_entity, verts, num_verts);
   if (MB_SUCCESS != result) return result;
+
+    // special case for vertices
+  if (dim == 0) {
+    if (side_number < num_verts) {
+      target_entity = verts[side_number];
+      return MB_SUCCESS;
+    }
+    
+    else return MB_INDEX_OUT_OF_RANGE;
+  }
   
     // get the vertices comprising the target entity
   MBRange side_verts, target_ents;
   const MBEntityType source_type = TYPE_FROM_HANDLE(source_entity);
     // first get the indices
   std::vector<int> vertex_indices;
+
   int temp_result = 
     MBCN::AdjacentSubEntities(source_type, &side_number, 1, dim, 0, vertex_indices);
   if (0 != temp_result) return MB_FAILURE;

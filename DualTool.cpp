@@ -1739,13 +1739,14 @@ MBErrorCode DualTool::foc_get_ents(MBEntityHandle ocl,
                                  other_nodes[0]); RR;
     result = mtu.opposite_entity(split_edges[1], split_node,
                                  other_nodes[1]); RR;
+      // over split quads:
     for (int i = 0; i < 2; i++) {
-        // 1st other edge is opposite second split edge on split quad
+        // 1st other edge is opposite second split edge
       result = mtu.opposite_entity(split_quads[i], 
-                                   split_edges[1-i], other_edges[i]); RR;
-        // 2nd other edge is opposite first split edge on split quad
+                                   split_edges[1], other_edges[i]); RR;
+        // 2nd other edge is opposite first split edge
       result = mtu.opposite_entity(split_quads[i], 
-                                   split_edges[i], other_edges[2+i]); RR;
+                                   split_edges[0], other_edges[2+i]); RR;
         // last other node is opposite split node on split quad
       result = mtu.opposite_entity(split_quads[i], split_node,
                                    other_nodes[i]); RR;
