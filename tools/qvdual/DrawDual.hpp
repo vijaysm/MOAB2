@@ -217,15 +217,12 @@ private:
   
   MBErrorCode construct_graphviz_points(MBEntityHandle dual_surf, 
                                         MBRange &dverts, 
-                                        Agsym_t *asym_pos,
-                                        GVEntity **dvert_gv);
+                                        Agsym_t *asym_pos);
   
   MBErrorCode construct_graphviz_edges(MBEntityHandle dual_surf, 
                                        MBRange &dedges, 
                                        MBRange &loop_verts, 
-                                       Agsym_t *asym_pos, 
-                                       GVEntity **dvert_gv, 
-                                       GVEntity **dege_gv);
+                                       Agsym_t *asym_pos);
   
   Agsym_t *get_asym(MBEntityHandle dual_surf, const int dim,
                     const char *name, const char *def_val = NULL);

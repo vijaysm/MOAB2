@@ -65,38 +65,38 @@ public:
   static MBTag vtkTopContainsTag;
 
     //! name for vtkTopContainsTag;
-  static char *vtkTopContainsTagName;
+  static const char *vtkTopContainsTagName;
   
   //! tag indicating whether a given set is in top parent assy
   static MBTag vtkTopParentTag;
 
     //! name for vtkTopParentTag;
-  static char *vtkTopParentTagName;
+  static const char *vtkTopParentTagName;
   
     //! tag for pointing to vtk cell representing an entity
   static MBTag vtkCellTag;
   
     //! name for vtkCellTag
-  static char *vtkCellTagName;
+  static const char *vtkCellTagName;
 
     //! tag for pointing to vtk actor for a set
   static MBTag vtkSetActorTag;
   
     //! name for vtkSetActorTag
-  static char *vtkSetActorTagName;
+  static const char *vtkSetActorTagName;
 
     //! tag for pointing to vtk prop assembly for a set; a prop assembly
     //! for a set is only created if the set contains sets
   static MBTag vtkSetPropAssemblyTag;
   
     //! name for vtkSetPropAssemblyTag
-  static char *vtkSetPropAssemblyTagName;
+  static const char *vtkSetPropAssemblyTagName;
 
     //! tag for determining whether a point has been allocated for a vertex
   static MBTag vtkPointAllocatedTag;
   
     //! name for vtkPointAllocatedTag
-  static char *vtkPointAllocatedTagName;
+  static const char *vtkPointAllocatedTagName;
 
     //! picked entities
   static MBRange pickedEntities;

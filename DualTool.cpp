@@ -1417,20 +1417,23 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &quad1
   
     // perform an atomic pillow operation around dedge
 
-    // 0. get star 2cells and 3cells around odedge (before odedge changes)
-  MeshTopoUtil mtu(mbImpl);
-  MBRange star_2cells, star_3cells;
-  MBErrorCode result = mbImpl->get_adjacencies(&odedge, 1, 2, false, star_2cells); RR;
-  result = mbImpl->get_adjacencies(&odedge, 1, 3, false, star_3cells); RR;
-  
-    // tear down the dual entities which will be modified by the ap first
-  result = delete_dual_entities(star_3cells);RR;
-  result = delete_dual_entities(star_2cells);RR;
-
     // grab the quad before deleting the odedge
   quad1 = get_dual_entity(odedge);
   assert(0 != quad1);
-  result = delete_dual_entities(&odedge, 1); RR;
+
+    // 0. get star 2cells around odedge (before odedge changes) and 3cells around
+    // those 2cells (going to delete the 2cells, therefore need to delete the 3cells
+    // that depend on those too)
+  MeshTopoUtil mtu(mbImpl);
+  MBRange star_cells, tmp_cells;
+  MBErrorCode result = mbImpl->get_adjacencies(&odedge, 1, 2, false, star_cells); RR;
+  result = mbImpl->get_adjacencies(star_cells, 3, false, tmp_cells,
+                                   MBInterface::UNION); RR;
+  star_cells.merge(tmp_cells);
+  star_cells.insert(odedge);
+  
+    // tear down the dual entities which will be modified by the ap first
+  result = delete_dual_entities(star_cells); RR;
 
     // now change the quad to an ap
   std::vector<MBEntityHandle> verts;
@@ -1579,59 +1582,53 @@ MBErrorCode DualTool::rev_atomic_pillow(MBEntityHandle pillow, MBRange &chords)
   return MB_SUCCESS;
 }
 
-MBErrorCode DualTool::delete_dual_entities(MBEntityHandle *entities, 
-                                           const int num_entities) 
+MBErrorCode DualTool::delete_dual_entities(MBEntityHandle *entities,
+                                           int num_entities) 
 {
-  if (NULL == entities || num_entities == 0) return delete_whole_dual();
+  MBRange tmp_ents;
+  std::copy(entities, entities+num_entities, mb_range_inserter(tmp_ents));
+  return delete_dual_entities(tmp_ents);
+}
+  
+MBErrorCode DualTool::delete_dual_entities(MBRange &entities) 
+{
+  if (entities.empty()) return delete_whole_dual();
   
   MBEntityHandle null_entity = 0;
   MBErrorCode result;
-  std::vector<MBEntityHandle> ents_to_delete;
+  MBRange ents_to_delete;
   
-  for (int i = 0; i < num_entities; i++) {
+  while (!entities.empty()) {
+    MBEntityHandle this_entity = entities.pop_back();
+    
       // reset the primal's dual entity
-    MBEntityHandle primal = get_dual_entity(entities[i]);
-    if (get_dual_entity(primal) == entities[i]) {
+    MBEntityHandle primal = get_dual_entity(this_entity);
+    if (get_dual_entity(primal) == this_entity) {
       result = mbImpl->tag_set_data(dualEntity_tag(), &primal, 1, &null_entity); RR;
     }
     MBEntityHandle extra = get_extra_dual_entity(primal);
     if (0 != extra) {
       result = mbImpl->tag_set_data(extraDualEntity_tag(), &primal, 1, &null_entity); RR;
     }
-    ents_to_delete.push_back(entities[i]);
+
+    ents_to_delete.insert(this_entity);
     
       // check for extra dual entities
-    if (mbImpl->type_from_handle(entities[i]) == MBPOLYGON) {
+    if (mbImpl->type_from_handle(this_entity) == MBPOLYGON) {
       // for 2cell, might be a loop edge
       MBRange loop_edges;
-      result = mbImpl->get_adjacencies(&entities[i], 1, 1, false, loop_edges);
-      for (MBRange::iterator rit = loop_edges.begin(); rit != loop_edges.end(); rit++) {
-        if (check_1d_loop_edge(*rit)) {
-          MBEntityHandle this_ent = *rit;
-          result = delete_dual_entities(&this_ent, 1); RR;
-        }
-      }
+      result = mbImpl->get_adjacencies(&this_entity, 1, 1, false, loop_edges);
+      for (MBRange::iterator rit = loop_edges.begin(); rit != loop_edges.end(); rit++)
+        if (check_1d_loop_edge(*rit)) entities.insert(*rit);
     }
-    else if (extra && extra != entities[i])
+    else if (extra && extra != this_entity)
         // just put it on the list; primal for which we're extra has already been
         // reset to not point to extra entity
-      ents_to_delete.push_back(extra);
+      ents_to_delete.insert(extra);
   }
 
     // now delete the entities (sheets and chords will be updated automatically)
-  return mbImpl->delete_entities(&ents_to_delete[0], ents_to_delete.size());
-}
-
-MBErrorCode DualTool::delete_dual_entities(MBRange &entities) 
-{
-  MBErrorCode result = MB_SUCCESS;
-  for (MBRange::reverse_iterator rit = entities.rbegin(); rit != entities.rend(); rit++) {
-    MBEntityHandle this_ent = *rit;
-    MBErrorCode tmp_result = delete_dual_entities(&this_ent, 1);
-    if (MB_SUCCESS != tmp_result) result = tmp_result;
-  }
-
-  return result;
+  return mbImpl->delete_entities(ents_to_delete);
 }
 
 MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr) 
@@ -1821,7 +1818,6 @@ MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
   result = mtu.split_entities_manifold(split_quads, 2, new_quads, NULL); RR;
   for (int i = 0; i < 2; i++) merge_ents.push_back(split_quads[i]);
   for (int i = 0; i < 2; i++) merge_ents.push_back(new_quads[i]);
-  
 
     // if we're splitting 2 edges, there might be other edges that have the split
     // node; also need to know which side they're on
@@ -1830,24 +1826,36 @@ MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
     result = foc_get_addl_ents(star_dp1, star_dp2, split_node, addl_ents); RR;
   }
 
+    // also need to put old/new quads on the addl_ents lists so they get adjs to 
+    // split edges correctly
+  for (int i = 0; i < 2; i++) {
+    addl_ents[0].insert(new_quads[i]); 
+    addl_ents[1].insert(split_quads[i]); 
+  }
+  
     // now split the edges; just add the star ents to addl_ents to pass into
     // split_nonmanifold
   for (int i = 0; i < 2; i++) 
-    std::copy(star_dp1[i].begin(), star_dp1[i].end(), mb_range_inserter(addl_ents[i]));
+    std::copy(star_dp1[i].begin(), star_dp1[i].end(), 
+              mb_range_inserter(addl_ents[i]));
   
   MBEntityHandle new_entity;
-  result = mtu.split_entity_nonmanifold(split_edges[0], addl_ents[0], addl_ents[1],
-                                        new_entity); RR;
-  addl_ents[0].insert(split_edges[0]); addl_ents[1].insert(new_entity);
+    // pass addl_ents[1] in with split edge so that split edge remains
+    // on a bdy if it was before
+  result = mtu.split_entity_nonmanifold(split_edges[0], addl_ents[1], 
+                                        addl_ents[0], new_entity); RR;
+  addl_ents[1].insert(split_edges[0]); addl_ents[0].insert(new_entity);
 
   if (split_edges[1]) {
-    result = mtu.split_entity_nonmanifold(split_edges[1], addl_ents[0], addl_ents[1],
-                                          new_entity); RR;
-    addl_ents[0].insert(split_edges[0]); addl_ents[1].insert(new_entity);
+      // split 2nd edge; again send old edge with addl_ents[1] to keep
+      // on bdy
+    result = mtu.split_entity_nonmanifold(split_edges[1], addl_ents[1], 
+                                          addl_ents[0], new_entity); RR;
+    addl_ents[1].insert(split_edges[1]); addl_ents[0].insert(new_entity);
   
       // now split the node too
-    result = mtu.split_entity_nonmanifold(split_node, addl_ents[0], addl_ents[1],
-                                          new_entity); RR;
+    result = mtu.split_entity_nonmanifold(split_node, addl_ents[1], 
+                                          addl_ents[0], new_entity); RR;
   }
   
   return MB_SUCCESS;
@@ -1918,6 +1926,8 @@ MBErrorCode DualTool::foc_get_stars(MBEntityHandle *split_quads,
   bool on_bdy;
   MBErrorCode result;
   MeshTopoUtil mtu(mbImpl);
+  MBEntityHandle first_split_quad = 0;
+  
   for (int i = 0; i < 2; i++) {
       // only do 2nd iteration if we have a 2nd edge
     if (1 == i && !split_edges[1]) continue;
@@ -1927,30 +1937,35 @@ MBErrorCode DualTool::foc_get_stars(MBEntityHandle *split_quads,
     result = mtu.star_entities(split_edges[i], star_tmp[0], on_bdy, 0,
                                &star_tmp[1]); RR;
     std::vector<MBEntityHandle>::iterator fit, hit;
-    bool inside = false;
 
-      // separate the star into halves; store faces in split_qstar[0],[1], and
-      // the hexes in split_hstar[0],[1]
-    for (fit = star_tmp[0].begin(), hit = star_tmp[1].begin(); fit != star_tmp[0].end();
-         fit++, hit++) {
-        // start of loop, see if we're going from outside to inside
-      if (!inside && (*fit == split_quads[0] || *fit == split_quads[1]))
-        inside = true;
-        // put current face on right list
-      if (inside) split_qstar[0].push_back(*fit);
-      else split_qstar[1].push_back(*fit);
-        // decide whether we're going outside after this face
-      if (inside && *fit != *split_qstar[0].begin() &&
-          (*fit == split_quads[0] || *fit == split_quads[1]))
-        inside = false;
-        // save hex based on inside/outside *after* outside test, so that hex
-        // after outside face goes on outside list;
-        // only save hex if we're not on the end with a bdy
-      if (!on_bdy || fit != star_tmp[0].end()) {
-        if (inside) split_hstar[0].push_back(*hit);
-        else split_hstar[1].push_back(*hit);
+      // find 1st and 2nd split face around star
+    int first_ind = -1, second_ind = -1, j = 0;
+    for (fit = star_tmp[0].begin(); fit != star_tmp[0].end(); fit++, j++) {
+      if (*fit == split_quads[0] || *fit == split_quads[1]) {
+        if (first_ind == -1) first_ind = j;
+        else second_ind = j;
       }
     }
+    assert(-1 != first_ind && -1 != second_ind);
+    
+      // now assemble the parts of the star
+    for (j = 0; j < (int) star_tmp[0].size(); j++) {
+        // split quads and ones before/after go on outside list
+      if (j <= first_ind || j >= second_ind) 
+        split_qstar[1].push_back(star_tmp[0][j]);
+      else
+        split_qstar[0].push_back(star_tmp[0][j]);
+        // hexes before/after do too, but watch out for non-existent
+        // last one if we're on bdy
+      if (j >= first_ind && j < second_ind)
+        split_hstar[0].push_back(star_tmp[1][j]);
+      else if (!on_bdy || (on_bdy && j < (int) star_tmp[0].size()-1))
+        split_hstar[1].push_back(star_tmp[1][j]);
+    }
+
+      // save the 1st split quad on the 1st iteration, to align lists later
+    if (0 == first_split_quad) 
+      first_split_quad = star_tmp[0][first_ind];
 
       // if we're on edge 1, just put the halves into the result vectors
     if (0 == i) {
@@ -1964,10 +1979,12 @@ MBErrorCode DualTool::foc_get_stars(MBEntityHandle *split_quads,
         // the back depending whether that face is 1st or last on split_qstar[0]
       MBEntityHandle hex1 = *star_dp2[0].begin();
       MBEntityHandle hex2 = 0;
-      if (*split_qstar[0].begin() == *star_dp1[0].begin())
+      if (star_tmp[0][first_ind] == first_split_quad)
         hex2 = *split_hstar[0].begin();
-      else if (*split_qstar[0].rbegin() == *star_dp1[0].begin())
+      else if (star_tmp[0][second_ind] == first_split_quad)
         hex2 = *split_hstar[0].rbegin();
+      else assert(false);
+      
       if (hex1 == hex2) {
         for (int i = 0; i < 2; i++)
           std::copy(split_qstar[i].begin(), split_qstar[i].end(), 
@@ -2034,13 +2051,7 @@ MBErrorCode DualTool::foc_delete_dual(MBEntityHandle *split_quads,
   for (MBRange::iterator rit = cells1or2.begin(); rit != cells1or2.end(); rit++)
     dual_hps.insert(get_dual_hyperplane(*rit));
 
-  std::vector<MBEntityHandle> dual_ents_vec;
-  std::copy(dual_ents.rbegin(), dual_ents.rend(), std::back_inserter(dual_ents_vec));
-  
-//  for (MBRange::iterator rit = dual_ents.rbegin(); rit != dual_ents.rend(); rit++)
-//    dual_ents_vec.push_back(*rit);
-  
-  result = delete_dual_entities(&dual_ents_vec[0], dual_ents_vec.size());
+  result = delete_dual_entities(dual_ents);
   if (MB_SUCCESS != result) return result;
 
     // now decide which sheet to delete (to be merged into the other)

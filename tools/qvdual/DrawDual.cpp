@@ -246,11 +246,11 @@ void DrawDual::process_pick(vtkRenderer *ren)
       // assembly
     vtkActorCollection *actors = dualPicker->GetActors();
   
-    vtkActor *picked_actor = NULL, *tmp_actor;
-    MBEntityHandle picked_sheet = 0, picked_chord = 0;
+    vtkActor *tmp_actor;
+      //vtkActor *picked_actor = NULL;
+      //MBEntityHandle picked_sheet = 0, picked_chord = 0;
   
     actors->InitTraversal();
-    int i = 0;
     while ((tmp_actor = actors->GetNextItem())) {
       MBEntityHandle this_set = vtkMOABUtils::propSetMap[tmp_actor];
       if (0 == this_set || -1 == dualPicker->GetCellId()) continue;
@@ -366,10 +366,9 @@ void DrawDual::update_high_polydatas()
   MBErrorCode result;
   std::vector<MBEntityHandle> dual_sets;
   std::vector<MBEntityHandle>::iterator vit;
-  static std::vector<GVEntity*> gvents;
-  gvents.reserve(pickRange.size());
+  GVEntity **gvents;
   
-  result = MBI->tag_get_data(gvEntityHandle, pickRange, &gvents[0]); 
+  result = MBI->tag_get_data(gvEntityHandle, pickRange, &gvents); 
   if (MB_SUCCESS != result) return;
   unsigned int i, j;
   MBRange::iterator rit;
@@ -957,13 +956,12 @@ MBErrorCode DrawDual::make_vtk_cells(const MBRange &cell_range, const int dim,
                                      vtkFloatArray *color_ids) 
 {
   std::vector<MBEntityHandle> cell_verts;
-  std::vector<GVEntity*> gv_cells;
+  std::vector<GVEntity *> gv_cells(cell_range.size());
   int cell_num;
   MBRange::iterator rit;
   vtkIdType cell_points[20];
   static int vtk_cell_type[] = {VTK_VERTEX, VTK_LINE, VTK_POLYGON};
 
-  gv_cells.reserve(cell_range.size());
   MBErrorCode result = MBI->tag_get_data(gvEntityHandle, cell_range, &gv_cells[0]);
   if (MB_SUCCESS != result) return result;
 
@@ -1059,7 +1057,7 @@ MBErrorCode DrawDual::allocate_points(MBEntityHandle dual_surf,
   pd->Allocate();
   
   std::vector<GVEntity*> gv_verts;
-  gv_verts.reserve(verts.size());
+  gv_verts.resize(verts.size());
   
     // get the gventities
   MBErrorCode result = MBI->tag_get_data(gvEntityHandle, verts, &gv_verts[0]);
@@ -1080,6 +1078,7 @@ MBErrorCode DrawDual::allocate_points(MBEntityHandle dual_surf,
     result = get_xform(dual_surf, asym_pos, x_xform, y_xform);
 
   for (rit = verts.begin(), i = 0; rit != verts.end(); rit++, i++) {
+    assert(NULL != gv_verts[i]);
     int index = gv_verts[i]->get_index(dual_surf);
     assert(index >= 0 && NULL != gv_verts[i]->gvizPoints[index]);
     if (gv_verts[i]->vtkEntityIds[index] == -1) {
@@ -1098,7 +1097,7 @@ MBErrorCode DrawDual::allocate_points(MBEntityHandle dual_surf,
   if (edges.empty()) return MB_SUCCESS;
   
     // check for mid-edge points; reuse gv_verts
-  gv_verts.reserve(edges.size());
+  gv_verts.resize(edges.size());
   
     // get the gventities
   result = MBI->tag_get_data(gvEntityHandle, edges, &gv_verts[0]);
@@ -1107,6 +1106,7 @@ MBErrorCode DrawDual::allocate_points(MBEntityHandle dual_surf,
     return result;
   }
   for (rit = edges.begin(), i = 0; rit != edges.end(); rit++, i++) {
+    assert(NULL != gv_verts[i]);
     int index = gv_verts[i]->get_index(dual_surf);
     assert(index >= 0);
     if (NULL != gv_verts[i]->gvizPoints[index+2] &&
@@ -1146,6 +1146,7 @@ MBErrorCode DrawDual::get_xform(MBEntityHandle dual_surf, Agsym_t *asym_pos,
 
     // find a vertex with non-zero x, y coordinates
   for (std::vector<GVEntity*>::iterator vit = gv_verts.begin(); vit != gv_verts.end(); vit++) {
+    assert(NULL != *vit);
     int index = (*vit)->get_index(dual_surf);
     assert(index >= 0 && NULL != (*vit)->gvizPoints[index]);
       // get new point position
@@ -1315,39 +1316,31 @@ MBErrorCode DrawDual::construct_graphviz_data(MBEntityHandle dual_surf,
   }
     
     // for each vertex, allocate a graphviz point if it doesn't already have one
-  GVEntity **dvert_gv = new GVEntity*[dverts.size()];
-  MBErrorCode result = MBI->tag_get_data(gvEntityHandle, dverts, dvert_gv); RR;
   Agsym_t *asym_pos = (useGraphviz ? get_asym(dual_surf, 0, "pos") : NULL);
 
-  result = construct_graphviz_points(dual_surf, dverts, asym_pos, dvert_gv); RR;
+  MBErrorCode result = construct_graphviz_points(dual_surf, dverts, asym_pos); RR;
   
     // for each edge, allocate a graphviz edge if it doesn't already have one
-  GVEntity **dedge_gv = new GVEntity*[dedges.size()];
-  result = MBI->tag_get_data(gvEntityHandle, dedges, dedge_gv); RR;
-
-  result = construct_graphviz_edges(dual_surf, dedges, face_verts, asym_pos, 
-                                    dvert_gv, dedge_gv); RR;
+  result = construct_graphviz_edges(dual_surf, dedges, face_verts, asym_pos); RR;
   
-  delete [] dvert_gv;
-  delete [] dedge_gv;
-
   return result;
 }
 
 MBErrorCode DrawDual::construct_graphviz_edges(MBEntityHandle dual_surf, 
                                                MBRange &dedges, 
                                                MBRange &loop_verts, 
-                                               Agsym_t *asym_pos, 
-                                               GVEntity **dvert_gv, 
-                                               GVEntity **dedge_gv) 
+                                               Agsym_t *asym_pos) 
 {
   const MBEntityHandle *connect;
   int num_connect;
   MBErrorCode result = MB_SUCCESS;
   char dum_str[80];
   GraphWindows &this_gw = surfDrawrings[dual_surf];
-  Agsym_t *asym_weight = (useGraphviz ? get_asym(dual_surf, 1, "weight") : NULL), 
-    *asym_len = (useGraphviz ? get_asym(dual_surf, 1, "len") : NULL);
+    //Agsym_t *asym_weight = (useGraphviz ? get_asym(dual_surf, 1, "weight") : NULL), 
+    //*asym_len = (useGraphviz ? get_asym(dual_surf, 1, "len") : NULL);
+  std::vector<GVEntity*> dedge_gv(dedges.size());
+  result = MBI->tag_get_data(gvEntityHandle, dedges, &dedge_gv[0]); RR;
+  GVEntity *dvert_gv[2];
  
   MBRange::iterator rit;
   int i;
@@ -1468,14 +1461,15 @@ MBErrorCode DrawDual::construct_graphviz_edges(MBEntityHandle dual_surf,
 
 MBErrorCode DrawDual::construct_graphviz_points(MBEntityHandle dual_surf, 
                                                 MBRange &dverts, 
-                                                Agsym_t *asym_pos,
-                                                GVEntity **dvert_gv) 
+                                                Agsym_t *asym_pos) 
 {
   MBRange::iterator rit;
   int i;
   MBErrorCode result = MB_SUCCESS;
   GraphWindows &this_gw = surfDrawrings[dual_surf];
   char dum_str[80];
+  std::vector<GVEntity*> dvert_gv(dverts.size());
+  result = MBI->tag_get_data(gvEntityHandle, dverts, &dvert_gv[0]);
   
   for (rit = dverts.begin(), i = 0; rit != dverts.end(); rit++, i++) {
 
@@ -1706,7 +1700,6 @@ MBErrorCode DrawDual::compute_pillow_fixed_points(MBEntityHandle dual_surf,
   
     // if more, get the first two vertices on the first chord, then a 3rd
     // from another that's not in the 1st set
-  MBEntityHandle dum_verts[3];
   MBRange tmp_range;
   result = MBI->get_entities_by_dimension(chords[0], 1, tmp_range); RR;
   assert(3 < tmp_range.size());
@@ -2175,6 +2168,7 @@ void DrawDual::get_graph_points(const MBEntityHandle *ents, const int num_ents,
   
   int offset = (extra ? 2 : 0);
   for (int i = 0; i < num_ents; i++) {
+    assert(NULL != gvs[i]);
     int index = gvs[i]->get_index(dual_surf);
     assert(index >= 0 && index < 3);
     points[i] = gvs[i]->gvizPoints[index+offset];

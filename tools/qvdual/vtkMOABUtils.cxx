@@ -84,37 +84,37 @@ vtkPropAssembly *vtkMOABUtils::topParentAssy = NULL;
 MBTag vtkMOABUtils::vtkTopContainsTag = 0;
 
     //! name for vtkTopContainsTag;
-char *vtkMOABUtils::vtkTopContainsTagName = "__vtkTopContainsTag";
+const char *vtkMOABUtils::vtkTopContainsTagName = "__vtkTopContainsTag";
   
   //! tag indicating whether a given set is in top parent assy
 MBTag vtkMOABUtils::vtkTopParentTag = 0;
 
     //! name for vtkTopParentTag;
-char *vtkMOABUtils::vtkTopParentTagName = "__vtkTopParentTag";
+const char *vtkMOABUtils::vtkTopParentTagName = "__vtkTopParentTag";
   
   //! tag for pointing to vtk cell representing an entity
 MBTag vtkMOABUtils::vtkCellTag = 0;
   
   //! name for vtkCellTag
-char *vtkMOABUtils::vtkCellTagName = "__vtkCellTag";
+const char *vtkMOABUtils::vtkCellTagName = "__vtkCellTag";
 
   //! tag for pointing to vtk actor for a set
 MBTag vtkMOABUtils::vtkSetActorTag = 0;
   
     //! name for vtkSetActorTag
-char *vtkMOABUtils::vtkSetActorTagName = "__vtkSetActorTag";
+const char *vtkMOABUtils::vtkSetActorTagName = "__vtkSetActorTag";
 
     //! tag for pointing to vtk prop assembly for a set
 MBTag vtkMOABUtils::vtkSetPropAssemblyTag = 0;
   
     //! name for vtkSetPropAssemblyTag
-char *vtkMOABUtils::vtkSetPropAssemblyTagName = "__vtkSetPropAssemblyTag";
+const char *vtkMOABUtils::vtkSetPropAssemblyTagName = "__vtkSetPropAssemblyTag";
 
   //! tag for determining whether a point has been allocated for a vertex
 MBTag vtkMOABUtils::vtkPointAllocatedTag = 0;
   
   //! name for vtkPointAllocatedTag
-char *vtkMOABUtils::vtkPointAllocatedTagName = "__vtkPointAllocatedTag";
+const char *vtkMOABUtils::vtkPointAllocatedTagName = "__vtkPointAllocatedTag";
 
 DrawDual *vtkMOABUtils::drawDual = NULL;
 
@@ -392,7 +392,7 @@ MBErrorCode vtkMOABUtils::update_all_actors(MBEntityHandle this_set,
   result = vtkMOABUtils::update_set_actors(sheet_sets, vtkMOABUtils::myUG, true, false, true);
   if (MB_SUCCESS != result) return result;
 
-  int table_size = ((int) chord_sets.size()+sheet_sets.size() > vtkMOABUtils::totalColors ? 
+  int table_size = ((int) (chord_sets.size()+sheet_sets.size()) > vtkMOABUtils::totalColors ? 
                     chord_sets.size()+sheet_sets.size() : vtkMOABUtils::totalColors);
   vtkMOABUtils::construct_lookup_table(table_size);
   

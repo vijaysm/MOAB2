@@ -46,7 +46,7 @@ void CropTool::set_the_function(vtkImplicitFunction *this_func)
 
 void CropTool::type_activated(const int num, const int type_num)
 {
-  vtkImplicitFunction *the_func = NULL;
+    //vtkImplicitFunction *the_func = NULL;
   
   vtkPlane *plane;
   vtkCylinder *cyl;

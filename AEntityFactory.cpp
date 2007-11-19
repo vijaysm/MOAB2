@@ -467,7 +467,7 @@ MBErrorCode AEntityFactory::remove_all_adjacencies(MBEntityHandle base_entity,
         if (adjvect[j] == base_entity)
           remove_this = true;
         
-        if (MBCN::Dimension(TYPE_FROM_HANDLE(adjvect[j])) > base_ent_dim 
+        if (MBCN::Dimension(TYPE_FROM_HANDLE(adjvect[j])) != base_ent_dim 
          && explicitly_adjacent( adjvect[j], base_entity )) 
           remove_adjacency( adjvect[j], base_entity );
       }
