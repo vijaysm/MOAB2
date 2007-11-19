@@ -102,7 +102,6 @@ project( MOAB )
   # MOAB Library
   set ( MOAB_LIB_SRCS
     AEntityFactory.cpp
-    DenseTagCollections.cpp
     DualTool.cpp
     EntitySequence.cpp
     ExoIIUtil.cpp
