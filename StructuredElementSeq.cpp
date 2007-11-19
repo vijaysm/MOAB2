@@ -66,6 +66,7 @@ MBErrorCode StructuredElementSeq::get_connectivity(
     return MB_NOT_IMPLEMENTED;
   }
   
+  storage->clear();
   MBErrorCode rval = get_connectivity( handle, *storage, topo );
   connect = &(*storage)[0];
   connect_length = storage->size();
