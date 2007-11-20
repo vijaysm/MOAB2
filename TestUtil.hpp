@@ -1,9 +1,11 @@
 #ifndef TEST_UTIL_HPP
 #define TEST_UTIL_HPP
 
-#define NOFORK
-
-#include <math.h>
+/* How to use this test suite utility:
+ * 1) Write tests that use the CHECK and CHECK_* macros defined below to assert test conditions.
+ * 2) Write a main routine that invokes each test through the RUN_TEST macro
+ * 3) RUN_TEST evaluates to 1 if test failed, zero otherwize.  Count failures and print summary.
+ */
 
 /** Check that A is MB_SUCCESS */
 #define CHECK_ERR( A )                    check_equal( MB_SUCCESS, (A), "MB_SUCCESS", #A, __LINE__, __FILE__ )
@@ -18,19 +20,141 @@
  */
 #define RUN_TEST( FUNC )           run_test( &FUNC, #FUNC )
 
+
+// Use C++ exceptions to return error state to test runner
+// Portable, but whole test suite stops if any test segfaults, asserts, etc.
+#define EXCEPTION_MODE 1   
+
+// Test runner forks separate process for each test.
+// Difficult to debug tests (with debugger).  Not portable to Windows.  
+// Very robust (no test can distrub test running code)
+#define FORK_MODE 2
+
+// Use signal handler and long jumps to return error state to test runner.
+// Might be portable to Windows (not sure).  Possibly undefined behavior (e.g. continuing 
+// with next test after catching segfault is technically undefined behavior.)
+#define LONGJMP_MODE 3      
+
+// If test application hasn't set MODE, set to default
+#ifndef MODE
+#  ifdef _MSC_VER
+#    define MODE EXCEPTION_MODE
+#  else
+#    define MODE LONGJMP_MODE
+#  endif
+#endif
+
+
+/***************************************************************************************
+ * NOTE: The remainder of this file contains the implementation of the above macros.
+ *       The above macros constitute the entire intended API.
+ ***************************************************************************************/
+
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#if defined(_MSC_VER) || defined(NOFORK)
+#if MODE == EXCEPTION_MODE
    struct ErrorExcept{};
 #  define FLAG_ERROR throw ErrorExcept()
-#else
+#elif MODE == FORK_MODE
 #  include <sys/types.h>
 #  include <sys/wait.h>
 #  include <unistd.h>
 #  include <errno.h>
 #  define FLAG_ERROR exit(1)
+#elif MODE == LONGJMP_MODE
+#  include <signal.h>
+#  include <setjmp.h>
+#  ifdef SIGUSR2
+#    define FLAG_ERROR raise(SIGUSR2)
+#  else
+#    define FLAG_ERROR abort()
+#  endif
+#else
+#  error "MODE not set"
 #endif
+
+#if MODE == LONGJMP_MODE
+
+jmp_buf jmpenv;
+extern "C" {
+  void sighandler( int sig ) {
+    signal( sig, sighandler );
+    longjmp(jmpenv, sig);
+    // should never return from longjmp
+    exit(1);
+  }
+  typedef void (*sigfunc_t)(int);
+} // extern "C"
+int sethandler( int sig ) {
+  sigfunc_t h = signal( sig, &sighandler );
+  if (h == SIG_ERR)
+    return  1;
+  else if (h != SIG_DFL)
+    signal( sig, h );
+  return 0;
+}
+
+int init_signal_handlers()
+{
+  int result = 0;
+#ifdef SIGHUP
+  result += sethandler( SIGHUP );
+#endif
+#ifdef SIGINT
+  result += sethandler( SIGINT );
+#endif
+#ifdef SIGQUIT
+  result += sethandler( SIGQUIT );
+#endif
+#ifdef SIGILL
+  result += sethandler( SIGILL );
+#endif
+#ifdef SIGTRAP
+  result += sethandler( SIGTRAP );
+#endif
+#ifdef SIGABRT
+  result += sethandler( SIGABRT );
+#endif
+#ifdef SIGBUS
+  result += sethandler( SIGBUS );
+#endif
+#ifdef SIGFPE
+  result += sethandler( SIGFPE );
+#endif
+#ifdef SIGUSR1
+  result += sethandler( SIGUSR1 );
+#endif
+#ifdef SIGSEGV
+  result += sethandler( SIGSEGV );
+#endif
+#ifdef SIGUSR2
+  result += sethandler( SIGUSR2 );
+#endif
+#ifdef SIGPIPE
+  result += sethandler( SIGPIPE );
+#endif
+#ifdef SIGTERM
+  result += sethandler( SIGTERM );
+#endif
+#ifdef SIGCHLD
+  result += sethandler( SIGCHLD );
+#endif
+#ifdef SIGIO
+  result += sethandler( SIGIO );
+#endif
+#ifdef SIGSYS
+  result += sethandler( SIGSYS );
+#endif
+  return result;
+}
+
+// initialize global to force call to init_signal_handlers
+int junk_init_var = init_signal_handlers();
+
+#endif // LONGJMP_MODE
+
 
 
 /* Make sure IS_BUILDING_MB is defined so we can include MBInternals.hpp */
@@ -48,7 +172,7 @@ int run_test( test_func test, const char* func_name )
 {
   printf("Running %s ...\n", func_name );
   
-#if defined(_MSC_VER) || defined(NOFORK) 
+#if MODE == EXCEPTION_MODE
   /* On Windows, run all tests in same process.
      Flag errors by throwing an exception.
    */
@@ -65,7 +189,7 @@ int run_test( test_func test, const char* func_name )
     return 1;
   }
     
-#else
+#elif MODE == FORK_MODE
     /* For non-Windows OSs, fork() and run test in child process. */
   pid_t pid = fork();
   int status;
@@ -102,7 +226,26 @@ int run_test( test_func test, const char* func_name )
   else {
     return 0;
   }
+  
+#elif MODE == LONGJMP_MODE
+  int sig = setjmp( jmpenv );
+  if (!sig) {
+    (*test)();
+    return 0;
+  }
+#ifdef SIGUSR2
+  else if(sig == SIGUSR2) {
+    printf( "  %s: FAILED\n", func_name );
+    return 1;
+  }
 #endif
+  else {
+    printf( "  %s: TERMINATED (signal %d)\n", func_name, sig );
+    return 1;
+  }
+#else
+  #error "MODE not set"
+#endif // MODE
 }
 
 
