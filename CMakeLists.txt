@@ -121,6 +121,7 @@ project( MOAB )
     MBMatrix3.cpp
     MBCore.cpp
     MBEdgeSizeEvaluator.cpp
+    MBEdgeSizeSimpleImplicit.cpp
     MBFactory.cpp
     MBGeomUtil.cpp
     MBMeshSet.cpp
@@ -315,5 +316,11 @@ project( MOAB )
     COMPILE_FLAGS "-DTEST -DIS_BUILDING_MB ${MOAB_DEFINES}" )
   target_link_libraries( tqdcfr MOAB )
   add_test( TestTQDCFR ${EXECUTABLE_OUTPUT_PATH}/tqdcfr )
+
+  add_executable( test_mesh_refiner test_mesh_refiner.cpp )
+  set_source_files_properties( test_mesh_refiner.cpp
+    COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
+  target_link_libraries( test_mesh_refiner MOAB )
+  add_test( TestMeshRefiner ${EXECUTABLE_OUTPUT_PATH}/test_mesh_refiner )
 
 
