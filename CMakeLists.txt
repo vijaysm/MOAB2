@@ -120,6 +120,7 @@ project( MOAB )
     MBHandleUtils.cpp
     MBMatrix3.cpp
     MBCore.cpp
+    MBEdgeSizeEvaluator.cpp
     MBFactory.cpp
     MBGeomUtil.cpp
     MBMeshSet.cpp
