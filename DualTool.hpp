@@ -334,15 +334,17 @@ private:
   MBErrorCode split_pair_nonmanifold(MBEntityHandle *split_quads,
                                      MBEntityHandle *split_edges,
                                      MBEntityHandle split_node,
-                                     MBRange &hexes,
                                      MBEntityHandle *other_edges,
                                      MBEntityHandle *other_nodes,
-                                     std::vector<MBEntityHandle> &merge_ents);
+                                     MBEntityHandle *new_quads,
+                                     MBEntityHandle *new_edges,
+                                     MBEntityHandle &new_node);
   
     //! for foc's splitting two shared edges, there might be additional entities
     //! connected to the split node that also have to be updated
   MBErrorCode foc_get_addl_ents(std::vector<MBEntityHandle> *star_dp1, 
                                 std::vector<MBEntityHandle> *star_dp2, 
+                                MBEntityHandle *split_edges,
                                 MBEntityHandle split_node,
                                 MBRange *addl_ents);
   

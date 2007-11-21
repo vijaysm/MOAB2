@@ -1653,29 +1653,40 @@ MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr)
   result = foc_delete_dual(split_quads, split_edges, hexes);
   if (MB_SUCCESS != result) return result;
 
-  std::vector<MBEntityHandle> merge_ents;
-  result = split_pair_nonmanifold(split_quads, split_edges, split_node, hexes,
-                                  other_edges, other_nodes, merge_ents);
+  MBEntityHandle new_quads[2], new_edges[2], new_node;
+  result = split_pair_nonmanifold(split_quads, split_edges, split_node, 
+                                  other_edges, other_nodes, 
+                                  new_quads, new_edges, new_node);
   if (MB_SUCCESS != result) return result;
 
-    // put the other entities to be merged on the list
-  for (int i = 0; i < 4; i++) merge_ents.push_back(other_edges[i]);
-  if (!split_node)   
-    for (int i = 4; i < 6; i++) merge_ents.push_back(other_edges[i]);
-  for (int i = 2; i < 4; i++) merge_ents.push_back(other_nodes[i]);
-  if (!split_node)   
-    for (int i = 4; i < 6; i++) merge_ents.push_back(other_nodes[i]);
+    // now merge entities, the C of foc
+  MBEntityHandle keepit, deleteit;
+#define MIN(a,b) (a < b ? a : b)  
+#define MAX(a,b) (a > b ? a : b)  
+#define KEEP_DELETE(a,b,c,d) {c = MIN(a,b); d = MAX(a,b);}
   
-  
-    // now merge them
-  for (std::vector<MBEntityHandle>::reverse_iterator vit = merge_ents.rbegin();
-       vit != merge_ents.rend(); vit+=2) {
-    if (*vit > *(vit+1))
-      result = mbImpl->merge_entities(*(vit+1), *vit, false, true);
-    else 
-      result = mbImpl->merge_entities(*vit, *(vit+1), false, true);
-    if (MB_SUCCESS != result) return result;
+    // first the node(s)
+
+  KEEP_DELETE(other_nodes[2], other_nodes[3], keepit, deleteit);
+  result = mbImpl->merge_entities(keepit, deleteit, false, true); RR;
+
+  if (!split_edges[1]) {
+    KEEP_DELETE(other_nodes[4], other_nodes[5], keepit, deleteit);
+    result = mbImpl->merge_entities(keepit, deleteit, false, true); RR;
   }
+  
+    // now the edges
+  int limit = (split_edges[1] ? 2 : 3);
+  for (int i = 0; i < limit; i++) {
+    KEEP_DELETE(other_edges[2*i], other_edges[2*i+1], keepit, deleteit);
+    result = mbImpl->merge_entities(keepit, deleteit, false, true); RR;
+  }
+
+    // now the faces
+  KEEP_DELETE(split_quads[0], split_quads[1], keepit, deleteit);
+  result = mbImpl->merge_entities(keepit, deleteit, false, true); RR;
+  
+  result = mbImpl->merge_entities(new_quads[0], new_quads[1], false, true); RR;
   
   if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
 
@@ -1749,7 +1760,7 @@ MBErrorCode DualTool::foc_get_ents(MBEntityHandle ocl,
                                    split_edges[0], other_edges[2+i]); RR;
         // last other node is opposite split node on split quad
       result = mtu.opposite_entity(split_quads[i], split_node,
-                                   other_nodes[i]); RR;
+                                   other_nodes[2+i]); RR;
     }
     other_edges[4] = other_edges[5] = 0;
   }
@@ -1801,10 +1812,11 @@ MBErrorCode DualTool::foc_get_ents(MBEntityHandle ocl,
 MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
                                              MBEntityHandle *split_edges,
                                              MBEntityHandle split_node,
-                                             MBRange &hexes,
                                              MBEntityHandle *other_edges,
                                              MBEntityHandle *other_nodes,
-                                             std::vector<MBEntityHandle> &merge_ents) 
+                                             MBEntityHandle *new_quads,
+                                             MBEntityHandle *new_edges,
+                                             MBEntityHandle &new_node)
 {
 
     // if there's a bdy in the star around the shared edge(s), get the quads on that
@@ -1815,106 +1827,101 @@ MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
     // get star entities around edges, separated into halves
   std::vector<MBEntityHandle> star_dp1[2], star_dp2[2];
   result = foc_get_stars(split_quads, split_edges, star_dp1, star_dp2); RR;
-  
-    // split manifold each of the split_quads, and put the results on the merge list
-  MBEntityHandle new_quads[2];
-  result = mtu.split_entities_manifold(split_quads, 2, new_quads, NULL); RR;
-  for (int i = 0; i < 2; i++) merge_ents.push_back(split_quads[i]);
-  for (int i = 0; i < 2; i++) merge_ents.push_back(new_quads[i]);
 
+    //=============== split faces
+
+    // split manifold each of the split_quads, and put the results on the merge list
+  result = mtu.split_entities_manifold(split_quads, 2, new_quads, NULL); RR;
+
+    // make ranges of faces which need to be explicitly adj to old, new
+    // edge; faces come from stars and new_quads (which weren't in the stars)
+  MBRange tmp_addl_faces[2];
+  for (int i = 0; i < 2; i++) {
+    std::copy(star_dp1[i].begin(), star_dp1[i].end(), 
+            mb_range_inserter(tmp_addl_faces[i]));
+    tmp_addl_faces[0].insert(new_quads[i]);
+  }
+
+    //=============== split 1st edge
+
+    // filter add'l faces to only those adj to split_edges[0]
+  MBRange addl_faces[2] = {tmp_addl_faces[0], tmp_addl_faces[1]};
+  for (int i = 0; i < 2; i++) {
+    result = mbImpl->get_adjacencies(&split_edges[0], 1, 2, false, 
+                                     addl_faces[i]); RR;
+  }
+  
+    // split the first edge
+  result = mtu.split_entity_nonmanifold(split_edges[0], addl_faces[1], 
+                                        addl_faces[0], new_edges[0]); RR;
+
+  if (!split_edges[1]) return MB_SUCCESS;
+
+    //=============== split 2nd edge
+
+    // filter add'l faces to only those adj to split_edges[1]
+  addl_faces[0] = tmp_addl_faces[0]; addl_faces[1] = tmp_addl_faces[1];
+  for (int i = 0; i < 2; i++) {
+    result = mbImpl->get_adjacencies(&split_edges[1], 1, 2, false, 
+                                     addl_faces[i]); RR;
+  }
+  
+    // split 2nd edge; again send old edge with addl_ents[1] to keep
+    // on bdy
+  result = mtu.split_entity_nonmanifold(split_edges[1], addl_faces[1], 
+                                        addl_faces[0], new_edges[1]); RR;
+  
+    //=============== split node
+
+    //=============== prepare for splitting 2 edges/1 node part
+  
     // if we're splitting 2 edges, there might be other edges that have the split
     // node; also need to know which side they're on
-  MBRange addl_ents[2];
-  if (split_node) {
-    result = foc_get_addl_ents(star_dp1, star_dp2, split_node, addl_ents); RR;
-  }
+  MBRange addl_edges[2];
+  result = foc_get_addl_ents(star_dp1, star_dp2, split_edges, 
+                             split_node, addl_edges); RR;
 
-    // also need to put old/new quads on the addl_ents lists so they get adjs to 
-    // split edges correctly
+    // also, we need to know which of the split/new edges go
+    // with the split/new node; new edges go with side 0, split with 1
   for (int i = 0; i < 2; i++) {
-    addl_ents[0].insert(new_quads[i]); 
-    addl_ents[1].insert(split_quads[i]); 
+    addl_edges[0].insert(new_edges[i]);
+    addl_edges[1].insert(split_edges[i]);
   }
-  
-    // now split the edges; just add the star ents to addl_ents to pass into
-    // split_nonmanifold
-  for (int i = 0; i < 2; i++) 
-    std::copy(star_dp1[i].begin(), star_dp1[i].end(), 
-              mb_range_inserter(addl_ents[i]));
-  
-  MBEntityHandle new_entity;
-    // pass addl_ents[1] in with split edge so that split edge remains
-    // on a bdy if it was before
-  result = mtu.split_entity_nonmanifold(split_edges[0], addl_ents[1], 
-                                        addl_ents[0], new_entity); RR;
-  addl_ents[1].insert(split_edges[0]); addl_ents[0].insert(new_entity);
 
-  if (split_edges[1]) {
-      // split 2nd edge; again send old edge with addl_ents[1] to keep
-      // on bdy
-    result = mtu.split_entity_nonmanifold(split_edges[1], addl_ents[1], 
-                                          addl_ents[0], new_entity); RR;
-    addl_ents[1].insert(split_edges[1]); addl_ents[0].insert(new_entity);
-  
-      // now split the node too
-    result = mtu.split_entity_nonmanifold(split_node, addl_ents[1], 
-                                          addl_ents[0], new_entity); RR;
-  }
+    // now split the node too
+  result = mtu.split_entity_nonmanifold(split_node, addl_edges[1], 
+                                        addl_edges[0], new_node); RR;
   
   return MB_SUCCESS;
 }
 
 MBErrorCode DualTool::foc_get_addl_ents(std::vector<MBEntityHandle> *star_dp1, 
                                         std::vector<MBEntityHandle> *star_dp2, 
+                                        MBEntityHandle *split_edges,
                                         MBEntityHandle split_node,
                                         MBRange *addl_ents) 
 {
     // if we're splitting 2 edges, there might be other edges that have the split
     // node; also need to know which side they're on
 
-    // algorithm:
-    // - start with star entities on search list
-    // - while (search list not empty):
-    // . take face off search list, put on result list
-    // . get all edge-adj faces also adj to split node
-    // . for each of these, if face is not on result list, put on search list
-    // - for each entity on result list:
-    // . get all entities also adj to split node & put on result list
+    // algorithm: for a given star_dp1 (faces) on a side:
+    // - get all edges adj to all faces -> R1
+    // - get all edges adj to split_node -> R2
+    // - R3 = R1 & R2 (edges connected to split_node & adj to a star face)
+    // - R3 -= split_edges (take split edges off addl_ents)
 
-  MBRange node_faces;
+  MBRange R2;
   MeshTopoUtil mtu(mbImpl);
-  MBErrorCode result = mbImpl->get_adjacencies(&split_node, 1, 2, false, node_faces); RR;
+  MBErrorCode result = mbImpl->get_adjacencies(&split_node, 1, 1, false, R2); RR;
   MBRange::iterator rit;
 
   for (int i = 0; i < 2; i++) {
-    MBRange slist, rlist, tmp_list;
-    std::copy(star_dp1[i].begin(), star_dp1[i].end(), mb_range_inserter(slist));
-    while (!slist.empty()) {
-      MBEntityHandle this_ent = slist.pop_front();
-      rlist.insert(this_ent);
-      tmp_list.clear();
-      result = mtu.get_bridge_adjacencies(this_ent, 1, 2, tmp_list); RR;
-      tmp_list = tmp_list.intersect(node_faces);
-      for (rit = tmp_list.begin(); rit != tmp_list.end(); rit++)
-        if (rlist.find(*rit) == rlist.end()) slist.insert(*rit);
-    }
-    MBEntityHandle tmp_ents[2];
-    tmp_ents[0] = split_node;
-    MBRange rlist2;
-    for (rit = rlist.begin(); rit != rlist.end(); rit++) {
-      tmp_list.clear();
-      tmp_ents[1] = *rit;
-      result = mbImpl->get_adjacencies(tmp_ents, 2, 1, false, tmp_list); RR;
-      rlist2.merge(tmp_list);
-      tmp_list.clear();
-      result = mbImpl->get_adjacencies(tmp_ents, 2, 3, false, tmp_list); RR;
-      rlist2.merge(tmp_list);
-    }
-
-    for (rit = rlist.begin(); rit != rlist.end(); rit++) 
-      if (std::find(star_dp1[i].begin(), star_dp1[i].end(), *rit) ==
-          star_dp1[i].end()) addl_ents[i].insert(*rit);
-    addl_ents[i].merge(rlist2);
+    MBRange R1, R3;
+    result = mbImpl->get_adjacencies(&star_dp1[i][0], star_dp1[i].size(), 1, false, 
+                                     R1, MBInterface::UNION); RR;
+    R3 = R1.intersect(R2);
+    R3.erase(split_edges[0]); R3.erase(split_edges[1]);
+    addl_ents[i].merge(R3);
   }
   
   return MB_SUCCESS;

@@ -148,7 +148,7 @@ MBErrorCode vtkMOABUtils::create_tags()
 {
   MBErrorCode result = vtkMOABUtils::mbImpl->tag_get_handle(vtkCellTagName, vtkCellTag);
   if (MB_TAG_NOT_FOUND == result) {
-    int def_val = -1;
+    vtkIdType def_val = -1;
     result = vtkMOABUtils::mbImpl->tag_create(vtkCellTagName, sizeof(vtkIdType), MB_TAG_DENSE, 
                                 vtkCellTag, &def_val);
   }
@@ -156,14 +156,14 @@ MBErrorCode vtkMOABUtils::create_tags()
   result = vtkMOABUtils::mbImpl->tag_get_handle(vtkTopContainsTagName, vtkTopContainsTag);
   if (MB_TAG_NOT_FOUND == result) {
     unsigned char def_val = 0x0;
-    result = vtkMOABUtils::mbImpl->tag_create(vtkTopContainsTagName, 1, MB_TAG_BIT, 
+    result = vtkMOABUtils::mbImpl->tag_create(vtkTopContainsTagName, sizeof(unsigned char), MB_TAG_BIT, 
                                 vtkTopContainsTag, &def_val);
   }
   
   result = vtkMOABUtils::mbImpl->tag_get_handle(vtkTopParentTagName, vtkTopParentTag);
   if (MB_TAG_NOT_FOUND == result) {
     unsigned char def_val = 0x0;
-    result = vtkMOABUtils::mbImpl->tag_create(vtkTopParentTagName, 1, MB_TAG_BIT, 
+    result = vtkMOABUtils::mbImpl->tag_create(vtkTopParentTagName, sizeof(unsigned char), MB_TAG_BIT, 
                                 vtkTopParentTag, &def_val);
   }
   

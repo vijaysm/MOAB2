@@ -245,11 +245,9 @@ private:
   MBErrorCode get_graphpoint_pos(void *point, double *pos);
   
   void get_graph_points(const MBEntityHandle *ents, const int gnum_ents, 
-                        const bool extra,
                         MBEntityHandle dual_surf, void **points);
 
   void get_graph_points(MBRange ents,
-                        const bool extra,
                         MBEntityHandle dual_surf, void **points);
 
     //! given a renderer, return the sheet that this renderer renders
