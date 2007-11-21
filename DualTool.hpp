@@ -217,6 +217,9 @@ public:
     //! delete all the dual data
   MBErrorCode delete_whole_dual();
   
+    //! check dual-primal adjacencies
+  MBErrorCode check_dual_adjs();
+
 private:
 
     //! construct dual vertices for specified regions

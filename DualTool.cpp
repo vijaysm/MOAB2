@@ -1693,8 +1693,9 @@ MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr)
     // reconstruct dual
   result = construct_hex_dual(hexes); 
   if (MB_SUCCESS != result) return result;
+
+  return check_dual_adjs();
   
-  return MB_SUCCESS;
 }
 
 MBErrorCode DualTool::foc_get_ents(MBEntityHandle ocl, 
@@ -1830,8 +1831,22 @@ MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
 
     //=============== split faces
 
+  for (int i = 0; i < 2; i++) {
+      // get a hex in star_dp2[0] that's adj to this split quad, to tell 
+      // mtu which one the orig should go with
+    MBEntityHandle gowith_hex = 0;
+    for (std::vector<MBEntityHandle>::iterator vit = star_dp2[0].begin();
+         vit != star_dp2[0].end(); vit++) {
+      if (mtu.common_entity(*vit, split_quads[i], 2)) {
+        gowith_hex = *vit;
+        break;
+      }
+    }
+    
     // split manifold each of the split_quads, and put the results on the merge list
-  result = mtu.split_entities_manifold(split_quads, 2, new_quads, NULL); RR;
+    result = mtu.split_entities_manifold(split_quads+i, 1, new_quads+i, NULL,
+                                         (gowith_hex ? &gowith_hex : NULL)); RR;
+  }
 
     // make ranges of faces which need to be explicitly adj to old, new
     // edge; faces come from stars and new_quads (which weren't in the stars)
@@ -1873,8 +1888,6 @@ MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
   
     //=============== split node
 
-    //=============== prepare for splitting 2 edges/1 node part
-  
     // if we're splitting 2 edges, there might be other edges that have the split
     // node; also need to know which side they're on
   MBRange addl_edges[2];
@@ -1887,6 +1900,15 @@ MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
     addl_edges[0].insert(new_edges[i]);
     addl_edges[1].insert(split_edges[i]);
   }
+
+    // same for star faces and hexes
+  for (int i = 0; i < 2; i++) {
+    std::copy(star_dp1[i].begin(), star_dp1[i].end(), mb_range_inserter(addl_edges[i]));
+    std::copy(star_dp2[i].begin(), star_dp2[i].end(), mb_range_inserter(addl_edges[i]));
+  }
+
+    // finally, new quads
+  for (int i = 0; i < 2; i++) addl_edges[0].insert(new_quads[i]);
 
     // now split the node too
   result = mtu.split_entity_nonmanifold(split_node, addl_edges[1], 
@@ -2876,4 +2898,68 @@ MBErrorCode DualTool::delete_whole_dual()
   }
 
   return MB_SUCCESS;
+}
+
+MBErrorCode DualTool::check_dual_adjs() 
+{
+    // check primal-dual correspondence
+
+    // get the primal entities
+  MBRange pents[4];
+  MBErrorCode result = mbImpl->get_entities_by_type(0, MBHEX, pents[3]); RR;
+  for (int i = 2; i >= 0; i--) {
+    result = mbImpl->get_adjacencies(pents[3], 2, false, pents[2], 
+                                     MBInterface::UNION); RR;
+  }
+  
+    // for each primal entity of dimension pd
+#define PRENT(ent) MBCN::EntityTypeName(TYPE_FROM_HANDLE(ent)) << " " \
+        << ID_FROM_HANDLE(ent) 
+  MBErrorCode overall_result = MB_SUCCESS;
+  for (int pd = 1; pd <= 3; pd++) {
+    for (MBRange::iterator prit = pents[pd].begin(); prit != pents[pd].end(); prit++) {
+        // get corresponding dual entity of dimension dd = 3-pd
+      MBEntityHandle dual_ent = get_dual_entity(*prit);
+      if (0 == dual_ent) 
+        std::cerr << "Problem getting dual entity for " << PRENT(*prit) << std::endl;
+      
+        // for each sub dimension sd = 0..pd-1
+      for (int sd = 0; sd < pd; sd++) {
+        MBRange R1, R2, R3;
+          //   R1 = entities bounding primal entity of dim sd
+        result = mbImpl->get_adjacencies(&(*prit), 1, sd, false, R1); RR;
+        
+          //   R2 = entities bounded by dual entity, of dim 3-sd
+        result = mbImpl->get_adjacencies(&dual_ent, 1, 3-sd, false, R2); RR;
+
+
+        if (R1.size() != R2.size()) {
+          std::cerr << PRENT(*prit) << ": number of adj ents in "
+                    << "primal/dual don't agree for dimension " << sd << "." << std::endl;
+          overall_result = MB_FAILURE;
+        }
+        
+          // for each entity in R1, get its dual and look for it in R2
+        for (MBRange::iterator r1it = R1.begin(); r1it != R1.end(); r1it++) {
+          MBEntityHandle tmp_dual = get_dual_entity(*r1it);
+          if (R2.find(tmp_dual) == R2.end()) {
+            std::cerr << PRENT(*prit) << ": adj entity " << PRENT(*r1it)
+                      << " isn't adjacent in dual." << std::endl;
+            overall_result = MB_FAILURE;
+          }
+        }
+          // ditto for R2
+        for (MBRange::iterator r2it = R2.begin(); r2it != R2.end(); r2it++) {
+          MBEntityHandle tmp_prim = get_dual_entity(*r2it);
+          if (R1.find(tmp_prim) == R1.end()) {
+            std::cerr << PRENT(*prit) << ": adj entity " << PRENT(*r2it)
+                      << " isn't adjacent in primal." << std::endl;
+            overall_result = MB_FAILURE;
+          }
+        }
+      }
+    }
+  }
+
+  return overall_result;
 }

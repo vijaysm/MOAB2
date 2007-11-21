@@ -535,7 +535,8 @@ MBErrorCode MeshTopoUtil::split_entities_manifold(MBRange &entities,
 MBErrorCode MeshTopoUtil::split_entities_manifold(MBEntityHandle *entities,
                                                   const int num_entities,
                                                   MBEntityHandle *new_entities,
-                                                  MBRange *fill_entities)
+                                                  MBRange *fill_entities,
+                                                  MBEntityHandle *gowith_ents)
 {
     // split entities by duplicating them; splitting manifold means that there is at
     // most two higher-dimension entities bounded by a given entity; after split, the
@@ -591,17 +592,27 @@ MBErrorCode MeshTopoUtil::split_entities_manifold(MBEntityHandle *entities,
       }
       else {
         
-          // first the new entity; if there's only one up_adj of this dimension, make the
-          // new entity adjacent to it, so that any bdy information is preserved on the
-          // original entity
-        tmp_result = mbImpl->remove_adjacencies(entities[i], &(*(up_adjs[dim].begin())), 1);
+          // get the two up-elements
+        MBEntityHandle up_elem1 = *(up_adjs[dim].begin()),
+            up_elem2 = (up_adjs[dim].size() > 1 ? *(up_adjs[dim].rbegin()) : 0);
+        
+          // if two, and a gowith entity was input, make sure the new entity goes with
+          // that one
+        if (gowith_ents && up_elem2 && 
+            gowith_ents[i] != up_elem1 && gowith_ents[i] == up_elem2) {
+          MBEntityHandle tmp_elem = up_elem1;
+          up_elem1 = up_elem2;
+          up_elem2 = tmp_elem;
+        }
+        
+        tmp_result = mbImpl->remove_adjacencies(entities[i], &up_elem1, 1);
           // (ok if there's an error, that just means there wasn't an explicit adj)
-        MBEntityHandle tmp_ent = *(up_adjs[dim].begin());
-        tmp_result = mbImpl->add_adjacencies(new_entity, &tmp_ent, 1, false); TC;
-        if (up_adjs[dim].size() < 2) continue;
+
+        tmp_result = mbImpl->add_adjacencies(new_entity, &up_elem1, 1, false); TC;
+        if (!up_elem2) continue;
+
           // add adj to other up_adj
-        tmp_ent = *(up_adjs[dim].rbegin());
-        tmp_result = mbImpl->add_adjacencies(entities[i], &tmp_ent, 1, false); TC;
+        tmp_result = mbImpl->add_adjacencies(entities[i], &up_elem2, 1, false); TC;
       }
     }
 

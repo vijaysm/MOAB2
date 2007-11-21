@@ -138,11 +138,17 @@ public:
        \param new_entities New entities, in order of correspondence to that of entities
        \param fill_entities If non-NULL, create an entity of next higher dimension to fill the gap,
                        passing it back in *fill_entities
+       \param gowith_ents If non-NULL, each of the new entities will adj to the
+                       corresponding gowith entities after the split; this parameter is
+                       ignored for boundary split entities; in that case, the split entity
+                       remains on the boundary (i.e. not adj to any entity of higher 
+                       dimension).  Dimension of gowith_ents must be the same as entities.
     */
   MBErrorCode split_entities_manifold(MBEntityHandle *entities,
                                       const int num_entities,
                                       MBEntityHandle *new_entities,
-                                      MBRange *fill_entities);
+                                      MBRange *fill_entities,
+                                      MBEntityHandle *gowith_ents = NULL);
 
     //! return whether entity is equivalent to any other of same type and same vertices;
     //! if equivalent entity is found, it's returned in equiv_ents and return value is true,
