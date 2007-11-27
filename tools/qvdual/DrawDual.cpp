@@ -2216,13 +2216,35 @@ MBErrorCode DrawDual::smooth_dual_surf(MBEntityHandle dual_surf,
   const int num_its = 10;
   
   dverts = dverts.subtract(face_verts);
-  std::vector<double> new_coords(3*dverts.size()), old_coords(3*dverts.size());
   double tmp_coords[12];
   MeshTopoUtil mtu(vtkMOABUtils::mbImpl);
 
   std::vector<MBEntityHandle> graph_points(dverts.size());
   get_graph_points(dverts, dual_surf, (void**) &graph_points[0]);
+
+    // get any edge-adjacent points which are valence-2 and add to list of
+    // smooth points; these are edge mid-pts, which should be smoothed so they
+    // don't remain at the center
+  for (unsigned int j = 0; j < dverts.size(); j++) {
+      MBEntityHandle this_point = graph_points[j];
+      
+        // get all neighbor verts
+      MBRange nverts, tmp_edges;
+      result = mtu.get_bridge_adjacencies(this_point, 1, 0, nverts); RR;
+      assert(4 == nverts.size() || 3 == nverts.size());
+      
+      for (MBRange::iterator rit = nverts.begin(); rit != nverts.end(); rit++) {
+        tmp_edges.clear();
+        result = MBI->get_adjacencies(&(*rit), 1, 1, false, tmp_edges); RR;
+        if (2 == tmp_edges.size() && 
+            std::find(graph_points.begin(), graph_points.end(), *rit) == graph_points.end()) 
+          graph_points.push_back(*rit);
+      }
+  }
   
+  std::vector<double> new_coords(3*graph_points.size()), 
+      old_coords(3*graph_points.size());
+
   for (int i = 0; i < num_its; i++) {
       // get starting coords for all verts
     if (0 == i) {
@@ -2232,13 +2254,13 @@ MBErrorCode DrawDual::smooth_dual_surf(MBEntityHandle dual_surf,
     else old_coords.swap(new_coords);
 
     
-    for (unsigned int j = 0; j < dverts.size(); j++) {
+    for (unsigned int j = 0; j < graph_points.size(); j++) {
       MBEntityHandle this_point = graph_points[j];
       
         // get all neighbor verts
       MBRange nverts;
       result = mtu.get_bridge_adjacencies(this_point, 1, 0, nverts); RR;
-      assert(4 == nverts.size() || 3 == nverts.size());
+      assert(4 == nverts.size() || 3 == nverts.size() || 2 == nverts.size());
       
         // get coords for those verts
       result = MBI->get_coords(nverts, &tmp_coords[0]); RR;
