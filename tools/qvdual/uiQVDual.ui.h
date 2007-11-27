@@ -112,8 +112,18 @@ void uiQVDual::fileSaveAs(const QString &filename)
   computeDual = false;
 
   vtkMOABUtils::assign_global_ids();
+  
+    // make a set to specify what gets saved
+  MBEntityHandle save_set;
+  MBErrorCode result = vtkMOABUtils::mbImpl->create_meshset(MESHSET_SET, save_set);
+  if (MB_SUCCESS != result) return;
+  MBRange hexes;
+  result = vtkMOABUtils::mbImpl->get_entities_by_type(0, MBHEX, hexes);
+  if (MB_SUCCESS != result) return;
+  result = vtkMOABUtils::mbImpl->add_entities(save_set, hexes);
+  if (MB_SUCCESS != result) return;
 
-  vtkMOABUtils::mbImpl->write_mesh(filename.ascii());
+  vtkMOABUtils::mbImpl->write_file(filename.ascii(), NULL, NULL, &save_set, 1);
 
   redrawDisplay();
 }
@@ -681,13 +691,15 @@ void uiQVDual::getItemSets( std::set<QListViewItem *> &items, MBRange &sets )
 
 void uiQVDual::CropToolButton_clicked()
 {
+    /*
   if (NULL == cropToolPopup) {
     cropToolPopup = new CropToolPopup();
     cropToolPopup->vtk_widget(vtkWidget);
   }
 
   cropToolPopup->show();
-
+    */
+  DualTool(vtkMOABUtils::mbImpl).check_dual_adjs();
 }
 
 
