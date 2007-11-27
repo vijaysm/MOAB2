@@ -46,7 +46,7 @@ const char *DualTool::DUAL_CURVE_TAG_NAME = "DUAL_CURVE";
 const char *DualTool::IS_DUAL_CELL_TAG_NAME = "IS_DUAL_CELL";
 
   //! tag name for dual entities
-const char *DualTool::DUAL_ENTITY_TAG_NAME = "DUAL_ENTITY";
+const char *DualTool::DUAL_ENTITY_TAG_NAME = "__DUAL_ENTITY";
 
   //! tag name for extra dual entities
 const char *DualTool::EXTRA_DUAL_ENTITY_TAG_NAME = "__EXTRA_DUAL_ENTITY";
