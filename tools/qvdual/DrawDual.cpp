@@ -297,7 +297,7 @@ void DrawDual::process_pick(vtkRenderer *ren)
 
 }
 
-void DrawDual::print_picked_ents(MBRange &picked_ents) 
+void DrawDual::print_picked_ents(MBRange &picked_ents, bool from_return) 
 {
   for (MBRange::iterator rit = picked_ents.begin(); rit != picked_ents.end(); rit++) {
     MBEntityHandle picked_ent = *rit;
@@ -332,7 +332,16 @@ void DrawDual::print_picked_ents(MBRange &picked_ents)
       first = false;
     }
 
-    if (picked_ent == *picked_ents.begin()) {
+    if (from_return) {
+      std::cout << oss.str() << " (" << picked_ent << ")" << std::endl;
+      pickLine2->setText(QString(oss.str().c_str()));
+      pickLine1->setText("");
+      gDrawDual->secondLastPickedEnt = gDrawDual->lastPickedEnt;
+      gDrawDual->lastPickedEnt = picked_ent;
+
+      gDrawDual->update_high_polydatas();
+    }
+    else if (picked_ent == *picked_ents.begin()) {
       std::cout << oss.str() << " (" << picked_ent << ")" << std::endl;
       pickLine2->setText(pickLine1->displayText());
       pickLine1->setText(QString(oss.str().c_str()));

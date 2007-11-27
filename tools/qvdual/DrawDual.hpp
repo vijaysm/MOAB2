@@ -46,7 +46,8 @@ public:
 
   MBErrorCode reset_drawn_sheets(MBRange *drawn_sheets = NULL);
   
-  void print_picked_ents(MBRange &picked_ents);
+  void print_picked_ents(MBRange &picked_ents,
+                         bool from_return = false);
 
 private:
 

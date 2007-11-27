@@ -1102,5 +1102,5 @@ void uiQVDual::pickline1_returnPressed()
   picked_ents.clear();
   picked_ents.insert(dual_ent);
     
-  vtkMOABUtils::drawDual->print_picked_ents(picked_ents);
+  vtkMOABUtils::drawDual->print_picked_ents(picked_ents, true);
 }
