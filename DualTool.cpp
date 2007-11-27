@@ -1640,10 +1640,10 @@ MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr)
   MeshTopoUtil mtu(mbImpl);
 
     // get the primal entities we're dealing with
-  MBEntityHandle split_quads[2], split_edges[2], split_node,
-    other_edges[6], other_nodes[6];
+  MBEntityHandle split_quads[2] = {0}, 
+    split_edges[3] = {0}, split_nodes[2] = {0}, other_edges[6] = {0}, other_nodes[6] = {0};
   MBRange hexes;
-  MBErrorCode result = foc_get_ents(ocl, ocr, split_quads, split_edges, split_node,
+  MBErrorCode result = foc_get_ents(ocl, ocr, split_quads, split_edges, split_nodes,
                                     hexes, other_edges, other_nodes); RR;
 
   if (MBQUAD != mbImpl->type_from_handle(split_quads[0]) ||
@@ -1653,10 +1653,10 @@ MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr)
   result = foc_delete_dual(split_quads, split_edges, hexes);
   if (MB_SUCCESS != result) return result;
 
-  MBEntityHandle new_quads[2], new_edges[2], new_node;
-  result = split_pair_nonmanifold(split_quads, split_edges, split_node, 
+  MBEntityHandle new_quads[2], new_edges[3], new_nodes[2];
+  result = split_pair_nonmanifold(split_quads, split_edges, split_nodes, 
                                   other_edges, other_nodes, 
-                                  new_quads, new_edges, new_node);
+                                  new_quads, new_edges, new_nodes);
   if (MB_SUCCESS != result) return result;
 
     // now merge entities, the C of foc
@@ -1664,20 +1664,19 @@ MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr)
 #define MIN(a,b) (a < b ? a : b)  
 #define MAX(a,b) (a > b ? a : b)  
 #define KEEP_DELETE(a,b,c,d) {c = MIN(a,b); d = MAX(a,b);}
+
+    // find how many shared edges there were
+  int num_shared_edges = (split_edges[2] ? 3 :
+                          (split_edges[1] ? 2 : 1));
   
     // first the node(s)
-
-  KEEP_DELETE(other_nodes[2], other_nodes[3], keepit, deleteit);
-  result = mbImpl->merge_entities(keepit, deleteit, false, true); RR;
-
-  if (!split_edges[1]) {
-    KEEP_DELETE(other_nodes[4], other_nodes[5], keepit, deleteit);
+  for (int i = 0; i < 3-num_shared_edges; i++) {
+    KEEP_DELETE(other_nodes[2+2*i], other_nodes[3+2*i], keepit, deleteit);
     result = mbImpl->merge_entities(keepit, deleteit, false, true); RR;
   }
   
     // now the edges
-  int limit = (split_edges[1] ? 2 : 3);
-  for (int i = 0; i < limit; i++) {
+  for (int i = 0; i < 4-num_shared_edges; i++) {
     KEEP_DELETE(other_edges[2*i], other_edges[2*i+1], keepit, deleteit);
     result = mbImpl->merge_entities(keepit, deleteit, false, true); RR;
   }
@@ -1702,7 +1701,7 @@ MBErrorCode DualTool::foc_get_ents(MBEntityHandle ocl,
                                    MBEntityHandle ocr, 
                                    MBEntityHandle *split_quads, 
                                    MBEntityHandle *split_edges, 
-                                   MBEntityHandle &split_node, 
+                                   MBEntityHandle *split_nodes, 
                                    MBRange &hexes, 
                                    MBEntityHandle *other_edges, 
                                    MBEntityHandle *other_nodes)
@@ -1742,14 +1741,47 @@ MBErrorCode DualTool::foc_get_ents(MBEntityHandle ocl,
 
   MeshTopoUtil mtu(mbImpl);
 
-  if (common_edges.size() > 1) {
+  if (common_edges.size() == 3) {
+      // find other (non-shared) edges
+    for (int i = 0; i < 2; i++) {
+      MBRange tmp_edges;
+      result = mbImpl->get_adjacencies(&split_quads[i], 1, 1, false, 
+                                       tmp_edges);
+      if (MB_SUCCESS != result) return result;
+      tmp_edges = tmp_edges.subtract(common_edges);
+      assert(tmp_edges.size() == 1);
+      other_edges[i] = *tmp_edges.begin();
+    }
+    assert(other_edges[0] && other_edges[1] &&
+           other_edges[0] != other_edges[1]);
+    
+      // arrange common edges so middle is in middle
+    result = mtu.opposite_entity(split_quads[0], other_edges[0],
+                                 split_edges[1]); RR;
+    common_edges.erase(split_edges[1]);
+    split_edges[0] = *common_edges.begin();
+    split_edges[2] = *common_edges.rbegin();
+    common_edges.insert(split_edges[1]);
+    
+      // get split nodes and other nodes
+    split_nodes[0] = mtu.common_entity(split_edges[0], split_edges[1], 0);
+    split_nodes[1] = mtu.common_entity(split_edges[2], split_edges[1], 0);
+    other_nodes[0] = mtu.common_entity(split_edges[0], other_edges[0], 0);
+    other_nodes[1] = mtu.common_entity(split_edges[2], other_edges[1], 0);
+
+    assert(other_nodes[0] && other_nodes[1] && split_nodes[0] && split_nodes[1]);
+    assert(split_edges[0] && split_edges[1] && split_edges[2] &&
+           split_edges[0] != split_edges[1] && split_edges[1] != split_edges[2] &&
+           split_edges[0] != split_edges[2]);
+  }
+  else if (common_edges.size() == 2) {
       // split node is shared by split edges
-    split_node = mtu.common_entity(split_edges[0], split_edges[1], 0);
-    if (0 == split_node) return MB_FAILURE;
+    split_nodes[0] = mtu.common_entity(split_edges[0], split_edges[1], 0);
+    if (0 == split_nodes[0]) return MB_FAILURE;
       // first two other nodes are on split edges opposite split node
-    result = mtu.opposite_entity(split_edges[0], split_node,
+    result = mtu.opposite_entity(split_edges[0], split_nodes[0],
                                  other_nodes[0]); RR;
-    result = mtu.opposite_entity(split_edges[1], split_node,
+    result = mtu.opposite_entity(split_edges[1], split_nodes[0],
                                  other_nodes[1]); RR;
       // over split quads:
     for (int i = 0; i < 2; i++) {
@@ -1760,14 +1792,11 @@ MBErrorCode DualTool::foc_get_ents(MBEntityHandle ocl,
       result = mtu.opposite_entity(split_quads[i], 
                                    split_edges[0], other_edges[2+i]); RR;
         // last other node is opposite split node on split quad
-      result = mtu.opposite_entity(split_quads[i], split_node,
+      result = mtu.opposite_entity(split_quads[i], split_nodes[0],
                                    other_nodes[2+i]); RR;
     }
-    other_edges[4] = other_edges[5] = 0;
   }
   else {
-    split_edges[1] = 0;
-    split_node = 0;
     const MBEntityHandle *connect;
     int num_connect;
     result = mbImpl->get_connectivity(split_edges[0], connect, num_connect);
@@ -1789,35 +1818,52 @@ MBErrorCode DualTool::foc_get_ents(MBEntityHandle ocl,
       assert(tmp_range2.size() == 1);
       other_edges[i] = *tmp_range2.begin();
         // get edge connected to other node on split edge & split quad; that's
-        // opposite prev other_edges on the split quad; that's other_edges[2+i]
+        // opposite prev other_edges on the split quad; that's other_edges[4+i]
       result = mtu.opposite_entity(split_quads[i], other_edges[i],
-                                   other_edges[2+i]); RR;
-        // get the edge on the split quad opposite the split edge; that's other_edges[4+i]
-      result = mtu.opposite_entity(split_quads[i], split_edges[0],
                                    other_edges[4+i]); RR;
+        // get the edge on the split quad opposite the split edge; that's other_edges[2+i]
+      result = mtu.opposite_entity(split_quads[i], split_edges[0],
+                                   other_edges[2+i]); RR;
         // get nodes on other side of split quad from split edge, by getting common
         // node between top/bottom edge and opposite edge
-      other_nodes[2+i] = mtu.common_entity(other_edges[i], other_edges[4+i], 0);
-      other_nodes[4+i] = mtu.common_entity(other_edges[2+i], other_edges[4+i], 0);
+      other_nodes[2+i] = mtu.common_entity(other_edges[i], other_edges[2+i], 0);
+      other_nodes[4+i] = mtu.common_entity(other_edges[4+i], other_edges[2+i], 0);
       if (0 == other_nodes[2+i] || 0 == other_nodes[4+i]) return MB_FAILURE;
     }
   }
 
-  result = mbImpl->get_adjacencies(split_edges, (split_node ? 2 : 1), 3, false, 
+  result = mbImpl->get_adjacencies(split_edges, common_edges.size(), 3, false, 
                                    hexes, MBInterface::UNION);
   if (MB_SUCCESS != result) return result;
 
+  assert("split node not in other_nodes" &&
+         other_nodes[0] != split_nodes[0] && other_nodes[0] != split_nodes[1] &&
+         other_nodes[1] != split_nodes[0] && other_nodes[1] != split_nodes[1]);
+  assert("each split node on an end of a split edge" &&
+         mtu.common_entity(other_nodes[0], split_edges[0], 0) &&
+         (((split_edges[2] && mtu.common_entity(other_nodes[1], split_edges[2], 0)) ||
+           (split_edges[1] && mtu.common_entity(other_nodes[1], split_edges[1], 0)) ||
+           mtu.common_entity(other_nodes[1], split_edges[0], 0))));
+  assert("opposite other edges meet at an other node" &&
+         (mtu.common_entity(other_edges[0], other_edges[1], 0) == other_nodes[0] ||
+          (split_edges[2] && 
+           mtu.common_entity(other_edges[0], other_edges[1], 0) == other_nodes[1])) &&
+         (split_edges[2] || 
+          (split_edges[1] && 
+           mtu.common_entity(other_edges[2], other_edges[3], 0) == other_nodes[1]) ||
+          mtu.common_entity(other_edges[4], other_edges[5], 0) == other_nodes[1]));
+         
   return MB_SUCCESS;
 }
 
 MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
                                              MBEntityHandle *split_edges,
-                                             MBEntityHandle split_node,
+                                             MBEntityHandle *split_nodes,
                                              MBEntityHandle *other_edges,
                                              MBEntityHandle *other_nodes,
                                              MBEntityHandle *new_quads,
                                              MBEntityHandle *new_edges,
-                                             MBEntityHandle &new_node)
+                                             MBEntityHandle *new_nodes)
 {
 
     // if there's a bdy in the star around the shared edge(s), get the quads on that
@@ -1850,69 +1896,71 @@ MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
 
     // make ranges of faces which need to be explicitly adj to old, new
     // edge; faces come from stars and new_quads (which weren't in the stars)
-  MBRange tmp_addl_faces[2];
+  MBRange tmp_addl_faces[2], addl_faces[2];
   for (int i = 0; i < 2; i++) {
     std::copy(star_dp1[i].begin(), star_dp1[i].end(), 
             mb_range_inserter(tmp_addl_faces[i]));
     tmp_addl_faces[0].insert(new_quads[i]);
   }
 
-    //=============== split 1st edge
-
-    // filter add'l faces to only those adj to split_edges[0]
-  MBRange addl_faces[2] = {tmp_addl_faces[0], tmp_addl_faces[1]};
-  for (int i = 0; i < 2; i++) {
-    result = mbImpl->get_adjacencies(&split_edges[0], 1, 2, false, 
-                                     addl_faces[i]); RR;
+    //=============== split edge(s)
+  for (int j = 0; j < 3; j++) {
+    if (!split_edges[j]) break;
+    
+      // filter add'l faces to only those adj to split_edges[i]
+    addl_faces[0] = tmp_addl_faces[0]; addl_faces[1] = tmp_addl_faces[1];
+    for (int i = 0; i < 2; i++) {
+      result = mbImpl->get_adjacencies(&split_edges[j], 1, 2, false, 
+                                       addl_faces[i]); RR;
+    }
+  
+      // split 2nd/3rd edge; again send old edge with addl_ents[1] to keep
+      // on bdy
+    result = mtu.split_entity_nonmanifold(split_edges[j], addl_faces[1], 
+                                          addl_faces[0], new_edges[j]); RR;
   }
   
-    // split the first edge
-  result = mtu.split_entity_nonmanifold(split_edges[0], addl_faces[1], 
-                                        addl_faces[0], new_edges[0]); RR;
+    //=============== split node(s)
 
-  if (!split_edges[1]) return MB_SUCCESS;
+  for (int j = 0; j < 2; j++) {
+    if (!split_nodes[j]) break;
+    
+      // if we're splitting multiple edges, there might be other edges that have the split
+      // node; also need to know which side they're on
+    MBRange tmp_addl_edges[2];
+    result = foc_get_addl_ents(star_dp1, star_dp2, split_edges, 
+                               split_nodes[j], tmp_addl_edges); RR;
 
-    //=============== split 2nd edge
+      // also, we need to know which of the split/new edges go
+      // with the split/new node; new edges go with side 0, split with 1
+    for (int i = 0; i < 3; i++) {
+      if (!split_edges[i]) break;
+      tmp_addl_edges[0].insert(new_edges[i]);
+      tmp_addl_edges[1].insert(split_edges[i]);
+    }
 
-    // filter add'l faces to only those adj to split_edges[1]
-  addl_faces[0] = tmp_addl_faces[0]; addl_faces[1] = tmp_addl_faces[1];
-  for (int i = 0; i < 2; i++) {
-    result = mbImpl->get_adjacencies(&split_edges[1], 1, 2, false, 
-                                     addl_faces[i]); RR;
+      // same for star faces and hexes
+    for (int i = 0; i < 2; i++) {
+      std::copy(star_dp1[i].begin(), star_dp1[i].end(), mb_range_inserter(tmp_addl_edges[i]));
+      std::copy(star_dp2[i].begin(), star_dp2[i].end(), mb_range_inserter(tmp_addl_edges[i]));
+    }
+
+      // finally, new quads
+    for (int i = 0; i < 2; i++) tmp_addl_edges[0].insert(new_quads[i]);
+
+      // filter the entities, keeping only the ones adjacent to this node
+    MBRange addl_edges[2];
+    for (int i = 0; i < 2; i++) {
+      for (MBRange::reverse_iterator rit = tmp_addl_edges[i].rbegin(); 
+           rit != tmp_addl_edges[i].rend(); rit++) {
+        if (mtu.common_entity(*rit, split_nodes[j], 0)) addl_edges[i].insert(*rit);
+      }
+    }
+    
+      // now split the node too
+    result = mtu.split_entity_nonmanifold(split_nodes[j], addl_edges[1], 
+                                          addl_edges[0], new_nodes[j]); RR;
   }
-  
-    // split 2nd edge; again send old edge with addl_ents[1] to keep
-    // on bdy
-  result = mtu.split_entity_nonmanifold(split_edges[1], addl_faces[1], 
-                                        addl_faces[0], new_edges[1]); RR;
-  
-    //=============== split node
-
-    // if we're splitting 2 edges, there might be other edges that have the split
-    // node; also need to know which side they're on
-  MBRange addl_edges[2];
-  result = foc_get_addl_ents(star_dp1, star_dp2, split_edges, 
-                             split_node, addl_edges); RR;
-
-    // also, we need to know which of the split/new edges go
-    // with the split/new node; new edges go with side 0, split with 1
-  for (int i = 0; i < 2; i++) {
-    addl_edges[0].insert(new_edges[i]);
-    addl_edges[1].insert(split_edges[i]);
-  }
-
-    // same for star faces and hexes
-  for (int i = 0; i < 2; i++) {
-    std::copy(star_dp1[i].begin(), star_dp1[i].end(), mb_range_inserter(addl_edges[i]));
-    std::copy(star_dp2[i].begin(), star_dp2[i].end(), mb_range_inserter(addl_edges[i]));
-  }
-
-    // finally, new quads
-  for (int i = 0; i < 2; i++) addl_edges[0].insert(new_quads[i]);
-
-    // now split the node too
-  result = mtu.split_entity_nonmanifold(split_node, addl_edges[1], 
-                                        addl_edges[0], new_node); RR;
   
   return MB_SUCCESS;
 }
@@ -1942,7 +1990,8 @@ MBErrorCode DualTool::foc_get_addl_ents(std::vector<MBEntityHandle> *star_dp1,
     result = mbImpl->get_adjacencies(&star_dp1[i][0], star_dp1[i].size(), 1, false, 
                                      R1, MBInterface::UNION); RR;
     R3 = R1.intersect(R2);
-    R3.erase(split_edges[0]); R3.erase(split_edges[1]);
+    for (int j = 0; j < 3; j++)
+      if (split_edges[j]) R3.erase(split_edges[j]);
     addl_ents[i].merge(R3);
   }
   
@@ -1954,86 +2003,138 @@ MBErrorCode DualTool::foc_get_stars(MBEntityHandle *split_quads,
                                     std::vector<MBEntityHandle> *star_dp1,
                                     std::vector<MBEntityHandle> *star_dp2) 
 {
-
-  bool on_bdy;
+  bool on_bdy, on_bdy_tmp;
   MBErrorCode result;
   MeshTopoUtil mtu(mbImpl);
-  MBEntityHandle first_split_quad = 0;
   
-  for (int i = 0; i < 2; i++) {
-      // only do 2nd iteration if we have a 2nd edge
-    if (1 == i && !split_edges[1]) continue;
-
-      // get the star around the split_edge
-    std::vector<MBEntityHandle> star_tmp[2], split_qstar[2], split_hstar[2];
-    result = mtu.star_entities(split_edges[i], star_tmp[0], on_bdy, 0,
-                               &star_tmp[1]); RR;
-    std::vector<MBEntityHandle>::iterator fit, hit;
-
-      // find 1st and 2nd split face around star
-    int first_ind = -1, second_ind = -1, j = 0;
-    for (fit = star_tmp[0].begin(); fit != star_tmp[0].end(); fit++, j++) {
-      if (*fit == split_quads[0] || *fit == split_quads[1]) {
-        if (first_ind == -1) first_ind = j;
-        else second_ind = j;
-      }
-    }
-    assert(-1 != first_ind && -1 != second_ind);
+    // get the star around the split_edge
+  std::vector<MBEntityHandle> qstar, hstar;
+  unsigned int qpos = 0;
+  
+  for (int i = 0; i < 3; i++) {
+    if (!split_edges[i]) break;
     
-      // now assemble the parts of the star
-    for (j = 0; j < (int) star_tmp[0].size(); j++) {
-        // split quads and ones before/after go on outside list
-      if (j <= first_ind || j >= second_ind) 
-        split_qstar[1].push_back(star_tmp[0][j]);
-      else
-        split_qstar[0].push_back(star_tmp[0][j]);
-        // hexes before/after do too, but watch out for non-existent
-        // last one if we're on bdy
-      if (j >= first_ind && j < second_ind)
-        split_hstar[0].push_back(star_tmp[1][j]);
-      else if (!on_bdy || (on_bdy && j < (int) star_tmp[0].size()-1))
-        split_hstar[1].push_back(star_tmp[1][j]);
+      // get the star around this split edge
+    unsigned int qpos_tmp = 0;
+    std::vector<MBEntityHandle> qstar_tmp, hstar_tmp;
+    result = mtu.star_entities(split_edges[i], qstar_tmp, on_bdy_tmp, 0,
+                             &hstar_tmp); RR;
+      // if we're on the bdy, add a null to the hex star too
+    if (on_bdy_tmp) {
+      assert(hstar_tmp.size() == qstar_tmp.size()-1);
+      hstar_tmp.push_back(0);
     }
+    
+      // get the position of first split quad in star
+    while (qpos_tmp < qstar_tmp.size() && qstar_tmp[qpos_tmp] != split_quads[0])
+      qpos_tmp++;
+    if (qpos_tmp == qstar_tmp.size()) return MB_FAILURE;
+  
+    bool forward;
+      // 1st iteration is forward by definition
+    if (0 == i) forward = true;
 
-      // save the 1st split quad on the 1st iteration, to align lists later
-    if (0 == first_split_quad) 
-      first_split_quad = star_tmp[0][first_ind];
-
-      // if we're on edge 1, just put the halves into the result vectors
-    if (0 == i) {
-      star_dp1[0].swap(split_qstar[0]); star_dp1[1].swap(split_qstar[1]);
-      star_dp2[0].swap(split_hstar[0]); star_dp2[1].swap(split_hstar[1]);
+      // need to be careful about direction on later iters
+    else if (hstar[qpos] == hstar_tmp[qpos_tmp]) forward = true;
+    else if (hstar[qpos] == hstar_tmp[(qpos_tmp+qstar_tmp.size()-1)%qstar_tmp.size()] &&
+             hstar_tmp[qpos_tmp] == hstar[(qpos+qstar.size()-1)%qstar.size()])
+      forward = false;
+    else return MB_FAILURE;
+    
+    if (forward) {
+        // 1st half of star
+        // save hex right after split_quad[0] first
+      star_dp2[0].push_back(hstar_tmp[qpos_tmp]);
+      qpos_tmp = (qpos_tmp+1)%qstar_tmp.size();
+      while (qstar_tmp[qpos_tmp] != split_quads[1]) {
+        star_dp1[0].push_back(qstar_tmp[qpos_tmp]);
+        star_dp2[0].push_back(hstar_tmp[qpos_tmp]);
+        qpos_tmp = (qpos_tmp+1)%qstar_tmp.size();
+      }
+        // 2nd half of star
+        // save hex right after split_quad[1] first
+      star_dp2[1].push_back(hstar_tmp[qpos_tmp]);
+      qpos_tmp = (qpos_tmp+1)%qstar_tmp.size();
+      while (qstar_tmp[qpos_tmp] != split_quads[0]) {
+        star_dp1[1].push_back(qstar_tmp[qpos_tmp]);
+        star_dp2[1].push_back(hstar_tmp[qpos_tmp]);
+        qpos_tmp = (qpos_tmp+1)%qstar_tmp.size();
+      }
     }
-      // else, align the star halves then add them to the star_dpx lists
     else {
-        // if the lists are aligned, the hex next to the first face on star_dp1[0]
-        // should also be next to that face on split_qstar, either the front or
-        // the back depending whether that face is 1st or last on split_qstar[0]
-      MBEntityHandle hex1 = *star_dp2[0].begin();
-      MBEntityHandle hex2 = 0;
-      if (star_tmp[0][first_ind] == first_split_quad)
-        hex2 = *split_hstar[0].begin();
-      else if (star_tmp[0][second_ind] == first_split_quad)
-        hex2 = *split_hstar[0].rbegin();
-      else assert(false);
-      
-      if (hex1 == hex2) {
-        for (int i = 0; i < 2; i++)
-          std::copy(split_qstar[i].begin(), split_qstar[i].end(), 
-                    std::back_inserter(star_dp1[i])),
-            std::copy(split_hstar[i].begin(), split_hstar[i].end(), 
-                      std::back_inserter(star_dp2[i]));
+        // go in reverse - take prev hex instead of current
+        // one, and step in reverse
+
+        // save hex right after split_quad[0] first
+      qpos_tmp = (qpos_tmp+qstar_tmp.size()-1)%qstar_tmp.size();
+      star_dp2[0].push_back(hstar_tmp[qpos_tmp]);
+      while (qstar_tmp[qpos_tmp] != split_quads[1]) {
+        star_dp1[0].push_back(qstar_tmp[qpos_tmp]);
+        qpos_tmp = (qpos_tmp+qstar_tmp.size()-1)%qstar_tmp.size();
+        star_dp2[0].push_back(hstar_tmp[qpos_tmp]);
       }
-      else {
-        for (int i = 0; i < 2; i++)
-          std::copy(split_qstar[(i+1)%2].begin(), split_qstar[(i+1)%2].end(), 
-                    std::back_inserter(star_dp1[i])),
-            std::copy(split_hstar[(i+1)%2].begin(), split_hstar[(i+1)%2].end(), 
-                      std::back_inserter(star_dp2[i]));
+        // 2nd half of star
+        // save hex right after split_quad[1] first
+      qpos_tmp = (qpos_tmp+qstar_tmp.size()-1)%qstar_tmp.size();
+      star_dp2[1].push_back(hstar_tmp[qpos_tmp]);
+      while (qstar_tmp[qpos_tmp] != split_quads[0]) {
+        star_dp1[1].push_back(qstar_tmp[qpos_tmp]);
+        qpos_tmp = (qpos_tmp+qstar_tmp.size()-1)%qstar_tmp.size();
+        star_dp2[1].push_back(hstar_tmp[qpos_tmp]);
       }
+    }
+
+    if (0 == i) {
+      // if we're on the first iteration, save results and continue, other iters
+      // get compared to this one
+      qstar.swap(qstar_tmp);
+      hstar.swap(hstar_tmp);
+      on_bdy = on_bdy_tmp;
+      qpos = qpos_tmp;
     }
   }
+  
+    // split quads go on list with NULLs, if any, otherwise on 2nd
+  if (on_bdy) {
+    if (std::find(star_dp2[0].begin(), star_dp2[0].end(), 0) != 
+        star_dp2[0].end()) {
+        // remove *all* the zeros
+      star_dp2[0].erase(std::remove(star_dp2[0].begin(), star_dp2[0].end(), 0),
+                        star_dp2[0].end());
+        // put the split quads on this half
+      star_dp1[0].push_back(split_quads[0]);
+      star_dp1[0].push_back(split_quads[1]);
+    }
+    else {
+      star_dp2[1].erase(std::remove(star_dp2[1].begin(), star_dp2[1].end(), 0),
+                        star_dp2[1].end());
+        // put the split quads on this half
+      star_dp1[1].push_back(split_quads[0]);
+      star_dp1[1].push_back(split_quads[1]);
+    }
+  }
+  else {
+    star_dp1[1].push_back(split_quads[0]);
+    star_dp1[1].push_back(split_quads[1]);
+  }
 
+    // some error checking
+  assert("both split quads should be on the same star list half and not on the other" &&
+         ((std::find(star_dp1[0].begin(), star_dp1[0].end(), split_quads[0]) == star_dp1[0].end() &&
+          std::find(star_dp1[0].begin(), star_dp1[0].end(), split_quads[1]) == star_dp1[0].end() &&
+          std::find(star_dp1[1].begin(), star_dp1[1].end(), split_quads[0]) != star_dp1[1].end() &&
+          std::find(star_dp1[1].begin(), star_dp1[1].end(), split_quads[1]) != star_dp1[1].end()) ||
+
+         (std::find(star_dp1[1].begin(), star_dp1[1].end(), split_quads[0]) == star_dp1[1].end() &&
+          std::find(star_dp1[1].begin(), star_dp1[1].end(), split_quads[1]) == star_dp1[1].end() &&
+          std::find(star_dp1[0].begin(), star_dp1[0].end(), split_quads[0]) != star_dp1[0].end() &&
+          std::find(star_dp1[0].begin(), star_dp1[0].end(), split_quads[1]) != star_dp1[0].end()))
+         );
+  
+  assert("no NULLs on the hstar lists" &&
+         std::find(star_dp2[0].begin(), star_dp2[0].end(), 0) == star_dp2[0].end() &&
+         std::find(star_dp2[1].begin(), star_dp2[1].end(), 0) == star_dp2[1].end());
+         
   return MB_SUCCESS;
 }
 

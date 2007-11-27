@@ -189,7 +189,7 @@ public:
                            MBEntityHandle ocr, 
                            MBEntityHandle *quads, 
                            MBEntityHandle *split_edges, 
-                           MBEntityHandle &split_node, 
+                           MBEntityHandle *split_nodes, 
                            MBRange &hexes, 
                            MBEntityHandle *other_edges, 
                            MBEntityHandle *other_nodes);
@@ -336,12 +336,12 @@ private:
     //! split a pair of quads and the edge(s) shared by them
   MBErrorCode split_pair_nonmanifold(MBEntityHandle *split_quads,
                                      MBEntityHandle *split_edges,
-                                     MBEntityHandle split_node,
+                                     MBEntityHandle *split_nodes,
                                      MBEntityHandle *other_edges,
                                      MBEntityHandle *other_nodes,
                                      MBEntityHandle *new_quads,
                                      MBEntityHandle *new_edges,
-                                     MBEntityHandle &new_node);
+                                     MBEntityHandle *new_nodes);
   
     //! for foc's splitting two shared edges, there might be additional entities
     //! connected to the split node that also have to be updated
