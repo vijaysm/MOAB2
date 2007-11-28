@@ -1875,19 +1875,31 @@ MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
   std::vector<MBEntityHandle> star_dp1[2], star_dp2[2];
   result = foc_get_stars(split_quads, split_edges, star_dp1, star_dp2); RR;
 
+    // get which star the split faces are in, and choose the other one
+  int new_side = -1;
+  if (std::find(star_dp1[0].begin(), star_dp1[0].end(), split_quads[0]) !=
+      star_dp1[0].end())
+    new_side = 1;
+  else if (std::find(star_dp1[1].begin(), star_dp1[1].end(), split_quads[0]) !=
+           star_dp1[1].end())
+    new_side = 0;
+  assert(-1 != new_side);
+    
     //=============== split faces
 
   for (int i = 0; i < 2; i++) {
-      // get a hex in star_dp2[0] that's adj to this split quad, to tell 
-      // mtu which one the orig should go with
+      // get a hex in star_dp2[new_side] that's adj to this split quad, to tell 
+      // mtu which one the new quad should go with; there should be at least one,
+      // if we have any hexes connected to the split quad
     MBEntityHandle gowith_hex = 0;
-    for (std::vector<MBEntityHandle>::iterator vit = star_dp2[0].begin();
-         vit != star_dp2[0].end(); vit++) {
+    for (std::vector<MBEntityHandle>::iterator vit = star_dp2[new_side].begin();
+         vit != star_dp2[new_side].end(); vit++) {
       if (mtu.common_entity(*vit, split_quads[i], 2)) {
         gowith_hex = *vit;
         break;
       }
     }
+    assert(0 != gowith_hex);
     
     // split manifold each of the split_quads, and put the results on the merge list
     result = mtu.split_entities_manifold(split_quads+i, 1, new_quads+i, NULL,
@@ -1895,29 +1907,49 @@ MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
   }
 
     // make ranges of faces which need to be explicitly adj to old, new
-    // edge; faces come from stars and new_quads (which weren't in the stars)
+    // edge; faces come from stars and new_quads (which weren't in the stars);
+    // new_quads go with side j, which does not have split quads
   MBRange tmp_addl_faces[2], addl_faces[2];
   for (int i = 0; i < 2; i++) {
     std::copy(star_dp1[i].begin(), star_dp1[i].end(), 
             mb_range_inserter(tmp_addl_faces[i]));
-    tmp_addl_faces[0].insert(new_quads[i]);
+    tmp_addl_faces[new_side].insert(new_quads[i]);
   }
+  bool cond1 = ("split_quads on 1, new_quads on 0" &&
+          tmp_addl_faces[0].find(split_quads[0]) == tmp_addl_faces[0].end() &&
+          tmp_addl_faces[0].find(split_quads[1]) == tmp_addl_faces[0].end() &&
+          tmp_addl_faces[1].find(split_quads[0]) != tmp_addl_faces[1].end() &&
+          tmp_addl_faces[1].find(split_quads[1]) != tmp_addl_faces[1].end() &&
+          tmp_addl_faces[0].find(new_quads[0]) != tmp_addl_faces[0].end() &&
+          tmp_addl_faces[0].find(new_quads[1]) != tmp_addl_faces[0].end() &&
+          tmp_addl_faces[1].find(new_quads[0]) == tmp_addl_faces[1].end() &&
+                tmp_addl_faces[1].find(new_quads[1]) == tmp_addl_faces[1].end()),
+      cond2 = ("split_quads on 0, new_quads on 1" &&
+               tmp_addl_faces[0].find(split_quads[0]) != tmp_addl_faces[0].end() &&
+               tmp_addl_faces[0].find(split_quads[1]) != tmp_addl_faces[0].end() &&
+               tmp_addl_faces[1].find(split_quads[0]) == tmp_addl_faces[1].end() &&
+               tmp_addl_faces[1].find(split_quads[1]) == tmp_addl_faces[1].end() &&
+               tmp_addl_faces[0].find(new_quads[0]) == tmp_addl_faces[0].end() &&
+               tmp_addl_faces[0].find(new_quads[1]) == tmp_addl_faces[0].end() &&
+               tmp_addl_faces[1].find(new_quads[0]) != tmp_addl_faces[1].end() &&
+               tmp_addl_faces[1].find(new_quads[1]) != tmp_addl_faces[1].end());
+  
+  assert(cond1 || cond2);
 
     //=============== split edge(s)
   for (int j = 0; j < 3; j++) {
     if (!split_edges[j]) break;
     
-      // filter add'l faces to only those adj to split_edges[i]
+      // filter add'l faces to only those adj to split_edges[j]
     addl_faces[0] = tmp_addl_faces[0]; addl_faces[1] = tmp_addl_faces[1];
     for (int i = 0; i < 2; i++) {
       result = mbImpl->get_adjacencies(&split_edges[j], 1, 2, false, 
                                        addl_faces[i]); RR;
     }
   
-      // split 2nd/3rd edge; again send old edge with addl_ents[1] to keep
-      // on bdy
-    result = mtu.split_entity_nonmanifold(split_edges[j], addl_faces[1], 
-                                          addl_faces[0], new_edges[j]); RR;
+      // split edge
+    result = mtu.split_entity_nonmanifold(split_edges[j], addl_faces[1-new_side], 
+                                          addl_faces[new_side], new_edges[j]); RR;
   }
   
     //=============== split node(s)
@@ -1935,8 +1967,8 @@ MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
       // with the split/new node; new edges go with side 0, split with 1
     for (int i = 0; i < 3; i++) {
       if (!split_edges[i]) break;
-      tmp_addl_edges[0].insert(new_edges[i]);
-      tmp_addl_edges[1].insert(split_edges[i]);
+      tmp_addl_edges[new_side].insert(new_edges[i]);
+      tmp_addl_edges[1-new_side].insert(split_edges[i]);
     }
 
       // same for star faces and hexes
@@ -1946,7 +1978,7 @@ MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
     }
 
       // finally, new quads
-    for (int i = 0; i < 2; i++) tmp_addl_edges[0].insert(new_quads[i]);
+    for (int i = 0; i < 2; i++) tmp_addl_edges[new_side].insert(new_quads[i]);
 
       // filter the entities, keeping only the ones adjacent to this node
     MBRange addl_edges[2];
@@ -1958,8 +1990,8 @@ MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
     }
     
       // now split the node too
-    result = mtu.split_entity_nonmanifold(split_nodes[j], addl_edges[1], 
-                                          addl_edges[0], new_nodes[j]); RR;
+    result = mtu.split_entity_nonmanifold(split_nodes[j], addl_edges[1-new_side], 
+                                          addl_edges[new_side], new_nodes[j]); RR;
   }
   
   return MB_SUCCESS;
