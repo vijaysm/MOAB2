@@ -690,6 +690,34 @@ MBErrorCode MeshTopoUtil::split_entity_nonmanifold(MBEntityHandle split_ent,
       mbImpl->add_adjacencies(split_ent, &(*rit), 1, true);
   }
   else if (split_ent != new_entity) {
+      // in addition to explicit adjs, need to check if vertex is part of any
+      // other entities, and check those entities against ents in old and new adjs
+    MBRange other_adjs;
+    for (int i = 1; i < 4; i++) {
+      result = mbImpl->get_adjacencies(&split_ent, 1, i, false, other_adjs, 
+                                       MBInterface::UNION); RR;
+    }
+    other_adjs = other_adjs.subtract(old_adjs);
+    other_adjs = other_adjs.subtract(new_adjs);
+    for (MBRange::iterator rit1 = other_adjs.begin(); rit1 != other_adjs.end(); rit1++) {
+        // find an adjacent lower-dimensional entity in old_ or new_ adjs
+      bool found = false;
+      for (MBRange::iterator rit2 = old_adjs.begin(); rit2 != old_adjs.end(); rit2++) {
+        if (mbImpl->dimension_from_handle(*rit1) != mbImpl->dimension_from_handle(*rit2) &&
+            common_entity(*rit1, *rit2, mbImpl->dimension_from_handle(*rit1))) {
+          found = true; old_adjs.insert(*rit1); break;
+        }
+      }
+      if (found) continue;
+      for (MBRange::iterator rit2 = new_adjs.begin(); rit2 != new_adjs.end(); rit2++) {
+        if (mbImpl->dimension_from_handle(*rit1) != mbImpl->dimension_from_handle(*rit2) &&
+            common_entity(*rit1, *rit2, mbImpl->dimension_from_handle(*rit1))) {
+          found = true; new_adjs.insert(*rit1); break;
+        }
+      }
+      if (!found) return MB_FAILURE;
+    }
+          
       // instead of adjs replace in connectivity
     std::vector<MBEntityHandle> connect;
     for (MBRange::iterator rit = new_adjs.begin(); rit != new_adjs.end(); rit++) {
