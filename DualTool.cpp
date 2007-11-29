@@ -1468,25 +1468,25 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &quad1
   result = mbImpl->get_adjacencies(&quad1, 1, 3, false, hexes); RR;
   assert(hexes.size() <= 2);
   
-    // remove any explicit adjacency from the second hex, since that'll get connected
-    // to the new quad; add adjacency between quad and first hex
+    // remove any explicit adjacency from the first hex, since that'll get connected
+    // to the new quad; add adjacency between quad and second hex, if there is a 2nd
+  result = mbImpl->remove_adjacencies(quad1, &(*hexes.begin()), 1); RR;
   if (hexes.size() == 2) {
-    result = mbImpl->remove_adjacencies(quad1, &(*hexes.rbegin()), 1); RR;
+    result = mbImpl->add_adjacencies(quad1, &(*hexes.rbegin()), 1, false); RR;
   }
-  result = mbImpl->add_adjacencies(quad1, &(*hexes.begin()), 1, false); RR;
   
-    // create the new, outer quad, and make it explicitly adjacent to 2nd hex;
-    // make the connectivity of this quad reversed from the original one
+    // create the new, inner quad, and make it explicitly adjacent to 1st hex;
+    // make the connectivity of this quad same as the original one
   std::vector<MBEntityHandle> tmp_verts;
   std::copy(verts.begin(), verts.end(), std::back_inserter(tmp_verts));
-  std::reverse(tmp_verts.begin(), tmp_verts.begin()+4);
-  std::reverse(tmp_verts.begin()+4, tmp_verts.end());
   
   result = mbImpl->create_element(MBQUAD, &tmp_verts[0], 4, quad2); RR;
-  if (hexes.size() == 2) {
-    result = mbImpl->add_adjacencies(quad2, &(*hexes.rbegin()), 1, false); RR;
-  }
-  
+  result = mbImpl->add_adjacencies(quad2, &(*hexes.begin()), 1, false); RR;
+
+    // reverse the connectivity of the 1st hex
+  std::reverse(verts.begin(), verts.begin()+4);
+  std::reverse(verts.begin()+4, verts.end());
+
     // now make two inner hexes; note connectivity array is flipped for the two hexes
   MBEntityHandle new_hexes[2];
   result = mbImpl->create_element(MBHEX, &verts[0], 8, new_hexes[0]); RR;
