@@ -14,10 +14,12 @@ void* SequenceData::create_data( int index, int bytes_per_ent, const void* initi
   char* array = (char*)malloc( bytes_per_ent * size() );
   if (initial_value) {
     memcpy( array, initial_value, bytes_per_ent );
-    const size_t last = size() / 2;
-    size_t count;
-    for (count = 1; count < last; count *= 2) 
+    unsigned count = 1;
+    while (2*count < size()) {
       memcpy( array + count * bytes_per_ent, array, count * bytes_per_ent );
+      count *= 2;
+    }
+    
     memcpy( array + count * bytes_per_ent, array, (size() - count) * bytes_per_ent ); 
   }
   else {
