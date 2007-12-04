@@ -56,7 +56,18 @@ bool segment_box_intersect( MBCartVect box_min,
                             const MBCartVect& seg_unit_dir,
                             double& seg_start, double& seg_end );
 
-
+/**\brief Test for intersection between a ray and a triangle.
+ *\param ray_point  The start point of the ray.
+ *\param ray_unit_direciton  The direction of the ray. Must be a unit vector.
+ *\param tolerance  Absolute distance tolerance for point equality
+ *\param t_out Output: The distance along the ray from ray_point in the
+ *                  direction of ray_unit_direction at which the ray
+ *                  itersected the triangle.
+ *\param ray_length Optional:  If non-null, a pointer a maximum length
+ *                  for the ray, converting this function to a segment-tri-
+ *                  intersect test.
+ *\return true if intersection, false otherwise.
+ */
 bool ray_tri_intersect( const MBCartVect vertices[3],
                         const MBCartVect& ray_point,
                         const MBCartVect& ray_unit_direction,
