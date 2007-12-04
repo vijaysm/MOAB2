@@ -26,7 +26,8 @@ TESTS = moab_test \
         obb_test \
 	vtk_test \
 	adaptive_kd_tree_tests \
-	file_options_test
+	file_options_test \
+        kd_tree_test
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 
@@ -307,11 +308,12 @@ kd_tree_time_SOURCES = kd_tree_time.cpp
 kd_tree_time_LDADD = $(top_builddir)/libMOAB.la
 kd_tree_time_DEPENDENCIES = $(kd_tree_time_LDADD)
 
-if PARALLEL
+kd_tree_test_SOURCES = kd_tree_test.cpp
+kd_tree_test_LDADD = $(top_builddir)/libMOAB.la
+
 mbparallelcomm_test_SOURCES = mbparallelcomm_test.cpp
 mbparallelcomm_test_LDADD = $(top_builddir)/libMOAB.la
 mbparallelcomm_test_DEPENDENCIES = $(mbparallelcomm_test_LDADD)
-endif
 
 file_options_test_SOURCES = FileOptions.cpp 
 file_options_test_CPPFLAGS = -DTEST
