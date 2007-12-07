@@ -93,16 +93,6 @@ private:
   
   //! The type of an MBEntityHandle
   hid_t handleType;
-
-  //! Get entity given ID
-  MBEntityHandle handle_from_id( id_t id );
-  
-  //! Get range of entities given range of IDs
-  MBErrorCode handles_from_ids( id_t start_id, id_t count, MBRange& merge );
-  
-  //! Get list of handles from list of IDs
-  MBErrorCode handles_from_ids( id_t* id_array, id_t count, 
-                                std::vector<MBEntityHandle>& append );
  
   //! Read node coordinates.
   MBErrorCode read_nodes( );
