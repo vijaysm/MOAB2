@@ -46,6 +46,7 @@
 #include <fcntl.h>
 
 #ifdef _MSC_VER /* windows */
+#  include <io.h>
 #  include <BaseTsd.h>
 typedef ULONG32 uint32_t;
 #else  /* posix */
