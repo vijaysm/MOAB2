@@ -321,6 +321,8 @@ MBErrorCode MBOrientedBoxTreeTool::build_sets( std::list<SetData>& sets,
 {
   MBErrorCode rval;
   int count = sets.size();
+  if (0 == count)
+    return MB_FAILURE;
   
     // calculate box
   MBOrientedBox box;

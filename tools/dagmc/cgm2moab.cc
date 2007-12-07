@@ -307,7 +307,7 @@ bool cgm2moab(MBInterface* iface,
     
       // Special case for point curve
     if (points.size() < 2) {
-      if (start_vtx != end_vtx || curve->measure() > GEOMETRY_RESABS) {
+      if (start_vtx != end_vtx || curve->measure() > gqe->get_sme_resabs_tolerance()) {
         std::cerr << "Warning: No facetting for curve " << edge->id() << std::endl;
         continue;
       }
@@ -318,15 +318,15 @@ bool cgm2moab(MBInterface* iface,
       continue;
     }
     
-    const bool closed = (points.front() - points.back()).length() < GEOMETRY_RESABS;
+    const bool closed = (points.front() - points.back()).length() < gqe->get_sme_resabs_tolerance();
     if (closed != (start_vtx == end_vtx)) {
       std::cerr << "Warning: topology and geometry inconsistant for possibly closed curve "
                 << edge->id() << std::endl;
     }
     
       // check proximity of vertices to end coordinates
-    if ((start_vtx->coordinates() - points.front()).length() > GEOMETRY_RESABS
-     || (  end_vtx->coordinates() - points.back() ).length() > GEOMETRY_RESABS) {
+    if ((start_vtx->coordinates() - points.front()).length() > gqe->get_sme_resabs_tolerance()
+     || (  end_vtx->coordinates() - points.back() ).length() > gqe->get_sme_resabs_tolerance()) {
       std::cerr << "Warning: vertices not at ends of curve " << edge->id() << std::endl;
     }
     
@@ -392,7 +392,7 @@ bool cgm2moab(MBInterface* iface,
         CubitVector vpos( data.point_list()[j].x,
                           data.point_list()[j].y,
                           data.point_list()[j].z );
-        if ((pos - vpos).length_squared() < GEOMETRY_RESABS*GEOMETRY_RESABS) {
+        if ((pos - vpos).length_squared() < gqe->get_sme_resabs_tolerance()*gqe->get_sme_resabs_tolerance()) {
           if (verts[j])
             std::cerr << "Warning: Coincident vertices in surface " << face->id() << std::endl;
           verts[j] = entmap[0][vtx];

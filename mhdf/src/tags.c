@@ -65,7 +65,7 @@ mhdf_getNativeType( hid_t input_type,
         return sgn == H5T_SGN_NONE ? H5T_NATIVE_UINT   : H5T_NATIVE_INT;
       else if (sizeof(      long ) == size)
         return sgn == H5T_SGN_NONE ? H5T_NATIVE_ULONG  : H5T_NATIVE_LONG;
-      else if (sizeof( long long ) == size)
+      else if (H5Tget_size(H5T_NATIVE_LLONG) == size)
         return sgn == H5T_SGN_NONE ? H5T_NATIVE_ULLONG : H5T_NATIVE_LLONG;
       
       mhdf_setFail( status, "Invalid size for integer type: %d", size );
