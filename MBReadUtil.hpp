@@ -58,8 +58,8 @@ public:
       const int num_elements, 
       const int verts_per_element,
       const MBEntityType mdb_type,
-      int preferred_start_id, 
-      int preferred_start_proc, 
+      const int preferred_start_id, 
+      const int preferred_start_proc, 
       MBEntityHandle& actual_start_handle, 
       MBEntityHandle*& array
       );

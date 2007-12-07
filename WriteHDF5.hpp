@@ -60,7 +60,7 @@ public:
    * \param export_set_count Length of <code>export_sets</code> array.
    */
   MBErrorCode write_file( const char* filename,
-                          bool overwrite,
+                          const bool overwrite,
                           const FileOptions& opts,
                           const MBEntityHandle* export_sets,
                           const int export_set_count,

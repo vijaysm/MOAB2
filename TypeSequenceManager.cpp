@@ -550,7 +550,7 @@ MBEntityHandle TypeSequenceManager::find_free_sequence( MBEntityID num_entities,
 MBErrorCode TypeSequenceManager::check_valid_handles( MBEntityHandle first,
                                                       MBEntityHandle last ) const
 {
-  iterator i = lower_bound( first );
+  const_iterator i = lower_bound( first );
   if (i == end() || (*i)->start_handle() > first)
     return MB_ENTITY_NOT_FOUND;
 

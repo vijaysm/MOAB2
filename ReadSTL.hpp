@@ -75,7 +75,7 @@ public:
                         MBEntityHandle& file_set,
                         const FileOptions& opts,
                         const int* material_set_list,
-                        const int num_material_sets );
+                        int num_material_sets );
   
     //! Constructor
   ReadSTL(MBInterface* impl = NULL);

@@ -34,7 +34,7 @@ public:
                         MBEntityHandle& file_set,
                         const FileOptions&,
                         const int* material_set_list,
-                        const int num_material_sets );
+                        int num_material_sets );
   
     //! Constructor
   ReadVtk(MBInterface* impl = NULL);

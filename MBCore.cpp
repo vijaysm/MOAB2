@@ -2983,7 +2983,7 @@ const MBHandleUtils &MBCore::handle_utils() const
 void MBCore::print_database() const
 {
   MBErrorCode rval;
-  TypeSequenceManager::iterator i;
+  TypeSequenceManager::const_iterator i;
   const TypeSequenceManager& verts = sequence_manager()->entity_map(MBVERTEX);
   if (!verts.empty())
     printf("  Vertex ID  X        Y        Z        Adjacencies   \n"     

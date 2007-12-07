@@ -50,7 +50,7 @@ class MBReaderIface
                                    MBEntityHandle& file_set,
                                    const FileOptions& opts,
                                    const int* material_set_list,
-                                   const int material_set_list_len ) = 0;
+                                   int material_set_list_len ) = 0;
 
 };
 

@@ -133,9 +133,11 @@ public:
 
     /**\brief Start of EntitySequence set */
   const_iterator begin() const { return sequenceSet.begin(); }
+  iterator begin() { return sequenceSet.begin(); }
 
     /**\brief End of EntitySequence set */
   const_iterator   end() const { return sequenceSet.end();   }
+  iterator   end() { return sequenceSet.end();   }
 
     /**\brief Return EntitySequence for specified handle.
      *
@@ -144,6 +146,11 @@ public:
      *  all sequences have ranges less than specified handle.
      */
   const_iterator lower_bound( MBEntityHandle h ) const 
+    { 
+      DummySequence f(h);
+      return sequenceSet.lower_bound( &f ); 
+    }
+  iterator lower_bound( MBEntityHandle h )
     { 
       DummySequence f(h);
       return sequenceSet.lower_bound( &f ); 
@@ -166,6 +173,7 @@ public:
      *\return EntitySequence for handle, or NULL if no such sequence.
      */
   inline EntitySequence* find( MBEntityHandle h ) const;
+  inline EntitySequence* find( MBEntityHandle h );
   inline MBErrorCode find( MBEntityHandle h, EntitySequence*& );
   inline MBErrorCode find( MBEntityHandle h, const EntitySequence*& ) const;
   
@@ -335,6 +343,18 @@ inline EntitySequence* TypeSequenceManager::find( MBEntityHandle h ) const
     return lastReferenced;
   else {
     DummySequence seq(h);
+    const_iterator i = sequenceSet.find( &seq );
+    return i == end() ? 0 : (lastReferenced = *i);
+  }
+}   
+inline EntitySequence* TypeSequenceManager::find( MBEntityHandle h )
+{
+  if (!lastReferenced) // only null if empty
+    return 0;
+  else if (h >= lastReferenced->start_handle() && h <= lastReferenced->end_handle())
+    return lastReferenced;
+  else {
+    DummySequence seq(h);
     iterator i = sequenceSet.find( &seq );
     return i == end() ? 0 : (lastReferenced = *i);
   }
@@ -376,7 +396,7 @@ inline MBErrorCode TypeSequenceManager::find( MBEntityHandle h, const EntitySequ
   }
   else {
     DummySequence ds(h);
-    iterator i = sequenceSet.lower_bound( &ds );
+    const_iterator i = sequenceSet.lower_bound( &ds );
     if (i == end() || (*i)->start_handle() > h ) {
       seq = 0;
       return MB_ENTITY_NOT_FOUND;
