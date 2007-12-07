@@ -25,6 +25,7 @@
 
 #include "MBBits.hpp"
 #include "MBRange.hpp"
+#include <algorithm>
 
 
 /*! bit masks for how many bits to mask */

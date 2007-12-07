@@ -42,6 +42,8 @@
 #  include "WriteHDF5.hpp"
 #endif
 
+#include <algorithm>
+
 MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
   : mbCore( mdb ), mbError( handler ) 
 {

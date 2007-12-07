@@ -28,6 +28,7 @@
 
 
 #include <memory.h>
+#include <algorithm>
 
 #include "SparseTagCollections.hpp"
 #include "MBRange.hpp"

@@ -1,6 +1,7 @@
 #include "TypeSequenceManager.hpp"
 #include "SequenceData.hpp"
 #include <assert.h>
+#include <limits>
 #include "MBCN.hpp"
 TypeSequenceManager::~TypeSequenceManager()
 {

@@ -20,6 +20,7 @@
 #include "MBTagConventions.hpp"
 
 #include <stdio.h>
+#include <algorithm>
 
 #include "cgm2moab.hpp"
 

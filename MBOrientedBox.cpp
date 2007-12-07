@@ -38,6 +38,7 @@
 #include "MBMatrix3.hpp"
 #include <ostream>
 #include <assert.h>
+#include <limits>
  
 std::ostream& operator<<( std::ostream& s, const MBOrientedBox& b )
 {
