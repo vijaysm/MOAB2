@@ -31,10 +31,13 @@
 #endif
 
 #include <assert.h>
+#ifndef _MSC_VER
 #include <sys/time.h>
+#endif
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits>
 #include <H5Tpublic.h>
 #include "MBInterface.hpp"
 #include "MBInternals.hpp"
@@ -174,19 +177,19 @@ static bool convert_handle_tag( MBInterface* iface, MBTag tag, void* data, size_
   
   // if same saize
   MBEntityHandle *buffer, *end;
-  id_t* witer;
+  WriteHDF5::id_t* witer;
   int step;
-  if (sizeof(MBEntityHandle) >= sizeof(id_t)) {
+  if (sizeof(MBEntityHandle) >= sizeof(WriteHDF5::id_t)) {
     buffer = (MBEntityHandle*)data;
     end = buffer + count;
-    witer = (id_t*)data;
+    witer = (WriteHDF5::id_t*)data;
     step = 1;
   }
   else {
     // iterate in reverse order if sizeof(id_t) > sizeof(MBEntityHandle)
     buffer = (MBEntityHandle*)data + count - 1;
     end = (MBEntityHandle*)data - 1;
-    witer = (id_t*)data + count - 1;
+    witer = (WriteHDF5::id_t*)data + count - 1;
     step = -1;
   }
   for ( ; buffer != end; buffer += step, witer += step) {

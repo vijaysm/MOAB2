@@ -16,6 +16,10 @@
 #ifndef MHDF_FILE_HANDLE_H
 #define MHDF_FILE_HANDLE_H
 
+#ifdef _MSC_VER /* windows */
+#  include <BaseTsd.h>
+typedef ULONG32 uint32_t;
+#endif
 #include "mhdf.h"
 
 #ifdef __cplusplus
