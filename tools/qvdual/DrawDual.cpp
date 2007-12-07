@@ -41,6 +41,8 @@
 #include "qlineedit.h"
 #include "vtkFloatArray.h"
 #include "vtkMaskFields.h"
+#include "vtkWindowToImageFilter.h"
+#include "vtkPNGWriter.h"
 #include "assert.h"
 #include <sstream>
 
@@ -430,6 +432,59 @@ MBEntityHandle DrawDual::get_picked_cell(MBEntityHandle cell_set,
   for (int i = 0; i < picked_cell; i++, rit++);
   
   return *rit;
+}
+
+bool DrawDual::print_dual_surfs(MBRange &dual_surfs,
+                                const bool /*use_offsets*/) 
+{
+  MBErrorCode success = MB_SUCCESS;
+  int offset = 0;
+
+      // create vtkWindowToImageFilter
+  vtkWindowToImageFilter *wtif = vtkWindowToImageFilter::New();
+
+      // create vtkPNGWriter
+  vtkPNGWriter *pngw = vtkPNGWriter::New();
+  
+      // set vtkPNGWriter input to output port of vtkWindowToImageFilter
+  pngw->SetInput(wtif->GetOutput());
+
+  char filename[15];
+  std::vector<int> surf_ids(dual_surfs.size());
+  success = vtkMOABUtils::MBI->tag_get_data(vtkMOABUtils::globalId_tag(), 
+                                            dual_surfs, &surf_ids[0]);
+  if (MB_SUCCESS != success) return success;
+  MBRange::iterator rit;
+  int i;
+  
+  for (rit = dual_surfs.begin(), i = 0; 
+       rit != dual_surfs.end(); rit++, i++) {
+
+    GraphWindows &this_gw = surfDrawrings[*rit];
+
+    MBEntityHandle dum_handle = 0;
+    MBErrorCode tmp_success = MBI->tag_get_data(dualSurfaceTagHandle, &(*rit), 1, 
+                                           &dum_handle);
+    if (MB_TAG_NOT_FOUND == tmp_success || dum_handle == 0) continue;
+  
+    tmp_success = draw_dual_surf(*rit, offset);
+    if (MB_SUCCESS != tmp_success) success = tmp_success;
+      // if (use_offsets) offset++;
+
+      // set vtkWindowToImageFilter input to render window
+    wtif->SetInput(this_gw.sheetDiagram->sheet_diagram()->GetRenderWindow());
+    wtif->Update();
+
+      // set file name
+    sprintf(filename, "s%d.png", surf_ids[i]);
+    pngw->SetFileName(filename);
+    
+      // call Write function on png writer
+    this_gw.sheetDiagram->sheet_diagram()->GetRenderWindow()->Render();
+    pngw->Write();
+  }
+  
+  return (MB_SUCCESS == success ? true : false);
 }
 
 bool DrawDual::draw_dual_surfs(MBRange &dual_surfs,

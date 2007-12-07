@@ -33,6 +33,8 @@ public:
 
   bool draw_dual_surfs(MBRange &dual_surfs,
                        const bool use_offsets = false);
+  bool print_dual_surfs(MBRange &dual_surfs,
+                        const bool use_offsets = false);
   bool draw_dual_surfs(std::vector<MBEntityHandle> &dual_surfs,
                        const bool use_offsets = false);
   MBErrorCode draw_dual_surf(MBEntityHandle dual_surf,

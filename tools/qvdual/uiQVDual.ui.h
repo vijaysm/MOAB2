@@ -1116,3 +1116,31 @@ void uiQVDual::pickline1_returnPressed()
     
   vtkMOABUtils::drawDual->print_picked_ents(picked_ents, true);
 }
+
+
+void uiQVDual::displayPrintSheet()
+{
+  MBRange selected, unselected;
+  getSelected(NULL, selected, unselected);
+
+    // get selected sets which are dual surfaces
+  MBRange dual_surfs;
+  DualTool dual_tool(vtkMOABUtils::mbImpl);
+  MBEntityHandle dum_tag;
+  MBErrorCode result;
+  for (MBRange::iterator rit = selected.begin(); rit != selected.end(); rit++) {
+    result = vtkMOABUtils::mbImpl->tag_get_data(dual_tool.dualSurface_tag(), &(*rit), 1,
+                                                &dum_tag);
+    if (MB_SUCCESS == result && 0 != dum_tag)
+      dual_surfs.insert(*rit);
+  }
+
+  if (NULL == vtkMOABUtils::drawDual) 
+    vtkMOABUtils::drawDual = new DrawDual(pickline1, pickline2);
+
+  // now draw them
+  bool success = vtkMOABUtils::drawDual->print_dual_surfs(dual_surfs);
+  if (!success) 
+    std::cout << "Problem drawing dual surface(s)." << std::endl;
+
+}
