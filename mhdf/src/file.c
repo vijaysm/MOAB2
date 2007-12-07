@@ -266,7 +266,6 @@ mhdf_openFileWithOpt( const char* filename,
   FileHandle* file_ptr;
   unsigned int flags;
   hid_t group_id;
-  unsigned long long max_id = 0;
   API_BEGIN;
   
     /* Check if file is HDF5 */
@@ -307,7 +306,7 @@ mhdf_openFileWithOpt( const char* filename,
   }
   
   if (max_id_out)
-    *max_id_out = max_id;
+    *max_id_out = file_ptr->max_id;
     
   mhdf_setOkay( status );
   API_END_H(1);
