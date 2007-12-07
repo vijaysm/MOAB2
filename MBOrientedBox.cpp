@@ -426,7 +426,7 @@ MBErrorCode MBOrientedBox::compute_from_covariance_data( MBOrientedBox& result,
                                                 const MBRange& vertices )
 {
     // Sum input CovarienceData structures
-  CovarienceData data_sum = { 0.0, MBCartVect(0.0), 0.0 };
+  CovarienceData data_sum( MBMatrix3(0.0), MBCartVect(0.0), 0.0 );
   for (const CovarienceData* const end = data+data_length; data != end; ++data) {
     data_sum.matrix += data->matrix;
     data_sum.center += data->center;

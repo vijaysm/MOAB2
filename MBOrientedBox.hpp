@@ -97,6 +97,9 @@ public:
      *  and resulting box orientation.
      */
   struct CovarienceData {
+    CovarienceData() {}
+    CovarienceData( const MBMatrix3& m, const MBCartVect& c, double a)
+      : matrix(m), center(c), area(a) {}
     MBMatrix3 matrix;    //!< Running sum for covariance matrix
     MBCartVect center;   //!< Sum of triangle centroids weighted by 2*triangle area
     double area;         //!< 2x the sum of the triangle areas
