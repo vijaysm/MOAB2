@@ -33,6 +33,7 @@
 #include "MBInternals.hpp"
 #include "MBCN.hpp"
 #include <iostream>
+#include <string>
 
 #ifdef HAVE_BOOST_POOL_SINGLETON_POOL_HPP
 #  include <boost/pool/singleton_pool.hpp>
