@@ -26,6 +26,7 @@
 #include <assert.h>
 
 #ifdef _MSC_VER
+#  include <float.h>
 #  define finite(A) _finite(A)
 #endif
 
