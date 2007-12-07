@@ -28,6 +28,10 @@
 #include <algorithm>
 #include <limits>
 
+#ifdef _MSC_VER
+#  define finite(A) _finite(A)
+#endif
+
 MBAdaptiveKDTree::Settings::Settings()
   : maxEntPerLeaf(6), 
     maxTreeDepth(30),

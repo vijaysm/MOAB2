@@ -25,6 +25,10 @@
 #include <algorithm>
 #include <assert.h>
 
+#ifdef _MSC_VER
+#  define finite(A) _finite(A)
+#endif
+
 namespace MBGeomUtil {
 
 bool segment_box_intersect( MBCartVect box_min,

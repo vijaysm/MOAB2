@@ -19,6 +19,9 @@
 
 #include "status.h"
 
+#ifdef _MSC_VER
+# define vsnprintf(A,B,C,D) _vsnprintf((A),(B),(C),(D))
+#endif
 
 int mhdf_isError( mhdf_Status const* status )
 {

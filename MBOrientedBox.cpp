@@ -39,6 +39,10 @@
 #include <ostream>
 #include <assert.h>
 #include <limits>
+
+#ifdef _MSC_VER
+#  define finite(A) _finite(A)
+#endif
  
 std::ostream& operator<<( std::ostream& s, const MBOrientedBox& b )
 {
