@@ -485,6 +485,7 @@
         <action name="displayInvertSelectionAction"/>
         <action name="displayDisplayAllActions"/>
         <action name="displayDrawSheetAction"/>
+        <action name="displayPrintSheetAction"/>
     </item>
 </menubar>
 <toolbars>
@@ -752,6 +753,17 @@
             <string>Draw Sheet</string>
         </property>
     </action>
+    <action>
+        <property name="name">
+            <cstring>displayPrintSheetAction</cstring>
+        </property>
+        <property name="text">
+            <string>Print Sheet</string>
+        </property>
+        <property name="menuText">
+            <string>Print Sheet</string>
+        </property>
+    </action>
 </actions>
 <connections>
     <connection>
@@ -893,6 +905,12 @@
         <slot>displayDrawSheetAction_activated()</slot>
     </connection>
     <connection>
+        <sender>displayPrintSheetAction</sender>
+        <signal>activated()</signal>
+        <receiver>uiQVDual</receiver>
+        <slot>displayPrintSheet()</slot>
+    </connection>
+    <connection>
         <sender>APbutton</sender>
         <signal>clicked()</signal>
         <receiver>uiQVDual</receiver>
@@ -998,6 +1016,7 @@
     <slot>displayDisplayAll()</slot>
     <slot>CropToolButton_clicked()</slot>
     <slot>displayDrawSheetAction_activated()</slot>
+    <slot>displayPrintSheet()</slot>
     <slot>APbutton_clicked()</slot>
     <slot>negAPbutton_clicked()</slot>
     <slot>FOCbutton_clicked()</slot>
