@@ -337,6 +337,8 @@ private:
   MBErrorCode split_pair_nonmanifold(MBEntityHandle *split_quads,
                                      MBEntityHandle *split_edges,
                                      MBEntityHandle *split_nodes,
+                                     std::vector<MBEntityHandle> *star_dp1,
+                                     std::vector<MBEntityHandle> *star_dp2,
                                      MBEntityHandle *other_edges,
                                      MBEntityHandle *other_nodes,
                                      MBEntityHandle *new_quads,
@@ -358,6 +360,8 @@ private:
                             MBEntityHandle *split_edges,
                             std::vector<MBEntityHandle> *star_dp1,
                             std::vector<MBEntityHandle> *star_dp2);
+  
+  void print_cell(MBEntityHandle cell);
   
     //! private copy of interface *
   MBInterface *mbImpl;

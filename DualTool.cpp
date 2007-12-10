@@ -13,6 +13,8 @@
  * 
  */
 
+#define assert(a) if (!(a)) return MB_FAILURE
+
 #include "DualTool.hpp"
 #include "MBRange.hpp"
 // using MBCore for call to check_adjacencies
@@ -34,7 +36,7 @@
 #define SWAP(a,b) {MBEntityHandle tmp_ent = a; a = b; b = tmp_ent;}
 
 bool debug = false;
-bool debug_ap = true;
+bool debug_ap = false;
 
   //! tag name for dual surfaces
 const char *DualTool::DUAL_SURFACE_TAG_NAME = "DUAL_SURFACE";
@@ -1417,6 +1419,8 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &quad1
     }
   }
   
+  std::cout << "-AP("; print_cell(odedge); std::cout << ")" << std::endl;
+
     // perform an atomic pillow operation around dedge
 
     // grab the quad before deleting the odedge
@@ -1518,6 +1522,8 @@ MBErrorCode DualTool::rev_atomic_pillow(MBEntityHandle pillow, MBRange &chords)
     // the elements instead of the pillow sheet so you get all of them, not just
     // the ones on the sheet
   if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
+
+  std::cout << "-AP("; print_cell(pillow); std::cout << ")" << std::endl;
 
   MBRange dverts;
   MBErrorCode result = get_dual_entities(pillow, NULL, NULL,
@@ -1633,11 +1639,43 @@ MBErrorCode DualTool::delete_dual_entities(MBRange &entities)
   return mbImpl->delete_entities(ents_to_delete);
 }
 
+void DualTool::print_cell(MBEntityHandle cell) 
+{
+  const MBEntityHandle *connect;
+  int num_connect;
+  MBErrorCode result = mbImpl->get_connectivity(cell, connect, num_connect);
+  if (MB_SUCCESS != result) return;
+  bool first = true;
+  MBEntityHandle primals[20];
+  std::vector<int> ids;
+  
+  assert(num_connect < 20);
+  result = mbImpl->tag_get_data(dualEntityTag, connect, num_connect, primals);
+  ids.resize(num_connect);
+  result = mbImpl->tag_get_data(globalIdTag, primals, 
+                             num_connect, &ids[0]);
+  for (int i = 0; i < num_connect; i++) {
+    if (!first) std::cout << "-";
+    MBEntityType this_type = mbImpl->type_from_handle(primals[i]);
+    if (this_type == MBHEX) std::cout << "h";
+    else if (this_type == MBQUAD) std::cout << "f";
+    else std::cout << "u";
+
+    if (ids[i] != 0) std::cout << ids[i];
+    else std::cout << mbImpl->id_from_handle(primals[i]);
+
+    first = false;
+  }
+}
+
 MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr) 
 {
   if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
 
   MeshTopoUtil mtu(mbImpl);
+
+  std::cout << "OC("; print_cell(ocl); std::cout << ")-("; print_cell(ocr);
+  std::cout << ")" << std::endl;
 
     // get the primal entities we're dealing with
   MBEntityHandle split_quads[2] = {0}, 
@@ -1645,6 +1683,10 @@ MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr)
   MBRange hexes;
   MBErrorCode result = foc_get_ents(ocl, ocr, split_quads, split_edges, split_nodes,
                                     hexes, other_edges, other_nodes); RR;
+
+    // get star entities around edges, separated into halves
+  std::vector<MBEntityHandle> star_dp1[2], star_dp2[2];
+  result = foc_get_stars(split_quads, split_edges, star_dp1, star_dp2); RR;
 
   if (MBQUAD != mbImpl->type_from_handle(split_quads[0]) ||
       MBQUAD != mbImpl->type_from_handle(split_quads[1]))
@@ -1655,6 +1697,7 @@ MBErrorCode DualTool::face_open_collapse(MBEntityHandle ocl, MBEntityHandle ocr)
 
   MBEntityHandle new_quads[2], new_edges[3], new_nodes[2];
   result = split_pair_nonmanifold(split_quads, split_edges, split_nodes, 
+                                  star_dp1, star_dp2,
                                   other_edges, other_nodes, 
                                   new_quads, new_edges, new_nodes);
   if (MB_SUCCESS != result) return result;
@@ -1859,6 +1902,8 @@ MBErrorCode DualTool::foc_get_ents(MBEntityHandle ocl,
 MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
                                              MBEntityHandle *split_edges,
                                              MBEntityHandle *split_nodes,
+                                             std::vector<MBEntityHandle> *star_dp1,
+                                             std::vector<MBEntityHandle> *star_dp2,
                                              MBEntityHandle *other_edges,
                                              MBEntityHandle *other_nodes,
                                              MBEntityHandle *new_quads,
@@ -1870,10 +1915,6 @@ MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
     // bdy so we know which edges to merge after the split-nonmanifold
   MeshTopoUtil mtu(mbImpl);
   MBErrorCode result;
-
-    // get star entities around edges, separated into halves
-  std::vector<MBEntityHandle> star_dp1[2], star_dp2[2];
-  result = foc_get_stars(split_quads, split_edges, star_dp1, star_dp2); RR;
 
     // get which star the split faces are in, and choose the other one
   int new_side = -1;
@@ -2151,22 +2192,27 @@ MBErrorCode DualTool::foc_get_stars(MBEntityHandle *split_quads,
   }
 
     // some error checking
-  assert("both split quads should be on the same star list half and not on the other" &&
-         ((std::find(star_dp1[0].begin(), star_dp1[0].end(), split_quads[0]) == star_dp1[0].end() &&
+  if (!(((std::find(star_dp1[0].begin(), star_dp1[0].end(), split_quads[0]) == star_dp1[0].end() &&
           std::find(star_dp1[0].begin(), star_dp1[0].end(), split_quads[1]) == star_dp1[0].end() &&
           std::find(star_dp1[1].begin(), star_dp1[1].end(), split_quads[0]) != star_dp1[1].end() &&
           std::find(star_dp1[1].begin(), star_dp1[1].end(), split_quads[1]) != star_dp1[1].end()) ||
-
+         
          (std::find(star_dp1[1].begin(), star_dp1[1].end(), split_quads[0]) == star_dp1[1].end() &&
           std::find(star_dp1[1].begin(), star_dp1[1].end(), split_quads[1]) == star_dp1[1].end() &&
           std::find(star_dp1[0].begin(), star_dp1[0].end(), split_quads[0]) != star_dp1[0].end() &&
           std::find(star_dp1[0].begin(), star_dp1[0].end(), split_quads[1]) != star_dp1[0].end()))
-         );
+        )) {
+    std::cerr << "foc_get_stars: both split quads should be on the same star list half and not "
+              << "on the other, failed" << std::endl;
+    return MB_FAILURE;
+  }
   
-  assert("no NULLs on the hstar lists" &&
-         std::find(star_dp2[0].begin(), star_dp2[0].end(), 0) == star_dp2[0].end() &&
-         std::find(star_dp2[1].begin(), star_dp2[1].end(), 0) == star_dp2[1].end());
-         
+  if (!(std::find(star_dp2[0].begin(), star_dp2[0].end(), 0) == star_dp2[0].end() &&
+        std::find(star_dp2[1].begin(), star_dp2[1].end(), 0) == star_dp2[1].end())) {
+    std::cerr << "foc_get_stars: no NULLs on the hstar lists, failed";
+    return MB_FAILURE;
+  }
+  
   return MB_SUCCESS;
 }
 
@@ -2490,6 +2536,8 @@ MBErrorCode DualTool::face_shrink(MBEntityHandle odedge)
 
   if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
   
+  std::cout << "FS("; print_cell(odedge); std::cout << ")" << std::endl;
+
   MBEntityHandle quads[4], hexes[2];
   std::vector<MBEntityHandle> connects[4], side_quads[2];
 
@@ -2754,6 +2802,8 @@ MBErrorCode DualTool::rev_face_shrink(MBEntityHandle odedge)
     // some preliminary checking
   if (mbImpl->type_from_handle(odedge) != MBEDGE) return MB_TYPE_OUT_OF_RANGE;
   
+  std::cout << "-FS("; print_cell(odedge); std::cout << ")" << std::endl;
+
   MBEntityHandle quads[4], hexes[2];
   std::vector<MBEntityHandle> connects[4], side_quads[2];
 
