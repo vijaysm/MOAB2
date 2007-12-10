@@ -52,7 +52,7 @@ extern "C"
 //  extern GVC_t *gvContext();
 }
 
-const bool my_debug = true;
+const bool my_debug = false;
 
 const int SHEET_WINDOW_SIZE = 500;
 
