@@ -2096,6 +2096,7 @@ MBErrorCode DualTool::foc_get_stars(MBEntityHandle *split_quads,
     if (on_bdy_tmp) {
       assert(hstar_tmp.size() == qstar_tmp.size()-1);
       hstar_tmp.push_back(0);
+      on_bdy = true;
     }
     
       // get the position of first split quad in star
@@ -2375,7 +2376,10 @@ MBErrorCode DualTool::get_opposite_verts(const MBEntityHandle middle_edge,
   result = mbImpl->get_connectivity(&middle_edge, 1, middle_connect); RR;
   result = mbImpl->get_connectivity(&(*vit), 1, dum_connect); RR;
   dum_connect = dum_connect.subtract(middle_connect);
-  assert(dum_connect.size() == 1);
+  if (dum_connect.size() != 1) {
+    std::cerr << "Trouble traversing chord." << std::endl;
+    return MB_FAILURE;
+  }
 
     // put in verts[0]
   verts[0] = *dum_connect.begin();
@@ -2383,11 +2387,14 @@ MBErrorCode DualTool::get_opposite_verts(const MBEntityHandle middle_edge,
     // same with prev edge
   vit++;
   if (vit == chord_edges.end()) vit = chord_edges.begin();
-  else vit++;
+  vit++;
   dum_connect.clear();
   result = mbImpl->get_connectivity(&(*vit), 1, dum_connect); RR;
   dum_connect = dum_connect.subtract(middle_connect);
-  assert(dum_connect.size() == 1);
+  if (dum_connect.size() != 1) {
+    std::cerr << "Trouble traversing chord." << std::endl;
+    return MB_FAILURE;
+  }
 
     // put in verts[1]
   verts[1] = *dum_connect.begin();
@@ -2400,7 +2407,10 @@ MBErrorCode DualTool::get_opposite_verts(const MBEntityHandle middle_edge,
     verts[1] = dum_h;
   }
   
-  assert(0 != mtu.common_entity(verts[0], connect[0], 1));
+  if (0 == mtu.common_entity(verts[0], connect[0], 1)) {
+    std::cerr << "Trouble traversing chord." << std::endl;
+    return MB_FAILURE;
+  }
   
   return MB_SUCCESS;
 }

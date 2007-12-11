@@ -344,7 +344,7 @@ void DrawDual::print_picked_ents(MBRange &picked_ents, bool from_return)
       gDrawDual->update_high_polydatas();
     }
     else if (picked_ent == *picked_ents.begin()) {
-      std::cout << oss.str() << " (" << picked_ent << ")" << std::endl;
+        //std::cout << oss.str() << " (" << picked_ent << ")" << std::endl;
       pickLine2->setText(pickLine1->displayText());
       pickLine1->setText(QString(oss.str().c_str()));
 
@@ -863,7 +863,10 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
           int num_connect;
           result = MBI->get_connectivity(*chord_edges[i].begin(), connect, num_connect); RR;
           result = MBI->get_adjacencies(connect, num_connect, 1, false, middle_edges); RR;
-          assert(1 == middle_edges.size());
+          if (1 != middle_edges.size()) {
+              // take off any edges that aren't on this sheet? no, just punt...
+            std::cout << "Warning: not a clear middle edge..." << std::endl;
+          }
         
             // get the points for the two vertices and the 3 edges
             // non-middle chord; get the edges too
@@ -1766,7 +1769,6 @@ MBErrorCode DrawDual::compute_pillow_fixed_points(MBEntityHandle dual_surf,
     // from another that's not in the 1st set
   MBRange tmp_range;
   result = MBI->get_entities_by_dimension(chords[0], 1, tmp_range); RR;
-  assert(3 < tmp_range.size());
   const MBEntityHandle *connect;
   int num_connect;
   result = MBI->get_connectivity(*tmp_range.begin(), connect, num_connect); RR;
@@ -2286,7 +2288,20 @@ MBErrorCode DrawDual::smooth_dual_surf(MBEntityHandle dual_surf,
         // get all neighbor verts
       MBRange nverts, tmp_edges;
       result = mtu.get_bridge_adjacencies(this_point, 1, 0, nverts); RR;
-      assert(4 == nverts.size() || 3 == nverts.size());
+      if (!(4 == nverts.size() || 3 == nverts.size())) {
+        std::cerr << "Smoothing sheet failed; dumping file." << std::endl;
+        dualTool->delete_whole_dual();
+        MBEntityHandle save_set;
+        MBErrorCode result = vtkMOABUtils::mbImpl->create_meshset(MESHSET_SET, save_set);
+        if (MB_SUCCESS != result) return MB_FAILURE;
+        MBRange hexes;
+        result = vtkMOABUtils::mbImpl->get_entities_by_type(0, MBHEX, hexes);
+        if (MB_SUCCESS != result) return MB_FAILURE;
+        result = vtkMOABUtils::mbImpl->add_entities(save_set, hexes);
+        if (MB_SUCCESS != result) return MB_FAILURE;
+        vtkMOABUtils::mbImpl->write_file("tmp.h5m", NULL, NULL, &save_set, 1);
+        return MB_FAILURE;
+      }
       
       for (MBRange::iterator rit = nverts.begin(); rit != nverts.end(); rit++) {
         tmp_edges.clear();
