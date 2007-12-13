@@ -2662,11 +2662,16 @@ MBErrorCode DualTool::face_shrink(MBEntityHandle odedge)
     // now fixup other two hexes; start by getting hex through quads 0, 1       
     // make this first hex switch to the other side, to make the dual look like
     // a hex push
+  int tmp_ids[2];
+  result = mbImpl->tag_get_data(globalId_tag(), hexes, 2, tmp_ids);
+  if (MB_SUCCESS != result) return result;
+  
+
   result = mbImpl->delete_entities(hexes, 2);
   if (MB_SUCCESS != result) return result;
   result = mbImpl->delete_entities(&quads[1], 1);
   if (MB_SUCCESS != result) return result;
-  
+
   for (int i = 0; i < 4; i++) {
     hconnect[i] = connects[3][i];
     hconnect[4+i] = connects[2][i];
@@ -2687,6 +2692,10 @@ MBErrorCode DualTool::face_shrink(MBEntityHandle odedge)
   if (mtu.equivalent_entities(quads[2]))
       mbImpl->add_adjacencies(quads[2], &hexes[0], 1, false);
 
+    // re-set the global ids for the hexes to what they were
+  result = mbImpl->tag_set_data(globalId_tag(), hexes, 2, tmp_ids);
+  if (MB_SUCCESS != result) return result;
+  
   if (debug_ap) ((MBCore*)mbImpl)->check_adjacencies();
 
     // now update the dual
