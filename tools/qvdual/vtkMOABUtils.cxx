@@ -54,6 +54,9 @@ const int vtkMOABUtils::vtk_cell_types[] = {
   //! static interface pointer, use this when accessing MOAB within vtk
 MBInterface *vtkMOABUtils::mbImpl = NULL;
 
+  //! static interface pointer, use this when accessing MOAB within vtk
+DualTool *vtkMOABUtils::dualTool = NULL;
+
     //! static pointer to the renderer
 vtkRenderer *vtkMOABUtils::myRen = NULL;
   
@@ -136,6 +139,9 @@ MBErrorCode vtkMOABUtils::init(MBInterface *impl, vtkRenderer *this_ren)
     impl = new MBCore();
     vtkMOABUtils::mbImpl = impl;
   }
+
+  if (NULL == dualTool)
+    dualTool = new DualTool(mbImpl);
 
   MBErrorCode result = create_tags();
   
@@ -378,12 +384,11 @@ MBErrorCode vtkMOABUtils::update_all_actors(MBEntityHandle this_set,
 
     // finally, the sets
   MBRange chord_sets, sheet_sets;
-  DualTool dt(mbImpl);
   
-  result = dt.get_dual_hyperplanes(vtkMOABUtils::mbImpl, 1, chord_sets);
+  result = dualTool->get_dual_hyperplanes(vtkMOABUtils::mbImpl, 1, chord_sets);
   if (MB_SUCCESS != result) return result;
 
-  result = dt.get_dual_hyperplanes(vtkMOABUtils::mbImpl, 2, sheet_sets);
+  result = dualTool->get_dual_hyperplanes(vtkMOABUtils::mbImpl, 2, sheet_sets);
   if (MB_SUCCESS != result) return result;
 
   result = vtkMOABUtils::update_set_actors(chord_sets, vtkMOABUtils::myUG, true, false, true);
@@ -518,7 +523,9 @@ MBErrorCode vtkMOABUtils::update_set_actors(const MBRange &update_sets,
 //      this_mapper->UseLookupTableScalarRangeOn();
 //    }
 
-      ids->Delete();
+    ids->Delete();
+    this_mapper->Delete();
+    ec->Delete();
   }
   
   return result;
@@ -1186,6 +1193,14 @@ void vtkMOABUtils::update_display(vtkUnstructuredGrid *ug)
   //! get rid of all the vtk drawing stuff
 void vtkMOABUtils::reset_drawing_data() 
 {
+  MBRange these_sets;
+  MBErrorCode result;
+  dualTool->get_dual_hyperplanes(vtkMOABUtils::mbImpl, 1, these_sets);
+  dualTool->get_dual_hyperplanes(vtkMOABUtils::mbImpl, 2, these_sets);
+
+  for (MBRange::iterator rit = these_sets.begin(); rit != these_sets.end(); rit++)
+    vtkMOABUtils::get_actor(*rit)->Delete();
+
   actorProperties.clear();
 
     //! map between props (actor2d's and actors) and sets they represent (0 if no set, 
@@ -1216,7 +1231,7 @@ void vtkMOABUtils::reset_drawing_data()
   if (NULL == mbImpl) return;
   
   //! tag indicating whether a given set is in top contains assy
-  MBErrorCode result = mbImpl->tag_delete(vtkTopContainsTag);
+  result = mbImpl->tag_delete(vtkTopContainsTag);
   if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
     std::cout << "Trouble deleting tag." << std::endl;
   vtkTopContainsTag = NULL;
@@ -1248,29 +1263,36 @@ void vtkMOABUtils::reset_drawing_data()
 
 void vtkMOABUtils::assign_global_ids()
 {
-  MBRange ents;
   std::vector<int> ids;
   MBTag gid = globalId_tag();
   MBErrorCode result;
-  
-  result = mbImpl->get_entities_by_handle(0, ents);
-  if (MB_SUCCESS != result) return;
-  
-  ids.resize(ents.size());
-  std::fill(ids.begin(), ids.end(), 0);
-  mbImpl->tag_get_data(gid, ents, &ids[0]);
 
-  bool need_set = false;
+  MBEntityType types[] = {MBVERTEX, MBEDGE, MBQUAD, MBHEX};
   
-  unsigned int i = 0;
-  MBRange::iterator rit = ents.begin();
+  for (unsigned int j = 0; j <= 3; j++) {
+    MBRange ents;
+    result = mbImpl->get_entities_by_type(0, types[j], ents);
+    if (MB_SUCCESS != result) return;
   
-  for (; i < ids.size(); i++, rit++) {
-    if (0 == ids[i]) {
-      ids[i] = mbImpl->id_from_handle(*rit);
-      need_set = true;
+    ids.resize(ents.size());
+    std::fill(ids.begin(), ids.end(), -1);
+    mbImpl->tag_get_data(gid, ents, &ids[0]);
+
+    bool need_set = false;
+  
+      // get max id
+    int max_id = -1;
+    for (unsigned int i = 0; i < ids.size(); i++)
+      if (ids[i] > max_id) max_id = ids[i];
+
+    for (unsigned int i = 0; i < ids.size(); i++) {
+      if (ids[i] == 0) {
+        ids[i] = ++max_id;
+        need_set = true;
+      }
     }
+
+    if (need_set) mbImpl->tag_set_data(gid, ents, &ids[0]);
   }
-  
-  if (need_set) mbImpl->tag_set_data(gid, ents, &ids[0]);
+
 }

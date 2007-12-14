@@ -78,8 +78,6 @@ bool DrawDual::useGraphviz = false;
 DrawDual::DrawDual(QLineEdit *pickline1, QLineEdit *pickline2) 
     : pickLine1(pickline1), pickLine2(pickline2)
 {
-  dualTool = new DualTool(vtkMOABUtils::mbImpl);
-
     // make sure we have basic tags we need
   MBErrorCode result = MBI->tag_get_handle(DualTool::DUAL_ENTITY_TAG_NAME, 
                                            dualEntityTagHandle);
@@ -121,9 +119,24 @@ DrawDual::DrawDual(QLineEdit *pickline1, QLineEdit *pickline2)
 
 DrawDual::~DrawDual() 
 {
-  if (0 != gvEntityHandle)
+  if (0 != gvEntityHandle) {
+    MBRange ents;
+    MBI->get_entities_by_type_and_tag(0, MBVERTEX, &gvEntityHandle,
+                                      NULL, 1, ents, MBInterface::UNION);
+    MBI->get_entities_by_type_and_tag(0, MBEDGE, &gvEntityHandle,
+                                      NULL, 1, ents, MBInterface::UNION);
+    MBI->get_entities_by_type_and_tag(0, MBPOLYGON, &gvEntityHandle,
+                                      NULL, 1, ents, MBInterface::UNION);
+    std::vector<GVEntity*> gvents(ents.size());
+    std::fill(gvents.begin(), gvents.end(), (GVEntity*)NULL);
+    MBErrorCode result = MBI->tag_get_data(gvEntityHandle, ents, &gvents[0]);
+    if (MB_SUCCESS == result) {
+      for (unsigned int i = 0; i < gvents.size(); i++) 
+        delete gvents[i];
+    }
     MBI->tag_delete(gvEntityHandle);
-
+  }
+  
   if (NULL != dualPicker) {
     dualPicker->Delete();
     dualPicker = NULL;
@@ -135,7 +148,6 @@ DrawDual::~DrawDual()
   }
   
   if (NULL != gDrawDual) gDrawDual = NULL;
-  if (NULL != dualTool) delete dualTool;
 
 }
 
@@ -368,6 +380,8 @@ void DrawDual::update_high_polydatas()
       mapper->SetInput(pd);
       mit->second.pickActor = vtkActor::New();
       mit->second.pickActor->SetMapper(mapper);
+      pd->FastDelete();
+      mapper->FastDelete();
     }
     else
       vtkPolyData::SafeDownCast(mit->second.pickActor->GetMapper()->GetInput())->Reset();
@@ -409,6 +423,7 @@ void DrawDual::update_high_polydatas()
       this_style->HighlightProp(gw.pickActor);
     }
   }
+  id_list->FastDelete();
 }
 
 MBEntityHandle DrawDual::get_picked_cell(MBEntityHandle cell_set,
@@ -419,9 +434,9 @@ MBEntityHandle DrawDual::get_picked_cell(MBEntityHandle cell_set,
   MBRange cells;
   MBErrorCode result;
   if (1 == dim)
-    result = dualTool->get_dual_entities(cell_set, NULL, &cells, NULL, NULL, NULL);
+    result = vtkMOABUtils::dualTool->get_dual_entities(cell_set, NULL, &cells, NULL, NULL, NULL);
   else if (2 == dim)
-    result = dualTool->get_dual_entities(cell_set, &cells, NULL, NULL, NULL, NULL);
+    result = vtkMOABUtils::dualTool->get_dual_entities(cell_set, &cells, NULL, NULL, NULL, NULL);
   else
     assert(false);
   
@@ -483,6 +498,9 @@ bool DrawDual::print_dual_surfs(MBRange &dual_surfs,
     this_gw.sheetDiagram->sheet_diagram()->GetRenderWindow()->Render();
     pngw->Write();
   }
+
+  wtif->Delete();
+  pngw->Delete();
   
   return (MB_SUCCESS == success ? true : false);
 }
@@ -540,7 +558,7 @@ MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf,
 
     // get the cells and vertices on this dual surface
   MBRange dcells, dedges, dverts, face_verts, loop_edges;
-  MBErrorCode result = dualTool->get_dual_entities(dual_surf, &dcells, &dedges, 
+  MBErrorCode result = vtkMOABUtils::dualTool->get_dual_entities(dual_surf, &dcells, &dedges, 
                                                    &dverts, &face_verts, &loop_edges);
   if (MB_SUCCESS != result) return result;
 
@@ -606,6 +624,8 @@ MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf,
     // 6. draw labels for dual surface, points, dual curves
   success = draw_labels(dual_surf, pd, new_pd);
   if (MB_SUCCESS != success) return success;
+  pd->FastDelete();
+  new_pd->FastDelete();
 
     // 7. add a picker
   add_picker(this_ren);
@@ -626,7 +646,7 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
     // make sure the mid-pt of degenerate blind chord segments is on the correct
     // side of the other chord it splits
   MBRange dcells, dedges, dverts, face_verts, loop_edges;
-  MBErrorCode result = dualTool->get_dual_entities(dual_surf, &dcells, &dedges, 
+  MBErrorCode result = vtkMOABUtils::dualTool->get_dual_entities(dual_surf, &dcells, &dedges, 
                                                    &dverts, &face_verts, &loop_edges); RR;
   
   MBRange tmp_edges, degen_2cells;
@@ -668,7 +688,7 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
     if (MB_SUCCESS != result) return result;
 
       // decide whether this sheet is blind or not
-    bool sheet_is_blind = dualTool->is_blind(dual_surf);
+    bool sheet_is_blind = vtkMOABUtils::dualTool->is_blind(dual_surf);
     
       // branch depending on what kind of arrangement we have
     if (adj_2cells.size() == 2 && !sheet_is_blind) {
@@ -679,10 +699,10 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
       result = MBI->get_adjacencies(adj_2cells, 1, false, dum); RR;
       assert(1 == dum.size());
       MBEntityHandle middle_edge = *dum.begin();
-      MBEntityHandle chord = dualTool->get_dual_hyperplane(middle_edge);
+      MBEntityHandle chord = vtkMOABUtils::dualTool->get_dual_hyperplane(middle_edge);
       assert(0 != chord);
       MBEntityHandle verts[2];
-      result = dualTool->get_opposite_verts(middle_edge, chord, verts); RR;
+      result = vtkMOABUtils::dualTool->get_opposite_verts(middle_edge, chord, verts); RR;
 
         // get the gv points for the four vertices
       void *next_points[2], *points[2];
@@ -840,7 +860,7 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
           // align them such that chord_edges[0][0] and chord_edges[1][0] do not share a 2cell 
           // on this sheet; arbitrarily choose chord_edges[0][0] to be left-most
         MBEntityHandle shared_2cell = mtu.common_entity(chord_edges[0][0], chord_edges[1][0], 2);
-        if (0 != shared_2cell && dualTool->get_dual_hyperplane(shared_2cell) == dual_surf) {
+        if (0 != shared_2cell && vtkMOABUtils::dualTool->get_dual_hyperplane(shared_2cell) == dual_surf) {
           shared_2cell = chord_edges[0][0];
           chord_edges[0][0] = chord_edges[0][1];
           chord_edges[0][1] = shared_2cell;
@@ -940,7 +960,7 @@ MBErrorCode DrawDual::make_vtk_data(MBEntityHandle dual_surf,
 {
     // get the cells and vertices on this dual surface
   MBRange dcells, dverts, dverts_loop, dedges, dedges_loop;
-  MBErrorCode result = dualTool->get_dual_entities(dual_surf, &dcells, &dedges, 
+  MBErrorCode result = vtkMOABUtils::dualTool->get_dual_entities(dual_surf, &dcells, &dedges, 
                                                    &dverts, &dverts_loop, &dedges_loop);
   if (MB_SUCCESS != result) return result;
 
@@ -972,6 +992,7 @@ MBErrorCode DrawDual::make_vtk_data(MBEntityHandle dual_surf,
   pd->GetCellData()->AddArray(color_ids);
   pd->GetCellData()->SetScalars(color_ids);
   pd->GetCellData()->SetActiveAttribute("ColorId", 0);
+  color_ids->FastDelete();
 
     // make the 1d cells chord by chord
   std::vector<MBEntityHandle> chords;
@@ -988,7 +1009,7 @@ MBErrorCode DrawDual::make_vtk_data(MBEntityHandle dual_surf,
 
       // get edges in this chord
     MBRange dedges;
-    result = dualTool->get_dual_entities(*vit, NULL, &dedges, NULL, NULL, NULL);
+    result = vtkMOABUtils::dualTool->get_dual_entities(*vit, NULL, &dedges, NULL, NULL, NULL);
     if (MB_SUCCESS != result) return result;
     
       // construct a new polydata, and borrow the points from the sheet's pd
@@ -1009,6 +1030,9 @@ MBErrorCode DrawDual::make_vtk_data(MBEntityHandle dual_surf,
       // now make the 1-cells
     result = make_vtk_cells(dedges, 1, (float) global_id,
                             dual_surf, vert_gv_map, chord_pd, NULL);
+    chord_pd->FastDelete();
+    chord_actor->FastDelete();
+    chord_mapper->FastDelete();
     if (MB_SUCCESS != result) return result;
   }
 
@@ -1201,7 +1225,7 @@ MBErrorCode DrawDual::get_xform(MBEntityHandle dual_surf, Agsym_t *asym_pos,
   x_xform = y_xform = 1.0;
   return MB_SUCCESS;
 
-  MBErrorCode result = dualTool->get_dual_entities(dual_surf, NULL, NULL, 
+  MBErrorCode result = vtkMOABUtils::dualTool->get_dual_entities(dual_surf, NULL, NULL, 
                                                    &face_verts_dum, &face_verts, NULL);
   if (MB_SUCCESS != result) return result;
   
@@ -1282,6 +1306,7 @@ void DrawDual::get_clean_pd(MBEntityHandle dual_surf,
       vtkCoordinate *this_coord = vtkCoordinate::New();
       this_coord->SetCoordinateSystemToWorld();
       this_mapper->SetTransformCoordinate(this_coord);
+      this_coord->FastDelete();
 
       this_mapper->ScalarVisibilityOn();
       this_mapper->SetLookupTable(vtkMOABUtils::lookupTable);
@@ -1293,6 +1318,7 @@ void DrawDual::get_clean_pd(MBEntityHandle dual_surf,
       ee->SetInput(pd);
       this_mapper->SetInput(ee->GetOutput());
       this_mapper->SetInput(pd);
+      ee->FastDelete();
 
       vtkActor2D *this_actor = vtkActor2D::New();
       this_actor->PickableOn();
@@ -1301,6 +1327,8 @@ void DrawDual::get_clean_pd(MBEntityHandle dual_surf,
       this_actor->SetMapper(this_mapper);
       this_actor->GetProperty()->SetLineWidth(2.0);
       this_ren->AddActor(this_actor);
+      this_actor->FastDelete();
+      this_mapper->FastDelete();
     }
     else {
         // the easy route - just make new stuff
@@ -1326,6 +1354,7 @@ void DrawDual::get_clean_pd(MBEntityHandle dual_surf,
       this_actor->PickableOn();
       vtkMOABUtils::propSetMap[this_actor] = dual_surf;
       this_actor->SetMapper(this_mapper);
+      this_mapper->FastDelete();
       this_actor->GetProperty()->SetLineWidth(2.0);
 
       double red, green, blue;
@@ -1354,7 +1383,10 @@ void DrawDual::get_clean_pd(MBEntityHandle dual_surf,
     this_sdpopup->show();
   
     this_ren->ResetCamera();
+    this_ren->FastDelete();
 
+    camera->Delete();
+    
     return;
   }
   
@@ -1637,7 +1669,7 @@ MBErrorCode DrawDual::compute_fixed_points(MBEntityHandle dual_surf, MBRange &dv
       loop_vs.push_back(this_v);
       temp_face_verts.insert(this_v);
       MBEntityHandle temp_v = this_v;
-      this_v = dualTool->next_loop_vertex(last_v, this_v, dual_surf);
+      this_v = vtkMOABUtils::dualTool->next_loop_vertex(last_v, this_v, dual_surf);
       assert(0 != this_v);
       last_v = temp_v;
     }
@@ -1853,6 +1885,7 @@ MBErrorCode DrawDual::draw_labels(MBEntityHandle dual_surf, vtkPolyData *pd,
   text_actor->GetTextProperty()->SetColor(1.0, 1.0, 1.0);
   text_actor->GetTextProperty()->BoldOn();
   ren->AddActor(text_actor);
+  text_actor->FastDelete();
 
     // now vertex ids
 
@@ -1870,6 +1903,9 @@ MBErrorCode DrawDual::draw_labels(MBEntityHandle dual_surf, vtkPolyData *pd,
 
     // set label actor to be non-pickable
   lda2->PickableOff();
+
+  os_labels->FastDelete();
+  lda2->FastDelete();
 
   return MB_SUCCESS;
 }
@@ -1915,7 +1951,7 @@ MBErrorCode DrawDual::label_other_sheets(MBEntityHandle dual_surf,
 
       // create a series of edges in the original pd
     dedges.clear(); dverts.clear(); dverts_loop.clear();
-    tmp_result = dualTool->get_dual_entities(*vit1, NULL, &dedges, &dverts, &dverts_loop, 
+    tmp_result = vtkMOABUtils::dualTool->get_dual_entities(*vit1, NULL, &dedges, &dverts, &dverts_loop, 
                                              NULL);
     if (MB_SUCCESS != tmp_result) {
       result = tmp_result;
@@ -1967,6 +2003,7 @@ MBErrorCode DrawDual::label_other_sheets(MBEntityHandle dual_surf,
   new_pd->GetPointData()->AddArray(id_array);
   new_pd->GetPointData()->SetScalars(id_array);
   new_pd->GetPointData()->SetActiveAttribute("LoopVertexIds", 0);
+  id_array->FastDelete();
 
   return result;
 }
@@ -1982,7 +2019,7 @@ void DrawDual::label_interior_verts(MBEntityHandle dual_surf,
     // get the cells and vertices on this dual surface
   MBRange dcells, dverts, face_verts;
 
-  MBErrorCode result = dualTool->get_dual_entities(dual_surf, &dcells, NULL, 
+  MBErrorCode result = vtkMOABUtils::dualTool->get_dual_entities(dual_surf, &dcells, NULL, 
                                                    &dverts, &face_verts, NULL);
   if (MB_SUCCESS != result) return;
   
@@ -2043,6 +2080,11 @@ void DrawDual::label_interior_verts(MBEntityHandle dual_surf,
 
     // set label actor to be non-pickable
   lda->PickableOff();
+
+  label_pd->FastDelete();
+  int_ids->FastDelete();
+  ldm->FastDelete();
+  lda->FastDelete();
 }
 
 MBEntityHandle DrawDual::other_sheet(const MBEntityHandle this_chord,
@@ -2290,7 +2332,7 @@ MBErrorCode DrawDual::smooth_dual_surf(MBEntityHandle dual_surf,
       result = mtu.get_bridge_adjacencies(this_point, 1, 0, nverts); RR;
       if (!(4 == nverts.size() || 3 == nverts.size())) {
         std::cerr << "Smoothing sheet failed; dumping file." << std::endl;
-        dualTool->delete_whole_dual();
+        vtkMOABUtils::dualTool->delete_whole_dual();
         MBEntityHandle save_set;
         MBErrorCode result = vtkMOABUtils::mbImpl->create_meshset(MESHSET_SET, save_set);
         if (MB_SUCCESS != result) return MB_FAILURE;
@@ -2372,7 +2414,7 @@ MBErrorCode DrawDual::process_pick(MBEntityHandle dual_surf,
 {
     // get vertices on interior of 3d sheet
   MBRange int_verts, face_verts;
-  MBErrorCode result = dualTool->get_dual_entities(dual_surf, NULL, NULL, 
+  MBErrorCode result = vtkMOABUtils::dualTool->get_dual_entities(dual_surf, NULL, NULL, 
                                                    &int_verts, &face_verts, NULL);
   int_verts = int_verts.subtract(face_verts);
   

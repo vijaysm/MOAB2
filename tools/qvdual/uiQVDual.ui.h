@@ -77,6 +77,8 @@ void uiQVDual::fileOpen( const QString &filename )
   // need to update here, in case we're doing something else which requires moab data
   reader->Update();
 
+  vtkMOABUtils::assign_global_ids();
+  
   vtkMOABUtils::update_display(reader->GetOutput());
   
     // compute dual, if requested
@@ -106,8 +108,7 @@ void uiQVDual::fileSaveAs(const QString &filename)
 
   resetDisplay();
   
-  DualTool dt(vtkMOABUtils::mbImpl);
-  dt.delete_whole_dual();
+  vtkMOABUtils::dualTool->delete_whole_dual();
 
   computeDual = false;
 
@@ -197,8 +198,7 @@ void uiQVDual::destroy()
 void uiQVDual::constructDual()
 {
   // tell MOAB to construct the dual first
-  DualTool dt(vtkMOABUtils::mbImpl);
-  MBErrorCode result = dt.construct_hex_dual(NULL, 0);
+  MBErrorCode result = vtkMOABUtils::dualTool->construct_hex_dual(NULL, 0);
 
   redrawDisplay();
   
@@ -215,12 +215,13 @@ void uiQVDual::constructDual()
   }
 
   MBRange sheet_sets;
-  result = dt.get_dual_hyperplanes(vtkMOABUtils::mbImpl, 2, sheet_sets);
+  result = vtkMOABUtils::dualTool->get_dual_hyperplanes(vtkMOABUtils::mbImpl, 2, sheet_sets);
   if (MB_SUCCESS != result) return;
 
   if (!sheet_sets.empty()) {
       // draw the first sheet
-    if (NULL == vtkMOABUtils::drawDual) vtkMOABUtils::drawDual = new DrawDual(pickline1, pickline2);
+    if (NULL == vtkMOABUtils::drawDual) vtkMOABUtils::drawDual = 
+                                            new DrawDual(pickline1, pickline2);
     vtkMOABUtils::drawDual->draw_dual_surf(*sheet_sets.begin());
   }
 }
@@ -278,7 +279,11 @@ void uiQVDual::updateTagList()
 
     // create a parent tag item
     tags_item = new QListViewItem(TagListView1, tag_name.c_str());
-    tags_item->setOpen(false);
+    if (tag_name != "DUAL_SURFACE")
+      tags_item->setOpen(false);
+    else
+      tags_item->setOpen(true);
+
     itemSetMap[tags_item] = 0;
 
     int i;
@@ -699,7 +704,7 @@ void uiQVDual::CropToolButton_clicked()
 
   cropToolPopup->show();
     */
-  DualTool(vtkMOABUtils::mbImpl).check_dual_adjs();
+  vtkMOABUtils::dualTool->check_dual_adjs();
 }
 
 
@@ -710,12 +715,11 @@ void uiQVDual::displayDrawSheetAction_activated()
 
     // get selected sets which are dual surfaces
   MBRange dual_surfs;
-  DualTool dual_tool(vtkMOABUtils::mbImpl);
   MBEntityHandle dum_tag;
   MBErrorCode result;
   for (MBRange::iterator rit = selected.begin(); rit != selected.end(); rit++) {
-    result = vtkMOABUtils::mbImpl->tag_get_data(dual_tool.dualSurface_tag(), &(*rit), 1,
-                                                &dum_tag);
+    result = vtkMOABUtils::mbImpl->tag_get_data(vtkMOABUtils::dualTool->dualSurface_tag(), 
+                                                &(*rit), 1, &dum_tag);
     if (MB_SUCCESS == result && 0 != dum_tag)
       dual_surfs.insert(*rit);
   }
@@ -744,20 +748,19 @@ void uiQVDual::APbutton_clicked()
     return;
   }
 
-  DualTool dt(vtkMOABUtils::mbImpl);
-
   MBErrorCode result = vtkMOABUtils::drawDual->reset_drawn_sheets();
 
     // otherwise, do the AP
   MBEntityHandle quad1, quad2;
-  result = dt.atomic_pillow(edge, quad1, quad2);
+  result = vtkMOABUtils::dualTool->atomic_pillow(edge, quad1, quad2);
   if (MB_SUCCESS != result) {
     std::cerr << "AP failed." << std::endl;
     return;
   }
 
     // get the dual surfaces for those quads
-  MBEntityHandle chord = dt.get_dual_hyperplane(dt.get_dual_entity(quad1));
+  MBEntityHandle chord = vtkMOABUtils::dualTool->
+      get_dual_hyperplane(vtkMOABUtils::dualTool->get_dual_entity(quad1));
   if (0 == chord) return;
   
   std::vector<MBEntityHandle> sheets;
@@ -792,12 +795,10 @@ void uiQVDual::negAPbutton_clicked()
     return;
   }
 
-  DualTool dt(vtkMOABUtils::mbImpl);
-
   MBErrorCode result = vtkMOABUtils::drawDual->reset_drawn_sheets();
 
     // get the dual surface containing that 2cell
-  MBEntityHandle sheet = dt.get_dual_hyperplane(tcell);
+  MBEntityHandle sheet = vtkMOABUtils::dualTool->get_dual_hyperplane(tcell);
   MBRange chords;
   result = vtkMOABUtils::mbImpl->get_child_meshsets(sheet, chords);
   if (MB_SUCCESS != result) {
@@ -822,7 +823,7 @@ void uiQVDual::negAPbutton_clicked()
   
     // otherwise, do the -AP
   
-  result = dt.rev_atomic_pillow(sheet, chords);
+  result = vtkMOABUtils::dualTool->rev_atomic_pillow(sheet, chords);
   if (MB_SUCCESS != result) {
     std::cerr << "-AP failed." << std::endl;
     return;
@@ -848,7 +849,6 @@ void uiQVDual::FOCbutton_clicked()
     return;
   }
 
-  DualTool dt(vtkMOABUtils::mbImpl);
   MeshTopoUtil mtu(vtkMOABUtils::mbImpl);
   if (0 == mtu.common_entity(edge1, edge2, 2)) {
     std::cerr << "Dual edges don't share a common 2-cell." << std::endl;
@@ -864,7 +864,7 @@ void uiQVDual::FOCbutton_clicked()
   }
 
     // save the quad from edge1, 'cuz the dual sheets/chord might change;
-  MBEntityHandle quad = dt.get_dual_entity(edge1);
+  MBEntityHandle quad = vtkMOABUtils::dualTool->get_dual_entity(edge1);
   assert(0 != quad);
 
     // reset any drawn sheets (will get redrawn later)
@@ -872,7 +872,7 @@ void uiQVDual::FOCbutton_clicked()
   result = vtkMOABUtils::drawDual->reset_drawn_sheets(&drawn_sheets);
   
     // otherwise, do the FOC
-  result = dt.face_open_collapse(edge1, edge2);
+  result = vtkMOABUtils::dualTool->face_open_collapse(edge1, edge2);
   if (MB_SUCCESS != result) {
     std::cerr << "FOC failed." << std::endl;
     return;
@@ -883,8 +883,8 @@ void uiQVDual::FOCbutton_clicked()
   redrawDisplay();
 
     // get the dual surfaces for the edges
-  edge1 = dt.get_dual_entity(quad);
-  MBEntityHandle chord = dt.get_dual_hyperplane(edge1);
+  edge1 = vtkMOABUtils::dualTool->get_dual_entity(quad);
+  MBEntityHandle chord = vtkMOABUtils::dualTool->get_dual_hyperplane(edge1);
   MBRange sheets;
   result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
   if (MB_SUCCESS == result) drawn_sheets.merge(sheets);
@@ -916,10 +916,8 @@ void uiQVDual::FSbutton_clicked()
     return;
   }
 
-  DualTool dt(vtkMOABUtils::mbImpl);
-
     // save the quad, 'cuz the dual sheets/chord might change
-  MBEntityHandle quad = dt.get_dual_entity(edge);
+  MBEntityHandle quad = vtkMOABUtils::dualTool->get_dual_entity(edge);
   assert(0 != quad);
 
     // reset any drawn sheets (will get redrawn later)
@@ -927,7 +925,7 @@ void uiQVDual::FSbutton_clicked()
   MBErrorCode result = vtkMOABUtils::drawDual->reset_drawn_sheets(&drawn_sheets);
   
     // otherwise, do the FS
-  result = dt.face_shrink(edge);
+  result = vtkMOABUtils::dualTool->face_shrink(edge);
   if (MB_SUCCESS != result) {
     std::cerr << "FS failed." << std::endl;
     return;
@@ -938,8 +936,8 @@ void uiQVDual::FSbutton_clicked()
   redrawDisplay();
 
     // get the dual surfaces for that edge
-  edge = dt.get_dual_entity(quad);
-  MBEntityHandle chord = dt.get_dual_hyperplane(edge);
+  edge = vtkMOABUtils::dualTool->get_dual_entity(quad);
+  MBEntityHandle chord = vtkMOABUtils::dualTool->get_dual_hyperplane(edge);
   MBRange sheets;
   std::vector<MBEntityHandle> dum_sheets;
   result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
@@ -981,10 +979,9 @@ void uiQVDual::negFCbutton_clicked()
     return;
   }
 
-  DualTool dt(vtkMOABUtils::mbImpl);
 
     // save the quad, 'cuz the dual sheets/chord might change
-  MBEntityHandle quad = dt.get_dual_entity(edge);
+  MBEntityHandle quad = vtkMOABUtils::dualTool->get_dual_entity(edge);
   assert(0 != quad);
 
     // reset any drawn sheets (will get redrawn later)
@@ -992,7 +989,7 @@ void uiQVDual::negFCbutton_clicked()
   MBErrorCode result = vtkMOABUtils::drawDual->reset_drawn_sheets(&drawn_sheets);
   
     // otherwise, do the rev FS
-  result = dt.rev_face_shrink(edge);
+  result = vtkMOABUtils::dualTool->rev_face_shrink(edge);
   if (MB_SUCCESS != result) {
     std::cerr << "Reverse FS failed." << std::endl;
     vtkMOABUtils::drawDual->draw_dual_surfs(drawn_sheets);
@@ -1004,8 +1001,8 @@ void uiQVDual::negFCbutton_clicked()
   std::cerr << "Reverse FS succeeded." << std::endl;
 
     // get the dual surfaces for that edge
-  edge = dt.get_dual_entity(quad);
-  MBEntityHandle chord = dt.get_dual_hyperplane(edge);
+  edge = vtkMOABUtils::dualTool->get_dual_entity(quad);
+  MBEntityHandle chord = vtkMOABUtils::dualTool->get_dual_hyperplane(edge);
   MBRange sheets;
   std::vector<MBEntityHandle> dum_sheets;
   result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
@@ -1096,7 +1093,6 @@ void uiQVDual::pickline1_returnPressed()
   if (cell_ents.size() < 2) PR("(not a dual entity!)");
 
   MBErrorCode result;
-  DualTool dt(vtkMOABUtils::mbImpl);
   if (cell_ents.size() > 2) {
       // assume it's a dual 2-cell
     result = vtkMOABUtils::mbImpl->get_adjacencies(cell_ents, 1, false, 
@@ -1109,7 +1105,7 @@ void uiQVDual::pickline1_returnPressed()
     if (picked_ents.empty()) PR("(not a dual 1-cell!)");
   }
   
-  MBEntityHandle dual_ent = dt.get_dual_entity(*picked_ents.begin());
+  MBEntityHandle dual_ent = vtkMOABUtils::dualTool->get_dual_entity(*picked_ents.begin());
   if (0 ==  dual_ent) PR("(no dual entity!)");
   picked_ents.clear();
   picked_ents.insert(dual_ent);
@@ -1125,12 +1121,11 @@ void uiQVDual::displayPrintSheet()
 
     // get selected sets which are dual surfaces
   MBRange dual_surfs;
-  DualTool dual_tool(vtkMOABUtils::mbImpl);
   MBEntityHandle dum_tag;
   MBErrorCode result;
   for (MBRange::iterator rit = selected.begin(); rit != selected.end(); rit++) {
-    result = vtkMOABUtils::mbImpl->tag_get_data(dual_tool.dualSurface_tag(), &(*rit), 1,
-                                                &dum_tag);
+    result = vtkMOABUtils::mbImpl->tag_get_data(vtkMOABUtils::dualTool->dualSurface_tag(), 
+                                                &(*rit), 1, &dum_tag);
     if (MB_SUCCESS == result && 0 != dum_tag)
       dual_surfs.insert(*rit);
   }

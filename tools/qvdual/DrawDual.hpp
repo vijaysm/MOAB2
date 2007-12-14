@@ -12,7 +12,6 @@ class SheetDiagramPopup;
 #include <map>
 #include <vector>
 
-class DualTool;
 class vtkPolyData;
 class vtkRenderer;
 class vtkCellPicker;
@@ -54,7 +53,6 @@ public:
 private:
 
   static DrawDual *gDrawDual;
-  DualTool *dualTool;
   QLineEdit *pickLine1, *pickLine2;
 
   static bool useGraphviz;

@@ -24,6 +24,7 @@ class vtkPropAssembly;
 class vtkImplicitFunction;
 class vtkLookupTable;
 class DrawDual;
+class DualTool;
 
 class VTK_EXPORT vtkMOABUtils //: public vtkObject
 {
@@ -34,6 +35,9 @@ public:
 
     //! static interface pointer, use this when accessing MOAB within vtk
   static MBInterface *mbImpl;
+
+    //! static dualtool ptr
+  static DualTool *dualTool;
 
     //! static pointer to the renderer
   static vtkRenderer *myRen;
