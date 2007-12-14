@@ -45,7 +45,7 @@ const char *DualTool::DUAL_SURFACE_TAG_NAME = "DUAL_SURFACE";
 const char *DualTool::DUAL_CURVE_TAG_NAME = "DUAL_CURVE";
 
   //! tag name for dual cells
-const char *DualTool::IS_DUAL_CELL_TAG_NAME = "IS_DUAL_CELL";
+const char *DualTool::IS_DUAL_CELL_TAG_NAME = "__IS_DUAL_CELL";
 
   //! tag name for dual entities
 const char *DualTool::DUAL_ENTITY_TAG_NAME = "__DUAL_ENTITY";
@@ -100,6 +100,8 @@ DualTool::DualTool(MBInterface *impl)
   result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, 
                               globalIdTag, &dum_int);
   assert(MB_ALREADY_ALLOCATED == result || MB_SUCCESS == result);
+
+  maxHexId = -1;
 }
 
 DualTool::~DualTool() 
@@ -135,6 +137,18 @@ MBErrorCode DualTool::construct_dual(MBEntityHandle *entities,
     if (MB_SUCCESS != result) return result;
     result = mbImpl->get_entities_by_dimension(0, 3, regions);
     if (MB_SUCCESS != result) return result;
+
+      // get the max global id for hexes, we'll need for modification ops
+    std::vector<int> gid_vec(regions.size());
+    result = mbImpl->tag_get_data(globalId_tag(), regions, &gid_vec[0]);
+    if (MB_SUCCESS != result) return result;
+    maxHexId = -1;
+    MBRange::iterator rit;
+    unsigned int i;
+    for (rit = regions.begin(), i = 0; rit != regions.end(); rit++, i++) {
+      if (gid_vec[i] > maxHexId && mbImpl->type_from_handle(*rit) == MBHEX)
+        maxHexId = gid_vec[i];
+    }
   }
   else {
       // get entities of various dimensions adjacent to these
@@ -1496,6 +1510,11 @@ MBErrorCode DualTool::atomic_pillow(MBEntityHandle odedge, MBEntityHandle &quad1
   result = mbImpl->create_element(MBHEX, &verts[0], 8, new_hexes[0]); RR;
   result = mbImpl->create_element(MBHEX, &tmp_verts[0], 8, new_hexes[1]); RR;
 
+    // set the global id tag on the new hexes
+  int new_hex_ids[2] = {++maxHexId, ++maxHexId};
+  result = mbImpl->tag_set_data(globalId_tag(), new_hexes, 2, new_hex_ids);
+  if (MB_SUCCESS != result) return result;
+
     // by definition, quad1 is adj to new_hexes[0]
   result = mbImpl->add_adjacencies(quad1, &new_hexes[0], 1, false); RR;
   result = mbImpl->add_adjacencies(quad2, &new_hexes[1], 1, false); RR;
@@ -2634,6 +2653,8 @@ MBErrorCode DualTool::face_shrink(MBEntityHandle odedge)
   
     // ok, now have the 4 connectivity arrays for 4 quads; construct hexes
   MBEntityHandle hconnect[8], new_hexes[4];
+  int new_hex_ids[4];
+  
   for (int i = 0; i < 4; i++) {
     int i1 = i, i2 = (i+1)%4;
     hconnect[0] = connects[0][i1];
@@ -2657,7 +2678,13 @@ MBErrorCode DualTool::face_shrink(MBEntityHandle odedge)
         if (MB_SUCCESS != result) return result;
       }
     }
+
+    new_hex_ids[i] = ++maxHexId;
   }
+
+    // set the global id tag on the new hexes
+  result = mbImpl->tag_set_data(globalId_tag(), new_hexes, 4, new_hex_ids);
+  if (MB_SUCCESS != result) return result;
   
     // now fixup other two hexes; start by getting hex through quads 0, 1       
     // make this first hex switch to the other side, to make the dual look like

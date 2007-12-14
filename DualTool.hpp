@@ -381,6 +381,8 @@ private:
   MBTag dualGraphicsPointTag;
   MBTag categoryTag;
   MBTag globalIdTag;
+
+  int maxHexId;
 };
 
 inline MBTag DualTool::dualSurface_tag() const
