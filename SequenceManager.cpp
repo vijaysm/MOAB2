@@ -10,11 +10,15 @@
 
 #include <assert.h>
 #include <new>
+#include <algorithm>
 
-const int DEFAULT_VERTEX_SEQUENCE_SIZE = 4096;
-const int DEFAULT_ELEMENT_SEQUENCE_SIZE = DEFAULT_VERTEX_SEQUENCE_SIZE;
-const int DEFAULT_POLY_SEQUENCE_SIZE = 4 * DEFAULT_ELEMENT_SEQUENCE_SIZE;
-const int DEFAULT_MESHSET_SEQUENCE_SIZE = DEFAULT_VERTEX_SEQUENCE_SIZE;
+const MBEntityID DEFAULT_VERTEX_SEQUENCE_SIZE = 4096;
+const MBEntityID DEFAULT_ELEMENT_SEQUENCE_SIZE = DEFAULT_VERTEX_SEQUENCE_SIZE;
+const MBEntityID DEFAULT_POLY_SEQUENCE_SIZE = 4 * DEFAULT_ELEMENT_SEQUENCE_SIZE;
+const MBEntityID DEFAULT_MESHSET_SEQUENCE_SIZE = DEFAULT_VERTEX_SEQUENCE_SIZE;
+
+MBEntityID SequenceManager::default_poly_sequence_size( int conn_len )
+  {  return std::max( DEFAULT_POLY_SEQUENCE_SIZE / conn_len, (MBEntityID)1 ); }
 
 void SequenceManager::clear()
 {
@@ -162,9 +166,7 @@ MBErrorCode SequenceManager::create_element( MBEntityType type,
     SequenceData* seq_data = 0;
     unsigned size = DEFAULT_ELEMENT_SEQUENCE_SIZE;
     if (type == MBPOLYGON || type == MBPOLYHEDRON) {
-      size = DEFAULT_POLY_SEQUENCE_SIZE / conn_len;
-      if (!size)
-        size = 1;
+      size = default_poly_sequence_size( conn_len );
     }
     
     handle = typeData[type].find_free_sequence( size, start, end, seq_data, conn_len );
@@ -361,6 +363,27 @@ SequenceManager::sequence_start_handle( MBEntityType type,
   return handle;
 }
 
+
+MBEntityID SequenceManager::new_sequence_size( MBEntityHandle start,
+                                               MBEntityID requested_size,
+                                               MBEntityID default_size ) const
+{
+  if (requested_size >= default_size)
+    return requested_size;
+  
+  MBEntityHandle last = typeData[TYPE_FROM_HANDLE(start)].last_free_handle( start );
+  if (!last) {
+    assert( false );
+    return 0;
+  }
+  
+  MBEntityID available_size = last - start + 1;
+  if (default_size < available_size)
+    return default_size;
+  else
+    return available_size;
+}
+
 MBErrorCode 
 SequenceManager::create_entity_sequence( MBEntityType type,
                                          MBEntityID count,
@@ -390,7 +413,8 @@ SequenceManager::create_entity_sequence( MBEntityType type,
     if (data)
       sequence = new VertexSequence( handle, count, data );
     else 
-      sequence = new VertexSequence( handle, count, count );
+      sequence = new VertexSequence( handle, count, 
+           new_sequence_size( handle, count, DEFAULT_VERTEX_SEQUENCE_SIZE ) );
     
     break;
   
@@ -402,7 +426,8 @@ SequenceManager::create_entity_sequence( MBEntityType type,
     if (data)
       sequence = new PolyElementSeq( handle, count, size, data );
     else 
-      sequence = new PolyElementSeq( handle, count, size, count );
+      sequence = new PolyElementSeq( handle, count, size, 
+           new_sequence_size( handle, count, default_poly_sequence_size(size) ) );
 
     break;
   
@@ -413,7 +438,8 @@ SequenceManager::create_entity_sequence( MBEntityType type,
     if (data)
       sequence = new UnstructuredElemSeq( handle, count, size, data );
     else 
-      sequence = new UnstructuredElemSeq( handle, count, size, count );
+      sequence = new UnstructuredElemSeq( handle, count, size, 
+           new_sequence_size( handle, count, DEFAULT_ELEMENT_SEQUENCE_SIZE ) );
 
     break;
   }

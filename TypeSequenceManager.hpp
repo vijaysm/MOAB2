@@ -303,6 +303,8 @@ public:
                               MBEntityHandle& block_end,
                               int values_per_ent = 0 );  
 
+  MBEntityHandle last_free_handle( MBEntityHandle after_this ) const;
+
     /**\brief Notify that sequence was prepended to
      *
      * Notify of sequence modifications so we can check if

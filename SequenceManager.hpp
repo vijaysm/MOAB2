@@ -167,6 +167,13 @@ class SequenceManager
                                     unsigned long& total, 
                                     unsigned long& per_entity ) const;
     
+      /**\brief Get default size of POLYGON and POLYHEDRON SequenceData */
+    static MBEntityID default_poly_sequence_size( int entity_connectivity_length );
+    
+      /**\brief Size to allocate for new SquenceData */
+    MBEntityID new_sequence_size( MBEntityHandle start_handle, 
+                                  MBEntityID reqested_size,
+                                  MBEntityID default_size ) const;
     
   private:
   

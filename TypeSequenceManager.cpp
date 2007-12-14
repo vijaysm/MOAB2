@@ -547,6 +547,18 @@ MBEntityHandle TypeSequenceManager::find_free_sequence( MBEntityID num_entities,
   return 0;
 }
 
+MBEntityHandle TypeSequenceManager::last_free_handle( MBEntityHandle after_this ) const
+{
+  int junk;
+  const_iterator it = lower_bound( after_this );
+  if (it == end())
+    return CREATE_HANDLE( TYPE_FROM_HANDLE(after_this), MB_END_ID, junk );
+  else if ((*it)->start_handle() > after_this) 
+    return (*it)->start_handle() - 1;
+  else
+    return 0;
+}
+
 MBErrorCode TypeSequenceManager::check_valid_handles( MBEntityHandle first,
                                                       MBEntityHandle last ) const
 {
