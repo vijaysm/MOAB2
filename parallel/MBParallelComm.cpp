@@ -118,9 +118,9 @@ MBErrorCode MBParallelComm::assign_global_ids(MBEntityHandle this_set,
   std::vector<int> num_elements(procConfig.proc_size()*4);
 #ifdef USE_MPI
   if (procConfig.proc_size() > 1 && parallel) {
-    int retval = MPI_Alltoall(local_num_elements, 4, MPI_INTEGER,
+    int retval = MPI_Alltoall(local_num_elements, 4, MPI_INT,
                               &num_elements[0], procConfig.proc_size()*4, 
-                              MPI_INTEGER, procConfig.proc_comm());
+                              MPI_INT, procConfig.proc_comm());
     if (0 != retval) return MB_FAILURE;
   }
   else
@@ -393,7 +393,7 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
     allRanges.push_back(entities.subset_by_type(MBVERTEX));
   }
   else {
-    PACK_INT(buff_ptr, MBVERTEX);
+    PACK_INT(buff_ptr, ((int) MBVERTEX));
     PACK_RANGE(buff_ptr, allRanges[0]);
     int num_verts = allRanges[0].size();
     std::vector<double*> coords(3);
@@ -452,7 +452,6 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
 
         // put these entities in the last range
       (*allRanges.rbegin()).insert( eseq->start_handle(), eseq->end_handle() );
-      //eseq->get_entities(*allRanges.rbegin());
       whole_range.merge(*allRanges.rbegin());
       
         // now start where we last left off
@@ -471,22 +470,23 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
     std::vector<int>::iterator iit = vertsPerEntity.begin();
     std::vector<MBEntityType>::iterator eit = entTypes.begin();
     for (; vit != allRanges.end(); vit++, iit++, eit++) {
+        // entity type of this range, but passed as int
+      count += sizeof(int);
+      
         // subranges of entities
-      count += 2*sizeof(MBEntityHandle)*num_subranges(*vit);
+        //   number of subranges, begin/end handle of each subrange
+      count += sizeof(int) + 2*sizeof(MBEntityHandle)*num_subranges(*vit);
+
+        // nodes per entity
+      if (iit != vertsPerEntity.begin()) count += sizeof(int);
+
         // connectivity of subrange
       if (iit != vertsPerEntity.begin()) {
-        //if (*eit != MBPOLYGON && *eit != MBPOLYHEDRON) 
-            // for non-poly's: #verts/ent * #ents * sizeof handle
-        //  count += *iit * (*vit).size() * sizeof(MBEntityHandle);
-          // for poly's:  length of conn list * handle size + #ents * int size (for offsets)
-        //else 
-        count += *iit * sizeof(MBEntityHandle) + (*vit).size() * sizeof(int);
+        count += *iit * sizeof(MBEntityHandle)*(*vit).size();
       }
     }
-      //                                num_verts per subrange    ent type in subrange
-    count += (vertsPerEntity.size() + 1) * (sizeof(int) + sizeof(MBEntityType));
 
-      // extra entity type at end
+      // extra entity type at end, passed as int
     count += sizeof(int);
   }
   else {
@@ -498,7 +498,7 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
     
     for (; allr_it != allRanges.end(); allr_it++, nv_it++, et_it++) {
         // pack the entity type
-      PACK_INT(buff_ptr, *et_it);
+      PACK_INT(buff_ptr, ((int)*et_it));
       
         // pack the range
       PACK_RANGE(buff_ptr, (*allr_it));
@@ -532,7 +532,7 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
     }
 
       // pack MBMAXTYPE to indicate end of ranges
-    PACK_INT(buff_ptr, MBMAXTYPE);
+    PACK_INT(buff_ptr, ((int)MBMAXTYPE));
 
     count = buff_ptr - orig_buff_ptr;
   }
@@ -567,7 +567,7 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
     if (MBVERTEX == this_type) {
         // unpack coords
       int num_verts = this_range.size();
-      std::vector<double*> coords(3*num_verts);
+      std::vector<double*> coords(3);
       for (MBRange::const_pair_iterator pit = this_range.const_pair_begin(); 
            pit != this_range.const_pair_end(); pit++) {
           // allocate handles
@@ -612,31 +612,13 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
         MBEntityHandle actual_start;
         int num_elems = (*pit).second - (*pit).first + 1;
         MBEntityHandle *connect;
-        int *connect_offsets;
-        //if (this_type == MBPOLYGON || this_type == MBPOLYHEDRON) {
-        //  result = ru->get_poly_element_array(num_elems, verts_per_entity, this_type,
-        //                                      start_id, start_proc, actual_start,
-        //                                      connect_offsets, connect);
-        //  RR("Failed to allocate poly element arrays.");
-        //}
-
-        //else {
-          result = ru->get_element_array(num_elems, verts_per_entity, this_type,
-                                         start_id, start_proc, actual_start,
-                                         connect);
-          RR("Failed to allocate element arrays.");
-        //}
+        result = ru->get_element_array(num_elems, verts_per_entity, this_type,
+                                       start_id, start_proc, actual_start,
+                                       connect);
+        RR("Failed to allocate element arrays.");
 
           // copy connect arrays
-        //if (this_type != MBPOLYGON && this_type != MBPOLYHEDRON) {
-        //  UNPACK_EH(buff_ptr, connect, num_elems * verts_per_entity);
-        //}
-        //else {
-          UNPACK_EH(buff_ptr, connect, verts_per_entity);
-          assert(NULL != connect_offsets);
-            // and the offsets
-          UNPACK_INTS(buff_ptr, connect_offsets, num_elems);
-        //}
+        UNPACK_EH(buff_ptr, connect, (num_elems*verts_per_entity));
 
         entities.insert((*pit).first, (*pit).second);
       }
@@ -663,7 +645,6 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
   if (just_count) {
     for (; start_rit != entities.end(); start_rit++) {
       setRange.insert(*start_rit);
-      count += sizeof(MBEntityHandle);
     
       unsigned int options;
       result = mbImpl->get_meshset_options(*start_rit, options);
@@ -684,8 +665,6 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
         result = mbImpl->get_number_entities_by_handle(*start_rit, num_ents);
         RR("Failed to get number entities in ordered set.");
         
-        count += sizeof(int);
-        
         setSizes.push_back(num_ents);
         count += sizeof(MBEntityHandle) * num_ents + sizeof(int);
       }
@@ -701,6 +680,8 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
       count += 2*sizeof(int) + (num_par + num_ch) * sizeof(MBEntityHandle);
     
     }
+
+    count += sizeof(int) + 2*num_subranges(setRange)*sizeof(MBEntityHandle);
   }
   else {
     
@@ -1158,7 +1139,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
   result = mbImpl->get_number_entities_by_dimension(0, 0, nverts_local);
   if (MB_SUCCESS != result) return result;
   int failure = MPI_Allreduce(&nverts_local, &nverts_total, 1,
-                              MPI_INTEGER, MPI_SUM, procConfig.proc_comm());
+                              MPI_INT, MPI_SUM, procConfig.proc_comm());
   if (failure) {
     result = MB_FAILURE;
     RR("Allreduce for total number of vertices failed.");
@@ -1196,7 +1177,8 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
   tuple_list shared_verts;
   tuple_list_init_max(&shared_verts, 0, 2, 0, 
                       skin_ents[0].size()*MAX_SHARING_PROCS);
-  int i = 0, j = 0;
+  int i = 0;
+  unsigned int j = 0;
   for (unsigned int p = 0; p < gsd->nlinfo->np; p++) 
     for (unsigned int np = 0; np < gsd->nlinfo->nshared[p]; np++) 
       shared_verts.vl[i++] = gsd->nlinfo->sh_ind[j++],

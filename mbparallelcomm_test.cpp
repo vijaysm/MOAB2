@@ -50,7 +50,7 @@ int main(int argc, char **argv)
   MBInterface *mbImpl = new MBCore(rank, nprocs);
   if (NULL == mbImpl) return 1;
   
-  MBErrorCode result;
+  MBErrorCode result = MB_SUCCESS;
 
     // each interior proc has a vector of N+M vertices, sharing
     // M vertices each with lower- and upper-rank processors, except

@@ -957,7 +957,7 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
         result = mdbImpl->get_entities_by_type(0, MBVERTEX, vrange); RR;
         MBRange::const_iterator rit = vrange.lower_bound(vrange.begin(), vrange.end(),
                                                          currNodeIdOffset);
-        for (; *rit != node_offset; rit++)
+        for (; *rit <= node_offset; rit++)
           (*cubMOABVertexMap)[*rit] = *rit;
       }
     }

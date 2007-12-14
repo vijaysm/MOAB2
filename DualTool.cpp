@@ -2698,7 +2698,6 @@ MBErrorCode DualTool::face_shrink(MBEntityHandle odedge)
   if (MB_SUCCESS != result) return result;
   result = mbImpl->delete_entities(&quads[1], 1);
   if (MB_SUCCESS != result) return result;
-
   for (int i = 0; i < 4; i++) {
     hconnect[i] = connects[3][i];
     hconnect[4+i] = connects[2][i];
