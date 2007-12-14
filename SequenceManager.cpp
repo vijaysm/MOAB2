@@ -6,6 +6,7 @@
 #include "StructuredElementSeq.hpp"
 #include "HomXform.hpp"
 #include "PolyElementSeq.hpp"
+#include "MBSysUtil.hpp"
 
 #include <assert.h>
 #include <new>
@@ -832,12 +833,17 @@ MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
       const MBEntityID count = finish - start + 1;
       
       const void* tag_array = seq->data()->get_tag_data( tag_id );
-      if (!tag_array) 
+      if (tag_array) {
+        const char* tag_data = reinterpret_cast<const char*>(tag_array) + 
+                         tagSizes[tag_id] * (start - seq->data()->start_handle());
+        memcpy( data, tag_data, tagSizes[tag_id] * count );
+      }
+      else if (default_value) {
+        MBSysUtil::setmem( data, default_value, tagSizes[tag_id], count );
+      }
+      else {
         return MB_TAG_NOT_FOUND;
-      
-      const char* tag_data = reinterpret_cast<const char*>(tag_array) + 
-                       tagSizes[tag_id] * (start - seq->data()->start_handle());
-      memcpy( data, tag_data, tagSizes[tag_id] * count );
+      }
       
       data += tagSizes[tag_id] * count;
       start = finish + 1;

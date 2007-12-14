@@ -26,6 +26,7 @@
 #include "MBRange.hpp"
 #include "MBWriteUtilIface.hpp"
 #include "FileOptions.hpp"
+#include "MBSysUtil.hpp"
 
 #include "MBEntityHandle.h"
 #ifdef MOAB_HAVE_INTTYPES_H
@@ -54,29 +55,6 @@ typedef ULONG32 uint32_t;
 #  define _S_IREAD  (S_IRUSR|S_IRGRP|S_IROTH)
 #  define _S_IWRITE (S_IWUSR|S_IWGRP|S_IWOTH)
 #endif
-
-inline static uint32_t byte_swap( uint32_t value )
-{
-  return ((value & 0xFF000000) >> 24) |
-         ((value & 0x00FF0000) >>  8) |
-         ((value & 0x0000FF00) <<  8) |
-         ((value & 0X000000FF) << 24);
-}
-
-
-inline static float byte_swap( float value )
-{
-  uint32_t bytes = byte_swap( *(uint32_t*)&value );
-  return *(float*)&bytes;
-}
-
-
-inline static bool is_platform_little_endian()
-{
-  static const unsigned int one = 1;
-  static const bool little = !*((char*)&one);
-  return little;
-}
 
 
 MBWriterIface *WriteSTL::factory( MBInterface* iface )
@@ -324,13 +302,6 @@ struct BinTri
   char pad[2];
 };
 
-static inline void byte_swap( float vect[3] )
-{
-  vect[0] = byte_swap( vect[0] );
-  vect[1] = byte_swap( vect[1] );
-  vect[2] = byte_swap( vect[2] );
-}
-
 MBErrorCode WriteSTL::binary_write_triangles( FILE* file,
                                              const char header[81],
                                              ByteOrder byte_order,
@@ -342,7 +313,7 @@ MBErrorCode WriteSTL::binary_write_triangles( FILE* file,
   
     // default to little endian if byte_order == UNKNOWN_BYTE_ORDER
   const bool want_big_endian = (byte_order == STL_BIG_ENDIAN);
-  const bool am_big_endian = !is_platform_little_endian();
+  const bool am_big_endian = !MBSysUtil::little_endian();
   const bool swap_bytes = (want_big_endian == am_big_endian);
     
   if (triangles.size() > INT_MAX) // can't write that many triangles
@@ -350,7 +321,7 @@ MBErrorCode WriteSTL::binary_write_triangles( FILE* file,
   
   uint32_t count = (uint32_t)triangles.size();
   if (swap_bytes)
-    count = byte_swap(count);
+    MBSysUtil::byteswap(&count, 1);
   if (fwrite( &count, 4, 1, file ) != 1)
     return MB_FILE_WRITE_ERROR;
 
@@ -378,10 +349,10 @@ MBErrorCode WriteSTL::binary_write_triangles( FILE* file,
     
     if (swap_bytes)
     {
-      byte_swap( tri.normal );
-      byte_swap( tri.vertex1 );
-      byte_swap( tri.vertex2 );
-      byte_swap( tri.vertex3 );
+      MBSysUtil::byteswap( tri.normal, 3 );
+      MBSysUtil::byteswap( tri.vertex1, 3 );
+      MBSysUtil::byteswap( tri.vertex2, 3 );
+      MBSysUtil::byteswap( tri.vertex3, 3 );
     }
    
     if (1 != fwrite( &tri, 50, 1, file ))

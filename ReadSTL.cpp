@@ -26,6 +26,7 @@
 #include "MBReadUtilIface.hpp"
 #include "MBRange.hpp"
 #include "FileOptions.hpp"
+#include "MBSysUtil.hpp"
 
 #include "MBEntityHandle.h"
 #ifdef MOAB_HAVE_INTTYPES_H
@@ -48,30 +49,6 @@ typedef ULONG32 uint32_t;
 #include <limits.h>
 #include <assert.h>
 #include <map>
-
-
-inline static uint32_t byte_swap( uint32_t value )
-{
-  return ((value & 0xFF000000) >> 24) |
-         ((value & 0x00FF0000) >>  8) |
-         ((value & 0x0000FF00) <<  8) |
-         ((value & 0X000000FF) << 24);
-}
-
-
-inline static float byte_swap( float value )
-{
-  uint32_t bytes = byte_swap( *(uint32_t*)&value );
-  return *(float*)&bytes;
-}
-
-
-inline static bool is_platform_little_endian()
-{
-  static const unsigned int one = 1;
-  static const bool little = !*((char*)&one);
-  return little;
-}
 
 
 
@@ -237,23 +214,6 @@ MBErrorCode ReadSTL::load_file_impl(const char *filename,
 }
 
 
-long ReadSTL::get_file_size( FILE* file )
-{
-  long curr_pos = ftell( file );
-  if (fseek( file, 0, SEEK_END ))
-    return -1;
-  
-  long length = ftell( file );
-  if (fseek( file, curr_pos, SEEK_SET))
-  {
-    assert(0); 
-    return -2;
-  }
-  
-  return length;
-}
-
-
 // Read ASCII file
 MBErrorCode ReadSTL::ascii_read_triangles( const char* name,
                                           std::vector<ReadSTL::Triangle>& tris )
@@ -355,7 +315,7 @@ MBErrorCode ReadSTL::binary_read_triangles( const char* name,
   
     // Allow user setting for byte order, default to little endian
   const bool want_big_endian = (byte_order == STL_BIG_ENDIAN);
-  const bool am_big_endian = !is_platform_little_endian();
+  const bool am_big_endian = !MBSysUtil::little_endian();
   bool swap_bytes = (want_big_endian == am_big_endian);
   
     // Compare the number of triangles to the length of the file.  
@@ -371,10 +331,12 @@ MBErrorCode ReadSTL::binary_read_triangles( const char* name,
     // num_tri, resulting in a SEGFAULT. 
   
     // Get expected number of triangles
-  unsigned long num_tri = swap_bytes ? byte_swap(header.count) : header.count;
+  unsigned long num_tri = header.count;
+  if (swap_bytes)
+    MBSysUtil::byteswap( &num_tri, 1 );
   
     // Get the file length
-  long filesize = get_file_size( file );
+  long filesize = MBSysUtil::filesize( file );
   if (filesize >= 0) // -1 indicates could not determine file size (e.g. reading from FIFO)
   {
       // Check file size, but be careful of numeric overflow
@@ -383,7 +345,8 @@ MBErrorCode ReadSTL::binary_read_triangles( const char* name,
     {
         // Unless the byte order was specified explicitly in the 
         // tag, try the opposite byte order.
-      unsigned long num_tri_swap = byte_swap( (uint32_t)num_tri );
+      unsigned long num_tri_swap = num_tri;
+      MBSysUtil::byteswap( &num_tri_swap, 1 );
       if (byte_order != STL_UNKNOWN_BYTE_ORDER || // If byte order was specified, fail now
           ULONG_MAX / 50 - 84 < num_tri_swap  || // watch for overflow in next line
           84 + 50 * num_tri_swap != (unsigned long)filesize)
@@ -411,12 +374,11 @@ MBErrorCode ReadSTL::binary_read_triangles( const char* name,
       return MB_FILE_WRITE_ERROR;
     }
     
-      // Swap bytes if necessary
+    if (swap_bytes)
+      MBSysUtil::byteswap( tri.coords, 9 );
+    
     for (unsigned j = 0; j < 9; ++j)
-      if (swap_bytes)
-        i->points[j/3].coords[j%3] = byte_swap( tri.coords[j] );
-      else
-        i->points[j/3].coords[j%3] = tri.coords[j];
+      i->points[j/3].coords[j%3] = tri.coords[j];
   }
   
   fclose( file );

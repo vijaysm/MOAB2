@@ -82,8 +82,6 @@ public:
 
    //! Destructor
   virtual ~ReadSTL();
-                                 
-  static long get_file_size( FILE* file );
 
     // An object to hold vertex coordinates, and an operator
     // for storing them in a STL tree-based container.

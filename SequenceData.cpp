@@ -1,5 +1,6 @@
 #include "SequenceData.hpp"
 #include "TagServer.hpp"
+#include "MBSysUtil.hpp"
 #include <assert.h>
 
 SequenceData::~SequenceData()
@@ -12,19 +13,10 @@ SequenceData::~SequenceData()
 void* SequenceData::create_data( int index, int bytes_per_ent, const void* initial_value )
 {  
   char* array = (char*)malloc( bytes_per_ent * size() );
-  if (initial_value) {
-    memcpy( array, initial_value, bytes_per_ent );
-    unsigned count = 1;
-    while (2*count < size()) {
-      memcpy( array + count * bytes_per_ent, array, count * bytes_per_ent );
-      count *= 2;
-    }
-    
-    memcpy( array + count * bytes_per_ent, array, (size() - count) * bytes_per_ent ); 
-  }
-  else {
+  if (initial_value)
+    MBSysUtil::setmem( array, initial_value, bytes_per_ent, size() );
+  else 
     memset( array, 0, bytes_per_ent * size() );
-  }
   
   arraySet[index] = array;
   return array;

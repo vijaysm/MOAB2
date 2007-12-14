@@ -136,6 +136,8 @@ libMOAB_la_SOURCES = \
   MBReadUtil.hpp \
   MBReaderWriterSet.cpp \
   MBSkinner.cpp \
+  MBSysUtil.cpp \
+  MBSysUtil.hpp \
   MBUtil.cpp \
   MBWriteUtil.cpp \
   MBWriteUtil.hpp \
