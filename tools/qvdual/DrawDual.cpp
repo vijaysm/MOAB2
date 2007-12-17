@@ -1365,6 +1365,7 @@ void DrawDual::get_clean_pd(MBEntityHandle dual_surf,
       this_property->SetColor(red, green, blue);
     
       this_ren->AddActor(this_actor);
+      this_actor->FastDelete();
     }
 
     vtkCamera *camera = vtkCamera::New();

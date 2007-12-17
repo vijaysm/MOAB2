@@ -460,9 +460,9 @@ MBErrorCode vtkMOABUtils::update_set_actors(const MBRange &update_sets,
 
         // don't act on root entity set (that'll be the only one not connected
         // to an extract cells filter)
-      if (NULL == ec) continue;
+      
         // empty out the extract cells filter
-      ec->SetCellList(ids);
+      if (NULL != ec) ec->SetCellList(ids);
       ids->Delete();
       continue;
     }
