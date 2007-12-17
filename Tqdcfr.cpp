@@ -941,7 +941,9 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
   if (NULL == cubMOABVertexMap) {
       // haven't needed one yet, see if we need to keep a map to orig cub ids
 
+      // contiguous - offset is start handle minus 1st node index
     if (contig == 1) node_offset -= int_buf[0];
+      // reverse contiguous - offset is start handle minus last node index
     else if (contig == -1) node_offset -= int_buf[entity->nodeCt-1];
   
     if (contig && -1 == currNodeIdOffset)
