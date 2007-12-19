@@ -691,7 +691,7 @@ MBErrorCode WriteSLAC::write_matsets(MeshInfo &mesh_info,
     // first write the interior hexes
   NcVar *hex_conn = NULL;
   if (mesh_info.bdy_hexes.size() != 0 || mesh_info.num_int_hexes != 0) {
-    char *hex_name = "hexahedron_interior";
+    const char *hex_name = "hexahedron_interior";
     hex_conn = ncFile->get_var(hex_name);
     if (NULL == hex_conn) return MB_FAILURE;
   }
@@ -731,7 +731,7 @@ MBErrorCode WriteSLAC::write_matsets(MeshInfo &mesh_info,
 
   NcVar *tet_conn = NULL;
   if (mesh_info.bdy_tets.size() != 0 || mesh_info.num_int_tets != 0) {
-    char *tet_name = "tetrahedron_interior";
+    const char *tet_name = "tetrahedron_interior";
     tet_conn = ncFile->get_var(tet_name);
     if (NULL == tet_conn) return MB_FAILURE;
   }
@@ -769,7 +769,7 @@ MBErrorCode WriteSLAC::write_matsets(MeshInfo &mesh_info,
   
     // now the exterior hexes
   if (mesh_info.bdy_hexes.size() != 0) {
-    char *hex_name = "hexahedron_exterior";
+    const char *hex_name = "hexahedron_exterior";
     hex_conn = ncFile->get_var(hex_name);
     if (NULL == hex_conn) return MB_FAILURE;
 
@@ -820,7 +820,7 @@ MBErrorCode WriteSLAC::write_matsets(MeshInfo &mesh_info,
 
     // now the exterior tets
   if (mesh_info.bdy_tets.size() != 0) {
-    char *tet_name = "tetrahedron_exterior";
+    const char *tet_name = "tetrahedron_exterior";
     tet_conn = ncFile->get_var(tet_name);
     if (NULL == tet_conn) return MB_FAILURE;
 

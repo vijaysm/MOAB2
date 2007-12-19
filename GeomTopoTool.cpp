@@ -50,11 +50,31 @@ MBErrorCode GeomTopoTool::restore_topology()
   result = separate_by_dimension(geom_sets, entities, geom_tag);
   if (MB_SUCCESS != result)
     return result;
-  
-  std::vector<MBEntityHandle> dp1ents;
 
+  std::vector<MBEntityHandle> parents;
+  MBRange tmp_parents;
+  
     // loop over dimensions
   for (int dim = 2; dim >= 0; dim--) {
+      // mark entities of next higher dimension with their owners; regenerate tag
+      // each dimension so prev dim's tag data goes away
+    MBTag owner_tag;
+    MBEntityHandle dum_val = 0;
+    result = mdbImpl->tag_create("__owner_tag", sizeof(MBEntityHandle), MB_TAG_DENSE,
+                                 MB_TYPE_HANDLE, owner_tag, &dum_val);
+    if (MB_SUCCESS != result) continue;
+    MBRange dp1ents;
+    std::vector<MBEntityHandle> owners;
+    for (MBRange::iterator rit = entities[dim+1].begin(); rit != entities[dim+1].end(); rit++) {
+      dp1ents.clear();
+      result = mdbImpl->get_entities_by_dimension(*rit, dim+1, dp1ents);
+      if (MB_SUCCESS != result) continue;
+      owners.resize(dp1ents.size());
+      std::fill(owners.begin(), owners.end(), *rit);
+      result = mdbImpl->tag_set_data(owner_tag, dp1ents, &owners[0]);
+      if (MB_SUCCESS != result) continue;
+    }
+    
     for (MBRange::iterator d_it = entities[dim].begin(); 
          d_it != entities[dim].end(); d_it++) {
       MBRange dents;
@@ -68,22 +88,24 @@ MBErrorCode GeomTopoTool::restore_topology()
                                         false, dp1ents);
       if (MB_SUCCESS != result || dp1ents.empty()) continue;
 
-    //   . for each geom entity if dim d+1, if it contains any of the ents,
-    //     add it to list of parents
-
-      MBRange parents;      
-      for (MBRange::iterator git = entities[dim+1].begin(); 
-           git != entities[dim+1].end(); git++) {
-        if (mdbImpl->contains_entities(*git, &dp1ents[0], 
-                                       dp1ents.size()))
-          parents.insert(*git);
-      }
+        // get owner tags
+      parents.resize(dp1ents.size());
+      result = mdbImpl->tag_get_data(owner_tag, dp1ents, &parents[0]);
+      assert(MB_TAG_NOT_FOUND != result);
+      if (MB_SUCCESS != result) continue;
       
-    //   . make parent/child links with parents
-      for (MBRange::iterator pit = parents.begin(); pit != parents.end(); pit++) {
+        // compress to a range to remove duplicates
+      tmp_parents.clear();
+      std::copy(parents.begin(), parents.end(), mb_range_inserter(tmp_parents));
+      for (MBRange::iterator pit = tmp_parents.begin(); pit != tmp_parents.end(); pit++) {
         result = mdbImpl->add_parent_child(*pit, *d_it);
+        if (MB_SUCCESS != result) return result;
       }
     }
+    
+      // now delete owner tag on this dimension, automatically removes tag data
+    result = mdbImpl->tag_delete(owner_tag);
+    if (MB_SUCCESS != result) return result;
     
   } // dim
 

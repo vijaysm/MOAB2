@@ -273,8 +273,8 @@ public:
   FileTOC fileTOC;
   ModelEntry *modelEntries;
   MetaDataContainer modelMetaData;
-  int currNodeIdOffset;
-  int currElementIdOffset[MBMAXTYPE];
+  long currNodeIdOffset;
+  long currElementIdOffset[MBMAXTYPE];
   MBTag globalIdTag, cubIdTag, geomTag, uniqueIdTag, blockTag, nsTag, ssTag,
     attribVectorTag, entityNameTag, categoryTag;
   std::map<int, MBEntityHandle> uidSetMap;

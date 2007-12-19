@@ -862,8 +862,10 @@ MBErrorCode Tqdcfr::get_mesh_entities(const int this_type,
         ent_list->push_back(int_buf[i]+currNodeIdOffset);
     }
     else {
-      for (int i = 0; i < id_buf_size; i++)
+      for (int i = 0; i < id_buf_size; i++) {
+        assert(0 != (*cubMOABVertexMap)[int_buf[i]]);
         ent_list->push_back((*cubMOABVertexMap)[int_buf[i]]);
+      }
     }
   }
   else {
@@ -897,7 +899,10 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
                                Tqdcfr::ModelEntry *model,
                                Tqdcfr::GeomHeader *entity) 
 {
-  if (entity->nodeCt == 0) return MB_SUCCESS;
+  if (entity->nodeCt == 0) {
+    if (debug) std::cout << "(no nodes) ";
+    return MB_SUCCESS;
+  }
   
     // get the ids & coords in separate calls to minimize memory usage
     // position the file
@@ -931,8 +936,9 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
   result = mdbImpl->tag_set_data(globalIdTag, dum_range, &int_buf[0]);
   if (MB_SUCCESS != result) return result;
 
-    // check for id contiguity
-  long unsigned int node_offset = mdbImpl->id_from_handle( node_handle);
+    // check for id contiguity; long because we subtract 1st index later, which
+    // might make this offset negative
+  long node_offset = mdbImpl->id_from_handle( node_handle);
 
   int max_id = -1;
   int contig;
@@ -948,26 +954,29 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
   
     if (contig && -1 == currNodeIdOffset)
       currNodeIdOffset = node_offset;
-    else if ((contig && (long unsigned int) currNodeIdOffset != node_offset) ||
+    else if ((contig && currNodeIdOffset != node_offset) ||
              !contig) {
       // node offsets no longer valid - need to build cub id - vertex handle map
-      cubMOABVertexMap = new std::vector<MBEntityHandle>(node_offset+entity->nodeCt);
+      MBRange vrange;
+      result = mdbImpl->get_entities_by_type(0, MBVERTEX, vrange); RR;
+#define MAX(a,b) (a > b ? a : b)
+      int map_size = MAX((node_offset+entity->nodeCt), ((int)*vrange.rbegin()+1));
+      cubMOABVertexMap = new std::vector<MBEntityHandle>(map_size);
+      std::fill(cubMOABVertexMap->begin(), cubMOABVertexMap->end(), 0);
 
-      if (-1 != currNodeIdOffset && currNodeIdOffset != (int) node_offset) {
-          // now fill the missing values for vertices which already exist
-        MBRange vrange;
-        result = mdbImpl->get_entities_by_type(0, MBVERTEX, vrange); RR;
-        MBRange::const_iterator rit = vrange.lower_bound(vrange.begin(), vrange.end(),
-                                                         currNodeIdOffset);
-        for (; *rit <= node_offset; rit++)
+        // now fill the missing values for vertices which already exist
+      for (MBRange::iterator rit = vrange.begin(); rit != vrange.end(); rit++)
           (*cubMOABVertexMap)[*rit] = *rit;
-      }
     }
   }
   
   if (NULL != cubMOABVertexMap) {
       // expand the size if necessary
-    if (max_id > (int) cubMOABVertexMap->size()-1) cubMOABVertexMap->resize(max_id+1);
+    if (max_id > (int) cubMOABVertexMap->size()-1) {
+      long old_size = cubMOABVertexMap->size();
+      cubMOABVertexMap->resize(max_id+1);
+      std::fill(&(*cubMOABVertexMap)[old_size], &(*cubMOABVertexMap)[0]+cubMOABVertexMap->size(), 0);
+    }
     
       // now set the new values
     std::vector<int>::iterator vit;
@@ -977,6 +986,10 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
       (*cubMOABVertexMap)[*vit] = *rit;
     }
   }
+
+  if (debug)
+    std::cout << "(currOffset=" << currNodeIdOffset << ",nodeh=" << node_handle
+              << ",nodect=" << entity->nodeCt << ")  ";
 
     // set the dimension to at least zero (entity has at least nodes) on the geom tag
   int max_dim = 0;
@@ -1094,7 +1107,14 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     for (i = 0; i < total_conn; i++) {
       if (NULL == cubMOABVertexMap)
         new_handle = CREATE_HANDLE(MBVERTEX, currNodeIdOffset+tmp_conn[i], dum_err);
-      else new_handle = (*cubMOABVertexMap)[tmp_conn[i]];
+      else {
+        if (debug) {
+          if (0 == i) std::cout << "Conn";
+          std::cout << ", " << tmp_conn[i];
+        }
+        assert(0 != (*cubMOABVertexMap)[tmp_conn[i]]);
+        new_handle = (*cubMOABVertexMap)[tmp_conn[i]];
+      }
       assert(MB_SUCCESS == 
              mdbImpl->handle_from_id(MBVERTEX, mdbImpl->id_from_handle(new_handle), 
                                      dum_handle));
