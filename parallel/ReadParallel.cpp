@@ -266,10 +266,13 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
         return MB_FAILURE;
     }
 
-    if (MB_SUCCESS != tmp_result) {
+    if (MB_SUCCESS != tmp_result &&
+        (*vit != PA_BROADCAST || mbImpl->proc_size() != 1)) {
       result = tmp_result;
       std::ostringstream ostr;
       ostr << "Failed in step " << ParallelActionsNames[*vit] << std::endl;
+      std::string tmp_str;
+      if (MB_SUCCESS == mbImpl->get_last_error(tmp_str)) ostr << tmp_str << std::endl;
       RR(ostr.str().c_str());
     }
   }
@@ -296,6 +299,7 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
 
   int proc_sz = mbImpl->proc_size();
   int proc_rk = mbImpl->proc_rank();
+  unsigned int num_partsets = partition_sets.size();
 
   if (!ptag_vals.empty()) {
       // values input, get sets with those values
@@ -320,6 +324,9 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
     int num_sets = partition_sets.size() / proc_sz, orig_numsets = num_sets;
     if (proc_rk < partition_sets.size() % proc_sz) num_sets++;
 
+      // cut them in half if we're on one proc
+    if (proc_sz == 1 && num_partsets == num_sets) num_sets /= 2;
+    
     for (int i = 0; i < num_sets; i++) 
       tmp_sets.insert(partition_sets[i*proc_sz + proc_rk]);
 
@@ -373,11 +380,13 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBRange &partition_sets,
   }
 
     // delete sets, then ents
-  result = mbImpl->delete_entities(deletable_sets);
+  if (!deletable_sets.empty())
+    result = mbImpl->delete_entities(deletable_sets);
   RR("Failure deleting sets in delete_nonlocal_entities.");
 
   deletable_ents = deletable_ents.subtract(deletable_sets);
-  result = mbImpl->delete_entities(deletable_ents);
+  if (!deletable_ents.empty())
+    result = mbImpl->delete_entities(deletable_ents);
   RR("Failure deleting entities in delete_nonlocal_entities.");
 
 //  if (debug)
