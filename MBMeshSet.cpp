@@ -347,20 +347,18 @@ MBErrorCode MBMeshSet_MBRange::remove_entities( const MBRange& entities,
                                                 MBEntityHandle mEntityHandle,
                                                 AEntityFactory* mAdjFact )
 {
-  MBRange::const_iterator iter = entities.begin();
-  for(; iter != entities.end(); ++iter)
-  {
-    MBRange::iterator found = mRange.find(*iter);
-    if(found != mRange.end())
-    {
-      mRange.erase(found);
-      if(tracking() && mAdjFact)
-        mAdjFact->remove_adjacency(*iter, mEntityHandle);
+  MBRange common_ents = mRange.intersect(entities);
+  MBRange tmp_range = mRange.subtract(common_ents);
+  mRange.swap(tmp_range);
+  
+  if(tracking() && mAdjFact) {
+    for(MBRange::const_iterator iter = common_ents.begin();
+        iter != common_ents.end(); iter++) {
+      mAdjFact->remove_adjacency(*iter, mEntityHandle);
     }
   }
 
   return MB_SUCCESS;
-
 }
 
 MBErrorCode MBMeshSet_MBRange::remove_entities( const MBEntityHandle *entities,
