@@ -47,9 +47,9 @@ public:
     double* p1, void* t1,
     const double* p2, const void* t2 );
 
-  /// Set the 9 coefficients of the implicit function. The vector contains the entries of A, followed by B, followed by C.
+  /// Set the 10 coefficients of the implicit function. The vector contains the entries of A, followed by B, followed by C.
   virtual void set_implicit_function( double* coeffs );
-  /// Get the 9 coefficients of the implicit function. The vector contains the entries of A, followed by B, followed by C.
+  /// Get the 10 coefficients of the implicit function. The vector contains the entries of A, followed by B, followed by C.
   void get_implicit_function( double*& coeffs );
 
   /// Set the threshold ratio of function value to half-edge length that triggers subdivision.
