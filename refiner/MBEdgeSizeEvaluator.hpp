@@ -36,7 +36,7 @@ class MB_DLL_EXPORT MBEdgeSizeEvaluator
 {
 public:
   /// Construct an evaluator.
-  MBEdgeSizeEvaluator( MBInterface* parentMesh );
+  MBEdgeSizeEvaluator( MBInterface* );
   /// Destruction is virtual so subclasses may clean up after refinement.
   virtual ~MBEdgeSizeEvaluator();
 

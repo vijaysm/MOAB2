@@ -120,8 +120,6 @@ project( MOAB )
     MBHandleUtils.cpp
     MBMatrix3.cpp
     MBCore.cpp
-    MBEdgeSizeEvaluator.cpp
-    MBEdgeSizeSimpleImplicit.cpp
     MBFactory.cpp
     MBGeomUtil.cpp
     MBMeshSet.cpp
@@ -132,6 +130,7 @@ project( MOAB )
     MBReadUtil.cpp
     MBReaderWriterSet.cpp
     MBSkinner.cpp
+    MBSysUtil.cpp
     MBUtil.cpp
     MBWriteUtil.cpp
     MeshSetSequence.cpp
@@ -221,6 +220,13 @@ project( MOAB )
   add_library( MOAB
     ${MOAB_LIB_SRCS}
   )
+
+  add_subdirectory( refiner )
+  include_directories( refiner )
+  target_link_libraries( MOAB
+    MOABrefiner
+  )
+
   if ( MOAB_USE_HDF AND HDF5_FOUND )
     target_link_libraries( MOAB
       mhdf
