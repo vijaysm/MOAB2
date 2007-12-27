@@ -41,15 +41,20 @@ public:
   virtual unsigned long get_heap_size_bound( int max_recursions ) const { return 48 * 4 * ( 1 << max_recursions ); }
 
 protected:
-  static int* template_index;
-  static int* templates;
+  static int template_index[64][2];
+  static int permutations_from_index[24][14];
+  static int templates[];
 
   void refine_0_simplex( const double* v0, const void* t0 );
   bool refine_1_simplex( int max_depth,
     const double* v0, const void* t0, const double* v1, const void* t1 );
   bool refine_2_simplex( int max_depth, int move,
     const double* v0, const void* t0, const double* v1, const void* t1, const double* v2, const void* t2 );
-  bool refine_3_simplex();
+  bool refine_3_simplex( int max_depth,
+                         const double* v0, const void* t0, 
+                         const double* v1, const void* t1, 
+                         const double* v2, const void* t2,
+                         const double* v3, const void* t3 );
   static bool compare_Hopf_cross_string_dist( const double* v00, const double* v01, const double* v10, const double* v11 );
 };
 #endif // MB_SIMPLEXTEMPLATEREFINER_H

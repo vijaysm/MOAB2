@@ -92,8 +92,9 @@ int MBEdgeSizeEvaluator::add_vertex_tag( MBTag tag_handle )
   * @param[in] c1 Pointer to endpoint 1 coordinates. The parametric coordinates (3) are followed by world coordinates (3).
   * @param[in] t1 Pointer to endpoint 1 tag values.
   */
-void MBEdgeSizeEvaluator::evaluate_tags_at_midpoint(
-  const double* c0, const void* t0, double* cm, void* tm, const double* c1, const void* t1 ) const
+void MBEdgeSizeEvaluator::evaluate_tags_at_midpoint( const double* c0, const void* t0, 
+                                                     const double* cm, void* tm, 
+                                                     const double* c1, const void* t1 ) const
 {
 }
 

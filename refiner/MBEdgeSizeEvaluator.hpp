@@ -48,7 +48,7 @@ public:
   int get_vertex_tag_size() { return this->vertexSize; }
   void evaluate_tags_at_midpoint(
     const double* c0, const void* t0,
-    double* cm, void* tm,
+    const double* cm, void* tm,
     const double* c1, const void* t1 ) const;
 
 protected:
