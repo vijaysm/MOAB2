@@ -47,9 +47,10 @@ protected:
   void refine_0_simplex( const double* v0, const void* t0 );
   bool refine_1_simplex( int max_depth,
     const double* v0, const void* t0, const double* v1, const void* t1 );
-  bool refine_2_simplex( int max_depth,
+  bool refine_2_simplex( int max_depth, int move,
     const double* v0, const void* t0, const double* v1, const void* t1, const double* v2, const void* t2 );
   bool refine_3_simplex();
+  static bool compare_Hopf_cross_string_dist( const double* v00, const double* v01, const double* v10, const double* v11 );
 };
 #endif // MB_SIMPLEXTEMPLATEREFINER_H
 
