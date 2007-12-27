@@ -203,17 +203,3 @@ void* MBEntityRefiner::heap_tag_storage()
     }
   return rval;
 }
-
-/**\brief Given endpoint coordinates and tag values plus midpoint coordinates, compute midpoint tag values.
-  *
-  * @param[in] c0 Pointer to endpoint 0 coordinates. The parametric coordinates (3) are followed by world coordinates (3).
-  * @param[in] t0 Pointer to endpoint 0 tag values.
-  * @param[in] cm Pointer to midpoint coordinates. The parametric coordinates (3) are followed by world coordinates (3).
-  * @param[out] tm Pointer to midpoint tag values.
-  * @param[in] c1 Pointer to endpoint 1 coordinates. The parametric coordinates (3) are followed by world coordinates (3).
-  * @param[in] t1 Pointer to endpoint 1 tag values.
-  */
-void MBEntityRefiner::evaluate_tags_at_midpoint(
-  const double* c0, const void* t0, double* cm, void* tm, const double* c1, const void* t1 ) const
-{
-}

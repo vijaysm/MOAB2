@@ -48,7 +48,7 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
       rval = this->refine_1_simplex( 0,  &entity_coords[0], 0,  &entity_coords[6], 0 ); // FIXME
       break;
     case MBTRI:
-      rval = this->refine_2_simplex();
+      rval = this->refine_2_simplex( 0 ,   0, 0,   0, 0,   0, 0 ); // FIXME
       break;
     case MBQUAD:
       std::cerr << "Quadrilaterals not handled yet\n";
@@ -109,7 +109,7 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
   * in space and vertices as degrees-of-freedom in a mesh (i.e. a vertex that is
   * treated as a lumped-parameter model).
   */
-void MBSimplexTemplateRefiner::refine_0_simplex( double* v0, const void* t0 )
+void MBSimplexTemplateRefiner::refine_0_simplex( const double* v0, const void* t0 )
 {
   (*this->output_functor)( v0, t0 );
   (*this->output_functor)( MBVERTEX );
@@ -117,7 +117,8 @@ void MBSimplexTemplateRefiner::refine_0_simplex( double* v0, const void* t0 )
 
 /**\brief Refine an edge.
   */
-bool MBSimplexTemplateRefiner::refine_1_simplex( int max_depth, double* v0, void* t0, double* v1, void* t1 )
+bool MBSimplexTemplateRefiner::refine_1_simplex(
+  int max_depth, const double* v0, const void* t0, const double* v1, const void* t1 )
 {
   bool edge_code = false;
 
@@ -134,7 +135,7 @@ bool MBSimplexTemplateRefiner::refine_1_simplex( int max_depth, double* v0, void
     for ( i = 0; i < 6; i++ )
       midptc[i] = ( v0[i] + v1[i] ) / 2.;
 
-    this->evaluate_tags_at_midpoint( v0, t0, midptc, midptt, v1, t1 );
+    this->edge_size_evaluator->evaluate_tags_at_midpoint( v0, t0, midptc, midptt, v1, t1 );
     edge_code = this->edge_size_evaluator->evaluate_edge( v0, t0, midptc, midptt, v1, t1 );
     }
 
@@ -159,8 +160,27 @@ bool MBSimplexTemplateRefiner::refine_1_simplex( int max_depth, double* v0, void
 
 /**\brief Refine a triangle.
   */
-bool MBSimplexTemplateRefiner::refine_2_simplex()
+bool MBSimplexTemplateRefiner::refine_2_simplex(
+  int max_depth, const double* v0, const void* t0, const double* v1, const void* t1, const double* v2, const void* t2 )
 {
+  int edgeCode = 0;
+
+  double* midpt0c;
+  double* midpt1c;
+  double* midpt2c;
+  void* midpt0t;
+  void* midpt1t;
+  void* midpt2t;
+
+  if ( max_depth-- > 0 )
+    {
+    int i;
+    for ( i = 0; i < 3; ++i )
+      {
+
+      }
+    }
+
   return true;
 }
 

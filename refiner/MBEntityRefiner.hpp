@@ -109,7 +109,6 @@ protected:
   void reset_heap_pointers();
   double* heap_coord_storage();
   void* heap_tag_storage();
-  void evaluate_tags_at_midpoint( const double* c0, const void* t0, double* cm, void* tm, const double* c1, const void* t1 ) const;
 };
 
 #endif // MB_ENTITYREFINER_H
