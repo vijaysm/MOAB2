@@ -61,6 +61,31 @@ bool MBEntityRefiner::set_edge_size_evaluator( MBEdgeSizeEvaluator* ese )
   * @retval A pointer to an edge size evaluator object or NULL.
   */
 
+/**\brief Set the functor through which output entities are streamed.
+  *
+  * Any previously assigned functor will be deleted when a new functor is set.
+  * 
+  * @retvalReturns true if the value was changed and false otherwise.
+  */
+bool MBEntityRefiner::set_output_functor( MBEntityRefinerOutputFunctor* func_obj )
+{
+  if ( ! func_obj || func_obj == this->output_functor )
+    return false;
+
+  if ( this->output_functor )
+    {
+    delete this->output_functor;
+    }
+  this->output_functor = func_obj;
+  return true;
+}
+
+/**\fn MBEntityRefinerOutputFunctor* MBEntityRefiner::get_output_functor()
+  *\brief Return the functor used to stream output.
+  *
+  * @retval A pointer to the functor. This may be NULL.
+  */
+
 /**\brief Set the minimum number of recursive subdivisions that should occur, regardless of the edge_size_evaluator's response.
   *
   * This is useful for forcing global refinement.
@@ -164,12 +189,12 @@ double* MBEntityRefiner::heap_coord_storage()
   * The returned pointer references enough bytes to store all the tags for a vertex as reported by the
   * current edge size evaluator's MBEdgeSizeEvaluator::get_vertex_tag_size().
   */
-char* MBEntityRefiner::heap_tag_storage()
+void* MBEntityRefiner::heap_tag_storage()
 {
-  char* rval;
+  void* rval;
   if ( this->edge_size_evaluator && this->current_tag != this->tag_heap.end() )
     {
-    rval = &(*this->current_tag);
+    rval = (void*) &(*this->current_tag);
     this->current_tag += this->edge_size_evaluator->get_vertex_tag_size();
     }
   else
@@ -179,3 +204,16 @@ char* MBEntityRefiner::heap_tag_storage()
   return rval;
 }
 
+/**\brief Given endpoint coordinates and tag values plus midpoint coordinates, compute midpoint tag values.
+  *
+  * @param[in] c0 Pointer to endpoint 0 coordinates. The parametric coordinates (3) are followed by world coordinates (3).
+  * @param[in] t0 Pointer to endpoint 0 tag values.
+  * @param[in] cm Pointer to midpoint coordinates. The parametric coordinates (3) are followed by world coordinates (3).
+  * @param[out] tm Pointer to midpoint tag values.
+  * @param[in] c1 Pointer to endpoint 1 coordinates. The parametric coordinates (3) are followed by world coordinates (3).
+  * @param[in] t1 Pointer to endpoint 1 tag values.
+  */
+void MBEntityRefiner::evaluate_tags_at_midpoint(
+  const double* c0, const void* t0, double* cm, void* tm, const double* c1, const void* t1 ) const
+{
+}

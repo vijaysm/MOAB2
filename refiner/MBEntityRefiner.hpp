@@ -42,7 +42,19 @@
   * \author David Thompson
   * \author Philippe Pebay
   *
-  * \date 19 November 2007
+  * \date 24 December 2007
+  */
+/** \class MBEntityRefinerOutputFunctor
+  *
+  * This is an abstract class used by MBEntityRefiner to output entities that are the product of refinement.
+  * The parenthesis operator is overloaded with two forms:
+  * one used for appending a vertex to an entity,
+  * the other used to finalize the creation of the entity by specifying its type.
+  *
+  * \author David Thompson
+  * \author Philippe Pebay
+  *
+  * \date 26 December 2007
   */
 #ifndef MB_ENTITYREFINER_H
 #define MB_ENTITYREFINER_H
@@ -53,6 +65,13 @@
 
 class MBInterface;
 class MBEdgeSizeEvaluator;
+
+class MB_DLL_EXPORT MBEntityRefinerOutputFunctor
+{
+public:
+  virtual void operator () ( const double* vcoords, const void* vtags ) = 0;
+  virtual void operator () ( MBEntityType etyp ) = 0;
+};
 
 class MB_DLL_EXPORT MBEntityRefiner
 {
@@ -66,6 +85,9 @@ public:
   virtual bool set_edge_size_evaluator( MBEdgeSizeEvaluator* );
   MBEdgeSizeEvaluator* get_edge_size_evaluator() { return this->edge_size_evaluator; }
 
+  virtual bool set_output_functor( MBEntityRefinerOutputFunctor* func_obj );
+  MBEntityRefinerOutputFunctor* get_output_functor() { return this->output_functor; }
+
   virtual bool set_minimum_number_of_subdivisions( int mn );
   int get_minimum_number_of_subdivisions() const { return this->minimum_number_of_subdivisions; }
 
@@ -75,6 +97,7 @@ public:
 protected:
   MBInterface* mesh;
   MBEdgeSizeEvaluator* edge_size_evaluator;
+  MBEntityRefinerOutputFunctor* output_functor;
   int minimum_number_of_subdivisions;
   int maximum_number_of_subdivisions;
   std::vector<double> coord_heap;
@@ -85,7 +108,8 @@ protected:
   void update_heap_size();
   void reset_heap_pointers();
   double* heap_coord_storage();
-  char* heap_tag_storage();
+  void* heap_tag_storage();
+  void evaluate_tags_at_midpoint( const double* c0, const void* t0, double* cm, void* tm, const double* c1, const void* t1 ) const;
 };
 
 #endif // MB_ENTITYREFINER_H

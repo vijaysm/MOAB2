@@ -44,8 +44,8 @@ protected:
   static int* template_index;
   static int* templates;
 
-  void refine_0_simplex();
-  bool refine_1_simplex();
+  void refine_0_simplex( double* v0, const void* t0 );
+  bool refine_1_simplex( int max_depth, double* v0, void* t0, double* v1, void* t1 );
   bool refine_2_simplex();
   bool refine_3_simplex();
 };
