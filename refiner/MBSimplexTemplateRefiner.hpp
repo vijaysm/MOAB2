@@ -51,11 +51,13 @@ protected:
   bool refine_2_simplex( int max_depth, int move,
     const double* v0, const void* t0, const double* v1, const void* t1, const double* v2, const void* t2 );
   bool refine_3_simplex( int max_depth,
-                         const double* v0, const void* t0, 
-                         const double* v1, const void* t1, 
-                         const double* v2, const void* t2,
-                         const double* v3, const void* t3 );
+                         double* v0, void* t0, 
+                         double* v1, void* t1, 
+                         double* v2, void* t2,
+                         double* v3, void* t3 );
   static bool compare_Hopf_cross_string_dist( const double* v00, const double* v01, const double* v10, const double* v11 );
+
+  int best_tets( int* alternates, double*[14], int, int ) { return alternates[0]; }
 };
 #endif // MB_SIMPLEXTEMPLATEREFINER_H
 
