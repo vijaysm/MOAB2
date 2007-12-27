@@ -3,6 +3,7 @@ set ( MOAB_REFINER_SRCS
   MBEdgeSizeSimpleImplicit.cpp
   MBEntityRefiner.cpp
   MBMeshRefiner.cpp
+  MBSimplexTemplateRefiner.cpp
   )
 
 add_library( MOABrefiner

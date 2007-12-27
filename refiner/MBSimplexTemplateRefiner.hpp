@@ -17,6 +17,9 @@
   *
   * This is a concrete subclass of MBEntityRefiner that implements
   * refinement using templates applied to simplices.
+  * Entities that are not simplices are divided into tetrahedra,
+  * triangles, or lines before being processed.
+  * Points are passed through unchanged.
   *
   * \author David Thompson
   * \author Philippe Pebay
@@ -26,21 +29,25 @@
 #ifndef MB_SIMPLEXTEMPLATEREFINER_H
 #define MB_SIMPLEXTEMPLATEREFINER_H
 
-#include "MBEntityRefiner.h"
+#include "MBEntityRefiner.hpp"
 
 class MB_DLL_EXPORT MBSimplexTemplateRefiner : public MBEntityRefiner
 {
 public:
-  /// Construct a template refiner.
-  MBSimplexTemplateRefiner();
-  /// Destruction is virtual so subclasses may clean up after refinement.
+  MBSimplexTemplateRefiner( MBInterface* mesh );
   virtual ~MBSimplexTemplateRefiner();
 
-  virtual bool refine_entity( MBEntityHandle );
+  virtual bool refine_entity( MBEntityHandle entity );
+  virtual unsigned long get_heap_size_bound( int max_recursions ) const { return 48 * 4 * ( 1 << max_recursions ); }
 
 protected:
   static int* template_index;
   static int* templates;
+
+  void refine_0_simplex();
+  bool refine_1_simplex();
+  bool refine_2_simplex();
+  bool refine_3_simplex();
 };
 #endif // MB_SIMPLEXTEMPLATEREFINER_H
 

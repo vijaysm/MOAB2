@@ -1,24 +1,181 @@
 #include "MBEntityRefiner.hpp"
 
+#include "MBEdgeSizeEvaluator.hpp"
 #include "MBInterface.hpp"
 
+/// Construct an entity refiner.
 MBEntityRefiner::MBEntityRefiner( MBInterface* parentMesh )
 {  
   this->mesh = parentMesh;
   this->edge_size_evaluator = 0;
+  // By default, allow at most one subdivision per edge
+  this->minimum_number_of_subdivisions = 0;
+  this->maximum_number_of_subdivisions = 1;
 }
 
+/// Destruction is virtual so subclasses may clean up after refinement.
 MBEntityRefiner::~MBEntityRefiner()
 {
+  if ( this->edge_size_evaluator )
+    delete this->edge_size_evaluator;
 }
 
+/**\fn bool MBEntityRefiner::refine_entity( MBEntityHandle )
+  *\brief Method implemented by subclasses to create decompositions of entities using edge subdivisions.
+  */
+
+/**\fn int MBEntityRefiner::get_heap_size_bound( int max_recursions ) const
+  *\brief When an entity is refined, what is the maximum number of new vertices that will be created?
+  *
+  * This must be the maximum number of vertices for any entity type (tetrahedra, hexahedra, etc.).
+  */
+
+/**\brief Set the object that specifies which edges of a given entity should be subdivided.
+  *
+  * The entity refiner takes ownership of edge size evaluator and will delete it when
+  * a new value is set or when the entity refiner is destroyed.
+  *
+  * @param ese The new edge size evaluator object.
+  * @retval Returns true if the value was changed and false otherwise.
+  */
 bool MBEntityRefiner::set_edge_size_evaluator( MBEdgeSizeEvaluator* ese )
 {
-  if ( ! ese ) return false;
+  if ( ! ese || ese == this->edge_size_evaluator )
+    return false;
 
+  if ( this->edge_size_evaluator )
+    {
+    delete this->edge_size_evaluator;
+    }
   this->edge_size_evaluator = ese;
+  this->update_heap_size();
 
   return true;
 }
 
+/**\fn MBEdgeSizeEvaluator* MBEntityRefiner::get_edge_size_evaluator()
+  *\brief Return a pointer to the object that specifies which edges of a given entity should be subdivided.
+  *
+  * This may return NULL if no value has been previously specified.
+  *
+  * @retval A pointer to an edge size evaluator object or NULL.
+  */
+
+/**\brief Set the minimum number of recursive subdivisions that should occur, regardless of the edge_size_evaluator's response.
+  *
+  * This is useful for forcing global refinement.
+  *
+  * @retval True if the number of subdivisions was changed; false otherwise.
+  */
+bool MBEntityRefiner::set_minimum_number_of_subdivisions( int mn )
+{
+  if ( mn < 0 || mn == this->minimum_number_of_subdivisions )
+    {
+    return false;
+    }
+
+  this->minimum_number_of_subdivisions = mn;
+  return true;
+}
+
+/**\fn int MBEntityRefiner::get_minimum_number_of_subdivisions() const
+  *\brief Return the minimum number of recursive edge subdivisions guaranteed to take place, regardless of the edge size evaluator.
+  *
+  * This may any non-negative integer.
+  *
+  * @retval The guaranteed minimum number of subdivisions that will take place on each and every edge of the mesh.
+  */
+
+/**\brief Set the maximum number of recursive subdivisions that should occur, regardless of the edge_size_evaluator's response.
+  *
+  * This is useful for preventing infinite recursion.
+  * A value of 0 is allowed although not terribly practical.
+  *
+  * @retval True if the number of subdivisions was changed; false otherwise.
+  */
+bool MBEntityRefiner::set_maximum_number_of_subdivisions( int mx )
+{
+  if ( mx < 0 || mx == this->maximum_number_of_subdivisions )
+    {
+    return false;
+    }
+
+  this->maximum_number_of_subdivisions = mx;
+  this->update_heap_size();
+  return true;
+}
+
+/**\fn int MBEntityRefiner::get_maximum_number_of_subdivisions() const
+  *\brief Return the maximum number of recursive edge subdivisions guaranteed to take place, regardless of the edge size evaluator.
+  *
+  * This may any non-negative integer.
+  *
+  * @retval The guaranteed maximum number of subdivisions that will take place on each and every edge of the mesh.
+  */
+
+/**\brief This is called when the edge size evaluator or maximum number of subdivisions is changed
+  *       to make sure the heaps are properly sized.
+  *
+  * Tag heap size cannot be computed if the edge_size_evaluator is NULL.
+  */
+void MBEntityRefiner::update_heap_size()
+{
+  unsigned long n = this->get_heap_size_bound( this->maximum_number_of_subdivisions );
+  this->coord_heap.reserve( 6 * n );
+  if ( this->edge_size_evaluator )
+    {
+    unsigned long m = this->edge_size_evaluator->get_vertex_tag_size();
+    this->tag_heap.reserve( m * n );
+    }
+}
+
+/**\brief Subclasses should call this on entry to refine_entity().
+  *
+  * When called, future calls to heap_coord_storage() and heap_tag_storage() will
+  * re-use the allocated storage starting from the beginning.
+  */
+void MBEntityRefiner::reset_heap_pointers()
+{
+  this->current_coord = this->coord_heap.begin();
+  this->current_tag = this->tag_heap.begin();
+}
+
+/**\brief Return a pointer to temporary storage for edge midpoint vertex coordinates inside refine_entity().
+  *
+  * The returned pointer references 6 uninitialized double values to hold parametric coordinates and world coordinates.
+  */
+double* MBEntityRefiner::heap_coord_storage()
+{
+  double* rval;
+  if ( this->current_coord != this->coord_heap.end() )
+    {
+    rval = &(*this->current_coord);
+    this->current_coord += 6;
+    }
+  else
+    {
+    rval = 0;
+    }
+  return rval;
+}
+
+/**\brief Return a pointer to temporary storage for edge midpoint vertex coordinates inside refine_entity().
+  *
+  * The returned pointer references enough bytes to store all the tags for a vertex as reported by the
+  * current edge size evaluator's MBEdgeSizeEvaluator::get_vertex_tag_size().
+  */
+char* MBEntityRefiner::heap_tag_storage()
+{
+  char* rval;
+  if ( this->edge_size_evaluator && this->current_tag != this->tag_heap.end() )
+    {
+    rval = &(*this->current_tag);
+    this->current_tag += this->edge_size_evaluator->get_vertex_tag_size();
+    }
+  else
+    {
+    rval = 0;
+    }
+  return rval;
+}
 
