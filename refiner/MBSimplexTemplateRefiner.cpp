@@ -38,7 +38,7 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
   std::vector<double> entity_coords;
   entity_coords.resize( 6 * num_nodes );
   // Have to make num_nodes calls to get_coords() because we need xyz interleaved with rst coords.
-  for ( int n = 0; n < num_nodes; ++n )
+  for ( int n = 0; n < num_nodes; ++ n )
     {
     if ( this->mesh->get_coords( &conn[n], 1, &entity_coords[3 * n + 3] ) != MB_SUCCESS )
       {
@@ -350,12 +350,12 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
     }
 
   double edge_length2[6];
-  edge_length2[0] 
-    = edge_length2[1] 
-    = edge_length2[2] 
+  edge_length2[0]
+    = edge_length2[1]
+    = edge_length2[2]
     = edge_length2[3]
-    = edge_length2[4] 
-    = edge_length2[5] 
+    = edge_length2[4]
+    = edge_length2[5]
     = 0;
 
   for ( int c = 0; c < 3; ++ c )
@@ -386,7 +386,7 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
 
     return false;
     }
-  
+
   double* facept0c;
   double* facept1c;
   double* facept2c;
@@ -465,14 +465,14 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
       break;
     case 2: // Ruprecht-Müller Case 2a
       comparison_bits = 
-        (permlen[0] <= permlen[1] ? 1 : 0) | (permlen[0] >= permlen[1] ? 2 : 0) |
+        ( permlen[0] <= permlen[1] ? 1 : 0 ) | ( permlen[0] >= permlen[1] ? 2 : 0 ) |
         0;
-      if ( (comparison_bits & 3) == 3 )
+      if ( ( comparison_bits & 3 ) == 3 )
         {
         // Compute face point
         for ( int i = 0; i < 6; ++ i )
           {
-          permuted_coords[10][i] = (permuted_coords[0][i] + permuted_coords[2][i]) * .375 + permuted_coords[1][i] * .25;
+          permuted_coords[10][i] = ( permuted_coords[0][i] + permuted_coords[2][i] ) * .375 + permuted_coords[1][i] * .25;
           }
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(1);
@@ -511,32 +511,32 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
       break;
     case 4: // Ruprecht-Müller Case 3a
       comparison_bits = 
-        (permlen[0] <= permlen[3] ? 1 : 0) | (permlen[0] >= permlen[3] ? 2 : 0) |
-        (permlen[2] <= permlen[3] ? 4 : 0) | (permlen[2] >= permlen[3] ? 8 : 0) |
-        (permlen[0] <= permlen[2] ? 16 : 0) | (permlen[0] >= permlen[2] ? 32 : 0) |
+        ( permlen[0] <= permlen[3] ? 1 : 0 ) | ( permlen[0] >= permlen[3] ? 2 : 0 ) |
+        ( permlen[2] <= permlen[3] ? 4 : 0 ) | ( permlen[2] >= permlen[3] ? 8 : 0 ) |
+        ( permlen[0] <= permlen[2] ? 16 : 0 ) | ( permlen[0] >= permlen[2] ? 32 : 0 ) |
         0;
-      if ( (comparison_bits & 3) == 3 )
+      if ( ( comparison_bits & 3 ) == 3 )
         {
         // Compute face point
         for ( int i = 0; i < 6; ++ i )
           {
-          permuted_coords[11][i] = (permuted_coords[1][i] + permuted_coords[3][i]) * .375 + permuted_coords[0][i] * .25;
+          permuted_coords[11][i] = ( permuted_coords[1][i] + permuted_coords[3][i] ) * .375 + permuted_coords[0][i] * .25;
           }
         }
-      if ( (comparison_bits & 12) == 12 )
+      if ( ( comparison_bits & 12 ) == 12 )
         {
         // Compute face point
         for ( int i = 0; i < 6; ++ i )
           {
-          permuted_coords[13][i] = (permuted_coords[2][i] + permuted_coords[3][i]) * .375 + permuted_coords[0][i] * .25;
+          permuted_coords[13][i] = ( permuted_coords[2][i] + permuted_coords[3][i] ) * .375 + permuted_coords[0][i] * .25;
           }
         }
-      if ( (comparison_bits & 48) == 48 )
+      if ( ( comparison_bits & 48 ) == 48 )
         {
         // Compute face point
         for ( int i = 0; i < 6; ++ i )
           {
-          permuted_coords[10][i] = (permuted_coords[1][i] + permuted_coords[2][i]) * .375 + permuted_coords[0][i] * .25;
+          permuted_coords[10][i] = ( permuted_coords[1][i] + permuted_coords[2][i] ) * .375 + permuted_coords[0][i] * .25;
           }
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(3);
@@ -635,23 +635,23 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
       break;
     case 6: // Ruprecht-Müller Case 3c
       comparison_bits = 
-        (permlen[0] <= permlen[1] ? 1 : 0) | (permlen[0] >= permlen[1] ? 2 : 0) |
-        (permlen[0] <= permlen[3] ? 4 : 0) | (permlen[0] >= permlen[3] ? 8 : 0) |
+        ( permlen[0] <= permlen[1] ? 1 : 0 ) | ( permlen[0] >= permlen[1] ? 2 : 0 ) |
+        ( permlen[0] <= permlen[3] ? 4 : 0 ) | ( permlen[0] >= permlen[3] ? 8 : 0 ) |
         0;
-      if ( (comparison_bits & 3) == 3 )
+      if ( ( comparison_bits & 3 ) == 3 )
         {
         // Compute face point
         for ( int i = 0; i < 6; ++ i )
           {
-          permuted_coords[10][i] = (permuted_coords[0][i] + permuted_coords[2][i]) * .375 + permuted_coords[1][i] * .25;
+          permuted_coords[10][i] = ( permuted_coords[0][i] + permuted_coords[2][i] ) * .375 + permuted_coords[1][i] * .25;
           }
         }
-      if ( (comparison_bits & 12) == 12 )
+      if ( ( comparison_bits & 12 ) == 12 )
         {
         // Compute face point
         for ( int i = 0; i < 6; ++ i )
           {
-          permuted_coords[11][i] = (permuted_coords[1][i] + permuted_coords[3][i]) * .375 + permuted_coords[0][i] * .25;
+          permuted_coords[11][i] = ( permuted_coords[1][i] + permuted_coords[3][i] ) * .375 + permuted_coords[0][i] * .25;
           }
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(5);
@@ -715,23 +715,23 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
       break;
     case 7: // Ruprecht-Müller Case 3d
       comparison_bits = 
-        (permlen[0] <= permlen[2] ? 1 : 0) | (permlen[0] >= permlen[2] ? 2 : 0) |
-        (permlen[0] <= permlen[4] ? 4 : 0) | (permlen[0] >= permlen[4] ? 8 : 0) |
+        ( permlen[0] <= permlen[2] ? 1 : 0 ) | ( permlen[0] >= permlen[2] ? 2 : 0 ) |
+        ( permlen[0] <= permlen[4] ? 4 : 0 ) | ( permlen[0] >= permlen[4] ? 8 : 0 ) |
         0;
-      if ( (comparison_bits & 3) == 3 )
+      if ( ( comparison_bits & 3 ) == 3 )
         {
         // Compute face point
         for ( int i = 0; i < 6; ++ i )
           {
-          permuted_coords[10][i] = (permuted_coords[1][i] + permuted_coords[2][i]) * .375 + permuted_coords[0][i] * .25;
+          permuted_coords[10][i] = ( permuted_coords[1][i] + permuted_coords[2][i] ) * .375 + permuted_coords[0][i] * .25;
           }
         }
-      if ( (comparison_bits & 12) == 12 )
+      if ( ( comparison_bits & 12 ) == 12 )
         {
         // Compute face point
         for ( int i = 0; i < 6; ++ i )
           {
-          permuted_coords[11][i] = (permuted_coords[0][i] + permuted_coords[3][i]) * .375 + permuted_coords[1][i] * .25;
+          permuted_coords[11][i] = ( permuted_coords[0][i] + permuted_coords[3][i] ) * .375 + permuted_coords[1][i] * .25;
           }
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(6);
@@ -795,23 +795,23 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
       break;
     case 8: // Ruprecht-Müller Case 4a
       comparison_bits = 
-        (permlen[4] <= permlen[5] ? 1 : 0) | (permlen[4] >= permlen[5] ? 2 : 0) |
-        (permlen[3] <= permlen[4] ? 4 : 0) | (permlen[3] >= permlen[4] ? 8 : 0) |
+        ( permlen[4] <= permlen[5] ? 1 : 0 ) | ( permlen[4] >= permlen[5] ? 2 : 0 ) |
+        ( permlen[3] <= permlen[4] ? 4 : 0 ) | ( permlen[3] >= permlen[4] ? 8 : 0 ) |
         0;
-      if ( (comparison_bits & 3) == 3 )
+      if ( ( comparison_bits & 3 ) == 3 )
         {
         // Compute face point
         for ( int i = 0; i < 6; ++ i )
           {
-          permuted_coords[12][i] = (permuted_coords[1][i] + permuted_coords[2][i]) * .375 + permuted_coords[3][i] * .25;
+          permuted_coords[12][i] = ( permuted_coords[1][i] + permuted_coords[2][i] ) * .375 + permuted_coords[3][i] * .25;
           }
         }
-      if ( (comparison_bits & 12) == 12 )
+      if ( ( comparison_bits & 12 ) == 12 )
         {
         // Compute face point
         for ( int i = 0; i < 6; ++ i )
           {
-          permuted_coords[11][i] = (permuted_coords[0][i] + permuted_coords[1][i]) * .375 + permuted_coords[3][i] * .25;
+          permuted_coords[11][i] = ( permuted_coords[0][i] + permuted_coords[1][i] ) * .375 + permuted_coords[3][i] * .25;
           }
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(7);
@@ -879,41 +879,41 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
       break;
     case 9: // Ruprecht-Müller Case 4b
       comparison_bits = 
-        (permlen[1] <= permlen[2] ? 1 : 0) | (permlen[1] >= permlen[2] ? 2 : 0) |
-        (permlen[2] <= permlen[3] ? 4 : 0) | (permlen[2] >= permlen[3] ? 8 : 0) |
-        (permlen[3] <= permlen[4] ? 16 : 0) | (permlen[3] >= permlen[4] ? 32 : 0) |
-        (permlen[1] <= permlen[4] ? 64 : 0) | (permlen[1] >= permlen[4] ? 128 : 0) |
+        ( permlen[1] <= permlen[2] ? 1 : 0 ) | ( permlen[1] >= permlen[2] ? 2 : 0 ) |
+        ( permlen[2] <= permlen[3] ? 4 : 0 ) | ( permlen[2] >= permlen[3] ? 8 : 0 ) |
+        ( permlen[3] <= permlen[4] ? 16 : 0 ) | ( permlen[3] >= permlen[4] ? 32 : 0 ) |
+        ( permlen[1] <= permlen[4] ? 64 : 0 ) | ( permlen[1] >= permlen[4] ? 128 : 0 ) |
         0;
-      if ( (comparison_bits & 3) == 3 )
+      if ( ( comparison_bits & 3 ) == 3 )
         {
         // Compute face point
         for ( int i = 0; i < 6; ++ i )
           {
-          permuted_coords[10][i] = (permuted_coords[1][i] + permuted_coords[0][i]) * .375 + permuted_coords[2][i] * .25;
+          permuted_coords[10][i] = ( permuted_coords[1][i] + permuted_coords[0][i] ) * .375 + permuted_coords[2][i] * .25;
           }
         }
-      if ( (comparison_bits & 12) == 12 )
+      if ( ( comparison_bits & 12 ) == 12 )
         {
         // Compute face point
         for ( int i = 0; i < 6; ++ i )
           {
-          permuted_coords[13][i] = (permuted_coords[2][i] + permuted_coords[3][i]) * .375 + permuted_coords[0][i] * .25;
+          permuted_coords[13][i] = ( permuted_coords[2][i] + permuted_coords[3][i] ) * .375 + permuted_coords[0][i] * .25;
           }
         }
-      if ( (comparison_bits & 48) == 48 )
+      if ( ( comparison_bits & 48 ) == 48 )
         {
         // Compute face point
         for ( int i = 0; i < 6; ++ i )
           {
-          permuted_coords[11][i] = (permuted_coords[0][i] + permuted_coords[1][i]) * .375 + permuted_coords[3][i] * .25;
+          permuted_coords[11][i] = ( permuted_coords[0][i] + permuted_coords[1][i] ) * .375 + permuted_coords[3][i] * .25;
           }
         }
-      if ( (comparison_bits & 192) == 192 )
+      if ( ( comparison_bits & 192 ) == 192 )
         {
         // Compute face point
         for ( int i = 0; i < 6; ++ i )
           {
-          permuted_coords[12][i] = (permuted_coords[2][i] + permuted_coords[3][i]) * .375 + permuted_coords[1][i] * .25;
+          permuted_coords[12][i] = ( permuted_coords[2][i] + permuted_coords[3][i] ) * .375 + permuted_coords[1][i] * .25;
           }
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(8);
@@ -1241,23 +1241,23 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
       break;
     case 10: // Ruprecht-Müller Case 5
       comparison_bits = 
-        (permlen[1] <= permlen[2] ? 1 : 0) | (permlen[1] >= permlen[2] ? 2 : 0) |
-        (permlen[3] <= permlen[4] ? 4 : 0) | (permlen[3] >= permlen[4] ? 8 : 0) |
+        ( permlen[1] <= permlen[2] ? 1 : 0 ) | ( permlen[1] >= permlen[2] ? 2 : 0 ) |
+        ( permlen[3] <= permlen[4] ? 4 : 0 ) | ( permlen[3] >= permlen[4] ? 8 : 0 ) |
         0;
-      if ( (comparison_bits & 3) == 3 )
+      if ( ( comparison_bits & 3 ) == 3 )
         {
         // Compute face point
         for ( int i = 0; i < 6; ++ i )
           {
-          permuted_coords[10][i] = (permuted_coords[1][i] + permuted_coords[0][i]) * .375 + permuted_coords[2][i] * .25;
+          permuted_coords[10][i] = ( permuted_coords[1][i] + permuted_coords[0][i] ) * .375 + permuted_coords[2][i] * .25;
           }
         }
-      if ( (comparison_bits & 12) == 12 )
+      if ( ( comparison_bits & 12 ) == 12 )
         {
         // Compute face point
         for ( int i = 0; i < 6; ++ i )
           {
-          permuted_coords[11][i] = (permuted_coords[0][i] + permuted_coords[1][i]) * .375 + permuted_coords[3][i] * .25;
+          permuted_coords[11][i] = ( permuted_coords[0][i] + permuted_coords[1][i] ) * .375 + permuted_coords[3][i] * .25;
           }
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(9);
@@ -1440,6 +1440,12 @@ bool MBSimplexTemplateRefiner::compare_Hopf_cross_string_dist(
   return sq_mag_a < sq_mag_b;
 }
 
+void MBSimplexTemplateRefiner::evaluate_tags_at_facepoint( const double* c0, const void* t0,
+				   const double* c1, const void* t1,
+				   const double* c2, const void* t2,
+				   const double* cm, void* tm ) const
+{
+}
 
 /*
  * The array below is indexed by the edge code for a tetrahedron.

@@ -45,15 +45,15 @@ public:
 
   void reset_vertex_tags();
   int add_vertex_tag( MBTag tag_handle );
-  int get_vertex_tag_size() { return this->vertexSize; }
+  int get_vertex_tag_size() { return this->vertex_size; }
   void evaluate_tags_at_midpoint(
     const double* c0, const void* t0,
     const double* cm, void* tm,
     const double* c1, const void* t1 ) const;
 
 protected:
-  std::vector< std::pair< MBTag, int > > vertexTags;
-  int vertexSize;
+  std::vector< std::pair< MBTag, int > > vertex_tags;
+  int vertex_size;
   MBInterface* mesh;
 };
 

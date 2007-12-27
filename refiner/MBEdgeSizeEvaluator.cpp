@@ -30,17 +30,17 @@ MBEdgeSizeEvaluator::~MBEdgeSizeEvaluator()
   * Be careful to ensure that all calls to evaluate_edge() perform identical modifications
   * given identical input values!
   *
-  * A list of tags passed in \a t0, \a t1, and \a t2 is stored in the vertexTags member.
+  * A list of tags passed in \a t0, \a t1, and \a t2 is stored in the vertex_tags member.
   * The vertexSize member stores the total length of data associated with each pointer (in bytes).
-  * Subclasses may access vertexTags and vertexSize directly; the refiner uses public methods to
-  * populate vertexTags before evaluate_edge() is called.
+  * Subclasses may access vertex_tags and vertexSize directly; the refiner uses public methods to
+  * populate vertex_tags before evaluate_edge() is called.
   */
 
 /// Clear the list of tag values that will appear past the vertex coordinates in \a p0, \a p1, and \a p2.
 void MBEdgeSizeEvaluator::reset_vertex_tags()
 {
-  this->vertexSize = 0;
-  this->vertexTags.clear();
+  this->vertex_size = 0;
+  this->vertex_tags.clear();
 }
 
 /** Add a tag to the list of tag values that will appear past the vertex coordinates.
@@ -49,10 +49,10 @@ void MBEdgeSizeEvaluator::reset_vertex_tags()
   */
 int MBEdgeSizeEvaluator::add_vertex_tag( MBTag tag_handle )
 {
-  int offset = this->vertexSize; // old size is offset of tag being added
-  int tagSize;
+  int offset = this->vertex_size; // old size is offset of tag being added
+  int tag_size;
   MBTagType tagType;
-  if ( this->mesh->tag_get_size( tag_handle, tagSize ) != MB_SUCCESS )
+  if ( this->mesh->tag_get_size( tag_handle, tag_size ) != MB_SUCCESS )
     return -1;
 
   if ( this->mesh->tag_get_type( tag_handle, tagType ) != MB_SUCCESS )
@@ -61,16 +61,16 @@ int MBEdgeSizeEvaluator::add_vertex_tag( MBTag tag_handle )
   if ( tagType == MB_TAG_BIT )
     {
     // Pad any bit tags to a size in full bytes.
-    tagSize = ( tagSize % 8 ? 1 : 0 ) + ( tagSize / 8 );
+    tag_size = ( tag_size % 8 ? 1 : 0 ) + ( tag_size / 8 );
     }
 
   // Now pad so that the next tag will be word-aligned:
-  while ( tagSize % sizeof(int) )
-    ++tagSize;
+  while ( tag_size % sizeof(int) )
+    ++tag_size;
 
-  this->vertexSize += tagSize;
+  this->vertex_size += tag_size;
 
-  this->vertexTags.push_back( std::pair< MBTag, int >( tag_handle, offset ) );
+  this->vertex_tags.push_back( std::pair< MBTag, int >( tag_handle, offset ) );
   return offset;
 }
 

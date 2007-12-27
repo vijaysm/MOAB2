@@ -56,6 +56,10 @@ protected:
                          double* v2, void* t2,
                          double* v3, void* t3 );
   static bool compare_Hopf_cross_string_dist( const double* v00, const double* v01, const double* v10, const double* v11 );
+  void evaluate_tags_at_facepoint( const double* c0, const void* t0,
+				   const double* c1, const void* t1,
+				   const double* c2, const void* t2,
+				   const double* cm, void* tm ) const;
 
   int best_tets( int* alternates, double*[14], int, int ) { return alternates[0]; }
 };
