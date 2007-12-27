@@ -22,6 +22,7 @@ add_library( mhdf
 )
 
 target_link_libraries(
+  mhdf
   ${HDF5_LIBRARIES}
 )
 
