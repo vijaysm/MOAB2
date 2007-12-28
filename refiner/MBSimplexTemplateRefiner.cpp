@@ -1441,10 +1441,11 @@ bool MBSimplexTemplateRefiner::compare_Hopf_cross_string_dist(
 }
 
 void MBSimplexTemplateRefiner::evaluate_tags_at_facepoint( const double* c0, const void* t0,
-				   const double* c1, const void* t1,
-				   const double* c2, const void* t2,
-				   const double* cm, void* tm ) const
+                                                           const double* c1, const void* t1,
+                                                           const double* c2, const void* t2,
+                                                           const double* cm, void* tm ) const
 {
+
 }
 
 /*

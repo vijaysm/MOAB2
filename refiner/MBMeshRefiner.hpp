@@ -18,6 +18,7 @@
   * This is an class that contains the method used for mesh refinement.
   *
   * \author Philippe Pebay
+  * \author David Thompson
   *
   * \date 19 November 2007
   */

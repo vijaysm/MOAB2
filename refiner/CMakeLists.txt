@@ -4,6 +4,7 @@ set ( MOAB_REFINER_SRCS
   MBEntityRefiner.cpp
   MBMeshRefiner.cpp
   MBSimplexTemplateRefiner.cpp
+  MBSimplexTemplateTagAssigner.cpp
   )
 
 add_library( MOABrefiner
