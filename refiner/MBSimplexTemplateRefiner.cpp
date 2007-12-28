@@ -496,11 +496,12 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
         0;
       if ( ( comparison_bits & 3 ) == 3 )
         {
-        // Compute face point
+        // Compute face point and tag
         for ( int i = 0; i < 6; ++ i )
           {
           permuted_coords[10][i] = ( permuted_coords[0][i] + permuted_coords[2][i] ) * .375 + permuted_coords[1][i] * .25;
           }
+	(*this->tag_assigner)( t0, t2, t1, permuted_tags[10] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(1);
       output_tets.push( MBSimplexTemplateRefiner::templates + 9 );
@@ -544,27 +545,30 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
         0;
       if ( ( comparison_bits & 3 ) == 3 )
         {
-        // Compute face point
+        // Compute face point and tag
         for ( int i = 0; i < 6; ++ i )
           {
           permuted_coords[11][i] = ( permuted_coords[1][i] + permuted_coords[3][i] ) * .375 + permuted_coords[0][i] * .25;
           }
+	(*this->tag_assigner)( t1, t3, t0, permuted_tags[11] );
         }
       if ( ( comparison_bits & 12 ) == 12 )
         {
-        // Compute face point
+        // Compute face point and tag
         for ( int i = 0; i < 6; ++ i )
           {
           permuted_coords[13][i] = ( permuted_coords[2][i] + permuted_coords[3][i] ) * .375 + permuted_coords[0][i] * .25;
           }
+	(*this->tag_assigner)( t2, t3, t0, permuted_tags[13] );
         }
       if ( ( comparison_bits & 48 ) == 48 )
         {
-        // Compute face point
+        // Compute face point and tag
         for ( int i = 0; i < 6; ++ i )
           {
           permuted_coords[10][i] = ( permuted_coords[1][i] + permuted_coords[2][i] ) * .375 + permuted_coords[0][i] * .25;
           }
+	(*this->tag_assigner)( t1, t2, t0, permuted_tags[10] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(3);
       output_tets.push( MBSimplexTemplateRefiner::templates + 57 );
@@ -667,19 +671,21 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
         0;
       if ( ( comparison_bits & 3 ) == 3 )
         {
-        // Compute face point
+        // Compute face point and tag
         for ( int i = 0; i < 6; ++ i )
           {
           permuted_coords[10][i] = ( permuted_coords[0][i] + permuted_coords[2][i] ) * .375 + permuted_coords[1][i] * .25;
           }
+	(*this->tag_assigner)( t0, t2, t1, permuted_tags[10] );
         }
       if ( ( comparison_bits & 12 ) == 12 )
         {
-        // Compute face point
+        // Compute face point and tag
         for ( int i = 0; i < 6; ++ i )
           {
           permuted_coords[11][i] = ( permuted_coords[1][i] + permuted_coords[3][i] ) * .375 + permuted_coords[0][i] * .25;
           }
+	(*this->tag_assigner)( t1, t3, t0, permuted_tags[11] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(5);
       switch ( comparison_bits )
@@ -747,19 +753,21 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
         0;
       if ( ( comparison_bits & 3 ) == 3 )
         {
-        // Compute face point
+        // Compute face point and tag
         for ( int i = 0; i < 6; ++ i )
           {
           permuted_coords[10][i] = ( permuted_coords[1][i] + permuted_coords[2][i] ) * .375 + permuted_coords[0][i] * .25;
           }
+	(*this->tag_assigner)( t1, t2, t0, permuted_tags[10] );
         }
       if ( ( comparison_bits & 12 ) == 12 )
         {
-        // Compute face point
+        // Compute face point and tag
         for ( int i = 0; i < 6; ++ i )
           {
           permuted_coords[11][i] = ( permuted_coords[0][i] + permuted_coords[3][i] ) * .375 + permuted_coords[1][i] * .25;
           }
+	(*this->tag_assigner)( t0, t3, t1, permuted_tags[11] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(6);
       switch ( comparison_bits )
@@ -827,19 +835,21 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
         0;
       if ( ( comparison_bits & 3 ) == 3 )
         {
-        // Compute face point
+        // Compute face point and tag
         for ( int i = 0; i < 6; ++ i )
           {
           permuted_coords[12][i] = ( permuted_coords[1][i] + permuted_coords[2][i] ) * .375 + permuted_coords[3][i] * .25;
           }
+	(*this->tag_assigner)( t1, t2, t3, permuted_tags[12] );
         }
       if ( ( comparison_bits & 12 ) == 12 )
         {
-        // Compute face point
+        // Compute face point and tag
         for ( int i = 0; i < 6; ++ i )
           {
           permuted_coords[11][i] = ( permuted_coords[0][i] + permuted_coords[1][i] ) * .375 + permuted_coords[3][i] * .25;
           }
+	(*this->tag_assigner)( t0, t1, t3, permuted_tags[11] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(7);
       output_tets.push( MBSimplexTemplateRefiner::templates + 545 );
@@ -913,35 +923,39 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
         0;
       if ( ( comparison_bits & 3 ) == 3 )
         {
-        // Compute face point
+        // Compute face point and tag
         for ( int i = 0; i < 6; ++ i )
           {
           permuted_coords[10][i] = ( permuted_coords[1][i] + permuted_coords[0][i] ) * .375 + permuted_coords[2][i] * .25;
           }
+	(*this->tag_assigner)( t1, t0, t2, permuted_tags[10] );
         }
       if ( ( comparison_bits & 12 ) == 12 )
         {
-        // Compute face point
+        // Compute face point and tag
         for ( int i = 0; i < 6; ++ i )
           {
           permuted_coords[13][i] = ( permuted_coords[2][i] + permuted_coords[3][i] ) * .375 + permuted_coords[0][i] * .25;
           }
+	(*this->tag_assigner)( t2, t3, t0, permuted_tags[13] );
         }
       if ( ( comparison_bits & 48 ) == 48 )
         {
-        // Compute face point
+        // Compute face point and tag
         for ( int i = 0; i < 6; ++ i )
           {
           permuted_coords[11][i] = ( permuted_coords[0][i] + permuted_coords[1][i] ) * .375 + permuted_coords[3][i] * .25;
           }
+	(*this->tag_assigner)( t0, t1, t3, permuted_tags[11] );
         }
       if ( ( comparison_bits & 192 ) == 192 )
         {
-        // Compute face point
+        // Compute face point and tag
         for ( int i = 0; i < 6; ++ i )
           {
           permuted_coords[12][i] = ( permuted_coords[2][i] + permuted_coords[3][i] ) * .375 + permuted_coords[1][i] * .25;
           }
+	(*this->tag_assigner)( t2, t3, t1, permuted_tags[12] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(8);
       switch ( comparison_bits )
@@ -1273,19 +1287,21 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
         0;
       if ( ( comparison_bits & 3 ) == 3 )
         {
-        // Compute face point
+        // Compute face point and tag
         for ( int i = 0; i < 6; ++ i )
           {
           permuted_coords[10][i] = ( permuted_coords[1][i] + permuted_coords[0][i] ) * .375 + permuted_coords[2][i] * .25;
           }
+	(*this->tag_assigner)( t1, t0, t2, permuted_tags[10] );
         }
       if ( ( comparison_bits & 12 ) == 12 )
         {
-        // Compute face point
+        // Compute face point and tag
         for ( int i = 0; i < 6; ++ i )
           {
           permuted_coords[11][i] = ( permuted_coords[0][i] + permuted_coords[1][i] ) * .375 + permuted_coords[3][i] * .25;
           }
+	(*this->tag_assigner)( t0, t1, t3, permuted_tags[11] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(9);
       output_tets.push( MBSimplexTemplateRefiner::templates + 1107 );
@@ -1474,14 +1490,6 @@ bool MBSimplexTemplateRefiner::compare_Hopf_cross_string_dist(
     sq_mag_b += tmp*tmp;
     } 
   return sq_mag_a < sq_mag_b;
-}
-
-void MBSimplexTemplateRefiner::evaluate_tags_at_facepoint( const double* c0, const void* t0,
-                                                           const double* c1, const void* t1,
-                                                           const double* c2, const void* t2,
-                                                           const double* cm, void* tm ) const
-{
-
 }
 
 /*
