@@ -8,6 +8,7 @@ MBEntityRefiner::MBEntityRefiner( MBInterface* parentMesh )
 {  
   this->mesh = parentMesh;
   this->edge_size_evaluator = 0;
+  this->output_functor = 0;
   // By default, allow at most one subdivision per edge
   this->minimum_number_of_subdivisions = 0;
   this->maximum_number_of_subdivisions = 1;
@@ -18,6 +19,8 @@ MBEntityRefiner::~MBEntityRefiner()
 {
   if ( this->edge_size_evaluator )
     delete this->edge_size_evaluator;
+  if ( this->output_functor )
+    delete this->output_functor;
 }
 
 /**\fn bool MBEntityRefiner::refine_entity( MBEntityHandle )
@@ -146,11 +149,11 @@ bool MBEntityRefiner::set_maximum_number_of_subdivisions( int mx )
 void MBEntityRefiner::update_heap_size()
 {
   unsigned long n = this->get_heap_size_bound( this->maximum_number_of_subdivisions );
-  this->coord_heap.reserve( 6 * n );
+  this->coord_heap.resize( 6 * n );
   if ( this->edge_size_evaluator )
     {
     unsigned long m = this->edge_size_evaluator->get_vertex_tag_size();
-    this->tag_heap.reserve( m * n );
+    this->tag_heap.resize( m * n );
     }
 }
 

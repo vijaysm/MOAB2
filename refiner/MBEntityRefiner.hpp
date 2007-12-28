@@ -69,6 +69,7 @@ class MBEdgeSizeEvaluator;
 class MB_DLL_EXPORT MBEntityRefinerOutputFunctor
 {
 public:
+  virtual ~MBEntityRefinerOutputFunctor() { }
   virtual void operator () ( const double* vcoords, const void* vtags ) = 0;
   virtual void operator () ( MBEntityType etyp ) = 0;
 };

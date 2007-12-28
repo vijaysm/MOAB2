@@ -96,5 +96,11 @@ void MBEdgeSizeEvaluator::evaluate_tags_at_midpoint( const double* c0, const voi
                                                      const double* cm, void* tm, 
                                                      const double* c1, const void* t1 ) const
 {
+  (void)c0;
+  (void)t0;
+  (void)cm;
+  (void)tm;
+  (void)c1;
+  (void)t1;
 }
 

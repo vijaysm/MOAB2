@@ -6,6 +6,12 @@
 #include <iostream>
 #include <stack>
 
+// Static arrays holding parametric coordinates of element vertices
+static double MBVertexParametric[] = { 0., 0., 0. };
+static double MBEdgeParametric[]   = { 0., 0., 0.,   1., 0., 0. };
+static double MBTriParametric[]    = { 0., 0., 0.,   1., 0., 0.,   0., 1., 0. };
+static double MBTetParametric[]    = { 0., 0., 0.,   1., 0., 0.,   0., 1., 0.,   0., 0., 1. };
+
 #ifdef MB_DEBUG_TESSELLATOR
 #  define MB_TESSELLATOR_INCR_CASE_COUNT(cs) this->case_counts[cs]++
 #  define MB_TESSELLATOR_INCR_SUBCASE_COUNT(cs,sc) this->subcase_counts[cs][sc]++
@@ -36,28 +42,42 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
     return false;
     }
   std::vector<double> entity_coords;
+  std::vector<char> entity_tags;
+  int ts = this->edge_size_evaluator->get_vertex_tag_size();
   entity_coords.resize( 6 * num_nodes );
+  if ( ts )
+    {
+    entity_tags.resize( num_nodes * ts );
+    }
+  MBEntityType etyp = this->mesh->type_from_handle( entity );
   // Have to make num_nodes calls to get_coords() because we need xyz interleaved with rst coords.
   for ( int n = 0; n < num_nodes; ++ n )
     {
-    if ( this->mesh->get_coords( &conn[n], 1, &entity_coords[3 * n + 3] ) != MB_SUCCESS )
+    if ( this->mesh->get_coords( &conn[n], 1, &entity_coords[6 * n + 3] ) != MB_SUCCESS )
       {
       return false;
       }
+    // Still need to get tags.
     }
-  // Still need to get tags.
 
-  switch ( this->mesh->type_from_handle( entity ) )
+  switch ( etyp )
     {
     case MBVERTEX:
-      this->refine_0_simplex( &entity_coords[0], 0 ); // FIXME
+      this->assign_parametric_coordinates( 1, MBVertexParametric, &entity_coords[0] );
+      this->refine_0_simplex( &entity_coords[0], &entity_tags[0] );
       rval = false;
       break;
     case MBEDGE:
-      rval = this->refine_1_simplex( 0,  &entity_coords[0], 0,  &entity_coords[6], 0 ); // FIXME
+      this->assign_parametric_coordinates( 2, MBEdgeParametric, &entity_coords[0] );
+      rval = this->refine_1_simplex( this->maximum_number_of_subdivisions,
+        &entity_coords[0], &entity_tags[0],  &entity_coords[6], &entity_tags[ts] );
       break;
     case MBTRI:
-      rval = this->refine_2_simplex( 0, 0,   0, 0,   0, 0,   0, 0 ); // FIXME
+      this->assign_parametric_coordinates( 3, MBTriParametric, &entity_coords[0] );
+      rval = this->refine_2_simplex( this->maximum_number_of_subdivisions, 7,
+        &entity_coords[ 0], &entity_tags[     0],
+        &entity_coords[ 6], &entity_tags[    ts],
+        &entity_coords[12], &entity_tags[2 * ts] );
       break;
     case MBQUAD:
       std::cerr << "Quadrilaterals not handled yet\n";
@@ -68,6 +88,7 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
       rval = false;
       break;
     case MBTET:
+      this->assign_parametric_coordinates( 4, MBTetParametric, &entity_coords[0] );
       rval = this->refine_3_simplex( 0, 0, 0, 0, 0, 0, 0, 0, 0 ); // FIXME
       break;
     case MBPYRAMID:
@@ -184,6 +205,12 @@ bool MBSimplexTemplateRefiner::refine_2_simplex(
   if ( max_depth-- > 0 )
     {
     int i;
+    midpt0c = this->heap_coord_storage();
+    midpt1c = this->heap_coord_storage();
+    midpt2c = this->heap_coord_storage();
+    midpt0t = this->heap_tag_storage();
+    midpt1t = this->heap_tag_storage();
+    midpt2t = this->heap_tag_storage();
     for ( i = 0; i < 6; ++i )
       {
       midpt0c[i] = ( v0[i] + v1[i] ) / 2.;
@@ -1417,6 +1444,15 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
     }
 
   return true;
+}
+
+/**\brief This is used by refine_entity to assign parametric coordinates to corners of each element.
+  */
+void MBSimplexTemplateRefiner::assign_parametric_coordinates( int num_nodes, const double* src, double* tgt )
+{
+  for ( int i = 0; i < num_nodes; ++i, src +=3, tgt += 6 )
+    for ( int j = 0; j < 3; ++j )
+      tgt[j] = src[j];
 }
 
 /**\brief Returns true if || a0a1 || < || b0b1 ||

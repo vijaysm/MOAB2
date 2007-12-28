@@ -24,6 +24,9 @@ bool MBEdgeSizeSimpleImplicit::evaluate_edge(
   double* p1, void* t1,
   const double* p2, const void* t2 )
 {
+  (void)t0;
+  (void)t1;
+  (void)t2;
   double L2 = 0.;
   double delta;
   int i;
