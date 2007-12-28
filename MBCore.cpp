@@ -44,8 +44,11 @@
 #include "MBHandleUtils.hpp"
 
 #ifdef USE_MPI
-#include "mpi.h"
+/* Leave MBParallelComm.hpp before mpi.h or MPICH2 will fail
+ * because its C++ headers do not like SEEK_* macros.
+ */
 #include "MBParallelComm.hpp"
+#include "mpi.h"
 #include "ReadParallel.hpp"
 #endif
 
