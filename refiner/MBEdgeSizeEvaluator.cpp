@@ -31,7 +31,7 @@ MBEdgeSizeEvaluator::~MBEdgeSizeEvaluator()
   * given identical input values!
   *
   * A list of tags passed in \a t0, \a t1, and \a t2 is stored in the vertex_tags member.
-  * The vertexSize member stores the total length of data associated with each pointer (in bytes).
+  * The vertex_size member stores the total length of data associated with each pointer (in bytes).
   * Subclasses may access vertex_tags and vertexSize directly; the refiner uses public methods to
   * populate vertex_tags before evaluate_edge() is called.
   */

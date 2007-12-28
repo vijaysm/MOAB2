@@ -19,4 +19,3 @@ void MBSimplexTemplateTagAssigner::operator()( const void* ta, const void* tb, v
 void MBSimplexTemplateTagAssigner::operator()( const void* ta, const void* tb, const void* tc, void* tp )
 {
 }
-

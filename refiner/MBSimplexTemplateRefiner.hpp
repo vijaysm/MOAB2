@@ -30,6 +30,7 @@
 #define MB_SIMPLEXTEMPLATEREFINER_H
 
 #include "MBEntityRefiner.hpp"
+#include "MBSimplexTemplateTagAssigner.hpp"
 
 class MB_DLL_EXPORT MBSimplexTemplateRefiner : public MBEntityRefiner
 {
@@ -40,7 +41,11 @@ public:
   virtual bool refine_entity( MBEntityHandle entity );
   virtual unsigned long get_heap_size_bound( int max_recursions ) const { return 48 * 4 * ( 1 << max_recursions ); }
 
+  virtual void set_tag_assigner( MBSimplexTemplateTagAssigner* ta ) { this->tag_assigner = ta; }
+  MBSimplexTemplateTagAssigner* get_tag_assigner( MBSimplexTemplateTagAssigner* ta ) const { return this->tag_assigner; }
+
 protected:
+  MBSimplexTemplateTagAssigner* tag_assigner;
   static int template_index[64][2];
   static int permutations_from_index[24][14];
   static int templates[];
