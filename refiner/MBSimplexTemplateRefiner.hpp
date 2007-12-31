@@ -42,7 +42,7 @@ public:
   virtual unsigned long get_heap_size_bound( int max_recursions ) const { return 48 * 4 * ( 1 << max_recursions ); }
 
   virtual void set_tag_assigner( MBSimplexTemplateTagAssigner* ta ) { this->tag_assigner = ta; }
-  MBSimplexTemplateTagAssigner* get_tag_assigner( MBSimplexTemplateTagAssigner* ta ) const { return this->tag_assigner; }
+  MBSimplexTemplateTagAssigner* get_tag_assigner() const { return this->tag_assigner; }
 
 protected:
   MBSimplexTemplateTagAssigner* tag_assigner;
