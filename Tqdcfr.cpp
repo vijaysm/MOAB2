@@ -183,6 +183,12 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
     return result;
   mFileSet = file_set;
 
+    // get "before" entities
+  MBRange before_ents;
+  result = mdbImpl->get_entities_by_handle(0, before_ents);
+  if (MB_SUCCESS != result) 
+    return result;
+
     // ***********************
     // read model header type information...
     // ***********************
@@ -304,6 +310,14 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
 
     // convert blocks to nodesets/sidesets if tag is set
   result = convert_nodesets_sidesets();
+  
+  MBRange after_ents;
+  result = mdbImpl->get_entities_by_handle(0, after_ents);
+  if (MB_SUCCESS != result) 
+    return result;
+
+  after_ents = after_ents.subtract(before_ents);
+  result = mdbImpl->add_entities(mFileSet, after_ents);
   
   return result;
 }
@@ -929,8 +943,6 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
                     node_handle+entity->nodeCt-1);
   MBErrorCode result = mdbImpl->add_entities(entity->setHandle, dum_range);
   if (MB_SUCCESS != result) return result;
-  result = mdbImpl->add_entities( mFileSet, dum_range );
-  if (MB_SUCCESS != result) return result;
 
     // set global ids on nodes
   result = mdbImpl->tag_set_data(globalIdTag, dum_range, &int_buf[0]);
@@ -1127,8 +1139,6 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
       // add these elements into the entity's set
     MBRange dum_range(start_handle, start_handle+num_elem-1);
     result = mdbImpl->add_entities(entity->setHandle, dum_range);
-    if (MB_SUCCESS != result) return result;
-    result = mdbImpl->add_entities(mFileSet, dum_range);
     if (MB_SUCCESS != result) return result;
 
       // set global ids
@@ -2408,11 +2418,6 @@ MBErrorCode Tqdcfr::create_set( MBEntityHandle& h, int flags )
   if (!mFileSet)
     return MB_FAILURE;
   rval = mdbImpl->create_meshset( flags, h );
-  if (MB_SUCCESS != rval)
-    return rval;
-  rval = mdbImpl->add_entities( mFileSet, &h, 1 );
-  if (MB_SUCCESS != rval)
-    mdbImpl->delete_entities( &h, 1 );
   return rval;
 }
 
