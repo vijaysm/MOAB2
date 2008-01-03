@@ -159,6 +159,9 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
     switch (*vit) {
 //==================
       case PA_READ:
+        if (debug)
+          std::cout << "Reading file " << file_name << std::endl;
+            
         reader = impl->reader_writer_set()->
           get_file_extension_reader( file_name );
         if (reader)
@@ -205,6 +208,9 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
 
 //==================
       case PA_GET_FILESET_ENTS:
+        if (debug)
+          std::cout << "Getting fileset entities." << std::endl;
+
         if (0 == file_set_tag) {
           tmp_result = mbImpl->tag_get_handle("FILE_SET", file_set_tag);
           if (MB_SUCCESS == tmp_result) {
@@ -241,7 +247,12 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
 //==================
       case PA_BROADCAST:
           // do the actual broadcast; if single-processor, ignore error
-        tmp_result = pcom.broadcast_entities( reader_rank, entities );
+        if (debug)
+          std::cout << "Broadcasting mesh." << std::endl;
+
+        if (mbImpl->proc_size() > 1)
+          tmp_result = pcom.broadcast_entities( reader_rank, entities );
+
         if (debug) {
           std::cerr << "Bcast done; entities:" << std::endl;
           mbImpl->list_entities(0, 0);
@@ -250,6 +261,9 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
 
 //==================
       case PA_DELETE_NONLOCAL:
+        if (debug)
+          std::cout << "Deleting nonlocal entities." << std::endl;
+
         tmp_result = delete_nonlocal_entities(partition_tag_name, 
                                               partition_tag_vals, 
                                               distrib,
@@ -258,6 +272,9 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
 
 //==================
       case PA_CHECK_GIDS_SERIAL:
+        if (debug)
+          std::cout << "Checking global ids." << std::endl;
+
         tmp_result = pcom.check_global_ids(file_set, 0, 1, true, false);
         break;
         
@@ -321,8 +338,8 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
   if (distribute) {
     MBRange tmp_sets;
       // distribute the partition sets
-    int num_sets = partition_sets.size() / proc_sz, orig_numsets = num_sets;
-    if (proc_rk < partition_sets.size() % proc_sz) num_sets++;
+    int num_sets = partition_sets.size() / proc_sz;
+    if (proc_rk < (int) (partition_sets.size() % proc_sz)) num_sets++;
 
       // cut them in half if we're on one proc
     if (proc_sz == 1 && num_partsets == num_sets) num_sets /= 2;
@@ -345,10 +362,7 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBRange &partition_sets,
                                                    MBEntityHandle file_set) 
 {
 
-  if (debug) std::cerr << "Deleting non-local entities." << std::endl;
-  
   MBErrorCode result;
-  MBError *merror = ((MBCore*)mbImpl)->get_error_handler();
 
     // get partition entities and ents related to/used by those
     // get ents in the partition
@@ -356,6 +370,9 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBRange &partition_sets,
   MBReadUtilIface *read_iface;
   mbImpl->query_interface(iface_name, reinterpret_cast<void**>(&read_iface));
   MBRange partition_ents, all_sets;
+
+  if (debug) std::cout << "Gathering related entities." << std::endl;
+  
   result = read_iface->gather_related_ents(partition_sets, partition_ents,
                                            &all_sets);
   RR("Failure gathering related entities.");
@@ -372,6 +389,8 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBRange &partition_sets,
   MBRange deletable_sets = all_sets.intersect(deletable_ents);
   MBRange keepable_sets = all_sets.subtract(deletable_sets);
   
+  if (debug) std::cout << "Removing deletable entities from keepable sets." << std::endl;
+
     // remove deletable ents from all keepable sets
   for (MBRange::iterator rit = keepable_sets.begin();
        rit != keepable_sets.end(); rit++) {
@@ -379,6 +398,8 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBRange &partition_sets,
     RR("Failure removing deletable entities.");
   }
 
+  if (debug) std::cout << "Deleting deletable entities." << std::endl;
+  
     // delete sets, then ents
   if (!deletable_sets.empty())
     result = mbImpl->delete_entities(deletable_sets);
@@ -388,9 +409,6 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBRange &partition_sets,
   if (!deletable_ents.empty())
     result = mbImpl->delete_entities(deletable_ents);
   RR("Failure deleting entities in delete_nonlocal_entities.");
-
-//  if (debug)
-//    result = ((MBCore*)mbImpl)->check_adjacencies();
 
   return result;
 
