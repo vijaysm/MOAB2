@@ -21,7 +21,6 @@ MOAB_PARALLEL_HDRS =
 if USE_MPI
   MOAB_PARALLEL_SRCS += \
      MBParallelComm.cpp \
-     MBParallelConventions.h \
      MBProcConfig.cpp \
      MBParallelData.cpp \
      ReadParallel.cpp \
