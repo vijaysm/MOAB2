@@ -279,7 +279,7 @@ MBErrorCode SequenceManager::allocate_mesh_set( MBEntityHandle handle,
   MeshSetSequence* seq;
   if (seqptr != typeData[MBENTITYSET].end()) {
     seq = static_cast<MeshSetSequence*>(*seqptr);
-    if (seq->start_handle() + 1 == handle) {
+    if (seq->start_handle() - 1 == handle) {
       rval = seq->push_front( 1, &flags );
       if (MB_SUCCESS == rval) {
         rval = typeData[MBENTITYSET].notify_prepended( seqptr );
@@ -288,7 +288,7 @@ MBErrorCode SequenceManager::allocate_mesh_set( MBEntityHandle handle,
       }
       return rval;
     }
-    else if (seq->end_handle() == handle + 1) {
+    else if (seq->end_handle() + 1 == handle) {
       rval = seq->push_back( 1, &flags );
       if (MB_SUCCESS == rval) {
         rval = typeData[MBENTITYSET].notify_appended( seqptr );
