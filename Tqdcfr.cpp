@@ -89,7 +89,7 @@ static inline void INT_IO_ERROR( bool condition, unsigned line ) {
   }
 }
 
-void Tqdcfr::FSEEK( long offset ) {
+void Tqdcfr::FSEEK( unsigned int offset ) {
   int rval = fseek( cubFile, offset, SEEK_SET );
   IO_ASSERT( !rval );
 }
@@ -109,8 +109,8 @@ void Tqdcfr::FREADC( unsigned num_ents ) {
   FREADCA( num_ents, &char_buf[0] );
 }
 
-void Tqdcfr::FREADIA( unsigned num_ents, int* array ) {
-  unsigned rval = fread( array, sizeof(int), num_ents, cubFile );
+void Tqdcfr::FREADIA( unsigned num_ents, unsigned int* array ) {
+  unsigned rval = fread( array, sizeof(unsigned int), num_ents, cubFile );
   IO_ASSERT( rval == num_ents );
 }
 
@@ -220,7 +220,7 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
   result = mesh_model->read_metadata_info(this); RR;
 
     // now read in mesh for each geometry entity
-  for (int gindex = 0; 
+  for (unsigned int gindex = 0; 
        gindex < mesh_model->feModelHeader.geomArray.numEntities;
        gindex++) {
     Tqdcfr::GeomHeader *geom_header = &mesh_model->feGeomH[gindex];
@@ -247,7 +247,7 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
     // read groups...
     // ***********************
   if (debug) std::cout << "Reading groups... ";
-  for (int grindex = 0; 
+  for (unsigned int grindex = 0; 
        grindex < mesh_model->feModelHeader.groupArray.numEntities;
        grindex++) {
     GroupHeader *group_header = &mesh_model->feGroupH[grindex];
@@ -260,7 +260,7 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
     // read blocks...
     // ***********************
   if (debug) std::cout << "Reading blocks... ";
-  for (int blindex = 0; 
+  for (unsigned int blindex = 0; 
        blindex < mesh_model->feModelHeader.blockArray.numEntities;
        blindex++) {
     BlockHeader *block_header = &mesh_model->feBlockH[blindex];
@@ -274,7 +274,7 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
     // read nodesets...
     // ***********************
   if (debug) std::cout << "Reading nodesets... ";
-  for (int nsindex = 0; 
+  for (unsigned int nsindex = 0; 
        nsindex < mesh_model->feModelHeader.nodesetArray.numEntities;
        nsindex++) {
     NodesetHeader *nodeset_header = &mesh_model->feNodeSetH[nsindex];
@@ -287,7 +287,7 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
     // read sidesets...
     // ***********************
   if (debug) std::cout << "Reading sidesets...";
-  for (int ssindex = 0; 
+  for (unsigned int ssindex = 0; 
        ssindex < mesh_model->feModelHeader.sidesetArray.numEntities;
        ssindex++) {
     SidesetHeader *sideset_header = &mesh_model->feSideSetH[ssindex];
@@ -327,7 +327,7 @@ MBErrorCode Tqdcfr::convert_nodesets_sidesets()
 
     // look first for the nodeset and sideset offset flags; if they're not
     // set, we don't need to convert
-  int nodeset_offset, sideset_offset;
+  unsigned int nodeset_offset, sideset_offset;
   MBTag tmp_tag;
   MBErrorCode result = mdbImpl->tag_get_handle(BLOCK_NODESET_OFFSET_TAG_NAME.c_str(),
                                                tmp_tag);
@@ -359,19 +359,19 @@ MBErrorCode Tqdcfr::convert_nodesets_sidesets()
   result = mdbImpl->tag_get_data(globalIdTag, blocks, &block_ids[0]);
   if (MB_SUCCESS != result) return result;
 
-  int i = 0;
+  unsigned int i = 0;
   MBRange::iterator rit = blocks.begin();
   MBRange new_nodesets, new_sidesets;
   std::vector<int> new_nodeset_ids, new_sideset_ids;
   for (; rit != blocks.end(); i++, rit++) {
-    if (0 != nodeset_offset && block_ids[i] >= nodeset_offset && 
-        (nodeset_offset > sideset_offset || block_ids[i] < sideset_offset)) {
+    if (0 != nodeset_offset && block_ids[i] >= (int) nodeset_offset && 
+        (nodeset_offset > sideset_offset || block_ids[i] < (int) sideset_offset)) {
         // this is a nodeset
       new_nodesets.insert(*rit);
       new_nodeset_ids.push_back(block_ids[i]);
     }
-    else if (0 != sideset_offset && block_ids[i] >= sideset_offset && 
-             (sideset_offset > nodeset_offset || block_ids[i] < nodeset_offset)) {
+    else if (0 != sideset_offset && block_ids[i] >= (int) sideset_offset && 
+             (sideset_offset > nodeset_offset || block_ids[i] < (int) nodeset_offset)) {
         // this is a sideset
       new_sidesets.insert(*rit);
       new_sideset_ids.push_back(block_ids[i]);
@@ -424,7 +424,7 @@ MBErrorCode Tqdcfr::read_nodeset(Tqdcfr::ModelEntry *model,
     // read ids for each entity type
   int this_type, num_ents;
   std::vector<MBEntityHandle> ns_entities, excl_entities;
-  for (int i = 0; i < nodeseth->memTypeCt; i++) {
+  for (unsigned int i = 0; i < nodeseth->memTypeCt; i++) {
       // get how many and what type
     FREADI(2);
     this_type = int_buf[0];
@@ -455,12 +455,12 @@ MBErrorCode Tqdcfr::read_sideset(const double data_version,
   FSEEK(model->modelOffset+sideseth->memOffset);
   
     // read ids for each entity type
-  int this_type, num_ents, sense_size;
+  unsigned int this_type, num_ents, sense_size;
 
   std::vector<MBEntityHandle> ss_entities, excl_entities;
   std::vector<double> ss_dfs;
   if (data_version <= 1.0) {
-    for (int i = 0; i < sideseth->memTypeCt; i++) {
+    for (unsigned int i = 0; i < sideseth->memTypeCt; i++) {
         // get how many and what type
       FREADI(3);
       this_type = int_buf[0];
@@ -476,7 +476,7 @@ MBErrorCode Tqdcfr::read_sideset(const double data_version,
 
       if (sense_size == 1) {
           // byte-size sense flags; make sure read ends aligned...
-        int read_length = (num_ents / 8) * 8;
+        unsigned int read_length = (num_ents / 8) * 8;
         if (read_length < num_ents) read_length += 8;
         FREADC(read_length);
       
@@ -492,25 +492,25 @@ MBErrorCode Tqdcfr::read_sideset(const double data_version,
 
   }
   else {
-    for (int i = 0; i < sideseth->memTypeCt; i++) {
+    for (unsigned int i = 0; i < sideseth->memTypeCt; i++) {
         // get how many and what type
       FREADI(1);
       num_ents = int_buf[0];
 
         // get the types, and ids
-      std::vector<int> mem_types(num_ents), mem_ids(num_ents);
+      std::vector<unsigned int> mem_types(num_ents), mem_ids(num_ents);
       FREADIA(num_ents, &mem_types[0]);
       FREADIA(num_ents, &mem_ids[0]);
 
         // byte-size sense flags; make sure read ends aligned...
-      int read_length = (num_ents / 8) * 8;
+      unsigned int read_length = (num_ents / 8) * 8;
       if (read_length < num_ents) read_length += 8;
       FREADC(read_length);
 
         // wrt entities
       FREADI(1);
       int num_wrts = int_buf[0];
-      std::vector<int> wrt_ents(num_wrts);
+      std::vector<unsigned int> wrt_ents(num_wrts);
       FREADIA(num_wrts, &wrt_ents[0]);
       
       std::vector<MBEntityHandle> ss_entities;
@@ -567,7 +567,7 @@ MBErrorCode Tqdcfr::process_sideset_10(const int this_type, const int num_ents,
     for (int i = 0; i < num_ents; i++) {
       if (int_buf[i] == 0) forward.push_back(ss_entities[i]);
       else if (int_buf[i] == 1) reverse.push_back(ss_entities[i]);
-      if (int_buf[i] == -1) { // -1 means "unknown", which means both
+      if (*((int*)&int_buf[i]) == -1) { // -1 means "unknown", which means both
         forward.push_back(ss_entities[i]);
         reverse.push_back(ss_entities[i]);
       }
@@ -603,19 +603,19 @@ MBErrorCode Tqdcfr::process_sideset_10(const int this_type, const int num_ents,
 }
 
 MBErrorCode Tqdcfr::process_sideset_11(std::vector<MBEntityHandle> &ss_entities,
-                                       std::vector<int> &wrt_ents,
+                                       std::vector<unsigned int> &wrt_ents,
                                        Tqdcfr::SidesetHeader *sideseth)
 {
   std::vector<MBEntityHandle> forward, reverse;
 
-  int num_ents = ss_entities.size();
-  std::vector<int>::iterator wrt_it = wrt_ents.begin();
+  unsigned int num_ents = ss_entities.size();
+  std::vector<unsigned int>::iterator wrt_it = wrt_ents.begin();
   
-  for (int i = 0; i < num_ents; i++) {
+  for (unsigned int i = 0; i < num_ents; i++) {
     
-    int num_wrt = 0;
+    unsigned int num_wrt = 0;
     if (!wrt_ents.empty()) num_wrt = *wrt_it++;
-    for (int j = 0; j < num_wrt; j++) wrt_it += 2;
+    for (unsigned int j = 0; j < num_wrt; j++) wrt_it += 2;
     forward.push_back(ss_entities[i]);
       // assume here that if it's in the list twice, we get both senses
     if (num_wrt > 1) {
@@ -673,7 +673,7 @@ MBErrorCode Tqdcfr::read_block(const double data_version,
     // read ids for each entity type
   int this_type, num_ents;
   std::vector<MBEntityHandle> block_entities, excl_entities;
-  for (int i = 0; i < blockh->memTypeCt; i++) {
+  for (unsigned int i = 0; i < blockh->memTypeCt; i++) {
       // get how many and what type
     FREADI(2);
     this_type = int_buf[0];
@@ -709,7 +709,7 @@ MBErrorCode Tqdcfr::read_block(const double data_version,
   return MB_SUCCESS;
 }
 
-MBErrorCode Tqdcfr::read_group(const int group_index,
+MBErrorCode Tqdcfr::read_group(const unsigned int group_index,
                                Tqdcfr::ModelEntry *model,
                                Tqdcfr::GroupHeader *grouph)  
 {
@@ -719,7 +719,7 @@ MBErrorCode Tqdcfr::read_group(const int group_index,
     // read ids for each entity type
   int this_type, num_ents;
   std::vector<MBEntityHandle> grp_entities, excl_entities;
-  for (int i = 0; i < grouph->memTypeCt; i++) {
+  for (unsigned int i = 0; i < grouph->memTypeCt; i++) {
       // get how many and what type
     FREADI(2);
     this_type = int_buf[0];
@@ -807,14 +807,14 @@ MBErrorCode Tqdcfr::put_into_set(MBEntityHandle set_handle,
   return MB_SUCCESS;
 }
 
-MBErrorCode Tqdcfr::get_entities(const int *mem_types, 
-                                 int *id_buf, const int id_buf_size,
+MBErrorCode Tqdcfr::get_entities(const unsigned int *mem_types, 
+                                 unsigned int *id_buf, const unsigned int id_buf_size,
                                  const bool is_group,
                                  std::vector<MBEntityHandle> &entities) 
 {
   MBErrorCode tmp_result, result = MB_SUCCESS;
   
-  for (int i = 0; i < id_buf_size; i++) {
+  for (unsigned int i = 0; i < id_buf_size; i++) {
     if (is_group)
       tmp_result = get_entities(mem_types[i], id_buf+i, 1, entities, entities);
     else
@@ -826,8 +826,8 @@ MBErrorCode Tqdcfr::get_entities(const int *mem_types,
   return result;
 }
   
-MBErrorCode Tqdcfr::get_entities(const int this_type, 
-                                 int *id_buf, const int id_buf_size,
+MBErrorCode Tqdcfr::get_entities(const unsigned int this_type, 
+                                 unsigned int *id_buf, const unsigned int id_buf_size,
                                  std::vector<MBEntityHandle> &entities,
                                  std::vector<MBEntityHandle> &excl_entities) 
 {
@@ -841,18 +841,18 @@ MBErrorCode Tqdcfr::get_entities(const int this_type,
   return result;
 }
 
-MBErrorCode Tqdcfr::get_ref_entities(const int this_type, 
-                                     int *id_buf, const int id_buf_size,
+MBErrorCode Tqdcfr::get_ref_entities(const unsigned int this_type, 
+                                     unsigned int *id_buf, const unsigned int id_buf_size,
                                      std::vector<MBEntityHandle> &entities) 
 {
-  for (int i = 0; i < id_buf_size; i++)
+  for (unsigned int i = 0; i < id_buf_size; i++)
     entities.push_back((gidSetMap[5-this_type])[id_buf[i]]);
   
   return MB_SUCCESS;
 }
 
-MBErrorCode Tqdcfr::get_mesh_entities(const int this_type, 
-                                      int *id_buf, const int id_buf_size,
+MBErrorCode Tqdcfr::get_mesh_entities(const unsigned int this_type, 
+                                      unsigned int *id_buf, const unsigned int id_buf_size,
                                       std::vector<MBEntityHandle> &entities,
                                       std::vector<MBEntityHandle> &excl_entities) 
 {
@@ -872,11 +872,11 @@ MBErrorCode Tqdcfr::get_mesh_entities(const int this_type,
   if (MBVERTEX == this_ent_type) {
       // use either vertex offset or cubMOABVertexMap
     if (NULL == cubMOABVertexMap) {
-      for (int i = 0; i < id_buf_size; i++)
+      for (unsigned int i = 0; i < id_buf_size; i++)
         ent_list->push_back(int_buf[i]+currNodeIdOffset);
     }
     else {
-      for (int i = 0; i < id_buf_size; i++) {
+      for (unsigned int i = 0; i < id_buf_size; i++) {
         assert(0 != (*cubMOABVertexMap)[int_buf[i]]);
         ent_list->push_back((*cubMOABVertexMap)[int_buf[i]]);
       }
@@ -893,7 +893,7 @@ MBErrorCode Tqdcfr::get_mesh_entities(const int this_type,
     if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) return result;
   
       // now go through id list, finding each entity by id
-    for (int i = 0; i < id_buf_size; i++) {
+    for (unsigned int i = 0; i < id_buf_size; i++) {
       std::vector<int>::iterator vit = std::find(cub_ids.begin(), cub_ids.end(), id_buf[i]);
       if (vit != cub_ids.end()) {
         MBEntityHandle this_ent = tmp_ents[vit-cub_ids.begin()];
@@ -909,7 +909,7 @@ MBErrorCode Tqdcfr::get_mesh_entities(const int this_type,
   return result;
 }
 
-MBErrorCode Tqdcfr::read_nodes(const int gindex,
+MBErrorCode Tqdcfr::read_nodes(const unsigned int gindex,
                                Tqdcfr::ModelEntry *model,
                                Tqdcfr::GeomHeader *entity) 
 {
@@ -952,8 +952,8 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
     // might make this offset negative
   long node_offset = mdbImpl->id_from_handle( node_handle);
 
-  int max_id = -1;
-  int contig;
+  long max_id = -1;
+  long contig;
   check_contiguous(entity->nodeCt, contig, max_id);
 
   if (NULL == cubMOABVertexMap) {
@@ -985,16 +985,16 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
   if (NULL != cubMOABVertexMap) {
       // expand the size if necessary
     if (max_id > (int) cubMOABVertexMap->size()-1) {
-      long old_size = cubMOABVertexMap->size();
+      unsigned int old_size = cubMOABVertexMap->size();
       cubMOABVertexMap->resize(max_id+1);
       std::fill(&(*cubMOABVertexMap)[old_size], &(*cubMOABVertexMap)[0]+cubMOABVertexMap->size(), 0);
     }
     
       // now set the new values
-    std::vector<int>::iterator vit;
+    std::vector<unsigned int>::iterator vit;
     MBRange::iterator rit;
     for (vit = int_buf.begin(), rit = dum_range.begin(); rit != dum_range.end(); vit++, rit++) {
-      assert(0 < *vit && *vit < (int)cubMOABVertexMap->size());
+      assert(0 < *vit && *vit < cubMOABVertexMap->size());
       (*cubMOABVertexMap)[*vit] = *rit;
     }
   }
@@ -1024,7 +1024,7 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
   if (md_entry->mdDataType != 3) return MB_FAILURE;
     // if contiguous, we can use the node id as an offset
   if (1 == contig) {
-    for (std::vector<int>::iterator vit = md_entry->mdIntArrayValue.begin();
+    for (std::vector<unsigned int>::iterator vit = md_entry->mdIntArrayValue.begin();
          vit != md_entry->mdIntArrayValue.end(); vit++) {
       if (*vit - int_buf[0] < entity->nodeCt) return MB_FAILURE;
       fixed_flags[*vit - int_buf[0]] = 1;
@@ -1033,10 +1033,10 @@ MBErrorCode Tqdcfr::read_nodes(const int gindex,
     // else we have to find the position of each node in the node ids, then set the
     // equivalent position in the fixed flags
   else {
-    int *buf_end = &int_buf[0]+entity->nodeCt;
-    for (std::vector<int>::iterator vit = md_entry->mdIntArrayValue.begin();
+    unsigned int *buf_end = &int_buf[0]+entity->nodeCt;
+    for (std::vector<unsigned int>::iterator vit = md_entry->mdIntArrayValue.begin();
          vit != md_entry->mdIntArrayValue.end(); vit++) {
-      int *vit2 = std::find(&int_buf[0], buf_end, *vit);
+      unsigned int *vit2 = std::find(&int_buf[0], buf_end, *vit);
       if (vit2 != buf_end) fixed_flags[vit2 - &int_buf[0]] = 1;
     }
   }
@@ -1068,7 +1068,7 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
   int int_type, nodes_per_elem, num_elem;
   int max_dim = -1;
   MBErrorCode result;
-  for (int i = 0; i < entity->elemTypeCt; i++) {
+  for (unsigned int i = 0; i < entity->elemTypeCt; i++) {
       // for this elem type, get the type, nodes per elem, num elems
     FREADI(3);
     int_type = int_buf[0];
@@ -1083,7 +1083,7 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     FREADI(num_elem);
     
       // check to see if ids are contiguous...
-    int contig, max_id;
+    long contig, max_id;
     check_contiguous(num_elem, contig, max_id);
     if (0 == contig)
       std::cout << "Element ids are not contiguous!" << std::endl;
@@ -1096,7 +1096,7 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
                                      readUtilIface->parallel_rank(), 
                                      start_handle, conn);
         
-    long unsigned int elem_offset;
+    long elem_offset;
     elem_offset = mdbImpl->id_from_handle( start_handle) - int_buf[0];
     if (-1 == currElementIdOffset[elem_type])
       currElementIdOffset[elem_type] = elem_offset;
@@ -1106,10 +1106,10 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
       // get the connectivity array; be careful, the connectivity is stored
       // in the file as ints, while the connect array is handles, which may
       // be long; this will lead to problems on 64-bit machines
-    int total_conn = num_elem * nodes_per_elem;
-    int *tmp_conn = reinterpret_cast<int*>(conn);
-    if (sizeof(MBEntityHandle) != sizeof(int))
-      tmp_conn = new int[total_conn];
+    unsigned int total_conn = num_elem * nodes_per_elem;
+    unsigned int *tmp_conn = reinterpret_cast<unsigned int*>(conn);
+    if (sizeof(MBEntityHandle) != sizeof(unsigned int))
+      tmp_conn = new unsigned int[total_conn];
     
     FREADIA(total_conn, tmp_conn);
 
@@ -1158,10 +1158,10 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
   return MB_SUCCESS;
 }
 
-void Tqdcfr::check_contiguous(const int num_ents, int &contig, int &max_id) 
+void Tqdcfr::check_contiguous(const unsigned int num_ents, long &contig, long &max_id) 
 {
-  std::vector<int>::iterator id_it;
-  int curr_id, i;
+  std::vector<unsigned int>::iterator id_it;
+  unsigned int curr_id, i;
   max_id = -1;
 
     // check in forward-contiguous direction
@@ -1207,7 +1207,7 @@ void Tqdcfr::check_contiguous(const int num_ents, int &contig, int &max_id)
   
     // need to loop over i, b/c int_buf is bigger than num_ents
   for (id_it = int_buf.begin(), i = 0; i < num_ents; id_it++, i++) {
-    if (*id_it < min_id || -1 == min_id) min_id = *id_it;
+    if (((int)*id_it) < min_id || -1 == min_id) min_id = *id_it;
     if (*id_it > max_id || -1 == max_id) max_id = *id_it;
   }
   if (max_id - min_id + 1 == num_ents) contig = min_id;
@@ -1216,7 +1216,7 @@ void Tqdcfr::check_contiguous(const int num_ents, int &contig, int &max_id)
   contig = 0;
 }
   
-void Tqdcfr::FEModelHeader::init(const int offset, Tqdcfr* instance ) 
+void Tqdcfr::FEModelHeader::init(const unsigned int offset, Tqdcfr* instance ) 
 {
   instance->FSEEK(offset);
   instance->FREADI(4);
@@ -1259,8 +1259,8 @@ MBErrorCode Tqdcfr::read_model_entries()
   FREADI(fileTOC.numModels*6);
   modelEntries = new ModelEntry[fileTOC.numModels];
   if (NULL == modelEntries) return MB_FAILURE;
-  std::vector<int>::iterator int_it = int_buf.begin();
-  for (int i = 0; i < fileTOC.numModels; i++) {
+  std::vector<unsigned int>::iterator int_it = int_buf.begin();
+  for (unsigned int i = 0; i < fileTOC.numModels; i++) {
     modelEntries[i].modelHandle = *int_it++;
     modelEntries[i].modelOffset = *int_it++;
     modelEntries[i].modelLength = *int_it++;
@@ -1274,15 +1274,15 @@ MBErrorCode Tqdcfr::read_model_entries()
   return MB_SUCCESS;
 }
 
-int Tqdcfr::find_model(const int model_type) 
+int Tqdcfr::find_model(const unsigned int model_type) 
 {
-  for (int i = 0; i < fileTOC.numModels; i++) 
+  for (unsigned int i = 0; i < fileTOC.numModels; i++) 
     if (modelEntries[i].modelType == model_type) return i;
   
   return -1;
 }
 
-MBErrorCode Tqdcfr::read_meta_data(const int metadata_offset, 
+MBErrorCode Tqdcfr::read_meta_data(const unsigned int metadata_offset, 
                                    Tqdcfr::MetaDataContainer &mc) 
 {
     // read the metadata header
@@ -1297,7 +1297,7 @@ MBErrorCode Tqdcfr::read_meta_data(const int metadata_offset,
     new Tqdcfr::MetaDataContainer::MetaDataEntry[mc.numDatums];
   
     // now read the metadata values
-  for (int i = 0; i < mc.numDatums; i++) {
+  for (unsigned int i = 0; i < mc.numDatums; i++) {
     FREADI(2);
     mc.metadataEntries[i].mdOwner = int_buf[0];
     mc.metadataEntries[i].mdDataType = int_buf[1];
@@ -1367,7 +1367,7 @@ MBErrorCode Tqdcfr::read_md_string(std::string &name)
   return MB_SUCCESS;
 }
   
-MBErrorCode Tqdcfr::GeomHeader::read_info_header(const int model_offset, 
+MBErrorCode Tqdcfr::GeomHeader::read_info_header(const unsigned int model_offset, 
                                                  const Tqdcfr::FEModelHeader::ArrayInfo &info,
                                                  Tqdcfr* instance,
                                                  Tqdcfr::GeomHeader *&geom_headers) 
@@ -1384,7 +1384,7 @@ MBErrorCode Tqdcfr::GeomHeader::read_info_header(const int model_offset,
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
   }
 
-  for (int i = 0; i < info.numEntities; i++) {
+  for (unsigned int i = 0; i < info.numEntities; i++) {
 
     instance->FREADI(8);
     geom_headers[i].nodeCt = instance->int_buf[0];
@@ -1422,7 +1422,7 @@ MBErrorCode Tqdcfr::GeomHeader::read_info_header(const int model_offset,
   return MB_SUCCESS;
 }
 
-MBErrorCode Tqdcfr::GroupHeader::read_info_header(const int model_offset, 
+MBErrorCode Tqdcfr::GroupHeader::read_info_header(const unsigned int model_offset, 
                                            const Tqdcfr::FEModelHeader::ArrayInfo &info,
                                            Tqdcfr* instance,
                                            Tqdcfr::GroupHeader *&group_headers) 
@@ -1438,7 +1438,7 @@ MBErrorCode Tqdcfr::GroupHeader::read_info_header(const int model_offset,
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
   }
 
-  for (int i = 0; i < info.numEntities; i++) {
+  for (unsigned int i = 0; i < info.numEntities; i++) {
 
       // create an entity set for this entity
     result = instance->create_set(group_headers[i].setHandle);
@@ -1472,7 +1472,7 @@ MBErrorCode Tqdcfr::GroupHeader::read_info_header(const int model_offset,
 }
 
 MBErrorCode Tqdcfr::BlockHeader::read_info_header(const double data_version,
-                                                  const int model_offset, 
+                                                  const unsigned int model_offset, 
                                                   const Tqdcfr::FEModelHeader::ArrayInfo &info,
                                                   Tqdcfr* instance,
                                                   Tqdcfr::BlockHeader *&block_headers) 
@@ -1488,7 +1488,7 @@ MBErrorCode Tqdcfr::BlockHeader::read_info_header(const double data_version,
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
   }
 
-  for (int i = 0; i < info.numEntities; i++) {
+  for (unsigned int i = 0; i < info.numEntities; i++) {
 
       // create an entity set for this entity
     result = instance->create_set(block_headers[i].setHandle);
@@ -1552,7 +1552,7 @@ MBErrorCode Tqdcfr::BlockHeader::read_info_header(const double data_version,
   return MB_SUCCESS;
 }
 
-MBErrorCode Tqdcfr::NodesetHeader::read_info_header(const int model_offset, 
+MBErrorCode Tqdcfr::NodesetHeader::read_info_header(const unsigned int model_offset, 
                                              const Tqdcfr::FEModelHeader::ArrayInfo &info,
                                              Tqdcfr* instance,
                                              Tqdcfr::NodesetHeader *&nodeset_headers) 
@@ -1568,7 +1568,7 @@ MBErrorCode Tqdcfr::NodesetHeader::read_info_header(const int model_offset,
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
   }
 
-  for (int i = 0; i < info.numEntities; i++) {
+  for (unsigned int i = 0; i < info.numEntities; i++) {
 
       // create an entity set for this entity
     result = instance->create_set(nodeset_headers[i].setHandle);
@@ -1602,7 +1602,7 @@ MBErrorCode Tqdcfr::NodesetHeader::read_info_header(const int model_offset,
   return MB_SUCCESS;
 }
 
-MBErrorCode Tqdcfr::SidesetHeader::read_info_header(const int model_offset, 
+MBErrorCode Tqdcfr::SidesetHeader::read_info_header(const unsigned int model_offset, 
                                              const Tqdcfr::FEModelHeader::ArrayInfo &info,
                                              Tqdcfr* instance,
                                              Tqdcfr::SidesetHeader *&sideset_headers) 
@@ -1618,7 +1618,7 @@ MBErrorCode Tqdcfr::SidesetHeader::read_info_header(const int model_offset,
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
   }
 
-  for (int i = 0; i < info.numEntities; i++) {
+  for (unsigned int i = 0; i < info.numEntities; i++) {
 
       // create an entity set for this entity
     result = instance->create_set(sideset_headers[i].setHandle);
@@ -1654,52 +1654,52 @@ MBErrorCode Tqdcfr::SidesetHeader::read_info_header(const int model_offset,
 
 void Tqdcfr::ModelEntry::print_geom_headers(const char *prefix,
                                            GeomHeader *header,
-                                            const int num_headers)
+                                            const unsigned int num_headers)
 {
   if (!debug) return;
   std::cout << prefix << std::endl;
   if (NULL != header)
-    for (int i = 0; i < num_headers; i++) header[i].print();
+    for (unsigned int i = 0; i < num_headers; i++) header[i].print();
 }
 
 void Tqdcfr::ModelEntry::print_group_headers(const char *prefix,
                                             GroupHeader *header,
-                                            const int num_headers)
+                                            const unsigned int num_headers)
 {
   if (!debug) return;
   std::cout << prefix << std::endl;
   if (NULL != header)
-    for (int i = 0; i < num_headers; i++) header[i].print();
+    for (unsigned int i = 0; i < num_headers; i++) header[i].print();
 }
 
 void Tqdcfr::ModelEntry::print_block_headers(const char *prefix,
                                             BlockHeader *header,
-                                            const int num_headers)
+                                            const unsigned int num_headers)
 {
   if (!debug) return;
   std::cout << prefix << std::endl;
   if (NULL != header)
-    for (int i = 0; i < num_headers; i++) header[i].print();
+    for (unsigned int i = 0; i < num_headers; i++) header[i].print();
 }
 
 void Tqdcfr::ModelEntry::print_nodeset_headers(const char *prefix,
                                               NodesetHeader *header,
-                                            const int num_headers)
+                                            const unsigned int num_headers)
 {
   if (!debug) return;
   std::cout << prefix << std::endl;
   if (NULL != header)
-    for (int i = 0; i < num_headers; i++) header[i].print();
+    for (unsigned int i = 0; i < num_headers; i++) header[i].print();
 }
 
 void Tqdcfr::ModelEntry::print_sideset_headers(const char *prefix,
                                               SidesetHeader *header,
-                                            const int num_headers)
+                                            const unsigned int num_headers)
 {
   if (!debug) return;
   std::cout << prefix << std::endl;
   if (NULL != header)
-    for (int i = 0; i < num_headers; i++) header[i].print();
+    for (unsigned int i = 0; i < num_headers; i++) header[i].print();
 }
     
 MBErrorCode Tqdcfr::ModelEntry::read_header_info( Tqdcfr* instance, const double data_version)
@@ -1808,9 +1808,9 @@ MBErrorCode Tqdcfr::read_acis_records( const char* sat_filename )
 {
 
     // get the acis model location
-  int acis_model_offset = 0, acis_model_length = 0, acis_model_handle = 1,
+  unsigned int acis_model_offset = 0, acis_model_length = 0, acis_model_handle = 1,
     acis_sat_type = 1;
-  for (int i = 0; i < fileTOC.numModels; i++) {
+  for (unsigned int i = 0; i < fileTOC.numModels; i++) {
     if (modelEntries[i].modelHandle == acis_model_handle &&
         modelEntries[i].modelType == acis_sat_type) {
       acis_model_offset = modelEntries[i].modelOffset;
@@ -1834,21 +1834,21 @@ MBErrorCode Tqdcfr::read_acis_records( const char* sat_filename )
     // position the file at the start of the acis model
   FSEEK(acis_model_offset);
 
-  int bytes_left = acis_model_length;
+  unsigned int bytes_left = acis_model_length;
   
   struct AcisRecord this_record;
   reset_record(this_record);
   char *ret;
 
     // make the char buffer at least buf_size+1 long, to fit null char
-  const int buf_size = 1023;
+  const unsigned int buf_size = 1023;
   
   //CHECK_SIZE(char_buf, buf_size+1);
   char_buf.resize(buf_size+1);
   
   while (0 != bytes_left) {
       // read the next buff characters, or bytes_left if smaller
-    int next_buf = (bytes_left > buf_size ? buf_size : bytes_left);
+    unsigned int next_buf = (bytes_left > buf_size ? buf_size : bytes_left);
     FREADC(next_buf);
 
     if (NULL != acisDumpFile)
@@ -1856,7 +1856,7 @@ MBErrorCode Tqdcfr::read_acis_records( const char* sat_filename )
     
       // put null at end of string to stop searches 
     char_buf[next_buf] = '\0';
-    int buf_pos = 0;
+    unsigned int buf_pos = 0;
 
       // check for first read, and if so, get rid of the header
     if (bytes_left == acis_model_length) {
@@ -1918,11 +1918,11 @@ MBErrorCode Tqdcfr::interpret_acis_records(std::vector<AcisRecord> &records)
                         attribVectorTag, &default_val);
   if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
 
-  int current_record = 0;
+  unsigned int current_record = 0;
 
 #define REC records[current_record]
 
-  while (current_record != (int) records.size()) {
+  while (current_record != records.size()) {
 
       // if this record's been processed, or if it's an attribute, continue
     if (REC.processed || REC.rec_type == Tqdcfr::ATTRIB) {
@@ -1947,10 +1947,10 @@ MBErrorCode Tqdcfr::interpret_acis_records(std::vector<AcisRecord> &records)
   return MB_SUCCESS;
 }
 
-MBErrorCode Tqdcfr::parse_acis_attribs(const int entity_rec_num,
+MBErrorCode Tqdcfr::parse_acis_attribs(const unsigned int entity_rec_num,
                                        std::vector<AcisRecord> &records) 
 {
-  int num_read;
+  unsigned int num_read;
   std::vector<std::string> *attrib_vec = NULL;
   char temp_name[80], *name_tag = NULL;
   int id = -1;
@@ -1970,7 +1970,7 @@ MBErrorCode Tqdcfr::parse_acis_attribs(const int entity_rec_num,
   while (-1 != current_attrib) {
     if (records[current_attrib].rec_type != Tqdcfr::UNKNOWN &&
            (records[current_attrib].att_next != next_attrib ||
-            records[current_attrib].att_ent_num != entity_rec_num)) return MB_FAILURE;
+            records[current_attrib].att_ent_num != (int)entity_rec_num)) return MB_FAILURE;
     
     if (NULL != acisDumpFile)
       fwrite(records[current_attrib].att_string.c_str(), sizeof(char), 
@@ -2230,7 +2230,7 @@ void Tqdcfr::FEModelHeader::ArrayInfo::print()
             << numEntities << ", " << tableOffset << ", " << metaDataOffset << std::endl;
 }
 
-void Tqdcfr::FEModelHeader::ArrayInfo::init(const std::vector<int>& int_buf)
+void Tqdcfr::FEModelHeader::ArrayInfo::init(const std::vector<unsigned int>& int_buf)
 {
   numEntities = int_buf[0]; tableOffset = int_buf[1]; metaDataOffset = int_buf[2];
 }
@@ -2370,7 +2370,7 @@ void Tqdcfr::MetaDataContainer::print()
   std::cout << "MetaDataContainer:mdSchema, compressFlag, numDatums = "
             << mdSchema << ", " << compressFlag << ", " << numDatums << std::endl;
 
-  for (int i = 0; i < numDatums; i++)
+  for (unsigned int i = 0; i < numDatums; i++)
     metadataEntries[i].print();
 }
 
@@ -2383,9 +2383,9 @@ Tqdcfr::MetaDataContainer::~MetaDataContainer()
   if (NULL != metadataEntries) delete [] metadataEntries;
 }
 
-int Tqdcfr::MetaDataContainer::get_md_entry(const int owner, const std::string &name) 
+int Tqdcfr::MetaDataContainer::get_md_entry(const unsigned int owner, const std::string &name) 
 {
-  for (int i = 0; i < numDatums; i++)
+  for (unsigned int i = 0; i < numDatums; i++)
     if (owner == metadataEntries[i].mdOwner && name == metadataEntries[i].mdName) return i;
     
   return -1;
@@ -2412,7 +2412,7 @@ void Tqdcfr::ModelEntry::print()
             << std::endl;
 }
 
-MBErrorCode Tqdcfr::create_set( MBEntityHandle& h, int flags )
+MBErrorCode Tqdcfr::create_set( MBEntityHandle& h, unsigned int flags )
 {
   MBErrorCode rval;
   if (!mFileSet)
