@@ -47,6 +47,10 @@ int main(int argc, char **argv)
   err = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+    // start time
+  double stime, rtime, shtime, setime, dtime;
+  if (0 == rank) stime = MPI_Wtime();
+
     // create MOAB instance based on that
   MBInterface *mbImpl = new MBCore(rank, nprocs);
   if (NULL == mbImpl) return 1;
@@ -140,10 +144,9 @@ int main(int argc, char **argv)
     }
     
 
+    if (0 == rank) rtime = MPI_Wtime();
     if (MB_SUCCESS == tmp_result) {
         // now figure out which vertices are shared
-      double wtime;
-      if (0 == rank) wtime = MPI_Wtime();
       MBParallelComm *pcomm = new MBParallelComm(mbImpl);
       tmp_result = pcomm->resolve_shared_ents();
       if (MB_SUCCESS != tmp_result) {
@@ -153,7 +156,7 @@ int main(int argc, char **argv)
         continue;
       }
       
-      if (0 == rank) wtime = MPI_Wtime() - wtime;
+      if (0 == rank) shtime = MPI_Wtime();
 
       MBRange shared_ents;
       tmp_result = pcomm->get_shared_entities(0, shared_ents);
@@ -165,6 +168,8 @@ int main(int argc, char **argv)
         result = tmp_result;
       }
   
+      if (0 == rank) setime = MPI_Wtime();
+
         // check # shared entities
       if (0 <= nshared && nshared != (int) shared_ents.size()) {
         std::cerr << "Didn't get correct number of shared vertices on "
@@ -176,7 +181,6 @@ int main(int argc, char **argv)
         std::cerr << "Proc " << rank << " option " << this_opt
                 << " succeeded." << std::endl;
 
-      if (0 == rank) std::cerr << "   Time = " << wtime << "." << std::endl;
       if (-1 == nshared)
         std::cerr << "Proc " << rank << " " << shared_ents.size()
                   << " shared vertices." << std::endl;
@@ -192,11 +196,21 @@ int main(int argc, char **argv)
     }
   }
   
+  if (0 == rank) dtime = MPI_Wtime();
   err = MPI_Finalize();
 
   if (MB_SUCCESS == result)
     std::cerr << "Proc " << rank << ": Success." << std::endl;
     
+  if (0 == rank) std::cout << "Times: " 
+                           << dtime-stime << " "
+                           << rtime-stime << " "
+                           << shtime-rtime << " "
+                           << setime-shtime << " "
+                           << dtime-setime 
+                           << " (total/read/resolve/shared/delete)"
+                           << std::endl;
+   
   return (MB_SUCCESS == result ? 0 : 1);
 }
 
@@ -227,6 +241,8 @@ MBErrorCode read_file(MBInterface *mbImpl, const char *filename,
 
   if (1 == distrib)
     options << ";PARTITION_DISTRIBUTE";
+
+  options << ";CPUTIME";
     
   MBEntityHandle file_set;
   MBErrorCode result = mbImpl->load_file(filename, file_set, 
