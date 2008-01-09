@@ -35,7 +35,8 @@ MBErrorCode create_scd_mesh(MBInterface *mbImpl,
                             int IJK, int &nshared);
 
 MBErrorCode read_file(MBInterface *mbImpl, const char *filename,
-                      const char *tag_name, int tag_val, int distrib);
+                      const char *tag_name, int tag_val, int distrib,
+                      int parallel_option);
 
 int main(int argc, char **argv) 
 {
@@ -62,7 +63,9 @@ int main(int argc, char **argv)
     if (0 == rank)
       std::cerr 
         << "Usage: " << argv[0] 
-        << " <opt> <input> [...] where:" << std::endl
+        << " [readpar_option] <opt> <input> [...] where:" << std::endl
+        << " readpar_option = 0 (BCAST_DELETE) (default), -1 (READ_DELETE), " << std::endl
+        << "                 -2 (READ_PARALLEL), -3 (BCAST)" << std::endl
         << "opt   input" << std::endl
         << "===   =====" << std::endl
         << " 1     <linear_ints> <shared_verts> " << std::endl
@@ -76,12 +79,20 @@ int main(int argc, char **argv)
 
   int npos = 1, tag_val, distrib;
   const char *tag_name, *filename;
+  int parallel_option = 0;
 
   while (npos < argc) {
     MBErrorCode tmp_result;
     int nshared = -1;
     int this_opt = strtol(argv[npos++], NULL, 0);
     switch (this_opt) {
+      case 0:
+      case -1:
+      case -2:
+      case -3:
+        parallel_option = this_opt;
+        break;
+        
       case 1:
         N = atoi(argv[npos++]);
         M = atoi(argv[npos++]);
@@ -114,7 +125,7 @@ int main(int argc, char **argv)
         if (npos < argc) distrib = strtol(argv[npos++], NULL, 0);
         else distrib = 1;
         tmp_result = read_file(mbImpl, filename, tag_name, tag_val,
-                               distrib);
+                               distrib, parallel_option);
         if (MB_SUCCESS != tmp_result) {
           result = tmp_result;
           std::cerr << "Couldn't read mesh; error message:" << std::endl;
@@ -191,10 +202,25 @@ int main(int argc, char **argv)
 
 MBErrorCode read_file(MBInterface *mbImpl, const char *filename,
                       const char *tag_name, int tag_val,
-                      int distrib) 
+                      int distrib, int parallel_option) 
 {
   std::ostringstream options;
-  options << "PARALLEL=BCAST_DELETE;PARTITION=" << tag_name;
+  switch (parallel_option) {
+    case 0:
+      options << "PARALLEL=BCAST_DELETE;PARTITION=" << tag_name;
+      break;
+    case -1:
+      options << "PARALLEL=READ_DELETE;PARTITION=" << tag_name;
+      break;
+    case -2:
+      options << "PARALLEL=READ_PARALLEL;PARTITION=" << tag_name;
+      break;
+    case -3:
+      options << "PARALLEL=BCAST;PARTITION=" << tag_name;
+      break;
+    default:
+      return MB_FAILURE;
+  }
   
   if (-1 != tag_val)
     options << ";PARTITION_VAL=" << tag_val;

@@ -972,7 +972,7 @@ MBErrorCode Tqdcfr::read_nodes(const unsigned int gindex,
       MBRange vrange;
       result = mdbImpl->get_entities_by_type(0, MBVERTEX, vrange); RR;
 #define MAX(a,b) (a > b ? a : b)
-      int map_size = MAX((node_offset+entity->nodeCt), ((int)*vrange.rbegin()+1));
+      int map_size = MAX((node_offset+entity->nodeCt), (*vrange.rbegin()+1));
       cubMOABVertexMap = new std::vector<MBEntityHandle>(map_size);
       std::fill(cubMOABVertexMap->begin(), cubMOABVertexMap->end(), 0);
 
@@ -1116,21 +1116,21 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
       // post-process connectivity into handles
     MBEntityHandle new_handle, dum_handle;
     int dum_err;
-    for (i = 0; i < total_conn; i++) {
+    for (unsigned int j = 0; j < total_conn; j++) {
       if (NULL == cubMOABVertexMap)
-        new_handle = CREATE_HANDLE(MBVERTEX, currNodeIdOffset+tmp_conn[i], dum_err);
+        new_handle = CREATE_HANDLE(MBVERTEX, currNodeIdOffset+tmp_conn[j], dum_err);
       else {
         if (debug) {
           if (0 == i) std::cout << "Conn";
-          std::cout << ", " << tmp_conn[i];
+          std::cout << ", " << tmp_conn[j];
         }
-        assert(0 != (*cubMOABVertexMap)[tmp_conn[i]]);
-        new_handle = (*cubMOABVertexMap)[tmp_conn[i]];
+        assert(0 != (*cubMOABVertexMap)[tmp_conn[j]]);
+        new_handle = (*cubMOABVertexMap)[tmp_conn[j]];
       }
       assert(MB_SUCCESS == 
              mdbImpl->handle_from_id(MBVERTEX, mdbImpl->id_from_handle(new_handle), 
                                      dum_handle));
-      conn[i] = new_handle;
+      conn[j] = new_handle;
     }
 
     if (sizeof(MBEntityHandle) != sizeof(int))
@@ -1207,10 +1207,10 @@ void Tqdcfr::check_contiguous(const unsigned int num_ents, long &contig, long &m
   
     // need to loop over i, b/c int_buf is bigger than num_ents
   for (id_it = int_buf.begin(), i = 0; i < num_ents; id_it++, i++) {
-    if (((int)*id_it) < min_id || -1 == min_id) min_id = *id_it;
-    if (*id_it > max_id || -1 == max_id) max_id = *id_it;
+    if (((int)(*id_it)) < min_id || -1 == min_id) min_id = *id_it;
+    if (((int) *id_it) > max_id || -1 == max_id) max_id = *id_it;
   }
-  if (max_id - min_id + 1 == num_ents) contig = min_id;
+  if (max_id - min_id + 1 == (int) num_ents) contig = min_id;
 
     // else it's not contiguous at all
   contig = 0;
@@ -2438,18 +2438,35 @@ int main(int argc, char* argv[])
   else
     file = argv[1];
 
-  MBCore my_impl;
-  Tqdcfr my_tqd(&my_impl);
+  MBCore *my_impl = new MBCore();
+  Tqdcfr *my_tqd = new Tqdcfr(my_impl);
   MBEntityHandle file_set;
   FileOptions opts(NULL);
   
-  MBErrorCode result = my_tqd.load_file(file, file_set, opts, 0, 0);
+  MBErrorCode result = my_tqd->load_file(file, file_set, opts, 0, 0);
 
   if (MB_SUCCESS == result)
     std::cout << "Success." << std::endl;
   else 
     std::cout << "load_file returned error." << std::endl;
 
+  delete my_tqd;
+  delete my_impl;
+  
+    // now check for multiple procs
+  my_impl = new MBCore(1, 2);
+  my_tqd = new Tqdcfr(my_impl);
+  
+  result = my_tqd->load_file(file, file_set, opts, 0, 0);
+
+  if (MB_SUCCESS == result)
+    std::cout << "Success." << std::endl;
+  else 
+    std::cout << "load_file returned error." << std::endl;
+
+  delete my_tqd;
+  delete my_impl;
+  
   return result;
 }
 #endif
