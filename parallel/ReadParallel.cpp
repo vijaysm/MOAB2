@@ -157,7 +157,8 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
   int tag_val, *tag_val_ptr = &tag_val;
   MBCore *impl = dynamic_cast<MBCore*>(mbImpl);
 
-  double act_times[10], stime = 0.0;
+  double act_times[10] = {0.0};
+  double stime = 0.0;
   if (cputime) stime = MPI_Wtime();
 
   for (std::vector<int>::iterator vit = pa_vec.begin();
