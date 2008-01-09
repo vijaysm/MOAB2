@@ -43,7 +43,8 @@ private:
                         const int* material_set_list,
                         const int num_material_sets,
                         const FileOptions &opts,
-                        int reader_rank);
+                        int reader_rank,
+                        bool cputime);
 
   MBErrorCode delete_nonlocal_entities(std::string &ptag_name,
                                        std::vector<int> &ptag_vals,

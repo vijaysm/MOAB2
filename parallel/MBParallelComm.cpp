@@ -17,7 +17,7 @@
 
 #define MAX_SHARING_PROCS 10  
 
-const bool debug = true;
+const bool debug = false;
 
 extern "C" 
 {

@@ -68,6 +68,11 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
   result = opts.get_null_option("PARTITION_DISTRIBUTE");
   if (MB_SUCCESS == result) distrib = true;
 
+    // see if we need to report times
+  bool cputime = false;
+  result = opts.get_null_option("CPUTIME");
+  if (MB_SUCCESS == result) cputime = true;
+
     // get MPI IO processor rank
   int reader_rank;
   result = opts.get_int_option( "MPI_IO_RANK", reader_rank );
@@ -125,7 +130,7 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
   
   return load_file(file_name, file_set, parallel_mode, partition_tag_name,
                    partition_tag_vals, distrib, pa_vec, material_set_list,
-                   num_material_sets, opts, reader_rank);
+                   num_material_sets, opts, reader_rank, cputime);
 }
     
 MBErrorCode ReadParallel::load_file(const char *file_name,
@@ -138,7 +143,8 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
                                     const int* material_set_list,
                                     const int num_material_sets,
                                     const FileOptions &opts,
-                                    int reader_rank) 
+                                    int reader_rank,
+                                    bool cputime) 
 {
   MBErrorCode result = MB_SUCCESS;
   MBParallelComm pcom( mbImpl);
@@ -150,12 +156,14 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
   MBRange other_file_sets, file_sets;
   int tag_val, *tag_val_ptr = &tag_val;
   MBCore *impl = dynamic_cast<MBCore*>(mbImpl);
-  
+
+  double act_times[10], stime = 0.0;
+  if (cputime) stime = MPI_Wtime();
 
   for (std::vector<int>::iterator vit = pa_vec.begin();
        vit != pa_vec.end(); vit++) {
 
-    MBErrorCode tmp_result;
+    MBErrorCode tmp_result = MB_SUCCESS;
     switch (*vit) {
 //==================
       case PA_READ:
@@ -292,6 +300,21 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
       if (MB_SUCCESS == mbImpl->get_last_error(tmp_str)) ostr << tmp_str << std::endl;
       RR(ostr.str().c_str());
     }
+
+    if (cputime) act_times[*vit] = MPI_Wtime() - 
+                     (*vit ? act_times[*vit - 1] : stime);
+  }
+
+  if (cputime && 0 == mbImpl->proc_rank()) {
+    std::cout << "Read times: ";
+    for (std::vector<int>::iterator vit = pa_vec.begin();
+         vit != pa_vec.end(); vit++) 
+      std::cout << act_times[*vit] << " ";
+    std::cout << "(";
+    for (std::vector<int>::iterator vit = pa_vec.begin();
+         vit != pa_vec.end(); vit++) 
+      std::cout << ParallelActionsNames[*vit] << "/";
+    std::cout << ")" << std::endl;
   }
   
   return result;
@@ -338,7 +361,7 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
   if (distribute) {
     MBRange tmp_sets;
       // distribute the partition sets
-    int num_sets = partition_sets.size() / proc_sz;
+    unsigned int num_sets = partition_sets.size() / proc_sz;
     if (proc_rk < (int) (partition_sets.size() % proc_sz)) num_sets++;
 
       // cut them in half if we're on one proc
