@@ -82,8 +82,20 @@ MBErrorCode TagServer::add_tag( const char *tag_name,
                                 const MBTagType storage,
                                 const MBDataType data_type,
                                 MBTag &tag_handle,
-                                const void *default_value)
+                                const void *default_value,
+                                int default_value_size)
 {
+  if (!default_value) {
+    default_value_size = 0;
+  }
+  else if (storage == MB_TAG_BIT) {
+    if (data_size == MB_VARIABLE_LENGTH)
+      return MB_INVALID_SIZE;
+    default_value_size = (data_size+7)/8; // convert from bits to bytes
+  }
+  else if (data_size != MB_VARIABLE_LENGTH) 
+    default_value_size = data_size;
+
     // Check if name is already in use
     // if so, pass back the existing tag handle.
     // NOTE: If name is NULL or empty (tag is unnamed),
@@ -111,9 +123,9 @@ MBErrorCode TagServer::add_tag( const char *tag_name,
 
     // add TagInfo entry for new tag
   if (i == list.end()) 
-    i = list.insert( i, TagInfo( tag_name, data_size, data_type, default_value ) );
+    i = list.insert( i, TagInfo( tag_name, data_size, data_type, default_value, default_value_size ) );
   else
-    *i = TagInfo( tag_name, data_size, data_type, default_value );
+    *i = TagInfo( tag_name, data_size, data_type, default_value, default_value_size );
 
 
   MBTagId tag_id = i - list.begin() + 1;
@@ -214,13 +226,23 @@ MBErrorCode TagServer::get_bits(const MBTag tag_handle, const MBEntityHandle ent
 }
 
 MBErrorCode TagServer::set_mesh_data( const MBTag tag_handle,
-                                      const void* data )
+                                      const void* data,
+                                      int size )
 {
   TagInfo* info = get_tag_info( tag_handle );
   if (!info)
     return MB_TAG_NOT_FOUND;
   
-  info->set_mesh_value( data );
+  if (info->get_size() == MB_VARIABLE_LENGTH) {
+    if (!size)
+      return MB_INVALID_SIZE;
+  }
+  else if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
+    size = (size+7)/8; // convert from bits to bytes
+  else
+    size = info->get_size();
+  
+  info->set_mesh_value( data, size );
   return MB_SUCCESS;
 }
 
@@ -362,13 +384,19 @@ MBErrorCode TagServer::set_data(const MBTag tag_handle,
 
 
 MBErrorCode TagServer::get_mesh_data( const MBTag tag_handle,
-                                      void* data ) const
+                                      void* data,
+                                      int& size ) const
 {
   const TagInfo* info = get_tag_info( tag_handle );
-  if (!info || !info->get_mesh_value())
+  if (!info || !info->get_mesh_value_size())
     return MB_TAG_NOT_FOUND;
   
-  memcpy( data, info->get_mesh_value(), info->get_size() );
+  if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
+    size = info->get_size();
+  else 
+    size = info->get_mesh_value_size();
+  if (data) 
+    memcpy( data, info->get_mesh_value(), info->get_mesh_value_size() );
   return MB_SUCCESS;
 }
 
@@ -412,10 +440,11 @@ MBErrorCode TagServer::get_data(const MBTag tag_handle,
   // try to get a default value
   if(result == MB_TAG_NOT_FOUND)
   {
-    result = get_default_data(tag_handle, data);
+    int size;
+    result = get_default_data(tag_handle, data, size);
       // if failure is returned, change it back to tag not found, since it's
       // ok to look for data and not find any
-    if (result == MB_FAILURE) result = MB_TAG_NOT_FOUND;
+    if (result == MB_ENTITY_NOT_FOUND) result = MB_TAG_NOT_FOUND;
   }
 
   return result;
@@ -467,10 +496,11 @@ MBErrorCode TagServer::get_data(const MBTag tag_handle,
       result = mSparseData->get_data(tag_id, *iter, mydata);
       if(result == MB_TAG_NOT_FOUND)
       {
-        result = get_default_data(tag_handle, mydata);
+        int size;
+        result = get_default_data(tag_handle, mydata, size);
           // if failure is returned, change it back to tag not found, since it's
           // ok to look for data and not find any
-        if (result == MB_FAILURE) result = MB_TAG_NOT_FOUND;
+        if (result == MB_ENTITY_NOT_FOUND) result = MB_TAG_NOT_FOUND;
       }
       if(result != MB_SUCCESS)
         return result;
@@ -520,10 +550,11 @@ MBErrorCode TagServer::get_data(const MBTag tag_handle,
       result = mSparseData->get_data(tag_id, *iter, mydata);
       if(result == MB_TAG_NOT_FOUND)
       {
-        result = get_default_data(tag_handle, mydata);
+        int size;
+        result = get_default_data(tag_handle, mydata, size);
           // if failure is returned, change it back to tag not found, since it's
           // ok to look for data and not find any
-        if (result == MB_FAILURE) result = MB_TAG_NOT_FOUND;
+        if (result == MB_ENTITY_NOT_FOUND) result = MB_TAG_NOT_FOUND;
       }
       if(result != MB_SUCCESS)
         return result;
@@ -594,51 +625,53 @@ MBErrorCode TagServer::get_mesh_tags( std::vector<MBTag>& all_tags ) const
   return MB_SUCCESS;
 }
 
-MBErrorCode TagServer::get_default_data_ref(const MBTag tag_handle, const void *& data) 
+MBErrorCode TagServer::get_default_data_ref( const MBTag tag_handle, 
+                                             const void *& data,
+                                             int& size) 
 {
 
   const TagInfo* tag_info = get_tag_info(tag_handle);
   if(!tag_info)
     return MB_TAG_NOT_FOUND;
 
-  // get the default value
-  const void *def_data = tag_info->default_value();
-  // if we have a default value, copy it
-  if(def_data != NULL)
-  {
-    data = def_data; 
+  size = tag_info->default_value_size();
+  if (size) {
+    data = tag_info->default_value();
+    if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
+      size = tag_info->get_size(); // get number of bits rather than bytes
     return MB_SUCCESS;
   }
-
-  return MB_FAILURE;
-
+  else {
+    data = 0;
+    return MB_ENTITY_NOT_FOUND;
+  }
 }
 
 
-MBErrorCode TagServer::get_default_data(const MBTag tag_handle, void *data) 
+MBErrorCode TagServer::get_default_data( const MBTag tag_handle, 
+                                         void *data,
+                                         int& size) 
 {
 
   const TagInfo* tag_info = get_tag_info(tag_handle);
   if(!tag_info)
     return MB_TAG_NOT_FOUND;
 
-  // get the default value
-  const void *def_data = tag_info->default_value();
-  // if we have a default value, copy it
-  if(def_data != NULL)
-  {
-    memcpy(data, def_data, tag_info->get_size());
-    return MB_SUCCESS;
-  }
-  return MB_FAILURE;
-
+  size = tag_info->default_value_size();
+  if (!size)
+    return MB_ENTITY_NOT_FOUND;
+  if (data)
+    memcpy( data, tag_info->default_value(), size );
+  if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
+    size = tag_info->get_size(); // get bits rather than bytes
+  return MB_SUCCESS;
 }
 
 
 MBErrorCode TagServer::remove_mesh_data( const MBTag tag_handle )
 {
   TagInfo* info = get_tag_info( tag_handle );
-  if (!info || !info->get_mesh_value())
+  if (!info || !info->get_mesh_value_size())
     return MB_TAG_NOT_FOUND;
   info->remove_mesh_value();
   return MB_SUCCESS;
@@ -932,7 +965,8 @@ MBErrorCode TagServer::get_number_entities( const MBRange &range,
 
 unsigned long TagServer::get_memory_use( MBTag tag_handle ) const
 {
-  if (!get_tag_info(tag_handle))
+  const TagInfo* tag_info = get_tag_info(tag_handle);
+  if (!tag_info)
     return 0;
 
   unsigned long result = 0, tmp;
@@ -952,7 +986,11 @@ unsigned long TagServer::get_memory_use( MBTag tag_handle ) const
   }
 
     // add in size of entry in mTagTable
-  return result + sizeof(MBTag) + sizeof(TagInfo) + 3*sizeof(void*);
+  result += sizeof(MBTag) + sizeof(TagInfo) + 3*sizeof(void*);
+  result += tag_info->default_value_size();
+  result += tag_info->get_mesh_value_size();
+  result += tag_info->get_name().size();
+  return result;
 }
 
 MBErrorCode TagServer::get_memory_use( MBTag tag_handle,
@@ -980,10 +1018,8 @@ MBErrorCode TagServer::get_memory_use( MBTag tag_handle,
   
     // size of entry in mTagTable map
   total += sizeof(MBTag) + sizeof(TagInfo) + 3*sizeof(void*);
-  if (tag_info->default_value())
-    total += tag_info->get_size();
-  if (tag_info->get_mesh_value())
-    total += tag_info->get_size();
+  total += tag_info->default_value_size();
+  total += tag_info->get_mesh_value_size();
   total += tag_info->get_name().size();
   
   return MB_SUCCESS;

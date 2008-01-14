@@ -759,7 +759,7 @@ bool compare_tags( MBEntityHandle dod[] )
   if (iface->type_from_handle(hdata[0]) != MBHEX ||
       hdata[2] != 0 ||
       iface->type_from_handle(hdata[1]) != MBPOLYHEDRON) {
-    fprintf( stderr, "incorrect default value for handle tag.\n");
+    fprintf( stderr, "incorrect default value for handle tag '%s'\n",handlename);
     return false;
   }
   

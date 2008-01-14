@@ -17,8 +17,6 @@ void TagInfo::invalidate()
 {
   mTagName.clear();
   isValid = false;
-  delete [] mDefaultValue;
-  mDefaultValue = 0;
-  delete [] mMeshValue;
-  mMeshValue = 0;
+  mDefaultValue.clear();
+  mMeshValue.clear();
 }

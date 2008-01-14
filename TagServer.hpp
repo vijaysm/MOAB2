@@ -62,7 +62,8 @@ public:
                        const MBTagType storage,
                        const MBDataType data_type,
                        MBTag &tag_handle,
-                       const void *default_data = NULL);
+                       const void *default_data = NULL,
+                       int default_value_size = 0);
 
   // tag name is the name of the tag
   // entity_type is the type of entity (in implementation - it means
@@ -82,7 +83,7 @@ public:
   MBErrorCode reset_all_data();
 
   //! set global/mesh value of tag
-  MBErrorCode set_mesh_data( const MBTag tag_handle, const void* data );
+  MBErrorCode set_mesh_data( const MBTag tag_handle, const void* data, int size = 0);
 
   //! set the value of a tag
   MBErrorCode set_data(const MBTag tag_handle, const MBEntityHandle entity_handle, const void* data );
@@ -92,7 +93,7 @@ public:
   MBErrorCode set_data(const MBTag tag_handle, const MBRange& entity_handles, const void* data );
 
   //! get global/mesh value of tag
-  MBErrorCode get_mesh_data( const MBTag tag_handle, void* data ) const;
+  MBErrorCode get_mesh_data( const MBTag tag_handle, void* data, int& size ) const;
 
   //! get the value of a tag
   MBErrorCode get_data(const MBTag tag_handle, const MBEntityHandle entity_handle, void* data );
@@ -176,10 +177,10 @@ public:
   MBErrorCode get_tags(std::vector<MBTag> &all_tags);
   
     //! get the default value for a given tag
-  MBErrorCode get_default_data(const MBTag tag_handle, void *data);
+  MBErrorCode get_default_data(const MBTag tag_handle, void *data, int& size);
 
     //! get the default value for a given tag
-  MBErrorCode get_default_data_ref(const MBTag tag_handle, const void *& data);
+  MBErrorCode get_default_data_ref(const MBTag tag_handle, const void *& data, int& size);
 
   //! get information about a tag
   const TagInfo* get_tag_info(const char *tag_name ) const;

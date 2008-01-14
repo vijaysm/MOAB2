@@ -2,9 +2,11 @@
 #define TAG_INFO_HPP
 
 #include "MBTypes.h"
+#include "VarLenTag.hpp"
 
 #include <string>
 #include <string.h>
+#include <assert.h>
 
 // ! stores information about a tag
 class TagInfo
@@ -15,22 +17,15 @@ public:
   TagInfo() : mTagName(""), 
               mDataSize(0), 
               isValid(false),
-              mDefaultValue(NULL), 
-              mMeshValue(NULL),
               dataType(MB_TYPE_OPAQUE)
               {}
-  
-  //! destructor
-  inline ~TagInfo();
-  
-  //! copy constructor
-  inline TagInfo(const TagInfo&);
 
   //! constructor that takes all parameters
-  inline TagInfo(const char *, int, MBDataType type, const void *);
-
-  //! assignment operator
-  inline TagInfo &operator=(const TagInfo &rhs);
+  inline TagInfo( const char * name, 
+                  int size, 
+                  MBDataType type, 
+                  const void * default_value,
+                  int default_value_size);
   
   //! set the name of the tag
   void set_name( const std::string& name) { mTagName = name; }
@@ -44,17 +39,25 @@ public:
   //! get the size of the data
   int get_size() const { return mDataSize; }
 
+    //! get length of default value
+  int default_value_size() const { return mDefaultValue.size(); }
+
     //! get the default data
-  const void *default_value() const  { return mDefaultValue;}
+  const void *default_value() const  
+    { return mDefaultValue.size() ? mDefaultValue.data() : 0;}
   
     //! set mesh value
-  void set_mesh_value( const void* data );
+  void set_mesh_value( const void* data, int size );
   
     //! get mesh value
-  const void* get_mesh_value() const { return mMeshValue; }
+  int get_mesh_value_size() const { return mMeshValue.size(); }
+  
+    //! get mesh value
+  const void* get_mesh_value() const 
+    { return mMeshValue.size() ? mMeshValue.data() : 0; }
   
     //! remove mesh value
-  void remove_mesh_value();
+  void remove_mesh_value() { mMeshValue.clear(); }
   
   inline MBDataType get_data_type() const     { return dataType; }
   
@@ -79,96 +82,38 @@ private:
   bool isValid;
 
   //! stores the default data, if any
-  unsigned char *mDefaultValue;
+  VarLenTag mDefaultValue;
   
   //! store the mesh value, if any
-  unsigned char *mMeshValue;
+  VarLenTag mMeshValue;
   
   //! type of tag data
   MBDataType dataType;
 
 };
 
-
-inline TagInfo::TagInfo(const TagInfo& copy)
-  : mTagName( copy.mTagName ),
-    mDataSize( copy.mDataSize ),
-    isValid( copy.isValid ),
-    mDefaultValue( 0 ),
-    mMeshValue( 0 ),
-    dataType( copy.dataType )
-{
-  if (copy.mDefaultValue) {
-    mDefaultValue = new unsigned char[mDataSize];
-    memcpy(mDefaultValue, copy.mDefaultValue, mDataSize);
-  }
-  
-  if (copy.mMeshValue) {
-    mMeshValue = new unsigned char[mDataSize];
-    memcpy(mMeshValue, copy.mMeshValue, mDataSize);
-  }
-}
-
 inline TagInfo::TagInfo( const char* name, 
                          int size, 
                          MBDataType type,
-                         const void* default_value)
+                         const void* default_value,
+                         int default_value_size)
  : mTagName( name ),
    mDataSize( size ),
    isValid( true ),
-   mDefaultValue( 0 ),
-   mMeshValue( 0 ),
+   mDefaultValue( default_value_size, default_value ),
    dataType( type )
 {
-  if (default_value) {
-    mDefaultValue = new unsigned char[size];
-    memcpy(mDefaultValue, default_value, size);
-  }
+    // if tag is not variable-length and default_value_size is not zero,
+    // then size and default_value_size must be the same.
+  assert( size == MB_VARIABLE_LENGTH || default_value_size == 0 || default_value_size == size );
 }
 
-inline TagInfo &TagInfo::operator=(const TagInfo &rhs)
+
+inline void TagInfo::set_mesh_value( const void* data, int size )
 {
-  mTagName = rhs.mTagName;
-  mDataSize = rhs.mDataSize;
-  isValid = rhs.isValid;
-  
-  delete [] mDefaultValue;
-  delete [] mMeshValue;
-  mDefaultValue = 0;
-  mMeshValue = 0;
-  
-  if (rhs.mDefaultValue) {
-    mDefaultValue = new unsigned char[mDataSize];
-    memcpy( mDefaultValue, rhs.mDefaultValue, mDataSize );
-  }
-  
-  if (rhs.mMeshValue) {
-    mMeshValue = new unsigned char[mDataSize];
-    memcpy( mMeshValue, rhs.mMeshValue, mDataSize );
-  }
-  
-  return *this;
-}
-
-inline TagInfo::~TagInfo() 
-{
-  // clean up default value
-  delete [] mDefaultValue;
-  delete [] mMeshValue;
-}
-
-
-inline void TagInfo::set_mesh_value( const void* data )
-{
-  if (!mMeshValue)
-    mMeshValue = new unsigned char[mDataSize];
-  memcpy( mMeshValue, data, mDataSize );
-}
-
-inline void TagInfo::remove_mesh_value()
-{ 
-  delete [] mMeshValue;
-  mMeshValue = 0;
+    // if tag is not variable-length, then size must be tag size
+  assert( get_size() == MB_VARIABLE_LENGTH || get_size() == size );
+  mMeshValue.set( data, size );
 }
 
 #endif

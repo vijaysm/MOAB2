@@ -129,7 +129,7 @@ public:
   inline VarLenTag( unsigned size );
   inline ~VarLenTag() { clear(); }
   inline VarLenTag( const VarLenTag& copy );
-  inline VarLenTag( unsigned size, void* data );
+  inline VarLenTag( unsigned size, const void* data );
   
   inline unsigned size() const { return mData.mPointer.size; }
 
@@ -149,6 +149,9 @@ public:
   
   inline void set( const void* data, unsigned size )
     { memcpy( resize(size), data, size ); }
+    
+  inline VarLenTag& operator=( const VarLenTag& other )
+    { set( other.data(), other.size() ); return *this; }
   
 };
   
@@ -207,11 +210,11 @@ inline VarLenTag::VarLenTag( const VarLenTag& copy )
 #endif
   {
     mData.mPointer.array = reinterpret_cast<unsigned char*>(malloc(size()));
-    memcpy( copy.mData.mPointer.array, mData.mPointer.array, size() );
+    memcpy( mData.mPointer.array, copy.mData.mPointer.array, size() );
   }
 }
 
-inline VarLenTag::VarLenTag( unsigned size, void* data )
+inline VarLenTag::VarLenTag( unsigned size, const void* data )
 {
   mData.mPointer.size = 0;
   if (size) 

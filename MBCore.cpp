@@ -1336,8 +1336,10 @@ MBErrorCode  MBCore::tag_get_data(const MBTag tag_handle,
                                     const int num_entities,
                                     void *tag_data) const
 {
-  if (NULL == entity_handles && 0 == num_entities)
-    return tagServer->get_mesh_data(tag_handle, tag_data);
+  if (NULL == entity_handles && 0 == num_entities) {
+    int size;
+    return tagServer->get_mesh_data(tag_handle, tag_data, size);
+  }
 
   else return tagServer->get_data(tag_handle, entity_handles, num_entities, tag_data);
 }
@@ -1532,18 +1534,8 @@ MBErrorCode MBCore::tag_get_data_type( const MBTag handle,
   //! get default value of the tag
 MBErrorCode MBCore::tag_get_default_value(const MBTag tag_handle, void *def_value) const
 {
-  const TagInfo* tag_info = tagServer->get_tag_info( tag_handle );
-  if(!tag_info)
-    return MB_TAG_NOT_FOUND;
-
-  if (NULL == def_value) return MB_FAILURE;
-  
-  if (tag_info->default_value() == NULL)
-    return MB_ENTITY_NOT_FOUND;
-  
-  memcpy(def_value, tag_info->default_value(), tag_info->get_size());
-
-  return MB_SUCCESS;
+  int size;
+  return tagServer->get_default_data( tag_handle, def_value, size );
 }
 
   //! get type of tag (sparse, dense, etc.; 0 = dense, 1 = sparse, 2 = bit, 3 = static)

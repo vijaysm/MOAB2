@@ -155,7 +155,7 @@ void SequenceData::release_tag_data( const int* tag_sizes, int num_tag_sizes )
 {
   assert( num_tag_sizes >= numTagData );
   for (unsigned i = 1; i <= numTagData; ++i)
-    release_tag_data( i, tag_sizes[i] );
+    release_tag_data( i, tag_sizes[i-1] );
 }
 
 void SequenceData::release_tag_data( MBTagId tag_num, int tag_size )
