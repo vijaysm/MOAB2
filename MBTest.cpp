@@ -5733,22 +5733,7 @@ static void _run_test( TestFunc func, const char* func_str )
   else if (MB_FAILURE == error)
     std::cout << "Failure" << std::endl;
   else {
-    std::cout << "Failed: ";
-    switch (error) {
-      case MB_INDEX_OUT_OF_RANGE:       std::cout << "Index out of range";   break;
-      case MB_TYPE_OUT_OF_RANGE:        std::cout << "Type out of range";    break;
-      case MB_MEMORY_ALLOCATION_FAILED: std::cout << "Mem. Alloc. Failed";   break;
-      case MB_ENTITY_NOT_FOUND:         std::cout << "Entity Not Found";     break;
-      case MB_MULTIPLE_ENTITIES_FOUND:  std::cout << "Multiple Ents. Found"; break;
-      case MB_TAG_NOT_FOUND:            std::cout << "Tag Not Found";        break;
-      case MB_FILE_DOES_NOT_EXIST:      std::cout << "File doesn't exist";   break;
-      case MB_FILE_WRITE_ERROR:         std::cout << "File Write Error";     break;
-      case MB_NOT_IMPLEMENTED:          std::cout << "Not implemented error";break;
-      case MB_ALREADY_ALLOCATED:        std::cout << "Already Allocated";    break;
-          // these instead of default so gcc warns of unhandled error code
-      case MB_FAILURE: case MB_SUCCESS: break;
-    }
-    std::cout << std::endl;
+    std::cout << "Failed: " << moab.get_error_string( error ) << std::endl;
   }
   
   if (MB_SUCCESS != error) {
