@@ -27,7 +27,8 @@ TESTS = moab_test \
 	vtk_test \
 	adaptive_kd_tree_tests \
 	file_options_test \
-        kd_tree_test
+        kd_tree_test \
+        var_len_test var_len_test_no_template
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 
@@ -321,6 +322,11 @@ mbparallelcomm_test_DEPENDENCIES = $(mbparallelcomm_test_LDADD)
 
 file_options_test_SOURCES = FileOptions.cpp 
 file_options_test_CPPFLAGS = -DTEST
+
+var_len_test_SOURCES = VarLenTagTest.cpp
+var_len_test_no_template_SOURCES = $(var_len_test_SOURCES)
+var_len_test_no_template_CPPFLAGS = -UTEMPLATE_SPECIALIZATION
+
 
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = dumped_acis.sat
