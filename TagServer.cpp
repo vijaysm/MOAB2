@@ -665,23 +665,6 @@ MBErrorCode TagServer::remove_data( const MBTag tag_handle, const MBEntityHandle
 }
 
 
-MBEntityHandle TagServer::find_entity( const MBTag tag_handle, const void* data )
-{
-  
-  if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_SPARSE)
-  {
-    return mSparseData->find_entity(ID_FROM_TAG_HANDLE(tag_handle), data);
-  }
-  else if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
-  {
-    // todo:  call RMS find entity
-    return 0;
-  }
-  else 
-    return 0;
-
-}
-
 //! gets all entity handles that match a type and tag
 MBErrorCode TagServer::get_entities(const MBTag tag_handle, const MBEntityType type,
                                      MBRange &entities)
@@ -1078,7 +1061,9 @@ int main()
       // test the find_entity function.  This test succeeds on failure
       tag_data[0] = rand();
       tag_server.set_data(my_tag_handle, 200, tag_data);
-      assert( 200 != tag_server.find_entity(my_tag_handle, tag_data));
+      MBRange tmp_range;
+      tag_server.get_entities_with_tag_value( TYPE_FROM_HANDLE(200), my_tag_handle, tag_data, tmp_range );
+      assert( tmp_range.size() == 1 && tmp_range.begin() == 200 );
 
       for( int i=0; i<SET_TAG_LOOPS; i++ )
       {

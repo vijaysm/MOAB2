@@ -114,13 +114,6 @@ MBErrorCode SparseTagSuperCollection::remove_data( const MBTagId tag_handle,
 }
 
 
-MBEntityHandle SparseTagSuperCollection::find_entity( const MBTagId tag_handle, const void* data )
-{
-  SparseTagCollection* coll = get_collection(tag_handle);
-  return coll ? coll->find_entity( data ) : MB_TAG_NOT_FOUND;
-}
-
-
 //! gets all entity handles that match a type and tag
 MBErrorCode SparseTagSuperCollection::get_entities(const MBTagId tag_handle, const MBEntityType type,
                                                     MBRange &entities)
@@ -324,21 +317,6 @@ MBErrorCode SparseTagCollection::remove_data( const MBEntityHandle entity_handle
   return MB_ENTITY_NOT_FOUND;
 }
 
-
-
-MBEntityHandle SparseTagCollection::find_entity( const void* data )
-{
-  std::map<MBEntityHandle, void*>::iterator iterator;
-  for(iterator = mData.begin();
-      iterator != mData.end();
-      iterator++)
-  {
-    if(memcmp(data, iterator->second, mDataSize) == 0)
-      return iterator->first;
-  }
-
-  return 0;
-}
 
 //! get number of entities of type
 MBErrorCode SparseTagCollection::get_number_entities(MBEntityType type, int& num_entities)

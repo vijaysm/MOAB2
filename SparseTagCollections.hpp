@@ -83,9 +83,6 @@ public:
 
   //! removes the data
   MBErrorCode remove_data(const MBEntityHandle entity_handle);
-  
-  //! finds the first entity handle that matches this data
-  MBEntityHandle find_entity( const void* data );
 
   //! get number of entities of type
   MBErrorCode get_number_entities(MBEntityType type, int& num_entities);
@@ -171,9 +168,6 @@ public:
 
   //! removes data
   MBErrorCode remove_data(const MBTagId tag_handle, const MBEntityHandle entity_handle);
-  
-  //! finds the entity handle with this data
-  MBEntityHandle find_entity( const MBTagId tag_handle, const void* data );
 
   //! gets all entity handles that match a type and tag
   MBErrorCode get_entities(const MBTagId tag_handle, MBRange &entities);

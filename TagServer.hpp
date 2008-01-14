@@ -163,9 +163,6 @@ public:
                                    const MBTag tag_handle, const MBEntityType type,
                                     int& num_entities);
 
-  //! finds the first entity handle that matches this data
-  MBEntityHandle find_entity( const MBTag tag_handle, const void* data );
-
   //! gets a tag handle by name and entity handle
   MBTag get_handle(const char *tag_name) const;
 
