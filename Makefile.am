@@ -164,6 +164,8 @@ libMOAB_la_SOURCES = \
   SparseTagCollections.hpp \
   StructuredElementSeq.cpp \
   StructuredElementSeq.hpp \
+  TagInfo.cpp \
+  TagInfo.hpp \
   TagServer.cpp \
   TagServer.hpp \
   Tqdcfr.cpp \
