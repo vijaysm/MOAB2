@@ -50,7 +50,14 @@ enum MBErrorCode { MB_SUCCESS = 0,
                    MB_FILE_WRITE_ERROR,
                    MB_NOT_IMPLEMENTED,
                    MB_ALREADY_ALLOCATED,
+                   MB_VARIABLE_DATA_LENGTH,
+                   MB_INVALID_SIZE,
                    MB_FAILURE};
+
+/** Misc. integer constants, declared in enum for portability */
+enum MBConstants {
+  MB_VARIABLE_LENGTH = -1 /**< Length value for variable-length tags */ 
+};
 
 /** Specify storage type for tags.  See MOAB users guide for more information. */
 enum MBTagType {
