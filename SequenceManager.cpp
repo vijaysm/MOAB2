@@ -7,6 +7,7 @@
 #include "HomXform.hpp"
 #include "PolyElementSeq.hpp"
 #include "MBSysUtil.hpp"
+#include "TagCompare.hpp"
 
 #include <assert.h>
 #include <new>
@@ -927,9 +928,11 @@ MBErrorCode SequenceManager::count_tagged_entities( MBTagId tag_id,
 }
 
 MBErrorCode SequenceManager::get_entities_with_tag_value( MBTagId id,
+                                                          const TagInfo& tag_info,
                                                           MBEntityType type,
                                                           MBRange& entities_out,
-                                                          const void* value ) const
+                                                          const void* value,
+                                                          int size ) const
 {
   if (id >= tagSizes.size() || !tagSizes[id])
     return MB_TAG_NOT_FOUND;
@@ -938,10 +941,10 @@ MBErrorCode SequenceManager::get_entities_with_tag_value( MBTagId id,
   const TypeSequenceManager& map = entity_map( type );
   for (TypeSequenceManager::const_iterator i = map.begin(); i != map.end(); ++i) {
     if (const void* data = (*i)->data()->get_tag_data(id)) {
-      const char* bytes = reinterpret_cast<const char*>(data);
-      for (MBEntityHandle h = (*i)->start_handle(); h <= (*i)->end_handle(); ++h)
-        if (!memcmp( bytes + tagSizes[id] * (h - (*i)->data()->start_handle()), value, tagSizes[id] ))
-          insert = entities_out.insert( insert, h, h );
+      ByteArrayIterator start( (*i)->data()->start_handle(), data, tag_info );
+      ByteArrayIterator end( (*i)->end_handle() + 1, 0, 0 );
+      start += (*i)->start_handle() - (*i)->data()->start_handle();
+      find_tag_values_equal( tag_info, value, size, start, end, entities_out );
     }
   }
   
@@ -950,9 +953,11 @@ MBErrorCode SequenceManager::get_entities_with_tag_value( MBTagId id,
 
 MBErrorCode SequenceManager::get_entities_with_tag_value( const MBRange& range,
                                                           MBTagId id,
+                                                          const TagInfo& tag_info,
                                                           MBEntityType type,
                                                           MBRange& entities_out,
-                                                          const void* value ) const
+                                                          const void* value,
+                                                          int size ) const
 {
   MBErrorCode rval;
   if (id >= tagSizes.size() || !tagSizes[id])
@@ -975,11 +980,10 @@ MBErrorCode SequenceManager::get_entities_with_tag_value( const MBRange& range,
       const MBEntityHandle finish = std::min( p->second, seq->end_handle() );
       const void* tag_array = seq->data()->get_tag_data( id );
       if (tag_array) {
-        const char* tag_data = reinterpret_cast<const char*>(tag_array);
-        for (MBEntityHandle h = start; h <= finish; ++h) {
-          if (!memcmp( tag_data + tagSizes[id] * (h - seq->data()->start_handle()), value, tagSizes[id] ))
-            insert = entities_out.insert( insert, h, h );
-        }
+        ByteArrayIterator start( seq->data()->start_handle(), tag_array, tag_info );
+        ByteArrayIterator end( seq->end_handle() + 1, 0, 0 );
+        start += seq->start_handle() - seq->data()->start_handle();
+        find_tag_values_equal( tag_info, value, size, start, end, entities_out );
       }
       start = finish + 1;
     }

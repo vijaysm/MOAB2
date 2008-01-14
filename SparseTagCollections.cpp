@@ -32,6 +32,7 @@
 
 #include "SparseTagCollections.hpp"
 #include "MBRange.hpp"
+#include "TagCompare.hpp"
 
 /*
   SparseTagSuperCollection functions -----------------------------
@@ -158,27 +159,38 @@ MBErrorCode SparseTagSuperCollection::get_tags(const MBEntityHandle entity,
 }
 
 //! gets all entity handles that match a type and tag
-MBErrorCode SparseTagSuperCollection::get_entities_with_tag_value(const MBTagId tag_handle, const MBEntityType type,
-                                                                   MBRange &entities, const void* tag_value)
+MBErrorCode SparseTagSuperCollection::get_entities_with_tag_value(
+                           const MBTagId tag_handle, 
+                           const TagInfo& tag_info,
+                           const MBEntityType type,
+                           MBRange &entities, 
+                           const void* tag_value,
+                           int value_size)
 {
   SparseTagCollection* coll = get_collection(tag_handle);
   if (!coll)
     return MB_TAG_NOT_FOUND;
   
-  return coll->get_entities_with_tag_value(type, entities, tag_value);
+  return coll->get_entities_with_tag_value(tag_info, type, entities, tag_value, value_size);
 }
 
 //! gets all entity handles that match a type and tag
-MBErrorCode SparseTagSuperCollection::get_entities_with_tag_value(const MBRange &range,
-                                                                   const MBTagId tag_handle, const MBEntityType type,
-                                                                   MBRange &entities, const void* tag_value)
+MBErrorCode SparseTagSuperCollection::get_entities_with_tag_value(
+                          const MBRange &range,
+                          const MBTagId tag_handle, 
+                          const TagInfo& tag_info,
+                          const MBEntityType type,
+                          MBRange &entities, 
+                          const void* tag_value,
+                          int value_size)
 {
   SparseTagCollection* coll = get_collection(tag_handle);
   if (!coll)
     return MB_TAG_NOT_FOUND;
 
   MBRange dum_range;
-  MBErrorCode result = coll->get_entities_with_tag_value(type, dum_range, tag_value);
+  MBErrorCode result = coll->get_entities_with_tag_value(
+                           tag_info, type, dum_range, tag_value, value_size);
 
     // do this the hard way to preserve order in the vector
   std::set_intersection(range.begin(), range.end(),
@@ -355,28 +367,21 @@ MBErrorCode SparseTagCollection::get_entities(MBEntityType type, MBRange &entiti
 
 
 //! gets all entity handles that match a type, tag and tag value
-MBErrorCode SparseTagCollection::get_entities_with_tag_value(MBEntityType type, 
-                                                              MBRange &entities, const void* tag_value)
+MBErrorCode SparseTagCollection::get_entities_with_tag_value(
+                                                    const TagInfo& tag_info,
+                                                    MBEntityType type, 
+                                                    MBRange &entities, 
+                                                    const void* tag_value,
+                                                    int value_size)
 {
-  std::map<MBEntityHandle, void*>::iterator iter;
-
-  for(iter = mData.begin(); iter != mData.end(); ++iter)
-  {
-    if(TYPE_FROM_HANDLE(iter->first) == type) {
-#ifndef NDEBUG
-      MBEntityHandle this_ent = iter->first;
-      void *this_tag = iter->second;
-        // coupla meaningless statements to get rid of compiler warnings
-      if (this_ent);
-      if (this_tag);
-#endif
-      if( memcmp( iter->second, tag_value, mDataSize ) == 0) 
-        entities.insert(iter->first);    
-    }
-  }
-
+  std::map<MBEntityHandle, void*>::iterator iter, end;
+  int junk;
+  iter = mData.lower_bound( CREATE_HANDLE( type, MB_START_ID, junk ) );
+  end = mData.upper_bound( CREATE_HANDLE( type, MB_END_ID, junk ) );
+  find_tag_values_equal( tag_info, tag_value, value_size, iter, end, entities );
   return MB_SUCCESS;
 }
+
 
 
 

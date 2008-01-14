@@ -759,19 +759,27 @@ MBErrorCode TagServer::get_entities(const MBRange &range,
 }
 
 MBErrorCode TagServer::get_entities_with_tag_value( const MBEntityType type,
-                                                     const MBTag tag_handle,
-                                                     const void* value,
-                                                     MBRange &entities ) 
+                                                    const MBTag tag_handle,
+                                                    const void* value,
+                                                    MBRange &entities,
+                                                    int value_size ) 
 {
 
   MBErrorCode result = MB_TAG_NOT_FOUND;
   MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+
+  const TagInfo* info = get_tag_info( tag_handle );
+  if (!info)
+    return MB_TAG_NOT_FOUND;
+  if (!value_size && info->get_size() != MB_VARIABLE_LENGTH)
+    value_size = info->get_size();
+  
   switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
     case MB_TAG_SPARSE:
-      result = mSparseData->get_entities_with_tag_value(id, type, entities, value);
+      result = mSparseData->get_entities_with_tag_value(id, *info, type, entities, value, value_size);
       break;
     case MB_TAG_DENSE:
-      result = sequenceManager->get_entities_with_tag_value(id, type, entities, value);
+      result = sequenceManager->get_entities_with_tag_value(id, *info, type, entities, value, value_size);
       break;
     case MB_TAG_BIT:
       result = mBitServer->get_entities_with_tag_value(id, type, 
@@ -790,17 +798,25 @@ MBErrorCode TagServer::get_entities_with_tag_value( const MBRange &range,
                                                     const MBEntityType type,
                                                     const MBTag tag_handle,
                                                     const void* value,
-                                                    MBRange &entities ) 
+                                                    MBRange &entities,
+                                                    int value_size ) 
 {
 
   MBErrorCode result = MB_TAG_NOT_FOUND;
   MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+
+  const TagInfo* info = get_tag_info( tag_handle );
+  if (!info)
+    return MB_TAG_NOT_FOUND;
+  if (!value_size && info->get_size() != MB_VARIABLE_LENGTH)
+    value_size = info->get_size();
+
   switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
     case MB_TAG_SPARSE:
-      result = mSparseData->get_entities_with_tag_value(range, id, type, entities, value);
+      result = mSparseData->get_entities_with_tag_value(range, id, *info, type, entities, value, value_size);
       break;
     case MB_TAG_DENSE:
-      result = sequenceManager->get_entities_with_tag_value(range, id, type, entities, value);
+      result = sequenceManager->get_entities_with_tag_value(range, id, *info, type, entities, value, value_size);
       break;
     case MB_TAG_BIT:
       result = mBitServer->get_entities_with_tag_value(range, id, type, 

@@ -196,19 +196,19 @@ inline void VarLenTag::clear()
   mData.mPointer.size = 0;
 }
 
-inline VarLenTag( const VarLenTag& copy )
+inline VarLenTag::VarLenTag( const VarLenTag& copy )
   : VarLenTagData( copy )
 {
-#ifdef 
+#ifdef VAR_LEN_TAG_ELIDE_DATA
   if (size() > INLINE_COUNT)
 #endif
   {
-    copy.mData.mPointer.array = reinterpret_cast<unsigned char*>(malloc(size()));
+    mData.mPointer.array = reinterpret_cast<unsigned char*>(malloc(size()));
     memcpy( copy.mData.mPointer.array, mData.mPointer.array, size() );
   }
 }
 
-inline VarLenTag( unsigned size, void* data )
+inline VarLenTag::VarLenTag( unsigned size, void* data )
 {
   mData.mPointer.size = 0;
   if (size) 

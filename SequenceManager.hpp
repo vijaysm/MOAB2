@@ -3,6 +3,7 @@
 
 #include "TypeSequenceManager.hpp"
 #include "MBHandleUtils.hpp"
+#include "TagInfo.hpp"
 
 class HomCoord;
 class TagServer;
@@ -154,14 +155,18 @@ class SequenceManager
                                        int& result ) const;
 
     MBErrorCode get_entities_with_tag_value( MBTagId id,
+                                             const TagInfo& tag_info,
                                              MBEntityType type,
                                              MBRange& entities_out,
-                                             const void* value ) const;
+                                             const void* value,
+                                             int value_size ) const;
     MBErrorCode get_entities_with_tag_value( const MBRange& range,
                                              MBTagId id,
+                                             const TagInfo& tag_info,
                                              MBEntityType type,
                                              MBRange& entities_out,
-                                             const void* value ) const;
+                                             const void* value,
+                                             int value_size ) const;
     
     MBErrorCode get_tag_memory_use( MBTagId id, 
                                     unsigned long& total, 

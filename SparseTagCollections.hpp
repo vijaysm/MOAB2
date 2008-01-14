@@ -45,6 +45,7 @@
 #include "MBTypes.h"
 #include "MBInternals.hpp"
 #include "MBRange.hpp"
+#include "TagInfo.hpp"
 
 #define get_collection( A ) ((A) < mDataTags.size() ? mDataTags[(A)] : 0)
 
@@ -100,9 +101,11 @@ public:
   MBErrorCode get_entities(MBRange &entities) const;
 
   //! gets all entity handles that match a type, tag, tag_value
-  MBErrorCode get_entities_with_tag_value(MBEntityType type, 
+  MBErrorCode get_entities_with_tag_value( const TagInfo& info,
+                                           MBEntityType type, 
                                            MBRange &entities, 
-                                           const void* tag_value);
+                                           const void* tag_value,
+                                           int value_size);
 
   //! if this collection contains this entity, return true, otherwise false
   bool contains(const MBEntityHandle entity) const;
@@ -189,15 +192,21 @@ public:
                        std::vector<MBTag> &all_tags);
   
   //! gets all entity handles that match a tag
-  MBErrorCode get_entities_with_tag_value(const MBTagId tag_handle, const MBEntityType type,
+  MBErrorCode get_entities_with_tag_value( const MBTagId tag_handle, 
+                                           const TagInfo& tag_info,
+                                           const MBEntityType type,
                                            MBRange &entities,
-                                           const void* tag_value);
+                                           const void* tag_value,
+                                           int value_size);
 
   //! gets all entity handles that match a tag
-  MBErrorCode get_entities_with_tag_value(const MBRange &range,
-                                           const MBTagId tag_handle, const MBEntityType type,
+  MBErrorCode get_entities_with_tag_value( const MBRange &range,
+                                           const MBTagId tag_handle, 
+                                           const TagInfo& tag_info,
+                                           const MBEntityType type,
                                            MBRange &entities,
-                                           const void* tag_value);
+                                           const void* tag_value,
+                                           int value_size);
 
   //! gets the number of entities that match a tag
   MBErrorCode get_number_entities(const MBTagId tag_handle, const MBEntityType type, int& num_ent);

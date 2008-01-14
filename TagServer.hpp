@@ -132,14 +132,16 @@ public:
   MBErrorCode get_entities_with_tag_value( const MBEntityType type,
                                             const MBTag tag_handle,
                                             const void* value,
-                                            MBRange &entities );
+                                            MBRange &entities,
+                                            int value_size = 0 );
   
   //! gets all entity handles that match a type, tag and tag value 
   MBErrorCode get_entities_with_tag_value( const MBRange &input_range,
                                             const MBEntityType type,
                                             const MBTag tag_handle,
                                             const void* value,
-                                            MBRange &entities );
+                                            MBRange &entities,
+                                            int value_size = 0 );
   
   MBErrorCode get_entities_with_tag_values( const MBRange &input_range,
                                              const MBEntityType type,
