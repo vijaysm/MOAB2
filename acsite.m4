@@ -238,7 +238,7 @@ AC_LANG_RESTORE
 #######################################################################################
 # Check if template definitions (.cpp files) must be
 # included (in the .hpp files).
-# Sets TEMPLATE_DEFS_INCLUDED=1
+# Sets TEMPLATE_DEFS_INCLUDED=-DTEMPLATE_DEFS_INCLUDED
 #######################################################################################
 AC_DEFUN([SNL_TEMPLATE_DEFS_INCLUDED], [
 AC_LANG_SAVE
@@ -263,6 +263,29 @@ else
 fi
 
 rm -f $src $templ $exe
+AC_LANG_RESTORE
+]) # SNL_TEMPLATE_DEFS_INCLUDED
+
+#######################################################################################
+# Check if compiler supports template class specialization.
+# Sets TEMPLATE_SPECIALIZATION=-DTEMPLATE_SPECIALIZATION
+#######################################################################################
+AC_DEFUN([SNL_TEMPLATE_SPECIALIZATION], [
+AC_LANG_SAVE
+AC_LANG_CPLUSPLUS
+
+AC_MSG_CHECKING([if C++ compiler supports template specialization])
+AC_TRY_COMPILE([
+template <unsigned S> class MyTempl { public: char data[S]; };
+template <> class MyTempl<0> { public: char value; };
+],[
+MyTempl<1> one;
+MyTempl<0> zero;
+one.data[0] = zero.value = '\0';
+],
+[TEMPLATE_SPECIALIZATION=-DTEMPLATE_SPECIALIZATION; AC_MSG_RESULT(yes)],
+[TEMPLATE_SPECIALIZATION=; AC_MSG_RESULT(no)])
+
 AC_LANG_RESTORE
 ]) # SNL_TEMPLATE_DEFS_INCLUDED
 

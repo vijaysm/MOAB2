@@ -24,6 +24,8 @@ fi
 AC_SUBST([ZCAT])
 AM_CONDITIONAL([HAVE_ZCAT],[test "x" = "x$ZCAT"])
 
+SNL_TEMPLATE_SPECIALIZATION
+DEFINES="$DEFINES $TEMPLATE_SPECIALIZATION"
 
 ################################################################################
 #                              Version Stuff
