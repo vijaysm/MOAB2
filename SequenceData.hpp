@@ -121,9 +121,9 @@ public:
   void move_tag_data( SequenceData* destination, TagServer* tag_server );
   
   /**\brief Free all tag data arrays */
-  void release_tag_data();
+  void release_tag_data(const int* tag_sizes, int num_tag_sizes);
   /**\brief Free specified tag data array */
-  void release_tag_data( MBTagId tag_num );
+  void release_tag_data( MBTagId tag_num, int tag_size );
   
 protected:
 

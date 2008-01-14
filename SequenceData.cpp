@@ -1,6 +1,7 @@
 #include "SequenceData.hpp"
 #include "TagServer.hpp"
 #include "MBSysUtil.hpp"
+#include "VarLenTag.hpp"
 #include <assert.h>
 
 SequenceData::~SequenceData()
@@ -150,15 +151,22 @@ void SequenceData::move_tag_data( SequenceData* destination, TagServer* tag_serv
   }
 }
 
-void SequenceData::release_tag_data()
+void SequenceData::release_tag_data( const int* tag_sizes, int num_tag_sizes )
 {
+  assert( num_tag_sizes >= numTagData );
   for (unsigned i = 1; i <= numTagData; ++i)
-    release_tag_data( i );
+    release_tag_data( i, tag_sizes[i] );
 }
 
-void SequenceData::release_tag_data( MBTagId tag_num )
+void SequenceData::release_tag_data( MBTagId tag_num, int tag_size )
 {
   if (tag_num < numTagData) {
+    if (tag_size == MB_VARIABLE_LENGTH && arraySet[tag_num+1]) {
+      VarLenTag* iter = reinterpret_cast<VarLenTag*>(arraySet[tag_num+1]);
+      VarLenTag* const end = iter + size();
+      for (; iter != end; ++iter)
+        iter->clear();
+    }
     free( arraySet[tag_num+1] );
     arraySet[tag_num+1] = 0;
   }

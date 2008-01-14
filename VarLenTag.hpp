@@ -147,6 +147,9 @@ public:
   
   inline void clear();
   
+  inline void set( const void* data, unsigned size )
+    { memcpy( resize(size), data, size ); }
+  
 };
   
 inline unsigned char* VarLenTag::resize( unsigned s ) 

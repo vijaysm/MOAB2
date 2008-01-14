@@ -258,6 +258,8 @@ SparseTagCollection::~SparseTagCollection()
   for(tag_iterator = mData.begin(); tag_iterator != mData.end(); ++tag_iterator)
   {
     tag_data = tag_iterator->second;
+    if (mDataSize == MB_VARIABLE_LENGTH)
+      reinterpret_cast<VarLenTag*>(tag_data)->clear();
     if(tag_data != NULL)
       mAllocator.destroy(tag_data);
   }
@@ -310,6 +312,8 @@ MBErrorCode SparseTagCollection::remove_data( const MBEntityHandle entity_handle
 
   if(iterator != mData.end())
   {
+    if (mDataSize == MB_VARIABLE_LENGTH)
+      reinterpret_cast<VarLenTag*>(iterator->second)->clear();
     mAllocator.destroy(iterator->second);
     mData.erase(iterator);
     return MB_SUCCESS;

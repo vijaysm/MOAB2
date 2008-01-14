@@ -15,7 +15,9 @@ class SequenceManager
     SequenceManager( const MBHandleUtils& handle_utils ) 
       : handleUtils(handle_utils)
       {}
-      
+    
+    ~SequenceManager();
+    
       /** Delete all contained data */
     void clear();
     
@@ -122,12 +124,13 @@ class SequenceManager
     
     void reset_tag_data();
     
-    MBErrorCode reserve_tag_id( unsigned tag_size, MBTagId tag_id );
+    MBErrorCode reserve_tag_id( int tag_size, MBTagId tag_id );
     MBErrorCode release_tag( MBTagId tag_id );
     
     MBErrorCode remove_tag_data( MBTagId tag_id, 
                                  MBEntityHandle handle,
-                                 const void* default_tag_value );
+                                 const void* default_tag_value,
+                                 int default_value_size = 0 );
     MBErrorCode set_tag_data( MBTagId tag_id,
                               MBEntityHandle handle,
                               const void* value,
@@ -215,7 +218,7 @@ class SequenceManager
     const MBHandleUtils handleUtils;
     TypeSequenceManager typeData[MBMAXTYPE];
     
-    std::vector<unsigned> tagSizes;
+    std::vector<int> tagSizes;
 };
 
 #endif

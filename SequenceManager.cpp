@@ -21,8 +21,21 @@ const MBEntityID DEFAULT_MESHSET_SEQUENCE_SIZE = DEFAULT_VERTEX_SEQUENCE_SIZE;
 MBEntityID SequenceManager::default_poly_sequence_size( int conn_len )
   {  return std::max( DEFAULT_POLY_SEQUENCE_SIZE / conn_len, (MBEntityID)1 ); }
 
+SequenceManager::~SequenceManager()
+{
+    // release variable-length tag data
+  for (unsigned i = 0; i < tagSizes.size(); ++i)
+    if (tagSizes[i] == MB_VARIABLE_LENGTH)
+      release_tag( i );
+}
+
 void SequenceManager::clear()
 {
+    // release variable-length tag data
+  for (unsigned i = 0; i < tagSizes.size(); ++i)
+    if (tagSizes[i] == MB_VARIABLE_LENGTH)
+      release_tag( i );
+
     // destroy all TypeSequenceManager instances
   for (MBEntityType t = MBVERTEX; t < MBMAXTYPE; ++t)
     typeData[t].~TypeSequenceManager();
@@ -674,14 +687,14 @@ void SequenceManager::reset_tag_data() {
   for (MBEntityType t = MBVERTEX; t <= MBENTITYSET; ++t) {
     TypeSequenceManager& seqs = entity_map(t);
     for (TypeSequenceManager::iterator i = seqs.begin(); i != seqs.end(); ++i)
-      (*i)->data()->release_tag_data();
+      (*i)->data()->release_tag_data( &tagSizes[0], tagSizes.size() );
   }
 }
 
-MBErrorCode SequenceManager::reserve_tag_id( unsigned size, MBTagId tag_id )
+MBErrorCode SequenceManager::reserve_tag_id( int size, MBTagId tag_id )
 {
-  if (!size)
-    return MB_FAILURE;
+  if (size < 1) //&& size != MB_VARIABLE_LENGTH)
+    return MB_INVALID_SIZE;
   if (tag_id >= tagSizes.size())
     tagSizes.resize( tag_id+1, 0 );
   if (tagSizes[tag_id])
@@ -699,14 +712,15 @@ MBErrorCode SequenceManager::release_tag( MBTagId tag_id )
   for (MBEntityType t = MBVERTEX; t <= MBENTITYSET; ++t) {
     TypeSequenceManager& seqs = entity_map(t);
     for (TypeSequenceManager::iterator i = seqs.begin(); i != seqs.end(); ++i)
-      (*i)->data()->release_tag_data(tag_id);
+      (*i)->data()->release_tag_data(tag_id, tagSizes[tag_id]);
   }
   return MB_SUCCESS;
 }
 
 MBErrorCode SequenceManager::remove_tag_data( MBTagId tag_id, 
                                               MBEntityHandle handle,
-                                              const void* default_tag_value )
+                                              const void* default_tag_value,
+                                              int default_value_size )
 {
   if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
     return MB_TAG_NOT_FOUND;
@@ -722,7 +736,14 @@ MBErrorCode SequenceManager::remove_tag_data( MBTagId tag_id,
   
   char* tag_data = reinterpret_cast<char*>(tag_array) + 
                    tagSizes[tag_id] * (handle - seq->data()->start_handle());
-  if (default_tag_value)  
+  if (tagSizes[tag_id] == MB_VARIABLE_LENGTH) {
+    VarLenTag* vdata = reinterpret_cast<VarLenTag*>(tag_data);
+    if (default_tag_value)
+      vdata->set( default_tag_value, default_value_size );
+    else
+      vdata->clear();
+  }
+  else if (default_tag_value)  
     memcpy( tag_data, default_tag_value, tagSizes[tag_id] );
   else
     memset( tag_data, 0, tagSizes[tag_id] );
