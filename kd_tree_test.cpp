@@ -5,9 +5,14 @@
 #include <assert.h>
 #include <float.h>
 
+#include "MBCartVect.hpp"
+
 const unsigned INTERVALS = 4;
 const unsigned DEPTH = 7; // 3*log2(INTERVALS)+1
 const char* TAG_NAME = "TEST_DATA";
+
+void test_iterator_back( MBAdaptiveKDTree& tool, MBEntityHandle root );
+void test_point_search( MBAdaptiveKDTree& tool, MBEntityHandle root );
 
 int main()
 {
@@ -71,6 +76,9 @@ int main()
     // check number of leaves
   const int num_leaves = INTERVALS*INTERVALS*INTERVALS;
   assert( num_leaves == counter );
+  
+  test_iterator_back( tool, root );
+  test_point_search( tool, root );
   
   // reduce tree depth to DEPTH-1 by merging adjacent leaf pairs, 
   // make new "leaf" have smaller of two data values on original pair
@@ -192,4 +200,124 @@ int main()
 
   return 0;
 }
+
+
+void test_iterator_back( MBAdaptiveKDTree& tool, MBEntityHandle root )
+{
+  MBAdaptiveKDTreeIter iter;
+  MBErrorCode rval = tool.get_tree_iterator( root, iter );
+  assert( MB_SUCCESS == rval );
+  
+  MBCartVect min( iter.box_min() );
+  MBCartVect max( iter.box_max() );
+  MBEntityHandle leaf = iter.handle();
+  
+    // going back from first location should fail.
+  rval = iter.back();
+  assert( MB_ENTITY_NOT_FOUND == rval );
+  rval = tool.get_tree_iterator( root, iter );
+  assert( MB_SUCCESS == rval );
+  
+    // make sure iterator is valid
+  assert( iter.box_min()[0] == min[0] && iter.box_min()[1] == min[1] && iter.box_min()[2] == min[2] );
+  assert( iter.box_max()[0] == max[0] && iter.box_max()[1] == max[1] && iter.box_max()[2] == max[2] );
+  assert( iter.handle() == leaf );
+  
+  while (MB_SUCCESS == iter.step()) {
+      // Get values at current iterator location
+    MBCartVect next_min( iter.box_min() );
+    MBCartVect next_max( iter.box_max() );
+    MBEntityHandle next_leaf = iter.handle();
+  
+      // step back to previous location
+    rval = iter.back();
+    assert( MB_SUCCESS == rval );
+    
+      // check expected values for previous location
+    assert( iter.box_min()[0] == min[0] && iter.box_min()[1] == min[1] && iter.box_min()[2] == min[2] );
+    assert( iter.box_max()[0] == max[0] && iter.box_max()[1] == max[1] && iter.box_max()[2] == max[2] );
+    assert( iter.handle() == leaf );
+    
+      // advance iterator to 'current' location
+    rval = iter.step();
+    assert( MB_SUCCESS == rval );
+    
+      // check that iterator values are correct
+    assert( iter.box_min()[0] == next_min[0] && iter.box_min()[1] == next_min[1] && iter.box_min()[2] == next_min[2] );
+    assert( iter.box_max()[0] == next_max[0] && iter.box_max()[1] == next_max[1] && iter.box_max()[2] == next_max[2] );
+    assert( iter.handle() == next_leaf );
+   
+      // store values for next iteration
+    min = next_min;
+    max = next_max;
+    leaf = next_leaf;
+  }
+}
+
+void test_point_search( MBAdaptiveKDTree& tool, MBEntityHandle root )
+{
+  MBErrorCode rval;
+  MBEntityHandle leaf;
+  MBAdaptiveKDTreeIter iter, iter2;
+  
+    // points to test
+  MBCartVect left( 0.5 );
+  MBCartVect right( MBCartVect(INTERVALS) - left );
+ 
+    // compare leaf search to iterator search
+  rval = tool.leaf_containing_point( root, left.array(), leaf );
+  assert( MB_SUCCESS == rval );
+  rval = tool.leaf_containing_point( root, left.array(), iter );
+  assert( MB_SUCCESS == rval );
+  assert( iter.handle() == leaf );
+  
+    // iterator should be at 'first' leaf 
+  rval = tool.get_tree_iterator( root, iter2 );
+  assert( MB_SUCCESS == rval );
+  for (;;) {
+    assert( iter.handle() == iter2.handle() );
+    assert( iter.depth() == iter2.depth() );
+    assert( iter.box_min()[0] == iter2.box_min()[0] );
+    assert( iter.box_min()[1] == iter2.box_min()[1] );
+    assert( iter.box_min()[2] == iter2.box_min()[2] );
+    assert( iter.box_max()[0] == iter2.box_max()[0] );
+    assert( iter.box_max()[1] == iter2.box_max()[1] );
+    assert( iter.box_max()[2] == iter2.box_max()[2] );
+    
+    rval = iter2.step();
+    if (MB_SUCCESS != rval)
+      break;
+    rval = iter.step();
+    assert( MB_SUCCESS == rval );
+  }
+  
+    // compare leaf search to iterator search
+  rval = tool.leaf_containing_point( root, right.array(), leaf );
+  assert( MB_SUCCESS == rval );
+  rval = tool.leaf_containing_point( root, right.array(), iter );
+  assert( MB_SUCCESS == rval );
+  assert( iter.handle() == leaf );
+  
+    // iterator should be at 'last' leaf 
+  rval = tool.get_last_iterator( root, iter2 );
+  assert( MB_SUCCESS == rval );
+  for (;;) {
+    assert( iter.handle() == iter2.handle() );
+    assert( iter.depth() == iter2.depth() );
+    assert( iter.box_min()[0] == iter2.box_min()[0] );
+    assert( iter.box_min()[1] == iter2.box_min()[1] );
+    assert( iter.box_min()[2] == iter2.box_min()[2] );
+    assert( iter.box_max()[0] == iter2.box_max()[0] );
+    assert( iter.box_max()[1] == iter2.box_max()[1] );
+    assert( iter.box_max()[2] == iter2.box_max()[2] );
+    
+    rval = iter2.back();
+    if (MB_SUCCESS != rval)
+      break;
+    rval = iter.back();
+    assert( MB_SUCCESS == rval );
+  }
+}
+
+  
 

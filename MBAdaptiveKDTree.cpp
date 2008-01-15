@@ -264,7 +264,7 @@ MBErrorCode MBAdaptiveKDTree::find_all_trees( MBRange& results )
 }
 
 MBErrorCode MBAdaptiveKDTree::get_tree_iterator( MBEntityHandle root,
-                                 MBAdaptiveKDTreeIter& iter )
+                                                 MBAdaptiveKDTreeIter& iter )
 {
   double box[6];
   MBErrorCode rval = moab()->tag_get_data( rootTag, &root, 1, box );
@@ -274,12 +274,23 @@ MBErrorCode MBAdaptiveKDTree::get_tree_iterator( MBEntityHandle root,
   return get_sub_tree_iterator( root, box, box+3, iter );
 }
 
-MBErrorCode MBAdaptiveKDTree::get_sub_tree_iterator( MBEntityHandle root,
-                                     const double min[3], 
-                                     const double max[3],
-                                     MBAdaptiveKDTreeIter& result ) 
+MBErrorCode MBAdaptiveKDTree::get_last_iterator( MBEntityHandle root,
+                                                 MBAdaptiveKDTreeIter& iter )
 {
-  return result.initialize( this, root, min, max );
+  double box[6];
+  MBErrorCode rval = moab()->tag_get_data( rootTag, &root, 1, box );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  return iter.initialize( this, root, box, box+3, MBAdaptiveKDTreeIter::RIGHT );
+}
+
+MBErrorCode MBAdaptiveKDTree::get_sub_tree_iterator( MBEntityHandle root,
+                                                     const double min[3], 
+                                                     const double max[3],
+                                                     MBAdaptiveKDTreeIter& result ) 
+{
+  return result.initialize( this, root, min, max, MBAdaptiveKDTreeIter::LEFT );
 }
 
 MBErrorCode MBAdaptiveKDTree::split_leaf( MBAdaptiveKDTreeIter& leaf,
@@ -302,7 +313,7 @@ MBErrorCode MBAdaptiveKDTree::split_leaf( MBAdaptiveKDTreeIter& leaf,
   if (MB_SUCCESS != set_split_plane( leaf.handle(), plane ) ||
       MB_SUCCESS != moab()->add_child_meshset( leaf.handle(), left ) ||
       MB_SUCCESS != moab()->add_child_meshset( leaf.handle(), right) ||
-      MB_SUCCESS != leaf.step_to_first_leaf()) {
+      MB_SUCCESS != leaf.step_to_first_leaf(MBAdaptiveKDTreeIter::LEFT)) {
     MBEntityHandle children[] = { left, right };
     moab()->delete_entities( children, 2 );
     return MB_FAILURE;
@@ -427,7 +438,8 @@ MBErrorCode MBAdaptiveKDTree::merge_leaf( MBAdaptiveKDTreeIter& iter )
 MBErrorCode MBAdaptiveKDTreeIter::initialize( MBAdaptiveKDTree* tool,
                                               MBEntityHandle root,
                                               const double box_min[3],
-                                              const double box_max[3] )
+                                              const double box_max[3],
+                                              Direction direction )
 {
   mStack.clear();
   treeTool = tool;
@@ -438,13 +450,14 @@ MBErrorCode MBAdaptiveKDTreeIter::initialize( MBAdaptiveKDTree* tool,
   mBox[BMAX][1] = box_max[1];
   mBox[BMAX][2] = box_max[2];
   mStack.push_back( StackObj(root,0) );
-  return step_to_first_leaf();
+  return step_to_first_leaf( direction );
 }
 
-MBErrorCode MBAdaptiveKDTreeIter::step_to_first_leaf()
+MBErrorCode MBAdaptiveKDTreeIter::step_to_first_leaf( Direction direction )
 {
   MBErrorCode rval;
   MBAdaptiveKDTree::Plane plane;
+  const Direction opposite = static_cast<Direction>(1-direction);
   
   for (;;) {
     childVect.clear();
@@ -458,17 +471,18 @@ MBErrorCode MBAdaptiveKDTreeIter::step_to_first_leaf()
     if (MB_SUCCESS != rval)
       return rval;
   
-    mStack.push_back( StackObj(childVect[0],mBox[BMAX][plane.norm]) );
-    mBox[BMAX][plane.norm] = plane.coord;
+    mStack.push_back( StackObj(childVect[direction],mBox[opposite][plane.norm]) );
+    mBox[opposite][plane.norm] = plane.coord;
   }
   return MB_SUCCESS;
 }
 
-MBErrorCode MBAdaptiveKDTreeIter::step()
+MBErrorCode MBAdaptiveKDTreeIter::step( Direction direction )
 {
   StackObj node, parent;
   MBErrorCode rval;
   MBAdaptiveKDTree::Plane plane;
+  const Direction opposite = static_cast<Direction>(1-direction);
   
     // If stack is empty, then either this iterator is uninitialized
     // or we reached the end of the iteration (and return 
@@ -494,23 +508,23 @@ MBErrorCode MBAdaptiveKDTreeIter::step()
       return rval;
     
       // If we're at the left child
-    if (childVect[0] == node.entity) {
+    if (childVect[opposite] == node.entity) {
         // change from box of left child to box of parent
-      mBox[BMAX][plane.norm] = node.coord;
+      mBox[direction][plane.norm] = node.coord;
         // push right child on stack
-      node.entity = childVect[1];
-      node.coord = mBox[BMIN][plane.norm];
+      node.entity = childVect[direction];
+      node.coord = mBox[opposite][plane.norm];
       mStack.push_back( node );
         // change from box of parent to box of right child
-      mBox[BMIN][plane.norm] = plane.coord;
+      mBox[opposite][plane.norm] = plane.coord;
         // descend to left-most leaf of the right child
-      return step_to_first_leaf();
+      return step_to_first_leaf(opposite);
     }
     
       // The current node is the right child of the parent,
       // continue up the tree.
-    assert( childVect[1] == node.entity );
-    mBox[BMIN][plane.norm] = node.coord;
+    assert( childVect[direction] == node.entity );
+    mBox[opposite][plane.norm] = node.coord;
     node = parent;
     mStack.pop_back();
   }
@@ -1090,7 +1104,7 @@ MBErrorCode MBAdaptiveKDTree::build_tree( MBRange& elems,
     return rval;
   
   MBAdaptiveKDTreeIter iter;
-  iter.initialize( this, root_set_out, bmin.array(), bmax.array() );
+  iter.initialize( this, root_set_out, bmin.array(), bmax.array(), MBAdaptiveKDTreeIter::LEFT );
   
   for (;;) {
   
@@ -1196,6 +1210,55 @@ MBErrorCode MBAdaptiveKDTree::leaf_containing_point( MBEntityHandle tree_root,
       return rval;
   }
   leaf_out = node;
+  return MB_SUCCESS;
+}
+
+MBErrorCode MBAdaptiveKDTree::leaf_containing_point( MBEntityHandle root,
+                                                     const double point[3],
+                                                     MBAdaptiveKDTreeIter& result )
+{
+    // get bounding box of tree
+  MBErrorCode rval = moab()->tag_get_data( rootTag, &root, 1, result.mBox );
+  if (MB_SUCCESS != rval)
+    return rval;
+    
+    // test that point is inside tree
+  if (point[0] < result.box_min()[0] || point[0] > result.box_max()[0] ||
+      point[1] < result.box_min()[1] || point[1] > result.box_max()[1] ||
+      point[2] < result.box_min()[2] || point[2] > result.box_max()[2])
+    return MB_ENTITY_NOT_FOUND;  
+
+    // initialize iterator at tree root
+  result.treeTool = this;
+  result.mStack.clear();
+  result.mStack.push_back( MBAdaptiveKDTreeIter::StackObj(root,0) );
+    
+    // loop until we reach a leaf
+  MBAdaptiveKDTree::Plane plane;
+  for(;;) {
+      // get children
+    result.childVect.clear();
+    rval = moab()->get_child_meshsets( result.handle(), result.childVect );
+    if (MB_SUCCESS != rval)
+      return rval;
+      
+      // if no children, then at leaf (done)
+    if (result.childVect.empty())
+      break;
+
+      // get split plane
+    rval = get_split_plane( result.handle(), plane );
+    if (MB_SUCCESS != rval) 
+      return rval;
+    
+      // step iterator to appropriate child
+      // idx: 0->left, 1->right
+    const int idx = (point[plane.norm] > plane.coord);
+    result.mStack.push_back( MBAdaptiveKDTreeIter::StackObj( result.childVect[idx], 
+                                                             result.mBox[1-idx][plane.norm] ) );
+    result.mBox[1-idx][plane.norm] = plane.coord;
+  }
+    
   return MB_SUCCESS;
 }
 

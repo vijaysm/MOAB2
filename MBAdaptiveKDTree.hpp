@@ -85,6 +85,10 @@ public:
   //! Get iterator for tree
   MBErrorCode get_tree_iterator( MBEntityHandle tree_root,
                                  MBAdaptiveKDTreeIter& result );
+  
+  //! Get iterator at right-most ('last') leaf.
+  MBErrorCode get_last_iterator( MBEntityHandle tree_root,
+                                 MBAdaptiveKDTreeIter& result );
 
   //! Get iterator for tree or subtree
   MBErrorCode get_sub_tree_iterator( MBEntityHandle tree_root,
@@ -183,6 +187,14 @@ public:
                                      const double point[3],
                                      MBEntityHandle& leaf_out );
 
+  //! Get iterator at leaf containing input position.
+  //! 
+  //! Returns MB_ENTITY_NOT_FOUND if point is not within
+  //! bounding box of tree.
+  MBErrorCode leaf_containing_point( MBEntityHandle tree_root,
+                                     const double xyz[3],
+                                     MBAdaptiveKDTreeIter& result );
+
   //! Find all leaves within a given distance from point in space.
   MBErrorCode leaves_within_distance( MBEntityHandle tree_root,
                                       const double from_point[3],
@@ -195,6 +207,10 @@ public:
 //! Iterate over leaves of an adapative kD-tree
 class MBAdaptiveKDTreeIter
 {
+public:
+
+  enum Direction { LEFT = 0, RIGHT = 1 };
+
 private:
   
   struct StackObj {
@@ -213,7 +229,7 @@ private:
   
   //! Descend tree to left most leaf from current position
   //! No-op if at leaf.
-  MBErrorCode step_to_first_leaf();
+  MBErrorCode step_to_first_leaf( Direction direction );
 
   friend class MBAdaptiveKDTree;
 public:
@@ -223,7 +239,8 @@ public:
   MBErrorCode initialize( MBAdaptiveKDTree* tool,
                           MBEntityHandle root,
                           const double box_min[3],
-                          const double box_max[3] );
+                          const double box_max[3],
+                          Direction direction );
 
   MBAdaptiveKDTree* tool() const
     { return treeTool; }
@@ -243,10 +260,25 @@ public:
     //! Get depth in tree. root is at depth of 1.
   unsigned depth() const
     { return mStack.size(); }
+  
+  //! Advance the iterator either left or right in the tree
+  //! Note:  stepping past the end of the tree will invalidate
+  //!        the iterator.  It will *not* be work step the
+  //!        other direction.
+  MBErrorCode step( Direction direction );
 
     //! Advance to next leaf
     //! Returns MB_ENTITY_NOT_FOUND if at end.
-  MBErrorCode step();
+    //! Note: steping past the end of the tree will invalidate
+    //!       the iterator. Calling back() will not work.
+  MBErrorCode step() { return step(RIGHT); }
+
+    //! Move back to previous leaf
+    //! Returns MB_ENTITY_NOT_FOUND if at beginning.
+    //! Note: steping past the start of the tree will invalidate
+    //!       the iterator. Calling step() will not work.
+  MBErrorCode back() { return step(LEFT); }
+  
   
     //! Return the side of the box bounding this tree node
     //! that is shared with the immediately adjacent sibling
