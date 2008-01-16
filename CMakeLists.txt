@@ -146,6 +146,7 @@ project( MOAB )
     SparseTagCollections.cpp
     StructuredElementSeq.cpp
     TagServer.cpp
+    TagInfo.cpp
     Tqdcfr.cpp
     TypeSequenceManager.cpp
     UnstructuredElemSeq.cpp
