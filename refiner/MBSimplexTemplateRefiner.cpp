@@ -43,42 +43,49 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
     return false;
     }
   std::vector<double> entity_coords;
-  std::vector<char> entity_tags;
-  int ts = this->edge_size_evaluator->get_vertex_tag_size();
+  std::vector<void*> entity_tags;
   entity_coords.resize( 6 * num_nodes );
-  if ( ts )
-    {
-    entity_tags.resize( num_nodes * ts );
-    }
+  entity_tags.resize( num_nodes );
+
   MBEntityType etyp = this->mesh->type_from_handle( entity );
   // Have to make num_nodes calls to get_coords() because we need xyz interleaved with rst coords.
+  MBTag tag_handle;
+  int tag_offset;
   for ( int n = 0; n < num_nodes; ++ n )
     {
     if ( this->mesh->get_coords( &conn[n], 1, &entity_coords[6 * n + 3] ) != MB_SUCCESS )
       {
       return false;
       }
-    // Still need to get tags.
+    entity_tags[n] = this->heap_tag_storage();
+    for ( int i = 0; i < this->edge_size_evaluator->get_number_of_vertex_tags(); ++ i )
+      {
+      this->edge_size_evaluator->get_vertex_tag( i, tag_handle, tag_offset );
+      if ( this->mesh->tag_get_data( tag_handle, &conn[n], 1, (char*)( entity_tags[n] ) + tag_offset ) != MB_SUCCESS )
+        {
+        return false;
+        }
+      }
     }
 
   switch ( etyp )
     {
     case MBVERTEX:
       this->assign_parametric_coordinates( 1, MBVertexParametric, &entity_coords[0] );
-      this->refine_0_simplex( &entity_coords[0], &entity_tags[0] );
+      this->refine_0_simplex( &entity_coords[0], entity_tags[0] );
       rval = false;
       break;
     case MBEDGE:
       this->assign_parametric_coordinates( 2, MBEdgeParametric, &entity_coords[0] );
       rval = this->refine_1_simplex( this->maximum_number_of_subdivisions,
-        &entity_coords[0], &entity_tags[0],  &entity_coords[6], &entity_tags[ts] );
+        &entity_coords[0], entity_tags[0],  &entity_coords[6], entity_tags[1] );
       break;
     case MBTRI:
       this->assign_parametric_coordinates( 3, MBTriParametric, &entity_coords[0] );
       rval = this->refine_2_simplex( this->maximum_number_of_subdivisions, 7,
-        &entity_coords[ 0], &entity_tags[     0],
-        &entity_coords[ 6], &entity_tags[    ts],
-        &entity_coords[12], &entity_tags[2 * ts] );
+        &entity_coords[ 0], entity_tags[0],
+        &entity_coords[ 6], entity_tags[1],
+        &entity_coords[12], entity_tags[2] );
       break;
     case MBQUAD:
       std::cerr << "Quadrilaterals not handled yet\n";

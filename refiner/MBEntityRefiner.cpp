@@ -149,7 +149,7 @@ bool MBEntityRefiner::set_maximum_number_of_subdivisions( int mx )
 void MBEntityRefiner::update_heap_size()
 {
   unsigned long n = this->get_heap_size_bound( this->maximum_number_of_subdivisions );
-  this->coord_heap.resize( 6 * n );
+  this->coord_heap.resize( 6 * n + 8 );
   if ( this->edge_size_evaluator )
     {
     unsigned long m = this->edge_size_evaluator->get_vertex_tag_size();
