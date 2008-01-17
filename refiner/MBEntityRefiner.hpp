@@ -80,6 +80,8 @@ public:
   MBEntityRefiner( MBInterface* );
   virtual ~MBEntityRefiner();
 
+  MBInterface* get_mesh() { return this->mesh; }
+
   virtual bool refine_entity( MBEntityHandle ) = 0;
   virtual unsigned long get_heap_size_bound( int max_recursions ) const = 0;
 

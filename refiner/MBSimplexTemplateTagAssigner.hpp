@@ -27,19 +27,29 @@
 #ifndef MB_SIMPLEXTEMPLATETAGASSIGNER_H
 #define MB_SIMPLEXTEMPLATETAGASSIGNER_H
 
-#include "MBMeshRefiner.hpp"
+#include "MBTypes.h" // for MB_DLL_EXPORT
+
+class MBEdgeSizeEvaluator;
+class MBSimplexTemplateRefiner;
 
 class MB_DLL_EXPORT MBSimplexTemplateTagAssigner
 {
 public:
-  MBSimplexTemplateTagAssigner( MBMeshRefiner* );
+  MBSimplexTemplateTagAssigner( MBSimplexTemplateRefiner* );
   virtual ~MBSimplexTemplateTagAssigner();
-
-  virtual void operator()( const void* ta, const void* tb, void* tp );
-  virtual void operator()( const void* ta, const void* tb, const void* tc, void* tp );
+  
+  virtual void operator () ( const double* c0, const void* t0, int i0,
+                             const double* cm, void* tm,
+                             const double* c1, const void* t1, int i1 );
+  virtual void operator () ( const void* t0,
+                             const void* t1,
+                             const void* t2,
+                             void* tp );
+  virtual void set_edge_size_evaluator( MBEdgeSizeEvaluator* es ) { this->edge_size_evaluator = es; }
 
 protected:
-  MBMeshRefiner* mesh_refiner;
+  MBSimplexTemplateRefiner* mesh_refiner;
+  MBEdgeSizeEvaluator* edge_size_evaluator;
 };
 
 #endif // MB_SIMPLEXTEMPLATETAGASSIGNER_H

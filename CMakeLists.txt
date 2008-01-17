@@ -23,6 +23,9 @@ project( MOAB )
     LIBRARY_OUTPUT_PATH
   )
 
+  # Compiler defines... this should really be in a config file.
+  set( MOAB_DEFINES "" )
+
   include ( CheckIncludeFile )
   include ( CheckFunctionExists )
   include ( CheckTypeSize )
@@ -70,6 +73,11 @@ project( MOAB )
     set ( MOAB_HAVE_PTRDIFF_T ${HAVE_PTRDIFF_T} )
   endif ( NOT MOAB_FORCE_64_BIT_HANDLES AND NOT MOAB_FORCE_32_BIT_HANDLES )
 
+  try_compile( TEMPLATE_DEFS_INCLUDED ${MOAB_BINARY_DIR} ${MOAB_SOURCE_DIR}/cmake/TemplateSpecialization.cxx OUTPUT_VARIABLE BLORT )
+  if ( TEMPLATE_DEFS_INCLUDED )
+    set ( MOAB_DEFINES "${MOAB_DEFINES} -DTEMPLATE_DEFS_INCLUDED" )
+  endif ( TEMPLATE_DEFS_INCLUDED )
+
   # find Verdict
   find_package( verdict REQUIRED )
 
@@ -95,9 +103,6 @@ project( MOAB )
 
   # iMesh
   option ( MOAB_BUILD_IMESH        "Build the iMesh interface?"           ON )
-
-  # Compiler defines... this should really be in a config file.
-  set( MOAB_DEFINES "" )
 
   # MOAB Library
   set ( MOAB_LIB_SRCS
@@ -145,6 +150,7 @@ project( MOAB )
     SequenceManager.cpp
     SparseTagCollections.cpp
     StructuredElementSeq.cpp
+    TagInfo.cpp
     TagServer.cpp
     TagInfo.cpp
     Tqdcfr.cpp

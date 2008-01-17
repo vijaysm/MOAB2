@@ -32,6 +32,8 @@
 #include "MBEntityRefiner.hpp"
 #include "MBSimplexTemplateTagAssigner.hpp"
 
+#include "MBTypes.h" // for MB_DLL_EXPORT
+
 class MB_DLL_EXPORT MBSimplexTemplateRefiner : public MBEntityRefiner
 {
 public:
@@ -41,8 +43,10 @@ public:
   virtual bool refine_entity( MBEntityHandle entity );
   virtual unsigned long get_heap_size_bound( int max_recursions ) const { return 48 * 4 * ( 1 << max_recursions ); }
 
-  virtual void set_tag_assigner( MBSimplexTemplateTagAssigner* ta ) { this->tag_assigner = ta; }
+  virtual bool set_tag_assigner( MBSimplexTemplateTagAssigner* ta );
   MBSimplexTemplateTagAssigner* get_tag_assigner() const { return this->tag_assigner; }
+
+  virtual bool set_edge_size_evaluator( MBEdgeSizeEvaluator* );
 
 protected:
   MBSimplexTemplateTagAssigner* tag_assigner;
@@ -52,9 +56,12 @@ protected:
 
   void refine_0_simplex( const double* v0, const void* t0 );
   bool refine_1_simplex( int max_depth,
-    const double* v0, const void* t0, const double* v1, const void* t1 );
+                         const double* v0, const void* t0, 
+                         const double* v1, const void* t1 );
   bool refine_2_simplex( int max_depth, int move,
-    const double* v0, const void* t0, const double* v1, const void* t1, const double* v2, const void* t2 );
+                         const double* v0, const void* t0, 
+                         const double* v1, const void* t1, 
+                         const double* v2, const void* t2 );
   bool refine_3_simplex( int max_depth,
                          double* v0, void* t0, 
                          double* v1, void* t1, 

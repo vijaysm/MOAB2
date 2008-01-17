@@ -78,29 +78,19 @@ int MBEdgeSizeEvaluator::add_vertex_tag( MBTag tag_handle )
   *\brief Return the number of bytes to allocate for tag data per point.
   */
 
-/**\brief Given endpoint coordinates and tag values plus midpoint coordinates, compute midpoint tag values.
-  *
-  * Normally, this function will be invoked by the MBEntityRefiner before evaluate_edge is called.
-  * However, if evaluate_edge() changes the parametric coordinates of the midpoint,
-  * it should call evaluate_tags_at_midpoint() again to update any tag values;
-  * that is why this function is a member of MBEdgeSizeEvaluator and not MBEntityRefiner.
-  *
-  * @param[in] c0 Pointer to endpoint 0 coordinates. The parametric coordinates (3) are followed by world coordinates (3).
-  * @param[in] t0 Pointer to endpoint 0 tag values.
-  * @param[in] cm Pointer to midpoint coordinates. The parametric coordinates (3) are followed by world coordinates (3).
-  * @param[out] tm Pointer to midpoint tag values.
-  * @param[in] c1 Pointer to endpoint 1 coordinates. The parametric coordinates (3) are followed by world coordinates (3).
-  * @param[in] t1 Pointer to endpoint 1 tag values.
+/**\fn int MBEdgeSizeEvaluator::get_number_of_vertex_tags() const
+  *\brief Return the number of tags that will be output with each new vertex.
   */
-void MBEdgeSizeEvaluator::evaluate_tags_at_midpoint( const double* c0, const void* t0, 
-                                                     const double* cm, void* tm, 
-                                                     const double* c1, const void* t1 ) const
-{
-  (void)c0;
-  (void)t0;
-  (void)cm;
-  (void)tm;
-  (void)c1;
-  (void)t1;
-}
 
+/**\brief Return the tag handle and its offset in the array of tag data of each vertex.
+  *
+  * @param[in] i An index into the list of tags for the vertex.
+  * @param[out] tag The tag handle for the $i$-th vertex tag.
+  * @param[out] byte_offset The offset (in bytes) of the start of this tag's data in a vertex tag record.
+  */
+void MBEdgeSizeEvaluator::get_vertex_tag( int i, MBTag& tag, int& byte_offset )
+{
+  std::vector< std::pair< MBTag, int > >::iterator it = this->vertex_tags.begin() + i;
+  tag = it->first;
+  byte_offset = it->second;
+}

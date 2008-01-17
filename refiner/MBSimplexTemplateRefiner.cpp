@@ -24,6 +24,7 @@ static double MBTetParametric[]    = { 0., 0., 0.,   1., 0., 0.,   0., 1., 0.,  
 MBSimplexTemplateRefiner::MBSimplexTemplateRefiner( MBInterface* mesh )
   : MBEntityRefiner( mesh )
 {
+  this->tag_assigner = new MBSimplexTemplateTagAssigner( this );
 }
 
 /// Empty destructor for good form.
@@ -124,6 +125,30 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
   return rval;
 }
 
+bool MBSimplexTemplateRefiner::set_tag_assigner( MBSimplexTemplateTagAssigner* ta )
+{ 
+  if ( ta == this->tag_assigner )
+    return false;
+  this->tag_assigner = ta; 
+  if ( ta )
+    this->tag_assigner->set_edge_size_evaluator( this->edge_size_evaluator );
+  return true;
+}
+
+
+bool MBSimplexTemplateRefiner::set_edge_size_evaluator( MBEdgeSizeEvaluator* es ) 
+{ 
+  if ( this->MBEntityRefiner::set_edge_size_evaluator( es ) )
+    {
+    if ( this->tag_assigner )
+      {
+      this->tag_assigner->set_edge_size_evaluator( es );
+      }
+    return true;
+    }
+  return false;
+}
+
 /**\fn unsigned long MBSimplexTemplateRefiner::get_heap_size_bound( int max_recursions ) const
   *\brief Bound on the number of new vertices used to allocate the heap.
   *
@@ -154,6 +179,7 @@ bool MBSimplexTemplateRefiner::refine_1_simplex(
 
   double* midptc;
   void* midptt;
+  int i0, i1;
 
   if ( max_depth-- > 0 )
     {
@@ -165,7 +191,7 @@ bool MBSimplexTemplateRefiner::refine_1_simplex(
     for ( i = 0; i < 6; i++ )
       midptc[i] = ( v0[i] + v1[i] ) / 2.;
 
-    this->edge_size_evaluator->evaluate_tags_at_midpoint( v0, t0, midptc, midptt, v1, t1 );
+    (*this->tag_assigner)( v0, t0, i0, midptc, midptt, v1, t1, i1 );
     edge_code = this->edge_size_evaluator->evaluate_edge( v0, t0, midptc, midptt, v1, t1 );
     }
 
@@ -201,6 +227,7 @@ bool MBSimplexTemplateRefiner::refine_2_simplex(
   void* midpt0t;
   void* midpt1t;
   void* midpt2t;
+  int i0, i1, i2;
 
   if ( max_depth-- > 0 )
     {
@@ -217,9 +244,9 @@ bool MBSimplexTemplateRefiner::refine_2_simplex(
       midpt1c[i] = ( v1[i] + v2[i] ) / 2.;
       midpt2c[i] = ( v2[i] + v0[i] ) / 2.;
       }
-    this->edge_size_evaluator->evaluate_tags_at_midpoint( v0, t0, midpt0c, midpt0t, v1, t1 );
-    this->edge_size_evaluator->evaluate_tags_at_midpoint( v1, t1, midpt1c, midpt1t, v2, t2 );
-    this->edge_size_evaluator->evaluate_tags_at_midpoint( v2, t2, midpt2c, midpt2t, v0, t0 );
+    (*this->tag_assigner)( v0, t0, i0, midpt0c, midpt0t, v1, t1, i1 );
+    (*this->tag_assigner)( v1, t1, i1, midpt1c, midpt1t, v2, t2, i2 );
+    (*this->tag_assigner)( v2, t2, i2, midpt2c, midpt2t, v0, t0, i0 );
     if ( ( move & 1 ) && this->edge_size_evaluator->evaluate_edge( v0, t0, midpt0c, midpt0t, v1, t1 ) )
       edge_code += 1;
     if ( ( move & 2 ) && this->edge_size_evaluator->evaluate_edge( v1, t1, midpt1c, midpt1t, v2, t2 ) )
@@ -329,6 +356,8 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
   void* midpt4t;
   void* midpt5t;
 
+  int i0, i1, i2, i3;
+
   if ( max_depth-- > 0 )
     {
     midpt0c = this->heap_coord_storage();
@@ -355,12 +384,12 @@ bool MBSimplexTemplateRefiner::refine_3_simplex( int max_depth,
       midpt5c[i] = ( v2[i] + v3[i] ) * .5;
       }
 
-    this->edge_size_evaluator->evaluate_tags_at_midpoint( v0, t0, midpt0c, midpt0t, v1, t1 );
-    this->edge_size_evaluator->evaluate_tags_at_midpoint( v1, t1, midpt1c, midpt1t, v2, t2 );
-    this->edge_size_evaluator->evaluate_tags_at_midpoint( v2, t2, midpt2c, midpt2t, v0, t0 );
-    this->edge_size_evaluator->evaluate_tags_at_midpoint( v0, t0, midpt3c, midpt3t, v3, t3 );
-    this->edge_size_evaluator->evaluate_tags_at_midpoint( v1, t1, midpt4c, midpt4t, v3, t3 );
-    this->edge_size_evaluator->evaluate_tags_at_midpoint( v2, t2, midpt5c, midpt5t, v3, t3 );
+    (*this->tag_assigner)( v0, t0, i0, midpt0c, midpt0t, v1, t1, i1 );
+    (*this->tag_assigner)( v1, t1, i1, midpt1c, midpt1t, v2, t2, i2 );
+    (*this->tag_assigner)( v2, t2, i2, midpt2c, midpt2t, v0, t0, i0 );
+    (*this->tag_assigner)( v0, t0, i0, midpt3c, midpt3t, v3, t3, i3 );
+    (*this->tag_assigner)( v1, t1, i1, midpt4c, midpt4t, v3, t3, i3 );
+    (*this->tag_assigner)( v2, t2, i2, midpt5c, midpt5t, v3, t3, i3 );
 
     if ( this->edge_size_evaluator->evaluate_edge( v0, t0, midpt0c, midpt0t, v1, t1 ) )
       edge_code |=  1;
