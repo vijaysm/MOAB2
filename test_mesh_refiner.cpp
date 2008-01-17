@@ -64,10 +64,10 @@ int TestMeshRefiner( int argc, char* argv[] )
   MBEntityHandle tri_handle;
 
   MBTag tag_floatular;
-  iface->tag_create( "floatular", 2 * sizeof( double ), MB_TAG_DENSE, tag_floatular, default_floatular );
+  iface->tag_create( "floatular", 2 * sizeof( double ), MB_TAG_DENSE, MB_TYPE_DOUBLE, tag_floatular, default_floatular );
 
   MBTag tag_intular;
-  iface->tag_create( "intular", 4 * sizeof( int ), MB_TAG_DENSE, tag_intular, default_intular );
+  iface->tag_create( "intular", 4 * sizeof( int ), MB_TAG_DENSE, MB_TYPE_INTEGER, tag_intular, default_intular );
 
   iface->create_vertex( p0, node_handles[0] );
   iface->create_vertex( p2, node_handles[1] );
