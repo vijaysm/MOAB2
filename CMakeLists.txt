@@ -152,7 +152,6 @@ project( MOAB )
     StructuredElementSeq.cpp
     TagInfo.cpp
     TagServer.cpp
-    TagInfo.cpp
     Tqdcfr.cpp
     TypeSequenceManager.cpp
     UnstructuredElemSeq.cpp
