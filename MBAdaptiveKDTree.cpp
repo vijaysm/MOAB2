@@ -157,8 +157,8 @@ MBAdaptiveKDTree::MBAdaptiveKDTree( MBInterface* mb, const char* tagname_in, uns
   MAKE_TAG( root_name, MB_TAG_SPARSE, MB_TYPE_DOUBLE, 6, rootTag, 0 )
 }
 
-inline MBErrorCode MBAdaptiveKDTree::get_split_plane( MBEntityHandle entity,
-                                                      Plane& plane )
+MBErrorCode MBAdaptiveKDTree::get_split_plane( MBEntityHandle entity,
+                                               Plane& plane )
 {
 #ifndef MB_AD_KD_TREE_USE_SINGLE_TAG
   MBErrorCode r1, r2;
@@ -176,8 +176,8 @@ inline MBErrorCode MBAdaptiveKDTree::get_split_plane( MBEntityHandle entity,
 #endif
 }
 
-inline MBErrorCode MBAdaptiveKDTree::set_split_plane( MBEntityHandle entity, 
-                                                      const Plane& plane )
+MBErrorCode MBAdaptiveKDTree::set_split_plane( MBEntityHandle entity, 
+                                               const Plane& plane )
 {
 #ifndef MB_AD_KD_TREE_USE_SINGLE_TAG
   MBErrorCode r1, r2;
