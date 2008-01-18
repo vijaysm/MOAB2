@@ -30,7 +30,9 @@ MBEntityRefiner::~MBEntityRefiner()
 /**\fn int MBEntityRefiner::get_heap_size_bound( int max_recursions ) const
   *\brief When an entity is refined, what is the maximum number of new vertices that will be created?
   *
-  * This must be the maximum number of vertices for any entity type (tetrahedra, hexahedra, etc.).
+  * This must be the maximum number of initial corner vertices for any entity type (hex, tet, etc.)
+  * to be processed plus the maximum number of new vertices that might be created at edge or face
+  * mid-points during the refinement of a single entity.
   */
 
 /**\brief Set the object that specifies which edges of a given entity should be subdivided.
@@ -149,7 +151,7 @@ bool MBEntityRefiner::set_maximum_number_of_subdivisions( int mx )
 void MBEntityRefiner::update_heap_size()
 {
   unsigned long n = this->get_heap_size_bound( this->maximum_number_of_subdivisions );
-  this->coord_heap.resize( 6 * n + 8 );
+  this->coord_heap.resize( 6 * n );
   if ( this->edge_size_evaluator )
     {
     unsigned long m = this->edge_size_evaluator->get_vertex_tag_size();

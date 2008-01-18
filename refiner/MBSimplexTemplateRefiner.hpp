@@ -41,7 +41,7 @@ public:
   virtual ~MBSimplexTemplateRefiner();
 
   virtual bool refine_entity( MBEntityHandle entity );
-  virtual unsigned long get_heap_size_bound( int max_recursions ) const { return 48 * 4 * ( 1 << max_recursions ); }
+  virtual unsigned long get_heap_size_bound( int max_recursions ) const { return 48 * 4 * ( 1 << max_recursions ) + 8; }
 
   virtual bool set_tag_assigner( MBSimplexTemplateTagAssigner* ta );
   MBSimplexTemplateTagAssigner* get_tag_assigner() const { return this->tag_assigner; }
@@ -50,6 +50,9 @@ public:
 
 protected:
   MBSimplexTemplateTagAssigner* tag_assigner;
+  std::vector<double> corner_coords;
+  std::vector<void*> corner_tags;
+
   static int template_index[64][2];
   static int permutations_from_index[24][14];
   static int templates[];

@@ -25,13 +25,18 @@ MBSimplexTemplateRefiner::MBSimplexTemplateRefiner( MBInterface* mesh )
   : MBEntityRefiner( mesh )
 {
   this->tag_assigner = new MBSimplexTemplateTagAssigner( this );
+  this->corner_coords.resize( 6 * 8 ); // Hex has 8 verts w/ 6 coordinates each
+  this->corner_tags.resize( 8 ); // Hex has 8 verts (this is a pointer, not the actual tag data)
 }
 
 /// Empty destructor for good form.
 MBSimplexTemplateRefiner::~MBSimplexTemplateRefiner()
 {
+  delete this->tag_assigner;
 }
 
+/**\brief Stream a single mesh entity through the refiner.
+  */
 bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
 {
   this->reset_heap_pointers();
@@ -42,50 +47,50 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
     {
     return false;
     }
-  std::vector<double> entity_coords;
-  std::vector<void*> entity_tags;
-  entity_coords.resize( 6 * num_nodes );
-  entity_tags.resize( num_nodes );
+  this->corner_coords.resize( 6 * num_nodes );
+  this->corner_tags.resize( num_nodes );
 
   MBEntityType etyp = this->mesh->type_from_handle( entity );
   // Have to make num_nodes calls to get_coords() because we need xyz interleaved with rst coords.
   MBTag tag_handle;
   int tag_offset;
+  void* tag_data;
   for ( int n = 0; n < num_nodes; ++ n )
     {
-    if ( this->mesh->get_coords( &conn[n], 1, &entity_coords[6 * n + 3] ) != MB_SUCCESS )
+    if ( this->mesh->get_coords( &conn[n], 1, &corner_coords[6 * n + 3] ) != MB_SUCCESS )
       {
       return false;
       }
-    entity_tags[n] = this->heap_tag_storage();
+    tag_data = this->heap_tag_storage();
     for ( int i = 0; i < this->edge_size_evaluator->get_number_of_vertex_tags(); ++ i )
       {
       this->edge_size_evaluator->get_vertex_tag( i, tag_handle, tag_offset );
-      if ( this->mesh->tag_get_data( tag_handle, &conn[n], 1, (char*)( entity_tags[n] ) + tag_offset ) != MB_SUCCESS )
+      if ( this->mesh->tag_get_data( tag_handle, &conn[n], 1, (char*)tag_data + tag_offset ) != MB_SUCCESS )
         {
         return false;
         }
       }
+    this->corner_tags[n] = tag_data;
     }
 
   switch ( etyp )
     {
     case MBVERTEX:
-      this->assign_parametric_coordinates( 1, MBVertexParametric, &entity_coords[0] );
-      this->refine_0_simplex( &entity_coords[0], entity_tags[0] );
+      this->assign_parametric_coordinates( 1, MBVertexParametric, &this->corner_coords[0] );
+      this->refine_0_simplex( &this->corner_coords[0], this->corner_tags[0] );
       rval = false;
       break;
     case MBEDGE:
-      this->assign_parametric_coordinates( 2, MBEdgeParametric, &entity_coords[0] );
+      this->assign_parametric_coordinates( 2, MBEdgeParametric, &this->corner_coords[0] );
       rval = this->refine_1_simplex( this->maximum_number_of_subdivisions,
-        &entity_coords[0], entity_tags[0],  &entity_coords[6], entity_tags[1] );
+        &this->corner_coords[0], this->corner_tags[0],  &this->corner_coords[6], this->corner_tags[1] );
       break;
     case MBTRI:
-      this->assign_parametric_coordinates( 3, MBTriParametric, &entity_coords[0] );
+      this->assign_parametric_coordinates( 3, MBTriParametric, &this->corner_coords[0] );
       rval = this->refine_2_simplex( this->maximum_number_of_subdivisions, 7,
-        &entity_coords[ 0], entity_tags[0],
-        &entity_coords[ 6], entity_tags[1],
-        &entity_coords[12], entity_tags[2] );
+        &this->corner_coords[ 0], this->corner_tags[0],
+        &this->corner_coords[ 6], this->corner_tags[1],
+        &this->corner_coords[12], this->corner_tags[2] );
       break;
     case MBQUAD:
       std::cerr << "Quadrilaterals not handled yet\n";
@@ -96,7 +101,7 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
       rval = false;
       break;
     case MBTET:
-      this->assign_parametric_coordinates( 4, MBTetParametric, &entity_coords[0] );
+      this->assign_parametric_coordinates( 4, MBTetParametric, &this->corner_coords[0] );
       rval = this->refine_3_simplex( 0, 0, 0, 0, 0, 0, 0, 0, 0 ); // FIXME
       break;
     case MBPYRAMID:
@@ -132,25 +137,30 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
   return rval;
 }
 
+/**\brief Set the function object used to decide which tag values an edge or face midpoint is assigned.
+  *
+  * This will change the tag assigner's edge size evaluator to match the refiner's.
+  * @param[in] ta The new tag assigner. This must be non-NULL.
+  * @retval True if the tag assigner was changed and false otherwise.
+  */
 bool MBSimplexTemplateRefiner::set_tag_assigner( MBSimplexTemplateTagAssigner* ta )
 { 
-  if ( ta == this->tag_assigner )
+  if ( ! ta || ta == this->tag_assigner )
     return false;
+
   this->tag_assigner = ta; 
-  if ( ta )
-    this->tag_assigner->set_edge_size_evaluator( this->edge_size_evaluator );
+  this->tag_assigner->set_edge_size_evaluator( this->edge_size_evaluator );
   return true;
 }
 
 
+/**\brief Set the function object used to decide whether an edge is subdivided or not.
+  */
 bool MBSimplexTemplateRefiner::set_edge_size_evaluator( MBEdgeSizeEvaluator* es ) 
 { 
   if ( this->MBEntityRefiner::set_edge_size_evaluator( es ) )
     {
-    if ( this->tag_assigner )
-      {
-      this->tag_assigner->set_edge_size_evaluator( es );
-      }
+    this->tag_assigner->set_edge_size_evaluator( es );
     return true;
     }
   return false;
