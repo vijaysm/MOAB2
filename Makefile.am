@@ -210,7 +210,7 @@ libMOAB_la_include_HEADERS = \
   MBError.hpp \
   MBForward.hpp \
   MBGeomUtil.hpp \
-  MBHandleUtils.cpp \
+  MBHandleUtils.hpp \
   MBInterface.hpp \
   MBOrientedBox.hpp \
   MBOrientedBoxTreeTool.hpp \
