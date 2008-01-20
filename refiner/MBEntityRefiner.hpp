@@ -70,7 +70,7 @@ class MB_DLL_EXPORT MBEntityRefinerOutputFunctor
 {
 public:
   virtual ~MBEntityRefinerOutputFunctor() { }
-  virtual void operator () ( const double* vcoords, const void* vtags ) = 0;
+  virtual void operator () ( const double* vcoords, const void* vtags, MBEntityHandle* vhash ) = 0;
   virtual void operator () ( MBEntityType etyp ) = 0;
 };
 
@@ -107,11 +107,15 @@ protected:
   std::vector<double>::iterator current_coord;
   std::vector<char> tag_heap;
   std::vector<char>::iterator current_tag;
+  std::vector<MBEntityHandle> hash_heap;
+  std::vector<MBEntityHandle>::iterator current_hash;
 
   void update_heap_size();
   void reset_heap_pointers();
   double* heap_coord_storage();
   void* heap_tag_storage();
+  MBEntityHandle* heap_hash_storage( MBEntityHandle* h0, MBEntityHandle* h1 );
+  MBEntityHandle* heap_hash_storage( int sz );
 };
 
 #endif // MB_ENTITYREFINER_H
