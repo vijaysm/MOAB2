@@ -7,7 +7,7 @@
 
 class MBTestOutputFunctor : public MBEntityRefinerOutputFunctor
 {
-  virtual void operator () ( const double* vcoords, const void* vtags )
+  virtual void operator () ( const double* vcoords, const void* vtags, MBEntityHandle* vhash )
     {
     std::cout << "[ " << vcoords[0];
     for ( int i = 1; i < 6; ++i )
@@ -20,7 +20,13 @@ class MBTestOutputFunctor : public MBEntityRefinerOutputFunctor
               << ", " << x[1];
     for ( int i = 0; i < 4; ++i )
       std::cout << ", " << m[i];
-    std::cout << " >\n";
+    std::cout << " > { ";
+    while ( *vhash )
+      {
+      std::cout << *vhash << " ";
+      ++ vhash;
+      }
+    std::cout << "}\n";
     }
 
   virtual void operator () ( MBEntityType etyp )
