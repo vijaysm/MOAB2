@@ -7,6 +7,18 @@
 
 class MBTestOutputFunctor : public MBEntityRefinerOutputFunctor
 {
+public:
+  typedef std::vector<MBEntityHandle> node_list_t;
+  typedef std::pair<MBEntityHandle,MBEntityHandle> node_pair_t;
+  typedef std::map<MBEntityHandle,MBEntityHandle> node_hash_t;
+  typedef std::map<node_pair_t,MBEntityHandle> edge_hash_t;
+
+  MBInterface* mesh;
+  bool input_is_output;
+  node_hash_t node_hash;
+  edge_hash_t edge_hash;
+  node_list_t elem_vert;
+
   virtual void operator () ( const double* vcoords, const void* vtags, MBEntityHandle* vhash )
     {
     std::cout << "[ " << vcoords[0];
@@ -21,17 +33,80 @@ class MBTestOutputFunctor : public MBEntityRefinerOutputFunctor
     for ( int i = 0; i < 4; ++i )
       std::cout << ", " << m[i];
     std::cout << " > { ";
-    while ( *vhash )
+    MBEntityHandle* vin = vhash;
+    while ( *vin )
       {
-      std::cout << *vhash << " ";
-      ++ vhash;
+      std::cout << *vin << " ";
+      ++ vin;
       }
     std::cout << "}\n";
+
+    MBEntityHandle vertex_handle;
+    if ( ! vhash[1] )
+      {
+      if ( this->input_is_output )
+        { // Don't copy the original vertex!
+        vertex_handle = vhash[0];
+        }
+      else
+        {
+        node_hash_t::iterator it = this->node_hash.find( vhash[0] );
+        if ( it == this->node_hash.end() )
+          {
+          if ( this->mesh->create_vertex( vcoords + 3, vertex_handle ) != MB_SUCCESS )
+            {
+            std::cerr << "Could not insert corner vertex!\n";
+            }
+          this->node_hash[vhash[0]] = vertex_handle;
+          }
+        else
+          {
+          vertex_handle = it->second;
+          }
+        }
+      }
+    else if ( ! vhash[2] )
+      {
+      node_pair_t pr;
+      if ( vhash[0] < vhash[1] )
+        {
+        pr.first = vhash[0];
+        pr.second = vhash[1];
+        }
+      else
+        {
+        pr.first = vhash[1];
+        pr.second = vhash[0];
+        }
+      edge_hash_t::iterator it = this->edge_hash.find( pr );
+      if ( it == this->edge_hash.end() )
+        {
+        if ( this->mesh->create_vertex( vcoords + 3, vertex_handle ) != MB_SUCCESS )
+          {
+          std::cerr << "Could not insert mid-edge vertex!\n";
+          }
+        this->edge_hash[pr] = vertex_handle;
+        }
+      else
+        {
+        vertex_handle = it->second;
+        }
+      }
+    else
+      {
+      std::cerr << "Not handling mid-face vertices yet.\n";
+      // FIXME: Handle face midpoint.
+      }
+    std::cout << "        -> " << vertex_handle << "\n";
+    this->elem_vert.push_back( vertex_handle );
     }
 
   virtual void operator () ( MBEntityType etyp )
     {
     std::cout << "---------- " << etyp << "\n\n";
+    MBEntityHandle elem_handle;
+    this->mesh->create_element( etyp, &this->elem_vert[0], this->elem_vert.size(), elem_handle );
+    this->elem_vert.clear();
     }
 };
 
@@ -89,10 +164,14 @@ int TestMeshRefiner( int argc, char* argv[] )
 
   MBSimplexTemplateRefiner eref( iface );
   MBTestOutputFunctor* ofunc = new MBTestOutputFunctor;
+  ofunc->input_is_output = ( argc > 1 && ! strcmp( argv[1], "-new-mesh" ) ) ? false : true;
+  ofunc->mesh = ofunc->input_is_output ? iface : new MBCore;
   eref.set_edge_size_evaluator( eval );
   eref.set_output_functor( ofunc );
   eref.refine_entity( tri_handle );
 
+  if ( ! ofunc->input_is_output )
+    delete ofunc->mesh;
   delete iface;
   return 0;
 }
