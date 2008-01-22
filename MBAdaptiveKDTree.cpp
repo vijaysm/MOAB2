@@ -676,6 +676,15 @@ MBErrorCode MBAdaptiveKDTreeIter::sibling_side(
   return MB_SUCCESS;
 }
 
+MBErrorCode MBAdaptiveKDTreeIter::get_parent_split_plane( MBAdaptiveKDTree::Plane& plane ) const
+{
+  if (mStack.size() < 2) // at tree root
+    return MB_ENTITY_NOT_FOUND;
+  
+  MBEntityHandle parent = mStack[mStack.size()-2].entity;
+  return tool()->get_split_plane( parent, plane );
+}
+
 
 static MBErrorCode intersect_children_with_elems( MBInterface* moab,
                                         const MBRange& elems,

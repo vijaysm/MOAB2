@@ -308,6 +308,9 @@ public:
     //! existing values in the 'results' vector.
   MBErrorCode get_neighbors( MBAdaptiveKDTree::Axis norm, bool neg,
                              std::vector<MBAdaptiveKDTreeIter>& results ) const;
+  
+    //! Get split plane that separates this node from its immediate sibling.
+  MBErrorCode get_parent_split_plane( MBAdaptiveKDTree::Plane& plane ) const;
 };
 
 #endif
