@@ -1015,13 +1015,19 @@ MBErrorCode Tqdcfr::read_nodes(const unsigned int gindex,
       // compute the max cid; map is indexed by cid, so size is max_cid+1
 #define MAX(a,b) (a > b ? a : b)
 #define MIN(a,b) (a < b ? a : b)
-    max_cid = MAX(max_cid, ((unsigned int) *vrange.rbegin()-currVHandleOffset));
+      // sanity check that max vhandle is larger than offset
+    long new_max = *vrange.rbegin()-currVHandleOffset;
+    assert(new_max >= 0 && *vrange.begin() - currVHandleOffset >= 0);
+    max_cid = MAX(max_cid, ((unsigned int) new_max));
     cubMOABVertexMap = new std::vector<MBEntityHandle>(max_cid+1);
       // initialize to zero then put previous vertices into the map
     std::fill(cubMOABVertexMap->begin(), cubMOABVertexMap->end(), 0);
     MBRange::iterator rit;
-    for (rit = vrange.begin(); rit != vrange.end(); rit++)
+    for (rit = vrange.begin(); rit != vrange.end(); rit++) {
+      assert(*rit-currVHandleOffset >= 0 &&
+             *rit-currVHandleOffset <= max_cid);
       (*cubMOABVertexMap)[*rit - currVHandleOffset] = *rit;
+    }
   }
     // case B: there is a map and we need to resize it
   else if (cubMOABVertexMap && max_cid+1 > cubMOABVertexMap->size()) {
@@ -2132,7 +2138,7 @@ MBErrorCode Tqdcfr::parse_acis_attribs(const unsigned int entity_rec_num,
 MBErrorCode Tqdcfr::reset_record(AcisRecord &this_record) 
 {
   this_record.rec_type = Tqdcfr::UNKNOWN;
-  static std::string blank;
+  static const std::string blank;
   this_record.att_string = blank;
   this_record.first_attrib = this_record.att_prev = 
     this_record.att_next = this_record.att_ent_num = -1;
