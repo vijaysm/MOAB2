@@ -150,7 +150,7 @@ MBReaderIface* Tqdcfr::factory( MBInterface* iface )
 Tqdcfr::Tqdcfr(MBInterface *impl) 
     : cubFile(NULL), globalIdTag(0), geomTag(0), uniqueIdTag(0), 
       blockTag(0), nsTag(0), ssTag(0), attribVectorTag(0), entityNameTag(0),
-      categoryTag(0)
+      categoryTag(0), hasMidNodesTag(0)
 {
   assert(NULL != impl);
   mdbImpl = impl;
@@ -1001,19 +1001,13 @@ MBErrorCode Tqdcfr::read_nodes(const unsigned int gindex,
 
     // compute the offset we get in this batch and compare to any previous one
   long vhandle_offset = vhandle - min_cid;
+  if (-1 == currVHandleOffset) currVHandleOffset = vhandle_offset;
 
-    // first case: no previous offset; set one
-  if (!cubMOABVertexMap && -1 == currVHandleOffset) 
-    currVHandleOffset = vhandle_offset;
-  
-    // second case: this offset same as previous
-  else if (!cubMOABVertexMap && -1 != currVHandleOffset && 
-           currVHandleOffset == vhandle_offset) {
-    assert(true);
-  }
-    // third case: this offset different from previous and no
-    // map yet
-  else if (currVHandleOffset != vhandle_offset && !cubMOABVertexMap) {
+    // In 2 situations we'll need to add/modify a cubit_id -> vhandle map:
+    // case A: no map yet, and either this offset different from 
+    // previous or not contiguous
+  if (!cubMOABVertexMap &&
+      (currVHandleOffset != vhandle_offset || !contig)) {
       // get all vertices, removing ones in this batch
     MBRange vrange;
     result = mdbImpl->get_entities_by_type(0, MBVERTEX, vrange); RR;
@@ -1029,7 +1023,7 @@ MBErrorCode Tqdcfr::read_nodes(const unsigned int gindex,
     for (rit = vrange.begin(); rit != vrange.end(); rit++)
       (*cubMOABVertexMap)[*rit - currVHandleOffset] = *rit;
   }
-    // fourth case: there is a map and we need to resize it
+    // case B: there is a map and we need to resize it
   else if (cubMOABVertexMap && max_cid+1 > cubMOABVertexMap->size()) {
       unsigned int old_size = cubMOABVertexMap->size();
       cubMOABVertexMap->resize(max_cid+1);
@@ -1038,10 +1032,30 @@ MBErrorCode Tqdcfr::read_nodes(const unsigned int gindex,
   }
     
     // ok, we have a map or don't need one
-  
   if (NULL == cubMOABVertexMap) {
-      // if not contiguous, re-order coordinates for handles so that they are
-    if (!contig) assert(false);
+      // if we're not forward-contiguous (i.e. we're reverse or
+      // out-of-order contiguous), re-order coordinates for handles 
+      // so that they are
+    if (-1 == contig || -2 == contig) {
+        // in case the arrays are large, do each coord separately
+      std::vector<double> tmp_coords(entity->nodeCt);
+      for (unsigned int j = 0; j < 3; j++) {
+          // permute the coords into new order
+        for (unsigned int i = 0; i < entity->nodeCt; i++) {
+          assert(uint_buf[i]-min_cid >= 0 && 
+                 max_cid-uint_buf[i] < entity->nodeCt);
+          tmp_coords[uint_buf[i]-min_cid] = arrays[j][i];
+        }
+          // copy the permuted to storage
+        std::copy(&tmp_coords[0], &tmp_coords[0]+entity->nodeCt, arrays[j]);
+      }
+        // now re-order the ids; either way just go off min, max cid
+      for (unsigned int i = 0; i < entity->nodeCt; i++)
+        uint_buf[i] = min_cid+i;
+    }
+    else if (!contig)
+        // shouldn't get here, since in non-contig case map should be there
+      assert(false);
   }
   else {
       // put new vertices into the map
@@ -1559,17 +1573,16 @@ MBErrorCode Tqdcfr::BlockHeader::read_info_header(const double data_version,
     if (num_verts != MBCN::VerticesPerEntity(block_headers[i].blockEntityType)) {
         // not a linear element; try to find hasMidNodes values
       int has_mid_nodes[] = {0, 0, 0, 0};
-      static MBTag hasMidNodesTag = 0;
-      if (0 == hasMidNodesTag) {
+      if (0 == instance->hasMidNodesTag) {
         result = instance->mdbImpl->tag_create(HAS_MID_NODES_TAG_NAME, 4*sizeof(int), MB_TAG_SPARSE, 
-                                               MB_TYPE_INTEGER, hasMidNodesTag, has_mid_nodes);
+                                               MB_TYPE_INTEGER, instance->hasMidNodesTag, has_mid_nodes);
         if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
       }
       
       MBCN::HasMidNodes(block_headers[i].blockEntityType, num_verts, has_mid_nodes);
 
         // now set the tag on this set
-      result = instance->mdbImpl->tag_set_data(hasMidNodesTag, &block_headers[i].setHandle, 1,
+      result = instance->mdbImpl->tag_set_data(instance->hasMidNodesTag, &block_headers[i].setHandle, 1,
                                                has_mid_nodes);
       if (MB_SUCCESS != result) return result;
     }

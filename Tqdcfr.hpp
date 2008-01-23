@@ -277,7 +277,7 @@ public:
   long currVHandleOffset;
   long currElementIdOffset[MBMAXTYPE];
   MBTag globalIdTag, cubIdTag, geomTag, uniqueIdTag, blockTag, nsTag, ssTag,
-    attribVectorTag, entityNameTag, categoryTag;
+    attribVectorTag, entityNameTag, categoryTag, hasMidNodesTag;
   std::map<int, MBEntityHandle> uidSetMap;
   std::map<int, MBEntityHandle> gidSetMap[6];
 
