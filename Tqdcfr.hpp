@@ -44,12 +44,13 @@ class Tqdcfr : public MBReaderIface
 public:  
 
   void FSEEK( unsigned offset );        // set cubFile offset to specified value
-  void FREADI( unsigned num_ents ); // read integers into int_buf
+  void FREADI( unsigned num_ents ); // read integers into uint_buf
   void FREADD( unsigned num_ents ); // read doubles into dbl_buf
   void FREADC( unsigned num_ents ); // read characters into char_buf
   void FREADIA( unsigned num_ents,    unsigned int* array ); // read integers
   void FREADDA( unsigned num_ents, double* array ); // read doubles
   void FREADCA( unsigned num_ents,   char* arrat ); // read bytes
+  void CONVERT_TO_INTS(unsigned int num_ents); // convert uint_buf to int_buf in-place
 
     // class for holding the file table of contents
   class FileTOC
@@ -76,7 +77,7 @@ public:
       ArrayInfo();
       
       void print();
-      void init(const std::vector<unsigned int>& int_buf);
+      void init(const std::vector<unsigned int>& uint_buf);
     };
     
     ArrayInfo geomArray, nodeArray, elementArray, groupArray, 
@@ -273,14 +274,15 @@ public:
   FileTOC fileTOC;
   ModelEntry *modelEntries;
   MetaDataContainer modelMetaData;
-  long currNodeIdOffset;
+  long currVHandleOffset;
   long currElementIdOffset[MBMAXTYPE];
   MBTag globalIdTag, cubIdTag, geomTag, uniqueIdTag, blockTag, nsTag, ssTag,
     attribVectorTag, entityNameTag, categoryTag;
   std::map<int, MBEntityHandle> uidSetMap;
   std::map<int, MBEntityHandle> gidSetMap[6];
 
-  std::vector<unsigned int> int_buf;
+  std::vector<unsigned int> uint_buf;
+  int *int_buf;
   std::vector<double> dbl_buf;
   std::vector<char> char_buf;
 
@@ -317,7 +319,8 @@ public:
   
   enum {mesh, acist, acisb, facet, exodusmesh};
   MBEntityType type_from_cub_type(const unsigned int cub_type, const unsigned int nodes_per_elem);
-  void check_contiguous(const unsigned int num_ents, long &contig, long &max_id);
+  void check_contiguous(const unsigned int num_ents, int &contig, 
+                        unsigned int &min_id, unsigned int &max_id);
 
   Tqdcfr(MBInterface *impl);
 
@@ -375,28 +378,28 @@ private:
     //! get entities with individually-specified types; if is_group is false, 
     //! increment each mem_type by 2 since they're CSOEntityType's and not group types
   MBErrorCode get_entities(const unsigned int *mem_types,
-                           unsigned int *id_buf, const unsigned int id_buf_size,
+                           int *id_buf, const unsigned int id_buf_size,
                            const bool is_group,
                            std::vector<MBEntityHandle> &entities);
   
     //! get entities specified by type and ids, append to entities
   MBErrorCode get_entities(const unsigned int this_type, 
-                           unsigned int *id_buf, const unsigned int id_buf_size,
+                           int *id_buf, const unsigned int id_buf_size,
                            std::vector<MBEntityHandle> &entities,
                            std::vector<MBEntityHandle> &excl_entities);
   
     //! get ref entity sets with specified type and ids
   MBErrorCode get_ref_entities(const unsigned int this_type, 
-                               unsigned int *id_buf, const unsigned id_buf_size,
+                               int *id_buf, const unsigned id_buf_size,
                                std::vector<MBEntityHandle> &entities);
   
     //! get mesh entities with specified type and ids
   MBErrorCode get_mesh_entities(const unsigned int this_type, 
-                                unsigned int *id_buf, const unsigned id_buf_size,
+                                int *id_buf, const unsigned id_buf_size,
                                 std::vector<MBEntityHandle> &entities,
                                 std::vector<MBEntityHandle> &excl_entities);
   
-    //! process entities in a sideset according to sense flags stored in int_buf
+    //! process entities in a sideset according to sense flags stored in uint_buf
     //! or char_buf (depending on sense_size)
   MBErrorCode process_sideset_10(const int this_type, const int num_ents,
                                  const int sense_size,
@@ -404,7 +407,7 @@ private:
                                  Tqdcfr::SidesetHeader *sideseth);
 
   MBErrorCode process_sideset_11(std::vector<MBEntityHandle> &ss_entities,
-                                 std::vector<unsigned int> &wrt_ents,
+                                 int num_wrts,
                                  Tqdcfr::SidesetHeader *sideseth);
   
     // put entities into the specfied set, and excluded entities into a 
