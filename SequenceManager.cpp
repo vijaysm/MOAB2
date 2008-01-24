@@ -756,7 +756,7 @@ MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
                                            const void* value,
                                            const void* default_value )
 {
-  if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
+  if (tag_id >= tagSizes.size() || tagSizes[tag_id] < 1)
     return MB_TAG_NOT_FOUND;
 
   EntitySequence* seq = 0;
@@ -775,12 +775,40 @@ MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
 }
 
 MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
+                                           MBEntityHandle handle,
+                                           const void* value,
+                                           const void* default_value,
+                                           int length )
+{
+  if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
+    return MB_TAG_NOT_FOUND;
+  if (tagSizes[tag_id] != MB_VARIABLE_LENGTH && length != tagSizes[tag_id])
+    return MB_INVALID_SIZE;
+
+  EntitySequence* seq = 0;
+  MBErrorCode rval = find( handle, seq );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  void* tag_array = seq->data()->get_tag_data( tag_id );
+  if (!tag_array)
+    tag_array = seq->data()->create_tag_data( tag_id, sizeof(VarLenTag), default_value );
+  
+  VarLenTag* tag_data = reinterpret_cast<VarLenTag*>(tag_array) + 
+                        (handle - seq->data()->start_handle());
+  memcpy( tag_data->resize(length), value, length );
+  return MB_SUCCESS;
+}
+
+MBErrorCode SequenceManager::set_tag_data( MBTagId tag_id,
                                            const MBRange& handles,
                                            const void* values,
                                            const void* default_value )
 {
   MBErrorCode rval, result = MB_SUCCESS;
-  if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
+    // NOTE: Comparison of size to 1 should also catch 
+    //       case where tag is variable-length.  
+  if (tag_id >= tagSizes.size() || tagSizes[tag_id] < 1)
     return MB_TAG_NOT_FOUND;
     
   const char* data = reinterpret_cast<const char*>(values);
@@ -825,7 +853,9 @@ MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
                                            MBEntityHandle handle,
                                            void* value ) const
 {
-  if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
+    // NOTE: Comparison of size to 1 should also catch 
+    //       case where tag is variable-length.  
+  if (tag_id >= tagSizes.size() || tagSizes[tag_id] < 1)
     return MB_TAG_NOT_FOUND;
 
   const EntitySequence* seq = 0;
@@ -840,6 +870,37 @@ MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
   const char* tag_data = reinterpret_cast<const char*>(tag_array) + 
                    tagSizes[tag_id] * (handle - seq->data()->start_handle());
   memcpy( value, tag_data, tagSizes[tag_id] );
+  return MB_SUCCESS;
+}
+
+MBErrorCode SequenceManager::get_tag_data( MBTagId tag_id,
+                                           MBEntityHandle handle,
+                                           const void*& value,
+                                           int& length ) const
+{
+  if (tag_id >= tagSizes.size() || !tagSizes[tag_id])
+    return MB_TAG_NOT_FOUND;
+  
+  const EntitySequence* seq = 0;
+  MBErrorCode rval = find( handle, seq );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  const void* tag_array = seq->data()->get_tag_data( tag_id );
+  if (!tag_array)
+    return MB_TAG_NOT_FOUND;
+    
+  length = tagSizes[tag_id];
+  if (length == MB_VARIABLE_LENGTH) {
+    const VarLenTag* tag_data = reinterpret_cast<const VarLenTag*>(tag_array) + 
+                               (handle - seq->data()->start_handle());
+    length = tag_data->size();
+    value = tag_data->data();
+  }
+  else {
+    value = reinterpret_cast<const char*>(tag_array) + 
+                   length * (handle - seq->data()->start_handle());
+  }
   return MB_SUCCESS;
 }
 
