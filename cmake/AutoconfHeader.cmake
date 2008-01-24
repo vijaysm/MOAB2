@@ -11,9 +11,9 @@ foreach ( VAR ${autoconf_VARS} )
     string( REGEX REPLACE "#undef ${VAR}\n" "#define ${VAR} ${${VAR}}\n" autoconf_HEADER "${autoconf_HEADER}" )
   endif ( ${VAR} )
   # ... but always define version numbers, even if they have "0" as a value
-  if ( \"${VAR}\" MATCHES ".*VERSION.*" )
-    string( REGEX REPLACE "#undef ${VAR}\n" "#define ${VAR} ${${VAR}}\n" autoconf_HEADER "${autoconf_HEADER}" )
-  endif ( \"${VAR}\" MATCHES ".*VERSION.*" )
+#  if ( \"${VAR}\" MATCHES ".*VERSION.*" )
+#    string( REGEX REPLACE "#undef ${VAR}\n" "#define ${VAR} ${${VAR}}\n" autoconf_HEADER "${autoconf_HEADER}" )
+#  endif ( \"${VAR}\" MATCHES ".*VERSION.*" )
 endforeach ( VAR )
 string( CONFIGURE "${autoconf_HEADER}"  autoconf_HEADER_OUT )
 
