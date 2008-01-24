@@ -272,7 +272,7 @@ project( MOAB )
 
   include( ${MOAB_SOURCE_DIR}/cmake/AutoconfHeader.cmake )
   # Define some more variables so they will be substituted properly in the autoconf files.
-  set( MB_VERSION        ${MOAB_VERSION}       )
+  set( MB_VERSION        "\"${MOAB_VERSION}\"" )
   set( MB_VERSION_MAJOR  ${MOAB_VERSION_MAJOR} )
   set( MB_VERSION_MINOR  ${MOAB_VERSION_MINOR} )
   if ( DEFINED MOAB_VERSION_PATCH )
