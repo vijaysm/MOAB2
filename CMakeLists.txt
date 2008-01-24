@@ -149,7 +149,8 @@ project( MOAB )
     ScdVertexData.cpp
     SequenceData.cpp
     SequenceManager.cpp
-    SparseTagCollections.cpp
+    SparseTagSuperCollection.cpp
+    SparseTagCollection.cpp
     StructuredElementSeq.cpp
     TagInfo.cpp
     TagServer.cpp
