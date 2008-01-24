@@ -161,8 +161,10 @@ libMOAB_la_SOURCES = \
   SequenceData.cpp \
   SequenceManager.cpp \
   SequenceManager.hpp \
-  SparseTagCollections.cpp \
-  SparseTagCollections.hpp \
+  SparseTagSuperCollection.cpp \
+  SparseTagSuperCollection.hpp \
+  SparseTagCollection.cpp \
+  SparseTagCollection.hpp \
   StructuredElementSeq.cpp \
   StructuredElementSeq.hpp \
   TagInfo.cpp \

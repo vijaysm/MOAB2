@@ -15,7 +15,7 @@
 
 
 /**********************************************
- * Filename   :     SparseTagCollections.hpp
+ * Filename   :     SparseTagSuperCollection.hpp
  *
  * Purpose    :     To store any size data with
  *                  any entity handle
@@ -28,11 +28,11 @@
 
 
 
-#ifndef SPARSE_TAG_COLLECTIONS_HPP
-#define SPARSE_TAG_COLLECTIONS_HPP
+#ifndef SPARSE_TAG_SUPER_COLLECTION_HPP
+#define SPARSE_TAG_SUPER_COLLECTION_HPP
 
 #ifndef IS_BUILDING_MB
-#error "SparseTagCollections.hpp isn't supposed to be included into an application"
+#error "SparseTagSuperCollection.hpp isn't supposed to be included into an application"
 #endif
 
 #ifdef WIN32
@@ -49,95 +49,7 @@
 
 #define get_collection( A ) ((A) < mDataTags.size() ? mDataTags[(A)] : 0)
 
-//! allocator for tag data
-class SparseTagDataAllocator
-{
-public:
-  //! constructor
-  SparseTagDataAllocator(){}
-  //! destructor
-  ~SparseTagDataAllocator(){}
-  //! allocates memory of size and returns pointer
-  void* allocate(size_t data_size) { return malloc(data_size); }
-  //! frees the memory
-  void destroy(void* p){ free(p); }
-};
-
-
-//! collection of tag data associated with entity ids
-class SparseTagCollection
-{
-public:
-  
-  //! constructor takes tag data size
-  SparseTagCollection(int data_size);
-  
-  //! destructor
-  ~SparseTagCollection();
-  
-  //! set the tag data for an entity id
-  MBErrorCode set_data(const MBEntityHandle entity_handle, const void* data);
-
-  //! get the tag data for an entity id
-  MBErrorCode get_data(const MBEntityHandle entity_handle, void* data);
-
-  //! removes the data
-  MBErrorCode remove_data(const MBEntityHandle entity_handle);
-
-  //! get number of entities of type
-  MBErrorCode get_number_entities(MBEntityType type, int& num_entities);
-  
-  //! get number of entities
-  unsigned long get_number_entities()
-    { return mData.size(); }
-
-  //! gets all entity handles that match a type and tag
-  MBErrorCode get_entities(MBEntityType type, MBRange &entities);
-
-  //! gets all entity handles that match a tag
-  MBErrorCode get_entities(MBRange &entities) const;
-
-  //! gets all entity handles that match a type, tag, tag_value
-  MBErrorCode get_entities_with_tag_value( const TagInfo& info,
-                                           MBEntityType type, 
-                                           MBRange &entities, 
-                                           const void* tag_value,
-                                           int value_size);
-
-  //! if this collection contains this entity, return true, otherwise false
-  bool contains(const MBEntityHandle entity) const;
-  
-  int tag_size() const { return mDataSize; }
-
-protected:
-  
-  //! hidden constructor
-  SparseTagCollection(){}
-  
-  //! size of the data
-  int mDataSize;
-
-  //! allocator for this collection
-  SparseTagDataAllocator mAllocator;
-
-  //! map of entity id and tag data
-  std::map<MBEntityHandle /*entity_handle*/ , void* /*data*/ > mData;
-
-};
-
-inline bool SparseTagCollection::contains(const MBEntityHandle entity) const
-{
-  return (mData.find(entity) == mData.end() ? false : true);
-}
-
-inline MBErrorCode SparseTagCollection::get_entities(MBRange &entities) const 
-{
-  for (std::map<MBEntityHandle,void*>::const_iterator mit = mData.begin();
-       mit != mData.end(); mit++) 
-    entities.insert((*mit).first);
-
-  return MB_SUCCESS;
-}
+class SparseTagCollection;
 
 //! a collection of SparseTagCollections
 class SparseTagSuperCollection
@@ -219,16 +131,8 @@ private:
   std::vector<SparseTagCollection*> mDataTags;
 };
 
-//! gets all entity handles that match a type and tag
-inline MBErrorCode SparseTagSuperCollection::get_entities(const MBTagId tag_handle, 
-                                                          MBRange &entities)
-{
-  SparseTagCollection* coll = get_collection(tag_handle);
-  return coll ? coll->get_entities(entities) : MB_TAG_NOT_FOUND;
-}
 
-
-#endif //SPARSE_TAG_COLLECTIONS_HPP
+#endif //SPARSE_TAG_SUPER_COLLECTION_HPP
 
 
 

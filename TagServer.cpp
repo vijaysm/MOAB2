@@ -40,7 +40,7 @@
 #include <assert.h>
 #include "TagServer.hpp"
 #include "MBRange.hpp"
-#include "SparseTagCollections.hpp"
+#include "SparseTagSuperCollection.hpp"
 #include "MBBits.hpp"
 #include "MBInterface.hpp"
 #include "SequenceManager.hpp"
