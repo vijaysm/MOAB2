@@ -33,6 +33,7 @@
 #include "SparseTagCollection.hpp"
 #include "MBRange.hpp"
 #include "TagCompare.hpp"
+#include "VarLenTag.hpp"
 
 SparseTagCollection::SparseTagCollection(int data_size)
 {
@@ -57,6 +58,9 @@ SparseTagCollection::~SparseTagCollection()
 
 MBErrorCode SparseTagCollection::set_data(const MBEntityHandle entity_handle, const void* data)
 {
+  if (mDataSize == MB_VARIABLE_LENGTH)
+    return MB_VARIABLE_DATA_LENGTH;
+
   MBErrorCode ret_val = MB_TAG_NOT_FOUND;
 
   std::map<MBEntityHandle, void*>::iterator iterator =
@@ -82,6 +86,9 @@ MBErrorCode SparseTagCollection::set_data(const MBEntityHandle entity_handle, co
 
 MBErrorCode SparseTagCollection::get_data(const MBEntityHandle entity_handle, void* data)
 {
+  if (mDataSize == MB_VARIABLE_LENGTH)
+    return MB_VARIABLE_DATA_LENGTH;
+
   std::map<MBEntityHandle, void*>::iterator iter =
     mData.find(entity_handle);
 
@@ -89,6 +96,53 @@ MBErrorCode SparseTagCollection::get_data(const MBEntityHandle entity_handle, vo
     return MB_TAG_NOT_FOUND;
   
   memcpy(data, iter->second, mDataSize);
+  return MB_SUCCESS;
+}
+
+MBErrorCode SparseTagCollection::set_data(const MBEntityHandle entity_handle, const void* data, int size)
+{
+  std::map<MBEntityHandle, void*>::iterator iterator =
+    mData.lower_bound(entity_handle);
+  
+  if (mDataSize == MB_VARIABLE_LENGTH) {
+    if (iterator == mData.end() || iterator->first != entity_handle) {
+      void* new_data = mAllocator.allocate(sizeof(VarLenTag));
+      new (new_data) VarLenTag;
+      iterator = mData.insert( iterator, std::pair<const MBEntityHandle,void*>(entity_handle, new_data) );
+    }
+    reinterpret_cast<VarLenTag*>(iterator->second)->set( data, size );
+  }
+  else {
+    if (size != 0 && size != mDataSize)
+      return MB_INVALID_SIZE;
+  
+    if (iterator == mData.end() || iterator->first != entity_handle) {
+      void* new_data = mAllocator.allocate(mDataSize);
+      iterator = mData.insert( iterator, std::pair<const MBEntityHandle,void*>(entity_handle, new_data) );
+    }
+    memcpy( iterator->second, data, mDataSize);
+  }
+
+  return MB_SUCCESS;
+}
+
+MBErrorCode SparseTagCollection::get_data(const MBEntityHandle entity_handle, const void*& data, int& size)
+{
+  std::map<MBEntityHandle, void*>::iterator iter =
+    mData.find(entity_handle);
+
+  if(iter == mData.end())
+    return MB_TAG_NOT_FOUND;
+  
+  if (mDataSize == MB_VARIABLE_LENGTH) {
+    const VarLenTag* vtag = reinterpret_cast<const VarLenTag*>(iter->second);
+    size = vtag->size();
+    data = vtag->data();
+  }
+  else {
+    size = mDataSize;
+    data = iter->second;
+  }
   return MB_SUCCESS;
 }
 

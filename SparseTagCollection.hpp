@@ -78,6 +78,12 @@ public:
 
   //! get the tag data for an entity id
   MBErrorCode get_data(const MBEntityHandle entity_handle, void* data);
+  
+  //! set variable-length tag data for an entity id
+  MBErrorCode set_data(const MBEntityHandle entity_handle, const void* data, int length);
+
+  //! get the variable-length data for an entity id
+  MBErrorCode get_data(const MBEntityHandle entity_handle, const void*& data, int& length);
 
   //! removes the data
   MBErrorCode remove_data(const MBEntityHandle entity_handle);

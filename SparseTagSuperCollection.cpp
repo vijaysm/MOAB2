@@ -62,7 +62,7 @@ void SparseTagSuperCollection::reset_data()
 
 MBErrorCode SparseTagSuperCollection::reserve_tag_id(int data_size, MBTagId tag_id)
 {
-  if(data_size<=0)
+  if(data_size<=0 && data_size != MB_VARIABLE_LENGTH)
     return MB_FAILURE;
 
   if (tag_id >= mDataTags.size())
@@ -103,6 +103,20 @@ MBErrorCode SparseTagSuperCollection::get_data(const MBTagId tag_handle,
 {
   SparseTagCollection* coll = get_collection(tag_handle);
   return coll ? coll->get_data( entity_handle, data ) : MB_TAG_NOT_FOUND;
+}
+
+MBErrorCode SparseTagSuperCollection::set_data(const MBTagId tag_handle, 
+    const MBEntityHandle entity_handle, const void* data, int size)
+{
+  SparseTagCollection* coll = get_collection(tag_handle);
+  return coll ? coll->set_data( entity_handle, data, size ) : MB_TAG_NOT_FOUND;
+}
+
+MBErrorCode SparseTagSuperCollection::get_data(const MBTagId tag_handle, 
+    const MBEntityHandle entity_handle, const void*& data, int& size)
+{
+  SparseTagCollection* coll = get_collection(tag_handle);
+  return coll ? coll->get_data( entity_handle, data, size ) : MB_TAG_NOT_FOUND;
 }
 
 

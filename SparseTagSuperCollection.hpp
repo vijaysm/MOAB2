@@ -78,6 +78,12 @@ public:
   //! get the data of a tag
   MBErrorCode get_data(const MBTagId tag_handle, const MBEntityHandle entity_handle, void* data);
 
+  //! set the data of a variable-length tag
+  MBErrorCode set_data(const MBTagId tag_handle, const MBEntityHandle entity_handle, const void* data, int length);
+
+  //! get the data of a variable-length tag
+  MBErrorCode get_data(const MBTagId tag_handle, const MBEntityHandle entity_handle, const void*& data, int& length);
+
   //! removes data
   MBErrorCode remove_data(const MBTagId tag_handle, const MBEntityHandle entity_handle);
 
