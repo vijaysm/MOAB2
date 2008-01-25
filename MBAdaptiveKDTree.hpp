@@ -297,7 +297,7 @@ public:
     //! Get adjacent leaf nodes on side indicated by norm and neg.
     //!
     //! E.g. if norm == X and neg == true, then get neighbor(s)
-    //! adjacent to the size of the box contained in the plane
+    //! adjacent to the side of the box contained in the plane
     //! with normal to the X axis and with the x coordinate equal 
     //! to the minimum x of the bounding box.
     //!
