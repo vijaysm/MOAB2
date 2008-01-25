@@ -534,7 +534,8 @@ MBErrorCode MBAdaptiveKDTreeIter::step( Direction direction )
 
 MBErrorCode MBAdaptiveKDTreeIter::get_neighbors( 
                       MBAdaptiveKDTree::Axis norm, bool neg,
-                      std::vector<MBAdaptiveKDTreeIter>& results ) const
+                      std::vector<MBAdaptiveKDTreeIter>& results,
+                      double epsilon ) const
 {
   StackObj node, parent;
   MBErrorCode rval;
@@ -616,9 +617,9 @@ MBErrorCode MBAdaptiveKDTreeIter::get_neighbors(
         iter.mBox[1-neg][plane.norm] = plane.coord;
       }
         // if left child is adjacent
-      else if (this->mBox[BMIN][plane.norm] < plane.coord) {
+      else if (this->mBox[BMIN][plane.norm] - plane.coord <= epsilon) {
           // if right child is also adjacent, add to list
-        if (this->mBox[BMAX][plane.norm] > plane.coord) {
+        if (plane.coord - this->mBox[BMAX][plane.norm] <= epsilon) {
           list.push_back( iter );
           list.back().mStack.push_back( StackObj( iter.childVect[1], iter.mBox[BMIN][plane.norm] ) );
           list.back().mBox[BMIN][plane.norm] = plane.coord;
@@ -633,7 +634,7 @@ MBErrorCode MBAdaptiveKDTreeIter::get_neighbors(
       else {
           // if left child is not adjacent, right must be or something
           // is really messed up.
-        assert(this->mBox[BMAX][plane.norm] > plane.coord);
+        assert(plane.coord - this->mBox[BMAX][plane.norm] <= epsilon);
            // continue with left child
         node.entity = iter.childVect[1];
         node.coord = iter.mBox[BMIN][plane.norm];

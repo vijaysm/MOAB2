@@ -304,10 +304,22 @@ public:
     //! E.g. if norm == Y and neg == false, then get neighbor(s)
     //! adjacent to the side of the box with y = maximum y of bounding box.
     //!
-    //! Results are appended to list.  This function does not clear any
-    //! existing values in the 'results' vector.
+    //!\param norm  Normal vector for box side (X, Y, or Z)
+    //!\param neg   Which of two planes with norm (true->smaller coord, 
+    //!             false->larget coord)
+    //!\param results List to which to append results.  This function does
+    //!             *not* clear existing values in list.
+    //!\param epsilon Tolerance on overlap.  A positive value E will
+    //!              result in nodes that are separated by as much as E
+    //!              to be considered touching.  A negative value -E will
+    //!              cause leaves that do not overlap by at least E to be
+    //!              considered non-overlapping.  Amongst other things, 
+    //!              this value can be used to control whether or not
+    //!              leaves adjacent at only their edges or corners are
+    //!              returned.
   MBErrorCode get_neighbors( MBAdaptiveKDTree::Axis norm, bool neg,
-                             std::vector<MBAdaptiveKDTreeIter>& results ) const;
+                             std::vector<MBAdaptiveKDTreeIter>& results,
+                             double epsilon = 0.0 ) const;
   
     //! Get split plane that separates this node from its immediate sibling.
   MBErrorCode get_parent_split_plane( MBAdaptiveKDTree::Plane& plane ) const;
