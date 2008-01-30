@@ -392,7 +392,7 @@ public:
     virtual MBErrorCode get_number_entities_by_type_and_tag(const MBEntityHandle meshset,
                                                              const MBEntityType type,
                                                              const MBTag *tag_handles,
-                                                             const void** values,
+                                                             const void* const* values,
                                                              const int num_tags,
                                                              int &num_entities,
                                                              const bool recursive = false) const;
