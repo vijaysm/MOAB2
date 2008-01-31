@@ -976,7 +976,15 @@ MBErrorCode WriteHDF5::range_to_id_list( const MBRange& input_range,
     // Get file IDs from handles
   output_id_list.resize( input_range.size() );
   rval = iFace->tag_get_data( idTag, input_range, &output_id_list[0] );
-  CHK_MB_ERR_0(rval);
+  if (MB_ENTITY_NOT_FOUND == rval) { // ignore stale handles
+    MBRange::const_iterator i;
+    std::vector<id_t>::iterator j = output_id_list.begin();
+    for (i = input_range.begin(); i != input_range.end(); ++i, ++j) 
+      if (MB_SUCCESS != iFace->tag_get_data( idTag, &*i, 1, &*j ))
+        *j = 0;
+  }
+  else
+    CHK_MB_ERR_0(rval);
   std::sort( output_id_list.begin(), output_id_list.end() );
   
     // Count the number of ranges in the id list
@@ -1046,7 +1054,10 @@ MBErrorCode WriteHDF5::vector_to_id_list(
   {
     handle = *i_iter;
     rval = iFace->tag_get_data( idTag, &handle, 1, &id );
-    CHK_MB_ERR_0(rval);
+    if (MB_ENTITY_NOT_FOUND == rval) // ignore stale handles
+      id = 0;
+    else
+      CHK_MB_ERR_0(rval);
     *o_iter = id;
     ++o_iter;
     ++i_iter;
