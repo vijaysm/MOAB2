@@ -214,7 +214,11 @@ MBErrorCode TagServer::set_bits(const MBTag tag_handle, const MBEntityHandle ent
 {
   if(TYPE_FROM_HANDLE(entity_handle) >= MBMAXTYPE)
     return MB_TYPE_OUT_OF_RANGE;
-  return mBitServer->set_bits(ID_FROM_TAG_HANDLE(tag_handle), entity_handle, data);
+  const TagInfo* info = get_tag_info( tag_handle );
+  if (!info)
+    return MB_TAG_NOT_FOUND;
+  return mBitServer->set_bits(ID_FROM_TAG_HANDLE(tag_handle), entity_handle, data,
+                              reinterpret_cast<const unsigned char*>(info->default_value()));
 }
 
 //! get the value of a tag

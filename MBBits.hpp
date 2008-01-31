@@ -181,7 +181,8 @@ public:
   MBErrorCode get_bits(int offset, int num_bits_per_flag, unsigned char& bits);
   
   //! set the bits in a bit page
-  MBErrorCode set_bits(int offset, int num_bits_per_flag, unsigned char bits);
+  MBErrorCode set_bits(int offset, int num_bits_per_flag, unsigned char bits, 
+                       const unsigned char* default_value);
   
   //! set the bits in a bit page only if space has been allocated
   MBErrorCode weak_set_bits(int offset, int num_bits_per_flag, unsigned char bits);
@@ -238,13 +239,49 @@ inline MBErrorCode MBBitPage::get_bits(int offset, int num_bits_per_flag, unsign
     takes the bits to set
 */
 inline MBErrorCode MBBitPage::set_bits(int offset, 
-    int num_bits_per_flag, unsigned char bits)
+    int num_bits_per_flag, unsigned char bits,
+    const unsigned char* default_value)
 {
   // if memory hasn't been allocated, allocate it and zero the memory
   if(!mBitArray)
   {
     mBitArray = new unsigned char[mPageSize];
-    memset(mBitArray, 0, mPageSize);
+      // Modifed by J.Kraftcheck : 31 Jan, 2008:
+      //  Need to initialize to default value to ensure that we return
+      //  the default value for unset entities.  
+      
+      // Zero memory if no default value.  Also, if default value is
+      // zero, we can zero all the memory w/out worring about the
+      // number of bits per entity.
+    if (!default_value || !*default_value)
+      memset(mBitArray, 0, mPageSize);
+      // Otherwise initialize memory using default value
+    else {
+        // Mask unused bits of default value so that we can set
+        // individual bits using bitwise-OR w/out having to worry
+        // about masking unwanted stuff.
+      unsigned char defval = (*default_value) & ((1u << num_bits_per_flag) - 1);
+    
+      switch (num_bits_per_flag) {
+        // If number of bits is a power of two (a byte contains a whole
+        // number of tag bit values) then use memset to initialize the memory.
+        // Note fall-through for switch cases:  for 1-bit tags we first
+        // copy the lsb into the adjacent bit, then fall through to 2-bit
+        // case, copying last two bits into next two, and so on.
+        case 1: defval |= (defval << 1);
+        case 2: defval |= (defval << 2);
+        case 4: defval |= (defval << 4);
+        case 8: memset( mBitArray, defval, mPageSize );
+          break;
+        // If num_bits_per_flag is not a power of two, then values do
+        // not align with byte boundaries.  Need to initialize values
+        // individually.
+        default:
+          memset(mBitArray, 0, mPageSize);
+          for (int i = 0; i < 8 * mPageSize; i += num_bits_per_flag)
+            MBBitManipulator::set_bits( i, num_bits_per_flag, defval, mBitArray );
+      }
+    }
   }
 
   // set the bits using bit manipulator
@@ -293,7 +330,8 @@ public:
   MBErrorCode get_bits(MBEntityHandle handle, unsigned char& bits);
 
   //! set bits in bit pages
-  MBErrorCode set_bits(MBEntityHandle handle, unsigned char bits);
+  MBErrorCode set_bits(MBEntityHandle handle, unsigned char bits, 
+                       const unsigned char* default_value);
 
   //! set bits in bit pages only if the bit page allocated memory
   MBErrorCode weak_set_bits(MBEntityHandle handle, unsigned char bits);
@@ -371,7 +409,9 @@ inline MBErrorCode MBBitPageGroup::get_bits(MBEntityHandle handle, unsigned char
     takes entity handle
     takes the bits to set
 */
-inline MBErrorCode MBBitPageGroup::set_bits(MBEntityHandle handle, unsigned char bits)
+inline MBErrorCode MBBitPageGroup::set_bits( MBEntityHandle handle, 
+                                             unsigned char bits,
+                                             const unsigned char* default_value )
 {
   // strip off the entity type
   handle = ID_FROM_HANDLE(handle);
@@ -387,7 +427,9 @@ inline MBErrorCode MBBitPageGroup::set_bits(MBEntityHandle handle, unsigned char
   }
 
   // return set of bits in page
-  return mBitPages[which_page]->set_bits( (handle - ( which_page * mOffsetFactor )), mBitsPerFlag, bits);
+  return mBitPages[which_page]->
+    set_bits( (handle - ( which_page * mOffsetFactor )), 
+              mBitsPerFlag, bits, default_value );
 }
 
 
@@ -461,7 +503,8 @@ public:
   //! get the bits associated with an entity handle
   MBErrorCode get_bits(MBTagId tag_id, MBEntityHandle handle, unsigned char& bits);
   //! set the bits associated with an entity handle
-  MBErrorCode set_bits(MBTagId tag_id, MBEntityHandle handle, unsigned char bits);
+  MBErrorCode set_bits(MBTagId tag_id, MBEntityHandle handle, unsigned char bits, 
+                       const unsigned char* default_value);
   //! set the bits associated with an entity handle, only if memory has been allocated
   MBErrorCode weak_set_bits(MBTagId tag_id, MBEntityHandle handle, unsigned char bits);
 
@@ -520,14 +563,16 @@ inline MBErrorCode MBBitServer::get_bits(MBTagId tag_id,
 }
 
 /*! set some bits based on a tag id and handle */
-inline MBErrorCode MBBitServer::set_bits(MBTagId tag_id, 
-    MBEntityHandle handle, unsigned char bits)
+inline MBErrorCode MBBitServer::set_bits( MBTagId tag_id, 
+                                          MBEntityHandle handle, 
+                                          unsigned char bits,
+                                          const unsigned char* default_value )
 {
   --tag_id; // First ID is 1.
   if(tag_id >= mBitPageGroupsSize || (*mBitPageGroups)[tag_id] == NULL)
     return MB_FAILURE;
 
-  return mBitPageGroups[TYPE_FROM_HANDLE(handle)][tag_id]->set_bits(handle, bits);
+  return mBitPageGroups[TYPE_FROM_HANDLE(handle)][tag_id]->set_bits(handle, bits, default_value);
 }
 
 /*! set some bits based on a tag id and handle only if memory has been allocated*/
