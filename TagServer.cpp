@@ -226,7 +226,18 @@ MBErrorCode TagServer::get_bits(const MBTag tag_handle, const MBEntityHandle ent
 {
   if(TYPE_FROM_HANDLE(entity_handle) >= MBMAXTYPE)
     return MB_TYPE_OUT_OF_RANGE;
-  return mBitServer->get_bits(ID_FROM_TAG_HANDLE(tag_handle), entity_handle, data);
+  MBErrorCode rval = mBitServer->get_bits(ID_FROM_TAG_HANDLE(tag_handle), entity_handle, data);
+  if (MB_TAG_NOT_FOUND == rval) {
+    const TagInfo* info = get_tag_info( tag_handle );
+    if (!info)
+      return MB_FAILURE;
+    if (info->default_value())
+      data = *reinterpret_cast<const unsigned char*>(info->default_value());
+    else 
+      data = '\0';
+    return MB_SUCCESS;
+  }
+  return rval;    
 }
 
 MBErrorCode TagServer::set_mesh_data( const MBTag tag_handle,

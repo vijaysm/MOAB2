@@ -401,7 +401,7 @@ inline MBErrorCode MBBitPageGroup::get_bits(MBEntityHandle handle, unsigned char
   if(which_page >= mBitPagesSize)
   {
     bits = 0;
-    return MB_SUCCESS;
+    return MB_TAG_NOT_FOUND;
   }
 
   // return bits from bit page
