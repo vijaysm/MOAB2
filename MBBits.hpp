@@ -278,7 +278,10 @@ inline MBErrorCode MBBitPage::set_bits(int offset,
         // individually.
         default:
           memset(mBitArray, 0, mPageSize);
-          for (int i = 0; i < 8 * mPageSize; i += num_bits_per_flag)
+          // Subtract 1 from mPageSize because last byte is unused, allowing
+          // questionable MBBitManipulator code to read/write 1 past end 
+          // of array.
+          for (int i = 0; i < 8 * (mPageSize-1); i += num_bits_per_flag)
             MBBitManipulator::set_bits( i, num_bits_per_flag, defval, mBitArray );
       }
     }
