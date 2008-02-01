@@ -696,15 +696,20 @@ MBErrorCode TagServer::remove_mesh_data( const MBTag tag_handle )
 MBErrorCode TagServer::remove_data( const MBTag tag_handle, const MBEntityHandle entity_handle )
 {
   MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
+  MBTagType storage = PROP_FROM_TAG_HANDLE(tag_handle);
+  if (tag_id > mTagTable[storage].size())
+    return MB_TAG_NOT_FOUND;
+  const void* defval = mTagTable[storage][tag_id-1].default_value();
+  
   switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
     case MB_TAG_DENSE:
-      sequenceManager->remove_tag_data( tag_id, entity_handle,
-                 mTagTable[MB_TAG_DENSE][tag_id-1].default_value() );
+      sequenceManager->remove_tag_data( tag_id, entity_handle, defval );
       return MB_SUCCESS;
     case MB_TAG_SPARSE:
       return mSparseData->remove_data(tag_id, entity_handle);
     case MB_TAG_BIT:
-      return MB_FAILURE;
+      return mBitServer->clear_bits( tag_id, entity_handle, 
+                                static_cast<const unsigned char*>(defval) );
     case MB_TAG_MESH:
       return MB_FAILURE;
   }

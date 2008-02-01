@@ -1442,9 +1442,6 @@ MBErrorCode  MBCore::tag_delete_data(const MBTag tag_handle,
                                        const MBEntityHandle *entity_handles,
                                        const int num_handles)
 {
-  if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
-    return MB_FAILURE;
-
   MBErrorCode status = MB_SUCCESS, temp_status;
   for (int i = 0; i < num_handles; i++) {
     if (0 == entity_handles[i])
@@ -1461,9 +1458,6 @@ MBErrorCode  MBCore::tag_delete_data(const MBTag tag_handle,
 MBErrorCode  MBCore::tag_delete_data(const MBTag tag_handle, 
                                      const MBRange &entity_handles)
 {
-  if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
-    return MB_FAILURE;
-
   MBErrorCode status = MB_SUCCESS, temp_status;
   for (MBRange::const_iterator it = entity_handles.begin(); it != entity_handles.end(); it++) {
     temp_status = tagServer->remove_data(tag_handle, *it);

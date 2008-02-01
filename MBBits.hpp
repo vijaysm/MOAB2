@@ -511,6 +511,10 @@ public:
   //! set the bits associated with an entity handle, only if memory has been allocated
   MBErrorCode weak_set_bits(MBTagId tag_id, MBEntityHandle handle, unsigned char bits);
 
+  //! clear bits
+  MBErrorCode clear_bits( MBTagId tag_id, MBEntityHandle handle, const unsigned char* defval )
+    { return weak_set_bits( tag_id, handle, defval ? *defval : '\0' ); }
+
   MBErrorCode get_entities(MBTagId tag_id, MBRange& entities);
 
   MBErrorCode get_entities(MBTagId tag_id, MBEntityType type, MBRange& entities);
