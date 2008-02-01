@@ -28,7 +28,8 @@ TESTS = moab_test \
 	adaptive_kd_tree_tests \
 	file_options_test \
         kd_tree_test \
-        var_len_test var_len_test_no_template
+        var_len_test var_len_test_no_template \
+	tag_test
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 
@@ -328,6 +329,10 @@ file_options_test_CPPFLAGS = -DTEST
 var_len_test_SOURCES = VarLenTagTest.cpp
 var_len_test_no_template_SOURCES = $(var_len_test_SOURCES)
 var_len_test_no_template_CPPFLAGS = -UTEMPLATE_SPECIALIZATION
+
+tag_test_SOURCES = TagTest.cpp
+tag_test_LDADD = $(top_builddir)/libMOAB.la
+tag_test_DEPENDENCIES = $(tag_test_LDADD)
 
 
 # Other files to clean up (e.g. output from tests)
