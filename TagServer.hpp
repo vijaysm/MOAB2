@@ -85,22 +85,140 @@ public:
   //! set global/mesh value of tag
   MBErrorCode set_mesh_data( const MBTag tag_handle, const void* data, int size = 0);
 
-  //! set the value of a tag
-  MBErrorCode set_data(const MBTag tag_handle, const MBEntityHandle entity_handle, const void* data );
+  /**\brief Set value for {MBTag,MBEntityHandle) tuple.
+   * 
+   * Set tag value.
+   *\NOTE Will fail with MB_VARIABLE_DATA_LENGTH for variable-length tags.
+   *\param tag_handle    The tag.
+   *\param entity_handle The entity.
+   *\param data          Pointer to tag value.
+   */
+  MBErrorCode set_data(const MBTag tag_handle, const MBEntityHandle entity_handle, const void* data )
+    { return set_data( tag_handle, &entity_handle, 1, data ); }
   
+  /**\brief Set tag values for an array of entity handles.
+   * 
+   * Set tag values.
+   *\NOTE Will fail with MB_VARIABLE_DATA_LENGTH for variable-length tags.
+   *\param tag_handle     The tag.
+   *\param entity_handles Array of entity handles.
+   *\param num_entities   Length of entity_handles array.
+   *\param data           Pointer to memory containing concatenation of
+   *                      tag values for all entities, in the order the
+   *                      entities are specified in entity_handles.
+   */
   MBErrorCode set_data(const MBTag tag_handle, const MBEntityHandle* entity_handles, const int num_entities, const void* data );
   
+  /**\brief Set tag values for an MBRange of entity handles.
+   * 
+   * Set tag values.
+   *\NOTE Will fail with MB_VARIABLE_DATA_LENGTH for variable-length tags.
+   *\param tag_handle     The tag.
+   *\param entity_handles MBRange of entity handles.
+   *\param data           Pointer to memory containing concatenation of
+   *                      tag values for all entities, in the order the
+   *                      entities are specified in entity_handles.
+   */
   MBErrorCode set_data(const MBTag tag_handle, const MBRange& entity_handles, const void* data );
+  
+  /**\brief Set tag values for an array of entity handles.
+   * 
+   * Set tag values.
+   *\param tag_handle     The tag.
+   *\param entity_handles Array of entity handles.
+   *\param num_entities   Length of entity_handles array.
+   *\param data           Array of pointers to per-entity tag values.
+   *\param lengths        Length of each entity's tag value.  Ignored
+   *                      for fixed-length tags.
+   */
+  MBErrorCode set_data( const MBTag tag_handle, 
+                        const MBEntityHandle* entity_handles, 
+                        const int num_entities, 
+                        void const* const* data,
+                        const int* lengths = 0 );
+  
+  /**\brief Set tag values for an MBRange of entity handles.
+   * 
+   * Set tag values.
+   *\param tag_handle     The tag.
+   *\param entity_handles entity handles.
+   *\param data           Array of pointers to per-entity tag values.
+   *\param lengths        Length of each entity's tag value.  Ignored
+   *                      for fixed-length tags.
+   */
+  MBErrorCode set_data( const MBTag tag_handle, 
+                        const MBRange& entity_handles, 
+                        void const* const* data,
+                        const int* lengths = 0 );
 
   //! get global/mesh value of tag
   MBErrorCode get_mesh_data( const MBTag tag_handle, void* data, int& size ) const;
 
-  //! get the value of a tag
-  MBErrorCode get_data(const MBTag tag_handle, const MBEntityHandle entity_handle, void* data );
+  /**\Brief Get tag value
+   *
+   * Get the value for a {MBTag,MBEntityHandle} tuple.
+   *\NOTE Will fail with MB_VARIABLE_DATA_LENGTH for variable-length tags.
+   *\param tag_handle    The tag
+   *\param entity_handle The entity
+   *\param data          Pointer to memory location to which to copy tag value.
+   */
+  MBErrorCode get_data(const MBTag tag_handle, const MBEntityHandle entity_handle, void* data )
+    { return get_data( tag_handle, &entity_handle, 1, data ); }
   
+  /**\Brief Get tag values
+   *
+   * For a single tag, get the tag value for an array of entities.
+   *\NOTE Will fail with MB_VARIABLE_DATA_LENGTH for variable-length tags.
+   *\param tag_handle     The tag
+   *\param entity_handles Entity handle array
+   *\param num_entiites   Length of entity_handles array
+   *\param data           Pointer to memory location to which to copy tag values.
+   *                      Writes the concatenation of tag values, in the order
+   *                      of the entity handles in the input array.
+   */
   MBErrorCode get_data(const MBTag tag_handle, const MBEntityHandle* entity_handles, const int num_ents, void* data );
   
+  /**\Brief Get tag values
+   *
+   * For a single tag, get the tag value for an MBRange of entities.
+   *\NOTE Will fail with MB_VARIABLE_DATA_LENGTH for variable-length tags.
+   *\param tag_handle     The tag
+   *\param entity_handles Entity handles
+   *\param data           Pointer to memory location to which to copy tag values.
+   *                      Writes the concatenation of tag values, in the order
+   *                      of the entity handles in the input array.
+   */
   MBErrorCode get_data(const MBTag tag_handle, const MBRange& entity_handles, void* data );
+  
+  /**\brief Get pointers to tag values for an array of entity handles.
+   * 
+   * Get pointers to tag values.
+   *\param tag_handle     The tag.
+   *\param entity_handles Array of entity handles.
+   *\param num_entities   Length of entity_handles array.
+   *\param data           Output: Array of pointers to per-entity tag values.
+   *\param lengths        Output: Length of each entity's tag value.  
+   *                      Optional for fixed-length tags.
+   */
+  MBErrorCode get_data( const MBTag tag_handle, 
+                        const MBEntityHandle* entity_handles, 
+                        const int num_entities, 
+                        const void** data,
+                        int* lengths = 0 );
+  
+  /**\brief Get pointers to tag values for an MBRange of entity handles.
+   * 
+   * Get pointers to tag values.
+   *\param tag_handle     The tag.
+   *\param entity_handles entity handles.
+   *\param data           Output: Array of pointers to per-entity tag values.
+   *\param lengths        Output: Length of each entity's tag value.  
+   *                      Optional for fixed-length tags.
+   */
+  MBErrorCode get_data( const MBTag tag_handle, 
+                        const MBRange& entity_handles, 
+                        const void** data,
+                        int* lengths = 0 );
   
   //! set the value of a tag
   MBErrorCode set_bits(const MBTag tag_handle, const MBEntityHandle entity_handle, unsigned char data );

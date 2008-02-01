@@ -213,61 +213,132 @@ class SequenceManager
                                  const void* default_tag_value,
                                  int default_value_size = 0 );
                                  
-      /** Set fixed-length tag value for a single entity.
+      /** Set fixed-length tag values.
        *\NOTE Default value must be given because it is often
-       *      necessary to allocate storage for other entities
+       *      necessary to allocate storage for additional entities
+       *
+       *\NOTE Will fail for variable-length tag data.
        */
     MBErrorCode set_tag_data( MBTagId tag_id,
-                              MBEntityHandle handle,
-                              const void* value,
+                              const MBEntityHandle* handles,
+                              int num_handles,
+                              const void* values,
                               const void* default_value );
                               
-      /** Set variable-length tag value for a single entity.
-       *\NOTE Default value must be given because it is often
-       *      necessary to allocate storage for other entities
+      /** Set tag values for array of entity handles
+       *\param tag_id      The tag.
+       *\param handles     Array of entity handles.
+       *\param num_handles Length of 'handles' array.
+       *\param values      Array of pointers to tag values, one pointer for each handle
+       *\param lengths     Length of each tag value.  Ignored for fixed-length tags.
+       *\param default_value Used to initialize any additional tag storage.  Ignored
+       *                   for variable-length tags.
        */
     MBErrorCode set_tag_data( MBTagId tag_id,
-                              MBEntityHandle handle,
-                              const void* value,
-                              const void* default_value,
-                              int length );
+                              const MBEntityHandle* handles,
+                              int num_handles,
+                              void const* const* values,
+                              const int* lengths,
+                              const void* default_value );
                               
-      /** Set fixed-length tag value an MBRange of entities
+      /** Set fixed-length tag value for an MBRange of entities
+       *\NOTE Default value must be given because it is often
+       *      necessary to allocate storage for other entities
+       *\NOTE Will fail for variable-length tag data
        */
     MBErrorCode set_tag_data( MBTagId tag_id,
                               const MBRange& handles,
                               const void* values,
                               const void* default_value );
-
-      /** Get fixed-length tag value for a single entity 
-       */
-    MBErrorCode get_tag_data( MBTagId tag_id,
-                              MBEntityHandle handle,
-                              void* value ) const;
                               
-      /** Get variable-length tag size and pointer to internal data storage.
-       *\param value Reference at which to store pointer to tag data.
+      /** Set tag data for an MBRange of entities.
+       *
+       *\param tag_id  The tag
+       *\param handles The entities
+       *\param values  An array of pointers, one per entity, pointing to the
+       *               tag value for the corresponding entity.
+       *\param lengths An array of integers, one per entity, indicating the
+       *               length of the tag value for each entity.  Ingored
+       *               for fixed-length tags.
+       *\param default_value The default value for the tag.  Ignored for
+       *               variable-length tags.
+       */
+     MBErrorCode set_tag_data( MBTagId tag_id,
+                               const MBRange& handles,
+                               void const* const* values,
+                               const int* lengths,
+                               const void* default_value );
+
+      /** Get fixed-length tag values for array of entities
+       *\NOTE Will fail with MB_VARIABLE_DATA_LENGTH if called
+       *      for variable-length tag.
        */
     MBErrorCode get_tag_data( MBTagId tag_id,
-                              MBEntityHandle handle,
-                              const void*& value_ptr,
-                              int& length ) const;
+                              const MBEntityHandle* handles,
+                              int num_handles,
+                              void* values, 
+                              const void* default_value ) const;
+                              
+      /** Get pointers to tag data for array of entities
+       *\param tag_id      The Tag.
+       *\param handles     Array of entity handles.
+       *\param num_handles Length of 'handles' array.
+       *\param tag_ptrs    Pointers to tag values, one pointer for each input handle.
+       *\param lengths     Length of each tag value.  Ignored for fixed-length tags.
+       *\param default_value Pointer to default value for tag, or NULL if none.
+       *\param default_value_length  Length of default tag value.  Ingored for
+       *                   fixed-length tags.
+       */
+    MBErrorCode get_tag_data( MBTagId tag_id,
+                              const MBEntityHandle* handles,
+                              int num_handles,
+                              const void** tag_ptrs,
+                              int* lengths,
+                              const void* default_value,
+                              int default_value_length ) const;
                               
       /** Get fixed-length tag value for an MBRange of entities
+       *\NOTE Will fail with MB_VARIABLE_DATA_LENGTH if called
+       *      for variable-length tag.
        */
     MBErrorCode get_tag_data( MBTagId tag_id,
                               const MBRange& handles,
                               void* values,
                               const void* default_value ) const;
+                              
+      /** Get pointers to tag data for an MBRange of entities.
+       *
+       *\param tag_id   The tag.
+       *\param handles  The entities.
+       *\param values   Array of pointers of type 'const void*'.  Array
+       *                must be the same length as the size of 'entities'.
+       *                The array will be populated with pointers to the
+       *                internal storage of the tag data for each entity.
+       *\param lengths  Array of integers.  Will be populated with the 
+       *                length of the tag value for each entity.  Argument
+       *                is optional for fixed-length tags.
+       *\param default_value The default value for the tag.
+       *\param default_value_length The length of the default tag value.
+       */
+    MBErrorCode get_tag_data( MBTagId tag_id,
+                              const MBRange& handles,
+                              const void** values,
+                              int* lengths,
+                              const void* default_value,
+                              int defaut_value_length ) const;
   
       /** Get all tags for which values (possibly the default value)
-       *  have been allocated for a given entity
+       *  have been allocated for a given entity.
+       *\NOTE For variable-length data, will only return tag if
+       *      data length is greater than zero.
        */
     MBErrorCode get_entity_tags( MBEntityHandle entity,
                                  std::vector<MBTag>& tags_out ) const;
 
       /** Get all entities for which storage for a specific tag has
        *  been allocated.
+       *\NOTE For variable-length data, will only return entities for
+       *      which data length is greater than zero.
        */
     MBErrorCode get_tagged_entities( MBTagId tag_id, 
                                      MBEntityType type,
@@ -275,6 +346,8 @@ class SequenceManager
 
       /** Count all entities for which storage for a specific tag has
        *  been allocated.
+       *\NOTE For variable-length data, will only count entities for
+       *      which data length is greater than zero.
        */
     MBErrorCode count_tagged_entities( MBTagId tag, 
                                        MBEntityType type, 

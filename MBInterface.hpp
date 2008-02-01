@@ -1053,6 +1053,29 @@ public:
                                   const      void* def_val,
                                               bool use_existing = false ) = 0;
 
+    /**\brief Define a new tag that can store variable-length data.
+     *
+     * Define a new tag for storing application-defined data on MB entities.  
+     *
+     * \param name          The name of the tag.
+     * \param storage       The tag storage type (MB_TAG_BIT not supported).
+     * \param data_type     The tag data type.
+     * \param handle_out    The tag handle (output)
+     * \param default_value Optional default value for tag.
+     * \param default_val_len Length of default value.  Required if
+     *                      default value is specified.
+     * \return - MB_ALREADY_ALLOCATED if a tag with name already exists.
+     *         - MB_FAILURE if inconsistant arguments
+     *         - MB_SUCCESS otherwise.
+     */
+  virtual MBErrorCode tag_create_variable_length( const char* name,
+                                                  MBTagType   storage,
+                                                  MBDataType  data_type,
+                                                  MBTag&      handle_out,
+                                                  const void* default_value = 0,
+                                                  int         default_val_len = 0 
+                                                 ) = 0;
+
     //! Get the name of a tag corresponding to a handle
     /** \param tag_handle Tag you want the name of.  
         \param tag_name Name string for <em>tag_handle</em>. 
@@ -1104,6 +1127,7 @@ public:
                 - MB_TAG_NOT_FOUND    If <code>tag_handle</code> is invalid.
     */ 
   virtual MBErrorCode tag_get_default_value(const MBTag tag, void *def_val) const = 0;
+  virtual MBErrorCode tag_get_default_value( MBTag tag, const void*& def_val, int& size) const = 0;
 
     //! Get handles for all tags defined in the mesh instance
     /** Get handles for all tags defined on the mesh instance.
@@ -1166,6 +1190,77 @@ public:
   virtual MBErrorCode  tag_set_data(const MBTag tag_handle, 
                                     const MBRange& entity_handles,
                                     const void *tag_data ) = 0;
+
+
+    /**\brief Get pointers to tag data
+     *
+     * For a tag, get the values for a list of passed entity handles.
+     *\param tag_handle     The tag
+     *\param entity_handles An array of entity handles for which to retreive tag values.
+     *\param num_entities   The length of the 'entity_handles' array.
+     *\param tag_data       An array of 'const void*'.  Array must be at least
+     *                      'num_entitities' long.  Array is populated (output)
+     *                      with pointers to the internal storage for the
+     *                      tag value corresponding to each entity handle.
+     *\param tag_sizes      The length of each tag value.  Optional for 
+     *                      fixed-length tags.  Required for variable-length tags.
+     */
+  virtual MBErrorCode  tag_get_data(const MBTag tag_handle, 
+                                    const MBEntityHandle* entity_handles, 
+                                    const int num_entities, 
+                                    const void** tag_data,
+                                    int* tag_sizes = 0 ) const = 0;
+
+    /**\brief Get pointers to tag data
+     *
+     * For a tag, get the values for a list of passed entity handles.
+     *\param tag_handle     The tag
+     *\param entity_handles The entity handles for which to retreive tag values.
+     *\param tag_data       An array of 'const void*'.  Array is populated (output)
+     *                      with pointers to the internal storage for the
+     *                      tag value corresponding to each entity handle.
+     *\param tag_sizes      The length of each tag value.  Optional for 
+     *                      fixed-length tags.  Required for variable-length tags.
+     */
+  virtual MBErrorCode  tag_get_data(const MBTag tag_handle, 
+                                    const MBRange& entity_handles, 
+                                    const void** tag_data,
+                                    int* tag_sizes = 0 ) const = 0;
+
+    /**\brief Set tag data given an array of pointers to tag values.
+     *
+     * For a tag, set the values for a list of passed entity handles.
+     *\param tag_handle     The tag
+     *\param entity_handles An array of entity handles for which to set tag values.
+     *\param num_entities   The length of the 'entity_handles' array.
+     *\param tag_data       An array of 'const void*'.  Array must be at least
+     *                      'num_entitities' long.  Array is expected to
+     *                      contain pointers to tag values for the corresponding
+     *                      MBEntityHandle in 'entity_handles'.
+     *\param tag_sizes      The length of each tag value.  Optional for 
+     *                      fixed-length tags.  Required for variable-length tags.
+     */
+  virtual MBErrorCode  tag_set_data(const MBTag tag_handle, 
+                                    const MBEntityHandle* entity_handles, 
+                                    const int num_entities,
+                                    void const* const* tag_data,
+                                    const int* tag_sizes = 0 ) = 0;
+  
+    /**\brief Set tag data given an array of pointers to tag values.
+     *
+     * For a tag, set the values for a list of passed entity handles.
+     *\param tag_handle     The tag
+     *\param entity_handles The entity handles for which to set tag values.
+     *\param tag_data       An array of 'const void*'.  Array is expected to
+     *                      contain pointers to tag values for the corresponding
+     *                      MBEntityHandle in 'entity_handles'.
+     *\param tag_sizes      The length of each tag value.  Optional for 
+     *                      fixed-length tags.  Required for variable-length tags.
+     */
+  virtual MBErrorCode  tag_set_data(const MBTag tag_handle, 
+                                    const MBRange& entity_handles,
+                                    void const* const* tag_data,
+                                    const int* tag_sizes = 0 ) = 0;
 
     //! Delete the data of a vector of entity handles and sparse tag
     /** Delete the data of a tag on a vector of entity handles.  Only sparse tag data are deleted with this

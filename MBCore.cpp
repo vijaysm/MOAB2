@@ -1388,6 +1388,69 @@ MBErrorCode  MBCore::tag_set_data(const MBTag tag_handle,
   return tagServer->set_data(tag_handle, entity_handles, tag_data);
 }
 
+
+//! return the tag data for a given EntityHandle and MBTag
+MBErrorCode  MBCore::tag_get_data( const MBTag tag_handle, 
+                                   const MBEntityHandle* entity_handles, 
+                                   const int num_entities,
+                                   const void** tag_data,
+                                   int* tag_sizes ) const
+{
+  if (NULL == entity_handles && 0 == num_entities) {
+    int size;
+    return tagServer->get_mesh_data(tag_handle, tag_data, tag_sizes ? *tag_sizes : size );
+  }
+
+  else return tagServer->get_data(tag_handle, entity_handles, num_entities, tag_data, tag_sizes);
+}
+
+//! return the tag data for a given EntityHandle and MBTag
+MBErrorCode  MBCore::tag_get_data( const MBTag tag_handle, 
+                                   const MBRange& entity_handles,
+                                   const void** tag_data,
+                                   int* tag_sizes ) const
+{
+  return tagServer->get_data(tag_handle, entity_handles, tag_data, tag_sizes );
+}
+
+//! set the data  for given EntityHandles and MBTag
+MBErrorCode  MBCore::tag_set_data( const MBTag tag_handle, 
+                                   const MBEntityHandle* entity_handles, 
+                                   const int num_entities,
+                                   void const* const* tag_data,
+                                   const int* tag_sizes )
+{
+  if (NULL == entity_handles && 0 == num_entities)
+    return tagServer->set_mesh_data(tag_handle, tag_data, tag_sizes ? *tag_sizes : 0);
+
+  //verify handles
+  const EntitySequence* seq;
+  const MBEntityHandle* iter;
+  const MBEntityHandle* end = entity_handles + num_entities;
+  for(iter = entity_handles; iter != end; ++iter)
+  {
+    if (TYPE_FROM_HANDLE(*iter) == MBENTITYSET) continue;
+    
+    else if(sequenceManager->find(*iter, seq) != MB_SUCCESS)
+      return MB_ENTITY_NOT_FOUND;
+  }
+
+  return tagServer->set_data(tag_handle, entity_handles, num_entities, tag_data, tag_sizes);
+}
+
+//! set the data  for given EntityHandles and MBTag
+MBErrorCode  MBCore::tag_set_data( const MBTag tag_handle, 
+                                   const MBRange& entity_handles, 
+                                   void const* const* tag_data,
+                                   const int* tag_sizes )
+{
+  //verify handles
+  MBErrorCode result = sequence_manager()->check_valid_entities( entity_handles );
+  if (MB_SUCCESS != result)
+    return result;
+  return tagServer->set_data(tag_handle, entity_handles, tag_data, tag_sizes);
+}
+
 //! adds a sparse tag for this specific EntityHandle/tag_name combination
 MBErrorCode MBCore::tag_create(const char *tag_name,
                                  const int tag_size, 
@@ -1407,6 +1470,12 @@ MBErrorCode MBCore::tag_create( const char* name,
                                 const void* def_val,
                                 bool use_existing )
 {
+    // This API cannot be used for creating variable-length tags with a 
+    // default value, because there is no argument for the length of
+    // the default value.
+  if (def_val && MB_VARIABLE_LENGTH == size)
+    return MB_VARIABLE_DATA_LENGTH;
+  
   MBErrorCode rval = tagServer->add_tag( name, size, storage, data, handle, def_val );
 
     // If it is okay to use an existing tag of the same name, check that it 
@@ -1435,6 +1504,16 @@ MBErrorCode MBCore::tag_create( const char* name,
   }
 
   return rval;
+}
+
+MBErrorCode MBCore::tag_create_variable_length( const char* name,
+                                                MBTagType storage,
+                                                MBDataType data,
+                                                MBTag& handle,
+                                                const void* def_val,
+                                                int def_val_size )
+{
+  return tagServer->add_tag( name, MB_VARIABLE_LENGTH, storage, data, handle, def_val, def_val_size );
 }
 
 //! removes the tag from the entity
@@ -1511,7 +1590,7 @@ MBErrorCode MBCore::tag_get_size(const MBTag tag_handle, int &tag_size) const
     return MB_TAG_NOT_FOUND;
   
   tag_size = tag_info->get_size();
-  return MB_SUCCESS;
+  return MB_VARIABLE_LENGTH == tag_size ? MB_VARIABLE_DATA_LENGTH : MB_SUCCESS;
 }
 
 MBErrorCode MBCore::tag_get_data_type( const MBTag handle, 
@@ -1530,6 +1609,11 @@ MBErrorCode MBCore::tag_get_default_value(const MBTag tag_handle, void *def_valu
 {
   int size;
   return tagServer->get_default_data( tag_handle, def_value, size );
+}
+
+MBErrorCode MBCore::tag_get_default_value( MBTag tag, const void*& ptr, int& size ) const
+{
+  return tagServer->get_default_data_ref( tag, ptr, size );
 }
 
   //! get type of tag (sparse, dense, etc.; 0 = dense, 1 = sparse, 2 = bit, 3 = static)

@@ -47,6 +47,14 @@
 
 using namespace std;
   
+static inline bool check_lengths( const int* length_array, int expected_value, int count )
+{
+  if (length_array)
+    for (int i = 0; i < count; ++i)
+      if (length_array[i] != expected_value)
+        return false;
+  return true;
+}
 
 /*
   TagServer functions ----------------------------------
@@ -89,7 +97,8 @@ MBErrorCode TagServer::add_tag( const char *tag_name,
     default_value_size = 0;
   }
   else if (storage == MB_TAG_BIT) {
-    if (data_size == MB_VARIABLE_LENGTH)
+      // bit tags cannot be zero-length or variable-length
+    if (data_size < 1)
       return MB_INVALID_SIZE;
     default_value_size = (data_size+7)/8; // convert from bits to bytes
   }
@@ -106,9 +115,11 @@ MBErrorCode TagServer::add_tag( const char *tag_name,
     return MB_ALREADY_ALLOCATED;
 
     // Input size must be a multiple of the size of the data type.
-  int typesize = TagInfo::size_from_data_type( data_type );
-  if (data_size % typesize)
-    return MB_FAILURE;
+  if (data_size != MB_VARIABLE_LENGTH) {
+    int typesize = TagInfo::size_from_data_type( data_type );
+    if (data_size % typesize)
+      return MB_INVALID_SIZE;
+  }
   
     // data type must be BIT of tag storage type is BIT
   if (storage == MB_TAG_BIT && data_type != MB_TYPE_BIT)
@@ -253,7 +264,7 @@ MBErrorCode TagServer::set_mesh_data( const MBTag tag_handle,
       return MB_INVALID_SIZE;
   }
   else if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
-    size = (size+7)/8; // convert from bits to bytes
+    size = 1; // one byte max for bit tag values
   else
     size = info->get_size();
   
@@ -261,141 +272,115 @@ MBErrorCode TagServer::set_mesh_data( const MBTag tag_handle,
   return MB_SUCCESS;
 }
 
-MBErrorCode TagServer::set_data(const MBTag tag_handle, 
-                                 const MBEntityHandle entity_handle, 
-                                 const void* data)
-{
 
-  // this assumes that the entity_handle is valid, 
-  // the check for valid handles are done one level up
-  
-  if(TYPE_FROM_HANDLE(entity_handle) >= MBMAXTYPE)
-    return MB_TYPE_OUT_OF_RANGE;
-  
-  MBTagId id = ID_FROM_TAG_HANDLE(tag_handle);
+MBErrorCode TagServer::set_data( const MBTag tag_handle, 
+                                 const MBEntityHandle* entity_handles, 
+                                 const int num_entities,
+                                 const void* data )
+{
+  const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
   switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
-    case MB_TAG_BIT:
-      return set_bits(tag_handle, entity_handle, *((unsigned char *)data));
-    case MB_TAG_SPARSE:
-      return mSparseData->set_data(id, entity_handle, data);
     case MB_TAG_DENSE:
-      return sequenceManager->set_tag_data(id, entity_handle, data, 
-                             mTagTable[MB_TAG_DENSE][id-1].default_value());
-    case MB_TAG_MESH:
-      return MB_FAILURE;
+      if (tag_id > mTagTable[MB_TAG_DENSE].size())
+        return MB_TAG_NOT_FOUND;
+      return sequenceManager->set_tag_data( tag_id, entity_handles, num_entities, 
+                           data, mTagTable[MB_TAG_DENSE][tag_id-1].default_value() );
+  
+    case MB_TAG_SPARSE:
+      return mSparseData->set_data( tag_id, entity_handles, num_entities, data );
+    
+    case MB_TAG_BIT:
+      if (num_entities == 1)
+        return set_bits( tag_handle, *entity_handles, *reinterpret_cast<const unsigned char*>(data) );
+      else
+        return MB_FAILURE;
+    
+    default:
+      return MB_TAG_NOT_FOUND;
   }
-  return MB_FAILURE;
 }
 
-
-MBErrorCode TagServer::set_data(const MBTag tag_handle, 
-                       const MBEntityHandle* entity_handles, 
-                       const int num_entities,
-                       const void* data)
+MBErrorCode TagServer::set_data( const MBTag tag_handle, 
+                                 const MBRange& entity_handles, 
+                                 const void* data )
 {
-
-  // this assumes that the entity_handle is valid, 
-  // the check for valid handles are done one level up
-  
-  MBErrorCode result = MB_SUCCESS;
-  
-  
   const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
-  const unsigned char* mydata = static_cast<const unsigned char*>(data);
-  const MBEntityHandle* end = entity_handles+num_entities;
+  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+    case MB_TAG_DENSE:
+      if (tag_id > mTagTable[MB_TAG_DENSE].size())
+        return MB_TAG_NOT_FOUND;
+      return sequenceManager->set_tag_data( tag_id, entity_handles, 
+                           data, mTagTable[MB_TAG_DENSE][tag_id-1].default_value() );
   
-  if( PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
-  {
-    const int data_size = mTagTable[MB_TAG_DENSE][tag_id-1].get_size();
-    for(const MBEntityHandle* iter = entity_handles; iter != end; ++iter)
-    {
-      if(TYPE_FROM_HANDLE(*iter) >= MBMAXTYPE)
-        return MB_TYPE_OUT_OF_RANGE;
-      result = sequenceManager->set_tag_data(tag_id, *iter, mydata, 
-                             mTagTable[MB_TAG_DENSE][tag_id-1].default_value());
-      if(result != MB_SUCCESS)
-        return result;
-      mydata += data_size;
-    }
+    case MB_TAG_SPARSE:
+      return mSparseData->set_data( tag_id, entity_handles, data );
+    
+    case MB_TAG_BIT:
+      if (entity_handles.size() == 1)
+        return set_bits( tag_handle, entity_handles.front(), *reinterpret_cast<const unsigned char*>(data) );
+      else
+        return MB_FAILURE;
+    
+    default:
+      return MB_TAG_NOT_FOUND;
   }
-  else if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_SPARSE)
-  {
-    const int data_size = mSparseData->tag_size(tag_id);
-    for(const MBEntityHandle* iter = entity_handles; iter != end; ++iter)
-    {
-      if(TYPE_FROM_HANDLE(*iter) >= MBMAXTYPE)
-        return MB_TYPE_OUT_OF_RANGE;
-      result = mSparseData->set_data(tag_id, *iter, mydata);
-      if(result != MB_SUCCESS)
-        return result;
-      mydata += data_size;
-    }
-  }
-  else if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
-  {
-    if (num_entities == 1)
-      return set_data(tag_handle, entity_handles[0], data);
-    else
-      // don't support this right now - not sure how to pass in multiple bit tags
-      return MB_FAILURE;
-  }
-  else {
-      // if we get here, we didn't find the right tag to set
-    return MB_TAG_NOT_FOUND;
-  }
-
-  
-  return MB_SUCCESS;
 }
 
-MBErrorCode TagServer::set_data(const MBTag tag_handle, 
-                       const MBRange& entity_handles, 
-                       const void* data)
+MBErrorCode TagServer::set_data( const MBTag tag_handle, 
+                                 const MBEntityHandle* entity_handles, 
+                                 const int num_entities,
+                                 void const* const* data,
+                                 const int* lengths )
 {
-
-  // this assumes that the entity_handle is valid, 
-  // the check for valid handles are done one level up
-  
-  MBErrorCode result = MB_SUCCESS;
-  
   const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
-  const unsigned char* mydata = static_cast<const unsigned char*>(data);
-  const MBRange::const_iterator end = entity_handles.end();
+  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+    case MB_TAG_DENSE:
+      if (tag_id > mTagTable[MB_TAG_DENSE].size())
+        return MB_TAG_NOT_FOUND;
+      return sequenceManager->set_tag_data( tag_id, entity_handles, num_entities, 
+                   data, lengths, mTagTable[MB_TAG_DENSE][tag_id-1].default_value() );
   
-  if( PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
-  {
-    result = sequenceManager->set_tag_data( tag_id, entity_handles, data, 
-                             mTagTable[MB_TAG_DENSE][tag_id-1].default_value() );
+    case MB_TAG_SPARSE:
+      return mSparseData->set_data( tag_id, entity_handles, num_entities, data, lengths );
+    
+    case MB_TAG_BIT:
+      if (num_entities == 1)
+        return set_bits( tag_handle, *entity_handles, *reinterpret_cast<const unsigned char*>(*data) );
+      else
+        return MB_FAILURE;
+    
+    default:
+      return MB_TAG_NOT_FOUND;
   }
-  else if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_SPARSE)
-  {
-    const int data_size = mSparseData->tag_size(tag_id);
-    for(MBRange::const_iterator iter = entity_handles.begin(); iter != end; ++iter)
-    {
-      if(TYPE_FROM_HANDLE(*iter) >= MBMAXTYPE)
-        return MB_TYPE_OUT_OF_RANGE;
-      result = mSparseData->set_data(tag_id, *iter, mydata);
-      if(result != MB_SUCCESS)
-        return result;
-      mydata += data_size;
-    }
-  }
-  else if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
-  {
-    if (entity_handles.size() == 1)
-      return set_data(tag_handle, *entity_handles.begin(), data);
-    else
-      // don't support this right now - not sure how to pass in multiple bit tags
-      return MB_FAILURE;
-  }
-  else {
-      // if we get here, we didn't find the right tag to set
-    return MB_TAG_NOT_FOUND;
-  }
-
-  
-  return MB_SUCCESS;
 }
+
+MBErrorCode TagServer::set_data( const MBTag tag_handle, 
+                                 const MBRange& entity_handles, 
+                                 void const* const* data,
+                                 const int* lengths )
+{
+  const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
+  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+    case MB_TAG_DENSE:
+      if (tag_id > mTagTable[MB_TAG_DENSE].size())
+        return MB_TAG_NOT_FOUND;
+      return sequenceManager->set_tag_data( tag_id, entity_handles, 
+                      data, lengths, mTagTable[MB_TAG_DENSE][tag_id-1].default_value() );
+  
+    case MB_TAG_SPARSE:
+      return mSparseData->set_data( tag_id, entity_handles, data, lengths );
+    
+    case MB_TAG_BIT:
+      if (entity_handles.size() == 1)
+        return set_bits( tag_handle, entity_handles.front(), *reinterpret_cast<const unsigned char*>(*data) );
+      else
+        return MB_FAILURE;
+    
+    default:
+      return MB_TAG_NOT_FOUND;
+  }
+}
+
 
 
 MBErrorCode TagServer::get_mesh_data( const MBTag tag_handle,
@@ -403,195 +388,140 @@ MBErrorCode TagServer::get_mesh_data( const MBTag tag_handle,
                                       int& size ) const
 {
   const TagInfo* info = get_tag_info( tag_handle );
-  if (!info || !info->get_mesh_value_size())
+  if (!info)
     return MB_TAG_NOT_FOUND;
   
+  if (info->get_mesh_value()) {
+    size = info->get_mesh_value_size();
+    memcpy( data, info->get_mesh_value(), size );
+  }
+  else if (info->default_value()) {
+    size = info->default_value_size();
+    memcpy( data, info->default_value(), size );
+  }
+  else {
+    return MB_TAG_NOT_FOUND;
+  }
+    
+    // Mesh value and default value sizes are the number of bytes.
+    // For bit tags, the number of bytes is always 1.  We want the
+    // number of bits instead.
   if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
     size = info->get_size();
-  else 
-    size = info->get_mesh_value_size();
-  if (data) 
-    memcpy( data, info->get_mesh_value(), info->get_mesh_value_size() );
+  
   return MB_SUCCESS;
 }
 
-MBErrorCode TagServer::get_data(const MBTag tag_handle,
-                       const MBEntityHandle entity_handle,
-                       void* data)
+MBErrorCode TagServer::get_data( const MBTag tag_handle,
+                                 const MBEntityHandle* entity_handles,
+                                 const int num_entities,
+                                 void* data )
 {
-
-  MBErrorCode result = MB_TAG_NOT_FOUND;
-
-  if(TYPE_FROM_HANDLE(entity_handle) >= MBMAXTYPE)
-    return MB_TYPE_OUT_OF_RANGE;
-
-  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+  const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
+  const MBTagType type = PROP_FROM_TAG_HANDLE(tag_handle);
+  const TagInfo* info = get_tag_info( tag_handle );
+  if (!info)
+    return MB_TAG_NOT_FOUND;
+  const void* const default_val = info->default_value();
+  switch (type) {
     case MB_TAG_DENSE:
-      result = sequenceManager->get_tag_data(ID_FROM_TAG_HANDLE(tag_handle), entity_handle, data);
-        // preserve MOAB 3.0 behavior for dense tags: 
-        // return default value for invalid handles.
-      if (result == MB_ENTITY_NOT_FOUND) {
-        const TagInfo* info = get_tag_info(tag_handle);
-        if (!info)
-          return MB_TAG_NOT_FOUND;
-        if (info->default_value())
-          memcpy( data, info->default_value(), info->get_size() );
-        else
-          memset( data, 0, info->get_size() );
-      }
-      break;
+      return sequenceManager->get_tag_data( tag_id, entity_handles, num_entities, data, default_val );
     case MB_TAG_SPARSE:
-      result = mSparseData->get_data(ID_FROM_TAG_HANDLE(tag_handle), entity_handle, data);
-      break;
+      return mSparseData->get_data( tag_id, entity_handles, num_entities, data, default_val );
     case MB_TAG_BIT:
-      result = get_bits(tag_handle, entity_handle, *((unsigned char *)data));
-      break;
-    case MB_TAG_MESH:
-      result = MB_FAILURE;
-      break;
+      if (num_entities == 1)
+        return get_bits( tag_handle, *entity_handles, *reinterpret_cast<unsigned char*>(data) );
+      else
+        return MB_FAILURE;
+    
+    default:
+      return MB_TAG_NOT_FOUND;
   }
-
-  // if we couldn't get a value
-  // try to get a default value
-  if(result == MB_TAG_NOT_FOUND)
-  {
-    int size;
-    result = get_default_data(tag_handle, data, size);
-      // if failure is returned, change it back to tag not found, since it's
-      // ok to look for data and not find any
-    if (result == MB_ENTITY_NOT_FOUND) result = MB_TAG_NOT_FOUND;
-  }
-
-  return result;
 }
 
-MBErrorCode TagServer::get_data(const MBTag tag_handle,
-                       const MBEntityHandle* entity_handles,
-                       const int num_entities,
-                       void* data)
+MBErrorCode TagServer::get_data( const MBTag tag_handle,
+                                 const MBRange& entity_handles,
+                                 void* data )
 {
-
-  MBErrorCode result = MB_SUCCESS, rval;
-
   const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
-  unsigned char* mydata = static_cast<unsigned char*>(data);
-  const MBEntityHandle* end = entity_handles+num_entities;
-
-  if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
-  {
-    const int data_size = mTagTable[MB_TAG_DENSE][tag_id-1].get_size();
-    for(const MBEntityHandle* iter = entity_handles; iter != end; ++iter)
-    {
-      rval = sequenceManager->get_tag_data(tag_id, *iter, mydata);
-        // preserve MOAB 3.0 behavior for dense tags: 
-        // return default value for invalid handles.
-      if(rval == MB_TAG_NOT_FOUND || rval == MB_ENTITY_NOT_FOUND)
-      {
-        const TagInfo* info = get_tag_info(tag_handle);
-        if (!info)
-          return MB_TAG_NOT_FOUND;
-        if (info->default_value()) {
-          memcpy( data, info->default_value(), info->get_size() );
-          if (rval == MB_ENTITY_NOT_FOUND)
-            result = MB_ENTITY_NOT_FOUND;
-        }
-        else {
-          memset( data, 0, info->get_size() );
-          result = rval;
-        }
-      }
-      mydata += data_size;
-    }
-  }
-  else if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_SPARSE)
-  {
-    const int data_size = mSparseData->tag_size(tag_id);
-    for(const MBEntityHandle* iter = entity_handles; iter != end; ++iter)
-    {
-      result = mSparseData->get_data(tag_id, *iter, mydata);
-      if(result == MB_TAG_NOT_FOUND)
-      {
-        int size;
-        result = get_default_data(tag_handle, mydata, size);
-          // if failure is returned, change it back to tag not found, since it's
-          // ok to look for data and not find any
-        if (result == MB_ENTITY_NOT_FOUND) result = MB_TAG_NOT_FOUND;
-      }
-      if(result != MB_SUCCESS)
-        return result;
-      mydata += data_size;
-    }
-  }
-  else if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
-  {
-    if (num_entities == 1)
-      return get_data(tag_handle, entity_handles[0], data);
-    else
-      // don't support this right now - not sure how to pass in multiple bit tags
-      return MB_FAILURE;
-  }
-  else {
-      // if we get here, we didn't find the right tag to set
+  const MBTagType type = PROP_FROM_TAG_HANDLE(tag_handle);
+  const TagInfo* info = get_tag_info( tag_handle );
+  if (!info)
     return MB_TAG_NOT_FOUND;
+  const void* const default_val = info->default_value();
+  switch (type) {
+    case MB_TAG_DENSE:
+      return sequenceManager->get_tag_data( tag_id, entity_handles, data, default_val );
+    case MB_TAG_SPARSE:
+      return mSparseData->get_data( tag_id, entity_handles, data, default_val );
+    case MB_TAG_BIT:
+      if (entity_handles.size() == 1)
+        return get_bits( tag_handle, entity_handles.front(), *reinterpret_cast<unsigned char*>(data) );
+      else
+        return MB_FAILURE;
+    
+    default:
+      return MB_TAG_NOT_FOUND;
   }
-
-
-  return MB_SUCCESS;
 }
 
-MBErrorCode TagServer::get_data(const MBTag tag_handle,
-                       const MBRange& entity_handles,
-                       void* data)
+MBErrorCode TagServer::get_data( const MBTag tag_handle,
+                                 const MBEntityHandle* entity_handles,
+                                 const int num_entities,
+                                 const void** data,
+                                 int* lengths )
 {
-
-  MBErrorCode result = MB_SUCCESS;
-
   const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
-  unsigned char* mydata = static_cast<unsigned char*>(data);
-  const MBRange::const_iterator end = entity_handles.end();
-
-  if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_DENSE)
-  {
-    result = sequenceManager->get_tag_data( tag_id, entity_handles, mydata, 
-                             mTagTable[MB_TAG_DENSE][tag_id-1].default_value() );
-  }
-  else if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_SPARSE)
-  {
-    const int data_size = mSparseData->tag_size(tag_id);
-    for(MBRange::const_iterator iter = entity_handles.begin(); iter != end; ++iter)
-    {
-      if(TYPE_FROM_HANDLE(*iter) >= MBMAXTYPE)
-        return MB_TYPE_OUT_OF_RANGE;
-      result = mSparseData->get_data(tag_id, *iter, mydata);
-      if(result == MB_TAG_NOT_FOUND)
-      {
-        int size;
-        result = get_default_data(tag_handle, mydata, size);
-          // if failure is returned, change it back to tag not found, since it's
-          // ok to look for data and not find any
-        if (result == MB_ENTITY_NOT_FOUND) result = MB_TAG_NOT_FOUND;
-      }
-      if(result != MB_SUCCESS)
-        return result;
-      mydata += data_size;
-    }
-  }
-  else if(PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
-  {
-    if (entity_handles.size() == 1)
-      return get_data(tag_handle, *entity_handles.begin(), data);
-    else
-      // don't support this right now - not sure how to pass in multiple bit tags
-      return MB_FAILURE;
-  }
-  else {
-      // if we get here, we didn't find the right tag to set
+  const MBTagType type = PROP_FROM_TAG_HANDLE(tag_handle);
+  const TagInfo* info = get_tag_info( tag_handle );
+  if (!info)
     return MB_TAG_NOT_FOUND;
+  const void* const default_val = info->default_value();
+  const int def_val_len = info->default_value_size();
+  switch (type) {
+    case MB_TAG_DENSE:
+      return sequenceManager->get_tag_data( tag_id, entity_handles, num_entities, data, lengths, default_val, def_val_len );
+    case MB_TAG_SPARSE:
+      return mSparseData->get_data( tag_id, entity_handles, num_entities, data, lengths, default_val, def_val_len );
+    case MB_TAG_BIT:
+      if (num_entities == 1)
+        return get_bits( tag_handle, *entity_handles, *reinterpret_cast<unsigned char*>(data) );
+      else
+        return MB_FAILURE;
+    
+    default:
+      return MB_TAG_NOT_FOUND;
   }
-
-
-  return MB_SUCCESS;
 }
+
+MBErrorCode TagServer::get_data( const MBTag tag_handle,
+                                 const MBRange& entity_handles,
+                                 const void** data,
+                                 int* lengths )
+{
+  const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
+  const MBTagType type = PROP_FROM_TAG_HANDLE(tag_handle);
+  const TagInfo* info = get_tag_info( tag_handle );
+  if (!info)
+    return MB_TAG_NOT_FOUND;
+  const void* const default_val = info->default_value();
+  const int def_val_len = info->default_value_size();
+  switch (type) {
+    case MB_TAG_DENSE:
+      return sequenceManager->get_tag_data( tag_id, entity_handles, data, lengths, default_val, def_val_len );
+    case MB_TAG_SPARSE:
+      return mSparseData->get_data( tag_id, entity_handles, data, lengths, default_val, def_val_len );
+    case MB_TAG_BIT:
+      if (entity_handles.size() == 1)
+        return get_bits( tag_handle, entity_handles.front(), *reinterpret_cast<unsigned char*>(data) );
+      else
+        return MB_FAILURE;
+    
+    default:
+      return MB_TAG_NOT_FOUND;
+  }
+}
+
 
 MBTag TagServer::get_handle(const char *tag_name) const
 {
@@ -648,7 +578,7 @@ MBErrorCode TagServer::get_default_data_ref( const MBTag tag_handle,
   const TagInfo* tag_info = get_tag_info(tag_handle);
   if(!tag_info)
     return MB_TAG_NOT_FOUND;
-
+  
   size = tag_info->default_value_size();
   if (size) {
     data = tag_info->default_value();

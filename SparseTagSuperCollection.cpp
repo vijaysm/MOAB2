@@ -91,34 +91,265 @@ int SparseTagSuperCollection::tag_size(const MBTagId tag_id) const
   return coll ? coll->tag_size() : 0;
 }
 
-MBErrorCode SparseTagSuperCollection::set_data(const MBTagId tag_handle, 
-    const MBEntityHandle entity_handle, const void* data)
+
+MBErrorCode SparseTagSuperCollection::set_data( MBTagId tag_handle,
+                                                const MBEntityHandle* handles,
+                                                int num_handles,
+                                                const void* data )
 {
   SparseTagCollection* coll = get_collection(tag_handle);
-  return coll ? coll->set_data( entity_handle, data ) : MB_TAG_NOT_FOUND;
+  if (!coll)
+    return MB_TAG_NOT_FOUND;
+    
+  const int length = coll->tag_size();
+  if (length == MB_VARIABLE_LENGTH)
+    return MB_VARIABLE_DATA_LENGTH;
+
+  MBErrorCode rval, result = MB_SUCCESS;
+  const unsigned char* ptr = reinterpret_cast<const unsigned char*>(data);
+  const MBEntityHandle *const end = handles + num_handles;
+  for (const MBEntityHandle* i = handles; i != end; ++i, ptr += length) {
+    rval = coll->set_data( *i, ptr );
+    if (MB_SUCCESS != rval)
+      result = rval;
+  }
+    
+  return result;
 }
 
-MBErrorCode SparseTagSuperCollection::get_data(const MBTagId tag_handle, 
-    const MBEntityHandle entity_handle, void* data)
+MBErrorCode SparseTagSuperCollection::set_data( MBTagId tag_handle,
+                                                const MBEntityHandle* handles,
+                                                int num_handles,
+                                                void const* const* data_ptrs,
+                                                const int* lengths )
 {
   SparseTagCollection* coll = get_collection(tag_handle);
-  return coll ? coll->get_data( entity_handle, data ) : MB_TAG_NOT_FOUND;
+  if (!coll)
+    return MB_TAG_NOT_FOUND;
+    
+  const int length = coll->tag_size();
+  int length_step;
+  if (length == MB_VARIABLE_LENGTH) {
+    if (!lengths)
+      return MB_VARIABLE_DATA_LENGTH;
+    length_step = 1;
+  }
+  else {
+    lengths = &length;
+    length_step = 0;
+  }
+
+  MBErrorCode rval, result = MB_SUCCESS;
+  const MBEntityHandle *const end = handles + num_handles;
+  void const* const* ptr = data_ptrs;
+  for (const MBEntityHandle* i = handles; i != end; ++i, ++ptr, lengths += length_step) {
+    rval = coll->set_data( *i, *ptr, *lengths );
+    if (MB_SUCCESS != rval)
+      result = rval;
+  }
+    
+  return result;
 }
 
-MBErrorCode SparseTagSuperCollection::set_data(const MBTagId tag_handle, 
-    const MBEntityHandle entity_handle, const void* data, int size)
+
+MBErrorCode SparseTagSuperCollection::set_data( MBTagId tag_handle,
+                                                const MBRange& handles,
+                                                const void* data )
 {
   SparseTagCollection* coll = get_collection(tag_handle);
-  return coll ? coll->set_data( entity_handle, data, size ) : MB_TAG_NOT_FOUND;
+  if (!coll)
+    return MB_TAG_NOT_FOUND;
+    
+  const int length = coll->tag_size();
+  if (length == MB_VARIABLE_LENGTH)
+    return MB_VARIABLE_DATA_LENGTH;
+
+  MBErrorCode rval, result = MB_SUCCESS;
+  const unsigned char* ptr = reinterpret_cast<const unsigned char*>(data);
+  for (MBRange::const_iterator i = handles.begin(); i != handles.end(); ++i, ptr += length) {
+    rval = coll->set_data( *i, ptr );
+    if (MB_SUCCESS != rval)
+      result = rval;
+  }
+    
+  return result;
 }
 
-MBErrorCode SparseTagSuperCollection::get_data(const MBTagId tag_handle, 
-    const MBEntityHandle entity_handle, const void*& data, int& size)
+MBErrorCode SparseTagSuperCollection::set_data( MBTagId tag_handle,
+                                                const MBRange& handles,
+                                                void const* const* data_ptrs,
+                                                const int* lengths )
 {
   SparseTagCollection* coll = get_collection(tag_handle);
-  return coll ? coll->get_data( entity_handle, data, size ) : MB_TAG_NOT_FOUND;
+  if (!coll)
+    return MB_TAG_NOT_FOUND;
+    
+  const int length = coll->tag_size();
+  int length_step;
+  if (length == MB_VARIABLE_LENGTH) {
+    if (!lengths)
+      return MB_VARIABLE_DATA_LENGTH;
+    length_step = 1;
+  }
+  else {
+    lengths = &length;
+    length_step = 0;
+  }
+
+  MBErrorCode rval, result = MB_SUCCESS;
+  void const* const* ptr = data_ptrs;
+  for (MBRange::const_iterator i = handles.begin(); i != handles.end(); ++i, ++ptr, lengths += length_step) {
+    rval = coll->set_data( *i, *ptr, *lengths );
+    if (MB_SUCCESS != rval)
+      result = rval;
+  }
+    
+  return result;
 }
 
+
+MBErrorCode SparseTagSuperCollection::get_data( MBTagId tag_handle,
+                                                const MBEntityHandle* handles,
+                                                int num_handles,
+                                                void* data,
+                                                const void* default_value ) const
+{
+  SparseTagCollection* coll = get_collection(tag_handle);
+  if (!coll)
+    return MB_TAG_NOT_FOUND;
+    
+  const int length = coll->tag_size();
+  if (length == MB_VARIABLE_LENGTH)
+    return MB_VARIABLE_DATA_LENGTH;
+
+  MBErrorCode rval;
+  unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
+  const MBEntityHandle *const end = handles + num_handles;
+  for (const MBEntityHandle* i = handles; i != end; ++i, ptr += length) {
+    rval = coll->get_data( *i, ptr );
+    if (MB_SUCCESS != rval) {
+      if (MB_TAG_NOT_FOUND == rval && default_value) 
+        memcpy( ptr, default_value, length );
+      else
+        return rval;
+    }
+  }
+    
+  return MB_SUCCESS;
+}
+
+MBErrorCode SparseTagSuperCollection::get_data( MBTagId tag_handle,
+                                                const MBEntityHandle* handles,
+                                                int num_handles,
+                                                const void** data,
+                                                int* lengths,
+                                                const void* default_value,
+                                                int default_val_length ) const
+{
+  SparseTagCollection* coll = get_collection(tag_handle);
+  if (!coll)
+    return MB_TAG_NOT_FOUND;
+  
+  int junk_length;
+  int length_step = 1;
+  const int length = coll->tag_size();
+  if (!lengths) {
+    if (length == MB_VARIABLE_LENGTH)
+      return MB_VARIABLE_DATA_LENGTH;
+    lengths = &junk_length;
+    length_step = 0;
+  }
+  
+  
+  MBErrorCode rval, result = MB_SUCCESS;
+  const MBEntityHandle *const end = handles + num_handles;
+  for (const MBEntityHandle* i = handles; i != end; ++i, ++data, lengths += length_step) {
+    rval = coll->get_data( *i, *data, *lengths );
+    if (MB_SUCCESS != rval) {
+      if (MB_TAG_NOT_FOUND == rval && default_value) {
+        *data = default_value;
+        *lengths = default_val_length;
+      }
+      else {
+        *data = 0;
+        *lengths = 0;
+        result = rval;
+      }
+    }
+  }
+    
+  return result;
+}
+
+
+MBErrorCode SparseTagSuperCollection::get_data( MBTagId tag_handle,
+                                                const MBRange& handles,
+                                                void* data,
+                                                const void* default_value ) const
+{
+  SparseTagCollection* coll = get_collection(tag_handle);
+  if (!coll)
+    return MB_TAG_NOT_FOUND;
+    
+  const int length = coll->tag_size();
+  if (length == MB_VARIABLE_LENGTH)
+    return MB_VARIABLE_DATA_LENGTH;
+
+  MBErrorCode rval;
+  unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
+  for (MBRange::const_iterator i = handles.begin(); i != handles.end(); ++i, ptr += length) {
+    rval = coll->get_data( *i, ptr );
+    if (MB_SUCCESS != rval) {
+      if (MB_TAG_NOT_FOUND == rval && default_value) 
+        memcpy( ptr, default_value, length );
+      else
+        return rval;
+    }
+  }
+    
+  return MB_SUCCESS;
+}
+
+MBErrorCode SparseTagSuperCollection::get_data( MBTagId tag_handle,
+                                                const MBRange& handles,
+                                                const void** data,
+                                                int* lengths,
+                                                const void* default_value,
+                                                int default_val_length ) const
+{
+  SparseTagCollection* coll = get_collection(tag_handle);
+  if (!coll)
+    return MB_TAG_NOT_FOUND;
+  
+  int junk_length;
+  int length_step = 1;
+  const int length = coll->tag_size();
+  if (!lengths) {
+    if (length == MB_VARIABLE_LENGTH)
+      return MB_VARIABLE_DATA_LENGTH;
+    lengths = &junk_length;
+    length_step = 0;
+  }
+  
+  
+  MBErrorCode rval, result = MB_SUCCESS;
+  for (MBRange::const_iterator i = handles.begin(); i != handles.end(); ++i, ++data, lengths += length_step) {
+    rval = coll->get_data( *i, *data, *lengths );
+    if (MB_SUCCESS != rval) {
+      if (MB_TAG_NOT_FOUND == rval && default_value) {
+        *data = default_value;
+        *lengths = default_val_length;
+      }
+      else {
+        *data = 0;
+        *lengths = 0;
+        result = rval;
+      }
+    }
+  }
+    
+  return result;
+}
 
 MBErrorCode SparseTagSuperCollection::remove_data( const MBTagId tag_handle, 
     const MBEntityHandle entity_handle )

@@ -76,7 +76,7 @@ private:
   std::string mTagName;
 
   //! stores the size of the data for this tag
-  unsigned short mDataSize;
+  int mDataSize;
   
   //! flag to mark unused entries
   bool isValid;
@@ -103,16 +103,12 @@ inline TagInfo::TagInfo( const char* name,
    mDefaultValue( default_value_size, default_value ),
    dataType( type )
 {
-    // if tag is not variable-length and default_value_size is not zero,
-    // then size and default_value_size must be the same.
-  assert( size == MB_VARIABLE_LENGTH || default_value_size == 0 || default_value_size == size );
 }
 
 
 inline void TagInfo::set_mesh_value( const void* data, int size )
 {
     // if tag is not variable-length, then size must be tag size
-  assert( get_size() == MB_VARIABLE_LENGTH || get_size() == size );
   mMeshValue.set( data, size );
 }
 

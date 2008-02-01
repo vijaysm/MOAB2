@@ -105,6 +105,12 @@ MBErrorCode SparseTagCollection::set_data(const MBEntityHandle entity_handle, co
     mData.lower_bound(entity_handle);
   
   if (mDataSize == MB_VARIABLE_LENGTH) {
+    if (size == 0) {
+        // ignore return value: still success if entity not found
+      remove_data( entity_handle );
+      return MB_SUCCESS;
+    }
+  
     if (iterator == mData.end() || iterator->first != entity_handle) {
       void* new_data = mAllocator.allocate(sizeof(VarLenTag));
       new (new_data) VarLenTag;

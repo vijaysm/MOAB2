@@ -153,7 +153,7 @@ void SequenceData::move_tag_data( SequenceData* destination, TagServer* tag_serv
 
 void SequenceData::release_tag_data( const int* tag_sizes, int num_tag_sizes )
 {
-  assert( num_tag_sizes >= numTagData );
+  assert( num_tag_sizes >= (int)numTagData );
   for (unsigned i = 1; i <= numTagData; ++i)
     release_tag_data( i, tag_sizes[i-1] );
 }

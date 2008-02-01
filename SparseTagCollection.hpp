@@ -74,12 +74,21 @@ public:
   ~SparseTagCollection();
   
   //! set the tag data for an entity id
+  //!\NOTE Will fail with MB_VARIABLE_DATA_LENGTH if called for 
+  //!      variable-length tag.
   MBErrorCode set_data(const MBEntityHandle entity_handle, const void* data);
 
   //! get the tag data for an entity id
+  //!\NOTE Will fail with MB_VARIABLE_DATA_LENGTH if called for 
+  //!      variable-length tag.
   MBErrorCode get_data(const MBEntityHandle entity_handle, void* data);
   
   //! set variable-length tag data for an entity id
+  //!
+  //!\NOTE If called for fixed-length tag, size must be either zero or the tag size.
+  //!
+  //!\NOTE If called with zero size for a variable-length tag, is equivalent
+  //!      to remove_data().
   MBErrorCode set_data(const MBEntityHandle entity_handle, const void* data, int length);
 
   //! get the variable-length data for an entity id
