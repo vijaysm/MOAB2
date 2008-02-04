@@ -2,11 +2,10 @@
 #define TAG_INFO_HPP
 
 #include "MBTypes.h"
-#include "VarLenTag.hpp"
 
 #include <string>
-#include <string.h>
-#include <assert.h>
+#include <string.h>  /* memcpy */
+#include <stdlib.h>  /* realloc & free */
 
 // ! stores information about a tag
 class TagInfo
@@ -14,10 +13,14 @@ class TagInfo
 public:
 
   //! constructor
-  TagInfo() : mTagName(""), 
+  TagInfo() : mDefaultValue(0),
+              mMeshValue(0),
+              mDefaultValueSize(0),
+              mMeshValueSize(0),
               mDataSize(0), 
-              isValid(false),
-              dataType(MB_TYPE_OPAQUE)
+              dataType(MB_TYPE_OPAQUE),
+              mTagName(""), 
+              isValid(false)
               {}
 
   //! constructor that takes all parameters
@@ -26,6 +29,12 @@ public:
                   MBDataType type, 
                   const void * default_value,
                   int default_value_size);
+  
+  TagInfo( const TagInfo& copy );
+  
+  inline ~TagInfo();
+  
+  TagInfo& operator=( const TagInfo& copy );
   
   //! set the name of the tag
   void set_name( const std::string& name) { mTagName = name; }
@@ -40,24 +49,24 @@ public:
   int get_size() const { return mDataSize; }
 
     //! get length of default value
-  int default_value_size() const { return mDefaultValue.size(); }
+  int default_value_size() const { return mDefaultValueSize; }
 
     //! get the default data
   const void *default_value() const  
-    { return mDefaultValue.size() ? mDefaultValue.data() : 0;}
+    { return mDefaultValue; }
   
     //! set mesh value
   void set_mesh_value( const void* data, int size );
   
     //! get mesh value
-  int get_mesh_value_size() const { return mMeshValue.size(); }
+  int get_mesh_value_size() const { return mMeshValueSize; }
   
     //! get mesh value
   const void* get_mesh_value() const 
-    { return mMeshValue.size() ? mMeshValue.data() : 0; }
+    { return mMeshValue; }
   
     //! remove mesh value
-  void remove_mesh_value() { mMeshValue.clear(); }
+  void remove_mesh_value();
   
   inline MBDataType get_data_type() const     { return dataType; }
   
@@ -72,23 +81,29 @@ private:
 
   MBErrorCode reserve_mesh_tag_id( int& id_out );
 
-  //! stores the tag name
-  std::string mTagName;
+  //! stores the default data, if any
+  void* mDefaultValue;
+  
+  //! store the mesh value, if any
+  void* mMeshValue;
+  
+  //! Size of mDefaultValue and mMeshValue, in bytes
+  //! NOTE: These sizes differ from mDataSize in two cases:
+  //!    a) Variable-length tags
+  //!    b) Bit tags (where mDataSize is bits, not bytes.)
+  int mDefaultValueSize, mMeshValueSize;
 
   //! stores the size of the data for this tag
   int mDataSize;
   
-  //! flag to mark unused entries
-  bool isValid;
-
-  //! stores the default data, if any
-  VarLenTag mDefaultValue;
-  
-  //! store the mesh value, if any
-  VarLenTag mMeshValue;
-  
   //! type of tag data
   MBDataType dataType;
+
+  //! stores the tag name
+  std::string mTagName;
+  
+  //! flag to mark unused entries
+  bool isValid;
 
 };
 
@@ -97,19 +112,27 @@ inline TagInfo::TagInfo( const char* name,
                          MBDataType type,
                          const void* default_value,
                          int default_value_size)
- : mTagName( name ),
-   mDataSize( size ),
-   isValid( true ),
-   mDefaultValue( default_value_size, default_value ),
-   dataType( type )
+ : mDefaultValue(0),
+   mMeshValue(0),
+   mDefaultValueSize(default_value_size),
+   mMeshValueSize(0),
+   mDataSize(size),
+   dataType(type),
+   mTagName(name),
+   isValid(true)
 {
+  if (default_value) {
+    mDefaultValue = malloc( mDefaultValueSize );
+    memcpy( mDefaultValue, default_value, mDefaultValueSize );
+  }
 }
 
-
-inline void TagInfo::set_mesh_value( const void* data, int size )
+inline TagInfo::~TagInfo() 
 {
-    // if tag is not variable-length, then size must be tag size
-  mMeshValue.set( data, size );
+  free( mDefaultValue );
+  free( mMeshValue );
+  mDefaultValue = mMeshValue = 0;
+  mDefaultValueSize = mMeshValueSize = 0;
 }
 
 #endif
