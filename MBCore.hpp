@@ -618,6 +618,29 @@ public:
                                   const      void* def_val,
                                               bool use_existing);
 
+    /**\brief Define a new tag that can store variable-length data.
+     *
+     * Define a new tag for storing application-defined data on MB entities.  
+     *
+     * \param name          The name of the tag.
+     * \param storage       The tag storage type (MB_TAG_BIT not supported).
+     * \param data_type     The tag data type.
+     * \param handle_out    The tag handle (output)
+     * \param default_value Optional default value for tag.
+     * \param default_val_len Length of default value.  Required if
+     *                      default value is specified.
+     * \return - MB_ALREADY_ALLOCATED if a tag with name already exists.
+     *         - MB_FAILURE if inconsistant arguments
+     *         - MB_SUCCESS otherwise.
+     */
+  virtual MBErrorCode tag_create_variable_length( const char* name,
+                                                  MBTagType   storage,
+                                                  MBDataType  data_type,
+                                                  MBTag&      handle_out,
+                                                  const void* default_value = 0,
+                                                  int         default_val_len = 0 
+                                                 );
+
   //! Gets the tag name string of the tag_handle.
   /** \param tag_handle MBTag you want the name of.  
       \param tag_name Name string of <em>tag_handle</em>. 
