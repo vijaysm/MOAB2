@@ -152,7 +152,10 @@ public:
                         const int* lengths = 0 );
 
   //! get global/mesh value of tag
-  MBErrorCode get_mesh_data( const MBTag tag_handle, void* data, int& size ) const;
+  MBErrorCode get_mesh_data( const MBTag tag_handle, void* data ) const;
+
+  //! get pointer/reference to mesh data
+  MBErrorCode get_mesh_data( MBTag tag_handle, const void*& data_ptr, int& size ) const;
 
   /**\Brief Get tag value
    *

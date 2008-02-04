@@ -1337,8 +1337,7 @@ MBErrorCode  MBCore::tag_get_data(const MBTag tag_handle,
                                     void *tag_data) const
 {
   if (NULL == entity_handles && 0 == num_entities) {
-    int size;
-    return tagServer->get_mesh_data(tag_handle, tag_data, size);
+    return tagServer->get_mesh_data(tag_handle, tag_data);
   }
 
   else return tagServer->get_data(tag_handle, entity_handles, num_entities, tag_data);
@@ -1398,7 +1397,7 @@ MBErrorCode  MBCore::tag_get_data( const MBTag tag_handle,
 {
   if (NULL == entity_handles && 0 == num_entities) {
     int size;
-    return tagServer->get_mesh_data(tag_handle, tag_data, tag_sizes ? *tag_sizes : size );
+    return tagServer->get_mesh_data(tag_handle, tag_data[0], tag_sizes ? tag_sizes[0] : size );
   }
 
   else return tagServer->get_data(tag_handle, entity_handles, num_entities, tag_data, tag_sizes);
@@ -1421,7 +1420,7 @@ MBErrorCode  MBCore::tag_set_data( const MBTag tag_handle,
                                    const int* tag_sizes )
 {
   if (NULL == entity_handles && 0 == num_entities)
-    return tagServer->set_mesh_data(tag_handle, tag_data, tag_sizes ? *tag_sizes : 0);
+    return tagServer->set_mesh_data(tag_handle, tag_data[0], tag_sizes ? tag_sizes[0] : 0);
 
   //verify handles
   const EntitySequence* seq;

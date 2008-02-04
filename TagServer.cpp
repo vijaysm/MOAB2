@@ -384,7 +384,27 @@ MBErrorCode TagServer::set_data( const MBTag tag_handle,
 
 
 MBErrorCode TagServer::get_mesh_data( const MBTag tag_handle,
-                                      void* data,
+                                      void* data ) const
+{
+  const TagInfo* info = get_tag_info( tag_handle );
+  if (!info)
+    return MB_TAG_NOT_FOUND;
+  
+  if (info->get_size() == MB_VARIABLE_LENGTH)
+    return MB_VARIABLE_DATA_LENGTH;
+  
+  if (info->get_mesh_value())
+    memcpy( data, info->get_mesh_value(), info->get_mesh_value_size() );
+  else if (info->default_value())
+    memcpy( data, info->default_value(), info->default_value_size() );
+  else
+    return MB_TAG_NOT_FOUND;
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode TagServer::get_mesh_data( MBTag tag_handle,
+                                      const void*& data,
                                       int& size ) const
 {
   const TagInfo* info = get_tag_info( tag_handle );
@@ -393,13 +413,15 @@ MBErrorCode TagServer::get_mesh_data( const MBTag tag_handle,
   
   if (info->get_mesh_value()) {
     size = info->get_mesh_value_size();
-    memcpy( data, info->get_mesh_value(), size );
+    data = info->get_mesh_value();
   }
   else if (info->default_value()) {
     size = info->default_value_size();
-    memcpy( data, info->default_value(), size );
+    data = info->default_value();
   }
   else {
+    data = 0;
+    size = 0;
     return MB_TAG_NOT_FOUND;
   }
     
