@@ -359,6 +359,11 @@ MBErrorCode WriteVtk::write_tags( std::ostream& stream, bool nodes, const MBRang
       return rval;
     if (type == MB_TYPE_HANDLE)
       continue;
+      
+      // Skip variable-length tags -- not supported by VTK format
+    int size;
+    if (MB_VARIABLE_DATA_LENGTH == mbImpl->tag_get_size( *i, size ))
+      continue;    
     
       // Get subset of input entities that have the tag set
     MBRange tagged;
