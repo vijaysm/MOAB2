@@ -53,6 +53,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <setjmp.h>
 
 #if MODE == EXCEPTION_MODE
    struct ErrorExcept{};
@@ -66,22 +67,18 @@
 #elif MODE == LONGJMP_MODE
 #  include <signal.h>
 #  include <setjmp.h>
-#  ifdef SIGUSR2
-#    define FLAG_ERROR raise(SIGUSR2)
-#  else
-#    define FLAG_ERROR abort()
-#  endif
+#  define FLAG_ERROR siglongjmp( jmpenv, -1 )
 #else
 #  error "MODE not set"
 #endif
 
 #if MODE == LONGJMP_MODE
 
-jmp_buf jmpenv;
+sigjmp_buf jmpenv;
 extern "C" {
   void sighandler( int sig ) {
     signal( sig, sighandler );
-    longjmp(jmpenv, sig);
+    siglongjmp(jmpenv, sig);
     // should never return from longjmp
     exit(1);
   }
@@ -228,19 +225,17 @@ int run_test( test_func test, const char* func_name )
   }
   
 #elif MODE == LONGJMP_MODE
-  int sig = setjmp( jmpenv );
-  if (!sig) {
+  int rval = sigsetjmp( jmpenv, 1 );
+  if (!rval) {
     (*test)();
     return 0;
   }
-#ifdef SIGUSR2
-  else if(sig == SIGUSR2) {
+  else if (rval == -1) {
     printf( "  %s: FAILED\n", func_name );
     return 1;
   }
-#endif
   else {
-    printf( "  %s: TERMINATED (signal %d)\n", func_name, sig );
+    printf( "  %s: TERMINATED (signal %d)\n", func_name, rval );
     return 1;
   }
 #else
