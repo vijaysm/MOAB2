@@ -76,6 +76,10 @@ public:
   
   bool is_valid() const { return isValid; }
   void invalidate();
+  
+    // Check that all lengths are valid multiples of the type size.
+    // Returns true if all lengths are valid, false othersize.
+  bool check_valid_sizes( const int* sizes, int num_sizes ) const;
 
 private:    
 

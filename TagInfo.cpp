@@ -92,3 +92,18 @@ void TagInfo::remove_mesh_value()
   free( mMeshValue );
   mMeshValueSize = 0;
 }
+
+  
+    // Check that all lengths are valid multiples of the type size.
+    // Returns true if all lengths are valid, false othersize.
+bool TagInfo::check_valid_sizes( const int* sizes, int num_sizes ) const
+{
+  unsigned sum = 0;
+  const unsigned size = size_from_data_type( get_data_type() );
+  if (size == 1)
+    return true;
+  for (int i = 0; i < num_sizes; ++i)
+    sum |= ((unsigned)sizes[i]) % size;
+  return (sum == 0);
+}
+

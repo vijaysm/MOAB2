@@ -104,6 +104,8 @@ MBErrorCode TagServer::add_tag( const char *tag_name,
   }
   else if (data_size != MB_VARIABLE_LENGTH) 
     default_value_size = data_size;
+  else if (default_value_size % TagInfo::size_from_data_type(data_type))
+    return MB_INVALID_SIZE;
 
     // Check if name is already in use
     // if so, pass back the existing tag handle.
@@ -260,7 +262,7 @@ MBErrorCode TagServer::set_mesh_data( const MBTag tag_handle,
     return MB_TAG_NOT_FOUND;
   
   if (info->get_size() == MB_VARIABLE_LENGTH) {
-    if (!size)
+    if (!size || !info->check_valid_sizes( &size, 1 ))
       return MB_INVALID_SIZE;
   }
   else if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
@@ -279,12 +281,14 @@ MBErrorCode TagServer::set_data( const MBTag tag_handle,
                                  const void* data )
 {
   const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
-  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+  const MBTagType tag_type = PROP_FROM_TAG_HANDLE(tag_handle);
+  const TagInfo* tag_info;
+  switch (tag_type) {
     case MB_TAG_DENSE:
-      if (tag_id > mTagTable[MB_TAG_DENSE].size())
+      if (!(tag_info = get_tag_info( tag_id, tag_type )))
         return MB_TAG_NOT_FOUND;
       return sequenceManager->set_tag_data( tag_id, entity_handles, num_entities, 
-                           data, mTagTable[MB_TAG_DENSE][tag_id-1].default_value() );
+                                            data, tag_info->default_value() );
   
     case MB_TAG_SPARSE:
       return mSparseData->set_data( tag_id, entity_handles, num_entities, data );
@@ -305,12 +309,14 @@ MBErrorCode TagServer::set_data( const MBTag tag_handle,
                                  const void* data )
 {
   const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
-  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+  const MBTagType tag_type = PROP_FROM_TAG_HANDLE(tag_handle);
+  const TagInfo* tag_info;
+  switch (tag_type) {
     case MB_TAG_DENSE:
-      if (tag_id > mTagTable[MB_TAG_DENSE].size())
+      if (!(tag_info = get_tag_info( tag_id, tag_type )))
         return MB_TAG_NOT_FOUND;
       return sequenceManager->set_tag_data( tag_id, entity_handles, 
-                           data, mTagTable[MB_TAG_DENSE][tag_id-1].default_value() );
+                                            data, tag_info->default_value() );
   
     case MB_TAG_SPARSE:
       return mSparseData->set_data( tag_id, entity_handles, data );
@@ -333,12 +339,19 @@ MBErrorCode TagServer::set_data( const MBTag tag_handle,
                                  const int* lengths )
 {
   const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
-  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+  const MBTagType tag_type = PROP_FROM_TAG_HANDLE(tag_handle);
+  const TagInfo* tag_info = get_tag_info( tag_id, tag_type );
+  if (!tag_info)
+    return MB_TAG_NOT_FOUND;
+    
+  if (tag_info->get_size() == MB_VARIABLE_LENGTH &&
+      !tag_info->check_valid_sizes( lengths, num_entities ))
+    return MB_INVALID_SIZE;
+    
+  switch (tag_type) {
     case MB_TAG_DENSE:
-      if (tag_id > mTagTable[MB_TAG_DENSE].size())
-        return MB_TAG_NOT_FOUND;
       return sequenceManager->set_tag_data( tag_id, entity_handles, num_entities, 
-                   data, lengths, mTagTable[MB_TAG_DENSE][tag_id-1].default_value() );
+                   data, lengths, tag_info->default_value() );
   
     case MB_TAG_SPARSE:
       return mSparseData->set_data( tag_id, entity_handles, num_entities, data, lengths );
@@ -360,12 +373,19 @@ MBErrorCode TagServer::set_data( const MBTag tag_handle,
                                  const int* lengths )
 {
   const MBTagId tag_id = ID_FROM_TAG_HANDLE(tag_handle);
-  switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
+  const MBTagType tag_type = PROP_FROM_TAG_HANDLE(tag_handle);
+  const TagInfo* tag_info = get_tag_info( tag_id, tag_type );
+  if (!tag_info)
+    return MB_TAG_NOT_FOUND;
+    
+  if (tag_info->get_size() == MB_VARIABLE_LENGTH &&
+      !tag_info->check_valid_sizes( lengths, entity_handles.size() ))
+    return MB_INVALID_SIZE;
+    
+  switch (tag_type) {
     case MB_TAG_DENSE:
-      if (tag_id > mTagTable[MB_TAG_DENSE].size())
-        return MB_TAG_NOT_FOUND;
       return sequenceManager->set_tag_data( tag_id, entity_handles, 
-                      data, lengths, mTagTable[MB_TAG_DENSE][tag_id-1].default_value() );
+                      data, lengths, tag_info->default_value() );
   
     case MB_TAG_SPARSE:
       return mSparseData->set_data( tag_id, entity_handles, data, lengths );

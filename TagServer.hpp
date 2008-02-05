@@ -307,6 +307,8 @@ public:
   const TagInfo* get_tag_info(const char *tag_name ) const;
   const TagInfo* get_tag_info( MBTag tag_handle ) const;
   TagInfo* get_tag_info( MBTag tag_handle );
+  const TagInfo* get_tag_info( MBTagId id, MBTagType storage ) const;
+  TagInfo* get_tag_info( MBTagId id, MBTagType storage );
   
   unsigned long get_memory_use( MBTag tag_handle ) const;
   
@@ -338,20 +340,26 @@ inline const TagInfo* TagServer::get_tag_info( const char *tag_name ) const
   return handle ? get_tag_info( handle ) : 0;
 }
 
-inline const TagInfo* TagServer::get_tag_info( MBTag tag_handle ) const
+inline const TagInfo* TagServer::get_tag_info( MBTag tag ) const
 {
-  const MBTagId id = ID_FROM_TAG_HANDLE( tag_handle );
-  const MBTagType type = PROP_FROM_TAG_HANDLE( tag_handle );
+  return get_tag_info( ID_FROM_TAG_HANDLE(tag), PROP_FROM_TAG_HANDLE(tag) );
+}
+
+inline TagInfo* TagServer::get_tag_info( MBTag tag )
+{
+  return get_tag_info( ID_FROM_TAG_HANDLE(tag), PROP_FROM_TAG_HANDLE(tag) );
+}
+
+inline const TagInfo* TagServer::get_tag_info( MBTagId id, MBTagType type ) const
+{
   if (id <= mTagTable[type].size() && mTagTable[type][id-1].is_valid())
     return &mTagTable[type][id-1];
   else
     return NULL;
 }
 
-inline TagInfo* TagServer::get_tag_info( MBTag tag_handle )
+inline TagInfo* TagServer::get_tag_info( MBTagId id, MBTagType type )
 {
-  const MBTagId id = ID_FROM_TAG_HANDLE( tag_handle );
-  const MBTagType type = PROP_FROM_TAG_HANDLE( tag_handle );
   if (id <= mTagTable[type].size() && mTagTable[type][id-1].is_valid())
     return &mTagTable[type][id-1];
   else
