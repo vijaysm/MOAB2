@@ -33,6 +33,10 @@
 // Use signal handler and long jumps to return error state to test runner.
 // Might be portable to Windows (not sure).  Possibly undefined behavior (e.g. continuing 
 // with next test after catching segfault is technically undefined behavior.)
+// Also, tests can corrupt heap memory management, interferring with later tests.
+// Leaks memory on test failure (no stack unwind).  This is actually a feature, as
+// we don't care too much about tests leaking memory and trying to reconver memory
+// might make things worse, depending on why the test failed.
 #define LONGJMP_MODE 3      
 
 // If test application hasn't set MODE, set to default
@@ -53,17 +57,29 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <setjmp.h>
 
+/***************************************************************************************
+ *                     Define What to do when a test fails.
+ ***************************************************************************************/
+
+// For EXCEPTION_MODE, throw an exception when a test fails.
+// This will unwind stack, recover memory, etc. 
 #if MODE == EXCEPTION_MODE
    struct ErrorExcept{};
 #  define FLAG_ERROR throw ErrorExcept()
+// For FORK_MODE, the test is running in its own processs.  Just
+// terminate the process with a non-zero exit code when the test
+// fails.
 #elif MODE == FORK_MODE
 #  include <sys/types.h>
 #  include <sys/wait.h>
 #  include <unistd.h>
 #  include <errno.h>
 #  define FLAG_ERROR exit(1)
+// For LONGJMP_MODE, we do a long jump to just before the test is
+// run, with a return value of -1 to indicate failures (positive
+// return codes are used if the test caused a segfault or other
+// signal.)
 #elif MODE == LONGJMP_MODE
 #  include <signal.h>
 #  include <setjmp.h>
@@ -72,9 +88,18 @@
 #  error "MODE not set"
 #endif
 
+/***************************************************************************************
+ *                              Setup for LONGJMP_MODE
+ ***************************************************************************************/
+
 #if MODE == LONGJMP_MODE
 
+// Variable to hold stack state for longjmp
 sigjmp_buf jmpenv;
+
+// Define signal handler used to catch errors such as segfaults.
+// Signal handler does longjmp with the signal number as the 
+// return value.
 extern "C" {
   void sighandler( int sig ) {
     signal( sig, sighandler );
@@ -84,15 +109,21 @@ extern "C" {
   }
   typedef void (*sigfunc_t)(int);
 } // extern "C"
+
+// Helper function to register signal handlers.  
 int sethandler( int sig ) {
   sigfunc_t h = signal( sig, &sighandler );
   if (h == SIG_ERR)
     return  1;
+   // If user-defined signal handler (or signal is ignored),
+   // than unregister our handler.
   else if (h != SIG_DFL)
     signal( sig, h );
   return 0;
 }
 
+// Register signal handlers for all defined signals that typicall result
+// in process termination.
 int init_signal_handlers()
 {
   int result = 0;
@@ -147,11 +178,16 @@ int init_signal_handlers()
   return result;
 }
 
-// initialize global to force call to init_signal_handlers
+// Declare a garbage global variable.  Use variable initialization to
+// force call to init_signal_handlers().  
 int junk_init_var = init_signal_handlers();
 
 #endif // LONGJMP_MODE
 
+
+/***************************************************************************************
+ *                            The Code to Run Tests
+ ***************************************************************************************/
 
 
 /* Make sure IS_BUILDING_MB is defined so we can include MBInternals.hpp */
@@ -225,15 +261,25 @@ int run_test( test_func test, const char* func_name )
   }
   
 #elif MODE == LONGJMP_MODE
+    // Save stack state at this location.
   int rval = sigsetjmp( jmpenv, 1 );
+    // If rval is zero, then we haven't run the test yet. 
+    // If rval is non-zero then
+    // a) we ran the test
+    // b) the test failed
+    // c) we did a longjmp back to the location where we called setsigjmp.
+    
+    // run test
   if (!rval) {
     (*test)();
     return 0;
   }
+    // some check failed
   else if (rval == -1) {
     printf( "  %s: FAILED\n", func_name );
     return 1;
   }
+    // a signal was raised (e.g. segfault)
   else {
     printf( "  %s: TERMINATED (signal %d)\n", func_name, rval );
     return 1;
@@ -244,6 +290,12 @@ int run_test( test_func test, const char* func_name )
 }
 
 
+
+/***************************************************************************************
+ *                            CHECK_EQUAL implementations
+ ***************************************************************************************/
+
+// Common implementatation for most types
 #define EQUAL_TEST_IMPL( TEST, TYPE ) if( !(TEST) ) { \
   printf( "Equality Test Failed: %s == %s\n", sA, sB ); \
   printf( "  at line %d of '%s'\n", line, file ); \
@@ -296,6 +348,8 @@ const char* mb_error_str( MBErrorCode err )
 }
 
 
+// Special case for MBErrorCode, use mb_error_str() to print the 
+// string name of the error code.
 void check_equal( MBErrorCode A, MBErrorCode B, const char* sA, const char* sB, int line, const char* file )
 {
   if (A == B)
