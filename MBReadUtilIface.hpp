@@ -19,6 +19,7 @@
 
 
 #include <vector>
+#include <string>
 #include "MBTypes.h"
 
 class MBRange;

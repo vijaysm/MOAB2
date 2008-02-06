@@ -20,6 +20,7 @@
  */
 
 #include <assert.h>
+#include <stdlib.h>
 
 #include "ReadVtk.hpp"
 #include "MBRange.hpp"

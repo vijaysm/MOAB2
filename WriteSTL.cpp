@@ -45,6 +45,7 @@
 #include <errno.h>
 #include <math.h>
 #include <fcntl.h>
+#include <limits.h>
 
 #ifdef _MSC_VER /* windows */
 #  include <io.h>

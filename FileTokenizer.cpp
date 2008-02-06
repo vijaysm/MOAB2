@@ -18,6 +18,7 @@
 #include <cstring>
 #include <cctype>
 #include <string>
+#include <cstdlib>
 using namespace std;
 
 FileTokenizer::FileTokenizer( FILE* file_ptr, MBReadUtilIface* rif_ptr )

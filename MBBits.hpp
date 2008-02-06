@@ -32,6 +32,7 @@
 #include "MBInternals.hpp"
 
 #include <assert.h>
+#include <string.h>
 
 //! bit manipulator class
 class MBBitManipulator
