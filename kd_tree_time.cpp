@@ -2,6 +2,7 @@
 #include "MBAdaptiveKDTree.hpp"
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 int main( int argc, char* argv[] ) 
 {
