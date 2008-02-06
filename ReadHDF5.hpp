@@ -139,6 +139,11 @@ private:
                                hid_t hdf_read_type,
                                size_t read_size,
                                bool is_handle_type );
+  
+  //! Read variable-length tag for all entities.
+  MBErrorCode read_var_len_tag( MBTag tag_handle,
+                                hid_t hdf_read_type,
+                                bool is_handle_type );
                                
   MBErrorCode read_qa( MBEntityHandle& import_set_out );
                                

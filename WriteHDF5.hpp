@@ -139,13 +139,6 @@ protected:
                                  long children_length,
                                  long parents_length );
 
-  /** Helper function for create-file
-   *
-   * Write tag meta-info and create zero-ed table where
-   * tag values will be written.
-   */
-  MBErrorCode create_tag( MBTag tag_id, id_t num_sparse_entities );
-
   //! Write exodus-type QA info
   MBErrorCode write_qa( std::vector<std::string>& list );
 
@@ -186,8 +179,12 @@ public:
     //! The list of entities with this tag
     MBRange range;
     //! The offset at which to begin writting this processor's data.
-    //! Always zero except for parallel IO.
+    //! Always zero except for parallel IO. 
     id_t offset;
+    //! For variable-length tags, a second offset for the tag data table,
+    //! separate from the offset used for the ID and Index tables.
+    //! Always zero except for parallel IO. 
+    id_t varDataOffset;
     //! Write tag data (for serial, is always equal to !range.empty())
     bool write;
     
@@ -252,6 +249,13 @@ private:
                             unsigned long& flags );
 
 protected:
+
+  /** Helper function for create-file
+   *
+   * Write tag meta-info and create zero-ed table where
+   * tag values will be written.
+   */
+  MBErrorCode create_tag( const SparseTag& tag_info );
   
   /** Get possibly compacted list of IDs for passed entities
    *
@@ -355,6 +359,38 @@ private:
                                 MBRange::const_iterator end,
                                 int nodes_per_element,
                                 id_t* id_data_out );
+                                
+  //! get sum of lengths of tag values (in bytes) for 
+  //! variable length tag data.
+  MBErrorCode get_tag_data_length( const SparseTag& tag_info,
+                                   unsigned long& result );
+                                   
+  //! Get size data for tag
+  //!\param tag       MOAB tag ID
+  //!\param moab_type Output: MBDataType for tag
+  //!\param num_bytes Output: MOAB tag size (bits for bit tags).
+  //!                         MB_VARIABLE_LENGTH for variable-length tags.
+  //!\param elem_size Output: Size of type values per entity (e.g.
+  //!                         sizeof(double) for MB_TYPE_DOUBLE data)
+  //!                         One for bit and opaque tags.
+  //!\param file_size Output: num_bytes/elem_size
+  //!\param file_type Output: mhdf type enumeration
+  //!\param hdf_type  Output: zero or handle for user-defined custom type
+  //!                         (user-defined type available only for opaque
+  //!                         data.)
+  MBErrorCode get_tag_size( MBTag tag,
+                            MBDataType& moab_type,
+                            int& num_bytes,
+                            int& elem_size,
+                            int& file_size,
+                            mhdf_TagDataType& file_type,
+                            hid_t& hdf_type );
+                            
+  //! Write ID table for sparse tag
+  MBErrorCode write_sparse_ids( const SparseTag& tag_data, hid_t table_handle );
+  
+  //! Write varialbe-length tag data
+  MBErrorCode write_var_len_tag( const SparseTag& tag_info );
 };
 
 #endif
