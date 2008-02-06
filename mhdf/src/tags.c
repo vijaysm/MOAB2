@@ -171,37 +171,75 @@ static hid_t get_tag_type( FileHandle* file_ptr,
   return type_id;
 }
 
+/** Helper function to write default and mesh values for tag 
+ *\param tag_id       The file object upon which to attach the attribute
+ *\param attrib_name  The name of the attribute object
+ *\param type_id      The data type of the attribute data
+ *\param value        Pointer to attribute data
+ *\param value_size   Size of attribute data, as multiple of type indicated 
+ *                    by type_id.  Should be 1 except for variable-length tag data.
+ */
+static
+int store_tag_val_in_attrib( hid_t tag_id, 
+                             const char* attrib_name,
+                             hid_t type_id,
+                             const void* value,
+                             hsize_t value_size,
+                             mhdf_Status* status )
+{
+  hid_t write_type;
+  int rval;
+  if (value_size == 1) 
+    write_type = type_id;
+  else if (H5Tget_class(type_id) == H5T_OPAQUE) 
+    write_type = H5Tcreate( H5T_OPAQUE, abs(value_size) );
+  else
+    write_type = H5Tarray_create( type_id, 1, &value_size, 0 );
+  
+  if (write_type < 0) {
+    mhdf_setFail( status, "Error constructing type object for tag mesh/default value" );
+    return -1;
+  }
+  
+  rval = mhdf_create_scalar_attrib( tag_id, attrib_name, write_type, value, status );
+  if (write_type != type_id)
+    H5Tclose( write_type );
+  
+  return rval;
+}
 
-
-void
-mhdf_createTag( mhdf_FileHandle file_handle,
-                const char* tag_name,
-                enum mhdf_TagDataType tag_type,
-                int size, 
-                int storage,
-                void* default_value,
-                void* global_value,
-                hid_t hdf_type,
-                mhdf_Status* status )
+static
+hid_t create_tag_common( mhdf_FileHandle file_handle,
+                         const char* tag_name,
+                         enum mhdf_TagDataType tag_type,
+                         int size,
+                         int storage,
+                         const void* default_value,
+                         int default_value_size_in,
+                         const void* global_value,
+                         int global_value_size_in,
+                         hid_t hdf_type,
+                         mhdf_Status* status )
 {
   hid_t temp_id, group_id, tag_id;
   char* path;
   FileHandle* file_ptr;
   herr_t rval;
   hsize_t arr_len;
-  int one = 1;
-  API_BEGIN;
+  int one = 1, var_len=0;
+  hsize_t default_value_size = default_value_size_in;
+  hsize_t global_value_size = global_value_size_in;
 
     /* Validate input */
   
   file_ptr = (FileHandle*)file_handle;
   if (!mhdf_check_valid_file( file_ptr, status ))
-    return ;
+    return -1;
 
   if (!tag_name || !*tag_name)
   {
     mhdf_setFail( status, "Invalid tag name" );
-    return ;
+    return -1;
   }
   
   
@@ -211,7 +249,7 @@ mhdf_createTag( mhdf_FileHandle file_handle,
   if (group_id < 0)
   {
     mhdf_setFail( status, "H5Gopen(\"%s\") failed.", TAG_GROUP );
-    return;
+    return -1;
   }
 
     /* Create path string for tag object */
@@ -220,7 +258,7 @@ mhdf_createTag( mhdf_FileHandle file_handle,
   if (!path) 
   { 
     H5Gclose( group_id );
-    return; 
+    return -1; 
   }
   
     /* Create group for this tag */
@@ -231,7 +269,7 @@ mhdf_createTag( mhdf_FileHandle file_handle,
      mhdf_setFail( status, "H5Gcreate( \"%s\" ) failed.", path );
      free( path );
      H5Gclose( group_id );
-     return;
+     return -1;
   }
   
     /* Store the tag name as the comment on the group entry */
@@ -243,7 +281,7 @@ mhdf_createTag( mhdf_FileHandle file_handle,
   {
     mhdf_setFail( status, "H5Gset_comment failed for tag \"%s\"", tag_name );
     H5Gclose( tag_id );
-    return;
+    return -1;
   }
 
     /* Store TSTT tag type as attribute */
@@ -256,7 +294,7 @@ mhdf_createTag( mhdf_FileHandle file_handle,
   if (!rval)
   {
     H5Gclose( tag_id );
-    return;
+    return -1;
   }
   
   if (hdf_type)
@@ -270,14 +308,19 @@ mhdf_createTag( mhdf_FileHandle file_handle,
     {
       default:
       case mhdf_OPAQUE:
-        hdf_type = H5Tcreate( H5T_OPAQUE, size );
-        H5Tset_tag( hdf_type, "tag_data" );
         arr_len = 1;
+        hdf_type = H5Tcreate( H5T_OPAQUE, abs(size) );
+        H5Tset_tag( hdf_type, "tag_data" );
         break;
       
       case mhdf_BITFIELD:
         arr_len = 1;
-        if (size <= 8)
+        if (size <= 0) 
+        {
+          mhdf_setFail( status, "Invalid size (%d) for bit tag.", (int)size );
+          return -1;
+        }
+        else if (size <= 8)
           hdf_type = H5Tcopy( H5T_NATIVE_B8 );
         else if (size <= 16)
           hdf_type = H5Tcopy( H5T_NATIVE_B16 );
@@ -287,34 +330,34 @@ mhdf_createTag( mhdf_FileHandle file_handle,
           hdf_type = H5Tcopy( H5T_NATIVE_B64 );
         else
         {
-          mhdf_setFail( status, "Cannot createa a bit tag larger than 64-bits.  %d bits requested.\n", (int)size);
-          return;
+          mhdf_setFail( status, "Cannot create a bit tag larger than 64-bits.  %d bits requested.\n", (int)size);
+          return -1;
         }
         
         if (0 > H5Tset_precision( hdf_type, size ))
         {
           mhdf_setFail( status, "H5Tset_precision failed.");
-          return;
+          return -1;
         }
         break;
       
       case mhdf_ENTITY_ID:
-        arr_len = size;
+        arr_len = abs(size);
         hdf_type = H5Tcopy( H5T_NATIVE_INT );
         break;
       
       case mhdf_BOOLEAN:
-        arr_len = size;
+        arr_len = abs(size);
         hdf_type = H5Tcopy( H5T_NATIVE_UCHAR );
         break;
       
       case mhdf_INTEGER:
-        arr_len = size;
+        arr_len = abs(size);
         hdf_type = H5Tcopy( H5T_NATIVE_INT );
         break;
       
       case mhdf_FLOAT:
-        arr_len = size;
+        arr_len = abs(size);
         hdf_type = H5Tcopy( H5T_NATIVE_DOUBLE );
         break;
     }
@@ -324,10 +367,25 @@ mhdf_createTag( mhdf_FileHandle file_handle,
   {
     mhdf_setFail( status, "Failed to create tag type object." );
     H5Gclose( tag_id );
-    return;
+    return -1;
   }
   
-  if (arr_len > 1)
+  if (size < -1 || !arr_len) 
+  {
+    mhdf_setFail( status, "Invalid 'size' parameter passed to mhdf_createTag (%d)", (int)size);
+    H5Gclose( tag_id );
+    return -1;
+  }
+  else if (size == -1)
+  {
+      /* Note: we don't do anything with this here.  We rely on
+       *       the app to ask us to create the index table later.
+       */
+    arr_len = 1;
+      /* need to know this later, when storing default/global values */
+    var_len = 1;
+  }
+  else if (arr_len > 1)
   {
     temp_id = H5Tarray_create( hdf_type, 1, &arr_len, NULL );
     H5Tclose( hdf_type );
@@ -335,7 +393,7 @@ mhdf_createTag( mhdf_FileHandle file_handle,
     {
       mhdf_setFail( status, "Failed to create tag type object." );
       H5Gclose( tag_id );
-      return;
+      return -1;
     }
     hdf_type = temp_id;
   }
@@ -351,7 +409,7 @@ mhdf_createTag( mhdf_FileHandle file_handle,
     mhdf_setFail( status, "H5Tcommit failed for tag \"%s\"", tag_name );
     H5Tclose( hdf_type );
     H5Gclose( tag_id );
-    return;
+    return -1;
   }
   
     /* If tag is entity handle, make note of it */
@@ -366,7 +424,7 @@ mhdf_createTag( mhdf_FileHandle file_handle,
     { 
       H5Gclose( tag_id );
       H5Tclose( hdf_type );
-      return; 
+      return -1; 
     }
   }
                                      
@@ -376,40 +434,83 @@ mhdf_createTag( mhdf_FileHandle file_handle,
 
   if (default_value)
   {
-    rval = mhdf_create_scalar_attrib( tag_id, 
-                                      TAG_DEFAULT_ATTRIB, 
-                                      hdf_type, 
-                                      default_value, 
-                                      status);
-    if (!rval) 
-    { 
+    rval = store_tag_val_in_attrib( tag_id, TAG_DEFAULT_ATTRIB, hdf_type, default_value,
+                                    var_len ? default_value_size : 1, status );
+    if (!rval) {
       H5Gclose( tag_id );
       H5Tclose( hdf_type );
-      return; 
+      return -1;
     }
   }
-
     
     /* Store global tag value as attribute */
   
   if (global_value)
   {
-    rval = mhdf_create_scalar_attrib( tag_id,  
-                                      TAG_GLOBAL_ATTRIB,
-                                      hdf_type,
-                                      global_value, 
-                                      status );
-    if (!rval) 
-    { 
+    rval = store_tag_val_in_attrib( tag_id, TAG_GLOBAL_ATTRIB, hdf_type, global_value,
+                                    var_len ? global_value_size : 1, status );
+    if (!rval) {
       H5Gclose( tag_id );
       H5Tclose( hdf_type );
-      return; 
+      return -1;
     }
   }
 
-  H5Gclose( tag_id );
   H5Tclose( hdf_type );
   mhdf_setOkay( status );
+  return tag_id;
+}
+
+
+void
+mhdf_createTag( mhdf_FileHandle file_handle,
+                const char* tag_name,
+                enum mhdf_TagDataType tag_type,
+                int size, 
+                int storage,
+                const void* default_value,
+                const void* global_value,
+                hid_t hdf_type,
+                mhdf_Status* status )
+{
+  hid_t tag_id;
+  API_BEGIN;
+  tag_id = create_tag_common( file_handle, tag_name, tag_type, size, storage, 
+                     default_value, 1, global_value, 1, hdf_type, status );
+  if (tag_id >= 0)
+    H5Gclose( tag_id );
+  API_END;
+}
+
+void
+mhdf_createVarLenTag( mhdf_FileHandle file_handle,
+                      const char* tag_name,
+                      enum mhdf_TagDataType tag_type,
+                      int storage,
+                      const void* default_value,
+                      int default_value_length,
+                      const void* global_value,
+                      int global_value_length,
+                      hid_t hdf_type,
+                      mhdf_Status* status )
+{
+  herr_t rval;
+  hid_t tag_id;
+  int one = 1;
+  
+  API_BEGIN;
+  tag_id = create_tag_common( file_handle, tag_name, tag_type, -1, storage, 
+                              default_value, default_value_length, 
+                              global_value, global_value_length, 
+                              hdf_type, status );
+  if (tag_id >= 0) {
+    rval = mhdf_create_scalar_attrib( tag_id, 
+                                      TAG_VARLEN_ATTRIB,
+                                      H5T_NATIVE_INT,
+                                      &one,
+                                      status );
+    H5Gclose( tag_id );
+  }
   API_END;
 }
 
@@ -538,8 +639,68 @@ mhdf_getTagNames( mhdf_FileHandle file_handle,
   API_END;
   return result;
 }
-  
 
+static int get_attrib_array_length_handle( hid_t attrib_id )
+{
+  hid_t type_id;
+  int rank;
+  hsize_t dims[H5S_MAX_RANK];
+  int perm[H5S_MAX_RANK];
+  
+  type_id = H5Aget_type( attrib_id );
+  switch (H5Tget_class(type_id)) {
+    case H5T_NO_CLASS:
+      dims[0] = -1;
+      break;
+    case H5T_OPAQUE:
+      dims[0] = H5Tget_size( type_id );
+      break;
+    case H5T_ARRAY:
+      rank = H5Tget_array_dims( type_id, dims, perm );
+      if (rank == 1)
+        break;
+      else
+        return -1;
+    default:
+      dims[0] = 1;
+      break;
+  }
+  
+  H5Tclose( type_id );
+  return dims[0];
+}
+      
+     
+/*
+static int get_attrib_array_length_index( hid_t object_id, unsigned int index )
+{
+  hid_t attrib_id;
+  int result;
+  
+  attrib_id = H5Aopen_idx( object_id, index );
+  if (attrib_id < 0)
+    return -1;
+  
+  result = get_attrib_array_length_handle( attrib_id );
+  H5Aclose( attrib_id );
+  return result;
+}
+*/
+
+static int get_attrib_array_length_name( hid_t file, const char* path )
+{
+  hid_t attrib_id;
+  int result;
+  
+  attrib_id = H5Aopen_name( file, path );
+  if (attrib_id < 0)
+    return -1;
+  
+  result = get_attrib_array_length_handle( attrib_id );
+  H5Aclose( attrib_id );
+  return result;
+}
+      
 
 void
 mhdf_getTagInfo( mhdf_FileHandle file_handle,
@@ -556,7 +717,7 @@ mhdf_getTagInfo( mhdf_FileHandle file_handle,
   int i, rval, is_handle;
   hsize_t size, sup_size;
   unsigned int index;
-  int rank;
+  int rank, var_data;
   hsize_t dims[H5S_MAX_RANK];
   int perm[H5S_MAX_RANK];
   H5T_class_t class_tmp;
@@ -590,6 +751,15 @@ mhdf_getTagInfo( mhdf_FileHandle file_handle,
     return;
   }
   *have_sparse_out = rval ? 1 : 0;
+  
+    /* Check for variable-length tag data */
+  rval = mhdf_find_attribute( tag_id, TAG_VARLEN_ATTRIB, &index, status );
+  if (rval < 0)
+  {
+    H5Gclose( tag_id );
+    return;
+  }
+  var_data = rval ? 1 : 0;
 
     /* Check if have default value for tag */
   rval = mhdf_find_attribute( tag_id, TAG_DEFAULT_ATTRIB, &index, status );
@@ -598,7 +768,19 @@ mhdf_getTagInfo( mhdf_FileHandle file_handle,
     H5Gclose( tag_id );
     return;
   }
-  *have_default_out = rval ? 1 : 0;
+  if (!rval)
+    *have_default_out = 0;
+  else if (!var_data)
+    *have_default_out = 1;
+  else {
+    /* *have_default_out = get_attrib_array_length_index( tag_id, index ); */
+    *have_default_out = get_attrib_array_length_name( tag_id, TAG_DEFAULT_ATTRIB );
+    if (*have_default_out < 0) {
+      mhdf_setFail( status, "Error checking length of default value for tag: %s\n", tag_name );
+      H5Gclose( tag_id );
+      return;
+    }
+  }
 
     /* Check if have global value for tag */
   rval = mhdf_find_attribute( tag_id, TAG_GLOBAL_ATTRIB, &index, status );
@@ -607,7 +789,19 @@ mhdf_getTagInfo( mhdf_FileHandle file_handle,
     H5Gclose( tag_id );
     return;
   }
-  *have_global_out = rval ? 1 : 0;
+  if (!rval)
+    *have_global_out = 0;
+  else if (!var_data)
+    *have_global_out = 1;
+  else {
+    /* *have_global_out = get_attrib_array_length_index( tag_id, index ); */
+    *have_global_out = get_attrib_array_length_name( tag_id, TAG_GLOBAL_ATTRIB );
+    if (*have_global_out < 0) {
+      mhdf_setFail( status, "Error checking length of global value for tag: %s\n", tag_name );
+      H5Gclose( tag_id );
+      return;
+    }
+  }
   
     /* Get TSTT tag class */
   rval = mhdf_read_scalar_attrib( tag_id, TAG_TYPE_ATTRIB, 
@@ -762,10 +956,74 @@ mhdf_getTagInfo( mhdf_FileHandle file_handle,
     }
     *class_out = mhdf_ENTITY_ID;
   }
+  
+  if (var_data) 
+  {
+    if (*size_out != 1 || *class_out == mhdf_BITFIELD)
+    {
+      mhdf_setFail( status, "Invalid or unexpected variable-length tag data" );
+      return;
+    }
+    *size_out = -1;
+  }
 
   mhdf_setOkay( status );
   API_END;
 }    
+ 
+ 
+static int
+read_tag_attrib_data( hid_t tag_id, 
+                      const char* attrib_name, 
+                      hid_t type_id,
+                      const void* data, 
+                      int is_var_len, 
+                      mhdf_Status* status )
+{
+  int rval, index;
+  hid_t read_type = type_id;
+  hsize_t len;
+ 
+    /* Check if tag has attribute */
+  rval = mhdf_find_attribute( tag_id, attrib_name, &index, status );
+  if (rval < 0)
+    return 0;
+  else if (0 == rval)
+    return 1;
+  
+  if (NULL == data)
+  {
+    mhdf_setFail( status, "Invalid input." );
+    return;
+  }
+  
+  if (is_var_len) 
+  {
+    /* len = get_attrib_array_length_index(tag_id, index); */
+    len = get_attrib_array_length_name(tag_id, attrib_name);
+    if (len < 0) 
+    {
+      mhdf_setFail( status, "Failed to read length of default/mesh value for tag" );
+      return 0;
+    }
+      /* caller passes type_id == 0 for OPAQUE */
+    if (0 == type_id)
+      read_type = H5Tcreate( H5T_OPAQUE, len );
+    else
+      read_type = H5Tarray_create( type_id, 1, &len, 0 );
+    if (read_type < 0)
+    {
+      mhdf_setFail( status, "Failed to read mesh/default value for tag" );
+      return;
+    }
+  }
+  
+  rval = mhdf_read_scalar_attrib( tag_id, attrib_name, read_type, data, status );
+  if (is_var_len)
+    H5Tclose( read_type );
+  
+  return rval;
+}
 
 void
 mhdf_getTagValues( mhdf_FileHandle file_handle,
@@ -775,9 +1033,10 @@ mhdf_getTagValues( mhdf_FileHandle file_handle,
                    void* global_value,
                    mhdf_Status* status )
 {
-  hid_t tag_id;
-  int rval;
-  unsigned int junk;
+  hid_t tag_id, temp_id;
+  int rval, var_data;
+  hsize_t len;
+  unsigned int index;
   API_BEGIN;
   
     /* check args */
@@ -791,59 +1050,32 @@ mhdf_getTagValues( mhdf_FileHandle file_handle,
   tag_id = get_tag( file_handle, tag_name, status );
   if (tag_id < 0)
     return;
-  
-    /* Check if tag has default value */
-  rval = mhdf_find_attribute( tag_id, TAG_DEFAULT_ATTRIB, &junk, status );
+   
+    /* Check for variable-length tag data */
+  rval = mhdf_find_attribute( tag_id, TAG_VARLEN_ATTRIB, &index, status );
   if (rval < 0)
   {
     H5Gclose( tag_id );
     return;
   }
-  
-    /* Get default if there is one */
-  if (rval)
-  {
-    if (NULL == default_value)
-    {
-      mhdf_setFail( status, "Invalid input." );
-      return;
-    }
-    
-    rval = mhdf_read_scalar_attrib( tag_id, TAG_DEFAULT_ATTRIB,
-                                    output_data_type, default_value,
-                                    status );
-    if (!rval)
-    {
-      H5Gclose( tag_id );
-      return;
-    }
-  }
-  
-    /* Check if tag has global value */
-  rval = mhdf_find_attribute( tag_id, TAG_GLOBAL_ATTRIB, &junk, status );
-  if (rval < 0)
+  var_data = rval ? 1 : 0;
+ 
+    /* Read default value if present */
+  rval = read_tag_attrib_data( tag_id, TAG_DEFAULT_ATTRIB, output_data_type,
+                               default_value, var_data, status );
+  if (!rval) 
   {
     H5Gclose( tag_id );
     return;
   }
   
-    /* Get global value if there is one */
-  if (rval)
+    /* Read mesh value if present */
+  rval = read_tag_attrib_data( tag_id, TAG_GLOBAL_ATTRIB, output_data_type,
+                               global_value, var_data, status );
+  if (!rval) 
   {
-    if (NULL == global_value)
-    {
-      mhdf_setFail( status, "Invalid input." );
-      return;
-    }
-    
-    rval = mhdf_read_scalar_attrib( tag_id, TAG_GLOBAL_ATTRIB,
-                                    output_data_type, global_value,
-                                    status );
-    if (!rval)
-    {
-      H5Gclose( tag_id );
-      return;
-    }
+    H5Gclose( tag_id );
+    return;
   }
   
   H5Gclose( tag_id );
@@ -1152,16 +1384,80 @@ mhdf_createSparseTagData( mhdf_FileHandle file_handle,
   API_END_H(2);
 }
 
+void
+mhdf_createVarLenTagData( mhdf_FileHandle file_handle,
+                          const char* tag_name,
+                          long num_entities,
+                          long num_values,
+                          hid_t handles_out[3],
+                          mhdf_Status* status )
+{
+  hid_t tag_id, index_id, data_id, type_id, offset_id;
+  hsize_t count = (hsize_t)num_entities;
+  API_BEGIN;
+  
+  tag_id = get_tag( file_handle, tag_name, status );
+  if (tag_id < 0) return ;
+  
+  type_id = H5Topen( tag_id, TAG_TYPE_NAME );
+  if (type_id < 0)
+  {
+    H5Gclose( tag_id );
+    mhdf_setFail( status, "Failed to get type object for tag \"%s\".", tag_name );
+    return ;
+  }
+  
+  index_id = mhdf_create_table( tag_id, SPARSE_ENTITY_NAME,
+                                H5T_NATIVE_LONG, 1, &count,
+                                status );
+  if (index_id < 0) 
+  { 
+    H5Gclose( tag_id ); 
+    H5Tclose( type_id );
+    return ; 
+  }
+  
+  offset_id = mhdf_create_table( tag_id, TAG_VAR_INDICES,
+                                 H5T_NATIVE_LONG, 1, &count,
+                                 status );
+  if (index_id < 0) 
+  { 
+    H5Dclose( offset_id );
+    H5Gclose( tag_id ); 
+    H5Tclose( type_id );
+    return ; 
+  }
+  
+  count = (hsize_t)num_values;
+  data_id = mhdf_create_table( tag_id, SPARSE_VALUES_NAME,
+                               type_id, 1, &count, status );
+  H5Tclose( type_id );
+  H5Gclose( tag_id ); 
+  if (data_id < 0) 
+  { 
+    H5Dclose( offset_id );
+    H5Dclose( index_id );
+    return ; 
+  }
+  
+  handles_out[0] = index_id;
+  handles_out[1] = data_id;
+  handles_out[2] = offset_id;
+  mhdf_setOkay( status );
+  API_END_H(3);
+}
+
 
 void
 mhdf_openSparseTagData( mhdf_FileHandle file_handle,
                         const char* tag_name,
                         long* num_values_out,
-                        hid_t handles_out[2],
+                        hid_t handles_out[3],
                         mhdf_Status* status )
 {
-  hid_t tag_id, index_id, data_id;
+  hid_t tag_id, index_id, data_id, offset_id = -1;
   hsize_t size1, size2;
+  int rval, idx;
   API_BEGIN;
   
   tag_id = get_tag( file_handle, tag_name, status );
@@ -1175,16 +1471,42 @@ mhdf_openSparseTagData( mhdf_FileHandle file_handle,
   }
   
   data_id = mhdf_open_table( tag_id, SPARSE_VALUES_NAME, 1, &size2, status );
-  H5Gclose( tag_id ); 
   if (data_id < 0) 
   { 
+    H5Gclose( tag_id ); 
     H5Dclose( index_id );
     return ; 
   }
   
+    /* check if tag is variable-lentgth */
+  rval = mhdf_find_attribute( tag_id, TAG_VARLEN_ATTRIB, &idx, status );
+  if (rval < 0) {
+    H5Gclose( tag_id );
+    H5Dclose( index_id );
+    H5Dclose( data_id );
+    return ;
+  }
+  
+    /* If variable length...
+     * Replace if data table (size2) with size of offset table.  For variable-length
+     * tags, the index and offset tables should be the same size, but the size of
+     * the data table could be anything. */
+  if (rval) {
+    offset_id = mhdf_open_table( tag_id, TAG_VAR_INDICES, 1, &size2, status );
+    if (offset_id < 0) {
+      H5Gclose( tag_id );
+      H5Dclose( index_id );
+      H5Dclose( data_id );
+      return ;
+    }
+  }
+
+  H5Gclose( tag_id ); 
   if (size1 != size2)
   {
     mhdf_setFail( status, "Data length mismatch for sparse tag data -- invalid file.");
+    if (offset_id >= 0)
+      H5Dclose( offset_id );
     H5Dclose( index_id );
     H5Dclose( data_id );
     return ;
@@ -1193,6 +1515,8 @@ mhdf_openSparseTagData( mhdf_FileHandle file_handle,
   
   handles_out[0] = index_id;
   handles_out[1] = data_id;
+  if (offset_id >= 0)
+    handles_out[2] = offset_id;
   mhdf_setOkay( status );
   API_END_H(2);
 }
@@ -1243,6 +1567,19 @@ mhdf_writeSparseTagValues( hid_t table_id,
 }
 
 void
+mhdf_writeSparseTagIndices( hid_t table_id,
+                            long offset,
+                            long count,
+                            hid_t int_type,
+                            const void* indices,
+                            mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_write_data( table_id, offset, count, int_type, indices, status );
+  API_END;
+}
+
+void
 mhdf_readSparseTagEntities( hid_t table_id,
                             long offset,
                             long count,
@@ -1284,5 +1621,18 @@ mhdf_readSparseTagValues( hid_t table_id,
 
   if (tag_type < 1)
     H5Tclose( type_id );
+  API_END;
+}
+
+void
+mhdf_readSparseTagIndices( hid_t table_id,
+                           long offset,
+                           long count,
+                           hid_t int_type,
+                           void* indices,
+                           mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_read_data( table_id, offset, count, int_type, indices, status );
   API_END;
 }

@@ -1553,10 +1553,41 @@ mhdf_createTag( mhdf_FileHandle file_handle,
                 enum mhdf_TagDataType tag_type,
                 int size,
                 int storage,
-                void* default_value,
-                void* global_value,
+                const void* default_value,
+                const void* global_value,
                 hid_t hdf_type,
                 mhdf_Status* status );
+
+/** \brief Add variable-length tag to file
+ *
+ * Add a new tag to the file.  This function must be called
+ * to define the tag characteristics before values for the
+ * tag can be written.  Use this function if the tag values
+ * are not fixed-length.
+ *
+ *\param file_handle    The file
+ *\param tag_name       The tag name
+ *\param tag_type       The tag type.
+ *\param storage        MOAB storage type (dense, sparse, etc.)
+ *\param default_value  Default value for tag, or NULL if none.
+ *\param default_value_length Length of default value.
+ *\param global_value   Global value for tag, or NULL if none.
+ *\param global_value_length Length of global value.
+ *\param hdf_type       If non-zero, assumed to be a user-specified type
+ *                      for opaque data.  Ignored if tag_type is not
+ *                      mhdf_OPAQUE.
+ */
+void
+mhdf_createVarLenTag( mhdf_FileHandle file_handle,
+                      const char* tag_name,
+                      enum mhdf_TagDataType tag_type,
+                      int storage,
+                      const void* default_value,
+                      int default_value_length,
+                      const void* global_value,
+                      int global_value_length,
+                      hid_t hdf_type,
+                      mhdf_Status* status );
                 
 
 /** \brief Get the number of tags in the file.
@@ -1594,10 +1625,12 @@ mhdf_getTagNames( mhdf_FileHandle file_handle,
  *\param size_out         Depends on value of class_out:
  *                        - mhdf_OPAQUE  - size of opaque data in bytes
  *                        - mhdf_BITFIELD - number of bits
- *                        - for everything else, if the tag data is an
- *                          array, the length of the array.  1 otherwise.
+ *                        - if data is fixed-length array, length of array
+ *                        - if data is single value, 1
+ *                        - if data is a variable-length array, -1
  *\param tstt_storage_out The value of the TSTT enum for storage (dense, sparse, etc.)
- *\param have_default_out Non-zero if file contains a default value for the tag.
+ *\param have_default_out Non-zero if file contains a default value for the tag. 
+ *                        Length of default value if variable-lenth tag.
  *\param have_global_out  Non-zero if the file contains a global/mesh value for the tag.
  *\param have_sparse_out  Non-zero if the file contains a sparse data table for this tag.
  */
@@ -1751,9 +1784,9 @@ mhdf_readDenseTag( hid_t tag_handle,
  *\param file_handle    The file.
  *\param tag_name       The tag.
  *\param num_values     The number of tag values to be written.
- *\param entities_and_values_out The handles to the pair of file objects.
+ *\param entities_and_values_out The handles to the file objects.
  *                      The first is the vector of global IDs.  The second
- *                      is the list of corresponding tag values.
+ *                      is the list of corresponding tag values.  
  *\param status         Passed back status of API call.
  */
 void
@@ -1761,6 +1794,33 @@ mhdf_createSparseTagData( mhdf_FileHandle file_handle,
                           const char* tag_name,
                           long num_values,
                           hid_t entities_and_values_out[2],
+                          mhdf_Status* status );
+
+/** \brief Create file objects to store (sparse) variable-length tag data 
+ *
+ * Create the file objects to store all sparse data for a given tag in.  The 
+ * sparse data is stored in a pair of objects.  The first is a vector of
+ * global IDs.  The second is a vector of tag values for each entity specified
+ * in the list of global IDs.
+ *
+ *\param file_handle    The file.
+ *\param tag_name       The tag.
+ *\param num_entities   The number of entities for which tag values are to be stored
+ *\param num_values     The total number of scalar values to be written (the
+ *                      total number of bytes of data for all tags for opaque
+ *                      data.)
+ *\param entities_and_values_out The handles to the file objects.
+ *                      The first is the vector of global IDs.  The second
+ *                      is the list of corresponding tag values.  The third
+ *                      is the handle to the index table.
+ *\param status         Passed back status of API call.
+ */
+void
+mhdf_createVarLenTagData( mhdf_FileHandle file_handle,
+                          const char* tag_name,
+                          long num_entities,
+                          long num_values,
+                          hid_t entities_and_values_out[3],
                           mhdf_Status* status );
 
 /** \brief Create file objects to read sparse tag data 
@@ -1772,17 +1832,20 @@ mhdf_createSparseTagData( mhdf_FileHandle file_handle,
  *
  *\param file_handle    The file.
  *\param tag_name       The tag.
- *\param num_values_out The number of tag values.
+ *\param num_values_out The number of entities for which tag values are stored.
  *\param entities_and_values_out The handles to the pair of file objects.
  *                      The first is the vector of global IDs.  The second
- *                      is the list of corresponding tag values.
+ *                      is the list of corresponding tag values.  The third
+ *                      is the handle to the index table, iff the tag is 
+ *                      variable-length.  If the tag is fixed-length, this
+ *                      value is not set.
  *\param status         Passed back status of API call.
  */
 void
 mhdf_openSparseTagData( mhdf_FileHandle file_handle,
                         const char* tag_name,
                         long* num_values_out,
-                        hid_t entities_and_values_out[2],
+                        hid_t entities_and_values_out[3],
                         mhdf_Status* status );
 
 /** \brief Write Global ID list for sparse tag data
@@ -1807,6 +1870,8 @@ mhdf_writeSparseTagEntities( hid_t id_handle,
                              const void* id_list,
                              mhdf_Status* status );
 
+
+
 /** \brief Write tag value list for sparse tag data
  *
  *\param value_handle  The second handle passed back from either
@@ -1829,6 +1894,28 @@ mhdf_writeSparseTagValues( hid_t value_handle,
                            hid_t hdf_tag_data_type,
                            const void* tag_data,
                            mhdf_Status* status );
+
+/**\brief Write sparse tag end indices for variable-length tag data
+ *
+ * Write sparse tag end indices for variable-length tag data.
+ * Each value in the list is the *last* index (zero-based) into the tag
+ * data for the corresponding entity.
+ *
+ *\param tag_handle   handle to the data object to write to.
+ *\param offset       The offset into the table at which to begin writting
+ *\param count        The number of values to write.
+ *\param hdf_integer_type  The type of the values pointed to by end_indices 
+ *                    (must be an integer type).
+ *\param end_indices  The values to store in the table.
+ *\param status       Output: API result.
+ */
+void 
+mhdf_writeSparseTagIndices( hid_t tag_handle,
+                            long offset,
+                            long count,
+                            hid_t hdf_integer_type,
+                            const void* end_indices,
+                            mhdf_Status* status );
 
 /** \brief Read Global ID list for sparse tag data
  *
@@ -1859,21 +1946,43 @@ mhdf_readSparseTagEntities( hid_t id_handle,
  *                  \ref mhdf_openSparseTagData.
  *\param offset     The offset at which to begin reading.
  *\param count      The number of tag values to read.
- *\param hdf_integer_type The type of the data in memory.  If this is specified,
+ *\param hdf_type   The type of the data in memory.  If this is specified,
  *                  it must be possible for the HDF library to convert
  *                  between this type and the type the tag data is stored
  *                  as.  If zero, the values will be read as opaque data.
- *\param id_list    Memory location at which to store tag values.
+ *\param memory     Memory location at which to store tag values.
  *\param status     Passed back status of API call.
  */
 void
 mhdf_readSparseTagValues( hid_t value_handle,
                           long offset,
                           long count,
-                          hid_t hdf_integer_type,
-                          void* id_list,
+                          hid_t hdf_type,
+                          void* memory,
                           mhdf_Status* status );
 
+
+/**\brief Read sparse tag end indices for variable-length tag data
+ *
+ * Read sparse tag end indices for variable-length tag data.
+ * Each value in the list is the *last* index (zero-based) into the tag
+ * data for the corresponding entity.
+ *
+ *\param tag_handle   handle to the data object to read from.
+ *\param offset       The offset into the table at which to begin reading
+ *\param count        The number of values to read.
+ *\param hdf_integer_type  The type of the values pointed to by end_indices 
+ *                    (must be an integer type).
+ *\param end_indices  Memory in which to store the data read from the table.
+ *\param status       Output: API result.
+ */
+void 
+mhdf_readSparseTagIndices( hid_t tag_handle,
+                           long offset,
+                           long count,
+                           hid_t hdf_integer_type,
+                           void* end_indices,
+                           mhdf_Status* status );
 
 /*@}*/
 

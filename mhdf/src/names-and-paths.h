@@ -32,6 +32,7 @@
 #define SPARSE_ENTITY_NAME     "id_list"
 #define SPARSE_VALUES_NAME     "values"
 #define TAG_TYPE_NAME          "type"
+#define TAG_VAR_INDICES        "var_indices"
 
 /* Common names for data node/element/set groups */
 #define DENSE_TAG_SUBGROUP     TAG_GROUP_NAME "/"
@@ -69,6 +70,7 @@
 #define TAG_GLOBAL_ATTRIB      "global"
 #define TAG_TYPE_ATTRIB        "class"
 #define TAG_HANDLE_TYPE_ATTRIB "is_handle"
+#define TAG_VARLEN_ATTRIB      "variable_length"
 #define ELEM_TYPE_ATTRIB       "element_type"
 #define START_ID_ATTRIB        "start_id"
 #define MAX_ID_ATTRIB          "max_id"
