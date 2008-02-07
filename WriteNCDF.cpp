@@ -63,6 +63,7 @@ WriteNCDF::WriteNCDF(MBInterface *impl)
   // initialize in case tag_get_handle fails below
   //! get and cache predefined tag handles
   int dum_val = 0;
+  void* dum_ptr = 0;
   MBErrorCode result = impl->tag_get_handle(MATERIAL_SET_TAG_NAME,  mMaterialSetTag);
   if (MB_TAG_NOT_FOUND == result)
     result = impl->tag_create(MATERIAL_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mMaterialSetTag,
@@ -93,7 +94,7 @@ WriteNCDF::WriteNCDF(MBInterface *impl)
   result = impl->tag_get_handle("qaRecord",             mQaRecordTag);
   if (MB_TAG_NOT_FOUND == result)
     result = impl->tag_create("qaRecord", sizeof(void*), MB_TAG_SPARSE, mQaRecordTag,
-                              &dum_val);
+                              &dum_ptr);
   
   result = impl->tag_get_handle(GLOBAL_ID_TAG_NAME,             mGlobalIdTag);
   if (MB_TAG_NOT_FOUND == result)
@@ -180,16 +181,17 @@ MBErrorCode WriteNCDF::write_file(const char *exodus_file_name,
     if (blocks.empty() && nodesets.empty() && sidesets.empty())
     {
       this_range.clear();
-      mdbImpl->get_entities_by_dimension( 0, user_dimension, this_range, false );
-      if (!this_range.empty())
-      {
-        MBEntityHandle block_handle;
-        int block_id = 1;
-        mdbImpl->create_meshset( MESHSET_SET, block_handle );
-        mdbImpl->tag_set_data( mMaterialSetTag, &block_handle, 1, &block_id );
-        mdbImpl->add_entities( block_handle, this_range );
-        blocks.push_back( block_handle );
-      }
+      for (int d = user_dimension; d > 0 && this_range.empty(); --d)
+        mdbImpl->get_entities_by_dimension( 0, d, this_range, false );
+      if (this_range.empty())
+        return MB_FILE_WRITE_ERROR;
+
+      MBEntityHandle block_handle;
+      int block_id = 1;
+      mdbImpl->create_meshset( MESHSET_SET, block_handle );
+      mdbImpl->tag_set_data( mMaterialSetTag, &block_handle, 1, &block_id );
+      mdbImpl->add_entities( block_handle, this_range );
+      blocks.push_back( block_handle );
     }
   }
   else {
