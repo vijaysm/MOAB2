@@ -60,6 +60,11 @@ MBErrorCode MBReadUtil::get_node_arrays(
   if(error != MB_SUCCESS)
     return error;
 
+  if (seq->start_handle() > actual_start_handle ||
+      seq->end_handle() < actual_start_handle ||
+      seq->end_handle() - actual_start_handle + 1 < (unsigned)num_nodes)
+    return MB_FAILURE;
+
   arrays.resize(3);
 
   error = static_cast<VertexSequence*>(seq)->get_coordinate_arrays(arrays[0], arrays[1], arrays[2]);
@@ -94,6 +99,11 @@ MBErrorCode MBReadUtil::get_element_array(
   if (MB_SUCCESS != error)
     return error;
 
+  if (seq->start_handle() > actual_start_handle ||
+      seq->end_handle() < actual_start_handle ||
+      seq->end_handle() - actual_start_handle + 1 < (unsigned)num_elements)
+    return MB_FAILURE;
+
   // get an array for the connectivity
   array = static_cast<ElementSequence*>(seq)->get_connectivity_array();
   if (!array)
@@ -119,7 +129,15 @@ MBErrorCode MBReadUtil::create_entity_sets( MBEntityID num_sets,
                                                             flags,
                                                             start_handle,
                                                             seq );
-  return error;
+  if (MB_SUCCESS != error)
+    return error;
+
+  if (seq->start_handle() > start_handle ||
+      seq->end_handle() < start_handle ||
+      seq->end_handle() - start_handle + 1 < num_sets)
+    return MB_FAILURE;
+    
+  return MB_SUCCESS;
 }
 
 
