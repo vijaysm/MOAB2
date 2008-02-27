@@ -72,7 +72,7 @@ extern "C"
 MBParallelComm::MBParallelComm(MBInterface *impl, MPI_Comm comm) 
     : mbImpl(impl), procConfig(comm)
 {
-  myBuffer.reserve(INITIAL_BUFF_SIZE);
+  myBuffer.resize(INITIAL_BUFF_SIZE);
 
   tagServer = dynamic_cast<MBCore*>(mbImpl)->tag_server();
   sequenceManager = dynamic_cast<MBCore*>(mbImpl)->sequence_manager();
@@ -144,7 +144,7 @@ MBErrorCode MBParallelComm::assign_global_ids(MBEntityHandle this_set,
   
   for (int dim = 0; dim < 4; dim++) {
     if (entities[dim].empty()) continue;
-    num_elements.reserve(entities[dim].size());
+    num_elements.resize(entities[dim].size());
     int i = 0;
     for (MBRange::iterator rit = entities[dim].begin(); rit != entities[dim].end(); rit++)
       num_elements[i++] = total_elems[dim]++;
@@ -196,7 +196,7 @@ MBErrorCode MBParallelComm::communicate_entities(const int from_proc, const int 
     }
     
       // allocate space in the buffer
-    myBuffer.reserve(buff_size);
+    myBuffer.resize(buff_size);
 
       // pack the actual buffer
     int actual_buff_size;
@@ -223,7 +223,7 @@ MBErrorCode MBParallelComm::communicate_entities(const int from_proc, const int 
     if (sizeof(int) == num_recd && 0 > *((int*)&myBuffer[0])) {
         // this was just the size of the next message; prepare buffer then receive that message
       buff_size = myBuffer[0];
-      myBuffer.reserve(buff_size);
+      myBuffer.resize(buff_size);
     
       // receive the real message
       success = MPI_Recv(&myBuffer[0], buff_size, MPI_UNSIGNED_CHAR, from_proc, 
@@ -275,7 +275,7 @@ MBErrorCode MBParallelComm::broadcast_entities( const int from_proc,
   if (!buff_size) // no data
     return MB_SUCCESS;
   
-  myBuffer.reserve( buff_size );
+  myBuffer.resize( buff_size );
   
   if ((int)procConfig.proc_rank() == from_proc) {
     int actual_buffer_size;
@@ -451,7 +451,7 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
       end_rit = entities.lower_bound(start_rit, entities.end(), eseq->end_handle()+1);
 
         // put these entities in the last range
-      (*allRanges.rbegin()).insert( eseq->start_handle(), eseq->end_handle() );
+      std::copy(start_rit, end_rit, mb_range_inserter(*allRanges.rbegin()));
       whole_range.merge(*allRanges.rbegin());
       
         // now start where we last left off
@@ -783,7 +783,7 @@ MBErrorCode MBParallelComm::unpack_sets(unsigned char *&buff_ptr,
     else if (opt & MESHSET_ORDERED) {
         // unpack entities as vector, with length
       UNPACK_INT(buff_ptr, num_ents);
-      members.reserve(num_ents);
+      members.resize(num_ents);
       UNPACK_EH(buff_ptr, &members[0], num_ents);
       result = mbImpl->add_entities(*rit, &members[0], num_ents);
       RR("Failed to add ents to ordered set in unpack.");
@@ -795,14 +795,14 @@ MBErrorCode MBParallelComm::unpack_sets(unsigned char *&buff_ptr,
        rit != set_handles.end(); rit++) {
       // unpack parents/children
     UNPACK_INT(buff_ptr, num_ents);
-    members.reserve(num_ents);
+    members.resize(num_ents);
     UNPACK_EH(buff_ptr, &members[0], num_ents);
     for (int i = 0; i < num_ents; i++) {
       result = mbImpl->add_parent_meshset(*rit, members[i]);
       RR("Failed to add parent to set in unpack.");
     }
     UNPACK_INT(buff_ptr, num_ents);
-    members.reserve(num_ents);
+    members.resize(num_ents);
     UNPACK_EH(buff_ptr, &members[0], num_ents);
     for (int i = 0; i < num_ents; i++) {
       result = mbImpl->add_child_meshset(*rit, members[i]);
@@ -927,7 +927,7 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
         // name
       PACK_CHAR_64(buff_ptr, tinfo->get_name().c_str());
       
-      tag_data.reserve((tr_it->size()+1) * tinfo->get_size() / sizeof(int));
+      tag_data.resize((tr_it->size()+1) * tinfo->get_size() / sizeof(int));
       result = mbImpl->tag_get_data(*tag_it, *tr_it, &tag_data[0]);
       RR("Failed to get tag data in pack_tags.");
       PACK_RANGE(buff_ptr, (*tr_it));
@@ -1018,7 +1018,7 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
 bool MBParallelComm::buffer_size(const unsigned int new_size) 
 {
   unsigned int old_size = myBuffer.size();
-  myBuffer.reserve(new_size);
+  myBuffer.resize(new_size);
   return (new_size == old_size);
 }
 

@@ -542,7 +542,7 @@ MBErrorCode WriteHDF5Parallel::create_file( const char* filename,
 
     if (0 == myRank)
     {
-      rval = create_tag( tag_iter->tag_id, next_offset );
+      rval = create_tag(*tag_iter);
       assert(MB_SUCCESS == rval);
       printdebug( "Creating table of size %d for tag 0x%lx\n", (int)next_offset, (unsigned long)tag_iter->tag_id);
     }
