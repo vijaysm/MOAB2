@@ -95,7 +95,7 @@ int main(int argc, char **argv)
       case -2:
       case -3:
         parallel_option = this_opt;
-        break;
+        continue;
         
       case 1:
         N = atoi(argv[npos++]);
