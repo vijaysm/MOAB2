@@ -88,6 +88,10 @@ MBErrorCode TypeSequenceManager::insert_sequence( EntitySequence* seq_ptr )
   if (!seq_ptr->data())
     return MB_FAILURE;
 
+  if (seq_ptr->data()->start_handle() > seq_ptr->start_handle() ||
+      seq_ptr->data()->end_handle() < seq_ptr->end_handle())
+    return MB_FAILURE;
+
   iterator i = lower_bound( seq_ptr->start_handle() );
   if (i != end()) {
     if ((*i)->start_handle() <= seq_ptr->end_handle())
