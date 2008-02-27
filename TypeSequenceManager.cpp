@@ -376,6 +376,14 @@ bool TypeSequenceManager::is_free_sequence( MBEntityHandle start,
       // if we overlap a data object, we must be entirely inside of it
     return start + num_entities - 1 <= (*i)->data()->end_handle();
   }
+
+#ifndef NDEBUG
+  if (i != begin()) {
+    const_iterator j = i;
+    --j;
+    assert( (*j)->end_handle() < start );
+  }
+#endif
   
     // check if we fit in the block of free handles
   if (start + num_entities > (*i)->start_handle()) // start + num + 1 >= i->start
@@ -387,7 +395,8 @@ bool TypeSequenceManager::is_free_sequence( MBEntityHandle start,
     if ((*i)->values_per_entity() != values_per_ent)
       return false;
       // if overlap, must be entirely contained
-    return start >= data_out->start_handle();
+    return start >= data_out->start_handle() &&
+           start + num_entities - 1 <= data_out->end_handle();
   }
   
     // check if we overlap the data for the previous sequence
