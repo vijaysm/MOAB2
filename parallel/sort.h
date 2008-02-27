@@ -37,8 +37,7 @@
 
   ----------------------------------------------------------------------------*/
 
-#define sort jl_sort
-void sort(const uint *A, uint n, uint stride, uint *out, uint *work);
+void jl_sort(const uint *A, uint n, uint stride, uint *out, uint *work);
 
 typedef struct { uint v; uint i; } sort_data;
 void index_sort(const uint *A, uint n, uint stride,
@@ -50,7 +49,7 @@ void index_sort(const uint *A, uint n, uint stride,
   void index_sort_long(const ulong *A, uint n, uint stride,
                        uint *idx, sort_data_long *work);
 #else
-#  define sort_long       sort
+#  define sort_long       jl_sort
 #  define sort_data_long  sort_data
 #  define index_sort_long index_sort
 #endif

@@ -18,6 +18,8 @@ typedef struct {
   uint *target;      /* int target[np]: array of processor ids to comm w/ */
   uint *nshared;     /* nshared[i] = number of points shared w/ target[i] */
   uint *sh_ind;      /* list of shared point indices                      */
+  slong *slabels;    /* list of signed long labels (not including gid)    */
+  ulong *ulabels;    /* list of unsigned long labels                      */
   MPI_Request *reqs; /* pre-allocated for MPI calls                       */
   real *buf;         /* pre-allocated buffer to receive data              */
   uint maxv;         /* maximum vector size                               */
@@ -32,8 +34,10 @@ typedef struct {
 #endif
 } gs_data;
 
-gs_data *gs_data_setup(uint n, const ulong *label,
-                       uint maxv, crystal_data *crystal);
+gs_data *gs_data_setup(uint n, const long *label, const ulong *label,
+                       uint maxv, const unsigned int nlabels,
+                       const unsigned int nulabels,
+                       crystal_data *crystal);
 
 #ifndef MPI
 #  undef crystal_data

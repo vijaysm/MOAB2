@@ -16,14 +16,14 @@
 #define TUPLE_LIST_H
 
 /* requires "errmem.h" and "types.h" */
-#if !defined(ERRMEM_H) || !defined(TYPES_H)
-#warning "tuple_list.h" requires "errmem.h" and "types.h"
+#if !defined(ERRMEM_H) || !defined(TYPES_H) || !defined(MINMAX_H) || !defined(SORT_H)
+#warning "tuple_list.h" requires "errmem.h" and "types.h" and  "minmax.h" and "sort.h"
 #endif
 
 typedef struct {
-  unsigned mi,ml,mr;
+  unsigned mi,ml,mul,mr;
   uint n, max;
-  sint *vi; slong *vl; real *vr;
+  sint *vi; slong *vl; ulong *vul; real *vr;
 } tuple_list;
 
 /* storage layed out as: vi[max][mi], vl[max][ml], vr[max][mr]
@@ -31,17 +31,19 @@ typedef struct {
    only the first n tuples are in use */
 
 static void tuple_list_init_max(tuple_list *tl,
-  unsigned mi, unsigned ml, unsigned mr, uint max)
+                                unsigned mi, unsigned ml, unsigned mul, 
+                                unsigned mr, uint max)
 {
   tl->n=0; tl->max=max;
-  tl->mi=mi,tl->ml=ml,tl->mr=mr;
+  tl->mi=mi,tl->ml=ml,tl->mul=mul,tl->mr=mr;
   tl->vi=tmalloc(sint, max*mi);
   tl->vl=tmalloc(slong,max*ml);
+  tl->vul=tmalloc(ulong,max*mul);
   tl->vr=tmalloc(real, max*mr);
 }
 
 static void tuple_list_free(tuple_list *tl) {
-  free(tl->vi), free(tl->vl), free(tl->vr);
+  free(tl->vi), free(tl->vl), free(tl->vul), free(tl->vr);
 }
 
 static void tuple_list_resize(tuple_list *tl, uint max)
@@ -49,6 +51,7 @@ static void tuple_list_resize(tuple_list *tl, uint max)
   tl->max = max;
   tl->vi=trealloc(sint, tl->vi,tl->max*tl->mi);
   tl->vl=trealloc(slong,tl->vl,tl->max*tl->ml);
+  tl->vul=trealloc(ulong,tl->vul,tl->max*tl->mul);
   tl->vr=trealloc(real, tl->vr,tl->max*tl->mr);
 }
 
@@ -58,8 +61,6 @@ static void tuple_list_grow(tuple_list *tl)
 }
 
 void tuple_list_permute(tuple_list *tl, uint *perm, void *work);
-/* sort tuples by the field specified by key<mi+ml;
-   entries in vi[:][key] (or vl[:][key-mi]) assumed nonnegative */
 void tuple_list_sort(tuple_list *tl, unsigned key, buffer *buf);
 
 #endif

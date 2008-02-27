@@ -35,10 +35,10 @@
 void gs_transfer(int dynamic, tuple_list *tl,
                  unsigned pf, crystal_data *crystal)
 {
-  const unsigned mi=tl->mi,ml=tl->ml,mr=tl->mr;
-  const unsigned tsize = (mi-1) + ml*UINT_PER_LONG + mr*UINT_PER_REAL;
+  const unsigned mi=tl->mi,ml=tl->ml,mul=tl->mul,mr=tl->mr;
+  const unsigned tsize = (mi-1) + ml*UINT_PER_LONG + mul*UINT_PER_LONG + mr*UINT_PER_REAL;
   sint p, lp = -1;
-  sint *ri; slong *rl; real *rr;
+  sint *ri; slong *rl; ulong *rul; real *rr;
   uint i, j, *buf, *len=0, *buf_end;
 
   /* sort to group by target proc */
@@ -47,7 +47,7 @@ void gs_transfer(int dynamic, tuple_list *tl,
   /* pack into buffer for crystal router */
   buffer_reserve(&crystal->all->buf,(tl->n*(3+tsize))*sizeof(uint));
   crystal->all->n=0, buf = crystal->all->buf.ptr;
-  ri=tl->vi,rl=tl->vl,rr=tl->vr;
+  ri=tl->vi,rl=tl->vl,rul=tl->vul,rr=tl->vr;
   for(i=tl->n;i;--i) {
     p = ri[pf];
     if(p!=lp) {
@@ -60,6 +60,8 @@ void gs_transfer(int dynamic, tuple_list *tl,
     for(j=0;j<mi;++j,++ri) if(j!=pf) *buf++ = *ri;
     for(j=ml;j;--j,++rl)
       memcpy(buf,rl,sizeof(slong)), buf+=UINT_PER_LONG;
+    for(j=mul;j;--j,++rul)
+      memcpy(buf,rul,sizeof(ulong)), buf+=UINT_PER_LONG;
     for(j=mr;j;--j,++rr)
       memcpy(buf,rr,sizeof(real )), buf+=UINT_PER_REAL;
     *len += tsize, crystal->all->n += tsize;
@@ -70,7 +72,7 @@ void gs_transfer(int dynamic, tuple_list *tl,
   /* unpack */
   buf = crystal->all->buf.ptr, buf_end = buf + crystal->all->n;
   tl->n = 0;
-  ri=tl->vi,rl=tl->vl,rr=tl->vr;
+  ri=tl->vi,rl=tl->vl,rul=tl->vul,rr=tl->vr;
   while(buf != buf_end) {
     sint p, len;
     buf++;        /* target ( == this proc ) */
@@ -80,11 +82,13 @@ void gs_transfer(int dynamic, tuple_list *tl,
       if(tl->n==tl->max) {
         if(!dynamic) { tl->n = tl->max + 1; return; }
         tuple_list_grow(tl);
-        ri = tl->vi + mi*tl->n, rl = tl->vl + ml*tl->n, rr = tl->vr + mr*tl->n;
+        ri = tl->vi + mi*tl->n, rl = tl->vl + ml*tl->n;
+        rul = tl->vul + mul*tl->n, rr = tl->vr + mr*tl->n;
       }
       ++tl->n;
       for(j=0;j<mi;++j) if(j!=pf) *ri++ = *buf++; else *ri++ = p;
       for(j=ml;j;--j) memcpy(rl++,buf,sizeof(slong)), buf+=UINT_PER_LONG;
+      for(j=mul;j;--j) memcpy(rul++,buf,sizeof(ulong)), buf+=UINT_PER_LONG;
       for(j=mr;j;--j) memcpy(rr++,buf,sizeof(real )), buf+=UINT_PER_REAL;
       len-=tsize;
     }

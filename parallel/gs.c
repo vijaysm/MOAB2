@@ -77,6 +77,7 @@
 #include "errmem.h"     
 #include "types.h"
 #include "minmax.h"
+#include "sort.h"
 #include "tuple_list.h"
 #ifdef USE_MPI
 #  include "crystal.h"  
@@ -87,6 +88,8 @@ typedef struct {
   uint *target;      /* int target[np]: array of processor ids to comm w/ */
   uint *nshared;     /* nshared[i] = number of points shared w/ target[i] */
   uint *sh_ind;      /* list of shared point indices                      */
+  slong *slabels;    /* list of signed long labels (not including gid)    */
+  ulong *ulabels;    /* list of unsigned long labels                      */
   MPI_Request *reqs; /* pre-allocated for MPI calls                       */
   real *buf;         /* pre-allocated buffer to receive data              */
   uint maxv;         /* maximum vector size                               */
@@ -186,13 +189,18 @@ static void local_uncondense_vec(real *u, uint n, const sint *cm)
 
 #ifdef USE_MPI
 
-static nonlocal_info *nlinfo_alloc(uint np, uint count, uint maxv)
+static nonlocal_info *nlinfo_alloc(uint np, uint count, uint nlabels,
+                                   uint nulabels, uint maxv)
 {
   nonlocal_info *info = tmalloc(nonlocal_info,1);
   info->np = np;
   info->target = tmalloc(uint,2*np+count);
   info->nshared = info->target + np;
   info->sh_ind = info->nshared + np;
+  if (1 < nlabels)
+    info->slabels = tmalloc(slong, (nlabels-1)*count);
+  else info->slabels = NULL;
+  info->ulabels = tmalloc(ulong, nulabels*count);
   info->reqs = tmalloc(MPI_Request,2*np);
   info->buf = tmalloc(real,2*count*maxv);
   info->maxv = maxv;
@@ -204,6 +212,9 @@ static void nlinfo_free(nonlocal_info *info)
   free(info->buf);
   free(info->reqs);
   free(info->target);
+  if (info->slabels)
+    free(info->slabels);
+  free(info->ulabels);
   free(info);
 }
 
@@ -390,17 +401,14 @@ void gs_op_many(real **u, uint n, int op, const gs_data *data)
    Setup
   --------------------------------------------------------------------------*/
 
-gs_data *gs_data_setup(uint n, const ulong *label,
-                       uint maxv, crystal_data *crystal)
+gs_data *gs_data_setup(uint n, const long *label, const ulong *ulabel,
+                       uint maxv, const unsigned int nlabels, const unsigned int nulabels,
+                       crystal_data *crystal)
 {
   gs_data *data=tmalloc(gs_data,1);
   tuple_list nonzero, primary;
-  const int nz_index=0, nz_size=1, nz_label=0;
-  const int pr_nzindex=0, pr_index=1, pr_count=2, pr_size=3, pr_label=0;
 #ifdef USE_MPI
   tuple_list shared;
-  const int pr_proc=0;
-  const int sh_dproc=0, sh_proc2=1, sh_index=2, sh_size=3, sh_label=0;
 #else
   buffer buf;
 #endif
@@ -411,69 +419,79 @@ gs_data *gs_data_setup(uint n, const ulong *label,
 #endif
 
   /* construct list of nonzeros: (index ^, label) */
-  tuple_list_init_max(&nonzero,nz_size,1,0,n);
+  tuple_list_init_max(&nonzero,1,nlabels,nulabels,0,n);
   {
-    uint i; sint *nzi = nonzero.vi; slong *nzl = nonzero.vl;
+    uint i; sint *nzi = nonzero.vi; slong *nzl = nonzero.vl; ulong *nzul = nonzero.vul;
     for(i=0;i<n;++i)
-      if(label[i]!=0) 
-        nzi[nz_index]=i,
-        nzl[nz_label]=label[i],
-        nzi+=nz_size, ++nzl, nonzero.n++;
+      if(label[i]!=0) {
+        nzi[0]=i;
+        unsigned int j;
+        for (j = 0; j < nlabels; j++)
+          nzl[i*nlabels+j]=label[nlabels*i+j];
+        for (j = 0; j < nulabels; j++)
+          nzul[j]=label[nulabels*i+j];
+        nzi++, nzl+= nlabels, nzul+=nulabels, nonzero.n++;
+      }
   }
 
   /* sort nonzeros by label: (index ^2, label ^1) */
 #ifndef USE_MPI
-  tuple_list_sort(&nonzero,nz_size+nz_label,&buf);
+  tuple_list_sort(&nonzero,1,&buf);
 #else
-  tuple_list_sort(&nonzero,nz_size+nz_label,&crystal->all->buf);
+  tuple_list_sort(&nonzero,1,&crystal->all->buf);
 #endif
 
   /* build list of unique labels w/ lowest associated index:
      (index in nonzero ^, primary (lowest) index in label, count, label) */
-  tuple_list_init_max(&primary,pr_size,1,0,nonzero.n);
+  tuple_list_init_max(&primary,3,nlabels,nulabels,0,nonzero.n);
   {
     uint i;
     sint  *nzi=nonzero.vi, *pi=primary.vi;
     slong *nzl=nonzero.vl, *pl=primary.vl;
+    slong *nzul=nonzero.vul, *pul=primary.vul;
     sint last=-1;
-    for(i=0;i<nonzero.n;++i,nzi+=nz_size,++nzl) {
-      if(nzl[nz_label]==last) {
-        ++pi[-pr_size+pr_count];
+    for(i=0;i<nonzero.n;++i,nzi+=1,nzl+=nlabels,nzul+=nulabels) {
+      if(nzl[0]==last) {
+        ++pi[-1];
         continue;
       }
-      last=nzl[nz_label];
-      pi[pr_nzindex]=i;
-      pi[pr_index]=nzi[nz_index];
-      pl[pr_label]=nzl[nz_label];
-      pi[pr_count]=1;
-      pi+=pr_size, ++pl; primary.n++;
+      last=nzl[0];
+      pi[0]=i;
+      pi[1]=nzi[0];
+      unsigned int j;
+      for (j = 0; j < nlabels; j++)
+        pl[j]=nzl[j];
+      for (j = 0; j < nulabels; j++)
+        pul[j]=nzul[j];
+      pi[2]=1;
+      pi+=3, pl+=nlabels; pul+=nulabels; primary.n++;
     }
   }
 
   /* calculate size of local condense map */
   {
     uint i, count=1; sint *pi=primary.vi;
-    for(i=primary.n;i;--i,pi+=pr_size)
-      if(pi[pr_count]>1) count+=pi[pr_count]+1;
+    for(i=primary.n;i;--i,pi+=3)
+      if(pi[2]>1) count+=pi[2]+1;
     data->local_cm = tmalloc(sint,count);
   }
 
   /* sort unique labels by primary index:
      (nonzero index ^2, primary index ^1, count, label ^2) */
 #ifndef USE_MPI
-  tuple_list_sort(&primary,pr_index,&buf);
+  tuple_list_sort(&primary,1,&buf);
   buffer_free(&buf);
 #else
-  tuple_list_sort(&primary,pr_index,&crystal->all->buf);
+  tuple_list_sort(&primary,1,&crystal->all->buf);
 #endif
   
   /* construct local condense map */
   {
     uint i, n; sint *pi=primary.vi;
     sint *cm = data->local_cm;
-    for(i=primary.n;i;--i,pi+=pr_size) if((n=pi[pr_count])>1) {
-      uint j; sint *nzi=nonzero.vi+nz_size*pi[pr_nzindex];
-      for(j=n;j;--j,nzi+=nz_size) *cm++ = nzi[nz_index];
+    for(i=primary.n;i;--i,pi+=3) if((n=pi[2])>1) {
+      uint j; sint *nzi=nonzero.vi+1*pi[0];
+      for(j=n;j;--j,nzi+=1) *cm++ = nzi[0];
       *cm++ = -1;
     }
     *cm++ = -1;
@@ -486,64 +504,85 @@ gs_data *gs_data_setup(uint n, const ulong *label,
   /* assign work proc by label modulo np */
   {
     uint i; sint *pi=primary.vi; slong *pl=primary.vl;
-    for(i=primary.n;i;--i,pi+=pr_size,++pl)
-      pi[pr_proc]=pl[pr_label]%crystal->num;
+    for(i=primary.n;i;--i,pi+=3,pl+=nlabels)
+      pi[0]=pl[0]%crystal->num;
   }
-  gs_transfer(1,&primary,pr_proc,crystal); /* transfer to work procs */
+  gs_transfer(1,&primary,0,crystal); /* transfer to work procs */
   /* primary: (source proc, index on src, useless, label) */
   /* sort by label */
-  tuple_list_sort(&primary,pr_size+pr_label,&crystal->all->buf);
+  tuple_list_sort(&primary,3,&crystal->all->buf);
   /* add sentinel to primary list */
   if(primary.n==primary.max) tuple_list_grow(&primary);
   primary.vl[primary.n] = -1;
   /* construct shared list: (proc1, proc2, index1, label) */
-  tuple_list_init_max(&shared,sh_size,1,0,primary.n);
+  tuple_list_init_max(&shared,3,nlabels,nulabels,0,primary.n);
   {
     sint *pi1=primary.vi, *si=shared.vi;
     slong lbl, *pl1=primary.vl, *sl=shared.vl;
-    for(;(lbl=pl1[pr_label])!=-1;pi1+=pr_size,++pl1) {
-      sint *pi2=pi1+pr_size; slong *pl2=pl1+1;
-      for(;pl2[pr_label]==lbl;pi2+=pr_size,++pl2) {
+    ulong *pul1=primary.vul, *sul=shared.vul;
+    for(;(lbl=pl1[0])!=-1;pi1+=3,pl1+=nlabels,pul1+=nulabels) {
+      sint *pi2=pi1+3; slong *pl2=pl1+nlabels; ulong *pul2=pul1+nulabels;
+      for(;pl2[0]==lbl;pi2+=3,pl2+=nlabels,pul2+=nulabels) {
         if(shared.n+2>shared.max)
           tuple_list_grow(&shared),
-          si=shared.vi+shared.n*sh_size, sl=shared.vl+shared.n;
-        si[sh_dproc] = pi1[pr_proc];
-        si[sh_proc2] = pi2[pr_proc];
-        si[sh_index] = pi1[pr_index];
-        sl[sh_label] = lbl;
-        si+=sh_size, ++sl, shared.n++;
-        si[sh_dproc] = pi2[pr_proc];
-        si[sh_proc2] = pi1[pr_proc];
-        si[sh_index] = pi2[pr_index];
-        sl[sh_label] = lbl;
-        si+=sh_size, ++sl, shared.n++;
+          si=shared.vi+shared.n*3, sl=shared.vl+shared.n*nlabels, 
+              sul=shared.vul+shared.n*nulabels;
+        si[0] = pi1[0];
+        si[1] = pi2[0];
+        si[2] = pi1[1];
+        unsigned int j;
+        for (j = 0; j < nlabels; j++)
+          sl[j] = pl2[j];
+        for (j = 0; j < nulabels; j++)
+          sul[j] = pul2[j];
+        si+=3, sl+=nlabels, sul+=nulabels, shared.n++;
+        si[0] = pi2[0];
+        si[1] = pi1[0];
+        si[2] = pi2[1];
+        for (j = 0; j < nlabels; j++)
+          sl[j] = pl2[j];
+        for (j = 0; j < nulabels; j++)
+          sul[j] = pul2[j];
+        si+=3, sul+=nulabels, shared.n++;
       }
     }
   }
   tuple_list_free(&primary);
-  gs_transfer(1,&shared,sh_dproc,crystal); /* transfer to dest procs */
+  gs_transfer(1,&shared,0,crystal); /* transfer to dest procs */
   /* shared list: (useless, proc2, index, label) */
   /* sort by label */
-  tuple_list_sort(&shared,sh_size+sh_label,&crystal->all->buf);
+  tuple_list_sort(&shared,3,&crystal->all->buf);
   /* sort by partner proc */
-  tuple_list_sort(&shared,sh_proc2,&crystal->all->buf);
+  tuple_list_sort(&shared,1,&crystal->all->buf);
   /* count partner procs */
   {
     uint i, count=0; sint proc=-1,*si=shared.vi;
-    for(i=shared.n;i;--i,si+=sh_size)
-      if(si[sh_proc2]!=proc) ++count, proc=si[sh_proc2];
-    data->nlinfo = nlinfo_alloc(count,shared.n,maxv);
+    for(i=shared.n;i;--i,si+=3)
+      if(si[1]!=proc) ++count, proc=si[1];
+    data->nlinfo = nlinfo_alloc(count,shared.n,
+                                nlabels, nulabels, maxv);
   }
   /* construct non-local info */
   {
     uint i; sint proc=-1,*si=shared.vi;
+    slong *sl = shared.vl;
+    ulong *ul = shared.vul;
     uint *target  = data->nlinfo->target;
     uint *nshared = data->nlinfo->nshared;
     uint *sh_ind  = data->nlinfo->sh_ind;
-    for(i=shared.n;i;--i,si+=sh_size) {
-      if(si[sh_proc2]!=proc)
-        proc=si[sh_proc2], *target++ = proc, *nshared++ = 0;
-      ++nshared[-1], *sh_ind++=si[sh_index];
+    ulong *slabels = data->nlinfo->slabels;
+    ulong *ulabels = data->nlinfo->ulabels;
+    uint j;
+    for(i=shared.n;i;--i,si+=3) {
+      if(si[1]!=proc)
+        proc=si[1], *target++ = proc, *nshared++ = 0;
+      ++nshared[-1], *sh_ind++=si[2];
+        // don't store 1st slabel
+      sl++;
+      for (j = 0; j < nlabels-1; j++)
+        *slabels++ = *sl;
+      for (j = 0; j < nulabels; j++)
+        *ulabels++ = *ul;
     }
   }
   tuple_list_free(&shared);

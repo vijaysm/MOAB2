@@ -28,6 +28,14 @@
 #include "MBForward.hpp"
 #include "MBRange.hpp"
 #include "MBProcConfig.hpp"
+#include <map>
+#include "math.h"
+extern "C" 
+{
+#include "minmax.h"
+#include "sort.h"
+#include "tuple_list.h"
+}
 
 class TagServer;
 class SequenceManager;
@@ -45,6 +53,8 @@ public:
                  std::vector<unsigned char> &tmp_buff,
                  MPI_Comm comm = MPI_COMM_WORLD);
 
+  static unsigned char PROC_SHARED, PROC_OWNER;
+  
     //! assign a global id space, for largest-dimension or all entities (and
     //! in either case for vertices too)
   MBErrorCode assign_global_ids(MBEntityHandle this_set,
@@ -136,6 +146,12 @@ public:
     //! Get proc config for this communication object
   const MBProcConfig &proc_config() const {return procConfig;}
   
+    //! return the tags used to indicate shared procs and handles
+  MBErrorCode get_shared_proc_tags(MBTag &sharedp_tag,
+                                   MBTag &sharedps_tag,
+                                   MBTag &sharedh_tag,
+                                   MBTag &sharedhs_tag,
+                                   MBTag &pstatus_tag);
       
 private:
 
@@ -181,7 +197,20 @@ private:
   MBErrorCode unpack_tags(unsigned char *&buff_ptr,
                           MBRange &entities);
   
+  MBErrorCode tag_shared_verts(tuple_list &shared_verts,
+                               MBRange *skin_ents,
+                               std::map<int, MBRange> &proc_ranges,
+                               std::map<std::vector<int>, MBRange> *proc_nranges);
+  
+  MBErrorCode tag_shared_ents(int shared_dim,
+                              tuple_list &shared_verts,
+                              MBRange *skin_ents,
+                              std::map<int, MBRange> &proc_ranges,
+                              std::map<std::vector<int>, MBRange> *proc_nranges);
 
+  MBErrorCode create_interface_sets(std::map<int, MBRange> &proc_ranges,
+                                    std::map<std::vector<int>, MBRange> *proc_nranges);
+  
     //! MB interface associated with this writer
   MBInterface *mbImpl;
 
@@ -226,6 +255,19 @@ private:
   
     //! numbers of parents/children for transferred sets
   std::vector<int> setPcs;
+
+    //! tags used to save sharing procs and handles
+  MBTag sharedpTag, sharedpsTag, sharedhTag, sharedhsTag, pstatusTag;
+
+    //! interface sets, one set per unique combination of procs
+  MBRange ifaceSets;
+  
+    //! ghost sets (sets of ghost entities), one set per unique combination of procs
+  MBRange ghostSets;
+  
+    //! ghosted sets (sets of ghosted entities), one set per unique combination of procs
+  MBRange ghostedSets;
+  
 };
 
 #endif

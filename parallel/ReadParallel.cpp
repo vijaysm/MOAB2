@@ -39,10 +39,10 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
     // Get parallel settings
   int parallel_mode;
   const char* parallel_opts[] = { "NONE", "BCAST", "BCAST_DELETE", 
-                                  "READ_DELETE", "SCATTER", 
+                                  "READ_DELETE", "READ_PARALLEL", 
                                   "FORMAT", 0 };
   enum ParallelOpts {POPT_NONE=0, POPT_BCAST, POPT_BCAST_DELETE, 
-                     POPT_READ_DELETE, POPT_SCATTER,
+                     POPT_READ_DELETE, POPT_READ_PARALLEL,
                      POPT_FORMAT, POPT_LAST};
       
   MBErrorCode result = opts.match_option( "PARALLEL", parallel_opts, 
@@ -121,8 +121,8 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
     case POPT_FORMAT:
       merror->set_last_error( "Access to format-specific parallel read not implemented.\n");
       return MB_NOT_IMPLEMENTED;
-    case POPT_SCATTER:
-      merror->set_last_error( "Partitioning for PARALLEL=SCATTER not supported yet.\n");
+    case POPT_READ_PARALLEL:
+      merror->set_last_error( "Partitioning for PARALLEL=READ_PARALLEL not supported yet.\n");
       return MB_NOT_IMPLEMENTED;
     default:
       return MB_FAILURE;
@@ -368,7 +368,7 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
       // cut them in half if we're on one proc
     if (proc_sz == 1 && num_partsets == num_sets) num_sets /= 2;
     
-    for (int i = 0; i < num_sets; i++) 
+    for (unsigned int i = 0; i < num_sets; i++) 
       tmp_sets.insert(partition_sets[i*proc_sz + proc_rk]);
 
     partition_sets.swap(tmp_sets);
