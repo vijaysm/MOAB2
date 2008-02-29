@@ -39,6 +39,8 @@ extern "C"
 
 class TagServer;
 class SequenceManager;
+template <typename KeyType, typename ValType, ValType NullVal> class RangeMap;
+typedef RangeMap<MBEntityHandle, MBEntityHandle, 0> HandleMap;
 
 class MBParallelComm 
 {
@@ -165,7 +167,8 @@ private:
                             const bool just_count);
   
   MBErrorCode unpack_entities(unsigned char *&buff_ptr,
-                              MBRange &entities);
+                              MBRange &entities,
+                              HandleMap &handle_map);
   
   MBErrorCode pack_sets(MBRange &entities,
                         MBRange::const_iterator &start_rit,
@@ -175,7 +178,8 @@ private:
                         const bool just_count);
   
   MBErrorCode unpack_sets(unsigned char *&buff_ptr,
-                          MBRange &entities);
+                          MBRange &entities,
+                          HandleMap &handle_map);
   
   MBErrorCode pack_adjacencies(MBRange &entities,
                                MBRange::const_iterator &start_rit,
@@ -195,7 +199,8 @@ private:
                         const bool just_count);
 
   MBErrorCode unpack_tags(unsigned char *&buff_ptr,
-                          MBRange &entities);
+                          MBRange &entities,
+                          HandleMap &handle_map);
   
   MBErrorCode tag_shared_verts(tuple_list &shared_verts,
                                MBRange *skin_ents,
@@ -210,6 +215,11 @@ private:
 
   MBErrorCode create_interface_sets(std::map<int, MBRange> &proc_ranges,
                                     std::map<std::vector<int>, MBRange> *proc_nranges);
+
+    //! pack a range map with keys in this_range and values a contiguous series
+    //! of handles starting at actual_start
+  MBErrorCode pack_range_map(MBRange &this_range, MBEntityHandle actual_start,
+                             HandleMap &handle_map);
   
     //! MB interface associated with this writer
   MBInterface *mbImpl;

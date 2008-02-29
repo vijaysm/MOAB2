@@ -17,6 +17,8 @@
 #  define GLOBAL_INT long long
 #elif defined(USE_GLOBAL_LONG)
 #  define GLOBAL_INT long
+#else
+#  define GLOBAL_INT long
 #endif
 
 /* floating point type to use for everything */

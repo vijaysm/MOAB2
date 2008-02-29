@@ -427,7 +427,7 @@ gs_data *gs_data_setup(uint n, const long *label, const ulong *ulabel,
         nzi[0]=i;
         unsigned int j;
         for (j = 0; j < nlabels; j++)
-          nzl[i*nlabels+j]=label[nlabels*i+j];
+          nzl[j]=label[nlabels*i+j];
         for (j = 0; j < nulabels; j++)
           nzul[j]=label[nulabels*i+j];
         nzi++, nzl+= nlabels, nzul+=nulabels, nonzero.n++;

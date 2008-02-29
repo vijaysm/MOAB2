@@ -12,6 +12,7 @@
 #include "MBError.hpp"
 #include "ElementSequence.hpp"
 #include "MBCN.hpp"
+#include "RangeMap.hpp"
 
 #include <iostream>
 
@@ -362,11 +363,12 @@ MBErrorCode MBParallelComm::unpack_buffer(MBRange &entities)
   if (myBuffer.capacity() == 0) return MB_FAILURE;
   
   unsigned char *buff_ptr = &myBuffer[0];
-  MBErrorCode result = unpack_entities(buff_ptr, entities);
+  HandleMap handle_map;
+  MBErrorCode result = unpack_entities(buff_ptr, entities, handle_map);
   RRA("Unpacking entities failed.");
-  result = unpack_sets(buff_ptr, entities);
+  result = unpack_sets(buff_ptr, entities, handle_map);
   RRA("Unpacking sets failed.");
-  result = unpack_tags(buff_ptr, entities);
+  result = unpack_tags(buff_ptr, entities, handle_map);
   RRA("Unpacking tags failed.");
   
   return MB_SUCCESS;
@@ -556,7 +558,8 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
 }
 
 MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
-                                            MBRange &entities) 
+                                            MBRange &entities,
+                                            HandleMap &handle_map) 
 {
   MBErrorCode result;
   bool done = false;
@@ -583,66 +586,64 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
         // unpack coords
       int num_verts = this_range.size();
       std::vector<double*> coords(3);
-      for (MBRange::const_pair_iterator pit = this_range.const_pair_begin(); 
-           pit != this_range.const_pair_end(); pit++) {
-          // allocate handles
-        int start_id = mbImpl->handle_utils().id_from_handle((*pit).first);
-        int start_proc = mbImpl->handle_utils().rank_from_handle((*pit).first);
-        MBEntityHandle actual_start;
-        int tmp_num_verts = (*pit).second - (*pit).first + 1;
-        result = ru->get_node_arrays(3, tmp_num_verts, start_id, start_proc, actual_start,
-                                     coords);
-        RR("Failed to allocate node arrays.");
+      MBEntityHandle actual_start;
+      result = ru->get_node_arrays(3, num_verts, 0, proc_config().proc_rank(), 
+                                   actual_start, coords);
+      RR("Failed to allocate node arrays.");
+      entities.insert(actual_start, actual_start+num_verts-1);
+      
+        // unpack the buffer data directly into coords
+      for (int i = 0; i < 3; i++) 
+        memcpy(coords[i], buff_ptr+i*num_verts*sizeof(double), 
+               num_verts*sizeof(double));
+      buff_ptr += 3*num_verts * sizeof(double);
 
-        if (actual_start != (*pit).first)
-          RR("Warning: actual vertex handle different from requested handle in unpack_entities.");
-
-        entities.insert((*pit).first, (*pit).second);
-        
-          // unpack the buffer data directly into coords
-        for (int i = 0; i < 3; i++) 
-          memcpy(coords[i], buff_ptr+i*num_verts*sizeof(double), 
-                 tmp_num_verts*sizeof(double));
-
-        buff_ptr += tmp_num_verts * sizeof(double);
-      }
-
-        // increment the buffer ptr beyond the y and z coords
-      buff_ptr += 2 * num_verts * sizeof(double);
+        // pack the range map to map from source to local handles
+      pack_range_map(this_range, actual_start, handle_map);
     }
 
     else {
-      
       int verts_per_entity;
       
         // unpack the nodes per entity
       UNPACK_INT(buff_ptr, verts_per_entity);
       
+      int num_elems = this_range.size();
+      MBEntityHandle *connect;
+      MBEntityHandle actual_start;
+      result = ru->get_element_array(num_elems, verts_per_entity, this_type,
+                                     0, proc_config().proc_rank(), actual_start,
+                                     connect);
+      RR("Failed to allocate element arrays.");
+
         // unpack the connectivity
-      for (MBRange::const_pair_iterator pit = this_range.const_pair_begin(); 
-           pit != this_range.const_pair_end(); pit++) {
-          // allocate handles, connect arrays
-        int start_id = mbImpl->handle_utils().id_from_handle((*pit).first);
-        int start_proc = mbImpl->handle_utils().rank_from_handle((*pit).first);
-        MBEntityHandle actual_start;
-        int num_elems = (*pit).second - (*pit).first + 1;
-        MBEntityHandle *connect;
-        result = ru->get_element_array(num_elems, verts_per_entity, this_type,
-                                       start_id, start_proc, actual_start,
-                                       connect);
-        RR("Failed to allocate element arrays.");
-        if (actual_start != (*pit).first) 
-          RR("Warning: actual entity handle different from requested handle in unpack_entities.");
+      UNPACK_EH(buff_ptr, connect, (num_elems*verts_per_entity));
+      entities.insert(actual_start, actual_start+num_elems);
 
-          // copy connect arrays
-        UNPACK_EH(buff_ptr, connect, (num_elems*verts_per_entity));
-
-        entities.insert((*pit).first, (*pit).second);
+        // change the connectivity to be in terms of local handles
+      for (int i = 0; i < verts_per_entity*num_elems; i++) {
+        connect[i] = handle_map.find(connect[i]);
+        assert(0 != connect[i]);
       }
-      
+
+        // pack the range map for these elems
+      pack_range_map(this_range, actual_start, handle_map);
     }
   }
   
+  return MB_SUCCESS;
+}
+
+MBErrorCode MBParallelComm::pack_range_map(MBRange &key_range, MBEntityHandle val_start,
+                                           HandleMap &handle_map) 
+{
+  for (MBRange::const_pair_iterator key_it = key_range.const_pair_begin(); 
+       key_it != key_range.const_pair_end(); key_it++) {
+    int tmp_num = (*key_it).second - (*key_it).first + 1;
+    handle_map.insert((*key_it).first, val_start, tmp_num);
+    val_start += tmp_num;
+  }
+
   return MB_SUCCESS;
 }
 
@@ -702,19 +703,20 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
   }
   else {
     
+      // set handle range
+    PACK_RANGE(buff_ptr, setRange);
+
+      // option values
+    PACK_VOID(buff_ptr, &optionsVec[0], setRange.size()*sizeof(unsigned int));
+
+    
     std::vector<unsigned int>::const_iterator opt_it = optionsVec.begin();
     std::vector<MBRange>::const_iterator rit = setRanges.begin();
     std::vector<int>::const_iterator mem_it = setSizes.begin();
     static std::vector<MBEntityHandle> members;
 
-      // set handle range
-    PACK_RANGE(buff_ptr, setRange);
-
     for (MBRange::const_iterator set_it = setRange.begin(); set_it != setRange.end(); 
          set_it++, opt_it++) {
-        // option value
-      PACK_VOID(buff_ptr, &(*opt_it), sizeof(unsigned int));
-      
       if ((*opt_it) & MESHSET_SET) {
           // pack entities as a range
         PACK_RANGE(buff_ptr, (*rit));
@@ -729,10 +731,7 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
         PACK_EH(buff_ptr, &members[0], *mem_it);
         mem_it++;
       }
-    }
-    
-    for (MBRange::const_iterator set_it = setRange.begin(); set_it != setRange.end(); 
-         set_it++, opt_it++) {
+
         // pack parents
       members.clear();
       result = mbImpl->get_parent_meshsets(*set_it, members);
@@ -760,61 +759,76 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
 }
 
 MBErrorCode MBParallelComm::unpack_sets(unsigned char *&buff_ptr,
-                                        MBRange &entities)
+                                        MBRange &entities,
+                                        HandleMap &handle_map)
 {
   
     // now the sets; assume any sets the application wants to pass are in the entities list
   MBErrorCode result;
 
-  std::vector<unsigned int>::const_iterator opt_it = optionsVec.begin();
-  std::vector<MBRange>::const_iterator rit = setRanges.begin();
-  std::vector<int>::const_iterator mem_it = setSizes.begin();
-
   MBRange set_handles, new_sets;
   UNPACK_RANGE(buff_ptr, set_handles);
   std::vector<MBEntityHandle> members;
   int num_ents;
-
-    // unpack set contents before parent/child relations, to make sure
-    // sets exist before being referenced
-  for (MBRange::const_iterator rit = set_handles.begin(); 
-       rit != set_handles.end(); rit++) {
-    
+  optionsVec.resize(set_handles.size());
       // option value
-    unsigned int opt;
-    UNPACK_VOID(buff_ptr, &opt, sizeof(unsigned int));
-      
+  UNPACK_VOID(buff_ptr, &optionsVec[0], set_handles.size()*sizeof(unsigned int));
+
+    // create sets
+  unsigned int i;
+  MBRange::const_iterator rit;
+  for (rit = set_handles.begin(), i = 0; 
+       rit != set_handles.end(); rit++, i++) {
+    
       // create the set
-    MBEntityHandle set_handle = *rit;
-    result = sequenceManager->allocate_mesh_set(set_handle, opt);
+    MBEntityHandle set_handle;
+    result = mbImpl->create_meshset(optionsVec[i], set_handle);
     RR("Failed to create set in unpack.");
     new_sets.insert(set_handle);
+  }
 
-    if (opt & MESHSET_SET) {
+    // make sure new sets handles are contiguous
+  assert(*new_sets.rbegin() - *new_sets.begin() + 1 == new_sets.size());
+
+    // pack the range map to map from source to local handles
+  pack_range_map(set_handles, *new_sets.begin(), handle_map);
+
+    // now unpack entities and parent/child links; can go through new_sets in same
+    // order as set_handles, since they were created contiguously and set_handles
+    // were iterated as a range
+  for (rit = new_sets.begin(), i = 0; rit != new_sets.end(); rit++, i++) {
+    if (optionsVec[i] & MESHSET_SET) {
         // unpack entities as a range
-      MBRange set_range;
-      UNPACK_RANGE(buff_ptr, set_range);
+      MBRange set_range, tmp_range;
+      UNPACK_RANGE(buff_ptr, tmp_range);
+      for (MBRange::iterator rit2 = tmp_range.begin(); rit2 != tmp_range.end(); rit2++) {
+        MBEntityHandle tmp_ent = handle_map.find(*rit2);
+        assert(0 != tmp_ent);
+        set_range.insert(tmp_ent);
+      }
       result = mbImpl->add_entities(*rit, set_range);
       RR("Failed to add ents to set in unpack.");
     }
-    else if (opt & MESHSET_ORDERED) {
+    else if (optionsVec[i] & MESHSET_ORDERED) {
         // unpack entities as vector, with length
       UNPACK_INT(buff_ptr, num_ents);
       members.resize(num_ents);
       UNPACK_EH(buff_ptr, &members[0], num_ents);
+      for (int j = 0; j < num_ents; j++) {
+        members[j] = handle_map.find(members[j]);
+        assert(0 != members[j]);
+      }
       result = mbImpl->add_entities(*rit, &members[0], num_ents);
       RR("Failed to add ents to ordered set in unpack.");
     }
-  }
 
-    // now unpack parent/child links
-  for (MBRange::const_iterator rit = set_handles.begin(); 
-       rit != set_handles.end(); rit++) {
       // unpack parents/children
     UNPACK_INT(buff_ptr, num_ents);
     members.resize(num_ents);
     UNPACK_EH(buff_ptr, &members[0], num_ents);
     for (int i = 0; i < num_ents; i++) {
+      members[i] = handle_map.find(members[i]);
+      assert(0 != members[i]);
       result = mbImpl->add_parent_meshset(*rit, members[i]);
       RR("Failed to add parent to set in unpack.");
     }
@@ -822,6 +836,8 @@ MBErrorCode MBParallelComm::unpack_sets(unsigned char *&buff_ptr,
     members.resize(num_ents);
     UNPACK_EH(buff_ptr, &members[0], num_ents);
     for (int i = 0; i < num_ents; i++) {
+      members[i] = handle_map.find(members[i]);
+      assert(0 != members[i]);
       result = mbImpl->add_child_meshset(*rit, members[i]);
       RR("Failed to add child to set in unpack.");
     }
@@ -883,21 +899,15 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
       if (0 == this_count) continue;
 
         // ok, we'll be sending this tag
-
-        // tag handle
       allTags.push_back(*tag_it);
-      count += sizeof(MBTag);
-      
+
         // default value
       count += sizeof(int);
       if (NULL != tinfo->default_value()) count += tinfo->get_size();
       
-        // size, data type
-      count += sizeof(int);
+        // size, type, data type
+      count += 3*sizeof(int);
       
-        // data type
-      count += sizeof(MBDataType);
-
         // name
       count += 64;
 
@@ -925,11 +935,11 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
 
       const TagInfo *tinfo = tagServer->get_tag_info(*tag_it);
 
-        // tag handle
-      PACK_EH(buff_ptr, &(*tag_it), 1);
-      
-        // size, data type
+        // size, type, data type
       PACK_INT(buff_ptr, tinfo->get_size());
+      MBTagType this_type;
+      result = mbImpl->tag_get_type(*tag_it, this_type);
+      PACK_INT(buff_ptr, this_type);
       PACK_INT(buff_ptr, tinfo->get_data_type());
       
         // default value
@@ -959,7 +969,8 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
 }
 
 MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
-                                        MBRange &entities)
+                                        MBRange &entities,
+                                        HandleMap &handle_map)
 {
     // tags
     // get all the tags
@@ -971,16 +982,17 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
   int num_tags;
   UNPACK_INT(buff_ptr, num_tags);
   std::vector<int> tag_data;
+  std::vector<MBEntityHandle> tag_ents;
 
   for (int i = 0; i < num_tags; i++) {
     
         // tag handle
     MBTag tag_handle;
-    UNPACK_EH(buff_ptr, &tag_handle, 1);
 
       // size, data type
-    int tag_size, tag_data_type;
+    int tag_size, tag_data_type, tag_type;
     UNPACK_INT(buff_ptr, tag_size);
+    UNPACK_INT(buff_ptr, tag_type);
     UNPACK_INT(buff_ptr, tag_data_type);
       
       // default value
@@ -997,25 +1009,20 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
     buff_ptr += 64;
 
       // create the tag
-    MBTagType tag_type;
-    result = mbImpl->tag_get_type(tag_handle, tag_type);
-    RR("Failed to get tag type in unpack_tags.");
-    result = mbImpl->tag_create(tag_name, tag_size, tag_type, 
+    result = mbImpl->tag_create(tag_name, tag_size, (MBTagType) tag_type, 
                                 (MBDataType) tag_data_type, tag_handle,
                                 def_val_ptr);
     if (MB_ALREADY_ALLOCATED == result) {
         // already allocated tag, check to make sure it's the same size, type, etc.
       const TagInfo *tag_info = tagServer->get_tag_info(tag_name);
+      MBTagType this_type;
+      result = mbImpl->tag_get_type(tag_handle, this_type);
       if (tag_size != tag_info->get_size() ||
+          tag_type != this_type ||
           tag_data_type != tag_info->get_data_type() ||
           (def_val_ptr && !tag_info->default_value() ||
            !def_val_ptr && tag_info->default_value())) {
         RR("Didn't get correct tag info when unpacking tag.");
-      }
-      MBTagType this_type;
-      result = mbImpl->tag_get_type(tag_handle, this_type);
-      if (MB_SUCCESS != result || this_type != tag_type) {
-        RR("Didn't get correct tag type when unpacking tag.");
       }
     }
     else if (MB_SUCCESS != result) return result;
@@ -1024,7 +1031,28 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
       // values, as those aren't sent
     MBRange tag_range;
     UNPACK_RANGE(buff_ptr, tag_range);
-    result = mbImpl->tag_set_data(tag_handle, tag_range, buff_ptr);
+
+      // if it's a handle type, need to convert handles to local values
+    if (MB_TYPE_HANDLE == tag_type) {
+      int *tag_vals = (int*) buff_ptr;
+      for (unsigned int i = 0; i < tag_range.size(); i++) {
+        if (0 != tag_vals[i]) {
+          tag_vals[i] = handle_map.find(tag_vals[i]);
+          assert(0 != tag_vals[i]);
+        }
+      }
+    }
+
+      // also need to convert the actual entities on which the tag is set
+    tag_ents.resize(tag_range.size());
+    std::vector<MBEntityHandle>::iterator vit = tag_ents.begin();
+    for (MBRange::iterator rit = tag_range.begin(); rit != tag_range.end(); rit++, vit++) {
+      *vit = handle_map.find(*rit);
+      assert(0 != *vit);
+    }
+        
+    result = mbImpl->tag_set_data(tag_handle, &tag_ents[0], 
+                                  tag_range.size(), buff_ptr);
     RR("Trouble setting range-based tag data when unpacking tag.");
     buff_ptr += tag_range.size() * tag_size;
   }
@@ -1173,7 +1201,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
   gs_data *gsd;
   if (sizeof(int) != sizeof(long)) {
     std::vector<long> lgid_data(gid_data.size());
-    std::copy(gid_data.begin(), gid_data.end(), std::back_inserter(lgid_data));
+    std::copy(gid_data.begin(), gid_data.end(), lgid_data.begin());
     gsd = gs_data_setup(skin_ents[0].size(), &lgid_data[0], (ulong_*)&handle_vec[0], 2, 
                         1, 1, cd);
   }
@@ -1569,7 +1597,7 @@ MBErrorCode MBParallelComm::get_shared_entities(int dim,
     if (0 != sharedproc_tag) {
       result = mbImpl->get_entities_by_type(0, this_type, tmp_ents);
       RR("Trouble getting entities for shared entities.");
-      proc_tags.resize(2*tmp_ents.size());
+      proc_tags.resize(tmp_ents.size());
       if (!tmp_ents.empty()) {
         result = mbImpl->tag_get_data(sharedproc_tag, 
                                       tmp_ents, &proc_tags[0]);
@@ -1577,7 +1605,7 @@ MBErrorCode MBParallelComm::get_shared_entities(int dim,
       }
       int i;
       MBRange::iterator rit;
-      for (i = 0, rit = tmp_ents.begin(); rit != tmp_ents.end(); i+=2, rit++) 
+      for (i = 0, rit = tmp_ents.begin(); rit != tmp_ents.end(); i++, rit++) 
         if (proc_tags[i] > -1) shared_ents.insert(*rit);
     }
     if (0 != sharedprocs_tag) {
