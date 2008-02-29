@@ -74,7 +74,7 @@ int main(int argc, char **argv)
         << "===   =====" << std::endl
         << " 1     <linear_ints> <shared_verts> " << std::endl
         << " 2     <n_ints> " << std::endl
-        << " 3*    <file_name> [<tag_name>=\"MATERIAL_SET\" [tag_val] [distribute=true] ]" << std::endl
+        << " 3*    <file_name> [<tag_name>=\"MATERIAL_SET\" [tag_val] [distribute=1] ]" << std::endl
         << "*Note: if opt 3 is used, it must be the last one." << std::endl;
     
     err = MPI_Finalize();

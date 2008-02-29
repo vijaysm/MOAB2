@@ -330,6 +330,8 @@ public:
 
   
   MBEntityHandle operator[](MBEntityID index) const;
+
+  int index(MBEntityHandle handle) const;
   
   MBRange::iterator insert( MBRange::iterator prev,
                             MBEntityHandle first,
@@ -749,6 +751,13 @@ inline std::ostream& operator<<( std::ostream& s, const MBRange& r )
 bool operator==( const MBRange& r1, const MBRange& r2 );
 inline bool operator!=( const MBRange& r1, const MBRange& r2 )
   { return !(r1 == r2); }
+
+inline MBEntityHandle MBRange::operator[](MBEntityID index) const
+{
+  MBRange::const_iterator i = begin();
+  i += index;
+  return *i;
+}
 
 #endif // MB_RANGE_HPP
 

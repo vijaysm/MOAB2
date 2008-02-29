@@ -819,11 +819,19 @@ void MBRange::swap( MBRange &range )
 
 }
 
-MBEntityHandle MBRange::operator[](MBEntityID index) const
+int MBRange::index(MBEntityHandle handle) const 
 {
-  MBRange::const_iterator i = begin();
-  i += index;
-  return *i;
+  if (handle < *begin() || handle > *rbegin()) return -1;
+  
+  unsigned int i = 0;
+  MBRange::const_pair_iterator pit = const_pair_begin(); 
+  while (handle > (*pit).second && pit != const_pair_end()) {
+    i += (*pit).second - (*pit).first + 1;
+    pit++;
+  }
+  if (handle < (*pit).first || pit == const_pair_end()) return -1;
+  
+  return i + handle - (*pit).first;
 }
 
     //! return a subset of this range, by type
