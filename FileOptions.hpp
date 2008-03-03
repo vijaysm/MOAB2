@@ -49,7 +49,7 @@ public:
   
   /**\brief Check for option with no value 
    *
-   * Check for and remove an option w/out a value.
+   * Check for an option w/out a value.
    *\param name The option name
    *\return - MB_SUCCESS if option is found
    *        - MB_TYPE_OUT_OF_RANGE if options is found, but has value
@@ -59,7 +59,7 @@ public:
   
   /**\brief Check for option with an integer value.
    *
-   * Check for and remove an option with an integer value
+   * Check for an option with an integer value
    *\param name The option name
    *\param value Output. The value.
    *\return - MB_SUCCESS if option is found
@@ -70,10 +70,9 @@ public:
   
   /**\brief Check for option with a double value.
    *
-   * Check for and remove an option with a double value
+   * Check for an option with a double value
    *\param name The option name
    *\param value Output. The value.
-   *\param remove If true (default), remove the option from the list.
    *\return - MB_SUCCESS if option is found
    *        - MB_TYPE_OUT_OF_RANGE if options is found, but does not have a double value
    *        - MB_ENTITY_NOT_FOUND if option is not found.
@@ -82,10 +81,9 @@ public:
   
   /**\brief Check for option with any value.
    *
-   * Check for and remove an option with any value.
+   * Check for aan option with any value.
    *\param name The option name
    *\param value Output. The value.
-   *\param remove If true (default), remove the option from the list.
    *\return - MB_SUCCESS if option is found
    *        - MB_TYPE_OUT_OF_RANGE if options is found, but does not have a value
    *        - MB_ENTITY_NOT_FOUND if option is not found.
@@ -94,10 +92,9 @@ public:
   
   /**\brief Check for option 
    *
-   * Check for and remove and option
+   * Check for an option
    *\param name The option name
    *\param value The option value, or an empty string if no value.
-   *\param remove If true (default), remove the option from teh list.
    *\return MB_SUCCESS or MB_ENTITY_NOT_FOUND
    */
   MBErrorCode get_option( const char* name, std::string& value ) const;
@@ -118,15 +115,13 @@ public:
   
   /**\brief Check for option for which the value is a list of ints
    *
-   * Check for and remove an options which is an int list.  The value is 
-   * expected to
+   * Check for an option which is an int list.  The value is expected to
    * be a comma-separated list of int ranges, where an int range can be 
    * either a single integer value or a range of integer values separated
    * by a dash ('-').
    *
    *\param name The option name
-   *\param value Output. The value.
-   *\param remove If true (default), remove the option from the list.
+   *\param values Output. The list of integer values.
    *\return - MB_SUCCESS if option is found
    *        - MB_TYPE_OUT_OF_RANGE if options is found, but does not contain an ID list
    *        - MB_ENTITY_NOT_FOUND if option is not found.
@@ -148,10 +143,9 @@ private:
   
   /**\brief Check for option 
    *
-   * Check for and remove and option
+   * Check for an option
    *\param name The option name
    *\param value The option value, or an empty string if no value.
-   *\param remove If true (default), remove the option from teh list.
    *\return MB_SUCCESS or MB_ENTITY_NOT_FOUND
    */
   MBErrorCode get_option( const char* name, const char*& value) const;
