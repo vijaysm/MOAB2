@@ -57,6 +57,7 @@ typedef ULONG32 uint32_t;
 #  define _S_IWRITE (S_IWUSR|S_IWGRP|S_IWOTH)
 #endif
 
+const int DEFAULT_PRECISION = 6;
 
 MBWriterIface *WriteSTL::factory( MBInterface* iface )
   { return new WriteSTL( iface ); }
@@ -93,6 +94,10 @@ MBErrorCode WriteSTL::write_file(const char *file_name,
   if (MB_SUCCESS != rval)
     return rval;
 
+  if (triangles.empty()) {
+    mWriteIface->report_error( "No triangles to write." );
+    return MB_ENTITY_NOT_FOUND;
+  }
  
   bool is_ascii = false, is_binary = false;
   if (MB_SUCCESS == opts.get_null_option( "ASCII" ))
@@ -121,8 +126,14 @@ MBErrorCode WriteSTL::write_file(const char *file_name,
   
   if (is_binary)
     rval = binary_write_triangles( file, header, byte_order, triangles );
-  else
-    rval = ascii_write_triangles( file, header, triangles );
+  else {
+      // Get precision for node coordinates
+    int precision;
+    if (MB_SUCCESS != opts.get_int_option( "PRECISION", precision ))
+      precision = DEFAULT_PRECISION;
+
+    rval = ascii_write_triangles( file, header, triangles, precision );
+  }
   fclose( file );
   return rval;
 }
@@ -246,7 +257,8 @@ MBErrorCode WriteSTL::get_triangle_data( const double coords[9],
 
 MBErrorCode WriteSTL::ascii_write_triangles( FILE* file,
                                              const char header[81],
-                                             const MBRange& triangles )
+                                             const MBRange& triangles,
+                                             int prec )
 {
   const char solid_name[] = "MOAB";
   
@@ -283,9 +295,9 @@ MBErrorCode WriteSTL::ascii_write_triangles( FILE* file,
    
     fprintf( file,"facet normal %e %e %e\n", n[0], n[1], n[2] );
     fprintf( file,"outer loop\n" );
-    fprintf( file,"vertex %e %e %e\n", v1[0], v1[1], v1[2] );
-    fprintf( file,"vertex %e %e %e\n", v2[0], v2[1], v2[2] );
-    fprintf( file,"vertex %e %e %e\n", v3[0], v3[1], v3[2] );
+    fprintf( file,"vertex %.*e %.*e %.*e\n", prec, v1[0], prec, v1[1], prec, v1[2] );
+    fprintf( file,"vertex %.*e %.*e %.*e\n", prec, v2[0], prec, v2[1], prec, v2[2] );
+    fprintf( file,"vertex %.*e %.*e %.*e\n", prec, v3[0], prec, v3[1], prec, v3[2] );
     fprintf( file,"endloop\n" );
     fprintf( file,"endfacet\n" );
   }

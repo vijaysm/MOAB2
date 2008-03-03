@@ -5,10 +5,13 @@
 #include "MBInterface.hpp"
 #include "MBRange.hpp"
 #include "MBWriteUtilIface.hpp"
+#include "FileOptions.hpp"
 
 #include <fstream>
 #include <map>
 #include <set>
+
+const int DEFAULT_PRECISION = 10;
 
 MBWriterIface *WriteGmsh::factory( MBInterface* iface )
   { return new WriteGmsh( iface ); }
@@ -48,7 +51,7 @@ struct ElemInfo {
     //! writes out a file
 MBErrorCode WriteGmsh::write_file(const char *file_name,
                                   const bool overwrite,
-                                  const FileOptions&,
+                                  const FileOptions& options,
                                   const MBEntityHandle *output_list,
                                   const int num_sets,
                                   std::vector<std::string>& ,
@@ -249,6 +252,12 @@ MBErrorCode WriteGmsh::write_file(const char *file_name,
   out << "2.0 0 " << sizeof(double) << std::endl;
   out << "$EndMeshFormat" << std::endl;
 
+    // Set precision for node coordinates
+  int precision;
+  if (MB_SUCCESS != options.get_int_option( "PRECISION", precision ))
+    precision = DEFAULT_PRECISION;
+  const int old_precision = out.precision();
+  out.precision( precision );
   
     // Write nodes
   out << "$Nodes" << std::endl;
@@ -269,6 +278,8 @@ MBErrorCode WriteGmsh::write_file(const char *file_name,
   out << "$EndNodes" << std::endl;
   coords.clear();
   
+    // Restore stream state
+  out.precision( old_precision );
 
     // Write elements
   out << "$Elements" << std::endl;

@@ -478,7 +478,8 @@ MBErrorCode MBCore::write_file( const char* file_name,
   
     // write the file
   std::vector<std::string> qa_records;
-  rval = writer->write_file(file_name, overwrite, opts, &list[0], list.size(), qa_records );
+  const MBEntityHandle* list_ptr = list.empty() ? (MBEntityHandle*)0 : &list[0];
+  rval = writer->write_file(file_name, overwrite, opts, list_ptr, list.size(), qa_records );
   delete writer;
   
   return rval;

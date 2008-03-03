@@ -40,9 +40,12 @@
 #include "MBTagConventions.hpp"
 #include "MBWriteUtilIface.hpp"
 #include "MBInternals.hpp"
+#include "FileOptions.hpp"
 
 #define INS_ID(stringvar, prefix, id) \
 sprintf(stringvar, prefix, id)
+
+const int DEFAULT_PRECISION = 10;
 
 MBWriterIface *WriteVtk::factory( MBInterface* iface )
   { return new WriteVtk( iface ); }
@@ -70,13 +73,18 @@ WriteVtk::~WriteVtk()
 
 MBErrorCode WriteVtk::write_file(const char *file_name, 
                                  const bool overwrite,
-                                 const FileOptions&,
+                                 const FileOptions& opts,
                                  const MBEntityHandle *output_list,
                                  const int num_sets,
                                  std::vector<std::string>& ,
                                  int )
 {
   MBErrorCode rval;
+
+    // Get precision for node coordinates
+  int precision;
+  if (MB_SUCCESS != opts.get_int_option( "PRECISION", precision ))
+    precision = DEFAULT_PRECISION;
   
     // Get entities to write
   MBRange nodes, elems;
@@ -99,6 +107,7 @@ MBErrorCode WriteVtk::write_file(const char *file_name,
     writeTool->report_error("Could not open file: %s\n", file_name );
     return MB_FILE_WRITE_ERROR;
   }
+  file.precision( precision );
   
     // Write file
   if ((rval = write_header(file              )) != MB_SUCCESS ||
@@ -232,7 +241,7 @@ MBErrorCode WriteVtk::write_nodes( std::ostream& stream, const MBRange& nodes )
   stream << "POINTS " << nodes.size() << " double" << std::endl;
   for (unsigned long i = 0; i < n; ++i, ++x, ++y, ++z )
     stream << *x << ' ' << *y << ' ' << *z << std::endl;
-
+  
   return MB_SUCCESS;
 }
 

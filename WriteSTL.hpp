@@ -69,7 +69,8 @@ protected:
     //! Write list of triangles to an STL file.  
   MBErrorCode ascii_write_triangles( FILE* file,
                                      const char header[82],
-                                     const MBRange& triangles );
+                                     const MBRange& triangles,
+                                     int precision );
     //! Write list of triangles to an STL file.  
   MBErrorCode binary_write_triangles( FILE* file,
                                       const char header[82],
