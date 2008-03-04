@@ -37,4 +37,31 @@
  */
 #define PARALLEL_SHARED_PROCS_TAG_NAME "PARALLEL_SHARED_PROCS"
  
+/** \brief Tag storing the handle of a shared entity on the other proc
+ *
+ * This single-valued tag implies an entity is shared with one other proc
+ */
+#define PARALLEL_SHARED_HANDLE_TAG_NAME "PARALLEL_SHARED_HANDLE"
+ 
+/** \brief Tag storing handles of a shared entity on other processors
+ *
+ * This multiple-valued tag implies an entity is shared with multiple
+ * other processors.  Length of tag is application-dependent, and depends on
+ * what the maximum number of processors is which share an entity
+ */
+#define PARALLEL_SHARED_HANDLES_TAG_NAME "PARALLEL_SHARED_HANDLES"
+ 
+/** \brief Tag storing parallel status (as bits in this tag)
+ *
+ * This tag stores various aspects of parallel status in bits; see also 
+ * #define's following, to be used in bit mask operations
+ *
+ * bit 0: shared (0=not shared, 1=shared)
+ * bit 1: !owned (0=owned, 1=not owned)
+ */
+#define PARALLEL_STATUS_TAG_NAME "PARALLEL_STATUS"
+
+#define PSTATUS_SHARED 0x1
+#define PSTATUS_NOT_OWNED 0x2
+ 
 #endif

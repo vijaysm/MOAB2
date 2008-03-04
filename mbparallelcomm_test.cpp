@@ -20,6 +20,8 @@
 
 #define REALTFI 1
 
+const bool debug = true;
+
 #define ERROR(a, b) {std::cerr << a << std::endl; return b;}
 
 #define PRINT_LAST_ERROR {\
@@ -184,7 +186,25 @@ int main(int argc, char **argv)
       if (-1 == nshared)
         std::cerr << "Proc " << rank << " " << shared_ents.size()
                   << " shared vertices." << std::endl;
-  
+
+      if (debug && 2 == nprocs) {
+          // if I'm root, get and print handles on other procs
+        std::vector<MBEntityHandle> sharedh_tags(shared_ents.size());
+        std::fill(sharedh_tags.begin(), sharedh_tags.end(), 0);
+        MBTag dumt, sharedh_tag;
+        result = pcomm->get_shared_proc_tags(dumt, dumt, sharedh_tag, dumt, dumt);
+        result = mbImpl->tag_get_data(sharedh_tag, shared_ents, &sharedh_tags[0]);
+        if (MB_SUCCESS != result) {
+          std::cerr << "Couldn't get shared handle tag." << std::endl;
+        }
+        else {
+          MBRange dum_range;
+          std::copy(sharedh_tags.begin(), sharedh_tags.end(), mb_range_inserter(dum_range));
+          std::cerr << "Shared handles: " << std::endl;
+          dum_range.print();
+        }
+      }
+        
       delete pcomm;
       tmp_result = mbImpl->delete_mesh();
       if (MB_SUCCESS != tmp_result) {
