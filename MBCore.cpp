@@ -647,12 +647,18 @@ MBErrorCode MBCore::get_coords( const MBRange& entities,
     MBErrorCode rval = vseq->get_coordinate_arrays( x, y, z );
     if (MB_SUCCESS != rval)
       return rval;
-    memcpy( x_coords, x + offset, count * sizeof(double ) );
-    memcpy( y_coords, y + offset, count * sizeof(double ) );
-    memcpy( z_coords, z + offset, count * sizeof(double ) );
-    x_coords += count;
-    y_coords += count;
-    z_coords += count;
+    if (x_coords) {
+      memcpy( x_coords, x + offset, count * sizeof(double ) );
+      x_coords += count;
+    }
+    if (y_coords) {
+      memcpy( y_coords, y + offset, count * sizeof(double ) );
+      y_coords += count;
+    }
+    if (z_coords) {
+      memcpy( z_coords, z + offset, count * sizeof(double ) );
+      z_coords += count;
+    }
   }
   
   return MB_SUCCESS;
