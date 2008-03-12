@@ -1334,7 +1334,7 @@ MBErrorCode SequenceManager::get_tagged_entities( MBTagId tag_id,
       data = reinterpret_cast<const VarLenTag*>((*i)->data()->get_tag_data(tag_id));
       if (!data)
         continue;
-      end = data + (*i)->end_handle() - (*i)->data()->start_handle();
+      end = data + (*i)->end_handle() - (*i)->data()->start_handle() + 1;
       iter = data + (*i)->start_handle() - (*i)->data()->start_handle();
       MBEntityHandle handle = (*i)->start_handle();
       for (; iter != end; ++iter, ++handle)

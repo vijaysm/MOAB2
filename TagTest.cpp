@@ -27,6 +27,8 @@ void test_get_set_variable_length_sparse();
 void test_get_set_variable_length_dense();
 void test_get_set_variable_length_mesh();
 
+void regression_one_entity_by_var_tag();
+
 int main()
 {
   int failures = 0;
@@ -55,6 +57,7 @@ int main()
   failures += RUN_TEST( test_get_set_variable_length_sparse );
   failures += RUN_TEST( test_get_set_variable_length_dense );
   failures += RUN_TEST( test_get_set_variable_length_mesh );  
+  failures += RUN_TEST( regression_one_entity_by_var_tag );
   
   return failures;
 }
@@ -1625,6 +1628,35 @@ void setup_mesh( MBInterface& mb )
   CHECK_ERR(rval);
 }
 
-
+/* Found bug where last entity in sequence is not
+   returned for get entity by tag for a variable-
+   length tag.  Test to make sure that it remains
+   fixed.
+ */
+void regression_one_entity_by_var_tag()
+{
+  MBCore moab;
+  MBErrorCode rval;
   
-                                   
+  MBEntityHandle vertex;
+  const double coords[] = { 0, 0, 0 };
+  rval = moab.create_vertex( coords, vertex );
+  CHECK_ERR(rval);
+
+  MBTag tag;
+  rval = moab.tag_create_variable_length( "testtag", MB_TAG_DENSE, MB_TYPE_INTEGER, tag );
+  CHECK_ERR(rval);
+  
+  int taglen = sizeof(int);
+  const void* ptrarr[1] = { &taglen };
+  rval = moab.tag_set_data( tag, &vertex, 1, ptrarr, &taglen );
+  CHECK_ERR(rval);
+  
+  MBRange ents;
+  rval = moab.get_entities_by_type_and_tag( 0, MBVERTEX, &tag, 0, 1, ents );
+  CHECK_ERR(rval);
+  
+  CHECK_EQUAL( 1ul, ents.size() );
+  CHECK_EQUAL( vertex, ents.front() );
+}
+
