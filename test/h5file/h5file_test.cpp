@@ -818,7 +818,7 @@ bool compare()
     moab_error( "get_entities_by_type_and_tag" );
   if (range.size() != 2)
   {
-    fprintf( stderr, "Expected 2 Hexes.  Got %d\n", range.size() );
+    fprintf( stderr, "Expected 2 Hexes.  Got %lu\n", (unsigned long)range.size() );
     exit( 1 );
   }
   iter = range.begin();
@@ -834,7 +834,7 @@ bool compare()
     moab_error( "get_entities_by_type_and_tag" );
   if (range.size() != 2)
   {
-    fprintf( stderr, "Expected 2 Polyhedra.  Got %d\n", range.size() );
+    fprintf( stderr, "Expected 2 Polyhedra.  Got %lu\n", (unsigned long)range.size() );
     exit( 1 );
   }
   iter = range.begin();
