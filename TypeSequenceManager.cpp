@@ -89,7 +89,8 @@ MBErrorCode TypeSequenceManager::insert_sequence( EntitySequence* seq_ptr )
     return MB_FAILURE;
 
   if (seq_ptr->data()->start_handle() > seq_ptr->start_handle() ||
-      seq_ptr->data()->end_handle() < seq_ptr->end_handle())
+      seq_ptr->data()->end_handle() < seq_ptr->end_handle() ||
+      seq_ptr->end_handle() < seq_ptr->start_handle())
     return MB_FAILURE;
 
   iterator i = lower_bound( seq_ptr->start_handle() );
@@ -883,12 +884,13 @@ bool TypeSequenceManager::check_valid_data( const EntitySequence* seq ) const
     // make sure lastReferenced points to something
   if (!lastReferenced)
     return false;
-  const EntitySequence* seq2 = find( lastReferenced->start_handle() );
-  if (seq2 != lastReferenced)
+ 
+  const_iterator seqi = sequenceSet.lower_bound( lastReferenced );
+  if (seqi == sequenceSet.end() || *seqi != lastReferenced )
     return false;
   
     // make sure passed sequence is in list
-  seq2 = find( seq->start_handle() );
+  const EntitySequence* seq2 = find( seq->start_handle() );
   if (seq2 != seq)
     return false;
   

@@ -50,6 +50,12 @@ MBErrorCode MBReadUtil::get_node_arrays(
 
   MBErrorCode error;
   EntitySequence* seq = 0;
+  
+  if (num_nodes < 1) {
+    actual_start_handle = 0;
+    arrays.clear();
+    return MB_INDEX_OUT_OF_RANGE;
+  }
 
   // create an entity sequence for these nodes 
   error = mMB->sequence_manager()->create_entity_sequence(
@@ -88,6 +94,12 @@ MBErrorCode MBReadUtil::get_element_array(
   MBErrorCode error;
   EntitySequence* seq;
   
+  if (num_elements < 1) {
+    actual_start_handle = 0;
+    array = 0;
+    return MB_INDEX_OUT_OF_RANGE;
+  }
+  
 //  if (mdb_type <= MBVERTEX || mdb_type >= MBPOLYHEDRON || mdb_type == MBPOLYGON)
 //    return MB_TYPE_OUT_OF_RANGE;
 
@@ -121,6 +133,11 @@ MBErrorCode MBReadUtil::create_entity_sets( MBEntityID num_sets,
                                             int proc,
                                             MBEntityHandle& start_handle )
 {
+  if (num_sets < 1) {
+    start_handle = 0;
+    return MB_INDEX_OUT_OF_RANGE;
+  }
+
   MBErrorCode error;
   EntitySequence* seq;
   error = mMB->sequence_manager()->create_meshset_sequence( num_sets,
