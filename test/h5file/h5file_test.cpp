@@ -375,8 +375,8 @@ bool compare_conn( std::vector<MBEntityHandle>& conn1,
   
   if (conn1.size() != conn2.size() || conn1.size() == 0)
   {
-    fprintf(stderr, "Error comparing connectivity: sizes %d and %d\n", 
-                     conn1.size(), conn2.size());
+    fprintf(stderr, "Error comparing connectivity: sizes %lu and %lu\n", 
+                     (unsigned long)conn1.size(), (unsigned long)conn2.size());
     return false;
   }
   
@@ -676,7 +676,7 @@ bool compare_tags( MBEntityHandle dod[] )
     // check data for integer tag on both dodecahedrons
   if (MB_SUCCESS != iface->tag_get_data( tag, dod, 2, idata ))
     moab_error( "tag_get_data(itag)" );
-  if (idata[0] != 0xDEADBEEF || idata[1] != 0xDEFACED ||
+  if (idata[0] != (int)0xDEADBEEF || idata[1] != (int)0xDEFACED ||
       idata[2] != idata[0]   || idata[3] != idata[1]) {
     fprintf( stderr, "Incorrect values for integer tag data.\n" );
     return false;
@@ -859,8 +859,8 @@ bool compare()
   if (conn[0].size() != 12 || conn[1].size() != 12)
   {
     fprintf(stderr, "Expected two dodecahedrons.  Got polyhedrons with "
-                    "%d and %d faces respectively.\n", 
-                    conn[0].size(), conn[1].size() );
+                    "%lu and %lu faces respectively.\n", 
+                    (unsigned long)conn[0].size(), (unsigned long)conn[1].size() );
     return false;
   }
   
