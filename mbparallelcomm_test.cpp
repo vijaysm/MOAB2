@@ -40,6 +40,8 @@ MBErrorCode read_file(MBInterface *mbImpl, const char *filename,
                       const char *tag_name, int tag_val, int distrib,
                       int parallel_option);
 
+MBErrorCode report_nsets(MBInterface *mbImpl);
+
 int main(int argc, char **argv) 
 {
     // need to init MPI first, to tell how many procs and rank
@@ -50,7 +52,7 @@ int main(int argc, char **argv)
   err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // start time
-  double stime, rtime, shtime, setime, dtime;
+  double stime, rtime, shtime, setime, dtime, ltime;
   if (0 == rank) stime = MPI_Wtime();
 
     // create MOAB instance based on that
@@ -205,6 +207,9 @@ int main(int argc, char **argv)
         }
       }
         
+      result = report_nsets(mbImpl);
+      if (0 == rank) ltime = MPI_Wtime();
+  
       delete pcomm;
       tmp_result = mbImpl->delete_mesh();
       if (MB_SUCCESS != tmp_result) {
@@ -217,6 +222,7 @@ int main(int argc, char **argv)
   }
   
   if (0 == rank) dtime = MPI_Wtime();
+
   err = MPI_Finalize();
 
   if (MB_SUCCESS == result)
@@ -227,11 +233,50 @@ int main(int argc, char **argv)
                            << rtime-stime << " "
                            << shtime-rtime << " "
                            << setime-shtime << " "
-                           << dtime-setime 
-                           << " (total/read/resolve/shared/delete)"
+                           << ltime-setime << " "
+                           << dtime - ltime
+                           << " (total/read/resolve/shared/report/delete)"
                            << std::endl;
    
   return (MB_SUCCESS == result ? 0 : 1);
+}
+
+MBErrorCode report_nsets(MBInterface *mbImpl) 
+{
+    // get and report various numbers...
+  int rank = mbImpl->proc_rank();
+  
+  MBRange matsets, geomsets, parsets;
+  MBTag mtag = 0, gtag = 0, ptag = 0, gidtag;
+  MBErrorCode result = mbImpl->tag_get_handle("MATERIAL_SET", mtag);
+  result = mbImpl->tag_get_handle("GEOM_DIMENSION", gtag);
+  result = mbImpl->tag_get_handle("PARALLEL_PARTITION", ptag);
+  result = mbImpl->tag_get_handle("GLOBAL_ID", gidtag);
+
+#define PRINTSETS(a, b, c, p) \
+  if (a) {\
+    result = mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, & a,\
+                                                  p, 1, b); \
+    if (! b .empty()) {\
+      std::vector<int> ids( b .size());\
+      result = mbImpl->tag_get_data(gidtag, b, &ids[0]); \
+      if (MB_SUCCESS == result) {\
+        std::cout << "Proc " << rank << ": " << c << ids[0]; \
+        for (unsigned int i = 1; i < b .size(); i++) \
+          std::cout << ", " << ids[i]; \
+        std::cout << std::endl; \
+      } } }
+  
+  PRINTSETS(mtag, matsets, "material sets: ", NULL);
+  
+  int tval = 3;
+  void *pval = &tval;
+  
+  PRINTSETS(gtag, geomsets, "geom sets: ", &pval);
+  
+  PRINTSETS(ptag, parsets, "partition sets: ", NULL);
+  
+  return MB_SUCCESS;
 }
 
 MBErrorCode read_file(MBInterface *mbImpl, const char *filename,
