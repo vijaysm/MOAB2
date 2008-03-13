@@ -258,18 +258,14 @@ void iMesh_load(iMesh_Instance instance,
                    const char *name, const char *options, 
                    int *err, int name_len, int options_len) 
 {
-    // get filename & attempt to NULL-terminate
-  char tmp_filename[1024];
-  std::fill(tmp_filename, tmp_filename+1024, '\0');
-  strncpy(tmp_filename, name, name_len);
-  tmp_filename[MIN(1023, name_len)] = '\0';
-  char *tmp_pos = strchr(tmp_filename, '.');
-  if (NULL != tmp_pos) {
-    tmp_pos = strchr(tmp_pos, ' ');
-    if (NULL != tmp_pos) *tmp_pos = '\0';
-  }
+    // get filename, option & null-terminate
+  std::string tmp_filename(name, name_len), 
+    tmp_options(options, options_len);
+
+  MBEntityHandle file_set;
   
-  MBErrorCode result = MBI->load_mesh(tmp_filename);
+  MBErrorCode result = MBI->load_file(tmp_filename.c_str(), file_set, 
+                                      tmp_options.c_str());
 
   if (MB_SUCCESS != result) {
     std::string msg("iMesh_load:ERROR loading a mesh, with error type: ");
