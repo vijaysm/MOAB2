@@ -38,8 +38,12 @@ mhdf_haveSets( mhdf_FileHandle file,
   
   if (!mhdf_check_valid_file( file_ptr, status ))
     return -1;
-  
+
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  root_id = H5Gopen2( file_ptr->hdf_handle, ROOT_GROUP, H5P_DEFAULT );
+#else
   root_id = H5Gopen( file_ptr->hdf_handle, ROOT_GROUP );
+#endif
   if (root_id < 0)
   {
     mhdf_setFail( status, "H5Gopen( \"%s\" ) failed.", ROOT_GROUP );
@@ -53,7 +57,11 @@ mhdf_haveSets( mhdf_FileHandle file,
     return result;
   }
   
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  set_id = H5Gopen2( root_id, SET_GROUP_NAME, H5P_DEFAULT );
+#else
   set_id = H5Gopen( root_id, SET_GROUP_NAME );
+#endif
   H5Gclose( root_id );
   if (set_id < 0)
   {

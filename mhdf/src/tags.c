@@ -117,7 +117,11 @@ static hid_t get_tag( mhdf_FileHandle file_handle,
   if (NULL == path)
     return -1;
   
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  group_id = H5Gopen2( file_ptr->hdf_handle, TAG_GROUP, H5P_DEFAULT );
+#else
   group_id = H5Gopen( file_ptr->hdf_handle, TAG_GROUP );
+#endif
   if (group_id < 0)
   {
     mhdf_setFail( status, "Failed to open tag group." );
@@ -125,7 +129,11 @@ static hid_t get_tag( mhdf_FileHandle file_handle,
     return -1;
   }
   
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  tag_id = H5Gopen2( group_id, path, H5P_DEFAULT );
+#else
   tag_id = H5Gopen( group_id, path );
+#endif
   H5Gclose( group_id );
   free( path );
   if (tag_id < 0)
@@ -145,14 +153,22 @@ static hid_t get_tag_type( FileHandle* file_ptr,
 {
   hid_t group_id, tag_id, type_id;
   
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  group_id = H5Gopen2( file_ptr->hdf_handle, TAG_GROUP, H5P_DEFAULT );
+#else
   group_id = H5Gopen( file_ptr->hdf_handle, TAG_GROUP );
+#endif
   if (group_id < 0)
   {
     mhdf_setFail( status, "Failed to open tag group." );
     return -1;
   }
   
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  tag_id = H5Gopen2( group_id, tag_path, H5P_DEFAULT );
+#else
   tag_id = H5Gopen( group_id, tag_path );
+#endif
   H5Gclose( group_id );
   if (tag_id < 0)
   {
@@ -160,7 +176,11 @@ static hid_t get_tag_type( FileHandle* file_ptr,
     return -1;
   }
   
+#if defined(H5Topen_vers) && H5Topen_vers > 1  
+  type_id = H5Topen2( tag_id, TAG_TYPE_NAME, H5P_DEFAULT );
+#else
   type_id = H5Topen( tag_id, TAG_TYPE_NAME );
+#endif
   H5Gclose( tag_id );
   if (type_id < 0)
   {
@@ -191,10 +211,16 @@ int store_tag_val_in_attrib( hid_t tag_id,
   int rval;
   if (value_size == 1) 
     write_type = type_id;
-  else if (H5Tget_class(type_id) == H5T_OPAQUE) 
+  else if (H5Tget_class(type_id) == H5T_OPAQUE) {
     write_type = H5Tcreate( H5T_OPAQUE, abs(value_size) );
-  else
+  }
+  else {
+#if defined(H5Tarray_create_vers) && H5Tarray_create_vers > 1  
+    write_type = H5Tarray_create2( type_id, 1, &value_size );
+#else
     write_type = H5Tarray_create( type_id, 1, &value_size, 0 );
+#endif
+  }
   
   if (write_type < 0) {
     mhdf_setFail( status, "Error constructing type object for tag mesh/default value" );
@@ -245,7 +271,11 @@ hid_t create_tag_common( mhdf_FileHandle file_handle,
   
     /* Open the tag group */
 
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  group_id = H5Gopen2( file_ptr->hdf_handle, TAG_GROUP, H5P_DEFAULT );
+#else
   group_id = H5Gopen( file_ptr->hdf_handle, TAG_GROUP );
+#endif
   if (group_id < 0)
   {
     mhdf_setFail( status, "H5Gopen(\"%s\") failed.", TAG_GROUP );
@@ -263,7 +293,11 @@ hid_t create_tag_common( mhdf_FileHandle file_handle,
   
     /* Create group for this tag */
 
+#if defined(H5Gcreate_vers) && H5Gcreate_vers > 1
+  tag_id = H5Gcreate2( group_id, path, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
+#else
   tag_id = H5Gcreate( group_id, path, 3 );
+#endif
   if (tag_id < 0)
   {
      mhdf_setFail( status, "H5Gcreate( \"%s\" ) failed.", path );
@@ -387,7 +421,11 @@ hid_t create_tag_common( mhdf_FileHandle file_handle,
   }
   else if (arr_len > 1)
   {
+#if defined(H5Tarray_create_vers) && H5Tarray_create_vers > 1  
+    temp_id = H5Tarray_create2( hdf_type, 1, &arr_len);
+#else
     temp_id = H5Tarray_create( hdf_type, 1, &arr_len, NULL );
+#endif
     H5Tclose( hdf_type );
     if (temp_id < 0)
     {
@@ -403,7 +441,11 @@ hid_t create_tag_common( mhdf_FileHandle file_handle,
   
     /* Create tag type object, or write attribute if opaque */
  
+#if defined(H5Tcommit_vers) && H5Tcommit_vers > 1
+  rval = H5Tcommit2( tag_id, TAG_TYPE_NAME, hdf_type, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
+#else
   rval = H5Tcommit( tag_id, TAG_TYPE_NAME, hdf_type );
+#endif
   if (rval < 0)
   {
     mhdf_setFail( status, "H5Tcommit failed for tag \"%s\"", tag_name );
@@ -530,7 +572,11 @@ mhdf_getNumberTags( mhdf_FileHandle file_handle, mhdf_Status* status )
   
     /* Open the tags group */
   
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  group_id = H5Gopen2( file_ptr->hdf_handle, TAG_GROUP, H5P_DEFAULT );
+#else
   group_id = H5Gopen( file_ptr->hdf_handle, TAG_GROUP );
+#endif
   if (group_id < 0)
   {
     mhdf_setFail( status, "H5Gopen(\"%s\") failed", TAG_GROUP);
@@ -574,7 +620,11 @@ mhdf_getTagNames( mhdf_FileHandle file_handle,
   
     /* Open the tags group */
   
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  group_id = H5Gopen2( file_ptr->hdf_handle, TAG_GROUP, H5P_DEFAULT );
+#else
   group_id = H5Gopen( file_ptr->hdf_handle, TAG_GROUP );
+#endif
   if (group_id < 0)
   {
     mhdf_setFail( status, "H5Gopen(\"%s\") failed", TAG_GROUP);
@@ -656,7 +706,11 @@ static int get_attrib_array_length_handle( hid_t attrib_id )
       dims[0] = H5Tget_size( type_id );
       break;
     case H5T_ARRAY:
+#if defined(H5Tget_array_dims_vers) && H5Tget_array_dims_vers > 1
+      rank = H5Tget_array_dims2( type_id, dims );
+#else
       rank = H5Tget_array_dims( type_id, dims, perm );
+#endif
       if (rank == 1)
         break;
       else
@@ -823,7 +877,10 @@ mhdf_getTagInfo( mhdf_FileHandle file_handle,
   is_handle = rval;
     
     /* Get tag type */
-  type_id = H5Topen( tag_id, TAG_TYPE_NAME );
+#if defined(H5Topen_vers) && H5Topen_vers > 1  
+  type_id = H5Topen2( tag_id, TAG_TYPE_NAME, H5P_DEFAULT );
+#else
+#endif
   if (type_id < 0)
   {
     H5Gclose( tag_id );
@@ -881,7 +938,11 @@ mhdf_getTagInfo( mhdf_FileHandle file_handle,
     
     case H5T_ARRAY:
       
+#if defined(H5Tget_array_dims_vers) && H5Tget_array_dims_vers > 1
+      rank = H5Tget_array_dims2( type_id, dims );
+#else
       rank = H5Tget_array_dims( type_id, dims, perm );
+#endif
       if (rank <= 0)
       {
         mhdf_setFail( status, "H5Tget_size failed." );
@@ -976,7 +1037,7 @@ static int
 read_tag_attrib_data( hid_t tag_id, 
                       const char* attrib_name, 
                       hid_t type_id,
-                      const void* data, 
+                      void* data, 
                       int is_var_len, 
                       mhdf_Status* status )
 {
@@ -1009,8 +1070,13 @@ read_tag_attrib_data( hid_t tag_id,
       /* caller passes type_id == 0 for OPAQUE */
     if (0 == type_id)
       read_type = H5Tcreate( H5T_OPAQUE, len );
-    else
+    else {
+#if defined(H5Tarray_create_vers) && H5Tarray_create_vers > 1  
+      read_type = H5Tarray_create2( type_id, 1, &len );
+#else
       read_type = H5Tarray_create( type_id, 1, &len, 0 );
+#endif
+    }
     if (read_type < 0)
     {
       mhdf_setFail( status, "Failed to read mesh/default value for tag" );
@@ -1100,13 +1166,21 @@ mhdf_haveDenseTag( mhdf_FileHandle file_handle,
   
   if (type_handle == mhdf_node_type_handle())
   {
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+    elem_id = H5Gopen2( file_ptr->hdf_handle, NODE_GROUP, H5P_DEFAULT );
+#else
     elem_id = H5Gopen( file_ptr->hdf_handle, NODE_GROUP );
+#endif
     if (elem_id < 0)
       mhdf_setFail( status, "Could not open node group." );
   }
   else if (type_handle == mhdf_set_type_handle())
   {
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+    elem_id = H5Gopen2( file_ptr->hdf_handle, SET_GROUP, H5P_DEFAULT );
+#else
     elem_id = H5Gopen( file_ptr->hdf_handle, SET_GROUP );
+#endif
     if (elem_id < 0)
       mhdf_setFail( status, "Could not open set group." );
   }
@@ -1129,7 +1203,11 @@ mhdf_haveDenseTag( mhdf_FileHandle file_handle,
     return 0;
   }
   
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  group_id = H5Gopen2( elem_id, DENSE_TAG_SUBGROUP, H5P_DEFAULT );
+#else
   group_id = H5Gopen( elem_id, DENSE_TAG_SUBGROUP );
+#endif
   H5Gclose( elem_id );
   if (group_id < 0)
   {
@@ -1172,13 +1250,21 @@ mhdf_createDenseTagData( mhdf_FileHandle file_handle,
   
   if (type_handle == mhdf_node_type_handle())
   {
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+    elem_id = H5Gopen2( file_ptr->hdf_handle, NODE_GROUP, H5P_DEFAULT );
+#else
     elem_id = H5Gopen( file_ptr->hdf_handle, NODE_GROUP );
+#endif
     if (elem_id < 0)
       mhdf_setFail( status, "Could not open node group." );
   }
   else if (type_handle == mhdf_set_type_handle())
   {
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+    elem_id = H5Gopen2( file_ptr->hdf_handle, SET_GROUP, H5P_DEFAULT );
+#else
     elem_id = H5Gopen( file_ptr->hdf_handle, SET_GROUP );
+#endif
     if (elem_id < 0)
       mhdf_setFail( status, "Could not open set group." );
   }
@@ -1233,13 +1319,21 @@ mhdf_openDenseTagData(  mhdf_FileHandle file_handle,
   
   if (type_handle == mhdf_node_type_handle())
   {
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+    elem_id = H5Gopen2( file_ptr->hdf_handle, NODE_GROUP, H5P_DEFAULT );
+#else
     elem_id = H5Gopen( file_ptr->hdf_handle, NODE_GROUP );
+#endif
     if (elem_id < 0)
       mhdf_setFail( status, "Could not open node group." );
   }
   else if (type_handle == mhdf_set_type_handle())
   {
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+    elem_id = H5Gopen2( file_ptr->hdf_handle, SET_GROUP, H5P_DEFAULT );
+#else
     elem_id = H5Gopen( file_ptr->hdf_handle, SET_GROUP );
+#endif
     if (elem_id < 0)
       mhdf_setFail( status, "Could not open set group." );
   }
@@ -1350,7 +1444,11 @@ mhdf_createSparseTagData( mhdf_FileHandle file_handle,
   tag_id = get_tag( file_handle, tag_name, status );
   if (tag_id < 0) return ;
   
+#if defined(H5Topen_vers) && H5Topen_vers > 1  
+  type_id = H5Topen2( tag_id, TAG_TYPE_NAME, H5P_DEFAULT );
+#else
   type_id = H5Topen( tag_id, TAG_TYPE_NAME );
+#endif
   if (type_id < 0)
   {
     H5Gclose( tag_id );
@@ -1399,7 +1497,11 @@ mhdf_createVarLenTagData( mhdf_FileHandle file_handle,
   tag_id = get_tag( file_handle, tag_name, status );
   if (tag_id < 0) return ;
   
+#if defined(H5Topen_vers) && H5Topen_vers > 1  
+  type_id = H5Topen2( tag_id, TAG_TYPE_NAME, H5P_DEFAULT );
+#else
   type_id = H5Topen( tag_id, TAG_TYPE_NAME );
+#endif
   if (type_id < 0)
   {
     H5Gclose( tag_id );

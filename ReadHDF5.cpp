@@ -1195,7 +1195,11 @@ MBErrorCode ReadHDF5::read_tag( const char* name )
   if (array_size > 1)
   {
     hsize_t tmpsize = array_size;
+#if defined(H5Tarray_create_vers) && H5Tarray_create_vers > 1  
+    hdf_type = H5Tarray_create2( hdf_type, 1, &tmpsize );
+#else
     hdf_type = H5Tarray_create( hdf_type, 1, &tmpsize, NULL );
+#endif
     if (hdf_type < 0)
       return MB_FAILURE;
   }  

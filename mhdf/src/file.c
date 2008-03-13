@@ -83,7 +83,11 @@ mhdf_createFile( const char* filename,
   }
   
     /* Store the max ID as an attribite on the /tstt/ group */
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  group_id = H5Gopen2( file_ptr->hdf_handle, ROOT_GROUP, H5P_DEFAULT );
+#else
   group_id = H5Gopen( file_ptr->hdf_handle, ROOT_GROUP );
+#endif
   rval = mhdf_create_scalar_attrib( group_id, 
                                     MAX_ID_ATTRIB, 
                                     H5T_NATIVE_ULONG, 
@@ -120,7 +124,11 @@ mhdf_createFile( const char* filename,
       return NULL;
     }
   }
+#if defined(H5Tcommit_vers) && H5Tcommit_vers > 1
+  if (H5Tcommit2( file_ptr->hdf_handle, TYPE_ENUM_PATH, enum_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT ) < 0)  
+#else
   if (H5Tcommit( file_ptr->hdf_handle, TYPE_ENUM_PATH, enum_id ) < 0)  
+#endif
   {
     mhdf_setFail( status, "Failed to store elem type list." );
     H5Fclose( file_ptr->hdf_handle );
@@ -159,10 +167,18 @@ static herr_t get_max_id( hid_t group_id,
   int rank;
   hsize_t dims[2];
   
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  elem_id = H5Gopen2( group_id, subgroup, H5P_DEFAULT );
+#else
   elem_id = H5Gopen( group_id, subgroup );
+#endif
   if (elem_id < 0) return (herr_t)-1;
   
+#if defined(H5Dopen_vers) && H5Dopen_vers > 1  
+  conn_id = H5Dopen2( elem_id, datatable, H5P_DEFAULT );
+#else
   conn_id = H5Dopen( elem_id, datatable );
+#endif
   H5Gclose( elem_id );
   if (conn_id < 0) return (herr_t)-1;
   
@@ -202,7 +218,11 @@ scan_for_max_id( FileHandle* file_ptr, mhdf_Status* status )
   herr_t rval;
   
     /* Check for new format, with max_id as attrib of root group */
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  group_id = H5Gopen2( file_ptr->hdf_handle, ROOT_GROUP, H5P_DEFAULT );
+#else
   group_id = H5Gopen( file_ptr->hdf_handle, ROOT_GROUP );
+#endif
   if (group_id < 0)
   {
     mhdf_setFail( status, "Internal error - invalid file.");
@@ -287,7 +307,11 @@ mhdf_openFileWithOpt( const char* filename,
   }
   
     /* Check for TSTT data in file */
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  group_id = H5Gopen2( file_ptr->hdf_handle, ROOT_GROUP, H5P_DEFAULT );
+#else
   group_id = H5Gopen( file_ptr->hdf_handle, ROOT_GROUP );
+#endif
   if (group_id < 0)
   {
     mhdf_setFail( status, "Invalid file \"%s\"\n", filename );
@@ -464,8 +488,12 @@ mhdf_addElement( mhdf_FileHandle file_handle,
       name );
     return;
   }
-  
+
+#if defined(H5Gcreate_vers) && H5Gcreate_vers > 1
+  group_id = H5Gcreate2( file_ptr->hdf_handle, path, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
+#else
   group_id = H5Gcreate( file_ptr->hdf_handle, path, 3 );
+#endif
   if (group_id < 0)
   {
     mhdf_setFail( status, "Creation of \"%s\" group failed.\n", path );
@@ -474,7 +502,11 @@ mhdf_addElement( mhdf_FileHandle file_handle,
   }
   free( path );
   
+#if defined(H5Gcreate_vers) && H5Gcreate_vers > 1
+  tag_id = H5Gcreate2( group_id, DENSE_TAG_SUBGROUP, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
+#else
   tag_id = H5Gcreate( group_id, DENSE_TAG_SUBGROUP, 0 );
+#endif
   if (tag_id < 0)
   {
     H5Gclose( group_id );
@@ -530,7 +562,11 @@ mhdf_getElemHandles( mhdf_FileHandle file_handle,
   if (!mhdf_check_valid_file( file_ptr, status ))
     return NULL;
   
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  group_id = H5Gopen2( file_ptr->hdf_handle, ELEMENT_GROUP, H5P_DEFAULT );
+#else
   group_id = H5Gopen( file_ptr->hdf_handle, ELEMENT_GROUP );
+#endif
   if (group_id < 0) 
   {
     mhdf_setFail( status, "Invalid file -- element group does not exist." );
@@ -643,7 +679,11 @@ mhdf_getElemTypeName( mhdf_FileHandle file_handle,
 static int
 make_hdf_group( const char* path, hid_t file, size_t size, mhdf_Status* status )
 {
+#if defined(H5Gcreate_vers) && H5Gcreate_vers > 1
+  hid_t handle = H5Gcreate2( file, path, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
+#else
   hid_t handle = H5Gcreate( file, path, size );
+#endif
   if (handle < 0)
   {
     mhdf_setFail( status, "Failed to create \"%s\" group.", path );
@@ -726,7 +766,11 @@ mhdf_writeHistory( mhdf_FileHandle file_handle,
     return;
   }
   
+#if defined(H5Dcreate_vers) && H5Dcreate_vers > 1
+  data_id = H5Dcreate2( file_ptr->hdf_handle, HISTORY_PATH, type_id, space_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
+#else
   data_id = H5Dcreate( file_ptr->hdf_handle, HISTORY_PATH, type_id, space_id, H5P_DEFAULT );
+#endif
   H5Sclose( space_id );
   if (data_id < 0)
   {
@@ -766,7 +810,11 @@ mhdf_readHistory( mhdf_FileHandle file_handle,
     return NULL;
   
     /* check if file contains history data */
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  group_id = H5Gopen2( file_ptr->hdf_handle, ROOT_GROUP, H5P_DEFAULT );
+#else
   group_id = H5Gopen( file_ptr->hdf_handle, ROOT_GROUP );
+#endif
   if (group_id < 0)
   {
     mhdf_setFail( status, "Could not open root group.  Invalid file." );
@@ -783,7 +831,11 @@ mhdf_readHistory( mhdf_FileHandle file_handle,
     return NULL;
   }
   
+#if defined(H5Dopen_vers) && H5Dopen_vers > 1  
+  data_id = H5Dopen2( group_id, HISTORY_NAME, H5P_DEFAULT );
+#else
   data_id = H5Dopen( group_id, HISTORY_NAME );
+#endif
   H5Gclose( group_id );
   if (data_id < 0)
   {

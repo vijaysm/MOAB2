@@ -37,7 +37,11 @@ mhdf_haveAdjacency( mhdf_FileHandle file,
   
   if (elem_group == mhdf_node_type_handle())
   {
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+    elem_id = H5Gopen( file_ptr->hdf_handle, NODE_GROUP, H5P_DEFAULT );
+#else
     elem_id = H5Gopen( file_ptr->hdf_handle, NODE_GROUP );
+#endif
     if (elem_id < 0)
     {
       mhdf_setFail( status, "H5Gopen( \"%s\" ) failed.\n", NODE_GROUP );

@@ -146,7 +146,11 @@ hid_t mhdf_elem_group_from_handle( FileHandle* file_ptr,
   if (NULL == path)
     return -1;
   
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  result = H5Gopen2( file_ptr->hdf_handle, path, H5P_DEFAULT );
+#else
   result = H5Gopen( file_ptr->hdf_handle, path );
+#endif
   free( path );
   if (result < 0)
     mhdf_setFail( status, "Failed to open element group: \"%s\"", elem_handle );
@@ -169,7 +173,11 @@ int mhdf_create_scalar_attrib( hid_t object,
     return 0;
   }
  
+#if defined(H5Acreate_vers) && H5Acreate_vers > 1
+  attr_id = H5Acreate2( object, name, type, dspace_id, H5P_DEFAULT, H5P_DEFAULT );
+#else
   attr_id = H5Acreate( object, name, type, dspace_id, H5P_DEFAULT );
+#endif
   H5Sclose( dspace_id );
   if (attr_id < 0)
   {
@@ -232,7 +240,11 @@ int mhdf_read_scalar_attrib( hid_t object,
   return 1;
 }
 
+#if defined(H5Aiterate_vers) && H5Aiterate_vers > 1
+static herr_t find_attr_by_name( hid_t handle, const char* name, const H5A_info_t* info, void* mydata )
+#else
 static herr_t find_attr_by_name( hid_t handle, const char* name, void* mydata )
+#endif
   { return !strcmp( name, (const char*)mydata ); } 
 
 int mhdf_find_attribute ( hid_t object, 
@@ -241,8 +253,14 @@ int mhdf_find_attribute ( hid_t object,
                           mhdf_Status* status )
 {
   herr_t rval;
+#if defined(H5Aiterate_vers) && H5Aiterate_vers > 1
+  hsize_t idx = 0;
+  rval = H5Aiterate2( object, H5_INDEX_CRT_ORDER, H5_ITER_NATIVE, &idx, &find_attr_by_name, (void*)attrib_name );
+  *index_out = (unsigned int)idx;
+#else
   *index_out = 0;
   rval = H5Aiterate( object, index_out, &find_attr_by_name, (void*)attrib_name );
+#endif
   if (rval < 0)
     mhdf_setFail( status, "Internal error calling H5Aiterate." );
   return (int)rval;
@@ -510,7 +528,11 @@ mhdf_create_table( hid_t group_id,
     return -1;
   }
   
+#if defined(H5Dcreate_vers) && H5Dcreate_vers > 1
+  table_id = H5Dcreate2( group_id, path, type, space_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
+#else
   table_id = H5Dcreate( group_id, path, type, space_id, H5P_DEFAULT );
+#endif
   H5Sclose(space_id);
   if (table_id < 0)
   {
@@ -534,7 +556,11 @@ mhdf_open_table( hid_t group_id,
   hsize_t dims[2];
   int rank;
   
+#if defined(H5Dopen_vers) && H5Dopen_vers > 1  
+  table_id = H5Dopen2( group_id, path, H5P_DEFAULT );
+#else
   table_id = H5Dopen( group_id, path );
+#endif
   if (table_id < 0)
   {
     mhdf_setFail( status, "HDF5 DataSet creation failed.");
@@ -582,7 +608,11 @@ mhdf_open_table2( hid_t group_id,
 {
   hid_t table_id, space_id;
   
+#if defined(H5Dopen_vers) && H5Dopen_vers > 1  
+  table_id = H5Dopen2( group_id, path, H5P_DEFAULT );
+#else
   table_id = H5Dopen( group_id, path );
+#endif
   if (table_id < 0)
   {
     mhdf_setFail( status, "HDF5 DataSet creation failed.");
@@ -691,7 +721,11 @@ hid_t
 get_elem_type_enum( FileHandle* file_ptr, mhdf_Status* status )
 {
   hid_t result;
+#if defined(H5Topen_vers) && H5Topen_vers > 1  
+  result = H5Topen2( file_ptr->hdf_handle, TYPE_ENUM_PATH, H5P_DEFAULT );
+#else
   result = H5Topen( file_ptr->hdf_handle, TYPE_ENUM_PATH );
+#endif
   if (result < 0)
     mhdf_setFail( status, "Element type enum does not exist in file.  Invalid file." );
   return result;
@@ -703,7 +737,11 @@ mhdf_write_max_id( FileHandle* file_ptr, mhdf_Status* status )
   hid_t group_id, attr_id, space_id;
   herr_t rval;
   
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  group_id = H5Gopen2( file_ptr->hdf_handle, ROOT_GROUP, H5P_DEFAULT );
+#else
   group_id = H5Gopen( file_ptr->hdf_handle, ROOT_GROUP );
+#endif
   if (group_id < 0)
   {
     mhdf_setFail( status, "Internal error -- file invalid." );
@@ -714,11 +752,20 @@ mhdf_write_max_id( FileHandle* file_ptr, mhdf_Status* status )
   if (attr_id < 0)
   {
     space_id = H5Screate( H5S_SCALAR );
+#if defined(H5Acreate_vers) && H5Acreate_vers > 1
+    attr_id = H5Acreate2( group_id, 
+                          MAX_ID_ATTRIB, 
+                          H5T_NATIVE_ULONG,
+                          space_id, 
+                          H5P_DEFAULT,
+                          H5P_DEFAULT );
+#else
     attr_id = H5Acreate( group_id, 
                          MAX_ID_ATTRIB, 
                          H5T_NATIVE_ULONG,
                          space_id, 
                          H5P_DEFAULT );
+#endif
     H5Sclose( space_id );
   }
   H5Gclose( group_id );
