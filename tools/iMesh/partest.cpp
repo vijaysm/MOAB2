@@ -4,7 +4,7 @@
 #include "iMesh.h"
 
 
-#define IMESH_ASSERT(ierr) if (ierr!=0) printf("imesh asser\n");
+#define IMESH_ASSERT(ierr) if (ierr!=0) printf("imesh assert\n");
 #define IMESH_NULL 0
 
 int main(int argc, char* argv[]){
@@ -16,7 +16,7 @@ int main(int argc, char* argv[]){
 
 
   imesh = IMESH_NULL;
-  iMesh_newMesh("", &imesh, &ierr, 0);
+  iMesh_newMesh("PARALLEL", &imesh, &ierr, 8);
   IMESH_ASSERT(ierr);
 
 

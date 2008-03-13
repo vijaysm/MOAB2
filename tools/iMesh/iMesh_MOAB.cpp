@@ -3,6 +3,11 @@
 #include "MBRange.hpp"
 #include "MBCN.hpp"
 #include "MeshTopoUtil.hpp"
+#include "FileOptions.hpp"
+
+#ifdef USE_MPI    
+#include "mpi.h"
+#endif
 
 #include <iostream>
 #define MIN(a,b) (a < b ? a : b)
@@ -12,7 +17,10 @@ class MBiMesh : public MBCore
 private:
   bool haveDeletedEntities;
 public:
-  MBiMesh() : haveDeletedEntities(false) {}
+  MBiMesh(int proc_rank = 0, int proc_size = 0) 
+      : MBCore(proc_rank, proc_size), haveDeletedEntities(false)
+    {}
+
   virtual ~MBiMesh();
   bool have_deleted_ents( bool reset ) {
     bool result = haveDeletedEntities;
@@ -232,7 +240,27 @@ void iMesh_getError(iMesh_Instance instance,
 void iMesh_newMesh(const char *options, 
                    iMesh_Instance *instance, int *err, int options_len) 
 {
-  MBInterface* core = new MBiMesh();
+  std::string tmp_options(options, options_len);
+  FileOptions opts(tmp_options.c_str());
+
+  MBInterface* core;
+
+  MBErrorCode result = opts.get_null_option("PARALLEL");
+  if (MB_SUCCESS == result) {
+#ifdef USE_MPI    
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
+    MPI_Comm_size(MPI_COMM_WORLD, &size); 
+    core = new MBiMesh(rank, size);
+#else
+    mError->set_last_error( "PARALLEL option not valid, this instance"
+                            " compiled for serial execution.\n" );
+    *err = MB_NOT_IMPLEMENTED;
+    return;
+#endif
+  }
+  else core = new MBiMesh();
+
   *instance = reinterpret_cast<iMesh_Instance>(core);
   if (0 == *instance) {
     iMesh_processError(iBase_FAILURE, "Failed to instantiate mesh instance.");
