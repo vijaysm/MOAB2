@@ -434,105 +434,20 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBRange &partition_sets,
     result = mbImpl->delete_entities(deletable_ents);
   RR("Failure deleting entities in delete_nonlocal_entities.");
 
+    // mark partition sets with partition tag, needed later for
+    // establishing interface sets
+  MBTag partition_set_tag;
+  result = mbImpl->tag_create(PARALLEL_PARTITION_TAG_NAME, sizeof(int),
+                              MB_TAG_SPARSE, MB_TYPE_INTEGER, 
+                              partition_set_tag, NULL, true);
+  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) {
+    RR("Couldn't create/get partition set tag.");
+  }
+  std::vector<int> pset_vals(partition_sets.size());
+  std::fill(pset_vals.begin(), pset_vals.end(), mbImpl->proc_rank());
+  result = mbImpl->tag_set_data(partition_set_tag, partition_sets, 
+                                &pset_vals[0]);
+  RR("Couldn't set partition set tag value.");
+
   return result;
-
-/*  
-
-
-// ================================  
-    // get entities in this partition
-  int my_rank = (int)mbImpl->proc_config().rank();
-  if (my_rank == 0 && mbImpl->proc_config().size() == 1) my_rank = 1;
-  int *my_rank_ptr = &my_rank;
-  MBTag partition_tag;
-  
-  result = mbImpl->tag_get_handle(partition_name.c_str(), partition_tag);
-  if (MB_TAG_NOT_FOUND == result) {
-    merror->set_last_error( "Couldn't find partition tag\n");
-    return result;
-  }
-  else if (MB_SUCCESS != result) return result;
-    
-  MBRange partition_sets;
-  result = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET,
-                                                &partition_tag, 
-                                                (const void* const *) &my_rank_ptr, 
-                                                1, partition_sets); RR;
-  if (MB_SUCCESS != result || partition_sets.empty()) return result;
-  
-  MBRange file_ents, partition_ents, exist_ents, all_ents;
-
-  for (MBRange::iterator rit = partition_sets.begin(); 
-       rit != partition_sets.end(); rit++) {
-    result = mbImpl->get_entities_by_handle(*rit, partition_ents, 
-                                            MBInterface::UNION); RR;
-  }
-
-    // get pre-existing ents, which are all entities minus file ents
-  result = mbImpl->get_entities_by_handle(0, all_ents); RR;
-  result = mbImpl->get_entities_by_handle(file_set, file_ents); RR;
-  exist_ents = all_ents.subtract(file_ents);
-
-    // merge partition ents into pre-existing entities
-  exist_ents.merge(partition_ents);
-  
-    // gather adjacent ents of lower dimension and add to existing ents
-  MBRange tmp_ents;
-  for (int dim = 2; dim >= 0; dim--) {
-    MBEntityType lower_type = MBCN::TypeDimensionMap[dim+1].first,
-      upper_type = MBCN::TypeDimensionMap[3].second;
-    
-    MBRange::const_iterator bit = exist_ents.lower_bound(lower_type),
-      eit = exist_ents.upper_bound(upper_type);
-    MBRange from_ents;
-    from_ents.merge(bit, eit);
-    tmp_ents.clear();
-    result = mbImpl->get_adjacencies(from_ents, dim, false, tmp_ents, 
-                                     MBInterface::UNION); RR;
-    exist_ents.merge(tmp_ents);
-  }
-  
-    // subtract from all ents to get deletable ents
-  all_ents = all_ents.subtract(exist_ents);
-  
-    // go through the sets to which ones we should keep
-  MBRange all_sets, deletable_sets;
-  result = mbImpl->get_entities_by_type(0, MBENTITYSET, all_sets);
-  for (MBRange::iterator rit = all_sets.begin(); rit != all_sets.end(); rit++) {
-    tmp_ents.clear();
-    result = mbImpl->get_entities_by_handle(*rit, tmp_ents, true); RR;
-    MBRange tmp_ents2 = tmp_ents.intersect(exist_ents);
-    
-      // if the intersection is empty, set is deletable
-    if (tmp_ents2.empty()) deletable_sets.insert(*rit);
-    
-    else if (tmp_ents.size() > tmp_ents2.size()) {
-        // more elements in set or contained sets than we're keeping; delete 
-        // the difference from just this set, to remove entities to be deleted below
-        // it's ok if entity isn't contained, doesn't generate an error
-      tmp_ents = tmp_ents.subtract(tmp_ents2);
-      result = mbImpl->remove_entities(*rit, tmp_ents); RR;
-    }
-  }
-
-    // take the deletable sets out of other sets so we don't end up
-    // with stale set handles
-  for (MBRange::iterator rit = all_sets.begin(); rit != all_sets.end(); rit++) {
-    if (deletable_sets.find(*rit) == deletable_sets.end()) {
-      result = mbImpl->remove_entities(*rit, deletable_sets); RR;
-    }
-  }
-
-    // remove sets from all_ents, since they're dealt with separately
-  all_ents = all_ents.subtract(all_sets);
-  
-    // now delete sets first, then ents
-  result = mbImpl->delete_entities(deletable_sets); RR;
-  result = mbImpl->delete_entities(all_ents); RR;
-  
-  result = ((MBCore*)mbImpl)->check_adjacencies();
-  
-  return result;
-
-*/
 }

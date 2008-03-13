@@ -42,6 +42,8 @@ class SequenceManager;
 template <typename KeyType, typename ValType, ValType NullVal> class RangeMap;
 typedef RangeMap<MBEntityHandle, MBEntityHandle, 0> HandleMap;
 
+#define MAX_SHARING_PROCS 10  
+
 class MBParallelComm 
 {
 public:
@@ -204,17 +206,14 @@ private:
   
   MBErrorCode tag_shared_verts(tuple_list &shared_verts,
                                MBRange *skin_ents,
-                               std::map<int, MBRange> &proc_ranges,
-                               std::map<std::vector<int>, MBRange> *proc_nranges);
+                               std::map<std::vector<int>, MBRange> &proc_nranges);
   
   MBErrorCode tag_shared_ents(int shared_dim,
                               tuple_list &shared_verts,
                               MBRange *skin_ents,
-                              std::map<int, MBRange> &proc_ranges,
-                              std::map<std::vector<int>, MBRange> *proc_nranges);
+                              std::map<std::vector<int>, MBRange> &proc_nranges);
 
-  MBErrorCode create_interface_sets(std::map<int, MBRange> &proc_ranges,
-                                    std::map<std::vector<int>, MBRange> *proc_nranges);
+  MBErrorCode create_interface_sets(std::map<std::vector<int>, MBRange> &proc_nranges);
 
     //! pack a range map with keys in this_range and values a contiguous series
     //! of handles starting at actual_start
