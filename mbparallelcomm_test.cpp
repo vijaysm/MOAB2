@@ -246,15 +246,16 @@ MBErrorCode report_nsets(MBInterface *mbImpl)
     // get and report various numbers...
   int rank = mbImpl->proc_rank();
   
-  MBRange matsets, geomsets, parsets, totsets;
+  MBRange matsets, geomsets, parsets;
+  int nsets;
   MBTag mtag = 0, gtag = 0, ptag = 0, gidtag;
   MBErrorCode result = mbImpl->tag_get_handle("MATERIAL_SET", mtag);
   result = mbImpl->tag_get_handle("GEOM_DIMENSION", gtag);
   result = mbImpl->tag_get_handle("PARALLEL_PARTITION", ptag);
   result = mbImpl->tag_get_handle("GLOBAL_ID", gidtag);
 
-  result = mbImpl->get_entities_by_type(0, MBENTITYSET, totsets);
-  std::cout << "Proc " << rank << ": Total of " << totsets.size()
+  result = mbImpl->get_number_entities_by_type(0, MBENTITYSET, nsets);
+  std::cout << "Proc " << rank << ": Total of " << nsets
             << " entity sets." << std::endl;
   
 #define PRINTSETS(a, b, c, p) \
