@@ -1949,7 +1949,14 @@ DEBUGOUT( "Gathering Tags\n" );
   const std::list<SparseTag>::iterator tag_end = tagList.end();
   for ( ; tag_iter != tag_end; ++tag_iter)
   {
-    rval = create_tag( *tag_iter );
+    int s;
+    unsigned long var_len_total;
+    if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_size( tag_iter->tag_id, s )) {
+      rval = get_tag_data_length( *tag_iter, var_len_total ); 
+      CHK_MB_ERR_0(rval);
+    }
+  
+    rval = create_tag( tag_iter->tag_id, tag_iter->range.size(), var_len_total );
     CHK_MB_ERR_0(rval);
   } // for(tags)
   
@@ -2215,15 +2222,30 @@ MBErrorCode WriteHDF5::get_tag_data_length( const SparseTag& tag_info, unsigned 
     return rval;
   for (size_t i= 0; i < remaining; ++i)
     result += size_buffer[i];
+    
+  MBDataType type;
+  rval = iFace->tag_get_data_type( tag_info.tag_id, type );
+  if (MB_SUCCESS != rval)
+    return rval;
+  switch (type) {
+    case MB_TYPE_INTEGER: result /= sizeof(int);            break;
+    case MB_TYPE_DOUBLE:  result /= sizeof(double);         break;
+    case MB_TYPE_HANDLE:  result /= sizeof(MBEntityHandle); break;
+    case MB_TYPE_OPAQUE:                                    break;
+      // We fail for MB_TYPE_BIT because MOAB currently does
+      // not support variable-length bit tags.
+    default:          return MB_FAILURE;
+  }
+    
   return MB_SUCCESS;
 }
     
                                      
 
-MBErrorCode WriteHDF5::create_tag( const SparseTag& tag_info )
+MBErrorCode WriteHDF5::create_tag( MBTag tag_id,
+                                   unsigned long num_sparse_entities,
+                                   unsigned long data_table_size )
 {
-  MBTag tag_id = tag_info.tag_id;
-  unsigned long num_sparse_entities = tag_info.range.size();
   MBTagType storage;
   MBDataType mb_type;
   mhdf_TagDataType mhdf_type;
@@ -2260,13 +2282,6 @@ MBErrorCode WriteHDF5::create_tag( const SparseTag& tag_info )
   }
   else if (MB_SUCCESS != rval)
     return rval;
- 
-    // for variable-length tags, need to calculate total data table size
-  unsigned long data_table_size = 0;
-  if (tag_size == MB_VARIABLE_LENGTH) {
-    rval = get_tag_data_length( tag_info, data_table_size ); 
-    CHK_MB_ERR_0(rval);
-  }
   
     // for handle-type tags, need to convert from handles to file ids
   if (MB_TYPE_HANDLE == mb_type) {
@@ -2337,7 +2352,7 @@ MBErrorCode WriteHDF5::create_tag( const SparseTag& tag_info )
       mhdf_createVarLenTagData( filePtr, 
                                 tag_name.c_str(),
                                 num_sparse_entities,
-                                data_table_size / elem_size,
+                                data_table_size,
                                 handles,
                                 &status );
       CHK_MHDF_ERR_0(status);

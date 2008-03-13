@@ -1,5 +1,5 @@
 
-#undef DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 #  include <stdio.h>
@@ -93,7 +93,7 @@ void WriteHDF5Parallel::printrange( MBRange& r )
   int rank;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   MBEntityType type = MBMAXTYPE;
-  for (MBRange::const_pair_iterator i = r.pair_begin(); i != r.pair_end(); ++i)
+  for (MBRange::const_pair_iterator i = r.const_pair_begin(); i != r.const_pair_end(); ++i)
   {
     MBEntityHandle a, b;
     a = (*i).first;
@@ -128,9 +128,9 @@ static void print_type_sets( MBInterface* iFace, int myRank, int numProc, MBRang
   iFace->tag_get_handle( MATERIAL_SET_TAG_NAME, bid );
   iFace->tag_get_handle( DIRICHLET_SET_TAG_NAME, nid );
   iFace->tag_get_handle( NEUMANN_SET_TAG_NAME, sid );
-  iFace->tag_get_handle( PARALLEL_INTERFACE_TAG_NAME, iid );
+  iFace->tag_get_handle( PARALLEL_PARTITION_TAG_NAME, iid );
   MBRange typesets[10];
-  const char* typenames[] = {"Block", "Sideset", "NodeSet", "Vertex", "Curve", "Surface", "Volume", "Body", "Interfaces", "Other"};
+  const char* typenames[] = {"Block", "Sideset", "NodeSet", "Vertex", "Curve", "Surface", "Volume", "Body", "Partition", "Other"};
   for (MBRange::iterator riter = sets.begin(); riter != sets.end(); ++riter)
   {
     unsigned dim, id, proc[2], oldsize;
@@ -165,22 +165,22 @@ static void print_type_sets( MBInterface* iFace, int myRank, int numProc, MBRang
     std::string line(typenames[ii]);
     if (typesets[ii].empty())
       continue;
-    sprintf(num, "(%u):", typesets[ii].size());
+    sprintf(num, "(%lu):",(unsigned long)typesets[ii].size());
     line += num;
-    for (MBRange::const_pair_iterator piter = typesets[ii].pair_begin();
-         piter != typesets[ii].pair_end(); ++piter)
+    for (MBRange::const_pair_iterator piter = typesets[ii].const_pair_begin();
+         piter != typesets[ii].const_pair_end(); ++piter)
     {
-      sprintf(num," %d", (*piter).first);
+      sprintf(num," %lx", (unsigned long)(*piter).first);
       line += num;
       if ((*piter).first != (*piter).second) {
-        sprintf(num,"-%d", (*piter).second);
+        sprintf(num,"-%lx", (unsigned long)(*piter).second);
         line += num;
       }
     }
 
     printdebug ("%s\n", line.c_str());
   }
-  printdebug("Total: %u\n", sets.size());
+  printdebug("Total: %lu\n", (unsigned long)sets.size());
 }
 #endif
 
@@ -262,7 +262,7 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
   MBTag iface_tag, geom_tag;
   int i, proc_pair[2];
   
-  START_SERIAL;
+  //START_SERIAL;
   printdebug( "Pre-interface mesh:\n");
   printrange(nodeSet.range);
   for (std::list<ExportSet>::iterator eiter = exportList.begin();
@@ -275,7 +275,10 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
   
     // Get tag handles
   result = iFace->tag_get_handle( PARALLEL_SHARED_PROC_TAG_NAME, iface_tag );
-  if (MB_SUCCESS != result) return result;
+  if (MB_SUCCESS != result) {
+    iface_tag = 0;
+    return MB_SUCCESS;
+  }
   result = iFace->tag_get_handle( GEOM_DIMENSION_TAG_NAME, geom_tag );
   if (MB_SUCCESS != result) return result;
   
@@ -413,7 +416,7 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
     printrange(eiter->range);
   printrange(setSet.range);
 
-  END_SERIAL;
+  //END_SERIAL;
   
   return MB_SUCCESS;
 }
@@ -515,44 +518,85 @@ MBErrorCode WriteHDF5Parallel::create_file( const char* filename,
   std::list<SparseTag>::iterator tag_iter;
   sort_tags_by_name();
   const int num_tags = tagList.size();
-  std::vector<int> tag_offsets(num_tags), tag_counts(num_tags);
-  std::vector<int>::iterator tag_off_iter = tag_counts.begin();
-  for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter, ++tag_off_iter)
-    *tag_off_iter = tag_iter->range.size();
   
+    // Construct vector (tag_counts) containing a pair of values for each
+    // tag, where the first value in the pair is the number of entities on
+    // this processor for which the tag has been set.  The second value is
+    // zero for normal tags.  For variable-length tags it is the total number
+    // of tag values set for all entities on this processor.
+  std::vector<unsigned long> tag_offsets(2*num_tags), tag_counts(2*num_tags);
+  std::vector<unsigned long>::iterator tag_off_iter = tag_counts.begin();
+  for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
+    int s;
+    *tag_off_iter = tag_iter->range.size();
+    ++tag_off_iter;
+    if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_size( tag_iter->tag_id, s )) {
+      unsigned long total_len;
+      rval = get_tag_data_length( *tag_iter, total_len );
+      if (MB_SUCCESS != rval)
+        return rval;
+      
+      *tag_off_iter = total_len;
+      assert(total_len == *tag_off_iter);
+    }
+    else {
+      *tag_off_iter = 0;
+    }
+    ++tag_off_iter;
+  }
+  
+    // Populate proc_tag_offsets on root processor with the values from
+    // tag_counts on each processor.
   printdebug("Exchanging tag data for %d tags.\n", num_tags);
-  std::vector<int> proc_tag_offsets(num_tags*numProc);
-  result = MPI_Gather( &tag_counts[0], num_tags, MPI_INT,
-                 &proc_tag_offsets[0], num_tags, MPI_INT,
+  std::vector<unsigned long> proc_tag_offsets(2*num_tags*numProc);
+  result = MPI_Gather( &tag_counts[0], 2*num_tags, MPI_UNSIGNED_LONG,
+                 &proc_tag_offsets[0], 2*num_tags, MPI_UNSIGNED_LONG,
                        0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
   
+    // Calculate the total counts over all processors (tag_counts)
+    // and the offset at which each processor should begin writing
+    // its data (proc_tag_offsets).  Both lists contain a pair of
+    // values, where the first is the number of entities and the second
+    // is either unused for fixed-length tags or the total data table
+    // size for variable-length tags.
   tag_iter = tagList.begin();
   for (int i = 0; i < num_tags; ++i, ++tag_iter)
   {
-    tag_counts[i] = 0;
-    int next_offset = 0;
+    tag_counts[2*i] = tag_counts[2*i+1] = 0;
+    unsigned long next_offset = 0;
+    unsigned long next_var_len_offset = 0;
     for (int j = 0; j < numProc; j++)
     {
-      int count = proc_tag_offsets[i + j*num_tags];
-      proc_tag_offsets[i + j*num_tags] = next_offset;
+      unsigned long count = proc_tag_offsets[2*i + j*2*num_tags];
+      proc_tag_offsets[2*i + j*2*num_tags] = next_offset;
       next_offset += count;
-      tag_counts[i] += count;
+      tag_counts[2*i] += count;
+      
+      count = proc_tag_offsets[2*i + 1 + j*2*num_tags];
+      proc_tag_offsets[2*i + 1 + j*2*num_tags] = next_var_len_offset;
+      next_var_len_offset += count;
+      tag_counts[2*i + 1] += count;
     }
 
     if (0 == myRank)
     {
-      rval = create_tag(*tag_iter);
+      rval = create_tag(tag_iter->tag_id, next_offset, next_var_len_offset);
       assert(MB_SUCCESS == rval);
-      printdebug( "Creating table of size %d for tag 0x%lx\n", (int)next_offset, (unsigned long)tag_iter->tag_id);
+      printdebug( "Creating table of size %lu for tag 0x%lx\n", 
+                  next_var_len_offset ? next_var_len_offset : next_offset, 
+                  (unsigned long)tag_iter->tag_id );
     }
   }
   
-  result = MPI_Bcast( &tag_counts[0], num_tags, MPI_INT, 0, MPI_COMM_WORLD );
+    // Send total counts to all processors.  This is necessary because all 
+    // processors need to know if we are not writing anything for the tag (count == 0).  
+  result = MPI_Bcast( &tag_counts[0], 2*num_tags, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
   
-  result = MPI_Scatter( &proc_tag_offsets[0], num_tags, MPI_INT,
-                             &tag_offsets[0], num_tags, MPI_INT,
+    // Send to each processor its per-tag offset values.
+  result = MPI_Scatter( &proc_tag_offsets[0], 2*num_tags, MPI_UNSIGNED_LONG,
+                             &tag_offsets[0], 2*num_tags, MPI_UNSIGNED_LONG,
                              0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
 
@@ -560,20 +604,21 @@ MBErrorCode WriteHDF5Parallel::create_file( const char* filename,
   tag_iter = tagList.begin();
   for (int i = 0; i < num_tags; ++i, ++tag_iter)
   {
-    tag_iter->offset = tag_offsets[i];
-    tag_iter->write = tag_counts[i] > 0;
+    tag_iter->offset = tag_offsets[2*i];
+    tag_iter->write = tag_counts[2*i] > 0;
+    tag_iter->varDataOffset = tag_offsets[2*i + 1];
   }
 
   #ifdef DEBUG
   START_SERIAL;  
-  printdebug("Tags: %16s %8s %8s %8s\n", "Name", "Count", "Offset", "Handle");
+  printdebug("Tags: %12s %8s %8s %8s %8s %8s\n", "Name", "Count", "Offset", "Var Off", "Var Len", "Handle");
 
   tag_iter = tagList.begin();
   for (int i = 0; i < num_tags; ++i, ++tag_iter)
   {
     std::string name;
     iFace->tag_get_name( tag_iter->tag_id, name );
-    printdebug("      %16s %8d %8d %8lx\n", name.c_str(), tag_counts[i], tag_offsets[i], (unsigned long)tag_iter->tag_id );
+    printdebug("%18s %8lu %8lu %8lu %8lu 0x%7lx\n", name.c_str(), tag_counts[2*i], tag_offsets[2*i], tag_offsets[2*i+1], tag_counts[2*i+1], (unsigned long)tag_iter->tag_id );
   }
   END_SERIAL;  
   #endif
@@ -1060,7 +1105,7 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
   MBErrorCode rval;
   int i, result;
   MBRange::iterator riter;
-    
+
   rval = iFace->tag_get_handle( tags.filterTag.c_str(), data.filter_tag );
   if (rval != MB_SUCCESS) return rval;
   if (tags.useFilterValue) 

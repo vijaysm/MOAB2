@@ -254,8 +254,13 @@ protected:
    *
    * Write tag meta-info and create zero-ed table where
    * tag values will be written.
+   *\param num_entities  Number of entities for which to write tag data.
+   *\param var_len_total For variable-length tags, the total number of values
+   *                     in the data table.
    */
-  MBErrorCode create_tag( const SparseTag& tag_info );
+  MBErrorCode create_tag( MBTag tag_id, 
+                          unsigned long num_entities,
+                          unsigned long var_len_total );
   
   /** Get possibly compacted list of IDs for passed entities
    *
@@ -285,6 +290,11 @@ protected:
    * the ID to the passed list.
    */
   MBErrorCode get_adjacencies( MBEntityHandle entity, std::vector<id_t>& adj );
+                                
+  //! get sum of lengths of tag values (as number of type) for 
+  //! variable length tag data.
+  MBErrorCode get_tag_data_length( const SparseTag& tag_info,
+                                   unsigned long& result );
   
 private:
   
@@ -359,11 +369,6 @@ private:
                                 MBRange::const_iterator end,
                                 int nodes_per_element,
                                 id_t* id_data_out );
-                                
-  //! get sum of lengths of tag values (in bytes) for 
-  //! variable length tag data.
-  MBErrorCode get_tag_data_length( const SparseTag& tag_info,
-                                   unsigned long& result );
                                    
   //! Get size data for tag
   //!\param tag       MOAB tag ID
