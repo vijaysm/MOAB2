@@ -80,8 +80,16 @@ MBErrorCode MBWriteUtil::get_node_arrays(
     return MB_FAILURE;
 
   // there should be some entities
-  if(entities.empty())
-    return MB_FAILURE;
+  //if(entities.empty())
+  //  return MB_FAILURE;
+  // The above necessitates annoying special cases for files 
+  // w/out vertices (e.g. a kD-tree).  Return NULL array
+  // pointers instead. - kraftcheck, 3-14-08
+  if (entities.empty()) {
+    arrays.clear();
+    arrays.resize( num_arrays, NULL );
+    return MB_SUCCESS;
+  }
 
   // memory should already be allocated for us
   int tmp_num_arrays = 0;
