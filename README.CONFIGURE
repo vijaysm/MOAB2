@@ -10,7 +10,7 @@ Where's the configure script?
   the following sequence of commands should have the same result:
     
     autoheader
-    aclocal
+    aclocal -I m4
     libtoolize
     automake -a
     autoconf 
