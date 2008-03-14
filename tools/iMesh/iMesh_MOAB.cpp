@@ -253,8 +253,8 @@ void iMesh_newMesh(const char *options,
     MPI_Comm_size(MPI_COMM_WORLD, &size); 
     core = new MBiMesh(rank, size);
 #else
-    mError->set_last_error( "PARALLEL option not valid, this instance"
-                            " compiled for serial execution.\n" );
+    //mError->set_last_error( "PARALLEL option not valid, this instance"
+    //                        " compiled for serial execution.\n" );
     *err = MB_NOT_IMPLEMENTED;
     return;
 #endif
