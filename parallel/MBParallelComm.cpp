@@ -584,21 +584,23 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
     if (MBVERTEX == this_type) {
         // unpack coords
       int num_verts = this_range.size();
-      std::vector<double*> coords(3);
-      MBEntityHandle actual_start;
-      result = ru->get_node_arrays(3, num_verts, 0, proc_config().proc_rank(), 
-                                   actual_start, coords);
-      RR("Failed to allocate node arrays.");
-      entities.insert(actual_start, actual_start+num_verts-1);
-      
-        // unpack the buffer data directly into coords
-      for (int i = 0; i < 3; i++) 
-        memcpy(coords[i], buff_ptr+i*num_verts*sizeof(double), 
-               num_verts*sizeof(double));
-      buff_ptr += 3*num_verts * sizeof(double);
+      if (num_verts) {
+        std::vector<double*> coords(3);
+        MBEntityHandle actual_start;
+        result = ru->get_node_arrays(3, num_verts, 0, proc_config().proc_rank(), 
+                                     actual_start, coords);
+        RR("Failed to allocate node arrays.");
+        entities.insert(actual_start, actual_start+num_verts-1);
 
-        // pack the range map to map from source to local handles
-      pack_range_map(this_range, actual_start, handle_map);
+          // unpack the buffer data directly into coords
+        for (int i = 0; i < 3; i++) 
+          memcpy(coords[i], buff_ptr+i*num_verts*sizeof(double), 
+                 num_verts*sizeof(double));
+        buff_ptr += 3*num_verts * sizeof(double);
+
+          // pack the range map to map from source to local handles
+        pack_range_map(this_range, actual_start, handle_map);
+      }
     }
 
     else {
