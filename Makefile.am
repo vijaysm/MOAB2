@@ -61,7 +61,7 @@ if NETCDF_FILE
                      WriteNCDF.cpp WriteNCDF.hpp \
                      WriteSLAC.cpp WriteSLAC.hpp 
 endif
-libMOAB_la_LIBADD = 
+libMOAB_la_LIBADD = $(NETCDF_LIBS) $(HDF5_LIBS)
 if HDF5_FILE
   libMOAB_la_LIBADD += $(top_builddir)/mhdf/libmhdf.la
   INCLUDES += -I$(srcdir)/mhdf/include

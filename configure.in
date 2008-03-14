@@ -115,6 +115,12 @@ else
   DEFINES="$DEFINES -DHDF5_FILE"
 fi
 AM_CONDITIONAL(HDF5_FILE, [test "xno" != "x$HAVE_HDF5"])
+AM_CPPFLAGS="$HDF5_CPPFLAGS $AM_CPPFLAGS"
+AM_LDFLAGS="$HDF5_LDFLAGS $AM_LDFLAGS"
+AC_SUBST(HDF5_LIBS)
+echo "HDF5_CPPFLAGS=$HDF5_CPPFLAGS"
+echo "HDF5_LDFLAGS=$HDF5_LDFLAGS"
+echo "HDF5_LIBS=$HDF5_LIBS"
 
 HAVE_HDF5_PARALLEL=no
 if test "xno" != "x$HAVE_HDF5"; then
@@ -136,10 +142,15 @@ fi
 SNL_CHECK_NETCDF
 if test "xno" = "x$HAVE_NETCDF"; then
   AC_MSG_WARN([Support for ExodusII file format disabled])
+  NETCDF_LIBS=
 else
   DEFINES="$DEFINES -DNETCDF_FILE"
+  NETCDF_LIBS="-lnetcdf_c++ -lnetcdf"
 fi
 AM_CONDITIONAL(NETCDF_FILE, [test "xno" != "x$HAVE_NETCDF"])
+AM_CPPFLAGS="$NETCDF_CPPFLAGS $AM_CPPFLAGS"
+AM_LDFLAGS="$NETCDF_LDFLAGS $AM_CPPFLAGS"
+AC_SUBST(NETCDF_LIBS)
 
 
 #################################################################################
@@ -749,6 +760,8 @@ AM_CONDITIONAL(USE_BABEL, [test "xno" != "x$USE_BABEL"])
 ################################################################################
 AC_SUBST([INCLUDES])
 AC_SUBST([DEFINES])
+AC_SUBST([AM_CPPFLAGS])
+AC_SUBST([AM_LDFLAGS])
 AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
 
 AC_ARG_VAR([FC], [FORTRAN compiler command])

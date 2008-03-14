@@ -295,7 +295,10 @@ AC_LANG_RESTORE
 #######################################################################################
 # Check for HDF5 library and related stuff
 # Sets HAVE_HDF5 to 'yes' or 'no'
-# If HAVE_HDF5 == yes, then updates INCLUDES and LIBS accordingly.
+# If HAVE_HDF5 == yes, then sets:
+#  HDF5_CPPFLAGS
+#  HDF5_LDFLAGS
+#  HDF5_LINK
 #######################################################################################
 AC_DEFUN([SNL_CHECK_HDF5],[
 
@@ -312,7 +315,7 @@ case "x$WITH_ZLIB" in
     if ! test -d  ${WITH_ZLIB}/lib; then
       AC_MSG_ERROR([Not a directory: ${WITH_ZLIB}/lib])
     fi
-    LIBS="$LIBS -L${WITH_ZLIB}/lib"
+    HDF5_LDFLAGS="$HDF5_LDFLAGS -L${WITH_ZLIB}/lib"
     ;;
 esac
 HAVE_ZLIB=no
@@ -334,7 +337,7 @@ case "x$WITH_SZIP" in
     if ! test -d  ${WITH_SZIP}/lib; then
       AC_MSG_ERROR([Not a directory: ${WITH_SZIP}/lib])
     fi
-    LIBS="$LIBS -L${WITH_SZIP}/lib"
+    HDF5_LDFLAGS="$HDF5_LDFLAGS -L${WITH_SZIP}/lib"
     ;;
 esac
 HAVE_SZIP=no
@@ -346,15 +349,18 @@ fi
   # CLI option for extra HDF5 link flags
 AC_ARG_WITH([--with-hdf5-ldflags],[AC_HELP_STRING([--with-hdf5-ldflags=...],
  [Extra LDFLAGS required for HDF5 library (e.g. parallel IO lib)])],
- [HDF5_LDFLAGS="$withval"
+ [HDF5_LDFLAGS_WITHVAL="$withval"; 
  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-hdf5-ldflags=\"${withval}\""
-],[HDF5_LDFLAGS=])
-case "x$HDF5_LDFLAGS" in
+],[HDF5_LDFLAGS_WITHVAL=])
+case "x$HDF5_LDFLAGS_WITHVAL" in
   xno)
     AC_MSG_ERROR("Invalid argument: --without-hdf5-ldflags")
     ;;
   xyes)
     AC_MSG_ERROR("Nonsensical argument:  --with-hdf5-ldflags without any specified flags")
+    ;;
+  *)
+    HDF5_LDFLAGS="$HDF5_LDFLAGS $HDF5_LDFLAGS_WITHVAL"
     ;;
 esac
 
@@ -379,7 +385,7 @@ if test "xno" != "x$HDF5_ARG"; then
   HAVE_HDF5=yes
     # Check for IBM parallel IO library
   if test "x$WITH_MPI" != "xno"; then
-    AC_CHECK_LIB([gpfs],[gpfs_stat],[LIBS="-lgpfs $LIBS"])
+    AC_CHECK_LIB([gpfs],[gpfs_stat],[HDF5_LIBS="-lgpfs $HDF5_LIBS"])
   fi
 
     # if a path is specified, update LIBS and INCLUDES accordingly
@@ -392,41 +398,43 @@ if test "xno" != "x$HDF5_ARG"; then
       AC_MSG_ERROR("$HDF5_ARG is not a directory.")
     fi
     if test -d "${HDF5_ARG}/include"; then
-      INCLUDES="$INCLUDES -I${HDF5_ARG}/include"
+      HDF5_CPPFLAGS="$HDF5_CPPFLAGS -I${HDF5_ARG}/include"
     else
-      INCLUDES="$INCLUDES -I${HDF5_ARG}"
+      HDF5_CPPFLAGS="$HDF5_CPPFLAGS -I${HDF5_ARG}"
     fi
   fi
   
     # Add flag to defines
+
+  old_CPPFLAGS="$CPPFLAGS"
+  old_LDFLAGS="$LDFLAGS"
   old_LIBS="$LIBS"
-  LIBS="$LIBS $HDF5_LDFLAGS"
+  CPPFLAGS="$HDF5_CPPFLAGS $CPPFLAGS"
+  LDFLAGS="$HDF5_LDFLAGS $LDFLAGS"
+  LIBS="$HDF5_LIBS $LIBS"
   
     # check for libraries and headers
-  old_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $INCLUDES"
   AC_CHECK_HEADERS( [hdf5.h], [], [HAVE_HDF5=no] )
-  CPPFLAGS="$old_CPPFLAGSS"
   
   HAVE_LIB_HDF5=no
   AC_CHECK_LIB( [hdf5], [H5Fopen], [HAVE_LIB_HDF5=yes] )
   if test $HAVE_LIB_HDF5 = no; then
     if test $HAVE_ZLIB = yes; then
       unset ac_cv_lib_hdf5_H5Fopen
-      AC_CHECK_LIB( [hdf5], [H5Fopen], [HAVE_LIB_HDF5=yes; old_LIBS="-lz $old_LIBS"], [], [-lz] )
+      AC_CHECK_LIB( [hdf5], [H5Fopen], [HAVE_LIB_HDF5=yes; HDF5_LIBS="-lz $HDF5_LIBS"], [], [-lz] )
     fi
   fi
   if test $HAVE_LIB_HDF5 = no; then
     if test $HAVE_SZIP = yes; then
       unset ac_cv_lib_hdf5_H5Fopen
-      AC_CHECK_LIB( [hdf5], [H5Fopen], [HAVE_LIB_HDF5=yes; old_LIBS="-lsz $old_LIBS"], [], [-lsz] )
+      AC_CHECK_LIB( [hdf5], [H5Fopen], [HAVE_LIB_HDF5=yes; HDF5_LIBS="-lsz $HDF5_LIBS"], [], [-lsz] )
     fi
   fi
   if test $HAVE_LIB_HDF5 = no; then
     if test $HAVE_SZIP = yes; then
       if test $HAVE_ZLIB = yes; then
         unset ac_cv_lib_hdf5_H5Fopen
-        AC_CHECK_LIB( [hdf5], [H5Fopen], [HAVE_LIB_HDF5=yes; old_LIBS="-lsz -lz $old_LIBS"], [], [-lz -lsz] )
+        AC_CHECK_LIB( [hdf5], [H5Fopen], [HAVE_LIB_HDF5=yes; HDF5_LIBS="-lsz -lz $HDF5_LIBS"], [], [-lz -lsz] )
       fi
     fi
   fi
@@ -435,11 +443,17 @@ if test "xno" != "x$HDF5_ARG"; then
     HAVE_HDF5=no
   fi
   
-  if test "x$HAVE_HDF5" = "xyes"; then
-    LIBS="$HDF5_LDFLAGS -lhdf5 $old_LIBS"
+  if test "x$HAVE_HDF5" = "xno"; then
+    HDF5_CPPFLAGS=
+    HDF5_LDFLAGS=
+    HDF5_LIBS=
   else
-    LIBS="$old_LIBS"
+    HDF5_LIBS="$HDF5_LIBS -lhdf5"
   fi
+  
+  CPPFLAGS="$old_CPPFLAGS"
+  LDFLAGS="$old_LDFLAGS"
+  LIBS="$old_LIBS"
 fi
 
 
@@ -451,7 +465,7 @@ fi
 #######################################################################################
 # Check for NetCDF library ((C++)
 # Sets HAVE_NETCDF to 'yes' or 'no'
-# If HAVE_NETCDF == yes, then updates INCLUDES and LIBS accordingly.
+# If HAVE_NETCDF == yes, then exports NETCDF_CPPFLAGS and NETCDF_LDFLAGS
 #######################################################################################
 AC_DEFUN([SNL_CHECK_NETCDF],[
 
@@ -485,30 +499,29 @@ if test "xno" != "x$NETCDF_ARG"; then
         AC_CHECK_HEADER( [sstream], [NETCDF_DEF="<sstream>"] )
   ] ) ] ) ] )
   AC_LANG_RESTORE
-
+  
     # if a path is specified, update LIBS and INCLUDES accordingly
   if test "xyes" != "x$NETCDF_ARG"; then
     if test -d "${NETCDF_ARG}/lib"; then
-      LIBS="$LIBS -L${NETCDF_ARG}/lib"
+      NETCDF_LDFLAGS="-L${NETCDF_ARG}/lib"
     elif test -d "${NETCDF_ARG}"; then
-      LIBS="$LIBS -L${NETCDF_ARG}"
+      NETCDF_LDFLAGS="-L${NETCDF_ARG}"
     else
       AC_MSG_ERROR("$NETCDF_ARG is not a directory.")
     fi
     if test -d "${NETCDF_ARG}/include"; then
-      INCLUDES="$INCLUDES -I${NETCDF_ARG}/include"
+      NETCDF_CPPFLAGS="-I${NETCDF_ARG}/include"
     elif test -d "${NETCDF_ARG}/inc"; then
-      INCLUDES="$INCLUDES -I${NETCDF_ARG}/inc"
+      NETCDF_CPPFLAGS="-I${NETCDF_ARG}/inc"
     else
-      INCLUDES="$INCLUDES -I${NETCDF_ARG}"
+      NETCDF_CPPFLAGS="-I${NETCDF_ARG}"
     fi
   fi
   
   old_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $INCLUDES"
-  old_CXXFLAGS="$CXXFLAGS"
-  CXXFLAGS="$CXXFLAGS $INCLUDES"
-  old_LIBS="$LIBS"
+  CPPFLAGS="$NETCDF_CPPFLAGS $CPPFLAGS"
+  old_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$NETCDF_LDFLAGS $LDFLAGS"
   
    # Check for C library
   AC_CHECK_HEADERS( [netcdf.h], [], [AC_MSG_WARN([[NetCDF header not found.]]); HAVE_NETCDF=no] )
@@ -527,10 +540,11 @@ if test "xno" != "x$NETCDF_ARG"; then
     HAVE_NETCDF=no
   fi
   if test "x$NETCDF_DEF" != "x"; then
-  CPPFLAGS="$CPPFLAGS -DSTRSTREAM_H_SPEC=$NETCDF_DEF"
-  CXXFLAGS="$CXXFLAGS -DSTRSTREAM_H_SPEC=$NETCDF_DEF"
+    NETCDF_CPPFLAGS="$NETCDF_CPPFLAGS -DSTRSTREAM_H_SPEC=$NETCDF_DEF"
+    CPPFLAGS="$CPPFLAGS -DSTRSTREAM_H_SPEC=$NETCDF_DEF"
   fi
   AC_MSG_CHECKING([[for netcdf_c++ library]])
+  old_LIBS="$LIBS"
   LIBS="$LIBS -lnetcdf_c++ -lnetcdf"
   AC_TRY_LINK(
     [#include <netcdf.hh>], [NcFile ncf("foo",NcFile::ReadOnly);],
@@ -538,15 +552,14 @@ if test "xno" != "x$NETCDF_ARG"; then
     [AC_MSG_RESULT([no]); 
      AC_MSG_ERROR([NetCDF C++ API not found])
      HAVE_NETCDF=no] )
+  LIBS="$old_LIBS"
   AC_LANG_RESTORE
   CPPFLAGS="$old_CPPFLAGS"
-  CXXFLAGS="$old_CXXFLAGS"
-  if test "x$NETCDF_DEF" != "x"; then
-    DEFINES="$DEFINES '-DSTRSTREAM_H_SPEC=$NETCDF_DEF'"
-  fi
+  LDFLAGS="$old_LDFLAGS"
   if test "x$HAVE_NETCDF" = "xno"; then
     AC_MSG_WARN("NetCDF support disabled")
-    LIBS="$old_LIBS"
+    NETCDF_CPPFLAGS=
+    NETCDF_LDFLAGS=
   fi
 fi
 

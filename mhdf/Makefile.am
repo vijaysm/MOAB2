@@ -1,5 +1,6 @@
 
 noinst_LTLIBRARIES = libmhdf.la
+libmhdf_la_LIBADD = $(HDF5_LIBS)
 
 libmhdf_la_SOURCES = include/mhdf.h \
                      src/adjacency.c \
