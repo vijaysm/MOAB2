@@ -4,11 +4,10 @@
  */
 
 #include "MBCore.hpp"
-#define TEST_WITH_MPI
 #include "TestUtil.hpp"
-#include "WriteHDF5Parallel.hpp"
-#include "FileOptions.hpp"
 #include "MBParallelConventions.h"
+
+#include <mpi.h>
 
 bool keep_files = false; // controllable with -k flag
 bool wait_on_start = false; // start all procs and wait for input on root node
@@ -95,14 +94,7 @@ void test_var_length_parallel()
   CHECK_ERR(rval);
   
   // Write file
-  WriteHDF5Parallel writer( &mb );
-  FileOptions opts("");
-  std::vector<std::string> qa_records;
-  rval = writer.write_file( filename, 
-                            true,
-                            opts,
-                            0, 0,
-                            qa_records );
+  rval = mb.write_file( filename, "MOAB", "PARALLEL=FORMAT" );
   CHECK_ERR(rval);
   
   // Read file.  We only reset and re-read the file on the

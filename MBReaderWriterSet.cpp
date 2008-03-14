@@ -39,7 +39,11 @@
 
 #ifdef HDF5_FILE
 #  include "ReadHDF5.hpp"
-#  include "WriteHDF5.hpp"
+#  ifdef HDF5_PARALLEL
+#    include "WriteHDF5Parallel.hpp"
+#  else
+#    include "WriteHDF5.hpp"
+#  endif
 #endif
 
 #include <algorithm>
@@ -49,7 +53,13 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
 {
 #ifdef HDF5_FILE
   const char* hdf5_sufxs[] = { "h5m", "mhdf", NULL };
-  register_factory(  ReadHDF5::factory, WriteHDF5::factory, "MOAB native (HDF5)", hdf5_sufxs, "MOAB" );
+#ifdef HDF5_PARALLEL
+  register_factory(  ReadHDF5::factory, WriteHDF5Parallel::factory, 
+                     "MOAB native (HDF5)", hdf5_sufxs, "MOAB" );
+#else
+  register_factory(  ReadHDF5::factory, WriteHDF5::factory, 
+                     "MOAB native (HDF5)", hdf5_sufxs, "MOAB" );
+#endif
 #endif
 
 #ifdef NETCDF_FILE

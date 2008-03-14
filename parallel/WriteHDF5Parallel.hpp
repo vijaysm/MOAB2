@@ -16,6 +16,8 @@ struct RemoteSetData;
 class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
 {
   public:
+
+    static MBWriterIface* factory( MBInterface* );
     
       /** Consturctor
        *
@@ -97,7 +99,8 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
     virtual MBErrorCode create_file( const char* filename,
                                      bool overwrite,
                                      std::vector<std::string>& qa_records,
-                                     int dimension = 3 );
+                                     int dimension = 3,
+                                     bool parallel = false );
     
       //! Figure out which mesh local mesh is duplicated on
       //! remote processors and which processor will write

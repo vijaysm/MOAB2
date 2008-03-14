@@ -80,7 +80,8 @@ protected:
   virtual MBErrorCode create_file( const char* filename,
                                    bool overwrite,
                                    std::vector<std::string>& qa_records,
-                                   int dimension = 3 );
+                                   int dimension = 3,
+                                   bool parallel = false );
 
 
   /** Functions that the parallel version overrides*/
@@ -236,6 +237,17 @@ protected:
   std::list<SparseTag> tagList;
 
 private:
+
+  //! Do the actual work of write_file.  Separated from write_file
+  //! for easier resource cleanup.
+  MBErrorCode write_file_impl( const char* filename,
+                               const bool overwrite,
+                               const FileOptions& opts,
+                               const MBEntityHandle* export_sets,
+                               const int export_set_count,
+                               std::vector<std::string>& qa_records,
+                               int user_dimension = 3 );
+
   MBErrorCode init();
 
   //! Zero the ID tag on all entities in the mesh.

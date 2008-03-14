@@ -45,6 +45,7 @@
 #include "MBCN.hpp"
 #include "WriteHDF5.hpp"
 #include "MBWriteUtilIface.hpp"
+#include "FileOptions.hpp"
 #include "mhdf.h"
 /* Access HDF5 file handle for debugging
 #include <H5Fpublic.h>
@@ -335,17 +336,72 @@ WriteHDF5::~WriteHDF5()
 
 MBErrorCode WriteHDF5::write_file( const char* filename,
                                    bool overwrite,
-                                   const FileOptions& ,
+                                   const FileOptions& opts,
                                    const MBEntityHandle* set_array,
                                    const int num_sets,
                                    std::vector<std::string>& qa_records,
                                    int user_dimension )
 {
+  mhdf_Status status;
+
+    // Allocate internal buffer to use when gathering data to write.
+  dataBuffer = (char*)malloc( bufferSize );
+  if (!dataBuffer)
+    return MB_MEMORY_ALLOCATION_FAILED;
+
+    // Clear filePtr so we know if it is open upon failure
+  filePtr = 0;
+
+    // Do actual write.
+  MBErrorCode result = write_file_impl( filename, overwrite, opts, 
+                                        set_array, num_sets, 
+                                        qa_records, user_dimension );
+  
+    // Free memory buffer
+  free( dataBuffer );
+  dataBuffer = 0;
+  
+    // Close file
+  bool created_file = false;
+  if (filePtr) {
+    created_file = true;
+    mhdf_closeFile( filePtr, &status );
+    filePtr = 0;
+    if (mhdf_isError( &status )) {
+      writeUtil->report_error( "%s\n", mhdf_message( &status ) );
+      if (MB_SUCCESS == result)
+        result = MB_FAILURE;
+    }
+  }
+
+    // Release other resources
+  if (MB_SUCCESS == result)
+    result = write_finished();
+  else
+    write_finished();
+  
+    // If write failed, remove file unless KEEP option was specified
+  if (MB_SUCCESS != result && created_file && 
+      MB_ENTITY_NOT_FOUND == opts.get_null_option( "KEEP" ))
+    remove( filename );
+  
+  return result;
+}  
+
+
+MBErrorCode WriteHDF5::write_file_impl( const char* filename,
+                                        bool overwrite,
+                                        const FileOptions& opts,
+                                        const MBEntityHandle* set_array,
+                                        const int num_sets,
+                                        std::vector<std::string>& qa_records,
+                                        int user_dimension )
+{
   MBErrorCode result;
-  mhdf_Status rval;
   std::list<SparseTag>::const_iterator t_itor;
   std::list<ExportSet>::iterator ex_itor;
   MBEntityHandle elem_count, max_id;
+  bool parallel = false;
   
   if (MB_SUCCESS != init())
     return MB_FAILURE;
@@ -364,7 +420,8 @@ DEBUGOUT("Gathering Mesh\n");
     std::vector<MBEntityHandle> passed_export_list(num_sets);
     memcpy( &passed_export_list[0], set_array, sizeof(MBEntityHandle)*num_sets );
     result = gather_mesh_info( passed_export_list );
-    if (MB_SUCCESS != result) goto write_fail;
+    if (MB_SUCCESS != result) 
+      return result;
     
       // Mark all entities invalid.  Later the ones we are
       // exporting will be marked valid.  This way we can
@@ -373,11 +430,11 @@ DEBUGOUT("Gathering Mesh\n");
       // Don't to this, just set the default value to -1 when
       // the tag is created in the init() function.
     //result = clear_all_id_tags();
-    //if (MB_SUCCESS != result) goto write_fail;
+    //if (MB_SUCCESS != result) return result;
   }
   
   //if (nodeSet.range.size() == 0)
-  //  goto write_fail;
+  //  return MB_ENTITY_NOT_FOUND;
   
 DEBUGOUT("Checking ID space\n");
 
@@ -389,7 +446,7 @@ DEBUGOUT("Checking ID space\n");
   if (elem_count > max_id)
   {
     writeUtil->report_error("ID space insufficient for mesh size.\n");
-    goto write_fail;
+    return MB_FAILURE;
   }
 
 DEBUGOUT( "Creating File\n" );  
@@ -403,47 +460,52 @@ DEBUGOUT( "Creating File\n" );
     user_dimension = mesh_dim;
   user_dimension = user_dimension > mesh_dim ? mesh_dim : user_dimension;
   
-    // Allocate internal buffer to use when gathering data to write.
-  dataBuffer = (char*)malloc( bufferSize );
-  if (!dataBuffer)
-    goto write_fail;
-  
     // Create the file layout, including all tables (zero-ed) and
     // all structure and meta information.
-  result = create_file( filename, overwrite, qa_records, user_dimension );
+  parallel = (MB_SUCCESS == opts.match_option( "PARALLEL", "FORMAT" ));
+  result = create_file( filename, overwrite, qa_records, user_dimension, parallel );
   if (MB_SUCCESS != result)
-    goto write_fail;
+    return result;
 
 DEBUGOUT("Writing Nodes.\n");
   
     // Write node coordinates
-  if (!nodeSet.range.empty() && write_nodes() != MB_SUCCESS)
-    goto write_fail;
+  if (!nodeSet.range.empty()) {
+    result = write_nodes();
+    if (MB_SUCCESS != result)
+      return result;
+  }
 
 DEBUGOUT("Writing connectivity.\n");
   
     // Write element connectivity
-  for (ex_itor = exportList.begin(); ex_itor != exportList.end(); ++ex_itor)
-    if (MB_SUCCESS != write_elems( *ex_itor ))
-      goto write_fail;
+  for (ex_itor = exportList.begin(); ex_itor != exportList.end(); ++ex_itor) {
+    result = write_elems( *ex_itor );
+    if (MB_SUCCESS != result)
+      return result;
+  }
 
 DEBUGOUT("Writing sets.\n");
   
     // Write meshsets
-  if (write_sets() != MB_SUCCESS)
-    goto write_fail;
+  result = write_sets();
+  if (MB_SUCCESS != result)
+    return result;
 
 DEBUGOUT("Writing adjacencies.\n");
   
     // Write adjacencies
   // Tim says don't save node adjacencies!
 #ifdef WRITE_NODE_ADJACENCIES
-  if (write_adjacencies( nodeSet ) != MB_SUCCESS)
-    goto write_fail;
+  result = write_adjacencies( nodeSet );
+  if (MB_SUCCESS != result) 
+    return result;
 #endif
-  for (ex_itor = exportList.begin(); ex_itor != exportList.end(); ++ex_itor)
-    if (write_adjacencies( *ex_itor ) != MB_SUCCESS)
-      goto write_fail;
+  for (ex_itor = exportList.begin(); ex_itor != exportList.end(); ++ex_itor) {
+    result = write_adjacencies( *ex_itor );
+    if (MB_SUCCESS != result)
+      return result;
+  }
 
 DEBUGOUT("Writing tags.\n");
   
@@ -457,31 +519,10 @@ DEBUGOUT("Writing tags.\n");
       else
         result = write_sparse_tag( *t_itor );
       if (MB_SUCCESS != result)
-        goto write_fail;
+        return result;
     }
-    
-DEBUGOUT("Closing file.\n");
-
-    // Clean up and exit.
-  free( dataBuffer );
-  dataBuffer = 0;
-  mhdf_closeFile( filePtr, &rval );
-  filePtr = 0;
-  result = write_finished();
-  CHK_MHDF_ERR_0( rval );
-  return result;
   
-write_fail:
-  
-  if (dataBuffer)
-  {
-    free( dataBuffer );
-    dataBuffer = 0;
-  }
-  mhdf_closeFile( filePtr, &rval );
-  filePtr = 0;
-  write_finished();
-  return MB_FAILURE;
+  return MB_SUCCESS;
 }
 
   // Initialize all file ids to -1.  We do this so that
@@ -1824,13 +1865,21 @@ MBErrorCode WriteHDF5::gather_tags()
 MBErrorCode WriteHDF5::create_file( const char* filename,
                                     bool overwrite,
                                     std::vector<std::string>& qa_records,
-                                    int dimension )
+                                    int dimension,
+                                    bool parallel )
 {
   long first_id;
   mhdf_Status status;
   hid_t handle;
   std::list<ExportSet>::iterator ex_itor;
   MBErrorCode rval;
+  
+  // If we support paralle, then this function will have been
+  // overridden with an alternate version in WriteHDF5Parallel
+  // that supports parallel I/O.  If we're here and parallel == true,
+  // then MOAB was not built with support for parallel HDF5 I/O.
+  if (parallel)
+    return MB_NOT_IMPLEMENTED;
   
   const char* type_names[MBMAXTYPE];
   memset( type_names, 0, MBMAXTYPE * sizeof(char*) );

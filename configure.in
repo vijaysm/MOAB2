@@ -125,6 +125,9 @@ if test "xno" != "x$HAVE_HDF5"; then
   fi
 fi
 AM_CONDITIONAL(PARALLEL_HDF5, [test "xno" != "x$HAVE_HDF5_PARALLEL"])
+if test "xno" != "x$HAVE_HDF5_PARALLEL"; then
+  DEFINES="$DEFINES -DHDF5_PARALLEL"
+fi
 
 ################################################################################
 #                             NetCDF OPTIONS

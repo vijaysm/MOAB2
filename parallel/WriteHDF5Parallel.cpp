@@ -209,6 +209,9 @@ void range_remove( MBRange& from, const MBRange& removed )
   }
 }
 
+MBWriterIface* WriteHDF5Parallel::factory( MBInterface* iface )
+  { return new WriteHDF5Parallel( iface ); }
+
 void WriteHDF5Parallel::MultiProcSetTags::add( const std::string& name )
   { list.push_back( Data(name) ); }
 
@@ -426,8 +429,12 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
 MBErrorCode WriteHDF5Parallel::create_file( const char* filename,
                                             bool overwrite,
                                             std::vector<std::string>& qa_records,
-                                            int dimension )
+                                            int dimension,
+                                            bool parallel )
 {
+  if (!parallel)
+    return WriteHDF5::create_file(filename, overwrite, qa_records, dimension, false );
+
   MBErrorCode rval;
   int result;
   mhdf_Status status;
