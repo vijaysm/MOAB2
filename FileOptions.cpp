@@ -237,6 +237,14 @@ MBErrorCode FileOptions::get_option( const char* name, const char*& value ) cons
 }
 
 MBErrorCode FileOptions::match_option( const char* name, 
+                                       const char* value ) const
+{
+  int idx;
+  const char* array[] = { value, NULL };
+  return match_option( name, array, idx );
+}
+
+MBErrorCode FileOptions::match_option( const char* name, 
                                        const char* const* values, 
                                        int& index ) const
 {

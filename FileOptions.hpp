@@ -113,6 +113,17 @@ public:
    */
   MBErrorCode match_option( const char* name, const char* const* values, int& index ) const;
   
+  /**\brief Check if an option matches a string value
+   *
+   * Check if the value for an option is the passed string.
+   *\param name The option name
+   *\param value The expected value.
+   *\return MB_SUCCESS if matched name and value.
+   *        MB_ENTITY_NOT_FOUND if the option was not specified
+   *        MB_FAILURE if the option value doesn't match the passed string/
+   */
+  MBErrorCode match_option( const char* name, const char* value ) const;
+  
   /**\brief Check for option for which the value is a list of ints
    *
    * Check for an option which is an int list.  The value is expected to
