@@ -927,7 +927,7 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
   }
 
   else {
-    static std::vector<int> tag_data;
+    std::vector<unsigned char> tag_data;
     std::vector<MBRange>::const_iterator tr_it = tagRanges.begin();
 
     PACK_INT(buff_ptr, allTags.size());
@@ -955,7 +955,7 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
         // name
       PACK_CHAR_64(buff_ptr, tinfo->get_name().c_str());
       
-      tag_data.resize((tr_it->size()+1) * tinfo->get_size() / sizeof(int));
+      tag_data.resize(tr_it->size() * tinfo->get_size());
       result = mbImpl->tag_get_data(*tag_it, *tr_it, &tag_data[0]);
       RR("Failed to get tag data in pack_tags.");
       PACK_RANGE(buff_ptr, (*tr_it));
@@ -982,7 +982,6 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
   
   int num_tags;
   UNPACK_INT(buff_ptr, num_tags);
-  std::vector<int> tag_data;
   std::vector<MBEntityHandle> tag_ents;
 
   for (int i = 0; i < num_tags; i++) {
