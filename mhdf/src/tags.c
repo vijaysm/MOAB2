@@ -880,6 +880,7 @@ mhdf_getTagInfo( mhdf_FileHandle file_handle,
 #if defined(H5Topen_vers) && H5Topen_vers > 1  
   type_id = H5Topen2( tag_id, TAG_TYPE_NAME, H5P_DEFAULT );
 #else
+  type_id = H5Topen( tag_id, TAG_TYPE_NAME );
 #endif
   if (type_id < 0)
   {
