@@ -1,6 +1,6 @@
 iMesh_CXXFLAGS = @CXXFLAGS@ 
 iMesh_CFLAGS = @CFLAGS@
-iMesh_LDFLAGS = @LDFLAGS@
+iMesh_LDFLAGS = @LDFLAGS@ @AM_LDFLAGS@
 iMesh_CXX_LDFLAGS = @MOAB_CXX_LDFLAGS@
 iMesh_CXX_LIBS = @MOAB_CXX_LIBS@
 
@@ -12,7 +12,8 @@ iMesh_FCDEFS = @DEFS@
 iMesh_INCLUDES = -I$(iMesh_INCLUDEDIR)
 
 iMesh_LIBS = $(iMesh_LDFLAGS) -L$(MOAB_LIBDIR) \
-             -L${iMesh_LIBDIR} -liMesh -lMOAB @LIBS@ \
+             -L${iMesh_LIBDIR} -liMesh -lMOAB \
+             @NETCDF_LIBS@ @HDF5_LIBS@ @LIBS@ \
              $(iMesh_CXX_LDFLAGS) $(IMESM_CXX_LIBS)
 
 iMesh_INCLUDEDIR = @abs_srcdir@
