@@ -18,6 +18,7 @@ libMOABpar_la_includedir = $(includedir)
 # Conditional sources
 MOAB_PARALLEL_SRCS =
 MOAB_PARALLEL_HDRS =
+MOAB_PARALLEL_TEST = 
 if USE_MPI
   MOAB_PARALLEL_SRCS += \
      MBParallelComm.cpp \
@@ -42,6 +43,7 @@ if PARALLEL_HDF5
   MOAB_PARALLEL_HDRS += WriteHDF5Parallel.hpp
 endif
 
+  MOAB_PARALLEL_TEST += pcomm_unit
 endif
 
 # The list of source files, and any header files that do not need to be installed
@@ -57,4 +59,9 @@ libMOABpar_la_include_HEADERS = \
 #moab_test_SOURCES = MBTest.cpp
 #moab_test_LDADD = $(top_builddir)/libMOAB.la
 #moab_test_DEPENDENCIES = test/mb_big_test.g test/cell1.gen test/cell2.gen $(top_builddir)/libMOAB.la
+
+check_PROGRAMS = $(MOAB_PARALLEL_TEST)
+TESTS = $(MOAB_PARALLEL_TEST)
+pcomm_unit_SOURCES = pcomm_unit.cpp
+pcomm_unit_LDADD = $(top_builddir)/libMOAB.la
 
