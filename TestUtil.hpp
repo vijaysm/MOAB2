@@ -57,6 +57,8 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <string>
 
 /***************************************************************************************
  *                     Define What to do when a test fails.
@@ -319,6 +321,12 @@ void check_equal( unsigned long A, unsigned long B, const char* sA, const char* 
 
 void check_equal( void* A, void* B, const char* sA, const char* sB, int line, const char* file )
   {  EQUAL_TEST_IMPL( A == B, p ) }
+
+void check_equal( const char* A, const char* B, const char* sA, const char* sB, int line, const char* file )
+  {  EQUAL_TEST_IMPL( !strcmp((A),(B)), s ) }
+
+void check_equal( const std::string& A, const std::string& B, const char* sA, const char* sB, int line, const char* file )
+  {  check_equal( A.c_str(), B.c_str(), sA, sB, line, file); }
 
 void check_equal( float A, float B, float eps, const char* sA, const char* sB, int line, const char* file )
   {  EQUAL_TEST_IMPL( fabsf(A - B) <= eps, f ) }
