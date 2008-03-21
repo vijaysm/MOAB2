@@ -365,9 +365,6 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
     unsigned int num_sets = partition_sets.size() / proc_sz;
     if (proc_rk < (int) (partition_sets.size() % proc_sz)) num_sets++;
 
-      // cut them in half if we're on one proc
-    if (proc_sz == 1 && num_partsets == num_sets) num_sets /= 2;
-    
     for (unsigned int i = 0; i < num_sets; i++) 
       tmp_sets.insert(partition_sets[i*proc_sz + proc_rk]);
 
