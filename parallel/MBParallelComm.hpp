@@ -30,11 +30,9 @@
 #include "MBProcConfig.hpp"
 #include <map>
 #include "math.h"
-extern "C" 
-{
-#include "minmax.h"
-#include "sort.h"
-#include "tuple_list.h"
+
+extern "C" {
+  struct tuple_list;
 }
 
 class TagServer;

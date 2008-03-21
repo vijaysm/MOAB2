@@ -20,7 +20,7 @@
 #warning "tuple_list.h" requires "errmem.h" and "types.h" and  "minmax.h" and "sort.h"
 #endif
 
-typedef struct {
+typedef struct tuple_list {
   unsigned mi,ml,mul,mr;
   uint n, max;
   sint *vi; slong *vl; ulong *vul; real *vr;
