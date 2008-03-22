@@ -4,7 +4,7 @@
 # If HAVE_HDF5 == yes, then sets:
 #  HDF5_CPPFLAGS
 #  HDF5_LDFLAGS
-#  HDF5_LINK
+#  HDF5_LIBS
 #######################################################################################
 AC_DEFUN([SNL_CHECK_HDF5],[
 
