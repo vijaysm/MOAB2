@@ -245,6 +245,7 @@ hid_t create_tag_common( mhdf_FileHandle file_handle,
                          const void* global_value,
                          int global_value_size_in,
                          hid_t hdf_type,
+                         hid_t hdf_base_type,
                          mhdf_Status* status )
 {
   hid_t temp_id, group_id, tag_id;
@@ -255,6 +256,7 @@ hid_t create_tag_common( mhdf_FileHandle file_handle,
   int one = 1, var_len=0;
   hsize_t default_value_size = default_value_size_in;
   hsize_t global_value_size = global_value_size_in;
+  int close_base_type = 0;
 
     /* Validate input */
   
@@ -377,7 +379,7 @@ hid_t create_tag_common( mhdf_FileHandle file_handle,
       
       case mhdf_ENTITY_ID:
         arr_len = abs(size);
-        hdf_type = H5Tcopy( H5T_NATIVE_INT );
+        hdf_type = H5Tcopy( H5T_NATIVE_ULONG );
         break;
       
       case mhdf_BOOLEAN:
@@ -404,6 +406,12 @@ hid_t create_tag_common( mhdf_FileHandle file_handle,
     return -1;
   }
   
+  if (hdf_base_type && H5Tget_class(hdf_type) != H5Tget_class(hdf_base_type)) {
+    mhdf_setFail( status, "Invalid base type for tag default/global data" );
+    H5Gclose( tag_id );
+    return -1;
+  }
+
   if (size < -1 || !arr_len) 
   {
     mhdf_setFail( status, "Invalid 'size' parameter passed to mhdf_createTag (%d)", (int)size);
@@ -434,10 +442,33 @@ hid_t create_tag_common( mhdf_FileHandle file_handle,
       return -1;
     }
     hdf_type = temp_id;
+    
+    if (hdf_base_type) {
+      if (H5Tequal( hdf_base_type, hdf_type ) > 0) {
+        hdf_base_type = hdf_type;
+      }
+      else {
+#if defined(H5Tarray_create_vers) && H5Tarray_create_vers > 1  
+        temp_id = H5Tarray_create2( hdf_base_type, 1, &arr_len);
+#else
+        temp_id = H5Tarray_create( hdf_base_type, 1, &arr_len, NULL );
+#endif
+        if (temp_id < 0)
+        {
+          mhdf_setFail( status, "Failed to create tag type object." );
+          H5Gclose( tag_id );
+          H5Tclose( hdf_type );
+          return -1;
+        }
+        hdf_base_type = temp_id;
+        close_base_type = 1;
+      }
+    }
   }
     
   
-  
+  if (!hdf_base_type) 
+    hdf_base_type = hdf_type;
   
     /* Create tag type object, or write attribute if opaque */
  
@@ -449,6 +480,8 @@ hid_t create_tag_common( mhdf_FileHandle file_handle,
   if (rval < 0)
   {
     mhdf_setFail( status, "H5Tcommit failed for tag \"%s\"", tag_name );
+    if (close_base_type)
+      H5Tclose( hdf_base_type );
     H5Tclose( hdf_type );
     H5Gclose( tag_id );
     return -1;
@@ -464,6 +497,8 @@ hid_t create_tag_common( mhdf_FileHandle file_handle,
                                       status );
     if (!rval) 
     { 
+      if (close_base_type)
+        H5Tclose( hdf_base_type );
       H5Gclose( tag_id );
       H5Tclose( hdf_type );
       return -1; 
@@ -476,9 +511,12 @@ hid_t create_tag_common( mhdf_FileHandle file_handle,
 
   if (default_value)
   {
-    rval = store_tag_val_in_attrib( tag_id, TAG_DEFAULT_ATTRIB, hdf_type, default_value,
+    rval = store_tag_val_in_attrib( tag_id, TAG_DEFAULT_ATTRIB, hdf_base_type, 
+                                    default_value,
                                     var_len ? default_value_size : 1, status );
     if (!rval) {
+      if (close_base_type)
+        H5Tclose( hdf_base_type );
       H5Gclose( tag_id );
       H5Tclose( hdf_type );
       return -1;
@@ -489,15 +527,20 @@ hid_t create_tag_common( mhdf_FileHandle file_handle,
   
   if (global_value)
   {
-    rval = store_tag_val_in_attrib( tag_id, TAG_GLOBAL_ATTRIB, hdf_type, global_value,
+    rval = store_tag_val_in_attrib( tag_id, TAG_GLOBAL_ATTRIB, hdf_base_type, 
+                                    global_value,
                                     var_len ? global_value_size : 1, status );
     if (!rval) {
+      if (close_base_type)
+        H5Tclose( hdf_base_type );
       H5Gclose( tag_id );
       H5Tclose( hdf_type );
       return -1;
     }
   }
 
+  if (close_base_type)
+    H5Tclose( hdf_base_type );
   H5Tclose( hdf_type );
   mhdf_setOkay( status );
   return tag_id;
@@ -513,12 +556,14 @@ mhdf_createTag( mhdf_FileHandle file_handle,
                 const void* default_value,
                 const void* global_value,
                 hid_t hdf_type,
+                hid_t hdf_base_type,
                 mhdf_Status* status )
 {
   hid_t tag_id;
   API_BEGIN;
   tag_id = create_tag_common( file_handle, tag_name, tag_type, size, storage, 
-                     default_value, 1, global_value, 1, hdf_type, status );
+                     default_value, 1, global_value, 1, hdf_type, 
+                     hdf_base_type, status );
   if (tag_id >= 0)
     H5Gclose( tag_id );
   API_END;
@@ -534,6 +579,7 @@ mhdf_createVarLenTag( mhdf_FileHandle file_handle,
                       const void* global_value,
                       int global_value_length,
                       hid_t hdf_type,
+                      hid_t hdf_base_type,
                       mhdf_Status* status )
 {
   herr_t rval;
@@ -544,7 +590,7 @@ mhdf_createVarLenTag( mhdf_FileHandle file_handle,
   tag_id = create_tag_common( file_handle, tag_name, tag_type, -1, storage, 
                               default_value, default_value_length, 
                               global_value, global_value_length, 
-                              hdf_type, status );
+                              hdf_type, hdf_base_type, status );
   if (tag_id >= 0) {
     rval = mhdf_create_scalar_attrib( tag_id, 
                                       TAG_VARLEN_ATTRIB,

@@ -1546,6 +1546,12 @@ mhdf_getNativeType( hid_t input_type,
  *\param hdf_type       If non-zero, assumed to be a user-specified type
  *                      for opaque data.  Ignored if tag_type is not
  *                      mhdf_OPAQUE.
+ *\param hdf_base_type  Ignored if hdf_type is non-zero.  If hdf_type is
+ *                      zero and this type is non-zero, it is used either
+ *                      as the type or as the base type for an array type for 
+ *                      default_value and global_value, respectively.  Typically
+ *                      used to specify the input data type for mhdf_ENTITY_ID
+ *                      tags.  
  */
 void
 mhdf_createTag( mhdf_FileHandle file_handle,
@@ -1556,6 +1562,7 @@ mhdf_createTag( mhdf_FileHandle file_handle,
                 const void* default_value,
                 const void* global_value,
                 hid_t hdf_type,
+                hid_t mhdf_base_type,
                 mhdf_Status* status );
 
 /** \brief Add variable-length tag to file
@@ -1576,6 +1583,12 @@ mhdf_createTag( mhdf_FileHandle file_handle,
  *\param hdf_type       If non-zero, assumed to be a user-specified type
  *                      for opaque data.  Ignored if tag_type is not
  *                      mhdf_OPAQUE.
+ *\param hdf_base_type  Ignored if hdf_type is non-zero.  If hdf_type is
+ *                      zero and this type is non-zero, it is used either
+ *                      as the type or as the base type for an array type for 
+ *                      default_value and global_value, respectively.  Typically
+ *                      used to specify the input data type for mhdf_ENTITY_ID
+ *                      tags.  
  */
 void
 mhdf_createVarLenTag( mhdf_FileHandle file_handle,
@@ -1587,6 +1600,7 @@ mhdf_createVarLenTag( mhdf_FileHandle file_handle,
                       const void* global_value,
                       int global_value_length,
                       hid_t hdf_type,
+                      hid_t hdf_base_type,
                       mhdf_Status* status );
                 
 

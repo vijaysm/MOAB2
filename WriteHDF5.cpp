@@ -1497,6 +1497,7 @@ MBErrorCode WriteHDF5::write_sparse_tag( const SparseTag& tag_data )
   MBTagType mb_type;
   MBDataType mb_data_type;
   long table_size;
+  hid_t value_type = 0;
   
     //get tag properties from moab
   if (MB_SUCCESS != iFace->tag_get_name( tag_data.tag_id, name )    ||
@@ -1530,6 +1531,23 @@ DEBUGOUT((std::string("Tag: ") + name + "\n").c_str());
   size_t chunk_size = bufferSize / mb_size;
   assert( chunk_size > 0 );
   char* tag_buffer = (char*)dataBuffer;
+
+  if (mb_data_type == MB_TYPE_HANDLE) {
+    hsize_t len = mb_size / sizeof(MBEntityHandle);
+    if (len == 1)
+      value_type = id_type;
+    else {
+#if defined(H5Tarray_create_vers) && H5Tarray_create_vers > 1  
+      value_type = H5Tarray_create( id_type, 1, &len );
+#else
+      value_type = H5Tarray_create( id_type, 1, &len, 0 );
+#endif
+      if (value_type < 0) {
+        mhdf_closeData( filePtr, tables[1], &status );
+        return MB_FAILURE;
+      }
+    }
+  }
   
     // Write the tag values
   size_t remaining = tag_data.range.size();
@@ -1562,7 +1580,12 @@ DEBUGOUT((std::string("Tag: ") + name + "\n").c_str());
     {
       rval = iFace->tag_get_data( tag_data.tag_id, range, tag_buffer );
     }
-    CHK_MB_ERR_1(rval, tables[1], status);
+    if (MB_SUCCESS != rval) {
+      mhdf_closeData( filePtr, tables[1], &status );
+      if (value_type && value_type != id_type)
+        H5Tclose( value_type );
+      return rval;
+    }
     
       // Convert MBEntityHandles to file ids
     if (mb_data_type == MB_TYPE_HANDLE)
@@ -1570,12 +1593,16 @@ DEBUGOUT((std::string("Tag: ") + name + "\n").c_str());
     
       // write the data
     mhdf_writeSparseTagValues( tables[1], offset, count,
-                               0, tag_buffer, &status );
+                               value_type, tag_buffer, &status );
+    if (mhdf_isError(&status) && value_type && value_type != id_type)
+      H5Tclose( value_type );
     CHK_MHDF_ERR_1(status, tables[1]);
    
     offset += count;
   } // while (remaining)
   
+  if (value_type && value_type != id_type)
+    H5Tclose( value_type );
   mhdf_closeData( filePtr, tables[1], &status );
   CHK_MHDF_ERR_0(status);
   
@@ -2368,6 +2395,7 @@ MBErrorCode WriteHDF5::create_tag( MBTag tag_id,
                     def_value,
                     mesh_value,
                     hdf_type,
+                    mb_type == MB_TYPE_HANDLE ? id_type : 0,
                     &status );
     CHK_MHDF_ERR_0(status);
 
@@ -2392,7 +2420,7 @@ MBErrorCode WriteHDF5::create_tag( MBTag tag_id,
                           storage,
                           def_value, def_val_len / elem_size,
                           mesh_value, mesh_val_len / elem_size,
-                          hdf_type,
+                          hdf_type, mb_type == MB_TYPE_HANDLE ? id_type : 0,
                           &status );
     CHK_MHDF_ERR_0(status);
     
