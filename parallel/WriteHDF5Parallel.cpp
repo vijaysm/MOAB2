@@ -770,8 +770,8 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
     displs[i] = displs[i-1] + counts[i-1];
   int total = displs[numProc];
   std::vector<int> alltypes(total);
-  result = MPI_Gatherv( &my_types[0], my_types.size(), MPI_LONG,
-                        &alltypes[0], &counts[0], &displs[0], MPI_LONG,
+  result = MPI_Gatherv( &my_types[0], my_types.size(), MPI_INT,
+                        &alltypes[0], &counts[0], &displs[0], MPI_INT,
                         0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
   
@@ -795,7 +795,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
   
     // Send total number of types to each processor
   total = type_list.size();
-  result = MPI_Bcast( &total, 1, MPI_LONG, 0, MPI_COMM_WORLD );
+  result = MPI_Bcast( &total, 1, MPI_INT, 0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
   
     // Send list of types to each processor
@@ -806,7 +806,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
     *viter = liter->mbtype;  ++viter;
     *viter = liter->numnode; ++viter;
   }
-  result = MPI_Bcast( &intlist[0], 2*total, MPI_LONG, 0, MPI_COMM_WORLD );
+  result = MPI_Bcast( &intlist[0], 2*total, MPI_INT, 0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
 
   #ifdef DEBUG
