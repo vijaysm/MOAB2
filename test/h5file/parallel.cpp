@@ -194,7 +194,7 @@ std::string s = dimension == 2 ? "surface" : dimension == 1 ? "curve" : dimensio
 sprintf(tmpcstr," %d", id2);
 s += tmpcstr;
 s += " : volumes:";
-sprintf(tmpcstr," %d :", volumes.size());
+sprintf(tmpcstr," %d :", (int)volumes.size());
 s += tmpcstr;
 for (viter = volumes.begin(); viter != volumes.end(); ++viter)
 {
@@ -389,7 +389,7 @@ END_SERIAL;
   
   printerror ("Writing parallel file: \"%s\"", fnames[0] );
   rval = writer->write_file( fnames[0], true, 
-                             FileOptions("PARALLEL"),
+                             FileOptions("PARALLEL=FORMAT"),
                              &list[0], list.size(), qa );
   if (MB_SUCCESS != rval)
   {
