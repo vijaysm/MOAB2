@@ -33,6 +33,7 @@
 #include "MBParallelConventions.h"
 #include "MBCN.hpp"
 #include "MBWriteUtilIface.hpp"
+#include "MBRange.hpp"
 
 #include "WriteHDF5Parallel.hpp"
 
@@ -695,7 +696,7 @@ MBErrorCode WriteHDF5Parallel::create_node_table( int dimension )
   assert(MPI_SUCCESS == result);
   nodeSet.offset = offset;
   
-  return assign_ids( nodeSet.range(), nodeSet.first_id + nodeSet.offset );
+  return assign_ids( nodeSet.range, nodeSet.first_id + nodeSet.offset );
 }
 
 
@@ -734,14 +735,14 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
   exportList.sort();
   
     // Get number of types each processor has
-  long num_types = 2*exportList.size();
-  std::vector<long> counts(numProc);
-  result = MPI_Gather( &num_types, 1, MPI_LONG, &counts[0], 1, MPI_LONG, 0, MPI_COMM_WORLD );
+  int num_types = 2*exportList.size();
+  std::vector<int> counts(numProc);
+  result = MPI_Gather( &num_types, 1, MPI_INT, &counts[0], 1, MPI_INT, 0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
   
     // Get list of types on this processor
-  std::vector<long> my_types(num_types);
-  std::vector<long>::iterator viter = my_types.begin();
+  std::vector<int> my_types(num_types);
+  std::vector<int>::iterator viter = my_types.begin();
   for (std::list<ExportSet>::iterator eiter = exportList.begin();
        eiter != exportList.end(); ++eiter)
   {
@@ -755,20 +756,20 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
   viter = my_types.begin();
   while (viter != my_types.end())
   {
-    long type = *viter; ++viter;
-    long count = *viter; ++viter;
+    int type = *viter; ++viter;
+    int count = *viter; ++viter;
     printdebug("  %s : %d\n", MBCN::EntityTypeName((MBEntityType)type), count);
   }
   END_SERIAL;
   #endif
 
     // Get list of types from each processor
-  std::vector<long> displs(numProc + 1);
+  std::vector<int> displs(numProc + 1);
   displs[0] = 0;
   for (long i = 1; i <= numProc; ++i)
     displs[i] = displs[i-1] + counts[i-1];
-  long total = displs[numProc];
-  std::vector<long> alltypes(total);
+  int total = displs[numProc];
+  std::vector<int> alltypes(total);
   result = MPI_Gatherv( &my_types[0], my_types.size(), MPI_LONG,
                         &alltypes[0], &counts[0], &displs[0], MPI_LONG,
                         0, MPI_COMM_WORLD );
@@ -798,7 +799,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
   assert(MPI_SUCCESS == result);
   
     // Send list of types to each processor
-  std::vector<long> intlist(total * 2);
+  std::vector<int> intlist(total * 2);
   viter = intlist.begin();
   for (liter = type_list.begin(); liter != type_list.end(); ++liter)
   {
@@ -814,8 +815,8 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
   viter = intlist.begin();
   while (viter != intlist.end())
   {
-    long type = *viter; ++viter;
-    long count = *viter; ++viter;
+    int type = *viter; ++viter;
+    int count = *viter; ++viter;
     printdebug("  %s : %d\n", MBCN::EntityTypeName((MBEntityType)type), count);
   }
   END_SERIAL;
@@ -1151,7 +1152,8 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
                                                 2,
                                                 data.range );
     if (rval != MB_SUCCESS) return rval;
-    data.range.swap( data.range.intersect( setSet.range ) );
+    MBRange tmp = data.range.intersect( setSet.range );
+    data.range.swap( tmp );
     range_remove( setSet.range, data.range );
   }
   
@@ -1280,8 +1282,10 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
     std::map<int,int>::iterator p = val_id_map.find( data.local_values[i] );
     assert( p != val_id_map.end() );
     int id = p->second;
-    rval = idMap.insert( *riter, id, 1 );
-    assert(MB_SUCCESS == rval);
+    if (idMap.end() == idMap.insert( *riter, id, 1 )) {
+      assert(false);
+      return MB_FAILURE;
+    }
   }
   
   return MB_SUCCESS;
@@ -1556,14 +1560,8 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
     remove_remote_entities( *riter, tmp_range );
     assert (MB_SUCCESS == rval);
     for (MBRange::iterator iter = tmp_range.begin(); iter != tmp_range.end(); ++iter)
-    {
-      int id = 0;
-      rval = iFace->tag_get_data( idTag, &*iter, 1, &id );
-      if (rval != MB_TAG_NOT_FOUND && rval != MB_SUCCESS)
-        { assert(0); return MB_FAILURE; }
-      if (id > 0)
+      if (0 != idMap.find( *iter ))
         ++*sizes_iter;
-    }
     ++sizes_iter;
     
       // Count children
@@ -1574,15 +1572,8 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
     assert (MB_SUCCESS == rval);
     for (std::vector<MBEntityHandle>::iterator iter = child_list.begin();
          iter != child_list.end(); ++iter)
-    {
-      int id = 0;
-      rval = iFace->tag_get_data( idTag, &*iter, 1, &id );
-      if (rval != MB_TAG_NOT_FOUND && rval != MB_SUCCESS)
-        { assert(0); return MB_FAILURE; }
-      if (id > 0)
+      if (0 != idMap.find( *iter ))
         ++*sizes_iter;
-    }
-    ++sizes_iter;
     
       // Count parents
     *sizes_iter = 0;
@@ -1592,15 +1583,8 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
     assert (MB_SUCCESS == rval);
     for (std::vector<MBEntityHandle>::iterator iter = child_list.begin();
          iter != child_list.end(); ++iter)
-    {
-      int id = 0;
-      rval = iFace->tag_get_data( idTag, &*iter, 1, &id );
-      if (rval != MB_TAG_NOT_FOUND && rval != MB_SUCCESS)
-        { assert(0); return MB_FAILURE; }
-      if (id > 0)
+      if (0 != idMap.find( *iter ))
         ++*sizes_iter;
-    }
-    ++sizes_iter;
   }
   
     // Exchange sizes for sets between all processors.
@@ -1792,7 +1776,7 @@ MBErrorCode WriteHDF5Parallel::fix_remote_set_ids( RemoteSetData& data, long fir
   
   for (MBRange::const_pair_iterator pi = data.range.const_pair_begin();
        pi != data.range.const_pair_end(); ++pi) 
-    idMap.erase( pi->first, pi->second - pi_first + 1);
+    idMap.erase( pi->first, pi->second - pi->first + 1);
   
   j = ids.begin();
   for (i = data.range.begin(); i != data.range.end(); ++i) 
