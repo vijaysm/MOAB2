@@ -140,6 +140,39 @@ public:
       int *const element_array
       ) = 0;
 
+  /** Get connectivity for elements 
+   *
+   * Get the connectivity list for a range of elements.
+   *
+   * Failure cases:
+   *  - Passed range is empty (<code>begin == end</code>).
+   *  - <code>vertices_per_elem</code> is less than one
+   *  - <code>element_array</code> is null.
+   *  - The range contains invalid handles (non-existant entities,
+   *      not an element, etc.)
+   *  - Insufficient space in passed array.
+   *
+   *\param begin        The first element handle
+   *\param end          One past the last element handle
+   *\param vertices_per_elem Number of vertices to retreive for each
+   *                    element.  If the element has more vertices, the
+   *                    element connectivity will be truncated.  If 
+   *                    <code>vertices_per_elem</code> is greater than the
+   *                    number of nodes for an eleement, the data will be
+   *                    padded with zeros.
+   *\param array_size   The length of <code>element_array</code>
+   *\param element_array The memory location at which to store the 
+   *                    connectivity list.
+   *\author Jason Kraftcheck
+   */
+  virtual MBErrorCode get_element_array(
+      MBRange::const_iterator begin,
+      const MBRange::const_iterator end,
+      const int vertices_per_elem,
+      const size_t array_size, 
+      MBEntityHandle *const element_array
+      ) = 0;
+
 
   /** Get poly (polygon or polyhedron) connectivity size
    *\param begin  First iterator in range of poly
@@ -245,6 +278,10 @@ public:
       std::vector<int>& adj 
   ) = 0;
   
+  
+  virtual MBErrorCode get_adjacencies( MBEntityHandle entity,
+                               const MBEntityHandle*& adj_array,
+                               int& num_adj ) = 0;
 
     //! if an error occured when reading the mesh, report it to MB
     //! it makes sense to have this as long as MBInterface has a write_mesh function

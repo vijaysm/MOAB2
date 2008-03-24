@@ -31,7 +31,7 @@
  * for use in situations where there are relatively few insertions
  * of large contiguous ranges of values.
  */
-template <typename KeyType, typename ValType, ValType NullVal>
+template <typename KeyType, typename ValType, ValType NullVal = 0>
 class RangeMap 
 {
 public:
@@ -49,7 +49,7 @@ public:
    * Insert mapping from [first_key, first_key+count) to [first_val, first_val+count) 
    *
    * Input range of keys many not overlap any other input range.  If it does overlap
-   * an existing range, false is returned and the internal map is not changed.
+   * an existing range, end() is returned and the internal map is not changed.
    */
   inline iterator insert( KeyType first_key, ValType first_val, KeyType count );
   
@@ -68,10 +68,20 @@ public:
       Range b = { key, 1, NullVal }; 
       return std::lower_bound( begin(), end(), b );
     }
+  static inline iterator lower_bound( iterator s, iterator e, KeyType key )
+    { 
+      Range b = { key, 1, NullVal }; 
+      return std::lower_bound( s, e, b );
+    }
   inline iterator upper_bound( KeyType key ) const
     { 
       Range b = { key, 1, NullVal }; 
       return std::upper_bound( begin(), end(), b );
+    }
+  static inline iterator upper_bound( iterator s, iterator e, KeyType key )
+    { 
+      Range b = { key, 1, NullVal }; 
+      return std::upper_bound( s, e, b );
     }
   inline std::pair<iterator,iterator>
     equal_range( KeyType key ) const

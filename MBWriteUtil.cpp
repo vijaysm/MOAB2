@@ -404,6 +404,84 @@ MBErrorCode MBWriteUtil::get_element_array(
   return MB_SUCCESS;
 }
 
+MBErrorCode MBWriteUtil::get_element_array(
+                                       MBRange::const_iterator iter,
+                                       const MBRange::const_iterator end,
+                                       const int vertices_per_elem,
+                                       const size_t elem_array_size, 
+                                       MBEntityHandle *const element_array )
+{
+  // check the data we got
+  if(iter == end)
+    return MB_FAILURE;
+  if(vertices_per_elem < 1)
+    return MB_FAILURE;
+  if(!element_array || elem_array_size < (unsigned)vertices_per_elem)
+    return MB_FAILURE;
+
+  // Sequence iterators
+  TypeSequenceManager::const_iterator seq_iter, seq_end;
+  
+  // loop over range, getting coordinate value
+  MBEntityType current_type = MBMAXTYPE;
+  MBEntityHandle* output_iter = element_array;
+  MBEntityHandle*const output_end = element_array + elem_array_size;
+  while (iter != end)
+  {
+      // Make sure we have the right sequence list (and get the sequence 
+      // list for the first iteration.)
+    MBEntityType type = TYPE_FROM_HANDLE(*iter);
+    if (type != current_type)
+    {
+      if (type >= MBENTITYSET || type < MBEDGE)
+        return MB_FAILURE;
+      seq_iter = mMB->sequence_manager()->entity_map(type).begin();
+      seq_end  = mMB->sequence_manager()->entity_map(type).end();
+      current_type = type;
+    }
+    
+      // Find the sqeuence containing the current handle
+    while (seq_iter != seq_end && (*seq_iter)->end_handle() < *iter)
+      ++seq_iter;
+    if (seq_iter == seq_end || *iter < (*seq_iter)->start_handle())
+      return MB_FAILURE;
+ 
+      // get the connectivity array
+    MBEntityHandle* conn_array = NULL;
+    int conn_size = static_cast<ElementSequence*>(*seq_iter)->nodes_per_element();
+    if (conn_size != vertices_per_elem)
+      return MB_FAILURE;
+    conn_array = static_cast<ElementSequence*>(*seq_iter)->get_connectivity_array();
+   
+      // Determine how much of the sequence we want.
+    MBRange::pair_iterator pair(iter);
+    MBRange::const_iterator prev(end);
+    --prev;
+    MBEntityHandle range_end = pair->second;
+    MBEntityHandle sequence_end = (*seq_iter)->end_handle();
+    MBEntityHandle end_handle = range_end > sequence_end ? sequence_end : range_end;
+    if (end_handle > *prev)
+      end_handle = *prev;
+    MBEntityHandle count = end_handle - *iter + 1;
+    
+      // Get offset in sequence to start at
+    assert( *iter >= (*seq_iter)->start_handle() );
+    MBEntityHandle offset = *iter - (*seq_iter)->start_handle();
+
+      // Make sure sufficient space in output array
+    if (output_iter + (count * conn_size) > output_end)
+      return MB_FAILURE;
+
+      // Copy connectivity into output array
+    conn_array += (conn_size * offset);
+    memcpy( output_iter, conn_array, count * conn_size * sizeof(MBEntityHandle));
+    output_iter += count * conn_size;
+    iter += count;
+  }
+
+  return MB_SUCCESS;
+}
+
 MBErrorCode MBWriteUtil::get_poly_array_size(
       MBRange::const_iterator ,
       const MBRange::const_iterator ,
@@ -638,3 +716,9 @@ MBErrorCode MBWriteUtil::get_adjacencies( MBEntityHandle entity,
   return MB_SUCCESS;
 }
 
+MBErrorCode MBWriteUtil::get_adjacencies( MBEntityHandle entity,
+                                          const MBEntityHandle*& adj_array,
+                                          int& num_adj )
+{
+  return mMB->a_entity_factory()->get_adjacencies( entity, adj_array, num_adj );
+}

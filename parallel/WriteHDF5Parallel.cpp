@@ -376,16 +376,14 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
   
   
     // For all remote mesh entities, remove them from the
-    // lists of local mesh to be exported and give them a 
-    // junk file Id of 1.  Need to specify a file ID greater
-    // than zero so the code that gathers adjacencies and 
-    // such doesn't think that the entities aren't being
-    // exported.
+    // lists of local mesh to be exported and the ID map
+    // (they will be put back into the ID map with different
+    //  IDs later.)
   for (i = 0; i < numProc; i++)
   {
     if (i == myRank) continue;
     
-    MBRange& range = remoteMesh[i];
+    const MBRange& range = remoteMesh[i];
     
     range_remove( nodeSet.range, range );
     //range_remove( setSet.range, range );
@@ -393,14 +391,9 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
          eiter != exportList.end(); ++eiter )
       range_remove( eiter->range, range );
     
-    int id = 1;
-    for (MBRange::iterator riter = remoteMesh[i].begin(); 
-         riter != remoteMesh[i].end() && iFace->type_from_handle(*riter) != MBENTITYSET; 
-         ++riter)
-    {
-      result = iFace->tag_set_data( idTag, &*riter, 1, &id );
-      if (MB_SUCCESS != result) return result;
-    }
+    //for (MBRange::const_pair_iterator pi = range.const_pair_begin();
+    //     pi != range.const_pair_end(); ++pi) 
+    //  idMap.erase( pi->first, pi->second - pi->first + 1 );
   }
   
     // print some debug output summarizing what we've accomplished
@@ -473,7 +466,8 @@ MBErrorCode WriteHDF5Parallel::create_file( const char* filename,
  
   rval = create_node_table( dimension );
   if (MB_SUCCESS != rval) return rval;
-  
+  rval = communicate_remote_ids( MBVERTEX );
+  if (MB_SUCCESS != rval) return rval;
   
     /**************** Create element tables ***************/
 
@@ -481,11 +475,6 @@ MBErrorCode WriteHDF5Parallel::create_file( const char* filename,
   if (MB_SUCCESS != rval) return rval;
   rval = create_element_tables();
   if (MB_SUCCESS != rval) return rval;
-  
-
-    /**************** Comminucate all remote IDs ***********************/
-  
-  rval = communicate_remote_ids( MBVERTEX );
   for (std::list<ExportSet>::iterator ex_itor = exportList.begin(); 
        ex_itor != exportList.end(); ++ex_itor)
   {
@@ -658,9 +647,9 @@ MBErrorCode WriteHDF5Parallel::create_node_table( int dimension )
   mhdf_Status status;
  
     // gather node counts for each processor
-  std::vector<int> node_counts(numProc);
-  int num_nodes = nodeSet.range.size();
-  result = MPI_Gather( &num_nodes, 1, MPI_INT, &node_counts[0], 1, MPI_INT, 0, MPI_COMM_WORLD );
+  std::vector<long> node_counts(numProc);
+  long num_nodes = nodeSet.range.size();
+  result = MPI_Gather( &num_nodes, 1, MPI_LONG, &node_counts[0], 1, MPI_LONG, 0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
   
     // create node data in file
@@ -706,9 +695,7 @@ MBErrorCode WriteHDF5Parallel::create_node_table( int dimension )
   assert(MPI_SUCCESS == result);
   nodeSet.offset = offset;
   
-  writeUtil->assign_ids( nodeSet.range, idTag, (id_t)(nodeSet.first_id + nodeSet.offset) );
-
-  return MB_SUCCESS;
+  return assign_ids( nodeSet.range(), nodeSet.first_id + nodeSet.offset );
 }
 
 
@@ -747,14 +734,14 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
   exportList.sort();
   
     // Get number of types each processor has
-  int num_types = 2*exportList.size();
-  std::vector<int> counts(numProc);
-  result = MPI_Gather( &num_types, 1, MPI_INT, &counts[0], 1, MPI_INT, 0, MPI_COMM_WORLD );
+  long num_types = 2*exportList.size();
+  std::vector<long> counts(numProc);
+  result = MPI_Gather( &num_types, 1, MPI_LONG, &counts[0], 1, MPI_LONG, 0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
   
     // Get list of types on this processor
-  std::vector<int> my_types(num_types);
-  std::vector<int>::iterator viter = my_types.begin();
+  std::vector<long> my_types(num_types);
+  std::vector<long>::iterator viter = my_types.begin();
   for (std::list<ExportSet>::iterator eiter = exportList.begin();
        eiter != exportList.end(); ++eiter)
   {
@@ -768,22 +755,22 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
   viter = my_types.begin();
   while (viter != my_types.end())
   {
-    int type = *viter; ++viter;
-    int count = *viter; ++viter;
+    long type = *viter; ++viter;
+    long count = *viter; ++viter;
     printdebug("  %s : %d\n", MBCN::EntityTypeName((MBEntityType)type), count);
   }
   END_SERIAL;
   #endif
 
     // Get list of types from each processor
-  std::vector<int> displs(numProc + 1);
+  std::vector<long> displs(numProc + 1);
   displs[0] = 0;
-  for (int i = 1; i <= numProc; ++i)
+  for (long i = 1; i <= numProc; ++i)
     displs[i] = displs[i-1] + counts[i-1];
-  int total = displs[numProc];
-  std::vector<int> alltypes(total);
-  result = MPI_Gatherv( &my_types[0], my_types.size(), MPI_INT,
-                        &alltypes[0], &counts[0], &displs[0], MPI_INT,
+  long total = displs[numProc];
+  std::vector<long> alltypes(total);
+  result = MPI_Gatherv( &my_types[0], my_types.size(), MPI_LONG,
+                        &alltypes[0], &counts[0], &displs[0], MPI_LONG,
                         0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
   
@@ -807,18 +794,18 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
   
     // Send total number of types to each processor
   total = type_list.size();
-  result = MPI_Bcast( &total, 1, MPI_INT, 0, MPI_COMM_WORLD );
+  result = MPI_Bcast( &total, 1, MPI_LONG, 0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
   
     // Send list of types to each processor
-  std::vector<int> intlist(total * 2);
+  std::vector<long> intlist(total * 2);
   viter = intlist.begin();
   for (liter = type_list.begin(); liter != type_list.end(); ++liter)
   {
     *viter = liter->mbtype;  ++viter;
     *viter = liter->numnode; ++viter;
   }
-  result = MPI_Bcast( &intlist[0], 2*total, MPI_INT, 0, MPI_COMM_WORLD );
+  result = MPI_Bcast( &intlist[0], 2*total, MPI_LONG, 0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
 
   #ifdef DEBUG
@@ -827,8 +814,8 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
   viter = intlist.begin();
   while (viter != intlist.end())
   {
-    int type = *viter; ++viter;
-    int count = *viter; ++viter;
+    long type = *viter; ++viter;
+    long count = *viter; ++viter;
     printdebug("  %s : %d\n", MBCN::EntityTypeName((MBEntityType)type), count);
   }
   END_SERIAL;
@@ -838,10 +825,10 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
     // range of entities to export.
   std::list<ExportSet>::iterator ex_iter = exportList.begin();
   viter = intlist.begin();
-  for (int i = 0; i < total; ++i)
+  for (long i = 0; i < total; ++i)
   {
-    int mbtype = *viter; ++viter;
-    int numnode = *viter; ++viter;
+    long mbtype = *viter; ++viter;
+    long numnode = *viter; ++viter;
     while (ex_iter != exportList.end() && ex_iter->type < mbtype)
       ++ex_iter;
     
@@ -939,7 +926,7 @@ MBErrorCode WriteHDF5Parallel::create_element_tables()
   {
     ex_iter->first_id = *(viter++);
     id_t myfirst = (id_t)(ex_iter->first_id + ex_iter->offset);
-    rval = writeUtil->assign_ids( ex_iter->range, idTag, myfirst );
+    rval = assign_ids( ex_iter->range, myfirst );
     assert(MB_SUCCESS == rval);
   }
   
@@ -1097,12 +1084,19 @@ MBErrorCode WriteHDF5Parallel::get_interface_set_data( RemoteSetData& data,
 }
 */
   
-
+/** Working data for group of global sets identified by an ID tag */
 struct RemoteSetData {
-  MBTag data_tag, filter_tag;
-  int filter_value;
-  MBRange range;
-  std::vector<int> counts, displs, all_values, local_values;
+  MBTag data_tag;    //!< The ID tag for matching sets across processors
+  MBTag filter_tag;  //!< Optional tag to filter on (e.g. geometric dimension)
+  int filter_value;  //!< Value of filter_tag for this group
+  MBRange range;     //!< Set handles with data_tag set (and optionally filter_tag == filter_value)
+  std::vector<int> counts;       //!< Number of sets with tag on each proc, indexed by MPI rank
+  std::vector<int> displs;       //!< Offset in all_values at which the data_tag values for
+                                 //!< each processor begin. displs[n] = sum(i from 0 to n-1)(counts[i])
+  std::vector<int> all_values;   //!< data_tag values for sets on all processors, 
+                                 //!< counts[0] values for proc 0, then counts[1] values for proc 
+                                 //!< 1, etc.
+  std::vector<int> local_values; //!< data_tag values for sets that exist on this processor
 };
 
 MBErrorCode WriteHDF5Parallel::get_remote_set_data( 
@@ -1157,7 +1151,7 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
                                                 2,
                                                 data.range );
     if (rval != MB_SUCCESS) return rval;
-    data.range = data.range.intersect( setSet.range );
+    data.range.swap( data.range.intersect( setSet.range ) );
     range_remove( setSet.range, data.range );
   }
   
@@ -1235,7 +1229,8 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
   assert( count == w );
   data.local_values.resize( count );
   sorted.clear(); // release storage
-    // recalculate displacements
+  
+    // recalculate displacements for updated counts
   data.displs[0] = 0;
   for (i = 1; i <= numProc; i++)
     data.displs[i] = data.displs[i-1] + data.counts[i-1];
@@ -1249,7 +1244,7 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
     //
     // Identify which meshsets will be managed by this processor and
     // the corresponding offset in the set description table. 
-  std::map<int,int> val_id_map;
+  std::map<int,int> val_id_map; // Map from tag value to file ID for set
   int cpu = 0;
   for (i = 0; i < total; ++i)
   {
@@ -1285,7 +1280,7 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
     std::map<int,int>::iterator p = val_id_map.find( data.local_values[i] );
     assert( p != val_id_map.end() );
     int id = p->second;
-    rval = iFace->tag_set_data( idTag, &*riter, 1, &id );
+    rval = idMap.insert( *riter, id, 1 );
     assert(MB_SUCCESS == rval);
   }
   
@@ -1369,7 +1364,7 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
     return MB_SUCCESS;
   
     // Assign set IDs
-  writeUtil->assign_ids( setSet.range, idTag, (id_t)(setSet.first_id + setSet.offset) );
+  assign_ids( setSet.range, setSet.first_id + setSet.offset );
   for (i = 0; i < (int)remote_set_data.size(); ++i)
     fix_remote_set_ids( remote_set_data[i], setSet.first_id );
   
@@ -1788,15 +1783,20 @@ MBErrorCode WriteHDF5Parallel::fix_remote_set_ids( RemoteSetData& data, long fir
   const id_t id_diff = (id_t)(first_id - 1);
   id_t file_id;
   MBErrorCode rval;
-
-  for (MBRange::iterator iter = data.range.begin(); iter != data.range.end(); ++iter)
-  {
-    rval = iFace->tag_get_data( idTag, &*iter, 1, &file_id );
-    assert( MB_SUCCESS == rval );
-    file_id += id_diff;
-    rval = iFace->tag_set_data( idTag, &*iter, 1, &file_id );
-    assert( MB_SUCCESS == rval );
-  }
+  
+  MBRange::const_iterator i;
+  std::vector<id_t> ids(data.range.size());
+  std::vector<id_t>::iterator j = ids.begin();
+  for (i = data.range.begin(); i != data.range.end(); ++i, ++j)
+    *j = idMap.find( *i ) + id_diff;
+  
+  for (MBRange::const_pair_iterator pi = data.range.const_pair_begin();
+       pi != data.range.const_pair_end(); ++pi) 
+    idMap.erase( pi->first, pi->second - pi_first + 1);
+  
+  j = ids.begin();
+  for (i = data.range.begin(); i != data.range.end(); ++i) 
+    idMap.insert( *i, *j, 1 );
   
   return MB_SUCCESS;
 }   
@@ -1815,8 +1815,8 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table )
       continue;  // handled by a different processor
     
       // Get offset in table at which to write data
-    int file_id;
-    rval = iFace->tag_get_data( idTag, &(iter->handle), 1, &file_id );
+    id_t file_id = idMap.find( iter->handle );
+    assert( file_id >= start_id );
     file_id -= start_id;
     
       // Get flag data
@@ -1855,15 +1855,7 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_contents( hid_t table )
     remove_remote_entities( iter->handle, handle_list );
     
     id_list.clear();
-    for (unsigned int i = 0; i < handle_list.size(); ++i)
-    {
-      int id;
-      rval = iFace->tag_get_data( idTag, &handle_list[i], 1, &id );
-      assert( MB_SUCCESS == rval );
-      if (id > 0)
-        id_list.push_back(id);
-    }
-    
+    vector_to_id_list( handle_list, id_list, true );
     if (id_list.empty())
       continue;
     
@@ -1897,15 +1889,7 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_children( hid_t table )
     remove_remote_sets( iter->handle, handle_list );
     
     id_list.clear();
-    for (unsigned int i = 0; i < handle_list.size(); ++i)
-    {
-      int id;
-      rval = iFace->tag_get_data( idTag, &handle_list[i], 1, &id );
-      assert( MB_SUCCESS == rval );
-      if (id > 0)
-        id_list.push_back(id);
-    }
-    
+    vector_to_id_list( handle_list, id_list, true );
     if (!id_list.empty())
     {
       mhdf_writeSetParentsChildren( table, 
@@ -1939,15 +1923,7 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_parents( hid_t table )
     remove_remote_sets( iter->handle, handle_list );
     
     id_list.clear();
-    for (unsigned int i = 0; i < handle_list.size(); ++i)
-    {
-      int id;
-      rval = iFace->tag_get_data( idTag, &handle_list[i], 1, &id );
-      assert( MB_SUCCESS == rval );
-      if (id > 0)
-        id_list.push_back(id);
-    }
-    
+    vector_to_id_list( handle_list, id_list, true );
     if (!id_list.empty())
     {
       mhdf_writeSetParentsChildren( table, 
@@ -2030,7 +2006,7 @@ MBErrorCode WriteHDF5Parallel::communicate_remote_ids( MBEntityType type )
 
   START_SERIAL;
   printdebug("%s ranges to communicate:\n", MBCN::EntityTypeName(type));
-  for (unsigned int xx = 0; xx != myranges.size(); xx+=2)
+  for (unsigned long xx = 0; xx != myranges.size(); xx+=2)
     printdebug("  %lu - %lu\n", myranges[xx], myranges[xx+1] );
   END_SERIAL;
   
@@ -2110,8 +2086,8 @@ MBErrorCode WriteHDF5Parallel::communicate_remote_ids( MBEntityType type )
       }
       assert(j < count);
       int fileid = offset + steps + (global - low);
-      rval = iFace->tag_set_data( idTag, &entity, 1, &fileid );
-      assert(MB_SUCCESS == rval);
+      RangeMap<MBEntityHandle,id_t>::iterator ri = idMap.insert( entity, fileid, 1 );
+      assert( ri != idMap.end() );
     } // for(r_iter->range)
   } // for(each processor)
   

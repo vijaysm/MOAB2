@@ -28,6 +28,7 @@
 #include "MBForward.hpp"
 #include "MBRange.hpp"
 #include "MBWriterIface.hpp"
+#include "RangeMap.hpp"
 
 class MBWriteUtilIface;
 
@@ -40,12 +41,12 @@ public:
 
   static MBWriterIface* factory( MBInterface* );
 
-  /** The type of the global ID tag data 
+  /** The type to use for entity IDs w/in the file.
    * 
    * NOTE:  If this is changed, the value of id_type 
    *        MUST be changed accordingly.
    */
-  typedef int id_t;
+  typedef MBEntityHandle id_t;
   
   /** HDF5 type corresponding to type of id_t */
   static const hid_t id_type;
@@ -206,10 +207,8 @@ protected:
   //! The file handle from the mhdf library
   mhdf_FileHandle filePtr;
   
-  //! True if created the ID tag in init()
-  bool createdIdTag;
-  //! Handle for the ID tag.
-  MBTag idTag;
+  //! Map from entity handles to file IDs
+  RangeMap<MBEntityHandle,id_t> idMap;
   
   //! The list elements to export.
   std::list<ExportSet> exportList;
@@ -250,9 +249,6 @@ private:
 
   MBErrorCode init();
 
-  //! Zero the ID tag on all entities in the mesh.
-  MBErrorCode clear_all_id_tags();
-
   //! Get information about a meshset
   MBErrorCode get_set_info( MBEntityHandle set,
                             long& num_entities,
@@ -274,6 +270,9 @@ protected:
                           unsigned long num_entities,
                           unsigned long var_len_total );
   
+  /**\brief add entities to idMap */
+  MBErrorCode assign_ids( const MBRange& entities, id_t first_id );
+  
   /** Get possibly compacted list of IDs for passed entities
    *
    * For the passed range of entities, determine if IDs
@@ -288,12 +287,31 @@ protected:
    * If the ID list is compacted, the length will be less than
    * range.size().
    */
-  MBErrorCode range_to_id_list( const MBRange& input_range,
-                                std::vector<id_t>& output_id_list );
+  MBErrorCode range_to_blocked_list( const MBRange& input_range,
+                                     std::vector<id_t>& output_id_list );
   
+
+  MBErrorCode range_to_id_list( const MBRange& input_range,
+                                id_t* array );
   //! Get IDs for entities 
   MBErrorCode vector_to_id_list( const std::vector<MBEntityHandle>& input,
-                                 std::vector<id_t>& output );
+                                 std::vector<id_t>& output, 
+                                 bool remove_non_written = false );
+
+  /** When writing tags containing MBEntityHandles to file, need to convert tag
+   *  data from MBEntityHandles to file IDs.  This function does that. 
+   *
+   * If the handle is not valid or does not correspond to an entity that will
+   * be written to the file, the file ID is set to zero.
+   *\param data  The data buffer.  As input, an array of MBEntityHandles.  As
+   *             output an array of file IDS, where the size of each integral
+   *             file ID is the same as the size of MBEntityHandle.
+   *\param count The number of handles in the buffer.
+   *\return true if at least one of the handles is valid and will be written to
+   *             the file or at least one of the handles is NULL (zero). false
+   *             otherwise
+   */
+  bool convert_handle_tag( MBEntityHandle* data, size_t count );
 
   /** Get IDs of adjacent entities.
    * 
