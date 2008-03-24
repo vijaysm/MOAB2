@@ -19,6 +19,7 @@
 #include <H5Gpublic.h>
 #include <H5Dpublic.h>
 #include <H5Spublic.h> /* for H5S_MAX_RANK */
+#include <H5Apublic.h>
 #include "status.h"
 #include "file-handle.h"
 #include "mhdf.h"
@@ -1088,7 +1089,8 @@ read_tag_attrib_data( hid_t tag_id,
                       int is_var_len, 
                       mhdf_Status* status )
 {
-  int rval, index;
+  int rval;
+  unsigned index;
   hid_t read_type = type_id;
   hsize_t len;
  
@@ -1102,7 +1104,7 @@ read_tag_attrib_data( hid_t tag_id,
   if (NULL == data)
   {
     mhdf_setFail( status, "Invalid input." );
-    return;
+    return 0;
   }
   
   if (is_var_len) 
@@ -1127,7 +1129,7 @@ read_tag_attrib_data( hid_t tag_id,
     if (read_type < 0)
     {
       mhdf_setFail( status, "Failed to read mesh/default value for tag" );
-      return;
+      return 0;
     }
   }
   
@@ -1146,9 +1148,8 @@ mhdf_getTagValues( mhdf_FileHandle file_handle,
                    void* global_value,
                    mhdf_Status* status )
 {
-  hid_t tag_id, temp_id;
+  hid_t tag_id;
   int rval, var_data;
-  hsize_t len;
   unsigned int index;
   API_BEGIN;
   
@@ -1606,7 +1607,8 @@ mhdf_openSparseTagData( mhdf_FileHandle file_handle,
 {
   hid_t tag_id, index_id, data_id, offset_id = -1;
   hsize_t size1, size2;
-  int rval, idx;
+  int rval;
+  unsigned idx;
   API_BEGIN;
   
   tag_id = get_tag( file_handle, tag_name, status );

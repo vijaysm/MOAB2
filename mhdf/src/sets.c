@@ -399,7 +399,7 @@ mhdf_readSetMetaColumn( hid_t table_id,
                         hid_t type, void* data,
                         mhdf_Status* status )
 {
-  hid_t slab_id, sslab_id, smem_id, mem_id;
+  hid_t slab_id, mem_id;
   hsize_t offsets[2], counts[2], mcount = count;
   herr_t rval = 0;
   int dims;
