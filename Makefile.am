@@ -171,6 +171,7 @@ libMOAB_la_SOURCES = \
   SparseTagCollection.hpp \
   StructuredElementSeq.cpp \
   StructuredElementSeq.hpp \
+  TagCompare.hpp \
   TagInfo.cpp \
   TagInfo.hpp \
   TagServer.cpp \
@@ -181,6 +182,7 @@ libMOAB_la_SOURCES = \
   TypeSequenceManager.hpp \
   UnstructuredElemSeq.cpp \
   UnstructuredElemSeq.hpp \
+  VarLenTag.hpp \
   VertexSequence.hpp \
   VertexSequence.cpp \
   VtkUtil.cpp \
@@ -286,11 +288,11 @@ test_adj_SOURCES = test_adj.cpp
 test_adj_LDADD = $(top_builddir)/libMOAB.la
 test_adj_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
-seq_man_test_SOURCES = TestTypeSequenceManager.cpp 
+seq_man_test_SOURCES = TestUtil.hpp TestTypeSequenceManager.cpp 
 seq_man_test_LDADD = $(top_builddir)/libMOAB.la
 seq_man_test_CXXFLAGS = -DTEST $(CXXFLAGS)
 
-geom_util_test_SOURCES = GeomUtilTests.cpp 
+geom_util_test_SOURCES = TestUtil.hpp GeomUtilTests.cpp 
 geom_util_test_LDADD = $(top_builddir)/libMOAB.la
 geom_util_test_DEPENDENCIES = $(geom_util_test_LDADD)
 
@@ -303,7 +305,7 @@ obb_test_SOURCES = OBBTest.cpp
 obb_test_LDADD = $(top_builddir)/libMOAB.la
 obb_test_DEPENDENCIES = $(obb_test_LDADD)
 
-vtk_test_SOURCES = VtkTest.cpp
+vtk_test_SOURCES = TestUtil.hpp VtkTest.cpp
 vtk_test_LDADD = $(top_builddir)/libMOAB.la
 vtk_test_DEPENDENCIES = $(vtk_test_LDADD)
 
@@ -326,14 +328,14 @@ mbparallelcomm_test_SOURCES = mbparallelcomm_test.cpp
 mbparallelcomm_test_LDADD = $(top_builddir)/libMOAB.la
 mbparallelcomm_test_DEPENDENCIES = $(mbparallelcomm_test_LDADD)
 
-file_options_test_SOURCES = FileOptions.cpp 
+file_options_test_SOURCES = TestUtil.hpp FileOptions.cpp 
 file_options_test_CPPFLAGS = -DTEST
 
-var_len_test_SOURCES = VarLenTagTest.cpp
+var_len_test_SOURCES = TestUtil.hpp VarLenTagTest.cpp
 var_len_test_no_template_SOURCES = $(var_len_test_SOURCES)
 var_len_test_no_template_CPPFLAGS = -UTEMPLATE_SPECIALIZATION
 
-tag_test_SOURCES = TagTest.cpp
+tag_test_SOURCES = TestUtil.hpp TagTest.cpp
 tag_test_LDADD = $(top_builddir)/libMOAB.la
 tag_test_DEPENDENCIES = $(tag_test_LDADD)
 

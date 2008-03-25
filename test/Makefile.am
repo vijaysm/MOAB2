@@ -22,7 +22,8 @@ EXTRA_DIST  = 125hex.g \
               test.g \
               testquad-cyl.g \
               testquad.g \
-              testtet.g 
+              testtet.g \
+	      v3_dodec.h5m
 
 CLEANFILES = mb_big_test.g \
              cell1.gen \
