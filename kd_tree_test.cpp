@@ -198,6 +198,7 @@ int main()
   err = moab.tag_get_handle( TAG_NAME, data );
   assert( MB_TAG_NOT_FOUND == err );
 
+  remove( "tree.h5m" );
   return 0;
 }
 

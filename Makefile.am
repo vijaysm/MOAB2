@@ -341,7 +341,7 @@ tag_test_DEPENDENCIES = $(tag_test_LDADD)
 
 
 # Other files to clean up (e.g. output from tests)
-MOSTLYCLEANFILES = dumped_acis.sat
+MOSTLYCLEANFILES = dumped_acis.sat tree.h5m
 
 test/mb_big_test.g: $(top_srcdir)/test/mb_big_test.g.gz
 	$(ZCAT) $(top_srcdir)/test/mb_big_test.g.gz > test/mb_big_test.g
