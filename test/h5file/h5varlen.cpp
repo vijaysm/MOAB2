@@ -135,7 +135,7 @@ void test_var_length_data_common( const char* filename, MBInterface& mb1, bool o
     CHECK( NULL != dataptr );
       // check size 
     CHECK( size > 0 );
-    CHECK_EQUAL( 0ul, size % sizeof(int) );
+    CHECK_EQUAL( 0ul, (unsigned long)(size % sizeof(int)) );
     size /= sizeof(int);
     CHECK_EQUAL( size, dataptr[0] );
       // check other values
