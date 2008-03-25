@@ -2114,7 +2114,19 @@ bool mesh_tag_delete_test(iMesh::Mesh &mesh)
     // try deleting another unforced - should not get error
     if (all_tags_size > 1) {
       bool delete_err = false;
-      try {mesh_stag.destroyTag(all_tags.get(1), false);}
+      try {
+        int num_ent;
+      	sidl::array<void*> all_ents;
+        sidl::array<char> data = sidl::array<char>::create1d(100);
+        mesh.getEntities( 0, iBase::EntityType_ALL_TYPES, iMesh::EntityTopology_ALL_TOPOLOGIES, all_ents, num_ent );
+        if (num_ent > 0) {
+          mesh_stag.setEntSetData( all_ents.get(0), all_tags.get(1), data, 100 );
+      	  mesh_stag.destroyTag(all_tags.get(1), false);
+        } 
+        else {
+          delete_err = true;
+        }
+      }
       catch (iBase::Error) {
         delete_err = true;
       }
