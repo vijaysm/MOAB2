@@ -788,7 +788,7 @@ MBErrorCode Tqdcfr::read_group(const unsigned int group_index,
     // now get group names, if any
   int md_index = model->groupMD.get_md_entry(group_index, "NAME");
   if (-1 != md_index) {
-    MetaDataContainer::MetaDataEntry *md_entry = model->groupMD.metadataEntries+md_index;
+    MetaDataContainer::MetaDataEntry *md_entry = &(model->groupMD.metadataEntries[md_index]);
     if (0 == entityNameTag) {
       result = mdbImpl->tag_get_handle(NAME_TAG_NAME, entityNameTag);
       if (MB_SUCCESS != result || 0 == entityNameTag) {
@@ -812,7 +812,7 @@ MBErrorCode Tqdcfr::read_group(const unsigned int group_index,
         sprintf(moab_extra_name, "%s%s%d", "EXTRA_", NAME_TAG_NAME, i);
         md_index = model->groupMD.get_md_entry(group_index, extra_name_label);
         if (-1 != md_index) {
-          md_entry = model->groupMD.metadataEntries+md_index;
+          md_entry = &(model->groupMD.metadataEntries[md_index]);
           this_char = new char[md_entry->mdStringValue.length()+1];
           strcpy(this_char, md_entry->mdStringValue.c_str());
           MBTag extra_name_tag;
@@ -1092,7 +1092,7 @@ MBErrorCode Tqdcfr::read_nodes(const unsigned int gindex,
     // get fixed node data and assign
   int md_index = model->nodeMD.get_md_entry(gindex, "FixedNodes");
   if (-1 == md_index) return MB_SUCCESS;
-  MetaDataContainer::MetaDataEntry *md_entry = model->nodeMD.metadataEntries+md_index;
+  MetaDataContainer::MetaDataEntry *md_entry = &(model->nodeMD.metadataEntries[md_index]);
   
   std::vector<int> fixed_flags(entity->nodeCt);
   std::fill(fixed_flags.begin(), fixed_flags.end(), 0);
@@ -1300,8 +1300,8 @@ MBErrorCode Tqdcfr::read_model_entries()
     // read model entries
   FSEEK(fileTOC.modelTableOffset);
   FREADI(fileTOC.numModels*6);
-  modelEntries = new ModelEntry[fileTOC.numModels];
-  if (NULL == modelEntries) return MB_FAILURE;
+  modelEntries.resize(fileTOC.numModels);
+  if (modelEntries.empty()) return MB_FAILURE;
   std::vector<unsigned int>::iterator int_it = uint_buf.begin();
   for (unsigned int i = 0; i < fileTOC.numModels; i++) {
     modelEntries[i].modelHandle = *int_it++;
@@ -1333,14 +1333,12 @@ MBErrorCode Tqdcfr::read_meta_data(const unsigned int metadata_offset,
   FREADI(3);
   mc.mdSchema = uint_buf[0];
   mc.compressFlag = uint_buf[1];
-  mc.numDatums = uint_buf[2];
-
+ 
     // allocate space for the entries
-  mc.metadataEntries = 
-    new Tqdcfr::MetaDataContainer::MetaDataEntry[mc.numDatums];
+  mc.metadataEntries.resize( uint_buf[2] );
   
     // now read the metadata values
-  for (unsigned int i = 0; i < mc.numDatums; i++) {
+  for (unsigned int i = 0; i < mc.metadataEntries.size(); i++) {
     FREADI(2);
     mc.metadataEntries[i].mdOwner = uint_buf[0];
     mc.metadataEntries[i].mdDataType = uint_buf[1];
@@ -2413,24 +2411,19 @@ void Tqdcfr::MetaDataContainer::MetaDataEntry::print()
 void Tqdcfr::MetaDataContainer::print()
 {
   std::cout << "MetaDataContainer:mdSchema, compressFlag, numDatums = "
-            << mdSchema << ", " << compressFlag << ", " << numDatums << std::endl;
+            << mdSchema << ", " << compressFlag << ", " << metadataEntries.size() << std::endl;
 
-  for (unsigned int i = 0; i < numDatums; i++)
+  for (unsigned int i = 0; i < metadataEntries.size(); i++)
     metadataEntries[i].print();
 }
 
 Tqdcfr::MetaDataContainer::MetaDataContainer()
-    : mdSchema(0), compressFlag(0), numDatums(0), metadataEntries(NULL) 
+    : mdSchema(0), compressFlag(0)
 {}
-
-Tqdcfr::MetaDataContainer::~MetaDataContainer()
-{
-  if (NULL != metadataEntries) delete [] metadataEntries;
-}
 
 int Tqdcfr::MetaDataContainer::get_md_entry(const unsigned int owner, const std::string &name) 
 {
-  for (unsigned int i = 0; i < numDatums; i++)
+  for (unsigned int i = 0; i < metadataEntries.size(); i++)
     if (owner == metadataEntries[i].mdOwner && name == metadataEntries[i].mdName) return i;
     
   return -1;
