@@ -265,13 +265,13 @@ int main(int, char**)
   int errors = 0;
 
     // first we need to make a new MBCore
-  MBCore *gMB = new MBCore();
+  MBCore moab;
   
     // test creating and evaluating vertex sequences
-  errors += test_vertex_seq(gMB);
+  errors += test_vertex_seq(&moab);
 
     // test creating and evaluating element sequences
-  errors += test_element_seq(gMB);
+  errors += test_element_seq(&moab);
 
   if (errors > 0)
     std::cout << errors << " errors found." << std::endl;
