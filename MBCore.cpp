@@ -1878,7 +1878,7 @@ MBErrorCode MBCore::delete_entities(const MBRange &range)
   for (MBRange::const_reverse_iterator i = range.rbegin(); i != range.rend(); ++i)
     if (MB_SUCCESS != (rval = delete_entities( &*i, 1)))
       result = rval;
-  return rval;
+  return result;
 }
 
 MBErrorCode MBCore::list_entities(const MBEntityHandle *entities,
