@@ -160,7 +160,7 @@ protected:
     //! Always zero except for parallel IO.
     id_t offset;
     //! Offset for adjacency data.  Always zero except for parallel IO
-    id_t adj_offset;
+    MBEntityID adj_offset;
     
     bool operator<( const ExportSet& other ) const
       { return type < other.type || 
