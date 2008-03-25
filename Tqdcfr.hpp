@@ -91,7 +91,7 @@ public:
   class MetaDataContainer
   {
   public:
-    unsigned int mdSchema, compressFlag, numDatums;
+    unsigned int mdSchema, compressFlag;
 
     class MetaDataEntry
     {
@@ -111,9 +111,8 @@ public:
 
     int get_md_entry(const unsigned int owner, const std::string &name);
     
-    MetaDataEntry *metadataEntries;
+    std::vector<MetaDataEntry> metadataEntries;
     MetaDataContainer();
-    ~MetaDataContainer();
   };
 
   class GeomHeader 
@@ -272,7 +271,7 @@ public:
   MBInterface *mdbImpl;
   FILE *cubFile;
   FileTOC fileTOC;
-  ModelEntry *modelEntries;
+  std::vector<ModelEntry> modelEntries;
   MetaDataContainer modelMetaData;
   long currVHandleOffset;
   long currElementIdOffset[MBMAXTYPE];
