@@ -1656,7 +1656,7 @@ void regression_one_entity_by_var_tag()
   rval = moab.get_entities_by_type_and_tag( 0, MBVERTEX, &tag, 0, 1, ents );
   CHECK_ERR(rval);
   
-  CHECK_EQUAL( 1ul, ents.size() );
+  CHECK_EQUAL( (MBEntityHandle)1, ents.size() );
   CHECK_EQUAL( vertex, ents.front() );
 }
 
