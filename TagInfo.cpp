@@ -90,6 +90,7 @@ void TagInfo::set_mesh_value( const void* data, int size )
 void TagInfo::remove_mesh_value() 
 {
   free( mMeshValue );
+  mMeshValue = 0;
   mMeshValueSize = 0;
 }
 
