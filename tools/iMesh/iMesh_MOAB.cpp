@@ -388,6 +388,11 @@ void iMesh_getNumOfTopo(iMesh_Instance instance,
                        /*in*/ const int entity_topology,
                        int *num_topo, int *err)
 {
+  if (entity_topology == iMesh_SEPTAHEDRON) {
+    *num_topo = 0;
+    RETURN(iBase_SUCCESS);
+  }
+
   *num_topo = 0;
   MBErrorCode result = 
     MBI->get_number_entities_by_type(ENTITY_HANDLE(entity_set_handle), 
@@ -639,8 +644,12 @@ void iMesh_getEntities(iMesh_Instance instance,
   MBEntityHandle handle = ENTITY_HANDLE(entity_set_handle);
   MBErrorCode result;
 
-  if (use_top)
-    result = MBI->get_entities_by_type(handle, type, out_entities);
+  if (use_top) {
+    if (entity_topology == iMesh_SEPTAHEDRON)
+      result = MB_SUCCESS;  // MOAB doesn't do septahedrons, so there are never any.
+    else
+      result = MBI->get_entities_by_type(handle, type, out_entities);
+  }
   else if (use_type && entity_type != iBase_ALL_TYPES)
     result = MBI->get_entities_by_dimension(handle, entity_type, out_entities);
   else 
@@ -755,6 +764,8 @@ void iMesh_getAdjEntities(iMesh_Instance instance,
   else if (requestor_type == MBMAXTYPE)
     result = MBI->get_entities_by_dimension
       (in_set, entity_type_requestor, entities);
+  else if (entity_topology_requestor == iMesh_SEPTAHEDRON)
+    result = MB_SUCCESS;  // MOAB doesn't do septahedrons, so there are never any of them.
   else
     result = MBI->get_entities_by_type(in_set, requestor_type, entities);
   
@@ -871,6 +882,8 @@ void iMesh_initEntArrIter (iMesh_Instance instance,
       requested_entity_topology == iMesh_ALL_TOPOLOGIES)
     result = MBI->get_entities_by_handle( ENTITY_HANDLE(entity_set_handle),
                                           new_it->iteratorRange );
+  else if (requested_entity_topology == iMesh_SEPTAHEDRON)
+    result = MB_SUCCESS; // never any septahedrons because MOAB doesn't support them
   else if (MBMAXTYPE != req_type)
     result = MBI->get_entities_by_type(ENTITY_HANDLE(entity_set_handle),
                                        req_type,
