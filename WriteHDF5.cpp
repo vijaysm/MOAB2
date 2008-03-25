@@ -814,12 +814,14 @@ MBErrorCode WriteHDF5::write_sets( )
     CHK_MHDF_ERR_1(status, set_table);
   }
   
+  long* buffer = reinterpret_cast<long*>(dataBuffer);
+  int chunk_size = bufferSize / (4*sizeof(long));
+  long remaining = sets.size();
     
   MBRange set_contents;
   MBRange::const_iterator iter = sets.begin();
-  MBRange::const_iterator comp = rangeSets.begin();
   const MBRange::const_iterator end = sets.end();
-  long set_data[4];
+  MBRange::const_iterator comp = rangeSets.begin();
   long set_offset = setSet.offset;
   long content_offset = setContentsOffset;
   long child_offset = setChildrenOffset;
@@ -827,59 +829,65 @@ MBErrorCode WriteHDF5::write_sets( )
   unsigned long flags;
   std::vector<id_t> id_list;
   std::vector<MBEntityHandle> handle_list;
-  for ( ; iter != end; ++iter )
-  {
-    rval = get_set_info( *iter, data_size, child_size, parent_size, flags );
-    CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
+  while (remaining) {
+    long* set_data = buffer;
+    long count = remaining < chunk_size ? remaining : chunk_size;
+    remaining -= count;
+    for (long i = 0; i < count; ++i, ++iter, set_data += 4) {
     
-    id_list.clear();
-    if (*iter == *comp)
-    {
-      set_contents.clear();
-      
-      rval = iFace->get_entities_by_handle( *iter, set_contents, false );
+      rval = get_set_info( *iter, data_size, child_size, parent_size, flags );
       CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
 
-      rval = range_to_blocked_list( set_contents, id_list );
-      CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
+      id_list.clear();
+      if (*iter == *comp)
+      {
+        set_contents.clear();
 
-      assert (id_list.size() < (unsigned long)data_size);
-      flags |= mhdf_SET_RANGE_BIT;
-      data_size = id_list.size();
-      ++comp;
-    }
-    else
-    {
-      handle_list.clear();
-      
-      rval = iFace->get_entities_by_handle( *iter, handle_list, false );
-      CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
-      
-      rval = vector_to_id_list( handle_list, id_list );
-      CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
-    }
+        rval = iFace->get_entities_by_handle( *iter, set_contents, false );
+        CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
+
+        rval = range_to_blocked_list( set_contents, id_list );
+        CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
+
+        assert (id_list.size() < (unsigned long)data_size);
+        flags |= mhdf_SET_RANGE_BIT;
+        data_size = id_list.size();
+        ++comp;
+      }
+      else
+      {
+        handle_list.clear();
+
+        rval = iFace->get_entities_by_handle( *iter, handle_list, false );
+        CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
+
+        rval = vector_to_id_list( handle_list, id_list );
+        CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
+      }
+
+      child_offset += child_size;
+      parent_offset += parent_size;
+      set_data[0] = content_offset + data_size - 1;
+      set_data[1] = child_offset - 1;
+      set_data[2] = parent_offset - 1;
+      set_data[3] = flags;
     
-    child_offset += child_size;
-    parent_offset += parent_size;
-    set_data[0] = content_offset + data_size - 1;
-    set_data[1] = child_offset - 1;
-    set_data[2] = parent_offset - 1;
-    set_data[3] = flags;
+      if (id_list.size())
+      {
+        mhdf_writeSetData( content_table, 
+                           content_offset,
+                           id_list.size(),
+                           id_type,
+                           &id_list[0],
+                           &status );
+        CHK_MHDF_ERR_2C(status, set_table, writeSetContents, content_table );
+        content_offset += data_size;
+      }
+    }
 
-    mhdf_writeSetMeta( set_table, set_offset++, 1L, H5T_NATIVE_LONG, set_data, &status );
+    mhdf_writeSetMeta( set_table, set_offset, count, H5T_NATIVE_LONG, buffer, &status );
     CHK_MHDF_ERR_2C(status, set_table, writeSetContents, content_table );
-    
-    if (id_list.size())
-    {
-      mhdf_writeSetData( content_table, 
-                         content_offset,
-                         id_list.size(),
-                         id_type,
-                         &id_list[0],
-                         &status );
-      CHK_MHDF_ERR_2C(status, set_table, writeSetContents, content_table );
-      content_offset += data_size;
-    }
+    set_offset += count;
   }
   
   rval = write_shared_set_descriptions( set_table );
