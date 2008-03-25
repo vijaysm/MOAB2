@@ -1693,7 +1693,7 @@ MBErrorCode MBAdaptiveKDTree::ray_intersect_triangles( MBEntityHandle root,
                 dists_out.resize( dists_out.size() + 1 );
               }
               int w = tris_out.size() - 1;
-              for (; tri_t < dists_out[w-1] && w > 0; --w) {
+              for (; w > 0 && tri_t < dists_out[w-1]; --w) {
                 tris_out[w] = tris_out[w-1];
                 dists_out[w] = dists_out[w-1];
               }
