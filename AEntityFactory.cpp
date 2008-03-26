@@ -488,11 +488,10 @@ MBErrorCode AEntityFactory::remove_all_adjacencies(MBEntityHandle base_entity,
   for (MBAdjacencyVector::reverse_iterator it = adj_list->rbegin(); it != adj_list->rend(); ++it) 
     remove_adjacency( *it, base_entity );
   
-  adj_list->clear();
-  if (delete_adj_list) {
+  if (delete_adj_list)
     result = set_adjacency_ptr( base_entity, NULL );
-    delete adj_list;
-  }
+  else
+    adj_list->clear();
 
   return MB_SUCCESS;
 }
@@ -572,12 +571,15 @@ MBErrorCode AEntityFactory::get_adjacencies( MBEntityHandle entity,
                                              std::vector<MBEntityHandle>*& adj_vec,
                                              bool create )
 {
+  adj_vec = 0;
   MBErrorCode result = get_adjacency_ptr( entity, adj_vec );
-  if (MB_SUCCESS == result && !adj_vec) {
+  if (MB_SUCCESS == result && !adj_vec && create) {
     adj_vec = new MBAdjacencyVector;
     result = set_adjacency_ptr( entity, adj_vec );
-    if (MB_SUCCESS != result)
+    if (MB_SUCCESS != result) {
       delete adj_vec;
+      adj_vec = 0;
+    }
   }
   return result;
 }
@@ -1290,7 +1292,10 @@ MBErrorCode AEntityFactory::set_adjacency_ptr( MBEntityHandle entity,
   if (!seq->data()->get_adjacency_data() && !seq->data()->allocate_adjacency_data())
     return MB_MEMORY_ALLOCATION_FAILED;
   
-  seq->data()->get_adjacency_data()[entity - seq->data()->start_handle()] = ptr;
+  const MBEntityHandle index = entity - seq->data()->start_handle();
+  std::vector<MBEntityHandle>*& ref = seq->data()->get_adjacency_data()[index];
+  delete ref;
+  ref = ptr;
   return MB_SUCCESS;
 }
 
