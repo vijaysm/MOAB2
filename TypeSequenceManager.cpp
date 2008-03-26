@@ -236,6 +236,8 @@ MBErrorCode TypeSequenceManager::replace_subsequence( EntitySequence* seq_ptr,
     for (++s; p != s; ++p)
       (*p)->data( new_data );
     dead_data->move_tag_data( new_data, tag_server );
+    if (!(*new_data->seqManData.firstSequence)->using_entire_data())
+      availableList.insert( new_data );
   }
   if (j != n) {
     SequenceData* new_data = (*n)->create_data_subset( (*i)->start_handle(), (*n)->end_handle() );
@@ -243,6 +245,8 @@ MBErrorCode TypeSequenceManager::replace_subsequence( EntitySequence* seq_ptr,
     for (++n; i != n; ++i)
       (*i)->data( new_data );
     dead_data->move_tag_data( new_data, tag_server );
+    if (!(*new_data->seqManData.firstSequence)->using_entire_data())
+      availableList.insert( new_data );
   }
   delete dead_data;
   
