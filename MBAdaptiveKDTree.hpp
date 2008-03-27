@@ -25,6 +25,7 @@
 
 #include <string>
 #include <vector>
+#include <math.h>
 
 class MBAdaptiveKDTreeIter;
 class MBInterface;
@@ -51,6 +52,19 @@ public:
   struct Plane {
     double coord;  //!< Location of plane as coordinate on normal axis
     int norm; //!< The principal axis that is the normal of the plane;
+    
+      /** return true if point is below/to the left of the split plane */
+    bool left_side( const double point[3] ) {
+      return point[norm] < coord;
+    }
+      /** return true if point is abve/to the right of the split plane */
+    bool right_side( const double point[3] ) {
+      return point[norm] > coord;
+    }
+      /** return distance from point to plane */
+    double distance( const double point[3] ) const {
+      return fabs(point[norm] - coord);
+    }
   };
   
   //! Get split plane for tree node
@@ -201,6 +215,13 @@ public:
                                       const double distance,
                                       std::vector<MBEntityHandle>& leaves_out );
 
+private:
+  
+  /**\brief find a triangle near the input point */
+  MBErrorCode find_close_triangle( MBEntityHandle root,
+                                   const double from_point[3],
+                                   double pt[3],
+                                   MBEntityHandle& triangle );
 };
                     
 

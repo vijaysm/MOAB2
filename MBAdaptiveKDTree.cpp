@@ -1372,6 +1372,118 @@ MBErrorCode MBAdaptiveKDTree::leaves_within_distance( MBEntityHandle tree_root,
   return MB_SUCCESS;
 }
 
+static MBErrorCode closest_to_triangles( MBInterface* moab,
+                                         const MBRange& tris,
+                                         const MBCartVect& from,
+                                         double& shortest_dist_sqr,
+                                         MBCartVect& closest_pt,
+                                         MBEntityHandle& closest_tri )
+{
+  MBErrorCode rval;
+  MBCartVect pos, diff, verts[3];
+  const MBEntityHandle* conn;
+  int len;
+      
+  for (MBRange::iterator i = tris.begin(); i != tris.end(); ++i) {
+    rval = moab->get_connectivity( *i, conn, len );
+    if (MB_SUCCESS != rval)
+      return rval;
+
+    rval = moab->get_coords( conn, 3, verts[0].array() );
+    if (MB_SUCCESS != rval)
+      return rval;
+
+    MBGeomUtil::closest_location_on_tri( from, verts, pos );
+    diff = pos - from;
+    double dist_sqr = diff % diff;
+    if (dist_sqr < shortest_dist_sqr) {
+        // new closest location
+      shortest_dist_sqr = dist_sqr;
+      closest_pt = pos;
+      closest_tri = *i;
+    }
+  }
+  
+  return MB_SUCCESS;
+}
+
+
+static MBErrorCode closest_to_triangles( MBInterface* moab,
+                                         MBEntityHandle set_handle,
+                                         const MBCartVect& from,
+                                         double& shortest_dist_sqr,
+                                         MBCartVect& closest_pt,
+                                         MBEntityHandle& closest_tri )
+{
+  MBErrorCode rval;
+  MBRange tris;
+  
+  rval = moab->get_entities_by_type( set_handle, MBTRI, tris );
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  return closest_to_triangles( moab, tris, from, shortest_dist_sqr, closest_pt, closest_tri );
+}
+
+MBErrorCode MBAdaptiveKDTree::find_close_triangle( MBEntityHandle root,
+                                                   const double from[3],
+                                                   double pt[3],
+                                                   MBEntityHandle& triangle )
+{
+  MBErrorCode rval;
+  MBRange tris;
+  Plane split;
+  std::vector<MBEntityHandle> stack;
+  std::vector<MBEntityHandle> children(2);
+  stack.reserve(30);
+  stack.push_back( root );
+  
+  while (!stack.empty()) {
+    MBEntityHandle node = stack.back();
+    stack.pop_back();
+    
+    for (;;) {  // loop until we find a leaf
+    
+      children.clear();
+      rval = moab()->get_child_meshsets( node, children );
+      if (MB_SUCCESS != rval)
+        return rval;
+        
+        // loop termination criterion
+      if (children.empty())
+        break;
+      
+        // if not a leaf, get split plane
+      rval = get_split_plane( node, split );
+      if (MB_SUCCESS != rval)
+        return rval;
+      
+        // continue down the side that contains the point,
+        // and push the other side onto the stack in case
+        // we need to check it later.
+      int rs = split.right_side( from );
+      node = children[rs];
+      stack.push_back( children[1-rs] );
+    }
+    
+      // We should now be at a leaf.  
+      // If it has some triangles, we're done.
+      // If not, continue searching for another leaf.
+    rval = moab()->get_entities_by_type( node, MBTRI, tris );
+    if (!tris.empty()) {
+      double dist_sqr = HUGE_VAL;
+      MBCartVect point(pt);
+      rval = closest_to_triangles( moab(), tris, MBCartVect(from), dist_sqr, point, triangle );
+      point.get(pt);
+      return rval;
+    }
+  }
+  
+    // If we got here, then we traversed the entire tree 
+    // and all the leaves were empty.
+  return MB_ENTITY_NOT_FOUND;
+}
+
 /** Find the triangles in a set that are closer to the input
  *  position than any triangles in the 'closest_tris' list.
  *
@@ -1479,46 +1591,6 @@ static MBErrorCode closest_to_triangles( MBInterface* moab,
   return MB_SUCCESS;
 }
 
-static MBErrorCode closest_to_triangles( MBInterface* moab,
-                                         MBEntityHandle set_handle,
-                                         const MBCartVect& from,
-                                         double& shortest_dist_sqr,
-                                         MBCartVect& closest_pt,
-                                         MBEntityHandle& closest_tri )
-{
-  MBErrorCode rval;
-  MBRange tris;
-  MBCartVect pos, diff, verts[3];
-  const MBEntityHandle* conn;
-  int len;
-  
-  rval = moab->get_entities_by_type( set_handle, MBTRI, tris );
-  if (MB_SUCCESS != rval)
-    return rval;
-      
-  for (MBRange::iterator i = tris.begin(); i != tris.end(); ++i) {
-    rval = moab->get_connectivity( *i, conn, len );
-    if (MB_SUCCESS != rval)
-      return rval;
-
-    rval = moab->get_coords( conn, 3, verts[0].array() );
-    if (MB_SUCCESS != rval)
-      return rval;
-
-    MBGeomUtil::closest_location_on_tri( from, verts, pos );
-    diff = pos - from;
-    double dist_sqr = diff % diff;
-    if (dist_sqr < shortest_dist_sqr) {
-        // new closest location
-      shortest_dist_sqr = dist_sqr;
-      closest_pt = pos;
-      closest_tri = *i;
-    }
-  }
-  
-  return MB_SUCCESS;
-}
-
 MBErrorCode MBAdaptiveKDTree::closest_triangle( MBEntityHandle tree_root,
                                  const double from_coords[3],
                                  double closest_point_out[3],
@@ -1533,13 +1605,7 @@ MBErrorCode MBAdaptiveKDTree::closest_triangle( MBEntityHandle tree_root,
     // Find the leaf containing the input point
     // This search does not take into account any bounding box for the
     // tree, so it always returns one leaf.
-  MBEntityHandle leaf;
-  rval = leaf_containing_point( tree_root, from_coords, leaf );
-  if (MB_SUCCESS != rval) return rval;
-  
-    // Find the closest triangle(s) in the leaf containing the point
-  rval = closest_to_triangles( moab(), leaf, from, shortest_dist_sqr, 
-                               closest_pt, triangle_out );
+  rval = find_close_triangle( tree_root, from_coords, closest_pt.array(), triangle_out );
   if (MB_SUCCESS != rval) return rval;
   
     // Find any other leaves for which the bounding box is within
