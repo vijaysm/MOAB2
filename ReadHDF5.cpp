@@ -238,6 +238,11 @@ DEBUGOUT("Creating entity set for file contents\n")
   filePtr = 0;
   elemList.clear();
   if (groups) free( groups );
+  if (mhdf_isError( &status ))
+  {
+    readUtil->report_error( mhdf_message( &status ));
+    return MB_FAILURE;
+  }
   return MB_SUCCESS;
   
 read_fail:
@@ -516,7 +521,18 @@ MBErrorCode ReadHDF5::read_poly( const char* elem_group )
     elemList.back().range.insert( h );
   }
  
-  return MB_SUCCESS;
+  MBErrorCode result = MB_SUCCESS;
+  mhdf_closeData( filePtr, handles[0], &status );
+  if (mhdf_isError( &status )) {
+    readUtil->report_error( mhdf_message( &status ));
+    result = MB_FAILURE;
+  }
+  mhdf_closeData( filePtr, handles[1], &status );
+  if (mhdf_isError( &status )) {
+    readUtil->report_error( mhdf_message( &status ));
+    result = MB_FAILURE;
+  }
+  return result;
 }
 
 template <typename T>
