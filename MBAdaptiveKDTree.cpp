@@ -1030,7 +1030,7 @@ static MBErrorCode best_vertex_sample_plane( int num_planes,
       {
         size_t rnd;
         do { 
-          size_t rnd = rand();
+          rnd = rand();
           for (int i = num_rand; i > 1; --i)
             rnd *= rand();
           rnd %= coords.size();
