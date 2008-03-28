@@ -30,7 +30,7 @@
 #include "MBRange.hpp"
 #include "MBWriteUtilIface.hpp"
 #include "MeshTopoUtil.hpp"
-#include "MBParallelComm.hpp"
+#include "parallel/MBParallelComm.hpp"
 #include "MBTagConventions.hpp"
 #include "MBCN.hpp"
 
@@ -58,7 +58,7 @@ MBErrorCode MBZoltan::balance_mesh(const char *zmethod,
       !strcmp(zmethod, "PHG") && !strcmp(zmethod, "PARMETIS") &&
       !strcmp(zmethod, "OCTPART")) 
   {
-    std::cout << "ERROR node " << mbImpl->proc_config().rank() << ": Method must be "
+    std::cout << "ERROR node " << mbImpl->proc_rank() << ": Method must be "
               << "RCB, RIB, HSFC, Hypergraph (PHG), PARMETIS, or OCTPART"
               << std::endl;
     return MB_FAILURE;
@@ -73,7 +73,7 @@ MBErrorCode MBZoltan::balance_mesh(const char *zmethod,
 
   MBErrorCode result;
   
-  if (mbImpl->proc_config().rank() == 0) {
+  if (mbImpl->proc_rank() == 0) {
     result = assemble_graph(3, pts, ids, adjs, length, elems); RR;
   }
   
@@ -161,8 +161,8 @@ MBErrorCode MBZoltan::balance_mesh(const char *zmethod,
   mbFinalizePoints((int)ids.size(), numExport, exportLocalIds,
                    exportProcs, &assignment);
   
-  if (mbImpl->proc_config().rank() == 0) {
-    MBErrorCode result = write_partition(mbImpl->proc_config().size(), elems, assignment);
+  if (mbImpl->proc_rank() == 0) {
+    MBErrorCode result = write_partition(mbImpl->proc_size(), elems, assignment);
 
     if (MB_SUCCESS != result) return result;
 
@@ -193,14 +193,14 @@ MBErrorCode MBZoltan::partition_mesh(const int nparts,
                                      const char *other_method) 
 {
     // should only be called in serial
-  if (mbImpl->proc_config().size() != 1) return MB_FAILURE;
+  if (mbImpl->proc_size() != 1) return MB_FAILURE;
   
   if (NULL != zmethod && strcmp(zmethod, "RCB") && strcmp(zmethod, "RIB") &&
       strcmp(zmethod, "HSFC") && strcmp(zmethod, "Hypergraph") &&
       strcmp(zmethod, "PHG") && strcmp(zmethod, "PARMETIS") &&
       strcmp(zmethod, "OCTPART")) 
   {
-    std::cout << "ERROR node " << mbImpl->proc_config().rank() << ": Method must be "
+    std::cout << "ERROR node " << mbImpl->proc_rank() << ": Method must be "
               << "RCB, RIB, HSFC, Hypergraph (PHG), PARMETIS, or OCTPART"
               << std::endl;
     return MB_FAILURE;
@@ -317,8 +317,8 @@ MBErrorCode MBZoltan::assemble_graph(const int dimension,
   if (MB_SUCCESS != result || elems.empty()) return result;
   
     // assign global ids
-  MBParallelComm mbpc(mbImpl, NULL, NULL);
-  result = mbpc.assign_global_ids(dimension, 1); RR;
+  MBParallelComm mbpc(mbImpl);
+  result = mbpc.assign_global_ids(0, dimension); RR;
 
     // now assemble the graph, calling MeshTopoUtil to get bridge adjacencies through d-1 dimensional
     // neighbors
@@ -449,7 +449,7 @@ MBErrorCode MBZoltan::write_partition(const int nparts,
 
 void MBZoltan::SetRCB_Parameters()
 {
-  if (mbImpl->proc_config().rank() == 0) std::cout << "\nRecursive Coordinate Bisection" << std::endl;
+  if (mbImpl->proc_rank() == 0) std::cout << "\nRecursive Coordinate Bisection" << std::endl;
   // General parameters:
 
   myZZ->Set_Param("DEBUG_LEVEL", "0");     // no debug messages
@@ -464,7 +464,7 @@ void MBZoltan::SetRCB_Parameters()
 
 void MBZoltan::SetRIB_Parameters()
 {
-  if (mbImpl->proc_config().rank() == 0) std::cout << "\nRecursive Inertial Bisection" << std::endl;
+  if (mbImpl->proc_rank() == 0) std::cout << "\nRecursive Inertial Bisection" << std::endl;
   // General parameters:
 
   myZZ->Set_Param("DEBUG_LEVEL", "0");     // no debug messages
@@ -478,7 +478,7 @@ void MBZoltan::SetRIB_Parameters()
 
 void MBZoltan::SetHSFC_Parameters()
 {
-  if (mbImpl->proc_config().rank() == 0) std::cout << "\nHilbert Space Filling Curve" << std::endl;
+  if (mbImpl->proc_rank() == 0) std::cout << "\nHilbert Space Filling Curve" << std::endl;
   // General parameters:
 
   myZZ->Set_Param("DEBUG_LEVEL", "0");     // no debug messages
@@ -491,7 +491,7 @@ void MBZoltan::SetHSFC_Parameters()
 
 void MBZoltan::SetHypergraph_Parameters(const char *phg_method)
 {
-  if (mbImpl->proc_config().rank() == 0) std::cout << "\nHypergraph (or PHG): " << std::endl;
+  if (mbImpl->proc_rank() == 0) std::cout << "\nHypergraph (or PHG): " << std::endl;
   // General parameters:
 
   myZZ->Set_Param("DEBUG_LEVEL", "0");     // no debug messages
@@ -503,7 +503,7 @@ void MBZoltan::SetHypergraph_Parameters(const char *phg_method)
 
 void MBZoltan::SetPARMETIS_Parameters(const char *parmetis_method)
 {
-  if (mbImpl->proc_config().rank() == 0) std::cout << "\nPARMETIS: " << parmetis_method << std::endl;
+  if (mbImpl->proc_rank() == 0) std::cout << "\nPARMETIS: " << parmetis_method << std::endl;
   // General parameters:
 
   myZZ->Set_Param("DEBUG_LEVEL", "0");     // no debug messages
@@ -516,7 +516,7 @@ void MBZoltan::SetPARMETIS_Parameters(const char *parmetis_method)
 
 void MBZoltan::SetOCTPART_Parameters(const char *oct_method)
 {
-  if (mbImpl->proc_config().rank() == 0) std::cout << "\nOctree Partitioning: " << oct_method
+  if (mbImpl->proc_rank() == 0) std::cout << "\nOctree Partitioning: " << oct_method
 			   << std::endl;
   // General parameters:
 
@@ -543,23 +543,23 @@ int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids,
   int *sendNborId;
   int *sendProcs;
 
-  if (mbImpl->proc_config().rank() == 0)
+  if (mbImpl->proc_rank() == 0)
   {
       /* divide pts to start */
 
-    numPts = (int *)malloc(sizeof(int) * mbImpl->proc_config().size());
-    ptsPerProc = npts / mbImpl->proc_config().size();
+    numPts = (int *)malloc(sizeof(int) * mbImpl->proc_size());
+    ptsPerProc = npts / mbImpl->proc_size();
     ptsAssigned = 0;
 
-    for (i=0; i<mbImpl->proc_config().size()-1; i++)
+    for (i=0; i<mbImpl->proc_size()-1; i++)
     {
       numPts[i] = ptsPerProc;
       ptsAssigned += ptsPerProc;
     }
 
-    numPts[mbImpl->proc_config().size()-1] = npts - ptsAssigned;
+    numPts[mbImpl->proc_size()-1] = npts - ptsAssigned;
 
-    mySize = numPts[mbImpl->proc_config().rank()];
+    mySize = numPts[mbImpl->proc_rank()];
     sendPts = pts + (3 * numPts[0]);
     sendIds = ids + numPts[0];
     sendEdges = length + numPts[0];
@@ -576,14 +576,14 @@ int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids,
     nborProcs = (int *)malloc(sizeof(int) * sum);
 
     for (j=0; j<sum; j++)
-      if ((i = adjs[j]/ptsPerProc) < mbImpl->proc_config().size())
+      if ((i = adjs[j]/ptsPerProc) < mbImpl->proc_size())
         nborProcs[j] = i;
       else
-        nborProcs[j] = mbImpl->proc_config().size() - 1;
+        nborProcs[j] = mbImpl->proc_size() - 1;
 
     sendProcs = nborProcs + (sendNborId - adjs);
 
-    for (i=1; i<mbImpl->proc_config().size(); i++)
+    for (i=1; i<mbImpl->proc_size(); i++)
     {
       MPI_Send(&numPts[i], 1, MPI_INT, i, 0x00,MPI_COMM_WORLD);
       MPI_Send(sendPts, 3 * numPts[i], MPI_DOUBLE, i, 0x01,MPI_COMM_WORLD);
@@ -647,24 +647,24 @@ void MBZoltan::mbFinalizePoints(int npts, int numExport,
 
   /* assign pts to start */
 
-  if (mbImpl->proc_config().rank() == 0)
+  if (mbImpl->proc_rank() == 0)
     MyAssignment = (int *)malloc(sizeof(int) * npts);
   else
     MyAssignment = (int *)malloc(sizeof(int) * NumPoints);
 
   for (i=0; i<NumPoints; i++)
-    MyAssignment[i] = mbImpl->proc_config().rank();
+    MyAssignment[i] = mbImpl->proc_rank();
 
   for (i=0; i<numExport; i++)
     MyAssignment[exportLocalIDs[i]] = exportProcs[i];
 
-  if (mbImpl->proc_config().rank() == 0)
+  if (mbImpl->proc_rank() == 0)
     {
       /* collect pts */
 
       recvA = MyAssignment + NumPoints;
 
-      for (i=1; i< (int) mbImpl->proc_config().size(); i++)
+      for (i=1; i< (int) mbImpl->proc_size(); i++)
 	{
 	  MPI_Recv(&numPts, 1, MPI_INT, i, 0x04, MPI_COMM_WORLD, &stat);
 	  MPI_Recv(recvA, numPts, MPI_INT, i, 0x05, MPI_COMM_WORLD, &stat);
@@ -685,13 +685,13 @@ int MBZoltan::mbGlobalSuccess(int rc)
 {
   int fail = 0;
   unsigned int i;
-  int *vals = (int *)malloc(mbImpl->proc_config().size() * sizeof(int));
+  int *vals = (int *)malloc(mbImpl->proc_size() * sizeof(int));
 
   MPI_Allgather(&rc, 1, MPI_INT, vals, 1, MPI_INT, MPI_COMM_WORLD);
 
-  for (i=0; i<mbImpl->proc_config().size(); i++){
+  for (i=0; i<mbImpl->proc_size(); i++){
     if (vals[i] != ZOLTAN_OK){
-      if (0 == mbImpl->proc_config().rank()){
+      if (0 == mbImpl->proc_rank()){
         mbShowError(vals[i], "Result on process ");
       }
       fail = 1;
@@ -715,15 +715,15 @@ void MBZoltan::mbPrintGlobalResult(char *s,
   v1[2] = exp;
   v1[3] = change;
 
-  if (mbImpl->proc_config().rank() == 0){
-    v2 = (int *)malloc(4 * mbImpl->proc_config().size() * sizeof(int));
+  if (mbImpl->proc_rank() == 0){
+    v2 = (int *)malloc(4 * mbImpl->proc_size() * sizeof(int));
   }
 
   MPI_Gather(v1, 4, MPI_INT, v2, 4, MPI_INT, 0, MPI_COMM_WORLD);
 
-  if (mbImpl->proc_config().rank() == 0){
+  if (mbImpl->proc_rank() == 0){
     fprintf(stdout,"======%s======\n",s);
-    for (i=0, v=v2; i<mbImpl->proc_config().size(); i++, v+=4){
+    for (i=0, v=v2; i<mbImpl->proc_size(); i++, v+=4){
       fprintf(stdout,"%d: originally had %d, import %d, exp %d, %s\n",
         i, v[0], v[1], v[2],
         v[3] ? "a change of partitioning" : "no change");
@@ -746,19 +746,19 @@ void MBZoltan::mbShowError(int val, char *s)
   switch (val)
     {
     case ZOLTAN_OK:
-      printf("%d: SUCCESSFUL\n", mbImpl->proc_config().rank());
+      printf("%d: SUCCESSFUL\n", mbImpl->proc_rank());
       break;
     case ZOLTAN_WARN:
-      printf("%d: WARNING\n", mbImpl->proc_config().rank());
+      printf("%d: WARNING\n", mbImpl->proc_rank());
       break;
     case ZOLTAN_FATAL:
-      printf("%d: FATAL ERROR\n", mbImpl->proc_config().rank());
+      printf("%d: FATAL ERROR\n", mbImpl->proc_rank());
       break;
     case ZOLTAN_MEMERR:
-      printf("%d: MEMORY ALLOCATION ERROR\n", mbImpl->proc_config().rank());
+      printf("%d: MEMORY ALLOCATION ERROR\n", mbImpl->proc_rank());
       break;
     default:
-      printf("%d: INVALID RETURN CODE\n", mbImpl->proc_config().rank());
+      printf("%d: INVALID RETURN CODE\n", mbImpl->proc_rank());
       break;
     }
   return;

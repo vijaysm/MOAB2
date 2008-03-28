@@ -13,6 +13,7 @@
 #include "ScdVertexData.hpp"
 #include "StructuredElementSeq.hpp"
 #include "SequenceManager.hpp"
+#include "MBError.hpp"
 #include "mpi.h"
 #include <iostream>
 #include <sstream>
@@ -20,7 +21,7 @@
 
 #define REALTFI 1
 
-const bool debug = true;
+const bool debug = false;
 
 #define ERROR(a, b) {std::cerr << a << std::endl; return b;}
 
@@ -30,6 +31,12 @@ const bool debug = true;
         if (last_error.empty()) std::cerr << "(none)" << std::endl;\
         else std::cerr << last_error << std::endl;\
         }
+#define RRA(a) if (MB_SUCCESS != result) {\
+      std::string tmp_str; mbImpl->get_last_error(tmp_str);\
+      tmp_str.append("\n"); tmp_str.append(a);\
+      dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(tmp_str.c_str()); \
+      return result;}
+
 MBErrorCode create_linear_mesh(MBInterface *mbImpl,
                                int N, int M, int &nshared);
 
@@ -39,6 +46,8 @@ MBErrorCode create_scd_mesh(MBInterface *mbImpl,
 MBErrorCode read_file(MBInterface *mbImpl, const char *filename,
                       const char *tag_name, int tag_val, int distrib,
                       int parallel_option);
+
+MBErrorCode test_packing(MBInterface *mbImpl, const char *filename);
 
 MBErrorCode report_nsets(MBInterface *mbImpl);
 
@@ -141,6 +150,17 @@ int main(int argc, char **argv)
         }
         nshared = -1;
         break;
+
+      case 4:
+        filename = argv[npos++];
+        tmp_result = test_packing(mbImpl, filename);
+        if (MB_SUCCESS != tmp_result) {
+          result = tmp_result;
+          std::cerr << "Packing test failed; error message:" << std::endl;
+          PRINT_LAST_ERROR
+        }
+        break;
+        
       default:
         std::cerr << "Unrecognized option \"" << this_opt
                   << "\"; skipping." << std::endl;
@@ -149,7 +169,7 @@ int main(int argc, char **argv)
     
 
     if (0 == rank) rtime = MPI_Wtime();
-    if (MB_SUCCESS == tmp_result) {
+    if (MB_SUCCESS == tmp_result && 4 != this_opt) {
         // now figure out which vertices are shared
       MBParallelComm *pcomm = new MBParallelComm(mbImpl);
       tmp_result = pcomm->resolve_shared_ents();
@@ -266,20 +286,42 @@ MBErrorCode report_nsets(MBInterface *mbImpl)
       std::vector<int> ids( b .size());\
       result = mbImpl->tag_get_data(gidtag, b, &ids[0]); \
       if (MB_SUCCESS == result) {\
-        std::cout << "Proc " << rank << ": " << c << ids[0]; \
+        std::cout << "Proc " << rank << ": " << c \
+          << " (total " << b.size() << "): " \
+           << ids[0]; \
         for (unsigned int i = 1; i < b .size(); i++) \
           std::cout << ", " << ids[i]; \
         std::cout << std::endl; \
       } } }
   
-  PRINTSETS(mtag, matsets, "material sets: ", NULL);
+  PRINTSETS(mtag, matsets, "material sets", NULL);
   
   int tval = 3;
   void *pval = &tval;
   
-  PRINTSETS(gtag, geomsets, "geom sets: ", &pval);
+  PRINTSETS(gtag, geomsets, "geom sets (vols)", &pval);
+  tval = 2;
+  geomsets.clear();
+  PRINTSETS(gtag, geomsets, "geom sets (surfs)", &pval);
+  tval = 1;
+  geomsets.clear();
+  PRINTSETS(gtag, geomsets, "geom sets (curves)", &pval);
+  tval = 0;
+  geomsets.clear();
+  PRINTSETS(gtag, geomsets, "geom sets (verts)", &pval);
   
-  PRINTSETS(ptag, parsets, "partition sets: ", NULL);
+  PRINTSETS(ptag, parsets, "partition sets", NULL);
+
+  if (debug) {
+      // list info on all ent sets, reuse parsets
+    parsets.clear();
+    result = mbImpl->get_entities_by_type(0, MBENTITYSET, parsets);
+    if (MB_SUCCESS == result) {
+      std::cout << "Total sets (by range): " << parsets.size() << "; sets: " << std::endl;
+      parsets.print("  ");
+      mbImpl->list_entities(parsets);
+    }
+  }
   
   return MB_SUCCESS;
 }
@@ -662,3 +704,36 @@ void build_connect(const int nelem, const MBEntityHandle vstart, MBEntityHandle 
   }
 }
 
+MBErrorCode test_packing(MBInterface *mbImpl, const char *filename) 
+{
+    // read the mesh
+  MBEntityHandle file_set;
+  MBErrorCode result = mbImpl->load_file(filename, file_set, NULL);
+  if (MB_SUCCESS != result) {
+    std::cerr << "Reading file failed; message:" << std::endl;
+    PRINT_LAST_ERROR;
+    return result;
+  }
+  
+    // get 3d entities and pack a buffer with them
+  MBRange ents, new_ents, whole_range;
+  result = mbImpl->get_entities_by_dimension(0, 3, ents);
+  RRA("Getting 3d ents failed.");
+  
+  MBParallelComm *pcomm = new MBParallelComm(mbImpl);
+  int buff_size;
+  result = pcomm->pack_buffer(ents, false, true, true, false, -1,
+                              whole_range, buff_size);
+  RRA("Packing buffer count (non-stored handles) failed.");
+
+  pcomm->buffer_size(buff_size);
+  
+  result = pcomm->pack_buffer(ents, false, true, false, false, -1,
+                              whole_range, buff_size);
+  RRA("Packing buffer (non-stored handles) failed.");
+
+  result = pcomm->unpack_buffer(new_ents, false, -1);
+  RRA("Unacking buffer (non-stored handles) failed.");
+
+  return MB_SUCCESS;
+}

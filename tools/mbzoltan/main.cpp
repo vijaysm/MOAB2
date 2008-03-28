@@ -37,7 +37,16 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  MBInterface *mbImpl = new MBCore();
+    // need to init MPI first, to tell how many procs and rank
+  int err = MPI_Init(&argc, &argv);
+
+  int nprocs, rank;
+  err = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    // create MOAB instance based on that
+  MBInterface *mbImpl = new MBCore(rank, nprocs);
+  if (NULL == mbImpl) return 1;
   
   MBErrorCode result = mbImpl->load_mesh(argv[2]); RR;
   
