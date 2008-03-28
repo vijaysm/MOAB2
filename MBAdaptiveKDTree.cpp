@@ -744,8 +744,8 @@ static MBErrorCode intersect_children_with_elems( MBInterface* moab,
         // loop with increasing tolerance until we intersect something
       double tol = std::numeric_limits<double>::epsilon();
       while (!lo && !ro) {
-        lo = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i), left_cen,tol*max_dim* left_dim );
-        ro = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i),right_cen,tol*max_dim*right_dim );
+        lo = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i), left_cen,tol*max_dim+ left_dim );
+        ro = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i),right_cen,tol*max_dim+right_dim );
         tol *= 10.0;
         if (tol > 1e-3)
           return MB_FAILURE;
@@ -982,9 +982,10 @@ static MBErrorCode best_vertex_sample_plane( int num_planes,
                                            MBRange& best_both,
                                            MBAdaptiveKDTree::Plane& best_plane,
                                            std::vector<double>& coords,
-                                           std::vector<size_t>& indices,
+                                           std::vector<MBEntityHandle>& indices,
                                            double eps )
 {
+  const size_t random_elem_threshold = 20*num_planes;
   double metric_val = std::numeric_limits<unsigned>::max();
   
   MBErrorCode r;
@@ -995,10 +996,30 @@ static MBErrorCode best_vertex_sample_plane( int num_planes,
   r = iter.tool()->moab()->get_entities_by_handle( iter.handle(), entities );
   if (MB_SUCCESS != r)
     return r;
+    
+    // We are selecting random vertex coordinates to use for candidate split
+    // planes.  So if element list is large, begin by selecting random elements.
   const size_t p_count = entities.size();
-  r = iter.tool()->moab()->get_adjacencies( entities, 0, false, vertices, MBInterface::UNION );
-  if (MB_SUCCESS != r)
-    return r;
+  coords.resize( 3*num_planes );
+  if (p_count < random_elem_threshold) {
+    r = iter.tool()->moab()->get_adjacencies( entities, 0, false, vertices, MBInterface::UNION );
+    if (MB_SUCCESS != r)
+      return r;
+  }
+  else {
+    indices.resize(random_elem_threshold);
+    const int num_rand = p_count / RAND_MAX + 1;
+    for (size_t j = 0; j < random_elem_threshold; ++j) {
+      size_t rnd = rand();
+      for (int i = num_rand; i > 1; --i)
+        rnd *= rand();
+      rnd %= p_count;
+      indices[j] = entities[rnd];
+    }
+    r = iter.tool()->moab()->get_adjacencies( &indices[0], random_elem_threshold, 0, false, vertices, MBInterface::UNION );
+    if (MB_SUCCESS != r)
+      return r;
+  }
 
   coords.resize( vertices.size() );
   for (int axis = 0; axis < 3; ++axis) {
@@ -1069,10 +1090,63 @@ static MBErrorCode best_vertex_sample_plane( int num_planes,
   return MB_SUCCESS;
 }
 
+static inline void box_accum( const MBCartVect& point,
+                              MBCartVect& bmin,
+                              MBCartVect& bmax )
+{
+  for (unsigned j = 0; j < 3; ++j) {
+    if (point[j] < bmin[j])
+      bmin[j] = point[j];
+    if (point[j] > bmax[j])
+      bmax[j] = point[j];
+  }
+}
+
+static MBErrorCode bounding_box( MBInterface* moab,
+                                 MBRange& elems,
+                                 MBCartVect& bmin,
+                                 MBCartVect& bmax )
+{
+  MBErrorCode rval;
+  bmin = MBCartVect(HUGE_VAL);
+  bmax = MBCartVect(-HUGE_VAL);
+  MBCartVect coords;
+  MBEntityHandle const *conn, *conn2;
+  int len, len2;
+  for (MBRange::const_iterator i = elems.begin(); i != elems.end(); ++i) {
+    rval = moab->get_connectivity( *i, conn, len, true );
+    if (MB_SUCCESS != rval)
+      return rval;
+      
+    if (TYPE_FROM_HANDLE(*i) != MBPOLYHEDRON) {
+      for (int j = 0; j < len; ++j) {
+        rval = moab->get_coords( conn+j, 1, coords.array() );
+        if (MB_SUCCESS != rval)
+          return rval;
+        box_accum( coords, bmin, bmax );
+      }
+    }
+    else {
+      for (int j = 0; j < len; ++j) {
+        rval = moab->get_connectivity( conn[j], conn2, len2 );
+        for (int k = 0; k < len2; ++k) {
+          rval = moab->get_coords( conn2+k, 1, coords.array() );
+          if (MB_SUCCESS != rval)
+            return rval;
+          box_accum( coords, bmin, bmax );
+        }
+      }
+    }
+  }
+  return MB_SUCCESS;
+}
+
+
 MBErrorCode MBAdaptiveKDTree::build_tree( MBRange& elems,
                                        MBEntityHandle& root_set_out,
                                        const Settings* settings_ptr )
 {
+  MBErrorCode rval;
   Settings settings;
   if (settings_ptr)
     settings = *settings_ptr;
@@ -1084,26 +1158,10 @@ MBErrorCode MBAdaptiveKDTree::build_tree( MBRange& elems,
     settings.candidateSplitsPerDir = 1;
   
     // calculate bounding box of elements
-    
-  std::vector<double> tmp_data;
-  std::vector<size_t> tmp_data2;
-  MBRange vertices;
-  MBErrorCode rval = moab()->get_adjacencies( elems, 0, false, vertices, MBInterface::UNION );
+  MBCartVect bmin, bmax;
+  rval = bounding_box( moab(), elems, bmin, bmax );
   if (MB_SUCCESS != rval)
     return rval;
-  
-  MBCartVect bmin(HUGE_VAL), bmax(-HUGE_VAL), coords;
-  for (MBRange::iterator i = vertices.begin(); i != vertices.end(); ++i) {
-    rval = moab()->get_coords( &*i, 1, coords.array() );
-    if (MB_SUCCESS != rval)
-      return rval;
-    for (unsigned j = 0; j < 3; ++j) {
-      if (coords[j] < bmin[j])
-        bmin[j] = coords[j];
-      if (coords[j] > bmax[j])
-        bmax[j] = coords[j];
-    }
-  }
   
     // create tree root
   rval = create_tree( bmin.array(), bmax.array(), root_set_out );
@@ -1116,6 +1174,8 @@ MBErrorCode MBAdaptiveKDTree::build_tree( MBRange& elems,
   MBAdaptiveKDTreeIter iter;
   iter.initialize( this, root_set_out, bmin.array(), bmax.array(), MBAdaptiveKDTreeIter::LEFT );
   
+  std::vector<double> tmp_data;
+  std::vector<MBEntityHandle> tmp_data2;
   for (;;) {
   
     int pcount;

@@ -30,10 +30,18 @@ void tag_triangles( MBInterface* interface );
 void tag_vertices( MBInterface* interface );
 void write_tree_blocks( MBInterface* interface, const char* file );
 
+static const char* ds( MBAdaptiveKDTree::CandidatePlaneSet scheme )
+{
+  static const char def[] = " (default)";
+  const static char non[] = "";
+  MBAdaptiveKDTree::Settings st;
+  return scheme == st.candidatePlaneSet ? def : non;
+}
+  
 static void usage( bool err = true )
 {
   std::ostream& s = err ? std::cerr : std::cout;
-  s << "kd_tree_tool [-s|-S] [-d <int>] [-n <int>] <input file> <output file>" << std::endl
+  s << "kd_tree_tool [-s|-S] [-d <int>] [-n <int>] [-u|-p|-m|-v] [-N <int>] <input file> <output file>" << std::endl
     << "kd_tree_tool [-s|-S] [-d <int>] -G <dims> <output file>" << std::endl
     << "kd_tree_tool [-h]" << std::endl;
   if (!err) {
@@ -43,6 +51,11 @@ static void usage( bool err = true )
       << "  -S        Use vector-based sets for tree nodes" << std::endl
       << "  -d <int>  Specify maximum depth for tree. Default: " << st.maxTreeDepth << std::endl
       << "  -n <int>  Specify maximum entities per leaf. Default: " << st.maxEntPerLeaf << std::endl
+      << "  -u        Use 'SUBDIVISION' scheme for tree construction" << ds(MBAdaptiveKDTree::SUBDIVISION) << std::endl
+      << "  -p        Use 'SUBDIVISION_SNAP' tree construction algorithm." << ds(MBAdaptiveKDTree::SUBDIVISION_SNAP) << std::endl
+      << "  -m        Use 'VERTEX_MEDIAN' tree construction algorithm." << ds(MBAdaptiveKDTree::VERTEX_MEDIAN) << std::endl
+      << "  -v        Use 'VERTEX_SAMPLE' tree construction algorithm." << ds(MBAdaptiveKDTree::VERTEX_SAMPLE) << std::endl
+      << "  -N <int>  Specify candidate split planes per axis.  Default: " << st.candidateSplitsPerDir << std::endl
       << "  -t        Tag triangles will tree cell number." << std::endl
       << "  -T        Write tree boxes to file." << std::endl
       << "  -G <dims> Generate grid - no input triangles.  Dims must be " << std::endl
@@ -160,6 +173,11 @@ int main( int argc, char* argv[] )
       case 'S': meshset_flags = MESHSET_ORDERED;                    break;
       case 'd': settings.maxTreeDepth  = parseint( i, argc, argv ); break;
       case 'n': settings.maxEntPerLeaf = parseint( i, argc, argv ); break;
+      case 'u': settings.candidatePlaneSet = MBAdaptiveKDTree::SUBDIVISION;      break;
+      case 'p': settings.candidatePlaneSet = MBAdaptiveKDTree::SUBDIVISION_SNAP; break;
+      case 'm': settings.candidatePlaneSet = MBAdaptiveKDTree::VERTEX_MEDIAN;    break;
+      case 'v': settings.candidatePlaneSet = MBAdaptiveKDTree::VERTEX_SAMPLE;    break;
+      case 'N': settings.candidateSplitsPerDir = parseint( i, argc, argv );      break;
       case 't': tag_tris = true;                                    break;
       case 'T': tree_file = argv[++i];                              break;
       case 'G': make_grid = true; parsedims( i, argc, argv, dims ); break;
