@@ -663,6 +663,69 @@ MBErrorCode mb_temporary_test( MBInterface *gMB )
   return MB_SUCCESS;
 }
 
+MBErrorCode mb_adjacent_vertex_test( MBInterface* mb )
+{
+  MBErrorCode rval;
+  MBRange hexes, expt_vert, got_vert, some_hexes;
+  MBRange::const_iterator i, j;
+  int n;
+  
+    // get all hexes
+  rval = mb->get_entities_by_type( 0, MBHEX, hexes );
+  if (rval != MB_SUCCESS)
+    return rval;
+  if (hexes.empty())  // can't do test if no elements
+    return MB_FAILURE;
+  
+    // get every third hex and its vertices
+  n = 0;
+  for (i = hexes.begin(); i != hexes.end(); ++i) {
+    if (++n % 3)
+      continue;
+    some_hexes.insert( *i );
+    const MBEntityHandle* conn;
+    int len;
+    rval = mb->get_connectivity( *i, conn, len );
+    if (MB_SUCCESS != rval)
+      return rval;
+    for (int k = 0; k < len; ++k)
+      expt_vert.insert( conn[k] );
+  }
+  
+    // use get_adjacencies to get vertices
+  rval = mb->get_adjacencies( some_hexes, 0, false, got_vert, MBInterface::UNION );
+  if (MB_SUCCESS != rval) {
+    std::cout << "get_adjacencies failed with error code " << rval << std::endl;
+    return rval;
+  }
+  
+  i = expt_vert.begin();
+  j = got_vert.begin();
+  while (i != expt_vert.end() && j != got_vert.end()) {
+    if (*i < *j) {
+      std::cout << "Result missing vertex: " << *i << std::endl;
+      return MB_FAILURE;
+    }
+    else if (*j < *i) {
+      std::cout << "Result contains extra vertex: " << *j << std::endl;
+      return MB_FAILURE;
+    }
+    ++i;
+    ++j;
+  }
+  
+  if (i != expt_vert.end()) {
+    std::cout << "Result missing vertex: " << *i << std::endl;
+    return MB_FAILURE;
+  }
+  else if (j != got_vert.end()) {
+    std::cout << "Result contains extra vertex: " << *j << std::endl;
+    return MB_FAILURE;
+  }
+  
+  return MB_SUCCESS;
+}
+  
 MBErrorCode mb_adjacencies_test(MBInterface *mb) 
 {
     // this test does the following:
@@ -5780,6 +5843,7 @@ int main(int argc, char* argv[])
 
   cout << "\n\nMB TEST PROGRAM:\n\n";
 
+  RUN_TEST( mb_adjacent_vertex_test );
   RUN_TEST( mb_adjacencies_test );
   RUN_TEST( mb_vertex_coordinate_test );
   RUN_TEST( mb_vertex_tag_test );

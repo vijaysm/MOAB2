@@ -276,6 +276,16 @@ public:
                                          MBRange &adj_entities,
                                          const int operation_type = MBInterface::INTERSECT);
 
+      /**\brief Get all vertices for input entities
+       *
+       * Special case of get_adjacencies where to_dimension == 0
+       * and operation_type == MBInterface::UNION.  
+       *\Note This is not a variation of get_connectivity because
+       *      the behavior is different for polyhedra.
+       */
+    virtual MBErrorCode get_vertices( const MBRange& from_entities,
+                                      MBRange& vertices );
+
       //! Adds adjacencies
       /** \param from_handle entities 
           \param both_ways add the adjacency information to both the

@@ -996,7 +996,72 @@ MBErrorCode MBCore::get_adjacencies(const MBEntityHandle *from_entities,
   return get_adjacencies(tmp_from_entities, to_dimension, create_if_missing, 
                          adj_entities, operation_type);
 }
+
+MBErrorCode MBCore::get_vertices( const MBRange& from_entities,
+                                  MBRange& adj_entities )
+{
+  const size_t DEFAULT_MAX_BLOCKS_SIZE = 4000;
+  const size_t MAX_OUTER_ITERATIONS = 100;
+
+  std::vector<MBEntityHandle> temp_vec, storage;
+  std::vector<MBEntityHandle>::const_iterator ti;
+  MBErrorCode result = MB_SUCCESS, tmp_result;
+  MBRange::const_iterator i = from_entities.begin();
+  MBRange::iterator ins;
+  const MBEntityHandle* conn;
+  int conn_len;
+
+    // Just copy any vertices from the input range into the output
+  size_t remaining = from_entities.size();
+  for (; i != from_entities.end() && TYPE_FROM_HANDLE(*i) == MBVERTEX; ++i) 
+    --remaining;
+  adj_entities.merge( from_entities.begin(), i );
   
+    // How many entities to work with at once? 2000 or so shouldn't require
+    // too much memory, but don't iterate in outer loop more than a
+    // 1000 times (make it bigger if many input entiites.) 
+  const size_t block_size = std::max( DEFAULT_MAX_BLOCKS_SIZE, remaining/MAX_OUTER_ITERATIONS );
+  while (remaining > 0) {
+    const size_t count = remaining > block_size ? block_size : remaining;
+    remaining -= count;
+    temp_vec.clear();
+    for (size_t j = 0; j < count; ++i, ++j) {
+      tmp_result = get_connectivity( *i, conn, conn_len, false, &storage );
+      if (MB_SUCCESS != tmp_result) {
+        result = tmp_result;
+        continue;
+      }
+
+      if (TYPE_FROM_HANDLE(*i) == MBPOLYHEDRON) {
+        storage.clear();
+        tmp_result = get_connectivity( conn, conn_len, storage );
+        if (MB_SUCCESS != tmp_result) {
+          result = tmp_result;
+          continue;
+        }
+        conn_len = storage.size();
+        conn = &storage[0];
+      }
+
+      const size_t oldsize = temp_vec.size();
+      temp_vec.resize( oldsize + conn_len );
+      memcpy( &temp_vec[oldsize], conn, sizeof(MBEntityHandle)*conn_len );
+    }
+
+    std::sort( temp_vec.begin(), temp_vec.end() );
+    ins = adj_entities.begin();
+    ti = temp_vec.begin();
+    while (ti != temp_vec.end()) {
+      MBEntityHandle first = *ti;
+      MBEntityHandle second = *ti;
+      for (++ti; ti != temp_vec.end() && (*ti - second <= 1); ++ti)
+        second = *ti;
+      ins = adj_entities.insert( ins, first, second );
+    }
+  }
+  return result;
+}
+
 MBErrorCode MBCore::get_adjacencies(const MBRange &from_entities,
                                       const int to_dimension,
                                       const bool create_if_missing,
@@ -1008,6 +1073,11 @@ MBErrorCode MBCore::get_adjacencies(const MBRange &from_entities,
 
   if(from_entities.size() == 0)
     return MB_SUCCESS;
+
+    // special case for getting all vertices
+  if (to_dimension == 0 && operation_type == MBInterface::UNION) {
+    return get_vertices( from_entities, adj_entities );
+  }
 
   MBRange temp_range;
   std::vector<MBEntityHandle> temp_vec;
