@@ -30,6 +30,9 @@ extern "C"
 {
 #include "minmax.h"
 #include "gs.h"
+#include "errmem.h"
+#include "types.h"
+#include "sort.h"
 #include "tuple_list.h"
 }
 
@@ -1704,7 +1707,7 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
     else if (MB_SUCCESS != result) return result;
 
       // go through handle vec (in buffer) and convert to local handles in-place
-    size_t num_ents;
+    int num_ents;
     UNPACK_INT(buff_ptr, num_ents);
     MBEntityHandle *handle_vec = (MBEntityHandle*)buff_ptr;
     result = get_local_handles(handle_vec, num_ents, entities);
@@ -1736,7 +1739,8 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
       
         // get pointers into buffer for each tag value
       var_len_vals.resize(num_ents);
-      for (std::vector<MBEntityHandle>::size_type i = 0; i < num_ents; ++i) {
+      for (std::vector<MBEntityHandle>::size_type i = 0; 
+           i < (std::vector<MBEntityHandle>::size_type) num_ents; ++i) {
         var_len_vals[i] = buff_ptr;
         buff_ptr += size_arr[i];
         UPC(size_arr[i], " void");
