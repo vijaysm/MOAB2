@@ -221,7 +221,7 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
           std::cout << "Getting fileset entities." << std::endl;
 
         if (0 == file_set_tag) {
-          tmp_result = mbImpl->tag_get_handle("FILE_SET", file_set_tag);
+          tmp_result = mbImpl->tag_get_handle("__file_set", file_set_tag);
           if (MB_SUCCESS == tmp_result) {
             other_file_sets.clear();
             file_sets.clear();

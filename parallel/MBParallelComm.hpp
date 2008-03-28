@@ -78,7 +78,8 @@ public:
   MBErrorCode communicate_entities(const int from_proc, const int to_proc,
                                    MBRange &entities,
                                    const bool adjacencies = false,
-                                   const bool tags = true);
+                                   const bool tags = true,
+                                   const bool store_remote_handles = true);
   
   MBErrorCode broadcast_entities( const int from_proc,
                                   MBRange& entities,
@@ -133,11 +134,15 @@ public:
                           const bool adjacencies,
                           const bool tags,
                           const bool just_count,
+                          const bool store_remote_handles,
+                          const int to_proc,
                           MBRange &whole_range,
                           int &buff_size);
   
     //! unpack a buffer; assume information is already in myBuffer
-  MBErrorCode unpack_buffer(MBRange &entities);
+  MBErrorCode unpack_buffer(MBRange &entities, 
+                            const bool store_remote_handles,
+                            int from_proc);
 
     //! set the buffer size; return true if size actually changed
   bool buffer_size(const unsigned int new_size);
@@ -154,7 +159,74 @@ public:
                                    MBTag &sharedh_tag,
                                    MBTag &sharedhs_tag,
                                    MBTag &pstatus_tag);
-      
+  
+    //! return sharedp tag
+  MBTag sharedp_tag();
+  
+    //! return sharedps tag
+  MBTag sharedps_tag();
+  
+    //! return sharedh tag
+  MBTag sharedh_tag();
+  
+    //! return sharedhs tag
+  MBTag sharedhs_tag();
+  
+    //! return pstatus tag
+  MBTag pstatus_tag();
+  
+    //! replace handles in from_vec with corresponding handles on
+    //! to_proc (by checking shared[p/h]_tag and shared[p/h]s_tag;
+    //! if no remote handle and new_ents is non-null, substitute
+    //! instead CREATE_HANDLE(MBMAXTYPE, index) where index is handle's
+    //! position in new_ents
+  MBErrorCode get_remote_handles(const bool store_remote_handles,
+                                 MBEntityHandle *from_vec, 
+                                 MBEntityHandle *to_vec_tmp,
+                                 int num_ents, int to_proc,
+                                 const MBRange &new_ents);
+  
+    //! same as other version, except from_range and to_range should be
+    //! different here
+  MBErrorCode get_remote_handles(const bool store_remote_handles,
+                                 const MBRange &from_range, 
+                                 MBRange &to_range,
+                                 int to_proc,
+                                 const MBRange &new_ents);
+  
+    //! same as other version, except packs range into vector
+  MBErrorCode get_remote_handles(const bool store_remote_handles,
+                                 const MBRange &from_range, 
+                                 MBEntityHandle *to_vec,
+                                 int to_proc,
+                                 const MBRange &new_ents);
+  
+    //! goes through from_vec, and for any with type MBMAXTYPE, replaces with
+    //! new_ents value at index corresponding to id of entity in from_vec
+  MBErrorCode get_local_handles(MBEntityHandle *from_vec, 
+                                int num_ents,
+                                const MBRange &new_ents);
+
+    //! same as above except puts results in range
+  MBErrorCode get_local_handles(const MBRange &remote_handles,
+                                MBRange &local_handles,
+                                const MBRange &new_ents);
+  
+    //! adjust shared proc tags/handles to incude from_proc and remote_range
+  MBErrorCode set_remote_data(MBRange &local_range,
+                              MBRange &remote_range,
+                              int from_proc);
+  
+    //! adjust shared proc tags/handles to incude from_proc and remote_range
+  MBErrorCode set_remote_data(MBEntityHandle *local_ents,
+                              MBEntityHandle *remote_ents,
+                              int num_ents,
+                              int other_proc);
+  
+    //! exchange ghost cells with with_proc, going through bridge_dim to to_dim
+  MBErrorCode exchange_ghost_cells(int to_dim, int bridge_dim, 
+                                   int num_layers, int to_proc);
+  
 private:
 
   int num_subranges(const MBRange &this_range);
@@ -164,43 +236,56 @@ private:
                             MBRange &whole_range,
                             unsigned char *&buff_ptr,
                             int &count,
-                            const bool just_count);
+                            const bool just_count,
+                            const bool store_remote_handles,
+                            const int from_proc);
   
   MBErrorCode unpack_entities(unsigned char *&buff_ptr,
                               MBRange &entities,
-                              HandleMap &handle_map);
+                              const bool store_remote_handles,
+                              const int from_proc);
   
   MBErrorCode pack_sets(MBRange &entities,
                         MBRange::const_iterator &start_rit,
                         MBRange &whole_range,
                         unsigned char *&buff_ptr,
                         int &count,
-                        const bool just_count);
+                        const bool just_count,
+                        const bool store_handles,
+                        const int to_proc);
   
   MBErrorCode unpack_sets(unsigned char *&buff_ptr,
                           MBRange &entities,
-                          HandleMap &handle_map);
+                          const bool store_handles,
+                          const int to_proc);
   
   MBErrorCode pack_adjacencies(MBRange &entities,
                                MBRange::const_iterator &start_rit,
                                MBRange &whole_range,
                                unsigned char *&buff_ptr,
                                int &count,
-                               const bool just_count);
+                               const bool just_count,
+                               const bool store_handles,
+                               const int to_proc);
 
   MBErrorCode unpack_adjacencies(unsigned char *&buff_ptr,
-                                 MBRange &entities);
+                                 MBRange &entities,
+                                 const bool store_handles,
+                                 const int from_proc);
   
   MBErrorCode pack_tags(MBRange &entities,
                         MBRange::const_iterator &start_rit,
                         MBRange &whole_range,
                         unsigned char *&buff_ptr,
                         int &count,
-                        const bool just_count);
+                        const bool just_count,
+                        const bool store_handles,
+                        const int to_proc);
 
   MBErrorCode unpack_tags(unsigned char *&buff_ptr,
                           MBRange &entities,
-                          HandleMap &handle_map);
+                          const bool store_handles,
+                          const int to_proc);
   
   MBErrorCode tag_shared_verts(tuple_list &shared_verts,
                                MBRange *skin_ents,
@@ -211,8 +296,13 @@ private:
                               MBRange *skin_ents,
                               std::map<std::vector<int>, MBRange> &proc_nranges);
 
-  MBErrorCode create_interface_sets(std::map<std::vector<int>, MBRange> &proc_nranges);
+  MBErrorCode create_interface_sets(std::map<std::vector<int>, MBRange> &proc_nranges,
+                                    MBRange &iface_sets);
 
+    //! resolve remote handles for shared non-vertex ents, assuming
+    //! this has already been done for vertices
+  MBErrorCode resolve_ent_remote_handles(MBRange &iface_sets);
+  
     //! pack a range map with keys in this_range and values a contiguous series
     //! of handles starting at actual_start
   MBErrorCode pack_range_map(MBRange &this_range, MBEntityHandle actual_start,
@@ -277,4 +367,24 @@ private:
   
 };
 
+  //! return sharedp tag
+inline MBTag MBParallelComm::sharedp_tag()
+{return sharedpTag;}
+  
+  //! return sharedps tag
+inline MBTag MBParallelComm::sharedps_tag()
+{return sharedpsTag;}
+  
+  //! return sharedh tag
+inline MBTag MBParallelComm::sharedh_tag()
+{return sharedhTag;}
+  
+  //! return sharedhs tag
+inline MBTag MBParallelComm::sharedhs_tag()
+{return sharedhsTag;}
+  
+  //! return pstatus tag
+inline MBTag MBParallelComm::pstatus_tag()
+{return pstatusTag;}
+  
 #endif
