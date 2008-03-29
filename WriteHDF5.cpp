@@ -1129,7 +1129,7 @@ MBErrorCode WriteHDF5::range_to_id_list( const MBRange& range,
       if (n > ri->count)
         n = ri->count;
 
-      id_t id = ri->value - (h - ri->begin);
+      id_t id = ri->value + (h - ri->begin);
       for (id_t j = 0; j < n; ++i, ++j)
         *i = id + j;
       h += n;
