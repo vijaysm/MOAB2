@@ -21,8 +21,8 @@ const char* const TREE_TAG = "OBB_ROOT";
 const char* root_tag = TREE_TAG;
 
 MBErrorCode get_root( MBInterface* moab, MBEntityHandle& root );
-void build_tree( MBInterface* interface, 
-                 MBOrientedBoxTreeTool::Settings settings );
+MBEntityHandle build_tree( MBInterface* interface, 
+                           MBOrientedBoxTreeTool::Settings settings );
 void delete_existing_tree( MBInterface* interface );
 void print_stats( MBInterface* interface );
 void tag_triangles( MBInterface* interface );
@@ -181,6 +181,7 @@ int main( int argc, char* argv[] )
   }
   tag_time = clock() - stat_time;
   
+  
   std::cout << "Writing file... "; std::cout.flush();
   rval = interface->write_mesh( output_file );
   if (MB_SUCCESS != rval) {
@@ -245,7 +246,7 @@ MBErrorCode get_root( MBInterface* moab, MBEntityHandle& root )
   if (MB_TYPE_HANDLE != type)
     return MB_TAG_NOT_FOUND;
   
-  return moab->tag_get_data( tag, 0, 1, &root );
+  return moab->tag_get_data( tag, 0, 0, &root );
 }
 
   
@@ -263,7 +264,7 @@ void delete_existing_tree( MBInterface* interface )
   }
 }
   
-void build_tree( MBInterface* interface, MBOrientedBoxTreeTool::Settings settings )
+MBEntityHandle build_tree( MBInterface* interface, MBOrientedBoxTreeTool::Settings settings )
 {
   MBErrorCode rval;
   MBEntityHandle root = 0;
@@ -281,6 +282,21 @@ void build_tree( MBInterface* interface, MBOrientedBoxTreeTool::Settings setting
     std::cerr << "Tree construction failed." << std::endl;
     exit(4);
   }
+  
+    // store tree root
+  MBTag roottag;
+  rval = interface->tag_create( root_tag, sizeof(MBEntityHandle), MB_TAG_SPARSE, MB_TYPE_HANDLE, roottag, 0, true );
+  if (MB_SUCCESS != rval) {
+    std::cout << "Failed to create root tag: \"" << root_tag << '"' << std::endl;
+    exit(2);
+  }
+  rval = interface->tag_set_data( roottag, 0, 0, &root );
+  if (MB_SUCCESS != rval) {
+    std::cout << "Failed to set root tag: \"" << root_tag << '"' << std::endl;
+    exit(2);
+  }
+  
+  return root;
 }  
 
 std::string clock_to_string( clock_t t )
