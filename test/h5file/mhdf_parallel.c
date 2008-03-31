@@ -172,7 +172,7 @@ void write_file_data()
   
     /* write set descriptions for per-proc sets */
   set_desc[0] = total_num_nodes + total_num_hexes + 9 + 5*RANK - 1;
-  mhdf_writeSetData( handle, 2+RANK, 1, H5T_NATIVE_LONG, set_desc, &status );
+  mhdf_writeSetMeta( handle, 2+RANK, 1, H5T_NATIVE_LONG, set_desc, &status );
   CHECK(status);
   
     /* write set descriptions for multi-proc sets */
@@ -226,6 +226,7 @@ void write_file_data()
   CHECK(status);
   
     /* write tag data */
+  offset = (0 == RANK) ? 0 : 4 + 4*RANK;
   offset += 2*RANK;
   list[count++] = first_set + 2 + RANK;
   mhdf_openSparseTagData( file, proc_tag_name, &ntag, handles, &status );
