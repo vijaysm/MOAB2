@@ -41,8 +41,3 @@ MOSTLYCLEANFILES = mb_write.g \
                    mb_stress_out.g \
                    merge_test.ncdf
 
-check_PROGRAMS = big_mesh_test
-TESTS = $(check_PROGRAMS)
-LDADD = ../libMOAB.la
-AM_CPPFLAGS += -I$(top_srcdir)
-big_mesh_test_SOURCES = big_mesh_test.cc
