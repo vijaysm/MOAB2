@@ -725,7 +725,10 @@ MBErrorCode MBParallelComm::get_remote_handles(const bool store_remote_handles,
                                                int num_ents, int to_proc,
                                                const MBRange &new_ents) 
 {
-  if (0 == num_ents) return MB_FAILURE;
+    // NOTE: THIS IMPLEMENTATION IS JUST LIKE THE RANGE-BASED VERSION, NO REUSE
+    // AT THIS TIME, SO IF YOU FIX A BUG IN THIS VERSION, IT MAY BE IN THE
+    // OTHER VERSION TOO!!!
+  if (0 == num_ents) return MB_SUCCESS;
   
     // use a local destination ptr in case we're doing an in-place copy
   std::vector<MBEntityHandle> tmp_vector;
@@ -824,7 +827,10 @@ MBErrorCode MBParallelComm::get_remote_handles(const bool store_remote_handles,
                                                int to_proc,
                                                const MBRange &new_ents) 
 {
-  if (from_range.empty()) return MB_FAILURE;
+    // NOTE: THIS IMPLEMENTATION IS JUST LIKE THE VECTOR-BASED VERSION, NO REUSE
+    // AT THIS TIME, SO IF YOU FIX A BUG IN THIS VERSION, IT MAY BE IN THE
+    // OTHER VERSION TOO!!!
+  if (from_range.empty()) return MB_SUCCESS;
   
   if (!store_remote_handles) {
     int err;
