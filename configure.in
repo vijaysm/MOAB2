@@ -103,6 +103,21 @@ dnl SNL_CHECK_BOOST( [boost/pool/object_pool.hpp] )
 
 if test "x$WITH_MPI" != "xno"; then
   DEFINES="$DEFINES -DUSE_MPI"
+  AC_CHECK_HEADER([mpi.h],[],[AC_MSG_ERROR([mpi.h not found or not working])])
+  AC_MSG_CHECKING([If -DMPICH_IGNORE_CXX_SEEK is necessary])
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_PREPROC_IFELSE([AC_LANG_PROGRAM( [[#include <stdio.h>
+     #include <mpi.h>]],[])],
+    [AC_MSG_RESULT([no])],
+    [save_CPPFLAGS="$CPPFLAGS"
+     CPPFLAGS="$CPPFLAGS -DMPICH_IGNORE_CXX_SEEK"
+     AC_PREPROC_IFELSE([AC_LANG_PROGRAM( [[#include <stdio.h>
+         #include <mpi.h>]],[])],
+         [AC_MSG_RESULT([yes]); AM_CPPFLAGS="$AM_CPPLFLAGS -DMPICH_IGNORE_CXX_SEEK" ],
+         [AC_MSG_ERROR([mpi.h is not usable])]),
+     CPPFLAGS="$save_CPPFLAGS"])
+  AC_LANG_RESTORE
 fi
 AM_CONDITIONAL(USE_MPI, [test "xno" != "x$WITH_MPI"])
 
