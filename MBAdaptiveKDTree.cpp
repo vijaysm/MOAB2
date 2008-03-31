@@ -1060,7 +1060,7 @@ static MBErrorCode best_vertex_sample_plane( int num_planes,
       }
     }
   
-    for (unsigned p = 0; p <= indices.size(); ++p) {
+    for (unsigned p = 0; p < indices.size(); ++p) {
       
       MBAdaptiveKDTree::Plane plane = { coords[indices[p]], axis };
       MBRange left, right, both;
