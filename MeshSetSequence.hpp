@@ -106,10 +106,7 @@ private:
                             SequenceManager* set_sequences,
                             std::vector<MBMeshSet*>& sets_out );
   
-  enum {
-    SET_SIZE = (sizeof(MBMeshSet_MBRange) > sizeof(MBMeshSet_Vector)) ?
-                sizeof(MBMeshSet_MBRange) : sizeof(MBMeshSet_Vector)
-  };
+  enum { SET_SIZE = sizeof(MBMeshSet) };
 
   inline const unsigned char* array() const
     { return reinterpret_cast<const unsigned char*>(data()->get_sequence_data(0)); }
@@ -119,21 +116,14 @@ private:
     
   inline void allocate_set( unsigned flags, MBEntityID index )
   {
-    const bool tracking = (0 != (flags&MESHSET_TRACK_OWNER));
     unsigned char* const ptr = array() + index * SET_SIZE;
-    if (flags & MESHSET_ORDERED)
-      new (ptr) MBMeshSet_Vector(tracking);
-    else
-      new (ptr) MBMeshSet_MBRange(tracking);
+    new (ptr) MBMeshSet(flags);
   }
     
   inline void deallocate_set( MBEntityID index ) 
   {
     MBMeshSet* set = reinterpret_cast<MBMeshSet*>(array() + SET_SIZE * index );
-    if (set->vector_based())
-      reinterpret_cast<MBMeshSet_Vector*>(set)->~MBMeshSet_Vector();
-    else
-      reinterpret_cast<MBMeshSet_MBRange*>(set)->~MBMeshSet_MBRange();
+    set->~MBMeshSet();
   }
 };
 

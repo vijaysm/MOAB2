@@ -31,7 +31,8 @@ TESTS = moab_test \
 	file_options_test \
         kd_tree_test \
         var_len_test var_len_test_no_template \
-	tag_test
+	tag_test \
+	mesh_set_test
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 
@@ -290,7 +291,9 @@ test_adj_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 seq_man_test_SOURCES = TestUtil.hpp TestTypeSequenceManager.cpp 
 seq_man_test_LDADD = $(top_builddir)/libMOAB.la
-seq_man_test_CXXFLAGS = -DTEST $(CXXFLAGS)
+
+mesh_set_test_SOURCES = Test_MBMeshSet.cpp TestUtil.hpp
+mesh_set_test_LDADD = $(top_builddir)/libMOAB.la
 
 geom_util_test_SOURCES = TestUtil.hpp GeomUtilTests.cpp 
 geom_util_test_LDADD = $(top_builddir)/libMOAB.la

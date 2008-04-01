@@ -62,6 +62,12 @@ inline MBEntityHandle CREATE_HANDLE(const unsigned type, const MBEntityID id, in
   return (((MBEntityHandle)type) << MB_ID_WIDTH)|id;
 }
 
+inline MBEntityHandle FIRST_HANDLE( unsigned type )
+  { return (((MBEntityHandle)type) << MB_ID_WIDTH)|MB_START_ID; }
+
+inline MBEntityHandle LAST_HANDLE( unsigned type )
+  { return ((MBEntityHandle)(type+1) << MB_ID_WIDTH) - 1; }
+
 //! Get the entity id out of the handle.
 inline MBEntityID ID_FROM_HANDLE (MBEntityHandle handle)
 {
