@@ -32,6 +32,8 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <math.h>
+#include <assert.h>
+#include <float.h>
 
 #include "MBCore.hpp"
 #include "MBRange.hpp"
@@ -231,7 +233,9 @@ void print_stats( set_stats& stats )
   struct winsize size;
   if ( ioctl( fileno(stdout), TIOCGWINSZ, (char*)&size ) == 0 )
     term_width = size.ws_col;
-    
+  if (!term_width) term_width = 80;
+  assert(term_width > 7 + type_width + count_width + total_width);
+  
   term_width -= 7; // spaces
   term_width -= type_width;
   term_width -= count_width;
@@ -265,6 +269,12 @@ void print_stats( set_stats& stats )
     
     if (s.count == 0)
       continue;
+
+    double tmp_dbl = s.sqr / s.count - s.sum*s.sum / (double)s.count / (double)s.count;
+    if (tmp_dbl < 0.0) {
+      assert(-tmp_dbl < 100.0*DBL_EPSILON);
+      tmp_dbl = 0.0;
+    }
     
     printf( "%*s %*ld %*.*lg %*.*lg %*.*lg %*.*lg %*.*lg %*.*lg\n",
             type_width, i == MBMAXTYPE ? edge_use_name : MBCN::EntityTypeName(i),
@@ -275,7 +285,7 @@ void print_stats( set_stats& stats )
             val_width, precision, sqrt( s.sqr / s.count ),
             val_width, precision, s.max,
             val_width, precision,  
-            sqrt( s.sqr / s.count - s.sum*s.sum / (double)s.count / (double)s.count )
+            sqrt(tmp_dbl)
           );
   }
   
