@@ -208,13 +208,13 @@ void make_mesh( MBInterface& mb, MBEntityHandle& first_vert, MBEntityHandle& las
   CHECK_ERR(rval);
   first_vert = range.front();
   last_vert = range.back();
-  CHECK_EQUAL( 1331ul, last_vert - first_vert + 1 );
+  CHECK_EQUAL( (MBEntityHandle)1331, last_vert - first_vert + 1 );
   range.clear();
   rval = mb.get_entities_by_type( 0, MBHEX, range );
   CHECK_ERR(rval);
   first_hex = range.front();
   last_hex = range.back();
-  CHECK_EQUAL( 1000ul, last_hex - first_hex + 1 );
+  CHECK_EQUAL( (MBEntityHandle)1000, last_hex - first_hex + 1 );
 }
 
 
