@@ -429,7 +429,7 @@ gs_data *gs_data_setup(uint n, const long *label, const ulong *ulabel,
         for (j = 0; j < nlabels; j++)
           nzl[j]=label[nlabels*i+j];
         for (j = 0; j < nulabels; j++)
-          nzul[j]=label[nulabels*i+j];
+          nzul[j]=ulabel[nulabels*i+j];
         nzi++, nzl+= nlabels, nzul+=nulabels, nonzero.n++;
       }
   }
@@ -442,13 +442,13 @@ gs_data *gs_data_setup(uint n, const long *label, const ulong *ulabel,
 #endif
 
   /* build list of unique labels w/ lowest associated index:
-     (index in nonzero ^, primary (lowest) index in label, count, label) */
+     (index in nonzero ^, primary (lowest) index in label, count, label(s), ulabel(s)) */
   tuple_list_init_max(&primary,3,nlabels,nulabels,0,nonzero.n);
   {
     uint i;
     sint  *nzi=nonzero.vi, *pi=primary.vi;
     slong *nzl=nonzero.vl, *pl=primary.vl;
-    slong *nzul=nonzero.vul, *pul=primary.vul;
+    ulong *nzul=nonzero.vul, *pul=primary.vul;
     sint last=-1;
     for(i=0;i<nonzero.n;++i,nzi+=1,nzl+=nlabels,nzul+=nulabels) {
       if(nzl[0]==last) {
@@ -479,10 +479,10 @@ gs_data *gs_data_setup(uint n, const long *label, const ulong *ulabel,
   /* sort unique labels by primary index:
      (nonzero index ^2, primary index ^1, count, label ^2) */
 #ifndef USE_MPI
-  tuple_list_sort(&primary,1,&buf);
+  tuple_list_sort(&primary,0,&buf);
   buffer_free(&buf);
 #else
-  tuple_list_sort(&primary,1,&crystal->all->buf);
+  tuple_list_sort(&primary,0,&crystal->all->buf);
 #endif
   
   /* construct local condense map */
@@ -540,10 +540,10 @@ gs_data *gs_data_setup(uint n, const long *label, const ulong *ulabel,
         si[1] = pi1[0];
         si[2] = pi2[1];
         for (j = 0; j < nlabels; j++)
-          sl[j] = pl2[j];
+          sl[j] = pl1[j];
         for (j = 0; j < nulabels; j++)
-          sul[j] = pul2[j];
-        si+=3, sul+=nulabels, shared.n++;
+          sul[j] = pul1[j];
+        si+=3, sl+=nlabels, sul+=nulabels, shared.n++;
       }
     }
   }
@@ -580,9 +580,10 @@ gs_data *gs_data_setup(uint n, const long *label, const ulong *ulabel,
         // don't store 1st slabel
       sl++;
       for (j = 0; j < nlabels-1; j++)
-        *slabels++ = *sl;
+        slabels[j] = sl[j];
       for (j = 0; j < nulabels; j++)
-        *ulabels++ = *ul;
+        ulabels[j] = ul[j];
+      slabels+=nlabels-1, ulabels+=nulabels, sl+=nlabels-1, ul+=nulabels;
     }
   }
   tuple_list_free(&shared);
