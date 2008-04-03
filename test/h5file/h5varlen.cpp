@@ -567,7 +567,7 @@ void create_mesh( MBInterface& mb )
 
 void create_big_mesh( MBInterface& mb )
 {
-  create_structured_quad_mesh( mb, 1000, 700 );
+  create_structured_quad_mesh( mb, 300, 300 );
 }
 
 void compare_tags( const char* name, MBInterface& mb1, MBInterface& mb2 )
