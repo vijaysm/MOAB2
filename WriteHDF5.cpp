@@ -2306,6 +2306,7 @@ MBErrorCode WriteHDF5::get_tag_size( MBTag tag,
   case MB_TYPE_HANDLE:
     elem_size = sizeof(MBEntityHandle);
     file_type = mhdf_ENTITY_ID;
+    hdf_type = id_type;
     break;
   case MB_TYPE_OPAQUE:
   default:
