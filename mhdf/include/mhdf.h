@@ -1842,11 +1842,17 @@ mhdf_createVarLenTagData( mhdf_FileHandle file_handle,
  * Open the file objects containing all sparse data for a given tag in.  The 
  * sparse data is stored in a pair of objects.  The first is a vector of
  * global IDs.  The second is a vector of tag values for each entity specified
- * in the list of global IDs.
+ * in the list of global IDs.  For variable-length tags, a third table
+ * containing end offsets for each tag value is returned in the third
+ * position of the output hid_t array (see mhdf_readSparseTagIndices.)
  *
  *\param file_handle    The file.
  *\param tag_name       The tag.
- *\param num_values_out The number of entities for which tag values are stored.
+ *\param num_entity_out The number of entities for which there are tag values.
+ *\param num_values_out The number of data values.  For fixed-length tags,
+ *                      this is the same as num_entity_out.  For
+ *                      variable-length tags, it is the total number of
+ *                      values in the data table.
  *\param entities_and_values_out The handles to the pair of file objects.
  *                      The first is the vector of global IDs.  The second
  *                      is the list of corresponding tag values.  The third
@@ -1858,6 +1864,7 @@ mhdf_createVarLenTagData( mhdf_FileHandle file_handle,
 void
 mhdf_openSparseTagData( mhdf_FileHandle file_handle,
                         const char* tag_name,
+                        long* num_entity_out,
                         long* num_values_out,
                         hid_t entities_and_values_out[3],
                         mhdf_Status* status );

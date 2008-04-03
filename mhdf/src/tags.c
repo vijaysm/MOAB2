@@ -1405,7 +1405,7 @@ mhdf_openDenseTagData(  mhdf_FileHandle file_handle,
   H5Gclose( elem_id );
   *num_values_out = (long)size;
   
-  if (data_id > 0)
+  if (data_id >= 0)
     mhdf_setOkay( status );
   
   API_END_H( 1 );
@@ -1601,12 +1601,13 @@ mhdf_createVarLenTagData( mhdf_FileHandle file_handle,
 void
 mhdf_openSparseTagData( mhdf_FileHandle file_handle,
                         const char* tag_name,
+                        long* num_entity_out,
                         long* num_values_out,
                         hid_t handles_out[3],
                         mhdf_Status* status )
 {
   hid_t tag_id, index_id, data_id, offset_id = -1;
-  hsize_t size1, size2;
+  hsize_t num_ent, data_size, num_data;
   int rval;
   unsigned idx;
   API_BEGIN;
@@ -1614,14 +1615,14 @@ mhdf_openSparseTagData( mhdf_FileHandle file_handle,
   tag_id = get_tag( file_handle, tag_name, status );
   if (tag_id < 0) return ;
  
-  index_id = mhdf_open_table( tag_id, SPARSE_ENTITY_NAME, 1, &size1, status );
+  index_id = mhdf_open_table( tag_id, SPARSE_ENTITY_NAME, 1, &num_ent, status );
   if (index_id < 0) 
   { 
     H5Gclose( tag_id ); 
     return ; 
   }
   
-  data_id = mhdf_open_table( tag_id, SPARSE_VALUES_NAME, 1, &size2, status );
+  data_id = mhdf_open_table( tag_id, SPARSE_VALUES_NAME, 1, &data_size, status );
   if (data_id < 0) 
   { 
     H5Gclose( tag_id ); 
@@ -1638,12 +1639,9 @@ mhdf_openSparseTagData( mhdf_FileHandle file_handle,
     return ;
   }
   
-    /* If variable length...
-     * Replace if data table (size2) with size of offset table.  For variable-length
-     * tags, the index and offset tables should be the same size, but the size of
-     * the data table could be anything. */
+    /* If variable length... */
   if (rval) {
-    offset_id = mhdf_open_table( tag_id, TAG_VAR_INDICES, 1, &size2, status );
+    offset_id = mhdf_open_table( tag_id, TAG_VAR_INDICES, 1, &num_data, status );
     if (offset_id < 0) {
       H5Gclose( tag_id );
       H5Dclose( index_id );
@@ -1651,9 +1649,13 @@ mhdf_openSparseTagData( mhdf_FileHandle file_handle,
       return ;
     }
   }
+    /* Otherwise the number of values is the same as the size of the data table */
+  else {
+    num_data = data_size;
+  }
 
   H5Gclose( tag_id ); 
-  if (size1 != size2)
+  if (num_ent != num_data)
   {
     mhdf_setFail( status, "Data length mismatch for sparse tag data -- invalid file.");
     if (offset_id >= 0)
@@ -1662,7 +1664,9 @@ mhdf_openSparseTagData( mhdf_FileHandle file_handle,
     H5Dclose( data_id );
     return ;
   }
-  *num_values_out = (long)size1;
+  *num_entity_out = (long)num_ent;
+  if (num_values_out)
+    *num_values_out = (long)data_size;
   
   handles_out[0] = index_id;
   handles_out[1] = data_id;

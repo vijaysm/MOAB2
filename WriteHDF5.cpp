@@ -192,16 +192,22 @@ do if (MB_SUCCESS != (A)) {                     \
   return (A);                                   \
 } while(false)
 
-bool WriteHDF5::convert_handle_tag( MBEntityHandle* data, size_t count )
+bool WriteHDF5::convert_handle_tag( const MBEntityHandle* source,
+                                    MBEntityHandle* dest, size_t count ) const
 {
-  assert( sizeof(MBEntityHandle) == sizeof(id_t) );
   bool some_valid = false;
   for (size_t i = 0; i < count; ++i) {
-    data[i] = idMap.find( data[i] );
-    if (data[i])
+    dest[i] = idMap.find( source[i] );
+    if (dest[i])
       some_valid = true;
   }
   return some_valid;
+}
+
+bool WriteHDF5::convert_handle_tag( MBEntityHandle* data, size_t count ) const
+{
+  assert( sizeof(MBEntityHandle) == sizeof(id_t) );
+  return convert_handle_tag( data, data, count );
 }
 
 MBErrorCode WriteHDF5::assign_ids( const MBRange& entities, id_t id )
@@ -1498,7 +1504,7 @@ MBErrorCode WriteHDF5::write_sparse_tag( const SparseTag& tag_data )
   int mb_size;
   MBTagType mb_type;
   MBDataType mb_data_type;
-  long table_size;
+  long table_size, data_size;
   hid_t value_type = 0;
   
     //get tag properties from moab
@@ -1518,10 +1524,13 @@ DEBUGOUT((std::string("Tag: ") + name + "\n").c_str());
   mhdf_openSparseTagData( filePtr,
                           name.c_str(),
                           &table_size,
+                          &data_size,
                           tables,
                           &status);
   CHK_MHDF_ERR_0(status);
   assert( tag_data.range.size() + tag_data.offset <= (unsigned long)table_size );
+    // fixed-length tag
+  assert( table_size == data_size );
 
     // Write IDs for tagged entities
   rval = write_sparse_ids( tag_data, tables[0] );
@@ -1619,6 +1628,7 @@ MBErrorCode WriteHDF5::write_var_len_tag( const SparseTag& tag_data )
   hid_t tables[3];
   std::string name;
   long table_size;
+  long data_table_size;
   
     //get tag properties from moab
   if (MB_SUCCESS != iFace->tag_get_name( tag_data.tag_id, name ))
@@ -1643,12 +1653,13 @@ MBErrorCode WriteHDF5::write_var_len_tag( const SparseTag& tag_data )
   if (mb_size != MB_VARIABLE_LENGTH)
     return MB_FAILURE;
 
-DEBUGOUT((std::string("Tag: ") + name + "\n").c_str());
+DEBUGOUT((std::string("Var Len Tag: ") + name + "\n").c_str());
   
     //open tables to write info
   mhdf_openSparseTagData( filePtr,
                           name.c_str(),
                           &table_size,
+                          &data_table_size,
                           tables,
                           &status);
   CHK_MHDF_ERR_0(status);
@@ -1659,37 +1670,107 @@ DEBUGOUT((std::string("Tag: ") + name + "\n").c_str());
   CHK_MB_ERR_2( rval, tables, status );
   mhdf_closeData( filePtr, tables[0], &status );
   CHK_MHDF_ERR_2(status, tables + 1);
+
+
+    // Split buffer into four chunks ordered such that there are no 
+    // alignment issues:
+    //  1) tag data pointer buffer (data from MOAB)
+    //  2) tag offset buffer (to be written)
+    //  3) tag size buffer (data from MOAB)
+    //  4) concatenated tag data buffer (to be written)
+  const size_t quarter_buffer_size = bufferSize / 4;
+  const size_t num_entities = quarter_buffer_size / sizeof(void*);
+  assert( num_entities > 0 );
+  const void** const pointer_buffer = reinterpret_cast<const void**>(dataBuffer);
+  long* const offset_buffer = reinterpret_cast<long*>(pointer_buffer + num_entities);
+  int* const size_buffer = reinterpret_cast<int*>(offset_buffer + num_entities);
+  char* const data_buffer = reinterpret_cast<char*>(size_buffer + num_entities);
+  assert( data_buffer < bufferSize + dataBuffer );
+  const size_t data_buffer_size = dataBuffer + bufferSize - data_buffer;
   
-    // Write each tag value separately
-  size_t indx_offset = tag_data.offset;
-  size_t data_offset = tag_data.varDataOffset;
-  int size;
-  unsigned long idx;
-  const void* ptr;
-  for (MBRange::const_iterator i = tag_data.range.begin(); 
-       i!= tag_data.range.end(); ++i, ++indx_offset) {
-       
-    rval = iFace->tag_get_data( tag_data.tag_id, &*i, 1, &ptr, &size );
+    // offsets into tables
+  long offset_offset = tag_data.offset;      // offset at which to write indices
+  long data_offset = tag_data.varDataOffset; // offset at which to write data buffer
+  long offset = tag_data.varDataOffset;      // used to calculate indices
+  
+    // iterate in blocks of num_entities entities
+  size_t bytes = 0; // occupied size of data buffer
+  size_t remaining = tag_data.range.size();
+  MBRange::const_iterator i = tag_data.range.begin();
+  while (remaining) {
+    const size_t count = remaining < num_entities ? remaining : num_entities;
+    remaining -= count;
+    
+      // get subset of entity handles
+    MBRange::const_iterator e = i; e += count;
+    MBRange subrange; subrange.merge( i, e );
+    i = e;
+  
+      // get pointers and sizes for entities from MOAB
+    rval = iFace->tag_get_data( tag_data.tag_id, subrange, pointer_buffer, size_buffer );
     CHK_MB_ERR_2(rval, tables + 1, status);
     
-      // Convert MBEntityHandles to file ids
-    if (mb_data_type == MB_TYPE_HANDLE) {
-      assert( size < bufferSize );
-      memcpy( dataBuffer, ptr, size );
-      convert_handle_tag( reinterpret_cast<MBEntityHandle*>(dataBuffer), 
-                           size / sizeof(MBEntityHandle) );
-      ptr = dataBuffer;
+      // calculate end indices from sizes, and process tag data
+    for (size_t j = 0; j < count; ++j) {
+      const size_t size = size_buffer[j];
+      offset += size / type_size;
+      offset_buffer[j] = offset - 1;
+      
+        // if space in data buffer, add current tag value and continue
+      assert(size_buffer[j] >= 0);
+      const void* ptr = pointer_buffer[j];
+      
+        // flush buffer if need more room
+      if (bytes + size > data_buffer_size) {
+          // write out tag data buffer
+        if (bytes) { // bytes might be zero if tag value is larger than buffer
+          mhdf_writeSparseTagValues( tables[1], data_offset, bytes / type_size, hdf_type, data_buffer, &status );
+          CHK_MHDF_ERR_2(status, tables + 1);
+          data_offset += bytes / type_size;
+          bytes = 0;
+        }
+      }
+      
+        // special case: if tag data is larger than buffer write it w/out buffering
+      if (size > data_buffer_size) {
+        if (mb_data_type == MB_TYPE_HANDLE) {
+          std::vector<MBEntityHandle> tmp_storage(size/sizeof(MBEntityHandle));
+          convert_handle_tag( reinterpret_cast<const MBEntityHandle*>(ptr),
+                              &tmp_storage[0], tmp_storage.size() );
+          ptr = &tmp_storage[0];
+        }
+        mhdf_writeSparseTagValues( tables[1], data_offset, size / type_size, hdf_type, ptr, &status );
+        CHK_MHDF_ERR_2(status, tables + 1);
+        data_offset += size / type_size;
+      }
+        // otherwise copy data into buffer to be written during a later ieration
+      else {
+        if (mb_data_type == MB_TYPE_HANDLE) 
+          convert_handle_tag( reinterpret_cast<const MBEntityHandle*>(ptr),
+                              reinterpret_cast<MBEntityHandle*>(data_buffer + bytes), 
+                              size/sizeof(MBEntityHandle) );
+        else
+          memcpy( data_buffer + bytes, pointer_buffer[j], size );
+        bytes += size;
+      }
     }
     
-    mhdf_writeSparseTagValues( tables[1], data_offset, size/type_size, hdf_type, ptr, &status );
+      // write offsets
+    mhdf_writeSparseTagIndices( tables[2], offset_offset, count, H5T_NATIVE_LONG, offset_buffer, &status );
     CHK_MHDF_ERR_2(status, tables + 1);
-    
-    idx = data_offset + size/type_size - 1;
-    mhdf_writeSparseTagIndices( tables[2], indx_offset, 1, H5T_NATIVE_ULONG, &idx, &status );
-    CHK_MHDF_ERR_2(status, tables + 1);
-    data_offset += size/type_size;
+    offset_offset += count;
   }
-    
+  assert( offset_offset == tag_data.offset + tag_data.range.size() );
+  
+    // flush data buffer
+  if (bytes) {
+      // write out tag data buffer
+    mhdf_writeSparseTagValues( tables[1], data_offset, bytes / type_size, hdf_type, data_buffer, &status );
+    CHK_MHDF_ERR_2(status, tables + 1);
+    data_offset += bytes / type_size;
+  }
+  assert( offset == data_offset );
+  
   mhdf_closeData( filePtr, tables[1], &status );
   CHK_MHDF_ERR_1(status, tables[2]);
   mhdf_closeData( filePtr, tables[2], &status );

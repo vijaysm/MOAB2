@@ -1495,7 +1495,7 @@ MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
   mhdf_Status status;
   std::string name;
   MBErrorCode rval;
-  long num_values;
+  long num_values, data_size;
   hid_t data[3];
   MBTagType mbtype;
   assert ((hdf_read_type == 0) || (H5Tget_size(hdf_read_type) == read_size));
@@ -1508,12 +1508,14 @@ MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
   if (MB_SUCCESS != rval)
     return rval;
   
-  mhdf_openSparseTagData( filePtr, name.c_str(), &num_values, data, &status );
+  mhdf_openSparseTagData( filePtr, name.c_str(), &num_values, &data_size, data, &status );
   if (mhdf_isError( &status ) )
   {
     readUtil->report_error( mhdf_message( &status ) );
     return MB_FAILURE;
   }
+    // fixed-length tag
+  assert( num_values == data_size );
   
     // Split buffer into two portions: one for handles and one for data.
     
@@ -1609,6 +1611,9 @@ MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
   return MB_SUCCESS;
 }
 
+#define assert_range( ARRAY, BYTES ) \
+  assert( (char*)(ARRAY) >= dataBuffer && ((char*)(ARRAY)) + (BYTES) <= dataBuffer + bufferSize )
+
 MBErrorCode ReadHDF5::read_var_len_tag( MBTag tag_handle,
                                         hid_t hdf_read_type,
                                         bool is_handle_type )
@@ -1616,7 +1621,7 @@ MBErrorCode ReadHDF5::read_var_len_tag( MBTag tag_handle,
   mhdf_Status status;
   std::string name;
   MBErrorCode rval;
-  long num_values;
+  long num_values, num_data;
   hid_t data[3];
   MBTagType mbtype;
     // hdf_read_type is NULL (zero) for opaque tag data.
@@ -1632,19 +1637,47 @@ MBErrorCode ReadHDF5::read_var_len_tag( MBTag tag_handle,
   if (MB_SUCCESS != rval)
     return rval;
   
-  mhdf_openSparseTagData( filePtr, name.c_str(), &num_values, data, &status );
+  mhdf_openSparseTagData( filePtr, name.c_str(), &num_values, &num_data, data, &status );
   if (mhdf_isError( &status ) )
   {
     readUtil->report_error( mhdf_message( &status ) );
     return MB_FAILURE;
   }
+    
+    // Subdivide buffer into 5 chunks:
+    // Be careful of order so alignment is valid
+    // 1) pointer array (input for MOAB)
+    // 2) offset array (read from file)
+    // 3) entity handles
+    // 4) tag sizes (calculated from file data)
+    // 5) tag data
+  const size_t avg_data_size = (num_data * elem_size) / num_values;
+  const size_t per_ent_size = sizeof(void*) + sizeof(long) + sizeof(MBEntityHandle) + sizeof(int);
+  long num_ent = bufferSize / (per_ent_size + 2*avg_data_size);
+  if (num_ent == 0) 
+    num_ent = bufferSize / 4 / sizeof(void*);
+  const size_t data_buffer_size = (bufferSize - num_ent * per_ent_size) / elem_size;
+  const void** const pointer_buffer = reinterpret_cast<const void**>(dataBuffer);
+  long* const end_idx_buffer = reinterpret_cast<long*>(pointer_buffer + num_ent);
+  char* handle_buffer_start = reinterpret_cast<char*>(end_idx_buffer + num_ent);
+  if (((size_t)handle_buffer_start) % sizeof(MBEntityHandle))
+    handle_buffer_start += sizeof(MBEntityHandle) - ((size_t)handle_buffer_start);
+  MBEntityHandle* const handle_buffer = reinterpret_cast<MBEntityHandle*>(handle_buffer_start);
+  int* const size_buffer = reinterpret_cast<int*>(handle_buffer + num_ent);
+  char* const data_buffer = reinterpret_cast<char*>(size_buffer + num_ent);
   
-    // Process each entity individually
-  MBEntityHandle id;
-  long offset, prev_offset = 0;
-  for (long i = 0; i < num_values; ++i) {
-      // read entity ID
-    mhdf_readSparseTagEntities( data[0], i, 1, handleType, &id, &status );
+  
+    // do num_ent blocks of entities
+  long remaining = num_values;
+  long offset = 0;
+  long data_offset = 0;
+  while (remaining) {
+    const long count = remaining < num_ent ? remaining : num_ent;
+    remaining -= count;
+
+      // read entity IDs
+    assert_range( handle_buffer, count * sizeof(MBEntityHandle) );
+    mhdf_readSparseTagEntities( data[0], offset, count, handleType, handle_buffer, &status );
     if (mhdf_isError( &status ))
     {
       readUtil->report_error( mhdf_message( &status ) );
@@ -1654,7 +1687,7 @@ MBErrorCode ReadHDF5::read_var_len_tag( MBTag tag_handle,
       return MB_FAILURE;
     }
       // convert entity ID to MBEntityHandle
-    rval = convert_id_to_handle( &id, 1 );
+    rval = convert_id_to_handle( handle_buffer, count );
     if (MB_SUCCESS != rval)
     {
       mhdf_closeData( filePtr, data[0], &status );
@@ -1663,7 +1696,8 @@ MBErrorCode ReadHDF5::read_var_len_tag( MBTag tag_handle,
       return rval;
     }
       // read end index of tag value
-    mhdf_readSparseTagIndices( data[2], i, 1, H5T_NATIVE_LONG, &offset, &status );
+    assert_range( end_idx_buffer, count * sizeof(long) );
+    mhdf_readSparseTagIndices( data[2], offset, count, H5T_NATIVE_LONG, end_idx_buffer, &status );
     if (mhdf_isError( &status ))
     {
       readUtil->report_error( mhdf_message( &status ) );
@@ -1672,44 +1706,111 @@ MBErrorCode ReadHDF5::read_var_len_tag( MBTag tag_handle,
       mhdf_closeData( filePtr, data[2], &status );
       return MB_FAILURE;
     }
-      // calculate length of tag value
-    ++offset;
-    int count = (int)(offset - prev_offset);
-    assert( count * elem_size <= bufferSize );
-    mhdf_readSparseTagValues( data[1], prev_offset, count, hdf_read_type, dataBuffer, &status );
-    if (mhdf_isError( &status ))
-    {
-      readUtil->report_error( mhdf_message( &status ) );
-      mhdf_closeData( filePtr, data[0], &status );
-      mhdf_closeData( filePtr, data[1], &status );
-      mhdf_closeData( filePtr, data[2], &status );
-      return MB_FAILURE;
-    }
-      // for handle-type tags, convert file IDs to MBEntityHandles in tag data
-    if (is_handle_type)
-    {
-      rval = convert_id_to_handle( (MBEntityHandle*)dataBuffer, count );
-      if (MB_SUCCESS != rval)
-      {
-        mhdf_closeData( filePtr, data[0], &status );
-        mhdf_closeData( filePtr, data[1], &status );
-        mhdf_closeData( filePtr, data[2], &status );
-        return rval;
+      // update entity offset
+    offset += count;
+    
+    char* pointer = data_buffer;
+    long finished = 0;
+    while (finished < count) {
+      
+        // iterate over entities until we have enough to fill the data buffer
+      long i = finished;
+      long prev_end_idx = data_offset - 1;
+      for (; i < count && end_idx_buffer[i] - data_offset < (long)data_buffer_size; ++i) {
+          // calculate tag size for entity
+        const int size = (end_idx_buffer[i] - prev_end_idx);
+        if (size < 0 || (long)size != (end_idx_buffer[i] - prev_end_idx)) {
+          readUtil->report_error( "Invalid end index in variable length tag data for tag: \"%s\"", name.c_str() );
+          mhdf_closeData( filePtr, data[0], &status );
+          mhdf_closeData( filePtr, data[1], &status );
+          mhdf_closeData( filePtr, data[2], &status );
+          return MB_FAILURE;
+        }
+        assert_range( size_buffer + i - finished, sizeof(int) );
+        size_buffer[i-finished] = size * elem_size;
+        assert_range( pointer_buffer + i - finished, sizeof(void*) );
+        pointer_buffer[i-finished] = pointer;
+        assert_range( pointer_buffer[i-finished], size_buffer[i - finished] );
+        pointer += size_buffer[i-finished];
+        prev_end_idx = end_idx_buffer[i];
+      }
+      
+      const size_t num_val = prev_end_idx - data_offset + 1;
+      if (num_val) {
+          // read data
+        assert( num_val <= data_buffer_size );
+        assert_range( data_buffer, num_val * elem_size );
+        mhdf_readSparseTagValues( data[1], data_offset, num_val, hdf_read_type, data_buffer, &status );
+        if (mhdf_isError( &status )) {
+          readUtil->report_error( mhdf_message( &status ) );
+          mhdf_closeData( filePtr, data[0], &status );
+          mhdf_closeData( filePtr, data[1], &status );
+          mhdf_closeData( filePtr, data[2], &status );
+          return MB_FAILURE;
+        }
+        data_offset += num_val;
+
+        if (is_handle_type) {
+          rval = convert_id_to_handle( reinterpret_cast<MBEntityHandle*>(data_buffer), num_val );
+          if (MB_SUCCESS != rval) {
+            mhdf_closeData( filePtr, data[0], &status );
+            mhdf_closeData( filePtr, data[1], &status );
+            mhdf_closeData( filePtr, data[2], &status );
+            return rval;
+          }
+        }
+          // put data in tags
+        rval = iFace->tag_set_data( tag_handle, handle_buffer + finished, i - finished, pointer_buffer, size_buffer );
+        if (MB_SUCCESS != rval) {
+          mhdf_closeData( filePtr, data[0], &status );
+          mhdf_closeData( filePtr, data[1], &status );
+          mhdf_closeData( filePtr, data[2], &status );
+          return rval;
+        }
+
+        finished = i;
+      }
+      else if (finished < i) { // zero-length tag values???
+        finished = i;
+      }
+        // if tag value to big for buffer
+      else {
+        const int size = (end_idx_buffer[i] - prev_end_idx);
+        std::vector<char*> tmp_buffer( size * elem_size );
+        mhdf_readSparseTagValues( data[1], data_offset, size, hdf_read_type, &tmp_buffer[0], &status );
+        if (mhdf_isError( &status )) {
+          readUtil->report_error( mhdf_message( &status ) );
+          mhdf_closeData( filePtr, data[0], &status );
+          mhdf_closeData( filePtr, data[1], &status );
+          mhdf_closeData( filePtr, data[2], &status );
+          return MB_FAILURE;
+        }
+        data_offset += size;
+        
+        if (is_handle_type) {
+          rval = convert_id_to_handle( reinterpret_cast<MBEntityHandle*>(&tmp_buffer[0]), size );
+          if (MB_SUCCESS != rval) {
+            mhdf_closeData( filePtr, data[0], &status );
+            mhdf_closeData( filePtr, data[1], &status );
+            mhdf_closeData( filePtr, data[2], &status );
+            return rval;
+          }
+        }
+        
+        pointer_buffer[0] = &tmp_buffer[0];
+        size_buffer[0] = size * elem_size;
+        rval = iFace->tag_set_data( tag_handle, handle_buffer + i, 1, pointer_buffer, size_buffer );
+        if (MB_SUCCESS != rval) {
+          mhdf_closeData( filePtr, data[0], &status );
+          mhdf_closeData( filePtr, data[1], &status );
+          mhdf_closeData( filePtr, data[2], &status );
+          return rval;
+        }
+        
+        prev_end_idx = end_idx_buffer[i];
+        ++finished;
       }
     }
-      // set tag data
-    const void* ptrarr[1] = { dataBuffer };
-    int bytes = count * elem_size;
-    rval = iFace->tag_set_data( tag_handle, &id, 1, ptrarr, &bytes );
-    if (MB_SUCCESS != rval)
-    {
-      mhdf_closeData( filePtr, data[0], &status );
-      mhdf_closeData( filePtr, data[1], &status );
-      mhdf_closeData( filePtr, data[2], &status );
-      return rval;
-    }
-      // iterate
-    prev_offset = offset;
   }
   
   mhdf_closeData( filePtr, data[0], &status );

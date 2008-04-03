@@ -311,7 +311,10 @@ protected:
    *             the file or at least one of the handles is NULL (zero). false
    *             otherwise
    */
-  bool convert_handle_tag( MBEntityHandle* data, size_t count );
+  bool convert_handle_tag( MBEntityHandle* data, size_t count ) const;
+  bool convert_handle_tag( const MBEntityHandle* source,
+                           MBEntityHandle* dest, 
+                           size_t count ) const;
 
   /** Get IDs of adjacent entities.
    * 

@@ -11,6 +11,8 @@ void test_var_length_data();
 
 void test_var_length_data_big();
 
+void test_var_length_big_data();
+
 void test_var_length_opaque();
 
 void test_var_length_mesh_data();
@@ -20,6 +22,8 @@ void test_var_length_default_data();
 void test_var_length_mesh_opaque();
 
 void test_var_length_default_opaque();
+
+void test_var_length_handle_tag();
 
 void create_mesh( MBInterface& mb );
 
@@ -49,12 +53,14 @@ int main(int argc, char* argv[])
   int err_count = 0;
   err_count += RUN_TEST( test_var_length_no_data );
   err_count += RUN_TEST( test_var_length_data );
-  err_count += RUN_TEST( test_var_length_data_big );
+  err_count += RUN_TEST( test_var_length_big_data );
   err_count += RUN_TEST( test_var_length_opaque );
   err_count += RUN_TEST( test_var_length_mesh_data );
   err_count += RUN_TEST( test_var_length_default_data );
   err_count += RUN_TEST( test_var_length_mesh_opaque );
   err_count += RUN_TEST( test_var_length_default_opaque );
+  err_count += RUN_TEST( test_var_length_handle_tag );
+  err_count += RUN_TEST( test_var_length_data_big );
   return err_count;
 }
 
@@ -162,11 +168,91 @@ void test_var_length_data_big()
 }
 
 
+void calculate_big_value( MBInterface& moab, MBEntityHandle vert, size_t size, double* data )
+{
+    // Make values like Fibonacci numbers, except use X and Y coords
+    // rather than 0 and 1 as first two values.
+
+  CHECK( size >= 3 );
+  MBErrorCode rval = moab.get_coords( &vert, 1, data );
+  CHECK_ERR(rval);
+
+  for (size_t j = 2; j < size; ++j)
+    data[j] = data[j-2] + data[j-1];
+  CHECK_ERR(rval);
+}
+
+
+void test_var_length_big_data()
+{
+  MBErrorCode rval;
+  MBCore moab1, moab2;
+  MBInterface &mb1 = moab1, &mb2 = moab2;
+  MBTag tag;
+  
+  create_mesh( mb1 );
+  rval = mb1.tag_create_variable_length( "test_tag", MB_TAG_SPARSE, MB_TYPE_DOUBLE, tag );
+  CHECK_ERR( rval );
+  
+    // choose 3 vertices upon which to set data
+  MBRange range;
+  rval = mb1.get_entities_by_type( 0, MBVERTEX, range );
+  CHECK_ERR(rval);
+  MBEntityHandle verts[3] = { range.front(), 
+                              *(range.begin() += range.size()/3), 
+                              *(range.begin() += 2*range.size()/3) };
+  
+    // set 1-millon value tag data on three vertices
+  std::vector<double> data(1000000);
+  for (int i = 0; i < 3; ++i) {
+    calculate_big_value( mb1, verts[i], data.size(), &data[0] );
+    const void* ptr = &data[0];
+    const int size = data.size() * sizeof(double);
+    rval = mb1.tag_set_data( tag, verts + i, 1, &ptr, &size );
+    CHECK_ERR(rval);
+  }
+  
+  read_write( "test_var_length_big_data.h5m", mb1, mb2 );
+  compare_tags( "test_tag", mb1, mb2 );
+  
+    // check 3 tagged vertices
+  rval = mb2.tag_get_handle( "test_tag", tag );
+  CHECK_ERR(rval);
+  range.clear();
+  rval = mb2.get_entities_by_type_and_tag( 0, MBVERTEX, &tag, 0, 1, range, MBInterface::UNION );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( range.size(), (MBEntityHandle)3 );
+  
+    // check tag values
+  for (MBRange::const_iterator i = range.begin(); i != range.end(); ++i) {
+      // calculate expected value
+    const MBEntityHandle h = *i;
+    calculate_big_value( mb2, h, data.size(), &data[0] );
+    
+      // get actual value
+    const void* ptr;
+    int size;
+    rval = mb2.tag_get_data( tag, &h, 1, &ptr, &size );
+    CHECK_ERR(rval);
+    CHECK_EQUAL( data.size() * sizeof(double), (size_t)size );
+    
+      // compare values
+    const double* act_data = reinterpret_cast<const double*>(ptr);
+    int wrong_count = 0;
+    for (size_t j = 0; j < data.size(); ++j)
+      if (act_data[j] != data[j])
+        ++wrong_count;
+    CHECK_EQUAL( 0, wrong_count );
+  }    
+}  
+  
+
+
 void test_var_length_opaque()
 {
   MBCore moab;
   create_mesh( moab );
-  test_var_length_data_common( "tst_var_length_data_opaque.h5m", moab, true );  
+  test_var_length_data_common( "test_var_length_opaque.h5m", moab, true );  
 }
 
 void test_global_value_common( bool mesh_value )
@@ -360,6 +446,93 @@ void test_var_length_default_opaque()
   test_global_opaque_common( false );
 }
 
+  
+void test_var_length_handle_tag()
+{
+  MBErrorCode rval;
+  MBCore moab1, moab2;
+  MBInterface &mb1 = moab1, &mb2 = moab2;
+  MBTag tag;
+  MBRange::const_iterator  i;
+  
+  create_mesh( mb1 );
+  rval = mb1.tag_create_variable_length( "test_tag", MB_TAG_SPARSE, MB_TYPE_HANDLE, tag );
+  CHECK_ERR( rval );
+  
+    // Get all entities
+  MBRange range;
+  rval = mb1.get_entities_by_handle( 0, range );
+  CHECK_ERR(rval);
+
+    // For each entity, if it is a vertex store its own handle
+    // in its tag.  Otherwise store the element connectivity list
+    // in the tag.  Skip entity sets.
+  MBEntityHandle num_tagged_entities = 0;
+  for (i = range.begin(); i != range.end(); ++i) {
+    MBEntityHandle h = *i;
+    MBEntityType type = mb1.type_from_handle( h );
+    if (type == MBVERTEX) {
+      const int size = sizeof(MBEntityHandle);
+      const void* ptr = &h;
+      rval = mb1.tag_set_data( tag, &h, 1, &ptr, &size );
+      CHECK_ERR(rval);
+      ++num_tagged_entities;
+    }
+    else if (type != MBENTITYSET) {
+      int size = 0;
+      const MBEntityHandle* conn = 0;
+      rval = mb1.get_connectivity( h, conn, size );
+      CHECK_ERR(rval);
+      size *= sizeof(MBEntityHandle);
+      const void* ptr = conn;
+      rval = mb1.tag_set_data( tag, &h, 1, &ptr, &size );
+      CHECK_ERR(rval);
+      ++num_tagged_entities;
+   }
+  }
+  
+  read_write( "test_var_length_handle_tag.h5m", mb1, mb2 );
+  compare_tags( "test_tag", mb1, mb2 );
+  
+    // check number of tagged entities
+  rval = mb2.tag_get_handle( "test_tag", tag );
+  CHECK_ERR(rval);
+  range.clear();
+  for (MBEntityType t = MBVERTEX; t != MBENTITYSET; ++t) {
+    rval = mb2.get_entities_by_type_and_tag( 0, t, &tag, 0, 1, range, MBInterface::UNION );
+    CHECK_ERR(rval);
+  }
+  CHECK_EQUAL( num_tagged_entities, range.size() );
+  
+    // check tag values
+  for (i = range.begin(); i != range.end(); ++i) {
+    MBEntityHandle h = *i;
+    
+    const void* ptr;
+    int size;
+    rval = mb2.tag_get_data( tag, &h, 1, &ptr, &size );
+    CHECK_ERR(rval);
+    
+    CHECK_EQUAL( (size_t)0, (size_t)size % sizeof(MBEntityHandle) );
+    size /= sizeof(MBEntityHandle);
+    const MBEntityHandle* handles = reinterpret_cast<const MBEntityHandle*>(ptr);
+    
+    if (mb2.type_from_handle(h) == MBVERTEX) {
+      CHECK_EQUAL( 1, size );
+      CHECK_EQUAL( h, *handles );
+    }
+    else {
+      int len;
+      const MBEntityHandle* conn;
+      rval = mb2.get_connectivity( h, conn, len );
+      CHECK_ERR(rval);
+      CHECK_EQUAL( len, size );
+      for (int j = 0; j < len; ++j)
+        CHECK_EQUAL( conn[j], handles[j] );
+    }
+  }
+}
+
 void create_structured_quad_mesh( MBInterface& mb, int x, int y )
 {
   MBErrorCode rval;
@@ -394,7 +567,7 @@ void create_mesh( MBInterface& mb )
 
 void create_big_mesh( MBInterface& mb )
 {
-  create_structured_quad_mesh( mb, 100, 100 );
+  create_structured_quad_mesh( mb, 1000, 700 );
 }
 
 void compare_tags( const char* name, MBInterface& mb1, MBInterface& mb2 )
@@ -451,4 +624,3 @@ void read_write( const char* filename, MBInterface& writer, MBInterface& reader 
     remove( filename );
   CHECK_ERR(rval);
 }
-  
