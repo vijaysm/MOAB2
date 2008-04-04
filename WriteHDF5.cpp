@@ -1652,6 +1652,8 @@ MBErrorCode WriteHDF5::write_var_len_tag( const SparseTag& tag_data )
     return MB_FAILURE;
   if (mb_size != MB_VARIABLE_LENGTH)
     return MB_FAILURE;
+  if (mb_data_type == MB_TYPE_HANDLE && hdf_type == 0)
+    hdf_type = id_type;
 
 DEBUGOUT((std::string("Var Len Tag: ") + name + "\n").c_str());
   
@@ -1760,7 +1762,7 @@ DEBUGOUT((std::string("Var Len Tag: ") + name + "\n").c_str());
     CHK_MHDF_ERR_2(status, tables + 1);
     offset_offset += count;
   }
-  assert( offset_offset == tag_data.offset + tag_data.range.size() );
+  assert( (unsigned long)offset_offset == tag_data.offset + tag_data.range.size() );
   
     // flush data buffer
   if (bytes) {
@@ -2306,7 +2308,6 @@ MBErrorCode WriteHDF5::get_tag_size( MBTag tag,
   case MB_TYPE_HANDLE:
     elem_size = sizeof(MBEntityHandle);
     file_type = mhdf_ENTITY_ID;
-    hdf_type = id_type;
     break;
   case MB_TYPE_OPAQUE:
   default:
