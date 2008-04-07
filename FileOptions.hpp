@@ -81,7 +81,7 @@ public:
   
   /**\brief Check for option with any value.
    *
-   * Check for aan option with any value.
+   * Check for an option with any value.
    *\param name The option name
    *\param value Output. The value.
    *\return - MB_SUCCESS if option is found

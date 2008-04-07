@@ -45,7 +45,7 @@ MBErrorCode create_scd_mesh(MBInterface *mbImpl,
 
 MBErrorCode read_file(MBInterface *mbImpl, const char *filename,
                       const char *tag_name, int tag_val, int distrib,
-                      int parallel_option);
+                      int parallel_option, int with_ghosts);
 
 MBErrorCode test_packing(MBInterface *mbImpl, const char *filename);
 
@@ -61,7 +61,7 @@ int main(int argc, char **argv)
   err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // start time
-  double stime, rtime, shtime, setime, dtime, ltime;
+  double stime, rtime, setime, dtime, ltime;
   if (0 == rank) stime = MPI_Wtime();
 
     // create MOAB instance based on that
@@ -88,13 +88,14 @@ int main(int argc, char **argv)
         << " 1     <linear_ints> <shared_verts> " << std::endl
         << " 2     <n_ints> " << std::endl
         << " 3*    <file_name> [<tag_name>=\"MATERIAL_SET\" [tag_val] [distribute=1] ]" << std::endl
+        << " 4    <file_name> " << std::endl
         << "*Note: if opt 3 is used, it must be the last one." << std::endl;
     
     err = MPI_Finalize();
     return 1;
   }
 
-  int npos = 1, tag_val, distrib;
+  int npos = 1, tag_val, distrib, with_ghosts = 1;
   const char *tag_name, *filename;
   int parallel_option = 0;
 
@@ -140,9 +141,10 @@ int main(int argc, char **argv)
         if (npos < argc) tag_name = argv[npos++];
         if (npos < argc) tag_val = strtol(argv[npos++], NULL, 0);
         if (npos < argc) distrib = strtol(argv[npos++], NULL, 0);
+        if (npos < argc) with_ghosts = strtol(argv[npos++], NULL, 0);
         else distrib = 1;
         tmp_result = read_file(mbImpl, filename, tag_name, tag_val,
-                               distrib, parallel_option);
+                               distrib, parallel_option, with_ghosts);
         if (MB_SUCCESS != tmp_result) {
           result = tmp_result;
           std::cerr << "Couldn't read mesh; error message:" << std::endl;
@@ -172,15 +174,6 @@ int main(int argc, char **argv)
     if (MB_SUCCESS == tmp_result && 4 != this_opt) {
         // now figure out which vertices are shared
       MBParallelComm *pcomm = new MBParallelComm(mbImpl);
-      tmp_result = pcomm->resolve_shared_ents();
-      if (MB_SUCCESS != tmp_result) {
-        std::cerr << "Couldn't resolve shared entities; error message:" << std::endl;
-        PRINT_LAST_ERROR
-        result = tmp_result;
-        continue;
-      }
-      
-      if (0 == rank) shtime = MPI_Wtime();
 
       MBRange shared_ents;
       tmp_result = pcomm->get_shared_entities(0, shared_ents);
@@ -251,11 +244,10 @@ int main(int argc, char **argv)
   if (0 == rank) std::cout << "Times: " 
                            << dtime-stime << " "
                            << rtime-stime << " "
-                           << shtime-rtime << " "
-                           << setime-shtime << " "
+                           << setime-rtime << " "
                            << ltime-setime << " "
                            << dtime - ltime
-                           << " (total/read/resolve/shared/report/delete)"
+                           << " (total/read/shared/report/delete)"
                            << std::endl;
    
   return (MB_SUCCESS == result ? 0 : 1);
@@ -328,7 +320,7 @@ MBErrorCode report_nsets(MBInterface *mbImpl)
 
 MBErrorCode read_file(MBInterface *mbImpl, const char *filename,
                       const char *tag_name, int tag_val,
-                      int distrib, int parallel_option) 
+                      int distrib, int parallel_option, int with_ghosts) 
 {
   std::ostringstream options;
   switch (parallel_option) {
@@ -353,6 +345,9 @@ MBErrorCode read_file(MBInterface *mbImpl, const char *filename,
 
   if (1 == distrib)
     options << ";PARTITION_DISTRIBUTE";
+
+  if (1 == with_ghosts)
+    options << ";PARALLEL_GHOSTS=3.0.1";
 
   options << ";CPUTIME";
     
@@ -721,18 +716,13 @@ MBErrorCode test_packing(MBInterface *mbImpl, const char *filename)
   RRA("Getting 3d ents failed.");
   
   MBParallelComm *pcomm = new MBParallelComm(mbImpl);
+  std::vector<unsigned char> buff(1024);
   int buff_size;
-  result = pcomm->pack_buffer(ents, false, true, true, false, -1,
-                              whole_range, buff_size);
+  result = pcomm->pack_buffer(ents, false, true, false, -1,
+                              whole_range, buff, buff_size);
   RRA("Packing buffer count (non-stored handles) failed.");
 
-  pcomm->buffer_size(buff_size);
-  
-  result = pcomm->pack_buffer(ents, false, true, false, false, -1,
-                              whole_range, buff_size);
-  RRA("Packing buffer (non-stored handles) failed.");
-
-  result = pcomm->unpack_buffer(new_ents, false, -1);
+  result = pcomm->unpack_buffer(&buff[0], false, -1, new_ents);
   RRA("Unacking buffer (non-stored handles) failed.");
 
   return MB_SUCCESS;

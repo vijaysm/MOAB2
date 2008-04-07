@@ -64,4 +64,14 @@
 #define PSTATUS_SHARED 0x1
 #define PSTATUS_NOT_OWNED 0x2
  
+/** \brief Tag storing interface sets
+ *
+ * This tag stores interface sets allocated for a particular 
+ * interface instance.  This is tag of length MAX_SHARING_PROCS
+ * (defined in parallel/MBParallelComm.hpp) which stores interface 
+ * set handles (entries set to 0 by default).
+ *
+ */
+#define PARALLEL_IFACE_SETS_TAG_NAME "PARALLEL_IFACE_SETS"
+
 #endif
