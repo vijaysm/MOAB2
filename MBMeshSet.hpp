@@ -298,6 +298,11 @@ public:
   
 };
 
+inline MBMeshSet::hdl_iter::difference_type
+ operator-( const MBMeshSet::hdl_iter a, const MBMeshSet::hdl_iter b )
+  { return (MBMeshSet::hdl_iter::difference_type)a.h 
+         - (MBMeshSet::hdl_iter::difference_type)b.h; }
+
 
   //! create an empty meshset
 MBMeshSet::MBMeshSet()
