@@ -215,7 +215,16 @@ MBErrorCode WriteHDF5::assign_ids( const MBRange& entities, id_t id )
   MBRange::const_pair_iterator pi;
   for (pi = entities.const_pair_begin(); pi != entities.const_pair_end(); ++pi) {
     const MBEntityHandle n = pi->second - pi->first + 1;
-    if (idMap.end() == idMap.insert( pi->first, id, n ))
+#ifdef DEBUG
+    printf( "Assigning %s %lu to %lu to file IDs [%lu,%lu]\n",
+      MBCN::EntityTypeName(TYPE_FROM_HANDLE(pi->first)),
+      (unsigned long)(ID_FROM_HANDLE(pi->first)),
+      (unsigned long)(ID_FROM_HANDLE(pi->first)+n-1),
+      (unsigned long)id,
+      (unsigned long)(id+n-1));
+#endif
+    RangeMap<MBEntityHandle,id_t>::iterator it = idMap.insert( pi->first, id, n );
+    if (idMap.end() == it)
       return MB_FAILURE;
     id += n;
   }
