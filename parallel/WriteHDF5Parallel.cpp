@@ -1765,9 +1765,6 @@ END_SERIAL;
 MBErrorCode WriteHDF5Parallel::fix_remote_set_ids( RemoteSetData& data, long first_id )
 {
   const id_t id_diff = (id_t)(first_id - 1);
-  id_t file_id;
-  MBErrorCode rval;
-  
   MBRange::const_iterator i;
   std::vector<id_t> ids(data.range.size());
   std::vector<id_t>::iterator j = ids.begin();

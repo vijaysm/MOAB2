@@ -162,7 +162,7 @@ int main(int argc, char **argv)
           PRINT_LAST_ERROR
         }
         break;
-        
+
       default:
         std::cerr << "Unrecognized option \"" << this_opt
                   << "\"; skipping." << std::endl;
@@ -712,8 +712,10 @@ MBErrorCode test_packing(MBInterface *mbImpl, const char *filename)
   
     // get 3d entities and pack a buffer with them
   MBRange ents, new_ents, whole_range;
-  result = mbImpl->get_entities_by_dimension(0, 3, ents);
+  result = mbImpl->get_entities_by_handle(file_set, ents);
   RRA("Getting 3d ents failed.");
+  
+  ents.insert(file_set);
   
   MBParallelComm *pcomm = new MBParallelComm(mbImpl);
   std::vector<unsigned char> buff(1024);

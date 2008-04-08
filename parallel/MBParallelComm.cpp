@@ -577,6 +577,7 @@ MBErrorCode MBParallelComm::pack_buffer(MBRange &orig_ents,
 
   assert(0 <= buff_size);
   buff.resize(buff_size);
+  int orig_buff_size = buff_size;
   buff_size = 0;
   buff_ptr = &buff[0];
   
@@ -585,12 +586,20 @@ MBErrorCode MBParallelComm::pack_buffer(MBRange &orig_ents,
                          buff_size, false, store_remote_handles, to_proc,
                          ent_types, all_ranges, verts_per_entity); 
   RRA("Packing entities (count) failed.");
+#ifdef DEBUG_PACKING
+  std::cerr << "pack_entities buffer space: " << buff_ptr - &buff[0] << " bytes." << std::endl;
+  unsigned char *tmp_buff = buff_ptr;
+#endif  
   
     // sets
   result = pack_sets(orig_ents, rit, final_ents, buff_ptr, buff_size, false,
                      store_remote_handles, to_proc, set_range, set_ranges,
                      set_sizes, options_vec); 
   RRA("Packing sets (count) failed.");
+#ifdef DEBUG_PACKING
+  std::cerr << "pack_sets buffer space: " << buff_ptr - tmp_buff << " bytes." << std::endl;
+  tmp_buff = buff_ptr;
+#endif  
   
     // adjacencies
   if (adjacencies) {
@@ -606,7 +615,18 @@ MBErrorCode MBParallelComm::pack_buffer(MBRange &orig_ents,
                        buff_size, false, store_remote_handles, to_proc, all_tags,
                        tag_ranges);
     RRA("Packing tags (count) failed.");
+#ifdef DEBUG_PACKING
+    std::cerr << "pack_tags buffer space: " << buff_ptr - tmp_buff << " bytes." << std::endl;
+    tmp_buff = buff_ptr;
+#endif  
   }
+
+    // original buffer size might be larger, because some
+    // ranges of local handles pack into more compact ranges of
+    // remote handles (because they're expressed using MBMAXTYPE plus
+    // index in new entity range, and that list of entities is likely
+    // to be compact)
+  assert(orig_buff_size >= buff_size);
 
   return result;
 }
@@ -618,16 +638,31 @@ MBErrorCode MBParallelComm::unpack_buffer(unsigned char *buff_ptr,
 {
   if (myBuffer.capacity() == 0) return MB_FAILURE;
   
+#ifdef DEBUG_PACKING
+    unsigned char *tmp_buff = buff_ptr;
+#endif  
   MBErrorCode result = unpack_entities(buff_ptr, final_ents, 
                                        store_remote_handles,
                                        from_proc);
   RRA("Unpacking entities failed.");
+#ifdef DEBUG_PACKING
+    std::cerr << "unpack_entities buffer space: " << buff_ptr - tmp_buff << " bytes." << std::endl;
+    tmp_buff = buff_ptr;
+#endif  
   result = unpack_sets(buff_ptr, final_ents, store_remote_handles, 
                        from_proc);
   RRA("Unpacking sets failed.");
+#ifdef DEBUG_PACKING
+    std::cerr << "unpack_sets buffer space: " << buff_ptr - tmp_buff << " bytes." << std::endl;
+    tmp_buff = buff_ptr;
+#endif  
   result = unpack_tags(buff_ptr, final_ents, store_remote_handles,
                        from_proc);
   RRA("Unpacking tags failed.");
+#ifdef DEBUG_PACKING
+    std::cerr << "unpack_tags buffer space: " << buff_ptr - tmp_buff << " bytes." << std::endl;
+    tmp_buff = buff_ptr;
+#endif  
 
 #ifdef DEBUG_PACKING
   std::cerr << std::endl;
@@ -1394,8 +1429,7 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
   MBErrorCode result;
 
   if (just_count) {
-      // num of sets
-    count += sizeof(int);
+    int ranges_size = 0, vecs_size = 0, tot_parch = 0;
     
     for (; start_rit != entities.end(); start_rit++) {
       set_range.insert(*start_rit);
@@ -1405,9 +1439,6 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
       RR("Failed to get meshset options.");
       options_vec.push_back(options);
 
-        // option
-      count += sizeof(unsigned int);
-    
       if (options & MESHSET_SET) {
           // range-based set; count the subranges
         set_ranges.push_back(MBRange());
@@ -1415,7 +1446,8 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
         RRA("Failed to get set entities.");
 
           // set range
-        count += 2 * sizeof(MBEntityHandle) * num_subranges(*set_ranges.rbegin()) + sizeof(int);
+        ranges_size += 2 * sizeof(MBEntityHandle) * num_subranges(*set_ranges.rbegin()) + 
+          sizeof(int);
       }
       else if (options & MESHSET_ORDERED) {
           // just get the number of entities in the set
@@ -1425,7 +1457,7 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
         set_sizes.push_back(num_ents);
 
           // set vec
-        count += sizeof(MBEntityHandle) * num_ents + sizeof(int);
+        vecs_size += sizeof(MBEntityHandle) * num_ents + sizeof(int);
       }
 
         // get numbers of parents/children
@@ -1436,12 +1468,24 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
       result = mbImpl->num_parent_meshsets(*start_rit, &num_par);
       RR("Failed to get num parents.");
 
-        // set children, parents
-      count += 2*sizeof(int) + (num_par + num_ch) * sizeof(MBEntityHandle);
+      tot_parch += num_ch + num_par;
+      
     }
 
+      // num of sets
+    count += sizeof(int);
+    
+      // options
+    count += set_range.size() * sizeof(unsigned int);
+
+      // range, vector sizes
+    count += ranges_size + vecs_size;
+    
+      // set children, parents
+    count += 2 * set_range.size() * sizeof(int) + tot_parch * sizeof(MBEntityHandle);
+
         // set handles
-    if (!set_range.empty())
+    if (!set_range.empty() && store_remote_handles)
       count += sizeof(int) + 2*sizeof(MBEntityHandle)*num_subranges(set_range);
 
     whole_range.merge(set_range);
@@ -1639,7 +1683,7 @@ MBErrorCode MBParallelComm::unpack_sets(unsigned char *&buff_ptr,
         result = mbImpl->add_child_meshset(*rit, mem_ptr[i]);
         RRA("Failed to add child to set in unpack.");
       }
-      mem_ptr += num_par;
+      mem_ptr += num_child;
     }
   }
 
@@ -1818,7 +1862,7 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
       tr_it++;
     }
 
-    count = buff_ptr - orig_buff_ptr;
+    count += buff_ptr - orig_buff_ptr;
   }
   
   if (debug_packing) std::cerr << std::endl << "Done packing tags." << std::endl;
