@@ -1005,7 +1005,7 @@ MBErrorCode ReadVtk::vtk_read_scalar_attrib( FileTokenizer& tokens,
   }
   
     // VTK spec says cannot be greater than 4--do we care?
-  if (size < 1 || size > 4)
+  if (size < 1) //|| size > 4)
   {
     readMeshIface->report_error(
                     "Scalar count out of range [1,4]" 

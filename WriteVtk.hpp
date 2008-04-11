@@ -84,6 +84,9 @@ private:
   MBInterface* mbImpl;
   MBWriteUtilIface* writeTool;
   MBTag globalId;
+  
+  bool mStrict; // If true, do not write data that cannot fit in strict VTK file format.
+  
 };
 
 #endif

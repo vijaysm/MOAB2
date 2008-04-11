@@ -46,12 +46,13 @@
 sprintf(stringvar, prefix, id)
 
 const int DEFAULT_PRECISION = 10;
+const bool DEFAULT_STRICT = true;
 
 MBWriterIface *WriteVtk::factory( MBInterface* iface )
   { return new WriteVtk( iface ); }
 
 WriteVtk::WriteVtk(MBInterface *impl) 
-    : mbImpl(impl), writeTool(0), globalId(0)
+    : mbImpl(impl), writeTool(0), globalId(0), mStrict(DEFAULT_STRICT)
 {
   assert(impl != NULL);
 
@@ -85,6 +86,13 @@ MBErrorCode WriteVtk::write_file(const char *file_name,
   int precision;
   if (MB_SUCCESS != opts.get_int_option( "PRECISION", precision ))
     precision = DEFAULT_PRECISION;
+  
+  if (MB_SUCCESS == opts.get_null_option( "STRICT" ))
+    mStrict = true;
+  else if (MB_SUCCESS == opts.get_null_option( "RELAXED" ))
+    mStrict = false;
+  else
+    mStrict = DEFAULT_STRICT;
   
     // Get entities to write
   MBRange nodes, elems;
@@ -373,6 +381,29 @@ MBErrorCode WriteVtk::write_tags( std::ostream& stream, bool nodes, const MBRang
     int size;
     if (MB_VARIABLE_DATA_LENGTH == mbImpl->tag_get_size( *i, size ))
       continue;    
+    
+      // If in strict mode, don't write tags that do not fit in any 
+      // attribute type (SCALAR : 1 to 4 values, VECTOR : 3 values, TENSOR : 9 values)
+    if (mStrict) {
+      int count = 0;
+      switch (type) {
+        case MB_TYPE_INTEGER:
+          count = size/sizeof(int);
+          break;
+        case MB_TYPE_DOUBLE:
+          count = size/sizeof(double);
+          break;
+        case MB_TYPE_BIT:
+        case MB_TYPE_OPAQUE:
+          count = size;
+          break;
+        default:
+          return MB_TYPE_OUT_OF_RANGE;
+      }
+      if (count < 1 || (count > 4 && count != 9))
+        continue;
+    }
+          
     
       // Get subset of input entities that have the tag set
     MBRange tagged;
