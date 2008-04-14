@@ -17,7 +17,7 @@ class MBiMesh : public MBCore
 private:
   bool haveDeletedEntities;
 public:
-  MBiMesh(int proc_rank = 0, int proc_size = 0) 
+  MBiMesh(int proc_rank = 0, int proc_size = 1) 
       : MBCore(proc_rank, proc_size), haveDeletedEntities(false)
     {}
 
