@@ -55,13 +55,17 @@ typedef ULONG32 uint32_t;
 ReadSTL::ReadSTL(MBInterface* impl)
     : mdbImpl(impl)
 {
-  mdbImpl->query_interface("MBReadUtilIface", reinterpret_cast<void**>(&readMeshIface));
+  void* ptr = 0;
+  mdbImpl->query_interface("MBReadUtilIface", &ptr);
+  readMeshIface = reinterpret_cast<MBReadUtilIface*>(ptr);
 }
 
 ReadSTL::~ReadSTL()
 {
-  if (readMeshIface)
-   mdbImpl->release_interface("MBReadUtilIface", reinterpret_cast<void**>(&readMeshIface));
+  if (readMeshIface) {
+    mdbImpl->release_interface("MBReadUtilIface", readMeshIface);
+    readMeshIface = 0;
+  }
 }
 
 // Used to put points in an STL tree-based container

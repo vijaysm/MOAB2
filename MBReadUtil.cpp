@@ -151,7 +151,7 @@ MBErrorCode MBReadUtil::create_entity_sets( MBEntityID num_sets,
 
   if (seq->start_handle() > start_handle ||
       seq->end_handle() < start_handle ||
-      seq->end_handle() - start_handle + 1 < num_sets)
+      seq->end_handle() - start_handle + 1 < (MBEntityHandle)num_sets)
     return MB_FAILURE;
     
   return MB_SUCCESS;

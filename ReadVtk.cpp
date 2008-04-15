@@ -36,7 +36,17 @@ MBReaderIface* ReadVtk::factory( MBInterface* iface )
 ReadVtk::ReadVtk(MBInterface* impl)
     : mdbImpl(impl)
 {
-  impl->query_interface("MBReadUtilIface", reinterpret_cast<void**>(&readMeshIface));
+  void* ptr = 0;
+  mdbImpl->query_interface("MBReadUtilIface", &ptr);
+  readMeshIface = reinterpret_cast<MBReadUtilIface*>(ptr);
+}
+
+ReadVtk::~ReadVtk()
+{
+  if (readMeshIface) {
+    mdbImpl->release_interface("MBReadUtilIface", readMeshIface);
+    readMeshIface = 0;
+  }
 }
 
 const char* const vtk_type_names[] = { "bit",

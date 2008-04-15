@@ -1813,11 +1813,10 @@ MBErrorCode MBCore::create_vertices(const unsigned processor_id,
                                     MBRange &entity_handles ) 
 {
     // Create vertices
-  MBReadUtilIface *read_iface;
-  MBErrorCode result = 
-    this->query_interface("MBReadUtilIface", 
-                          reinterpret_cast<void**>(&read_iface));
+  void* tmp_ptr;
+  MBErrorCode result = this->query_interface("MBReadUtilIface", &tmp_ptr );
   if (MB_SUCCESS != result) return result;
+  MBReadUtilIface *read_iface = reinterpret_cast<MBReadUtilIface*>(tmp_ptr);
   
   std::vector<double*> arrays;
   MBEntityHandle start_handle_out = 0;
@@ -2766,24 +2765,27 @@ void MBCore::print(const MBEntityHandle ms_handle, const char *prefix,
     result = this->tag_get_size(*vit, this_size);
     if (MB_SUCCESS != result || (int) sizeof(double) < this_size) continue;
       // use double since this is largest single-valued tag
-    double this_val;
-    result = this->tag_get_data(*vit, &ms_handle, 1, &this_val);
-    if (MB_SUCCESS != result) continue;
+    double dbl_val;
+    int int_val;
+    MBEntityHandle hdl_val;
     std::string tag_name;
     result = this->tag_get_name(*vit, tag_name);
     if (MB_SUCCESS != result) continue;
     switch (this_data_type) {
       case MB_TYPE_INTEGER:
-        std::cout << indent_prefix << tag_name << " = " 
-                  << *((int*)&this_val) << std::endl;
+        result = this->tag_get_data(*vit, &ms_handle, 1, &int_val);
+        if (MB_SUCCESS != result) continue;
+        std::cout << indent_prefix << tag_name << " = " << int_val << std::endl;
         break;
       case MB_TYPE_DOUBLE:
-        std::cout << indent_prefix << tag_name << " = " 
-                  << this_val << std::endl;
+        result = this->tag_get_data(*vit, &ms_handle, 1, &dbl_val);
+        if (MB_SUCCESS != result) continue;
+        std::cout << indent_prefix << tag_name << " = " << dbl_val << std::endl;
         break;
       case MB_TYPE_HANDLE:
-        std::cout << indent_prefix << tag_name << " = " 
-                  << *((MBEntityID*)&this_val) << std::endl;
+        result = this->tag_get_data(*vit, &ms_handle, 1, &hdl_val);
+        if (MB_SUCCESS != result) continue;
+        std::cout << indent_prefix << tag_name << " = " << hdl_val << std::endl;
         break;
       case MB_TYPE_BIT:
       case MB_TYPE_OPAQUE:

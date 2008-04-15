@@ -81,12 +81,14 @@ MBErrorCode ReadHDF5::init()
     return MB_FAILURE;
   }
   
-  rval = iFace->query_interface( "MBReadUtilIface", (void**)&readUtil );
+  void* ptr = 0;
+  rval = iFace->query_interface( "MBReadUtilIface", &ptr );
   if (MB_SUCCESS != rval)
   {
     H5Tclose( handleType );
     return rval;
   }
+  readUtil = reinterpret_cast<MBReadUtilIface*>(ptr);
   
   setSet.first_id = 0;
   setSet.type2 = mhdf_set_type_handle();

@@ -66,8 +66,10 @@ ReadNCDF::ReadNCDF(MBInterface* impl)
 {
   assert(impl != NULL);
   reset();
-  std::string iface_name = "MBReadUtilIface";
-  impl->query_interface(iface_name, reinterpret_cast<void**>(&readMeshIface));
+  
+  void* ptr = 0;
+  impl->query_interface( "MBReadUtilIface", &ptr );
+  readMeshIface = reinterpret_cast<MBReadUtilIface*>(ptr);
 
   // initialize in case tag_get_handle fails below
   mMaterialSetTag  = 0;

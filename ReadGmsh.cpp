@@ -40,13 +40,17 @@ MBReaderIface* ReadGmsh::factory( MBInterface* iface )
 ReadGmsh::ReadGmsh(MBInterface* impl)
     : mdbImpl(impl)
 {
-  mdbImpl->query_interface("MBReadUtilIface", reinterpret_cast<void**>(&readMeshIface));
+  void* ptr = 0;
+  mdbImpl->query_interface("MBReadUtilIface", &ptr);
+  readMeshIface = reinterpret_cast<MBReadUtilIface*>(ptr);
 }
 
 ReadGmsh::~ReadGmsh()
 {
-  if (readMeshIface)
-   mdbImpl->release_interface("MBReadUtilIface", reinterpret_cast<void**>(&readMeshIface));
+  if (readMeshIface) {
+    mdbImpl->release_interface("MBReadUtilIface", readMeshIface);
+    readMeshIface = 0;
+  }
 }
 
 // Type info indexed by type id used in file format.

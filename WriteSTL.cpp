@@ -65,7 +65,9 @@ MBWriterIface *WriteSTL::factory( MBInterface* iface )
 WriteSTL::WriteSTL(MBInterface *impl) 
     : mbImpl(impl)
 {
-  impl->query_interface("MBWriteUtilIface", reinterpret_cast<void**>(&mWriteIface));
+  void* ptr = 0;
+  impl->query_interface( "MBWriteUtilIface", &ptr );
+  mWriteIface = reinterpret_cast<MBWriteUtilIface*>(ptr);
 }
 
 WriteSTL::~WriteSTL() 

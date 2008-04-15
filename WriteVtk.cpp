@@ -56,7 +56,9 @@ WriteVtk::WriteVtk(MBInterface *impl)
 {
   assert(impl != NULL);
 
-  impl->query_interface("MBWriteUtilIface", reinterpret_cast<void**>(&writeTool));
+  void* ptr = 0;
+  impl->query_interface( "MBWriteUtilIface", &ptr );
+  writeTool = reinterpret_cast<MBWriteUtilIface*>(ptr);
   
   MBErrorCode result = impl->tag_get_handle(GLOBAL_ID_TAG_NAME, globalId);
   if (MB_TAG_NOT_FOUND == result)

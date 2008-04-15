@@ -227,26 +227,26 @@ MBMeshSet::Count remove_from_vector( const MBMeshSet::Count count,
 
 int MBMeshSet::add_parent( MBEntityHandle parent )
 { 
-  int result;
+  int result = 0;
   mParentCount = insert_in_vector( (Count)mParentCount, parentMeshSets, parent, result );
   return result;
 }
 int MBMeshSet::add_child( MBEntityHandle child )
 { 
-  int result;
+  int result = 0;
   mChildCount = insert_in_vector( (Count)mChildCount, childMeshSets, child, result );
   return result;
 }
 
 int MBMeshSet::remove_parent( MBEntityHandle parent )
 { 
-  int result;
+  int result = 0;
   mParentCount = remove_from_vector( (Count)mParentCount, parentMeshSets, parent, result );
   return result;
 }
 int MBMeshSet::remove_child( MBEntityHandle child )
 { 
-  int result;
+  int result = 0;
   mChildCount = remove_from_vector( (Count)mChildCount, childMeshSets, child, result );
   return result;
 }

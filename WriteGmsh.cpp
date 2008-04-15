@@ -19,7 +19,9 @@ MBWriterIface *WriteGmsh::factory( MBInterface* iface )
 WriteGmsh::WriteGmsh(MBInterface *impl) 
     : mbImpl(impl)
 {
-  impl->query_interface("MBWriteUtilIface", reinterpret_cast<void**>(&mWriteIface));
+  void* ptr = 0;
+  impl->query_interface("MBWriteUtilIface", &ptr);
+  mWriteIface = reinterpret_cast<MBWriteUtilIface*>(ptr);
 }
 
 WriteGmsh::~WriteGmsh() 

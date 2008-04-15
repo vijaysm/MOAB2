@@ -40,7 +40,7 @@ public:
   ReadVtk(MBInterface* impl = NULL);
 
    //! Destructor
-  virtual ~ReadVtk() {}
+  virtual ~ReadVtk();
 
 protected:
 

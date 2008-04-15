@@ -201,7 +201,7 @@ MBErrorCode MBBitServer::get_entities_with_tag_value(MBTagId tag_id,
   MBErrorCode result = get_entities(tag_id, type, possibles);
   if (MB_SUCCESS != result || possibles.empty()) return result;
   MBErrorCode tmp_result;
-  unsigned char dum;
+  unsigned char dum = 0;
   for (MBRange::iterator it = possibles.begin(); it != possibles.end(); it++) {
     tmp_result = get_bits(tag_id, *it, dum);
     if (dum == bits) entities.insert(*it);
@@ -223,7 +223,7 @@ MBErrorCode MBBitServer::get_entities_with_tag_value(const MBRange &range,
                         temp1.begin(), temp1.end(), mb_range_inserter(temp2));
   if (temp2.empty()) return result;
   
-  unsigned char dum;
+  unsigned char dum = 0;
   MBErrorCode tmp_result;
   for (MBRange::iterator it = temp2.begin(); it != temp2.end(); it++) {
     tmp_result = get_bits(tag_id, *it, dum);

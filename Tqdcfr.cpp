@@ -154,9 +154,10 @@ Tqdcfr::Tqdcfr(MBInterface *impl)
 {
   assert(NULL != impl);
   mdbImpl = impl;
-  std::string iface_name = "MBReadUtilIface";
-  impl->query_interface(iface_name, reinterpret_cast<void**>(&readUtilIface));
-  assert(NULL != readUtilIface);
+  void* ptr = 0;
+  impl->query_interface( "MBReadUtilIface", &ptr );
+  assert(NULL != ptr);
+  readUtilIface = reinterpret_cast<MBReadUtilIface*>(ptr);
 
   currVHandleOffset = -1;
   for (MBEntityType this_type = MBVERTEX; this_type < MBMAXTYPE; this_type++)
@@ -1100,10 +1101,12 @@ MBErrorCode Tqdcfr::read_nodes(const unsigned int gindex,
 
   for (std::vector<unsigned int>::iterator vit = md_entry->mdIntArrayValue.begin();
        vit != md_entry->mdIntArrayValue.end(); vit++) {
+#ifndef NDEBUG
     MBEntityHandle fixed_v = (cubMOABVertexMap ? 
                               (*cubMOABVertexMap)[*vit] : 
                               (MBEntityHandle) currVHandleOffset+*vit);
     assert(fixed_v >= *dum_range.begin() && fixed_v <= *dum_range.rbegin());
+#endif
     fixed_flags[*vit - *dum_range.begin()] = 1;
   }
 
@@ -1178,7 +1181,7 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     FREADI(total_conn);
 
       // post-process connectivity into handles
-    MBEntityHandle new_handle, dum_handle;
+    MBEntityHandle new_handle;
     for (unsigned int j = 0; j < total_conn; j++) {
       if (NULL == cubMOABVertexMap)
         new_handle = (MBEntityHandle) currVHandleOffset+uint_buf[j];
@@ -1191,9 +1194,12 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
                0 != (*cubMOABVertexMap)[uint_buf[j]]);
         new_handle = (*cubMOABVertexMap)[uint_buf[j]];
       }
+#ifndef NDEBUG
+      MBEntityHandle dum_handle;
       assert(MB_SUCCESS == 
              mdbImpl->handle_from_id(MBVERTEX, mdbImpl->id_from_handle(new_handle), 
                                      dum_handle));
+#endif
       conn[j] = new_handle;
     }
 

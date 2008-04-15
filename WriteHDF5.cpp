@@ -281,18 +281,19 @@ MBErrorCode WriteHDF5::init()
   //register_known_tag_types( iFace ); 
  
     // Get the util interface
-  rval = iFace->query_interface( "MBWriteUtilIface", (void**)&writeUtil );
+  void* ptr = 0;
+  rval = iFace->query_interface( "MBWriteUtilIface", &ptr );
   CHK_MB_ERR_0(rval);
 
   idMap.clear();
   
   if (MB_SUCCESS != rval)
   {
-    iFace->release_interface( "MBWriteUtilIFace", writeUtil );
     writeUtil = 0;
     return rval;
   }
 
+  writeUtil = reinterpret_cast<MBWriteUtilIface*>(ptr);
   return MB_SUCCESS;
 }
   

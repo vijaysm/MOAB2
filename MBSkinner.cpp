@@ -163,8 +163,7 @@ void MBSkinner::add_adjacency(MBEntityHandle entity,
   {
     adj = new std::vector<MBEntityHandle>;
     adj->push_back(entity);
-    MBErrorCode result = thisMB->tag_set_data(mAdjTag, iter, 1, &adj);
-    assert(MB_SUCCESS == result);
+    thisMB->tag_set_data(mAdjTag, iter, 1, &adj);
   }
 }
 
