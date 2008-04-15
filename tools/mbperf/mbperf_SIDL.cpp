@@ -1,18 +1,3 @@
-/**
- * MOAB, a Mesh-Oriented datABase, is a software component for creating,
- * storing and accessing finite element mesh data.
- * 
- * Copyright 2004 Sandia Corporation.  Under the terms of Contract
- * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
- * retains certain rights in this software.
- * 
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- * 
- */
-
 /** iMesh Mesh Interface brick mesh performance test
  * 
  * This program tests iMesh mesh interface functions used to create a square structured
@@ -34,6 +19,11 @@ extern "C" int getrusage(int, struct rusage *);
 #include <stdlib.h>
 #include <stdio.h>
 #include <iostream>
+#include <time.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <assert.h>
 
 #include "iBase.hh"
@@ -73,8 +63,11 @@ double LENGTH = 1.0;
 // forward declare some functions
 void query_vert_to_elem(iMesh::Mesh &mesh);
 void query_elem_to_vert(iMesh::Mesh &mesh);
-void print_time(const bool print_em, double &tot_time, double &utime, double &stime);
+void print_time(const bool print_em, double &tot_time, double &utime, double &stime,
+                double &mem);
 void build_connect(const int nelem, const int vstart, int *&connect);
+void get_time_mem(double &tot_time, double &user_time,
+                  double &sys_time, double &tot_mem);
 void testB(iMesh::Mesh &mesh, 
            const int nelem, sidl::array<double> &coords,
            const int *connect);
@@ -145,9 +138,11 @@ void testB(iMesh::Mesh &mesh,
            const int nelem, sidl::array<double> &coords,
            const int *connect) 
 {
-  double utime, stime, ttime0, ttime1, ttime2, ttime3;
+  double utime, stime, ttime0, ttime1, ttime2, ttime3, mem;
   
-  print_time(false, ttime0, utime, stime);
+  print_time(false, ttime0, utime, stime, mem);
+  std::cout << "Ready to read model into MOAB; memory = " << mem/1.0e6 << " MB." << std::endl;
+
   int num_verts = (nelem + 1)*(nelem + 1)*(nelem + 1);
   int num_elems = nelem*nelem*nelem;
   
@@ -195,16 +190,19 @@ void testB(iMesh::Mesh &mesh,
     return;
   }
 
-  print_time(false, ttime1, utime, stime);
+  print_time(false, ttime1, utime, stime, mem);
+  std::cout << "Read model into MOAB; memory = " << mem/1.0e6 << " MB." << std::endl;
 
     // query the mesh 2 ways
   query_elem_to_vert(mesh);
 
-  print_time(false, ttime2, utime, stime);
+  print_time(false, ttime2, utime, stime, mem);
+  std::cout << "After E-v query; memory = " << mem/1.0e6 << " MB." << std::endl;
 
   query_vert_to_elem(mesh);
   
-  print_time(false, ttime3, utime, stime);
+  print_time(false, ttime3, utime, stime, mem);
+  std::cout << "After v-E query; memory = " << mem/1.0e6 << " MB." << std::endl;
 
   std::cout << "iMesh/MOAB ucd blocked: nelem, construct, e_to_v query, v_to_e query = " 
             << nelem << ", "
@@ -217,8 +215,9 @@ void testB(iMesh::Mesh &mesh,
 void testC(iMesh::Mesh &mesh, 
            const int nelem, sidl::array<double> &coords) 
 {
-  double utime, stime, ttime0, ttime1, ttime2, ttime3;
-  print_time(false, ttime0, utime, stime);
+  double utime, stime, ttime0, ttime1, ttime2, ttime3, mem;
+  print_time(false, ttime0, utime, stime, mem);
+  std::cout << "Ready to read data into MOAB; memory = " << mem/1.0e6 << " MB." << std::endl;
 
   CAST_MINTERFACE(mesh, mesh_arrmod, ArrMod);
 
@@ -306,16 +305,19 @@ void testC(iMesh::Mesh &mesh,
     }
   }
 
-  print_time(false, ttime1, utime, stime);
+  print_time(false, ttime1, utime, stime, mem);
+  std::cout << "Read data into MOAB; memory  = " << mem/1.0e6 << " MB." << std::endl;
 
     // query the mesh 2 ways
   query_elem_to_vert(mesh);
 
-  print_time(false, ttime2, utime, stime);
+  print_time(false, ttime2, utime, stime, mem);
+  std::cout << "After E-v query; memory  = " << mem/1.0e6 << " MB." << std::endl;
 
   query_vert_to_elem(mesh);
   
-  print_time(false, ttime3, utime, stime);
+  print_time(false, ttime3, utime, stime, mem);
+  std::cout << "After v-E query; memory  = " << mem/1.0e6 << " MB." << std::endl;
 
   std::cout << "TSTT/MOAB ucd indiv: nelem, construct, e_to_v query, v_to_e query = " 
             << nelem << ", "
@@ -426,24 +428,67 @@ void query_vert_to_elem(iMesh::Mesh &mesh)
   }
 }
 
-void print_time(const bool print_em, double &tot_time, double &utime, double &stime) 
+void print_time(const bool print_em, double &tot_time, double &utime, double &stime, double &mem) 
+{
+  get_time_mem(tot_time, utime, stime, mem);
+  
+  if (print_em) {
+    std::cout << "User, system, total time = " << utime << ", " << stime 
+              << ", " << tot_time << std::endl;
+    std::cout << "Total memory = " << mem / 1.0e6 << " MB." << std::endl;
+  }
+}
+
+void get_time_mem(double &tot_time, double &user_time,
+                  double &sys_time, double &tot_mem) 
 {
   struct rusage r_usage;
   getrusage(RUSAGE_SELF, &r_usage);
-  utime = (double)r_usage.ru_utime.tv_sec +
-     ((double)r_usage.ru_utime.tv_usec/1.e6);
-  stime = (double)r_usage.ru_stime.tv_sec +
-     ((double)r_usage.ru_stime.tv_usec/1.e6);
-  tot_time = utime + stime;
-  if (print_em)
-    std::cout << "User, system, total time = " << utime << ", " << stime 
-              << ", " << tot_time << std::endl;
-#ifndef LINUX
- std::cout << "Max resident set size = " << r_usage.ru_maxrss*4096 << " bytes" << std::endl;
- std::cout << "Int resident set size = " << r_usage.ru_idrss << std::endl;
-#else
-  system("ps o args,drs,rss | grep perf | grep -v grep");  // RedHat 9.0 doesnt fill in actual memory data 
-#endif
+  user_time = (double)r_usage.ru_utime.tv_sec +
+    ((double)r_usage.ru_utime.tv_usec/1.e6);
+  sys_time = (double)r_usage.ru_stime.tv_sec +
+    ((double)r_usage.ru_stime.tv_usec/1.e6);
+  tot_time = user_time + sys_time;
+  tot_mem = 0;
+  if (0 != r_usage.ru_maxrss) {
+    tot_mem = r_usage.ru_idrss; 
+  }
+  else {
+      // this machine doesn't return rss - try going to /proc
+      // print the file name to open
+    char file_str[4096], dum_str[4096];
+    int file_ptr = -1, file_len;
+    file_ptr = open("/proc/self/stat", O_RDONLY);
+    file_len = read(file_ptr, file_str, sizeof(file_str)-1);
+    if (file_len == 0) return;
+    
+    close(file_ptr);
+    file_str[file_len] = '\0';
+      // read the preceeding fields and the ones we really want...
+    int dum_int;
+    unsigned int dum_uint, vm_size, rss;
+    int num_fields = sscanf(file_str, 
+                            "%d " // pid
+                            "%s " // comm
+                            "%c " // state
+                            "%d %d %d %d %d " // ppid, pgrp, session, tty, tpgid
+                            "%u %u %u %u %u " // flags, minflt, cminflt, majflt, cmajflt
+                            "%d %d %d %d %d %d " // utime, stime, cutime, cstime, counter, priority
+                            "%u %u " // timeout, itrealvalue
+                            "%d " // starttime
+                            "%u %u", // vsize, rss
+                            &dum_int, 
+                            dum_str, 
+                            dum_str, 
+                            &dum_int, &dum_int, &dum_int, &dum_int, &dum_int, 
+                            &dum_uint, &dum_uint, &dum_uint, &dum_uint, &dum_uint,
+                            &dum_int, &dum_int, &dum_int, &dum_int, &dum_int, &dum_int, 
+                            &dum_uint, &dum_uint, 
+                            &dum_int,
+                            &vm_size, &rss);
+    if (num_fields == 24)
+      tot_mem = ((double)vm_size);
+  }
 }
 
 void compute_edge(double *start, const int nelem,  const double xint,
@@ -495,8 +540,9 @@ void compute_face(double *a, const int nelem,  const double xint,
 
 void build_coords(const int nelem, sidl::array<double> &coords) 
 {
-  double ttime0, ttime1, utime1, stime1;
-  print_time(false, ttime0, utime1, stime1);
+  double ttime0, ttime1, utime1, stime1, mem1;
+  print_time(false, ttime0, utime1, stime1, mem1);
+  std::cout << "Before TFI, total memory = " << mem1 / 1.0e6 << " MB." << std::endl;
 
     // allocate the memory
   int numv = nelem+1;
@@ -641,9 +687,9 @@ void build_coords(const int nelem, sidl::array<double> &coords)
     }
   }
 #endif
-  print_time(false, ttime1, utime1, stime1);
-  std::cout << "TSTT/MOAB: TFI time = " << ttime1-ttime0 << " sec" 
-            << std::endl;
+  print_time(false, ttime1, utime1, stime1, mem1);
+  std::cout << "MOAB: TFI time = " << ttime1-ttime0 << " sec, memory = " 
+            << mem1/1.0e6 << " MB." << std::endl;
 }
 
 void build_connect(const int nelem, const int vstart, int *&connect) 
