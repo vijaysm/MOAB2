@@ -769,6 +769,8 @@ if test "x$ENABLE_imesh" = "xyes"; then
   esac
   AC_SUBST(BABEL_DIR)
   AC_SUBST(USE_BABEL)
+else
+  USE_BABEL=no
 fi
 AM_CONDITIONAL(USE_BABEL, [test "xno" != "x$USE_BABEL"])
 
