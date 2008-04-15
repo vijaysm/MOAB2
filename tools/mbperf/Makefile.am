@@ -8,7 +8,9 @@ LDADD = $(top_builddir)/libMOAB.la
 mbperf_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 if USE_BABEL
-  INCLUDES += -I$(top_srcdir)/tools/iMesh/SIDL/mserver
+  INCLUDES += -I$(top_srcdir)/tools/iMesh/SIDL/mserver \
+              -I../iMesh/SIDL/mserver \
+              -I$(BABEL_DIR)/include
   bin_PROGRAMS += mbperf_SIDL
   mbperf_SIDL_SOURCES = mbperf_SIDL.cpp
   LDADD += $(top_builddir)/tools/iMesh/SIDL/mserver/libiMeshserver.la

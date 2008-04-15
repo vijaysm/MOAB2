@@ -73,7 +73,8 @@ else
   imesh_DIR = 
 endif 
 
-SUBDIRS = $(converter_DIR) \
+SUBDIRS = $(imesh_DIR) \
+	  $(converter_DIR) \
           $(hexmodops_DIR) \
           $(mbchaco_DIR) \
           $(mbzoltan_DIR) \
@@ -84,7 +85,6 @@ SUBDIRS = $(converter_DIR) \
           $(tagprop_DIR) \
           $(spheredecomp_DIR) \
           $(mbsurfplot_DIR) \
-          $(dagmc_DIR) \
-          $(imesh_DIR)
+          $(dagmc_DIR)
 
 EXTRA_DIST = mbzoltan/README 
