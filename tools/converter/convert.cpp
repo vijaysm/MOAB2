@@ -209,7 +209,7 @@ int main(int argc, char* argv[])
           switch ( argv[i-1][1] )
           {
             case 'a': 
-              write_opts.push_back( std::string("SAT_FILE=") + argv[i] );
+              read_opts.push_back( std::string("SAT_FILE=") + argv[i] );
               pval = true;
               break;
             case 'f': format = argv[i]; pval = true;              break;
