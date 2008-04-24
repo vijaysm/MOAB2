@@ -727,28 +727,41 @@ static MBErrorCode intersect_children_with_elems( MBInterface* moab,
     rval = moab->get_coords( &conn[0], count, coords[0].array() );
     if (MB_SUCCESS != rval) return rval;
     
-    bool lo = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i), left_cen, left_dim );
-    bool ro = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i),right_cen,right_dim );
+    bool lo = false, ro = false;
+    for (int j = 0; j < count; ++j) {
+      if (coords[j][plane.norm] <= plane.coord)
+        lo = true;
+      if (coords[j][plane.norm] >= plane.coord)
+        ro = true;
+    }
     
-      // didn't intersect either - tolerance issue
-    while (!lo && !ro) {
-        // calculate a good tolerance
-      MBCartVect dim = box_max - box_min;
-      double max_dim;
-      if (dim[0] > dim[1] && dim[1] > dim[2])
-        max_dim = dim[0];
-      else if (dim[1] > dim[2])
-        max_dim = dim[1];
-      else
-        max_dim = dim[2];
-        // loop with increasing tolerance until we intersect something
-      double tol = std::numeric_limits<double>::epsilon();
+      // Triangle must be in at least one leaf.  If test against plain
+      // identified that leaf, then we're done.  If triangle is on both
+      // sides of plane, do more precise test to ensure that it is really
+      // in both.
+    if (lo && ro) {
+      lo = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i), left_cen, left_dim );
+      ro = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i),right_cen,right_dim );
+        // didn't intersect either - tolerance issue
       while (!lo && !ro) {
-        lo = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i), left_cen,tol*max_dim+ left_dim );
-        ro = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i),right_cen,tol*max_dim+right_dim );
-        tol *= 10.0;
-        if (tol > 1e-3)
-          return MB_FAILURE;
+          // calculate a good tolerance
+        MBCartVect dim = box_max - box_min;
+        double max_dim;
+        if (dim[0] > dim[1] && dim[1] > dim[2])
+          max_dim = dim[0];
+        else if (dim[1] > dim[2])
+          max_dim = dim[1];
+        else
+          max_dim = dim[2];
+          // loop with increasing tolerance until we intersect something
+        double tol = std::numeric_limits<double>::epsilon();
+        while (!lo && !ro) {
+          lo = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i), left_cen,tol*max_dim+ left_dim );
+          ro = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i),right_cen,tol*max_dim+right_dim );
+          tol *= 10.0;
+          if (tol > 1e-3)
+            return MB_FAILURE;
+        }
       }
     }
     if (lo && ro)
@@ -936,14 +949,15 @@ static MBErrorCode best_vertex_median_plane( int num_planes,
     citer = std::upper_bound( coords.begin(), coords.end(), box_min[axis] + eps );
     const size_t count = std::upper_bound( citer, coords.end(), box_max[axis] - eps ) - citer;
     size_t step;
-    if ((int)count < 2*num_planes) {
-      step = 1; num_planes = count - 1;
+    int np = num_planes;
+    if (count < 2*(size_t)num_planes) {
+      step = 1; np = count - 1;
     }
     else {
       step = count / (num_planes + 1);
     }
   
-    for (int p = 1; p <= num_planes; ++p) {
+    for (int p = 1; p <= np; ++p) {
       
       citer += step;
       MBAdaptiveKDTree::Plane plane = { *citer, axis };
@@ -1529,6 +1543,7 @@ MBErrorCode MBAdaptiveKDTree::find_close_triangle( MBEntityHandle root,
       // We should now be at a leaf.  
       // If it has some triangles, we're done.
       // If not, continue searching for another leaf.
+    tris.clear();
     rval = moab()->get_entities_by_type( node, MBTRI, tris );
     if (!tris.empty()) {
       double dist_sqr = HUGE_VAL;
