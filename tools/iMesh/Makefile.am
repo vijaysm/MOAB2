@@ -29,6 +29,8 @@ libiMesh_la_SOURCES = \
 	iMesh_MOAB.cpp
                    
 libiMesh_la_include_HEADERS = iMesh.h \
+                             iMesh_extensions.h \
+                             iMesh_extensions_protos.h \
                              iMesh_f.h \
                              iMesh_protos.h \
                              iBase.h \
