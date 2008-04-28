@@ -1,6 +1,7 @@
 #include "MBCore.hpp"
 #include "TestUtil.hpp"
 #include <stdlib.h>
+#include <algorithm>
 
 void test_create_tag();
 void test_invalid_tag_size();

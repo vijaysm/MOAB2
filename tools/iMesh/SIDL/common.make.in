@@ -6,7 +6,8 @@ INCLUDES = -I$(BABEL_DIR)/include \
 	   -I$(builddir) -I$(srcdir) \
            -I$(imesh_srcdir) \
            -I$(imesh_builddir) \
-           -I$(sidl_srcdir) 
+           -I$(sidl_srcdir) \
+           -I$(top_srcdir)
 
 imesh_srcdir = $(sidl_srcdir)/..
 imesh_builddir = ../..

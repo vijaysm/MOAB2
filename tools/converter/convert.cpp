@@ -27,6 +27,8 @@
 #include <iostream>
 #include <iomanip>
 #include <set>
+#include <cstdlib>
+#include <algorithm>
 #ifndef WIN32
 #  include <sys/times.h>
 #  include <limits.h>

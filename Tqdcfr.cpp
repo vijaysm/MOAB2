@@ -799,9 +799,9 @@ MBErrorCode Tqdcfr::read_group(const unsigned int group_index,
       }
     }
     if (0 == entityNameTag) return MB_FAILURE;
-    char *this_char = new char[md_entry->mdStringValue.length()+1];
-    strcpy(this_char, md_entry->mdStringValue.c_str());
-    result = mdbImpl->tag_set_data(entityNameTag, &grouph->setHandle, 1, &this_char);
+    assert(md_entry->mdStringValue.length()+1 <= NAME_TAG_SIZE);
+    result = mdbImpl->tag_set_data(entityNameTag, &grouph->setHandle, 1, 
+                                   md_entry->mdStringValue.c_str());
     
       // look for extra names
     md_index = model->groupMD.get_md_entry(group_index, "NumExtraNames");
@@ -814,16 +814,16 @@ MBErrorCode Tqdcfr::read_group(const unsigned int group_index,
         md_index = model->groupMD.get_md_entry(group_index, extra_name_label);
         if (-1 != md_index) {
           md_entry = &(model->groupMD.metadataEntries[md_index]);
-          this_char = new char[md_entry->mdStringValue.length()+1];
-          strcpy(this_char, md_entry->mdStringValue.c_str());
           MBTag extra_name_tag;
           result = mdbImpl->tag_get_handle(moab_extra_name, extra_name_tag);
+          assert(md_entry->mdStringValue.length()+1 <= NAME_TAG_SIZE);
           if (MB_SUCCESS != result || 0 == extra_name_tag) {
             char dum_val[NAME_TAG_SIZE]; dum_val[0] = '\0';
             result = mdbImpl->tag_create(moab_extra_name, NAME_TAG_SIZE, MB_TAG_SPARSE, 
                                          extra_name_tag, &dum_val);
           }
-          result = mdbImpl->tag_set_data(extra_name_tag, &grouph->setHandle, 1, &this_char);
+          result = mdbImpl->tag_set_data(extra_name_tag, &grouph->setHandle, 1, 
+                                         md_entry->mdStringValue.c_str());
         }
       }
     }
@@ -2105,17 +2105,18 @@ MBErrorCode Tqdcfr::parse_acis_attribs(const unsigned int entity_rec_num,
     // set the name
   if (NULL != name_tag) {
     if (0 == entityNameTag) {
-      result = mdbImpl->tag_get_handle("NAME", entityNameTag);
+      result = mdbImpl->tag_get_handle(NAME_TAG_NAME, entityNameTag);
       if (MB_SUCCESS != result || 0 == entityNameTag) {
         char *dum_val = NULL;
-        result = mdbImpl->tag_create("NAME", sizeof(char*), MB_TAG_SPARSE, 
+        result = mdbImpl->tag_create(NAME_TAG_NAME, NAME_TAG_SIZE, MB_TAG_SPARSE, 
                                      entityNameTag, &dum_val);
       }
     }
     if (0 == entityNameTag) return MB_FAILURE;
 
-    result = mdbImpl->tag_set_data(entityNameTag, &(records[entity_rec_num].entity), 1, &name_tag);
+    result = mdbImpl->tag_set_data(entityNameTag, &(records[entity_rec_num].entity), 1, name_tag);
     if (MB_SUCCESS != result) return result;
+    delete [] name_tag;
   }
 
   if (NULL != attrib_vec) {

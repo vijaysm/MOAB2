@@ -424,7 +424,7 @@ inline MBTag DualTool::globalId_tag() const
 inline MBErrorCode DualTool::dualSurface_tag(const MBTag tag) 
 {
   MBErrorCode result = MB_FAILURE;
-  if (0 == dualSurfaceTag && tag || dualSurfaceTag != tag) {
+  if ((0 == dualSurfaceTag && tag) || dualSurfaceTag != tag) {
     dualSurfaceTag = tag;
     result = MB_SUCCESS;
   }
@@ -436,7 +436,7 @@ inline MBErrorCode DualTool::dualSurface_tag(const MBTag tag)
 inline MBErrorCode DualTool::dualCurve_tag(const MBTag tag)
 {
   MBErrorCode result = MB_FAILURE;
-  if (0 == dualCurveTag && tag || dualCurveTag != tag) {
+  if ((0 == dualCurveTag && tag) || dualCurveTag != tag) {
     dualCurveTag = tag;
     result = MB_SUCCESS;
   }
@@ -448,7 +448,7 @@ inline MBErrorCode DualTool::dualCurve_tag(const MBTag tag)
 inline MBErrorCode DualTool::isDualCell_tag(const MBTag tag)
 {
   MBErrorCode result = MB_FAILURE;
-  if (0 == isDualCellTag && tag || isDualCellTag != tag) {
+  if ((0 == isDualCellTag && tag) || isDualCellTag != tag) {
     isDualCellTag = tag;
     result = MB_SUCCESS;
   }
@@ -460,7 +460,7 @@ inline MBErrorCode DualTool::isDualCell_tag(const MBTag tag)
 inline MBErrorCode DualTool::dualEntity_tag(const MBTag tag)
 {
   MBErrorCode result = MB_FAILURE;
-  if (0 == dualEntityTag && tag || dualEntityTag != tag) {
+  if ((0 == dualEntityTag && tag) || dualEntityTag != tag) {
     dualEntityTag = tag;
     result = MB_SUCCESS;
   }
@@ -472,7 +472,7 @@ inline MBErrorCode DualTool::dualEntity_tag(const MBTag tag)
 inline MBErrorCode DualTool::extraDualEntity_tag(const MBTag tag)
 {
   MBErrorCode result = MB_FAILURE;
-  if (0 == extraDualEntityTag && tag || extraDualEntityTag != tag) {
+  if ((0 == extraDualEntityTag && tag) || extraDualEntityTag != tag) {
     extraDualEntityTag = tag;
     result = MB_SUCCESS;
   }
@@ -484,7 +484,7 @@ inline MBErrorCode DualTool::extraDualEntity_tag(const MBTag tag)
 inline MBErrorCode DualTool::dualGraphicsPoint_tag(const MBTag tag)
 {
   MBErrorCode result = MB_FAILURE;
-  if (0 == dualGraphicsPointTag && tag || dualGraphicsPointTag != tag) {
+  if ((0 == dualGraphicsPointTag && tag) || dualGraphicsPointTag != tag) {
     dualGraphicsPointTag = tag;
     result = MB_SUCCESS;
   }
@@ -496,7 +496,7 @@ inline MBErrorCode DualTool::dualGraphicsPoint_tag(const MBTag tag)
 inline MBErrorCode DualTool::globalId_tag(const MBTag tag)
 {
   MBErrorCode result = MB_FAILURE;
-  if (0 == globalIdTag && tag || globalIdTag != tag) {
+  if ((0 == globalIdTag && tag) || globalIdTag != tag) {
     globalIdTag = tag;
     result = MB_SUCCESS;
   }

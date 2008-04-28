@@ -179,8 +179,6 @@ int test_get_set()
     // other constructors
   int coordsa[4] = {1, 2, 3, 1};
   int coordsb[4] = {4, 3, 2, 1};
-  int coordsc[4] = {4, 3, 2, 1};
-  int coordsd[4] = {1, 1, 1, 1};
       
   
   HomCoord coords1(coordsa);

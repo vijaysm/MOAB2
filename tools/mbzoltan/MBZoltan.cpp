@@ -102,17 +102,19 @@ MBErrorCode MBZoltan::balance_mesh(const char *zmethod,
       SetHypergraph_Parameters("auto");
     else
       SetHypergraph_Parameters(other_method);
-  else if (!strcmp(zmethod, "PARMETIS"))
+  else if (!strcmp(zmethod, "PARMETIS")) {
     if (NULL == other_method)
       SetPARMETIS_Parameters("RepartGDiffusion");
     else
       SetPARMETIS_Parameters(other_method);
-  else if (!strcmp(zmethod, "OCTPART"))
+  }
+  else if (!strcmp(zmethod, "OCTPART")) {
     if (NULL == other_method)
       SetOCTPART_Parameters("2");
     else
       SetOCTPART_Parameters(other_method);
-
+  }
+  
   // Call backs:
 
   myZZ->Set_Num_Obj_Fn(mbGetNumberOfAssignedObjects, NULL);
@@ -237,22 +239,25 @@ MBErrorCode MBZoltan::partition_mesh(const int nparts,
     SetRIB_Parameters();
   else if (!strcmp(zmethod, "HSFC"))
     SetHSFC_Parameters();
-  else if (!strcmp(zmethod, "Hypergraph") || !strcmp(zmethod, "PHG"))
+  else if (!strcmp(zmethod, "Hypergraph") || !strcmp(zmethod, "PHG")) {
     if (NULL == other_method)
       SetHypergraph_Parameters("auto");
     else
       SetHypergraph_Parameters(other_method);
-  else if (!strcmp(zmethod, "PARMETIS"))
+  }
+  else if (!strcmp(zmethod, "PARMETIS")) {
     if (NULL == other_method)
       SetPARMETIS_Parameters("RepartGDiffusion");
     else
       SetPARMETIS_Parameters(other_method);
-  else if (!strcmp(zmethod, "OCTPART"))
+  }
+  else if (!strcmp(zmethod, "OCTPART")) {
     if (NULL == other_method)
       SetOCTPART_Parameters("2");
     else
       SetOCTPART_Parameters(other_method);
-
+  }
+  
     // set # requested partitions
   char buff[10];
   sprintf(buff, "%d", nparts);
@@ -532,7 +537,7 @@ void MBZoltan::SetOCTPART_Parameters(const char *oct_method)
 int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids, 
                                  int *adjs, int *length)
 {
-  unsigned int i;
+  int i;
   int j;
   int *numPts, *nborProcs;
   int sum, ptsPerProc, ptsAssigned, mySize;
@@ -551,7 +556,7 @@ int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids,
     ptsPerProc = npts / mbImpl->proc_size();
     ptsAssigned = 0;
 
-    for (i=0; i<mbImpl->proc_size()-1; i++)
+    for (i=0; (int) i < mbImpl->proc_size()-1; i++)
     {
       numPts[i] = ptsPerProc;
       ptsAssigned += ptsPerProc;
@@ -583,7 +588,7 @@ int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids,
 
     sendProcs = nborProcs + (sendNborId - adjs);
 
-    for (i=1; i<mbImpl->proc_size(); i++)
+    for (i=1; (int)i<mbImpl->proc_size(); i++)
     {
       MPI_Send(&numPts[i], 1, MPI_INT, i, 0x00,MPI_COMM_WORLD);
       MPI_Send(sendPts, 3 * numPts[i], MPI_DOUBLE, i, 0x01,MPI_COMM_WORLD);
@@ -684,7 +689,7 @@ void MBZoltan::mbFinalizePoints(int npts, int numExport,
 int MBZoltan::mbGlobalSuccess(int rc)
 {
   int fail = 0;
-  unsigned int i;
+  int i;
   int *vals = (int *)malloc(mbImpl->proc_size() * sizeof(int));
 
   MPI_Allgather(&rc, 1, MPI_INT, vals, 1, MPI_INT, MPI_COMM_WORLD);
@@ -702,10 +707,10 @@ int MBZoltan::mbGlobalSuccess(int rc)
   return fail;
 }
 
-void MBZoltan::mbPrintGlobalResult(char *s, 
+void MBZoltan::mbPrintGlobalResult(const char *s, 
                                    int begin, int import, int exp, int change)
 {
-  unsigned int i;
+  int i;
   int *v1 = (int *)malloc(4 * sizeof(int));
   int *v2 = NULL;
   int *v;
@@ -737,7 +742,7 @@ void MBZoltan::mbPrintGlobalResult(char *s,
   free(v1);
 }
 
-void MBZoltan::mbShowError(int val, char *s)
+void MBZoltan::mbShowError(int val, const char *s)
 {
   if (s)
     {

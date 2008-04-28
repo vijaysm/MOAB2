@@ -34,7 +34,7 @@ typedef struct {
 #endif
 } gs_data;
 
-gs_data *gs_data_setup(uint n, const long *label, const ulong *label,
+gs_data *gs_data_setup(uint n, const long *label, const ulong *ulabel,
                        uint maxv, const unsigned int nlabels,
                        const unsigned int nulabels,
                        crystal_data *crystal);

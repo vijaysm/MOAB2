@@ -1705,8 +1705,8 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
       if (tag_size != tag_info->get_size() ||
           tag_type != this_type ||
           tag_data_type != tag_info->get_data_type() ||
-          (def_val_ptr && !tag_info->default_value() ||
-           !def_val_ptr && tag_info->default_value())) {
+          (def_val_ptr && !tag_info->default_value()) ||
+          (!def_val_ptr && tag_info->default_value())) {
         RR("Didn't get correct tag info when unpacking tag.");
       }
     }

@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <limits>
+#include <cstdlib>
 #include <math.h>
 
 /* Exit values */

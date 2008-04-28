@@ -49,12 +49,12 @@ int main()
 
   //faces to nodes
 
-  for(int i=0; i<tris.size(); i++)
+  for(unsigned int i=0; i<tris.size(); i++)
   {
     err = iface->get_adjacencies( &tris[i], 1, 0, true, nodes );
     std::cout << "edge " << ID_FROM_HANDLE(tris[i]) << std::endl;
     std::cout << "nodes = ";
-    for(int j=0; j<nodes.size(); j++)
+    for(unsigned int j=0; j<nodes.size(); j++)
       std::cout << nodes[j] << " ";
     std::cout << std::endl;
   }

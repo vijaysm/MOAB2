@@ -229,7 +229,7 @@ void write_file_data()
   offset = (0 == RANK) ? 0 : 4 + 4*RANK;
   offset += 2*RANK;
   list[count++] = first_set + 2 + RANK;
-  mhdf_openSparseTagData( file, proc_tag_name, &ntag, handles, &status );
+  mhdf_openSparseTagData( file, proc_tag_name, &ntag, &ntag, handles, &status );
   CHECK(status);
   assert( ntag == total_num_nodes + total_num_hexes + NUM_PROC );
   mhdf_writeSparseTagEntities( handles[0], offset, count, H5T_NATIVE_INT, list, &status );

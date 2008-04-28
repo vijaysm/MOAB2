@@ -1,4 +1,4 @@
-#include "iMesh.h"
+#include "iMesh_extensions.h"
 #include "MBCore.hpp"
 #include "MBRange.hpp"
 #include "MBCN.hpp"
@@ -56,12 +56,12 @@ MBErrorCode MBiMesh::delete_entities( const MBRange& r )
 }
 
 #define CHECK_SIZE(array, allocated, size, type, retval)  \
-  if (NULL != array && 0 != array ## _allocated && array ## _allocated < (size)) {\
+  if (0 != allocated && NULL != array && allocated < (size)) {\
     iMesh_processError(iBase_MEMORY_ALLOCATION_FAILED, \
           "Allocated array not large enough to hold returned contents.");\
     RETURN(iBase_MEMORY_ALLOCATION_FAILED);\
   }\
-  if (NULL == array || allocated == 0) {\
+  if (allocated == 0 || NULL == array) {\
     array = (type*)malloc((size)*sizeof(type));\
     allocated=(size);\
     if (NULL == array) {iMesh_processError(iBase_MEMORY_ALLOCATION_FAILED, \
@@ -70,7 +70,7 @@ MBErrorCode MBiMesh::delete_entities( const MBRange& r )
 // TAG_CHECK_SIZE is like CHECK_SIZE except it checks for and makes the allocated memory
 // size a multiple of sizeof(void*), and the pointer is assumed to be type char*
 #define TAG_CHECK_SIZE(array, allocated, size)  \
-  if (NULL != array && 0 != array ## _allocated && array ## _allocated < (size)) {\
+  if (0 != allocated && NULL != array && allocated < (size)) {\
     iMesh_processError(iBase_MEMORY_ALLOCATION_FAILED, \
           "Allocated array not large enough to hold returned contents.");\
     RETURN(iBase_MEMORY_ALLOCATION_FAILED);\
@@ -195,6 +195,8 @@ struct RangeIterator
 extern "C" {
 #endif
 
+void eatwhitespace(std::string &this_string);
+
 MBErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
                                    MBEntityHandle in_set, 
                                    const int req_dimension, 
@@ -290,6 +292,9 @@ void iMesh_load(iMesh_Instance instance,
   std::string tmp_filename(name, name_len), 
     tmp_options(options, options_len);
 
+  eatwhitespace(tmp_filename);
+  eatwhitespace(tmp_options);
+  
   MBEntityHandle file_set;
   
   MBErrorCode result = MBI->load_file(tmp_filename.c_str(), file_set, 
@@ -310,9 +315,13 @@ void iMesh_save(iMesh_Instance instance,
                  int *err, const int name_len, int options_len) 
 {
     // get filename & attempt to NULL-terminate
-  std::string tmp_filename( name, name_len );
+  std::string tmp_filename( name, name_len ), tmp_options(options, options_len);
 
-  MBErrorCode result = MBI->write_mesh(tmp_filename.c_str(), CONST_HANDLE_ARRAY_PTR(&handle), 1);
+  eatwhitespace(tmp_filename);
+  eatwhitespace(tmp_options);
+  
+  MBErrorCode result = MBI->write_file(tmp_filename.c_str(), NULL, tmp_options.c_str(),
+                                       CONST_HANDLE_ARRAY_PTR(&handle), 1);
 
   if (MB_SUCCESS != result) {
     std::string msg("iMesh_save:ERROR saving a mesh, with error type: ");
@@ -362,25 +371,8 @@ void iMesh_getNumOfType(iMesh_Instance instance,
                        /*in*/ const int entity_type,
                        int *num_type, int *err)
 {
-  *num_type = 0;
-  MBErrorCode result;
-  if (entity_type == iBase_ALL_TYPES)
-    result = MBI->get_number_entities_by_handle
-      (ENTITY_HANDLE(entity_set_handle), *num_type);
-  else
-    result = MBI->get_number_entities_by_dimension
-      (ENTITY_HANDLE(entity_set_handle), entity_type, *num_type);
-
-  if (result != MB_SUCCESS) {
-    std::string msg("iMesh_entitysetGetNumberEntityOfType: ERROR getting number of entities"
-                    " by type, with error type: ");
-    msg += MBI->get_error_string(result);
-    iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
-    *num_type = 0;
-    RETURN(iBase_ERROR_MAP[result]);
-  }
-
-  RETURN(iBase_SUCCESS);
+  iMesh_getNumOfTypeRec(instance, entity_set_handle, entity_type, false,
+                        num_type, err);
 }
   
 void iMesh_getNumOfTopo(iMesh_Instance instance,
@@ -388,27 +380,8 @@ void iMesh_getNumOfTopo(iMesh_Instance instance,
                        /*in*/ const int entity_topology,
                        int *num_topo, int *err)
 {
-  if (entity_topology == iMesh_SEPTAHEDRON) {
-    *num_topo = 0;
-    RETURN(iBase_SUCCESS);
-  }
-
-  *num_topo = 0;
-  MBErrorCode result = 
-    MBI->get_number_entities_by_type(ENTITY_HANDLE(entity_set_handle), 
-                                     mb_topology_table[entity_topology], 
-                                     *num_topo);
-  if (MB_SUCCESS != result) {
-    std::string msg("iMesh_entitysetGetNumberEntityOfTopology: ERROR getting "
-                    "number of entities by topology., with error type: ");
-    msg += MBI->get_error_string(result);
-    iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
-    *num_topo = -1;
-    RETURN(iBase_ERROR_MAP[result]);
-  }
-  else {
-    RETURN(iBase_SUCCESS);
-  }
+  iMesh_getNumOfTopoRec(instance, entity_set_handle, entity_topology,
+                        false, num_topo, err);
 }
 
 void iMesh_areEHValid( iMesh_Instance instance,
@@ -621,69 +594,10 @@ void iMesh_getEntities(iMesh_Instance instance,
                       /*out*/ int* entity_handles_size, 
                        int *err) 
 {
-  bool use_top = false;
-  bool use_type = false;
-    // initialize just to get rid of compiler warning
-  MBEntityType type = mb_topology_table[iMesh_ALL_TOPOLOGIES];
-  MBRange out_entities;
- 
-  if (entity_topology >= iMesh_POINT
-      && entity_topology < iMesh_ALL_TOPOLOGIES) {
-    type = mb_topology_table[entity_topology];
-    use_top = true;
-  }
-  else if (entity_type >= iBase_VERTEX
-           && entity_type <= iBase_ALL_TYPES)
-    use_type = true;
-  else {
-    iMesh_processError(iBase_ERROR_MAP[iBase_BAD_TYPE_AND_TOPO], 
-                       "iMesh_getEntities:ERROR not valid entity type or topology");
-    RETURN(iBase_ERROR_MAP[iBase_BAD_TYPE_AND_TOPO]);
-  }
-
-  MBEntityHandle handle = ENTITY_HANDLE(entity_set_handle);
-  MBErrorCode result;
-
-  if (use_top) {
-    if (entity_topology == iMesh_SEPTAHEDRON)
-      result = MB_SUCCESS;  // MOAB doesn't do septahedrons, so there are never any.
-    else
-      result = MBI->get_entities_by_type(handle, type, out_entities);
-  }
-  else if (use_type && entity_type != iBase_ALL_TYPES)
-    result = MBI->get_entities_by_dimension(handle, entity_type, out_entities);
-  else 
-    result = MBI->get_entities_by_handle(handle, out_entities);
-
-  if (result != MB_SUCCESS) {
-    std::string msg("iMesh_GetEntities:ERROR getting entities, with error type: ");
-    msg += MBI->get_error_string(result);
-    iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
-    RETURN(iBase_ERROR_MAP[result]);
-  }
-
-  CHECK_SIZE(*entity_handles, *entity_handles_allocated, 
-             (int)out_entities.size(), iBase_EntityHandle, iBase_MEMORY_ALLOCATION_FAILED);
-  
-  MBRange::iterator iter = out_entities.begin();
-  MBRange::iterator end_iter = out_entities.end();
-  int k = 0;
-
-    // filter out entity sets here
-  if (iBase_ALL_TYPES == entity_type && iMesh_ALL_TOPOLOGIES == entity_topology) {
-    for (; iter != end_iter && MBI->type_from_handle(*iter) != MBENTITYSET; iter++)
-      (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
-  }
-  else {
-    for (; iter != end_iter; iter++)
-      (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
-  }
-
-    // now it's safe to set the size; set it to k, not out_entities.size(), to
-    // account for sets which might have been removed
-  *entity_handles_size = k;
-
-  RETURN(iBase_SUCCESS);
+  iMesh_getEntitiesRec(instance, entity_set_handle, entity_type,
+                       entity_topology, false,
+                       entity_handles, entity_handles_allocated, entity_handles_size,
+                       err);
 }
 
 void iMesh_getVtxArrCoords (iMesh_Instance instance,
@@ -1678,6 +1592,10 @@ void iMesh_createTag(iMesh_Instance instance,
 {
   MBTag new_tag;
   int this_size = tag_size;
+
+  std::string tmp_tagname(tag_name);
+  eatwhitespace(tmp_tagname);
+
   switch (tag_type) {
     case iBase_INTEGER:
       this_size *= sizeof(int);
@@ -1692,7 +1610,7 @@ void iMesh_createTag(iMesh_Instance instance,
       break;
   }
       
-  MBErrorCode result = MBI->tag_create(tag_name, this_size,
+  MBErrorCode result = MBI->tag_create(tmp_tagname.c_str(), this_size,
                                        MB_TAG_SPARSE, 
                                        mb_data_type_table[tag_type],
                                        new_tag,
@@ -2691,6 +2609,340 @@ MBErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
   }
 
   return result;
+}
+
+void iMesh_getEntitiesRec(iMesh_Instance instance,
+                          /*in*/ const iBase_EntitySetHandle entity_set_handle,
+                          /*in*/ const int entity_type,
+                          /*in*/ const int entity_topology,
+                          /*in*/ const int recursive,
+                          /*out*/ iBase_EntityHandle** entity_handles,
+                          /*out*/ int* entity_handles_allocated,
+                          /*out*/ int* entity_handles_size,
+                          /*out*/ int *err) 
+{
+  bool use_top = false;
+  bool use_type = false;
+    // initialize just to get rid of compiler warning
+  MBEntityType type = mb_topology_table[iMesh_ALL_TOPOLOGIES];
+  MBRange out_entities;
+ 
+  if (entity_topology >= iMesh_POINT
+      && entity_topology < iMesh_ALL_TOPOLOGIES) {
+    type = mb_topology_table[entity_topology];
+    use_top = true;
+  }
+  else if (entity_type >= iBase_VERTEX
+           && entity_type <= iBase_ALL_TYPES)
+    use_type = true;
+  else {
+    iMesh_processError(iBase_ERROR_MAP[iBase_BAD_TYPE_AND_TOPO], 
+                       "iMesh_getEntities:ERROR not valid entity type or topology");
+    RETURN(iBase_ERROR_MAP[iBase_BAD_TYPE_AND_TOPO]);
+  }
+
+  MBEntityHandle handle = ENTITY_HANDLE(entity_set_handle);
+  MBErrorCode result;
+
+  if (use_top) {
+    if (entity_topology == iMesh_SEPTAHEDRON)
+      result = MB_SUCCESS;  // MOAB doesn't do septahedrons, so there are never any.
+    else
+      result = MBI->get_entities_by_type(handle, type, out_entities, recursive);
+  }
+  else if (use_type && entity_type != iBase_ALL_TYPES)
+    result = MBI->get_entities_by_dimension(handle, entity_type, out_entities, recursive);
+  else 
+    result = MBI->get_entities_by_handle(handle, out_entities, recursive);
+
+  if (result != MB_SUCCESS) {
+    std::string msg("iMesh_GetEntities:ERROR getting entities, with error type: ");
+    msg += MBI->get_error_string(result);
+    iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
+    RETURN(iBase_ERROR_MAP[result]);
+  }
+
+  CHECK_SIZE(*entity_handles, *entity_handles_allocated, 
+             (int)out_entities.size(), iBase_EntityHandle, iBase_MEMORY_ALLOCATION_FAILED);
+  
+  MBRange::iterator iter = out_entities.begin();
+  MBRange::iterator end_iter = out_entities.end();
+  int k = 0;
+
+    // filter out entity sets here
+  if (iBase_ALL_TYPES == entity_type && iMesh_ALL_TOPOLOGIES == entity_topology) {
+    for (; iter != end_iter && MBI->type_from_handle(*iter) != MBENTITYSET; iter++)
+      (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
+  }
+  else {
+    for (; iter != end_iter; iter++)
+      (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
+  }
+
+    // now it's safe to set the size; set it to k, not out_entities.size(), to
+    // account for sets which might have been removed
+  *entity_handles_size = k;
+
+  RETURN(iBase_SUCCESS);
+}  
+
+    /**\brief  Get the number of entities with the specified type in the instance or set, recursive
+     *
+     * Get the number of entities with the specified type in the instance 
+     * or set.  If recursive is passed in non-zero, includes entities in owned sets.  
+     * If entity set handle is zero, return information for instance, 
+     * otherwise for set.  Value of entity type must be from the
+     * iBase_EntityType enumeration.  If iBase_ALL_TYPES is specified,
+     * total number of entities (excluding entity sets) is returned.
+     * \param instance iMesh instance handle
+     * \param entity_set_handle Entity set being queried
+     * \param entity_type Type of entity requested
+     * \param recursive If non-zero, includes entities in owned sets too
+     * \param num_type Pointer to number of entities, returned from function
+     * \param *err Pointer to error type returned from function
+     */
+void iMesh_getNumOfTypeRec(iMesh_Instance instance,
+                           /*in*/ const iBase_EntitySetHandle entity_set_handle,
+                           /*in*/ const int entity_type,
+                           /*in*/ const int recursive,
+                           /*out*/ int *num_type, 
+                           /*out*/ int *err) 
+{
+  *num_type = 0;
+  MBErrorCode result;
+  if (entity_type == iBase_ALL_TYPES)
+    result = MBI->get_number_entities_by_handle
+        (ENTITY_HANDLE(entity_set_handle), *num_type, recursive);
+  else
+    result = MBI->get_number_entities_by_dimension
+        (ENTITY_HANDLE(entity_set_handle), entity_type, *num_type, recursive);
+
+  if (result != MB_SUCCESS) {
+    std::string msg("iMesh_entitysetGetNumberEntityOfType: ERROR getting number of entities"
+                    " by type, with error type: ");
+    msg += MBI->get_error_string(result);
+    iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
+    *num_type = 0;
+    RETURN(iBase_ERROR_MAP[result]);
+  }
+
+  RETURN(iBase_SUCCESS);
+}
+
+
+    /**\brief  Get the number of entities with the specified topology in the instance or set
+     *
+     * Get the number of entities with the specified topology in the instance 
+     * or set.  If recursive is passed in non-zero, includes entities in owned sets.  
+     * If entity set handle is zero, return information for instance,
+     * otherwise for set.  Value of entity topology must be from the
+     * iMesh_EntityTopology enumeration.  If iMesh_ALL_TOPOLOGIES is specified,
+     * total number of entities (excluding entity sets) is returned.
+     * \param instance iMesh instance handle
+     * \param entity_set_handle Entity set being queried
+     * \param entity_topology Topology of entity requested
+     * \param recursive If non-zero, includes entities in owned sets too
+     * \param num_topo Pointer to number of entities, returned from function
+     * \param *err Pointer to error type returned from function
+     */
+void iMesh_getNumOfTopoRec(iMesh_Instance instance,
+                           /*in*/ const iBase_EntitySetHandle entity_set_handle,
+                           /*in*/ const int entity_topology,
+                           /*in*/ const int recursive,
+                           /*out*/ int *num_topo, 
+                           /*out*/ int *err) 
+{
+  if (entity_topology == iMesh_SEPTAHEDRON) {
+    *num_topo = 0;
+    RETURN(iBase_SUCCESS);
+  }
+
+  *num_topo = 0;
+  MBErrorCode result = 
+      MBI->get_number_entities_by_type(ENTITY_HANDLE(entity_set_handle), 
+                                       mb_topology_table[entity_topology], 
+                                       *num_topo, recursive);
+  if (MB_SUCCESS != result) {
+    std::string msg("iMesh_entitysetGetNumberEntityOfTopology: ERROR getting "
+                    "number of entities by topology., with error type: ");
+    msg += MBI->get_error_string(result);
+    iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
+    *num_topo = -1;
+    RETURN(iBase_ERROR_MAP[result]);
+  }
+  else {
+    RETURN(iBase_SUCCESS);
+  }
+}
+
+    /**\brief  Get entities with specified type, topology, tag(s) and (optionally) tag value(s)
+     *
+     * Get entities with the specified type, topology, tag(s), and optionally tag value(s).
+     * If tag values pointer is input as zero, entities with specified tag(s) are returned,
+     * regardless of their value.
+     * \param instance iMesh instance handle
+     * \param entity_set_handle Entity set being queried
+     * \param entity_type Type of entities being requested
+     * \param entity_topology Topology of entities being requested
+     * \param tag_handles Array of tag handles
+     * \param tag_vals Array of tag values (zero if values not requested)
+     * \param num_tags_vals Number of tags and optionally values
+     * \param recursive If non-zero, gets entities in owned sets too
+     * \param *entity_handles Pointer to array of entity handles returned 
+     *        from function
+     * \param *entity_handles_allocated Pointer to allocated size of 
+     *        entity_handles array
+     * \param *entity_handles_size Pointer to occupied size of entity_handles array
+     * \param *err Pointer to error type returned from function
+     */
+void iMesh_getEntsByTagsRec(iMesh_Instance instance,
+                            /*in*/ const iBase_EntitySetHandle entity_set_handle,
+                            /*in*/ const int entity_type,
+                            /*in*/ const int entity_topology,
+                            /*in*/ const iBase_TagHandle *tag_handles,
+                            /*in*/ const char * const *tag_vals,
+                            /*in*/ const int num_tags_vals,
+                            /*in*/ const int recursive,
+                            /*out*/ iBase_EntityHandle** entity_handles,
+                            /*out*/ int* entity_handles_allocated,
+                            /*out*/ int* entity_handles_size,
+                            /*out*/ int *err)
+{
+  bool use_top = false;
+  bool use_type = false;
+    // initialize just to get rid of compiler warning
+  MBEntityType type = mb_topology_table[iMesh_ALL_TOPOLOGIES];
+  MBRange out_entities;
+ 
+  if (entity_topology >= iMesh_POINT
+      && entity_topology < iMesh_ALL_TOPOLOGIES) {
+    type = mb_topology_table[entity_topology];
+    use_top = true;
+  }
+  else if (entity_type >= iBase_VERTEX
+           && entity_type <= iBase_ALL_TYPES)
+    use_type = true;
+  else {
+    iMesh_processError(iBase_ERROR_MAP[iBase_BAD_TYPE_AND_TOPO], 
+                       "iMesh_getEntities:ERROR not valid entity type or topology");
+    RETURN(iBase_ERROR_MAP[iBase_BAD_TYPE_AND_TOPO]);
+  }
+
+  MBEntityHandle handle = ENTITY_HANDLE(entity_set_handle);
+  MBErrorCode result;
+
+  if (use_top) {
+    if (entity_topology == iMesh_SEPTAHEDRON)
+      result = MB_SUCCESS;  // MOAB doesn't do septahedrons, so there are never any.
+    else
+      result = MBI->get_entities_by_type_and_tag(handle, type, (MBTag*)tag_handles, 
+                                                 (const void* const *)tag_vals,
+                                                 num_tags_vals, out_entities, 
+                                                 MBInterface::INTERSECT, recursive);
+  }
+  else if (use_type && entity_type != iBase_ALL_TYPES) {
+      // need to loop over all types of this dimension
+    for (MBEntityType tp = MBCN::TypeDimensionMap[entity_type].first;
+         tp <= MBCN::TypeDimensionMap[entity_type].second; tp++) {
+      MBRange tmp_range;
+      MBErrorCode tmp_result = MBI->get_entities_by_type_and_tag(handle, type, (MBTag*)tag_handles, 
+                                                                 (const void* const *)tag_vals,
+                                                                 num_tags_vals, tmp_range, 
+                                                                 MBInterface::INTERSECT, recursive);
+      if (MB_SUCCESS != tmp_result) result = tmp_result;
+      else out_entities.merge(tmp_range);
+    }
+  }
+  else 
+    result = MBI->get_entities_by_type_and_tag(handle, type, (MBTag*)tag_handles, 
+                                               (const void* const *)tag_vals,
+                                               num_tags_vals, out_entities,
+                                               MBInterface::INTERSECT, recursive);
+
+  if (result != MB_SUCCESS) {
+    std::string msg("iMesh_GetEntities:ERROR getting entities, with error type: ");
+    msg += MBI->get_error_string(result);
+    iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
+    RETURN(iBase_ERROR_MAP[result]);
+  }
+
+  CHECK_SIZE(*entity_handles, *entity_handles_allocated, 
+             (int)out_entities.size(), iBase_EntityHandle, iBase_MEMORY_ALLOCATION_FAILED);
+  
+  MBRange::iterator iter = out_entities.begin();
+  MBRange::iterator end_iter = out_entities.end();
+  int k = 0;
+
+    // filter out entity sets here
+  if (iBase_ALL_TYPES == entity_type && iMesh_ALL_TOPOLOGIES == entity_topology) {
+    for (; iter != end_iter && MBI->type_from_handle(*iter) != MBENTITYSET; iter++)
+      (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
+  }
+  else {
+    for (; iter != end_iter; iter++)
+      (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
+  }
+
+    // now it's safe to set the size; set it to k, not out_entities.size(), to
+    // account for sets which might have been removed
+  *entity_handles_size = k;
+
+  RETURN(iBase_SUCCESS);
+}
+
+void iMesh_getEntSetsByTagsRec(iMesh_Instance instance,
+                               /*in*/ const iBase_EntitySetHandle entity_set_handle,
+                               /*in*/ const iBase_TagHandle *tag_handles,
+                               /*in*/ const char * const *tag_vals,
+                               /*in*/ const int num_tags_vals,
+                               /*in*/ const int recursive,
+                               /*out*/ iBase_EntityHandle** set_handles,
+                               /*out*/ int* set_handles_allocated,
+                               /*out*/ int* set_handles_size,
+                               /*out*/ int *err)
+{
+  MBRange out_entities;
+ 
+  MBEntityHandle handle = ENTITY_HANDLE(entity_set_handle);
+  MBErrorCode result;
+
+  result = MBI->get_entities_by_type_and_tag(handle, MBENTITYSET, (MBTag*)tag_handles, 
+                                                 (const void* const *)tag_vals,
+                                                 num_tags_vals, out_entities, 
+                                                 MBInterface::INTERSECT, recursive);
+  if (result != MB_SUCCESS) {
+    std::string msg("ERROR getting entities, with error type: ");
+    msg += MBI->get_error_string(result);
+    iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
+    RETURN(iBase_ERROR_MAP[result]);
+  }
+
+  CHECK_SIZE(*set_handles, *set_handles_allocated, 
+             (int)out_entities.size(), iBase_EntityHandle, iBase_MEMORY_ALLOCATION_FAILED);
+
+  std::copy(out_entities.begin(), out_entities.end(), ((MBEntityHandle*) *set_handles));
+  
+    // now it's safe to set the size; set it to k, not out_entities.size(), to
+    // account for sets which might have been removed
+  *set_handles_size = out_entities.size();
+
+  RETURN(iBase_SUCCESS);
+}
+
+void iMesh_MBCNType(/*in*/ const int imesh_entity_topology,
+                    /*out*/ int *mbcn_type) 
+{
+  if (iMesh_POINT > imesh_entity_topology ||
+      iMesh_ALL_TOPOLOGIES <= imesh_entity_topology)
+    *mbcn_type = -1;
+  else
+    *mbcn_type = mb_topology_table[imesh_entity_topology];
+}
+    
+void eatwhitespace(std::string &this_string) 
+{
+  std::string::size_type len = this_string.find_last_not_of(" ");
+  if (len != this_string.npos) this_string[len+1] = '\0';
 }
   
 void cfunc_(int arg3, char *mystr, char *mystr2, int arg2, 

@@ -39,6 +39,7 @@
 #include "vtkRenderer.h"
 #include "vtkExtractGeometry.h"
 #include "vtkPlane.h"
+#include <algorithm>
 
 void uiQVDual::fileNew()
 {

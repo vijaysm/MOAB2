@@ -2,6 +2,7 @@
 #include "testdir.h"
 #include "TestUtil.hpp"
 
+#include <algorithm>
 #include <iostream>
 #include <stdlib.h>
 #include <math.h>

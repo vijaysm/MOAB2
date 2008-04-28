@@ -340,7 +340,6 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
 
   int proc_sz = mbImpl->proc_size();
   int proc_rk = mbImpl->proc_rank();
-  unsigned int num_partsets = partition_sets.size();
 
   if (!ptag_vals.empty()) {
       // values input, get sets with those values
@@ -376,7 +375,36 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
     partition_sets.print();
   }
   
-  return delete_nonlocal_entities(partition_sets, file_set);
+  result = delete_nonlocal_entities(partition_sets, file_set); RR(" ");
+  
+  if (ptag_name != PARALLEL_PARTITION_TAG_NAME) {
+      // tag the partition sets with a standard tag name
+    result = mbImpl->tag_create(PARALLEL_PARTITION_TAG_NAME, sizeof(int), 
+                                MB_TAG_SPARSE, 
+                                MB_TYPE_INTEGER, ptag, 
+                                0, true);
+    if (MB_ALREADY_ALLOCATED == result) {
+        // this tag already exists; better check to see that tagged sets
+        // agree with this partition
+      MBRange tagged_sets;
+      int *proc_rk_ptr = &proc_rk;
+      result = mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &ptag, 
+                                                    (const void* const*)&proc_rk_ptr, 1,
+                                                    tagged_sets); RR(" ");
+      if (!tagged_sets.empty() && tagged_sets != partition_sets) {
+        result = mbImpl->tag_delete_data(ptag, tagged_sets); RR(" ");
+      }
+      else if (tagged_sets == partition_sets) return MB_SUCCESS;
+    }
+
+      // if we get here, we need to assign the tag
+    std::vector<int> values(partition_sets.size());
+    for (unsigned int i = 0; i < partition_sets.size(); i++)
+      values[i] = proc_rk;
+    result = mbImpl->tag_set_data(ptag, partition_sets, &values[0]); RR(" ");
+  }
+
+  return result;
 }
 
 MBErrorCode ReadParallel::delete_nonlocal_entities(MBRange &partition_sets,

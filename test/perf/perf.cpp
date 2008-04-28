@@ -530,7 +530,6 @@ void testC(const int nelem, const double *coords)
   }
 
   MBEntityHandle dum_conn[8];
-  int idx;
   for (i=0; i < nelem; i++) {
     for (int j=0; j < nelem; j++) {
       for (int k=0; k < nelem; k++) {

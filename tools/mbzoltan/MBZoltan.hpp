@@ -48,9 +48,9 @@ extern "C"
                      ZOLTAN_ID_PTR nborGlobalIds, int *nborProcs, int wgt_dim,
                      float *edge_wgts, int *err);
   
-  void mbShowError(int val, char *s, int me);
+  void mbShowError(int val, const char *s, int me);
   
-  void mbPrintGlobalResult(char *s, 
+  void mbPrintGlobalResult(const char *s, 
                            int begin, int import, int exp, int change);
 }
 
@@ -119,10 +119,10 @@ extern "C"
 
     int mbGlobalSuccess(int rc);
   
-    void mbPrintGlobalResult(char *s,
+    void mbPrintGlobalResult(const char *s,
                              int begin, int import, int exp, int change);
   
-    void mbShowError(int val, char *s);
+    void mbShowError(int val, const char *s);
   
       // given the dimension, assemble the vertices and store in coords and
       // moab_ids

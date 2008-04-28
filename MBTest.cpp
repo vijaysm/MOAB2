@@ -3626,8 +3626,8 @@ MBErrorCode mb_forced_adjacencies_test(MBInterface *MB)
 
     //! and they should be quad1 and quad2.  Note that we are not saying anything
     //! about order in the array.
-  if ( (quad_adjacencies[0] != quad1) || (quad_adjacencies[1] != quad1) &&
-       (quad_adjacencies[0] != quad2) || (quad_adjacencies[1] != quad2) ) 
+  if ( (quad_adjacencies[0] != quad1 || quad_adjacencies[1] != quad1) &&
+       (quad_adjacencies[0] != quad2 || quad_adjacencies[1] != quad2) ) 
     return error;
   
     //! clean up on exit

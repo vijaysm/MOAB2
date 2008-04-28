@@ -1,6 +1,7 @@
 #include "MBParallelComm.hpp"
 #include "MBCore.hpp"
 #include "TestUtil.hpp"
+#include <algorithm>
 
 #ifdef USE_MPI
 #  include <mpi.h>

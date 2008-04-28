@@ -27,6 +27,10 @@ AM_CONDITIONAL([HAVE_ZCAT],[test "x" = "x$ZCAT"])
 SNL_TEMPLATE_SPECIALIZATION
 DEFINES="$DEFINES $TEMPLATE_SPECIALIZATION"
 
+if test "x" != "x$FC"; then
+  AC_FC_WRAPPERS
+fi
+
 ################################################################################
 #                              Version Stuff
 ################################################################################
@@ -250,9 +254,6 @@ AC_HELP_STRING([--disable-imesh],[Don't build support for iMesh interface.])],
 
 case $enableval in
   yes)
-    if test "x" != "x$FC"; then
-      AC_FC_WRAPPERS
-    fi
     ENABLE_imesh=yes
     ;;
   nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
@@ -790,7 +791,7 @@ AC_ARG_VAR([FC], [FORTRAN compiler command])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_HEADERS([MBVersion.h])
 AC_CONFIG_HEADERS([MBEntityHandle.h])
-AC_CONFIG_HEADERS([tools/iMesh/iBase_FCDefs.h])
+AC_CONFIG_HEADERS([MBCN_FCDefs.h])
 AC_CONFIG_FILES([Makefile 
                  moab.make 
                  testdir.h

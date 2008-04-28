@@ -212,6 +212,8 @@ libMOAB_la_include_HEADERS = \
   HomXform.hpp \
   MBAdaptiveKDTree.hpp \
   MBCN.hpp \
+  MBCN_FCDefs.h \
+  MBCN_protos.h \
   MBCartVect.hpp \
   MBCore.hpp \
   MBEntityType.h \

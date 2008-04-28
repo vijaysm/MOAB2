@@ -1,6 +1,7 @@
 #include <iostream>
 #include <time.h>
 #include <vector>
+#include <cstdlib>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>

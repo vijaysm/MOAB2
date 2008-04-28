@@ -578,7 +578,7 @@ MBErrorCode DrawDual::draw_dual_surf(MBEntityHandle dual_surf,
     if (useGraphviz) agwrite(this_gw.gvizGraph, stdout);
   }
 //  neato_init_graph(this_gw.gvizGraph);
-  if (useGraphviz) gvLayout(gvContext(), this_gw.gvizGraph, "neato");
+  if (useGraphviz) gvLayout(gvContext(), this_gw.gvizGraph, (char*)"neato");
   else smooth_dual_surf(dual_surf, dcells, dedges, dverts, 
                         face_verts, loop_edges);
   
@@ -1620,7 +1620,7 @@ Agsym_t *DrawDual::get_asym(MBEntityHandle dual_surf, const int dim,
     asym = agfindattr(surfDrawrings[dual_surf].gvizGraph->proto->n, 
                       const_cast<char*>(name));
     if (NULL == asym) {
-      if (NULL == def_val) asym = agnodeattr(surfDrawrings[dual_surf].gvizGraph, const_cast<char*>(name), "");
+      if (NULL == def_val) asym = agnodeattr(surfDrawrings[dual_surf].gvizGraph, const_cast<char*>(name), (char*)"");
       
       else asym = agnodeattr(surfDrawrings[dual_surf].gvizGraph, const_cast<char*>(name), 
                              const_cast<char*>(def_val));
@@ -1630,7 +1630,7 @@ Agsym_t *DrawDual::get_asym(MBEntityHandle dual_surf, const int dim,
     asym = agfindattr(surfDrawrings[dual_surf].gvizGraph->proto->e, 
                       const_cast<char*>(name));
     if (NULL == asym) {
-      if (NULL == def_val) asym = agedgeattr(surfDrawrings[dual_surf].gvizGraph, const_cast<char*>(name), "");
+      if (NULL == def_val) asym = agedgeattr(surfDrawrings[dual_surf].gvizGraph, const_cast<char*>(name), (char*)"");
       
       else asym = agedgeattr(surfDrawrings[dual_surf].gvizGraph, const_cast<char*>(name), 
                              const_cast<char*>(def_val));
@@ -1725,7 +1725,7 @@ MBErrorCode DrawDual::compute_fixed_points(MBEntityHandle dual_surf, MBRange &dv
           // set position and pin attributes for the node
         sprintf(tmp_pos, "%d,%d!", xpos_pts, ypos_pts);
         agxset(this_gpt, asym_pos->index, tmp_pos);
-        agxset(this_gpt, asym_pin->index, "true");
+        agxset(this_gpt, asym_pin->index, (char*)"true");
 
           // also try setting them in the data structure directly
         ND_coord_i(this_gpt).x = xpos_pts;
@@ -1761,7 +1761,7 @@ MBErrorCode DrawDual::compute_fixed_points(MBEntityHandle dual_surf, MBRange &dv
           Agnode_t *this_gpt = (Agnode_t*)this_gv->gvizPoints[index];
           sprintf(tmp_pos, "%d,%d!", xpos_pts, ypos_pts);
           agxset(this_gpt, asym_pos->index, tmp_pos);
-          agxset(this_gpt, asym_pin->index, "true");
+          agxset(this_gpt, asym_pin->index, (char*)"true");
 
             // also try setting them in the data structure directly
           ND_coord_i(this_gpt).x = xpos_pts;
@@ -2453,8 +2453,8 @@ MBErrorCode DrawDual::process_pick(MBEntityHandle dual_surf,
     // should only be 2 distinct curves; don't handle all dual curves the same
     // for now, to avoid geometric check
   assert((dual_curves[0] == dual_curves[1] && dual_curves[0] != dual_curves[2]) ||
-         (dual_curves[0] == dual_curves[2]) && dual_curves[0] != dual_curves[1] ||
-         (dual_curves[0] == dual_curves[3]) && dual_curves[0] != dual_curves[1]);
+         (dual_curves[0] == dual_curves[2] && dual_curves[0] != dual_curves[1]) ||
+         (dual_curves[0] == dual_curves[3] && dual_curves[0] != dual_curves[1]));
   
     // if same curves are next to each other, switch edges
   if (dual_curves[0] == dual_curves[1]) {

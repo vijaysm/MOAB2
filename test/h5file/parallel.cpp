@@ -75,9 +75,9 @@ int main( int argc, char* argv[] )
 
   iFace = new MBCore();
   
-  char* defaults[] = { "out.blocks.h5m", "../../" TEST_DIR "/h5file/blocks.h5m" };
+  const char* defaults[] = { "out.blocks.h5m", "../../" TEST_DIR "/h5file/blocks.h5m" };
   bool wait_for_sig = false;
-  char** fnames = argv + 1;
+  const char** fnames = (const char**) argv + 1;
   int fname_count = argc - 1;
   if (argc > 1 && !strcmp( argv[i], "-w" )) {
     ++fnames;
@@ -127,7 +127,9 @@ int main( int argc, char* argv[] )
   rval = iFace->tag_create( PARALLEL_SHARED_PROC_TAG_NAME, 2*sizeof(int),
                            MB_TAG_SPARSE, ifaceTag, 0 ); assert(!rval);
   rval = iFace->tag_create( PARALLEL_GID_TAG_NAME, sizeof(MBEntityHandle),
-                           MB_TAG_SPARSE, gidTag, 0 ); assert(!rval);
+                            MB_TAG_SPARSE, gidTag, 0 ); assert(!rval ||
+                                                                 // might have already been allocated
+                                                               rval == MB_ALREADY_ALLOCATED);
   
     // Get the list of geometry volumes this processor is to export
     // (id % numproc == rank).

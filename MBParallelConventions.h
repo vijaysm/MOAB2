@@ -12,7 +12,7 @@
  * An integer identifier common to the corresponding mesh entity
  * instances on each processor for a mesh entity on the interface.
  */
-#define PARALLEL_GID_TAG_NAME "PARALLEL_GID"
+#define PARALLEL_GID_TAG_NAME "GLOBAL_ID"
 
 /** \brief Tag on a meshset representing a parallel partition.
  *

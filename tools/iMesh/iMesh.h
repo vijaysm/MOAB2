@@ -670,16 +670,16 @@ extern "C" {
  * \param instance iMesh instance for this call
  * \param entity_handles Entities from which adjacencies are requested
  * \param entity_handles_size Number of entities whose adjacencies are requested
- * \param bridge_dimension Bridge dimension for 2nd order adjacencies
- * \param to_dimension Dimension of adjacent entities returned
- * \param adj_entity_handles Adjacent entities
- * \param adj_entity_handles_allocated Allocated size of returned array
- * \param adj_entity_handles_size Occupied size of returned array
- * \param offset Offset[i] is offset into adj_entity_handles of 2nd order 
+ * \param order_adjacent_key Bridge dimension for 2nd order adjacencies
+ * \param requested_entity_type Dimension of adjacent entities returned
+ * \param *adj_entity_handles Adjacent entities
+ * \param *adj_entity_handles_allocated Allocated size of returned array
+ * \param *adj_entity_handles_size Occupied size of returned array
+ * \param *offset Offset[i] is offset into adj_entity_handles of 2nd order 
  *        adjacencies of ith entity in entity_handles
- * \param offset_allocated Allocated size of offset array
- * \param offset_size Occupied size of offset array
- * \param err 
+ * \param *offset_allocated Allocated size of offset array
+ * \param *offset_size Occupied size of offset array
+ * \param *err Pointer to error type returned from function
  */
   void iMesh_getEntArr2ndAdj( iMesh_Instance instance,
                               iBase_EntityHandle const* entity_handles,
@@ -1958,12 +1958,12 @@ extern "C" {
  * specified "to" dimension.
  * \param instance iMesh instance for this call
  * \param entity_handle Entity from which adjacencies are requested
- * \param bridge_dimension Bridge dimension for 2nd order adjacencies
- * \param to_dimension Dimension of adjacent entities returned
- * \param adjacent_entities Adjacent entities
- * \param adjacent_entities_allocated Allocated size of returned array
- * \param adjacent_entities_size Occupied size of returned array
- * \param err 
+ * \param order_adjacent_key Bridge dimension for 2nd order adjacencies
+ * \param requested_entity_type Dimension of adjacent entities returned
+ * \param *adjacent_entities Pointer to array of adjacent entities
+ * \param *adjacent_entities_allocated Pointer to allocated size of returned array
+ * \param *adjacent_entities_size Pointer to occupied size of returned array
+ * \param *err Pointer to error type returned from function
  */
   void iMesh_getEnt2ndAdj( iMesh_Instance instance,
                            iBase_EntityHandle entity_handle,

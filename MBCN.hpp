@@ -29,9 +29,12 @@
  * Numbering Conventions", Timothy J. Tautges, Sandia National Laboratories
  * Report #SAND2004-xxxx.
  */
-//
 #ifndef MBCN_HPP
 #define MBCN_HPP
+
+#include "MBCN_protos.h"
+
+#ifdef __cplusplus
 
 #include <vector>
 #include <algorithm>
@@ -65,7 +68,7 @@ private:
 public:
 
     //! enum used to specify operation type
-  enum {INTERSECT, UNION};
+  enum {INTERSECT = 0, UNION};
 
     // each entity type has two ConnMap objects, holding information about the bounding
     // edges and faces for each entity; see comment for mConnectivityMap
@@ -202,10 +205,26 @@ public:
   //! \param sense Sense of child entity with respect to order in <em>child_conn</em> (returned)
   //! \param offset Offset of <em>child_conn</em> with respect to canonical ordering data (returned)
   //! \return status Returns zero if successful, -1 if not
-//  static int SideNumber(const void *parent_conn, const MBEntityType parent_type,
-//                        const void *child_conn, const int child_num_verts,
-//                        const int child_dim,
-//                        int &side_number, int &sense, int &offset);
+  static int SideNumber(const int *parent_conn, const MBEntityType parent_type,
+                        const int *child_conn, const int child_num_verts,
+                        const int child_dim,
+                        int &side_number, int &sense, int &offset);
+  static int SideNumber(const unsigned int *parent_conn, const MBEntityType parent_type,
+                        const unsigned int *child_conn, const int child_num_verts,
+                        const int child_dim,
+                        int &side_number, int &sense, int &offset);
+  static int SideNumber(const long *parent_conn, const MBEntityType parent_type,
+                        const long *child_conn, const int child_num_verts,
+                        const int child_dim,
+                        int &side_number, int &sense, int &offset);
+  static int SideNumber(const unsigned long *parent_conn, const MBEntityType parent_type,
+                        const unsigned long *child_conn, const int child_num_verts,
+                        const int child_dim,
+                        int &side_number, int &sense, int &offset);
+  static int SideNumber(void * const *parent_conn, const MBEntityType parent_type,
+                        void * const *child_conn, const int child_num_verts,
+                        const int child_dim,
+                        int &side_number, int &sense, int &offset);
 
   //! return the side index represented in the input sub-entity connectivity
   //! \param parent_type Entity type of parent entity
@@ -450,5 +469,127 @@ inline void MBCN::HasMidNodes(const MBEntityType this_type, const int num_nodes,
   mid_nodes[3] = HasMidRegionNodes(this_type, num_nodes);
 }
 
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif    
+
+    void MBCN_GetBasis(int *rval);
+  
+    void MBCN_SetBasis(const int in_basis);
+
+    void MBCN_EntityTypeName(const int this_type, char *rval, int rval_len);
+  
+    void MBCN_EntityTypeFromName(const char *name, int *rval);
+  
+    void MBCN_Dimension(const int t, int *rval);
+
+    void MBCN_VerticesPerEntity(const int t, int *rval);
+  
+    void MBCN_NumSubEntities(const int t, const int d, int *rval);
+
+    void MBCN_SubEntityType(const int this_type,
+                            const int sub_dimension,
+                            const int index, int *rval);
+  
+    void SubEntityVertexIndices(const int this_type, 
+                                const int sub_dimension,
+                                const int sub_index,
+                                int sub_entity_conn[]);
+
+    void MBCN_AdjacentSubEntities(const int this_type,
+                                  const int *source_indices,
+                                  const int num_source_indices,
+                                  const int source_dim,
+                                  const int target_dim,
+                                  int *index_list,
+                                  int *num_indices,
+                                  const int operation_type, int *rval);
+
+    void MBCN_SideNumberInt(const int *parent_conn, const MBEntityType parent_type,
+                            const int *child_conn, const int child_num_verts,
+                            const int child_dim,
+                            int *side_no, int *sense, int *offset);
+
+    void MBCN_SideNumberUint(const unsigned int *parent_conn, const MBEntityType parent_type,
+                             const unsigned int *child_conn, const int child_num_verts,
+                             const int child_dim,
+                             int *side_no, int *sense, int *offset);
+
+    void MBCN_SideNumberLong(const long *parent_conn, const MBEntityType parent_type,
+                             const long *child_conn, const int child_num_verts,
+                             const int child_dim,
+                             int *side_no, int *sense, int *offset);
+
+    void MBCN_SideNumberUlong(const unsigned long *parent_conn, const MBEntityType parent_type,
+                              const unsigned long *child_conn, const int child_num_verts,
+                              const int child_dim,
+                              int *side_no, int *sense, int *offset);
+
+    void MBCN_SideNumberVoid(void * const *parent_conn, const MBEntityType parent_type,
+                             void * const *child_conn, const int child_num_verts,
+                             const int child_dim,
+                             int *side_no, int *sense, int *offset);
+
+    void MBCN_SideNumber(const int parent_type,
+                         const int *child_conn_indices, const int child_num_verts,
+                         const int child_dim,
+                         int *side_no, int *sense, int *offset);
+
+    void MBCN_OppositeSide(const int parent_type,
+                           const int child_index,
+                           const int child_dim,
+                           int *opposite_index,
+                           int *opposite_dim, int *rval);
+
+    void MBCN_ConnectivityMatchInt(const int *conn1,
+                                   const int *conn2,
+                                   const int num_vertices,
+                                   int *direct, int *offset, int *rval);
+    void MBCN_ConnectivityMatchUint(const unsigned int *conn1,
+                                    const unsigned int *conn2,
+                                    const int num_vertices,
+                                    int *direct, int *offset, 
+                                    int *rval);
+    void MBCN_ConnectivityMatchLong(const long* conn1,
+                                    const long* conn2,
+                                    const int num_vertices,
+                                    int* direct, int* offset , int *rval);
+    void MBCN_ConnectivityMatchUlong(const unsigned long* conn1,
+                                     const unsigned long* conn2,
+                                     const int num_vertices,
+                                     int *direct, int* offset,
+                                     int *rval);
+    void MBCN_ConnectivityMatchVoid(void* const* conn1,
+                                    void* const* conn2,
+                                    const int num_vertices,
+                                    int* direct, int* offset , int *rval);
+
+    void MBCN_HasMidEdgeNodes(const int this_type, 
+                              const int num_verts, int *rval);
+
+    void MBCN_HasMidFaceNodes(const int this_type, 
+                              const int num_verts, int *rval);
+
+    void MBCN_HasMidRegionNodes(const int this_type, 
+                                const int num_verts, int *rval);
+
+    void MBCN_HasMidNodes(const int this_type, 
+                          const int num_verts, 
+                          int mid_nodes[4]);
+
+    void MBCN_HONodeParent( int elem_type,
+                            int num_nodes, 
+                            int ho_node_index,
+                            int *parent_dim, 
+                            int *parent_index );
+
+    void MBCN_HONodeIndex(const int this_type, const int num_verts,
+                          const int subfacet_dim, const int subfacet_index, int *rval);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

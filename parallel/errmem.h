@@ -10,6 +10,8 @@
    Memory Allocation Wrappers to Catch Out-of-memory
   --------------------------------------------------------------------------*/
 
+#include "malloc.h"
+
 #ifdef __GNUC__
 void fail(const char *fmt, ...) __attribute__ ((noreturn));
 #else
