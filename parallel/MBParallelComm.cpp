@@ -346,7 +346,7 @@ MBErrorCode MBParallelComm::pack_send_entities(const int to_proc,
     // remote range, if requested
   int success;
   if (store_remote_handles) {
-    recv_buff.resize(final_ents.size());
+    recv_buff.resize(2*num_subranges(final_ents)*sizeof(MBEntityHandle) + sizeof(int));
     
     success = MPI_Irecv(&recv_buff[0], recv_buff.size(), MPI_UNSIGNED_CHAR, to_proc, 
                         MB_MESG_REMOTE_HANDLES, procConfig.proc_comm(), 
@@ -409,7 +409,12 @@ MBErrorCode MBParallelComm::recv_unpack_entities(const int from_proc,
       sizeof(int);
     send_buff.resize(range_size);
     unsigned char *buff_ptr = &send_buff[0];
-    PACK_RANGE(buff_ptr, recd_ents);
+// PACK_RANGE(buff, rng) 
+    {int num_subs = num_subranges(recd_ents); PACK_INTS(buff_ptr, &num_subs, 1); PC(num_subs, "-subranged range"); \
+          for (MBRange::const_pair_iterator cit = recd_ents.const_pair_begin(); cit != recd_ents.const_pair_end(); cit++) { \
+            MBEntityHandle eh = (*cit).first; PACK_EH(buff_ptr, &eh, 1); \
+            eh = (*cit).second; PACK_EH(buff_ptr, &eh, 1);}; }
+//    PACK_RANGE(buff_ptr, recd_ents);
     int success = MPI_Isend(&send_buff[0], range_size, MPI_UNSIGNED_CHAR, from_proc, 
                             MB_MESG_REMOTE_HANDLES, procConfig.proc_comm(), &send_req);
     if (success != MPI_SUCCESS) {
@@ -585,7 +590,7 @@ MBErrorCode MBParallelComm::pack_buffer(MBRange &orig_ents,
   result = pack_entities(orig_ents, rit, final_ents, buff_ptr,
                          buff_size, false, store_remote_handles, to_proc,
                          ent_types, all_ranges, verts_per_entity); 
-  RRA("Packing entities (count) failed.");
+  RRA("Packing entities (real) failed.");
 #ifdef DEBUG_PACKING
   std::cerr << "pack_entities buffer space: " << buff_ptr - &buff[0] << " bytes." << std::endl;
   unsigned char *tmp_buff = buff_ptr;
@@ -595,7 +600,7 @@ MBErrorCode MBParallelComm::pack_buffer(MBRange &orig_ents,
   result = pack_sets(orig_ents, rit, final_ents, buff_ptr, buff_size, false,
                      store_remote_handles, to_proc, set_range, set_ranges,
                      set_sizes, options_vec); 
-  RRA("Packing sets (count) failed.");
+  RRA("Packing sets (real) failed.");
 #ifdef DEBUG_PACKING
   std::cerr << "pack_sets buffer space: " << buff_ptr - tmp_buff << " bytes." << std::endl;
   tmp_buff = buff_ptr;
@@ -606,7 +611,7 @@ MBErrorCode MBParallelComm::pack_buffer(MBRange &orig_ents,
     result = pack_adjacencies(orig_ents, rit, final_ents, buff_ptr, 
                               buff_size, false,
                               store_remote_handles, to_proc);
-    RRA("Packing adjs (count) failed.");
+    RRA("Packing adjs (real) failed.");
   }
     
     // tags
@@ -614,7 +619,7 @@ MBErrorCode MBParallelComm::pack_buffer(MBRange &orig_ents,
     result = pack_tags(orig_ents, rit, final_ents, buff_ptr, 
                        buff_size, false, store_remote_handles, to_proc, all_tags,
                        tag_ranges);
-    RRA("Packing tags (count) failed.");
+    RRA("Packing tags (real) failed.");
 #ifdef DEBUG_PACKING
     std::cerr << "pack_tags buffer space: " << buff_ptr - tmp_buff << " bytes." << std::endl;
     tmp_buff = buff_ptr;
@@ -995,22 +1000,6 @@ MBErrorCode MBParallelComm::get_remote_handles(const bool store_remote_handles,
 
 MBErrorCode MBParallelComm::get_remote_handles(const bool store_remote_handles,
                                                const MBRange &from_range, 
-                                               MBRange &to_range,
-                                               int to_proc,
-                                               const MBRange &new_ents) 
-{
-  std::vector<MBEntityHandle> to_vector(from_range.size());
-
-  MBErrorCode result =
-    get_remote_handles(store_remote_handles, from_range, &to_vector[0],
-                       to_proc, new_ents);
-  RRA("Trouble getting remote handles.");
-  std::copy(to_vector.begin(), to_vector.end(), mb_range_inserter(to_range));
-  return result;
-}
-
-MBErrorCode MBParallelComm::get_remote_handles(const bool store_remote_handles,
-                                               const MBRange &from_range, 
                                                MBEntityHandle *to_vec,
                                                int to_proc,
                                                const MBRange &new_ents) 
@@ -1055,15 +1044,15 @@ MBErrorCode MBParallelComm::get_remote_handles(const bool store_remote_handles,
     for (rit = from_range.begin(), i = 0; rit != from_range.end(); rit++, i++) {
       if (!to_vec[i]) {
         result = mbImpl->tag_get_data(sharedhs_tag, &(*rit), 1, tmp_handles);
-        RRA("Trouble getting sharedhs tag.");
-        result = mbImpl->tag_get_data(sharedps_tag, &(*rit), 1, tmp_procs);
-        RRA("Trouble getting sharedps tag.");
-        for (int j = 0; j < MAX_SHARING_PROCS; j++)
-          if (tmp_procs[j] == to_proc) {
-            to_vec[i] = tmp_handles[j];
-            break;
-          }
-      
+        if (MB_SUCCESS == result) {
+          result = mbImpl->tag_get_data(sharedps_tag, &(*rit), 1, tmp_procs);
+          RRA("Trouble getting sharedps tag.");
+          for (int j = 0; j < MAX_SHARING_PROCS; j++)
+            if (tmp_procs[j] == to_proc) {
+              to_vec[i] = tmp_handles[j];
+              break;
+            }
+        }
         if (!to_vec[i]) {
           int j = new_ents.index(*rit);
           if (-1 == j) {
@@ -1082,6 +1071,22 @@ MBErrorCode MBParallelComm::get_remote_handles(const bool store_remote_handles,
   }
   
   return MB_SUCCESS;
+}
+
+MBErrorCode MBParallelComm::get_remote_handles(const bool store_remote_handles,
+                                               const MBRange &from_range, 
+                                               MBRange &to_range,
+                                               int to_proc,
+                                               const MBRange &new_ents) 
+{
+  std::vector<MBEntityHandle> to_vector(from_range.size());
+
+  MBErrorCode result =
+    get_remote_handles(store_remote_handles, from_range, &to_vector[0],
+                       to_proc, new_ents);
+  RRA("Trouble getting remote handles.");
+  std::copy(to_vector.begin(), to_vector.end(), mb_range_inserter(to_range));
+  return result;
 }
 
 MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
@@ -1246,8 +1251,7 @@ MBErrorCode MBParallelComm::set_remote_data(MBRange &local_range,
     else {
       result = mbImpl->tag_get_data(sharedps_tag, &(*rit), 1,
                                     &remote_procs[0]);
-      RRA("Couldn't get sharedps tag.");
-      if (-1 != remote_procs[0]) {
+      if (MB_SUCCESS == result) {
         result = mbImpl->tag_get_data(sharedhs_tag, &(*rit), 1,
                                       &remote_handles[0]);
         RRA("Couldn't get sharedhs tag.");
@@ -1329,8 +1333,7 @@ MBErrorCode MBParallelComm::set_remote_data(MBEntityHandle *local_ents,
     else {
       result = mbImpl->tag_get_data(sharedps_tag, &local_ents[rit], 1,
                                     &remote_procs[0]);
-      RRA("Couldn't get sharedps tag.");
-      if (-1 != remote_procs[0]) {
+      if (MB_SUCCESS == result) {
         result = mbImpl->tag_get_data(sharedhs_tag, &local_ents[rit], 1,
                                       &remote_handles[0]);
         RRA("Couldn't get sharedhs tag.");
@@ -1839,7 +1842,15 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
       result = get_remote_handles(store_remote_handles,
                                   (*tr_it), (MBEntityHandle*)buff_ptr, to_proc,
                                   whole_range);
-      RR("Trouble getting remote handles for tagged entities.");
+#ifdef DEBUG_PACKING
+      if (MB_SUCCESS != result) {
+        std::cerr << "Trouble getting remote handles for tagged entities:" << std::endl;
+        (*tr_it).print("  ");
+      }
+#else
+      RRA("Trouble getting remote handles for tagged entities.");
+#endif
+        
       buff_ptr += (*tr_it).size() * sizeof(MBEntityHandle);
 
       const size_t num_ent = tr_it->size();
@@ -1848,16 +1859,16 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
         var_len_values.resize( num_ent, 0 );
         result = mbImpl->tag_get_data(*tag_it, *tr_it, &var_len_values[0], 
                                       &var_len_sizes[0] );
-        RR("Failed to get variable-length tag data in pack_tags.");
+        RRA("Failed to get variable-length tag data in pack_tags.");
         PACK_INTS(buff_ptr, &var_len_sizes[0], num_ent);
         for (unsigned int i = 0; i < num_ent; ++i)
           PACK_VOID(buff_ptr, var_len_values[i], var_len_sizes[i]);
       }
       else {
         result = mbImpl->tag_get_data(*tag_it, *tr_it, buff_ptr);
-        RR("Failed to get tag data in pack_tags.");
+        RRA("Failed to get tag data in pack_tags.");
         buff_ptr += num_ent * tinfo->get_size();
-        UPC(num_ent*tinfo->get_size(), " void");
+        PC(num_ent*tinfo->get_size(), " void");
       }
       tr_it++;
     }
@@ -1936,8 +1947,8 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
       if (tag_size != tag_info->get_size() ||
           tag_type != this_type ||
           tag_data_type != tag_info->get_data_type() ||
-          (def_val_ptr && !tag_info->default_value() ||
-           !def_val_ptr && tag_info->default_value())) {
+          (def_val_ptr && !tag_info->default_value()) ||
+          (!def_val_ptr && tag_info->default_value())) {
         RR("Didn't get correct tag info when unpacking tag.");
       }
     }
@@ -2827,8 +2838,8 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     }
 
       // pack-send; this also posts receives if store_remote_handles is true
-    result = pack_send_entities(*vit, bridge_ents, true, true, store_remote_handles,
-                                ownerSBuffs[ind], ownerRBuffs[ind], 
+    result = pack_send_entities(*vit, bridge_ents, false, true, store_remote_handles,
+                                ownerSBuffs[ind], ownerRBuffs[MAX_SHARING_PROCS+ind], 
                                 sendReqs[ind], recv_reqs[MAX_SHARING_PROCS+ind], 
                                 sent_ents[ind]);
     RRA("Failed to pack-send in ghost exchange.");
@@ -2845,7 +2856,12 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     success = MPI_Waitany(2*MAX_SHARING_PROCS, &recv_reqs[0], &ind, &status);
     if (MPI_SUCCESS != success) {
       result = MB_FAILURE;
-      RRA("Failed in waitany in ghost exchange.");
+      if (MPI_ERR_REQUEST == success) {
+        RRA("Failed in waitany in ghost exchange: MPI_ERR_REQUEST.");
+      }
+      else if (MPI_ERR_ARG == success) {
+        RRA("Failed in waitany in ghost exchange: MPI_ERR_ARG.");
+      }
     }
     
       // ok, received something; decrement incoming counter
@@ -2869,7 +2885,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
         break;
       case MB_MESG_ENTS:
           // incoming ghost entities; process
-        result = recv_unpack_entities(*vit, store_remote_handles,
+        result = recv_unpack_entities(buffProcs[ind], store_remote_handles,
                                       ghostRBuffs[ind], ghostSBuffs[ind], 
                                       sendReqs[ind], recd_ents[ind]);
         RRA("Failed to recv-unpack message.");
@@ -2877,8 +2893,9 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
       case MB_MESG_REMOTE_HANDLES:
           // incoming remote handles; use to set remote handles
         buff_ptr = &ownerRBuffs[ind][0];
+        assert(ind >= MAX_SHARING_PROCS);
         UNPACK_RANGE(buff_ptr, remote_range);
-        result = set_remote_data(sent_ents[ind], remote_range, *vit);
+        result = set_remote_data(sent_ents[ind-MAX_SHARING_PROCS], remote_range, *vit);
         RRA("Trouble setting remote data range on sent entities in ghost exchange.");
         break;
     }
