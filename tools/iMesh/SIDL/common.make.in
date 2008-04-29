@@ -224,7 +224,6 @@ $(OBJECTS) : babel.make
 # server implementation files also depend on the C interface
 IMESH_C_INC = $(imesh_srcdir)/iBase.h \
               $(imesh_srcdir)/iMesh.h \
-              $(imesh_builddir)/iBase_FCDefs.h \
 	      $(imesh_srcdir)/iMesh_protos.h
 
 IMPLOBJS = $(IMPLSRCS:.cc=.lo)
