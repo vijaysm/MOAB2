@@ -224,13 +224,12 @@ void testC(iMesh::Mesh &mesh,
     // need some dimensions
   int numv = nelem + 1;
   int numv_sq = numv*numv;
-  int num_verts = numv*numv*numv;
+  int sidl_vertices_size = numv*numv*numv;
 #define VINDEX(i,j,k) (i + (j*numv) + (k*numv_sq))
 
     // array to hold vertices created individually
   sidl::array<Entity_Handle> sidl_vertices;
-  int sidl_vertices_size = num_verts;
-  CHECK_SIZE(sidl_vertices, num_verts);
+  CHECK_SIZE(sidl_vertices, sidl_vertices_size);
 
     // temporary array to hold vertex positions for single vertex
   sidl::array<double> tmp_coords;
@@ -241,7 +240,7 @@ void testC(iMesh::Mesh &mesh,
     // get direct pointer to coordinate array
   double *coords_ptr = ARRAY_PTR(coords, double);
   
-  for (int i = 0; i < num_verts; i++) {
+  for (int i = 0; i < sidl_vertices_size; i++) {
 
       // temporary array to hold (single) vertices
     sidl::array<Entity_Handle> tmp_vertices;
@@ -249,8 +248,8 @@ void testC(iMesh::Mesh &mesh,
 
       // create the vertex
     dum_coords[0] = coords_ptr[i]; 
-    dum_coords[1] = coords_ptr[num_verts+i]; 
-    dum_coords[2] = coords_ptr[2*num_verts+i];
+    dum_coords[1] = coords_ptr[sidl_vertices_size+i]; 
+    dum_coords[2] = coords_ptr[2*sidl_vertices_size+i];
     try {
       mesh_arrmod.createVtxArr(1, iBase::StorageOrder_BLOCKED,
                                tmp_coords, tmp_coords_size, 

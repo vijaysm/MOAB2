@@ -14,7 +14,7 @@ SERVER_FILES_PATH = $(srcdir)/mserver/iBase_Error_Impl.cc \
 SOURCE_FILES = $(SIDL_FILES) $(SERVER_FILES) iBase_SIDL_defs.h
 DIST_FILES = $(SOURCE_FILES) testcxx.cpp \
              mserver.make Cclient.make Fclient.make
-INCLUDES =  -I$(BABEL_DIR)/include -Imserver -I$(top_srcdir)
+INCLUDES =  -I$(BABEL_DIR)/include -Imserver
 
 CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
 	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)

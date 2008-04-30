@@ -68,6 +68,7 @@
 
 
 #include <iostream>
+#include <algorithm>
 #include "iBase.hh"
 #include "iMesh.hh"
 
