@@ -1,6 +1,8 @@
 #ifndef ERRMEM_H
 #define ERRMEM_H
 
+#include "malloc.h"
+
 /* requires:
      <stdlib.h> for malloc, calloc, realloc, free
 */
