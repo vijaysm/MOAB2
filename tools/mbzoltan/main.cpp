@@ -78,5 +78,7 @@ int main(int argc, char *argv[])
   delete mbz;
   delete mbImpl;
 
+  err = MPI_Finalize();
+
   return 0;
 }
