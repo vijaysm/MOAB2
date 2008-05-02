@@ -206,9 +206,6 @@ MBErrorCode MBReadUtil::gather_related_ents(MBRange &partition,
                                             MBRange &related_ents,
                                             MBRange *all_sets) 
 {
-    // first, related ents includes the partition itself
-  related_ents.merge(partition);
-  
     // loop over any sets, getting contained ents
   std::pair<MBRange::const_iterator, MBRange::const_iterator> pair_it =
     partition.equal_range(MBENTITYSET);
@@ -223,18 +220,11 @@ MBErrorCode MBReadUtil::gather_related_ents(MBRange &partition,
   }
   RR;
 
-    // gather adjacent ents of lower dimension
+    // gather adjacent ents of other dimensions
   MBRange tmp_ents;
-  for (int dim = 2; dim >= 0; dim--) {
-    MBEntityType lower_type = MBCN::TypeDimensionMap[dim+1].first,
-      upper_type = MBCN::TypeDimensionMap[3].second;
-    
-    MBRange::const_iterator bit = related_ents.lower_bound(lower_type),
-      eit = related_ents.upper_bound(upper_type);
-    MBRange from_ents;
-    from_ents.merge(bit, eit);
+  for (int dim = 3; dim >= 0; dim--) {
     tmp_ents.clear();
-    MBErrorCode tmp_result = mMB->get_adjacencies(from_ents, dim, false, 
+    MBErrorCode tmp_result = mMB->get_adjacencies(related_ents, dim, false, 
                                                   tmp_ents, 
                                                   MBInterface::UNION);
     if (MB_SUCCESS != tmp_result) result = tmp_result;
@@ -242,19 +232,47 @@ MBErrorCode MBReadUtil::gather_related_ents(MBRange &partition,
   }
   RR;
   
-    // get related sets
-  MBRange tmp_ents3;
+    // related ents includes the partition itself
+  related_ents.merge(partition);
+  
+    // get contains-related sets
+  MBRange tmp_ents3, last_related;
   if (!all_sets) all_sets = &tmp_ents3;
-  result = mMB->get_entities_by_type(0, MBENTITYSET, *all_sets);
-  for (MBRange::iterator rit = all_sets->begin(); 
-       rit != all_sets->end(); rit++) {
-    tmp_ents.clear();
-    result = mMB->get_entities_by_handle(*rit, tmp_ents, true); RR;
-    MBRange tmp_ents2 = tmp_ents.intersect(related_ents);
+  result = mMB->get_entities_by_type(0, MBENTITYSET, *all_sets); RR;
+  while (related_ents.size() != last_related.size()) {
+    last_related = related_ents;
+    for (MBRange::iterator rit = all_sets->begin(); 
+         rit != all_sets->end(); rit++) {
+      if (related_ents.find(*rit) != related_ents.end()) continue;
+      
+      tmp_ents.clear();
+      result = mMB->get_entities_by_handle(*rit, tmp_ents, true); RR;
+      MBRange tmp_ents2 = tmp_ents.intersect(related_ents);
     
-      // if the intersection is not empty, set is related
-    if (!tmp_ents2.empty()) related_ents.insert(*rit);
+        // if the intersection is not empty, set is related
+      if (!tmp_ents2.empty()) related_ents.insert(*rit);
+    }
   }
+  
+    // get parent/child-related sets
+  last_related.clear();
+  while (related_ents.size() != last_related.size()) {
+    last_related = related_ents;
+    std::pair<MBRange::const_iterator, MBRange::const_iterator> it_pair = 
+      last_related.equal_range(MBENTITYSET);
 
+    for (MBRange::const_iterator rit = it_pair.first;
+         rit != it_pair.second; rit++) {
+        // get all parents/children and add to related ents
+      tmp_ents.clear();
+      result = mMB->get_parent_meshsets(*rit, tmp_ents, 0); RR;
+      related_ents.merge(tmp_ents);
+      
+      tmp_ents.clear();
+      result = mMB->get_child_meshsets(*rit, tmp_ents, 0); RR;
+      related_ents.merge(tmp_ents);
+    }
+  }
+  
   return MB_SUCCESS;
 }

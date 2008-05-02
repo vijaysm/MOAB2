@@ -11,21 +11,26 @@
 
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 
-const bool debug = false;
+const bool debug = true;
 
 #define RR(a) if (MB_SUCCESS != result) {\
           dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(a);\
           return result;}
 
 enum ParallelActions {PA_READ=0, PA_BROADCAST, PA_DELETE_NONLOCAL,
-                      PA_CHECK_GIDS_SERIAL, PA_GET_FILESET_ENTS};
+                      PA_CHECK_GIDS_SERIAL, PA_GET_FILESET_ENTS, 
+                      PA_RESOLVE_SHARED_ENTS,
+                      PA_EXCHANGE_GHOSTS};
 const char *ParallelActionsNames[] = {
   "PARALLEL READ",
   "PARALLEL BROADCAST", 
   "PARALLEL DELETE NONLOCAL",
   "PARALLEL CHECK_GIDS_SERIAL",
-  "PARALLEL GET_FILESET_ENTS"
+  "PARALLEL GET_FILESET_ENTS",
+  "PARALLEL RESOLVE_SHARED_ENTS",
+  "PARALLEL EXCHANGE_GHOSTS"
 };
 
 MBErrorCode ReadParallel::load_file(const char *file_name,
@@ -72,6 +77,41 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
   bool cputime = false;
   result = opts.get_null_option("CPUTIME");
   if (MB_SUCCESS == result) cputime = true;
+
+    // get ghosting options
+  std::string ghost_str;
+  int bridge_dim, ghost_dim = -1, num_layers;
+  result = opts.get_str_option("PARALLEL_GHOSTS", ghost_str);
+  if (MB_TYPE_OUT_OF_RANGE == result) {
+    ghost_dim = 3;
+    bridge_dim = 0;
+    num_layers = 1;
+  }
+  else if (MB_SUCCESS == result) {
+    int num_fields = 
+      sscanf(ghost_str.c_str(), "%d.%d.%d", &ghost_dim, &bridge_dim, &num_layers);
+    if (3 != num_fields) {
+      merror->set_last_error( "Didn't read 3 fields from PARALLEL_GHOSTS string\n" );
+      return MB_FAILURE;
+    }
+  }
+
+    // get resolve_shared_ents option
+  std::string shared_str;
+  int resolve_dim = 3, shared_dim = -1;
+  result = opts.get_str_option("PARALLEL_RESOLVE_SHARED_ENTS", shared_str);
+  if (MB_TYPE_OUT_OF_RANGE == result) {
+    resolve_dim = 3;
+    shared_dim = -1;
+  }
+  else if (MB_SUCCESS == result) {
+    int num_fields = 
+      sscanf(ghost_str.c_str(), "%d.%d", &resolve_dim, &shared_dim);
+    if (2 != num_fields) {
+      merror->set_last_error( "Didn't read 2 fields from PARALLEL_RESOLVE_SHARED_ENTS string\n" );
+      return MB_FAILURE;
+    }
+  }
 
     // get MPI IO processor rank
   int reader_rank;
@@ -127,10 +167,17 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
     default:
       return MB_FAILURE;
   }
+
+  if (-1 != resolve_dim) pa_vec.push_back(PA_RESOLVE_SHARED_ENTS);
+
+  if (-1 != ghost_dim) pa_vec.push_back(PA_EXCHANGE_GHOSTS);
+  
   
   return load_file(file_name, file_set, parallel_mode, partition_tag_name,
                    partition_tag_vals, distrib, pa_vec, material_set_list,
-                   num_material_sets, opts, reader_rank, cputime);
+                   num_material_sets, opts, reader_rank, cputime, 
+                   resolve_dim, shared_dim,
+                   ghost_dim, bridge_dim, num_layers);
 }
     
 MBErrorCode ReadParallel::load_file(const char *file_name,
@@ -143,8 +190,13 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
                                     const int* material_set_list,
                                     const int num_material_sets,
                                     const FileOptions &opts,
-                                    int reader_rank,
-                                    bool cputime) 
+                                    const int reader_rank,
+                                    const bool cputime,
+                                    const int resolve_dim,
+                                    const int shared_dim,
+                                    const int ghost_dim,
+                                    const int bridge_dim,
+                                    const int num_layers) 
 {
   MBErrorCode result = MB_SUCCESS;
   MBParallelComm pcom( mbImpl);
@@ -285,6 +337,23 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
           std::cout << "Checking global ids." << std::endl;
 
         tmp_result = pcom.check_global_ids(file_set, 0, 1, true, false);
+        break;
+        
+//==================
+      case PA_RESOLVE_SHARED_ENTS:
+        if (debug)
+          std::cout << "Resolving shared entities." << std::endl;
+
+        tmp_result = pcom.resolve_shared_ents(resolve_dim, shared_dim);
+        break;
+        
+//==================
+      case PA_EXCHANGE_GHOSTS:
+        if (debug)
+          std::cout << "Exchanging ghost entities." << std::endl;
+
+        tmp_result = pcom.exchange_ghost_cells(ghost_dim, bridge_dim, 
+                                               num_layers, true);
         break;
         
 //==================
@@ -468,7 +537,17 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBRange &partition_sets,
   if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) {
     RR("Couldn't create/get partition set tag.");
   }
-  std::vector<int> pset_vals(partition_sets.size());
+
+  std::vector<int> pset_vals(partition_sets.size(), -1);
+  if (MB_ALREADY_ALLOCATED == result) {
+      // if all partition sets already marked, don't need to mark again
+    result = mbImpl->tag_get_data(partition_set_tag, partition_sets,
+                                  &pset_vals[0]);
+    if (MB_SUCCESS == result &&
+        std::find(pset_vals.begin(), pset_vals.end(), -1) ==
+        pset_vals.end()) return MB_SUCCESS;
+  }
+    
   std::fill(pset_vals.begin(), pset_vals.end(), mbImpl->proc_rank());
   result = mbImpl->tag_set_data(partition_set_tag, partition_sets, 
                                 &pset_vals[0]);

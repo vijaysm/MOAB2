@@ -24,8 +24,12 @@ int main(int argc, char *argv[])
     std::cout << "Usage: mpirun -np <nprocs> " << argv[0]
               << " <# partitions> "
               << " <mesh_file> <write_out(y/n)> <output_mesh_file> "
+              << "[write_as_sets(1=default/0)]"
+              << "[write_as_tags(1/0=default)]" 
+              << "[partition_dim(default=3)]"
               << "[<method(RCB/RIB/HSFC/Hypergraph(PHG)/PARMETIS/OCTPART)>] "
-              << "[<parmetis_method>/<oct_method>]" << std::endl;
+              << "[<parmetis_method>/<oct_method>]"
+              << std::endl;
     return 1;
   }
 
@@ -52,13 +56,20 @@ int main(int argc, char *argv[])
   
   MBZoltan *mbz = new MBZoltan(mbImpl, false, argc, argv);
 
+  int as_sets = 1, as_tags = 0, part_dim = 3;
+  if (argc > 5) as_sets = atoi(argv[5]);
+  if (argc > 6) as_tags = atoi(argv[6]);
+
+  if (argc > 7) part_dim = atoi(argv[7]);
+  
   const char *other_method = NULL, *method = NULL;
-  if (argc > 5) method = argv[5];
-  if (argc > 6) other_method = argv[6];
+  if (argc > 8) method = argv[8];
+  if (argc > 9) other_method = argv[9];
   
   int nparts = atoi(argv[1]);
   
-  result = mbz->partition_mesh(nparts, method, other_method); RR;
+  result = mbz->partition_mesh(nparts, method, other_method,
+                               as_sets, as_tags, part_dim); RR;
   
   if (write_output) {
     result = mbImpl->write_mesh(argv[4]); RR;

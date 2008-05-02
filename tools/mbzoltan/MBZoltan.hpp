@@ -71,11 +71,16 @@ extern "C"
     ~MBZoltan();
 
     MBErrorCode balance_mesh(const char *zmethod,
-                             const char *other_method);
+                             const char *other_method,
+                             const bool write_as_sets = true,
+                             const bool write_as_tags = false);
     
     MBErrorCode partition_mesh(const int nparts,
                                const char *zmethod,
-                               const char *other_method);
+                               const char *other_method,
+                               const bool write_as_sets = true,
+                               const bool write_as_tags = false,
+                               const int part_dim = 3);
     
     int get_mesh(std::vector<double> &pts, std::vector<int> &ids,
                  std::vector<int> &adjs, std::vector<int> &length,
@@ -83,7 +88,10 @@ extern "C"
 
       // given a processor assignment returned from Zoltan, write that as a
       // processor assignment to MOAB
-    MBErrorCode write_partition(const int nparts, MBRange &elems, const int *assignment);
+    MBErrorCode write_partition(const int nparts, MBRange &elems, 
+                                const int *assignment,
+                                const bool write_as_sets,
+                                const bool write_as_tags);
 
     MBErrorCode write_file(const char *filename, const char *out_file);
   

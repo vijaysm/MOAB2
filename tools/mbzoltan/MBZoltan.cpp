@@ -51,7 +51,9 @@ MBZoltan::~MBZoltan()
 }
 
 MBErrorCode MBZoltan::balance_mesh(const char *zmethod,
-                                   const char *other_method) 
+                                   const char *other_method,
+                                   const bool write_as_sets,
+                                   const bool write_as_tags) 
 {
   if (!strcmp(zmethod, "RCB") && !strcmp(zmethod, "RIB") &&
       !strcmp(zmethod, "HSFC") && !strcmp(zmethod, "Hypergraph") &&
@@ -164,7 +166,8 @@ MBErrorCode MBZoltan::balance_mesh(const char *zmethod,
                    exportProcs, &assignment);
   
   if (mbImpl->proc_rank() == 0) {
-    MBErrorCode result = write_partition(mbImpl->proc_size(), elems, assignment);
+    MBErrorCode result = write_partition(mbImpl->proc_size(), elems, assignment,
+                                         write_as_sets, write_as_tags);
 
     if (MB_SUCCESS != result) return result;
 
@@ -192,10 +195,17 @@ MBErrorCode MBZoltan::balance_mesh(const char *zmethod,
 
 MBErrorCode MBZoltan::partition_mesh(const int nparts,
                                      const char *zmethod,
-                                     const char *other_method) 
+                                     const char *other_method,
+                                     const bool write_as_sets,
+                                     const bool write_as_tags,
+                                     const int part_dim) 
 {
     // should only be called in serial
-  if (mbImpl->proc_size() != 1) return MB_FAILURE;
+  if (mbImpl->proc_size() != 1) {
+    std::cout << "MBZoltan::partition_mesh must be called in serial." 
+              << std::endl;
+    return MB_FAILURE;
+  }
   
   if (NULL != zmethod && strcmp(zmethod, "RCB") && strcmp(zmethod, "RIB") &&
       strcmp(zmethod, "HSFC") && strcmp(zmethod, "Hypergraph") &&
@@ -217,7 +227,7 @@ MBErrorCode MBZoltan::partition_mesh(const int nparts,
 
   MBErrorCode result;
   
-  result = assemble_graph(3, pts, ids, adjs, length, elems); RR;
+  result = assemble_graph(part_dim, pts, ids, adjs, length, elems); RR;
   
   myNumPts = mbInitializePoints((int)ids.size(), &pts[0], &ids[0], &adjs[0],
                                 &length[0]);
@@ -296,7 +306,8 @@ MBErrorCode MBZoltan::partition_mesh(const int nparts,
   if (ZOLTAN_OK != retval) return MB_FAILURE;
   
   // take results & write onto MOAB partition sets
-  result = write_partition(nparts, elems, assign_parts);
+  result = write_partition(nparts, elems, assign_parts,
+                           write_as_sets, write_as_tags);
 
   if (MB_SUCCESS != result) return result;
 
@@ -345,7 +356,8 @@ MBErrorCode MBZoltan::assemble_graph(const int dimension,
 
       // get bridge adjacencies
     adjs.clear();
-    result = mtu.get_bridge_adjacencies(*rit, dimension-1, dimension, adjs); RR;
+    result = mtu.get_bridge_adjacencies(*rit, (dimension > 0 ? dimension-1 : 3), 
+                                        dimension, adjs); RR;
     
     
       // get the graph vertex ids of those
@@ -389,7 +401,9 @@ MBErrorCode MBZoltan::assemble_graph(const int dimension,
 
 MBErrorCode MBZoltan::write_partition(const int nparts,
                                       MBRange &elems, 
-                                      const int *assignment) 
+                                      const int *assignment,
+                                      const bool write_as_sets,
+                                      const bool write_as_tags) 
 {
   MBErrorCode result;
 
@@ -405,50 +419,57 @@ MBErrorCode MBZoltan::write_partition(const int nparts,
                                                 tagged_sets, MBInterface::UNION); RR;
   if (!tagged_sets.empty()) {
     result = mbImpl->clear_meshset(tagged_sets); RR;
-  }
-  
-    // first, create partition sets and store in vector
-  MBEntityHandle *part_sets = new MBEntityHandle[nparts];
-  if (NULL == part_sets) return MB_FAILURE;
-  
-  if (nparts > (int) tagged_sets.size()) {
-      // too few partition sets - create missing ones
-    int num_new = nparts - tagged_sets.size();
-    for (int i = 0; i < num_new; i++) {
-      MBEntityHandle new_set;
-      result = mbImpl->create_meshset(MESHSET_SET, new_set); RR;
-      tagged_sets.insert(new_set);
+    if (!write_as_sets) {
+      result = mbImpl->tag_delete_data(part_set_tag, tagged_sets); RR;
     }
   }
-  else if (nparts < (int) tagged_sets.size()) {
-      // too many partition sets - delete extras
-    int num_del = tagged_sets.size() - nparts;
-    for (int i = 0; i < num_del; i++) {
-      MBEntityHandle old_set = tagged_sets.pop_back();
-      result = mbImpl->delete_entities(&old_set, 1); RR;
+
+  if (write_as_sets) {
+      // first, create partition sets and store in vector
+    MBEntityHandle *part_sets = new MBEntityHandle[nparts];
+    if (NULL == part_sets) return MB_FAILURE;
+  
+    if (nparts > (int) tagged_sets.size()) {
+        // too few partition sets - create missing ones
+      int num_new = nparts - tagged_sets.size();
+      for (int i = 0; i < num_new; i++) {
+        MBEntityHandle new_set;
+        result = mbImpl->create_meshset(MESHSET_SET, new_set); RR;
+        tagged_sets.insert(new_set);
+      }
+    }
+    else if (nparts < (int) tagged_sets.size()) {
+        // too many partition sets - delete extras
+      int num_del = tagged_sets.size() - nparts;
+      for (int i = 0; i < num_del; i++) {
+        MBEntityHandle old_set = tagged_sets.pop_back();
+        result = mbImpl->delete_entities(&old_set, 1); RR;
+      }
+    }
+  
+      // assign partition sets to vector
+    MBRange::iterator rit = tagged_sets.begin();
+    int i = 0;
+    for (; i < nparts; rit++, i++) part_sets[i] = *rit;
+  
+      // write a tag to those sets denoting they're partition sets, with a value of the
+      // proc number
+    int *dum_ids = new int[nparts];
+    for (int i = 0; i < nparts; i++) dum_ids[i] = i;
+  
+    result = mbImpl->tag_set_data(part_set_tag, part_sets, nparts, dum_ids); RR;
+
+      // assign entities to the relevant sets
+    for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
+      result = mbImpl->add_entities(part_sets[assignment[i]], &(*rit), 1); RR;
     }
   }
   
-    // assign partition sets to vector
-  MBRange::iterator rit = tagged_sets.begin();
-  int i = 0;
-  for (; i < nparts; rit++, i++) part_sets[i] = *rit;
-  
-    // write a tag to those sets denoting they're partition sets, with a value of the
-    // proc number
-  int *dum_ids = new int[nparts];
-  for (int i = 0; i < nparts; i++) dum_ids[i] = i;
-  
-  result = mbImpl->tag_set_data(part_set_tag, part_sets, nparts, dum_ids); RR;
-
-    // assign entities to the relevant sets
-  for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
-    result = mbImpl->add_entities(part_sets[assignment[i]], &(*rit), 1); RR;
+  if (write_as_tags) {
+      // allocate integer-size partitions
+    result = mbImpl->tag_set_data(part_set_tag, elems, assignment); RR;
   }
-
-    // allocate integer-size partitions
-  result = mbImpl->tag_set_data(part_set_tag, elems, assignment); RR;
-
+  
   return MB_SUCCESS;
 }
 
