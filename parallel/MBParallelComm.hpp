@@ -163,6 +163,7 @@ public:
      * \param shared_dim Maximum dimension of shared entities to look for
      */
   MBErrorCode resolve_shared_ents(MBRange &proc_ents, 
+                                  int resolve_dim = -1,
                                   int shared_dim = -1);
   
     /** \brief Resolve shared entities between processors
@@ -176,7 +177,7 @@ public:
      * \param dim Dimension of entities in the partition
      * \param shared_dim Maximum dimension of shared entities to look for
      */
-  MBErrorCode resolve_shared_ents(int dim = 3, 
+  MBErrorCode resolve_shared_ents(int resolve_dim = 3, 
                                   int shared_dim = -1);
   
     /** \brief Get entities shared with other processors, based on 
@@ -233,6 +234,9 @@ public:
   
     //! return iface_set tag
   MBTag iface_sets_tag();
+  
+    //! return partitions set tag
+  MBTag partition_tag();
   
 private:
 
@@ -342,14 +346,17 @@ private:
   
   MBErrorCode tag_shared_verts(tuple_list &shared_verts,
                                MBRange *skin_ents,
-                               std::map<std::vector<int>, MBRange> &proc_nranges);
+                               std::map<std::vector<int>, MBRange> &proc_nranges,
+                               MBRange &proc_verts);
   
-  MBErrorCode tag_shared_ents(int shared_dim,
+  MBErrorCode tag_shared_ents(int resolve_dim,
+                              int shared_dim,
                               tuple_list &shared_verts,
                               MBRange *skin_ents,
                               std::map<std::vector<int>, MBRange> &proc_nranges);
 
   MBErrorCode create_interface_sets(std::map<std::vector<int>, MBRange> &proc_nranges,
+                                    int resolve_dim, int shared_dim,
                                     MBRange *iface_sets_ptr = NULL);
 
     //! resolve remote handles for shared non-vertex ents, assuming
@@ -456,7 +463,7 @@ private:
   
     //! tags used to save sharing procs and handles
   MBTag sharedpTag, sharedpsTag, sharedhTag, sharedhsTag, pstatusTag, 
-    ifaceSetsTag;
+    ifaceSetsTag, partitionTag;
 
     //! interface sets, one set per unique combination of procs
   MBRange ifaceSets;

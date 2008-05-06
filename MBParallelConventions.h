@@ -58,11 +58,13 @@
  *
  * bit 0: shared (0=not shared, 1=shared)
  * bit 1: !owned (0=owned, 1=not owned)
+ * bit 2: ghost (0=not ghost, 1=ghost)
  */
 #define PARALLEL_STATUS_TAG_NAME "PARALLEL_STATUS"
 
 #define PSTATUS_SHARED 0x1
 #define PSTATUS_NOT_OWNED 0x2
+#define PSTATUS_GHOST 0x4
  
 /** \brief Tag storing interface sets
  *

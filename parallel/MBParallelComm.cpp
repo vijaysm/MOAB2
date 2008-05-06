@@ -116,7 +116,8 @@ enum MBMessageTag {MB_MESG_ANY=MPI_ANY_TAG,
 
 MBParallelComm::MBParallelComm(MBInterface *impl, MPI_Comm comm) 
     : mbImpl(impl), procConfig(comm), sharedpTag(0), sharedpsTag(0),
-      sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0)
+      sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0),
+      partitionTag(0)
 {
   myBuffer.resize(INITIAL_BUFF_SIZE);
 
@@ -128,7 +129,8 @@ MBParallelComm::MBParallelComm(MBInterface *impl,
                                std::vector<unsigned char> &tmp_buff, 
                                MPI_Comm comm) 
     : mbImpl(impl), procConfig(comm), sharedpTag(0), sharedpsTag(0),
-      sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0)
+      sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0),
+      partitionTag(0)
 {
   myBuffer.swap(tmp_buff);
 }
@@ -2007,134 +2009,147 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
   return MB_SUCCESS;
 }
 
-MBErrorCode MBParallelComm::resolve_shared_ents(int dim,
+MBErrorCode MBParallelComm::resolve_shared_ents(int resolve_dim,
                                                 int shared_dim) 
 {
   MBErrorCode result;
   MBRange proc_ents;
-  if (-1 == dim) {
-    int this_dim = 3;
-    while (proc_ents.empty() && this_dim >= 0) {
-      result = mbImpl->get_entities_by_dimension(0, this_dim, proc_ents);
-      if (MB_SUCCESS != result) return result;
-      this_dim--;
-    }
-  }
-  else {
-    result = mbImpl->get_entities_by_dimension(0, dim, proc_ents);
+      // get the entities in the partition sets
+  MBRange part_sets;
+  MBTag part_tag = partition_tag();
+  result = mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &part_tag,
+                                                NULL, 1, part_sets);
+  if (MB_SUCCESS != result) return result;
+  for (MBRange::iterator rit = part_sets.begin(); rit != part_sets.end(); rit++) {
+    MBRange tmp_ents;
+    result = mbImpl->get_entities_by_handle(*rit, tmp_ents, true);
     if (MB_SUCCESS != result) return result;
+    proc_ents.merge(tmp_ents);
   }
 
+    // resolve dim is maximal dim of entities in proc_ents
+  if (-1 == resolve_dim) {
+    resolve_dim = mbImpl->dimension_from_handle(*proc_ents.rbegin()); 
+    RR("Couldn't get dimension.");
+    
+  }
+
+    // proc_ents should all be of same dimension
+  if (resolve_dim > shared_dim &&
+      mbImpl->dimension_from_handle(*proc_ents.rbegin()) !=
+      mbImpl->dimension_from_handle(*proc_ents.begin())) {
+    MBRange::iterator lower = proc_ents.lower_bound(MBCN::TypeDimensionMap[0].first),
+      upper = proc_ents.upper_bound(MBCN::TypeDimensionMap[resolve_dim-1].second);
+    proc_ents.erase(lower, upper);
+  }
+  
     // must call even if we don't have any entities, to make sure
     // collective comm'n works
-  return resolve_shared_ents(proc_ents, shared_dim);
+  return resolve_shared_ents(proc_ents, resolve_dim, shared_dim);
 }
   
 MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
+                                                int resolve_dim,
                                                 int shared_dim) 
 {
+  MBErrorCode result;
   if (debug) std::cerr << "Resolving shared entities." << std::endl;
 
-  if (proc_ents.empty()) return MB_SUCCESS;
-  
-  if (-1 == shared_dim)
-    shared_dim = mbImpl->dimension_from_handle(*proc_ents.begin())-1;
+  if (-1 == shared_dim) {
+    if (0 == resolve_dim) {
+      result = mbImpl->get_dimension(shared_dim); 
+      RR("Couldn't get dimension.");
+    }
+    else shared_dim = mbImpl->dimension_from_handle(*proc_ents.begin())-1;
+  }
+  assert(shared_dim >= 0 && resolve_dim >= 0);
   
     // get the skin entities by dimension
   MBRange skin_ents[4];
-  MBErrorCode result;
   std::vector<int> gid_data;
   std::vector<MBEntityHandle> handle_vec;
+  int skin_dim;
 
-  if (!proc_ents.empty()) {
-      // find the skin entities
-    int upper_dim = MBCN::Dimension(TYPE_FROM_HANDLE(*proc_ents.begin()));
-
-    MBRange::iterator rit;
-    MBSkinner skinner(mbImpl);
-  
-    int skin_dim;
-    if (shared_dim < upper_dim) {
-        // if shared entity dimension is less than maximal dimension,
-        // start with skin entities
-      skin_dim = upper_dim-1;
-      result = skinner.find_skin(proc_ents, skin_ents[skin_dim],
-                                 skin_ents[skin_dim], true);
-      RRA("Failed to find skin.");
-      if (debug) std::cerr << "Found skin, now resolving." << std::endl;
-    }
-    else {
-        // otherwise start with original entities
-      skin_ents[upper_dim] = proc_ents;
-      skin_dim = upper_dim;
-    }
-
-      // get entities adjacent to skin ents from shared_dim down to
-      // zero; don't create them if they don't exist already
-    for (int this_dim = shared_dim; this_dim >= 0; this_dim--) {
-
-      if (this_dim == skin_dim) continue;
-      
-      result = mbImpl->get_adjacencies(skin_ents[skin_dim], this_dim,
-                                       false, skin_ents[this_dim],
-                                       MBInterface::UNION);
-      RR("Failed getting skin adjacencies.");
-    }
-  
-      // global id tag
-    MBTag gid_tag; int def_val = -1;
-    result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int),
-                                MB_TAG_DENSE, MB_TYPE_INTEGER, gid_tag,
-                                &def_val, true);
-    if (MB_FAILURE == result) return result;
-
-    else if (MB_ALREADY_ALLOCATED != result) {
-        // just created it, so we need global ids
-      result = assign_global_ids(0, upper_dim);
-      RRA("Failed assigning global ids.");
-    }
-
-      // store index in temp tag; reuse gid_data 
-    gid_data.resize(2*skin_ents[0].size());
-    int idx = 0;
-    for (rit = skin_ents[0].begin(); 
-         rit != skin_ents[0].end(); rit++) 
-      gid_data[idx] = idx, idx++;
-    MBTag idx_tag;
-    result = mbImpl->tag_create("__idx_tag", sizeof(int), MB_TAG_DENSE,
-                                MB_TYPE_INTEGER, idx_tag, &def_val, true);
-    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
-    result = mbImpl->tag_set_data(idx_tag, skin_ents[0], &gid_data[0]);
-    RR("Couldn't assign index tag.");
-
-      // get gids for skin verts in a vector, to pass to gs
-    result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &gid_data[0]);
-    RR("Couldn't get gid tag for skin vertices.");
-
-      // put handles in vector for passing to gs setup
-    std::copy(skin_ents[0].begin(), skin_ents[0].end(), 
-              std::back_inserter(handle_vec));
-
+    // get the entities to be skinned
+  if (resolve_dim < shared_dim) {
+      // for vertex-based partition, it's the elements adj to the vertices
+    result = mbImpl->get_adjacencies(proc_ents, shared_dim,
+                                     false, skin_ents[resolve_dim],
+                                     MBInterface::UNION);
+    RR("Failed getting skinned entities.");
+    skin_dim = shared_dim-1;
   }
   else {
-      // need to have at least one position so we can get a ptr to it
-    gid_data.resize(1);
-    handle_vec.resize(1);
+      // for element-based partition, it's just the elements
+    skin_ents[resolve_dim] = proc_ents;
+    skin_dim = resolve_dim-1;
   }
+
+    // find the skin
+  MBSkinner skinner(mbImpl);
+  result = skinner.find_skin(skin_ents[skin_dim+1], skin_ents[skin_dim],
+                             skin_ents[skin_dim], true);
+  RRA("Failed to find skin.");
+  if (debug) std::cerr << "Found skin, now resolving." << std::endl;
+
+    // get entities adjacent to skin ents from shared_dim down to
+    // zero; don't create them if they don't exist already
+  for (int this_dim = skin_dim-1; this_dim >= 0; this_dim--) {
+    result = mbImpl->get_adjacencies(skin_ents[skin_dim], this_dim,
+                                     false, skin_ents[this_dim],
+                                     MBInterface::UNION);
+    RR("Failed getting skin adjacencies.");
+  }
+
+    // resolve shared vertices first
+
+    // global id tag
+  MBTag gid_tag; int def_val = -1;
+  result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int),
+                              MB_TAG_DENSE, MB_TYPE_INTEGER, gid_tag,
+                              &def_val, true);
+  if (MB_FAILURE == result) return result;
+
+  else if (MB_ALREADY_ALLOCATED != result) {
+      // just created it, so we need global ids
+    result = assign_global_ids(0, skin_dim+1);
+    RRA("Failed assigning global ids.");
+  }
+
+    // store index in temp tag; reuse gid_data 
+  gid_data.resize(2*skin_ents[0].size());
+  int idx = 0;
+  for (MBRange::iterator rit = skin_ents[0].begin(); 
+       rit != skin_ents[0].end(); rit++) 
+    gid_data[idx] = idx, idx++;
+  MBTag idx_tag;
+  result = mbImpl->tag_create("__idx_tag", sizeof(int), MB_TAG_DENSE,
+                              MB_TYPE_INTEGER, idx_tag, &def_val, true);
+  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
+  result = mbImpl->tag_set_data(idx_tag, skin_ents[0], &gid_data[0]);
+  RR("Couldn't assign index tag.");
+
+    // get gids for skin ents in a vector, to pass to gs
+  result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &gid_data[0]);
+  RR("Couldn't get gid tag for skin vertices.");
+
+    // put handles in vector for passing to gs setup
+  std::copy(skin_ents[0].begin(), skin_ents[0].end(), 
+            std::back_inserter(handle_vec));
   
     // get a crystal router
   crystal_data *cd = procConfig.crystal_router();
   
-    // get total number of verts; will overshoot highest global id, but
+    // get total number of entities; will overshoot highest global id, but
     // that's ok
-  int nverts_total, nverts_local;
-  result = mbImpl->get_number_entities_by_dimension(0, 0, nverts_local);
+  int num_total, num_local;
+  result = mbImpl->get_number_entities_by_dimension(0, 0, num_local);
   if (MB_SUCCESS != result) return result;
-  int failure = MPI_Allreduce(&nverts_local, &nverts_total, 1,
+  int failure = MPI_Allreduce(&num_local, &num_total, 1,
                               MPI_INT, MPI_SUM, procConfig.proc_comm());
   if (failure) {
     result = MB_FAILURE;
-    RR("Allreduce for total number of vertices failed.");
+    RR("Allreduce for total number of shared ents failed.");
   }
   
     // call gather-scatter to get shared ids & procs
@@ -2156,16 +2171,13 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
     RR("Couldn't create gs data.");
   }
 
-    // if no entities, no more communication after this, so just return
-  if (proc_ents.empty()) return MB_SUCCESS;
-  
     // get shared proc tags
   MBTag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
   result = get_shared_proc_tags(sharedp_tag, sharedps_tag, 
                                 sharedh_tag, sharedhs_tag, pstatus_tag);
   RRA("Couldn't get shared proc tags.");
   
-    // load shared vertices into a tuple, then sort by index
+    // load shared verts into a tuple, then sort by index
   tuple_list shared_verts;
   tuple_list_init_max(&shared_verts, 2, 0, 1, 0, 
                       skin_ents[0].size()*(MAX_SHARING_PROCS+1));
@@ -2183,27 +2195,33 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
   std::vector<int> sort_buffer(max_size);
   tuple_list_sort(&shared_verts, 0,(buffer*)&sort_buffer[0]);
 
-    // set sharing procs and handles tags on skin vertices
+    // set sharing procs and handles tags on skin ents
   int maxp = -1;
   std::vector<int> sharing_procs(MAX_SHARING_PROCS);
   std::fill(sharing_procs.begin(), sharing_procs.end(), maxp);
   j = 0; i = 0;
 
-    // get vertices shared by 1 or n procs
+    // get ents shared by 1 or n procs
   std::map<std::vector<int>, MBRange> proc_nranges;
-  result = tag_shared_verts(shared_verts, skin_ents,
-                            proc_nranges);
-  RRA("Trouble tagging shared vertices.");
+  MBRange proc_verts;
+  result = mbImpl->get_adjacencies(proc_ents, 0, false, proc_verts,
+                                   MBInterface::UNION);
+  RR("Couldn't get proc_verts.");
   
+  result = tag_shared_verts(shared_verts, skin_ents,
+                            proc_nranges, proc_verts);
+  RRA("Trouble tagging shared verts.");
+
     // get entities shared by 1 or n procs
-  result = tag_shared_ents(shared_dim, shared_verts, skin_ents,
+  result = tag_shared_ents(resolve_dim, shared_dim, shared_verts, skin_ents,
                            proc_nranges);
   RRA("Trouble tagging shared entities.");
   
     // create the sets for each interface; store them as tags on
     // the interface instance
   MBRange iface_sets;
-  result = create_interface_sets(proc_nranges, &iface_sets);
+  result = create_interface_sets(proc_nranges, resolve_dim, shared_dim,
+                                 &iface_sets);
   RRA("Trouble creating iface sets.");
 
     // resolve shared ent remote handles
@@ -2260,6 +2278,7 @@ MBErrorCode MBParallelComm::resolve_ent_remote_handles(MBRange &iface_sets)
 }
 
 MBErrorCode MBParallelComm::create_interface_sets(std::map<std::vector<int>, MBRange> &proc_nranges,
+                                                  int resolve_dim, int shared_dim,
                                                   MBRange *iface_sets_ptr) 
 {
   if (proc_nranges.empty()) return MB_SUCCESS;
@@ -2280,27 +2299,29 @@ MBErrorCode MBParallelComm::create_interface_sets(std::map<std::vector<int>, MBR
 
   MBRange psets;
   if (!iface_sets_ptr) iface_sets_ptr = &psets;
-  
+
     // get all partition sets and mark contents with iface set tag; 
     // pre-use iface_sets
-  MBTag pset_tag;
+  MBTag pset_tag = partition_tag();
   MBRange tmp_ents, tmp_ents2;
-;
-  result = mbImpl->tag_get_handle(PARALLEL_PARTITION_TAG_NAME, pset_tag);
-  RRA("Couldn't get PARALLEL_PARTITION tag, needed to create iface sets.");
+
   result = mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &pset_tag, NULL, 1,
                                                 psets);
   RRA("Couldn't get PARALLEL_PARTITION sets.");
-  for (rit = psets.begin(); rit != psets.end(); rit++) {
-    result = mbImpl->get_entities_by_handle(*rit, tmp_ents, true);
-    RR("Failed to get entities in partition set.");
-    std::vector<MBEntityHandle> tag_vals(tmp_ents.size());
-    std::fill(tag_vals.begin(), tag_vals.end(), *rit);
-    result = mbImpl->tag_set_data(tmp_iface_tag, tmp_ents, &tag_vals[0]);
-    RR("Failed to set iface tag on partition ents.");
-    tmp_ents.clear();
-  }
 
+  if (resolve_dim < shared_dim) {
+    
+    for (rit = psets.begin(); rit != psets.end(); rit++) {
+      result = mbImpl->get_entities_by_handle(*rit, tmp_ents, true);
+      RR("Failed to get entities in partition set.");
+      std::vector<MBEntityHandle> tag_vals(tmp_ents.size());
+      std::fill(tag_vals.begin(), tag_vals.end(), *rit);
+      result = mbImpl->tag_set_data(tmp_iface_tag, tmp_ents, &tag_vals[0]);
+      RR("Failed to set iface tag on partition ents.");
+      tmp_ents.clear();
+    }
+  }
+  
     // create interface sets, tag them, and tag their contents with iface set tag
   std::vector<MBEntityHandle> tag_vals;
   for (std::map<std::vector<int>,MBRange>::iterator mit = proc_nranges.begin();
@@ -2342,22 +2363,29 @@ MBErrorCode MBParallelComm::create_interface_sets(std::map<std::vector<int>, MBR
 
     // now go back through interface sets and add parent/child links
   for (int d = 2; d >= 0; d--) {
+    if (resolve_dim < shared_dim) {
+      tag_vals.clear();
+      std::copy(psets.begin(), psets.end(), std::back_inserter(tag_vals));
+    }
+    
     for (rit = iface_sets_ptr->begin(); rit != iface_sets_ptr->end();
          rit++) {
       
       tmp_ents.clear();
       result = mbImpl->get_entities_by_handle(*rit, tmp_ents, true);
       RR("Couldn't get entities by dimension.");
-      if (tmp_ents.empty() || 
-          mbImpl->dimension_from_handle(*tmp_ents.rbegin()) != d) continue;
+      if (tmp_ents.empty() || (resolve_dim > shared_dim &&
+          mbImpl->dimension_from_handle(*tmp_ents.rbegin()) != d)) continue;
 
-        // get higher-dimensional entities and their interface sets
-      result = mbImpl->get_adjacencies(&(*tmp_ents.begin()), 1, d+1,
-                                       false, tmp_ents2);
-      RR("Couldn't get adjacencies for interface sets.");
-      tag_vals.resize(tmp_ents2.size());
-      result = mbImpl->tag_get_data(tmp_iface_tag, tmp_ents2, &tag_vals[0]);
-      RR("Couldn't get iface set tag for interface sets.");
+      if (resolve_dim > shared_dim) {
+          // get higher-dimensional entities and their interface sets
+        result = mbImpl->get_adjacencies(&(*tmp_ents.begin()), 1, d+1,
+                                         false, tmp_ents2);
+        RR("Couldn't get adjacencies for interface sets.");
+        tag_vals.resize(tmp_ents2.size());
+        result = mbImpl->tag_get_data(tmp_iface_tag, tmp_ents2, &tag_vals[0]);
+        RR("Couldn't get iface set tag for interface sets.");
+      }
       
         // go through and for any on interface make it a parent
       MBEntityHandle last_set = 0;
@@ -2390,7 +2418,8 @@ MBErrorCode MBParallelComm::create_interface_sets(std::map<std::vector<int>, MBR
   return MB_SUCCESS;
 }
 
-MBErrorCode MBParallelComm::tag_shared_ents(int shared_dim,
+MBErrorCode MBParallelComm::tag_shared_ents(int resolve_dim,
+                                            int shared_dim,
                                             tuple_list &shared_verts,
                                             MBRange *skin_ents,
                                             std::map<std::vector<int>, MBRange> &proc_nranges) 
@@ -2405,7 +2434,9 @@ MBErrorCode MBParallelComm::tag_shared_ents(int shared_dim,
   std::fill(sharing_procs.begin(), sharing_procs.end(), -1);
   std::vector<unsigned char> pstatus_flags(MB_MAX_SUB_ENTITIES);
 
-  for (int d = shared_dim; d > 0; d--) {
+  for (int d = 3; d > 0; d--) {
+    if (resolve_dim == d) continue;
+    
     for (MBRange::iterator rit = skin_ents[d].begin();
          rit != skin_ents[d].end(); rit++) {
         // get connectivity
@@ -2444,15 +2475,20 @@ MBErrorCode MBParallelComm::tag_shared_ents(int shared_dim,
           vp_range.insert(sharing_procs[p]), p++;
         assert(p < MAX_SHARING_PROCS);
           // intersect with range for this skin ent
-        if (0 != nc) sp_range = sp_range.intersect(vp_range);
-        else sp_range = vp_range;
+        if (0 == nc) sp_range = vp_range;
+        else if (resolve_dim < shared_dim) 
+          sp_range.merge(vp_range);
+        else 
+          sp_range = sp_range.intersect(vp_range);
 
           // need to also save rank zero, since ranges don't handle that
         if (sharing_procs[0] == 0) and_zero = true;
       }
 
+      if (sp_range.empty() && resolve_dim < shared_dim) continue;
+
         // intersection is the owning proc(s) for this skin ent; should
-        // not be empty
+        // not be empty unless we're using a vertex-based partition
       assert(!sp_range.empty() || and_zero);
       MBRange::iterator rit2;
         // set tag for this ent
@@ -2483,22 +2519,13 @@ MBErrorCode MBParallelComm::tag_shared_ents(int shared_dim,
     }
   }
 
-    // build range for each sharing proc
-  std::map<int, MBRange> proc_ranges;
-  for (std::map<std::vector<int>, MBRange>::iterator mit = proc_nranges.begin();
-       mit != proc_nranges.end(); mit++) {
-    for (unsigned int i = 0; i < (*mit).first.size(); i++) 
-      proc_ranges[(*mit).first[i]].merge((*mit).second);
-  }
-
-    // for each sharing proc, send handles, then post receive to get sharing handles back
-
   return MB_SUCCESS;
 }
 
-MBErrorCode MBParallelComm::tag_shared_verts(tuple_list &shared_verts,
+MBErrorCode MBParallelComm::tag_shared_verts(tuple_list &shared_ents,
                                              MBRange *skin_ents,
-                                             std::map<std::vector<int>, MBRange> &proc_nranges) 
+                                             std::map<std::vector<int>, MBRange> &proc_nranges,
+                                             MBRange &proc_verts) 
 {
   MBTag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
   MBErrorCode result = get_shared_proc_tags(sharedp_tag, sharedps_tag, 
@@ -2511,15 +2538,15 @@ MBErrorCode MBParallelComm::tag_shared_verts(tuple_list &shared_verts,
   std::fill(sharing_procs.begin(), sharing_procs.end(), -1);
   std::fill(sharing_handles, sharing_handles+MAX_SHARING_PROCS, 0);
   
-  while (j < 2*shared_verts.n) {
+  while (j < 2*shared_ents.n) {
       // count & accumulate sharing procs
     unsigned int nump = 0;
-    int this_idx = shared_verts.vi[j];
+    int this_idx = shared_ents.vi[j];
     MBEntityHandle this_ent = skin_ents[0][this_idx];
-    while (shared_verts.vi[j] == this_idx) {
+    while (shared_ents.vi[j] == this_idx) {
       j++;
-      sharing_procs[nump] = shared_verts.vi[j++];
-      sharing_handles[nump++] = shared_verts.vul[i++];
+      sharing_procs[nump] = shared_ents.vi[j++];
+      sharing_handles[nump++] = shared_ents.vul[i++];
     }
 
     std::sort(&sharing_procs[0], &sharing_procs[nump]);
@@ -2540,8 +2567,12 @@ MBErrorCode MBParallelComm::tag_shared_verts(tuple_list &shared_verts,
     RR("Failed setting shared_procs tag on skin vertices.");
 
     unsigned char share_flag = PSTATUS_SHARED;
-    if ((int) procConfig.proc_rank() > sharing_procs[0]) 
+    if (!proc_verts.empty() && proc_verts.find(this_ent) == proc_verts.end())
+      share_flag |= (PSTATUS_NOT_OWNED | PSTATUS_GHOST);
+      
+    else if (proc_verts.empty() && (int) procConfig.proc_rank() > sharing_procs[0])
       share_flag |= PSTATUS_NOT_OWNED;
+        
     result = mbImpl->tag_set_data(pstatus_tag, &this_ent, 1, &share_flag);
     RRA("Couldn't set shared tag on shared vertex.");
 
@@ -3000,6 +3031,22 @@ MBTag MBParallelComm::iface_sets_tag()
   }
   
   return ifaceSetsTag;
+}
+  
+  //! return partition set tag
+MBTag MBParallelComm::partition_tag()
+{  
+  if (!partitionTag) {
+    MBErrorCode result = mbImpl->tag_create(PARALLEL_PARTITION_TAG_NAME, 
+                                            MAX_SHARING_PROCS*sizeof(MBEntityHandle),
+                                            MB_TAG_SPARSE,
+                                            MB_TYPE_HANDLE, partitionTag, 
+                                            NULL, true);
+    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result)
+      return 0;
+  }
+  
+  return partitionTag;
 }
   
 #ifdef TEST_PARALLELCOMM

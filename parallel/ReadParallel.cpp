@@ -98,10 +98,10 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
 
     // get resolve_shared_ents option
   std::string shared_str;
-  int resolve_dim = 3, shared_dim = -1;
+  int resolve_dim = -1, shared_dim = -1;
   result = opts.get_str_option("PARALLEL_RESOLVE_SHARED_ENTS", shared_str);
   if (MB_TYPE_OUT_OF_RANGE == result) {
-    resolve_dim = 3;
+    resolve_dim = -1;
     shared_dim = -1;
   }
   else if (MB_SUCCESS == result) {
@@ -168,7 +168,7 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
       return MB_FAILURE;
   }
 
-  if (-1 != resolve_dim) pa_vec.push_back(PA_RESOLVE_SHARED_ENTS);
+  if (-2 != resolve_dim) pa_vec.push_back(PA_RESOLVE_SHARED_ENTS);
 
   if (-1 != ghost_dim) pa_vec.push_back(PA_EXCHANGE_GHOSTS);
   
