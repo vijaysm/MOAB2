@@ -21,9 +21,11 @@
 #include "MBCartVect.hpp"
 #include "MBCN.hpp"
 #include "MBGeomUtil.hpp"
+#include "MBElemUtil.hpp"
 #include <cmath>
 #include <algorithm>
 #include <assert.h>
+#include <iostream>
 
 #ifdef _MSC_VER
 #  include <float.h>
@@ -269,9 +271,12 @@ bool box_elem_overlap( const MBCartVect *elem_corners,
                        const MBCartVect& center,
                        const MBCartVect& dims )
 {
+
   switch (elem_type) {
     case MBTRI:
       return box_tri_overlap( elem_corners, center, dims );
+    case MBHEX:
+      return box_hex_overlap( elem_corners, center, dims );
     case MBPOLYGON:
     case MBPOLYHEDRON:
       assert(false);
@@ -652,6 +657,197 @@ bool box_point_overlap( const MBCartVect& box_min_corner,
   closest_location_on_box( box_min_corner, box_max_corner, point, closest );
   closest -= point;
   return closest % closest < tolerance * tolerance;
+}
+
+bool box_hex_overlap( const MBCartVect hex_vertices[8],
+                      const MBCartVect& box_center,
+                      const MBCartVect& box_dims)
+{
+
+      // Mapping of vertices to each face on MBHEX
+      const unsigned int facids[] = {0, 1, 5, 4,   1, 2, 6, 5,   2, 3, 7, 6,
+                                     3, 0, 4, 7,   3, 2, 1, 0,   4, 5, 6, 7};
+      // Mapping of vertices to each edge on MBHEX      
+      const unsigned int edgids[] = {0, 1,   1, 2,   2, 3,   3, 0,  
+                                     0, 4,   1, 5,   2, 6,   3, 7,
+                                     4, 5,   5, 6,   6, 7,   7, 4}; 
+
+      const double eps = 1.e-10;
+
+      // Center the hex such that origin located at the box
+      MBCartVect hexv[8];
+      for (unsigned int i=0; i < 8; i++) {
+            hexv[i] = hex_vertices[i] - box_center;
+      }
+
+      // Check hex against box normals...
+      // Need to check both positive and negative faces
+      double       t;
+      unsigned int positive = 0, negative = 0;
+      unsigned int out_plus = 0, out_minus = 0, inside = 0;
+      bool         test;
+      // Negative face, loop over all vertices in hex
+      for (unsigned int i=0; i < 3; i++) {   
+            // vxyz = box_center[i] + box_dims[i];
+            out_plus = 0; out_minus = 0; inside = 0;
+            // Test each vertex on hex...  
+            for (unsigned int j=0; j < 8; j++) {
+
+                  const double bxd = box_dims[i] + eps;
+
+                  if (hexv[j][i] > bxd )  out_plus++;
+                  else if (hexv[j][i] < -bxd )  out_minus++;
+                  else inside++;
+
+                  test = ((inside) || ( out_plus && out_minus ));
+                  if (test) break;
+            }
+            if (!test) return false;
+      }
+
+      // Construct the vertices of the box...
+      MBCartVect boxv[8];
+
+      boxv[0][0] = -box_dims[0]; boxv[0][1] = -box_dims[1]; boxv[0][2] = -box_dims[2];
+      boxv[1][0] =  box_dims[0]; boxv[1][1] = -box_dims[1]; boxv[1][2] = -box_dims[2];
+      boxv[2][0] =  box_dims[0]; boxv[2][1] =  box_dims[1]; boxv[2][2] = -box_dims[2];
+      boxv[3][0] = -box_dims[0]; boxv[3][1] =  box_dims[1]; boxv[3][2] = -box_dims[2];
+      boxv[4][0] = -box_dims[0]; boxv[4][1] = -box_dims[1]; boxv[4][2] =  box_dims[2];
+      boxv[5][0] =  box_dims[0]; boxv[5][1] = -box_dims[1]; boxv[5][2] =  box_dims[2];
+      boxv[6][0] =  box_dims[0]; boxv[6][1] =  box_dims[1]; boxv[6][2] =  box_dims[2];
+      boxv[7][0] = -box_dims[0]; boxv[7][1] =  box_dims[1]; boxv[7][2] =  box_dims[2];
+
+      // Check box against hex normals ...
+      // Loop over each face of hex
+      for (unsigned int i = 0; i < 6; i++ ) {
+            // Compute the normal
+        const MBCartVect midpt1 = 0.5 * (( hexv[(facids[4*i+2])] + hexv[(facids[4*i+3])] )
+                                    - ( hexv[(facids[4*i])]   + hexv[(facids[4*i+1])] ));
+        const MBCartVect midpt2 = 0.5 * (( hexv[(facids[4*i+3])] + hexv[(facids[4*i])]   )
+                                    - ( hexv[(facids[4*i+1])] + hexv[(facids[4*i+2])] ));
+        const MBCartVect normal = midpt1 * midpt2;
+
+        // Loop over each vertex in the box
+        positive = 0; negative = 0;
+        for (unsigned int j=0; j < 8; j++) { 
+          // Take dot product of the vector and normal
+          t = ( boxv[j] - hexv[(facids[4*i])] ) % normal;
+
+          // Do the comparison
+          if (t > eps )  positive++;
+          else           negative++;
+          if (positive && negative) break;
+        }
+        // std::cout << positive << "  " << negative << std::endl;
+        test = ( (positive && !negative) ? false : true );
+        if (!test) return false;
+      }
+
+      // Edge check ...
+      // For box, only need to check three edges due to orthogonality
+      int side1, side2;
+      MBCartVect edge_cross;
+
+      for (unsigned int d = 0; d < 3; d++ ) {
+        // const unsigned int d0 = d % 3;
+        const unsigned int d1 = (d + 1) % 3;
+        const unsigned int d2 = (d + 2) % 3;
+
+        for (unsigned int i = 0; i < 12; i++) {
+          // edge_cross[d0] = 0.;
+          edge_cross[d1] = hexv[(edgids[2*i])][d2] - hexv[(edgids[2*i+1])][d2];
+          edge_cross[d2] = hexv[(edgids[2*i+1])][d1] - hexv[(edgids[2*i])][d1];
+
+          if ((edge_cross[d1]*edge_cross[d1] + edge_cross[d2]*edge_cross[d2]) < eps) continue;
+
+          side1 = side2 = 0;
+
+          // Hex edge and box vertex tests
+          positive = 0; negative = 0; test = false;
+          for (unsigned int j = 0; j < 8; j++) {
+            // t = edge_cross % ( boxv[j] - hexv[(edgids[2*i])] );
+            t =  edge_cross[d1] * ( boxv[j][d1] - hexv[(edgids[2*i])][d1] )
+               + edge_cross[d2] * ( boxv[j][d2] - hexv[(edgids[2*i])][d2] );
+            if (t > eps) positive++;
+            else if (t < -eps) negative++;
+
+            if (positive && negative) {
+              test = true;
+              break;
+            }
+          }
+          if (!test) side1 = ( (positive && !negative) ? +1 : -1 );
+          if (side1 == 0) continue;   
+
+          // Hex edge and hex vertex tests
+          positive = 0; negative = 0; test = false;
+          for (unsigned int j = 0; j < 8; j++) {
+            // t = edge_cross % ( hexv[j] - hexv[(edgids[2*i])] );
+            t =  edge_cross[d1] * ( boxv[j][d1] - hexv[(edgids[2*i])][d1] )
+               + edge_cross[d2] * ( boxv[j][d2] - hexv[(edgids[2*i])][d2] );
+            if (t > eps) positive++;
+            else if (t < -eps) negative++;
+
+            if (positive && negative) {
+              test = true;
+              break;
+            }
+          }
+          if (!test) side2 = ( (positive && !negative) ? +1 : -1 );
+          if (side2 == 0) continue;        
+
+          // Test if on opposite sides
+          if (side1 * side2 < 0 ) return false;
+
+        }
+
+      }
+
+      // All possibilities exhausted, must overlap ...
+      return true;
+}
+
+
+bool point_in_trilinear_hex(MBCartVect hex[8], 
+                            MBCartVect xyz,
+                            double etol) 
+{
+
+      const double one = 1.000001;
+
+      MBCartVect  nat(0.);
+      MBElemUtil::nat_coords_trilinear_hex(hex, xyz, nat, etol);
+      
+      for (unsigned int i = 0; i < 3; i++) {
+            if ((nat[i] > one) || (nat[i] < -one)) return false;
+      }
+
+      return true;
+
+}
+
+
+bool point_in_trilinear_hex(MBCartVect hex[8], 
+                            MBCartVect xyz, 
+                            MBCartVect box_min, MBCartVect box_max,
+                            double etol) 
+{
+
+      const double one = 1.000001;
+
+      if ((xyz[0] < box_min[0]) || (xyz[0] > box_max[0])) return false;
+      if ((xyz[1] < box_min[1]) || (xyz[1] > box_max[1])) return false;
+      if ((xyz[2] < box_min[2]) || (xyz[2] > box_max[2])) return false;
+
+      MBCartVect  nat(0.);
+      MBElemUtil::nat_coords_trilinear_hex(hex, xyz, nat, etol);
+      
+      for (unsigned int i = 0; i < 3; i++) {
+            if ((nat[i] > one) || (nat[i] < -one)) return false;
+      }
+
+      return true;
+
 }
 
 } // namespace MBGeoemtry

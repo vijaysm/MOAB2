@@ -122,6 +122,7 @@ libMOAB_la_SOURCES = \
   MBCN.cpp \
   MBCNArrays.hpp \
   MBCartVect.cpp \
+  MBElemUtil.cpp \
   MBHandleUtils.cpp \
   MBMatrix3.cpp \
   MBMatrix3.hpp \
@@ -158,6 +159,8 @@ libMOAB_la_SOURCES = \
   ReadSTL.hpp \
   ReadVtk.cpp \
   ReadVtk.hpp \
+  ReadIDEAS.cpp \
+  ReadIDEAS.hpp \
   ScdElementData.cpp \
   ScdElementData.hpp \
   ScdVertexData.cpp \
@@ -216,6 +219,7 @@ libMOAB_la_include_HEADERS = \
   MBCN_protos.h \
   MBCartVect.hpp \
   MBCore.hpp \
+  MBElemUtil.hpp \
   MBEntityType.h \
   MBEntityHandle.h \
   MBError.hpp \

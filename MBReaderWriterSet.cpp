@@ -23,6 +23,7 @@
 #include "ReadVtk.hpp"
 #include "ReadSTL.hpp"
 #include "ReadGmsh.hpp"
+#include "ReadIDEAS.hpp"
 #include "Tqdcfr.hpp"
 
 #include "WriteAns.hpp"
@@ -66,6 +67,8 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
   const char* exo_sufxs[] = { "exo", "exoII", "exo2", "g", "gen", NULL };
   register_factory( ReadNCDF::factory, WriteNCDF::factory, "Exodus II", exo_sufxs, "EXODUS" );
 #endif
+
+  register_factory( ReadIDEAS::factory, NULL, "IDEAS format", "unv", "UNV" );
   
   register_factory( ReadVtk::factory, WriteVtk::factory, "Kitware VTK", "vtk", "VTK" );
   

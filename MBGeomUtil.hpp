@@ -226,6 +226,36 @@ void closest_location_on_tri( const MBCartVect& location,
                               MBCartVect& closest_out,
                               int& closest_topo );
 
+// Finds whether or not a box defined by the center and the half
+// width intersects a trilinear hex defined by its eight vertices.
+bool box_hex_overlap( const MBCartVect hexv[8],
+                      const MBCartVect& box_center,
+                      const MBCartVect& box_dims);
+
+//
+// point_in_trilinear_hex
+// Tests if a point in xyz space is within a hex element defined with
+// its eight vertex points forming a trilinear basis function.  Computes
+// the natural coordinates with respect to the hex of the xyz point 
+// and checks if each are between +/-1.  If anyone is outside the range
+// the function returns false, otherwise it returns true.
+//
+bool point_in_trilinear_hex(MBCartVect hex[8], 
+                            MBCartVect xyz,
+                            double etol);
+
+//
+// point_in_trilinear_hex
+// Tests if a point in xyz space is within a hex element defined with
+// its eight vertex points forming a trilinear basis function.  Like the
+// test above except that it gets a bounding box as arguments to filter
+// the test for acceleration.
+//
+bool point_in_trilinear_hex(MBCartVect hex[8], 
+                            MBCartVect xyz,
+                            MBCartVect box_min, MBCartVect box_max,
+                            double etol);
+
 } // namespace MBGeoemtry
 
 #endif
