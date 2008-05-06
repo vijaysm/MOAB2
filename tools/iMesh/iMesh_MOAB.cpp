@@ -2015,7 +2015,11 @@ void iMesh_getArrData (iMesh_Instance instance,
   int tag_size;
   MBErrorCode result = MBI->tag_get_size(tag, tag_size);
   if (MB_SUCCESS != result) {
-    iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getArrData: couldn't get tag size.");
+    int nerr=-1; char tagn[64], msg[256];
+    iMesh_getTagName(instance, tag_handle, tagn, &nerr, sizeof(tagn));
+    snprintf(msg, sizeof(msg), "iMesh_getArrData: couldn't get size for tag \"%s\"",
+        nerr==0?tagn:"unknown");
+    iMesh_processError(iBase_ERROR_MAP[result], msg);
     RETURN(iBase_ERROR_MAP[result]);
   }
 
@@ -2030,10 +2034,18 @@ void iMesh_getArrData (iMesh_Instance instance,
                              *tag_values);
 
   if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) {
-    iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getTagData didn't succeed.");
+    int nerr=-1; char tagn[64], msg[256];
+    iMesh_getTagName(instance, tag_handle, tagn, &nerr, sizeof(tagn));
+    snprintf(msg, sizeof(msg), "iMesh_getArrData: didn't succeed for tag \"%s\"",
+        nerr==0?tagn:"unknown");
+    iMesh_processError(iBase_ERROR_MAP[result], msg);
   }
   else if (MB_TAG_NOT_FOUND == result) {
-    iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getTagData: tag not found.");
+    int nerr=-1; char tagn[64], msg[256];
+    iMesh_getTagName(instance, tag_handle, tagn, &nerr, sizeof(tagn));
+    snprintf(msg, sizeof(msg), "iMesh_getArrData: tag \"%s\" not found",
+        nerr==0?tagn:"unknown");
+    iMesh_processError(iBase_ERROR_MAP[result], msg);
   }
 
   if (MB_SUCCESS == result)

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <cstdlib>
 #include "assert.h"
 
 #include "ReadIDEAS.hpp"
