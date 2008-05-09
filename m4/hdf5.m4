@@ -26,8 +26,11 @@ case "x$WITH_ZLIB" in
 esac
 HAVE_ZLIB=no
 if test "x$WITH_ZLIB" != "xno"; then
+  old_LDFLAGS="$LIBS"
+  LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
   AC_CHECK_LIB([z],[deflate],[HAVE_ZLIB=yes],
     [if test "x$WITH_ZLIB" != "x"; then AC_MSG_ERROR([Could not find zlib]); fi])
+  LDFLAGS="$old_LDFLAGS"
 fi
 
   # CLI option for linking szip
@@ -48,8 +51,11 @@ case "x$WITH_SZIP" in
 esac
 HAVE_SZIP=no
 if test "x$WITH_SZIP" != "xno"; then
+  old_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
   AC_CHECK_LIB([sz],[SZ_Decompress],[HAVE_SZIP=yes],
     [if test "x$WITH_SZIP" != "x"; then AC_MSG_ERROR([Could not find libsz]); fi])
+  LDFLAGS="$old_LDFLAGS"
 fi
 
   # CLI option for extra HDF5 link flags
