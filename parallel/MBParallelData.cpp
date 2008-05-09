@@ -71,13 +71,13 @@ MBErrorCode MBParallelData::get_interface_sets(std::vector<MBEntityHandle> &ifac
     std::vector<int> proc_tags(proc_sets.size()*tsize/sizeof(int));
     tmp_result = mbImpl->tag_get_data(procs_tag, proc_sets, &proc_tags[0]);
     if (MB_SUCCESS != tmp_result) CONTINUE;
-    int i;
+    int k;
     MBRange::iterator rit;
     
-    for (i = 0, rit = proc_sets.begin(); rit != proc_sets.end(); rit++, i++) {
+    for (k = 0, rit = proc_sets.begin(); rit != proc_sets.end(); rit++, k++) {
       for (int j = 0; j < tsize; j++) {
-        if (my_rank != proc_tags[2*i+j] && proc_tags[2*i+j] >= 0)
-          iface_data.insert(std::pair<int,MBEntityHandle>(proc_tags[2*i+j], *rit));
+        if (my_rank != proc_tags[2*k+j] && proc_tags[2*k+j] >= 0)
+          iface_data.insert(std::pair<int,MBEntityHandle>(proc_tags[2*k+j], *rit));
       }
     }
   }

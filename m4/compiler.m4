@@ -262,9 +262,18 @@ case "$cxx_compiler:$host_cpu" in
     SNL_CXX_32BIT=-q32
     SNL_CXX_64BIT=-q64
     # Do V5.0 namemangling for compatibility with ACIS, and enable RTTI
-    SNL_CXX_SPECIAL="-qrtti=all -qnamemangling=v5"
-    AR="ar -X 32_64"
-    NM="nm -B -X 32_64"
+    case "$target_vendor" in
+      bgp)
+        SNL_CXX_SPECIAL=""
+        AR="ar"
+        NM="nm -B"
+        ;;
+      *)
+        SNL_CXX_SPECIAL="-qrtti=all -qnamemangling=v5"
+        AR="ar"
+        NM="nm -B -X 32_64"
+        ;;
+    esac
     ;;
   MIPSpro:mips)
     SNL_CXX_32BIT=-n32
@@ -371,10 +380,20 @@ case "$cc_compiler:$host_cpu" in
     SNL_CC_SPECIAL="-Wall -pipe"
     ;;
   VisualAge:*)
-    SNL_CC_32BIT=-q32
-    SNL_CC_64BIT=-q64
-    AR="ar -X 32_64"
-    NM="nm -B -X 32_64"
+    case "$target_vendor" in
+      bgp)
+        SNL_CC_32BIT=-q32
+        SNL_CC_64BIT=-q64
+        AR="ar"
+        NM="nm -B"
+        ;;
+      *)
+        SNL_CC_32BIT=-q32
+        SNL_CC_64BIT=-q64
+        AR="ar -X 32_64"
+        NM="nm -B -X 32_64"
+        ;;
+    esac
     ;;
   MIPSpro:mips)
     SNL_CC_32BIT=-n32

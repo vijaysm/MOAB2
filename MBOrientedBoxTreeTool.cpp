@@ -690,9 +690,9 @@ MBErrorCode MBOrientedBoxTreeTool::ray_intersect_triangles(
       if (MB_SUCCESS != rval)
         return rval;
       
-      double t;
-      if (MBGeomUtil::ray_tri_intersect( coords, point, dir, tolerance, t, ray_length ))
-        intersection_distances_out.push_back(t);
+      double td;
+      if (MBGeomUtil::ray_tri_intersect( coords, point, dir, tolerance, td, ray_length ))
+        intersection_distances_out.push_back(td);
     }
   }
   
@@ -863,12 +863,12 @@ MBErrorCode RayIntersectSets::leaf( MBEntityHandle node )
     if (MB_SUCCESS != rval)
       return rval;
 
-    double t;
-    if (MBGeomUtil::ray_tri_intersect( coords, b, m, tol, t, len )) 
+    double td;
+    if (MBGeomUtil::ray_tri_intersect( coords, b, m, tol, td, len )) 
         // NOTE: add_intersection may modify the 'len' member, which
         //       will affect subsequent calls to ray_tri_intersect in 
         //       this loop.
-      add_intersection( t );
+      add_intersection( td );
   }
   return MB_SUCCESS;
 }

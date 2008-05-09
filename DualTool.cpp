@@ -13,8 +13,6 @@
  * 
  */
 
-#define assert(a) if (!(a)) return MB_FAILURE
-
 #include "DualTool.hpp"
 #include "MBRange.hpp"
 // using MBCore for call to check_adjacencies
