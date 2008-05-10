@@ -61,6 +61,12 @@ else
   mbsurfplot_DIR=
 endif
 
+if ENABLE_mcnpmit
+  mcnpmit_DIR = mcnpmit
+else
+  mcnpmit_DIR =
+endif
+
 if ENABLE_dagmc
   dagmc_DIR = dagmc
 else
@@ -79,6 +85,7 @@ SUBDIRS = $(imesh_DIR) \
           $(mbchaco_DIR) \
           $(mbzoltan_DIR) \
           $(mbperf_DIR) \
+	  $(mcnpmit_DIR) \
           $(qvdual_DIR) \
           $(size_DIR) \
           $(skin_DIR) \
