@@ -1,5 +1,7 @@
 project( MOAB )
 
+  cmake_minimum_required( VERSION 2.4 )
+
   include( ${MOAB_SOURCE_DIR}/cmake/GetAcInitVersion.cmake )
   get_ac_init_version()
   set ( MOAB_VERSION_MAJOR  "${MAJOR_VERSION}"  )
@@ -14,7 +16,7 @@ project( MOAB )
     else ( MOAB_VERSION_MINOR EQUAL 99 )
       set ( MOAB_VERSION_STRING "${MOAB_VERSION_STRING} (beta)" )
     endif ( MOAB_VERSION_MINOR EQUAL 99 )
-  endif ( NOT DEFINED PATCH_VERSION )
+  endif ( DEFINED PATCH_VERSION )
 
   set ( CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${MOAB_SOURCE_DIR}/cmake" )
   set ( EXECUTABLE_OUTPUT_PATH ${MOAB_BINARY_DIR}/bin CACHE PATH "Path to executables" FORCE )
@@ -123,6 +125,7 @@ project( MOAB )
     MBBits.cpp
     MBCN.cpp
     MBCartVect.cpp
+    MBElemUtil.cpp
     MBHandleUtils.cpp
     MBMatrix3.cpp
     MBCore.cpp
@@ -143,6 +146,7 @@ project( MOAB )
     MeshTopoUtil.cpp
     PolyElementSeq.cpp
     ReadGmsh.cpp
+    ReadIDEAS.cpp
     ReadSTL.cpp
     ReadVtk.cpp
     ScdElementData.cpp
@@ -270,6 +274,16 @@ project( MOAB )
   endif ( MOAB_BUILD_DAGMC )
 
   # iMesh Babel
+  if ( MOAB_BUILD_IMESH )
+    option( MOAB_IMESH_FORTRAN "Should MOAB include iMesh FORTRAN bindings?" OFF )
+  endif ( MOAB_BUILD_IMESH )
+
+  if ( MOAB_IMESH_FORTRAN )
+    enable_language( Fortran )
+    # This determines FORTRAN calling conventions and defines FC_FUNC and FC_FUNC_
+    # to macros which can be used from C to call FORTRAN.
+    #include( ${MOAB_SOURCE_DIR}/cmake/FortranCallingConvention.cmake)
+  endif ( MOAB_IMESH_FORTRAN )
 
   include( ${MOAB_SOURCE_DIR}/cmake/AutoconfHeader.cmake )
   # Define some more variables so they will be substituted properly in the autoconf files.
@@ -283,6 +297,7 @@ project( MOAB )
 
   autoconf_header( ${MOAB_SOURCE_DIR}/MBVersion.h.in ${MOAB_BINARY_DIR}/MBVersion.h )
   autoconf_header( ${MOAB_SOURCE_DIR}/MBEntityHandle.h.in ${MOAB_BINARY_DIR}/MBEntityHandle.h )
+  autoconf_header( ${MOAB_SOURCE_DIR}/MBCN_FCDefs.h.in ${MOAB_BINARY_DIR}/MBCN_FCDefs.h )
 
 
 # Testing
