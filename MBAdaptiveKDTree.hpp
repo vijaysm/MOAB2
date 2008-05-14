@@ -57,7 +57,7 @@ public:
     bool left_side( const double point[3] ) {
       return point[norm] < coord;
     }
-      /** return true if point is abve/to the right of the split plane */
+      /** return true if point is above/to the right of the split plane */
     bool right_side( const double point[3] ) {
       return point[norm] > coord;
     }
