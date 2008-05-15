@@ -272,8 +272,8 @@ int main(int argc, char **argv) {
   if (read_unv) {
     std::string cfd_mesh_fname = CAD_filename;
     cfd_mesh_fname.erase( CAD_filename.find(".unv"), CAD_filename.length());
-    // MBresult = MBI->write_mesh( (cfd_mesh_fname + ".h5m").c_str(), &meshset, 1);
-    MBresult = MBI->write_file( (cfd_mesh_fname + ".vtk").c_str(), "vtk", NULL, &meshset, 1, &cfd_heating_tag, 1);
+    MBresult = MBI->write_mesh( (cfd_mesh_fname + ".h5m").c_str(), &meshset, 1);
+    // MBresult = MBI->write_file( (cfd_mesh_fname + ".vtk").c_str(), "vtk", NULL, &meshset, 1, &cfd_heating_tag, 1);
   }
 
   std::cout << "Time to read in file:     " << (double) load_time / CLOCKS_PER_SEC << std::endl;
