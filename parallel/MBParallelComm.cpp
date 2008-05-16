@@ -378,7 +378,7 @@ MBErrorCode MBParallelComm::recv_size_buff(const int from_proc,
                                            MPI_Request &recv_req) 
 {
     // use the received size to resize buffer, then post another irecv
-  recv_buff.resize(*((int*)&recv_buff[0]));
+  recv_buff.resize(-(*((int*)&recv_buff[0])));
   int success = MPI_Irecv(&recv_buff[0], recv_buff.size(), MPI_UNSIGNED_CHAR, from_proc, 
                           MB_MESG_ENTS, procConfig.proc_comm(), &recv_req);
   if (MPI_SUCCESS != success) {
@@ -2901,7 +2901,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
         assert(ind < MAX_SHARING_PROCS);
         new_size = *((int*)&ghostRBuffs[ind][0]);
         assert(0 > new_size);
-        result = recv_size_buff(*vit, ghostRBuffs[ind], recv_reqs[ind]);
+        result = recv_size_buff(buffProcs[ind], ghostRBuffs[ind], recv_reqs[ind]);
         RRA("Failed to resize recv buffer.");
         num_incoming++;
         break;

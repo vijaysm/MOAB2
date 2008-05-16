@@ -2,6 +2,7 @@
 #include <fstream>
 #include <math.h>
 #include <time.h>
+#include <cstdlib>
 #include "assert.h"
 
 #include "mcnpmit.hpp"
