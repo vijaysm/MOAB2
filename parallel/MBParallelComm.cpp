@@ -19,7 +19,7 @@
 #include <numeric>
 
 #define MIN(a,b) (a < b ? a : b)
-const bool debug = false;
+const bool debug = true;
 const bool debug_packing = false;
 
 #include <math.h>
@@ -2216,6 +2216,16 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
   result = tag_shared_ents(resolve_dim, shared_dim, shared_verts, skin_ents,
                            proc_nranges);
   RRA("Trouble tagging shared entities.");
+
+  if (debug) {
+    for (std::map<std::vector<int>, MBRange>::const_iterator mit = proc_nranges.begin();
+         mit != proc_nranges.end(); mit++) {
+      std::cout << "Iface: ";
+      for (std::vector<int>::const_iterator vit = ((*mit).first).begin();
+           vit != ((*mit).first).end(); vit++) std::cout << " " << *vit;
+      std::cout << std::endl;
+    }
+  }
   
     // create the sets for each interface; store them as tags on
     // the interface instance
@@ -2431,6 +2441,7 @@ MBErrorCode MBParallelComm::tag_shared_ents(int resolve_dim,
   RRA("Trouble getting shared proc tags in tag_shared_ents.");
   const MBEntityHandle *connect; int num_connect;
   std::vector<int> sharing_procs(MAX_SHARING_PROCS);
+  int sharing_procs2[MAX_SHARING_PROCS];
   std::fill(sharing_procs.begin(), sharing_procs.end(), -1);
   std::vector<unsigned char> pstatus_flags(MB_MAX_SUB_ENTITIES);
 
@@ -2461,35 +2472,38 @@ MBErrorCode MBParallelComm::tag_shared_ents(int resolve_dim,
       bool and_zero = false;
       for (int nc = 0; nc < num_connect; nc++) {
           // get sharing procs
-        result = mbImpl->tag_get_data(sharedp_tag, connect+nc, 1, &sharing_procs[0]);
+        result = mbImpl->tag_get_data(sharedp_tag, connect+nc, 1, sharing_procs2);
         RR("Couldn't get sharedp_tag on skin vertices in entity.");
-        if (sharing_procs[0] == -1) {
-          result = mbImpl->tag_get_data(sharedps_tag, connect+nc, 1, &sharing_procs[0]);
+        if (sharing_procs2[0] == -1) {
+          result = mbImpl->tag_get_data(sharedps_tag, connect+nc, 1, sharing_procs2);
           RR("Couldn't get sharedps_tag on skin vertices in entity.");
         }
-        assert(-1 != sharing_procs[0]);
+        assert(-1 != sharing_procs2[0]);
         
           // build range of sharing procs for this vertex
         unsigned int p = 0; vp_range.clear();
-        while (sharing_procs[p] != -1 && p < MAX_SHARING_PROCS)
-          vp_range.insert(sharing_procs[p]), p++;
+        while (sharing_procs2[p] != -1 && p < MAX_SHARING_PROCS)
+          vp_range.insert(sharing_procs2[p]), p++;
         assert(p < MAX_SHARING_PROCS);
           // intersect with range for this skin ent
-        if (0 == nc) sp_range = vp_range;
+        if (0 == nc) {
+          sp_range = vp_range;
+          if (sharing_procs2[0] == 0) and_zero = true;
+        }
         else if (resolve_dim < shared_dim) 
           sp_range.merge(vp_range);
         else 
           sp_range = sp_range.intersect(vp_range);
 
           // need to also save rank zero, since ranges don't handle that
-        if (sharing_procs[0] == 0) and_zero = true;
+        if (and_zero && sharing_procs[0] != 0) and_zero = false;
       }
 
       if (sp_range.empty() && resolve_dim < shared_dim) continue;
 
-        // intersection is the owning proc(s) for this skin ent; should
-        // not be empty unless we're using a vertex-based partition
-      assert(!sp_range.empty() || and_zero);
+        // intersection is the owning proc(s) for this skin ent
+      if (sp_range.empty() && !and_zero) continue;
+
       MBRange::iterator rit2;
         // set tag for this ent
       int j = 0;
