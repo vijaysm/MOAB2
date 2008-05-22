@@ -2742,58 +2742,50 @@ MBErrorCode MBParallelComm::tag_shared_verts(tuple_list &shared_ents,
   return MB_SUCCESS;
 }
   
-MBErrorCode MBParallelComm::get_shared_entities(int dim,
-                                                MBRange &shared_ents) 
+MBErrorCode MBParallelComm::get_iface_entities(int other_proc,
+                                               int dim,
+                                               MBRange &iface_ents) 
 {
-    // check shared entities
-  MBTag sharedproc_tag = 0, sharedprocs_tag = 0;
-  MBErrorCode result = mbImpl->tag_get_handle(PARALLEL_SHARED_PROC_TAG_NAME, 
-                                              sharedproc_tag);
-
-  result = mbImpl->tag_get_handle(PARALLEL_SHARED_PROCS_TAG_NAME, 
-                                  sharedprocs_tag);
-
-  if (0 == sharedproc_tag && 0 == sharedprocs_tag) 
-    return MB_SUCCESS;
-
-    // get the tag values
-  MBEntityType start_type = MBCN::TypeDimensionMap[dim].first,
-    end_type = MBCN::TypeDimensionMap[dim].second;
-  std::vector<int> proc_tags;
-  for (MBEntityType this_type = start_type; this_type <= end_type;
-       this_type++) {
-    MBRange tmp_ents;
-
-      // PARALLEL_SHARED_PROC is a dense tag, so all ents will have a
-      // value (the default value)
-    if (0 != sharedproc_tag) {
-      result = mbImpl->get_entities_by_type(0, this_type, tmp_ents);
-      RR("Trouble getting entities for shared entities.");
-      proc_tags.resize(tmp_ents.size());
-      if (!tmp_ents.empty()) {
-        result = mbImpl->tag_get_data(sharedproc_tag, 
-                                      tmp_ents, &proc_tags[0]);
-        RR("Trouble getting tag data for shared entities.");
-      }
-      int i;
-      MBRange::iterator rit;
-      for (i = 0, rit = tmp_ents.begin(); rit != tmp_ents.end(); i++, rit++) 
-        if (proc_tags[i] > -1) shared_ents.insert(*rit);
-    }
-    if (0 != sharedprocs_tag) {
-      // PARALLEL_SHARED_PROCS is a sparse tag, so only entities with this
-      // tag set will have one
-      result = mbImpl->get_entities_by_type_and_tag(0, this_type, 
-                                                    &sharedprocs_tag,
-                                                    NULL, 1, shared_ents,
-                                                    MBInterface::UNION);
-      RR("Trouble getting sharedprocs_tag for shared entities.");
-    }
+  MBRange iface_sets;
+  std::vector<int> iface_procs;
+  MBErrorCode result = get_iface_sets_procs(iface_sets, iface_procs);
+  RRA("Failed to get iface sets/procs.");
+  
+  for (MBRange::iterator rit = iface_sets.begin(); rit != iface_sets.end(); rit++) {
+    if (-1 != other_proc && !is_iface_proc(*rit, other_proc)) continue;
+    
+    if (-1 == dim) result = mbImpl->get_entities_by_handle(*rit, iface_ents);
+    else result = mbImpl->get_entities_by_dimension(*rit, dim, iface_ents);
+    RRA(" Failed to get entities in iface set.");
   }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode MBParallelComm::get_pstatus_entities(int dim,
+                                                 unsigned char pstatus_val,
+                                                 MBRange &pstatus_ents)
+{
+  MBRange ents;
+  MBErrorCode result;
+  
+  if (-1 == dim) result = mbImpl->get_entities_by_handle(0, ents);
+  else result = mbImpl->get_entities_by_dimension(0, dim, ents);
+  RRA(" ");
+  
+  std::vector<unsigned char> pstatus(ents.size());
+  result = mbImpl->tag_get_data(pstatus_tag(), ents, &pstatus[0]);
+  RRA("Couldn't get pastatus tag.");
+  MBRange::iterator rit = ents.begin();
+  int i = 0;
+  for (; rit != ents.end(); i++, rit++)
+    if (pstatus[i]&pstatus_val &&
+        (-1 == dim || mbImpl->dimension_from_handle(*rit) == dim)) 
+      pstatus_ents.insert(*rit);
 
   return MB_SUCCESS;
 }
-  
+
 MBErrorCode MBParallelComm::check_global_ids(MBEntityHandle this_set,
                                              const int dimension, 
                                              const int start_id,

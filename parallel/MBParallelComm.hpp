@@ -180,16 +180,28 @@ public:
   MBErrorCode resolve_shared_ents(int resolve_dim = 3, 
                                   int shared_dim = -1);
   
-    /** \brief Get entities shared with other processors, based on 
+    /** \brief Get entities with the given pstatus bit(s) set
+     * Returns any entities whose pstatus tag value v satisfies (v & pstatus_val)
      *
-     * PARALLEL_SHARED_PROC_TAG_NAME and PARALLEL_SHARED_PROCS_TAG_NAME.
-     *
-     * \param dim Dimension of entities shared with other processors
-     * \param shared_ents Shared entities returned in this range
+     * \param dim Dimension of entities to be returned, or -1 if any
+     * \param pstatus_val pstatus value of desired entities
+     * \param pstatus_ents Entities returned from function
      */
-  MBErrorCode get_shared_entities(int dim,
-                                  MBRange &shared_ents);
-
+  MBErrorCode get_pstatus_entities(int dim,
+                                   unsigned char pstatus_val,
+                                   MBRange &pstatus_ents);
+  
+    /** \brief Get entities on an inter-processor interface and of specified dimension
+     * If other_proc is -1, any interface entities are returned.  If dim is -1,
+     * entities of all dimensions on interface are returned.
+     * \param other_proc Rank of processor for which interface entities are requested
+     * \param dim Dimension of interface entities requested
+     * \param iface_ents Entities returned from function
+     */
+  MBErrorCode get_iface_entities(int other_proc,
+                                 int dim,
+                                 MBRange &iface_ents);
+  
     //! pack the buffer with ALL data for orig_ents; return entities actually
     //! packed (including reference sub-entities) in final_ents
   MBErrorCode pack_buffer(MBRange &orig_ents,

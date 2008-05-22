@@ -175,24 +175,24 @@ int main(int argc, char **argv)
         // now figure out which vertices are shared
       MBParallelComm *pcomm = new MBParallelComm(mbImpl);
 
-      MBRange shared_ents[6];
+      MBRange iface_ents[6];
       for (int i = 0; i < 4; i++) {
-        tmp_result = pcomm->get_shared_entities(i, shared_ents[i]);
+        tmp_result = pcomm->get_iface_entities(-1, i, iface_ents[i]);
       
         if (MB_SUCCESS != tmp_result) {
-          std::cerr << "get_shared_entities returned error on proc " 
+          std::cerr << "get_iface_entities returned error on proc " 
                     << rank << "; message: " << std::endl;
           PRINT_LAST_ERROR
               result = tmp_result;
         }
-        if (0 != i) shared_ents[4].merge(shared_ents[i]);
+        if (0 != i) iface_ents[4].merge(iface_ents[i]);
       }
       
       if (0 == rank) setime = MPI_Wtime();
 
-        // check # shared entities
-      if (0 <= nshared && nshared != (int) shared_ents[0].size()) {
-        std::cerr << "Didn't get correct number of shared vertices on "
+        // check # iface entities
+      if (0 <= nshared && nshared != (int) iface_ents[0].size()) {
+        std::cerr << "Didn't get correct number of iface vertices on "
                   << "processor " << rank << std::endl;
         result = MB_FAILURE;
       }
@@ -202,24 +202,24 @@ int main(int argc, char **argv)
                 << " succeeded." << std::endl;
 
       if (-1 == nshared) {
-        result = mbImpl->get_adjacencies(shared_ents[4], 0, false, shared_ents[5], 
+        result = mbImpl->get_adjacencies(iface_ents[4], 0, false, iface_ents[5], 
                                          MBInterface::UNION);
         
-        std::cerr << "Proc " << rank << " shared entities: " << std::endl;
+        std::cerr << "Proc " << rank << " iface entities: " << std::endl;
         for (int i = 0; i < 4; i++)
-          std::cerr << "    " << shared_ents[i].size() << " "
-                    << i << "d shared entities." << std::endl;
-        std::cerr << "    (" << shared_ents[5].size() 
-                  << " verts adj to other shared ents)" << std::endl;
+          std::cerr << "    " << iface_ents[i].size() << " "
+                    << i << "d iface entities." << std::endl;
+        std::cerr << "    (" << iface_ents[5].size() 
+                  << " verts adj to other iface ents)" << std::endl;
       }
       
       if (debug && 2 == nprocs) {
           // if I'm root, get and print handles on other procs
-        std::vector<MBEntityHandle> sharedh_tags(shared_ents[0].size());
+        std::vector<MBEntityHandle> sharedh_tags(iface_ents[0].size());
         std::fill(sharedh_tags.begin(), sharedh_tags.end(), 0);
         MBTag dumt, sharedh_tag;
         result = pcomm->get_shared_proc_tags(dumt, dumt, sharedh_tag, dumt, dumt);
-        result = mbImpl->tag_get_data(sharedh_tag, shared_ents[0], &sharedh_tags[0]);
+        result = mbImpl->tag_get_data(sharedh_tag, iface_ents[0], &sharedh_tags[0]);
         if (MB_SUCCESS != result) {
           std::cerr << "Couldn't get shared handle tag." << std::endl;
         }
