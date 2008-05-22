@@ -175,20 +175,22 @@ int main(int argc, char **argv)
         // now figure out which vertices are shared
       MBParallelComm *pcomm = new MBParallelComm(mbImpl);
 
-      MBRange shared_ents;
-      tmp_result = pcomm->get_shared_entities(0, shared_ents);
+      MBRange shared_ents[4];
+      for (int i = 0; i < 4; i++) {
+        tmp_result = pcomm->get_shared_entities(i, shared_ents[i]);
       
-      if (MB_SUCCESS != tmp_result) {
-        std::cerr << "get_shared_entities returned error on proc " 
-                  << rank << "; message: " << std::endl;
-        PRINT_LAST_ERROR
-        result = tmp_result;
+        if (MB_SUCCESS != tmp_result) {
+          std::cerr << "get_shared_entities returned error on proc " 
+                    << rank << "; message: " << std::endl;
+          PRINT_LAST_ERROR
+              result = tmp_result;
+        }
       }
-  
+      
       if (0 == rank) setime = MPI_Wtime();
 
         // check # shared entities
-      if (0 <= nshared && nshared != (int) shared_ents.size()) {
+      if (0 <= nshared && nshared != (int) shared_ents[0].size()) {
         std::cerr << "Didn't get correct number of shared vertices on "
                   << "processor " << rank << std::endl;
         result = MB_FAILURE;
@@ -198,17 +200,20 @@ int main(int argc, char **argv)
         std::cerr << "Proc " << rank << " option " << this_opt
                 << " succeeded." << std::endl;
 
-      if (-1 == nshared)
-        std::cerr << "Proc " << rank << " " << shared_ents.size()
-                  << " shared vertices." << std::endl;
-
+      if (-1 == nshared) {
+        std::cerr << "Proc " << rank << " shared entities: " << std::endl;
+        for (int i = 0; i < 4; i++)
+          std::cerr << "    " << shared_ents[i].size() << " "
+                    << i << "d shared entities." << std::endl;
+      }
+      
       if (debug && 2 == nprocs) {
           // if I'm root, get and print handles on other procs
-        std::vector<MBEntityHandle> sharedh_tags(shared_ents.size());
+        std::vector<MBEntityHandle> sharedh_tags(shared_ents[0].size());
         std::fill(sharedh_tags.begin(), sharedh_tags.end(), 0);
         MBTag dumt, sharedh_tag;
         result = pcomm->get_shared_proc_tags(dumt, dumt, sharedh_tag, dumt, dumt);
-        result = mbImpl->tag_get_data(sharedh_tag, shared_ents, &sharedh_tags[0]);
+        result = mbImpl->tag_get_data(sharedh_tag, shared_ents[0], &sharedh_tags[0]);
         if (MB_SUCCESS != result) {
           std::cerr << "Couldn't get shared handle tag." << std::endl;
         }

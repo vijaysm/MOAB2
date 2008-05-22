@@ -19,7 +19,7 @@
 #include <numeric>
 
 #define MIN(a,b) (a < b ? a : b)
-const bool debug = true;
+const bool debug = false;
 const bool debug_packing = false;
 
 #include <math.h>
