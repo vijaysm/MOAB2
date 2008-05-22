@@ -593,7 +593,8 @@ public:
     //@{
 
     //! Retrieves all entities of a given topological dimension in the database or meshset.
-    /** \param meshset Meshset whose entities are being queried (zero if query is for entire mesh).
+    /** Appends entities to list passed in.
+        \param meshset Meshset whose entities are being queried (zero if query is for entire mesh).
         \param dimension Topological dimension of entities desired.
         \param entities Range in which entities of dimension <em>dimension</em> are returned.
         \param recursive If true, meshsets containing meshsets are queried recursively.  Returns
@@ -611,7 +612,8 @@ public:
                                                 const bool recursive = false)  const = 0;
 
     //! Retrieve all entities of a given type in the database or meshset.
-    /** \param meshset Meshset whose entities are being queried (zero if query is for entire mesh).
+    /** Appends entities to list passed in.
+        \param meshset Meshset whose entities are being queried (zero if query is for entire mesh).
         \param type Type of entities to be returned
         \param entities Range in which entities of type <em>type</em> are returned.
         \param recursive If true, meshsets containing meshsets are queried recursively.  Returns
@@ -671,7 +673,8 @@ public:
                                                    const bool recursive = false) const = 0;
 
     //! Returns all entities in the data base or meshset, in a range (order not preserved)
-    /** \param meshset Meshset whose entities are being queried (zero if query is for the entire mesh).
+    /** Appends entities to list passed in.
+        \param meshset Meshset whose entities are being queried (zero if query is for the entire mesh).
         \param entities Range in which entities are returned.
         \param recursive If true, meshsets containing meshsets are queried recursively.  Returns
                          the contents of meshsets, but not the meshsets themselves if true.
@@ -687,7 +690,8 @@ public:
                                              const bool recursive = false) const = 0;
 
     //! Returns all entities in the data base or meshset, in a vector (order preserved)
-    /** \param meshset Meshset whose entities are being queried (zero if query is for the entire mesh).
+    /** Appends entities to list passed in.
+        \param meshset Meshset whose entities are being queried (zero if query is for the entire mesh).
         \param entities STL vector in which entities are returned.
         \param recursive If true, meshsets containing meshsets are queried recursively.  Returns
                          the contents of meshsets, but not the meshsets themselves if true.

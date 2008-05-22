@@ -257,6 +257,7 @@ private:
                                  const bool adjacencies,
                                  const bool tags,
                                  const bool store_remote_handles,
+                                 const bool iface_layer,
                                  std::vector<unsigned char> &send_buff,
                                  std::vector<unsigned char> &recv_buff,
                                  MPI_Request &send_req,
@@ -271,13 +272,22 @@ private:
   
     //! process contents of receive buffer to get new entities; if store_remote_handles
     //! is true, also Isend (using send_buff) handles for these entities back to 
-    //! source proc, returning request handle in &send_req
+    //! source proc, returning request handle in &send_req; if iface_layer is true,
+    //! don't instantiate the entities, just check to see if they correspond to 
+    //! existing entities, and if not, set corresponding recd_ents handle to zero
   MBErrorCode recv_unpack_entities(const int from_proc,
                                    const bool store_remote_handles,
+                                   const bool iface_layer,
                                    std::vector<unsigned char> &recv_buff,
                                    std::vector<unsigned char> &send_buff,
                                    MPI_Request &send_req,
                                    MBRange &recd_ents);
+  
+    //! for all the entities in the received buffer; for each, save
+    //! entities in this instance which match connectivity, or zero if none found
+  MBErrorCode unpack_iface_entities(unsigned char *&buff_ptr, 
+                                    const int from_proc,
+                                    std::vector<MBEntityHandle> &recd_ents);
   
   MBErrorCode pack_entities(MBRange &entities,
                             MBRange::const_iterator &start_rit,
@@ -292,9 +302,9 @@ private:
                             std::vector<int> &verts_per_entity);
   
   MBErrorCode unpack_entities(unsigned char *&buff_ptr,
-                              MBRange &entities,
                               const bool store_remote_handles,
-                              const int from_proc);
+                              const int from_proc,
+                              MBRange &entities);
   
   MBErrorCode pack_sets(MBRange &entities,
                         MBRange::const_iterator &start_rit,
@@ -355,10 +365,18 @@ private:
                               MBRange *skin_ents,
                               std::map<std::vector<int>, MBRange> &proc_nranges);
 
+    // each iterate in proc_nranges contains a set of procs and the entities *possibly*
+    // on the interface between those procs; this function makes sets for each,
+    // and tags the set with the procs sharing it; interface sets are optionally
+    // returned; NOTE: a subsequent step is used to verify entities on the interface
+    // and remove them if they're not shared
   MBErrorCode create_interface_sets(std::map<std::vector<int>, MBRange> &proc_nranges,
                                     int resolve_dim, int shared_dim,
                                     MBRange *iface_sets_ptr = NULL);
 
+    // after verifying shared entities, now parent/child links between sets can be established
+  MBErrorCode create_iface_pc_links(MBRange &iface_sets);
+  
     //! resolve remote handles for shared non-vertex ents, assuming
     //! this has already been done for vertices
   MBErrorCode resolve_ent_remote_handles(MBRange &iface_sets);
@@ -383,6 +401,13 @@ private:
   
     //! returns true if the set is an interface shared with to_proc
   bool is_iface_proc(MBEntityHandle this_set, int to_proc);
+  
+    //! for any remote_handles set to zero, remove corresponding sent_ents from
+    //! iface_sets corresponding to from_proc
+  MBErrorCode update_iface_sets(MBRange &iface_sets, 
+                                MBRange &sent_ents,
+                                std::vector<MBEntityHandle> &remote_handles, 
+                                int from_proc);
   
     //! replace handles in from_vec with corresponding handles on
     //! to_proc (by checking shared[p/h]_tag and shared[p/h]s_tag;
@@ -431,6 +456,19 @@ private:
                               MBEntityHandle *remote_ents,
                               int num_ents,
                               int other_proc);
+  
+    //! remove a remote processor and the entity's handle
+  MBErrorCode rmv_remote_proc(MBEntityHandle ent,
+                              int *remote_procs,
+                              MBEntityHandle *remote_hs,
+                              int remote_proc);
+  
+    //! add a remote processor and the entity's handle
+  MBErrorCode add_remote_proc(MBEntityHandle ent,
+                              int *remote_procs,
+                              MBEntityHandle *remote_hs,
+                              int remote_proc,
+                              MBEntityHandle remote_handle);
   
     //! returns the interface sets and union of sharing procs
   MBErrorCode get_iface_sets_procs(MBRange &iface_sets,
