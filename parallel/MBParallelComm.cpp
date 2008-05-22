@@ -745,7 +745,7 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
   if (!just_count) {
     result = mbImpl->query_interface(std::string("MBWriteUtilIface"), 
                                      reinterpret_cast<void**>(&wu));
-    RR("Couldn't get MBWriteUtilIface.");
+    RRA("Couldn't get MBWriteUtilIface.");
 
   }
   
@@ -768,7 +768,7 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
       assert(NULL != wu);
     
       result = wu->get_node_arrays(3, num_verts, all_ranges[0], 0, 0, coords);
-      RR("Couldn't allocate node space.");
+      RRA("Couldn't allocate node space.");
       PC(3*num_verts, " doubles");
 
       buff_ptr += 3 * num_verts * sizeof(double);
@@ -808,7 +808,7 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
       EntitySequence *seq;
       ElementSequence *eseq;
       result = sequenceManager->find(*start_rit, seq);
-      RR("Couldn't find entity sequence.");
+      RRA("Couldn't find entity sequence.");
 
       if (NULL == seq) return MB_FAILURE;
       eseq = dynamic_cast<ElementSequence*>(seq);
@@ -844,7 +844,7 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
       // and remove entities already there
     result = mbImpl->get_adjacencies(whole_range, 0, false, all_ranges[0], 
                                      MBInterface::UNION);
-    RR("Failed get_adjacencies.");
+    RRA("Failed get_adjacencies.");
 
     if (store_remote_handles) {
       whole_range = whole_range.subtract(all_ranges[0]);
@@ -916,7 +916,7 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
       result = get_remote_handles(store_remote_handles, start_vec, start_vec,
                                   *nv_it*(*allr_it).size(), to_proc,
                                   whole_range);
-      RR("Trouble getting remote handles when packing entities.");
+      RRA("Trouble getting remote handles when packing entities.");
 
         // pack the handles
       if (store_remote_handles)
@@ -979,7 +979,7 @@ MBErrorCode MBParallelComm::get_remote_handles(const bool store_remote_handles,
                                   to_vec);
     RRA("Failed to get shared handle tag for remote_handles.");
     result = mbImpl->tag_get_data(sharedp_tag, from_vec, num_ents, &sharing_procs[0]);
-    RR("Failed to get sharing proc tag in remote_handles.");
+    RRA("Failed to get sharing proc tag in remote_handles.");
     for (int j = 0; j < num_ents; j++) {
       if (to_vec[j] && sharing_procs[j] != to_proc)
         to_vec[j] = 0;
@@ -994,13 +994,16 @@ MBErrorCode MBParallelComm::get_remote_handles(const bool store_remote_handles,
       if (!to_vec[i]) {
         result = mbImpl->tag_get_data(sharedps_tag, from_vec+i, 1, tmp_procs);
         if (MB_SUCCESS == result) {
-          for (int j = 0; j < MAX_SHARING_PROCS; j++)
-            if (tmp_procs[j] == to_proc) {
+          for (int j = 0; j < MAX_SHARING_PROCS; j++) {
+            if (-1 == tmp_procs[j]) break;
+            else if (tmp_procs[j] == to_proc) {
               result = mbImpl->tag_get_data(sharedhs_tag, from_vec+i, 1, tmp_handles);
               RRA("Trouble getting sharedhs tag.");
               to_vec[i] = tmp_handles[j];
+              assert(to_vec[i]);
               break;
             }
+          }
         }
         if (!to_vec[i]) {
           int j = new_ents.index(from_vec[i]);
@@ -1058,7 +1061,7 @@ MBErrorCode MBParallelComm::get_remote_handles(const bool store_remote_handles,
     result = mbImpl->tag_get_data(sharedh_tag, from_range, to_vec);
     RRA("Failed to get shared handle tag for remote_handles.");
     result = mbImpl->tag_get_data(sharedp_tag, from_range, &sharing_procs[0]);
-    RR("Failed to get sharing proc tag in remote_handles.");
+    RRA("Failed to get sharing proc tag in remote_handles.");
     for (unsigned int j = 0; j < from_range.size(); j++) {
       if (to_vec[j] && sharing_procs[j] != to_proc)
         to_vec[j] = 0;
@@ -1128,7 +1131,7 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
   MBReadUtilIface *ru = NULL;
   result = mbImpl->query_interface(std::string("MBReadUtilIface"), 
                                    reinterpret_cast<void**>(&ru));
-  RR("Failed to get MBReadUtilIface.");
+  RRA("Failed to get MBReadUtilIface.");
   
   
   while (!done) {
@@ -1151,7 +1154,7 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
         std::vector<double*> coords(3);
         result = ru->get_node_arrays(3, num_ents, 0, proc_config().proc_rank(), 
                                      actual_start, coords);
-        RR("Failed to allocate node arrays.");
+        RRA("Failed to allocate node arrays.");
 
         entities.insert(actual_start, actual_start+num_ents-1);
       
@@ -1169,7 +1172,7 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
           MBRange dum_range;
           UNPACK_RANGE(buff_ptr, dum_range);
           result = set_remote_data(this_range, dum_range, from_proc);
-          RR("Couldn't set sharing data");
+          RRA("Couldn't set sharing data");
         }
       }
     }
@@ -1184,7 +1187,7 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
       result = ru->get_element_array(num_ents, verts_per_entity, this_type,
                                      0, proc_config().proc_rank(), actual_start,
                                      connect);
-      RR("Failed to allocate element arrays.");
+      RRA("Failed to allocate element arrays.");
 
         // unpack the connectivity
       UNPACK_EH(buff_ptr, connect, (num_ents*verts_per_entity));
@@ -1193,7 +1196,7 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
         // convert to local handles
       result = get_local_handles(connect, num_ents*verts_per_entity,
                                  entities);
-      RR("Couldn't get local handles.");
+      RRA("Couldn't get local handles.");
 
       if (store_remote_handles) {
           // unpack source handles
@@ -1202,7 +1205,7 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
         MBRange dum_range;
         UNPACK_RANGE(buff_ptr, dum_range);
         result = set_remote_data(this_range, dum_range, from_proc);
-        RR("Couldn't set sharing data");
+        RRA("Couldn't set sharing data");
       }
     }
 
@@ -1335,10 +1338,10 @@ MBErrorCode MBParallelComm::set_remote_data(MBRange &local_range,
   std::fill(remote_handles.begin(), remote_handles.end(), 0);
   result = mbImpl->tag_get_data(sharedp_tag, local_range,
                                 &remote_proc[0]);
-  RRA("Couldn't get sharedp tag.");
+  RRA("Couldn't get sharedp tag (range).");
   result = mbImpl->tag_get_data(sharedh_tag, local_range,
                                 &remote_handle[0]);
-  RRA("Couldn't get sharedh tag.");
+  RRA("Couldn't get sharedh tag (range).");
   MBRange::iterator rit, rit2;
   int i = 0;
 
@@ -1355,7 +1358,7 @@ MBErrorCode MBParallelComm::set_remote_data(MBRange &local_range,
       if (MB_SUCCESS == result) {
         result = mbImpl->tag_get_data(sharedhs_tag, &(*rit), 1,
                                       &remote_handles[0]);
-        RRA("Couldn't get sharedhs tag.");
+        RRA("Couldn't get sharedhs tag (range).");
       }
     }
 
@@ -1364,9 +1367,9 @@ MBErrorCode MBParallelComm::set_remote_data(MBRange &local_range,
       remote_procs[0] = other_proc;
       remote_handles[0] = *rit2;
       result = mbImpl->tag_set_data(sharedp_tag, &(*rit), 1, &remote_procs[0]);
-      RRA("Couldn't set sharedp tag");
+      RRA("Couldn't set sharedp tag (range)");
       result = mbImpl->tag_set_data(sharedh_tag, &(*rit), 1, &remote_handles[0]);
-      RRA("Couldn't set sharedh tag");
+      RRA("Couldn't set sharedh tag (range)");
       remote_procs[0] = -1;
       remote_handles[0] = 0;
     }
@@ -1383,9 +1386,9 @@ MBErrorCode MBParallelComm::set_remote_data(MBRange &local_range,
       remote_procs.pop_back();
       remote_handles.pop_back();
       result = mbImpl->tag_set_data(sharedps_tag, &(*rit), 1, &remote_procs[0]);
-      RRA("Couldn't set sharedps tag");
+      RRA("Couldn't set sharedps tag (range)");
       result = mbImpl->tag_set_data(sharedhs_tag, &(*rit), 1, &remote_handles[0]);
-      RRA("Couldn't set sharedhs tag");
+      RRA("Couldn't set sharedhs tag (range)");
       std::fill(remote_procs.begin(), remote_procs.end(), -1);
       std::fill(remote_handles.begin(), remote_handles.end(), 0);
     }
@@ -1394,11 +1397,11 @@ MBErrorCode MBParallelComm::set_remote_data(MBRange &local_range,
     // also update shared flag for these ents
   unsigned int *shared_flags = (unsigned int*) &remote_proc[0];
   result = mbImpl->tag_get_data(pstatus_tag, local_range, shared_flags);
-  RRA("Couldn't get shared tag");
+  RRA("Couldn't get pstatus tag (range)");
   for (unsigned int i = 0; i < local_range.size(); i++)
     shared_flags[i] |= PSTATUS_SHARED;
   result = mbImpl->tag_set_data(pstatus_tag, local_range, shared_flags);
-  RRA("Couldn't set shared tag");
+  RRA("Couldn't set pstatus tag (range)");
   
   
   return MB_SUCCESS;
@@ -1425,13 +1428,13 @@ MBErrorCode MBParallelComm::set_remote_data(MBEntityHandle *local_ents,
   std::vector<unsigned char> pstatus_vals(num_ents);
   result = mbImpl->tag_get_data(sharedp_tag, local_ents, num_ents,
                                 &remote_proc[0]);
-  RRA("Couldn't get sharedp tag.");
+  RRA("Couldn't get sharedp tag (vector)");
   result = mbImpl->tag_get_data(sharedh_tag, local_ents, num_ents,
                                 &remote_handle[0]);
-  RRA("Couldn't get sharedh tag.");
+  RRA("Couldn't get sharedh tag (vector)");
   result = mbImpl->tag_get_data(pstatus_tag, local_ents, num_ents,
                                 &pstatus_vals[0]);
-  RRA("Couldn't get sharedh tag.");
+  RRA("Couldn't get sharedh tag (vector)");
 
     // for each local/remote handle pair
   for (int i = 0; i != num_ents; i++) {
@@ -1449,7 +1452,7 @@ MBErrorCode MBParallelComm::set_remote_data(MBEntityHandle *local_ents,
       if (MB_SUCCESS == result) {
         result = mbImpl->tag_get_data(sharedhs_tag, local_ents+i, 1,
                                       remote_handles);
-        RRA("Couldn't get sharedhs tag.");
+        RRA("Couldn't get sharedhs tag (vector)");
       }
     }
 
@@ -1472,7 +1475,7 @@ MBErrorCode MBParallelComm::set_remote_data(MBEntityHandle *local_ents,
 
   result = mbImpl->tag_set_data(pstatus_tag, local_ents, 
                                 num_ents, &pstatus_vals[0]);
-  RRA("Couldn't set shared tag");
+  RRA("Couldn't set shared tag (vector)");
   
   return MB_SUCCESS;
 }
@@ -1615,7 +1618,7 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
     
       unsigned int options;
       result = mbImpl->get_meshset_options(*start_rit, options);
-      RR("Failed to get meshset options.");
+      RRA("Failed to get meshset options.");
       options_vec.push_back(options);
 
       if (options & MESHSET_SET) {
@@ -1632,7 +1635,7 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
           // just get the number of entities in the set
         int num_ents;
         result = mbImpl->get_number_entities_by_handle(*start_rit, num_ents);
-        RR("Failed to get number entities in ordered set.");
+        RRA("Failed to get number entities in ordered set.");
         set_sizes.push_back(num_ents);
 
           // set vec
@@ -1642,10 +1645,10 @@ MBErrorCode MBParallelComm::pack_sets(MBRange &entities,
         // get numbers of parents/children
       int num_par, num_ch;
       result = mbImpl->num_child_meshsets(*start_rit, &num_ch);
-      RR("Failed to get num children.");
+      RRA("Failed to get num children.");
 
       result = mbImpl->num_parent_meshsets(*start_rit, &num_par);
-      RR("Failed to get num parents.");
+      RRA("Failed to get num parents.");
 
       tot_parch += num_ch + num_par;
       
@@ -1871,7 +1874,7 @@ MBErrorCode MBParallelComm::unpack_sets(unsigned char *&buff_ptr,
   if (store_remote_handles && !new_sets.empty()) {
     UNPACK_RANGE(buff_ptr, dum_range);
     result = set_remote_data(new_sets, dum_range, from_proc);
-    RR("Couldn't set sharing data for sets");
+    RRA("Couldn't set sharing data for sets");
   }
 
   if (debug_packing) std::cerr << std::endl << "Done unpacking sets." << std::endl;
@@ -1924,13 +1927,13 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
 
     std::vector<MBTag> tmp_tags;
     result = tagServer->get_tags(tmp_tags);
-    RR("Failed to get tags in pack_tags.");
+    RRA("Failed to get tags in pack_tags.");
 
     for (std::vector<MBTag>::iterator tag_it = tmp_tags.begin(); tag_it != tmp_tags.end(); tag_it++) {
       const TagInfo *tinfo = tagServer->get_tag_info(*tag_it);
       MBRange tmp_range;
       result = tagServer->get_entities(*tag_it, tmp_range);
-      RR("Failed to get entities for tag in pack_tags.");
+      RRA("Failed to get entities for tag in pack_tags.");
       tmp_range = tmp_range.intersect(whole_range);
       
       if (tmp_range.empty())
@@ -1966,7 +1969,7 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
           var_len_values.resize( num_ent );
           result = tagServer->get_data( *tag_it, tmp_range, &var_len_values[0], 
                                         &var_len_sizes[0] );
-          RR("Failed to get lenghts of variable-length tag values.");
+          RRA("Failed to get lenghts of variable-length tag values.");
           count += std::accumulate( var_len_sizes.begin(), var_len_sizes.end(), 0 );
         }
         else {
@@ -2125,7 +2128,7 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
           tag_data_type != tag_info->get_data_type() ||
           (def_val_ptr && !tag_info->default_value()) ||
           (!def_val_ptr && tag_info->default_value())) {
-        RR("Didn't get correct tag info when unpacking tag.");
+        RRA("Didn't get correct tag info when unpacking tag.");
       }
     }
     else if (MB_SUCCESS != result) return result;
@@ -2171,12 +2174,12 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
       }
       result = mbImpl->tag_set_data( tag_handle, handle_vec, num_ents,
                                      &var_len_vals[0], size_arr );
-      RR("Trouble setting tag data when unpacking variable-length tag.");
+      RRA("Trouble setting tag data when unpacking variable-length tag.");
     }
     else {
       result = mbImpl->tag_set_data(tag_handle, handle_vec,
                                     num_ents, buff_ptr);
-      RR("Trouble setting range-based tag data when unpacking tag.");
+      RRA("Trouble setting range-based tag data when unpacking tag.");
       buff_ptr += num_ents * tag_size;
       UPC(num_ents * tag_size, " void");
     }
@@ -2208,7 +2211,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(int resolve_dim,
     // resolve dim is maximal dim of entities in proc_ents
   if (-1 == resolve_dim) {
     resolve_dim = mbImpl->dimension_from_handle(*proc_ents.rbegin()); 
-    RR("Couldn't get dimension.");
+    RRA("Couldn't get dimension.");
     
   }
 
@@ -2236,7 +2239,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
   if (-1 == shared_dim) {
     if (0 == resolve_dim) {
       result = mbImpl->get_dimension(shared_dim); 
-      RR("Couldn't get dimension.");
+      RRA("Couldn't get dimension.");
     }
     else shared_dim = mbImpl->dimension_from_handle(*proc_ents.begin())-1;
   }
@@ -2254,7 +2257,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
     result = mbImpl->get_adjacencies(proc_ents, shared_dim,
                                      false, skin_ents[resolve_dim],
                                      MBInterface::UNION);
-    RR("Failed getting skinned entities.");
+    RRA("Failed getting skinned entities.");
     skin_dim = shared_dim-1;
   }
   else {
@@ -2276,7 +2279,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
     result = mbImpl->get_adjacencies(skin_ents[skin_dim], this_dim,
                                      false, skin_ents[this_dim],
                                      MBInterface::UNION);
-    RR("Failed getting skin adjacencies.");
+    RRA("Failed getting skin adjacencies.");
   }
 
     // resolve shared vertices first
@@ -2305,11 +2308,11 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
                               MB_TYPE_INTEGER, idx_tag, &def_val, true);
   if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
   result = mbImpl->tag_set_data(idx_tag, skin_ents[0], &gid_data[0]);
-  RR("Couldn't assign index tag.");
+  RRA("Couldn't assign index tag.");
 
     // get gids for skin ents in a vector, to pass to gs
   result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &gid_data[0]);
-  RR("Couldn't get gid tag for skin vertices.");
+  RRA("Couldn't get gid tag for skin vertices.");
 
     // put handles in vector for passing to gs setup
   std::copy(skin_ents[0].begin(), skin_ents[0].end(), 
@@ -2327,7 +2330,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
                               MPI_INT, MPI_SUM, procConfig.proc_comm());
   if (failure) {
     result = MB_FAILURE;
-    RR("Allreduce for total number of shared ents failed.");
+    RRA("Allreduce for total number of shared ents failed.");
   }
   
     // call gather-scatter to get shared ids & procs
@@ -2346,7 +2349,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
   
   if (NULL == gsd) {
     result = MB_FAILURE;
-    RR("Couldn't create gs data.");
+    RRA("Couldn't create gs data.");
   }
 
     // get shared proc tags
@@ -2384,7 +2387,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
   MBRange proc_verts;
   result = mbImpl->get_adjacencies(proc_ents, 0, false, proc_verts,
                                    MBInterface::UNION);
-  RR("Couldn't get proc_verts.");
+  RRA("Couldn't get proc_verts.");
   
   result = tag_shared_verts(shared_verts, skin_ents,
                             proc_nranges, proc_verts);
@@ -2457,7 +2460,7 @@ MBErrorCode MBParallelComm::create_interface_sets(std::map<std::vector<int>, MBR
       // create the set
     MBEntityHandle new_set;
     result = mbImpl->create_meshset(MESHSET_SET, new_set); 
-    RR("Failed to create interface set.");
+    RRA("Failed to create interface set.");
     iface_sets_ptr->insert(new_set);
 
     int nump = 0;
@@ -2465,7 +2468,7 @@ MBErrorCode MBParallelComm::create_interface_sets(std::map<std::vector<int>, MBR
     
       // add entities
     result = mbImpl->add_entities(new_set, (*mit).second); 
-    RR("Failed to add entities to interface set.");
+    RRA("Failed to add entities to interface set.");
       // tag set with the proc rank(s)
     if (nump == 1)
       result = mbImpl->tag_set_data(sharedp_tag, &new_set, 1, 
@@ -2473,14 +2476,14 @@ MBErrorCode MBParallelComm::create_interface_sets(std::map<std::vector<int>, MBR
     else
       result = mbImpl->tag_set_data(sharedps_tag, &new_set, 1, 
                                     &((*mit).first)[0]); 
-    RR("Failed to tag interface set with procs.");
+    RRA("Failed to tag interface set with procs.");
 
       // get the owning proc, then set the pstatus tag on iface set
     int min_proc = ((*mit).first)[0];
     unsigned char pstatus = PSTATUS_SHARED;
     if (min_proc < (int) procConfig.proc_rank()) pstatus |= PSTATUS_NOT_OWNED;
     result = mbImpl->tag_set_data(pstatus_tag, &new_set, 1, &pstatus); 
-    RR("Failed to tag interface set with pstatus.");
+    RRA("Failed to tag interface set with pstatus.");
   }
 
     // set tag on interface instance holding all interface sets for this instance
@@ -2535,7 +2538,7 @@ MBErrorCode MBParallelComm::create_iface_pc_links(MBRange &iface_sets)
         // get entities on this interface
       iface_ents.clear();
       result = mbImpl->get_entities_by_handle(*rit, iface_ents, true);
-      RR("Couldn't get entities by dimension.");
+      RRA("Couldn't get entities by dimension.");
       if (iface_ents.empty() ||
           mbImpl->dimension_from_handle(*iface_ents.rbegin()) != d) continue;
 
@@ -2552,7 +2555,7 @@ MBErrorCode MBParallelComm::create_iface_pc_links(MBRange &iface_sets)
       for (unsigned int i = 0; i < tag_vals.size(); i++) {
         if (tag_vals[i] && tag_vals[i] != last_set) {
           result = mbImpl->add_parent_child(tag_vals[i], *rit);
-          RR("Couldn't add parent/child link for interface set.");
+          RRA("Couldn't add parent/child link for interface set.");
           last_set = tag_vals[i];
         }
       }
@@ -2561,7 +2564,7 @@ MBErrorCode MBParallelComm::create_iface_pc_links(MBRange &iface_sets)
   
     // delete the temporary tag
   result = mbImpl->tag_delete(tmp_iface_tag);
-  RR("Couldn't delete tmp iface tag.");
+  RRA("Couldn't delete tmp iface tag.");
 
   return MB_SUCCESS;
 }
@@ -2615,10 +2618,10 @@ MBErrorCode MBParallelComm::tag_shared_ents(int resolve_dim,
         
           // get sharing procs
         result = mbImpl->tag_get_data(sharedp_tag, connect+nc, 1, sharing_procs2);
-        RR("Couldn't get sharedp_tag on skin vertices in entity.");
+        RRA("Couldn't get sharedp_tag on skin vertices in entity.");
         if (sharing_procs2[0] == -1) {
           result = mbImpl->tag_get_data(sharedps_tag, connect+nc, 1, sharing_procs2);
-          RR("Couldn't get sharedps_tag on skin vertices in entity.");
+          RRA("Couldn't get sharedps_tag on skin vertices in entity.");
         }
         assert(-1 != sharing_procs2[0]);
         
@@ -2657,12 +2660,18 @@ MBErrorCode MBParallelComm::tag_shared_ents(int resolve_dim,
       if (2 > j) {
         result = mbImpl->tag_set_data(sharedp_tag, &(*rit), 1,
                                       &sharing_procs[0]);
+        RRA("Failed to set sharedp_tag on non-vertex skin entity.");
       }
       else {
         result = mbImpl->tag_set_data(sharedps_tag, &(*rit), 1,
                                       &sharing_procs[0]);
+        RRA("Failed to set sharedps_tag on non-vertex skin entity.");
+          // set hs tag as placeholder, will get filled in later
+        static std::vector<MBEntityHandle> sharing_hs(MAX_SHARING_PROCS, 0);
+        result = mbImpl->tag_set_data(sharedhs_tag, &(*rit), 1,
+                                      &sharing_hs[0]);
+        RRA("Failed to set sharedhs_tag on non-vertex skin entity.");
       }
-      RR("Failed to set sharedp(s)_tag on non-vertex skin entity.");
       
         // reset sharing proc(s) tags
       std::fill(sharing_procs.begin(), sharing_procs.end(), -1);
@@ -2722,7 +2731,7 @@ MBErrorCode MBParallelComm::tag_shared_verts(tuple_list &shared_ents,
       result = mbImpl->tag_set_data(sharedhs_tag, &this_ent, 1,
                                     sharing_handles);
     }
-    RR("Failed setting shared_procs tag on skin vertices.");
+    RRA("Failed setting shared_procs tag on skin vertices.");
 
     unsigned char share_flag = PSTATUS_SHARED;
     if (!proc_verts.empty() && proc_verts.find(this_ent) == proc_verts.end())
@@ -2799,7 +2808,7 @@ MBErrorCode MBParallelComm::check_global_ids(MBEntityHandle this_set,
                                           &def_val, true);
   if (MB_ALREADY_ALLOCATED != result &&
       MB_SUCCESS != result) {
-    RR("Failed to create/get gid tag handle.");
+    RRA("Failed to create/get gid tag handle.");
   }
 
   else if (MB_ALREADY_ALLOCATED != result) {
@@ -2854,45 +2863,53 @@ MBErrorCode MBParallelComm::get_iface_sets_procs(MBRange &iface_sets,
   MBTag iface_tag = iface_sets_tag();
   if (0 == iface_tag) return MB_FAILURE;
 
+    // make sure the sharing procs vector is empty
+  sharing_procs.clear();
+
+    // get the iface sets, which are stored on the instance
   int tag_sz;
   MBErrorCode result = mbImpl->tag_get_size(iface_tag, tag_sz);
   RRA("Failed to get iface tag size.");
   tag_sz /= sizeof(MBEntityHandle);
-  
   std::vector<MBEntityHandle> iface_sets_vec(tag_sz);
   result = mbImpl->tag_get_data(iface_tag, NULL, 0, &iface_sets_vec[0]);
   RRA("Failed to find iface tag.");
-  
+    // can do a straight copy because ranges don't keep 0-values
+  std::copy(iface_sets_vec.begin(), iface_sets_vec.end(), 
+            mb_range_inserter(iface_sets));
+
+    // pre-load vector of single-proc tag values
   unsigned int i, j;
-  for (i = 0; i < iface_sets_vec.size(); i++) 
-    if (0 != iface_sets_vec[i]) iface_sets.insert(iface_sets_vec[i]);
-  
   std::vector<int> iface_proc(iface_sets.size());
   result = mbImpl->tag_get_data(sharedp_tag(), iface_sets, &iface_proc[0]);
   RRA("Failed to get iface_proc for iface sets.");
-  
+
+    // get sharing procs either from single-proc vector or by getting
+    // multi-proc tag value
   int iface_procs[MAX_SHARING_PROCS];
+  std::set<int> procs_set;
   std::fill(iface_procs, iface_procs+MAX_SHARING_PROCS, -1);
   MBRange::iterator rit;
   for (rit = iface_sets.begin(), i = 0; rit != iface_sets.end(); rit++, i++) {
-    if (-1 != iface_proc[i]) iface_procs[0] = iface_proc[i];
+    if (-1 != iface_proc[i]) procs_set.insert(iface_proc[i]);
     else {
         // get the sharing_procs tag
       result = mbImpl->tag_get_data(sharedps_tag(), &(*rit), 1,
                                     &iface_procs[0]);
       RRA("Failed to get iface_procs for iface set.");
+      for (j = 0; j < MAX_SHARING_PROCS; j++) {
+        if (-1 != iface_procs[j]) procs_set.insert(iface_procs[j]);
+        else {
+          std::fill(iface_procs, iface_procs+j, -1);
+          break;
+        }
+      }
     }
-    
-    for (j = 0; j < MAX_SHARING_PROCS; j++) {
-      if (-1 == iface_procs[j]) break;
-      
-      if (std::find(sharing_procs.begin(), sharing_procs.end(), iface_procs[j])
-          == sharing_procs.end()) 
-        sharing_procs.push_back(iface_proc[j]);
-    }
-    std::fill(iface_procs, iface_procs+MAX_SHARING_PROCS, -1);
   }
 
+    // now put the set contents into the vector
+  std::copy(procs_set.begin(), procs_set.end(), std::back_inserter(sharing_procs));
+  
   return MB_SUCCESS;
 }
 
