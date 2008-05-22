@@ -175,7 +175,7 @@ int main(int argc, char **argv)
         // now figure out which vertices are shared
       MBParallelComm *pcomm = new MBParallelComm(mbImpl);
 
-      MBRange shared_ents[4];
+      MBRange shared_ents[6];
       for (int i = 0; i < 4; i++) {
         tmp_result = pcomm->get_shared_entities(i, shared_ents[i]);
       
@@ -185,6 +185,7 @@ int main(int argc, char **argv)
           PRINT_LAST_ERROR
               result = tmp_result;
         }
+        if (0 != i) shared_ents[4].merge(shared_ents[i]);
       }
       
       if (0 == rank) setime = MPI_Wtime();
@@ -201,10 +202,15 @@ int main(int argc, char **argv)
                 << " succeeded." << std::endl;
 
       if (-1 == nshared) {
+        result = mbImpl->get_adjacencies(shared_ents[4], 0, false, shared_ents[5], 
+                                         MBInterface::UNION);
+        
         std::cerr << "Proc " << rank << " shared entities: " << std::endl;
         for (int i = 0; i < 4; i++)
           std::cerr << "    " << shared_ents[i].size() << " "
                     << i << "d shared entities." << std::endl;
+        std::cerr << "    (" << shared_ents[5].size() 
+                  << " verts adj to other shared ents)" << std::endl;
       }
       
       if (debug && 2 == nprocs) {
