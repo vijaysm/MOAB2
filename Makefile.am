@@ -28,6 +28,7 @@ TESTS = moab_test \
         obb_test \
 	vtk_test \
 	adaptive_kd_tree_tests \
+	bsp_tree_test \
 	file_options_test \
         kd_tree_test \
         var_len_test var_len_test_no_template \
@@ -119,6 +120,8 @@ libMOAB_la_SOURCES = \
   MBAxisBox.hpp \
   MBBits.cpp \
   MBBits.hpp \
+  MBBSPTree.cpp \
+  MBBSPTree.hpp \
   MBCN.cpp \
   MBCNArrays.hpp \
   MBCartVect.cpp \
@@ -332,6 +335,9 @@ kd_tree_time_DEPENDENCIES = $(kd_tree_time_LDADD)
 
 kd_tree_test_SOURCES = kd_tree_test.cpp
 kd_tree_test_LDADD = $(top_builddir)/libMOAB.la
+
+bsp_tree_test_SOURCES = bsp_tree_test.cpp
+bsp_tree_test_LDADD = $(top_builddir)/libMOAB.la
 
 mbparallelcomm_test_SOURCES = mbparallelcomm_test.cpp
 mbparallelcomm_test_LDADD = $(top_builddir)/libMOAB.la
