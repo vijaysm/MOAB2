@@ -35,7 +35,7 @@ const char *MBCN::entityTypeNames[] = {
     "MaxType"
 };
 
-int MBCN::numberBasis = 0;
+short int MBCN::numberBasis = 0;
 
 const MBDimensionPair MBCN::TypeDimensionMap[] = 
 {
@@ -90,7 +90,7 @@ MBEntityType MBCN::EntityTypeFromName(const char *name)
 //}
 
 //! given an entity and a target dimension & side number, get that entity
-int MBCN::AdjacentSubEntities(const MBEntityType this_type,
+short int MBCN::AdjacentSubEntities(const MBEntityType this_type,
                               const int *source_indices,
                               const int num_source_indices,
                               const int source_dim,
@@ -167,7 +167,7 @@ int MBCN::AdjacentSubEntities(const MBEntityType this_type,
 }
 
 template <typename T> 
-int side_number(const T *parent_conn, 
+short int side_number(const T *parent_conn, 
                 const MBEntityType parent_type,
                 const T *child_conn,
                 const int child_num_verts,
@@ -189,7 +189,7 @@ int side_number(const T *parent_conn,
                     child_dim, side_no, sense, offset);
 }
 
-int MBCN::SideNumber(const int *parent_conn, const MBEntityType parent_type,
+short int MBCN::SideNumber(const MBEntityType parent_type, const int *parent_conn, 
                      const int *child_conn, const int child_num_verts,
                      const int child_dim,
                      int &side_no, int &sense, int &offset) 
@@ -198,7 +198,7 @@ int MBCN::SideNumber(const int *parent_conn, const MBEntityType parent_type,
                      child_dim, side_no, sense, offset);
 }
 
-int MBCN::SideNumber(const unsigned int *parent_conn, const MBEntityType parent_type,
+short int MBCN::SideNumber(const MBEntityType parent_type, const unsigned int *parent_conn, 
                      const unsigned int *child_conn, const int child_num_verts,
                      const int child_dim,
                      int &side_no, int &sense, int &offset)
@@ -206,7 +206,7 @@ int MBCN::SideNumber(const unsigned int *parent_conn, const MBEntityType parent_
   return side_number(parent_conn, parent_type, child_conn, child_num_verts,
                      child_dim, side_no, sense, offset);
 }
-int MBCN::SideNumber(const long *parent_conn, const MBEntityType parent_type,
+short int MBCN::SideNumber(const MBEntityType parent_type, const long *parent_conn, 
                      const long *child_conn, const int child_num_verts,
                      const int child_dim,
                      int &side_no, int &sense, int &offset)
@@ -214,7 +214,7 @@ int MBCN::SideNumber(const long *parent_conn, const MBEntityType parent_type,
   return side_number(parent_conn, parent_type, child_conn, child_num_verts,
                      child_dim, side_no, sense, offset);
 }
-int MBCN::SideNumber(const unsigned long *parent_conn, const MBEntityType parent_type,
+short int MBCN::SideNumber(const MBEntityType parent_type, const unsigned long *parent_conn, 
                      const unsigned long *child_conn, const int child_num_verts,
                      const int child_dim,
                      int &side_no, int &sense, int &offset)
@@ -222,7 +222,7 @@ int MBCN::SideNumber(const unsigned long *parent_conn, const MBEntityType parent
   return side_number(parent_conn, parent_type, child_conn, child_num_verts,
                      child_dim, side_no, sense, offset);
 }
-int MBCN::SideNumber(void * const *parent_conn, const MBEntityType parent_type,
+short int MBCN::SideNumber(const MBEntityType parent_type, void * const *parent_conn, 
                      void * const *child_conn, const int child_num_verts,
                      const int child_dim,
                      int &side_no, int &sense, int &offset)
@@ -231,7 +231,7 @@ int MBCN::SideNumber(void * const *parent_conn, const MBEntityType parent_type,
                      child_dim, side_no, sense, offset);
 }
 
-int MBCN::SideNumber( const MBEntityType parent_type,
+short int MBCN::SideNumber( const MBEntityType parent_type,
                       const int *child_conn_indices,
                       const int child_num_verts,
                       const int child_dim,
@@ -301,7 +301,7 @@ int MBCN::SideNumber( const MBEntityType parent_type,
   //! \param child_index The index of the child element
   //! \param opposite_index The index of the opposite element
   //! \return status Returns 0 if successful, -1 if not
-int MBCN::OppositeSide(const MBEntityType parent_type,
+short int MBCN::OppositeSide(const MBEntityType parent_type,
                        const int child_index,
                        const int child_dim,
                        int &opposite_index,
@@ -485,7 +485,7 @@ bool MBCN::ConnectivityMatch( void* const *conn1_i,
 
   //! for an entity of this type and a specified subfacet (dimension and index), return
   //! the index of the higher order node for that entity in this entity's connectivity array
-int MBCN::HONodeIndex(const MBEntityType this_type, const int num_verts,
+short int MBCN::HONodeIndex(const MBEntityType this_type, const int num_verts,
                       const int subfacet_dim, const int subfacet_index) 
 {
   int i;
@@ -890,3 +890,76 @@ void MBCN_HONodeIndex(const int this_type, const int num_verts,
   *rval = MBCN::HONodeIndex((MBEntityType)this_type, num_verts, subfacet_dim, subfacet_index);
 
 }
+
+template <typename T> 
+inline int permute_this(MBEntityType t,
+                        const int dim,
+                        T* conn,
+                        const int indices_per_ent,
+                        const int num_entries) 
+{
+  static T tmp_conn[MB_MAX_SUB_ENTITIES];
+  assert(indices_per_ent <= MBCN::permuteVec[t][dim][MB_MAX_SUB_ENTITIES]);
+  if (indices_per_ent > MBCN::permuteVec[t][dim][MB_MAX_SUB_ENTITIES]) return 1;
+  short int *tvec = MBCN::permuteVec[t][dim];
+  T *pvec = conn;
+  for (int j = 0; j < num_entries; j++) {
+    for (int i = 0; i < indices_per_ent; i++)
+      tmp_conn[tvec[i]] = pvec[i];
+    memcpy(pvec, tmp_conn, indices_per_ent*sizeof(T));
+    pvec += indices_per_ent;
+  }
+
+  return 0;
+}
+
+template <typename T> 
+inline int rev_permute_this(MBEntityType t,
+                            const int dim,
+                            T* conn,
+                            const int indices_per_ent,
+                            const int num_entries) 
+{
+  static T tmp_conn[MB_MAX_SUB_ENTITIES];
+  assert(indices_per_ent <= MBCN::revPermuteVec[t][dim][MB_MAX_SUB_ENTITIES]);
+  if (indices_per_ent > MBCN::revPermuteVec[t][dim][MB_MAX_SUB_ENTITIES]) return 1;
+  short int *tvec = MBCN::revPermuteVec[t][dim];
+  T *pvec = conn;
+  for (int j = 0; j < num_entries; j++) {
+    for (int i = 0; i < indices_per_ent; i++)
+      tmp_conn[i] = pvec[tvec[i]];
+    memcpy(pvec, tmp_conn, indices_per_ent*sizeof(T));
+    pvec += indices_per_ent;
+  }
+
+  return 0;
+}
+
+//! Permute this vector
+inline int MBCN::permuteThis(const MBEntityType t, const int dim, int *pvec, 
+                             const int num_indices, const int num_entries) 
+{return permute_this(t, dim, pvec, num_indices, num_entries);}
+inline int MBCN::permuteThis(const MBEntityType t, const int dim, unsigned int *pvec, 
+                             const int num_indices, const int num_entries) 
+{return permute_this(t, dim, pvec, num_indices, num_entries);}
+inline int MBCN::permuteThis(const MBEntityType t, const int dim, long *pvec, 
+                             const int num_indices, const int num_entries) 
+{return permute_this(t, dim, pvec, num_indices, num_entries);}
+inline int MBCN::permuteThis(const MBEntityType t, const int dim, void **pvec, 
+                             const int num_indices, const int num_entries) 
+{return permute_this(t, dim, pvec, num_indices, num_entries);}
+
+//! Reverse permute this vector
+inline int MBCN::revPermuteThis(const MBEntityType t, const int dim, int *pvec, 
+                             const int num_indices, const int num_entries) 
+{return rev_permute_this(t, dim, pvec, num_indices, num_entries);}
+inline int MBCN::revPermuteThis(const MBEntityType t, const int dim, unsigned int *pvec, 
+                             const int num_indices, const int num_entries) 
+{return rev_permute_this(t, dim, pvec, num_indices, num_entries);}
+inline int MBCN::revPermuteThis(const MBEntityType t, const int dim, long *pvec, 
+                             const int num_indices, const int num_entries) 
+{return rev_permute_this(t, dim, pvec, num_indices, num_entries);}
+inline int MBCN::revPermuteThis(const MBEntityType t, const int dim, void **pvec, 
+                             const int num_indices, const int num_entries) 
+{return rev_permute_this(t, dim, pvec, num_indices, num_entries);}
+

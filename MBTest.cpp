@@ -4192,12 +4192,14 @@ MBErrorCode mb_canon_number_test(MBInterface *MB)
     for (int dim = 1; dim <= MBCN::Dimension(this_type); dim++) {
         // for each side of this dimension
       const MBCN::ConnMap &cm = MBCN::mConnectivityMap[this_type][dim-1];
+      int tmp_conn[MB_MAX_SUB_ENTITY_VERTICES];
 
       for (int side_no = 0; side_no < MBCN::NumSubEntities(this_type, dim); side_no++) {
 
+        for (int j = 0; j < MB_MAX_SUB_ENTITY_VERTICES; j++) tmp_conn[j] = cm.conn[side_no][j];
         int temp_result = 
           MBCN::SideNumber(this_type,
-                           cm.conn[side_no], 
+                           tmp_conn, 
                            MBCN::VerticesPerEntity(MBCN::SubEntityType(this_type, dim, side_no)),
                            dim, side, sense, offset);
         if (0 != temp_result) {

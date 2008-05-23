@@ -60,7 +60,7 @@ private:
   MBCN();
 
 //! the basis of the numbering system (normally 0 or 1, 0 by default)
-  static int numberBasis;
+  static short int numberBasis;
 
 //! switch the basis
   static void SwitchBasis(const int old_basis, const int new_basis);
@@ -76,19 +76,19 @@ public:
   struct ConnMap
   {
       // Topological dimension of this entry
-    int topo_dimension;
+    short int topo_dimension;
 
       // Number of sub-elements of this dimension
-    int num_sub_elements;
+    short int num_sub_elements;
     
       // Number of nodes in each sub-element of this dimension
-    int num_nodes_per_sub_element[MB_MAX_SUB_ENTITIES];
+    short int num_nodes_per_sub_element[MB_MAX_SUB_ENTITIES];
 
       // Type of each sub-element
     MBEntityType target_type[MB_MAX_SUB_ENTITIES];
 
       // Connectivity of each of the sub-elements
-    int conn[MB_MAX_SUB_ENTITIES][MB_MAX_SUB_ENTITY_VERTICES];
+    short int conn[MB_MAX_SUB_ENTITIES][MB_MAX_SUB_ENTITY_VERTICES];
   };
 
     // mConnectivityMap[i=entity type][j=0,1,2]:
@@ -106,10 +106,10 @@ public:
   struct UpConnMap
   {
       // Number of higher-dimensional entities using each sub-entity
-    int num_targets_per_source_element[MB_MAX_SUB_ENTITIES];
+    short int num_targets_per_source_element[MB_MAX_SUB_ENTITIES];
 
       // Higher-dimensional entities using each sub-entity
-    int targets_per_source_element[MB_MAX_SUB_ENTITIES][MB_MAX_SUB_ENTITIES];
+    short int targets_per_source_element[MB_MAX_SUB_ENTITIES][MB_MAX_SUB_ENTITIES];
   };
 
     // Reverse canonical numbering, duplicates data in mConnectivityMap, but 
@@ -118,13 +118,17 @@ public:
     // (not documented with Doxygen)
   static const UpConnMap mUpConnMap[MBMAXTYPE][4][4];
 
+    //! Permutation and reverse permutation vectors
+  static short int permuteVec[MBMAXTYPE][3][MB_MAX_SUB_ENTITIES+1];
+  static short int revPermuteVec[MBMAXTYPE][3][MB_MAX_SUB_ENTITIES+1];
+  
   //! this const vector defines the starting and ending MBEntityType for 
   //! each dimension, e.g. TypeDimensionMap[2] returns a pair of MBEntityTypes 
   //! bounding dimension 2.
   static const MBDimensionPair TypeDimensionMap[];
 
   //! get the basis of the numbering system
-  static int GetBasis();
+  static short int GetBasis();
   
   //! set the basis of the numbering system
   static void SetBasis(const int in_basis);
@@ -136,13 +140,13 @@ public:
   static MBEntityType EntityTypeFromName(const char *name);
   
   //! return the topological entity dimension
-  static int Dimension(const MBEntityType t);
+  static short int Dimension(const MBEntityType t);
 
   //! return the number of (corner) vertices contained in the specified type.  
-  static int VerticesPerEntity(const MBEntityType t);
+  static short int VerticesPerEntity(const MBEntityType t);
   
   //! return the number of sub-entities bounding the entity.
-  static int NumSubEntities(const MBEntityType t, const int d);
+  static short int NumSubEntities(const MBEntityType t, const int d);
 
   //! return the type of a particular sub-entity.
   //! \param this_type Type of entity for which sub-entity type is being queried
@@ -150,8 +154,8 @@ public:
   //! \param index Index of sub-entity whose type is being queried
   //! \return type Entity type of sub-entity with specified dimension and index
   static MBEntityType SubEntityType(const MBEntityType this_type,
-                                         const int sub_dimension,
-                                         const int index);
+                                    const int sub_dimension,
+                                    const int index);
   
   //! return the vertex indices of the specified sub-entity.
   //! \param this_type Type of entity for which sub-entity connectivity is being queried
@@ -186,7 +190,7 @@ public:
   //! \param index_list Indices of target entities (returned)
   //! \param operation_type Specify either MBCN::INTERSECT or MBCN::UNION to get intersection
   //!        or union of target entity lists over source entities
-  static int AdjacentSubEntities(const MBEntityType this_type,
+  static short int AdjacentSubEntities(const MBEntityType this_type,
                                  const int *source_indices,
                                  const int num_source_indices,
                                  const int source_dim,
@@ -205,23 +209,23 @@ public:
   //! \param sense Sense of child entity with respect to order in <em>child_conn</em> (returned)
   //! \param offset Offset of <em>child_conn</em> with respect to canonical ordering data (returned)
   //! \return status Returns zero if successful, -1 if not
-  static int SideNumber(const int *parent_conn, const MBEntityType parent_type,
-                        const int *child_conn, const int child_num_verts,
-                        const int child_dim,
+  static short int SideNumber(const MBEntityType parent_type, const int *parent_conn, 
+                              const int *child_conn, const int child_num_verts,
+                              const int child_dim,
                         int &side_number, int &sense, int &offset);
-  static int SideNumber(const unsigned int *parent_conn, const MBEntityType parent_type,
+  static short int SideNumber(const MBEntityType parent_type, const unsigned int *parent_conn, 
                         const unsigned int *child_conn, const int child_num_verts,
                         const int child_dim,
                         int &side_number, int &sense, int &offset);
-  static int SideNumber(const long *parent_conn, const MBEntityType parent_type,
+  static short int SideNumber(const MBEntityType parent_type, const long *parent_conn, 
                         const long *child_conn, const int child_num_verts,
                         const int child_dim,
                         int &side_number, int &sense, int &offset);
-  static int SideNumber(const unsigned long *parent_conn, const MBEntityType parent_type,
+  static short int SideNumber(const MBEntityType parent_type, const unsigned long *parent_conn, 
                         const unsigned long *child_conn, const int child_num_verts,
                         const int child_dim,
                         int &side_number, int &sense, int &offset);
-  static int SideNumber(void * const *parent_conn, const MBEntityType parent_type,
+  static short int SideNumber(const MBEntityType parent_type, void * const *parent_conn, 
                         void * const *child_conn, const int child_num_verts,
                         const int child_dim,
                         int &side_number, int &sense, int &offset);
@@ -236,7 +240,7 @@ public:
   //! \param sense Sense of child entity with respect to order in <em>child_conn</em> (returned)
   //! \param offset Offset of <em>child_conn</em> with respect to canonical ordering data (returned)
   //! \return status Returns zero if successful, -1 if not
-  static int SideNumber(const MBEntityType parent_type,
+  static short int SideNumber(const MBEntityType parent_type,
                         const int *child_conn_indices, const int child_num_verts,
                         const int child_dim,
                         int &side_number, int &sense, int &offset);
@@ -254,7 +258,7 @@ public:
   //! \param child_index The index of the child element
   //! \param opposite_index The index of the opposite element
   //! \return status Returns 0 if successful, -1 if not
-  static int OppositeSide(const MBEntityType parent_type,
+  static short int OppositeSide(const MBEntityType parent_type,
                           const int child_index,
                           const int child_dim,
                           int &opposite_index,
@@ -287,6 +291,56 @@ public:
                                 void* const* conn2,
                                 const int num_vertices,
                                 int& direct, int& offset );
+
+    //! Set permutation or reverse permutation vector
+    //! Forward permutation is from MBCN's numbering into application's ordering;
+    //! that is, if i is MBCN's index, pvec[i] is application's index.  This
+    //! function stores the permutation vector for this type and facet dimension,
+    //! which then is used in calls to permuteThis or revPermuteThis.
+    //! \param t EntityType for which to set permutation
+    //! \param dim Dimension of facets whose permutation array is being set
+    //! \param pvec Permutation array
+    //! \param num_entries Number of indicies in permutation array
+    //! \param is_reverse Array is reverse permutation
+  static void setPermutation(const MBEntityType t, const int dim, int *pvec, const int num_entries,
+                             const bool is_reverse = false);
+
+    //! Reset permutation or reverse permutation vector
+    //! \param t EntityType whose permutation vector is being reset
+    //! \param dim Dimension of facets being reset; if -1 is input, all dimensions are reset
+  static void resetPermutation(const MBEntityType t, const int dim);
+  
+    //! Permute a handle array according to permutation vector set with setPermute; 
+    //! permutation is done in-place
+    //! \param t EntityType of handles in pvec
+    //! \param dim Dimension of handles in pvec
+    //! \param pvec Handle array being permuted
+    //! \param indices_per_ent Number of indices per entity
+    //! \param num_entries Number of entities in pvec
+  static int permuteThis(const MBEntityType t, const int dim, int *pvec, 
+                         const int indices_per_ent, const int num_entries);
+  static int permuteThis(const MBEntityType t, const int dim, unsigned int *pvec, 
+                         const int indices_per_ent, const int num_entries);
+  static int permuteThis(const MBEntityType t, const int dim, long *pvec, 
+                         const int indices_per_ent, const int num_entries);
+  static int permuteThis(const MBEntityType t, const int dim, void **pvec, 
+                         const int indices_per_ent, const int num_entries);
+
+    //! Reverse permute a handle array according to reverse permutation vector set with setPermute; 
+    //! reverse permutation is done in-place
+    //! \param t EntityType of handles in pvec
+    //! \param dim Dimension of handles in pvec
+    //! \param pvec Handle array being reverse permuted
+    //! \param indices_per_ent Number of indices per entity
+    //! \param num_entries Number of entities in pvec
+  static int revPermuteThis(const MBEntityType t, const int dim, int *pvec, 
+                            const int indices_per_ent, const int num_entries);
+  static int revPermuteThis(const MBEntityType t, const int dim, unsigned int *pvec, 
+                            const int indices_per_ent, const int num_entries);
+  static int revPermuteThis(const MBEntityType t, const int dim, long *pvec, 
+                            const int indices_per_ent, const int num_entries);
+  static int revPermuteThis(const MBEntityType t, const int dim, void **pvec, 
+                            const int indices_per_ent, const int num_entries);
 
   //! true if entities of a given type and number of nodes indicates mid edge nodes are present.
   //! \param this_type Type of entity for which sub-entity connectivity is being queried
@@ -345,29 +399,29 @@ public:
   //! \param subfacet_dim Dimension of sub-entity being queried
   //! \param subfacet_index Index of sub-entity being queried
   //! \return index Index of sub-entity's higher-order node
-  static int HONodeIndex(const MBEntityType this_type, const int num_verts,
+  static short int HONodeIndex(const MBEntityType this_type, const int num_verts,
                          const int subfacet_dim, const int subfacet_index);
 };
 
   //! get the basis of the numbering system
-inline int MBCN::GetBasis() {return numberBasis;}
+inline short int MBCN::GetBasis() {return numberBasis;}
   
 inline const char *MBCN::EntityTypeName(const MBEntityType this_type) 
 {
   return entityTypeNames[this_type];
 }
 
-inline int MBCN::Dimension(const MBEntityType t) 
+inline short int MBCN::Dimension(const MBEntityType t) 
 {
   return mConnectivityMap[t][0].topo_dimension;
 }
 
-inline int MBCN::VerticesPerEntity(const MBEntityType t) 
+inline short int MBCN::VerticesPerEntity(const MBEntityType t) 
 {
   return (MBVERTEX == t ? 1 : mConnectivityMap[t][mConnectivityMap[t][0].topo_dimension-1].num_nodes_per_sub_element[0]);
 }
 
-inline int MBCN::NumSubEntities(const MBEntityType t, const int d)
+inline short int MBCN::NumSubEntities(const MBEntityType t, const int d)
 {
   return (t != MBVERTEX && d > 0 ? mConnectivityMap[t][d-1].num_sub_elements :
           (d ? -1 : VerticesPerEntity(t)));
@@ -469,6 +523,41 @@ inline void MBCN::HasMidNodes(const MBEntityType this_type, const int num_nodes,
   mid_nodes[3] = HasMidRegionNodes(this_type, num_nodes);
 }
 
+//! Set permutation or reverse permutation vector
+inline void MBCN::setPermutation(const MBEntityType t, const int dim, int *pvec, 
+                                 const int num_entries, const bool is_reverse) 
+{
+  short int *this_vec = permuteVec[t][dim], *that_vec = revPermuteVec[t][dim];
+  if (is_reverse) {
+    this_vec = revPermuteVec[t][dim];
+    that_vec = permuteVec[t][dim];
+  }
+
+  for (int i = 0; i < num_entries; i++) {
+    this_vec[i] = pvec[i];
+    that_vec[pvec[i]] = i;
+  }
+
+  this_vec[MB_MAX_SUB_ENTITIES] = that_vec[MB_MAX_SUB_ENTITIES] = num_entries;
+}
+
+//! Reset permutation or reverse permutation vector
+inline void MBCN::resetPermutation(const MBEntityType t, const int dim) 
+{
+  if (-1 == dim) {
+    for (unsigned int i = 0; i < 3; i++) resetPermutation(t, i);
+    return;
+  }
+  
+  for (unsigned int i = 0; i < MB_MAX_SUB_ENTITIES; i++) {
+    revPermuteVec[t][dim][i] = permuteVec[t][dim][i] = i;
+  }
+  
+  revPermuteVec[t][dim][MB_MAX_SUB_ENTITIES] = 
+    permuteVec[t][dim][MB_MAX_SUB_ENTITIES] = MB_MAX_SUB_ENTITIES+1;
+}
+
+
 #endif
 
 #ifdef __cplusplus
@@ -565,6 +654,35 @@ extern "C" {
                                     void* const* conn2,
                                     const int num_vertices,
                                     int* direct, int* offset , int *rval);
+
+    void MBCN_setPermutation(const MBEntityType t, const int dim, int *pvec, 
+                             const int num_entries, const int is_reverse);
+  
+    void MBCN_resetPermutation(const MBEntityType t, const int dim);
+
+    void MBCN_permuteThisInt(const MBEntityType t, const int dim, int *pvec, 
+                             const int num_indices, const int num_entries, int *rval);
+
+    void MBCN_permuteThisUint(const MBEntityType t, const int dim, unsigned int *pvec, 
+                              const int num_indices, const int num_entries, int *rval);
+
+    void MBCN_permuteThisLong(const MBEntityType t, const int dim, long *pvec, 
+                              const int num_indices, const int num_entries, int *rval);
+
+    void MBCN_permuteThisVoid(const MBEntityType t, const int dim, void **pvec, 
+                              const int num_indices, const int num_entries, int *rval);
+  
+    void MBCN_revPermuteThisInt(const MBEntityType t, const int dim, int *pvec, 
+                             const int num_indices, const int num_entries, int *rval);
+
+    void MBCN_revPermuteThisUint(const MBEntityType t, const int dim, unsigned int *pvec, 
+                              const int num_indices, const int num_entries, int *rval);
+
+    void MBCN_revPermuteThisLong(const MBEntityType t, const int dim, long *pvec, 
+                              const int num_indices, const int num_entries, int *rval);
+
+    void MBCN_revPermuteThisVoid(const MBEntityType t, const int dim, void **pvec, 
+                              const int num_indices, const int num_entries, int *rval);
 
     void MBCN_HasMidEdgeNodes(const int this_type, 
                               const int num_verts, int *rval);
