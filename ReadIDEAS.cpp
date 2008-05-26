@@ -79,7 +79,7 @@ void ReadIDEAS::skip_header() {
 
     il = std::strtol(line, &ctmp, 10);
     if (il == -1) {
-      s = ctmp+1;
+      s = ctmp;
       if (s.empty()) end_of_block++;
     }
     else end_of_block = 0;
@@ -89,6 +89,7 @@ void ReadIDEAS::skip_header() {
   }
 
 }
+
 
 
 void ReadIDEAS::create_vertices() {
@@ -114,8 +115,8 @@ void ReadIDEAS::create_vertices() {
     il1 = std::strtol(line1, &ctmp1, 10);
     il2 = std::strtol(line2, &ctmp2, 10);
     if ((il1 == -1) && (il2 == -1)) {
-      s1 = ctmp1+1;
-      s2 = ctmp2+1;
+      s1 = ctmp1;
+      s2 = ctmp2;
       if ((s1.empty()) && (s2.empty())) break;     
     }
     num_verts++;
@@ -163,6 +164,10 @@ void ReadIDEAS::create_tetrahedral_elements() {
   MBRange verts;
   rval = MBI->get_entities_by_type( mesh_handle, MBVERTEX, verts, true);
   MBEntityHandle vstart = *(verts.begin());
+
+  MBTag mat_prop_tag, phys_prop_tag;
+  rval = MBI->tag_create( MAT_PROP_TABLE_TAG  , sizeof(int), MB_TAG_DENSE, mat_prop_tag, 0); 
+  rval = MBI->tag_create( PHYS_PROP_TABLE_TAG , sizeof(int), MB_TAG_DENSE, phys_prop_tag, 0); 
  
   while (! file.eof() ) {
 
@@ -173,10 +178,14 @@ void ReadIDEAS::create_tetrahedral_elements() {
     il1 = std::strtol(line1, &ctmp1, 10);
     il2 = std::strtol(line2, &ctmp2, 10);
     if ((il1 == -1) && (il2 == -1)) {
-      s1 = ctmp1+1;
-      s2 = ctmp2+1;
+      s1 = ctmp1;
+      s2 = ctmp2;
       if ((s1.empty()) && (s2.empty())) break;     
     }
+
+    // Get property tables out of 1st line
+    int phys_table = strtol(line1+21, &ctmp1, 10);
+    int mat_table  = strtol(line1+31, &ctmp1, 10);
 
     // Get the connectivity out of the 2nd line
     connect[0] = vstart + strtol( line2, &ctmp2, 10) - 1;
@@ -187,10 +196,16 @@ void ReadIDEAS::create_tetrahedral_elements() {
     // Make the element
     rval = MBI->create_element(MBTET, connect, 4, handle);
     assert( MB_SUCCESS == rval );
-
+    
+    rval = MBI->tag_set_data(phys_prop_tag,&handle,1,&phys_table);
+    assert( MB_SUCCESS == rval);
+    
+    rval = MBI->tag_set_data(mat_prop_tag,&handle,1,&mat_table);
+    assert( MB_SUCCESS == rval);
+    
     rval = MBI->add_entities( mesh_handle, &handle, 1);
     assert( MB_SUCCESS == rval );
-
+    
   }
 
 }

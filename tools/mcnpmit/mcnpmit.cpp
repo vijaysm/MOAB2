@@ -152,9 +152,9 @@ MCNPError McnpData::read_mcnpfile(bool skip_mesh) {
                   // vstart = MCNP_vertices.front();
                   vstart = *(vert_handles.begin());
 
-                  for (int k=0; k < nv[2]-1; k++) {
-                    for (int j=0; j < nv[1]-1; j++) {
                       for (int i=0; i < nv[0]-1; i++) {
+                    for (int j=0; j < nv[1]-1; j++) {
+                  for (int k=0; k < nv[2]-1; k++) {
                         vijk = vstart + (i + j*nv[0] + k*nv[0]*nv[1]);
 
                         //std::cout << vijk << std::endl;                        
@@ -312,8 +312,8 @@ MCNPError McnpData::initialize_tags() {
 
       MBErrorCode rval;
 
-      rval = MBI->tag_create(TALLY_TAG, sizeof(double), MB_TAG_DENSE, tally_tag, 0);
-      rval = MBI->tag_create(ERROR_TAG, sizeof(double), MB_TAG_DENSE, relerr_tag, 0);
+      rval = MBI->tag_create(TALLY_TAG, sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, tally_tag, 0);
+      rval = MBI->tag_create(ERROR_TAG, sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, relerr_tag, 0);
 
       return MCNP_SUCCESS;
 

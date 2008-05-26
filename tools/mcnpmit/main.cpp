@@ -29,7 +29,7 @@ std::string CAD_filename;
 std::string output_filename;
 
 bool skip_build = false;
-bool read_unv   = false;
+bool read_qnv   = false;
 
 clock_t start_time, load_time, build_time, interp_time;
 
@@ -45,12 +45,14 @@ int main(int argc, char **argv) {
 
   // Parse the MCNP input file
   if (!skip_build) {
+
     result = MCNP -> read_mcnpfile(skip_build);
     if (result == MCNP_FAILURE) {
       std::cout << "Failure reading MCNP file!" << std::endl;
       return 1;
     }
-  }
+  } 
+    
 
   load_time = clock() - start_time;
 
@@ -73,6 +75,10 @@ int main(int argc, char **argv) {
     }
     else {
       std::cout << "Failure reading h5m file!" << std::endl;
+      std::cerr  << "Error code: " << MBI->get_error_string(MBresult) << " (" << MBresult << ")" << std::endl;
+      std::string message;
+      if (MB_SUCCESS == MBI->get_last_error(message) && !message.empty())
+	std::cerr << "Error message: " << message << std::endl;
       return 1;
     }
 
@@ -96,6 +102,11 @@ int main(int argc, char **argv) {
     }
     else {
       std::cout << "Error building KD-Tree!" << std::endl << std::endl;
+      std::cerr  << "Error code: " << MBI->get_error_string(MBresult) << " (" << MBresult << ")" << std::endl;
+      std::string message;
+      if (MB_SUCCESS == MBI->get_last_error(message) && !message.empty())
+	std::cerr << "Error message: " << message << std::endl;
+      return 1;
       return 1;
     }
   }
@@ -123,12 +134,12 @@ int main(int argc, char **argv) {
   std::string s;
   char line[10000];
 
-  // Used only when reading a .unv file to get vertex info
+  // Used only when reading a mesh file to get vertex info
   double *cfd_coords;
   MBRange::iterator cfd_iter;
   MBEntityHandle meshset;
 
-  if (!read_unv) {      
+  if (read_qnv) {      
     cadfile.open( CAD_filename.c_str() );
     cadfile.getline(line, 10000);
     cadfile.getline(line, 10000);
@@ -147,7 +158,7 @@ int main(int argc, char **argv) {
     MBresult = MBI->get_coords( cfd_verts , cfd_coords );  
 
     cfd_iter = cfd_verts.begin();
-    MBresult = MBI->tag_create("heating_tag", sizeof(double), MB_TAG_DENSE, cfd_heating_tag, 0); 
+    MBresult = MBI->tag_create("heating_tag", sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, cfd_heating_tag, 0); 
 
     std::cout << std::endl << "Read in mesh with query points." << std::endl << std::endl;
 
@@ -176,10 +187,15 @@ int main(int argc, char **argv) {
 //  double davg = 0.0;
 //  unsigned int    nmax = 0, nmin = 1000000000 ;
 
+  int status_freq = int(num_pts/100);
+
   for (unsigned int i = 0; i < (unsigned int) num_pts; i++) {
 
+    // if (i%status_freq == 0)
+    //	std::cerr << "Completed " << i/status_freq << "%" << std::endl;
+	
     // Grab the coordinates to query
-    if (!read_unv) { 
+    if (read_qnv) { 
       cadfile.getline(line, 10000);
 
       nl = std::strtol(line, &ctmp, 10); n  = (unsigned int) nl;
@@ -239,7 +255,7 @@ int main(int argc, char **argv) {
 		    << testpt[2] << ","
 		    << taldata   << std::endl;
 
-        if (read_unv) {
+        if (!read_qnv) {
           MBresult = MBI->tag_set_data(cfd_heating_tag, &(*cfd_iter), 1, &taldata);
           cfd_iter++;
         }
@@ -270,10 +286,9 @@ int main(int argc, char **argv) {
 
   interp_time = clock() - build_time;
 
-  if (read_unv) {
-    std::string cfd_mesh_fname = CAD_filename;
-    cfd_mesh_fname.erase( CAD_filename.find(".unv"), CAD_filename.length());
-    MBresult = MBI->write_mesh( (cfd_mesh_fname + ".h5m").c_str(), &meshset, 1);
+  if (!read_qnv) {
+    std::string out_mesh_fname = output_filename;
+    MBresult = MBI->write_mesh( (out_mesh_fname + ".h5m").c_str(), &meshset, 1);
     // MBresult = MBI->write_file( (cfd_mesh_fname + ".vtk").c_str(), "vtk", NULL, &meshset, 1, &cfd_heating_tag, 1);
   }
 
@@ -313,9 +328,9 @@ MCNPError read_files(int argc, char **argv) {
   str = argv[2];
   CAD_filename = str;
 
-  itmp = str.find(".unv");
+  itmp = str.find(".qnv");
   if ((itmp > 0) && (itmp < str.length()))
-    read_unv = true;
+    read_qnv = true;
 
   // Set the output filename
   str = argv[3];
