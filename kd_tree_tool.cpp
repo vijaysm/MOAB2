@@ -18,7 +18,7 @@ const char* TAG_NAME = "TREE_CELL";
 std::string clock_to_string( clock_t t );
 std::string mem_to_string( unsigned long mem );
 
-void build_tree( MBInterface* interface, 
+void build_tree( MBInterface* interface, const MBRange& elems,
                  MBAdaptiveKDTree::Settings settings, 
                  unsigned meshset_flags );
 void build_grid( MBInterface* iface,
@@ -27,7 +27,7 @@ void build_grid( MBInterface* iface,
                  const double dims[3] );
 void delete_existing_tree( MBInterface* interface );
 void print_stats( MBInterface* interface );
-void tag_triangles( MBInterface* interface );
+void tag_elements( MBInterface* interface );
 void tag_vertices( MBInterface* interface );
 void write_tree_blocks( MBInterface* interface, const char* file );
 
@@ -42,25 +42,27 @@ static const char* ds( MBAdaptiveKDTree::CandidatePlaneSet scheme )
 static void usage( bool err = true )
 {
   std::ostream& s = err ? std::cerr : std::cout;
-  s << "kd_tree_tool [-s|-S] [-d <int>] [-n <int>] [-u|-p|-m|-v] [-N <int>] <input file> <output file>" << std::endl
-    << "kd_tree_tool [-s|-S] [-d <int>] -G <dims> <output file>" << std::endl
+  s << "kd_tree_tool [-d <int>] [-2|-3] [-n <int>] [-u|-p|-m|-v] [-N <int>] [-s|-S] <input file> <output file>" << std::endl
+    << "kd_tree_tool [-d <int>] -G <dims> [-s|-S] <output file>" << std::endl
     << "kd_tree_tool [-h]" << std::endl;
   if (!err) {
     MBAdaptiveKDTree::Settings st;
-    s << "Tool to build adaptive kd-Tree from triangles" << std::endl;
-    s << "  -s        Use range-based sets for tree nodes" << std::endl
-      << "  -S        Use vector-based sets for tree nodes" << std::endl
-      << "  -d <int>  Specify maximum depth for tree. Default: " << st.maxTreeDepth << std::endl
+    s << "Tool to build adaptive kd-Tree" << std::endl;
+    s << "  -d <int>  Specify maximum depth for tree. Default: " << st.maxTreeDepth << std::endl
       << "  -n <int>  Specify maximum entities per leaf. Default: " << st.maxEntPerLeaf << std::endl
+      << "  -2        Build tree from surface elements. Default: yes" << std::endl
+      << "  -3        Build tree from volume elements. Default: yes" << std::endl
       << "  -u        Use 'SUBDIVISION' scheme for tree construction" << ds(MBAdaptiveKDTree::SUBDIVISION) << std::endl
       << "  -p        Use 'SUBDIVISION_SNAP' tree construction algorithm." << ds(MBAdaptiveKDTree::SUBDIVISION_SNAP) << std::endl
       << "  -m        Use 'VERTEX_MEDIAN' tree construction algorithm." << ds(MBAdaptiveKDTree::VERTEX_MEDIAN) << std::endl
       << "  -v        Use 'VERTEX_SAMPLE' tree construction algorithm." << ds(MBAdaptiveKDTree::VERTEX_SAMPLE) << std::endl
       << "  -N <int>  Specify candidate split planes per axis.  Default: " << st.candidateSplitsPerDir << std::endl
-      << "  -t        Tag triangles will tree cell number." << std::endl
+      << "  -t        Tag elements will tree cell number." << std::endl
       << "  -T        Write tree boxes to file." << std::endl
-      << "  -G <dims> Generate grid - no input triangles.  Dims must be " << std::endl
+      << "  -G <dims> Generate grid - no input elements.  Dims must be " << std::endl
       << "            HxWxD or H." << std::endl
+      << "  -s        Use range-based sets for tree nodes" << std::endl
+      << "  -S        Use vector-based sets for tree nodes" << std::endl
       << std::endl;
   }
   exit( err );
@@ -145,12 +147,13 @@ error:
 
 int main( int argc, char* argv[] )
 {
+  bool surf_elems = false, vol_elems = false;
   const char* input_file = 0;
   const char* output_file = 0;
   const char* tree_file = 0;
   MBAdaptiveKDTree::Settings settings;
   unsigned meshset_flags = MESHSET_SET;
-  bool tag_tris = false;
+  bool tag_elems = false;
   clock_t load_time, build_time, stat_time, tag_time, write_time, block_time;
   bool make_grid = false;
   double dims[3];
@@ -170,8 +173,10 @@ int main( int argc, char* argv[] )
       usage();
     
     switch (argv[i][1]) {
-      case 's': meshset_flags = MESHSET_SET;                        break;
+      case '2': surf_elems = true;                                  break;
+      case '3':  vol_elems = true;                                  break;
       case 'S': meshset_flags = MESHSET_ORDERED;                    break;
+      case 's': meshset_flags = MESHSET_SET;                        break;
       case 'd': settings.maxTreeDepth  = parseint( i, argc, argv ); break;
       case 'n': settings.maxEntPerLeaf = parseint( i, argc, argv ); break;
       case 'u': settings.candidatePlaneSet = MBAdaptiveKDTree::SUBDIVISION;      break;
@@ -179,7 +184,7 @@ int main( int argc, char* argv[] )
       case 'm': settings.candidatePlaneSet = MBAdaptiveKDTree::VERTEX_MEDIAN;    break;
       case 'v': settings.candidatePlaneSet = MBAdaptiveKDTree::VERTEX_SAMPLE;    break;
       case 'N': settings.candidateSplitsPerDir = parseint( i, argc, argv );      break;
-      case 't': tag_tris = true;                                    break;
+      case 't': tag_elems = true;                                   break;
       case 'T': tree_file = argv[++i];                              break;
       case 'G': make_grid = true; parsedims( i, argc, argv, dims ); break;
       case 'h': usage(false);
@@ -189,6 +194,10 @@ int main( int argc, char* argv[] )
   
   if (make_grid != !output_file)
     usage();
+  
+    // default to both
+  if (!surf_elems && !vol_elems)
+    surf_elems = vol_elems = true;
   
   MBErrorCode rval;
   MBCore moab_core;
@@ -216,7 +225,20 @@ int main( int argc, char* argv[] )
 
     std::cout << "Building tree..." << std::endl;
     build_time = clock();
-    build_tree( interface, settings, meshset_flags );
+    MBRange elems;
+    if (!surf_elems) {
+      interface->get_entities_by_dimension( 0, 3, elems );
+    }
+    else {
+      interface->get_entities_by_dimension( 0, 2, elems );
+      if (vol_elems) {
+        MBRange tmp;
+        interface->get_entities_by_dimension( 0, 3, tmp );
+        elems.merge( tmp );
+      }
+    }
+    
+    build_tree( interface, elems, settings, meshset_flags );
     build_time = clock() - build_time;
   }
   
@@ -224,9 +246,9 @@ int main( int argc, char* argv[] )
   print_stats( interface );
   stat_time = clock() - build_time;
   
-  if (tag_tris) {
+  if (tag_elems) {
     std::cout << "Tagging tree..." << std::endl;
-    tag_triangles( interface );
+    tag_elements( interface );
     tag_vertices( interface );
   }
   tag_time = clock() - stat_time;
@@ -252,7 +274,7 @@ int main( int argc, char* argv[] )
               << "   Build"
               << "   Stats"
               << "   Write";
-  if (tag_tris)
+  if (tag_elems)
     std::cout << "Tag Sets";
   if (tree_file)
     std::cout << "Block   ";
@@ -263,7 +285,7 @@ int main( int argc, char* argv[] )
               << std::setw(8) << clock_to_string(build_time)
               << std::setw(8) << clock_to_string(stat_time)
               << std::setw(8) << clock_to_string(write_time);
-  if (tag_tris)
+  if (tag_elems)
     std::cout << std::setw(8) << clock_to_string(tag_time);
   if (tree_file)
     std::cout << std::setw(8) << clock_to_string(block_time);
@@ -292,22 +314,21 @@ void delete_existing_tree( MBInterface* interface )
   }
 }
   
-void build_tree( MBInterface* interface, 
+void build_tree( MBInterface* interface,
+                 const MBRange& elems, 
                  MBAdaptiveKDTree::Settings settings, 
                  unsigned meshset_flags )
 {
   MBErrorCode rval;
   MBEntityHandle root = 0;
-  MBRange triangles;
   
-  rval = interface->get_entities_by_type( 0, MBTRI, triangles );
-  if (MB_SUCCESS != rval || triangles.empty()) {
-    std::cerr << "No triangles from which to build tree." << std::endl;
+  if (elems.empty()) {
+    std::cerr << "No elements from which to build tree." << std::endl;
     exit(4);
   }
   
   MBAdaptiveKDTree tool(interface, 0, meshset_flags);
-  rval = tool.build_tree( triangles, root, &settings );
+  rval = tool.build_tree( elems, root, &settings );
   if (MB_SUCCESS != rval || !root) {
     std::cerr << "Tree construction failed." << std::endl;
     exit(4);
@@ -444,25 +465,30 @@ void print_stats( MBInterface* interface )
   root = *range.begin();
   range.clear();
 
-  MBRange tree_sets, triangles, verts;
+  MBRange tree_sets, elem2d, elem3d, verts, all;
   //interface->get_child_meshsets( root, tree_sets, 0 );
   interface->get_entities_by_type( 0, MBENTITYSET, tree_sets );
   tree_sets.erase( tree_sets.begin(), MBRange::lower_bound( tree_sets.begin(), tree_sets.end(), root ) );
-  interface->get_entities_by_type( 0, MBTRI, triangles );
+  interface->get_entities_by_dimension( 0, 2, elem2d );
+  interface->get_entities_by_dimension( 0, 3, elem3d );
   interface->get_entities_by_type( 0, MBVERTEX, verts );
-  triangles.merge( verts );
+  all.clear();
+  all.merge( verts );
+  all.merge( elem2d );
+  all.merge( elem3d );
   tree_sets.insert( root );
   unsigned long set_used, set_amortized, set_store_used, set_store_amortized,
-                set_tag_used, set_tag_amortized, tri_used, tri_amortized;
+                set_tag_used, set_tag_amortized, elem_used, elem_amortized;
   interface->estimated_memory_use( tree_sets, 
                                    &set_used, &set_amortized, 
                                    &set_store_used, &set_store_amortized,
                                    0, 0, 0, 0,
                                    &set_tag_used, &set_tag_amortized );
-  interface->estimated_memory_use( triangles,  &tri_used, &tri_amortized );
+  interface->estimated_memory_use( all,  &elem_used, &elem_amortized );
   
-  int num_tri = 0;
-  interface->get_number_entities_by_type( 0, MBTRI, num_tri );
+  int num_2d = 0, num_3d = 0;;
+  interface->get_number_entities_by_dimension( 0, 2, num_2d );
+  interface->get_number_entities_by_dimension( 0, 3, num_3d );
   
   double min[3] = {0,0,0}, max[3] = {0,0,0};
   tool.get_tree_box( root, min, max );
@@ -478,9 +504,9 @@ void print_stats( MBInterface* interface )
   do {
     depth.add( iter.depth() );
     
-    int num_leaf_tri;
-    interface->get_number_entities_by_type( iter.handle(), MBTRI, num_leaf_tri );
-    size.add(num_leaf_tri);
+    int num_leaf_elem;
+    interface->get_number_entities_by_handle( iter.handle(), num_leaf_elem );
+    size.add(num_leaf_elem);
     
     const double* n = iter.box_min();
     const double* x = iter.box_max();
@@ -499,14 +525,14 @@ void print_stats( MBInterface* interface )
   
   printf("------------------------------------------------------------------\n");
   printf("tree volume:      %f\n", tree_vol );
-  printf("total triangles:  %d\n", num_tri );
+  printf("total elements:   %d\n", num_2d + num_3d );
   printf("number of leaves: %lu\n", (unsigned long)depth.count );
   printf("number of nodes:  %lu\n", (unsigned long)tree_sets.size() );
   printf("volume ratio:     %0.2f%%\n", 100*(vol.sum / tree_vol));
   printf("surface ratio:    %0.2f%%\n", 100*(surf.sum / tree_surf_area));
   printf("\nmemory:           used  amortized\n");
   printf("            ---------- ----------\n");
-  printf("triangles   %10s %10s\n",mem_to_string(tri_used).c_str(), mem_to_string(tri_amortized).c_str());
+  printf("elements    %10s %10s\n",mem_to_string(elem_used).c_str(), mem_to_string(elem_amortized).c_str());
   printf("sets (total)%10s %10s\n",mem_to_string(set_used).c_str(), mem_to_string(set_amortized).c_str());
   printf("sets        %10s %10s\n",mem_to_string(set_store_used).c_str(), mem_to_string(set_store_amortized).c_str());
   printf("set tags    %10s %10s\n",mem_to_string(set_tag_used).c_str(), mem_to_string(set_tag_amortized).c_str());
@@ -527,7 +553,7 @@ static int hash_handle( MBEntityHandle handle )
   return (int)((h * 13 + 7) % MAX_TAG_VALUE) + 1;
 }   
 
-void tag_triangles( MBInterface* moab )
+void tag_elements( MBInterface* moab )
 {
   MBEntityHandle root;
   MBRange range;
@@ -555,7 +581,7 @@ void tag_triangles( MBInterface* moab )
   std::vector<int> tag_vals;
   do {
     range.clear();
-    moab->get_entities_by_type( iter.handle(), MBTRI, range );
+    moab->get_entities_by_handle( iter.handle(), range );
     tag_vals.clear();
     tag_vals.resize( range.size(), hash_handle(iter.handle()) );
     moab->tag_set_data( tag, range, &tag_vals[0] );
@@ -589,7 +615,7 @@ void tag_vertices( MBInterface* moab )
   
   do {
     range.clear();
-    moab->get_entities_by_type( iter.handle(), MBTRI, range );
+    moab->get_entities_by_handle( iter.handle(), range );
     
     int tag_val = hash_handle(iter.handle());
     MBRange verts;
