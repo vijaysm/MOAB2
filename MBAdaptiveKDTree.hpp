@@ -162,7 +162,7 @@ public:
   };
   
   //! Build a tree
-  MBErrorCode build_tree( MBRange& entities,
+  MBErrorCode build_tree( const MBRange& entities,
                           MBEntityHandle& root_set_out,
                           const Settings* settings = 0 );
   

@@ -1117,7 +1117,7 @@ static inline void box_accum( const MBCartVect& point,
 }
 
 static MBErrorCode bounding_box( MBInterface* moab,
-                                 MBRange& elems,
+                                 const MBRange& elems,
                                  MBCartVect& bmin,
                                  MBCartVect& bmax )
 {
@@ -1156,9 +1156,9 @@ static MBErrorCode bounding_box( MBInterface* moab,
 }
 
 
-MBErrorCode MBAdaptiveKDTree::build_tree( MBRange& elems,
-                                       MBEntityHandle& root_set_out,
-                                       const Settings* settings_ptr )
+MBErrorCode MBAdaptiveKDTree::build_tree( const MBRange& elems,
+                                          MBEntityHandle& root_set_out,
+                                          const Settings* settings_ptr )
 {
   MBErrorCode rval;
   Settings settings;
