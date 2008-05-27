@@ -4,13 +4,13 @@
 using namespace MBGeomUtil;
 
 #include <iostream>
-#define ASSERT_VECTORS_EQUAL(A, B) assert_vectors_equal( (A), (B), #A, #B, __LINE__ )
-#define ASSERT_DOUBLES_EQUAL(A, B) assert_doubles_equal( (A), (B), #A, #B, __LINE__ )
-#define ASSERT(B) assert_bool( (B), #B, __LINE__ )
 
+#include "TestUtil.hpp"
 const double TOL = 1e-6;
+#define ASSERT_VECTORS_EQUAL(A, B) assert_vectors_equal( (A), (B), #A, #B, __LINE__ )
+#define ASSERT_DOUBLES_EQUAL(A, B) CHECK_REAL_EQUAL( A, B, TOL )
+#define ASSERT(B) CHECK(B)
 
-int error_count = 0;
 
 void assert_vectors_equal( const MBCartVect& a, const MBCartVect& b, 
                            const char* sa, const char* sb,
@@ -23,29 +23,9 @@ void assert_vectors_equal( const MBCartVect& a, const MBCartVect& b,
               << "\t" << sa << " == " << sb << std::endl
               << "\t[" << a[0] << ", " << a[1] << ", " << a[2] << "] == ["
               << b[0] << ", " << b[1] << ", " << b[2] << "]" << std::endl;
-    ++error_count;
+    FLAG_ERROR;
   }
 }
-
-void assert_doubles_equal( double a, double b, const char* sa, const char* sb, int lineno )
-{
-  if (fabs(a - b) > TOL) {
-    std::cerr << "Assertion failed at line " << lineno << std::endl
-              << "\t" << sa << " == " << sb << std::endl
-              << "\t" << a << " == " << b << std::endl;
-    ++error_count;
-  }
-}
-
-void assert_bool( bool b, const char* sb, int lineno )
-{
-  if (!b) {
-    std::cerr << "Assertion failed at line " << lineno << std::endl
-              << "\t" << sb << std::endl;
-    ++error_count;
-  }
-}
-
 
 void test_box_plane_norm( MBCartVect norm, 
                           MBCartVect min,
@@ -1038,13 +1018,14 @@ void test_closest_location_on_box()
 
 int main()
 {
-  test_box_plane_overlap();
-  test_box_tri_overlap();
-  test_box_general_elem_overlap_tri();
-  test_ray_tri_intersect();
-  test_closest_location_on_tri();
-  test_closest_location_on_polygon();
-  test_segment_box_intersect();
-  test_closest_location_on_box();
+  int error_count = 0;
+  error_count += RUN_TEST(test_box_plane_overlap);
+  error_count += RUN_TEST(test_box_tri_overlap);
+  error_count += RUN_TEST(test_box_general_elem_overlap_tri);
+  error_count += RUN_TEST(test_ray_tri_intersect);
+  error_count += RUN_TEST(test_closest_location_on_tri);
+  error_count += RUN_TEST(test_closest_location_on_polygon);
+  error_count += RUN_TEST(test_segment_box_intersect);
+  error_count += RUN_TEST(test_closest_location_on_box);
   return error_count;
 }
