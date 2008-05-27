@@ -174,10 +174,10 @@ bool box_elem_overlap( const MBCartVect *elem_corners,
  *\param box_half_dims Half of the width of the box in each axial
  *                     direction.
  */
-bool box_general_elem_overlap( const MBCartVect *elem_corners,
-                               MBEntityType elem_type,
-                               const MBCartVect& box_center,
-                               const MBCartVect& box_half_dims ); 
+bool box_linear_elem_overlap( const MBCartVect *elem_corners,
+                              MBEntityType elem_type,
+                              const MBCartVect& box_center,
+                              const MBCartVect& box_half_dims ); 
 
 void closest_location_on_box( const MBCartVect& box_min_corner,
                               const MBCartVect& box_max_corner,

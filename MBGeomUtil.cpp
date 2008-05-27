@@ -282,106 +282,164 @@ bool box_elem_overlap( const MBCartVect *elem_corners,
       assert(false);
       return false;
     default:
-      return box_general_elem_overlap( elem_corners, elem_type, center, dims );
+      return box_linear_elem_overlap( elem_corners, elem_type, center, dims );
   }
 }
 
-bool box_general_elem_overlap( const MBCartVect *elem_corners,
-                               MBEntityType elem_type,
-                               const MBCartVect& box_center,
-                               const MBCartVect& dims )
+static inline MBCartVect quad_norm( const MBCartVect& v1,
+                                    const MBCartVect& v2,
+                                    const MBCartVect& v3,
+                                    const MBCartVect& v4 )
+{ return (-v1+v2+v3-v4) * (-v1-v2+v3+v4); }
+
+static inline MBCartVect tri_norm( const MBCartVect& v1,
+                                   const MBCartVect& v2,
+                                   const MBCartVect& v3 )
+{ return (v2-v1) * (v3-v1); }
+
+
+bool box_linear_elem_overlap( const MBCartVect *elem_corners,
+                              MBEntityType type,
+                              const MBCartVect& box_center,
+                              const MBCartVect& box_halfdims )
 {
-  const int num_corner = MBCN::VerticesPerEntity(elem_type);
-  int i, j, k;
-  MBCartVect corners[16];
-  if (num_corner > (int)(sizeof(corners)/sizeof(corners[0])))
-    { assert(false); return false; }
+    // Do Separating Axis Theorem:
+    // If the element and the box overlap, then the 1D projections
+    // onto at least one of the axes in the following three sets
+    // must overlap (assuming convex polyhedral element).
+    // 1) The normals of the faces of the box (the principal axes)
+    // 2) The crossproduct of each element edge with each box edge
+    //    (crossproduct of each edge with each principal axis)
+    // 3) The normals of the faces of the element
+
+  unsigned d, i, e, f;             // loop counters
+  bool all_less, all_greater;      // track overlap (or lack thereof)
+  double min, max, cross[2], tmp;
+  MBCartVect norm;
+  int indices[4]; // element edge/face vertex indices
+    // calculate minimum and maximum corners of extents box
+  const MBCartVect box_min( box_center - box_halfdims );
+  const MBCartVect box_max( box_center + box_halfdims );
+    // get element topology information
+  const unsigned num_corner = MBCN::VerticesPerEntity( type );
+  const unsigned num_edge = MBCN::NumSubEntities( type, 1 );
+  const unsigned num_face = MBCN::NumSubEntities( type, 2 );
   
-    // translate everything such that box center is at origin
-  for (i = 0; i < num_corner; ++i)
-    corners[i] = elem_corners[i] - box_center;
-  
-    // use separating axis theorem....
-  
-    // first test overlap in direction of box faces (on principal axes)
-  bool all_less[] = { true, true, true };
-  bool all_greater[] = { true, true, true };
-  for (i = 0; i < num_corner; ++i) {
-    for (j = 0; j< 3; ++j) {
-      if (-dims[j] <= corners[i][j])
-        all_less[j] = false;
-      if (dims[j] >= corners[i][j])
-        all_greater[j] = false;
+    // test box face normals (principal axes)
+  for (d = 0; d < 3; ++d) {  // for each principal axis
+    all_less = all_greater = true;
+    for (i = 0; i < num_corner; ++i) { // for each element corner
+      if (elem_corners[i][d] > box_min[d])
+        all_less = false;
+      if (elem_corners[i][d] < box_max[d])
+        all_greater = false;
     }
-  }
-  if (all_less[0] || all_less[1] || all_less[2] ||
-      all_greater[0] || all_greater[1] || all_greater[2])
-    return false;
-  
-    // next test overlap on edge-edge cross products
-  const int num_edge = MBCN::NumSubEntities( elem_type, 1 );
-  int edge_verts[2];
-  for (i = 0; i < num_edge; ++i) {
-    MBCN::SubEntityVertexIndices( elem_type, 1, i, edge_verts );
-    const MBCartVect dir( corners[edge_verts[1]] - corners[edge_verts[0]] );
-      // the range of the projection of the box onto each
-      // cross product (e.g. x-axis cross dir).  The principal
-      // axes are the directions of the box edges.
-    const MBCartVect d( fabs( dims[1] * dir[2] ) + fabs( dims[2] * dir[1] ),
-                        fabs( dims[0] * dir[2] ) + fabs( dims[2] * dir[0] ),
-                        fabs( dims[0] * dir[1] ) + fabs( dims[1] * dir[0] ) );
-    all_less[0] = all_less[1] = all_less[2] = true;
-    all_greater[0] = all_greater[1] = all_greater[2] = true;
-    for (j = 0; j < num_corner; ++j) {
-      const MBCartVect v( corners[j][2] * dir[1] - corners[j][1] * dir[2], 
-                          corners[j][0] * dir[2] - corners[j][2] * dir[0], 
-                          corners[j][1] * dir[0] - corners[j][0] * dir[1] );
-      for (k = 0; k < 3; ++k) {
-        if (v[k] >= -d[k])
-          all_less[k] = false;
-        if (v[k] <= d[k])
-          all_greater[k] = false;
-      }
-    }
-    
-    if (all_less[0] || all_less[1] || all_less[2] ||
-        all_greater[0] || all_greater[1] || all_greater[2])
+    if (all_greater || all_less)
       return false;
   }
   
-    // next test overlap in direction of element face normals
-  const int num_face = MBCN::NumSubEntities( elem_type, 2 );
-  int face[4], overlap;
-  MBCartVect n;
-  for (i = 0; i < num_face; ++i) {
-    MBEntityType type = MBCN::SubEntityType( elem_type, 2, i );
-    switch (type) {
-      case MBTRI:
-        MBCN::SubEntityVertexIndices( elem_type, 2, i, face );
-        n = (corners[face[1]] - corners[face[0]]) * (corners[face[2]] - corners[face[0]]);
-        if (!box_plane_overlap( n, -(n % corners[face[0]]), -dims, dims ))
-          return false;
-        break;
-      case MBQUAD:
-        MBCN::SubEntityVertexIndices( elem_type, 2, i, face );
-        overlap = 0;
-        for (j = 0; j < 4; ++j) {
-          int c1 = face[j];
-          int c2 = face[(j+1)%4];
-          int c3 = face[(j+3)%4];
-          n = (corners[c2] - corners[c1]) * (corners[c3] - corners[c1]);
-          if (box_plane_overlap( n, -(n % corners[c1]), -dims, dims ))
-            overlap = 1;
-        }
-        if (!overlap)
-          return false;
-        break;
-      default:
-        assert(false);
+    // test edge-edge crossproducts
+  for (d = 0; d < 3; ++d) {  // for each principal axis (box edge)
+      // get indices of other two axes
+    const int idx1 = (d+1)%3;
+    const int idx2 = (d+2)%3;
+    
+    for (e = 0; e < num_edge; ++e) { // for each element edge
+        // get which element vertices bound the edge
+      MBCN::SubEntityVertexIndices( type, 1, e, indices );
+        // calculate crossproduct: axis x (v1 - v0),
+        // where v1 and v0 are edge vertices.
+      cross[0] = elem_corners[indices[0]][idx2] - elem_corners[indices[1]][idx2];
+      cross[1] = elem_corners[indices[1]][idx1] - elem_corners[indices[0]][idx1];
+        // skip if orthogonal
+      if ((cross[0]*cross[0] + cross[1]*cross[1]) < std::numeric_limits<double>::epsilon())
+        continue;
+      
+        // first box vertex
+      min = max = cross[0] * box_min[idx1] + cross[1] * box_min[idx2];
+        // second box vertex
+      tmp = cross[0] * box_min[idx1] + cross[1] * box_max[idx2];
+      if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
+        // third box vertex
+      tmp = cross[0] * box_max[idx1] + cross[1] * box_max[idx2];
+      if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
+        // fourth box vertex
+      tmp = cross[0] * box_max[idx1] + cross[1] * box_min[idx2];
+      if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
+    
+      all_less = all_greater = true;
+      for (i = (unsigned)(indices[0]+1)%num_corner; i != (unsigned)indices[0]; i = (i+1)%num_corner) { // for each element corner
+        tmp = cross[0] * elem_corners[i][idx1] + cross[1] * elem_corners[i][idx2];
+        if (tmp > min)
+          all_less = false;
+        if (tmp < max)
+          all_greater = false;
+      }
+      
+      if (all_less || all_greater)
         return false;
     }
   }
   
+    // test element face normals
+  for (f = 0; f < num_face; ++f) {
+    MBCN::SubEntityVertexIndices( type, 2, f, indices );
+    switch (MBCN::SubEntityType( type, 2, f )) {
+      case MBTRI:
+        norm = tri_norm( elem_corners[indices[0]], 
+                         elem_corners[indices[1]], 
+                         elem_corners[indices[2]] );
+        break;
+      case MBQUAD:
+        norm = quad_norm( elem_corners[indices[0]], 
+                          elem_corners[indices[1]], 
+                          elem_corners[indices[2]], 
+                          elem_corners[indices[3]] );
+        break;
+      default:
+        assert(false);
+        continue;
+    }
+
+      // first box corner
+    min = max = norm % box_min;
+      // second corner
+    tmp = norm % MBCartVect( box_max[0], box_min[1], box_min[2] );
+    if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
+      // third corner
+    tmp = norm % MBCartVect( box_max[0], box_max[1], box_min[2] );
+    if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
+      // fourth corner
+    tmp = norm % MBCartVect( box_min[0], box_max[1], box_min[2] );
+    if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
+      // fifth corner
+    tmp = norm % MBCartVect( box_min[0], box_min[1], box_max[2] );
+    if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
+      // sixth corner
+    tmp = norm % MBCartVect( box_max[0], box_min[1], box_max[2] );
+    if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
+      // seventh corner
+    tmp = norm % box_max;
+    if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
+      // eighth corner
+    tmp = norm % MBCartVect( box_min[0], box_max[1], box_max[2] );
+    if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
+    
+    // for each element vertex
+    all_less = all_greater = true;
+    for (i = 0; i < num_corner; ++i) { 
+      tmp = norm % elem_corners[i];
+      if (tmp > min)
+        all_less = false;
+      if (tmp < max)
+        all_greater = false;
+    }
+
+    if (all_less || all_greater)
+      return false;
+  }
+  
+    // Overlap on all tested axes.
   return true;
 }
         
