@@ -179,6 +179,22 @@ bool box_linear_elem_overlap( const MBCartVect *elem_corners,
                               const MBCartVect& box_center,
                               const MBCartVect& box_half_dims ); 
 
+/**\brief Test if the specified element intersects an axis-aligned box.
+ *
+ * Uses MBCN and separating axis theorem for general algorithm that
+ * works for all fixed-size elements (not poly*).  Box and element
+ * vertices must be translated such that box center is at origin.
+ *
+ *\param elem_corners The coordinates of the element vertices, in 
+ *                    local coordinate system of box.
+ *\param elem_type    The toplogy of the element.
+ *\param box_half_dims Half of the width of the box in each axial
+ *                     direction.
+ */
+bool box_linear_elem_overlap( const MBCartVect *elem_corners,
+                              MBEntityType elem_type,
+                              const MBCartVect& box_half_dims ); 
+
 void closest_location_on_box( const MBCartVect& box_min_corner,
                               const MBCartVect& box_max_corner,
                               const MBCartVect& point,

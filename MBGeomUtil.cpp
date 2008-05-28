@@ -303,6 +303,19 @@ bool box_linear_elem_overlap( const MBCartVect *elem_corners,
                               const MBCartVect& box_center,
                               const MBCartVect& box_halfdims )
 {
+  MBCartVect corners[8];
+  const unsigned num_corner = MBCN::VerticesPerEntity( type );
+  assert( num_corner <= sizeof(corners)/sizeof(corners[0]) );
+  for (unsigned i = 0; i < num_corner; ++i)
+    corners[i] = elem_corners[i] - box_center;
+  return box_linear_elem_overlap( corners, type, box_halfdims );
+}
+        
+
+bool box_linear_elem_overlap( const MBCartVect *elem_corners,
+                              MBEntityType type,
+                              const MBCartVect& dims )
+{
     // Do Separating Axis Theorem:
     // If the element and the box overlap, then the 1D projections
     // onto at least one of the axes in the following three sets
@@ -312,76 +325,131 @@ bool box_linear_elem_overlap( const MBCartVect *elem_corners,
     //    (crossproduct of each edge with each principal axis)
     // 3) The normals of the faces of the element
 
-  unsigned d, i, e, f;             // loop counters
-  bool all_less, all_greater;      // track overlap (or lack thereof)
-  double min, max, cross[2], tmp;
+  unsigned i, e, f;             // loop counters
+  bool all_less, all_greater;   // track overlap (or lack thereof)
+  double dot, cross[2], tmp;
   MBCartVect norm;
   int indices[4]; // element edge/face vertex indices
-    // calculate minimum and maximum corners of extents box
-  const MBCartVect box_min( box_center - box_halfdims );
-  const MBCartVect box_max( box_center + box_halfdims );
-    // get element topology information
-  const unsigned num_corner = MBCN::VerticesPerEntity( type );
-  const unsigned num_edge = MBCN::NumSubEntities( type, 1 );
-  const unsigned num_face = MBCN::NumSubEntities( type, 2 );
   
     // test box face normals (principal axes)
-  for (d = 0; d < 3; ++d) {  // for each principal axis
-    all_less = all_greater = true;
-    for (i = 0; i < num_corner; ++i) { // for each element corner
-      if (elem_corners[i][d] > box_min[d])
-        all_less = false;
-      if (elem_corners[i][d] < box_max[d])
-        all_greater = false;
-    }
-    if (all_greater || all_less)
-      return false;
-  }
-  
-    // test edge-edge crossproducts
-  for (d = 0; d < 3; ++d) {  // for each principal axis (box edge)
-      // get indices of other two axes
-    const int idx1 = (d+1)%3;
-    const int idx2 = (d+2)%3;
+  const unsigned num_corner = MBCN::VerticesPerEntity( type );
+  int not_less[3] = { num_corner, num_corner, num_corner }; 
+  int not_greater[3] = { num_corner, num_corner, num_corner };
+  int not_inside;
+  for (i = 0; i < num_corner; ++i) { // for each element corner
+    not_inside = 3;
     
-    for (e = 0; e < num_edge; ++e) { // for each element edge
-        // get which element vertices bound the edge
-      MBCN::SubEntityVertexIndices( type, 1, e, indices );
-        // calculate crossproduct: axis x (v1 - v0),
-        // where v1 and v0 are edge vertices.
-      cross[0] = elem_corners[indices[0]][idx2] - elem_corners[indices[1]][idx2];
-      cross[1] = elem_corners[indices[1]][idx1] - elem_corners[indices[0]][idx1];
-        // skip if orthogonal
-      if ((cross[0]*cross[0] + cross[1]*cross[1]) < std::numeric_limits<double>::epsilon())
-        continue;
+    if (elem_corners[i][0] < -dims[0])
+      --not_less[0];
+    else if (elem_corners[i][0] > dims[0])
+      --not_greater[0];
+    else
+      --not_inside;
       
-        // first box vertex
-      min = max = cross[0] * box_min[idx1] + cross[1] * box_min[idx2];
-        // second box vertex
-      tmp = cross[0] * box_min[idx1] + cross[1] * box_max[idx2];
-      if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
-        // third box vertex
-      tmp = cross[0] * box_max[idx1] + cross[1] * box_max[idx2];
-      if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
-        // fourth box vertex
-      tmp = cross[0] * box_max[idx1] + cross[1] * box_min[idx2];
-      if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
+    if (elem_corners[i][1] < -dims[1])
+      --not_less[1];
+    else if (elem_corners[i][1] > dims[1])
+      --not_greater[1];
+    else
+      --not_inside;
+      
+    if (elem_corners[i][2] < -dims[2])
+      --not_less[2];
+    else if (elem_corners[i][2] > dims[2])
+      --not_greater[2];
+    else
+      --not_inside;
     
+    if (!not_inside)
+      return true;
+  }
+    // If all points less than min_x of box, then
+    // not_less[0] == 0, and therfore
+    // the following product is zero.
+  if (not_greater[0] * not_greater[1] * not_greater[2] * 
+         not_less[0] *    not_less[1] *    not_less[2] == 0)
+    return false;
+ 
+    // Test edge-edge crossproducts
+    
+    // Edge directions for box are principal axis, so 
+    // for each element edge, check along the cross-product
+    // of that edge with each of the tree principal axes.
+  const unsigned num_edge = MBCN::NumSubEntities( type, 1 );
+  for (e = 0; e < num_edge; ++e) { // for each element edge
+      // get which element vertices bound the edge
+    MBCN::SubEntityVertexIndices( type, 1, e, indices );
+
+      // X-Axis
+
+      // calculate crossproduct: axis x (v1 - v0),
+      // where v1 and v0 are edge vertices.
+    cross[0] = elem_corners[indices[0]][2] - elem_corners[indices[1]][2];
+    cross[1] = elem_corners[indices[1]][1] - elem_corners[indices[0]][1];
+      // skip if orthogonal
+    if ((cross[0]*cross[0] + cross[1]*cross[1]) >= std::numeric_limits<double>::epsilon()) {
+      dot = fabs(cross[0] * dims[1]) + fabs(cross[1] * dims[2]);
       all_less = all_greater = true;
       for (i = (unsigned)(indices[0]+1)%num_corner; i != (unsigned)indices[0]; i = (i+1)%num_corner) { // for each element corner
-        tmp = cross[0] * elem_corners[i][idx1] + cross[1] * elem_corners[i][idx2];
-        if (tmp > min)
+        tmp = cross[0] * elem_corners[i][1] + cross[1] * elem_corners[i][2];
+        if (tmp > -dot)
           all_less = false;
-        if (tmp < max)
+        if (tmp < dot)
           all_greater = false;
       }
-      
+
+      if (all_less || all_greater)
+        return false;
+    }
+
+      // Y-Axis
+
+      // calculate crossproduct: axis x (v1 - v0),
+      // where v1 and v0 are edge vertices.
+    cross[0] = elem_corners[indices[0]][0] - elem_corners[indices[1]][0];
+    cross[1] = elem_corners[indices[1]][2] - elem_corners[indices[0]][2];
+      // skip if orthogonal
+    if ((cross[0]*cross[0] + cross[1]*cross[1]) >= std::numeric_limits<double>::epsilon()) {
+      dot = fabs(cross[0] * dims[2]) + fabs(cross[1] * dims[0]);
+      all_less = all_greater = true;
+      for (i = (unsigned)(indices[0]+1)%num_corner; i != (unsigned)indices[0]; i = (i+1)%num_corner) { // for each element corner
+        tmp = cross[0] * elem_corners[i][2] + cross[1] * elem_corners[i][0];
+        if (tmp > -dot)
+          all_less = false;
+        if (tmp < dot)
+          all_greater = false;
+      }
+
+      if (all_less || all_greater)
+        return false;
+    }
+
+      // Z-Axis
+
+      // calculate crossproduct: axis x (v1 - v0),
+      // where v1 and v0 are edge vertices.
+    cross[0] = elem_corners[indices[0]][1] - elem_corners[indices[1]][1];
+    cross[1] = elem_corners[indices[1]][0] - elem_corners[indices[0]][0];
+      // skip if orthogonal
+    if ((cross[0]*cross[0] + cross[1]*cross[1]) >= std::numeric_limits<double>::epsilon()) {
+      dot = fabs(cross[0] * dims[0]) + fabs(cross[1] * dims[1]);
+      all_less = all_greater = true;
+      for (i = (unsigned)(indices[0]+1)%num_corner; i != (unsigned)indices[0]; i = (i+1)%num_corner) { // for each element corner
+        tmp = cross[0] * elem_corners[i][0] + cross[1] * elem_corners[i][1];
+        if (tmp > -dot)
+          all_less = false;
+        if (tmp < dot)
+          all_greater = false;
+      }
+
       if (all_less || all_greater)
         return false;
     }
   }
   
+  
     // test element face normals
+  const unsigned num_face = MBCN::NumSubEntities( type, 2 );
   for (f = 0; f < num_face; ++f) {
     MBCN::SubEntityVertexIndices( type, 2, f, indices );
     switch (MBCN::SubEntityType( type, 2, f )) {
@@ -400,49 +468,26 @@ bool box_linear_elem_overlap( const MBCartVect *elem_corners,
         assert(false);
         continue;
     }
-
-      // first box corner
-    min = max = norm % box_min;
-      // second corner
-    tmp = norm % MBCartVect( box_max[0], box_min[1], box_min[2] );
-    if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
-      // third corner
-    tmp = norm % MBCartVect( box_max[0], box_max[1], box_min[2] );
-    if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
-      // fourth corner
-    tmp = norm % MBCartVect( box_min[0], box_max[1], box_min[2] );
-    if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
-      // fifth corner
-    tmp = norm % MBCartVect( box_min[0], box_min[1], box_max[2] );
-    if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
-      // sixth corner
-    tmp = norm % MBCartVect( box_max[0], box_min[1], box_max[2] );
-    if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
-      // seventh corner
-    tmp = norm % box_max;
-    if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
-      // eighth corner
-    tmp = norm % MBCartVect( box_min[0], box_max[1], box_max[2] );
-    if (tmp < min) min = tmp; else if (tmp > max) max = tmp;
     
+    dot = fabs(norm[0] * dims[0]) + fabs(norm[1] * dims[1]) + fabs(norm[2] * dims[2]); 
+   
     // for each element vertex
     all_less = all_greater = true;
     for (i = 0; i < num_corner; ++i) { 
       tmp = norm % elem_corners[i];
-      if (tmp > min)
+      if (tmp > -dot)
         all_less = false;
-      if (tmp < max)
+      if (tmp < dot)
         all_greater = false;
     }
 
     if (all_less || all_greater)
       return false;
   }
-  
+
     // Overlap on all tested axes.
   return true;
 }
-        
  
   
 
