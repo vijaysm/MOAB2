@@ -706,6 +706,116 @@ void test_box_linear_elem_overlap_hex()
   ASSERT( box_linear_elem_overlap( coords, MBHEX, MBCartVect( 1,-1, 0 ), MBCartVect(0.75,0.75,0.5) ) );
 }
 
+void test_box_hex_overlap()
+{
+  MBCartVect coords[8];
+
+    // test against axis-aligned rectilinear hex
+  coords[0] = MBCartVect(-0.5,-0.5,-0.5);
+  coords[1] = MBCartVect( 0.5,-0.5,-0.5);
+  coords[2] = MBCartVect( 0.5, 0.5,-0.5);
+  coords[3] = MBCartVect(-0.5, 0.5,-0.5);
+  coords[4] = MBCartVect(-0.5,-0.5, 0.5);
+  coords[5] = MBCartVect( 0.5,-0.5, 0.5);
+  coords[6] = MBCartVect( 0.5, 0.5, 0.5);
+  coords[7] = MBCartVect(-0.5, 0.5, 0.5);
+
+  ASSERT( box_hex_overlap( coords, MBCartVect( 0, 0, 0), MBCartVect(1,1,1) ) );
+
+  ASSERT( box_hex_overlap( coords, MBCartVect( 1, 0, 0), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect( 0, 1, 0), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect( 0, 0, 1), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect(-1, 0, 0), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect( 0,-1, 0), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect( 0, 0,-1), MBCartVect(1,1,1) ) );
+
+  ASSERT( box_hex_overlap( coords, MBCartVect( 1, 1, 0), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect(-1, 1, 0), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect(-1,-1, 0), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect( 1,-1, 0), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect( 1, 0, 1), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect(-1, 0, 1), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect(-1, 0,-1), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect( 1, 0,-1), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect( 0, 1, 1), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect( 0,-1, 1), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect( 0,-1,-1), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect( 0, 1,-1), MBCartVect(1,1,1) ) );
+
+  ASSERT( box_hex_overlap( coords, MBCartVect( 1, 1, 1), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect(-1, 1, 1), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect(-1,-1, 1), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect( 1,-1, 1), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect( 1, 1,-1), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect(-1, 1,-1), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect(-1,-1,-1), MBCartVect(1,1,1) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect( 1,-1,-1), MBCartVect(1,1,1) ) );
+
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 3, 0, 0), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 0, 3, 0), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 0, 0, 3), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect(-3, 0, 0), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 0,-3, 0), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 0, 0,-3), MBCartVect(1,1,1) ) );
+
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 3, 3, 0), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect(-3, 3, 0), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect(-3,-3, 0), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 3,-3, 0), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 3, 0, 3), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect(-3, 0, 3), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect(-3, 0,-3), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 3, 0,-3), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 0, 3, 3), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 0,-3, 3), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 0,-3,-3), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 0, 3,-3), MBCartVect(1,1,1) ) );
+
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 3, 3, 3), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect(-3, 3, 3), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect(-3,-3, 3), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 3,-3, 3), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 3, 3,-3), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect(-3, 3,-3), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect(-3,-3,-3), MBCartVect(1,1,1) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 3,-3,-3), MBCartVect(1,1,1) ) );
+
+    // test against rectilinear hex rotated 45 degrees about z axis
+  const double r = sqrt(2.0)/2.0;
+  coords[0] = MBCartVect( r, 0,-0.5);
+  coords[1] = MBCartVect( 0, r,-0.5);
+  coords[2] = MBCartVect(-r, 0,-0.5);
+  coords[3] = MBCartVect( 0,-r,-0.5);
+  coords[4] = MBCartVect( r, 0, 0.5);
+  coords[5] = MBCartVect( 0, r, 0.5);
+  coords[6] = MBCartVect(-r, 0, 0.5);
+  coords[7] = MBCartVect( 0,-r, 0.5);
+
+  ASSERT( box_hex_overlap( coords, MBCartVect( 1, 0, 0 ), MBCartVect(0.5,0.5,0.5) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect(-1, 0, 0 ), MBCartVect(0.5,0.5,0.5) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect( 0, 1, 0 ), MBCartVect(0.5,0.5,0.5) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect( 0,-1, 0 ), MBCartVect(0.5,0.5,0.5) ) );
+
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 1, 0, 2 ), MBCartVect(0.5,0.5,0.5) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect(-1, 0, 2 ), MBCartVect(0.5,0.5,0.5) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 0, 1, 2 ), MBCartVect(0.5,0.5,0.5) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 0,-1, 2 ), MBCartVect(0.5,0.5,0.5) ) );
+
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 2, 0, 0 ), MBCartVect(0.5,0.5,0.5) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect(-2, 0, 0 ), MBCartVect(0.5,0.5,0.5) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 0, 2, 0 ), MBCartVect(0.5,0.5,0.5) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 0,-2, 0 ), MBCartVect(0.5,0.5,0.5) ) );
+
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 1, 1, 0 ), MBCartVect(0.5,0.5,0.5) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect(-1, 1, 0 ), MBCartVect(0.5,0.5,0.5) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect(-1,-1, 0 ), MBCartVect(0.5,0.5,0.5) ) );
+  ASSERT(!box_hex_overlap( coords, MBCartVect( 1,-1, 0 ), MBCartVect(0.5,0.5,0.5) ) );
+
+  ASSERT( box_hex_overlap( coords, MBCartVect( 1, 1, 0 ), MBCartVect(0.75,0.75,0.5) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect(-1, 1, 0 ), MBCartVect(0.75,0.75,0.5) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect(-1,-1, 0 ), MBCartVect(0.75,0.75,0.5) ) );
+  ASSERT( box_hex_overlap( coords, MBCartVect( 1,-1, 0 ), MBCartVect(0.75,0.75,0.5) ) );
+}
 
 void test_ray_tri_intersect()
 {
@@ -1133,6 +1243,7 @@ int main()
   int error_count = 0;
   error_count += RUN_TEST(test_box_plane_overlap);
   error_count += RUN_TEST(test_box_tri_overlap);
+  error_count += RUN_TEST(test_box_hex_overlap);
   error_count += RUN_TEST(test_box_linear_elem_overlap_tri);
   error_count += RUN_TEST(test_box_linear_elem_overlap_hex);
   error_count += RUN_TEST(test_ray_tri_intersect);
