@@ -668,22 +668,30 @@ MBErrorCode  MBCore::get_coords(const MBEntityHandle* entities,
                                   const int num_entities, 
                                   double *coords) const
 {
-  MBErrorCode status;
   const EntitySequence* seq;
+  const VertexSequence* vseq;
   const MBEntityHandle* const end = entities + num_entities;
-
-  for(const MBEntityHandle* iter = entities; iter != end; ++iter)
-  {
-    if(TYPE_FROM_HANDLE(*iter) != MBVERTEX)
-      return MB_TYPE_OUT_OF_RANGE;
-
-    status = sequence_manager()->find(*iter, seq);
-    if(status != MB_SUCCESS )
-      return MB_ENTITY_NOT_FOUND;
+  const MBEntityHandle* iter = entities;
+  
+  seq = sequence_manager()->get_last_accessed_sequence( MBVERTEX );
+  if (!seq) // no vertices
+    return num_entities ? MB_ENTITY_NOT_FOUND : MB_SUCCESS;
+  vseq = static_cast<const VertexSequence*>(seq);
+  
+  while (iter != end) {
+    if (vseq->start_handle() > *iter || vseq->end_handle() < *iter) {
+      if (TYPE_FROM_HANDLE(*iter) != MBVERTEX)
+        return MB_TYPE_OUT_OF_RANGE;
+        
+      if (MB_SUCCESS != sequence_manager()->find(*iter, seq))
+        return MB_ENTITY_NOT_FOUND;
+      vseq = static_cast<const VertexSequence*>(seq);
+    }
     
-    static_cast<const VertexSequence*>(seq)->get_coordinates(*iter, coords);
+    vseq->get_coordinates( *iter, coords );
     coords += 3;
-  }
+    ++iter;
+  } 
 
   return MB_SUCCESS; 
 }

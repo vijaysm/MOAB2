@@ -176,6 +176,7 @@ public:
   inline EntitySequence* find( MBEntityHandle h );
   inline MBErrorCode find( MBEntityHandle h, EntitySequence*& );
   inline MBErrorCode find( MBEntityHandle h, const EntitySequence*& ) const;
+  inline const EntitySequence* get_last_accessed() const;
   
     /**\brief Get handles for all entities in all sequences. */
   inline void get_entities( MBRange& entities_out ) const;
@@ -409,7 +410,10 @@ inline MBErrorCode TypeSequenceManager::find( MBEntityHandle h, const EntitySequ
     }
   }
 }   
-  
+
+inline const EntitySequence* TypeSequenceManager::get_last_accessed() const
+  { return lastReferenced; /* only NULL if TypeSequenceManager is empty */ }
+
 inline void TypeSequenceManager::get_entities( MBRange& entities_out ) const
 {
   MBRange::iterator in = entities_out.begin();

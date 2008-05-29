@@ -44,6 +44,10 @@ class SequenceManager
       /** Count entities of a given MBEntityType */
     MBEntityID get_number_entities( MBEntityType type ) const
       { return typeData[type].get_number_entities(); }
+      
+      /** Get most recently accessed sequence for a given type */
+    const EntitySequence* get_last_accessed_sequence( MBEntityType type ) const
+      { return typeData[type].get_last_accessed(); }
     
       /**\brief Replace subset of existing sequence with new 
        *        sequence (splits existing sequence)
