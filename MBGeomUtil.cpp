@@ -386,7 +386,7 @@ bool box_linear_elem_overlap( const MBCartVect *elem_corners,
       // where v1 and v0 are edge vertices.
     cross[0] = elem_corners[indices[0]][2] - elem_corners[indices[1]][2];
     cross[1] = elem_corners[indices[1]][1] - elem_corners[indices[0]][1];
-      // skip if orthogonal
+      // skip if parallel
     if ((cross[0]*cross[0] + cross[1]*cross[1]) >= std::numeric_limits<double>::epsilon()) {
       dot = fabs(cross[0] * dims[1]) + fabs(cross[1] * dims[2]);
       all_less = all_greater = true;
@@ -408,7 +408,7 @@ bool box_linear_elem_overlap( const MBCartVect *elem_corners,
       // where v1 and v0 are edge vertices.
     cross[0] = elem_corners[indices[0]][0] - elem_corners[indices[1]][0];
     cross[1] = elem_corners[indices[1]][2] - elem_corners[indices[0]][2];
-      // skip if orthogonal
+      // skip if parallel
     if ((cross[0]*cross[0] + cross[1]*cross[1]) >= std::numeric_limits<double>::epsilon()) {
       dot = fabs(cross[0] * dims[2]) + fabs(cross[1] * dims[0]);
       all_less = all_greater = true;
@@ -430,7 +430,7 @@ bool box_linear_elem_overlap( const MBCartVect *elem_corners,
       // where v1 and v0 are edge vertices.
     cross[0] = elem_corners[indices[0]][1] - elem_corners[indices[1]][1];
     cross[1] = elem_corners[indices[1]][0] - elem_corners[indices[0]][0];
-      // skip if orthogonal
+      // skip if parallel
     if ((cross[0]*cross[0] + cross[1]*cross[1]) >= std::numeric_limits<double>::epsilon()) {
       dot = fabs(cross[0] * dims[0]) + fabs(cross[1] * dims[1]);
       all_less = all_greater = true;
