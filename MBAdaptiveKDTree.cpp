@@ -36,7 +36,7 @@
 MBAdaptiveKDTree::Settings::Settings()
   : maxEntPerLeaf(6), 
     maxTreeDepth(30),
-    candidateSplitsPerDir(5),
+    candidateSplitsPerDir(3),
     candidatePlaneSet(SUBDIVISION_SNAP),
     minBoxWidth( std::numeric_limits<double>::epsilon() )
   {}
