@@ -1099,6 +1099,10 @@ MBErrorCode WriteHDF5::range_to_blocked_list( const MBRange& input_range,
     // if we ran out of space, just do list format
   if (output_id_list.end() - i < 2) {
     range_to_id_list( input_range, &output_id_list[0] );
+    output_id_list.erase( std::remove( output_id_list.begin(), 
+                                       output_id_list.end(), 
+                                       0 ), 
+                          output_id_list.end() );
     return MB_SUCCESS;
   }
   
