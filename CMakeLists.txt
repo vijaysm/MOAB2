@@ -123,6 +123,7 @@ project( MOAB )
     MBAlloc.cpp
     MBAxisBox.cpp
     MBBits.cpp
+    MBBSPTree.cpp
     MBCN.cpp
     MBCartVect.cpp
     MBElemUtil.cpp
@@ -354,5 +355,11 @@ project( MOAB )
     COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
   target_link_libraries( test_mesh_refiner MOAB )
   add_test( TestMeshRefiner ${EXECUTABLE_OUTPUT_PATH}/test_mesh_refiner )
+
+  add_executable( bsp_tree_test bsp_tree_test.cpp )
+  set_source_files_properties( bsp_tree_test.cpp
+    COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
+  target_link_libraries( bsp_tree_test MOAB )
+  add_test( TestBSPTree ${EXECUTABLE_OUTPUT_PATH}/bsp_tree_test )
 
 
