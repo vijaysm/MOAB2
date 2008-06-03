@@ -1,0 +1,6 @@
+James Lottes' point-finding routines for hex spectral elements, from nek.
+
+Modifications:
+
+-Moved some declarations from findpt.c to extrafindpt.h
+-Removed static keyword from functions in extrafindpt.h
