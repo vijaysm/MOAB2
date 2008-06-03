@@ -21,11 +21,11 @@
 #include "MBCartVect.hpp"
 #include "MBCN.hpp"
 #include "MBGeomUtil.hpp"
-#include "MBElemUtil.hpp"
 #include <cmath>
 #include <algorithm>
 #include <assert.h>
 #include <iostream>
+#include <limits>
 
 #ifdef _MSC_VER
 #  include <float.h>
@@ -920,48 +920,6 @@ bool box_point_overlap( const MBCartVect& box_min_corner,
   closest_location_on_box( box_min_corner, box_max_corner, point, closest );
   closest -= point;
   return closest % closest < tolerance * tolerance;
-}
-
-bool point_in_trilinear_hex(MBCartVect hex[8], 
-                            MBCartVect xyz,
-                            double etol) 
-{
-
-      const double one = 1.000001;
-
-      MBCartVect  nat(0.);
-      MBElemUtil::nat_coords_trilinear_hex(hex, xyz, nat, etol);
-      
-      for (unsigned int i = 0; i < 3; i++) {
-            if ((nat[i] > one) || (nat[i] < -one)) return false;
-      }
-
-      return true;
-
-}
-
-
-bool point_in_trilinear_hex(MBCartVect hex[8], 
-                            MBCartVect xyz, 
-                            MBCartVect box_min, MBCartVect box_max,
-                            double etol) 
-{
-
-      const double one = 1.000001;
-
-      if ((xyz[0] < box_min[0]) || (xyz[0] > box_max[0])) return false;
-      if ((xyz[1] < box_min[1]) || (xyz[1] > box_max[1])) return false;
-      if ((xyz[2] < box_min[2]) || (xyz[2] > box_max[2])) return false;
-
-      MBCartVect  nat(0.);
-      MBElemUtil::nat_coords_trilinear_hex(hex, xyz, nat, etol);
-      
-      for (unsigned int i = 0; i < 3; i++) {
-            if ((nat[i] > one) || (nat[i] < -one)) return false;
-      }
-
-      return true;
-
 }
 
 } // namespace MBGeoemtry

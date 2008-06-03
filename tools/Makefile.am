@@ -19,6 +19,11 @@ if ENABLE_mbchaco
 else
   mbchaco_DIR=
 endif
+if ENABLE_mbcoupler
+  mbcoupler_DIR = mbcoupler
+else
+  mbcoupler_DIR=
+endif
 if ENABLE_mbzoltan
   mbzoltan_DIR = mbzoltan
 else
@@ -83,6 +88,7 @@ SUBDIRS = $(imesh_DIR) \
 	  $(converter_DIR) \
           $(hexmodops_DIR) \
           $(mbchaco_DIR) \
+          $(mbcoupler_DIR) \
           $(mbzoltan_DIR) \
           $(mbperf_DIR) \
 	  $(mcnpmit_DIR) \

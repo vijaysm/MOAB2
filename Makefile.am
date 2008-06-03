@@ -11,7 +11,7 @@ endif
 if PARALLEL
   SUBDIRS += parallel
 endif
-SUBDIRS += . test tools doc doxygen
+SUBDIRS += . test tools doc doxygen 
 
 
 # Things to build
@@ -40,7 +40,7 @@ TESTS = moab_test \
 check_PROGRAMS = $(TESTS) \
 		 kd_tree_tool \
 		 kd_tree_time
-         
+
 if PARALLEL 
   check_PROGRAMS += mbparallelcomm_test
 endif
@@ -125,7 +125,6 @@ libMOAB_la_SOURCES = \
   MBCN.cpp \
   MBCNArrays.hpp \
   MBCartVect.cpp \
-  MBElemUtil.cpp \
   MBHandleUtils.cpp \
   MBMatrix3.cpp \
   MBMatrix3.hpp \
@@ -222,7 +221,6 @@ libMOAB_la_include_HEADERS = \
   MBCN_protos.h \
   MBCartVect.hpp \
   MBCore.hpp \
-  MBElemUtil.hpp \
   MBEntityType.h \
   MBEntityHandle.h \
   MBError.hpp \

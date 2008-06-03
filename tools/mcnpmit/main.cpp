@@ -12,6 +12,7 @@
 #include "MBTagConventions.hpp"
 #include "MBAdaptiveKDTree.hpp"
 #include "MBGeomUtil.hpp"
+#include "MBElemUtil.hpp"
 
 #define MBI mb_instance()
 
@@ -247,7 +248,7 @@ int main(int argc, char **argv) {
 	  hexverts[j][2] = coords[3*j+2];
       }
 
-      if (MBGeomUtil::point_in_trilinear_hex(hexverts, testvc, 1.e-6)) {
+      if (MBElemUtil::point_in_trilinear_hex(hexverts, testvc, 1.e-6)) {
     	  MBresult = MBI -> tag_get_data( MCNP->tally_tag, &(*rit), 1, &taldata);
 	  outfile <<   n         << ","
 	            << testpt[0] << ","
