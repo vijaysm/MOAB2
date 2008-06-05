@@ -237,17 +237,18 @@ AC_HELP_STRING([--disable-tools],[Disable all tools by default])],
 MB_OPTIONAL_TOOL([mbconvert],    [yes])
 MB_OPTIONAL_TOOL([hexmodops],    [yes])
 MB_OPTIONAL_TOOL([mbchaco],      [no] )
-MB_OPTIONAL_TOOL([mbcoupler],    [no] )
 MB_OPTIONAL_TOOL([mbperf],       [yes])
 MB_OPTIONAL_TOOL([qvdual],       [no] )
 MB_OPTIONAL_TOOL([mbsize],       [yes])
 MB_OPTIONAL_TOOL([mbskin],       [yes])
 MB_OPTIONAL_TOOL([mbtagprop],    [yes])
 MB_OPTIONAL_TOOL([mcnpmit],      [yes])
+MB_OPTIONAL_TOOL([mbcoupler],    [$ENABLE_mcnpmit] )
 MB_OPTIONAL_TOOL([spheredecomp], [yes])
 MB_OPTIONAL_TOOL([mbsurfplot],   [yes])
 MB_OPTIONAL_TOOL([mbzoltan],     [no] )
 MB_OPTIONAL_TOOL([dagmc],        [yes])
+
 
 
 ################################################################################
