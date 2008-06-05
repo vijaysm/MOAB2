@@ -395,7 +395,7 @@ DEBUGOUT("Gathering Mesh\n");
   
     // Gather mesh to export
   exportList.clear();
-  if (0 == num_sets || 1 == num_sets && set_array[0] == 0)
+  if (0 == num_sets || (1 == num_sets && set_array[0] == 0))
   {
     result = gather_all_mesh( );
     CHK_MB_ERR_0(result);
