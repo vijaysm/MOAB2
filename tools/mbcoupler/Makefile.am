@@ -15,6 +15,7 @@ libmbcoupler_la_SOURCES = \
    tensor.h \
    errmem.c \
    errmem.h \
+   extrafindpt.h \
    findpt.c \
    findpt.h \
    minmax.h \
