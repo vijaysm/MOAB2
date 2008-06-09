@@ -2,6 +2,12 @@
 #include "MBEdgeSizeSimpleImplicit.hpp"
 #include "MBSimplexTemplateRefiner.hpp"
 #include "MBInterface.hpp"
+#include "MBParallelConventions.h"
+
+#ifdef USE_MPI
+#include "MBParallelComm.hpp"
+#include "mpi.h"
+#endif // USE_MPI
 
 #include <iostream>
 
@@ -112,6 +118,17 @@ public:
 
 int TestMeshRefiner( int argc, char* argv[] )
 {
+  int nprocs, rank;
+#ifdef USE_MPI
+  int err = MPI_Init( &argc, &argv );
+  err = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  std::cout << "Rank: " << ( rank + 1 ) << " of: " << nprocs << "\n";
+#else // USE_MPI
+  nprocs = 1;
+  rank = 0;
+#endif // USE_MPI
+
   MBInterface* iface = new MBCore;
   MBEdgeSizeSimpleImplicit* eval = new MBEdgeSizeSimpleImplicit( iface );
 
@@ -120,28 +137,65 @@ int TestMeshRefiner( int argc, char* argv[] )
   double p2[6] = { 1.0, 0.0, 0.0,  1.0, 0.0, 0.0 };
   double p3[6] = { 0.6, 2.0, 0.0,  0.6, 2.0, 0.0 };
 
-  double default_floatular[] = { 38.7, 104. };
-  double floatular_values[] = { 38.7, 104., 
-                                123.456, 789.012, 
-                                0., 1. };
+  double coords[][6] = {
+    {  0. ,  0.0,  0. ,  0. ,  0.0,  0.  }, // 0
+    { -1. ,  0.0,  0.5, -1. ,  0.0,  0.5 }, // 1
+    { -0.5, -1.0,  0.5, -0.5, -1.0,  0.5 }, // 2
+    {  0. ,  0. ,  1. ,  0. ,  0. ,  1.  }, // 3
+    {  0.5,  0.5,  0.5,  0.5,  0.5,  0.5 }, // 4
+    {  0.5, -0.5,  0.5,  0.5, -0.5,  0.5 }  // 5
+  };
 
-  int default_intular[] = { 7, 11, 24, 7 };
-  int intular_values[] = {  7, 11, 24, 7, 
-                            1, 2, 3, 4, 
-                            13, 17, 19, 23 };
+  double default_floatular[2] = {
+     38.7,   104. };
+  double floatular_values[][2] = {
+    {  38.7,   104.,    }, // 0
+    {   3.141,   2.718, }, // 1
+    { 123.456, 789.012, }, // 2
+    {   0.,      1.,    }, // 3
+    {   1.,      0.,    }, // 4
+    {  -1.,      1.,    }  // 5
+  };
 
-  if ( eval->evaluate_edge( p0, 0, p1, 0, p2, 0 ) )
-    {
-    return 1;
-    }
+  int default_intular[4] = {
+     7, 11, 24,  7 };
+  int intular_values[][4] = {
+    {  7, 11, 24,  7, }, // 0
+    { 10,  4, 10, 20, }, // 1
+    {  1,  2,  3,  4, }, // 2
+    { 13, 17, 19, 23, }, // 3
+    {  3,  3,  0,  6, }, // 4
+    {  5,  4,  3,  2  }  // 5
+  };
+
+  int default_gid[] = { -1 };
+  int gid_values[] = {
+    0, 1, 2, 3, 4, 5, // vertices
+    6, 7, 8, 9        // tetrahedra
+  };
+
+  // List of vertices resident on each node.
+  int proc_nodes[4][4] = {
+    { 0, 2, 3, 1 },
+    { 0, 1, 3, 4 },
+    { 0, 4, 3, 5 },
+    { 0, 5, 3, 2 },
+  };
+
+  // List of nodes with a copy of each vertex (first entry is owner)
+  int node_procs[6][4] = {
+    { 0,  1,  2,  3 }, // 0
+    { 0,  1, -1, -1 }, // 1
+    { 0,  3, -1, -1 }, // 2
+    { 0,  1,  2,  3 }, // 3
+    { 1,  2, -1, -1 }, // 4
+    { 2,  3, -1, -1 }  // 5
+  };
 
   eval->set_ratio( 2. );
-  if ( ! eval->evaluate_edge( p0, 0, p1, 0, p2, 0 ) )
-    {
-    return 1;
-    }
 
-  MBEntityHandle node_handles[3];
+  MBEntityHandle node_handles[4];
+  MBEntityHandle tet_handle;
   MBEntityHandle tri_handle;
 
   MBTag tag_floatular;
@@ -150,18 +204,33 @@ int TestMeshRefiner( int argc, char* argv[] )
   MBTag tag_intular;
   iface->tag_create( "intular", 4 * sizeof( int ), MB_TAG_DENSE, MB_TYPE_INTEGER, tag_intular, default_intular );
 
-  iface->create_vertex( p0, node_handles[0] );
-  iface->create_vertex( p2, node_handles[1] );
-  iface->create_vertex( p3, node_handles[2] );
+  MBTag tag_gid;
+  iface->tag_create( PARALLEL_GID_TAG_NAME, sizeof( int ), MB_TAG_DENSE, MB_TYPE_INTEGER, tag_gid, default_gid );
 
-  iface->tag_set_data( tag_floatular, node_handles, 3, (void*)floatular_values );
+  void const* iptrs[4];
+  void const* fptrs[4];
+  void const* gptrs[4];
+  for ( int i = 0; i < 4; ++ i )
+    {
+    iface->create_vertex( coords[proc_nodes[rank][i]], node_handles[i] );
+    iptrs[i] = (void const*) intular_values[proc_nodes[rank][i]];
+    fptrs[i] = (void const*) floatular_values[proc_nodes[rank][i]];
+    gptrs[i] = (void const*) &gid_values[proc_nodes[rank][i]];
+    }
+
+  iface->tag_set_data( tag_floatular, node_handles, 4, fptrs, 0 );
   eval->add_vertex_tag( tag_floatular );
 
-  iface->tag_set_data( tag_intular, node_handles, 3, (void*)intular_values );
+  iface->tag_set_data( tag_intular, node_handles, 4, iptrs, 0 );
   eval->add_vertex_tag( tag_intular );
 
-  iface->create_element( MBTRI, node_handles, 3, tri_handle );
+  iface->tag_set_data( tag_gid, node_handles, 4, gptrs, 0 );
 
+  iface->create_element( MBTET, node_handles, 4, tet_handle );
+  iface->tag_set_data( tag_gid, &tet_handle, 1, gid_values + 6 + rank );
+  iface->list_entities( 0, 1 );
+
+  /*
   MBSimplexTemplateRefiner eref( iface );
   MBTestOutputFunctor* ofunc = new MBTestOutputFunctor;
   ofunc->input_is_output = ( argc > 1 && ! strcmp( argv[1], "-new-mesh" ) ) ? false : true;
@@ -170,9 +239,18 @@ int TestMeshRefiner( int argc, char* argv[] )
   eref.set_output_functor( ofunc );
   eref.refine_entity( tri_handle );
 
+  iface->list_entities( 0, 1 );
+
   if ( ! ofunc->input_is_output )
     delete ofunc->mesh;
+  */
+  delete eval;
   delete iface;
+
+#ifdef USE_MPI
+  err = MPI_Barrier( MPI_COMM_WORLD );
+  err = MPI_Finalize();
+#endif // USE_MPI
   return 0;
 }
 
