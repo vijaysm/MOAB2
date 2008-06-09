@@ -1,5 +1,6 @@
 #include "MBMeshRefiner.hpp"
 
+#include "MBEdgeSizeEvaluator.hpp"
 #include "MBEntityRefiner.hpp"
 #include "MBInterface.hpp"
 
@@ -72,36 +73,78 @@ class MBMeshRefinerOutputFunctor : public MBEntityRefinerOutputFunctor
 public:
   /// Mesh to hold output (may/may not be same as input mesh)
   MBInterface* mesh;
+  /// Edge size evaluator is required because it has a list of output tags
+  MBEdgeSizeEvaluator* edge_size_evaluator;
   /// Hash table of newly-created vertices at edge midpoints
   std::map<MBEdgeIndex, MBEntityHandle> edge_vertices;
   /// Hash table of newly-created vertices interior to triangle faces
   std::map<MBFaceIndex, MBEntityHandle> face_vertices;
   /// Storage allocated for interprocess communication of vertex global IDs
   std::map<int,MBRefinerPartition*> partitions;
+  /// Number of tags defined on vertices
+  int num_tags;
+  /// The accumulated vertices that are used to create a new element when complete.
+  std::vector<MBEntityHandle> vertex_accum;
+  /**\brief True if the output mesh (this->mesh) is also the input mesh.
+    *
+    * This indicates whether pre-existing vertices should be inserted into the new mesh or not.
+    */
+  bool output_is_input;
 
-  virtual ~MBMeshRefinerOutputFunctor() { }
-  virtual void operator () ( const double* vcoords, const void* vtags )
+  MBMeshRefinerOutputFunctor( MBInterface* m, bool oii, MBEdgeSizeEvaluator* es )
     {
-    // Assume that vtags contains the proper global ID for the vertex (assigned by the TagAssigner)
+    this->mesh = m;
+    this->output_is_input = oii;
+    this->edge_size_evaluator = es;
+    }
+  virtual ~MBMeshRefinerOutputFunctor() { }
+  virtual void operator () ( const double* vcoords, const void* vtags, MBEntityHandle* hash )
+    {
+    if ( ! hash[1] && this->output_is_input )
+      {
+      // Don't insert vertices that already exist in the output
+      this->vertex_accum.push_back( hash[0] );
+      return;
+      }
+
+    MBEntityHandle vertex_handle;
+    this->mesh->create_vertex( vcoords + 3, vertex_handle );
+    this->vertex_accum.push_back( vertex_handle );
+    MBTag tag_handle;
+    int tag_offset;
+    for ( int i = 0; i < num_tags; ++i )
+      {
+      this->edge_size_evaluator->get_vertex_tag( i, tag_handle, tag_offset );
+      this->mesh->tag_set_data( tag_handle, &vertex_handle, 1, (char*)vtags + tag_offset );
+      }
     }
   virtual void operator () ( MBEntityType etyp )
     {
+    if ( ! this->vertex_accum.size() )
+      return; // Ignore creation of vertex-less entities
+
+    MBEntityHandle elem_handle;
+    this->mesh->create_element( etyp, &this->vertex_accum[0], this->vertex_accum.size(), elem_handle );
+    this->vertex_accum.clear();
     }
 };
 
-MBMeshRefiner::MBMeshRefiner( MBInterface* parentMesh )
+MBMeshRefiner::MBMeshRefiner( MBInterface* parent_mesh )
 {  
-  this->mesh = parentMesh;
+  this->mesh = parent_mesh;
   this->entity_refiner = 0;
 }
 
 MBMeshRefiner::~MBMeshRefiner()
 {
+  if ( this->entity_refiner )
+    delete this->entity_refiner;
 }
 
 bool MBMeshRefiner::set_entity_refiner( MBEntityRefiner* er )
 {
-  if ( ! er ) return false;
+  if ( ! er || er == this->entity_refiner )
+    return false;
 
   this->entity_refiner = er;
 
