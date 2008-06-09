@@ -103,6 +103,7 @@ project( MOAB )
   option ( MOAB_BUILD_MBSURFPLOT   "Build the mbsurfplot application?"    ON )
   option ( MOAB_BUILD_MBZOLTAN     "Build the mbzoltan partitioner?"      OFF )
   option ( MOAB_BUILD_DAGMC        "Build the dagmc tool?"                ON )
+  option ( MOAB_BUILD_MBCOUPLER    "Build the mesh coupler tool?"         ON )
 
   # iMesh
   option ( MOAB_BUILD_IMESH        "Build the iMesh interface?"           ON )
@@ -126,7 +127,6 @@ project( MOAB )
     MBBSPTree.cpp
     MBCN.cpp
     MBCartVect.cpp
-    MBElemUtil.cpp
     MBHandleUtils.cpp
     MBMatrix3.cpp
     MBCore.cpp
@@ -273,6 +273,11 @@ project( MOAB )
   if ( MOAB_BUILD_DAGMC )
     add_subdirectory( tools/dagmc )
   endif ( MOAB_BUILD_DAGMC )
+
+  # MBCoupler
+  if ( MOAB_BUILD_MBCOUPLER )
+    add_subdirectory( tools/mbcoupler )
+  endif ( MOAB_BUILD_MBCOUPLER )
 
   # iMesh Babel
   if ( MOAB_BUILD_IMESH )
