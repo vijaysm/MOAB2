@@ -109,7 +109,12 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
       break;
     case MBTET:
       this->assign_parametric_coordinates( 4, MBTetParametric, &this->corner_coords[0] );
-      rval = this->refine_3_simplex( 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ); // FIXME
+      rval = this->refine_3_simplex( this->maximum_number_of_subdivisions,
+        &this->corner_coords[ 0], this->corner_tags[0], this->corner_handles[0],
+        &this->corner_coords[ 6], this->corner_tags[1], this->corner_handles[1],
+        &this->corner_coords[12], this->corner_tags[2], this->corner_handles[2],
+        &this->corner_coords[18], this->corner_tags[3], this->corner_handles[3]
+      );
       break;
     case MBPYRAMID:
       std::cerr << "Pyramid schemes not handled yet\n";
@@ -598,7 +603,7 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[10][i] = ( permuted_coords[0][i] + permuted_coords[2][i] ) * .375 + permuted_coords[1][i] * .25;
           }
-	(*this->tag_assigner)( t0, t2, t1, permuted_tags[10] );
+        (*this->tag_assigner)( t0, t2, t1, permuted_tags[10] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(1);
       output_tets.push( MBSimplexTemplateRefiner::templates + 9 );
@@ -647,7 +652,7 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[11][i] = ( permuted_coords[1][i] + permuted_coords[3][i] ) * .375 + permuted_coords[0][i] * .25;
           }
-	(*this->tag_assigner)( t1, t3, t0, permuted_tags[11] );
+        (*this->tag_assigner)( t1, t3, t0, permuted_tags[11] );
         }
       if ( ( comparison_bits & 12 ) == 12 )
         {
@@ -656,7 +661,7 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[13][i] = ( permuted_coords[2][i] + permuted_coords[3][i] ) * .375 + permuted_coords[0][i] * .25;
           }
-	(*this->tag_assigner)( t2, t3, t0, permuted_tags[13] );
+        (*this->tag_assigner)( t2, t3, t0, permuted_tags[13] );
         }
       if ( ( comparison_bits & 48 ) == 48 )
         {
@@ -665,7 +670,7 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[10][i] = ( permuted_coords[1][i] + permuted_coords[2][i] ) * .375 + permuted_coords[0][i] * .25;
           }
-	(*this->tag_assigner)( t1, t2, t0, permuted_tags[10] );
+        (*this->tag_assigner)( t1, t2, t0, permuted_tags[10] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(3);
       output_tets.push( MBSimplexTemplateRefiner::templates + 57 );
@@ -773,7 +778,7 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[10][i] = ( permuted_coords[0][i] + permuted_coords[2][i] ) * .375 + permuted_coords[1][i] * .25;
           }
-	(*this->tag_assigner)( t0, t2, t1, permuted_tags[10] );
+        (*this->tag_assigner)( t0, t2, t1, permuted_tags[10] );
         }
       if ( ( comparison_bits & 12 ) == 12 )
         {
@@ -782,7 +787,7 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[11][i] = ( permuted_coords[1][i] + permuted_coords[3][i] ) * .375 + permuted_coords[0][i] * .25;
           }
-	(*this->tag_assigner)( t1, t3, t0, permuted_tags[11] );
+        (*this->tag_assigner)( t1, t3, t0, permuted_tags[11] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(5);
       switch ( comparison_bits )
@@ -855,7 +860,7 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[10][i] = ( permuted_coords[1][i] + permuted_coords[2][i] ) * .375 + permuted_coords[0][i] * .25;
           }
-	(*this->tag_assigner)( t1, t2, t0, permuted_tags[10] );
+        (*this->tag_assigner)( t1, t2, t0, permuted_tags[10] );
         }
       if ( ( comparison_bits & 12 ) == 12 )
         {
@@ -864,7 +869,7 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[11][i] = ( permuted_coords[0][i] + permuted_coords[3][i] ) * .375 + permuted_coords[1][i] * .25;
           }
-	(*this->tag_assigner)( t0, t3, t1, permuted_tags[11] );
+        (*this->tag_assigner)( t0, t3, t1, permuted_tags[11] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(6);
       switch ( comparison_bits )
@@ -937,7 +942,7 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[12][i] = ( permuted_coords[1][i] + permuted_coords[2][i] ) * .375 + permuted_coords[3][i] * .25;
           }
-	(*this->tag_assigner)( t1, t2, t3, permuted_tags[12] );
+        (*this->tag_assigner)( t1, t2, t3, permuted_tags[12] );
         }
       if ( ( comparison_bits & 12 ) == 12 )
         {
@@ -946,7 +951,7 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[11][i] = ( permuted_coords[0][i] + permuted_coords[1][i] ) * .375 + permuted_coords[3][i] * .25;
           }
-	(*this->tag_assigner)( t0, t1, t3, permuted_tags[11] );
+        (*this->tag_assigner)( t0, t1, t3, permuted_tags[11] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(7);
       output_tets.push( MBSimplexTemplateRefiner::templates + 545 );
@@ -1025,7 +1030,7 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[10][i] = ( permuted_coords[1][i] + permuted_coords[0][i] ) * .375 + permuted_coords[2][i] * .25;
           }
-	(*this->tag_assigner)( t1, t0, t2, permuted_tags[10] );
+        (*this->tag_assigner)( t1, t0, t2, permuted_tags[10] );
         }
       if ( ( comparison_bits & 12 ) == 12 )
         {
@@ -1034,7 +1039,7 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[13][i] = ( permuted_coords[2][i] + permuted_coords[3][i] ) * .375 + permuted_coords[0][i] * .25;
           }
-	(*this->tag_assigner)( t2, t3, t0, permuted_tags[13] );
+        (*this->tag_assigner)( t2, t3, t0, permuted_tags[13] );
         }
       if ( ( comparison_bits & 48 ) == 48 )
         {
@@ -1043,7 +1048,7 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[11][i] = ( permuted_coords[0][i] + permuted_coords[1][i] ) * .375 + permuted_coords[3][i] * .25;
           }
-	(*this->tag_assigner)( t0, t1, t3, permuted_tags[11] );
+        (*this->tag_assigner)( t0, t1, t3, permuted_tags[11] );
         }
       if ( ( comparison_bits & 192 ) == 192 )
         {
@@ -1052,7 +1057,7 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[12][i] = ( permuted_coords[2][i] + permuted_coords[3][i] ) * .375 + permuted_coords[1][i] * .25;
           }
-	(*this->tag_assigner)( t2, t3, t1, permuted_tags[12] );
+        (*this->tag_assigner)( t2, t3, t1, permuted_tags[12] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(8);
       switch ( comparison_bits )
@@ -1389,7 +1394,7 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[10][i] = ( permuted_coords[1][i] + permuted_coords[0][i] ) * .375 + permuted_coords[2][i] * .25;
           }
-	(*this->tag_assigner)( t1, t0, t2, permuted_tags[10] );
+        (*this->tag_assigner)( t1, t0, t2, permuted_tags[10] );
         }
       if ( ( comparison_bits & 12 ) == 12 )
         {
@@ -1398,7 +1403,7 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[11][i] = ( permuted_coords[0][i] + permuted_coords[1][i] ) * .375 + permuted_coords[3][i] * .25;
           }
-	(*this->tag_assigner)( t0, t1, t3, permuted_tags[11] );
+        (*this->tag_assigner)( t0, t1, t3, permuted_tags[11] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(9);
       output_tets.push( MBSimplexTemplateRefiner::templates + 1107 );
