@@ -230,21 +230,18 @@ int TestMeshRefiner( int argc, char* argv[] )
   iface->tag_set_data( tag_gid, &tet_handle, 1, gid_values + 6 + rank );
   iface->list_entities( 0, 1 );
 
-  /*
   MBSimplexTemplateRefiner eref( iface );
   MBTestOutputFunctor* ofunc = new MBTestOutputFunctor;
   ofunc->input_is_output = ( argc > 1 && ! strcmp( argv[1], "-new-mesh" ) ) ? false : true;
   ofunc->mesh = ofunc->input_is_output ? iface : new MBCore;
   eref.set_edge_size_evaluator( eval );
   eref.set_output_functor( ofunc );
-  eref.refine_entity( tri_handle );
+  eref.refine_entity( tet_handle );
 
-  iface->list_entities( 0, 1 );
+  ofunc->mesh->list_entities( 0, 1 );
 
   if ( ! ofunc->input_is_output )
     delete ofunc->mesh;
-  */
-  delete eval;
   delete iface;
 
 #ifdef USE_MPI
