@@ -106,7 +106,7 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
   }
   else if (MB_SUCCESS == result) {
     int num_fields = 
-      sscanf(ghost_str.c_str(), "%d.%d", &resolve_dim, &shared_dim);
+      sscanf(shared_str.c_str(), "%d.%d", &resolve_dim, &shared_dim);
     if (2 != num_fields) {
       merror->set_last_error( "Didn't read 2 fields from PARALLEL_RESOLVE_SHARED_ENTS string\n" );
       return MB_FAILURE;

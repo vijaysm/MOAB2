@@ -2197,10 +2197,9 @@ MBErrorCode MBParallelComm::resolve_shared_ents(int resolve_dim,
   MBRange proc_ents;
       // get the entities in the partition sets
   MBRange part_sets;
-  MBTag part_tag = partition_tag();
-  result = mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &part_tag,
-                                                NULL, 1, part_sets);
-  if (MB_SUCCESS != result) return result;
+  result = get_partition_sets(part_sets);
+  RRA(" ");
+  
   for (MBRange::iterator rit = part_sets.begin(); rit != part_sets.end(); rit++) {
     MBRange tmp_ents;
     result = mbImpl->get_entities_by_handle(*rit, tmp_ents, true);
@@ -2428,6 +2427,41 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
   return result;
 }
 
+MBErrorCode MBParallelComm::set_pstatus_entities(MBRange &pstatus_ents,
+                                                 unsigned char pstatus_val,
+                                                 bool lower_dim_ents,
+                                                 bool verts_too,
+                                                 int operation) 
+{
+  std::vector<unsigned char> pstatus_vals(pstatus_ents.size());
+  MBRange all_ents, *range_ptr = &pstatus_ents;
+  MBErrorCode result;
+  if (lower_dim_ents || verts_too) {
+    all_ents = pstatus_ents;
+    range_ptr = &all_ents;
+    int start_dim = (lower_dim_ents ? mbImpl->dimension_from_handle(*pstatus_ents.rbegin())-1 : 0);
+    for (; start_dim >= 0; start_dim--) {
+      result = mbImpl->get_adjacencies(all_ents, start_dim, true, all_ents,
+                                       MBInterface::UNION);
+      RRA(" ");
+    }
+  }
+  if (MBInterface::UNION == operation) {
+    result = mbImpl->tag_get_data(pstatus_tag(), *range_ptr, &pstatus_vals[0]);
+    RRA("Couldn't get pstatus tag value.");
+    for (unsigned int i = pstatus_ents.size()-1; i >= 0; i--)
+      pstatus_vals[i] |= pstatus_val;
+  }
+  else {
+    for (unsigned int i = pstatus_ents.size()-1; i >= 0; i--)
+      pstatus_vals[i] = pstatus_val;
+  }
+  result = mbImpl->tag_set_data(pstatus_tag(), *range_ptr, &pstatus_vals[0]);
+  RRA("Couldn't set pstatus tag value.");
+  
+  return MB_SUCCESS;
+}
+  
 MBErrorCode MBParallelComm::create_interface_sets(std::map<std::vector<int>, MBRange> &proc_nranges,
                                                   int resolve_dim, int shared_dim,
                                                   MBRange *iface_sets_ptr) 
@@ -2480,7 +2514,7 @@ MBErrorCode MBParallelComm::create_interface_sets(std::map<std::vector<int>, MBR
 
       // get the owning proc, then set the pstatus tag on iface set
     int min_proc = ((*mit).first)[0];
-    unsigned char pstatus = PSTATUS_SHARED;
+    unsigned char pstatus = (PSTATUS_SHARED | PSTATUS_INTERFACE);
     if (min_proc < (int) procConfig.proc_rank()) pstatus |= PSTATUS_NOT_OWNED;
     result = mbImpl->tag_set_data(pstatus_tag, &new_set, 1, &pstatus); 
     RRA("Failed to tag interface set with pstatus.");
@@ -2757,7 +2791,7 @@ MBErrorCode MBParallelComm::get_iface_entities(int other_proc,
 {
   MBRange iface_sets;
   std::vector<int> iface_procs;
-  MBErrorCode result = get_iface_sets_procs(iface_sets, iface_procs);
+  MBErrorCode result = get_interface_sets_procs(iface_sets, iface_procs);
   RRA("Failed to get iface sets/procs.");
   
   for (MBRange::iterator rit = iface_sets.begin(); rit != iface_sets.end(); rit++) {
@@ -2771,6 +2805,82 @@ MBErrorCode MBParallelComm::get_iface_entities(int other_proc,
   return MB_SUCCESS;
 }
 
+  //! return partition sets; if tag_name is input, gets sets with
+  //! that tag name, otherwise uses PARALLEL_PARTITION tag
+MBErrorCode MBParallelComm::get_partition_sets(MBRange &part_sets,
+                                               const char *tag_name) 
+{
+  MBErrorCode result;
+  
+  if (NULL != tag_name) {
+    result = MB_NOT_IMPLEMENTED;
+    RRA("Specified tag name not yet implemented.");
+  }
+    
+  MBTag part_tag = partition_tag();
+  result = mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &part_tag,
+                                                NULL, 1, part_sets);
+  return result;
+}
+
+  //! get communication interface sets and the processors with which
+  //! this processor communicates; sets are sorted by processor
+MBErrorCode MBParallelComm::get_interface_sets_procs(MBRange &iface_sets,
+                                                     std::vector<int> &iface_procs)
+{
+  MBTag iface_tag = iface_sets_tag();
+  if (0 == iface_tag) return MB_FAILURE;
+
+    // make sure the sharing procs vector is empty
+  iface_procs.clear();
+
+    // get the iface sets, which are stored on the instance
+  int tag_sz;
+  MBErrorCode result = mbImpl->tag_get_size(iface_tag, tag_sz);
+  RRA("Failed to get iface tag size.");
+  tag_sz /= sizeof(MBEntityHandle);
+  std::vector<MBEntityHandle> iface_sets_vec(tag_sz);
+  result = mbImpl->tag_get_data(iface_tag, NULL, 0, &iface_sets_vec[0]);
+  RRA("Failed to find iface tag.");
+    // can do a straight copy because ranges don't keep 0-values
+  std::copy(iface_sets_vec.begin(), iface_sets_vec.end(), 
+            mb_range_inserter(iface_sets));
+
+    // pre-load vector of single-proc tag values
+  unsigned int i, j;
+  std::vector<int> iface_proc(iface_sets.size());
+  result = mbImpl->tag_get_data(sharedp_tag(), iface_sets, &iface_proc[0]);
+  RRA("Failed to get iface_proc for iface sets.");
+
+    // get sharing procs either from single-proc vector or by getting
+    // multi-proc tag value
+  int tmp_iface_procs[MAX_SHARING_PROCS];
+  std::set<int> procs_set;
+  std::fill(tmp_iface_procs, tmp_iface_procs+MAX_SHARING_PROCS, -1);
+  MBRange::iterator rit;
+  for (rit = iface_sets.begin(), i = 0; rit != iface_sets.end(); rit++, i++) {
+    if (-1 != iface_proc[i]) procs_set.insert(iface_proc[i]);
+    else {
+        // get the sharing_procs tag
+      result = mbImpl->tag_get_data(sharedps_tag(), &(*rit), 1,
+                                    tmp_iface_procs);
+      RRA("Failed to get iface_procs for iface set.");
+      for (j = 0; j < MAX_SHARING_PROCS; j++) {
+        if (-1 != tmp_iface_procs[j]) procs_set.insert(tmp_iface_procs[j]);
+        else {
+          std::fill(tmp_iface_procs, tmp_iface_procs+j, -1);
+          break;
+        }
+      }
+    }
+  }
+
+    // now put the set contents into the vector
+  std::copy(procs_set.begin(), procs_set.end(), std::back_inserter(iface_procs));
+  
+  return MB_SUCCESS;
+}
+  
 MBErrorCode MBParallelComm::get_pstatus_entities(int dim,
                                                  unsigned char pstatus_val,
                                                  MBRange &pstatus_ents)
@@ -2787,11 +2897,19 @@ MBErrorCode MBParallelComm::get_pstatus_entities(int dim,
   RRA("Couldn't get pastatus tag.");
   MBRange::iterator rit = ents.begin();
   int i = 0;
-  for (; rit != ents.end(); i++, rit++)
-    if (pstatus[i]&pstatus_val &&
-        (-1 == dim || mbImpl->dimension_from_handle(*rit) == dim)) 
-      pstatus_ents.insert(*rit);
-
+  if (pstatus_val) {
+    for (; rit != ents.end(); i++, rit++)
+      if (pstatus[i]&pstatus_val &&
+          (-1 == dim || mbImpl->dimension_from_handle(*rit) == dim)) 
+        pstatus_ents.insert(*rit);
+  }
+  else {
+    for (; rit != ents.end(); i++, rit++)
+      if (!pstatus[i] &&
+          (-1 == dim || mbImpl->dimension_from_handle(*rit) == dim)) 
+        pstatus_ents.insert(*rit);
+  }
+  
   return MB_SUCCESS;
 }
 
@@ -2854,62 +2972,6 @@ MBErrorCode MBParallelComm::get_ghost_layers(MBEntityHandle iface_set,
       *bridge_ents_ptr = new_bridges.subtract(*bridge_ents_ptr);
   }
 
-  return MB_SUCCESS;
-}
-
-MBErrorCode MBParallelComm::get_iface_sets_procs(MBRange &iface_sets,
-                                                 std::vector<int> &sharing_procs) 
-{
-  MBTag iface_tag = iface_sets_tag();
-  if (0 == iface_tag) return MB_FAILURE;
-
-    // make sure the sharing procs vector is empty
-  sharing_procs.clear();
-
-    // get the iface sets, which are stored on the instance
-  int tag_sz;
-  MBErrorCode result = mbImpl->tag_get_size(iface_tag, tag_sz);
-  RRA("Failed to get iface tag size.");
-  tag_sz /= sizeof(MBEntityHandle);
-  std::vector<MBEntityHandle> iface_sets_vec(tag_sz);
-  result = mbImpl->tag_get_data(iface_tag, NULL, 0, &iface_sets_vec[0]);
-  RRA("Failed to find iface tag.");
-    // can do a straight copy because ranges don't keep 0-values
-  std::copy(iface_sets_vec.begin(), iface_sets_vec.end(), 
-            mb_range_inserter(iface_sets));
-
-    // pre-load vector of single-proc tag values
-  unsigned int i, j;
-  std::vector<int> iface_proc(iface_sets.size());
-  result = mbImpl->tag_get_data(sharedp_tag(), iface_sets, &iface_proc[0]);
-  RRA("Failed to get iface_proc for iface sets.");
-
-    // get sharing procs either from single-proc vector or by getting
-    // multi-proc tag value
-  int iface_procs[MAX_SHARING_PROCS];
-  std::set<int> procs_set;
-  std::fill(iface_procs, iface_procs+MAX_SHARING_PROCS, -1);
-  MBRange::iterator rit;
-  for (rit = iface_sets.begin(), i = 0; rit != iface_sets.end(); rit++, i++) {
-    if (-1 != iface_proc[i]) procs_set.insert(iface_proc[i]);
-    else {
-        // get the sharing_procs tag
-      result = mbImpl->tag_get_data(sharedps_tag(), &(*rit), 1,
-                                    &iface_procs[0]);
-      RRA("Failed to get iface_procs for iface set.");
-      for (j = 0; j < MAX_SHARING_PROCS; j++) {
-        if (-1 != iface_procs[j]) procs_set.insert(iface_procs[j]);
-        else {
-          std::fill(iface_procs, iface_procs+j, -1);
-          break;
-        }
-      }
-    }
-  }
-
-    // now put the set contents into the vector
-  std::copy(procs_set.begin(), procs_set.end(), std::back_inserter(sharing_procs));
-  
   return MB_SUCCESS;
 }
 
@@ -2998,7 +3060,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     // get all procs interfacing to this proc
   MBRange iface_sets;
   std::vector<int> iface_procs;
-  result = get_iface_sets_procs(iface_sets, iface_procs);
+  result = get_interface_sets_procs(iface_sets, iface_procs);
   RRA("Failed to get iface sets, procs");
 
     // post ghost irecv's for all interface procs

@@ -16,18 +16,12 @@ DEFS += $(DEFINES)
 check_PROGRAMS = testc_cbind
 testc_cbind_SOURCES = testc_cbind.c
 
-if PARALLEL
-  check_PROGRAMS += partest
-  partest_SOURCES = partest.cpp
-  partest_DEPENDENCIES = libiMesh.la $(top_builddir)/libMOAB.la 
-endif
-
 LDADD = libiMesh.la $(top_builddir)/libMOAB.la ${MOAB_CXX_LDFLAGS} ${MOAB_CXX_LIBS}
 testc_cbind_DEPENDENCIES = libiMesh.la $(top_builddir)/libMOAB.la
 
 libiMesh_la_SOURCES = \
 	iMesh_MOAB.cpp
-                   
+
 libiMesh_la_include_HEADERS = iMesh.h \
                              iMesh_extensions.h \
                              iMesh_extensions_protos.h \
@@ -35,6 +29,15 @@ libiMesh_la_include_HEADERS = iMesh.h \
                              iMesh_protos.h \
                              iBase.h \
                              iBase_f.h 
+
+if PARALLEL
+  libiMesh_la_SOURCES += iMeshP_MOAB.cpp
+  libiMesh_la_include_HEADERS += iMeshP.h iMeshP_f.h iMeshP_protos.h
+  INCLUDES += -I$(top_srcdir)/parallel
+  check_PROGRAMS += partest
+  partest_SOURCES = partest.cpp
+  partest_DEPENDENCIES = libiMesh.la $(top_builddir)/libMOAB.la 
+endif
 
 lib_LTLIBRARIES = libiMesh.la
 

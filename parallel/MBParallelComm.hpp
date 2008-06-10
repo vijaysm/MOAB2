@@ -26,6 +26,7 @@
 #define MB_PARALLEL_COMM_HPP
 
 #include "MBForward.hpp"
+#include "MBInterface.hpp"
 #include "MBRange.hpp"
 #include "MBProcConfig.hpp"
 #include <map>
@@ -191,6 +192,22 @@ public:
                                    unsigned char pstatus_val,
                                    MBRange &pstatus_ents);
   
+    /** \brief Set pstatus values on entities
+     *
+     * \param pstatus_ents Entities to be set
+     * \param pstatus_val Pstatus value to be set
+     * \param lower_dim_ents If true, lower-dimensional ents (incl. vertices) set too
+     *        (and created if they don't exist)
+     * \param verts_too If true, vertices also set
+     * \param operation If UNION, pstatus_val is OR-d with existing value, otherwise
+     *        existing value is over-written
+     */
+  MBErrorCode set_pstatus_entities(MBRange &pstatus_ents,
+                                   unsigned char pstatus_val,
+                                   bool lower_dim_ents = false,
+                                   bool verts_too = true,
+                                   int operation = MBInterface::UNION);
+  
     /** \brief Get entities on an inter-processor interface and of specified dimension
      * If other_proc is -1, any interface entities are returned.  If dim is -1,
      * entities of all dimensions on interface are returned.
@@ -201,6 +218,16 @@ public:
   MBErrorCode get_iface_entities(int other_proc,
                                  int dim,
                                  MBRange &iface_ents);
+  
+    //! return partition sets; if tag_name is input, gets sets with
+    //! that tag name, otherwise uses PARALLEL_PARTITION tag
+  MBErrorCode get_partition_sets(MBRange &part_sets,
+                                 const char *tag_name = NULL);
+
+    //! get communication interface sets and the processors with which
+    //! this processor communicates; sets are sorted by processor
+  MBErrorCode get_interface_sets_procs(MBRange &iface_sets,
+                                       std::vector<int> &iface_procs);
   
     //! pack the buffer with ALL data for orig_ents; return entities actually
     //! packed (including reference sub-entities) in final_ents
@@ -482,10 +509,6 @@ private:
                               int remote_proc,
                               MBEntityHandle remote_handle);
   
-    //! returns the interface sets and union of sharing procs
-  MBErrorCode get_iface_sets_procs(MBRange &iface_sets,
-                                   std::vector<int> &sharing_procs);
-  
     //! MB interface associated with this writer
   MBInterface *mbImpl;
 
@@ -514,16 +537,6 @@ private:
     //! tags used to save sharing procs and handles
   MBTag sharedpTag, sharedpsTag, sharedhTag, sharedhsTag, pstatusTag, 
     ifaceSetsTag, partitionTag;
-
-    //! interface sets, one set per unique combination of procs
-  MBRange ifaceSets;
-  
-    //! ghost sets (sets of ghost entities), one set per unique combination of procs
-  MBRange ghostSets;
-  
-    //! ghosted sets (sets of ghosted entities), one set per unique combination of procs
-  MBRange ghostedSets;
-  
 };
 
 inline MBErrorCode MBParallelComm::get_shared_proc_tags(MBTag &sharedp,

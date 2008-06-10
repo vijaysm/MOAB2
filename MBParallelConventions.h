@@ -54,17 +54,19 @@
 /** \brief Tag storing parallel status (as bits in this tag)
  *
  * This tag stores various aspects of parallel status in bits; see also 
- * #define's following, to be used in bit mask operations
+ * #define's following, to be used in bit mask operations.  If an entity is
+ * not shared with any other processors, the pstatus is 0, otherwise it's > 0
  *
- * bit 0: shared (0=not shared, 1=shared)
- * bit 1: !owned (0=owned, 1=not owned)
+ * bit 0: !owned (0=owned, 1=not owned)
+ * bit 1: interface (0=not interface, 1=interface)
  * bit 2: ghost (0=not ghost, 1=ghost)
  */
 #define PARALLEL_STATUS_TAG_NAME "PARALLEL_STATUS"
 
-#define PSTATUS_SHARED 0x1
-#define PSTATUS_NOT_OWNED 0x2
-#define PSTATUS_GHOST 0x4
+#define PSTATUS_NOT_OWNED 0x0
+#define PSTATUS_SHARED 0x2
+#define PSTATUS_INTERFACE 0x4
+#define PSTATUS_GHOST 0x8
  
 /** \brief Tag storing interface sets
  *
