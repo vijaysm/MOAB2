@@ -355,12 +355,6 @@ project( MOAB )
   target_link_libraries( tqdcfr MOAB )
   add_test( TestTQDCFR ${EXECUTABLE_OUTPUT_PATH}/tqdcfr )
 
-  add_executable( test_mesh_refiner test_mesh_refiner.cpp )
-  set_source_files_properties( test_mesh_refiner.cpp
-    COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
-  target_link_libraries( test_mesh_refiner MOAB )
-  add_test( TestMeshRefiner ${EXECUTABLE_OUTPUT_PATH}/test_mesh_refiner )
-
   add_executable( bsp_tree_test bsp_tree_test.cpp )
   set_source_files_properties( bsp_tree_test.cpp
     COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
