@@ -52,25 +52,25 @@ protected:
   MBSimplexTemplateTagAssigner* tag_assigner;
   std::vector<double> corner_coords;
   std::vector<void*> corner_tags;
-  std::vector<MBEntityHandle*> corner_handles;
+  std::vector<MBEntityHandle> corner_handles;
 
   static int template_index[64][2];
   static int permutations_from_index[24][14];
   static int templates[];
 
-  void refine_0_simplex( const double* v0, const void* t0, MBEntityHandle* h0 );
+  void refine_0_simplex( const double* v0, const void* t0, MBEntityHandle h0 );
   bool refine_1_simplex( int max_depth,
-                         const double* v0, const void* t0, MBEntityHandle* h0,
-                         const double* v1, const void* t1, MBEntityHandle* h1 );
+                         const double* v0, const void* t0, MBEntityHandle h0,
+                         const double* v1, const void* t1, MBEntityHandle h1 );
   bool refine_2_simplex( int max_depth, int move,
-                         const double* v0, const void* t0, MBEntityHandle* h0,
-                         const double* v1, const void* t1, MBEntityHandle* h1,
-                         const double* v2, const void* t2, MBEntityHandle* h2 );
+                         const double* v0, const void* t0, MBEntityHandle h0,
+                         const double* v1, const void* t1, MBEntityHandle h1,
+                         const double* v2, const void* t2, MBEntityHandle h2 );
   bool refine_3_simplex( int max_depth,
-                         double* v0, void* t0, MBEntityHandle* h0,
-                         double* v1, void* t1, MBEntityHandle* h1,
-                         double* v2, void* t2, MBEntityHandle* h2,
-                         double* v3, void* t3, MBEntityHandle* h3 );
+                         double* v0, void* t0, MBEntityHandle h0,
+                         double* v1, void* t1, MBEntityHandle h1,
+                         double* v2, void* t2, MBEntityHandle h2,
+                         double* v3, void* t3, MBEntityHandle h3 );
 
   int best_tets( int* alternates, double*[14], int, int ) { return alternates[0]; }
   void assign_parametric_coordinates( int num_nodes, const double* src, double* tgt );

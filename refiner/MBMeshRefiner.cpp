@@ -98,18 +98,17 @@ public:
     this->edge_size_evaluator = es;
     }
   virtual ~MBMeshRefinerOutputFunctor() { }
-  virtual void operator () ( const double* vcoords, const void* vtags, MBEntityHandle* hash )
+  /// Insert a new vertex into the mesh and set its tag values. This has no effect when output_is_input is true.
+  virtual MBEntityHandle operator () ( MBEntityHandle hash, const double* vcoords, const void* vtags )
     {
-    if ( ! hash[1] && this->output_is_input )
+    if ( this->output_is_input )
       {
       // Don't insert vertices that already exist in the output
-      this->vertex_accum.push_back( hash[0] );
-      return;
+      return hash;
       }
 
     MBEntityHandle vertex_handle;
     this->mesh->create_vertex( vcoords + 3, vertex_handle );
-    this->vertex_accum.push_back( vertex_handle );
     MBTag tag_handle;
     int tag_offset;
     for ( int i = 0; i < num_tags; ++i )
@@ -117,7 +116,34 @@ public:
       this->edge_size_evaluator->get_vertex_tag( i, tag_handle, tag_offset );
       this->mesh->tag_set_data( tag_handle, &vertex_handle, 1, (char*)vtags + tag_offset );
       }
+    return vertex_handle;
     }
+  /// Insert a new n-way hashed vertex into the mesh and set its tag values.
+  virtual MBEntityHandle operator () ( int nhash, MBEntityHandle* hash, const double* vcoords, const void* vtags )
+    {
+    // First, see if we've already created this vertex
+    MBEntityHandle hv;
+    if ( this->find_hashed_vertex( hv, nhash, hash ) )
+      {
+      return hv;
+      }
+
+    this->mesh->create_vertex( vcoords + 3, hv );
+    MBTag tag_handle;
+    int tag_offset;
+    for ( int i = 0; i < num_tags; ++i )
+      {
+      this->edge_size_evaluator->get_vertex_tag( i, tag_handle, tag_offset );
+      this->mesh->tag_set_data( tag_handle, &hv, 1, (char*)vtags + tag_offset );
+      }
+    return hv;
+    }
+  /// Accumulate a vertex for use in the connectivity record of an element.
+  virtual void operator () ( MBEntityHandle hash )
+    {
+    this->vertex_accum.push_back( hash );
+    }
+  /// Create an element from all the accumulated vertices since the last element was created.
   virtual void operator () ( MBEntityType etyp )
     {
     if ( ! this->vertex_accum.size() )
@@ -126,6 +152,13 @@ public:
     MBEntityHandle elem_handle;
     this->mesh->create_element( etyp, &this->vertex_accum[0], this->vertex_accum.size(), elem_handle );
     this->vertex_accum.clear();
+    }
+  bool find_hashed_vertex( MBEntityHandle& vout, int nhash, MBEntityHandle* hash )
+    {
+    return false;
+    }
+  void hash_vertex( MBEntityHandle vout, int nhash, MBEntityHandle* hash )
+    {
     }
 };
 

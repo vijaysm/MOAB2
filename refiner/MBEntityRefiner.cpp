@@ -157,7 +157,6 @@ void MBEntityRefiner::update_heap_size()
     unsigned long m = this->edge_size_evaluator->get_vertex_tag_size();
     this->tag_heap.resize( m * n );
     }
-  this->hash_heap.resize( 2 * n * this->maximum_number_of_subdivisions + 1 );
 }
 
 /**\brief Subclasses should call this on entry to refine_entity().
@@ -169,7 +168,6 @@ void MBEntityRefiner::reset_heap_pointers()
 {
   this->current_coord = this->coord_heap.begin();
   this->current_tag = this->tag_heap.begin();
-  this->current_hash = this->hash_heap.begin();
 }
 
 /**\brief Return a pointer to temporary storage for edge midpoint vertex coordinates inside refine_entity().
@@ -211,60 +209,3 @@ void* MBEntityRefiner::heap_tag_storage()
   return rval;
 }
 
-/**\brief Return a pointer to temporary storage for vertex hash vectors inside refine_entity().
-  *
-  * The returned pointer references enough bytes to store all the hashes for a vertex.
-  * @param[in] h0 The pre-existing vertex hash for the first endpoint
-  * @param[in] h1 The pre-existing vertex hash for the second endpoint
-  * @retval       The hash, filled in with values from h0 and h1 and null-terminated.
-  */
-MBEntityHandle* MBEntityRefiner::heap_hash_storage( MBEntityHandle* h0, MBEntityHandle* h1 )
-{
-  MBEntityHandle* rval;
-  if ( this->edge_size_evaluator && this->current_hash != this->hash_heap.end() )
-    {
-    rval = (MBEntityHandle*) &(*this->current_hash);
-    MBEntityHandle* h2 = rval;
-    while ( *h0 )
-      {
-      *h2 = *h0;
-      ++h0; ++h2;
-      ++this->current_hash;
-      }
-    while ( *h1 )
-      {
-      *h2 = *h1;
-      ++h1; ++h2;
-      ++this->current_hash;
-      }
-    *h2 = 0; // NULL terminator
-    ++this->current_hash;
-    }
-  else
-    {
-    rval = 0;
-    }
-  return rval;
-}
-
-/**\brief Return a pointer to temporary storage for vertex hash vectors inside refine_entity().
-  *
-  * The returned pointer references enough bytes to store all the hashes for a vertex.
-  * @param[in] sz The number of vertex handles to use as a hash, not including the NULL terminator.
-  * @retval       A pointer to the hash storage, uninitialized but NULL-terminated.
-  */
-MBEntityHandle* MBEntityRefiner::heap_hash_storage( int sz )
-{
-  MBEntityHandle* rval;
-  if ( this->edge_size_evaluator && this->current_hash != this->hash_heap.end() )
-    {
-    rval = (MBEntityHandle*) &(*this->current_hash);
-    rval[sz] = 0;
-    this->current_hash += sz + 1;
-    }
-  else
-    {
-    rval = 0;
-    }
-  return rval;
-}

@@ -25,8 +25,13 @@ public:
   edge_hash_t edge_hash;
   node_list_t elem_vert;
 
-  virtual void operator () ( const double* vcoords, const void* vtags, MBEntityHandle* vhash )
+  void print_vert_crud( MBEntityHandle vout, int nvhash, MBEntityHandle* vhash, const double* vcoords, const void* vtags )
     {
+    std::cout << "+ {";
+    for ( int i = 0; i < nvhash; ++ i )
+      std::cout << " " << vhash[i];
+    std::cout << " } -> " << vout << " ";
+
     std::cout << "[ " << vcoords[0];
     for ( int i = 1; i < 6; ++i )
       std::cout << ", " << vcoords[i];
@@ -38,40 +43,33 @@ public:
               << ", " << x[1];
     for ( int i = 0; i < 4; ++i )
       std::cout << ", " << m[i];
-    std::cout << " > { ";
-    MBEntityHandle* vin = vhash;
-    while ( *vin )
-      {
-      std::cout << *vin << " ";
-      ++ vin;
-      }
-    std::cout << "}\n";
+    std::cout << " >\n";
+    }
 
-    MBEntityHandle vertex_handle;
-    if ( ! vhash[1] )
-      {
-      if ( this->input_is_output )
-        { // Don't copy the original vertex!
-        vertex_handle = vhash[0];
-        }
-      else
-        {
-        node_hash_t::iterator it = this->node_hash.find( vhash[0] );
-        if ( it == this->node_hash.end() )
-          {
-          if ( this->mesh->create_vertex( vcoords + 3, vertex_handle ) != MB_SUCCESS )
-            {
-            std::cerr << "Could not insert corner vertex!\n";
-            }
-          this->node_hash[vhash[0]] = vertex_handle;
-          }
-        else
-          {
-          vertex_handle = it->second;
-          }
-        }
+  virtual MBEntityHandle operator () ( MBEntityHandle vhash, const double* vcoords, const void* vtags )
+    {
+    if ( this->input_is_output )
+      { // Don't copy the original vertex!
+      this->print_vert_crud( vhash, 1, &vhash, vcoords, vtags );
+      return vhash;
       }
-    else if ( ! vhash[2] )
+    MBEntityHandle vertex_handle;
+    if ( this->mesh->create_vertex( vcoords + 3, vertex_handle ) != MB_SUCCESS )
+      {
+      std::cerr << "Could not insert mid-edge vertex!\n";
+      }
+    this->print_vert_crud( vertex_handle, 1, &vhash, vcoords, vtags );
+    return vertex_handle;
+    }
+
+  virtual MBEntityHandle operator () ( int nvhash, MBEntityHandle* vhash, const double* vcoords, const void* vtags )
+    {
+    MBEntityHandle vertex_handle;
+    if ( nvhash == 1 )
+      {
+      vertex_handle = (*this)( *vhash, vcoords, vtags );
+      }
+    else if ( nvhash == 2 )
       {
       node_pair_t pr;
       if ( vhash[0] < vhash[1] )
@@ -97,22 +95,32 @@ public:
         {
         vertex_handle = it->second;
         }
+      this->print_vert_crud( vertex_handle, 2, vhash, vcoords, vtags );
       }
     else
       {
+      vertex_handle = -1;
       std::cerr << "Not handling mid-face vertices yet.\n";
       // FIXME: Handle face midpoint.
       }
-    std::cout << "        -> " << vertex_handle << "\n";
-    this->elem_vert.push_back( vertex_handle );
+    return vertex_handle;
+    }
+
+  virtual void operator () ( MBEntityHandle h )
+    {
+    std::cout << h << " ";
+    this->elem_vert.push_back( h );
     }
 
   virtual void operator () ( MBEntityType etyp )
     {
-    std::cout << "---------- " << etyp << "\n\n";
     MBEntityHandle elem_handle;
-    this->mesh->create_element( etyp, &this->elem_vert[0], this->elem_vert.size(), elem_handle );
+    if ( this->mesh->create_element( etyp, &this->elem_vert[0], this->elem_vert.size(), elem_handle ) == MB_FAILURE )
+      {
+      std::cerr << " *** ";
+      }
     this->elem_vert.clear();
+    std::cout << "---------> " << elem_handle << " ( " << etyp << " )\n\n";
     }
 };
 

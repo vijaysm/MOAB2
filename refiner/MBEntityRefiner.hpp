@@ -70,7 +70,24 @@ class MB_DLL_EXPORT MBEntityRefinerOutputFunctor
 {
 public:
   virtual ~MBEntityRefinerOutputFunctor() { }
-  virtual void operator () ( const double* vcoords, const void* vtags, MBEntityHandle* vhash ) = 0;
+  virtual MBEntityHandle operator () ( MBEntityHandle vhash, const double* vcoords, const void* vtags ) = 0;
+  MBEntityHandle operator () ( MBEntityHandle h0, MBEntityHandle h1, const double* vcoords, const void* vtags )
+    {
+    MBEntityHandle harr[2];
+    harr[0] = h0;
+    harr[1] = h1;
+    return (*this)( 2, harr, vcoords, vtags );
+    }
+  virtual MBEntityHandle operator () ( MBEntityHandle h0, MBEntityHandle h1, MBEntityHandle h2, const double* vcoords, const void* vtags )
+    {
+    MBEntityHandle harr[3];
+    harr[0] = h0;
+    harr[1] = h1;
+    harr[2] = h2;
+    return (*this)( 3, harr, vcoords, vtags );
+    }
+  virtual MBEntityHandle operator () ( int nhash, MBEntityHandle* hash, const double* vcoords, const void* vtags ) = 0;
+  virtual void operator () ( MBEntityHandle vhash ) = 0;
   virtual void operator () ( MBEntityType etyp ) = 0;
 };
 
@@ -107,15 +124,11 @@ protected:
   std::vector<double>::iterator current_coord;
   std::vector<char> tag_heap;
   std::vector<char>::iterator current_tag;
-  std::vector<MBEntityHandle> hash_heap;
-  std::vector<MBEntityHandle>::iterator current_hash;
 
   void update_heap_size();
   void reset_heap_pointers();
   double* heap_coord_storage();
   void* heap_tag_storage();
-  MBEntityHandle* heap_hash_storage( MBEntityHandle* h0, MBEntityHandle* h1 );
-  MBEntityHandle* heap_hash_storage( int sz );
 };
 
 #endif // MB_ENTITYREFINER_H

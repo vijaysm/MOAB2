@@ -57,12 +57,9 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
   MBTag tag_handle;
   int tag_offset;
   void* tag_data;
-  MBEntityHandle* tag_vhandle;
   for ( int n = 0; n < num_nodes; ++ n )
     {
-    tag_vhandle = this->heap_hash_storage( 1 );
-    tag_vhandle[0] = conn[n];
-    this->corner_handles[n] = tag_vhandle;
+    this->corner_handles[n] = conn[n];
     if ( this->mesh->get_coords( &conn[n], 1, &corner_coords[6 * n + 3] ) != MB_SUCCESS )
       {
       return false;
@@ -193,9 +190,14 @@ bool MBSimplexTemplateRefiner::set_edge_size_evaluator( MBEdgeSizeEvaluator* es 
   * in space and vertices as degrees-of-freedom in a mesh (i.e. a vertex that is
   * treated as a lumped-parameter model).
   */
-void MBSimplexTemplateRefiner::refine_0_simplex( const double* v0, const void* t0, MBEntityHandle* h0 )
+void MBSimplexTemplateRefiner::refine_0_simplex( const double* v0, const void* t0, MBEntityHandle h0 )
 {
-  (*this->output_functor)( v0, t0, h0 );
+  // Ignore these arguments... the caller is responsible for calling the output functor to ensure the
+  // vertex exists on the output.
+  (void) v0;
+  (void) t0;
+
+  (*this->output_functor)( h0 );
   (*this->output_functor)( MBVERTEX );
 }
 
@@ -203,8 +205,8 @@ void MBSimplexTemplateRefiner::refine_0_simplex( const double* v0, const void* t
   */
 bool MBSimplexTemplateRefiner::refine_1_simplex(
   int max_depth,
-  const double* v0, const void* t0, MBEntityHandle* h0,
-  const double* v1, const void* t1, MBEntityHandle* h1 )
+  const double* v0, const void* t0, MBEntityHandle h0,
+  const double* v1, const void* t1, MBEntityHandle h1 )
 {
   bool edge_code = false;
 
@@ -212,8 +214,7 @@ bool MBSimplexTemplateRefiner::refine_1_simplex(
   void* midptt;
   // NB: If support for multiple recursive subdivisions (without a merge in between) is required,
   //     this will have to change as it assumes that h0 and h1 have only a single entry.
-  MBEntityHandle midpth[3];
-  midpth[0] = h0[0]; midpth[1] = h1[0]; midpth[2] = 0;
+  MBEntityHandle midpth = 0;
 
   if ( max_depth-- > 0 )
     {
@@ -227,14 +228,18 @@ bool MBSimplexTemplateRefiner::refine_1_simplex(
 
     (*this->tag_assigner)( v0, t0, h0, midptc, midptt, v1, t1, h1 );
     edge_code = this->edge_size_evaluator->evaluate_edge( v0, t0, midptc, midptt, v1, t1 );
+    if ( edge_code )
+      {
+      midpth = (*this->output_functor)( h0, h1, midptc, midptt );
+      }
     }
 
   switch ( edge_code )
     {
     // No edges to subdivide
   case 0:
-    (*this->output_functor)( v0, t0, h0 );
-    (*this->output_functor)( v1, t1, h1 );
+    (*this->output_functor)( h0 );
+    (*this->output_functor)( h1 );
     (*this->output_functor)( MBEDGE );
     break ;
 
@@ -252,9 +257,9 @@ bool MBSimplexTemplateRefiner::refine_1_simplex(
   */
 bool MBSimplexTemplateRefiner::refine_2_simplex(
   int max_depth, int move,
-  const double* v0, const void* t0, MBEntityHandle* h0,
-  const double* v1, const void* t1, MBEntityHandle* h1,
-  const double* v2, const void* t2, MBEntityHandle* h2 )
+  const double* v0, const void* t0, MBEntityHandle h0,
+  const double* v1, const void* t1, MBEntityHandle h1,
+  const double* v2, const void* t2, MBEntityHandle h2 )
 {
   int edge_code = 0;
 
@@ -264,9 +269,9 @@ bool MBSimplexTemplateRefiner::refine_2_simplex(
   void* midpt0t;
   void* midpt1t;
   void* midpt2t;
-  MBEntityHandle* midpt0h;
-  MBEntityHandle* midpt1h;
-  MBEntityHandle* midpt2h;
+  MBEntityHandle midpt0h;
+  MBEntityHandle midpt1h;
+  MBEntityHandle midpt2h;
 
   if ( max_depth-- > 0 )
     {
@@ -277,9 +282,9 @@ bool MBSimplexTemplateRefiner::refine_2_simplex(
     midpt0t = this->heap_tag_storage();
     midpt1t = this->heap_tag_storage();
     midpt2t = this->heap_tag_storage();
-    midpt0h = this->heap_hash_storage( h0, h1 );
-    midpt1h = this->heap_hash_storage( h1, h2 );
-    midpt2h = this->heap_hash_storage( h2, h0 );
+    midpt0h = 0;
+    midpt1h = 0;
+    midpt2h = 0;
     for ( i = 0; i < 6; ++i )
       {
       midpt0c[i] = ( v0[i] + v1[i] ) / 2.;
@@ -290,20 +295,29 @@ bool MBSimplexTemplateRefiner::refine_2_simplex(
     (*this->tag_assigner)( v1, t1, h1, midpt1c, midpt1t, v2, t2, h2 );
     (*this->tag_assigner)( v2, t2, h2, midpt2c, midpt2t, v0, t0, h0 );
     if ( ( move & 1 ) && this->edge_size_evaluator->evaluate_edge( v0, t0, midpt0c, midpt0t, v1, t1 ) )
+      {
       edge_code += 1;
+      midpt0h = (*this->output_functor)( h0, h1, midpt0c, midpt0t );
+      }
     if ( ( move & 2 ) && this->edge_size_evaluator->evaluate_edge( v1, t1, midpt1c, midpt1t, v2, t2 ) )
+      {
       edge_code += 2;
+      midpt1h = (*this->output_functor)( h1, h2, midpt1c, midpt1t );
+      }
     if ( ( move & 4 ) && this->edge_size_evaluator->evaluate_edge( v2, t2, midpt2c, midpt2t, v0, t0 ) )
+      {
       edge_code += 4;
+      midpt2h = (*this->output_functor)( h2, h0, midpt2c, midpt2t );
+      }
     }
 
   switch ( edge_code )
     {
     // No edges to subdivide
   case 0:
-    (*this->output_functor)( v0, t0, h0 );
-    (*this->output_functor)( v1, t1, h1 );
-    (*this->output_functor)( v2, t2, h2 );
+    (*this->output_functor)( h0 );
+    (*this->output_functor)( h1 );
+    (*this->output_functor)( h2 );
     (*this->output_functor)( MBTRI );
     break ;
 
@@ -378,12 +392,12 @@ bool MBSimplexTemplateRefiner::refine_2_simplex(
   */
 bool MBSimplexTemplateRefiner::refine_3_simplex(
   int max_depth,
-  double* v0, void* t0, MBEntityHandle* h0,
-  double* v1, void* t1, MBEntityHandle* h1,
-  double* v2, void* t2, MBEntityHandle* h2,
-  double* v3, void* t3, MBEntityHandle* h3 )
+  double* v0, void* t0, MBEntityHandle h0,
+  double* v1, void* t1, MBEntityHandle h1,
+  double* v2, void* t2, MBEntityHandle h2,
+  double* v3, void* t3, MBEntityHandle h3 )
 {
-  bool edge_code = false;
+  int edge_code = 0;
 
   double* midpt0c;
   double* midpt1c;
@@ -399,12 +413,12 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
   void* midpt4t;
   void* midpt5t;
 
-  MBEntityHandle* midpt0h;
-  MBEntityHandle* midpt1h;
-  MBEntityHandle* midpt2h;
-  MBEntityHandle* midpt3h;
-  MBEntityHandle* midpt4h;
-  MBEntityHandle* midpt5h;
+  MBEntityHandle midpt0h;
+  MBEntityHandle midpt1h;
+  MBEntityHandle midpt2h;
+  MBEntityHandle midpt3h;
+  MBEntityHandle midpt4h;
+  MBEntityHandle midpt5h;
 
   if ( max_depth-- > 0 )
     {
@@ -421,13 +435,6 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
     midpt3t = this->heap_tag_storage();
     midpt4t = this->heap_tag_storage();
     midpt5t = this->heap_tag_storage();
-
-    midpt0h = this->heap_hash_storage( h0, h1 );
-    midpt1h = this->heap_hash_storage( h1, h2 );
-    midpt2h = this->heap_hash_storage( h2, h0 );
-    midpt3h = this->heap_hash_storage( h0, h3 );
-    midpt4h = this->heap_hash_storage( h1, h3 );
-    midpt5h = this->heap_hash_storage( h2, h3 );
 
     for ( int i = 0; i < 6; ++ i )
       {
@@ -447,27 +454,40 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
     (*this->tag_assigner)( v2, t2, h2, midpt5c, midpt5t, v3, t3, h3 );
 
     if ( this->edge_size_evaluator->evaluate_edge( v0, t0, midpt0c, midpt0t, v1, t1 ) )
+      {
       edge_code |=  1;
+      midpt0h = (*this->output_functor)( h0, h1, midpt0c, midpt0t );
+      }
     if ( this->edge_size_evaluator->evaluate_edge( v1, t1, midpt1c, midpt1t, v2, t2 ) )
+      {
       edge_code |=  2;
+      midpt1h = (*this->output_functor)( h1, h2, midpt1c, midpt1t );
+      }
     if ( this->edge_size_evaluator->evaluate_edge( v2, t2, midpt2c, midpt2t, v0, t0 ) )
+      {
       edge_code |=  4;
+      midpt2h = (*this->output_functor)( h2, h0, midpt2c, midpt2t );
+      }
     if ( this->edge_size_evaluator->evaluate_edge( v0, t0, midpt3c, midpt3t, v3, t3 ) )
+      {
       edge_code |=  8;
+      midpt3h = (*this->output_functor)( h0, h3, midpt3c, midpt3t );
+      }
     if ( this->edge_size_evaluator->evaluate_edge( v1, t1, midpt4c, midpt4t, v3, t3 ) )
+      {
       edge_code |= 16;
+      midpt4h = (*this->output_functor)( h1, h3, midpt4c, midpt4t );
+      }
     if ( this->edge_size_evaluator->evaluate_edge( v2, t2, midpt5c, midpt5t, v3, t3 ) )
+      {
       edge_code |= 32;
+      midpt5h = (*this->output_functor)( h2, h3, midpt5c, midpt5t );
+      }
     }
 
   double edge_length2[6];
-  edge_length2[0]
-    = edge_length2[1]
-    = edge_length2[2]
-    = edge_length2[3]
-    = edge_length2[4]
-    = edge_length2[5]
-    = 0;
+  for ( int ei = 0; ei < 6; ++ ei )
+    edge_length2[ei] = 0.;
 
   for ( int c = 0; c < 3; ++ c )
     {
@@ -489,10 +509,10 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
   if ( ! edge_code )
     {
     // No edges to subdivide
-    (*this->output_functor)( v0, t0, h0 );
-    (*this->output_functor)( v1, t1, h1 );
-    (*this->output_functor)( v2, t2, h2 );
-    (*this->output_functor)( v3, t3, h3 );
+    (*this->output_functor)( h0 );
+    (*this->output_functor)( h1 );
+    (*this->output_functor)( h2 );
+    (*this->output_functor)( h3 );
     (*this->output_functor)( MBTET );
 
     return false;
@@ -524,28 +544,24 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
     facept0t, facept1t, facept2t, facept3t
   };
 
-  MBEntityHandle* facept0h = this->heap_hash_storage( 3 );
-  MBEntityHandle* facept1h = this->heap_hash_storage( 3 );
-  MBEntityHandle* facept2h = this->heap_hash_storage( 3 );
-  MBEntityHandle* facept3h = this->heap_hash_storage( 3 );
-  MBEntityHandle* vertex_hash[14] = {
+  MBEntityHandle vertex_hash[14] = {
     h0, h1, h2, h3,
     midpt0h, midpt1h, midpt2h,
     midpt3h, midpt4h, midpt5h,
-    facept0h, facept1h, facept2h, facept3h
+    0, 0, 0, 0
   };
 
   // Generate tetrahedra that are compatible except when edge
   // lengths are equal on indeterminately subdivided faces.
   double* permuted_coords[14];
   void* permuted_tags[14];
-  MBEntityHandle* permuted_hash[14];
+  MBEntityHandle permuted_hash[14];
   double permlen[6]; // permuted edge lengths
   int C = MBSimplexTemplateRefiner::template_index[edge_code][0];
   int P = MBSimplexTemplateRefiner::template_index[edge_code][1];
   
   // 1. Permute the tetrahedron into our canonical configuration
-  for ( int i = 0; i < 4; ++ i )
+  for ( int i = 0; i < 14; ++ i )
     {
     permuted_coords[i] = vertex_coords[MBSimplexTemplateRefiner::permutations_from_index[P][i]];
     permuted_tags[i] = vertex_tags[MBSimplexTemplateRefiner::permutations_from_index[P][i]];
@@ -554,25 +570,9 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
 
   for ( int i = 4 ; i < 10; ++ i )
     {
-    // permute edges too
-    permuted_coords[i] = vertex_coords[MBSimplexTemplateRefiner::permutations_from_index[P][i]];
-    permuted_tags[i] = vertex_tags[MBSimplexTemplateRefiner::permutations_from_index[P][i]];
-    permuted_hash[i] = vertex_hash[MBSimplexTemplateRefiner::permutations_from_index[P][i]];
+    // permute edge lengths too
     permlen[i-4]  = edge_length2[MBSimplexTemplateRefiner::permutations_from_index[P][i] - 4];
     }
-  // Add our local (heap) storage for face point coordinates to the list.
-  permuted_coords[10] = facept0c;
-  permuted_coords[11] = facept1c;
-  permuted_coords[12] = facept2c;
-  permuted_coords[13] = facept3c;
-  permuted_tags[10] = facept0t;
-  permuted_tags[11] = facept1t;
-  permuted_tags[12] = facept2t;
-  permuted_tags[13] = facept3t;
-  permuted_hash[10] = facept0h;
-  permuted_hash[11] = facept1h;
-  permuted_hash[12] = facept2h;
-  permuted_hash[13] = facept3h;
 
   int comparison_bits;
   std::stack<int*> output_tets;
@@ -603,7 +603,9 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[10][i] = ( permuted_coords[0][i] + permuted_coords[2][i] ) * .375 + permuted_coords[1][i] * .25;
           }
-        (*this->tag_assigner)( t0, t2, t1, permuted_tags[10] );
+        (*this->tag_assigner)( permuted_tags[0], permuted_tags[2], permuted_tags[1], permuted_tags[10] );
+        permuted_hash[10] = (*this->output_functor)(
+          permuted_hash[0], permuted_hash[2], permuted_hash[1], permuted_coords[10], permuted_tags[10] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(1);
       output_tets.push( MBSimplexTemplateRefiner::templates + 9 );
@@ -652,7 +654,9 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[11][i] = ( permuted_coords[1][i] + permuted_coords[3][i] ) * .375 + permuted_coords[0][i] * .25;
           }
-        (*this->tag_assigner)( t1, t3, t0, permuted_tags[11] );
+        (*this->tag_assigner)( permuted_tags[1], permuted_tags[3], permuted_tags[0], permuted_tags[11] );
+        permuted_hash[11] = (*this->output_functor)(
+          permuted_hash[1], permuted_hash[3], permuted_hash[0], permuted_coords[11], permuted_tags[11] );
         }
       if ( ( comparison_bits & 12 ) == 12 )
         {
@@ -661,7 +665,9 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[13][i] = ( permuted_coords[2][i] + permuted_coords[3][i] ) * .375 + permuted_coords[0][i] * .25;
           }
-        (*this->tag_assigner)( t2, t3, t0, permuted_tags[13] );
+        (*this->tag_assigner)( permuted_tags[2], permuted_tags[3], permuted_tags[0], permuted_tags[13] );
+        permuted_hash[13] = (*this->output_functor)(
+          permuted_hash[2], permuted_hash[3], permuted_hash[0], permuted_coords[13], permuted_tags[13] );
         }
       if ( ( comparison_bits & 48 ) == 48 )
         {
@@ -670,7 +676,9 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[10][i] = ( permuted_coords[1][i] + permuted_coords[2][i] ) * .375 + permuted_coords[0][i] * .25;
           }
-        (*this->tag_assigner)( t1, t2, t0, permuted_tags[10] );
+        (*this->tag_assigner)( permuted_tags[1], permuted_tags[2], permuted_tags[0], permuted_tags[10] );
+        permuted_hash[10] = (*this->output_functor)(
+          permuted_hash[1], permuted_hash[2], permuted_hash[0], permuted_coords[10] , permuted_tags[10] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(3);
       output_tets.push( MBSimplexTemplateRefiner::templates + 57 );
@@ -778,7 +786,9 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[10][i] = ( permuted_coords[0][i] + permuted_coords[2][i] ) * .375 + permuted_coords[1][i] * .25;
           }
-        (*this->tag_assigner)( t0, t2, t1, permuted_tags[10] );
+        (*this->tag_assigner)( permuted_tags[0], permuted_tags[2], permuted_tags[1], permuted_tags[10] );
+        permuted_hash[10] = (*this->output_functor)(
+          permuted_hash[0], permuted_hash[2], permuted_hash[1], permuted_coords[10], permuted_tags[10] );
         }
       if ( ( comparison_bits & 12 ) == 12 )
         {
@@ -787,7 +797,9 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[11][i] = ( permuted_coords[1][i] + permuted_coords[3][i] ) * .375 + permuted_coords[0][i] * .25;
           }
-        (*this->tag_assigner)( t1, t3, t0, permuted_tags[11] );
+        (*this->tag_assigner)( permuted_tags[1], permuted_tags[3], permuted_tags[0], permuted_tags[11] );
+        permuted_hash[11] = (*this->output_functor)(
+          permuted_hash[1], permuted_hash[3], permuted_hash[0], permuted_coords[11], permuted_tags[11] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(5);
       switch ( comparison_bits )
@@ -860,7 +872,9 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[10][i] = ( permuted_coords[1][i] + permuted_coords[2][i] ) * .375 + permuted_coords[0][i] * .25;
           }
-        (*this->tag_assigner)( t1, t2, t0, permuted_tags[10] );
+        (*this->tag_assigner)( permuted_tags[1], permuted_tags[2], permuted_tags[0], permuted_tags[10] );
+        permuted_hash[10] = (*this->output_functor)(
+          permuted_hash[1], permuted_hash[2], permuted_hash[0], permuted_coords[10], permuted_tags[10] );
         }
       if ( ( comparison_bits & 12 ) == 12 )
         {
@@ -869,7 +883,9 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[11][i] = ( permuted_coords[0][i] + permuted_coords[3][i] ) * .375 + permuted_coords[1][i] * .25;
           }
-        (*this->tag_assigner)( t0, t3, t1, permuted_tags[11] );
+        (*this->tag_assigner)( permuted_tags[0], permuted_tags[3], permuted_tags[1], permuted_tags[11] );
+        permuted_hash[11] = (*this->output_functor)(
+          permuted_hash[0], permuted_hash[3], permuted_hash[1], permuted_coords[11], permuted_tags[11] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(6);
       switch ( comparison_bits )
@@ -942,7 +958,9 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[12][i] = ( permuted_coords[1][i] + permuted_coords[2][i] ) * .375 + permuted_coords[3][i] * .25;
           }
-        (*this->tag_assigner)( t1, t2, t3, permuted_tags[12] );
+        (*this->tag_assigner)( permuted_tags[1], permuted_tags[2], permuted_tags[3], permuted_tags[12] );
+        permuted_hash[12] = (*this->output_functor)(
+          permuted_hash[1], permuted_hash[2], permuted_hash[3], permuted_coords[12], permuted_tags[12] );
         }
       if ( ( comparison_bits & 12 ) == 12 )
         {
@@ -951,7 +969,9 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[11][i] = ( permuted_coords[0][i] + permuted_coords[1][i] ) * .375 + permuted_coords[3][i] * .25;
           }
-        (*this->tag_assigner)( t0, t1, t3, permuted_tags[11] );
+        (*this->tag_assigner)( permuted_tags[0], permuted_tags[1], permuted_tags[3], permuted_tags[11] );
+        permuted_hash[11] = (*this->output_functor)(
+          permuted_hash[0], permuted_hash[1], permuted_hash[3], permuted_coords[11], permuted_tags[11] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(7);
       output_tets.push( MBSimplexTemplateRefiner::templates + 545 );
@@ -1030,7 +1050,9 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[10][i] = ( permuted_coords[1][i] + permuted_coords[0][i] ) * .375 + permuted_coords[2][i] * .25;
           }
-        (*this->tag_assigner)( t1, t0, t2, permuted_tags[10] );
+        (*this->tag_assigner)( permuted_tags[1], permuted_tags[0], permuted_tags[2], permuted_tags[10] );
+        permuted_hash[10] = (*this->output_functor)(
+          permuted_hash[1], permuted_hash[0], permuted_hash[2], permuted_coords[10], permuted_tags[10] );
         }
       if ( ( comparison_bits & 12 ) == 12 )
         {
@@ -1039,7 +1061,9 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[13][i] = ( permuted_coords[2][i] + permuted_coords[3][i] ) * .375 + permuted_coords[0][i] * .25;
           }
-        (*this->tag_assigner)( t2, t3, t0, permuted_tags[13] );
+        (*this->tag_assigner)( permuted_tags[2], permuted_tags[3], permuted_tags[0], permuted_tags[13] );
+        permuted_hash[13] = (*this->output_functor)(
+          permuted_hash[2], permuted_hash[3], permuted_hash[0], permuted_coords[13], permuted_tags[13] );
         }
       if ( ( comparison_bits & 48 ) == 48 )
         {
@@ -1048,7 +1072,9 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[11][i] = ( permuted_coords[0][i] + permuted_coords[1][i] ) * .375 + permuted_coords[3][i] * .25;
           }
-        (*this->tag_assigner)( t0, t1, t3, permuted_tags[11] );
+        (*this->tag_assigner)( permuted_tags[0], permuted_tags[1], permuted_tags[3], permuted_tags[11] );
+        permuted_hash[11] = (*this->output_functor)(
+          permuted_hash[0], permuted_hash[1], permuted_hash[3], permuted_coords[11], permuted_tags[11] );
         }
       if ( ( comparison_bits & 192 ) == 192 )
         {
@@ -1057,7 +1083,9 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[12][i] = ( permuted_coords[2][i] + permuted_coords[3][i] ) * .375 + permuted_coords[1][i] * .25;
           }
-        (*this->tag_assigner)( t2, t3, t1, permuted_tags[12] );
+        (*this->tag_assigner)( permuted_tags[2], permuted_tags[3], permuted_tags[1], permuted_tags[12] );
+        permuted_hash[12] = (*this->output_functor)(
+          permuted_hash[2], permuted_hash[3], permuted_hash[1], permuted_coords[12], permuted_tags[12] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(8);
       switch ( comparison_bits )
@@ -1394,7 +1422,9 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[10][i] = ( permuted_coords[1][i] + permuted_coords[0][i] ) * .375 + permuted_coords[2][i] * .25;
           }
-        (*this->tag_assigner)( t1, t0, t2, permuted_tags[10] );
+        (*this->tag_assigner)( permuted_tags[1], permuted_tags[0], permuted_tags[2], permuted_tags[10] );
+        permuted_hash[10] = (*this->output_functor)(
+          permuted_hash[1], permuted_hash[0], permuted_hash[2], permuted_coords[10], permuted_tags[10] );
         }
       if ( ( comparison_bits & 12 ) == 12 )
         {
@@ -1403,7 +1433,9 @@ bool MBSimplexTemplateRefiner::refine_3_simplex(
           {
           permuted_coords[11][i] = ( permuted_coords[0][i] + permuted_coords[1][i] ) * .375 + permuted_coords[3][i] * .25;
           }
-        (*this->tag_assigner)( t0, t1, t3, permuted_tags[11] );
+        (*this->tag_assigner)( permuted_tags[0], permuted_tags[1], permuted_tags[3], permuted_tags[11] );
+        permuted_hash[11] = (*this->output_functor)(
+          permuted_hash[0], permuted_hash[1], permuted_hash[3], permuted_coords[11], permuted_tags[11] );
         }
       MB_TESSELLATOR_INCR_CASE_COUNT(9);
       output_tets.push( MBSimplexTemplateRefiner::templates + 1107 );

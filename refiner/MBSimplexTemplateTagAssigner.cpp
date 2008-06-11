@@ -37,9 +37,9 @@ MBSimplexTemplateTagAssigner::~MBSimplexTemplateTagAssigner()
   * @param[in] t1 Pointer to endpoint 1 tag values.
   */
 void MBSimplexTemplateTagAssigner::operator () (
-  const double* c0, const void* t0, MBEntityHandle* h0,
+  const double* c0, const void* t0, MBEntityHandle h0,
   const double* cm, void* tm, 
-  const double* c1, const void* t1, MBEntityHandle* h1 )
+  const double* c1, const void* t1, MBEntityHandle h1 )
 {
   double c0m_squared = 0.;
   double c01_squared = 0.;
@@ -78,7 +78,7 @@ void MBSimplexTemplateTagAssigner::operator () (
         }
         break;
       default:
-        memcpy( (char*)tm + tag_offset, (char*)( *h0 < *h1 ? t0 : t1 ) + tag_offset, tag_size );
+        memcpy( (char*)tm + tag_offset, (char*)( h0 < h1 ? t0 : t1 ) + tag_offset, tag_size );
         break;
       }
     }
