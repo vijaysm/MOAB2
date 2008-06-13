@@ -1009,6 +1009,7 @@ static void convert_to_ranges( const MBEntityHandle* vect_in, size_t vect_in_len
   vect_out.resize( vect_in_len );
   std::copy( vect_in, vect_in+vect_in_len, vect_out.begin() );
   std::sort( vect_out.begin(), vect_out.end() );
+  vect_out.erase( std::unique( vect_out.begin(), vect_out.end() ), vect_out.end() );
 
     // duplicate all entries
   vect_out.resize( vect_out.size() * 2 );
