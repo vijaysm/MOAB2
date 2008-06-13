@@ -113,7 +113,7 @@ void MBRefinerTagManager::create_output_tags()
   MBTagType tag_type;
   MBDataType tag_data_type;
   int tag_size;
-  for ( it = this->input_vertex_tags.begin(); it != this->output_vertex_tags.end(); ++ it )
+  for ( it = this->input_vertex_tags.begin(); it != this->input_vertex_tags.end(); ++ it )
     {
     MBTag tag_in = it->first;
     tag_rec.second = it->second;
@@ -125,6 +125,9 @@ void MBRefinerTagManager::create_output_tags()
     tag_default.resize( tag_size );
     MBErrorCode res = this->output_mesh->tag_create(
       tag_name.c_str(), tag_size, tag_type, tag_data_type, tag_rec.first, (void*) &tag_default[0], true );
+    std::cout
+      << "Creating output tag: \"" << tag_name.c_str() << "\" handle: " << tag_rec.first
+      << " input handle: " << tag_in << "\n";
     if ( res == MB_FAILURE )
       {
       std::cerr

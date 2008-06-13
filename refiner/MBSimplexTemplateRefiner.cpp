@@ -1,6 +1,8 @@
 #include "MBSimplexTemplateRefiner.hpp"
 
 #include "MBEdgeSizeEvaluator.hpp"
+#include "MBRefinerTagManager.hpp"
+
 #include "MBInterface.hpp"
 
 #include <iostream>
@@ -24,6 +26,7 @@ static double MBTetParametric[]    = { 0., 0., 0.,   1., 0., 0.,   0., 1., 0.,  
 MBSimplexTemplateRefiner::MBSimplexTemplateRefiner( MBInterface* mesh )
   : MBEntityRefiner( mesh )
 {
+  this->tag_manager = 0;
   this->tag_assigner = new MBSimplexTemplateTagAssigner( this );
   this->corner_coords.resize( 6 * 8 ); // Hex has 8 verts w/ 6 coordinates each
   this->corner_tags.resize( 8 ); // Hex has 8 verts (this is a pointer, not the actual tag data)
@@ -65,9 +68,9 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
       return false;
       }
     tag_data = this->heap_tag_storage();
-    for ( int i = 0; i < this->edge_size_evaluator->get_number_of_vertex_tags(); ++ i )
+    for ( int i = 0; i < this->tag_manager->get_number_of_vertex_tags(); ++ i )
       {
-      this->edge_size_evaluator->get_input_vertex_tag( i, tag_handle, tag_offset );
+      this->tag_manager->get_input_vertex_tag( i, tag_handle, tag_offset );
       if ( this->mesh->tag_get_data( tag_handle, &conn[n], 1, (char*)tag_data + tag_offset ) != MB_SUCCESS )
         {
         return false;
@@ -170,6 +173,7 @@ bool MBSimplexTemplateRefiner::set_edge_size_evaluator( MBEdgeSizeEvaluator* es 
   if ( this->MBEntityRefiner::set_edge_size_evaluator( es ) )
     {
     this->tag_assigner->set_edge_size_evaluator( es );
+    this->tag_manager = this->edge_size_evaluator->get_tag_manager();
     return true;
     }
   return false;

@@ -15,6 +15,9 @@ MBSimplexTemplateTagAssigner::MBSimplexTemplateTagAssigner( MBSimplexTemplateRef
 {
   this->mesh_refiner = r;
   this->edge_size_evaluator = r->get_edge_size_evaluator();
+  this->tag_manager = 0;
+  if ( this->edge_size_evaluator )
+    this->tag_manager = this->edge_size_evaluator->get_tag_manager();
 }
 
 /// Empty destructor for good form.
@@ -56,12 +59,12 @@ void MBSimplexTemplateTagAssigner::operator () (
   MBDataType data_type;
   int tag_size;
   int num_components;
-  int num_tags = this->edge_size_evaluator->get_number_of_vertex_tags();
+  int num_tags = this->tag_manager->get_number_of_vertex_tags();
   MBTag tag_handle;
   int tag_offset;
   for ( int i = 0; i < num_tags; ++i )
     {
-    this->edge_size_evaluator->get_input_vertex_tag( i, tag_handle, tag_offset );
+    this->tag_manager->get_input_vertex_tag( i, tag_handle, tag_offset );
     this->mesh_refiner->get_mesh()->tag_get_data_type( tag_handle, data_type );
     this->mesh_refiner->get_mesh()->tag_get_size( tag_handle, tag_size );
     
@@ -94,3 +97,10 @@ void MBSimplexTemplateTagAssigner::operator () ( const void* t0,
   (void)t2;
   (void)tp;
 }
+
+void MBSimplexTemplateTagAssigner::set_edge_size_evaluator( MBEdgeSizeEvaluator* es )
+{
+  this->edge_size_evaluator = es;
+  this->tag_manager = es ? es->get_tag_manager() : 0;
+}
+

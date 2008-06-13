@@ -24,7 +24,7 @@ public:
   MBSplitVertexIndex& operator = ( const MBSplitVertexIndex<_n>& src )
     { for ( int i = 0; i < _n; ++ i ) this->handles[i] = src.handles[i]; return *this; }
 
-  virtual bool operator < ( const MBSplitVertexIndex<_n>& other ) const
+  bool operator < ( const MBSplitVertexIndex<_n>& other ) const
     {
     for ( int i = 0; i < _n; ++ i )
       if ( this->handles[i] < other.handles[i] )
@@ -44,6 +44,7 @@ public:
     {
     this->mesh = m;
     }
+  virtual ~MBSplitVerticesBase() { }
   virtual bool find_or_create( const MBEntityHandle* split_src, const double* coords, MBEntityHandle& vert_handle ) = 0;
   MBInterface* mesh;
 };
@@ -59,6 +60,7 @@ public:
     : MBSplitVerticesBase( m )
     {
     }
+  virtual ~MBSplitVertices() { }
   virtual bool find_or_create( const MBEntityHandle* split_src, const double* coords, MBEntityHandle& vert_handle )
     {
     MapIteratorType it = this->find( MBSplitVertexIndex<_n>( split_src ) );
@@ -83,13 +85,13 @@ public:
   bool input_is_output;
   std::vector<MBSplitVerticesBase*> split_vertices;
   std::vector<MBEntityHandle> elem_vert;
-  MBEdgeSizeEvaluator* edge_size_evaluator;
+  MBRefinerTagManager* tag_manager;
 
-  MBTestOutputFunctor( MBInterface* imesh, MBInterface* omesh, MBEdgeSizeEvaluator* size_eval )
+  MBTestOutputFunctor( MBInterface* imesh, MBInterface* omesh, MBRefinerTagManager* tag_mgr )
     {
     this->mesh = omesh;
     this->input_is_output = ( imesh == omesh );
-    this->edge_size_evaluator = size_eval;
+    this->tag_manager = tag_mgr;
 
     this->split_vertices.resize( 4 );
     this->split_vertices[0] = 0; // Vertices (0-faces) cannot be split
@@ -130,12 +132,12 @@ public:
     if ( ! vhandle )
       return; // Ignore bad vertices
 
-    int num_tags = this->edge_size_evaluator->get_number_of_vertex_tags();
+    int num_tags = this->tag_manager->get_number_of_vertex_tags();
     MBTag tag_handle;
     int tag_offset;
     for ( int i = 0; i < num_tags; ++i )
       {
-      this->edge_size_evaluator->get_output_vertex_tag( i, tag_handle, tag_offset );
+      this->tag_manager->get_output_vertex_tag( i, tag_handle, tag_offset );
       this->mesh->tag_set_data( tag_handle, &vhandle, 1, vtags );
       }
     }
@@ -210,16 +212,27 @@ int TestMeshRefiner( int argc, char* argv[] )
   int err = MPI_Init( &argc, &argv );
   err = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  std::cout << "Rank: " << ( rank + 1 ) << " of: " << nprocs << "\n";
 #else // USE_MPI
   nprocs = 1;
   rank = 0;
 #endif // USE_MPI
 
   bool input_is_output = ( argc > 1 && ! strcmp( argv[1], "-new-mesh" ) ) ? false : true;
-  MBInterface* imesh = new MBCore;
-  MBInterface* omesh = input_is_output ? imesh : new MBCore;
-  MBEdgeSizeSimpleImplicit* eval = new MBEdgeSizeSimpleImplicit( imesh, omesh );
+  MBInterface* imesh = new MBCore( rank, nprocs );
+  MBInterface* omesh = input_is_output ? imesh : new MBCore( rank, nprocs );
+#ifdef USE_MPI
+  for ( int i = 0; i < nprocs; ++ i )
+    {
+    MPI_Barrier( MPI_COMM_WORLD );
+    if ( i == rank )
+      {
+      std::cout << "Rank: " << ( rank + 1 ) << " of: " << nprocs << "\n";
+      }
+    MPI_Barrier( MPI_COMM_WORLD );
+    }
+#endif // USE_MPI
+  MBRefinerTagManager* tmgr = new MBRefinerTagManager( imesh, omesh );
+  MBEdgeSizeSimpleImplicit* eval = new MBEdgeSizeSimpleImplicit( tmgr );
 
   double coords[][6] = {
     {  0. ,  0.0,  0. ,  0. ,  0.0,  0.  }, // 0
@@ -280,7 +293,6 @@ int TestMeshRefiner( int argc, char* argv[] )
 
   MBEntityHandle node_handles[4];
   MBEntityHandle tet_handle;
-  MBEntityHandle tri_handle;
 
   MBTag tag_floatular;
   imesh->tag_create( "floatular", 2 * sizeof( double ), MB_TAG_DENSE, MB_TYPE_DOUBLE, tag_floatular, default_floatular );
@@ -300,43 +312,70 @@ int TestMeshRefiner( int argc, char* argv[] )
   void const* sptrs[4];
   for ( int i = 0; i < 4; ++ i )
     {
-    imesh->create_vertex( coords[proc_nodes[rank][i]], node_handles[i] );
-    iptrs[i] = (void const*) intular_values[proc_nodes[rank][i]];
-    fptrs[i] = (void const*) floatular_values[proc_nodes[rank][i]];
-    gptrs[i] = (void const*) &gid_values[proc_nodes[rank][i]];
-    sptrs[i] = (void const*) &node_procs[proc_nodes[rank][i]];
+    int pnode = proc_nodes[rank][i];
+    imesh->create_vertex( coords[pnode], node_handles[i] );
+    iptrs[i] = (void const*) intular_values[pnode];
+    fptrs[i] = (void const*) floatular_values[pnode];
+    gptrs[i] = (void const*) &gid_values[pnode];
+    sptrs[i] = (void const*) &node_procs[pnode];
     }
 
   imesh->tag_set_data( tag_floatular, node_handles, 4, fptrs, 0 );
-  eval->add_vertex_tag( tag_floatular );
+  tmgr->add_vertex_tag( tag_floatular );
 
   imesh->tag_set_data( tag_intular, node_handles, 4, iptrs, 0 );
-  eval->add_vertex_tag( tag_intular );
+  tmgr->add_vertex_tag( tag_intular );
 
   imesh->tag_set_data( tag_gid, node_handles, 4, gptrs, 0 );
   imesh->tag_set_data( tag_spr, node_handles, 4, sptrs, 0 );
 
   imesh->create_element( MBTET, node_handles, 4, tet_handle );
   imesh->tag_set_data( tag_gid, &tet_handle, 1, gid_values + 6 + rank );
+#ifdef USE_MPI
+  for ( int i = 0; i < nprocs; ++ i )
+    {
+    MPI_Barrier( MPI_COMM_WORLD );
+    if ( i == rank )
+      {
+      std::cout << "\n************** Rank: " << ( rank + 1 ) << " of: " << nprocs << "\n";
+      imesh->list_entities( 0, 1 );
+      std::cout << "**************\n\n";
+      }
+    MPI_Barrier( MPI_COMM_WORLD );
+    }
+#else // USE_MPI
   imesh->list_entities( 0, 1 );
+#endif // USE_MPI
 
   MBSimplexTemplateRefiner eref( imesh );
-  MBTestOutputFunctor* ofunc = new MBTestOutputFunctor( imesh, omesh, eval );
+  MBTestOutputFunctor* ofunc = new MBTestOutputFunctor( imesh, omesh, tmgr );
   eref.set_edge_size_evaluator( eval );
   eref.set_output_functor( ofunc );
-  eval->create_output_tags();
+  tmgr->create_output_tags();
   eref.refine_entity( tet_handle );
 
-  ofunc->mesh->list_entities( 0, 1 );
+#ifdef USE_MPI
+  for ( int i = 0; i < nprocs; ++ i )
+    {
+    MPI_Barrier( MPI_COMM_WORLD );
+    if ( i == rank )
+      {
+      std::cout << "\n************** Rank: " << ( rank + 1 ) << " of: " << nprocs << "\n";
+      omesh->list_entities( 0, 1 );
+      std::cout << "**************\n\n";
+      }
+    MPI_Barrier( MPI_COMM_WORLD );
+    }
+#else // USE_MPI
+  omesh->list_entities( 0, 1 );
+#endif // USE_MPI
 
   if ( ! ofunc->input_is_output )
     delete ofunc->mesh;
   delete imesh;
 
-#ifdef USE_MPI
   err = MPI_Barrier( MPI_COMM_WORLD );
   err = MPI_Finalize();
-#endif // USE_MPI
   return 0;
 }
 

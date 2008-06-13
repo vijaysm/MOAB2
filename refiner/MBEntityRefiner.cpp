@@ -154,7 +154,7 @@ void MBEntityRefiner::update_heap_size()
   this->coord_heap.resize( 6 * n );
   if ( this->edge_size_evaluator )
     {
-    unsigned long m = this->edge_size_evaluator->get_vertex_tag_size();
+    unsigned long m = this->edge_size_evaluator->get_tag_manager()->get_vertex_tag_size();
     this->tag_heap.resize( m * n );
     }
 }
@@ -200,7 +200,7 @@ void* MBEntityRefiner::heap_tag_storage()
   if ( this->edge_size_evaluator && this->current_tag != this->tag_heap.end() )
     {
     rval = (void*) &(*this->current_tag);
-    this->current_tag += this->edge_size_evaluator->get_vertex_tag_size();
+    this->current_tag += this->edge_size_evaluator->get_tag_manager()->get_vertex_tag_size();
     }
   else
     {

@@ -34,6 +34,8 @@
 
 #include "MBTypes.h" // for MB_DLL_EXPORT
 
+class MBRefinerTagManager;
+
 class MB_DLL_EXPORT MBSimplexTemplateRefiner : public MBEntityRefiner
 {
 public:
@@ -50,6 +52,7 @@ public:
 
 protected:
   MBSimplexTemplateTagAssigner* tag_assigner;
+  MBRefinerTagManager* tag_manager;
   std::vector<double> corner_coords;
   std::vector<void*> corner_tags;
   std::vector<MBEntityHandle> corner_handles;

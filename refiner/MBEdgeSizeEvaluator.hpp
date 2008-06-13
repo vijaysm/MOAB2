@@ -28,16 +28,21 @@
 
 #include "MBRefinerTagManager.hpp"
 
-class MB_DLL_EXPORT MBEdgeSizeEvaluator : public MBRefinerTagManager
+class MB_DLL_EXPORT MBEdgeSizeEvaluator
 {
 public:
-  MBEdgeSizeEvaluator( MBInterface*, MBInterface* );
+  MBEdgeSizeEvaluator( MBRefinerTagManager* );
   virtual ~MBEdgeSizeEvaluator();
 
   virtual bool evaluate_edge(
     const double* p0, const void* t0,
     double* p1, void* t1,
     const double* p2, const void* t2 ) = 0;
+
+  MBRefinerTagManager* get_tag_manager() { return this->tag_manager; }
+
+protected:
+  MBRefinerTagManager* tag_manager;
 };
 
 #endif // MB_EDGESIZEEVALUATOR_H

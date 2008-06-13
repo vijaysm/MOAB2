@@ -1,13 +1,14 @@
 #include "MBEdgeSizeEvaluator.hpp"
 
+#include "MBRefinerTagManager.hpp"
 #include "MBInterface.hpp"
 
 #include <assert.h>
 
 /// Construct an evaluator.
-MBEdgeSizeEvaluator::MBEdgeSizeEvaluator( MBInterface* mesh_in, MBInterface* mesh_out )
-  : MBRefinerTagManager( mesh_in, mesh_out )
+MBEdgeSizeEvaluator::MBEdgeSizeEvaluator( MBRefinerTagManager* tag_mgr )
 {
+  this->tag_manager = tag_mgr;
 }
 
 /// Destruction is virtual so subclasses may clean up after refinement.
