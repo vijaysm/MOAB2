@@ -10,6 +10,7 @@
 #endif
 
 #include <iostream>
+#include <cassert>
 #define MIN(a,b) (a < b ? a : b)
 
 class MBiMesh : public MBCore
@@ -17,9 +18,7 @@ class MBiMesh : public MBCore
 private:
   bool haveDeletedEntities;
 public:
-  MBiMesh(int proc_rank = 0, int proc_size = 1) 
-      : MBCore(proc_rank, proc_size), haveDeletedEntities(false)
-    {}
+  MBiMesh(int proc_rank = 0, int proc_size = 1);
 
   virtual ~MBiMesh();
   bool have_deleted_ents( bool reset ) {
@@ -32,7 +31,16 @@ public:
   virtual MBErrorCode delete_mesh();
   virtual MBErrorCode delete_entities( const MBEntityHandle*, const int );
   virtual MBErrorCode delete_entities( const MBRange& );
+  int AdjTable[16];
 };
+
+MBiMesh::MBiMesh(int proc_rank, int proc_size)
+    : MBCore(proc_rank, proc_size), haveDeletedEntities(false)
+{
+  memset(AdjTable, 0, 16*sizeof(int));
+  for (int i = 0; i < 4; i++) AdjTable[4*i] = AdjTable[i] = 1;
+  AdjTable[15] = 1;
+}
 
 MBiMesh::~MBiMesh() {}
 
@@ -54,6 +62,10 @@ MBErrorCode MBiMesh::delete_entities( const MBRange& r )
     haveDeletedEntities = true;
   return MBCore::delete_entities( r );
 }
+
+MBErrorCode create_int_ents(MBInterface *instance,
+                            MBRange &from_ents,
+                            MBEntityHandle in_set = 0);
 
 #define CHECK_SIZE(array, allocated, size, type, retval)  \
   if (0 != allocated && NULL != array && allocated < (size)) {\
@@ -187,6 +199,7 @@ struct RangeIterator
 };
 
 #define MBI reinterpret_cast<MBInterface*>(instance)
+#define MBimesh reinterpret_cast<MBiMesh*>(instance)
 
 #define RETURN(a) {iMesh_LAST_ERROR.error_type = a; *err = a;return;}
 #define iMesh_processError(a, b) {sprintf(iMesh_LAST_ERROR.description, "%s", b); iMesh_LAST_ERROR.error_type = a; *err = a;}
@@ -306,6 +319,15 @@ extern "C" {
       iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
     }
 
+      // create interior edges/faces if requested
+    if (MBimesh->AdjTable[5] || MBimesh->AdjTable[10]) {
+      MBRange set_ents;
+      result = MBI->get_entities_by_handle(file_set, set_ents, true);
+      if (MB_SUCCESS != result) RETURN(iBase_ERROR_MAP[result]);
+      result = create_int_ents(MBI, set_ents, file_set);
+      if (MB_SUCCESS != result) RETURN(iBase_ERROR_MAP[result]);
+    }
+
     RETURN(iBase_ERROR_MAP[result]);
   }
 
@@ -360,10 +382,24 @@ extern "C" {
                           /*inout*/ int* adjacency_table_allocated, 
                           /*out*/ int* adjacency_table_size, int *err)
   {
-    *adjacency_table_allocated = 0;
-    *adjacency_table_size = 0;
-    *adjacency_table = NULL;
+    *adjacency_table_size = 16;
+    CHECK_SIZE(*adjacency_table, *adjacency_table_allocated,
+               *adjacency_table_size, int, iBase_MEMORY_ALLOCATION_FAILED);
+    memcpy(*adjacency_table, MBimesh->AdjTable, 16*sizeof(int));
     RETURN(iBase_ERROR_MAP[MB_SUCCESS]);
+  }
+
+  void iMesh_setAdjTable (iMesh_Instance instance,
+                          int* adj_table,
+                          /*inout*/ int adj_table_size, 
+                          int *err)
+  {
+    if (16 != adj_table_size) {
+      RETURN(iBase_INVALID_ARGUMENT);
+    }
+
+    memcpy(MBimesh->AdjTable, adj_table, 16*sizeof(int));
+    RETURN(iBase_SUCCESS);
   }
 
   void iMesh_getNumOfType(iMesh_Instance instance,
@@ -1561,6 +1597,14 @@ extern "C" {
     if (MB_SUCCESS == result) {
       *new_entity_handles_size = num_ents;
       *status_size = num_ents;
+    }
+
+    if (MBimesh->AdjTable[5] || MBimesh->AdjTable[10]) {
+      MBRange set_ents;
+      std::copy(HANDLE_ARRAY_PTR(*new_entity_handles), 
+                HANDLE_ARRAY_PTR(*new_entity_handles)+*new_entity_handles_size,
+                mb_range_inserter(set_ents));
+      result = create_int_ents(MBI, set_ents);
     }
 
     RETURN(iBase_ERROR_MAP[result]);
@@ -2943,6 +2987,42 @@ MBErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
   }
 
   return result;
+}
+
+MBErrorCode create_int_ents(MBInterface *instance,
+                            MBRange &from_ents,
+                            MBEntityHandle in_set) 
+{
+  assert(MBimesh->AdjTable[10] || MBimesh->AdjTable[5]);
+  MBRange int_ents;
+  MBErrorCode result;
+  
+  if (MBimesh->AdjTable[10]) {
+    result = MBI->get_adjacencies(from_ents, 2, true, int_ents,
+                                  MBInterface::UNION);
+    if (MB_SUCCESS != result) return result;
+    unsigned int old_size = from_ents.size();
+    from_ents.merge(int_ents);
+    if (old_size != from_ents.size()) {
+      result = MBI->add_entities(in_set, int_ents);
+      if (MB_SUCCESS != result) return result;
+    }
+  }
+  
+  if (MBimesh->AdjTable[5]) {
+    int_ents.clear();
+    result = MBI->get_adjacencies(from_ents, 1, true, int_ents,
+                                  MBInterface::UNION);
+    if (MB_SUCCESS != result) return result;
+    unsigned int old_size = from_ents.size();
+    from_ents.merge(int_ents);
+    if (old_size != from_ents.size()) {
+      result = MBI->add_entities(in_set, int_ents);
+      if (MB_SUCCESS != result) return result;
+    }
+  }
+    
+  return MB_SUCCESS;
 }
 
 void eatwhitespace(std::string &this_string) 

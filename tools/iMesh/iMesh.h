@@ -262,6 +262,26 @@ extern "C" {
                           /*out*/ int* adjacency_table_size, 
                           /*out*/ int *err);
 
+    /**\brief  Set the adjacency table and interior entity information for this implementation
+     *
+     * Set the adjacency table and interior entity information for this 
+     * implementation.  This table 
+     * is a 4x4 array, with indices 0-based, where A(i,j) (i=row, j=column) 
+     * non-zero requests that adjacencies be stored explicitly from type i
+     * to type j.  Non-zero diagonal elements request that interior entities
+     * of that dimension be represented explicitly, and created along with
+     * higher-dimensional entities.
+     * \param instance iMesh instance handle
+     * \param *adjacency_table Array representing adjacency table
+     *        passed to function
+     * \param adjacency_table_size Size of adjacency table (should be 16)
+     * \param *err Pointer to error type returned from function
+     */
+  void iMesh_setAdjTable (iMesh_Instance instance,
+                          /*in*/ int* adjacency_table,
+                          /*in*/ int adjacency_table_size,
+                          /*out*/ int *err);
+
     /**\brief  Get the number of entities with the specified type in the instance or set
      *
      * Get the number of entities with the specified type in the instance 
