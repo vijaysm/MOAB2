@@ -113,7 +113,7 @@ public:
     int tag_offset;
     for ( int i = 0; i < num_tags; ++i )
       {
-      this->edge_size_evaluator->get_vertex_tag( i, tag_handle, tag_offset );
+      this->edge_size_evaluator->get_output_vertex_tag( i, tag_handle, tag_offset );
       this->mesh->tag_set_data( tag_handle, &vertex_handle, 1, (char*)vtags + tag_offset );
       }
     return vertex_handle;
@@ -133,7 +133,7 @@ public:
     int tag_offset;
     for ( int i = 0; i < num_tags; ++i )
       {
-      this->edge_size_evaluator->get_vertex_tag( i, tag_handle, tag_offset );
+      this->edge_size_evaluator->get_output_vertex_tag( i, tag_handle, tag_offset );
       this->mesh->tag_set_data( tag_handle, &hv, 1, (char*)vtags + tag_offset );
       }
     return hv;

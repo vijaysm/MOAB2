@@ -10,20 +10,99 @@
 #endif // USE_MPI
 
 #include <iostream>
+#include <map>
+
+template< int _n >
+class MBSplitVertexIndex
+{
+public:
+  MBSplitVertexIndex() { }
+  MBSplitVertexIndex( const MBEntityHandle* src )
+    { for ( int i = 0; i < _n; ++ i ) this->handles[i] = src[i]; std::sort( this->handles, this->handles + _n ); }
+  MBSplitVertexIndex( const MBSplitVertexIndex<_n>& src )
+    { for ( int i = 0; i < _n; ++ i ) this->handles[i] = src.handles[i]; }
+  MBSplitVertexIndex& operator = ( const MBSplitVertexIndex<_n>& src )
+    { for ( int i = 0; i < _n; ++ i ) this->handles[i] = src.handles[i]; return *this; }
+
+  virtual bool operator < ( const MBSplitVertexIndex<_n>& other ) const
+    {
+    for ( int i = 0; i < _n; ++ i )
+      if ( this->handles[i] < other.handles[i] )
+        return true;
+      else if ( this->handles[i] > other.handles[i] )
+        return false;
+    return true;
+    }
+
+  MBEntityHandle handles[_n];
+};
+
+class MBSplitVerticesBase
+{
+public:
+  MBSplitVerticesBase( MBInterface* m )
+    {
+    this->mesh = m;
+    }
+  virtual bool find_or_create( const MBEntityHandle* split_src, const double* coords, MBEntityHandle& vert_handle ) = 0;
+  MBInterface* mesh;
+};
+
+template< int _n >
+class MBSplitVertices : public std::map<MBSplitVertexIndex<_n>,MBEntityHandle>, public MBSplitVerticesBase
+{
+public:
+  typedef std::map<MBSplitVertexIndex<_n>,MBEntityHandle> MapType;
+  typedef typename std::map<MBSplitVertexIndex<_n>,MBEntityHandle>::iterator MapIteratorType;
+
+  MBSplitVertices( MBInterface* m )
+    : MBSplitVerticesBase( m )
+    {
+    }
+  virtual bool find_or_create( const MBEntityHandle* split_src, const double* coords, MBEntityHandle& vert_handle )
+    {
+    MapIteratorType it = this->find( MBSplitVertexIndex<_n>( split_src ) );
+    if ( it == this->end() )
+      {
+      if ( this->mesh->create_vertex( coords, vert_handle ) != MB_SUCCESS )
+        {
+        return false;
+        }
+      return true;
+      }
+    vert_handle = it->second;
+    return false;
+    }
+};
+
 
 class MBTestOutputFunctor : public MBEntityRefinerOutputFunctor
 {
 public:
-  typedef std::vector<MBEntityHandle> node_list_t;
-  typedef std::pair<MBEntityHandle,MBEntityHandle> node_pair_t;
-  typedef std::map<MBEntityHandle,MBEntityHandle> node_hash_t;
-  typedef std::map<node_pair_t,MBEntityHandle> edge_hash_t;
-
   MBInterface* mesh;
   bool input_is_output;
-  node_hash_t node_hash;
-  edge_hash_t edge_hash;
-  node_list_t elem_vert;
+  std::vector<MBSplitVerticesBase*> split_vertices;
+  std::vector<MBEntityHandle> elem_vert;
+  MBEdgeSizeEvaluator* edge_size_evaluator;
+
+  MBTestOutputFunctor( MBInterface* imesh, MBInterface* omesh, MBEdgeSizeEvaluator* size_eval )
+    {
+    this->mesh = omesh;
+    this->input_is_output = ( imesh == omesh );
+    this->edge_size_evaluator = size_eval;
+
+    this->split_vertices.resize( 4 );
+    this->split_vertices[0] = 0; // Vertices (0-faces) cannot be split
+    this->split_vertices[1] = new MBSplitVertices<1>( this->mesh );
+    this->split_vertices[2] = new MBSplitVertices<2>( this->mesh );
+    this->split_vertices[3] = new MBSplitVertices<3>( this->mesh );
+    }
+
+  ~MBTestOutputFunctor()
+    {
+    for ( int i = 0; i < 4; ++ i )
+      delete this->split_vertices[i];
+    }
 
   void print_vert_crud( MBEntityHandle vout, int nvhash, MBEntityHandle* vhash, const double* vcoords, const void* vtags )
     {
@@ -46,6 +125,21 @@ public:
     std::cout << " >\n";
     }
 
+  void assign_tags( MBEntityHandle vhandle, const void* vtags )
+    {
+    if ( ! vhandle )
+      return; // Ignore bad vertices
+
+    int num_tags = this->edge_size_evaluator->get_number_of_vertex_tags();
+    MBTag tag_handle;
+    int tag_offset;
+    for ( int i = 0; i < num_tags; ++i )
+      {
+      this->edge_size_evaluator->get_output_vertex_tag( i, tag_handle, tag_offset );
+      this->mesh->tag_set_data( tag_handle, &vhandle, 1, vtags );
+      }
+    }
+
   virtual MBEntityHandle operator () ( MBEntityHandle vhash, const double* vcoords, const void* vtags )
     {
     if ( this->input_is_output )
@@ -58,6 +152,7 @@ public:
       {
       std::cerr << "Could not insert mid-edge vertex!\n";
       }
+    this->assign_tags( vertex_handle, vtags );
     this->print_vert_crud( vertex_handle, 1, &vhash, vcoords, vtags );
     return vertex_handle;
     }
@@ -69,39 +164,23 @@ public:
       {
       vertex_handle = (*this)( *vhash, vcoords, vtags );
       }
-    else if ( nvhash == 2 )
+    else if ( nvhash < 4 )
       {
-      node_pair_t pr;
-      if ( vhash[0] < vhash[1] )
+      bool newly_created = this->split_vertices[nvhash]->find_or_create( vhash, vcoords, vertex_handle );
+      if ( newly_created )
         {
-        pr.first = vhash[0];
-        pr.second = vhash[1];
+        this->assign_tags( vertex_handle, vtags );
         }
-      else
+      if ( ! vertex_handle )
         {
-        pr.first = vhash[1];
-        pr.second = vhash[0];
+        std::cerr << "Could not insert mid-edge vertex!\n";
         }
-      edge_hash_t::iterator it = this->edge_hash.find( pr );
-      if ( it == this->edge_hash.end() )
-        {
-        if ( this->mesh->create_vertex( vcoords + 3, vertex_handle ) != MB_SUCCESS )
-          {
-          std::cerr << "Could not insert mid-edge vertex!\n";
-          }
-        this->edge_hash[pr] = vertex_handle;
-        }
-      else
-        {
-        vertex_handle = it->second;
-        }
-      this->print_vert_crud( vertex_handle, 2, vhash, vcoords, vtags );
+      this->print_vert_crud( vertex_handle, nvhash, vhash, vcoords, vtags );
       }
     else
       {
-      vertex_handle = -1;
-      std::cerr << "Not handling mid-face vertices yet.\n";
-      // FIXME: Handle face midpoint.
+      vertex_handle = 0;
+      std::cerr << "Not handling splits on faces with " << nvhash << " corners yet.\n";
       }
     return vertex_handle;
     }
@@ -137,13 +216,10 @@ int TestMeshRefiner( int argc, char* argv[] )
   rank = 0;
 #endif // USE_MPI
 
-  MBInterface* iface = new MBCore;
-  MBEdgeSizeSimpleImplicit* eval = new MBEdgeSizeSimpleImplicit( iface );
-
-  double p0[6] = { 0.0, 0.0, 0.0,  0.0, 0.0, 0.0 };
-  double p1[6] = { 0.5, 0.0, 0.0,  0.5, 0.0, 0.0 };
-  double p2[6] = { 1.0, 0.0, 0.0,  1.0, 0.0, 0.0 };
-  double p3[6] = { 0.6, 2.0, 0.0,  0.6, 2.0, 0.0 };
+  bool input_is_output = ( argc > 1 && ! strcmp( argv[1], "-new-mesh" ) ) ? false : true;
+  MBInterface* imesh = new MBCore;
+  MBInterface* omesh = input_is_output ? imesh : new MBCore;
+  MBEdgeSizeSimpleImplicit* eval = new MBEdgeSizeSimpleImplicit( imesh, omesh );
 
   double coords[][6] = {
     {  0. ,  0.0,  0. ,  0. ,  0.0,  0.  }, // 0
@@ -207,50 +283,55 @@ int TestMeshRefiner( int argc, char* argv[] )
   MBEntityHandle tri_handle;
 
   MBTag tag_floatular;
-  iface->tag_create( "floatular", 2 * sizeof( double ), MB_TAG_DENSE, MB_TYPE_DOUBLE, tag_floatular, default_floatular );
+  imesh->tag_create( "floatular", 2 * sizeof( double ), MB_TAG_DENSE, MB_TYPE_DOUBLE, tag_floatular, default_floatular );
 
   MBTag tag_intular;
-  iface->tag_create( "intular", 4 * sizeof( int ), MB_TAG_DENSE, MB_TYPE_INTEGER, tag_intular, default_intular );
+  imesh->tag_create( "intular", 4 * sizeof( int ), MB_TAG_DENSE, MB_TYPE_INTEGER, tag_intular, default_intular );
 
   MBTag tag_gid;
-  iface->tag_create( PARALLEL_GID_TAG_NAME, sizeof( int ), MB_TAG_DENSE, MB_TYPE_INTEGER, tag_gid, default_gid );
+  imesh->tag_create( PARALLEL_GID_TAG_NAME, sizeof( int ), MB_TAG_DENSE, MB_TYPE_INTEGER, tag_gid, default_gid );
+
+  MBTag tag_spr;
+  imesh->tag_create( PARALLEL_SHARED_PROCS_TAG_NAME, 4 * sizeof( int ), MB_TAG_DENSE, MB_TYPE_INTEGER, tag_spr, default_gid );
 
   void const* iptrs[4];
   void const* fptrs[4];
   void const* gptrs[4];
+  void const* sptrs[4];
   for ( int i = 0; i < 4; ++ i )
     {
-    iface->create_vertex( coords[proc_nodes[rank][i]], node_handles[i] );
+    imesh->create_vertex( coords[proc_nodes[rank][i]], node_handles[i] );
     iptrs[i] = (void const*) intular_values[proc_nodes[rank][i]];
     fptrs[i] = (void const*) floatular_values[proc_nodes[rank][i]];
     gptrs[i] = (void const*) &gid_values[proc_nodes[rank][i]];
+    sptrs[i] = (void const*) &node_procs[proc_nodes[rank][i]];
     }
 
-  iface->tag_set_data( tag_floatular, node_handles, 4, fptrs, 0 );
+  imesh->tag_set_data( tag_floatular, node_handles, 4, fptrs, 0 );
   eval->add_vertex_tag( tag_floatular );
 
-  iface->tag_set_data( tag_intular, node_handles, 4, iptrs, 0 );
+  imesh->tag_set_data( tag_intular, node_handles, 4, iptrs, 0 );
   eval->add_vertex_tag( tag_intular );
 
-  iface->tag_set_data( tag_gid, node_handles, 4, gptrs, 0 );
+  imesh->tag_set_data( tag_gid, node_handles, 4, gptrs, 0 );
+  imesh->tag_set_data( tag_spr, node_handles, 4, sptrs, 0 );
 
-  iface->create_element( MBTET, node_handles, 4, tet_handle );
-  iface->tag_set_data( tag_gid, &tet_handle, 1, gid_values + 6 + rank );
-  iface->list_entities( 0, 1 );
+  imesh->create_element( MBTET, node_handles, 4, tet_handle );
+  imesh->tag_set_data( tag_gid, &tet_handle, 1, gid_values + 6 + rank );
+  imesh->list_entities( 0, 1 );
 
-  MBSimplexTemplateRefiner eref( iface );
-  MBTestOutputFunctor* ofunc = new MBTestOutputFunctor;
-  ofunc->input_is_output = ( argc > 1 && ! strcmp( argv[1], "-new-mesh" ) ) ? false : true;
-  ofunc->mesh = ofunc->input_is_output ? iface : new MBCore;
+  MBSimplexTemplateRefiner eref( imesh );
+  MBTestOutputFunctor* ofunc = new MBTestOutputFunctor( imesh, omesh, eval );
   eref.set_edge_size_evaluator( eval );
   eref.set_output_functor( ofunc );
+  eval->create_output_tags();
   eref.refine_entity( tet_handle );
 
   ofunc->mesh->list_entities( 0, 1 );
 
   if ( ! ofunc->input_is_output )
     delete ofunc->mesh;
-  delete iface;
+  delete imesh;
 
 #ifdef USE_MPI
   err = MPI_Barrier( MPI_COMM_WORLD );

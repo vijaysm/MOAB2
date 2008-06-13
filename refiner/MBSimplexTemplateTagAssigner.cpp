@@ -61,7 +61,7 @@ void MBSimplexTemplateTagAssigner::operator () (
   int tag_offset;
   for ( int i = 0; i < num_tags; ++i )
     {
-    this->edge_size_evaluator->get_vertex_tag( i, tag_handle, tag_offset );
+    this->edge_size_evaluator->get_input_vertex_tag( i, tag_handle, tag_offset );
     this->mesh_refiner->get_mesh()->tag_get_data_type( tag_handle, data_type );
     this->mesh_refiner->get_mesh()->tag_get_size( tag_handle, tag_size );
     

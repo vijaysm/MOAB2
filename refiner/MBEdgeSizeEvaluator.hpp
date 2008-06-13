@@ -26,34 +26,18 @@
 #ifndef MB_EDGESIZEEVALUATOR_H
 #define MB_EDGESIZEEVALUATOR_H
 
-#include "MBTypes.h" // for MB_DLL_EXPORT
+#include "MBRefinerTagManager.hpp"
 
-#include <vector>
-
-class MBInterface;
-
-class MB_DLL_EXPORT MBEdgeSizeEvaluator
+class MB_DLL_EXPORT MBEdgeSizeEvaluator : public MBRefinerTagManager
 {
 public:
-  MBEdgeSizeEvaluator( MBInterface* );
+  MBEdgeSizeEvaluator( MBInterface*, MBInterface* );
   virtual ~MBEdgeSizeEvaluator();
 
   virtual bool evaluate_edge(
     const double* p0, const void* t0,
     double* p1, void* t1,
     const double* p2, const void* t2 ) = 0;
-
-  void reset_vertex_tags();
-  int add_vertex_tag( MBTag tag_handle );
-  int get_vertex_tag_size() const { return this->vertex_size; }
-
-  int get_number_of_vertex_tags() const { return this->vertex_tags.size(); }
-  void get_vertex_tag( int i, MBTag& tag, int& byte_offset );
-
-protected:
-  std::vector< std::pair< MBTag, int > > vertex_tags;
-  int vertex_size;
-  MBInterface* mesh;
 };
 
 #endif // MB_EDGESIZEEVALUATOR_H

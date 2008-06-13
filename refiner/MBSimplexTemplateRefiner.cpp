@@ -67,7 +67,7 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
     tag_data = this->heap_tag_storage();
     for ( int i = 0; i < this->edge_size_evaluator->get_number_of_vertex_tags(); ++ i )
       {
-      this->edge_size_evaluator->get_vertex_tag( i, tag_handle, tag_offset );
+      this->edge_size_evaluator->get_input_vertex_tag( i, tag_handle, tag_offset );
       if ( this->mesh->tag_get_data( tag_handle, &conn[n], 1, (char*)tag_data + tag_offset ) != MB_SUCCESS )
         {
         return false;
