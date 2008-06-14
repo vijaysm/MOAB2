@@ -3003,7 +3003,7 @@ MBErrorCode create_int_ents(MBInterface *instance,
     if (MB_SUCCESS != result) return result;
     unsigned int old_size = from_ents.size();
     from_ents.merge(int_ents);
-    if (old_size != from_ents.size()) {
+    if (old_size != from_ents.size() && in_set) {
       result = MBI->add_entities(in_set, int_ents);
       if (MB_SUCCESS != result) return result;
     }
@@ -3016,7 +3016,7 @@ MBErrorCode create_int_ents(MBInterface *instance,
     if (MB_SUCCESS != result) return result;
     unsigned int old_size = from_ents.size();
     from_ents.merge(int_ents);
-    if (old_size != from_ents.size()) {
+    if (old_size != from_ents.size() && in_set) {
       result = MBI->add_entities(in_set, int_ents);
       if (MB_SUCCESS != result) return result;
     }
