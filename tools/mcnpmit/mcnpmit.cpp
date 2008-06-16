@@ -341,8 +341,8 @@ MCNPError McnpData::extract_tally_data(std::string s, MBEntityHandle handle) {
       // Need to read in relative error entry and tag ...
       result = next_number(s, d, fpos);
       if (result == MCNP_FAILURE) return MCNP_FAILURE;
-      // MBresult = MBI -> tag_set_data(relerr_tag, &handle, 1, &d);
-      // if (MBresult != MB_SUCCESS) return MCNP_FAILURE; 
+      MBresult = MBI -> tag_set_data(relerr_tag, &handle, 1, &d);
+      if (MBresult != MB_SUCCESS) return MCNP_FAILURE; 
 
       return MCNP_SUCCESS;
 }

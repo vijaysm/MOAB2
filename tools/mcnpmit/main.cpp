@@ -23,7 +23,7 @@ MCNPError next_double(std::string, double&, int&);
 MCNPError next_int(std::string, int&, int&);
 
 MCNPError result;
-MBTag     coord_tag, rotation_tag, cfd_heating_tag;
+MBTag     coord_tag, rotation_tag, cfd_heating_tag, cfd_error_tag;
 
 std::string h5m_filename;
 std::string CAD_filename;
@@ -160,6 +160,7 @@ int main(int argc, char **argv) {
 
     cfd_iter = cfd_verts.begin();
     MBresult = MBI->tag_create("heating_tag", sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, cfd_heating_tag, 0); 
+    MBresult = MBI->tag_create("error_tag", sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, cfd_error_tag, 0);
 
     std::cout << std::endl << "Read in mesh with query points." << std::endl << std::endl;
 
@@ -169,6 +170,8 @@ int main(int argc, char **argv) {
   double     testpt[3];
   double     transformed_pt[3];
   double     taldata;
+  double     errdata;
+
   MBCartVect testvc;
 
   bool found = false;
@@ -249,16 +252,19 @@ int main(int argc, char **argv) {
       }
 
       if (MBElemUtil::point_in_trilinear_hex(hexverts, testvc, 1.e-6)) {
-    	  MBresult = MBI -> tag_get_data( MCNP->tally_tag, &(*rit), 1, &taldata);
-	  outfile <<   n         << ","
+    	MBresult = MBI -> tag_get_data( MCNP->tally_tag, &(*rit), 1, &taldata);
+	MBresult = MBI -> tag_get_data( MCNP->relerr_tag, &(*rit), 1, &errdata);
+
+	outfile <<   n         << ","
 	            << testpt[0] << ","
 	  	    << testpt[1] << ","
 		    << testpt[2] << ","
-		    << taldata   << std::endl;
+		    << taldata   << ","
+		    << errdata   << std::endl;
 
         if (!read_qnv) {
           MBresult = MBI->tag_set_data(cfd_heating_tag, &(*cfd_iter), 1, &taldata);
-          cfd_iter++;
+	  MBresult = MBI->tag_set_data(cfd_error_tag, &(*cfd_iter), 1, &errdata);
         }
 
         found = true;
@@ -267,6 +273,8 @@ int main(int argc, char **argv) {
 	  break;
       }
     }
+
+    if (!read_qnv) cfd_iter++;
 
     if (!found) {
       std::cout << n << " " << testvc << std::endl;
