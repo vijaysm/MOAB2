@@ -3,7 +3,7 @@ AUTOMAKE_OPTIONS = foreign
 @CGM_CONFIG_OPTIONS@
 
 DEFS = $(DEFINES)
-INCLUDES += -I$(top_srcdir) -I$(top_builddir) 
+INCLUDES += -I$(top_srcdir) -I$(top_builddir) -I$(top_srcdir)/parallel
 
 lib_LTLIBRARIES = libmbcoupler.la
 
@@ -19,10 +19,12 @@ libmbcoupler_la_SOURCES = \
    findpt.c \
    findpt.h \
    minmax.h \
-   types.h
+   types.h \
+   MBCoupler.cpp
 
 libmbcoupler_la_include_HEADERS = \
-   MBElemUtil.hpp
+   MBElemUtil.hpp \
+   MBCoupler.hpp
 
 libmbcoupler_la_includedir = $(includedir)
 

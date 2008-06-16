@@ -31,6 +31,7 @@
 #include "MBProcConfig.hpp"
 #include <map>
 #include "math.h"
+#include "mpi.h"
 
 extern "C" {
   struct tuple_list;

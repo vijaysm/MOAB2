@@ -77,7 +77,7 @@ public:
   crystal_data *crystal_router(bool construct_if_missing = true);
 
     //! get/set the communicator for this proc config
-  MPI_Comm proc_comm() {return procComm;}
+  const MPI_Comm proc_comm() const {return procComm;}
   void proc_comm(MPI_Comm this_comm) {procComm = this_comm;}
   
 private:
