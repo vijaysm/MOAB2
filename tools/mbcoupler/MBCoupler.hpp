@@ -150,14 +150,30 @@ private:
      */
   MBRange myRange;
 
-    /* \brief Tuple list of locally mapped points
+    /* \brief List of locally mapped tuples
+     * Tuples contain the following:
+     * n = # mapped points
+     * vul[i] = local handle of mapped entity
+     * vr[3*i..3*i+2] = natural coordinates in mapped entity
      */
   tuple_list *mappedPts;
   
-    /* \brief Tuple list of source points
+    /* \brief Tuple list of target points
+     * Tuples contain the following:
+     * n = # source points
+     * vi[3*i] = remote proc mapping target point
+     * vi[3*i+1] = local index of target point
+     * vi[3*i+2] = remote index of target point
      */
-  tuple_list *sourcePts;
-  
+  tuple_list *targetPts;
+
+    /* \brief Locally mapped points
+     * Points whose source and target are both local; these
+     * points consist of two indices, <target_index, mapped_index>,
+     * where target_index is the index in the target points array
+     * and mapped_index is the corresponding index into mappedPts
+     */
+  std::vector<unsigned int> localMappedPts;
 };
 
 #endif

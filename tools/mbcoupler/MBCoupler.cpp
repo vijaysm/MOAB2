@@ -26,7 +26,7 @@ MBCoupler::MBCoupler(MBInterface *impl,
 
     // initialize tuple lists to indicate not initialized
   mappedPts = NULL;
-  sourcePts = NULL;
+  targetPts = NULL;
 }
 
   /* destructor
@@ -46,8 +46,10 @@ MBErrorCode MBCoupler::locate_points(double *xyz, int num_points,
   tuple_list_init_max(&target_pts, 2, 0, 0, 3, 3*num_points);
 
     // for each point, find box(es) containing the point, 
-    // appending results to tuple_list; keep local points separately
-  std::vector<unsigned int> local_pts;
+    // appending results to tuple_list; 
+    // keep local points separately, in local_pts, which has pairs
+    // of <local_index, mapped_index>, where mapped_index is the index
+    // into the mappedPts tuple list
   int threen = 0;
   for (int i = 0; i < 3*num_points; i+=3) {
     for (;;/*  <marco - loop over boxes> */ ) {
@@ -82,9 +84,8 @@ MBErrorCode MBCoupler::locate_points(double *xyz, int num_points,
     // source_pts.vi[3*i+1] = index of point i on sending proc
     // source_pts.vi[3*i+2] = index of mapped point (-1 if not mapped)
     //
-    // Also, mapping builds local tuple_list local_pts:
+    // Also, mapping builds local tuple_list mappedPts:
     // mappedPts->n = # mapped points
-    // mappedPts->vi[i] = index of point i on local proc
     // mappedPts->vul[i] = local handle of mapped entity
     // mappedPts->vr[3*i..3*i+2] = natural coordinates in mapped entity
 
@@ -92,7 +93,7 @@ MBErrorCode MBCoupler::locate_points(double *xyz, int num_points,
   tuple_list source_pts;
   mappedPts = new tuple_list;
   tuple_list_init_max(&source_pts, 3, 0, 0, 0, target_pts.n);
-  tuple_list_init_max(mappedPts, 1, 0, 1, 3, target_pts.n);
+  tuple_list_init_max(mappedPts, 0, 0, 1, 3, target_pts.n);
 
   for (unsigned i = 0; i < target_pts.n; i++) {
       // find leaf node(s) in local kdtree containing point i
@@ -114,7 +115,7 @@ MBErrorCode MBCoupler::locate_points(double *xyz, int num_points,
     // perform scatter/gather to send proc/index tuples back to procs
   gs_transfer(1, &source_pts, 0, myPc->proc_config().crystal_router());
 
-    // store proc/index tuples in sourcePts, and/or pass back to application;
+    // store proc/index tuples in targetPts, and/or pass back to application;
     // the tuple this gets stored to looks like:
     // tl.n = # mapped points
     // tl.vi[3*i] = remote proc mapping point
@@ -129,8 +130,8 @@ MBErrorCode MBCoupler::locate_points(double *xyz, int num_points,
   for (unsigned int i = 0; i < source_pts.n; i++) 
     if (-1 != source_pts.vi[3*i+2]) num_pts++;
 
-  sourcePts = new tuple_list;
-  tuple_list *tl_tmp = sourcePts;
+  targetPts = new tuple_list;
+  tuple_list *tl_tmp = targetPts;
   if (!store_local) tl_tmp = tl;
   tuple_list_init_max(tl_tmp, 3, 0, 0, 0, num_pts);
   tl_tmp->n = num_pts;
