@@ -133,7 +133,7 @@ MBErrorCode MBCoupler::locate_points(double *xyz, int num_points,
   targetPts = new tuple_list;
   tuple_list *tl_tmp = targetPts;
   if (!store_local) tl_tmp = tl;
-  tuple_list_init_max(tl_tmp, 3, 0, 0, 0, num_pts);
+  tuple_list_init_max(tl_tmp, 3, 0, 0, 1, num_pts);
   tl_tmp->n = num_pts;
   for (unsigned int i = 0; i < source_pts.n; i++) {
     if (-1 != source_pts.vi[3*i+2]) {
@@ -148,7 +148,7 @@ MBErrorCode MBCoupler::locate_points(double *xyz, int num_points,
 
     // copy into tl if passed in and storing locally
   if (tl && store_local) {
-    tuple_list_init_max(tl, 3, 0, 0, 0, num_pts);
+    tuple_list_init_max(tl, 3, 0, 0, 1, num_pts);
     memcpy(tl->vi, tl_tmp->vi, 3*sizeof(int));
     tl->n = tl_tmp->n;
   }
@@ -164,16 +164,24 @@ MBErrorCode MBCoupler::interpolate(MBCoupler::Method method,
                                    bool normalize) 
 {
   if (LINEAR_FE != method) return MB_FAILURE;
+
+  tuple_list *tl_tmp = (tl ? tl : targetPts);
   
-    // if no tl, gather procs/indices of locations being interpolated
-
     // scatter/gather interpolation points
+  gs_transfer(1, tl_tmp, 0, myPc->proc_config().crystal_router());
 
-    // perform interpolation on local source mesh
+    // perform interpolation on local source mesh; put results into
+    // tl_tmp->vr[i]
+
+    // interpolate locally mapped points too, putting results directly 
+    // into interp_vals
 
     // normalize interpolation
 
     // scatter/gather interpolation data
+  gs_transfer(1, tl_tmp, 0, myPc->proc_config().crystal_router());
+  for (unsigned int i = 0; i < tl_tmp->n; i++)
+    interp_vals[tl_tmp->vi[3*i+1]] = tl_tmp->vr[i];
 
     // done
   return MB_SUCCESS;

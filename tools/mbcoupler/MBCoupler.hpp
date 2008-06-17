@@ -158,12 +158,13 @@ private:
      */
   tuple_list *mappedPts;
   
-    /* \brief Tuple list of target points
+    /* \brief Tuple list of target points and interpolated data
      * Tuples contain the following:
-     * n = # source points
+     * n = # target points
      * vi[3*i] = remote proc mapping target point
      * vi[3*i+1] = local index of target point
      * vi[3*i+2] = remote index of target point
+     * vr[i] = interpolated data (used by interpolate function)
      */
   tuple_list *targetPts;
 
@@ -174,6 +175,7 @@ private:
      * and mapped_index is the corresponding index into mappedPts
      */
   std::vector<unsigned int> localMappedPts;
+
 };
 
 #endif
