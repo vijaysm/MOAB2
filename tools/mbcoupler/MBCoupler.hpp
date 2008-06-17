@@ -25,12 +25,13 @@
 #define MBCOUPLER_HPP
 
 class MBParallelComm;
-extern "C" {
-  struct tuple_list;
-}
 
 #include "MBRange.hpp"
 #include "MBInterface.hpp"
+extern "C" 
+{
+  struct tuple_list;
+}
 
 class MBCoupler
 {
@@ -148,6 +149,14 @@ private:
     /* \brief Range of locations interpolated onto
      */
   MBRange myRange;
+
+    /* \brief Tuple list of locally mapped points
+     */
+  tuple_list *mappedPts;
+  
+    /* \brief Tuple list of source points
+     */
+  tuple_list *sourcePts;
   
 };
 

@@ -1,5 +1,11 @@
 #include "MBCoupler.hpp"
 #include "MBParallelComm.hpp"
+#include "types.h"
+#include "errmem.h"
+#include "minmax.h"
+#include "sort.h"
+#include "tuple_list.h"
+#include "transfer.h"
 
 #include "assert.h"
 
@@ -17,6 +23,10 @@ MBCoupler::MBCoupler(MBInterface *impl,
   
     // now initialize the tree
   if (init_tree) initialize_tree();
+
+    // initialize tuple lists to indicate not initialized
+  mappedPts = NULL;
+  sourcePts = NULL;
 }
 
   /* destructor
@@ -29,25 +39,119 @@ MBErrorCode MBCoupler::locate_points(double *xyz, int num_points,
                                      tuple_list *tl,
                                      bool store_local) 
 {
-    // for each point, find box(es) containing the point, 
-    // appending results to vector
+  assert(tl || store_local);
+  
+    // allocate tuple_list to hold point data: (p, i, , xyz), i = point index
+  tuple_list target_pts;
+  tuple_list_init_max(&target_pts, 2, 0, 0, 3, 3*num_points);
 
-    // allocate tuple_list to hold these points, procs
+    // for each point, find box(es) containing the point, 
+    // appending results to tuple_list; keep local points separately
+  std::vector<unsigned int> local_pts;
+  int threen = 0;
+  for (int i = 0; i < 3*num_points; i+=3) {
+    for (;;/*  <marco - loop over boxes> */ ) {
+      if (/* marco - test point i/3 in box j */ false) {
+          // check size, grow if we're at max
+        if (target_pts.n == target_pts.max) 
+          tuple_list_grow(&target_pts);
+
+        target_pts.vi[2*target_pts.n] = -1 /* <marco - proc rank j> */;
+        target_pts.vi[2*target_pts.n+1] = i/3;
+        target_pts.vr[threen] = xyz[i];
+        target_pts.vr[threen] = xyz[i+1];
+        target_pts.vr[threen] = xyz[i+2];
+        target_pts.n++;
+        threen += 3;
+      }
+    }
+  }
 
     // perform scatter/gather, to gather points to source mesh procs
+  gs_transfer(1, &target_pts, 0, myPc->proc_config().crystal_router());
 
-    // find leaf node(s) in local kdtree containing point
+    // after scatter/gather: 
+    // target_pts.n = # points local proc has to map
+    // target_pts.vi[2*i] = proc sending point i
+    // target_pts.vi[2*i+1] = index of point i on sending proc
+    // target_pts.vr[3*i..3*i+2] = xyz of point i
+    // 
+    // Mapping builds the tuple list:
+    // source_pts.n = target_pts.n
+    // source_pts.vi[3*i] = target_pts.vi[2*i] = sending proc
+    // source_pts.vi[3*i+1] = index of point i on sending proc
+    // source_pts.vi[3*i+2] = index of mapped point (-1 if not mapped)
+    //
+    // Also, mapping builds local tuple_list local_pts:
+    // mappedPts->n = # mapped points
+    // mappedPts->vi[i] = index of point i on local proc
+    // mappedPts->vul[i] = local handle of mapped entity
+    // mappedPts->vr[3*i..3*i+2] = natural coordinates in mapped entity
 
-    // find natural coordinates of point in element(s) in that leaf
+    // initialize source_pts and local_pts
+  tuple_list source_pts;
+  mappedPts = new tuple_list;
+  tuple_list_init_max(&source_pts, 3, 0, 0, 0, target_pts.n);
+  tuple_list_init_max(mappedPts, 1, 0, 1, 3, target_pts.n);
 
-    // for any point/element with nat coords within bounds, store
-    // handle/nat coords in vector, and proc/index in outgoing tuple
-    // (-1 for index if no elements containing that point)
+  for (unsigned i = 0; i < target_pts.n; i++) {
+      // find leaf node(s) in local kdtree containing point i
+      // <marco...>
+
+      // find natural coordinates of point in element(s) in that leaf
+      // <marco...>
+
+      // for any point/element with nat coords within bounds, store
+      // handle/nat coords in vector, and proc/index in outgoing tuple
+      // (-1 for index if no elements containing that point)
+      // <marco...>
+    
+  }
+
+    // no longer need target_pts
+  tuple_list_free(&target_pts);
 
     // perform scatter/gather to send proc/index tuples back to procs
+  gs_transfer(1, &source_pts, 0, myPc->proc_config().crystal_router());
 
-    // store proc/index tuples locally, and/or pass back to application
+    // store proc/index tuples in sourcePts, and/or pass back to application;
+    // the tuple this gets stored to looks like:
+    // tl.n = # mapped points
+    // tl.vi[3*i] = remote proc mapping point
+    // tl.vi[3*i+1] = local index of mapped point
+    // tl.vi[3*i+2] = remote index of mapped point
+    //
+    // Local index is mapped into either myRange, holding the handles of
+    // local mapped entities, or myXyz, holding locations of mapped pts
 
+    // go through and count non-negatives
+  int num_pts = 0;
+  for (unsigned int i = 0; i < source_pts.n; i++) 
+    if (-1 != source_pts.vi[3*i+2]) num_pts++;
+
+  sourcePts = new tuple_list;
+  tuple_list *tl_tmp = sourcePts;
+  if (!store_local) tl_tmp = tl;
+  tuple_list_init_max(tl_tmp, 3, 0, 0, 0, num_pts);
+  tl_tmp->n = num_pts;
+  for (unsigned int i = 0; i < source_pts.n; i++) {
+    if (-1 != source_pts.vi[3*i+2]) {
+      tl_tmp->vi[3*i] = source_pts.vi[3*i];
+      tl_tmp->vi[3*i+1] = source_pts.vi[3*i+1];
+      tl_tmp->vi[3*i+2] = source_pts.vi[3*i+2];
+    }
+  }
+  
+    // no longer need source_pts
+  tuple_list_free(&source_pts);
+
+    // copy into tl if passed in and storing locally
+  if (tl && store_local) {
+    tuple_list_init_max(tl, 3, 0, 0, 0, num_pts);
+    memcpy(tl->vi, tl_tmp->vi, 3*sizeof(int));
+    tl->n = tl_tmp->n;
+  }
+  
     // done
   return MB_SUCCESS;
 }
