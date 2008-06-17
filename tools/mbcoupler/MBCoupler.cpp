@@ -103,7 +103,7 @@ MBErrorCode MBCoupler::locate_points(double *xyz, int num_points,
       // <marco...>
 
       // for any point/element with nat coords within bounds, store
-      // handle/nat coords in vector, and proc/index in outgoing tuple
+      // handle/nat coords in mappedPts, and proc/index in outgoing tuple
       // (-1 for index if no elements containing that point)
       // <marco...>
     
@@ -149,7 +149,7 @@ MBErrorCode MBCoupler::locate_points(double *xyz, int num_points,
     // copy into tl if passed in and storing locally
   if (tl && store_local) {
     tuple_list_init_max(tl, 3, 0, 0, 1, num_pts);
-    memcpy(tl->vi, tl_tmp->vi, 3*sizeof(int));
+    memcpy(tl->vi, tl_tmp->vi, 3*num_pts*sizeof(int));
     tl->n = tl_tmp->n;
   }
   
