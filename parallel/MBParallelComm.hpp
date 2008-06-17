@@ -236,6 +236,7 @@ public:
                           const bool adjacencies,
                           const bool tags,
                           const bool store_remote_handles,
+                          const bool iface_layer,
                           const int to_proc,
                           MBRange &final_ents,
                           std::vector<unsigned char> &buff,
@@ -249,6 +250,9 @@ public:
 
     //! Get proc config for this communication object
   const MBProcConfig &proc_config() const {return procConfig;}
+  
+    //! Get proc config for this communication object
+  MBProcConfig &proc_config() {return procConfig;}
   
     //! return the tags used to indicate shared procs and handles
   MBErrorCode get_shared_proc_tags(MBTag &sharedp_tag,
@@ -336,6 +340,7 @@ private:
                             int &count,
                             const bool just_count,
                             const bool store_remote_handles,
+                            const bool iface_layer,
                             const int to_proc,
                             std::vector<MBEntityType> &ent_types, 
                             std::vector<MBRange> &all_ranges, 
@@ -509,6 +514,10 @@ private:
                               MBEntityHandle *remote_hs,
                               int remote_proc,
                               MBEntityHandle remote_handle);
+  
+    /** \brief Set pstatus tag interface bit on entities in sets passed in
+     */
+  MBErrorCode tag_iface_entities(MBRange &iface_ents);
   
     //! MB interface associated with this writer
   MBInterface *mbImpl;

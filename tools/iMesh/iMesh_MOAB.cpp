@@ -256,6 +256,7 @@ extern "C" {
                      iMesh_Instance *instance, int *err, int options_len) 
   {
     std::string tmp_options(options, options_len);
+    eatwhitespace(tmp_options);
     FileOptions opts(tmp_options.c_str());
 
     MBInterface* core;
@@ -263,6 +264,15 @@ extern "C" {
     MBErrorCode result = opts.get_null_option("PARALLEL");
     if (MB_SUCCESS == result) {
 #ifdef USE_MPI    
+      int flag = 1;
+      int retval = MPI_Initialized(&flag);
+      if (MPI_SUCCESS != retval || !flag) {
+        int argc = 0;
+        char **argv = NULL;
+    
+          // mpi not initialized yet - initialize here
+        retval = MPI_Init(&argc, &argv);
+      }
       int rank, size;
       MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
       MPI_Comm_size(MPI_COMM_WORLD, &size); 
@@ -280,11 +290,6 @@ extern "C" {
     if (0 == *instance) {
       iMesh_processError(iBase_FAILURE, "Failed to instantiate mesh instance.");
       RETURN(iBase_FAILURE);
-    }
-  
-    if (0 != options_len) {
-      iMesh_processError(iBase_NOT_SUPPORTED, "No options for iMesh factory have been implemented.");
-      RETURN(iBase_NOT_SUPPORTED);
     }
   
     RETURN(iBase_SUCCESS);

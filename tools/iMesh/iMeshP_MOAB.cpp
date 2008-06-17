@@ -190,8 +190,8 @@ extern "C" {
                                            &pstatus);
     if (MB_SUCCESS != result) RETURN(result);
 
-    if (pstatus & PSTATUS_NOT_OWNED) *is_owner = 1;
-    else *is_owner = 0;
+    if (pstatus & PSTATUS_NOT_OWNED) *is_owner = 0;
+    else *is_owner = 1;
 
     RETURN(iBase_SUCCESS);
   }
@@ -217,8 +217,8 @@ extern "C" {
     CHECK_SIZE(*is_owner, *is_owner_allocated, *is_owner_size, int, );
   
     for (int i = 0; i < entity_handles_size; i++) {
-      if (pstatus[i] & PSTATUS_NOT_OWNED) (*is_owner)[i] = 1;
-      else (*is_owner)[i] = 0;
+      if (pstatus[i] & PSTATUS_NOT_OWNED) (*is_owner)[i] = 0;
+      else (*is_owner)[i] = 1;
     }
 
     RETURN(iBase_SUCCESS);

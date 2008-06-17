@@ -141,8 +141,8 @@ int main(int argc, char **argv)
         if (npos < argc) tag_name = argv[npos++];
         if (npos < argc) tag_val = strtol(argv[npos++], NULL, 0);
         if (npos < argc) distrib = strtol(argv[npos++], NULL, 0);
-        if (npos < argc) with_ghosts = strtol(argv[npos++], NULL, 0);
         else distrib = 1;
+        if (npos < argc) with_ghosts = strtol(argv[npos++], NULL, 0);
         tmp_result = read_file(mbImpl, filename, tag_name, tag_val,
                                distrib, parallel_option, with_ghosts);
         if (MB_SUCCESS != tmp_result) {
@@ -358,7 +358,7 @@ MBErrorCode read_file(MBInterface *mbImpl, const char *filename,
     options << ";PARTITION_DISTRIBUTE";
 
   if (1 == with_ghosts)
-    options << ";PARALLEL_GHOSTS=3.0.1";
+    options << ";PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1";
 
   options << ";CPUTIME";
     
@@ -731,7 +731,7 @@ MBErrorCode test_packing(MBInterface *mbImpl, const char *filename)
   MBParallelComm *pcomm = new MBParallelComm(mbImpl);
   std::vector<unsigned char> buff(1024);
   int buff_size;
-  result = pcomm->pack_buffer(ents, false, true, false, -1,
+  result = pcomm->pack_buffer(ents, false, true, false, false, -1,
                               whole_range, buff, buff_size);
   RRA("Packing buffer count (non-stored handles) failed.");
 

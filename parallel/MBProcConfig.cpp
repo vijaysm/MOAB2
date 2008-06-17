@@ -32,7 +32,7 @@ MBProcConfig::MBProcConfig(MPI_Comm proc_comm)
 #endif
 }
 
-crystal_data *MBProcConfig::crystal_router(bool construct_if_missing) 
+crystal_data *MBProcConfig::crystal_router(bool construct_if_missing)
 {
   if (!crystalInit && construct_if_missing)
 #ifdef USE_MPI

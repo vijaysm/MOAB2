@@ -58,8 +58,9 @@
  * not shared with any other processors, the pstatus is 0, otherwise it's > 0
  *
  * bit 0: !owned (0=owned, 1=not owned)
- * bit 1: interface (0=not interface, 1=interface)
- * bit 2: ghost (0=not ghost, 1=ghost)
+ * bit 1: shared (0=not shared, 1=shared)
+ * bit 2: interface (0=not interface, 1=interface)
+ * bit 3: ghost (0=not ghost, 1=ghost)
  */
 #define PARALLEL_STATUS_TAG_NAME "PARALLEL_STATUS"
 
