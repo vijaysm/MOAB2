@@ -785,7 +785,7 @@ public:
         Example: \code
         MBEntityHandle quad_conn[] = {vertex0, vertex1, vertex2, vertex3};
         MBEntityHandle quad_handle = 0;
-        create_element( MeshQuad, quad_conn, 4, new_handle ); \endcode 
+        create_element( MeshQuad, quad_conn, 4, quad_handle ); \endcode 
     */
   virtual MBErrorCode create_element(const MBEntityType type, 
                                      const MBEntityHandle *connectivity,
