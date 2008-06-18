@@ -71,7 +71,7 @@ void pack_unpack_mesh( MBCore& moab, MBRange& entities )
   MBParallelComm pcomm( &moab );
   int size = 0;
   std::vector<unsigned char> buff;
-  rval = pcomm.pack_buffer( entities, false, true, false,
+  rval = pcomm.pack_buffer( entities, false, true, false, false,
                             -1, tmp_range, buff, size );
   CHECK_ERR(rval);
   

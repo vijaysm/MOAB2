@@ -209,12 +209,15 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
   int tag_val, *tag_val_ptr = &tag_val;
   MBCore *impl = dynamic_cast<MBCore*>(mbImpl);
 
-  double act_times[10] = {0.0};
+  std::vector<double> act_times(pa_vec.size()+1);
   double stime = 0.0;
   if (cputime) stime = MPI_Wtime();
-
-  for (std::vector<int>::iterator vit = pa_vec.begin();
-       vit != pa_vec.end(); vit++) {
+  std::vector<int>::iterator vit;
+  int i;
+  act_times[0] = MPI_Wtime();
+  
+  for (i = 1, vit = pa_vec.begin();
+       vit != pa_vec.end(); vit++, i++) {
 
     MBErrorCode tmp_result = MB_SUCCESS;
     switch (*vit) {
@@ -371,17 +374,16 @@ MBErrorCode ReadParallel::load_file(const char *file_name,
       RR(ostr.str().c_str());
     }
 
-    if (cputime) act_times[*vit] = MPI_Wtime() - 
-                     (*vit ? act_times[*vit - 1] : stime);
+    if (cputime) act_times[i] = MPI_Wtime();
   }
 
   if (cputime && 0 == mbImpl->proc_rank()) {
     std::cout << "Read times: ";
-    for (std::vector<int>::iterator vit = pa_vec.begin();
-         vit != pa_vec.end(); vit++) 
-      std::cout << act_times[*vit] << " ";
+    for (i = 1, vit = pa_vec.begin();
+         vit != pa_vec.end(); vit++, i++) 
+      std::cout << act_times[i] - act_times[i-1] << " ";
     std::cout << "(";
-    for (std::vector<int>::iterator vit = pa_vec.begin();
+    for (vit = pa_vec.begin();
          vit != pa_vec.end(); vit++) 
       std::cout << ParallelActionsNames[*vit] << "/";
     std::cout << ")" << std::endl;
@@ -428,6 +430,13 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
   }
 
   if (distribute) {
+      // for now, require that number of partition sets be greater
+      // than number of procs
+    if (partition_sets.size() < (unsigned int) proc_sz) {
+      result = MB_FAILURE;
+      RR("Number of procs greater than number of partitions.");
+    }
+    
     MBRange tmp_sets;
       // distribute the partition sets
     unsigned int num_sets = partition_sets.size() / proc_sz;
