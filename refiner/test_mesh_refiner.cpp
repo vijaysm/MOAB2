@@ -233,14 +233,15 @@ int TestMeshRefiner( int argc, char* argv[] )
 #endif // USE_MPI
   MBRefinerTagManager* tmgr = new MBRefinerTagManager( imesh, omesh );
   MBEdgeSizeSimpleImplicit* eval = new MBEdgeSizeSimpleImplicit( tmgr );
+  MBParallelComm ipcomm( imesh );
 
   double coords[][6] = {
     {  0. ,  0.0,  0. ,  0. ,  0.0,  0.  }, // 0
-    { -1. ,  0.0,  0.5, -1. ,  0.0,  0.5 }, // 1
-    { -0.5, -1.0,  0.5, -0.5, -1.0,  0.5 }, // 2
-    {  0. ,  0. ,  1. ,  0. ,  0. ,  1.  }, // 3
-    {  0.5,  0.5,  0.5,  0.5,  0.5,  0.5 }, // 4
-    {  0.5, -0.5,  0.5,  0.5, -0.5,  0.5 }  // 5
+    {  0. ,  0. ,  1. ,  0. ,  0. ,  1.  }, // 1
+    { -1. ,  0.0,  0.5, -1. ,  0.0,  0.5 }, // 2
+    { -0.5, -1.0,  0.5, -0.5, -1.0,  0.5 }, // 3
+    {  0.5, -0.5,  0.5,  0.5, -0.5,  0.5 }, // 4
+    {  0.5,  0.5,  0.5,  0.5,  0.5,  0.5 }  // 5
   };
 
   double default_floatular[2] = {
@@ -267,16 +268,20 @@ int TestMeshRefiner( int argc, char* argv[] )
 
   int default_gid[] = { -1 };
   int gid_values[] = {
-    0, 1, 2, 3, 4, 5, // vertices
-    6, 7, 8, 9        // tetrahedra
+    1, 2, 3, 4, 5, 6, // vertices
+    7, 8, 9, 10,      // tetrahedra
+    11, 12, 
+    13, 14, 
+    15, 16, 
+    17, 18            // triangles
   };
 
   // List of vertices resident on each node.
   int proc_nodes[4][4] = {
-    { 0, 2, 3, 1 },
+    { 0, 1, 2, 3 },
     { 0, 1, 3, 4 },
-    { 0, 4, 3, 5 },
-    { 0, 5, 3, 2 },
+    { 0, 1, 4, 5 },
+    { 0, 1, 5, 2 },
   };
 
   // List of nodes with a copy of each vertex (first entry is owner)
@@ -289,10 +294,25 @@ int TestMeshRefiner( int argc, char* argv[] )
     { 2,  3, -1, -1 }  // 5
   };
 
+  int internal_bdy[4][6] = {
+    { 1, 0, 2, 0, 1, 3 },
+    { 1, 0, 2, 0, 1, 3 },
+    { 1, 0, 2, 0, 1, 3 },
+    { 1, 0, 2, 0, 1, 3 }
+    /* Oops, these refer to offsets into coords array, not node_handles:
+    { 1, 0, 2, 0, 1, 3 },
+    { 1, 0, 3, 0, 1, 4 },
+    { 1, 0, 4, 0, 1, 5 },
+    { 1, 0, 5, 0, 1, 2 }
+    */
+  };
+
   eval->set_ratio( 2. );
 
   MBEntityHandle node_handles[4];
   MBEntityHandle tet_handle;
+  MBEntityHandle tri_handles[2];
+  MBEntityHandle tri_node_handles[6];
 
   MBTag tag_floatular;
   imesh->tag_create( "floatular", 2 * sizeof( double ), MB_TAG_DENSE, MB_TYPE_DOUBLE, tag_floatular, default_floatular );
@@ -303,8 +323,13 @@ int TestMeshRefiner( int argc, char* argv[] )
   MBTag tag_gid;
   imesh->tag_create( PARALLEL_GID_TAG_NAME, sizeof( int ), MB_TAG_DENSE, MB_TYPE_INTEGER, tag_gid, default_gid );
 
-  MBTag tag_spr;
-  imesh->tag_create( PARALLEL_SHARED_PROCS_TAG_NAME, 4 * sizeof( int ), MB_TAG_DENSE, MB_TYPE_INTEGER, tag_spr, default_gid );
+  MBTag tag_sproc;
+  MBTag tag_sprocs;
+  MBTag tag_shand;
+  MBTag tag_shands;
+  MBTag tag_pstat;
+  ipcomm.get_shared_proc_tags( tag_sproc, tag_sprocs, tag_shand, tag_shands, tag_pstat );
+  MBTag tag_part = ipcomm.partition_tag();
 
   void const* iptrs[4];
   void const* fptrs[4];
@@ -314,10 +339,11 @@ int TestMeshRefiner( int argc, char* argv[] )
     {
     int pnode = proc_nodes[rank][i];
     imesh->create_vertex( coords[pnode], node_handles[i] );
+    //std::cout << rank << ": global " << (pnode + 1) << " is handle " << node_handles[i] << "\n";
     iptrs[i] = (void const*) intular_values[pnode];
     fptrs[i] = (void const*) floatular_values[pnode];
     gptrs[i] = (void const*) &gid_values[pnode];
-    sptrs[i] = (void const*) &node_procs[pnode];
+    //sptrs[i] = (void const*) &node_procs[pnode];
     }
 
   imesh->tag_set_data( tag_floatular, node_handles, 4, fptrs, 0 );
@@ -327,10 +353,27 @@ int TestMeshRefiner( int argc, char* argv[] )
   tmgr->add_vertex_tag( tag_intular );
 
   imesh->tag_set_data( tag_gid, node_handles, 4, gptrs, 0 );
-  imesh->tag_set_data( tag_spr, node_handles, 4, sptrs, 0 );
+  //imesh->tag_set_data( tag_sproc, node_handles, 4, sptrs, 0 );
 
   imesh->create_element( MBTET, node_handles, 4, tet_handle );
   imesh->tag_set_data( tag_gid, &tet_handle, 1, gid_values + 6 + rank );
+
+  for ( int i = 0; i < 6; ++ i )
+    {
+    tri_node_handles[i] = node_handles[internal_bdy[rank][i]];
+    }
+  imesh->create_element( MBTRI, tri_node_handles, 3, tri_handles[0] );
+  imesh->create_element( MBTRI, tri_node_handles + 3, 3, tri_handles[1] );
+  imesh->tag_set_data( tag_gid, tri_handles, 2, gid_values + 10 + 2 * rank );
+  //imesh->tag_set_data( tag_sprocs, &tet_handle, 1, sptrs, 0 );
+  //MBRange proc_ents( node_handles[0], tet_handle );
+  MBEntityHandle set_handle;
+  imesh->create_meshset( MESHSET_SET, set_handle );
+  imesh->tag_set_data( tag_part, &set_handle, 1, &rank );
+  imesh->add_entities( set_handle, &tet_handle, 1 );
+  ipcomm.resolve_shared_ents( 3, 2 );
+  //ipcomm.resolve_shared_ents( 3, 3 );
+
 #ifdef USE_MPI
   for ( int i = 0; i < nprocs; ++ i )
     {
