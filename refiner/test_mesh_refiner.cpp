@@ -12,6 +12,9 @@
 #include <iostream>
 #include <map>
 
+// ============== The actual test code starts around line 211 ===============
+// === The code below is used to print debug info as the refiner operates ===
+
 template< int _n >
 class MBSplitVertexIndex
 {
@@ -217,9 +220,12 @@ int TestMeshRefiner( int argc, char* argv[] )
   rank = 0;
 #endif // USE_MPI
 
+  // Create the input mesh and, if -new-mesh is specified, an output mesh
   bool input_is_output = ( argc > 1 && ! strcmp( argv[1], "-new-mesh" ) ) ? false : true;
   MBInterface* imesh = new MBCore( rank, nprocs );
   MBInterface* omesh = input_is_output ? imesh : new MBCore( rank, nprocs );
+
+  // Print out the process ranks, one at a time.
 #ifdef USE_MPI
   for ( int i = 0; i < nprocs; ++ i )
     {
@@ -231,10 +237,22 @@ int TestMeshRefiner( int argc, char* argv[] )
     MPI_Barrier( MPI_COMM_WORLD );
     }
 #endif // USE_MPI
-  MBRefinerTagManager* tmgr = new MBRefinerTagManager( imesh, omesh );
-  MBEdgeSizeSimpleImplicit* eval = new MBEdgeSizeSimpleImplicit( tmgr );
-  MBParallelComm ipcomm( imesh );
 
+  // The refiner will need
+  // ... something to manage tag values on new simplices:
+  MBRefinerTagManager* tmgr = new MBRefinerTagManager( imesh, omesh );
+  // ... and an implicit function to be used as an indicator function for subdivision:
+  MBEdgeSizeSimpleImplicit* eval = new MBEdgeSizeSimpleImplicit( tmgr );
+  eval->set_ratio( 2. );
+#ifdef USE_MPI
+  // Use an MBParallelComm object to help set up the input mesh
+  MBParallelComm ipcomm( imesh );
+#endif // USE_MPI
+
+  // The arrays below specify the mesh we create.
+  // The mesh is distributed across processes.
+
+  // Vertex coordinates
   double coords[][6] = {
     {  0. ,  0.0,  0. ,  0. ,  0.0,  0.  }, // 0
     {  0. ,  0. ,  1. ,  0. ,  0. ,  1.  }, // 1
@@ -244,6 +262,7 @@ int TestMeshRefiner( int argc, char* argv[] )
     {  0.5,  0.5,  0.5,  0.5,  0.5,  0.5 }  // 5
   };
 
+  // Floating-point tag values for testing
   double default_floatular[2] = {
      38.7,   104. };
   double floatular_values[][2] = {
@@ -255,6 +274,7 @@ int TestMeshRefiner( int argc, char* argv[] )
     {  -1.,      1.,    }  // 5
   };
 
+  // Integer tag values for testing
   int default_intular[4] = {
      7, 11, 24,  7 };
   int intular_values[][4] = {
@@ -266,6 +286,7 @@ int TestMeshRefiner( int argc, char* argv[] )
     {  5,  4,  3,  2  }  // 5
   };
 
+  // Global IDs of all entities
   int default_gid[] = { -1 };
   int gid_values[] = {
     1, 2, 3, 4, 5, 6, // vertices
@@ -276,7 +297,7 @@ int TestMeshRefiner( int argc, char* argv[] )
     17, 18            // triangles
   };
 
-  // List of vertices resident on each node.
+  // List of vertices resident on each node, as an index into gid_values
   int proc_nodes[4][4] = {
     { 0, 1, 2, 3 },
     { 0, 1, 3, 4 },
@@ -285,6 +306,7 @@ int TestMeshRefiner( int argc, char* argv[] )
   };
 
   // List of nodes with a copy of each vertex (first entry is owner)
+  // Ignore this for now.
   int node_procs[6][4] = {
     { 0,  1,  2,  3 }, // 0
     { 0,  1, -1, -1 }, // 1
@@ -294,35 +316,32 @@ int TestMeshRefiner( int argc, char* argv[] )
     { 2,  3, -1, -1 }  // 5
   };
 
+  // List of indices into local node_handles array of two triangles that interface with neighboring processes
   int internal_bdy[4][6] = {
     { 1, 0, 2, 0, 1, 3 },
     { 1, 0, 2, 0, 1, 3 },
     { 1, 0, 2, 0, 1, 3 },
     { 1, 0, 2, 0, 1, 3 }
-    /* Oops, these refer to offsets into coords array, not node_handles:
-    { 1, 0, 2, 0, 1, 3 },
-    { 1, 0, 3, 0, 1, 4 },
-    { 1, 0, 4, 0, 1, 5 },
-    { 1, 0, 5, 0, 1, 2 }
-    */
   };
-
-  eval->set_ratio( 2. );
 
   MBEntityHandle node_handles[4];
   MBEntityHandle tet_handle;
   MBEntityHandle tri_handles[2];
   MBEntityHandle tri_node_handles[6];
 
+  // Create some tags so we can test the refiner's ability to copy/interpolate them.
   MBTag tag_floatular;
   imesh->tag_create( "floatular", 2 * sizeof( double ), MB_TAG_DENSE, MB_TYPE_DOUBLE, tag_floatular, default_floatular );
 
   MBTag tag_intular;
   imesh->tag_create( "intular", 4 * sizeof( int ), MB_TAG_DENSE, MB_TYPE_INTEGER, tag_intular, default_intular );
 
+  // Get the global ID tag so we can set things up for resolve_shared_ents
   MBTag tag_gid;
   imesh->tag_create( PARALLEL_GID_TAG_NAME, sizeof( int ), MB_TAG_DENSE, MB_TYPE_INTEGER, tag_gid, default_gid );
 
+#ifdef USE_MPI
+  // Get tags for the various data-distributed mesh annotations
   MBTag tag_sproc;
   MBTag tag_sprocs;
   MBTag tag_shand;
@@ -330,7 +349,9 @@ int TestMeshRefiner( int argc, char* argv[] )
   MBTag tag_pstat;
   ipcomm.get_shared_proc_tags( tag_sproc, tag_sprocs, tag_shand, tag_shands, tag_pstat );
   MBTag tag_part = ipcomm.partition_tag();
+#endif // USE_MPI
 
+  // Create vertices for our local tet and prepare tag data for each
   void const* iptrs[4];
   void const* fptrs[4];
   void const* gptrs[4];
@@ -343,9 +364,9 @@ int TestMeshRefiner( int argc, char* argv[] )
     iptrs[i] = (void const*) intular_values[pnode];
     fptrs[i] = (void const*) floatular_values[pnode];
     gptrs[i] = (void const*) &gid_values[pnode];
-    //sptrs[i] = (void const*) &node_procs[pnode];
     }
 
+  // Set tag values on vertices
   imesh->tag_set_data( tag_floatular, node_handles, 4, fptrs, 0 );
   tmgr->add_vertex_tag( tag_floatular );
 
@@ -353,11 +374,13 @@ int TestMeshRefiner( int argc, char* argv[] )
   tmgr->add_vertex_tag( tag_intular );
 
   imesh->tag_set_data( tag_gid, node_handles, 4, gptrs, 0 );
-  //imesh->tag_set_data( tag_sproc, node_handles, 4, sptrs, 0 );
+  // (We don't add this tag to the refiner's tag manager because it is special)
 
+  // Create a tetrahedron from the vertices
   imesh->create_element( MBTET, node_handles, 4, tet_handle );
   imesh->tag_set_data( tag_gid, &tet_handle, 1, gid_values + 6 + rank );
 
+  // Create two triangles on the interface of the tet with its 2 neighboring processes.
   for ( int i = 0; i < 6; ++ i )
     {
     tri_node_handles[i] = node_handles[internal_bdy[rank][i]];
@@ -367,14 +390,23 @@ int TestMeshRefiner( int argc, char* argv[] )
   imesh->tag_set_data( tag_gid, tri_handles, 2, gid_values + 10 + 2 * rank );
   //imesh->tag_set_data( tag_sprocs, &tet_handle, 1, sptrs, 0 );
   //MBRange proc_ents( node_handles[0], tet_handle );
+
+  // Create a mesh set containing the tet
   MBEntityHandle set_handle;
   imesh->create_meshset( MESHSET_SET, set_handle );
-  imesh->tag_set_data( tag_part, &set_handle, 1, &rank );
   imesh->add_entities( set_handle, &tet_handle, 1 );
-  ipcomm.resolve_shared_ents( 3, 2 );
-  //ipcomm.resolve_shared_ents( 3, 3 );
 
 #ifdef USE_MPI
+  // Tag the mesh set as a parallel partition
+  imesh->tag_set_data( tag_part, &set_handle, 1, &rank );
+
+  // Resolve shared entities (we really only care about vertices but
+  // ipcomm.resolve_shared_ents( 0, 0 ) doesn't mark anything up.
+  ipcomm.resolve_shared_ents( 3, 2 );
+  //ipcomm.resolve_shared_ents( 0, 0 );
+  //ipcomm.resolve_shared_ents( 3, 3 );
+
+  // Print out what we have so far, one process at a time
   for ( int i = 0; i < nprocs; ++ i )
     {
     MPI_Barrier( MPI_COMM_WORLD );
@@ -390,6 +422,7 @@ int TestMeshRefiner( int argc, char* argv[] )
   imesh->list_entities( 0, 1 );
 #endif // USE_MPI
 
+  // Refine the mesh
   MBSimplexTemplateRefiner eref( imesh );
   MBTestOutputFunctor* ofunc = new MBTestOutputFunctor( imesh, omesh, tmgr );
   eref.set_edge_size_evaluator( eval );
@@ -397,6 +430,7 @@ int TestMeshRefiner( int argc, char* argv[] )
   tmgr->create_output_tags();
   eref.refine_entity( tet_handle );
 
+  // Print out the results, one process at a time
 #ifdef USE_MPI
   for ( int i = 0; i < nprocs; ++ i )
     {
@@ -413,12 +447,16 @@ int TestMeshRefiner( int argc, char* argv[] )
   omesh->list_entities( 0, 1 );
 #endif // USE_MPI
 
+  // Clean up
   if ( ! ofunc->input_is_output )
     delete ofunc->mesh;
   delete imesh;
 
+#ifdef USE_MPI
   err = MPI_Barrier( MPI_COMM_WORLD );
   err = MPI_Finalize();
+#endif // USE_MPI
+
   return 0;
 }
 
