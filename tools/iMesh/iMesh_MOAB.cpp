@@ -881,18 +881,21 @@ extern "C" {
     CHECK_SIZE(*entity_handles, *entity_handles_allocated, expected_size,
                iBase_EntityHandle, false);
   
-    int& i = *entity_handles_size;
+    int j = 0, i;
     for (i = 0; i < this_it->requestedSize; ++i, ++this_it->currentPos)
     {
       if (this_it->currentPos == this_it->iteratorRange.end()) {
         *is_end = false;
+        *entity_handles_size = j;
         RETURN(iBase_SUCCESS);
       }
-    
-      (*entity_handles)[i] = (iBase_EntityHandle)*this_it->currentPos;
+
+      if (MBimesh->is_valid(*this_it->currentPos)) 
+        (*entity_handles)[j++] = (iBase_EntityHandle)*this_it->currentPos;
     }
   
     *is_end = true;
+    *entity_handles_size = j;
     RETURN(iBase_SUCCESS);
   }
 

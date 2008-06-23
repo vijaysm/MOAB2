@@ -5827,7 +5827,14 @@ int main(int argc, char* argv[])
 
     // Check command line arg to see if we should avoid doing the stress test
   bool stress_test = true;
-  
+
+  std::cout << "Size of mConnMap = " << sizeof(MBCN::mConnectivityMap)
+            << std::endl;
+  std::cout << "Size of mUpConnMap = " << sizeof(MBCN::mUpConnMap)
+            << std::endl;
+  std::cout << "Size of MBCN = " << sizeof(MBCN)
+            << std::endl;
+    
   for (int i = 1; i < argc; ++i) {
     if (string(argv[i]) == "-nostress")
       stress_test = false;

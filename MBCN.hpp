@@ -42,10 +42,10 @@
 #include "MBEntityType.h"
 
 // the maximum number n-1 dimension adjacencies a element may have
-#define MB_MAX_SUB_ENTITIES  24
+#define MB_MAX_SUB_ENTITIES  12
 
 // the maximum number of nodes an n-1 dimensional element may have
-#define MB_MAX_SUB_ENTITY_VERTICES 16
+#define MB_MAX_SUB_ENTITY_VERTICES 8
 
 typedef std::pair<MBEntityType, MBEntityType> MBDimensionPair;
 
