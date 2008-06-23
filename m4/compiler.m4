@@ -37,10 +37,14 @@ case "x$WITH_MPI" in
   xno)
     CC_LIST="cc gcc cl egcs pgcc"
     CXX_LIST="CC aCC cxx xlC_r xlC c++ g++ pgCC gpp cc++ cl FCC KCC RCC"
+    FC_LIST="gfortran ifort pgf90"
+    F77_LIST="gfortran ifort pgf77"
     ;;
   xyes)
     CC_LIST="mpicc mpcc"
     CXX_LIST="mpiCC mpCC mpicxx"
+    FC_LIST="mpif90"
+    F77_LIST="mpif77"
     ;;
   x*)
     if test -z "$CC";then
@@ -63,6 +67,26 @@ case "x$WITH_MPI" in
     else
       CXX_LIST="$CXX"
     fi
+    if test -z "$FC";then
+      for prog in mpif90; do
+        if test -x ${WITH_MPI}/bin/$prog; then
+          FC="${WITH_MPI}/bin/$prog"
+          FC_LIST="$prog"
+        fi
+      done
+    else
+      FC_LIST="$FC"
+    fi
+    if test -z "$F77";then
+      for prog in mpif77; do
+        if test -x ${WITH_MPI}/bin/$prog; then
+          F77="${WITH_MPI}/bin/$prog"
+          F77_LIST="$prog"
+        fi
+      done
+    else
+      F77_LIST="$F77"
+    fi
     WITH_MPI=yes
     ;;
 esac
@@ -70,6 +94,8 @@ AC_PROG_CC( [$CC_LIST] )
 AC_PROG_CPP
 AC_PROG_CXX( [$CXX_LIST] )
 AC_PROG_CXXCPP
+AC_PROG_FC( [$FC_LIST] )
+AC_PROG_F77( [$F77_LIST] )
 
 # Try to determine compiler-specific flags.  This must be done
 # before setting up libtool so that it can override libtool settings.
@@ -89,9 +115,13 @@ AC_ARG_ENABLE( debug, AC_HELP_STRING([--enable-debug],[Debug symbols (-g)]),
                [enable_debug=$enableval], [enable_debug=] )  
 AC_ARG_ENABLE( optimize, AC_HELP_STRING([--enable-optimize],[Compile optimized (-O2)]),
                [enable_cxx_optimize=$enableval
-                enable_cc_optimize=$enableval], 
+                enable_cc_optimize=$enableval
+		enable_fc_optimize=$enableval
+		], 
                [enable_cxx_optimize=
-                enable_cc_optimize=] )
+                enable_cc_optimize=
+		enable_fc_optimize=
+		] )
 
 # Do enable_optimize by default, unless user has specified
 # custom CXXFLAGS or CFLAGS
@@ -106,18 +136,27 @@ if test "x$enable_debug" = "x"; then
       enable_cc_optimize=yes
     fi
   fi
+  if test "x$enable_fc_optimize" = "x"; then
+    if test "x$USER_FCFLAGS" = "x"; then
+      enable_fc_optimize=yes
+    fi
+  fi
 fi
 
 # Choose compiler flags from CLI args
 if test "xyes" = "x$enable_debug"; then
   CXXFLAGS="$CXXFLAGS -g"
-  CFLAGS="$CLFAGS -g"
+  CFLAGS="$CFLAGS -g"
+  FCFLAGS="$FCFLAGS -g"
 fi
 if test "xyes" = "x$enable_cxx_optimize"; then
   CXXFLAGS="$CXXFLAGS -O2 -DNDEBUG"
 fi
 if test "xyes" = "x$enable_cc_optimize"; then
   CFLAGS="$CFLAGS -O2 -DNDEBUG"
+fi
+if test "xyes" = "x$enable_fc_optimize"; then
+  FCFLAGS="$FCFLAGS -O2 -DNDEBUG"
 fi
 
   # Check for 32/64 bit.

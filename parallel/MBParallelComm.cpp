@@ -167,6 +167,7 @@ MBErrorCode MBParallelComm::assign_global_ids(MBEntityHandle this_set,
   MBRange entities[4];
   int local_num_elements[4];
   MBErrorCode result;
+  std::vector<unsigned char> pstatus;
   for (int dim = 0; dim <= dimension; dim++) {
     if (dim == 0 || !largest_dim_only || dim == dimension) {
       result = mbImpl->get_entities_by_dimension(this_set, dim, entities[dim]); 
@@ -174,10 +175,15 @@ MBErrorCode MBParallelComm::assign_global_ids(MBEntityHandle this_set,
     }
 
       // need to filter out non-locally-owned entities!!!
+    pstatus.resize(entities[dim].size());
+    result = mbImpl->tag_get_data(pstatus_tag(), entities[dim], &pstatus[0]);
+    RRA("Failed to get pstatus in assign_global_ids.");
+    
     MBRange dum_range;
-    for (MBRange::iterator rit = entities[dim].begin(); rit != entities[dim].end(); rit++)
-      if (mbImpl->handle_utils().rank_from_handle(*rit) != 
-          (unsigned int) mbImpl->proc_rank()) 
+    MBRange::iterator rit;
+    unsigned int i;
+    for (rit = entities[dim].begin(); rit != entities[dim].end(); rit++, i++)
+      if (pstatus[i] & PSTATUS_NOT_OWNED)
         dum_range.insert(*rit);
     entities[dim] = entities[dim].subtract(dum_range);
     
@@ -3074,7 +3080,7 @@ MBErrorCode MBParallelComm::remove_nonowned_shared(MBRange &ents,
       }
       for (unsigned int j = 0; j < MAX_SHARING_PROCS; j++) {
           // if to_proc shares this entity, skip it
-        if (sharing_procs[j] == to_proc) break;
+        if (-1 != to_proc && sharing_procs[j] == to_proc) break;
           // if we get here, no more sharing procs, and it's not shared
           // with to_proc, so add to list
         else if (sharing_procs[j] == -1) 

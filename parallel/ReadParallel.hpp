@@ -7,6 +7,7 @@
 #include <string>
 
 class MBReadUtilIface;
+class MBParallelComm;
 
 class ReadParallel : public MBReaderIface
 {
@@ -22,8 +23,16 @@ public:
                         const int* material_set_list,
                         const int num_material_sets );
   
+    //! load multiple files
+  MBErrorCode load_file(const char **file_names,
+                        const int num_files,
+                        MBEntityHandle& file_set,
+                        const FileOptions &opts,
+                        const int* material_set_list,
+                        const int num_material_sets );
+  
     //! Constructor
-  ReadParallel(MBInterface* impl = NULL) {mbImpl = impl;};
+  ReadParallel(MBInterface* impl = NULL, MBParallelComm *pc = NULL);
 
    //! Destructor
   virtual ~ReadParallel() {}
@@ -31,9 +40,8 @@ public:
 protected:
 
 private:
-  MBInterface *mbImpl;
-  
-  MBErrorCode load_file(const char *file_name,
+  MBErrorCode load_file(const char **file_names,
+                        const int num_files,
                         MBEntityHandle& file_set,
                         int parallel_mode, 
                         std::string &partition_tag_name, 
@@ -58,6 +66,21 @@ private:
   
   MBErrorCode delete_nonlocal_entities(MBRange &partition_sets,
                                        MBEntityHandle file_set);
+
+  MBInterface *mbImpl;
+
+    // each reader can keep track of its own pcomm
+  MBParallelComm *myPcomm;
 };
 
+inline MBErrorCode ReadParallel::load_file(const char *file_name,
+                                           MBEntityHandle& file_set,
+                                           const FileOptions &opts,
+                                           const int* material_set_list,
+                                           const int num_material_sets ) 
+{
+  return load_file(&file_name, 1, file_set, opts, 
+                   material_set_list, num_material_sets);
+}
+  
 #endif

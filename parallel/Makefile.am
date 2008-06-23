@@ -19,7 +19,7 @@ libMOABpar_la_includedir = $(includedir)
 MOAB_PARALLEL_SRCS =
 MOAB_PARALLEL_HDRS =
 MOAB_PARALLEL_TEST = 
-if USE_MPI
+if PARALLEL
   MOAB_PARALLEL_SRCS += \
      MBParallelComm.cpp \
      MBProcConfig.cpp \
@@ -55,10 +55,6 @@ libMOABpar_la_include_HEADERS = \
   $(MOAB_PARALLEL_HDRS)
 
 # Tests and such
-
-#moab_test_SOURCES = MBTest.cpp
-#moab_test_LDADD = $(top_builddir)/libMOAB.la
-#moab_test_DEPENDENCIES = test/mb_big_test.g test/cell1.gen test/cell2.gen $(top_builddir)/libMOAB.la
 
 check_PROGRAMS = $(MOAB_PARALLEL_TEST)
 TESTS = $(MOAB_PARALLEL_TEST)

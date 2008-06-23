@@ -34,9 +34,14 @@ if PARALLEL
   libiMesh_la_SOURCES += iMeshP_MOAB.cpp
   libiMesh_la_include_HEADERS += iMeshP.h iMeshP_f.h iMeshP_protos.h
   INCLUDES += -I$(top_srcdir)/parallel
+
   check_PROGRAMS += partest
   partest_SOURCES = partest.cpp
   partest_DEPENDENCIES = libiMesh.la $(top_builddir)/libMOAB.la 
+
+  check_PROGRAMS += ftest
+  ftest_SOURCES = ftest.F
+  ftest_DEPENDENCIES = libiMesh.la $(top_builddir)/libMOAB.la 
 endif
 
 lib_LTLIBRARIES = libiMesh.la

@@ -39,3 +39,11 @@ check_PROGRAMS = $(TESTS)
 findpt_test_SOURCES = findpt_test.cpp
 findpt_test_LDADD = libmbcoupler.la $(top_builddir)/libMOAB.la
 
+if PARALLEL
+  TESTS += mbcoupler_test
+  check_PROGRAMS += mbcoupler_test
+  mbcoupler_test_SOURCES = mbcoupler_test.cpp
+  mbcoupler_test_LDADD = libmbcoupler.la $(top_builddir)/libMOAB.la
+  INCLUDES += -I$(srcdir)/parallel
+endif
+
