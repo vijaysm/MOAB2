@@ -6,9 +6,9 @@
 #include <assert.h>
 
 /// Construct an evaluator.
-MBEdgeSizeEvaluator::MBEdgeSizeEvaluator( MBRefinerTagManager* tag_mgr )
+MBEdgeSizeEvaluator::MBEdgeSizeEvaluator()
 {
-  this->tag_manager = tag_mgr;
+  this->tag_manager = 0;
 }
 
 /// Destruction is virtual so subclasses may clean up after refinement.

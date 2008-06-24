@@ -4,9 +4,9 @@
 #include "MBInterface.hpp"
 
 /// Construct an entity refiner.
-MBEntityRefiner::MBEntityRefiner( MBInterface* parentMesh )
+MBEntityRefiner::MBEntityRefiner()
 {  
-  this->mesh = parentMesh;
+  this->mesh_in = 0;
   this->edge_size_evaluator = 0;
   this->output_functor = 0;
   // By default, allow at most one subdivision per edge
@@ -19,8 +19,31 @@ MBEntityRefiner::~MBEntityRefiner()
 {
   if ( this->edge_size_evaluator )
     delete this->edge_size_evaluator;
-  if ( this->output_functor )
-    delete this->output_functor;
+}
+
+/**\brief Prepare to start refining entities on a given mesh.
+  * This is called once before refine_entity() is ever invoked.
+  * The tag manager specifies the input and output meshes upon which the refiner will act.
+  *
+  * This function returns false if calling refine_entity() immediately
+  * afterwards would cause a failure (due, for example, to a NULL edge_size_evaluator).
+  * Otherwise it returns true.
+  */
+bool MBEntityRefiner::prepare( MBRefinerTagManager* tmgr, MBEntityRefinerOutputFunctor* ofunc )
+{
+  bool rval = true;
+  if ( this->edge_size_evaluator )
+    {
+    this->edge_size_evaluator->set_tag_manager( tmgr );
+    }
+  else
+    {
+    rval = false;
+    }
+  this->set_output_functor( ofunc );
+  this->mesh_in = tmgr->get_input_mesh();
+  this->update_heap_size();
+  return rval;
 }
 
 /**\fn bool MBEntityRefiner::refine_entity( MBEntityHandle )
@@ -53,7 +76,6 @@ bool MBEntityRefiner::set_edge_size_evaluator( MBEdgeSizeEvaluator* ese )
     delete this->edge_size_evaluator;
     }
   this->edge_size_evaluator = ese;
-  this->update_heap_size();
 
   return true;
 }

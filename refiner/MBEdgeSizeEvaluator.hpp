@@ -31,7 +31,7 @@
 class MB_DLL_EXPORT MBEdgeSizeEvaluator
 {
 public:
-  MBEdgeSizeEvaluator( MBRefinerTagManager* );
+  MBEdgeSizeEvaluator();
   virtual ~MBEdgeSizeEvaluator();
 
   virtual bool evaluate_edge(
@@ -39,6 +39,7 @@ public:
     double* p1, void* t1,
     const double* p2, const void* t2 ) = 0;
 
+  void set_tag_manager( MBRefinerTagManager* tmgr ) { this->tag_manager = tmgr; }
   MBRefinerTagManager* get_tag_manager() { return this->tag_manager; }
 
 protected:

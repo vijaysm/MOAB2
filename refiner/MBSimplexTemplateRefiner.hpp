@@ -39,16 +39,16 @@ class MBRefinerTagManager;
 class MB_DLL_EXPORT MBSimplexTemplateRefiner : public MBEntityRefiner
 {
 public:
-  MBSimplexTemplateRefiner( MBInterface* mesh );
+  MBSimplexTemplateRefiner();
   virtual ~MBSimplexTemplateRefiner();
 
-  virtual bool refine_entity( MBEntityHandle entity );
+  virtual bool refine_entity( MBEntityType etyp, MBEntityHandle entity );
   virtual unsigned long get_heap_size_bound( int max_recursions ) const { return 48 * 4 * ( 1 << max_recursions ) + 8; }
 
   virtual bool set_tag_assigner( MBSimplexTemplateTagAssigner* ta );
   MBSimplexTemplateTagAssigner* get_tag_assigner() const { return this->tag_assigner; }
 
-  virtual bool set_edge_size_evaluator( MBEdgeSizeEvaluator* );
+  virtual bool prepare( MBRefinerTagManager* tmgr, MBEntityRefinerOutputFunctor* ofunc );
 
 protected:
   MBSimplexTemplateTagAssigner* tag_assigner;

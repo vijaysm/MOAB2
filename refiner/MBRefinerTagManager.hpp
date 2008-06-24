@@ -48,6 +48,9 @@ public:
   void get_input_vertex_tag( int i, MBTag& tag, int& byte_offset );
   void get_output_vertex_tag( int i, MBTag& tag, int& byte_offset );
 
+  MBInterface* get_input_mesh() { return this->input_mesh; }
+  MBInterface* get_output_mesh() { return this->output_mesh; }
+
 protected:
   std::vector< std::pair< MBTag, int > > input_vertex_tags;
   std::vector< std::pair< MBTag, int > > output_vertex_tags;

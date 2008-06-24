@@ -23,8 +23,7 @@ static double MBTetParametric[]    = { 0., 0., 0.,   1., 0., 0.,   0., 1., 0.,  
 #endif // MB_DEBUG_TESSELLATOR
 
 /// Construct a template refiner.
-MBSimplexTemplateRefiner::MBSimplexTemplateRefiner( MBInterface* mesh )
-  : MBEntityRefiner( mesh )
+MBSimplexTemplateRefiner::MBSimplexTemplateRefiner()
 {
   this->tag_manager = 0;
   this->tag_assigner = new MBSimplexTemplateTagAssigner( this );
@@ -41,13 +40,14 @@ MBSimplexTemplateRefiner::~MBSimplexTemplateRefiner()
 
 /**\brief Stream a single mesh entity through the refiner.
   */
-bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
+bool MBSimplexTemplateRefiner::refine_entity( MBEntityType etyp, MBEntityHandle entity )
 {
   this->reset_heap_pointers();
   bool rval = true;
   const MBEntityHandle* conn;
   int num_nodes;
-  if ( this->mesh->get_connectivity( entity, conn, num_nodes ) != MB_SUCCESS )
+  MBInterface* imesh = this->tag_manager->get_input_mesh();
+  if ( imesh->get_connectivity( entity, conn, num_nodes ) != MB_SUCCESS )
     {
     return false;
     }
@@ -55,7 +55,6 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
   this->corner_tags.resize( num_nodes );
   this->corner_handles.resize( num_nodes );
 
-  MBEntityType etyp = this->mesh->type_from_handle( entity );
   // Have to make num_nodes calls to get_coords() because we need xyz interleaved with rst coords.
   MBTag tag_handle;
   int tag_offset;
@@ -63,7 +62,7 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
   for ( int n = 0; n < num_nodes; ++ n )
     {
     this->corner_handles[n] = conn[n];
-    if ( this->mesh->get_coords( &conn[n], 1, &corner_coords[6 * n + 3] ) != MB_SUCCESS )
+    if ( imesh->get_coords( &conn[n], 1, &corner_coords[6 * n + 3] ) != MB_SUCCESS )
       {
       return false;
       }
@@ -71,7 +70,7 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityHandle entity )
     for ( int i = 0; i < this->tag_manager->get_number_of_vertex_tags(); ++ i )
       {
       this->tag_manager->get_input_vertex_tag( i, tag_handle, tag_offset );
-      if ( this->mesh->tag_get_data( tag_handle, &conn[n], 1, (char*)tag_data + tag_offset ) != MB_SUCCESS )
+      if ( imesh->tag_get_data( tag_handle, &conn[n], 1, (char*)tag_data + tag_offset ) != MB_SUCCESS )
         {
         return false;
         }
@@ -161,22 +160,18 @@ bool MBSimplexTemplateRefiner::set_tag_assigner( MBSimplexTemplateTagAssigner* t
     return false;
 
   this->tag_assigner = ta; 
-  this->tag_assigner->set_edge_size_evaluator( this->edge_size_evaluator );
   return true;
 }
 
 
 /**\brief Set the function object used to decide whether an edge is subdivided or not.
   */
-bool MBSimplexTemplateRefiner::set_edge_size_evaluator( MBEdgeSizeEvaluator* es ) 
+bool MBSimplexTemplateRefiner::prepare( MBRefinerTagManager* tmgr, MBEntityRefinerOutputFunctor* ofunc )
 { 
-  if ( this->MBEntityRefiner::set_edge_size_evaluator( es ) )
-    {
-    this->tag_assigner->set_edge_size_evaluator( es );
-    this->tag_manager = this->edge_size_evaluator->get_tag_manager();
-    return true;
-    }
-  return false;
+  this->tag_manager = tmgr;
+  this->tag_assigner->set_tag_manager( tmgr );
+  //this->tag_assigner->set_edge_size_evaluator( this->edge_size_evaluator );
+  return this->MBEntityRefiner::prepare( tmgr, ofunc );
 }
 
 /**\fn unsigned long MBSimplexTemplateRefiner::get_heap_size_bound( int max_recursions ) const

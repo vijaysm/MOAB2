@@ -65,6 +65,7 @@
 
 class MBInterface;
 class MBEdgeSizeEvaluator;
+class MBRefinerTagManager;
 
 class MB_DLL_EXPORT MBEntityRefinerOutputFunctor
 {
@@ -94,12 +95,11 @@ public:
 class MB_DLL_EXPORT MBEntityRefiner
 {
 public:
-  MBEntityRefiner( MBInterface* );
+  MBEntityRefiner();
   virtual ~MBEntityRefiner();
 
-  MBInterface* get_mesh() { return this->mesh; }
-
-  virtual bool refine_entity( MBEntityHandle ) = 0;
+  virtual bool prepare( MBRefinerTagManager* tmgr, MBEntityRefinerOutputFunctor* ofunc );
+  virtual bool refine_entity( MBEntityType typ, MBEntityHandle ent ) = 0;
   virtual unsigned long get_heap_size_bound( int max_recursions ) const = 0;
 
   virtual bool set_edge_size_evaluator( MBEdgeSizeEvaluator* );
@@ -115,7 +115,7 @@ public:
   int get_maximum_number_of_subdivisions() const { return this->maximum_number_of_subdivisions; }
 
 protected:
-  MBInterface* mesh;
+  MBInterface* mesh_in;
   MBEdgeSizeEvaluator* edge_size_evaluator;
   MBEntityRefinerOutputFunctor* output_functor;
   int minimum_number_of_subdivisions;

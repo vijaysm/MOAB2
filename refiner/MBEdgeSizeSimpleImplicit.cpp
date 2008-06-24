@@ -1,7 +1,6 @@
 #include "MBEdgeSizeSimpleImplicit.hpp"
 
-MBEdgeSizeSimpleImplicit::MBEdgeSizeSimpleImplicit( MBRefinerTagManager* tag_mgr )
-  : MBEdgeSizeEvaluator( tag_mgr )
+MBEdgeSizeSimpleImplicit::MBEdgeSizeSimpleImplicit()
 {
   int i;
   // Default to the plane: x = 0.

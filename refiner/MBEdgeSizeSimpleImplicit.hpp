@@ -36,7 +36,7 @@ class MB_DLL_EXPORT MBEdgeSizeSimpleImplicit : public MBEdgeSizeEvaluator
 {
 public:
   /// Construct an evaluator.
-  MBEdgeSizeSimpleImplicit( MBRefinerTagManager* );
+  MBEdgeSizeSimpleImplicit();
   /// Destruction is virtual so subclasses may clean up after refinement.
   virtual ~MBEdgeSizeSimpleImplicit();
 

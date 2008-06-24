@@ -2,6 +2,7 @@
 
 #include "MBEdgeSizeEvaluator.hpp"
 #include "MBInterface.hpp"
+#include "MBRefinerTagManager.hpp"
 #include "MBSimplexTemplateRefiner.hpp"
 
 #include <vector>
@@ -14,10 +15,7 @@ using namespace std;
 MBSimplexTemplateTagAssigner::MBSimplexTemplateTagAssigner( MBSimplexTemplateRefiner* r )
 {
   this->mesh_refiner = r;
-  this->edge_size_evaluator = r->get_edge_size_evaluator();
   this->tag_manager = 0;
-  if ( this->edge_size_evaluator )
-    this->tag_manager = this->edge_size_evaluator->get_tag_manager();
 }
 
 /// Empty destructor for good form.
@@ -65,8 +63,8 @@ void MBSimplexTemplateTagAssigner::operator () (
   for ( int i = 0; i < num_tags; ++i )
     {
     this->tag_manager->get_input_vertex_tag( i, tag_handle, tag_offset );
-    this->mesh_refiner->get_mesh()->tag_get_data_type( tag_handle, data_type );
-    this->mesh_refiner->get_mesh()->tag_get_size( tag_handle, tag_size );
+    this->tag_manager->get_input_mesh()->tag_get_data_type( tag_handle, data_type );
+    this->tag_manager->get_input_mesh()->tag_get_size( tag_handle, tag_size );
     
     switch ( data_type )
       {
@@ -98,9 +96,8 @@ void MBSimplexTemplateTagAssigner::operator () ( const void* t0,
   (void)tp;
 }
 
-void MBSimplexTemplateTagAssigner::set_edge_size_evaluator( MBEdgeSizeEvaluator* es )
+void MBSimplexTemplateTagAssigner::set_tag_manager( MBRefinerTagManager* tmgr )
 {
-  this->edge_size_evaluator = es;
-  this->tag_manager = es ? es->get_tag_manager() : 0;
+  this->tag_manager = tmgr;
 }
 

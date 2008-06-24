@@ -29,7 +29,6 @@
 
 #include "MBTypes.h" // for MB_DLL_EXPORT
 
-class MBEdgeSizeEvaluator;
 class MBRefinerTagManager;
 class MBSimplexTemplateRefiner;
 
@@ -46,11 +45,10 @@ public:
                              const void* t1,
                              const void* t2,
                              void* tp );
-  virtual void set_edge_size_evaluator( MBEdgeSizeEvaluator* es );
+  virtual void set_tag_manager( MBRefinerTagManager* tmgr );
 
 protected:
   MBSimplexTemplateRefiner* mesh_refiner;
-  MBEdgeSizeEvaluator* edge_size_evaluator;
   MBRefinerTagManager* tag_manager;
 };
 

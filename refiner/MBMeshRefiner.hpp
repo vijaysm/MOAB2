@@ -26,28 +26,42 @@
 #define MB_MESHREFINER_H
 
 #include "MBTypes.h" // for MB_DLL_EXPORT
+#include "MBRange.hpp"
 
 #include <vector>
 
 class MBInterface;
 class MBEntityRefiner;
+class MBParallelComm;
+class MBRefinerTagManager;
+class MBMeshOutputFunctor;
 
 class MB_DLL_EXPORT MBMeshRefiner
 {
 public:
-  /// Construct a mesh refiner.
-  MBMeshRefiner( MBInterface* );
-  /// Destruction is virtual so subclasses may clean up after refinement.
+  MBMeshRefiner( MBInterface* imesh, MBInterface* omesh );
   virtual ~MBMeshRefiner();
 
-  virtual bool refine_mesh();
-
   bool set_entity_refiner( MBEntityRefiner* );
-  MBEntityRefiner* get_entity_refiner() { return this->entity_refiner; };
+  MBEntityRefiner* get_entity_refiner() { return this->entity_refiner; }
+
+  bool set_comm( MBParallelComm* c ) { if ( ! c || this->comm == c ) return false; this->comm = c; return true; }
+  MBParallelComm* get_comm() { return this->comm; }
+
+  MBRefinerTagManager* get_tag_manager() { return this->tag_manager; }
+  const MBRefinerTagManager* get_tag_manager() const { return this->tag_manager; }
+  void reset_vertex_tags();
+  int add_vertex_tag( MBTag tag_handle );
+
+  virtual bool refine( MBRange& );
 
 protected:
-  MBInterface* mesh;
+  MBInterface* mesh_in;
+  MBInterface* mesh_out;
   MBEntityRefiner* entity_refiner;
+  MBRefinerTagManager* tag_manager;
+  MBMeshOutputFunctor* output_functor;
+  MBParallelComm* comm;
 };
 
 #endif // MB_MESHREFINER_H
