@@ -227,6 +227,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   std::vector<int>::iterator vit;
   int i, j;
   act_times[0] = MPI_Wtime();
+  MBRange all_ents, all_ents2;
   
   for (i = 1, vit = pa_vec.begin();
        vit != pa_vec.end(); vit++, i++) {
@@ -238,12 +239,14 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
         for (j = 0; j < num_files; j++) {
           if (debug)
             std::cout << "Reading file " << file_names[j] << std::endl;
-            
+
+          MBEntityHandle new_file_set;
+          
           reader = impl->reader_writer_set()->
             get_file_extension_reader( file_names[j] );
           if (reader)
           { 
-            tmp_result = reader->load_file( file_names[j], file_set, opts, 
+            tmp_result = reader->load_file( file_names[j], new_file_set, opts, 
                                             material_set_list, num_material_sets );
             delete reader;
           }
@@ -256,7 +259,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
               reader = iter->make_reader( mbImpl );
               if (NULL != reader)
               {
-                tmp_result = reader->load_file( file_names[j], file_set, opts, 
+                tmp_result = reader->load_file( file_names[j], new_file_set, opts, 
                                                 material_set_list, num_material_sets );
                 delete reader;
                 if (MB_SUCCESS == tmp_result)
@@ -266,7 +269,21 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
           }
 
           if (MB_SUCCESS != tmp_result) break;
+          
+            // accumulate all the entities
+          tmp_result = mbImpl->get_entities_by_handle(new_file_set, all_ents2);
+          if (MB_SUCCESS != tmp_result) break;
+          all_ents.merge(all_ents2);
         }
+
+          // make a new set for the parallel read, if necessary, 
+          // and put ents in that
+        if (0 == file_set) {
+          tmp_result = mbImpl->create_meshset(MESHSET_SET, file_set);
+          if (MB_SUCCESS != tmp_result) break;
+        }
+        tmp_result = mbImpl->add_entities(file_set, all_ents);
+        if (MB_SUCCESS != tmp_result) break;
         
           // mark the file set
         other_sets = 0;

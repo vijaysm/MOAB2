@@ -61,11 +61,9 @@ int main(int argc, char **argv)
   MBEntityHandle file_set = 0;
   result = rp.load_file(&filenames[0], filenames.size(), file_set, 
                         FileOptions(opts.c_str()), NULL, 0);
-
-  err = MPI_Finalize();
-  
   if (MB_SUCCESS == result) {
     std::cout << "Success." << std::endl;
+    err = MPI_Finalize();
     return 0;
   }
   else {
