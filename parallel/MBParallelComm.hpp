@@ -57,6 +57,9 @@ public:
                  std::vector<unsigned char> &tmp_buff,
                  MPI_Comm comm = MPI_COMM_WORLD);
 
+    //! destructor
+  ~MBParallelComm();
+  
   static unsigned char PROC_SHARED, PROC_OWNER;
   
     //! assign a global id space, for largest-dimension or all entities (and
@@ -164,7 +167,8 @@ public:
      * \param proc_ents Entities for which to resolve shared entities
      * \param shared_dim Maximum dimension of shared entities to look for
      */
-  MBErrorCode resolve_shared_ents(MBRange &proc_ents, 
+  MBErrorCode resolve_shared_ents(MBEntityHandle this_set,
+                                  MBRange &proc_ents, 
                                   int resolve_dim = -1,
                                   int shared_dim = -1);
   
@@ -179,7 +183,8 @@ public:
      * \param dim Dimension of entities in the partition
      * \param shared_dim Maximum dimension of shared entities to look for
      */
-  MBErrorCode resolve_shared_ents(int resolve_dim = 3, 
+  MBErrorCode resolve_shared_ents(MBEntityHandle this_set,
+                                  int resolve_dim = 3, 
                                   int shared_dim = -1);
   
     /** \brief Get entities with the given pstatus bit(s) set
@@ -222,13 +227,12 @@ public:
   
     //! return partition sets; if tag_name is input, gets sets with
     //! that tag name, otherwise uses PARALLEL_PARTITION tag
-  MBErrorCode get_partition_sets(MBRange &part_sets,
+  MBErrorCode get_partition_sets(MBEntityHandle this_set,
+                                 MBRange &part_sets,
                                  const char *tag_name = NULL);
 
-    //! get communication interface sets and the processors with which
-    //! this processor communicates; sets are sorted by processor
-  MBErrorCode get_interface_sets_procs(MBRange &iface_sets,
-                                       std::vector<int> &iface_procs);
+    //! get processors with which this processor communicates; sets are sorted by processor
+  MBErrorCode get_interface_procs(std::vector<int> &iface_procs);
   
     //! pack the buffer with ALL data for orig_ents; return entities actually
     //! packed (including reference sub-entities) in final_ents
@@ -260,7 +264,11 @@ public:
                                    MBTag &sharedh_tag,
                                    MBTag &sharedhs_tag,
                                    MBTag &pstatus_tag);
-  
+
+    //! return partition, interface set ranges
+  MBRange &partition_sets() {return partitionSets;}
+  MBRange &interface_sets() {return interfaceSets;}
+      
     //! return sharedp tag
   MBTag sharedp_tag();
   
@@ -276,8 +284,13 @@ public:
     //! return pstatus tag
   MBTag pstatus_tag();
   
-    //! return iface_set tag
-  MBTag iface_sets_tag();
+    //! return pcomm tag; static because might not have a pcomm before going
+    //! to look for one on the interface
+  static MBTag pcomm_tag(MBInterface *impl,
+                         bool create_if_missing = true);
+
+    //! get the indexed pcomm object from the interface
+  static MBParallelComm *get_pcomm(MBInterface *impl, const int index);
   
     //! return partitions set tag
   MBTag partition_tag();
@@ -416,15 +429,15 @@ private:
     // returned; NOTE: a subsequent step is used to verify entities on the interface
     // and remove them if they're not shared
   MBErrorCode create_interface_sets(std::map<std::vector<int>, MBRange> &proc_nranges,
-                                    int resolve_dim, int shared_dim,
-                                    MBRange *iface_sets_ptr = NULL);
+                                    MBEntityHandle this_set,
+                                    int resolve_dim, int shared_dim);
 
     // after verifying shared entities, now parent/child links between sets can be established
-  MBErrorCode create_iface_pc_links(MBRange &iface_sets);
+  MBErrorCode create_iface_pc_links();
   
     //! resolve remote handles for shared non-vertex ents, assuming
     //! this has already been done for vertices
-  MBErrorCode resolve_ent_remote_handles(MBRange &iface_sets);
+  MBErrorCode resolve_ent_remote_handles();
   
     //! pack a range map with keys in this_range and values a contiguous series
     //! of handles starting at actual_start
@@ -449,8 +462,7 @@ private:
   
     //! for any remote_handles set to zero, remove corresponding sent_ents from
     //! iface_sets corresponding to from_proc
-  MBErrorCode update_iface_sets(MBRange &iface_sets, 
-                                MBRange &sent_ents,
+  MBErrorCode update_iface_sets(MBRange &sent_ents,
                                 std::vector<MBEntityHandle> &remote_handles, 
                                 int from_proc);
   
@@ -517,7 +529,13 @@ private:
   
     /** \brief Set pstatus tag interface bit on entities in sets passed in
      */
-  MBErrorCode tag_iface_entities(MBRange &iface_ents);
+  MBErrorCode tag_iface_entities();
+
+    //! add a pc to the iface instance tag PARALLEL_COMM
+  void add_pcomm(MBParallelComm *pc);
+  
+    //! remove a pc from the iface instance tag PARALLEL_COMM
+  void remove_pcomm(MBParallelComm *pc);
   
     //! MB interface associated with this writer
   MBInterface *mbImpl;
@@ -543,6 +561,9 @@ private:
   MPI_Request sendReqs[2*MAX_SHARING_PROCS];
 
   std::vector<int> buffProcs;
+
+    //! the partition, interface sets for this comm'n instance
+  MBRange partitionSets, interfaceSets;
   
     //! tags used to save sharing procs and handles
   MBTag sharedpTag, sharedpsTag, sharedhTag, sharedhsTag, pstatusTag, 

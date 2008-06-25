@@ -69,14 +69,19 @@
 #define PSTATUS_INTERFACE 0x4
 #define PSTATUS_GHOST 0x8
  
-/** \brief Tag storing interface sets
+/** \brief Tag storing parallel communication objects
  *
- * This tag stores interface sets allocated for a particular 
- * interface instance.  This is tag of length MAX_SHARING_PROCS
- * (defined in parallel/MBParallelComm.hpp) which stores interface 
- * set handles (entries set to 0 by default).
+ * This tag stores pointers to MBParallelComm communication
+ * objects; one of these is allocated for each different
+ * communicator used to read mesh.  MBParallelComm stores
+ * partition and interface sets corresponding to its parallel mesh.
+ * By default, a parallel read uses the first MBParallelComm object
+ * on the interface instance; if instantiated with one, ReadParallel
+ * adds this object to the interface instance too.
  *
+ * Tag type: opaque
+ * Tag size: MAX_SHARING_PROCS*sizeof(MBParallelComm*)
  */
-#define PARALLEL_IFACE_SETS_TAG_NAME "PARALLEL_IFACE_SETS"
+#define PARALLEL_COMM_TAG_NAME "PARALLEL_COMM"
 
 #endif

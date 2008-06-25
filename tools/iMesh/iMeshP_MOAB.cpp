@@ -139,16 +139,17 @@ extern "C" {
                              /*out*/   int *part_handles_size, 
                              int *err) 
   {
-    MBParallelComm pc(MBI);
+    MBParallelComm *pc = MBParallelComm::get_pcomm(MBI, 0);
+    if (!pc) RETURN(iBase_ERROR_MAP[MB_FAILURE]);
+
     MBRange part_sets;
-    MBErrorCode result = pc.get_partition_sets(part_sets);
-    if (MB_SUCCESS != result) RETURN(iBase_ERROR_MAP[result]);
   
-    *part_handles_size = part_sets.size();
+    *part_handles_size = pc->partition_sets().size();
     CHECK_SIZE(*part_handles, *part_handles_allocated, *part_handles_size, iMeshP_PartHandle,);
     MBRange::iterator rit;
     int i;
-    for (i = 0, rit = part_sets.begin(); rit != part_sets.end(); rit++, i++)
+    for (i = 0, rit = pc->partition_sets().begin(); 
+         rit != pc->partition_sets().end(); rit++, i++)
       (*part_handles)[i] = CAST_TO_VOID(*rit);
   
     RETURN(iBase_SUCCESS);

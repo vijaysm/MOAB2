@@ -64,8 +64,7 @@ private:
                                        bool distribute,
                                        MBEntityHandle file_set);
   
-  MBErrorCode delete_nonlocal_entities(MBRange &partition_sets,
-                                       MBEntityHandle file_set);
+  MBErrorCode delete_nonlocal_entities(MBEntityHandle file_set);
 
   MBInterface *mbImpl;
 

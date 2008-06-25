@@ -135,6 +135,8 @@ MBParallelComm::MBParallelComm(MBInterface *impl, MPI_Comm comm)
       // mpi not initialized yet - initialize here
     retval = MPI_Init(&argc, &argv);
   }
+
+  add_pcomm(this);
 }
 
 MBParallelComm::MBParallelComm(MBInterface *impl,
@@ -154,6 +156,47 @@ MBParallelComm::MBParallelComm(MBInterface *impl,
       // mpi not initialized yet - initialize here
     retval = MPI_Init(&argc, &argv);
   }
+
+  add_pcomm(this);
+}
+
+MBParallelComm::~MBParallelComm() 
+{
+  remove_pcomm(this);
+}
+
+void MBParallelComm::add_pcomm(MBParallelComm *pc) 
+{
+    // add this pcomm to instance tag
+  std::vector<MBParallelComm *> pc_array(MAX_SHARING_PROCS, 
+                                         (MBParallelComm*)NULL);
+  MBTag pc_tag = pcomm_tag(mbImpl, true);
+  
+  MBErrorCode result = mbImpl->tag_get_data(pc_tag, 0, 0, (void*)&pc_array[0]);
+  if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) return;
+  int index = 0;
+  while (index < MAX_SHARING_PROCS && pc_array[index]) index++;
+  if (index == MAX_SHARING_PROCS)
+    assert(false);
+  else {
+    pc_array[index] = pc;
+    mbImpl->tag_set_data(pc_tag, 0, 0, (void*)&pc_array[0]);
+  }
+}
+
+void MBParallelComm::remove_pcomm(MBParallelComm *pc) 
+{
+    // remove this pcomm from instance tag
+  std::vector<MBParallelComm *> pc_array(MAX_SHARING_PROCS);
+  MBTag pc_tag = pcomm_tag(mbImpl, true);
+  
+  MBErrorCode result = mbImpl->tag_get_data(pc_tag, 0, 0, (void*)&pc_array[0]);
+  std::vector<MBParallelComm*>::iterator pc_it = 
+    std::find(pc_array.begin(), pc_array.end(), pc);
+  assert(MB_SUCCESS == result && 
+         pc_it != pc_array.end());
+  *pc_it = NULL;
+  mbImpl->tag_set_data(pc_tag, 0, 0, (void*)&pc_array[0]);
 }
 
 //! assign a global id space, for largest-dimension or all entities (and
@@ -2212,17 +2255,14 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
   return MB_SUCCESS;
 }
 
-MBErrorCode MBParallelComm::resolve_shared_ents(int resolve_dim,
+MBErrorCode MBParallelComm::resolve_shared_ents(MBEntityHandle this_set,
+                                                int resolve_dim,
                                                 int shared_dim) 
 {
   MBErrorCode result;
   MBRange proc_ents;
       // get the entities in the partition sets
-  MBRange part_sets;
-  result = get_partition_sets(part_sets);
-  RRA(" ");
-  
-  for (MBRange::iterator rit = part_sets.begin(); rit != part_sets.end(); rit++) {
+  for (MBRange::iterator rit = partitionSets.begin(); rit != partitionSets.end(); rit++) {
     MBRange tmp_ents;
     result = mbImpl->get_entities_by_handle(*rit, tmp_ents, true);
     if (MB_SUCCESS != result) return result;
@@ -2247,10 +2287,11 @@ MBErrorCode MBParallelComm::resolve_shared_ents(int resolve_dim,
   
     // must call even if we don't have any entities, to make sure
     // collective comm'n works
-  return resolve_shared_ents(proc_ents, resolve_dim, shared_dim);
+  return resolve_shared_ents(this_set, proc_ents, resolve_dim, shared_dim);
 }
   
-MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
+MBErrorCode MBParallelComm::resolve_shared_ents(MBEntityHandle this_set,
+                                                MBRange &proc_ents,
                                                 int resolve_dim,
                                                 int shared_dim) 
 {
@@ -2432,8 +2473,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
     // create the sets for each interface; store them as tags on
     // the interface instance
   MBRange iface_sets;
-  result = create_interface_sets(proc_nranges, resolve_dim, shared_dim,
-                                 &iface_sets);
+  result = create_interface_sets(proc_nranges, this_set, resolve_dim, shared_dim);
   RRA("Trouble creating iface sets.");
 
     // resolve shared entity remote handles; implemented in ghost cell exchange
@@ -2442,22 +2482,22 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBRange &proc_ents,
   RRA("Trouble resolving shared entity remote handles.");
 
     // now set the shared/interface tag on non-vertex entities on interface
-  result = tag_iface_entities(iface_sets);
+  result = tag_iface_entities();
   RRA("Failed to tag iface entities.");
 
     // now build parent/child links for interface sets
-  result = create_iface_pc_links(iface_sets);
+  result = create_iface_pc_links();
   RRA("Trouble creating interface parent/child links.");
   
     // done
   return result;
 }
 
-MBErrorCode MBParallelComm::tag_iface_entities(MBRange &iface_ents) 
+MBErrorCode MBParallelComm::tag_iface_entities() 
 {
   MBRange all_ents, if_ents;
   MBErrorCode result;
-  for (MBRange::iterator if_it = iface_ents.begin(); if_it != iface_ents.end(); if_it++) {
+  for (MBRange::iterator if_it = interfaceSets.begin(); if_it != interfaceSets.end(); if_it++) {
       // get all ents
     result = mbImpl->get_entities_by_handle(*if_it, if_ents);
     RRA("Trouble getting iface entities.");
@@ -2511,8 +2551,8 @@ MBErrorCode MBParallelComm::set_pstatus_entities(MBRange &pstatus_ents,
 }
   
 MBErrorCode MBParallelComm::create_interface_sets(std::map<std::vector<int>, MBRange> &proc_nranges,
-                                                  int resolve_dim, int shared_dim,
-                                                  MBRange *iface_sets_ptr) 
+                                                  MBEntityHandle this_set,
+                                                  int resolve_dim, int shared_dim) 
 {
   if (proc_nranges.empty()) return MB_SUCCESS;
   
@@ -2523,18 +2563,6 @@ MBErrorCode MBParallelComm::create_interface_sets(std::map<std::vector<int>, MBR
   RRA("Trouble getting shared proc tags in create_interface_sets.");
   MBRange::iterator rit;
 
-  MBRange psets;
-  if (!iface_sets_ptr) iface_sets_ptr = &psets;
-
-    // get all partition sets and mark contents with iface set tag; 
-    // pre-use iface_sets
-  MBTag pset_tag = partition_tag();
-  MBRange tmp_ents, tmp_ents2;
-
-  result = mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &pset_tag, NULL, 1,
-                                                psets);
-  RRA("Couldn't get PARALLEL_PARTITION sets.");
-
     // create interface sets, tag them, and tag their contents with iface set tag
   std::vector<MBEntityHandle> tag_vals;
   std::vector<unsigned char> pstatus;
@@ -2544,7 +2572,7 @@ MBErrorCode MBParallelComm::create_interface_sets(std::map<std::vector<int>, MBR
     MBEntityHandle new_set;
     result = mbImpl->create_meshset(MESHSET_SET, new_set); 
     RRA("Failed to create interface set.");
-    iface_sets_ptr->insert(new_set);
+    interfaceSets.insert(new_set);
 
     int nump = 0;
     while (((*mit).first)[nump] != -1 && nump < MAX_SHARING_PROCS) nump++;
@@ -2575,21 +2603,10 @@ MBErrorCode MBParallelComm::create_interface_sets(std::map<std::vector<int>, MBR
     RRA("Failed to tag interface set entities with pstatus.");
   }
 
-    // set tag on interface instance holding all interface sets for this instance
-  MBEntityHandle tmp_iface_sets[MAX_SHARING_PROCS];
-  std::fill(tmp_iface_sets, tmp_iface_sets+MAX_SHARING_PROCS, 0);
-  unsigned int i;
-  for (rit = iface_sets_ptr->begin(), i = 0; rit != iface_sets_ptr->end(); 
-       rit++, i++)
-    tmp_iface_sets[i] = *rit;
-  result = mbImpl->tag_set_data(iface_sets_tag(), NULL, 0,
-                                tmp_iface_sets);
-  RRA("Couldn't set iface sets tag on MOAB interface.");
-  
   return MB_SUCCESS;
 }
 
-MBErrorCode MBParallelComm::create_iface_pc_links(MBRange &iface_sets) 
+MBErrorCode MBParallelComm::create_iface_pc_links() 
 {
     // now that we've resolved the entities in the iface sets, 
     // set parent/child links between the iface sets
@@ -2606,7 +2623,7 @@ MBErrorCode MBParallelComm::create_iface_pc_links(MBRange &iface_sets)
   std::vector<MBEntityHandle> tag_vals;
   MBRange::iterator rit;
   
-  for (rit = iface_sets.begin(); rit != iface_sets.end(); rit++) {
+  for (rit = interfaceSets.begin(); rit != interfaceSets.end(); rit++) {
       // tag entities with interface set
     iface_ents.clear();
     result = mbImpl->get_entities_by_handle(*rit, iface_ents);
@@ -2623,7 +2640,7 @@ MBErrorCode MBParallelComm::create_iface_pc_links(MBRange &iface_sets)
     // now go back through interface sets and add parent/child links
   MBRange tmp_ents2;
   for (int d = 2; d >= 0; d--) {
-    for (rit = iface_sets.begin(); rit != iface_sets.end(); rit++) {
+    for (rit = interfaceSets.begin(); rit != interfaceSets.end(); rit++) {
         // get entities on this interface
       iface_ents.clear();
       result = mbImpl->get_entities_by_handle(*rit, iface_ents, true);
@@ -2842,10 +2859,10 @@ MBErrorCode MBParallelComm::get_iface_entities(int other_proc,
 {
   MBRange iface_sets;
   std::vector<int> iface_procs;
-  MBErrorCode result = get_interface_sets_procs(iface_sets, iface_procs);
+  MBErrorCode result = get_interface_procs(iface_procs);
   RRA("Failed to get iface sets/procs.");
   
-  for (MBRange::iterator rit = iface_sets.begin(); rit != iface_sets.end(); rit++) {
+  for (MBRange::iterator rit = interfaceSets.begin(); rit != interfaceSets.end(); rit++) {
     if (-1 != other_proc && !is_iface_proc(*rit, other_proc)) continue;
     
     if (-1 == dim) result = mbImpl->get_entities_by_handle(*rit, iface_ents);
@@ -2856,51 +2873,16 @@ MBErrorCode MBParallelComm::get_iface_entities(int other_proc,
   return MB_SUCCESS;
 }
 
-  //! return partition sets; if tag_name is input, gets sets with
-  //! that tag name, otherwise uses PARALLEL_PARTITION tag
-MBErrorCode MBParallelComm::get_partition_sets(MBRange &part_sets,
-                                               const char *tag_name) 
+  //! get processors with which this processor communicates; sets are sorted by processor
+MBErrorCode MBParallelComm::get_interface_procs(std::vector<int> &iface_procs)
 {
-  MBErrorCode result;
-  
-  if (NULL != tag_name) {
-    result = MB_NOT_IMPLEMENTED;
-    RRA("Specified tag name not yet implemented.");
-  }
-    
-  MBTag part_tag = partition_tag();
-  result = mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET, &part_tag,
-                                                NULL, 1, part_sets);
-  return result;
-}
-
-  //! get communication interface sets and the processors with which
-  //! this processor communicates; sets are sorted by processor
-MBErrorCode MBParallelComm::get_interface_sets_procs(MBRange &iface_sets,
-                                                     std::vector<int> &iface_procs)
-{
-  MBTag iface_tag = iface_sets_tag();
-  if (0 == iface_tag) return MB_FAILURE;
-
     // make sure the sharing procs vector is empty
   iface_procs.clear();
 
-    // get the iface sets, which are stored on the instance
-  int tag_sz;
-  MBErrorCode result = mbImpl->tag_get_size(iface_tag, tag_sz);
-  RRA("Failed to get iface tag size.");
-  tag_sz /= sizeof(MBEntityHandle);
-  std::vector<MBEntityHandle> iface_sets_vec(tag_sz);
-  result = mbImpl->tag_get_data(iface_tag, NULL, 0, &iface_sets_vec[0]);
-  RRA("Failed to find iface tag.");
-    // can do a straight copy because ranges don't keep 0-values
-  std::copy(iface_sets_vec.begin(), iface_sets_vec.end(), 
-            mb_range_inserter(iface_sets));
-
     // pre-load vector of single-proc tag values
   unsigned int i, j;
-  std::vector<int> iface_proc(iface_sets.size());
-  result = mbImpl->tag_get_data(sharedp_tag(), iface_sets, &iface_proc[0]);
+  std::vector<int> iface_proc(interfaceSets.size());
+  MBErrorCode result = mbImpl->tag_get_data(sharedp_tag(), interfaceSets, &iface_proc[0]);
   RRA("Failed to get iface_proc for iface sets.");
 
     // get sharing procs either from single-proc vector or by getting
@@ -2909,7 +2891,7 @@ MBErrorCode MBParallelComm::get_interface_sets_procs(MBRange &iface_sets,
   std::set<int> procs_set;
   std::fill(tmp_iface_procs, tmp_iface_procs+MAX_SHARING_PROCS, -1);
   MBRange::iterator rit;
-  for (rit = iface_sets.begin(), i = 0; rit != iface_sets.end(); rit++, i++) {
+  for (rit = interfaceSets.begin(), i = 0; rit != interfaceSets.end(); rit++, i++) {
     if (-1 != iface_proc[i]) procs_set.insert(iface_proc[i]);
     else {
         // get the sharing_procs tag
@@ -2980,7 +2962,19 @@ MBErrorCode MBParallelComm::check_global_ids(MBEntityHandle this_set,
     RRA("Failed to create/get gid tag handle.");
   }
 
-  else if (MB_ALREADY_ALLOCATED != result) {
+  MBRange dum_range;
+  if (MB_ALREADY_ALLOCATED == result) {
+    void *tag_ptr = &def_val;
+    MBErrorCode tmp_result = mbImpl->get_entities_by_type_and_tag(this_set, MBVERTEX, 
+                                                                  &gid_tag, &tag_ptr, 1,
+                                                                  dum_range);
+    if (MB_SUCCESS != tmp_result) {
+      result = tmp_result;
+      RRA("Failed to get gid tag.");
+    }
+  }
+  
+  if (MB_ALREADY_ALLOCATED != result || !dum_range.empty()) {
       // just created it, so we need global ids
     result = assign_global_ids(this_set, dimension, start_id, largest_dim_only,
                                parallel);
@@ -3109,9 +3103,8 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
   int success;
 
     // get all procs interfacing to this proc
-  MBRange iface_sets;
   std::vector<int> iface_procs;
-  result = get_interface_sets_procs(iface_sets, iface_procs);
+  result = get_interface_procs(iface_procs);
   RRA("Failed to get iface sets, procs");
 
     // post ghost irecv's for all interface procs
@@ -3145,7 +3138,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     MBRange bridge_ents;
 
       // get bridge ents on interface(s)
-    for (MBRange::iterator rit = iface_sets.begin(); rit != iface_sets.end();
+    for (MBRange::iterator rit = interfaceSets.begin(); rit != interfaceSets.end();
          rit++) {
       if (!is_iface_proc(*rit, *vit)) continue;
       
@@ -3175,7 +3168,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     // receive/unpack entities
     // number of incoming messages depends on whether we're getting back
     // remote handles
-  int num_incoming = iface_sets.size() * (store_remote_handles ? 2 : 1);
+  int num_incoming = interfaceSets.size() * (store_remote_handles ? 2 : 1);
   
   while (num_incoming) {
     int ind;
@@ -3231,7 +3224,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
         result = set_remote_data(&sent_ents_tmp[0], &remote_handles_v[0], sent_ents_tmp.size(),
                                  buffProcs[ind-MAX_SHARING_PROCS]);
         RRA("Trouble setting remote data range on sent entities in ghost exchange.");
-        result = update_iface_sets(iface_sets, sent_ents[ind-MAX_SHARING_PROCS],
+        result = update_iface_sets(sent_ents[ind-MAX_SHARING_PROCS],
                                    remote_handles_v, buffProcs[ind-MAX_SHARING_PROCS]);
         RRA("Trouble updating iface sets.");
         break;
@@ -3276,8 +3269,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
   return MB_SUCCESS;
 }
 
-MBErrorCode MBParallelComm::update_iface_sets(MBRange &iface_sets, 
-                                              MBRange &sent_ents,
+MBErrorCode MBParallelComm::update_iface_sets(MBRange &sent_ents,
                                               std::vector<MBEntityHandle> &remote_handles, 
                                               int from_proc) 
 {
@@ -3288,7 +3280,7 @@ MBErrorCode MBParallelComm::update_iface_sets(MBRange &iface_sets,
     if (!*remote_it) ents_to_remove.insert(*sent_it);
   }
   
-  for (MBRange::iterator set_it = iface_sets.begin(); set_it != iface_sets.end(); set_it++) {
+  for (MBRange::iterator set_it = interfaceSets.begin(); set_it != interfaceSets.end(); set_it++) {
     if (!is_iface_proc(*set_it, from_proc)) continue;
     MBErrorCode result = mbImpl->remove_entities(*set_it, ents_to_remove);
     RRA("Couldn't remove entities from iface set in update_iface_sets.");
@@ -3378,22 +3370,6 @@ MBTag MBParallelComm::pstatus_tag()
   return pstatusTag;
 }
   
-  //! return iface set tag
-MBTag MBParallelComm::iface_sets_tag()
-{  
-  if (!ifaceSetsTag) {
-    MBErrorCode result = mbImpl->tag_create(PARALLEL_IFACE_SETS_TAG_NAME, 
-                                            MAX_SHARING_PROCS*sizeof(MBEntityHandle),
-                                            MB_TAG_SPARSE,
-                                            MB_TYPE_HANDLE, ifaceSetsTag, 
-                                            NULL, true);
-    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result)
-      return 0;
-  }
-  
-  return ifaceSetsTag;
-}
-  
   //! return partition set tag
 MBTag MBParallelComm::partition_tag()
 {  
@@ -3410,6 +3386,35 @@ MBTag MBParallelComm::partition_tag()
   return partitionTag;
 }
   
+  //! return pcomm tag; passes in impl 'cuz this is a static function
+MBTag MBParallelComm::pcomm_tag(MBInterface *impl,
+                                bool create_if_missing)
+{
+  MBTag this_tag = 0;
+  MBErrorCode result = impl->tag_create(PARALLEL_COMM_TAG_NAME, 
+                                        MAX_SHARING_PROCS*sizeof(MBParallelComm*),
+                                        MB_TAG_SPARSE,
+                                        MB_TYPE_OPAQUE, this_tag,
+                                        NULL, create_if_missing);
+    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result)
+      return 0;
+  
+  return this_tag;
+}
+
+    //! get the indexed pcomm object from the interface
+MBParallelComm *MBParallelComm::get_pcomm(MBInterface *impl, const int index) 
+{
+  MBParallelComm *pc_array[MAX_SHARING_PROCS];
+  MBTag pc_tag = pcomm_tag(impl, false);
+  if (0 == pc_tag) return NULL;
+  
+  MBErrorCode result = impl->tag_get_data(pc_tag, 0, 0, (void*)pc_array);
+  if (MB_SUCCESS != result) return NULL;
+  
+  return pc_array[index];
+}
+
 #ifdef TEST_PARALLELCOMM
 
 #include <iostream>

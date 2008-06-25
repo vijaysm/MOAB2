@@ -173,7 +173,8 @@ int main(int argc, char **argv)
     if (0 == rank) rtime = MPI_Wtime();
     if (MB_SUCCESS == tmp_result && 4 != this_opt) {
         // now figure out which vertices are shared
-      MBParallelComm *pcomm = new MBParallelComm(mbImpl);
+      MBParallelComm *pcomm = MBParallelComm::get_pcomm(mbImpl, 0);
+      assert(pcomm);
 
       MBRange iface_ents[6];
       for (int i = 0; i < 4; i++) {

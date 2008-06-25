@@ -274,6 +274,7 @@ public:
   std::vector<ModelEntry> modelEntries;
   MetaDataContainer modelMetaData;
   long currVHandleOffset;
+  MBEntityHandle firstVHandle;
   long currElementIdOffset[MBMAXTYPE];
   MBTag globalIdTag, cubIdTag, geomTag, uniqueIdTag, blockTag, nsTag, ssTag,
     attribVectorTag, entityNameTag, categoryTag, hasMidNodesTag;

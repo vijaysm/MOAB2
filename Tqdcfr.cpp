@@ -160,6 +160,7 @@ Tqdcfr::Tqdcfr(MBInterface *impl)
   readUtilIface = reinterpret_cast<MBReadUtilIface*>(ptr);
 
   currVHandleOffset = -1;
+  firstVHandle = 0;
   for (MBEntityType this_type = MBVERTEX; this_type < MBMAXTYPE; this_type++)
     currElementIdOffset[this_type] = -1;
 
@@ -981,6 +982,9 @@ MBErrorCode Tqdcfr::read_nodes(const unsigned int gindex,
                                  uint_buf[0], 
                                  readUtilIface->parallel_rank(), 
                                  vhandle, arrays);
+
+  if (!firstVHandle) firstVHandle = vhandle;
+  
     // get node x's in arrays[0]
   FREADDA(entity->nodeCt, arrays[0]);
     // get node y's in arrays[1]
@@ -1010,9 +1014,10 @@ MBErrorCode Tqdcfr::read_nodes(const unsigned int gindex,
   if (!cubMOABVertexMap &&
       (currVHandleOffset != vhandle_offset || !contig)) {
       // get all vertices, removing ones in this batch
-    MBRange vrange;
+    MBRange vrange, tmp_range(dum_range);
     result = mdbImpl->get_entities_by_type(0, MBVERTEX, vrange); RR;
-    vrange = vrange.subtract(dum_range);
+    if (1 != firstVHandle) tmp_range.insert(1, firstVHandle-1);
+    vrange = vrange.subtract(tmp_range);
       // compute the max cid; map is indexed by cid, so size is max_cid+1
 #define MAX(a,b) (a > b ? a : b)
 #define MIN(a,b) (a < b ? a : b)

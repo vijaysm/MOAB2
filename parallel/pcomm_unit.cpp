@@ -68,22 +68,24 @@ void pack_unpack_mesh( MBCore& moab, MBRange& entities )
   }
   
   MBRange tmp_range;
-  MBParallelComm pcomm( &moab );
+  MBParallelComm *pcomm = new MBParallelComm( &moab );
   int size = 0;
   std::vector<unsigned char> buff;
-  rval = pcomm.pack_buffer( entities, false, true, false, false,
-                            -1, tmp_range, buff, size );
+  rval = pcomm->pack_buffer( entities, false, true, false, false,
+                             -1, tmp_range, buff, size );
   CHECK_ERR(rval);
   
+  delete pcomm;
   moab.~MBCore();
+
   new (&moab) MBCore();
-  
-  pcomm.~MBParallelComm();
-  new (&pcomm) MBParallelComm( &moab);
+  pcomm = new MBParallelComm( &moab);
   
   entities.clear();
-  rval = pcomm.unpack_buffer( &buff[0], false, -1, entities );
+  rval = pcomm->unpack_buffer( &buff[0], false, -1, entities );
   CHECK_ERR(rval);
+
+  delete pcomm;
 }
 void pack_unpack_mesh( MBCore& moab )
 {
