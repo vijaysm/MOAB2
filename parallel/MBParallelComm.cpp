@@ -1276,6 +1276,11 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
         result = set_remote_data(this_range, dum_range, from_proc);
         RRA("Couldn't set sharing data");
       }
+
+        // update adjacencies
+      result = ru->update_adjacencies(actual_start, num_ents, 
+                                      verts_per_entity, connect);
+      RRA("Failed to update adjacencies.");
     }
 
 #ifdef DEBUG_PACKING
