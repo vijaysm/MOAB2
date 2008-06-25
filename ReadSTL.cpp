@@ -207,6 +207,7 @@ MBErrorCode ReadSTL::load_file_impl(const char *filename,
   
     // Use vertex_map to reconver triangle connectivity from
     // vertex coordinates.
+  MBEntityHandle *conn_sav = connectivity;
   for (std::vector<Triangle>::iterator i = triangles.begin(); i != triangles.end(); ++i)
   {
     *connectivity = vertex_map[i->points[0]]; ++connectivity;
@@ -214,6 +215,11 @@ MBErrorCode ReadSTL::load_file_impl(const char *filename,
     *connectivity = vertex_map[i->points[2]]; ++connectivity;
   }
   
+    // notify MOAB of the new elements
+  result = readMeshIface->update_adjacencies(handle, triangles.size(), 
+                                             3, conn_sav);
+  if (MB_SUCCESS != result) return result;
+
   return MB_SUCCESS;
 }
 

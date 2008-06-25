@@ -1261,7 +1261,8 @@ MBErrorCode WriteNCDF::write_BCs(std::vector<NeumannSetData> &sidesets,
                                                   &(*begin_iter), 
                                                   1, &exodus_id);
       if (MB_FAILURE == result) {
-        mWriteIface->report_error("Problem getting exodus id for sideset element %lu", ID_FROM_HANDLE(*begin_iter));
+        mWriteIface->report_error("Problem getting exodus id for sideset element %lu", 
+                                  (long unsigned int) ID_FROM_HANDLE(*begin_iter));
         return result;
       }
       

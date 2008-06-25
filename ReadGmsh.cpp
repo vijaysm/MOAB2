@@ -404,6 +404,10 @@ MBErrorCode ReadGmsh::create_elements( const ElementType& type,
     memcpy( conn_array, &connectivity[0], connectivity.size() * sizeof(MBEntityHandle) );
   }
 
+    // notify MOAB of the new elements
+  result = readMeshIface->update_adjacencies(handle, num_elem, node_per_elem, conn_array);
+  if (MB_SUCCESS != result) return result;
+
     // Store element IDs
   result = mdbImpl->tag_set_data( globalId, elements, &elem_ids[0] );
   if (MB_SUCCESS != result)

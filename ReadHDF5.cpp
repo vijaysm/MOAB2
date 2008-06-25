@@ -441,7 +441,14 @@ MBErrorCode ReadHDF5::read_elems( const char* elem_group )
     rval = convert_id_to_handle( array, (size_t)(nodes_per_elem*count) );
   else
     rval = convert_id_to_handle( nodeSet, array, (size_t)(nodes_per_elem*count) );
-    
+
+  if (MB_SUCCESS != rval) return rval;
+  
+    // notify MOAB of the new elements
+  MBErrorCode result = readUtil->update_adjacencies(handle, count,
+                                                    nodes_per_elem, array);
+  if (MB_SUCCESS != result) return result;
+
   return rval;
 }
 

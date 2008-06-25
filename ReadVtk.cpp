@@ -671,6 +671,8 @@ MBErrorCode ReadVtk::vtk_read_unstructured_grid( FileTokenizer& tokens,
     if (MB_SUCCESS != result)
       return result;
 
+    MBEntityHandle *conn_sav = conn_array;
+    
       // Store element connectivity
     for ( ; id < end_id; ++id)
     {
@@ -714,6 +716,11 @@ MBErrorCode ReadVtk::vtk_read_unstructured_grid( FileTokenizer& tokens,
 
       conn_array += num_vtx;
     }
+    
+      // notify MOAB of the new elements
+    result = readMeshIface->update_adjacencies(start_handle, num_elem,
+                                               num_vtx, conn_sav);
+    if (MB_SUCCESS != result) return result;
   }      
 
   return MB_SUCCESS;
@@ -761,6 +768,8 @@ MBErrorCode ReadVtk::vtk_create_structured_elems( const long* dims,
   if (MB_SUCCESS != result)
     return MB_FAILURE;
 
+  MBEntityHandle *conn_sav = conn_array;
+  
     // Offsets of element vertices in grid relative to corner closest to origin 
   long k = dims[0]*dims[1];
   const long corners[8] = { 0, 1, 1+dims[0], dims[0], k, k+1, k+1+dims[0], k+dims[0] };
@@ -775,6 +784,11 @@ MBErrorCode ReadVtk::vtk_create_structured_elems( const long* dims,
           *conn_array = index + corners[j] + first_vtx;
       }
   
+    // notify MOAB of the new elements
+  result = readMeshIface->update_adjacencies(start_handle, num_elems,
+                                             vert_per_elem, conn_sav);
+  if (MB_SUCCESS != result) return result;
+
   return MB_SUCCESS;
 }
 

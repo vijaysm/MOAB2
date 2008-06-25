@@ -57,21 +57,35 @@ int main(int argc, char **argv)
   
 
     // read in mesh(es)
-  ReadParallel rp(mbImpl);
-  MBEntityHandle file_set = 0;
-  result = rp.load_file(&filenames[0], filenames.size(), file_set, 
-                        FileOptions(opts.c_str()), NULL, 0);
-  if (MB_SUCCESS == result) {
-    std::cout << "Success." << std::endl;
-    err = MPI_Finalize();
-    return 0;
+  std::vector<MBParallelComm *> pcs(filenames.size()); 
+  std::vector<ReadParallel *> rps(filenames.size()); 
+  std::vector<MBEntityHandle> filesets(filenames.size()); 
+
+  for (unsigned int i = 0; i < filenames.size(); i++) {
+    pcs[i] = new MBParallelComm(mbImpl);
+    rps[i] = new ReadParallel(mbImpl, pcs[i]);
+    
+    result = rps[i]->load_file(filenames[i], filesets[i], 
+                               FileOptions(opts.c_str()), NULL, 0);
+    if (MB_SUCCESS != result) {
+      std::string tmp_str;
+      std::cout << "Failure; message:" << std::endl;
+      std::cout << mbImpl->get_last_error(tmp_str) << std::endl;
+      return 1;
+    }
   }
-  else {
-    std::string tmp_str;
-    std::cout << "Failure; message:" << std::endl;
-    std::cout << mbImpl->get_last_error(tmp_str) << std::endl;
-    return 1;
+
+  std::cout << "Success." << std::endl;
+  err = MPI_Finalize();
+
+  for (unsigned int i = 0; i < filenames.size(); i++) {
+    delete rps[i];
+    delete pcs[i];
   }
+
+  delete mbImpl;
+  
+  return 0;
 }
 
 MBErrorCode get_file_options(int argc, char **argv, 

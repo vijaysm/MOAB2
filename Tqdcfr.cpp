@@ -1212,6 +1212,10 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     result = mdbImpl->add_entities(entity->setHandle, dum_range);
     if (MB_SUCCESS != result) return result;
 
+      // notify MOAB of the new elements
+    result = readUtilIface->update_adjacencies(start_handle, num_elem,
+                                               nodes_per_elem, conn);
+    if (MB_SUCCESS != result) return result;
   }
 
     // set the dimension on the geom tag

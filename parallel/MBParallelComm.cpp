@@ -1870,11 +1870,12 @@ MBErrorCode MBParallelComm::unpack_sets(unsigned char *&buff_ptr,
     MBEntityHandle set_handle;
     result = mbImpl->create_meshset(options_vec[i], set_handle);
     RRA("Failed to create set in unpack.");
+
+    // make sure new sets handles are monotonically increasing
+    assert(set_handle > *new_sets.rbegin());
+
     new_sets.insert(set_handle);
   }
-
-    // make sure new sets handles are contiguous
-  assert(*new_sets.rbegin() - *new_sets.begin() + 1 == new_sets.size());
 
   entities.merge(new_sets);
   
