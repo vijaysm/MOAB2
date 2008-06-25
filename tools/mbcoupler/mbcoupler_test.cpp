@@ -17,6 +17,9 @@ MBErrorCode get_file_options(int argc, char **argv,
                              std::vector<const char *> &filenames,
                              std::string &opts);
 
+MBErrorCode report_iface_ents(MBInterface *mbImpl,
+                              std::vector<MBParallelComm *> &pcs);
+
 int main(int argc, char **argv) 
 {
     // need to init MPI first, to tell how many procs and rank
@@ -75,7 +78,11 @@ int main(int argc, char **argv)
     }
   }
 
-  std::cout << "Success." << std::endl;
+  result = report_iface_ents(mbImpl, pcs);
+  if (MB_SUCCESS != result)
+    std::cout << "Failure." << std::endl;
+  else
+    std::cout << "Success." << std::endl;
   err = MPI_Finalize();
 
   for (unsigned int i = 0; i < filenames.size(); i++) {
@@ -86,6 +93,47 @@ int main(int argc, char **argv)
   delete mbImpl;
   
   return 0;
+}
+
+MBErrorCode report_iface_ents(MBInterface *mbImpl,
+                              std::vector<MBParallelComm *> &pcs) 
+{
+  MBRange iface_ents[6];
+  MBErrorCode result = MB_SUCCESS, tmp_result;
+  
+    // now figure out which vertices are shared
+  for (unsigned int p = 0; p < pcs.size(); p++) {
+    for (int i = 0; i < 4; i++) {
+      tmp_result = pcs[p]->get_iface_entities(-1, i, iface_ents[i]);
+      
+      if (MB_SUCCESS != tmp_result) {
+        std::cerr << "get_iface_entities returned error on proc " 
+                  << pcs[p]->proc_config().proc_rank() << "; message: " << std::endl;
+        std::string last_error;
+        result = mbImpl->get_last_error(last_error);
+        if (last_error.empty()) std::cerr << "(none)" << std::endl;
+        else std::cerr << last_error << std::endl;
+        result = tmp_result;
+      }
+      if (0 != i) iface_ents[4].merge(iface_ents[i]);
+    }
+  }
+
+    // report # iface entities
+  result = mbImpl->get_adjacencies(iface_ents[4], 0, false, iface_ents[5], 
+                                   MBInterface::UNION);
+
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  
+  std::cerr << "Proc " << rank << " iface entities: " << std::endl;
+  for (int i = 0; i < 4; i++)
+    std::cerr << "    " << iface_ents[i].size() << " "
+              << i << "d iface entities." << std::endl;
+  std::cerr << "    (" << iface_ents[5].size() 
+            << " verts adj to other iface ents)" << std::endl;
+
+  return result;
 }
 
 MBErrorCode get_file_options(int argc, char **argv, 
