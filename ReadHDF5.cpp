@@ -125,7 +125,6 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
   std::list<ElemSet>::iterator el_itor;
   std::list<ElemSet>::reverse_iterator rel_itor;
   unsigned int i, num_groups;
-  MBEntityHandle all;  // meshset of everything in file.
   bool have_nodes = true;
   file_set = 0;
 
@@ -216,10 +215,6 @@ DEBUGOUT("Reading tags.\n");
   }
   free( tag_names );
   tag_names = 0;
-  
-DEBUGOUT("Finishing read.\n");
-  if (MB_SUCCESS != read_qa( all ))
-    goto read_fail;
     
 DEBUGOUT("Creating entity set for file contents\n")
   if (MB_SUCCESS != iFace->create_meshset( MESHSET_SET, file_set ))
@@ -230,6 +225,10 @@ DEBUGOUT("Creating entity set for file contents\n")
     if (MB_SUCCESS != iFace->add_entities( file_set, rel_itor->range))
       goto read_fail;
   if (MB_SUCCESS != iFace->add_entities( file_set, nodeSet.range ))
+    goto read_fail;
+  
+DEBUGOUT("Finishing read.\n");
+  if (MB_SUCCESS != read_qa( file_set ))
     goto read_fail;
   
 
@@ -1986,7 +1985,7 @@ MBErrorCode ReadHDF5::convert_range_to_handle( const MBEntityHandle* array,
 }
   
 
-MBErrorCode ReadHDF5::read_qa( MBEntityHandle& import_set )
+MBErrorCode ReadHDF5::read_qa( MBEntityHandle import_set )
 {
   MBErrorCode rval;
   mhdf_Status status;
@@ -2006,35 +2005,6 @@ MBErrorCode ReadHDF5::read_qa( MBEntityHandle& import_set )
     free( qa[i] );
   }
   free( qa );
-  
-  rval = iFace->create_meshset( MESHSET_SET, import_set );
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  rval = MB_SUCCESS;
-  if (!setSet.range.empty())
-    rval = iFace->add_entities( import_set, setSet.range );
-  setSet.range.insert( import_set );
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  if (!nodeSet.range.empty())
-  {
-    rval = iFace->add_entities( import_set, nodeSet.range );
-    if (MB_SUCCESS != rval)
-      return rval;
-  }
-  
-  std::list<ElemSet>::iterator iter = elemList.begin();
-  for ( ; iter != elemList.end(); ++iter )
-  {
-    if (iter->range.empty())
-      continue;
-    
-    rval = iFace->add_entities( import_set, iter->range );
-    if (MB_SUCCESS != rval)
-      return rval;
-  }
   
   /** FIX ME - how to put QA list on set?? */
 

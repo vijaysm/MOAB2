@@ -145,7 +145,7 @@ private:
                                 hid_t hdf_read_type,
                                 bool is_handle_type );
                                
-  MBErrorCode read_qa( MBEntityHandle& import_set_out );
+  MBErrorCode read_qa( MBEntityHandle file_set );
                                
   MBErrorCode convert_id_to_handle( const ElemSet& elems_in_this_set,
                                     MBEntityHandle* in_out_array,

@@ -1079,8 +1079,10 @@ MBErrorCode WriteHDF5::range_to_blocked_list( const MBRange& input_range,
     MBEntityHandle h = pi->first;
     while (h <= pi->second) {
       ri = idMap.lower_bound( ri, idMap.end(), h );
-      if (ri == idMap.end()) 
+      if (ri == idMap.end() || ri->begin > h) {
+        ++h;
         continue;
+      }
 
       id_t n = pi->second - pi->first + 1;
       if (n > ri->count)
@@ -1138,7 +1140,7 @@ MBErrorCode WriteHDF5::range_to_id_list( const MBRange& range,
     MBEntityHandle h = pi->first;
     while (h <= pi->second) {
       ri = idMap.lower_bound( ri, idMap.end(), h );
-      if (ri == idMap.end()) {
+      if (ri == idMap.end() || ri->begin > h) {
         rval = MB_ENTITY_NOT_FOUND;
         *i = 0; 
         ++i;
