@@ -256,7 +256,7 @@ bool box_hex_overlap( const MBCartVect hexv[8],
 // and checks if each are between +/-1.  If anyone is outside the range
 // the function returns false, otherwise it returns true.
 //
-bool point_in_trilinear_hex(MBCartVect hex[8], 
+bool point_in_trilinear_hex(MBCartVect *hex, 
                             MBCartVect xyz,
                             double etol);
 
@@ -267,7 +267,7 @@ bool point_in_trilinear_hex(MBCartVect hex[8],
 // test above except that it gets a bounding box as arguments to filter
 // the test for acceleration.
 //
-bool point_in_trilinear_hex(MBCartVect hex[8], 
+bool point_in_trilinear_hex(MBCartVect *hex, 
                             MBCartVect xyz,
                             MBCartVect box_min, MBCartVect box_max,
                             double etol);

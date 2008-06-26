@@ -176,18 +176,23 @@ int main(int argc, char **argv)
       MBParallelComm *pcomm = MBParallelComm::get_pcomm(mbImpl, 0);
       assert(pcomm);
 
-      MBRange iface_ents[6];
+      MBRange iface_ents[7];
       for (int i = 0; i < 4; i++) {
         tmp_result = pcomm->get_iface_entities(-1, i, iface_ents[i]);
       
         if (MB_SUCCESS != tmp_result) {
           std::cerr << "get_iface_entities returned error on proc " 
                     << rank << "; message: " << std::endl;
-          PRINT_LAST_ERROR
-              result = tmp_result;
+          PRINT_LAST_ERROR;
+          result = tmp_result;
         }
         if (0 != i) iface_ents[4].merge(iface_ents[i]);
       }
+      result = pcomm->get_part_entities(iface_ents[6], -1);
+      PRINT_LAST_ERROR;
+
+      std::cerr << "Proc " << rank << " partition entities:" << std::endl;
+      iface_ents[6].print("   ");
       
       if (0 == rank) setime = MPI_Wtime();
 

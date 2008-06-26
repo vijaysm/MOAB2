@@ -294,6 +294,9 @@ public:
   
     //! return partitions set tag
   MBTag partition_tag();
+
+    //! return all the entities in parts owned locally
+  MBErrorCode get_part_entities(MBRange &ents, int dim = -1);
   
 private:
 

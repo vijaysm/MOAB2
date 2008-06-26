@@ -3421,6 +3421,26 @@ MBParallelComm *MBParallelComm::get_pcomm(MBInterface *impl, const int index)
   return pc_array[index];
 }
 
+  //! return all the entities in parts owned locally
+MBErrorCode MBParallelComm::get_part_entities(MBRange &ents, int dim) 
+{
+  MBErrorCode result;
+  
+  for (MBRange::iterator rit = partitionSets.begin(); 
+       rit != partitionSets.end(); rit++) {
+    MBRange tmp_ents;
+    if (-1 == dim) 
+      result = mbImpl->get_entities_by_handle(*rit, tmp_ents, true);
+    else
+      result = mbImpl->get_entities_by_dimension(*rit, dim, tmp_ents, true);
+
+    if (MB_SUCCESS != result) return result;
+    ents.merge(tmp_ents);
+  }
+  
+  return MB_SUCCESS;
+}
+
 #ifdef TEST_PARALLELCOMM
 
 #include <iostream>

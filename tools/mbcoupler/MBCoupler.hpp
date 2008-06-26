@@ -28,10 +28,14 @@ class MBParallelComm;
 
 #include "MBRange.hpp"
 #include "MBInterface.hpp"
+#include "MBCartVect.hpp"
+
 extern "C" 
 {
   struct tuple_list;
 }
+
+class MBAdaptiveKDTree;
 
 class MBCoupler
 {
@@ -119,13 +123,28 @@ public:
      * \param normalize If true, normalization is done according to method
      */
   MBErrorCode interpolate(MBCoupler::Method method,
-                          const char* tag_name,
+                          std::string &tag_name,
                           double *interp_vals,
                           tuple_list *tl = NULL,
                           bool normalize = true);
 
 private:
 
+    // given a coordinate position, find all entities containing
+    // the point and the natural coords in those ents
+  MBErrorCode nat_param(double xyz[3], 
+                        std::vector<MBEntityHandle> &entities, 
+                        std::vector<MBCartVect> &nat_coords);
+  
+  MBErrorCode interp_field_for_hex(MBEntityHandle elem,
+                                   MBCartVect nat_coord, 
+                                   MBTag tag,
+                                   double &field);
+  
+  MBErrorCode test_local_box(double *xyz, 
+                             int from_proc, int remote_index, int index, 
+                             tuple_list *tl = NULL);
+  
     /* \brief MOAB instance
      */
   MBInterface *mbImpl;
@@ -134,9 +153,17 @@ private:
      */
   MBErrorCode initialize_tree();
 
+    /* \brief Kdtree for local mesh
+     */
+  MBAdaptiveKDTree *myTree;
+  
+    /* \brief Local root of the kdtree
+     */
+  MBEntityHandle localRoot;
+
     /* \brief Min/max bounding boxes for all proc tree roots
      */
-  double *allBoxes;
+  std::vector<double> allBoxes;
   
     /* \brief MBParallelComm object for this coupler
      */

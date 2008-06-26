@@ -12,12 +12,16 @@
 // coordinates {0, 0, 0} and calculating new coordinates based on the 
 // ones just calculated.
 // 
-void MBElemUtil::nat_coords_trilinear_hex(MBCartVect hex[8], 
+void MBElemUtil::nat_coords_trilinear_hex(MBCartVect *hex, 
                                           MBCartVect xyz,
                                           MBCartVect &ncoords,
                                           double etol)       
 {
 
+    // short-circuit for now...
+  ncoords[0] = ncoords[1] = ncoords[2] = 0.5;
+  return;
+  
       MBCartVect nat(0.);
       double A[8]; double B[8]; double C[8]; double D[8];
       double Ax, By, Cz;
@@ -27,7 +31,7 @@ void MBElemUtil::nat_coords_trilinear_hex(MBCartVect hex[8],
       double nxi, neta, nmu;
       double pxi, peta, pmu;
       double tmp;
-
+      
       // Iterative estimate of natural coordinates
       while ( err > etol ) {
 
@@ -45,9 +49,10 @@ void MBElemUtil::nat_coords_trilinear_hex(MBCartVect hex[8],
             for (unsigned int i = 0; i < 8; i++) {
                   Ax = Ax + A[i]*hex[i][0];
             }
-            nat[0] = (8*xyz[0] - Ax ) / 
-                     (-A[0]*hex[0][0] + A[1]*hex[1][0] + A[2]*hex[2][0] - A[3]*hex[3][0] 
-                      -A[4]*hex[4][0] + A[5]*hex[5][0] + A[6]*hex[6][0] - A[7]*hex[7][0]);
+            double tmp_d = -A[0]*hex[0][0] + A[1]*hex[1][0] + A[2]*hex[2][0] - A[3]*hex[3][0] 
+              -A[4]*hex[4][0] + A[5]*hex[5][0] + A[6]*hex[6][0] - A[7]*hex[7][0];
+            if (0.0 == tmp_d) nat[0] = 2.0;
+            else nat[0] = (8*xyz[0] - Ax ) / tmp_d;
 
             // Estimate the eta-coordinate
             B[0] = (1 - nat[0]) * (1 - nat[2]);
@@ -63,9 +68,11 @@ void MBElemUtil::nat_coords_trilinear_hex(MBCartVect hex[8],
             for (unsigned int i = 0; i < 8; i++) {
                   By = By + B[i]*hex[i][1];
             }
-            nat[1] = (8*xyz[1] - By ) / 
-                     (-B[0]*hex[0][1] - B[1]*hex[1][1] + B[2]*hex[2][1] + B[3]*hex[3][1] 
-                      -B[4]*hex[4][1] - B[5]*hex[5][1] + B[6]*hex[6][1] + B[7]*hex[7][1]);
+            tmp_d = -B[0]*hex[0][1] - B[1]*hex[1][1] + B[2]*hex[2][1] + B[3]*hex[3][1] 
+              -B[4]*hex[4][1] - B[5]*hex[5][1] + B[6]*hex[6][1] + B[7]*hex[7][1];
+            
+            if (0.0 == tmp_d) nat[1] = 2.0;
+            else nat[1] = (8*xyz[1] - By ) / tmp_d;
 
             // Estimate the mu-coordinate
             C[0] = (1 - nat[0]) * (1 - nat[1]);
@@ -81,10 +88,11 @@ void MBElemUtil::nat_coords_trilinear_hex(MBCartVect hex[8],
             for (unsigned int i = 0; i < 8; i++) {
                   Cz = Cz + C[i]*hex[i][2];
             }
-            nat[2] = (8*xyz[2] - Cz ) / 
-                     (-C[0]*hex[0][2] - C[1]*hex[1][2] - C[2]*hex[2][2] - C[3]*hex[3][2] 
-                      +C[4]*hex[4][2] + C[5]*hex[5][2] + C[6]*hex[6][2] + C[7]*hex[7][2]); 
+            tmp_d = -C[0]*hex[0][2] - C[1]*hex[1][2] - C[2]*hex[2][2] - C[3]*hex[3][2] 
+              +C[4]*hex[4][2] + C[5]*hex[5][2] + C[6]*hex[6][2] + C[7]*hex[7][2];
 
+            if (0.0 == tmp_d) nat[2] = 2.0;
+            else nat[2] = (8*xyz[2] - Cz ) / tmp_d;
 
             // Shortcut variables...
             nxi  = 1 - nat[0];
@@ -132,7 +140,7 @@ void MBElemUtil::nat_coords_trilinear_hex(MBCartVect hex[8],
 
 }
 
-bool MBElemUtil::point_in_trilinear_hex(MBCartVect hex[8], 
+bool MBElemUtil::point_in_trilinear_hex(MBCartVect *hex, 
                                         MBCartVect xyz,
                                         double etol) 
 {
@@ -151,7 +159,7 @@ bool MBElemUtil::point_in_trilinear_hex(MBCartVect hex[8],
 }
 
 
-bool MBElemUtil::point_in_trilinear_hex(MBCartVect hex[8], 
+bool MBElemUtil::point_in_trilinear_hex(MBCartVect *hex, 
                                         MBCartVect xyz, 
                                         MBCartVect box_min, MBCartVect box_max,
                                         double etol) 
