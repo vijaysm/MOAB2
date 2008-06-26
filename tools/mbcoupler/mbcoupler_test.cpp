@@ -249,8 +249,6 @@ MBErrorCode test_interpolation(MBInterface *mbImpl,
   result = mbImpl->tag_get_handle(interp_tag.c_str(), tag); PRINT_LAST_ERROR;
   result = mbImpl->tag_set_data(tag, targ_verts, &field[0]); PRINT_LAST_ERROR;
 
-  int err = MPI_Finalize();
-  
     // done
   return MB_SUCCESS;
 }

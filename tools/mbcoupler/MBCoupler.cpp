@@ -272,12 +272,12 @@ MBErrorCode MBCoupler::test_local_box(double *xyz,
         // store in tuple source_pts
       tl->vi[3*tl->n] = from_proc;
       tl->vi[3*tl->n+1] = remote_index;
-      tl->vi[3*tl->n+2] = mappedPts->n;
+      tl->vi[3*tl->n+2] = mappedPts->n-1;
       tl->n++;
     }
     else {
       localMappedPts.push_back(index);
-      localMappedPts.push_back(mappedPts->n);
+      localMappedPts.push_back(mappedPts->n-1);
     }
   }
 
