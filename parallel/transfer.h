@@ -7,6 +7,10 @@
 #warning "transfer.h" requires "tuple_list.h" and "crystal.h"
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
 /*------------------------------------------------------------------------------
   
   Transfer
@@ -23,6 +27,10 @@
   ----------------------------------------------------------------------------*/
 void gs_transfer(int dynamic, tuple_list* tl,
                  unsigned pf, crystal_data *crystal);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif /* __cplusplus */
 
 #endif
 
