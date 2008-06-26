@@ -394,7 +394,7 @@ MBErrorCode MBCoupler::nat_param(double xyz[3],
       //test to find out in which hex the point is
 		
       // get natural coordinates
-    MBElemUtil::nat_coords_trilinear_hex(&coords_vert[0], MBCartVect(xyz), 
+    MBElemUtil::nat_coords_trilinear_hex2(&coords_vert[0], MBCartVect(xyz), 
                                          tmp_nat_coords, 1e-10);
     if (-1.0 <= tmp_nat_coords[0] && tmp_nat_coords[0] <= 1.0 &&
         -1.0 <= tmp_nat_coords[1] && tmp_nat_coords[1] <= 1.0 &&

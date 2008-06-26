@@ -2,6 +2,7 @@
 #include <assert.h>
 
 #include "MBElemUtil.hpp"
+#include "types.h"
 
 //
 // nat_coords_trilinear_hex
@@ -138,6 +139,49 @@ void MBElemUtil::nat_coords_trilinear_hex(MBCartVect *hex,
       ncoords = nat;
       return;
 
+}
+
+//
+// nat_coords_trilinear_hex2
+//  Duplicate functionality of nat_coords_trilinear_hex using hex_findpt
+// 
+void MBElemUtil::nat_coords_trilinear_hex2(MBCartVect hex[8], 
+                                          MBCartVect xyz,
+                                          MBCartVect &ncoords,
+                                          double etol)       
+
+{
+  const int ndim = 3;
+  const int nverts = 8;
+  const int vertMap[nverts] = {0,1,3,2, 4,5,7,6}; //Map from nat to lex ordering
+
+  const int n = 2; //linear
+  real coords[ndim*nverts]; //buffer
+
+  real *xm[ndim];
+  for(int i=0; i<ndim; i++)
+    xm[i] = coords + i*nverts;
+    
+  //stuff hex into coords
+  for(int i=0; i<nverts; i++){
+    real vcoord[ndim];
+    hex[i].get(vcoord);
+   
+    for(int d=0; d<ndim; d++)
+      coords[d*nverts + vertMap[i]] = vcoord[d];
+    
+  }
+
+  double dist = 0.0;
+  MBElemUtil::hex_findpt(xm, n, xyz, ncoords, dist);
+  if (3*EPS < dist) {
+      // outside element, set extremal values to something outside range
+    for (int j = 0; j < 3; j++) {
+      if (ncoords[j] < (-1.0-etol) || ncoords[j] > (1.0+etol))
+        ncoords[j] *= 10;
+    }
+  }
+  
 }
 
 bool MBElemUtil::point_in_trilinear_hex(MBCartVect *hex, 

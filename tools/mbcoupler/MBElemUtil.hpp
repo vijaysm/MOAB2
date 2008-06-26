@@ -19,6 +19,13 @@ public:
                                      MBCartVect box_max,
                                      double etol);
 
+    //wrapper to hex_findpt
+  static void nat_coords_trilinear_hex2(MBCartVect*, 
+                                        MBCartVect, 
+                                        MBCartVect&,
+                                        double);
+
+
 
   static void hex_findpt(double *xm[3],
                          int n,

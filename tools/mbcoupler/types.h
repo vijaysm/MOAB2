@@ -1,5 +1,6 @@
 #ifndef TYPES_H
 #define TYPES_H
+#include "float.h"
 
 /* integer type to use for everything */
 #if   defined(USE_LONG)
