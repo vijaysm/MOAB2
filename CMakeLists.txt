@@ -238,7 +238,7 @@ project( MOAB )
   )
 
   add_subdirectory( refiner )
-  include_directories( refiner )
+  include_directories( ${MOAB_SOURCE_DIR}/refiner )
   target_link_libraries( MOAB
     MOABrefiner
   )
