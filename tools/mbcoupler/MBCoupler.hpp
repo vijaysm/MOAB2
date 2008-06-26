@@ -143,6 +143,7 @@ private:
   
   MBErrorCode test_local_box(double *xyz, 
                              int from_proc, int remote_index, int index, 
+                             bool &point_located,
                              tuple_list *tl = NULL);
   
     /* \brief MOAB instance

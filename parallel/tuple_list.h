@@ -36,10 +36,10 @@ static void tuple_list_init_max(tuple_list *tl,
 {
   tl->n=0; tl->max=max;
   tl->mi=mi,tl->ml=ml,tl->mul=mul,tl->mr=mr;
-  tl->vi=tmalloc(sint, max*mi);
-  tl->vl=tmalloc(slong,max*ml);
-  tl->vul=tmalloc(ulong,max*mul);
-  tl->vr=tmalloc(real, max*mr);
+  tl->vi=(max ? tmalloc(sint, max*mi) : 0);
+  tl->vl=(max ? tmalloc(slong,max*ml) : 0);
+  tl->vul=(max ? tmalloc(ulong,max*mul) : 0);
+  tl->vr=(max ? tmalloc(real, max*mr) : 0);
 }
 
 static void tuple_list_free(tuple_list *tl) {
@@ -57,7 +57,7 @@ static void tuple_list_resize(tuple_list *tl, uint max)
 
 static void tuple_list_grow(tuple_list *tl)
 {
-  tuple_list_resize(tl,tl->max+tl->max/2+1);
+  tuple_list_resize(tl,(tl->max ? tl->max+tl->max/2+1 : 2));
 }
 
 void tuple_list_permute(tuple_list *tl, uint *perm, void *work);
