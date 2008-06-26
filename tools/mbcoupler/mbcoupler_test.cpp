@@ -93,10 +93,12 @@ int main(int argc, char **argv)
   result = report_iface_ents(mbImpl, pcs);
   PRINT_LAST_ERROR;
 
-    // test interpolation
-  result = test_interpolation(mbImpl, interp_tag, pcs, rps);
-  PRINT_LAST_ERROR;
-
+  if (!interp_tag.empty()) {
+      // test interpolation
+    result = test_interpolation(mbImpl, interp_tag, pcs, rps);
+    PRINT_LAST_ERROR;
+  }
+  
     // output mesh
   result = mbImpl->write_file("output.h5m", NULL, NULL,
                               pcs[1]->partition_sets());
