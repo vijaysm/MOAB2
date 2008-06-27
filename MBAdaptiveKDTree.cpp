@@ -1897,3 +1897,18 @@ MBErrorCode MBAdaptiveKDTree::ray_intersect_triangles( MBEntityHandle root,
   return MB_SUCCESS;
 }
           
+MBErrorCode MBAdaptiveKDTree::get_info(MBEntityHandle root,
+                                       double min[3], double max[3], 
+                                       unsigned int &dep) 
+{
+  MBErrorCode result = get_tree_box(root, min, max);
+  if (MB_SUCCESS != result) return result;
+  
+  MBAdaptiveKDTreeIter iter;
+  get_tree_iterator( root, iter );
+  iter.step_to_first_leaf(MBAdaptiveKDTreeIter::LEFT);
+  dep = iter.depth();
+
+  return MB_SUCCESS;
+}
+

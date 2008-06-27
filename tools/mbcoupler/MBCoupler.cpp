@@ -52,6 +52,7 @@ MBErrorCode MBCoupler::initialize_tree()
   
   MBRange local_ents;
   MBAdaptiveKDTree::Settings settings;
+  settings.candidatePlaneSet = MBAdaptiveKDTree::SUBDIVISION;
   allBoxes.resize(6*myPc->proc_config().proc_size());
 
     //get entities on the local part
@@ -78,6 +79,17 @@ MBErrorCode MBCoupler::initialize_tree()
   int mpi_err = MPI_Allgather(&allBoxes[6*my_rank], 6, MPI_DOUBLE,
                               &allBoxes[0], 6, MPI_DOUBLE, 
                               myPc->proc_config().proc_comm());
+
+#ifndef NDEBUG
+  double min[3] = {0,0,0}, max[3] = {0,0,0};
+  unsigned int dep;
+  myTree->get_info(localRoot, min, max, dep);
+  std::cout << "Proc " << my_rank << ": box min/max, tree depth = ("
+            << min[0] << "," << min[1] << "," << min[2] << "), ("
+            << max[0] << "," << max[1] << "," << max[2] << "), "
+            << dep << std::endl;
+#endif  
+
   if (MPI_SUCCESS == mpi_err) return MB_SUCCESS;
   else return MB_FAILURE;
 }

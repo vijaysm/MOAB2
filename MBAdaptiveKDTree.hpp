@@ -165,6 +165,11 @@ public:
   MBErrorCode build_tree( const MBRange& entities,
                           MBEntityHandle& root_set_out,
                           const Settings* settings = 0 );
+
+    //! get some information about the tree
+  MBErrorCode get_info(MBEntityHandle root,
+                       double min[3], double max[3], 
+                       unsigned int &dep);
   
   //! Find triangle closest to input position. 
   //!\param from_coords  The input position to test against

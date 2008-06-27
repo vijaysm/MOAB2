@@ -34,7 +34,10 @@ MBErrorCode report_iface_ents(MBInterface *mbImpl,
 MBErrorCode test_interpolation(MBInterface *mbImpl, 
                                std::string &interp_tag,
                                std::vector<MBParallelComm *> &pcs,
-                               std::vector<ReadParallel *> rps);
+                               std::vector<ReadParallel *> rps,
+                               double &instant_time,
+                               double &pointloc_time,
+                               double &interp_time);
 
 int main(int argc, char **argv) 
 {
@@ -94,16 +97,24 @@ int main(int argc, char **argv)
   PRINT_LAST_ERROR;
 
   if (!interp_tag.empty()) {
+    double instant_time, pointloc_time, interp_time;
       // test interpolation
-    result = test_interpolation(mbImpl, interp_tag, pcs, rps);
+    result = test_interpolation(mbImpl, interp_tag, pcs, rps,
+                                instant_time, pointloc_time, interp_time);
     PRINT_LAST_ERROR;
+    std::cout << "Coupler instantiation/point location/interpolation times = "
+              << instant_time << ", " 
+              << pointloc_time << ", "
+              << interp_time << std::endl;
   }
   
     // output mesh
-  result = mbImpl->write_file("output.h5m", NULL, NULL,
+  const char *outfile = "output.h5m";
+  result = mbImpl->write_file(outfile, NULL, NULL,
                               pcs[1]->partition_sets());
   PRINT_LAST_ERROR;
-  
+  std::cout << "Wrote " << outfile << std::endl;
+
   std::cout << "Success." << std::endl;
   err = MPI_Finalize();
 
@@ -206,15 +217,22 @@ MBErrorCode get_file_options(int argc, char **argv,
 MBErrorCode test_interpolation(MBInterface *mbImpl, 
                                std::string &interp_tag,
                                std::vector<MBParallelComm *> &pcs,
-                               std::vector<ReadParallel *> rps) 
+                               std::vector<ReadParallel *> rps,
+                               double &instant_time,
+                               double &pointloc_time,
+                               double &interp_time) 
 {
     // source is 1st mesh, target is 2nd
   MBRange src_elems, targ_elems;
   MBErrorCode result = pcs[0]->get_part_entities(src_elems, 3);
   PRINT_LAST_ERROR;
 
+  double start_time = MPI_Wtime();
+
     // instantiate a coupler, which also initializes the tree
   MBCoupler mbc(mbImpl, pcs[0], src_elems, 0);
+
+  instant_time = MPI_Wtime();
 
     // get points from the target mesh to interpolate
   MBRange targ_verts, tmp_verts;
@@ -239,11 +257,19 @@ MBErrorCode test_interpolation(MBInterface *mbImpl,
   result = mbc.locate_points(&vpos[0], targ_verts.size());
   PRINT_LAST_ERROR;
 
+  pointloc_time = MPI_Wtime();
+
     // now interpolate tag onto target points
   std::vector<double> field(targ_verts.size());
   result = mbc.interpolate(MBCoupler::LINEAR_FE, interp_tag, &field[0]);
   PRINT_LAST_ERROR;
   
+  interp_time = MPI_Wtime();
+
+  interp_time -= pointloc_time;
+  pointloc_time -= instant_time;
+  instant_time -= start_time;
+
     // set field values as tag on target vertices
   MBTag tag;
   result = mbImpl->tag_get_handle(interp_tag.c_str(), tag); PRINT_LAST_ERROR;

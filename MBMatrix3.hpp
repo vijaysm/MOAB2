@@ -24,6 +24,7 @@
 #include "MBCartVect.hpp"
 #include "MBTypes.h"
 #include <iosfwd>
+#include <limits>
 
 class MBMatrix3 
 {
