@@ -316,7 +316,8 @@ MBErrorCode MBCoupler::interpolate(MBCoupler::Method method,
                                    tuple_list *tl,
                                    bool normalize)
 {
-  if (LINEAR_FE != method) return MB_FAILURE;
+  if (!((LINEAR_FE == method) || (PLAIN_FE == method)))
+    return MB_FAILURE;
 
   tuple_list *tl_tmp = (tl ? tl : targetPts);
 
@@ -328,11 +329,20 @@ MBErrorCode MBCoupler::interpolate(MBCoupler::Method method,
     // perform interpolation on local source mesh; put results into
     // tl_tmp->vr[i]
   MBErrorCode result;
+
   for (unsigned int i = 0; i < tl_tmp->n; i++) {
     int mindex = tl_tmp->vi[3*i+2];
-    result = interp_field_for_hex(mappedPts->vul[mindex],
-                                  MBCartVect(mappedPts->vr+3*mindex), 
-                                              tag, tl_tmp->vr[i]);
+
+    result = MB_FAILURE;
+    if(LINEAR_FE == method){
+      result = interp_field_for_hex(mappedPts->vul[mindex],
+				    MBCartVect(mappedPts->vr+3*mindex), 
+				    tag, tl_tmp->vr[i]);
+    }else if (PLAIN_FE == method){
+      result = plain_field_map(mappedPts->vul[mindex],
+			       tag, tl_tmp->vr[i]);
+    }
+
     if (MB_SUCCESS != result) return result;
   }
   
@@ -348,10 +358,19 @@ MBErrorCode MBCoupler::interpolate(MBCoupler::Method method,
     for (std::vector<unsigned int>::iterator vit = localMappedPts.begin();
          vit != localMappedPts.end(); vit += 2) {
       int mindex = *(vit+1);
-      result = interp_field_for_hex(mappedPts->vul[mindex],
-                                    MBCartVect(mappedPts->vr+3*mindex), 
-                                    tag, interp_vals[*vit]);
+
+      result = MB_FAILURE;
+      if(LINEAR_FE == method){
+	result = interp_field_for_hex(mappedPts->vul[mindex],
+				      MBCartVect(mappedPts->vr+3*mindex), 
+				      tag, interp_vals[*vit]);
+      }else if (PLAIN_FE == method){
+	result = plain_field_map(mappedPts->vul[mindex],
+				 tag, interp_vals[*vit]);
+      }
+
       if (MB_SUCCESS != result) return result;
+
     }
   }
   
@@ -453,6 +472,24 @@ MBErrorCode MBCoupler::interp_field_for_hex(MBEntityHandle elem,
     field += 0.125 * vfields[i] *
       (1+xi[i]*nat_coord[0]) * (1+etha[i]*nat_coord[1]) * (1+mu[i]*nat_coord[2]);
   }
+
+  return MB_SUCCESS;
+}
+
+
+//Simplest "interpolation" for element-based source fields. Set the value of the field
+//at the target point to that of the field in the source element it lies in.
+MBErrorCode MBCoupler::plain_field_map(MBEntityHandle elem,
+				       MBTag tag,
+				       double &field)
+{
+  double tempField;
+
+  // get the tag values at the vertices
+  MBErrorCode result = mbImpl->tag_get_data(tag, &elem, 1, &tempField);
+  if (MB_SUCCESS != result) return result;
+
+  field = tempField;
 
   return MB_SUCCESS;
 }

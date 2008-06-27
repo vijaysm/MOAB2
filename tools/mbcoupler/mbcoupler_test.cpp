@@ -107,13 +107,16 @@ int main(int argc, char **argv)
               << pointloc_time << ", "
               << interp_time << std::endl;
   }
-  
+
+
     // output mesh
   const char *outfile = "output.h5m";
   result = mbImpl->write_file(outfile, NULL, "PARALLEL=FORMAT",
-                              pcs[1]->partition_sets());
+			      pcs[1]->partition_sets());
+
   PRINT_LAST_ERROR;
   std::cout << "Wrote " << outfile << std::endl;
+
 
   std::cout << "Success." << std::endl;
   err = MPI_Finalize();
@@ -261,7 +264,15 @@ MBErrorCode test_interpolation(MBInterface *mbImpl,
 
     // now interpolate tag onto target points
   std::vector<double> field(targ_verts.size());
-  result = mbc.interpolate(MBCoupler::LINEAR_FE, interp_tag, &field[0]);
+
+  if(interp_tag == "vertex_field"){
+    result = mbc.interpolate(MBCoupler::LINEAR_FE, interp_tag, &field[0]);
+  }else if(interp_tag == "element_field"){
+    result = mbc.interpolate(MBCoupler::PLAIN_FE, interp_tag, &field[0]);
+  }else{
+    std::cout << "Using tag name to determine type of sourge field at the moment... Use either vertex_field or element_field\n";
+    result = MB_FAILURE;
+  }
   PRINT_LAST_ERROR;
   
   interp_time = MPI_Wtime();

@@ -41,7 +41,7 @@ class MBCoupler
 {
 public:
 
-  enum Method {LINEAR_FE};
+  enum Method {LINEAR_FE, PLAIN_FE};
 
     /* constructor
      * Constructor, which also optionally initializes the coupler
@@ -140,6 +140,10 @@ private:
                                    MBCartVect nat_coord, 
                                    MBTag tag,
                                    double &field);
+
+  MBErrorCode plain_field_map(MBEntityHandle elem,
+			      MBTag tag,
+			      double &field);
   
   MBErrorCode test_local_box(double *xyz, 
                              int from_proc, int remote_index, int index, 
