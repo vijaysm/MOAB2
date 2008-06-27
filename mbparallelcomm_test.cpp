@@ -8,6 +8,8 @@
 
 #include "MBParallelComm.hpp"
 #include "MBParallelConventions.h"
+#include "ReadParallel.hpp"
+#include "FileOptions.hpp"
 #include "MBTagConventions.hpp"
 #include "MBCore.hpp"
 #include "ScdVertexData.hpp"
@@ -43,13 +45,16 @@ MBErrorCode create_linear_mesh(MBInterface *mbImpl,
 MBErrorCode create_scd_mesh(MBInterface *mbImpl,
                             int IJK, int &nshared);
 
-MBErrorCode read_file(MBInterface *mbImpl, const char *filename,
+MBErrorCode read_file(MBInterface *mbImpl, std::vector<std::string> &filenames,
                       const char *tag_name, int tag_val, int distrib,
-                      int parallel_option, int with_ghosts);
+                      int parallel_option, int resolve_shared, int with_ghosts);
 
 MBErrorCode test_packing(MBInterface *mbImpl, const char *filename);
 
 MBErrorCode report_nsets(MBInterface *mbImpl);
+
+MBErrorCode report_iface_ents(MBInterface *mbImpl,
+                              std::vector<MBParallelComm *> &pcs);
 
 int main(int argc, char **argv) 
 {
@@ -95,8 +100,9 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  int npos = 1, tag_val, distrib, with_ghosts = 1;
-  const char *tag_name, *filename;
+  int npos = 1, tag_val, distrib, with_ghosts = 1, resolve_shared = 1;
+  const char *tag_name;
+  std::vector<std::string> filenames;
   int parallel_option = 0;
 
   while (npos < argc) {
@@ -137,14 +143,18 @@ int main(int argc, char **argv)
           // read a file in parallel from the filename on the command line
         tag_name = "MATERIAL_SET";
         tag_val = -1;
-        filename = argv[npos++];
+        filenames.push_back(std::string(argv[npos++]));
         if (npos < argc) tag_name = argv[npos++];
         if (npos < argc) tag_val = strtol(argv[npos++], NULL, 0);
         if (npos < argc) distrib = strtol(argv[npos++], NULL, 0);
         else distrib = 1;
-        if (npos < argc) with_ghosts = strtol(argv[npos++], NULL, 0);
-        tmp_result = read_file(mbImpl, filename, tag_name, tag_val,
-                               distrib, parallel_option, with_ghosts);
+        if (npos < argc) {
+          with_ghosts = strtol(argv[npos++], NULL, 0);
+          resolve_shared = with_ghosts;
+        }
+        tmp_result = read_file(mbImpl, filenames, tag_name, tag_val,
+                               distrib, parallel_option, 
+                               resolve_shared, with_ghosts);
         if (MB_SUCCESS != tmp_result) {
           result = tmp_result;
           std::cerr << "Couldn't read mesh; error message:" << std::endl;
@@ -154,13 +164,33 @@ int main(int argc, char **argv)
         break;
 
       case 4:
-        filename = argv[npos++];
-        tmp_result = test_packing(mbImpl, filename);
+        filenames.push_back(argv[npos++]);
+        tmp_result = test_packing(mbImpl, filenames[0].c_str());
         if (MB_SUCCESS != tmp_result) {
           result = tmp_result;
           std::cerr << "Packing test failed; error message:" << std::endl;
           PRINT_LAST_ERROR
         }
+        break;
+
+      case 5:
+          // read a file in parallel from the filename on the command line
+        tag_name = "MATERIAL_SET";
+        distrib = 1;
+        tag_val = -1;
+        with_ghosts = 0;
+        resolve_shared = 1;
+        while (npos < argc)
+          filenames.push_back(std::string(argv[npos++]));
+        tmp_result = read_file(mbImpl, filenames, tag_name, tag_val,
+                               distrib, parallel_option, resolve_shared,
+                               with_ghosts);
+        if (MB_SUCCESS != tmp_result) {
+          result = tmp_result;
+          std::cerr << "Couldn't read mesh; error message:" << std::endl;
+          PRINT_LAST_ERROR
+        }
+        nshared = -1;
         break;
 
       default:
@@ -171,7 +201,7 @@ int main(int argc, char **argv)
     
 
     if (0 == rank) rtime = MPI_Wtime();
-    if (MB_SUCCESS == tmp_result && 4 != this_opt) {
+    if (MB_SUCCESS == tmp_result && 4 != this_opt && false) {
         // now figure out which vertices are shared
       MBParallelComm *pcomm = MBParallelComm::get_pcomm(mbImpl, 0);
       assert(pcomm);
@@ -219,7 +249,8 @@ int main(int argc, char **argv)
                   << " verts adj to other iface ents)" << std::endl;
       }
       
-      if (debug && 2 == nprocs) {
+      if (debug && false) {
+//      if (debug && 2 == nprocs) {
           // if I'm root, get and print handles on other procs
         std::vector<MBEntityHandle> sharedh_tags(iface_ents[0].size());
         std::fill(sharedh_tags.begin(), sharedh_tags.end(), 0);
@@ -235,9 +266,10 @@ int main(int argc, char **argv)
           std::cerr << "Shared handles: " << std::endl;
           dum_range.print();
         }
-      }
         
       result = report_nsets(mbImpl);
+      }
+
       if (0 == rank) ltime = MPI_Wtime();
   
       delete pcomm;
@@ -335,9 +367,11 @@ MBErrorCode report_nsets(MBInterface *mbImpl)
   return MB_SUCCESS;
 }
 
-MBErrorCode read_file(MBInterface *mbImpl, const char *filename,
+MBErrorCode read_file(MBInterface *mbImpl, 
+                      std::vector<std::string> &filenames,
                       const char *tag_name, int tag_val,
-                      int distrib, int parallel_option, int with_ghosts) 
+                      int distrib, int parallel_option, int resolve_shared,
+                      int with_ghosts) 
 {
   std::ostringstream options;
   switch (parallel_option) {
@@ -363,14 +397,30 @@ MBErrorCode read_file(MBInterface *mbImpl, const char *filename,
   if (1 == distrib)
     options << ";PARTITION_DISTRIBUTE";
 
+  if (1 == resolve_shared)
+    options << ";PARALLEL_RESOLVE_SHARED_ENTS";
+
   if (1 == with_ghosts)
-    options << ";PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1";
+    options << ";PARALLEL_GHOSTS=3.0.1";
 
   options << ";CPUTIME";
+
+  std::vector<MBEntityHandle> filesets(filenames.size());
+  std::vector<MBParallelComm*> pcs(filenames.size());
+  std::vector<ReadParallel*> rps(filenames.size());
+  MBErrorCode result;
+  
+  for (unsigned int i = 0; i < filenames.size(); i++) {
+    pcs[i] = new MBParallelComm(mbImpl);
+    rps[i] = new ReadParallel(mbImpl, pcs[i]);
     
-  MBEntityHandle file_set;
-  MBErrorCode result = mbImpl->load_file(filename, file_set, 
-                                         options.str().c_str());
+    result = rps[i]->load_file(filenames[i].c_str(), filesets[i], 
+                               FileOptions(options.str().c_str()), NULL, 0);
+    PRINT_LAST_ERROR;
+  }
+
+  report_iface_ents(mbImpl, pcs);
+  
   return result;
 }
 
@@ -746,3 +796,45 @@ MBErrorCode test_packing(MBInterface *mbImpl, const char *filename)
 
   return MB_SUCCESS;
 }
+
+MBErrorCode report_iface_ents(MBInterface *mbImpl,
+                              std::vector<MBParallelComm *> &pcs) 
+{
+  MBRange iface_ents[6];
+  MBErrorCode result = MB_SUCCESS, tmp_result;
+  
+    // now figure out which vertices are shared
+  for (unsigned int p = 0; p < pcs.size(); p++) {
+    for (int i = 0; i < 4; i++) {
+      tmp_result = pcs[p]->get_iface_entities(-1, i, iface_ents[i]);
+      
+      if (MB_SUCCESS != tmp_result) {
+        std::cerr << "get_iface_entities returned error on proc " 
+                  << pcs[p]->proc_config().proc_rank() << "; message: " << std::endl;
+        std::string last_error;
+        result = mbImpl->get_last_error(last_error);
+        if (last_error.empty()) std::cerr << "(none)" << std::endl;
+        else std::cerr << last_error << std::endl;
+        result = tmp_result;
+      }
+      if (0 != i) iface_ents[4].merge(iface_ents[i]);
+    }
+  }
+
+    // report # iface entities
+  result = mbImpl->get_adjacencies(iface_ents[4], 0, false, iface_ents[5], 
+                                   MBInterface::UNION);
+
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  
+  std::cerr << "Proc " << rank << " iface entities: " << std::endl;
+  for (int i = 0; i < 4; i++)
+    std::cerr << "    " << iface_ents[i].size() << " "
+              << i << "d iface entities." << std::endl;
+  std::cerr << "    (" << iface_ents[5].size() 
+            << " verts adj to other iface ents)" << std::endl;
+
+  return result;
+}
+
