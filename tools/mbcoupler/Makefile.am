@@ -19,8 +19,8 @@ libmbcoupler_la_SOURCES = \
    findpt.c \
    findpt.h \
    minmax.h \
-   types.h #\
-   #MBCoupler.cpp
+   types.h \
+   MBCoupler.cpp
 
 libmbcoupler_la_include_HEADERS = \
    MBElemUtil.hpp \
