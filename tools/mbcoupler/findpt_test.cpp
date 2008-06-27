@@ -2,6 +2,7 @@
 #include "MBElemUtil.hpp"
 
 using namespace std;
+using namespace MBElemUtil;
 
 
 extern "C"{
@@ -9,14 +10,13 @@ extern "C"{
 #include "types.h"
 }
 
+
 void test_hex_findpt()
 {
 
     MBCartVect xyz(.5,.3,.4);
     MBCartVect rst;
     double dist;
-
-    MBElemUtil u;
 
     double *xm[3]; //element coord fields, lex ordering
     const int n=5; //number of nodes per direction (min is 2, for linear element)
@@ -41,7 +41,7 @@ void test_hex_findpt()
       }
     }
         
-    u.hex_findpt(xm, n, xyz, rst, dist);
+    hex_findpt(xm, n, xyz, rst, dist);
 
 
     cout << "Coords of " << xyz << " are:  "<< rst <<
@@ -58,8 +58,6 @@ void test_nat_coords_trilinear_hex2()
   MBCartVect ncoords;;
   double etol;
   
-  MBElemUtil u;
-  
   //Make our sample hex the unit cube [0,1]**3
   hex[0] = MBCartVect(0,0,0);
   hex[1] = MBCartVect(1,0,0);
@@ -72,7 +70,7 @@ void test_nat_coords_trilinear_hex2()
 
   etol = .1 ; //ignored by nat_coords
 
-  u.nat_coords_trilinear_hex2(hex, xyz, ncoords, etol);
+  nat_coords_trilinear_hex2(hex, xyz, ncoords, etol);
       
   cout << "Coords of " << xyz << " are:  "<< ncoords << endl;
 
