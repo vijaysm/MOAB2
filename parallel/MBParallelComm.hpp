@@ -42,7 +42,7 @@ class SequenceManager;
 template <typename KeyType, typename ValType, ValType NullVal> class RangeMap;
 typedef RangeMap<MBEntityHandle, MBEntityHandle, 0> HandleMap;
 
-#define MAX_SHARING_PROCS 10  
+#define MAX_SHARING_PROCS 64
 
 class MBParallelComm 
 {
