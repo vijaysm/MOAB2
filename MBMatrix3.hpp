@@ -146,9 +146,20 @@ public:
   
   inline MBMatrix3 inverse() const;
   
+    // invert matrix without re-calculating the
+    // reciprocal of the determinant.
+  inline MBMatrix3 inverse( double inverse_det ) const;
+  
+  inline bool positive_definite() const;
+  inline bool positive_definite( double& determinant_out ) const;
+  
   inline MBMatrix3 transpose() const;
   
   inline bool invert();
+  
+    // Calculate determinant of 2x2 submatrix composed of the
+    // elements not in the passed row or column.
+  inline double subdet( int r, int c ) const;
 };
 
 inline MBMatrix3 operator+( const MBMatrix3& a, const MBMatrix3& b )
@@ -205,9 +216,23 @@ inline double MBMatrix3::determinant() const
        - d[2] * d[4] * d[6];
 }
 
-inline MBMatrix3 MBMatrix3::inverse() const
+inline bool MBMatrix3::positive_definite( double& det ) const
 {
-  double i = 1.0 / determinant();
+  double subdet6 = d[1]*d[5]-d[2]*d[4];
+  double subdet7 = d[2]*d[3]-d[0]*d[5];
+  double subdet8 = d[0]*d[4]-d[1]*d[3];
+  det = d[6]*subdet6 + d[7]*subdet7 + d[8]*subdet8;
+  return d[0] > 0 && subdet8 > 0 && det > 0;
+}
+
+inline bool MBMatrix3::positive_definite() const
+{
+  double d;
+  return positive_definite(d);
+}
+
+inline MBMatrix3 MBMatrix3::inverse( double i ) const
+{
   return MBMatrix3( i * (d[4] * d[8] - d[5] * d[7]),
                     i * (d[2] * d[7] - d[8] * d[1]),
                     i * (d[1] * d[5] - d[4] * d[2]),
@@ -217,6 +242,11 @@ inline MBMatrix3 MBMatrix3::inverse() const
                     i * (d[3] * d[7] - d[6] * d[4]),
                     i * (d[1] * d[6] - d[7] * d[0]),
                     i * (d[0] * d[4] - d[3] * d[1]) );
+}  
+
+inline MBMatrix3 MBMatrix3::inverse() const
+{
+  return inverse( 1.0 / determinant() );
 }
 
 inline bool MBMatrix3::invert()
@@ -224,15 +254,7 @@ inline bool MBMatrix3::invert()
   double i = 1.0 / determinant();
   if (!finite(i) || fabs(i) < std::numeric_limits<double>::epsilon())
     return false;
-  *this= MBMatrix3( i * (d[4] * d[8] - d[5] * d[7]),
-                    i * (d[2] * d[7] - d[8] * d[1]),
-                    i * (d[1] * d[5] - d[4] * d[2]),
-                    i * (d[5] * d[6] - d[8] * d[3]),
-                    i * (d[0] * d[8] - d[6] * d[2]),
-                    i * (d[2] * d[3] - d[5] * d[0]),
-                    i * (d[3] * d[7] - d[6] * d[4]),
-                    i * (d[1] * d[6] - d[7] * d[0]),
-                    i * (d[0] * d[4] - d[3] * d[1]) );
+  *this = inverse( i );
   return true;
 }
 
@@ -243,6 +265,12 @@ inline MBMatrix3 MBMatrix3::transpose() const
                     d[2], d[5], d[8] );
 }
 
+inline double MBMatrix3::subdet( int r, int c ) const
+{
+  const int r1 = (r+1)%3, r2 = (r+2)%3;
+  const int c1 = (c+1)%3, c2 = (c+2)%3;
+  return d[3*r1+c1]*d[3*r2+c2] - d[3*r1+c2]*d[3*r2+c1];
+}
                          
 MBErrorCode EigenDecomp( const MBMatrix3& a, 
                          double Eigenvalues[3],

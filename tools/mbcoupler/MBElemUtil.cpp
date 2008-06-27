@@ -1,4 +1,5 @@
 #include <iostream>
+#include <limits>
 #include <assert.h>
 
 #include "MBElemUtil.hpp"
@@ -23,16 +24,16 @@ class VolMap {
 bool VolMap::solve_inverse( const MBCartVect& x, MBCartVect& xi, double tol ) const
 {
   const double error_tol_sqr = tol*tol;
-  const int max_iterations = 10000;
-  int iterations = 0;
+  double det;
   xi = center_xi();
   MBCartVect delta = evaluate(xi) - x;
   MBMatrix3 J;
-  while (delta.length_squared() > error_tol_sqr) {
+  while (delta % delta > error_tol_sqr) {
     J = jacobian(xi);
-    if (!J.invert() || ++iterations > max_iterations)
+    det = J.determinant();
+    if (det < std::numeric_limits<double>::epsilon())
       return false;
-    xi -= J * delta;
+    xi -= J.inverse(1.0/det) * delta;
     delta = evaluate( xi ) - x;
   }
   return true;
@@ -153,18 +154,11 @@ bool point_in_trilinear_hex(const MBCartVect *hex,
                             const MBCartVect& xyz,
                             double etol) 
 {
-
-      const double one = 1.000001;
-
-      MBCartVect  nat(0.);
-      nat_coords_trilinear_hex(hex, xyz, nat, etol);
-      
-      for (unsigned int i = 0; i < 3; i++) {
-            if ((nat[i] > one) || (nat[i] < -one)) return false;
-      }
-
-      return true;
-
+  MBCartVect xi;
+  return nat_coords_trilinear_hex( hex, xyz, xi, etol )
+      && fabs(xi[0])-1 < etol 
+      && fabs(xi[1])-1 < etol 
+      && fabs(xi[2])-1 < etol;
 }
 
 
@@ -174,22 +168,14 @@ bool point_in_trilinear_hex(const MBCartVect *hex,
                             const MBCartVect& box_max,
                             double etol) 
 {
-
-      const double one = 1.000001;
-
-      if ((xyz[0] < box_min[0]) || (xyz[0] > box_max[0])) return false;
-      if ((xyz[1] < box_min[1]) || (xyz[1] > box_max[1])) return false;
-      if ((xyz[2] < box_min[2]) || (xyz[2] > box_max[2])) return false;
-
-      MBCartVect  nat(0.);
-      nat_coords_trilinear_hex(hex, xyz, nat, etol);
-      
-      for (unsigned int i = 0; i < 3; i++) {
-            if ((nat[i] > one) || (nat[i] < -one)) return false;
-      }
-
-      return true;
-
+    // all values scaled by 2 (eliminates 3 flops)
+  const MBCartVect mid = box_max + box_min;
+  const MBCartVect dim = box_max - box_min;
+  const MBCartVect pt = 2*xyz - mid;
+  return fabs(pt[0]) - dim[0] < etol &&
+         fabs(pt[1]) - dim[1] < etol &&
+         fabs(pt[2]) - dim[2] < etol &&
+         point_in_trilinear_hex( hex, xyz, etol );
 }
 
 
