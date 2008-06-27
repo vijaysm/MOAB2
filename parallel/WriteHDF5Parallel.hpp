@@ -12,6 +12,7 @@
 #include <mpi.h>
 
 struct RemoteSetData;
+class MBParallelComm;
 
 class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
 {
@@ -45,7 +46,9 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
        */
     WriteHDF5Parallel( MBInterface* iface,
                        const std::vector<std::string>& multiproc_set_tags );
-    
+
+  virtual ~WriteHDF5Parallel();
+  
     /**\brief Define tags used to identify sets spanning multiple procesors */
     class MultiProcSetTags {
       friend class WriteHDF5Parallel;
@@ -100,7 +103,8 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
                                      bool overwrite,
                                      std::vector<std::string>& qa_records,
                                      int dimension = 3,
-                                     bool parallel = false );
+                                     bool parallel = false,
+                                     int pcomm_no = 0);
     
       //! Figure out which mesh local mesh is duplicated on
       //! remote processors and which processor will write
@@ -194,12 +198,12 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
     void remove_remote_entities( MBEntityHandle relative, std::vector<MBEntityHandle>& vect );
     void remove_remote_sets( MBEntityHandle relative, MBRange& range );
     void remove_remote_sets( MBEntityHandle relative, std::vector<MBEntityHandle>& vect );
-    
+  
+    //! get any existing tags which aren't excluded and add to shared set tags
+  MBErrorCode get_sharedset_tags();
+  
   private:
     
-      //! MPI environment
-    int numProc, myRank;
-                                     
       //! An array of interface mesh which is to be written by
       //! remote processors.  Indexed by MPI rank (processor number).
     std::vector<MBRange> remoteMesh;
@@ -228,6 +232,12 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
     
       //! List of parallel sets "owned" by this processor
     //MBRange myParallelSets;
+
+    //! pcomm controlling parallel nature of mesh
+  MBParallelComm *myPcomm;
+
+    //! whether this instance allocated (and dtor should delete) the pcomm
+  bool pcommAllocated;
     
     void printrange( MBRange& );
 };

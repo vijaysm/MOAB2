@@ -213,6 +213,11 @@ public:
                                    bool lower_dim_ents = false,
                                    bool verts_too = true,
                                    int operation = MBInterface::UNION);
+
+    /** \brief Return the rank of the entity owner
+     */
+  MBErrorCode get_owner(MBEntityHandle entity,
+                        int &owner);
   
     /** \brief Get entities on an inter-processor interface and of specified dimension
      * If other_proc is -1, any interface entities are returned.  If dim is -1,
@@ -297,6 +302,13 @@ public:
 
     //! return all the entities in parts owned locally
   MBErrorCode get_part_entities(MBRange &ents, int dim = -1);
+  
+    //! remove from the range all ents not owned by this proc or already
+    //! shared with to_proc
+  MBErrorCode remove_nonowned_shared(MBRange &ents,
+                                     int to_proc,
+                                     bool owned_test = true,
+                                     bool shared_test = true);
   
 private:
 
@@ -447,12 +459,6 @@ private:
   MBErrorCode pack_range_map(MBRange &this_range, MBEntityHandle actual_start,
                              HandleMap &handle_map);
 
-    //! remove from the range all ents not owned by this proc or already
-    //! shared with to_proc
-  MBErrorCode remove_nonowned_shared(MBRange &ents,
-                                     int to_proc,
-                                     bool owned_test = true);
-  
     //! for a given interface set, gets a number of layers of bridge entities
     //! of dimension to_dim going through bridge dimension bridge_dim
   MBErrorCode get_ghost_layers(MBEntityHandle iface_set,

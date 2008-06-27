@@ -3047,7 +3047,8 @@ bool MBParallelComm::is_iface_proc(MBEntityHandle this_set,
 
 MBErrorCode MBParallelComm::remove_nonowned_shared(MBRange &ents,
                                                    int to_proc,
-                                                   bool owned_test) 
+                                                   bool owned_test,
+                                                   bool shared_test) 
 {
     // remove from ents any entities which are not owned locally or
     // who are already shared with to_proc
@@ -3063,7 +3064,9 @@ MBErrorCode MBParallelComm::remove_nonowned_shared(MBRange &ents,
   for (rit = ents.begin(), i = 0; rit != ents.end(); rit++, i++) {
       // don't save if I don't own this entity
     if (owned_test && (PSTATUS_NOT_OWNED & shared_flags[i])) continue;
-  
+
+    else if (!shared_test) tmp_ents.insert(*rit);
+    
       // if entity isn't shared yet, add to list
     else if (!(PSTATUS_SHARED & shared_flags[i])) tmp_ents.insert(*rit);
     
@@ -3439,6 +3442,42 @@ MBErrorCode MBParallelComm::get_part_entities(MBRange &ents, int dim)
   }
   
   return MB_SUCCESS;
+}
+
+  /** \brief Return the rank of the entity owner
+   */
+MBErrorCode MBParallelComm::get_owner(MBEntityHandle entity,
+                                      int &owner) 
+{
+    // I'm sure there's a much more efficient logic to this,
+
+    // but I'm tired...
+  unsigned char pstat;
+  MBErrorCode result = mbImpl->tag_get_data(pstatus_tag(), &entity, 1,
+                                            &pstat);
+  if (!(pstat & PSTATUS_NOT_OWNED)) {
+    owner = proc_config().proc_rank();
+    return MB_SUCCESS;
+  }
+  
+  int sharing_procs[MAX_SHARING_PROCS];
+  result = mbImpl->tag_get_data(sharedp_tag(), &entity, 1,
+                                sharing_procs);
+  RRA(" ");
+  if (-1 != sharing_procs[0]) {
+    owner = sharing_procs[0];
+    return MB_SUCCESS;
+  }
+  
+  result = mbImpl->tag_get_data(sharedps_tag(), &entity, 1,
+                                sharing_procs);
+  if (MB_SUCCESS == result && -1 != sharing_procs[0]) {
+    owner = sharing_procs[0];
+    return MB_SUCCESS;
+  }
+
+  owner = -1;
+  return MB_FAILURE;
 }
 
 #ifdef TEST_PARALLELCOMM

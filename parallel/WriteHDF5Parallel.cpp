@@ -31,6 +31,7 @@
 #include "MBInternals.hpp"
 #include "MBTagConventions.hpp"
 #include "MBParallelConventions.h"
+#include "MBParallelComm.hpp"
 #include "MBCN.hpp"
 #include "MBWriteUtilIface.hpp"
 #include "MBRange.hpp"
@@ -40,9 +41,9 @@
 
 #ifdef DEBUG
 #  define START_SERIAL                     \
-     for (int _x = 0; _x < numProc; ++_x) {\
+     for (int _x = 0; _x < myPcomm->proc_config().proc_size(); ++_x) {\
        MPI_Barrier( MPI_COMM_WORLD );      \
-       if (_x != myRank) continue     
+       if (_x != myPcomm->proc_config().proc_rank()) continue     
 #  define END_SERIAL                       \
      }                                     \
      MPI_Barrier( MPI_COMM_WORLD )
@@ -121,7 +122,7 @@ void WriteHDF5Parallel::printrange( MBRange& r )
 #ifndef DEBUG
 static void print_type_sets( MBInterface* , int , int , MBRange& ) {}
 #else
-static void print_type_sets( MBInterface* iFace, int myRank, int numProc, MBRange& sets )
+static void print_type_sets( MBInterface* iFace, int myPcomm->proc_config().proc_rank(), int myPcomm->proc_config().proc_size(), MBRange& sets )
 {
   MBTag gid, did, bid, sid, nid, iid;
   iFace->tag_get_handle( GLOBAL_ID_TAG_NAME, gid ); 
@@ -147,8 +148,8 @@ static void print_type_sets( MBInterface* iFace, int myRank, int numProc, MBRang
       dim += 3;
     }
     else if (MB_SUCCESS == iFace->tag_get_data(iid, &*riter, 1, proc)) {
-      assert(proc[0] == (unsigned)myRank || proc[1] == (unsigned)myRank);
-      id = proc[proc[0] == (unsigned)myRank];
+      assert(proc[0] == (unsigned)myPcomm->proc_config().proc_rank() || proc[1] == (unsigned)myPcomm->proc_config().proc_rank());
+      id = proc[proc[0] == (unsigned)myPcomm->proc_config().proc_rank()];
       dim = 8;
     }
     else {
@@ -226,8 +227,8 @@ void WriteHDF5Parallel::MultiProcSetTags::add( const std::string& filter,
   { list.push_back( Data(filter,data,filterval) ); }
 
 
-WriteHDF5Parallel::WriteHDF5Parallel( MBInterface* iface )
-  : WriteHDF5(iface)
+WriteHDF5Parallel::WriteHDF5Parallel( MBInterface* iface)
+    : WriteHDF5(iface), myPcomm(NULL), pcommAllocated(false)
 {
   multiProcSetTags.add(  MATERIAL_SET_TAG_NAME );
   multiProcSetTags.add( DIRICHLET_SET_TAG_NAME );
@@ -240,7 +241,7 @@ WriteHDF5Parallel::WriteHDF5Parallel( MBInterface* iface )
 
 WriteHDF5Parallel::WriteHDF5Parallel( MBInterface* iface,
                                       const std::vector<std::string>& tag_names )
-  : WriteHDF5(iface)
+  : WriteHDF5(iface), myPcomm(NULL), pcommAllocated(false)
 {
   for(std::vector<std::string>::const_iterator i = tag_names.begin();
       i != tag_names.end(); ++i)
@@ -249,8 +250,15 @@ WriteHDF5Parallel::WriteHDF5Parallel( MBInterface* iface,
 
 WriteHDF5Parallel::WriteHDF5Parallel( MBInterface* iface,
                                       const MultiProcSetTags& set_tags )
-  : WriteHDF5(iface), multiProcSetTags(set_tags)
+    : WriteHDF5(iface), multiProcSetTags(set_tags), myPcomm(NULL), 
+      pcommAllocated(false)
 {}
+
+WriteHDF5Parallel::~WriteHDF5Parallel()
+{
+  if (pcommAllocated && myPcomm) 
+    delete myPcomm;
+}
 
 // The parent WriteHDF5 class has ExportSet structs that are
 // populated with the entities to be written, grouped by type
@@ -261,10 +269,7 @@ WriteHDF5Parallel::WriteHDF5Parallel( MBInterface* iface,
 //  o sets their file Id to '1'
 MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
 {
-  MBRange range;
   MBErrorCode result;
-  MBTag iface_tag, geom_tag;
-  int i, proc_pair[2];
   
   //START_SERIAL;
   printdebug( "Pre-interface mesh:\n");
@@ -275,132 +280,23 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
   printrange(setSet.range);
   
     // Allocate space for remote mesh data
-  remoteMesh.resize( numProc );
+  remoteMesh.resize( myPcomm->proc_config().proc_size() );
   
-    // Get tag handles
-  result = iFace->tag_get_handle( PARALLEL_SHARED_PROC_TAG_NAME, iface_tag );
-  if (MB_SUCCESS != result) {
-    iface_tag = 0;
-    return MB_SUCCESS;
-  }
-  result = iFace->tag_get_handle( GEOM_DIMENSION_TAG_NAME, geom_tag );
-  if (MB_SUCCESS != result) return result;
-  
-  
-    // Get interface mesh sets
-  result = iFace->get_entities_by_type_and_tag( 0,
-                                                MBENTITYSET,
-                                                &iface_tag,
-                                                0,
-                                                1,
-                                                range );
-  if (MB_SUCCESS != result) return result;
-  
-  
-    // Populate lists of interface mesh entities
-  for (MBRange::iterator iiter = range.begin(); iiter != range.end(); ++iiter)
-  {
-    result = iFace->tag_get_data( iface_tag, &*iiter, 1, proc_pair );
-    if (MB_SUCCESS != result) return result;
-    const int remote_proc = proc_pair[0];
-    
-      // Get list of all entities in interface and 
-      // the subset of that list that are meshsets.
-    MBRange entities, sets;
-    result = iFace->get_entities_by_handle( *iiter, entities );
-    if (MB_SUCCESS != result) return result;
-    result = iFace->get_entities_by_type( *iiter, MBENTITYSET, sets );
-    if (MB_SUCCESS != result) return result;
+  MBRange iface_sets = myPcomm->interface_sets();
 
-      // Put any non-meshset entities in the list directly.
-    //range_remove( entities, sets ); //not necessary, get_entities_by_handle doesn't return sets
-    remoteMesh[remote_proc].merge( entities );
-    //remoteMesh[remote_proc].insert( *iiter );
-    
-    for (MBRange::iterator siter = sets.begin(); siter != sets.end(); ++siter)
-    {
-        // For current parallel meshing code, root processor owns
-        // all curve and geometric vertex meshes.  
-      int dimension;
-      result = iFace->tag_get_data( geom_tag, &*siter, 1, &dimension );
-      if (result == MB_SUCCESS && dimension < 2)
-        continue;
-        
-        // Put entities in list for appropriate processor.
-      //remoteMesh[remote_proc].insert( *siter );
-      entities.clear();
-      result = iFace->get_entities_by_handle( *siter, entities );
-      if (MB_SUCCESS != result) return result;
-      remoteMesh[remote_proc].merge( entities );
-    }
-  }
-  
-    // For current parallel meshing code, root processor owns
-    // all curve and geometric vertex meshes.  Find them and
-    // allocate them appropriately.
-  MBRange curves_and_verts;
-  MBTag tags[] = { geom_tag, geom_tag };
-  int value_ints[] = { 0, 1 };
-  const void* values[] = {value_ints, value_ints + 1};
-  result = iFace->get_entities_by_type_and_tag( 0, MBENTITYSET,
-                                                tags, values, 2,
-                                                curves_and_verts, 
-                                                MBInterface::UNION );
-                                                assert(MB_SUCCESS == result);
-  MBRange edges, nodes;
-  for (MBRange::iterator riter = curves_and_verts.begin();
-       riter != curves_and_verts.end(); ++riter)
-  {
-    result = iFace->get_entities_by_type( *riter, MBVERTEX, nodes ); assert(MB_SUCCESS == result);
-    result = iFace->get_entities_by_type( *riter, MBEDGE, edges ); assert(MB_SUCCESS == result);
-  }
-  std::list<ExportSet>::iterator eiter = exportList.begin();
-  for ( ; eiter != exportList.end() && eiter->type != MBEDGE; ++eiter );
-  
-  remoteMesh[0].merge( nodes );
-  remoteMesh[0].merge( edges );
-  //remoteMesh[0].merge( curves_and_verts );
-  if (myRank == 0)
-  {
-    nodeSet.range.merge( nodes );
-    //setSet.range.merge(curves_and_verts);
-    eiter->range.merge( edges );
-  } 
-  edges.merge(nodes);
-  //edges.merge(curves_and_verts);
-  for (i = 1; i < numProc; i++)
-  {
-    MBRange diff = edges.intersect( remoteMesh[i] );
-    range_remove(remoteMesh[i], diff);
-  }
-  
-  
-  
-    // For all remote mesh entities, remove them from the
-    // lists of local mesh to be exported and the ID map
-    // (they will be put back into the ID map with different
-    //  IDs later.)
-  for (i = 0; i < numProc; i++)
-  {
-    if (i == myRank) continue;
-    
-    const MBRange& range = remoteMesh[i];
-    
-    range_remove( nodeSet.range, range );
-    //range_remove( setSet.range, range );
-    for (std::list<ExportSet>::iterator eiter = exportList.begin();
-         eiter != exportList.end(); ++eiter )
-      range_remove( eiter->range, range );
-    
-    //for (MBRange::const_pair_iterator pi = range.const_pair_begin();
-    //     pi != range.const_pair_end(); ++pi) 
-    //  idMap.erase( pi->first, pi->second - pi->first + 1 );
+    // Populate lists of interface mesh entities
+  for (MBRange::iterator ifit = iface_sets.begin(); ifit != iface_sets.end(); ifit++) {
+    int owner;
+    result = myPcomm->get_owner(*ifit, owner);
+    if (MB_SUCCESS != result || -1 == owner) return result;
+
+    result = iFace->get_entities_by_handle(*ifit, remoteMesh[owner], true);
+    if (MB_SUCCESS != result) return result;
   }
   
     // print some debug output summarizing what we've accomplished
-  
   printdebug("Remote mesh:\n");
-  for (int ii = 0; ii < numProc; ++ii)
+  for (unsigned int ii = 0; ii < myPcomm->proc_config().proc_size(); ++ii)
   {
     printdebug("  proc %d : %d\n", ii, remoteMesh[ii].size());
     printrange( remoteMesh[ii] );
@@ -418,13 +314,12 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
   return MB_SUCCESS;
 }
 
-
-
 MBErrorCode WriteHDF5Parallel::create_file( const char* filename,
                                             bool overwrite,
                                             std::vector<std::string>& qa_records,
                                             int dimension,
-                                            bool parallel )
+                                            bool parallel,
+                                            int pcomm_no)
 {
   if (!parallel)
     return WriteHDF5::create_file(filename, overwrite, qa_records, dimension, false );
@@ -432,18 +327,33 @@ MBErrorCode WriteHDF5Parallel::create_file( const char* filename,
   MBErrorCode rval;
   int result;
   mhdf_Status status;
-    
-  result = MPI_Comm_rank( MPI_COMM_WORLD, &myRank );
-  assert(MPI_SUCCESS == result);
-  result = MPI_Comm_size( MPI_COMM_WORLD, &numProc );
-  assert(MPI_SUCCESS == result);
+
+  myPcomm = MBParallelComm::get_pcomm(iFace, pcomm_no);
+  if (0 == myPcomm) {
+    myPcomm = new MBParallelComm(iFace);
+    pcommAllocated = true;
+  }
   
   rval = gather_interface_meshes();
   if (MB_SUCCESS != rval) return rval;
+
+  rval = myPcomm->remove_nonowned_shared(nodeSet.range, -1, true, false);
+  if (MB_SUCCESS != rval) return rval;
   
+  for (std::list<ExportSet>::iterator eiter = exportList.begin();
+       eiter != exportList.end(); ++eiter ) {
+    rval = myPcomm->remove_nonowned_shared(eiter->range, -1, false, false);
+    if (MB_SUCCESS != rval) return rval;
+  }
+
+    /**************** get tag names for sets likely to be shared ***********/
+  rval = get_sharedset_tags();
+  if (MB_SUCCESS != rval) return rval;
+  
+
     /**************** Create actual file and write meta info ***************/
 
-  if (myRank == 0)
+  if (myPcomm->proc_config().proc_rank() == 0)
   {
       // create the file
     const char* type_names[MBMAXTYPE];
@@ -545,7 +455,7 @@ MBErrorCode WriteHDF5Parallel::create_file( const char* filename,
     // Populate proc_tag_offsets on root processor with the values from
     // tag_counts on each processor.
   printdebug("Exchanging tag data for %d tags.\n", num_tags);
-  std::vector<unsigned long> proc_tag_offsets(2*num_tags*numProc);
+  std::vector<unsigned long> proc_tag_offsets(2*num_tags*myPcomm->proc_config().proc_size());
   result = MPI_Gather( &tag_counts[0], 2*num_tags, MPI_UNSIGNED_LONG,
                  &proc_tag_offsets[0], 2*num_tags, MPI_UNSIGNED_LONG,
                        0, MPI_COMM_WORLD );
@@ -563,7 +473,7 @@ MBErrorCode WriteHDF5Parallel::create_file( const char* filename,
     tag_counts[2*i] = tag_counts[2*i+1] = 0;
     unsigned long next_offset = 0;
     unsigned long next_var_len_offset = 0;
-    for (int j = 0; j < numProc; j++)
+    for (unsigned int j = 0; j < myPcomm->proc_config().proc_size(); j++)
     {
       unsigned long count = proc_tag_offsets[2*i + j*2*num_tags];
       proc_tag_offsets[2*i + j*2*num_tags] = next_offset;
@@ -576,7 +486,7 @@ MBErrorCode WriteHDF5Parallel::create_file( const char* filename,
       tag_counts[2*i + 1] += count;
     }
 
-    if (0 == myRank)
+    if (0 == myPcomm->proc_config().proc_rank())
     {
       rval = create_tag(tag_iter->tag_id, next_offset, next_var_len_offset);
       assert(MB_SUCCESS == rval);
@@ -622,7 +532,7 @@ MBErrorCode WriteHDF5Parallel::create_file( const char* filename,
   
   /************** Close serial file and reopen parallel *****************/
   
-  if (0 == myRank)
+  if (0 == myPcomm->proc_config().proc_rank())
   {
     mhdf_closeFile( filePtr, &status );
   }
@@ -648,17 +558,17 @@ MBErrorCode WriteHDF5Parallel::create_node_table( int dimension )
   mhdf_Status status;
  
     // gather node counts for each processor
-  std::vector<long> node_counts(numProc);
+  std::vector<long> node_counts(myPcomm->proc_config().proc_size());
   long num_nodes = nodeSet.range.size();
   result = MPI_Gather( &num_nodes, 1, MPI_LONG, &node_counts[0], 1, MPI_LONG, 0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
   
     // create node data in file
   long first_id;
-  if (myRank == 0)
+  if (myPcomm->proc_config().proc_rank() == 0)
   {
     int total = 0;
-    for (int i = 0; i < numProc; i++)
+    for (unsigned int i = 0; i < myPcomm->proc_config().proc_size(); i++)
       total += node_counts[i];
       
     hid_t handle = mhdf_createNodeCoords( filePtr, dimension, total, &first_id, &status );
@@ -676,11 +586,11 @@ MBErrorCode WriteHDF5Parallel::create_node_table( int dimension )
   nodeSet.first_id = (id_t)first_id;
    
       // calculate per-processor offsets
-  if (myRank == 0)
+  if (myPcomm->proc_config().proc_rank() == 0)
   {
     int prev_size = node_counts[0];
     node_counts[0] = 0;
-    for (int i = 1; i < numProc; ++i)
+    for (unsigned int i = 1; i < myPcomm->proc_config().proc_size(); ++i)
     {
       int mysize = node_counts[i];
       node_counts[i] = node_counts[i-1] + prev_size;
@@ -736,7 +646,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
   
     // Get number of types each processor has
   int num_types = 2*exportList.size();
-  std::vector<int> counts(numProc);
+  std::vector<int> counts(myPcomm->proc_config().proc_size());
   result = MPI_Gather( &num_types, 1, MPI_INT, &counts[0], 1, MPI_INT, 0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
   
@@ -764,11 +674,11 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
   #endif
 
     // Get list of types from each processor
-  std::vector<int> displs(numProc + 1);
+  std::vector<int> displs(myPcomm->proc_config().proc_size() + 1);
   displs[0] = 0;
-  for (long i = 1; i <= numProc; ++i)
+  for (unsigned long i = 1; i <= myPcomm->proc_config().proc_size(); ++i)
     displs[i] = displs[i-1] + counts[i-1];
-  int total = displs[numProc];
+  int total = displs[myPcomm->proc_config().proc_size()];
   std::vector<int> alltypes(total);
   result = MPI_Gatherv( &my_types[0], my_types.size(), MPI_INT,
                         &alltypes[0], &counts[0], &displs[0], MPI_INT,
@@ -778,7 +688,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
     // Merge type lists
   std::list<elemtype> type_list;
   std::list<elemtype>::iterator liter;
-  for (int i = 0; i < numProc; ++i)
+  for (unsigned int i = 0; i < myPcomm->proc_config().proc_size(); ++i)
   {
     int* proc_type_list = &alltypes[displs[i]];
     liter = type_list.begin();
@@ -867,7 +777,7 @@ MBErrorCode WriteHDF5Parallel::create_element_tables()
     // Get number of each element type from each processor
   const int numtypes = exportList.size();
   std::vector<long> my_counts(numtypes);
-  std::vector<long> counts(numtypes * numProc + numtypes);
+  std::vector<long> counts(numtypes * myPcomm->proc_config().proc_size() + numtypes);
   viter = my_counts.begin();
   for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
     { *viter = ex_iter->range.size(); ++viter; }
@@ -880,7 +790,7 @@ MBErrorCode WriteHDF5Parallel::create_element_tables()
   for (int i = 0; i < numtypes; i++) 
   {
     long prev = 0;
-    for (int j = 0; j <= numProc; j++)
+    for (unsigned int j = 0; j <= myPcomm->proc_config().proc_size(); j++)
     {
       long tmp = counts[j*numtypes + i];
       counts[j*numtypes+i] = prev;
@@ -901,10 +811,10 @@ MBErrorCode WriteHDF5Parallel::create_element_tables()
   
     // Create element tables
   std::vector<long> start_ids(numtypes);
-  if (myRank == 0)
+  if (myPcomm->proc_config().proc_rank() == 0)
   {
     viter = start_ids.begin();
-    long* citer = &counts[numtypes * numProc];
+    long* citer = &counts[numtypes * myPcomm->proc_config().proc_size()];
     for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
     {
       rval = create_elem_tables( ex_iter->type,
@@ -938,7 +848,9 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
 {
   MBErrorCode rval;
   mhdf_Status status;
-  int i, j, result;
+  unsigned int j;
+  int i, result;
+
 #ifdef WRITE_NODE_ADJACENCIES  
   const int numtypes = exportList.size()+1;
 #else
@@ -946,7 +858,7 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
 #endif
   std::vector<long>::iterator viter;
   std::list<ExportSet>::iterator ex_iter;
-  std::vector<long> local(numtypes), all(numProc * numtypes + numtypes);
+  std::vector<long> local(numtypes), all(myPcomm->proc_config().proc_size() * numtypes + numtypes);
   
     // Get adjacency counts for local processor
   viter = local.begin();
@@ -974,7 +886,7 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
   for (i = 0; i < numtypes; i++) 
   {
     long prev = 0;
-    for (j = 0; j <= numProc; j++)
+    for (unsigned j = 0; j <= myPcomm->proc_config().proc_size(); j++)
     {
       long tmp = all[j*numtypes + i];
       all[j*numtypes+i] = prev;
@@ -985,8 +897,8 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
     // For each element type for which there is no adjacency data,
     // send -1 to all processors as the offset
   for (i = 0; i < numtypes; ++i)
-    if (all[numtypes*numProc+i] == 0)
-      for (j = 0; j < numProc; ++j)
+    if (all[numtypes*myPcomm->proc_config().proc_size()+i] == 0)
+      for (j = 0; j < myPcomm->proc_config().proc_size(); ++j)
         all[j*numtypes+i] = -1;
   
     // Send offsets back to each processor
@@ -1004,9 +916,9 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
     { ex_iter->adj_offset = *viter; ++viter; }
   
     // Create data tables in file
-  if (myRank == 0)
+  if (myPcomm->proc_config().proc_rank() == 0)
   {
-    viter = all.begin() + (numtypes * numProc);
+    viter = all.begin() + (numtypes * myPcomm->proc_config().proc_size());
 #ifdef WRITE_NODE_ADJACENCIES  
     if (*viter) {
       hid_t handle = mhdf_createAdjacency( filePtr, 
@@ -1105,7 +1017,8 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
                         RemoteSetData& data, long& offset )
 {
   MBErrorCode rval;
-  int i, result;
+  int i;
+  int result;
   MBRange::iterator riter;
 
   rval = iFace->tag_get_handle( tags.filterTag.c_str(), data.filter_tag );
@@ -1160,7 +1073,7 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
   printdebug("Found %d meshsets with \"%s\" tag.\n", data.range.size(), tags.filterTag.c_str() );
 
     // Exchange number of sets with tag between all processors
-  data.counts.resize(numProc);
+  data.counts.resize(myPcomm->proc_config().proc_size());
   int count = data.range.size();
   result = MPI_Allgather( &count,          1, MPI_INT, 
                           &data.counts[0], 1, MPI_INT,
@@ -1168,11 +1081,11 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
   assert(MPI_SUCCESS == result);
 
     // Exchange tag values for sets between all processors
-  data.displs.resize(numProc+1);
+  data.displs.resize(myPcomm->proc_config().proc_size()+1);
   data.displs[0] = 0;
-  for (i = 1; i <= numProc; i++)
-    data.displs[i] = data.displs[i-1] + data.counts[i-1];
-  int total = data.displs[numProc];
+  for (unsigned int j = 1; j <= myPcomm->proc_config().proc_size(); j++)
+    data.displs[j] = data.displs[j-1] + data.counts[j-1];
+  int total = data.displs[myPcomm->proc_config().proc_size()];
   data.all_values.resize(total);
   data.local_values.resize(count);
   rval = iFace->tag_get_data( data.data_tag, data.range, &data.local_values[0] );
@@ -1187,10 +1100,10 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
   std::vector<int> sorted( data.all_values );
   std::sort( sorted.begin(), sorted.end() );
   int r = 0, w = 0;
-  for (i = 0; i < numProc; ++i)
+  for (unsigned j = 0; j < myPcomm->proc_config().proc_size(); ++j)
   {
     const int start = w;
-    for (int j = 0; j < data.counts[i]; ++j)
+    for (int i = 0; i < data.counts[j]; ++i)
     {
       std::vector<int>::iterator p 
         = std::lower_bound( sorted.begin(), sorted.end(), data.all_values[r] );
@@ -1202,7 +1115,7 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
       }
       ++r;
     }
-    data.counts[i] = w - start;
+    data.counts[j] = w - start;
   }
   total = w;
   data.all_values.resize( total );
@@ -1227,15 +1140,15 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
     ++r;
   }
   count = data.range.size();
-  assert( count == data.counts[myRank] );
+  assert( count == data.counts[myPcomm->proc_config().proc_rank()] );
   assert( count == w );
   data.local_values.resize( count );
   sorted.clear(); // release storage
   
     // recalculate displacements for updated counts
   data.displs[0] = 0;
-  for (i = 1; i <= numProc; i++)
-    data.displs[i] = data.displs[i-1] + data.counts[i-1];
+  for (unsigned int j = 1; j <= myPcomm->proc_config().proc_size(); j++)
+    data.displs[j] = data.displs[j-1] + data.counts[j-1];
   
     // Find sets that span multple processors and update appropriately.
     // The first processor (sorted by MPI rank) that contains a given set
@@ -1259,7 +1172,7 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
     {
       id = (int)++offset;
       val_id_map[data.all_values[i]] = id;
-      //const unsigned int values_offset = (unsigned)i - (unsigned)data.displs[myRank];
+      //const unsigned int values_offset = (unsigned)i - (unsigned)data.displs[myPcomm->proc_config().proc_rank()];
       //if (values_offset < (unsigned)count)
       //{
       //  riter = data.range.begin();
@@ -1300,11 +1213,11 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   MBRange::const_iterator riter;
 
   START_SERIAL;
-  print_type_sets( iFace, myRank, numProc, setSet.range );
+  print_type_sets( iFace, myPcomm->proc_config().proc_rank(), myPcomm->proc_config().proc_size(), setSet.range );
   END_SERIAL;
 
     // Gather data about multi-processor meshsets - removes sets from setSet.range
-  cpuParallelSets.resize( numProc );
+  cpuParallelSets.resize( myPcomm->proc_config().proc_size() );
   std::vector<RemoteSetData> remote_set_data( multiProcSetTags.list.size() );
   for (i = 0; i< (int)multiProcSetTags.list.size(); i++)
   {
@@ -1317,21 +1230,21 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
 
   START_SERIAL;
   printdebug("myLocalSets\n");
-  print_type_sets( iFace, myRank, numProc, setSet.range );
+  print_type_sets( iFace, myPcomm->proc_config().proc_rank(), myPcomm->proc_config().proc_size(), setSet.range );
   END_SERIAL;
 
     // Gather counts of non-shared sets from each proc
     // to determine total table size.
-  std::vector<long> set_offsets(numProc + 1);
+  std::vector<long> set_offsets(myPcomm->proc_config().proc_size() + 1);
   long local_count = setSet.range.size();
   result = MPI_Gather( &local_count,    1, MPI_LONG,
                        &set_offsets[0], 1, MPI_LONG,
                        0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
-  for (i = 0; i <= numProc; i++)
+  for (unsigned int j = 0; j <= myPcomm->proc_config().proc_size(); j++)
   {
-    long tmp = set_offsets[i];
-    set_offsets[i] = total_offset;
+    long tmp = set_offsets[j];
+    set_offsets[j] = total_offset;
     total_offset += tmp;
   }
   
@@ -1343,8 +1256,8 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   setSet.offset = (id_t)(sets_offset);
 
     // Create the set description table
-  long total_count_and_start_id[2] = { set_offsets[numProc], 0 };
-  if (myRank == 0 && total_count_and_start_id[0] > 0)
+  long total_count_and_start_id[2] = { set_offsets[myPcomm->proc_config().proc_size()], 0 };
+  if (myPcomm->proc_config().proc_rank() == 0 && total_count_and_start_id[0] > 0)
   {
     rval = create_set_meta( (id_t)total_count_and_start_id[0], total_count_and_start_id[1] );
     assert (MB_SUCCESS == rval);
@@ -1360,7 +1273,7 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   printdebug("Non-shared sets: %ld local, %ld global, offset = %ld, first_id = %ld\n",
     local_count, total_count_and_start_id[0], sets_offset, total_count_and_start_id[1] );
   printdebug("my Parallel Sets:\n");
-  print_type_sets(iFace, myRank, numProc, cpuParallelSets[myRank] );
+  print_type_sets(iFace, myPcomm->proc_config().proc_rank(), myPcomm->proc_config().proc_size(), cpuParallelSets[myPcomm->proc_config().proc_rank()] );
   END_SERIAL;
   
     // Not writing any sets??
@@ -1388,16 +1301,16 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   long data_counts[3];
   rval = count_set_size( setSet.range, rangeSets, data_counts[0], data_counts[1], data_counts[2] );
   if (MB_SUCCESS != rval) return rval;
-  std::vector<long> set_counts(3*numProc);
+  std::vector<long> set_counts(3*myPcomm->proc_config().proc_size());
   result = MPI_Gather( data_counts,    3, MPI_LONG,
                        &set_counts[0], 3, MPI_LONG,
                        0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
-  for (i = 0; i < 3*numProc; ++i)
+  for (unsigned int j = 0; j < 3*myPcomm->proc_config().proc_size(); ++j)
   {
-    long tmp = set_counts[i];
-    set_counts[i] = data_offsets[i%3];
-    data_offsets[i%3] += tmp;
+    long tmp = set_counts[j];
+    set_counts[j] = data_offsets[j%3];
+    data_offsets[j%3] += tmp;
   }
   long all_counts[] = {data_offsets[0], data_offsets[1], data_offsets[2]};
   result = MPI_Scatter( &set_counts[0], 3, MPI_LONG,
@@ -1409,7 +1322,7 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   setParentsOffset = data_offsets[2];
   
     // Create set contents and set children tables
-  if (myRank == 0)
+  if (myPcomm->proc_config().proc_rank() == 0)
   {
     rval = create_set_tables( all_counts[0], all_counts[1], all_counts[2] );
     if (MB_SUCCESS != rval) return rval;
@@ -1464,8 +1377,8 @@ void WriteHDF5Parallel::remove_remote_sets( MBEntityHandle relative,
   for(MBRange::iterator i = remaining.begin(); i != remaining.end(); ++i)
   {
       // Look for the first CPU which knows about both sets.
-    int cpu;
-    for (cpu = 0; cpu < numProc; ++cpu)
+    unsigned int cpu;
+    for (cpu = 0; cpu < myPcomm->proc_config().proc_size(); ++cpu)
       if (cpuParallelSets[cpu].find(relative) != cpuParallelSets[cpu].end() &&
           cpuParallelSets[cpu].find(*i) != cpuParallelSets[cpu].end())
         break;
@@ -1473,9 +1386,9 @@ void WriteHDF5Parallel::remove_remote_sets( MBEntityHandle relative,
       // it could also indicate that it is a link to some set that
       // exists on this processor but is not being written, because
       // the caller requested that some subset of the mesh be written.
-    //assert(cpu < numProc);
+    //assert(cpu < myPcomm->proc_config().proc_size());
       // If I'm the first set that knows about both, I'll handle it.
-    if (cpu == myRank)
+    if (cpu == myPcomm->proc_config().proc_rank())
       result.insert( *i );
   }
   
@@ -1589,11 +1502,11 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
   
     // Exchange sizes for sets between all processors.
   std::vector<long> all_sizes(3*total);
-  std::vector<int> counts(numProc), displs(numProc);
-  for (i = 0; i < (unsigned)numProc; i++)
+  std::vector<int> counts(myPcomm->proc_config().proc_size()), displs(myPcomm->proc_config().proc_size());
+  for (i = 0; i < (unsigned)myPcomm->proc_config().proc_size(); i++)
     counts[i] = 3 * data.counts[i];
   displs[0] = 0;
-  for (i = 1; i < (unsigned)numProc; i++)
+  for (i = 1; i < (unsigned)myPcomm->proc_config().proc_size(); i++)
     displs[i] = displs[i-1] + counts[i-1];
   result = MPI_Allgatherv( &local_sizes[0], 3*count, MPI_LONG,
                            &all_sizes[0], &counts[0], &displs[0], MPI_LONG,
@@ -1616,7 +1529,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
   for (i = 0; i < total; ++i)
   {
     const std::map<int,int>::iterator p = tagsort.find( data.all_values[i] );
-    const unsigned r = (unsigned)(i - data.displs[myRank]);  // offset in "local" array
+    const unsigned r = (unsigned)(i - data.displs[myPcomm->proc_config().proc_rank()]);  // offset in "local" array
     
       // If this is the first instance of this tag value, 
       // then the processor with this instance is responsible
@@ -1715,18 +1628,18 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
   }
 
 #ifdef DEBUG  
-START_SERIAL; if (counts[myRank]) {
+START_SERIAL; if (counts[myPcomm->proc_config().proc_rank()]) {
 std::string name1, name2;
 iFace->tag_get_name( data.data_tag, name1 );
 iFace->tag_get_name( data.filter_tag, name2 );
 printdebug("Remote set data\n" );
 printdebug("    %13s %13s owner local_offsets total_counts\n", name1.c_str(), name2.c_str());
-for (unsigned d = 0; d < (unsigned)counts[myRank]; ++d) {
+for (unsigned d = 0; d < (unsigned)counts[myPcomm->proc_config().proc_rank()]; ++d) {
 switch(d%3) {
   case 0: // data/contents
-printdebug("   %13d %13d %5s %13d %12d\n", data.all_values[(d+displs[myRank])/3], 
+printdebug("   %13d %13d %5s %13d %12d\n", data.all_values[(d+displs[myPcomm->proc_config().proc_rank()])/3], 
  data.filter_value, 
- all_sizes[d+displs[myRank]] < 0 ? "no" : "yes", 
+ all_sizes[d+displs[myPcomm->proc_config().proc_rank()]] < 0 ? "no" : "yes", 
  local_offsets[d], local_sizes[d] );
   break;
   case 1: // children
@@ -1744,7 +1657,7 @@ END_SERIAL;
     // Store each parallel meshset in the list
   sizes_iter = local_sizes.begin();
   offset_iter = local_offsets.begin();
-  std::vector<long>::iterator all_iter = all_sizes.begin() + displs[myRank];
+  std::vector<long>::iterator all_iter = all_sizes.begin() + displs[myPcomm->proc_config().proc_rank()];
   for (riter = data.range.begin(); riter != data.range.end(); ++riter)
   {
     ParallelSet info;
@@ -1993,7 +1906,7 @@ MBErrorCode WriteHDF5Parallel::communicate_remote_ids( MBEntityType type )
   
     // Communicate the number of ranges and the start_id for
     // each processor.
-  std::vector<int> counts(numProc), offsets(numProc), displs(numProc);
+  std::vector<int> counts(myPcomm->proc_config().proc_size()), offsets(myPcomm->proc_config().proc_size()), displs(myPcomm->proc_config().proc_size());
   int mycount = myranges.size();
   int mystart = export_set->first_id + export_set->offset;
   result = MPI_Allgather( &mycount, 1, MPI_INT, &counts[0], 1, MPI_INT, MPI_COMM_WORLD );
@@ -2003,9 +1916,9 @@ MBErrorCode WriteHDF5Parallel::communicate_remote_ids( MBEntityType type )
   
     // Communicate the ranges 
   displs[0] = 0;
-  for (int i = 1; i < numProc; ++i)
+  for (unsigned int i = 1; i < myPcomm->proc_config().proc_size(); ++i)
     displs[i] = displs[i-1] + counts[i-1];
-  std::vector<unsigned long> allranges( displs[numProc-1] + counts[numProc-1] );
+  std::vector<unsigned long> allranges( displs[myPcomm->proc_config().proc_size()-1] + counts[myPcomm->proc_config().proc_size()-1] );
   result = MPI_Allgatherv( &myranges[0], myranges.size(), MPI_UNSIGNED_LONG,
                            &allranges[0], &counts[0], &displs[0],
                            MPI_UNSIGNED_LONG, MPI_COMM_WORLD );
@@ -2018,9 +1931,9 @@ MBErrorCode WriteHDF5Parallel::communicate_remote_ids( MBEntityType type )
     // Set file IDs for each communicated entity
     
     // For each processor
-  for (int proc = 0; proc < numProc; ++proc)
+  for (unsigned int proc = 0; proc < myPcomm->proc_config().proc_size(); ++proc)
   {
-    if (proc == myRank)
+    if (proc == myPcomm->proc_config().proc_rank())
       continue;
     
       // Get data for corresponding processor
@@ -2063,7 +1976,7 @@ MBErrorCode WriteHDF5Parallel::communicate_remote_ids( MBEntityType type )
       for (int ii = 0; ii < count; ii+=2) 
       printdebug("***  %u to %u\n", (unsigned)ranges[ii], (unsigned)ranges[ii+1] );
       MBRange junk; junk.insert( global );
-      print_type_sets( iFace, myRank, numProc, junk );
+      print_type_sets( iFace, myPcomm->proc_config().proc_rank(), myPcomm->proc_config().proc_size(), junk );
       }
       assert(j < count);
       int fileid = offset + steps + (global - low);
@@ -2072,5 +1985,56 @@ MBErrorCode WriteHDF5Parallel::communicate_remote_ids( MBEntityType type )
     } // for(r_iter->range)
   } // for(each processor)
   
+  return MB_SUCCESS;
+}
+
+MBErrorCode WriteHDF5Parallel::get_sharedset_tags() 
+{
+    // get all the sets
+  MBRange all_sets;
+  MBErrorCode result = iFace->get_entities_by_type_and_tag(0, MBENTITYSET, NULL, NULL, 0,
+                                                           all_sets);
+  if (MB_SUCCESS != result || all_sets.empty()) return result;
+  
+    // get all the tags on those sets & test against known exceptions
+  std::set<MBTag> all_tags;
+  std::vector<MBTag> all_tagsv;
+  std::string tag_name;
+  
+  for (MBRange::iterator rit = all_sets.begin(); rit != all_sets.end(); rit++) {
+    all_tagsv.clear();
+    result = iFace->tag_get_tags_on_entity(*rit, all_tagsv);
+    if (MB_SUCCESS != result) return result;
+
+    for (std::vector<MBTag>::iterator vit = all_tagsv.begin(); vit != all_tagsv.end(); vit++) {
+        // don't look at tags already selected
+      if (std::find(all_tags.begin(), all_tags.end(), *vit) != all_tags.end()) continue;
+
+        // get name
+      result = iFace->tag_get_name(*vit, tag_name);
+      if (MB_SUCCESS != result) return result;
+
+        // look for known exclusions
+      const char *tag_cstr = tag_name.c_str();
+      if (
+        !((tag_cstr[0] == '_' && tag_cstr[1] == '_') ||
+          tag_name == PARALLEL_SHARED_PROC_TAG_NAME ||
+          tag_name == PARALLEL_SHARED_PROCS_TAG_NAME ||
+          tag_name == PARALLEL_SHARED_HANDLE_TAG_NAME ||
+          tag_name == PARALLEL_SHARED_HANDLES_TAG_NAME ||
+          tag_name == PARALLEL_STATUS_TAG_NAME ||
+          tag_name == PARALLEL_COMM_TAG_NAME
+          ))
+        all_tags.insert(*vit);
+    }
+  }
+  
+    // now add the tag names to the list
+  for (std::set<MBTag>::iterator sit = all_tags.begin(); sit != all_tags.end(); sit++) {
+    result = iFace->tag_get_name(*sit, tag_name);
+    if (MB_SUCCESS != result) return result;
+    multiProcSetTags.add( tag_name);
+  }
+    
   return MB_SUCCESS;
 }

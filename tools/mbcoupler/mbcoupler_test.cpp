@@ -110,7 +110,7 @@ int main(int argc, char **argv)
   
     // output mesh
   const char *outfile = "output.h5m";
-  result = mbImpl->write_file(outfile, NULL, NULL,
+  result = mbImpl->write_file(outfile, NULL, "PARALLEL=FORMAT",
                               pcs[1]->partition_sets());
   PRINT_LAST_ERROR;
   std::cout << "Wrote " << outfile << std::endl;

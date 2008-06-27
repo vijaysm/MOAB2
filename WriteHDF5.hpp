@@ -82,7 +82,8 @@ protected:
                                    bool overwrite,
                                    std::vector<std::string>& qa_records,
                                    int dimension = 3,
-                                   bool parallel = false );
+                                   bool parallel = false,
+                                   int pcomm_no = 0);
 
 
   /** Functions that the parallel version overrides*/

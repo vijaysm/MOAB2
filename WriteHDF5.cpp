@@ -439,7 +439,10 @@ DEBUGOUT( "Creating File\n" );
     // Create the file layout, including all tables (zero-ed) and
     // all structure and meta information.
   parallel = (MB_SUCCESS == opts.match_option( "PARALLEL", "FORMAT" ));
-  result = create_file( filename, overwrite, qa_records, user_dimension, parallel );
+  int pcomm_no = 0;
+  opts.get_int_option("PARALLEL_COMM", pcomm_no);
+  result = create_file( filename, overwrite, qa_records, user_dimension, 
+                        parallel, pcomm_no );
   if (MB_SUCCESS != result)
     return result;
 
@@ -1992,7 +1995,8 @@ MBErrorCode WriteHDF5::create_file( const char* filename,
                                     bool overwrite,
                                     std::vector<std::string>& qa_records,
                                     int dimension,
-                                    bool parallel )
+                                    bool parallel,
+                                    int pcomm_no)
 {
   long first_id;
   mhdf_Status status;
@@ -2004,7 +2008,7 @@ MBErrorCode WriteHDF5::create_file( const char* filename,
   // overridden with an alternate version in WriteHDF5Parallel
   // that supports parallel I/O.  If we're here and parallel == true,
   // then MOAB was not built with support for parallel HDF5 I/O.
-  if (parallel)
+  if (parallel || pcomm_no)
     return MB_NOT_IMPLEMENTED;
   
   const char* type_names[MBMAXTYPE];
