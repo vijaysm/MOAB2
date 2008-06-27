@@ -69,6 +69,8 @@ class MBCartVect
     
     inline double length() const; //!< vector length
     
+    inline double length_squared() const;
+    
     inline void normalize(); //!< make unit length
     
     inline void flip(); //!< flip direction
@@ -111,6 +113,9 @@ inline MBCartVect& MBCartVect::operator*=( const MBCartVect& v )
 
 inline double MBCartVect::length() const
   { return std::sqrt( *this % *this ); }
+
+inline double MBCartVect::length_squared() const
+  { return d[0]*d[0] + d[1]*d[1] + d[2]*d[2]; }
 
 inline void MBCartVect::normalize()
   { *this /= length(); }

@@ -34,10 +34,12 @@ libmbcoupler_la_includedir = $(includedir)
 # check that only libraries are going in $(libdir)
 cfgdir = $(libdir)
 
-TESTS = findpt_test
+TESTS = findpt_test elem_util_test
 check_PROGRAMS = $(TESTS)
 findpt_test_SOURCES = findpt_test.cpp
 findpt_test_LDADD = libmbcoupler.la $(top_builddir)/libMOAB.la
+elem_util_test_SOURCES = ElemUtilTest.cpp
+elem_util_test_LDADD = libmbcoupler.la $(top_builddir)/libMOAB.la
 
 if PARALLEL
   TESTS += mbcoupler_test

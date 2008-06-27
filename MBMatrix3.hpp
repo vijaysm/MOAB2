@@ -147,6 +147,7 @@ public:
   
   inline MBMatrix3 transpose() const;
   
+  inline bool invert();
 };
 
 inline MBMatrix3 operator+( const MBMatrix3& a, const MBMatrix3& b )
@@ -215,6 +216,23 @@ inline MBMatrix3 MBMatrix3::inverse() const
                     i * (d[3] * d[7] - d[6] * d[4]),
                     i * (d[1] * d[6] - d[7] * d[0]),
                     i * (d[0] * d[4] - d[3] * d[1]) );
+}
+
+inline bool MBMatrix3::invert()
+{
+  double i = 1.0 / determinant();
+  if (!finite(i) || fabs(i) < std::numeric_limits<double>::epsilon())
+    return false;
+  *this= MBMatrix3( i * (d[4] * d[8] - d[5] * d[7]),
+                    i * (d[2] * d[7] - d[8] * d[1]),
+                    i * (d[1] * d[5] - d[4] * d[2]),
+                    i * (d[5] * d[6] - d[8] * d[3]),
+                    i * (d[0] * d[8] - d[6] * d[2]),
+                    i * (d[2] * d[3] - d[5] * d[0]),
+                    i * (d[3] * d[7] - d[6] * d[4]),
+                    i * (d[1] * d[6] - d[7] * d[0]),
+                    i * (d[0] * d[4] - d[3] * d[1]) );
+  return true;
 }
 
 inline MBMatrix3 MBMatrix3::transpose() const
