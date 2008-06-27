@@ -45,6 +45,22 @@ MBCartVect hex_map( const MBCartVect& xi, const MBCartVect* corners )
   return x *= 0.125;
 }
 
+static void hex_bounding_box( const MBCartVect* corners, MBCartVect& min, MBCartVect& max  )
+{
+  min = max = corners[0];
+  for (unsigned i = 1; i < 8; ++i)
+    for (unsigned d = 0; d < 3; ++d)
+      if (corners[i][d] < min[d])
+        min[d] = corners[i][d];
+      else if (corners[i][d] > max[d])
+        max[d] = corners[i][d];
+}
+
+static bool in_range( const MBCartVect& xi )
+  { return fabs(xi[0]) <= 1 
+        && fabs(xi[1]) <= 1 
+        && fabs(xi[2]) <= 1; 
+  }        
 
 void test_hex_nat_coords()
 {
@@ -79,5 +95,41 @@ void test_hex_nat_coords()
       }
     }
   }
+  
+    // test points outside of element
+  MBCartVect x, min, max;
+  hex_bounding_box( cube_corners, min, max );
+  for (x[0] = -1; x[0] <= 2; x[0] += 0.4) {
+    for (x[1] = -1; x[1] <= 2; x[1] += 0.4) {
+      for (x[2] = -1; x[2] <= 2; x[2] += 0.4) {
+        bool in_box = x[0] >= min[0] && x[0] <= max[0] 
+                   && x[1] >= min[1] && x[1] <= max[1]
+                   && x[2] >= min[2] && x[2] <= max[2];
+        if (in_box)
+          continue;
+        valid = MBElemUtil::nat_coords_trilinear_hex( cube_corners, x, result_xi, EPS/10 );
+//std::cout << (valid ? 'y' : 'n');
+        CHECK(!valid || !in_range(result_xi));
+      }
+    }
+  }
+//std::cout << std::endl;
+
+  hex_bounding_box( hex_corners, min, max );
+  for (x[0] = -1; x[0] <= 3; x[0] += 0.5) {
+    for (x[1] = -2; x[1] <= 4; x[1] += 0.5) {
+      for (x[2] = -1; x[2] <= 2; x[2] += 0.4) {
+        bool in_box = x[0] >= min[0] && x[0] <= max[0] 
+                   && x[1] >= min[1] && x[1] <= max[1]
+                   && x[2] >= min[2] && x[2] <= max[2];
+        if (in_box)
+          continue;
+        valid = MBElemUtil::nat_coords_trilinear_hex( hex_corners, x, result_xi, EPS/10 );
+//std::cout << (valid ? 'y' : 'n');
+        CHECK(!valid || !in_range(result_xi));
+      }
+    }
+  }
+//std::cout << std::endl;
 }
   
