@@ -851,6 +851,7 @@ static MBErrorCode best_subdivision_snap_plane( int num_planes,
   const MBCartVect box_min(iter.box_min());
   const MBCartVect box_max(iter.box_max());
   const MBCartVect diff(box_max - box_min);
+  const MBCartVect tol(eps*diff);
   
   MBRange entities, vertices;
   r = iter.tool()->moab()->get_entities_by_handle( iter.handle(), entities );
@@ -876,11 +877,13 @@ static MBErrorCode best_subdivision_snap_plane( int num_planes,
     for (int p = 1; p <= plane_count; ++p) {
       double coord = box_min[axis] + (p/(1.0+plane_count)) * diff[axis];
       double closest_coord = tmp_data[0];
+      if (closest_coord - box_min[axis] <= tol[axis] || closest_coord - box_max[axis] >= -tol[axis])
+        closest_coord = 0.5 * (box_min[axis] + box_max[axis]);
       for (unsigned i = 1; i < tmp_data.size(); ++i) 
-        if (fabs(coord-tmp_data[i]) < fabs(coord-closest_coord))
+        if ((fabs(coord-tmp_data[i]) < fabs(coord-closest_coord)) &&
+            (coord - box_min[axis] > tol[axis]) && 
+            (coord - box_max[axis] < -tol[axis]))
           closest_coord = tmp_data[i];
-      if (closest_coord <= box_min[axis] || closest_coord >= box_max[axis])
-        continue;
       MBAdaptiveKDTree::Plane plane = { closest_coord, axis };
       MBRange left, right, both;
       double val;
