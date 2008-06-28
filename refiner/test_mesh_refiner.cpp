@@ -34,22 +34,6 @@ int TestMeshRefiner( int argc, char* argv[] )
   MBInterface* imesh = new MBCore( rank, nprocs );
   MBInterface* omesh = input_is_output ? imesh : new MBCore( rank, nprocs );
 
-  // Print out the process ranks, one at a time.
-#ifdef USE_MPI
-  for ( int i = 0; i < nprocs; ++ i )
-    {
-    MPI_Barrier( MPI_COMM_WORLD );
-    if ( i == rank )
-      {
-      std::cout << "Rank: " << ( rank + 1 ) << " of: " << nprocs << "\n";
-      }
-    MPI_Barrier( MPI_COMM_WORLD );
-    }
-#endif // USE_MPI
-
-  // The refiner will need an implicit function to be used as an indicator function for subdivision:
-  MBEdgeSizeSimpleImplicit* eval = new MBEdgeSizeSimpleImplicit();
-  eval->set_ratio( 2. );
 #ifdef USE_MPI
   // Use an MBParallelComm object to help set up the input mesh
   MBParallelComm* ipcomm = new MBParallelComm( imesh );
@@ -99,6 +83,9 @@ int TestMeshRefiner( int argc, char* argv[] )
   imesh->list_entities( 0, 1 );
 #endif // USE_MPI
 
+  // The refiner will need an implicit function to be used as an indicator function for subdivision:
+  MBEdgeSizeSimpleImplicit* eval = new MBEdgeSizeSimpleImplicit();
+  eval->set_ratio( 2. );
   // Refine the mesh
   MBMeshRefiner* mref = new MBMeshRefiner( imesh, omesh );
   MBSimplexTemplateRefiner* eref = new MBSimplexTemplateRefiner;
