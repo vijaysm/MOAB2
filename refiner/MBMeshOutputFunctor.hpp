@@ -114,12 +114,14 @@ public:
       std::cout << ", " << vcoords[i];
     std::cout << " ] ";
 
+#if 0
     double* x = (double*)vtags;
     int* m = (int*)( (char*)vtags + 2 * sizeof( double ) );
     std::cout << "< " << x[0]
               << ", " << x[1];
     for ( int i = 0; i < 4; ++i )
       std::cout << ", " << m[i];
+#endif // 0
     std::cout << " >\n";
     }
 
