@@ -92,7 +92,7 @@ int main(int argc, char **argv)
         << "===   =====" << std::endl
         << " 1     <linear_ints> <shared_verts> " << std::endl
         << " 2     <n_ints> " << std::endl
-        << " 3*    <file_name> [<tag_name>=\"MATERIAL_SET\" [tag_val] [distribute=1] ]" << std::endl
+        << " 3*    <file_name> [<tag_name>=\"MATERIAL_SET\" [tag_val] [distribute=1] [resolve_shared=1] [with_ghosts=1]" << std::endl
         << " 4    <file_name> " << std::endl
         << "*Note: if opt 3 is used, it must be the last one." << std::endl;
     
@@ -148,10 +148,9 @@ int main(int argc, char **argv)
         if (npos < argc) tag_val = strtol(argv[npos++], NULL, 0);
         if (npos < argc) distrib = strtol(argv[npos++], NULL, 0);
         else distrib = 1;
-        if (npos < argc) {
-          with_ghosts = strtol(argv[npos++], NULL, 0);
-          resolve_shared = with_ghosts;
-        }
+        if (npos < argc) resolve_shared = strtol(argv[npos++], NULL, 0);
+        if (npos < argc) with_ghosts = strtol(argv[npos++], NULL, 0);
+
         tmp_result = read_file(mbImpl, filenames, tag_name, tag_val,
                                distrib, parallel_option, 
                                resolve_shared, with_ghosts);
