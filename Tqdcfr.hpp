@@ -24,6 +24,7 @@
 #include "MBForward.hpp"
 #include "MBReaderIface.hpp"
 #include "MBTagConventions.hpp"
+#include "MBRange.hpp"
 
 #include <stdio.h>
 #include <string>
@@ -121,6 +122,8 @@ public:
     unsigned int geomID, nodeCt, nodeOffset, elemCt, elemOffset, 
       elemTypeCt, elemLength;
 
+    int maxDim;
+    
     MBEntityHandle setHandle;
 
     void print();
@@ -274,7 +277,7 @@ public:
   std::vector<ModelEntry> modelEntries;
   MetaDataContainer modelMetaData;
   long currVHandleOffset;
-  MBEntityHandle firstVHandle;
+  MBRange beforeEnts;
   long currElementIdOffset[MBMAXTYPE];
   MBTag globalIdTag, cubIdTag, geomTag, uniqueIdTag, blockTag, nsTag, ssTag,
     attribVectorTag, entityNameTag, categoryTag, hasMidNodesTag;
@@ -333,6 +336,10 @@ private:
 
   MBEntityHandle mFileSet; // set containing read entities.
 
+  bool printedSeqWarning; // only print acis sequence #'s warning once
+  
+  bool printedElemWarning; // only print element #'s warning once
+  
   MBErrorCode convert_nodesets_sidesets();
 
   MBErrorCode read_acis_records( const char* sat_file_name = 0 );

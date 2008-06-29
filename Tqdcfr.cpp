@@ -150,7 +150,7 @@ MBReaderIface* Tqdcfr::factory( MBInterface* iface )
 Tqdcfr::Tqdcfr(MBInterface *impl) 
     : cubFile(NULL), globalIdTag(0), geomTag(0), uniqueIdTag(0), 
       blockTag(0), nsTag(0), ssTag(0), attribVectorTag(0), entityNameTag(0),
-      categoryTag(0), hasMidNodesTag(0)
+      categoryTag(0), hasMidNodesTag(0), printedSeqWarning(false), printedElemWarning(false)
 {
   assert(NULL != impl);
   mdbImpl = impl;
@@ -160,7 +160,6 @@ Tqdcfr::Tqdcfr(MBInterface *impl)
   readUtilIface = reinterpret_cast<MBReadUtilIface*>(ptr);
 
   currVHandleOffset = -1;
-  firstVHandle = 0;
   for (MBEntityType this_type = MBVERTEX; this_type < MBMAXTYPE; this_type++)
     currElementIdOffset[this_type] = -1;
 
@@ -214,8 +213,8 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
   mFileSet = file_set;
 
     // get "before" entities
-  MBRange before_ents;
-  result = mdbImpl->get_entities_by_handle(0, before_ents);
+  MBRange beforeEnts;
+  result = mdbImpl->get_entities_by_handle(0, beforeEnts);
   if (MB_SUCCESS != result) {
     readUtilIface->report_error("Couldn't get \"before\" entities.");
     return result;
@@ -255,26 +254,31 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
   if (MB_SUCCESS != result)
     return result;
 
-    // now read in mesh for each geometry entity
-  for (unsigned int gindex = 0; 
-       gindex < mesh_model->feModelHeader.geomArray.numEntities;
-       gindex++) {
-    Tqdcfr::GeomHeader *geom_header = &mesh_model->feGeomH[gindex];
+    // now read in mesh for each geometry entity; read in order of increasing dimension
+    // so we have all the mesh we need
+  for (int dim = 0; dim < 4; dim++) {
+    for (unsigned int gindex = 0; 
+         gindex < mesh_model->feModelHeader.geomArray.numEntities;
+         gindex++) {
+      Tqdcfr::GeomHeader *geom_header = &mesh_model->feGeomH[gindex];
 
-      // read nodes
-    if (debug) std::cout << "Reading geom index " << gindex << " mesh: nodes... ";
-    result = read_nodes(gindex, mesh_model, geom_header); 
-    if (MB_SUCCESS != result)
-      return result;
+      if (geom_header->maxDim != dim) continue;
+
+        // read nodes
+      if (debug) std::cout << "Reading geom index " << gindex << " mesh: nodes... ";
+      result = read_nodes(gindex, mesh_model, geom_header); 
+      if (MB_SUCCESS != result)
+        return result;
     
-      // read elements
-    if (debug) std::cout << "elements... ";
-    result = read_elements(mesh_model, geom_header); 
-    if (MB_SUCCESS != result)
-      return result;
-    if (debug) std::cout << std::endl;
+        // read elements
+      if (debug) std::cout << "elements... ";
+      result = read_elements(mesh_model, geom_header); 
+      if (MB_SUCCESS != result)
+        return result;
+      if (debug) std::cout << std::endl;
+    }
   }
-
+  
     // ***********************
     // read acis records...
     // ***********************
@@ -364,7 +368,7 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
   if (MB_SUCCESS != result) 
     return result;
 
-  after_ents = after_ents.subtract(before_ents);
+  after_ents = after_ents.subtract(beforeEnts);
   result = mdbImpl->add_entities(mFileSet, after_ents);
 
   return result;
@@ -975,6 +979,15 @@ MBErrorCode Tqdcfr::read_nodes(const unsigned int gindex,
     // get node ids in uint_buf
   FREADI(entity->nodeCt);
 
+  if (debug) {
+    std::cout << "(";
+    for (unsigned int i = 0; i < entity->nodeCt; i++) {
+      std::cout << uint_buf[i];
+      if (i != entity->nodeCt-1) std::cout << ", ";
+    }
+    std::cout << ")...";
+  }
+
     // get a space for reading nodal data directly into MB, and read that data
   MBEntityHandle vhandle = 0;
   std::vector<double*> arrays;
@@ -983,8 +996,6 @@ MBErrorCode Tqdcfr::read_nodes(const unsigned int gindex,
                                  readUtilIface->parallel_rank(), 
                                  vhandle, arrays);
 
-  if (!firstVHandle) firstVHandle = vhandle;
-  
     // get node x's in arrays[0]
   FREADDA(entity->nodeCt, arrays[0]);
     // get node y's in arrays[1]
@@ -1016,7 +1027,7 @@ MBErrorCode Tqdcfr::read_nodes(const unsigned int gindex,
       // get all vertices, removing ones in this batch
     MBRange vrange, tmp_range(dum_range);
     result = mdbImpl->get_entities_by_type(0, MBVERTEX, vrange); RR;
-    if (1 != firstVHandle) tmp_range.insert(1, firstVHandle-1);
+    if (!beforeEnts.empty()) tmp_range.merge(beforeEnts.subset_by_type(MBVERTEX));
     vrange = vrange.subtract(tmp_range);
       // compute the max cid; map is indexed by cid, so size is max_cid+1
 #define MAX(a,b) (a > b ? a : b)
@@ -1150,6 +1161,9 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
       // get MB element type from cub file's 
     MBEntityType elem_type = mp_type_to_mb_type[int_type];
     max_dim = (max_dim < MBCN::Dimension(elem_type) ? MBCN::Dimension(elem_type) : max_dim);
+
+    if (debug)
+      std::cout << "type " << MBCN::EntityTypeName(elem_type) << ":";
     
       // get element ids
     FREADI(num_elem);
@@ -1158,8 +1172,10 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     int contig;
     unsigned int max_id, min_id;
     check_contiguous(num_elem, contig, min_id, max_id);
-    if (0 == contig)
+    if (0 == contig && !printedElemWarning) {
       std::cout << "Element ids are not contiguous!" << std::endl;
+      printedElemWarning = true;
+    }
     
       // get a space for reading connectivity data directly into MB
     MBEntityHandle *conn, start_handle;
@@ -1171,7 +1187,7 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     MBRange dum_range(start_handle, start_handle+num_elem-1);
         
     long elem_offset;
-    elem_offset = start_handle - int_buf[0];
+    elem_offset = (1 == contig ? start_handle - int_buf[0] : int_buf[num_elem-1]);
     if (-1 == currElementIdOffset[elem_type])
       currElementIdOffset[elem_type] = elem_offset;
 
@@ -1188,13 +1204,13 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
       // post-process connectivity into handles
     MBEntityHandle new_handle;
     for (unsigned int j = 0; j < total_conn; j++) {
+      if (debug) {
+        if (0 == j) std::cout << "Conn=";
+        std::cout << ", " << uint_buf[j];
+      }
       if (NULL == cubMOABVertexMap)
         new_handle = (MBEntityHandle) currVHandleOffset+uint_buf[j];
       else {
-        if (debug) {
-          if (0 == i) std::cout << "Conn";
-          std::cout << ", " << uint_buf[j];
-        }
         assert(uint_buf[j] < cubMOABVertexMap->size() &&
                0 != (*cubMOABVertexMap)[uint_buf[j]]);
         new_handle = (*cubMOABVertexMap)[uint_buf[j]];
@@ -1475,6 +1491,25 @@ MBErrorCode Tqdcfr::GeomHeader::read_info_header(const unsigned int model_offset
     instance->uidSetMap[geom_headers[i].geomID] = geom_headers[i].setHandle;
   }
 
+    // now get the dimensions of elements for each geom entity
+  for (unsigned int i = 0; i < info.numEntities; i++) {
+    if (geom_headers[i].elemTypeCt == 0) continue;
+    instance->FSEEK(model_offset+geom_headers[i].elemOffset);
+    for (unsigned int j = 0; j < geom_headers[i].elemTypeCt; j++) {
+        // for this elem type, get the type, nodes per elem, num elems
+      instance->FREADI(3);
+      int int_type = instance->uint_buf[0];
+      int nodes_per_elem = instance->uint_buf[1];
+      int num_elem = instance->uint_buf[2];
+      MBEntityType elem_type = mp_type_to_mb_type[int_type];
+      geom_headers[i].maxDim = std::max(geom_headers[i].maxDim, 
+                                        (int)MBCN::Dimension(elem_type));
+      if (j < geom_headers[i].elemTypeCt-1) 
+        instance->FREADI(num_elem + num_elem*nodes_per_elem);
+    }
+    
+  }
+
   return MB_SUCCESS;
 }
 
@@ -1717,7 +1752,10 @@ void Tqdcfr::ModelEntry::print_geom_headers(const char *prefix,
   if (!debug) return;
   std::cout << prefix << std::endl;
   if (NULL != header)
-    for (unsigned int i = 0; i < num_headers; i++) header[i].print();
+    for (unsigned int i = 0; i < num_headers; i++) {
+      std::cout << "Index " << i << std::endl;
+      header[i].print();
+    }
 }
 
 void Tqdcfr::ModelEntry::print_group_headers(const char *prefix,
@@ -2249,8 +2287,10 @@ MBErrorCode Tqdcfr::process_record(AcisRecord &this_record)
     if (this_record.rec_type != Tqdcfr::UNKNOWN) {
 
         // print a warning if it looks like there are sequence numbers
-      if (type_substr != this_record.att_string.c_str())
+      if (type_substr != this_record.att_string.c_str() && !printedSeqWarning) {
         std::cout << "Warning: acis file has sequence numbers!" << std::endl;
+        printedSeqWarning = true;
+      }
 
         // scan ahead to the next white space
       type_substr = strchr(type_substr, ' ');
@@ -2310,7 +2350,7 @@ void Tqdcfr::FEModelHeader::print()
 
 Tqdcfr::GeomHeader::GeomHeader()
     : geomID(0), nodeCt(0), nodeOffset(0), elemCt(0), elemOffset(0), 
-      elemTypeCt(0), elemLength(0), setHandle(0)
+      elemTypeCt(0), elemLength(0), maxDim(0), setHandle(0)
 {}
 
 void Tqdcfr::GeomHeader::print() 
