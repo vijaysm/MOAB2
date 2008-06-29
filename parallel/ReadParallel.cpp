@@ -14,7 +14,7 @@
 #include <algorithm>
 #include <assert.h>
 
-const bool debug = true;
+const bool debug = false;
 
 #define RR(a) if (MB_SUCCESS != result) {                               \
       dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(a); \
