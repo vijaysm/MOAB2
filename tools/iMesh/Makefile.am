@@ -39,9 +39,9 @@ if PARALLEL
   partest_SOURCES = partest.cpp
   partest_DEPENDENCIES = libiMesh.la $(top_builddir)/libMOAB.la 
 
-  check_PROGRAMS += ftest
-  ftest_SOURCES = ftest.F
-  ftest_DEPENDENCIES = libiMesh.la $(top_builddir)/libMOAB.la 
+#  check_PROGRAMS += ftest
+#  ftest_SOURCES = ftest.F
+#  ftest_DEPENDENCIES = libiMesh.la $(top_builddir)/libMOAB.la 
 endif
 
 lib_LTLIBRARIES = libiMesh.la

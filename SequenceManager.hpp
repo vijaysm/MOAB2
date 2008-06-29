@@ -422,7 +422,8 @@ class SequenceManager
                                                      int values_per_entity,
                                               MBEntityID start_id_hint,
                                                      int processor_rank,
-                                          SequenceData*& data_out );
+                                            SequenceData*& data_out,
+                                            MBEntityID &data_size );
   
     const MBHandleUtils handleUtils;
     TypeSequenceManager typeData[MBMAXTYPE];

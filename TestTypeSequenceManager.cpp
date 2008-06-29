@@ -1,6 +1,7 @@
 #include "TypeSequenceManager.hpp"
 #include "EntitySequence.hpp"
 #include "SequenceData.hpp"
+#include "MBEntityHandle.h"
 #include "TestUtil.hpp"
 
 void test_basic();
@@ -762,35 +763,36 @@ void test_find_free_sequence()
 {
   MBEntityHandle start;
   SequenceData* data = 0;
+  MBEntityID data_size = 0;
   TypeSequenceManager seqman;
   make_basic_sequence( seqman ); // { [3,7], [100,111], [1001] }
   SequenceData* expdata = (*seqman.begin())->data();
   
-  start = seqman.find_free_sequence( 2, 1, 3, data );
+  start = seqman.find_free_sequence( 2, 1, 3, data, data_size );
   CHECK_EQUAL( expdata, data );
   CHECK_EQUAL( (MBEntityHandle)1, start );
   
-  start = seqman.find_free_sequence( 3, 1, 7, data );
+  start = seqman.find_free_sequence( 3, 1, 7, data, data_size );
   CHECK_EQUAL( (MBEntityHandle)0, start );
   CHECK_EQUAL( NULL, data );
   
-  start = seqman.find_free_sequence( 30, 1, 120, data );
+  start = seqman.find_free_sequence( 30, 1, 120, data, data_size );
   CHECK_EQUAL( expdata, data );
   CHECK( start == 8 || start == 70 );
   
-  start = seqman.find_free_sequence( 10, 92, 999, data );
+  start = seqman.find_free_sequence( 10, 92, 999, data, data_size );
   CHECK_EQUAL( expdata, data );
   CHECK_EQUAL( (MBEntityHandle)112, start );
   
-  start = seqman.find_free_sequence( 100, 1, 600, data );
+  start = seqman.find_free_sequence( 100, 1, 600, data, data_size );
   CHECK_EQUAL( expdata, data );
   CHECK_EQUAL( (MBEntityHandle)112, start );
   
-  start = seqman.find_free_sequence( 1000, 1, MB_END_ID, data );
+  start = seqman.find_free_sequence( 1000, 1, MB_END_ID, data, data_size );
   CHECK_EQUAL( expdata, data );
   CHECK_EQUAL( (MBEntityHandle)1002, start );
   
-  start = seqman.find_free_sequence( 980, 1, 1800, data );
+  start = seqman.find_free_sequence( 980, 1, 1800, data, data_size );
   CHECK_EQUAL( (MBEntityHandle)0, start );
   CHECK_EQUAL( NULL, data );
 }

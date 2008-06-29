@@ -186,7 +186,8 @@ MBErrorCode SequenceManager::create_vertex( unsigned proc_id,
   
   if (seq == typeData[MBVERTEX].end()) {
     SequenceData* seq_data = 0;
-    handle = typeData[MBVERTEX].find_free_sequence( DEFAULT_VERTEX_SEQUENCE_SIZE, start, end, seq_data );
+    MBEntityID seq_data_size = 0;
+    handle = typeData[MBVERTEX].find_free_sequence( DEFAULT_VERTEX_SEQUENCE_SIZE, start, end, seq_data, seq_data_size );
     if (!handle) 
       return MB_FAILURE;
     
@@ -247,8 +248,8 @@ MBErrorCode SequenceManager::create_element( MBEntityType type,
     if (type == MBPOLYGON || type == MBPOLYHEDRON) {
       size = default_poly_sequence_size( conn_len );
     }
-    
-    handle = typeData[type].find_free_sequence( size, start, end, seq_data, conn_len );
+    MBEntityID seq_data_size = 0;
+    handle = typeData[type].find_free_sequence( size, start, end, seq_data, seq_data_size, conn_len );
     if (!handle) 
       return MB_FAILURE;
     
@@ -309,7 +310,8 @@ MBErrorCode SequenceManager::create_mesh_set( unsigned proc_id,
   
   if (seq == typeData[MBENTITYSET].end()) {
     SequenceData* seq_data = 0;
-    handle = typeData[MBENTITYSET].find_free_sequence( DEFAULT_MESHSET_SEQUENCE_SIZE, start, end, seq_data );
+    MBEntityID seq_data_size = 0;
+    handle = typeData[MBENTITYSET].find_free_sequence( DEFAULT_MESHSET_SEQUENCE_SIZE, start, end, seq_data, seq_data_size );
     if (!handle) 
       return MB_FAILURE;
     
@@ -428,7 +430,8 @@ SequenceManager::sequence_start_handle( MBEntityType type,
                                         int size,
                                         MBEntityID start,
                                         int proc,
-                                        SequenceData*& data )
+                                        SequenceData*& data,
+                                        MBEntityID &data_size)
 {
   TypeSequenceManager &tsm = typeData[type];
   data = 0;
@@ -437,7 +440,7 @@ SequenceManager::sequence_start_handle( MBEntityType type,
       !tsm.is_free_sequence( handle, count, data, size )) {
     MBEntityHandle pstart = handleUtils.create_handle( type, MB_START_ID, proc );
     MBEntityHandle pend   = handleUtils.create_handle( type, MB_END_ID,  proc );
-    handle = tsm.find_free_sequence( count, pstart, pend, data, size );
+    handle = tsm.find_free_sequence( count, pstart, pend, data, data_size, size);
   }
   return handle;
 }
@@ -478,7 +481,9 @@ SequenceManager::create_entity_sequence( MBEntityType type,
     proc = handleUtils.proc_rank();
 
   SequenceData* data = 0;
-  handle = sequence_start_handle( type, count, size, start, proc, data );
+  MBEntityID data_size = 0;
+  handle = sequence_start_handle( type, count, size, start, proc, data, data_size );
+    
   if (!handle)
     return MB_MEMORY_ALLOCATION_FAILED;
   
@@ -493,10 +498,12 @@ SequenceManager::create_entity_sequence( MBEntityType type,
 
     if (data)
       sequence = new VertexSequence( handle, count, data );
-    else 
-      sequence = new VertexSequence( handle, count, 
-           new_sequence_size( handle, count, DEFAULT_VERTEX_SEQUENCE_SIZE ) );
-    
+    else {
+      if (!data_size)
+        data_size = new_sequence_size(handle, count, 
+                                      DEFAULT_VERTEX_SEQUENCE_SIZE);
+      sequence = new VertexSequence( handle, count, data_size );
+    }
     break;
   
   case MBPOLYGON:
@@ -506,10 +513,12 @@ SequenceManager::create_entity_sequence( MBEntityType type,
 
     if (data)
       sequence = new PolyElementSeq( handle, count, size, data );
-    else 
-      sequence = new PolyElementSeq( handle, count, size, 
-           new_sequence_size( handle, count, default_poly_sequence_size(size) ) );
-
+    else {
+      if (!data_size)
+        data_size = new_sequence_size(handle, count, 
+                                      default_poly_sequence_size(size));
+      sequence = new PolyElementSeq( handle, count, size, data_size );
+    }
     break;
   
   default:
@@ -518,9 +527,12 @@ SequenceManager::create_entity_sequence( MBEntityType type,
 
     if (data)
       sequence = new UnstructuredElemSeq( handle, count, size, data );
-    else 
-      sequence = new UnstructuredElemSeq( handle, count, size, 
-           new_sequence_size( handle, count, DEFAULT_ELEMENT_SEQUENCE_SIZE ) );
+    else {
+      if (!data_size)
+        data_size = new_sequence_size(handle, count, 
+                                      DEFAULT_ELEMENT_SEQUENCE_SIZE);
+      sequence = new UnstructuredElemSeq( handle, count, size, data_size );
+    }
       // tjt calling new_sequence_size 'cuz don't have a sequence data;
       // start 41467, count 246
     break;
@@ -552,7 +564,9 @@ SequenceManager::create_meshset_sequence( MBEntityID count,
     proc = handleUtils.proc_rank();
 
   SequenceData* data = 0;
-  handle = sequence_start_handle( MBENTITYSET, count, 0, start, proc, data );
+  MBEntityID data_size = 0;
+  handle = sequence_start_handle( MBENTITYSET, count, 0, start, proc, data, data_size );
+
   if (!handle)
     return MB_MEMORY_ALLOCATION_FAILED;
   
@@ -589,7 +603,8 @@ SequenceManager::create_meshset_sequence( MBEntityID count,
     proc = handleUtils.proc_rank();
 
   SequenceData* data = 0;
-  handle = sequence_start_handle( MBENTITYSET, count, 0, start, proc, data );
+  MBEntityID data_size = 0;
+  handle = sequence_start_handle( MBENTITYSET, count, 0, start, proc, data, data_size );
   if (!handle)
     return MB_MEMORY_ALLOCATION_FAILED;
   
@@ -644,7 +659,9 @@ SequenceManager::create_scd_sequence( int imin, int jmin, int kmin,
   
     // get a start handle
   SequenceData* data = 0;
-  handle = sequence_start_handle( type, num_ent, -1, start_id_hint, processor_id, data );
+  MBEntityID data_size = 0;
+  handle = sequence_start_handle( type, num_ent, -1, start_id_hint, processor_id, data, data_size );
+
   if (!handle)
     return MB_MEMORY_ALLOCATION_FAILED;
   assert(!data);

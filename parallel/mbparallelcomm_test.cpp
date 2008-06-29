@@ -80,7 +80,6 @@ int main(int argc, char **argv)
     // procs on the end
 
     // get N, M from command line
-  int N, M;
   if (argc < 3) {
     if (0 == rank)
       std::cerr 

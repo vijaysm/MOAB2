@@ -473,7 +473,8 @@ MBEntityHandle TypeSequenceManager::find_free_sequence( MBEntityID num_entities,
                                                         MBEntityHandle min_start_handle,
                                                         MBEntityHandle max_end_handle,
                                                         SequenceData*& data_out,
-                                                        int num_verts )
+                                                        MBEntityID &data_size,
+                                                        int num_verts)
 {
   if (max_end_handle < min_start_handle + num_entities - 1)
     return 0;
@@ -499,6 +500,9 @@ MBEntityHandle TypeSequenceManager::find_free_sequence( MBEntityID num_entities,
     d.last = (*i)->data()->start_handle() - 1;
     if (check_range( d, true, result)) {
       data_out = 0;
+        // this will back up against the end of the seq data, so
+        // size the data that way
+      data_size = num_entities;
       return result;
     }
     p = i++;

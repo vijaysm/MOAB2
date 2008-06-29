@@ -247,6 +247,7 @@ public:
                                      MBEntityHandle min_start_handle,
                                      MBEntityHandle max_end_handle,
                                      SequenceData*& sequence_data_out,
+                                     MBEntityID &sequence_data_size,
                                      int values_per_ent = 0 );
 
     /**\brief Check if block of handles is free.
