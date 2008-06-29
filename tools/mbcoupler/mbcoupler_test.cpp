@@ -119,12 +119,12 @@ int main(int argc, char **argv)
 //      "PARALLEL_FORMAT";
       NULL;
 
-  if (pcs[1]->proc_config().proc_rank() == 0)
+  if (pcs[1]->proc_config().proc_rank() == 0) {
     result = mbImpl->write_file(outfile, NULL, out_option,
                                 pcs[1]->partition_sets());
-  PRINT_LAST_ERROR;
-  std::cout << "Wrote " << outfile << std::endl;
-
+    PRINT_LAST_ERROR;
+    std::cout << "Wrote " << outfile << std::endl;
+  }
 
   std::cout << "Success." << std::endl;
   err = MPI_Finalize();
