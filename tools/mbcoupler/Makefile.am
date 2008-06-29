@@ -41,9 +41,11 @@ findpt_test_LDADD = libmbcoupler.la $(top_builddir)/libMOAB.la
 elem_util_test_SOURCES = ElemUtilTest.cpp
 elem_util_test_LDADD = libmbcoupler.la $(top_builddir)/libMOAB.la
 
+bin_PROGRAMS = 
 if PARALLEL
-  TESTS += mbcoupler_test
-  check_PROGRAMS += mbcoupler_test
+#  TESTS += mbcoupler_test
+#  check_PROGRAMS += mbcoupler_test
+  bin_PROGRAMS += mbcoupler_test
   mbcoupler_test_SOURCES = mbcoupler_test.cpp
   mbcoupler_test_LDADD = libmbcoupler.la $(top_builddir)/libMOAB.la
   INCLUDES += -I$(srcdir)/parallel

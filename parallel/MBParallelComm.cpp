@@ -548,8 +548,10 @@ MBErrorCode MBParallelComm::broadcast_entities( const int from_proc,
   }
 
   success = MPI_Bcast( &buff_size, 1, MPI_INT, from_proc, procConfig.proc_comm() );
-  if (MPI_SUCCESS != success)
-    return MB_FAILURE;
+  if (MPI_SUCCESS != success) {
+    result = MB_FAILURE;
+    RRA("MPI_Bcast of buffer size failed.");
+  }
   
   if (!buff_size) // no data
     return MB_SUCCESS;
@@ -558,9 +560,11 @@ MBErrorCode MBParallelComm::broadcast_entities( const int from_proc,
     buff.resize(buff_size);
 
   success = MPI_Bcast( &buff[0], buff_size, MPI_UNSIGNED_CHAR, from_proc, procConfig.proc_comm() );
-  if (MPI_SUCCESS != success)
-    return MB_FAILURE;
-  
+  if (MPI_SUCCESS != success) {
+    result = MB_FAILURE;
+    RRA("MPI_Bcast of buffer failed.");
+  }
+
   if ((int)procConfig.proc_rank() != from_proc) {
     result = unpack_buffer(&buff[0], false, from_proc, entities);
     RRA("Failed to unpack buffer in broadcast_entities.");
@@ -2623,7 +2627,8 @@ MBErrorCode MBParallelComm::create_iface_pc_links()
   MBErrorCode result = mbImpl->tag_create("__tmp_iface", sizeof(MBEntityHandle),
                                           MB_TAG_DENSE, MB_TYPE_HANDLE,
                                           tmp_iface_tag, &tmp_iface_set);
-  RRA("Failed to create temporary iface set tag.");
+  if (MB_ALREADY_ALLOCATED != result && MB_SUCCESS != result) 
+    RRA("Failed to create temporary iface set tag.");
 
   MBRange iface_ents;
   std::vector<MBEntityHandle> tag_vals;

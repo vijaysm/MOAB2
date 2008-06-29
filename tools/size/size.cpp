@@ -272,7 +272,8 @@ void print_stats( set_stats& stats )
 
     double tmp_dbl = s.sqr / s.count - s.sum*s.sum / (double)s.count / (double)s.count;
     if (tmp_dbl < 0.0) {
-      assert(-tmp_dbl < 100.0*DBL_EPSILON);
+      if (-tmp_dbl < 100.0*DBL_EPSILON)
+        std::cout << "WARNING: stat values dubious, s^2 - sig_s = " << tmp_dbl << std::endl;
       tmp_dbl = 0.0;
     }
     

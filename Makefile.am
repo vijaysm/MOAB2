@@ -41,10 +41,6 @@ check_PROGRAMS = $(TESTS) \
 		 kd_tree_tool \
 		 kd_tree_time
 
-if PARALLEL 
-  check_PROGRAMS += mbparallelcomm_test
-endif
-
 #noinst_PROGRAMS = scdseq_timing
 
 
@@ -336,10 +332,6 @@ kd_tree_test_LDADD = $(top_builddir)/libMOAB.la
 
 bsp_tree_test_SOURCES = bsp_tree_test.cpp
 bsp_tree_test_LDADD = $(top_builddir)/libMOAB.la
-
-mbparallelcomm_test_SOURCES = mbparallelcomm_test.cpp
-mbparallelcomm_test_LDADD = $(top_builddir)/libMOAB.la
-mbparallelcomm_test_DEPENDENCIES = $(mbparallelcomm_test_LDADD)
 
 file_options_test_SOURCES = TestUtil.hpp FileOptions.cpp 
 file_options_test_CPPFLAGS = -DTEST

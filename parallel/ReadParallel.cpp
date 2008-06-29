@@ -12,30 +12,31 @@
 #include <iostream>
 #include <sstream>
 #include <algorithm>
+#include <assert.h>
 
 const bool debug = true;
 
-#define RR(a) if (MB_SUCCESS != result) {\
-          dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(a);\
-          return result;}
+#define RR(a) if (MB_SUCCESS != result) {                               \
+      dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(a); \
+      return result;}
 
 enum ParallelActions {PA_READ=0, PA_BROADCAST, PA_DELETE_NONLOCAL,
                       PA_CHECK_GIDS_SERIAL, PA_GET_FILESET_ENTS, 
                       PA_RESOLVE_SHARED_ENTS,
                       PA_EXCHANGE_GHOSTS};
 const char *ParallelActionsNames[] = {
-  "PARALLEL READ",
-  "PARALLEL BROADCAST", 
-  "PARALLEL DELETE NONLOCAL",
-  "PARALLEL CHECK_GIDS_SERIAL",
-  "PARALLEL GET_FILESET_ENTS",
-  "PARALLEL RESOLVE_SHARED_ENTS",
-  "PARALLEL EXCHANGE_GHOSTS"
+    "PARALLEL READ",
+    "PARALLEL BROADCAST", 
+    "PARALLEL DELETE NONLOCAL",
+    "PARALLEL CHECK_GIDS_SERIAL",
+    "PARALLEL GET_FILESET_ENTS",
+    "PARALLEL RESOLVE_SHARED_ENTS",
+    "PARALLEL EXCHANGE_GHOSTS"
 };
 
 ReadParallel::ReadParallel(MBInterface* impl, 
                            MBParallelComm *pc) 
-    : mbImpl(impl), myPcomm(pc) 
+        : mbImpl(impl), myPcomm(pc) 
 {
   if (!myPcomm) {
     myPcomm = MBParallelComm::get_pcomm(mbImpl, 0);
@@ -62,7 +63,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
                      POPT_FORMAT, POPT_LAST};
       
   MBErrorCode result = opts.match_option( "PARALLEL", parallel_opts, 
-                                        parallel_mode );
+                                          parallel_mode );
   if (MB_FAILURE == result) {
     merror->set_last_error( "Unexpected value for 'PARALLEL' option\n" );
     return MB_FAILURE;
@@ -100,7 +101,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   }
   else if (MB_SUCCESS == result) {
     int num_fields = 
-      sscanf(ghost_str.c_str(), "%d.%d.%d", &ghost_dim, &bridge_dim, &num_layers);
+        sscanf(ghost_str.c_str(), "%d.%d.%d", &ghost_dim, &bridge_dim, &num_layers);
     if (3 != num_fields) {
       merror->set_last_error( "Didn't read 3 fields from PARALLEL_GHOSTS string\n" );
       return MB_FAILURE;
@@ -117,7 +118,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   }
   else if (MB_SUCCESS == result) {
     int num_fields = 
-      sscanf(shared_str.c_str(), "%d.%d", &resolve_dim, &shared_dim);
+        sscanf(shared_str.c_str(), "%d.%d", &resolve_dim, &shared_dim);
     if (2 != num_fields) {
       merror->set_last_error( "Didn't read 2 fields from PARALLEL_RESOLVE_SHARED_ENTS string\n" );
       return MB_FAILURE;
@@ -141,42 +142,42 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   
   switch (parallel_mode) {
     case POPT_BCAST:
-      if (is_reader) {
-        pa_vec.push_back(PA_READ);
-        pa_vec.push_back(PA_CHECK_GIDS_SERIAL);
-        pa_vec.push_back(PA_GET_FILESET_ENTS);
-      }
-      pa_vec.push_back(PA_BROADCAST);
-      if (!is_reader) pa_vec.push_back(PA_GET_FILESET_ENTS);
+        if (is_reader) {
+          pa_vec.push_back(PA_READ);
+          pa_vec.push_back(PA_CHECK_GIDS_SERIAL);
+          pa_vec.push_back(PA_GET_FILESET_ENTS);
+        }
+        pa_vec.push_back(PA_BROADCAST);
+        if (!is_reader) pa_vec.push_back(PA_GET_FILESET_ENTS);
 
-      break;
+        break;
       
     case POPT_BCAST_DELETE:
-      if (is_reader) {
+        if (is_reader) {
+          pa_vec.push_back(PA_READ);
+          pa_vec.push_back(PA_CHECK_GIDS_SERIAL);
+          pa_vec.push_back(PA_GET_FILESET_ENTS);
+        }
+        pa_vec.push_back(PA_BROADCAST);
+        if (!is_reader) pa_vec.push_back(PA_GET_FILESET_ENTS);
+        pa_vec.push_back(PA_DELETE_NONLOCAL);
+        break;
+
+    case POPT_READ_DELETE:
         pa_vec.push_back(PA_READ);
         pa_vec.push_back(PA_CHECK_GIDS_SERIAL);
         pa_vec.push_back(PA_GET_FILESET_ENTS);
-      }
-      pa_vec.push_back(PA_BROADCAST);
-      if (!is_reader) pa_vec.push_back(PA_GET_FILESET_ENTS);
-      pa_vec.push_back(PA_DELETE_NONLOCAL);
-      break;
-
-    case POPT_READ_DELETE:
-      pa_vec.push_back(PA_READ);
-      pa_vec.push_back(PA_CHECK_GIDS_SERIAL);
-      pa_vec.push_back(PA_GET_FILESET_ENTS);
-      pa_vec.push_back(PA_DELETE_NONLOCAL);
-      break;
+        pa_vec.push_back(PA_DELETE_NONLOCAL);
+        break;
 
     case POPT_FORMAT:
-      merror->set_last_error( "Access to format-specific parallel read not implemented.\n");
-      return MB_NOT_IMPLEMENTED;
+        merror->set_last_error( "Access to format-specific parallel read not implemented.\n");
+        return MB_NOT_IMPLEMENTED;
     case POPT_READ_PARALLEL:
-      merror->set_last_error( "Partitioning for PARALLEL=READ_PARALLEL not supported yet.\n");
-      return MB_NOT_IMPLEMENTED;
+        merror->set_last_error( "Partitioning for PARALLEL=READ_PARALLEL not supported yet.\n");
+        return MB_NOT_IMPLEMENTED;
     default:
-      return MB_FAILURE;
+        return MB_FAILURE;
   }
 
   if (-2 != resolve_dim) pa_vec.push_back(PA_RESOLVE_SHARED_ENTS);
@@ -217,11 +218,10 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
 
   MBRange entities; 
   MBTag file_set_tag = 0;
-  int other_sets;
+  int other_sets = 0;
   MBReaderIface* reader;
   MBReaderWriterSet::iterator iter;
   MBRange other_file_sets, file_sets;
-  int tag_val, *tag_val_ptr = &tag_val;
   MBCore *impl = dynamic_cast<MBCore*>(mbImpl);
 
   std::vector<double> act_times(pa_vec.size()+1);
@@ -230,8 +230,12 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   std::vector<int>::iterator vit;
   int i, j;
   act_times[0] = MPI_Wtime();
-  MBRange all_ents, all_ents2;
   
+    // make a new set for the parallel read
+  result = mbImpl->create_meshset(MESHSET_SET, file_set);
+  if (MB_SUCCESS != result) return result;
+  bool i_read = false;
+
   for (i = 1, vit = pa_vec.begin();
        vit != pa_vec.end(); vit++, i++) {
 
@@ -239,172 +243,148 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
     switch (*vit) {
 //==================
       case PA_READ:
-        for (j = 0; j < num_files; j++) {
-          if (debug)
-            std::cout << "Reading file " << file_names[j] << std::endl;
-
-          MBEntityHandle new_file_set;
+          i_read = true;
           
-          reader = impl->reader_writer_set()->
-            get_file_extension_reader( file_names[j] );
-          if (reader)
-          { 
-            tmp_result = reader->load_file( file_names[j], new_file_set, opts, 
-                                            material_set_list, num_material_sets );
-            delete reader;
-          }
-          else
-          {  
-              // Try all the readers
-            for (iter = impl->reader_writer_set()->begin(); 
-                 iter != impl->reader_writer_set()->end(); ++iter)
-            {
-              reader = iter->make_reader( mbImpl );
-              if (NULL != reader)
+          for (j = 0; j < num_files; j++) {
+            if (debug)
+              std::cout << "Reading file " << file_names[j] << std::endl;
+
+            MBEntityHandle new_file_set = 0;
+          
+            reader = impl->reader_writer_set()->
+                get_file_extension_reader( file_names[j] );
+            if (reader)
+            { 
+              tmp_result = reader->load_file( file_names[j], new_file_set, opts, 
+                                              material_set_list, num_material_sets );
+              delete reader;
+            }
+            else
+            {  
+                // Try all the readers
+              for (iter = impl->reader_writer_set()->begin(); 
+                   iter != impl->reader_writer_set()->end(); ++iter)
               {
-                tmp_result = reader->load_file( file_names[j], new_file_set, opts, 
-                                                material_set_list, num_material_sets );
-                delete reader;
-                if (MB_SUCCESS == tmp_result)
-                  break;
+                reader = iter->make_reader( mbImpl );
+                if (NULL != reader)
+                {
+                  tmp_result = reader->load_file( file_names[j], new_file_set, opts, 
+                                                  material_set_list, num_material_sets );
+                  delete reader;
+                  if (MB_SUCCESS == tmp_result)
+                    break;
+                }
               }
             }
+
+            if (MB_SUCCESS != tmp_result) break;
+
+              // put the contents of each file set for the reader into the 
+              // file set for the parallel read
+            assert(0 != new_file_set);
+            MBRange all_ents;
+            tmp_result = mbImpl->get_entities_by_handle(new_file_set, all_ents);
+            if (MB_SUCCESS != tmp_result) break;
+            all_ents.insert(new_file_set);
+            tmp_result = mbImpl->add_entities(file_set, all_ents);
+            if (MB_SUCCESS != tmp_result) break;
           }
-
           if (MB_SUCCESS != tmp_result) break;
-          
-            // accumulate all the entities
-          tmp_result = mbImpl->get_entities_by_handle(new_file_set, all_ents2);
-          if (MB_SUCCESS != tmp_result) break;
-          all_ents.merge(all_ents2);
-        }
-
-          // make a new set for the parallel read, if necessary, 
-          // and put ents in that
-        if (0 == file_set) {
-          tmp_result = mbImpl->create_meshset(MESHSET_SET, file_set);
-          if (MB_SUCCESS != tmp_result) break;
-        }
-        tmp_result = mbImpl->add_entities(file_set, all_ents);
-        if (MB_SUCCESS != tmp_result) break;
         
-          // mark the file set
-        other_sets = 0;
-        tmp_result = mbImpl->tag_create("__file_set", sizeof(int), 
-                                        MB_TAG_SPARSE, 
-                                        MB_TYPE_INTEGER, file_set_tag, 
-                                        0, true);
-        if (MB_ALREADY_ALLOCATED == tmp_result) {
-          tmp_result = mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET,
-                                                            &file_set_tag, NULL, 1,
-                                                            other_file_sets);
-          if (MB_SUCCESS == tmp_result) other_sets = other_file_sets.size();
-        }
-        if (MB_SUCCESS == tmp_result)
+            // mark the file set for this parallel reader
+          tmp_result = mbImpl->tag_create("__file_set", sizeof(int), 
+                                          MB_TAG_SPARSE, 
+                                          MB_TYPE_INTEGER, file_set_tag, 
+                                          0, true);
+          if (MB_SUCCESS != tmp_result) break;
+        
           tmp_result = mbImpl->tag_set_data(file_set_tag, &file_set, 1, 
                                             &other_sets);
-        break;
+          break;
 
 //==================
       case PA_GET_FILESET_ENTS:
-        if (debug)
-          std::cout << "Getting fileset entities." << std::endl;
+          if (debug)
+            std::cout << "Getting fileset entities." << std::endl;
 
-        if (0 == file_set_tag) {
-          tmp_result = mbImpl->tag_get_handle("__file_set", file_set_tag);
-          if (MB_SUCCESS == tmp_result) {
-            other_file_sets.clear();
-            file_sets.clear();
-            tmp_result = mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET,
-                                                              &file_set_tag, 
-                                                              NULL, 1,
-                                                              other_file_sets);
-            if (MB_SUCCESS == tmp_result && other_file_sets.size() > 1) {
-              tag_val = other_file_sets.size();
-              result = mbImpl->get_entities_by_type_and_tag(0, MBENTITYSET,
-                                                            &file_set_tag, 
-                                                            (void*const*) 
-                                                            &tag_val_ptr, 1,
-                                                            file_sets);
-              if (!file_sets.empty()) other_file_sets = file_sets;
-            }
-            if (!other_file_sets.empty()) file_set = *other_file_sets.rbegin();
-          }
-        }
-        
-          // get entities in the file set, and add actual file set to it;
-          // mark the file set to make sure any receiving procs know which it
-          // is
-        tmp_result = mbImpl->get_entities_by_handle( file_set, entities );
-        if (MB_SUCCESS != tmp_result)
-          entities.clear();
+            // get entities in the file set, and add actual file set to it;
+            // mark the file set to make sure any receiving procs know which it
+            // is
+          tmp_result = mbImpl->get_entities_by_handle( file_set, entities );
+          if (MB_SUCCESS != tmp_result)
+            entities.clear();
 
-          // add actual file set to entities too
-        entities.insert(file_set);
-        break;
+            // add actual file set to entities too
+          entities.insert(file_set);
+          break;
 
 //==================
       case PA_BROADCAST:
-          // do the actual broadcast; if single-processor, ignore error
-        if (debug)
-          std::cout << "Broadcasting mesh." << std::endl;
+            // do the actual broadcast; if single-processor, ignore error
+          if (debug)
+            std::cout << "Broadcasting mesh." << std::endl;
 
-        if (myPcomm->proc_config().proc_size() > 1)
-          tmp_result = myPcomm->broadcast_entities( reader_rank, entities );
+          if (myPcomm->proc_config().proc_size() > 1)
+            tmp_result = myPcomm->broadcast_entities( reader_rank, entities );
 
-        if (debug) {
-          std::cerr << "Bcast done; entities:" << std::endl;
-          mbImpl->list_entities(0, 0);
-        }
-        break;
+          if (debug) {
+            std::cerr << "Bcast done; entities:" << std::endl;
+            mbImpl->list_entities(0, 0);
+          }
+
+            // add the received entities to this fileset if I wasn't the reader
+          if (!i_read)
+            tmp_result = mbImpl->add_entities(file_set, entities);
+          
+          break;
 
 //==================
       case PA_DELETE_NONLOCAL:
-        if (debug)
-          std::cout << "Deleting nonlocal entities." << std::endl;
+          if (debug)
+            std::cout << "Deleting nonlocal entities." << std::endl;
 
-        tmp_result = delete_nonlocal_entities(partition_tag_name, 
-                                              partition_tag_vals, 
-                                              distrib,
-                                              file_set);
-        if (debug) {
-          std::cerr << "Delete nonlocal done; entities:" << std::endl;
-          mbImpl->list_entities(0, 0);
-        }
-        break;
+          tmp_result = delete_nonlocal_entities(partition_tag_name, 
+                                                partition_tag_vals, 
+                                                distrib,
+                                                file_set);
+          if (debug) {
+            std::cerr << "Delete nonlocal done; entities:" << std::endl;
+            mbImpl->list_entities(0, 0);
+          }
+          break;
 
 //==================
       case PA_CHECK_GIDS_SERIAL:
-        if (debug)
-          std::cout << "Checking global ids." << std::endl;
+          if (debug)
+            std::cout << "Checking global ids." << std::endl;
 
-        tmp_result = myPcomm->check_global_ids(file_set, 0, 1, true, false);
-        break;
+          tmp_result = myPcomm->check_global_ids(file_set, 0, 1, true, false);
+          break;
         
 //==================
       case PA_RESOLVE_SHARED_ENTS:
-        if (debug)
-          std::cout << "Resolving shared entities." << std::endl;
+          if (debug)
+            std::cout << "Resolving shared entities." << std::endl;
 
-        tmp_result = myPcomm->resolve_shared_ents(file_set, resolve_dim, shared_dim);
-        break;
+          tmp_result = myPcomm->resolve_shared_ents(file_set, resolve_dim, shared_dim);
+          break;
         
 //==================
       case PA_EXCHANGE_GHOSTS:
-        if (debug)
-          std::cout << "Exchanging ghost entities." << std::endl;
+          if (debug)
+            std::cout << "Exchanging ghost entities." << std::endl;
 
-        tmp_result = myPcomm->exchange_ghost_cells(ghost_dim, bridge_dim, 
-                                                   num_layers, true);
-        break;
+          tmp_result = myPcomm->exchange_ghost_cells(ghost_dim, bridge_dim, 
+                                                     num_layers, true);
+          break;
         
 //==================
       default:
-        return MB_FAILURE;
+          return MB_FAILURE;
     }
 
     if (MB_SUCCESS != tmp_result &&
-        (*vit != PA_BROADCAST || myPcomm->proc_config().proc_size() != 1)) {
+        myPcomm->proc_config().proc_size() != 1) {
       result = tmp_result;
       std::ostringstream ostr;
       ostr << "Failed in step " << ParallelActionsNames[*vit] << std::endl;
@@ -478,12 +458,16 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
     
     MBRange tmp_sets;
       // distribute the partition sets
+    unsigned int tot_sets = myPcomm->partition_sets().size();
     unsigned int num_sets = myPcomm->partition_sets().size() / proc_sz;
     if (proc_rk < (int) (myPcomm->partition_sets().size() % proc_sz)) num_sets++;
 
-    for (unsigned int i = 0; i < num_sets; i++) 
-      tmp_sets.insert(myPcomm->partition_sets()[i*proc_sz + proc_rk]);
-
+    for (unsigned int i = 0; i < num_sets; i++) {
+// drop round-robin      tmp_sets.insert(myPcomm->partition_sets()[i*proc_sz + proc_rk]);
+      if (num_sets*proc_rk+i < tot_sets)
+        tmp_sets.insert(myPcomm->partition_sets()[num_sets*proc_rk+i]);
+    }
+    
     myPcomm->partition_sets().swap(tmp_sets);
   }
 
@@ -547,6 +531,11 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBEntityHandle file_set)
   result = mbImpl->get_entities_by_handle(file_set, file_ents); 
   RR("Couldn't get pre-existing entities.");
 
+  if (myPcomm->proc_config().proc_rank() == 0) {
+    std::cout << "File entities: " << std::endl;
+    file_ents.print("ff  ");
+  }
+  
     // get deletable entities by subtracting partition ents from file ents
   MBRange deletable_ents = file_ents.subtract(partition_ents);
 
@@ -564,13 +553,24 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBEntityHandle file_set)
   }
 
   if (debug) std::cout << "Deleting deletable entities." << std::endl;
-  
+
+  if (myPcomm->proc_config().proc_rank() == 0) {
+    std::cout << "Deletable sets: " << std::endl;
+    deletable_sets.print("ff  ");
+  }
+
     // delete sets, then ents
   if (!deletable_sets.empty())
     result = mbImpl->delete_entities(deletable_sets);
   RR("Failure deleting sets in delete_nonlocal_entities.");
 
   deletable_ents = deletable_ents.subtract(deletable_sets);
+
+  if (myPcomm->proc_config().proc_rank() == 0) {
+    std::cout << "Deletable entities: " << std::endl;
+    deletable_ents.print("ff  ");
+  }
+  
   if (!deletable_ents.empty())
     result = mbImpl->delete_entities(deletable_ents);
   RR("Failure deleting entities in delete_nonlocal_entities.");

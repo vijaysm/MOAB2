@@ -451,6 +451,8 @@ MBEntityID SequenceManager::new_sequence_size( MBEntityHandle start,
     return requested_size;
   
   MBEntityHandle last = typeData[TYPE_FROM_HANDLE(start)].last_free_handle( start );
+// tjt - when start is 41427, last comes back 41685, when there's really an entity
+    // at 41673, and 41467+246-1=41672
   if (!last) {
     assert( false );
     return 0;
@@ -519,7 +521,8 @@ SequenceManager::create_entity_sequence( MBEntityType type,
     else 
       sequence = new UnstructuredElemSeq( handle, count, size, 
            new_sequence_size( handle, count, DEFAULT_ELEMENT_SEQUENCE_SIZE ) );
-
+      // tjt calling new_sequence_size 'cuz don't have a sequence data;
+      // start 41467, count 246
     break;
   }
   

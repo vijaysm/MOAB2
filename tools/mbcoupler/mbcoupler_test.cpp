@@ -50,7 +50,7 @@ int main(int argc, char **argv)
     std::cerr << "nfiles        : number of mesh files" << std::endl;
     std::cerr << "fname1..fnamen: mesh files" << std::endl;
     std::cerr << "interp_tag    : name of tag interpolated to target mesh []" << std::endl;
-    std::cerr << "tag_name      : name of tag used to define partitions [MATERIAL_SET]" << std::endl;
+    std::cerr << "tag_name      : name of tag used to define partitions [GEOM_DIMENSION]" << std::endl;
     std::cerr << "tag_val       : tag values denoting partition sets [--]" << std::endl;
     std::cerr << "distrib       : if non-zero, distribute the partition sets with tag_val round-robin" << std::endl;
     std::cerr << "with_ghosts   : if non-zero, after initializing in parallel, also exchange one layer of ghost elements" << std::endl;
@@ -111,9 +111,13 @@ int main(int argc, char **argv)
 
     // output mesh
   const char *outfile = "output.h5m";
-  result = mbImpl->write_file(outfile, NULL, "PARALLEL=FORMAT",
-			      pcs[1]->partition_sets());
+  const char *out_option =
+//      "PARALLEL_FORMAT";
+      NULL;
 
+  if (pcs[1]->proc_config().proc_rank() == 0)
+    result = mbImpl->write_file(outfile, NULL, out_option,
+                                pcs[1]->partition_sets());
   PRINT_LAST_ERROR;
   std::cout << "Wrote " << outfile << std::endl;
 
@@ -187,7 +191,7 @@ MBErrorCode get_file_options(int argc, char **argv,
   if (npos < argc) interp_tag = argv[npos++];
   
     // get partition information
-  const char *tag_name = "MATERIAL_SET";
+  const char *tag_name = "GEOM_DIMENSION";
   int tag_val = -1;
   int distrib = 1;
   int with_ghosts = 0;
@@ -196,8 +200,11 @@ MBErrorCode get_file_options(int argc, char **argv,
   if (npos < argc) distrib = strtol(argv[npos++], NULL, 0);
   if (npos < argc) with_ghosts = strtol(argv[npos++], NULL, 0);
 
+  if (-1 == tag_val && !strcmp(tag_name, "GEOM_DIMENSION"))
+    tag_val = 3;
+  
   std::ostringstream options;
-  options << "PARALLEL=BCAST_DELETE;PARTITION=" << tag_name;
+  options << "PARALLEL=READ_DELETE;PARTITION=" << tag_name;
   
   if (-1 != tag_val)
     options << ";PARTITION_VAL=" << tag_val;
