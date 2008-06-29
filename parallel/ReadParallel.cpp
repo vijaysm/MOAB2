@@ -531,7 +531,7 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBEntityHandle file_set)
   result = mbImpl->get_entities_by_handle(file_set, file_ents); 
   RR("Couldn't get pre-existing entities.");
 
-  if (myPcomm->proc_config().proc_rank() == 0) {
+  if (debug && myPcomm->proc_config().proc_rank() == 0) {
     std::cout << "File entities: " << std::endl;
     file_ents.print("ff  ");
   }
@@ -552,13 +552,15 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBEntityHandle file_set)
     RR("Failure removing deletable entities.");
   }
 
-  if (debug) std::cout << "Deleting deletable entities." << std::endl;
+  if (debug) {
+    std::cout << "Deleting deletable entities." << std::endl;
 
-  if (myPcomm->proc_config().proc_rank() == 0) {
-    std::cout << "Deletable sets: " << std::endl;
-    deletable_sets.print("ff  ");
+    if (myPcomm->proc_config().proc_rank() == 0) {
+      std::cout << "Deletable sets: " << std::endl;
+      deletable_sets.print("ff  ");
+    }
   }
-
+  
     // delete sets, then ents
   if (!deletable_sets.empty())
     result = mbImpl->delete_entities(deletable_sets);
@@ -566,7 +568,7 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBEntityHandle file_set)
 
   deletable_ents = deletable_ents.subtract(deletable_sets);
 
-  if (myPcomm->proc_config().proc_rank() == 0) {
+  if (debug && myPcomm->proc_config().proc_rank() == 0) {
     std::cout << "Deletable entities: " << std::endl;
     deletable_ents.print("ff  ");
   }

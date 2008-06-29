@@ -9,6 +9,8 @@
 #include <sstream>
 #include <assert.h>
 
+bool debug = false;
+
 #define RRA(a) if (MB_SUCCESS != result) {\
       std::string tmp_str; mbImpl->get_last_error(tmp_str);\
       tmp_str.append("\n"); tmp_str.append(a);\
@@ -20,6 +22,7 @@
       std::string tmp_str;\
       std::cout << "Failure; message:" << std::endl;\
       std::cout << mbImpl->get_last_error(tmp_str) << std::endl;\
+      MPI_Finalize();                                     \
       return result;\
     }
 
@@ -29,7 +32,8 @@ MBErrorCode get_file_options(int argc, char **argv,
                              std::string &opts);
 
 MBErrorCode report_iface_ents(MBInterface *mbImpl,
-                              std::vector<MBParallelComm *> &pcs);
+                              std::vector<MBParallelComm *> &pcs,
+                              bool print_results);
 
 MBErrorCode test_interpolation(MBInterface *mbImpl, 
                                std::string &interp_tag,
@@ -93,7 +97,7 @@ int main(int argc, char **argv)
     PRINT_LAST_ERROR;
   }
 
-  result = report_iface_ents(mbImpl, pcs);
+  result = report_iface_ents(mbImpl, pcs, debug);
   PRINT_LAST_ERROR;
 
   if (!interp_tag.empty()) {
@@ -136,7 +140,8 @@ int main(int argc, char **argv)
 }
 
 MBErrorCode report_iface_ents(MBInterface *mbImpl,
-                              std::vector<MBParallelComm *> &pcs) 
+                              std::vector<MBParallelComm *> &pcs,
+                              const bool print_results) 
 {
   MBRange iface_ents[6];
   MBErrorCode result = MB_SUCCESS, tmp_result;
@@ -165,14 +170,16 @@ MBErrorCode report_iface_ents(MBInterface *mbImpl,
 
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  
-  std::cerr << "Proc " << rank << " iface entities: " << std::endl;
-  for (int i = 0; i < 4; i++)
-    std::cerr << "    " << iface_ents[i].size() << " "
-              << i << "d iface entities." << std::endl;
-  std::cerr << "    (" << iface_ents[5].size() 
-            << " verts adj to other iface ents)" << std::endl;
 
+  if (print_results || iface_ents[0].size() != iface_ents[5].size()) {
+    std::cerr << "Proc " << rank << " iface entities: " << std::endl;
+    for (int i = 0; i < 4; i++)
+      std::cerr << "    " << iface_ents[i].size() << " "
+                << i << "d iface entities." << std::endl;
+    std::cerr << "    (" << iface_ents[5].size() 
+              << " verts adj to other iface ents)" << std::endl;
+  }
+  
   return result;
 }
 
