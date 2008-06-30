@@ -3050,19 +3050,19 @@ bool MBParallelComm::is_iface_proc(MBEntityHandle this_set,
   return false;
 }
 
-MBErrorCode MBParallelComm::remove_nonowned_shared(MBRange &ents,
-                                                   int to_proc,
-                                                   bool owned_test,
-                                                   bool shared_test) 
+MBErrorCode MBParallelComm::get_owned_entities( const MBRange &ents,
+                                                MBRange& tmp_ents,
+                                                int to_proc,
+                                                bool owned_test,
+                                                bool shared_test ) 
 {
-    // remove from ents any entities which are not owned locally or
+    // Put into tmp_ents any entities which are not owned locally or
     // who are already shared with to_proc
   std::vector<unsigned char> shared_flags(ents.size());
   MBErrorCode result = mbImpl->tag_get_data(pstatus_tag(), ents,
                                             &shared_flags[0]);
   RRA("Failed to get pstatus flag.");
-  MBRange tmp_ents;
-  MBRange::iterator rit;
+  MBRange::const_iterator rit;
   int sharing_procs[MAX_SHARING_PROCS];
   std::fill(sharing_procs, sharing_procs+MAX_SHARING_PROCS, -1);
   int i;
@@ -3097,10 +3097,23 @@ MBErrorCode MBParallelComm::remove_nonowned_shared(MBRange &ents,
       std::fill(sharing_procs, sharing_procs+MAX_SHARING_PROCS, -1);
     }
   }
-    
-  ents.swap(tmp_ents);
   
   return MB_SUCCESS;
+}
+
+MBErrorCode MBParallelComm::remove_nonowned_shared(MBRange &ents,
+                                                   int to_proc,
+                                                   bool owned_test,
+                                                   bool shared_test) 
+{
+  MBRange tmp_ents;
+  MBErrorCode rval;
+  
+  rval = get_owned_entities( ents, tmp_ents, to_proc, owned_test, shared_test );
+  if (MB_SUCCESS == rval)
+    ents.swap(tmp_ents);
+    
+  return rval;
 }
 
 MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,

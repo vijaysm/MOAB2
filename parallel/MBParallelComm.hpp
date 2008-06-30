@@ -310,6 +310,22 @@ public:
                                      bool owned_test = true,
                                      bool shared_test = true);
   
+    /** Get entities owned by this processor (including non-shared entities).
+     *  Optionally remove from the result list any entities shared with
+     *  'to_proc'.
+     *\param ents       Input entities to check ownership of.
+     *\param owned_ents Output list.
+     *\param to_proc    Do not return owned entities if they are shared
+     *                  with this processor.
+     *\param owned_test Check entity ownership
+     *\param shared_test Test if entity is shared with 'to_proc'
+     */
+  MBErrorCode get_owned_entities( const MBRange& ents,
+                                  MBRange& owned_ents,
+                                  int to_proc = -1,
+                                  bool owned_test = true,
+                                  bool shared_test = true );
+  
 private:
 
   int num_subranges(const MBRange &this_range);
