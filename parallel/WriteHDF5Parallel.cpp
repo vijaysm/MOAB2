@@ -323,7 +323,7 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
     // Now remove from remoteMesh any entities that are not
     // in 'nonowned' because we aren't writing those entities
     // (on any processor.)
-  for (int i = 0; i < myPcomm->proc_config().proc_size(); ++i)
+  for (unsigned i = 0; i < myPcomm->proc_config().proc_size(); ++i)
     if (i != myPcomm->proc_config().proc_rank())
       remoteMesh[i] = nonowned.intersect( remoteMesh[i] );
   
