@@ -315,14 +315,6 @@ project( MOAB )
   # Point to the input decks for the tests
   configure_file( ${MOAB_SOURCE_DIR}/cmake/TestingConfig.h.in ${MOAB_BINARY_DIR}/testdir.h )
 
-  if ( MOAB_USE_MPI AND MPI_FOUND )
-     add_executable ( mbparallelcomm_test mbparallelcomm_test.cpp )
-     target_link_libraries( mbparallelcomm_test MOAB )
-     add_test( TestParallelCommunications ${EXECUTABLE_OUTPUT_PATH}/mbparallelcomm_test )
-     set_source_files_properties( mbparallelcomm_test.cpp
-       COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}" )
-  endif ( MOAB_USE_MPI AND MPI_FOUND )
-
   add_executable( moab_test MBTest.cpp )
   target_link_libraries( moab_test MOAB )
   add_test( TestMOAB ${EXECUTABLE_OUTPUT_PATH}/moab_test -nostress )

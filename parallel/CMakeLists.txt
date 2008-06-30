@@ -42,3 +42,12 @@ target_link_libraries( MOABpar
   ${MPI_LIBRARY}
   ${MPI_EXTRA_LIBRARY}
 )
+
+if ( MOAB_USE_MPI AND MPI_FOUND )
+   add_executable ( mbparallelcomm_test mbparallelcomm_test.cpp )
+   target_link_libraries( mbparallelcomm_test MOAB )
+   add_test( TestParallelCommunications ${EXECUTABLE_OUTPUT_PATH}/mbparallelcomm_test )
+   set_source_files_properties( mbparallelcomm_test.cpp
+     COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}" )
+endif ( MOAB_USE_MPI AND MPI_FOUND )
+
