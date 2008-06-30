@@ -2395,7 +2395,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBEntityHandle this_set,
   
     // get total number of entities; will overshoot highest global id, but
     // that's ok
-  int num_total, num_local;
+  int num_total = 0, num_local;
   result = mbImpl->get_number_entities_by_dimension(0, 0, num_local);
   if (MB_SUCCESS != result) return result;
   int failure = MPI_Allreduce(&num_local, &num_total, 1,
@@ -2827,7 +2827,7 @@ MBErrorCode MBParallelComm::tag_shared_verts(tuple_list &shared_ents,
     unsigned int nump = 0;
     int this_idx = shared_ents.vi[j];
     MBEntityHandle this_ent = skin_ents[0][this_idx];
-    while (shared_ents.vi[j] == this_idx) {
+    while (j < 2*shared_ents.n && shared_ents.vi[j] == this_idx) {
       j++;
       sharing_procs[nump] = shared_ents.vi[j++];
       sharing_handles[nump++] = shared_ents.vul[i++];
@@ -3352,11 +3352,11 @@ MBTag MBParallelComm::sharedps_tag()
 MBTag MBParallelComm::sharedh_tag()
 {
   if (!sharedhTag) {
-    int def_val = 0;
+    MBEntityHandle def_val = 0;
     MBErrorCode result = mbImpl->tag_create(PARALLEL_SHARED_HANDLE_TAG_NAME, 
                                             sizeof(MBEntityHandle), 
                                             MB_TAG_DENSE,
-                                            MB_TYPE_INTEGER, sharedhTag, 
+                                            MB_TYPE_HANDLE, sharedhTag, 
                                             &def_val, true);
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result)
       return 0;
