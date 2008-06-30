@@ -294,6 +294,53 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
     if (MB_SUCCESS != result) return result;
   }
   
+    // remoteMesh currently contains interface entities for the 
+    // entire mesh.  We now need to a) remove from the sets of entities
+    // and handles that this proc doesn't own and b) remove from remoteMesh
+    // any handles for entities that we aren't going to write (on any proc.)
+  
+    // First move handles of non-owned entities from lists of entities
+    // that this processor will write to the 'nonowned' list.
+    
+  MBRange tmpset, nonowned;
+  tmpset.clear();
+  result = myPcomm->get_owned_entities( nodeSet.range, tmpset );
+  if (MB_SUCCESS != result)
+    return result;
+  nodeSet.range.swap( tmpset );
+  nonowned.merge( tmpset.subtract( nodeSet.range ) );
+  
+  for (std::list<ExportSet>::iterator eiter = exportList.begin();
+       eiter != exportList.end(); ++eiter ) {
+    tmpset.clear();
+    result = myPcomm->get_owned_entities( eiter->range, tmpset );
+    if (MB_SUCCESS != result)
+      return result;
+    eiter->range.swap( tmpset );
+    nonowned.merge( tmpset.subtract( eiter->range ) );
+  }
+  
+    // Now remove from remoteMesh any entities that are not
+    // in 'nonowned' because we aren't writing those entities
+    // (on any processor.)
+  for (int i = 0; i < myPcomm->proc_config().proc_size(); ++i)
+    if (i != myPcomm->proc_config().proc_rank())
+      remoteMesh[i] = nonowned.intersect( remoteMesh[i] );
+  
+    // For the 'remoteMesh' list for this processor, just remove
+    // entities we aren't writing.
+  MBRange& my_remote_mesh = remoteMesh[myPcomm->proc_config().proc_size()];
+  tmpset = my_remote_mesh.subtract( nodeSet.range );
+  if (!tmpset.empty())
+    my_remote_mesh = my_remote_mesh.subtract( tmpset );
+  for (std::list<ExportSet>::iterator eiter = exportList.begin();
+       eiter != exportList.end(); ++eiter ) {
+    tmpset = my_remote_mesh.subtract( eiter->range );
+    if (!tmpset.empty())
+      my_remote_mesh = my_remote_mesh.subtract( tmpset );
+  }
+  
+  
     // print some debug output summarizing what we've accomplished
   printdebug("Remote mesh:\n");
   for (unsigned int ii = 0; ii < myPcomm->proc_config().proc_size(); ++ii)
@@ -336,15 +383,6 @@ MBErrorCode WriteHDF5Parallel::create_file( const char* filename,
   
   rval = gather_interface_meshes();
   if (MB_SUCCESS != rval) return rval;
-
-  rval = myPcomm->remove_nonowned_shared(nodeSet.range, -1, true, false);
-  if (MB_SUCCESS != rval) return rval;
-  
-  for (std::list<ExportSet>::iterator eiter = exportList.begin();
-       eiter != exportList.end(); ++eiter ) {
-    rval = myPcomm->remove_nonowned_shared(eiter->range, -1, false, false);
-    if (MB_SUCCESS != rval) return rval;
-  }
 
     /**************** get tag names for sets likely to be shared ***********/
   rval = get_sharedset_tags();
