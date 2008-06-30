@@ -29,6 +29,7 @@ bool debug = false;
 MBErrorCode get_file_options(int argc, char **argv, 
                              std::vector<const char *> &filenames,
                              std::string &tag_name,
+                             std::string &out_fname,
                              std::string &opts);
 
 MBErrorCode report_iface_ents(MBInterface *mbImpl,
@@ -54,6 +55,7 @@ int main(int argc, char **argv)
     std::cerr << "nfiles        : number of mesh files" << std::endl;
     std::cerr << "fname1..fnamen: mesh files" << std::endl;
     std::cerr << "interp_tag    : name of tag interpolated to target mesh []" << std::endl;
+    std::cerr << "output_fname  : name of output file" << std::endl;
     std::cerr << "tag_name      : name of tag used to define partitions [GEOM_DIMENSION]" << std::endl;
     std::cerr << "tag_val       : tag values denoting partition sets [--]" << std::endl;
     std::cerr << "distrib       : if non-zero, distribute the partition sets with tag_val round-robin" << std::endl;
@@ -79,8 +81,8 @@ int main(int argc, char **argv)
   MBErrorCode result = MB_SUCCESS;
 
   std::vector<const char *> filenames;
-  std::string opts, interp_tag;
-  result = get_file_options(argc, argv, filenames, interp_tag, opts);
+  std::string opts, interp_tag, out_fname;
+  result = get_file_options(argc, argv, filenames, interp_tag, out_fname, opts);
   
 
     // read in mesh(es)
@@ -114,16 +116,15 @@ int main(int argc, char **argv)
 
 
     // output mesh
-  const char *outfile = "output.h5m";
   const char *out_option =
 //      "PARALLEL_FORMAT";
       NULL;
 
   if (pcs[1]->proc_config().proc_rank() == 0) {
-    result = mbImpl->write_file(outfile, NULL, out_option,
+    result = mbImpl->write_file(out_fname.c_str(), NULL, out_option,
                                 pcs[1]->partition_sets());
     PRINT_LAST_ERROR;
-    std::cout << "Wrote " << outfile << std::endl;
+    std::cout << "Wrote " << out_fname << std::endl;
   }
 
   std::cout << "Success." << std::endl;
@@ -186,6 +187,7 @@ MBErrorCode report_iface_ents(MBInterface *mbImpl,
 MBErrorCode get_file_options(int argc, char **argv, 
                              std::vector<const char *> &filenames,
                              std::string &interp_tag,
+                             std::string &out_fname,
                              std::string &opts) 
 {
   int npos = 1;
@@ -196,6 +198,8 @@ MBErrorCode get_file_options(int argc, char **argv,
   for (int i = 0; i < nfiles; i++) filenames[i] = argv[npos++];
 
   if (npos < argc) interp_tag = argv[npos++];
+  
+  if (npos < argc) out_fname = argv[npos++];
   
     // get partition information
   const char *tag_name = "GEOM_DIMENSION";

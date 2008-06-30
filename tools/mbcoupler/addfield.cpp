@@ -1,16 +1,18 @@
 #include <iostream>
 #include "MBCore.hpp"
+#include <math.h>
 using namespace std;
 
 
 //make a nice picture. tweak here
 //217: x,y -> [-8, 8] /// z -> [-65, 65]
-double physField(double x, double y, double z){
+double physField(double x, double y, double z, double factor){
   double out;
 
     // 1/r^2 decay from {0,0,0}
-
-  out = x*x + y*y + z*z;
+    // tjt - changing to 1/r
+  double scale = 1.0/factor;
+  out = fabs(x*scale) + fabs(y*scale) + fabs(z*scale);
   out += 1e-1; // clamp
   out = 1/out;
 
@@ -43,7 +45,7 @@ void getHexPos(MBInterface *mbi, MBEntityHandle *hex, double &x, double &y, doub
 }
 
 
-void putElementField(MBInterface *mbi, char *tagname){
+void putElementField(MBInterface *mbi, char *tagname, double factor){
   MBRange hexes;
 
   mbi->get_entities_by_type(0, MBHEX, hexes);
@@ -61,7 +63,7 @@ void putElementField(MBInterface *mbi, char *tagname){
     double x,y,z;
     getHexPos(mbi, &hex, x,y,z);
 
-    double fieldValue =  physField(x,y,z);
+    double fieldValue =  physField(x,y,z, factor);
 
     mbi->tag_set_data(fieldTag, &hex, 1, &fieldValue);
   }
@@ -69,7 +71,7 @@ void putElementField(MBInterface *mbi, char *tagname){
 }
 
 
-void putVertexField(MBInterface *mbi, char *tagname){
+void putVertexField(MBInterface *mbi, char *tagname, double factor){
   MBRange verts;
 
   mbi->get_entities_by_type(0, MBVERTEX, verts);
@@ -85,7 +87,7 @@ void putVertexField(MBInterface *mbi, char *tagname){
     double vertPos[3];
     mbi->get_coords(&vert, 1, vertPos);
 
-    double fieldValue =  physField(vertPos[0], vertPos[1], vertPos[2]);
+    double fieldValue =  physField(vertPos[0], vertPos[1], vertPos[2], factor);
 
     mbi->tag_set_data(fieldTag, &vert, 1, &fieldValue);
   }
@@ -99,16 +101,19 @@ void putVertexField(MBInterface *mbi, char *tagname){
 int main(int argc, char **argv){
   MBInterface *mbi = new MBCore();
 
-  if (argc != 3){
-    cout << "Usage: " << argv[0] << " <infile> <outfile> \n"
+  if (argc < 3){
+    cout << "Usage: " << argv[0] << " <infile> <outfile> [factor]\n"
          << "Writes both vertex and element fields.\n";
     return 0;
   }
 
   mbi->load_mesh(argv[1]);
 
-  putVertexField(mbi, "vertex_field");
-  putElementField(mbi, "element_field");
+  double factor = 1.0;
+  if (argc == 4) factor = atof(argv[3]);
+  
+  putVertexField(mbi, "vertex_field", factor);
+  putElementField(mbi, "element_field", factor);
 
   MBErrorCode result = mbi->write_mesh(argv[2]);
   if (MB_SUCCESS == result) cout << "wrote " << argv[2] << endl;

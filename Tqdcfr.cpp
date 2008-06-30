@@ -213,7 +213,6 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
   mFileSet = file_set;
 
     // get "before" entities
-  MBRange beforeEnts;
   result = mdbImpl->get_entities_by_handle(0, beforeEnts);
   if (MB_SUCCESS != result) {
     readUtilIface->report_error("Couldn't get \"before\" entities.");
@@ -1180,10 +1179,13 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
       // get a space for reading connectivity data directly into MB
     MBEntityHandle *conn, start_handle;
     
-    readUtilIface->get_element_array(num_elem, nodes_per_elem,
+    result = readUtilIface->get_element_array(num_elem, nodes_per_elem,
                                      elem_type, int_buf[0], 
                                      readUtilIface->parallel_rank(), 
                                      start_handle, conn);
+    if (MB_SUCCESS != result)
+      return result;
+    
     MBRange dum_range(start_handle, start_handle+num_elem-1);
         
     long elem_offset;

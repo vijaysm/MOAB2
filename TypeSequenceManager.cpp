@@ -544,6 +544,7 @@ MBEntityHandle TypeSequenceManager::find_free_sequence( MBEntityID num_entities,
       d.last  = (*i)->data()->start_handle() - 1;
       if (check_range( d, false, result )) {
         data_out = 0;
+        data_size = d.last - d.first + 1;
         return result;
       }
     }
