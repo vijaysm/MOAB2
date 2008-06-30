@@ -576,8 +576,11 @@ MBEntityHandle TypeSequenceManager::last_free_handle( MBEntityHandle after_this 
   const_iterator it = lower_bound( after_this );
   if (it == end())
     return CREATE_HANDLE( TYPE_FROM_HANDLE(after_this), MB_END_ID, junk );
-  else if ((*it)->start_handle() > after_this) 
-    return (*it)->start_handle() - 1;
+  else if ((*it)->start_handle() > after_this) {
+      // need to check against the sequence data first
+    MBEntityHandle rhandle = std::min((*it)->start_handle(), (*it)->data()->start_handle());
+    return rhandle - 1;
+  }
   else
     return 0;
 }
