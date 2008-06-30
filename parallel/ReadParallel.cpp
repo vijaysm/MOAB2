@@ -383,14 +383,16 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
           return MB_FAILURE;
     }
 
-    if (MB_SUCCESS != tmp_result &&
-        myPcomm->proc_config().proc_size() != 1) {
+    if (MB_SUCCESS != tmp_result) {
       result = tmp_result;
-      std::ostringstream ostr;
-      ostr << "Failed in step " << ParallelActionsNames[*vit] << std::endl;
-      std::string tmp_str;
-      if (MB_SUCCESS == mbImpl->get_last_error(tmp_str)) ostr << tmp_str << std::endl;
-      RR(ostr.str().c_str());
+      if (myPcomm->proc_config().proc_size() != 1) {
+        std::ostringstream ostr;
+        ostr << "Failed in step " << ParallelActionsNames[*vit] << std::endl;
+        std::string tmp_str;
+        if (MB_SUCCESS == mbImpl->get_last_error(tmp_str)) ostr << tmp_str << std::endl;
+        RR(ostr.str().c_str());
+      }
+      break;
     }
 
     if (cputime) act_times[i] = MPI_Wtime();
