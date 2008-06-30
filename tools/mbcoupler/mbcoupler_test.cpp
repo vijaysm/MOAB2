@@ -120,7 +120,7 @@ int main(int argc, char **argv)
 //      "PARALLEL_FORMAT";
       NULL;
 
-  if (pcs[1]->proc_config().proc_rank() == 0) {
+  if (pcs[1]->proc_config().proc_rank() == 0 && !out_fname.empty()) {
     result = mbImpl->write_file(out_fname.c_str(), NULL, out_option,
                                 pcs[1]->partition_sets());
     PRINT_LAST_ERROR;
