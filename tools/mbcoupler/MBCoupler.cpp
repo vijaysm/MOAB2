@@ -254,6 +254,10 @@ MBErrorCode MBCoupler::test_local_box(double *xyz,
   MBErrorCode result = nat_param(xyz, entities, nat_coords);
   if (MB_SUCCESS != result) return result;
 
+    // if we didn't find any ents and we're looking locally, nothing more to do
+  if (entities.empty() && !tl) 
+    return result;
+  
     // grow if we know we'll exceed size
   if (mappedPts->n+entities.size() >= mappedPts->max)
     tuple_list_grow(mappedPts);
@@ -425,11 +429,8 @@ MBErrorCode MBCoupler::nat_param(double xyz[3],
       //test to find out in which hex the point is
 		
       // get natural coordinates
-    MBElemUtil::nat_coords_trilinear_hex(&coords_vert[0], MBCartVect(xyz), 
-                                         tmp_nat_coords, 1e-10);
-    if (-1.0 <= tmp_nat_coords[0] && tmp_nat_coords[0] <= 1.0 &&
-        -1.0 <= tmp_nat_coords[1] && tmp_nat_coords[1] <= 1.0 &&
-        -1.0 <= tmp_nat_coords[2] && tmp_nat_coords[2] <= 1.0) {
+    if (MBElemUtil::nat_coords_trilinear_hex(&coords_vert[0], MBCartVect(xyz), 
+                                             tmp_nat_coords, 1e-10)) {
       entities.push_back(*iter);
       nat_coords.push_back(tmp_nat_coords);
       return MB_SUCCESS;
