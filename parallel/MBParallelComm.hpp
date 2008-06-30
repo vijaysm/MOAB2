@@ -324,7 +324,7 @@ public:
                                   MBRange& owned_ents,
                                   int to_proc = -1,
                                   bool owned_test = true,
-                                  bool shared_test = true );
+                                  bool shared_test = false );
   
 private:
 
