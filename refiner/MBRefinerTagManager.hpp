@@ -51,12 +51,20 @@ public:
   MBInterface* get_input_mesh() { return this->input_mesh; }
   MBInterface* get_output_mesh() { return this->output_mesh; }
 
+  MBTag shared_proc() { return this->tag_psproc; }
+  MBTag shared_procs() { return this->tag_psprocs; }
+
 protected:
   std::vector< std::pair< MBTag, int > > input_vertex_tags;
   std::vector< std::pair< MBTag, int > > output_vertex_tags;
   int vertex_size;
   MBInterface* input_mesh;
   MBInterface* output_mesh;
+  MBTag tag_pstatus; // Handle for PARALLEL_STATUS on mesh_in
+  MBTag tag_psprocs; // Handle for PARALLEL_SHARED_PROCS on mesh_in
+  MBTag tag_psproc;  // Handle for PARALLEL_SHARED_PROC on mesh_in
+  MBTag tag_pshands; // Handle for PARALLEL_SHARED_HANDLES on mesh_in
+  MBTag tag_pshand;  // Handle for PARALLEL_SHARED_HANDLE on mesh_in
 };
 
 #endif // MB_REFINERTAGMANAGER_H

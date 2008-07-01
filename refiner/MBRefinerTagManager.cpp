@@ -1,6 +1,7 @@
 #include "MBRefinerTagManager.hpp"
 
 #include "MBInterface.hpp"
+#include "MBParallelComm.hpp"
 
 #include <iostream>
 #include <assert.h>
@@ -15,6 +16,20 @@ MBRefinerTagManager::MBRefinerTagManager( MBInterface* in_mesh, MBInterface* out
   this->input_mesh = in_mesh;
   this->output_mesh = out_mesh;
   this->reset_vertex_tags();
+  MBParallelComm* ipcomm = MBParallelComm::get_pcomm( this->input_mesh, 0 );
+  if ( ipcomm )
+    {
+    ipcomm->get_shared_proc_tags(
+      this->tag_psproc, this->tag_psprocs,
+      this->tag_pshand, this->tag_pshands,
+      this->tag_pstatus );
+    }
+  else
+    {
+    this->tag_psproc = this->tag_psprocs = 0;
+    this->tag_pshand = this->tag_pshands = 0;
+    this->tag_pstatus = 0;
+    }
 }
 
 /// Destruction is virtual so subclasses may clean up after refinement.

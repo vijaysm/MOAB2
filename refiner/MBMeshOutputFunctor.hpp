@@ -3,8 +3,10 @@
 
 #include "MBTypes.h"
 #include "MBEntityRefiner.hpp"
+#include "MBParallelComm.hpp"
 
 #include <iostream>
+#include <set>
 #include <map>
 
 template< int _n >
@@ -26,7 +28,7 @@ public:
         return true;
       else if ( this->handles[i] > other.handles[i] )
         return false;
-    return true;
+    return false;
     }
 
   MBEntityHandle handles[_n];
@@ -35,13 +37,34 @@ public:
 class MBSplitVerticesBase
 {
 public:
-  MBSplitVerticesBase( MBInterface* m )
+  MBSplitVerticesBase( MBRefinerTagManager* tag_mgr )
     {
-    this->mesh = m;
+    this->tag_manager = tag_mgr;
+    this->mesh_in  = tag_mgr->get_input_mesh();
+    this->mesh_out = tag_mgr->get_output_mesh();
+    this->shared_procs_val.resize( MAX_SHARING_PROCS );
     }
   virtual ~MBSplitVerticesBase() { }
   virtual bool find_or_create( const MBEntityHandle* split_src, const double* coords, MBEntityHandle& vert_handle ) = 0;
-  MBInterface* mesh;
+
+  void print_sharing_procs( MBEntityHandle vert_in )
+    {
+    if ( this->mesh_in->tag_get_data( this->tag_manager->shared_proc(), &vert_in, 1, &this->shared_procs_val[0] ) != MB_TAG_NOT_FOUND )
+      {
+      std::cout << " s" << this->shared_procs_val[0];
+      }
+    if ( this->mesh_in->tag_get_data( this->tag_manager->shared_procs(), &vert_in, 1, &this->shared_procs_val[0] ) != MB_TAG_NOT_FOUND )
+      {
+      for ( int i = 0; i < MAX_SHARING_PROCS && this->shared_procs_val[i]; ++ i )
+        std::cout << " m" << this->shared_procs_val[i];
+      }
+    }
+
+  MBInterface* mesh_in; // Input mesh. Needed to determine tag values on split_src verts
+  MBInterface* mesh_out; // Output mesh. Needed for new vertex set in vert_handle
+  MBRefinerTagManager* tag_manager;
+  std::vector<MBEntityHandle> shared_procs_val; // Used to hold procs sharing an input vert.
+  std::set<MBEntityHandle> common_shared_procs; // Holds intersection of several shared_procs_vals.
 };
 
 template< int _n >
@@ -51,20 +74,30 @@ public:
   typedef std::map<MBSplitVertexIndex<_n>,MBEntityHandle> MapType;
   typedef typename std::map<MBSplitVertexIndex<_n>,MBEntityHandle>::iterator MapIteratorType;
 
-  MBSplitVertices( MBInterface* m )
-    : MBSplitVerticesBase( m )
+  MBSplitVertices( MBRefinerTagManager* tag_mgr )
+    : MBSplitVerticesBase( tag_mgr )
     {
     }
   virtual ~MBSplitVertices() { }
   virtual bool find_or_create( const MBEntityHandle* split_src, const double* coords, MBEntityHandle& vert_handle )
     {
-    MapIteratorType it = this->find( MBSplitVertexIndex<_n>( split_src ) );
+    MBSplitVertexIndex<_n> key( split_src );
+    MapIteratorType it = this->find( key );
     if ( it == this->end() )
       {
-      if ( this->mesh->create_vertex( coords, vert_handle ) != MB_SUCCESS )
+      if ( this->mesh_out->create_vertex( coords, vert_handle ) != MB_SUCCESS )
         {
         return false;
         }
+      (*this)[key] = vert_handle;
+      std::cout << "New vertex " << vert_handle << " shared with ";
+      for ( int i = 0; i < _n; ++ i )
+        {
+        this->print_sharing_procs( split_src[i] );
+        }
+      std::cout << "\n";
+      // Decide whether local process owns new vert.
+      // Add to the appropriate queues for transmitting handles.
       return true;
       }
     vert_handle = it->second;
@@ -75,7 +108,8 @@ public:
 class MBMeshOutputFunctor : public MBEntityRefinerOutputFunctor
 {
 public:
-  MBInterface* mesh;
+  MBInterface* mesh_in;
+  MBInterface* mesh_out;
   bool input_is_output;
   std::vector<MBSplitVerticesBase*> split_vertices;
   std::vector<MBEntityHandle> elem_vert;
@@ -84,16 +118,17 @@ public:
 
   MBMeshOutputFunctor( MBRefinerTagManager* tag_mgr )
     {
-    this->mesh = tag_mgr->get_output_mesh();
-    this->input_is_output = ( tag_mgr->get_input_mesh() == this->mesh );
+    this->mesh_in  = tag_mgr->get_input_mesh();
+    this->mesh_out = tag_mgr->get_output_mesh();
+    this->input_is_output = ( this->mesh_in == this->mesh_out );
     this->tag_manager = tag_mgr;
     this->destination_set = 0; // don't place output entities in a set by default.
 
     this->split_vertices.resize( 4 );
     this->split_vertices[0] = 0; // Vertices (0-faces) cannot be split
-    this->split_vertices[1] = new MBSplitVertices<1>( this->mesh );
-    this->split_vertices[2] = new MBSplitVertices<2>( this->mesh );
-    this->split_vertices[3] = new MBSplitVertices<3>( this->mesh );
+    this->split_vertices[1] = new MBSplitVertices<1>( this->tag_manager );
+    this->split_vertices[2] = new MBSplitVertices<2>( this->tag_manager );
+    this->split_vertices[3] = new MBSplitVertices<3>( this->tag_manager );
     }
 
   ~MBMeshOutputFunctor()
@@ -122,6 +157,7 @@ public:
     for ( int i = 0; i < 4; ++i )
       std::cout << ", " << m[i];
 #endif // 0
+
     std::cout << " >\n";
     }
 
@@ -136,7 +172,7 @@ public:
     for ( int i = 0; i < num_tags; ++i )
       {
       this->tag_manager->get_output_vertex_tag( i, tag_handle, tag_offset );
-      this->mesh->tag_set_data( tag_handle, &vhandle, 1, vtags );
+      this->mesh_out->tag_set_data( tag_handle, &vhandle, 1, vtags );
       }
     }
 
@@ -148,7 +184,7 @@ public:
       return vhash;
       }
     MBEntityHandle vertex_handle;
-    if ( this->mesh->create_vertex( vcoords + 3, vertex_handle ) != MB_SUCCESS )
+    if ( this->mesh_out->create_vertex( vcoords + 3, vertex_handle ) != MB_SUCCESS )
       {
       std::cerr << "Could not insert mid-edge vertex!\n";
       }
@@ -194,7 +230,7 @@ public:
   virtual void operator () ( MBEntityType etyp )
     {
     MBEntityHandle elem_handle;
-    if ( this->mesh->create_element( etyp, &this->elem_vert[0], this->elem_vert.size(), elem_handle ) == MB_FAILURE )
+    if ( this->mesh_out->create_element( etyp, &this->elem_vert[0], this->elem_vert.size(), elem_handle ) == MB_FAILURE )
       {
       std::cerr << " *** ";
       }
