@@ -19,10 +19,6 @@ void test_find_free_sequence();
 void test_is_free_sequence();
 void test_is_free_handle();
 
-void regression_svn1952();
-void regression_svn1958();
-void regression_svn1960();
-
 /* Construct sequence of vertex handles containing 
    the ID ranges: { [3,7], [100,111], [1001] }
    referencing a SequnceData with the range [1,22000]
@@ -70,10 +66,6 @@ int main( )
   error_count += RUN_TEST( test_find_free_handle );
   error_count += RUN_TEST( test_find_free_sequence );
   error_count += RUN_TEST( test_is_free_sequence );
-
-  error_count += RUN_TEST( regression_svn1952 );
-  error_count += RUN_TEST( regression_svn1958 );
-  error_count += RUN_TEST( regression_svn1960 );
   
   if (!error_count) 
     printf( "ALL TESTS PASSED\n");
@@ -980,80 +972,3 @@ void test_is_free_handle()
   CHECK_EQUAL( (MBEntityHandle)3001, first );
   CHECK_EQUAL( (MBEntityHandle)MB_END_ID, last );
 }
-
-// Regression test for bug fixed in SVN revision 1952.  
-// SVN checkin message:
-//  Fixing a bug in allocation of sequences.  Before this commit, when:
-//  - Existing sequence starts at one place, e.g. 41686, but its
-//  sequenceData starts earlier, e.g. 41673, and
-//  - You try to allocate a new sequence at a lower handle but with a
-//  range which is more than the room available in the sequenceData,
-//  
-//  then
-//  - the code wants to allocate right up against the lower end of the
-//  existing sequence, and sizes the new sequenceData accordingly
-//  (i.e. with a max of 41685).
-//  
-//  In this case, that new sequenceData will overlap the existing
-//  sequenceData (which starts at 41673, even though it has an empty chunk
-//  in front).
-//  
-//  So, this change passes back a sequence data size from the code which
-//  computes where to put the start handle when allocating the new
-//  sequence.
-void regression_svn1952()
-{
-  const MBEntityHandle last_handle = 50000;
-  TypeSequenceManager seqman;
-  SequenceData* data = new SequenceData( 0, 41673, last_handle );
-  CHECK( insert_seq( seqman, 41686, 1000, data, true  ) );
-  
-  SequenceData* result_data;
-  MBEntityID result_size;
-  MBEntityHandle result_handle;
-  result_handle = seqman.find_free_sequence( 1686, 4000, 2*last_handle, result_data, result_size );
-  CHECK( result_handle > last_handle );
-  CHECK( result_handle + result_size <= 2*last_handle );
-}
-
-
-// Regression test for bug fixed in SVN revision 1958.  
-// SVN checkin message:
-//  Another fix to SequenceManager.  This time:
-//  - there was no sequence data allocated for the target range
-//  - there was exactly enough room in unallocated sequence data for the target range
-//  - the next data sequence up had a couple of empty slots, so the first occupied handle was a couple spaces from the start of the sequence data
-//  - the upper end of the range of the allocated sequence data was computed based on the first handle in the next sequence data
-//  
-//  Fixed by setting the size using the parameter I added before.
-void regression_svn1958()
-{
-  const int data_size = 100;
-  const MBEntityHandle data_start = 100;
-  const MBEntityHandle data_end = data_start + data_size - 1;
-  const int seq_offset = 2;
-
-  TypeSequenceManager seqman;
-  SequenceData* data = new SequenceData( 0, data_start, data_end );
-  CHECK( insert_seq( seqman, data_start+seq_offset, data_size-seq_offset, data, true  ) );
-  
-  SequenceData* result_data;
-  MBEntityID result_size;
-  MBEntityHandle result_handle;
-  result_handle = seqman.find_free_sequence( data_start-1, 1, 100000, result_data, result_size );
-  CHECK( result_handle > data_end || result_handle + result_size <= data_start );
-}
-
-
-// Regression test for bug fixed in SVN revision 1960.  
-// SVN checkin message:
-//  Third time pays for all.  This time, in TSM::is_free_sequence was true, 
-//  so there was a free sequence; SM::create_entity_sequence then called 
-//  SM::new_sequence_size, which used the first handle of the next higher 
-//  sequence to compute the size, when the start handle of the data on 
-//  which that first handle was allocated was smaller.  Sigh.
-void regression_svn1960()
-{
-  
-}
-

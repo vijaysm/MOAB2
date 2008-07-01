@@ -11,10 +11,6 @@ noinst_LTLIBRARIES = libMOABpar.la
 DEFS = $(DEFINES) -DIS_BUILDING_MB
 INCLUDES += -I$(top_srcdir) -I$(top_builddir) 
 
-# Let tests know where the source directory is in case they 
-# need to load input files
-CPPFLAGS += '-DSRCDIR=$(srcdir)'
-
 # The directory in which to install headers
 libMOABpar_la_includedir = $(includedir)
 
@@ -23,7 +19,6 @@ libMOABpar_la_includedir = $(includedir)
 MOAB_PARALLEL_SRCS =
 MOAB_PARALLEL_HDRS =
 MOAB_PARALLEL_TEST = 
-HDF5_PARALLEL_TEST = 
 if PARALLEL
   MOAB_PARALLEL_SRCS += \
      MBParallelComm.cpp \
@@ -46,10 +41,13 @@ if PARALLEL_HDF5
   INCLUDES += -I$(top_srcdir)/mhdf/include
   MOAB_PARALLEL_SRCS += WriteHDF5Parallel.cpp 
   MOAB_PARALLEL_HDRS += WriteHDF5Parallel.hpp
-  HDF5_PARALLEL_TEST = parallel_hdf5_test
 endif
 
-  MOAB_PARALLEL_TEST += mbparallelcomm_test
+  bin_PROGRAMS = mbparallelcomm_test
+  mbparallelcomm_test_SOURCES = mbparallelcomm_test.cpp
+  mbparallelcomm_test_LDADD = $(top_builddir)/libMOAB.la
+  mbparallelcomm_test_DEPENDENCIES = $(mbparallelcomm_test_LDADD)
+
   MOAB_PARALLEL_TEST += pcomm_unit
 endif
 
@@ -64,14 +62,8 @@ libMOABpar_la_include_HEADERS = \
 # Tests and such
 
 
-check_PROGRAMS = $(MOAB_PARALLEL_TEST) $(HDF5_PARALLEL_TEST)
-TESTS = $(check_PROGRAMS)
+check_PROGRAMS = $(MOAB_PARALLEL_TEST)
+TESTS = $(MOAB_PARALLEL_TEST)
 pcomm_unit_SOURCES = pcomm_unit.cpp
 pcomm_unit_LDADD = $(top_builddir)/libMOAB.la
-parallel_hdf5_test_SOURCES = parallel_hdf5_test.cc
-parallel_hdf5_test_LDADD = $(top_builddir)/libMOAB.la
-parallel_hdf5_test_DEPENDENCIES = $(mbparallelcomm_test_LDADD)
-mbparallelcomm_test_SOURCES = mbparallelcomm_test.cpp
-mbparallelcomm_test_LDADD = $(top_builddir)/libMOAB.la
-mbparallelcomm_test_DEPENDENCIES = $(mbparallelcomm_test_LDADD)
 

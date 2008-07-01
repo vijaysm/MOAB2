@@ -1,5 +1,5 @@
 
-#define DEBUG
+#undef DEBUG
 
 #ifdef DEBUG
 #  include <stdio.h>
@@ -41,7 +41,7 @@
 
 #ifdef DEBUG
 #  define START_SERIAL                     \
-     for (unsigned _x = 0; _x < myPcomm->proc_config().proc_size(); ++_x) {\
+     for (int _x = 0; _x < myPcomm->proc_config().proc_size(); ++_x) {\
        MPI_Barrier( MPI_COMM_WORLD );      \
        if (_x != myPcomm->proc_config().proc_rank()) continue     
 #  define END_SERIAL                       \
@@ -122,19 +122,20 @@ void WriteHDF5Parallel::printrange( MBRange& r )
 #ifndef DEBUG
 static void print_type_sets( MBInterface* , int , int , MBRange& ) {}
 #else
-static void print_type_sets( MBInterface* iFace, int rank, int size, MBRange& sets )
+static void print_type_sets( MBInterface* iFace, int myPcomm->proc_config().proc_rank(), int myPcomm->proc_config().proc_size(), MBRange& sets )
 {
-  MBTag gid, did, bid, sid, nid;
+  MBTag gid, did, bid, sid, nid, iid;
   iFace->tag_get_handle( GLOBAL_ID_TAG_NAME, gid ); 
   iFace->tag_get_handle( GEOM_DIMENSION_TAG_NAME, did );
   iFace->tag_get_handle( MATERIAL_SET_TAG_NAME, bid );
   iFace->tag_get_handle( DIRICHLET_SET_TAG_NAME, nid );
   iFace->tag_get_handle( NEUMANN_SET_TAG_NAME, sid );
+  iFace->tag_get_handle( PARALLEL_PARTITION_TAG_NAME, iid );
   MBRange typesets[10];
-  const char* typenames[] = {"Block", "Sideset", "NodeSet", "Vertex", "Curve", "Surface", "Volume", "Body", "Other"};
+  const char* typenames[] = {"Block", "Sideset", "NodeSet", "Vertex", "Curve", "Surface", "Volume", "Body", "Partition", "Other"};
   for (MBRange::iterator riter = sets.begin(); riter != sets.end(); ++riter)
   {
-    unsigned dim, id, oldsize;
+    unsigned dim, id, proc[2], oldsize;
     if (MB_SUCCESS == iFace->tag_get_data(bid, &*riter, 1, &id)) 
       dim = 0;
     else if (MB_SUCCESS == iFace->tag_get_data(sid, &*riter, 1, &id))
@@ -146,6 +147,11 @@ static void print_type_sets( MBInterface* iFace, int rank, int size, MBRange& se
       iFace->tag_get_data(gid, &*riter, 1, &id);
       dim += 3;
     }
+    else if (MB_SUCCESS == iFace->tag_get_data(iid, &*riter, 1, proc)) {
+      assert(proc[0] == (unsigned)myPcomm->proc_config().proc_rank() || proc[1] == (unsigned)myPcomm->proc_config().proc_rank());
+      id = proc[proc[0] == (unsigned)myPcomm->proc_config().proc_rank()];
+      dim = 8;
+    }
     else {
       id = *riter;
       dim = 9;
@@ -155,7 +161,7 @@ static void print_type_sets( MBInterface* iFace, int rank, int size, MBRange& se
     typesets[dim].insert( id );
     assert( typesets[dim].size() - oldsize == 1 );  
   }
-  for (int ii = 0; ii < 9; ++ii)
+  for (int ii = 0; ii < 10; ++ii)
   {
     char num[16];
     std::string line(typenames[ii]);
@@ -323,7 +329,7 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
   
     // For the 'remoteMesh' list for this processor, just remove
     // entities we aren't writing.
-  MBRange& my_remote_mesh = remoteMesh[myPcomm->proc_config().proc_rank()];
+  MBRange& my_remote_mesh = remoteMesh[myPcomm->proc_config().proc_size()];
   tmpset = my_remote_mesh.subtract( nodeSet.range );
   if (!tmpset.empty())
     my_remote_mesh = my_remote_mesh.subtract( tmpset );
@@ -610,7 +616,7 @@ MBErrorCode WriteHDF5Parallel::create_node_table( int dimension )
       return MB_FAILURE;
     }
     mhdf_closeData( filePtr, handle, &status );
-  }
+ }
     
     // send id offset to every proc
   result = MPI_Bcast( &first_id, 1, MPI_LONG, 0, MPI_COMM_WORLD );
@@ -631,13 +637,13 @@ MBErrorCode WriteHDF5Parallel::create_node_table( int dimension )
   }
   
     // send each proc it's offset in the node table
-  long offset;
-  result = MPI_Scatter( &node_counts[0], 1, MPI_LONG, 
-                        &offset, 1, MPI_LONG,
+  int offset;
+  result = MPI_Scatter( &node_counts[0], 1, MPI_INT, 
+                        &offset, 1, MPI_INT,
                         0, MPI_COMM_WORLD );
   assert(MPI_SUCCESS == result);
   nodeSet.offset = offset;
-
+  
   return assign_ids( nodeSet.range, nodeSet.first_id + nodeSet.offset );
 }
 
@@ -1899,35 +1905,27 @@ void WriteHDF5Parallel::sort_tags_by_name( )
 
 MBErrorCode WriteHDF5Parallel::communicate_remote_ids( MBEntityType type )
 {
+  int result;
+  MBErrorCode rval;
+
     // Get the export set for the specified type
+  ExportSet* export_set = 0;
   if (type == MBVERTEX)
-    return communicate_remote_ids( &nodeSet );
+    export_set = &nodeSet;
   else if(type == MBENTITYSET)
-    return communicate_remote_ids( &setSet );
+    export_set = &setSet;
   else
   {
     for (std::list<ExportSet>::iterator esiter = exportList.begin();
          esiter != exportList.end(); ++esiter)
       if (esiter->type == type)
       {
-        MBErrorCode rval = communicate_remote_ids( &*esiter );
-        if (MB_SUCCESS != rval)
-          return rval;
+        export_set = &*esiter;
+        break;
       }
-    return MB_SUCCESS;
   }
-}
-  
-
-MBErrorCode WriteHDF5Parallel::communicate_remote_ids( ExportSet* export_set )
-{
-  RangeMap<MBEntityHandle,id_t>::iterator ri;
-  std::vector<MBEntityHandle> remote_handles;
-  MBErrorCode rval;
-  int result;
-  const MBEntityType type = export_set->type;
   assert(export_set != NULL);
-
+  
     // Get the ranges in the set
   std::vector<unsigned long> myranges;
   MBRange::const_pair_iterator p_iter = export_set->range.const_pair_begin();
@@ -1971,56 +1969,60 @@ MBErrorCode WriteHDF5Parallel::communicate_remote_ids( ExportSet* export_set )
     // Set file IDs for each communicated entity
     
     // For each processor
-  for (unsigned int proc = 0; proc < myPcomm->proc_config().proc_size(); ++proc) {
-    if (proc == myPcomm->proc_config().proc_rank() || remoteMesh[proc].empty())
+  for (unsigned int proc = 0; proc < myPcomm->proc_config().proc_size(); ++proc)
+  {
+    if (proc == myPcomm->proc_config().proc_rank())
       continue;
     
-      // constuct RangeMap to map from handles on remote processor
-      // to file IDs
-    RangeMap<MBEntityHandle,id_t> remote_ids;
-    unsigned long* i = &allranges[displs[proc]];
-    unsigned long* const e = i + counts[proc];
-    unsigned long file_id = offsets[proc];
-    while (i < e) {
-      MBEntityHandle start_handle = (MBEntityHandle)*i; ++i;
-      MBEntityHandle end_handle = (MBEntityHandle)*i; ++i;
-      MBEntityHandle count = end_handle - start_handle + 1;
-      ri = remote_ids.insert( (MBEntityHandle)start_handle, file_id, count );
-      assert( ri != remote_ids.end() );
-      file_id += count;
-    }
+      // Get data for corresponding processor
+    const int offset = offsets[proc];
+    const int count = counts[proc];
+    const unsigned long* const ranges = &allranges[displs[proc]];
     
-      // for entities on other processor that we must reference from this
-      // processor, get the handle on the remote proc and from there 
-      // look up the file id in the map constructed above
-    std::pair<MBRange::iterator,MBRange::iterator> iters = remoteMesh[proc].equal_range(type);
-    MBRange subrange, empty;
-    subrange.merge( iters.first, iters.second );
-    remote_handles.resize( subrange.size() );
-    rval = myPcomm->get_remote_handles( true, subrange, &remote_handles[0], proc, empty );
-    if (MB_SUCCESS != rval) {
-      printdebug( "Query for remote handles for type %s on proc %d failed with error code %d\n",
-                   MBCN::EntityTypeName(type), (int)proc, (int)rval );
-      return rval;
-    }
-    std::vector<MBEntityHandle>::const_iterator rem = remote_handles.begin();
-    MBRange::const_iterator loc = subrange.begin();
-    for( ; rem != remote_handles.end(); ++rem, ++loc) {
-      id_t id = remote_ids.find( *rem );
-      if (!id) {
-        printdebug( "Invalid remote handle (0x%lx, %s) on proc %d.\n",
-                     (unsigned long)*rem, MBCN::EntityTypeName(type), (int)proc );
-        return MB_FAILURE;
+      // For each geometry meshset in the interface
+    MBRange::iterator r_iter = MBRange::lower_bound( remoteMesh[proc].begin(),
+                                                     remoteMesh[proc].end(),
+                                                     CREATE_HANDLE(type,0,result) );
+    MBRange::iterator r_stop = MBRange::lower_bound( r_iter,
+                                                     remoteMesh[proc].end(),
+                                                     CREATE_HANDLE(type+1,0,result) );
+    for ( ; r_iter != r_stop; ++r_iter)
+    {
+      MBEntityHandle entity = *r_iter;
+
+        // Get handle on other processor
+      MBEntityHandle global;
+      rval = iFace->tag_get_data( global_id_tag, &entity, 1, &global );
+      assert(MB_SUCCESS == rval);
+
+        // Find corresponding fileid on other processor.
+        // This could potentially be n**2, but we will assume that
+        // the range list from each processor is short (typically 1).
+      int j, steps = 0;
+      unsigned long low, high;
+      for (j = 0; j < count; j += 2)
+      {
+        low = ranges[j];
+        high = ranges[j+1];
+        if (low <= global && high >= global)
+          break;
+        steps += (high - low) + 1;
       }
-      
-      ri = idMap.insert( *loc, id, 1 );
-      if (ri == idMap.end()) {
-        printdebug( "Conflicting file ID (%ul) for remote handle (0x%lx, %s) on proc %d.\n",
-                     (unsigned long)id, (unsigned long)*rem, MBCN::EntityTypeName(type), (int)proc );
-        return MB_FAILURE;
+      if (j >= count) {
+      printdebug("*** handle = %u, type = %d, id = %d, proc = %d\n",
+      (unsigned)global, (int)(iFace->type_from_handle(global)), (int)(iFace->id_from_handle(global)), proc);
+      for (int ii = 0; ii < count; ii+=2) 
+      printdebug("***  %u to %u\n", (unsigned)ranges[ii], (unsigned)ranges[ii+1] );
+      MBRange junk; junk.insert( global );
+      print_type_sets( iFace, myPcomm->proc_config().proc_rank(), myPcomm->proc_config().proc_size(), junk );
       }
-    }
-  }
+      assert(j < count);
+      int fileid = offset + steps + (global - low);
+      RangeMap<MBEntityHandle,id_t>::iterator ri = idMap.insert( entity, fileid, 1 );
+      assert( ri != idMap.end() );
+    } // for(r_iter->range)
+  } // for(each processor)
+  
   return MB_SUCCESS;
 }
 
