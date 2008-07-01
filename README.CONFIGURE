@@ -11,9 +11,9 @@ Where's the configure script?
     
     autoheader
     aclocal -I m4
-    libtoolize
-    automake -a
+    libtoolize -f
     autoconf 
+    automake -a
     
 
 Why aren't the configure script and other generated files in the

@@ -490,7 +490,8 @@ private:
   MBErrorCode update_iface_sets(MBRange &sent_ents,
                                 std::vector<MBEntityHandle> &remote_handles, 
                                 int from_proc);
-  
+
+public:  
     //! replace handles in from_vec with corresponding handles on
     //! to_proc (by checking shared[p/h]_tag and shared[p/h]s_tag;
     //! if no remote handle and new_ents is non-null, substitute
@@ -516,7 +517,8 @@ private:
                                  MBEntityHandle *to_vec,
                                  int to_proc,
                                  const MBRange &new_ents);
-  
+
+private:  
     //! goes through from_vec, and for any with type MBMAXTYPE, replaces with
     //! new_ents value at index corresponding to id of entity in from_vec
   MBErrorCode get_local_handles(MBEntityHandle *from_vec, 
