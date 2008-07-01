@@ -8,6 +8,11 @@ set ( MOAB_REFINER_SRCS
   MBSimplexTemplateTagAssigner.cpp
   )
 
+set_source_files_properties(
+  ${MOAB_REFINER_SRCS}
+  COMPILE_FLAGS "${MOAB_DEFINES}"
+)
+
 add_library( MOABrefiner
   ${MOAB_REFINER_SRCS}
   )
