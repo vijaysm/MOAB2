@@ -116,6 +116,10 @@ int TestMeshRefiner( int argc, char* argv[] )
 #endif // USE_MPI
 
   // Clean up
+#ifdef USE_MPI
+  delete readpar;
+  delete ipcomm;
+#endif // USE_MPI
   if ( omesh != imesh )
     delete omesh;
   delete imesh;
