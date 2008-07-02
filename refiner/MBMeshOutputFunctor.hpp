@@ -8,6 +8,8 @@
 #include <iostream>
 #include <set>
 #include <map>
+#include <iterator>
+#include <algorithm>
 
 template< int _n >
 class MBSplitVertexIndex
@@ -43,28 +45,92 @@ public:
     this->mesh_in  = tag_mgr->get_input_mesh();
     this->mesh_out = tag_mgr->get_output_mesh();
     this->shared_procs_val.resize( MAX_SHARING_PROCS );
+    MBParallelComm* ipcomm = MBParallelComm::get_pcomm( this->mesh_in, 0 );
+    this->rank = ipcomm ? ipcomm->proc_config().proc_rank() : 0;
     }
   virtual ~MBSplitVerticesBase() { }
   virtual bool find_or_create( const MBEntityHandle* split_src, const double* coords, MBEntityHandle& vert_handle ) = 0;
 
-  void print_sharing_procs( MBEntityHandle vert_in )
+  /// Prepare to compute the processes on which a new split-vertex will live.
+  void begin_vertex_procs()
     {
-    if ( this->mesh_in->tag_get_data( this->tag_manager->shared_proc(), &vert_in, 1, &this->shared_procs_val[0] ) != MB_TAG_NOT_FOUND )
+    this->first_vertex = true;
+    }
+
+  /// Call this for each existing corner vertex used to define a split-vertex.
+  void add_vertex_procs( MBEntityHandle vert_in )
+    {
+    std::set<int> current_shared_procs;
+    if ( ! this->first_vertex )
       {
-      std::cout << " s" << this->shared_procs_val[0];
+      current_shared_procs = this->common_shared_procs;
       }
-    if ( this->mesh_in->tag_get_data( this->tag_manager->shared_procs(), &vert_in, 1, &this->shared_procs_val[0] ) != MB_TAG_NOT_FOUND )
+    this->common_shared_procs.clear();
+    int stat;
+    bool got = false;
+    stat = this->mesh_in->tag_get_data(
+      this->tag_manager->shared_proc(), &vert_in, 1, &this->shared_procs_val[0] );
+    std::cout << "sstat: " << stat;
+    if ( stat == MB_SUCCESS && this->shared_procs_val[0] != -1 )
       {
-      for ( int i = 0; i < MAX_SHARING_PROCS && this->shared_procs_val[i]; ++ i )
+      got = true;
+      std::cout << " s" << this->rank << " s" << this->shared_procs_val[0] << " | ";
+      this->shared_procs_val.resize( 1 );
+      }
+    stat = this->mesh_in->tag_get_data(
+      this->tag_manager->shared_procs(), &vert_in, 1, &this->shared_procs_val[0] );
+    std::cout << "mstat: " << stat;
+    if ( stat == MB_SUCCESS && this->shared_procs_val[0] != -1 )
+      {
+      got = true;
+      int i;
+      for ( i = 0; i < MAX_SHARING_PROCS && this->shared_procs_val[i] != -1; ++ i )
         std::cout << " m" << this->shared_procs_val[i];
+      this->shared_procs_val.resize( i );
+      std::cout << " | ";
       }
+    if ( got )
+      {
+      if ( this->first_vertex )
+        {
+        std::copy(
+          this->shared_procs_val.begin(), this->shared_procs_val.end(),
+          std::insert_iterator< std::set<int> >( this->common_shared_procs, this->common_shared_procs.begin() ) );
+        this->first_vertex = false;
+        }
+      else
+        {
+        std::set_intersection(
+          this->shared_procs_val.begin(), this->shared_procs_val.end(),
+          current_shared_procs.begin(), current_shared_procs.end(),
+          std::insert_iterator< std::set<int> >( this->common_shared_procs, this->common_shared_procs.begin() ) );
+        }
+      }
+    else
+      {
+      std::cout << " not shared | ";
+      }
+    }
+
+  /// Call this once after all the add_vertex_procs() calls for a split-vertex to prepare queues for the second stage MPI send. 
+  void end_vertex_procs()
+    {
+    std::cout << "    Common procs ";
+    std::copy(
+      this->common_shared_procs.begin(), this->common_shared_procs.end(),
+      std::ostream_iterator<int>( std::cout, " " ) );
+    std::cout << " " << this->rank;
+    std::cout << "\n";
+    // FIXME: Here is where we add the vertex to the appropriate queues.
     }
 
   MBInterface* mesh_in; // Input mesh. Needed to determine tag values on split_src verts
   MBInterface* mesh_out; // Output mesh. Needed for new vertex set in vert_handle
   MBRefinerTagManager* tag_manager;
-  std::vector<MBEntityHandle> shared_procs_val; // Used to hold procs sharing an input vert.
-  std::set<MBEntityHandle> common_shared_procs; // Holds intersection of several shared_procs_vals.
+  std::vector<int> shared_procs_val; // Used to hold procs sharing an input vert.
+  std::set<int> common_shared_procs; // Holds intersection of several shared_procs_vals.
+  int rank; // This process' rank.
+  bool first_vertex; // True just after begin_vertex_procs() is called.
 };
 
 template< int _n >
@@ -77,6 +143,7 @@ public:
   MBSplitVertices( MBRefinerTagManager* tag_mgr )
     : MBSplitVerticesBase( tag_mgr )
     {
+    this->shared_procs_val.resize( _n * MAX_SHARING_PROCS );
     }
   virtual ~MBSplitVertices() { }
   virtual bool find_or_create( const MBEntityHandle* split_src, const double* coords, MBEntityHandle& vert_handle )
@@ -91,11 +158,13 @@ public:
         }
       (*this)[key] = vert_handle;
       std::cout << "New vertex " << vert_handle << " shared with ";
+      this->begin_vertex_procs();
       for ( int i = 0; i < _n; ++ i )
         {
-        this->print_sharing_procs( split_src[i] );
+        this->add_vertex_procs( split_src[i] );
         }
       std::cout << "\n";
+      this->end_vertex_procs();
       // Decide whether local process owns new vert.
       // Add to the appropriate queues for transmitting handles.
       return true;

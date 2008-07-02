@@ -58,7 +58,7 @@ int TestMeshRefiner( int argc, char* argv[] )
   MBEntityHandle set_handle;
   std::ostringstream parallel_options;
   parallel_options
-    << "PARALLEL=BCAST_DELETE" << ";"
+    << "PARALLEL=BCAST_DELETE" << ";" // NB: You can also use READ_DELETE here.
     << "PARTITION=MATERIAL_SET" << ";"
     //<< "PARTITION_DISTRIBUTE" << ";"
     << "PARTITION_VAL=" << ( rank + 1 ) << ";"
