@@ -34,6 +34,33 @@
 
 namespace MBGeomUtil {
 
+static inline 
+void min_max_3( double a, double b, double c, double& min, double& max )
+{
+  if (a < b) {
+    if (a < c) {
+      min = a;
+      max = b > c ? b : c;
+    }
+    else {
+      min = c;
+      max = b;
+    }
+  }
+  else if (b < c) {
+    min = b;
+    max = a > c ? a : c;
+  }
+  else {
+    min = c;
+    max = a;
+  }
+}
+
+static inline
+double dot_abs( const MBCartVect& u, const MBCartVect& v )
+  { return fabs(u[0]*v[0]) + fabs(u[1]*v[1]) + fabs(u[2]*v[2]); }
+
 bool segment_box_intersect( MBCartVect box_min,
                             MBCartVect box_max,
                             const MBCartVect& seg_pt,
@@ -275,6 +302,8 @@ bool box_elem_overlap( const MBCartVect *elem_corners,
   switch (elem_type) {
     case MBTRI:
       return box_tri_overlap( elem_corners, center, dims );
+    case MBTET:
+      return box_tet_overlap( elem_corners, center, dims );
     case MBHEX:
       return box_hex_overlap( elem_corners, center, dims );
     case MBPOLYGON:
@@ -391,8 +420,8 @@ bool box_linear_elem_overlap( const MBCartVect *elem_corners,
       not_less[0] = not_greater[0] = num_corner - 1;
       for (i = (unsigned)(indices[0]+1)%num_corner; i != (unsigned)indices[0]; i = (i+1)%num_corner) { // for each element corner
         tmp = cross[0] * elem_corners[i][1] + cross[1] * elem_corners[i][2];
-        not_less[0] -= tmp < -dot;
-        not_greater[0] -= tmp > dot;
+        not_less[0] -= (tmp < -dot);
+        not_greater[0] -= (tmp > dot);
       }
 
       if (not_less[0] * not_greater[0] == 0)
@@ -411,8 +440,8 @@ bool box_linear_elem_overlap( const MBCartVect *elem_corners,
       not_less[0] = not_greater[0] = num_corner - 1;
       for (i = (unsigned)(indices[0]+1)%num_corner; i != (unsigned)indices[0]; i = (i+1)%num_corner) { // for each element corner
         tmp = cross[0] * elem_corners[i][2] + cross[1] * elem_corners[i][0];
-        not_less[0] -= tmp < -dot;
-        not_greater[0] -= tmp > dot;
+        not_less[0] -= (tmp < -dot);
+        not_greater[0] -= (tmp > dot);
       }
 
       if (not_less[0] * not_greater[0] == 0)
@@ -431,8 +460,8 @@ bool box_linear_elem_overlap( const MBCartVect *elem_corners,
       not_less[0] = not_greater[0] = num_corner - 1;
       for (i = (unsigned)(indices[0]+1)%num_corner; i != (unsigned)indices[0]; i = (i+1)%num_corner) { // for each element corner
         tmp = cross[0] * elem_corners[i][0] + cross[1] * elem_corners[i][1];
-        not_less[0] -= tmp < -dot;
-        not_greater[0] -= tmp > dot;
+        not_less[0] -= (tmp < -dot);
+        not_greater[0] -= (tmp > dot);
       }
 
       if (not_less[0] * not_greater[0] == 0)
@@ -462,14 +491,14 @@ bool box_linear_elem_overlap( const MBCartVect *elem_corners,
         continue;
     }
     
-    dot = fabs(norm[0] * dims[0]) + fabs(norm[1] * dims[1]) + fabs(norm[2] * dims[2]); 
-   
+    dot = dot_abs(norm, dims);
+    
     // for each element vertex
     not_less[0] = not_greater[0] = num_corner;
     for (i = 0; i < num_corner; ++i) { 
       tmp = norm % elem_corners[i];
-      not_less[0] -= tmp < -dot;
-      not_greater[0] -= tmp > dot;
+      not_less[0] -= (tmp < -dot);
+      not_greater[0] -= (tmp > dot);
     }
 
     if (not_less[0] * not_greater[0] == 0)
@@ -570,8 +599,8 @@ bool box_hex_overlap( const MBCartVect *elem_corners,
       not_less[0] = not_greater[0] = 7;
       for (i = (edges[e][0]+1)%8; i != edges[e][0]; i = (i+1)%8) { // for each element corner
         tmp = cross[0] * corners[i][1] + cross[1] * corners[i][2];
-        not_less[0] -= tmp < -dot;
-        not_greater[0] -= tmp > dot;
+        not_less[0] -= (tmp < -dot);
+        not_greater[0] -= (tmp > dot);
       }
 
       if (not_less[0] * not_greater[0] == 0)
@@ -590,8 +619,8 @@ bool box_hex_overlap( const MBCartVect *elem_corners,
       not_less[0] = not_greater[0] = 7;
       for (i = (edges[e][0]+1)%8; i != edges[e][0]; i = (i+1)%8) { // for each element corner
         tmp = cross[0] * corners[i][2] + cross[1] * corners[i][0];
-        not_less[0] -= tmp < -dot;
-        not_greater[0] -= tmp > dot;
+        not_less[0] -= (tmp < -dot);
+        not_greater[0] -= (tmp > dot);
       }
 
       if (not_less[0] * not_greater[0] == 0)
@@ -610,8 +639,8 @@ bool box_hex_overlap( const MBCartVect *elem_corners,
       not_less[0] = not_greater[0] = 7;
       for (i = (edges[e][0]+1)%8; i != edges[e][0]; i = (i+1)%8) { // for each element corner
         tmp = cross[0] * corners[i][0] + cross[1] * corners[i][1];
-        not_less[0] -= tmp < -dot;
-        not_greater[0] -= tmp > dot;
+        not_less[0] -= (tmp < -dot);
+        not_greater[0] -= (tmp > dot);
       }
 
       if (not_less[0] * not_greater[0] == 0)
@@ -633,14 +662,14 @@ bool box_hex_overlap( const MBCartVect *elem_corners,
                       corners[faces[f][2]], 
                       corners[faces[f][3]] );
     
-    dot = fabs(norm[0] * dims[0]) + fabs(norm[1] * dims[1]) + fabs(norm[2] * dims[2]); 
+    dot = dot_abs(norm, dims);
    
     // for each element vertex
     not_less[0] = not_greater[0] = 8;
     for (i = 0; i < 8; ++i) { 
       tmp = norm % corners[i];
-      not_less[0] -= tmp < -dot;
-      not_greater[0] -= tmp > dot;
+      not_less[0] -= (tmp < -dot);
+      not_greater[0] -= (tmp > dot);
     }
 
     if (not_less[0] * not_greater[0] == 0)
@@ -650,6 +679,184 @@ bool box_hex_overlap( const MBCartVect *elem_corners,
     // Overlap on all tested axes.
   return true;
 }
+
+static inline 
+bool box_tet_overlap_edge( const MBCartVect& dims,
+                           const MBCartVect& edge,
+                           const MBCartVect& ve,
+                           const MBCartVect& v1,
+                           const MBCartVect& v2 )
+{
+  double dot, dot1, dot2, dot3, min, max;
+  
+    // edge x X
+  if (fabs(edge[1]*edge[2]) > std::numeric_limits<double>::epsilon()) {
+    dot = fabs(edge[2]) * dims[1] + fabs(edge[1]) * dims[2];
+    dot1 = edge[2] * ve[1] - edge[1] * ve[2];
+    dot2 = edge[2] * v1[1] - edge[1] * v1[2];
+    dot3 = edge[2] * v2[1] - edge[1] * v2[2];
+    min_max_3( dot1, dot2, dot3, min, max );
+    if (max < -dot || min > dot)
+      return false;
+  }
+  
+    // edge x Y
+  if (fabs(edge[1]*edge[2]) > std::numeric_limits<double>::epsilon()) {
+    dot = fabs(edge[2]) * dims[0] + fabs(edge[0]) * dims[2];
+    dot1 = -edge[2] * ve[0] + edge[0] * ve[2];
+    dot2 = -edge[2] * v1[0] + edge[0] * v1[2];
+    dot3 = -edge[2] * v2[0] + edge[0] * v2[2];
+    min_max_3( dot1, dot2, dot3, min, max );
+    if (max < -dot || min > dot)
+      return false;
+  }
+  
+    // edge x Z
+  if (fabs(edge[1]*edge[2]) > std::numeric_limits<double>::epsilon()) {
+    dot = fabs(edge[1]) * dims[0] + fabs(edge[0]) * dims[1];
+    dot1 = edge[1] * ve[0] - edge[0] * ve[1];
+    dot2 = edge[1] * v1[0] - edge[0] * v1[1];
+    dot3 = edge[1] * v2[0] - edge[0] * v2[1];
+    min_max_3( dot1, dot2, dot3, min, max );
+    if (max < -dot || min > dot)
+      return false;
+  }
+
+  return true;
+}
+
+bool box_tet_overlap( const MBCartVect *corners_in,
+                      const MBCartVect& center,
+                      const MBCartVect& dims )
+{
+    // Do Separating Axis Theorem:
+    // If the element and the box overlap, then the 1D projections
+    // onto at least one of the axes in the following three sets
+    // must overlap (assuming convex polyhedral element).
+    // 1) The normals of the faces of the box (the principal axes)
+    // 2) The crossproduct of each element edge with each box edge
+    //    (crossproduct of each edge with each principal axis)
+    // 3) The normals of the faces of the element
+
+    // Translate problem such that box center is at origin.
+  const MBCartVect corners[4] = { corners_in[0] - center,
+                                  corners_in[1] - center,
+                                  corners_in[2] - center,
+                                  corners_in[3] - center };
+
+    // 0) Check if any vertex is within the box
+  if (fabs(corners[0][0]) <= dims[0] &&
+      fabs(corners[0][1]) <= dims[1] &&
+      fabs(corners[0][2]) <= dims[2])
+    return true;
+  if (fabs(corners[1][0]) <= dims[0] &&
+      fabs(corners[1][1]) <= dims[1] &&
+      fabs(corners[1][2]) <= dims[2])
+    return true;
+  if (fabs(corners[2][0]) <= dims[0] &&
+      fabs(corners[2][1]) <= dims[1] &&
+      fabs(corners[2][2]) <= dims[2])
+    return true;
+  if (fabs(corners[3][0]) <= dims[0] &&
+      fabs(corners[3][1]) <= dims[1] &&
+      fabs(corners[3][2]) <= dims[2])
+    return true;
+  
+
+    // 1) Check for overlap on each principal axis (box face normal)
+    // X
+  if (corners[0][0] < -dims[0] &&
+      corners[1][0] < -dims[0] &&
+      corners[2][0] < -dims[0] &&
+      corners[3][0] < -dims[0])
+    return false;
+  if (corners[0][0] >  dims[0] &&
+      corners[1][0] >  dims[0] &&
+      corners[2][0] >  dims[0] &&
+      corners[3][0] >  dims[0])
+    return false;
+    // Y
+  if (corners[0][1] < -dims[1] &&
+      corners[1][1] < -dims[1] &&
+      corners[2][1] < -dims[1] &&
+      corners[3][1] < -dims[1])
+    return false;
+  if (corners[0][1] >  dims[1] &&
+      corners[1][1] >  dims[1] &&
+      corners[2][1] >  dims[1] &&
+      corners[3][1] >  dims[1])
+    return false;
+    // Z
+  if (corners[0][2] < -dims[2] &&
+      corners[1][2] < -dims[2] &&
+      corners[2][2] < -dims[2] &&
+      corners[3][2] < -dims[2])
+    return false;
+  if (corners[0][2] >  dims[2] &&
+      corners[1][2] >  dims[2] &&
+      corners[2][2] >  dims[2] &&
+      corners[3][2] >  dims[2])
+    return false;
+ 
+    // 3) test element face normals
+  MBCartVect norm;
+  double dot, dot1, dot2;
+  
+  const MBCartVect v01 = corners[1] - corners[0];
+  const MBCartVect v02 = corners[2] - corners[0];
+  norm = v01 * v02;
+  dot = dot_abs(norm, dims);
+  dot1 = norm % corners[0];
+  dot2 = norm % corners[3];
+  if (dot1 > dot2)
+    std::swap(dot1, dot2);
+  if (dot2 < -dot || dot1 > dot)
+    return false;
+  
+  const MBCartVect v03 = corners[3] - corners[0];
+  norm = v03 * v01;
+  dot = dot_abs(norm, dims);
+  dot1 = norm % corners[0];
+  dot2 = norm % corners[2];
+  if (dot1 > dot2)
+    std::swap(dot1, dot2);
+  if (dot2 < -dot || dot1 > dot)
+    return false;
+  
+  norm = v02 * v03;
+  dot = dot_abs(norm, dims);
+  dot1 = norm % corners[0];
+  dot2 = norm % corners[1];
+  if (dot1 > dot2)
+    std::swap(dot1, dot2);
+  if (dot2 < -dot || dot1 > dot)
+    return false;
+  
+  const MBCartVect v12 = corners[2] - corners[1];
+  const MBCartVect v13 = corners[3] - corners[1];
+  norm = v13 * v12;
+  dot = dot_abs(norm, dims);
+  dot1 = norm % corners[0];
+  dot2 = norm % corners[1];
+  if (dot1 > dot2)
+    std::swap(dot1, dot2);
+  if (dot2 < -dot || dot1 > dot)
+    return false;
+  
+
+    // 2) test edge-edge cross products
+    
+  const MBCartVect v23 = corners[3] - corners[2];
+  return box_tet_overlap_edge( dims, v01, corners[0], corners[2], corners[3] )
+      && box_tet_overlap_edge( dims, v02, corners[0], corners[1], corners[3] )
+      && box_tet_overlap_edge( dims, v03, corners[0], corners[1], corners[2] )
+      && box_tet_overlap_edge( dims, v12, corners[1], corners[0], corners[3] )
+      && box_tet_overlap_edge( dims, v13, corners[1], corners[0], corners[2] )
+      && box_tet_overlap_edge( dims, v23, corners[2], corners[0], corners[1] );
+}
+    
+
+
 
 //from: http://www.geometrictools.com/Documentation/DistancePoint3Triangle3.pdf#search=%22closest%20point%20on%20triangle%22
 /*       t

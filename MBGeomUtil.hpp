@@ -248,6 +248,12 @@ bool box_hex_overlap( const MBCartVect hexv[8],
                       const MBCartVect& box_center,
                       const MBCartVect& box_dims);
 
+// Finds whether or not a box defined by the center and the half
+// width intersects a linear tetrahedron defined by its four vertices.
+bool box_tet_overlap( const MBCartVect tet_corners[4],
+                      const MBCartVect& box_center,
+                      const MBCartVect& box_dims);
+
 //
 // point_in_trilinear_hex
 // Tests if a point in xyz space is within a hex element defined with

@@ -38,7 +38,7 @@ MBAdaptiveKDTree::Settings::Settings()
     maxTreeDepth(30),
     candidateSplitsPerDir(3),
     candidatePlaneSet(SUBDIVISION_SNAP),
-    minBoxWidth( std::numeric_limits<double>::epsilon() )
+    minBoxWidth( 1e-10 )
   {}
 
 
@@ -690,6 +690,7 @@ MBErrorCode MBAdaptiveKDTreeIter::get_parent_split_plane( MBAdaptiveKDTree::Plan
 static MBErrorCode intersect_children_with_elems( MBInterface* moab,
                                         const MBRange& elems,
                                         MBAdaptiveKDTree::Plane plane,
+                                        double eps,
                                         MBCartVect box_min,
                                         MBCartVect box_max,
                                         MBRange& left_tris,
@@ -705,14 +706,11 @@ static MBErrorCode intersect_children_with_elems( MBInterface* moab,
     // get extents of boxes for left and right sides
   MBCartVect right_min( box_min ), left_max( box_max );
   right_min[plane.norm] = left_max[plane.norm] = plane.coord;
-  right_min *= 0.5;
-  left_max *= 0.5;
-  box_min *= 0.5;
-  box_max *= 0.5;
-  const MBCartVect left_cen = left_max + box_min;
-  const MBCartVect left_dim = left_max - box_min;
-  const MBCartVect right_cen = box_max + right_min;
-  const MBCartVect right_dim = box_max - right_min;
+  const MBCartVect left_cen = 0.5*(left_max + box_min);
+  const MBCartVect left_dim = 0.5*(left_max - box_min);
+  const MBCartVect right_cen = 0.5*(box_max + right_min);
+  const MBCartVect right_dim = 0.5*(box_max - right_min);
+  const MBCartVect dim = box_max - box_min;
   
   
     // test each triangle
@@ -742,33 +740,19 @@ static MBErrorCode intersect_children_with_elems( MBInterface* moab,
     if (lo && ro) {
       lo = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i), left_cen, left_dim );
       ro = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i),right_cen,right_dim );
+      double tol = std::numeric_limits<double>::epsilon();
         // didn't intersect either - tolerance issue
-      while (!lo && !ro) {
-          // calculate a good tolerance
-        MBCartVect dim = box_max - box_min;
-        double max_dim;
-        if (dim[0] > dim[1] && dim[1] > dim[2])
-          max_dim = dim[0];
-        else if (dim[1] > dim[2])
-          max_dim = dim[1];
-        else
-          max_dim = dim[2];
-          // loop with increasing tolerance until we intersect something
-        double tol = std::numeric_limits<double>::epsilon();
-        while (!lo && !ro) {
-          lo = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i), left_cen,tol*max_dim+ left_dim );
-          ro = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i),right_cen,tol*max_dim+right_dim );
-          tol *= 10.0;
-          if (tol > 1e-3)
-            return MB_FAILURE;
-        }
+      while (!lo && !ro && tol < eps) {
+        lo = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i), left_cen,left_dim+tol*dim );
+        ro = MBGeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i),right_cen,right_dim+tol*dim );
+        tol *= 10.0;
       }
     }
     if (lo && ro)
       both_tris.insert( *i );
     else if (lo)
       left_tris.insert( *i );
-    else //if (ro)
+    else if (ro)
       right_tris.insert( *i );
   }
   
@@ -811,7 +795,7 @@ static MBErrorCode best_subdivision_plane( int num_planes,
       MBRange left, right, both;
       double val;
       r = intersect_children_with_elems( iter.tool()->moab(),
-                                         entities, plane,
+                                         entities, plane, eps,
                                          box_min, box_max,
                                          left, right, both, 
                                          val );
@@ -877,25 +861,24 @@ static MBErrorCode best_subdivision_snap_plane( int num_planes,
     for (int p = 1; p <= plane_count; ++p) {
       double coord = box_min[axis] + (p/(1.0+plane_count)) * diff[axis];
       double closest_coord = tmp_data[0];
-      if (closest_coord - box_min[axis] <= tol[axis] || closest_coord - box_max[axis] >= -tol[axis])
-        closest_coord = 0.5 * (box_min[axis] + box_max[axis]);
       for (unsigned i = 1; i < tmp_data.size(); ++i) 
-        if ((fabs(coord-tmp_data[i]) < fabs(coord-closest_coord)) &&
-            (coord - box_min[axis] > tol[axis]) && 
-            (coord - box_max[axis] < -tol[axis]))
+        if (fabs(coord-tmp_data[i]) < fabs(coord-closest_coord))
           closest_coord = tmp_data[i];
+      if (closest_coord - box_min[axis] <= eps || box_max[axis] - closest_coord <= eps)
+        continue;
+          
       MBAdaptiveKDTree::Plane plane = { closest_coord, axis };
       MBRange left, right, both;
       double val;
       r = intersect_children_with_elems( iter.tool()->moab(),
-                                         entities, plane,
+                                         entities, plane, eps,
                                          box_min, box_max,
                                          left, right, both, 
                                          val );
       if (MB_SUCCESS != r)
         return r;
-      const size_t diff = p_count - both.size();
-      if (left.size() == diff || right.size() == diff)
+      const size_t d = p_count - both.size();
+      if (left.size() == d || right.size() == d)
         continue;
       
       if (val >= metric_val)
@@ -908,7 +891,7 @@ static MBErrorCode best_subdivision_snap_plane( int num_planes,
       best_both.swap(both);
     }
   }
-      
+     
   return MB_SUCCESS;
 }
 
@@ -967,7 +950,7 @@ static MBErrorCode best_vertex_median_plane( int num_planes,
       MBRange left, right, both;
       double val;
       r = intersect_children_with_elems( iter.tool()->moab(),
-                                         entities, plane,
+                                         entities, plane, eps,
                                          box_min, box_max,
                                          left, right, both, 
                                          val );
@@ -1083,7 +1066,7 @@ static MBErrorCode best_vertex_sample_plane( int num_planes,
       MBRange left, right, both;
       double val;
       r = intersect_children_with_elems( iter.tool()->moab(),
-                                         entities, plane,
+                                         entities, plane, eps,
                                          box_min, box_max,
                                          left, right, both, 
                                          val );
