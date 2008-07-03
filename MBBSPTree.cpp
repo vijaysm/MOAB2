@@ -36,6 +36,56 @@
 
 #define MB_BSP_TREE_DEFAULT_TAG_NAME "BSPTree"
 
+static void corners_from_box( const double box_min[3],
+                              const double box_max[3],
+                              double corners[8][3] )
+{
+  const double* ranges[] = { box_min, box_max };
+  for (int z = 0; z < 2; ++z) {
+    corners[4*z  ][0] = box_min[0];
+    corners[4*z  ][1] = box_min[1];
+    corners[4*z  ][2] = ranges[z][2];
+
+    corners[4*z+1][0] = box_max[0];
+    corners[4*z+1][1] = box_min[1];
+    corners[4*z+1][2] = ranges[z][2];
+
+    corners[4*z+2][0] = box_max[0];
+    corners[4*z+2][1] = box_max[1];
+    corners[4*z+2][2] = ranges[z][2];
+
+    corners[4*z+3][0] = box_min[0];
+    corners[4*z+3][1] = box_max[1];
+    corners[4*z+3][2] = ranges[z][2];
+  }
+}
+
+// assume box has planar sides
+// test if point is contained in box
+static bool point_in_box( const double corners[8][3],
+                          const double point[3] )
+{
+  const unsigned side_verts[6][3] = { { 0, 3, 1 },
+                                      { 4, 5, 7 },
+                                      { 0, 1, 4 },
+                                      { 1, 2, 5 },
+                                      { 2, 3, 6 },
+                                      { 3, 0, 7 } };
+    // If we assume planar sides, then the box is the intersection
+    // of 6 half-spaces defined by the planes of the sides.
+  const MBCartVect pt(point);
+  for (unsigned s = 0; s < 6; ++s) {
+    MBCartVect v0( corners[side_verts[s][0]] );
+    MBCartVect v1( corners[side_verts[s][1]] );
+    MBCartVect v2( corners[side_verts[s][2]] );
+    MBCartVect N = (v1 - v0) * (v2 - v0);
+    if ((v0 - pt) % N < 0)
+      return false;
+  }
+  return true;
+}
+
+
 MBBSPTree::MBBSPTree( MBInterface* mb, 
                       const char* tagname, 
                       unsigned set_flags )
@@ -53,7 +103,7 @@ MBBSPTree::MBBSPTree( MBInterface* mb,
   if (MB_SUCCESS != rval)
     planeTag = 0;
   
-  rval = mb->tag_create( rootname.c_str(), 6*sizeof(double), MB_TAG_SPARSE, MB_TYPE_DOUBLE, rootTag, 0, true );
+  rval = mb->tag_create( rootname.c_str(), 24*sizeof(double), MB_TAG_SPARSE, MB_TYPE_DOUBLE, rootTag, 0, true );
   if (MB_SUCCESS != rval)
     rootTag = 0;
 }
@@ -86,20 +136,21 @@ MBErrorCode MBBSPTree::set_tree_box( MBEntityHandle root_handle,
                                      const double box_min[3],
                                      const double box_max[3] )
 {
-  const double box[6] = { box_min[0], box_min[1], box_min[2],
-                          box_max[0], box_max[1], box_max[2] };
-  return moab()->tag_set_data( rootTag, &root_handle, 1, box );
+  double corners[8][3];
+  corners_from_box( box_min, box_max, corners );
+  return set_tree_box( root_handle, corners );
+}
+
+MBErrorCode MBBSPTree::set_tree_box( MBEntityHandle root_handle,
+                                     const double corners[8][3] )
+{
+  return moab()->tag_set_data( rootTag, &root_handle, 1, corners );
 }
 
 MBErrorCode MBBSPTree::get_tree_box( MBEntityHandle root_handle,
-                                     double box_min_out[3],
-                                     double box_max_out[3] )
+                                     double corners[8][3] )
 {
-  double box[6];
-  MBErrorCode rval = moab()->tag_get_data( rootTag, &root_handle, 1, box );
-  box_min_out[0] = box[0]; box_min_out[1] = box[1]; box_min_out[2] = box[2];
-  box_max_out[0] = box[3]; box_max_out[1] = box[4]; box_max_out[2] = box[5];
-  return rval;
+  return moab()->tag_get_data( rootTag, &root_handle, 1, corners );
 }
 
 MBErrorCode MBBSPTree::create_tree( MBEntityHandle& root_handle )
@@ -109,15 +160,14 @@ MBErrorCode MBBSPTree::create_tree( MBEntityHandle& root_handle )
   return create_tree( min, max, root_handle );
 }
 
-MBErrorCode MBBSPTree::create_tree( const double box_min[3],
-                                    const double box_max[3],
+MBErrorCode MBBSPTree::create_tree( const double corners[8][3],
                                     MBEntityHandle& root_handle )
 {
   MBErrorCode rval = moab()->create_meshset( meshSetFlags, root_handle );
   if (MB_SUCCESS != rval)
     return rval;
   
-  rval = set_tree_box( root_handle, box_min, box_max );
+  rval = set_tree_box( root_handle, corners );
   if (MB_SUCCESS != rval) {
     moab()->delete_entities( &root_handle, 1 );
     root_handle = 0;
@@ -125,6 +175,16 @@ MBErrorCode MBBSPTree::create_tree( const double box_min[3],
   }
   
   return MB_SUCCESS;
+}
+                                    
+
+MBErrorCode MBBSPTree::create_tree( const double box_min[3],
+                                    const double box_max[3],
+                                    MBEntityHandle& root_handle )
+{
+  double corners[8][3];
+  corners_from_box( box_min, box_max, corners );
+  return create_tree( corners, root_handle );
 }
 
 MBErrorCode MBBSPTree::delete_tree( MBEntityHandle root_handle )
@@ -409,36 +469,13 @@ MBErrorCode MBBSPTreeBoxIter::initialize( MBBSPTree* tool_ptr,
   if (MB_SUCCESS != rval)
     return rval;
   
-  double box_min[3], box_max[3];
-  tool()->get_tree_box( root, box_min, box_max );
+  tool()->get_tree_box( root, leafCoords );
   if (MB_SUCCESS != rval)
     return rval;
 
-  if (point) {
-    if (point[0] < box_min[0] || point[0] > box_max[0] 
-     || point[1] < box_min[1] || point[1] > box_max[1]
-     || point[2] < box_min[2] || point[2] > box_max[2])
-      return MB_ENTITY_NOT_FOUND;
-  }
+  if (point && !point_in_box( leafCoords, point ))
+    return MB_ENTITY_NOT_FOUND;
 
-  const double* ranges[] = { box_min, box_max };
-  for (int z = 0; z < 2; ++z) {
-    leafCoords[4*z  ][0] = box_min[0];
-    leafCoords[4*z  ][1] = box_min[1];
-    leafCoords[4*z  ][2] = ranges[z][2];
-
-    leafCoords[4*z+1][0] = box_max[0];
-    leafCoords[4*z+1][1] = box_min[1];
-    leafCoords[4*z+1][2] = ranges[z][2];
-
-    leafCoords[4*z+2][0] = box_max[0];
-    leafCoords[4*z+2][1] = box_max[1];
-    leafCoords[4*z+2][2] = ranges[z][2];
-
-    leafCoords[4*z+3][0] = box_min[0];
-    leafCoords[4*z+3][1] = box_max[1];
-    leafCoords[4*z+3][2] = ranges[z][2];
-  }
   stackData.resize(1);
   return MB_SUCCESS;
 }

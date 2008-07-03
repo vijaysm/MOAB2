@@ -96,17 +96,20 @@ public:
   
   //! Get bounding box for entire tree
   MBErrorCode get_tree_box( MBEntityHandle root_node,
-                            double box_min_out[3], 
-                            double box_max_out[3] );
+                            double corner_coords[8][3] );
   
   //! Set bounding box for entire tree
   MBErrorCode set_tree_box( MBEntityHandle root_node,
                             const double box_min[3], 
                             const double box_max[3] );
+  MBErrorCode set_tree_box( MBEntityHandle root_node,
+                            const double corner_coords[8][3] );
   
   //! Create tree root node
   MBErrorCode create_tree( const double box_min[3],
                            const double box_max[3],
+                           MBEntityHandle& root_handle );
+  MBErrorCode create_tree( const double corner_coords[8][3],
                            MBEntityHandle& root_handle );
   
   //! Create tree root node
