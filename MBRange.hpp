@@ -280,6 +280,8 @@ public:
   const_iterator lower_bound( MBEntityType type ) const;
   const_iterator upper_bound( MBEntityType type ) const;
   std::pair<const_iterator, const_iterator> equal_range( MBEntityType type ) const;
+  const_iterator lower_bound( MBEntityType type, const_iterator first ) const;
+  const_iterator upper_bound( MBEntityType type, const_iterator first ) const;
   
   //! True if all entities in range are of passed type 
   //! (also true if range is empty)

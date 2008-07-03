@@ -220,6 +220,11 @@ public:
                                       const double distance,
                                       std::vector<MBEntityHandle>& leaves_out );
 
+  //! Calculate bounding box for entities.
+  MBErrorCode bounding_box( const MBRange& entities,
+                            double box_min_out[3],
+                            double box_max_out[3] );
+
 private:
   
   /**\brief find a triangle near the input point */

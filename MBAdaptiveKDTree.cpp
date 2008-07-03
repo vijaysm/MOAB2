@@ -687,7 +687,8 @@ MBErrorCode MBAdaptiveKDTreeIter::get_parent_split_plane( MBAdaptiveKDTree::Plan
 }
 
 
-static MBErrorCode intersect_children_with_elems( MBInterface* moab,
+static MBErrorCode intersect_children_with_elems(
+                                        MBAdaptiveKDTree* tool,
                                         const MBRange& elems,
                                         MBAdaptiveKDTree::Plane plane,
                                         double eps,
@@ -701,7 +702,8 @@ static MBErrorCode intersect_children_with_elems( MBInterface* moab,
   left_tris.clear();
   right_tris.clear();
   both_tris.clear();
-  MBCartVect coords[8];
+  MBCartVect coords[16];
+  MBInterface *const moab = tool->moab();
   
     // get extents of boxes for left and right sides
   MBCartVect right_min( box_min ), left_max( box_max );
@@ -713,13 +715,44 @@ static MBErrorCode intersect_children_with_elems( MBInterface* moab,
   const MBCartVect dim = box_max - box_min;
   
   
-    // test each triangle
+    // test each entity
   MBErrorCode rval;
-  int count;
-  const MBEntityHandle* conn;
-  for (MBRange::reverse_iterator i = elems.rbegin(); i != elems.rend(); ++i) {
+  int count, count2;
+  const MBEntityHandle* conn, *conn2;
+  
+  const MBRange::const_iterator elem_begin = elems.lower_bound( MBEDGE );
+  const MBRange::const_iterator poly_begin = elems.lower_bound( MBPOLYHEDRON, elem_begin );
+  const MBRange::const_iterator set_begin = elems.lower_bound( MBENTITYSET, poly_begin );
+  MBRange::iterator left_ins = left_tris.begin();
+  MBRange::iterator right_ins = right_tris.begin();
+  MBRange::iterator both_ins = both_tris.begin();
+  MBRange::const_iterator i;
+  
+    // vertices
+  for (i = elems.begin(); i != elem_begin; ++i) {
+    rval = moab->get_coords( &*i, 1, coords[0].array() );
+    if (MB_SUCCESS != rval)
+      return rval;
+    
+    bool lo = false, ro = false;
+    if (coords[0][plane.norm] <= plane.coord)
+      lo = true;
+    if (coords[0][plane.norm] >= plane.coord)
+      ro = true;
+
+    if (lo && ro)
+      both_ins = both_tris.insert( both_ins, *i, *i );
+    else if (lo)
+      left_ins = left_tris.insert( left_ins, *i, *i );
+    else // if (ro)
+      right_ins = right_tris.insert( right_ins, *i, *i );
+  }
+  
+    // non-polyhedron elements
+  for (i = elem_begin; i != poly_begin; ++i) {
     rval = moab->get_connectivity( *i, conn, count, true );
-    if (MB_SUCCESS != rval) return rval;
+    if (MB_SUCCESS != rval) 
+      return rval;
     if (count > (int)(sizeof(coords)/sizeof(coords[0])))
       return MB_FAILURE;
     rval = moab->get_coords( &conn[0], count, coords[0].array() );
@@ -749,12 +782,66 @@ static MBErrorCode intersect_children_with_elems( MBInterface* moab,
       }
     }
     if (lo && ro)
-      both_tris.insert( *i );
+      both_ins = both_tris.insert( both_ins, *i, *i );
     else if (lo)
-      left_tris.insert( *i );
+      left_ins = left_tris.insert( left_ins, *i, *i );
     else if (ro)
-      right_tris.insert( *i );
+      right_ins = right_tris.insert( right_ins, *i, *i );
   }
+  
+    // polyhedra
+  for (i = poly_begin; i != set_begin; ++i) {
+    rval = moab->get_connectivity( *i, conn, count, true );
+    if (MB_SUCCESS != rval) 
+      return rval;
+      
+      // just check the bounding box of the polyhedron
+    bool lo = false, ro = false;
+    for (int j = 0; j < count; ++j) {
+      rval = moab->get_connectivity( conn[j], conn2, count2, true );
+      if (MB_SUCCESS != rval)
+        return rval;
+      
+      for (int k = 0; k < count2; ++k) {
+        rval = moab->get_coords( conn2 + k, 1, coords[0].array() );
+        if (MB_SUCCESS != rval)
+          return rval;
+        if (coords[0][plane.norm] <= plane.coord)
+          lo = true;
+        if (coords[0][plane.norm] >= plane.coord)
+          ro = true;
+      }
+    }
+    
+    if (lo && ro)
+      both_ins = both_tris.insert( both_ins, *i, *i );
+    else if (lo)
+      left_ins = left_tris.insert( left_ins, *i, *i );
+    else if (ro)
+      right_ins = right_tris.insert( right_ins, *i, *i );
+  }
+  
+    // sets
+  MBCartVect tmin, tmax;
+  for (i = set_begin; i != elems.end(); ++i) {
+    rval = tool->get_tree_box( *i, tmin.array(), tmax.array() );
+    if (MB_SUCCESS != rval)
+      return rval;
+    
+    bool lo = false, ro = false;
+    if (tmin[plane.norm] <= plane.coord)
+      lo = true;
+    if (tmax[plane.norm] >= plane.coord)
+      ro = true;
+
+    if (lo && ro)
+      both_ins = both_tris.insert( both_ins, *i, *i );
+    else if (lo)
+      left_ins = left_tris.insert( left_ins, *i, *i );
+    else // if (ro)
+      right_ins = right_tris.insert( right_ins, *i, *i );
+  }
+  
   
   MBCartVect box_dim = box_max - box_min;
   double area_left = left_dim[0]*left_dim[1] + left_dim[1]*left_dim[2] + left_dim[2]*left_dim[0];
@@ -794,7 +881,7 @@ static MBErrorCode best_subdivision_plane( int num_planes,
       MBAdaptiveKDTree::Plane plane = { box_min[axis] + (p/(1.0+plane_count)) * diff[axis], axis };
       MBRange left, right, both;
       double val;
-      r = intersect_children_with_elems( iter.tool()->moab(),
+      r = intersect_children_with_elems( iter.tool(),
                                          entities, plane, eps,
                                          box_min, box_max,
                                          left, right, both, 
@@ -870,7 +957,7 @@ static MBErrorCode best_subdivision_snap_plane( int num_planes,
       MBAdaptiveKDTree::Plane plane = { closest_coord, axis };
       MBRange left, right, both;
       double val;
-      r = intersect_children_with_elems( iter.tool()->moab(),
+      r = intersect_children_with_elems( iter.tool(),
                                          entities, plane, eps,
                                          box_min, box_max,
                                          left, right, both, 
@@ -949,7 +1036,7 @@ static MBErrorCode best_vertex_median_plane( int num_planes,
       MBAdaptiveKDTree::Plane plane = { *citer, axis };
       MBRange left, right, both;
       double val;
-      r = intersect_children_with_elems( iter.tool()->moab(),
+      r = intersect_children_with_elems( iter.tool(),
                                          entities, plane, eps,
                                          box_min, box_max,
                                          left, right, both, 
@@ -1065,7 +1152,7 @@ static MBErrorCode best_vertex_sample_plane( int num_planes,
       MBAdaptiveKDTree::Plane plane = { coords[indices[p]], axis };
       MBRange left, right, both;
       double val;
-      r = intersect_children_with_elems( iter.tool()->moab(),
+      r = intersect_children_with_elems( iter.tool(),
                                          entities, plane, eps,
                                          box_min, box_max,
                                          left, right, both, 
@@ -1102,42 +1189,76 @@ static inline void box_accum( const MBCartVect& point,
   }
 }
 
-static MBErrorCode bounding_box( MBInterface* moab,
-                                 const MBRange& elems,
-                                 MBCartVect& bmin,
-                                 MBCartVect& bmax )
+MBErrorCode MBAdaptiveKDTree::bounding_box( const MBRange& elems,
+                                            double box_min[3],
+                                            double box_max[3] )
 {
   MBErrorCode rval;
-  bmin = MBCartVect(HUGE_VAL);
-  bmax = MBCartVect(-HUGE_VAL);
+  MBCartVect bmin(HUGE_VAL), bmax(-HUGE_VAL);
   MBCartVect coords;
   MBEntityHandle const *conn, *conn2;
   int len, len2;
-  for (MBRange::const_iterator i = elems.begin(); i != elems.end(); ++i) {
-    rval = moab->get_connectivity( *i, conn, len, true );
+  MBRange::const_iterator i;
+  
+    // vertices
+  const MBRange::const_iterator elem_begin = elems.lower_bound( MBEDGE );
+  for (i = elems.begin(); i != elem_begin; ++i) {
+    rval = moab()->get_coords( &*i, 1, coords.array() );
     if (MB_SUCCESS != rval)
       return rval;
-      
-    if (TYPE_FROM_HANDLE(*i) != MBPOLYHEDRON) {
-      for (int j = 0; j < len; ++j) {
-        rval = moab->get_coords( conn+j, 1, coords.array() );
+    box_accum( coords, bmin, bmax );
+  }
+
+    // elements with vertex-handle connectivity list
+  const MBRange::const_iterator poly_begin = elems.lower_bound( MBPOLYHEDRON, elem_begin );
+  for (i = elem_begin; i != poly_begin; ++i) {
+    rval = moab()->get_connectivity( *i, conn, len, true );
+    if (MB_SUCCESS != rval)
+      return rval;
+
+    for (int j = 0; j < len; ++j) {
+      rval = moab()->get_coords( conn+j, 1, coords.array() );
+      if (MB_SUCCESS != rval)
+        return rval;
+      box_accum( coords, bmin, bmax );
+    }
+  }
+  
+    // polyhedra
+  const MBRange::const_iterator set_begin  = elems.lower_bound( MBENTITYSET, poly_begin );
+  for (i = poly_begin; i != set_begin; ++i) {
+    rval = moab()->get_connectivity( *i, conn, len, true );
+    if (MB_SUCCESS != rval)
+      return rval;
+
+    for (int j = 0; j < len; ++j) {
+      rval = moab()->get_connectivity( conn[j], conn2, len2 );
+      for (int k = 0; k < len2; ++k) {
+        rval = moab()->get_coords( conn2+k, 1, coords.array() );
         if (MB_SUCCESS != rval)
           return rval;
         box_accum( coords, bmin, bmax );
       }
     }
-    else {
-      for (int j = 0; j < len; ++j) {
-        rval = moab->get_connectivity( conn[j], conn2, len2 );
-        for (int k = 0; k < len2; ++k) {
-          rval = moab->get_coords( conn2+k, 1, coords.array() );
-          if (MB_SUCCESS != rval)
-            return rval;
-          box_accum( coords, bmin, bmax );
-        }
-      }
+  }
+  
+    // sets
+  MBCartVect tmin, tmax;
+  for (i = set_begin; i != elems.end(); ++i) {
+    rval = get_tree_box( *i, tmin.array(), tmax.array() );
+    if (MB_SUCCESS != rval)
+      return rval;
+      
+    for (int j = 0; j < 3; ++j) {
+      if (tmin[j] < bmin[j])
+        bmin[j] = tmin[j];
+      if (tmax[j] > bmax[j])
+        bmax[j] = tmax[j];
     }
   }
+  
+  bmin.get( box_min );
+  bmax.get( box_max );
   return MB_SUCCESS;
 }
 
@@ -1159,7 +1280,7 @@ MBErrorCode MBAdaptiveKDTree::build_tree( const MBRange& elems,
   
     // calculate bounding box of elements
   MBCartVect bmin, bmax;
-  rval = bounding_box( moab(), elems, bmin, bmax );
+  rval = bounding_box( elems, bmin.array(), bmax.array() );
   if (MB_SUCCESS != rval)
     return rval;
   

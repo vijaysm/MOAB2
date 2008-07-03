@@ -708,6 +708,13 @@ MBRange::const_iterator MBRange::lower_bound( MBEntityType type ) const
   MBEntityHandle handle = CREATE_HANDLE( type, 0, err );
   return err ? end() : lower_bound( begin(), end(), handle );
 }
+MBRange::const_iterator MBRange::lower_bound( MBEntityType type,
+                                              const_iterator first ) const
+{
+  int err;
+  MBEntityHandle handle = CREATE_HANDLE( type, 0, err );
+  return err ? end() : lower_bound( first, end(), handle );
+}
 
 MBRange::const_iterator MBRange::upper_bound( MBEntityType type ) const
 {
@@ -715,6 +722,14 @@ MBRange::const_iterator MBRange::upper_bound( MBEntityType type ) const
   int err; 
   MBEntityHandle handle = CREATE_HANDLE( type + 1, 0, err );
   return err ? end() : lower_bound( begin(), end(), handle );
+}
+MBRange::const_iterator MBRange::upper_bound( MBEntityType type,
+                                              const_iterator first ) const
+{
+    // if (type+1) overflows, err will be true and we return end().
+  int err; 
+  MBEntityHandle handle = CREATE_HANDLE( type + 1, 0, err );
+  return err ? end() : lower_bound( first, end(), handle );
 }
 
 std::pair<MBRange::const_iterator, MBRange::const_iterator>
