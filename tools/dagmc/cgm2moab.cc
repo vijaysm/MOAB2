@@ -432,8 +432,8 @@ bool cgm2moab(MBInterface* iface,
           type = MBPOLYGON;
       }
       
-      if (surf->bridge_sense() == CUBIT_REVERSED)
-        std::reverse( corners.begin(), corners.end() );
+      // if (surf->bridge_sense() == CUBIT_REVERSED)
+      //   std::reverse( corners.begin(), corners.end() );
       
       MBEntityHandle h;
       rval = iface->create_element( type, &corners[0], corners.size(), h );
