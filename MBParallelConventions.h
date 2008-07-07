@@ -27,7 +27,7 @@
  *
  * This single-valued tag implies an entity is shared with one other proc
  */
-#define PARALLEL_SHARED_PROC_TAG_NAME "PARALLEL_SHARED_PROC"
+#define PARALLEL_SHARED_PROC_TAG_NAME "__PARALLEL_SHARED_PROC"
  
 /** \brief Tag storing which other processorS a given entity is shared with
  *
@@ -35,13 +35,13 @@
  * other processors.  Length of tag is application-dependent, and depends on
  * what the maximum number of processors is which share an entity
  */
-#define PARALLEL_SHARED_PROCS_TAG_NAME "PARALLEL_SHARED_PROCS"
+#define PARALLEL_SHARED_PROCS_TAG_NAME "__PARALLEL_SHARED_PROCS"
  
 /** \brief Tag storing the handle of a shared entity on the other proc
  *
  * This single-valued tag implies an entity is shared with one other proc
  */
-#define PARALLEL_SHARED_HANDLE_TAG_NAME "PARALLEL_SHARED_HANDLE"
+#define PARALLEL_SHARED_HANDLE_TAG_NAME "__PARALLEL_SHARED_HANDLE"
  
 /** \brief Tag storing handles of a shared entity on other processors
  *
@@ -49,7 +49,7 @@
  * other processors.  Length of tag is application-dependent, and depends on
  * what the maximum number of processors is which share an entity
  */
-#define PARALLEL_SHARED_HANDLES_TAG_NAME "PARALLEL_SHARED_HANDLES"
+#define PARALLEL_SHARED_HANDLES_TAG_NAME "__PARALLEL_SHARED_HANDLES"
  
 /** \brief Tag storing parallel status (as bits in this tag)
  *
@@ -62,7 +62,7 @@
  * bit 2: interface (0=not interface, 1=interface)
  * bit 3: ghost (0=not ghost, 1=ghost)
  */
-#define PARALLEL_STATUS_TAG_NAME "PARALLEL_STATUS"
+#define PARALLEL_STATUS_TAG_NAME "__PARALLEL_STATUS"
 
 #define PSTATUS_NOT_OWNED 0x1
 #define PSTATUS_SHARED 0x2
@@ -82,6 +82,6 @@
  * Tag type: opaque
  * Tag size: MAX_SHARING_PROCS*sizeof(MBParallelComm*)
  */
-#define PARALLEL_COMM_TAG_NAME "PARALLEL_COMM"
+#define PARALLEL_COMM_TAG_NAME "__PARALLEL_COMM"
 
 #endif

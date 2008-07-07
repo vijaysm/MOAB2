@@ -30,6 +30,7 @@
 #include "MBRange.hpp"
 #include "MBProcConfig.hpp"
 #include <map>
+#include <set>
 #include "math.h"
 #include "mpi.h"
 
@@ -138,6 +139,26 @@ public:
                                    bool store_remote_handles,
                                    bool wait_all = true);
 
+    /** \brief Exchange tags for all shared and ghosted entities
+     * This function should be called collectively over the communicator for this MBParallelComm.
+     * If this version is called, all ghosted/shared entities should have a value for this
+     * tag (or the tag should have a default value).
+     * \param tags Vector of tag handles to be exchanged
+     */
+  MBErrorCode exchange_tags(std::vector<MBTag> &tags);
+  
+    /** \brief Exchange tags for all shared and ghosted entities
+     * This function should be called collectively over the communicator for this MBParallelComm
+     * \param tag_name Name of tag to be exchanged
+     */
+  MBErrorCode exchange_tags(const char *tag_name);
+  
+    /** \brief Exchange tags for all shared and ghosted entities
+     * This function should be called collectively over the communicator for this MBParallelComm
+     * \param tagh Handle of tag to be exchanged
+     */
+  MBErrorCode exchange_tags(MBTag tagh);
+
     /** \brief Broadcast all entities resident on from_proc to other processors
      * This function assumes remote handles are *not* being stored, since (usually)
      * every processor will know about the whole mesh.
@@ -236,8 +257,11 @@ public:
                                  MBRange &part_sets,
                                  const char *tag_name = NULL);
 
-    //! get processors with which this processor communicates; sets are sorted by processor
-  MBErrorCode get_interface_procs(std::vector<int> &iface_procs);
+    //! get processors with which this processor shares an interface
+  MBErrorCode get_interface_procs(std::set<unsigned int> &iface_procs);
+
+    //! get processors with which this processor communicates
+  MBErrorCode get_comm_procs(std::set<unsigned int> &procs);
   
     //! pack the buffer with ALL data for orig_ents; return entities actually
     //! packed (including reference sub-entities) in final_ents
@@ -356,7 +380,8 @@ private:
     //! Irecv to get message
   MBErrorCode recv_size_buff(const int from_proc,
                              std::vector<unsigned char> &recv_buff,
-                             MPI_Request &recv_req);
+                             MPI_Request &recv_req,
+                             int mesg_tag);
   
     //! process contents of receive buffer to get new entities; if store_remote_handles
     //! is true, also Isend (using send_buff) handles for these entities back to 
@@ -436,7 +461,8 @@ private:
                         const bool store_handles,
                         const int to_proc,
                         std::vector<MBTag> &all_tags,
-                        std::vector<MBRange> &tag_ranges);
+                        std::vector<MBRange> &tag_ranges,
+                        const bool all_possible_tags = true);
 
   MBErrorCode unpack_tags(unsigned char *&buff_ptr,
                           MBRange &entities,
@@ -587,10 +613,14 @@ private:
     //! request objects, may be used if store_remote_handles is used
   MPI_Request sendReqs[2*MAX_SHARING_PROCS];
 
+    //! processor rank for each buffer index
   std::vector<int> buffProcs;
 
     //! the partition, interface sets for this comm'n instance
   MBRange partitionSets, interfaceSets;
+  
+    //! local entities ghosted to other procs
+  std::map<unsigned int, MBRange> ghostedEnts;
   
     //! tags used to save sharing procs and handles
   MBTag sharedpTag, sharedpsTag, sharedhTag, sharedhsTag, pstatusTag, 
@@ -608,6 +638,39 @@ inline MBErrorCode MBParallelComm::get_shared_proc_tags(MBTag &sharedp,
   sharedh = sharedh_tag();
   sharedhs = sharedhs_tag();
   pstatus = pstatus_tag();
+  
+  return MB_SUCCESS;
+}
+
+inline MBErrorCode MBParallelComm::exchange_tags(const char *tag_name)
+{
+    // get the tag handle
+  std::vector<MBTag> tags(1);
+  MBErrorCode result = mbImpl->tag_get_handle(tag_name, tags[0]);
+  if (MB_SUCCESS != result) return result;
+  else if (!tags[0]) return MB_TAG_NOT_FOUND;
+  
+  return exchange_tags(tags);
+}
+  
+inline MBErrorCode MBParallelComm::exchange_tags(MBTag tagh)
+{
+    // get the tag handle
+  std::vector<MBTag> tags;
+  tags.push_back(tagh);
+  
+  return exchange_tags(tags);
+}
+  
+inline MBErrorCode MBParallelComm::get_comm_procs(std::set<unsigned int> &procs) 
+{
+  MBErrorCode result = get_interface_procs(procs);
+  if (MB_SUCCESS != result) return result;
+
+    // add any procs sharing ghosts but not already in exch_procs
+  for (std::map<unsigned int, MBRange>::iterator mit = ghostedEnts.begin(); 
+       mit != ghostedEnts.end(); mit++)
+    procs.insert((*mit).first);
   
   return MB_SUCCESS;
 }

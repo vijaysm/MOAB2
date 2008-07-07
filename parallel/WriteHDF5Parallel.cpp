@@ -329,7 +329,7 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
   
     // For the 'remoteMesh' list for this processor, just remove
     // entities we aren't writing.
-  MBRange& my_remote_mesh = remoteMesh[myPcomm->proc_config().proc_size()];
+  MBRange& my_remote_mesh = remoteMesh[myPcomm->proc_config().proc_rank()];
   tmpset = my_remote_mesh.subtract( nodeSet.range );
   if (!tmpset.empty())
     my_remote_mesh = my_remote_mesh.subtract( tmpset );

@@ -104,7 +104,7 @@ int main(int argc, char **argv)
   std::vector<std::string> filenames;
   int parallel_option = 0;
 
-  while (npos < argc) {
+  while (npos != argc) {    
     MBErrorCode tmp_result;
     int nshared = -1;
     int this_opt = strtol(argv[npos++], NULL, 0);
@@ -113,157 +113,84 @@ int main(int argc, char **argv)
       case -1:
       case -2:
       case -3:
-        parallel_option = this_opt;
-        continue;
+          parallel_option = this_opt;
+          continue;
         
       case 3:
-          // read a file in parallel from the filename on the command line
-        tag_name = "MATERIAL_SET";
-        tag_val = -1;
-        filenames.push_back(std::string(argv[npos++]));
-        if (npos < argc) tag_name = argv[npos++];
-        if (npos < argc) tag_val = strtol(argv[npos++], NULL, 0);
-        if (npos < argc) distrib = strtol(argv[npos++], NULL, 0);
-        else distrib = 1;
-        if (npos < argc) resolve_shared = strtol(argv[npos++], NULL, 0);
-        if (npos < argc) with_ghosts = strtol(argv[npos++], NULL, 0);
+            // read a file in parallel from the filename on the command line
+          tag_name = "MATERIAL_SET";
+          tag_val = -1;
+          filenames.push_back(std::string(argv[npos++]));
+          if (npos < argc) tag_name = argv[npos++];
+          if (npos < argc) tag_val = strtol(argv[npos++], NULL, 0);
+          if (npos < argc) distrib = strtol(argv[npos++], NULL, 0);
+          else distrib = 1;
+          if (npos < argc) resolve_shared = strtol(argv[npos++], NULL, 0);
+          if (npos < argc) with_ghosts = strtol(argv[npos++], NULL, 0);
 
-        tmp_result = read_file(mbImpl, filenames, tag_name, tag_val,
-                               distrib, parallel_option, 
-                               resolve_shared, with_ghosts);
-        if (MB_SUCCESS != tmp_result) {
-          result = tmp_result;
-          std::cerr << "Couldn't read mesh; error message:" << std::endl;
-          PRINT_LAST_ERROR;
-          MPI_Abort(MPI_COMM_WORLD, result);
-        }
-        nshared = -1;
-        break;
+          tmp_result = read_file(mbImpl, filenames, tag_name, tag_val,
+                                 distrib, parallel_option, 
+                                 resolve_shared, with_ghosts);
+          if (MB_SUCCESS != tmp_result) {
+            result = tmp_result;
+            std::cerr << "Couldn't read mesh; error message:" << std::endl;
+            PRINT_LAST_ERROR;
+            MPI_Abort(MPI_COMM_WORLD, result);
+          }
+          nshared = -1;
+          break;
 
       case 4:
-        filenames.push_back(argv[npos++]);
-        tmp_result = test_packing(mbImpl, filenames[0].c_str());
-        if (MB_SUCCESS != tmp_result) {
-          result = tmp_result;
-          std::cerr << "Packing test failed; error message:" << std::endl;
-          PRINT_LAST_ERROR
-        }
-        break;
+          filenames.push_back(argv[npos++]);
+          tmp_result = test_packing(mbImpl, filenames[0].c_str());
+          if (MB_SUCCESS != tmp_result) {
+            result = tmp_result;
+            std::cerr << "Packing test failed; error message:" << std::endl;
+            PRINT_LAST_ERROR
+                }
+          break;
 
       case 5:
-          // read a file in parallel from the filename on the command line
-        tag_name = "MATERIAL_SET";
-        distrib = 1;
-        tag_val = -1;
-        with_ghosts = 0;
-        resolve_shared = 1;
-        while (npos < argc)
-          filenames.push_back(std::string(argv[npos++]));
-        tmp_result = read_file(mbImpl, filenames, tag_name, tag_val,
-                               distrib, parallel_option, resolve_shared,
-                               with_ghosts);
-        if (MB_SUCCESS != tmp_result) {
-          result = tmp_result;
-          std::cerr << "Couldn't read mesh; error message:" << std::endl;
-          PRINT_LAST_ERROR;
-          MPI_Abort(MPI_COMM_WORLD, result);
-        }
-        nshared = -1;
-        break;
+            // read a file in parallel from the filename on the command line
+          tag_name = "MATERIAL_SET";
+          distrib = 1;
+          tag_val = -1;
+          with_ghosts = 0;
+          resolve_shared = 1;
+          while (npos < argc)
+            filenames.push_back(std::string(argv[npos++]));
+          tmp_result = read_file(mbImpl, filenames, tag_name, tag_val,
+                                 distrib, parallel_option, resolve_shared,
+                                 with_ghosts);
+          if (MB_SUCCESS != tmp_result) {
+            result = tmp_result;
+            std::cerr << "Couldn't read mesh; error message:" << std::endl;
+            PRINT_LAST_ERROR;
+            MPI_Abort(MPI_COMM_WORLD, result);
+          }
+          nshared = -1;
+          break;
 
       default:
-        std::cerr << "Unrecognized option \"" << this_opt
-                  << "\"; skipping." << std::endl;
-        tmp_result = MB_FAILURE;
+          std::cerr << "Unrecognized option \"" << this_opt
+                    << "\"; skipping." << std::endl;
+          tmp_result = MB_FAILURE;
     }
     
 
     if (0 == rank) rtime = MPI_Wtime();
-    if (MB_SUCCESS == tmp_result && 4 != this_opt && false) {
-        // now figure out which vertices are shared
-      MBParallelComm *pcomm = MBParallelComm::get_pcomm(mbImpl, 0);
-      assert(pcomm);
-
-      MBRange iface_ents[7];
-      for (int i = 0; i < 4; i++) {
-        tmp_result = pcomm->get_iface_entities(-1, i, iface_ents[i]);
-      
-        if (MB_SUCCESS != tmp_result) {
-          std::cerr << "get_iface_entities returned error on proc " 
-                    << rank << "; message: " << std::endl;
-          PRINT_LAST_ERROR;
-          result = tmp_result;
-        }
-        if (0 != i) iface_ents[4].merge(iface_ents[i]);
-      }
-      result = pcomm->get_part_entities(iface_ents[6], -1);
-      PRINT_LAST_ERROR;
-
-      std::cerr << "Proc " << rank << " partition entities:" << std::endl;
-      iface_ents[6].print("   ");
-      
-      if (0 == rank) setime = MPI_Wtime();
-
-        // check # iface entities
-      if (0 <= nshared && nshared != (int) iface_ents[0].size()) {
-        std::cerr << "Didn't get correct number of iface vertices on "
-                  << "processor " << rank << std::endl;
-        result = MB_FAILURE;
-      }
-
-      else
-        std::cerr << "Proc " << rank << " option " << this_opt
-                << " succeeded." << std::endl;
-
-      if (-1 == nshared) {
-        result = mbImpl->get_adjacencies(iface_ents[4], 0, false, iface_ents[5], 
-                                         MBInterface::UNION);
-        
-        std::cerr << "Proc " << rank << " iface entities: " << std::endl;
-        for (int i = 0; i < 4; i++)
-          std::cerr << "    " << iface_ents[i].size() << " "
-                    << i << "d iface entities." << std::endl;
-        std::cerr << "    (" << iface_ents[5].size() 
-                  << " verts adj to other iface ents)" << std::endl;
-      }
-      
-      if (debug && false) {
-//      if (debug && 2 == nprocs) {
-          // if I'm root, get and print handles on other procs
-        std::vector<MBEntityHandle> sharedh_tags(iface_ents[0].size());
-        std::fill(sharedh_tags.begin(), sharedh_tags.end(), 0);
-        MBTag dumt, sharedh_tag;
-        result = pcomm->get_shared_proc_tags(dumt, dumt, sharedh_tag, dumt, dumt);
-        result = mbImpl->tag_get_data(sharedh_tag, iface_ents[0], &sharedh_tags[0]);
-        if (MB_SUCCESS != result) {
-          std::cerr << "Couldn't get shared handle tag." << std::endl;
-        }
-        else {
-          MBRange dum_range;
-          std::copy(sharedh_tags.begin(), sharedh_tags.end(), mb_range_inserter(dum_range));
-          std::cerr << "Shared handles: " << std::endl;
-          dum_range.print();
-        }
-        
-      result = report_nsets(mbImpl);
-      }
-
-      if (0 == rank) ltime = MPI_Wtime();
-  
-      delete pcomm;
-      tmp_result = mbImpl->delete_mesh();
-      if (MB_SUCCESS != tmp_result) {
-        result = tmp_result;
-        std::cerr << "Couldn't delete mesh on rank " << rank
-                  << "; error message: " << std::endl;
-        PRINT_LAST_ERROR
-      }
-    }
   }
   
   if (0 == rank) dtime = MPI_Wtime();
 
   err = MPI_Finalize();
+
+  result = mbImpl->delete_mesh();
+  if (MB_SUCCESS != result) {
+    std::cerr << "Couldn't delete mesh on rank " << rank
+              << "; error message: " << std::endl;
+    PRINT_LAST_ERROR;
+  }
 
   if (MB_SUCCESS == result)
     std::cerr << "Proc " << rank << ": Success." << std::endl;
@@ -400,6 +327,14 @@ MBErrorCode read_file(MBInterface *mbImpl,
       MPI_Abort(MPI_COMM_WORLD, result);
       break;
     }
+
+      // exchange tag
+    result = pcs[i]->exchange_tags("GLOBAL_ID");
+    if (MB_SUCCESS != result) {
+      std::cerr << "Tag exchange didn't work." << std::endl;
+      break;
+    }
+
   }
 
   if (MB_SUCCESS == result) report_iface_ents(mbImpl, pcs);

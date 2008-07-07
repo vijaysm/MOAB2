@@ -113,9 +113,9 @@ enum MBMessageTag {MB_MESG_ANY=MPI_ANY_TAG,
                    MB_MESG_SIZE,
                    MB_MESG_ENTS,
                    MB_MESG_REMOTE_HANDLES_RANGE,
-                   MB_MESG_REMOTE_HANDLES_VECTOR
-};
-
+                   MB_MESG_REMOTE_HANDLES_VECTOR,
+                   MB_MESG_TAGS,};
+    
 MBParallelComm::MBParallelComm(MBInterface *impl, MPI_Comm comm) 
     : mbImpl(impl), procConfig(comm), sharedpTag(0), sharedpsTag(0),
       sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0),
@@ -347,7 +347,7 @@ MBErrorCode MBParallelComm::recv_entities(const int from_proc,
   if (MB_MESG_SIZE == status.MPI_TAG) {
     result = recv_size_buff(from_proc,
                             ghostRBuffs[index],
-                            req);
+                            req, MB_MESG_ANY);
     RRA("Failed to resize recv buffer.");
     MPI_Wait(&req, &status);
   }
@@ -454,12 +454,13 @@ MBErrorCode MBParallelComm::pack_send_entities(const int to_proc,
 
 MBErrorCode MBParallelComm::recv_size_buff(const int from_proc,
                                            std::vector<unsigned char> &recv_buff,
-                                           MPI_Request &recv_req) 
+                                           MPI_Request &recv_req,
+                                           int mesg_tag) 
 {
     // use the received size to resize buffer, then post another irecv
   recv_buff.resize(-(*((int*)&recv_buff[0])));
   int success = MPI_Irecv(&recv_buff[0], recv_buff.size(), MPI_UNSIGNED_CHAR, from_proc, 
-                          MB_MESG_ENTS, procConfig.proc_comm(), &recv_req);
+                          mesg_tag, procConfig.proc_comm(), &recv_req);
   if (MPI_SUCCESS != success) {
     MBErrorCode result = MB_FAILURE;
     RRA("Failed call to Irecv in recv_size_buff.");
@@ -1986,7 +1987,8 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
                                       const bool store_remote_handles,
                                       const int to_proc,
                                       std::vector<MBTag> &all_tags,
-                                      std::vector<MBRange> &tag_ranges)
+                                      std::vector<MBRange> &tag_ranges,
+                                      const bool all_possible_tags)
 {
     // tags
     // get all the tags
@@ -2000,23 +2002,37 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
 
   if (just_count) {
 
-    std::vector<MBTag> tmp_tags;
-    result = tagServer->get_tags(tmp_tags);
-    RRA("Failed to get tags in pack_tags.");
+    if (all_possible_tags) {
+      std::vector<MBTag> tmp_tags;
+    
+      result = tagServer->get_tags(tmp_tags);
+      RRA("Failed to get tags in pack_tags.");
 
-    for (std::vector<MBTag>::iterator tag_it = tmp_tags.begin(); tag_it != tmp_tags.end(); tag_it++) {
+      for (std::vector<MBTag>::iterator tag_it = tmp_tags.begin(); tag_it != tmp_tags.end(); tag_it++) {
+        std::string tag_name;
+        result = mbImpl->tag_get_name(*tag_it, tag_name);
+        if (tag_name.c_str()[0] == '_' && tag_name.c_str()[1] == '_')
+          continue;
+
+        MBRange tmp_range;
+        result = tagServer->get_entities(*tag_it, tmp_range);
+        RRA("Failed to get entities for tag in pack_tags.");
+        tmp_range = tmp_range.intersect(whole_range);
+
+        if (tmp_range.empty()) continue;
+        
+          // ok, we'll be sending this tag
+        all_tags.push_back(*tag_it);
+        tag_ranges.push_back(tmp_range);
+      }
+    }
+    
+    std::vector<MBTag>::iterator tag_it;
+    std::vector<MBRange>::iterator rit;
+    for (tag_it = all_tags.begin(), rit = tag_ranges.begin(); 
+         tag_it != all_tags.end(); tag_it++, rit++) {
+
       const TagInfo *tinfo = tagServer->get_tag_info(*tag_it);
-      MBRange tmp_range;
-      result = tagServer->get_entities(*tag_it, tmp_range);
-      RRA("Failed to get entities for tag in pack_tags.");
-      tmp_range = tmp_range.intersect(whole_range);
-      
-      if (tmp_range.empty())
-        continue;
-
-        // ok, we'll be sending this tag
-      all_tags.push_back(*tag_it);
-
         // default value
       count += sizeof(int);
       if (NULL != tinfo->default_value()) 
@@ -2029,28 +2045,24 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
       count += sizeof(int);
       count += tinfo->get_name().size();
 
-      if (!tmp_range.empty()) {
-        tag_ranges.push_back(tmp_range);
-
         // range of tag
-        count += sizeof(int) + tmp_range.size() * sizeof(MBEntityHandle);
+      count += sizeof(int) + rit->size() * sizeof(MBEntityHandle);
       
-        if (tinfo->get_size() == MB_VARIABLE_LENGTH) {
-          const int num_ent = tmp_range.size();
-            // send a tag size for each entity
-          count += num_ent * sizeof(int);
-            // send tag data for each entity
-          var_len_sizes.resize( num_ent );
-          var_len_values.resize( num_ent );
-          result = tagServer->get_data( *tag_it, tmp_range, &var_len_values[0], 
-                                        &var_len_sizes[0] );
-          RRA("Failed to get lenghts of variable-length tag values.");
-          count += std::accumulate( var_len_sizes.begin(), var_len_sizes.end(), 0 );
-        }
-        else {
-            // tag data values for range or vector
-          count += tmp_range.size() * tinfo->get_size();
-        }
+      if (tinfo->get_size() == MB_VARIABLE_LENGTH) {
+        const int num_ent = rit->size();
+          // send a tag size for each entity
+        count += num_ent * sizeof(int);
+          // send tag data for each entity
+        var_len_sizes.resize( num_ent );
+        var_len_values.resize( num_ent );
+        result = tagServer->get_data( *tag_it, *rit, &var_len_values[0], 
+                                      &var_len_sizes[0] );
+        RRA("Failed to get lenghts of variable-length tag values.");
+        count += std::accumulate( var_len_sizes.begin(), var_len_sizes.end(), 0 );
+      }
+      else {
+          // tag data values for range or vector
+        count += rit->size() * tinfo->get_size();
       }
     }
     
@@ -2059,7 +2071,6 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
   }
 
   else {
-    std::vector<unsigned char> tag_data;
     std::vector<MBRange>::const_iterator tr_it = tag_ranges.begin();
 
     PACK_INT(buff_ptr, all_tags.size());
@@ -2869,9 +2880,7 @@ MBErrorCode MBParallelComm::get_iface_entities(int other_proc,
                                                MBRange &iface_ents) 
 {
   MBRange iface_sets;
-  std::vector<int> iface_procs;
-  MBErrorCode result = get_interface_procs(iface_procs);
-  RRA("Failed to get iface sets/procs.");
+  MBErrorCode result = MB_SUCCESS;
   
   for (MBRange::iterator rit = interfaceSets.begin(); rit != interfaceSets.end(); rit++) {
     if (-1 != other_proc && !is_iface_proc(*rit, other_proc)) continue;
@@ -2885,10 +2894,10 @@ MBErrorCode MBParallelComm::get_iface_entities(int other_proc,
 }
 
   //! get processors with which this processor communicates; sets are sorted by processor
-MBErrorCode MBParallelComm::get_interface_procs(std::vector<int> &iface_procs)
+MBErrorCode MBParallelComm::get_interface_procs(std::set<unsigned int> &procs_set)
 {
     // make sure the sharing procs vector is empty
-  iface_procs.clear();
+  procs_set.clear();
 
     // pre-load vector of single-proc tag values
   unsigned int i, j;
@@ -2899,18 +2908,17 @@ MBErrorCode MBParallelComm::get_interface_procs(std::vector<int> &iface_procs)
     // get sharing procs either from single-proc vector or by getting
     // multi-proc tag value
   int tmp_iface_procs[MAX_SHARING_PROCS];
-  std::set<int> procs_set;
   std::fill(tmp_iface_procs, tmp_iface_procs+MAX_SHARING_PROCS, -1);
   MBRange::iterator rit;
   for (rit = interfaceSets.begin(), i = 0; rit != interfaceSets.end(); rit++, i++) {
-    if (-1 != iface_proc[i]) procs_set.insert(iface_proc[i]);
+    if (-1 != iface_proc[i]) procs_set.insert((unsigned int) iface_proc[i]);
     else {
         // get the sharing_procs tag
       result = mbImpl->tag_get_data(sharedps_tag(), &(*rit), 1,
                                     tmp_iface_procs);
       RRA("Failed to get iface_procs for iface set.");
       for (j = 0; j < MAX_SHARING_PROCS; j++) {
-        if (-1 != tmp_iface_procs[j]) procs_set.insert(tmp_iface_procs[j]);
+        if (-1 != tmp_iface_procs[j]) procs_set.insert((unsigned int) tmp_iface_procs[j]);
         else {
           std::fill(tmp_iface_procs, tmp_iface_procs+j, -1);
           break;
@@ -2918,9 +2926,6 @@ MBErrorCode MBParallelComm::get_interface_procs(std::vector<int> &iface_procs)
       }
     }
   }
-
-    // now put the set contents into the vector
-  std::copy(procs_set.begin(), procs_set.end(), std::back_inserter(iface_procs));
   
   return MB_SUCCESS;
 }
@@ -3130,7 +3135,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
   int success;
 
     // get all procs interfacing to this proc
-  std::vector<int> iface_procs;
+  std::set<unsigned int> iface_procs;
   result = get_interface_procs(iface_procs);
   RRA("Failed to get iface sets, procs");
 
@@ -3138,11 +3143,11 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     // index greqs the same as buffer/sharing procs indices
   std::vector<MPI_Request> recv_reqs(2*MAX_SHARING_PROCS, MPI_REQUEST_NULL);
   std::vector<MPI_Status> gstatus(MAX_SHARING_PROCS);
-  std::vector<int>::iterator vit;
-  for (vit = iface_procs.begin(); vit != iface_procs.end(); vit++) {
-    int ind = get_buffers(*vit);
+  std::set<unsigned int>::iterator sit;
+  for (sit = iface_procs.begin(); sit != iface_procs.end(); sit++) {
+    int ind = get_buffers(*sit);
     success = MPI_Irecv(&ghostRBuffs[ind][0], ghostRBuffs[ind].size(), 
-                        MPI_UNSIGNED_CHAR, *vit,
+                        MPI_UNSIGNED_CHAR, *sit,
                         MB_MESG_ANY, procConfig.proc_comm(), 
                         &recv_reqs[ind]);
     if (success != MPI_SUCCESS) {
@@ -3159,15 +3164,15 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     // keep track of new ghosted and ghost ents so we can tag them later
   MBRange new_ghosted, new_ghosts;
   
-  for (vit = iface_procs.begin(); vit != iface_procs.end(); vit++) {
-    int ind = get_buffers(*vit);
+  for (sit = iface_procs.begin(); sit != iface_procs.end(); sit++) {
+    int ind = get_buffers(*sit);
     
     MBRange bridge_ents;
 
       // get bridge ents on interface(s)
     for (MBRange::iterator rit = interfaceSets.begin(); rit != interfaceSets.end();
          rit++) {
-      if (!is_iface_proc(*rit, *vit)) continue;
+      if (!is_iface_proc(*rit, *sit)) continue;
       
       result = get_ghost_layers(*rit, ghost_dim, bridge_dim, num_layers, bridge_ents);
       RRA("Failed to get ghost layers.");
@@ -3182,7 +3187,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     }
 
       // pack-send; this also posts receives if store_remote_handles is true
-    result = pack_send_entities(*vit, bridge_ents, false, true, 
+    result = pack_send_entities(*sit, bridge_ents, false, true, 
                                 store_remote_handles, (0 == num_layers),
                                 ownerSBuffs[ind], ownerRBuffs[MAX_SHARING_PROCS+ind], 
                                 sendReqs[ind], recv_reqs[MAX_SHARING_PROCS+ind], 
@@ -3222,7 +3227,8 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
         assert(ind < MAX_SHARING_PROCS);
         new_size = *((int*)&ghostRBuffs[ind][0]);
         assert(0 > new_size);
-        result = recv_size_buff(buffProcs[ind], ghostRBuffs[ind], recv_reqs[ind]);
+        result = recv_size_buff(buffProcs[ind], ghostRBuffs[ind], recv_reqs[ind],
+                                MB_MESG_ENTS);
         RRA("Failed to resize recv buffer.");
         num_incoming++;
         break;
@@ -3233,7 +3239,10 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
                                       ghostRBuffs[ind], ghostSBuffs[ind], 
                                       sendReqs[ind], recd_ents[ind]);
         RRA("Failed to recv-unpack message.");
-        if (0 != num_layers) new_ghosts.merge(recd_ents[ind]);
+        if (0 != num_layers) {
+          new_ghosts.merge(recd_ents[ind]);
+          ghostedEnts[buffProcs[ind]].merge(recd_ents[ind]);
+        }
         break;
       case MB_MESG_REMOTE_HANDLES_VECTOR:
           // incoming remote handles; use to set remote handles
@@ -3291,6 +3300,145 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
       result = MB_FAILURE;
       RRA("Failure in waitall in ghost exchange.");
     }
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode MBParallelComm::exchange_tags(std::vector<MBTag> &tags)
+{
+  MBErrorCode result;
+  int success;
+
+    // get all procs interfacing to this proc
+  std::set<unsigned int> exch_procs;
+  result = get_comm_procs(exch_procs);  
+
+    // post ghost irecv's for all interface procs
+    // index greqs the same as buffer/sharing procs indices
+  std::vector<MPI_Request> recv_reqs(MAX_SHARING_PROCS, MPI_REQUEST_NULL);
+  std::vector<MPI_Status> gstatus(MAX_SHARING_PROCS);
+  std::set<unsigned int>::iterator sit;
+  for (sit = exch_procs.begin(); sit != exch_procs.end(); sit++) {
+    int ind = get_buffers(*sit);
+    success = MPI_Irecv(&ghostRBuffs[ind][0], ghostRBuffs[ind].size(), 
+                        MPI_UNSIGNED_CHAR, *sit,
+                        MB_MESG_ANY, procConfig.proc_comm(), 
+                        &recv_reqs[ind]);
+    if (success != MPI_SUCCESS) {
+      result = MB_FAILURE;
+      RRA("Failed to post irecv in ghost exchange.");
+    }
+  }
+  
+    // pack and send tags from this proc to others
+    // make sendReqs vector to simplify initialization
+  std::fill(sendReqs, sendReqs+MAX_SHARING_PROCS, MPI_REQUEST_NULL);
+  std::map<unsigned int,MBRange>::const_iterator mit;
+  
+  for (sit = exch_procs.begin(); sit != exch_procs.end(); sit++) {
+    int ind = get_buffers(*sit);
+    
+    MBRange tag_ents;
+    
+      // get bridge ents on interface(s)
+    for (MBRange::iterator rit = interfaceSets.begin(); rit != interfaceSets.end();
+         rit++) {
+      if (!is_iface_proc(*rit, *sit)) continue;
+      
+      result = get_ghost_layers(*rit, -1, 0, 0, tag_ents);
+      RRA("Failed to get tag ents for exchange.");
+    }
+
+      // also get ghosted entities for this proc
+    if ((mit = ghostedEnts.find(*sit)) != ghostedEnts.end()) 
+      tag_ents.merge((*mit).second);
+
+      // pack-send; this also posts receives if store_remote_handles is true
+    int buff_size = 0;
+    std::vector<MBRange> tag_ranges;
+    for (std::vector<MBTag>::iterator vit = tags.begin(); vit != tags.end(); vit++)
+      tag_ranges.push_back(tag_ents);
+
+      // count first
+    unsigned char *buff_ptr = &ownerSBuffs[ind][0];
+    MBRange::iterator rit = tag_ents.begin();
+    result = pack_tags(tag_ents, rit, tag_ents,
+                       buff_ptr, buff_size, true, true, *sit,
+                       tags, tag_ranges, false);
+    RRA("Failed to count buffer in pack_send_tag.");
+
+    result = pack_tags(tag_ents, rit, tag_ents,
+                       buff_ptr, buff_size, false, true, *sit,
+                       tags, tag_ranges, false);
+    RRA("Failed to pack buffer in pack_send_tag.");
+
+      // if the message is large, send a first message to tell how large
+    if (INITIAL_BUFF_SIZE < buff_size) {
+      int tmp_buff_size = -buff_size;
+      int success = MPI_Send(&tmp_buff_size, sizeof(int), MPI_UNSIGNED_CHAR, 
+                             *sit, MB_MESG_SIZE, procConfig.proc_comm());
+      if (success != MPI_SUCCESS) return MB_FAILURE;
+    }
+    
+      // send the buffer
+    success = MPI_Isend(&ownerSBuffs[ind][0], buff_size, MPI_UNSIGNED_CHAR, *sit, 
+                        MB_MESG_TAGS, procConfig.proc_comm(), &sendReqs[ind]);
+    if (success != MPI_SUCCESS) return MB_FAILURE;
+  }
+  
+    // receive/unpack tags
+  int num_incoming = exch_procs.size();
+  
+  while (num_incoming) {
+    int ind;
+    MPI_Status status;
+    success = MPI_Waitany(MAX_SHARING_PROCS, &recv_reqs[0], &ind, &status);
+    if (MPI_SUCCESS != success) {
+      result = MB_FAILURE;
+      RRA("Failed in waitany in ghost exchange.");
+    }
+    
+      // ok, received something; decrement incoming counter
+    num_incoming--;
+    
+    int new_size;
+    unsigned char *buff_ptr;
+    MBRange dum_range;
+    
+      // branch on message type
+    switch (status.MPI_TAG) {
+      case MB_MESG_SIZE:
+          // incoming message just has size; resize buffer and re-call recv,
+          // then re-increment incoming count
+        assert(ind < MAX_SHARING_PROCS);
+        new_size = *((int*)&ghostRBuffs[ind][0]);
+        assert(0 > new_size);
+        result = recv_size_buff(buffProcs[ind], ghostRBuffs[ind], recv_reqs[ind],
+                                MB_MESG_TAGS);
+        RRA("Failed to resize recv buffer.");
+        num_incoming++;
+        break;
+      case MB_MESG_TAGS:
+          // incoming ghost entities; process
+          buff_ptr = &ghostRBuffs[ind][0];
+          result = unpack_tags(buff_ptr, dum_range, true,
+                               buffProcs[ind]);
+        RRA("Failed to recv-unpack-tag message.");
+        break;
+      default:
+        result = MB_FAILURE;
+        RRA("Failed to get message of correct type in exch_tags.");
+        break;
+    }
+  }
+  
+    // ok, now wait
+  MPI_Status status[MAX_SHARING_PROCS];
+  success = MPI_Waitall(MAX_SHARING_PROCS, &sendReqs[0], status);
+  if (MPI_SUCCESS != success) {
+    result = MB_FAILURE;
+    RRA("Failure in waitall in tag exchange.");
   }
   
   return MB_SUCCESS;
