@@ -113,7 +113,7 @@ mhdf_openConnectivity( mhdf_FileHandle file_handle,
   if (elem_id < 0) return -1;
   
   table_id = mhdf_open_table2( elem_id, CONNECTIVITY_NAME, 
-                               2, dims,
+                               2, file_ptr->parallel, dims,
                                first_elem_id_out, status );
   
   H5Gclose( elem_id );
@@ -276,13 +276,13 @@ mhdf_openPolyConnectivity( mhdf_FileHandle file_handle,
   if (elem_id < 0) return ;
   
   index_id = mhdf_open_table( elem_id, POLY_INDEX_NAME,
-                              1, &row_count, status );
+                              1, file_ptr->parallel, &row_count, status );
   if (index_id < 0)
     { H5Gclose(elem_id); return ; }
   *num_poly_out = (int)row_count;
   
   table_id = mhdf_open_table( elem_id, CONNECTIVITY_NAME, 
-                              1, &row_count, status );
+                              1, file_ptr->parallel, &row_count, status );
   
   H5Gclose( elem_id );
   if (table_id < 0)

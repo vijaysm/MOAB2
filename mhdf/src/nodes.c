@@ -95,7 +95,7 @@ mhdf_openNodeCoords( mhdf_FileHandle file_handle,
     return -1;
   
   table_id = mhdf_open_table2( file_ptr->hdf_handle,
-                               NODE_COORD_PATH, 2,
+                               NODE_COORD_PATH, 2, file_ptr->parallel,
                                dims, first_id_out, status );
   if (table_id < 0)
     return -1;

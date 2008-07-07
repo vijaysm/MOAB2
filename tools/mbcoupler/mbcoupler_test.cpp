@@ -128,7 +128,6 @@ int main(int argc, char **argv)
   }
 
   std::cout << "Success." << std::endl;
-  err = MPI_Finalize();
 
   for (unsigned int i = 0; i < filenames.size(); i++) {
     delete rps[i];
@@ -137,6 +136,8 @@ int main(int argc, char **argv)
 
   delete mbImpl;
   
+  err = MPI_Finalize();
+
   return 0;
 }
 

@@ -179,7 +179,7 @@ mhdf_openSetMeta( mhdf_FileHandle file,
     return -1;
   
   table_id = mhdf_open_table2( file_ptr->hdf_handle,
-                               SET_META_PATH, 2,
+                               SET_META_PATH, 2, file_ptr->parallel,
                                dims, first_id_out, status );
   if (table_id < 0)
     return -1;
@@ -618,7 +618,7 @@ mhdf_openSetData( mhdf_FileHandle file_handle,
   
   table_id = mhdf_open_table( file_ptr->hdf_handle,
                               SET_DATA_PATH,
-                              1, &dim,
+                              1, file_ptr->parallel, &dim,
                               status );
  
   *data_list_size_out = (long)dim;
@@ -706,7 +706,7 @@ mhdf_openSetChildren( mhdf_FileHandle file_handle,
   
   table_id = mhdf_open_table( file_ptr->hdf_handle,
                               SET_CHILD_PATH,
-                              1, &dim,
+                              1, file_ptr->parallel, &dim,
                               status );
  
   *child_list_size = (long)dim;
@@ -766,7 +766,7 @@ mhdf_openSetParents( mhdf_FileHandle file_handle,
   
   table_id = mhdf_open_table( file_ptr->hdf_handle,
                               SET_PARENT_PATH,
-                              1, &dim,
+                              1, file_ptr->parallel, &dim,
                               status );
  
   *parent_list_size = (long)dim;

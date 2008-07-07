@@ -22,6 +22,10 @@
 #include <H5Spublic.h>
 #include <H5Tpublic.h>
 #include <H5Apublic.h>
+#ifdef USE_MPI
+#include <H5FDmpi.h>
+#include <H5FDmpio.h>
+#endif
 #include "mhdf.h"
 #include "status.h"
 #include "names-and-paths.h"
@@ -331,7 +335,17 @@ mhdf_openFileWithOpt( const char* filename,
   
   if (max_id_out)
     *max_id_out = file_ptr->max_id;
-    
+
+  file_ptr->parallel = 0;
+
+#ifdef USE_MPI
+  MPI_Comm comm;
+  MPI_Info info;
+  if (0 <= H5Pget_fapl_mpio(access_prop, &comm, &info) &&
+      MPI_COMM_NULL != comm && MPI_INFO_NULL != info)
+    file_ptr->parallel = 1;
+#endif
+
   mhdf_setOkay( status );
   API_END_H(1);
   return file_ptr;

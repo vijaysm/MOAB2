@@ -1400,7 +1400,7 @@ mhdf_openDenseTagData(  mhdf_FileHandle file_handle,
   strcpy( path, DENSE_TAG_SUBGROUP );
   mhdf_name_to_path( tag_name, path + dir_len, name_len + 1 );
   
-  data_id = mhdf_open_table( elem_id, path, 1, &size, status );
+  data_id = mhdf_open_table( elem_id, path, 1, file_ptr->parallel, &size, status );
   free( path );
   H5Gclose( elem_id );
   *num_values_out = (long)size;
@@ -1615,14 +1615,15 @@ mhdf_openSparseTagData( mhdf_FileHandle file_handle,
   tag_id = get_tag( file_handle, tag_name, status );
   if (tag_id < 0) return ;
  
-  index_id = mhdf_open_table( tag_id, SPARSE_ENTITY_NAME, 1, &num_ent, status );
+  FileHandle *file_ptr = (FileHandle*)file_handle;
+  index_id = mhdf_open_table( tag_id, SPARSE_ENTITY_NAME, 1, file_ptr->parallel, &num_ent, status );
   if (index_id < 0) 
   { 
     H5Gclose( tag_id ); 
     return ; 
   }
   
-  data_id = mhdf_open_table( tag_id, SPARSE_VALUES_NAME, 1, &data_size, status );
+  data_id = mhdf_open_table( tag_id, SPARSE_VALUES_NAME, 1, file_ptr->parallel, &data_size, status );
   if (data_id < 0) 
   { 
     H5Gclose( tag_id ); 
@@ -1641,7 +1642,7 @@ mhdf_openSparseTagData( mhdf_FileHandle file_handle,
   
     /* If variable length... */
   if (rval) {
-    offset_id = mhdf_open_table( tag_id, TAG_VAR_INDICES, 1, &num_data, status );
+    offset_id = mhdf_open_table( tag_id, TAG_VAR_INDICES, 1, file_ptr->parallel, &num_data, status );
     if (offset_id < 0) {
       H5Gclose( tag_id );
       H5Dclose( index_id );

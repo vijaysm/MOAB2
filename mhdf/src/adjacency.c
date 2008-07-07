@@ -137,7 +137,7 @@ mhdf_openAdjacency( mhdf_FileHandle file,
   {
     table_id = mhdf_open_table( file_ptr->hdf_handle,
                                 NODE_ADJCY_PATH,
-                                1, &dim,
+                                1, file_ptr->parallel, &dim,
                                 status );
   }
   else
@@ -146,7 +146,7 @@ mhdf_openAdjacency( mhdf_FileHandle file,
     if (elem_id < 0) return -1;
     table_id = mhdf_open_table( elem_id,
                                 ADJACENCY_NAME,
-                                1, &dim,
+                                1, file_ptr->parallel, &dim,
                                 status );
     H5Gclose( elem_id );
   }

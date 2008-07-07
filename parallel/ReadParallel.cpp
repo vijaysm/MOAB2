@@ -34,6 +34,10 @@ const char *ParallelActionsNames[] = {
     "PARALLEL EXCHANGE_GHOSTS"
 };
 
+const char* ReadParallel::parallelOptsNames[] = { "NONE", "BCAST", "BCAST_DELETE", 
+                                                  "READ_DELETE", "READ_PARALLEL", 
+                                                  "FORMAT", 0 };
+      
 ReadParallel::ReadParallel(MBInterface* impl, 
                            MBParallelComm *pc) 
         : mbImpl(impl), myPcomm(pc) 
@@ -55,14 +59,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
 
     // Get parallel settings
   int parallel_mode;
-  const char* parallel_opts[] = { "NONE", "BCAST", "BCAST_DELETE", 
-                                  "READ_DELETE", "READ_PARALLEL", 
-                                  "FORMAT", 0 };
-  enum ParallelOpts {POPT_NONE=0, POPT_BCAST, POPT_BCAST_DELETE, 
-                     POPT_READ_DELETE, POPT_READ_PARALLEL,
-                     POPT_FORMAT, POPT_LAST};
-      
-  MBErrorCode result = opts.match_option( "PARALLEL", parallel_opts, 
+  MBErrorCode result = opts.match_option( "PARALLEL", parallelOptsNames, 
                                           parallel_mode );
   if (MB_FAILURE == result) {
     merror->set_last_error( "Unexpected value for 'PARALLEL' option\n" );

@@ -115,6 +115,7 @@ hid_t
 mhdf_open_table( hid_t group,
                  const char* path,
                  int columns,
+                 int parallel,
                  hsize_t* rows_out,
                  mhdf_Status* status );
 
@@ -122,6 +123,7 @@ hid_t
 mhdf_open_table2( hid_t group,
                   const char* path,
                   int rank,
+                  int parallel,
                   hsize_t* dims_out,
                   long* start_id_out,
                   mhdf_Status* status );

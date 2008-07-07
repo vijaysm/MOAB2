@@ -27,11 +27,18 @@
 
 #include <assert.h>
 #include <H5Tpublic.h>
+#include <H5Ppublic.h>
 #include "MBInterface.hpp"
 #include "MBInternals.hpp"
 #include "MBTagConventions.hpp"
 #include "ReadHDF5.hpp"
 #include "MBCN.hpp"
+#include "FileOptions.hpp"
+#ifdef USE_MPI
+#include "ReadParallel.hpp"
+#include <H5FDmpi.h>
+#include <H5FDmpio.h>
+#endif
 //#include "WriteHDF5.hpp"
 
 #include <stdlib.h>
@@ -112,7 +119,7 @@ ReadHDF5::~ReadHDF5()
 
 MBErrorCode ReadHDF5::load_file( const char* filename, 
                                  MBEntityHandle& file_set, 
-                                 const FileOptions&,
+                                 const FileOptions&opts,
                                  const int*, 
                                  const int num_blocks )
 {
@@ -136,8 +143,33 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
 
 DEBUGOUT( "Opening File\n" );  
   
+#ifdef USE_MPI
+  int parallel_mode;
+  MBErrorCode result = opts.match_option( "PARALLEL", ReadParallel::parallelOptsNames, 
+                                          parallel_mode );
+  if (MB_FAILURE == result) {
+    readUtil->report_error("Unexpected value for 'PARALLEL' option\n");
+    return MB_FAILURE;
+  }
+  else if (MB_ENTITY_NOT_FOUND == result) {
+    parallel_mode = 0;
+  }
+
+  bool use_mpio = false;
+  result = opts.get_null_option("USE_MPIO");
+  if (MB_SUCCESS == result) use_mpio = true;
+
+  if (parallel_mode == ReadParallel::POPT_READ_DELETE && use_mpio) {
+    hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
+    H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, MPI_INFO_NULL);
+    filePtr = mhdf_openFileWithOpt( filename, 0, NULL, plist_id, &status );
+  }
+  else filePtr = mhdf_openFile( filename, 0, NULL, &status );
+
+#else
     // Open the file
   filePtr = mhdf_openFile( filename, 0, NULL, &status );
+#endif
   if (!filePtr)
   {
     readUtil->report_error( mhdf_message( &status ));
@@ -1987,7 +2019,6 @@ MBErrorCode ReadHDF5::convert_range_to_handle( const MBEntityHandle* array,
 
 MBErrorCode ReadHDF5::read_qa( MBEntityHandle import_set )
 {
-  MBErrorCode rval;
   mhdf_Status status;
   std::vector<std::string> qa_list;
   

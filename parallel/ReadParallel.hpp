@@ -37,6 +37,12 @@ public:
    //! Destructor
   virtual ~ReadParallel() {}
 
+  static const char *parallelOptsNames[];
+  
+  enum ParallelOpts {POPT_NONE=0, POPT_BCAST, POPT_BCAST_DELETE, 
+                     POPT_READ_DELETE, POPT_READ_PARALLEL,
+                     POPT_FORMAT, POPT_LAST};
+  
 protected:
 
 private:

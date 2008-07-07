@@ -21,6 +21,10 @@
 #include "util.h"
 #include "status.h"
 #include "names-and-paths.h"
+#ifdef USE_MPI
+#include <H5FDmpi.h>
+#include <H5FDmpio.h>
+#endif
 
 void* mhdf_malloc( size_t size, mhdf_Status* status )
 {
@@ -549,6 +553,7 @@ hid_t
 mhdf_open_table( hid_t group_id,
                  const char* path,
                  int columns,
+                 int parallel,
                  hsize_t* rows_out,
                  mhdf_Status* status )
 {
@@ -561,6 +566,12 @@ mhdf_open_table( hid_t group_id,
 #else
   table_id = H5Dopen( group_id, path );
 #endif
+
+#ifdef USE_MPI
+  if (parallel)
+    H5Pset_dxpl_mpio(group_id, H5FD_MPIO_COLLECTIVE);
+#endif
+
   if (table_id < 0)
   {
     mhdf_setFail( status, "HDF5 DataSet creation failed.");
@@ -602,6 +613,7 @@ hid_t
 mhdf_open_table2( hid_t group_id,
                   const char* path,
                   int rank,
+                  int parallel,
                   hsize_t* dims_out,
                   long* start_id_out,
                   mhdf_Status* status )
@@ -613,6 +625,12 @@ mhdf_open_table2( hid_t group_id,
 #else
   table_id = H5Dopen( group_id, path );
 #endif
+
+#ifdef USE_MPI
+  if (parallel)
+    H5Pset_dxpl_mpio(group_id, H5FD_MPIO_COLLECTIVE);
+#endif
+
   if (table_id < 0)
   {
     mhdf_setFail( status, "HDF5 DataSet creation failed.");

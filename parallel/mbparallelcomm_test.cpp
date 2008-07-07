@@ -47,7 +47,7 @@ MBErrorCode create_scd_mesh(MBInterface *mbImpl,
 
 MBErrorCode read_file(MBInterface *mbImpl, std::vector<std::string> &filenames,
                       const char *tag_name, int tag_val, int distrib,
-                      int parallel_option, int resolve_shared, int with_ghosts);
+                      int parallel_option, int resolve_shared, int with_ghosts, int use_mpio);
 
 MBErrorCode test_packing(MBInterface *mbImpl, const char *filename);
 
@@ -91,7 +91,7 @@ int main(int argc, char **argv)
         << "===   =====" << std::endl
         << " 1     <linear_ints> <shared_verts> " << std::endl
         << " 2     <n_ints> " << std::endl
-        << " 3*    <file_name> [<tag_name>=\"MATERIAL_SET\" [tag_val] [distribute=1] [resolve_shared=1] [with_ghosts=1]" << std::endl
+        << " 3*    <# files> <file_names...> [<tag_name>=\"MATERIAL_SET\" [tag_val] [distribute=1] [resolve_shared=1] [with_ghosts=1] [use_mpio=0]" << std::endl
         << " 4    <file_name> " << std::endl
         << "*Note: if opt 3 is used, it must be the last one." << std::endl;
     
@@ -99,10 +99,11 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  int npos = 1, tag_val, distrib, with_ghosts = 1, resolve_shared = 1;
+  int npos = 1, tag_val, distrib, with_ghosts = 1, resolve_shared = 1, use_mpio = 0;
   const char *tag_name;
   std::vector<std::string> filenames;
   int parallel_option = 0;
+  int num_files;
 
   while (npos != argc) {    
     MBErrorCode tmp_result;
@@ -120,17 +121,20 @@ int main(int argc, char **argv)
             // read a file in parallel from the filename on the command line
           tag_name = "MATERIAL_SET";
           tag_val = -1;
-          filenames.push_back(std::string(argv[npos++]));
+          num_files = strtol(argv[npos++], NULL, 0);
+          while (num_files-- && npos < argc)
+            filenames.push_back(std::string(argv[npos++]));
           if (npos < argc) tag_name = argv[npos++];
           if (npos < argc) tag_val = strtol(argv[npos++], NULL, 0);
           if (npos < argc) distrib = strtol(argv[npos++], NULL, 0);
           else distrib = 1;
           if (npos < argc) resolve_shared = strtol(argv[npos++], NULL, 0);
           if (npos < argc) with_ghosts = strtol(argv[npos++], NULL, 0);
+          if (npos < argc) use_mpio = strtol(argv[npos++], NULL, 0);
 
           tmp_result = read_file(mbImpl, filenames, tag_name, tag_val,
                                  distrib, parallel_option, 
-                                 resolve_shared, with_ghosts);
+                                 resolve_shared, with_ghosts, use_mpio);
           if (MB_SUCCESS != tmp_result) {
             result = tmp_result;
             std::cerr << "Couldn't read mesh; error message:" << std::endl;
@@ -161,7 +165,7 @@ int main(int argc, char **argv)
             filenames.push_back(std::string(argv[npos++]));
           tmp_result = read_file(mbImpl, filenames, tag_name, tag_val,
                                  distrib, parallel_option, resolve_shared,
-                                 with_ghosts);
+                                 with_ghosts, use_mpio);
           if (MB_SUCCESS != tmp_result) {
             result = tmp_result;
             std::cerr << "Couldn't read mesh; error message:" << std::endl;
@@ -276,7 +280,7 @@ MBErrorCode read_file(MBInterface *mbImpl,
                       std::vector<std::string> &filenames,
                       const char *tag_name, int tag_val,
                       int distrib, int parallel_option, int resolve_shared,
-                      int with_ghosts) 
+                      int with_ghosts, int use_mpio) 
 {
   std::ostringstream options;
   switch (parallel_option) {
@@ -308,6 +312,9 @@ MBErrorCode read_file(MBInterface *mbImpl,
   if (1 == with_ghosts)
     options << ";PARALLEL_GHOSTS=3.0.1";
 
+  if (1 == use_mpio)
+    options << ";USE_MPIO";
+
   options << ";CPUTIME";
 
   std::vector<MBEntityHandle> filesets(filenames.size());
@@ -321,7 +328,8 @@ MBErrorCode read_file(MBInterface *mbImpl,
     
     result = rps[i]->load_file(filenames[i].c_str(), filesets[i], 
                                FileOptions(options.str().c_str()), NULL, 0);
-    PRINT_LAST_ERROR;
+    if (MB_SUCCESS != result) 
+      PRINT_LAST_ERROR;
 
     if (MB_SUCCESS != result) {
       MPI_Abort(MPI_COMM_WORLD, result);
