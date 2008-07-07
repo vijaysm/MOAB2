@@ -1,5 +1,5 @@
 
-#undef DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 #  include <stdio.h>
@@ -323,17 +323,13 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
   
     // For the 'remoteMesh' list for this processor, just remove
     // entities we aren't writing.
-  MBRange& my_remote_mesh = remoteMesh[myPcomm->proc_config().proc_rank()];
-  tmpset = my_remote_mesh.subtract( nodeSet.range );
-  if (!tmpset.empty())
-    my_remote_mesh = my_remote_mesh.subtract( tmpset );
+  tmpset.clear();
+  tmpset.merge( nodeSet.range );
   for (std::list<ExportSet>::iterator eiter = exportList.begin();
-       eiter != exportList.end(); ++eiter ) {
-    tmpset = my_remote_mesh.subtract( eiter->range );
-    if (!tmpset.empty())
-      my_remote_mesh = my_remote_mesh.subtract( tmpset );
-  }
-  
+       eiter != exportList.end(); ++eiter ) 
+    tmpset.merge( eiter->range );
+  MBRange& my_remote_mesh = remoteMesh[myPcomm->proc_config().proc_rank()];
+  my_remote_mesh = my_remote_mesh.intersect( tmpset );
   
     // print some debug output summarizing what we've accomplished
   printdebug("Remote mesh:\n");
@@ -1921,6 +1917,9 @@ MBErrorCode WriteHDF5Parallel::exchange_file_ids()
       return MB_FAILURE;
     }
   }
+
+printdebug( "Interface entities:\n" );
+printrange( remoteMesh[myPcomm->proc_config().proc_rank()] );
   
     // store file IDs in tag
   rval = iFace->tag_set_data( file_id_tag, imesh, &file_id_vect[0] );
