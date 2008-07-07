@@ -19,6 +19,7 @@ libMOABpar_la_includedir = $(includedir)
 MOAB_PARALLEL_SRCS =
 MOAB_PARALLEL_HDRS =
 MOAB_PARALLEL_TEST = 
+MOAB_PARALLEL_CHECK = 
 if PARALLEL
   MOAB_PARALLEL_SRCS += \
      MBParallelComm.cpp \
@@ -43,7 +44,7 @@ if PARALLEL_HDF5
   MOAB_PARALLEL_HDRS += WriteHDF5Parallel.hpp
 endif
 
-  MOAB_PARALLEL_TEST += mbparallelcomm_test
+  MOAB_PARALLEL_CHECK += mbparallelcomm_test
   mbparallelcomm_test_SOURCES = mbparallelcomm_test.cpp
   mbparallelcomm_test_LDADD = $(top_builddir)/libMOAB.la
   mbparallelcomm_test_DEPENDENCIES = $(mbparallelcomm_test_LDADD)
@@ -62,7 +63,7 @@ libMOABpar_la_include_HEADERS = \
 # Tests and such
 
 
-check_PROGRAMS = $(MOAB_PARALLEL_TEST)
+check_PROGRAMS = $(MOAB_PARALLEL_CHECK) $(MOAB_PARALLEL_TEST)
 TESTS = $(MOAB_PARALLEL_TEST)
 pcomm_unit_SOURCES = pcomm_unit.cpp
 pcomm_unit_LDADD = $(top_builddir)/libMOAB.la
