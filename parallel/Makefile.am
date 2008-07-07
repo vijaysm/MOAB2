@@ -42,6 +42,8 @@ if PARALLEL_HDF5
   INCLUDES += -I$(top_srcdir)/mhdf/include
   MOAB_PARALLEL_SRCS += WriteHDF5Parallel.cpp 
   MOAB_PARALLEL_HDRS += WriteHDF5Parallel.hpp
+  
+  MOAB_PARALLEL_TEST += parallel_hdf5_test
 endif
 
   MOAB_PARALLEL_CHECK += mbparallelcomm_test
@@ -62,9 +64,11 @@ libMOABpar_la_include_HEADERS = \
 
 # Tests and such
 
-
 check_PROGRAMS = $(MOAB_PARALLEL_CHECK) $(MOAB_PARALLEL_TEST)
 TESTS = $(MOAB_PARALLEL_TEST)
 pcomm_unit_SOURCES = pcomm_unit.cpp
 pcomm_unit_LDADD = $(top_builddir)/libMOAB.la
+parallel_hdf5_test_SOURCES = parallel_hdf5_test.cc
+parallel_hdf5_test_LDADD = ../libMOAB.la
+parallel_hdf5_test_CPPFLAGS = -DSRCDIR=$(srcdir)
 

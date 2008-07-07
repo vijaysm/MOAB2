@@ -112,10 +112,11 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
     MBErrorCode gather_interface_meshes();
     
       //! For entities that will be written by another 
+      //! processor but are referenced by entities on this
       //! processor, get the file Ids that will be assigned
       //! to those so they can be referenced by
       //! entities to be written on this processor.
-    MBErrorCode communicate_remote_ids(MBEntityType type);
+    MBErrorCode exchange_file_ids();
     
       //! Sort the list of tag information in the parent
       //! class by name so all procs have them in the same
