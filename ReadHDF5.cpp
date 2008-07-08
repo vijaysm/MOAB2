@@ -1138,7 +1138,7 @@ MBErrorCode ReadHDF5::read_tag( const char* name )
   
   mhdf_TagDataType mhdf_type;  // Enum for tag data type
   int tag_size;                // Size of tag
-  int storage;                 // TSTT storage type (dense vs. sparse)
+  int mhdf_storage;            // TSTT storage type (dense vs. sparse)
   int have_default;            // File contains default value for tag
   int have_global;             // File contains global value for tag
   int have_sparse;             // File contains sparse data table for tag
@@ -1147,14 +1147,24 @@ MBErrorCode ReadHDF5::read_tag( const char* name )
   int array_size;              // If tag is not opaque, the number of data per entity
   MBTag handle;                // The handle for the tag
   MBDataType mb_type;          // The MOAB data type for the data
+  MBTagType storage;
   
     // Get description of tag
-  mhdf_getTagInfo( filePtr, name, &mhdf_type, &tag_size, &storage,
+  mhdf_getTagInfo( filePtr, name, &mhdf_type, &tag_size, &mhdf_storage,
                    &have_default, &have_global, &have_sparse, &status );
   if (mhdf_isError( &status ))
   {
     readUtil->report_error( mhdf_message( &status ) );
     return MB_FAILURE;
+  }
+  switch (mhdf_storage) {
+    case mhdf_DENSE_TYPE : storage = MB_TAG_DENSE ; break;
+    case mhdf_SPARSE_TYPE: storage = MB_TAG_SPARSE; break;
+    case mhdf_BIT_TYPE   : storage = MB_TAG_BIT;    break;
+    case mhdf_MESH_TYPE  : storage = MB_TAG_MESH;   break;
+    default:
+      readUtil->report_error( "Invalid storage type for tag '%s': %d\n", name, mhdf_storage );
+      return MB_FAILURE;
   }
 
     // Type-specific stuff
@@ -1338,10 +1348,10 @@ MBErrorCode ReadHDF5::read_tag( const char* name )
   else if (MB_TAG_NOT_FOUND == rval)
   {
     if (tag_size == MB_VARIABLE_LENGTH)
-      rval = iFace->tag_create_variable_length( name, (MBTagType)storage, mb_type,
+      rval = iFace->tag_create_variable_length( name, storage, mb_type,
                                                 handle, default_ptr, default_size );
     else
-      rval = iFace->tag_create( name, tag_size, (MBTagType)storage, mb_type,
+      rval = iFace->tag_create( name, tag_size, storage, mb_type,
                                 handle, default_ptr );
     if (MB_SUCCESS != rval)
       return rval;

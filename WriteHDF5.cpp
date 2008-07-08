@@ -2440,10 +2440,10 @@ MBErrorCode WriteHDF5::create_tag( MBTag tag_id,
                                    unsigned long num_sparse_entities,
                                    unsigned long data_table_size )
 {
-  MBTagType storage;
+  MBTagType mb_storage;
   MBDataType mb_type;
   mhdf_TagDataType mhdf_type;
-  int tag_size, elem_size, mhdf_size;
+  int tag_size, elem_size, mhdf_size, storage;
   hid_t hdf_type = (hid_t)0;
   hid_t handles[2];
   std::string tag_name;
@@ -2452,7 +2452,14 @@ MBErrorCode WriteHDF5::create_tag( MBTag tag_id,
   
 
     // get tag properties
-  rval = iFace->tag_get_type( tag_id, storage  ); CHK_MB_ERR_0(rval);
+  rval = iFace->tag_get_type( tag_id, mb_storage  ); CHK_MB_ERR_0(rval);
+  switch (mb_storage) {
+    case MB_TAG_DENSE :  storage = mhdf_DENSE_TYPE ; break;
+    case MB_TAG_SPARSE:  storage = mhdf_SPARSE_TYPE; break;
+    case MB_TAG_BIT:     storage = mhdf_BIT_TYPE;    break;
+    case MB_TAG_MESH:    storage = mhdf_MESH_TYPE;   break;
+    default: return MB_FAILURE;
+  }
   rval = iFace->tag_get_name( tag_id, tag_name ); CHK_MB_ERR_0(rval);
   rval = get_tag_size( tag_id, mb_type, tag_size, elem_size, mhdf_size, mhdf_type, hdf_type );
   CHK_MB_ERR_0(rval);

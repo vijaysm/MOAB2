@@ -1492,11 +1492,11 @@ mhdf_readSetParentsChildren( hid_t data_handle,
 /*@{*/
 
 /** \brief Was dense tag data in mesh database */
-#define mhdf_DENSE_TYPE   0 
+#define mhdf_DENSE_TYPE   2 
 /** \brief Was sparse tag data in mesh database */
 #define mhdf_SPARSE_TYPE  1 
 /** \brief Was bit-field tag data in mesh database */
-#define mhdf_BIT_TYPE     2 
+#define mhdf_BIT_TYPE     0 
 /** \brief Unused */
 #define mhdf_MESH_TYPE    3 
 
