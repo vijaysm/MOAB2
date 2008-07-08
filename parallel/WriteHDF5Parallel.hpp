@@ -99,11 +99,10 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
   
       //! Called by normal (non-parallel) writer.  Sets up
       //! necessary data for parallel write.
-    virtual MBErrorCode create_file( const char* filename,
+    virtual MBErrorCode parallel_create_file( const char* filename,
                                      bool overwrite,
                                      std::vector<std::string>& qa_records,
                                      int dimension = 3,
-                                     bool parallel = false,
                                      int pcomm_no = 0);
     
       //! Figure out which mesh local mesh is duplicated on

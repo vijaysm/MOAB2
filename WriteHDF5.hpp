@@ -75,15 +75,19 @@ public:
 
 protected:
   
+  MBErrorCode serial_create_file( const char* filename,
+                                  bool overwrite,
+                                  std::vector<std::string>& qa_records,
+                                  int dimension = 3 );
+
   /** Function to create the file.  Virtual to allow override
    *  for parallel version.
    */
-  virtual MBErrorCode create_file( const char* filename,
-                                   bool overwrite,
-                                   std::vector<std::string>& qa_records,
-                                   int dimension = 3,
-                                   bool parallel = false,
-                                   int pcomm_no = 0);
+  virtual MBErrorCode parallel_create_file( const char* filename,
+                                            bool overwrite,
+                                            std::vector<std::string>& qa_records,
+                                            int dimension = 3,
+                                            int pcomm_no = 0 );
 
 
   /** Functions that the parallel version overrides*/
@@ -235,6 +239,9 @@ protected:
   
   //! The list of tags to export
   std::list<SparseTag> tagList;
+
+  //! True if doing parallel write
+  bool parallelWrite;
 
 private:
 

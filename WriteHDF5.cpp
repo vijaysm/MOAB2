@@ -386,7 +386,6 @@ MBErrorCode WriteHDF5::write_file_impl( const char* filename,
   std::list<SparseTag>::const_iterator t_itor;
   std::list<ExportSet>::iterator ex_itor;
   MBEntityHandle elem_count, max_id;
-  bool parallel = false;
   
   if (MB_SUCCESS != init())
     return MB_FAILURE;
@@ -438,11 +437,15 @@ DEBUGOUT( "Creating File\n" );
   
     // Create the file layout, including all tables (zero-ed) and
     // all structure and meta information.
-  parallel = (MB_SUCCESS == opts.match_option( "PARALLEL", "FORMAT" ));
-  int pcomm_no = 0;
-  opts.get_int_option("PARALLEL_COMM", pcomm_no);
-  result = create_file( filename, overwrite, qa_records, user_dimension, 
-                        parallel, pcomm_no );
+  parallelWrite = (MB_SUCCESS == opts.match_option( "PARALLEL", "FORMAT" ));
+  if (parallelWrite) {
+    int pcomm_no = 0;
+    opts.get_int_option("PARALLEL_COMM", pcomm_no);
+    result = parallel_create_file( filename, overwrite, qa_records, user_dimension, pcomm_no );
+  }
+  else {
+    result = serial_create_file( filename, overwrite, qa_records, user_dimension );
+  }
   if (MB_SUCCESS != result)
     return result;
 
@@ -909,16 +912,17 @@ MBErrorCode WriteHDF5::write_sets( )
     set_offset += count;
   }
   
-  rval = write_shared_set_descriptions( set_table );
-  CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
+  if (parallelWrite) {
+    rval = write_shared_set_descriptions( set_table );
+    CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
+  }
   mhdf_closeData( filePtr, set_table, &status );
   
-  if (writeSetContents)
-  {
+  if (writeSetContents && parallelWrite) 
     rval = write_shared_set_contents( content_table );
+  if (writeSetContents)
     mhdf_closeData( filePtr, content_table, &status );
-    CHK_MB_ERR_0( rval );
-  }
+  CHK_MB_ERR_0( rval );
   
     /* Write set children */
   if (writeSetChildren)
@@ -952,7 +956,8 @@ MBErrorCode WriteHDF5::write_sets( )
       child_offset += id_list.size();
     }
 
-    rval = write_shared_set_children( child_table );
+    if (parallelWrite)
+      rval = write_shared_set_children( child_table );
     mhdf_closeData( filePtr, child_table, &status );
     CHK_MB_ERR_0(rval);
   }
@@ -989,7 +994,8 @@ MBErrorCode WriteHDF5::write_sets( )
       parent_offset += id_list.size();
     }
 
-    rval = write_shared_set_parents( parent_table );
+    if (parallelWrite)
+      rval = write_shared_set_parents( parent_table );
     mhdf_closeData( filePtr, parent_table, &status );
     CHK_MB_ERR_0(rval);
   }
@@ -1991,25 +1997,29 @@ MBErrorCode WriteHDF5::gather_tags()
   return MB_SUCCESS;
 }
 
-MBErrorCode WriteHDF5::create_file( const char* filename,
+  // If we support paralle, then this function will have been
+  // overridden with an alternate version in WriteHDF5Parallel
+  // that supports parallel I/O.  If we're here 
+  // then MOAB was not built with support for parallel HDF5 I/O.
+MBErrorCode WriteHDF5::parallel_create_file( const char* ,
+                                    bool ,
+                                    std::vector<std::string>& ,
+                                    int ,
+                                    int  )
+{
+  return MB_NOT_IMPLEMENTED;
+}
+
+MBErrorCode WriteHDF5::serial_create_file( const char* filename,
                                     bool overwrite,
                                     std::vector<std::string>& qa_records,
-                                    int dimension,
-                                    bool parallel,
-                                    int pcomm_no)
+                                    int dimension )
 {
   long first_id;
   mhdf_Status status;
   hid_t handle;
   std::list<ExportSet>::iterator ex_itor;
   MBErrorCode rval;
-  
-  // If we support paralle, then this function will have been
-  // overridden with an alternate version in WriteHDF5Parallel
-  // that supports parallel I/O.  If we're here and parallel == true,
-  // then MOAB was not built with support for parallel HDF5 I/O.
-  if (parallel || pcomm_no)
-    return MB_NOT_IMPLEMENTED;
   
   const char* type_names[MBMAXTYPE];
   memset( type_names, 0, MBMAXTYPE * sizeof(char*) );

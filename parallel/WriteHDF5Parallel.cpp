@@ -351,16 +351,12 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
   return MB_SUCCESS;
 }
 
-MBErrorCode WriteHDF5Parallel::create_file( const char* filename,
+MBErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
                                             bool overwrite,
                                             std::vector<std::string>& qa_records,
                                             int dimension,
-                                            bool parallel,
                                             int pcomm_no)
 {
-  if (!parallel)
-    return WriteHDF5::create_file(filename, overwrite, qa_records, dimension, false );
-
   MBErrorCode rval;
   int result;
   mhdf_Status status;
