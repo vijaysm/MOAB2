@@ -8,8 +8,8 @@ SUBDIRS =
 noinst_LTLIBRARIES = libMOABpar.la
          
 # Some variables
-DEFS = $(DEFINES) -DIS_BUILDING_MB
-INCLUDES += -I$(top_srcdir) -I$(top_builddir) 
+DEFS = $(DEFINES) -DIS_BUILDING_MB -DSRCDIR=$(srcdir)
+INCLUDES += -I$(top_srcdir) -I$(top_builddir) -I$(srcdir)/../mhdf/inc
 
 # The directory in which to install headers
 libMOABpar_la_includedir = $(includedir)
@@ -43,7 +43,7 @@ if PARALLEL_HDF5
   MOAB_PARALLEL_SRCS += WriteHDF5Parallel.cpp 
   MOAB_PARALLEL_HDRS += WriteHDF5Parallel.hpp
   
-  MOAB_PARALLEL_TEST += parallel_hdf5_test
+  MOAB_PARALLEL_TEST += parallel_hdf5_test mhdf_parallel
 endif
 
   MOAB_PARALLEL_CHECK += mbparallelcomm_test
@@ -70,5 +70,9 @@ pcomm_unit_SOURCES = pcomm_unit.cpp
 pcomm_unit_LDADD = $(top_builddir)/libMOAB.la
 parallel_hdf5_test_SOURCES = parallel_hdf5_test.cc
 parallel_hdf5_test_LDADD = ../libMOAB.la
-parallel_hdf5_test_CPPFLAGS = -DSRCDIR=$(srcdir)
+mhdf_parallel_SOURCES = mhdf_parallel.c
+mhdf_parallel_LDADD = ../mhdf/libmhdf.la
+
+# Other files to clean up (e.g. output from tests)
+MOSTLYCLEANFILES = mhdf_ll.h5m
 
