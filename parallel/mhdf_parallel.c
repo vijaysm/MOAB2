@@ -26,7 +26,7 @@
 
 const char* filename = "mhdf_ll.h5m";
 const char* proc_tag_name = "proc_id";
-const char* elem_handle = "hex";
+const char* elem_handle = "Hex";
 
 int RANK;
 int NUM_PROC;
@@ -155,7 +155,7 @@ void write_file_data()
   
     /* write hex connectivity */
   for (i = 0; i < 8; ++i)
-    list[i] = 4*RANK + i;
+    list[i] = 4*RANK + i + 1;
   handle = mhdf_openConnectivity( file, elem_handle, &dim, &count, &first_elem, &status );
   CHECK(status);
   assert( count == total_num_hexes );
