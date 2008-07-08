@@ -563,12 +563,12 @@ MBErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   hid_t hdf_opt = H5Pcreate( H5P_FILE_ACCESS );
   H5Pset_fapl_mpio( hdf_opt, MPI_COMM_WORLD, MPI_INFO_NULL );
   filePtr = mhdf_openFileWithOpt( filename, 1, &junk, hdf_opt, &status );
+  H5Pclose( hdf_opt );
   if (!filePtr)
   {
     writeUtil->report_error( "%s\n", mhdf_message( &status ) );
     return MB_FAILURE;
   }
-  H5Pclose( hdf_opt );
   
   return MB_SUCCESS;
 }
