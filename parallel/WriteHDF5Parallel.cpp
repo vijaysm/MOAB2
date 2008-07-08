@@ -42,11 +42,11 @@
 #ifdef DEBUG
 #  define START_SERIAL                     \
      for (unsigned _x = 0; _x < myPcomm->proc_config().proc_size(); ++_x) {\
-       MPI_Barrier( MPI_COMM_WORLD );      \
+       MPI_Barrier( myPcomm->proc_config().proc_comm() );      \
        if (_x != myPcomm->proc_config().proc_rank()) continue     
 #  define END_SERIAL                       \
      }                                     \
-     MPI_Barrier( MPI_COMM_WORLD )
+     MPI_Barrier( myPcomm->proc_config().proc_comm() )
 #else
 #  define START_SERIAL
 #  define END_SERIAL
@@ -480,7 +480,7 @@ MBErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   std::vector<unsigned long> proc_tag_offsets(2*num_tags*myPcomm->proc_config().proc_size());
   result = MPI_Gather( &tag_counts[0], 2*num_tags, MPI_UNSIGNED_LONG,
                  &proc_tag_offsets[0], 2*num_tags, MPI_UNSIGNED_LONG,
-                       0, MPI_COMM_WORLD );
+                       0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   
     // Calculate the total counts over all processors (tag_counts)
@@ -520,13 +520,13 @@ MBErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   
     // Send total counts to all processors.  This is necessary because all 
     // processors need to know if we are not writing anything for the tag (count == 0).  
-  result = MPI_Bcast( &tag_counts[0], 2*num_tags, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD );
+  result = MPI_Bcast( &tag_counts[0], 2*num_tags, MPI_UNSIGNED_LONG, 0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   
     // Send to each processor its per-tag offset values.
   result = MPI_Scatter( &proc_tag_offsets[0], 2*num_tags, MPI_UNSIGNED_LONG,
                              &tag_offsets[0], 2*num_tags, MPI_UNSIGNED_LONG,
-                             0, MPI_COMM_WORLD );
+                             0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
 
 
@@ -561,7 +561,7 @@ MBErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   
   unsigned long junk;
   hid_t hdf_opt = H5Pcreate( H5P_FILE_ACCESS );
-  H5Pset_fapl_mpio( hdf_opt, MPI_COMM_WORLD, MPI_INFO_NULL );
+  H5Pset_fapl_mpio( hdf_opt, myPcomm->proc_config().proc_comm(), MPI_INFO_NULL );
   filePtr = mhdf_openFileWithOpt( filename, 1, &junk, hdf_opt, &status );
   H5Pclose( hdf_opt );
   if (!filePtr)
@@ -582,7 +582,7 @@ MBErrorCode WriteHDF5Parallel::create_node_table( int dimension )
     // gather node counts for each processor
   std::vector<long> node_counts(myPcomm->proc_config().proc_size());
   long num_nodes = nodeSet.range.size();
-  result = MPI_Gather( &num_nodes, 1, MPI_LONG, &node_counts[0], 1, MPI_LONG, 0, MPI_COMM_WORLD );
+  result = MPI_Gather( &num_nodes, 1, MPI_LONG, &node_counts[0], 1, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   
     // create node data in file
@@ -603,7 +603,7 @@ MBErrorCode WriteHDF5Parallel::create_node_table( int dimension )
   }
     
     // send id offset to every proc
-  result = MPI_Bcast( &first_id, 1, MPI_LONG, 0, MPI_COMM_WORLD );
+  result = MPI_Bcast( &first_id, 1, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   nodeSet.first_id = (id_t)first_id;
    
@@ -624,7 +624,7 @@ MBErrorCode WriteHDF5Parallel::create_node_table( int dimension )
   long offset;
   result = MPI_Scatter( &node_counts[0], 1, MPI_LONG, 
                         &offset, 1, MPI_LONG,
-                        0, MPI_COMM_WORLD );
+                        0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   nodeSet.offset = offset;
 
@@ -669,7 +669,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
     // Get number of types each processor has
   int num_types = 2*exportList.size();
   std::vector<int> counts(myPcomm->proc_config().proc_size());
-  result = MPI_Gather( &num_types, 1, MPI_INT, &counts[0], 1, MPI_INT, 0, MPI_COMM_WORLD );
+  result = MPI_Gather( &num_types, 1, MPI_INT, &counts[0], 1, MPI_INT, 0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   
     // Get list of types on this processor
@@ -704,7 +704,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
   std::vector<int> alltypes(total);
   result = MPI_Gatherv( &my_types[0], my_types.size(), MPI_INT,
                         &alltypes[0], &counts[0], &displs[0], MPI_INT,
-                        0, MPI_COMM_WORLD );
+                        0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   
     // Merge type lists
@@ -727,7 +727,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
   
     // Send total number of types to each processor
   total = type_list.size();
-  result = MPI_Bcast( &total, 1, MPI_INT, 0, MPI_COMM_WORLD );
+  result = MPI_Bcast( &total, 1, MPI_INT, 0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   
     // Send list of types to each processor
@@ -738,7 +738,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
     *viter = liter->mbtype;  ++viter;
     *viter = liter->numnode; ++viter;
   }
-  result = MPI_Bcast( &intlist[0], 2*total, MPI_INT, 0, MPI_COMM_WORLD );
+  result = MPI_Bcast( &intlist[0], 2*total, MPI_INT, 0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
 
   #ifdef DEBUG
@@ -805,7 +805,7 @@ MBErrorCode WriteHDF5Parallel::create_element_tables()
     { *viter = ex_iter->range.size(); ++viter; }
   
   result = MPI_Gather( &my_counts[0], numtypes, MPI_LONG,
-                       &counts[0],    numtypes, MPI_LONG, 0, MPI_COMM_WORLD );
+                       &counts[0],    numtypes, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   
     // Convert counts to offsets
@@ -823,7 +823,7 @@ MBErrorCode WriteHDF5Parallel::create_element_tables()
     // Send offsets to each processor
   result = MPI_Scatter( &counts[0],    numtypes, MPI_LONG,
                         &my_counts[0], numtypes, MPI_LONG,
-                        0, MPI_COMM_WORLD );
+                        0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   
     // Update store offsets in ExportSets
@@ -850,7 +850,7 @@ MBErrorCode WriteHDF5Parallel::create_element_tables()
   }
   
     // send start IDs to each processor
-  result = MPI_Bcast( &start_ids[0], numtypes, MPI_LONG, 0, MPI_COMM_WORLD );
+  result = MPI_Bcast( &start_ids[0], numtypes, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   
     // Assign IDs to local elements
@@ -901,7 +901,7 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
     // Send local adjacency counts to root processor
   result = MPI_Gather( &local[0], numtypes, MPI_LONG,
                        &all[0],   numtypes, MPI_LONG, 
-                       0, MPI_COMM_WORLD );
+                       0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   
     // Convert counts to offsets
@@ -926,7 +926,7 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
     // Send offsets back to each processor
   result = MPI_Scatter( &all[0],   numtypes, MPI_LONG,
                         &local[0], numtypes, MPI_LONG,
-                        0, MPI_COMM_WORLD );
+                        0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   
     // Record the adjacency offset in each ExportSet
@@ -1099,7 +1099,7 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
   int count = data.range.size();
   result = MPI_Allgather( &count,          1, MPI_INT, 
                           &data.counts[0], 1, MPI_INT,
-                          MPI_COMM_WORLD );
+                          myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
 
     // Exchange tag values for sets between all processors
@@ -1114,7 +1114,7 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
   assert( MB_SUCCESS == rval );
   result = MPI_Allgatherv( &data.local_values[0], count, MPI_INT,
                            &data.all_values[0], &data.counts[0], &data.displs[0], MPI_INT,
-                           MPI_COMM_WORLD );
+                           myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
 
 
@@ -1261,7 +1261,7 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   long local_count = setSet.range.size();
   result = MPI_Gather( &local_count,    1, MPI_LONG,
                        &set_offsets[0], 1, MPI_LONG,
-                       0, MPI_COMM_WORLD );
+                       0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   for (unsigned int j = 0; j <= myPcomm->proc_config().proc_size(); j++)
   {
@@ -1273,7 +1273,7 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
     // Send each proc its offsets in the set description table.
   long sets_offset;
   result = MPI_Scatter( &set_offsets[0], 1, MPI_LONG,
-                        &sets_offset,    1, MPI_LONG, 0, MPI_COMM_WORLD );
+                        &sets_offset,    1, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   setSet.offset = (id_t)(sets_offset);
 
@@ -1286,7 +1286,7 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   }
   
     // Send totals to all procs.
-  result = MPI_Bcast( total_count_and_start_id, 2, MPI_LONG, 0, MPI_COMM_WORLD );
+  result = MPI_Bcast( total_count_and_start_id, 2, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   setSet.first_id = total_count_and_start_id[1];
   writeSets = total_count_and_start_id[0] > 0;
@@ -1326,7 +1326,7 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   std::vector<long> set_counts(3*myPcomm->proc_config().proc_size());
   result = MPI_Gather( data_counts,    3, MPI_LONG,
                        &set_counts[0], 3, MPI_LONG,
-                       0, MPI_COMM_WORLD );
+                       0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   for (unsigned int j = 0; j < 3*myPcomm->proc_config().proc_size(); ++j)
   {
@@ -1337,7 +1337,7 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   long all_counts[] = {data_offsets[0], data_offsets[1], data_offsets[2]};
   result = MPI_Scatter( &set_counts[0], 3, MPI_LONG,
                         data_offsets,   3, MPI_LONG,
-                        0, MPI_COMM_WORLD );
+                        0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   setContentsOffset = data_offsets[0];
   setChildrenOffset = data_offsets[1];
@@ -1351,7 +1351,7 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   }
   
     // Send totals to all processors
-  result = MPI_Bcast( all_counts, 3, MPI_LONG, 0, MPI_COMM_WORLD );
+  result = MPI_Bcast( all_counts, 3, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
   writeSetContents = all_counts[0] > 0;
   writeSetChildren = all_counts[1] > 0;
@@ -1532,7 +1532,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
     displs[i] = displs[i-1] + counts[i-1];
   result = MPI_Allgatherv( &local_sizes[0], 3*count, MPI_LONG,
                            &all_sizes[0], &counts[0], &displs[0], MPI_LONG,
-                           MPI_COMM_WORLD );
+                           myPcomm->proc_config().proc_comm() );
   assert(MPI_SUCCESS == result);
 
   
