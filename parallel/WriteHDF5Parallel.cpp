@@ -259,7 +259,7 @@ WriteHDF5Parallel::~WriteHDF5Parallel()
 // (and for elements, connectivity length).  This function:
 //  o determines which entities are to be written by a remote processor
 //  o removes those entities from the ExportSet structs in WriteMesh
-//  o puts them in the 'remoteMesh' array of MBRanges in this class
+//  o puts them in the 'interfaceMesh' array of MBRanges in this class
 //  o sets their file Id to '1'
 MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
 {
@@ -273,30 +273,30 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
     printrange(eiter->range);
   printrange(setSet.range);
   
-    // Allocate space for remote mesh data
-  remoteMesh.resize( myPcomm->proc_config().proc_size() );
-  
   MBRange iface_sets = myPcomm->interface_sets();
 
     // Populate lists of interface mesh entities
+  MBRange tmpset;
   for (MBRange::iterator ifit = iface_sets.begin(); ifit != iface_sets.end(); ifit++) {
     int owner;
     result = myPcomm->get_owner(*ifit, owner);
     if (MB_SUCCESS != result || -1 == owner) return result;
 
-    result = iFace->get_entities_by_handle(*ifit, remoteMesh[owner], true);
+    tmpset.clear();
+    result = iFace->get_entities_by_handle(*ifit, tmpset, true);
     if (MB_SUCCESS != result) return result;
+    interfaceMesh[owner].merge( tmpset );
   }
   
-    // remoteMesh currently contains interface entities for the 
+    // interfaceMesh currently contains interface entities for the 
     // entire mesh.  We now need to a) remove from the sets of entities
-    // and handles that this proc doesn't own and b) remove from remoteMesh
+    // and handles that this proc doesn't own and b) remove from interfaceMesh
     // any handles for entities that we aren't going to write (on any proc.)
   
     // First move handles of non-owned entities from lists of entities
     // that this processor will write to the 'nonowned' list.
     
-  MBRange tmpset, nonowned;
+  MBRange nonowned;
   tmpset.clear();
   result = myPcomm->get_owned_entities( nodeSet.range, tmpset );
   if (MB_SUCCESS != result)
@@ -314,29 +314,29 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
     nonowned.merge( tmpset.subtract( eiter->range ) );
   }
   
-    // Now remove from remoteMesh any entities that are not
+    // Now remove from interfaceMesh any entities that are not
     // in 'nonowned' because we aren't writing those entities
     // (on any processor.)
-  for (unsigned i = 0; i < myPcomm->proc_config().proc_size(); ++i)
-    if (i != myPcomm->proc_config().proc_rank())
-      remoteMesh[i] = nonowned.intersect( remoteMesh[i] );
+  for (proc_iter i = interfaceMesh.begin(); i != interfaceMesh.end(); ++i)
+    if (i->first != myPcomm->proc_config().proc_rank())
+      i->second = nonowned.intersect( i->second );
   
-    // For the 'remoteMesh' list for this processor, just remove
+    // For the 'interfaceMesh' list for this processor, just remove
     // entities we aren't writing.
   tmpset.clear();
   tmpset.merge( nodeSet.range );
   for (std::list<ExportSet>::iterator eiter = exportList.begin();
        eiter != exportList.end(); ++eiter ) 
     tmpset.merge( eiter->range );
-  MBRange& my_remote_mesh = remoteMesh[myPcomm->proc_config().proc_rank()];
+  MBRange& my_remote_mesh = interfaceMesh[myPcomm->proc_config().proc_rank()];
   my_remote_mesh = my_remote_mesh.intersect( tmpset );
   
     // print some debug output summarizing what we've accomplished
   printdebug("Remote mesh:\n");
-  for (unsigned int ii = 0; ii < myPcomm->proc_config().proc_size(); ++ii)
+  for (proc_iter i = interfaceMesh.begin(); i != interfaceMesh.end(); ++i)
   {
-    printdebug("  proc %d : %d\n", ii, remoteMesh[ii].size());
-    printrange( remoteMesh[ii] );
+    printdebug("  proc %u : %d\n", i->first, i->second.size());
+    printrange( i->second );
   }
 
   printdebug( "Post-interface mesh:\n");
@@ -1903,7 +1903,7 @@ MBErrorCode WriteHDF5Parallel::exchange_file_ids()
 
     // get file ids for my interface entities
   MBRange::const_iterator i;
-  const MBRange& imesh = remoteMesh[myPcomm->proc_config().proc_rank()];
+  const MBRange& imesh = interfaceMesh[myPcomm->proc_config().proc_rank()];
   std::vector<MBEntityHandle> file_id_vect( imesh.size() );
   std::vector<MBEntityHandle>::iterator j = file_id_vect.begin();
   for (i = imesh.begin(); i != imesh.end(); ++i, ++j) {
@@ -1915,7 +1915,7 @@ MBErrorCode WriteHDF5Parallel::exchange_file_ids()
   }
 
 printdebug( "Interface entities:\n" );
-printrange( remoteMesh[myPcomm->proc_config().proc_rank()] );
+printrange( interfaceMesh[myPcomm->proc_config().proc_rank()] );
   
     // store file IDs in tag
   rval = iFace->tag_set_data( file_id_tag, imesh, &file_id_vect[0] );
@@ -1932,19 +1932,19 @@ printrange( remoteMesh[myPcomm->proc_config().proc_rank()] );
   }
   
     // store file IDs for remote entities
-  for (unsigned p = 0; p < myPcomm->proc_config().proc_size(); ++p) {
-    if (p == myPcomm->proc_config().proc_rank())
+  for (proc_iter p = interfaceMesh.begin(); p != interfaceMesh.end(); ++p) {
+    if (p->first == myPcomm->proc_config().proc_rank())
       continue;
     
-    file_id_vect.resize( remoteMesh[p].size() );
-    rval = iFace->tag_get_data( file_id_tag, remoteMesh[p], &file_id_vect[0] );
+    file_id_vect.resize( p->second.size() );
+    rval = iFace->tag_get_data( file_id_tag, p->second, &file_id_vect[0] );
     if (MB_SUCCESS != rval) {
       iFace->tag_delete( file_id_tag );
       return rval;
     }
     
     j = file_id_vect.begin();
-    for (i = remoteMesh[p].begin(); i != remoteMesh[p].end(); ++i, ++j) {
+    for (i = p->second.begin(); i != p->second.end(); ++i, ++j) {
       if (*j == 0 || idMap.insert( *i, *j, 1 ) == idMap.end()) {
          iFace->tag_delete( file_id_tag );
          return MB_FAILURE;

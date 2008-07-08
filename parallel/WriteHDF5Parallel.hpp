@@ -10,6 +10,7 @@
 
 #include "WriteHDF5.hpp"
 #include <mpi.h>
+#include <map>
 
 struct RemoteSetData;
 class MBParallelComm;
@@ -206,7 +207,8 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
     
       //! An array of interface mesh which is to be written by
       //! remote processors.  Indexed by MPI rank (processor number).
-    std::vector<MBRange> remoteMesh;
+    std::map<unsigned,MBRange> interfaceMesh;
+    typedef std::map<unsigned,MBRange>::iterator proc_iter;
     
       //! Tag names for identifying multi-processor meshsets
     MultiProcSetTags multiProcSetTags;
