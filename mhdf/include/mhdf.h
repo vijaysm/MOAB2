@@ -1285,7 +1285,7 @@ mhdf_readSetContentEndIndices( hid_t data_handle,
                                void* end_indices_out,
                                mhdf_Status* status );
 void
-mhdf_readSetContentEndIndicesWithProp( hid_t data_handle,
+mhdf_readSetContentEndIndicesWithOpt( hid_t data_handle,
                                long offset,
                                long count,
                                hid_t hdf_integer_type,

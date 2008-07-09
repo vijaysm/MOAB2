@@ -554,7 +554,7 @@ mhdf_readSetFlags( hid_t table_id,
   API_END;
 }
 void
-mhdf_readSetFlagsWihtOpt( hid_t table_id,
+mhdf_readSetFlagsWithOpt( hid_t table_id,
                    long offset,
                    long count,
                    hid_t type,
@@ -581,7 +581,7 @@ mhdf_readSetContentEndIndices( hid_t table_id,
   API_END;
 }
 void
-mhdf_readSetContentEndIndicesWithProp( hid_t table_id,
+mhdf_readSetContentEndIndicesWithOpt( hid_t table_id,
                                long offset,
                                long count,
                                hid_t type,
