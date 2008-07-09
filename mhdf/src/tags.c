@@ -1400,7 +1400,7 @@ mhdf_openDenseTagData(  mhdf_FileHandle file_handle,
   strcpy( path, DENSE_TAG_SUBGROUP );
   mhdf_name_to_path( tag_name, path + dir_len, name_len + 1 );
   
-  data_id = mhdf_open_table( elem_id, path, 1, file_ptr->parallel, &size, status );
+  data_id = mhdf_open_table( elem_id, path, 1, &size, status );
   free( path );
   H5Gclose( elem_id );
   *num_values_out = (long)size;
@@ -1421,6 +1421,18 @@ mhdf_writeDenseTag( hid_t tag_table,
                     const void* tag_data,
                     mhdf_Status* status )
 {
+  mhdf_writeDenseTagWithOpt( tag_table, offset, count, type_id, tag_data,
+                             H5P_DEFAULT,status );
+}
+void
+mhdf_writeDenseTagWithOpt( hid_t tag_table,
+                    long offset,
+                    long count,
+                    hid_t type_id,
+                    const void* tag_data,
+                    hid_t io_prop,
+                    mhdf_Status* status )
+{
   hid_t my_type_id;
   API_BEGIN;
   
@@ -1438,7 +1450,7 @@ mhdf_writeDenseTag( hid_t tag_table,
     }
   }
 
-  mhdf_write_data( tag_table, offset, count, my_type_id, tag_data, status );
+  mhdf_write_data( tag_table, offset, count, my_type_id, tag_data, io_prop, status );
 
   if (type_id < 1)
     H5Tclose( my_type_id );
@@ -1451,6 +1463,19 @@ mhdf_readDenseTag( hid_t tag_table,
                    long count,
                    hid_t type_id,
                    void* tag_data,
+                   mhdf_Status* status )
+
+{
+  mhdf_readDenseTagWithOpt( tag_table,offset, count, type_id, tag_data,
+                            H5P_DEFAULT, status );
+}
+void
+mhdf_readDenseTagWithOpt( hid_t tag_table,
+                   long offset,
+                   long count,
+                   hid_t type_id,
+                   void* tag_data,
+                   hid_t io_prop,
                    mhdf_Status* status )
 
 {
@@ -1471,7 +1496,7 @@ mhdf_readDenseTag( hid_t tag_table,
     }
   }
 
-  mhdf_read_data( tag_table, offset, count, my_type_id, tag_data, status );
+  mhdf_read_data( tag_table, offset, count, my_type_id, tag_data, io_prop, status );
 
   if (type_id < 1)
     H5Tclose( my_type_id );
@@ -1615,15 +1640,14 @@ mhdf_openSparseTagData( mhdf_FileHandle file_handle,
   tag_id = get_tag( file_handle, tag_name, status );
   if (tag_id < 0) return ;
  
-  FileHandle *file_ptr = (FileHandle*)file_handle;
-  index_id = mhdf_open_table( tag_id, SPARSE_ENTITY_NAME, 1, file_ptr->parallel, &num_ent, status );
+  index_id = mhdf_open_table( tag_id, SPARSE_ENTITY_NAME, 1, &num_ent, status );
   if (index_id < 0) 
   { 
     H5Gclose( tag_id ); 
     return ; 
   }
   
-  data_id = mhdf_open_table( tag_id, SPARSE_VALUES_NAME, 1, file_ptr->parallel, &data_size, status );
+  data_id = mhdf_open_table( tag_id, SPARSE_VALUES_NAME, 1, &data_size, status );
   if (data_id < 0) 
   { 
     H5Gclose( tag_id ); 
@@ -1642,7 +1666,7 @@ mhdf_openSparseTagData( mhdf_FileHandle file_handle,
   
     /* If variable length... */
   if (rval) {
-    offset_id = mhdf_open_table( tag_id, TAG_VAR_INDICES, 1, file_ptr->parallel, &num_data, status );
+    offset_id = mhdf_open_table( tag_id, TAG_VAR_INDICES, 1, &num_data, status );
     if (offset_id < 0) {
       H5Gclose( tag_id );
       H5Dclose( index_id );
@@ -1686,7 +1710,20 @@ mhdf_writeSparseTagEntities( hid_t table_id,
                              mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_write_data( table_id, offset, count, int_type, id_list, status );
+  mhdf_write_data( table_id, offset, count, int_type, id_list, H5P_DEFAULT, status );
+  API_END;
+}
+void
+mhdf_writeSparseTagEntitiesWithOpt( hid_t table_id,
+                             long offset,
+                             long count,
+                             hid_t int_type,
+                             const void* id_list,
+                             hid_t io_prop,
+                             mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_write_data( table_id, offset, count, int_type, id_list, io_prop, status );
   API_END;
 }
                         
@@ -1696,6 +1733,19 @@ mhdf_writeSparseTagValues( hid_t table_id,
                            long count,
                            hid_t tag_type,
                            const void* tag_data,
+                           mhdf_Status* status )
+{
+  mhdf_writeSparseTagValuesWithOpt( table_id, offset, count, tag_type, tag_data,
+                                    H5P_DEFAULT, status );
+}
+
+void
+mhdf_writeSparseTagValuesWithOpt( hid_t table_id,
+                           long offset,
+                           long count,
+                           hid_t tag_type,
+                           const void* tag_data,
+                           hid_t io_prop,
                            mhdf_Status* status )
 {
   hid_t type_id;
@@ -1715,7 +1765,7 @@ mhdf_writeSparseTagValues( hid_t table_id,
     }
   }
   
-  mhdf_write_data( table_id, offset, count, type_id, tag_data, status );
+  mhdf_write_data( table_id, offset, count, type_id, tag_data, io_prop, status );
 
   if (tag_type < 1)
     H5Tclose( type_id );
@@ -1731,7 +1781,20 @@ mhdf_writeSparseTagIndices( hid_t table_id,
                             mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_write_data( table_id, offset, count, int_type, indices, status );
+  mhdf_write_data( table_id, offset, count, int_type, indices, H5P_DEFAULT, status );
+  API_END;
+}
+void
+mhdf_writeSparseTagIndicesWithOpt( hid_t table_id,
+                            long offset,
+                            long count,
+                            hid_t int_type,
+                            const void* indices,
+                            hid_t io_prop,
+                            mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_write_data( table_id, offset, count, int_type, indices, io_prop, status );
   API_END;
 }
 
@@ -1744,7 +1807,20 @@ mhdf_readSparseTagEntities( hid_t table_id,
                             mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_read_data( table_id, offset, count, int_type, id_list, status );
+  mhdf_read_data( table_id, offset, count, int_type, id_list, H5P_DEFAULT, status );
+  API_END;
+}
+void
+mhdf_readSparseTagEntitiesWithOpt( hid_t table_id,
+                            long offset,
+                            long count,
+                            hid_t int_type,
+                            void* id_list,
+                            hid_t io_prop,
+                            mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_read_data( table_id, offset, count, int_type, id_list, io_prop, status );
   API_END;
 }
                         
@@ -1754,6 +1830,18 @@ mhdf_readSparseTagValues( hid_t table_id,
                           long count,
                           hid_t tag_type,
                           void* tag_data,
+                          mhdf_Status* status )
+{
+  mhdf_readSparseTagValuesWithOpt( table_id, offset, count, tag_type, tag_data,
+                                   H5P_DEFAULT, status );
+}
+void
+mhdf_readSparseTagValuesWithOpt( hid_t table_id,
+                          long offset,
+                          long count,
+                          hid_t tag_type,
+                          void* tag_data,
+                          hid_t io_prop,
                           mhdf_Status* status )
 {
   hid_t type_id;
@@ -1773,7 +1861,7 @@ mhdf_readSparseTagValues( hid_t table_id,
     }
   }
   
-  mhdf_read_data( table_id, offset, count, type_id, tag_data, status );
+  mhdf_read_data( table_id, offset, count, type_id, tag_data, io_prop, status );
 
   if (tag_type < 1)
     H5Tclose( type_id );
@@ -1789,6 +1877,19 @@ mhdf_readSparseTagIndices( hid_t table_id,
                            mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_read_data( table_id, offset, count, int_type, indices, status );
+  mhdf_read_data( table_id, offset, count, int_type, indices, H5P_DEFAULT, status );
+  API_END;
+}
+void
+mhdf_readSparseTagIndicesWithOpt( hid_t table_id,
+                           long offset,
+                           long count,
+                           hid_t int_type,
+                           void* indices,
+                           hid_t io_prop,
+                           mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_read_data( table_id, offset, count, int_type, indices, io_prop, status );
   API_END;
 }

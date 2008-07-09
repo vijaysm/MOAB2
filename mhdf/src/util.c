@@ -21,10 +21,6 @@
 #include "util.h"
 #include "status.h"
 #include "names-and-paths.h"
-#ifdef USE_MPI
-#include <H5FDmpi.h>
-#include <H5FDmpio.h>
-#endif
 
 void* mhdf_malloc( size_t size, mhdf_Status* status )
 {
@@ -287,6 +283,7 @@ static int
 mhdf_readwrite( hid_t data_id, int read,
                 long offset, long count,
                 hid_t type, void* array,
+                hid_t io_prop,
                 mhdf_Status* status )
 {
   hid_t slab_id, mem_id;
@@ -357,9 +354,9 @@ mhdf_readwrite( hid_t data_id, int read,
   
   
   if (read)
-    rval = H5Dread( data_id, type, mem_id, slab_id, H5P_DEFAULT, array );
+    rval = H5Dread( data_id, type, mem_id, slab_id, io_prop, array );
   else
-    rval = H5Dwrite( data_id, type, mem_id, slab_id, H5P_DEFAULT, array );
+    rval = H5Dwrite( data_id, type, mem_id, slab_id, io_prop, array );
   H5Sclose( slab_id );
   H5Sclose( mem_id );
   if (rval < 0)
@@ -378,6 +375,7 @@ mhdf_readwrite_column( hid_t data_id, int read,
                        int column,
                        long offset, long count,
                        hid_t type, void* array,
+                       hid_t io_prop,
                        mhdf_Status* status )
 {
   hid_t slab_id, mem_id;
@@ -450,9 +448,9 @@ mhdf_readwrite_column( hid_t data_id, int read,
 
   
   if (read)
-    rval = H5Dread( data_id, type, mem_id, slab_id, H5P_DEFAULT, array );
+    rval = H5Dread( data_id, type, mem_id, slab_id, io_prop, array );
   else
-    rval = H5Dwrite( data_id, type, mem_id, slab_id, H5P_DEFAULT, array );
+    rval = H5Dwrite( data_id, type, mem_id, slab_id, io_prop, array );
   H5Sclose( slab_id );
   H5Sclose( mem_id );
   if (rval < 0)
@@ -472,9 +470,10 @@ mhdf_write_data( hid_t data_id,
                  long count,
                  hid_t type_id,
                  const void* array,
+                 hid_t prop,
                  mhdf_Status* status )
 {
-  return mhdf_readwrite( data_id, 0, offset, count, type_id, (void*)array, status );
+  return mhdf_readwrite( data_id, 0, offset, count, type_id, (void*)array, prop, status );
 }
 
 int
@@ -483,9 +482,10 @@ mhdf_read_data( hid_t data_id,
                 long count,
                 hid_t type_id,
                 void* array,
+                hid_t prop,
                 mhdf_Status* status )
 {
-  return mhdf_readwrite( data_id, 1, offset, count, type_id, array, status );
+  return mhdf_readwrite( data_id, 1, offset, count, type_id, array, prop, status );
 }
 
 int
@@ -495,10 +495,11 @@ mhdf_read_column( hid_t data_id,
                   long count,
                   hid_t type, 
                   void* array,
+                  hid_t prop,
                   mhdf_Status* status )
 {
   return mhdf_readwrite_column( data_id, 1, column, offset, count, 
-                                type, array, status );
+                                type, array, prop, status );
 }
 
 int
@@ -508,10 +509,11 @@ mhdf_write_column( hid_t data_id,
                    long count,
                    hid_t type, 
                    const void* array,
+                   hid_t prop,
                    mhdf_Status* status )
 {
   return mhdf_readwrite_column( data_id, 0, column, offset, count, 
-                                type, (void*)array, status );
+                                type, (void*)array, prop, status );
 }
 
 
@@ -553,7 +555,6 @@ hid_t
 mhdf_open_table( hid_t group_id,
                  const char* path,
                  int columns,
-                 int parallel,
                  hsize_t* rows_out,
                  mhdf_Status* status )
 {
@@ -566,12 +567,6 @@ mhdf_open_table( hid_t group_id,
 #else
   table_id = H5Dopen( group_id, path );
 #endif
-
-#ifdef USE_MPI
-  if (parallel)
-    H5Pset_dxpl_mpio(group_id, H5FD_MPIO_COLLECTIVE);
-#endif
-
   if (table_id < 0)
   {
     mhdf_setFail( status, "HDF5 DataSet creation failed.");
@@ -613,7 +608,6 @@ hid_t
 mhdf_open_table2( hid_t group_id,
                   const char* path,
                   int rank,
-                  int parallel,
                   hsize_t* dims_out,
                   long* start_id_out,
                   mhdf_Status* status )
@@ -625,12 +619,6 @@ mhdf_open_table2( hid_t group_id,
 #else
   table_id = H5Dopen( group_id, path );
 #endif
-
-#ifdef USE_MPI
-  if (parallel)
-    H5Pset_dxpl_mpio(group_id, H5FD_MPIO_COLLECTIVE);
-#endif
-
   if (table_id < 0)
   {
     mhdf_setFail( status, "HDF5 DataSet creation failed.");

@@ -343,6 +343,13 @@ mhdf_writeNodeCoords( hid_t data_handle,
                       long count,
                       const double* coords,
                       mhdf_Status* status );
+void
+mhdf_writeNodeCoordsWithOpt( hid_t data_handle,
+                      long offset,
+                      long count,
+                      const double* coords,
+                      hid_t write_prop,
+                      mhdf_Status* status );
 
 /** \brief Write node coordinate data
  *
@@ -364,6 +371,14 @@ mhdf_writeNodeCoord( hid_t data_handle,
                      int dimension,
                      const double* coords,
                      mhdf_Status* status );
+void
+mhdf_writeNodeCoordWithOpt( hid_t data_handle,
+                     long offset,
+                     long count,
+                     int dimension,
+                     const double* coords,
+                     hid_t write_prop,
+                     mhdf_Status* status );
 
 /** \brief Read node coordinate data
  *
@@ -381,6 +396,13 @@ mhdf_readNodeCoords( hid_t data_handle,
                      long offset,
                      long count,
                      double* coordinates,
+                     mhdf_Status* status );
+void
+mhdf_readNodeCoordsWithOpt( hid_t data_handle,
+                     long offset,
+                     long count,
+                     double* coordinates,
+                     hid_t read_prop,
                      mhdf_Status* status );
 
 
@@ -403,6 +425,14 @@ mhdf_readNodeCoord( hid_t data_handle,
                     long count,
                     int dimension,
                     double* coords,
+                    mhdf_Status* status );
+void
+mhdf_readNodeCoordWithOpt( hid_t data_handle,
+                    long offset,
+                    long count,
+                    int dimension,
+                    double* coords,
+                    hid_t read_prop,
                     mhdf_Status* status );
 
 /*@}*/
@@ -588,6 +618,14 @@ mhdf_writeConnectivity( hid_t data_handle,
                         hid_t hdf_integer_type,
                         const void* node_id_list,
                         mhdf_Status* status );
+void
+mhdf_writeConnectivityWithOpt( hid_t data_handle,
+                        long offset,
+                        long count,
+                        hid_t hdf_integer_type,
+                        const void* node_id_list,
+                        hid_t write_prop,
+                        mhdf_Status* status );
 
 /** \brief Read element coordinate data
  *
@@ -612,6 +650,14 @@ mhdf_readConnectivity( hid_t data_handle,
                        long count,
                        hid_t hdf_integer_type,
                        void* node_id_list,
+                       mhdf_Status* status );
+void 
+mhdf_readConnectivityWithOpt( hid_t data_handle,
+                       long offset,
+                       long count,
+                       hid_t hdf_integer_type,
+                       void* node_id_list,
+                       hid_t read_prop,
                        mhdf_Status* status );
 
 /* Poly(gon|hedra) */
@@ -731,6 +777,14 @@ mhdf_writePolyConnIndices( hid_t poly_handle,
                            hid_t hdf_integer_type,
                            const void* index_list,
                            mhdf_Status* status );
+void
+mhdf_writePolyConnIndicesWithOpt( hid_t poly_handle,
+                           long offset,
+                           long count,
+                           hid_t hdf_integer_type,
+                           const void* index_list,
+                           hid_t write_prop,
+                           mhdf_Status* status );
 
 /** \brief Write polygon or polyhedron connectivity data.
  *
@@ -767,6 +821,14 @@ mhdf_writePolyConnIDs( hid_t poly_handle,
                        hid_t hdf_integer_type,
                        const void* id_list,
                        mhdf_Status* status );
+void
+mhdf_writePolyConnIDsWithOpt( hid_t poly_handle,
+                       long offset,
+                       long count,
+                       hid_t hdf_integer_type,
+                       const void* id_list,
+                       hid_t write_prop,
+                       mhdf_Status* status );
 
 /** \brief Read polygon or polyhedron index data.
  *
@@ -800,6 +862,14 @@ mhdf_readPolyConnIndices( hid_t poly_handle,
                           hid_t hdf_integer_type,
                           void* index_list,
                           mhdf_Status* status );
+void 
+mhdf_readPolyConnIndicesWithOpt( hid_t poly_handle,
+                          long offset,
+                          long count,
+                          hid_t hdf_integer_type,
+                          void* index_list,
+                          hid_t read_prop,
+                          mhdf_Status* status );
 
 /** \brief Read polygon or polyhedron connectivity data.
  *
@@ -832,6 +902,14 @@ mhdf_readPolyConnIDs( hid_t poly_handle,
                       long count,
                       hid_t hdf_integer_type,
                       void* id_list,
+                      mhdf_Status* status );
+void 
+mhdf_readPolyConnIDsWithOpt( hid_t poly_handle,
+                      long offset,
+                      long count,
+                      hid_t hdf_integer_type,
+                      void* id_list,
+                      hid_t read_prop,
                       mhdf_Status* status );
 /*@}*/
 /**
@@ -941,6 +1019,14 @@ mhdf_writeAdjacency( hid_t data_handle,
                      hid_t hdf_integer_type,
                      const void* adj_list_data,
                      mhdf_Status* status );
+void
+mhdf_writeAdjacencyWithOpt( hid_t data_handle,
+                     long offset,
+                     long count,
+                     hid_t hdf_integer_type,
+                     const void* adj_list_data,
+                     hid_t write_prop,
+                     mhdf_Status* status );
 
 /** \brief Read node/element adjacency data
  *
@@ -972,6 +1058,14 @@ mhdf_readAdjacency( hid_t data_handle,
                     long count,
                     hid_t hdf_integer_type,
                     void* adj_list_data_out,
+                    mhdf_Status* status );
+void
+mhdf_readAdjacencyWithOpt( hid_t data_handle,
+                    long offset,
+                    long count,
+                    hid_t hdf_integer_type,
+                    void* adj_list_data_out,
+                    hid_t read_prop,
                     mhdf_Status* status );
 
 /*@}*/
@@ -1131,6 +1225,14 @@ mhdf_readSetMeta( hid_t data_handle,
                   hid_t hdf_integer_type,
                   void* set_desc_data,  
                   mhdf_Status* status );
+void
+mhdf_readSetMetaWithOpt( hid_t data_handle,
+                  long offset,
+                  long count,
+                  hid_t hdf_integer_type,
+                  void* set_desc_data,  
+                  hid_t read_prop,
+                  mhdf_Status* status );
 
 /** \brief Read only the flags portion of the set description table
  *
@@ -1149,6 +1251,14 @@ mhdf_readSetFlags( hid_t data_handle,
                    long count,
                    hid_t hdf_integer_type,
                    void* set_flag_data,
+                   mhdf_Status* status );
+void
+mhdf_readSetFlagsWithOpt( hid_t data_handle,
+                   long offset,
+                   long count,
+                   hid_t hdf_integer_type,
+                   void* set_flag_data,
+                   hid_t read_prop,
                    mhdf_Status* status );
 
 
@@ -1174,6 +1284,14 @@ mhdf_readSetContentEndIndices( hid_t data_handle,
                                hid_t hdf_integer_type,
                                void* end_indices_out,
                                mhdf_Status* status );
+void
+mhdf_readSetContentEndIndicesWithProp( hid_t data_handle,
+                               long offset,
+                               long count,
+                               hid_t hdf_integer_type,
+                               void* end_indices_out,
+                               hid_t read_prop,
+                               mhdf_Status* status );
 
 /** \brief Read only the child end indices portion of the set description table
  *
@@ -1197,6 +1315,14 @@ mhdf_readSetChildEndIndices( hid_t data_handle,
                              hid_t hdf_integer_type,
                              void* end_indices_out,
                              mhdf_Status* status );
+void
+mhdf_readSetChildEndIndicesWithOpt( hid_t data_handle,
+                             long offset,
+                             long count,
+                             hid_t hdf_integer_type,
+                             void* end_indices_out,
+                             hid_t read_prop,
+                             mhdf_Status* status );
 
 /** \brief Read only the parent end indices portion of the set description table
  *
@@ -1219,6 +1345,14 @@ mhdf_readSetParentEndIndices( hid_t data_handle,
                               long count,
                               hid_t hdf_integer_type,
                               void* end_indices_out,
+                              mhdf_Status* status );
+void
+mhdf_readSetParentEndIndicesWithOpt( hid_t data_handle,
+                              long offset,
+                              long count,
+                              hid_t hdf_integer_type,
+                              void* end_indices_out,
+                              hid_t read_prop,
                               mhdf_Status* status );
 
 
@@ -1244,6 +1378,14 @@ mhdf_writeSetMeta( hid_t data_handle,
                    long count,
                    hid_t hdf_integer_type,
                    const void* set_desc_data,  
+                   mhdf_Status* status );
+void
+mhdf_writeSetMetaWithOpt( hid_t data_handle,
+                   long offset,
+                   long count,
+                   hid_t hdf_integer_type,
+                   const void* set_desc_data,  
+                   hid_t write_prop,
                    mhdf_Status* status );
 
 /** \brief Create file object to hold list of meshset contents. 
@@ -1312,6 +1454,14 @@ mhdf_writeSetData( hid_t set_handle,
                    hid_t hdf_integer_type,
                    const void* set_data,
                    mhdf_Status* status );
+void
+mhdf_writeSetDataWithOpt( hid_t set_handle,
+                   long offset,
+                   long count,
+                   hid_t hdf_integer_type,
+                   const void* set_data,
+                   hid_t write_prop,
+                   mhdf_Status* status );
 
 /** \brief Read set contents.
  *
@@ -1339,6 +1489,14 @@ mhdf_readSetData( hid_t set_handle,
                   long count,
                   hid_t hdf_integer_type,
                   void* set_data,
+                  mhdf_Status* status );
+void
+mhdf_readSetDataWithOpt( hid_t set_handle,
+                  long offset,
+                  long count,
+                  hid_t hdf_integer_type,
+                  void* set_data,
+                  hid_t read_prop,
                   mhdf_Status* status );
 
 /** \brief Create file object for storing the set child list 
@@ -1437,6 +1595,14 @@ mhdf_writeSetParentsChildren( hid_t data_handle,
                               hid_t hdf_integer_type,
                               const void* id_list,
                               mhdf_Status* status );
+void
+mhdf_writeSetParentsChildrenWithOpt( hid_t data_handle,
+                              long offset,
+                              long count,
+                              hid_t hdf_integer_type,
+                              const void* id_list,
+                              hid_t write_prop,
+                              mhdf_Status* status );
 
 /** \brief Read set parent/child list
  *
@@ -1461,6 +1627,14 @@ mhdf_readSetParentsChildren( hid_t data_handle,
                              long count,
                              hid_t hdf_integer_type,
                              void* id_list,
+                             mhdf_Status* status );
+void
+mhdf_readSetParentsChildrenWithOpt( hid_t data_handle,
+                             long offset,
+                             long count,
+                             hid_t hdf_integer_type,
+                             void* id_list,
+                             hid_t read_prop,
                              mhdf_Status* status );
 
 /*@}*/
@@ -1764,6 +1938,14 @@ mhdf_writeDenseTag( hid_t tag_handle,
                     hid_t hdf_data_type,
                     const void* tag_data,
                     mhdf_Status* status );
+void
+mhdf_writeDenseTagWithOpt( hid_t tag_handle,
+                    long offset,
+                    long count,
+                    hid_t hdf_data_type,
+                    const void* tag_data,
+                    hid_t write_prop,
+                    mhdf_Status* status );
 
 /** \brief Read dense tag values 
  *
@@ -1786,6 +1968,14 @@ mhdf_readDenseTag( hid_t tag_handle,
                    long count,
                    hid_t hdf_data_type,
                    void* tag_data,
+                   mhdf_Status* status );
+void
+mhdf_readDenseTagWithOpt( hid_t tag_handle,
+                   long offset,
+                   long count,
+                   hid_t hdf_data_type,
+                   void* tag_data,
+                   hid_t read_prop,
                    mhdf_Status* status );
 
 /** \brief Create file objects to store sparse tag data 
@@ -1890,6 +2080,14 @@ mhdf_writeSparseTagEntities( hid_t id_handle,
                              hid_t hdf_integer_type,
                              const void* id_list,
                              mhdf_Status* status );
+void
+mhdf_writeSparseTagEntitiesWithOpt( hid_t id_handle,
+                             long offset,
+                             long count,
+                             hid_t hdf_integer_type,
+                             const void* id_list,
+                             hid_t write_prop,
+                             mhdf_Status* status );
 
 
 
@@ -1915,6 +2113,14 @@ mhdf_writeSparseTagValues( hid_t value_handle,
                            hid_t hdf_tag_data_type,
                            const void* tag_data,
                            mhdf_Status* status );
+void
+mhdf_writeSparseTagValuesWithOpt( hid_t value_handle,
+                           long offset,
+                           long count,
+                           hid_t hdf_tag_data_type,
+                           const void* tag_data,
+                           hid_t write_prop,
+                           mhdf_Status* status );
 
 /**\brief Write sparse tag end indices for variable-length tag data
  *
@@ -1936,6 +2142,14 @@ mhdf_writeSparseTagIndices( hid_t tag_handle,
                             long count,
                             hid_t hdf_integer_type,
                             const void* end_indices,
+                            mhdf_Status* status );
+void 
+mhdf_writeSparseTagIndicesWithOpt( hid_t tag_handle,
+                            long offset,
+                            long count,
+                            hid_t hdf_integer_type,
+                            const void* end_indices,
+                            hid_t write_prop,
                             mhdf_Status* status );
 
 /** \brief Read Global ID list for sparse tag data
@@ -1959,6 +2173,14 @@ mhdf_readSparseTagEntities( hid_t id_handle,
                             hid_t hdf_integer_type,
                             void* id_list,
                             mhdf_Status* status );
+void
+mhdf_readSparseTagEntitiesWithOpt( hid_t id_handle,
+                            long offset,
+                            long count,
+                            hid_t hdf_integer_type,
+                            void* id_list,
+                            hid_t read_prop,
+                            mhdf_Status* status );
 
 /** \brief Read tag value list for sparse tag data
  *
@@ -1980,6 +2202,14 @@ mhdf_readSparseTagValues( hid_t value_handle,
                           long count,
                           hid_t hdf_type,
                           void* memory,
+                          mhdf_Status* status );
+void
+mhdf_readSparseTagValuesWithOpt( hid_t value_handle,
+                          long offset,
+                          long count,
+                          hid_t hdf_type,
+                          void* memory,
+                          hid_t read_prop,
                           mhdf_Status* status );
 
 
@@ -2003,6 +2233,14 @@ mhdf_readSparseTagIndices( hid_t tag_handle,
                            long count,
                            hid_t hdf_integer_type,
                            void* end_indices,
+                           mhdf_Status* status );
+void 
+mhdf_readSparseTagIndicesWithOpt( hid_t tag_handle,
+                           long offset,
+                           long count,
+                           hid_t hdf_integer_type,
+                           void* end_indices,
+                           hid_t read_prop,
                            mhdf_Status* status );
 
 /*@}*/

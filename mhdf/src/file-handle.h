@@ -32,7 +32,6 @@ typedef struct struct_FileHandle {
   int open_handle_count;
   
   long max_id;
-  int parallel;
 } FileHandle;
 
 FileHandle* mhdf_alloc_FileHandle( hid_t hdf_handle, mhdf_Status* status );

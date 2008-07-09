@@ -73,6 +73,7 @@ mhdf_read_data( hid_t data_table,
                 long count,
                 hid_t type,
                 void* array,
+                hid_t read_prop,
                 mhdf_Status* status );
 
 
@@ -82,6 +83,7 @@ mhdf_write_data( hid_t data_table,
                  long count,
                  hid_t type,
                  const void* array,
+                 hid_t write_prop,
                  mhdf_Status* status );
 
 int
@@ -91,6 +93,7 @@ mhdf_read_column( hid_t data_table,
                   long count,
                   hid_t type,
                   void* array,
+                  hid_t read_prop,
                   mhdf_Status* status );
 
 
@@ -101,6 +104,7 @@ mhdf_write_column( hid_t data_table,
                    long count,
                    hid_t type,
                    const void* array,
+                   hid_t write_prop,
                    mhdf_Status* status );
 
 hid_t 
@@ -115,7 +119,6 @@ hid_t
 mhdf_open_table( hid_t group,
                  const char* path,
                  int columns,
-                 int parallel,
                  hsize_t* rows_out,
                  mhdf_Status* status );
 
@@ -123,7 +126,6 @@ hid_t
 mhdf_open_table2( hid_t group,
                   const char* path,
                   int rank,
-                  int parallel,
                   hsize_t* dims_out,
                   long* start_id_out,
                   mhdf_Status* status );

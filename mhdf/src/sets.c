@@ -179,7 +179,7 @@ mhdf_openSetMeta( mhdf_FileHandle file,
     return -1;
   
   table_id = mhdf_open_table2( file_ptr->hdf_handle,
-                               SET_META_PATH, 2, file_ptr->parallel,
+                               SET_META_PATH, 2,
                                dims, first_id_out, status );
   if (table_id < 0)
     return -1;
@@ -207,6 +207,7 @@ static int
 mhdf_readwriteSetMeta( hid_t table_id, int read,
                        long offset, long count,
                        hid_t type, void* data,
+                       hid_t prop,
                        mhdf_Status* status )
 {
   hid_t slab_id, sslab_id, smem_id, mem_id;
@@ -279,9 +280,9 @@ mhdf_readwriteSetMeta( hid_t table_id, int read,
     }
     
     if (read)
-      rval = H5Dread( table_id, type, mem_id, slab_id, H5P_DEFAULT, data );
+      rval = H5Dread( table_id, type, mem_id, slab_id, prop, data );
     else
-      rval = H5Dwrite( table_id, type, mem_id, slab_id, H5P_DEFAULT, data );
+      rval = H5Dwrite( table_id, type, mem_id, slab_id, prop, data );
   }
     /* Old table: 3 columns, no parent link counts */
   else if (counts[1] == 3)
@@ -322,9 +323,9 @@ mhdf_readwriteSetMeta( hid_t table_id, int read,
       }
 
       if (read)
-        rval = H5Dread( table_id, type, smem_id, sslab_id, H5P_DEFAULT, data );
+        rval = H5Dread( table_id, type, smem_id, sslab_id, prop, data );
       else
-        rval = H5Dwrite( table_id, type, smem_id, sslab_id, H5P_DEFAULT, data );
+        rval = H5Dwrite( table_id, type, smem_id, sslab_id, prop, data );
         
       H5Sclose( sslab_id );
       H5Sclose( smem_id );
@@ -367,7 +368,20 @@ mhdf_readSetMeta( hid_t table_id,
                   mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_readwriteSetMeta( table_id, 1, offset, count, type, data, status );
+  mhdf_readwriteSetMeta( table_id, 1, offset, count, type, data, H5P_DEFAULT, status );
+  API_END;
+}
+void
+mhdf_readSetMetaWithOpt( hid_t table_id,
+                  long offset,
+                  long count,
+                  hid_t type,
+                  void* data,
+                  hid_t prop,
+                  mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_readwriteSetMeta( table_id, 1, offset, count, type, data, prop, status );
   API_END;
 }
 
@@ -380,7 +394,20 @@ mhdf_writeSetMeta( hid_t table_id,
                    mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_readwriteSetMeta( table_id, 0, offset, count, type, (void*)data, status );
+  mhdf_readwriteSetMeta( table_id, 0, offset, count, type, (void*)data, H5P_DEFAULT, status );
+  API_END;
+}
+void
+mhdf_writeSetMetaWithOpt( hid_t table_id,
+                   long offset,
+                   long count,
+                   hid_t type,
+                   const void* data,
+                   hid_t prop,
+                   mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_readwriteSetMeta( table_id, 0, offset, count, type, (void*)data, prop, status );
   API_END;
 }
 
@@ -397,6 +424,7 @@ mhdf_readSetMetaColumn( hid_t table_id,
                         enum SetMetaCol column, 
                         long offset, long count,
                         hid_t type, void* data,
+                        hid_t prop,
                         mhdf_Status* status )
 {
   hid_t slab_id, mem_id;
@@ -499,7 +527,7 @@ mhdf_readSetMetaColumn( hid_t table_id,
   
     /* Read the data */
   
-  rval = H5Dread( table_id, type, mem_id, slab_id, H5P_DEFAULT, data );
+  rval = H5Dread( table_id, type, mem_id, slab_id, prop, data );
   H5Sclose( mem_id );
   H5Sclose( slab_id );
   if (rval < 0)
@@ -522,7 +550,20 @@ mhdf_readSetFlags( hid_t table_id,
                    mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_readSetMetaColumn( table_id, FLAGS, offset, count, type, data, status );
+  mhdf_readSetMetaColumn( table_id, FLAGS, offset, count, type, data, H5P_DEFAULT, status );
+  API_END;
+}
+void
+mhdf_readSetFlagsWihtOpt( hid_t table_id,
+                   long offset,
+                   long count,
+                   hid_t type,
+                   void* data,
+                   hid_t prop,
+                   mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_readSetMetaColumn( table_id, FLAGS, offset, count, type, data, prop, status );
   API_END;
 }
 
@@ -536,7 +577,20 @@ mhdf_readSetContentEndIndices( hid_t table_id,
                                mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_readSetMetaColumn( table_id, CONTENT, offset, count, type, data, status );
+  mhdf_readSetMetaColumn( table_id, CONTENT, offset, count, type, data, H5P_DEFAULT, status );
+  API_END;
+}
+void
+mhdf_readSetContentEndIndicesWithProp( hid_t table_id,
+                               long offset,
+                               long count,
+                               hid_t type,
+                               void* data,
+                               hid_t prop,
+                               mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_readSetMetaColumn( table_id, CONTENT, offset, count, type, data, prop, status );
   API_END;
 }
 
@@ -549,7 +603,20 @@ mhdf_readSetChildEndIndices( hid_t table_id,
                              mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_readSetMetaColumn( table_id, CHILDREN, offset, count, type, data, status );
+  mhdf_readSetMetaColumn( table_id, CHILDREN, offset, count, type, data, H5P_DEFAULT, status );
+  API_END;
+}
+void
+mhdf_readSetChildEndIndicesWithOpt( hid_t table_id,
+                             long offset,
+                             long count,
+                             hid_t type,
+                             void* data,
+                             hid_t prop,
+                             mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_readSetMetaColumn( table_id, CHILDREN, offset, count, type, data, prop, status );
   API_END;
 }
 
@@ -562,7 +629,20 @@ mhdf_readSetParentEndIndices( hid_t table_id,
                               mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_readSetMetaColumn( table_id, PARENTS, offset, count, type, data, status );
+  mhdf_readSetMetaColumn( table_id, PARENTS, offset, count, type, data, H5P_DEFAULT, status );
+  API_END;
+}
+void
+mhdf_readSetParentEndIndicesWithOpt( hid_t table_id,
+                              long offset,
+                              long count,
+                              hid_t type,
+                              void* data,
+                              hid_t prop,
+                              mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_readSetMetaColumn( table_id, PARENTS, offset, count, type, data, prop, status );
   API_END;
 }
 
@@ -618,7 +698,7 @@ mhdf_openSetData( mhdf_FileHandle file_handle,
   
   table_id = mhdf_open_table( file_ptr->hdf_handle,
                               SET_DATA_PATH,
-                              1, file_ptr->parallel, &dim,
+                              1, &dim,
                               status );
  
   *data_list_size_out = (long)dim;
@@ -636,7 +716,20 @@ mhdf_writeSetData( hid_t table_id,
                    mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_write_data( table_id, offset, count, type, data, status );
+  mhdf_write_data( table_id, offset, count, type, data, H5P_DEFAULT, status );
+  API_END;
+}
+void
+mhdf_writeSetDataWithOpt( hid_t table_id,
+                   long offset,
+                   long count,
+                   hid_t type,
+                   const void* data,
+                   hid_t prop,
+                   mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_write_data( table_id, offset, count, type, data, prop, status );
   API_END;
 }
 
@@ -650,7 +743,20 @@ mhdf_readSetData( hid_t table_id,
                   mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_read_data( table_id, offset, count, type, data, status );
+  mhdf_read_data( table_id, offset, count, type, data, H5P_DEFAULT, status );
+  API_END;
+}
+void
+mhdf_readSetDataWithOpt( hid_t table_id,
+                  long offset,
+                  long count,
+                  hid_t type,
+                  void* data,
+                  hid_t prop,
+                  mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_read_data( table_id, offset, count, type, data, prop, status );
   API_END;
 }
 
@@ -706,7 +812,7 @@ mhdf_openSetChildren( mhdf_FileHandle file_handle,
   
   table_id = mhdf_open_table( file_ptr->hdf_handle,
                               SET_CHILD_PATH,
-                              1, file_ptr->parallel, &dim,
+                              1, &dim,
                               status );
  
   *child_list_size = (long)dim;
@@ -766,7 +872,7 @@ mhdf_openSetParents( mhdf_FileHandle file_handle,
   
   table_id = mhdf_open_table( file_ptr->hdf_handle,
                               SET_PARENT_PATH,
-                              1, file_ptr->parallel, &dim,
+                              1, &dim,
                               status );
  
   *parent_list_size = (long)dim;
@@ -783,7 +889,20 @@ mhdf_writeSetParentsChildren( hid_t table_id,
                        mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_write_data( table_id, offset, count, type, data, status );
+  mhdf_write_data( table_id, offset, count, type, data, H5P_DEFAULT, status );
+  API_END;
+}
+void
+mhdf_writeSetParentsChildrenWithOpt( hid_t table_id,
+                       long offset,
+                       long count,
+                       hid_t type,
+                       const void* data,
+                       hid_t prop,
+                       mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_write_data( table_id, offset, count, type, data, prop, status );
   API_END;
 }
 
@@ -796,6 +915,19 @@ mhdf_readSetParentsChildren( hid_t table_id,
                       mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_read_data( table_id, offset, count, type, data, status );
+  mhdf_read_data( table_id, offset, count, type, data, H5P_DEFAULT, status );
+  API_END;
+}
+void
+mhdf_readSetParentsChildrenWithOpt( hid_t table_id,
+                      long offset,
+                      long count,
+                      hid_t type,
+                      void* data,
+                      hid_t prop,
+                      mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_read_data( table_id, offset, count, type, data, prop, status );
   API_END;
 }

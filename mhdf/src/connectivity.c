@@ -113,7 +113,7 @@ mhdf_openConnectivity( mhdf_FileHandle file_handle,
   if (elem_id < 0) return -1;
   
   table_id = mhdf_open_table2( elem_id, CONNECTIVITY_NAME, 
-                               2, file_ptr->parallel, dims,
+                               2, dims,
                                first_elem_id_out, status );
   
   H5Gclose( elem_id );
@@ -138,7 +138,20 @@ mhdf_writeConnectivity( hid_t table_id,
                         mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_write_data( table_id, offset, count, hdf_integer_type, nodes, status );
+  mhdf_write_data( table_id, offset, count, hdf_integer_type, nodes, H5P_DEFAULT, status );
+  API_END;
+}
+void
+mhdf_writeConnectivityWithOpt( hid_t table_id,
+                        long offset,
+                        long count,
+                        hid_t hdf_integer_type,
+                        const void* nodes,
+                        hid_t prop,
+                        mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_write_data( table_id, offset, count, hdf_integer_type, nodes, prop, status );
   API_END;
 }
 
@@ -151,7 +164,20 @@ mhdf_readConnectivity( hid_t table_id,
                        mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_read_data( table_id, offset, count, hdf_integer_type, nodes, status );
+  mhdf_read_data( table_id, offset, count, hdf_integer_type, nodes, H5P_DEFAULT,status );
+  API_END;
+}
+void 
+mhdf_readConnectivityWithOpt( hid_t table_id,
+                       long offset,
+                       long count,
+                       hid_t hdf_integer_type,
+                       void* nodes,
+                       hid_t prop,
+                       mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_read_data( table_id, offset, count, hdf_integer_type, nodes, prop, status );
   API_END;
 }
 
@@ -276,13 +302,13 @@ mhdf_openPolyConnectivity( mhdf_FileHandle file_handle,
   if (elem_id < 0) return ;
   
   index_id = mhdf_open_table( elem_id, POLY_INDEX_NAME,
-                              1, file_ptr->parallel, &row_count, status );
+                              1, &row_count, status );
   if (index_id < 0)
     { H5Gclose(elem_id); return ; }
   *num_poly_out = (int)row_count;
   
   table_id = mhdf_open_table( elem_id, CONNECTIVITY_NAME, 
-                              1, file_ptr->parallel, &row_count, status );
+                              1, &row_count, status );
   
   H5Gclose( elem_id );
   if (table_id < 0)
@@ -316,7 +342,20 @@ mhdf_writePolyConnIndices( hid_t table_id,
                            mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_write_data( table_id, offset, count, hdf_integer_type, index_list, status );
+  mhdf_write_data( table_id, offset, count, hdf_integer_type, index_list, H5P_DEFAULT, status );
+  API_END;
+}
+void
+mhdf_writePolyConnIndicesWithOpt( hid_t table_id,
+                           long offset,
+                           long count,
+                           hid_t hdf_integer_type,
+                           const void* index_list,
+                           hid_t prop,
+                           mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_write_data( table_id, offset, count, hdf_integer_type, index_list, prop, status );
   API_END;
 }
 
@@ -329,7 +368,20 @@ mhdf_readPolyConnIndices( hid_t table_id,
                           mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_read_data( table_id, offset, count, hdf_integer_type, index_list, status );
+  mhdf_read_data( table_id, offset, count, hdf_integer_type, index_list, H5P_DEFAULT, status );
+  API_END;
+}
+void 
+mhdf_readPolyConnIndicesWithOpt( hid_t table_id,
+                          long offset,
+                          long count,
+                          hid_t hdf_integer_type,
+                          void* index_list,
+                          hid_t prop,
+                          mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_read_data( table_id, offset, count, hdf_integer_type, index_list, prop, status );
   API_END;
 }
 
@@ -342,7 +394,20 @@ mhdf_writePolyConnIDs( hid_t table_id,
                        mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_write_data( table_id, offset, count, hdf_integer_type, id_list, status );
+  mhdf_write_data( table_id, offset, count, hdf_integer_type, id_list, H5P_DEFAULT, status );
+  API_END;
+}
+void
+mhdf_writePolyConnIDsWithOpt( hid_t table_id,
+                       long offset,
+                       long count,
+                       hid_t hdf_integer_type,
+                       const void* id_list,
+                       hid_t prop,
+                       mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_write_data( table_id, offset, count, hdf_integer_type, id_list, prop, status );
   API_END;
 }
 
@@ -355,7 +420,20 @@ mhdf_readPolyConnIDs( hid_t table_id,
                       mhdf_Status* status )
 {
   API_BEGIN;
-  mhdf_read_data( table_id, offset, count, hdf_integer_type, id_list, status );
+  mhdf_read_data( table_id, offset, count, hdf_integer_type, id_list, H5P_DEFAULT, status );
+  API_END;
+}
+void 
+mhdf_readPolyConnIDsWithOpt( hid_t table_id,
+                      long offset,
+                      long count,
+                      hid_t hdf_integer_type,
+                      void* id_list,
+                      hid_t prop,
+                      mhdf_Status* status )
+{
+  API_BEGIN;
+  mhdf_read_data( table_id, offset, count, hdf_integer_type, id_list, prop, status );
   API_END;
 }
 
