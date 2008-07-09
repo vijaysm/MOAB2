@@ -51,6 +51,12 @@ public:
                          const FileOptions& opts,
                          const int* material_set_list,
                          int material_set_count  );
+protected:
+
+  MBErrorCode load_file_impl( MBEntityHandle file_set, 
+                              const int*, 
+                              const int num_blocks,
+                              bool use_mpio );
 
 private:
   MBErrorCode init();
@@ -93,6 +99,9 @@ private:
   
   //! The type of an MBEntityHandle
   hid_t handleType;
+  
+  //! read/write property handle
+  hid_t ioProp;
  
   //! Read node coordinates.
   MBErrorCode read_nodes( );

@@ -65,7 +65,8 @@ ReadHDF5::ReadHDF5( MBInterface* iface )
     iFace( iface ), 
     filePtr( 0 ), 
     readUtil( 0 ),
-    handleType( 0 )
+    handleType( 0 ),
+    ioProp( H5P_DEFAULT )
 {
 }
 
@@ -76,6 +77,7 @@ MBErrorCode ReadHDF5::init()
   if (readUtil) 
     return MB_SUCCESS;
   
+  ioProp = H5P_DEFAULT;
   //WriteHDF5::register_known_tag_types( iFace );
   
   handleType = H5Tcopy( H5T_NATIVE_ULONG );
@@ -119,9 +121,109 @@ ReadHDF5::~ReadHDF5()
 
 MBErrorCode ReadHDF5::load_file( const char* filename, 
                                  MBEntityHandle& file_set, 
-                                 const FileOptions&opts,
-                                 const int*, 
+                                 const FileOptions& opts,
+                                 const int* p, 
                                  const int num_blocks )
+{
+  MBErrorCode rval;
+  mhdf_Status status;
+  ioProp = H5P_DEFAULT;
+
+  if (MB_SUCCESS != init())
+    return MB_FAILURE;
+
+  bool use_mpio = (MB_SUCCESS == opts.get_null_option("USE_MPIO"));
+  if (use_mpio) {
+#ifndef USE_MPI
+    return MB_NOT_IMPLEMENTED;
+#else
+    int parallel_mode;
+    rval = opts.match_option( "PARALLEL", 
+                              ReadParallel::parallelOptsNames, 
+                              parallel_mode );
+    if (MB_FAILURE == rval) {
+      readUtil->report_error("Unexpected value for 'PARALLEL' option\n");
+      return MB_FAILURE;
+    }
+    else if (MB_SUCCESS != rval ||
+             parallel_mode != ReadParallel::POPT_READ_DELETE) {
+      use_mpio = false;
+    }
+#endif
+  }
+  
+  dataBuffer = (char*)malloc( bufferSize );
+  if (!dataBuffer)
+    return MB_MEMORY_ALLOCATION_FAILED;
+
+  rval = iFace->create_meshset( MESHSET_SET, file_set );
+  if (MB_SUCCESS != rval) {
+    free(dataBuffer);
+    return rval;
+  }
+  
+    // Open the file
+  hid_t file_prop = H5P_DEFAULT;
+#ifdef USE_MPI
+  if (use_mpio) {
+    file_prop = H5Pcreate(H5P_FILE_ACCESS);
+    H5Pset_fapl_mpio(file_prop, MPI_COMM_WORLD, MPI_INFO_NULL);
+    ioProp = H5Pcreate(H5P_DATASET_XFER);
+    H5Pset_dxpl_mpio(ioProp, H5FD_MPIO_COLLECTIVE);
+  }
+#endif
+    
+  
+  filePtr = mhdf_openFileWithOpt( filename, 0, NULL, file_prop, &status );
+  if (file_prop != H5P_DEFAULT)
+    H5Pclose( file_prop );
+  if (!filePtr)
+  {
+    readUtil->report_error( mhdf_message( &status ));
+    free( dataBuffer );
+    if (ioProp != H5P_DEFAULT)
+      H5Pclose( ioProp );
+    iFace->delete_entities( &file_set, 1 );
+    return MB_FAILURE;
+  }
+    
+  
+  rval = load_file_impl( file_set, p, num_blocks, use_mpio );
+  mhdf_closeFile( filePtr, &status );
+  filePtr = 0;
+  if (ioProp != H5P_DEFAULT)
+    H5Pclose( ioProp );
+  if (mhdf_isError( &status )) {
+    if (MB_SUCCESS == rval)
+      rval = MB_FAILURE;
+    readUtil->report_error( mhdf_message( &status ));
+  }
+        
+      // delete everything that was read in if read failed part-way through
+  if (MB_SUCCESS != rval) {
+    iFace->delete_entities( &file_set, 1 );
+    file_set = 0;
+    iFace->delete_entities( setSet.range );
+    for (std::list<ElemSet>::reverse_iterator rel_itor = elemList.rbegin();
+         rel_itor != elemList.rend(); ++rel_itor)
+      iFace->delete_entities( rel_itor->range );
+    iFace->delete_entities( nodeSet.range );
+  }
+  
+  elemList.clear();
+  nodeSet.range.clear();
+  setSet.range.clear();
+  free( dataBuffer );
+  return rval;
+}
+  
+
+
+MBErrorCode ReadHDF5::load_file_impl( 
+                                 MBEntityHandle file_set, 
+                                 const int*, 
+                                 const int num_blocks,
+                                 bool use_mpio )
 {
   MBErrorCode rval;
   mhdf_Status status;
@@ -130,63 +232,21 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
   char** tag_names = NULL;
   char** groups = NULL;
   std::list<ElemSet>::iterator el_itor;
-  std::list<ElemSet>::reverse_iterator rel_itor;
   unsigned int i, num_groups;
   bool have_nodes = true;
-  file_set = 0;
 
   if (num_blocks)
     return MB_FAILURE;
 
-  if (MB_SUCCESS != init())
-    return MB_FAILURE;
-
-DEBUGOUT( "Opening File\n" );  
-  
-#ifdef USE_MPI
-  int parallel_mode;
-  MBErrorCode result = opts.match_option( "PARALLEL", ReadParallel::parallelOptsNames, 
-                                          parallel_mode );
-  if (MB_FAILURE == result) {
-    readUtil->report_error("Unexpected value for 'PARALLEL' option\n");
-    return MB_FAILURE;
-  }
-  else if (MB_ENTITY_NOT_FOUND == result) {
-    parallel_mode = 0;
-  }
-
-  bool use_mpio = false;
-  result = opts.get_null_option("USE_MPIO");
-  if (MB_SUCCESS == result) use_mpio = true;
-
-  if (parallel_mode == ReadParallel::POPT_READ_DELETE && use_mpio) {
-    hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
-    H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, MPI_INFO_NULL);
-    filePtr = mhdf_openFileWithOpt( filename, 0, NULL, plist_id, &status );
-  }
-  else filePtr = mhdf_openFile( filename, 0, NULL, &status );
-
-#else
-    // Open the file
-  filePtr = mhdf_openFile( filename, 0, NULL, &status );
-#endif
-  if (!filePtr)
-  {
-    readUtil->report_error( mhdf_message( &status ));
-    return MB_FAILURE;
-  }
-  
-  dataBuffer = (char*)malloc( bufferSize );
-  if (!dataBuffer)
-    goto read_fail;
-
 DEBUGOUT("Reading Nodes.\n");
   
-  if (read_nodes() != MB_SUCCESS) {
+  rval = read_nodes();
+  if (MB_ENTITY_NOT_FOUND == rval) {
     DEBUGOUT("No nodes in file.!\n");
     have_nodes = false;
-    //goto read_fail;
   }
+  else if (MB_SUCCESS != rval)
+    return rval;
 
 DEBUGOUT("Reading element connectivity.\n");
 
@@ -194,7 +254,7 @@ DEBUGOUT("Reading element connectivity.\n");
   if (mhdf_isError( &status ))
   {
     readUtil->report_error( mhdf_message( &status ));
-    goto read_fail;
+    return MB_FAILURE;
   }
 
   for (i = 0; i < num_groups; ++i)
@@ -203,7 +263,8 @@ DEBUGOUT("Reading element connectivity.\n");
     if (mhdf_isError( &status ))
     {
       readUtil->report_error( mhdf_message( &status ));
-      goto read_fail;
+      free(groups);
+      return MB_FAILURE;
     }
 
     if (poly)
@@ -211,22 +272,34 @@ DEBUGOUT("Reading element connectivity.\n");
     else
       rval = read_elems( groups[i] );
       
-    if (MB_SUCCESS != rval)
-      goto read_fail;
+    if (MB_SUCCESS != rval) {
+      free( groups );
+      return rval;
+    }
   }
   
 DEBUGOUT("Reading sets.\n");
   
-  if (read_sets() != MB_SUCCESS)
-    goto read_fail;
-
+  rval = read_sets();
+  if (rval != MB_SUCCESS) {
+    free( groups );
+    return rval;
+  }
+  
 DEBUGOUT("Reading adjacencies.\n");
   
-  if (read_adjacencies( nodeSet ) != MB_SUCCESS)
-    goto read_fail;
-  for (el_itor = elemList.begin(); el_itor != elemList.end(); ++el_itor)
-    if (read_adjacencies( *el_itor ) != MB_SUCCESS)
-      goto read_fail;
+  rval = read_adjacencies( nodeSet );
+  if (rval != MB_SUCCESS) {
+    free( groups );
+    return rval;
+  }
+  for (el_itor = elemList.begin(); el_itor != elemList.end(); ++el_itor) {
+    rval = read_adjacencies( *el_itor );
+    if (MB_SUCCESS != rval) {
+      free( groups );
+      return rval;
+    }
+  }
 
 DEBUGOUT("Reading tags.\n");
   
@@ -234,94 +307,43 @@ DEBUGOUT("Reading tags.\n");
   if (mhdf_isError( &status ))
   {
     readUtil->report_error( mhdf_message( &status ));
-    goto read_fail;
+    free( groups );
+    return MB_FAILURE;
   }
   
   for (int t = 0; t < num_tags; ++t)
   {
     rval = read_tag( tag_names[t] );
     free( tag_names[t] );
-    tag_names[t] = NULL;
-    if (MB_SUCCESS != rval)
-      goto read_fail;
+    if (MB_SUCCESS != rval) {
+      for (; t < num_tags; ++t)
+        free( tag_names[t] );
+      free( tag_names );
+      free( groups );
+      return MB_FAILURE;
+    }
   }
   free( tag_names );
-  tag_names = 0;
-    
-DEBUGOUT("Creating entity set for file contents\n")
-  if (MB_SUCCESS != iFace->create_meshset( MESHSET_SET, file_set ))
-    goto read_fail;
-  if (MB_SUCCESS != iFace->add_entities( file_set, setSet.range ))
-    goto read_fail;
-  for (rel_itor = elemList.rbegin(); rel_itor != elemList.rend(); ++rel_itor)
-    if (MB_SUCCESS != iFace->add_entities( file_set, rel_itor->range))
-      goto read_fail;
-  if (MB_SUCCESS != iFace->add_entities( file_set, nodeSet.range ))
-    goto read_fail;
+
+  free( groups );
+  if (file_set) {
+    DEBUGOUT("Creating entity set for file contents\n")
+    rval = iFace->add_entities( file_set, nodeSet.range );
+    if (MB_SUCCESS != rval)
+      return rval;
+    for (el_itor = elemList.begin(); el_itor != elemList.end(); ++el_itor) {
+      rval = iFace->add_entities( file_set, el_itor->range);
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
+    rval = iFace->add_entities( file_set, setSet.range );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
   
 DEBUGOUT("Finishing read.\n");
-  if (MB_SUCCESS != read_qa( file_set ))
-    goto read_fail;
-  
-
-    // Clean up and exit.
-  free( dataBuffer );
-  dataBuffer = 0;
-  mhdf_closeFile( filePtr, &status );
-  filePtr = 0;
-  elemList.clear();
-  if (groups) free( groups );
-  if (mhdf_isError( &status ))
-  {
-    readUtil->report_error( mhdf_message( &status ));
-    return MB_FAILURE;
-  }
-  return MB_SUCCESS;
-  
-read_fail:
-  
-  if (file_set)
-    iFace->delete_entities( &file_set, 1 );
-  
-  if (dataBuffer)
-  {
-    free( dataBuffer );
-    dataBuffer = 0;
-  }
-  
-  if (tag_names)
-  {
-    for (int tt = 0; tt < num_tags; ++tt)
-      if (NULL != tag_names[tt])
-        free( tag_names[tt] );
-    free( tag_names );
-  }
-
-  if (groups) free( groups );
-  
-  mhdf_closeFile( filePtr, &status );
-  filePtr = 0;
-  
-    /* Destroy any mesh that we've read in */
-  if (!setSet.range.empty())
-  {
-    iFace->clear_meshset( setSet.range );
-    iFace->delete_entities( setSet.range );
-    setSet.range.clear();
-  }
-  for (el_itor = elemList.begin(); el_itor != elemList.end(); ++el_itor)
-  {
-    if (!el_itor->range.empty())
-      iFace->delete_entities( el_itor->range );
-  }
-  elemList.clear();
-  if (!nodeSet.range.empty())
-  {
-    iFace->delete_entities( nodeSet.range );
-    nodeSet.range.clear();
-  }
-  
-  return MB_FAILURE;
+  rval = read_qa( file_set );
+  return rval;
 }
 
 MBErrorCode ReadHDF5::read_nodes()
@@ -373,7 +395,7 @@ MBErrorCode ReadHDF5::read_nodes()
   nodeSet.type2 = mhdf_node_type_handle();
   for (int i = 0; i < dim; i++)
   {
-    mhdf_readNodeCoord( data_id, 0, count, i, arrays[i], &status );
+    mhdf_readNodeCoordWithOpt( data_id, 0, count, i, arrays[i], ioProp, &status );
     if (mhdf_isError( &status ))
     {
       readUtil->report_error( mhdf_message(&status) );
@@ -453,7 +475,7 @@ MBErrorCode ReadHDF5::read_elems( const char* elem_group )
   }
   
   elems.range.insert( handle, handle + count - 1 );
-  mhdf_readConnectivity( data_id, 0, count, handleType, array, &status );
+  mhdf_readConnectivityWithOpt( data_id, 0, count, handleType, array, ioProp, &status );
   if (mhdf_isError( &status ))
   {
     readUtil->report_error( mhdf_message( &status ) );
@@ -517,7 +539,7 @@ MBErrorCode ReadHDF5::read_poly( const char* elem_group )
   std::vector<MBEntityHandle> connectivity; 
   for (long i = 0; i < count; ++i) {
     long prevend = connend;
-    mhdf_readPolyConnIndices( handles[0], i, 1, H5T_NATIVE_LONG, &connend, &status );
+    mhdf_readPolyConnIndicesWithOpt( handles[0], i, 1, H5T_NATIVE_LONG, &connend, ioProp, &status );
     if (mhdf_isError( &status ))
     {
       readUtil->report_error( mhdf_message( &status ) );
@@ -527,8 +549,8 @@ MBErrorCode ReadHDF5::read_poly( const char* elem_group )
     }
     
     connectivity.resize( connend - prevend );
-    mhdf_readPolyConnIDs( handles[1], prevend+1, connectivity.size(), handleType,
-                          &connectivity[0], &status );
+    mhdf_readPolyConnIDsWithOpt( handles[1], prevend+1, connectivity.size(), handleType,
+                          &connectivity[0], ioProp, &status );
     if (mhdf_isError( &status ))
     {
       readUtil->report_error( mhdf_message( &status ) );
@@ -626,14 +648,14 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id, hid_t data_id )
   while (sets_remaining) {
       // read end indices from meta data
     unsigned long set_count = sets_remaining < offset_size ? sets_remaining : offset_size;
-    mhdf_readSetContentEndIndices( meta_id, set_offset, set_count, 
-                                   H5T_NATIVE_LONG, offsets.get(), &status );
+    mhdf_readSetContentEndIndicesWithOpt( meta_id, set_offset, set_count, 
+                                   H5T_NATIVE_LONG, offsets.get(), ioProp, &status );
     if (mhdf_isError( &status )) {
       readUtil->report_error( mhdf_message( &status ) );
       return MB_FAILURE;
     }
-    mhdf_readSetFlags( meta_id, set_offset, set_count, H5T_NATIVE_USHORT, 
-                       flags.get(), &status );
+    mhdf_readSetFlagsWithOpt( meta_id, set_offset, set_count, H5T_NATIVE_USHORT, 
+                       flags.get(), ioProp, &status );
     if (mhdf_isError( &status )) {
       readUtil->report_error( mhdf_message( &status ) );
       return MB_FAILURE;
@@ -659,7 +681,7 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id, hid_t data_id )
         {
           size_t count = remaining > chunk_size ? chunk_size : remaining;
           remaining -= count;
-          mhdf_readSetData( data_id, file_offset, count, handleType, buffer, &status );
+          mhdf_readSetDataWithOpt( data_id, file_offset, count, handleType, buffer, ioProp, &status );
           if (mhdf_isError( &status )) {
             readUtil->report_error( mhdf_message( &status ) );
             return MB_FAILURE;
@@ -703,7 +725,7 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id, hid_t data_id )
         
           // read data for sets in [r,i)
         size_t count = offsets[i-1] + 1 - file_offset;
-        mhdf_readSetData( data_id, file_offset, count, handleType, buffer, &status );
+        mhdf_readSetDataWithOpt( data_id, file_offset, count, handleType, buffer, ioProp, &status );
         if (mhdf_isError( &status )) {
           readUtil->report_error( mhdf_message( &status ) );
           return MB_FAILURE;
@@ -782,11 +804,13 @@ MBErrorCode ReadHDF5::read_parents_children( bool parents,
       // read end indices from meta data
     unsigned long set_count = sets_remaining < offset_size ? sets_remaining : offset_size;
     if (parents)
-      mhdf_readSetParentEndIndices( meta_id, set_offset, set_count, 
-                                    H5T_NATIVE_LONG, offsets.get(), &status );
+      mhdf_readSetParentEndIndicesWithOpt( meta_id, set_offset, set_count, 
+                                    H5T_NATIVE_LONG, offsets.get(), 
+                                    ioProp, &status );
     else
-      mhdf_readSetChildEndIndices(  meta_id, set_offset, set_count, 
-                                    H5T_NATIVE_LONG, offsets.get(), &status );
+      mhdf_readSetChildEndIndicesWithOpt(  meta_id, set_offset, set_count, 
+                                    H5T_NATIVE_LONG, offsets.get(), 
+                                    ioProp, &status );
     if (mhdf_isError( &status )) {
       readUtil->report_error( mhdf_message( &status ) );
       return MB_FAILURE;
@@ -809,7 +833,8 @@ MBErrorCode ReadHDF5::read_parents_children( bool parents,
         {
           size_t count = remaining > chunk_size ? chunk_size : remaining;
           remaining -= count;
-          mhdf_readSetParentsChildren( data_id, file_offset, count, handleType, buffer, &status );
+          mhdf_readSetParentsChildrenWithOpt( data_id, file_offset, count, handleType, 
+                                              buffer, ioProp, &status );
           if (mhdf_isError( &status )) {
             readUtil->report_error( mhdf_message( &status ) );
             return MB_FAILURE;
@@ -841,7 +866,8 @@ MBErrorCode ReadHDF5::read_parents_children( bool parents,
         
           // read data for sets in [r,i)
         size_t count = offsets[i-1] + 1 - file_offset;
-        mhdf_readSetParentsChildren( data_id, file_offset, count, handleType, buffer, &status );
+        mhdf_readSetParentsChildrenWithOpt( data_id, file_offset, count, handleType, 
+                                            buffer, ioProp, &status );
         if (mhdf_isError( &status )) {
           readUtil->report_error( mhdf_message( &status ) );
           return MB_FAILURE;
@@ -940,7 +966,8 @@ MBErrorCode ReadHDF5::read_sets()
   while (remaining) {
       // Get a block of set flags
     size_t count = remaining > chunk_size ? chunk_size : remaining;
-    mhdf_readSetFlags( meta_id, offset, count, H5T_NATIVE_UINT, buffer, &status );
+    mhdf_readSetFlagsWithOpt( meta_id, offset, count, H5T_NATIVE_UINT, 
+                              buffer, ioProp, &status );
     if (mhdf_isError( &status )) {
       readUtil->report_error( mhdf_message( &status ) );
       mhdf_closeData( filePtr, meta_id, &status );
@@ -1066,7 +1093,8 @@ MBErrorCode ReadHDF5::read_adjacencies( ElemSet& elems )
     count -= leading;
     remaining -= count;
     
-    mhdf_readAdjacency( table, offset, count, handleType, buffer + leading, &status );
+    mhdf_readAdjacencyWithOpt( table, offset, count, handleType, buffer + leading,
+                               ioProp, &status );
     if (mhdf_isError(&status))
     {
       readUtil->report_error( mhdf_message( &status ) );
@@ -1499,7 +1527,8 @@ MBErrorCode ReadHDF5::read_dense_tag( ElemSet& set,
     subrange.merge( iter, stop );
     iter = stop;
     
-    mhdf_readDenseTag( data, offset, count, hdf_read_type, dataBuffer, &status );
+    mhdf_readDenseTagWithOpt( data, offset, count, hdf_read_type, dataBuffer, 
+                              ioProp, &status );
     offset += count;
     if (mhdf_isError( &status ))
     {
@@ -1593,7 +1622,8 @@ MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
     size_t count = remaining > chunk_size ? chunk_size : remaining;
     remaining -= count;
     
-    mhdf_readSparseTagEntities( data[0], offset, count, handleType, idbuf, &status );
+    mhdf_readSparseTagEntitiesWithOpt( data[0], offset, count, handleType, idbuf,
+                                       ioProp, &status );
     if (mhdf_isError( &status ))
     {
       readUtil->report_error( mhdf_message( &status ) );
@@ -1602,7 +1632,8 @@ MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
       return MB_FAILURE;
     }
     
-    mhdf_readSparseTagValues( data[1], offset, count, hdf_read_type, databuf, &status );
+    mhdf_readSparseTagValuesWithOpt( data[1], offset, count, hdf_read_type, 
+                                     databuf, ioProp, &status );
     if (mhdf_isError( &status ))
     {
       readUtil->report_error( mhdf_message( &status ) );
@@ -1727,7 +1758,8 @@ MBErrorCode ReadHDF5::read_var_len_tag( MBTag tag_handle,
 
       // read entity IDs
     assert_range( handle_buffer, count * sizeof(MBEntityHandle) );
-    mhdf_readSparseTagEntities( data[0], offset, count, handleType, handle_buffer, &status );
+    mhdf_readSparseTagEntitiesWithOpt( data[0], offset, count, handleType, 
+                                       handle_buffer, ioProp, &status );
     if (mhdf_isError( &status ))
     {
       readUtil->report_error( mhdf_message( &status ) );
@@ -1747,7 +1779,8 @@ MBErrorCode ReadHDF5::read_var_len_tag( MBTag tag_handle,
     }
       // read end index of tag value
     assert_range( end_idx_buffer, count * sizeof(long) );
-    mhdf_readSparseTagIndices( data[2], offset, count, H5T_NATIVE_LONG, end_idx_buffer, &status );
+    mhdf_readSparseTagIndicesWithOpt( data[2], offset, count, H5T_NATIVE_LONG, 
+                                      end_idx_buffer, ioProp, &status );
     if (mhdf_isError( &status ))
     {
       readUtil->report_error( mhdf_message( &status ) );
@@ -1790,7 +1823,9 @@ MBErrorCode ReadHDF5::read_var_len_tag( MBTag tag_handle,
           // read data
         assert( num_val <= data_buffer_size );
         assert_range( data_buffer, num_val * elem_size );
-        mhdf_readSparseTagValues( data[1], data_offset, num_val, hdf_read_type, data_buffer, &status );
+        mhdf_readSparseTagValuesWithOpt( data[1], data_offset, num_val, 
+                                         hdf_read_type, data_buffer,
+                                         ioProp, &status );
         if (mhdf_isError( &status )) {
           readUtil->report_error( mhdf_message( &status ) );
           mhdf_closeData( filePtr, data[0], &status );
@@ -1827,7 +1862,9 @@ MBErrorCode ReadHDF5::read_var_len_tag( MBTag tag_handle,
       else {
         const int size = (end_idx_buffer[i] - prev_end_idx);
         std::vector<char*> tmp_buffer( size * elem_size );
-        mhdf_readSparseTagValues( data[1], data_offset, size, hdf_read_type, &tmp_buffer[0], &status );
+        mhdf_readSparseTagValuesWithOpt( data[1], data_offset, size, 
+                                         hdf_read_type, &tmp_buffer[0],
+                                         ioProp, &status );
         if (mhdf_isError( &status )) {
           readUtil->report_error( mhdf_message( &status ) );
           mhdf_closeData( filePtr, data[0], &status );
