@@ -241,7 +241,7 @@ MBErrorCode ReadHDF5::load_file_impl(
 DEBUGOUT("Reading Nodes.\n");
   
   rval = read_nodes();
-  if (MB_ENTITY_NOT_FOUND == rval) {
+  if (MB_FILE_WRITE_ERROR == rval) {
     DEBUGOUT("No nodes in file.!\n");
     have_nodes = false;
   }
@@ -368,7 +368,7 @@ MBErrorCode ReadHDF5::read_nodes()
     nodeSet.first_id = std::numeric_limits<long>::max();
     nodeSet.type = MBVERTEX;
     nodeSet.type2 = mhdf_node_type_handle();
-    return MB_SUCCESS;
+    return MB_FILE_WRITE_ERROR;
   }
   
   if (cdim < dim)
