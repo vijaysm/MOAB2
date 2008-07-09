@@ -46,6 +46,7 @@
 #include "WriteHDF5.hpp"
 #include "MBWriteUtilIface.hpp"
 #include "FileOptions.hpp"
+#include "MBVersion.h"
 #include "mhdf.h"
 /* Access HDF5 file handle for debugging
 #include <H5Fpublic.h>
@@ -1809,7 +1810,7 @@ DEBUGOUT((std::string("Var Len Tag: ") + name + "\n").c_str());
 MBErrorCode WriteHDF5::write_qa( std::vector<std::string>& list )
 {
   const char* app = "MOAB";
-  const char* vers = "0";
+  const char* vers = MB_VERSION;
   char date_str[64];
   char time_str[64];
   
