@@ -34,7 +34,7 @@
 #include "ReadHDF5.hpp"
 #include "MBCN.hpp"
 #include "FileOptions.hpp"
-#ifdef USE_MPI
+#ifdef HDF5_PARALLEL
 #include "ReadParallel.hpp"
 #include <H5FDmpi.h>
 #include <H5FDmpio.h>
@@ -134,7 +134,7 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
 
   bool use_mpio = (MB_SUCCESS == opts.get_null_option("USE_MPIO"));
   if (use_mpio) {
-#ifndef USE_MPI
+#ifndef HDF5_PARALLEL
     return MB_NOT_IMPLEMENTED;
 #else
     int parallel_mode;
@@ -164,7 +164,7 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
   
     // Open the file
   hid_t file_prop = H5P_DEFAULT;
-#ifdef USE_MPI
+#ifdef HDF5_PARALLEL
   if (use_mpio) {
     file_prop = H5Pcreate(H5P_FILE_ACCESS);
     H5Pset_fapl_mpio(file_prop, MPI_COMM_WORLD, MPI_INFO_NULL);
