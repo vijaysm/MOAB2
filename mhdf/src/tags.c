@@ -20,6 +20,7 @@
 #include <H5Dpublic.h>
 #include <H5Spublic.h> /* for H5S_MAX_RANK */
 #include <H5Apublic.h>
+#include <H5Ppublic.h>
 #include "status.h"
 #include "file-handle.h"
 #include "mhdf.h"

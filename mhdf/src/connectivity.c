@@ -16,6 +16,7 @@
 #include <H5Tpublic.h>
 #include <H5Dpublic.h>
 #include <H5Gpublic.h>
+#include <H5Ppublic.h>
 #include "mhdf.h"
 #include "util.h"
 #include "file-handle.h"
