@@ -56,6 +56,8 @@ MBErrorCode report_nsets(MBInterface *mbImpl);
 MBErrorCode report_iface_ents(MBInterface *mbImpl,
                               std::vector<MBParallelComm *> &pcs);
 
+void print_usage(const char *);
+
 int main(int argc, char **argv) 
 {
     // need to init MPI first, to tell how many procs and rank
@@ -81,20 +83,7 @@ int main(int argc, char **argv)
 
     // get N, M from command line
   if (argc < 3) {
-    if (0 == rank)
-      std::cerr 
-        << "Usage: " << argv[0] 
-        << " [readpar_option] <opt> <input> [...] where:" << std::endl
-        << " readpar_option = 0 (BCAST_DELETE) (default), -1 (READ_DELETE), " << std::endl
-        << "                 -2 (READ_PARALLEL), -3 (BCAST)" << std::endl
-        << "opt   input" << std::endl
-        << "===   =====" << std::endl
-        << " 1     <linear_ints> <shared_verts> " << std::endl
-        << " 2     <n_ints> " << std::endl
-        << " 3*    <# files> <file_names...> [<tag_name>=\"MATERIAL_SET\" [tag_val] [distribute=1] [resolve_shared=1] [with_ghosts=1] [use_mpio=0]" << std::endl
-        << " 4    <file_name> " << std::endl
-        << "*Note: if opt 3 is used, it must be the last one." << std::endl;
-    
+    if (0 == rank) print_usage(argv[0]);
     err = MPI_Finalize();
     return 1;
   }
@@ -122,6 +111,11 @@ int main(int argc, char **argv)
           tag_name = "MATERIAL_SET";
           tag_val = -1;
           num_files = strtol(argv[npos++], NULL, 0);
+          if (0 == num_files) {
+            if (0 == rank) print_usage(argv[0]);
+            err = MPI_Finalize();
+            return 1;
+          }
           while (num_files-- && npos < argc)
             filenames.push_back(std::string(argv[npos++]));
           if (npos < argc) tag_name = argv[npos++];
@@ -209,6 +203,22 @@ int main(int argc, char **argv)
                            << std::endl;
    
   return (MB_SUCCESS == result ? 0 : 1);
+}
+
+void print_usage(const char *command) 
+{
+  std::cerr 
+      << "Usage: " << command
+      << " [readpar_option] <opt> <input> [...] where:" << std::endl
+      << " readpar_option = 0 (BCAST_DELETE) (default), -1 (READ_DELETE), " << std::endl
+      << "                 -2 (READ_PARALLEL), -3 (BCAST)" << std::endl
+      << "opt   input" << std::endl
+      << "===   =====" << std::endl
+      << " 1     <linear_ints> <shared_verts> " << std::endl
+      << " 2     <n_ints> " << std::endl
+      << " 3*    <# files> <file_names...> [<tag_name>=\"MATERIAL_SET\" [tag_val] [distribute=1] [resolve_shared=1] [with_ghosts=1] [use_mpio=0]" << std::endl
+      << " 4    <file_name> " << std::endl
+      << "*Note: if opt 3 is used, it must be the last one." << std::endl;
 }
 
 MBErrorCode report_nsets(MBInterface *mbImpl) 

@@ -1606,15 +1606,17 @@ MBErrorCode MBParallelComm::add_remote_proc(MBEntityHandle ent,
                                             MBEntityHandle remote_handle) 
 {
   int i = 0;
-  bool more = (remote_procs[0] != -1);
+  bool more = (remote_procs[0] != remote_proc);
   
   while (-1 != remote_procs[i] && i < MAX_SHARING_PROCS && 
          remote_proc > remote_procs[i]) i++;
 
-  if (remote_procs[i] == remote_proc) return MB_SUCCESS;
+  if (remote_procs[i] == remote_proc && 
+      remote_hs[i] == remote_handle)
+    return MB_SUCCESS;
   
   assert(i < MAX_SHARING_PROCS-1);
-  if (-1 != remote_procs[i]) {
+  if (remote_procs[i] != remote_proc) {
     for (int j = MAX_SHARING_PROCS-1; j > i; j--) {
       remote_procs[j] = remote_procs[j-1];
       remote_hs[j] = remote_hs[j-1];
@@ -3011,7 +3013,8 @@ MBErrorCode MBParallelComm::get_ghost_layers(MBEntityHandle iface_set,
     // if 0 layers, put bridge_ents in to_ents, to avoid range copy later
   if (0 == num_layers) bridge_ents_ptr = &to_ents;
 
-  if (bridge_dim == -1)
+  if (bridge_dim == -1 ||
+      (to_dim == -1 && !num_layers))
     result = mbImpl->get_entities_by_handle(iface_set, *bridge_ents_ptr);
   else
     result = mbImpl->get_entities_by_dimension(iface_set, bridge_dim, *bridge_ents_ptr);
@@ -3345,6 +3348,11 @@ MBErrorCode MBParallelComm::exchange_tags(std::vector<MBTag> &tags)
     for (MBRange::iterator rit = interfaceSets.begin(); rit != interfaceSets.end();
          rit++) {
       if (!is_iface_proc(*rit, *sit)) continue;
+
+      int owner;
+      result = get_owner(*rit, owner);
+      if (MB_SUCCESS != result || owner != (int)proc_config().proc_rank()) 
+        continue;
       
       result = get_ghost_layers(*rit, -1, 0, 0, tag_ents);
       RRA("Failed to get tag ents for exchange.");
