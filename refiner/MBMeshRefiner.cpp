@@ -26,7 +26,7 @@ MBMeshRefiner::MBMeshRefiner( MBInterface* imesh, MBInterface* omesh )
   this->tag_manager = new MBRefinerTagManager( this->mesh_in, this->mesh_out );
   this->output_functor = new MBMeshOutputFunctor( this->tag_manager );
   this->entity_refiner = 0;
-  this->comm = 0;
+  this->comm = MBParallelComm::get_pcomm( this->mesh_out, 0 );
 }
 
 /**\brief Destroy a mesh refiner.
@@ -125,6 +125,7 @@ bool MBMeshRefiner::refine( MBRange& range )
         }
       }
     }
+  this->output_functor->print_partition_counts( this->comm );
 
   return true;
 }
