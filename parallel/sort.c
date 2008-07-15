@@ -13,6 +13,7 @@ typedef struct { Value v; Index i; } Data;
 
 #undef Value
 #undef Data
+#undef sort
 
 #ifdef GLOBAL_INT
 #  define Value ulong
