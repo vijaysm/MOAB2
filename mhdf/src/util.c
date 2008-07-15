@@ -22,6 +22,13 @@
 #include "status.h"
 #include "names-and-paths.h"
 
+#ifdef VALGRIND
+#  include <valgrind/memcheck.h>
+#else
+#  define VALGRIND_CHECK_MEM_IS_DEFINED(A,B)
+#  define VALGRIND_MAKE_MEM_UNDEFINED(A,B)
+#endif
+
 void* mhdf_malloc( size_t size, mhdf_Status* status )
 {
   void* result;
@@ -184,7 +191,8 @@ int mhdf_create_scalar_attrib( hid_t object,
     mhdf_setFail( status, "Failed to create \"%s\" attrib.", name );
     return 0;
   }
-  
+
+  VALGRIND_CHECK_MEM_IS_DEFINED( value, H5Tget_size(type) );
   rval = H5Awrite( attr_id, type, value );
   H5Aclose( attr_id );
   if (rval < 0)
@@ -233,7 +241,7 @@ int mhdf_read_scalar_attrib( hid_t object,
     H5Tclose( type_id );
   if (rval < 0)
   {
-    mhdf_setFail( status, "Failed to write \"%s\" attrib.", name );
+    mhdf_setFail( status, "Failed to read \"%s\" attrib.", name );
     return 0;
   }
   
@@ -355,8 +363,11 @@ mhdf_readwrite( hid_t data_id, int read,
   
   if (read)
     rval = H5Dread( data_id, type, mem_id, slab_id, io_prop, array );
-  else
+  else {
+    VALGRIND_CHECK_MEM_IS_DEFINED( array, counts[0]*counts[1]*H5Tget_size(type) );
     rval = H5Dwrite( data_id, type, mem_id, slab_id, io_prop, array );
+    VALGRIND_MAKE_MEM_UNDEFINED( array, counts[0]*counts[1]*H5Tget_size(type) );
+  }
   H5Sclose( slab_id );
   H5Sclose( mem_id );
   if (rval < 0)
@@ -449,8 +460,11 @@ mhdf_readwrite_column( hid_t data_id, int read,
   
   if (read)
     rval = H5Dread( data_id, type, mem_id, slab_id, io_prop, array );
-  else
+  else {
+    VALGRIND_CHECK_MEM_IS_DEFINED( array, count*H5Tget_size(type) );
     rval = H5Dwrite( data_id, type, mem_id, slab_id, io_prop, array );
+    VALGRIND_MAKE_MEM_UNDEFINED( array, count*H5Tget_size(type) );
+  }
   H5Sclose( slab_id );
   H5Sclose( mem_id );
   if (rval < 0)
