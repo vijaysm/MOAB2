@@ -1123,10 +1123,10 @@ extern "C" {
                            int *num_sets, int *err) 
   {
     if (num_hops > 1) {
-      iMesh_processError(iBase_ERROR_MAP[iBase_NOT_SUPPORTED], 
+      iMesh_processError(iBase_NOT_SUPPORTED, 
                          "iMesh_getNumEntSets: not currently implemented for num_hops > 1.");
       *num_sets = 0;
-      RETURN(iBase_ERROR_MAP[iBase_NOT_SUPPORTED]);
+      RETURN(iBase_NOT_SUPPORTED);
     }
     
     MBErrorCode result = MBI->get_number_entities_by_type
@@ -1545,19 +1545,19 @@ extern "C" {
       lower_ents = CONST_HANDLE_ARRAY_PTR(lower_order_entity_handles);
         // check that we have the right number of lower order entity handles
       if (lower_order_entity_handles_size % MBCN::VerticesPerEntity(this_type) != 0) {
-        iMesh_processError(iBase_ERROR_MAP[iBase_INVALID_ENTITY_COUNT], "iMesh_createEntArr: wrong # vertices for this entity type.");
-        RETURN(iBase_ERROR_MAP[iBase_INVALID_ENTITY_COUNT]);
+        iMesh_processError(iBase_INVALID_ENTITY_COUNT, "iMesh_createEntArr: wrong # vertices for this entity type.");
+        RETURN(iBase_INVALID_ENTITY_COUNT);
       }
     }
     else {
-      iMesh_processError(iBase_ERROR_MAP[iBase_INVALID_ARGUMENT], "iMesh_createEntArr: can't create vertices with this function, use createVtxArr instead.");
-      RETURN(iBase_ERROR_MAP[iBase_INVALID_ARGUMENT]);
+      iMesh_processError(iBase_INVALID_ARGUMENT, "iMesh_createEntArr: can't create vertices with this function, use createVtxArr instead.");
+      RETURN(iBase_INVALID_ARGUMENT);
     }
   
     if (num_ents == 0) {
       iMesh_processError(iBase_INVALID_ENTITY_COUNT, 
                          "iMesh_createEntArr: called to create 0 entities.");
-      RETURN(iBase_ERROR_MAP[iBase_INVALID_ENTITY_COUNT]);
+      RETURN(iBase_INVALID_ENTITY_COUNT);
     }
 
       // if there aren't any elements in the array, allocate it
@@ -2617,9 +2617,9 @@ extern "C" {
              && entity_type <= iBase_ALL_TYPES)
       use_type = true;
     else {
-      iMesh_processError(iBase_ERROR_MAP[iBase_BAD_TYPE_AND_TOPO], 
+      iMesh_processError(iBase_BAD_TYPE_AND_TOPO, 
                          "iMesh_getEntities:ERROR not valid entity type or topology");
-      RETURN(iBase_ERROR_MAP[iBase_BAD_TYPE_AND_TOPO]);
+      RETURN(iBase_BAD_TYPE_AND_TOPO);
     }
 
     MBEntityHandle handle = ENTITY_HANDLE(entity_set_handle);
@@ -2804,9 +2804,9 @@ extern "C" {
              && entity_type <= iBase_ALL_TYPES)
       use_type = true;
     else {
-      iMesh_processError(iBase_ERROR_MAP[iBase_BAD_TYPE_AND_TOPO], 
+      iMesh_processError(iBase_BAD_TYPE_AND_TOPO, 
                          "iMesh_getEntities:ERROR not valid entity type or topology");
-      RETURN(iBase_ERROR_MAP[iBase_BAD_TYPE_AND_TOPO]);
+      RETURN(iBase_BAD_TYPE_AND_TOPO);
     }
 
     MBEntityHandle handle = ENTITY_HANDLE(entity_set_handle);

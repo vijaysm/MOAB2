@@ -23,7 +23,7 @@ MBCoupler::MBCoupler(MBInterface *impl,
                      MBRange &local_elems,
                      int coupler_id,
                      bool init_tree)
-    : mbImpl(impl), myPc(pc), myId(coupler_id)
+    : mbImpl(impl), myPc(pc), myId(coupler_id), numIts(3)
 {
   assert(NULL != impl && NULL != myPc);
 
@@ -63,11 +63,22 @@ MBErrorCode MBCoupler::initialize_tree()
   }
 
     // build the tree for local processor
-  myTree = new MBAdaptiveKDTree(mbImpl);
-  result = myTree->build_tree(local_ents, localRoot, &settings);
-  if (MB_SUCCESS != result) {
-    std::cout << "Problems building tree" << std::endl;
-    return result;
+  for (int i = 0; i < numIts; i++) {
+    myTree = new MBAdaptiveKDTree(mbImpl);
+    result = myTree->build_tree(local_ents, localRoot, &settings);
+    if (MB_SUCCESS != result) {
+      std::cout << "Problems building tree";
+      if (numIts != i) {
+        delete myTree;
+        settings.maxEntPerLeaf *= 2;
+        std::cout << "; increasing elements/leaf to " 
+                  << settings.maxEntPerLeaf << std::endl;;
+      }
+      else {
+        std::cout << "; exiting" << std::endl;
+        return result;
+      }
+    }
   }
 
     // get the bounding box for local tree

@@ -208,6 +208,10 @@ private:
      */
   std::vector<unsigned int> localMappedPts;
 
+    /* \brief Number of iterations of tree building before failing
+     *
+     */
+  int numIts;
 };
 
 #endif

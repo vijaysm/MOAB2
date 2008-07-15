@@ -44,7 +44,7 @@ static int *NumEdges=NULL;
 static int *NborGlobalId=NULL;
 static int *NborProcs=NULL;
 
-const bool debug = true;
+const bool debug = false;
 
 MBZoltan::~MBZoltan() 
 {

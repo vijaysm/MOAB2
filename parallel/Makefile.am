@@ -26,16 +26,17 @@ if PARALLEL
      MBProcConfig.cpp \
      MBParallelData.cpp \
      ReadParallel.cpp \
-     crystal.c crystal.h errmem.h errmem.c \
+     crystal.c errmem.c \
      transfer.c gs.c gs.h tuple_list.c \
-     tuple_list.h types.h \
+     tuple_list.h \
      sort.c sort.h
 
   MOAB_PARALLEL_HDRS += \
      MBParallelComm.hpp \
      MBProcConfig.hpp \
      MBParallelData.hpp \
-     ReadParallel.hpp 
+     ReadParallel.hpp \
+     crystal.h errmem.h types.h
 
 if PARALLEL_HDF5
 #  libMOABpar_la_LIBADD = $(top_builddir)/mhdf/libmhdf.la
