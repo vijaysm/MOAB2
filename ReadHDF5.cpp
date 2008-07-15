@@ -625,7 +625,8 @@ public:
 };
   
 
-MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id, hid_t data_id )
+MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id, hid_t data_id,
+                                         const unsigned long data_len )
 {
   MBErrorCode rval;
   mhdf_Status status;
@@ -639,7 +640,6 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id, hid_t data_id )
   size_t chunk_size = bufferSize / sizeof(MBEntityHandle);
   if (chunk_size % 2)
     --chunk_size; // makes reading range data easier.
-  
   
   unsigned long set_offset = 0;  /* running offset into description table */
   unsigned long sets_remaining = setSet.range.size();
@@ -677,6 +677,10 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id, hid_t data_id )
         assert( set_iter != setSet.range.end() );
         MBEntityHandle h = *set_iter; ++set_iter;
         size_t remaining = offsets[r] + 1 - file_offset;
+        if (remaining > data_len - file_offset) {
+          readUtil->report_error( "Invalid set contents offset read from file." );
+          return MB_FAILURE;
+        }
         while (remaining)
         {
           size_t count = remaining > chunk_size ? chunk_size : remaining;
@@ -724,7 +728,13 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id, hid_t data_id )
       else {
         
           // read data for sets in [r,i)
+          
         size_t count = offsets[i-1] + 1 - file_offset;
+        if (count > data_len - file_offset) {
+          readUtil->report_error( "Invalid set contents offset read from file." );
+          return MB_FAILURE;
+        }
+          
         mhdf_readSetDataWithOpt( data_id, file_offset, count, handleType, buffer, ioProp, &status );
         if (mhdf_isError( &status )) {
           readUtil->report_error( mhdf_message( &status ) );
@@ -783,7 +793,8 @@ MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id, hid_t data_id )
 
 MBErrorCode ReadHDF5::read_parents_children( bool parents,
                                              hid_t meta_id, 
-                                             hid_t data_id )
+                                             hid_t data_id,
+                                             const unsigned long data_len )
 {
   MBErrorCode rval;
   mhdf_Status status;
@@ -829,6 +840,11 @@ MBErrorCode ReadHDF5::read_parents_children( bool parents,
         assert( set_iter != setSet.range.end() );
         MBEntityHandle h = *set_iter; ++set_iter;
         size_t remaining = offsets[r] + 1 - file_offset;
+        if (remaining > data_len - file_offset) {
+          readUtil->report_error( "Invalid set %s offset read from file.",
+                                  parents ? "parent" : "child" );
+          return MB_FAILURE;
+        }
         while (remaining)
         {
           size_t count = remaining > chunk_size ? chunk_size : remaining;
@@ -866,6 +882,11 @@ MBErrorCode ReadHDF5::read_parents_children( bool parents,
         
           // read data for sets in [r,i)
         size_t count = offsets[i-1] + 1 - file_offset;
+        if (count > data_len - file_offset) {
+          readUtil->report_error( "Invalid set %s offset read from file.",
+                                  parents ? "parent" : "child" );
+          return MB_FAILURE;
+        }
         mhdf_readSetParentsChildrenWithOpt( data_id, file_offset, count, handleType, 
                                             buffer, ioProp, &status );
         if (mhdf_isError( &status )) {
@@ -1017,7 +1038,7 @@ MBErrorCode ReadHDF5::read_sets()
       result = MB_FAILURE;
     }
     else {
-      rval = read_set_contents( meta_id, data_id );
+      rval = read_set_contents( meta_id, data_id, data_len );
       mhdf_closeData( filePtr, data_id, &status );
       if (MB_SUCCESS != rval)
         result = rval;
@@ -1032,7 +1053,7 @@ MBErrorCode ReadHDF5::read_sets()
       result = MB_FAILURE;
     }
     else {
-      rval = read_parents_children( false, meta_id, data_id );
+      rval = read_parents_children( false, meta_id, data_id, data_len );
       mhdf_closeData( filePtr, data_id, &status );
       if (MB_SUCCESS != rval)
         result = rval;
@@ -1047,7 +1068,7 @@ MBErrorCode ReadHDF5::read_sets()
       result = MB_FAILURE;
     }
     else {
-      rval = read_parents_children( true, meta_id, data_id );
+      rval = read_parents_children( true, meta_id, data_id, data_len );
       mhdf_closeData( filePtr, data_id, &status );
       if (MB_SUCCESS != rval)
         result = rval;
@@ -1919,15 +1940,13 @@ MBErrorCode ReadHDF5::convert_id_to_handle( const ElemSet& elems,
 {
   MBEntityHandle offset = elems.first_id;
   MBEntityHandle last = offset + elems.range.size();
-  MBEntityHandle *const end = array + size;
-  while (array != end)
+  for (MBEntityHandle *const end = array + size; array != end; ++array)
   {
     if (*array >= last || *array < (MBEntityHandle)offset)
       return MB_FAILURE;
     MBRange:: const_iterator iter = elems.range.begin();
     iter += *array - offset;
     *array = *iter;
-    ++array;
   }
   
   return MB_SUCCESS;
@@ -1936,20 +1955,18 @@ MBErrorCode ReadHDF5::convert_id_to_handle( const ElemSet& elems,
 MBErrorCode ReadHDF5::convert_id_to_handle( MBEntityHandle* array, 
                                             size_t size )
 {
-  MBEntityHandle *const end = array + size;
   MBEntityHandle offset = 1;
   MBEntityHandle last = 0;
   ElemSet* set = 0;
   std::list<ElemSet>::iterator iter;
   const std::list<ElemSet>::iterator i_end = elemList.end();
 
-  while (array != end)
+  for (MBEntityHandle *const end = array + size; array != end; ++array)
   {
       // special case for ZERO
-    if (!*array) {
-      ++array;
+    if (!*array)
       continue;
-    }
+    
     if (nodeSet.first_id && (*array < offset || *array >= last))
     {
       offset = nodeSet.first_id;
@@ -1979,7 +1996,6 @@ MBErrorCode ReadHDF5::convert_id_to_handle( MBEntityHandle* array,
     MBRange:: const_iterator riter = set->range.begin();
     riter += *array - offset;
     *array = *riter;
-    ++array;
   }
   
   return MB_SUCCESS;
