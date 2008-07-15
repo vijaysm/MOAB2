@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <mpi.h>
+#include <unistd.h>
 
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)
@@ -29,17 +30,29 @@ void test_write_shared_sets();
 void test_var_length_parallel();
 
 bool KeepTmpFiles = false;
+bool PauseOnStart = false;
 
 int main( int argc, char* argv[] )
 {
   int err = MPI_Init( &argc, &argv );
   CHECK(!err);
 
-  if (argc == 2 && !strcmp(argv[1],"-k"))
-    KeepTmpFiles = true;
-  else if (argc != 1) {
-    std::cerr << "Usage: " << argv[0] << " [-k]" << std::endl;
-    return 1;
+  for (int i = 1; i < argc; ++i) {
+    if (!strcmp( argv[i], "-k"))
+      KeepTmpFiles = true;
+    else if (!strcmp( argv[i], "-p"))
+      PauseOnStart = true;
+    else {
+      std::cerr << "Usage: " << argv[0] << " [-k] [-p]" << std::endl;
+      return 1;
+    }
+  }
+  
+  if (PauseOnStart) {
+    int rank;
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+    printf("Rank %2d PID %lu\n", rank, (unsigned long)getpid());
+    sleep(30);
   }
   
   int result = 0;
@@ -79,10 +92,14 @@ void save_and_load_on_root( MBInterface& moab, const char* tmp_filename )
     CHECK_ERR(rval);
   }
   
+  if (procnum == 0 && KeepTmpFiles)
+    std::cout << "Wrote file: \"" << tmp_filename << "\"\n";
+  
   moab.delete_mesh();
   if (procnum == 0) {
     rval = moab.load_file( tmp_filename, set );
-    remove( tmp_filename );
+    if (!KeepTmpFiles)
+      remove( tmp_filename );
     CHECK_ERR(rval);
   }
 }
