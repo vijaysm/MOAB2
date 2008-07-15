@@ -164,7 +164,7 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
       //! Mark multiple-processor meshsets with correct file Id
       //! from the set description offset stored in that tag by
       //! negotiate_shared_meshsets(..).
-    MBErrorCode fix_remote_set_ids( RemoteSetData& data, long first_id );
+    MBErrorCode set_shared_set_ids( RemoteSetData& data, long& start_id );
       
       //! Write set descriptions for multi-processor meshsets.
       //! Virtual function called by non-parallel code after
@@ -230,7 +230,7 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
     
       //! Vector indexed by MPI rank, containing the list
       //! of parallel sets that each processor knows about.
-    std::vector<MBRange> cpuParallelSets;
+    std::map<unsigned,MBRange> cpuParallelSets;
     
       //! List of parallel sets "owned" by this processor
     //MBRange myParallelSets;

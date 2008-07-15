@@ -1181,27 +1181,16 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
     //
     // Identify which meshsets will be managed by this processor and
     // the corresponding offset in the set description table. 
-  std::map<int,int> val_id_map; // Map from tag value to file ID for set
   int cpu = 0;
+  std::set<int> seen;
   for (i = 0; i < total; ++i)
   {
     if (data.displs[cpu+1] == i)
       ++cpu;
 
-    int id = 0;
-    std::map<int,int>::iterator p = val_id_map.find( data.all_values[i] );
-    if (p == val_id_map.end())
-    {
-      id = (int)++offset;
-      val_id_map[data.all_values[i]] = id;
-      //const unsigned int values_offset = (unsigned)i - (unsigned)data.displs[myPcomm->proc_config().proc_rank()];
-      //if (values_offset < (unsigned)count)
-      //{
-      //  riter = data.range.begin();
-      //  riter += values_offset;
-      //  myParallelSets.insert( *riter );
-      //}
-    }
+    if (seen.insert(data.all_values[i]).second)
+      ++offset;
+
     std::vector<int>::iterator loc 
       = std::find( data.local_values.begin(), data.local_values.end(), data.all_values[i] );
     if (loc != data.local_values.end()) 
@@ -1211,12 +1200,26 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
       cpuParallelSets[cpu].insert( *riter );
     }
   }
-  riter = data.range.begin();
-  for (i = 0; i < count; ++i, ++riter)
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode WriteHDF5Parallel::set_shared_set_ids( RemoteSetData& data, long& offset )
+{
+    // Determine File ID for each shared set.
+  std::map<int,long> val_id_map; // Map from tag value to file ID for set
+  for (size_t i = 0; i < data.all_values.size(); ++i)
   {
-    std::map<int,int>::iterator p = val_id_map.find( data.local_values[i] );
+    std::map<int,long>::iterator p = val_id_map.find( data.all_values[i] );
+    if (p == val_id_map.end())
+      val_id_map[data.all_values[i]] = offset++;
+  }
+  MBRange::const_iterator riter = data.range.begin();
+  for (size_t i = 0; i < data.local_values.size(); ++i, ++riter)
+  {
+    std::map<int,long>::iterator p = val_id_map.find( data.local_values[i] );
     assert( p != val_id_map.end() );
-    int id = p->second;
+    long id = p->second;
     if (idMap.end() == idMap.insert( *riter, id, 1 )) {
       assert(false);
       return MB_FAILURE;
@@ -1225,7 +1228,7 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
   
   return MB_SUCCESS;
 }
-
+  
 
 MBErrorCode WriteHDF5Parallel::create_meshset_tables()
 {
@@ -1239,7 +1242,6 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   END_SERIAL;
 
     // Gather data about multi-processor meshsets - removes sets from setSet.range
-  cpuParallelSets.resize( myPcomm->proc_config().proc_size() );
   std::vector<RemoteSetData> remote_set_data( multiProcSetTags.list.size() );
   for (i = 0; i< (int)multiProcSetTags.list.size(); i++)
   {
@@ -1302,10 +1304,12 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   if (!writeSets)
     return MB_SUCCESS;
   
+  long start_id = setSet.first_id;
+  for (i = 0; i < (int)remote_set_data.size(); ++i)
+    set_shared_set_ids( remote_set_data[i], start_id );
+  
     // Assign set IDs
   assign_ids( setSet.range, setSet.first_id + setSet.offset );
-  for (i = 0; i < (int)remote_set_data.size(); ++i)
-    fix_remote_set_ids( remote_set_data[i], setSet.first_id );
   
     // Communicate sizes for remote sets
   long data_offsets[3] = { 0, 0, 0 };
@@ -1399,10 +1403,10 @@ void WriteHDF5Parallel::remove_remote_sets( MBEntityHandle relative,
   for(MBRange::iterator i = remaining.begin(); i != remaining.end(); ++i)
   {
       // Look for the first CPU which knows about both sets.
-    unsigned int cpu;
-    for (cpu = 0; cpu < myPcomm->proc_config().proc_size(); ++cpu)
-      if (cpuParallelSets[cpu].find(relative) != cpuParallelSets[cpu].end() &&
-          cpuParallelSets[cpu].find(*i) != cpuParallelSets[cpu].end())
+    proc_iter cpu;
+    for (cpu = cpuParallelSets.begin(); cpu != cpuParallelSets.end(); ++cpu)
+      if (cpu->second.find(relative) != cpu->second.end() &&
+          cpu->second.find(*i) != cpu->second.end())
         break;
       // If we didn't find one, it may indicate a bug.  However,
       // it could also indicate that it is a link to some set that
@@ -1410,7 +1414,7 @@ void WriteHDF5Parallel::remove_remote_sets( MBEntityHandle relative,
       // the caller requested that some subset of the mesh be written.
     //assert(cpu < myPcomm->proc_config().proc_size());
       // If I'm the first set that knows about both, I'll handle it.
-    if (cpu == myPcomm->proc_config().proc_rank())
+    if (cpu->first == myPcomm->proc_config().proc_rank())
       result.insert( *i );
   }
   
@@ -1509,6 +1513,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
          iter != child_list.end(); ++iter)
       if (0 != idMap.find( *iter ))
         ++*sizes_iter;
+    ++sizes_iter;
     
       // Count parents
     *sizes_iter = 0;
@@ -1520,6 +1525,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
          iter != child_list.end(); ++iter)
       if (0 != idMap.find( *iter ))
         ++*sizes_iter;
+    ++sizes_iter;
   }
   
     // Exchange sizes for sets between all processors.
@@ -1697,26 +1703,6 @@ END_SERIAL;
   return MB_SUCCESS;
 }
 
-MBErrorCode WriteHDF5Parallel::fix_remote_set_ids( RemoteSetData& data, long first_id )
-{
-  const id_t id_diff = (id_t)(first_id - 1);
-  MBRange::const_iterator i;
-  std::vector<id_t> ids(data.range.size());
-  std::vector<id_t>::iterator j = ids.begin();
-  for (i = data.range.begin(); i != data.range.end(); ++i, ++j)
-    *j = idMap.find( *i ) + id_diff;
-  
-  for (MBRange::const_pair_iterator pi = data.range.const_pair_begin();
-       pi != data.range.const_pair_end(); ++pi) 
-    idMap.erase( pi->first, pi->second - pi->first + 1);
-  
-  j = ids.begin();
-  for (i = data.range.begin(); i != data.range.end(); ++i) 
-    idMap.insert( *i, *j, 1 );
-  
-  return MB_SUCCESS;
-}   
-
 
 MBErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table )
 {
@@ -1724,7 +1710,7 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table )
   MBErrorCode rval;
   mhdf_Status status;
   
-  for( std::list<ParallelSet>::iterator iter = parallelSets.begin();
+  for( std::list<ParallelSet>::const_iterator iter = parallelSets.begin();
         iter != parallelSets.end(); ++iter)
   {
     if (!iter->description)
@@ -1732,7 +1718,7 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table )
     
       // Get offset in table at which to write data
     id_t file_id = idMap.find( iter->handle );
-    assert( file_id >= start_id );
+    assert( file_id && file_id >= start_id );
     file_id -= start_id;
     
       // Get flag data
@@ -1746,9 +1732,11 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table )
                      iter->parentsOffset  + iter->parentsCount  - 1,
                      flags };
     mhdf_writeSetMeta( table, file_id, 1, H5T_NATIVE_LONG, data, &status );
-    if (mhdf_isError(&status))
+    if (mhdf_isError(&status)) {
       printdebug("Meshset %d : %s\n", ID_FROM_HANDLE(iter->handle), mhdf_message(&status));
-    assert( !mhdf_isError( &status ) );
+      assert(0);
+      return MB_FAILURE;
+    }
   }
 
   return MB_SUCCESS;
@@ -1762,7 +1750,7 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_contents( hid_t table )
   std::vector<MBEntityHandle> handle_list;
   std::vector<id_t> id_list;
   
-  for( std::list<ParallelSet>::iterator iter = parallelSets.begin();
+  for( std::list<ParallelSet>::const_iterator iter = parallelSets.begin();
         iter != parallelSets.end(); ++iter)
   {
     handle_list.clear();
@@ -1796,7 +1784,7 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_children( hid_t table )
   std::vector<id_t> id_list;
   
   printdebug("Writing %d parallel sets.\n", parallelSets.size());
-  for( std::list<ParallelSet>::iterator iter = parallelSets.begin();
+  for( std::list<ParallelSet>::const_iterator iter = parallelSets.begin();
         iter != parallelSets.end(); ++iter)
   {
     handle_list.clear();
@@ -1830,7 +1818,7 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_parents( hid_t table )
   std::vector<id_t> id_list;
   
   printdebug("Writing %d parallel sets.\n", parallelSets.size());
-  for( std::list<ParallelSet>::iterator iter = parallelSets.begin();
+  for( std::list<ParallelSet>::const_iterator iter = parallelSets.begin();
         iter != parallelSets.end(); ++iter)
   {
     handle_list.clear();
@@ -1935,7 +1923,7 @@ printrange( interfaceMesh[myPcomm->proc_config().proc_rank()] );
   for (proc_iter p = interfaceMesh.begin(); p != interfaceMesh.end(); ++p) {
     if (p->first == myPcomm->proc_config().proc_rank())
       continue;
-    
+
     file_id_vect.resize( p->second.size() );
     rval = iFace->tag_get_data( file_id_tag, p->second, &file_id_vect[0] );
     if (MB_SUCCESS != rval) {
