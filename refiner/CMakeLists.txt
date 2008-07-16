@@ -2,10 +2,13 @@ set ( MOAB_REFINER_SRCS
   MBEdgeSizeEvaluator.cpp
   MBEdgeSizeSimpleImplicit.cpp
   MBEntityRefiner.cpp
+  MBMeshOutputFunctor.cpp
   MBMeshRefiner.cpp
+  MBProcessSet.cpp
   MBRefinerTagManager.cpp
   MBSimplexTemplateRefiner.cpp
   MBSimplexTemplateTagAssigner.cpp
+  MBSplitVertices.cpp
   )
 
 set_source_files_properties(

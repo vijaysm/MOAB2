@@ -125,7 +125,7 @@ bool MBMeshRefiner::refine( MBRange& range )
         }
       }
     }
-  this->output_functor->print_partition_counts( this->comm );
+  this->output_functor->assign_global_ids( this->comm );
 
   return true;
 }
