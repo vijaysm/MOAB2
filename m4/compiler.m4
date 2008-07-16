@@ -148,7 +148,6 @@ if test "xyes" = "x$enable_debug"; then
   CXXFLAGS="$CXXFLAGS -g"
   CFLAGS="$CFLAGS -g"
   FCFLAGS="$FCFLAGS -g"
-  AC_CHECK_HEADER( [valgrind/memcheck.h], [CXXFLAGS="$CXXFLAGS -DVALGRIND"] )
 fi
 if test "xyes" = "x$enable_cxx_optimize"; then
   CXXFLAGS="$CXXFLAGS -O2 -DNDEBUG"
