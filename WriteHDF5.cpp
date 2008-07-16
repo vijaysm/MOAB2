@@ -2334,7 +2334,7 @@ MBErrorCode WriteHDF5::get_tag_size( MBTag tag,
     break;
   case MB_TYPE_BIT:
     elem_size = sizeof(bool);
-    file_type = mhdf_BOOLEAN;
+    file_type = mhdf_BITFIELD;
     break;
   case MB_TYPE_HANDLE:
     elem_size = sizeof(MBEntityHandle);

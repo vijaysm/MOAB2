@@ -99,7 +99,7 @@ fi
 ################################################################################
 AC_CHECK_HEADER([ieeefp.h],[DEFINES="$DEFINES -DHAVE_IEEEFP_H"] )
 if test "xyes" = "x$enable_debug"; then
-  AC_CHECK_HEADER( [valgrind/memcheck.h], [CXXFLAGS="$CXXFLAGS -DVALGRIND"] )
+  AC_CHECK_HEADER( [valgrind/memcheck.h], [CPPFLAGS="$CPPFLAGS -DVALGRIND"] )
 fi
 
 ################################################################################

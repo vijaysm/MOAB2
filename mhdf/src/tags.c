@@ -385,7 +385,7 @@ hid_t create_tag_common( mhdf_FileHandle file_handle,
         break;
       
       case mhdf_BOOLEAN:
-        arr_len = abs(size);
+        arr_len = abs(size)/8;
         hdf_type = H5Tcopy( H5T_NATIVE_UCHAR );
         break;
       

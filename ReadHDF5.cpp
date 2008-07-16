@@ -1254,11 +1254,11 @@ MBErrorCode ReadHDF5::read_tag( const char* name )
     
     case mhdf_BOOLEAN:
       
-      elem_size = sizeof(char);
+      elem_size = sizeof(int);
       array_size = tag_size;
-      hdf_type = H5T_NATIVE_UCHAR;
+      hdf_type = H5T_NATIVE_UINT;
       tag_size = elem_size * array_size;
-      mb_type = MB_TYPE_BIT;
+      mb_type = MB_TYPE_INTEGER;
       break;
     
     case mhdf_ENTITY_ID:

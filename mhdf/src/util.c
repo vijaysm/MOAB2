@@ -295,7 +295,7 @@ mhdf_readwrite( hid_t data_id, int read,
                 mhdf_Status* status )
 {
   hid_t slab_id, mem_id;
-  hsize_t offsets[2], counts[2];
+  hsize_t offsets[2], counts[2] = {1,1};
   herr_t rval;
   int dims;
   
