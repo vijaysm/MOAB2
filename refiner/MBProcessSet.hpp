@@ -34,6 +34,7 @@ public:
   void set_process_member( int i );
   void set_process_members( const std::vector<int>& procs );
 
+  bool get_process_members( int rank, std::vector<int>& procs );
   bool is_process_member( int i ) const;
 
   const unsigned char* data() const;

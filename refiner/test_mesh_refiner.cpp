@@ -27,6 +27,7 @@ int TestMeshRefiner( int argc, char* argv[] )
   nprocs = 1;
   rank = 0;
 #endif // USE_MPI
+  //sleep(20);
 
   // Create the input mesh and, if -new-mesh is specified, an output mesh
   const char* ifname = argc > 1 ? argv[1] : "/home/dcthomp/fourVolsBare.cub";

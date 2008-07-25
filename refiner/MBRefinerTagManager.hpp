@@ -51,6 +51,7 @@ public:
   MBInterface* get_input_mesh() { return this->input_mesh; }
   MBInterface* get_output_mesh() { return this->output_mesh; }
 
+  MBTag parallel_status() { return this->tag_pstatus; }
   MBTag shared_proc() { return this->tag_psproc; }
   MBTag shared_procs() { return this->tag_psprocs; }
 

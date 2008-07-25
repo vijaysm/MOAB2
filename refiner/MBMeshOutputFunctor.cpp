@@ -17,17 +17,28 @@ MBMeshOutputFunctor::MBMeshOutputFunctor( MBRefinerTagManager* tag_mgr )
   this->tag_manager = tag_mgr;
   this->destination_set = 0; // don't place output entities in a set by default.
 
+  // Hold information about newly-created vertices on subdivided edges and faces.
   this->split_vertices.resize( 4 );
   this->split_vertices[0] = 0; // Vertices (0-faces) cannot be split
   this->split_vertices[1] = new MBSplitVertices<1>( this->tag_manager );
   this->split_vertices[2] = new MBSplitVertices<2>( this->tag_manager );
   this->split_vertices[3] = new MBSplitVertices<3>( this->tag_manager );
+
+  // Hold information about newly-created mesh entities (other than split vertices)
+  // This is necessary in order for global IDs to be assigned consistently across processes.
+  this->new_entities.resize( 4 );
+  this->new_entities[0] = new MBSplitVertices<0>( this->tag_manager );
+  this->new_entities[1] = new MBSplitVertices<1>( this->tag_manager );
+  this->new_entities[2] = new MBSplitVertices<2>( this->tag_manager );
+  this->new_entities[3] = new MBSplitVertices<3>( this->tag_manager );
 }
 
 MBMeshOutputFunctor::~MBMeshOutputFunctor()
 {
   for ( int i = 0; i < 4; ++ i )
     delete this->split_vertices[i];
+  for ( int i = 0; i < 4; ++ i )
+    delete this->new_entities[i];
 }
 
 void MBMeshOutputFunctor::print_vert_crud( MBEntityHandle vout, int nvhash, MBEntityHandle* vhash, const double* vcoords, const void* vtags )
@@ -123,20 +134,25 @@ void MBMeshOutputFunctor::assign_global_ids( MBParallelComm* comm )
       this->proc_partition_counts[pset] = part_sizes[i];
       }
     }
-  std::map<MBProcessSet,MBEntityHandle> gids;
+  std::map<MBProcessSet,int> gids;
   std::map<MBProcessSet,int>::iterator pcit;
   MBEntityHandle start_gid = 100; // FIXME: Get actual maximum GID across all processes and add 1
   for ( pcit = this->proc_partition_counts.begin(); pcit != this->proc_partition_counts.end(); ++ pcit )
     {
     gids[pcit->first] = start_gid;
     start_gid += pcit->second;
-    std::cout << "Partition " << pcit->first << ": " << pcit->second << " #\n";
+    std::cout << "Partition " << pcit->first << ": " << pcit->second << " # [" << gids[pcit->first] << "]\n";
     }
-  std::vector<MBSplitVerticesBase*>::iterator splitit;
-  for ( splitit = this->split_vertices.begin(); splitit != this->split_vertices.end(); ++ splitit )
+  std::vector<MBSplitVerticesBase*>::iterator vit;
+  for ( vit = this->split_vertices.begin(); vit != this->split_vertices.end(); ++ vit )
     {
-    if ( *splitit )
-      (*splitit)->assign_global_ids( gids );
+    if ( *vit )
+      (*vit)->assign_global_ids( gids );
+    }
+  for ( vit = this->new_entities.begin(); vit != this->new_entities.end(); ++ vit )
+    {
+    if ( *vit )
+      (*vit)->assign_global_ids( gids );
     }
 }
 
@@ -163,11 +179,16 @@ MBEntityHandle MBMeshOutputFunctor::operator () ( MBEntityHandle vhash, const do
     return vhash;
     }
   MBEntityHandle vertex_handle;
-  if ( this->mesh_out->create_vertex( vcoords + 3, vertex_handle ) != MB_SUCCESS )
+  bool newly_created = this->new_entities[0]->find_or_create(
+    &vhash, vcoords, vertex_handle, this->proc_partition_counts );
+  if ( newly_created )
     {
-    std::cerr << "Could not insert mid-edge vertex!\n";
+    this->assign_tags( vertex_handle, vtags );
     }
-  this->assign_tags( vertex_handle, vtags );
+  if ( ! vertex_handle )
+    {
+    std::cerr << "Could not insert vertex into new mesh!\n";
+    }
   this->print_vert_crud( vertex_handle, 1, &vhash, vcoords, vtags );
   return vertex_handle;
 }
@@ -205,16 +226,30 @@ void MBMeshOutputFunctor::operator () ( MBEntityHandle h )
 {
   std::cout << h << " ";
   this->elem_vert.push_back( h );
+  if ( ! this->input_is_output )
+    {
+    // FIXME: Copy to output mesh
+    }
 }
 
 void MBMeshOutputFunctor::operator () ( MBEntityType etyp )
 {
   MBEntityHandle elem_handle;
-  if ( this->mesh_out->create_element( etyp, &this->elem_vert[0], this->elem_vert.size(), elem_handle ) == MB_FAILURE )
+  int nconn = this->elem_vert.size();
+  if ( this->mesh_out->create_element( etyp, &this->elem_vert[0], nconn, elem_handle ) == MB_FAILURE )
     {
     std::cerr << " *** ";
     }
-  this->elem_vert.clear();
   std::cout << "---------> " << elem_handle << " ( " << etyp << " )\n\n";
+#if 0
+  bool newly_created = this->new_entities[nconn]->create_element(
+    &this->elem_vert[0], elem_handle, this->proc_partition_counts );
+  if ( newly_created )
+    {
+    // FIXME: Handle tag assignment for elements as well as vertices
+    //this->assign_tags( elem_handle, this->element_tag_data );
+    }
+#endif // 0
+  this->elem_vert.clear();
 }
 

@@ -1,6 +1,8 @@
 #include "MBSplitVertices.hpp"
 #include "MBRefinerTagManager.hpp"
 
+#include "MBParallelConventions.h"
+
 MBSplitVerticesBase::MBSplitVerticesBase( MBRefinerTagManager* tag_mgr )
 {
   this->tag_manager = tag_mgr;
@@ -9,6 +11,11 @@ MBSplitVerticesBase::MBSplitVerticesBase( MBRefinerTagManager* tag_mgr )
   this->shared_procs_val.resize( MAX_SHARING_PROCS );
   MBParallelComm* ipcomm = MBParallelComm::get_pcomm( this->mesh_in, 0 );
   this->rank = ipcomm ? ipcomm->proc_config().proc_rank() : 0;
+  int zero = 0;
+  MBErrorCode result = this->mesh_out->tag_create(
+    GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, this->tag_gid, &zero, true );
+  if ( result != MB_SUCCESS && result != MB_ALREADY_ALLOCATED )
+    return;
 }
 
 MBSplitVerticesBase::~MBSplitVerticesBase()
@@ -85,5 +92,28 @@ void MBSplitVerticesBase::end_vertex_procs()
   std::cout << "    Common procs " << this->common_shared_procs;
   std::cout << "\n";
   // FIXME: Here is where we add the vertex to the appropriate queues.
+}
+
+void MBSplitVerticesBase::set_sharing( MBEntityHandle ent_handle, MBProcessSet& procs )
+{
+  int pstat;
+  if ( procs.get_process_members( this->rank, this->shared_procs_val ) )
+    pstat = PSTATUS_SHARED | PSTATUS_INTERFACE | PSTATUS_NOT_OWNED;
+  else
+    pstat = PSTATUS_SHARED | PSTATUS_INTERFACE;
+  int sps = this->shared_procs_val.size();
+  switch ( sps )
+    {
+  case 0:
+    break;
+  case 1:
+    this->mesh_out->tag_set_data( this->tag_manager->shared_proc(), &ent_handle, 1, &this->shared_procs_val[0] );
+    this->mesh_out->tag_set_data( this->tag_manager->parallel_status(), &ent_handle, 1, &pstat );
+    break;
+  default:
+    this->mesh_out->tag_set_data( this->tag_manager->shared_procs(), &ent_handle, sps, &this->shared_procs_val[0] );
+    this->mesh_out->tag_set_data( this->tag_manager->parallel_status(), &ent_handle, 1, &pstat );
+    break;
+    }
 }
 

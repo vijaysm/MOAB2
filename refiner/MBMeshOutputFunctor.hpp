@@ -33,6 +33,7 @@ public:
   MBInterface* mesh_out;
   bool input_is_output;
   std::vector<MBSplitVerticesBase*> split_vertices;
+  std::vector<MBSplitVerticesBase*> new_entities;
   std::vector<MBEntityHandle> elem_vert;
   MBRefinerTagManager* tag_manager;
   MBEntityHandle destination_set;
