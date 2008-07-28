@@ -1,4 +1,4 @@
-/**
+/*
  * MOAB, a Mesh-Oriented datABase, is a software component for creating,
  * storing and accessing finite element mesh data.
  * 
@@ -13,7 +13,7 @@
  * 
  */
 
-/** \class MBSimplexTemplateRefiner
+/**\class MBSimplexTemplateRefiner
   *
   * This is a concrete subclass of MBEntityRefiner that implements
   * refinement using templates applied to simplices.

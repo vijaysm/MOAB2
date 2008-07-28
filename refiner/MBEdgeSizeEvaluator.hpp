@@ -1,4 +1,4 @@
-/**
+/*
  * MOAB, a Mesh-Oriented datABase, is a software component for creating,
  * storing and accessing finite element mesh data.
  * 
@@ -13,7 +13,7 @@
  * 
  */
 
-/** \class MBEdgeSizeEvaluator
+/**\class MBEdgeSizeEvaluator
   *
   * This is an abstract class that embodies the rule used during edge-based mesh
   * refinement to decide whether an edge should be subdivided or not.

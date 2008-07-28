@@ -1,4 +1,4 @@
-/**
+/*
  * MOAB, a Mesh-Oriented datABase, is a software component for creating,
  * storing and accessing finite element mesh data.
  * 
@@ -13,7 +13,7 @@
  * 
  */
 
-/** \class MBRefinerTagManager
+/**\class MBRefinerTagManager
   *
   * This a class that manages which tags an edge refiner should include
   * on output vertices created during mesh refinement.

@@ -1,4 +1,4 @@
-/**
+/*
  * MOAB, a Mesh-Oriented datABase, is a software component for creating,
  * storing and accessing finite element mesh data.
  * 
@@ -44,7 +44,8 @@
   *
   * \date 24 December 2007
   */
-/** \class MBEntityRefinerOutputFunctor
+
+/**\class MBEntityRefinerOutputFunctor
   *
   * This is an abstract class used by MBEntityRefiner to output entities that are the product of refinement.
   * The parenthesis operator is overloaded with two forms:

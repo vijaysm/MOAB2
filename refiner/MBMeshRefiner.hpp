@@ -1,4 +1,4 @@
-/**
+/*
  * MOAB, a Mesh-Oriented datABase, is a software component for creating,
  * storing and accessing finite element mesh data.
  * 
@@ -13,7 +13,8 @@
  * 
  */
 
-/** \class MBMeshRefiner
+/**\class MBMeshRefiner
+  *\brief Refine a mesh using a streaming operation.
   *
   * This is an class that contains the method used for mesh refinement.
   *

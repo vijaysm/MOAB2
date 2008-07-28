@@ -1,4 +1,4 @@
-/**
+/*
  * MOAB, a Mesh-Oriented datABase, is a software component for creating,
  * storing and accessing finite element mesh data.
  * 
@@ -13,7 +13,7 @@
  * 
  */
 
-/** \class MBSimplexTemplateTagAssigner
+/**\class MBSimplexTemplateTagAssigner
   *
   * This is an class that embodies the process of assigning tag
   * values to new vertices based on some pre-existing neighbors in a 

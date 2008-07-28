@@ -1,4 +1,4 @@
-/**
+/*
  * MOAB, a Mesh-Oriented datABase, is a software component for creating,
  * storing and accessing finite element mesh data.
  * 
@@ -13,7 +13,7 @@
  * 
  */
 
-/** \class MBEdgeSizeSimpleImplicit
+/**\class MBEdgeSizeSimpleImplicit
   *
   * This is an simple example edge evaluator tha subdivides edges based
   * on their midpoint's distance to a simple, fixed-form implicit surface

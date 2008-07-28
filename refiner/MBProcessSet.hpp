@@ -1,3 +1,26 @@
+/*
+ * MOAB, a Mesh-Oriented datABase, is a software component for creating,
+ * storing and accessing finite element mesh data.
+ * 
+ * Copyright 2007 Sandia Corporation.  Under the terms of Contract
+ * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
+ * retains certain rights in this software.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ */
+
+/**\class MBProcessSet
+  *\brief Represent a set of processes using a bit vector.
+  *
+  * This is used by the mesh refiner when determining where to record
+  * split vertices so that labeling can be inferred across process
+  * boundaries without communicating anything other than the number of
+  * entities in a given partition.
+  */
 #ifndef MB_PROCESSSET_HPP
 #define MB_PROCESSSET_HPP
 
@@ -7,13 +30,6 @@
 #include <iostream>
 #include <vector>
 
-/**\brief Represent a set of processes using a bit vector.
-  *
-  * This is used by the mesh refiner when determining where to record
-  * split vertices so that labeling can be inferred across process
-  * boundaries without communicating anything other than the number of
-  * entities in a given partition.
-  */
 class MBProcessSet
 {
 public:

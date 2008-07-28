@@ -38,13 +38,24 @@ void MBProcessSet::clear()
   memset( this->processes, 0, SHARED_PROC_BYTES );
 }
 
-void MBProcessSet::set_process_member( int i )
+/**\brief Add a process to this process set.
+  *
+  * This does not verify that \a proc is within the range [0,MAX_SHARING_PROCS[ .
+  * You are responsible for that.
+  */
+void MBProcessSet::set_process_member( int proc )
 {
-  int byte = i / 8;
-  int bitmask = 1 << ( i % 8 );
+  int byte = proc / 8;
+  int bitmask = 1 << ( proc % 8 );
   this->processes[byte] |= bitmask;
 }
 
+/**\brief Add each process in the input vector to this process set.
+  *
+  * This is a convenience routine that calls set_process_member() for each entry in the vector.
+  * This does not verify that \a proc is within the range [0,MAX_SHARING_PROCS[ .
+  * You are responsible for that.
+  */
 void MBProcessSet::set_process_members( const std::vector<int>& procs )
 {
   for ( std::vector<int>::const_iterator it = procs.begin(); it != procs.end() && *it != -1; ++ it )
@@ -67,20 +78,20 @@ bool MBProcessSet::get_process_members( int rank, std::vector<int>& procs )
   bool rank_owner = false;
   for ( int byte = 0; byte < SHARED_PROC_BYTES; ++ byte )
     {
-    char val = this->processes[byte];
-    for ( int bit = 0; val && ( bit < 8 ); ++ bit, ++ i )
+    i = byte * 8;
+    for ( char val = this->processes[byte]; val; ++ i, val >>= 1 )
       {
-      if ( ! val )
-        {
-        i += 8 - bit;
-        break;
-        }
-      else if ( val & 0x1 )
+      if ( val & 0x1 )
         {
         if ( i != rank )
+          {
+          std::cout << " " << i;
           procs.push_back( i );
+          }
         else if ( ! procs.size() )
+          {
           rank_owner = true;
+          }
         }
       }
     }

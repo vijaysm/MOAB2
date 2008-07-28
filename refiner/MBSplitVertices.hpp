@@ -1,3 +1,23 @@
+/*
+ * MOAB, a Mesh-Oriented datABase, is a software component for creating,
+ * storing and accessing finite element mesh data.
+ * 
+ * Copyright 2007 Sandia Corporation.  Under the terms of Contract
+ * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
+ * retains certain rights in this software.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ */
+
+/**\class MBSplitVertices
+  *\brief A dictionary of new vertices.
+  *
+  * An array of existing vertex handles used as a key in a dictionary of new vertices.
+  */
 #ifndef MB_SPLITVERTICES_HPP
 #define MB_SPLITVERTICES_HPP
 
@@ -10,8 +30,6 @@
 
 class MBRefinerTagManager;
 
-/** An array of existing vertex handles used as a key in a dictionary of new vertices.
-  */
 template< int _n >
 class MBSplitVertexIndex
 {
@@ -97,10 +115,11 @@ public:
   MBInterface* mesh_in; // Input mesh. Needed to determine tag values on split_src verts
   MBInterface* mesh_out; // Output mesh. Needed for new vertex set in vert_handle
   MBRefinerTagManager* tag_manager;
-  std::vector<int> shared_procs_val; // Used to hold procs sharing an input vert.
+  std::vector<int> shared_procs_in; // Used to hold procs sharing an input vert.
+  std::vector<int> shared_procs_out; // Used to hold procs sharing an output vert.
   std::vector<int> split_gids; // Used to hold global IDs of split vertices
   MBProcessSet current_shared_procs; // Holds process list as it is being accumulated
-  MBProcessSet common_shared_procs; // Holds intersection of several shared_procs_vals.
+  MBProcessSet common_shared_procs; // Holds intersection of several shared_procs_ins.
   int rank; // This process' rank.
   bool first_vertex; // True just after begin_vertex_procs() is called.
   MBTag tag_gid;
@@ -136,7 +155,7 @@ template< int _n >
 MBSplitVertices<_n>::MBSplitVertices( MBRefinerTagManager* tag_mgr )
   : MBSplitVerticesBase( tag_mgr )
 {
-  this->shared_procs_val.resize( _n * MAX_SHARING_PROCS );
+  this->shared_procs_in.resize( _n * MAX_SHARING_PROCS );
   this->split_gids.resize( _n );
 }
 
