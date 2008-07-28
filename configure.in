@@ -56,9 +56,9 @@ AC_DEFINE_UNQUOTED(MB_VERSION_STRING,"${VERSION_STRING}",[MOAB Version String])
 ################################################################################
 #                              Extract libtool config
 ################################################################################
-ITAPS_LIBTOOL_VAR( [CXX], [compiler_lib_search_path], [MOAB_CXX_LDFLAGS])
+ITAPS_LIBTOOL_VAR( [CXX], [compiler_lib_search_path], [MOAB_CXX_LINKFLAGS])
 ITAPS_LIBTOOL_VAR( [CXX], [postdeps], [MOAB_CXX_LIBS])
-AC_SUBST( MOAB_CXX_LDFLAGS )
+AC_SUBST( MOAB_CXX_LINKFLAGS )
 AC_SUBST( MOAB_CXX_LIBS )
 
 ################################################################################
