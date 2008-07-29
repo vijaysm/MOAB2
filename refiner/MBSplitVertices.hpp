@@ -27,6 +27,7 @@
 
 #include <map>
 #include <vector>
+#include <algorithm>
 
 class MBRefinerTagManager;
 
