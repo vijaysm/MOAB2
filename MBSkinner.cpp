@@ -878,7 +878,8 @@ MBErrorCode MBSkinner::find_skin(const MBRange &entities,
   tmp_skin_for.merge(tmp_skin_rev);
   if (MBCN::Dimension(TYPE_FROM_HANDLE(*tmp_skin_for.begin())) != dim ||
       MBCN::Dimension(TYPE_FROM_HANDLE(*tmp_skin_for.rbegin())) != dim)
-    result = thisMB->get_adjacencies(tmp_skin_for, dim, true, skin_entities);
+    result = thisMB->get_adjacencies(tmp_skin_for, dim, true, skin_entities,
+                                     MBInterface::UNION);
   else
     skin_entities.swap(tmp_skin_for);
   

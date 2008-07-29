@@ -545,7 +545,7 @@ extern "C" {
                                /*out*/ int* entity_topologies_size, int *err) 
   {
     MBEntityType req_type = mb_topology_table[requested_entity_topology];
-    int req_dimension = (req_type == MBMAXTYPE ? (int) requested_entity_type : -1);
+    int req_dimension = (req_type != MBMAXTYPE ? (int) requested_entity_type : -1);
 
     MBEntityHandle in_set = ENTITY_HANDLE(entity_set_handle);
   
@@ -559,6 +559,10 @@ extern "C" {
     if (MB_SUCCESS != result) {
       RETURN(iMesh_LAST_ERROR.error_type);
     }
+
+      // doesn't make sense for vertices, so remove them
+    if (-1 == req_dimension && MBI->type_from_handle(*req_entities.begin()) == MBVERTEX)
+      req_entities = req_entities.subtract(req_entities.subset_by_type(MBVERTEX));
   
     if (0 == pos_tag || req_entities.empty()) {
       *offset_size = 0;
@@ -574,7 +578,7 @@ extern "C" {
     int num_connect;
     std::vector<MBEntityHandle> connect;
     CHECK_SIZE(*offset, *offset_allocated, 
-               (int)req_entities.size(), int, iBase_MEMORY_ALLOCATION_FAILED);
+               (int)(req_entities.size()+1), int, iBase_MEMORY_ALLOCATION_FAILED);
     CHECK_SIZE(*entity_topologies, *entity_topologies_allocated, 
                (int)req_entities.size(), int, iBase_MEMORY_ALLOCATION_FAILED);
   
@@ -596,6 +600,9 @@ extern "C" {
       (*offset)[i] = curr_offset;
       curr_offset += num_connect;
     }
+      // set the last offset too
+    (*offset)[i] = curr_offset;
+    
   
       // now check size of, allocate, and assign index vector
     CHECK_SIZE(*index, *index_allocated, 
@@ -619,7 +626,7 @@ extern "C" {
       RETURN(iBase_ERROR_MAP[result]);
     }
 
-    *offset_size = req_entities.size();
+    *offset_size = req_entities.size() + 1;
     *entity_topologies_size = req_entities.size();
     *index_size = connect.size();
 
@@ -1504,6 +1511,11 @@ extern "C" {
                           /*inout*/ int* new_vertex_handles_allocated,
                           /*inout*/ int* new_vertex_handles_size, int *err) 
   {
+    if (new_coords_size != 3*num_verts) {
+      iMesh_processError(iBase_INVALID_ARGUMENT, "iMesh_createVtxArr: Didn't get the right # coordinates.");
+      RETURN(iBase_INVALID_ARGUMENT);
+    }
+
       // if there aren't any elements in the array, allocate it
     CHECK_SIZE(*new_vertex_handles, *new_vertex_handles_allocated,
                num_verts, iBase_EntityHandle, iBase_MEMORY_ALLOCATION_FAILED);
@@ -2979,18 +2991,21 @@ MBErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
     }
   }
 
-  if (req_dimension == -1 && req_type == MBMAXTYPE) return MB_SUCCESS;
-  
     // winnow the list for entities of the desired type and/or topology
   num_verts = 0;
   MBRange::iterator ent_it;
   MBEntityType this_type;
+  std::vector<MBEntityHandle> connect_v;
+  const MBEntityHandle *connect;
+  int num_connect;
   for (ent_it = entities.begin(); ent_it != entities.end(); ent_it++) {
     this_type = MBI->type_from_handle(*ent_it);
-    if (req_dimension == MBCN::Dimension(this_type) ||
-        this_type == req_type) {
+    if ((-1 == req_dimension || req_dimension == MBCN::Dimension(this_type)) &&
+        (MBMAXTYPE == req_type || this_type == req_type)) {
       req_entities.insert(*ent_it);
-      num_verts += MBCN::VerticesPerEntity(this_type);
+      result = MBI->get_connectivity(*ent_it, connect, num_connect, false, 
+                                     &connect_v);
+      num_verts += num_connect;
     }
   }
 
