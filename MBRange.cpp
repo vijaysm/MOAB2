@@ -850,10 +850,11 @@ int MBRange::index(MBEntityHandle handle) const
 }
 
     //! return a subset of this range, by type
-MBRange MBRange::subset_by_type(const MBEntityType t) 
+MBRange MBRange::subset_by_type(MBEntityType t) const
 {
   MBRange result;
-  result.merge( lower_bound(t), upper_bound(t) );
+  std::pair<const_iterator, const_iterator> iters = equal_range(t);
+  result.merge( iters.first, iters.second );
   return result;
 }
 

@@ -316,7 +316,7 @@ public:
   void sanity_check() const;
 
     //! return a subset of this range, by type
-  MBRange subset_by_type(MBEntityType t);
+  MBRange subset_by_type(MBEntityType t) const;
   
   struct PairNode : public std::pair<MBEntityHandle,MBEntityHandle>
   {
