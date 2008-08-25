@@ -2,12 +2,16 @@
 
 #include "MBInterface.hpp"
 #include "MBParallelComm.hpp"
+#include "MBParallelConventions.h"
+#include "MBTagConventions.hpp"
 
 #include <iostream>
+#include <stdexcept>
 #include <assert.h>
 
 /// Construct an evaluator.
 MBRefinerTagManager::MBRefinerTagManager( MBInterface* in_mesh, MBInterface* out_mesh )
+  : shared_procs_in( 5 * MAX_SHARING_PROCS, -1 ), shared_procs_out( MAX_SHARING_PROCS, -1 )
 {
   assert( in_mesh );
   if ( ! out_mesh )
@@ -17,19 +21,76 @@ MBRefinerTagManager::MBRefinerTagManager( MBInterface* in_mesh, MBInterface* out
   this->output_mesh = out_mesh;
   this->reset_vertex_tags();
   MBParallelComm* ipcomm = MBParallelComm::get_pcomm( this->input_mesh, 0 );
-  if ( ipcomm )
+  MBParallelComm* opcomm = 0;
+  if ( this->output_mesh != this->input_mesh )
     {
-    ipcomm->get_shared_proc_tags(
-      this->tag_psproc, this->tag_psprocs,
-      this->tag_pshand, this->tag_pshands,
-      this->tag_pstatus );
+    opcomm = MBParallelComm::get_pcomm( this->output_mesh, 0 );
+    if ( ! opcomm )
+      {
+      std::cout << "Creating opcomm: " << opcomm << "\n";
+      opcomm = new MBParallelComm( this->output_mesh, MPI_COMM_WORLD );
+      }
     }
   else
     {
-    this->tag_psproc = this->tag_psprocs = 0;
-    this->tag_pshand = this->tag_pshands = 0;
-    this->tag_pstatus = 0;
+    opcomm = ipcomm;
     }
+
+  if ( ipcomm )
+    {
+    ipcomm->get_shared_proc_tags(
+      this->tag_ipsproc, this->tag_ipsprocs,
+      this->tag_ipshand, this->tag_ipshands,
+      this->tag_ipstatus );
+    }
+  else
+    {
+    this->tag_ipsproc = this->tag_ipsprocs = 0;
+    this->tag_ipshand = this->tag_ipshands = 0;
+    this->tag_ipstatus = 0;
+    }
+
+  if ( opcomm )
+    {
+    opcomm->get_shared_proc_tags(
+      this->tag_opsproc, this->tag_opsprocs,
+      this->tag_opshand, this->tag_opshands,
+      this->tag_opstatus );
+    }
+  else
+    {
+    this->tag_opsproc = this->tag_opsprocs = 0;
+    this->tag_opshand = this->tag_opshands = 0;
+    this->tag_opstatus = 0;
+    }
+
+  this->rank =
+    ipcomm ? ipcomm->proc_config().proc_rank() :
+    ( opcomm ? opcomm->proc_config().proc_rank() : 0 );
+
+  // Create the mesh global ID tags if they aren't already there.
+  int zero = 0;
+  MBErrorCode result;
+  result = this->input_mesh->tag_create(
+    GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, this->tag_igid, &zero, true );
+  if ( result != MB_SUCCESS && result != MB_ALREADY_ALLOCATED )
+    {
+    throw new std::logic_error( "Unable to find input mesh global ID tag \"" GLOBAL_ID_TAG_NAME "\"" );
+    }
+  result = this->output_mesh->tag_create(
+    GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, this->tag_ogid, &zero, true );
+  if ( result != MB_SUCCESS && result != MB_ALREADY_ALLOCATED )
+    {
+    throw new std::logic_error( "Unable to find/create output mesh global ID tag \"" GLOBAL_ID_TAG_NAME "\"" );
+    }
+
+  std::cout
+    << "psproc:  " << this->tag_ipsproc  << ", " << this->tag_opsproc << "\n"
+    << "psprocs: " << this->tag_ipsprocs << ", " << this->tag_opsprocs << "\n"
+    << "pshand:  " << this->tag_ipshand  << ", " << this->tag_opshand << "\n"
+    << "pshands: " << this->tag_ipshands << ", " << this->tag_opshands << "\n"
+    << "pstatus: " << this->tag_ipstatus << ", " << this->tag_opstatus << "\n"
+    << "gid:     " << this->tag_igid     << ", " << this->tag_ogid     << "\n";
 }
 
 /// Destruction is virtual so subclasses may clean up after refinement.
@@ -181,3 +242,179 @@ void MBRefinerTagManager::get_output_vertex_tag( int i, MBTag& tag, int& byte_of
   tag = it->first;
   byte_offset = it->second;
 }
+
+/**\brief Retrieve the global ID of each input entity and push it onto the output vector.
+  *
+  * The \a gids array is emptied by this call before any new values are added.
+  * Note that this routine fetches global IDs from the input mesh, not the output mesh;
+  * your entity handles must be from the input mesh.
+  *
+  * @param[in] ents An array of entities in the input mesh whose global IDs you desire
+  * @param[in] n The number of entities in the \a ents array.
+  * @param[out] gids A vector to contain the resulting global IDs.
+  * @retval A MOAB error code as supplied by the MBInterface::tag_get_data() call.
+  */
+int MBRefinerTagManager::get_input_gids( int n, const MBEntityHandle* ents, std::vector<int>& gids )
+{
+  int stat;
+  gids.clear();
+  for ( int i = 0; i < n; ++ i )
+    {
+    int gid = -1;
+    stat |= this->input_mesh->tag_get_data( this->tag_igid, ents + i, 1, &gid );
+    gids.push_back( gid );
+    }
+  return stat;
+}
+
+/**\brief Retrieve the global ID of each output entity and push it onto the output vector.
+  *
+  * The \a gids array is emptied by this call before any new values are added.
+  * Note that this routine fetches global IDs from the output mesh, not the input mesh;
+  * your entity handles must be from the output mesh.
+  * Also, be aware that many output entities will not have global IDs assigned;
+  * only those vertices which exist in the input mesh are guaranteed to have global IDs
+  * assigned to them -- vertices that only exist in the output mesh and all higher-dimensional
+  * output entities have no global IDs assigned until after a complete subdivision pass has been made.
+  *
+  * @param[in] ents An array of entities in the output mesh whose global IDs you desire
+  * @param[in] n The number of entities in the \a ents array.
+  * @param[out] gids A vector to contain the resulting global IDs.
+  * @retval A MOAB error code as supplied by the MBInterface::tag_get_data() call.
+  */
+int MBRefinerTagManager::get_output_gids( int n, const MBEntityHandle* ents, std::vector<int>& gids )
+{
+  int stat;
+  gids.clear();
+  for ( int i = 0; i < n; ++ i )
+    {
+    int gid = -1;
+    stat |= this->output_mesh->tag_get_data( this->tag_igid, ents + i, 1, &gid );
+    gids.push_back( gid );
+    }
+  return stat;
+}
+
+/**\brief Assign a global ID to an output entity.
+  *
+  * @param[in] ent The entity whose ID will be set
+  * @param[out] id The global ID
+  * @retval An error code as returned by MBInterface::tag_set_data().
+  */
+int MBRefinerTagManager::set_gid( MBEntityHandle ent, int gid )
+{
+  return this->output_mesh->tag_set_data( this->tag_ogid, &ent, 1, &gid );
+}
+
+/**\brief Set parallel status and sharing process list on an entity.
+  *
+  * This sets tag values for the PARALLEL_STATUS and one of PARALLEL_SHARED_PROC or PARALLEL_SHARED_PROCS tags
+  * if \a procs contains any processes (the current process is assumed <b>not</b> to be set in \a procs).
+  *
+  * @param[in] ent_handle The entity whose information will be set
+  * @param[in] procs The set of sharing processes.
+  */
+void MBRefinerTagManager::set_sharing( MBEntityHandle ent_handle, MBProcessSet& procs )
+{
+  int pstat;
+  if ( procs.get_process_members( this->rank, this->shared_procs_out ) )
+    pstat = PSTATUS_SHARED | PSTATUS_INTERFACE;
+  else
+    pstat = PSTATUS_SHARED | PSTATUS_INTERFACE | PSTATUS_NOT_OWNED;
+  if ( this->shared_procs_out[0] >= 0 )
+    {
+    // assert( MAX_SHARING_PROCS > 1 );
+    // Since get_process_members pads to MAX_SHARING_PROCS, this will be work:
+    if ( this->shared_procs_out[1] <= 0 )
+      {
+      //std::cout << "  (proc )";
+      this->output_mesh->tag_set_data( this->tag_opsproc, &ent_handle, 1, &this->shared_procs_out[0] );
+      this->output_mesh->tag_set_data( this->tag_opstatus, &ent_handle, 1, &pstat );
+      }
+    else
+      {
+      //std::cout << "  (procS)";
+      this->output_mesh->tag_set_data( this->tag_opsprocs, &ent_handle, 1, &this->shared_procs_out[0] );
+      this->output_mesh->tag_set_data( this->tag_opstatus, &ent_handle, 1, &pstat );
+      }
+    }
+  else
+    {
+    //std::cout << "  (none )";
+    }
+  //std::cout << " new pstat: " << pstat << "\n";
+}
+
+/**\brief Determine the subset of processes which all share the specified entities.
+  *
+  * This is used to determine which processes an output entity should reside on when
+  * it is defined using several input entities (such as vertices).
+  */
+void MBRefinerTagManager::get_common_processes(
+  int num, const MBEntityHandle* src, MBProcessSet& common_shared_procs, bool on_output_mesh )
+{
+  MBInterface* mesh;
+  MBTag psproc;
+  MBTag psprocs;
+  if ( on_output_mesh )
+    {
+    mesh = this->output_mesh;
+    psproc = this->tag_opsproc;
+    psprocs = this->tag_opsprocs;
+    }
+  else
+    {
+    mesh = this->input_mesh;
+    psproc = this->tag_ipsproc;
+    psprocs = this->tag_ipsprocs;
+    }
+  bool first_ent = true;
+  common_shared_procs.clear();
+  for ( int i = 0; i < num; ++ i )
+    {
+    MBEntityHandle ent_in = src[i];
+    //std::cout << "<(" << ent_in << ")>";
+    int stat;
+    bool got = false;
+    this->current_shared_procs.clear();
+    stat = mesh->tag_get_data( psproc, &ent_in, 1, &this->shared_procs_in[0] );
+    if ( stat == MB_SUCCESS && this->shared_procs_in[0] != -1 )
+      {
+      got = true;
+      //std::cout << " s" << this->rank << " s" << this->shared_procs_in[0] << " | ";
+      this->shared_procs_in[1] = -1;
+      }
+    stat = mesh->tag_get_data( psprocs, &ent_in, 1, &this->shared_procs_in[0] );
+    if ( stat == MB_SUCCESS && this->shared_procs_in[0] != -1 )
+      {
+      got = true;
+      int i;
+      /*
+      for ( i = 0; i < MAX_SHARING_PROCS && this->shared_procs_in[i] != -1; ++ i )
+        std::cout << " m" << this->shared_procs_in[i];
+      std::cout << " | ";
+      */
+      }
+    if ( got )
+      {
+      this->current_shared_procs.set_process_members( this->shared_procs_in );
+      this->current_shared_procs.set_process_member( this->rank );
+      if ( first_ent )
+        {
+        common_shared_procs.unite( this->current_shared_procs );
+        first_ent = false;
+        }
+      else
+        {
+        common_shared_procs.intersect( this->current_shared_procs );
+        }
+      }
+    else
+      {
+      //std::cout << " not shared | ";
+      }
+    }
+  std::cout << "    Common procs " << common_shared_procs;
+  std::cout << "\n";
+}
+

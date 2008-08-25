@@ -30,6 +30,7 @@ MBSimplexTemplateRefiner::MBSimplexTemplateRefiner()
   this->corner_coords.resize( 6 * 8 ); // Hex has 8 verts w/ 6 coordinates each
   this->corner_tags.resize( 8 ); // Hex has 8 verts (this is a pointer, not the actual tag data)
   this->corner_handles.resize( 8 ); // Hex has 8 verts (this is a pointer, not actual hash data)
+  this->input_is_output = false; // Until we know better
 }
 
 /// Empty destructor for good form.
@@ -61,7 +62,6 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityType etyp, MBEntityHandle 
   void* tag_data;
   for ( int n = 0; n < num_nodes; ++ n )
     {
-    this->corner_handles[n] = conn[n];
     if ( imesh->get_coords( &conn[n], 1, &corner_coords[6 * n + 3] ) != MB_SUCCESS )
       {
       return false;
@@ -74,6 +74,20 @@ bool MBSimplexTemplateRefiner::refine_entity( MBEntityType etyp, MBEntityHandle 
         {
         return false;
         }
+      }
+    if ( this->input_is_output )
+      {
+      this->corner_handles[n] = conn[n];
+      }
+    else
+      {
+      this->corner_handles[n] = this->output_functor->map_vertex( conn[n], &corner_coords[6 * n], tag_data );
+#if 0
+      std::cout << "#+# " << this->corner_handles[n] << " < "
+        << corner_coords[ 6 * n + 3 ] << ", "
+        << corner_coords[ 6 * n + 4 ] << ", "
+        << corner_coords[ 6 * n + 5 ] << ">\n";
+#endif // 0
       }
     this->corner_tags[n] = tag_data;
     }
@@ -170,6 +184,7 @@ bool MBSimplexTemplateRefiner::prepare( MBRefinerTagManager* tmgr, MBEntityRefin
 { 
   this->tag_manager = tmgr;
   this->tag_assigner->set_tag_manager( tmgr );
+  this->input_is_output = ( this->tag_manager->get_input_mesh() == this->tag_manager->get_output_mesh() );
   //this->tag_assigner->set_edge_size_evaluator( this->edge_size_evaluator );
   return this->MBEntityRefiner::prepare( tmgr, ofunc );
 }

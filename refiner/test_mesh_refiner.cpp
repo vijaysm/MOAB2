@@ -30,7 +30,7 @@ int TestMeshRefiner( int argc, char* argv[] )
   //sleep(20);
 
   // Create the input mesh and, if -new-mesh is specified, an output mesh
-  const char* ifname = argc > 1 ? argv[1] : "/home/dcthomp/fourVolsBare.cub";
+  const char* ifname = argc > 1 ? argv[1] : "fourVolsBare.cub";
   bool input_is_output = ( argc > 2 && ! strcmp( argv[2], "-new-mesh" ) ) ? false : true;
   MBInterface* imesh = new MBCore( rank, nprocs );
   MBInterface* omesh = input_is_output ? imesh : new MBCore( rank, nprocs );
@@ -41,25 +41,10 @@ int TestMeshRefiner( int argc, char* argv[] )
   ReadParallel* readpar = new ReadParallel( imesh, ipcomm );
 #endif // USE_MPI
 
-  // Get the global ID tag so we can set things up for resolve_shared_ents
-  //MBTag tag_gid;
-  //imesh->tag_create( PARALLEL_GID_TAG_NAME, sizeof( int ), MB_TAG_DENSE, MB_TYPE_INTEGER, tag_gid, default_gid );
-
-#ifdef USE_MPI
-  // Get tags for the various data-distributed mesh annotations
-  MBTag tag_sproc;
-  MBTag tag_sprocs;
-  MBTag tag_shand;
-  MBTag tag_shands;
-  MBTag tag_pstat;
-  ipcomm->get_shared_proc_tags( tag_sproc, tag_sprocs, tag_shand, tag_shands, tag_pstat );
-  MBTag tag_part = ipcomm->partition_tag();
-#endif // USE_MPI
-
   MBEntityHandle set_handle;
   std::ostringstream parallel_options;
   parallel_options
-    << "PARALLEL=BCAST_DELETE" << ";" // NB: You can also use READ_DELETE here.
+    << "PARALLEL=BCAST_DELETE" << ";" // NB: You can use BCAST_DELETE or READ_DELETE here.
     << "PARTITION=MATERIAL_SET" << ";"
     //<< "PARTITION_DISTRIBUTE" << ";"
     << "PARTITION_VAL=" << ( rank + 1 ) << ";"
@@ -83,6 +68,9 @@ int TestMeshRefiner( int argc, char* argv[] )
   imesh->load_file( ifname, set_handle, parallel_options.str().c_str() );
   imesh->list_entities( 0, 1 );
 #endif // USE_MPI
+  std::ostringstream ifs;
+  ifs << "prerefiner." << nprocs << "." << rank << ".vtk";
+  imesh->write_mesh( ifs.str().c_str() );
 
   // The refiner will need an implicit function to be used as an indicator function for subdivision:
   MBEdgeSizeSimpleImplicit* eval = new MBEdgeSizeSimpleImplicit();
@@ -96,9 +84,13 @@ int TestMeshRefiner( int argc, char* argv[] )
   // (We don't add tag_gid to the refiner's tag manager because it is special)
   eref->set_edge_size_evaluator( eval );
   MBRange ents_to_refine;
-  ents_to_refine.insert( set_handle );
+  imesh->get_entities_by_type( set_handle, MBTET, ents_to_refine ); // refine just the tets
+  //ents_to_refine.insert( set_handle ); // refine everything multiple times (because subsets are not disjoint)
   mref->refine( ents_to_refine );
 
+  std::ostringstream ofs;
+  ofs << "refiner." << nprocs << "." << rank << ".vtk";
+  omesh->write_mesh( ofs.str().c_str() );
   // Print out the results, one process at a time
 #ifdef USE_MPI
   for ( int i = 0; i < nprocs; ++ i )

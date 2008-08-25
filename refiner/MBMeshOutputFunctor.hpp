@@ -48,10 +48,11 @@ public:
 
   void print_vert_crud( MBEntityHandle vout, int nvhash, MBEntityHandle* vhash, const double* vcoords, const void* vtags );
   void assign_global_ids( MBParallelComm* comm );
+  void exchange_handles( MBParallelComm* comm );
 
   void assign_tags( MBEntityHandle vhandle, const void* vtags );
 
-  virtual MBEntityHandle operator () ( MBEntityHandle vhash, const double* vcoords, const void* vtags );
+  virtual MBEntityHandle map_vertex( MBEntityHandle vhash, const double* vcoords, const void* vtags );
   virtual MBEntityHandle operator () ( int nvhash, MBEntityHandle* vhash, const double* vcoords, const void* vtags );
   virtual void operator () ( MBEntityHandle h );
   virtual void operator () ( MBEntityType etyp );

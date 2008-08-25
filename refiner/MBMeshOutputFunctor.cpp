@@ -26,22 +26,24 @@ MBMeshOutputFunctor::MBMeshOutputFunctor( MBRefinerTagManager* tag_mgr )
 
   // Hold information about newly-created mesh entities (other than split vertices)
   // This is necessary in order for global IDs to be assigned consistently across processes.
-  this->new_entities.resize( 4 );
+  this->new_entities.resize( 5 );
   this->new_entities[0] = new MBSplitVertices<0>( this->tag_manager );
   this->new_entities[1] = new MBSplitVertices<1>( this->tag_manager );
   this->new_entities[2] = new MBSplitVertices<2>( this->tag_manager );
   this->new_entities[3] = new MBSplitVertices<3>( this->tag_manager );
+  this->new_entities[4] = new MBSplitVertices<4>( this->tag_manager );
 }
 
 MBMeshOutputFunctor::~MBMeshOutputFunctor()
 {
-  for ( int i = 0; i < 4; ++ i )
+  for ( int i = 1; i < 4; ++ i )
     delete this->split_vertices[i];
-  for ( int i = 0; i < 4; ++ i )
+  for ( int i = 0; i < 5; ++ i )
     delete this->new_entities[i];
 }
 
-void MBMeshOutputFunctor::print_vert_crud( MBEntityHandle vout, int nvhash, MBEntityHandle* vhash, const double* vcoords, const void* vtags )
+void MBMeshOutputFunctor::print_vert_crud(
+  MBEntityHandle vout, int nvhash, MBEntityHandle* vhash, const double* vcoords, const void* vtags )
 {
   std::cout << "+ {";
   for ( int i = 0; i < nvhash; ++ i )
@@ -63,6 +65,9 @@ void MBMeshOutputFunctor::print_vert_crud( MBEntityHandle vout, int nvhash, MBEn
 #endif // 0
 
   std::cout << " >\n";
+  //std::cout << "##############################\n";
+  //this->mesh_out->list_entities( 0, 1 );
+  //std::cout << "##############################\n";
 }
 
 void MBMeshOutputFunctor::assign_global_ids( MBParallelComm* comm )
@@ -144,16 +149,22 @@ void MBMeshOutputFunctor::assign_global_ids( MBParallelComm* comm )
     std::cout << "Partition " << pcit->first << ": " << pcit->second << " # [" << gids[pcit->first] << "]\n";
     }
   std::vector<MBSplitVerticesBase*>::iterator vit;
-  for ( vit = this->split_vertices.begin(); vit != this->split_vertices.end(); ++ vit )
+  vit = this->split_vertices.begin();
+  ++ vit; // Skip split_vertices[0] since it's empty.
+  ++ vit; // Skip split_vertices[1] since those entries already have global IDs... they exist in the input mesh.
+  for ( /* skip */; vit != this->split_vertices.end(); ++ vit )
     {
-    if ( *vit )
-      (*vit)->assign_global_ids( gids );
+    (*vit)->assign_global_ids( gids );
     }
   for ( vit = this->new_entities.begin(); vit != this->new_entities.end(); ++ vit )
     {
     if ( *vit )
       (*vit)->assign_global_ids( gids );
     }
+}
+
+void MBMeshOutputFunctor::exchange_handles( MBParallelComm* comm )
+{
 }
 
 void MBMeshOutputFunctor::assign_tags( MBEntityHandle vhandle, const void* vtags )
@@ -171,7 +182,7 @@ void MBMeshOutputFunctor::assign_tags( MBEntityHandle vhandle, const void* vtags
     }
 }
 
-MBEntityHandle MBMeshOutputFunctor::operator () ( MBEntityHandle vhash, const double* vcoords, const void* vtags )
+MBEntityHandle MBMeshOutputFunctor::map_vertex( MBEntityHandle vhash, const double* vcoords, const void* vtags )
 {
   if ( this->input_is_output )
     { // Don't copy the original vertex!
@@ -179,11 +190,16 @@ MBEntityHandle MBMeshOutputFunctor::operator () ( MBEntityHandle vhash, const do
     return vhash;
     }
   MBEntityHandle vertex_handle;
-  bool newly_created = this->new_entities[0]->find_or_create(
-    &vhash, vcoords, vertex_handle, this->proc_partition_counts );
+  bool newly_created = this->new_entities[1]->find_or_create(
+    &vhash, vcoords, vertex_handle, this->proc_partition_counts, false );
   if ( newly_created )
     {
+    std::vector<int> gid;
     this->assign_tags( vertex_handle, vtags );
+    if ( this->tag_manager->get_input_gids( 1, &vhash, gid ) == MB_SUCCESS )
+      {
+      this->tag_manager->set_gid( vertex_handle, gid[0] );
+      }
     }
   if ( ! vertex_handle )
     {
@@ -196,14 +212,10 @@ MBEntityHandle MBMeshOutputFunctor::operator () ( MBEntityHandle vhash, const do
 MBEntityHandle MBMeshOutputFunctor::operator () ( int nvhash, MBEntityHandle* vhash, const double* vcoords, const void* vtags )
 {
   MBEntityHandle vertex_handle;
-  if ( nvhash == 1 )
-    {
-    vertex_handle = (*this)( *vhash, vcoords, vtags );
-    }
-  else if ( nvhash < 4 )
+  if ( nvhash < 4 )
     {
     bool newly_created = this->split_vertices[nvhash]->find_or_create(
-      vhash, vcoords, vertex_handle, this->proc_partition_counts );
+      vhash, vcoords, vertex_handle, this->proc_partition_counts, true );
     if ( newly_created )
       {
       this->assign_tags( vertex_handle, vtags );
@@ -212,6 +224,7 @@ MBEntityHandle MBMeshOutputFunctor::operator () ( int nvhash, MBEntityHandle* vh
       {
       std::cerr << "Could not insert mid-edge vertex!\n";
       }
+    std::cout << "(-" << nvhash << "-) ";
     this->print_vert_crud( vertex_handle, nvhash, vhash, vcoords, vtags );
     }
   else
@@ -225,31 +238,26 @@ MBEntityHandle MBMeshOutputFunctor::operator () ( int nvhash, MBEntityHandle* vh
 void MBMeshOutputFunctor::operator () ( MBEntityHandle h )
 {
   std::cout << h << " ";
-  this->elem_vert.push_back( h );
   if ( ! this->input_is_output )
     {
     // FIXME: Copy to output mesh
     }
+  this->elem_vert.push_back( h );
 }
 
 void MBMeshOutputFunctor::operator () ( MBEntityType etyp )
 {
   MBEntityHandle elem_handle;
   int nconn = this->elem_vert.size();
-  if ( this->mesh_out->create_element( etyp, &this->elem_vert[0], nconn, elem_handle ) == MB_FAILURE )
-    {
-    std::cerr << " *** ";
-    }
-  std::cout << "---------> " << elem_handle << " ( " << etyp << " )\n\n";
-#if 0
   bool newly_created = this->new_entities[nconn]->create_element(
-    &this->elem_vert[0], elem_handle, this->proc_partition_counts );
+    etyp, nconn, &this->elem_vert[0], elem_handle, this->proc_partition_counts );
   if ( newly_created )
     {
+    std::cout << " *** ";
     // FIXME: Handle tag assignment for elements as well as vertices
     //this->assign_tags( elem_handle, this->element_tag_data );
     }
-#endif // 0
+  std::cout << "---------> " << elem_handle << " ( " << etyp << " )\n\n";
   this->elem_vert.clear();
 }
 

@@ -95,6 +95,10 @@ bool MBProcessSet::get_process_members( int rank, std::vector<int>& procs )
         }
       }
     }
+  for ( i = procs.size(); i < MAX_SHARING_PROCS; ++ i )
+    {
+    procs.push_back( -1 ); // pad with invalid values
+    }
   return rank_owner;
 }
 

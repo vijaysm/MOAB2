@@ -90,40 +90,18 @@ public:
 
   virtual bool find_or_create(
     const MBEntityHandle* split_src, const double* coords, MBEntityHandle& vert_handle,
-    std::map<MBProcessSet,int>& proc_partition_counts ) = 0;
+    std::map<MBProcessSet,int>& proc_partition_counts, bool handles_on_output_mesh ) = 0;
 
   virtual bool create_element(
-    const MBEntityHandle* split_src, MBEntityHandle& elem_handle,
+    MBEntityType etyp, int nconn, const MBEntityHandle* elem_verts, MBEntityHandle& elem_handle,
     std::map<MBProcessSet,int>& proc_partition_counts ) = 0;
 
   virtual void assign_global_ids( std::map<MBProcessSet,int>& gids ) = 0;
 
-  /// Determine which processes will contain an output vertex given the split vertices defining it.
-  void update_partition_counts( int num, const MBEntityHandle* split_src, std::map<MBProcessSet,int>& proc_partition_counts );
-
-  /// Prepare to compute the processes on which a new split-vertex will live.
-  void begin_vertex_procs();
-
-  /// Call this for each existing corner vertex used to define a split-vertex.
-  void add_vertex_procs( MBEntityHandle vert_in );
-
-  /// Call this once after all the add_vertex_procs() calls for a split-vertex to prepare queues for the second stage MPI send. 
-  void end_vertex_procs();
-
-  /// Set the tags which indicate sharing process(es) for an entity.
-  void set_sharing( MBEntityHandle vert_handle, MBProcessSet& procs );
-
-  MBInterface* mesh_in; // Input mesh. Needed to determine tag values on split_src verts
   MBInterface* mesh_out; // Output mesh. Needed for new vertex set in vert_handle
   MBRefinerTagManager* tag_manager;
-  std::vector<int> shared_procs_in; // Used to hold procs sharing an input vert.
-  std::vector<int> shared_procs_out; // Used to hold procs sharing an output vert.
   std::vector<int> split_gids; // Used to hold global IDs of split vertices
-  MBProcessSet current_shared_procs; // Holds process list as it is being accumulated
   MBProcessSet common_shared_procs; // Holds intersection of several shared_procs_ins.
-  int rank; // This process' rank.
-  bool first_vertex; // True just after begin_vertex_procs() is called.
-  MBTag tag_gid;
 };
 
 /** A map from a set of pre-existing entities to a new mesh entity.
@@ -143,9 +121,9 @@ public:
   virtual ~MBSplitVertices();
   virtual bool find_or_create(
     const MBEntityHandle* split_src, const double* coords, MBEntityHandle& vert_handle,
-    std::map<MBProcessSet,int>& proc_partition_counts );
+    std::map<MBProcessSet,int>& proc_partition_counts, bool handles_on_output_mesh );
   virtual bool create_element(
-    const MBEntityHandle* split_src, MBEntityHandle& elem_handle,
+    MBEntityType etyp, int nconn, const MBEntityHandle* split_src, MBEntityHandle& elem_handle,
     std::map<MBProcessSet,int>& proc_partition_counts );
 
   virtual void assign_global_ids( std::map<MBProcessSet,int>& gids );
@@ -156,7 +134,6 @@ template< int _n >
 MBSplitVertices<_n>::MBSplitVertices( MBRefinerTagManager* tag_mgr )
   : MBSplitVerticesBase( tag_mgr )
 {
-  this->shared_procs_in.resize( _n * MAX_SHARING_PROCS );
   this->split_gids.resize( _n );
 }
 
@@ -168,28 +145,32 @@ MBSplitVertices<_n>::~MBSplitVertices()
 template< int _n >
 bool MBSplitVertices<_n>::find_or_create(
   const MBEntityHandle* split_src, const double* coords, MBEntityHandle& vert_handle,
-  std::map<MBProcessSet,int>& proc_partition_counts )
+  std::map<MBProcessSet,int>& proc_partition_counts, bool handles_on_output_mesh )
 {
   // Get the global IDs of the input vertices
   int stat;
-  for ( int i = 0; i < _n; ++ i )
+  if ( handles_on_output_mesh )
     {
-    int gid = -1;
-    stat = this->mesh_in->tag_get_data( this->tag_gid, split_src + i, 1, &gid );
-    this->split_gids[i] = gid;
+    stat = this->tag_manager->get_output_gids( _n, split_src, this->split_gids );
+    }
+  else
+    {
+    stat = this->tag_manager->get_input_gids( _n, split_src, this->split_gids );
     }
   MBSplitVertexIndex<_n> key( &this->split_gids[0] );
   MapIteratorType it = this->find( key );
   if ( it == this->end() )
     {
-    this->update_partition_counts( _n, split_src, proc_partition_counts );
+    std::cout << " wrt output: " << handles_on_output_mesh << " ";
+    this->tag_manager->get_common_processes( _n, split_src, this->common_shared_procs, handles_on_output_mesh );
+    proc_partition_counts[this->common_shared_procs]++;
     key.set_common_processes( this->common_shared_procs );
-    if ( this->mesh_out->create_vertex( coords, vert_handle ) != MB_SUCCESS )
+    if ( this->mesh_out->create_vertex( coords + 3, vert_handle ) != MB_SUCCESS )
       {
       return false;
       }
     (*this)[key] = vert_handle;
-    this->set_sharing( vert_handle, this->common_shared_procs );
+    this->tag_manager->set_sharing( vert_handle, this->common_shared_procs );
     return true;
     }
   vert_handle = it->second;
@@ -198,9 +179,23 @@ bool MBSplitVertices<_n>::find_or_create(
 
 template< int _n >
 bool MBSplitVertices<_n>::create_element(
-  const MBEntityHandle* split_src, MBEntityHandle& elem_handle,
+  MBEntityType etyp, int nconn, const MBEntityHandle* elem_verts, MBEntityHandle& elem_handle,
   std::map<MBProcessSet,int>& proc_partition_counts )
 {
+  // Get the global IDs of the input vertices
+  int stat;
+  stat = this->tag_manager->get_input_gids( _n, elem_verts, this->split_gids );
+  MBSplitVertexIndex<_n> key( &this->split_gids[0] );
+  this->tag_manager->get_common_processes( _n, elem_verts, this->common_shared_procs );
+  proc_partition_counts[this->common_shared_procs]++;
+  key.set_common_processes( this->common_shared_procs );
+  if ( this->mesh_out->create_element( etyp, elem_verts, nconn, elem_handle ) != MB_SUCCESS )
+    {
+    return false;
+    }
+  (*this)[key] = elem_handle;
+  this->tag_manager->set_sharing( elem_handle, this->common_shared_procs );
+  return true;
 }
 
 template< int _n >
@@ -210,8 +205,8 @@ void MBSplitVertices<_n>::assign_global_ids( std::map<MBProcessSet,int>& gids )
   for ( it = this->begin(); it != this->end(); ++ it )
     {
     int gid = gids[it->first.process_set] ++;
-    this->mesh_out->tag_set_data( this->tag_gid, &it->second, 1, &gid );
-    std::cout << "Assigning " << it->first << " -> " << gid << "\n";
+    this->tag_manager->set_gid( it->second, gid );
+    std::cout << "Assigning entity: " << it->first << " GID: " << gid << "\n";
     }
 }
 

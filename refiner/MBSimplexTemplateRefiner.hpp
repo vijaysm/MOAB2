@@ -56,6 +56,7 @@ protected:
   std::vector<double> corner_coords;
   std::vector<void*> corner_tags;
   std::vector<MBEntityHandle> corner_handles;
+  bool input_is_output;
 
   static int template_index[64][2];
   static int permutations_from_index[24][14];

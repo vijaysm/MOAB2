@@ -52,6 +52,10 @@
   * one used for appending a vertex to an entity,
   * the other used to finalize the creation of the entity by specifying its type.
   *
+  * You are also responsible for implementing the map_vertex() function to map an input vertex handle
+  * into an output vertex handle (which may then be appended to an entity using the first form
+  * of the parenthesis operator above).
+  *
   * \author David Thompson
   * \author Philippe Pebay
   *
@@ -72,7 +76,16 @@ class MB_DLL_EXPORT MBEntityRefinerOutputFunctor
 {
 public:
   virtual ~MBEntityRefinerOutputFunctor() { }
-  virtual MBEntityHandle operator () ( MBEntityHandle vhash, const double* vcoords, const void* vtags ) = 0;
+  /// Map an input vertex to the output mesh. This should return the same value when given the same input across multiple calls.
+  virtual MBEntityHandle map_vertex( MBEntityHandle vhash, const double* vcoords, const void* vtags ) = 0;
+  /**\brief Create a new vertex along an edge.
+    *
+    * @param[in] h0 An edge endpoint handle on the output mesh.
+    * @param[in] h1 An edge endpoint handle on the output mesh.
+    * @param[in] vcoords The location of the midpoint in world coordinates.
+    * @param[in] vtags Field values at the midpoint.
+    * @retval    A handle for the midpoint on the output mesh.
+    */
   MBEntityHandle operator () ( MBEntityHandle h0, MBEntityHandle h1, const double* vcoords, const void* vtags )
     {
     MBEntityHandle harr[2];
@@ -80,6 +93,15 @@ public:
     harr[1] = h1;
     return (*this)( 2, harr, vcoords, vtags );
     }
+  /**\brief Create a new vertex on a triangular face.
+    *
+    * @param[in] h0 A triangle corner handle on the output mesh.
+    * @param[in] h1 A triangle corner handle on the output mesh.
+    * @param[in] h2 A triangle corner handle on the output mesh.
+    * @param[in] vcoords The location of the mid-face point in world coordinates.
+    * @param[in] vtags Field values at the mid-face point.
+    * @retval    A handle for the mid-face point on the output mesh.
+    */
   virtual MBEntityHandle operator () ( MBEntityHandle h0, MBEntityHandle h1, MBEntityHandle h2, const double* vcoords, const void* vtags )
     {
     MBEntityHandle harr[3];
@@ -88,8 +110,25 @@ public:
     harr[2] = h2;
     return (*this)( 3, harr, vcoords, vtags );
     }
+  /**\brief Create a new vertex along a \f$k\f$-facet.
+    *
+    * @param[in] nhash The number of corner vertices (i.e, \f$k\f$ ).
+    * @param[in] hash An array of corner handles on the output mesh.
+    * @param[in] vcoords The location of the new point in world coordinates.
+    * @param[in] vtags Field values at the new point.
+    * @retval    A handle for the new point on the output mesh.
+    */
   virtual MBEntityHandle operator () ( int nhash, MBEntityHandle* hash, const double* vcoords, const void* vtags ) = 0;
+  /**\brief Append an output vertex to the list of vertices defining a new entity.
+    *
+    * @param[in] vhash A vertex of the output mesh.
+    */
   virtual void operator () ( MBEntityHandle vhash ) = 0;
+  /**\brief Create a new entity from all previously appended output vertices.
+    *
+    * This resets the list of appended vertices.
+    * @param[in] etyp The type of entity to create.
+    */
   virtual void operator () ( MBEntityType etyp ) = 0;
 };
 
