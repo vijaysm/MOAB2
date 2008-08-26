@@ -20,6 +20,7 @@ MBRefinerTagManager::MBRefinerTagManager( MBInterface* in_mesh, MBInterface* out
   this->input_mesh = in_mesh;
   this->output_mesh = out_mesh;
   this->reset_vertex_tags();
+  this->reset_element_tags();
   MBParallelComm* ipcomm = MBParallelComm::get_pcomm( this->input_mesh, 0 );
   MBParallelComm* opcomm = 0;
   if ( this->output_mesh != this->input_mesh )
@@ -169,6 +170,55 @@ int MBRefinerTagManager::add_vertex_tag( MBTag tag_handle )
   *\brief Return the number of tags that will be output with each new vertex.
   */
 
+/// Clear the list of tag values that will appear past the element coordinates in \a p0, \a p1, and \a p2.
+void MBRefinerTagManager::reset_element_tags()
+{
+  this->element_size = 0;
+  this->input_element_tags.clear();
+  this->output_element_tags.clear();
+  this->element_tag_data.clear();
+}
+
+/** Add a tag to the list of tag values that will appear past the element coordinates.
+  * The return value is the offset into each element coordinate pointer (\a p0, \a p1, \a p2) where the
+  * tag value(s) will be stored.
+  */
+int MBRefinerTagManager::add_element_tag( MBTag tag_handle )
+{
+  int offset = this->element_size; // old size is offset of tag being added
+  int tag_size;
+  MBTagType tagType;
+  if ( this->input_mesh->tag_get_size( tag_handle, tag_size ) != MB_SUCCESS )
+    return -1;
+
+  if ( this->input_mesh->tag_get_type( tag_handle, tagType ) != MB_SUCCESS )
+    return -1;
+
+  if ( tagType == MB_TAG_BIT )
+    {
+    // Pad any bit tags to a size in full bytes.
+    tag_size = ( tag_size % 8 ? 1 : 0 ) + ( tag_size / 8 );
+    }
+
+  // Now pad so that the next tag will be word-aligned:
+  while ( tag_size % sizeof(int) )
+    ++tag_size;
+
+  this->element_size += tag_size;
+  this->element_tag_data.resize( this->element_size );
+
+  this->input_element_tags.push_back( std::pair< MBTag, int >( tag_handle, offset ) );
+  return offset;
+}
+
+/**\fn int MBRefinerTagManager::get_element_tag_size()
+  *\brief Return the number of bytes to allocate for tag data per point.
+  */
+
+/**\fn int MBRefinerTagManager::get_number_of_element_tags() const
+  *\brief Return the number of tags that will be output with each new element.
+  */
+
 /**\brief Populate the list of output tags to match the list of input tags.
   *
   * When the input mesh and output mesh pointers are identical, this simply copies the list of input tags.
@@ -179,41 +229,14 @@ void MBRefinerTagManager::create_output_tags()
   if ( this->input_mesh == this->output_mesh )
     {
     this->output_vertex_tags = this->input_vertex_tags;
+    this->output_element_tags = this->input_element_tags;
     return;
     }
 
-  std::pair< MBTag, int > tag_rec;
   std::vector< std::pair< MBTag, int > >::iterator it;
-  std::vector< char > tag_default;
-  std::string tag_name;
-  MBTagType tag_type;
-  MBDataType tag_data_type;
-  int tag_size;
   for ( it = this->input_vertex_tags.begin(); it != this->input_vertex_tags.end(); ++ it )
     {
-    MBTag tag_in = it->first;
-    tag_rec.second = it->second;
-    this->input_mesh->tag_get_name( tag_in, tag_name );
-    this->input_mesh->tag_get_size( tag_in, tag_size );
-    this->input_mesh->tag_get_type( tag_in, tag_type );
-    this->input_mesh->tag_get_data_type( tag_in, tag_data_type );
-    this->input_mesh->tag_get_default_value( tag_in, (void*) &tag_default[0] );
-    tag_default.resize( tag_size );
-    MBErrorCode res = this->output_mesh->tag_create(
-      tag_name.c_str(), tag_size, tag_type, tag_data_type, tag_rec.first, (void*) &tag_default[0], true );
-    std::cout
-      << "Creating output tag: \"" << tag_name.c_str() << "\" handle: " << tag_rec.first
-      << " input handle: " << tag_in << "\n";
-    if ( res == MB_FAILURE )
-      {
-      std::cerr
-        << "Could not create output tag name: \"" << tag_name.c_str() << "\" type: "
-        << tag_type << " data type: " << tag_data_type << "\n";
-      }
-    else
-      {
-      this->output_vertex_tags.push_back( tag_rec );
-      }
+    this->create_tag_internal( it->first, it->second );
     }
 }
 
@@ -304,6 +327,23 @@ int MBRefinerTagManager::get_output_gids( int n, const MBEntityHandle* ents, std
 int MBRefinerTagManager::set_gid( MBEntityHandle ent, int gid )
 {
   return this->output_mesh->tag_set_data( this->tag_ogid, &ent, 1, &gid );
+}
+
+/**\brief Copy a global ID from an entity of the input mesh to an entity of the output mesh.
+  *
+  * @param[in] ent_input An entity on the input mesh with a global ID.
+  * @param[in] ent_output An entity on the output mesh whose global ID should be set.
+  * @retval               Normally MB_SUCCESS, but returns other values if tag_get_data or tag_set_data fail.
+  */
+int MBRefinerTagManager::copy_gid( MBEntityHandle ent_input, MBEntityHandle ent_output )
+{
+  int gid = -1;
+  int status;
+  if ( ( status =  this->input_mesh->tag_get_data( this->tag_igid, &ent_input, 1, &gid ) ) == MB_SUCCESS )
+    {
+    status = this->output_mesh->tag_set_data( this->tag_ogid, &ent_output, 1, &gid );
+    }
+  return status;
 }
 
 /**\brief Set parallel status and sharing process list on an entity.
@@ -416,5 +456,56 @@ void MBRefinerTagManager::get_common_processes(
     }
   std::cout << "    Common procs " << common_shared_procs;
   std::cout << "\n";
+}
+
+void MBRefinerTagManager::create_tag_internal( MBTag tag_in, int offset )
+{
+  std::pair< MBTag, int > tag_rec;
+  std::vector< char > tag_default;
+  std::string tag_name;
+  MBTagType tag_type;
+  MBDataType tag_data_type;
+  int tag_size;
+
+  tag_rec.second = offset;
+  this->input_mesh->tag_get_name( tag_in, tag_name );
+  this->input_mesh->tag_get_size( tag_in, tag_size );
+  this->input_mesh->tag_get_type( tag_in, tag_type );
+  this->input_mesh->tag_get_data_type( tag_in, tag_data_type );
+  this->input_mesh->tag_get_default_value( tag_in, (void*) &tag_default[0] );
+  tag_default.resize( tag_size );
+  MBErrorCode res = this->output_mesh->tag_create(
+    tag_name.c_str(), tag_size, tag_type, tag_data_type, tag_rec.first, (void*) &tag_default[0], true );
+  std::cout
+    << "Creating output tag: \"" << tag_name.c_str() << "\" handle: " << tag_rec.first
+    << " input handle: " << tag_in << "\n";
+  if ( res == MB_FAILURE )
+    {
+    std::cerr
+      << "Could not create output tag name: \"" << tag_name.c_str() << "\" type: "
+      << tag_type << " data type: " << tag_data_type << "\n";
+    }
+  else
+    {
+    this->output_vertex_tags.push_back( tag_rec );
+    }
+}
+
+void MBRefinerTagManager::set_element_tags_from_ent( MBEntityHandle ent_input )
+{
+  std::vector< std::pair< MBTag, int > >::iterator it;
+  for ( it = this->input_element_tags.begin(); it != this->input_element_tags.end(); ++ it )
+    {
+    this->input_mesh->tag_get_data( it->first, &ent_input, 1, &this->element_tag_data[it->second] );
+    }
+}
+
+void MBRefinerTagManager::assign_element_tags( MBEntityHandle ent_output )
+{
+  std::vector< std::pair< MBTag, int > >::iterator it;
+  for ( it = this->output_element_tags.begin(); it != this->output_element_tags.end(); ++ it )
+    {
+    this->output_mesh->tag_set_data( it->first, &ent_output, 1, &this->element_tag_data[it->second] );
+    }
 }
 

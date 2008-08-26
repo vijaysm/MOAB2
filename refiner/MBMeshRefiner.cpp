@@ -111,16 +111,24 @@ bool MBMeshRefiner::refine( MBRange& range )
         MBRange set_ents;
         if ( this->mesh_in->get_entities_by_handle( *it, set_ents, false ) == MB_SUCCESS )
           {
+          // Create a matching set on the output mesh.
           MBMeshRefinerIterator set_work;
           unsigned int set_work_opts;
           this->mesh_in->get_meshset_options( *it, set_work_opts );
           this->mesh_out->create_meshset( set_work_opts, set_work.destination_set );
           set_work.subset = set_ents;
           work.push_back( set_work );
+          // Copy any per-element tag values the user has requested to the output set.
+          this->tag_manager->set_element_tags_from_ent( *it );
+          this->tag_manager->assign_element_tags( set_work.destination_set );
+          // Copy the global ID to the new set (assuming it exists).
+          this->tag_manager->copy_gid( *it, set_work.destination_set );
           }
         }
       else
         {
+        this->tag_manager->set_element_tags_from_ent( *it );
+        this->tag_manager->set_element_procs_from_ent( *it );
         this->entity_refiner->refine_entity( etyp, *it );
         }
       }

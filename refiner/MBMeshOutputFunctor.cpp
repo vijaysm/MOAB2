@@ -255,7 +255,7 @@ void MBMeshOutputFunctor::operator () ( MBEntityType etyp )
     {
     std::cout << " *** ";
     // FIXME: Handle tag assignment for elements as well as vertices
-    //this->assign_tags( elem_handle, this->element_tag_data );
+    this->tag_manager->assign_element_tags( elem_handle );
     }
   std::cout << "---------> " << elem_handle << " ( " << etyp << " )\n\n";
   this->elem_vert.clear();

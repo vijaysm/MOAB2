@@ -186,15 +186,15 @@ bool MBSplitVertices<_n>::create_element(
   int stat;
   stat = this->tag_manager->get_input_gids( _n, elem_verts, this->split_gids );
   MBSplitVertexIndex<_n> key( &this->split_gids[0] );
-  this->tag_manager->get_common_processes( _n, elem_verts, this->common_shared_procs );
-  proc_partition_counts[this->common_shared_procs]++;
-  key.set_common_processes( this->common_shared_procs );
+  //this->tag_manager->get_common_processes( _n, elem_verts, this->common_shared_procs );
+  proc_partition_counts[this->tag_manager->get_element_procs()]++;
+  key.set_common_processes( this->tag_manager->get_element_procs() );
   if ( this->mesh_out->create_element( etyp, elem_verts, nconn, elem_handle ) != MB_SUCCESS )
     {
     return false;
     }
   (*this)[key] = elem_handle;
-  this->tag_manager->set_sharing( elem_handle, this->common_shared_procs );
+  this->tag_manager->set_sharing( elem_handle, this->tag_manager->get_element_procs() );
   return true;
 }
 

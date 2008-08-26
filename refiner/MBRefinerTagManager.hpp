@@ -45,10 +45,18 @@ public:
   int get_vertex_tag_size() const { return this->vertex_size; }
   int get_number_of_vertex_tags() const { return this->input_vertex_tags.size(); }
 
+  void reset_element_tags();
+  int add_element_tag( MBTag tag_handle );
+  int get_element_tag_size() const { return this->element_size; }
+  int get_number_of_element_tags() const { return this->input_element_tags.size(); }
+
   void create_output_tags();
 
   void get_input_vertex_tag( int i, MBTag& tag, int& byte_offset );
   void get_output_vertex_tag( int i, MBTag& tag, int& byte_offset );
+
+  void get_input_element_tag( int i, MBTag& tag, int& byte_offset );
+  void get_output_element_tag( int i, MBTag& tag, int& byte_offset );
 
   MBInterface* get_input_mesh() { return this->input_mesh; }
   MBInterface* get_output_mesh() { return this->output_mesh; }
@@ -60,14 +68,36 @@ public:
   int get_input_gids( int n, const MBEntityHandle* ents, std::vector<int>& gids );
   int get_output_gids( int n, const MBEntityHandle* ents, std::vector<int>& gids );
   int set_gid( MBEntityHandle ent, int gid );
+  int copy_gid( MBEntityHandle ent_input, MBEntityHandle ent_output );
 
   void set_sharing( MBEntityHandle ent_handle, MBProcessSet& procs );
   void get_common_processes( int num, const MBEntityHandle* src, MBProcessSet& common_shared_procs, bool on_output_mesh = true );
 
+  void set_element_tags_from_ent( MBEntityHandle ent_input );
+  void assign_element_tags( MBEntityHandle ent_output );
+
+  void set_element_procs_from_ent( MBEntityHandle ent_input )
+    {
+    this->get_common_processes( 1, &ent_input, this->current_element_procs, false );
+    }
+  MBProcessSet& get_element_procs()
+    {
+    return this->current_element_procs;
+    }
+  void set_element_sharing( MBEntityHandle ent_output )
+    {
+    this->set_sharing( ent_output, this->current_element_procs );
+    }
+
 protected:
+  void create_tag_internal( MBTag, int );
+
   std::vector< std::pair< MBTag, int > > input_vertex_tags;
   std::vector< std::pair< MBTag, int > > output_vertex_tags;
+  std::vector< std::pair< MBTag, int > > input_element_tags;
+  std::vector< std::pair< MBTag, int > > output_element_tags;
   int vertex_size;
+  int element_size;
   MBInterface* input_mesh;
   MBInterface* output_mesh;
   MBTag tag_ipstatus; // Handle for PARALLEL_STATUS on mesh_in
@@ -86,6 +116,8 @@ protected:
   std::vector<int> shared_procs_in; // Used to hold procs sharing an input vert.
   std::vector<int> shared_procs_out; // Used to hold procs sharing an output entity.
   MBProcessSet current_shared_procs; // Holds process list as it is being accumulated
+  MBProcessSet current_element_procs; // The list of processes which should share an output element.
+  std::vector<char> element_tag_data; // Holds tag data for per-element tags
 };
 
 #endif // MB_REFINERTAGMANAGER_H
