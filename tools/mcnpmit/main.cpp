@@ -188,6 +188,11 @@ int main(int argc, char **argv) {
   MBCartVect tmp_cartvect;
   std::vector<double> coords;
 
+  double tal_sum     = 0.0,
+         err_sum     = 0.0,
+         tal_sum_sqr = 0.0,
+         err_sum_sqr = 0.0;
+
 //  double davg = 0.0;
 //  unsigned int    nmax = 0, nmin = 1000000000 ;
 
@@ -220,11 +225,27 @@ int main(int argc, char **argv) {
     testvc[1] = transformed_pt[1]; 
     testvc[2] = transformed_pt[2];
 
-    // std::cout << n << " " << testvc << std::endl;
-
     // Find the leaf containing the point
     MBresult = kdtree.leaf_containing_point( root, transformed_pt, treeiter);
-    assert(MBresult == MB_SUCCESS);
+    if (MB_SUCCESS != MBresult) {
+      double x, y, z;
+      if (CARTESIAN == coord_sys) {
+        x = testvc[0];
+        y = testvc[1];
+	z = testvc[2];
+      }
+      else if (CYLINDRICAL == coord_sys) {
+        x = testvc[0]*cos(2*M_PI*testvc[2]);
+        y = testvc[0]*sin(2*M_PI*testvc[2]);
+        z = testvc[1];
+      } 
+      else {
+        assert(MB_SUCCESS == MBresult);
+      }
+      std::cout << "No leaf found, MCNP coord xyz=" << x << " " << y << " " << z << std::endl;
+      cfd_iter++;
+      continue;
+    }
 
     range.clear();
     MBresult = MBI -> get_entities_by_type( treeiter.handle(), MBHEX, range );
@@ -269,6 +290,11 @@ int main(int argc, char **argv) {
 
         found = true;
         elems_read++;
+	
+	tal_sum     = tal_sum + taldata;
+	err_sum     = err_sum + errdata;
+	tal_sum_sqr = tal_sum_sqr + taldata*taldata;
+	err_sum_sqr = err_sum_sqr + errdata*errdata;
 
 	  break;
       }
@@ -292,6 +318,15 @@ int main(int argc, char **argv) {
   else {
     std::cout << "Failure during query! " << elems_read << " elements interpolated." << std::endl << std::endl;
   }
+
+
+  double tal_std_dev = sqrt( (1.0/elems_read)*(tal_sum_sqr - (1.0/elems_read)*tal_sum*tal_sum) );
+  double err_std_dev = sqrt( (1.0/elems_read)*(err_sum_sqr - (1.0/elems_read)*err_sum*err_sum) );
+
+  std::cout << "Tally Mean:               " << tal_sum / elems_read << std::endl;
+  std::cout << "Tally Standard Deviation: " << tal_std_dev << std::endl;
+  std::cout << "Error Mean:               " << err_sum / elems_read << std::endl;
+  std::cout << "Error Standard Deviation: " << err_std_dev << std::endl;
 
   interp_time = clock() - build_time;
 

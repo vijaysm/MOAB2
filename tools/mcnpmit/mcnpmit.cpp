@@ -421,12 +421,12 @@ MCNPError McnpData::transform_point(double *p, double *r, int csys, double *rmat
       // Transform coordinate system
       switch( csys ) {
         case CARTESIAN :
-          r[0] = q[0]; r[1] = q[1]; r[2] = q[2];
+          r[0] = q[0]; r[1] = q[1]; r[2] = q[2];  // x, y, z
         break;
         case CYLINDRICAL :
-          r[0] = sqrt( q[0]*q[0] + q[1]*q[1] );
-          r[1] = q[2];
-          r[2] = c2pi * ( atan2( q[1], q[0] ) );
+          r[0] = sqrt( q[0]*q[0] + q[1]*q[1] );   // r
+          r[1] = q[2];                            // z
+          r[2] = c2pi * ( atan2( q[1], q[0] ) );  // theta (in rotations)
         break;
         case SPHERICAL :
           return MCNP_FAILURE;
