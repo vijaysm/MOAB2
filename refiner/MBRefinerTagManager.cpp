@@ -451,7 +451,8 @@ void MBRefinerTagManager::get_common_processes(
       }
     else
       {
-      //std::cout << " not shared | ";
+      // not shared, but everthing exists on this process, so make sure that bit is set...
+      common_shared_procs.set_process_member( this->rank );
       }
     }
   std::cout << "    Common procs " << common_shared_procs;

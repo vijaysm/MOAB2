@@ -16,7 +16,7 @@
 /**\class MBSplitVertices
   *\brief A dictionary of new vertices.
   *
-  * An array of existing vertex handles used as a key in a dictionary of new vertices.
+  * An array of existing vertex ids used as a key in a dictionary of new vertices.
   */
 #ifndef MB_SPLITVERTICES_HPP
 #define MB_SPLITVERTICES_HPP
@@ -37,11 +37,11 @@ class MBSplitVertexIndex
 public:
   MBSplitVertexIndex() { }
   MBSplitVertexIndex( const int* src )
-    { for ( int i = 0; i < _n; ++ i ) this->handles[i] = src[i]; std::sort( this->handles, this->handles + _n ); }
+    { for ( int i = 0; i < _n; ++ i ) this->ids[i] = src[i]; std::sort( this->ids, this->ids + _n ); }
   MBSplitVertexIndex( const MBSplitVertexIndex<_n>& src )
-    { for ( int i = 0; i < _n; ++ i ) this->handles[i] = src.handles[i]; this->process_set = src.process_set; }
+    { for ( int i = 0; i < _n; ++ i ) this->ids[i] = src.ids[i]; this->process_set = src.process_set; }
   MBSplitVertexIndex& operator = ( const MBSplitVertexIndex<_n>& src )
-    { for ( int i = 0; i < _n; ++ i ) this->handles[i] = src.handles[i]; this->process_set = src.process_set; return *this; }
+    { for ( int i = 0; i < _n; ++ i ) this->ids[i] = src.ids[i]; this->process_set = src.process_set; return *this; }
 
   void set_common_processes( const MBProcessSet& procs )
     { this->process_set = procs; }
@@ -52,16 +52,16 @@ public:
 
   bool operator < ( const MBSplitVertexIndex<_n>& other ) const
     {
-    // Ignore the process set. Only program errors lead to mismatched process sets with identical handles.
+    // Ignore the process set. Only program errors lead to mismatched process sets with identical ids.
     for ( int i = 0; i < _n; ++ i )
-      if ( this->handles[i] < other.handles[i] )
+      if ( this->ids[i] < other.ids[i] )
         return true;
-      else if ( this->handles[i] > other.handles[i] )
+      else if ( this->ids[i] > other.ids[i] )
         return false;
     return false;
     }
 
-  int handles[_n + 1];
+  int ids[_n + 1];
   MBProcessSet process_set;
 };
 
@@ -70,13 +70,51 @@ std::ostream& operator << ( std::ostream& os, const MBSplitVertexIndex<_n>& idx 
 {
   for ( int i = 0; i < _n; ++ i )
     {
-    os << idx.handles[i] << " ";
+    os << idx.ids[i] << " ";
     }
   os << "(" << idx.process_set << ")";
   return os;
 }
 
-/** A non-templated base class that the template subclasses all share.
+class MBEntitySourceRecord
+{
+public:
+  MBEntitySourceRecord() { }
+  MBEntitySourceRecord( int nc, MBEntityHandle ent, const MBProcessSet& procs )
+    { this->ids.resize( nc ); this->handle = ent; this->process_set = procs; }
+  MBEntitySourceRecord( const MBEntitySourceRecord& src )
+    { this->handle = src.handle; this->process_set = src.process_set; this->ids = src.ids; }
+  MBEntitySourceRecord& operator = ( const MBEntitySourceRecord& src )
+    { this->handle = src.handle; this->process_set = src.process_set; this->ids = src.ids; return *this; }
+
+  void set_common_processes( const MBProcessSet& procs )
+    { this->process_set = procs; }
+  MBProcessSet& common_processes()
+    { return this->process_set; }
+  const MBProcessSet& common_processes() const
+    { return this->process_set; }
+
+  bool operator < ( const MBEntitySourceRecord& other ) const
+    {
+    //assert( this->ids.size() == other.ids.size() );
+    std::vector<int>::size_type N = this->ids.size();
+    std::vector<int>::size_type i;
+    // Ignore the process set. Only program errors lead to mismatched process sets with identical ids.
+    for ( i = 0; i < N; ++ i )
+      if ( this->ids[i] < other.ids[i] )
+        return true;
+      else if ( this->ids[i] > other.ids[i] )
+        return false;
+    return false;
+    }
+
+  std::vector<int> ids;
+  MBProcessSet process_set;
+  MBEntityHandle handle;
+};
+
+
+/** A non-templated base class that the MBSplitVertices template subclasses all share.
   *
   * All methods that need to be accessed by other classes should be
   * declared by the base class so that no knowledge of template parameters
@@ -92,10 +130,6 @@ public:
     const MBEntityHandle* split_src, const double* coords, MBEntityHandle& vert_handle,
     std::map<MBProcessSet,int>& proc_partition_counts, bool handles_on_output_mesh ) = 0;
 
-  virtual bool create_element(
-    MBEntityType etyp, int nconn, const MBEntityHandle* elem_verts, MBEntityHandle& elem_handle,
-    std::map<MBProcessSet,int>& proc_partition_counts ) = 0;
-
   virtual void assign_global_ids( std::map<MBProcessSet,int>& gids ) = 0;
 
   MBInterface* mesh_out; // Output mesh. Needed for new vertex set in vert_handle
@@ -104,7 +138,34 @@ public:
   MBProcessSet common_shared_procs; // Holds intersection of several shared_procs_ins.
 };
 
-/** A map from a set of pre-existing entities to a new mesh entity.
+/** A vector of pre-existing entities to a new mesh entity.
+  *
+  * This is used as a dictionary to determine whether a new vertex should be
+  * created on the given n-simplex (n being the template parameter) or whether
+  * it has already been created as part of the refinement of a neighboring entity.
+  */
+class MBEntitySource : public std::vector<MBEntitySourceRecord>
+{
+public:
+  typedef std::vector<MBEntitySourceRecord> VecType;
+  typedef std::vector<MBEntitySourceRecord>::iterator VecIteratorType;
+
+  MBEntitySource( int num_corners, MBRefinerTagManager* tag_mgr );
+  ~MBEntitySource();
+  bool create_element(
+    MBEntityType etyp, int nconn, const MBEntityHandle* split_src, MBEntityHandle& elem_handle,
+    std::map<MBProcessSet,int>& proc_partition_counts );
+
+  void assign_global_ids( std::map<MBProcessSet,int>& gids );
+
+  MBInterface* mesh_out; // Output mesh. Needed for new vertex set in vert_handle
+  MBRefinerTagManager* tag_manager;
+  MBProcessSet common_shared_procs; // Holds intersection of several shared_procs_ins.
+  int num_corners;
+};
+
+
+/** A map from a set of pre-existing vertices to a new mesh vertex.
   *
   * This is used as a dictionary to determine whether a new vertex should be
   * created on the given n-simplex (n being the template parameter) or whether
@@ -122,9 +183,6 @@ public:
   virtual bool find_or_create(
     const MBEntityHandle* split_src, const double* coords, MBEntityHandle& vert_handle,
     std::map<MBProcessSet,int>& proc_partition_counts, bool handles_on_output_mesh );
-  virtual bool create_element(
-    MBEntityType etyp, int nconn, const MBEntityHandle* split_src, MBEntityHandle& elem_handle,
-    std::map<MBProcessSet,int>& proc_partition_counts );
 
   virtual void assign_global_ids( std::map<MBProcessSet,int>& gids );
 };
@@ -175,27 +233,6 @@ bool MBSplitVertices<_n>::find_or_create(
     }
   vert_handle = it->second;
   return false;
-}
-
-template< int _n >
-bool MBSplitVertices<_n>::create_element(
-  MBEntityType etyp, int nconn, const MBEntityHandle* elem_verts, MBEntityHandle& elem_handle,
-  std::map<MBProcessSet,int>& proc_partition_counts )
-{
-  // Get the global IDs of the input vertices
-  int stat;
-  stat = this->tag_manager->get_input_gids( _n, elem_verts, this->split_gids );
-  MBSplitVertexIndex<_n> key( &this->split_gids[0] );
-  //this->tag_manager->get_common_processes( _n, elem_verts, this->common_shared_procs );
-  proc_partition_counts[this->tag_manager->get_element_procs()]++;
-  key.set_common_processes( this->tag_manager->get_element_procs() );
-  if ( this->mesh_out->create_element( etyp, elem_verts, nconn, elem_handle ) != MB_SUCCESS )
-    {
-    return false;
-    }
-  (*this)[key] = elem_handle;
-  this->tag_manager->set_sharing( elem_handle, this->tag_manager->get_element_procs() );
-  return true;
 }
 
 template< int _n >

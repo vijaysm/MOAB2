@@ -17,6 +17,10 @@ MBMeshOutputFunctor::MBMeshOutputFunctor( MBRefinerTagManager* tag_mgr )
   this->tag_manager = tag_mgr;
   this->destination_set = 0; // don't place output entities in a set by default.
 
+  // When the input mesh and the output mesh are different, this map serves
+  // as a dictionary from input vertices to output vertices.
+  this->vertex_map = new MBSplitVertices<1>( this->tag_manager );
+
   // Hold information about newly-created vertices on subdivided edges and faces.
   this->split_vertices.resize( 4 );
   this->split_vertices[0] = 0; // Vertices (0-faces) cannot be split
@@ -27,15 +31,16 @@ MBMeshOutputFunctor::MBMeshOutputFunctor( MBRefinerTagManager* tag_mgr )
   // Hold information about newly-created mesh entities (other than split vertices)
   // This is necessary in order for global IDs to be assigned consistently across processes.
   this->new_entities.resize( 5 );
-  this->new_entities[0] = new MBSplitVertices<0>( this->tag_manager );
-  this->new_entities[1] = new MBSplitVertices<1>( this->tag_manager );
-  this->new_entities[2] = new MBSplitVertices<2>( this->tag_manager );
-  this->new_entities[3] = new MBSplitVertices<3>( this->tag_manager );
-  this->new_entities[4] = new MBSplitVertices<4>( this->tag_manager );
+  this->new_entities[0] = new MBEntitySource( 1, this->tag_manager );
+  this->new_entities[1] = new MBEntitySource( 2, this->tag_manager );
+  this->new_entities[2] = new MBEntitySource( 3, this->tag_manager );
+  this->new_entities[3] = new MBEntitySource( 4, this->tag_manager );
+  this->new_entities[4] = new MBEntitySource( 5, this->tag_manager );
 }
 
 MBMeshOutputFunctor::~MBMeshOutputFunctor()
 {
+  delete this->vertex_map;
   for ( int i = 1; i < 4; ++ i )
     delete this->split_vertices[i];
   for ( int i = 0; i < 5; ++ i )
@@ -156,10 +161,11 @@ void MBMeshOutputFunctor::assign_global_ids( MBParallelComm* comm )
     {
     (*vit)->assign_global_ids( gids );
     }
-  for ( vit = this->new_entities.begin(); vit != this->new_entities.end(); ++ vit )
+  std::vector<MBEntitySource*>::iterator sit;
+  for ( sit = this->new_entities.begin(); sit != this->new_entities.end(); ++ sit )
     {
-    if ( *vit )
-      (*vit)->assign_global_ids( gids );
+    if ( *sit )
+      (*sit)->assign_global_ids( gids );
     }
 }
 
@@ -190,7 +196,7 @@ MBEntityHandle MBMeshOutputFunctor::map_vertex( MBEntityHandle vhash, const doub
     return vhash;
     }
   MBEntityHandle vertex_handle;
-  bool newly_created = this->new_entities[1]->find_or_create(
+  bool newly_created = this->vertex_map->find_or_create(
     &vhash, vcoords, vertex_handle, this->proc_partition_counts, false );
   if ( newly_created )
     {
@@ -206,6 +212,7 @@ MBEntityHandle MBMeshOutputFunctor::map_vertex( MBEntityHandle vhash, const doub
     std::cerr << "Could not insert vertex into new mesh!\n";
     }
   this->print_vert_crud( vertex_handle, 1, &vhash, vcoords, vtags );
+  std::cout << "\nMap vert: " << vhash << " to: " << vertex_handle << "\n";
   return vertex_handle;
 }
 

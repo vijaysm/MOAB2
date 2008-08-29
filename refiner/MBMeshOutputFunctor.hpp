@@ -38,6 +38,7 @@
 #include <string.h>
 
 class MBSplitVerticesBase;
+class MBEntitySource;
 class MBParallelComm;
 
 class MBMeshOutputFunctor : public MBEntityRefinerOutputFunctor
@@ -60,8 +61,9 @@ public:
   MBInterface* mesh_in;
   MBInterface* mesh_out;
   bool input_is_output;
+  MBSplitVerticesBase* vertex_map;
   std::vector<MBSplitVerticesBase*> split_vertices;
-  std::vector<MBSplitVerticesBase*> new_entities;
+  std::vector<MBEntitySource*> new_entities;
   std::vector<MBEntityHandle> elem_vert;
   MBRefinerTagManager* tag_manager;
   MBEntityHandle destination_set;
