@@ -1445,18 +1445,6 @@ MBErrorCode  MBCore::tag_set_data(const MBTag tag_handle,
   if (NULL == entity_handles && 0 == num_entities)
     return tagServer->set_mesh_data(tag_handle, tag_data);
 
-  //verify handles
-  const EntitySequence* seq;
-  const MBEntityHandle* iter;
-  const MBEntityHandle* end = entity_handles + num_entities;
-  for(iter = entity_handles; iter != end; ++iter)
-  {
-    if (TYPE_FROM_HANDLE(*iter) == MBENTITYSET) continue;
-    
-    else if(sequenceManager->find(*iter, seq) != MB_SUCCESS)
-      return MB_ENTITY_NOT_FOUND;
-  }
-
   return tagServer->set_data(tag_handle, entity_handles, num_entities, tag_data);
 }
 
@@ -1465,10 +1453,6 @@ MBErrorCode  MBCore::tag_set_data(const MBTag tag_handle,
                                     const MBRange& entity_handles, 
                                     const void *tag_data)
 {
-  //verify handles
-  MBErrorCode result = sequence_manager()->check_valid_entities( entity_handles );
-  if (MB_SUCCESS != result)
-    return result;
   return tagServer->set_data(tag_handle, entity_handles, tag_data);
 }
 
@@ -1507,18 +1491,6 @@ MBErrorCode  MBCore::tag_set_data( const MBTag tag_handle,
   if (NULL == entity_handles && 0 == num_entities)
     return tagServer->set_mesh_data(tag_handle, tag_data[0], tag_sizes ? tag_sizes[0] : 0);
 
-  //verify handles
-  const EntitySequence* seq;
-  const MBEntityHandle* iter;
-  const MBEntityHandle* end = entity_handles + num_entities;
-  for(iter = entity_handles; iter != end; ++iter)
-  {
-    if (TYPE_FROM_HANDLE(*iter) == MBENTITYSET) continue;
-    
-    else if(sequenceManager->find(*iter, seq) != MB_SUCCESS)
-      return MB_ENTITY_NOT_FOUND;
-  }
-
   return tagServer->set_data(tag_handle, entity_handles, num_entities, tag_data, tag_sizes);
 }
 
@@ -1528,10 +1500,6 @@ MBErrorCode  MBCore::tag_set_data( const MBTag tag_handle,
                                    void const* const* tag_data,
                                    const int* tag_sizes )
 {
-  //verify handles
-  MBErrorCode result = sequence_manager()->check_valid_entities( entity_handles );
-  if (MB_SUCCESS != result)
-    return result;
   return tagServer->set_data(tag_handle, entity_handles, tag_data, tag_sizes);
 }
 

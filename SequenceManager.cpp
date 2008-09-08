@@ -136,6 +136,22 @@ MBErrorCode SequenceManager::check_valid_entities( const MBRange& entities ) con
   return MB_SUCCESS;
 }
 
+MBErrorCode SequenceManager::check_valid_entities( const MBEntityHandle* entities,
+                                                   size_t num_entities ) const
+{
+  MBErrorCode rval = MB_SUCCESS;
+  const EntitySequence* ptr = 0;
+  
+  const MBEntityHandle* const end = entities + num_entities;
+  for (; entities < end; ++entities) {
+    rval = find(*entities, ptr);
+    if (MB_SUCCESS != rval)
+      break;
+  }
+  
+  return rval;
+}
+
 MBErrorCode SequenceManager::delete_entity( MBEntityHandle entity )
 {
   return typeData[TYPE_FROM_HANDLE(entity)].erase( entity );

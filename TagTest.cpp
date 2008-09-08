@@ -29,6 +29,7 @@ void test_get_set_variable_length_dense();
 void test_get_set_variable_length_mesh();
 
 void regression_one_entity_by_var_tag();
+void regression_tag_on_nonexistent_entity();
 
 int main()
 {
@@ -59,6 +60,7 @@ int main()
   failures += RUN_TEST( test_get_set_variable_length_dense );
   failures += RUN_TEST( test_get_set_variable_length_mesh );  
   failures += RUN_TEST( regression_one_entity_by_var_tag );
+  failures += RUN_TEST( regression_tag_on_nonexistent_entity );
   
   return failures;
 }
@@ -1661,3 +1663,86 @@ void regression_one_entity_by_var_tag()
   CHECK_EQUAL( vertex, ents.front() );
 }
 
+/* Return MB_ENTITY_NOT_FOUND if asked to set a tag on an 
+   entity that doesn't exist.
+ */
+void regression_tag_on_nonexistent_entity()
+{
+  MBCore moab;
+  MBErrorCode rval;
+  const int tagval = 0xdeadbeef;
+  const void* valarr[1] = { &tagval };
+  const int numval = sizeof(int);
+  
+    // create all three types of tags
+  MBTag dense, sparse, bit;
+  rval = moab.tag_create( "test_dense", numval, MB_TAG_DENSE, MB_TYPE_INTEGER, dense, 0, false );
+  CHECK_ERR(rval);
+  rval = moab.tag_create( "test_sparse", numval, MB_TAG_SPARSE, MB_TYPE_INTEGER, sparse, 0, false );
+  CHECK_ERR(rval);
+  rval = moab.tag_create( "test_bit", numval, MB_TAG_BIT, MB_TYPE_BIT, bit, 0, false );
+  CHECK_ERR(rval);
+  
+    // for each tag type, check all four mechanisms for setting tag data
+    // (fixed and variable length given array or range).
+  MBEntityHandle handle = (MBEntityHandle)1;
+  MBRange handles;
+  handles.insert( handle );
+  
+  rval = moab.tag_set_data( dense,  &handle, 1, &tagval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  rval = moab.tag_set_data( sparse, &handle, 1, &tagval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  rval = moab.tag_set_data( bit,    &handle, 1, &tagval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  
+  rval = moab.tag_set_data( dense,  handles, &tagval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  rval = moab.tag_set_data( sparse, handles, &tagval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  rval = moab.tag_set_data( bit,    handles, &tagval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  
+  rval = moab.tag_set_data( dense,  &handle, 1, valarr, &numval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  rval = moab.tag_set_data( sparse, &handle, 1, valarr, &numval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  
+  rval = moab.tag_set_data( dense,  handles, valarr, &numval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  rval = moab.tag_set_data( sparse, handles, valarr, &numval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  
+    // now add create an entity and try an adjacent handle
+  MBEntityHandle set;
+  rval = moab.create_meshset( 0, set );
+  CHECK_ERR(rval);
+  
+  handle = (MBEntityHandle)(set+1);
+  handles.clear();
+  handles.insert( handle );
+  
+  rval = moab.tag_set_data( dense,  &handle, 1, &tagval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  rval = moab.tag_set_data( sparse, &handle, 1, &tagval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  rval = moab.tag_set_data( bit,    &handle, 1, &tagval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  
+  rval = moab.tag_set_data( dense,  handles, &tagval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  rval = moab.tag_set_data( sparse, handles, &tagval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  rval = moab.tag_set_data( bit,    handles, &tagval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  
+  rval = moab.tag_set_data( dense,  &handle, 1, valarr, &numval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  rval = moab.tag_set_data( sparse, &handle, 1, valarr, &numval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  
+  rval = moab.tag_set_data( dense,  handles, valarr, &numval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  rval = moab.tag_set_data( sparse, handles, valarr, &numval );
+  CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+}

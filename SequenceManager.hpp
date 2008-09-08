@@ -62,6 +62,10 @@ class SequenceManager
       /** Check if passed entity handles are valid */
     MBErrorCode check_valid_entities( const MBRange& entities ) const;
     
+      /** Check if passed entity handles are valid */
+    MBErrorCode check_valid_entities( const MBEntityHandle entities[],
+                                      size_t num_entities ) const;
+    
       /** Delete an entity.  Deletes sequence if only contained entity. */
     MBErrorCode delete_entity( MBEntityHandle entity );
     
