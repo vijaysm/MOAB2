@@ -330,7 +330,8 @@ MBErrorCode TagServer::set_data( const MBTag tag_handle,
       else
         rval = sequenceManager->set_tag_data( tag_id, entity_handles, 
                                             data, tag_info->default_value() );
-  
+      break;
+    
     case MB_TAG_SPARSE:
       rval = sequenceManager->check_valid_entities( entity_handles );
       if (MB_SUCCESS == rval)
