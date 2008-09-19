@@ -171,6 +171,7 @@ void MBParallelComm::add_pcomm(MBParallelComm *pc)
   std::vector<MBParallelComm *> pc_array(MAX_SHARING_PROCS, 
                                          (MBParallelComm*)NULL);
   MBTag pc_tag = pcomm_tag(mbImpl, true);
+  assert(0 != pc_tag);
   
   MBErrorCode result = mbImpl->tag_get_data(pc_tag, 0, 0, (void*)&pc_array[0]);
   if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) return;
@@ -3259,7 +3260,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
         std::copy(sent_ents[ind-MAX_SHARING_PROCS].begin(),
                   sent_ents[ind-MAX_SHARING_PROCS].end(),
                   std::back_inserter(sent_ents_tmp));
-        assert(!sent_ents_tmp.empty());
+        assert(sent_ents_tmp.size() == sent_ents[ind-MAX_SHARING_PROCS].size());
         result = set_remote_data(&sent_ents_tmp[0], &remote_handles_v[0], sent_ents_tmp.size(),
                                  buffProcs[ind-MAX_SHARING_PROCS]);
         RRA("Trouble setting remote data range on sent entities in ghost exchange.");
@@ -3574,13 +3575,18 @@ MBTag MBParallelComm::pcomm_tag(MBInterface *impl,
                                 bool create_if_missing)
 {
   MBTag this_tag = 0;
-  MBErrorCode result = impl->tag_create(PARALLEL_COMM_TAG_NAME, 
-                                        MAX_SHARING_PROCS*sizeof(MBParallelComm*),
-                                        MB_TAG_SPARSE,
-                                        MB_TYPE_OPAQUE, this_tag,
-                                        NULL, create_if_missing);
+  MBErrorCode result;
+  result = impl->tag_get_handle(PARALLEL_COMM_TAG_NAME, this_tag);
+  if ((MB_TAG_NOT_FOUND == result || 0 == this_tag) &&
+      create_if_missing) {
+    result = impl->tag_create(PARALLEL_COMM_TAG_NAME, 
+                              MAX_SHARING_PROCS*sizeof(MBParallelComm*),
+                              MB_TAG_SPARSE,
+                              MB_TYPE_OPAQUE, this_tag,
+                              NULL, true);
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result)
       return 0;
+  }
   
   return this_tag;
 }
@@ -3588,10 +3594,10 @@ MBTag MBParallelComm::pcomm_tag(MBInterface *impl,
     //! get the indexed pcomm object from the interface
 MBParallelComm *MBParallelComm::get_pcomm(MBInterface *impl, const int index) 
 {
-  MBParallelComm *pc_array[MAX_SHARING_PROCS];
   MBTag pc_tag = pcomm_tag(impl, false);
   if (0 == pc_tag) return NULL;
   
+  MBParallelComm *pc_array[MAX_SHARING_PROCS];
   MBErrorCode result = impl->tag_get_data(pc_tag, 0, 0, (void*)pc_array);
   if (MB_SUCCESS != result) return NULL;
   

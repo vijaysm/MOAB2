@@ -88,7 +88,7 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  int npos = 1, tag_val, distrib, with_ghosts = 1, resolve_shared = 1, use_mpio = 0;
+  int npos = 1, tag_val, distrib, with_ghosts = 0, resolve_shared = 1, use_mpio = 0;
   const char *tag_name;
   std::vector<std::string> filenames;
   int parallel_option = 0;
@@ -331,30 +331,38 @@ MBErrorCode read_file(MBInterface *mbImpl,
   std::vector<MBParallelComm*> pcs(filenames.size());
   std::vector<ReadParallel*> rps(filenames.size());
   MBErrorCode result;
-  
-  for (unsigned int i = 0; i < filenames.size(); i++) {
-    pcs[i] = new MBParallelComm(mbImpl);
-    rps[i] = new ReadParallel(mbImpl, pcs[i]);
+
+  if (1 < filenames.size()) {
+    for (unsigned int i = 0; i < filenames.size(); i++) {
+      pcs[i] = new MBParallelComm(mbImpl);
+      rps[i] = new ReadParallel(mbImpl, pcs[i]);
     
-    result = rps[i]->load_file(filenames[i].c_str(), filesets[i], 
-                               FileOptions(options.str().c_str()), NULL, 0);
-    if (MB_SUCCESS != result) 
-      PRINT_LAST_ERROR;
+      result = rps[i]->load_file(filenames[i].c_str(), filesets[i], 
+                                 FileOptions(options.str().c_str()), NULL, 0);
+      if (MB_SUCCESS != result) 
+        PRINT_LAST_ERROR;
 
-    if (MB_SUCCESS != result) {
-      MPI_Abort(MPI_COMM_WORLD, result);
-      break;
+      if (MB_SUCCESS != result) {
+        MPI_Abort(MPI_COMM_WORLD, result);
+        break;
+      }
+
+        // exchange tag
+      result = pcs[i]->exchange_tags("GLOBAL_ID");
+      if (MB_SUCCESS != result) {
+        std::cerr << "Tag exchange didn't work." << std::endl;
+        break;
+      }
+
     }
-
-      // exchange tag
-    result = pcs[i]->exchange_tags("GLOBAL_ID");
-    if (MB_SUCCESS != result) {
-      std::cerr << "Tag exchange didn't work." << std::endl;
-      break;
-    }
-
   }
-
+  else {
+    result = mbImpl->load_file(filenames[0].c_str(), filesets[0], 
+                               options.str().c_str());
+    pcs[0] = MBParallelComm::get_pcomm(mbImpl, 0);
+    assert(pcs[0]);
+  }
+    
   if (MB_SUCCESS == result) report_iface_ents(mbImpl, pcs);
   
   return result;
