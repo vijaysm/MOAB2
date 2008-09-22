@@ -302,6 +302,7 @@ int main( int argc, char* argv[] )
   bool geom_owners = false;
   bool mesh_owners = false;
   bool just_list = false;
+  bool just_list_basic = false;
   std::vector<std::string> file_list;
   set_stats total_stats, file_stats;
   
@@ -309,8 +310,10 @@ int main( int argc, char* argv[] )
   {
     if (!strcmp(argv[i],"-g"))
       geom_owners = true;
-    else if (!strcmp(argv[i],"-l"))
+    else if (!strcmp(argv[i],"-ll"))
       just_list = true;
+    else if (!strcmp(argv[i],"-l"))
+      just_list_basic = true;
     else if (!strcmp(argv[i],"-m"))
       mesh_owners = true;
     else if (*argv[i] && *argv[i] != '-')
@@ -461,6 +464,7 @@ int main( int argc, char* argv[] )
     }
 
     if (just_list) moab.list_entities(0, 1);
+    else if (just_list_basic) moab.list_entities(0, 0);
     
     moab.delete_mesh();
   }
