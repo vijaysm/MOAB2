@@ -44,10 +44,11 @@
 
 void usage( const char* exe )
 {
-  std::cerr << "Usage: " << exe << " [-g] [-m] <mesh file list>" << std::endl
-            << "-g : print counts by geometric owner" << std::endl
-            << "-l : print counts of mesh" << std::endl
-            << "-m : print counts per block/boundary" << std::endl
+  std::cerr << "Usage: " << exe << " [-g] [-m] [-l] [-ll] <mesh file list>" << std::endl
+            << "-g  : print counts by geometric owner" << std::endl
+            << "-m  : print counts per block/boundary" << std::endl
+            << "-l  : print counts of mesh" << std::endl
+            << "-ll : verbose listing of every entity" << std::endl
             ;
   exit(1);
 }
@@ -272,7 +273,7 @@ void print_stats( set_stats& stats )
 
     double tmp_dbl = s.sqr / s.count - s.sum*s.sum / (double)s.count / (double)s.count;
     if (tmp_dbl < 0.0) {
-      if (-tmp_dbl < 100.0*DBL_EPSILON)
+      if (tmp_dbl < -100.0*DBL_EPSILON)
         std::cout << "WARNING: stat values dubious, s^2 - sig_s = " << tmp_dbl << std::endl;
       tmp_dbl = 0.0;
     }
@@ -464,7 +465,8 @@ int main( int argc, char* argv[] )
     }
 
     if (just_list) moab.list_entities(0, 1);
-    else if (just_list_basic) moab.list_entities(0, 0);
+   
+    if (just_list_basic) moab.list_entities(0, 0);
     
     moab.delete_mesh();
   }
