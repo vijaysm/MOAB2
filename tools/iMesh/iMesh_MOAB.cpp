@@ -188,6 +188,8 @@ const iBase_ErrorType iBase_ERROR_MAP[] =
   iBase_FILE_WRITE_ERROR, // MB_FILE_WRITE_ERROR,
   iBase_NOT_SUPPORTED, // MB_NOT_IMPLEMENTED,
   iBase_TAG_ALREADY_EXISTS, // MB_ALREADY_ALLOCATED,
+  iBase_FAILURE, // MB_VARIABLE_DATA_LENGTH,
+  iBase_FAILURE, // MB_INVALID_SIZE,
   iBase_FAILURE // MB_FAILURE};
 };
 
@@ -322,6 +324,14 @@ extern "C" {
       std::string msg("iMesh_load:ERROR loading a mesh, with error type: ");
       msg += MBI->get_error_string(result);
       iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
+    }
+
+    if (handle) {
+      MBRange set_ents;
+      result = MBI->get_entities_by_handle(file_set, set_ents);
+      if (MB_SUCCESS != result) RETURN(iBase_ERROR_MAP[result]);
+      result = MBI->add_entities(ENTITY_HANDLE(handle), set_ents);
+      if (MB_SUCCESS != result) RETURN(iBase_ERROR_MAP[result]);
     }
 
       // create interior edges/faces if requested
@@ -587,7 +597,7 @@ extern "C" {
     int i;
     for (ent_it = req_entities.begin(), i = 0; ent_it != req_entities.end(); 
          ent_it++, i++) {
-      MBErrorCode result = MBI->get_connectivity(*ent_it, tmp_connect, num_connect, true);
+      MBErrorCode result = MBI->get_connectivity(*ent_it, tmp_connect, num_connect);
       if (MB_SUCCESS != result) {
         std::string msg("iMesh_getVtxCoordIndex: couldn't get connectivity, with error type: ");
         msg += MBI->get_error_string(result);
@@ -754,7 +764,7 @@ extern "C" {
       const MBEntityHandle *connect;
       int num_connect;
       MBErrorCode result;
-      for (MBRange::iterator rit = entities.begin(); rit != entities.end(); rit++) {
+      for (MBRange::const_iterator rit = entities.lower_bound(MBEDGE); rit != entities.end(); rit++) {
         result = MBI->get_connectivity(*rit, connect, num_connect);
         if (MB_SUCCESS != result) RETURN(iBase_ERROR_MAP[result]);
         num_sub += num_connect;
@@ -789,6 +799,11 @@ extern "C" {
     for (MBRange::iterator rit = entities.begin(); rit != endr; rit++) {
       adj_ents.clear();
       (*offset)[i] = num_sub;
+      if (to_dim == 0 && MBI->type_from_handle(*rit) == MBVERTEX) {
+        i++;
+        continue;
+      }
+      
     
       result = MBI->get_adjacencies(&(*rit), 1, (int)entity_type_requested, false,
                                     adj_ents);
@@ -1581,34 +1596,20 @@ extern "C" {
   
       // make the entities
     MBEntityHandle *new_ents = HANDLE_ARRAY_PTR(*new_entity_handles);
-    static double dum_coords[] = {0.0, 0.0, 0.0};
 
     MBErrorCode tmp_result, result = MB_SUCCESS;
   
-    if (this_type == MBVERTEX) {
-      for (int i = 0; i < num_ents; i++) {
-        tmp_result = MBI->create_vertex(dum_coords, new_ents[i]);
-        if (MB_SUCCESS != tmp_result) {
-          (*status)[i] = iBase_CREATION_FAILED;
-          result = tmp_result;
-        }
-        else
-          (*status)[i] = iBase_NEW;
-      }  
-    }
-    else {
-      for (int i = 0; i < num_ents; i++) {
-        tmp_result = MBI->create_element(this_type, lower_ents, num_verts,
-                                         new_ents[i]);
-        if (MB_SUCCESS != tmp_result) {
-          (*status)[i] = iBase_CREATION_FAILED;
-          result = tmp_result;
-        }
-        else
-          (*status)[i] = iBase_NEW;
-    
-        lower_ents += num_verts;
+    for (int i = 0; i < num_ents; i++) {
+      tmp_result = MBI->create_element(this_type, lower_ents, num_verts,
+                                       new_ents[i]);
+      if (MB_SUCCESS != tmp_result) {
+        (*status)[i] = iBase_CREATION_FAILED;
+        result = tmp_result;
       }
+      else
+        (*status)[i] = iBase_NEW;
+    
+      lower_ents += num_verts;
     }
 
     if (MB_SUCCESS != result)
@@ -2051,13 +2052,21 @@ extern "C" {
       RETURN(iBase_INVALID_ENTITY_COUNT);
     }
 
-    int dum = 1;
-    iMesh_createEntArr(instance, new_entity_topology, 
-                       lower_order_entity_handles,
-                       lower_order_entity_handles_size,
-                       &new_entity_handle,
-                       &dum, &dum,
-                       &status, &dum, &dum, err);
+      // call MB directly to allow creation of higher-order entities
+      // directly from connectivity
+    MBEntityType this_type = mb_topology_table[new_entity_topology];
+    MBEntityHandle tmp_ent;
+    MBErrorCode result = MBI->create_element(this_type,
+                                             CONST_HANDLE_ARRAY_PTR(lower_order_entity_handles), 
+                                             lower_order_entity_handles_size, 
+                                             tmp_ent);
+    if (MB_SUCCESS != result)
+      *status = iBase_CREATION_FAILED;
+    else
+      *status = iBase_SUCCESS;
+    *new_entity_handle = CAST_TO_VOID(tmp_ent);
+
+    *err = *status;
   }
 
   void iMesh_deleteEnt(iMesh_Instance instance,
