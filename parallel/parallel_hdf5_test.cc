@@ -70,7 +70,7 @@ void load_and_partition( MBInterface& moab, const char* filename )
   MBEntityHandle set;
   
   rval = moab.load_file( filename, set, 
-                         "PARALLEL=READ_DELETE;"
+                         "PARALLEL=BCAST_DELETE;"
                          "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
                          "PARTITION_DISTRIBUTE;"
                          "PARALLEL_RESOLVE_SHARED_ENTS" );
@@ -198,7 +198,7 @@ void test_write_elements()
   err = MPI_Comm_size( MPI_COMM_WORLD, &size );
   CHECK(!err);
   
-  MBCore moab_instance;
+  MBCore moab_instance( rank, size );
   MBInterface& moab = moab_instance;
   load_and_partition( moab, InputFile );
   
