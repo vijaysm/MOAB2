@@ -459,13 +459,18 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
       // distribute the partition sets
     unsigned int tot_sets = myPcomm->partition_sets().size();
     unsigned int num_sets = myPcomm->partition_sets().size() / proc_sz;
-    if (proc_rk < (int) (myPcomm->partition_sets().size() % proc_sz)) num_sets++;
-
-    for (unsigned int i = 0; i < num_sets; i++) {
-//      tmp_sets.insert(myPcomm->partition_sets()[i*proc_sz + proc_rk]);
-      if (num_sets*proc_rk+i < tot_sets)
-        tmp_sets.insert(myPcomm->partition_sets()[num_sets*proc_rk+i]);
+    unsigned int num_leftover = myPcomm->partition_sets().size() % proc_sz;
+    int begin_set = 0;
+    if (proc_rk < (int) num_leftover) {
+      num_sets++;
+      begin_set = num_sets * proc_rk;
     }
+    else
+      begin_set = proc_rk * num_sets + num_leftover;
+      
+
+    for (unsigned int i = 0; i < num_sets; i++)
+      tmp_sets.insert(myPcomm->partition_sets()[begin_set+i]);
     
     myPcomm->partition_sets().swap(tmp_sets);
   }

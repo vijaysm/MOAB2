@@ -451,7 +451,15 @@ MBErrorCode report_iface_ents(MBInterface *mbImpl,
   // report # regions owned by this proc
   std::cout << "Proc " << rank << " owns " << part_ents.size() 
 	    << " 3d entities." << std::endl;
+
+    // get total # regions over all procs
+  int num_local = part_ents.size(), num_total;
   
+  int failure = MPI_Reduce(&num_local, &num_total, 1,
+                           MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  if (0 == rank)
+    std::cout << "Total # owned regions = " << num_total << std::endl;
+    
   return result;
 }
 
