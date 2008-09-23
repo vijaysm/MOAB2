@@ -406,7 +406,15 @@ MBErrorCode report_iface_ents(MBInterface *mbImpl,
   MBErrorCode result = MB_SUCCESS, tmp_result;
   
     // now figure out which vertices are shared
+  MBRange part_ents;
   for (unsigned int p = 0; p < pcs.size(); p++) {
+    // get entities owned by this partition
+    for (MBRange::iterator rit = pcs[p]->partition_sets().begin();
+	 rit != pcs[p]->partition_sets().end(); rit++) {
+      tmp_result = mbImpl->get_entities_by_dimension(*rit, 3, part_ents, true);
+      if (MB_SUCCESS != tmp_result) result = tmp_result;
+    }
+
     for (int i = 0; i < 4; i++) {
       tmp_result = pcs[p]->get_iface_entities(-1, i, iface_ents[i]);
       
@@ -436,7 +444,14 @@ MBErrorCode report_iface_ents(MBInterface *mbImpl,
               << i << "d iface entities." << std::endl;
   std::cerr << "    (" << iface_ents[5].size() 
             << " verts adj to other iface ents)" << std::endl;
+  if (iface_ents[0].size() != iface_ents[5].size())
+    std::cerr << "WARNING: number of interface vertices don't agree with "
+	      << "vertex adjacencies on interface entities." << std::endl;
 
+  // report # regions owned by this proc
+  std::cout << "Proc " << rank << " owns " << part_ents.size() 
+	    << " 3d entities." << std::endl;
+  
   return result;
 }
 
