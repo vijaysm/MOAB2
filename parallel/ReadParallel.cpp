@@ -330,7 +330,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
           }
 
             // add the received entities to this fileset if I wasn't the reader
-          if (!i_read)
+          if (!i_read && MB_SUCCESS == tmp_result)
             tmp_result = mbImpl->add_entities(file_set, entities);
           
           break;
