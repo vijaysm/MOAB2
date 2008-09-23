@@ -455,7 +455,7 @@ SequenceManager::sequence_start_handle( MBEntityType type,
   if (start < MB_START_ID ||
       !tsm.is_free_sequence( handle, count, data, size )) {
     MBEntityHandle pstart = handleUtils.create_handle( type, MB_START_ID, proc );
-    MBEntityHandle pend   = handleUtils.create_handle( type, MB_END_ID,  proc );
+    MBEntityHandle pend   = handleUtils.create_handle( type, handleUtils.max_id(),  proc );
     handle = tsm.find_free_sequence( count, pstart, pend, data, data_size, size);
   }
   return handle;
