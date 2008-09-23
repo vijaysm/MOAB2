@@ -226,7 +226,7 @@ MBErrorCode MBParallelComm::assign_global_ids(MBEntityHandle this_set,
     MBRange dum_range;
     MBRange::iterator rit;
     unsigned int i;
-    for (rit = entities[dim].begin(); rit != entities[dim].end(); rit++, i++)
+    for (rit = entities[dim].begin(), i = 0; rit != entities[dim].end(); rit++, i++)
       if (pstatus[i] & PSTATUS_NOT_OWNED)
         dum_range.insert(*rit);
     entities[dim] = entities[dim].subtract(dum_range);
