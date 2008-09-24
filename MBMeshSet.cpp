@@ -479,9 +479,9 @@ range_tool<pair_iter_t>::ranged_insert_entities( MBMeshSet::Count& count,
     
       // discard any input blocks already in the set
     for (; i != end && i->second <= list_write[1]; ++i);
-    if (i == end) {
+    if (i == end || i->first > list_write[1]+1) {
       list_write += 2;
-      break;
+      continue;
     }
     
       // merge subsequent blocks in meshset

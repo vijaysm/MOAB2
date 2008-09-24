@@ -1366,28 +1366,25 @@ MBErrorCode mb_mesh_sets_test(MBInterface * MB, int flags)
     return result;
 
   MBEntityHandle handle_array[] = {1, 2, 3, 4, 5, 7, 8, 9, 10};
+  const int num_handle = sizeof(handle_array)/sizeof(handle_array[0]);
     //add ents to set
-  result = MB->add_entities( temp_ms3, handle_array, 
-                             sizeof(handle_array)/sizeof(MBEntityHandle));
+  result = MB->add_entities( temp_ms3, handle_array, num_handle );
   if(result  != MB_SUCCESS ) 
     return result;
 
     // try adding again
-  result = MB->add_entities( temp_ms3, handle_array, 
-                             sizeof(handle_array)/sizeof(MBEntityHandle));
+  result = MB->add_entities( temp_ms3, handle_array, num_handle );
   if(result  != MB_SUCCESS ) 
     return result;
 
   int num_ents;
   result = MB->get_number_entities_by_handle(temp_ms3, num_ents);
-  if(result  != MB_SUCCESS ) return result;
-  else if (num_ents != sizeof(handle_array)/sizeof(MBEntityHandle))
-    return MB_FAILURE;
-
-  if(result != MB_SUCCESS )
+  if(result  != MB_SUCCESS ) 
     return result;
-
-  
+    
+  int num_expected = (flags & MESHSET_SET) ? num_handle : 2*num_handle;
+  if (num_ents != num_expected)
+    return MB_FAILURE;
 
   return MB_SUCCESS;
 }
