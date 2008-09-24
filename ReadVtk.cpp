@@ -27,14 +27,119 @@
 #include "MBInternals.hpp"
 #include "MBInterface.hpp"
 #include "MBReadUtilIface.hpp"
+#include "FileOptions.hpp"
 #include "FileTokenizer.hpp"
 #include "VtkUtil.hpp"
+
+#define MB_VTK_MATERIAL_SETS
+#ifdef MB_VTK_MATERIAL_SETS
+#  include "MBTagConventions.hpp"
+#  include <map>
+
+class MBHash
+{
+public:
+  unsigned long value;
+
+  MBHash()
+    {
+    this->value = 5381L;
+    }
+  MBHash( const unsigned char* bytes, size_t len )
+    { // djb2, a hash by dan bernstein presented on comp.lang.c for hashing strings.
+    this->value = 5381L;
+    for ( ; len ; -- len, ++ bytes )
+      this->value = this->value * 33 + ( *bytes );
+    }
+  MBHash( bool duh )
+    {
+    this->value = duh; // hashing a single bit with a long is stupid but easy.
+    }
+  MBHash( const MBHash& src )
+    {
+    this->value = src.value;
+    }
+  MBHash& operator = ( const MBHash& src )
+    {
+    this->value = src.value;
+    }
+  bool operator < ( const MBHash& other ) const
+    {
+    return this->value < other.value;
+    }
+};
+
+// Pass this class opaque data + a handle and it adds the handle to a set
+// whose opaque data has the same hash. If no set exists for the hash,
+// it creates one. Each set is tagged with the opaque data.
+// When entities with different opaque data have the same hash, they
+// will be placed into the same set.
+// There will be no collisions when the opaque data is shorter than an
+// unsigned long, and this is really the only case we need to support.
+// The rest is bonus. MBHash does quite well with strings, even those
+// with identical prefixes.
+class MBModulator : public std::map<MBHash,MBEntityHandle>
+{
+public:
+  MBModulator( MBInterface* iface, MBEntityHandle fset, std::string tag_name, MBDataType mb_type, size_t size, size_t per_elem )
+    {
+    this->mesh = iface;
+    this->file_set = fset;
+    std::vector<unsigned char> default_val;
+    default_val.resize( size * per_elem );
+    this->mesh->tag_create( tag_name.c_str(), size, MB_TAG_SPARSE,
+      mb_type, this->tag, &default_val[0], true );
+    }
+  void add_entity( MBEntityHandle ent, const unsigned char* bytes, size_t len )
+    {
+    MBHash h( bytes, len );
+    MBEntityHandle mset = this->congruence_class( h, bytes );
+    this->mesh->add_entities( mset, &ent, 1 );
+    }
+  void add_entities( MBRange& range, const unsigned char* bytes, size_t bytes_per_ent )
+    {
+    for( MBRange::iterator it = range.begin(); it != range.end(); ++ it, bytes += bytes_per_ent )
+      {
+      MBHash h( bytes, bytes_per_ent );
+      MBEntityHandle mset = this->congruence_class( h, bytes );
+      this->mesh->add_entities( mset, &*it, 1 );
+      }
+    }
+  MBEntityHandle congruence_class( const MBHash& h, const void* tag_data )
+    {
+    std::map<MBHash,MBEntityHandle>::iterator it = this->find( h );
+    if ( it == this->end() )
+      {
+      MBEntityHandle mset;
+      MBRange preexist;
+      this->mesh->get_entities_by_type_and_tag( 0, MBENTITYSET, &this->tag, &tag_data, 1, preexist );
+      if ( preexist.size() )
+        {
+        mset = *preexist.begin();
+        }
+      else
+        {
+        this->mesh->create_meshset( MESHSET_SET, mset );
+        this->mesh->tag_set_data( this->tag, &mset, 1, tag_data );
+        this->mesh->add_entities( this->file_set, &mset, 1 );
+        }
+      (*this)[h] = mset;
+      return mset;
+      }
+    return it->second;
+    }
+
+  MBInterface* mesh;
+  MBTag tag;
+  MBEntityHandle file_set;
+};
+#endif // MB_VTK_MATERIAL_SETS
 
 MBReaderIface* ReadVtk::factory( MBInterface* iface )
   { return new ReadVtk( iface ); }
 
 ReadVtk::ReadVtk(MBInterface* impl)
-    : mdbImpl(impl)
+    : mdbImpl(impl), mPartitionTagName(MATERIAL_SET_TAG_NAME)
 {
   void* ptr = 0;
   mdbImpl->query_interface("MBReadUtilIface", &ptr);
@@ -60,12 +165,13 @@ const char* const vtk_type_names[] = { "bit",
                                        "unsigned_long",
                                        "float",
                                        "double",
+                                       "vtkIdType",
                                        0 };
 
 
 MBErrorCode ReadVtk::load_file(const char *filename,
                                MBEntityHandle& file_set,
-                               const FileOptions&,
+                               const FileOptions& opts,
                                const int*, const int) 
 {
   MBErrorCode result;
@@ -75,7 +181,14 @@ MBErrorCode ReadVtk::load_file(const char *filename,
   char vendor_string[257];
   std::vector<MBRange> element_list;
   MBRange vertices;
-  
+
+  // Does the caller want a field to be used for partitioning the entities?
+  // If not, we'll assume any scalar integer field named MATERIAL_SET specifies partitions.
+  std::string partition_tag_name;
+  result = opts.get_option( "PARTITION", partition_tag_name );
+  if ( result == MB_SUCCESS )
+    mPartitionTagName = partition_tag_name;
+
   FILE* file = fopen( filename, "r" );
   if (!file)
   {
@@ -859,9 +972,7 @@ MBErrorCode ReadVtk::vtk_read_attrib_data( FileTokenizer& tokens,
     case 4: return vtk_read_vector_attrib ( tokens, entities, name ); 
     case 5: return vtk_read_texture_attrib( tokens, entities, name ); 
     case 6: return vtk_read_tensor_attrib ( tokens, entities, name ); 
-    case 7: // Can't handle field data yet.
-      readMeshIface->report_error( "Error at line %d: field data not implemented.\n",
-                                   tokens.line_number() );
+    case 7: return vtk_read_field_attrib  ( tokens, entities, name );
     default:
       return MB_FAILURE;
   }
@@ -876,7 +987,6 @@ MBErrorCode ReadVtk::vtk_read_tag_data( FileTokenizer& tokens,
                                         const char* name )
 {
   MBErrorCode result;
-  
   MBDataType mb_type;
   size_t size;
   if (type == 1)
@@ -894,10 +1004,23 @@ MBErrorCode ReadVtk::vtk_read_tag_data( FileTokenizer& tokens,
     mb_type = MB_TYPE_DOUBLE;
     size = sizeof(double);
   }
+  else if ( type == 12 )
+  {
+    mb_type = MB_TYPE_INTEGER;
+    size = 4; // could be 4 or 8, but we don't know. Hope it's 4 because MOAB doesn't support 64-bit ints.
+  }
   else
   {
     return MB_FAILURE;
   }
+
+#ifdef MB_VTK_MATERIAL_SETS
+  MBModulator materialMap( this->mdbImpl, this->mCurrentMeshHandle, this->mPartitionTagName, mb_type, size, per_elem );
+  bool isMaterial =
+    size * per_elem <= 4 &&                            // must have int-sized values (MBParallelComm requires it)
+    ! this->mPartitionTagName.empty() &&               // must have a non-empty field name...
+    ! strcmp( name, this->mPartitionTagName.c_str() ); // ... that matches our spec.
+#endif // MB_VTK_MATERIAL_SETS
   
     // get/create tag
   MBTag handle;
@@ -962,6 +1085,10 @@ MBErrorCode ReadVtk::vtk_read_tag_data( FileTokenizer& tokens,
         unsigned char bits = 0;
         for (unsigned j = 0; j < per_elem; ++j, ++data_iter)
           bits |= (unsigned char)(*data_iter << j);
+#ifdef MB_VTK_MATERIAL_SETS
+        if ( isMaterial )
+          materialMap.add_entity( *ent_iter, &bits, 1 );
+#endif // MB_VTK_MATERIAL_SETS
         result = mdbImpl->tag_set_data( handle, &*ent_iter, 1, &bits );
         if (MB_SUCCESS != result)
         {
@@ -972,7 +1099,7 @@ MBErrorCode ReadVtk::vtk_read_tag_data( FileTokenizer& tokens,
       delete [] data;
     }
   }
-  else if (type >= 2 && type <= 9)
+  else if ((type >= 2 && type <= 9) || type == 12)
   {
     std::vector<int> data;
     for (iter = entities.begin(); iter != entities.end(); ++iter)
@@ -980,6 +1107,10 @@ MBErrorCode ReadVtk::vtk_read_tag_data( FileTokenizer& tokens,
       data.resize( iter->size() * per_elem );
       if (!tokens.get_integers( iter->size() * per_elem, &data[0] ))
         return MB_FAILURE;
+#ifdef MB_VTK_MATERIAL_SETS
+      if ( isMaterial )
+        materialMap.add_entities( *iter, (unsigned char*) &data[0], per_elem * size );
+#endif // MB_VTK_MATERIAL_SETS
       result = mdbImpl->tag_set_data( handle, *iter, &data[0] );
       if (MB_SUCCESS != result)
         return result;
@@ -993,6 +1124,10 @@ MBErrorCode ReadVtk::vtk_read_tag_data( FileTokenizer& tokens,
       data.resize( iter->size() * per_elem );
       if (!tokens.get_doubles( iter->size() * per_elem, &data[0] ))
         return MB_FAILURE;
+#ifdef MB_VTK_MATERIAL_SETS
+      if ( isMaterial )
+        materialMap.add_entities( *iter, (unsigned char*) &data[0], per_elem * size );
+#endif // MB_VTK_MATERIAL_SETS
       result = mdbImpl->tag_set_data( handle, *iter, &data[0] );
       if (MB_SUCCESS != result)
         return result;
@@ -1006,7 +1141,7 @@ MBErrorCode ReadVtk::vtk_read_tag_data( FileTokenizer& tokens,
   return MB_SUCCESS;
 }
   
-      
+
 MBErrorCode ReadVtk::vtk_read_scalar_attrib( FileTokenizer& tokens, 
                                              std::vector<MBRange>& entities,
                                              const char* name)
@@ -1096,4 +1231,62 @@ MBErrorCode ReadVtk::vtk_read_tensor_attrib( FileTokenizer& tokens,
     
   return vtk_read_tag_data( tokens, type, 9, entities, name );
 }  
+
+MBErrorCode ReadVtk::vtk_read_field_attrib( FileTokenizer& tokens, 
+                                            std::vector<MBRange>& entities,
+                                            const char* )
+{
+  const char* tok = tokens.get_string( );
+  if (!tok)
+    return MB_FAILURE;
+  long num_fields;
+  const char* end = 0;
+  num_fields = strtol( tok, (char**)&end, 0 );
+  if ( *end )
+    return MB_FAILURE;
+
+  long i;
+  for ( i = 0; i < num_fields; ++ i )
+    {
+    tok = tokens.get_string( );
+    if ( ! tok )
+      return MB_FAILURE;
+
+    std::string name_alloc( tok );
+
+    long num_comp;
+    tok = tokens.get_string( );
+    if ( ! tok )
+      return MB_FAILURE;
+    end = 0;
+    num_comp = strtol( tok, (char**)&end, 0 );
+    if ( *end )
+      return MB_FAILURE;
+
+    long num_tuples;
+    tok = tokens.get_string( );
+    if ( ! tok )
+      return MB_FAILURE;
+    end = 0;
+    num_tuples = strtol( tok, (char**)&end, 0 );
+    if ( *end )
+      return MB_FAILURE;
+
+    int type = tokens.match_token( vtk_type_names );
+    if (!type)
+      return MB_FAILURE;
+
+    MBErrorCode result;
+    if ( ( result = vtk_read_tag_data( tokens, type, num_comp, entities, name_alloc.c_str() ) ) != MB_SUCCESS )
+      {
+      readMeshIface->report_error(
+        "Error reading data for field \"%s\" (%d components, %d tuples, type %d) at line %d",
+        name_alloc.c_str(), num_comp, num_tuples, type, tokens.line_number());
+      return result;
+      }
+    }
+
+  return MB_SUCCESS;
+}
+
 

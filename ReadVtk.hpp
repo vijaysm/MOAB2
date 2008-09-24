@@ -19,6 +19,8 @@
 #include "MBForward.hpp"
 #include "MBReaderIface.hpp"
 
+#include <string>
+
 class MBReadUtilIface;
 class FileTokenizer;
 
@@ -124,6 +126,10 @@ protected:
                                       std::vector<MBRange>& entities,
                                       const char* name );
 
+  MBErrorCode vtk_read_field_attrib( FileTokenizer& tokens, 
+                                     std::vector<MBRange>& entities,
+                                     const char* name);
+
 private:
 
   MBReadUtilIface* readMeshIface;
@@ -135,6 +141,9 @@ private:
 
     //! Meshset Handle for the mesh that is currently being read
   MBEntityHandle mCurrentMeshHandle;
+
+    //! A field which, if present and having a single integer for storage, should be used to partition the mesh by range. Defaults to MATERIAL_SET_TAG_NAME
+  std::string mPartitionTagName;
 };
 
 #endif
