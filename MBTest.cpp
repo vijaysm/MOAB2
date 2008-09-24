@@ -1359,6 +1359,36 @@ MBErrorCode mb_mesh_sets_test(MBInterface * MB, int flags)
   result = check_esets(MB, start_num_sets + MBENTITYSET - MBEDGE + 4);
   if (MB_SUCCESS != result) return result;
 
+    //-------------Misc tests--------------
+  MBEntityHandle temp_ms3;
+  result = MB->create_meshset(flags, temp_ms3);
+  if(result  != MB_SUCCESS ) 
+    return result;
+
+  MBEntityHandle handle_array[] = {1, 2, 3, 4, 5, 7, 8, 9, 10};
+    //add ents to set
+  result = MB->add_entities( temp_ms3, handle_array, 
+                             sizeof(handle_array)/sizeof(MBEntityHandle));
+  if(result  != MB_SUCCESS ) 
+    return result;
+
+    // try adding again
+  result = MB->add_entities( temp_ms3, handle_array, 
+                             sizeof(handle_array)/sizeof(MBEntityHandle));
+  if(result  != MB_SUCCESS ) 
+    return result;
+
+  int num_ents;
+  result = MB->get_number_entities_by_handle(temp_ms3, num_ents);
+  if(result  != MB_SUCCESS ) return result;
+  else if (num_ents != sizeof(handle_array)/sizeof(MBEntityHandle))
+    return MB_FAILURE;
+
+  if(result != MB_SUCCESS )
+    return result;
+
+  
+
   return MB_SUCCESS;
 }
 
