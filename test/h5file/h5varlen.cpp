@@ -1,5 +1,6 @@
 #include "MBCore.hpp"
 #include "TestUtil.hpp"
+#include "MBRange.hpp"
 #include <stdlib.h>
 #include <stdio.h>
 

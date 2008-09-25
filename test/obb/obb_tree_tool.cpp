@@ -4,6 +4,8 @@
 #include "MBOrientedBoxTreeTool.hpp"
 #include "MBOrientedBox.hpp"
 #include "MBInternals.hpp"
+#include "MBRange.hpp"
+
 #include <iostream>
 #include <iomanip>
 #include <limits>

@@ -1,5 +1,6 @@
 #include "MBCore.hpp"
 #include "MBAdaptiveKDTree.hpp"
+#include "MBRange.hpp"
 
 #include <math.h>
 #include <assert.h>

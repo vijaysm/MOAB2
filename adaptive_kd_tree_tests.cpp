@@ -2,6 +2,7 @@
 #include "MBAdaptiveKDTree.hpp"
 #include "MBCartVect.hpp"
 #include "MBGeomUtil.hpp"
+#include "MBRange.hpp"
 
 #include <iostream>
 #include <algorithm>

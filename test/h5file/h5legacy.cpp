@@ -1,6 +1,7 @@
 #include "MBCore.hpp"
 #include "testdir.h"
 #include "TestUtil.hpp"
+#include "MBRange.hpp"
 
 #include <algorithm>
 #include <iostream>

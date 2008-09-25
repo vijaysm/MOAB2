@@ -3,6 +3,7 @@
 #include "MBAdaptiveKDTree.hpp"
 #include "MBGeomUtil.hpp"
 #include "MBInternals.hpp"
+#include "MBRange.hpp"
 #include <iostream>
 #include <iomanip>
 #include <limits>

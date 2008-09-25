@@ -1,4 +1,5 @@
 #include "MBCore.hpp"
+#include "MBRange.hpp"
 
 #include <string.h>
 #include <stdio.h>
