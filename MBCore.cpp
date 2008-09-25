@@ -41,7 +41,6 @@
 #include "MBReaderWriterSet.hpp"
 #include "MBReaderIface.hpp"
 #include "MBWriterIface.hpp"
-#include "MBHandleUtils.hpp"
 
 #ifdef USE_MPI
 /* Leave MBParallelComm.hpp before mpi.h or MPICH2 will fail
@@ -114,9 +113,25 @@ static inline MBMeshSet* get_mesh_set( SequenceManager* sm,
 }
 
 //! Constructor
-MBCore::MBCore( int rank, int num_procs ) 
-    : handleUtils(rank, num_procs)
+MBCore::MBCore()
 {
+#ifdef XPCOM_MB
+  NS_INIT_ISUPPORTS();
+#endif
+
+  if (initialize() != MB_SUCCESS)
+  {
+    printf("Error initializing MB\n");
+    exit(1);
+  }
+}
+
+
+//! Constructor
+MBCore::MBCore( int , int  ) 
+{
+  std::cerr << "Using depricated construtor: MBCore::MBCore(rank,size)" << std::endl;
+
 #ifdef XPCOM_MB
   NS_INIT_ISUPPORTS();
 #endif
@@ -152,7 +167,7 @@ MBErrorCode MBCore::initialize()
   geomDimensionTag = 0;
   globalIdTag      = 0;
   
-  sequenceManager = new SequenceManager( handleUtils );
+  sequenceManager = new SequenceManager;
   if (!sequenceManager)
     return MB_MEMORY_ALLOCATION_FAILED;
 
@@ -1736,24 +1751,11 @@ MBErrorCode MBCore::create_element(const MBEntityType type,
                                    const int num_nodes, 
                                    MBEntityHandle &handle)
 {
-  return create_element( type, handleUtils.proc_rank(), 
-                         connectivity, num_nodes, handle );
-}
-
-MBErrorCode MBCore::create_element( const MBEntityType type,
-                                    const unsigned processor_id,
-                                    const MBEntityHandle* connectivity,
-                                    const int num_nodes,
-                                    MBEntityHandle& handle )
-{
     // make sure we have enough vertices for this entity type
   if(num_nodes < MBCN::VerticesPerEntity(type))
     return MB_FAILURE;
   
-  if (processor_id >= handleUtils.proc_size())
-    return MB_INDEX_OUT_OF_RANGE;
-  
-  MBErrorCode status = sequence_manager()->create_element(type, processor_id, connectivity, num_nodes, handle);
+  MBErrorCode status = sequence_manager()->create_element(type, connectivity, num_nodes, handle);
   if (MB_SUCCESS == status)
     status = aEntityFactory->notify_create_entity( handle, connectivity, num_nodes); 
 
@@ -1763,28 +1765,11 @@ MBErrorCode MBCore::create_element( const MBEntityType type,
 //! creates a vertex based on coordinates, returns a handle and error code
 MBErrorCode MBCore::create_vertex(const double coords[3], MBEntityHandle &handle )
 {
-  return create_vertex( handleUtils.proc_rank(), coords, handle );
-}
-
-MBErrorCode MBCore::create_vertex( const unsigned processor_id, const double* coords, MBEntityHandle& handle )
-{
-  if (processor_id >= handleUtils.proc_size())
-    return MB_INDEX_OUT_OF_RANGE;
-    
     // get an available vertex handle
-  return sequence_manager()->create_vertex( processor_id, coords, handle );
+  return sequence_manager()->create_vertex( coords, handle );
 }
 
 MBErrorCode MBCore::create_vertices(const double *coordinates, 
-                                    const int nverts,
-                                    MBRange &entity_handles ) 
-{
-  return create_vertices(handleUtils.proc_rank(), coordinates,
-                         nverts, entity_handles);
-}
-
-MBErrorCode MBCore::create_vertices(const unsigned processor_id,
-                                    const double *coordinates, 
                                     const int nverts,
                                     MBRange &entity_handles ) 
 {
@@ -1797,7 +1782,6 @@ MBErrorCode MBCore::create_vertices(const unsigned processor_id,
   std::vector<double*> arrays;
   MBEntityHandle start_handle_out = 0;
   result = read_iface->get_node_arrays( 3, nverts, MB_START_ID, 
-                                        processor_id,
                                         start_handle_out, arrays);
   if (MB_SUCCESS != result) return result;
   for (int i = 0; i < nverts; i++) {
@@ -2292,11 +2276,9 @@ MBErrorCode MBCore::side_element(const MBEntityHandle source_entity,
 
 MBErrorCode MBCore::create_meshset(const unsigned int options, 
                                    MBEntityHandle &ms_handle,
-                                   int ,
-                                   int start_proc)
+                                   int )
 {
-  if (-1 == start_proc) start_proc = handleUtils.proc_rank();
-  return sequence_manager()->create_mesh_set( start_proc, options, ms_handle );
+  return sequence_manager()->create_mesh_set( options, ms_handle );
 }
 
 MBErrorCode MBCore::get_meshset_options( const MBEntityHandle ms_handle, 
@@ -3089,24 +3071,6 @@ void MBCore::estimated_memory_use( const MBRange& ents,
                          adjacency_storage, amortized_adjacency_storage,
                          tag_array,         num_tags,
                          tag_storage,       amortized_tag_storage );
-}
-
-    //! Return the rank of this processor
-const int MBCore::proc_rank() const 
-{
-  return handleUtils.proc_rank();
-}
-
-    //! Return the number of processors
-const int MBCore::proc_size() const 
-{
-  return handleUtils.proc_size();
-}
-
-    //! Return the utility for dealing with entity handles
-const MBHandleUtils &MBCore::handle_utils() const 
-{
-  return handleUtils;
 }
 
 void MBCore::print_database() const

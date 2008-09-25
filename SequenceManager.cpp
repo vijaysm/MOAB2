@@ -187,15 +187,11 @@ MBErrorCode SequenceManager::delete_entities( const MBRange& entities )
   return result;
 }
   
-MBErrorCode SequenceManager::create_vertex( unsigned proc_id,
-                                            const double coords[3],
+MBErrorCode SequenceManager::create_vertex( const double coords[3],
                                             MBEntityHandle& handle )
 {
-  if (proc_id == (unsigned)-1)
-    proc_id = handleUtils.proc_rank();
-
-  const MBEntityHandle start = handleUtils.create_handle( MBVERTEX, handleUtils.first_id(proc_id), proc_id );
-  const MBEntityHandle   end = handleUtils.create_handle( MBVERTEX, handleUtils. last_id(proc_id), proc_id );
+  const MBEntityHandle start = CREATE_HANDLE( MBVERTEX, MB_START_ID );
+  const MBEntityHandle   end = CREATE_HANDLE( MBVERTEX,   MB_END_ID );
   bool append;
   TypeSequenceManager::iterator seq = typeData[MBVERTEX].find_free_handle( start, end, append );
   VertexSequence* vseq;
@@ -241,19 +237,15 @@ MBErrorCode SequenceManager::create_vertex( unsigned proc_id,
 
   
 MBErrorCode SequenceManager::create_element( MBEntityType type,
-                                             unsigned proc_id,
                                              const MBEntityHandle* conn,
                                              unsigned conn_len,
                                              MBEntityHandle& handle )
 {
-  if (proc_id == (unsigned)-1)
-    proc_id = handleUtils.proc_rank();
-
   if (type <= MBVERTEX || type >= MBENTITYSET)
     return MB_TYPE_OUT_OF_RANGE;
   
-  const MBEntityHandle start = handleUtils.create_handle( type, handleUtils.first_id(proc_id), proc_id );
-  const MBEntityHandle   end = handleUtils.create_handle( type, handleUtils. last_id(proc_id), proc_id );
+  const MBEntityHandle start = CREATE_HANDLE( type, MB_START_ID );
+  const MBEntityHandle   end = CREATE_HANDLE( type,   MB_END_ID );
   bool append;
   TypeSequenceManager::iterator seq = typeData[type].find_free_handle( start, end, append, conn_len );
   UnstructuredElemSeq* eseq;
@@ -311,15 +303,11 @@ MBErrorCode SequenceManager::create_element( MBEntityType type,
 
 
   
-MBErrorCode SequenceManager::create_mesh_set( unsigned proc_id,
-                                              unsigned flags,
+MBErrorCode SequenceManager::create_mesh_set( unsigned flags,
                                               MBEntityHandle& handle )
 {
-  if (proc_id == (unsigned)-1)
-    proc_id = handleUtils.proc_rank();
-
-  const MBEntityHandle start = handleUtils.create_handle( MBENTITYSET, handleUtils.first_id(proc_id), proc_id );
-  const MBEntityHandle   end = handleUtils.create_handle( MBENTITYSET, handleUtils. last_id(proc_id), proc_id );
+  const MBEntityHandle start = CREATE_HANDLE( MBENTITYSET, MB_START_ID );
+  const MBEntityHandle   end = CREATE_HANDLE( MBENTITYSET,   MB_END_ID );
   bool append;
   TypeSequenceManager::iterator seq = typeData[MBENTITYSET].find_free_handle( start, end, append );
   MeshSetSequence* msseq;
@@ -431,13 +419,6 @@ SequenceManager::trim_sequence_block( MBEntityHandle start_handle,
     // if input range is larger than preferred size, trim it
   if (end_handle - start_handle >= max_size)
     end_handle = start_handle + max_size - 1;
-
-    // if range spans more than one proc, trim it to one
-  const unsigned rank = handleUtils.rank_from_handle( start_handle );
-  if (handleUtils.rank_from_handle(end_handle) != rank) 
-    end_handle = handleUtils.create_handle( TYPE_FROM_HANDLE(start_handle),
-                                            handleUtils.max_id(),
-                                            rank );
 }
 
 MBEntityHandle 
@@ -445,17 +426,16 @@ SequenceManager::sequence_start_handle( MBEntityType type,
                                         MBEntityID count,
                                         int size,
                                         MBEntityID start,
-                                        int proc,
                                         SequenceData*& data,
                                         MBEntityID &data_size)
 {
   TypeSequenceManager &tsm = typeData[type];
   data = 0;
-  MBEntityHandle handle = handleUtils.create_handle( type, start, proc );
+  MBEntityHandle handle = CREATE_HANDLE( type, start );
   if (start < MB_START_ID ||
       !tsm.is_free_sequence( handle, count, data, size )) {
-    MBEntityHandle pstart = handleUtils.create_handle( type, MB_START_ID, proc );
-    MBEntityHandle pend   = handleUtils.create_handle( type, handleUtils.max_id(),  proc );
+    MBEntityHandle pstart = CREATE_HANDLE( type, MB_START_ID );
+    MBEntityHandle pend   = CREATE_HANDLE( type,   MB_END_ID );
     handle = tsm.find_free_sequence( count, pstart, pend, data, data_size, size);
   }
   return handle;
@@ -489,16 +469,12 @@ SequenceManager::create_entity_sequence( MBEntityType type,
                                          MBEntityID count,
                                          int size,
                                          MBEntityID start,
-                                         int proc,
                                          MBEntityHandle& handle,
                                          EntitySequence*& sequence )
 {
-  if (proc == -1)
-    proc = handleUtils.proc_rank();
-
   SequenceData* data = 0;
   MBEntityID data_size = 0;
-  handle = sequence_start_handle( type, count, size, start, proc, data, data_size );
+  handle = sequence_start_handle( type, count, size, start, data, data_size );
     
   if (!handle)
     return MB_MEMORY_ALLOCATION_FAILED;
@@ -571,17 +547,13 @@ SequenceManager::create_entity_sequence( MBEntityType type,
 MBErrorCode 
 SequenceManager::create_meshset_sequence( MBEntityID count,
                                           MBEntityID start,
-                                          int proc,
                                           const unsigned* flags,
                                           MBEntityHandle& handle,
                                           EntitySequence*& sequence )
 {
-  if (proc == -1)
-    proc = handleUtils.proc_rank();
-
   SequenceData* data = 0;
   MBEntityID data_size = 0;
-  handle = sequence_start_handle( MBENTITYSET, count, 0, start, proc, data, data_size );
+  handle = sequence_start_handle( MBENTITYSET, count, 0, start, data, data_size );
 
   if (!handle)
     return MB_MEMORY_ALLOCATION_FAILED;
@@ -610,17 +582,13 @@ SequenceManager::create_meshset_sequence( MBEntityID count,
 MBErrorCode 
 SequenceManager::create_meshset_sequence( MBEntityID count,
                                           MBEntityID start,
-                                          int proc,
                                           unsigned flags,
                                           MBEntityHandle& handle,
                                           EntitySequence*& sequence )
 {
-  if (proc == -1)
-    proc = handleUtils.proc_rank();
-
   SequenceData* data = 0;
   MBEntityID data_size = 0;
-  handle = sequence_start_handle( MBENTITYSET, count, 0, start, proc, data, data_size );
+  handle = sequence_start_handle( MBENTITYSET, count, 0, start, data, data_size );
   if (!handle)
     return MB_MEMORY_ALLOCATION_FAILED;
   
@@ -649,13 +617,9 @@ SequenceManager::create_scd_sequence( int imin, int jmin, int kmin,
                                       int imax, int jmax, int kmax,
                                       MBEntityType type,
                                       MBEntityID start_id_hint,
-                                      int processor_id,
                                       MBEntityHandle& handle,
                                       EntitySequence*& sequence )
 {
-  if (processor_id == -1)
-    processor_id = handleUtils.proc_rank();
-
   int this_dim = MBCN::Dimension(type);
 
     // use > instead of != in the following assert to also catch cases where imin > imax, etc.
@@ -676,7 +640,7 @@ SequenceManager::create_scd_sequence( int imin, int jmin, int kmin,
     // get a start handle
   SequenceData* data = 0;
   MBEntityID data_size = 0;
-  handle = sequence_start_handle( type, num_ent, -1, start_id_hint, processor_id, data, data_size );
+  handle = sequence_start_handle( type, num_ent, -1, start_id_hint, data, data_size );
 
   if (!handle)
     return MB_MEMORY_ALLOCATION_FAILED;
@@ -712,13 +676,12 @@ SequenceManager::create_scd_sequence( const HomCoord& coord_min,
                                       const HomCoord& coord_max,
                                       MBEntityType type,
                                       MBEntityID start_id_hint,
-                                      int processor_id,
                                       MBEntityHandle& first_handle_out,
                                       EntitySequence*& sequence_out )
 {
   return create_scd_sequence( coord_min.i(), coord_min.j(), coord_min.k(),
                               coord_max.i(), coord_max.j(), coord_max.k(),
-                              type, start_id_hint,  processor_id,
+                              type, start_id_hint,
                               first_handle_out, sequence_out );
 }
  

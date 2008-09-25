@@ -1227,7 +1227,7 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
         // unpack coords
       if (num_ents) {
         std::vector<double*> coords(3);
-        result = ru->get_node_arrays(3, num_ents, 0, proc_config().proc_rank(), 
+        result = ru->get_node_arrays(3, num_ents, 0, 
                                      actual_start, coords);
         RRA("Failed to allocate node arrays.");
 
@@ -1260,7 +1260,7 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
       
       MBEntityHandle *connect;
       result = ru->get_element_array(num_ents, verts_per_entity, this_type,
-                                     0, proc_config().proc_rank(), actual_start,
+                                     0, actual_start,
                                      connect);
       RRA("Failed to allocate element arrays.");
 

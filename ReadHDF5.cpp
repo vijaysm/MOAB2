@@ -381,7 +381,7 @@ MBErrorCode ReadHDF5::read_nodes()
   MBEntityHandle handle;
   std::vector<double*> arrays(dim);
   rval = readUtil->get_node_arrays( dim, (int)count, (int)first_id, 
-                                    readUtil->parallel_rank(), handle, arrays );
+                                    handle, arrays );
   if (MB_SUCCESS != rval)
   {
     mhdf_closeData( filePtr, data_id, &status );
@@ -465,7 +465,7 @@ MBErrorCode ReadHDF5::read_elems( const char* elem_group )
   rval = readUtil->get_element_array( (int)count,
                                        nodes_per_elem,
                                        elems.type,
-                                      (int)first_id, -1,
+                                      (int)first_id,
                                        handle, 
                                        array );
   if (MB_SUCCESS != rval)
@@ -1006,7 +1006,6 @@ MBErrorCode ReadHDF5::read_sets()
     rval = readUtil->create_entity_sets( count,
                                          buffer, 
                                          ID_FROM_HANDLE(start_handle),
-                                         readUtil->parallel_rank(),
                                          handle );
     if (MB_SUCCESS != rval) {
       mhdf_closeData( filePtr, meta_id, &status );

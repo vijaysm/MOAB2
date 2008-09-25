@@ -164,7 +164,10 @@ extern "C" {
                                 /*out*/   int *part_handles_size, 
                                 int *err) 
   {
-    if (rank[0] != MBI->proc_rank() || rank_size > 1) {
+    MBParallelComm *pc = MBParallelComm::get_pcomm(MBI, 0);
+    if (!pc) RETURN(iBase_ERROR_MAP[MB_FAILURE]);
+
+    if (rank[0] != pc->proc_config().proc_rank() || rank_size > 1) {
       RETURN(iBase_ERROR_MAP[MB_NOT_IMPLEMENTED]);
     }
   

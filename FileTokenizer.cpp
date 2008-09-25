@@ -462,3 +462,26 @@ bool FileTokenizer::get_newline( )
   return false;
 }
 
+bool FileTokenizer::get_binary( size_t size, void* mem )
+{
+    // if data in buffer
+  if (nextToken != bufferEnd) {
+      // if requested size is less than buffer contents,
+      // just pass back part of the buffer
+    if (bufferEnd - nextToken <= size) {
+      memcpy( mem, nextToken, size );
+      nextToken += size;
+      return true;
+    }
+    
+      // copy buffer contents into memory and clear buffer
+    memcpy( mem, nextToken, bufferEnd - nextToken );
+    size -= bufferEnd - nextToken;
+    mem = reinterpret_cast<char*>(mem) + (bufferEnd - nextToken);
+    nextToken = bufferEnd;
+  }
+  
+    // read any additional data from file
+  return size == fread( mem, 1, size, filePtr );
+}
+

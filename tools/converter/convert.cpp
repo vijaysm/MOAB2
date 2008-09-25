@@ -132,16 +132,8 @@ int main(int argc, char* argv[])
   MBErrorCode result;
   MBRange range;
 
-#ifdef USE_MPI
-  MPI_Init( &argc, &argv );
-  int proc_id, num_proc;
-  MPI_Comm_rank( MPI_COMM_WORLD, &proc_id );
-  MPI_Comm_size( MPI_COMM_WORLD, &num_proc );
-  gMB = new MBCore( proc_id, num_proc );
-#else
   int proc_id = 0;
   gMB = new MBCore();
-#endif  
 
   bool append_rank = false;
   int i, dim;

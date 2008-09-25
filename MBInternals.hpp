@@ -26,6 +26,7 @@
 #endif
 
 #include "MBTypes.h"
+#include <assert.h>
 
 /*! Define MBEntityHandle for both 32 bit and 64 bit systems.
  *  The decision to use 64 bit handles must be made at compile time.
@@ -60,6 +61,19 @@ inline MBEntityHandle CREATE_HANDLE(const unsigned type, const MBEntityID id, in
   }
   
   return (((MBEntityHandle)type) << MB_ID_WIDTH)|id;
+}
+
+inline MBEntityHandle CREATE_HANDLE( const unsigned type, const MBEntityID id )
+{
+  // if compiling without asserts, simplify things a bit
+#ifdef NDEBUG
+  return (((MBEntityHandle)type) << MB_ID_WIDTH)|id;
+#else
+  int err;
+  MBEntityHandle result = CREATE_HANDLE( type, id, err );
+  assert(!err);
+  return result;
+#endif
 }
 
 inline MBEntityHandle FIRST_HANDLE( unsigned type )

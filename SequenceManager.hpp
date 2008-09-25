@@ -2,8 +2,8 @@
 #define SEQUENCE_MANAGER_HPP
 
 #include "TypeSequenceManager.hpp"
-#include "MBHandleUtils.hpp"
 #include "TagInfo.hpp"
+#include <vector>
 
 class HomCoord;
 class TagServer;
@@ -11,10 +11,6 @@ class TagServer;
 class SequenceManager 
 {
   public:
-  
-    SequenceManager( const MBHandleUtils& handle_utils ) 
-      : handleUtils(handle_utils)
-      {}
     
     ~SequenceManager();
     
@@ -75,22 +71,19 @@ class SequenceManager
       /** Allocate a vertex (possibly in an existing sequence) and 
        *  assign it the passed coordinate values.
        */
-    MBErrorCode create_vertex( unsigned processor_id,
-                               const double coords[3],
+    MBErrorCode create_vertex( const double coords[3],
                                MBEntityHandle& handle_out );
     
       /** Allocate a element (possibly in an existing sequence) and 
        *  assign it the passed connectivity.
        */
     MBErrorCode create_element( MBEntityType type,
-                                unsigned processor_id,
                                 const MBEntityHandle* conn_array,
                                 unsigned num_vertices,
                                 MBEntityHandle& handle_out );
     
       /** Allocate an entity set (possibly in an existing sequence) */
-    MBErrorCode create_mesh_set( unsigned processor_id,
-                                 unsigned flags,
+    MBErrorCode create_mesh_set( unsigned flags,
                                  MBEntityHandle& handle_out );
       /** Allocate an entity set with the specified handle. 
        *\return MB_ALREADY_ALLOCATED if handle is in use, MB_SUCCESS otherwise.
@@ -109,7 +102,6 @@ class SequenceManager
        *                    MBENTITYSET types.
        *\param start_id_hint Preferred ID portion for first handle.  
        *                    May be ignored if not available.
-       *\param processor_id Processor ID to embed in handles
        *\param first_handle_out First allocated handle.  Allocated handles
        *                    are [first_handle_out, first_handle_out+num_entities-1].
        *\param sequence_out The sequence in which the entities were allocated.
@@ -120,11 +112,10 @@ class SequenceManager
                                         MBEntityID num_entities,
                                         int nodes_per_entity,
                                         MBEntityID start_id_hint,
-                                        int processor_id,
                                         MBEntityHandle& first_handle_out,
                                         EntitySequence*& sequence_out );
     
-      /**\brief Allocate a block of consecutive mesh sets
+       /**\brief Allocate a block of consecutive mesh sets
        *
        * Allocate a block of consecutive entity handles.  Handles
        * may be appended or prepended to an existing entity sequence.
@@ -143,7 +134,6 @@ class SequenceManager
        */
     MBErrorCode create_meshset_sequence( MBEntityID num_sets,
                                          MBEntityID start_id_hint,
-                                         int processor_id,
                                          const unsigned* flags,
                                          MBEntityHandle& first_handle_out,
                                          EntitySequence*& sequence_out );
@@ -154,7 +144,6 @@ class SequenceManager
        */
     MBErrorCode create_meshset_sequence( MBEntityID num_sets,
                                          MBEntityID start_id_hint,
-                                         int processor_id,
                                          unsigned flags,
                                          MBEntityHandle& first_handle_out,
                                          EntitySequence*& sequence_out );
@@ -164,7 +153,6 @@ class SequenceManager
                                      int imax, int jmax, int kmax,
                                      MBEntityType type,
                                      MBEntityID start_id_hint,
-                                     int processor_id,
                                      MBEntityHandle& first_handle_out,
                                      EntitySequence*& sequence_out );
     
@@ -173,7 +161,6 @@ class SequenceManager
                                      const HomCoord& coord_max,
                                      MBEntityType type,
                                      MBEntityID start_id_hint,
-                                     int processor_id,
                                      MBEntityHandle& first_handle_out,
                                      EntitySequence*& sequence_out );
                                      
@@ -421,15 +408,13 @@ class SequenceManager
        *                         the handle range.
        *\return zero if no available handle range, start handle otherwise.
        */
-    MBEntityHandle sequence_start_handle(   MBEntityType type,
-                                              MBEntityID entity_count,
-                                                     int values_per_entity,
-                                              MBEntityID start_id_hint,
-                                                     int processor_rank,
-                                            SequenceData*& data_out,
-                                            MBEntityID &data_size );
+    MBEntityHandle sequence_start_handle( MBEntityType type,
+                                          MBEntityID entity_count,
+                                          int values_per_entity,
+                                          MBEntityID start_id_hint,
+                                          SequenceData*& data_out,
+                                          MBEntityID &data_size );
   
-    const MBHandleUtils handleUtils;
     TypeSequenceManager typeData[MBMAXTYPE];
     
     std::vector<int> tagSizes;

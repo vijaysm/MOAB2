@@ -148,6 +148,14 @@ class FileTokenizer
        */
     bool get_bytes( size_t count, unsigned char* array );
     
+      /** \brief Read binary data (interleaved with ASCII)
+       *
+       * Read a block of binary data.
+       *\param bytes  Number of bytes to read
+       *\param mem    Memory address at which to store data.
+       */
+    bool get_binary( size_t bytes, void* mem );
+    
       /** \brief Parse a sequence of bit or boolean values.
        *
        * Read the specified number of space-delimited values.

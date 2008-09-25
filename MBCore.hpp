@@ -17,7 +17,6 @@
 #define MB_IMPL_GENERAL_HPP
 
 #include "MBInterface.hpp"
-#include "MBHandleUtils.hpp"
 #include <map>
 
 class MBWriteUtil;
@@ -27,7 +26,6 @@ class SequenceManager;
 class TagServer;
 class MBError;
 class MBReaderWriterSet;
-class MBHandleUtils;
 
 #ifdef XPCOM_MB
 
@@ -45,7 +43,10 @@ class MBCore : public MBInterface
 public:
 
   //!constructor
-  MB_DLL_EXPORT MBCore( int rank = 0, int num_cpu = 1 );
+  MB_DLL_EXPORT MBCore();
+
+  //! depricated constructor -- values are ignored
+  MB_DLL_EXPORT MBCore( int rank, int num_cpu );
 
   //!destructor
   MB_DLL_EXPORT ~MBCore();
@@ -439,21 +440,6 @@ public:
                                         const int num_nodes, 
                                         MBEntityHandle &element_handle);
 
-      /**\brief Create element given CPU ID and connectivity.
-       *
-       * Create an element with the specified processor ID
-       *\param type The type of the element
-       *\param processor_id The ID of the CPU on owning the element
-       *\param connectivity The connectivity list for the element
-       *\param num_nodes The length of the connectivity list
-       *\param element_handle Output handle value.
-       */
-    virtual MBErrorCode create_element (const MBEntityType type, 
-                                        const unsigned processor_id,
-                                        const MBEntityHandle *connectivity,
-                                        const int num_nodes, 
-                                        MBEntityHandle &element_handle);
-
       //! Creates a vertex based on coordinates.  
       /**
          \param coordinates Array that has 3 doubles in it.
@@ -469,17 +455,6 @@ public:
     virtual MBErrorCode create_vertex(const double coordinates[3], 
                                        MBEntityHandle &entity_handle );
 
-      /**\brief Create vertex given CPU ID and coordinates.
-       *
-       * Create a vertex with the specified processor ID
-       *\param processor_id The ID of the CPU on owning the element
-       *\param coordinates The vertex coordinates
-       *\param entity_handle Output handle value.
-       */
-    virtual MBErrorCode create_vertex( const unsigned processor_id,
-                                       const double coordinates[3], 
-                                       MBEntityHandle &entity_handle );
-
     //! Create a set of vertices with the specified coordinates
     /**
        \param coordinates Array that has 3*n doubles in it.
@@ -487,18 +462,6 @@ public:
        \param entity_handles MBRange passed back with new vertex handles
     */
   virtual MBErrorCode create_vertices(const double *coordinates, 
-                                      const int nverts,
-                                      MBRange &entity_handles );
-
-    //! Create a set of vertices with the specified coordinates and proc id
-    /**
-       \param processor_id Processor id for these vertices
-       \param coordinates Array that has 3*n doubles in it.
-       \param nverts Number of vertices to create
-       \param entity_handles MBRange passed back with new vertex handles
-    */
-  virtual MBErrorCode create_vertices(const unsigned processor_id,
-                                      const double *coordinates, 
                                       const int nverts,
                                       MBRange &entity_handles );
 
@@ -833,8 +796,7 @@ public:
   //! creates a mesh set
   virtual MBErrorCode create_meshset(const unsigned int options, 
                                      MBEntityHandle &ms_handle,
-                                     int start_id = 0,
-                                     int start_proc = -1);
+                                     int start_id = 0);
 
   //! Empty a vector of mesh set
   /** Empty a mesh set.
@@ -1098,15 +1060,6 @@ public:
                              unsigned long* tag_storage = 0,
                              unsigned long* amortized_tag_storage = 0 );
                                      
-  
-    //! Return the rank of this processor
-  virtual const int proc_rank() const;
-
-    //! Return the number of processors
-  virtual const int proc_size() const;
-
-    //! Return the utility for dealing with entity handles
-  virtual const MBHandleUtils &handle_utils() const;
 
   void print_database() const;
 
@@ -1143,9 +1096,6 @@ private:
 
     //! the overall geometric dimension of this mesh
   int geometricDimension;
-
-    //! utility for dealing with handles, proc's, etc.
-  MBHandleUtils handleUtils;
 
   MBTag materialTag;
   MBTag neumannBCTag;

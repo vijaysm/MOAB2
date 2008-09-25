@@ -325,7 +325,7 @@ MBErrorCode ReadVtk::allocate_vertices( long num_verts,
     // Create vertices
   std::vector<double*> arrays;
   start_handle_out = 0;
-  result = readMeshIface->get_node_arrays( 3, num_verts, MB_START_ID, 0,
+  result = readMeshIface->get_node_arrays( 3, num_verts, MB_START_ID,
                                            start_handle_out, arrays );
   if (MB_SUCCESS != result)
     return result;
@@ -375,7 +375,7 @@ MBErrorCode ReadVtk::allocate_elements( long num_elements,
   result = readMeshIface->get_element_array( num_elements,
                                              vert_per_element,
                                              type,
-                                             MB_START_ID, 0,
+                                             MB_START_ID,
                                              start_handle_out,
                                              conn_array_out );
   if (MB_SUCCESS != result)

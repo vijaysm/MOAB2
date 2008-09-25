@@ -22,7 +22,6 @@ TESTS = moab_test \
         tqdcfr \
         test_adj \
         seq_man_test \
-	internals_test \
         geom_util_test \
         xform_test \
         obb_test \
@@ -121,7 +120,6 @@ libMOAB_la_SOURCES = \
   MBCN.cpp \
   MBCNArrays.hpp \
   MBCartVect.cpp \
-  MBHandleUtils.cpp \
   MBMatrix3.cpp \
   MBMatrix3.hpp \
   MBCore.cpp \
@@ -222,7 +220,6 @@ libMOAB_la_include_HEADERS = \
   MBError.hpp \
   MBForward.hpp \
   MBGeomUtil.hpp \
-  MBHandleUtils.hpp \
   MBInterface.hpp \
   MBOrientedBox.hpp \
   MBOrientedBoxTreeTool.hpp \
@@ -249,9 +246,6 @@ libMOAB_la_include_HEADERS = \
 moab_test_SOURCES = MBTest.cpp
 moab_test_LDADD = $(top_builddir)/libMOAB.la
 moab_test_DEPENDENCIES = test/mb_big_test.g test/cell1.gen test/cell2.gen $(top_builddir)/libMOAB.la
-
-internals_test_SOURCES = internals_test.cpp
-internals_test_LDADD = $(top_builddir)/libMOAB.la
 
 homxform_test_SOURCES = HomXform.cpp
 homxform_test_LDADD = $(top_builddir)/libMOAB.la

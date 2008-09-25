@@ -40,8 +40,10 @@ MBErrorCode MBParallelData::get_interface_sets(std::vector<MBEntityHandle> &ifac
   MBTag proc_tag = 0, procs_tag = 0;
   MBErrorCode result = MB_SUCCESS;
   int my_rank;
-  if (parallelComm) my_rank = parallelComm->proc_config().proc_rank();
-  else my_rank = mbImpl->proc_rank();
+  if (parallelComm) 
+    my_rank = parallelComm->proc_config().proc_rank();
+  else 
+    return MB_FAILURE;
 
   std::multimap<int, MBEntityHandle> iface_data;
 

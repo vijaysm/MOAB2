@@ -34,8 +34,8 @@ public:
   int AdjTable[16];
 };
 
-MBiMesh::MBiMesh(int proc_rank, int proc_size)
-    : MBCore(proc_rank, proc_size), haveDeletedEntities(false)
+MBiMesh::MBiMesh(int , int )
+    : haveDeletedEntities(false)
 {
   memset(AdjTable, 0, 16*sizeof(int));
   for (int i = 0; i < 4; i++) AdjTable[4*i] = AdjTable[i] = 1;

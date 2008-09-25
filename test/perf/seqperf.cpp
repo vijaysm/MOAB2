@@ -435,7 +435,7 @@ void create_vertices_single( )
 void create_vertices_block( )
 {
   std::vector<double*> arrays;
-  MBErrorCode rval = readTool->get_node_arrays( 3, numVert, 0, 0, vertStart, arrays );
+  MBErrorCode rval = readTool->get_node_arrays( 3, numVert, 0, vertStart, arrays );
   assert(!rval && arrays.size() == 3);
   double *x = arrays[0], *y = arrays[1], *z = arrays[2];
   assert( x && y && z );
@@ -464,7 +464,7 @@ void create_elements_single( )
 void create_elements_block( )
 {
   MBEntityHandle* conn = 0;
-  MBErrorCode rval = readTool->get_element_array( numElem, 8, MBHEX, 0, 0, elemStart, conn );
+  MBErrorCode rval = readTool->get_element_array( numElem, 8, MBHEX, 0, elemStart, conn );
   assert(!rval && conn);
   
   for (long i = 0; i < numElem; ++i) 

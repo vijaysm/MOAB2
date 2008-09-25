@@ -36,14 +36,10 @@ MBReadUtil::MBReadUtil(MBCore* mdb, MBError* error_handler)
 {
 }
 
-unsigned  MBReadUtil::parallel_rank() const
-  { return mMB->proc_rank(); }
-
 MBErrorCode MBReadUtil::get_node_arrays(
     const int /*num_arrays*/,
     const int num_nodes, 
     const int preferred_start_id,
-    const int preferred_start_proc,
     MBEntityHandle& actual_start_handle, 
     std::vector<double*>& arrays)
 {
@@ -60,7 +56,7 @@ MBErrorCode MBReadUtil::get_node_arrays(
   // create an entity sequence for these nodes 
   error = mMB->sequence_manager()->create_entity_sequence(
     MBVERTEX, num_nodes, 0, preferred_start_id, 
-    preferred_start_proc, actual_start_handle,
+    actual_start_handle,
     seq);
 
   if(error != MB_SUCCESS)
@@ -86,7 +82,6 @@ MBErrorCode MBReadUtil::get_element_array(
     const int verts_per_element,
     const MBEntityType mdb_type,
     const int preferred_start_id, 
-    const int proc, 
     MBEntityHandle& actual_start_handle, 
     MBEntityHandle*& array)
 {
@@ -104,10 +99,9 @@ MBErrorCode MBReadUtil::get_element_array(
 //    return MB_TYPE_OUT_OF_RANGE;
 
   // make an entity sequence to hold these elements
-  unsigned proc_id = proc < 0 ? parallel_rank() : proc;
   error = mMB->sequence_manager()->create_entity_sequence(
       mdb_type, num_elements, verts_per_element, preferred_start_id, 
-      proc_id, actual_start_handle, seq);
+      actual_start_handle, seq);
   if (MB_SUCCESS != error)
     return error;
 
@@ -130,7 +124,6 @@ MBErrorCode MBReadUtil::get_element_array(
 MBErrorCode MBReadUtil::create_entity_sets( MBEntityID num_sets,
                                             const unsigned* flags ,
                                             MBEntityID start_id,
-                                            int proc,
                                             MBEntityHandle& start_handle )
 {
   if (num_sets < 1) {
@@ -142,7 +135,6 @@ MBErrorCode MBReadUtil::create_entity_sets( MBEntityID num_sets,
   EntitySequence* seq;
   error = mMB->sequence_manager()->create_meshset_sequence( num_sets,
                                                             start_id,
-                                                            proc,
                                                             flags,
                                                             start_handle,
                                                             seq );

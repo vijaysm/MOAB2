@@ -992,7 +992,6 @@ MBErrorCode Tqdcfr::read_nodes(const unsigned int gindex,
   std::vector<double*> arrays;
   readUtilIface->get_node_arrays(3, entity->nodeCt,
                                  uint_buf[0], 
-                                 readUtilIface->parallel_rank(), 
                                  vhandle, arrays);
 
     // get node x's in arrays[0]
@@ -1181,7 +1180,6 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
     
     result = readUtilIface->get_element_array(num_elem, nodes_per_elem,
                                      elem_type, int_buf[0], 
-                                     readUtilIface->parallel_rank(), 
                                      start_handle, conn);
     if (MB_SUCCESS != result)
       return result;
@@ -2555,7 +2553,7 @@ int main(int argc, char* argv[])
   delete my_impl;
   
     // now check for multiple procs
-  my_impl = new MBCore(1, 2);
+  my_impl = new MBCore;
   my_tqd = new Tqdcfr(my_impl);
   
   result = my_tqd->load_file(file, file_set, opts, 0, 0);
@@ -2580,7 +2578,7 @@ int main(int argc, char* argv[])
   err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // create MOAB instance based on that
-  my_impl = new MBCore(rank, nprocs);
+  my_impl = new MBCore ;//(rank, nprocs);
   if (NULL == my_impl) return 1;
   
   std::string options = "PARALLEL=READ_DELETE;PARTITION=MATERIAL_SET;PARTITION_DISTRIBUTE";

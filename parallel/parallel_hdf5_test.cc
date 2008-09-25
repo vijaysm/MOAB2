@@ -191,14 +191,12 @@ void check_identical_mesh( MBInterface& mb1, MBInterface& mb2 )
 void test_write_elements()
 {
   int proc_counts[MBENTITYSET], all_counts[MBENTITYSET], file_counts[MBENTITYSET];
-  int err, rank, size;
+  int err, rank;
   MBErrorCode rval;
   err = MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   CHECK(!err);
-  err = MPI_Comm_size( MPI_COMM_WORLD, &size );
-  CHECK(!err);
   
-  MBCore moab_instance( rank, size );
+  MBCore moab_instance;
   MBInterface& moab = moab_instance;
   load_and_partition( moab, InputFile );
   

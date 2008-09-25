@@ -34,9 +34,6 @@ public:
 
     //! destructor
   virtual ~MBReadUtilIface(){}
-  
-  //! Get Processor ID
-  virtual unsigned parallel_rank() const = 0;
 
     //! Given a requested number of vertices and number of coordinates, returns
     //! memory space which will be used to store vertex coordinates and information
@@ -53,7 +50,6 @@ public:
     const int num_arrays,
     const int num_nodes, 
     const int preferred_start_id,
-    const int preferred_start_proc,
     MBEntityHandle& actual_start_handle, 
     std::vector<double*>& arrays
     ) = 0;
@@ -73,7 +69,6 @@ public:
     const int verts_per_element,
     const MBEntityType mdb_type,
     const int preferred_start_id, 
-    const int preferred_start_proc, 
     MBEntityHandle& actual_start_handle, 
     MBEntityHandle*& array
     ) = 0;
@@ -95,7 +90,6 @@ public:
     MBEntityID num_sets,
     const unsigned* set_flags,
     MBEntityID preffered_start_id,
-    int preffered_start_proc,
     MBEntityHandle& actual_start_handle
   ) = 0;
 

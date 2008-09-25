@@ -164,7 +164,7 @@ MBErrorCode ReadSTL::load_file_impl(const char *filename,
     // Create vertices 
   std::vector<double*> coord_arrays;
   MBEntityHandle handle = 0;
-  result = readMeshIface->get_node_arrays( 3, vertex_map.size(), MB_START_ID, -1,
+  result = readMeshIface->get_node_arrays( 3, vertex_map.size(), MB_START_ID,
                                            handle, coord_arrays );
   if (MB_SUCCESS != result)
     return result;
@@ -193,7 +193,7 @@ MBErrorCode ReadSTL::load_file_impl(const char *filename,
   result = readMeshIface->get_element_array( triangles.size(),
                                              3,
                                              MBTRI,
-                                             MB_START_ID, -1,
+                                             MB_START_ID,
                                              handle,
                                              connectivity );
   if (MB_SUCCESS != result)

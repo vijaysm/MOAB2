@@ -72,7 +72,7 @@ int main(int argc, char **argv)
   if (0 == rank) stime = MPI_Wtime();
 
     // create MOAB instance based on that
-  MBInterface *mbImpl = new MBCore(rank, nprocs);
+  MBInterface *mbImpl = new MBCore;
   if (NULL == mbImpl) return 1;
   
   MBErrorCode result = MB_SUCCESS;
@@ -224,7 +224,8 @@ void print_usage(const char *command)
 MBErrorCode report_nsets(MBInterface *mbImpl) 
 {
     // get and report various numbers...
-  int rank = mbImpl->proc_rank();
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   
   MBRange matsets, geomsets, parsets;
   int nsets;
