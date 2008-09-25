@@ -62,6 +62,7 @@ public:
   MBHash& operator = ( const MBHash& src )
     {
     this->value = src.value;
+    return *this;
     }
   bool operator < ( const MBHash& other ) const
     {
@@ -1236,40 +1237,25 @@ MBErrorCode ReadVtk::vtk_read_field_attrib( FileTokenizer& tokens,
                                             std::vector<MBRange>& entities,
                                             const char* )
 {
-  const char* tok = tokens.get_string( );
-  if (!tok)
-    return MB_FAILURE;
   long num_fields;
-  const char* end = 0;
-  num_fields = strtol( tok, (char**)&end, 0 );
-  if ( *end )
+  if (!tokens.get_long_ints(1, &num_fields))
     return MB_FAILURE;
 
   long i;
   for ( i = 0; i < num_fields; ++ i )
     {
-    tok = tokens.get_string( );
+    const char* tok = tokens.get_string( );
     if ( ! tok )
       return MB_FAILURE;
 
     std::string name_alloc( tok );
 
     long num_comp;
-    tok = tokens.get_string( );
-    if ( ! tok )
-      return MB_FAILURE;
-    end = 0;
-    num_comp = strtol( tok, (char**)&end, 0 );
-    if ( *end )
+    if (!tokens.get_long_ints( 1, &num_comp))
       return MB_FAILURE;
 
     long num_tuples;
-    tok = tokens.get_string( );
-    if ( ! tok )
-      return MB_FAILURE;
-    end = 0;
-    num_tuples = strtol( tok, (char**)&end, 0 );
-    if ( *end )
+    if (!tokens.get_long_ints( 1, &num_tuples))
       return MB_FAILURE;
 
     int type = tokens.match_token( vtk_type_names );
@@ -1280,8 +1266,8 @@ MBErrorCode ReadVtk::vtk_read_field_attrib( FileTokenizer& tokens,
     if ( ( result = vtk_read_tag_data( tokens, type, num_comp, entities, name_alloc.c_str() ) ) != MB_SUCCESS )
       {
       readMeshIface->report_error(
-        "Error reading data for field \"%s\" (%d components, %d tuples, type %d) at line %d",
-        name_alloc.c_str(), num_comp, num_tuples, type, tokens.line_number());
+        "Error reading data for field \"%s\" (%ld components, %ld tuples, type %d) at line %d",
+        name_alloc.c_str(), num_comp, num_tuples, (int)type, tokens.line_number());
       return result;
       }
     }
