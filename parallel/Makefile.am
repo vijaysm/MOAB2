@@ -21,6 +21,7 @@ MOAB_PARALLEL_HDRS =
 MOAB_PARALLEL_TEST = 
 MOAB_PARALLEL_CHECK = 
 if PARALLEL
+# The list of source files, and any header files that do not need to be installed
   MOAB_PARALLEL_SRCS += \
      MBParallelComm.cpp \
      MBProcConfig.cpp \
@@ -29,8 +30,9 @@ if PARALLEL
      crystal.c errmem.c \
      transfer.c gs.c gs.h tuple_list.c \
      tuple_list.h \
-     sort.c sort.h
+     sort.c sort.h minmax.h transfer.h sort_imp.c
 
+# The list of header files which are to be installed
   MOAB_PARALLEL_HDRS += \
      MBParallelComm.hpp \
      MBProcConfig.hpp \

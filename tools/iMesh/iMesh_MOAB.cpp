@@ -1006,22 +1006,31 @@ extern "C" {
     int prev_off = 0;
   
     std::vector<MBEntityHandle> all_adj_ents;
+    std::vector<MBEntityHandle> adj_ents;
+    const MBEntityHandle *connect;
+    int num_connect;
     
     for ( ; entity_iter != entity_end; ++entity_iter)
     {
       *off_iter = prev_off;
       off_iter++;
-      std::vector<MBEntityHandle> adj_ents;
 
-      result = MBI->get_adjacencies( entity_iter, 1, 
-                                     entity_type_requested, false, adj_ents );
-      if (MB_SUCCESS != result) {
-        iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getEntArrAdj: trouble getting adjacency list.");
-        RETURN(iBase_ERROR_MAP[result]);
+      if (iBase_VERTEX != entity_type_requested) {
+        adj_ents.clear();
+        result = MBI->get_adjacencies( entity_iter, 1, 
+                                       entity_type_requested, false, adj_ents );
+        if (MB_SUCCESS != result) {
+          iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getEntArrAdj: trouble getting adjacency list.");
+          RETURN(iBase_ERROR_MAP[result]);
+        }
+        std::copy(adj_ents.begin(), adj_ents.end(), std::back_inserter(all_adj_ents));
+        prev_off += adj_ents.size();
       }
-
-      std::copy(adj_ents.begin(), adj_ents.end(), std::back_inserter(all_adj_ents));
-      prev_off += adj_ents.size();
+      else {
+        result = MBI->get_connectivity(*entity_iter, connect, num_connect);
+        std::copy(connect, connect+num_connect, std::back_inserter(all_adj_ents));
+        prev_off += num_connect;
+      }
     }
     *off_iter = prev_off;
 
