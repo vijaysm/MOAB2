@@ -2712,10 +2712,9 @@ MBErrorCode MBParallelComm::tag_shared_ents(int resolve_dim,
                                             sharedh_tag, sharedhs_tag, pstatus_tag);
   RRA("Trouble getting shared proc tags in tag_shared_ents.");
   const MBEntityHandle *connect; int num_connect;
-  std::vector<int> sharing_procs(MAX_SHARING_PROCS);
-  int sharing_procs2[MAX_SHARING_PROCS];
-  std::fill(sharing_procs.begin(), sharing_procs.end(), -1);
-  std::vector<unsigned char> pstatus_flags(MB_MAX_SUB_ENTITIES);
+  std::vector<int> sharing_procs, sharing_procs1, sharing_procs2;
+  std::vector<int>::iterator vii;
+  std::vector<unsigned char> pstatus_flags;
 
   for (int d = 3; d > 0; d--) {
     if (resolve_dim == d) continue;
@@ -2725,11 +2724,10 @@ MBErrorCode MBParallelComm::tag_shared_ents(int resolve_dim,
         // get connectivity
       result = mbImpl->get_connectivity(*rit, connect, num_connect);
       RRA("Failed to get connectivity on non-vertex skin entities.");
-      MBRange sp_range, vp_range;
-
+ 
         // if any vertices not shared, this entity isn't
-      assert(num_connect <= MB_MAX_SUB_ENTITIES);
       bool is_shared = true;
+      pstatus_flags.resize( num_connect );
       result = mbImpl->tag_get_data(pstatus_tag, connect, num_connect,
                                     &pstatus_flags[0]);
       RRA("Couldn't get pstatus flag.");
@@ -2741,54 +2739,56 @@ MBErrorCode MBParallelComm::tag_shared_ents(int resolve_dim,
       }
       if (!is_shared) continue;
 
-      bool and_zero = false;
       for (int nc = 0; nc < num_connect; nc++) {
-          // only have to initialize the 2nd one; if sharedps tag is used,
-          // all get initialized
-        sharing_procs2[1] = -1;
+        sharing_procs2.clear();
         
           // get sharing procs
-        result = mbImpl->tag_get_data(sharedp_tag, connect+nc, 1, sharing_procs2);
+        sharing_procs2.resize(1);
+        result = mbImpl->tag_get_data(sharedp_tag, connect+nc, 1, &sharing_procs2[0]);
         RRA("Couldn't get sharedp_tag on skin vertices in entity.");
         if (sharing_procs2[0] == -1) {
-          result = mbImpl->tag_get_data(sharedps_tag, connect+nc, 1, sharing_procs2);
+          sharing_procs2.resize(MAX_SHARING_PROCS);
+          result = mbImpl->tag_get_data(sharedps_tag, connect+nc, 1, &sharing_procs2[0]);
           RRA("Couldn't get sharedps_tag on skin vertices in entity.");
         }
         assert(-1 != sharing_procs2[0]);
+          // remove any unnecessary entries
+        vii = std::find( sharing_procs2.begin(), sharing_procs2.end(), -1 );
+        sharing_procs2.erase( vii, sharing_procs2.end() );
         
           // build range of sharing procs for this vertex
-        unsigned int p = 0; vp_range.clear();
-        while (sharing_procs2[p] != -1 && p < MAX_SHARING_PROCS)
-          vp_range.insert(sharing_procs2[p]), p++;
-        assert(p < MAX_SHARING_PROCS);
           // intersect with range for this skin ent
         if (0 == nc) {
-          sp_range = vp_range;
-          if (sharing_procs2[0] == 0) and_zero = true;
+          sharing_procs.swap( sharing_procs2 );
         }
-        else if (resolve_dim < shared_dim) 
-          sp_range.merge(vp_range);
-        else 
-          sp_range = sp_range.intersect(vp_range);
-
-          // need to also save rank zero, since ranges don't handle that
-        if (and_zero && sharing_procs2[0] != 0) and_zero = false;
+        else if (resolve_dim < shared_dim) {
+          sharing_procs1.clear();
+          set_union( sharing_procs.begin(), sharing_procs.end(), 
+                     sharing_procs2.begin(), sharing_procs2.end(),
+                     std::back_inserter( sharing_procs1 ) );
+          sharing_procs.swap( sharing_procs1 );
+        }
+        else {
+          sharing_procs1.clear();
+          set_intersection( sharing_procs.begin(), sharing_procs.end(), 
+                            sharing_procs2.begin(), sharing_procs2.end(),
+                            std::back_inserter( sharing_procs1 ) );
+          sharing_procs.swap( sharing_procs1 );
+        }
       }
 
-      if (sp_range.empty() && resolve_dim < shared_dim) continue;
+      if (sharing_procs.empty() && resolve_dim < shared_dim) continue;
 
         // intersection is the owning proc(s) for this skin ent
-      if (sp_range.empty() && !and_zero) continue;
+      if (sharing_procs.empty()) continue;
 
-      MBRange::iterator rit2;
-        // set tag for this ent
-      int j = 0;
-      if (and_zero) sharing_procs[j++] = 0;
-      
-      for (rit2 = sp_range.begin(); rit2 != sp_range.end(); 
-           rit2++, j++) sharing_procs[j] = *rit2;
+      for (vii = sharing_procs.begin(); vii != sharing_procs.end(); ++vii)
+        assert( *vii < (int)procConfig.proc_size() );
+        // fill extra entries with -1
+      assert(sharing_procs.size() <= MAX_SHARING_PROCS);
+      sharing_procs.resize( MAX_SHARING_PROCS, -1 );
       proc_nranges[sharing_procs].insert(*rit);
-      if (2 > j) {
+      if (sharing_procs.size() < 2) {
         result = mbImpl->tag_set_data(sharedp_tag, &(*rit), 1,
                                       &sharing_procs[0]);
         RRA("Failed to set sharedp_tag on non-vertex skin entity.");
@@ -2805,7 +2805,7 @@ MBErrorCode MBParallelComm::tag_shared_ents(int resolve_dim,
       }
 
         // reset sharing proc(s) tags
-      std::fill(sharing_procs.begin(), sharing_procs.end(), -1);
+      sharing_procs.clear();
     }
   }
 
@@ -2813,8 +2813,8 @@ MBErrorCode MBParallelComm::tag_shared_ents(int resolve_dim,
   std::map<int, MBRange> proc_ranges;
   for (std::map<std::vector<int>, MBRange>::iterator mit = proc_nranges.begin();
        mit != proc_nranges.end(); mit++) {
-    for (unsigned int i = 0; i < (*mit).first.size(); i++) 
-      proc_ranges[(*mit).first[i]].merge((*mit).second);
+    for (unsigned int i = 0; i < mit->first.size(); i++) 
+      proc_ranges[mit->first[i]].merge(mit->second);
   }
 
   return MB_SUCCESS;
