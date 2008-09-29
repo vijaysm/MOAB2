@@ -54,7 +54,7 @@ endif
   mbparallelcomm_test_LDADD = $(top_builddir)/libMOAB.la
   mbparallelcomm_test_DEPENDENCIES = $(mbparallelcomm_test_LDADD)
 
-  MOAB_PARALLEL_TEST += pcomm_unit
+  MOAB_PARALLEL_TEST += pcomm_unit parallel_unit_tests
 endif
 
 # The list of source files, and any header files that do not need to be installed
@@ -75,6 +75,8 @@ parallel_hdf5_test_SOURCES = parallel_hdf5_test.cc
 parallel_hdf5_test_LDADD = ../libMOAB.la
 mhdf_parallel_SOURCES = mhdf_parallel.c
 mhdf_parallel_LDADD = ../mhdf/libmhdf.la
+parallel_unit_tests_SOURCES = parallel_unit_tests.cpp
+parallel_unit_tests_LDADD = ../libMOAB.la
 
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = mhdf_ll.h5m
