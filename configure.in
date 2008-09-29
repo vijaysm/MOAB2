@@ -112,6 +112,9 @@ dnl SNL_CHECK_BOOST( [boost/pool/object_pool.hpp] )
 #                              MPI OPTIONS
 ################################################################################
 
+AC_ARG_VAR(MPIEXEC,[Program to use to run parallel tests (default: mpiexec or mpirun)])
+AC_ARG_VAR(MPIEXEC_NP,[Command line flag to specify number of processors to use (default: -np)])
+AC_ARG_VAR(NP,[Number of processors to on which to run parallel tests (default: 2)])
 if test "x$WITH_MPI" != "xno"; then
   DEFINES="$DEFINES -DUSE_MPI"
   AC_CHECK_HEADER([mpi.h],[],[AC_MSG_ERROR([mpi.h not found or not working])])
@@ -129,8 +132,22 @@ if test "x$WITH_MPI" != "xno"; then
          [AC_MSG_ERROR([mpi.h is not usable])]),
      CPPFLAGS="$save_CPPFLAGS"])
   AC_LANG_RESTORE
+  if test "x$MPIEXEC" = "x"; then
+    if test "x$WITH_MPI" != "xyes"; then
+      AC_CHECK_PROGS([MPIEXEC],[mpiexec mpirun],[true],[${WITH_MPI}:${WITH_MPI}/bin])
+    else
+      AC_CHECK_PROGS([MPIEXEC],[mpiexec mpirun],[true])
+    fi
+  fi
+  if test "x$MPIEXEC_NP" = "x"; then
+    MPIEXEC_NP="-np"
+  fi
+  if test "x$NP" = "x"; then
+    NP=2
+  fi
 fi
 AM_CONDITIONAL(USE_MPI, [test "xno" != "x$WITH_MPI"])
+AM_CONDITIONAL(USE_MPIEXEC, [test "x$MPIEXEC" != "xtrue"])
 
 ################################################################################
 #                              HDF5 OPTIONS

@@ -14,6 +14,11 @@ INCLUDES += -I$(top_srcdir) -I$(top_builddir) -I$(srcdir)/../mhdf/inc
 # The directory in which to install headers
 libMOABpar_la_includedir = $(includedir)
 
+# Run parallel tests in parallel
+if USE_MPIEXEC
+  OLD_ENVIRONMENT := ${TESTS_ENVIRONMENT}
+  TESTS_ENVIRONMENT = ${MPIEXEC} ${MPIEXEC_NP} ${NP} ${OLD_ENVIRONMENT}
+endif
 
 # Conditional sources
 MOAB_PARALLEL_SRCS =
