@@ -1529,11 +1529,11 @@ MBErrorCode MBParallelComm::set_remote_data(MBEntityHandle *local_ents,
     else {
       result = mbImpl->tag_get_data(sharedps_tag, local_ents+i, 1,
                                     remote_procs);
-      if (MB_SUCCESS == result) {
-        result = mbImpl->tag_get_data(sharedhs_tag, local_ents+i, 1,
-                                      remote_handles);
-        RRA("Couldn't get sharedhs tag (vector)");
-      }
+      RRA("Couldn't get sharedps tag (vector)");
+      
+      result = mbImpl->tag_get_data(sharedhs_tag, local_ents+i, 1,
+                                    remote_handles);
+      RRA("Couldn't get sharedhs tag (vector)");
     }
 
       // now either insert other_proc, handle into these, or remove if
@@ -1600,46 +1600,66 @@ MBErrorCode MBParallelComm::rmv_remote_proc(MBEntityHandle ent,
   return MB_SUCCESS;
 }
 
+template <typename T> void
+insert_in_array( T* array, size_t array_size, size_t location, T value )
+{
+  assert( location+1 < array_size );
+  for (size_t i = array_size-1; i > location; --i)
+    array[i] = array[i-1];
+  array[location] = value;
+}
+
 MBErrorCode MBParallelComm::add_remote_proc(MBEntityHandle ent,
                                             int *remote_procs,
                                             MBEntityHandle *remote_hs,
                                             int remote_proc,
                                             MBEntityHandle remote_handle) 
 {
-  int i = 0;
-  bool more = (remote_procs[0] != remote_proc);
+  int* ptr = std::find( remote_procs, remote_procs+MAX_SHARING_PROCS, -1 );
+  const size_t n = ptr - remote_procs;
+  ptr = std::lower_bound( remote_procs, remote_procs+n, remote_proc );
+  const size_t i = ptr - remote_procs;
   
-  while (-1 != remote_procs[i] && i < MAX_SHARING_PROCS && 
-         remote_proc > remote_procs[i]) i++;
-
-  if (remote_procs[i] == remote_proc && 
-      remote_hs[i] == remote_handle)
-    return MB_SUCCESS;
-  
-  assert(i < MAX_SHARING_PROCS-1);
-  if (remote_procs[i] != remote_proc) {
-    for (int j = MAX_SHARING_PROCS-1; j > i; j--) {
-      remote_procs[j] = remote_procs[j-1];
-      remote_hs[j] = remote_hs[j-1];
+  MBErrorCode result;
+  const int invalid_proc = -1;
+  const MBEntityHandle invalid_handle = 0;
+  if (i == n || remote_procs[i] != remote_proc) {
+    insert_in_array( remote_procs, MAX_SHARING_PROCS, i, remote_proc );
+    insert_in_array( remote_hs, MAX_SHARING_PROCS, i, remote_handle );
+    
+    switch (n) {
+      case 0:
+        result = mbImpl->tag_set_data( sharedp_tag(), &ent, 1, remote_procs );
+        RRA("Couldn't set sharedp tag");
+        result = mbImpl->tag_set_data( sharedh_tag(), &ent, 1, remote_hs );
+        RRA("Couldn't set sharedh tag");
+        break;
+      case 1:
+          // going from 1 -> many, so clear single-value tag
+        result = mbImpl->tag_set_data(  sharedp_tag(), &ent, 1, &invalid_proc );
+        RRA("Couldn't set sharedp tag");
+        result = mbImpl->tag_set_data( sharedh_tag(), &ent, 1, &invalid_handle );
+        RRA("Couldn't set sharedh tag");
+          // NO BREAK: fall through to next block to set many-valued tags
+      default:
+        result = mbImpl->tag_set_data(  sharedps_tag(), &ent, 1, remote_procs );
+        RRA("Couldn't set sharedps tag");
+        result = mbImpl->tag_set_data( sharedhs_tag(), &ent, 1, remote_hs );
+        RRA("Couldn't set sharedhs tag");
+        break;
     }
   }
-  remote_procs[i] = remote_proc;
-  remote_hs[i] = remote_handle;
-
-  MBErrorCode result = mbImpl->tag_set_data((more ? sharedps_tag() : sharedp_tag()), 
-                                            &ent, 1, remote_procs);
-  RRA("Couldn't set sharedps tag");
-  result = mbImpl->tag_set_data((more ? sharedhs_tag() : sharedh_tag()), &ent, 1, remote_hs);
-  RRA("Couldn't set sharedhs tag");
-
-    // if we went from 1 to 2, need to unset sharedp_tag
-  if (1 == i) {
-    remote_proc = -1;
-    result = mbImpl->tag_set_data(sharedp_tag(), &ent, 1, &remote_proc);
-    RRA("Couldn't set sharedp tag");
-    remote_handle = 0;
-    result = mbImpl->tag_set_data(sharedh_tag(), &ent, 1, &remote_handle);
-    RRA("Couldn't set sharedhs tag");
+  else if (remote_hs[i] != remote_handle) {
+    assert(remote_hs[i] == invalid_handle);
+    remote_hs[i] = remote_handle;
+    if (n == 1) {
+      result = mbImpl->tag_set_data( sharedh_tag(), &ent, 1, remote_hs );
+      RRA("Couldn't set sharedh tag");
+    }
+    else {
+      result = mbImpl->tag_set_data( sharedhs_tag(), &ent, 1, remote_hs );
+      RRA("Couldn't set sharedhs tag");
+    }
   }
   
   return MB_SUCCESS;
@@ -2810,12 +2830,12 @@ MBErrorCode MBParallelComm::tag_shared_ents(int resolve_dim,
   }
 
     // build range for each sharing proc
-  std::map<int, MBRange> proc_ranges;
-  for (std::map<std::vector<int>, MBRange>::iterator mit = proc_nranges.begin();
-       mit != proc_nranges.end(); mit++) {
-    for (unsigned int i = 0; i < mit->first.size(); i++) 
-      proc_ranges[mit->first[i]].merge(mit->second);
-  }
+  //std::map<int, MBRange> proc_ranges;
+  //for (std::map<std::vector<int>, MBRange>::iterator mit = proc_nranges.begin();
+  //     mit != proc_nranges.end(); mit++) {
+  //  for (unsigned int i = 0; i < mit->first.size(); i++) 
+  //    proc_ranges[mit->first[i]].merge(mit->second);
+  //}
 
   return MB_SUCCESS;
 }
