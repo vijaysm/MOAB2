@@ -57,6 +57,7 @@ extern "C"
 #include <vector>
 
 #include "MBInterface.hpp"
+#include "MBParallelComm.hpp"
 
   class MBZoltan 
   {
@@ -66,7 +67,9 @@ extern "C"
              int argc = 0, char **argv = NULL) 
         : mbImpl(impl), myZZ(NULL), newMoab(false), useCoords(use_coords),
           argcArg(argc), argvArg(argv)
-      {}
+      {
+        mbpc = MBParallelComm::get_pcomm(mbImpl, 0);
+      }
 
     ~MBZoltan();
 
@@ -110,6 +113,8 @@ extern "C"
   private:
 
     MBInterface *mbImpl;
+
+    MBParallelComm *mbpc;
 
     Zoltan *myZZ;
   
