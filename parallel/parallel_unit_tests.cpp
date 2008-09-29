@@ -163,10 +163,9 @@ MBErrorCode get_sharing_processors( MBInterface& moab,
   }
   
   int procs[MAX_SHARING_PROCS];
-  rval = moab.tag_get_data( sharedp_tag, &entity, 1, procs ); CHKERR(rval);
-  for (int i = 0; i < MAX_SHARING_PROCS; ++i)
-    if (procs[i] >= 0)
-      other_procs_out.push_back(procs[i]);
+  rval = moab.tag_get_data( sharedps_tag, &entity, 1, procs ); CHKERR(rval);
+  for (int i = 0; i < MAX_SHARING_PROCS && procs[i] >= 0; ++i)
+    other_procs_out.push_back(procs[i]);
   return MB_SUCCESS;
 }
   
