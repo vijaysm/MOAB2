@@ -7,6 +7,7 @@
 #include "MBParallelConventions.h"
 
 #include <iostream>
+#include <sstream>
 #include <mpi.h>
 #include <unistd.h>
 
@@ -19,7 +20,7 @@ const char* InputFile = STRINGIFY(SRCDIR) "/ptest.cub";
 const char* InputFile = "ptest.cub";
 #endif
 
-void load_and_partition( MBInterface& moab, const char* filename );
+void load_and_partition( MBInterface& moab, const char* filename, bool print_debug = false );
 
 void save_and_load_on_root( MBInterface& moab, const char* tmp_filename );
 
@@ -64,16 +65,161 @@ int main( int argc, char* argv[] )
   return result;
 }
 
-void load_and_partition( MBInterface& moab, const char* filename )
+/* Assume geometric topology sets correspond to interface sets 
+ * in that the entities contained inclusively in a geometric
+ * topology set must be shared by the same set of processors.
+ * As we partition based on geometric volumes, this assumption
+ * should aways be true.  Print for each geometric topology set
+ * the list of processors it is shared with.
+ */
+void print_partitioned_entities( MBInterface& moab, bool list_non_shared = false )
+{
+  MBErrorCode rval;
+  int size, rank;
+  std::vector<int> ent_procs(MAX_SHARING_PROCS), tmp_ent_procs(MAX_SHARING_PROCS);
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  MPI_Comm_size( MPI_COMM_WORLD, &size );
+  
+    // expect shared entities to correspond to geometric sets
+    
+    // get tags for parallel data
+  MBTag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
+  const char* ptag_names[] = { PARALLEL_SHARED_PROC_TAG_NAME,
+                               PARALLEL_SHARED_PROCS_TAG_NAME,
+                               PARALLEL_SHARED_HANDLE_TAG_NAME,
+                               PARALLEL_SHARED_HANDLES_TAG_NAME,
+                               PARALLEL_STATUS_TAG_NAME };
+  MBTag* tag_ptrs[] = { &sharedp_tag, &sharedps_tag, &sharedh_tag, &sharedhs_tag, &pstatus_tag };
+  const int ntags = sizeof(ptag_names)/sizeof(ptag_names[0]);
+  for (int i = 0; i < ntags; ++i) {
+    rval = moab.tag_get_handle( ptag_names[i], *tag_ptrs[i] ); CHECK_ERR(rval);
+  }
+  
+    // for each geometric entity, check which processor we are sharing
+    // entities with
+  MBTag geom_tag, id_tag;
+  rval = moab.tag_get_handle( GEOM_DIMENSION_TAG_NAME, geom_tag ); CHECK_ERR(rval);
+  rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag ); CHECK_ERR(rval);
+  const char* topo_names_s[] = { "Vertex", "Curve", "Surface", "Volume" };
+//  const char* topo_names_p[] = { "Vertices", "Curves", "Surfaces", "Volumes" };
+  std::ostringstream buffer; // buffer output in an attempt to prevent lines from different processsors being mixed up.
+  for (int t = 0; t < 4; ++t) {
+    MBRange geom;
+    int dim = t;
+    const void* ptr = &dim;
+    rval = moab.get_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag, &ptr, 1, geom );
+    CHECK_ERR(rval);
+  
+      // for each geometric entity of dimension 't'
+    for (MBRange::const_iterator i = geom.begin(); i != geom.end(); ++i) {
+      MBEntityHandle set = *i;
+      int id;
+      rval = moab.tag_get_data( id_tag, &set, 1, &id ); CHECK_ERR(rval);
+
+      buffer.clear();
+
+        // get entities contained in this set but not its children
+      MBRange entities, tmp_entities, children, diff;
+      rval = moab.get_entities_by_handle( set, entities ); CHECK_ERR(rval);
+      rval = moab.get_child_meshsets( set, children ); CHECK_ERR(rval);
+      for (MBRange::const_iterator j = children.begin(); j != children.end(); ++j) {
+        tmp_entities.clear();
+        rval = moab.get_entities_by_handle( *j, tmp_entities ); CHECK_ERR(rval);
+        diff = entities.subtract( tmp_entities );
+        entities.swap( diff );
+      }
+      
+        // for each entity, check owning processors
+      std::vector<char> status_flags( entities.size(), 0 );
+      std::vector<int> shared_procs( entities.size(), 0 );
+      rval = moab.tag_get_data( pstatus_tag, entities, &status_flags[0] );
+      if (MB_TAG_NOT_FOUND == rval) {
+        // keep default values of zero (not shared)
+      }
+      CHECK_ERR(rval);
+      unsigned num_shared = 0;
+      for (size_t j = 0; j < status_flags.size(); ++j)
+        num_shared += !!(status_flags[j] & PSTATUS_SHARED);
+      
+      if (!num_shared) {
+        if (list_non_shared)
+          buffer << rank << ":\t" << topo_names_s[t] << " " << id << ":\t"
+                 << "not shared" << std::endl;
+      }
+      else if (num_shared != entities.size()) {
+        buffer << rank << ":\t" << topo_names_s[t] << " " << id << ":\t"
+               << "ERROR: " << num_shared << " of " << entities.size() 
+               << " entities marked as 'shared'" << std::endl;
+      }
+      else {
+        rval = moab.tag_get_data( sharedp_tag, entities, &shared_procs[0] );
+        CHECK_ERR(rval);
+        int proc = shared_procs[0];
+        bool all_match = true;
+        for (size_t j = 1; j < shared_procs.size(); ++j)
+          if (shared_procs[j] != proc)
+            all_match = false;
+        if (!all_match) {
+          buffer << rank << ":\t" << topo_names_s[t] << " " << id << ":\t"
+                 << "ERROR: processsor IDs do not match!" << std::endl;
+        }
+        else if (proc != -1) {
+          buffer << rank << ":\t" << topo_names_s[t] << " " << id << ":\t"
+                 << "shared with processor " << proc << std::endl;
+        }
+        else if (entities.empty()) {
+          buffer << rank << ":\t" << topo_names_s[t] << " " << id << ":\t"
+                 << "ERROR: no entities!" << std::endl;
+        }
+        else {
+          MBRange::const_iterator j = entities.begin();
+          rval = moab.tag_get_data( sharedps_tag, &*j, 1, &ent_procs[0] );
+          CHECK_ERR(rval);
+          for (++j; j != entities.end(); ++j) {
+            rval = moab.tag_get_data( sharedps_tag, &*j, 1, &tmp_ent_procs[0] );
+            CHECK_ERR(rval);
+            if (ent_procs != tmp_ent_procs) 
+              all_match = false;
+          }
+          if (!all_match) {
+            buffer << rank << ":\t" << topo_names_s[t] << " " << id << ":\t"
+                   << "ERROR: processsor IDs do not match!" << std::endl;
+          }
+          else {
+            buffer << rank << ":\t" << topo_names_s[t] << " " << id << ":\t"
+                   << "processors ";
+            for (int j = 0; j < MAX_SHARING_PROCS; ++j)
+              if (ent_procs[j] != -1)
+                buffer << ent_procs[j] << ", ";
+              buffer << std::endl;
+          }
+        }
+      }
+    }
+  }
+  for (int i = 0; i < size; ++i) {
+    MPI_Barrier( MPI_COMM_WORLD );
+    if (i == rank) {
+      std::cout << buffer.str();
+      std::cout.flush();
+    }
+  }
+}
+
+void load_and_partition( MBInterface& moab, const char* filename, bool print )
 {
   MBErrorCode rval;
   MBEntityHandle set;
   
   rval = moab.load_file( filename, set, 
-                         "PARALLEL=BCAST_DELETE;"
+                         "PARALLEL=READ_DELETE;"
                          "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
                          "PARTITION_DISTRIBUTE;"
                          "PARALLEL_RESOLVE_SHARED_ENTS" );
+
+  if (print)
+    print_partitioned_entities(moab);
+
   CHECK_ERR(rval);
 }
 
