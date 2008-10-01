@@ -28,6 +28,7 @@
 #include "MBZoltan.hpp"
 #include "MBInterface.hpp"
 #include "MBInternals.hpp"
+#include "MBParallelComm.hpp"
 #include "MBRange.hpp"
 #include "MBWriteUtilIface.hpp"
 #include "MeshTopoUtil.hpp"
@@ -45,6 +46,20 @@ static int *NborGlobalId=NULL;
 static int *NborProcs=NULL;
 
 const bool debug = false;
+
+MBZoltan::MBZoltan( MBInterface *impl , 
+                    const bool use_coords,
+                    int argc, 
+                    char **argv ) 
+                   : mbImpl(impl), 
+                     myZZ(NULL), 
+                     newMoab(false), 
+                     useCoords(use_coords),
+                     argcArg(argc), 
+                     argvArg(argv)
+{
+  mbpc = MBParallelComm::get_pcomm(mbImpl, 0);
+}
 
 MBZoltan::~MBZoltan() 
 {

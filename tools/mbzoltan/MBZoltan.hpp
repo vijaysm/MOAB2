@@ -55,21 +55,20 @@ extern "C"
 }
 
 #include <vector>
+#include "MBTypes.h"
 
-#include "MBInterface.hpp"
-#include "MBParallelComm.hpp"
+  class MBParallelComm;
+  class MBInterface;
+  class MBRange;
 
   class MBZoltan 
   {
 
   public:
-    MBZoltan(MBInterface *impl = NULL, const bool use_coords = false,
-             int argc = 0, char **argv = NULL) 
-        : mbImpl(impl), myZZ(NULL), newMoab(false), useCoords(use_coords),
-          argcArg(argc), argvArg(argv)
-      {
-        mbpc = MBParallelComm::get_pcomm(mbImpl, 0);
-      }
+    MBZoltan( MBInterface *impl = NULL, 
+              const bool use_coords = false,
+              int argc = 0, 
+              char **argv = NULL );
 
     ~MBZoltan();
 
