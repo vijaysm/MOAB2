@@ -6,7 +6,8 @@ SIDL_FILES_PATH = $(srcdir)/iBase.sidl $(srcdir)/iMesh.sidl $(srcdir)/iMesh_SIDL
 SERVER_FILES = mserver/iBase_Error_Impl.cc \
                mserver/iBase_Error_Impl.hh \
 	       mserver/iMesh_SIDL_MeshSidl_Impl.cc \
-	       mserver/iMesh_SIDL_MeshSidl_Impl.hh 
+	       mserver/iMesh_SIDL_MeshSidl_Impl.hh \
+	       mserver/iMesh_Factory_Impl.cc
 SERVER_FILES_PATH = $(srcdir)/mserver/iBase_Error_Impl.cc \
                     $(srcdir)/mserver/iBase_Error_Impl.hh \
 	            $(srcdir)/mserver/iMesh_SIDL_MeshSidl_Impl.cc \
