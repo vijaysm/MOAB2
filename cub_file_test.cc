@@ -97,7 +97,7 @@ void test_file_set();
 
 int main()
 {
-  int result;
+  int result = 0;
   
   result += RUN_TEST(test_vertices);
   result += RUN_TEST(test_edges);
