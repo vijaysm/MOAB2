@@ -86,14 +86,18 @@ if test "xno" != "x$NETCDF_ARG"; then
     [#include <netcdf.hh>], [NcFile ncf("foo",NcFile::ReadOnly);],
     [AC_MSG_RESULT([yes])], 
     [AC_MSG_RESULT([no]); 
-     AC_MSG_ERROR([NetCDF C++ API not found])
+     AC_MSG_WARN([NetCDF C++ API not found])
      HAVE_NETCDF=no] )
   LIBS="$old_LIBS"
   AC_LANG_RESTORE
   CPPFLAGS="$old_CPPFLAGS"
   LDFLAGS="$old_LDFLAGS"
   if test "x$HAVE_NETCDF" = "xno"; then
-    AC_MSG_WARN("NetCDF support disabled")
+    if test "x$NETCDF_ARG" != "x"; then 
+      AC_MSG_ERROR("NetCDF not found or not working")
+    else
+      AC_MSG_WARN("NetCDF support disabled")
+    fi
     NETCDF_CPPFLAGS=
     NETCDF_LDFLAGS=
   fi
