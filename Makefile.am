@@ -32,7 +32,8 @@ TESTS = moab_test \
         kd_tree_test \
         var_len_test var_len_test_no_template \
 	tag_test \
-	mesh_set_test
+	mesh_set_test \
+	cub_file_test
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 
@@ -240,6 +241,7 @@ libMOAB_la_include_HEADERS = \
   WriteTemplate.hpp \
   $(MOAB_EXTRA_HDRS)
 
+CPPFLAGS += -DSRCDIR=$(srcdir)
 
 # Tests and such
 
@@ -337,6 +339,10 @@ var_len_test_no_template_CPPFLAGS = -UTEMPLATE_SPECIALIZATION
 tag_test_SOURCES = TestUtil.hpp TagTest.cpp
 tag_test_LDADD = $(top_builddir)/libMOAB.la
 tag_test_DEPENDENCIES = $(tag_test_LDADD)
+
+cub_file_test_SOURCES = TestUtil.hpp cub_file_test.cc
+cub_file_test_LDADD = $(top_builddir)/libMOAB.la
+cub_file_test_DEPENDENCIES = $(tag_test_LDADD)
 
 
 # Other files to clean up (e.g. output from tests)
