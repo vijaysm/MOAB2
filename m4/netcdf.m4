@@ -12,7 +12,7 @@ AC_HELP_STRING([--without-netcdf], [Disable support for ExodusII file format])],
 [NETCDF_ARG=$withval
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-netcdf=\"${withval}\""
 ]
-, [NETCDF_ARG=yes])
+, [NETCDF_ARG=])
 if test "xno" = "x$NETCDF_ARG"; then
   AC_MSG_RESULT([no])
 else
@@ -37,7 +37,7 @@ if test "xno" != "x$NETCDF_ARG"; then
   AC_LANG_RESTORE
   
     # if a path is specified, update LIBS and INCLUDES accordingly
-  if test "xyes" != "x$NETCDF_ARG"; then
+  if test "xyes" != "x$NETCDF_ARG" && test "x" != "x$NETCDF_ARG"; then
     if test -d "${NETCDF_ARG}/lib"; then
       NETCDF_LDFLAGS="-L${NETCDF_ARG}/lib"
     elif test -d "${NETCDF_ARG}"; then
