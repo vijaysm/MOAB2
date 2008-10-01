@@ -84,7 +84,7 @@ AC_ARG_WITH(hdf5,
 AC_HELP_STRING([--without-hdf5], [Disable support for native HDF5 file format])],
 [HDF5_ARG=$withval
  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-hdf5=\"${withval}\""
-], [HDF5_ARG=yes])
+], [HDF5_ARG=])
 if test "xno" = "x$HDF5_ARG"; then
   AC_MSG_RESULT([no])
 else
@@ -101,7 +101,7 @@ if test "xno" != "x$HDF5_ARG"; then
   fi
 
     # if a path is specified, update LIBS and INCLUDES accordingly
-  if test "xyes" != "x$HDF5_ARG"; then
+  if test "xyes" != "x$HDF5_ARG" && "x" != "x$HDF5_ARG"; then
     if test -d "${HDF5_ARG}/lib"; then
       HDF5_LDFLAGS="$HDF5_LDFLAGS -L${HDF5_ARG}/lib"
     elif test -d "${HDF5_ARG}"; then
@@ -151,11 +151,15 @@ if test "xno" != "x$HDF5_ARG"; then
     fi
   fi
   if test "x$HAVE_LIB_HDF5" = "xno"; then
-    AC_MSG_WARN([Could not find HDF5 library (-lhdf5)])
     HAVE_HDF5=no
   fi
   
   if test "x$HAVE_HDF5" = "xno"; then
+    if test "x" = "x$HDF5_ARG"; then
+      AC_MSG_WARN([HDF5 library not found or not usable.])
+    else
+      AC_MSG_ERROR([HDF5 library not found or not usable.])
+    fi
     HDF5_CPPFLAGS=
     HDF5_LDFLAGS=
     HDF5_LIBS=
