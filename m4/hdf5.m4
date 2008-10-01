@@ -101,7 +101,7 @@ if test "xno" != "x$HDF5_ARG"; then
   fi
 
     # if a path is specified, update LIBS and INCLUDES accordingly
-  if test "xyes" != "x$HDF5_ARG" && "x" != "x$HDF5_ARG"; then
+  if test "xyes" != "x$HDF5_ARG" && test "x" != "x$HDF5_ARG"; then
     if test -d "${HDF5_ARG}/lib"; then
       HDF5_LDFLAGS="$HDF5_LDFLAGS -L${HDF5_ARG}/lib"
     elif test -d "${HDF5_ARG}"; then
