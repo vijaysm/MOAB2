@@ -1,6 +1,11 @@
 #ifndef TEST_UTIL_HPP
 #define TEST_UTIL_HPP
 
+/* Define these here because they are used by many tests
+ * to find the add directory for input files */
+#define STRINGIFY_(X) #X
+#define STRINGIFY(X) STRINGIFY_(X)
+
 /* How to use this test suite utility:
  * 1) Write tests that use the CHECK and CHECK_* macros defined below to assert test conditions.
  * 2) Write a main routine that invokes each test through the RUN_TEST macro
@@ -17,6 +22,7 @@
 #define CHECK_REAL_EQUAL( EXP, ACT, EPS ) check_equal( (EXP), (ACT), (EPS), #EXP, #ACT, __LINE__, __FILE__ )
 /** Run a test
  *  Argument should be a function with the signature:  void func(void)
+ *  Evaluates to zero if test is successful, one otherwise.
  */
 #define RUN_TEST( FUNC )           run_test( &FUNC, #FUNC )
 
@@ -188,6 +194,16 @@ int junk_init_var = init_signal_handlers();
 
 
 /***************************************************************************************
+ *                            Function to handle failed tests
+ ***************************************************************************************/
+
+// use a function rather than substituting FLAG_ERROR directly
+// so we have a convenient place to set a break point
+void flag_error() 
+  { FLAG_ERROR; }
+
+
+/***************************************************************************************
  *                            The Code to Run Tests
  ***************************************************************************************/
 
@@ -304,7 +320,7 @@ int run_test( test_func test, const char* func_name )
   printf( "  Expected value: %" #TYPE "\n", A ); \
   printf( "  Actual value:   %" #TYPE "\n", B ); \
   printf( "\n" ); \
-  FLAG_ERROR; \
+  flag_error(); \
 }
 
 void check_equal( int A, int B, const char* sA, const char* sB, int line, const char* file )
@@ -368,7 +384,7 @@ void check_equal( MBErrorCode A, MBErrorCode B, const char* sA, const char* sB, 
   printf( "  Expected value: %s (%d)\n", mb_error_str(A), (int)A ); 
   printf( "  Actual value:   %s (%d)\n", mb_error_str(B), (int)B ); 
   printf( "\n" ); 
-  FLAG_ERROR; 
+  flag_error(); 
 }
 
 const char* mb_type_str( MBEntityType type )
@@ -410,7 +426,7 @@ void check_equal( MBEntityHandle A, MBEntityHandle B, const char* sA, const char
   else 
     printf( "  Actual value: 0\n" ); 
   printf( "\n" ); 
-  FLAG_ERROR; 
+  flag_error(); 
 }  
 */
 
@@ -420,7 +436,7 @@ void check_true( bool cond, const char* str, int line, const char* file )
     printf( "Test Failed: %s\n", str ); 
     printf( "  at line %d of '%s'\n", line, file ); 
     printf( "\n" ); 
-    FLAG_ERROR; 
+    flag_error(); 
   }
 }
 
