@@ -925,16 +925,16 @@ fi
 if test "x$HAVE_HDF5" = "xno"; then
   AC_MSG_WARN([
 *************************************************************************
-*            MOAB has been compiled w/out the HDF5 library.
-*            Support for native file format disabled!
+*            MOAB has been configured w/out the HDF5 library.
+*              Support for native file format is disabled!
 *************************************************************************])
 fi
 
 if test "x$HAVE_NETCDF" = "xno"; then
   AC_MSG_WARN([
 *************************************************************************
-*            MOAB has been compiled w/out the NetCDF library.
-*      Support for ExodusII/Genesis and other file formats disabled!
+*           MOAB has been configured w/out the NetCDF library.
+*     Support for ExodusII/Genesis and other file formats is disabled!
 *************************************************************************])
 fi
 
