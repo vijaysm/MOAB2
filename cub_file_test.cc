@@ -4,6 +4,7 @@
 #include "MBTagConventions.hpp"
 #include "FileOptions.hpp"
 #include <math.h>
+#include <algorithm>
 
 /**\brief Input test file.
  * Cubit 10.2 file.
