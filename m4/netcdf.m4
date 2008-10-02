@@ -23,8 +23,6 @@ fi
 HAVE_NETCDF=no
 if test "xno" != "x$NETCDF_ARG"; then
   HAVE_NETCDF=yes
-    # Add flag to defines
-  DEFINES="$DEFINES -DNETCDF_FILE"
 
     # Check for stream headers and set STRSTREAM_H_SPEC accordingly
   AC_LANG_SAVE
