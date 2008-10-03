@@ -199,7 +199,7 @@ int junk_init_var = init_signal_handlers();
 
 // use a function rather than substituting FLAG_ERROR directly
 // so we have a convenient place to set a break point
-void flag_error() 
+inline void flag_error() 
   { FLAG_ERROR; }
 
 

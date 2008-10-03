@@ -21,6 +21,14 @@
   } \
 } while (false) 
 
+#define PCHECK(A) if (is_any_proc_error(!(A))) return report_error(__FILE__,__LINE__)
+
+MBErrorCode report_error( const char* file, int line )
+{
+  std::cerr << "Failure at " << file << ':' << line << std::endl;
+  return MB_FAILURE;
+}
+
 /**************************************************************************
                      Utility Method Declarations
  **************************************************************************/
@@ -50,7 +58,12 @@ int is_any_proc_error( int is_my_error );
                            Test  Declarations
  **************************************************************************/
 
+// Test sharing tags for mesh entities shared by more than two processors
 MBErrorCode test_elements_on_several_procs( const char* filename );
+// Test correct ghosting of elements
+MBErrorCode test_ghost_elements( const char* filename );
+// Test exchange of tag data on ghost elements
+MBErrorCode test_ghost_tag_exchange( const char* filename );
 
 
 /**************************************************************************
@@ -101,6 +114,8 @@ int main( int argc, char* argv[] )
   int num_errors = 0;
   
   num_errors += RUN_TEST( test_elements_on_several_procs, filename );
+  num_errors += RUN_TEST( test_ghost_elements, filename );
+  num_errors += RUN_TEST( test_ghost_tag_exchange, filename );
   
   int rank;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
@@ -271,8 +286,7 @@ MBErrorCode test_elements_on_several_procs( const char* filename )
     
     my_error = 1;
   }
-  if (is_any_proc_error(my_error))
-    return MB_FAILURE;
+  PCHECK(!my_error);
   
     // now scan the list of geometric entities for
     // any for which the higher-dimension entities
@@ -316,8 +330,236 @@ MBErrorCode test_elements_on_several_procs( const char* filename )
     
     my_error = 1;
   }
-  if (is_any_proc_error(my_error))
-    return MB_FAILURE;
+  PCHECK(!my_error);
   
   return MB_SUCCESS;
 }
+
+
+MBErrorCode test_ghost_elements( const char* filename )
+{
+  MBCore mb_instance;
+  MBInterface& moab = mb_instance;
+  MBErrorCode rval;
+  MBEntityHandle set;
+
+  rval = moab.load_file( filename, set, 
+                         "PARALLEL=READ_DELETE;"
+                         "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
+                         "PARTITION_DISTRIBUTE;"
+                         "PARALLEL_RESOLVE_SHARED_ENTS;"
+                         "PARALLEL_GHOSTS=3.2.1" );
+  CHKERR(rval);
+  
+    // Get partition sets
+  MBParallelComm* pcomm = MBParallelComm::get_pcomm(&moab, 0);
+  MBRange volumes = pcomm->partition_sets();
+  PCHECK( !volumes.empty() );
+  
+    // Get geometric surfaces
+  MBRange surfs, tmp;
+  for (MBRange::iterator i = volumes.begin(); i != volumes.end(); ++i) {
+    tmp.clear();
+    rval = moab.get_child_meshsets( *i, tmp ); CHKERR(rval);
+    surfs.merge( tmp );
+  }
+  
+    // Check consistent sharing and ghosting for each surface
+  int error = 0;
+  std::ostringstream error_msg;
+  MBRange ghost_elems;
+  std::vector<MBEntityHandle> adj_elem;
+  for (MBRange::iterator i = surfs.begin(); !error && i != surfs.end(); ++i) {
+    MBRange faces;
+    rval = moab.get_entities_by_dimension( *i, 2, faces ); CHKERR(rval);
+    if (faces.empty())
+      continue;
+    
+    std::vector<int> procs, tmp_procs;
+    MBRange::iterator j = faces.begin();
+    rval = get_sharing_processors( moab, *j, procs ); CHKERR(rval);
+    for (++j; !error && j != faces.end(); ++j) {
+      tmp_procs.clear();
+      rval = get_sharing_processors( moab, *j, tmp_procs ); CHKERR(rval);
+      if( tmp_procs != procs ) {
+        error_msg << "Failure at " << __FILE__ << ':' << __LINE__ << std::endl
+                  << "\tNot all entiities in geometric surface are shared with"
+                  << " same processor." << std::endl;
+        error = 1;
+        break;
+      }
+    }
+    
+    if (error)
+      break;
+    
+    // if surface is not part of inter-proc interface, skip it.
+    if (procs.empty())
+      continue;
+    if (procs.size() != 1) {
+      error_msg << "Failure at " << __FILE__ << ':' << __LINE__ << std::endl
+                  << "\tSurface elements shared with" << procs.size() << "processors." << std::endl;
+      error = 1;
+      break;
+    }
+    int other_rank = procs[0];
+    if (other_rank == (int)pcomm->proc_config().proc_rank())
+      continue;
+    
+    // for each face on interface, expect two adjacent volume
+    // elements, one owned by this proc and one ghosted element
+    // owned by the other proc.
+    for (j = faces.begin(); !error && j != faces.end(); ++j) {
+      adj_elem.clear();
+      rval = moab.get_adjacencies( &*j, 1, 3, true, adj_elem ); CHKERR(rval);
+      if (2 != adj_elem.size()) {
+        error_msg << "Failure at " << __FILE__ << ':' << __LINE__ << std::endl
+                    << "\t" << adj_elem.size() << " volume elements adjacent to face element" << std::endl;
+        error = 1;
+        break;
+      }
+      
+      int owner1, owner2;
+      rval = pcomm->get_owner( adj_elem[0], owner1 ); CHKERR(rval);
+      rval = pcomm->get_owner( adj_elem[1], owner2 ); CHKERR(rval);
+      if (owner1 == (int)pcomm->proc_config().proc_rank()) {
+        if (other_rank != owner2) {
+          error_msg << "Failure at " << __FILE__ << ':' << __LINE__ << std::endl
+                      << "\texpected element owner:" << other_rank << std::endl
+                      << "\tactual element owner:" << owner2 << std::endl;
+          error = 1;
+          break;
+        }
+        ghost_elems.insert( adj_elem[1] );
+      }
+      else {
+        if (other_rank != owner1 ||
+            (int)pcomm->proc_config().proc_rank() != owner2) {
+          error_msg << "Failure at " << __FILE__ << ':' << __LINE__ << std::endl
+                      << "\texpected element owner:" << other_rank << std::endl
+                      << "\tactual element owner:" << owner1 << std::endl
+                      << "\texpected element owner:" << pcomm->proc_config().proc_rank() << std::endl
+                      << "\tactual element owner:" << owner2 << std::endl;
+          error = 1;
+          break;
+        }
+        ghost_elems.insert( adj_elem[0] );
+      }
+    }
+  }
+  
+    // Don't to global communication until outside
+    // of loops.  Otherwise we will deadlock if not all
+    // procs iterate the same number of times.
+  if (is_any_proc_error(error)) {
+    std::cerr << error_msg.str();
+    return MB_FAILURE;
+  }
+  
+  
+    // check that we have no elements other than the ones 
+    // we own and the requested layer of ghosts;
+  MBRange all, internal;
+  for (MBRange::iterator i = volumes.begin(); i != volumes.end(); ++i) {
+    MBRange tmp;
+    rval = moab.get_entities_by_dimension( *i, 3, tmp ); CHKERR(rval);
+    internal.merge( tmp );
+  }
+  rval = moab.get_entities_by_dimension( 0, 3, all ); CHKERR(rval);
+  MBRange diff = all.subtract(internal);
+  PCHECK( diff == ghost_elems );
+  
+  return MB_SUCCESS;
+}
+
+
+MBErrorCode test_ghost_tag_exchange( const char* filename )
+{
+  MBCore mb_instance;
+  MBInterface& moab = mb_instance;
+  MBErrorCode rval;
+  MBEntityHandle set;
+
+  rval = moab.load_file( filename, set, 
+                         "PARALLEL=READ_DELETE;"
+                         "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
+                         "PARTITION_DISTRIBUTE;"
+                         "PARALLEL_RESOLVE_SHARED_ENTS;"
+                         "PARALLEL_GHOSTS=3.2.1" );
+  CHKERR(rval);
+  
+    // Get ghost elements
+  MBParallelComm* pcomm = MBParallelComm::get_pcomm(&moab, 0);
+  MBRange local, ghosts;
+  rval = moab.get_entities_by_dimension( 0, 3, local ); CHKERR(rval);
+  MBRange::iterator i = local.begin();
+  while (i != local.end()) {
+    int rank;
+    rval = pcomm->get_owner( *i, rank ); CHKERR(rval);
+    if (rank == (int)pcomm->proc_config().proc_rank()) {
+      ++i;
+    }
+    else {
+      ghosts.insert( *i );
+      i = local.erase(i);
+    }
+  }
+  
+    // create a tag to exchange
+  MBTag dense_test_tag;
+  rval = moab.tag_create( "TEST-TAG", sizeof(MBEntityHandle), MB_TAG_DENSE,
+                           MB_TYPE_HANDLE, dense_test_tag, 0 ); CHKERR(rval);
+    
+    // for all entiites that I own, set tag to handle value
+  std::vector<MBEntityHandle> handles(local.size()), handles2;
+  std::copy( local.begin(), local.end(), handles.begin() );
+  rval = moab.tag_set_data( dense_test_tag, local, &handles[0] ); CHKERR(rval);
+  
+    // exchange tag data
+  rval = pcomm->exchange_tags( dense_test_tag ); CHKERR(rval);
+  
+    // make sure local values are unchanged
+  handles2.resize( local.size() );
+  rval = moab.tag_get_data( dense_test_tag, local, &handles2[0] ); CHKERR(rval);
+  PCHECK( handles == handles2 );
+  
+    // compare values on ghost entities
+  handles.resize( ghosts.size() );
+  handles2.resize( ghosts.size() );
+  rval = moab.tag_get_data( dense_test_tag, ghosts, &handles2[0] ); CHKERR(rval);
+  rval = moab.tag_get_data( pcomm->sharedh_tag(), ghosts, &handles[0] ); CHKERR(rval);
+  PCHECK( handles == handles2 );
+
+
+    // now do it all again for a sparse tag
+  MBTag sparse_test_tag;
+  rval = moab.tag_create( "TEST-TAG-2", sizeof(int), MB_TAG_DENSE,
+                           MB_TYPE_INTEGER, sparse_test_tag, 0 ); CHKERR(rval);
+    
+    // for all entiites that I own, set tag to my rank
+  std::vector<int> procs1(local.size(), pcomm->proc_config().proc_rank());
+  rval = moab.tag_set_data( sparse_test_tag, local, &procs1[0] ); CHKERR(rval);
+  
+    // exchange tag data
+  rval = pcomm->exchange_tags( sparse_test_tag ); CHKERR(rval);
+  
+    // make sure local values are unchanged
+  std::vector<int> procs2(local.size());
+  rval = moab.tag_get_data( sparse_test_tag, local, &procs2[0] ); CHKERR(rval);
+  PCHECK( procs1 == procs2 );
+  
+    // compare values on ghost entities
+  procs1.resize( ghosts.size() );
+  procs2.resize( ghosts.size() );
+  rval = moab.tag_get_data( sparse_test_tag, ghosts, &procs2[0] ); CHKERR(rval);
+  std::vector<int>::iterator j = procs1.begin();
+  for (i = ghosts.begin(); i != ghosts.end(); ++i, ++j) {
+    rval = pcomm->get_owner( *i, *j ); 
+    CHKERR(rval);
+  }
+  PCHECK( procs1 == procs2 );
+  
+  return MB_SUCCESS;
+}
+
+  

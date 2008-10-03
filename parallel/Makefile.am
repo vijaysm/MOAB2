@@ -86,3 +86,5 @@ parallel_unit_tests_LDADD = ../libMOAB.la
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = mhdf_ll.h5m
 
+EXTRA_DIST = ptest.cub
+
