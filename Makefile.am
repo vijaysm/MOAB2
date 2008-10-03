@@ -345,6 +345,8 @@ cub_file_test_LDADD = $(top_builddir)/libMOAB.la
 cub_file_test_DEPENDENCIES = $(tag_test_LDADD)
 
 
+EXTRA_DIST = test.cub
+
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = dumped_acis.sat tree.h5m
 
