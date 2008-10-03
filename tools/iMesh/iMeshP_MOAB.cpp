@@ -16,18 +16,6 @@
 #define RETURN(a) {iMesh_LAST_ERROR.error_type = a; *err = a;return;}
 #define iMesh_processError(a, b) {sprintf(iMesh_LAST_ERROR.description, "%s", b); iMesh_LAST_ERROR.error_type = a; *err = a;}
 
-#define CHECK_SIZE(array, allocated, size, type, retval)  \
-  if (0 != allocated && NULL != array && allocated < (size)) {\
-    iMesh_processError(iBase_MEMORY_ALLOCATION_FAILED, \
-          "Allocated array not large enough to hold returned contents.");\
-    RETURN(iBase_MEMORY_ALLOCATION_FAILED);\
-  }\
-  if (allocated == 0 || NULL == array) {\
-    array = (type*)malloc((size)*sizeof(type));\
-    allocated=(size);\
-    if (NULL == array) {iMesh_processError(iBase_MEMORY_ALLOCATION_FAILED, \
-          "Couldn't allocate array.");RETURN(iBase_MEMORY_ALLOCATION_FAILED); }\
-  }
 // TAG_CHECK_SIZE is like CHECK_SIZE except it checks for and makes the allocated memory
 // size a multiple of sizeof(void*), and the pointer is assumed to be type char*
 #define TAG_CHECK_SIZE(array, allocated, size)  \
@@ -50,7 +38,6 @@
 #define ENTITY_HANDLE(handle) reinterpret_cast<MBEntityHandle>(handle)
 #define CONST_ENTITY_HANDLE(handle) reinterpret_cast<const MBEntityHandle>(handle)
 #define RANGE_ITERATOR(it) reinterpret_cast<RangeIterator*>(it)
-#define CAST_TO_VOID(ptr) reinterpret_cast<void*>(ptr)
 
 const iBase_ErrorType iBase_ERROR_MAP[] = 
 {
@@ -70,9 +57,44 @@ const iBase_ErrorType iBase_ERROR_MAP[] =
 
 extern iBase_Error iMesh_LAST_ERROR;
 
+template <typename ArrType> inline bool
+allocate_itaps_array( ArrType*& array, int& allocated, int& size, int requested )
+{
+  size = requested;
+  if (allocated) {
+    return (allocated >= requested);
+  }
+  else {
+    array = (ArrType*)malloc( requested * sizeof(ArrType) );
+    allocated = requested;
+    return (array != 0);
+  }
+}
+
+inline int allocate_itaps_array_failed()
+{
+  strcpy( iMesh_LAST_ERROR.description, 
+          "Insufficient allocated array size or insufficient "
+          "memory to allocate array." );
+  iMesh_LAST_ERROR.error_type = iBase_MEMORY_ALLOCATION_FAILED;
+  return iBase_MEMORY_ALLOCATION_FAILED;
+}
+
+#define ALLOCATE_ARRAY( NAME, SIZE ) \
+  if (!allocate_itaps_array( *NAME, *NAME##_allocated, *NAME##_size, (SIZE) )) \
+    RETURN(allocate_itaps_array_failed())
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+void iMeshP_createPartitionAll( iMesh_Instance /*instance*/,
+                        /*in*/  MPI_Comm /*communicator*/,
+                        /*out*/ iMeshP_PartitionHandle */*partition_handle*/,
+                                int *err )
+{
+  RETURN(iBase_NOT_SUPPORTED);
+}
 
 //  Given a partition handle, a part handle, and an entity handle, return a
 //  flag indicating whether the entity is strictly internal, on a 
@@ -80,7 +102,8 @@ extern "C" {
 //  If part_handle is remote, an error is returned.
 //  COMMUNICATION:  None.
   void iMeshP_getEntStatus(iMesh_Instance instance,
-                           /*in*/ const iMeshP_PartHandle part_handle, 
+                           /*in*/ const iMeshP_PartitionHandle,
+                           /*in*/ const iMeshP_PartHandle, 
                            /*in*/ const iBase_EntityHandle entity_handle, 
                            /*out*/ int* par_status, // Values=INTERNAL,BOUNDARY,GHOST
                            int *err) 
@@ -99,6 +122,7 @@ extern "C" {
   }
   
   void iMeshP_getEntStatusArr(iMesh_Instance instance,
+                              /*in*/ const iMeshP_PartitionHandle,
                               /*in*/ const iMeshP_PartHandle part_handle, 
                               /*in*/ const iBase_EntityHandle *entity_handles, 
                               /*in*/ const int entity_handles_size, 
@@ -114,9 +138,8 @@ extern "C" {
                                            entity_handles_size,
                                            &pstatus[0]);
     if (MB_SUCCESS != result) RETURN(result);
-    *par_status_size = entity_handles_size;
 
-    CHECK_SIZE(*par_status, *par_status_allocated, *par_status_size, int, );
+    ALLOCATE_ARRAY( par_status, entity_handles_size );
   
     for (int i = 0; i < entity_handles_size; i++) {
       if (!pstatus[i]) (*par_status)[i] = iMeshP_INTERNAL;
@@ -144,13 +167,12 @@ extern "C" {
 
     MBRange part_sets;
   
-    *part_handles_size = pc->partition_sets().size();
-    CHECK_SIZE(*part_handles, *part_handles_allocated, *part_handles_size, iMeshP_PartHandle,);
+    ALLOCATE_ARRAY( part_handles, pc->partition_sets().size() );
     MBRange::iterator rit;
     int i;
     for (i = 0, rit = pc->partition_sets().begin(); 
          rit != pc->partition_sets().end(); rit++, i++)
-      (*part_handles)[i] = CAST_TO_VOID(*rit);
+      (*part_handles)[i] = reinterpret_cast<iMeshP_PartHandle>(*rit);
   
     RETURN(iBase_SUCCESS);
   }
@@ -182,6 +204,7 @@ extern "C" {
 //  If part_handle is remote, an error is returned.
 //  COMMUNICATION:  None.
   void iMeshP_isEntOwner(iMesh_Instance instance,
+                         /*in*/ const iMeshP_PartitionHandle,
                          /*in*/ const iMeshP_PartHandle part_handle, 
                          /*in*/ const iBase_EntityHandle entity_handle, 
                          /*out*/ int* is_owner, 
@@ -201,6 +224,7 @@ extern "C" {
   }
 
   void iMeshP_isEntOwnerArr(iMesh_Instance instance,
+                            /*in*/ const iMeshP_PartitionHandle,
                             /*in*/ const iMeshP_PartHandle part_handle, 
                             /*in*/ const iBase_EntityHandle *entity_handles, 
                             /*in*/ const int entity_handles_size, 
@@ -216,9 +240,8 @@ extern "C" {
                                            entity_handles_size,
                                            &pstatus[0]);
     if (MB_SUCCESS != result) RETURN(result);
-    *is_owner_size = entity_handles_size;
 
-    CHECK_SIZE(*is_owner, *is_owner_allocated, *is_owner_size, int, );
+    ALLOCATE_ARRAY( is_owner, entity_handles_size );
   
     for (int i = 0; i < entity_handles_size; i++) {
       if (pstatus[i] & PSTATUS_NOT_OWNED) (*is_owner)[i] = 0;
@@ -282,9 +305,9 @@ extern "C" {
   void iMeshP_getCopies(iMesh_Instance instance,
                         /*in*/ const iMeshP_PartitionHandle partition_handle, 
                         /*in*/ const iBase_EntityHandle entity_handle, 
-                        /*inout*/ iMeshP_PartHandle **part_handles, 
-                        /*inout*/ int *part_handles_allocated, 
-                        /*out*/ int *part_handles_size, 
+                        /*inout*/ iMeshP_Part **part_ids, 
+                        /*inout*/ int *part_ids_allocated, 
+                        /*out*/ int *part_ids_size, 
                         /*inout*/ iBase_EntityHandle **copies_entity_handles, 
                         /*inout*/ int *copies_entity_handles_allocated, 
                         /*inout*/ int *copies_entity_handles_size, 
@@ -299,48 +322,48 @@ extern "C" {
       RETURN(iBase_ERROR_MAP[result]);
     }
   
+    std::vector<iMeshP_PartHandle> part_handles;
     if (0 != shared_handle) {
-      *part_handles_size = 1;
-      *copies_entity_handles_size = 1;
-      CHECK_SIZE(*part_handles, *part_handles_allocated, *part_handles_size, 
-                 iMeshP_PartHandle, );
-      CHECK_SIZE(*copies_entity_handles, *copies_entity_handles_allocated, 
-                 *copies_entity_handles_size, iBase_EntityHandle, );
-      (*part_handles)[0] = 0;
-      (*copies_entity_handles)[0] = CAST_TO_VOID(shared_handle);
-      RETURN(iBase_SUCCESS);
+      part_handles.resize( 1 );
+      ALLOCATE_ARRAY(copies_entity_handles, 1);
+      part_handles[0] = 0;
+      (*copies_entity_handles)[0] = reinterpret_cast<iBase_EntityHandle>(shared_handle);
     }
+    else {
   
-    static int tag_size = 0;
-    if (!tag_size) {
-      result = MBI->tag_get_size(pc.sharedhs_tag(), tag_size);
+      static int tag_size = 0;
+      if (!tag_size) {
+        result = MBI->tag_get_size(pc.sharedhs_tag(), tag_size);
+        if (MB_SUCCESS != result) {
+          RETURN(iBase_ERROR_MAP[result]);
+        }
+      }
+      static std::vector<MBEntityHandle> shared_handles(tag_size);
+
+      result = MBI->tag_get_data(pc.sharedhs_tag(), 
+                                 CONST_HANDLE_ARRAY_PTR(&entity_handle), 1,
+                                 &shared_handles[0]);
       if (MB_SUCCESS != result) {
         RETURN(iBase_ERROR_MAP[result]);
       }
-    }
-    static std::vector<MBEntityHandle> shared_handles(tag_size);
 
-    result = MBI->tag_get_data(pc.sharedhs_tag(), 
-                               CONST_HANDLE_ARRAY_PTR(&entity_handle), 1,
-                               &shared_handles[0]);
-    if (MB_SUCCESS != result) {
-      RETURN(iBase_ERROR_MAP[result]);
+      int index = std::find(shared_handles.begin(), shared_handles.end(), -1) - shared_handles.begin();
+
+      part_handles.resize(index+1, 0);
+      ALLOCATE_ARRAY( copies_entity_handles, index+1 );
+      std::copy(&shared_handles[0], &shared_handles[index], 
+                HANDLE_ARRAY_PTR(*copies_entity_handles));
     }
-  
-    int index = std::find(shared_handles.begin(), shared_handles.end(), -1) - shared_handles.begin();
     
-    *part_handles_size = index+1;
-    *copies_entity_handles_size = index+1;
-    CHECK_SIZE(*part_handles, *part_handles_allocated, *part_handles_size, 
-               iMeshP_PartHandle, );
-    CHECK_SIZE(*copies_entity_handles, *copies_entity_handles_allocated, 
-               *copies_entity_handles_size, iMeshP_PartHandle, );
-    std::copy(&shared_handles[0], &shared_handles[index], 
-              HANDLE_ARRAY_PTR(*copies_entity_handles));
-    std::fill(*part_handles, *part_handles+index, CAST_TO_VOID(0));
-
-    RETURN(iBase_SUCCESS);
+    ALLOCATE_ARRAY(part_ids, part_handles.size());
+    iMeshP_getPartIdsFromPartHandlesArr( instance, partition_handle, 
+                                         &part_handles[0], part_handles.size(),
+                                         part_ids, part_ids_allocated,
+                                         part_ids_size, err );
+    *part_ids_size = part_handles.size();
+    RETURN(*err);
   }
+  
 
 #ifdef __cplusplus
 } // extern "C"

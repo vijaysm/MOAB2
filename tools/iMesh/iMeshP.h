@@ -1,12 +1,30 @@
 #ifndef iMeshP_H
 #define iMeshP_H
 
-#include "iBase.h"
+#include "iMesh.h"
 #include "iMeshP_protos.h"
+#include <mpi.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define ITAPS_DECLARE_HANDLE( NAME ) typedef struct NAME##DummyStruct *NAME
+
+ITAPS_DECLARE_HANDLE( iMeshP_PartitionHandle );
+ITAPS_DECLARE_HANDLE( iMeshP_PartHandle );
+ITAPS_DECLARE_HANDLE( iMeshP_RequestHandle );
+ITAPS_DECLARE_HANDLE( iMeshP_Status );
+
+typedef unsigned iMeshP_Part;
+
+enum iMeshP_EntStatus 
+{
+  iMeshP_INTERNAL,
+  iMeshP_BOUNDARY,
+  iMeshP_GHOST
+};
+
 
 /*
 ------------------------------------------------
@@ -110,7 +128,7 @@ Assumptions:
  *  be NULL.
  *  COMMUNICATION:  Collective.*/
 void iMeshP_createPartitionAll(iMesh_Instance instance,
-                    /*in*/  MPI_Comm *communicator,
+                    /*in*/  MPI_Comm communicator,
                     /*out*/ iMeshP_PartitionHandle *partition_handle,
                             int *err);
  
@@ -177,7 +195,8 @@ void iMeshP_getLocalParts(iMesh_Instance instance,
                           const iMeshP_PartitionHandle partition_handle,
                           int *num_local_part, 
                           iMeshP_PartHandle *part_handles,
-                          int part_handles_allocated,
+                          int *part_handles_allocated,
+                          int *part_handles_size,
                           int *err); 
 
 /**  Map from parts to processes:  
@@ -196,6 +215,7 @@ void iMeshP_getRankOfPartArr(iMesh_Instance instance,
              /*in*/    const int part_ids_size,
              /*inout*/ int **rank, 
              /*inout*/ int *rank_allocated, 
+                       int *rank_size,
                        int *err); 
 
 /**  Provide global mesh information about a partition.  
@@ -244,36 +264,38 @@ void iMeshP_destroyPart(iMesh_Instance instance,
  * return an error.
  *  COMMUNICATION:  None.*/
 
-void iMeshP_getPartFromPartHandle(iMesh_Instance instance,
+void iMeshP_getPartIdFromPartHandle(iMesh_Instance instance,
                        const iMeshP_PartitionHandle partition_handle,
              /*in*/    const iMeshP_PartHandle part_handle,
              /*out*/   iMeshP_Part *part_id,
                        int *err);
 
-void iMeshP_getPartFromPartHandlesArr(iMesh_Instance instance,
+void iMeshP_getPartIdsFromPartHandlesArr(iMesh_Instance instance,
                        const iMeshP_PartitionHandle partition_handle,
              /*in*/    const iMeshP_PartHandle *part_handles,
              /*in*/    const int part_handles_size,
              /*inout*/ iMeshP_Part **part_ids,
              /*inout*/ int *part_ids_allocated,
+             /*out*/   int *part_ids_size,
                        int *err);
 
 /** Given a partition handle and a part ID, return the part handle 
  * if the part is local; otherwise, return error code.
  *  COMMUNICATION:  None.*/
 
-void iMeshP_getPartHandleFromPart(iMesh_Instance instance,
+void iMeshP_getPartHandleFromPartId(iMesh_Instance instance,
                        const iMeshP_PartitionHandle partition_handle,
              /*in*/    iMeshP_Part part_id,
              /*out*/   iMeshP_PartHandle *part_handle,
                        int *err);
 
-void iMeshP_getPartHandlesFromPartsArr(iMesh_Instance instance,
+void iMeshP_getPartHandlesFromPartsIdsArr(iMesh_Instance instance,
                        const iMeshP_PartitionHandle partition_handle,
              /*in*/    const iMeshP_Part *part_ids,
              /*in*/    const int part_ids_size,
              /*inout*/ iMeshP_PartHandle **part_handles,
              /*inout*/ int *part_handles_allocated,
+             /*out*/   int *part_handles_size,
                        int *err);
 
 /**  Add/remove on-process entities to/from on-process part:  Given
@@ -313,6 +335,7 @@ void iMeshP_getNumPartNborsArr(iMesh_Instance instance,
              /*in*/    int entity_type,
              /*inout*/ int **num_part_nbors,
              /*inout*/ int *num_part_nbors_allocated,
+             /*out*/   int *num_part_nbors_size,
                        int *err); 
 
 /**  Given a partition handle, a part handle, and an entity type, 
@@ -339,6 +362,7 @@ void iMeshP_getPartNborsArr(iMesh_Instance instance,
              /*in*/    int entity_type,
              /*inout*/ int **num_part_nbors,
              /*inout*/ int *num_part_nbors_allocated,
+             /*out*/   int *num_part_nbors_size,
              /*inout*/ iMeshP_Part **nbor_part_ids,
              /*inout*/ int *nbor_part_ids_allocated,
              /*out*/   int *nbor_part_ids_size,
@@ -545,6 +569,7 @@ void iMeshP_getEntOwnerPartArr(iMesh_Instance instance,
                       /*in*/  const int entity_handles_size,
                    /*inout*/  iMeshP_Part **part_ids,
                    /*inout*/  int *part_ids_allocated,
+                     /*out*/  int *part_ids_size,
                               int* err); 
   
 /**  Provide entity categorization within part.
@@ -565,6 +590,7 @@ void iMeshP_isEntOwnerArr(iMesh_Instance instance,
                     /*in*/ const int entity_handles_size, 
 		 /*inout*/ int** is_owner, 
                  /*inout*/ int* is_owner_allocated, 
+                 /*inout*/ int* is_owner_size, 
                            int *err); 
 
 /**  Given a partition handle, a part handle, and an entity handle, return a
@@ -576,15 +602,16 @@ void iMeshP_getEntStatus(iMesh_Instance instance,
                     /*in*/ const iMeshP_PartitionHandle partition_handle, 
                     /*in*/ const iMeshP_PartHandle part_handle, 
                     /*in*/ const iBase_EntityHandle entity_handle, 
-                   /*out*/ int* par_status, // Values=INTERNAL,BOUNDARY,GHOST
+                   /*out*/ int* par_status, /* enum iMeshP_EntStatus */
                            int *err); 
 void iMeshP_getEntStatusArr(iMesh_Instance instance,
                     /*in*/ const iMeshP_PartitionHandle partition_handle, 
                     /*in*/ const iMeshP_PartHandle part_handle, 
                     /*in*/ const iBase_EntityHandle *entity_handles, 
                     /*in*/ const int entity_handles_size, 
-		 /*inout*/ int** par_status, // Values=INTERNAL,BOUNDARY,GHOST
+		 /*inout*/ int** par_status, /* enum iMeshP_EntStatus */
                  /*inout*/ int* par_status_allocated, 
+                 /*inout*/ int* par_status_size, 
                            int *err); 
 
 /**  Provide information about copies of entities.  
@@ -622,6 +649,7 @@ void iMeshP_getCopies(iMesh_Instance instance,
                    /*out*/ int *part_ids_size, 
                  /*inout*/ iBase_EntityHandle **copies_entity_handles, 
                  /*inout*/ int *copies_entity_handles_allocated, 
+                           int *copies_entity_handles_size,
                            int *err); 
 
 /**  Given a partition handle, an entity handle and a part ID, return the
@@ -666,8 +694,8 @@ void iMeshP_getOwnerCopy(iMesh_Instance instance,
 void iMeshP_Wait(iMesh_Instance instance,
       const iMeshP_PartitionHandle partition_handle,
              /*in*/ iMeshP_RequestHandle req,
-            /*out*/ iMeshP_Status stat,
-            /*out*/ int *err)
+            /*out*/ iMeshP_Status *stat,
+            /*out*/ int *err);
 
 /**\brief  Wait for any of the specified requests to complete
  *
@@ -685,7 +713,7 @@ void iMeshP_WaitAny(iMesh_Instance instance,
                /*in*/ int req_size,
                /*out*/ int *index,
                /*out*/ iMeshP_Status *stat,
-               /*out*/ int *err)
+               /*out*/ int *err);
 
 /**\brief  Wait for all of the specified requests to complete
  *
@@ -701,7 +729,7 @@ void iMeshP_WaitAll(iMesh_Instance instance,
                /*in*/ iMeshP_RequestHandle *req,
                /*in*/ int req_size,
                /*out*/ iMeshP_Status *stat,
-               /*out*/ int *err)
+               /*out*/ int *err);
 
 
 /**\brief  Wait for specified request to complete
@@ -721,7 +749,7 @@ void iMeshP_WaitEnt(iMesh_Instance instance,
                /*inout*/ iBase_EntityHandle **out_entities,
                /*inout*/ int *out_entities_alloc,
                /*inout*/ int *out_entities_size,
-               /*out*/ int *err)
+               /*out*/ int *err);
 
 /**\brief Test for whether specified request has completed
  *
@@ -737,7 +765,7 @@ void iMeshP_Test(iMesh_Instance instance,
              /*in*/ iMeshP_RequestHandle req,
             /*out*/ int *flag,
             /*out*/ iMeshP_Status *stat,
-            /*out*/ int *err)
+            /*out*/ int *err);
 
 /** Poll for requests.  The internals of this function are going to have
  * to cover a lot of ground.  The array in the return is there as a
@@ -783,8 +811,8 @@ void iMeshP_exchEntArrToPartsAll(iMesh_Instance instance,
                        /*in*/  const iBase_EntityHandle *entity_handles,
                        /*in*/  const int entity_handles_size,
                        /*in*/  const iMeshP_Part *target_part_ids,
-                       /*in*/  int command_code,  // e.g., MIGRATE,COPY
-                       /*in*/  int update_ghost,  // e.g., YES,NO
+                       /*in*/  int command_code,  /* e.g., MIGRATE,COPY */
+                       /*in*/  int update_ghost,  /* e.g., YES,NO */
                       /*out*/  iMeshP_RequestHandle *request,
                                int *err);
 
@@ -901,7 +929,7 @@ void iMeshP_pushTags(iMesh_Instance instance,
                 /*in*/ iBase_TagHandle tag, 
                 /*in*/ int entity_type, 
                 /*in*/ int entity_topo, 
-                /*out*/ int *err)
+                /*out*/ int *err);
 
 /**\brief  Synchronously send tag data for entities and part
  *
@@ -914,16 +942,16 @@ void iMeshP_pushTags(iMesh_Instance instance,
  * data type, size, etc.  This call blocks until communication is
  * completed
  * \param tag Tag handle to exchange
- * \param entities Entities for which to exchange data
+ * \param entities Owned entities for which to send data
  * \param entities_size Number of entities
  * \param err Error returned from function
  */
 void iMeshP_pushTagsEnt(iMesh_Instance instance,
                  const iMeshP_PartitionHandle partition_handle,
                    /*in*/ iBase_TagHandle tag, 
-                   /*in*/ iBase_EntityHandle *entities,
+                   /*in*/ const iBase_EntityHandle *entities,
                    /*in*/ int entities_size,
-                   /*out*/ int *err)
+                   /*out*/ int *err);
 
 
 /**\brief  Asynchronously send tag data for entity type/topo
@@ -953,7 +981,7 @@ void iMeshP_iPushTags(iMesh_Instance instance,
                  /*in*/ int entity_type, 
                  /*in*/ int entity_topo, 
                 /*out*/ iMeshP_RequestHandle *req,
-                /*out*/ int *err)
+                /*out*/ int *err);
 
 /**\brief  Asynchronously send tag data for entities and part
  *
@@ -966,7 +994,7 @@ void iMeshP_iPushTags(iMesh_Instance instance,
  * data type, size, etc.  Applications can call iMeshP_Wait or
  * iMeshP_WaitEnt to block until associated call completes
  * \param tag Tag handle to exchange
- * \param entities Entities for which to exchange data
+ * \param entities Owned entities for which to send data
  * \param entities_size Number of entities
  * \param iMeshP_RequestHandle Request object used in call to
  *    iMeshP_Wait or iMeshP_WaitEnt
@@ -975,10 +1003,10 @@ void iMeshP_iPushTags(iMesh_Instance instance,
 void iMeshP_iPushTagsEnt(iMesh_Instance instance,
                      const iMeshP_PartitionHandle partition_handle,
                     /*in*/ iBase_TagHandle tag, 
-                    /*in*/ iBase_EntityHandle *entities,
+                    /*in*/ const iBase_EntityHandle *entities,
                     /*in*/ int entities_size,
                    /*out*/ iMeshP_RequestHandle *req,
-                   /*out*/ int *err)
+                   /*out*/ int *err);
 
 /*  GHOST ENTITY SUPPORT */
 /*
@@ -1038,6 +1066,7 @@ void iMeshP_deleteGhostEnts(/*in*/ iMesh_Instance instance,
 /* \brief Return information about all ghosting on a partition.
   * \param instance iMesh instance
   * \param partition_handle Partition on which ghost entities are deleted
+  * \param num_ghost_rules  Number of ghosting rules currently registered 
   * \param ghost_dim Dimension of ghost entities
   * \param bridge_dim Dimension of bridge entities
   * \param num_layers Number of layers of ghost entities
@@ -1046,7 +1075,7 @@ void iMeshP_deleteGhostEnts(/*in*/ iMesh_Instance instance,
   */
 void iMeshP_ghostEntInfo(/*in*/ iMesh_Instance instance,
                     /*in*/ iMeshP_PartitionHandle partition_handle,
-                    /*out*/ int num_ghost_rules,
+                    /*out*/ int *num_ghost_rules,
                     /*inout*/ int *ghost_rules_allocated, 
                     /*inout*/ int *ghost_rules_size, 
                     /*out*/ int **ghost_dim,
@@ -1369,15 +1398,14 @@ optimize storage or ignore the flag.
 
 
 
-/*
-------------------------------------------------
-CVS File Information
-   $RCSfile: DraftInterface.h,v $
-   $Author: kddevin $
-   $Date: 2008/09/15 17:50:05 $
-   $Revision: 1.31 $
-------------------------------------------------
-*/
+////////////////////////////////////////////////////////////
+//SVN File Information
+//
+//  $Author:$
+//  $Date:$
+//  $Revision:$
+////////////////////////////////////////////////////////////
+
 
 #ifdef __cplusplus
 } // extern "C" 
