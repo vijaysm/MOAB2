@@ -2776,18 +2776,25 @@ extern "C" {
     }
 
     *num_topo = 0;
-    MBErrorCode result, result_sets = MB_SUCCESS;
-    result = MBI->get_number_entities_by_type(ENTITY_HANDLE(entity_set_handle),
-                                       mb_topology_table[entity_topology], 
-                                       *num_topo, recursive);
-    if (iMesh_ALL_TOPOLOGIES == entity_topology) { // remove entity sets from count
-      int num_sets;
-      result_sets = MBI->get_number_entities_by_type
-        (ENTITY_HANDLE(entity_set_handle), MBENTITYSET, num_sets, recursive);
-      *num_topo -= num_sets;
+    MBErrorCode result;
+    if (iMesh_ALL_TOPOLOGIES == entity_topology) {
+      result = MBI->get_number_entities_by_handle(ENTITY_HANDLE(entity_set_handle),
+                                                  *num_topo, recursive);
+                                       
+      if (!recursive && MB_SUCCESS == result) { // remove entity sets from count
+        int num_sets;
+        result = MBI->get_number_entities_by_type
+          (ENTITY_HANDLE(entity_set_handle), MBENTITYSET, num_sets, recursive);
+        *num_topo -= num_sets;
+      }
+    }
+    else {
+      result = MBI->get_number_entities_by_type(ENTITY_HANDLE(entity_set_handle),
+                                         mb_topology_table[entity_topology], 
+                                         *num_topo, recursive);
     }
 
-    if (MB_SUCCESS != result || MB_SUCCESS != result_sets) {
+    if (MB_SUCCESS != result) {
       std::string msg("iMesh_entitysetGetNumberEntityOfTopology: ERROR getting "
                       "number of entities by topology., with error type: ");
       msg += MBI->get_error_string(result);
