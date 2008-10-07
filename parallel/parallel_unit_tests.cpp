@@ -61,10 +61,15 @@ int is_any_proc_error( int is_my_error );
 // Test sharing tags for mesh entities shared by more than two processors
 MBErrorCode test_elements_on_several_procs( const char* filename );
 // Test correct ghosting of elements
-MBErrorCode test_ghost_elements( const char* filename );
+MBErrorCode test_ghost_elements_3_2_1( const char* filename );
+MBErrorCode test_ghost_elements_3_2_2( const char* filename );
+MBErrorCode test_ghost_elements_3_0_1( const char* filename );
+MBErrorCode test_ghost_elements_2_0_1( const char* filename );
 // Test exchange of tag data on ghost elements
 MBErrorCode test_ghost_tag_exchange( const char* filename );
-
+// Bug where exchange_tags fails if dense tag cannot be queried
+// for all ghost entities (e.g. no default value)
+MBErrorCode regression_ghost_tag_exchange_no_default( const char* filename );
 
 /**************************************************************************
                               Main Method
@@ -114,8 +119,12 @@ int main( int argc, char* argv[] )
   int num_errors = 0;
   
   num_errors += RUN_TEST( test_elements_on_several_procs, filename );
-  num_errors += RUN_TEST( test_ghost_elements, filename );
+  num_errors += RUN_TEST( test_ghost_elements_3_2_1, filename );
+  num_errors += RUN_TEST( test_ghost_elements_3_2_2, filename );
+  num_errors += RUN_TEST( test_ghost_elements_3_0_1, filename );
+  num_errors += RUN_TEST( test_ghost_elements_2_0_1, filename );
   num_errors += RUN_TEST( test_ghost_tag_exchange, filename );
+  num_errors += RUN_TEST( regression_ghost_tag_exchange_no_default, filename );
   
   int rank;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
@@ -336,54 +345,151 @@ MBErrorCode test_elements_on_several_procs( const char* filename )
 }
 
 
-MBErrorCode test_ghost_elements( const char* filename )
+MBErrorCode get_ghost_entities( MBInterface& moab,
+                                const std::vector<int> partition_geom_ids[4],
+                                std::vector<int>& ghost_entity_ids,
+                                int ghost_dimension,
+                                int bridge_dimension,
+                                int num_layers,
+                                MBRange* ghost_handles = 0 )
+{
+  MBErrorCode rval;
+  MBTag tags[2];
+  rval = moab.tag_get_handle( GEOM_DIMENSION_TAG_NAME, tags[0] ); CHKERR(rval);
+  rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, tags[1] ); CHKERR(rval);  
+
+    // get first set of bridge entities
+  MBRange bridge_ents;
+  for (int dim = 0; dim < 3; ++dim) {
+    for (size_t i = 0; i < partition_geom_ids[dim].size(); ++i) {
+      const void* tag_vals[2] = { &dim, &(partition_geom_ids[dim][i]) };
+      MBRange ents;
+      rval = moab.get_entities_by_type_and_tag( 0, MBENTITYSET,
+                                                tags, tag_vals, 2, 
+                                                ents );
+      CHKERR(rval);
+      for (MBRange::iterator j = ents.begin(); j != ents.end(); ++j) {
+        MBRange tmp;
+        rval = moab.get_entities_by_dimension( *j, bridge_dimension, tmp );
+        CHKERR(rval);
+        bridge_ents.merge(tmp);
+      }
+    }
+  }
+  
+    // get owned entities 
+  MBRange owned_ents;
+  for (size_t i = 0; i < partition_geom_ids[3].size(); ++i) {
+    const int three = 3;
+    const void* tag_vals[2] = { &three, &partition_geom_ids[3][i] };
+    MBRange ents;
+    rval = moab.get_entities_by_type_and_tag( 0, MBENTITYSET,
+                                              tags, tag_vals, 2, 
+                                              ents );
+    CHKERR(rval);
+    for (MBRange::iterator j = ents.begin(); j != ents.end(); ++j) {
+      MBRange tmp;
+      rval = moab.get_entities_by_dimension( *j, 3, tmp );
+      CHKERR(rval);
+      owned_ents.merge(tmp);
+    }
+  }
+  
+    // get entities of ghost dimension adjacent to owned entities
+    // (these cannot be ghost entities because they are either owned
+    //  or interface entities.)
+  MBRange owned_and_iface;
+  rval = moab.get_adjacencies( owned_ents, ghost_dimension, false, owned_and_iface, MBInterface::UNION );
+  CHKERR(rval);
+  
+    // find potential ghost entities using adjacency queries
+  MBRange ghost_ents;
+  for (int l = 0; l < num_layers; ++l) {
+    MBRange tmp;
+    rval = moab.get_adjacencies( bridge_ents, ghost_dimension, false, tmp, MBInterface::UNION );
+    CHKERR(rval);
+    ghost_ents.merge(tmp);
+    bridge_ents.clear();
+    rval = moab.get_adjacencies( ghost_ents, bridge_dimension, false, bridge_ents, MBInterface::UNION );
+    CHKERR(rval);
+  }
+  
+    // remove from ghost candidates, any entities that are 
+    // locally owned or interface entities
+  ghost_ents = ghost_ents.subtract( owned_ents );
+  
+    // get ids
+  ghost_entity_ids.resize( ghost_ents.size() );
+  rval = moab.tag_get_data( tags[1], ghost_ents, &ghost_entity_ids[0] );
+  CHKERR(rval);
+  if (ghost_handles)
+    ghost_handles->swap(ghost_ents);
+  return MB_SUCCESS;
+}
+
+MBErrorCode test_ghost_elements( const char* filename,
+                                 int ghost_dimension,
+                                 int bridge_dimension,
+                                 int num_layers )
 {
   MBCore mb_instance;
   MBInterface& moab = mb_instance;
   MBErrorCode rval;
   MBEntityHandle set;
 
-  rval = moab.load_file( filename, set, 
-                         "PARALLEL=READ_DELETE;"
-                         "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
-                         "PARTITION_DISTRIBUTE;"
-                         "PARALLEL_RESOLVE_SHARED_ENTS;"
-                         "PARALLEL_GHOSTS=3.2.1" );
+  std::ostringstream file_opts;
+  file_opts << "PARALLEL=READ_DELETE;"
+            << "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
+            << "PARTITION_DISTRIBUTE;"
+            << "PARALLEL_RESOLVE_SHARED_ENTS;"
+            << "PARALLEL_GHOSTS=" 
+            << ghost_dimension << '.'
+            << bridge_dimension << '.'
+            << num_layers;
+  
+  rval = moab.load_file( filename, set, file_opts.str().c_str() );
   CHKERR(rval);
+  MBTag geom_tag, id_tag;
+  rval = moab.tag_get_handle( GEOM_DIMENSION_TAG_NAME, geom_tag ); CHKERR(rval);
+  rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag ); CHKERR(rval);  
   
     // Get partition sets
+  MBRange partition_geom[4];
   MBParallelComm* pcomm = MBParallelComm::get_pcomm(&moab, 0);
-  MBRange volumes = pcomm->partition_sets();
-  PCHECK( !volumes.empty() );
+  partition_geom[3] = pcomm->partition_sets();
+  PCHECK( !partition_geom[3].empty() );
   
     // Get geometric surfaces
   MBRange surfs, tmp;
-  for (MBRange::iterator i = volumes.begin(); i != volumes.end(); ++i) {
+  for (MBRange::iterator i = partition_geom[3].begin(); i != partition_geom[3].end(); ++i) {
     tmp.clear();
     rval = moab.get_child_meshsets( *i, tmp ); CHKERR(rval);
     surfs.merge( tmp );
   }
   
-    // Check consistent sharing and ghosting for each surface
+    // Get the set of geometric surfaces that represent the skin
+    // of the union of the parts for this processor.  As we partition
+    // based on geometric volumes, the interface must be represented
+    // by some subset of the surfaces and their child geometric topology.
+  
   int error = 0;
   std::ostringstream error_msg;
-  MBRange ghost_elems;
-  std::vector<MBEntityHandle> adj_elem;
+  MBRange ents, iface_surfs, iface_curves, iface_vertices;
   for (MBRange::iterator i = surfs.begin(); !error && i != surfs.end(); ++i) {
-    MBRange faces;
-    rval = moab.get_entities_by_dimension( *i, 2, faces ); CHKERR(rval);
-    if (faces.empty())
+    ents.clear();
+    rval = moab.get_entities_by_dimension( *i, ghost_dimension-1, ents ); CHKERR(rval);
+    if (ents.empty())
       continue;
     
     std::vector<int> procs, tmp_procs;
-    MBRange::iterator j = faces.begin();
+    MBRange::iterator j = ents.begin();
     rval = get_sharing_processors( moab, *j, procs ); CHKERR(rval);
-    for (++j; !error && j != faces.end(); ++j) {
+    for (++j; !error && j != ents.end(); ++j) {
       tmp_procs.clear();
       rval = get_sharing_processors( moab, *j, tmp_procs ); CHKERR(rval);
       if( tmp_procs != procs ) {
         error_msg << "Failure at " << __FILE__ << ':' << __LINE__ << std::endl
-                  << "\tNot all entiities in geometric surface are shared with"
+                  << "\tNot all entities in geometric surface are shared with"
                   << " same processor." << std::endl;
         error = 1;
         break;
@@ -406,46 +512,10 @@ MBErrorCode test_ghost_elements( const char* filename )
     if (other_rank == (int)pcomm->proc_config().proc_rank())
       continue;
     
-    // for each face on interface, expect two adjacent volume
-    // elements, one owned by this proc and one ghosted element
-    // owned by the other proc.
-    for (j = faces.begin(); !error && j != faces.end(); ++j) {
-      adj_elem.clear();
-      rval = moab.get_adjacencies( &*j, 1, 3, true, adj_elem ); CHKERR(rval);
-      if (2 != adj_elem.size()) {
-        error_msg << "Failure at " << __FILE__ << ':' << __LINE__ << std::endl
-                    << "\t" << adj_elem.size() << " volume elements adjacent to face element" << std::endl;
-        error = 1;
-        break;
-      }
-      
-      int owner1, owner2;
-      rval = pcomm->get_owner( adj_elem[0], owner1 ); CHKERR(rval);
-      rval = pcomm->get_owner( adj_elem[1], owner2 ); CHKERR(rval);
-      if (owner1 == (int)pcomm->proc_config().proc_rank()) {
-        if (other_rank != owner2) {
-          error_msg << "Failure at " << __FILE__ << ':' << __LINE__ << std::endl
-                      << "\texpected element owner:" << other_rank << std::endl
-                      << "\tactual element owner:" << owner2 << std::endl;
-          error = 1;
-          break;
-        }
-        ghost_elems.insert( adj_elem[1] );
-      }
-      else {
-        if (other_rank != owner1 ||
-            (int)pcomm->proc_config().proc_rank() != owner2) {
-          error_msg << "Failure at " << __FILE__ << ':' << __LINE__ << std::endl
-                      << "\texpected element owner:" << other_rank << std::endl
-                      << "\tactual element owner:" << owner1 << std::endl
-                      << "\texpected element owner:" << pcomm->proc_config().proc_rank() << std::endl
-                      << "\tactual element owner:" << owner2 << std::endl;
-          error = 1;
-          break;
-        }
-        ghost_elems.insert( adj_elem[0] );
-      }
-    }
+    partition_geom[2].insert( *i );
+    ents.clear();
+    rval = moab.get_child_meshsets( *i, ents ); CHKERR(rval);
+    partition_geom[1].merge( ents );
   }
   
     // Don't to global communication until outside
@@ -456,20 +526,153 @@ MBErrorCode test_ghost_elements( const char* filename )
     return MB_FAILURE;
   }
   
-  
-    // check that we have no elements other than the ones 
-    // we own and the requested layer of ghosts;
-  MBRange all, internal;
-  for (MBRange::iterator i = volumes.begin(); i != volumes.end(); ++i) {
-    MBRange tmp;
-    rval = moab.get_entities_by_dimension( *i, 3, tmp ); CHKERR(rval);
-    internal.merge( tmp );
+  for (MBRange::iterator i = partition_geom[1].begin(); i != partition_geom[1].end(); ++i) {
+    ents.clear();
+    rval = moab.get_child_meshsets( *i, ents ); CHKERR(rval);
+    partition_geom[0].merge( ents );
   }
-  rval = moab.get_entities_by_dimension( 0, 3, all ); CHKERR(rval);
-  MBRange diff = all.subtract(internal);
-  PCHECK( diff == ghost_elems );
   
+  std::vector<int> partn_geom_ids[4];
+  for (int dim = 0; dim <= 3; ++dim) {
+    partn_geom_ids[dim].resize( partition_geom[dim].size() );
+    rval = moab.tag_get_data( id_tag, partition_geom[dim], &(partn_geom_ids[dim][0]) );
+    CHKERR(rval);
+  }
+  
+    // get the global IDs of the ghosted entities
+  MBRange ghost_ents;
+  std::vector<int> actual_ghost_ent_ids;
+  rval = get_ghost_entities( moab, partn_geom_ids, actual_ghost_ent_ids,  
+                             ghost_dimension, bridge_dimension, num_layers,
+                             &ghost_ents );
+  PCHECK(MB_SUCCESS == rval);
+  
+    // read file in serial
+  MBCore moab2;
+  MBEntityHandle set2;
+  rval = moab2.load_file( filename, set2 );  
+  PCHECK(MB_SUCCESS == rval);
+  
+    // get the global IDs of teh entities we expect to be ghosted
+  std::vector<int> expected_ghost_ent_ids;
+  rval = get_ghost_entities( moab2, partn_geom_ids, expected_ghost_ent_ids,  
+                             ghost_dimension, bridge_dimension, num_layers );
+  PCHECK(MB_SUCCESS == rval);
+  
+    // check that the correct entities were ghosted
+  std::sort( actual_ghost_ent_ids.begin(), actual_ghost_ent_ids.end() );
+  std::sort( expected_ghost_ent_ids.begin(), expected_ghost_ent_ids.end() );
+  PCHECK( expected_ghost_ent_ids == actual_ghost_ent_ids );
+  
+    // check we only have the partitioned and ghosted entities
+    // on this processor.
+  MBRange myents;
+  for (MBRange::iterator i = partition_geom[3].begin(); i != partition_geom[3].end(); ++i) {
+    ents.clear();
+    rval = moab.get_entities_by_dimension( *i, 3, ents ); CHKERR(rval);
+    myents.merge( ents );
+  }
+  if (ghost_dimension != 3) {
+    ents.clear();
+    rval = moab.get_adjacencies( myents, ghost_dimension, false, ents, MBInterface::UNION );
+    PCHECK(MB_SUCCESS == rval);
+    myents.swap(ents);
+  }
+  myents.merge( ghost_ents );
+  ents.clear();
+  rval = moab.get_entities_by_dimension( 0, ghost_dimension, ents );
+  PCHECK( ents == myents );
+    
+    // Verify correct ownership and sharing of ghost entities.
+  ents.clear();
+  for (MBRange::iterator i = myents.begin(); i != myents.end(); ++i) {
+    int owner;
+    rval = pcomm->get_owner( *i, owner ); CHKERR(rval);
+    if ((unsigned)owner == pcomm->proc_config().proc_rank())
+      ents.insert( *i );
+  }
+  myents.swap(ents);
+  std::vector<int> my_ent_ids(ents.size());
+  rval = moab.tag_get_data( id_tag, myents, &my_ent_ids[0] );
+  PCHECK(MB_SUCCESS == rval);
+  
+  std::sort( my_ent_ids.begin(), my_ent_ids.end() );
+  int counts[2] = { my_ent_ids.size(), actual_ghost_ent_ids.size() };
+  int totals[2] = {0,0};
+  error = MPI_Allreduce( counts, totals, 2, MPI_INT, MPI_SUM,
+                         pcomm->proc_config().proc_comm() );
+  PCHECK(!error);
+  std::vector<int> all_owned(totals[0]), all_ghost(totals[1]), 
+                   owned_counts(pcomm->proc_config().proc_size()),
+                   owned_displs(pcomm->proc_config().proc_size()),
+                   ghost_counts(pcomm->proc_config().proc_size()),
+                   ghost_displs(pcomm->proc_config().proc_size());
+  error = MPI_Allgatherv( &my_ent_ids[0], my_ent_ids.size(), MPI_INT,
+                          &all_owned[0], &owned_counts[0], &owned_displs[0],
+                          MPI_INT, pcomm->proc_config().proc_comm() );
+  PCHECK(!error);
+  error = MPI_Allgatherv( &actual_ghost_ent_ids[0], actual_ghost_ent_ids.size(), MPI_INT,
+                          &all_ghost[0], &ghost_counts[0], &ghost_displs[0],
+                          MPI_INT, pcomm->proc_config().proc_comm() );
+  PCHECK(!error);
+ 
+     // for each ghost entity, check owning processor and list of
+     // sharing processors.
+  int k = 0;
+  error = 0;
+  for (MBRange::iterator i = ghost_ents.begin(); !error && i != ghost_ents.end(); ++i) {
+    std::vector<int> act_procs, exp_procs;
+    int act_owner, exp_owner;
+    int id = actual_ghost_ent_ids[k++];
+    for (unsigned j = 0; j < pcomm->proc_config().proc_size(); ++j) {
+      const int* proc_owned_begin = &all_owned[0] + owned_displs[j];
+      const int* proc_owned_end = proc_owned_begin + owned_counts[j];
+      if (std::binary_search( proc_owned_begin, proc_owned_end, id ))
+        exp_owner = j;
+      
+      const int* proc_ghost_begin = &all_ghost[0] + ghost_displs[j];
+      const int* proc_ghost_end = proc_ghost_begin + ghost_counts[j];
+      if (std::binary_search( proc_ghost_begin, proc_ghost_end, id ))
+        exp_procs.push_back(j);
+    }
+    
+    rval = pcomm->get_owner( *i, act_owner ); CHKERR(rval);
+    if (exp_owner != act_owner) {
+      error = 1;
+      break;
+    }
+    
+    rval = get_sharing_processors( moab, *i, act_procs ); CHKERR(rval);
+    std::sort(act_procs.begin(), act_procs.end());
+    if (exp_procs != act_procs) {
+      error = 1;
+      break;
+    }
+  }
+    
+    // done
   return MB_SUCCESS;
+}
+
+
+MBErrorCode test_ghost_elements_3_2_1( const char* filename )
+{
+  return test_ghost_elements( filename, 3, 2, 1 );
+}
+
+MBErrorCode test_ghost_elements_3_2_2( const char* filename )
+{
+  return test_ghost_elements( filename, 3, 2, 2 );
+}
+
+MBErrorCode test_ghost_elements_3_0_1( const char* filename )
+{
+  return test_ghost_elements( filename, 3, 0, 1 );
+}
+
+MBErrorCode test_ghost_elements_2_0_1( const char* filename )
+{
+  return test_ghost_elements( filename, 2, 0, 1 );
 }
 
 
@@ -507,8 +710,9 @@ MBErrorCode test_ghost_tag_exchange( const char* filename )
   
     // create a tag to exchange
   MBTag dense_test_tag;
+  MBEntityHandle defval = 0;
   rval = moab.tag_create( "TEST-TAG", sizeof(MBEntityHandle), MB_TAG_DENSE,
-                           MB_TYPE_HANDLE, dense_test_tag, 0 ); CHKERR(rval);
+                           dense_test_tag, &defval ); CHKERR(rval);
     
     // for all entiites that I own, set tag to handle value
   std::vector<MBEntityHandle> handles(local.size()), handles2;
@@ -558,6 +762,34 @@ MBErrorCode test_ghost_tag_exchange( const char* filename )
     CHKERR(rval);
   }
   PCHECK( procs1 == procs2 );
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode regression_ghost_tag_exchange_no_default( const char* filename )
+{
+  MBCore mb_instance;
+  MBInterface& moab = mb_instance;
+  MBErrorCode rval;
+  MBEntityHandle set;
+
+  rval = moab.load_file( filename, set, 
+                         "PARALLEL=READ_DELETE;"
+                         "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
+                         "PARTITION_DISTRIBUTE;"
+                         "PARALLEL_RESOLVE_SHARED_ENTS;"
+                         "PARALLEL_GHOSTS=3.2.1" );
+  CHKERR(rval);
+  
+    // create a tag to exchange
+  MBTag dense_test_tag;
+  rval = moab.tag_create( "TEST-TAG", sizeof(MBEntityHandle), MB_TAG_DENSE,
+                           dense_test_tag, 0 ); CHKERR(rval);
+  
+    // exchange tag data
+  MBParallelComm* pcomm = MBParallelComm::get_pcomm(&moab, 0);
+  rval = pcomm->exchange_tags( dense_test_tag ); 
+  PCHECK(MB_SUCCESS == rval);
   
   return MB_SUCCESS;
 }
