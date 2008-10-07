@@ -24,7 +24,9 @@ void test_pack_sets_of_sets();
 /** Test pack/unpack of set parent/child relations */
 void test_pack_set_parent_child();
 /** Test pack/unpack tag values*/
-void test_pack_tag_data();
+void test_pack_tag_data_sparse();
+void test_pack_tag_data_dense();
+void test_pack_tag_data_default_value();
 /** Test pack/unpack tag values*/
 void test_pack_bit_tag_data();
 /** Test pack/unpack of variable length tag values*/
@@ -47,7 +49,9 @@ int main( int argc, char* argv[] )
   num_err += RUN_TEST( test_pack_set_contents );
   num_err += RUN_TEST( test_pack_sets_of_sets );
   num_err += RUN_TEST( test_pack_set_parent_child );
-  num_err += RUN_TEST( test_pack_tag_data );
+  num_err += RUN_TEST( test_pack_tag_data_sparse );
+  num_err += RUN_TEST( test_pack_tag_data_dense );
+  num_err += RUN_TEST( test_pack_tag_data_default_value );
   //num_err += RUN_TEST( test_pack_bit_tag_data );
   num_err += RUN_TEST( test_pack_variable_length_tag );
   num_err += RUN_TEST( test_pack_tag_handle_data );
@@ -1000,7 +1004,7 @@ void test_pack_set_parent_child()
   CHECK_EQUAL( set3, parents[1] );
 }
 
-void test_pack_tag_data()
+void test_pack_tag_data_sparse()
 {
   MBRange::iterator i;
   int size;
@@ -1011,10 +1015,7 @@ void test_pack_tag_data()
   MBErrorCode rval;
   
   create_simple_grid( mb, 3 );  
-  MBRange verts, elems, sets;
-  rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
-  CHECK_ERR(rval);
-  CHECK( !verts.empty() );
+  MBRange elems;
   rval = mb.get_entities_by_type( 0, MBHEX, elems );
   CHECK_ERR(rval);
   CHECK( !elems.empty() );
@@ -1048,56 +1049,11 @@ void test_pack_tag_data()
     CHECK_ERR(rval);
   }
   
-    // Define a dense tag containing a single double-precision floating
-    // point value.  For each vertex, store the distance from the origin
-    // in this tag.
-  const char dense_1_double_tag_name[] = "test tag 2";
-  MBTag dense_1_double_tag;
-  rval = mb.tag_create( dense_1_double_tag_name,
-                        sizeof(double),
-                        MB_TAG_DENSE,
-                        MB_TYPE_DOUBLE,
-                        dense_1_double_tag,
-                        0 );
-  CHECK_ERR(rval);
-  for (i = verts.begin(); i != verts.end(); ++i) {
-    double coords[3];
-    rval = mb.get_coords( &*i, 1, coords );
-    CHECK_ERR(rval);
-    double val = sqrt(coords[0]*coords[0] + coords[1]*coords[1] + coords[2]*coords[2]);
-    rval = mb.tag_set_data( dense_1_double_tag, &*i, 1, &val );
-    CHECK_ERR(rval);
-  }
- 
-    // Define a dense, opaque tag with a default value of "DEFLT".
-    // Set the tag on one element, one vertex,and one set to "TAGGD".
-  const char dense_5_opaque_tag_name[] = "This is intentionally a very long tag name in an attempt to test for an arbitrary limitations on tag name length.";
-  MBTag dense_5_opaque_tag;
-  rval = mb.tag_create( dense_5_opaque_tag_name,
-                        5,
-                        MB_TAG_DENSE,
-                        dense_5_opaque_tag,
-                        "DEFLT" );
-  CHECK_ERR(rval);
-  MBEntityHandle set;
-  rval = mb.create_meshset( MESHSET_SET, set );
-  CHECK_ERR(rval);
-  const MBEntityHandle handles[3] = { verts.front(), elems.front(), set };
-  const char data[] = "TAGGDTAGGDTAGGD";
-  rval = mb.tag_set_data( dense_5_opaque_tag, handles, 3, data );
-  CHECK_ERR(rval);
-  
     // pack and unpack
   MBRange ents;
   pack_unpack_mesh( moab, ents );
   elems.clear();
-  verts.clear();
-  sets.clear();
-  rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
-  CHECK_ERR(rval);
   rval = mb.get_entities_by_type( 0, MBHEX, elems );
-  CHECK_ERR(rval);
-  rval = mb.get_entities_by_type( 0, MBENTITYSET, sets );
   CHECK_ERR(rval);
   
   
@@ -1138,6 +1094,53 @@ void test_pack_tag_data()
     CHECK_EQUAL( (int)(coords[0]), intdata[0] );
     CHECK_EQUAL( (int)(coords[1]), intdata[1] );
   }
+}
+
+
+void test_pack_tag_data_dense()
+{
+  MBRange::iterator i;
+  int size;
+  MBDataType type;
+  MBTagType storage;
+  MBCore moab;
+  MBInterface& mb = moab;
+  MBErrorCode rval;
+  
+  create_simple_grid( mb, 3 );  
+  MBRange verts;
+  rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
+  CHECK_ERR(rval);
+  CHECK( !verts.empty() );
+
+    // Define a dense tag containing a single double-precision floating
+    // point value.  For each vertex, store the distance from the origin
+    // in this tag.
+  const char dense_1_double_tag_name[] = "test tag 2";
+  MBTag dense_1_double_tag;
+  rval = mb.tag_create( dense_1_double_tag_name,
+                        sizeof(double),
+                        MB_TAG_DENSE,
+                        MB_TYPE_DOUBLE,
+                        dense_1_double_tag,
+                        0 );
+  CHECK_ERR(rval);
+  for (i = verts.begin(); i != verts.end(); ++i) {
+    double coords[3];
+    rval = mb.get_coords( &*i, 1, coords );
+    CHECK_ERR(rval);
+    double val = sqrt(coords[0]*coords[0] + coords[1]*coords[1] + coords[2]*coords[2]);
+    rval = mb.tag_set_data( dense_1_double_tag, &*i, 1, &val );
+    CHECK_ERR(rval);
+  }
+  
+    // pack and unpack
+  MBRange ents;
+  pack_unpack_mesh( moab, ents );
+  verts.clear();
+  rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
+  CHECK_ERR(rval);
+  
   
     // check tag meta for dense_1_double_tag
   rval = mb.tag_get_handle( dense_1_double_tag_name, dense_1_double_tag );
@@ -1165,6 +1168,57 @@ void test_pack_tag_data()
     CHECK_ERR(rval);
     CHECK_REAL_EQUAL( expected, dval, 1e-6 );
   }
+}
+
+void test_pack_tag_data_default_value()
+{
+  MBRange::iterator i;
+  int size;
+  MBDataType type;
+  MBTagType storage;
+  MBCore moab;
+  MBInterface& mb = moab;
+  MBErrorCode rval;
+  
+  create_simple_grid( mb, 3 );  
+  MBRange verts, elems, sets;
+  rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
+  CHECK_ERR(rval);
+  CHECK( !verts.empty() );
+  rval = mb.get_entities_by_type( 0, MBHEX, elems );
+  CHECK_ERR(rval);
+  CHECK( !elems.empty() );
+
+    // Define a dense, opaque tag with a default value of "DEFLT".
+    // Set the tag on one element, one vertex,and one set to "TAGGD".
+  const char dense_5_opaque_tag_name[] = "This is intentionally a very long tag name in an attempt to test for an arbitrary limitations on tag name length.";
+  MBTag dense_5_opaque_tag;
+  rval = mb.tag_create( dense_5_opaque_tag_name,
+                        5,
+                        MB_TAG_DENSE,
+                        dense_5_opaque_tag,
+                        "DEFLT" );
+  CHECK_ERR(rval);
+  MBEntityHandle set;
+  rval = mb.create_meshset( MESHSET_SET, set );
+  CHECK_ERR(rval);
+  const MBEntityHandle handles[3] = { verts.front(), elems.front(), set };
+  const char data[] = "TAGGDTAGGDTAGGD";
+  rval = mb.tag_set_data( dense_5_opaque_tag, handles, 3, data );
+  CHECK_ERR(rval);
+  
+    // pack and unpack
+  MBRange ents;
+  pack_unpack_mesh( moab, ents );
+  elems.clear();
+  verts.clear();
+  sets.clear();
+  rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
+  CHECK_ERR(rval);
+  rval = mb.get_entities_by_type( 0, MBHEX, elems );
+  CHECK_ERR(rval);
+  rval = mb.get_entities_by_type( 0, MBENTITYSET, sets );
+  CHECK_ERR(rval);
   
     // check tag meta for dense_5_opaque_tag
   rval = mb.tag_get_handle( dense_5_opaque_tag_name, dense_5_opaque_tag );
@@ -1212,7 +1266,6 @@ void test_pack_tag_data()
   }
   CHECK_EQUAL( 1, scount );
 }
-
 
 void test_pack_bit_tag_data()
 {
