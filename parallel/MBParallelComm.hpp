@@ -452,6 +452,69 @@ private:
                                  const bool store_handles,
                                  const int from_proc);
   
+  /**\brief Serialize entity tag data
+   *
+   * This function operates in two pases.  The first phase,
+   * specified by 'just_count == true' calculates the necesary
+   * buffer size for the serialized data and, optionally populates
+   * the vectors of tag handles and entity ranges.  The second phase
+   * writes the actual binary serialized representation of the
+   * data to the passed buffer.
+   *
+   *\NOTE all_tags and tag_ranges must be empty if all_possible_tags
+   *      == true and just_count == true.  Otherwise tag_ranges must
+   *      be at least the size of all_tags, and probably should be the
+   *      same size as all_tags.
+   *\NOTE For most use cases, 'count' should be initialized to zero
+   *      before calling this function.
+   *\NOTE First two arguments are not used.  (Legacy interface?)
+   *
+   *\param entities      NOT USED
+   *\param start_rit     NOT USED
+   *\param whole_range   Should be the union of the sets of entities for 
+   *                     which tag values are to be serialized.  Also
+   *                     specifies ordering for indexes for tag values and
+   *                     serves as the superset from which to compose entity
+   *                     lists from individual tags if just_count and
+   *                     all_possible_tags are both true.
+   *\param buff_ptr      Buffer into which to write binary serailzed data
+   *\param count         Output:  The size of the serialized data is added
+   *                     to this parameter.  NOTE: Should probalby initialize
+   *                     to zero before calling.
+   *\param just_count    If true, just calculate the buffer size required to
+   *                     hold the serialized data.  Will also append to
+   *                     'all_tags' and 'tag_ranges' if all_possible_tags
+   *                     == true.
+   *\param store_handles The data for each tag is preceeded by a list of 
+   *                     MBEntityHandles designating the entity each of
+   *                     the subsequent tag values corresponds to.  This value
+   *                     may be one of:
+   *                     1) If store_handles == false:
+   *                        An invalid handle composed of {MBMAXTYE,idx}, where
+   *                        idx is the position of the entity in "whole_range".
+   *                     2) If store_hanldes == true and a valid remote
+   *                        handle exists, the remote handle.
+   *                     3) If store_hanldes == true and no valid remote 
+   *                        handle is defined for the entity, the same as 1).
+   *\param to_proc       If 'store_handles' is true, the processor rank for
+   *                     which to store the corresponding remote entity 
+   *                     handles.
+   *\param all_tags      If all_possible_tags == false or just_count == false
+   *                     Input: List of tags to write
+   *                     Otherwise
+   *                     Output: List of all non-internal tags
+   *\param tag_ranges    If all_possible_tags == false or just_count == false
+   *                     Input: List of entities to serialize tag data, one
+   *                            for each corresponding tag handle in 'all_tags.
+   *                     Otherwise 
+   *                     Output: Subsets of 'whole_range' for which a value
+   *                             has been stored for the corresponding tag.
+   *\param all_possible_tags  Ignored unless just_count == true.  If
+   *                     just_count == true and this argument is true, then
+   *                     treat 'all_tags' and 'tag_ranges' as output rather 
+   *                     than input, populating them with non-internal-use
+   *                     tags and the corresponding entities.
+   */
   MBErrorCode pack_tags(MBRange &entities,
                         MBRange::const_iterator &start_rit,
                         MBRange &whole_range,
