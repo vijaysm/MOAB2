@@ -3234,7 +3234,10 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
                                 sent_ents[ind]);
     RRA("Failed to pack-send in ghost exchange.");
 
-    if (0 != num_layers) new_ghosted.merge(sent_ents[ind]);
+    if (0 != num_layers) {
+      new_ghosted.merge(sent_ents[ind]);
+      ghostedEnts[*sit].merge(sent_ents[ind]);
+    }
   }
   
     // receive/unpack entities
@@ -3281,7 +3284,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
         RRA("Failed to recv-unpack message.");
         if (0 != num_layers) {
           new_ghosts.merge(recd_ents[ind]);
-          ghostedEnts[buffProcs[ind]].merge(recd_ents[ind]);
+          //ghostedEnts[buffProcs[ind]].merge(recd_ents[ind]);
         }
         break;
       case MB_MESG_REMOTE_HANDLES_VECTOR:
@@ -3391,7 +3394,8 @@ MBErrorCode MBParallelComm::exchange_tags(std::vector<MBTag> &tags)
       if (MB_SUCCESS != result || owner != (int)proc_config().proc_rank()) 
         continue;
       
-      result = get_ghost_layers(*rit, -1, 0, 0, tag_ents);
+      //result = get_ghost_layers(*rit, -1, 0, 0, tag_ents);
+      result = mbImpl->get_entities_by_handle(*rit, tag_ents);
       RRA("Failed to get tag ents for exchange.");
     }
 
@@ -3402,9 +3406,19 @@ MBErrorCode MBParallelComm::exchange_tags(std::vector<MBTag> &tags)
       // pack-send; this also posts receives if store_remote_handles is true
     int buff_size = 0;
     std::vector<MBRange> tag_ranges;
-    for (std::vector<MBTag>::iterator vit = tags.begin(); vit != tags.end(); vit++)
-      tag_ranges.push_back(tag_ents);
-
+    for (std::vector<MBTag>::iterator vit = tags.begin(); vit != tags.end(); vit++) {
+      const void* ptr;
+      int size;
+      if (tagServer->get_default_data_ref( *vit, ptr, size ) != MB_SUCCESS) {
+        MBRange tagged_ents;
+        tagServer->get_entities( *vit, tagged_ents );
+        tag_ranges.push_back(tag_ents.intersect(tagged_ents));
+      } 
+      else {
+        tag_ranges.push_back(tag_ents);
+      }
+    }
+    
       // count first
     unsigned char *buff_ptr = &ownerSBuffs[ind][0];
     MBRange::iterator rit = tag_ents.begin();

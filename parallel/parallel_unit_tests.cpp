@@ -87,9 +87,9 @@ int run_test( MBErrorCode (*func)(const char*),
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   if (rank == 0) {
     if (is_err) 
-      std::cout << func_name << " FAILED!!" << std::endl;
+      std::cout << func_name << " : FAILED!!" << std::endl;
     else
-      std::cout << func_name << " success" << std::endl;
+      std::cout << func_name << " : success" << std::endl;
   }
   
   return is_err;
@@ -745,7 +745,8 @@ MBErrorCode test_ghost_tag_exchange( const char* filename )
   rval = moab.tag_set_data( sparse_test_tag, local, &procs1[0] ); CHKERR(rval);
   
     // exchange tag data
-  rval = pcomm->exchange_tags( sparse_test_tag ); CHKERR(rval);
+  rval = pcomm->exchange_tags( sparse_test_tag ); 
+  PCHECK( MB_SUCCESS == rval );
   
     // make sure local values are unchanged
   std::vector<int> procs2(local.size());
