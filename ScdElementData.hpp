@@ -220,6 +220,7 @@ inline VertexDataRef::VertexDataRef(const HomCoord &this_min, const HomCoord &th
 
 inline MBEntityHandle ScdElementData::get_vertex(const HomCoord &coords) const
 {
+  assert(boundary_complete());
    for (std::vector<VertexDataRef>::const_iterator it = vertexSeqRefs.begin();
         it != vertexSeqRefs.end(); it++) {
      if ((*it).minmax[0] <= coords && (*it).minmax[1] >= coords) {

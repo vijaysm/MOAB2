@@ -163,7 +163,18 @@ class SequenceManager
                                      MBEntityID start_id_hint,
                                      MBEntityHandle& first_handle_out,
                                      EntitySequence*& sequence_out );
-                                     
+
+    /** Add a structured vertex sequence to this structured element sequence;
+     * see comments in ScdElementData */
+  MBErrorCode add_vsequence(EntitySequence *vert_seq,
+                            EntitySequence *elem_seq,
+                            const HomCoord &p1, const HomCoord &q1,
+                            const HomCoord &p2, const HomCoord &q2,
+                            const HomCoord &p3, const HomCoord &q3,
+                            bool bb_input = false,
+                            const HomCoord *bb_min = NULL,
+                            const HomCoord *bb_max = NULL);
+
       /** Get data for a specific MBEntityType */
     TypeSequenceManager& entity_map( MBEntityType type )
       { return typeData[type]; }

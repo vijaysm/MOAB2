@@ -684,6 +684,31 @@ SequenceManager::create_scd_sequence( const HomCoord& coord_min,
                               type, start_id_hint,
                               first_handle_out, sequence_out );
 }
+
+MBErrorCode 
+SequenceManager::add_vsequence(EntitySequence *vert_seq,
+                               EntitySequence *elem_seq,
+                               const HomCoord &p1, const HomCoord &q1,
+                               const HomCoord &p2, const HomCoord &q2,
+                               const HomCoord &p3, const HomCoord &q3,
+                               bool bb_input,
+                               const HomCoord *bb_min,
+                               const HomCoord *bb_max) 
+{
+    // check first that they're structured vtx/elem sequences
+  ScdVertexData *scd_vd = dynamic_cast<ScdVertexData*>(vert_seq->data());
+  if (!scd_vd) return MB_FAILURE;
+  
+  ScdElementData *scd_ed = dynamic_cast<ScdElementData*>(elem_seq->data());
+  if (!scd_ed) return MB_FAILURE;
+
+  if (bb_min && bb_max)
+    return scd_ed->add_vsequence(scd_vd, p1, q1, p2, q2, p3, q3, 
+                                 bb_input, *bb_min, *bb_max);
+  else
+    return scd_ed->add_vsequence(scd_vd, p1, q1, p2, q2, p3, q3, 
+                                 bb_input, HomCoord::unitv[0], HomCoord::unitv[0]);
+}
  
 MBErrorCode
 SequenceManager::replace_subsequence( EntitySequence* new_seq, TagServer* ts )
