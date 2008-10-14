@@ -52,13 +52,13 @@ public:
     //! constructor
   MBParallelComm(MBInterface *impl,
                  MPI_Comm comm = MPI_COMM_WORLD,
-                 int* pcomm_id_out);
+                 int* pcomm_id_out = 0);
 
     //! constructor taking packed buffer, for testing
   MBParallelComm(MBInterface *impl,
                  std::vector<unsigned char> &tmp_buff,
                  MPI_Comm comm = MPI_COMM_WORLD,
-                 int* pcomm_id_out);
+                 int* pcomm_id_out = 0);
 
 
     //! get the indexed pcomm object from the interface

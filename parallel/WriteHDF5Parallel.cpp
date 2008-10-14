@@ -1978,8 +1978,7 @@ MBErrorCode WriteHDF5Parallel::get_sharedset_tags()
           tag_name == PARALLEL_SHARED_PROCS_TAG_NAME ||
           tag_name == PARALLEL_SHARED_HANDLE_TAG_NAME ||
           tag_name == PARALLEL_SHARED_HANDLES_TAG_NAME ||
-          tag_name == PARALLEL_STATUS_TAG_NAME ||
-          tag_name == PARALLEL_COMM_TAG_NAME
+          tag_name == PARALLEL_STATUS_TAG_NAME 
           ))
         all_tags.insert(*vit);
     }

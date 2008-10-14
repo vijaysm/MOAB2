@@ -37,8 +37,6 @@
  */
 #define PARALLEL_PARITIONING_TAG_NAME "PARALLEL_MESH_PARITIONING"
 
-/** \brief Tag designating a 
- 
 /** \brief Tag storing which other processor a given entity is shared with
  *
  * This single-valued tag implies an entity is shared with one other proc

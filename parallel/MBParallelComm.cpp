@@ -189,7 +189,7 @@ MBParallelComm::~MBParallelComm()
   remove_pcomm(this);
 }
 
-void MBParallelComm::add_pcomm(MBParallelComm *pc) 
+int MBParallelComm::add_pcomm(MBParallelComm *pc) 
 {
     // add this pcomm to instance tag
   std::vector<MBParallelComm *> pc_array(MAX_SHARING_PROCS, 
@@ -198,15 +198,19 @@ void MBParallelComm::add_pcomm(MBParallelComm *pc)
   assert(0 != pc_tag);
   
   MBErrorCode result = mbImpl->tag_get_data(pc_tag, 0, 0, (void*)&pc_array[0]);
-  if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) return;
+  if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) 
+    return -1;
   int index = 0;
   while (index < MAX_SHARING_PROCS && pc_array[index]) index++;
-  if (index == MAX_SHARING_PROCS)
+  if (index == MAX_SHARING_PROCS) {
+    index = -1;
     assert(false);
+  }
   else {
     pc_array[index] = pc;
     mbImpl->tag_set_data(pc_tag, 0, 0, (void*)&pc_array[0]);
   }
+  return index;
 }
 
 void MBParallelComm::remove_pcomm(MBParallelComm *pc) 
