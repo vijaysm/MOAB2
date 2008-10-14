@@ -18,10 +18,26 @@
  *
  * When the mesh is partitioned for use in a parallel environment,
  * the each CPUs partiiton of the mesh is stored in a meshset with
- * this tag.  The value of the tag is an integer containing the
- * processor ID (MPI rank).
+ * this tag.  The value of the tag is an integer "part identifier".
  */
 #define PARALLEL_PARTITION_TAG_NAME "PARALLEL_PARTITION"
+#define PARALLEL_PART_TAG_NAME PARALLEL_PARTITION_TAG_NAME
+
+/** \brief Tag that groups the set of parts/partitions that are
+ *         a covering of the mesh.
+ *
+ * This tag labels an entity set for which the child sets are part(ition)s
+ * that together are a single partitioning of the mesh.  I.e. There should
+ * be no mesh entity that is contained in more than one child part(ition)
+ * set, and typically every mesh entity of the dimenion used to partition
+ * the mesh is contained in exactly one of the child sets.
+ *
+ * The data for this tag is a single integer value.  The value of
+ * the tag is undefined.
+ */
+#define PARALLEL_PARITIONING_TAG_NAME "PARALLEL_MESH_PARITIONING"
+
+/** \brief Tag designating a 
  
 /** \brief Tag storing which other processor a given entity is shared with
  *
@@ -68,20 +84,5 @@
 #define PSTATUS_SHARED 0x2
 #define PSTATUS_INTERFACE 0x4
 #define PSTATUS_GHOST 0x8
- 
-/** \brief Tag storing parallel communication objects
- *
- * This tag stores pointers to MBParallelComm communication
- * objects; one of these is allocated for each different
- * communicator used to read mesh.  MBParallelComm stores
- * partition and interface sets corresponding to its parallel mesh.
- * By default, a parallel read uses the first MBParallelComm object
- * on the interface instance; if instantiated with one, ReadParallel
- * adds this object to the interface instance too.
- *
- * Tag type: opaque
- * Tag size: MAX_SHARING_PROCS*sizeof(MBParallelComm*)
- */
-#define PARALLEL_COMM_TAG_NAME "__PARALLEL_COMM"
 
 #endif

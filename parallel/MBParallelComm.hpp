@@ -51,12 +51,25 @@ public:
 
     //! constructor
   MBParallelComm(MBInterface *impl,
-                 MPI_Comm comm = MPI_COMM_WORLD);
+                 MPI_Comm comm = MPI_COMM_WORLD,
+                 int* pcomm_id_out);
 
     //! constructor taking packed buffer, for testing
   MBParallelComm(MBInterface *impl,
                  std::vector<unsigned char> &tmp_buff,
-                 MPI_Comm comm = MPI_COMM_WORLD);
+                 MPI_Comm comm = MPI_COMM_WORLD,
+                 int* pcomm_id_out);
+
+
+    //! get the indexed pcomm object from the interface
+  static MBParallelComm *get_pcomm(MBInterface *impl, const int index);
+  
+    //! Get MBParallelComm instance associated with partition handle
+    //! Will create MBParallelComm instance if a) one does not already
+    //! exist and b) a valid value for MPI_Comm is passed.
+  static MBParallelComm *get_pcomm( MBInterface* impl, 
+                                    MBEntityHandle partitioning,
+                                    const MPI_Comm* comm = 0 );
 
     //! destructor
   ~MBParallelComm();
@@ -317,9 +330,6 @@ public:
     //! to look for one on the interface
   static MBTag pcomm_tag(MBInterface *impl,
                          bool create_if_missing = true);
-
-    //! get the indexed pcomm object from the interface
-  static MBParallelComm *get_pcomm(MBInterface *impl, const int index);
   
     //! return partitions set tag
   MBTag partition_tag();
@@ -648,7 +658,7 @@ private:
   MBErrorCode tag_iface_entities();
 
     //! add a pc to the iface instance tag PARALLEL_COMM
-  void add_pcomm(MBParallelComm *pc);
+  int add_pcomm(MBParallelComm *pc);
   
     //! remove a pc from the iface instance tag PARALLEL_COMM
   void remove_pcomm(MBParallelComm *pc);

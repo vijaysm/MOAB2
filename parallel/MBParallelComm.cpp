@@ -109,6 +109,25 @@ std::string __PACK_string, __UNPACK_string;
       dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(tmp_str.c_str()); \
       return result;}
 
+/** Name of tag used to store MBParallelComm Index on mesh paritioning sets */
+const char* PARTITIONING_PCOMM_TAG_NAME = "__PRTN_PCOMM";
+ 
+/** \brief Tag storing parallel communication objects
+ *
+ * This tag stores pointers to MBParallelComm communication
+ * objects; one of these is allocated for each different
+ * communicator used to read mesh.  MBParallelComm stores
+ * partition and interface sets corresponding to its parallel mesh.
+ * By default, a parallel read uses the first MBParallelComm object
+ * on the interface instance; if instantiated with one, ReadParallel
+ * adds this object to the interface instance too.
+ *
+ * Tag type: opaque
+ * Tag size: MAX_SHARING_PROCS*sizeof(MBParallelComm*)
+ */
+#define PARALLEL_COMM_TAG_NAME "__PARALLEL_COMM"
+
+
 enum MBMessageTag {MB_MESG_ANY=MPI_ANY_TAG, 
                    MB_MESG_SIZE,
                    MB_MESG_ENTS,
@@ -116,7 +135,7 @@ enum MBMessageTag {MB_MESG_ANY=MPI_ANY_TAG,
                    MB_MESG_REMOTE_HANDLES_VECTOR,
                    MB_MESG_TAGS,};
     
-MBParallelComm::MBParallelComm(MBInterface *impl, MPI_Comm comm) 
+MBParallelComm::MBParallelComm(MBInterface *impl, MPI_Comm comm, int* id ) 
     : mbImpl(impl), procConfig(comm), sharedpTag(0), sharedpsTag(0),
       sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0),
       partitionTag(0)
@@ -136,12 +155,15 @@ MBParallelComm::MBParallelComm(MBInterface *impl, MPI_Comm comm)
     retval = MPI_Init(&argc, &argv);
   }
 
-  add_pcomm(this);
+  int myid = add_pcomm(this);
+  if (id)
+    *id = myid;
 }
 
 MBParallelComm::MBParallelComm(MBInterface *impl,
                                std::vector<unsigned char> &tmp_buff, 
-                               MPI_Comm comm) 
+                               MPI_Comm comm,
+                               int* id) 
     : mbImpl(impl), procConfig(comm), sharedpTag(0), sharedpsTag(0),
       sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0),
       partitionTag(0)
@@ -157,7 +179,9 @@ MBParallelComm::MBParallelComm(MBInterface *impl,
     retval = MPI_Init(&argc, &argv);
   }
 
-  add_pcomm(this);
+  int myid = add_pcomm(this);
+  if (id)
+    *id = myid;
 }
 
 MBParallelComm::~MBParallelComm() 
@@ -3652,6 +3676,44 @@ MBParallelComm *MBParallelComm::get_pcomm(MBInterface *impl, const int index)
   if (MB_SUCCESS != result) return NULL;
   
   return pc_array[index];
+}
+
+    //! get the indexed pcomm object from the interface
+MBParallelComm *MBParallelComm::get_pcomm( MBInterface *impl, 
+                                           MBEntityHandle prtn,
+                                           const MPI_Comm* comm ) 
+{
+  MBErrorCode rval;
+  MBParallelComm* result = 0;
+  
+  MBTag prtn_tag;
+  rval = impl->tag_create( PARTITIONING_PCOMM_TAG_NAME, 
+                           sizeof(int),
+                           MB_TAG_SPARSE,
+                           MB_TYPE_INTEGER,
+                           prtn_tag,
+                           0, true );
+  if (MB_SUCCESS != rval)
+    return 0;
+  
+  int pcomm_id;
+  rval = impl->tag_get_data( prtn_tag, &prtn, 1, &pcomm_id );
+  if (MB_SUCCESS == rval) {
+    result= get_pcomm( impl, pcomm_id );
+  }
+  else if (MB_TAG_NOT_FOUND == rval && comm) {
+    result = new MBParallelComm( impl, *comm, &pcomm_id );
+    if (!result)
+      return 0;
+    
+    rval = impl->tag_set_data( prtn_tag, &prtn, 1, &pcomm_id );
+    if (MB_SUCCESS != rval) {
+      delete result;
+      result = 0;
+    }
+  }
+
+  return result;
 }
 
   //! return all the entities in parts owned locally
