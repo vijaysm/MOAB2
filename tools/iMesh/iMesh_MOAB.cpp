@@ -2673,8 +2673,10 @@ extern "C" {
       RETURN(iBase_ERROR_MAP[result]);
     }
 
+    int num_ents = out_entities.size() - out_entities.num_of_type(MBENTITYSET);
+    
     CHECK_SIZE(*entity_handles, *entity_handles_allocated, 
-               (int)out_entities.size(), iBase_EntityHandle, iBase_MEMORY_ALLOCATION_FAILED);
+               num_ents, iBase_EntityHandle, iBase_MEMORY_ALLOCATION_FAILED);
   
     MBRange::iterator iter = out_entities.begin();
     MBRange::iterator end_iter = out_entities.end();

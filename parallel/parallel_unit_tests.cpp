@@ -6,6 +6,7 @@
 #include "MBCore.hpp"
 #include "mpi.h"
 #include <iostream>
+#include <algorithm>
 #include <sstream>
 #include <assert.h>
 
