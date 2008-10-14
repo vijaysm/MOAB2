@@ -324,6 +324,7 @@ extern "C" {
       std::string msg("iMesh_load:ERROR loading a mesh, with error type: ");
       msg += MBI->get_error_string(result);
       iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
+      RETURN(iBase_ERROR_MAP[result]);
     }
 
     if (handle) {
