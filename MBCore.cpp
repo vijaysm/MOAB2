@@ -1852,44 +1852,43 @@ MBErrorCode MBCore::merge_entities( MBEntityHandle entity_to_keep,
 }
 
 
-//! deletes an entity vector
-MBErrorCode MBCore::delete_entities(const MBEntityHandle *entities,
-                                      const int num_entities)
+//! deletes an entity range
+MBErrorCode MBCore::delete_entities(const MBRange &range)
 {
   MBErrorCode result = MB_SUCCESS, temp_result;
   
-  for (int i = 0; i < num_entities; i++) {
+  for (MBRange::const_reverse_iterator rit = range.rbegin(); rit != range.rend(); rit++) {
     
       // tell AEntityFactory that this element is going away
-    temp_result = aEntityFactory->notify_delete_entity(entities[i]);
+    temp_result = aEntityFactory->notify_delete_entity(*rit);
     if (MB_SUCCESS != temp_result) {
       result = temp_result;
       continue;
     }
 
       // reset and/or clean out data associated with this entity handle
-    temp_result = tagServer->reset_data(entities[i]);
+    temp_result = tagServer->reset_data(*rit);
     if (MB_SUCCESS != temp_result) {
       result = temp_result;
       continue;
     }
 
-    if (TYPE_FROM_HANDLE(entities[i]) == MBENTITYSET) {
-      if (MBMeshSet* ptr = get_mesh_set( sequence_manager(), entities[i] )) {
+    if (TYPE_FROM_HANDLE(*rit) == MBENTITYSET) {
+      if (MBMeshSet* ptr = get_mesh_set( sequence_manager(), *rit )) {
         int j, count;
         const MBEntityHandle* rel;
-        ptr->clear( entities[i], a_entity_factory() );
+        ptr->clear( *rit, a_entity_factory() );
         rel = ptr->get_parents( count );
         for (j = 0; j < count; ++j)
-          remove_child_meshset( rel[j], entities[i] );
+          remove_child_meshset( rel[j], *rit );
         rel = ptr->get_children( count );
         for (j = 0; j < count; ++j)
-          remove_parent_meshset( rel[j], entities[i] );
+          remove_parent_meshset( rel[j], *rit );
       }
     }
 
       // now delete the entity
-    temp_result = sequence_manager()->delete_entity(entities[i]);
+    temp_result = sequence_manager()->delete_entity(*rit);
     if (MB_SUCCESS != temp_result) {
       result = temp_result;
       continue;
@@ -1900,14 +1899,13 @@ MBErrorCode MBCore::delete_entities(const MBEntityHandle *entities,
 }
 
 
-//! deletes an entity range
-MBErrorCode MBCore::delete_entities(const MBRange &range)
+//! deletes an entity vector
+MBErrorCode MBCore::delete_entities(const MBEntityHandle *entities,
+                                    const int num_entities)
 {
-  MBErrorCode result = MB_SUCCESS, rval;
-  for (MBRange::const_reverse_iterator i = range.rbegin(); i != range.rend(); ++i)
-    if (MB_SUCCESS != (rval = delete_entities( &*i, 1)))
-      result = rval;
-  return result;
+  MBRange range;
+  std::copy(entities, entities+num_entities, mb_range_inserter(range));
+  return delete_entities(range);
 }
 
 MBErrorCode MBCore::list_entities(const MBEntityHandle *entities,
