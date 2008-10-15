@@ -292,11 +292,12 @@ protected:
    * If IDs are compacted, the output list will contain 
    * {start,count} pairs.
    *
-   * If the ID list is compacted, the length will be less than
-   * range.size().
+   * If the ID list is compacted, ranged_list will be 'true'.
+   * Otherwise it will be 'false'.
    */
   MBErrorCode range_to_blocked_list( const MBRange& input_range,
-                                     std::vector<id_t>& output_id_list );
+                                     std::vector<id_t>& output_id_list,
+                                     bool& ranged_list );
   
 
   MBErrorCode range_to_id_list( const MBRange& input_range,

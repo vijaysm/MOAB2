@@ -869,10 +869,11 @@ MBErrorCode WriteHDF5::write_sets( )
         rval = iFace->get_entities_by_handle( *iter, set_contents, false );
         CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
 
-        rval = range_to_blocked_list( set_contents, id_list );
+        bool blocked_list;
+        rval = range_to_blocked_list( set_contents, id_list, blocked_list );
         CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
 
-        assert (id_list.size() < (unsigned long)data_size);
+        assert (blocked_list && id_list.size() < (unsigned long)data_size);
         flags |= mhdf_SET_RANGE_BIT;
         data_size = id_list.size();
         ++comp;
@@ -1072,8 +1073,10 @@ MBErrorCode WriteHDF5::range_to_blocked_list( const MBRange& input_range,
 }
 */
 MBErrorCode WriteHDF5::range_to_blocked_list( const MBRange& input_range,
-                                              std::vector<id_t>& output_id_list )
+                                              std::vector<id_t>& output_id_list,
+                                              bool& ranged_list )
 {
+  ranged_list = false;
   if (input_range.empty()) {
     output_id_list.clear();
     return MB_SUCCESS;
@@ -1116,7 +1119,7 @@ MBErrorCode WriteHDF5::range_to_blocked_list( const MBRange& input_range,
   }
   
     // if we ran out of space, (or set is empty) just do list format
-  if (output_id_list.end() - i < 2 || i == output_id_list.begin()) {
+  if (output_id_list.end() - i < 2) {
     range_to_id_list( input_range, &output_id_list[0] );
     output_id_list.erase( std::remove( output_id_list.begin(), 
                                        output_id_list.end(), 
@@ -1126,6 +1129,7 @@ MBErrorCode WriteHDF5::range_to_blocked_list( const MBRange& input_range,
   }
   
     // otherwise check if we can compact the list further
+  ranged_list = true;
   size_t r, w = 2;
   const size_t e = i - output_id_list.begin() - 1;
   for (r = 2; r < e; r += 2) {
@@ -2243,11 +2247,11 @@ MBErrorCode WriteHDF5::count_set_size( const MBRange& sets,
       rval = iFace->get_entities_by_handle( *iter, set_contents, false );
       CHK_MB_ERR_0(rval);
       
-      rval = range_to_blocked_list( set_contents, set_contents_ids );
+      bool blocked_list;
+      rval = range_to_blocked_list( set_contents, set_contents_ids, blocked_list );
       CHK_MB_ERR_0(rval);
       
-      if (set_contents_ids.size() < (unsigned long)contents_length_set
-          && !set_contents_ids.empty())
+      if (blocked_list)
       {
         contents_length_set = set_contents_ids.size();
         compressed_sets.insert( *iter );
