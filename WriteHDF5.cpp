@@ -1108,8 +1108,15 @@ MBErrorCode WriteHDF5::range_to_blocked_list( const MBRange& input_range,
     }
   }
   
-    // if we ran out of space, just do list format
-  if (output_id_list.end() - i < 2) {
+    // if we aren't writing anything (no entities in MBRange are
+    // being written to to file), clean up and return
+  if (i == output_id_list.begin()) {
+    output_id_list.clear();
+    return MB_SUCCESS;
+  }
+  
+    // if we ran out of space, (or set is empty) just do list format
+  if (output_id_list.end() - i < 2 || i == output_id_list.begin()) {
     range_to_id_list( input_range, &output_id_list[0] );
     output_id_list.erase( std::remove( output_id_list.begin(), 
                                        output_id_list.end(), 
@@ -2239,7 +2246,8 @@ MBErrorCode WriteHDF5::count_set_size( const MBRange& sets,
       rval = range_to_blocked_list( set_contents, set_contents_ids );
       CHK_MB_ERR_0(rval);
       
-      if (set_contents_ids.size() < (unsigned long)contents_length_set)
+      if (set_contents_ids.size() < (unsigned long)contents_length_set
+          && !set_contents_ids.empty())
       {
         contents_length_set = set_contents_ids.size();
         compressed_sets.insert( *iter );
