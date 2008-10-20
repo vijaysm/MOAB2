@@ -4,6 +4,7 @@
 #include "MBCN.hpp"
 #include "MeshTopoUtil.hpp"
 #include "FileOptions.hpp"
+#include "iMesh_MOAB.hpp"
 
 #ifdef USE_MPI    
 #include "mpi.h"
@@ -13,28 +14,7 @@
 #include <cassert>
 #define MIN(a,b) (a < b ? a : b)
 
-class MBiMesh : public MBCore
-{
-private:
-  bool haveDeletedEntities;
-public:
-  MBiMesh(int proc_rank = 0, int proc_size = 1);
-
-  virtual ~MBiMesh();
-  bool have_deleted_ents( bool reset ) {
-    bool result = haveDeletedEntities;
-    if (reset)
-      haveDeletedEntities = false;
-    return result;
-  }
-
-  virtual MBErrorCode delete_mesh();
-  virtual MBErrorCode delete_entities( const MBEntityHandle*, const int );
-  virtual MBErrorCode delete_entities( const MBRange& );
-  int AdjTable[16];
-};
-
-MBiMesh::MBiMesh(int , int )
+MBiMesh::MBiMesh()
     : haveDeletedEntities(false)
 {
   memset(AdjTable, 0, 16*sizeof(int));
@@ -200,10 +180,19 @@ struct RangeIterator
   int requestedSize;
 };
 
-#define MBI reinterpret_cast<MBInterface*>(instance)
-#define MBimesh reinterpret_cast<MBiMesh*>(instance)
+iMesh_EntityIterator create_itaps_iterator( MBRange& range, int array_size )
+{
+  RangeIterator* iter = new RangeIterator;
+  if (iter) {
+    iter->iteratorRange.swap(range);
+    iter->currentPos = range.begin();
+    iter->requestedSize = array_size;
+  }
+  return iter;
+}
 
-#define RETURN(a) {iMesh_LAST_ERROR.error_type = a; *err = a;return;}
+
+
 #define iMesh_processError(a, b) {sprintf(iMesh_LAST_ERROR.description, "%s", b); iMesh_LAST_ERROR.error_type = a; *err = a;}
 
 #ifdef __cplusplus
@@ -275,10 +264,7 @@ extern "C" {
           // mpi not initialized yet - initialize here
         retval = MPI_Init(&argc, &argv);
       }
-      int rank, size;
-      MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
-      MPI_Comm_size(MPI_COMM_WORLD, &size); 
-      core = new MBiMesh(rank, size);
+      core = new MBiMesh;
 #else
         //mError->set_last_error( "PARALLEL option not valid, this instance"
         //                        " compiled for serial execution.\n" );
@@ -286,7 +272,7 @@ extern "C" {
       return;
 #endif
     }
-    else core = new MBiMesh();
+    else core = new MBiMesh;
 
     *instance = reinterpret_cast<iMesh_Instance>(core);
     if (0 == *instance) {
@@ -851,25 +837,23 @@ extern "C" {
   {
     MBEntityType req_type = mb_topology_table[requested_entity_topology];
     int req_dimension = (req_type == MBMAXTYPE ? (int) requested_entity_type : -1);
-    RangeIterator *new_it = new RangeIterator;
-    *entArr_iterator = reinterpret_cast<iMesh_EntityIterator>(new_it);
-    new_it->requestedSize = requested_array_size;
+    MBRange range;
   
     MBErrorCode result;
     if (requested_entity_type == iBase_ALL_TYPES &&
         requested_entity_topology == iMesh_ALL_TOPOLOGIES)
       result = MBI->get_entities_by_handle( ENTITY_HANDLE(entity_set_handle),
-                                            new_it->iteratorRange );
+                                            range );
     else if (requested_entity_topology == iMesh_SEPTAHEDRON)
       result = MB_SUCCESS; // never any septahedrons because MOAB doesn't support them
     else if (MBMAXTYPE != req_type)
       result = MBI->get_entities_by_type(ENTITY_HANDLE(entity_set_handle),
                                          req_type,
-                                         new_it->iteratorRange);
+                                         range);
     else
       result = MBI->get_entities_by_dimension(ENTITY_HANDLE(entity_set_handle),
                                               req_dimension,
-                                              new_it->iteratorRange);
+                                              range);
 
     if (result != MB_SUCCESS) {
       std::string msg("iMesh_initEntArrIter: ERROR getting entities of proper type or topology, "
@@ -880,9 +864,7 @@ extern "C" {
       RETURN(iMesh_LAST_ERROR.error_type);
     }
 
-    new_it->currentPos = new_it->iteratorRange.begin();
-    iMesh_LAST_ERROR.error_type = iBase_SUCCESS;
-
+    *entArr_iterator = create_itaps_iterator( range, requested_array_size );
     RETURN(iBase_SUCCESS);
   }
 

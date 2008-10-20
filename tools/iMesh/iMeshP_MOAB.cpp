@@ -1,4 +1,5 @@
 #include "iMeshP.h"
+#include "iMesh_MOAB.hpp"
 #include "MBCore.hpp"
 #include "MBRange.hpp"
 #include "MBCN.hpp"
@@ -17,71 +18,7 @@
 #include "mpi.h"
 #endif
 
-/********************* enum conversion tables **************************/
-
-const iBase_ErrorType iBase_ERROR_MAP[] = 
-{
-  iBase_SUCCESS, // MB_SUCCESS = 0,
-  iBase_INVALID_ENTITY_HANDLE, // MB_INDEX_OUT_OF_RANGE,
-  iBase_INVALID_ENTITY_TYPE, // MB_TYPE_OUT_OF_RANGE,
-  iBase_MEMORY_ALLOCATION_FAILED, // MB_MEMORY_ALLOCATION_FAILED,
-  iBase_INVALID_ENTITY_HANDLE, // MB_ENTITY_NOT_FOUND,
-  iBase_NOT_SUPPORTED, // MB_MULTIPLE_ENTITIES_FOUND,
-  iBase_TAG_NOT_FOUND, // MB_TAG_NOT_FOUND,
-  iBase_FILE_NOT_FOUND, // MB_FILE_DOES_NOT_EXIST,
-  iBase_FILE_WRITE_ERROR, // MB_FILE_WRITE_ERROR,
-  iBase_NOT_SUPPORTED, // MB_NOT_IMPLEMENTED,
-  iBase_TAG_ALREADY_EXISTS, // MB_ALREADY_ALLOCATED,
-  iBase_FAILURE, // MB_VARIABLE_DATA_LENGTH,
-  iBase_FAILURE, // MB_INVALID_SIZE,
-  iBase_FAILURE // MB_FAILURE};
-};
-
-// map to MB's entity type from TSTT's entity topology
-const MBEntityType mb_topology_table[] =
-{
-  MBVERTEX,
-  MBEDGE,
-  MBPOLYGON,
-  MBTRI,
-  MBQUAD,
-  MBPOLYHEDRON,
-  MBTET,
-  MBHEX,
-  MBPRISM,
-  MBPYRAMID,
-  MBMAXTYPE,
-  MBMAXTYPE
-};
-
-const iMesh_EntityTopology tstt_topology_table[] =
-{
-  iMesh_POINT,          // MBVERTEX
-  iMesh_LINE_SEGMENT,   // MBEDGE
-  iMesh_TRIANGLE,       // MBTRI
-  iMesh_QUADRILATERAL,  // MBQUAD
-  iMesh_POLYGON,        // MBPOLYGON
-  iMesh_TETRAHEDRON,    // MBTET
-  iMesh_PYRAMID,        // MBPYRAMID
-  iMesh_PRISM,          // MBPRISM
-  iMesh_ALL_TOPOLOGIES, // MBKNIFE
-  iMesh_HEXAHEDRON,     // MBHEX
-  iMesh_POLYHEDRON,     // MBPOLYHEDRON
-  iMesh_ALL_TOPOLOGIES, // MBENTITYSET
-  iMesh_ALL_TOPOLOGIES, // MBMAXTYPE
-};
-
 /********************* Error Handling **************************/
-
-extern iBase_Error iMesh_LAST_ERROR;
-
-static inline MBInterface* MBI_cast( iMesh_Instance i )
-  { return reinterpret_cast<MBInterface*>(i); }
-#define MBI MBI_cast(instance)
-
-#define RETURN(a) do {iMesh_LAST_ERROR.error_type = a; *err = a; return;} while(false)
-
-#define CHKERR(err) if (MB_SUCCESS != (err)) RETURN(iBase_ERROR_MAP[err])
 
 #define FIXME printf("Warning: function has incomplete implementation: %s\n", __func__ )
 

@@ -73,7 +73,8 @@ enum MBDataType {
   MB_TYPE_INTEGER = 1, /**< native 'int' type */
   MB_TYPE_DOUBLE  = 2, /**< native 'double' type */
   MB_TYPE_BIT     = 3, /**< mandatory type for tags with MB_TAG_BIT storage */
-  MB_TYPE_HANDLE  = 4  /**< MBEntityHandle */
+  MB_TYPE_HANDLE  = 4, /**< MBEntityHandle */
+  MB_MAX_DATA_TYPE = MB_TYPE_HANDLE
 };
 
 /** Used to reference tags; since they're so different from entities, we
