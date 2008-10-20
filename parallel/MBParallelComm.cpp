@@ -133,7 +133,7 @@ enum MBMessageTag {MB_MESG_ANY=MPI_ANY_TAG,
                    MB_MESG_ENTS,
                    MB_MESG_REMOTE_HANDLES_RANGE,
                    MB_MESG_REMOTE_HANDLES_VECTOR,
-                   MB_MESG_TAGS,};
+                   MB_MESG_TAGS };
     
 MBParallelComm::MBParallelComm(MBInterface *impl, MPI_Comm comm, int* id ) 
     : mbImpl(impl), procConfig(comm), sharedpTag(0), sharedpsTag(0),

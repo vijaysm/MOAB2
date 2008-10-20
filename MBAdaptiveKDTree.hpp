@@ -148,7 +148,7 @@ public:
     //! Median vertex coodinate values
     VERTEX_MEDIAN,
     //! Random sampling of vertex coordinate values
-    VERTEX_SAMPLE,
+    VERTEX_SAMPLE
   };
   
     //! Settings used for tree construction

@@ -68,13 +68,13 @@ inline static bool is_platform_little_endian()
 template<typename T> int parse_value( const char*& iter, T& value )
 {
   char* endptr;
-  long long int parsed_val = strtoll( iter, &endptr, 0 );
+  long parsed_val = strtol( iter, &endptr, 0 );
   if (endptr == iter)
     return 1;
   iter = endptr; 
   
   value = (T)parsed_val;
-  if ((long long)value != parsed_val)
+  if ((long)value != parsed_val)
   {
     std::cerr << "Value too large: " << iter << std::endl;
     return 2;

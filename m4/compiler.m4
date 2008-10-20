@@ -280,22 +280,25 @@ case "$cxx_compiler:$host_cpu" in
   GNU:sparc*)
     SNL_CXX_32BIT=-m32
     SNL_CXX_64BIT=-m64
-    SNL_CXX_SPECIAL="-Wall -pipe"
+    SNL_CXX_SPECIAL="$EXTRA_GNU_FLAGS"
     ;;
   GNU:powerpc*)
     SNL_CXX_32BIT=-m32
     SNL_CXX_64BIT=-m64
-    SNL_CXX_SPECIAL="-Wall -pipe"
+    SNL_CXX_SPECIAL="$EXTRA_GNU_FLAGS"
     ;;
   GNU:i?86|GNU:x86_64)
     SNL_CXX_32BIT=-m32
     SNL_CXX_64BIT=-m64
-    SNL_CXX_SPECIAL="-Wall -pipe"
+    SNL_CXX_SPECIAL="$EXTRA_GNU_FLAGS"
     ;;
   GNU:mips*)
     SNL_CXX_32BIT="-mips32 -mabi=32"
     SNL_CXX_64BIT="-mips64 -mabi=64"
-    SNL_CXX_SPECIAL="-Wall -pipe"
+    SNL_CXX_SPECIAL="$EXTRA_GNU_FLAGS"
+    ;;
+  GNU:*)
+    SNL_CXX_SPECIAL="$EXTRA_GNU_FLAGS"
     ;;
   VisualAge:*)
     SNL_CXX_32BIT=-q32
@@ -401,22 +404,25 @@ case "$cc_compiler:$host_cpu" in
   GNU:sparc*)
     SNL_CC_32BIT=-m32
     SNL_CC_64BIT=-m64
-    SNL_CC_SPECIAL="-Wall -pipe"
+    SNL_CC_SPECIAL="$EXTRA_GNU_FLAGS"
     ;;
   GNU:powerpc*)
     SNL_CC_32BIT=-m32
     SNL_CC_64BIT=-m64
-    SNL_CC_SPECIAL="-Wall -pipe"
+    SNL_CC_SPECIAL="$EXTRA_GNU_FLAGS"
     ;;
   GNU:i?86|GNU:x86_64)
     SNL_CC_32BIT=-m32
     SNL_CC_64BIT=-m64
-    SNL_CC_SPECIAL="-Wall -pipe"
+    SNL_CC_SPECIAL="$EXTRA_GNU_FLAGS"
     ;;
   GNU:mips*)
     SNL_CC_32BIT="-mips32 -mabi=32"
     SNL_CC_64BIT="-mips64 -mabi=64"
-    SNL_CC_SPECIAL="-Wall -pipe"
+    SNL_CC_SPECIAL="$EXTRA_GNU_FLAGS"
+    ;;
+  GNU:*)
+    SNL_CC_SPECIAL="$EXTRA_GNU_FLAGS"
     ;;
   VisualAge:*)
     case "$target_vendor" in
