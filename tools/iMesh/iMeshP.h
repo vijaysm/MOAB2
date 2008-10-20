@@ -136,7 +136,7 @@ void iMeshP_createPartitionAll(iMesh_Instance instance,
  *  invalidate it.
  *  COMMUNICATION:  Collective.*/
 void iMeshP_destroyPartitionAll(iMesh_Instance instance,
-                    /*inout*/ iMeshP_PartitionHandle *partition_handle,
+                    /*inout*/ iMeshP_PartitionHandle partition_handle,
                               int *err);
 
 /**  Given a partition handle, return its communicator.
@@ -194,7 +194,7 @@ void iMeshP_getNumLocalParts(iMesh_Instance instance,
 void iMeshP_getLocalParts(iMesh_Instance instance,
                           const iMeshP_PartitionHandle partition_handle,
                           int *num_local_part, 
-                          iMeshP_PartHandle *part_handles,
+                          iMeshP_PartHandle **part_handles,
                           int *part_handles_allocated,
                           int *part_handles_size,
                           int *err); 
@@ -254,7 +254,7 @@ void iMeshP_createPart(iMesh_Instance instance,
  *  COMMUNICATION:  None.*/
 void iMeshP_destroyPart(iMesh_Instance instance,
                     /*in*/ iMeshP_PartitionHandle partition_handle,
-                 /*inout*/ iMeshP_PartHandle *part_handle,
+                 /*inout*/ iMeshP_PartHandle part_handle,
                            int *err);
 
 /********************************
