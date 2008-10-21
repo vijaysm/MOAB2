@@ -11,32 +11,46 @@
 #      For example: if this is defined, #include <iostrea.h> rather than <iostream>
 #######################################################################################
 AC_DEFUN([SNL_CANT_USE_STD], [
-AC_LANG_SAVE
-AC_LANG_CPLUSPLUS
 
-AC_MSG_CHECKING([for C++-standard header files])
-AC_TRY_COMPILE([#include <vector>
-                #include <string>
-                #include <map>
-                #include <algorithm>
-               ],
-               [std::vector<std::string> v;
-                std::map<std::string,std::string> m;
-               ],
-               [AC_MSG_RESULT(yes)],
-               [AC_MSG_RESULT(no); CANT_USE_STD=-DCANT_USE_STD])
+AC_CACHE_CHECK([for C++-standard library in std:: namespace],
+               [snl_cv_cxx_stl_in_std],
+               [AC_LANG_SAVE
+                AC_LANG_CPLUSPLUS
+                AC_TRY_COMPILE([#include <vector>
+                                #include <string>
+                                #include <map>
+                                #include <algorithm>],
+                               [std::vector<std::string> v;
+                                std::map<std::string,std::string> m; ],
+                               [snl_cv_cxx_stl_in_std=yes],
+                               [snl_cv_cxx_stl_in_std=no])
+                AC_LANG_RESTORE])
+                
+if test snl_cv_cxx_stl_in_std = no; then
+  CANT_USE_STD=-DCANT_USE_STD
+else
+  CANT_USE_STD=
+fi
 
-AC_MSG_CHECKING([for C++-standard I/O header files])
-AC_TRY_COMPILE([#include <iosfwd>
-                #include <iostream>
-                #include <ostream>
-                #include <sstream>
-               ],
-               [std::cout << std::endl;],
-               [AC_MSG_RESULT(yes)],
-               [AC_MSG_RESULT(no); CANT_USE_STD_IO=-DCANT_USE_STD_IO])
+AC_CACHE_CHECK([for C++-standard I/O in std:: namespace],
+               [snl_cv_cxx_io_in_std],
+               [AC_LANG_SAVE
+                AC_LANG_CPLUSPLUS
+                AC_TRY_COMPILE([#include <iosfwd>
+                                #include <iostream>
+                                #include <ostream>
+                                #include <sstream>],
+                               [std::cout << std::endl;],
+                               [snl_cv_cxx_io_in_std=yes],
+                               [snl_cv_cxx_io_in_std=no])
+                AC_LANG_RESTORE])
+                
+if test ssnl_cv_cxx_io_in_std = no; then
+  CANT_USE_STD_IO=-DCANT_USE_STD_IO
+else
+  CANT_USE_STD_IO=
+fi
 
-AC_LANG_RESTORE
 ]) # SNL_CANT_USE_STD
 
 
@@ -48,29 +62,35 @@ AC_LANG_RESTORE
 # Sets TEMPLATE_DEFS_INCLUDED=-DTEMPLATE_DEFS_INCLUDED
 #######################################################################################
 AC_DEFUN([SNL_TEMPLATE_DEFS_INCLUDED], [
-AC_LANG_SAVE
-AC_LANG_CPLUSPLUS
 
-AC_MSG_CHECKING([if template definitions should be included])
+AC_CACHE_CHECK([if C++ template definitions should be included],
+               [snl_cv_cxx_template_defs_included],
+               [AC_LANG_SAVE
+                AC_LANG_CPLUSPLUS
 
-src=conftest.cc
-templ=conftemp.cc
-exe=conftest
+                src=conftest.cc
+                templ=conftemp.cc
+                exe=conftest
 
-echo "template <typename T> class MyTempl { public: T get() const; };" >$templ
-echo "template <typename T> T MyTempl<T>::get() const { return 0; }"  >>$templ
-echo "template <typename T> class MyTempl { public: T get() const; };" >$src
-echo "int main( ) { MyTempl<int> c; return c.get(); }"                >>$src
-if $CXX $CXXFLAGS $LDFLAGS $src $templ -o $exe >/dev/null 2>/dev/null; then
-  TEMPLATE_DEFS_INCLUDED=
-  AC_MSG_RESULT(no)
-else
+                echo "template <typename T> class MyTempl { public: T get() const; };" >$templ
+                echo "template <typename T> T MyTempl<T>::get() const { return 0; }"  >>$templ
+                echo "template <typename T> class MyTempl { public: T get() const; };" >$src
+                echo "int main( ) { MyTempl<int> c; return c.get(); }"                >>$src
+                if $CXX $CXXFLAGS $LDFLAGS $src $templ -o $exe >/dev/null 2>/dev/null; then
+                  snl_cv_cxx_template_defs_included=no
+                else
+                  snl_cv_cxx_template_defs_included=yes
+                fi
+
+                rm -f $src $templ $exe
+                AC_LANG_RESTORE])
+                
+if test snl_cv_cxx_template_defs_included = yes; then
   TEMPLATE_DEFS_INCLUDED=-DTEMPLATE_DEFS_INCLUDED
-  AC_MSG_RESULT(yes)
+else
+  TEMPLATE_DEFS_INCLUDED=
 fi
 
-rm -f $src $templ $exe
-AC_LANG_RESTORE
 ]) # SNL_TEMPLATE_DEFS_INCLUDED
 
 #######################################################################################
@@ -78,20 +98,44 @@ AC_LANG_RESTORE
 # Sets TEMPLATE_SPECIALIZATION=-DTEMPLATE_SPECIALIZATION
 #######################################################################################
 AC_DEFUN([SNL_TEMPLATE_SPECIALIZATION], [
-AC_LANG_SAVE
-AC_LANG_CPLUSPLUS
+AC_CACHE_CHECK([if C++ compiler supports template class specialization],
+               [snl_cv_template_specialization],
+               [AC_LANG_SAVE
+                AC_LANG_CPLUSPLUS
+                AC_TRY_COMPILE([template <unsigned S> class MyTempl { public: char data[S]; };
+                                template <> class MyTempl<0> { public: char value; };],
+                               [MyTempl<1> one; MyTempl<0> zero; one.data[0] = zero.value = '\0';],
+                               [snl_cv_template_specialization=yes],
+                               [snl_cv_template_specialization=no])
+                AC_LANG_RESTORE])
 
-AC_MSG_CHECKING([if C++ compiler supports template specialization])
-AC_TRY_COMPILE([
-template <unsigned S> class MyTempl { public: char data[S]; };
-template <> class MyTempl<0> { public: char value; };
-],[
-MyTempl<1> one;
-MyTempl<0> zero;
-one.data[0] = zero.value = '\0';
-],
-[TEMPLATE_SPECIALIZATION=-DTEMPLATE_SPECIALIZATION; AC_MSG_RESULT(yes)],
-[TEMPLATE_SPECIALIZATION=; AC_MSG_RESULT(no)])
+TEMPLATE_SPECIALIZATION=
+if test $snl_cv_template_specialization=yes; then
+  TEMPLATE_SPECIALIZATION=-DTEMPLATE_SPECIALIZATION
+fi
 
-AC_LANG_RESTORE
-]) # SNL_TEMPLATE_DEFS_INCLUDED
+]) # SNL_TEMPLATE_SPECIALIZATION
+
+#######################################################################################
+# Check if compiler supports template function specialization.
+# Sets TEMPLATE_FUNC_SPECIALIZATION=-DTEMPLATE_FUNC_SPECIALIZATION
+#######################################################################################
+AC_DEFUN([SNL_TEMPLATE_FUNC_SPECIALIZATION], [
+AC_CACHE_CHECK([if C++ compiler supports template function specialization],
+               [snl_cv_template_func_specialization],
+               [AC_LANG_SAVE
+                AC_LANG_CPLUSPLUS
+                AC_TRY_COMPILE([template <typename T> T templ_func( int i );
+                                template <> int templ_func<int>( int j ) 
+                                  { return j; }],
+                               [return templ_func<int>( 0 );],
+                               [snl_cv_template_func_specialization=yes],
+                               [snl_cv_template_func_specialization=no])
+                AC_LANG_RESTORE])
+
+TEMPLATE_FUNC_SPECIALIZATION=
+if test $snl_cv_template_func_specialization=yes; then
+  TEMPLATE_FUNC_SPECIALIZATION=-DTEMPLATE_FUNC_SPECIALIZATION
+fi
+
+]) # SNL_TEMPLATE_FUNC_SPECIALIZATION
