@@ -168,7 +168,7 @@ void create_simple_grid( MBInterface& moab, unsigned xyz = 3 )
 void create_simple_grid( MBInterface& moab, unsigned x, unsigned y, unsigned z )
 {
   MBErrorCode rval;
-  MBEntityHandle verts[x*y*z];
+  MBEntityHandle *verts = new MBEntityHandle[x*y*z];
   for (unsigned k = 0; k < z; ++k)
     for (unsigned j = 0; j < y; ++j)
       for (unsigned i = 0; i < x; ++i) {
@@ -177,7 +177,7 @@ void create_simple_grid( MBInterface& moab, unsigned x, unsigned y, unsigned z )
         CHECK_ERR(rval);
       }
   
-  MBEntityHandle elems[(x-1)*(y-1)*(z-1)];
+  MBEntityHandle *elems = new MBEntityHandle[(x-1)*(y-1)*(z-1)];
   for (unsigned k = 0; k < (z-1); ++k)
     for (unsigned j = 0; j < (y-1); ++j)
       for (unsigned i = 0; i < (x-1); ++i) {
@@ -193,6 +193,8 @@ void create_simple_grid( MBInterface& moab, unsigned x, unsigned y, unsigned z )
         rval = moab.create_element( MBHEX, conn, 8, elems[(x-1)*(y-1)*k + (x-1)*j + i] );
         CHECK_ERR(rval);
       }
+  delete [] verts;
+  delete [] elems;
 }
 
 

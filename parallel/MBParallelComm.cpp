@@ -992,6 +992,7 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
     allr_it++;
     std::vector<int>::iterator nv_it = verts_per_entity.begin();
     std::vector<MBEntityType>::iterator et_it = ent_types.begin();
+    std::vector<MBEntityHandle> dum_connect;
     nv_it++; et_it++;
     
     for (; allr_it != all_ranges.end(); allr_it++, nv_it++, et_it++) {
@@ -1009,7 +1010,8 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
       int num_connect;
       MBEntityHandle *start_vec = (MBEntityHandle*)buff_ptr;
       for (MBRange::const_iterator rit = allr_it->begin(); rit != allr_it->end(); rit++) {
-        result = mbImpl->get_connectivity(*rit, connect, num_connect);
+        result = mbImpl->get_connectivity(*rit, connect, num_connect, true,
+                                          &dum_connect);
         RRA("Failed to get connectivity.");
         assert(num_connect == *nv_it);
         PACK_EH(buff_ptr, &connect[0], num_connect);
@@ -2765,6 +2767,7 @@ MBErrorCode MBParallelComm::tag_shared_ents(int resolve_dim,
   std::vector<int> sharing_procs, sharing_procs1, sharing_procs2;
   std::vector<int>::iterator vii;
   std::vector<unsigned char> pstatus_flags;
+  std::vector<MBEntityHandle> dum_connect;
 
   for (int d = 3; d > 0; d--) {
     if (resolve_dim == d) continue;
@@ -2772,7 +2775,8 @@ MBErrorCode MBParallelComm::tag_shared_ents(int resolve_dim,
     for (MBRange::iterator rit = skin_ents[d].begin();
          rit != skin_ents[d].end(); rit++) {
         // get connectivity
-      result = mbImpl->get_connectivity(*rit, connect, num_connect);
+      result = mbImpl->get_connectivity(*rit, connect, num_connect, true,
+                                        &dum_connect);
       RRA("Failed to get connectivity on non-vertex skin entities.");
  
         // if any vertices not shared, this entity isn't
