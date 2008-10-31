@@ -428,6 +428,86 @@ MBErrorCode get_ghost_entities( MBInterface& moab,
   return MB_SUCCESS;
 }
 
+MBErrorCode get_expected_ghosts( MBInterface& moab,
+                                 const std::vector<int> partition_geom_ids[4],
+                                 std::vector<int>& ghost_entity_ids,
+                                 int ghost_dimension,
+                                 int bridge_dimension,
+                                 int num_layers )
+{
+  MBErrorCode rval;
+  MBTag tags[2];
+  rval = moab.tag_get_handle( GEOM_DIMENSION_TAG_NAME, tags[0] ); CHKERR(rval);
+  rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, tags[1] ); CHKERR(rval);  
+
+    // get all interface sets
+  MBRange iface_sets;
+  for (int d = 0; d < 3; ++d) {
+    for (size_t i = 0; i < partition_geom_ids[d].size(); ++i) {
+        // get the entity set
+      const void* tag_vals[2] = { &d, &(partition_geom_ids[d][i]) };
+      MBRange ents;
+      rval = moab.get_entities_by_type_and_tag( 0, MBENTITYSET,
+                                                tags, tag_vals, 2, 
+                                                ents ); CHKERR(rval);
+      iface_sets.merge( ents );
+    }
+  }
+  
+    // for each interface set
+  MBRange ghosts;
+  for (MBRange::iterator i = iface_sets.begin(); i != iface_sets.end(); ++i) {
+    if (num_layers < 1)
+      break;
+    
+      // get iface dim
+    int gdim = -1;
+    rval = moab.tag_get_data( tags[0], &*i, 1, &gdim );
+    CHKERR(rval);
+     
+      // get partitions adjacent to interface set
+    MBRange parents; parents.insert(*i);
+    for (int step = gdim; step < 3; ++step) {
+      MBRange old_parents;
+      old_parents.swap(parents);
+      for (MBRange::iterator p = old_parents.begin(); p != old_parents.end(); ++p) {
+        rval = moab.get_parent_meshsets( *p, parents ); CHKERR(rval);
+      }
+    }
+    
+      // get entities in adjacent partitions not owned by this proc.
+    MBRange adj_proc_ents;
+    for (MBRange::iterator p = parents.begin(); p != parents.end(); ++p) {
+      int id;
+      rval = moab.tag_get_data( tags[1], &*p, 1, &id ); CHKERR(rval);
+      if (std::find(partition_geom_ids[3].begin(), partition_geom_ids[3].end(), id) 
+          != partition_geom_ids[3].end())
+        continue;
+      rval = moab.get_entities_by_dimension( *p, ghost_dimension, adj_proc_ents );
+      CHKERR(rval);
+    }
+    
+      // get adjacent entities
+    MBRange iface_ghosts, iface_ents;
+    rval = moab.get_entities_by_dimension( *i, bridge_dimension, iface_ents ); CHKERR(rval);
+    for (int n = 0; n < num_layers; ++n) {
+      iface_ghosts.clear();
+      rval = moab.get_adjacencies( iface_ents, ghost_dimension, false, iface_ghosts, MBInterface::UNION ); CHKERR(rval);
+      iface_ents.clear();
+      rval = moab.get_adjacencies( iface_ghosts, bridge_dimension, false, iface_ents, MBInterface::UNION ); CHKERR(rval);
+    }
+    
+      // intersect with entities in adjacent partitions
+    ghosts.merge( iface_ghosts.intersect( adj_proc_ents ) );
+  }
+  
+    // get ids
+  ghost_entity_ids.resize( ghosts.size() );
+  rval = moab.tag_get_data( tags[1], ghosts, &ghost_entity_ids[0] );
+  CHKERR(rval);
+  return MB_SUCCESS;
+}
+
 MBErrorCode test_ghost_elements( const char* filename,
                                  int ghost_dimension,
                                  int bridge_dimension,
@@ -556,7 +636,7 @@ MBErrorCode test_ghost_elements( const char* filename,
   
     // get the global IDs of teh entities we expect to be ghosted
   std::vector<int> expected_ghost_ent_ids;
-  rval = get_ghost_entities( moab2, partn_geom_ids, expected_ghost_ent_ids,  
+  rval = get_expected_ghosts( moab2, partn_geom_ids, expected_ghost_ent_ids,  
                              ghost_dimension, bridge_dimension, num_layers );
   PCHECK(MB_SUCCESS == rval);
   
