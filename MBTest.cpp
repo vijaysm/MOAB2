@@ -1907,21 +1907,6 @@ MBErrorCode mb_mesh_sets_list_test( MBInterface* mb )
   return mb_mesh_sets_test( mb, MESHSET_ORDERED );
 } 
 
-// Split an MBRange into three non-intersecting
-// strict subsets. Return two and discard one.
-void split_3( const MBRange& all_ents,
-              MBRange& group1,
-              MBRange& group2 )
-{
-  group1.clear();
-  group2.clear();
-  size_t size = all_ents.size();
-  MBRange::iterator i2 = all_ents.begin(); i2 += size/3;
-  MBRange::iterator i3 = i2; i3 += size/3;
-  group1.merge( all_ents.begin(), i2 );
-  group2.merge( i3, all_ents.end() );
-}
-
 // Verify that all query functions *append* to output MBRange
 MBErrorCode mb_mesh_set_appends( MBInterface* mb, int flags )
 {
