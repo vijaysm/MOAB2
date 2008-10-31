@@ -3346,7 +3346,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
         buff_ptr = &ownerRBuffs[ind][0];
         assert(ind >= MAX_SHARING_PROCS);
         UNPACK_RANGE(buff_ptr, remote_handles_r);
-        assert(!sent_ents[ind-MAX_SHARING_PROCS].empty());
+        //assert(!sent_ents[ind-MAX_SHARING_PROCS].empty());
         result = set_remote_data(sent_ents[ind-MAX_SHARING_PROCS], remote_handles_r, 
                                  buffProcs[ind-MAX_SHARING_PROCS]);
         RRA("Trouble setting remote data range on sent entities in ghost exchange.");
