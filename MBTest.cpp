@@ -1907,6 +1907,151 @@ MBErrorCode mb_mesh_sets_list_test( MBInterface* mb )
   return mb_mesh_sets_test( mb, MESHSET_ORDERED );
 } 
 
+// Split an MBRange into three non-intersecting
+// strict subsets. Return two and discard one.
+void split_3( const MBRange& all_ents,
+              MBRange& group1,
+              MBRange& group2 )
+{
+  group1.clear();
+  group2.clear();
+  size_t size = all_ents.size();
+  MBRange::iterator i2 = all_ents.begin(); i2 += size/3;
+  MBRange::iterator i3 = i2; i3 += size/3;
+  group1.merge( all_ents.begin(), i2 );
+  group2.merge( i3, all_ents.end() );
+}
+
+// Verify that all query functions *append* to output MBRange
+MBErrorCode mb_mesh_set_appends( MBInterface* mb, int flags )
+{
+  MBErrorCode rval;
+  
+    // get all handles and subdivide into vertex and non-vertex ents
+  MBRange all_ents, verts, elems, results;
+  rval = mb->get_entities_by_handle( 0, all_ents );
+  if (MB_SUCCESS != rval)
+    return rval;
+  MBRange::iterator ve = all_ents.upper_bound( MBVERTEX );
+  verts.merge( all_ents.begin(), ve );
+  elems.merge( ve, all_ents.end() );
+
+    // If we're not testing queries from the root set, 
+    // create a set containing all the vertices
+  MBEntityHandle set = 0;
+  if (flags != -1) {
+    rval = mb->create_meshset( flags, set );
+    if (MB_SUCCESS != rval)
+      return rval;
+    rval = mb->add_entities( set, verts );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  
+    // Test get_entities_by_handle.  This one doesn't make
+    // much sense if we're testing the root set, but it doesn't
+    // hurt to test it anyway.
+  results = elems;
+  rval = mb->get_entities_by_handle( set, results );
+  if (MB_SUCCESS != rval)
+    return rval;
+  if (results != all_ents)
+    return MB_FAILURE;
+  
+    // Test get_entities_by_dimension
+  results = elems;
+  rval = mb->get_entities_by_dimension( set, 0, results );
+  if (MB_SUCCESS != rval)
+    return rval;
+  if (results != all_ents)
+    return MB_FAILURE;
+  
+    // Test get_entities_by_type
+  results = elems;
+  rval = mb->get_entities_by_type( set, MBVERTEX, results );
+  if (MB_SUCCESS != rval)
+    return rval;
+  if (results != all_ents)
+    return MB_FAILURE;
+  
+    // choose a single entity for testing tag queries
+  MBEntityHandle entity = verts.front();
+  MBRange expected( elems );
+  expected.insert( entity );
+  
+  MBTag sparse, dense;
+  const int zero = 0, one = 1;
+  const void* vals[] = {&one};
+
+    // Test get_entities_by_type_and_tag w/ sparse tag and no value
+  rval = mb->tag_create( "mb_mesh_set_appends_sparse", 
+                         sizeof(int), 
+                         MB_TAG_SPARSE, 
+                         MB_TYPE_INTEGER,
+                         sparse, 0 );
+  if (MB_SUCCESS != rval)
+    return rval;
+  rval = mb->tag_set_data( sparse, &entity, 1, &one );
+  if (MB_SUCCESS != rval)
+    return rval;
+  results = elems;
+  rval = mb->get_entities_by_type_and_tag( set, 
+                                           TYPE_FROM_HANDLE(entity),
+                                           &sparse, 0, 1, 
+                                           results, MBInterface::UNION );
+  if (MB_SUCCESS != rval)
+    return rval;
+  if (results != expected)
+    return MB_FAILURE;
+    // Test again, but specify tag value
+  results = elems;
+  rval = mb->get_entities_by_type_and_tag( set, 
+                                           TYPE_FROM_HANDLE(entity),
+                                           &sparse, vals, 1, 
+                                           results, MBInterface::UNION );
+  if (MB_SUCCESS != rval)
+    return rval;
+  if (results != expected)
+    return MB_FAILURE;
+   
+    // Test get_entities_by_type_and_tag w/ dense tag
+  rval = mb->tag_create( "mb_mesh_set_appends_dense", 
+                         sizeof(int), 
+                         MB_TAG_DENSE, 
+                         MB_TYPE_INTEGER,
+                         dense, &zero );
+  if (MB_SUCCESS != rval)
+    return rval;
+  rval = mb->tag_set_data( dense, &entity, 1, &one );
+  if (MB_SUCCESS != rval)
+    return rval;
+  results = elems;
+  rval = mb->get_entities_by_type_and_tag( set, 
+                                           TYPE_FROM_HANDLE(entity),
+                                           &dense, vals, 1, 
+                                           results, MBInterface::UNION );
+  if (MB_SUCCESS != rval)
+    return rval;
+  if (results != expected)
+    return MB_FAILURE;
+ 
+  return MB_SUCCESS;
+}
+
+MBErrorCode mb_mesh_set_set_appends( MBInterface* mb )
+{
+  return mb_mesh_set_appends( mb, MESHSET_SET );
+}
+
+MBErrorCode mb_mesh_set_list_appends( MBInterface* mb )
+{
+  return mb_mesh_set_appends( mb, MESHSET_ORDERED );
+}
+
+MBErrorCode mb_mesh_set_root_appends( MBInterface* mb )
+{
+  return mb_mesh_set_appends( mb, -1 );
+}
 
   // number of entities of type MBVERTEX, MBEDGE, MBDTri, MBQUAD, MBTET, and MBHEX
   // in mbtest1.g  (all other values are 0.
@@ -5671,6 +5816,9 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_mesh_sets_set_test );
   RUN_TEST( mb_mesh_sets_list_test );
   RUN_TEST( mb_mesh_set_parent_child_test );
+  RUN_TEST( mb_mesh_set_set_appends );
+  RUN_TEST( mb_mesh_set_list_appends );
+  RUN_TEST( mb_mesh_set_root_appends );
   RUN_TEST( mb_tags_test );
   RUN_TEST( mb_dense_tag_test );
   RUN_TEST( mb_sparse_tag_test );

@@ -449,7 +449,6 @@ inline MBErrorCode MBMeshSet::get_entities(MBRange& entities) const
   }
   else {
     assert(count%2 == 0);
-    entities.clear();
     MBRange::iterator in = entities.begin();
     for (size_t i = 0; i < count; i += 2) 
       in = entities.insert( in, ptr[i], ptr[i+1] );
