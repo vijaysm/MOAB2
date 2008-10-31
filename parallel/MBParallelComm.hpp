@@ -617,6 +617,8 @@ public:
                                  int to_proc,
                                  const MBRange &new_ents);
 
+  MBInterface* get_moab() const { return mbImpl; }
+
 private:  
     //! goes through from_vec, and for any with type MBMAXTYPE, replaces with
     //! new_ents value at index corresponding to id of entity in from_vec
