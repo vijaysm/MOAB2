@@ -346,85 +346,25 @@ MBErrorCode test_elements_on_several_procs( const char* filename )
 }
 
 
-MBErrorCode get_ghost_entities( MBInterface& moab,
-                                const std::vector<int> partition_geom_ids[4],
-                                std::vector<int>& ghost_entity_ids,
-                                int ghost_dimension,
-                                int bridge_dimension,
-                                int num_layers,
-                                MBRange* ghost_handles = 0 )
+MBErrorCode get_ghost_entities( MBParallelComm& pcomm,
+                                MBRange& ghost_ents )
 {
+  MBRange all_ents;
   MBErrorCode rval;
-  MBTag tags[2];
-  rval = moab.tag_get_handle( GEOM_DIMENSION_TAG_NAME, tags[0] ); CHKERR(rval);
-  rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, tags[1] ); CHKERR(rval);  
-
-    // get first set of bridge entities
-  MBRange bridge_ents;
-  for (int dim = 0; dim < 3; ++dim) {
-    for (size_t i = 0; i < partition_geom_ids[dim].size(); ++i) {
-      const void* tag_vals[2] = { &dim, &(partition_geom_ids[dim][i]) };
-      MBRange ents;
-      rval = moab.get_entities_by_type_and_tag( 0, MBENTITYSET,
-                                                tags, tag_vals, 2, 
-                                                ents );
-      CHKERR(rval);
-      for (MBRange::iterator j = ents.begin(); j != ents.end(); ++j) {
-        MBRange tmp;
-        rval = moab.get_entities_by_dimension( *j, bridge_dimension, tmp );
-        CHKERR(rval);
-        bridge_ents.merge(tmp);
-      }
-    }
-  }
   
-    // get owned entities 
-  MBRange owned_ents;
-  for (size_t i = 0; i < partition_geom_ids[3].size(); ++i) {
-    const int three = 3;
-    const void* tag_vals[2] = { &three, &partition_geom_ids[3][i] };
-    MBRange ents;
-    rval = moab.get_entities_by_type_and_tag( 0, MBENTITYSET,
-                                              tags, tag_vals, 2, 
-                                              ents );
-    CHKERR(rval);
-    for (MBRange::iterator j = ents.begin(); j != ents.end(); ++j) {
-      MBRange tmp;
-      rval = moab.get_entities_by_dimension( *j, 3, tmp );
-      CHKERR(rval);
-      owned_ents.merge(tmp);
-    }
-  }
   
-    // get entities of ghost dimension adjacent to owned entities
-    // (these cannot be ghost entities because they are either owned
-    //  or interface entities.)
-  MBRange owned_and_iface;
-  rval = moab.get_adjacencies( owned_ents, ghost_dimension, false, owned_and_iface, MBInterface::UNION );
+  rval = pcomm.get_moab()->get_entities_by_handle( 0, all_ents );
+  CHKERR(rval);
+  std::vector<unsigned char> flags(all_ents.size());
+  rval = pcomm.get_moab()->tag_get_data( pcomm.pstatus_tag(), all_ents, &flags[0] );
   CHKERR(rval);
   
-    // find potential ghost entities using adjacency queries
-  MBRange ghost_ents;
-  for (int l = 0; l < num_layers; ++l) {
-    MBRange tmp;
-    rval = moab.get_adjacencies( bridge_ents, ghost_dimension, false, tmp, MBInterface::UNION );
-    CHKERR(rval);
-    ghost_ents.merge(tmp);
-    bridge_ents.clear();
-    rval = moab.get_adjacencies( ghost_ents, bridge_dimension, false, bridge_ents, MBInterface::UNION );
-    CHKERR(rval);
-  }
+  MBRange::iterator ins = ghost_ents.begin();
+  std::vector<unsigned char>::const_iterator f = flags.begin();
+  for (MBRange::iterator i = all_ents.begin(); i != all_ents.end(); ++i, ++f) 
+    if ((*f & PSTATUS_NOT_OWNED) && !(*f & PSTATUS_INTERFACE))
+      ins = ghost_ents.insert( ins, *i, *i );
   
-    // remove from ghost candidates, any entities that are 
-    // locally owned or interface entities
-  ghost_ents = ghost_ents.subtract( owned_ents );
-  
-    // get ids
-  ghost_entity_ids.resize( ghost_ents.size() );
-  rval = moab.tag_get_data( tags[1], ghost_ents, &ghost_entity_ids[0] );
-  CHKERR(rval);
-  if (ghost_handles)
-    ghost_handles->swap(ghost_ents);
   return MB_SUCCESS;
 }
 
@@ -453,6 +393,12 @@ MBErrorCode get_expected_ghosts( MBInterface& moab,
       iface_sets.merge( ents );
     }
   }
+    // get all interface entities
+  MBRange all_iface_ents;
+  for (MBRange::iterator i = iface_sets.begin(); i != iface_sets.end(); ++i) {
+    rval = moab.get_entities_by_handle( *i, all_iface_ents ); 
+    CHKERR(rval);
+  }
   
     // for each interface set
   MBRange ghosts;
@@ -475,7 +421,7 @@ MBErrorCode get_expected_ghosts( MBInterface& moab,
       }
     }
     
-      // get entities in adjacent partitions not owned by this proc.
+      // get entities in adjacent partitions 
     MBRange adj_proc_ents;
     for (MBRange::iterator p = parents.begin(); p != parents.end(); ++p) {
       int id;
@@ -483,9 +429,17 @@ MBErrorCode get_expected_ghosts( MBInterface& moab,
       if (std::find(partition_geom_ids[3].begin(), partition_geom_ids[3].end(), id) 
           != partition_geom_ids[3].end())
         continue;
-      rval = moab.get_entities_by_dimension( *p, ghost_dimension, adj_proc_ents );
+      rval = moab.get_entities_by_dimension( *p, 3, adj_proc_ents );
       CHKERR(rval);
     }
+    
+      // get sub-entities implicitly within partitions
+    MBRange tmprange;
+    for (int d = 2; d >= 0; --d) {
+      rval = moab.get_adjacencies( adj_proc_ents, d, false, tmprange, MBInterface::UNION );
+      CHKERR(rval);
+    }
+    adj_proc_ents.merge( tmprange.subtract( all_iface_ents ) );
     
       // get adjacent entities
     MBRange iface_ghosts, iface_ents;
@@ -622,11 +576,11 @@ MBErrorCode test_ghost_elements( const char* filename,
   
     // get the global IDs of the ghosted entities
   MBRange ghost_ents;
-  std::vector<int> actual_ghost_ent_ids;
-  rval = get_ghost_entities( moab, partn_geom_ids, actual_ghost_ent_ids,  
-                             ghost_dimension, bridge_dimension, num_layers,
-                             &ghost_ents );
-  PCHECK(MB_SUCCESS == rval);
+  rval = get_ghost_entities( *pcomm, ghost_ents ); CHKERR(rval);
+  std::pair<MBRange::iterator,MBRange::iterator> vtx = ghost_ents.equal_range(MBVERTEX);
+  ghost_ents.erase( vtx.first, vtx.second );
+  std::vector<int> actual_ghost_ent_ids(ghost_ents.size());
+  rval = moab.tag_get_data( id_tag, ghost_ents, &actual_ghost_ent_ids[0] ); CHKERR(rval);
   
     // read file in serial
   MBCore moab2;
