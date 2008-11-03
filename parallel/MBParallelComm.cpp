@@ -138,7 +138,7 @@ enum MBMessageTag {MB_MESG_ANY=MPI_ANY_TAG,
 MBParallelComm::MBParallelComm(MBInterface *impl, MPI_Comm comm, int* id ) 
     : mbImpl(impl), procConfig(comm), sharedpTag(0), sharedpsTag(0),
       sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0),
-      partitionTag(0)
+      partitionTag(0), globalPartCount(-1), partitioningSet(0)
 {
   myBuffer.resize(INITIAL_BUFF_SIZE);
 
@@ -166,7 +166,7 @@ MBParallelComm::MBParallelComm(MBInterface *impl,
                                int* id) 
     : mbImpl(impl), procConfig(comm), sharedpTag(0), sharedpsTag(0),
       sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0),
-      partitionTag(0)
+      partitionTag(0), globalPartCount(-1), partitioningSet(0)
 {
   myBuffer.swap(tmp_buff);
   int flag = 1;
@@ -3713,6 +3713,7 @@ MBParallelComm *MBParallelComm::get_pcomm( MBInterface *impl,
     result = new MBParallelComm( impl, *comm, &pcomm_id );
     if (!result)
       return 0;
+    result->set_partitioning( prtn );
     
     rval = impl->tag_set_data( prtn_tag, &prtn, 1, &pcomm_id );
     if (MB_SUCCESS != rval) {
@@ -3720,7 +3721,7 @@ MBParallelComm *MBParallelComm::get_pcomm( MBInterface *impl,
       result = 0;
     }
   }
-
+  
   return result;
 }
 
@@ -3779,6 +3780,218 @@ MBErrorCode MBParallelComm::get_owner(MBEntityHandle entity,
   owner = -1;
   return MB_FAILURE;
 }
+
+MBErrorCode MBParallelComm::get_global_part_count( int& count_out ) const
+{
+  count_out = globalPartCount;
+  return count_out < 0 ? MB_FAILURE : MB_SUCCESS;
+}
+
+MBErrorCode MBParallelComm::get_part_owner( int part_id, int& owner ) const
+{
+  // FIXME: assumes only 1 local part
+  owner = part_id;
+  return MB_SUCCESS;
+}
+
+MBErrorCode MBParallelComm::get_part_id( MBEntityHandle /*part*/, int& id_out ) const
+{
+  // FIXME: assumes only 1 local part
+  id_out = proc_config().proc_rank();
+  return MB_SUCCESS;
+}
+
+MBErrorCode MBParallelComm::create_part( MBEntityHandle& set_out )
+{
+    // mark as invalid so we know that it needs to be updated
+  globalPartCount = -1;
+  
+    // create set representing part
+  MBErrorCode rval = mbImpl->create_meshset( MESHSET_SET, set_out );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+    // set tag on set
+    // FIXME: need to assign valid global id
+  int val = 0;
+  rval = mbImpl->tag_set_data( part_tag(), &set_out, 1, &val );
+  if (MB_SUCCESS != rval) {
+    mbImpl->delete_entities( &set_out, 1 );
+    return rval;
+  }
+  
+  if (get_partitioning()) {
+    rval = mbImpl->add_entities( get_partitioning(), &set_out, 1 );
+    if (MB_SUCCESS != rval) {
+      mbImpl->delete_entities( &set_out, 1 );
+      return rval;
+    }
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode MBParallelComm::destroy_part( MBEntityHandle part_id )
+{
+    // mark as invalid so we know that it needs to be updated
+  globalPartCount = -1;
+  
+  MBErrorCode rval;
+  if (get_partitioning()) {
+    rval = mbImpl->remove_entities( get_partitioning(), &part_id, 1 );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  return mbImpl->delete_entities( &part_id, 1 );
+}
+
+MBErrorCode MBParallelComm::collective_sync_partition()
+{
+  int count = partition_sets().size();
+  int err = MPI_Allreduce( &count, &globalPartCount, 1, MPI_INT, MPI_SUM, 
+                           proc_config().proc_comm() );
+  return err ? MB_FAILURE : MB_SUCCESS;
+}
+
+MBErrorCode MBParallelComm::get_part_neighbor_ids( MBEntityHandle part,
+                                                   int neighbors_out[MAX_SHARING_PROCS],
+                                                   int num_neighbors_out )
+{
+  MBErrorCode rval;
+  MBRange iface;
+  rval = get_interface_sets( part, iface );
+  if (MB_SUCCESS != rval);
+    return rval;
+  
+  num_neighbors_out = 0;
+  int n, j = 0;
+  int tmp[MAX_SHARING_PROCS], curr[MAX_SHARING_PROCS];
+  int *parts[2] = { neighbors_out, tmp };
+  for (MBRange::iterator i = iface.begin(); i != iface.end(); ++i) {
+    rval = get_sharing_parts( *i, curr, n );
+    if (MB_SUCCESS != rval)
+      return rval;
+    std::sort( parts, parts+n );
+    int* k = std::set_union( parts[j], parts[j]+num_neighbors_out,
+                             curr, curr + n, parts[1-j] );
+    j = 1-j;
+    num_neighbors_out = k - parts[j];
+  }
+  if (parts[j] != neighbors_out)
+    std::copy( parts[j], parts[j]+num_neighbors_out, neighbors_out );
+    
+  return MB_SUCCESS;
+}
+
+MBErrorCode MBParallelComm::get_interface_sets( MBEntityHandle ,
+                                                MBRange& iface_sets_out,
+                                                int* adj_part_id )
+{
+    // FIXME : assumes one part per processor.
+    // Need to store part iface sets as children to implement
+    // this correctly.
+  iface_sets_out = interface_sets();
+
+  if (adj_part_id) {
+    int part_ids[MAX_SHARING_PROCS], num_parts;
+    MBRange::iterator i = iface_sets_out.begin();
+    while (i != iface_sets_out.end()) {
+      MBErrorCode rval = get_sharing_parts( *i, part_ids, num_parts );
+      if (MB_SUCCESS != rval)
+        return rval;
+      
+      if (std::find(part_ids, part_ids+num_parts, *adj_part_id) - part_ids != num_parts)
+        ++i;
+      else
+        i = iface_sets_out.erase( i );
+    }
+  }
+    
+  return MB_SUCCESS;
+}
+
+MBErrorCode MBParallelComm::get_owning_part( MBEntityHandle handle,
+                                             int& owning_part_id,
+                                             MBEntityHandle* owning_handle )
+{
+  // assume get_sharing_parts returns owner first in list.
+  MBErrorCode result;
+  int n, parts[MAX_SHARING_PROCS];
+  if (owning_handle) {
+    MBEntityHandle handles[MAX_SHARING_PROCS];
+    result = get_sharing_parts( handle, parts, n, handles );
+    *owning_handle = handles[0];
+  }
+  else {
+    result = get_sharing_parts( handle, parts, n );
+  }
+  owning_part_id = parts[0];
+  return result;
+}    
+
+MBErrorCode MBParallelComm::get_sharing_parts( MBEntityHandle entity,
+                                 int part_ids_out[MAX_SHARING_PROCS],
+                                 int& num_part_ids_out,
+                                 MBEntityHandle remote_handles[MAX_SHARING_PROCS] )
+{
+
+  // FIXME : assumes one part per proc, and therefore part_id == rank
+  
+    // If entity is not shared, then we're the owner.
+  unsigned char pstat;
+  MBErrorCode result = mbImpl->tag_get_data(pstatus_tag(), &entity, 1,
+                                            &pstat);
+  if (!(pstat & PSTATUS_SHARED)) {
+    part_ids_out[0] = proc_config().proc_rank();
+    num_part_ids_out = 1;
+    if (remote_handles)
+      remote_handles[0] = entity;
+    return MB_SUCCESS;
+  }
+  
+    // If entity is shared with one other proc, then
+    // sharedp_tag will contain a positive value.
+  int other_proc;
+  result = mbImpl->tag_get_data( sharedp_tag(), &entity, 1, &other_proc );
+  if (MB_SUCCESS != result)
+    return result;
+  if (-1 != other_proc) {
+      // make sure we return owner first, as other functions
+      // (e.g. get_owning_part) assume that behavior
+    const int my_idx = !(pstat & PSTATUS_NOT_OWNED);
+    const int other_idx = 1 - my_idx;
+      // return this processor and the other one
+    num_part_ids_out = 2;
+    part_ids_out[my_idx] = proc_config().proc_rank();
+    part_ids_out[other_idx] = other_proc;
+
+      // done?
+    if (!remote_handles)
+      return MB_SUCCESS;
+      
+      // get handles on remote processors (and this one)
+    remote_handles[my_idx] = entity;
+    return mbImpl->tag_get_data( sharedh_tag(), &entity, 1, remote_handles + other_idx );
+  }
+  
+    // If here, then the entity is shared with at least two other processors.
+    // Get the list from the sharedps_tag
+  result = mbImpl->tag_get_data( sharedps_tag(), &entity, 1, part_ids_out );
+  if (MB_SUCCESS != result)
+    return result;
+    // Count number of valid (positive) entries in sharedps_tag
+  for (num_part_ids_out = 0; num_part_ids_out < MAX_SHARING_PROCS &&
+       part_ids_out[num_part_ids_out] >= 0; ++num_part_ids_out);
+  
+    // done?
+  if (!remote_handles)
+    return MB_SUCCESS;
+  
+    // get remote handles
+  return mbImpl->tag_get_data( sharedhs_tag(), &entity, 1, remote_handles );
+}
+
+  
 
 #ifdef TEST_PARALLELCOMM
 

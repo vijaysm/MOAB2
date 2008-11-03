@@ -263,13 +263,13 @@ public:
   MBErrorCode get_iface_entities(int other_proc,
                                  int dim,
                                  MBRange &iface_ents);
-  
+/*  
     //! return partition sets; if tag_name is input, gets sets with
     //! that tag name, otherwise uses PARALLEL_PARTITION tag
   MBErrorCode get_partition_sets(MBEntityHandle this_set,
                                  MBRange &part_sets,
                                  const char *tag_name = NULL);
-
+*/
     //! get processors with which this processor shares an interface
   MBErrorCode get_interface_procs(std::set<unsigned int> &iface_procs);
 
@@ -333,6 +333,7 @@ public:
   
     //! return partitions set tag
   MBTag partition_tag();
+  MBTag part_tag() { return partition_tag(); }
 
     //! return all the entities in parts owned locally
   MBErrorCode get_part_entities(MBRange &ents, int dim = -1);
@@ -360,6 +361,27 @@ public:
                                   bool owned_test = true,
                                   bool shared_test = false );
   
+  MBEntityHandle get_partitioning() const { return partitioningSet; }
+  void set_partitioning( MBEntityHandle h ) { partitioningSet = h; }
+  MBErrorCode get_global_part_count( int& count_out ) const;
+  MBErrorCode get_part_owner( int part_id, int& owner_out ) const;
+  MBErrorCode get_part_id( MBEntityHandle part, int& id_out ) const;
+  MBErrorCode create_part( MBEntityHandle& part_out );
+  MBErrorCode destroy_part( MBEntityHandle part ) ;
+  MBErrorCode collective_sync_partition();
+  MBErrorCode get_part_neighbor_ids( MBEntityHandle part, 
+                                     int neighbors_out[MAX_SHARING_PROCS],
+                                     int num_neighbors_out );
+  MBErrorCode get_interface_sets( MBEntityHandle part, 
+                                  MBRange& iface_sets_out,
+                                  int* adj_part_id = 0 );
+  MBErrorCode get_owning_part( MBEntityHandle entity, 
+                               int& owning_part_id_out,
+                               MBEntityHandle* owning_handle = 0 );
+  MBErrorCode get_sharing_parts( MBEntityHandle entity, 
+                                 int part_ids_out[MAX_SHARING_PROCS],
+                                 int& num_part_ids_out,
+                                 MBEntityHandle remote_handles[MAX_SHARING_PROCS] = 0 );
 private:
 
   int num_subranges(const MBRange &this_range);
@@ -700,6 +722,10 @@ private:
     //! tags used to save sharing procs and handles
   MBTag sharedpTag, sharedpsTag, sharedhTag, sharedhsTag, pstatusTag, 
     ifaceSetsTag, partitionTag;
+    
+  int globalPartCount; //!< Cache of global part count
+  
+  MBEntityHandle partitioningSet; //!< entity set containing all parts
 };
 
 inline MBErrorCode MBParallelComm::get_shared_proc_tags(MBTag &sharedp,
