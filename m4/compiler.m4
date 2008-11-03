@@ -6,7 +6,12 @@
 #  variable in which to store result
 #######################################################################################
 AC_DEFUN([ITAPS_LIBTOOL_VAR], [
-  $3=`./libtool --tag=$1 --config | sed -e 's/^$2=//p' -e 'd' | tr -d '"\n'`
+  echo "SED=$SED" > .tmp
+  ./libtool --tag=$1 --config >>.tmp
+  echo "echo \$$2" >> .tmp
+  chmod +x .tmp
+  $3=`./.tmp`
+  rm .tmp
 ])
 
 #######################################################################################
