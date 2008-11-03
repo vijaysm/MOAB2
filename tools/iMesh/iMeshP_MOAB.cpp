@@ -112,7 +112,7 @@ template <typename T> inline T itaps_set_cast_( MBEntityHandle h )
   { return itaps_cast_const_ptr_(ptr); }
 
 DECLARE_ALLOWED_ITAPS_SET_CONVERSION( iMeshP_PartitionHandle )
-DECLARE_ALLOWED_ITAPS_SET_CONVERSION( iMeshP_PartHandle )
+//DECLARE_ALLOWED_ITAPS_SET_CONVERSION( iMeshP_PartHandle )
 //DECLARE_ALLOWED_ITAPS_SET_CONVERSION( iBase_EntitySetHandle )
 DECLARE_ALLOWED_ITAPS_SET_CONVERSION( iBase_EntityHandle )
 
@@ -347,7 +347,6 @@ void iMeshP_getNumLocalParts(iMesh_Instance instance,
 
 void iMeshP_getLocalParts( iMesh_Instance instance,
                            const iMeshP_PartitionHandle partition_handle,
-                           int *num_local_part, 
                            iMeshP_PartHandle **part_handles,
                            int *part_handles_allocated,
                            int *part_handles_size,
