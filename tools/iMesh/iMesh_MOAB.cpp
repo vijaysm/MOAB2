@@ -1302,6 +1302,28 @@ extern "C" {
     RETURN(iBase_ERROR_MAP[result]);
   }
 
+  void iMesh_isEntArrContained( iMesh_Instance instance,
+                            /*in*/ iBase_EntitySetHandle containing_set,
+                            /*in*/ const iBase_EntitySetHandle* entity_handles,
+                            /*in*/ int num_entity_handles,
+                         /*inout*/ int** is_contained,
+                         /*inout*/ int* is_contained_allocated,
+                           /*out*/ int* is_contained_size,
+                           /*out*/ int* err )
+
+  {
+    MBEntityHandle set = ENTITY_HANDLE(containing_set);
+    CHECK_SIZE(*is_contained, *is_contained_allocated,
+               (int)num_entity_handles, int, iBase_MEMORY_ALLOCATION_FAILED);
+    *is_contained_size = num_entity_handles;
+    
+    for (int i = 0; i < num_entity_handles; ++i) {
+      MBEntityHandle h = ENTITY_HANDLE(entity_handles[i]);
+      (*is_contained)[i] = MBI->contains_entities( set, &h, 1 );
+    }
+    RETURN(iBase_SUCCESS);
+  }
+
   void iMesh_isEntSetContained (iMesh_Instance instance,
                                 /*in*/ const iBase_EntitySetHandle containing_entity_set,
                                 /*in*/ const iBase_EntitySetHandle contained_entity_set,

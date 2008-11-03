@@ -904,6 +904,15 @@ extern "C" {
                             /*in*/ const iBase_EntitySetHandle contained_entity,
                             /*out*/ int *is_contained,
                             /*out*/ int *err);
+                            
+  void iMesh_isEntArrContained( iMesh_Instance instance,
+                            /*in*/ iBase_EntitySetHandle containing_set,
+                            /*in*/ const iBase_EntitySetHandle* entity_handles,
+                            /*in*/ int num_entity_handles,
+                         /*inout*/ int** is_contained,
+                         /*inout*/ int* is_contained_allocated,
+                           /*out*/ int* is_contained_size,
+                           /*out*/ int* err );
 
     /**\brief  Return whether an entity set is contained in another set
      *
