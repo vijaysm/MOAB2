@@ -25,6 +25,7 @@ enum iMeshP_EntStatus
   iMeshP_GHOST
 };
 
+#define iMeshP_ALL_PARTS -1
 
 /*
 ------------------------------------------------
@@ -659,7 +660,7 @@ void iMeshP_getCopies(iMesh_Instance instance,
 void iMeshP_getCopyOnPart(iMesh_Instance instance,
                     /*in*/ const iMeshP_PartitionHandle partition_handle, 
                     /*in*/ const iBase_EntityHandle entity_handle, 
-                    /*in*/ const iMeshP_Part* part_id, 
+                    /*in*/ const iMeshP_Part part_id, 
                    /*out*/ iBase_EntityHandle* copy_entity_handle, 
                            int *err); 
 

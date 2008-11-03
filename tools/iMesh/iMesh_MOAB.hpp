@@ -34,9 +34,11 @@ static inline MBInterface* MBI_cast( iMesh_Instance i )
 /* Most recently returned error code */
 extern "C" iBase_Error iMesh_LAST_ERROR;
 
-#define RETURN(a) do {iMesh_LAST_ERROR.error_type = a; *err = a; return;} while(false)
+#define RETURN(a) do {iMesh_LAST_ERROR.error_type = *err = (a); return;} while(false)
 
-#define CHKERR(err) if (MB_SUCCESS != (err)) RETURN(iBase_ERROR_MAP[err])
+#define MBRTN(a) RETURN(iBase_ERROR_MAP[(a)])
+
+#define CHKERR(err) if (MB_SUCCESS != (err)) MBRTN(err)
 
 #include "MBCore.hpp"
 
