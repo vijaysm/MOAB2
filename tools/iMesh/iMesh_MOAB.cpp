@@ -1317,9 +1317,14 @@ extern "C" {
                (int)num_entity_handles, int, iBase_MEMORY_ALLOCATION_FAILED);
     *is_contained_size = num_entity_handles;
     
-    for (int i = 0; i < num_entity_handles; ++i) {
-      MBEntityHandle h = ENTITY_HANDLE(entity_handles[i]);
-      (*is_contained)[i] = MBI->contains_entities( set, &h, 1 );
+    if (containing_set) {
+      for (int i = 0; i < num_entity_handles; ++i) {
+        MBEntityHandle h = ENTITY_HANDLE(entity_handles[i]);
+        (*is_contained)[i] = MBI->contains_entities( set, &h, 1 );
+      }
+    }
+    else {
+      std::fill( *is_contained, (*is_contained)+num_entity_handles, 1 );
     }
     RETURN(iBase_SUCCESS);
   }
