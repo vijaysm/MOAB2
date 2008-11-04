@@ -362,7 +362,7 @@ public:
                                   bool shared_test = false );
   
   MBEntityHandle get_partitioning() const { return partitioningSet; }
-  void set_partitioning( MBEntityHandle h ) { partitioningSet = h; }
+  MBErrorCode set_partitioning( MBEntityHandle h );
   MBErrorCode get_global_part_count( int& count_out ) const;
   MBErrorCode get_part_owner( int part_id, int& owner_out ) const;
   MBErrorCode get_part_id( MBEntityHandle part, int& id_out ) const;

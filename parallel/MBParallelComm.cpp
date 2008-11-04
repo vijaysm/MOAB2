@@ -3725,6 +3725,66 @@ MBParallelComm *MBParallelComm::get_pcomm( MBInterface *impl,
   return result;
 }
 
+MBErrorCode MBParallelComm::set_partitioning( MBEntityHandle set) 
+{
+  MBErrorCode rval;
+  MBTag prtn_tag;
+  rval = mbImpl->tag_create( PARTITIONING_PCOMM_TAG_NAME, 
+                           sizeof(int),
+                           MB_TAG_SPARSE,
+                           MB_TYPE_INTEGER,
+                           prtn_tag,
+                           0, true );
+  if (MB_SUCCESS != rval)
+    return rval;
+
+    // get my id
+  MBParallelComm* pcomm_arr[MAX_SHARING_PROCS];
+  MBTag pc_tag = pcomm_tag(mbImpl, false);
+  if (0 == pc_tag) 
+    return MB_FAILURE;
+  MBErrorCode result = mbImpl->tag_get_data(pc_tag, 0, 0, pcomm_arr);
+  if (MB_SUCCESS != result) 
+    return MB_FAILURE;  
+  int id = std::find(pcomm_arr,pcomm_arr+MAX_SHARING_PROCS,this) - pcomm_arr;
+  if (id == MAX_SHARING_PROCS)
+    return MB_FAILURE;
+
+  MBEntityHandle old = partitioningSet;
+  if (old) {
+    rval = mbImpl->tag_delete_data( prtn_tag, &old, 1 );
+    if (MB_SUCCESS != rval)
+      return rval;
+    partitioningSet = 0;
+  }
+  
+  if (!set) 
+    return MB_SUCCESS;
+  
+  MBRange contents;
+  if (old) {
+    rval = mbImpl->get_entities_by_handle( old, contents );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  else {
+    contents = partition_sets();
+  }
+
+  rval = mbImpl->add_entities( set, contents );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+    // store pcomm id on new partition set
+  rval = mbImpl->tag_set_data( prtn_tag, &set, 1, &id );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  partitioningSet = set;
+  return MB_SUCCESS;
+}
+  
+
   //! return all the entities in parts owned locally
 MBErrorCode MBParallelComm::get_part_entities(MBRange &ents, int dim) 
 {

@@ -1403,6 +1403,63 @@ void iMeshP_ghostEntInfo( iMesh_Instance instance,
                           int *err )
 { FIXME; RETURN(iBase_NOT_SUPPORTED); }
 
+static std::string append_option( const char* options, 
+                          int options_len,
+                          const char* option,
+                          const char* default_value = 0 )
+{
+  std::string::size_type i;
+
+    // construct a std::string containing at least the leading
+    // separator.
+  std::string opt( options, options_len );
+  if (opt.empty())
+    opt = ";";
+  char sep = opt[0];
+  
+    // make sure that the separator is ok (not contained in the option)
+  const char separators[] = ";:,.!@$#%&*^|/\"'\\~%";
+  if (strchr(option,sep) || (default_value && (sep == '=' || strchr(default_value,sep)))) {
+      // need a new separator.  
+    int c, e = sizeof(separators)-1;
+    for (c = 0; c < e; ++c) 
+      if (!strchr(opt.c_str(),separators[c]) &&
+          !strchr(option,separators[c]) &&
+          (!default_value || !strchr(default_value,separators[c])))
+        break;
+    if (c == e)
+      return std::string();
+    
+    i = 0;
+    while (std::string::npos != (i = opt.find(sep,i))) 
+      opt[i] = separators[c]; 
+    sep = separators[c];
+  }
+  
+    // search for the required option
+  std::string search(&sep,1);
+  search += option;
+  const std::string::size_type sl = search.length();
+  i = opt.find( search );
+  while (i != std::string::npos) {
+    std::string::size_type end = i + sl;
+    if (end == opt.size() || opt[end] == sep || opt[end] == '=')
+      break;
+    i = end;
+  }
+  
+    // if string doesn't already contain the option, append it.
+  if (i == std::string::npos) {
+    opt += search;
+    if (default_value) {
+      opt += "=";
+      opt += default_value;
+    }
+  }
+
+  return opt;
+}
+
 void iMeshP_load( iMesh_Instance instance,
                   const iMeshP_PartitionHandle partition,
                   const iBase_EntitySetHandle entity_set_handle,
@@ -1411,7 +1468,40 @@ void iMeshP_load( iMesh_Instance instance,
                   int *err,
                   int name_len,
                   int options_len )
-{ FIXME; RETURN(iBase_NOT_SUPPORTED); }
+{
+  MBErrorCode rval;
+
+    // make sure 'options' string contains 'PARALLEL'
+  std::string opt = append_option( options, options_len, "PARALLEL" );
+  if (opt.empty()) 
+    RETURN(iBase_FAILURE);
+  
+    // load the file
+  iMesh_load( instance, entity_set_handle, name, opt.c_str(), err, name_len, opt.length() );
+  if (*err) return;
+  
+    // look for most recent pcomm instance
+  MBParallelComm* pcomm = 0;
+  for (int i = 0; i < MAX_SHARING_PROCS; ++i) {
+    MBParallelComm* tmp_pcomm = MBParallelComm::get_pcomm( MBI, i );
+    if (tmp_pcomm)
+      pcomm = tmp_pcomm;
+  }
+  if (!pcomm) {
+    RETURN (iBase_FAILURE);
+  }
+  
+    // if user-specified partition set, use it instead
+  if (partition) {
+    MBEntityHandle old_partition = pcomm->get_partitioning();
+    if (old_partition) 
+      MBI->delete_entities( &old_partition, 1 );
+    rval = pcomm->set_partitioning( itaps_cast<MBEntityHandle>(partition) ); 
+    CHKERR(rval);
+  }
+  
+  RETURN (iBase_SUCCESS);
+}
 
 void iMeshP_save( iMesh_Instance instance,
                   const iMeshP_PartitionHandle partition,
@@ -1421,7 +1511,14 @@ void iMeshP_save( iMesh_Instance instance,
                   int *err,
                   const int name_len,
                   int options_len )
-{ FIXME; RETURN(iBase_NOT_SUPPORTED); }
+{
+  MBEntityHandle set;
+  set = entity_set_handle ? itaps_cast<MBEntityHandle>(entity_set_handle)
+                          : itaps_cast<MBEntityHandle>(partition);
+  iMesh_save( instance, itaps_cast<iBase_EntitySetHandle>(set), 
+              name, options, err, name_len, options_len );
+
+}
 
 
 
