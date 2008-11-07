@@ -5,6 +5,9 @@
 #include "MeshTopoUtil.hpp"
 #include "FileOptions.hpp"
 #include "iMesh_MOAB.hpp"
+#define IS_BUILDING_MB
+#include "MBInternals.hpp"
+#undef IS_BUILDING_MB
 
 #ifdef USE_MPI    
 #include "mpi.h"
@@ -53,7 +56,7 @@ MBErrorCode create_int_ents(MBInterface *instance,
           "Allocated array not large enough to hold returned contents.");\
     RETURN(iBase_MEMORY_ALLOCATION_FAILED);\
   }\
-  if (allocated == 0 || NULL == array) {\
+  if ((size) && ((allocated) == 0 || NULL == (array))) {\
     array = (type*)malloc((size)*sizeof(type));\
     allocated=(size);\
     if (NULL == array) {iMesh_processError(iBase_MEMORY_ALLOCATION_FAILED, \
@@ -67,7 +70,7 @@ MBErrorCode create_int_ents(MBInterface *instance,
           "Allocated array not large enough to hold returned contents.");\
     RETURN(iBase_MEMORY_ALLOCATION_FAILED);\
   }\
-  if (NULL == array || allocated == 0) {\
+  if ((size) && (NULL == (array) || (allocated) == 0)) {\
     allocated=(size); \
     if (allocated%sizeof(void*) != 0) allocated=((size)/sizeof(void*)+1)*sizeof(void*);\
     array = (char*)malloc(allocated); \
@@ -997,8 +1000,32 @@ extern "C" {
     {
       *off_iter = prev_off;
       off_iter++;
-
-      if (iBase_VERTEX != entity_type_requested) {
+      
+      if (iBase_VERTEX == entity_type_requested &&
+          TYPE_FROM_HANDLE(*entity_iter) != MBPOLYHEDRON) {
+        result = MBI->get_connectivity(*entity_iter, connect, num_connect);
+        if (MB_SUCCESS != result) {
+          iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getEntArrAdj: trouble getting adjacency list.");
+          RETURN(iBase_ERROR_MAP[result]);
+        }
+        std::copy(connect, connect+num_connect, std::back_inserter(all_adj_ents));
+        prev_off += num_connect;
+      }
+      else if (iBase_ALL_TYPES == entity_type_requested) {
+        for (int dim = 0; dim < 4; ++dim) {
+          if (MBCN::Dimension(TYPE_FROM_HANDLE(*entity_iter)) == dim)
+            continue;
+          adj_ents.clear();
+          result = MBI->get_adjacencies( entity_iter, 1, dim, false, adj_ents );
+          if (MB_SUCCESS != result) {
+            iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getEntArrAdj: trouble getting adjacency list.");
+            RETURN(iBase_ERROR_MAP[result]);
+          }
+          std::copy(adj_ents.begin(), adj_ents.end(), std::back_inserter(all_adj_ents));
+          prev_off += adj_ents.size();
+        }
+      }
+      else {
         adj_ents.clear();
         result = MBI->get_adjacencies( entity_iter, 1, 
                                        entity_type_requested, false, adj_ents );
@@ -1008,11 +1035,6 @@ extern "C" {
         }
         std::copy(adj_ents.begin(), adj_ents.end(), std::back_inserter(all_adj_ents));
         prev_off += adj_ents.size();
-      }
-      else {
-        result = MBI->get_connectivity(*entity_iter, connect, num_connect);
-        std::copy(connect, connect+num_connect, std::back_inserter(all_adj_ents));
-        prev_off += num_connect;
       }
     }
     *off_iter = prev_off;
