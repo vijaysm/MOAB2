@@ -700,7 +700,7 @@ static MBErrorCode get_boundary_entities( MBParallelComm* pcomm,
                                    int adj_part_id,
                                    MBRange& entities_out)
 {
-  int* adj_part_id_ptr = ((unsigned)adj_part_id == iMeshP_ALL_PARTS) ? 0 : &adj_part_id;
+  int* adj_part_id_ptr = (adj_part_id == iMeshP_ALL_PARTS) ? 0 : &adj_part_id;
   
   MBRange iface_sets;
   MBErrorCode rval = pcomm->get_interface_sets( 
@@ -1348,44 +1348,35 @@ void iMeshP_getOwnerCopy( iMesh_Instance instance,
   MBRTN(rval);
 }
 
-void iMeshP_Wait( iMesh_Instance instance,
+void iMeshP_waitForAnyRequest( iMesh_Instance instance,
+                               iMeshP_PartitionHandle partition_handle,
+                               iMeshP_RequestHandle *requests,
+                               int request_size,
+                               int* index,
+                               int* err )
+{ FIXME; RETURN(iBase_NOT_SUPPORTED); }
+
+void iMeshP_waitForAllRequests( iMesh_Instance instance,
+                                iMeshP_PartitionHandle partition_handle,
+                                iMeshP_RequestHandle *requests,
+                                int requests_size,
+                                int *err )
+{ FIXME; RETURN(iBase_NOT_SUPPORTED); }
+
+void iMeshP_waitForRequestEnt(
+            iMesh_Instance instance,
+            const iMeshP_PartitionHandle partition,
+            iMeshP_RequestHandle request,
+            iBase_EntityHandle **out_entities,
+            int *out_entities_allocated,
+            int *out_entities_size,
+            int *err)
+{ FIXME; RETURN(iBase_NOT_SUPPORTED); }
+
+void iMeshP_testRequest( iMesh_Instance instance,
                   const iMeshP_PartitionHandle partition_handle,
                   iMeshP_RequestHandle req,
-                  iMeshP_Status *stat,
-                  int *err )
-{ FIXME; RETURN(iBase_NOT_SUPPORTED); }
-
-void iMeshP_WaitAny( iMesh_Instance instance,
-                     const iMeshP_PartitionHandle partition_handle,
-                     iMeshP_RequestHandle *req,
-                     int req_size,
-                     int *index,
-                     iMeshP_Status *stat,
-                     int *err )
-{ FIXME; RETURN(iBase_NOT_SUPPORTED); }
-
-void iMeshP_WaitAll( iMesh_Instance instance,
-                     const iMeshP_PartitionHandle partition_handle,
-                     iMeshP_RequestHandle *req,
-                     int req_size,
-                     iMeshP_Status *stat,
-                     int *err )
-{ FIXME; RETURN(iBase_NOT_SUPPORTED); }
-
-void iMeshP_WaitEnt( iMesh_Instance instance,
-                     const iMeshP_PartitionHandle partition_handle,
-                     iMeshP_RequestHandle req,
-                     iBase_EntityHandle **out_entities,
-                     int *out_entities_alloc,
-                     int *out_entities_size,
-                     int *err )
-{ FIXME; RETURN(iBase_NOT_SUPPORTED); }
-
-void iMeshP_Test( iMesh_Instance instance,
-                  const iMeshP_PartitionHandle partition_handle,
-                  iMeshP_RequestHandle req,
-                  int *flag,
-                  iMeshP_Status *stat,
+                  int *complete,
                   int *err )
 { FIXME; RETURN(iBase_NOT_SUPPORTED); }
 
@@ -1463,11 +1454,16 @@ void iMeshP_syncMeshAll( iMesh_Instance instance,
 		            
 void iMeshP_pushTags( iMesh_Instance instance,
                       const iMeshP_PartitionHandle partition_handle,
-                      iBase_TagHandle tag,
+                      iBase_TagHandle source_tag,
+                      iBase_TagHandle dest_tag,
                       int entity_type,
                       int entity_topo,
                       int *err )
 {
+  if (source_tag != dest_tag)
+    RETURN (iBase_NOT_SUPPORTED);
+  iBase_TagHandle tag = source_tag;
+
   MBParallelComm* pcomm = PCOMM;
   MBDimensionPair types;
   if (entity_topo != iMesh_ALL_TOPOLOGIES)
@@ -1495,11 +1491,16 @@ void iMeshP_pushTags( iMesh_Instance instance,
 
 void iMeshP_pushTagsEnt( iMesh_Instance instance,
                          const iMeshP_PartitionHandle partition_handle,
-                         iBase_TagHandle tag,
+                         iBase_TagHandle source_tag,
+                         iBase_TagHandle dest_tag,
                          const iBase_EntityHandle *entities,
                          int entities_size,
                          int *err )
 {
+  if (source_tag != dest_tag)
+    RETURN (iBase_NOT_SUPPORTED);
+  iBase_TagHandle tag = source_tag;
+
   MBRange range;
   const MBEntityHandle* ents = itaps_cast<const MBEntityHandle*>(entities);
   std::copy( ents, ents+entities_size, mb_range_inserter(range) );
@@ -1512,7 +1513,8 @@ void iMeshP_pushTagsEnt( iMesh_Instance instance,
 
 void iMeshP_iPushTags( iMesh_Instance instance,
                        const iMeshP_PartitionHandle partition_handle,
-                       iBase_TagHandle tag,
+                       iBase_TagHandle source_tag,
+                       iBase_TagHandle dest_tag,
                        int entity_type,
                        int entity_topo,
                        iMeshP_RequestHandle *req,
@@ -1521,7 +1523,8 @@ void iMeshP_iPushTags( iMesh_Instance instance,
 
 void iMeshP_iPushTagsEnt( iMesh_Instance instance,
                           const iMeshP_PartitionHandle partition_handle,
-                          iBase_TagHandle tag,
+                          iBase_TagHandle source_tag,
+                          iBase_TagHandle dest_tag,
                           const iBase_EntityHandle *entities,
                           int entities_size,
                           iMeshP_RequestHandle *req,
@@ -1552,9 +1555,8 @@ void iMeshP_deleteGhostEnts( iMesh_Instance instance,
                              int *err )
 { FIXME; RETURN(iBase_NOT_SUPPORTED); }
 
-void iMeshP_ghostEntInfo( iMesh_Instance instance,
-                          iMeshP_PartitionHandle partition_handle,
-                          int *num_ghost_rules,
+void iMeshP_ghostEntInfo( const iMesh_Instance instance,
+                          const iMeshP_PartitionHandle partition_handle,
                           int *ghost_rules_allocated,
                           int *ghost_rules_size,
                           int **ghost_dim,
@@ -1616,7 +1618,7 @@ static void append_option( std::string& opt,
   }
 }
 
-void iMeshP_load( iMesh_Instance instance,
+void iMeshP_loadAll( iMesh_Instance instance,
                   const iMeshP_PartitionHandle partition,
                   const iBase_EntitySetHandle entity_set_handle,
                   const char *name,
@@ -1661,7 +1663,7 @@ void iMeshP_load( iMesh_Instance instance,
   MBRTN(rval);
 }
 
-void iMeshP_save( iMesh_Instance instance,
+void iMeshP_saveAll( iMesh_Instance instance,
                   const iMeshP_PartitionHandle partition,
                   const iBase_EntitySetHandle entity_set_handle,
                   const char *name,

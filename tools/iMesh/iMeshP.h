@@ -15,7 +15,6 @@ extern "C" {
 
 ITAPS_DECLARE_HANDLE( iMeshP_PartitionHandle );
 ITAPS_DECLARE_HANDLE( iMeshP_RequestHandle );
-ITAPS_DECLARE_HANDLE( iMeshP_Status );
 
 /* Since we allow overloading of iMesh functions' entity set handles with
  * part handles, iMeshP_PartHandle must be defined the same as 
@@ -70,18 +69,6 @@ Release 0.1; October 2008
    a mesh instance within a process.
 -  Part A "neighbors" Part B if Part A has copies of entities owned by Part B
    and/or if Part B has copies of entities owned by Part A.
--  Each function description includes its communication requirements.  The
-   options are described here:
-   -  COMMUNICATION:  Collective -- the function must be called by all 
-      processes in the partition's communicator.
-   -  COMMUNICATION:  Point-to-Point -- communication is used, but the 
-      communication is from one process to only one other process.  The
-      receiving process must issue an appropriate receive call to receive 
-      the message.
-   -  COMMUNICATION:  None -- the function does not use communication; only
-      local operations are performed.
-   -  COMMUNICATION:  None++ -- no communication is done; the values
-      are precomputed by iMeshP_syncPartitionAll or iMeshP_syncMeshAll.
                   
 \section INT Interfaces
 -  Each process has one or more "mesh instances."  A mesh instance can be
@@ -132,6 +119,27 @@ Release 0.1; October 2008
    - Remove entity from part --> iMesh_rmvEntFromSet
    - Add array of entities to part --> iMesh_addEntArrToSet
    - Remove array of entities from part --> iMesh_rmvEntArrFromSet
+
+\section CMM Communication
+-  Each function description includes its communication requirements.  The
+   options are described here:
+   -  COMMUNICATION:  Collective -- the function must be called by all 
+      processes in the partition's communicator.  (These functions have the
+      suffix "All" to indicate collective communication is done.)
+   -  COMMUNICATION:  Point-to-Point -- communication is used, but the 
+      communication is from one process to only one other process.  The
+      receiving process must issue an appropriate receive call to receive 
+      the message.
+   -  COMMUNICATION:  None -- the function does not use communication; only
+      local operations are performed.
+   -  COMMUNICATION:  None++ -- no communication is done; the values
+      are precomputed by iMeshP_syncPartitionAll or iMeshP_syncMeshAll.
+-  Non-blocking calls for off-processor mesh-modification return a request 
+   that indicates whether or not the operation has completed.  The request
+   is more than an MPI request; it encapsulates both the MPI information and
+   the mesh operations that were requested.  If non-blocking calls are used,
+   appropriate calls to iMeshP "wait" or "poll" functions must be used to
+   handle and satisfy requests.
 */
 
 /*------------------------------------------------------------------------*/
@@ -157,14 +165,13 @@ Release 0.1; October 2008
  *  \param  instance         (In)  Mesh instance to contain the partition.
  *  \param  communicator     (In)  Communicator to be used for parallel 
  *                                 communication.
- *  \param  partition_handle (Out) Partition handle for the newly 
- *                                 created partition.
+ *  \param  partition        (Out) The newly created partition.
  *  \param  err              (Out) Error code.
  */
 void iMeshP_createPartitionAll(
             iMesh_Instance instance,
             MPI_Comm communicator,
-            iMeshP_PartitionHandle *partition_handle,
+            iMeshP_PartitionHandle *partition,
             int *err);
 
 
@@ -178,13 +185,12 @@ void iMeshP_createPartitionAll(
  *  COMMUNICATION:  Collective.
  * 
  *  \param  instance         (In)  Mesh instance containing the partition.
- *  \param  partition_handle (In)  Partition handle for the partition
- *                                 to be destroyed.
+ *  \param  partition        (In)  The partition to be destroyed.
  *  \param  err              (Out) Error code.
  */
 void iMeshP_destroyPartitionAll(
             iMesh_Instance instance,
-            iMeshP_PartitionHandle partition_handle,
+            iMeshP_PartitionHandle partition,
             int *err);
 
 
@@ -197,14 +203,13 @@ void iMeshP_destroyPartitionAll(
  *  COMMUNICATION:  None
  *
  *  \param  instance         (In)  Mesh instance containing the partition.
- *  \param  partition_handle (In)  Partition handle for the partition being 
- *                                 queried.
+ *  \param  partition        (In)  The partition being queried.
  *  \param  communicator     (Out) Communicator associated with the partition.
  *  \param  err              (Out) Error code.
  */
 void iMeshP_getPartitionComm(
             iMesh_Instance instance,
-            iMeshP_PartitionHandle partition_handle,
+            iMeshP_PartitionHandle partition,
             MPI_Comm *communicator,
             int *err);
     
@@ -225,13 +230,12 @@ void iMeshP_getPartitionComm(
  *  COMMUNICATION:  Collective.
  *
  *  \param  instance         (In)  Mesh instance containing the partition.
- *  \param  partition_handle (In)  Partition handle for the partition being 
- *                                 updated.
+ *  \param  partition        (In)  The partition being updated.
  *  \param  err              (Out) Error code.
  */
 void iMeshP_syncPartitionAll(
             iMesh_Instance instance,
-            iMeshP_PartitionHandle partition_handle,
+            iMeshP_PartitionHandle partition,
             int *err); 
 
 
@@ -264,20 +268,20 @@ void iMeshP_getNumPartitions(
  *
  *  \param  instance                    (In)     Mesh instance containing the 
  *                                               partitions.
- *  \param  partition_handles           (In/Out) Array of partition handles 
+ *  \param  partitions                  (In/Out) Array of partition handles 
  *                                               associated with the mesh 
  *                                               instance.
- *  \param  partition_handles_allocated (In/Out) Allocated size of 
- *                                               partition_handles array.
- *  \param  partition_handles_size      (Out)    Occupied size of 
- *                                               partition_handles array.
+ *  \param  partitions_allocated        (In/Out) Allocated size of 
+ *                                               partitions array.
+ *  \param  partitions_size             (Out)    Occupied size of 
+ *                                               partitions array.
  *  \param  err                         (Out)    Error code.
  */
 void iMeshP_getPartitions(
             iMesh_Instance instance,
-            iMeshP_PartitionHandle **partition_handles,
-            int *partition_handles_allocated, 
-            int *partition_handles_size, 
+            iMeshP_PartitionHandle **partitions,
+            int *partitions_allocated, 
+            int *partitions_size, 
             int *err); 
 
 
@@ -290,14 +294,13 @@ void iMeshP_getPartitions(
  *  COMMUNICATION:  None++.
  *
  *  \param  instance         (In)  Mesh instance containing the partition.
- *  \param  partition_handle (In)  Partition handle for the partition being 
- *                                 queried.
+ *  \param  partition        (In)  The partition being queried.
  *  \param  num_global_part  (Out) Global number of parts in the partition.
  *  \param  err              (Out) Error code.
  */
 void iMeshP_getNumGlobalParts(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
+            const iMeshP_PartitionHandle partition,
             int *num_global_part, 
             int *err); 
 
@@ -311,15 +314,14 @@ void iMeshP_getNumGlobalParts(
  *  COMMUNICATION:  None.
  *
  *  \param  instance         (In)  Mesh instance containing the partition.
- *  \param  partition_handle (In)  Partition handle for the partition being 
- *                                 queried.
+ *  \param  partition        (In)  The partition being queried.
  *  \param  num_local_part   (Out) Local (on-process) number of parts in 
  *                                 the partition.
  *  \param  err              (Out) Error code.
  */
 void iMeshP_getNumLocalParts(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
+            const iMeshP_PartitionHandle partition,
             int *num_local_part, 
             int *err); 
 
@@ -334,22 +336,21 @@ void iMeshP_getNumLocalParts(
  *
  *  \param  instance               (In)     Mesh instance containing the 
  *                                          partition.
- *  \param  partition_handle       (In)     Partition handle for the partition 
- *                                          being queried.
- *  \param  part_handles           (In/Out) Array of part handles 
+ *  \param  partition              (In)     The partition being queried.
+ *  \param  parts                  (In/Out) Array of part handles 
  *                                          for local parts in the partition.
- *  \param  part_handles_allocated (In/Out) Allocated size of 
- *                                          part_handles array.
- *  \param  part_handles_size      (Out)    Occupied size of 
- *                                          part_handles array.
+ *  \param  parts_allocated        (In/Out) Allocated size of 
+ *                                          parts array.
+ *  \param  parts_size             (Out)    Occupied size of 
+ *                                          parts array.
  *  \param  err                    (Out)    Error code.
  */
 void iMeshP_getLocalParts(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            iMeshP_PartHandle **part_handles,
-            int *part_handles_allocated,
-            int *part_handles_size,
+            const iMeshP_PartitionHandle partition,
+            iMeshP_PartHandle **parts,
+            int *parts_allocated,
+            int *parts_size,
             int *err); 
 
 
@@ -363,15 +364,14 @@ void iMeshP_getLocalParts(
  *  COMMUNICATION:  None++.
  *
  *  \param  instance         (In)  Mesh instance containing the partition.
- *  \param  partition_handle (In)  Partition handle for the partition being 
- *                                 queried.
+ *  \param  partition        (In)  The partition being queried.
  *  \param  part_id          (In)  Part ID for the part being queried.
  *  \param  rank             (Out) Process rank of part_id.
  *  \param  err              (Out) Error code.
  */
 void iMeshP_getRankOfPart(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
+            const iMeshP_PartitionHandle partition,
             const iMeshP_Part part_id,
             int *rank,
             int *err); 
@@ -387,8 +387,7 @@ void iMeshP_getRankOfPart(
  *  COMMUNICATION:  None++.
  *
  *  \param  instance         (In)     Mesh instance containing the partition.
- *  \param  partition_handle (In)     Partition handle for the partition being 
- *                                    queried.
+ *  \param  partition        (In)     The partition being queried.
  *  \param  part_ids         (In)     Array of Part IDs for the parts being 
  *                                    queried.
  *  \param  part_ids_size    (In)     The number of Part IDs in part_ids.
@@ -400,7 +399,7 @@ void iMeshP_getRankOfPart(
  */
 void iMeshP_getRankOfPartArr(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
+            const iMeshP_PartitionHandle partition,
             const iMeshP_Part *part_ids,
             const int part_ids_size,
             int **ranks, 
@@ -421,9 +420,8 @@ void iMeshP_getRankOfPartArr(
  *  COMMUNICATION:  Collective.
  *
  *  \param  instance          (In)  Mesh instance containing the partition.
- *  \param  partition_handle  (In)  Partition handle for the partition being 
- *                                  queried.
- *  \param  entity_set_handle (In)  Entity set handle for the entity set
+ *  \param  partition         (In)  The partition being queried.
+ *  \param  entity_set        (In)  Entity set handle for the entity set
  *                                  being queried.
  *  \param  entity_type       (In)  Requested entity type;
  *                                  may be iBase_ALL_TYPES.
@@ -433,8 +431,8 @@ void iMeshP_getRankOfPartArr(
  */
 void iMeshP_getNumOfTypeAll(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iBase_EntitySetHandle entity_set_handle,
+            const iMeshP_PartitionHandle partition,
+            const iBase_EntitySetHandle entity_set,
             int entity_type, 
             int *num_type, 
             int *err);
@@ -452,9 +450,8 @@ void iMeshP_getNumOfTypeAll(
  *  COMMUNICATION:  Collective.
  *
  *  \param  instance          (In)  Mesh instance containing the partition.
- *  \param  partition_handle  (In)  Partition handle for the partition being 
- *                                  queried.
- *  \param  entity_set_handle (In)  Entity set handle for the entity set
+ *  \param  partition         (In)  The partition being queried.
+ *  \param  entity_set        (In)  Entity set handle for the entity set
  *                                  being queried; may be the root set.
  *  \param  entity_topology   (In)  Requested entity topology;
  *                                  may be iMesh_ALL_TOPOLOGIES.
@@ -464,8 +461,8 @@ void iMeshP_getNumOfTypeAll(
  */
 void iMeshP_getNumOfTopoAll(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iBase_EntitySetHandle entity_set_handle,
+            const iMeshP_PartitionHandle partition,
+            const iBase_EntitySetHandle entity_set,
             int entity_topology, 
             int *num_topo, 
             int *err);
@@ -486,15 +483,14 @@ void iMeshP_getNumOfTopoAll(
  *  COMMUNICATION:  None.
  *
  *  \param  instance          (In)  Mesh instance containing the partition.
- *  \param  partition_handle  (In)  Partition handle for the partition being 
- *                                  updated.
- *  \param  part_handle       (Out) Part handle for the newly created part.
+ *  \param  partition         (In)  The partition being updated.
+ *  \param  part              (Out) The newly created part.
  *  \param  err               (Out) Error code.
  */
 void iMeshP_createPart(
             iMesh_Instance instance,
-            iMeshP_PartitionHandle partition_handle,
-            iMeshP_PartHandle *part_handle,
+            iMeshP_PartitionHandle partition,
+            iMeshP_PartHandle *part,
             int *err);
  
 
@@ -508,15 +504,14 @@ void iMeshP_createPart(
  *  COMMUNICATION:  None.
  *
  *  \param  instance          (In)  Mesh instance containing the partition.
- *  \param  partition_handle  (In)  Partition handle for the partition being 
- *                                  updated.
- *  \param  part_handle       (In)  Part handle for the part to be removed.
+ *  \param  partition         (In)  The partition being updated.
+ *  \param  part              (In)  The part to be removed.
  *  \param  err               (Out) Error code.
  */
 void iMeshP_destroyPart(
             iMesh_Instance instance,
-            iMeshP_PartitionHandle partition_handle,
-            iMeshP_PartHandle part_handle,
+            iMeshP_PartitionHandle partition,
+            iMeshP_PartHandle part,
             int *err);
 
 
@@ -530,16 +525,15 @@ void iMeshP_destroyPart(
  *  COMMUNICATION:  None.
  *
  *  \param  instance          (In)  Mesh instance containing the partition.
- *  \param  partition_handle  (In)  Partition handle for the partition being 
- *                                  queried.
- *  \param  part_handle       (In)  Part handle for the part being queried.
- *  \param  part_id           (Out) Part ID for part_handle.
+ *  \param  partition         (In)  The partition being queried.
+ *  \param  part              (In)  The part being queried.
+ *  \param  part_id           (Out) Part ID for part.
  *  \param  err               (Out) Error code.
  */
 void iMeshP_getPartIdFromPartHandle(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iMeshP_PartHandle part_handle,
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle part,
             iMeshP_Part *part_id,
             int *err);
 
@@ -556,22 +550,21 @@ void iMeshP_getPartIdFromPartHandle(
  *  COMMUNICATION:  None.
  *
  *  \param  instance            (In)     Mesh instance containing the partition.
- *  \param  partition_handle    (In)     Partition handle for the partition 
+ *  \param  partition           (In)     The partition being queried.
+ *  \param  parts               (In)     Array of part handles for the parts 
  *                                       being queried.
- *  \param  part_handles        (In)     Array of part handles for the parts 
- *                                       being queried.
- *  \param  part_handles_size   (In)     Number of part handles being queried.
+ *  \param  parts_size          (In)     Number of part handles being queried.
  *  \param  part_ids            (In/Out) Array of part IDs associated with the 
- *                                       part_handles.
+ *                                       parts.
  *  \param  part_ids_allocated  (In/Out) Allocated size of part_ids array.
  *  \param  part_ids_size       (Out)    Occupied size of part_ids array.
  *  \param  err                 (Out)    Error code.
  */
 void iMeshP_getPartIdsFromPartHandlesArr(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iMeshP_PartHandle *part_handles,
-            const int part_handles_size,
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle *parts,
+            const int parts_size,
             iMeshP_Part **part_ids,
             int *part_ids_allocated,
             int *part_ids_size,
@@ -588,17 +581,16 @@ void iMeshP_getPartIdsFromPartHandlesArr(
  *  COMMUNICATION:  None.
  *
  *  \param  instance          (In)  Mesh instance containing the partition.
- *  \param  partition_handle  (In)  Partition handle for the partition being 
- *                                  queried.
+ *  \param  partition         (In)  The partition being queried.
  *  \param  part_id           (In)  Part ID for the part being queried.
- *  \param  part_handle       (Out) Part handle associated with part_id.
+ *  \param  part              (Out) Part handle associated with part_id.
  *  \param  err               (Out) Error code.
  */
 void iMeshP_getPartHandleFromPartId(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
+            const iMeshP_PartitionHandle partition,
             iMeshP_Part part_id,
-            iMeshP_PartHandle *part_handle,
+            iMeshP_PartHandle *part,
             int *err);
 
 
@@ -615,27 +607,26 @@ void iMeshP_getPartHandleFromPartId(
  *
  *  \param  instance                (In)     Mesh instance containing the 
  *                                           partition.
- *  \param  partition_handle        (In)     Partition handle for the partition 
- *                                           being queried.
+ *  \param  partition               (In)     The partition being queried.
  *  \param  part_ids                (In)     Array of part IDs for the parts 
  *                                           being queried.
  *  \param  part_ids_size           (In)     Number of part IDs being queried.
- *  \param  part_handles            (In/Out) Array of part handles associated 
+ *  \param  parts                   (In/Out) Array of part handles associated 
  *                                           with the part_ids.
- *  \param  part_handles_allocated  (In/Out) Allocated size of part_handles 
+ *  \param  parts_allocated         (In/Out) Allocated size of parts 
  *                                           array.
- *  \param  part_handles_size       (Out)    Occupied size of part_handles 
+ *  \param  parts_size              (Out)    Occupied size of parts 
  *                                           array.
  *  \param  err                     (Out)    Error code.
  */
 void iMeshP_getPartHandlesFromPartsIdsArr(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
+            const iMeshP_PartitionHandle partition,
             const iMeshP_Part *part_ids,
             const int part_ids_size,
-            iMeshP_PartHandle **part_handles,
-            int *part_handles_allocated,
-            int *part_handles_size,
+            iMeshP_PartHandle **parts,
+            int *parts_allocated,
+            int *parts_size,
             int *err);
 
 
@@ -652,14 +643,12 @@ void iMeshP_getPartHandlesFromPartsIdsArr(
  *  (i.e., that (1) have copies of entities of the given entity type owned by 
  *  the given part or (2) own entities of the given entity type that are 
  *  copied on the given part).
- *  If the part_handle is invalid, an error is returned.
  *
  *  COMMUNICATION:  None++.
  *
  *  \param  instance          (In)  Mesh instance containing the partition.
- *  \param  partition_handle  (In)  Partition handle for the partition being 
- *                                  queried.
- *  \param  part_handle       (In)  Part handle for the part being queried.
+ *  \param  partition         (In)  The partition being queried.
+ *  \param  part              (In)  The part being queried.
  *  \param  entity_type       (In)  Entity type of the copied entities;
  *                                  may be iBase_ALL_TYPES.
  *  \param  num_part_nbors    (Out) Number of parts neighboring the given part.
@@ -667,8 +656,8 @@ void iMeshP_getPartHandlesFromPartsIdsArr(
  */
 void iMeshP_getNumPartNbors(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iMeshP_PartHandle part_handle,
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle part,
             int entity_type,
             int *num_part_nbors,
             int *err); 
@@ -683,24 +672,22 @@ void iMeshP_getNumPartNbors(
  *  (i.e., that (1) have copies of entities of the given entity type owned by 
  *  the given part or (2) own entities of the given entity type that are 
  *  copied on the given part).
- *  If any part_handle is invalid, an error is returned.
  *
  *  COMMUNICATION:  None++.
  *
  *  \param  instance                  (In)     Mesh instance containing the 
  *                                             partition.
- *  \param  partition_handle          (In)     Partition handle for the 
- *                                             partition being queried.
- *  \param  part_handles              (In)     Array of part handles for the 
+ *  \param  partition                 (In)     The partition being queried.
+ *  \param  parts                     (In)     Array of part handles for the 
  *                                             parts being queried.
- *  \param  part_handles_size         (In)     Number of part handles in 
- *                                             part_handles.
+ *  \param  parts_size                (In)     Number of part handles in 
+ *                                             parts.
  *  \param  entity_type               (In)     Entity type of the copied
  *                                             entities;
  *                                             may be iBase_ALL_TYPES.
  *  \param  num_part_nbors            (In/Out) Array of values specifying the 
  *                                             number of part neighbors for 
- *                                             each part in part_handles.
+ *                                             each part in parts.
  *  \param  num_part_nbors_allocated  (In/Out) Allocated size of num_part_nbors 
  *                                             array.
  *  \param  num_part_nbors_size       (Out)    Occupied size of num_part_nbors 
@@ -709,9 +696,9 @@ void iMeshP_getNumPartNbors(
  */
 void iMeshP_getNumPartNborsArr(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iMeshP_PartHandle *part_handles,
-            int part_handles_size,
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle *parts,
+            int parts_size,
             int entity_type,
             int **num_part_nbors,
             int *num_part_nbors_allocated,
@@ -727,23 +714,20 @@ void iMeshP_getNumPartNborsArr(
  *  (i.e., that (1) have copies of entities of the given entity type owned by 
  *  the given part or (2) own entities of the given entity type that are 
  *  copied on the given part).
- *  If the part_handle is invalid, an error is returned.
  *
  *  COMMUNICATION:  None++.
  *
  *  \param  instance                 (In)     Mesh instance containing the 
  *                                            partition.
- *  \param  partition_handle         (In)     Partition handle for the 
- *                                            partition being queried.
- *  \param  part_handle              (In)     Part handle for the 
- *                                            part being queried.
+ *  \param  partition                (In)     The partition being queried.
+ *  \param  part                     (In)     The part being queried.
  *  \param  entity_type              (In)     Entity type of the copied
  *                                            entities; 
  *                                            may be iBase_ALL_TYPES.
  *  \param  num_part_nbors           (Out)    Number of parts neighboring
  *                                            the given part.
  *  \param  nbor_part_ids            (In/Out) Array of part IDs for 
- *                                            part neighbors of part_handle.
+ *                                            part neighbors of part.
  *  \param  nbor_part_ids_allocated  (In/Out) Allocated size of nbor_part_ids 
  *                                            array.
  *  \param  nbor_part_ids_size       (Out)    Occupied size of nbor_part_ids 
@@ -752,8 +736,8 @@ void iMeshP_getNumPartNborsArr(
  */
 void iMeshP_getPartNbors(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iMeshP_PartHandle part_handle,
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle part,
             int entity_type,
             int *num_part_nbors,
             iMeshP_Part **nbor_part_ids,
@@ -770,28 +754,26 @@ void iMeshP_getPartNbors(
  *  (i.e., that (1) have copies of entities of the given entity type owned by 
  *  the given part or (2) own entities of the given entity type that are 
  *  copied on the given part).
- *  If any part_handle is invalid, an error is returned.
  *
  *  COMMUNICATION:  None++.
  *
  *  \param  instance                 (In)     Mesh instance containing the 
  *                                            partition.
- *  \param  partition_handle         (In)     Partition handle for the 
- *                                            partition being queried.
- *  \param  part_handle              (In)     Part handle for the 
- *                                            part being queried.
+ *  \param  partition                (In)     The partition being queried.
+ *  \param  parts                    (In)     The parts being queried.
+ *  \param  parts_size               (In)     The number of parts being queried.
  *  \param  entity_type              (In)     Entity type of the copied 
  *                                            entities;
  *                                            may be iBase_ALL_TYPES.
  *  \param  num_part_nbors           (In/Out) Array of values specifying the 
  *                                            number of part neighbors for 
- *                                            each part in part_handles.
+ *                                            each part in parts.
  *  \param  num_part_nbors_allocated (In/Out) Allocated size of num_part_nbors 
  *                                            array.
  *  \param  num_part_nbors_size      (Out)    Occupied size of num_part_nbors 
  *                                            array.
  *  \param  nbor_part_ids            (In/Out) Array of part IDs for 
- *                                            part neighbors of part_handle.
+ *                                            part neighbors of part.
  *  \param  nbor_part_ids_allocated  (In/Out) Allocated size of nbor_part_ids 
  *                                            array.
  *  \param  nbor_part_ids_size       (Out)    Occupied size of nbor_part_ids 
@@ -800,9 +782,9 @@ void iMeshP_getPartNbors(
  */
 void iMeshP_getPartNborsArr(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iMeshP_PartHandle *part_handles,
-            const int part_handles_size,
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle *parts,
+            const int parts_size,
             int entity_type,
             int **num_part_nbors,
             int *num_part_nbors_allocated,
@@ -819,29 +801,27 @@ void iMeshP_getPartNborsArr(
  *  Given a partition handle, a part handle, an entity type and topology, and a
  *  target part ID, return the number of entities of the given type and/or
  *  topology on the part boundary shared with the target part.  
- *  If part_handle is invalid, an error is returned.
  *
  *  COMMUNICATION:  None.
  *
  *  \param  instance          (In)  Mesh instance containing the partition.
- *  \param  partition_handle  (In)  Partition handle for the partition being 
- *                                  queried.
- *  \param  part_handle       (In)  Part handle for the part being queried.
+ *  \param  partition         (In)  The partition being queried.
+ *  \param  part              (In)  The part being queried.
  *  \param  entity_type       (In)  Entity type of the boundary entities;
  *                                  may be iBase_ALL_TYPES.
  *  \param  entity_topology   (In)  Entity topology of the boundary entities; 
  *                                  may be iMesh_ALL_TOPOLOGIES.
- *  \param  target_part_id    (In)  Part ID with which part_handle is sharing
+ *  \param  target_part_id    (In)  Part ID with which part is sharing
  *                                  the boundary entities; may be 
  *                                  iMeshP_ALL_PARTS.
  *  \param  num_entities      (Out) Number of part boundary entities shared
- *                                  by part_handle and target_part_id.
+ *                                  by part and target_part_id.
  *  \param  err               (Out) Error code.
  */
 void iMeshP_getNumPartBdryEnts(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iMeshP_PartHandle part_handle, 
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle part, 
             int entity_type, 
             int entity_topology, 
             iMeshP_Part target_part_id, 
@@ -855,45 +835,42 @@ void iMeshP_getNumPartBdryEnts(
  *  Given a partition handle, a part handle, an entity type and topology, and a
  *  target part ID, return the entity handles of entities of the given type 
  *  and/or topology on the part boundary shared with the target part.  
- *  If part_handle is invalid, an error is returned.
  *
  *  COMMUNICATION:  None.
  *
  *  \param  instance                 (In)     Mesh instance containing the 
  *                                            partition.
- *  \param  partition_handle         (In)     Partition handle for the 
- *                                            partition being queried.
- *  \param  part_handle              (In)     Part handle for the part being 
- *                                            queried.
+ *  \param  partition                (In)     The partition being queried.
+ *  \param  part                     (In)     The part being queried.
  *  \param  entity_type              (In)     Entity type of the boundary 
  *                                            entities;
  *                                            may be iBase_ALL_TYPES.
  *  \param  entity_topology          (In)     Entity topology of the boundary 
  *                                            entities;
  *                                            may be iMesh_ALL_TOPOLOGIES.
- *  \param  target_part_id           (In)     Part ID with which part_handle 
+ *  \param  target_part_id           (In)     Part ID with which part        
  *                                            is sharing the boundary entities;
  *                                            may be iMeshP_ALL_PARTS.
- *  \param  entity_handles           (In/Out) Array of entity handles for 
+ *  \param  entities                 (In/Out) Array of entity handles for 
  *                                            entities on the part boundary
- *                                            between part_handle and 
+ *                                            between part and 
  *                                            target_part_id.
- *  \param  entity_handles_allocated (In/Out) Allocated size of entity_handles 
+ *  \param  entities_allocated       (In/Out) Allocated size of entities 
  *                                            array.
- *  \param  entity_handles_size      (Out)    Occupied size of entity_handles 
+ *  \param  entities_size            (Out)    Occupied size of entities 
  *                                            array.
  *  \param  err                      (Out)    Error code.
  */
 void iMeshP_getPartBdryEnts(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iMeshP_PartHandle part_handle, 
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle part, 
             int entity_type, 
             int entity_topology, 
             iMeshP_Part target_part_id, 
-            iBase_EntityHandle **entity_handles,
-            int *entity_handles_allocated,
-            int *entity_handles_size, 
+            iBase_EntityHandle **entities,
+            int *entities_allocated,
+            int *entities_size, 
             int *err); 
 
 
@@ -907,19 +884,18 @@ void iMeshP_getPartBdryEnts(
  *  Iterator functionality for getNext, reset, and end is 
  *  provided through the regular iMesh iterator functions
  *  iMesh_getNextEntIter, iMesh_resetEntIter, and iMesh_endEntIter,
- *  respectively.  If part_handle is invalid, an error is returned.
+ *  respectively.  
  *
  *  COMMUNICATION:  None.
  * 
  *  \param  instance          (In)  Mesh instance containing the partition.
- *  \param  partition_handle  (In)  Partition handle for the partition being 
- *                                  queried.
- *  \param  part_handle       (In)  Part handle for the part being queried.
+ *  \param  partition         (In)  The partition being queried.
+ *  \param  part              (In)  The part being queried.
  *  \param  entity_type       (In)  Entity type of the boundary entities;
  *                                  may be iBase_ALL_TYPES.
  *  \param  entity_topology   (In)  Entity topology of the boundary entities; 
  *                                  may be iMesh_ALL_TOPOLOGIES.
- *  \param  target_part_id    (In)  Part ID with which part_handle is sharing
+ *  \param  target_part_id    (In)  Part ID with which part is sharing
  *                                  the boundary entities; may be 
  *                                  iMeshP_ALL_PARTS.
  *  \param  entity_iterator   (Out) Iterator returned by the function.
@@ -927,8 +903,8 @@ void iMeshP_getPartBdryEnts(
  */
 void iMeshP_initPartBdryEntIter(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iMeshP_PartHandle part_handle, 
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle part, 
             int entity_type, 
             int entity_topology, 
             iMeshP_Part target_part_id, 
@@ -946,21 +922,20 @@ void iMeshP_initPartBdryEntIter(
  *  Iterator functionality for getNext, reset, and end is 
  *  provided through the regular iMesh iterator functions
  *  iMesh_getNextEntArrIter, iMesh_resetEntArrIter, and iMesh_endEntArrIter,
- *  respectively.  If part_handle is invalid, an error is returned.
+ *  respectively.  
  *
  *  COMMUNICATION:  None.
  * 
  *  \param  instance          (In)  Mesh instance containing the partition.
- *  \param  partition_handle  (In)  Partition handle for the partition being 
- *                                  queried.
- *  \param  part_handle       (In)  Part handle for the part being queried.
+ *  \param  partition         (In)  The partition being queried.
+ *  \param  part              (In)  The part being queried.
  *  \param  entity_type       (In)  Entity type of the boundary entities;
  *                                  may be iBase_ALL_TYPES.
  *  \param  entity_topology   (In)  Entity topology of the boundary entities; 
  *                                  may be iMesh_ALL_TOPOLOGIES.
  *  \param  array_size        (In)  Size of chunks of handles returned for 
  *                                  each value of the iterator.
- *  \param  target_part_id    (In)  Part ID with which part_handle is sharing
+ *  \param  target_part_id    (In)  Part ID with which part is sharing
  *                                  the boundary entities; may be 
  *                                  iMeshP_ALL_PARTS.
  *  \param  entity_iterator   (Out) Iterator returned by the function.
@@ -968,8 +943,8 @@ void iMeshP_initPartBdryEntIter(
  */
 void iMeshP_initPartBdryEntArrIter(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iMeshP_PartHandle part_handle, 
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle part, 
             int entity_type, 
             int entity_topology, 
             int array_size, 
@@ -989,27 +964,25 @@ void iMeshP_initPartBdryEntArrIter(
  *  part AND the given entity set.
  *  This function is similar to iMesh_getNumOfType, but it also restricts
  *  the returned data with respect to its existence in the given part.
- *  If part_handle is invalid, an error is returned.
  *
  *  COMMUNICATION:  None.
  *
  *  \param  instance          (In)  Mesh instance containing the partition.
- *  \param  partition_handle  (In)  Partition handle for the partition being 
- *                                  queried.
- *  \param  part_handle       (In)  Part handle for the part being queried.
- *  \param  entity_set_handle (In)  Entity set handle for the entity set 
+ *  \param  partition         (In)  The partition being queried.
+ *  \param  part              (In)  The part being queried.
+ *  \param  entity_set        (In)  Entity set handle for the entity set 
  *                                  being queried; may be the root set.
  *  \param  entity_type       (In)  Entity type of the boundary entities;
  *                                  may be iBase_ALL_TYPES.
  *  \param  num_type          (Out) Number of entities of entity_type in
- *                                  both part_handle and entity_set_handle.
+ *                                  both part and entity_set.
  *  \param  err               (Out) Error code.
  */
 void iMeshP_getNumOfType(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iMeshP_PartHandle part_handle,
-            const iBase_EntitySetHandle entity_set_handle,
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle part,
+            const iBase_EntitySetHandle entity_set,
             int entity_type, 
             int *num_type, 
             int *err);
@@ -1023,27 +996,25 @@ void iMeshP_getNumOfType(
  *  part AND the given entity set.
  *  This function is similar to iMesh_getNumOfTopo, but it also restricts
  *  the returned data with respect to its existence in the given part.
- *  If part_handle is invalid, an error is returned.
  *
  *  COMMUNICATION:  None.
  *
  *  \param  instance          (In)  Mesh instance containing the partition.
- *  \param  partition_handle  (In)  Partition handle for the partition being 
- *                                  queried.
- *  \param  part_handle       (In)  Part handle for the part being queried.
- *  \param  entity_set_handle (In)  Entity set handle for the entity set 
+ *  \param  partition         (In)  The partition being queried.
+ *  \param  part              (In)  The part being queried.
+ *  \param  entity_set        (In)  Entity set handle for the entity set 
  *                                  being queried; may be the root set.
  *  \param  entity_topology   (In)  Entity topology of the boundary entities;
  *                                  may be iMesh_ALL_TOPOLOGIES.
  *  \param  num_topo          (Out) Number of entities of entity_topology in
- *                                  both part_handle and entity_set_handle.
+ *                                  both part and entity_set.
  *  \param  err               (Out) Error code.
  */
 void iMeshP_getNumOfTopo(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iMeshP_PartHandle part_handle,
-            const iBase_EntitySetHandle entity_set_handle,
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle part,
+            const iBase_EntitySetHandle entity_set,
             int entity_topology, 
             int *num_topo, 
             int *err);
@@ -1065,17 +1036,14 @@ void iMeshP_getNumOfTopo(
  *  that storage order; otherwise the storage order is the implementation's
  *  native order.  On return, storage order contains
  *  order of the returned coordinates.
- *  If part_handle is invalid, an error is returned.
  *
  *  COMMUNICATION:  None.
  *
  *  \param  instance                (In)     Mesh instance containing the 
  *                                           partition.
- *  \param  partition_handle        (In)     Partition handle for the 
- *                                           partition being queried.
- *  \param  part_handle             (In)     Part handle for the part being 
- *                                           queried.
- *  \param  entity_set_handle       (In)     Entity set handle for the 
+ *  \param  partition               (In)     The partition being queried.
+ *  \param  part                    (In)     The part being queried.
+ *  \param  entity_set              (In)     Entity set handle for the 
  *                                           entity set being queried; 
  *                                           may be the root set.
  *  \param  coordinates             (In/Out) Array of coordinates for 
@@ -1096,9 +1064,9 @@ void iMeshP_getNumOfTopo(
  */
 void iMeshP_getAllVtxCoords(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iMeshP_PartHandle part_handle,
-            const iBase_EntitySetHandle entity_set_handle,
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle part,
+            const iBase_EntitySetHandle entity_set,
             double **coordinates,
             int *coordinates_allocated,
             int *coordinates_size,
@@ -1128,11 +1096,9 @@ void iMeshP_getAllVtxCoords(
  *
  *  \param  instance                    (In)     Mesh instance containing the 
  *                                               partition.
- *  \param  partition_handle            (In)     Partition handle for the 
- *                                               partition being queried.
- *  \param  part_handle                 (In)     Part handle for the part being 
- *                                               queried.
- *  \param  entity_set_handle           (In)     Entity set handle for the 
+ *  \param  partition                   (In)     The partition being queried.
+ *  \param  part                        (In)     The part being queried.
+ *  \param  entity_set                  (In)     Entity set handle for the 
  *                                               entity set being queried; 
  *                                               may be the root set.
  *  \param  entity_type                 (In)     Entity type of the 
@@ -1158,9 +1124,9 @@ void iMeshP_getAllVtxCoords(
  */
 void iMeshP_getVtxCoordIndex(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iMeshP_PartHandle part_handle,
-            const iBase_EntitySetHandle entity_set_handle,
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle part,
+            const iBase_EntitySetHandle entity_set,
             int entity_type,
             int entity_topology,
             int entity_adjacency_type,
@@ -1182,17 +1148,14 @@ void iMeshP_getVtxCoordIndex(
  *  that are in both the part and the entity set.
  *  This function is similar to iMesh_getEntities, but it also restricts
  *  the returned data with respect to its existence in the given part.
- *  If part_handle is invalid, an error is returned.
  *
  *  COMMUNICATION:  None.
  *
  *  \param  instance                 (In)     Mesh instance containing the 
  *                                            partition.
- *  \param  partition_handle         (In)     Partition handle for the 
- *                                            partition being queried.
- *  \param  part_handle              (In)     Part handle for the part being 
- *                                            queried.
- *  \param  entity_set_handle        (In)     Entity set handle for the 
+ *  \param  partition                (In)     The partition being queried.
+ *  \param  part                     (In)     The part being queried.
+ *  \param  entity_set               (In)     Entity set handle for the 
  *                                            entity set being queried; 
  *                                            may be the root set.
  *  \param  entity_type              (In)     Entity type of the
@@ -1201,23 +1164,23 @@ void iMeshP_getVtxCoordIndex(
  *  \param  entity_topology          (In)     Entity topology of the 
  *                                            entities;
  *                                            may be iMesh_ALL_TOPOLOGIES.
- *  \param  entity_handles           (In/Out) Array of entity handles for
- *                                            entities in both part_handle
- *                                            and entity_set_handle.
- *  \param  entity_handles_allocated (In/Out) Allocated size of entity_handles.
- *  \param  entity_handles_size      (Out)    Occupied size of entity_handles.
+ *  \param  entities                 (In/Out) Array of entity handles for
+ *                                            entities in both part       
+ *                                            and entity_set.
+ *  \param  entities_allocated       (In/Out) Allocated size of entities.
+ *  \param  entities_size            (Out)    Occupied size of entities.
  *  \param  err                      (Out)    Error code.
  */
 void iMeshP_getEntities(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iMeshP_PartHandle part_handle,
-            const iBase_EntitySetHandle entity_set_handle,
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle part,
+            const iBase_EntitySetHandle entity_set,
             int entity_type,
             int entity_topology,
-            iBase_EntityHandle **entity_handles,
-            int *entity_handles_allocated,
-            int *entity_handles_size,
+            iBase_EntityHandle **entities,
+            int *entities_allocated,
+            int *entities_size,
             int *err);
 
 
@@ -1233,20 +1196,17 @@ void iMeshP_getEntities(
  *  If a non-root entity set is specified, the function also returns
  *  flags indicating whether each adjacent entity 
  *  is in the entity set; (*in_entity_set)[i]=1 indicates that adjacent entity
- *  (*adj_entity_handles)[i] is in the specified entity set.  
+ *  (*adj_entities)[i] is in the specified entity set.  
  *  Array entry offset[i] stores the index of first adjacent entity to 
  *  entity i.
- *  If part_handle is invalid, an error is returned.
  *
  *  COMMUNICATION:  None.
  *
  *  \param  instance                     (In)     Mesh instance containing the 
  *                                                partition.
- *  \param  partition_handle             (In)     Partition handle for the 
- *                                                partition being queried.
- *  \param  part_handle                  (In)     Part handle for the part being
- *                                                queried.
- *  \param  entity_set_handle            (In)     Entity set handle for the 
+ *  \param  partition                    (In)     The partition being queried.
+ *  \param  part                         (In)     The part being queried.
+ *  \param  entity_set                   (In)     Entity set handle for the 
  *                                                entity set being queried; 
  *                                                may be the root set.
  *  \param  entity_type_requestor        (In)     Return entities adjacent to 
@@ -1258,12 +1218,12 @@ void iMeshP_getEntities(
  *  \param  entity_type_requested        (In)     Return adjacent entities of 
  *                                                this type;
  *                                                may be iBase_ALL_TYPES.
- *  \param  adj_entity_handles           (In/Out) Array of adjacent entity 
+ *  \param  adj_entities                 (In/Out) Array of adjacent entity 
  *                                                handles returned.
- *  \param  adj_entity_handles_allocated (In/Out) Allocated size of 
- *                                                adj_entity_handles.
- *  \param  adj_entity_handles_size      (Out)    Occupied size of 
- *                                                adj_entity_handles.
+ *  \param  adj_entities_allocated       (In/Out) Allocated size of 
+ *                                                adj_entities.
+ *  \param  adj_entities_size            (Out)    Occupied size of 
+ *                                                adj_entities.
  *  \param  offset                       (In/Out) Array of offsets returned.
  *  \param  offset_allocated             (In/Out) Allocated size of offset.
  *  \param  offset_size                  (Out)    Occupied size of offset.
@@ -1271,7 +1231,7 @@ void iMeshP_getEntities(
  *                                                non-root entity set was input;
  *                                                (*in_entity_set)[i]=1 
  *                                                indicates
- *                                                (*adj_entity_handles)[i] 
+ *                                                (*adj_entities)[i] 
  *                                                is in the entity set.
  *  \param  in_entity_set_allocated      (In/Out) Allocated size of 
  *                                                in_entity_set.
@@ -1281,15 +1241,15 @@ void iMeshP_getEntities(
  */
 void iMeshP_getAdjEntities(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iMeshP_PartHandle part_handle,
-            const iBase_EntityHandle entity_set_handle,
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle part,
+            const iBase_EntityHandle entity_set,
             int entity_type_requestor,
             int entity_topology_requestor,
             int entity_type_requested,
-            iBase_EntityHandle **adj_entity_handles,
-            int *adj_entity_handles_allocated,
-            int *adj_entity_handles_size,
+            iBase_EntityHandle **adj_entities,
+            int *adj_entities_allocated,
+            int *adj_entities_size,
             int **offset,
             int *offset_allocated,
             int *offset_size,
@@ -1312,11 +1272,9 @@ void iMeshP_getAdjEntities(
  *
  *  \param  instance                     (In)  Mesh instance containing the 
  *                                             partition.
- *  \param  partition_handle             (In)  Partition handle for the 
- *                                             partition being queried.
- *  \param  part_handle                  (In)  Part handle for the part being
- *                                             queried.
- *  \param  entity_set_handle            (In)  Entity set handle for the 
+ *  \param  partition                    (In)  The partition being queried.
+ *  \param  part                         (In)  The part being queried.
+ *  \param  entity_set                   (In)  Entity set handle for the 
  *                                             entity set being queried.
  *  \param  requested_entity_type        (In)  Type of entities to include in
  *                                             the iterator.
@@ -1327,9 +1285,9 @@ void iMeshP_getAdjEntities(
  */
 void iMeshP_initEntIter(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iMeshP_PartHandle part_handle,
-            const iBase_EntitySetHandle entity_set_handle,
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle part,
+            const iBase_EntitySetHandle entity_set,
             const int requested_entity_type,
             const int requested_entity_topology,
             iMesh_EntityIterator* entity_iterator,
@@ -1351,11 +1309,9 @@ void iMeshP_initEntIter(
  *
  *  \param  instance                     (In)  Mesh instance containing the 
  *                                             partition.
- *  \param  partition_handle             (In)  Partition handle for the 
- *                                             partition being queried.
- *  \param  part_handle                  (In)  Part handle for the part being
- *                                             queried.
- *  \param  entity_set_handle            (In)  Entity set handle for the 
+ *  \param  partition                    (In)  The partition being queried.
+ *  \param  part                         (In)  The part being queried.
+ *  \param  entity_set                   (In)  Entity set handle for the 
  *                                             entity set being queried.
  *  \param  requested_entity_type        (In)  Type of entities to include in
  *                                             the iterator.
@@ -1368,9 +1324,9 @@ void iMeshP_initEntIter(
  */
 void iMeshP_initEntArrIter(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle,
-            const iMeshP_PartHandle part_handle,
-            const iBase_EntitySetHandle entity_set_handle,
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle part,
+            const iBase_EntitySetHandle entity_set,
             const int requested_entity_type,
             const int requested_entity_topology,
             const int requested_array_size,
@@ -1396,9 +1352,8 @@ void iMeshP_initEntArrIter(
  *
  *  \param  instance                     (In)  Mesh instance containing the 
  *                                             partition.
- *  \param  partition_handle             (In)  Partition handle for the 
- *                                             partition being queried.
- *  \param  entity_handle                (In)  Entity whose owning part is to be
+ *  \param  partition                    (In)  The partition being queried.
+ *  \param  entity                       (In)  Entity whose owning part is to be
  *                                             returned.
  *  \param  part_id                      (Out) Part ID of the part owning
  *                                             the entity.
@@ -1406,8 +1361,8 @@ void iMeshP_initEntArrIter(
  */
 void iMeshP_getEntOwnerPart(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle, 
-            const iBase_EntityHandle entity_handle,
+            const iMeshP_PartitionHandle partition, 
+            const iBase_EntityHandle entity,
             iMeshP_Part *part_id,
             int *err); 
 
@@ -1422,12 +1377,11 @@ void iMeshP_getEntOwnerPart(
  *
  *  \param  instance              (In)     Mesh instance containing the 
  *                                         partition.
- *  \param  partition_handle      (In)     Partition handle for the 
- *                                         partition being queried.
- *  \param  entity_handles        (In)     Entity whose owning part is to be
+ *  \param  partition             (In)     The partition being queried.
+ *  \param  entities              (In)     Entity whose owning part is to be
  *                                         returned.
- *  \param  entity_handles_size   (In)     Number of entities in 
- *                                         entity_handles array.
+ *  \param  entities_size         (In)     Number of entities in 
+ *                                         entities array.
  *  \param  part_ids              (Out)    Part IDs of the parts owning
  *                                         the entities.
  *  \param  part_ids_allocated    (In/Out) Allocated size of part_ids array.
@@ -1436,9 +1390,9 @@ void iMeshP_getEntOwnerPart(
  */
 void iMeshP_getEntOwnerPartArr(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle, 
-            const iBase_EntityHandle *entity_handles,
-            const int entity_handles_size,
+            const iMeshP_PartitionHandle partition, 
+            const iBase_EntityHandle *entities,
+            const int entities_size,
             iMeshP_Part **part_ids,
             int *part_ids_allocated,
             int *part_ids_size,
@@ -1454,20 +1408,18 @@ void iMeshP_getEntOwnerPartArr(
  *  COMMUNICATION:  None.
  *
  *  \param  instance             (In)  Mesh instance containing the partition.
- *  \param  partition_handle     (In)  Partition handle for the 
- *                                     partition being queried.
- *  \param  part_handle          (In)  Part handle for the part being queried.
- *  \param  entity_handle        (In)  Entity handle for the 
- *                                     entity whose ownership is being tested.
+ *  \param  partition            (In)  The partition being queried.
+ *  \param  part                 (In)  The part being queried.
+ *  \param  entity               (In)  Entity whose ownership is being tested.
  *  \param  is_owner             (Out) Flag indicating whether the given part 
  *                                     is the owner of the given entity.
  *  \param  err                  (Out) Error code.
  */
 void iMeshP_isEntOwner(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle, 
-            const iMeshP_PartHandle part_handle, 
-            const iBase_EntityHandle entity_handle, 
+            const iMeshP_PartitionHandle partition, 
+            const iMeshP_PartHandle part, 
+            const iBase_EntityHandle entity, 
             int *is_owner, 
             int *err); 
 
@@ -1482,15 +1434,12 @@ void iMeshP_isEntOwner(
  *
  *  \param  instance                 (In)     Mesh instance containing the 
  *                                            partition.
- *  \param  partition_handle         (In)     Partition handle for the 
- *                                            partition being queried.
- *  \param  part_handle              (In)     Part handle for the 
- *                                            part being queried.
- *  \param  entity_handles           (In)     Entity handles for the 
- *                                            entities whose ownership is 
+ *  \param  partition                (In)     The partition being queried.
+ *  \param  part                     (In)     The part being queried.
+ *  \param  entities                 (In)     Entities whose ownership is 
  *                                            being tested.
- *  \param  entity_handles_size      (In)     Number of entity handles in
- *                                            entity_handles.
+ *  \param  entities_size            (In)     Number of entity handles in
+ *                                            entities.
  *  \param  is_owner                 (Out)    Flag for each entity indicating 
  *                                            whether the given part is the 
  *                                            owner of the given entity.
@@ -1500,10 +1449,10 @@ void iMeshP_isEntOwner(
  */
 void iMeshP_isEntOwnerArr(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle, 
-            const iMeshP_PartHandle part_handle, 
-            const iBase_EntityHandle *entity_handles, 
-            const int entity_handles_size, 
+            const iMeshP_PartitionHandle partition, 
+            const iMeshP_PartHandle part, 
+            const iBase_EntityHandle *entities, 
+            const int entities_size, 
             int **is_owner, 
             int *is_owner_allocated, 
             int *is_owner_size, 
@@ -1521,20 +1470,18 @@ void iMeshP_isEntOwnerArr(
  *  COMMUNICATION:  None.
  *
  *  \param  instance             (In)  Mesh instance containing the partition.
- *  \param  partition_handle     (In)  Partition handle for the 
- *                                     partition being queried.
- *  \param  part_handle          (In)  Part handle for the part being queried.
- *  \param  entity_handle        (In)  Entity handle for the 
- *                                     entity whose status is being tested.
+ *  \param  partition            (In)  The partition being queried.
+ *  \param  part                 (In)  The part being queried.
+ *  \param  entity               (In)  Entity whose status is being tested.
  *  \param  par_status           (Out) Value indicating the status of the
  *                                     is the entity with respect to the part.
  *  \param  err                  (Out) Error code.
  */
 void iMeshP_getEntStatus(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle, 
-            const iMeshP_PartHandle part_handle, 
-            const iBase_EntityHandle entity_handle, 
+            const iMeshP_PartitionHandle partition, 
+            const iMeshP_PartHandle part, 
+            const iBase_EntityHandle entity, 
             int *par_status,
             int *err); 
 
@@ -1552,15 +1499,12 @@ void iMeshP_getEntStatus(
  *
  *  \param  instance                (In)     Mesh instance containing the 
  *                                           partition.
- *  \param  partition_handle        (In)     Partition handle for the 
- *                                           partition being queried.
- *  \param  part_handle             (In)     Part handle for the 
- *                                           part being queried.
- *  \param  entity_handles          (In)     Entity handles for the 
- *                                           entities whose status is 
+ *  \param  partition               (In)     The partition being queried.
+ *  \param  part                    (In)     The part being queried.
+ *  \param  entities                (In)     Entities whose status is 
  *                                           being tested.
- *  \param  entity_handles_size     (In)     Number of entity handles in
- *                                           entity_handles.
+ *  \param  entities_size           (In)     Number of entity handles in
+ *                                           entities.
  *  \param  par_status              (Out)    Value for each entity indicating 
  *                                           the status of the entity with 
  *                                           respect to the part.
@@ -1571,14 +1515,15 @@ void iMeshP_getEntStatus(
 
 void iMeshP_getEntStatusArr(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle, 
-            const iMeshP_PartHandle part_handle, 
-            const iBase_EntityHandle *entity_handles, 
-            const int entity_handles_size, 
+            const iMeshP_PartitionHandle partition, 
+            const iMeshP_PartHandle part, 
+            const iBase_EntityHandle *entities, 
+            const int entities_size, 
             int **par_status, /* enum iMeshP_EntStatus */
             int *par_status_allocated, 
             int *par_status_size, 
             int *err); 
+
 
 
 /** \brief Return the number of copies of an entity that exist in the partition.
@@ -1593,18 +1538,16 @@ void iMeshP_getEntStatusArr(
  *  COMMUNICATION:  None++.
  *
  *  \param  instance             (In)  Mesh instance containing the partition.
- *  \param  partition_handle     (In)  Partition handle for the 
- *                                     partition being queried.
- *  \param  entity_handle        (In)  Entity handle for the 
- *                                     entity whose copy info is requested.
+ *  \param  partition            (In)  The partition being queried.
+ *  \param  entity               (In)  Entity whose copy info is requested.
  *  \param  num_copies_ent       (Out) Number of copies of the entity that 
  *                                     exist in the partition.
  *  \param  err                  (Out) Error code.
  */
 void iMeshP_getNumCopies(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle, 
-            const iBase_EntityHandle entity_handle, 
+            const iMeshP_PartitionHandle partition, 
+            const iBase_EntityHandle entity, 
             int *num_copies_ent,
             int *err); 
 
@@ -1623,9 +1566,8 @@ void iMeshP_getNumCopies(
  *
  *  \param  instance                (In)     Mesh instance containing the 
  *                                           partition.
- *  \param  partition_handle        (In)     Partition handle for the 
- *                                           partition being queried.
- *  \param  entity_handle           (In)     Entity handle whose copy info
+ *  \param  partition               (In)     The partition being queried.
+ *  \param  entity                  (In)     Entity whose copy info
  *                                           is requested.
  *  \param  part_ids                (Out)    Part IDs of parts having copies
  *                                           of the given entity.
@@ -1635,8 +1577,8 @@ void iMeshP_getNumCopies(
  */
 void iMeshP_getCopyParts(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle, 
-            const iBase_EntityHandle entity_handle, 
+            const iMeshP_PartitionHandle partition, 
+            const iBase_EntityHandle entity, 
             iMeshP_Part **part_ids, 
             int *part_ids_allocated, 
             int *part_ids_size, 
@@ -1657,499 +1599,722 @@ void iMeshP_getCopyParts(
  *
  *  \param  instance                (In)     Mesh instance containing the 
  *                                           partition.
- *  \param  partition_handle        (In)     Partition handle for the 
- *                                           partition being queried.
- *  \param  entity_handle           (In)     Entity handle whose copy info
+ *  \param  partition               (In)     The partition being queried.
+ *  \param  entity                  (In)     Entity whose copy info
  *                                           is requested.
  *  \param  part_ids                (Out)    Part IDs of parts having copies
  *                                           of the given entity.
  *  \param  part_ids_allocated      (In/Out) Allocated size of part_ids array.
  *  \param  part_ids_size           (Out)    Occupied size of part_ids array.
- *  \param  copy_handles            (Out)    (Remote) entity handles of the 
+ *  \param  copies                  (Out)    (Remote) entity handles of the 
  *                                           entity copies.
- *  \param  copy_handles_allocated  (In/Out) Allocated size of copy_handles.
- *  \param  copy_handles_size       (Out)    Occupied size of copy_handles.
+ *  \param  copies_allocated        (In/Out) Allocated size of copies.
+ *  \param  copies_size             (Out)    Occupied size of copies.
  *  \param  err                     (Out)    Error code.
  */
 void iMeshP_getCopies(
             iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition_handle, 
-            const iBase_EntityHandle entity_handle, 
+            const iMeshP_PartitionHandle partition, 
+            const iBase_EntityHandle entity, 
             iMeshP_Part **part_ids, 
             int *part_ids_allocated, 
             int *part_ids_size, 
-            iBase_EntityHandle **copy_handles, 
-            int *copy_handles_allocated, 
-            int *copy_handles_size,
+            iBase_EntityHandle **copies, 
+            int *copies_allocated, 
+            int *copies_size,
             int *err); 
 
-/**  Given a partition handle, an entity handle and a part ID, return the
- *  (possibly remote) entity handle of the entity in the specified part.
+
+
+/**  \brief Get the entity handle of a copy of a given entity in a given part.
+ *
+ *  Given a partition handle, an entity handle and a part ID, 
+ *  return the (remote) entity handle of the copy of the entity in that part.
  *  Return an error if the entity does not exist in the specified part.
- *  COMMUNICATION:  None++.*/
+ *
+ *  COMMUNICATION:  None++.
+ *
+ *  \param  instance                (In)  Mesh instance containing the 
+ *                                        partition.
+ *  \param  partition               (In)  The partition being queried.
+ *  \param  entity                  (In)  Entity whose copy info
+ *                                        is requested.
+ *  \param  part_id                 (In)  Part ID of part whose copy 
+ *                                        of the given entity is requested.
+ *  \param  copy_entity             (Out) (Remote) entity handle of the 
+ *                                        entity copy from the given part.
+ *  \param  err                     (Out) Error code.
+ */
 void iMeshP_getCopyOnPart(
             iMesh_Instance instance,
-                    /*in*/ const iMeshP_PartitionHandle partition_handle, 
-                    /*in*/ const iBase_EntityHandle entity_handle, 
-                    /*in*/ const iMeshP_Part part_id, 
-                   /*out*/ iBase_EntityHandle *copy_entity_handle, 
-                           int *err); 
+            const iMeshP_PartitionHandle partition, 
+            const iBase_EntityHandle entity, 
+            const iMeshP_Part part_id, 
+            iBase_EntityHandle *copy_entity, 
+            int *err); 
 
 
-/**  Given a partition handle and an entity handle, return the entity
- *  handle and part ID from the owner of the entity (e.g., the 
- *  entity handle of the copy that has right-to-modify).
- *  COMMUNICATION:  None++.*/
+
+/**  \brief Get the entity handle of a copy of a given entity in its owner part.
+ *
+ *  Given a partition handle and an entity handle, return the (remote) 
+ *  entity handle of the copy of the entity in its owner part.
+ *
+ *  COMMUNICATION:  None++.
+ *
+ *  \param  instance                (In)  Mesh instance containing the 
+ *                                        partition.
+ *  \param  partition               (In)  The partition being queried.
+ *  \param  entity                  (In)  Entity whose copy info
+ *                                        is requested.
+ *  \param  owner_part_id           (Out) Part ID of the entity's owner part.
+ *  \param  owner_entity            (Out) (Remote) entity handle of the 
+ *                                        entity copy from the owner part.
+ *  \param  err                     (Out) Error code.
+ */
 void iMeshP_getOwnerCopy(
             iMesh_Instance instance,
-                    /*in*/ const iMeshP_PartitionHandle partition_handle, 
-                    /*in*/ const iBase_EntityHandle entity_handle, 
-                   /*out*/ iMeshP_Part *owner_part_id, 
-                   /*out*/ iBase_EntityHandle *owner_entity_handle, 
-                           int *err); 
+            const iMeshP_PartitionHandle partition, 
+            const iBase_EntityHandle entity, 
+            iMeshP_Part *owner_part_id, 
+            iBase_EntityHandle *owner_entity, 
+            int *err); 
 
-/*------------------------------------------------
- -------         COMMUNICATION          ----------
- -------------------------------------------------/
-/*
- * Non-blocking calls for off-processor mesh-modification return a request 
- * that indicates whether or not the operation has completed.
- * The following functions receive and process requests.*/
 
-/**\brief  Wait for specified request to complete
+/*------------------------------------------------------------------------*/
+/*------------------------------------------------------------------------*/
+/*-------                         COMMUNICATION                 ----------*/
+/*------------------------------------------------------------------------*/
+/*------------------------------------------------------------------------*/
+
+
+/**\brief  Wait for a specific iMeshP request to complete.
  *
- * Wait for the specified request to complete.
- * \param req Request object to wait on
- * \param stat Status of communication request
- * \param err Error returned from function
+ *  Given an iMeshP_RequestHandle, wait for the request to complete.
+ *
  *  COMMUNICATION:  Blocking point-to-point.
- */
-void iMeshP_Wait(
-            iMesh_Instance instance,
-      const iMeshP_PartitionHandle partition_handle,
-             /*in*/ iMeshP_RequestHandle req,
-            /*out*/ iMeshP_Status *stat,
-            /*out*/ int *err);
-
-/**\brief  Wait for any of the specified requests to complete
  *
- * Wait for any of the specified requests to complete.
- * \param req Request objects to wait on
- * \param req_size Number of request objects
- * \param index Index of request in req which was completed
- * \param stat Status of communication request
- * \param err Error returned from function
+ *  \param  instance                (In)  Mesh instance containing the 
+ *                                        partition.
+ *  \param  partition               (In)  The partition being queried.
+ *  \param  request                 (In)  iMeshP request for whose completion
+ *                                        we should wait.
+ *  \param  err                     (Out) Error code.
+ */
+void iMeshP_waitForRequest(
+            iMesh_Instance instance,
+            const iMeshP_PartitionHandle partition,
+            iMeshP_RequestHandle request,
+            int *err);
+
+
+/**\brief  Wait for any of the specified iMeshP requests to complete.
+ *
+ *  Given an array of iMeshP_RequestHandles, wait for any one of the requests 
+ *  to complete.
+ *
  *  COMMUNICATION:  Blocking point-to-point.
- */
-void iMeshP_WaitAny(
-            iMesh_Instance instance,
-         const iMeshP_PartitionHandle partition_handle,
-               /*in*/ iMeshP_RequestHandle *req,
-               /*in*/ int req_size,
-               /*out*/ int *index,
-               /*out*/ iMeshP_Status *stat,
-               /*out*/ int *err);
-
-/**\brief  Wait for all of the specified requests to complete
  *
- * Wait for all of the specified requests to complete.
- * \param req Request objects to wait on
- * \param req_size Number of request objects
- * \param stat Status of communication request
- * \param err Error returned from function
+ *  \param  instance                (In)  Mesh instance containing the 
+ *                                        partition.
+ *  \param  partition               (In)  The partition being queried.
+ *  \param  requests                (In)  iMeshP requests for which we wait
+ *                                        until one request completes.
+ *  \param  requests_size           (In)  Number of requests in requests.
+ *  \param  index                   (Out) Index of the request that completed.
+ *  \param  err                     (Out) Error code.
+ */
+void iMeshP_waitForAnyRequest(
+            iMesh_Instance instance,
+            const iMeshP_PartitionHandle partition,
+            iMeshP_RequestHandle *requests,
+            int requests_size,
+            int *index,
+            int *err);
+
+
+
+/**\brief  Wait for all of the specified iMeshP requests to complete.
+ *
+ *  Given an array of iMeshP_RequestHandles, wait for all of the requests 
+ *  to complete.
+ *
  *  COMMUNICATION:  Blocking point-to-point.
- */
-void iMeshP_WaitAll(
-            iMesh_Instance instance,
-         const iMeshP_PartitionHandle partition_handle,
-               /*in*/ iMeshP_RequestHandle *req,
-               /*in*/ int req_size,
-               /*out*/ iMeshP_Status *stat,
-               /*out*/ int *err);
-
-
-/**\brief  Wait for specified request to complete
  *
- * Wait for the specified request to complete.  Returns entities
- * for which information was \em received
- * \param req Request object to wait on
- * \param entities Entities for which information was received
- * \param entities_alloc Allocated size of entities vector
- * \param entities_size Occupied size of entities vector
- * \param err Error returned from function
+ *  \param  instance                (In)  Mesh instance containing the 
+ *                                        partition.
+ *  \param  partition               (In)  The partition being queried.
+ *  \param  requests                (In)  iMeshP requests for which we wait
+ *                                        until completion.
+ *  \param  requests_size           (In)  Number of requests in requests.
+ *  \param  err                     (Out) Error code.
+ */
+void iMeshP_waitForAllRequests(
+            iMesh_Instance instance,
+            const iMeshP_PartitionHandle partition,
+            iMeshP_RequestHandle *requests,
+            int requests_size,
+            int *err);
+
+
+/**\brief  Wait for a specific request to complete; return entities received.
+ *
+ *  Given an iMeshP_RequestHandle, wait for the request to complete.  Return
+ *  entities for which information was received.
+ *
  *  COMMUNICATION:  Blocking point-to-point.
- */
-void iMeshP_WaitEnt(
-            iMesh_Instance instance,
-                 const iMeshP_PartitionHandle partition_handle,
-                  /*in*/ iMeshP_RequestHandle req,
-               /*inout*/ iBase_EntityHandle **out_entities,
-               /*inout*/ int *out_entities_alloc,
-               /*inout*/ int *out_entities_size,
-               /*out*/ int *err);
-
-/**\brief Test for whether specified request has completed
  *
- * Test for whether specified request has completed
- * \param req Request objects to wait on
- * \param flag Returned true if request completed
- * \param stat Status of communication request
- * \param err Error returned from function
- *  COMMUNICATION:  Point-to-point; non-blocking.
+ *  \param  instance                (In)     Mesh instance containing the 
+ *                                           partition.
+ *  \param  partition               (In)     The partition being queried.
+ *  \param  request                 (In)     iMeshP request for whose completion
+ *                                           we should wait.
+ *  \param  out_entities            (Out)    Entities for which information was
+ *                                           received.
+ *  \param  out_entities_allocated  (In/Out) Allocated size of out_entities.
+ *  \param  out_entities_size       (Out)    Occupied size of out_entities.
+ *  \param  err                     (Out)    Error code.
  */
-void iMeshP_Test(
+void iMeshP_waitForRequestEnt(
             iMesh_Instance instance,
-      const iMeshP_PartitionHandle partition_handle,
-             /*in*/ iMeshP_RequestHandle req,
-            /*out*/ int *flag,
-            /*out*/ iMeshP_Status *stat,
-            /*out*/ int *err);
+            const iMeshP_PartitionHandle partition,
+            iMeshP_RequestHandle request,
+            iBase_EntityHandle **out_entities,
+            int *out_entities_allocated,
+            int *out_entities_size,
+            int *err);
 
-/** Poll for requests.  The internals of this function are going to have
- * to cover a lot of ground.  The array in the return is there as a
- * placeholder to tell the application that something interesting / useful
- * has been done to a handle.  This might indicate successful in-migration,
- * a recent change in vertex location, or successful completion of handle
- * matching. 
- * 
- * Returns an array of requests that have been handled.  If
- * the array has a size allocated already, then the implementation stops
- * working when it has generated that many completed requests, even if there
- * are more messages waiting.  The syntax on this call should perhaps be
- * modified somewhat to make it more compatible with an analogous MPI call.
- * 
- * Should also perhaps have its name changed to handleMessages or some such
- * thing, since the function should not only poll for unexpected
- * messages, but also handle expected ones; these is no reason to
- * separately call two different functions to handle non-blocking receives
- * for different types of messages.
- * COMMUNICATION:  non-blocking; point-to-point.
+/**\brief  Test whether a specific request has completed.
+ *
+ *  Given an iMeshP_RequestHandle, test whether the request has completed.
+ *  This function will not wait until the request completes; it will only
+ *  return the completion status (complete = 1 or 0).
+ *
+ *  COMMUNICATION:  None.
+ *
+ *  \param  instance                (In)  Mesh instance containing the 
+ *                                        partition.
+ *  \param  partition               (In)  The partition being queried.
+ *  \param  request                 (In)  iMeshP request for whose completion
+ *                                        we should test.
+ *  \param  completed               (Out) Flag indicating whether (1) or 
+ *                                        not (0) the given request has 
+ *                                        completed.
+ *  \param  err                     (Out) Error code.
+ */
+void iMeshP_testRequest(
+            iMesh_Instance instance,
+            const iMeshP_PartitionHandle partition,
+            iMeshP_RequestHandle request,
+            int *completed,
+            int *err);
+
+
+
+/** \brief  Poll for outstanding requests.  
+ *
+ *  Check for outstanding requests from other parts, handle any requests 
+ *  found, and return an array of requests that have been handled.  If
+ *  the array has a size allocated already, then the implementation stops
+ *  working when it has generated that many completed requests, even if there
+ *  are more requests waiting. 
+ *  
+ *  COMMUNICATION:  non-blocking; point-to-point.
+ *
+ *  \param  instance                     (In)     Mesh instance containing the 
+ *                                                partition.
+ *  \param  partition                    (In)     The partition being queried.
+ *  \param  requests_completed           (Out)    Requests that were completed.
+ *  \param  requests_completed_allocated (In/Out) Allocated size of
+ *                                                requests_completed.
+ *  \param  requests_completed_size      (Out)    Occupied size of
+ *                                                requests_completed.
+ *  \param  err                          (Out)    Error code.
  */
 void iMeshP_pollForRequests(
             iMesh_Instance instance,
-           iMeshP_PartitionHandle partition_handle,
-           iMeshP_RequestHandle **requests_completed,
-                            int *requests_allocated,
-                            int *requests_size,
-                            int *err);
+            iMeshP_PartitionHandle partition,
+            iMeshP_RequestHandle **requests_completed,
+            int *requests_completed_allocated,
+            int *requests_completed_size,
+            int *err);
 
 /*--------------------------------------------------------------------
   -------    Requests for off-processor mesh modification      -------
   --------------------------------------------------------------------*/
 
-/**
- *  Add entities to on-process and/or off-process parts:  
- *  Collective-communication version:  
- *  iMeshP_exchEntArrToPartsPar is a collective, non-blocking operation
+/** \brief  Add entities to on-process and/or off-process parts.
+ *
+ *  Given a partition and a list of entities, add those entities to the
+ *  target parts.  The entities can be added as copies or migrated entirely
+ *  (i.e., change ownership of the entities)
+ *  to the parts.  The entities' downward adjacencies are also copied and/or
+ *  migrated as appropriate to support the entities.
+ *  This function is a collective, non-blocking operation
  *  to be called by all processes in the partition's communicator.  
- *  An iMeshP_RequestHandle is returned; any of the iMeshP_Wait functions can be
- *  used to block until the request is completed.
- *  COMMUNICATION:  Collective.  Non-blocking.*/
+ *  An iMeshP_RequestHandle is returned; any of the 
+ *  iMeshP_wait* functions can be used to block until the request is completed.
+ *
+ *  COMMUNICATION:  Collective.  Non-blocking.
+ *
+ *  \param  instance          (In)  Mesh instance containing the partition.
+ *  \param  partition         (In)  Handle for the partition being queried.
+ *  \param  entities          (In)  Entities to be sent.
+ *  \param  entities_size     (In)  Number of entities to be sent.
+ *  \param  target_part_ids   (In)  Array of size entities_size listing
+ *                                  the parts to which the entities should
+ *                                  be sent.
+ *  \param  command_code      (In)  Flag indicating whether to migrate
+ *                                  the entities or only make copies.
+ *  \param  update_ghost      (In)  Flag indicating whether (1) or not (0)
+ *                                  ghost copies of the entities should be
+ *                                  updated with new owner information.
+ *  \param  request           (Out) iMeshP RequestHandle returned; can be used 
+ *                                  for blocking until this send is complete.
+ *  \param  err               (Out) Error code.
+ */
 void iMeshP_exchEntArrToPartsAll(
             iMesh_Instance instance,
-                       /*in*/  const iMeshP_PartitionHandle partition_handle,
-                       /*in*/  const iBase_EntityHandle *entity_handles,
-                       /*in*/  const int entity_handles_size,
-                       /*in*/  const iMeshP_Part *target_part_ids,
-                       /*in*/  int command_code,  /* e.g., MIGRATE,COPY */
-                       /*in*/  int update_ghost,  /* e.g., YES,NO */
-                      /*out*/  iMeshP_RequestHandle *request,
-                               int *err);
+            const iMeshP_PartitionHandle partition,
+            const iBase_EntityHandle *entities,
+            const int entities_size,
+            const iMeshP_Part *target_part_ids,
+            int command_code,  
+            int update_ghost,
+            iMeshP_RequestHandle *request,
+            int *err);
 
 
-/** Request in-migration to a given part of an entity and its upward adjacencies.
- * This is a pull migration.  The
- * entity must be on the part bdry and is identified by local handle, and
- * the implementation handles the rest.  This operation will require multiple
- * rounds of communication, and at some times certain entities may be
- * locked (unavailable for local modification) while info about their
- * remote copies is still in question.
- * It's worth mentioning that implementations will have to take care to
- * migrate tags and parallel set membership as well as adjacency info.
- * CHANGES: Returns a request handle.  Assumes you wouldn't be asking if
- * you didn't need the upward adjacencies as well.
- * COMMUNICATION:  point-to-point, non-blocking, pull. */
+/** \brief Request in-migration of an entity and its upward adjacencies.
+ *
+ *  This function is a "pull" migration, where a part requests to become the
+ *  owner of an entity that is owned by another part (so that the part has
+ *  the right to modify the entity).  The requested
+ *  entity must be on the part boundary and is identified by a local handle
+ *  (i.e., an entity part-boundary copy).   This operation may require multiple
+ *  rounds of communication, and at some times, certain entities may be
+ *  locked (unavailable for local modification) while info about their
+ *  remote copies is still in question.  Tags and parallel set membership 
+ *  are migrated as well as the appropriate adjacency info.
+ *  An iMeshP request handle is returned.
+ *
+ *  COMMUNICATION:  point-to-point, non-blocking, pull. 
+ *
+ *  \param  instance          (In)  Mesh instance containing the partition.
+ *  \param  partition         (In)  The partition being queried.
+ *  \param  part              (In)  The part to which the entity is migrated.
+ *  \param  local_entity      (In)  The local entity copy for the entity to be
+ *                                  migrated.
+ *  \param  request           (Out) The iMeshP request handle returned.
+ *  \param  err               (Out) Error code.
+ */
 void iMeshP_migrateEntity(
             iMesh_Instance instance, 
-                          const iMeshP_PartitionHandle partition_handle,
-                          const iMeshP_PartHandle part_handle,
-                          const iBase_EntityHandle local_entity_handle,
-                          iMeshP_RequestHandle *request,
-                          int *err);
+            const iMeshP_PartitionHandle partition,
+            iMeshP_PartHandle part,
+            iBase_EntityHandle local_entity,
+            iMeshP_RequestHandle *request,
+            int *err);
 
-/** Update vertex coordinates.  One could argue that we could overload
- * the setVtxCoords function to do this, and maybe we should.  But that
- * obfuscates when communication could occur.  The communication here is
- * push-and-forget.
- * Because this is push-and-forget, no request handle -should- be generated.
- * COMMUNICATION:  point-to-point, non-blocking, push-and-forget.*/
+
+
+/** \brief Update vertex coordinates for vertex copies.  
+ *
+ *  For a given vertex, update its copies with the vertex's coordinates.
+ *  This function assumes that a local vertex's coordinates were updated
+ *  through a call to iMesh_setVtxCoords.  This function then updates all
+ *  copies of the vertex with the updated coordinates.
+ *  The communication here is push-and-forget; as such, 
+ *  no request handle needs to be returned.
+ *
+ *  COMMUNICATION:  point-to-point, non-blocking, push-and-forget.
+ *
+ *  \param  instance          (In)  Mesh instance containing the partition.
+ *  \param  partition         (In)  The partition being queried.
+ *  \param  local_vertex      (In)  The vertex whose copies should be updated.
+ *  \param  err               (Out) Error code.
+ */
 void iMeshP_updateVtxCoords(
             iMesh_Instance instance, 
-                            const iMeshP_PartitionHandle partition_handle,
-                            const iBase_EntityHandle local_vertex_handle,
-                            int *err);
+            const iMeshP_PartitionHandle partition,
+            const iBase_EntityHandle local_vertex,
+            int *err);
 
-/** Replace entities.  This refers to changes on the part bdry where the
- * application/service is responsible for ensuring that things are done
- * identically on both sides and that the args are passed in an order that
- * can be matched.  (Specifically, matching new entities should appear in
- * the same order in the call array.)  Communication here could be a
- * two-way push-and-forget, or some variant on push-and-confirm.
- * CHANGES: At Onkar's suggestion, added an offset array (similar to array
- * adjacency requests) so that a single call can easily handle coordination
- * with multiple entities on part-boundary.
- * COMMUNICATION:  point-to-point, non-blocking, push-and-forget. */
+
+
+/** \brief Replace entities on the part boundary.
+ *
+ *  This function performs changes on the part boundary where the
+ *  calling application can ensure that things are done
+ *  identically on both sides and that the arguments are passed in an order 
+ *  that can be matched.  (Specifically, matching new entities should appear in
+ *  the same order in the call array.)  An example is creation of new 
+ *  boundary edges during edge splitting.
+ *  Communication here could be a
+ *  two-way push-and-forget, or some variant on push-and-confirm.
+ *  CHANGES: At Onkar's suggestion, added an offset array (similar to array
+ *  adjacency requests) so that a single call can easily handle coordination
+ *  with multiple entities on part-boundary.
+ *
+ *  COMMUNICATION:  point-to-point, non-blocking, push-and-forget. 
+ *
+ *  \param  instance          (In)  Mesh instance containing the partition.
+ *  \param  partition         (In)  The partition being queried.
+ *  \param  old_entities      (In)  The entities to be replaced.
+ *  \param  old_entities_size (In)  The number of entities to be replaced.
+ *  \param  new_entities      (In)  The entities that replace the old entities.
+ *  \param  new_entities_size (In)  The number of entities in new_entities.
+ *  \param  offset            (In)  Index into new_entities; old_entities[i]
+ *                                  is replaced by new_entities[offset[i]] to
+ *                                  new_entities[offset[i+1]-1].
+ *  \param  offset_size       (In)  The number of entries in offset.
+ *  \param  err               (Out) Error code.
+ */
 void iMeshP_replaceOnPartBdry(
             iMesh_Instance instance, 
-                       const iMeshP_PartitionHandle partition_handle,
-                       const iBase_EntityHandle *old_entities,
-                       const int old_entities_size,
-                       const iBase_EntityHandle *new_entities,
-                       const int new_entities_size,
-                       const int *offset,
-                       const int offset_size,
-                       int *err);
+            const iMeshP_PartitionHandle partition,
+            const iBase_EntityHandle *old_entities,
+            const int old_entities_size,
+            const iBase_EntityHandle *new_entities,
+            const int new_entities_size,
+            const int *offset,
+            const int offset_size,
+            int *err);
 
 
-/** The ability to create and delete copies is likely
- * to be useful, even though for common topologically-based cases, copies
- * maintainance can (and IMO should) be done automagically, either at
- * migration time or during iMeshP_syncMeshAll.  
- * Communication here is
- * push-and-confirm for creation (so that the original knows ID's of the
- * ghosts), push-and-forget for deletion (in the latter case, no request
- * handle is needed).  I'm assuming here that the closure of a new ghost
- * will be pushed automatically as part of the underlying communication,
- * and that the remote part will clean up the closure as appropriate during
- * deletion.
- * COMMUNICATION:  point-to-point, non-blocking, push.*/
+
+/** \brief Push ghost copies of individual entities onto other parts.
+ *
+ *  Given an entity and a target part, create a ghost copy of the entity on
+ *  the target part.
+ * 
+ *  Communication here is push-and-confirm (so that the original knows remote
+ *  entity handle of the created ghosts).  The closure of a new ghost is pushed
+ *  automatically as part of the underlying communication.
+ *
+ *  COMMUNICATION:  point-to-point, non-blocking, push.
+ *
+ *  \param  instance          (In)  Mesh instance containing the partition.
+ *  \param  partition         (In)  The partition being queried.
+ *  \param  target_part_id    (In)  The part to receive the new ghost.
+ *  \param  entity_to_copy    (In)  The entity to be copied in target_part_id.
+ *  \param  request           (Out) The iMeshP request handle returned.
+ *  \param  err               (Out) Error code.
+ */
 void iMeshP_addGhostOf(
             iMesh_Instance instance, 
-        /* in */       const iMeshP_PartitionHandle partition_handle,
-        /* in */       const iMeshP_Part target_part_id,
-        /* in */       const iBase_EntityHandle entity_to_copy,
-        /* out */      iMeshP_RequestHandle *request,
-                       int *err);
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_Part target_part_id,
+            iBase_EntityHandle entity_to_copy,
+            iMeshP_RequestHandle *request,
+            int *err);
 
+/** \brief Remove ghost copies of individual entities from other parts.
+ *
+ *  Given an entity and a target part, remove the ghost copy of the entity on
+ *  the target part.
+ *
+ *  Communication is push-and-forget; as such, no request handle is needed.
+ *  The remote part will clean up the closure of the removed ghost
+ *  as appropriate during deletion.
+ *
+ *  COMMUNICATION:  point-to-point, non-blocking, push-and-forget.
+ *
+ *  \param  instance          (In)  Mesh instance containing the partition.
+ *  \param  partition         (In)  The partition being queried.
+ *  \param  target_part_id    (In)  The part to lose the ghost.
+ *  \param  copy_to_purge     (In)  The entity whose ghost is removed from 
+ *                                  target_part_id.
+ *  \param  err               (Out) Error code.
+ */
 void iMeshP_rmvGhostOf(
             iMesh_Instance instance, 
-        /* in */       const iMeshP_PartitionHandle partition_handle,
-        /* in */       const iMeshP_Part target_part_id,
-        /* in */       const iBase_EntityHandle copy_to_purge,
-                       int *err);
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_Part target_part_id,
+            iBase_EntityHandle copy_to_purge,
+            int *err);
 
-/** Done with mesh modification.  This is a blocking call, to get
- * everything up-to-date and back in synch.  Essentially, waits for all
- * message traffic to clear, as well as (possibly) rebuilding a bunch of
- * ghost info that was allowed to go obsolete.*/
+/** \brief Indicate completion of mesh modification.
+ *
+ *  Calling this function indicates that the user is finished with mesh 
+ *  modification for now.  With mesh modification complete, the implementation
+ *  can update ghost, partition, boundary, and other information to 
+ *  re-establish a valid distributed mesh.  This function waits for all
+ *  message traffic to clear and rebuilds ghost information that was
+ *  allowed to go obsolete during mesh modification.
+ *
+ *  COMMUNICATION:  collective.
+ *
+ *  \param  instance          (In)  Mesh instance containing the partition.
+ *  \param  partition         (In)  The partition being queried.
+ *  \param  err               (Out) Error code.
+ */  
 void iMeshP_syncMeshAll(
             iMesh_Instance instance, 
-                       const iMeshP_PartitionHandle partition_handle,
-                       int *err);
+            iMeshP_PartitionHandle partition,
+            int *err);
                             
 /*--------------------------------------------------------------------------*/
-/* Functions to send Tag data from owning entities to copies.*/
+/*         Functions to send Tag data from owning entities to copies.       */
+/*--------------------------------------------------------------------------*/
 
-/**\brief  Synchronously send tag data for entity type/topo
- * and part
+/**\brief  Synchronously send tag data for given entity types and topologies.
  *
- * Send tag information for shared entities of specified type/
- * topology to specified part.  
- * The tag data is "pushed" from the
- * owner entities to all copies.
- * This version operates on all
- * shared entities of specified type/topology (or all
- * types/topologies if iMesh_ALL_TYPE or iMesh_ALL_TOPOLOGIES are
- * given).  This function assumes tag handles given on various
- * calling parts are consistent, i.e. they have the same name,
- * data type, size, etc.  This call blocks until communication is
- * completed
- * \param tag Tag handle to exchange
- * \param entity_type Tag data exchanged only for this entity type
- * \param entity_topo Tag data exchanged only for this entity topology
- * \param err Error returned from function
+ *  Send tag information for shared entities of specified type and
+ *  topology.  The tag data is "pushed" from the owner entities to all copies.
+ *  This version operates on all shared entities of specified type and topology
+ *  (or all types/topologies if iBase_ALL_TYPES/iMesh_ALL_TOPOLOGIES are
+ *  given).  This function assumes tag handles given on various
+ *  calling parts are consistent; i.e. they have the same name,
+ *  data type, size, etc.  This call blocks until communication is
+ *  completed.
+ *
+ *  COMMUNICATION:  point-to-point, blocking.
+ * 
+ *  \param  instance          (In)  Mesh instance containing the partition.
+ *  \param  partition         (In)  The partition being queried.
+ *  \param  source_tag        (In)  Tag handle for the sending entities.
+ *  \param  dest_tag          (In)  Tag handle for the receiving entities.
+ *  \param  entity_type       (In)  Tag data is exchanged only for this 
+ *                                  entity type.
+ *  \param  entity_topo       (In)  Tag data is exchanged only for this 
+ *                                  entity topology.
+ *  \param  err               (Out) Error code.
  */
 void iMeshP_pushTags(
             iMesh_Instance instance,
-          const iMeshP_PartitionHandle partition_handle,
-                /*in*/ iBase_TagHandle tag, 
-                /*in*/ int entity_type, 
-                /*in*/ int entity_topo, 
-                /*out*/ int *err);
+            const iMeshP_PartitionHandle partition,
+            iBase_TagHandle source_tag, 
+            iBase_TagHandle dest_tag, 
+            int entity_type, 
+            int entity_topo, 
+            int *err);
 
-/**\brief  Synchronously send tag data for entities and part
+
+/**\brief  Synchronously send tag data for individual entities.
  *
- * Send tag information for specified entities, which must
- * already be shared.  
- * The tag data is "pushed" from the
- * owner entities to all copies.
- * This function assumes tag handles given on various
- * calling parts are consistent, i.e. they have the same name,
- * data type, size, etc.  This call blocks until communication is
- * completed
- * \param tag Tag handle to exchange
- * \param entities Owned entities for which to send data
- * \param entities_size Number of entities
- * \param err Error returned from function
+ *  Send tag information for the specified entities.
+ *  The tag data is "pushed" from the owner entities to all copies.
+ *  This function assumes tag handles given on various
+ *  calling parts are consistent; i.e. they have the same name,
+ *  data type, size, etc.  This call blocks until communication is
+ *  completed.
+ *
+ *  COMMUNICATION:  point-to-point, blocking.
+ * 
+ *  \param  instance        (In)  Mesh instance containing the partition.
+ *  \param  partition       (In)  The partition being queried.
+ *  \param  source_tag      (In)  Tag handle for the sending entities.
+ *  \param  dest_tag        (In)  Tag handle for the receiving entities.
+ *  \param  entities        (In)  Owned entities for which to send data.
+ *  \param  entities_size   (In)  The number of entities for which to send data.
+ *  \param  err             (Out) Error code.
  */
 void iMeshP_pushTagsEnt(
             iMesh_Instance instance,
-                 const iMeshP_PartitionHandle partition_handle,
-                   /*in*/ iBase_TagHandle tag, 
-                   /*in*/ const iBase_EntityHandle *entities,
-                   /*in*/ int entities_size,
-                   /*out*/ int *err);
+            const iMeshP_PartitionHandle partition,
+            iBase_TagHandle source_tag, 
+            iBase_TagHandle dest_tag, 
+            const iBase_EntityHandle *entities,
+            int entities_size,
+            int *err);
 
 
-/**\brief  Asynchronously send tag data for entity type/topo
- * and part
+
+
+/**\brief  Asynchronously send tag data for given entity types and topologies.
  *
- * Send tag information for shared entities of specified type/
- * topology to specified part.  
- * The tag data is "pushed" from the
- * owner entities to all copies.
- * This version operates on all
- * shared entities of specified type/topology (or all
- * types/topologies if iMesh_ALL_TYPE or iMesh_ALL_TOPOLOGIES are
- * given).  This function assumes tag handles given on various
- * calling parts are consistent, i.e. they have the same name,
- * data type, size, etc.  Applications can call iMeshP_Wait or
- * iMeshP_WaitEnt to block until associated call completes
- * \param tag Tag handle to exchange
- * \param entity_type Tag data exchanged only for this entity type
- * \param entity_topo Tag data exchanged only for this entity topology
- * \param iMeshP_RequestHandle Request object used in call to
- *    iMeshP_Wait or iMeshP_WaitEnt
- * \param err Error returned from function
+ *  Send tag information for shared entities of specified type and
+ *  topology.  The tag data is "pushed" from the owner entities to all copies.
+ *  This version operates on all shared entities of specified type and topology
+ *  (or all types/topologies if iBase_ALL_TYPES/iMesh_ALL_TOPOLOGIES are
+ *  given).  This function assumes tag handles given on various
+ *  calling parts are consistent; i.e. they have the same name,
+ *  data type, size, etc.  
+ *  This call does not block; applications should call 
+ *  iMeshP_waitForRequest (or a similar wait function)
+ *  to block until this push is completed.
+ *
+ *  COMMUNICATION:  point-to-point, non-blocking.
+ * 
+ *  \param  instance          (In)  Mesh instance containing the partition.
+ *  \param  partition         (In)  The partition being queried.
+ *  \param  source_tag        (In)  Tag handle for the sending entities.
+ *  \param  dest_tag          (In)  Tag handle for the receiving entities.
+ *  \param  entity_type       (In)  Tag data is exchanged only for this 
+ *                                  entity type.
+ *  \param  entity_topo       (In)  Tag data is exchanged only for this 
+ *                                  entity topology.
+ *  \param  request           (Out) The iMeshP request handle returned.
+ *  \param  err               (Out) Error code.
  */
 void iMeshP_iPushTags(
             iMesh_Instance instance,
-                 const iMeshP_PartitionHandle partition_handle,
-                 /*in*/ iBase_TagHandle tag, 
-                 /*in*/ int entity_type, 
-                 /*in*/ int entity_topo, 
-                /*out*/ iMeshP_RequestHandle *req,
-                /*out*/ int *err);
+            const iMeshP_PartitionHandle partition,
+            iBase_TagHandle source_tag, 
+            iBase_TagHandle dest_tag, 
+            int entity_type, 
+            int entity_topo, 
+            iMeshP_RequestHandle *request,
+             int *err);
 
-/**\brief  Asynchronously send tag data for entities and part
+/**\brief  Asynchronously send tag data for individual entities.
  *
- * Sedn tag information for specified entities, which must
- * already be shared.  
- * The tag data is "pushed" from the
- * owner entities to all copies.
- * This function assumes tag handles given on various
- * calling parts are consistent, i.e. they have the same name,
- * data type, size, etc.  Applications can call iMeshP_Wait or
- * iMeshP_WaitEnt to block until associated call completes
- * \param tag Tag handle to exchange
- * \param entities Owned entities for which to send data
- * \param entities_size Number of entities
- * \param iMeshP_RequestHandle Request object used in call to
- *    iMeshP_Wait or iMeshP_WaitEnt
- * \param err Error returned from function
+ *  Send tag information for the specified entities.
+ *  The tag data is "pushed" from the owner entities to all copies.
+ *  This function assumes tag handles given on various
+ *  calling parts are consistent; i.e. they have the same name,
+ *  data type, size, etc.  
+ *  This call does not block; applications should call 
+ *  iMeshP_waitForRequest (or a similar wait function)
+ *  to block until this push is completed.
+ *
+ *  COMMUNICATION:  point-to-point, non-blocking.
+ * 
+ *  \param  instance        (In)  Mesh instance containing the partition.
+ *  \param  partition       (In)  The partition being queried.
+ *  \param  source_tag      (In)  Tag handle for the sending entities.
+ *  \param  dest_tag        (In)  Tag handle for the receiving entities.
+ *  \param  entities        (In)  Owned entities for which to send data.
+ *  \param  entities_size   (In)  The number of entities for which to send data.
+ *  \param  request         (Out) The iMeshP request handle returned.
+ *  \param  err             (Out) Error code.
  */
 void iMeshP_iPushTagsEnt(
             iMesh_Instance instance,
-                     const iMeshP_PartitionHandle partition_handle,
-                    /*in*/ iBase_TagHandle tag, 
-                    /*in*/ const iBase_EntityHandle *entities,
-                    /*in*/ int entities_size,
-                   /*out*/ iMeshP_RequestHandle *req,
-                   /*out*/ int *err);
-
-/*  GHOST ENTITY SUPPORT */
-/*
-The triplet describing a ghosting "rule" (ghost dim, bridge dim, #
-layers) will be stored in the partition and re-established by the end
-of iMeshP_syncPartitionAll and iMeshP_syncMeshAll.  Implementations can
-choose to keep ghosting consistent throughout mesh modification, but ghosts
-are not required to be consistent until the end of these two functions.
-
-The number of layers specified is with respect to the global mesh;
-that is, ghosting may extend beyond a single neighboring processor if the
-number of layers is high.
-
-iMeshP_createGhostEntities is a preprocessing function.  It is
-cumulative; that is, multiple calls may add more ghosts, not eliminate
-previous ghosts.  
-*/
-
-/* \brief Create ghost entities between parts/processors.
-  * Ghost entities are specified similar to 2nd-order adjacencies, i.e.
-  * through a "bridge" dimension.  Number of layers is measured from
-  * the inter-processor interfaces.  For example, to get 2 layers of hex
-  * entities in the ghost layer, measured from faces on the interface,
-  * use ghost_dim=3, bridge_dim=2, and num_layers=2.
-  *
-  * Ghost information is cached on the partition.
-  *
-  * \param instance iMesh instance
-  * \param partition_handle Partition on which to create ghosts
-  * \param ghost_type Entity type of entities ghosted
-  * \param bridge_type Entity type through which bridge adjacencies are found
-  * \param num_layers Number of layers of ghost entities
-  * \param err Error returned from function
-  * \param include_copies  Create ghosts of non-owned part boundary entities?
-  *         (1/0)
-  * COMMUNICATION:  Collective.  Blocking.
-  */
-void iMeshP_createGhostEnts(/*in*/ iMesh_Instance instance,
-                       /*in*/ iMeshP_PartitionHandle partition_handle,
-                       /*in*/ int ghost_type,
-                       /*in*/ int bridge_type,
-                       /*in*/ int num_layers,
-                       /*in*/ int include_copies,
-                       /*out*/ int *err);
-
-/* \brief Delete all ghost entities between parts/processors.
-  * \param instance iMesh instance
-  * \param partition_handle Partition on which ghost entities are deleted
-  * \param err Error returned from function
-  * COMMUNICATION:  None.
-  */
-void iMeshP_deleteGhostEnts(/*in*/ iMesh_Instance instance,
-                       /*in*/ iMeshP_PartitionHandle partition_handle,
-                       /*out*/ int *err);
+            const iMeshP_PartitionHandle partition,
+            iBase_TagHandle source_tag, 
+            iBase_TagHandle dest_tag, 
+            const iBase_EntityHandle *entities,
+            int entities_size,
+            iMeshP_RequestHandle *request,
+            int *err);
 
 
-/* \brief Return information about all ghosting on a partition.
-  * \param instance iMesh instance
-  * \param partition_handle Partition on which ghost entities are deleted
-  * \param num_ghost_rules  Number of ghosting rules currently registered 
-  * \param ghost_type Entity type of ghost entities
-  * \param bridge_type Entity type of bridge entities
-  * \param num_layers Number of layers of ghost entities
-  * \param err Error returned from function
-  * COMMUNICATION:  None.
-  */
-void iMeshP_ghostEntInfo(/*in*/ iMesh_Instance instance,
-                    /*in*/ iMeshP_PartitionHandle partition_handle,
-                    /*out*/ int *num_ghost_rules,
-                    /*inout*/ int *ghost_rules_allocated, 
-                    /*inout*/ int *ghost_rules_size, 
-                    /*out*/ int **ghost_type,
-                    /*out*/ int **bridge_type,
-                    /*out*/ int **num_layers,
-                    /*out*/ int *err);
+/*------------------------------------------------------------*
+ *                   GHOSTING                                 *
+ *------------------------------------------------------------*/
+
+/* \brief Create ghost entities between parts.
+ *
+ *  Ghost entities are specified similar to 2nd-order adjacencies, i.e.,
+ *  through a "bridge" dimension.  The number of layers is measured from
+ *  the inter-part interfaces.  For example, to get two layers of region
+ *  entities in the ghost layer, measured from faces on the interface,
+ *  use ghost_dim=3, bridge_dim=2, and num_layers=2.
+ *  The number of layers specified is with respect to the global mesh;
+ *  that is, ghosting may extend beyond a single neighboring processor if the
+ *  number of layers is high.
+ *
+ *  Ghost information is cached in the partition.  
+ *  The triplet describing a ghosting "rule" (ghost dim, bridge dim, #
+ *  layers) is stored in the partition; ghosting that became incorrect
+ *  due to mesh modification or redistribution of mesh entities is 
+ *  re-established using these rules by the end
+ *  of iMeshP_syncPartitionAll and iMeshP_syncMeshAll.  
+ *  Implementations can choose to keep ghosting consistent throughout 
+ *  mesh modification, but ghosts are not required to be consistent until 
+ *  the end of these two functions.
+
+ *  iMeshP_createGhostEntsAll is cumulative; that is, multiple calls can only
+ *  add more ghosts, not eliminate previous ghosts.  
+ *  
+ *  COMMUNICATION:  Collective.  Blocking.
+ *
+ *  \param  instance          (In)  Mesh instance containing the partition.
+ *  \param  partition         (In)  The partition in which to create ghosts.
+ *  \param  ghost_type        (In)  Entity type of entities to be ghosted.
+ *  \param  bridge_type       (In)  Entity type through which bridge 
+ *                                  adjacencies are found.
+ *  \param  num_layers        (In)  Number of layers of ghost entities.
+ *  \param  include_copies    (In)  Flag indicating whether to create ghosts 
+ *                                  of non-owned part boundary entities 
+ *                                  (YES=1, NO=0).
+ *  \param  err               (Out) Error code.
+ */
+void iMeshP_createGhostEntsAll(
+            iMesh_Instance instance,
+            iMeshP_PartitionHandle partition,
+            int ghost_type,
+            int bridge_type,
+            int num_layers,
+            int include_copies,
+            int *err);
+
+
+
+/* \brief Delete all ghost entities between parts.
+ *
+ *  Given a partition, delete all ghost entities in that partition of the mesh.
+ *
+ *  COMMUNICATION:  Collective.  Blocking.
+ *
+ *  \param  instance          (In)  Mesh instance containing the partition.
+ *  \param  partition         (In)  The partition from which to delete ghosts.
+ *  \param  err               (Out) Error code.
+ *
+ */
+void iMeshP_deleteGhostEntsAll(
+            iMesh_Instance instance,
+            iMeshP_PartitionHandle partition,
+            int *err);
+
+
+
+
+/** \brief Return information about all ghosting on a partition.
+ *
+ *  Return the ghosting rules established through calls to
+ *  iMeshP_createGhostEntsAll.
+ *
+ *  COMMUNICATION:  None.
+ *
+ *  \param  instance               (In)     Mesh instance containing the 
+ *                                          partition.
+ *  \param  partition              (In)     The partition to be queried.
+ *  \param  ghost_rules_allocated  (In/Out) Allocated size of ghost_type,
+ *                                          bridge_type and num_layers.
+ *  \param  ghost_rules_size       (Out)    Occupied size of ghost_type, 
+ *                                          bridge_type and num_layers;
+ *                                          equal to the number of ghosting 
+ *                                          rules currently registered in 
+ *                                          the partition.
+ *  \param  ghost_type             (Out)    Entity type of ghost entities 
+ *                                          for each rule.
+ *  \param  bridge_type            (Out)    Entity type of bridge entities 
+ *                                          for each rule.
+ *  \param  num_layers             (Out)    Number of layers of ghosts in each 
+ *                                          rule.
+ *  \param  err                    (Out)    Error code.
+ */
+void iMeshP_ghostEntInfo(
+            const iMesh_Instance instance,
+            const iMeshP_PartitionHandle partition,
+            int *ghost_rules_allocated, 
+            int *ghost_rules_size, 
+            int **ghost_type,
+            int **bridge_type,
+            int **num_layers,
+            int *err);
 
 /*--------------------------------------------------------------------------
             FILE I/O                                          
  --------------------------------------------------------------------------*/
 /* iMeshP file I/O closely aligns with iMesh file I/O.  The major
  * change is the addition of a iMeshP_PartitionHandle argument to both
- * iMeshP_load and iMeshP_save, enabling I/O from parallel processes.
+ * iMeshP_loadAll and iMeshP_saveAll, enabling I/O from parallel processes.
  * For now, individual implementations will support different sets of
  * options; Tim and Ken will work to unify the options by SC08.
  */
 
 /** \brief Populate a mesh instance and a partition by reading data from files.
  * 
- *  Before calling iMeshP_load, the application creates both a mesh 
- *  instance and a partition handle.  iMeshP_load then reads the
+ *  Before calling iMeshP_loadAll, the application creates both a mesh 
+ *  instance and a partition handle.  iMeshP_loadAll then reads the
  *  specified file, inserts entities into the mesh instance, constructs
  *  parts within the partition, and inserts entities into the parts.
  *  Options allow n>=1 files on p processes.
- *  Optional capabilities of iMeshP_load include computing an initial
+ *  Optional capabilities of iMeshP_loadAll include computing an initial
  *  partition (e.g., if a serial mesh file without part assignments is read)
  *  and creating ghost entities as requested by the application; the
  *  availability of these options is implementation dependent.
@@ -2157,19 +2322,18 @@ void iMeshP_ghostEntInfo(/*in*/ iMesh_Instance instance,
  *  COMMUNICATION:  Collective.
  * 
  *  \param  instance            (In)  Mesh instance to contain the data.
- *  \param  partition_handle    (In)  Partition handle for the newly 
- *                                    populated partition.
- *  \param  entity_set_handle   (In)  Set to which the mesh will be added.
+ *  \param  partition           (In)  The newly populated partition.
+ *  \param  entity_set          (In)  Set to which the mesh will be added.
  *  \param  name                (in)  File name from which mesh data is read.
  *  \param  options             (In)  Implementation-specific options string.
  *  \param  err                 (Out) Error code.
  *  \param  name_len            (In)  Length of the file name character string.
  *  \param  options_len         (In)  Length of the options character string.
  */
-void iMeshP_load(
+void iMeshP_loadAll(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
-            const iBase_EntitySetHandle entity_set_handle,
+            const iBase_EntitySetHandle entity_set,
             const char *name, 
             const char *options,
             int *err, 
@@ -2178,25 +2342,24 @@ void iMeshP_load(
 
 /** \brief Write data from a mesh instance and a partition to files.
  *
- *  iMeshP_save writes mesh and partition data to the specified file.
+ *  iMeshP_saveAll writes mesh and partition data to the specified file.
  *  Options allow n>=1 files on p processes.
  *
  *  COMMUNICATION:  Collective.
  * 
  *  \param  instance            (In)  Mesh instance containing the partition.
- *  \param  partition_handle    (In)  Partition handle for the partition being 
- *                                    saved.
- *  \param  entity_set_handle   (In)  Set from which data will be saved.
+ *  \param  partition           (In)  The partition being saved.
+ *  \param  entity_set          (In)  Set from which data will be saved.
  *  \param  name                (in)  File name to which mesh data is written.
  *  \param  options             (In)  Implementation-specific options string.
  *  \param  err                 (Out) Error code.
  *  \param  name_len            (In)  Length of the file name character string.
  *  \param  options_len         (In)  Length of the options character string.
  */
-void iMeshP_save(
+void iMeshP_saveAll(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
-            const iBase_EntitySetHandle entity_set_handle,
+            const iBase_EntitySetHandle entity_set,
             const char *name, 
             const char *options,
             int *err, 
@@ -2487,4 +2650,3 @@ optimize storage or ignore the flag.
 #endif
 
 #endif /* defined(iMeshP_h) */
-

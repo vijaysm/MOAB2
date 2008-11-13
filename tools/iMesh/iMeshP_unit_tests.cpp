@@ -531,7 +531,7 @@ int create_mesh( const char* filename, int num_parts )
     // write file
   iBase_EntitySetHandle root_set;
   iMesh_getRootSet( imesh, &root_set, &ierr );
-  iMeshP_save( imesh, partition, root_set, filename, 0, &ierr, strlen(filename), 0 );
+  iMeshP_saveAll( imesh, partition, root_set, filename, 0, &ierr, strlen(filename), 0 );
   CHKERR;
   
   iMesh_dtor( imesh, &ierr ); CHKERR;
@@ -551,7 +551,7 @@ int test_load( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, PartMap& map, 
   
   iBase_EntitySetHandle root_set;
   iMesh_getRootSet( imesh, &root_set, &ierr );
-  iMeshP_load( imesh, prtn, root_set, FILENAME, 0, &ierr, strlen(FILENAME), 0 );
+  iMeshP_loadAll( imesh, prtn, root_set, FILENAME, 0, &ierr, strlen(FILENAME), 0 );
   PCHECK;
 
   
