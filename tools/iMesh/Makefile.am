@@ -14,10 +14,7 @@ DEFS += $(DEFINES)
 
 # stuff for c test program
 check_PROGRAMS = testc_cbind
-testc_cbind_SOURCES = testc_cbind.c
 
-LDADD = libiMesh.la $(top_builddir)/libMOAB.la ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
-testc_cbind_DEPENDENCIES = libiMesh.la $(top_builddir)/libMOAB.la
 
 libiMesh_la_SOURCES = \
 	iMesh_MOAB.cpp \
@@ -36,14 +33,22 @@ if PARALLEL
   libiMesh_la_include_HEADERS += iMeshP.h iMeshP_f.h iMeshP_protos.h
   INCLUDES += -I$(top_srcdir)/parallel
 
-  check_PROGRAMS += partest
-  partest_SOURCES = partest.cpp
-  partest_DEPENDENCIES = libiMesh.la $(top_builddir)/libMOAB.la 
+  check_PROGRAMS += partest iMeshP_unit_tests
 
 #  check_PROGRAMS += ftest
 #  ftest_SOURCES = ftest.F
 #  ftest_DEPENDENCIES = libiMesh.la $(top_builddir)/libMOAB.la 
 endif
+
+LDADD = libiMesh.la $(top_builddir)/libMOAB.la ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
+TESTDEPS = libiMesh.la $(top_builddir)/libMOAB.la
+
+testc_cbind_SOURCES = testc_cbind.c
+testc_cbind_DEPENDENCIES = $(TESTDEPS)
+partest_SOURCES = partest.cpp
+partest_DEPENDENCIES = $(TESTDEPS)
+iMeshP_unit_tests_SOURCES = iMeshP_unit_tests.cpp
+iMeshP_unit_tests_DEPENDENCIES = $(TESTDEPS)
 
 lib_LTLIBRARIES = libiMesh.la
 
@@ -65,7 +70,7 @@ cfg_DATA = iMesh-Defs.inc
 # 'make prefix=/foo install', we don't know the correct install
 # directory until we're doing the install.
 install-data-hook:
-	echo "IMESH_DIR=${DESTDIR}${cfgdir}/.." >> $(DESTDIR)$(cfgdir)/iMesh-SIDL-Defs.inc
+	echo "IMESH_DIR=${cfgdir}/.." >> $(DESTDIR)$(cfgdir)/iMesh-SIDL-Defs.inc
 	echo "IMESH_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 	echo "IMESH_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
