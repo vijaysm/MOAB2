@@ -303,11 +303,11 @@ extern "C" {
 
     eatwhitespace(tmp_filename);
     eatwhitespace(tmp_options);
+    std::string opts = ";"; opts += tmp_options;
   
     MBEntityHandle file_set;
   
-    MBErrorCode result = MBI->load_file(tmp_filename.c_str(), file_set, 
-                                        tmp_options.c_str());
+    MBErrorCode result = MBI->load_file(tmp_filename.c_str(), file_set, opts.c_str());
 
     if (MB_SUCCESS != result) {
       std::string msg("iMesh_load:ERROR loading a mesh, with error type: ");
