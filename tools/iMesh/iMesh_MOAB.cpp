@@ -188,7 +188,7 @@ iMesh_EntityIterator create_itaps_iterator( MBRange& range, int array_size )
   RangeIterator* iter = new RangeIterator;
   if (iter) {
     iter->iteratorRange.swap(range);
-    iter->currentPos = range.begin();
+    iter->currentPos = iter->iteratorRange.begin();
     iter->requestedSize = array_size;
   }
   return iter;
@@ -879,7 +879,7 @@ extern "C" {
                                 /*inout*/ iBase_EntityHandle** entity_handles,
                                 /*inout*/ int* entity_handles_allocated,
                                 /*out*/ int* entity_handles_size,
-                                int *is_end, int *err) 
+                                int *has_data, int *err) 
   {
     RangeIterator *this_it = RANGE_ITERATOR(entArr_iterator);
 
@@ -889,21 +889,16 @@ extern "C" {
     CHECK_SIZE(*entity_handles, *entity_handles_allocated, expected_size,
                iBase_EntityHandle, false);
   
-    int j = 0, i;
-    for (i = 0; i < this_it->requestedSize; ++i, ++this_it->currentPos)
+    int i = 0;
+    while (i < this_it->requestedSize && this_it->currentPos != this_it->iteratorRange.end())
     {
-      if (this_it->currentPos == this_it->iteratorRange.end()) {
-        *is_end = false;
-        *entity_handles_size = j;
-        RETURN(iBase_SUCCESS);
-      }
-
       if (MBimesh->is_valid(*this_it->currentPos)) 
-        (*entity_handles)[j++] = (iBase_EntityHandle)*this_it->currentPos;
+        (*entity_handles)[i++] = (iBase_EntityHandle)*(this_it->currentPos);
+      ++(this_it->currentPos);
     }
   
-    *is_end = true;
-    *entity_handles_size = j;
+    *has_data = (this_it->currentPos != this_it->iteratorRange.end());
+    *entity_handles_size = i;
     RETURN(iBase_SUCCESS);
   }
 
