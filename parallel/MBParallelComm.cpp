@@ -4259,21 +4259,56 @@ MBErrorCode MBParallelComm::get_interface_sets( MBEntityHandle ,
 
 MBErrorCode MBParallelComm::get_owning_part( MBEntityHandle handle,
                                              int& owning_part_id,
-                                             MBEntityHandle* owning_handle )
+                                             MBEntityHandle* remote_handle )
 {
-  // assume get_sharing_parts returns owner first in list.
-  MBErrorCode result;
-  int n, parts[MAX_SHARING_PROCS];
-  if (owning_handle) {
-    MBEntityHandle handles[MAX_SHARING_PROCS];
-    result = get_sharing_parts( handle, parts, n, handles );
-    *owning_handle = handles[0];
+
+  // FIXME : assumes one part per proc, and therefore part_id == rank
+  
+    // If entity is not shared, then we're the owner.
+  unsigned char pstat;
+  MBErrorCode result = mbImpl->tag_get_data(pstatus_tag(), &handle, 1,
+                                            &pstat);
+  if (!(pstat & PSTATUS_NOT_OWNED)) {
+    owning_part_id = proc_config().proc_rank();
+    if (remote_handle)
+      *remote_handle = handle;
+    return MB_SUCCESS;
   }
-  else {
-    result = get_sharing_parts( handle, parts, n );
+  
+    // If entity is shared with one other proc, then
+    // sharedp_tag will contain a positive value.
+  result = mbImpl->tag_get_data( sharedp_tag(), &handle, 1, &owning_part_id );
+  if (MB_SUCCESS != result)
+    return result;
+  if (owning_part_id != -1) {
+      // done?
+    if (!remote_handle)
+      return MB_SUCCESS;
+      
+      // get handles on remote processors (and this one)
+    return mbImpl->tag_get_data( sharedh_tag(), &handle, 1, remote_handle );
   }
-  owning_part_id = parts[0];
-  return result;
+  
+    // If here, then the entity is shared with at least two other processors.
+    // Get the list from the sharedps_tag
+  const void* part_id_list = 0;
+  result = mbImpl->tag_get_data( sharedps_tag(), &handle, 1, &part_id_list );
+  if (MB_SUCCESS != result)
+    return result;
+  owning_part_id = ((const int*)part_id_list)[0];
+ 
+    // done?
+  if (!remote_handle)
+    return MB_SUCCESS;
+  
+    // get remote handles
+  const void* handle_list = 0;
+  result = mbImpl->tag_get_data( sharedhs_tag(), &handle, 1, &handle_list );
+  if (MB_SUCCESS != result)
+    return result;
+  
+  *remote_handle = ((const MBEntityHandle*)handle_list)[0];
+  return MB_SUCCESS;
 }    
 
 MBErrorCode MBParallelComm::get_sharing_parts( MBEntityHandle entity,
@@ -4290,35 +4325,29 @@ MBErrorCode MBParallelComm::get_sharing_parts( MBEntityHandle entity,
                                             &pstat);
   if (!(pstat & PSTATUS_SHARED)) {
     part_ids_out[0] = proc_config().proc_rank();
-    num_part_ids_out = 1;
     if (remote_handles)
       remote_handles[0] = entity;
+    num_part_ids_out = 1;
     return MB_SUCCESS;
   }
   
     // If entity is shared with one other proc, then
     // sharedp_tag will contain a positive value.
-  int other_proc;
-  result = mbImpl->tag_get_data( sharedp_tag(), &entity, 1, &other_proc );
+  result = mbImpl->tag_get_data( sharedp_tag(), &entity, 1, part_ids_out );
   if (MB_SUCCESS != result)
     return result;
-  if (-1 != other_proc) {
-      // make sure we return owner first, as other functions
-      // (e.g. get_owning_part) assume that behavior
-    const int other_idx = !(pstat & PSTATUS_NOT_OWNED);
-    const int my_idx = 1 - other_idx;
-      // return this processor and the other one
+  if (part_ids_out[0] != -1) {
+    
     num_part_ids_out = 2;
-    part_ids_out[my_idx] = proc_config().proc_rank();
-    part_ids_out[other_idx] = other_proc;
+    part_ids_out[1] = proc_config().proc_rank();
 
       // done?
     if (!remote_handles)
       return MB_SUCCESS;
       
       // get handles on remote processors (and this one)
-    remote_handles[my_idx] = entity;
-    return mbImpl->tag_get_data( sharedh_tag(), &entity, 1, remote_handles + other_idx );
+    remote_handles[1] = entity;
+    return mbImpl->tag_get_data( sharedh_tag(), &entity, 1, remote_handles );
   }
   
     // If here, then the entity is shared with at least two other processors.
@@ -4329,12 +4358,14 @@ MBErrorCode MBParallelComm::get_sharing_parts( MBEntityHandle entity,
     // Count number of valid (positive) entries in sharedps_tag
   for (num_part_ids_out = 0; num_part_ids_out < MAX_SHARING_PROCS &&
        part_ids_out[num_part_ids_out] >= 0; ++num_part_ids_out);
+  part_ids_out[num_part_ids_out++] = proc_config().proc_rank();
   
     // done?
   if (!remote_handles)
     return MB_SUCCESS;
   
     // get remote handles
+  remote_handles[num_part_ids_out-1] = entity;
   return mbImpl->tag_get_data( sharedhs_tag(), &entity, 1, remote_handles );
 }
 
