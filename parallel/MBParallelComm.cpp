@@ -4301,8 +4301,8 @@ MBErrorCode MBParallelComm::get_sharing_parts( MBEntityHandle entity,
   if (-1 != other_proc) {
       // make sure we return owner first, as other functions
       // (e.g. get_owning_part) assume that behavior
-    const int my_idx = !(pstat & PSTATUS_NOT_OWNED);
-    const int other_idx = 1 - my_idx;
+    const int other_idx = !(pstat & PSTATUS_NOT_OWNED);
+    const int my_idx = 1 - other_idx;
       // return this processor and the other one
     num_part_ids_out = 2;
     part_ids_out[my_idx] = proc_config().proc_rank();
