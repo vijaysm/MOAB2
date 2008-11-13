@@ -4217,7 +4217,13 @@ MBErrorCode MBParallelComm::get_part_neighbor_ids( MBEntityHandle part,
   if (parts[j] != neighbors_out)
     std::copy( parts[j], parts[j]+num_neighbors_out, neighbors_out );
     
-  return MB_SUCCESS;
+    
+    // remove input part from list
+  int id;
+  rval = get_part_id( part, id );
+  if (MB_SUCCESS == rval) 
+    num_neighbors_out = std::remove( neighbors_out, neighbors_out+num_neighbors_out, id ) - neighbors_out;
+  return rval;
 }
 
 MBErrorCode MBParallelComm::get_interface_sets( MBEntityHandle ,
