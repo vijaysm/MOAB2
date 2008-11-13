@@ -386,9 +386,19 @@ MBErrorCode MBCore::load_file( const char* file_name,
     // if reading in parallel, call a different reader
   std::string parallel_opt;
   rval = opts.get_option( "PARALLEL", parallel_opt);
-  if (MB_SUCCESS == rval && !parallel_opt.empty()) {
+  if (MB_SUCCESS == rval) {
 #ifdef USE_MPI    
-    return ReadParallel(this).load_file(file_name, file_set, opts,
+    MBParallelComm* pcomm = 0;
+    int pcomm_id;
+    rval = opts.get_int_option( "PCOMM", pcomm_id );
+    if (rval == MB_SUCCESS) {
+      pcomm = MBParallelComm::get_pcomm( this, pcomm_id );
+      if (!pcomm)
+        return MB_ENTITY_NOT_FOUND;
+    }
+    else if (rval != MB_TYPE_OUT_OF_RANGE) 
+      return rval;
+    return ReadParallel(this,pcomm).load_file(file_name, file_set, opts,
                                         block_id_list, num_blocks);
 #else
     mError->set_last_error( "PARALLEL option not valid, this instance"
