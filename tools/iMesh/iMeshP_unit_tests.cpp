@@ -333,10 +333,10 @@ int main( int argc, char* argv[] )
 #endif
       // loop forever on requested processor, giving the user time
       // to attach a debugger.  Once the debugger in attached, user
-      // can change 'stop'.  E.g. on gdb do "set var stop = 1"
+      // can change 'stop'.  E.g. on gdb do "set var pause = 0"
     if (atoi(argv[2]) == rank) {
-      volatile int stop = 0;
-      while (!stop);
+      volatile int pause = 1;
+      while (pause);
     }
     MPI_Barrier(MPI_COMM_WORLD);
   }
@@ -344,7 +344,7 @@ int main( int argc, char* argv[] )
   if (rank == 0) {
     ierr = create_mesh( FILENAME, size );
   }
-  MPI_Scatter( &ierr, 1, MPI_INT, &ierr, 1, MPI_INT, 0, MPI_COMM_WORLD );
+  MPI_Bcast( &ierr, 1, MPI_INT, 0, MPI_COMM_WORLD );
   if (ierr) {
     if (rank == 0) {
       std::cerr << "Failed to create input test file on root processor.  Aborting."
@@ -517,10 +517,10 @@ int create_mesh( const char* filename, int num_parts )
   for (int i = 0; i < num_parts; ++i) {
     iMeshP_PartHandle part;
     iMeshP_createPart( imesh, partition, &part, &ierr ); CHKERR;
-    iBase_EntityHandle quads[] = { elements[i/2  ][2*(i%2)  ],
-                                   elements[i/2+1][2*(i%2)  ],
-                                   elements[i/2  ][2*(i%2)+1],
-                                   elements[i/2+1][2*(i%2)+1] };
+    iBase_EntityHandle quads[] = { elements[2*(i/2)  ][2*(i%2)  ],
+                                   elements[2*(i/2)+1][2*(i%2)  ],
+                                   elements[2*(i/2)  ][2*(i%2)+1],
+                                   elements[2*(i/2)+1][2*(i%2)+1] };
     iBase_EntitySetHandle set = part;
     iMesh_addEntArrToSet( imesh, quads, 4, &set, &ierr ); CHKERR;
     assert(set == part);

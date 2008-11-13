@@ -1522,6 +1522,9 @@ MBErrorCode MBParallelComm::set_remote_data(MBEntityHandle *local_ents,
                                             int num_ents,
                                             int other_proc) 
 {
+  if (0 == num_ents)
+    return MB_SUCCESS;
+
     // NOTE: THIS IMPLEMENTATION IS JUST LIKE THE RANGE-BASED VERSION, NO REUSE
     // AT THIS TIME, SO IF YOU FIX A BUG IN THIS VERSION, IT MAY BE IN THE
     // OTHER VERSION TOO!!!
@@ -4208,7 +4211,8 @@ MBErrorCode MBParallelComm::get_part_neighbor_ids( MBEntityHandle part,
     rval = get_sharing_parts( *i, curr, n );
     if (MB_SUCCESS != rval)
       return rval;
-    std::sort( parts, parts+n );
+    std::sort( curr, curr+n );
+    assert( num_neighbors_out < MAX_SHARING_PROCS );
     int* k = std::set_union( parts[j], parts[j]+num_neighbors_out,
                              curr, curr + n, parts[1-j] );
     j = 1-j;
