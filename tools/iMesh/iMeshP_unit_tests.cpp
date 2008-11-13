@@ -393,6 +393,10 @@ int main( int argc, char* argv[] )
   std::cout.flush();
   MPI_Barrier( MPI_COMM_WORLD );
   
+    // clean up output file
+  if (rank == 0)
+    remove( FILENAME );
+  
   if (rank == 0) {
     if (!num_errors) 
       std::cout << "All tests passed" << std::endl;
