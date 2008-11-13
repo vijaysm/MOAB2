@@ -563,6 +563,76 @@ int create_mesh( const char* filename, int num_parts )
 }
 
 
+static int get_entities( iMesh_Instance imesh,
+                         iBase_EntitySetHandle set,
+                         iBase_EntityType type,
+                         iMesh_EntityTopology topo,
+                         std::vector<iBase_EntityHandle>& entities )
+{
+  iBase_EntitySetHandle* array = 0;
+  int junk = 0, size = 0, err;
+  iMesh_getEntities( imesh, set, type, topo, &array, &junk, &size, &err );
+  if (!err) {
+    entities.clear();
+    entities.resize( size );
+    std::copy( array, array + size, entities.begin() );
+    free( array );
+  }
+  return err;
+}
+
+static int get_intersection( iMesh_Instance imesh,
+                             iBase_EntitySetHandle set1,
+                             iBase_EntitySetHandle set2,
+                             iBase_EntityType type,
+                             iMesh_EntityTopology topo,
+                             std::vector<iBase_EntityHandle>& entities )
+{
+  std::vector<iBase_EntityHandle> l1, l2;
+  int err;
+  err = get_entities( imesh, set1, type, topo, l1 );
+  if (err)
+    return err;
+  err = get_entities( imesh, set2, type, topo, l2 );
+  if (err)
+    return err;
+  
+  std::sort( l1.begin(), l1.end() );
+  std::sort( l2.begin(), l2.end() );
+  std::set_intersection( l1.begin(), l1.end(),
+                         l2.begin(), l2.end(),
+                         std::back_inserter( entities ) );
+  return iBase_SUCCESS;
+}
+
+static int get_part_quads_and_verts( iMesh_Instance imesh,
+                                     iMeshP_PartHandle part,
+                                     std::vector<iBase_EntityHandle>& elems,
+                                     std::vector<iBase_EntityHandle>& verts )
+{
+  int ierr = get_entities( imesh, part, iBase_FACE, iMesh_QUADRILATERAL, elems );
+  CHKERR;
+  
+  verts.resize(4*elems.size());
+  std::vector<int> junk(elems.size()+1);
+  int junk1 = verts.size(), count, junk2 = junk.size(), junk3;
+  iBase_EntityHandle* junk4 = &verts[0];
+  int* junk5 = &junk[0];
+  iMesh_getEntArrAdj( imesh, &elems[0], elems.size(), iBase_VERTEX,
+                      &junk4, &junk1, &count,
+                      &junk5, &junk2, &junk3, &ierr );
+  CHKERR;
+  assert( junk1 == (int)verts.size() );
+  assert( count == (int)(4*elems.size()) );
+  assert( junk2 == (int)junk.size() );
+  assert( junk4 == &verts[0] );
+  assert( junk5 == &junk[0] );
+  std::sort( verts.begin(), verts.end() );
+  verts.erase( std::unique( verts.begin(), verts.end() ), verts.end() );
+  return iBase_SUCCESS;
+}
+  
+  
 
 /**************************************************************************
                            Test  Implementations
@@ -656,48 +726,6 @@ int test_get_parts( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const Par
   assert( junk1 == num_part_l );
   ASSERT( count == num_part_l );
   
-  return iBase_SUCCESS;
-}
-
-static int get_entities( iMesh_Instance imesh,
-                         iBase_EntitySetHandle set,
-                         iBase_EntityType type,
-                         iMesh_EntityTopology topo,
-                         std::vector<iBase_EntityHandle>& entities )
-{
-  iBase_EntitySetHandle* array = 0;
-  int junk = 0, size = 0, err;
-  iMesh_getEntities( imesh, set, type, topo, &array, &junk, &size, &err );
-  if (!err) {
-    entities.clear();
-    entities.resize( size );
-    std::copy( array, array + size, entities.begin() );
-    free( array );
-  }
-  return err;
-}
-
-static int get_intersection( iMesh_Instance imesh,
-                             iBase_EntitySetHandle set1,
-                             iBase_EntitySetHandle set2,
-                             iBase_EntityType type,
-                             iMesh_EntityTopology topo,
-                             std::vector<iBase_EntityHandle>& entities )
-{
-  std::vector<iBase_EntityHandle> l1, l2;
-  int err;
-  err = get_entities( imesh, set1, type, topo, l1 );
-  if (err)
-    return err;
-  err = get_entities( imesh, set2, type, topo, l2 );
-  if (err)
-    return err;
-  
-  std::sort( l1.begin(), l1.end() );
-  std::sort( l2.begin(), l2.end() );
-  std::set_intersection( l1.begin(), l1.end(),
-                         l2.begin(), l2.end(),
-                         std::back_inserter( entities ) );
   return iBase_SUCCESS;
 }
 
@@ -1814,14 +1842,147 @@ int test_entity_owner( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const 
   return ierr;
 }
 
+static int get_part_boundary_verts( iMesh_Instance imesh,
+                                    iMeshP_PartitionHandle prtn,
+                                    const PartMap& map,
+                                    iMeshP_PartHandle part,
+                                    std::vector<iBase_EntityHandle>& boundary )
+{
+  int ierr, logical_id;
+  ierr = map.part_from_coords( imesh, part, logical_id );
+  CHKERR;
+
+  int neighbors[5], num_neighbors;
+  get_part_neighbors( logical_id, map.get_parts().size(), neighbors, num_neighbors );
+
+  for (int j = 0; j < num_neighbors; ++j) {
+    iBase_EntityHandle iface[3];
+    int num_iface;
+    ierr = interface_verts( imesh, prtn, part, neighbors[j], map, iface, num_iface );
+    CHKERR;
+    std::copy( iface, iface+num_iface, std::back_inserter(boundary) );
+  }
+
+  std::sort( boundary.begin(), boundary.end() );
+  boundary.erase( std::unique( boundary.begin(), boundary.end() ), boundary.end() );
+  return iBase_SUCCESS;
+}
+
 /**\brief Test entity status
  *
  * Test:
  * - iMeshP_getEntStatus
  * - iMeshP_getEntStatusArr
  */
-int test_entity_status( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& )
+int test_entity_status( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& map )
 {
+  int ierr, rank, size;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  MPI_Comm_size( MPI_COMM_WORLD, &size );
+    
+    // get local part handles
+  std::vector<iMeshP_PartHandle> parts;
+  ierr = get_local_parts( imesh, prtn, parts );
+  PCHECK;
+
+    // for each part
+  int num_quad_ent_incorrect = 0, num_quad_ent_error = 0;
+  int num_quad_arr_incorrect = 0, num_quad_arr_error = 0;
+  int num_vert_ent_incorrect = 0, num_vert_ent_error = 0;
+  int num_vert_arr_incorrect = 0, num_vert_arr_error = 0;
+  for (size_t i = 0; i < parts.size(); ++i) {
+    const iMeshP_PartHandle part = parts[i];
+    
+      // get quads and vertices
+    std::vector<iBase_EntityHandle> quads, verts;
+    ierr = get_part_quads_and_verts( imesh, part, quads, verts );
+    if (ierr)
+      break;
+    
+      // check quad status (no ghosting yet)
+    for (size_t j = 0; j < quads.size(); ++j) {
+      int status;
+      iMeshP_getEntStatus( imesh, prtn, part, quads[j], &status, &ierr );
+      if (ierr != iBase_SUCCESS) {
+        ++num_quad_ent_error;
+        ierr = iBase_SUCCESS;
+        continue;
+      }
+      
+      if (status != iMeshP_INTERNAL)
+        ++num_quad_ent_incorrect;
+    }
+    
+      // check quad status using iMeshP_getEntStatusArr
+    std::vector<int> stat_list(quads.size());
+    int* junk1 = &stat_list[0];
+    int junk2 = stat_list.size(), count;
+    iMeshP_getEntStatusArr( imesh, prtn, part, &quads[0], quads.size(),
+                            &junk1, &junk2, &count, &ierr );
+    if (ierr != iBase_SUCCESS) {
+      ++num_quad_arr_error;
+      ierr = iBase_SUCCESS;
+      continue;
+    }
+    assert( junk1 == &stat_list[0] );
+    assert( junk2 == (int)stat_list.size() );
+    assert( count == (int)quads.size() );
+    for (size_t j = 0; j < quads.size(); ++j)
+      if (stat_list[j] != iMeshP_INTERNAL)
+        ++num_quad_arr_incorrect;
+    
+      // figure out which vertices are on the boundary
+    std::vector<iBase_EntityHandle> boundary;
+    ierr = get_part_boundary_verts(imesh, prtn, map, part, boundary);
+    if (ierr)
+      break;
+    std::sort( boundary.begin(), boundary.end() );
+    
+      // check vertex status (no ghosting yet)
+    for (size_t j = 0; j < verts.size(); ++j) {
+      int status;
+      iMeshP_getEntStatus( imesh, prtn, part, verts[j], &status, &ierr );
+      if (ierr != iBase_SUCCESS) {
+        ++num_vert_ent_error;
+        ierr = iBase_SUCCESS;
+        continue;
+      }
+      bool on_boundary = std::binary_search( boundary.begin(), boundary.end(), verts[j] );
+      if (status != (on_boundary ? iMeshP_BOUNDARY : iMeshP_INTERNAL))
+         ++num_vert_ent_incorrect;
+    }
+     
+      // check vert status using iMeshP_getEntStatusArr
+    stat_list.resize(verts.size());
+    junk1 = &stat_list[0];
+    junk2 = stat_list.size();
+    iMeshP_getEntStatusArr( imesh, prtn, part, &verts[0], verts.size(),
+                            &junk1, &junk2, &count, &ierr );
+    if (ierr != iBase_SUCCESS) {
+      ++num_vert_arr_error;
+      ierr = iBase_SUCCESS;
+      continue;
+    }
+    assert( junk1 == &stat_list[0] );
+    assert( junk2 == (int)stat_list.size() );
+    assert( count == (int)verts.size() );
+    for (size_t j = 0; j < verts.size(); ++j) {
+      bool on_boundary = std::binary_search( boundary.begin(), boundary.end(), verts[j] );
+      if (stat_list[j] != (on_boundary ? iMeshP_BOUNDARY : iMeshP_INTERNAL))
+         ++num_vert_arr_incorrect;
+    }
+  }
+  PCHECK; // check if loop interrupted by any internal errors
+
+  ASSERT( 0 == num_quad_ent_error );
+  ASSERT( 0 == num_quad_arr_error );
+  ASSERT( 0 == num_vert_ent_error );
+  ASSERT( 0 == num_vert_arr_error );
+  ASSERT( 0 == num_quad_ent_incorrect );
+  ASSERT( 0 == num_quad_arr_incorrect );
+  ASSERT( 0 == num_vert_ent_incorrect );
+  ASSERT( 0 == num_vert_arr_incorrect );
+  
   return iBase_SUCCESS;
 }
 
