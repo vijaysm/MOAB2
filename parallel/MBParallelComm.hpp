@@ -60,6 +60,8 @@ public:
                  MPI_Comm comm = MPI_COMM_WORLD,
                  int* pcomm_id_out = 0);
 
+    //! Get ID used to reference this PCOMM instance
+  int get_id() const { return pcommID; }
 
     //! get the indexed pcomm object from the interface
   static MBParallelComm *get_pcomm(MBInterface *impl, const int index);
@@ -70,6 +72,9 @@ public:
   static MBParallelComm *get_pcomm( MBInterface* impl, 
                                     MBEntityHandle partitioning,
                                     const MPI_Comm* comm = 0 );
+
+  static MBErrorCode get_all_pcomm( MBInterface* impl,
+                                    std::vector<MBParallelComm*>& list );
 
     //! destructor
   ~MBParallelComm();
@@ -171,6 +176,8 @@ public:
      * \param tagh Handle of tag to be exchanged
      */
   MBErrorCode exchange_tags(MBTag tagh);
+  
+  MBErrorCode exchange_tags( MBTag tag, const MBRange& entities );
 
     /** \brief Broadcast all entities resident on from_proc to other processors
      * This function assumes remote handles are *not* being stored, since (usually)
@@ -309,7 +316,9 @@ public:
 
     //! return partition, interface set ranges
   MBRange &partition_sets() {return partitionSets;}
+  const MBRange &partition_sets() const {return partitionSets;}
   MBRange &interface_sets() {return interfaceSets;}
+  const MBRange &interface_sets() const {return interfaceSets;}
       
     //! return sharedp tag
   MBTag sharedp_tag();
@@ -366,12 +375,13 @@ public:
   MBErrorCode get_global_part_count( int& count_out ) const;
   MBErrorCode get_part_owner( int part_id, int& owner_out ) const;
   MBErrorCode get_part_id( MBEntityHandle part, int& id_out ) const;
+  MBErrorCode get_part_handle( int id, MBEntityHandle& handle_out ) const;
   MBErrorCode create_part( MBEntityHandle& part_out );
   MBErrorCode destroy_part( MBEntityHandle part ) ;
   MBErrorCode collective_sync_partition();
   MBErrorCode get_part_neighbor_ids( MBEntityHandle part, 
                                      int neighbors_out[MAX_SHARING_PROCS],
-                                     int num_neighbors_out );
+                                     int& num_neighbors_out );
   MBErrorCode get_interface_sets( MBEntityHandle part, 
                                   MBRange& iface_sets_out,
                                   int* adj_part_id = 0 );
@@ -382,6 +392,11 @@ public:
                                  int part_ids_out[MAX_SHARING_PROCS],
                                  int& num_part_ids_out,
                                  MBEntityHandle remote_handles[MAX_SHARING_PROCS] = 0 );
+
+    // Propogate mesh modification amongst shared entities
+    // from the onwing processor to any procs with copies.
+  MBErrorCode update_shared_mesh();
+
 private:
 
   int num_subranges(const MBRange &this_range);
@@ -486,7 +501,7 @@ private:
   
   /**\brief Serialize entity tag data
    *
-   * This function operates in two pases.  The first phase,
+   * This function operates in two passes.  The first phase,
    * specified by 'just_count == true' calculates the necesary
    * buffer size for the serialized data and, optionally populates
    * the vectors of tag handles and entity ranges.  The second phase
@@ -726,6 +741,8 @@ private:
   int globalPartCount; //!< Cache of global part count
   
   MBEntityHandle partitioningSet; //!< entity set containing all parts
+  
+  int pcommID;
 };
 
 inline MBErrorCode MBParallelComm::get_shared_proc_tags(MBTag &sharedp,
