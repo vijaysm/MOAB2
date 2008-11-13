@@ -642,6 +642,18 @@ MBErrorCode test_ghost_elements( const char* filename,
                    owned_displs(pcomm->proc_config().proc_size()),
                    ghost_counts(pcomm->proc_config().proc_size()),
                    ghost_displs(pcomm->proc_config().proc_size());
+  error = MPI_Allgather( counts, 1, MPI_INT, &owned_counts[0], 1, MPI_INT,
+                         pcomm->proc_config().proc_comm() );
+  PCHECK(!error);
+  error = MPI_Allgather( counts+1, 1, MPI_INT, &ghost_counts[0], 1, MPI_INT,
+                         pcomm->proc_config().proc_comm() );
+  PCHECK(!error);
+  owned_displs[0] = ghost_displs[0] = 0;
+  for (unsigned i = 1; i < pcomm->proc_config().proc_size(); ++i) {
+    owned_displs[i] = owned_displs[i-1] + owned_counts[i-1];
+    ghost_displs[i] = ghost_displs[i-1] + ghost_counts[i-1];
+  }
+  
   error = MPI_Allgatherv( &my_ent_ids[0], my_ent_ids.size(), MPI_INT,
                           &all_owned[0], &owned_counts[0], &owned_displs[0],
                           MPI_INT, pcomm->proc_config().proc_comm() );
