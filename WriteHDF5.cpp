@@ -198,9 +198,13 @@ bool WriteHDF5::convert_handle_tag( const MBEntityHandle* source,
 {
   bool some_valid = false;
   for (size_t i = 0; i < count; ++i) {
-    dest[i] = idMap.find( source[i] );
-    if (dest[i])
-      some_valid = true;
+    if (!source[i])
+      dest[i] = 0;
+    else {
+      dest[i] = idMap.find( source[i] );
+      if (dest[i])
+        some_valid = true;
+    }
   }
   return some_valid;
 }
