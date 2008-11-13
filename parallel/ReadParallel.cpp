@@ -36,7 +36,7 @@ const char *ParallelActionsNames[] = {
 
 const char* ReadParallel::parallelOptsNames[] = { "NONE", "BCAST", "BCAST_DELETE", 
                                                   "READ_DELETE", "READ_PARALLEL", 
-                                                  "FORMAT", 0 };
+                                                  "FORMAT", "", 0 };
       
 ReadParallel::ReadParallel(MBInterface* impl, 
                            MBParallelComm *pc) 
@@ -72,7 +72,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   std::string partition_tag_name;
   result = opts.get_option("PARTITION", partition_tag_name);
   if (MB_ENTITY_NOT_FOUND == result || partition_tag_name.empty())
-    partition_tag_name += "PARTITION";
+    partition_tag_name = PARALLEL_PARTITION_TAG_NAME;
 
     // Get partition tag value(s), if any, and whether they're to be
     // distributed or assigned
@@ -148,7 +148,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
         if (!is_reader) pa_vec.push_back(PA_GET_FILESET_ENTS);
 
         break;
-      
+    
     case POPT_BCAST_DELETE:
         if (is_reader) {
           pa_vec.push_back(PA_READ);
@@ -160,6 +160,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
         pa_vec.push_back(PA_DELETE_NONLOCAL);
         break;
 
+    case POPT_DEFAULT:
     case POPT_READ_DELETE:
         pa_vec.push_back(PA_READ);
         pa_vec.push_back(PA_CHECK_GIDS_SERIAL);
