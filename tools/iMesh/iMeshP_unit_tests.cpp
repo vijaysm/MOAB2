@@ -8,6 +8,10 @@
 #include <math.h>
 #include <map>
 
+#ifndef _MSC_VER
+#include <unistd.h>
+#endif
+
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)
 const char* const FILENAME = "iMeshP_test_file";
@@ -321,6 +325,21 @@ int main( int argc, char* argv[] )
   int size, rank, ierr = 1;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   MPI_Comm_size( MPI_COMM_WORLD, &size );
+
+  if (argc > 2 && !strcmp(argv[1], "-p")) {
+#ifndef _MSC_VER
+    std::cout << "Processor " << rank << " of " << size << " with PID " << getpid() << std::endl;
+    std::cout.flush();
+#endif
+      // loop forever on requested processor, giving the user time
+      // to attach a debugger.  Once the debugger in attached, user
+      // can change 'stop'.  E.g. on gdb do "set var stop = 1"
+    if (atoi(argv[2]) == rank) {
+      volatile int stop = 0;
+      while (!stop);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
 
   if (rank == 0) {
     ierr = create_mesh( FILENAME, size );
@@ -1213,9 +1232,9 @@ static int interface_verts( iMesh_Instance imesh,
   
     // get vertices in quads
   iBase_EntityHandle conn[16];
-  int offsets[4], *off_ptr = offsets, junk3 = 4, junk4;
+  int offsets[5], *off_ptr = offsets, junk3 = 5, junk4;
   ptr = conn;
-  junk1 = 4;
+  junk1 = 16;
   iMesh_getEntArrAdj( imesh, quads, 4, iBase_VERTEX, 
                       &ptr, &junk1, &junk2,
                       &off_ptr, &junk3, &junk4,
@@ -1225,10 +1244,10 @@ static int interface_verts( iMesh_Instance imesh,
   assert( junk1 == 16 );
   assert( junk2 == 16 );
   assert( off_ptr == offsets );
-  assert( junk3 == 4 );
-  assert( junk4 == 4 );
+  assert( junk3 == 5 );
+  assert( junk4 == 5 );
   
-    // make unique vertex li8st
+    // make unique vertex list
   std::sort( conn, conn + 16 );
   const int num_vtx = std::unique( conn, conn+16 ) - conn;
   assert(9 == num_vtx);
