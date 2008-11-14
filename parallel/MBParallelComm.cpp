@@ -3664,7 +3664,7 @@ MBErrorCode MBParallelComm::exchange_tags( MBTag src_tag,
     unsigned char *buff_ptr = &ownerSBuffs[ind][0];
     PACK_INT( buff_ptr, 1 ); // number of tags
     result = pack_tag( src_tag, dst_tag, proc_ents[*sit], proc_ents[*sit],
-                       buff_ptr, real_buff_size, true, *sit );
+                       buff_ptr, real_buff_size, false, *sit );
     RRA("Failed to pack buffer in pack_send_tag.");
     assert(real_buff_size == buff_size);
 
