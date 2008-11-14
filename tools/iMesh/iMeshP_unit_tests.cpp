@@ -2302,6 +2302,109 @@ int test_create_ghost_ents( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, c
  */
 int test_push_tag_data( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& )
 {
+  const char* src_name = "test_src";
+  const char* dst_name = "test_dst";
+  int ierr, rank;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  
+  iBase_TagHandle src_tag, dst_tag;
+  iMesh_createTag( imesh, src_name, 1, iBase_INTEGER, &src_tag, &ierr, strlen(src_name) );
+  CHKERR;
+  iMesh_createTag( imesh, dst_name, 1, iBase_INTEGER, &dst_tag, &ierr, strlen(dst_name) );
+  CHKERR;
+  
+  iBase_EntityHandle root;
+  iMesh_getRootSet( imesh, &root, &ierr ); CHKERR;
+  
+  std::vector<iBase_EntityHandle> verts;
+  ierr = get_entities( imesh, root, iBase_VERTEX, iMesh_POINT, verts );
+  CHKERR;
+  
+    // test iMeshP_pushTags
+    // each processor writes its rank on all vertices
+    // after push, each vertex should be tagged with the rank of its owner
+    
+  std::vector<int> tag_vals( verts.size(), rank );
+  iMesh_setIntArrData( imesh, &verts[0], verts.size(), src_tag, &tag_vals[0], tag_vals.size(), &ierr );
+  CHKERR;
+  
+  iMeshP_pushTags( imesh, prtn, src_tag, dst_tag, iBase_VERTEX, iMesh_POINT, &ierr );
+  PCHECK;
+  
+  tag_vals.clear();
+  tag_vals.resize( verts.size(), -1 );
+  int *junk1 = &tag_vals[0], junk2 = tag_vals.size(), junk3;
+  iMesh_getIntArrData( imesh, &verts[0], verts.size(), dst_tag, &junk1, &junk2, &junk3, &ierr );
+  CHKERR;
+  assert( junk1 == &tag_vals[0] );
+  assert( junk2 == (int)tag_vals.size() );
+  assert( junk3 == (int)verts.size() );
+  
+  std::vector<int> expected( verts.size() );
+  std::vector<iMeshP_Part> parts( verts.size() );
+  iMeshP_Part* junk4 = &parts[0];
+  junk2 = parts.size();
+  iMeshP_getEntOwnerPartArr( imesh, prtn, &verts[0], verts.size(), &junk4, &junk2, &junk3, &ierr );
+  CHKERR;
+  assert(junk4 == &parts[0]);
+  assert(junk2 == (int)parts.size());
+  assert(junk3 == (int)verts.size());
+  junk1 = &expected[0];
+  junk2 = expected.size();
+  iMeshP_getRankOfPartArr( imesh, prtn, &parts[0], parts.size(), &junk1, &junk2, &junk3, &ierr );
+  CHKERR;
+  assert(junk1 == &expected[0]);
+  assert(junk2 == (int)expected.size());
+  assert(junk3 == (int)parts.size());
+  
+  ASSERT( tag_vals == expected );
+  
+  
+  
+    // test iMeshP_pushTagsEnt
+    // write -1 on all vertices
+    // For each vertex owned by this processor and shared with more than,
+    // two others, write the rank of the owning processor.
+  
+  tag_vals.clear();
+  tag_vals.resize( verts.size(), -1 );
+  iMesh_setIntArrData( imesh, &verts[0], verts.size(), src_tag, &tag_vals[0], tag_vals.size(), &ierr );
+  CHKERR;
+  tag_vals.resize( verts.size(), -1 );
+  iMesh_setIntArrData( imesh, &verts[0], verts.size(), dst_tag, &tag_vals[0], tag_vals.size(), &ierr );
+  CHKERR;
+  
+  std::vector<iBase_EntityHandle> some;
+  for (size_t i = 0; i < verts.size(); ++i) {
+    int num;
+    iMeshP_getNumCopies( imesh, prtn, verts[i], &num, &ierr );
+    if (iBase_SUCCESS != ierr)
+      break;
+    if (num > 2)
+      some.push_back( verts[i] );
+    else 
+      expected[i] = -1;
+  }
+
+  tag_vals.clear();
+  tag_vals.resize( some.size(), rank );
+  iMesh_setIntArrData( imesh, &some[0], some.size(), src_tag, &tag_vals[0], tag_vals.size(), &ierr );
+  CHKERR;
+  
+  iMeshP_pushTagsEnt( imesh, prtn, src_tag, dst_tag, &some[0], some.size(), &ierr );
+  PCHECK;
+  
+  tag_vals.clear();
+  tag_vals.resize( verts.size(), -1 );
+  junk1 = &tag_vals[0];
+  junk2 = tag_vals.size();
+  iMesh_getIntArrData( imesh, &verts[0], verts.size(), dst_tag, &junk1, &junk2, &junk3, &ierr );
+  CHKERR;
+  assert( junk1 == &tag_vals[0] );
+  assert( junk2 == (int)tag_vals.size() );
+  assert( junk3 == (int)verts.size() );
+  
+  ASSERT( tag_vals == expected );
   return iBase_SUCCESS;
 }
 
