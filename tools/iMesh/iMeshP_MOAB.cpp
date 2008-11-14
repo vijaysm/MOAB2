@@ -115,7 +115,7 @@ template <typename T> inline T itaps_set_cast_( MBEntityHandle h )
 DECLARE_ALLOWED_ITAPS_SET_CONVERSION( iMeshP_PartitionHandle )
 //DECLARE_ALLOWED_ITAPS_SET_CONVERSION( iMeshP_PartHandle )
 //DECLARE_ALLOWED_ITAPS_SET_CONVERSION( iBase_EntitySetHandle )
-DECLARE_ALLOWED_ITAPS_SET_CONVERSION( iBase_EntityHandle )
+DECLARE_ALLOWED_ITAPS_CONVERSION( iBase_EntityHandle )
 
 
 template <> inline

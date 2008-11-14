@@ -4365,8 +4365,9 @@ MBErrorCode MBParallelComm::get_sharing_parts( MBEntityHandle entity,
     return MB_SUCCESS;
   
     // get remote handles
+  result = mbImpl->tag_get_data( sharedhs_tag(), &entity, 1, remote_handles );
   remote_handles[num_part_ids_out-1] = entity;
-  return mbImpl->tag_get_data( sharedhs_tag(), &entity, 1, remote_handles );
+  return result;
 }
 
 
