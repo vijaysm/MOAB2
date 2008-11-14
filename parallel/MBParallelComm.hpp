@@ -177,7 +177,9 @@ public:
      */
   MBErrorCode exchange_tags(MBTag tagh);
   
-  MBErrorCode exchange_tags( MBTag tag, const MBRange& entities );
+  MBErrorCode exchange_tags( MBTag src_tag, 
+                             MBTag dst_tag, 
+                             const MBRange& entities );
 
     /** \brief Broadcast all entities resident on from_proc to other processors
      * This function assumes remote handles are *not* being stored, since (usually)
@@ -499,21 +501,33 @@ private:
                                  const bool store_handles,
                                  const int from_proc);
   
+
+  /**\brief Get list of tags for which to exchange data
+   *
+   * Get tags and entities for which to exchange tag data.  This function
+   * was originally part of 'pack_tags' requested with the 
+   * 'all_possible_tags' parameter.
+   *
+   *\param all_entities  Input.  The set of entities for which data is to 
+   *                      be communicated.
+   *\param all_tags      Output.  Populated with the handles of tags to be
+   *                      sent.
+   *\param tag_ranges    Output.  For each corresponding tag in all_tags, the
+   *                      subset of 'all_entities' for which a tag value has
+   *                      been set.
+   */
+  MBErrorCode get_tag_send_list( const MBRange& all_entities,
+                                 std::vector<MBTag>& all_tags,
+                                 std::vector<MBRange>& tag_ranges );
+
   /**\brief Serialize entity tag data
    *
    * This function operates in two passes.  The first phase,
    * specified by 'just_count == true' calculates the necesary
-   * buffer size for the serialized data and, optionally populates
-   * the vectors of tag handles and entity ranges.  The second phase
+   * buffer size for the serialized data.  The second phase
    * writes the actual binary serialized representation of the
    * data to the passed buffer.
    *
-   *\NOTE all_tags and tag_ranges must be empty if all_possible_tags
-   *      == true and just_count == true.  Otherwise tag_ranges must
-   *      be at least the size of all_tags, and probably should be the
-   *      same size as all_tags.
-   *\NOTE For most use cases, 'count' should be initialized to zero
-   *      before calling this function.
    *\NOTE First two arguments are not used.  (Legacy interface?)
    *
    *\param entities      NOT USED
@@ -546,33 +560,63 @@ private:
    *\param to_proc       If 'store_handles' is true, the processor rank for
    *                     which to store the corresponding remote entity 
    *                     handles.
-   *\param all_tags      If all_possible_tags == false or just_count == false
-   *                     Input: List of tags to write
-   *                     Otherwise
-   *                     Output: List of all non-internal tags
-   *\param tag_ranges    If all_possible_tags == false or just_count == false
-   *                     Input: List of entities to serialize tag data, one
+   *\param all_tags      List of tags to write
+   *\param tag_ranges    List of entities to serialize tag data, one
    *                            for each corresponding tag handle in 'all_tags.
-   *                     Otherwise 
-   *                     Output: Subsets of 'whole_range' for which a value
-   *                             has been stored for the corresponding tag.
-   *\param all_possible_tags  Ignored unless just_count == true.  If
-   *                     just_count == true and this argument is true, then
-   *                     treat 'all_tags' and 'tag_ranges' as output rather 
-   *                     than input, populating them with non-internal-use
-   *                     tags and the corresponding entities.
    */
   MBErrorCode pack_tags(MBRange &entities,
                         MBRange::const_iterator &start_rit,
-                        MBRange &whole_range,
+                        const MBRange &whole_range,
                         unsigned char *&buff_ptr,
                         int &count,
                         const bool just_count,
                         const bool store_handles,
                         const int to_proc,
-                        std::vector<MBTag> &all_tags,
-                        std::vector<MBRange> &tag_ranges,
-                        const bool all_possible_tags = true);
+                        const std::vector<MBTag> &all_tags,
+                        const std::vector<MBRange> &tag_ranges );
+
+    /**\brief Calculate buffer size required to packtag data
+     *\param source_tag The tag for which data will be serialized
+     *\param entites    The entities for which tag values will be serialized
+     *\param count_out  Output: The required buffer size, in bytes.
+     */
+  MBErrorCode packed_tag_size( MBTag source_tag, 
+                               const MBRange& entities, 
+                               int& count_out );
+  
+  /**\brief Serialize tag data
+   *\param source_tag    The tag for which data will be serialized
+   *\param destination_tag Tag in which to store unpacked tag data.  Typically
+   *                     the same as source_tag.
+   *\param entites       The entities for which tag values will be serialized
+   *\param whole_range   Calculate entity indices as location in this range
+   *\param buff_ptr      Input/Output: As input, pointer to the start of the
+   *                     buffer in which to serialize data.  As output, the
+   *                     position just passed the serialized data.
+   *\param count_out     Output: The required buffer size, in bytes.
+   *\param store_handles The data for each tag is preceeded by a list of 
+   *                     MBEntityHandles designating the entity each of
+   *                     the subsequent tag values corresponds to.  This value
+   *                     may be one of:
+   *                     1) If store_handles == false:
+   *                        An invalid handle composed of {MBMAXTYE,idx}, where
+   *                        idx is the position of the entity in "whole_range".
+   *                     2) If store_hanldes == true and a valid remote
+   *                        handle exists, the remote handle.
+   *                     3) If store_hanldes == true and no valid remote 
+   *                        handle is defined for the entity, the same as 1).
+   *\param to_proc       If 'store_handles' is true, the processor rank for
+   *                     which to store the corresponding remote entity 
+   *                     handles.
+   */
+  MBErrorCode pack_tag( MBTag source_tag,
+                        MBTag destination_tag,
+                        const MBRange &entites,
+                        const MBRange &whole_range,
+                        unsigned char *&buff_ptr,
+                        int &count,
+                        const bool store_remote_handles,
+                        const int to_proc );
 
   MBErrorCode unpack_tags(unsigned char *&buff_ptr,
                           MBRange &entities,

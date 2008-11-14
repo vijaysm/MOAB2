@@ -1460,10 +1460,6 @@ void iMeshP_pushTags( iMesh_Instance instance,
                       int entity_topo,
                       int *err )
 {
-  if (source_tag != dest_tag)
-    RETURN (iBase_NOT_SUPPORTED);
-  iBase_TagHandle tag = source_tag;
-
   MBParallelComm* pcomm = PCOMM;
   MBDimensionPair types;
   if (entity_topo != iMesh_ALL_TOPOLOGIES)
@@ -1476,15 +1472,16 @@ void iMeshP_pushTags( iMesh_Instance instance,
     --types.second; 
   }
   
-  MBTag tag_handle = itaps_cast<MBTag>(tag);
+  MBTag src_handle = itaps_cast<MBTag>(source_tag);
+  MBTag dst_handle = itaps_cast<MBTag>(dest_tag);
   MBErrorCode rval;
   MBRange entities;
   for (MBEntityType t = types.first; t <= types.second; ++t) {
-    rval = MBI->get_entities_by_type_and_tag( 0, t, &tag_handle, 0, 1, entities, MBInterface::UNION );
+    rval = MBI->get_entities_by_type_and_tag( 0, t, &src_handle, 0, 1, entities, MBInterface::UNION );
     CHKERR(rval);
   }
   
-  rval = pcomm->exchange_tags( itaps_cast<MBTag>(tag), entities );
+  rval = pcomm->exchange_tags( src_handle, dst_handle, entities );
   CHKERR(rval);
   RETURN (iBase_SUCCESS);
 }
@@ -1497,16 +1494,15 @@ void iMeshP_pushTagsEnt( iMesh_Instance instance,
                          int entities_size,
                          int *err )
 {
-  if (source_tag != dest_tag)
-    RETURN (iBase_NOT_SUPPORTED);
-  iBase_TagHandle tag = source_tag;
 
   MBRange range;
   const MBEntityHandle* ents = itaps_cast<const MBEntityHandle*>(entities);
   std::copy( ents, ents+entities_size, mb_range_inserter(range) );
   
+  MBTag src_handle = itaps_cast<MBTag>(source_tag);
+  MBTag dst_handle = itaps_cast<MBTag>(dest_tag);
   MBParallelComm* pcomm = PCOMM;
-  MBErrorCode rval = pcomm->exchange_tags( itaps_cast<MBTag>(tag), range );
+  MBErrorCode rval = pcomm->exchange_tags( src_handle, dst_handle, range );
   CHKERR(rval);
   RETURN (iBase_SUCCESS);
 }

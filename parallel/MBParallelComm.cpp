@@ -79,6 +79,8 @@ std::string __PACK_string, __UNPACK_string;
 
 #define PACK_VOID(buff, val, num) {memcpy(buff, val, num); buff += num; PC(num, " void");}
 
+#define PACK_BYTES(buff, val, num) PACK_INT(buff, num) PACK_VOID(buff, val, num)
+
 #define PACK_RANGE(buff, rng) {int num_subs = num_subranges(rng); PACK_INTS(buff, &num_subs, 1); PC(num_subs, "-subranged range"); \
           for (MBRange::const_pair_iterator cit = rng.const_pair_begin(); cit != rng.const_pair_end(); cit++) { \
             MBEntityHandle eh = (*cit).first; PACK_EH(buff, &eh, 1); \
@@ -704,6 +706,8 @@ MBErrorCode MBParallelComm::pack_buffer(MBRange &orig_ents,
     
     // tags
   if (tags) {
+    result = get_tag_send_list( final_ents, all_tags, tag_ranges );
+    RRA("Failed to get tagged entities.")
     result = pack_tags(orig_ents, rit, final_ents, buff_ptr, 
                        buff_size, true, store_remote_handles, to_proc, 
                        all_tags, tag_ranges);
@@ -2036,90 +2040,29 @@ MBErrorCode MBParallelComm::unpack_adjacencies(unsigned char *&buff_ptr,
 
 MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
                                       MBRange::const_iterator &start_rit,
-                                      MBRange &whole_range,
+                                      const MBRange &whole_range,
                                       unsigned char *&buff_ptr,
                                       int &count,
                                       const bool just_count,
                                       const bool store_remote_handles,
                                       const int to_proc,
-                                      std::vector<MBTag> &all_tags,
-                                      std::vector<MBRange> &tag_ranges,
-                                      const bool all_possible_tags)
+                                      const std::vector<MBTag> &all_tags,
+                                      const std::vector<MBRange> &tag_ranges)
 {
-    // tags
     // get all the tags
-    // for dense tags, compute size assuming all entities have that tag
-    // for sparse tags, get number of entities w/ that tag to compute size
 
-  unsigned char *orig_buff_ptr = buff_ptr;
   MBErrorCode result;
-  std::vector<int> var_len_sizes;
-  std::vector<const void*> var_len_values;
+  std::vector<MBTag>::const_iterator tag_it;
+  std::vector<MBRange>::const_iterator rit;
 
   if (just_count) {
-
-    if (all_possible_tags) {
-      std::vector<MBTag> tmp_tags;
     
-      result = tagServer->get_tags(tmp_tags);
-      RRA("Failed to get tags in pack_tags.");
-
-      for (std::vector<MBTag>::iterator tag_it = tmp_tags.begin(); tag_it != tmp_tags.end(); tag_it++) {
-        std::string tag_name;
-        result = mbImpl->tag_get_name(*tag_it, tag_name);
-        if (tag_name.c_str()[0] == '_' && tag_name.c_str()[1] == '_')
-          continue;
-
-        MBRange tmp_range;
-        result = tagServer->get_entities(*tag_it, tmp_range);
-        RRA("Failed to get entities for tag in pack_tags.");
-        tmp_range = tmp_range.intersect(whole_range);
-
-        if (tmp_range.empty()) continue;
-        
-          // ok, we'll be sending this tag
-        all_tags.push_back(*tag_it);
-        tag_ranges.push_back(tmp_range);
-      }
-    }
-    
-    std::vector<MBTag>::iterator tag_it;
-    std::vector<MBRange>::iterator rit;
     for (tag_it = all_tags.begin(), rit = tag_ranges.begin(); 
          tag_it != all_tags.end(); tag_it++, rit++) {
 
-      const TagInfo *tinfo = tagServer->get_tag_info(*tag_it);
-        // default value
-      count += sizeof(int);
-      if (NULL != tinfo->default_value()) 
-        count += tinfo->default_value_size();
-      
-        // size, type, data type
-      count += 3*sizeof(int);
-      
-        // name
-      count += sizeof(int);
-      count += tinfo->get_name().size();
-
-        // range of tag
-      count += sizeof(int) + rit->size() * sizeof(MBEntityHandle);
-      
-      if (tinfo->get_size() == MB_VARIABLE_LENGTH) {
-        const int num_ent = rit->size();
-          // send a tag size for each entity
-        count += num_ent * sizeof(int);
-          // send tag data for each entity
-        var_len_sizes.resize( num_ent );
-        var_len_values.resize( num_ent );
-        result = tagServer->get_data( *tag_it, *rit, &var_len_values[0], 
-                                      &var_len_sizes[0] );
-        RRA("Failed to get lenghts of variable-length tag values.");
-        count += std::accumulate( var_len_sizes.begin(), var_len_sizes.end(), 0 );
-      }
-      else {
-          // tag data values for range or vector
-        count += rit->size() * tinfo->get_size();
-      }
+      result = packed_tag_size( *tag_it, *rit, count );
+      if (MB_SUCCESS != result)
+        return result;
     }
     
       // number of tags
@@ -2127,80 +2070,207 @@ MBErrorCode MBParallelComm::pack_tags(MBRange &entities,
   }
 
   else {
-    std::vector<MBRange>::const_iterator tr_it = tag_ranges.begin();
 
     PACK_INT(buff_ptr, all_tags.size());
+    count += sizeof(int);
     
-    for (std::vector<MBTag>::const_iterator tag_it = all_tags.begin(); tag_it != all_tags.end(); tag_it++) {
-
-      const TagInfo *tinfo = tagServer->get_tag_info(*tag_it);
-
-        // size, type, data type
-      PACK_INT(buff_ptr, tinfo->get_size());
-      MBTagType this_type;
-      result = mbImpl->tag_get_type(*tag_it, this_type);
-      PACK_INT(buff_ptr, this_type);
-      PACK_INT(buff_ptr, tinfo->get_data_type());
-      
-        // default value
-      if (NULL == tinfo->default_value()) {
-        PACK_INT(buff_ptr, 0);
-      }
-      else {
-        PACK_INT(buff_ptr, tinfo->default_value_size());
-        PACK_VOID(buff_ptr, tinfo->default_value(), tinfo->default_value_size());
-      }
-      
-        // name
-      PACK_INT(buff_ptr, tinfo->get_name().size() );
-      PACK_VOID(buff_ptr, tinfo->get_name().c_str(), tinfo->get_name().size());
-      
-#ifdef DEBUG_PACKING
-    std::cerr << "Packing tag " << tinfo->get_name() << std::endl;
-#endif    
-        // pack entities
-      PACK_INT(buff_ptr, (*tr_it).size());
-      result = get_remote_handles(store_remote_handles,
-                                  (*tr_it), (MBEntityHandle*)buff_ptr, to_proc,
-                                  whole_range);
-#ifdef DEBUG_PACKING
-      if (MB_SUCCESS != result) {
-        std::cerr << "Trouble getting remote handles for tagged entities:" << std::endl;
-        (*tr_it).print("  ");
-      }
-#else
-      RRA("Trouble getting remote handles for tagged entities.");
-#endif
-
-      buff_ptr += (*tr_it).size() * sizeof(MBEntityHandle);
-
-      const size_t num_ent = tr_it->size();
-      if (tinfo->get_size() == MB_VARIABLE_LENGTH) {
-        var_len_sizes.resize( num_ent, 0 );
-        var_len_values.resize( num_ent, 0 );
-        result = mbImpl->tag_get_data(*tag_it, *tr_it, &var_len_values[0], 
-                                      &var_len_sizes[0] );
-        RRA("Failed to get variable-length tag data in pack_tags.");
-        PACK_INTS(buff_ptr, &var_len_sizes[0], num_ent);
-        for (unsigned int i = 0; i < num_ent; ++i)
-          PACK_VOID(buff_ptr, var_len_values[i], var_len_sizes[i]);
-      }
-      else {
-        result = mbImpl->tag_get_data(*tag_it, *tr_it, buff_ptr);
-        RRA("Failed to get tag data in pack_tags.");
-        buff_ptr += num_ent * tinfo->get_size();
-        PC(num_ent*tinfo->get_size(), " void");
-      }
-      tr_it++;
+    for (tag_it = all_tags.begin(), rit = tag_ranges.begin(); 
+         tag_it != all_tags.end(); tag_it++, rit++) {
+         
+    
+      result = pack_tag( *tag_it, *tag_it, *rit, whole_range, buff_ptr, 
+                         count, store_remote_handles, to_proc );
+      if (MB_SUCCESS != result)
+        return result;
     }
-
-    count += buff_ptr - orig_buff_ptr;
   }
   
   if (debug_packing) std::cerr << std::endl << "Done packing tags." << std::endl;
 
   return MB_SUCCESS;
 }
+         
+
+MBErrorCode MBParallelComm::packed_tag_size( MBTag tag,
+                                             const MBRange &tagged_entities,
+                                             int &count )
+{
+    // for dense tags, compute size assuming all entities have that tag
+    // for sparse tags, get number of entities w/ that tag to compute size
+
+  std::vector<int> var_len_sizes;
+  std::vector<const void*> var_len_values;
+    
+  const TagInfo *tinfo = tagServer->get_tag_info(tag);
+    // default value
+  count += sizeof(int);
+  if (NULL != tinfo->default_value()) 
+    count += tinfo->default_value_size();
+
+    // size, type, data type
+  count += 3*sizeof(int);
+
+    // name
+  count += sizeof(int);
+  count += tinfo->get_name().size();
+
+    // range of tag
+  count += sizeof(int) + tagged_entities.size() * sizeof(MBEntityHandle);
+
+  if (tinfo->get_size() == MB_VARIABLE_LENGTH) {
+    const int num_ent = tagged_entities.size();
+      // send a tag size for each entity
+    count += num_ent * sizeof(int);
+      // send tag data for each entity
+    var_len_sizes.resize( num_ent );
+    var_len_values.resize( num_ent );
+    MBErrorCode result = tagServer->get_data( tag,
+                                              tagged_entities, 
+                                              &var_len_values[0], 
+                                              &var_len_sizes[0] );
+    RRA("Failed to get lenghts of variable-length tag values.");
+    count += std::accumulate( var_len_sizes.begin(), var_len_sizes.end(), 0 );
+  }
+  else {
+      // tag data values for range or vector
+    count += tagged_entities.size() * tinfo->get_size();
+  }
+  
+  return MB_SUCCESS;
+}
+
+
+MBErrorCode MBParallelComm::pack_tag( MBTag src_tag,
+                                      MBTag dst_tag,
+                                      const MBRange &tagged_entites,
+                                      const MBRange &whole_range,
+                                      unsigned char *&buff_ptr,
+                                      int &count,
+                                      const bool store_remote_handles,
+                                      const int to_proc )
+{
+  unsigned char *orig_buff_ptr = buff_ptr;
+  MBErrorCode result;
+  std::vector<int> var_len_sizes;
+  std::vector<const void*> var_len_values;
+
+  const TagInfo* tinfo = tagServer->get_tag_info(src_tag);
+  if (!tinfo)
+    return MB_TAG_NOT_FOUND;
+    
+  const TagInfo* dst_tinfo;
+  if (src_tag == dst_tag) {
+    dst_tinfo = tinfo;
+  }
+  else {
+    dst_tinfo = tagServer->get_tag_info(dst_tag);
+    if (!dst_tinfo)
+      return MB_TAG_NOT_FOUND;
+    if (dst_tinfo->get_size() != tinfo->get_size())
+      return MB_TYPE_OUT_OF_RANGE;
+    if (dst_tinfo->get_data_type() != tinfo->get_data_type() && 
+        dst_tinfo->get_data_type() != MB_TYPE_OPAQUE &&
+            tinfo->get_data_type() != MB_TYPE_OPAQUE)
+      return MB_TYPE_OUT_OF_RANGE;
+  }
+    
+    
+
+    // size, type, data type
+  PACK_INT(buff_ptr, tinfo->get_size());
+  MBTagType this_type;
+  result = mbImpl->tag_get_type(dst_tag, this_type);
+  PACK_INT(buff_ptr, (int)this_type);
+  PACK_INT(buff_ptr, (int)(tinfo->get_data_type()));
+
+    // default value
+  if (NULL == tinfo->default_value()) {
+    PACK_INT(buff_ptr, 0);
+  }
+  else {
+    PACK_BYTES(buff_ptr, tinfo->default_value(), tinfo->default_value_size());
+  }
+
+    // name
+  PACK_BYTES(buff_ptr, dst_tinfo->get_name().c_str(), dst_tinfo->get_name().size());
+
+#ifdef DEBUG_PACKING
+std::cerr << "Packing tag \"" << tinfo->get_name() << "\"";
+if (tinfo != dst_tinfo)
+  std::cerr << " (as tag \"" << dst_tinfo->get_name() << "\")";
+std::cerr << std::endl;
+#endif    
+    // pack entities
+  PACK_INT(buff_ptr, tagged_entites.size());
+  result = get_remote_handles(store_remote_handles,
+                              tagged_entites, (MBEntityHandle*)buff_ptr, to_proc,
+                              whole_range);
+#ifdef DEBUG_PACKING
+  if (MB_SUCCESS != result) {
+    std::cerr << "Trouble getting remote handles for tagged entities:" << std::endl;
+    tagged_entites.print("  ");
+  }
+#else
+  RRA("Trouble getting remote handles for tagged entities.");
+#endif
+
+  buff_ptr += tagged_entites.size() * sizeof(MBEntityHandle);
+
+  const size_t num_ent = tagged_entites.size();
+  if (tinfo->get_size() == MB_VARIABLE_LENGTH) {
+    var_len_sizes.resize( num_ent, 0 );
+    var_len_values.resize( num_ent, 0 );
+    result = mbImpl->tag_get_data(src_tag, tagged_entites, &var_len_values[0], 
+                                  &var_len_sizes[0] );
+    RRA("Failed to get variable-length tag data in pack_tags.");
+    PACK_INTS(buff_ptr, &var_len_sizes[0], num_ent);
+    for (unsigned int i = 0; i < num_ent; ++i)
+      PACK_VOID(buff_ptr, var_len_values[i], var_len_sizes[i]);
+  }
+  else {
+    result = mbImpl->tag_get_data(src_tag, tagged_entites, buff_ptr);
+    RRA("Failed to get tag data in pack_tags.");
+    buff_ptr += num_ent * tinfo->get_size();
+    PC(num_ent*tinfo->get_size(), " void");
+  }
+
+  count += buff_ptr - orig_buff_ptr;
+
+  return MB_SUCCESS;
+}
+
+MBErrorCode MBParallelComm::get_tag_send_list( const MBRange& whole_range,
+                                               std::vector<MBTag>& all_tags,
+                                               std::vector<MBRange>& tag_ranges )
+{
+  std::vector<MBTag> tmp_tags;
+  MBErrorCode result = tagServer->get_tags(tmp_tags);
+  RRA("Failed to get tags in pack_tags.");
+
+  std::vector<MBTag>::iterator tag_it;
+  for (tag_it = tmp_tags.begin(); tag_it != tmp_tags.end(); tag_it++) {
+    std::string tag_name;
+    result = mbImpl->tag_get_name(*tag_it, tag_name);
+    if (tag_name.c_str()[0] == '_' && tag_name.c_str()[1] == '_')
+      continue;
+
+    MBRange tmp_range;
+    result = tagServer->get_entities(*tag_it, tmp_range);
+    RRA("Failed to get entities for tag in pack_tags.");
+    tmp_range = tmp_range.intersect(whole_range);
+
+    if (tmp_range.empty()) continue;
+        
+      // ok, we'll be sending this tag
+    all_tags.push_back( *tag_it );
+    tag_ranges.push_back( MBRange() );
+    tag_ranges.back().swap( tmp_range );
+  }
+  
+  return MB_SUCCESS;
+}
+
+
 
 MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
                                         MBRange &entities,
@@ -3459,13 +3529,14 @@ MBErrorCode MBParallelComm::exchange_tags(std::vector<MBTag> &tags)
     MBRange::iterator rit = tag_ents.begin();
     result = pack_tags(tag_ents, rit, tag_ents,
                        buff_ptr, buff_size, true, true, *sit,
-                       tags, tag_ranges, false);
+                       tags, tag_ranges);
     RRA("Failed to count buffer in pack_send_tag.");
-
+    int real_buff_size = 0;
     result = pack_tags(tag_ents, rit, tag_ents,
-                       buff_ptr, buff_size, false, true, *sit,
-                       tags, tag_ranges, false);
+                       buff_ptr, real_buff_size, false, true, *sit,
+                       tags, tag_ranges);
     RRA("Failed to pack buffer in pack_send_tag.");
+    assert(buff_size == real_buff_size);
 
       // if the message is large, send a first message to tell how large
     if (INITIAL_BUFF_SIZE < buff_size) {
@@ -3538,7 +3609,9 @@ MBErrorCode MBParallelComm::exchange_tags(std::vector<MBTag> &tags)
   return MB_SUCCESS;
 }
 
-MBErrorCode MBParallelComm::exchange_tags( MBTag tag, const MBRange& entities )
+MBErrorCode MBParallelComm::exchange_tags( MBTag src_tag, 
+                                           MBTag dst_tag, 
+                                           const MBRange& entities )
 {
   MBErrorCode result;
   int success;
@@ -3581,23 +3654,19 @@ MBErrorCode MBParallelComm::exchange_tags( MBTag tag, const MBRange& entities )
   for (sit = exch_procs.begin(); sit != exch_procs.end(); sit++) {
     int ind = get_buffers(*sit);
     
-    MBRange& tag_ents = proc_ents[*sit];
-    std::vector<MBTag> tags(1); tags[0] = tag;
-    std::vector<MBRange> tag_ranges(1); tag_ranges[0].swap(tag_ents);
-    
       // count first
-    int buff_size = 0;
-    unsigned char *buff_ptr = &ownerSBuffs[ind][0];
-    MBRange::iterator rit = tag_ranges[0].begin();
-    result = pack_tags(tag_ranges[0], rit, tag_ranges[0],
-                       buff_ptr, buff_size, true, true, *sit,
-                       tags, tag_ranges, false);
+      // buffer needs to begin with the number of tags (one)
+    int buff_size = sizeof(int);
+    result = packed_tag_size( src_tag, proc_ents[*sit], buff_size );
     RRA("Failed to count buffer in pack_send_tag.");
-
-    result = pack_tags(tag_ranges[0], rit, tag_ranges[0],
-                       buff_ptr, buff_size, false, true, *sit,
-                       tags, tag_ranges, false);
+    
+    int real_buff_size = sizeof(int);
+    unsigned char *buff_ptr = &ownerSBuffs[ind][0];
+    PACK_INT( buff_ptr, 1 ); // number of tags
+    result = pack_tag( src_tag, dst_tag, proc_ents[*sit], proc_ents[*sit],
+                       buff_ptr, real_buff_size, true, *sit );
     RRA("Failed to pack buffer in pack_send_tag.");
+    assert(real_buff_size == buff_size);
 
       // if the message is large, send a first message to tell how large
     if (INITIAL_BUFF_SIZE < buff_size) {
