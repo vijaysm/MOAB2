@@ -1527,13 +1527,13 @@ void iMeshP_iPushTagsEnt( iMesh_Instance instance,
                           int *err )
 { FIXME; RETURN(iBase_NOT_SUPPORTED); }
 
-void iMeshP_createGhostEnts( iMesh_Instance instance,
-                             iMeshP_PartitionHandle partition_handle,
-                             int ghost_dim,
-                             int bridge_dim,
-                             int num_layers,
-                             int include_copies,
-                             int *err )
+void iMeshP_createGhostEntsAll( iMesh_Instance instance,
+                                iMeshP_PartitionHandle partition_handle,
+                                int ghost_dim,
+                                int bridge_dim,
+                                int num_layers,
+                                int include_copies,
+                                int *err )
 {
   if (include_copies) {
     FIXME; RETURN(iBase_NOT_SUPPORTED);
