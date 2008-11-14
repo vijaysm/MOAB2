@@ -3637,13 +3637,24 @@ MBErrorCode MBParallelComm::exchange_tags( MBTag src_tag,
     }
   }
   
-    // group entities by owner
+    // figure out which entities are shared with which processors
   std::map<int,MBRange> proc_ents;
+  int other_procs[MAX_SHARING_PROCS], num_sharing;
   for (MBRange::const_iterator i = entities.begin(); i != entities.end(); ++i) {
     int owner;
     result = get_owner( *i, owner );
     RRA("Failed to get entity owner.");
-    proc_ents[owner].insert( *i );
+
+      // only send entities that this proc owns
+    if ((unsigned)owner != proc_config().proc_rank()) 
+      continue;
+    
+    result = get_sharing_parts( *i, other_procs, num_sharing );
+    RRA("Failed to get procs sharing entity.");
+    if (num_sharing == 0) // keep track of non-shared entities for later
+      proc_ents[proc_config().proc_rank()].insert( *i );
+    for (int j = 0; j < num_sharing; ++j)
+      proc_ents[other_procs[j]].insert( *i );
   }
   
     // pack and send tags from this proc to others
@@ -3664,7 +3675,7 @@ MBErrorCode MBParallelComm::exchange_tags( MBTag src_tag,
     unsigned char *buff_ptr = &ownerSBuffs[ind][0];
     PACK_INT( buff_ptr, 1 ); // number of tags
     result = pack_tag( src_tag, dst_tag, proc_ents[*sit], proc_ents[*sit],
-                       buff_ptr, real_buff_size, false, *sit );
+                       buff_ptr, real_buff_size, true, *sit );
     RRA("Failed to pack buffer in pack_send_tag.");
     assert(real_buff_size == buff_size);
 
@@ -3735,6 +3746,18 @@ MBErrorCode MBParallelComm::exchange_tags( MBTag src_tag,
     result = MB_FAILURE;
     RRA("Failure in waitall in tag exchange.");
   }
+  
+    // if src and destination tags aren't the same, need to copy 
+    // values for local entities
+  if (src_tag != dst_tag) {
+    const MBRange& myents = proc_ents[proc_config().proc_rank()];
+    std::vector<const void*> data_ptrs(myents.size());
+    std::vector<int> data_sizes(myents.size());
+    result = get_moab()->tag_get_data( src_tag, myents, &data_ptrs[0], &data_sizes[0] );
+    RRA("Failure to get pointers to local data.");
+    result = get_moab()->tag_set_data( dst_tag, myents, &data_ptrs[0], &data_sizes[0] );
+    RRA("Failure to get pointers to local data.");
+  }  
   
   return MB_SUCCESS;
 }
