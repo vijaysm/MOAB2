@@ -19,7 +19,7 @@ libdagmc_la_SOURCES += cgm2moab.cc
 
 bin_PROGRAMS = cgm2moab
 cgm2moab_SOURCES = main.cc cubfile.c
-cgm2moab_LDFLAGS = $(CGM_LIBS_LTFLAGS)
+cgm2moab_LDFLAGS = $(CGM_LTFLAGS)
 cgm2moab_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LIBS_LINK)
 cgm2moab_DEPENDENCIES = libdagmc.la $(top_builddir)/libMOAB.la
 dist_man1_MANS = cgm2moab.man
@@ -36,8 +36,8 @@ cfg_DATA = dagmc.make
 TESTS = test_geom
 check_PROGRAMS = $(TESTS) pt_vol_test
 test_geom_SOURCES = test_geom.cc
-test_geom_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LIBS_LTFLAGS)  $(CGM_LIBS_LINK)
+test_geom_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LIBS_LINK)
 
 pt_vol_test_SOURCES = pt_vol_test.cc
-pt_vol_test_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LIBS_LTFLAGS)  $(CGM_LIBS_LINK)
+pt_vol_test_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LIBS_LINK)
 

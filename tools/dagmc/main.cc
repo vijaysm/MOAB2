@@ -113,8 +113,7 @@ int main( int argc, char* argv[] )
         
   
     // Initialize CGM
-  InitCGMA::initialize_cgma();
-  InitCGMA::initialize_engine("ACIS");
+  InitCGMA::initialize_cgma("ACIS");
   if (actuate_attribs) {
     CGMApp::instance()->attrib_manager()->set_all_auto_read_flags( actuate_attribs );
     CGMApp::instance()->attrib_manager()->set_all_auto_actuate_flags( actuate_attribs );
