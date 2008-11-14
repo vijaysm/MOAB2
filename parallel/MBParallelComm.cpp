@@ -1010,7 +1010,7 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
       int num_connect;
       MBEntityHandle *start_vec = (MBEntityHandle*)buff_ptr;
       for (MBRange::const_iterator rit = allr_it->begin(); rit != allr_it->end(); rit++) {
-        result = mbImpl->get_connectivity(*rit, connect, num_connect, true,
+        result = mbImpl->get_connectivity(*rit, connect, num_connect, false,
                                           &dum_connect);
         RRA("Failed to get connectivity.");
         assert(num_connect == *nv_it);
