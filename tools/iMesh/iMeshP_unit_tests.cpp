@@ -182,6 +182,12 @@ int test_entity_status( iMesh_Instance, iMeshP_PartitionHandle prtn, const PartM
  * Test:
  * - iMeshP_getNumCopies
  * - iMeshP_getCopyParts
+ */
+int test_entity_copy_parts( iMesh_Instance, iMeshP_PartitionHandle prtn, const PartMap& );
+
+/**\brief Test information about entity copies for interface entities
+ *
+ * Test:
  * - iMeshP_getCopies
  * - iMeshP_getCopyOnPart
  * - iMeshP_getOwnerCopy
@@ -289,6 +295,96 @@ int get_local_parts( iMesh_Instance instance,
   return iBase_SUCCESS;
 }
 
+
+static int get_entities( iMesh_Instance imesh,
+                         iBase_EntitySetHandle set,
+                         iBase_EntityType type,
+                         iMesh_EntityTopology topo,
+                         std::vector<iBase_EntityHandle>& entities )
+{
+  iBase_EntitySetHandle* array = 0;
+  int junk = 0, size = 0, err;
+  iMesh_getEntities( imesh, set, type, topo, &array, &junk, &size, &err );
+  if (!err) {
+    entities.clear();
+    entities.resize( size );
+    std::copy( array, array + size, entities.begin() );
+    free( array );
+  }
+  return err;
+}
+
+static int get_intersection( iMesh_Instance imesh,
+                             iBase_EntitySetHandle set1,
+                             iBase_EntitySetHandle set2,
+                             iBase_EntityType type,
+                             iMesh_EntityTopology topo,
+                             std::vector<iBase_EntityHandle>& entities )
+{
+  std::vector<iBase_EntityHandle> l1, l2;
+  int err;
+  err = get_entities( imesh, set1, type, topo, l1 );
+  if (err)
+    return err;
+  err = get_entities( imesh, set2, type, topo, l2 );
+  if (err)
+    return err;
+  
+  std::sort( l1.begin(), l1.end() );
+  std::sort( l2.begin(), l2.end() );
+  std::set_intersection( l1.begin(), l1.end(),
+                         l2.begin(), l2.end(),
+                         std::back_inserter( entities ) );
+  return iBase_SUCCESS;
+}
+
+static int get_part_quads_and_verts( iMesh_Instance imesh,
+                                     iMeshP_PartHandle part,
+                                     std::vector<iBase_EntityHandle>& elems,
+                                     std::vector<iBase_EntityHandle>& verts )
+{
+  int ierr = get_entities( imesh, part, iBase_FACE, iMesh_QUADRILATERAL, elems );
+  CHKERR;
+  
+  verts.resize(4*elems.size());
+  std::vector<int> junk(elems.size()+1);
+  int junk1 = verts.size(), count, junk2 = junk.size(), junk3;
+  iBase_EntityHandle* junk4 = &verts[0];
+  int* junk5 = &junk[0];
+  iMesh_getEntArrAdj( imesh, &elems[0], elems.size(), iBase_VERTEX,
+                      &junk4, &junk1, &count,
+                      &junk5, &junk2, &junk3, &ierr );
+  CHKERR;
+  assert( junk1 == (int)verts.size() );
+  assert( count == (int)(4*elems.size()) );
+  assert( junk2 == (int)junk.size() );
+  assert( junk4 == &verts[0] );
+  assert( junk5 == &junk[0] );
+  std::sort( verts.begin(), verts.end() );
+  verts.erase( std::unique( verts.begin(), verts.end() ), verts.end() );
+  return iBase_SUCCESS;
+}
+  
+static int get_coords( iMesh_Instance imesh,
+                       const iBase_EntityHandle* verts,
+                       int num_verts,
+                       double* coords )
+{
+  double* junk1 = coords;
+  int junk2 = 3*num_verts;
+  int junk3;
+  int junk4 = iBase_INTERLEAVED;
+  int ierr;
+  iMesh_getVtxArrCoords( imesh, verts, num_verts, &junk4, &junk1, &junk2, &junk3, &ierr );
+  if (iBase_SUCCESS != ierr)
+    return ierr;
+  assert( junk1 == coords );
+  assert( junk2 == 3*num_verts );
+  assert( junk3 == 3*num_verts );
+  assert( junk4 == iBase_INTERLEAVED );
+  return iBase_SUCCESS;
+}
+  
 /**************************************************************************
                               Main Method
  **************************************************************************/
@@ -385,6 +481,7 @@ int main( int argc, char* argv[] )
   num_errors += RUN_TEST( test_entity_iterator );
   num_errors += RUN_TEST( test_entity_owner );
   num_errors += RUN_TEST( test_entity_status );
+  num_errors += RUN_TEST( test_entity_copy_parts );
   num_errors += RUN_TEST( test_entity_copies );
   num_errors += RUN_TEST( test_create_ghost_ents );
   num_errors += RUN_TEST( test_push_tag_data );
@@ -561,77 +658,6 @@ int create_mesh( const char* filename, int num_parts )
   
   return 0;
 }
-
-
-static int get_entities( iMesh_Instance imesh,
-                         iBase_EntitySetHandle set,
-                         iBase_EntityType type,
-                         iMesh_EntityTopology topo,
-                         std::vector<iBase_EntityHandle>& entities )
-{
-  iBase_EntitySetHandle* array = 0;
-  int junk = 0, size = 0, err;
-  iMesh_getEntities( imesh, set, type, topo, &array, &junk, &size, &err );
-  if (!err) {
-    entities.clear();
-    entities.resize( size );
-    std::copy( array, array + size, entities.begin() );
-    free( array );
-  }
-  return err;
-}
-
-static int get_intersection( iMesh_Instance imesh,
-                             iBase_EntitySetHandle set1,
-                             iBase_EntitySetHandle set2,
-                             iBase_EntityType type,
-                             iMesh_EntityTopology topo,
-                             std::vector<iBase_EntityHandle>& entities )
-{
-  std::vector<iBase_EntityHandle> l1, l2;
-  int err;
-  err = get_entities( imesh, set1, type, topo, l1 );
-  if (err)
-    return err;
-  err = get_entities( imesh, set2, type, topo, l2 );
-  if (err)
-    return err;
-  
-  std::sort( l1.begin(), l1.end() );
-  std::sort( l2.begin(), l2.end() );
-  std::set_intersection( l1.begin(), l1.end(),
-                         l2.begin(), l2.end(),
-                         std::back_inserter( entities ) );
-  return iBase_SUCCESS;
-}
-
-static int get_part_quads_and_verts( iMesh_Instance imesh,
-                                     iMeshP_PartHandle part,
-                                     std::vector<iBase_EntityHandle>& elems,
-                                     std::vector<iBase_EntityHandle>& verts )
-{
-  int ierr = get_entities( imesh, part, iBase_FACE, iMesh_QUADRILATERAL, elems );
-  CHKERR;
-  
-  verts.resize(4*elems.size());
-  std::vector<int> junk(elems.size()+1);
-  int junk1 = verts.size(), count, junk2 = junk.size(), junk3;
-  iBase_EntityHandle* junk4 = &verts[0];
-  int* junk5 = &junk[0];
-  iMesh_getEntArrAdj( imesh, &elems[0], elems.size(), iBase_VERTEX,
-                      &junk4, &junk1, &count,
-                      &junk5, &junk2, &junk3, &ierr );
-  CHKERR;
-  assert( junk1 == (int)verts.size() );
-  assert( count == (int)(4*elems.size()) );
-  assert( junk2 == (int)junk.size() );
-  assert( junk4 == &verts[0] );
-  assert( junk5 == &junk[0] );
-  std::sort( verts.begin(), verts.end() );
-  verts.erase( std::unique( verts.begin(), verts.end() ), verts.end() );
-  return iBase_SUCCESS;
-}
-  
   
 
 /**************************************************************************
@@ -1285,14 +1311,9 @@ static int interface_verts( iMesh_Instance imesh,
   assert(9 == num_vtx);
   
     // get vertex coords
-  double coords[27], *coord_ptr = coords;
-  junk1 = 27;
-  int storage = iBase_INTERLEAVED;
-  iMesh_getVtxArrCoords( imesh, conn, 9, &storage, &coord_ptr, &junk1, &junk2, &ierr );
+  std::vector<double> coords(27);
+  ierr = get_coords( imesh, conn, 9, &coords[0] );
   CHKERR;
-  assert( coord_ptr == coords );
-  assert( junk1 == 27 );
-  assert( junk2 == 27 );
   
     // use vertex coords to determine logical position
   for (int i = 0; i < num_vtx; ++i) {
@@ -1783,13 +1804,8 @@ int test_entity_owner( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const 
     // for each vertex, store { (x << 2) | y, owning part id }
   std::vector<int> vtxdata( 2 * all_verts.size() );
   std::vector<double> coords( 3 * all_verts.size() );
-  double* junk7 = &coords[0];
-  junk1 = coords.size();
-  junk4 = iBase_INTERLEAVED;
-  iMesh_getVtxArrCoords( imesh, &all_verts[0], all_verts.size(), &junk4, &junk7, &junk1, &junk3, &ierr );
+  ierr = get_coords( imesh, &all_verts[0], all_verts.size(), &coords[0] );
   CHKERR;
-  assert(junk7 == &coords[0]);
-  assert(junk3 == (int)coords.size());
   for (size_t i = 0; i < all_verts.size(); ++i) {
     int x = (int)round(coords[3*i  ]);
     int y = (int)round(coords[3*i+1]);
@@ -1991,12 +2007,279 @@ int test_entity_status( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const
  * Test:
  * - iMeshP_getNumCopies
  * - iMeshP_getCopyParts
+ */
+int test_entity_copy_parts( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& map )
+{
+  int ierr, rank, size;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  MPI_Comm_size( MPI_COMM_WORLD, &size );
+    
+    // get local part handles
+  std::vector<iMeshP_PartHandle> parts;
+  ierr = get_local_parts( imesh, prtn, parts );
+  PCHECK;
+  ASSERT( !parts.empty() );
+
+    // select a singe part to test
+  const iMeshP_PartHandle part = parts[0];
+  int logical_id;
+  ierr = map.part_from_coords( imesh, part, logical_id );
+  CHKERR;
+  const iMeshP_Part part_id = map.part_id_from_local_id( logical_id );
+  
+    // get vertices in part
+  std::vector<iBase_EntityHandle> quads, verts;
+  ierr = get_part_quads_and_verts( imesh, part, quads, verts );
+  PCHECK;
+  
+    // get neighbors
+  int neighbors[5], num_neighbors;
+  get_part_neighbors( logical_id, map.get_parts().size(), neighbors, num_neighbors );
+    
+    // build map of sharing data for each vertex
+  std::map< iBase_EntityHandle, std::vector<iMeshP_Part> > vert_sharing;
+  for (int j = 0; j < num_neighbors; ++j) {
+    iBase_EntityHandle iface[3];
+    int num_iface;
+    ierr = interface_verts( imesh, prtn, part, neighbors[j], map, iface, num_iface );
+    CHKERR;
+    for (int k = 0; k < num_iface; ++k)
+      vert_sharing[iface[k]].push_back( map.part_id_from_local_id( neighbors[j] ) );
+  }
+  
+    // test getNumCopies for each vertex
+  std::map< iBase_EntityHandle, std::vector<iMeshP_Part> >::iterator i;
+  int num_failed = 0, num_incorrect = 0;
+  for (i = vert_sharing.begin(); i != vert_sharing.end(); ++i) {
+    int count;
+    iBase_EntityHandle vtx = i->first;
+    iMeshP_getNumCopies( imesh, prtn, vtx, &count, &ierr );
+    if (ierr)
+      ++num_failed;
+    else if ((unsigned)count != i->second.size()+1) // add one for the part we queried from
+      ++num_incorrect;
+  }
+  ASSERT( 0 == num_failed );
+  ASSERT( 0 == num_incorrect );
+  
+    // get getCopyParts for each vertex
+  num_failed = num_incorrect = 0;
+  for (i = vert_sharing.begin(); i != vert_sharing.end(); ++i) {
+    iMeshP_Part* list = 0;
+    int junk = 0, count;
+    iMeshP_getCopyParts( imesh, prtn, i->first, &list, &junk, &count, &ierr );
+    if (iBase_SUCCESS != ierr) {
+      ++num_failed;
+      continue;
+    }
+    if ((unsigned)count != i->second.size()+1) { // add one for the part we queried from
+      ++num_incorrect;
+      free(list);
+      continue;
+    }
+    
+    std::vector<iMeshP_Part> expected( i->second );
+    expected.push_back( part_id );
+    std::sort( list, list+count );
+    std::sort( expected.begin(), expected.end() );
+    bool eq = std::equal( list, list+count, expected.begin() );
+    free( list );
+    if (!eq)
+      ++num_incorrect;
+  }
+  ASSERT( 0 == num_failed );
+  ASSERT( 0 == num_incorrect );
+  
+  return iBase_SUCCESS;
+}
+
+// store remote handle data for a vertex
+struct VtxCopyData {
+  std::vector<iMeshP_Part> parts;
+  std::vector<iBase_EntityHandle> handles;
+};
+
+/**\brief Test information about entity copies for interface entities
+ *
+ * Test:
  * - iMeshP_getCopies
  * - iMeshP_getCopyOnPart
  * - iMeshP_getOwnerCopy
  */
-int test_entity_copies( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& )
+int test_entity_copies( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& map )
 {
+  int ierr, rank, size;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  MPI_Comm_size( MPI_COMM_WORLD, &size );
+
+  // generate a unique ID for each vertex using the coordinates.
+  // see create_mesh(..): each vertex has integer coordinates (x,y,0)
+  //                      with x in [0,inf] and y in [0,4]
+  // then to an Allgatherv to exchange handles for each processor
+  
+  // cast everything to iBase_EntityHandle so we can pack it all in one communication
+  MPI_Datatype tmp_type;
+  if (sizeof(iBase_EntityHandle) == sizeof(unsigned))
+    tmp_type = MPI_UNSIGNED;
+  else if (sizeof(iBase_EntityHandle) == sizeof(unsigned long))
+    tmp_type = MPI_UNSIGNED_LONG;
+  else
+    return iBase_FAILURE;
+  const MPI_Datatype type = tmp_type; // make it const
+    
+    // get local part handles
+  std::vector<iMeshP_PartHandle> parts;
+  ierr = get_local_parts( imesh, prtn, parts );
+  PCHECK;
+  std::vector<iMeshP_Part> part_ids(parts.size());
+  iMeshP_Part* junk1 = &part_ids[0];
+  int junk2 = part_ids.size(), junk3;
+  iMeshP_getPartIdsFromPartHandlesArr( imesh, prtn, &parts[0], parts.size(),
+                                       &junk1, &junk2, &junk3, &ierr );
+  PCHECK;
+  assert( junk1 == &part_ids[0] );
+  assert( junk2 == (int)part_ids.size() );
+  assert( junk3 == (int)parts.size() );
+  
+    // build list of {vtx_id, part_id, handle} tuples to send
+    // also build list of local vertex handles
+  std::vector<iBase_EntityHandle> local_data, local_vertices;
+  for (size_t i = 0; i < parts.size(); ++i) {
+      // get vertices
+    std::vector<iBase_EntityHandle> quads, verts;
+    ierr = get_part_quads_and_verts( imesh, parts[i], quads, verts );
+    if (ierr)
+      break;
+    
+      // get vertex coodinates
+    std::vector<double> coords(3*verts.size());
+    ierr = get_coords( imesh, &verts[0], verts.size(), &coords[0] );
+    if (ierr)
+      break;
+    
+      // add all vertices to local_data
+    for (size_t j = 0; j < verts.size(); ++j) {
+      int xc = (int)round(coords[3*j  ]);
+      int yc = (int)round(coords[3*j+1]);
+      int tag = 5*xc + yc + 1;
+      local_data.push_back( (iBase_EntityHandle)tag );
+      local_data.push_back( (iBase_EntityHandle)part_ids[i] );
+      local_data.push_back( verts[j] );
+    }
+    
+    std::copy( verts.begin(), verts.end(), std::back_inserter(local_vertices) );
+  }
+  
+    // build list of local vertices
+  std::sort( local_vertices.begin(), local_vertices.end() );
+  local_vertices.erase( std::unique( local_vertices.begin(), local_vertices.end() ), local_vertices.end() );
+  std::vector<int> local_vtx_tags(local_vertices.size());
+  std::vector<double> local_coords(3*local_vertices.size());
+  ierr = get_coords( imesh, &local_vertices[0], local_vertices.size(), &local_coords[0] );
+  CHKERR;
+  for (size_t i = 0; i < local_vertices.size(); ++i) {
+    int xc = (int)round(local_coords[3*i  ]);
+    int yc = (int)round(local_coords[3*i+1]);
+    local_vtx_tags[i] = 5*xc + yc + 1;
+  }
+  
+    // communicate data
+  std::vector<int> gcounts(size), gdisp(size);
+  int local_data_size = local_data.size();
+  ierr = MPI_Allgather( &local_data_size, 1, MPI_INT, &gcounts[0], 1, MPI_INT, MPI_COMM_WORLD );
+  CHKERR;
+  gdisp[0] = 0;
+  for (int i = 1; i < size; ++i)
+    gdisp[i] = gdisp[i-1]+gcounts[i-1];
+  std::vector<iBase_EntityHandle> global_data( gdisp[size-1]+gcounts[size-1] );
+  ierr = MPI_Allgatherv( &local_data[0], local_data_size, type, 
+                         &global_data[0], &gcounts[0], &gdisp[0], type, MPI_COMM_WORLD );
+  CHKERR;
+  
+    // arrange global data in a more useful way
+  std::map<int,VtxCopyData> vtx_sharing;
+  assert( global_data.size() % 3 == 0 );
+  for (size_t i = 0; i < global_data.size(); i += 3) {
+    int tag =                  (int)(size_t)global_data[i  ];
+    iMeshP_Part part = (iMeshP_Part)(size_t)global_data[i+1];
+    iBase_EntityHandle handle =             global_data[i+2];
+    vtx_sharing[tag].parts.push_back( part );
+    vtx_sharing[tag].handles.push_back( handle );
+  }
+  
+    // test iMeshP_getCopies for each local vertex
+  int num_error = 0, num_incorrect = 0, junk4;
+  for (size_t i = 0; i < local_vertices.size(); ++i) {
+    int num_copies = -1;
+    iMeshP_Part* part_ids = 0;
+    iBase_EntityHandle* copies = 0;
+    junk2 = junk3 = junk4 = 0;
+    iMeshP_getCopies( imesh, prtn, local_vertices[i],
+                      &part_ids, &junk2, &num_copies, 
+                      &copies, &junk3, &junk4, &ierr );
+    if (iBase_SUCCESS != ierr) {
+      ++num_error;
+      continue;
+    }
+    assert( junk4 == num_copies );
+    
+    VtxCopyData& expected = vtx_sharing[local_vtx_tags[i]];
+    if (num_copies != (int)expected.parts.size())
+      ++num_incorrect;
+    else for (size_t j = 0; j < expected.parts.size(); ++j) {
+      int idx = std::find( part_ids, part_ids+num_copies, expected.parts[j] ) - part_ids;
+      if (idx == num_copies || copies[idx] != expected.handles[j]) {
+        ++num_incorrect;
+        break;
+      }
+    }
+    free(part_ids);
+    free(copies);
+  }
+  ASSERT( 0 == num_error );
+  ASSERT( 0 == num_incorrect );
+   
+    // test iMeshP_getCopyOnPart for each local vertex
+  num_error = num_incorrect = 0;
+  for (size_t i = 0; i < local_vertices.size(); ++i) {
+    VtxCopyData& expected = vtx_sharing[local_vtx_tags[i]];
+    for (size_t j = 0; j < expected.parts.size(); ++j) {
+      iBase_EntityHandle copy;
+      iMeshP_getCopyOnPart( imesh, prtn, local_vertices[i], expected.parts[j], &copy, &ierr );
+      if (iBase_SUCCESS != ierr)
+        ++num_error;
+      else if (expected.handles[j] != copy)
+        ++num_incorrect;
+    }
+  }
+  ASSERT( 0 == num_error );
+  ASSERT( 0 == num_incorrect );
+
+    // test iMeshP_getOwnerCopy for each local vertex
+  num_error = num_incorrect = 0;
+  for (size_t i = 0; i < local_vertices.size(); ++i) {
+    VtxCopyData& expected = vtx_sharing[local_vtx_tags[i]];
+    iMeshP_Part owner_id = 0;
+    iMeshP_getEntOwnerPart( imesh, prtn, local_vertices[i], &owner_id, &ierr );
+    if (iBase_SUCCESS != ierr) 
+      continue; // not testing getEntOwnerPart here
+    
+    size_t idx = std::find( expected.parts.begin(), expected.parts.end(), owner_id )
+                   - expected.parts.begin();
+    if (idx == expected.parts.size())
+      continue; // not testing getEntOwnerPart here
+    
+    iMeshP_Part owner_id_2 = 0;
+    iBase_EntityHandle copy = 0;
+    iMeshP_getOwnerCopy( imesh, prtn, local_vertices[i], &owner_id_2, &copy, &ierr );
+    if (iBase_SUCCESS != ierr)
+      ++num_error;
+    else if (owner_id_2 != owner_id && copy != expected.handles[idx])
+      ++num_incorrect;
+  }
+  ASSERT( 0 == num_error );
+  ASSERT( 0 == num_incorrect );
+  
   return iBase_SUCCESS;
 }
 
