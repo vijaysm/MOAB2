@@ -396,7 +396,7 @@ MBErrorCode MBCore::load_file( const char* file_name,
       if (!pcomm)
         return MB_ENTITY_NOT_FOUND;
     }
-    else if (rval != MB_TYPE_OUT_OF_RANGE) 
+    else if (rval != MB_ENTITY_NOT_FOUND) 
       return rval;
     return ReadParallel(this,pcomm).load_file(file_name, file_set, opts,
                                         block_id_list, num_blocks);
