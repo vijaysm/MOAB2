@@ -3188,7 +3188,7 @@ MBErrorCode MBParallelComm::get_ghost_layers(MBEntityHandle iface_set,
       int owner;
       result = get_owner( *i, owner );
       RRA("Trouble getting owner of to-be-ghosted entity");
-      if (owner == proc_config().proc_rank())
+      if (owner == (int)proc_config().proc_rank())
         ++i;
       else
         i = new_ghosts.erase( i );
@@ -3368,7 +3368,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
       for (MBRange::iterator s = sent_ents[ind].begin(); s != sent_ents[ind].end(); ++s) {
         result = get_owner( *s, owner );
         RRA("Trouble getting entity owner");
-        if (owner == proc_config().proc_rank()) {
+        if (owner == (int)proc_config().proc_rank()) {
           ins1 = new_ghosted.insert( ins1, *s, *s );
           ins2 = ghostedEnts[*sit].insert( ins2, *s, *s );
         }
