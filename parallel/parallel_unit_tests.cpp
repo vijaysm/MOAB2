@@ -9,6 +9,10 @@
 #include <algorithm>
 #include <sstream>
 #include <assert.h>
+#ifndef _MSC_VER
+#include <unistd.h>
+#endif
+
 
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)
@@ -51,6 +55,59 @@ MBErrorCode get_geom_inclusive_mesh( MBInterface& moab,
                                      MBEntityHandle set,
                                      MBEntityType type,
                                      MBRange& contents_out );
+
+// Create a parallel mesh
+//
+// Each processor will create four quads.
+// Groups of four quads will be arranged as follows:
+// +------+------+------+------+------+-----
+// |             |             |
+// |             |             |
+// +    Proc 0   +    Proc 2   +    Proc 4
+// |             |             |
+// |             |             |
+// +------+------+------+------+------+-----
+// |             |             |
+// |             |             |
+// +    Proc 1   +    Proc 3   +    Proc 5
+// |             |             |
+// |             |             |
+// +------+------+------+------+------+-----
+//
+// Vertices will be enumerated as follows:
+// 1------6-----11-----16-----21-----26-----
+// |             |             |
+// |             |             |
+// 2      7     12     17     22     27
+// |             |             |
+// |             |             |
+// 3------8-----13-----18-----23-----28-----
+// |             |             |
+// |             |             |
+// 4      9     14     19     24     29
+// |             |             |
+// |             |             |
+// 5-----10-----15-----20-----25-----30-----
+//
+// Element IDs will be [4*rank+1,4*rank+5]
+MBErrorCode parallel_create_mesh( MBInterface& mb,
+                                  int output_vertx_ids[9],
+                                  MBEntityHandle output_vertex_handles[9],
+                                  MBRange& output_elements );
+
+// For each handle, pass back 1 if this processor owns the entity or
+// 0 if it does not.
+void check_if_owner( MBParallelComm& pcomm,
+                     const MBEntityHandle* handles,
+                     int num_handles,
+                     int* results );
+
+// Get data about shared entity.
+MBErrorCode get_sharing_data( MBParallelComm& pcomm,
+                              MBEntityHandle ent,
+                              int& owner,
+                              std::vector<int>& sharing_procs,
+                              std::vector<MBEntityHandle>& sharing_handles );
                                      
 // Test if is_my_error is non-zero on any processor in MPI_COMM_WORLD
 int is_any_proc_error( int is_my_error );
@@ -59,7 +116,9 @@ int is_any_proc_error( int is_my_error );
                            Test  Declarations
  **************************************************************************/
 
-// Test sharing tags for mesh entities shared by more than two processors
+// Check consistancy of sharing data.  (E.g. compare sharing procs for
+// vertics to that of adjacent elements, compare sharing data for 
+// interfaces with that of contained entities, etc.)
 MBErrorCode test_elements_on_several_procs( const char* filename );
 // Test correct ghosting of elements
 MBErrorCode test_ghost_elements_3_2_1( const char* filename );
@@ -71,6 +130,10 @@ MBErrorCode test_ghost_tag_exchange( const char* filename );
 // Bug where exchange_tags fails if dense tag cannot be queried
 // for all ghost entities (e.g. no default value)
 MBErrorCode regression_ghost_tag_exchange_no_default( const char* filename );
+// Test owners for interface entities
+MBErrorCode test_interface_owners( const char* );
+// Test data for shared interface entitites with one level of ghosting
+MBErrorCode regression_owners_with_ghosting( const char* );
 
 /**************************************************************************
                               Main Method
@@ -98,37 +161,67 @@ int run_test( MBErrorCode (*func)(const char*),
 
 int main( int argc, char* argv[] )
 {
+  int rank, size;
   MPI_Init(&argc, &argv);
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  MPI_Comm_size( MPI_COMM_WORLD, &size );
 
+  int pause_proc = -1;
+  const char* filename = 0;
+  for (int i = 1; i < argc; ++i) {
+    if (!strcmp(argv[i],"-p")) {
+      ++i;
+      assert(i < argc);
+      pause_proc = atoi( argv[i] );
+    }
+    else if (!filename) {
+      filename = argv[i];
+    }
+    else {
+      std::cerr << "Invalid arg: \"" << argv[i] << '"' << std::endl
+                << "Usage: " << argv[0] << " [-p <rank>] [<filename>]" << std::endl;
+      exit(1);
+    }
+  }
 
-  const char* filename;
-  if (argc == 1) {
+  if (!filename) {
 #ifdef SRCDIR
     filename = STRINGIFY(SRCDIR) "/ptest.cub";
 #else
     filename = "ptest.cub";
 #endif
   }
-  else if (argc == 2) {
-    filename = argv[1];
+
+  if (pause_proc != -1) {
+#ifndef _MSC_VER
+    std::cout << "Processor " << rank << " of " << size << " with PID " << getpid() << std::endl;
+    std::cout.flush();
+#endif
+      // loop forever on requested processor, giving the user time
+      // to attach a debugger.  Once the debugger in attached, user
+      // can change 'pause'.  E.g. on gdb do "set var pause = 0"
+    if (pause_proc == rank) {
+      volatile int pause = 1;
+      while (pause);
+    }
+    
+    MPI_Barrier( MPI_COMM_WORLD );
+    std::cout << "Processor " << rank << " resuming" << std::endl;
   }
-  else {
-    std::cerr << "Usage: " << argv[0] << " [filename]" << std::endl;
-    return 1;
-  }
+
   
   int num_errors = 0;
   
   num_errors += RUN_TEST( test_elements_on_several_procs, filename );
   num_errors += RUN_TEST( test_ghost_elements_3_2_1, filename );
-  num_errors += RUN_TEST( test_ghost_elements_3_2_2, filename );
+//  num_errors += RUN_TEST( test_ghost_elements_3_2_2, filename );
   num_errors += RUN_TEST( test_ghost_elements_3_0_1, filename );
-  num_errors += RUN_TEST( test_ghost_elements_2_0_1, filename );
+//  num_errors += RUN_TEST( test_ghost_elements_2_0_1, filename );
   num_errors += RUN_TEST( test_ghost_tag_exchange, filename );
   num_errors += RUN_TEST( regression_ghost_tag_exchange_no_default, filename );
+  num_errors += RUN_TEST( test_interface_owners, filename );
+  num_errors += RUN_TEST( regression_owners_with_ghosting, filename );
   
-  int rank;
-  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   if (rank == 0) {
     if (!num_errors) 
       std::cout << "All tests passed" << std::endl;
@@ -219,11 +312,156 @@ MBErrorCode get_geom_inclusive_mesh( MBInterface& moab,
 
 int is_any_proc_error( int is_my_error )
 {
-  int result;
+  int result = 0;
   int err = MPI_Allreduce( &is_my_error, &result, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD );
   return err || result;
 }
 
+
+MBErrorCode parallel_create_mesh( MBInterface& mb,
+                                  int vtx_ids[9],
+                                  MBEntityHandle vtx_handles[9],
+                                  MBRange& range )
+{
+    // Each processor will create four quads.
+    // Groups of four quads will be arranged as follows:
+    // +------+------+------+------+------+-----
+    // |             |             |
+    // |             |             |
+    // +    Proc 0   +    Proc 2   +    Proc 4
+    // |             |             |
+    // |             |             |
+    // +------+------+------+------+------+-----
+    // |             |             |
+    // |             |             |
+    // +    Proc 1   +    Proc 3   +    Proc 5
+    // |             |             |
+    // |             |             |
+    // +------+------+------+------+------+-----
+    //
+    // Vertices will be enumerated as follows:
+    // 1------6-----11-----16-----21-----26-----
+    // |             |             |
+    // |             |             |
+    // 2      7     12     17     22     27
+    // |             |             |
+    // |             |             |
+    // 3------8-----13-----18-----23-----28-----
+    // |             |             |
+    // |             |             |
+    // 4      9     14     19     24     29
+    // |             |             |
+    // |             |             |
+    // 5-----10-----15-----20-----25-----30-----
+    //
+    // Element IDs will be [4*rank+1,4*rank+5]
+    
+  int size, rank;
+  MPI_Comm_size( MPI_COMM_WORLD, &size );
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+
+  const int first_vtx_id = 10*(rank/2) + 2*(rank%2) + 1;
+  const double x = 2.0*(rank/2);
+  const double y = 2.0*(rank%2);
+
+  // create vertices
+  const int idoff = (size%2 && rank/2 == size/2) ? 0 : 2;
+  const int idoff1 = rank ? 2 : idoff;
+  const int idoff2 = idoff1+idoff;
+  const int ids[9] = { first_vtx_id    , first_vtx_id + 3 + idoff1, first_vtx_id + 6 + idoff2,
+                       first_vtx_id + 1, first_vtx_id + 4 + idoff1, first_vtx_id + 7 + idoff2,
+                       first_vtx_id + 2, first_vtx_id + 5 + idoff1, first_vtx_id + 8 + idoff2 };
+  memcpy( vtx_ids, ids, sizeof(ids) );
+  const double coords[27] = {  x, y,   0,   x+1, y,   0,   x+2, y,   0,
+                               x, y+1, 0,   x+1, y+1, 0,   x+2, y+1, 0,
+                               x, y+2, 0,   x+1, y+2, 0,   x+2, y+2, 0 };
+
+  MBErrorCode rval;
+  MBTag id_tag;
+
+  rval = mb.create_vertices( coords, 9, range ); CHKERR(rval);
+  assert(range.size() == 9);
+  std::copy( range.begin(), range.end(), vtx_handles );
+  range.clear();
+  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag ); CHKERR(rval);
+  rval = mb.tag_set_data( id_tag, vtx_handles, 9, &ids ); CHKERR(rval);
+
+  const MBEntityHandle conn[4][4] = { 
+                         { vtx_handles[0], vtx_handles[3], vtx_handles[4], vtx_handles[1] },
+                         { vtx_handles[1], vtx_handles[4], vtx_handles[5], vtx_handles[2] },
+                         { vtx_handles[3], vtx_handles[6], vtx_handles[7], vtx_handles[4] },
+                         { vtx_handles[4], vtx_handles[7], vtx_handles[8], vtx_handles[5] } };
+  for (int i = 0; i < 4; ++i) {
+    const int id = 4*rank + i + 1;
+    MBEntityHandle h;
+    rval = mb.create_element( MBQUAD, conn[i], 4, h ); CHKERR(rval);
+    range.insert(h);
+    rval = mb.tag_set_data( id_tag, &h, 1, &id ); CHKERR(rval);
+  }
+  
+  return MB_SUCCESS;
+}
+
+void check_if_owner( MBParallelComm& pcomm,
+                     const MBEntityHandle* handles,
+                     int num_handles,
+                     int* results )
+{
+  MBErrorCode rval;
+  int owner, me = pcomm.proc_config().proc_rank();
+  for (int i = 0; i < num_handles; ++i) {
+    rval = pcomm.get_owner( handles[i], owner );
+    results[i] = (rval == MB_SUCCESS) && (owner == me);
+  }
+}
+
+MBErrorCode get_sharing_data( MBParallelComm& pcomm,
+                              MBEntityHandle ent,
+                              int& owner,
+                              std::vector<int>& sharing_procs,
+                              std::vector<MBEntityHandle>& sharing_handles )
+{
+  MBInterface* const moab = pcomm.get_moab();
+  MBErrorCode rval;
+  sharing_procs.clear();
+  sharing_handles.clear();
+  
+  unsigned char status;
+  rval = moab->tag_get_data( pcomm.pstatus_tag(), &ent, 1, &status );
+  if (MB_TAG_NOT_FOUND == rval) {
+    owner = pcomm.proc_config().proc_rank();
+    return MB_SUCCESS;
+  }
+  else { CHKERR(rval); }
+  
+  if (!(status & PSTATUS_SHARED)) {
+    owner = pcomm.proc_config().proc_rank();
+    return MB_SUCCESS;
+  }
+  
+  int ranks[MAX_SHARING_PROCS];
+  int handles[MAX_SHARING_PROCS];
+  rval = moab->tag_get_data( pcomm.sharedp_tag(), &ent, 1, ranks );
+  if (MB_SUCCESS != rval)
+    return rval;
+  if (ranks[0] >= 0) {
+    ranks[1] = -1;
+    rval = moab->tag_get_data( pcomm.sharedh_tag(), &ent, 1, handles ); CHKERR(rval);
+  }
+  else {
+    rval = moab->tag_get_data( pcomm.sharedps_tag(), &ent, 1, ranks ); CHKERR(rval);
+    rval = moab->tag_get_data( pcomm.sharedhs_tag(), &ent, 1, handles ); CHKERR(rval);
+  }
+  owner = status & PSTATUS_NOT_OWNED ? ranks[0] : pcomm.proc_config().proc_rank();
+  
+  for (int i = 0; i < MAX_SHARING_PROCS && ranks[i] >= 0; ++i) {
+    if (ranks[i] < 0 || (unsigned)ranks[i] != pcomm.proc_config().proc_rank()) {
+      sharing_procs.push_back(ranks[i]);
+      sharing_handles.push_back(handles[i]);
+    }
+  }
+  return MB_SUCCESS;
+}
 
 /**************************************************************************
                            Test  Implementations
@@ -380,7 +618,7 @@ MBErrorCode get_expected_ghosts( MBInterface& moab,
   rval = moab.tag_get_handle( GEOM_DIMENSION_TAG_NAME, tags[0] ); CHKERR(rval);
   rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, tags[1] ); CHKERR(rval);  
 
-    // get all interface sets
+    // get all interface sets, by ID
   MBRange iface_sets;
   for (int d = 0; d < 3; ++d) {
     for (size_t i = 0; i < partition_geom_ids[d].size(); ++i) {
@@ -421,7 +659,7 @@ MBErrorCode get_expected_ghosts( MBInterface& moab,
       }
     }
     
-      // get entities in adjacent partitions 
+      // get entities in adjacent partitions, skip partitions owned by this proc
     MBRange adj_proc_ents;
     for (MBRange::iterator p = parents.begin(); p != parents.end(); ++p) {
       int id;
@@ -843,3 +1081,134 @@ MBErrorCode regression_ghost_tag_exchange_no_default( const char* filename )
 }
 
   
+// Helper for exhange_sharing_data
+// Swap contens of buffer with specified processor.
+int MPI_swap( void* buffer, int num_val, MPI_Datatype val_type, int other_proc )
+{
+  int err, rank, bytes;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  MPI_Type_size( val_type, &bytes );
+  bytes *= num_val;
+  std::vector<unsigned char> buffer2(bytes);
+  
+  for (int i = 0; i < 2; ++i) {
+    if (i == (rank < other_proc)) {
+      err = MPI_Send( buffer, num_val, val_type, other_proc, 0, MPI_COMM_WORLD );
+      if (err)
+        return err;
+    }
+    else {
+      MPI_Status status;
+      err = MPI_Recv( &buffer2[0], num_val, val_type, other_proc, 0, MPI_COMM_WORLD, &status );
+      if (err)
+        return err;
+    }
+  }
+  
+  memcpy( buffer, &buffer2[0], bytes );
+  return 0;
+}
+
+  
+int valid_ghosting_owners( int comm_size, 
+                           const int* ids,
+                           const int* owners )
+{
+    // for each vertex ID, build list of {rank,owner} tuples
+  std::map< int, std::vector<int> > verts;
+  for (int p = 0; p < comm_size; ++p) {
+    for (int i = 0; i < 9; ++i) { // nine verts per proc
+      int idx = 9*p+i;
+      verts[ ids[idx] ].push_back( p );
+      verts[ ids[idx] ].push_back( owners[idx] );
+    }
+  }
+  
+    // now check for each vertex that the owner from
+    // each processor is the same
+  bool print_desc = true;
+  int error_count = 0;
+  std::map< int, std::vector<int> >::iterator it;
+  for (it = verts.begin(); it != verts.end(); ++it) {
+    int id = it->first;
+    std::vector<int>& list = it->second;
+    bool all_same = true;
+    for (size_t i = 2; i < list.size(); i += 2)
+      if (list[i+1] != list[1])
+        all_same = false;
+    if (all_same)
+      continue;
+    
+    ++error_count;
+    
+    if (print_desc) {
+      print_desc = false;
+      std::cerr << "ERROR at " __FILE__ ":" << __LINE__ << std::endl
+                << "  Processors have inconsistant ideas of vertex ownership:"
+                << std::endl;
+    }
+    
+    std::cerr << "  Vertex " << id << ": " << std::endl;
+    for (size_t i = 0; i < list.size(); i += 2) 
+      std::cerr << "    Proc " << list[i] << " thinks owner is " << list[i+1] << std::endl;
+  }
+
+  return error_count;
+}
+
+MBErrorCode test_interface_owners_common( int num_ghost_layers )
+{
+  MBErrorCode rval;  
+  MBCore moab_instance;
+  MBInterface& mb = moab_instance;
+  MBParallelComm pcomm( &mb );
+  
+    // build distributed quad mesh
+  MBRange quads;
+  MBEntityHandle verts[9];
+  int ids[9];
+  rval = parallel_create_mesh( mb, ids, verts, quads );  PCHECK(MB_SUCCESS == rval);
+  rval = pcomm.resolve_shared_ents( 0, quads, 2, 1 ); PCHECK(MB_SUCCESS == rval);
+  if (num_ghost_layers) {
+    rval = pcomm.exchange_ghost_cells( 2, 0, num_ghost_layers, true ); 
+    PCHECK(MB_SUCCESS == rval);
+  }
+  
+    // get vertex owners
+  int owner[9];
+  for (int i = 0; i < 9; ++i) {
+    rval = pcomm.get_owner( verts[i], owner[i] );
+    if (MB_SUCCESS != rval)
+      break;
+  }
+  PCHECK(MB_SUCCESS == rval);
+  
+    // exchange vertex owners amongst all processors
+  int rank, size, ierr;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  MPI_Comm_size( MPI_COMM_WORLD, &size );
+  std::vector<int> all_ids(9*size), all_owner(9*size);
+  ierr = MPI_Gather( ids, 9, MPI_INT, &all_ids[0], 9, MPI_INT, 0, MPI_COMM_WORLD );
+  if (ierr)
+    return MB_FAILURE;
+  ierr = MPI_Gather( owner, 9, MPI_INT, &all_owner[0], 9, MPI_INT, 0, MPI_COMM_WORLD );
+  if (ierr)
+    return MB_FAILURE;
+  
+  int errors = rank ? 0 : valid_ghosting_owners( size, &all_ids[0], &all_owner[0] );
+  MPI_Bcast( &errors, 1, MPI_INT, 0, MPI_COMM_WORLD );
+  return errors ? MB_FAILURE : MB_SUCCESS;
+}
+
+// Common implementation for both:
+//   test_interface
+//   regression_interface_with_ghosting
+MBErrorCode test_interface_owners( const char* )
+{
+  return test_interface_owners_common(0);
+}
+
+MBErrorCode regression_owners_with_ghosting( const char* )
+{
+  return test_interface_owners_common(1);
+}
