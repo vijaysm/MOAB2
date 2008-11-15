@@ -1505,11 +1505,21 @@ MBErrorCode MBParallelComm::set_remote_data(MBRange &local_range,
       RRA("Couldn't set sharedhs tag (range)");
       std::fill(remote_procs.begin(), remote_procs.end(), -1);
       std::fill(remote_handles.begin(), remote_handles.end(), 0);
+        // need to clear sharedp_tag and sharedh_tag if prev 
+        // data came from there
+      if (-1 != remote_proc[i]) {
+        remote_proc[i] = -1;
+        remote_handle[i] = 0;
+        result = mbImpl->tag_set_data(sharedp_tag, &*rit, 1, &remote_proc[i] );
+        RRA("Couldn't set sharedp tag");
+        result = mbImpl->tag_set_data(sharedh_tag, &*rit, 1, &remote_handle[i] );
+        RRA("Couldn't set sharedp tag");
+      }
     }
   }
 
     // also update shared flag for these ents
-  unsigned int *shared_flags = (unsigned int*) &remote_proc[0];
+  unsigned char *shared_flags = (unsigned char*) &remote_proc[0];
   result = mbImpl->tag_get_data(pstatus_tag, local_range, shared_flags);
   RRA("Couldn't get pstatus tag (range)");
   for (unsigned int i = 0; i < local_range.size(); i++)
@@ -3171,6 +3181,19 @@ MBErrorCode MBParallelComm::get_ghost_layers(MBEntityHandle iface_set,
     result = mbImpl->get_adjacencies(*bridge_ents_ptr, to_dim, false, new_ghosts,
                                      MBInterface::UNION);
     RRA("Trouble getting ghost adjacencies in iteration.");
+    
+      // remove from new_ghosts any entities that I don't own
+    MBRange::iterator i = new_ghosts.begin();
+    while (i != new_ghosts.end()) {
+      int owner;
+      result = get_owner( *i, owner );
+      RRA("Trouble getting owner of to-be-ghosted entity");
+      if (owner == proc_config().proc_rank())
+        ++i;
+      else
+        i = new_ghosts.erase( i );
+    }
+    
     to_ents.merge(new_ghosts);
     result = mbImpl->get_adjacencies(new_ghosts, bridge_dim, false, new_bridges,
                                      MBInterface::UNION);
@@ -3340,8 +3363,16 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     RRA("Failed to pack-send in ghost exchange.");
 
     if (0 != num_layers) {
-      new_ghosted.merge(sent_ents[ind]);
-      ghostedEnts[*sit].merge(sent_ents[ind]);
+      MBRange::iterator ins1 = new_ghosted.begin(), ins2 = ghostedEnts[*sit].begin();
+      int owner;
+      for (MBRange::iterator s = sent_ents[ind].begin(); s != sent_ents[ind].end(); ++s) {
+        result = get_owner( *s, owner );
+        RRA("Trouble getting entity owner");
+        if (owner == proc_config().proc_rank()) {
+          ins1 = new_ghosted.insert( ins1, *s, *s );
+          ins2 = ghostedEnts[*sit].insert( ins2, *s, *s );
+        }
+      }
     }
   }
   
