@@ -24,6 +24,7 @@
 #include "ReadSTL.hpp"
 #include "ReadGmsh.hpp"
 #include "ReadIDEAS.hpp"
+#include "ReadSms.hpp"
 #include "Tqdcfr.hpp"
 
 #include "WriteAns.hpp"
@@ -71,6 +72,8 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
   register_factory( ReadIDEAS::factory, NULL, "IDEAS format", "unv", "UNV" );
   
   register_factory( ReadVtk::factory, WriteVtk::factory, "Kitware VTK", "vtk", "VTK" );
+  
+  register_factory( ReadSms::factory, NULL, "RPI SMS", "sms", "SMS" );
   
   register_factory( Tqdcfr::factory, NULL, "Cubit", "cub", "CUBIT" );
 

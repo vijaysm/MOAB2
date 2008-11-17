@@ -268,3 +268,53 @@ MBErrorCode MBReadUtil::gather_related_ents(MBRange &partition,
   
   return MB_SUCCESS;
 }
+
+MBErrorCode MBReadUtil::get_ordered_vertices(MBEntityHandle *bound_ents,
+                                             int *sense, 
+                                             int bound_size,
+                                             int dim,
+                                             MBEntityHandle *bound_verts, 
+                                             MBEntityType &etype) 
+{
+    // get dimension of bounding entities
+  int bound_dim = MBCN::Dimension(TYPE_FROM_HANDLE(bound_ents[0]));
+  int indices[MB_MAX_SUB_ENTITY_VERTICES];
+  const MBEntityHandle *connect;
+  std::vector<MBEntityHandle> tmp_connect;
+  
+    // find the right entity type based on # bounding ents
+  int numv = 0, num_connect;
+  MBErrorCode result;
+  for (MBEntityType t = MBEDGE; t < MBENTITYSET; t++) {
+    int nindex = MBCN::NumSubEntities(t, bound_dim);
+    if (MBCN::Dimension(t) != dim || nindex != bound_size) 
+      continue;
+
+      // fill in vertices from bounding entity vertices
+    int nverts = MBCN::VerticesPerEntity(t);
+    std::fill(bound_verts, bound_verts+nverts, 0);
+    for (int index = 0; index < nindex; index++) {
+      result = mMB->get_connectivity(bound_ents[index], connect, num_connect,
+                                     false, &tmp_connect);
+      if (MB_SUCCESS != result) return result;
+      
+      MBCN::SubEntityVertexIndices(t, bound_dim, index, indices);
+
+      for (int c = 0; c < num_connect; c++) {
+        if (!bound_verts[indices[c]]) {
+          bound_verts[indices[c]] = (sense[index] > 0) ?
+              connect[c] : connect[num_connect - c - 1];
+          numv++;
+        }
+      }
+      if (numv == nverts) {
+        etype = t;
+        return MB_SUCCESS;
+      }
+    }
+  }
+  
+    // if we get here, we didn't get full connectivity
+  etype = MBMAXTYPE;
+  return MB_FAILURE;
+}

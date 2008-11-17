@@ -152,6 +152,8 @@ libMOAB_la_SOURCES = \
   RangeMap.hpp \
   ReadGmsh.cpp \
   ReadGmsh.hpp \
+  ReadSms.hpp \
+  ReadSms.cpp \
   ReadSTL.cpp \
   ReadSTL.hpp \
   ReadVtk.cpp \

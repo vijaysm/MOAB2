@@ -468,7 +468,7 @@ bool FileTokenizer::get_binary( size_t size, void* mem )
   if (nextToken != bufferEnd) {
       // if requested size is less than buffer contents,
       // just pass back part of the buffer
-    if (bufferEnd - nextToken <= size) {
+    if (bufferEnd - nextToken <= (int)size) {
       memcpy( mem, nextToken, size );
       nextToken += size;
       return true;

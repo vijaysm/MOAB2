@@ -95,6 +95,15 @@ public:
 __attribute__((format(printf,2,3)))
 #endif
   ;
+
+    //! given an ordered list of bounding entities and the sense of
+    //! those entities, return an ordered list of vertices
+  MBErrorCode get_ordered_vertices(MBEntityHandle *bound_ents, 
+                                   int *sense, 
+                                   int num_bound,
+                                   int dim,
+                                   MBEntityHandle *bound_verts, 
+                                   MBEntityType &etype);
 };
 
 #endif
