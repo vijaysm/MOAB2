@@ -207,7 +207,8 @@ int test_create_ghost_ents( iMesh_Instance, iMeshP_PartitionHandle prtn, const P
  * - iMeshP_pushTags
  * - iMeshP_pushTagsEnt
  */
-int test_push_tag_data( iMesh_Instance, iMeshP_PartitionHandle prtn, const PartMap& );
+int test_push_tag_data_iface( iMesh_Instance, iMeshP_PartitionHandle prtn, const PartMap& );
+int test_push_tag_data_ghost( iMesh_Instance, iMeshP_PartitionHandle prtn, const PartMap& );
 
 
 /**************************************************************************
@@ -391,50 +392,15 @@ static int get_coords( iMesh_Instance imesh,
                               Main Method
  **************************************************************************/
 
-#define RUN_TEST(A) run_test( &A, #A, imesh, prtn, map )
+#define RUN_TEST(A) run_test( &A, #A )
 
 int run_test( int (*func)(iMesh_Instance, iMeshP_PartitionHandle, const PartMap&), 
-              const char* func_name,
-              iMesh_Instance data,
-              iMeshP_PartitionHandle prtn,
-              const PartMap& map )
+              const char* func_name )
 {
-  int result = (*func)(data,prtn,map);
-  int is_err = is_any_proc_error( result );
-  int rank;
-  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
-  if (rank == 0) {
-    if (is_err) 
-      std::cout << func_name << " : FAILED!!" << std::endl;
-    else
-      std::cout << func_name << " : success" << std::endl;
-  }
-  
-  return is_err;
-}
-
-int main( int argc, char* argv[] )
-{
-  MPI_Init(&argc, &argv);
-  int size, rank, ierr = 1;
+  int rank, size, ierr;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   MPI_Comm_size( MPI_COMM_WORLD, &size );
-
-  if (argc > 2 && !strcmp(argv[1], "-p")) {
-#ifndef _MSC_VER
-    std::cout << "Processor " << rank << " of " << size << " with PID " << getpid() << std::endl;
-    std::cout.flush();
-#endif
-      // loop forever on requested processor, giving the user time
-      // to attach a debugger.  Once the debugger in attached, user
-      // can change 'pause'.  E.g. on gdb do "set var pause = 0"
-    if (atoi(argv[2]) == rank) {
-      volatile int pause = 1;
-      while (pause);
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-  }
-
+  
   if (rank == 0) {
     ierr = create_mesh( FILENAME, size );
   }
@@ -456,8 +422,8 @@ int main( int argc, char* argv[] )
   PCHECK;
   
   PartMap map;
-  int num_errors =  test_load( imesh, prtn, map, size );
-  if (num_errors) {
+  ierr = test_load( imesh, prtn, map, size );
+  if (ierr) {
     if (rank == 0) {
       std::cerr << "Failed to load input mesh." << std::endl
                 << "Cannot run further tests." << std::endl
@@ -466,6 +432,43 @@ int main( int argc, char* argv[] )
     abort();
   }
 
+  int result = (*func)(imesh,prtn,map);
+  int is_err = is_any_proc_error( result );
+  if (rank == 0) {
+    if (is_err) 
+      std::cout << func_name << " : FAILED!!" << std::endl;
+    else
+      std::cout << func_name << " : success" << std::endl;
+  }
+  
+  iMesh_dtor( imesh, &ierr );
+  CHKERR;
+  return is_err;
+}
+
+int main( int argc, char* argv[] )
+{
+  MPI_Init(&argc, &argv);
+  int size, rank;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  MPI_Comm_size( MPI_COMM_WORLD, &size );
+
+  if (argc > 2 && !strcmp(argv[1], "-p")) {
+#ifndef _MSC_VER
+    std::cout << "Processor " << rank << " of " << size << " with PID " << getpid() << std::endl;
+    std::cout.flush();
+#endif
+      // loop forever on requested processor, giving the user time
+      // to attach a debugger.  Once the debugger in attached, user
+      // can change 'pause'.  E.g. on gdb do "set var pause = 0"
+    if (atoi(argv[2]) == rank) {
+      volatile int pause = 1;
+      while (pause);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+
+  int num_errors = 0;
   num_errors += RUN_TEST( test_get_partitions );
   num_errors += RUN_TEST( test_get_parts );
   num_errors += RUN_TEST( test_get_by_type );
@@ -481,7 +484,8 @@ int main( int argc, char* argv[] )
   num_errors += RUN_TEST( test_entity_status );
   num_errors += RUN_TEST( test_entity_copy_parts );
   num_errors += RUN_TEST( test_entity_copies );
-  num_errors += RUN_TEST( test_push_tag_data );
+  num_errors += RUN_TEST( test_push_tag_data_iface );
+  num_errors += RUN_TEST( test_push_tag_data_ghost );
   num_errors += RUN_TEST( test_create_ghost_ents );
   
     // wait until all procs are done before writing summary data
@@ -2543,12 +2547,19 @@ int test_create_ghost_ents( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, c
  * - iMeshP_pushTags
  * - iMeshP_pushTagsEnt
  */
-int test_push_tag_data( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& )
+int test_push_tag_data_common( iMesh_Instance imesh, 
+                               iMeshP_PartitionHandle prtn, 
+                               int num_ghost_layers )
 {
   const char* src_name = "test_src";
   const char* dst_name = "test_dst";
   int ierr, rank;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  
+  if (num_ghost_layers) {
+    iMeshP_createGhostEntsAll( imesh, prtn, iBase_FACE, iBase_VERTEX, num_ghost_layers, 0, &ierr );
+    PCHECK;
+  }
   
   iBase_TagHandle src_tag, dst_tag;
   iMesh_createTag( imesh, src_name, 1, iBase_INTEGER, &src_tag, &ierr, strlen(src_name) );
@@ -2576,26 +2587,43 @@ int test_push_tag_data( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const
   
   tag_vals.clear();
   tag_vals.resize( verts.size(), -1 );
-  int *junk1 = &tag_vals[0], junk2 = tag_vals.size(), junk3;
-  iMesh_getIntArrData( imesh, &verts[0], verts.size(), dst_tag, &junk1, &junk2, &junk3, &ierr );
-  CHKERR;
-  assert( junk1 == &tag_vals[0] );
-  assert( junk2 == (int)tag_vals.size() );
-  assert( junk3 == (int)verts.size() );
+iBase_TagHandle id_tag;
+iMesh_getTagHandle( imesh, "GLOBAL_ID", &id_tag, &ierr, strlen("GLOBAL_ID") );
+std::vector<int> ids(verts.size());
+int* junk1 = &ids[0], junk2 = ids.size(), junk3;
+iMesh_getIntArrData( imesh, &verts[0], verts.size(), id_tag, &junk1, &junk2, &junk3, &ierr );
+PCHECK;
+int errcount = 0;
+for (size_t i = 0; i < verts.size(); ++i) {
+  iMesh_getIntData( imesh, verts[i], dst_tag, &tag_vals[i], &ierr );
+  if (ierr != iBase_SUCCESS) {
+    std::cerr << "Rank " << rank << " : getIntData failed for vertex " << ids[i] << std::endl;
+    std::cerr.flush();
+    ++errcount;
+  }
+}
+ASSERT(0 == errcount);
+
+//  int *junk1 = &tag_vals[0], junk2 = tag_vals.size(), junk3;
+//  iMesh_getIntArrData( imesh, &verts[0], verts.size(), dst_tag, &junk1, &junk2, &junk3, &ierr );
+//  PCHECK;
+//  assert( junk1 == &tag_vals[0] );
+//  assert( junk2 == (int)tag_vals.size() );
+//  assert( junk3 == (int)verts.size() );
   
   std::vector<int> expected( verts.size() );
   std::vector<iMeshP_Part> parts( verts.size() );
   iMeshP_Part* junk4 = &parts[0];
   junk2 = parts.size();
   iMeshP_getEntOwnerPartArr( imesh, prtn, &verts[0], verts.size(), &junk4, &junk2, &junk3, &ierr );
-  CHKERR;
+  PCHECK;
   assert(junk4 == &parts[0]);
   assert(junk2 == (int)parts.size());
   assert(junk3 == (int)verts.size());
   junk1 = &expected[0];
   junk2 = expected.size();
   iMeshP_getRankOfPartArr( imesh, prtn, &parts[0], parts.size(), &junk1, &junk2, &junk3, &ierr );
-  CHKERR;
+  PCHECK;
   assert(junk1 == &expected[0]);
   assert(junk2 == (int)expected.size());
   assert(junk3 == (int)parts.size());
@@ -2612,10 +2640,10 @@ int test_push_tag_data( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const
   tag_vals.clear();
   tag_vals.resize( verts.size(), -1 );
   iMesh_setIntArrData( imesh, &verts[0], verts.size(), src_tag, &tag_vals[0], tag_vals.size(), &ierr );
-  CHKERR;
+  PCHECK;
   tag_vals.resize( verts.size(), -1 );
   iMesh_setIntArrData( imesh, &verts[0], verts.size(), dst_tag, &tag_vals[0], tag_vals.size(), &ierr );
-  CHKERR;
+  PCHECK;
   
   std::vector<iBase_EntityHandle> some;
   for (size_t i = 0; i < verts.size(); ++i) {
@@ -2632,7 +2660,7 @@ int test_push_tag_data( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const
   tag_vals.clear();
   tag_vals.resize( some.size(), rank );
   iMesh_setIntArrData( imesh, &some[0], some.size(), src_tag, &tag_vals[0], tag_vals.size(), &ierr );
-  CHKERR;
+  PCHECK;
   
   iMeshP_pushTagsEnt( imesh, prtn, src_tag, dst_tag, &some[0], some.size(), &ierr );
   PCHECK;
@@ -2649,6 +2677,28 @@ int test_push_tag_data( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const
   
   ASSERT( tag_vals == expected );
   return iBase_SUCCESS;
+}
+
+/**\brief Test commuinication of tag data
+ *
+ * Test:
+ * - iMeshP_pushTags
+ * - iMeshP_pushTagsEnt
+ */
+int test_push_tag_data_iface( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& )
+{
+  return test_push_tag_data_common( imesh, prtn, 0 );
+}
+
+/**\brief Test commuinication of tag data
+ *
+ * Test:
+ * - iMeshP_pushTags
+ * - iMeshP_pushTagsEnt
+ */
+int test_push_tag_data_ghost( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const PartMap& )
+{
+  return test_push_tag_data_common( imesh, prtn, 1 );
 }
 
 
