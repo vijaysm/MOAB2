@@ -14,7 +14,7 @@
  */
 
 // If Microsoft compiler, then WIN32
-#ifdef __MSC_VER
+#if defined(_MSC_VER) || defined(__MINGW32__)
 #  ifndef WIN32
 #    define WIN32
 #  endif
@@ -584,9 +584,9 @@ void print_id_list( const char* head, std::ostream& stream, const std::set<int>&
     
 
 
-void print_time( const char* prefix, clock_t ticks, std::ostream& stream )
+void print_time( int clk_per_sec, const char* prefix, clock_t ticks, std::ostream& stream )
 {
-  ticks *= sysconf(_SC_CLK_TCK)/100;
+  ticks *= clk_per_sec/100;
   clock_t centi = ticks % 100;
   clock_t seconds = ticks / 100;
   if (seconds < 120)
@@ -621,7 +621,7 @@ void reset_times()
 void write_times( std::ostream& stream ) 
 {
   clock_t abs_tm = clock();
-  print_time( "  ", abs_tm - abs_time, stream );
+  print_time( CLOCKS_PER_SEC, "  ", abs_tm - abs_time, stream );
   abs_time = abs_tm;
 }
 
@@ -642,9 +642,9 @@ void write_times( std::ostream& stream )
   abs_tm = times( &timebuf );
   usr_tm = timebuf.tms_utime;
   sys_tm = timebuf.tms_stime;
-  print_time( "  real:   ", abs_tm - abs_time, stream );
-  print_time( "  user:   ", usr_tm - usr_time, stream );
-  print_time( "  system: ", sys_tm - sys_time, stream );
+  print_time( sysconf(_SC_CLK_TCK), "  real:   ", abs_tm - abs_time, stream );
+  print_time( sysconf(_SC_CLK_TCK), "  user:   ", usr_tm - usr_time, stream );
+  print_time( sysconf(_SC_CLK_TCK), "  system: ", sys_tm - sys_time, stream );
   abs_time = abs_tm;
   usr_time = usr_tm;
   sys_time = sys_tm;

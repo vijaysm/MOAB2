@@ -47,7 +47,7 @@
 
 // If test application hasn't set MODE, set to default
 #ifndef MODE
-#  ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(__MINGW32__)
 #    define MODE EXCEPTION_MODE
 #  else
 #    define MODE LONGJMP_MODE

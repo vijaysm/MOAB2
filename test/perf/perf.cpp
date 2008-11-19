@@ -17,7 +17,7 @@
 // hexes created one at a time.  This also creates the node to hex adjacencies.
  
 // Different platforms follow different conventions for usage
-#ifndef NT
+#if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <sys/resource.h>
 #endif
 #ifdef SOLARIS
@@ -370,6 +370,15 @@ void query_struct_elem_to_vert()
   }
 }
 
+#if defined(_MSC_VER) || defined(__MINGW32__)
+void print_time(const bool print_em, double &tot_time, double &utime, double &stime) 
+{
+  utime = (double)clock() / CLOCKS_PER_SEC;
+  if (print_em)
+    std::cout << "Total wall time = " << utime << std::endl;
+  tot_time = stime = 0;
+}
+#else
 void print_time(const bool print_em, double &tot_time, double &utime, double &stime) 
 {
   struct rusage r_usage;
@@ -389,6 +398,7 @@ void print_time(const bool print_em, double &tot_time, double &utime, double &st
   system("ps o args,drs,rss | grep perf | grep -v grep");  // RedHat 9.0 doesnt fill in actual memory data 
 #endif
 }
+#endif
 
 void testA(const int nelem, const double *coords) 
 {

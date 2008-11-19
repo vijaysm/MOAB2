@@ -8,7 +8,7 @@
 #include <math.h>
 #include <map>
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <unistd.h>
 #endif
 
@@ -454,7 +454,7 @@ int main( int argc, char* argv[] )
   MPI_Comm_size( MPI_COMM_WORLD, &size );
 
   if (argc > 2 && !strcmp(argv[1], "-p")) {
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) && !defined(__MINGW32__)
     std::cout << "Processor " << rank << " of " << size << " with PID " << getpid() << std::endl;
     std::cout.flush();
 #endif

@@ -15,11 +15,10 @@
 #include <stdint.h>
 #endif
 
-#ifdef _MSC_VER /* windows */
-#  include <BaseTsd.h>
-typedef ULONG16 uint16_t;
-typedef ULONG32 uint32_t;
-typedef ULONG64 uint64_t;
+#if defined(_MSC_VER) /* windows */
+typedef unsigned __int16 uint16_t;
+typedef unsigned __int32 uint32_t;
+typedef unsigned __int64 uint64_t;
 #endif
 
 namespace MBSysUtil

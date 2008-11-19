@@ -39,9 +39,8 @@
 #include <stdint.h>
 #endif
 
-#ifdef _MSC_VER /* windows */
-#  include <BaseTsd.h>
-typedef ULONG32 uint32_t;
+#if defined(_MSC_VER) /* Windows */
+typedef unsigned __int32 uint32_t;
 #endif
 
 #include <errno.h>

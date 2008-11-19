@@ -11,9 +11,11 @@
 #include <limits>
 #include <stdlib.h>
 #include <time.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <fcntl.h>
+#if !defined(_MSC_VER) && !defined(__MINGW32__)
+#  include <unistd.h>
+#  include <sys/stat.h>
+#  include <fcntl.h>
+#endif
 
 std::string clock_to_string( clock_t t );
 std::string mem_to_string( unsigned long mem );
@@ -54,6 +56,10 @@ static void usage( bool err = true )
   exit( err );
 }
 
+#if defined(_MSC_VER)  || defined(__MINGW32__)
+static void memory_use( unsigned long& vsize, unsigned long& rss )
+  { vsize = rss = 0; }
+#else
 static void memory_use( unsigned long& vsize, unsigned long& rss )
 {
   char buffer[512];
@@ -74,6 +80,7 @@ static void memory_use( unsigned long& vsize, unsigned long& rss )
                   "%lu %lu",             &vsize, &rss );
   rss *= getpagesize();
 }
+#endif
 
 static int parseint( int& i, int argc, char* argv[] )
 {

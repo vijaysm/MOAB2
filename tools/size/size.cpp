@@ -28,9 +28,11 @@
 #include <vector>
 #include <string>
 #include <stdio.h>
-#include <unistd.h>
-#include <termios.h>
-#include <sys/ioctl.h>
+#if !defined(_MSC_VER) && !defined(__MINGW32__)
+#  include <unistd.h>
+#  include <termios.h>
+#  include <sys/ioctl.h>
+#endif
 #include <math.h>
 #include <assert.h>
 #include <float.h>
@@ -231,10 +233,12 @@ void print_stats( set_stats& stats )
   
   // get terminal width
   unsigned term_width = 80;
+#if !defined(_MSC_VER) && !defined(__MINGW32__)
   struct winsize size;
   if ( ioctl( fileno(stdout), TIOCGWINSZ, (char*)&size ) == 0 )
     term_width = size.ws_col;
   if (!term_width) term_width = 80;
+#endif
   assert(term_width > 7 + type_width + count_width + total_width);
   
   term_width -= 7; // spaces
@@ -278,7 +282,7 @@ void print_stats( set_stats& stats )
       tmp_dbl = 0.0;
     }
     
-    printf( "%*s %*ld %*.*lg %*.*lg %*.*lg %*.*lg %*.*lg %*.*lg\n",
+    printf( "%*s %*ld %*.*g %*.*g %*.*g %*.*g %*.*g %*.*g\n",
             type_width, i == MBMAXTYPE ? edge_use_name : MBCN::EntityTypeName(i),
             count_width, s.count,
             total_width, total_prec, s.sum,

@@ -6,7 +6,7 @@
  */
 
 // Different platforms follow different conventions for usage
-#ifndef NT
+#if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <sys/resource.h>
 #endif
 #ifdef SOLARIS
@@ -364,6 +364,16 @@ void print_time(const bool print_em, double &tot_time, double &utime, double &st
   }
 }
 
+#if defined(_MSC_VER) || defined(__MINGW32__)
+void get_time_mem(double &tot_time, double &user_time,
+                  double &sys_time, double &tot_mem) 
+{
+  tot_time = 0;
+  user_time = (double)clock() / CLOCKS_PER_SEC;
+  sys_time = 0;
+  tot_mem = 0;
+}
+#else
 void get_time_mem(double &tot_time, double &user_time,
                   double &sys_time, double &tot_mem) 
 {
@@ -415,6 +425,7 @@ void get_time_mem(double &tot_time, double &user_time,
       tot_mem = ((double)vm_size);
   }
 }
+#endif
 
 void compute_edge(double *start, const int nelem,  const double xint,
                   const int stride) 

@@ -31,7 +31,7 @@
 #endif
 
 #include <assert.h>
-#ifndef _MSC_VER
+#if defined(_MSC_VER) || defined(__MINGW32__)
 #include <sys/time.h>
 #endif
 #include <time.h>

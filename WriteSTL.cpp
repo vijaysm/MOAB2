@@ -47,10 +47,11 @@
 #include <fcntl.h>
 #include <limits.h>
 
-#ifdef _MSC_VER /* windows */
+#if defined(_MSC_VER) || defined(__MINGW32__) /* windows */
 #  include <io.h>
-#  include <BaseTsd.h>
-typedef ULONG32 uint32_t;
+#  ifndef __MINGW32__
+typedef unsigned __int32 uint32_t;
+#  endif
 #else  /* posix */
 #  include <unistd.h>
 #  define _S_IREAD  (S_IRUSR|S_IRGRP|S_IROTH)

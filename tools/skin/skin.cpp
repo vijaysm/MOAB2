@@ -2,9 +2,11 @@
 #include <time.h>
 #include <vector>
 #include <cstdlib>
+#if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#endif
 #include <fcntl.h>
 #include "MBInterface.hpp"
 #include "MBTagConventions.hpp"
@@ -15,7 +17,7 @@
 void get_time_mem(double &tot_time, double &tot_mem);
 
 // Different platforms follow different conventions for usage
-#ifndef NT
+#if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <sys/resource.h>
 #endif
 #ifdef SOLARIS
@@ -332,6 +334,13 @@ int main( int argc, char* argv[] )
   return 0;
 }
 
+#if defined(_MSC_VER) || defined(__MINGW32__)
+void get_time_mem(double &tot_time, double &tot_mem) 
+{
+  tot_time = (double)clock() / CLOCKS_PER_SEC;
+  tot_mem = 0;
+}
+#else
 void get_time_mem(double &tot_time, double &tot_mem) 
 {
   struct rusage r_usage;
@@ -382,7 +391,7 @@ void get_time_mem(double &tot_time, double &tot_mem)
       tot_mem = ((double)vm_size);
   }
 }
-
+#endif
   
   
   

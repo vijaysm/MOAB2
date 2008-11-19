@@ -27,7 +27,7 @@
 #include <iostream>
 #include <limits>
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(__MINGW32__)
 #  include <float.h>
 #  define finite(A) _finite(A)
 #endif

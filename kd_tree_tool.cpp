@@ -9,9 +9,11 @@
 #include <limits>
 #include <stdlib.h>
 #include <time.h>
+#if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#endif 
 
 const int MAX_TAG_VALUE = 32; // maximum value to use when tagging entities with tree cell number
 const char* TAG_NAME = "TREE_CELL";
@@ -69,6 +71,7 @@ static void usage( bool err = true )
   exit( err );
 }
 
+#if !defined(_MSC_VER) && !defined(__MINGW32__)
 static void memory_use( unsigned long& vsize, unsigned long& rss )
 {
   char buffer[512];
@@ -89,6 +92,10 @@ static void memory_use( unsigned long& vsize, unsigned long& rss )
                   "%lu %lu",             &vsize, &rss );
   rss *= getpagesize();
 }
+#else
+static void memory_use( unsigned long& vsize, unsigned long& rss )
+  { vsize = rss = 0; }
+#endif
 
 static int parseint( int& i, int argc, char* argv[] )
 {
