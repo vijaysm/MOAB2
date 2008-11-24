@@ -803,21 +803,53 @@ if test $ENABLE_dagmc = yes; then
         AC_MSG_WARN([$CGM_DIR : not a directory.])
       fi
       CGM_MISSING=no
+      CGM_MAKE=
       AC_CHECK_FILE([${CGM_DIR}/lib/cgm.make],
-                    [CGM_CONFIG_OPTIONS="include ${CGM_DIR}/lib/cgm.make";
+                    [CGM_MAKE="${CGM_DIR}/lib/cgm.make";
                      DEFINES="$DEFINES -DCGM"],
                     [AC_CHECK_FILE([${CGM_DIR}/cgm.make],
-                                   [CGM_CONFIG_OPTIONS="include ${CGM_DIR}/cgm.make";
+                                   [CGM_MAKE="${CGM_DIR}/cgm.make";
                      DEFINES="$DEFINES -DCGM"],
                                    [AC_MSG_WARN([$CGM_DIR : not a configured CGM]); 
                                     CGM_MISSING=yes])
                     ])
       ;;
   esac
+  
+  if test "x$CGM_MISSING" = "xno"; then
+    CGM_CONFIG_OPTIONS="include $CGM_MAKE"
+    
+    AC_MSG_CHECKING([Checking for GeometryQueryTool::ray_fire(RefFace*,...)])
+    old_CPPFLAGS="$CPPFLAGS"
+    old_LDFLAGS="$LDFLAGS"
+    old_LIBS="$LIBS"
+    SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_DEFINES], [CPPFLAGS="$CPPFLAGS $make_val"])   
+    SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_INCLUDES],[CPPFLAGS="$CPPFLAGS $make_val"])   
+    SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_LTFLAGS],  [LDFLAGS="$CPPFLAGS $make_val"])   
+    SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_LDFLAGS],  [LDFLAGS="$CPPFLAGS $make_val"])   
+    SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_LIBS],     [LIBS="$make_val $libs"])   
+    AC_LANG_PUSH([C++])
+    AC_LINK_IFELSE(
+      [AC_LANG_PROGRAM([#include "GeometryQueryTool.hpp"
+                        #include "CubitVector.hpp"],
+                      [CubitVector a,b;
+                       DLIList<double> c;
+                       GeometryQueryTool::instance()->fire_ray((RefFace*)0, a, b, c );
+                      ])],
+      [MOAB_CGM_DEFINES="-DHAVE_CGM_FIRE_RAY"; AC_MSG_RESULT(yes)],
+      [AC_MSG_RESULT(no)])
+    CPPFLAGS="$old_CPPFLAGS"
+    LDFLAGS="$old_LDFLAGS"
+    LIBS="$old_LIBS"
+    AC_LANG_POP([C++])
+  fi
+
+  AC_SUBST(MOAB_CGM_DEFINES)
   AC_SUBST(CGM_DIR)
   AC_SUBST(CGM_CONFIG_OPTIONS)
   DAGMC_CONFIG_OPTIONS="include \${MOAB_LIBDIR}/dagmc.make"
   AC_SUBST(DAGMC_CONFIG_OPTIONS)
+
 fi
 AM_CONDITIONAL( HAVE_CGM, [test "x$CGM_MISSING" = "xno"] )
 

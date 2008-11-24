@@ -12,7 +12,7 @@ libdagmc_la_include_HEADERS = cgm2moab.hpp cubfile.h DagMC.hpp
 
 if HAVE_CGM
 INCLUDES += $(CGM_INCLUDES)
-CPPFLAGS += $(CGM_CPPFLAGS) -DCGM
+CPPFLAGS += $(CGM_CPPFLAGS) -DCGM $(MOAB_CGM_DEFINES)
 CXXFLAGS += $(CGM_CXXFLAGS)
 
 libdagmc_la_SOURCES += cgm2moab.cc
