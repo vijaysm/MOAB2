@@ -119,12 +119,6 @@ MBErrorCode ReadSms::load_file_impl( const char* filename,
   if (MB_SUCCESS != result)
     return result;
     
-    // Create set for more convienient check for material set ids
-  std::set<int> blocks;
-  for (const int* mat_set_end = material_set_list + num_material_sets;
-       material_set_list != mat_set_end; ++material_set_list)
-    blocks.insert( *material_set_list );
-  
     // Open file
   FILE* file_ptr = fopen( filename, "r" );
   if (!file_ptr)
@@ -134,8 +128,13 @@ MBErrorCode ReadSms::load_file_impl( const char* filename,
   }
 
   char line[256];
-  int dummy;
-  fscanf(file_ptr, "%s %d", line, &dummy);
+  int file_type;
+  fscanf(file_ptr, "%s %d", line, &file_type);
+
+  if (3 == file_type) {
+    result = read_parallel_info(file_ptr);
+    CHECK("Failed to read parallel info.");
+  }
 
   int nregions, nfaces, nedges, nvertices, npoints;
   fscanf(file_ptr, "%d %d %d %d %d", &nregions, &nfaces, &nedges,
@@ -163,7 +162,7 @@ MBErrorCode ReadSms::load_file_impl( const char* filename,
     fscanf(file_ptr,"%d %d %lf %lf %lf", &gent_type, &num_connections,
            coord_arrays[0]+i, coord_arrays[1]+i, coord_arrays[2]+i);
     
-    result = get_gentity(gentities, gent_type, gent_id, this_gent);
+    result = get_set(gentities, gent_type, gent_id, geomDimension, this_gent);
 
     new_handle = vstart + i;
     result = mdbImpl->add_entities(this_gent, &new_handle, 1);
@@ -215,7 +214,7 @@ MBErrorCode ReadSms::load_file_impl( const char* filename,
       warned = true;
     }
 
-    result = get_gentity(gentities, gent_type, gent_id, this_gent);
+    result = get_set(gentities, gent_type, gent_id, geomDimension, this_gent);
     CHECK("Problem getting geom set for edge.");
 
     new_handle = estart + i;
@@ -263,7 +262,7 @@ MBErrorCode ReadSms::load_file_impl( const char* filename,
 
     fscanf(file_ptr,"%d %d", &gent_type, &num_bounding);
 
-    result = get_gentity(gentities, gent_type, gent_id, this_gent);
+    result = get_set(gentities, gent_type, gent_id, geomDimension, this_gent);
     CHECK("Problem getting geom set for face.");
 
     bound_ents.resize(num_bounding+1);
@@ -332,7 +331,7 @@ MBErrorCode ReadSms::load_file_impl( const char* filename,
   {
     fscanf(file_ptr, "%d", &gent_id);
     if (!gent_id) continue;
-    result = get_gentity(gentities, 3, gent_id, this_gent);
+    result = get_set(gentities, 3, gent_id, geomDimension, this_gent);
     CHECK("Couldn't get geom set for region.");
     fscanf(file_ptr, "%d", &num_bounding);
     bound_ents.resize(num_bounding);
@@ -366,33 +365,70 @@ MBErrorCode ReadSms::load_file_impl( const char* filename,
   return MB_SUCCESS;
 }
 
-MBErrorCode ReadSms::get_gentity(std::vector<MBEntityHandle> *gentities,
-                                 int gent_type, int gent_id,
-                                 MBEntityHandle &this_gent) 
+MBErrorCode ReadSms::get_set(std::vector<MBEntityHandle> *sets,
+                             int set_dim, int set_id,
+                             MBTag dim_tag,
+                             MBEntityHandle &this_set) 
 {
   MBErrorCode result = MB_SUCCESS;
   
-  if ((int)gentities[gent_type].size() <= gent_id || 
-      !gentities[gent_type][gent_id]) {
-    if ((int)gentities[gent_type].size() <= gent_id) 
-      gentities[gent_type].resize(gent_id+1, 0);
+  if ((int)sets[set_dim].size() <= set_id || 
+      !sets[set_dim][set_id]) {
+    if ((int)sets[set_dim].size() <= set_id) 
+      sets[set_dim].resize(set_id+1, 0);
       
-    if (!gentities[gent_type][gent_id]) {
+    if (!sets[set_dim][set_id]) {
       result = mdbImpl->create_meshset(MESHSET_SET, 
-                                       gentities[gent_type][gent_id]);
+                                       sets[set_dim][set_id]);
       if (MB_SUCCESS != result) return result;
       result = mdbImpl->tag_set_data(globalId, 
-                                     &gentities[gent_type][gent_id], 1,
-                                     &gent_id);
+                                     &sets[set_dim][set_id], 1,
+                                     &set_id);
       if (MB_SUCCESS != result) return result;
-      result = mdbImpl->tag_set_data(geomDimension, 
-                                     &gentities[gent_type][gent_id], 1,
-                                     &gent_type);
+      result = mdbImpl->tag_set_data(dim_tag,
+                                     &sets[set_dim][set_id], 1,
+                                     &set_dim);
       if (MB_SUCCESS != result) return result;
     }
   }
 
-  this_gent = gentities[gent_type][gent_id];
+  this_set = sets[set_dim][set_id];
 
   return result;
 }
+
+MBErrorCode ReadSms::read_parallel_info(FILE *file_ptr) 
+{
+  return MB_FAILURE;
+    /*
+    // read partition info
+  int nparts, part_id, num_ifaces, num_corner_ents;
+  fscanf(file_ptr, "%d %d %d %d", &nparts, &part_id, &num_ifaces, &num_corner_ents);
+  
+    // read interfaces
+  int iface_id, iface_dim, iface_own, num_iface_corners;
+  MBEntityHandle this_iface;
+  std::vector<int> *iface_corners;
+  for (int i = 0; i < num_ifaces; i++) {
+    fscanf(file_ptr, "%d %d %d %d", &iface_id, &iface_dim, &iface_own,
+           &num_iface_corners);
+    
+    result = get_set(iface_id, iface_dim, iface_own, this_iface);
+    CHECK("Failed to make iface set.");
+    
+      // read the corner ids and store them on the set for now
+    iface_corners = new std::vector<int>(num_iface_corners);
+    for (int j = 0; j < num_iface_corners; j++)
+      fscanf(file_ptr, "%d", &(*iface_corners)[j]);
+
+    result = tag_set_data(ifaceCornerTag, &this_iface, 1,
+                          &iface_corners);
+    CHECK("Failed to set iface corner tag.");
+
+  }
+
+    // interface data has been read
+  return MB_SUCCESS;
+    */
+}
+

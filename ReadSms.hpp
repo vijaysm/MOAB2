@@ -33,12 +33,15 @@ private:
 
   MBErrorCode load_file_impl( const char *file_name,
                               const int* material_set_list,
-                              const int num_material_sets );
+                              const int num_material_sets);
   
-  MBErrorCode get_gentity(std::vector<MBEntityHandle> *gentities,
-                          int gent_type, int gent_id,
-                          MBEntityHandle &this_gent);
-  
+  MBErrorCode get_set(std::vector<MBEntityHandle> *sets,
+                      int set_type, int set_id,
+                      MBTag set_tag,
+                      MBEntityHandle &this_set);
+
+  MBErrorCode read_parallel_info(FILE *file_ptr);
+
   MBReadUtilIface* readMeshIface;
 
     //! interface instance
