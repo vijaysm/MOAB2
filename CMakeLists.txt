@@ -4,6 +4,8 @@ project( MOAB )
   if ( COMMAND cmake_policy )
     cmake_policy( SET CMP0003 NEW )
   endif ( COMMAND cmake_policy )
+  # Always build tests
+  enable_testing()
 
   include( ${MOAB_SOURCE_DIR}/cmake/GetAcInitVersion.cmake )
   get_ac_init_version()
@@ -130,7 +132,6 @@ project( MOAB )
     MBBSPTree.cpp
     MBCN.cpp
     MBCartVect.cpp
-    MBHandleUtils.cpp
     MBMatrix3.cpp
     MBCore.cpp
     MBFactory.cpp
@@ -151,6 +152,7 @@ project( MOAB )
     PolyElementSeq.cpp
     ReadGmsh.cpp
     ReadIDEAS.cpp
+    ReadSms.cpp
     ReadSTL.cpp
     ReadVtk.cpp
     ScdElementData.cpp
@@ -310,8 +312,6 @@ project( MOAB )
 
 
 # Testing
-  # Always build tests
-  enable_testing()
   # Point to the input decks for the tests
   configure_file( ${MOAB_SOURCE_DIR}/cmake/TestingConfig.h.in ${MOAB_BINARY_DIR}/testdir.h )
 
@@ -325,12 +325,6 @@ project( MOAB )
   set_source_files_properties( TestTypeSequenceManager.cpp
     COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}" )
    add_test( TestTypeSequenceManager ${EXECUTABLE_OUTPUT_PATH}/seq_man_test )
-
-  add_executable( internals_test internals_test.cpp )
-  set_source_files_properties( internals_test.cpp
-    COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}" )
-  target_link_libraries( internals_test MOAB )
-  add_test( TestInternals ${EXECUTABLE_OUTPUT_PATH}/internals_test )
 
   add_executable( homxform_test HomXform.cpp )
   set_source_files_properties( HomXform.cpp

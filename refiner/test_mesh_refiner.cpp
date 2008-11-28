@@ -32,26 +32,28 @@ int TestMeshRefiner( int argc, char* argv[] )
   // Create the input mesh and, if -new-mesh is specified, an output mesh
   const char* ifname = argc > 1 ? argv[1] : "fourVolsBare.cub";
   bool input_is_output = ( argc > 2 && ! strcmp( argv[2], "-new-mesh" ) ) ? false : true;
-  MBInterface* imesh = new MBCore( rank, nprocs );
-  MBInterface* omesh = input_is_output ? imesh : new MBCore( rank, nprocs );
+  MBInterface* imesh = new MBCore; // ( rank, nprocs );
+  MBInterface* omesh = input_is_output ? imesh : new MBCore; // ( rank, nprocs );
 
 #ifdef USE_MPI
   // Use an MBParallelComm object to help set up the input mesh
   MBParallelComm* ipcomm = new MBParallelComm( imesh );
-  ReadParallel* readpar = new ReadParallel( imesh, ipcomm );
+  //ReadParallel* readpar = new ReadParallel( imesh, ipcomm );
 #endif // USE_MPI
 
   MBEntityHandle set_handle;
   std::ostringstream parallel_options;
   parallel_options
-    << "PARALLEL=BCAST_DELETE" << ";" // NB: You can use BCAST_DELETE or READ_DELETE here.
+    << "PARALLEL=READ_DELETE" << ";" // NB: You can use BCAST_DELETE or READ_DELETE here.
+    //<< "PARALLEL=BCAST_DELETE" << ";" // NB: You can use BCAST_DELETE or READ_DELETE here.
     << "PARTITION=MATERIAL_SET" << ";"
     //<< "PARTITION_DISTRIBUTE" << ";"
     << "PARTITION_VAL=" << ( rank + 1 ) << ";"
     << "PARALLEL_RESOLVE_SHARED_ENTS" << ";"
     << "CPUTIME";
 #ifdef USE_MPI
-  readpar->load_file( ifname, set_handle, FileOptions( parallel_options.str().c_str() ), 0, 0 );
+  //readpar->load_file( ifname, set_handle, FileOptions( parallel_options.str().c_str() ), 0, 0 );
+  imesh->load_file( ifname, set_handle, parallel_options.str().c_str() );
   // Print out what we have so far, one process at a time
   for ( int i = 0; i < nprocs; ++ i )
     {
@@ -110,7 +112,7 @@ int TestMeshRefiner( int argc, char* argv[] )
 
   // Clean up
 #ifdef USE_MPI
-  delete readpar;
+  //delete readpar;
   delete ipcomm;
 #endif // USE_MPI
   if ( omesh != imesh )

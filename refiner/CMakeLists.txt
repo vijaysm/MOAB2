@@ -26,5 +26,8 @@ add_executable( test_mesh_refiner test_mesh_refiner.cpp )
 set_source_files_properties( test_mesh_refiner.cpp
   COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
 target_link_libraries( test_mesh_refiner MOAB MOABrefiner )
-add_test( TestMeshRefiner ${EXECUTABLE_OUTPUT_PATH}/test_mesh_refiner )
+add_test( TestMeshRefiner
+  ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 4 ${MPIEXEC_PREFLAGS}
+  ${EXECUTABLE_OUTPUT_PATH}/test_mesh_refiner ${MPIEXEC_POSTFLAGS}
+  ${MOAB_SOURCE_DIR}/refiner/fourVolsBare.cub )
 
