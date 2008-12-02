@@ -59,7 +59,9 @@ void MBEntitySource::assign_global_ids( std::map<MBProcessSet,int>& gids )
     {
     int gid = gids[it->process_set] ++;
     this->tag_manager->set_gid( it->handle, gid );
+#ifdef MB_DEBUG
     std::cout << "Assigning entity: " << it->handle << " GID: " << gid << "\n";
+#endif // MB_DEBUG
     }
 }
 

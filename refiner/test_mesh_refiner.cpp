@@ -16,6 +16,8 @@
 #include <sstream>
 #include <map>
 
+#include "sys/time.h"
+
 int TestMeshRefiner( int argc, char* argv[] )
 {
   int nprocs, rank;
@@ -54,6 +56,7 @@ int TestMeshRefiner( int argc, char* argv[] )
 #ifdef USE_MPI
   //readpar->load_file( ifname, set_handle, FileOptions( parallel_options.str().c_str() ), 0, 0 );
   imesh->load_file( ifname, set_handle, parallel_options.str().c_str() );
+#  if 0
   // Print out what we have so far, one process at a time
   for ( int i = 0; i < nprocs; ++ i )
     {
@@ -66,6 +69,7 @@ int TestMeshRefiner( int argc, char* argv[] )
       }
     MPI_Barrier( MPI_COMM_WORLD );
     }
+#  endif // 0
 #else // USE_MPI
   imesh->load_file( ifname, set_handle, parallel_options.str().c_str() );
   imesh->list_entities( 0, 1 );
@@ -88,13 +92,18 @@ int TestMeshRefiner( int argc, char* argv[] )
   MBRange ents_to_refine;
   imesh->get_entities_by_type( set_handle, MBTET, ents_to_refine ); // refine just the tets
   //ents_to_refine.insert( set_handle ); // refine everything multiple times (because subsets are not disjoint)
+  struct timeval tic, toc;
+  gettimeofday( &tic, 0 );
   mref->refine( ents_to_refine );
+  gettimeofday( &toc, 0 );
+  std::cout << "\nTime: " << ( (toc.tv_sec - tic.tv_sec) * 1000 + (toc.tv_usec - tic.tv_usec) / 1000. ) << " ms\n\n";
 
   std::ostringstream ofs;
   ofs << "refiner." << nprocs << "." << rank << ".vtk";
   omesh->write_mesh( ofs.str().c_str() );
   // Print out the results, one process at a time
 #ifdef USE_MPI
+#  if 0
   for ( int i = 0; i < nprocs; ++ i )
     {
     MPI_Barrier( MPI_COMM_WORLD );
@@ -106,6 +115,7 @@ int TestMeshRefiner( int argc, char* argv[] )
       }
     MPI_Barrier( MPI_COMM_WORLD );
     }
+#  endif // 0
 #else // USE_MPI
   omesh->list_entities( 0, 1 );
 #endif // USE_MPI

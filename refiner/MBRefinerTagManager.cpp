@@ -9,6 +9,8 @@
 #include <stdexcept>
 #include <assert.h>
 
+#undef MB_DEBUG
+
 /// Construct an evaluator.
 MBRefinerTagManager::MBRefinerTagManager( MBInterface* in_mesh, MBInterface* out_mesh )
   : shared_procs_in( 5 * MAX_SHARING_PROCS, -1 ), shared_procs_out( MAX_SHARING_PROCS, -1 )
@@ -28,7 +30,9 @@ MBRefinerTagManager::MBRefinerTagManager( MBInterface* in_mesh, MBInterface* out
     opcomm = MBParallelComm::get_pcomm( this->output_mesh, 0 );
     if ( ! opcomm )
       {
+#ifdef MB_DEBUG
       std::cout << "Creating opcomm: " << opcomm << "\n";
+#endif // MB_DEBUG
       opcomm = new MBParallelComm( this->output_mesh, MPI_COMM_WORLD );
       }
     }
@@ -85,6 +89,7 @@ MBRefinerTagManager::MBRefinerTagManager( MBInterface* in_mesh, MBInterface* out
     throw new std::logic_error( "Unable to find/create output mesh global ID tag \"" GLOBAL_ID_TAG_NAME "\"" );
     }
 
+#ifdef MB_DEBUG
   std::cout
     << "psproc:  " << this->tag_ipsproc  << ", " << this->tag_opsproc << "\n"
     << "psprocs: " << this->tag_ipsprocs << ", " << this->tag_opsprocs << "\n"
@@ -92,6 +97,7 @@ MBRefinerTagManager::MBRefinerTagManager( MBInterface* in_mesh, MBInterface* out
     << "pshands: " << this->tag_ipshands << ", " << this->tag_opshands << "\n"
     << "pstatus: " << this->tag_ipstatus << ", " << this->tag_opstatus << "\n"
     << "gid:     " << this->tag_igid     << ", " << this->tag_ogid     << "\n";
+#endif // MB_DEBUG
 }
 
 /// Destruction is virtual so subclasses may clean up after refinement.
@@ -455,8 +461,10 @@ void MBRefinerTagManager::get_common_processes(
       common_shared_procs.set_process_member( this->rank );
       }
     }
+#ifdef MB_DEBUG
   std::cout << "    Common procs " << common_shared_procs;
   std::cout << "\n";
+#endif // MB_DEBUG
 }
 
 void MBRefinerTagManager::create_tag_internal( MBTag tag_in, int offset )
@@ -477,9 +485,11 @@ void MBRefinerTagManager::create_tag_internal( MBTag tag_in, int offset )
   tag_default.resize( tag_size );
   MBErrorCode res = this->output_mesh->tag_create(
     tag_name.c_str(), tag_size, tag_type, tag_data_type, tag_rec.first, (void*) &tag_default[0], true );
+#ifdef MB_DEBUG
   std::cout
     << "Creating output tag: \"" << tag_name.c_str() << "\" handle: " << tag_rec.first
     << " input handle: " << tag_in << "\n";
+#endif // MB_DEBUG
   if ( res == MB_FAILURE )
     {
     std::cerr

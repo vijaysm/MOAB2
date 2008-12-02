@@ -9,6 +9,8 @@
 #include <iterator>
 #include <algorithm>
 
+#undef MB_DEBUG
+
 MBMeshOutputFunctor::MBMeshOutputFunctor( MBRefinerTagManager* tag_mgr )
 {
   this->mesh_in  = tag_mgr->get_input_mesh();
@@ -84,7 +86,9 @@ void MBMeshOutputFunctor::assign_global_ids( MBParallelComm* comm )
   std::vector<int> lpsizes;
   lpdefns.resize( MBProcessSet::SHARED_PROC_BYTES * lnparts );
   lpsizes.resize( lnparts );
+#ifdef MB_DEBUG
   std::cout << "**** Partition Counts ****\n";
+#endif // MB_DEBUG
   int i = 0;
   std::map<MBProcessSet,int>::iterator it;
   for ( it = this->proc_partition_counts.begin(); it != this->proc_partition_counts.end(); ++ it, ++ i )
@@ -92,7 +96,9 @@ void MBMeshOutputFunctor::assign_global_ids( MBParallelComm* comm )
     for ( int j = 0; j < MBProcessSet::SHARED_PROC_BYTES; ++ j )
       lpdefns[MBProcessSet::SHARED_PROC_BYTES * i + j] = it->first.data()[j];
     lpsizes[i] = it->second;
+#ifdef MB_DEBUG
     std::cout << "Partition " << it->first << ": " << it->second << "\n";
+#endif // MB_DEBUG
     }
 
   if ( ! comm )
@@ -109,7 +115,9 @@ void MBMeshOutputFunctor::assign_global_ids( MBParallelComm* comm )
   for ( int rank = 1; rank <= psize; ++ rank )
     {
     dparts[rank] = nparts[rank - 1] + dparts[rank - 1];
+#ifdef MB_DEBUG
     std::cout << "Proc " << rank << ": " << nparts[rank-1] << " partitions, offset: " << dparts[rank] << "\n";
+#endif // MB_DEBUG
     }
   std::vector<unsigned char> part_defns;
   std::vector<int> part_sizes;
@@ -137,7 +145,9 @@ void MBMeshOutputFunctor::assign_global_ids( MBParallelComm* comm )
     std::map<MBProcessSet,int>::iterator it = this->proc_partition_counts.find( pset );
     if ( it != this->proc_partition_counts.end() )
       {
+#ifdef MB_DEBUG
       std::cout << "Partition " << pset << ( it->second == part_sizes[i] ? " matches" : " broken" ) << ".\n";
+#endif // MB_DEBUG
       }
     else
       {
@@ -151,7 +161,9 @@ void MBMeshOutputFunctor::assign_global_ids( MBParallelComm* comm )
     {
     gids[pcit->first] = start_gid;
     start_gid += pcit->second;
+#ifdef MB_DEBUG
     std::cout << "Partition " << pcit->first << ": " << pcit->second << " # [" << gids[pcit->first] << "]\n";
+#endif // MB_DEBUG
     }
   std::vector<MBSplitVerticesBase*>::iterator vit;
   vit = this->split_vertices.begin();
@@ -192,7 +204,9 @@ MBEntityHandle MBMeshOutputFunctor::map_vertex( MBEntityHandle vhash, const doub
 {
   if ( this->input_is_output )
     { // Don't copy the original vertex!
+#ifdef MB_DEBUG
     this->print_vert_crud( vhash, 1, &vhash, vcoords, vtags );
+#endif // MB_DEBUG
     return vhash;
     }
   MBEntityHandle vertex_handle;
@@ -211,8 +225,10 @@ MBEntityHandle MBMeshOutputFunctor::map_vertex( MBEntityHandle vhash, const doub
     {
     std::cerr << "Could not insert vertex into new mesh!\n";
     }
+#ifdef MB_DEBUG
   this->print_vert_crud( vertex_handle, 1, &vhash, vcoords, vtags );
   std::cout << "\nMap vert: " << vhash << " to: " << vertex_handle << "\n";
+#endif // MB_DEBUG
   return vertex_handle;
 }
 
@@ -231,8 +247,10 @@ MBEntityHandle MBMeshOutputFunctor::operator () ( int nvhash, MBEntityHandle* vh
       {
       std::cerr << "Could not insert mid-edge vertex!\n";
       }
+#ifdef MB_DEBUG
     std::cout << "(-" << nvhash << "-) ";
     this->print_vert_crud( vertex_handle, nvhash, vhash, vcoords, vtags );
+#endif // MB_DEBUG
     }
   else
     {
@@ -244,7 +262,9 @@ MBEntityHandle MBMeshOutputFunctor::operator () ( int nvhash, MBEntityHandle* vh
 
 void MBMeshOutputFunctor::operator () ( MBEntityHandle h )
 {
+#ifdef MB_DEBUG
   std::cout << h << " ";
+#endif // MB_DEBUG
   if ( ! this->input_is_output )
     {
     // FIXME: Copy to output mesh
@@ -260,11 +280,15 @@ void MBMeshOutputFunctor::operator () ( MBEntityType etyp )
     etyp, nconn, &this->elem_vert[0], elem_handle, this->proc_partition_counts );
   if ( newly_created )
     {
+#ifdef MB_DEBUG
     std::cout << " *** ";
+#endif // MB_DEBUG
     // FIXME: Handle tag assignment for elements as well as vertices
     this->tag_manager->assign_element_tags( elem_handle );
     }
+#ifdef MB_DEBUG
   std::cout << "---------> " << elem_handle << " ( " << etyp << " )\n\n";
+#endif // MB_DEBUG
   this->elem_vert.clear();
 }
 

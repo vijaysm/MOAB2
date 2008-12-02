@@ -29,6 +29,8 @@
 #include <vector>
 #include <algorithm>
 
+#undef MB_DEBUG
+
 class MBRefinerTagManager;
 
 template< int _n >
@@ -219,7 +221,9 @@ bool MBSplitVertices<_n>::find_or_create(
   MapIteratorType it = this->find( key );
   if ( it == this->end() )
     {
+#ifdef MB_DEBUG
     std::cout << " wrt output: " << handles_on_output_mesh << " ";
+#endif // MB_DEBUG
     this->tag_manager->get_common_processes( _n, split_src, this->common_shared_procs, handles_on_output_mesh );
     proc_partition_counts[this->common_shared_procs]++;
     key.set_common_processes( this->common_shared_procs );
@@ -243,7 +247,9 @@ void MBSplitVertices<_n>::assign_global_ids( std::map<MBProcessSet,int>& gids )
     {
     int gid = gids[it->first.process_set] ++;
     this->tag_manager->set_gid( it->second, gid );
+#ifdef MB_DEBUG
     std::cout << "Assigning entity: " << it->first << " GID: " << gid << "\n";
+#endif // MB_DEBUG
     }
 }
 

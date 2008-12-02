@@ -79,13 +79,13 @@ bool MBProcessSet::get_process_members( int rank, std::vector<int>& procs )
   for ( int byte = 0; byte < SHARED_PROC_BYTES; ++ byte )
     {
     i = byte * 8;
-    for ( char val = this->processes[byte]; val; ++ i, val >>= 1 )
+    for ( unsigned char val = this->processes[byte]; val; ++ i, val >>= 1 )
       {
       if ( val & 0x1 )
         {
         if ( i != rank )
           {
-          std::cout << " " << i;
+          //std::cout << " " << i;
           procs.push_back( i );
           }
         else if ( ! procs.size() )
