@@ -82,7 +82,7 @@ MBErrorCode WriteSTL::write_file(const char *file_name,
                                  const FileOptions& opts,
                                  const MBEntityHandle *ent_handles,
                                  const int num_sets,
-                                 std::vector<std::string>& qa_list, 
+                                 const std::vector<std::string>& qa_list, 
                                  int  )
 {
   char header[81];
@@ -183,12 +183,13 @@ FILE* WriteSTL::open_file( const char* name, bool overwrite, bool binary )
   return result;
 }
 
-MBErrorCode WriteSTL::make_header( char header[81], std::vector<std::string>& qa_list )
+MBErrorCode WriteSTL::make_header( char header[81], 
+                                   const std::vector<std::string>& qa_list )
 {
   memset( header, 0, 81 );
   
   std::string result;
-  for (std::vector<std::string>::iterator i = qa_list.begin(); i != qa_list.end(); ++i)
+  for (std::vector<std::string>::const_iterator i = qa_list.begin(); i != qa_list.end(); ++i)
   {
     result += " ";
     result += *i;

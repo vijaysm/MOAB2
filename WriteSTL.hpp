@@ -59,7 +59,7 @@ public:
                          const FileOptions& opts,
                          const MBEntityHandle *output_list,
                          const int num_sets,
-                         std::vector<std::string>& qa_list,
+                         const std::vector<std::string>& qa_list,
                          int export_dimension);  
 
 protected:
@@ -94,7 +94,7 @@ private:
 
     //! Construct 80-byte, null-terminated description string from
     //! qa_list.  Unused space in header will be null-char padded.
-  MBErrorCode make_header( char header[82], std::vector<std::string>& qa_list );
+  MBErrorCode make_header( char header[82], const std::vector<std::string>& qa_list );
   
     //! Get triangles to write from input array of entity sets.  If
     //! no sets, gets all triangles.

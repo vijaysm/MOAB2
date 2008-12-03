@@ -60,7 +60,7 @@ class MBWriterIface
                                     const FileOptions& opts,
                                     const MBEntityHandle* meshset_list,
                                     const int num_sets,
-                                    std::vector<std::string>& qa_records,
+                                    const std::vector<std::string>& qa_records,
                                     int requested_output_dimension = 0 ) = 0;
 };
 

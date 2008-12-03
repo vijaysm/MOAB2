@@ -329,7 +329,7 @@ MBErrorCode WriteHDF5::write_file( const char* filename,
                                    const FileOptions& opts,
                                    const MBEntityHandle* set_array,
                                    const int num_sets,
-                                   std::vector<std::string>& qa_records,
+                                   const std::vector<std::string>& qa_records,
                                    int user_dimension )
 {
   mhdf_Status status;
@@ -384,7 +384,7 @@ MBErrorCode WriteHDF5::write_file_impl( const char* filename,
                                         const FileOptions& opts,
                                         const MBEntityHandle* set_array,
                                         const int num_sets,
-                                        std::vector<std::string>& qa_records,
+                                        const std::vector<std::string>& qa_records,
                                         int user_dimension )
 {
   MBErrorCode result;
@@ -1822,7 +1822,7 @@ DEBUGOUT((std::string("Var Len Tag: ") + name + "\n").c_str());
   return MB_SUCCESS;
 }
 
-MBErrorCode WriteHDF5::write_qa( std::vector<std::string>& list )
+MBErrorCode WriteHDF5::write_qa( const std::vector<std::string>& list )
 {
   const char* app = "MOAB";
   const char* vers = MB_VERSION;
@@ -2019,7 +2019,7 @@ MBErrorCode WriteHDF5::gather_tags()
   // then MOAB was not built with support for parallel HDF5 I/O.
 MBErrorCode WriteHDF5::parallel_create_file( const char* ,
                                     bool ,
-                                    std::vector<std::string>& ,
+                                    const std::vector<std::string>& ,
                                     int ,
                                     int  )
 {
@@ -2028,7 +2028,7 @@ MBErrorCode WriteHDF5::parallel_create_file( const char* ,
 
 MBErrorCode WriteHDF5::serial_create_file( const char* filename,
                                     bool overwrite,
-                                    std::vector<std::string>& qa_records,
+                                    const std::vector<std::string>& qa_records,
                                     int dimension )
 {
   long first_id;

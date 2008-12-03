@@ -65,7 +65,7 @@ public:
                           const FileOptions& opts,
                           const MBEntityHandle* export_sets,
                           const int export_set_count,
-                          std::vector<std::string>& qa_records,
+                          const std::vector<std::string>& qa_records,
                           int user_dimension = 3 );
 
   /** Create attributes holding the HDF5 type handle for the 
@@ -77,7 +77,7 @@ protected:
   
   MBErrorCode serial_create_file( const char* filename,
                                   bool overwrite,
-                                  std::vector<std::string>& qa_records,
+                                  const std::vector<std::string>& qa_records,
                                   int dimension = 3 );
 
   /** Function to create the file.  Virtual to allow override
@@ -85,7 +85,7 @@ protected:
    */
   virtual MBErrorCode parallel_create_file( const char* filename,
                                             bool overwrite,
-                                            std::vector<std::string>& qa_records,
+                                            const std::vector<std::string>& qa_records,
                                             int dimension = 3,
                                             int pcomm_no = 0 );
 
@@ -147,7 +147,7 @@ protected:
                                  long parents_length );
 
   //! Write exodus-type QA info
-  MBErrorCode write_qa( std::vector<std::string>& list );
+  MBErrorCode write_qa( const std::vector<std::string>& list );
 
 
   //! Range of entities, grouped by type, to export 
@@ -252,7 +252,7 @@ private:
                                const FileOptions& opts,
                                const MBEntityHandle* export_sets,
                                const int export_set_count,
-                               std::vector<std::string>& qa_records,
+                               const std::vector<std::string>& qa_records,
                                int user_dimension = 3 );
 
   MBErrorCode init();

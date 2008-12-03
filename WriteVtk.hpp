@@ -44,7 +44,7 @@ public:
                          const FileOptions& opts,
                          const MBEntityHandle *output_list,
                          const int num_sets,
-                         std::vector<std::string>& qa_list,
+                         const std::vector<std::string>& qa_list,
                          int export_dimension);
 
 private:

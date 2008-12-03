@@ -122,7 +122,7 @@ MBErrorCode WriteTEMPLATE::write_file(const char *file_name,
                                       const FileOptions& opts,
                                       const MBEntityHandle *ent_handles,
                                       const int num_sets,
-                                      std::vector<std::string>&, int )
+                                      const std::vector<std::string>&, int )
 {
   assert(0 != mMaterialSetTag &&
          0 != mNeumannSetTag &&

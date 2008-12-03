@@ -151,7 +151,7 @@ MBErrorCode WriteNCDF::write_file(const char *exodus_file_name,
                                     const FileOptions&,
                                     const MBEntityHandle *ent_handles,
                                     const int num_sets,
-                                    std::vector<std::string> &qa_records,
+                                    const std::vector<std::string> &qa_records,
                                     int user_dimension)
 {
   assert(0 != mMaterialSetTag &&
@@ -308,7 +308,7 @@ MBErrorCode WriteNCDF::write_file(const char *exodus_file_name,
     return MB_FAILURE;
 
   // copy the qa records into the argument
-  mesh_info.qaRecords.swap(qa_records);
+  //mesh_info.qaRecords.swap(qa_records);
   
   return MB_SUCCESS;
 }

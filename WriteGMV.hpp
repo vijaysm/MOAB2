@@ -52,7 +52,7 @@ public:
                           const FileOptions& opts,
                           const MBEntityHandle* output_sets,
                           const int num_output_sets,
-                          std::vector<std::string>& qa_list,
+                          const std::vector<std::string>& qa_list,
                           int requested_dimension );
 
     //! writes out a mesh file

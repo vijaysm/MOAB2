@@ -353,7 +353,7 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
 
 MBErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
                                             bool overwrite,
-                                            std::vector<std::string>& qa_records,
+                                            const std::vector<std::string>& qa_records,
                                             int dimension,
                                             int pcomm_no)
 {
