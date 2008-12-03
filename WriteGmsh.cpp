@@ -56,7 +56,7 @@ MBErrorCode WriteGmsh::write_file(const char *file_name,
                                   const FileOptions& options,
                                   const MBEntityHandle *output_list,
                                   const int num_sets,
-                                  std::vector<std::string>& ,
+                                  const std::vector<std::string>& ,
                                   int )
 {
   MBErrorCode rval;
