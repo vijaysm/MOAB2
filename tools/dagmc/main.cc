@@ -10,7 +10,7 @@
 #define GF_IGES_FILE_TYPE     "IGES"
 #define GF_ACIS_TXT_FILE_TYPE "ACIS_SAT"
 #define GF_ACIS_BIN_FILE_TYPE "ACIS_SAB"
-#define GF_OCC_BREP_FILE_TYPE "BREP"
+#define GF_OCC_BREP_FILE_TYPE "OCC"
 
 /* Get the type of a file.
    Return value is one of the above constants
