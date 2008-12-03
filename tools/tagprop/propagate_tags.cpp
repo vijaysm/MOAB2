@@ -48,48 +48,76 @@
 MBInterface* iface = 0;
 const char* exe_name = 0;
 
-void usage( )
+void usage( bool error = true )
 {
-  std::cerr << "Usage: " << exe_name << " <options> <input_file> <output_file>" << std::endl
-            << "Options: " << std::endl
-            << "  -t <ident_tag>[=<value>]  " << std::endl
-            << "  -d <data_tag>[=<default>] " << std::endl
-            << "  -c <data_tag=type:size>[=defult] " << std::endl
-            << "  -w <write_tag>            " << std::endl
-            << "  -n|-e                     " << std::endl
-            << std::endl
-            << "At least one ident_tag must be specified.  This tag will be used to "
-               "select entity sets to process.  If more than one ident_tag is "
-               "specified, entity sets that match A\bAN\bNY\bY the specified tags "
-               "will be selected (logical OR).  A tag value to match may optionally "
-               "be specified for each ident_tag. " << std::endl << std::endl
-            << "The data_tag is the tag on the selected entity sets for which the "
-               "value should be propogated to the contained mesn entities.  If no "
-               "data_tag is specified, the value of the ident_tag will be used.  If "
-               "multiple ident_tags are specified, the data_tag must be specified "
-               "explicitly.  If the data tag is specified with the '-d' option, the "
-               "tag must exist and the optional value will be set on any entiites for "
-               "which the owning set doesn't have the data_tag defined.  If the data_tag "
-               "is specified with the '-c' option, the tag will be created." << std::endl << std::endl
-            << "If the write_tag is specified, the tag propogated to the mesh "
-               "entities contained in the set will be given this name.  If no "
-               "write_tag is specified, the data_tag will be used." << std::endl << std::endl
-            << "If -\b-n\bn is specified, the tag values will be propogated only "
-               "to nodes contained in the identified sets.  If -\b-e\be is specified, "
-               "the tags will be propogated to the contained elements.  If neither is "
-               "specified, the default is both." << std::endl << std::endl
-            << "The syntax for specifying tag values is as follows: " << std::endl;
-  tag_syntax(std::cerr);
-  std::cerr << std::endl;
-  exit(1);
+  std::ostream& s = error ? std::cerr : std::cout;
+  
+  s << "Usage: " << exe_name << " <options> <input_file> <output_file>" << std::endl
+    << "       " << exe_name << " -h" << std::endl
+    << "Options: " << std::endl
+    << "  -t <ident_tag>[=<value>]  " << std::endl
+    << "  -d <data_tag>[=<default>] " << std::endl
+    << "  -c <data_tag=type:size>[=defult] " << std::endl
+    << "  -w <write_tag>            " << std::endl
+    << "  -n|-e                     " << std::endl
+    << std::endl;
+  if (error) {
+    s << "Try '-h' for verbose help." << std::endl;
+    exit(1);
+  }
+  
+  s << "This utility will write tag data to a subset of the mesh entities " << std::endl
+    << "contained in a file.  The behavior is controlled by three main " << std::endl
+    << "properties:" << std::endl
+    << " 1) The ident_tag is used to identify sets of entities for which " << std::endl
+    << "    data will be stored on each contained element or node. The -n " << std::endl
+    << "    or -e flags can be used to restrict operation to only nodes or " << std::endl
+    << "    elements, respectively." << std::endl
+    << " 2) The data_tag is used to identify which value to write on to " << std::endl
+    << "    each entity.  This is a tag on the set containing the entities." << std::endl
+    << " 3) The write_tag is the name of the tag that the data is stored in " << std::endl
+    << "    on each mesh entity." << std::endl
+    << std::endl
+    << " -t : Specify an ident_tag.  If a value is specified, only those " << std::endl
+    << "      sets with the specified value are processed.  At least one " << std::endl
+    << "      ident_tag must be specified.  Multiple ident_tags may be " << std::endl
+    << "      specified, in which case any set that matches any of the " << std::endl
+    << "      specified ident_tags will be processed (logical OR)." << std::endl
+    << std::endl
+    << " -d : Specify the data_tag.  If multiple ident_tags are specified " << std::endl
+    << "      then the data_tag must be specified.  If only one ident_tag " << std::endl
+    << "      is specified then the data_tag specification is optional." << std::endl
+    << "      If no data_tag is specified, the value of the ident_tag " << std::endl
+    << "      will be used.  If a value is specified for the data_tag, " << std::endl
+    << "      then the specified value will be used for any set that " << std::endl
+    << "      doesn't have a value for the data_tag." << std::endl
+    << std::endl
+    << " -c : Similar to -d, except that the tag is created if it doesn't" << std::endl
+    << "      already exist.  If the tag is created, then all entities" << std::endl
+    << "      receive the specified default value for the tag.  In this " << std::endl
+    << "      case it is an error if no default value is specified." << std::endl
+    << std::endl
+    << " -w : Specify the tag to create and store values in on mesh " << std::endl
+    << "      entities.  If no write_tag is specified, the data_tag " << std::endl
+    << "      will be used." << std::endl
+    << std::endl
+    << " -n : Write tag data only on nodes (vertices)." << std::endl
+    << " -e : Write tag data only on elements." << std::endl
+    << std::endl
+    << "The syntax for specifying tag values is as follows: " 
+    << std::endl << std::endl;
+  tag_syntax(s);
+  s << std::endl;
+  exit(0);
 }
 
-void about( )
+void about( bool error = true )
 {
-  std::cerr << "A utility to propogate tag values from the entity sets "
-               "containing mesh entities to the entities contained in "
-               "those sets." << std::endl << std::endl;
-  usage();
+  std::ostream& s = error ? std::cerr : std::cout;
+  s << "A utility to propogate tag values from the entity sets "
+       "containing mesh entities to the entities contained in "
+       "those sets." << std::endl << std::endl;
+  usage(error);
 }
   
 void parse_error( const char* msg, const char* val = 0 )
@@ -120,11 +148,19 @@ int main( int argc, char* argv[] )
   {
     if (argv[i][0] == '-')
     {
-      switch (argv[i][1]) { case 't': case 'c': case 'd': case 'w': ++i; }
-      continue;
+      switch (argv[i][1]) { 
+        case 't': case 'c': case 'd': case 'w': 
+          ++i; 
+          break;
+        case 'h': 
+          usage(false);
+          break;
+        default:
+          parse_error( "Invalid option", argv[i] );
+          break;
+      }
     }
-    
-    if (!input_name)
+    else if (!input_name)
       input_name = argv[i];
     else if (!output_name)
       output_name = argv[i];
@@ -163,8 +199,6 @@ int main( int argc, char* argv[] )
   {
     if (argv[i] == input_name || argv[i] == output_name)
       continue;
-    else if (!strcmp(argv[i],"-h"))
-      usage();
     else if (!strcmp(argv[i],"-n"))
       nodes_spec = true;
     else if (!strcmp(argv[i], "-e"))

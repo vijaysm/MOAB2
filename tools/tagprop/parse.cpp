@@ -8,26 +8,32 @@
 
 void tag_syntax( std::ostream& s )
 {
-  s << "Tags are specified as <name>=[value], where the tag value is "
-       "optional."
-       "For opaque tags, a numeric value may be specified in hexadecimal " 
-       "with a '0x' prefix.  If the value does not begin with the '0x' "
-       "prefix, it will be treated as a string (not a numerical value) "
-       "and padded with NULL characters to fit the tag size." << std::endl
-    << "For integral types (INTEGER, BIT, and HANDLE), values " 
-       "are parsed as integers with the standard 0x and 0 prefixes for "
-       "hexidecimal and octal bases, respectively." << std::endl
-    << "DOUBLE types must be specified in base-10.  Exponential "
-       "syntax (e) is accepted." << std::endl
-    << "If the tag is not opaque and is an array of values, the values "
-       "must be specified as a comma-separated list w/out spaces." 
+  s << "Tags are specified as <name>=[value], where the tag value " << std::endl
+    << "is optional." << std::endl 
+    << std::endl
+    << "Values of integral types (INTEGER, BIT, and HANDLE) are " << std::endl
+    << "specified using standard C integer notation (a 0x prefix " << std::endl
+    << "for hexidecimal, 0 prefix for octal, and no prefix for " << std::endl
+    << "decimal.)  The value of an opaque tag is interpreted as " << std::endl
+    << "either a integral value or a character string. If the tag " << std::endl
+    << "value begins with the prefix 0x it will be interpreted as a " << std::endl
+    << "hexidecimal (base-16) number.  If the value does not begin " << std::endl
+    << "with the 0x prefix, it is interpreted as a character string." << std::endl
+    << "Characater strings will be padded with null characters as" << std::endl
+    << "necessary to fill the tag." << std::endl
+    << "Floating-point (real) values must be specified in base-10." << std::endl
+    << "C exponential notation (e.g. 1e-10) is accepted." << std::endl
+    << std::endl
+    << "If the tag is an array of integral or floating-point values " << std::endl
+    << "then the tag value must be specified as a comma-separated " << std::endl
+    << "list, with NO spaces." << std::endl
+    << std::endl
+    << "Tags are created with the syntax name=type:size[=default_value]." << std::endl
+    << "where type is one of {int,double,opaque,handle,bit} and size is " << std::endl
+    << "the number of values of the specified type, or the number of " << std::endl
+    << "bytes if the type is 'opaque',  A default value for the tag may " << std::endl
+    << "be specified." 
     << std::endl;
-  s << "Tags are created with the form name=type:size[=default_value] "
-       "where type is one of {int,double,opaque,handle,bit} and size is "
-       "the number of values of the specified type, or the number of "
-       "bytes if the type is 'opaque',  A default value for the tag make "
-       "be specified." 
-     << std::endl;
 }
 
   // Check endian-ness of platform.  Used when parsing numerical
