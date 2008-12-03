@@ -10,6 +10,7 @@
 #define GF_IGES_FILE_TYPE     "IGES"
 #define GF_ACIS_TXT_FILE_TYPE "ACIS_SAT"
 #define GF_ACIS_BIN_FILE_TYPE "ACIS_SAB"
+#define GF_OCC_BREP_FILE_TYPE "BREP"
 
 /* Get the type of a file.
    Return value is one of the above constants
@@ -22,6 +23,7 @@ int is_step_file( FILE* file );
 int is_iges_file( FILE* file );
 int is_acis_txt_file( FILE* file );
 int is_acis_bin_file( FILE* file );
+int is_occ_brep_file( FILE* file );
 
 double parse_tol( char* argv[], int argc, int& i );
 void usage(char *name);
@@ -113,7 +115,7 @@ int main( int argc, char* argv[] )
         
   
     // Initialize CGM
-  InitCGMA::initialize_cgma("ACIS");
+  InitCGMA::initialize_cgma();
   if (actuate_attribs) {
     CGMApp::instance()->attrib_manager()->set_all_auto_read_flags( actuate_attribs );
     CGMApp::instance()->attrib_manager()->set_all_auto_actuate_flags( actuate_attribs );
@@ -268,6 +270,7 @@ const char* get_geom_fptr_type( FILE* file )
   static const char*  IGES_NAME = GF_IGES_FILE_TYPE;
   static const char*   SAT_NAME = GF_ACIS_TXT_FILE_TYPE;
   static const char*   SAB_NAME = GF_ACIS_BIN_FILE_TYPE;
+  static const char*  BREP_NAME = GF_OCC_BREP_FILE_TYPE;
   
   if (is_cubit_file(file))
     return CUBIT_NAME;
@@ -279,6 +282,8 @@ const char* get_geom_fptr_type( FILE* file )
     return SAB_NAME;
   else if (is_acis_txt_file(file))
     return SAT_NAME;
+  else if (is_occ_brep_file(file))
+    return BREP_NAME;
   else
     return 0;
 }
@@ -336,4 +341,12 @@ int is_acis_txt_file( FILE* file )
     return 0;
     
   return !strcmp( buffer, "ACIS" );
+}
+
+int is_occ_brep_file( FILE* file )
+{
+  unsigned char buffer[6];
+  return !fseek(file, 0, SEEK_SET) &&
+         fread(buffer, 6, 1, file) &&
+         !memcmp(buffer, "DBRep_", 6);
 }

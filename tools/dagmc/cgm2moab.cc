@@ -419,8 +419,13 @@ bool cgm2moab(MBInterface* iface,
     for (int i = 0; i < data.fListCount; i += data.facet_list()[i]+1) {
       int* facet = data.facet_list() + i;
       corners.resize( *facet );
-      for (int j = 1; j <= *facet; ++j) 
+      for (int j = 1; j <= *facet; ++j) {
+        if (facet[j] >= (int)verts.size()) {
+          std::cerr << "ERROR: Invalid facet data for surface " << face->id() << std::endl;
+          return false;
+        }
         corners[j-1] = verts[facet[j]];
+      }
       MBEntityType type;
       if (*facet == 3)
         type = MBTRI;
