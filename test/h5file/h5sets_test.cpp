@@ -132,6 +132,7 @@ int main(int argc, char* argv[])
   int exitval = 0;
   exitval += RUN_TEST( test_ranged_set_with_holes );
   exitval += RUN_TEST( test_file_set );
+  return exitval;
 }
 
   

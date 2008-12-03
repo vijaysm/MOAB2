@@ -772,7 +772,8 @@ MBErrorCode WriteHDF5::write_elems( ExportSet& elems )
     iter = next;
     
     for (long i = 0; i < count*nodes_per_elem; ++i)
-      buffer[i] = idMap.find( buffer[i] );
+      if (0 == (buffer[i] = idMap.find( buffer[i] )))
+        return MB_FAILURE;
     
     mhdf_writeConnectivity( elem_table, offset, count, 
                             id_type, buffer, &status );
