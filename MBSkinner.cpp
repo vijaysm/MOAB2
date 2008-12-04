@@ -106,7 +106,20 @@ void MBSkinner::deinitialize()
   }
 
   // remove the adjaceny tag
+  std::vector< std::vector<MBEntityHandle>* > adj_arr;
+  std::vector< std::vector<MBEntityHandle>* >::iterator i;
   if (0 != mAdjTag) {
+    for (MBEntityType t = MBVERTEX; t != MBMAXTYPE; ++t) {
+      MBRange entities;
+      result = thisMB->get_entities_by_type_and_tag( 0, t, &mAdjTag, 0, 1, entities );
+      assert(MB_SUCCESS == result);
+      adj_arr.resize( entities.size() );
+      result = thisMB->tag_get_data( mAdjTag, entities, &adj_arr[0] );
+      assert(MB_SUCCESS == result);
+      for (i = adj_arr.begin(); i != adj_arr.end(); ++i)
+        delete *i;
+    }
+  
     result = thisMB->tag_delete(mAdjTag);
     mAdjTag = 0;
     assert(MB_SUCCESS == result);
