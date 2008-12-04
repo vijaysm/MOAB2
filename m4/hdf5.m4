@@ -142,20 +142,20 @@ if test "xno" != "x$HDF5_ARG"; then
   if test $HAVE_LIB_HDF5 = no; then
     if test $HAVE_ZLIB = yes; then
       unset '$cv_name'
-      AC_CHECK_LIB( [$HDF5_LIBNAME], [H5Fopen], [HAVE_LIB_HDF5=yes; HDF5_LIBS="-lz $HDF5_LIBS"], [], [-lz] )
+      AC_CHECK_LIB( [$HDF5_LIBNAME], [H5Fopen], [HAVE_LIB_HDF5=yes; HDF5_LIBS="$HDF5_LIBS -lz"], [], [-lz] )
     fi
   fi
   if test $HAVE_LIB_HDF5 = no; then
     if test $HAVE_SZIP = yes; then
       unset '$cv_name'
-      AC_CHECK_LIB( [$HDF5_LIBNAME], [H5Fopen], [HAVE_LIB_HDF5=yes; HDF5_LIBS="-lsz $HDF5_LIBS"], [], [-lsz] )
+      AC_CHECK_LIB( [$HDF5_LIBNAME], [H5Fopen], [HAVE_LIB_HDF5=yes; HDF5_LIBS="$HDF5_LIBS -lsz"], [], [-lsz] )
     fi
   fi
   if test $HAVE_LIB_HDF5 = no; then
     if test $HAVE_SZIP = yes; then
       if test $HAVE_ZLIB = yes; then
         unset '$cv_name'
-        AC_CHECK_LIB( [$HDF5_LIBNAME], [H5Fopen], [HAVE_LIB_HDF5=yes; HDF5_LIBS="-lsz -lz $HDF5_LIBS"], [], [-lz -lsz] )
+        AC_CHECK_LIB( [$HDF5_LIBNAME], [H5Fopen], [HAVE_LIB_HDF5=yes; HDF5_LIBS="$HDF5_LIBS -lsz -lz"], [], [-lz -lsz] )
       fi
     fi
   fi
