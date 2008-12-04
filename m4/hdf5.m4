@@ -59,7 +59,7 @@ if test "x$WITH_SZIP" != "xno"; then
 fi
 
   # CLI option for extra HDF5 link flags
-AC_ARG_WITH([--with-hdf5-ldflags],[AC_HELP_STRING([--with-hdf5-ldflags=...],
+AC_ARG_WITH([hdf5-ldflags],[AC_HELP_STRING([--with-hdf5-ldflags=...],
  [Extra LDFLAGS required for HDF5 library (e.g. parallel IO lib)])],
  [HDF5_LDFLAGS_WITHVAL="$withval"; 
  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-hdf5-ldflags=\"${withval}\""
