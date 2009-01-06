@@ -116,8 +116,15 @@ static MBErrorCode make_tag( MBInterface* iface,
   return rval;
 }
 
-MBAdaptiveKDTree::MBAdaptiveKDTree( MBInterface* mb, const char* tagname_in, unsigned set_flags )
-  : mbInstance(mb), meshSetFlags(set_flags)
+MBAdaptiveKDTree::MBAdaptiveKDTree( MBInterface* mb, const char* tagname, unsigned set_flags )
+  : mbInstance(mb), meshSetFlags(set_flags), cleanUpTrees(false)
+{ init(tagname); }
+
+MBAdaptiveKDTree::MBAdaptiveKDTree( MBInterface* mb, bool clean_up, const char* tagname, unsigned set_flags )
+  : mbInstance(mb), meshSetFlags(set_flags), cleanUpTrees(clean_up)
+{ init(tagname); }
+
+void MBAdaptiveKDTree::init( const char* tagname_in )
 {
   const char* tagname = tagname_in ? tagname_in : MB_AD_KD_TREE_DEFAULT_TAG_NAME;
   std::vector<MBTag> ctl;
@@ -176,6 +183,23 @@ MBErrorCode MBAdaptiveKDTree::get_split_plane( MBEntityHandle entity,
 #endif
 }
 
+MBAdaptiveKDTree::~MBAdaptiveKDTree()
+{
+  if (!cleanUpTrees)
+    return;
+    
+  while (!createdTrees.empty()) {
+    MBEntityHandle tree = createdTrees.back();
+      // make sure this is a tree (rather than some other, stale handle)
+    const void* data_ptr = 0;
+    MBErrorCode rval = moab()->tag_get_data( rootTag, &tree, 1, &data_ptr );
+    if (MB_SUCCESS == rval)
+      rval = delete_tree( tree );
+    if (MB_SUCCESS != rval)
+      createdTrees.pop_back();
+  }
+}
+
 MBErrorCode MBAdaptiveKDTree::set_split_plane( MBEntityHandle entity, 
                                                const Plane& plane )
 {
@@ -229,6 +253,7 @@ MBErrorCode MBAdaptiveKDTree::create_tree( const double box_min[3],
     return rval;
   }
   
+  createdTrees.push_back( root_handle );
   return MB_SUCCESS;
 }
 
@@ -237,6 +262,10 @@ MBErrorCode MBAdaptiveKDTree::delete_tree( MBEntityHandle root_handle )
   MBErrorCode rval;
   
   std::vector<MBEntityHandle> children, dead_sets, current_sets;
+  createdTrees.erase( 
+        std::remove( createdTrees.begin(), createdTrees.end(), root_handle ),
+        createdTrees.end() );
+  
   current_sets.push_back( root_handle );
   while (!current_sets.empty()) {
     MBEntityHandle set = current_sets.back();

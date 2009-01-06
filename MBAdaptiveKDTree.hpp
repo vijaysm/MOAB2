@@ -38,12 +38,21 @@ private:
   MBInterface* mbInstance;
   MBTag planeTag, axisTag, rootTag;
   unsigned meshSetFlags;
+  bool cleanUpTrees;
+  std::vector<MBEntityHandle> createdTrees;
   
 public:
 
   MBAdaptiveKDTree( MBInterface* iface, 
                     const char* tagname = 0,
                     unsigned meshset_creation_flags = MESHSET_SET );
+
+  MBAdaptiveKDTree( MBInterface* iface, 
+                    bool destroy_created_trees,
+                    const char* tagname = 0,
+                    unsigned meshset_creation_flags = MESHSET_SET );
+
+  ~MBAdaptiveKDTree();
 
   //! Enumeriate split plane directions
   enum Axis { X = 0, Y = 1, Z = 2 };
@@ -226,6 +235,8 @@ public:
                             double box_max_out[3] );
 
 private:
+  
+  void init( const char* tagname );
   
   /**\brief find a triangle near the input point */
   MBErrorCode find_close_triangle( MBEntityHandle root,

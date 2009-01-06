@@ -38,6 +38,10 @@ private:
   MBInterface* mbInstance;
   MBTag planeTag, rootTag;
   unsigned meshSetFlags;
+  bool cleanUpTrees;
+  std::vector<MBEntityHandle> createdTrees;
+
+  MBErrorCode init_tags( const char* tagname = 0 );
 
 public:
   
@@ -46,6 +50,13 @@ public:
   MBBSPTree( MBInterface* iface,
              const char* tagname = 0,
              unsigned meshset_creation_flags = MESHSET_SET );
+
+  MBBSPTree( MBInterface* iface,
+             bool destroy_created_trees,
+             const char* tagname = 0,
+             unsigned meshset_creation_flags = MESHSET_SET );
+  
+  ~MBBSPTree();
   
   /**\brief struct to store a plane 
    *

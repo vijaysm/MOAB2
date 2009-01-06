@@ -85,27 +85,52 @@ static bool point_in_box( const double corners[8][3],
   return true;
 }
 
-
-MBBSPTree::MBBSPTree( MBInterface* mb, 
-                      const char* tagname, 
-                      unsigned set_flags )
-  : mbInstance(mb), meshSetFlags(set_flags)
+MBErrorCode MBBSPTree::init_tags( const char* tagname )
 {
-  MBErrorCode rval;
-
   if (!tagname) 
     tagname = MB_BSP_TREE_DEFAULT_TAG_NAME;
   
   std::string rootname(tagname);
   rootname += "_box";
   
-  rval = mb->tag_create( tagname, 4*sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, planeTag, 0, true );
+  MBErrorCode rval = moab()->tag_create( tagname, 4*sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, planeTag, 0, true );
   if (MB_SUCCESS != rval)
     planeTag = 0;
-  
-  rval = mb->tag_create( rootname.c_str(), 24*sizeof(double), MB_TAG_SPARSE, MB_TYPE_DOUBLE, rootTag, 0, true );
+  else
+    rval = moab()->tag_create( rootname.c_str(), 24*sizeof(double), MB_TAG_SPARSE, MB_TYPE_DOUBLE, rootTag, 0, true );
   if (MB_SUCCESS != rval)
     rootTag = 0;
+  return rval;
+}
+
+MBBSPTree::MBBSPTree( MBInterface* mb, 
+                      const char* tagname, 
+                      unsigned set_flags )
+  : mbInstance(mb), meshSetFlags(set_flags), cleanUpTrees(false)
+{ init_tags( tagname ); }
+
+MBBSPTree::MBBSPTree( MBInterface* mb, 
+                      bool destroy_created_trees,
+                      const char* tagname, 
+                      unsigned set_flags )
+  : mbInstance(mb), meshSetFlags(set_flags), cleanUpTrees(destroy_created_trees)
+{ init_tags( tagname ); }
+
+MBBSPTree::~MBBSPTree()
+{
+  if (!cleanUpTrees)
+    return;
+    
+  while (!createdTrees.empty()) {
+    MBEntityHandle tree = createdTrees.back();
+      // make sure this is a tree (rather than some other, stale handle)
+    const void* data_ptr = 0;
+    MBErrorCode rval = moab()->tag_get_data( rootTag, &tree, 1, &data_ptr );
+    if (MB_SUCCESS == rval)
+      rval = delete_tree( tree );
+    if (MB_SUCCESS != rval)
+      createdTrees.pop_back();
+  }
 }
 
 MBErrorCode MBBSPTree::set_split_plane( MBEntityHandle node, const Plane& p )
@@ -174,6 +199,7 @@ MBErrorCode MBBSPTree::create_tree( const double corners[8][3],
     return rval;
   }
   
+  createdTrees.push_back( root_handle );
   return MB_SUCCESS;
 }
                                     
@@ -208,6 +234,9 @@ MBErrorCode MBBSPTree::delete_tree( MBEntityHandle root_handle )
   if (MB_SUCCESS != rval)
     return rval;
   
+  createdTrees.erase(
+    std::remove( createdTrees.begin(), createdTrees.end(), root_handle ),
+    createdTrees.end() );
   return moab()->delete_entities( &dead_sets[0], dead_sets.size() );
 }
 

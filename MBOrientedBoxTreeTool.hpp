@@ -85,7 +85,10 @@ class MBOrientedBoxTreeTool
     };
   
     MBOrientedBoxTreeTool( MBInterface* i, 
-                           const char* tag_name = 0 ) ;
+                           const char* tag_name = 0,
+                           bool destroy_created_trees = false ) ;
+  
+    ~MBOrientedBoxTreeTool();
   
     /**\brief Build oriented bounding box tree
      *
@@ -336,6 +339,9 @@ class MBOrientedBoxTreeTool
   
     MBInterface* instance;
     MBTag tagHandle;
+ 
+    bool cleanUpTrees;
+    std::vector<MBEntityHandle> createdTrees;
 };
 
 #endif

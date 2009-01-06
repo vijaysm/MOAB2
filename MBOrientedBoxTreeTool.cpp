@@ -45,14 +45,32 @@ const char DEFAULT_TAG_NAME[] = "OBB";
 MBOrientedBoxTreeTool::Op::~Op() {}
 
 MBOrientedBoxTreeTool::MBOrientedBoxTreeTool( MBInterface* i,
-                                              const char* tag_name )
-  : instance( i )
+                                              const char* tag_name,
+                                              bool destroy_created_trees )
+  : instance( i ), cleanUpTrees(destroy_created_trees)
 {
   if (!tag_name)
     tag_name = DEFAULT_TAG_NAME;
   MBErrorCode rval = MBOrientedBox::tag_handle( tagHandle, instance, tag_name, true );
   if (MB_SUCCESS != rval)
     tagHandle = 0;
+}
+
+MBOrientedBoxTreeTool::~MBOrientedBoxTreeTool()
+{
+  if (!cleanUpTrees)
+    return;
+    
+  while (!createdTrees.empty()) {
+    MBEntityHandle tree = createdTrees.back();
+      // make sure this is a tree (rather than some other, stale handle)
+    const void* data_ptr = 0;
+    MBErrorCode rval = instance->tag_get_data( tagHandle, &tree, 1, &data_ptr );
+    if (MB_SUCCESS == rval)
+      rval = delete_tree( tree );
+    if (MB_SUCCESS != rval)
+      createdTrees.pop_back();
+  }
 }
 
 MBOrientedBoxTreeTool::Settings::Settings() 
@@ -148,8 +166,18 @@ MBErrorCode MBOrientedBoxTreeTool::join_trees( const MBRange& sets,
       return rval;
   }
 
-  return build_sets( data, set_handle_out, 0, 
-                     settings ? *settings : Settings() );
+  MBErrorCode result = build_sets( data, set_handle_out, 0, 
+                          settings ? *settings : Settings() );
+  if (MB_SUCCESS != result)
+    return result;
+  
+  for (MBRange::reverse_iterator i = sets.rbegin(); i != sets.rend(); ++i) {
+    createdTrees.erase(
+      std::remove( createdTrees.begin(), createdTrees.end(), *i ), 
+      createdTrees.end() );
+  }
+  createdTrees.push_back( set_handle_out );
+  return MB_SUCCESS;
 }
   
 
@@ -287,6 +315,7 @@ MBErrorCode MBOrientedBoxTreeTool::build_tree( const MBRange& entities,
       { delete_tree( set ); return rval; }
   }
   
+  createdTrees.push_back( set );
   return MB_SUCCESS;
 }
 
@@ -428,6 +457,9 @@ MBErrorCode MBOrientedBoxTreeTool::delete_tree( MBEntityHandle set )
   if (MB_SUCCESS != rval)
     return rval;
   
+  createdTrees.erase( 
+    std::remove( createdTrees.begin(), createdTrees.end(), set ),
+    createdTrees.end() );
   children.insert( children.begin(), set );
   return instance->delete_entities( &children[0], children.size() );
 }
