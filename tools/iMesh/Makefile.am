@@ -14,7 +14,7 @@ DEFS += $(DEFINES) -DSRCDIR=$(srcdir)
 
 # stuff for c test program
 check_PROGRAMS = testc_cbind
-
+EXTRA_DIST = brick.vtk
 
 libiMesh_la_SOURCES = \
 	iMesh_MOAB.cpp \
