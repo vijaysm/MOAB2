@@ -10,7 +10,7 @@ SUBDIRS = . $(babel_DIR)
 
 INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I.
 
-DEFS += $(DEFINES)
+DEFS += $(DEFINES) -DSRCDIR=$(srcdir)
 
 # stuff for c test program
 check_PROGRAMS = testc_cbind
@@ -40,6 +40,7 @@ if PARALLEL
 #  ftest_DEPENDENCIES = libiMesh.la $(top_builddir)/libMOAB.la 
 endif
 
+TESTS = $(check_PROGRAMS)
 LDADD = libiMesh.la $(top_builddir)/libMOAB.la ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
 TESTDEPS = libiMesh.la $(top_builddir)/libMOAB.la
 
