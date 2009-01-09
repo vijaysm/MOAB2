@@ -986,10 +986,21 @@ extern "C" {
     int* off_iter = *offset;
     int prev_off = 0;
   
-    std::vector<MBEntityHandle> all_adj_ents;
+    std::vector<MBEntityHandle> conn_storage;
     std::vector<MBEntityHandle> adj_ents;
     const MBEntityHandle *connect;
     int num_connect;
+    
+    MBEntityHandle* array = reinterpret_cast<MBEntityHandle*>(*adjacentEntityHandles);
+    int array_alloc = *adjacentEntityHandles_allocated;
+    const bool allocated_array = !array || !array_alloc;
+    if (allocated_array) {
+      array_alloc = 2 * entity_handles_size;
+      array = (MBEntityHandle*)malloc(array_alloc*sizeof(MBEntityHandle));
+      if (!array) {
+        RETURN(iBase_MEMORY_ALLOCATION_FAILED);
+      }
+    }
     
     for ( ; entity_iter != entity_end; ++entity_iter)
     {
@@ -998,27 +1009,25 @@ extern "C" {
       
       if (iBase_VERTEX == entity_type_requested &&
           TYPE_FROM_HANDLE(*entity_iter) != MBPOLYHEDRON) {
-        result = MBI->get_connectivity(*entity_iter, connect, num_connect);
+        result = MBI->get_connectivity(*entity_iter, connect, num_connect, true, &conn_storage);
         if (MB_SUCCESS != result) {
           iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getEntArrAdj: trouble getting adjacency list.");
           RETURN(iBase_ERROR_MAP[result]);
         }
-        std::copy(connect, connect+num_connect, std::back_inserter(all_adj_ents));
-        prev_off += num_connect;
       }
       else if (iBase_ALL_TYPES == entity_type_requested) {
+        adj_ents.clear();
         for (int dim = 0; dim < 4; ++dim) {
           if (MBCN::Dimension(TYPE_FROM_HANDLE(*entity_iter)) == dim)
             continue;
-          adj_ents.clear();
           result = MBI->get_adjacencies( entity_iter, 1, dim, false, adj_ents );
           if (MB_SUCCESS != result) {
             iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getEntArrAdj: trouble getting adjacency list.");
             RETURN(iBase_ERROR_MAP[result]);
           }
-          std::copy(adj_ents.begin(), adj_ents.end(), std::back_inserter(all_adj_ents));
-          prev_off += adj_ents.size();
         }
+        connect = &adj_ents[0];
+        num_connect = adj_ents.size();
       }
       else {
         adj_ents.clear();
@@ -1028,19 +1037,39 @@ extern "C" {
           iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getEntArrAdj: trouble getting adjacency list.");
           RETURN(iBase_ERROR_MAP[result]);
         }
-        std::copy(adj_ents.begin(), adj_ents.end(), std::back_inserter(all_adj_ents));
-        prev_off += adj_ents.size();
+        connect = &adj_ents[0];
+        num_connect = adj_ents.size();
       }
+      
+      if (prev_off + num_connect <= array_alloc) {
+        std::copy(connect, connect+num_connect, array+prev_off);
+      }
+      else if (allocated_array) {
+        array_alloc *= 2;
+        array = (MBEntityHandle*)realloc( array, array_alloc*sizeof(MBEntityHandle) );
+        if (!array) {
+          RETURN(iBase_MEMORY_ALLOCATION_FAILED);
+        }
+        std::copy(connect, connect+num_connect, array+prev_off);
+      }
+      // else do nothing.  Will catch error later when comparing
+      //  occupied to allocated sizes.  Continue here because
+      //  must pass back required size.
+      
+      prev_off += num_connect;
     }
     *off_iter = prev_off;
-
-    CHECK_SIZE(*adjacentEntityHandles, *adjacentEntityHandles_allocated, 
-               (int)all_adj_ents.size(), 
-               iBase_EntityHandle, iBase_MEMORY_ALLOCATION_FAILED);
-    memcpy(*adjacentEntityHandles, &all_adj_ents[0], sizeof(MBEntityHandle) * all_adj_ents.size() );
-
-    *adjacentEntityHandles_size = all_adj_ents.size();
     *offset_size = entity_handles_size+1;
+    *adjacentEntityHandles_size = prev_off;
+
+    if (*adjacentEntityHandles_size > array_alloc) {
+      RETURN(iBase_BAD_ARRAY_SIZE);
+    }
+    else if (allocated_array) {
+      *adjacentEntityHandles = reinterpret_cast<iBase_EntityHandle*>(array);
+      *adjacentEntityHandles_allocated = array_alloc;
+    }
+
     RETURN(iBase_SUCCESS);
   }
 
