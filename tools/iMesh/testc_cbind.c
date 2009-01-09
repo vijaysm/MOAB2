@@ -63,6 +63,17 @@
 #define FALSE 0
 #define TRUE 1
 
+#define DEFAULT_TEST_FILE brick.vtk
+
+#define STRINGIFY_(X) #X
+#define STRINGIFY(X) STRINGIFY_(X)
+#ifdef SRCDIR
+#  define DEFAULT_INPUT_FILE STRINGIFY(SRCDIR/DEFAULT_TEST_FILE)
+#else
+#  define DEFAULT_INPUT_FILE STRINGIFY(DEFAULT_TEST_FILE)
+#endif
+
+
 static iBase_EntitySetHandle root_set;
 
 /*!
@@ -2033,11 +2044,16 @@ int main( int argc, char *argv[] )
     // Check command line arg
   const char *filename;
 
-  if (argc < 2) {
-    printf("Usage: %s <mesh_filename>\n", argv[0]);
-    return 1;
+  if (argc == 2) {
+    filename = argv[1];
   }
-  filename = argv[1];
+  else {
+    printf("Usage: %s <mesh_filename>\n", argv[0]);
+    if (argc != 1)
+      return 1;
+    printf("  No file specified.  Defaulting to: %s\n", DEFAULT_INPUT_FILE );
+    filename = DEFAULT_INPUT_FILE;
+  }
 
   int number_tests = 0;
   int number_tests_successful = 0;
