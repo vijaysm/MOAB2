@@ -991,15 +991,16 @@ extern "C" {
     const MBEntityHandle *connect;
     int num_connect;
     
-    MBEntityHandle* array = reinterpret_cast<MBEntityHandle*>(*adjacentEntityHandles);
-    int array_alloc = *adjacentEntityHandles_allocated;
-    const bool allocated_array = !array || !array_alloc;
+    MBEntityHandle* array; // ptr to working array of result handles
+    int array_alloc;       // allocated size of 'array'
+    const bool allocated_array = !*adjacentEntityHandles_allocated || !*adjacentEntityHandles;
     if (allocated_array) {
-      array_alloc = 2 * entity_handles_size;
-      array = (MBEntityHandle*)malloc(array_alloc*sizeof(MBEntityHandle));
-      if (!array) {
-        RETURN(iBase_MEMORY_ALLOCATION_FAILED);
-      }
+      array = 0;
+      array_alloc = 0;
+    }
+    else {
+      array = reinterpret_cast<MBEntityHandle*>(*adjacentEntityHandles);
+      array_alloc = *adjacentEntityHandles_allocated;
     }
     
     for ( ; entity_iter != entity_end; ++entity_iter)
@@ -1045,7 +1046,16 @@ extern "C" {
         std::copy(connect, connect+num_connect, array+prev_off);
       }
       else if (allocated_array) {
-        array_alloc *= 2;
+          // if array is not allocated yet, guess at initial size
+          // as the number of adjacencies for the first entity times
+          // the number of input entities.  This will result in a single
+          // exact allocation if one input entity or typical queries 
+          // such as connectivity of a non-mixed mesh or regions adjacent
+          // to faces.
+        if (!array_alloc) 
+          array_alloc = entity_handles_size * num_connect;
+        else
+          array_alloc = std::max(array_alloc*2, prev_off+num_connect);  
         array = (MBEntityHandle*)realloc( array, array_alloc*sizeof(MBEntityHandle) );
         if (!array) {
           RETURN(iBase_MEMORY_ALLOCATION_FAILED);
