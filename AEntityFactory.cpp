@@ -108,7 +108,7 @@ MBErrorCode AEntityFactory::get_elements(MBEntityHandle source_entity,
 
   MBErrorCode result = MB_FAILURE;
     
-  if(target_dimension == 0 && source_type != MBPOLYHEDRON) 
+  if(target_dimension == (source_type != MBPOLYHEDRON ? 0 : 2)) 
     return thisMB->get_connectivity(&source_entity, 1, target_entities);
 
   if( target_dimension == 4 ) //get meshsets 'source' is in
@@ -932,6 +932,203 @@ MBErrorCode AEntityFactory::get_down_adjacency_elements_poly(MBEntityHandle sour
   return MB_SUCCESS;
 }
 
+#if 0
+// Do in-place set intersect of two *sorted* containers.
+// First container is modifed.  Second is not.  
+// First container must allow assignment through iterators (in practice,
+// must be a container that does not enforce ordering, such
+// as std::vector, std::list, or a c-style array)
+template <typename T1, typename T2>
+static inline T1 intersect( T1 set1_begin, T1 set1_end,
+                            T2 set2_begin, T2 set2_end )
+{
+  T1 set1_write = set1_begin;
+  while (set1_begin != set1_end) {
+    if (set2_begin == set2_end)
+      return set1_write;
+    while (*set2_begin < *set1_begin)
+      if (++set2_begin == set2_end)
+        return set1_write;
+    if (!(*set1_begin < *set2_begin)) {
+      *set1_write = *set1_begin;
+      ++set1_write;
+      ++set2_begin;
+    }
+    ++set1_begin;
+  }
+  return set1_write;
+}
+      
+
+MBErrorCode AEntityFactory::get_up_adjacency_elements( 
+                                   MBEntityHandle source_entity,
+                                   const unsigned int target_dimension,
+                                   std::vector<MBEntityHandle>& target_entities,
+                                   const bool create_if_missing,
+                                   const int option )
+{
+  MBErrorCode rval;
+  const std::vector<MBEntityHandle> *vtx_adj, *vtx2_adj;
+  std::vector<MBEntityHandle> duplicates;
+  
+    // Handle ranges
+  const size_t in_size = target_entities.size();
+  const MBEntityType src_type = TYPE_FROM_HANDLE(source_entity);
+  MBDimensionPair target_types = MBCN::TypeDimensionMap[target_dimension];
+  const MBEntityHandle src_beg_handle = CREATE_HANDLE( src_type, 0 );
+  const MBEntityHandle src_end_handle = CREATE_HANDLE( src_type+1, 0 );
+  const MBEntityHandle tgt_beg_handle = CREATE_HANDLE( target_types.first, 0 );
+  const MBEntityHandle tgt_end_handle = CREATE_HANDLE( target_types.second+1, 0 );
+  
+    // get vertices
+  assert(TYPE_FROM_HANDLE(source_entity) != MBPOLYHEDRON); // can't go up from a region
+  std::vector<MBEntityHandle> conn_storage;
+  const MBEntityHandle* conn;
+  int conn_len;
+  rval = thisMB->get_connectivity( source_entity, conn, conn_len, true, &conn_storage );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+    // shouldn't be here if source entity is not an element
+  assert(conn_len > 1);
+
+    // create necessary entities
+  if (create_if_missing) {
+    rval = get_adjacency_ptr( conn[0], vtx_adj );
+    if (MB_SUCCESS != rval)
+      return rval;
+    assert(vtx_adj != NULL); // should contain at least source_entity
+
+    std::vector<MBEntityHandle> tmp2, tmp(*vtx_adj); // copy in case adjacency vector is changed
+    for (size_t j = 0; j < tmp.size(); ++j) {
+      if (MBCN::Dimension(TYPE_FROM_HANDLE(tmp[j])) <= (int)target_dimension)
+        continue;
+      if (TYPE_FROM_HANDLE(tmp[j]) == MBENTITYSET)
+        break;
+    
+      tmp2.clear();
+      rval = get_down_adjacency_elements( tmp[j], target_dimension, tmp2, true, option );
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
+  }
+  
+    // get elements adjacent to first vertex 
+  rval = get_adjacency_ptr( conn[0], vtx_adj );
+  if (MB_SUCCESS != rval)
+    return rval;
+  assert(vtx_adj != NULL); // should contain at least source_entity
+    // get elements adjacent to second vertex
+  rval = get_adjacency_ptr( conn[1], vtx2_adj );
+  if (MB_SUCCESS != rval)
+    return rval;
+  assert(vtx2_adj != NULL);
+
+    // Put intersect of all entities except source entity with
+    // the same type as the source entity in 'duplicates'
+  std::vector<MBEntityHandle>::const_iterator it1, it2, end1, end2;
+  it1 = std::lower_bound( vtx_adj->begin(), vtx_adj->end(), src_beg_handle );
+  it2 = std::lower_bound( vtx2_adj->begin(), vtx2_adj->end(), src_beg_handle );
+  end1 = std::lower_bound( it1, vtx_adj->end(), src_end_handle );
+  end2 = std::lower_bound( it2, vtx2_adj->end(), src_end_handle );
+  assert(end1 != it1); // should at least contain source entity
+  duplicates.resize( end1 - it1 - 1 );
+  std::vector<MBEntityHandle>::iterator ins = duplicates.begin();
+  for (; it1 != end1; ++it1) {
+    if (*it1 != source_entity) {
+      *ins = *it1;
+      ++ins;
+    }
+  }
+  duplicates.erase( intersect( duplicates.begin(), duplicates.end(), it2, end2 ), duplicates.end() );
+    
+    // Append to input list any entities of the desired target dimension
+  it1 = std::lower_bound( end1, vtx_adj->end(), tgt_beg_handle );
+  it2 = std::lower_bound( end2, vtx2_adj->end(), tgt_beg_handle );
+  end1 = std::lower_bound( it1, vtx_adj->end(), tgt_end_handle );
+  end2 = std::lower_bound( it2, vtx2_adj->end(), tgt_end_handle );
+  std::set_intersection( it1, end1, it2, end2, std::back_inserter( target_entities ) );
+  
+    // for each additional vertex
+  for (int i = 2; i < conn_len; ++i) {
+    rval = get_adjacency_ptr( conn[i], vtx_adj );
+    if (MB_SUCCESS != rval)
+      return rval;
+    assert(vtx_adj != NULL); // should contain at least source_entity
+    
+    it1 = std::lower_bound( vtx_adj->begin(), vtx_adj->end(), src_beg_handle );
+    end1 = std::lower_bound( it1, vtx_adj->end(), src_end_handle );
+    duplicates.erase( intersect( duplicates.begin(), duplicates.end(), it1, end1 ), duplicates.end() );
+    
+    it1 = std::lower_bound( end1, vtx_adj->end(), tgt_beg_handle );
+    end1 = std::lower_bound( it1, vtx_adj->end(), tgt_end_handle );
+    target_entities.erase( intersect( target_entities.begin(), target_entities.end(),
+                           it1, end1 ), target_entities.end() );
+  }
+  
+    // if no duplicates, we're done
+  if (duplicates.empty())
+    return MB_SUCCESS;
+  
+    // Check for explicit adjacencies.  If an explicit adjacency
+    // connects candidate target entity to an entity equivalent
+    // to the source entity, then assume that source entity is *not*
+    // adjacent
+  const std::vector<MBEntityHandle>* adj_ptr;
+    // check adjacencies from duplicate entities to candidate targets
+  for (size_t i = 0; i < duplicates.size(); ++i) {
+    rval = get_adjacency_ptr( duplicates[i], adj_ptr );
+    if (MB_SUCCESS != rval)
+      return rval;
+    if (!adj_ptr)
+      continue;
+    
+    for (size_t j = 0; j < adj_ptr->size(); ++j) {
+      std::vector<MBEntityHandle>::iterator k = 
+        std::find( target_entities.begin()+in_size, target_entities.end(), (*adj_ptr)[j] );
+      if (k != target_entities.end())
+        target_entities.erase(k);
+    }
+  }
+  
+  // If target dimension is 3 and source dimension is 1, also need to
+  // check for explicit adjacencies to intermediate faces
+  if (MBCN::Dimension(src_type) > 1 || target_dimension < 3)
+    return MB_SUCCESS;
+  
+    // Get faces adjacent to each element and check for explict 
+    // adjacencies from duplicate entities to faces
+  for (size_t i = 0; i < duplicates.size(); ++i) {
+    rval = get_adjacency_ptr( duplicates[i], adj_ptr );
+    if (MB_SUCCESS != rval)
+      return rval;
+    if (!adj_ptr)
+      continue;
+    
+    size_t j;
+    for (j = 0; j < adj_ptr->size(); ++j) {
+      const std::vector<MBEntityHandle>* adj_ptr2;
+      rval = get_adjacency_ptr( (*adj_ptr)[j], adj_ptr2 );
+      if (MB_SUCCESS != rval)
+        return rval;
+      if (!adj_ptr2)
+        continue;
+      
+      for (size_t k = 0; k < adj_ptr2->size(); ++k) {
+        std::vector<MBEntityHandle>::iterator it;
+        it = std::find( target_entities.begin()+in_size, target_entities.end(), (*adj_ptr2)[k] );
+        if (it != target_entities.end()) { 
+          target_entities.erase(it);
+          j = adj_ptr->size(); // break outer loop
+          break;
+        }
+      }
+    }
+  }
+  
+  return MB_SUCCESS;
+}
+#else
 MBErrorCode AEntityFactory::get_up_adjacency_elements(MBEntityHandle source_entity,
                                                        const unsigned int target_dimension,
                                                        std::vector<MBEntityHandle> &target_entities,
@@ -1057,7 +1254,7 @@ MBErrorCode AEntityFactory::get_up_adjacency_elements(MBEntityHandle source_enti
 
   return result;
 }
-
+#endif
 
 
 MBErrorCode AEntityFactory::notify_change_connectivity(MBEntityHandle entity, 
