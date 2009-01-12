@@ -876,6 +876,220 @@ MBErrorCode mb_adjacencies_test(MBInterface *mb)
 
 }
 
+static MBErrorCode create_two_hex_full_mesh( MBInterface* mb,
+                                             MBEntityHandle vertices[12],
+                                             MBEntityHandle hexes[2],
+                                             MBEntityHandle hex1_faces[6],
+                                             MBEntityHandle hex2_faces[6],
+                                             MBEntityHandle hex1_edges[12],
+                                             MBEntityHandle hex2_edges[12] )
+{
+  MBErrorCode rval;
+ // create a simple mesh containing 2 hexes
+  const double coords[] = { 0, 0, 0, 
+                            1, 0, 0,
+                            2, 0, 0,
+                            0, 1, 0,
+                            1, 1, 0,
+                            2, 1, 0,
+                            0, 0, 1, 
+                            1, 0, 1,
+                            2, 0, 1,
+                            0, 1, 1,
+                            1, 1, 1,
+                            2, 1, 1 };
+  for (int i = 0; i < 12; ++i)
+    if (MB_SUCCESS != mb->create_vertex( coords + 3*i, vertices[i] ))
+      return MB_FAILURE;
+  MBEntityHandle hex1_conn[] = { vertices[6], vertices[7], vertices[1], vertices[0],
+                                 vertices[9], vertices[10],vertices[4], vertices[3] };
+  MBEntityHandle hex2_conn[] = { vertices[7], vertices[8], vertices[2], vertices[1],
+                                 vertices[10],vertices[11],vertices[5], vertices[4] };
+  MBEntityHandle shared_quad_conn[] = { vertices[7], vertices[1], vertices[4], vertices[10] };
+  MBEntityHandle hex1_face_conn[][4] = {
+    { vertices[6], vertices[7], vertices[10],vertices[9] },
+    { vertices[7], vertices[6], vertices[0], vertices[1] },
+    { vertices[1], vertices[0], vertices[3], vertices[4] },
+    { vertices[9], vertices[10],vertices[4], vertices[3] },
+    { vertices[3], vertices[0], vertices[6], vertices[9] } };
+  MBEntityHandle hex2_face_conn[][4] = {
+    { vertices[7], vertices[8], vertices[11],vertices[10] },
+    { vertices[8], vertices[7], vertices[1], vertices[2] },
+    { vertices[2], vertices[1], vertices[4], vertices[5] },
+    { vertices[10],vertices[11],vertices[5], vertices[4] },
+    { vertices[5], vertices[2], vertices[8], vertices[11] } };
+  MBEntityHandle shared_edge_conn[][2] = { { vertices[1], vertices[7] },
+                                           { vertices[7], vertices[10]},
+                                           { vertices[10],vertices[4] },
+                                           { vertices[4], vertices[1] } };
+  MBEntityHandle hex1_edge_conn[][2] = { { vertices[6], vertices[7] },
+                                         { vertices[9], vertices[10] },
+                                         { vertices[3], vertices[4] },
+                                         { vertices[0], vertices[1] },
+                                         { vertices[6], vertices[9] },
+                                         { vertices[9], vertices[3] },
+                                         { vertices[3], vertices[0] },
+                                         { vertices[0], vertices[6] } };
+  MBEntityHandle hex2_edge_conn[][2] = { { vertices[7], vertices[8] },
+                                         { vertices[10], vertices[11] },
+                                         { vertices[4], vertices[5] },
+                                         { vertices[1], vertices[2] },
+                                         { vertices[8], vertices[11] },
+                                         { vertices[11], vertices[5] },
+                                         { vertices[5], vertices[2] },
+                                         { vertices[2], vertices[8] } };
+  rval = mb->create_element( MBHEX, hex1_conn, 8, hexes[0] );
+  if (MB_SUCCESS != rval)
+    return rval;
+  rval = mb->create_element( MBHEX, hex2_conn, 8, hexes[1] );
+  if (MB_SUCCESS != rval)
+    return rval;
+  rval = mb->create_element( MBQUAD, shared_quad_conn, 4, hex1_faces[0] );
+  if (MB_SUCCESS != rval)
+    return rval;
+  hex2_faces[0] = hex1_faces[0];
+  for (int i = 0; i < 5; ++i) {
+    rval = mb->create_element( MBQUAD, hex1_face_conn[i], 5, hex1_faces[i+1] );
+    if (MB_SUCCESS != rval)
+      return rval;
+    rval = mb->create_element( MBQUAD, hex2_face_conn[i], 5, hex2_faces[i+1] );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  for (int i = 0; i < 4; ++i) {
+    rval = mb->create_element( MBEDGE, shared_edge_conn[i], 2, hex1_edges[i] );
+    if (MB_SUCCESS != rval)
+      return rval;
+    hex2_edges[i] = hex1_edges[i];
+  }
+  for (int i = 0; i < 8; ++i) {
+    rval = mb->create_element( MBEDGE, hex1_edge_conn[i], 2, hex1_edges[i+4] );
+    if (MB_SUCCESS != rval)
+      return rval;
+    rval = mb->create_element( MBEDGE, hex2_edge_conn[i], 2, hex2_edges[i+4] );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  return MB_SUCCESS;
+}
+
+
+MBErrorCode mb_upward_adjacencies_test(MBInterface *mb) 
+{
+  MBErrorCode rval;
+  MBCore moab;
+  mb = &moab;
+  
+  // create a simple mesh containing 2 hexes
+  MBEntityHandle vertices[12], hexes[2], hex1_faces[6], hex2_faces[6], hex1_edges[12], hex2_edges[12];
+  rval = create_two_hex_full_mesh( mb, vertices, hexes, hex1_faces, hex2_faces, hex1_edges, hex2_edges );
+  if (MB_SUCCESS != rval)
+    return rval;
+
+    // test adjacences from dim to 3
+  for (int dim = 0; dim < 3; ++dim) {
+    std::vector<MBEntityHandle> hex1_ent, hex2_ent, shared;
+    const MBEntityHandle *list1, *list2;
+    int n;
+    switch (dim) {
+      case 0:
+        rval = mb->get_connectivity( hexes[0], list1, n );
+        if (MB_SUCCESS != rval)
+          return rval;
+        rval = mb->get_connectivity( hexes[1], list2, n );
+        if (MB_SUCCESS != rval)
+          return rval;
+        break;
+      case 1:
+        list1 = hex1_edges;
+        list2 = hex2_edges;
+        n = 12;
+        break;
+      case 2:
+        list1 = hex1_faces;
+        list2 = hex2_faces;
+        n = 6;
+        break;
+    }
+    for (int i = 0; i < n; ++i) {
+      if (std::find(list2, list2+n, list1[i]) - list2 == n)
+        hex1_ent.push_back(list1[i]);
+      else
+        shared.push_back(list1[i]);
+      if (std::find(list1, list1+n, list2[i]) - list1 == n)
+        hex2_ent.push_back(list2[i]);
+    }
+    
+    for (size_t j = 0; j < shared.size(); ++j) {
+      std::vector<MBEntityHandle> adj;
+      rval = mb->get_adjacencies( &shared[j], 1, 3, false, adj );
+      if (MB_SUCCESS != rval)
+        return rval;
+      if (adj.size() != 2)
+        return MB_FAILURE;
+      if (!(adj[0] == hexes[0] && adj[1] == hexes[1]) &&
+          !(adj[0] == hexes[1] && adj[1] == hexes[0]))
+        return MB_FAILURE;
+    }
+    
+    for (size_t j = 0; j < hex1_ent.size(); ++j) {
+      std::vector<MBEntityHandle> adj;
+      rval = mb->get_adjacencies( &hex1_ent[j], 1, 3, false, adj );
+      if (MB_SUCCESS != rval)
+        return rval;
+      if (adj.size() != 1 || adj[0] != hexes[0])
+        return MB_FAILURE;
+    }
+    
+    for (size_t j = 0; j < hex2_ent.size(); ++j) {
+      std::vector<MBEntityHandle> adj;
+      rval = mb->get_adjacencies( &hex2_ent[j], 1, 3, false, adj );
+      if (MB_SUCCESS != rval)
+        return rval;
+      if (adj.size() != 1 || adj[0] != hexes[1])
+        return MB_FAILURE;
+    }
+  }
+    
+    // For each edge, get adjacent faces, and for each face
+    // get adjacent hexes.  Result should be the same as
+    // direct query from edges to hexes
+  std::vector<MBEntityHandle> all_edges(24);
+  std::copy( hex1_edges, hex1_edges+12, all_edges.begin() );
+  std::copy( hex2_edges, hex2_edges+12, all_edges.begin()+12 );
+  std::sort( all_edges.begin(), all_edges.end() );
+  all_edges.erase( std::unique(all_edges.begin(), all_edges.end()), all_edges.end() );
+  for (size_t j = 0; j < all_edges.size(); ++j) {
+    std::vector<MBEntityHandle> edge_hexes, edge_faces, face_hexes;
+    rval = mb->get_adjacencies( &all_edges[j], 1, 3, false, edge_hexes );
+    if (MB_SUCCESS != rval)
+      return rval;
+    rval = mb->get_adjacencies( &all_edges[j], 1, 2, false, edge_faces );
+    if (MB_SUCCESS != rval)
+      return rval;
+    rval = mb->get_adjacencies( &edge_faces[0], edge_faces.size(), 3,
+                                false, face_hexes, MBInterface::UNION );
+    if (MB_SUCCESS != rval)
+      return rval;
+    if (edge_hexes.size() != face_hexes.size())
+      return MB_FAILURE;
+    switch (edge_hexes.size()) {
+      case 1:
+        if (edge_hexes[0] != face_hexes[0])
+          return MB_FAILURE;
+        break;
+      case 2:
+        if (!(edge_hexes[0] == face_hexes[0] && edge_hexes[1] == face_hexes[1]) &&
+            !(edge_hexes[0] == face_hexes[1] && edge_hexes[1] == face_hexes[0]))
+        return MB_FAILURE;
+        break;
+      default:
+        return MB_FAILURE;
+    }
+  }
+  return MB_SUCCESS;
+}
+
 MBErrorCode nothing_but_type( MBRange& range, MBEntityType type )
 { 
 
@@ -5790,6 +6004,7 @@ int main(int argc, char* argv[])
 
   RUN_TEST( mb_adjacent_vertex_test );
   RUN_TEST( mb_adjacencies_test );
+  RUN_TEST( mb_upward_adjacencies_test );
   RUN_TEST( mb_vertex_coordinate_test );
   RUN_TEST( mb_vertex_tag_test );
   RUN_TEST( mb_bar_connectivity_test );
