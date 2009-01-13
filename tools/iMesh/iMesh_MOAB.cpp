@@ -251,7 +251,7 @@ extern "C" {
   {
     std::string tmp_options(options, options_len);
     eatwhitespace(tmp_options);
-    FileOptions opts(tmp_options.c_str());
+    FileOptions opts((std::string(";") + tmp_options).c_str());
 
     MBInterface* core;
 
