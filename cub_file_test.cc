@@ -68,8 +68,12 @@
 */
 #ifdef SRCDIR
 static const char input_file_1[] = STRINGIFY(SRCDIR) "/test.cub";
+static const char quad9_file[] = STRINGIFY(SRCDIR) "/quad9.cub";
+static const char hex27_file[] = STRINGIFY(SRCDIR) "/hex27.cub";
 #else
 static const char input_file_1[] = "test.cub";
+static const char quad9_file[] = "quad9.cub";
+static const char hex27_file[] = "hex27.cub";
 #endif
 
 void read_file( MBInterface& moab, 
@@ -96,6 +100,10 @@ void test_node_sets();
 
 void test_file_set();
 
+void test_quad9();
+
+void test_hex27();
+
 int main()
 {
   int result = 0;
@@ -110,6 +118,8 @@ int main()
   result += RUN_TEST(test_side_sets);
   result += RUN_TEST(test_node_sets);
   result += RUN_TEST(test_file_set);
+  result += RUN_TEST(test_hex27);
+  result += RUN_TEST(test_quad9);
   
   return result;
 }
@@ -786,4 +796,188 @@ void test_file_set()
   exp.erase( set );
   CHECK( exp == act );
 }
+
+static int q9_idx_from_coord( double coord )
+{
+    // 10x10 element grid has 21 vertices in each direction,
+    // equally spaced in [-5,5].
+  return (int)round( 2*coord + 10 );
+}
+
+void test_quad9()
+{
+  MBErrorCode rval;
+  MBCore mb_impl;
+  MBInterface& mb = mb_impl;
+  read_file( mb, quad9_file );
+  
+    // we're expecting a 10x10 element grid in the xy plane.
+  MBEntityHandle verts[21][21], quads[10][10];
+  memset( verts, 0, sizeof(verts) );
+  memset( quads, 0, sizeof(quads) );
+  
+    // get all quads
+  MBRange range;
+  rval = mb.get_entities_by_type( 0, MBQUAD, range );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( (size_t)(10*10), range.size() );
+  
+    // for each quad
+  for (MBRange::iterator i = range.begin(); i != range.end(); ++i) {
+      // get connectivity
+    const MBEntityHandle* conn = 0;
+    int conn_len = 0;
+    rval = mb.get_connectivity( *i, conn, conn_len, false );
+    CHECK_ERR(rval);
+    CHECK_EQUAL( 9, conn_len );
+    
+      // translate connectivity to indices into vertex grid
+    double coords[3*9];
+    rval = mb.get_coords( conn, 9, coords ); CHECK_ERR(rval);
+    int x[9], y[9];
+    for (int j = 0; j < 9; ++j) {
+      x[j] = q9_idx_from_coord( coords[3*j] );
+      y[j] = q9_idx_from_coord( coords[3*j+1] );
+      CHECK_REAL_EQUAL( 0.0, coords[3*j+2], 1e-12 );
+      CHECK( 0 <= x[j] && x[j] <= 20 );
+      CHECK( 0 <= y[j] && y[j] <= 20 );
+    }
+    
+      // calculate element location from mid-node location
+    int ex = (x[8]-1)/2;
+    int ey = (y[8]-1)/2;
+    CHECK_EQUAL( (MBEntityHandle)0, quads[ex][ey] );
+    quads[ex][ey] = *i;
+    
+      // check each vertex
+    bool seen[3][3] = { {false, false, false},
+                        {false, false, false},
+                        {false, false, false} };
+    for (int j = 0; j < 9; ++j) {
+        // check for duplicate vertices
+      if (verts[x[j]][y[j]] == 0)
+        verts[x[j]][y[j]] = conn[j];
+      else {
+        CHECK_EQUAL( verts[x[j]][y[j]], conn[j] );
+      }
+        // check that vertices have correct coordinates
+      int sx = x[j] - x[8] + 1;
+      int sy = y[j] - y[8] + 1;
+      CHECK( 0 <= sx && sx <= 2 );
+      CHECK( 0 <= sy && sy <= 2 );
+      seen[sx][sy] = true;
+    }
+    
+    CHECK( seen[0][0] );
+    CHECK( seen[0][1] );
+    CHECK( seen[0][2] );
+    CHECK( seen[1][0] );
+    CHECK( seen[1][1] );
+    CHECK( seen[1][2] );
+    CHECK( seen[2][0] );
+    CHECK( seen[2][1] );
+    CHECK( seen[2][2] );
+  }
+  
+    // check that we saw all the elements and vertices we expected to
+  for (int i = 0; i < 21; ++i)
+    for (int j = 0; j < 21; ++j)
+      CHECK( verts[i][j] != 0 );
+  for (int i = 0; i < 10; ++i)
+    for (int j = 0; j < 10; ++j)
+      CHECK( quads[i][j] != 0 );
+}
+
+
+static int h27_idx_from_coord( double coord )
+{
+    // 2x2 element grid has 7 vertices in each direction,
+    // equally spaced in [-1,1].
+  return (int)round( 2*coord + 2 );
+}
+
+void test_hex27()
+{
+  MBErrorCode rval;
+  MBCore mb_impl;
+  MBInterface& mb = mb_impl;
+  read_file( mb, hex27_file );
+  
+    // we're expecting a 2x2x2 element grid
+  MBEntityHandle verts[5][5][5], hexes[2][2][2];
+  memset( verts, 0, sizeof(verts) );
+  memset( hexes, 0, sizeof(hexes) );
+  
+    // get all hexes
+  MBRange range;
+  rval = mb.get_entities_by_type( 0, MBHEX, range );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( (size_t)(2*2*2), range.size() );
+  
+    // for each quad
+  for (MBRange::iterator i = range.begin(); i != range.end(); ++i) {
+      // get connectivity
+    const MBEntityHandle* conn = 0;
+    int conn_len = 0;
+    rval = mb.get_connectivity( *i, conn, conn_len, false );
+    CHECK_ERR(rval);
+    CHECK_EQUAL( 27, conn_len );
+    
+      // translate connectivity to indices into vertex grid
+    double coords[3*27];
+    rval = mb.get_coords( conn, 27, coords ); CHECK_ERR(rval);
+    int x[27], y[27], z[27];
+    for (int j = 0; j < 27; ++j) {
+      x[j] = h27_idx_from_coord( coords[3*j] );
+      y[j] = h27_idx_from_coord( coords[3*j+1] );
+      z[j] = h27_idx_from_coord( coords[3*j+2] );
+      CHECK( 0 <= x[j] && x[j] <= 4 );
+      CHECK( 0 <= y[j] && y[j] <= 4 );
+      CHECK( 0 <= z[j] && z[j] <= 4 );
+    }
+    
+      // calculate element location from mid-node location
+    int ex = (x[20]-1)/2;
+    int ey = (y[20]-1)/2;
+    int ez = (z[20]-1)/2;
+    CHECK_EQUAL( (MBEntityHandle)0, hexes[ex][ey][ez] );
+    hexes[ex][ey][ez] = *i;
+    
+      // check each vertex
+    bool seen[3][3][3];
+    std::fill( &seen[0][0][0], &seen[0][0][0] + 3*3*3, false );
+    for (int j = 0; j < 27; ++j) {
+        // check for duplicate vertices
+      if (verts[x[j]][y[j]][z[j]] == 0)
+        verts[x[j]][y[j]][z[j]] = conn[j];
+      else {
+        CHECK_EQUAL( verts[x[j]][y[j]][z[j]], conn[j] );
+      }
+        // check that vertices have correct coordinates
+      int sx = x[j] - x[20] + 1;
+      int sy = y[j] - y[20] + 1;
+      int sz = z[j] - z[20] + 1;
+      CHECK( 0 <= sx && sx <= 2 );
+      CHECK( 0 <= sy && sy <= 2 );
+      CHECK( 0 <= sz && sz <= 2 );
+      seen[sx][sy][sz] = true;
+    }
+    
+    for (int k = 0; k < 3; ++k) 
+      for (int l = 0; l < 3; ++l)
+        for (int m = 0; m < 3; ++m)
+          CHECK( seen[k][l][m] );
+  }
+  
+    // check that we saw all the elements and vertices we expected to
+  for (int i = 0; i < 5; ++i)
+    for (int j = 0; j < 5; ++j)
+      for (int k = 0; k < 5; ++k)
+        CHECK( verts[i][j][k] != 0 );
+  for (int i = 0; i < 2; ++i)
+    for (int j = 0; j < 2; ++j)
+      for (int k = 0; k < 2; ++k)
+        CHECK( hexes[i][j][k] != 0 );
+}
+
 
