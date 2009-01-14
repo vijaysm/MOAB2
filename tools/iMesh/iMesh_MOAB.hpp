@@ -46,9 +46,8 @@ class MBiMesh : public MBCore
 {
 private:
   bool haveDeletedEntities;
-  bool fullConnectivity;
 public:
-  MBiMesh(bool adj_includes_ho = false);
+  MBiMesh();
 
   virtual ~MBiMesh();
   bool have_deleted_ents( bool reset ) {
@@ -62,7 +61,6 @@ public:
   virtual MBErrorCode delete_entities( const MBEntityHandle*, const int );
   virtual MBErrorCode delete_entities( const MBRange& );
   int AdjTable[16];
-  bool adj_includes_ho_nodes() const { return fullConnectivity; }
 };
 
 #define MBimesh reinterpret_cast<MBiMesh*>(MBI)

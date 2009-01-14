@@ -17,9 +17,8 @@
 #include <cassert>
 #define MIN(a,b) (a < b ? a : b)
 
-MBiMesh::MBiMesh(bool adj_includes_ho)
-    : haveDeletedEntities(false),
-      fullConnectivity(adj_includes_ho)
+MBiMesh::MBiMesh()
+    : haveDeletedEntities(false)
 {
   memset(AdjTable, 0, 16*sizeof(int));
   for (int i = 0; i < 4; i++) AdjTable[4*i] = AdjTable[i] = 1;
@@ -255,7 +254,6 @@ extern "C" {
     FileOptions opts((std::string(";") + tmp_options).c_str());
 
     MBInterface* core;
-    bool full_conn = (MB_SUCCESS == opts.get_null_option("HIGHER_ORDER_ADJ"));
 
     MBErrorCode result = opts.get_null_option("PARALLEL");
     if (MB_SUCCESS == result) {
@@ -269,7 +267,7 @@ extern "C" {
           // mpi not initialized yet - initialize here
         retval = MPI_Init(&argc, &argv);
       }
-      core = new MBiMesh(full_conn);
+      core = new MBiMesh;
 #else
         //mError->set_last_error( "PARALLEL option not valid, this instance"
         //                        " compiled for serial execution.\n" );
@@ -277,7 +275,7 @@ extern "C" {
       return;
 #endif
     }
-    else core = new MBiMesh(full_conn);
+    else core = new MBiMesh;
 
     *instance = reinterpret_cast<iMesh_Instance>(core);
     if (0 == *instance) {
@@ -992,7 +990,6 @@ extern "C" {
     std::vector<MBEntityHandle> adj_ents;
     const MBEntityHandle *connect;
     int num_connect;
-    const bool topo_only = !reinterpret_cast<MBiMesh*>(instance)->adj_includes_ho_nodes();
     
     MBEntityHandle* array; // ptr to working array of result handles
     int array_alloc;       // allocated size of 'array'
@@ -1013,8 +1010,7 @@ extern "C" {
       
       if (iBase_VERTEX == entity_type_requested &&
           TYPE_FROM_HANDLE(*entity_iter) != MBPOLYHEDRON) {
-        result = MBI->get_connectivity(*entity_iter, connect, num_connect, 
-                                       topo_only, &conn_storage);
+        result = MBI->get_connectivity(*entity_iter, connect, num_connect, false, &conn_storage);
         if (MB_SUCCESS != result) {
           iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getEntArrAdj: trouble getting adjacency list.");
           RETURN(iBase_ERROR_MAP[result]);
