@@ -157,93 +157,91 @@ MBErrorCode TypeSequenceManager::replace_subsequence( EntitySequence* seq_ptr,
   iterator i = lower_bound( seq_ptr->start_handle() );
   if (i == end() || (*i)->data() == seq_ptr->data())
     return MB_FAILURE;
+      // new sequence must be a subset of an existing one
   if (seq_ptr->start_handle() < (*i)->start_handle() ||
       seq_ptr->end_handle() > (*i)->end_handle())
     return MB_FAILURE;
+    // new sequence's data must be new also, and cannot intersect
+    // any existing sequence (just require that the data range
+    // matches the sequence range for now)
   if (!seq_ptr->using_entire_data())
     return MB_FAILURE;
-  (*i)->data()->move_tag_data( seq_ptr->data(), tag_server );
+    // copy tag data (move owership of var-len data)
+  SequenceData* const dead_data = (*i)->data();
+  dead_data->move_tag_data( seq_ptr->data(), tag_server );
   
-    // Get the range of sequences that point to the shared
-    // SequenceData instance.  Untimately, should have the
-    // following iterators:
-    // p : first sequence sharing SequenceData
-    // j : last sequence before where seq_ptr will be (or i if no prev seq)
-    // i : first sequence after where seq_ptr will be (or j if no next seq)
-    // n : the last sequence sharing the SequenceData 
-  iterator j = i, n = i;
-  iterator p = (*i)->data()->seqManData.firstSequence;
+    // split sequences sharing old data into two groups:
+    // p->i : first sequence to i
+    // i->n : i to one past last sequence
+  iterator p, n = i;
+  p = (*i)->data()->seqManData.firstSequence;
   for (++n; n != end() && (*n)->data() == (*i)->data(); ++n); 
-  --n;
   
-    // quick case -- replacing entire, single sequence
-  if (n == p && 
-     (*i)->start_handle() == seq_ptr->start_handle() &&
-     (*i)->end_handle() == seq_ptr->end_handle())
-  {
-      // delete old sequence and data (sequence first in case
-      // it needs to reference data during destruction)
+    // First subdivide EntitySequence as necessary
+    // Move i to be the first sequence past the insertion point
+    // such that the new order will be:
+    // [p,i-1] seq_ptr [i,n]
+    // where p == i if no previous sequence
+
+    // Four possible cases:
+    // 0. All entities in sequence are in new sequence
+    // 1. Old entities in sequence before and after new sequence,
+    //    reqiring sequence to be split.
+    // 2. Old entities after new sequence
+    // 3. Old entities before new sequence
+  const bool some_before = ((*i)->start_handle() < seq_ptr->start_handle());
+  const bool some_after  = ((*i)->  end_handle() > seq_ptr->  end_handle());
+    // case 0
+  if (!(some_before || some_after)) {
+      // remove dead sequence from internal lists
     EntitySequence* seq = *i;
-    SequenceData* data = seq->data();
-    if (!seq->using_entire_data())
-      availableList.erase( data );
+    iterator dead = i; ++i;
+    if (p == dead)
+      p = i;
+    sequenceSet.erase( dead );
+
+      // delete old sequence 
     delete seq;
-    delete data;
-    
-      // update structures for tracking sequences
-    iterator d = i++;
-    sequenceSet.erase( d );
-    i = sequenceSet.insert( i, seq_ptr );
-    if (!seq_ptr->using_entire_data())
-      availableList.insert( seq_ptr->data() );
-      
       // make sure lastReferenced isn't stale
     if (lastReferenced == seq)
       lastReferenced = seq_ptr;
-    
-      // each SequenceData has pointer to the first EntitySequence referencing it
-    seq_ptr->data()->seqManData.firstSequence = i;
-    
-    assert( check_valid_data( seq_ptr ) );
-    return MB_SUCCESS;
   }
-  
-    // remove entities in new sequence from current sequence list
-  if ((*i)->start_handle() == seq_ptr->start_handle()) {
-    if (j != p)
-      --j;
-    (*i)->pop_front( seq_ptr->end_handle() - seq_ptr->start_handle() + 1 );
-  }
-  else if ((*i)->end_handle() == seq_ptr->end_handle()) {
-    (*i)->pop_back( seq_ptr->end_handle() - seq_ptr->start_handle() + 1 );
-    if (i != n)
-      ++i;
-  }
-  else {
+    // case 1
+  else if (some_before && some_after) {
     i = split_sequence( i, seq_ptr->start_handle() );
-    (*i)->pop_front( seq_ptr->end_handle() - seq_ptr->start_handle() + 1 );
-    if (n == j) 
-      n = i;
+    (*i)->pop_front( seq_ptr->size() );
+  }
+    // case 2
+  else if (some_after) {  
+    (*i)->pop_front( seq_ptr->size() );
+  }
+    // case 3
+  else { // some_before
+    (*i)->pop_back( seq_ptr->size() );
+    ++i;
   }
   
-    // split underlying sequence data
-  SequenceData* dead_data = (*i)->data();
+    // now subdivid the underlying sequence data as necessary
   availableList.erase( dead_data );
   if (p != i) {
-    SequenceData* new_data = (*p)->create_data_subset( (*p)->start_handle(), (*j)->end_handle() );
+    iterator last = i; --last;
+    SequenceData* new_data = (*p)->create_data_subset( (*p)->start_handle(), (*last)->end_handle() );
     new_data->seqManData.firstSequence = p;
-    iterator s = j;
-    for (++s; p != s; ++p)
+    
+    for (; p != i; ++p)
       (*p)->data( new_data );
+      // copy tag data (move owership of var-len data)
     dead_data->move_tag_data( new_data, tag_server );
     if (!(*new_data->seqManData.firstSequence)->using_entire_data())
       availableList.insert( new_data );
   }
-  if (j != n) {
-    SequenceData* new_data = (*n)->create_data_subset( (*i)->start_handle(), (*n)->end_handle() );
+  if (i != n) {
+    iterator last = n; --last;
+    SequenceData* new_data = (*i)->create_data_subset( (*i)->start_handle(), (*last)->end_handle() );
     new_data->seqManData.firstSequence = i;
-    for (++n; i != n; ++i)
+    for (; i != n; ++i)
       (*i)->data( new_data );
+      // copy tag data (move owership of var-len data)
     dead_data->move_tag_data( new_data, tag_server );
     if (!(*new_data->seqManData.firstSequence)->using_entire_data())
       availableList.insert( new_data );
@@ -253,7 +251,6 @@ MBErrorCode TypeSequenceManager::replace_subsequence( EntitySequence* seq_ptr,
     // put new sequence in lists
   return insert_sequence( seq_ptr );
 }
-  
     
 
 TypeSequenceManager::iterator TypeSequenceManager::erase( iterator i )
