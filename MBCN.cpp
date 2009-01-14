@@ -846,8 +846,8 @@ void MBCN_HasMidRegionNodes(const int this_type,
   //! are present.
   //! \param this_type Type of entity for which sub-entity connectivity is being queried
   //! \param num_verts Number of nodes defining entity
-  //! \param mid_nodes If <em>mid_nodes[i], i=0..2</em> is true, indicates that mid-edge 
-  //!    (i=0), mid-face (i=1), and/or mid-region (i=2) nodes are likely
+  //! \param mid_nodes If <em>mid_nodes[i], i=1..3</em> is true, indicates that mid-edge 
+  //!    (i=1), mid-face (i=2), and/or mid-region (i=3) nodes are likely
 void MBCN_HasMidNodes(const int this_type, 
                       const int num_verts, 
                       int mid_nodes[4]) 
