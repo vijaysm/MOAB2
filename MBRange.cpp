@@ -314,9 +314,13 @@ MBRange::iterator MBRange::insert( MBRange::iterator prev,
   }
   
   PairNode* iter = prev.mNode;
-  if (iter == &mHead)
+    // If iterator is at end, set it to last.
+    // Thus if the hint was to append, we start searching
+    // at the end of the list.
+  if (iter == &mHead) 
     iter = mHead.mPrev;
-  if ( iter->mPrev == &mHead || iter->mPrev->second+1 < val1 )
+    // if hint (prev) is past insert position, reset it to the beginning.
+  if (iter != &mHead && iter->first > val2+1)
     iter = mHead.mNext;
   
   // Input range is before beginning?
