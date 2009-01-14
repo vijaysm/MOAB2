@@ -22,6 +22,7 @@
 #include "MBCN.hpp"
 #include "MBInternals.hpp"
 #include "FileOptions.hpp"
+#include "HigherOrderFactory.hpp"
 
 #ifdef USE_MPI
 #include "mpi.h"
@@ -758,7 +759,27 @@ MBErrorCode Tqdcfr::read_block(const double data_version,
     if (MB_SUCCESS != result) return result;
   }
 
-  return MB_SUCCESS;
+    // Put additional higher-order nodes into element connectivity list.
+    // Cubit saves full connectivity list only for NodeHex and NodeTet
+    // elements.  Other element types will only have the corners and
+    // the mid-element node if there is one.  Need to reconsturct additional
+    // connectivity entries from mid-nodes of adjacent lower-order entities.
+  int node_per_elem = cub_elem_num_verts[blockh->blockElemType];
+  if (MBCN::VerticesPerEntity(blockh->blockEntityType) == node_per_elem)
+    return MB_SUCCESS;
+  
+    // Can't use MBInterface::convert_entities because block could contain
+    // both entity sets and entities.  convert_entities will fail if block
+    // contains an entity set, but we still need to call it on any elements
+    // directly in the block (rather than a geometry subset).  So bypass
+    // MBInterface and call HOFactory directly with an MBRange of entities.
+  MBRange entities;
+  mdbImpl->get_entities_by_type( blockh->setHandle, blockh->blockEntityType, entities, true );
+  
+  int mid_nodes[4];
+  MBCN::HasMidNodes( blockh->blockEntityType, node_per_elem, mid_nodes );
+  HigherOrderFactory ho_fact( dynamic_cast<MBCore*>(mdbImpl), 0 );
+  return ho_fact.convert( entities, !!mid_nodes[1], !!mid_nodes[2], !!mid_nodes[3] );
 }
 
 MBErrorCode Tqdcfr::read_group(const unsigned int group_index,
