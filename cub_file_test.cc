@@ -7,7 +7,7 @@
 #include <math.h>
 #include <algorithm>
 
-/**\brief Input test file.
+/**\brief Input test file: test.cub
  * Cubit 10.2 file.
  * File contains:
  * Two merged 10x10x10 bricks sharing a single surface (surface 6).
@@ -67,19 +67,44 @@
  * |.         |.         |/
  * 4----------1----------9
 */
+
+/* Input test file: ho_test.cub
+ * 
+ * File is expected to contain at least one block for every
+ * supported higher-order element type.  The coordinates of
+ * every higher-order node are expected to be the mean of the
+ * adjacent corner vertices of the element.
+ */
 #ifdef SRCDIR
 static const char input_file_1[] = STRINGIFY(SRCDIR) "/test.cub";
-static const char quad9_file[] = STRINGIFY(SRCDIR) "/quad9.cub";
-static const char hex27_file[] = STRINGIFY(SRCDIR) "/hex27.cub";
+static const char ho_file[] = STRINGIFY(SRCDIR) "/ho_test.cub";
 #else
 static const char input_file_1[] = "test.cub";
-static const char quad9_file[] = "quad9.cub";
-static const char hex27_file[] = "hex27.cub";
+static const char ho_file[] = "ho_test.cub";
 #endif
 
 void read_file( MBInterface& moab, 
                 const char* input_file,
                 MBEntityHandle* file_set = 0 );
+
+
+// Check that adjacent lower-order entities have
+// higher-order nodes consitent with input entity.
+void check_adj_ho_nodes( MBInterface& moab,
+                         MBEntityHandle entity );
+
+// Check that element has expected higher-order nodes
+// and that each higher-order node is at the center
+// of the sub-entity it is on.
+void check_ho_element( MBInterface& moab, 
+                       MBEntityHandle entity,
+                       int mid_nodes[4] );
+
+// Validate elements of specified type.
+// Looks for a block containing the specified entity type
+// and with the specified mid-node flags set in its
+// HAS_MID_NODES_TAG.
+void test_ho_elements( MBEntityType type, int num_nodes );
 
 void test_vertices();
 
@@ -101,15 +126,20 @@ void test_node_sets();
 
 void test_file_set();
 
-void test_quad9();
+void test_tri6 () { test_ho_elements(MBTRI, 6); }
+void test_tri7 () { test_ho_elements(MBTRI, 7); }
 
-void test_hex27();
+void test_quad5() { test_ho_elements(MBQUAD, 6); }
+void test_quad8() { test_ho_elements(MBQUAD, 8); }
+void test_quad9() { test_ho_elements(MBQUAD, 9); }
 
-// Check that adjacent lower-order entities have
-// higher-order nodes consitent with input entities.
-void check_adj_ho_nodes( MBInterface& moab,
-                         const MBEntityHandle* entities,
-                         int num_entities );
+void test_tet8 () { test_ho_elements(MBTET,  8); }
+void test_tet10() { test_ho_elements(MBTET, 10); }
+void test_tet14() { test_ho_elements(MBTET, 14); }
+
+void test_hex9 () { test_ho_elements(MBHEX,  9); }
+void test_hex20() { test_ho_elements(MBHEX, 20); }
+void test_hex27() { test_ho_elements(MBHEX, 27); }                           
 
 int main()
 {
@@ -125,8 +155,17 @@ int main()
   result += RUN_TEST(test_side_sets);
   result += RUN_TEST(test_node_sets);
   result += RUN_TEST(test_file_set);
-  result += RUN_TEST(test_hex27);
+  result += RUN_TEST(test_tri6 );
+  result += RUN_TEST(test_tri7 );
+  result += RUN_TEST(test_quad5);
+  result += RUN_TEST(test_quad8);
   result += RUN_TEST(test_quad9);
+  result += RUN_TEST(test_tet8 );
+  result += RUN_TEST(test_tet10);
+  result += RUN_TEST(test_tet14);
+  result += RUN_TEST(test_hex9 );
+  result += RUN_TEST(test_hex20);
+  result += RUN_TEST(test_hex27);
   
   return result;
 }
@@ -804,193 +843,6 @@ void test_file_set()
   CHECK( exp == act );
 }
 
-static int q9_idx_from_coord( double coord )
-{
-    // 10x10 element grid has 21 vertices in each direction,
-    // equally spaced in [-5,5].
-  return (int)round( 2*coord + 10 );
-}
-
-void test_quad9()
-{
-  MBErrorCode rval;
-  MBCore mb_impl;
-  MBInterface& mb = mb_impl;
-  read_file( mb, quad9_file );
-  
-    // we're expecting a 10x10 element grid in the xy plane.
-  MBEntityHandle verts[21][21], quads[10][10];
-  memset( verts, 0, sizeof(verts) );
-  memset( quads, 0, sizeof(quads) );
-  
-    // get all quads
-  MBRange range;
-  rval = mb.get_entities_by_type( 0, MBQUAD, range );
-  CHECK_ERR(rval);
-  CHECK_EQUAL( (size_t)(10*10), range.size() );
-  
-    // for each quad
-  for (MBRange::iterator i = range.begin(); i != range.end(); ++i) {
-      // get connectivity
-    const MBEntityHandle* conn = 0;
-    int conn_len = 0;
-    rval = mb.get_connectivity( *i, conn, conn_len, false );
-    CHECK_ERR(rval);
-    CHECK_EQUAL( 9, conn_len );
-    
-      // translate connectivity to indices into vertex grid
-    double coords[3*9];
-    rval = mb.get_coords( conn, 9, coords ); CHECK_ERR(rval);
-    int x[9], y[9];
-    for (int j = 0; j < 9; ++j) {
-      x[j] = q9_idx_from_coord( coords[3*j] );
-      y[j] = q9_idx_from_coord( coords[3*j+1] );
-      CHECK_REAL_EQUAL( 0.0, coords[3*j+2], 1e-12 );
-      CHECK( 0 <= x[j] && x[j] <= 20 );
-      CHECK( 0 <= y[j] && y[j] <= 20 );
-    }
-    
-      // calculate element location from mid-node location
-    int ex = (x[8]-1)/2;
-    int ey = (y[8]-1)/2;
-    CHECK_EQUAL( (MBEntityHandle)0, quads[ex][ey] );
-    quads[ex][ey] = *i;
-    
-      // check each vertex
-    bool seen[3][3] = { {false, false, false},
-                        {false, false, false},
-                        {false, false, false} };
-    for (int j = 0; j < 9; ++j) {
-        // check for duplicate vertices
-      if (verts[x[j]][y[j]] == 0)
-        verts[x[j]][y[j]] = conn[j];
-      else {
-        CHECK_EQUAL( verts[x[j]][y[j]], conn[j] );
-      }
-        // check that vertices have correct coordinates
-      int sx = x[j] - x[8] + 1;
-      int sy = y[j] - y[8] + 1;
-      CHECK( 0 <= sx && sx <= 2 );
-      CHECK( 0 <= sy && sy <= 2 );
-      seen[sx][sy] = true;
-    }
-    
-    CHECK( seen[0][0] );
-    CHECK( seen[0][1] );
-    CHECK( seen[0][2] );
-    CHECK( seen[1][0] );
-    CHECK( seen[1][1] );
-    CHECK( seen[1][2] );
-    CHECK( seen[2][0] );
-    CHECK( seen[2][1] );
-    CHECK( seen[2][2] );
-  }
-  
-    // check that we saw all the elements and vertices we expected to
-  for (int i = 0; i < 21; ++i)
-    for (int j = 0; j < 21; ++j)
-      CHECK( verts[i][j] != 0 );
-  for (int i = 0; i < 10; ++i)
-    for (int j = 0; j < 10; ++j)
-      CHECK( quads[i][j] != 0 );
-        
-  check_adj_ho_nodes( mb, &quads[0][0], 10*10 );
-}
-
-
-static int h27_idx_from_coord( double coord )
-{
-    // 2x2 element grid has 7 vertices in each direction,
-    // equally spaced in [-1,1].
-  return (int)round( 2*coord + 2 );
-}
-
-void test_hex27()
-{
-  MBErrorCode rval;
-  MBCore mb_impl;
-  MBInterface& mb = mb_impl;
-  read_file( mb, hex27_file );
-  
-    // we're expecting a 2x2x2 element grid
-  MBEntityHandle verts[5][5][5], hexes[2][2][2];
-  memset( verts, 0, sizeof(verts) );
-  memset( hexes, 0, sizeof(hexes) );
-  
-    // get all hexes
-  MBRange range;
-  rval = mb.get_entities_by_type( 0, MBHEX, range );
-  CHECK_ERR(rval);
-  CHECK_EQUAL( (size_t)(2*2*2), range.size() );
-  
-    // for each quad
-  for (MBRange::iterator i = range.begin(); i != range.end(); ++i) {
-      // get connectivity
-    const MBEntityHandle* conn = 0;
-    int conn_len = 0;
-    rval = mb.get_connectivity( *i, conn, conn_len, false );
-    CHECK_ERR(rval);
-    CHECK_EQUAL( 27, conn_len );
-    
-      // translate connectivity to indices into vertex grid
-    double coords[3*27];
-    rval = mb.get_coords( conn, 27, coords ); CHECK_ERR(rval);
-    int x[27], y[27], z[27];
-    for (int j = 0; j < 27; ++j) {
-      x[j] = h27_idx_from_coord( coords[3*j] );
-      y[j] = h27_idx_from_coord( coords[3*j+1] );
-      z[j] = h27_idx_from_coord( coords[3*j+2] );
-      CHECK( 0 <= x[j] && x[j] <= 4 );
-      CHECK( 0 <= y[j] && y[j] <= 4 );
-      CHECK( 0 <= z[j] && z[j] <= 4 );
-    }
-    
-      // calculate element location from mid-node location
-    int ex = (x[26]-1)/2;
-    int ey = (y[26]-1)/2;
-    int ez = (z[26]-1)/2;
-    CHECK_EQUAL( (MBEntityHandle)0, hexes[ex][ey][ez] );
-    hexes[ex][ey][ez] = *i;
-    
-      // check each vertex
-    bool seen[3][3][3];
-    std::fill( &seen[0][0][0], &seen[0][0][0] + 3*3*3, false );
-    for (int j = 0; j < 27; ++j) {
-        // check for duplicate vertices
-      if (verts[x[j]][y[j]][z[j]] == 0)
-        verts[x[j]][y[j]][z[j]] = conn[j];
-      else {
-        CHECK_EQUAL( verts[x[j]][y[j]][z[j]], conn[j] );
-      }
-        // check that vertices have correct coordinates
-      int sx = x[j] - x[26] + 1;
-      int sy = y[j] - y[26] + 1;
-      int sz = z[j] - z[26] + 1;
-      CHECK( 0 <= sx && sx <= 2 );
-      CHECK( 0 <= sy && sy <= 2 );
-      CHECK( 0 <= sz && sz <= 2 );
-      seen[sx][sy][sz] = true;
-    }
-    
-    for (int k = 0; k < 3; ++k) 
-      for (int l = 0; l < 3; ++l)
-        for (int m = 0; m < 3; ++m)
-          CHECK( seen[k][l][m] );
-  }
-  
-    // check that we saw all the elements and vertices we expected to
-  for (int i = 0; i < 5; ++i)
-    for (int j = 0; j < 5; ++j)
-      for (int k = 0; k < 5; ++k)
-        CHECK( verts[i][j][k] != 0 );
-  for (int i = 0; i < 2; ++i)
-    for (int j = 0; j < 2; ++j)
-      for (int k = 0; k < 2; ++k)
-        CHECK( hexes[i][j][k] != 0 );
-        
-  check_adj_ho_nodes( mb, &hexes[0][0][0], 2*2*2 );
-}
-
 static MBEntityHandle find_side( MBInterface& moab, 
                                  MBEntityHandle entity,
                                  int side_dim,
@@ -1050,14 +902,12 @@ static MBEntityHandle find_side( MBInterface& moab,
       
   
 void check_adj_ho_nodes( MBInterface& moab,
-                         const MBEntityHandle* entities,
-                         int num_entities )
+                         MBEntityHandle entity )
 {
-  for (int i = 0; i < num_entities; ++i) {
-    MBEntityType type = TYPE_FROM_HANDLE(entities[i]);
+    MBEntityType type = TYPE_FROM_HANDLE(entity);
     const MBEntityHandle* conn;
     int conn_len;
-    MBErrorCode rval = moab.get_connectivity( entities[i], conn, conn_len );
+    MBErrorCode rval = moab.get_connectivity( entity, conn, conn_len );
     CHECK_ERR(rval);
     
     int ho[4];
@@ -1067,7 +917,7 @@ void check_adj_ho_nodes( MBInterface& moab,
         continue;
         
       for (int j = 0; j < MBCN::NumSubEntities( type, dim ); ++j) {
-        MBEntityHandle side = find_side( moab, entities[i], dim, j );
+        MBEntityHandle side = find_side( moab, entity, dim, j );
         if (!side)
           continue;
         
@@ -1081,6 +931,107 @@ void check_adj_ho_nodes( MBInterface& moab,
         CHECK_EQUAL( side_conn[side_idx], conn[this_idx] );
       }
     }
+}
+
+// Check that element has expected higher-order nodes
+// and that each higher-order node is at the center
+// of the sub-entity it is on.
+void check_ho_element( MBInterface& moab, 
+                       MBEntityHandle entity,
+                       int mid_nodes[4] )
+{
+    // get element info
+  const MBEntityType type = TYPE_FROM_HANDLE(entity);
+  const MBEntityHandle* conn;
+  int conn_len;
+  MBErrorCode rval = moab.get_connectivity( entity, conn, conn_len );
+  CHECK_ERR(rval);
+  std::vector<double> coords(3*conn_len);
+  rval = moab.get_coords( conn, conn_len, &coords[0] );
+  CHECK_ERR(rval);
+  
+    // calculate and verify expected number of mid nodes
+  int num_nodes = MBCN::VerticesPerEntity(type);
+  for (int d = 1; d <= MBCN::Dimension(type); ++d)
+    if (mid_nodes[d])
+      num_nodes += MBCN::NumSubEntities(type, d);
+  CHECK_EQUAL( num_nodes, conn_len );
+  
+    // verify that each higher-order node is at the center
+    // of its respective sub-entity.
+  for (int i = MBCN::VerticesPerEntity(type); i < num_nodes; ++i) {
+      // get sub-entity owning ho-node  
+    int sub_dim, sub_num;
+    MBCN::HONodeParent( type, num_nodes, i, sub_dim, sub_num );
+      // get corner vertex indices
+    int sub_conn[8], num_sub;
+    if (sub_dim < MBCN::Dimension(type)) {
+      MBCN::SubEntityVertexIndices( type, sub_dim, sub_num, sub_conn );
+      MBEntityType sub_type = MBCN::SubEntityType( type, sub_dim, sub_num );
+      num_sub = MBCN::VerticesPerEntity( sub_type );
+    }
+    else {
+      num_sub = MBCN::VerticesPerEntity(type);
+      for (int j = 0; j < num_sub; ++j)
+        sub_conn[j] = j;
+    }
+      // calculate mean of corner vertices
+    double mean[3] = {0,0,0};
+    for (int j = 0; j < num_sub; ++j) {
+      int co = 3*sub_conn[j];
+      mean[0] += coords[co  ];
+      mean[1] += coords[co+1];
+      mean[2] += coords[co+2];
+    }
+    mean[0] /= num_sub;
+    mean[1] /= num_sub;
+    mean[2] /= num_sub;
+      // verify that higher-order node is at expected location
+    CHECK_REAL_EQUAL( mean[0], coords[3*i  ], 1e-6 );
+    CHECK_REAL_EQUAL( mean[1], coords[3*i+1], 1e-6 );
+    CHECK_REAL_EQUAL( mean[2], coords[3*i+2], 1e-6 );
   }
 }
 
+// Validate elements of specified type.
+// Looks for a block containing the specified entity type
+// and with the specified mid-node flags set in its
+// HAS_MID_NODES_TAG.
+void test_ho_elements( MBEntityType type, int num_nodes )
+{
+  MBCore mb_impl;
+  MBInterface& mb = mb_impl;
+  MBEntityHandle set;
+  read_file( mb, ho_file, &set );
+
+  MBErrorCode rval;
+  MBTag ho_tag, block_tag;
+  rval = mb.tag_get_handle( MATERIAL_SET_TAG_NAME, block_tag );
+  CHECK_ERR(rval);
+  rval = mb.tag_get_handle( HAS_MID_NODES_TAG_NAME, ho_tag );
+  CHECK_ERR(rval);
+  
+  // get material sets with expected higher-order nodes
+  MBRange blocks;
+  int ho_flags[4];
+  MBCN::HasMidNodes( type, num_nodes, ho_flags );
+  MBTag tags[2] = {ho_tag, block_tag};
+  void* vals[2] = {ho_flags, NULL};
+  rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, tags, vals, 2, blocks );
+  CHECK_ERR(rval);
+  
+  MBRange::iterator i;
+  MBRange entities;
+  for (i = blocks.begin(); i != blocks.end(); ++i) {
+    rval = mb.get_entities_by_type( *i, type, entities, true );
+    CHECK_ERR(rval);
+  }
+    // test file should contain all types of HO entities
+  CHECK(!entities.empty());
+    // test ho node positions -- expect to be at center of adj corners
+  for (i = entities.begin(); i != entities.end(); ++i)
+    check_ho_element( mb, *i, ho_flags );
+    // test ho node handles consistent with adjacent entities
+  for (i = entities.begin(); i != entities.end(); ++i)
+    check_adj_ho_nodes( mb, *i );
+}
