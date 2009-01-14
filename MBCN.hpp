@@ -474,6 +474,8 @@ inline bool MBCN::HasMidFaceNodes(const MBEntityType this_type,
 {
     // poly elements never have mid nodes as far as canonical ordering is concerned
   if (MBPOLYGON == this_type || MBPOLYHEDRON == this_type) return false;
+    // edges cannot have mid-face nodes
+  if (Dimension(this_type) < 2) return false;
 
   if (num_nodes == (VerticesPerEntity(this_type) + NumSubEntities(this_type, 2)) ||
       num_nodes == (VerticesPerEntity(this_type) + NumSubEntities(this_type, 1) + 
@@ -491,7 +493,7 @@ inline bool MBCN::HasMidRegionNodes(const MBEntityType this_type,
                                          const int num_nodes)
 {
     // poly elements never have mid nodes as far as canonical ordering is concerned
-  if (MBPOLYGON == this_type || MBPOLYHEDRON == this_type) return false;
+  if (Dimension(this_type) != 3 || MBPOLYHEDRON == this_type) return false;
 
   if (num_nodes == (VerticesPerEntity(this_type) + 1) ||
       num_nodes == (VerticesPerEntity(this_type) + NumSubEntities(this_type, 1) + 1) ||
