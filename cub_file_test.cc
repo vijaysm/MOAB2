@@ -3,6 +3,7 @@
 #include "Tqdcfr.hpp"
 #include "MBTagConventions.hpp"
 #include "FileOptions.hpp"
+#include "MBCN.hpp"
 #include <math.h>
 #include <algorithm>
 
@@ -103,6 +104,12 @@ void test_file_set();
 void test_quad9();
 
 void test_hex27();
+
+// Check that adjacent lower-order entities have
+// higher-order nodes consitent with input entities.
+void check_adj_ho_nodes( MBInterface& moab,
+                         const MBEntityHandle* entities,
+                         int num_entities );
 
 int main()
 {
@@ -886,6 +893,8 @@ void test_quad9()
   for (int i = 0; i < 10; ++i)
     for (int j = 0; j < 10; ++j)
       CHECK( quads[i][j] != 0 );
+        
+  check_adj_ho_nodes( mb, &quads[0][0], 10*10 );
 }
 
 
@@ -937,9 +946,9 @@ void test_hex27()
     }
     
       // calculate element location from mid-node location
-    int ex = (x[20]-1)/2;
-    int ey = (y[20]-1)/2;
-    int ez = (z[20]-1)/2;
+    int ex = (x[26]-1)/2;
+    int ey = (y[26]-1)/2;
+    int ez = (z[26]-1)/2;
     CHECK_EQUAL( (MBEntityHandle)0, hexes[ex][ey][ez] );
     hexes[ex][ey][ez] = *i;
     
@@ -954,9 +963,9 @@ void test_hex27()
         CHECK_EQUAL( verts[x[j]][y[j]][z[j]], conn[j] );
       }
         // check that vertices have correct coordinates
-      int sx = x[j] - x[20] + 1;
-      int sy = y[j] - y[20] + 1;
-      int sz = z[j] - z[20] + 1;
+      int sx = x[j] - x[26] + 1;
+      int sy = y[j] - y[26] + 1;
+      int sz = z[j] - z[26] + 1;
       CHECK( 0 <= sx && sx <= 2 );
       CHECK( 0 <= sy && sy <= 2 );
       CHECK( 0 <= sz && sz <= 2 );
@@ -978,6 +987,100 @@ void test_hex27()
     for (int j = 0; j < 2; ++j)
       for (int k = 0; k < 2; ++k)
         CHECK( hexes[i][j][k] != 0 );
+        
+  check_adj_ho_nodes( mb, &hexes[0][0][0], 2*2*2 );
 }
 
+static MBEntityHandle find_side( MBInterface& moab, 
+                                 MBEntityHandle entity,
+                                 int side_dim,
+                                 int side_num )
+{
+  MBErrorCode rval;
+  
+  std::vector<MBEntityHandle> adj;
+  rval = moab.get_adjacencies( &entity, 1, side_dim, false, adj );
+  CHECK_ERR(rval);
+  
+  int sub_ent_indices[4];
+  MBCN::SubEntityVertexIndices( TYPE_FROM_HANDLE(entity), side_dim, side_num, 
+                                sub_ent_indices );
+  MBEntityType subtype = MBCN::SubEntityType( TYPE_FROM_HANDLE(entity),
+                                              side_dim, side_num );
+  int sub_ent_corners = MBCN::VerticesPerEntity(subtype);
+  
+  const MBEntityHandle* conn;
+  int conn_len;
+  rval = moab.get_connectivity( entity, conn, conn_len );
+  CHECK_ERR(rval);
+  
+  for (size_t i = 0; i < adj.size(); ++i) {
+    if (TYPE_FROM_HANDLE(adj[i]) != subtype)
+      continue;
+  
+    const MBEntityHandle* sub_conn;
+    int sub_len;
+    rval = moab.get_connectivity( adj[i], sub_conn, sub_len );
+    CHECK_ERR(rval);
+    
+    int n = std::find( sub_conn, sub_conn+sub_len, conn[sub_ent_indices[0]] ) 
+                - sub_conn;
+    if (n == sub_len) // no vertex in common
+      continue;
+  
+      // check forward direction
+    int j;
+    for (j = 1; j < sub_ent_corners; ++j)
+      if (conn[sub_ent_indices[j]] != sub_conn[(j+n)%sub_ent_corners])
+        break;
+    if (j == sub_ent_corners)
+      return adj[i];
+  
+      // check reverse direction
+    for (j = 1; j < sub_ent_corners; ++j)
+      if (conn[sub_ent_indices[j]] != sub_conn[(n+sub_ent_corners-j)%sub_ent_corners])
+        break;
+    if (j == sub_ent_corners)
+      return adj[i];
+  }
+  
+  // no match
+  return 0;
+}
+      
+  
+void check_adj_ho_nodes( MBInterface& moab,
+                         const MBEntityHandle* entities,
+                         int num_entities )
+{
+  for (int i = 0; i < num_entities; ++i) {
+    MBEntityType type = TYPE_FROM_HANDLE(entities[i]);
+    const MBEntityHandle* conn;
+    int conn_len;
+    MBErrorCode rval = moab.get_connectivity( entities[i], conn, conn_len );
+    CHECK_ERR(rval);
+    
+    int ho[4];
+    MBCN::HasMidNodes( type, conn_len, ho );
+    for (int dim = MBCN::Dimension(type)-1; dim > 0; --dim) {
+      if (!ho[dim])
+        continue;
+        
+      for (int j = 0; j < MBCN::NumSubEntities( type, dim ); ++j) {
+        MBEntityHandle side = find_side( moab, entities[i], dim, j );
+        if (!side)
+          continue;
+        
+        const MBEntityHandle* side_conn;
+        int side_len;
+        rval = moab.get_connectivity( side, side_conn, side_len );
+        CHECK_ERR(rval);
+        
+        int this_idx = MBCN::HONodeIndex( type, conn_len, dim, j );
+        int side_idx = MBCN::HONodeIndex( TYPE_FROM_HANDLE(side), side_len, dim, 0 );
+        CHECK_EQUAL( side_conn[side_idx], conn[this_idx] );
+      }
+    }
+  }
+}
 
