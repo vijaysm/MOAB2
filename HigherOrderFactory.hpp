@@ -42,6 +42,9 @@ public:
   MBErrorCode convert(const MBEntityHandle meshset, const bool mid_edge_nodes, 
                        const bool mid_face_nodes, const bool mid_volume_nodes);
 
+  MBErrorCode convert( const MBRange& entities, const bool mid_edge_nodes, 
+                       const bool mid_face_nodes, const bool mid_volume_nodes);
+
   unsigned char mNodeMap[MBMAXTYPE][8][8];
 
 private:

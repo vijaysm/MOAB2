@@ -66,19 +66,28 @@ void HigherOrderFactory::initialize_map()
   //mMapInitialized = true;
 }
 
+
 MBErrorCode HigherOrderFactory::convert( const MBEntityHandle meshset, 
                                          const bool mid_edge_nodes, 
                                          const bool mid_face_nodes, 
                                          const bool mid_volume_nodes )
+{
+  MBRange entities;
+  mMB->get_entities_by_handle(meshset, entities, true);
+  return convert( entities, mid_edge_nodes, mid_face_nodes, mid_volume_nodes );
+}
+
+MBErrorCode HigherOrderFactory::convert( const MBRange& entities,
+                                         const bool mid_edge_nodes, 
+                                         const bool mid_face_nodes, 
+                                         const bool mid_volume_nodes )
+
 {
 
   // TODO --  add some more code to prevent from splitting of entity sequences when we don't need to.
   // Say we have all hex8's in our mesh and 3 falses are passed in.  In the end, no conversion will
   // happen, but the sequences could still be split up.
 
-  MBRange entities;
-  mMB->get_entities_by_handle(meshset, entities, true);
-  
   // find out what entity sequences we need to convert 
   // and where, if necessary, to split them
 
