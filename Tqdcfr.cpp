@@ -81,6 +81,45 @@ const int Tqdcfr::cub_elem_num_verts[] = {
   8, 8, 9, 20, 27, 12, // hexes (incl. hexshell at end)
   0};
 
+// Define node-order map from Cubit to MBCN.  Table is indexed
+// by MBEntityType and number of nodes.  Entries are NULL if Cubit order
+// is the same as MBCN ordering.  Non-null entries contain the
+// index into the MOAB node order for the corresponding vertex
+// in the Cubit connectivity list.  Thus for a 27-node hex:
+// moab_conn[ cub_hex27_order[i] ] = cubit_conn[ i ];
+const int cub_tet8_order[] = { 0, 1, 2, 3, 4, 5, 7, 6 };
+const int cub_tet14_order[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 12 };
+const int cub_hex27_order[] = { 0, 1, 2, 3, 4, 5, 6, 7,
+                                8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+                                26, 24, 25, 23, 21, 20, 22 };
+const int* cub_all_null_order[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                    0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+const int* cub_tet_order[] = { 0, 0, 0, 0, 0, 0, 0, 0,
+                               cub_tet8_order,
+                               0, 0, 0, 0, 0,
+                               cub_tet14_order,
+                               0, 0, 0, 0, 0, 0, 0,
+                               0, 0, 0, 0, 0, 0 };
+const int* cub_hex_order[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                               0, 0, 0, 0, 0, 0, 0, 0, 0,
+                               0, 0, 0, 0, 0, 0, 0, 0, 0,
+                               cub_hex27_order };
+const int** cub_elem_order_map[] = { 
+  cub_all_null_order, // MBVERTEX
+  cub_all_null_order, // MBEDGE
+  cub_all_null_order, // MBTRI
+  cub_all_null_order, // MBQUAD
+  cub_all_null_order, // MBPOLYGON
+  cub_tet_order,      // MBTET
+  cub_all_null_order, // MBPYRAMID
+  cub_all_null_order, // MBPRISM
+  cub_all_null_order, // MBKNIFE
+  cub_hex_order,      // MBHEX
+  cub_all_null_order, // MBPOLYHEDRON
+  cub_all_null_order
+};
+
 std::string Tqdcfr::BLOCK_NODESET_OFFSET_TAG_NAME = "BLOCK_NODESET_OFFSET";
 std::string Tqdcfr::BLOCK_SIDESET_OFFSET_TAG_NAME = "BLOCK_SIDESET_OFFSET";
 
@@ -1162,6 +1201,9 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
                                   Tqdcfr::GeomHeader *entity) 
 {
   if (entity->elemTypeCt == 0) return MB_SUCCESS;
+  const int in_order_map[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                               11, 12, 13, 14, 15, 16, 17, 18, 19,
+                               20, 21, 22, 23, 24, 25, 26, 27 };
   
     // get data in separate calls to minimize memory usage
     // position the file
@@ -1183,6 +1225,10 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
 
     if (debug)
       std::cout << "type " << MBCN::EntityTypeName(elem_type) << ":";
+
+    const int* node_order = cub_elem_order_map[elem_type][nodes_per_elem];
+    if (!node_order)
+      node_order = in_order_map;
     
       // get element ids
     FREADI(num_elem);
@@ -1224,25 +1270,28 @@ MBErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
 
       // post-process connectivity into handles
     MBEntityHandle new_handle;
-    for (unsigned int j = 0; j < total_conn; j++) {
-      if (debug) {
-        if (0 == j) std::cout << "Conn=";
-        std::cout << ", " << uint_buf[j];
+    int j = 0;
+    for (int e = 0; e < num_elem; ++e) {
+      for (int k = 0; k < nodes_per_elem; ++k, ++j) {
+        if (debug) {
+          if (0 == j) std::cout << "Conn=";
+          std::cout << ", " << uint_buf[j];
+        }
+        if (NULL == cubMOABVertexMap)
+          new_handle = (MBEntityHandle) currVHandleOffset+uint_buf[j];
+        else {
+          assert(uint_buf[j] < cubMOABVertexMap->size() &&
+                 0 != (*cubMOABVertexMap)[uint_buf[j]]);
+          new_handle = (*cubMOABVertexMap)[uint_buf[j]];
+        }
+  #ifndef NDEBUG
+        MBEntityHandle dum_handle;
+        assert(MB_SUCCESS == 
+               mdbImpl->handle_from_id(MBVERTEX, mdbImpl->id_from_handle(new_handle), 
+                                       dum_handle));
+  #endif
+        conn[e*nodes_per_elem + node_order[k]] = new_handle;
       }
-      if (NULL == cubMOABVertexMap)
-        new_handle = (MBEntityHandle) currVHandleOffset+uint_buf[j];
-      else {
-        assert(uint_buf[j] < cubMOABVertexMap->size() &&
-               0 != (*cubMOABVertexMap)[uint_buf[j]]);
-        new_handle = (*cubMOABVertexMap)[uint_buf[j]];
-      }
-#ifndef NDEBUG
-      MBEntityHandle dum_handle;
-      assert(MB_SUCCESS == 
-             mdbImpl->handle_from_id(MBVERTEX, mdbImpl->id_from_handle(new_handle), 
-                                     dum_handle));
-#endif
-      conn[j] = new_handle;
     }
 
       // add these elements into the entity's set
