@@ -33,7 +33,8 @@ TESTS = moab_test \
         var_len_test var_len_test_no_template \
 	tag_test \
 	mesh_set_test \
-	cub_file_test
+	cub_file_test \
+        mbcn_test 
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 
@@ -346,6 +347,8 @@ cub_file_test_SOURCES = TestUtil.hpp cub_file_test.cc
 cub_file_test_LDADD = $(top_builddir)/libMOAB.la
 cub_file_test_DEPENDENCIES = $(tag_test_LDADD)
 
+mbcn_test_SOURCES = MBCN.hpp MBCN.cpp mbcn_test.cc
+mbcn_test_CPPFLAGS = -DSRCDIR=$(srcdir)  # define anything to work around build issue
 
 EXTRA_DIST = test.cub quad9.cub hex27.cub
 
