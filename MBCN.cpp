@@ -345,11 +345,13 @@ short int MBCN::OppositeSide(const MBEntityType parent_type,
         switch (child_dim) {
           case 0:
               opposite_dim = 2;
-              opposite_index = (child_index+2)%3 + 2*(child_index/3);
+              opposite_index = (child_index+1)%3 + 2*(child_index/3);
               break;
           case 1:
               opposite_dim = 1;
-              opposite_index = 3 + (child_index + 5)%3;
+              opposite_index = child_index < 3 
+                             ? 3 + (child_index + 2)%3
+                             : (child_index + 1)%3;
               break;
           case 2:
               opposite_dim = 0;
@@ -360,6 +362,26 @@ short int MBCN::OppositeSide(const MBEntityType parent_type,
         }
         break;
     case MBHEX:
+      opposite_dim = child_dim;
+      switch (child_dim) {
+        case 0:
+          opposite_index = child_index < 4 
+                         ? 4 + (child_index + 2) % 4
+                         : (child_index - 2) % 4;
+          break;
+        case 1:
+          opposite_index = 4*(2-child_index/4) + (child_index+2)%4;
+          break;
+        case 2:
+          opposite_index = child_index < 4 
+                         ? (child_index + 2) % 4
+                         : 9 - child_index;
+          break;
+        default:
+          return -1;
+      }
+      break;
+        
       
     default:
         return -1;
