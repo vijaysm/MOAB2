@@ -139,7 +139,9 @@ void test_tet14() { test_ho_elements(MBTET, 14); }
 
 void test_hex9 () { test_ho_elements(MBHEX,  9); }
 void test_hex20() { test_ho_elements(MBHEX, 20); }
-void test_hex27() { test_ho_elements(MBHEX, 27); }                           
+void test_hex27() { test_ho_elements(MBHEX, 27); }
+
+void test_multiple_files();                    
 
 int main()
 {
@@ -166,6 +168,7 @@ int main()
   result += RUN_TEST(test_hex9 );
   result += RUN_TEST(test_hex20);
   result += RUN_TEST(test_hex27);
+  result += RUN_TEST(test_multiple_files);
   
   return result;
 }
@@ -1001,8 +1004,7 @@ void test_ho_elements( MBEntityType type, int num_nodes )
 {
   MBCore mb_impl;
   MBInterface& mb = mb_impl;
-  MBEntityHandle set;
-  read_file( mb, ho_file, &set );
+  read_file( mb, ho_file );
 
   MBErrorCode rval;
   MBTag ho_tag, block_tag;
@@ -1035,3 +1037,51 @@ void test_ho_elements( MBEntityType type, int num_nodes )
   for (i = entities.begin(); i != entities.end(); ++i)
     check_adj_ho_nodes( mb, *i );
 }
+
+void test_multiple_files()
+{
+    // load two surface meshes, one at z=+5 at z=-5.
+  MBErrorCode rval;
+  MBCore mb_impl;
+  MBInterface& mb = mb_impl;
+  MBEntityHandle file1, file2;
+  read_file( mb, input_file_1, &file1);
+  read_file( mb, input_file_1, &file2 );
+  
+    // first check that we get the same number of verts from 
+    // each file and that they are distinct vertices
+  MBRange file1_verts, file2_verts;
+  rval = mb.get_entities_by_type( file1, MBVERTEX, file1_verts );
+  CHECK_ERR(rval);
+  CHECK( !file1_verts.empty() );
+  rval = mb.get_entities_by_type( file2, MBVERTEX, file2_verts );
+  CHECK_ERR(rval);
+  CHECK( !file2_verts.empty() );
+  CHECK_EQUAL( file1_verts.size(), file2_verts.size() );
+  CHECK( file1_verts.intersect( file2_verts ).empty() );
+  
+    // now check that we get the same number of elements from 
+    // each file and that they are distinct
+  MBRange file1_elems, file2_elems;
+  rval = mb.get_entities_by_dimension( file1, 3, file1_elems );
+  CHECK_ERR(rval);
+  CHECK( !file1_elems.empty() );
+  rval = mb.get_entities_by_dimension( file2, 3, file2_elems );
+  CHECK_ERR(rval);
+  CHECK( !file2_elems.empty() );
+  CHECK_EQUAL( file1_elems.size(), file2_elems.size() );
+  CHECK( file1_elems.intersect( file2_elems ).empty() );
+
+    // now check that the connectivity for each element is
+    // defined using the appropriate vertex instances
+  MBRange file1_elem_verts, file2_elem_verts;
+  rval = mb.get_adjacencies( file1_elems, 0, false, file1_elem_verts, MBInterface::UNION );
+  CHECK_ERR(rval);
+  rval = mb.get_adjacencies( file2_elems, 0, false, file2_elem_verts, MBInterface::UNION );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( file1_elem_verts.size(), file2_elem_verts.size() );
+  CHECK( file1_elem_verts.intersect( file1_verts ) == file1_elem_verts );
+  CHECK( file2_elem_verts.intersect( file2_verts ) == file2_elem_verts );
+}
+
+  
