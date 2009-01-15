@@ -84,7 +84,7 @@ const MBCN::ConnMap MBCN::mConnectivityMap[MBMAXTYPE][3] =
      // pyramid-face
    { 3, 5, {4,3,3,3,3}, {MBQUAD,MBTRI,MBTRI,MBTRI,MBTRI, MBMAXTYPE, 
                          MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, 
-     {{0,1,2,3}, {0,1,4},  {1,2,4}, {2,3,4}, {3,0,4} } },
+     {{0,3,2,1}, {0,1,4},  {1,2,4}, {2,3,4}, {3,0,4} } },
      // pyramid-pyramid
    { 3, 1, {5}, {MBPYRAMID, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, 
                  MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, {{0,1,2,3,4}} }},
