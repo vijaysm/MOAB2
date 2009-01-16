@@ -84,6 +84,12 @@ else
   imesh_DIR = 
 endif 
 
+if ENABLE_gsets
+  gsets_DIR = gsets
+else
+  gsets_DIR = 
+endif 
+
 SUBDIRS = $(imesh_DIR) \
 	  $(converter_DIR) \
           $(hexmodops_DIR) \
@@ -98,6 +104,7 @@ SUBDIRS = $(imesh_DIR) \
           $(tagprop_DIR) \
           $(spheredecomp_DIR) \
           $(mbsurfplot_DIR) \
-          $(dagmc_DIR)
+          $(dagmc_DIR) \
+          $(gsets_DIR)
 
 EXTRA_DIST = mbzoltan/README 

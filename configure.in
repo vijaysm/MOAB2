@@ -269,6 +269,7 @@ MB_OPTIONAL_TOOL([spheredecomp], [yes])
 MB_OPTIONAL_TOOL([mbsurfplot],   [yes])
 MB_OPTIONAL_TOOL([mbzoltan],     [no] )
 MB_OPTIONAL_TOOL([dagmc],        [yes])
+MB_OPTIONAL_TOOL([gsets],        [yes])
 
 
 
@@ -932,6 +933,7 @@ AC_CONFIG_FILES([Makefile
                  tools/surfplot/Makefile
                  tools/dagmc/Makefile
                  tools/dagmc/dagmc.make
+                 tools/gsets/Makefile
                  doc/Makefile
                  doxygen/Makefile
                  ])
