@@ -19,19 +19,12 @@
 #include "MBRange.hpp"
 #include "MBTagConventions.hpp"
 
+#include "GeomTopoTool.hpp"
+
 #include <stdio.h>
 #include <algorithm>
 
 #include "cgm2moab.hpp"
-
-// Tag name used for saving sense of faces in volumes.
-// We assume that the surface occurs in at most two volumes.
-// Code will error out if more than two volumes per surface.
-// The tag data is a pair of tag handles, representing the
-// forward and reverse volumes, respectively.  If a surface
-// is non-manifold in a single volume, the same volume will
-// be listed for both the forward and reverse slots.
-const char GEOM_SENSE_TAG_NAME[] = "GEOM_SENSE_2";
 
 // default settings
 const char DEFAULT_NAME[] = "cgm2moab";
@@ -48,17 +41,15 @@ bool cgm2moab(MBInterface* iface,
               int actuate_attribs)
 {
   MBErrorCode rval;
+  GeomTopoTool geomTool(iface);
 
     // get some tag handles
-  MBTag geom_tag, id_tag, sense_tag, name_tag, category_tag;
+  MBTag geom_tag, id_tag, name_tag, category_tag;
   rval = iface->tag_create( GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_SPARSE, 
                             MB_TYPE_INTEGER, geom_tag, 0, true );
   assert(!rval);
   rval = iface->tag_create( GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, 
                             MB_TYPE_INTEGER, id_tag, 0, true );
-  assert(!rval);
-  rval = iface->tag_create( GEOM_SENSE_TAG_NAME, 2*sizeof(MBEntityHandle), MB_TAG_SPARSE, 
-                            MB_TYPE_HANDLE, sense_tag, 0, true );
   assert(!rval);
   rval = iface->tag_create( NAME_TAG_NAME, NAME_TAG_SIZE, MB_TAG_SPARSE, 
                             MB_TYPE_OPAQUE, name_tag, 0, true );
@@ -153,16 +144,15 @@ bool cgm2moab(MBInterface* iface,
       }
     }
     
-    if (forward || reverse) {
-      MBEntityHandle tag_data[2] = {0,0};
-      if (forward)
-        tag_data[0] = entmap[3][forward];
-      if (reverse)
-        tag_data[1] = entmap[3][reverse];
-      MBEntityHandle h = ci->second;
-      rval = iface->tag_set_data( sense_tag, &h, 1, tag_data );
+    if (forward) {
+      rval = geomTool.set_sense( ci->second, entmap[3][forward], true );
       if (MB_SUCCESS != rval)
-        return false;
+        return rval;
+    }
+    if (reverse) {
+      rval = geomTool.set_sense( ci->second, entmap[3][reverse], false );
+      if (MB_SUCCESS != rval)
+        return rval;
     }
   }
   
