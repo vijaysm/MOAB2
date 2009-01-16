@@ -23,15 +23,28 @@
 class GeomTopoTool
 {
 public:
-  GeomTopoTool(MBInterface *impl) : mdbImpl(impl) {}
+  GeomTopoTool(MBInterface *impl) : mdbImpl(impl), sense2Tag(0) {}
   
   ~GeomTopoTool() {}
   
     //! Restore parent/child links between GEOM_TOPO mesh sets
   MBErrorCode restore_topology();
+  
+    //! Store sense of surface relative to volume.
+    //!\return MB_MULTIPLE_ENTITIES_FOUND if surface already has a forward volume.
+    //!        MB_SUCCESS if successful
+    //!        otherwise whatever internal error code occured.
+  MBErrorCode set_sense( MBEntityHandle surface,
+                         MBEntityHandle volume,
+                         bool forward );
+
+  MBErrorCode get_sense( MBEntityHandle surface,
+                         MBEntityHandle volume,
+                         bool& forward );
 
 private:
   MBInterface *mdbImpl;
+  MBTag sense2Tag;
   
     //! compute vertices inclusive and put on tag on sets in geom_sets
   MBErrorCode construct_vertex_ranges(const MBRange &geom_sets,

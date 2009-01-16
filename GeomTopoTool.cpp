@@ -17,8 +17,78 @@
 #include "MBRange.hpp"
 #include "MBTagConventions.hpp"
 #include "MBInterface.hpp"
+#include "MBCN.hpp"
+#include "MBInternals.hpp"
 #include <assert.h>
+#include <iostream>
 
+// Tag name used for saving sense of faces in volumes.
+// We assume that the surface occurs in at most two volumes.
+// Code will error out if more than two volumes per surface.
+// The tag data is a pair of tag handles, representing the
+// forward and reverse volumes, respectively.  If a surface
+// is non-manifold in a single volume, the same volume will
+// be listed for both the forward and reverse slots.
+const char GEOM_SENSE_TAG_NAME[] = "GEOM_SENSE_2";
+
+MBErrorCode GeomTopoTool::set_sense( MBEntityHandle surface,
+                                     MBEntityHandle volume,
+                                     bool forward )
+{
+  MBErrorCode rval;
+  if (!sense2Tag) {
+    rval = mdbImpl->tag_create( GEOM_SENSE_TAG_NAME, 2*sizeof(MBEntityHandle), 
+                           MB_TAG_SPARSE, MB_TYPE_HANDLE, 
+                           sense2Tag, 0, true );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  
+  MBEntityHandle sense_data[2] = {0,0};
+  rval = mdbImpl->tag_get_data( sense2Tag, &surface, 1, sense_data );
+  if (MB_TAG_NOT_FOUND != rval && MB_SUCCESS != rval)
+    return MB_FAILURE;
+  
+  if (sense_data[!forward] == volume)
+    return MB_SUCCESS;
+  else if (sense_data[!forward])
+    return MB_MULTIPLE_ENTITIES_FOUND;
+  
+  sense_data[!forward] = volume;
+  return mdbImpl->tag_set_data( sense2Tag, &surface, 1, sense_data );
+}
+
+MBErrorCode GeomTopoTool::get_sense( MBEntityHandle surface,
+                                     MBEntityHandle volume,
+                                     bool& forward )
+{
+  MBErrorCode rval;
+  if (!sense2Tag) {
+    rval = mdbImpl->tag_get_handle( GEOM_SENSE_TAG_NAME, sense2Tag );
+    if (MB_SUCCESS != rval) {
+      sense2Tag = 0;
+      return MB_FAILURE;
+    }
+  }
+  
+  MBEntityHandle sense_data[2] = {0,0};
+  rval = mdbImpl->tag_get_data( sense2Tag, &surface, 1, sense_data );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  if (sense_data[0] == volume)
+    forward = true;
+  else if (sense_data[1] == volume)
+    forward = false;
+  else
+    return MB_ENTITY_NOT_FOUND;
+  
+  return MB_SUCCESS;
+}
+
+
+  
+  
     //! Restore parent/child links between GEOM_TOPO mesh sets
 MBErrorCode GeomTopoTool::restore_topology() 
 {
@@ -100,6 +170,32 @@ MBErrorCode GeomTopoTool::restore_topology()
       for (MBRange::iterator pit = tmp_parents.begin(); pit != tmp_parents.end(); pit++) {
         result = mdbImpl->add_parent_child(*pit, *d_it);
         if (MB_SUCCESS != result) return result;
+      }
+      
+        // store surface senses
+      if (dim != 2) 
+        continue;
+      const MBEntityHandle *conn3, *conn2;
+      int len3, len2, err, num, sense, offset;
+      for (size_t i = 0; i < parents.size(); ++i) {
+        result = mdbImpl->get_connectivity( dp1ents[i], conn3, len3, true );
+        if (MB_SUCCESS != result) return result;
+        result = mdbImpl->get_connectivity( dents.front(), conn2, len2, true );
+        if (MB_SUCCESS != result) return result;
+        assert(len2 <= 4);
+        err = MBCN::SideNumber( TYPE_FROM_HANDLE(dp1ents[i]), conn3,
+                                conn2, len2, dim, num, sense, offset );
+        if (err)
+          return MB_FAILURE;
+        
+        result = set_sense( *d_it, parents[i], sense == 1 );
+        if (MB_MULTIPLE_ENTITIES_FOUND == result) {
+          std::cerr << "Warning: Multiple volumes use surface with same sense." << std::endl
+                    << "         Some geometric sense data lost." << std::endl;
+        }
+        else if (MB_SUCCESS != result) {
+          return result;
+        }
       }
     }
     
