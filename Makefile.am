@@ -100,7 +100,7 @@ libMOAB_la_SOURCES = \
   ElementSequence.hpp \
   EntitySequence.cpp \
   EntitySequence.hpp \
-  exodus_order.hpp \
+  exodus_order.h \
   ExoIIUtil.cpp \
   ExoIIUtil.hpp \
   FileOptions.cpp \
