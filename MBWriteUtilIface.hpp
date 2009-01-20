@@ -283,6 +283,22 @@ public:
                                const MBEntityHandle*& adj_array,
                                int& num_adj ) = 0;
 
+  
+  /**\brief Re-order outgoing element connectivity
+   *
+   * Permute the connectivity of each element such that the node
+   * order is that of the target file format rather than that of MBCN.
+   *\param order The permutation to use.  Must be an array of 'node_per_elem'
+   *             integers and be a permutation of the values [0..node_per_elem-1].
+   *             Such that for a single element:
+   *             target_conn[i] == mbcn_conn[order[i]]
+   *\param conn  The connectivty array to re-order
+   *\param num_elem  The number of elements in the connectivity array
+   *\param node_per_elem The number of nodes in each element's connectivity list.
+   */
+  template <typename T> static inline 
+  void reorder( const int* order, T* conn, int num_elem, int node_per_elem );
+
     //! if an error occured when reading the mesh, report it to MB
     //! it makes sense to have this as long as MBInterface has a write_mesh function
     //! \return status Return status
@@ -297,6 +313,20 @@ __attribute__((format(printf,2,3)))
   = 0;
 
 };
+
+  
+template <typename T> inline 
+void MBWriteUtilIface::reorder( const int* order, T* conn, 
+                                int num_elem, int node_per_elem )
+{
+  std::vector<T> elem(node_per_elem);
+  T* const end = conn + num_elem*node_per_elem;
+  while (conn != end) {
+    std::copy( conn, conn+node_per_elem, elem.begin() );
+    for (int j = 0; j < node_per_elem; ++j, ++conn) 
+      *conn = elem[order[j]];
+  }
+}
 
 #endif 
 

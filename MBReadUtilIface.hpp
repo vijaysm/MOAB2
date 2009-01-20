@@ -110,6 +110,23 @@ public:
     ) = 0;
 
 
+  
+  /**\brief Re-order incomming element connectivity
+   *
+   * Permute the connectivity of each element such that the node
+   * order is that of MBCN rather than the target file format.
+   *\param order The permutation to use.  Must be an array of 'node_per_elem'
+   *             integers and be a permutation of the values [0..node_per_elem-1].
+   *             Such that for a single element:
+   *             mbcn_conn[order[i]] == target_conn[i]
+   *\param conn  The connectivty array to re-order
+   *\param num_elem  The number of elements in the connectivity array
+   *\param node_per_elem The number of nodes in each element's connectivity list.
+   */
+  static inline 
+  void reorder( const int* order, MBEntityHandle* conn, 
+                int num_elem, int node_per_elem );
+
     //! if an error occured when reading the mesh, report it to MOAB
     //! it makes sense to have this as long as MBInterface has a load_mesh function
   virtual MBErrorCode report_error( const std::string& error ) = 0;
@@ -130,6 +147,20 @@ __attribute__((format(printf,2,3)))
                                            MBEntityHandle *bound_verts, 
                                            MBEntityType &etype) = 0;
 };
+
+inline 
+void MBReadUtilIface::reorder( const int* order, MBEntityHandle* conn, 
+                               int num_elem, int node_per_elem )
+{
+  std::vector<MBEntityHandle> elem(node_per_elem);
+  MBEntityHandle* const end = conn + num_elem*node_per_elem;
+  while (conn != end) {
+    std::copy( conn, conn+node_per_elem, elem.begin() );
+    for (int j = 0; j < node_per_elem; ++j) 
+      conn[order[j]] = elem[j];
+    conn += node_per_elem;
+  }
+}
 
 #endif 
 

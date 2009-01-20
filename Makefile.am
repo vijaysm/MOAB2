@@ -34,6 +34,7 @@ TESTS = moab_test \
 	tag_test \
 	mesh_set_test \
 	cub_file_test \
+	exodus_test \
         mbcn_test 
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
@@ -99,6 +100,7 @@ libMOAB_la_SOURCES = \
   ElementSequence.hpp \
   EntitySequence.cpp \
   EntitySequence.hpp \
+  exodus_order.hpp \
   ExoIIUtil.cpp \
   ExoIIUtil.hpp \
   FileOptions.cpp \
@@ -148,6 +150,7 @@ libMOAB_la_SOURCES = \
   MeshSetSequence.cpp \
   MeshSetSequence.hpp \
   MeshTopoUtil.cpp \
+  patran_order.h \
   PolyElementSeq.cpp \
   PolyElementSeq.hpp \
   RangeMap.hpp \
@@ -346,6 +349,10 @@ tag_test_DEPENDENCIES = $(tag_test_LDADD)
 cub_file_test_SOURCES = TestUtil.hpp cub_file_test.cc
 cub_file_test_LDADD = $(top_builddir)/libMOAB.la
 cub_file_test_DEPENDENCIES = $(tag_test_LDADD)
+
+exodus_test_SOURCES = TestUtil.hpp exodus_test.cc
+exodus_test_LDADD = $(top_builddir)/libMOAB.la
+exodus_test_DEPENDENCIES = $(tag_test_LDADD)
 
 mbcn_test_SOURCES = MBCN.hpp MBCN.cpp mbcn_test.cc
 mbcn_test_CPPFLAGS = -DSRCDIR=$(srcdir)  # define anything to work around build issue

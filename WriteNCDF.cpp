@@ -43,6 +43,7 @@
 #include "MBInternals.hpp"
 #include "ExoIIUtil.hpp"
 #include "MBWriteUtilIface.hpp"
+#include "exodus_order.h"
 
 const int TIME_STR_LEN = 11;
 
@@ -881,8 +882,6 @@ MBErrorCode WriteNCDF::write_header(ExodusMeshInfo& mesh_info,
   return MB_SUCCESS;
 }
 
-
-
 MBErrorCode WriteNCDF::write_elementblocks(std::vector<MaterialSetData> &block_data )
 {
 
@@ -929,15 +928,28 @@ MBErrorCode WriteNCDF::write_elementblocks(std::vector<MaterialSetData> &block_d
 
     if(result != MB_SUCCESS) {
       mWriteIface->report_error("Couldn't get element array to write from.");
+      delete [] connectivity;
       return result;
     }
+    
+    // if necessary, convert from EXODUS to MBCN node order
+    const MBEntityType elem_type = ExoIIUtil::ExoIIElementMBEntity[block.element_type];
+    assert( block.elements.all_of_type( elem_type ) );
+    const int* reorder = exodus_elem_order_map[elem_type][block.number_nodes_per_element];
+    if (reorder)
+      MBWriteUtilIface::reorder( reorder, connectivity, 
+                                 block.number_elements,
+                                 block.number_nodes_per_element );
 
     exodus_id += num_elem;
 
     char wname[80];
     INS_ID(wname, "connect%d", i+1);
     NcVar *conn = ncFile->get_var(wname);
-    if (NULL == conn) return MB_FAILURE;
+    if (NULL == conn) {
+      delete [] connectivity;
+      return MB_FAILURE;
+    }
     NcBool err = conn->put(connectivity, num_elem, num_nodes_per_elem);
     delete [] connectivity;
     if(!err)

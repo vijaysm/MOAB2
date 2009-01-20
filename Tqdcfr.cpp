@@ -23,6 +23,7 @@
 #include "MBInternals.hpp"
 #include "FileOptions.hpp"
 #include "HigherOrderFactory.hpp"
+#include "exodus_order.h"
 
 #ifdef USE_MPI
 #include "mpi.h"
@@ -87,38 +88,7 @@ const int Tqdcfr::cub_elem_num_verts[] = {
 // index into the MOAB node order for the corresponding vertex
 // in the Cubit connectivity list.  Thus for a 27-node hex:
 // moab_conn[ cub_hex27_order[i] ] = cubit_conn[ i ];
-const int cub_tet8_order[] = { 0, 1, 2, 3, 4, 5, 7, 6 };
-const int cub_tet14_order[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 12 };
-const int cub_hex27_order[] = { 0, 1, 2, 3, 4, 5, 6, 7,
-                                8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-                                26, 24, 25, 23, 21, 20, 22 };
-const int* cub_all_null_order[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                    0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-const int* cub_tet_order[] = { 0, 0, 0, 0, 0, 0, 0, 0,
-                               cub_tet8_order,
-                               0, 0, 0, 0, 0,
-                               cub_tet14_order,
-                               0, 0, 0, 0, 0, 0, 0,
-                               0, 0, 0, 0, 0, 0 };
-const int* cub_hex_order[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                               0, 0, 0, 0, 0, 0, 0, 0, 0,
-                               0, 0, 0, 0, 0, 0, 0, 0, 0,
-                               cub_hex27_order };
-const int** cub_elem_order_map[] = { 
-  cub_all_null_order, // MBVERTEX
-  cub_all_null_order, // MBEDGE
-  cub_all_null_order, // MBTRI
-  cub_all_null_order, // MBQUAD
-  cub_all_null_order, // MBPOLYGON
-  cub_tet_order,      // MBTET
-  cub_all_null_order, // MBPYRAMID
-  cub_all_null_order, // MBPRISM
-  cub_all_null_order, // MBKNIFE
-  cub_hex_order,      // MBHEX
-  cub_all_null_order, // MBPOLYHEDRON
-  cub_all_null_order
-};
+const int* const* const* const cub_elem_order_map = exodus_elem_order_map;
 
 std::string Tqdcfr::BLOCK_NODESET_OFFSET_TAG_NAME = "BLOCK_NODESET_OFFSET";
 std::string Tqdcfr::BLOCK_SIDESET_OFFSET_TAG_NAME = "BLOCK_SIDESET_OFFSET";

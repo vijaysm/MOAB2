@@ -33,6 +33,7 @@
 #include "MBTagConventions.hpp"
 #include "MBInternals.hpp"
 #include "MBReadUtilIface.hpp"
+#include "exodus_order.h"
 
 #define INS_ID(stringvar, prefix, id) \
           sprintf(stringvar, prefix, id)
@@ -789,6 +790,7 @@ MBErrorCode ReadNCDF::remove_previously_loaded_blocks(const int *blocks_to_load,
   return MB_SUCCESS;
 }
 
+
 MBErrorCode ReadNCDF::read_elements()
 {
     // read in elements
@@ -860,12 +862,13 @@ MBErrorCode ReadNCDF::read_elements()
     
     int verts_per_element = ExoIIUtil::VerticesPerElement[(*this_it).elemType];
     int number_nodes = (*this_it).numElements*verts_per_element;
+    const MBEntityType mb_type = ExoIIUtil::ExoIIElementMBEntity[(*this_it).elemType];
 
     // allocate an array to read in connectivity data
     readMeshIface->get_element_array(
         (*this_it).numElements,
         verts_per_element,
-        ExoIIUtil::ExoIIElementMBEntity[(*this_it).elemType],
+        mb_type,
         (*this_it).startExoId,
         (*this_it).startMBId,
         conn);
@@ -887,7 +890,12 @@ MBErrorCode ReadNCDF::read_elements()
 
       if( mdbImpl->add_entities( ms_handle, new_range) != MB_SUCCESS )
         return MB_FAILURE;
-
+        
+      int mid_nodes[4];
+      MBCN::HasMidNodes( mb_type, verts_per_element, mid_nodes );
+      if( mdbImpl->tag_set_data( mHasMidNodesTag, &ms_handle, 1, mid_nodes ) != MB_SUCCESS )
+        return MB_FAILURE;
+      
     // just a check because the following code won't work if this case fails
     assert(sizeof(MBEntityHandle) >= sizeof(int));
 
@@ -905,9 +913,21 @@ MBErrorCode ReadNCDF::read_elements()
       // Iterate backwards in case handles are larger than ints.
     for (int i = number_nodes - 1; i >= 0; --i)
     {
+      if ((unsigned)tmp_ptr[i] >= nodesInLoadedBlocks.size()) {
+        readMeshIface->report_error( "Invalid node ID in block connectivity\n");
+        delete [] temp_string;
+        return MB_FAILURE;
+      }
       nodesInLoadedBlocks[tmp_ptr[i]] = 1;
       conn[i] = static_cast<MBEntityHandle>(tmp_ptr[i]) + vertexOffset;
     }
+    
+    // Adjust connectivity order if necessary
+    const int* reorder = exodus_elem_order_map[mb_type][verts_per_element];
+    if (reorder)
+      MBReadUtilIface::reorder( reorder, conn, this_it->numElements, verts_per_element );
+    
+
       
     readMeshIface->update_adjacencies((*this_it).startMBId, (*this_it).numElements,
                                       ExoIIUtil::VerticesPerElement[(*this_it).elemType], conn);
