@@ -191,7 +191,7 @@ iMesh_EntityIterator create_itaps_iterator( MBRange& range, int array_size )
     iter->currentPos = iter->iteratorRange.begin();
     iter->requestedSize = array_size;
   }
-  return iter;
+  return reinterpret_cast<iMesh_EntityIterator>(iter);
 }
 
 
@@ -293,7 +293,7 @@ extern "C" {
   }
    
   void iMesh_load(iMesh_Instance instance,
-                  const iBase_EntityHandle handle,
+                  const iBase_EntitySetHandle handle,
                   const char *name, const char *options, 
                   int *err, int name_len, int options_len) 
   {
@@ -337,7 +337,7 @@ extern "C" {
   }
 
   void iMesh_save(iMesh_Instance instance,
-                  const iBase_EntityHandle handle,
+                  const iBase_EntitySetHandle handle,
                   const char *name, const char *options, 
                   int *err, const int name_len, int options_len) 
   {
@@ -835,7 +835,7 @@ extern "C" {
                              /*in*/ const int requested_entity_type,
                              /*in*/ const int requested_entity_topology,
                              /*in*/ const int requested_array_size,
-                             /*out*/ iMesh_EntityIterator* entArr_iterator,
+                             /*out*/ iMesh_EntityArrIterator* entArr_iterator,
                              int *err) 
   {
     MBEntityType req_type = mb_topology_table[requested_entity_topology];
@@ -867,7 +867,8 @@ extern "C" {
       RETURN(iMesh_LAST_ERROR.error_type);
     }
 
-    *entArr_iterator = create_itaps_iterator( range, requested_array_size );
+    *entArr_iterator = reinterpret_cast<iMesh_EntityArrIterator>
+                       (create_itaps_iterator( range, requested_array_size ));
     RETURN(iBase_SUCCESS);
   }
 
@@ -875,7 +876,7 @@ extern "C" {
  * Method:  getEntArrNextIter[]
  */
   void iMesh_getNextEntArrIter (iMesh_Instance instance,
-                                /*in*/ iMesh_EntityIterator entArr_iterator,
+                                /*in*/ iMesh_EntityArrIterator entArr_iterator,
                                 /*inout*/ iBase_EntityHandle** entity_handles,
                                 /*inout*/ int* entity_handles_allocated,
                                 /*out*/ int* entity_handles_size,
@@ -906,7 +907,7 @@ extern "C" {
  * Method:  resetEntArrIter[]
  */
   void iMesh_resetEntArrIter (iMesh_Instance instance,
-                              /*in*/ iMesh_EntityIterator entArr_iterator, int *err) 
+                              /*in*/ iMesh_EntityArrIterator entArr_iterator, int *err) 
   {
     RangeIterator *this_it = RANGE_ITERATOR(entArr_iterator);
 
@@ -916,7 +917,7 @@ extern "C" {
   }
 
   void iMesh_endEntArrIter (iMesh_Instance instance,
-                            /*in*/ iMesh_EntityIterator entArr_iterator, int *err) 
+                            /*in*/ iMesh_EntityArrIterator entArr_iterator, int *err) 
   {
     RangeIterator *this_it = RANGE_ITERATOR(entArr_iterator);
 
@@ -1139,6 +1140,122 @@ extern "C" {
     RETURN(iBase_SUCCESS);
   }
 
+  void iMesh_getAdjEntIndices(iMesh_Instance instance,
+                      /*in*/    iBase_EntitySetHandle entity_set_handle,
+                      /*in*/    int entity_type_requestor,
+                      /*in*/    int entity_topology_requestor,
+                      /*in*/    int entity_type_requested,
+                      /*inout*/ iBase_EntityHandle** entity_handles,
+                      /*inout*/ int* entity_handles_allocated,
+                      /*out*/   int* entity_handles_size,
+                      /*inout*/ iBase_EntityHandle** adj_entity_handles,
+                      /*inout*/ int* adj_entity_handles_allocated,
+                      /*out*/   int* adj_entity_handles_size,
+                      /*inout*/ int** adj_entity_indices,
+                      /*inout*/ int* adj_entity_indices_allocated,
+                      /*out*/   int* adj_entity_indices_size,
+                      /*inout*/ int** offset,
+                      /*inout*/ int* offset_allocated,
+                      /*out*/   int* offset_size,
+                      /*out*/   int *err)
+  {
+    // get source entities
+    iMesh_getEntities( instance, 
+                       entity_set_handle,
+                       entity_type_requestor, 
+                       entity_topology_requestor,
+                       entity_handles,
+                       entity_handles_allocated,
+                       entity_handles_size,
+                       err );
+    if (iBase_SUCCESS != *err)
+      return;
+    
+    // get adjacencies
+    // If int and iBase_EntityHandle are the same size, put directly
+    // into adj_entity_indices
+    iBase_EntityHandle* temp_storage = 0;
+    int size = 0;
+    if (sizeof(int) == sizeof(iBase_EntityHandle)) {
+      iMesh_getEntArrAdj( instance,
+                          *entity_handles, *entity_handles_size,
+                          entity_type_requested,
+                          reinterpret_cast<iBase_EntityHandle**>(adj_entity_indices), 
+                          adj_entity_indices_allocated, 
+                          adj_entity_indices_size,
+                          offset, offset_allocated, offset_size,
+                          err );
+      temp_storage = reinterpret_cast<iBase_EntityHandle*>(*adj_entity_indices);
+      size = *adj_entity_indices_size;
+    }
+    // Otherwise put result into new, temporary array and make sure
+    // that adj_entity_indices can hold the same number of entries.
+    else {
+      int alloc = 0;
+      iMesh_getEntArrAdj( instance,
+                          *entity_handles, *entity_handles_size,
+                          entity_type_requested,
+                          &temp_storage, &alloc, &size,
+                          offset, offset_allocated, offset_size,
+                          err );
+      if (!*adj_entity_indices_allocated) {
+        *adj_entity_indices = (int*)malloc(sizeof(iBase_EntityHandle)*size);
+        if (!*adj_entity_indices) {
+          *err = iBase_MEMORY_ALLOCATION_FAILED;
+          return;
+        }
+        *adj_entity_indices_allocated = size;
+      }
+      else if (*adj_entity_indices_allocated < size) {
+        *err = iBase_BAD_ARRAY_DIMENSION;
+        return;
+      }
+      *adj_entity_indices_size = size;
+    }
+    if (*err != iBase_SUCCESS)
+      return;
+    
+    // Put sorted unique version of temp array into final one
+    // If input allocation is too small, need to use another temporary
+    iBase_EntityHandle* unique_adj = 0;
+    if (*adj_entity_handles_allocated == 0) {
+      *adj_entity_handles_allocated = size;
+      *adj_entity_handles = (iBase_EntityHandle*)malloc(sizeof(iBase_EntityHandle) * size);
+      unique_adj = *adj_entity_handles;
+    }
+    else if (*adj_entity_handles_allocated >= size) {
+      unique_adj = *adj_entity_handles;
+    }
+    else {
+      unique_adj = (iBase_EntityHandle*)malloc(sizeof(iBase_EntityHandle) * size);
+    }
+    std::copy( temp_storage, temp_storage+size, unique_adj );
+    std::sort( unique_adj, unique_adj + size );
+    *adj_entity_handles_size = std::unique( unique_adj, unique_adj + size ) - unique_adj;
+    
+    // now copy data and relase temporary storage if necessary
+    if (*adj_entity_handles != unique_adj) {
+      if (*adj_entity_handles_allocated < *adj_entity_handles_size) {
+        *err = iBase_BAD_ARRAY_DIMENSION;
+        free(unique_adj);
+        if ((int*)temp_storage != *adj_entity_indices)
+          free(temp_storage);
+        return;
+      }
+      std::copy( unique_adj, unique_adj + size, *adj_entity_handles );
+      free( unique_adj );
+      unique_adj = *adj_entity_handles;
+    }
+    
+    // convert from adjacency list to indices into unique_adj
+    for (int i = 0; i < *adj_entity_indices_size; ++i)
+      (*adj_entity_indices)[i] = std::lower_bound( unique_adj, 
+        unique_adj + *adj_entity_handles_size, temp_storage[i] ) - unique_adj;
+    if ((int*)temp_storage != *adj_entity_indices)
+      free(temp_storage);
+  }
+
+
   void iMesh_createEntSet(iMesh_Instance instance,
                           /*in*/ const int isList,
                           /*out*/ iBase_EntitySetHandle* entity_set_created, int *err) 
@@ -1158,7 +1275,7 @@ extern "C" {
     }
   
       // return EntitySet_Handle
-    *entity_set_created = (iBase_EntityHandle)meshset;
+    *entity_set_created = (iBase_EntitySetHandle)meshset;
     RETURN(iBase_ERROR_MAP[result]);
   }
 
@@ -1241,19 +1358,20 @@ extern "C" {
     int k = 0;
 
     for (; iter != end_iter; iter++)
-      (*contained_entset_handles)[k++] = (iBase_EntityHandle)*iter;
+      (*contained_entset_handles)[k++] = (iBase_EntitySetHandle)*iter;
 
     *contained_entset_handles_size = sets.size();
     RETURN(iBase_SUCCESS);
   }
 
   void iMesh_addEntArrToSet(iMesh_Instance instance,
-                            /*in*/ const iBase_EntityHandle* entity_handles,
-                            /*in*/ const int entity_handles_size,
-                            /*inout*/ iBase_EntitySetHandle* entity_set, int *err)
+                            /*in*/ iBase_EntityHandle* entity_handles,
+                            /*in*/ int entity_handles_size,
+                            /*in*/ iBase_EntitySetHandle entity_set, 
+                            int *err)
   {
     const MBEntityHandle *ents = CONST_HANDLE_ARRAY_PTR(entity_handles);
-    MBErrorCode result = MBI->add_entities(ENTITY_HANDLE(*entity_set),
+    MBErrorCode result = MBI->add_entities(ENTITY_HANDLE(entity_set),
                                            ents, entity_handles_size);
 
     if (result != MB_SUCCESS) {
@@ -1267,21 +1385,21 @@ extern "C" {
   }
 
   void iMesh_addEntToSet(iMesh_Instance instance,
-                         /*in*/ const iBase_EntityHandle entity_handle,
-                         /*inout*/ iBase_EntitySetHandle* entity_set, int *err)
+                         /*in*/ iBase_EntityHandle entity_handle,
+                         /*in*/ iBase_EntitySetHandle entity_set, int *err)
   {
     iMesh_addEntArrToSet(instance, &entity_handle, 1, entity_set, err);
   }
 
   void iMesh_rmvEntArrFromSet(iMesh_Instance instance,
-                              /*in*/ const iBase_EntityHandle* entity_handles,
-                              /*in*/ const int entity_handles_size,
-                              /*inout*/ iBase_EntitySetHandle* entity_set, int *err)
+                              /*in*/ iBase_EntityHandle* entity_handles,
+                              /*in*/ int entity_handles_size,
+                              /*in*/ iBase_EntitySetHandle entity_set, int *err)
   {
     const MBEntityHandle *ents = CONST_HANDLE_ARRAY_PTR(entity_handles);
 
     MBErrorCode result = MBI->remove_entities
-      (ENTITY_HANDLE(*entity_set), ents, entity_handles_size);
+      (ENTITY_HANDLE(entity_set), ents, entity_handles_size);
   
     if (result != MB_SUCCESS) {
       std::string msg("iMesh_rmvEntArrFromSet:ERROR removing entities in EntitySet, "
@@ -1294,17 +1412,19 @@ extern "C" {
   }
   
   void iMesh_rmvEntFromSet(iMesh_Instance instance,
-                           /*in*/ const iBase_EntityHandle entity_handle,
-                           /*inout*/ iBase_EntitySetHandle* entity_set, int *err)
+                           /*in*/ iBase_EntityHandle entity_handle,
+                           /*in*/ iBase_EntitySetHandle entity_set, 
+                           int *err)
   {
     iMesh_rmvEntArrFromSet(instance, &entity_handle, 1, entity_set, err);
   }
   
   void iMesh_addEntSet(iMesh_Instance instance,
-                       /*in*/ const iBase_EntitySetHandle entity_set_to_add,
-                       /*inout*/ iBase_EntitySetHandle* entity_set_handle, int *err)
+                       /*in*/ iBase_EntitySetHandle entity_set_to_add,
+                       /*in*/ iBase_EntitySetHandle entity_set_handle,
+                       int *err)
   {
-    MBErrorCode result = MBI->add_entities(ENTITY_HANDLE(*entity_set_handle),
+    MBErrorCode result = MBI->add_entities(ENTITY_HANDLE(entity_set_handle),
                                            CONST_HANDLE_ARRAY_PTR(&entity_set_to_add), 1);
 
     if (result != MB_SUCCESS) {
@@ -1318,11 +1438,12 @@ extern "C" {
   }
 
   void iMesh_rmvEntSet(iMesh_Instance instance,
-                       /*in*/ const iBase_EntitySetHandle entity_set_to_remove,
-                       /*inout*/ iBase_EntitySetHandle *entity_set_handle, int *err)
+                       /*in*/ iBase_EntitySetHandle entity_set_to_remove,
+                       /*in*/ iBase_EntitySetHandle entity_set_handle, 
+                       int *err)
   {
     MBErrorCode result = MBI->remove_entities
-      (ENTITY_HANDLE(*entity_set_handle), CONST_HANDLE_ARRAY_PTR(&entity_set_to_remove), 1);
+      (ENTITY_HANDLE(entity_set_handle), CONST_HANDLE_ARRAY_PTR(&entity_set_to_remove), 1);
   
     if (result != MB_SUCCESS) {
       std::string msg("iMesh_rmvEntSet:ERROR removing entitysets in EntitySet, "
@@ -1335,32 +1456,19 @@ extern "C" {
   }
 
   void iMesh_isEntContained (iMesh_Instance instance,
-                             /*in*/ const iBase_EntitySetHandle containing_entity_set,
-                             /*in*/ const iBase_EntitySetHandle contained_entity,
+                             /*in*/ iBase_EntitySetHandle containing_entity_set,
+                             /*in*/ iBase_EntityHandle contained_entity,
                              int *is_contained, int *err) 
   {
-    MBRange all_ents;
-    MBErrorCode result = MBI->get_entities_by_handle(ENTITY_HANDLE(containing_entity_set),
-                                                     all_ents);
-    if (result != MB_SUCCESS) {
-      std::string msg("iMesh_isContainedIn:ERROR getting entities in EntitySet, "
-                      "with error type: ");
-      msg += MBI->get_error_string(result);
-      iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
-    }
-  
-    if (all_ents.find(ENTITY_HANDLE(contained_entity)) == all_ents.end())
-      *is_contained = false;
-  
-    else
-      *is_contained = true;
-
-    RETURN(iBase_ERROR_MAP[result]);
+    int junk1 = 1, junk2 = 1;
+    iMesh_isEntArrContained( instance, containing_entity_set, 
+                             &contained_entity, 1, &is_contained, 
+                             &junk1, &junk2, err );
   }
 
   void iMesh_isEntArrContained( iMesh_Instance instance,
                             /*in*/ iBase_EntitySetHandle containing_set,
-                            /*in*/ const iBase_EntitySetHandle* entity_handles,
+                            /*in*/ const iBase_EntityHandle* entity_handles,
                             /*in*/ int num_entity_handles,
                          /*inout*/ int** is_contained,
                          /*inout*/ int* is_contained_allocated,
@@ -1390,17 +1498,19 @@ extern "C" {
                                 /*in*/ const iBase_EntitySetHandle contained_entity_set,
                                 int *is_contained, int *err) 
   {
-    iMesh_isEntContained(instance, containing_entity_set, contained_entity_set,
+    iMesh_isEntContained(instance, containing_entity_set, 
+                         reinterpret_cast<iBase_EntityHandle>(contained_entity_set),
                          is_contained, err);
   }
 
   void iMesh_addPrntChld(iMesh_Instance instance,
-                         /*inout*/ iBase_EntitySetHandle* parent_entity_set,
-                         /*inout*/ iBase_EntitySetHandle* child_entity_set, int *err) 
+                         /*inout*/ iBase_EntitySetHandle parent_entity_set,
+                         /*inout*/ iBase_EntitySetHandle child_entity_set, 
+                         int *err) 
   {
     MBErrorCode result = MBI->add_parent_child
-      (ENTITY_HANDLE(*parent_entity_set),
-       ENTITY_HANDLE(*child_entity_set));
+      (ENTITY_HANDLE(parent_entity_set),
+       ENTITY_HANDLE(child_entity_set));
 
     if (result != MB_SUCCESS) {
       std::string msg("MB Mesh::addPrntChld: ERROR addParentChild failed, with error type: ");
@@ -1413,12 +1523,13 @@ extern "C" {
   }
 
   void iMesh_rmvPrntChld(iMesh_Instance instance,
-                         /*inout*/ iBase_EntitySetHandle* parent_entity_set,
-                         /*inout*/ iBase_EntitySetHandle* child_entity_set, int *err)
+                         /*inout*/ iBase_EntitySetHandle parent_entity_set,
+                         /*inout*/ iBase_EntitySetHandle child_entity_set, 
+                         int *err)
   {
     MBErrorCode result = MBI->remove_parent_child
-      (ENTITY_HANDLE(*parent_entity_set),
-       ENTITY_HANDLE(*child_entity_set));
+      (ENTITY_HANDLE(parent_entity_set),
+       ENTITY_HANDLE(child_entity_set));
   
     if (result != MB_SUCCESS) {
       std::string msg("iMesh_rmvPrntChld: ERROR RemoveParentChild failed, with error type: ");
@@ -2139,7 +2250,7 @@ extern "C" {
       *status = iBase_CREATION_FAILED;
     else
       *status = iBase_SUCCESS;
-    *new_entity_handle = CAST_TO_VOID(tmp_ent);
+    *new_entity_handle = reinterpret_cast<iBase_EntityHandle>(tmp_ent);
 
     *err = *status;
   }
@@ -2515,7 +2626,8 @@ extern "C" {
                           int *err) 
   {
     iMesh_initEntArrIter(instance, entity_set_handle, requested_entity_type,
-                         requested_entity_topology, 1, entity_iterator,
+                         requested_entity_topology, 1, 
+                         reinterpret_cast<iMesh_EntityArrIterator*>(entity_iterator),
                          err);
   }
 
@@ -2526,20 +2638,25 @@ extern "C" {
   {
     int eh_size = 1;
     iMesh_getNextEntArrIter(instance,
-                            entity_iterator, &entity_handle, &eh_size, &eh_size, is_end, err);
+                            reinterpret_cast<iMesh_EntityArrIterator>(entity_iterator),
+                            &entity_handle, &eh_size, &eh_size, is_end, err);
   
   }
 
   void iMesh_resetEntIter (iMesh_Instance instance,
                            /*in*/ iMesh_EntityIterator entity_iterator, int *err) 
   {
-    iMesh_resetEntArrIter(instance, entity_iterator, err);  
+    iMesh_resetEntArrIter(instance,
+                          reinterpret_cast<iMesh_EntityArrIterator>(entity_iterator),
+                          err);  
   }
 
   void iMesh_endEntIter (iMesh_Instance instance,
                          /*in*/ iMesh_EntityIterator entity_iterator, int *err) 
   {
-    iMesh_endEntArrIter(instance, entity_iterator, err);
+    iMesh_endEntArrIter(instance, 
+                        reinterpret_cast<iMesh_EntityArrIterator>(entity_iterator),
+                        err);
   }
 
   void iMesh_getEntTopo (iMesh_Instance instance,
@@ -3123,31 +3240,32 @@ MBErrorCode create_int_ents(MBInterface *instance,
                             MBRange &from_ents,
                             MBEntityHandle in_set) 
 {
-  assert(MBimesh->AdjTable[10] || MBimesh->AdjTable[5]);
+  MBiMesh* mbimesh = dynamic_cast<MBiMesh*>(instance);
+  assert(mbimesh->AdjTable[10] || mbimesh->AdjTable[5]);
   MBRange int_ents;
   MBErrorCode result;
   
-  if (MBimesh->AdjTable[10]) {
-    result = MBI->get_adjacencies(from_ents, 2, true, int_ents,
+  if (mbimesh->AdjTable[10]) {
+    result = instance->get_adjacencies(from_ents, 2, true, int_ents,
                                   MBInterface::UNION);
     if (MB_SUCCESS != result) return result;
     unsigned int old_size = from_ents.size();
     from_ents.merge(int_ents);
     if (old_size != from_ents.size() && in_set) {
-      result = MBI->add_entities(in_set, int_ents);
+      result = instance->add_entities(in_set, int_ents);
       if (MB_SUCCESS != result) return result;
     }
   }
   
-  if (MBimesh->AdjTable[5]) {
+  if (mbimesh->AdjTable[5]) {
     int_ents.clear();
-    result = MBI->get_adjacencies(from_ents, 1, true, int_ents,
+    result = instance->get_adjacencies(from_ents, 1, true, int_ents,
                                   MBInterface::UNION);
     if (MB_SUCCESS != result) return result;
     unsigned int old_size = from_ents.size();
     from_ents.merge(int_ents);
     if (old_size != from_ents.size() && in_set) {
-      result = MBI->add_entities(in_set, int_ents);
+      result = instance->add_entities(in_set, int_ents);
       if (MB_SUCCESS != result) return result;
     }
   }

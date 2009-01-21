@@ -1,14 +1,3 @@
-/**
- * Copyright 2006 Sandia Corporation.  Under the terms of Contract
- * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
- * retains certain rights in this software.
- * 
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- * 
- */
 //==========================================================
 // iMesh PACKAGE - The ITAPS mesh interface
 //   MESH QUERY, MODIFICATION
@@ -17,8 +6,8 @@
 //
 // Only import ITAPS if the iMesh package appears in a separate sidl file. -TLD
 //
-import iBase version 0.7;
-package iMesh version 0.7
+import iBase version 0.8;
+package iMesh version 0.8
 {
 
    enum EntityTopology {
@@ -85,6 +74,7 @@ package iMesh version 0.7
       // global info
       void getRootSet(out opaque root_set) throws iBase.Error;
       void getGeometricDim(out int dim) throws iBase.Error;
+      void setGeometricDim(in int dim) throws iBase.Error;
       void getDfltStorage(out iBase.StorageOrder dflt_storage) throws iBase.Error;
       void getAdjTable( inout array< AdjacencyInfo > adjacency_table,
                         out int adjacency_table_size) throws iBase.Error;
@@ -101,27 +91,6 @@ package iMesh version 0.7
       void getNumOfTopo( in opaque entity_set_handle,
                          in EntityTopology entity_topology,
                          out int num_topo) throws iBase.Error;
-
-      // primitive arrays
-      void getAllVtxCoords( in opaque entity_set,
-                            inout array<double> coords, 
-                            out int coords_size,
-                            inout array<int> in_entity_set,
-                            out int in_entity_set_size,
-                            inout StorageOrder storage_order) 
-                            throws iBase.Error;
-
-      // size of the offset array will be entity_topology_size+1, already in docs
-      void getVtxCoordIndex( in opaque entity_set,
-                             in EntityType requested_entity_type, 
-                             in EntityTopology requested_entity_topology,
-                             in EntityType entity_adjacency_type,
-                             inout array<int> offset,
-                             out int offset_size,
-                             inout array<int> index,
-                             out int index_size,
-                             inout array<EntityTopology> entity_topologies,
-                             out int entity_topologies_size) throws iBase.Error;
 
       // entity arrays
       void getEntities( in opaque entity_set, 
@@ -144,6 +113,19 @@ package iMesh version 0.7
                            out int offset_size,
                            inout array<int> in_entity_set,
                            out int in_entity_set_size) throws iBase.Error;
+
+      void getAdjEntIndices( in opaque entity_set_handle,
+                             in EntityType entity_type_requestor,
+                             in EntityTopology entity_topology_requestor,
+                             in EntityType entity_type_requested,
+                             inout array<opaque> entity_handles,
+                             out int entity_handles_size,
+                             inout array<opaque> adj_entity_handles,
+                             out int adj_entity_handles_size,
+                             inout array<int> adj_entity_indices,
+                             out int adj_entity_indices_size,
+                             inout array<int> offset,
+                             out int offset_size ) throws iBase.Error;
    };
 
 

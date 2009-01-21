@@ -1,6 +1,9 @@
 #ifndef IMESH_CBIND_H__
 #define IMESH_CBIND_H__
 
+#define IMESH_MAJOR_VERSION 0
+#define IMESH_MINOR_VERSION 8
+
   /** \mainpage The ITAPS Mesh Interface iMesh
    *
    * The ITAPS Mesh Interface iMesh provides a common interface for
@@ -76,19 +79,19 @@ extern "C" {
      *
      * Type used to store iMesh interface handle
      */
-  typedef void* iMesh_Instance;
+  typedef struct iMesh_Instance_Private* iMesh_Instance;
 
     /**\brief  Type used to store an iterator returned by iMesh
      *
      * Type used to store an iterator returned by iMesh
      */
-  typedef void* iMesh_EntityIterator;
-
+  typedef struct iMesh_EntityIterator_Private* iMesh_EntityIterator;
+ 
     /**\brief  Type used to store an array iterator returned by iMesh
      *
      * Type used to store an array iterator returned by iMesh
      */
-  typedef void* iMesh_EntityArrIterator;
+  typedef struct iMesh_EntityArrIterator_Private* iMesh_EntityArrIterator;
 
     /**\brief  Enumerator specifying entity topology
      *
@@ -168,10 +171,10 @@ extern "C" {
     /**\brief  Load a mesh from a file
      *
      * Load a mesh from a file.  If entity set is specified, loaded mesh
-     * is added to that set; specify zero if that is not desired.
+     * is added to that set; specify root set if that is not desired.
      * \param instance iMesh instance handle
-     * \param entity_set_handle Set to which loaded mesh will be added, zero
-     *        if not desired
+     * \param entity_set_handle Set to which loaded mesh will be added, 
+     *        root set if not desired
      * \param name File name from which mesh is to be loaded
      * \param options Pointer to implementation-specific options string
      * \param *err Pointer to error type returned from function
@@ -229,6 +232,18 @@ extern "C" {
                                    /*out*/ int *geom_dim, 
                                    /*out*/ int *err);
 
+   /**\brief Set geometric dimension of vertex coordinates
+    *
+    * Set the geometric dimension of the mesh.  Notes:  An application
+    * should not expect this function to succeed unless the mesh database
+    * is empty (no vertices created, no files read, etc.)
+    *\param instance Mesh database from which to request change.
+    *\param geom_dim Requested geometric dimension.
+    */
+  void iMesh_setGeometricDimension( iMesh_Instance instance,
+                                    /*in*/ int geom_dim,
+                                    /*out*/ int* err );
+
     /**\brief  Get the default storage order used by this implementation
      *
      * Get the default storage order used by this implementation.  Value
@@ -262,30 +277,10 @@ extern "C" {
                           /*out*/ int* adjacency_table_size, 
                           /*out*/ int *err);
 
-    /**\brief  Set the adjacency table and interior entity information for this implementation
-     *
-     * Set the adjacency table and interior entity information for this 
-     * implementation.  This table 
-     * is a 4x4 array, with indices 0-based, where A(i,j) (i=row, j=column) 
-     * non-zero requests that adjacencies be stored explicitly from type i
-     * to type j.  Non-zero diagonal elements request that interior entities
-     * of that dimension be represented explicitly, and created along with
-     * higher-dimensional entities.
-     * \param instance iMesh instance handle
-     * \param *adjacency_table Array representing adjacency table
-     *        passed to function
-     * \param adjacency_table_size Size of adjacency table (should be 16)
-     * \param *err Pointer to error type returned from function
-     */
-  void iMesh_setAdjTable (iMesh_Instance instance,
-                          /*in*/ int* adjacency_table,
-                          /*in*/ int adjacency_table_size,
-                          /*out*/ int *err);
-
     /**\brief  Get the number of entities with the specified type in the instance or set
      *
      * Get the number of entities with the specified type in the instance 
-     * or set.  If entity set handle is zero, return information for instance,
+     * or set.  If entity set handle is root set, return information for instance,
      * otherwise for set.  Value of entity type must be from the
      * iBase_EntityType enumeration.  If iBase_ALL_TYPES is specified,
      * total number of entities (excluding entity sets) is returned.
@@ -304,7 +299,7 @@ extern "C" {
     /**\brief  Get the number of entities with the specified topology in the instance or set
      *
      * Get the number of entities with the specified topology in the instance 
-     * or set.  If entity set handle is zero, return information for instance,
+     * or set.  If entity set handle is root set, return information for instance,
      * otherwise for set.  Value of entity topology must be from the
      * iMesh_EntityTopology enumeration.  If iMesh_ALL_TOPOLOGIES is specified,
      * total number of entities (excluding entity sets) is returned.
@@ -339,87 +334,6 @@ extern "C" {
                         /*out*/ int *areHandlesInvariant, 
                         /*out*/ int *err);
 
-    /**\brief  Return coordinates of all vertices defined in this instance or set
-     *
-     * Return coordinates of all vertices defined in this instance or set.
-     * If non-zero set is input, return coordinates for vertices either in
-     * the set or contained by entities in the set.  If storage order is
-     * a value other than iBase_UNDETERMINED, coordinates are returned with
-     * that storage order; otherwise storage order is in native order with
-     * respect to the implementation.  On return, storage order contains
-     * order of the returned coordinates.
-     * \param instance iMesh instance handle
-     * \param entity_set_handle Entity set for which vertex coordinates are
-     *        requested
-     * \param *coordinates Pointer to array holding coordinates
-     * \param *coordinates_allocated Pointer to allocated size of coordinates
-     *        array
-     * \param *coordinates_size Pointer to occupied size of coordinates
-     *        array
-     * \param *in_entity_set Pointer to array of flags; if entity set was
-     *        input, (*in_entity_set)[i]=1 indicates that vertex i was in
-     *        the entity set, zero otherwise.
-     * \param *in_entity_set_allocated Pointer to allocated size of 
-     *        in_entity_set array
-     * \param *in_entity_set_size Pointer to occupied size of 
-     *        in_entity_set array
-     * \param *storage_order Pointer to storage order requested/returned from
-     *        function
-     * \param *err Pointer to error type returned from function
-     */
-  void iMesh_getAllVtxCoords (iMesh_Instance instance,
-                              /*in*/ const iBase_EntitySetHandle entity_set_handle,
-                              /*inout*/ double** coordinates,
-                              /*inout*/ int* coordinates_allocated,
-                              /*out*/ int* coordinates_size,
-                              /*inout*/ int** in_entity_set,
-                              /*inout*/ int* in_entity_set_allocated,
-                              /*out*/ int* in_entity_set_size,
-                              /*inout*/ int* storage_order, /*out*/ int *err);
-
-    /**\brief  Get adjacent entities as connectivity lists
-     *
-     * For a specified set handle, entity type and/or entity topology,
-     * return connectivity of adjacent entities of specified dimension.  
-     * Connectivity is expressed as index into array of vertices returned
-     * by getEntities function.  \em offset[i] is the index of the first
-     * vertex of the first entity adjacent to entity \em i in the entity set
-     * or the mesh.  The topology of entities whose connectivity is returned
-     * is given in the entity_topologies array.
-     * \param instance iMesh instance handle
-     * \param entity_set_handle Entity set being queried
-     * \param requested_entity_type Type of entity requested
-     * \param requested_entity_topology Topology of entity requested
-     * \param entity_adjacency_type Adjacency type
-     * \param *offset Pointer to array of offsets returned from function
-     * \param *offset_allocated Pointer to allocated size of offset array
-     * \param *offset_size Pointer to occupied size of offset array
-     * \param *index Pointer to array of indices returned from function
-     * \param *index_allocated Pointer to allocated size of index array
-     * \param *index_size Pointer to occupied size of index array
-     * \param *entity_topologies Pointer to array of entity topologies 
-     *        returned from function
-     * \param *entity_topologies_allocated Pointer to allocated size of 
-     *        entity_topologies array
-     * \param *entity_topologies_size Pointer to occupied size of 
-     *        entity_topologies array
-     * \param *err Pointer to error type returned from function
-     */
-  void iMesh_getVtxCoordIndex (iMesh_Instance instance,
-                               /*in*/ const iBase_EntitySetHandle entity_set_handle,
-                               /*in*/ const int requested_entity_type,
-                               /*in*/ const int requested_entity_topology,
-                               /*in*/ const int entity_adjacency_type,
-                               /*inout*/ int** offset,
-                               /*inout*/ int* offset_allocated,
-                               /*out*/ int* offset_size,
-                               /*inout*/ int** index,
-                               /*inout*/ int* index_allocated,
-                               /*out*/ int* index_size,
-                               /*inout*/  int** entity_topologies,
-                               /*inout*/ int* entity_topologies_allocated,
-                               /*out*/ int* entity_topologies_size, 
-                               /*out*/ int *err);
 
     /**\brief  Get entities of specific type and/or topology in set or instance
      *
@@ -490,7 +404,7 @@ extern "C" {
      * mesh or set.
      * \param instance iMesh instance handle
      * \param entity_set_handle Entity set whose adjacent entities are requested
-     *        (zero indicates whole mesh)
+     *        (root set indicates whole mesh)
      * \param entity_type_requestor Return entities adjacent to entities of this 
      *        type
      * \param entity_topology_requestor Return entities adjacent to entities of 
@@ -514,7 +428,7 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_getAdjEntities(iMesh_Instance instance,
-                            /*in*/ const iBase_EntityHandle entity_set_handle,
+                            /*in*/ const iBase_EntitySetHandle entity_set_handle,
                             /*in*/ const int entity_type_requestor,
                             /*in*/ const int entity_topology_requestor,
                             /*in*/ const int entity_type_requested,
@@ -690,16 +604,16 @@ extern "C" {
  * \param instance iMesh instance for this call
  * \param entity_handles Entities from which adjacencies are requested
  * \param entity_handles_size Number of entities whose adjacencies are requested
- * \param order_adjacent_key Bridge dimension for 2nd order adjacencies
- * \param requested_entity_type Dimension of adjacent entities returned
- * \param *adj_entity_handles Adjacent entities
- * \param *adj_entity_handles_allocated Allocated size of returned array
- * \param *adj_entity_handles_size Occupied size of returned array
- * \param *offset Offset[i] is offset into adj_entity_handles of 2nd order 
+ * \param bridge_dimension Bridge dimension for 2nd order adjacencies
+ * \param to_dimension Dimension of adjacent entities returned
+ * \param adj_entity_handles Adjacent entities
+ * \param adj_entity_handles_allocated Allocated size of returned array
+ * \param adj_entity_handles_size Occupied size of returned array
+ * \param offset Offset[i] is offset into adj_entity_handles of 2nd order 
  *        adjacencies of ith entity in entity_handles
- * \param *offset_allocated Allocated size of offset array
- * \param *offset_size Occupied size of offset array
- * \param *err Pointer to error type returned from function
+ * \param offset_allocated Allocated size of offset array
+ * \param offset_size Occupied size of offset array
+ * \param err 
  */
   void iMesh_getEntArr2ndAdj( iMesh_Instance instance,
                               iBase_EntityHandle const* entity_handles,
@@ -713,6 +627,62 @@ extern "C" {
                               int* offset_allocated,
                               int* offset_size,
                               int* err );
+
+   /**\brief Get indexed representation of mesh or subset of mesh
+    *
+    * Given an entity set and optionally a type or topology, return:
+    * - The entities in the set of the specified type or topology
+    * - The entities adjacent to those entities with a specified
+    *    type, as a list of unique handles.
+    * - For each entity in the first list, the adjacent entities,
+    *    specified as indices into the second list.
+    *
+    *\param entity_set_handle     The set of entities from which to query
+    *\param entity_type_requestor If not iBase_ALL_TYPES, act only on 
+    *                             the subset of 'entity_set_handle' of the
+    *                             specified type.
+    *\param entity_topology_requestor If not iMesh_ALL_TOPOLOGIES, act only
+    *                             on the subset of 'entity_set_handle' with
+    *                             the specified topology.
+    *\param entity_type_requested The type of the adjacent entities to
+    *                             return.
+    *\param entity_handles        The handles of the (non-struct) subset of   
+    *                             the entity set indicated by 
+    *                             'entity_set_handle' and the optional type
+    *                             and topology filtering arguments.
+    *\param adj_entity_handles    The union of the entities of type 
+    *                             'requested_entity_type' adjacent to each
+    *                             entity in 'entity_handles'.
+    *\param adj_entity_indices    For each entity in 'entity_handles', the
+    *                             adjacent entities of type
+    *                             'entity_type_requested', specified as 
+    *                             indices into 'adj_entity_handles'.  The
+    *                             values are concatenated into a single   
+    *                             array in the order of the entity handles 
+    *                             in 'entity_handles'.
+    *\param offset                For each entity in the corresponding 
+    *                             position in 'entity_handles', the position
+    *                             in 'adj_entity_indices' at which values
+    *                             for that entity are stored.
+    */
+  void iMesh_getAdjEntIndices(iMesh_Instance instance,
+                      /*in*/    iBase_EntitySetHandle entity_set_handle,
+                      /*in*/    int entity_type_requestor,
+                      /*in*/    int entity_topology_requestor,
+                      /*in*/    int entity_type_requested,
+                      /*inout*/ iBase_EntityHandle** entity_handles,
+                      /*inout*/ int* entity_handles_allocated,
+                      /*out*/   int* entity_handles_size,
+                      /*inout*/ iBase_EntityHandle** adj_entity_handles,
+                      /*inout*/ int* adj_entity_handles_allocated,
+                      /*out*/   int* adj_entity_handles_size,
+                      /*inout*/ int** adj_entity_indices,
+                      /*inout*/ int* adj_entity_indices_allocated,
+                      /*out*/   int* adj_entity_indices_size,
+                      /*inout*/ int** offset,
+                      /*inout*/ int* offset_allocated,
+                      /*out*/   int* offset_size,
+                      /*out*/   int *err);
 
     /**\brief  Create an entity set
      *
@@ -810,8 +780,8 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_addEntToSet(iMesh_Instance instance,
-                         /*in*/ const iBase_EntityHandle entity_handle,
-                         /*inout*/ iBase_EntitySetHandle* entity_set,
+                         /*in*/ iBase_EntityHandle entity_handle,
+                         /*in*/ iBase_EntitySetHandle entity_set,
                          /*out*/ int *err);
 
     /**\brief  Remove an entity from a set
@@ -824,8 +794,8 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_rmvEntFromSet(iMesh_Instance instance,
-                           /*in*/ const iBase_EntityHandle entity_handle,
-                           /*inout*/ iBase_EntitySetHandle* entity_set,
+                           /*in*/ iBase_EntityHandle entity_handle,
+                           /*in*/ iBase_EntitySetHandle entity_set,
                            /*out*/ int *err);
 
 
@@ -839,9 +809,9 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_addEntArrToSet(iMesh_Instance instance,
-                            /*in*/ const iBase_EntityHandle* entity_handles,
-                            /*in*/ const int entity_handles_size,
-                            /*inout*/ iBase_EntitySetHandle* entity_set,
+                            /*in*/ iBase_EntityHandle* entity_handles,
+                            /*in*/ int entity_handles_size,
+                            /*in*/ iBase_EntitySetHandle entity_set,
                             /*out*/ int *err);
 
 
@@ -855,9 +825,9 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_rmvEntArrFromSet(iMesh_Instance instance,
-                              /*in*/ const iBase_EntityHandle* entity_handles,
-                              /*in*/ const int entity_handles_size,
-                              /*inout*/ iBase_EntitySetHandle* entity_set,
+                              /*in*/ iBase_EntityHandle* entity_handles,
+                              /*in*/ int entity_handles_size,
+                              /*in*/ iBase_EntitySetHandle entity_set,
                               /*out*/ int *err);
 
 
@@ -870,8 +840,8 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_addEntSet(iMesh_Instance instance,
-                       /*in*/ const iBase_EntityHandle entity_set_to_add,
-                       /*inout*/ iBase_EntitySetHandle* entity_set_handle,
+                       /*in*/ iBase_EntitySetHandle entity_set_to_add,
+                       /*in*/ iBase_EntitySetHandle entity_set_handle,
                        /*out*/ int *err);
 
 
@@ -884,8 +854,8 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_rmvEntSet(iMesh_Instance instance,
-                       /*in*/ const iBase_EntitySetHandle entity_set_to_remove,
-                       /*inout*/ iBase_EntitySetHandle* entity_set_handle,
+                       /*in*/ iBase_EntitySetHandle entity_set_to_remove,
+                       /*in*/ iBase_EntitySetHandle entity_set_handle,
                        /*out*/ int *err);
 
     /**\brief  Return whether an entity is contained in another set
@@ -901,18 +871,28 @@ extern "C" {
      */
   void iMesh_isEntContained(iMesh_Instance instance,
                             /*in*/ const iBase_EntitySetHandle containing_entity_set,
-                            /*in*/ const iBase_EntitySetHandle contained_entity,
+                            /*in*/ const iBase_EntityHandle contained_entity,
                             /*out*/ int *is_contained,
                             /*out*/ int *err);
-                            
+
+    /**\brief  Return whether entities are contained in a set
+     *
+     * Return whether each entity is contained in the set.
+     * \param instance iMesh instance handle
+     * \param containing_entity_set Entity set being queried
+     * \param entity_handles List of entities for which to check containment.
+     * \param is_contained One value for each input entity, 1 if contained
+     *          in set, zero otherwise.
+     * \param *err Pointer to error type returned from function
+     */
   void iMesh_isEntArrContained( iMesh_Instance instance,
-                            /*in*/ iBase_EntitySetHandle containing_set,
-                            /*in*/ const iBase_EntitySetHandle* entity_handles,
-                            /*in*/ int num_entity_handles,
-                         /*inout*/ int** is_contained,
-                         /*inout*/ int* is_contained_allocated,
-                           /*out*/ int* is_contained_size,
-                           /*out*/ int* err );
+                         /*in*/ iBase_EntitySetHandle containing_set,
+                         /*in*/ const iBase_EntityHandle* entity_handles,
+                         /*in*/ int num_entity_handles,
+                      /*inout*/ int** is_contained,
+                      /*inout*/ int* is_contained_allocated,
+                        /*out*/ int* is_contained_size,
+                        /*out*/ int* err );
 
     /**\brief  Return whether an entity set is contained in another set
      *
@@ -941,8 +921,8 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_addPrntChld(iMesh_Instance instance,
-                         /*inout*/ iBase_EntitySetHandle* parent_entity_set,
-                         /*inout*/ iBase_EntitySetHandle* child_entity_set,
+                         /*in*/ iBase_EntitySetHandle parent_entity_set,
+                         /*in*/ iBase_EntitySetHandle child_entity_set,
                          /*out*/ int *err);
 
     /**\brief  Remove parent/child links between two sets
@@ -954,8 +934,8 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_rmvPrntChld(iMesh_Instance instance,
-                         /*inout*/ iBase_EntitySetHandle* parent_entity_set,
-                         /*inout*/ iBase_EntitySetHandle* child_entity_set,
+                         /*in*/ iBase_EntitySetHandle parent_entity_set,
+                         /*in*/ iBase_EntitySetHandle child_entity_set,
                          /*out*/ int *err);
 
     /**\brief  Return whether two sets are related by parent/child links
@@ -1987,12 +1967,12 @@ extern "C" {
  * specified "to" dimension.
  * \param instance iMesh instance for this call
  * \param entity_handle Entity from which adjacencies are requested
- * \param order_adjacent_key Bridge dimension for 2nd order adjacencies
- * \param requested_entity_type Dimension of adjacent entities returned
- * \param *adjacent_entities Pointer to array of adjacent entities
- * \param *adjacent_entities_allocated Pointer to allocated size of returned array
- * \param *adjacent_entities_size Pointer to occupied size of returned array
- * \param *err Pointer to error type returned from function
+ * \param bridge_dimension Bridge dimension for 2nd order adjacencies
+ * \param to_dimension Dimension of adjacent entities returned
+ * \param adjacent_entities Adjacent entities
+ * \param adjacent_entities_allocated Allocated size of returned array
+ * \param adjacent_entities_size Occupied size of returned array
+ * \param err 
  */
   void iMesh_getEnt2ndAdj( iMesh_Instance instance,
                            iBase_EntityHandle entity_handle,

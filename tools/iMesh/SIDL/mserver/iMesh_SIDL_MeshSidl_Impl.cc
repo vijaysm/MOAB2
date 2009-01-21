@@ -2,16 +2,16 @@
 // File:          iMesh_SIDL_MeshSidl_Impl.cc
 // Symbol:        iMesh_SIDL.MeshSidl-v0.2
 // Symbol Type:   class
-// Babel Version: 0.10.12
-// sidl Created:  20070927 14:57:59 CDT
-// Generated:     20070927 14:58:07 CDT
+// Babel Version: 0.10.10
+// sidl Created:  20090120 19:02:01 CST
+// Generated:     20090120 19:02:03 CST
 // Description:   Server-side implementation for iMesh_SIDL.MeshSidl
 // 
 // WARNING: Automatically generated; only changes within splicers preserved
 // 
-// babel-version = 0.10.12
+// babel-version = 0.10.10
 // source-line   = 5
-// source-url    = file:/home/tautges/MOAB/tools/iMesh/SIDL/iMesh_SIDL.sidl
+// source-url    = file:/home/jason/moab/newimesh/src/tools/iMesh/SIDL/iMesh_SIDL.sidl
 // 
 #include "iMesh_SIDL_MeshSidl_Impl.hh"
 
@@ -277,7 +277,7 @@ throw (
   // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.getEHData)
   // Insert-Code-Here {iMesh_SIDL.MeshSidl.getEHData} (getEHData method)
   iMesh_getEHData (imeshInstance, (iBase_EntityHandle) entity_handle, (iBase_TagHandle) tag_handle, 
-                   (iBase_TagHandle*)&eh_data, &imeshError);
+                   (iBase_EntityHandle*)&eh_data, &imeshError);
   PROCESS_ERROR;
   // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.getEHData)
 }
@@ -375,7 +375,7 @@ throw (
 ){
   // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.getAllTags)
   // Insert-Code-Here {iMesh_SIDL.MeshSidl.getAllTags} (getAllTags method)
-  CREATE_TEMP_EH_ARRAY(tag_handles);
+  CREATE_TEMP_TH_ARRAY(tag_handles);
 
   iMesh_getAllTags (imeshInstance, (iBase_EntityHandle) entity_handle,
                     TEMP_ARRAY_INOUT(tag_handles), &imeshError);
@@ -800,7 +800,7 @@ throw (
   // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.getAllEntSetTags)
   // Insert-Code-Here {iMesh_SIDL.MeshSidl.getAllEntSetTags} (getAllEntSetTags method)
 
-  CREATE_TEMP_EH_ARRAY(tag_handles);
+  CREATE_TEMP_TH_ARRAY(tag_handles);
 
   iMesh_getAllEntSetTags (imeshInstance, reinterpret_cast<iBase_EntitySetHandle>(entity_set),
                           TEMP_ARRAY_INOUT(tag_handles), &imeshError);
@@ -913,7 +913,7 @@ throw (
 ){
   // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.getEntSets)
   // Insert-Code-Here {iMesh_SIDL.MeshSidl.getEntSets} (getEntSets method)
-  CREATE_TEMP_EH_ARRAY(contained_entset_handles);
+  CREATE_TEMP_ESH_ARRAY(contained_entset_handles);
 
   iMesh_getEntSets (imeshInstance,
                     reinterpret_cast<iBase_EntitySetHandle>(entity_set), num_hops,
@@ -931,13 +931,13 @@ throw (
 void
 iMesh_SIDL::MeshSidl_impl::addEntToSet (
   /* in */ void* entity_handle,
-  /* inout */ void*& entity_set ) 
+  /* in */ void* entity_set ) 
 throw ( 
   ::iBase::Error
 ){
   // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.addEntToSet)
   // Insert-Code-Here {iMesh_SIDL.MeshSidl.addEntToSet} (addEntToSet method)
-  iMesh_addEntToSet (imeshInstance, (iBase_EntityHandle) entity_handle, reinterpret_cast<iBase_EntitySetHandle*>(&entity_set), &imeshError);
+  iMesh_addEntToSet (imeshInstance, (iBase_EntityHandle) entity_handle, (iBase_EntitySetHandle)entity_set, &imeshError);
   PROCESS_ERROR;
   // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.addEntToSet)
 }
@@ -948,13 +948,13 @@ throw (
 void
 iMesh_SIDL::MeshSidl_impl::rmvEntFromSet (
   /* in */ void* entity_handle,
-  /* inout */ void*& entity_set ) 
+  /* in */ void* entity_set ) 
 throw ( 
   ::iBase::Error
 ){
   // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.rmvEntFromSet)
   // Insert-Code-Here {iMesh_SIDL.MeshSidl.rmvEntFromSet} (rmvEntFromSet method)
-  iMesh_rmvEntFromSet (imeshInstance, (iBase_EntityHandle) entity_handle, reinterpret_cast<iBase_EntitySetHandle*>(&entity_set), &imeshError);
+  iMesh_rmvEntFromSet (imeshInstance, (iBase_EntityHandle) entity_handle, (iBase_EntitySetHandle)entity_set, &imeshError);
   PROCESS_ERROR;
   // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.rmvEntFromSet)
 }
@@ -966,7 +966,7 @@ void
 iMesh_SIDL::MeshSidl_impl::addEntArrToSet (
   /* in */ ::sidl::array<void*> entity_handles,
   /* in */ int32_t entity_handles_size,
-  /* inout */ void*& entity_set ) 
+  /* in */ void* entity_set ) 
 throw ( 
   ::iBase::Error
 ){
@@ -974,7 +974,7 @@ throw (
   // Insert-Code-Here {iMesh_SIDL.MeshSidl.addEntArrToSet} (addEntArrToSet method)
   iMesh_addEntArrToSet (imeshInstance,
                         TEMP_TYPED_ARRAY_IN(iBase_EntityHandle, entity_handles), 
-                        reinterpret_cast<iBase_EntitySetHandle*>(&entity_set), &imeshError);
+                        (iBase_EntitySetHandle)entity_set, &imeshError);
   PROCESS_ERROR;
   // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.addEntArrToSet)
 }
@@ -986,7 +986,7 @@ void
 iMesh_SIDL::MeshSidl_impl::rmvEntArrFromSet (
   /* in */ ::sidl::array<void*> entity_handles,
   /* in */ int32_t entity_handles_size,
-  /* inout */ void*& entity_set ) 
+  /* in */ void* entity_set ) 
 throw ( 
   ::iBase::Error
 ){
@@ -994,7 +994,7 @@ throw (
   // Insert-Code-Here {iMesh_SIDL.MeshSidl.rmvEntArrFromSet} (rmvEntArrFromSet method)
   iMesh_rmvEntArrFromSet (imeshInstance,
                           TEMP_TYPED_ARRAY_IN(iBase_EntityHandle, entity_handles), 
-                          reinterpret_cast<iBase_EntitySetHandle*>(&entity_set), &imeshError);
+                          (iBase_EntitySetHandle)entity_set, &imeshError);
   PROCESS_ERROR;
   // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.rmvEntArrFromSet)
 }
@@ -1005,14 +1005,14 @@ throw (
 void
 iMesh_SIDL::MeshSidl_impl::addEntSet (
   /* in */ void* entity_set_to_add,
-  /* inout */ void*& entity_set_handle ) 
+  /* in */ void* entity_set_handle ) 
 throw ( 
   ::iBase::Error
 ){
   // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.addEntSet)
   // Insert-Code-Here {iMesh_SIDL.MeshSidl.addEntSet} (addEntSet method)
   iMesh_addEntSet (imeshInstance, reinterpret_cast<iBase_EntitySetHandle>(entity_set_to_add), 
-                   reinterpret_cast<iBase_EntitySetHandle*>(&entity_set_handle), &imeshError);
+                   (iBase_EntitySetHandle)entity_set_handle, &imeshError);
   PROCESS_ERROR;
   // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.addEntSet)
 }
@@ -1023,14 +1023,14 @@ throw (
 void
 iMesh_SIDL::MeshSidl_impl::rmvEntSet (
   /* in */ void* entity_set_to_remove,
-  /* inout */ void*& entity_set_handle ) 
+  /* in */ void* entity_set_handle ) 
 throw ( 
   ::iBase::Error
 ){
   // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.rmvEntSet)
   // Insert-Code-Here {iMesh_SIDL.MeshSidl.rmvEntSet} (rmvEntSet method)
   iMesh_rmvEntSet(imeshInstance, reinterpret_cast<iBase_EntitySetHandle>(entity_set_to_remove),
-                  reinterpret_cast<iBase_EntitySetHandle*>(&entity_set_handle), &imeshError);
+                  (iBase_EntitySetHandle)entity_set_handle, &imeshError);
   PROCESS_ERROR;
   // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.rmvEntSet)
 }
@@ -1052,6 +1052,31 @@ throw (
                        reinterpret_cast<iBase_EntitySetHandle>(containing_entity_set), (iBase_EntityHandle) entity_handle, &is_contained, &imeshError);
   PROCESS_ERROR;
   // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.isEntContained)
+}
+
+/**
+ * Method:  isEntArrContained[]
+ */
+void
+iMesh_SIDL::MeshSidl_impl::isEntArrContained (
+  /* in */ void* containing_set,
+  /* in */ ::sidl::array<void*> entity_handles,
+  /* in */ int32_t entity_handles_size,
+  /* inout */ ::sidl::array<int32_t>& is_contained,
+  /* out */ int32_t& is_contained_size ) 
+throw () 
+{
+  // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.isEntArrContained)
+
+  CREATE_TEMP_ARRAY(int32_t, is_contained);
+
+  iMesh_isEntArrContained( imeshInstance,
+                           (iBase_EntitySetHandle)containing_set,
+                           TEMP_TYPED_ARRAY_IN(iBase_EntityHandle, entity_handles),
+                           TEMP_ARRAY_INOUT(is_contained), &imeshError);
+  PROCESS_ERROR;
+
+  // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.isEntArrContained)
 }
 
 /**
@@ -1080,16 +1105,16 @@ throw (
  */
 void
 iMesh_SIDL::MeshSidl_impl::addPrntChld (
-  /* inout */ void*& parent_entity_set,
-  /* inout */ void*& child_entity_set ) 
+  /* in */ void* parent_entity_set,
+  /* in */ void* child_entity_set ) 
 throw ( 
   ::iBase::Error
 ){
   // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.addPrntChld)
   // Insert-Code-Here {iMesh_SIDL.MeshSidl.addPrntChld} (addPrntChld method)
   iMesh_addPrntChld (imeshInstance,
-                     reinterpret_cast<iBase_EntitySetHandle*>(&parent_entity_set), 
-                     reinterpret_cast<iBase_EntitySetHandle*>(&child_entity_set), 
+                     (iBase_EntitySetHandle)parent_entity_set, 
+                     (iBase_EntitySetHandle)child_entity_set, 
                      &imeshError);
   PROCESS_ERROR;
   // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.addPrntChld)
@@ -1100,16 +1125,16 @@ throw (
  */
 void
 iMesh_SIDL::MeshSidl_impl::rmvPrntChld (
-  /* inout */ void*& parent_entity_set,
-  /* inout */ void*& child_entity_set ) 
+  /* in */ void* parent_entity_set,
+  /* in */ void* child_entity_set ) 
 throw ( 
   ::iBase::Error
 ){
   // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.rmvPrntChld)
   // Insert-Code-Here {iMesh_SIDL.MeshSidl.rmvPrntChld} (rmvPrntChld method)
   iMesh_rmvPrntChld (imeshInstance,
-                       /*inout*/ reinterpret_cast<iBase_EntitySetHandle*>(&parent_entity_set),
-                     /*inout*/ reinterpret_cast<iBase_EntitySetHandle*>(&child_entity_set), &imeshError);
+                    (iBase_EntitySetHandle)parent_entity_set,
+                    (iBase_EntitySetHandle)child_entity_set, &imeshError);
   PROCESS_ERROR;
   // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.rmvPrntChld)
 }
@@ -1188,7 +1213,7 @@ throw (
   // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.getChldn)
   // Insert-Code-Here {iMesh_SIDL.MeshSidl.getChldn} (getChldn method)
 
-  CREATE_TEMP_EH_ARRAY(child_handles);
+  CREATE_TEMP_ESH_ARRAY(child_handles);
 
   iMesh_getChldn (imeshInstance, 
                   reinterpret_cast<iBase_EntitySetHandle>(from_entity_set), 
@@ -1216,7 +1241,7 @@ throw (
   // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.getPrnts)
   // Insert-Code-Here {iMesh_SIDL.MeshSidl.getPrnts} (getPrnts method)
 
-  CREATE_TEMP_EH_ARRAY(parent_handles);
+  CREATE_TEMP_ESH_ARRAY(parent_handles);
 
   iMesh_getPrnts (imeshInstance, 
                   reinterpret_cast<iBase_EntitySetHandle>(from_entity_set), 
@@ -1350,7 +1375,7 @@ throw (
   // Insert-Code-Here {iMesh_SIDL.MeshSidl.getRootSet} (getRootSet method)
 
   iMesh_getRootSet (imeshInstance, 
-                    reinterpret_cast<iBase_EntityHandle*>(&root_set), 
+                    reinterpret_cast<iBase_EntitySetHandle*>(&root_set), 
                     &imeshError);
   PROCESS_ERROR;
   // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.getRootSet)
@@ -1372,6 +1397,23 @@ throw (
   PROCESS_ERROR;
 
   // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.getGeometricDim)
+}
+
+/**
+ * Method:  setGeometricDim[]
+ */
+void
+iMesh_SIDL::MeshSidl_impl::setGeometricDim (
+  /* in */ int32_t dim ) 
+throw ( 
+  ::iBase::Error
+){
+  // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.setGeometricDim)
+  // Insert-Code-Here {iMesh_SIDL.MeshSidl.setGeometricDim} (setGeometricDim method)
+  iMesh_setGeometricDimension(imeshInstance, dim, &imeshError);
+  PROCESS_ERROR;
+  
+  // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.setGeometricDim)
 }
 
 /**
@@ -1468,77 +1510,6 @@ throw (
 }
 
 /**
- * Method:  getAllVtxCoords[]
- */
-void
-iMesh_SIDL::MeshSidl_impl::getAllVtxCoords (
-  /* in */ void* entity_set,
-  /* inout */ ::sidl::array<double>& coords,
-  /* out */ int32_t& coords_size,
-  /* inout */ ::sidl::array<int32_t>& in_entity_set,
-  /* out */ int32_t& in_entity_set_size,
-  /* inout */ ::iBase::StorageOrder& storage_order ) 
-throw ( 
-  ::iBase::Error
-){
-  // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.getAllVtxCoords)
-  // Insert-Code-Here {iMesh_SIDL.MeshSidl.getAllVtxCoords} (getAllVtxCoords method)
-  CREATE_TEMP_ARRAY(double, coords);
-  CREATE_TEMP_ARRAY(int32_t, in_entity_set);
-  
-  iMesh_getAllVtxCoords (imeshInstance, reinterpret_cast<iBase_EntitySetHandle>(entity_set),
-                         TEMP_ARRAY_INOUT(coords),
-                         TEMP_ARRAY_INOUT(in_entity_set),
-                         (int*)&storage_order, &imeshError);
-
-  PROCESS_ERROR;
-  ASSIGN_TYPED_ARRAY(double, coords);
-  ASSIGN_TYPED_ARRAY(int32_t, in_entity_set);
-
-  // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.getAllVtxCoords)
-}
-
-/**
- * Method:  getVtxCoordIndex[]
- */
-void
-iMesh_SIDL::MeshSidl_impl::getVtxCoordIndex (
-  /* in */ void* entity_set,
-  /* in */ ::iBase::EntityType requested_entity_type,
-  /* in */ ::iMesh::EntityTopology requested_entity_topology,
-  /* in */ ::iBase::EntityType entity_adjacency_type,
-  /* inout */ ::sidl::array<int32_t>& offset,
-  /* out */ int32_t& offset_size,
-  /* inout */ ::sidl::array<int32_t>& index,
-  /* out */ int32_t& index_size,
-  /* inout */ ::sidl::array< ::iMesh::EntityTopology>& entity_topologies,
-  /* out */ int32_t& entity_topologies_size ) 
-throw ( 
-  ::iBase::Error
-){
-  // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.getVtxCoordIndex)
-  // Insert-Code-Here {iMesh_SIDL.MeshSidl.getVtxCoordIndex} (getVtxCoordIndex method)
-
-  CREATE_TEMP_ARRAY(int32_t, offset);
-  CREATE_TEMP_ARRAY(int32_t, index);
-  CREATE_TEMP_ENUM_ARRAY(int, entity_topologies);
-  
-  iMesh_getVtxCoordIndex (imeshInstance, reinterpret_cast<iBase_EntitySetHandle>(entity_set), 
-                          (iBase_EntityType)requested_entity_type, 
-                          (iMesh_EntityTopology)requested_entity_topology,
-                          (iBase_EntityType)entity_adjacency_type,
-                          TEMP_ARRAY_INOUT(offset), 
-                          TEMP_ARRAY_INOUT(index), 
-                          TEMP_ARRAY_INOUT(entity_topologies), &imeshError);
-
-  PROCESS_ERROR;
-  ASSIGN_TYPED_ARRAY(int, offset);
-  ASSIGN_TYPED_ARRAY(int, index);
-  ASSIGN_ENUM_ARRAY(entity_topologies);
-  // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.getVtxCoordIndex)
-}
-
-/**
  * Method:  getEntities[]
  */
 void
@@ -1632,6 +1603,31 @@ throw (
   ASSIGN_TYPED_ARRAY(int32_t, offset);
   ASSIGN_TYPED_ARRAY(int32_t, in_entity_set);
   // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.getAdjEntities)
+}
+
+/**
+ * Method:  getAdjEntIndices[]
+ */
+void
+iMesh_SIDL::MeshSidl_impl::getAdjEntIndices (
+  /* in */ void* entity_set_handle,
+  /* in */ ::iBase::EntityType entity_type_requestor,
+  /* in */ ::iMesh::EntityTopology entity_topology_requestor,
+  /* in */ ::iBase::EntityType entity_type_requested,
+  /* inout */ ::sidl::array<void*>& entity_handles,
+  /* out */ int32_t& entity_handles_size,
+  /* inout */ ::sidl::array<void*>& adj_entity_handles,
+  /* out */ int32_t& adj_entity_handles_size,
+  /* inout */ ::sidl::array<int32_t>& adj_entity_indices,
+  /* out */ int32_t& adj_entity_indices_size,
+  /* inout */ ::sidl::array<int32_t>& offset,
+  /* out */ int32_t& offset_size ) 
+throw ( 
+  ::iBase::Error
+){
+  // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.getAdjEntIndices)
+  // Insert-Code-Here {iMesh_SIDL.MeshSidl.getAdjEntIndices} (getAdjEntIndices method)
+  // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.getAdjEntIndices)
 }
 
 /**

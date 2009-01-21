@@ -47,6 +47,20 @@
           int my_arr ## _allocated_size = (my_arr._get_ior() == NULL ? 0 :\
           my_arr._get_ior()->d_upper[0] - my_arr._get_ior()->d_lower[0] + 1)
 
+#define CREATE_TEMP_ESH_ARRAY(my_arr) \
+          bool my_arr ## _i_allocated = (my_arr._get_ior() == NULL); \
+          iBase_EntitySetHandle *my_arr ## _temp = reinterpret_cast<iBase_EntitySetHandle*>((my_arr._get_ior() == NULL ? NULL : \
+              my_arr._get_ior()->d_firstElement)); \
+          int my_arr ## _allocated_size = (my_arr._get_ior() == NULL ? 0 :\
+          my_arr._get_ior()->d_upper[0] - my_arr._get_ior()->d_lower[0] + 1)
+
+#define CREATE_TEMP_TH_ARRAY(my_arr) \
+          bool my_arr ## _i_allocated = (my_arr._get_ior() == NULL); \
+          iBase_TagHandle *my_arr ## _temp = reinterpret_cast<iBase_TagHandle*>((my_arr._get_ior() == NULL ? NULL : \
+              my_arr._get_ior()->d_firstElement)); \
+          int my_arr ## _allocated_size = (my_arr._get_ior() == NULL ? 0 :\
+          my_arr._get_ior()->d_upper[0] - my_arr._get_ior()->d_lower[0] + 1)
+
 #define ASSIGN_TAG_ARRAY(my_arr) \
           if (!my_arr ## _i_allocated && \
               ARRAY_SIZE(my_arr) < my_arr ## _allocated_size) {\
@@ -151,6 +165,20 @@
 #define CREATE_TEMP_EH_ARRAY(my_arr) \
           bool my_arr ## _i_allocated = (my_arr._get_ior() == NULL); \
           iBase_EntityHandle *my_arr ## _temp = reinterpret_cast<iBase_EntityHandle*>((my_arr._get_ior() == NULL ? NULL : \
+              my_arr._get_ior()->d_firstElement)); \
+          int my_arr ## _allocated_size = (my_arr._get_ior() == NULL ? 0 :\
+          my_arr._get_ior()->d_metadata.d_upper[0] - my_arr._get_ior()->d_metadata.d_lower[0] + 1)
+
+#define CREATE_TEMP_ESH_ARRAY(my_arr) \
+          bool my_arr ## _i_allocated = (my_arr._get_ior() == NULL); \
+          iBase_EntitySetHandle *my_arr ## _temp = reinterpret_cast<iBase_EntitySetHandle*>((my_arr._get_ior() == NULL ? NULL : \
+              my_arr._get_ior()->d_firstElement)); \
+          int my_arr ## _allocated_size = (my_arr._get_ior() == NULL ? 0 :\
+          my_arr._get_ior()->d_metadata.d_upper[0] - my_arr._get_ior()->d_metadata.d_lower[0] + 1)
+
+#define CREATE_TEMP_TH_ARRAY(my_arr) \
+          bool my_arr ## _i_allocated = (my_arr._get_ior() == NULL); \
+          iBase_TagHandle *my_arr ## _temp = reinterpret_cast<iBase_TagHandle*>((my_arr._get_ior() == NULL ? NULL : \
               my_arr._get_ior()->d_firstElement)); \
           int my_arr ## _allocated_size = (my_arr._get_ior() == NULL ? 0 :\
           my_arr._get_ior()->d_metadata.d_upper[0] - my_arr._get_ior()->d_metadata.d_lower[0] + 1)

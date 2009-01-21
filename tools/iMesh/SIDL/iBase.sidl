@@ -15,7 +15,7 @@
 //   ERRORS, TAGS
 //========================================================
 
-package iBase version 0.7
+package iBase version 0.8
 {
    enum EntityType {       
       VERTEX, 
@@ -284,20 +284,20 @@ package iBase version 0.7
 
       // add and remove entities 
       void addEntToSet(in opaque entity_handle,
-                       inout opaque entity_set) throws iBase.Error;
+                       in opaque entity_set) throws iBase.Error;
 
       // if the entity isn't in the set, don't throw an error
       void rmvEntFromSet( in opaque entity_handle,
-                          inout opaque entity_set) throws iBase.Error;
+                          in opaque entity_set) throws iBase.Error;
 
       void addEntArrToSet( in array<opaque> entity_handles,
                            in int entity_handles_size,
-                           inout opaque entity_set) throws iBase.Error;
+                           in opaque entity_set) throws iBase.Error;
 
       // if the entity isn't in the set, don't throw an error
       void rmvEntArrFromSet( in array<opaque> entity_handles,
                              in int entity_handles_size,
-                             inout opaque entity_set) throws iBase.Error;
+                             in opaque entity_set) throws iBase.Error;
 
       // all entity sets are contained in root set
       // root set is contained in no other sets
@@ -306,12 +306,12 @@ package iBase version 0.7
 
       // add/remove entity sets
       void addEntSet( in opaque entity_set_to_add, 
-                      inout opaque entity_set_handle) 
+                      in opaque entity_set_handle) 
                       throws iBase.Error;
 
       // if the entity set isn't in the set, don't throw an error
       void rmvEntSet( in opaque entity_set_to_remove, 
-                      inout opaque entity_set_handle) 
+                      in opaque entity_set_handle) 
                       throws iBase.Error;
 
       // check whether an entity is contained in the entity set
@@ -319,6 +319,13 @@ package iBase version 0.7
                           in opaque entity_handle,
                           out int is_contained) throws iBase.Error;
 
+      // check whether entities are contained in the entity set
+      void isEntArrContained( in opaque containing_set,
+                              in array<opaque> entity_handles,
+                              in int entity_handles_size,
+                              inout array<int> is_contained,
+                              out int is_contained_size );
+                              
       // check whether an entity set is contained in another
       void isEntSetContained(in opaque containing_entity_set,
                              in opaque contained_entity_set,
@@ -332,15 +339,15 @@ package iBase version 0.7
       // Root set cannot be a child or parent
 
       // don't throw error if parent/child already exists
-      void addPrntChld( inout opaque parent_entity_set, 
-			inout opaque child_entity_set) throws iBase.Error;
+      void addPrntChld( in opaque parent_entity_set, 
+			                  in opaque child_entity_set) throws iBase.Error;
 
       // don't throw error if parent/child link doesn't exist
-      void rmvPrntChld( inout opaque parent_entity_set, 
-			inout opaque child_entity_set) throws iBase.Error;
+      void rmvPrntChld( in opaque parent_entity_set, 
+			                  in opaque child_entity_set) throws iBase.Error;
 
       void isChildOf( in opaque parent_entity_set, 
-		      in opaque child_entity_set,
+                      in opaque child_entity_set,
                       out int is_child) throws iBase.Error;
 
       void getNumChld( in opaque entity_set, in int num_hops,
