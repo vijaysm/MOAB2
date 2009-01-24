@@ -1935,6 +1935,14 @@ extern "C" {
           RETURN(iBase_FAILURE);
         }
       }
+        // check if tag value is set on mesh
+      const void* data_ptr;
+      result = MBI->tag_get_data( this_tag, 0, 0, &data_ptr );
+      if (MB_SUCCESS == result) {
+        iMesh_processError(iBase_FAILURE, "iMesh_destroyTag: forced=false and mesh"
+                           " is still assigned this tag.");
+        RETURN(iBase_FAILURE);
+      }
     }
   
       // ok, good to go - either forced or no entities with this tag
