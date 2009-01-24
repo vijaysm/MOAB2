@@ -101,7 +101,7 @@ void handle_error_code(const int result,
 */
 int load_mesh_test(const char *filename, iMesh_Instance mesh)
 {
-    // load a mesh
+    /* load a mesh */
   int result;
   iMesh_load(mesh, root_set, filename, NULL, &result, strlen(filename), 0);
   if (iBase_SUCCESS != result) {
@@ -119,10 +119,13 @@ int load_mesh_test(const char *filename, iMesh_Instance mesh)
 */
 int topology_dimension_test(iMesh_Instance mesh)
 {
-    // first get 2D entities
   iBase_EntityHandle *faces = NULL;
   int faces_alloc = 0, faces_size;
   int result, i;
+  int *dimensions = NULL;
+  int dimensions_alloc = 0, dimensions_size;
+
+    /* first get 2D entities */
   iMesh_getEntities(mesh, root_set, iBase_FACE, 
                     iMesh_ALL_TOPOLOGIES, 
                     &faces, &faces_alloc, &faces_size, &result);
@@ -131,10 +134,7 @@ int topology_dimension_test(iMesh_Instance mesh)
     return FALSE;
   }
 
-    // get dimensions of faces
-  int *dimensions = NULL;
-  int dimensions_alloc = 0, dimensions_size;
-  
+    /* get dimensions of faces */
   iMesh_getEntArrType(mesh, faces, faces_size, 
                       &dimensions, &dimensions_alloc, &dimensions_size, &result);
   if (iBase_SUCCESS != result) {
@@ -147,7 +147,7 @@ int topology_dimension_test(iMesh_Instance mesh)
     return FALSE;
   }
     
-    // make sure all elements are 2D
+    /* make sure all elements are 2D */
   for (i = 0; i < faces_size; i++) {
     if (dimensions[i] != iBase_FACE) {
       return FALSE;
@@ -167,22 +167,34 @@ int topology_dimension_test(iMesh_Instance mesh)
   @li Check adjacency
   @li Get interior and exterior elements
 */
-// make each topological entity vectors, check their topology
-// types, get interior and exterior faces of hexes
+/* make each topological entity vectors, check their topology */
+/* types, get interior and exterior faces of hexes */
 int topology_adjacency_test(iMesh_Instance mesh)
 {
-  int result;
-  iBase_EntityHandle *entity_vectors[iMesh_ALL_TOPOLOGIES] = {NULL};
+  int result, i, j, entities_alloc, entities_size, *topologies;
+  int topologies_alloc, topologies_size;
+  iBase_EntityHandle *entities, *entity_vectors[iMesh_ALL_TOPOLOGIES] = {NULL};
   int entity_vectors_sizes[iMesh_ALL_TOPOLOGIES] = {0};
+  int top_j, num_tops, region_type, num_region;
+  iBase_EntityHandle *adj_faces = NULL;
+  int adj_faces_alloc = 0, adj_faces_size;
+  int *face_offsets = NULL;
+  int face_offsets_alloc = 0, face_offsets_size, face_loaded;
+  iBase_EntityHandle *adj_regions = NULL;
+  int adj_regions_alloc = 0, adj_regions_size;
+  int *region_offsets = NULL;
+  int region_offsets_alloc = 0, region_offsets_size;
+  iBase_EntityHandle *interior, *exterior;
+  int num_int = 0, num_ext = 0, found, next_offset, iter;
+  int num_faces_per_region;;
 
-    // fill the vectors of each topology entities
-    // like lines vector, polygon vector, triangle vector,
-    // quadrilateral, polyhedrron, tet, hex, prism, pyramid,
-    // septahedron vectors
-  int i;
+    /* fill the vectors of each topology entities */
+    /* like lines vector, polygon vector, triangle vector, */
+    /* quadrilateral, polyhedrron, tet, hex, prism, pyramid, */
+    /* septahedron vectors */
   for (i = 0; i < iMesh_ALL_TOPOLOGIES; i++) {
-    iBase_EntityHandle *entities = NULL;
-    int entities_alloc = 0, entities_size;
+    entities = NULL;
+    entities_alloc = 0;
     iMesh_getEntities(mesh, root_set, iBase_ALL_TYPES,
                       i, &entities, &entities_alloc, 
                       &entities_size, &result);
@@ -192,8 +204,8 @@ int topology_adjacency_test(iMesh_Instance mesh)
     }
 
     if (entities_alloc > 0) {
-      int *topologies = NULL;
-      int topologies_alloc = 0, topologies_size;
+      topologies = NULL;
+      topologies_alloc = 0;
       iMesh_getEntArrTopo(mesh, entities, 
                           entities_alloc, 
                           &topologies, &topologies_alloc, &topologies_size, &result);
@@ -208,11 +220,10 @@ int topology_adjacency_test(iMesh_Instance mesh)
         return FALSE;
       }
     
-        // put entities into vectors of each topology
+        /* put entities into vectors of each topology */
       entity_vectors[i] = (iBase_EntityHandle*) 
         malloc(entities_size*sizeof(iBase_EntityHandle));
 
-      int j;
       for (j = 0; j < entities_size; j++) {
         if (topologies[j] < iMesh_POINT ||
             topologies[j] >= iMesh_ALL_TOPOLOGIES)
@@ -229,10 +240,9 @@ int topology_adjacency_test(iMesh_Instance mesh)
     free(entities);
   }
 
-    // check number of entities for each topology
-  int top_j;
+    /* check number of entities for each topology */
   for (top_j = 0; top_j < iMesh_ALL_TOPOLOGIES; top_j++) {
-    int num_tops = 0;
+    num_tops = 0;
     iMesh_getNumOfTopo(mesh, root_set, top_j, &num_tops, &result);
     if (iBase_SUCCESS != result) {
       printf("Failed to get number of topologies in adjacencies_test.\n");
@@ -245,21 +255,20 @@ int topology_adjacency_test(iMesh_Instance mesh)
     }
   }
 
-    // change if 3d topology entities are added or removed
-  int region_type;
+    /* change if 3d topology entities are added or removed */
   for (region_type = iMesh_TETRAHEDRON;
        region_type < iMesh_ALL_TOPOLOGIES; region_type++) {
-      // get all adjacent faces of regions 
+      /* get all adjacent faces of regions  */
     iBase_EntityHandle *region_vector =
       entity_vectors[region_type];
     
-    int num_region = entity_vectors_sizes[region_type];
+    num_region = entity_vectors_sizes[region_type];
     
     if (num_region > 0) {
-      iBase_EntityHandle *adj_faces = NULL;
-      int adj_faces_alloc = 0, adj_faces_size;
-      int *face_offsets = NULL;
-      int face_offsets_alloc = 0, face_offsets_size;
+      adj_faces = NULL;
+      adj_faces_alloc = 0;
+      face_offsets = NULL;
+      face_offsets_alloc = 0;
       
       iMesh_getEntArrAdj(mesh, region_vector, num_region, 
                          iBase_FACE,
@@ -277,9 +286,9 @@ int topology_adjacency_test(iMesh_Instance mesh)
         return FALSE;
       }
 
-      int face_loaded = FALSE;
+      face_loaded = FALSE;
 
-        // check # of faces really loaded
+        /* check # of faces really loaded */
       if (region_type == iMesh_TETRAHEDRON) {
         if (adj_faces_size == 4*num_region)
           face_loaded = TRUE;
@@ -303,11 +312,11 @@ int topology_adjacency_test(iMesh_Instance mesh)
       else
         face_loaded = FALSE;
 
-        // get all adjacent regions of adjacent faces
-      iBase_EntityHandle *adj_regions = NULL;
-      int adj_regions_alloc = 0, adj_regions_size;
-      int *region_offsets = NULL;
-      int region_offsets_alloc = 0, region_offsets_size;
+        /* get all adjacent regions of adjacent faces */
+      adj_regions = NULL;
+      adj_regions_alloc = 0;
+      region_offsets = NULL;
+      region_offsets_alloc = 0;
       iMesh_getEntArrAdj(mesh, adj_faces, adj_faces_size, iBase_REGION,
                          &adj_regions, &adj_regions_alloc, 
                          &adj_regions_size,
@@ -323,22 +332,18 @@ int topology_adjacency_test(iMesh_Instance mesh)
         return FALSE;
       }
 
-      iBase_EntityHandle *interior = (iBase_EntityHandle*) 
-        malloc(adj_faces_size*sizeof(iBase_EntityHandle)),
-        *exterior = (iBase_EntityHandle*) 
-        malloc(adj_faces_size*sizeof(iBase_EntityHandle));
-      int num_int = 0, num_ext = 0;
+      interior = (iBase_EntityHandle*)malloc(adj_faces_size*sizeof(iBase_EntityHandle)),
+      exterior = (iBase_EntityHandle*)malloc(adj_faces_size*sizeof(iBase_EntityHandle));
+      num_int = 0; num_ext = 0;
       
-        // find the interior faces having two adjacent regions
-      int i;
+        /* find the interior faces having two adjacent regions */
       for (i = 0; i < adj_faces_size; i++) {
-        int next_offset = 0;
+        next_offset = 0;
         if (i == adj_faces_size-1) next_offset = adj_regions_size;
         else next_offset = region_offsets[i+1];
 
         if (next_offset - region_offsets[i] == 2) {
-          int found = FALSE;
-	  int iter;
+          found = FALSE;
           for (iter = 0; iter < num_int; iter++) {
             if (interior[iter] == adj_faces[i]) {
               found = TRUE;
@@ -349,11 +354,10 @@ int topology_adjacency_test(iMesh_Instance mesh)
         }
       }
 
-        // now remove any interior faces from the previous adjacent faces list
-        // and we should be left with exterior faces
+        /* now remove any interior faces from the previous adjacent faces list */
+        /* and we should be left with exterior faces */
       for (i = 0; i < adj_faces_size; i++) {
-	int found = FALSE;
-	int iter;
+	found = FALSE;
         for (iter = 0; iter < num_int; iter++) {
           if (interior[iter] == adj_faces[i]) {
             found = TRUE;
@@ -363,11 +367,11 @@ int topology_adjacency_test(iMesh_Instance mesh)
         if (!found) exterior[num_ext++] = adj_faces[i];
       }
 
-      int num_faces_per_region = face_offsets[1] - face_offsets[0];
+      num_faces_per_region = face_offsets[1] - face_offsets[0];
 
-        // check # of exterior and interior faces
-        // should be #exterior_faces + 2 * #interior_faces = #faces_per_region
-        // * #regions
+        /* check # of exterior and interior faces */
+        /* should be #exterior_faces + 2 * #interior_faces = #faces_per_region */
+        /* * #regions */
       if (face_loaded)
         if (num_ext+2*num_int !=
             num_faces_per_region*num_region) {
@@ -401,14 +405,26 @@ int entity_connectivity_test(iMesh_Instance mesh)
 {
   int type = iBase_EDGE;
   int result;
+  int *offsets = NULL;
+  int offsets_alloc = 0, offsets_size;
+  int *indices = NULL;
+  int indices_alloc = 0, indices_size;
+  int *topologies = NULL;
+  int topologies_alloc = 0, topologies_size;
+  int *offsets1 = NULL;
+  int offsets1_alloc = 0, offsets1_size;
+  int *entity_sets = NULL;
+  int entity_sets_alloc = 0, entity_sets_size;
+  iBase_EntityHandle *entities = NULL;
+  int entities_alloc = 0, entities_size;
 
   for (; type < iBase_ALL_TYPES; type++) {
-    int *offsets = NULL;
-    int offsets_alloc = 0, offsets_size;
-    int *indices = NULL;
-    int indices_alloc = 0, indices_size;
-    int *topologies = NULL;
-    int topologies_alloc = 0, topologies_size;
+    offsets = NULL;
+    offsets_alloc = 0;
+    indices = NULL;
+    indices_alloc = 0;
+    topologies = NULL;
+    topologies_alloc = 0;
     
     iMesh_getVtxCoordIndex(mesh, root_set, type, 
                            iMesh_ALL_TOPOLOGIES,
@@ -436,12 +452,12 @@ int entity_connectivity_test(iMesh_Instance mesh)
       return FALSE;
     }
 
-    int *offsets1 = NULL;
-    int offsets1_alloc = 0, offsets1_size;
-    int *entity_sets = NULL;
-    int entity_sets_alloc = 0, entity_sets_size;
-    iBase_EntityHandle *entities = NULL;
-    int entities_alloc = 0, entities_size;
+    offsets1 = NULL;
+    offsets1_alloc = 0;
+    entity_sets = NULL;
+    entity_sets_alloc = 0;
+    entities = NULL;
+    entities_alloc = 0;
 
     iMesh_getAdjEntities(mesh, root_set, type, 
                          iMesh_ALL_TOPOLOGIES, iBase_VERTEX, 
@@ -477,19 +493,52 @@ int entity_connectivity_test(iMesh_Instance mesh)
   @li Check entity sets
 */
 
-// helper function used to report errors in # sets
+/* helper function used to report errors in # sets */
 int check_esets(iMesh_Instance mesh, const int num_sets);
 
 int entity_sets_subtest(iMesh_Instance mesh, int is_list,
                          int num_iter)
 {
-  int num_type = iBase_ALL_TYPES - iBase_VERTEX;
+  int i, num_type = iBase_ALL_TYPES - iBase_VERTEX;
   int num_all_entities_super = 0;
-  iBase_EntitySetHandle es_array[num_type];
-  int number_array[num_type];
+  iBase_EntitySetHandle es_array[iBase_ALL_TYPES - iBase_VERTEX];
+  int number_array[iBase_ALL_TYPES - iBase_VERTEX];
   int ent_type = iBase_VERTEX;
-  
-    // get the number of whole mesh
+  iBase_EntityHandle *entities = NULL;
+  int entities_alloc = 0, entities_size;
+  iBase_EntitySetHandle parent_child, super_set = NULL;
+  iBase_EntitySetHandle temp_es1, temp_es2, temp_es3;
+  iBase_EntityHandle *edges = NULL, *faces = NULL, 
+    *temp_entities1 = NULL, *temp_entities2 = NULL;
+  int edges_alloc = 0, faces_alloc = 0, 
+    temp_entities1_alloc = 0, temp_entities2_alloc = 0;
+  int edges_size, faces_size, temp_entities1_size, temp_entities2_size;
+  int *types = NULL;
+  int types_alloc = 0, types_size;
+  int num_rest, num_regions;
+  iBase_EntityHandle *regions = NULL;
+  int regions_alloc = 0, regions_size;
+  iBase_EntityHandle *parents = NULL;
+  int parents_alloc = 0, parents_size, temp_numb, is_child;
+  iBase_EntitySetHandle *es_array1 = NULL;
+  int es_array1_alloc = 0, es_array1_size, num_super;
+  iBase_EntityHandle *all_entities = NULL;
+  int all_entities_alloc = 0, all_entities_size, k, l;
+  iBase_EntityHandle *adj_faces = NULL;
+  int adj_faces_alloc = 0, adj_faces_size;
+  int *face_offsets = NULL, *face_in_sets = NULL;
+  int face_offsets_alloc = 0, face_in_sets_alloc = 0,
+    face_offsets_size, face_in_sets_size;
+  iBase_EntityHandle *hexes = NULL;
+  int hexes_alloc = 0, hexes_size;
+  iBase_EntitySetHandle hex_set;
+  iBase_EntityHandle *adj_faces1 = NULL;
+  int adj_faces1_alloc = 0, adj_faces1_size;
+  int *face_offsets1 = NULL, *face_in_sets1 = NULL;
+  int face_offsets1_alloc = 0, face_in_sets1_alloc = 0,
+    face_offsets1_size, face_in_sets1_size;
+
+    /* get the number of whole mesh */
   int n_whole_mesh = 0;
   int result;
   iMesh_getNumEntSets(mesh, root_set, 1, &n_whole_mesh, &result);
@@ -498,18 +547,18 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     return FALSE;
   }
 
-    // add entities to entitysets by type
+    /* add entities to entitysets by type */
   for (; ent_type < num_type; ent_type++) {
-      // initialize the entityset
+      /* initialize the entityset */
     iMesh_createEntSet(mesh, is_list, &es_array[ent_type], &result);
     if (iBase_SUCCESS != result) {
       printf("Problem creating entityset.\n");
       return FALSE;
     }
 
-      // get entities by type in total "mesh"
-    iBase_EntityHandle *entities = NULL;
-    int entities_alloc = 0, entities_size;
+      /* get entities by type in total "mesh" */
+    entities = NULL;
+    entities_alloc = 0;
     iMesh_getEntities(mesh, root_set, ent_type,
                       iMesh_ALL_TOPOLOGIES, 
                       &entities, &entities_alloc, &entities_size, &result);
@@ -523,7 +572,7 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
       return FALSE;
     }
 
-      // add entities into entity set
+      /* add entities into entity set */
     if (0 != entities_size) {
       iMesh_addEntArrToSet(mesh, entities, entities_size, es_array+ent_type, &result);
       if (iBase_SUCCESS != result) {
@@ -532,7 +581,7 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
       }
     }
     
-      // Check to make sure entity set really has correct number of entities in it
+      /* Check to make sure entity set really has correct number of entities in it */
     iMesh_getNumOfType(mesh, es_array[ent_type], ent_type,
                        number_array+ent_type, &result);
       
@@ -541,14 +590,14 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
       return FALSE;
     }  
 
-      // compare the number of entities by type
+      /* compare the number of entities by type */
     if (number_array[ent_type] != entities_size)
     {
       printf("Number of entities by type is not correct\n");
       return FALSE;
     }
 
-      // add to number of all entities in super set
+      /* add to number of all entities in super set */
     num_all_entities_super += entities_size;
 
     free(entities);
@@ -556,15 +605,14 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
 
   if (!check_esets(mesh, n_whole_mesh + num_type)) return FALSE;
 
-    // make a super set having all entitysets
-  iBase_EntitySetHandle super_set = NULL;
+    /* make a super set having all entitysets */
+  super_set = NULL;
   iMesh_createEntSet(mesh, is_list, &super_set, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to create a super set in entity_sets_test.\n");
     return FALSE;
   }
 
-  int i;
   for (i = 0; i < num_type; i++) {
     iMesh_addEntSet(mesh, es_array[i], &super_set, &result);
     if (iBase_SUCCESS != result) {
@@ -576,9 +624,8 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
   if (!check_esets(mesh, n_whole_mesh + num_type + 1)) 
     return FALSE;
 
-    //----------TEST intEAN OPERATIONS----------------//
+    /*----------TEST intEAN OPERATIONS----------------*/
 
-  iBase_EntitySetHandle temp_es1, temp_es2, temp_es3;
   iMesh_createEntSet(mesh, is_list, &temp_es1, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to create a super set in entity_sets_test.\n");
@@ -587,14 +634,11 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
   
   if (!check_esets(mesh, n_whole_mesh + num_type + 2)) return FALSE;
 
-    // Subtract
-    // add all EDGEs and FACEs to temp_es1
-    // get all EDGE entities
-  iBase_EntityHandle *edges = NULL, *faces = NULL, 
-    *temp_entities1 = NULL, *temp_entities2 = NULL;
-  int edges_alloc = 0, faces_alloc = 0, 
-    temp_entities1_alloc = 0, temp_entities2_alloc = 0;
-  int edges_size, faces_size, temp_entities1_size, temp_entities2_size;
+    /* Subtract */
+    /* add all EDGEs and FACEs to temp_es1 */
+    /* get all EDGE entities */
+  edges = NULL; faces = NULL; temp_entities1 = NULL; temp_entities2 = NULL;
+  edges_alloc = 0; faces_alloc = 0; temp_entities1_alloc = 0; temp_entities2_alloc = 0;
   
   iMesh_getEntities(mesh, es_array[iBase_EDGE], iBase_EDGE, 
                     iMesh_ALL_TOPOLOGIES, 
@@ -605,14 +649,14 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     return FALSE;
   }
 
-    // add EDGEs to es1
+    /* add EDGEs to es1 */
   iMesh_addEntArrToSet(mesh, edges, edges_size, &temp_es1, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to add edge entities in entity_sets_test.\n");
     return FALSE;
   }
 
-    // get all FACE entities
+    /* get all FACE entities */
   iMesh_getEntities(mesh, es_array[iBase_FACE], iBase_FACE, 
                     iMesh_ALL_TOPOLOGIES, 
                     &faces, &faces_alloc, &faces_size, &result);
@@ -621,14 +665,14 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     return FALSE;
   }
 
-    // add FACEs to es1
+    /* add FACEs to es1 */
   iMesh_addEntArrToSet(mesh, faces, faces_size, &temp_es1, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to add face entities in entity_sets_test.\n");
     return FALSE;
   }
 
-    // subtract EDGEs
+    /* subtract EDGEs */
   
   iMesh_subtract(mesh, temp_es1, es_array[iBase_EDGE], &temp_es2, &result);
   if (iBase_SUCCESS != result) {
@@ -649,9 +693,9 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     return FALSE;
   }
 
-    // check there's nothing but faces in face_es
-  int *types = NULL;
-  int types_alloc = 0, types_size;
+    /* check there's nothing but faces in face_es */
+  types = NULL;
+  types_alloc = 0;
   
   iMesh_getEntArrType(mesh, temp_entities1, temp_entities1_size,
                       &types, &types_alloc, &types_size, &result);
@@ -674,18 +718,16 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     
   if (!check_esets(mesh, n_whole_mesh + num_type + 2)) return FALSE;
   
-    //------------Intersect------------
-    //
+    /*------------Intersect------------ */
 
-    // clean out the temp_ms1
+    /* clean out the temp_ms1 */
   iMesh_rmvEntArrFromSet(mesh, faces, faces_size, &temp_es1, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to remove face entities in entity_sets_test.\n");
     return FALSE;
   }
 
-    // check if it is really cleaned out
-  int num_rest;
+    /* check if it is really cleaned out */
   iMesh_getNumOfType(mesh, temp_es1, iBase_FACE, &num_rest, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to get number of entities by type in entity_sets_test.\n");
@@ -697,22 +739,22 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     return FALSE;
   }
   
-    // add EDGEs to temp es1
+    /* add EDGEs to temp es1 */
   iMesh_addEntArrToSet(mesh, edges, edges_size, &temp_es1, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to add edge entities in entity_sets_test.\n");
     return FALSE;
   }
 
-    // add FACEs to temp es1
+    /* add FACEs to temp es1 */
   iMesh_addEntArrToSet(mesh, faces, faces_size, &temp_es1, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to add edge entities in entity_sets_test.\n");
     return FALSE;
   }
 
-    // intersect temp_es1 with edges meshset 
-    // temp_ms1 entityset is altered
+    /* intersect temp_es1 with edges meshset  */
+    /* temp_ms1 entityset is altered */
   iMesh_intersect(mesh, temp_es1, es_array[iBase_EDGE], &temp_es2, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to intersect in entity_sets_test.\n");
@@ -740,11 +782,11 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     
   if (!check_esets(mesh, n_whole_mesh + num_type + 2)) return FALSE;
 
-    //-------------Unite--------------
+    /*-------------Unite-------------- */
 
-    // get all regions
-  iBase_EntityHandle *regions = NULL;
-  int regions_alloc = 0, regions_size;
+    /* get all regions */
+  regions = NULL;
+  regions_alloc = 0;
 
   iMesh_createEntSet(mesh, is_list, &temp_es2, &result);
   if (iBase_SUCCESS != result) {
@@ -761,22 +803,21 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     return FALSE;
   }
 
-    // add REGIONs to temp es2
+    /* add REGIONs to temp es2 */
   iMesh_addEntArrToSet(mesh, regions, regions_size, &temp_es2, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to add region entities in entity_sets_test.\n");
     return FALSE;
   }
 
-    // unite temp_es1 and temp_es2
+    /* unite temp_es1 and temp_es2 */
   iMesh_unite(mesh, temp_es1, temp_es2, &temp_es3, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to unite in entity_sets_test.\n");
     return FALSE;
   }
 
-    // perform the check
-  int num_regions;
+    /* perform the check */
   iMesh_getNumOfType(mesh, temp_es3, iBase_REGION, &num_regions, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to get number of region entities by type in entity_sets_test.\n");
@@ -790,10 +831,9 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
 
   if (!check_esets(mesh, n_whole_mesh + num_type + 4)) return FALSE;
 
-    //--------Test parent/child stuff in entiysets-----------
+    /*--------Test parent/child stuff in entiysets----------- */
 
-    // Add 2 meshsets as children to another
-  iBase_EntitySetHandle parent_child;
+    /* Add 2 meshsets as children to another */
   iMesh_createEntSet(mesh, is_list, &parent_child, &result);
   if (iBase_SUCCESS != result) {
     printf("Problem creating entityset in entity_sets_test.\n");
@@ -806,9 +846,9 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     return FALSE;
   }
 
-    // check if parent is really added
-  iBase_EntityHandle *parents = NULL;
-  int parents_alloc = 0, parents_size;
+    /* check if parent is really added */
+  parents = NULL;
+  parents_alloc = 0;
   iMesh_getPrnts(mesh, parent_child, 0, 
                  &parents, &parents_alloc, &parents_size, &result);
   if (iBase_SUCCESS != result) {
@@ -821,8 +861,7 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     return FALSE;
   }
 
-    // get the number of child entitysets
-  int temp_numb;
+    /* get the number of child entitysets */
   iMesh_getNumChld(mesh, es_array[iBase_VERTEX], 0, &temp_numb, &result);
   if (iBase_SUCCESS != result) {
     printf("Problem getting number of children in entity_sets_test.\n");
@@ -834,8 +873,8 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     return FALSE;
   }
 
-    // parent_child and es_array[iBase_VERTEX] should be related
-  int is_child = 0;
+    /* parent_child and es_array[iBase_VERTEX] should be related */
+  is_child = 0;
   iMesh_isChildOf(mesh, es_array[iBase_VERTEX], parent_child, &is_child, &result);
   if (iBase_SUCCESS != result) {
     printf("Problem checking relation in entity_sets_test.\n");
@@ -846,7 +885,7 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     return FALSE;
   }
     
-    // es_array[iBase_FACE] and es_array[iBase_REGION] are not related
+    /* es_array[iBase_FACE] and es_array[iBase_REGION] are not related */
   is_child = FALSE;
   iMesh_isChildOf(mesh, es_array[iBase_FACE], es_array[iBase_REGION], &is_child, &result);
   if (iBase_SUCCESS != result) {
@@ -860,11 +899,11 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
   
   if (!check_esets(mesh, n_whole_mesh + num_type + 5)) return FALSE;
 
-    //--------test modify and query functions-----------------------------
+    /*--------test modify and query functions----------------------------- */
   
-    // get all entity sets in super set
-  iBase_EntitySetHandle *es_array1 = NULL;
-  int es_array1_alloc = 0, es_array1_size;
+    /* get all entity sets in super set */
+  es_array1 = NULL;
+  es_array1_alloc = 0;
   iMesh_getEntSets(mesh, super_set, 0, 
                    &es_array1, &es_array1_alloc, &es_array1_size, &result);
   if (iBase_SUCCESS != result) {
@@ -872,24 +911,22 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     return FALSE;
   }
 
-  int num_super;
-
-    // get the number of entity sets in super set
+    /* get the number of entity sets in super set */
   iMesh_getNumEntSets(mesh, super_set, 0, &num_super, &result);
   if (iBase_SUCCESS != result) {
     printf("Problem to get the number of all entity sets in super set.\n");
     return FALSE;
   }
 
-    // the number of entity sets in super set should be same
+    /* the number of entity sets in super set should be same */
   if (num_super != es_array1_size) {
     printf("the number of entity sets in super set should be same.\n");
     return FALSE;
   }
 
-    // get all entities in super set
-  iBase_EntityHandle *all_entities = NULL;
-  int all_entities_alloc = 0, all_entities_size;
+    /* get all entities in super set */
+  all_entities = NULL;
+  all_entities_alloc = 0;
   iMesh_getEntities(mesh, super_set, iBase_ALL_TYPES,
                     iMesh_ALL_TOPOLOGIES, 
                     &all_entities, &all_entities_alloc, &all_entities_size, &result);
@@ -898,23 +935,21 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     return FALSE;
   }
   
-    // compare the number of all entities in super set
-    // NOTE: TEST COMMENTED OUT UNTIL RESOLUTION OF WHETHER GETENTITIES
-    // SHOULD GET A NUM_HOPS ARGUMENT
-    //  if (num_all_entities_super != all_entities_size) {
-    //    printf("number of all entities in super set should be same.\n");
-    //    return FALSE;
-    //  }
+    /* compare the number of all entities in super set */
+    /* NOTE: TEST COMMENTED OUT UNTIL RESOLUTION OF WHETHER GETENTITIES */
+    /* SHOULD GET A NUM_HOPS ARGUMENT */
+    /*  if (num_all_entities_super != all_entities_size) { */
+    /*    printf("number of all entities in super set should be same.\n"); */
+    /*    return FALSE; */
+    /*  } */
 
-    // test add, remove and get all entitiy sets using super set
-    // check GetAllEntitySets works recursively and dosen't return
-    // multi sets
-  int k;
+    /* test add, remove and get all entitiy sets using super set */
+    /* check GetAllEntitySets works recursively and dosen't return */
+    /* multi sets */
   for (k = 0; k < num_super; k++) {
-      // add entity sets of super set to each entity set of super set
-      // make multiple child super sets
+      /* add entity sets of super set to each entity set of super set */
+      /* make multiple child super sets */
     iBase_EntitySetHandle es_k = es_array1[k];
-    int l;
     for (l = 0; l < es_array1_size; l++) {
       iMesh_addEntSet(mesh, es_array1[l], &es_k, &result);
       if (iBase_SUCCESS != result) {
@@ -923,14 +958,14 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
       }
     }
 
-      // add super set to each entity set
+      /* add super set to each entity set */
     iMesh_addEntSet(mesh, super_set, &es_k, &result);
     if (iBase_SUCCESS != result) {
       printf("Problem to add super set to entitysets.\n");
       return FALSE;
     }
 
-      // add one entity sets multiple times
+      /* add one entity sets multiple times */
     for (l = 0; l < 3; l++) {
       iMesh_addEntSet(mesh, temp_es1, &es_k, &result);
       if (iBase_SUCCESS != result) {
@@ -940,12 +975,11 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     }
   }
 
-    // get adjacent face of hexes
-  iBase_EntityHandle *adj_faces = NULL;
-  int adj_faces_alloc = 0, adj_faces_size;
-  int *face_offsets = NULL, *face_in_sets = NULL;
-  int face_offsets_alloc = 0, face_in_sets_alloc = 0,
-    face_offsets_size, face_in_sets_size;
+    /* get adjacent face of hexes */
+  adj_faces = NULL;
+  adj_faces_alloc = 0;
+  face_offsets = NULL; face_in_sets = NULL;
+  face_offsets_alloc = 0; face_in_sets_alloc = 0;
 
   iMesh_getAdjEntities(mesh, root_set, iBase_ALL_TYPES,
                        iMesh_HEXAHEDRON, iBase_FACE,
@@ -957,9 +991,9 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     return FALSE;
   }
 
-    // get all hexes and get faces of that hexes
-  iBase_EntityHandle *hexes = NULL;
-  int hexes_alloc = 0, hexes_size;
+    /* get all hexes and get faces of that hexes */
+  hexes = NULL;
+  hexes_alloc = 0;
 
   iMesh_getEntities(mesh, root_set, iBase_ALL_TYPES,
                     iMesh_HEXAHEDRON, &hexes, &hexes_alloc, &hexes_size, &result);
@@ -968,7 +1002,6 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     return FALSE;
   }
   
-  iBase_EntitySetHandle hex_set;
 
   iMesh_createEntSet(mesh, FALSE, &hex_set, &result);
   if (iBase_SUCCESS != result) {
@@ -982,12 +1015,11 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     return FALSE;
   }
   
-    // get adjacent faces of all hexes
-  iBase_EntityHandle *adj_faces1 = NULL;
-  int adj_faces1_alloc = 0, adj_faces1_size;
-  int *face_offsets1 = NULL, *face_in_sets1 = NULL;
-  int face_offsets1_alloc = 0, face_in_sets1_alloc = 0,
-    face_offsets1_size, face_in_sets1_size;
+    /* get adjacent faces of all hexes */
+  adj_faces1 = NULL;
+  adj_faces1_alloc = 0;
+  face_offsets1 = NULL; face_in_sets1 = NULL;
+  face_offsets1_alloc = 0; face_in_sets1_alloc = 0;
 
   iMesh_getAdjEntities(mesh, hex_set,
                        iBase_ALL_TYPES,
@@ -1000,7 +1032,7 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     return FALSE;
   }
 
-    // compare number of faces
+    /* compare number of faces */
   if (adj_faces_size != adj_faces1_size ||
       face_offsets_size != face_offsets1_size ||
       face_in_sets_size != face_in_sets1_size)
@@ -1054,13 +1086,13 @@ int check_esets(iMesh_Instance mesh, const int num_sets)
 */
 int entity_sets_test(iMesh_Instance mesh)
 {
-  int iter_num = 0;
-    // check 
+  int iter_num = 0, result;
+    /* check  */
   int i;
   for (i = 0; i < 2; i++) {
     iter_num++;
 
-    int result = entity_sets_subtest(mesh, i, iter_num);
+    result = entity_sets_subtest(mesh, i, iter_num);
     if (!result)
       return result;
   }
@@ -1075,8 +1107,18 @@ int entity_sets_test(iMesh_Instance mesh)
 */
 int vertex_coordinates_test(iMesh_Instance mesh)
 {
+  double *all_coords = NULL;
+  int all_coords_alloc = 0, all_coords_size;
+  int *in_entity_set = NULL;
+  int in_entity_set_alloc = 0, in_entity_set_size;
+  int not_in_set = 0;
+  int i;
+  iBase_EntityHandle *verts = NULL;
+  int verts_alloc = 0, verts_size;
+  double *vert_coords = NULL;
+  int vert_coords_alloc = 0, vert_coords_size, num_bad;
 
-    // check storage order
+    /* check storage order */
   int result;
   int this_order = iBase_UNDETERMINED;
   iMesh_getDfltStorage(mesh, &this_order, &result);
@@ -1085,11 +1127,11 @@ int vertex_coordinates_test(iMesh_Instance mesh)
     return FALSE;
   }
 
-    // get the coordinates in one array
-  double *all_coords = NULL;
-  int all_coords_alloc = 0, all_coords_size;
-  int *in_entity_set = NULL;
-  int in_entity_set_alloc = 0, in_entity_set_size;
+    /* get the coordinates in one array */
+  all_coords = NULL;
+  all_coords_alloc = 0;
+  in_entity_set = NULL;
+  in_entity_set_alloc = 0;
 
   iMesh_getAllVtxCoords(mesh, root_set, 
                         &all_coords, &all_coords_alloc, &all_coords_size,
@@ -1100,9 +1142,8 @@ int vertex_coordinates_test(iMesh_Instance mesh)
     return FALSE;
   }
 
-    // make sure all vertices marked as being in the model
-  int not_in_set = 0;
-  int i;
+    /* make sure all vertices marked as being in the model */
+  not_in_set = 0;
   for (i = 0; i < in_entity_set_size; i++)
     if (1 != in_entity_set[i]) not_in_set++;
 
@@ -1112,10 +1153,10 @@ int vertex_coordinates_test(iMesh_Instance mesh)
     return FALSE;
   }
 
-    // now get the vertex coordinates from a vertex array
-    // need to get the vertices in the model
-  iBase_EntityHandle *verts = NULL;
-  int verts_alloc = 0, verts_size;
+    /* now get the vertex coordinates from a vertex array */
+    /* need to get the vertices in the model */
+  verts = NULL;
+  verts_alloc = 0;
   iMesh_getEntities(mesh, root_set, iBase_VERTEX, 
                     iMesh_POINT, &verts, &verts_alloc, &verts_size, &result);
   if (iBase_SUCCESS != result) {
@@ -1123,9 +1164,9 @@ int vertex_coordinates_test(iMesh_Instance mesh)
     return FALSE;
   }
 
-    // get the coordinates in one array
-  double *vert_coords = NULL;
-  int vert_coords_alloc = 0, vert_coords_size;
+    /* get the coordinates in one array */
+  vert_coords = NULL;
+  vert_coords_alloc = 0;
 
   iMesh_getVtxArrCoords(mesh, verts, verts_size, &this_order, 
                         &vert_coords, &vert_coords_alloc, &vert_coords_size, &result);
@@ -1134,16 +1175,16 @@ int vertex_coordinates_test(iMesh_Instance mesh)
     return FALSE;
   }
 
-    // two lists should be the same length
+    /* two lists should be the same length */
   if (all_coords_size != vert_coords_size) {
     printf("vertex_coordinates_test: vertex arrays different lengths.\n");
     return FALSE;
   }
 
-    // compare the two lists, they should be the same
-  int num_bad = 0;
+    /* compare the two lists, they should be the same */
+  num_bad = 0;
 
-    // can produce an error by rounding off coordinates
+    /* can produce an error by rounding off coordinates */
   for (i = 0; i < all_coords_size; i++)
     if (all_coords[i] != vert_coords[i]) num_bad++;
 
@@ -1158,7 +1199,7 @@ int vertex_coordinates_test(iMesh_Instance mesh)
   free(verts);
   free(vert_coords);
   
-    // if we get here, this test was successful
+    /* if we get here, this test was successful */
   return TRUE;
 }
 
@@ -1169,7 +1210,12 @@ int vertex_coordinates_test(iMesh_Instance mesh)
 */
 int tag_info_test(iMesh_Instance mesh)
 {
-    // Create a tag
+  char dum_name[120];
+  int dum_name_size = 120;
+  int dum_size;
+  int error = FALSE;
+  iBase_TagHandle dum_handle;
+    /* Create a tag */
   int result;
   iBase_TagHandle tag_handle = NULL;
   const char *tag_name = "int_tag";
@@ -1181,9 +1227,7 @@ int tag_info_test(iMesh_Instance mesh)
     return FALSE;
   }
 
-    // check tag info functions
-  char dum_name[120];
-  int dum_name_size = 120;
+    /* check tag info functions */
   iMesh_getTagName(mesh, tag_handle, dum_name, &result, dum_name_size);
   if (iBase_SUCCESS != result) {
     printf("Couldn't get name of tag just created.\n");
@@ -1194,7 +1238,6 @@ int tag_info_test(iMesh_Instance mesh)
     return FALSE;
   }
   
-  int dum_size;
   iMesh_getTagSizeBytes(mesh, tag_handle, &dum_size, &result);
   if (iBase_SUCCESS != result) {
     printf("Couldn't get size of tag just created.\n");
@@ -1205,7 +1248,6 @@ int tag_info_test(iMesh_Instance mesh)
     return FALSE;
   }
 
-  iBase_TagHandle dum_handle;
   iMesh_getTagHandle(mesh, tag_name, &dum_handle, &result, tag_name_size);
   if (iBase_SUCCESS != result) {
     printf("Couldn't get handle of tag just created.\n");
@@ -1216,16 +1258,15 @@ int tag_info_test(iMesh_Instance mesh)
     return FALSE;
   }
 
-    // test non-forced version of tagDelete; forced version tested later,
-    // when we have entities around
+    /* test non-forced version of tagDelete; forced version tested later, */
+    /* when we have entities around */
   iMesh_destroyTag(mesh, tag_handle, FALSE, &result);
   if (iBase_SUCCESS != result) {
     printf("Couldn't delete tag just created.\n");
     return FALSE;
   }
 
-    // look for that tag, to make sure it got deleted
-  int error = FALSE;
+    /* look for that tag, to make sure it got deleted */
   iMesh_getTagHandle(mesh, tag_name, &tag_handle, &result, tag_name_size);
   if (iBase_SUCCESS != result) {
     error = TRUE;
@@ -1243,8 +1284,13 @@ int vertex_int_tag_test(iMesh_Instance mesh,
                          iBase_TagHandle *int_tag) 
 {
   int result;
+  iBase_EntityHandle dum_vert = verts[0];
+  
+  int dum_val = 11, dum_val2;
+  void *dum_val2_ptr = &dum_val2;
+  int dum_val2_alloc = sizeof(int), dum_val2_size;
 
-    // create a tag
+    /* create a tag */
   const char *tag_name = "int_tag";
   int tag_name_size = 8;
   iMesh_createTag(mesh, tag_name, 1, iBase_INTEGER, 
@@ -1254,12 +1300,7 @@ int vertex_int_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // put a value in the first vertex and retrieve
-  iBase_EntityHandle dum_vert = verts[0];
-  
-  int dum_val = 11, dum_val2;
-  void *dum_val2_ptr = &dum_val2;
-  int dum_val2_alloc = sizeof(int), dum_val2_size;
+    /* put a value in the first vertex and retrieve */
   iMesh_setArrData(mesh, &dum_vert, 1, *int_tag, 
                    (const char*)(&dum_val), sizeof(iBase_EntityHandle), &result);
   if (iBase_SUCCESS != result) {
@@ -1280,7 +1321,7 @@ int vertex_int_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // put a value in the last vertex and retrieve
+    /* put a value in the last vertex and retrieve */
   dum_val = 12;
 
   iMesh_setArrData(mesh, &dum_vert, 1, *int_tag, 
@@ -1303,7 +1344,7 @@ int vertex_int_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // ok, the int tag test worked
+    /* ok, the int tag test worked */
   return TRUE;
 }
 
@@ -1313,7 +1354,12 @@ int vertex_double_tag_test(iMesh_Instance mesh,
 {
   int result;
 
-    // create a tag
+  iBase_EntityHandle dum_vert = verts[0];
+  double dum_val = 1.0e6, dum_val2;
+  void *dum_val2_ptr = &dum_val2;
+  int dum_val2_alloc = sizeof(double), dum_val2_size;
+  
+    /* create a tag */
   const char *tag_name = "double_tag";
   int tag_name_size = 11;
   iMesh_createTag(mesh, tag_name, 1, iBase_DOUBLE, 
@@ -1323,12 +1369,7 @@ int vertex_double_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // put a value in the first vertex and retrieve
-  iBase_EntityHandle dum_vert = verts[0];
-  double dum_val = 1.0e6, dum_val2;
-  void *dum_val2_ptr = &dum_val2;
-  int dum_val2_alloc = sizeof(double), dum_val2_size;
-  
+    /* put a value in the first vertex and retrieve */
   iMesh_setArrData(mesh, &dum_vert, 1, *double_tag, 
                    (char*)(&dum_val), sizeof(double), &result);
   if (iBase_SUCCESS != result) {
@@ -1349,7 +1390,7 @@ int vertex_double_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // put a value in the last vertex and retrieve
+    /* put a value in the last vertex and retrieve */
   dum_val = 2.0e9;
 
   iMesh_setArrData(mesh, &dum_vert, 1, *double_tag, 
@@ -1371,23 +1412,27 @@ int vertex_double_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // ok, the double tag test worked
+    /* ok, the double tag test worked */
   return TRUE;
 }
+
+  /* Add a struct Vertex Tag to the database */
+struct TagStruct {
+  double test_double;
+  int test_int1, test_int2;
+};
 
 int vertex_struct_tag_test(iMesh_Instance mesh, 
                             iBase_EntityHandle *verts, int verts_size,
                             iBase_TagHandle *struct_tag) 
 {
   int result;
+  iBase_EntityHandle dum_vert = verts[0];
+  struct TagStruct dum_struct = {3.0e12, 2, 3}, dum_struct2;
+  void *dum_struct2_ptr = &dum_struct2;
+  int dum_struct_alloc = sizeof(struct TagStruct), dum_struct_size;
 
-    // Add a struct Vertex Tag to the database
-  struct TagStruct {
-    double test_double;
-    int test_int1, test_int2;
-  };
-
-    // create a tag
+    /* create a tag */
   const char *tag_name = "struct_tag";
   int tag_name_size = 11;
   iMesh_createTag(mesh, tag_name, sizeof(struct TagStruct), 
@@ -1397,13 +1442,9 @@ int vertex_struct_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // put a value in the first vertex and retrieve
+    /* put a value in the first vertex and retrieve */
 
-    // careful setting the value, since tags are opaque
-  iBase_EntityHandle dum_vert = verts[0];
-  struct TagStruct dum_struct = {3.0e12, 2, 3}, dum_struct2;
-  void *dum_struct2_ptr = &dum_struct2;
-  int dum_struct_alloc = sizeof(struct TagStruct), dum_struct_size;
+    /* careful setting the value, since tags are opaque */
   iMesh_setArrData(mesh, &dum_vert, 1, *struct_tag, 
                    (const char*) &dum_struct, sizeof(struct TagStruct), &result);
   if (iBase_SUCCESS != result) {
@@ -1429,7 +1470,7 @@ int vertex_struct_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // ok, the int tag test worked
+    /* ok, the int tag test worked */
   return TRUE;
 }
 
@@ -1437,10 +1478,11 @@ int vertex_tag_delete_test(iMesh_Instance mesh,
                             iBase_EntityHandle *verts, int verts_size) 
 {
   int result;
+  int delete_err = FALSE;
 
-    // test forced, unforced deletion of tags from entities
+    /* test forced, unforced deletion of tags from entities */
 
-    // test getAlliBase_TagHandles for first entity
+    /* test getAlliBase_TagHandles for first entity */
   iBase_TagHandle *all_tags = NULL;
   iBase_EntityHandle dum_entity = verts[0];
   int all_tags_alloc = 0, all_tags_size;
@@ -1457,7 +1499,6 @@ int vertex_tag_delete_test(iMesh_Instance mesh,
     return FALSE;
   }
   
-  int delete_err = FALSE;
   iMesh_destroyTag(mesh, all_tags[1], FALSE, &result);
   if (iBase_SUCCESS != result) {
     delete_err = TRUE;
@@ -1475,7 +1516,7 @@ int vertex_tag_delete_test(iMesh_Instance mesh,
 
   free(all_tags);
   
-    // ok, we're done
+    /* ok, we're done */
   return TRUE;
 }
 
@@ -1483,9 +1524,12 @@ int vertex_tag_test(iMesh_Instance mesh)
 {
   int result;
 
+  iBase_TagHandle int_tag, double_tag, struct_tag;
+  int int_err, double_err, struct_err, tag_delete_err;
+
   int info_err = tag_info_test(mesh);
   
-    // get all the vertices
+    /* get all the vertices */
   iBase_EntityHandle *verts = NULL;
   int verts_alloc = 0, verts_size;
   iMesh_getEntities(mesh, root_set, iBase_ALL_TYPES, 
@@ -1494,21 +1538,19 @@ int vertex_tag_test(iMesh_Instance mesh)
     printf("entitysetGetEntities failed in vertex_tag_test.\n");
     return FALSE;
   }
-
-  iBase_TagHandle int_tag, double_tag, struct_tag;
   
-    // vertex int tag
-  int int_err = vertex_int_tag_test(mesh, verts, verts_size, &int_tag);
+    /* vertex int tag */
+  int_err = vertex_int_tag_test(mesh, verts, verts_size, &int_tag);
   
-    // vertex double tag
-  int double_err = vertex_double_tag_test(mesh, verts, verts_size, 
+    /* vertex double tag */
+  double_err = vertex_double_tag_test(mesh, verts, verts_size, 
                                            &double_tag);
   
-    // vertex struct tag
-  int struct_err = vertex_struct_tag_test(mesh, verts, verts_size, 
+    /* vertex struct tag */
+  struct_err = vertex_struct_tag_test(mesh, verts, verts_size, 
                                            &struct_tag);
 
-  int tag_delete_err = vertex_tag_delete_test(mesh, verts, verts_size);
+  tag_delete_err = vertex_tag_delete_test(mesh, verts, verts_size);
 
   free(verts);
   
@@ -1521,8 +1563,11 @@ int entityset_int_tag_test(iMesh_Instance mesh,
                             iBase_TagHandle *int_tag) 
 {
   int result;
+  int dum_val = 11, dum_val2;
+  void *dum_val2_ptr = &dum_val2;
+  int dum_val2_alloc = sizeof(int), dum_val2_size;
 
-    // create a tag
+    /* create a tag */
   const char *tag_name = "set_int_tag";
   iMesh_createTag(mesh, tag_name, 1, iBase_INTEGER, 
                   int_tag, &result, 12);
@@ -1531,10 +1576,7 @@ int entityset_int_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // put a value in the first set and retrieve
-  int dum_val = 11, dum_val2;
-  void *dum_val2_ptr = &dum_val2;
-  int dum_val2_alloc = sizeof(int), dum_val2_size;
+    /* put a value in the first set and retrieve */
 
   iMesh_setEntSetData(mesh, sets[0], *int_tag, 
                       (char*)(&dum_val), sizeof(int), &result);
@@ -1556,7 +1598,7 @@ int entityset_int_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // put a value in the last faces and retrieve
+    /* put a value in the last faces and retrieve */
   dum_val = 12;
   iMesh_setEntSetData(mesh, sets[sets_size-1], *int_tag,
                       (char*)(&dum_val), sizeof(int), &result);
@@ -1577,7 +1619,7 @@ int entityset_int_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // ok, the int tag test worked
+    /* ok, the int tag test worked */
   return TRUE;
 }
 
@@ -1586,8 +1628,11 @@ int entityset_double_tag_test(iMesh_Instance mesh,
                                iBase_TagHandle *double_tag) 
 {
   int result;
+  double dum_val = 1.0e6, dum_val2;
+  void *dum_val2_ptr = &dum_val2;
+  int dum_val2_alloc = sizeof(double), dum_val2_size;
 
-    // create a tag
+    /* create a tag */
   const char *tag_name = "set_double_tag";
   iMesh_createTag(mesh, tag_name, 1, iBase_DOUBLE, 
                   double_tag, &result, 15);
@@ -1596,10 +1641,7 @@ int entityset_double_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // put a value in the first set and retrieve
-  double dum_val = 1.0e6, dum_val2;
-  void *dum_val2_ptr = &dum_val2;
-  int dum_val2_alloc = sizeof(double), dum_val2_size;
+    /* put a value in the first set and retrieve */
 
   iMesh_setEntSetData(mesh, sets[0], *double_tag, 
                       (char*)(&dum_val), sizeof(double), &result);
@@ -1621,7 +1663,7 @@ int entityset_double_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // put a value in the last faces and retrieve
+    /* put a value in the last faces and retrieve */
   dum_val = 2.0e9;
   iMesh_setEntSetData(mesh, sets[sets_size-1], *double_tag,
                       (char*)(&dum_val), sizeof(double), &result);
@@ -1642,7 +1684,7 @@ int entityset_double_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // ok, the double tag test worked
+    /* ok, the double tag test worked */
   return TRUE;
 }
 
@@ -1651,14 +1693,11 @@ int entityset_struct_tag_test(iMesh_Instance mesh,
                                iBase_TagHandle *struct_tag) 
 {
   int result;
+  struct TagStruct dum_struct = {3.0e12, 2, 3}, dum_struct2;
+  void *dum_struct2_ptr = &dum_struct2;
+  int dum_struct_alloc = sizeof(struct TagStruct), dum_struct_size;
 
-    // Add a struct Tag to the database
-  struct TagStruct {
-    double test_double;
-    int test_int1, test_int2;
-  };
-
-    // create a tag
+    /* create a tag */
   const char *tag_name = "set_struct_tag";
   iMesh_createTag(mesh, tag_name, sizeof(struct TagStruct), iBase_BYTES, 
                   struct_tag, &result, 11);
@@ -1667,12 +1706,9 @@ int entityset_struct_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // put a value in the first vertex and retrieve
+    /* put a value in the first vertex and retrieve */
 
-    // careful setting the value, since tags are opaque
-  struct TagStruct dum_struct = {3.0e12, 2, 3}, dum_struct2;
-  void *dum_struct2_ptr = &dum_struct2;
-  int dum_struct_alloc = sizeof(struct TagStruct), dum_struct_size;
+    /* careful setting the value, since tags are opaque */
   iMesh_setEntSetData(mesh, root_set, *struct_tag, 
                       (const char*) &dum_struct, sizeof(struct TagStruct), &result);
   if (iBase_SUCCESS != result) {
@@ -1698,18 +1734,19 @@ int entityset_struct_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // ok, the int tag test worked
+    /* ok, the int tag test worked */
   return TRUE;
 }
 
 int entityset_tag_delete_test(iMesh_Instance mesh, 
                                iBase_EntityHandle *sets, int sets_size) 
 {
-    // test forced, unforced deletion of tags from entities
+    /* test forced, unforced deletion of tags from entities */
   int result;
+  int delete_err = FALSE;
 
 
-    // test getAlliBase_TagHandles for first entity
+    /* test getAlliBase_TagHandles for first entity */
   iBase_TagHandle *all_tags = NULL;
   iBase_EntityHandle dum_entity = sets[0];
   int all_tags_alloc = 0, all_tags_size;
@@ -1726,7 +1763,6 @@ int entityset_tag_delete_test(iMesh_Instance mesh,
     return FALSE;
   }
   
-  int delete_err = FALSE;
   iMesh_destroyTag(mesh, all_tags[1], FALSE, &result);
   if (iBase_SUCCESS != result) {
     delete_err = TRUE;
@@ -1744,7 +1780,7 @@ int entityset_tag_delete_test(iMesh_Instance mesh,
 
   free(all_tags);
   
-    // ok, we're done
+    /* ok, we're done */
   return TRUE;
 }
 
@@ -1756,8 +1792,10 @@ int entityset_tag_delete_test(iMesh_Instance mesh,
 int entityset_tag_test(iMesh_Instance mesh)
 {
   int result;
+  iBase_TagHandle int_tag, double_tag, struct_tag;
+  int int_success, double_success, struct_success, tag_delete_success;
 
-    // get the sets
+    /* get the sets */
   iBase_EntitySetHandle *esets = NULL;
   int esets_alloc = 0, esets_size;
   iMesh_getEntSets(mesh, root_set, 1, &esets, &esets_alloc, &esets_size, &result);
@@ -1766,21 +1804,20 @@ int entityset_tag_test(iMesh_Instance mesh)
     return FALSE;
   }
 
-  iBase_TagHandle int_tag, double_tag, struct_tag;
   
-    // entityset int tag
-  int int_success = entityset_int_tag_test(mesh, esets, esets_size, 
+    /* entityset int tag */
+  int_success = entityset_int_tag_test(mesh, esets, esets_size, 
                                             &int_tag);
 
-    // entityeset double tag
-  int double_success = entityset_double_tag_test(mesh, esets, esets_size, 
+    /* entityeset double tag */
+  double_success = entityset_double_tag_test(mesh, esets, esets_size, 
                                                   &double_tag);
 
-    // entityset struct tag
-  int struct_success = entityset_struct_tag_test(mesh, esets, esets_size, 
+    /* entityset struct tag */
+  struct_success = entityset_struct_tag_test(mesh, esets, esets_size, 
                                                   &struct_tag);
 
-  int tag_delete_success = entityset_tag_delete_test(mesh, esets, esets_size);
+  tag_delete_success = entityset_tag_delete_test(mesh, esets, esets_size);
 
   free(esets);
 
@@ -1792,8 +1829,11 @@ int mesh_int_tag_test(iMesh_Instance mesh,
                        iBase_TagHandle *int_tag) 
 {
   int result;
+  int dum_val = 11, dum_val2;
+  void *dum_val2_ptr = &dum_val2;
+  int dum_val2_alloc = sizeof(int), dum_val2_size;
 
-    // create a tag
+    /* create a tag */
   const char *tag_name = "mesh_int_tag";
   iMesh_createTag(mesh, tag_name, 1, iBase_INTEGER, 
                   int_tag, &result, 12);
@@ -1802,10 +1842,7 @@ int mesh_int_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // put a value in the first set and retrieve
-  int dum_val = 11, dum_val2;
-  void *dum_val2_ptr = &dum_val2;
-  int dum_val2_alloc = sizeof(int), dum_val2_size;
+    /* put a value in the first set and retrieve */
 
   iMesh_setEntSetData(mesh, root_set, *int_tag, 
                       (char*)(&dum_val), sizeof(int), &result);
@@ -1827,7 +1864,7 @@ int mesh_int_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // put a value in the last faces and retrieve
+    /* put a value in the last faces and retrieve */
   dum_val = 12;
   iMesh_setEntSetData(mesh, root_set, *int_tag,
                       (char*)(&dum_val), sizeof(int), &result);
@@ -1848,7 +1885,7 @@ int mesh_int_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // ok, the int tag test worked
+    /* ok, the int tag test worked */
   return TRUE;
 }
 
@@ -1856,8 +1893,11 @@ int mesh_double_tag_test(iMesh_Instance mesh,
                                iBase_TagHandle *double_tag) 
 {
   int result;
+  double dum_val = 1.0e6, dum_val2;
+  void *dum_val2_ptr = &dum_val2;
+  int dum_val2_alloc = sizeof(double), dum_val2_size;
 
-    // create a tag
+    /* create a tag */
   const char *tag_name = "mesh_double_tag";
   iMesh_createTag(mesh, tag_name, 1, iBase_DOUBLE, 
                   double_tag, &result, 15);
@@ -1866,10 +1906,7 @@ int mesh_double_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // put a value in the first set and retrieve
-  double dum_val = 1.0e6, dum_val2;
-  void *dum_val2_ptr = &dum_val2;
-  int dum_val2_alloc = sizeof(double), dum_val2_size;
+    /* put a value in the first set and retrieve */
 
   iMesh_setEntSetData(mesh, root_set, *double_tag, 
                       (char*)(&dum_val), sizeof(double), &result);
@@ -1891,7 +1928,7 @@ int mesh_double_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // put a value in the last faces and retrieve
+    /* put a value in the last faces and retrieve */
   dum_val = 2.0e9;
   iMesh_setEntSetData(mesh, root_set, *double_tag,
                       (char*)(&dum_val), sizeof(double), &result);
@@ -1912,7 +1949,7 @@ int mesh_double_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // ok, the double tag test worked
+    /* ok, the double tag test worked */
   return TRUE;
 }
 
@@ -1920,14 +1957,11 @@ int mesh_struct_tag_test(iMesh_Instance mesh,
                                iBase_TagHandle *struct_tag) 
 {
   int result;
+  struct TagStruct dum_struct = {3.0e12, 2, 3}, dum_struct2;
+  void *dum_struct2_ptr = &dum_struct2;
+  int dum_struct_alloc = sizeof(struct TagStruct), dum_struct_size;
 
-    // Add a struct Tag to the database
-  struct TagStruct {
-    double test_double;
-    int test_int1, test_int2;
-  };
-
-    // create a tag
+    /* create a tag */
   const char *tag_name = "mesh_struct_tag";
   iMesh_createTag(mesh, tag_name, sizeof(struct TagStruct), iBase_BYTES, 
                   struct_tag, &result, 11);
@@ -1936,12 +1970,9 @@ int mesh_struct_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // put a value in the first vertex and retrieve
+    /* put a value in the first vertex and retrieve */
 
-    // careful setting the value, since tags are opaque
-  struct TagStruct dum_struct = {3.0e12, 2, 3}, dum_struct2;
-  void *dum_struct2_ptr = &dum_struct2;
-  int dum_struct_alloc = sizeof(struct TagStruct), dum_struct_size;
+    /* careful setting the value, since tags are opaque */
   iMesh_setEntSetData(mesh, root_set, *struct_tag, 
                       (const char*) &dum_struct, sizeof(struct TagStruct), &result);
   if (iBase_SUCCESS != result) {
@@ -1967,17 +1998,18 @@ int mesh_struct_tag_test(iMesh_Instance mesh,
     return FALSE;
   }
 
-    // ok, the int tag test worked
+    /* ok, the int tag test worked */
   return TRUE;
 }
 
 int mesh_tag_delete_test(iMesh_Instance mesh) 
 {
-    // test forced, unforced deletion of tags from entities
+    /* test forced, unforced deletion of tags from entities */
   int result;
+  int delete_err = FALSE;
 
 
-    // test getAlliBase_TagHandles for first entity
+    /* test getAlliBase_TagHandles for first entity */
   iBase_TagHandle *all_tags = NULL;
   int all_tags_alloc = 0, all_tags_size;
   iMesh_getAllEntSetTags(mesh, root_set, &all_tags, &all_tags_alloc,
@@ -1993,7 +2025,6 @@ int mesh_tag_delete_test(iMesh_Instance mesh)
     return FALSE;
   }
   
-  int delete_err = FALSE;
   iMesh_destroyTag(mesh, all_tags[1], FALSE, &result);
   if (iBase_SUCCESS != result) {
     delete_err = TRUE;
@@ -2011,7 +2042,7 @@ int mesh_tag_delete_test(iMesh_Instance mesh)
 
   free(all_tags);
   
-    // ok, we're done
+    /* ok, we're done */
   return TRUE;
 }
 
@@ -2024,13 +2055,13 @@ int mesh_tag_test(iMesh_Instance mesh)
 {
   iBase_TagHandle int_tag, double_tag, struct_tag;
   
-    // entityset int tag
+    /* entityset int tag */
   int int_success = mesh_int_tag_test(mesh, &int_tag);
 
-    // entityeset double tag
+    /* entityeset double tag */
   int double_success = mesh_double_tag_test(mesh, &double_tag);
 
-    // entityset struct tag
+    /* entityset struct tag */
   int struct_success = mesh_struct_tag_test(mesh, &struct_tag);
 
   int tag_delete_success = mesh_tag_delete_test(mesh);
@@ -2041,8 +2072,14 @@ int mesh_tag_test(iMesh_Instance mesh)
 
 int main( int argc, char *argv[] )
 {
-    // Check command line arg
+    /* Check command line arg */
   const char *filename;
+  int number_tests = 0;
+  int number_tests_successful = 0;
+  int number_tests_not_implemented = 0;
+  int number_tests_failed = 0;
+  int result;
+  iMesh_Instance mesh = NULL;
 
   if (argc == 2) {
     filename = argv[1];
@@ -2055,14 +2092,8 @@ int main( int argc, char *argv[] )
     filename = DEFAULT_INPUT_FILE;
   }
 
-  int number_tests = 0;
-  int number_tests_successful = 0;
-  int number_tests_not_implemented = 0;
-  int number_tests_failed = 0;
 
-    // initialize the Mesh
-  int result;
-  iMesh_Instance mesh = NULL;
+    /* initialize the Mesh */
   iMesh_newMesh(NULL, &mesh, &result, 0);
   if (iBase_SUCCESS != result) {
     printf("Failed to create a mesh instance.\n");
@@ -2074,10 +2105,10 @@ int main( int argc, char *argv[] )
     return 1;
   }
 
-    // Print out Header information
+    /* Print out Header information */
   printf("\n\nTSTT TEST PROGRAM:\n\n");
 
-    // load_mesh test
+    /* load_mesh test */
   printf("   load_mesh: ");
   result = load_mesh_test(filename, mesh);
   handle_error_code(result, &number_tests_failed,
@@ -2086,7 +2117,7 @@ int main( int argc, char *argv[] )
   number_tests++;
   printf("\n");
 
-    // topology_adjacency_test
+    /* topology_adjacency_test */
   printf("   topology_adjacency_test: ");
   result = topology_adjacency_test(mesh);
   handle_error_code(result, &number_tests_failed,
@@ -2095,7 +2126,7 @@ int main( int argc, char *argv[] )
   number_tests++;
   printf("\n");
 
-    // entity connectivity test
+    /* entity connectivity test */
   printf("   entity_connectivity_test: ");
   result = entity_connectivity_test(mesh);
   handle_error_code(result, &number_tests_failed,
@@ -2104,7 +2135,7 @@ int main( int argc, char *argv[] )
   number_tests++;
   printf("\n");
     
-    // vertex_coordinates_test
+    /* vertex_coordinates_test */
   printf("   vertex_coordinates_test: ");
   result = vertex_coordinates_test(mesh);
   handle_error_code(result, &number_tests_failed,
@@ -2113,7 +2144,7 @@ int main( int argc, char *argv[] )
   number_tests++;
   printf("\n");
   
-    // topology dimension test
+    /* topology dimension test */
   printf("   topology_dimension_test: ");
   result = topology_dimension_test(mesh);
   handle_error_code(result, &number_tests_failed,
@@ -2122,7 +2153,7 @@ int main( int argc, char *argv[] )
   number_tests++;
   printf("\n");
 
-    // entity sets test
+    /* entity sets test */
   printf("   entity_sets_test: ");
   result = entity_sets_test(mesh);
   handle_error_code(result, &number_tests_failed,
@@ -2131,7 +2162,7 @@ int main( int argc, char *argv[] )
   number_tests++;
   printf("\n");
 
-    // vertex tag test
+    /* vertex tag test */
   printf("   vertex_tag_test: ");
   result = vertex_tag_test(mesh);
   handle_error_code(result, &number_tests_failed,
@@ -2140,7 +2171,7 @@ int main( int argc, char *argv[] )
   number_tests++;
   printf("\n");
 
-    // entityset tag test
+    /* entityset tag test */
   printf("   entityset_tag_test: ");
   result = entityset_tag_test(mesh);
   handle_error_code(result, &number_tests_failed,
@@ -2149,7 +2180,7 @@ int main( int argc, char *argv[] )
   number_tests++;
   printf("\n");
 
-    // mesh tag test
+    /* mesh tag test */
   printf("   mesh_tag_test: ");
   result = mesh_tag_test(mesh);
   handle_error_code(result, &number_tests_failed,
@@ -2158,7 +2189,7 @@ int main( int argc, char *argv[] )
   number_tests++;
   printf("\n");
 
-    // summary
+    /* summary */
 
   printf("\nTSTT TEST SUMMARY: \n");
                                                                                                                                 
@@ -2168,7 +2199,7 @@ int main( int argc, char *argv[] )
   printf("   Number Failed:          %d\n", number_tests_failed);
   printf("\n\n\n");
 
-    // delete the mesh
+    /* delete the mesh */
   iMesh_dtor(mesh, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to destruct the mesh instance.\n");
