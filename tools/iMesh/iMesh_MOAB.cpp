@@ -1159,6 +1159,10 @@ extern "C" {
                       /*out*/   int* offset_size,
                       /*out*/   int *err)
   {
+    const int allocated_entity_handles = (*entity_handles_allocated == 0);
+    const int allocated_indices = (*adj_entity_indices_allocated == 0);
+    const int allocated_offset = (*offset_allocated == 0);
+
     // get source entities
     iMesh_getEntities( instance, 
                        entity_set_handle,
@@ -1172,77 +1176,102 @@ extern "C" {
       return;
     
     // get adjacencies
-    // If int and iBase_EntityHandle are the same size, put directly
-    // into adj_entity_indices
-    iBase_EntityHandle* temp_storage = 0;
-    int size = 0;
-    if (sizeof(int) == sizeof(iBase_EntityHandle)) {
-      iMesh_getEntArrAdj( instance,
-                          *entity_handles, *entity_handles_size,
-                          entity_type_requested,
-                          reinterpret_cast<iBase_EntityHandle**>(adj_entity_indices), 
-                          adj_entity_indices_allocated, 
-                          adj_entity_indices_size,
-                          offset, offset_allocated, offset_size,
-                          err );
-      temp_storage = reinterpret_cast<iBase_EntityHandle*>(*adj_entity_indices);
-      size = *adj_entity_indices_size;
-    }
-    // Otherwise put result into new, temporary array and make sure
-    // that adj_entity_indices can hold the same number of entries.
-    else {
-      int alloc = 0;
-      iMesh_getEntArrAdj( instance,
-                          *entity_handles, *entity_handles_size,
-                          entity_type_requested,
-                          &temp_storage, &alloc, &size,
-                          offset, offset_allocated, offset_size,
-                          err );
-      if (!*adj_entity_indices_allocated) {
-        *adj_entity_indices = (int*)malloc(sizeof(iBase_EntityHandle)*size);
-        if (!*adj_entity_indices) {
-          *err = iBase_MEMORY_ALLOCATION_FAILED;
-          return;
-        }
-        *adj_entity_indices_allocated = size;
+    iBase_EntityHandle* all_adj_handles = 0;
+    int size = 0, alloc = 0;
+    iMesh_getEntArrAdj( instance,
+                        *entity_handles, *entity_handles_size,
+                        entity_type_requested,
+                        &all_adj_handles, &alloc, &size,
+                        offset, offset_allocated, offset_size,
+                        err );
+    if (*err != iBase_SUCCESS) {
+      if (allocated_entity_handles) {
+        free( *entity_handles );
+        *entity_handles = 0;
+        *entity_handles_allocated = 0;
       }
-      else if (*adj_entity_indices_allocated < size) {
-        *err = iBase_BAD_ARRAY_DIMENSION;
-        return;
-      }
-      *adj_entity_indices_size = size;
-    }
-    if (*err != iBase_SUCCESS)
       return;
-    
-    // Put sorted unique version of temp array into final one
-    // If input allocation is too small, need to use another temporary
-    iBase_EntityHandle* unique_adj = 0;
-    if (*adj_entity_handles_allocated == 0) {
-      *adj_entity_handles_allocated = size;
-      *adj_entity_handles = (iBase_EntityHandle*)malloc(sizeof(iBase_EntityHandle) * size);
-      unique_adj = *adj_entity_handles;
     }
-    else if (*adj_entity_handles_allocated >= size) {
+    
+    // allocate or check size of adj_entity_indices
+    *adj_entity_indices_size = size;
+    if (allocated_indices) {
+      *adj_entity_indices = (int*)malloc(sizeof(iBase_EntityHandle)*size);
+      if (!*adj_entity_indices) 
+        *err = iBase_MEMORY_ALLOCATION_FAILED;
+      else
+        *adj_entity_indices_allocated = size;
+    }
+    else if (*adj_entity_indices_allocated < size) {
+      *err = iBase_BAD_ARRAY_DIMENSION;
+    }
+    if (iBase_SUCCESS != *err) {
+      free( all_adj_handles );
+      if (allocated_entity_handles) {
+        free( *entity_handles );
+        *entity_handles = 0;
+        *entity_handles_allocated = 0;
+      }
+      if (allocated_offset) {
+        free( *offset );
+        *offset = 0;
+        *offset_allocated = 0;
+      }
+      return;
+    }
+    
+    // Now create an array of unique sorted handles from all_adj_handles.
+    // We need to create a copy because we still need all_adj_handles.  We
+    // will eventually need to copy the resulting unique list into 
+    // adj_entity_handles, so if adj_entity_handles is already allocated and
+    // of sufficient size, use it rather than allocating another temporary.
+    iBase_EntityHandle* unique_adj = 0;
+    if (*adj_entity_handles_allocated >= size) {
       unique_adj = *adj_entity_handles;
     }
     else {
       unique_adj = (iBase_EntityHandle*)malloc(sizeof(iBase_EntityHandle) * size);
     }
-    std::copy( temp_storage, temp_storage+size, unique_adj );
+    std::copy( all_adj_handles, all_adj_handles+size, unique_adj );
     std::sort( unique_adj, unique_adj + size );
     *adj_entity_handles_size = std::unique( unique_adj, unique_adj + size ) - unique_adj;
     
-    // now copy data and relase temporary storage if necessary
+    // If we created a temporary array for unique_adj rather than using
+    // already allocated space in adj_entity_handles, allocate adj_entity_handles
+    // and copy the unique handle list into it
     if (*adj_entity_handles != unique_adj) {
-      if (*adj_entity_handles_allocated < *adj_entity_handles_size) {
+      if (!*adj_entity_handles_allocated) {
+        *adj_entity_handles = (iBase_EntityHandle*)malloc(
+                              sizeof(iBase_EntityHandle) * *adj_entity_handles_size);
+        if (!*adj_entity_handles)
+          *err = iBase_MEMORY_ALLOCATION_FAILED;
+        else
+          *adj_entity_handles_allocated = *adj_entity_handles_size;
+      }
+      else if (*adj_entity_handles_allocated < *adj_entity_handles_size) 
         *err = iBase_BAD_ARRAY_DIMENSION;
-        free(unique_adj);
-        if ((int*)temp_storage != *adj_entity_indices)
-          free(temp_storage);
+      if (iBase_SUCCESS != *err) {
+        free( unique_adj );
+        free( all_adj_handles );
+        if (allocated_entity_handles) {
+          free( *entity_handles );
+          *entity_handles = 0;
+          *entity_handles_allocated = 0;
+        }
+        if (allocated_offset) {
+          free( *offset );
+          *offset = 0;
+          *offset_allocated = 0;
+        }
+        if (allocated_indices) {
+          free( *adj_entity_indices );
+          *adj_entity_indices = 0;
+          *adj_entity_indices_allocated = 0;
+        }
         return;
       }
-      std::copy( unique_adj, unique_adj + size, *adj_entity_handles );
+
+      std::copy( unique_adj, unique_adj + *adj_entity_handles_size, *adj_entity_handles );
       free( unique_adj );
       unique_adj = *adj_entity_handles;
     }
@@ -1250,9 +1279,8 @@ extern "C" {
     // convert from adjacency list to indices into unique_adj
     for (int i = 0; i < *adj_entity_indices_size; ++i)
       (*adj_entity_indices)[i] = std::lower_bound( unique_adj, 
-        unique_adj + *adj_entity_handles_size, temp_storage[i] ) - unique_adj;
-    if ((int*)temp_storage != *adj_entity_indices)
-      free(temp_storage);
+        unique_adj + *adj_entity_handles_size, all_adj_handles[i] ) - unique_adj;
+    free( all_adj_handles );
   }
 
 
