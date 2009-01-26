@@ -759,7 +759,7 @@ iRel_moveTo(iRel_Instance assoc,
   }
   else {
       // just a vertex, we hope - put that in array
-    CHECK_SIZE(iBase_EntityHandle, vertices, &vertices_allocated, 1);
+    CHECK_SIZE(iBase_EntityHandle, &vertices, &vertices_allocated, 1);
     vertices_size = 1;
     vertices[0] = ent_set;
   }
@@ -796,7 +796,7 @@ iRel_moveTo(iRel_Instance assoc,
                                      &coords, &coords_allocated, &coords_size);
   if (iBase_SUCCESS != result) {
     char this_descr[120];
-    iGeom_getDescription(mesh, this_descr, ierr, 120);
+    iMesh_getDescription(mesh, this_descr, ierr, 120);
     std::string this_str(this_descr);
     this_str += "Trouble getting closest point for vertices.";
     iRel_processError(result, this_str.c_str());
@@ -809,7 +809,7 @@ iRel_moveTo(iRel_Instance assoc,
                                       coords, order);
   if (iBase_SUCCESS != result) {
     char this_descr[120];
-    iGeom_getDescription(mesh, this_descr, ierr, 120);
+    iMesh_getDescription(mesh, this_descr, ierr, 120);
     std::string this_str(this_descr);
     this_str += "Trouble setting vertex coordinates.";
     iRel_processError(result, this_str.c_str());
