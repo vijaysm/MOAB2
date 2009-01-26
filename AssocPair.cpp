@@ -1,10 +1,11 @@
 #include "AssocPair.hpp"
 #include "Lasso.hpp"
 #include <assert.h>
+#include <stdlib.h>
 
-char *AssocPair::GLOBAL_ID_TAG_NAME = "GLOBAL_ID";
-char *AssocPair::GEOM_DIMENSION_TAG_NAME = "GEOM_DIMENSION";
-char *AssocPair::ASSOCIATION_TAG_NAME = "ASSOCIATION";
+const char *AssocPair::GLOBAL_ID_TAG_NAME = "GLOBAL_ID";
+const char *AssocPair::GEOM_DIMENSION_TAG_NAME = "GEOM_DIMENSION";
+const char *AssocPair::ASSOCIATION_TAG_NAME = "ASSOCIATION";
 
 AssocPair::AssocPair(const int ent_or_set0, const int ent_or_set1,
                             Lasso *lasso)

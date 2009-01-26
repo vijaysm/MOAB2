@@ -120,9 +120,9 @@ public:
 
   iBase_TagHandle assocTags[2], gidTags[2], dimTags[2];
 
-  static char *GLOBAL_ID_TAG_NAME;
-  static char *GEOM_DIMENSION_TAG_NAME;
-  static char *ASSOCIATION_TAG_NAME;
+  static const char *GLOBAL_ID_TAG_NAME;
+  static const char *GEOM_DIMENSION_TAG_NAME;
+  static const char *ASSOCIATION_TAG_NAME;
 
 protected:
   AssocPair(const int ent_or_set0, const int ent_or_set1,
