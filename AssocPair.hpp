@@ -26,28 +26,48 @@ public:
                                        iBase_EntityHandle *entities,
                                        int num_entities,
                                        iBase_TagHandle tag_handle,
-                                       bool are_sets,
                                        int *tag_values) = 0;
   
   virtual int get_eh_tags(const int iface_no,
                                       iBase_EntityHandle *entities,
                                       int num_entities,
                                       iBase_TagHandle tag_handle,
-                                      bool are_sets,
                                       iBase_EntityHandle *tag_values) = 0;
   
   virtual int set_int_tags(const int iface_no,
                                        iBase_EntityHandle *entities,
                                        int num_entities,
                                        iBase_TagHandle tag_handle,
-                                       bool are_sets,
                                        int *tag_values) = 0;
   
   virtual int set_eh_tags(const int iface_no,
                                       iBase_EntityHandle *entities,
                                       int num_entities,
                                       iBase_TagHandle tag_handle,
-                                      bool are_sets,
+                                      iBase_EntityHandle *tag_values) = 0;
+  
+  virtual int get_int_tags(const int iface_no,
+                                       iBase_EntitySetHandle *entities,
+                                       int num_entities,
+                                       iBase_TagHandle tag_handle,
+                                       int *tag_values) = 0;
+  
+  virtual int get_eh_tags(const int iface_no,
+                                      iBase_EntitySetHandle *entities,
+                                      int num_entities,
+                                      iBase_TagHandle tag_handle,
+                                      iBase_EntityHandle *tag_values) = 0;
+  
+  virtual int set_int_tags(const int iface_no,
+                                       iBase_EntitySetHandle *entities,
+                                       int num_entities,
+                                       iBase_TagHandle tag_handle,
+                                       int *tag_values) = 0;
+  
+  virtual int set_eh_tags(const int iface_no,
+                                      iBase_EntitySetHandle *entities,
+                                      int num_entities,
+                                      iBase_TagHandle tag_handle,
                                       iBase_EntityHandle *tag_values) = 0;
 
   virtual int get_all_entities(const int iface_no,
@@ -59,7 +79,7 @@ public:
 
   virtual int get_entities(const int iface_no,
                                        const int dimension,
-                                       iBase_EntityHandle set_handle,
+                                       iBase_EntitySetHandle set_handle,
                                        iBase_EntityHandle **entities,
                                        int *entities_allocated,
                                        int *entities_size) = 0;

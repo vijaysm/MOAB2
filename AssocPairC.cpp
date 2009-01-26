@@ -4,16 +4,18 @@
 #include "iMesh.h"
 #include "iRel.h"
 
+#include <string.h>
+
 #define RETURN(a) {iRel_LAST_ERROR.error_type = a; return a;}
 #define iRel_processError(a, b) {sprintf(iRel_LAST_ERROR.description, b); iRel_LAST_ERROR.error_type = a;}
 #define PROCESS_GERROR  if (iBase_SUCCESS != result) {\
           char this_descr[120];\
-          iGeom_getDescription(ifaceInstances[iface_no], this_descr, \
+          iGeom_getDescription((iGeom_Instance)ifaceInstances[iface_no], this_descr, \
                                &result, 120);\
           iRel_processError(result, this_descr);}
 #define PROCESS_MERROR  if (iBase_SUCCESS != result) {\
           char this_descr[120];\
-          iMesh_getDescription(ifaceInstances[iface_no], this_descr, \
+          iMesh_getDescription((iMesh_Instance)ifaceInstances[iface_no], this_descr, \
                                &result, 120);\
           iRel_processError(result, this_descr);}
 
@@ -82,7 +84,6 @@ int AssocPairC::get_int_tags(const int iface_no,
                              iBase_EntityHandle *entities,
                              const int num_entities,
                              iBase_TagHandle tag_handle,
-                             bool are_sets,
                              int *tag_values) 
 {
   int tag_values_alloc = num_entities, tag_values_size;
@@ -96,51 +97,67 @@ int AssocPairC::get_int_tags(const int iface_no,
   }
   
   iRel_LAST_ERROR.error_type = iBase_SUCCESS;
-  if (are_sets) {
-    if (iRel_IGEOM_IFACE == ifaceTypes[iface_no]) {
-      for (int i = 0; i < num_entities; i++) {
-        iGeom_getEntSetIntData(ifaceInstances[iface_no],
-                               entities[i],
-                               tag_handle, tag_values+i, &result);
-        PROCESS_GERROR;
-      }
-    }
-    else if (iRel_IMESH_IFACE == ifaceTypes[iface_no]) {
-      for (int i = 0; i < num_entities; i++) {
-        iMesh_getEntSetIntData(ifaceInstances[iface_no],
-                               entities[i],
-                               tag_handle, tag_values+i, &result);
-        PROCESS_MERROR;
-      }
-    }
+  if (iRel_IGEOM_IFACE == ifaceTypes[iface_no]) {
+    iGeom_getIntArrData((iGeom_Instance)ifaceInstances[iface_no],
+                        entities,
+                        num_entities, tag_handle,
+                        &tag_values, &tag_values_alloc, 
+                        &tag_values_size, &result);
+    PROCESS_GERROR;
   }
-  else {
-    if (iRel_IGEOM_IFACE == ifaceTypes[iface_no]) {
-      iGeom_getIntArrData(ifaceInstances[iface_no],
-                          entities,
-                          num_entities, tag_handle,
-                          &tag_values, &tag_values_alloc, 
-                          &tag_values_size, &result);
+  else if (iRel_IMESH_IFACE == ifaceTypes[iface_no]) {
+    iMesh_getIntArrData((iMesh_Instance)ifaceInstances[iface_no],
+                        entities,
+                        num_entities, tag_handle,
+                        &tag_values, &tag_values_alloc,
+                        &tag_values_size, &result);
+    PROCESS_MERROR;
+  }
+
+  return iRel_LAST_ERROR.error_type;
+}
+
+int AssocPairC::get_int_tags(const int iface_no,
+                             iBase_EntitySetHandle *entities,
+                             const int num_entities,
+                             iBase_TagHandle tag_handle,
+                             int *tag_values) 
+{
+  int tag_values_alloc = num_entities, tag_values_size;
+  int result;
+  
+  if (iRel_IGEOM_IFACE != ifaceTypes[iface_no] &&
+      iRel_IMESH_IFACE != ifaceTypes[iface_no]) {
+    iRel_processError(iBase_NOT_SUPPORTED, 
+                      "Interface should be geometry or mesh.");
+    RETURN(iBase_NOT_SUPPORTED);
+  }
+  
+  iRel_LAST_ERROR.error_type = iBase_SUCCESS;
+  if (iRel_IGEOM_IFACE == ifaceTypes[iface_no]) {
+    for (int i = 0; i < num_entities; i++) {
+      iGeom_getEntSetIntData((iGeom_Instance)ifaceInstances[iface_no],
+                             entities[i],
+                             tag_handle, tag_values+i, &result);
       PROCESS_GERROR;
     }
-    else if (iRel_IMESH_IFACE == ifaceTypes[iface_no]) {
-      iMesh_getIntArrData(ifaceInstances[iface_no],
-                          entities,
-                          num_entities, tag_handle,
-                          &tag_values, &tag_values_alloc,
-                          &tag_values_size, &result);
+  }
+  else if (iRel_IMESH_IFACE == ifaceTypes[iface_no]) {
+    for (int i = 0; i < num_entities; i++) {
+      iMesh_getEntSetIntData((iMesh_Instance)ifaceInstances[iface_no],
+                             entities[i],
+                             tag_handle, tag_values+i, &result);
       PROCESS_MERROR;
     }
   }
 
   return iRel_LAST_ERROR.error_type;
 }
-  
+ 
 int AssocPairC::get_eh_tags(const int iface_no,
                             iBase_EntityHandle *entities,
                             const int num_entities,
                             iBase_TagHandle tag_handle,
-                            bool are_sets,
                             iBase_EntityHandle *tag_values) 
 {
   int tag_values_alloc = num_entities, tag_values_size;
@@ -154,39 +171,56 @@ int AssocPairC::get_eh_tags(const int iface_no,
   }
   
   iRel_LAST_ERROR.error_type = iBase_SUCCESS;
-  if (are_sets) {
-    if (iRel_IGEOM_IFACE == ifaceTypes[iface_no]) {
-      for (int i = 0; i < num_entities; i++) {
-        iGeom_getEntSetEHData(ifaceInstances[iface_no],
-                              entities[i],
-                              tag_handle, tag_values+i, &result);
-        PROCESS_GERROR;
-      }
-    }
-    else if (iRel_IMESH_IFACE == ifaceTypes[iface_no]) {
-      for (int i = 0; i < num_entities; i++) {
-        iMesh_getEntSetEHData(ifaceInstances[iface_no],
-                              entities[i],
-                              tag_handle, tag_values+i, &result);
-        PROCESS_MERROR;
-      }
-    }
+  if (iRel_IGEOM_IFACE == ifaceTypes[iface_no]) {
+    iGeom_getEHArrData((iGeom_Instance)ifaceInstances[iface_no],
+                       entities,
+                       num_entities, tag_handle,
+                       &tag_values, &tag_values_alloc,
+                       &tag_values_size, &result);
+    PROCESS_GERROR;
   }
-  else {
-    if (iRel_IGEOM_IFACE == ifaceTypes[iface_no]) {
-      iGeom_getEHArrData(ifaceInstances[iface_no],
-                         entities,
-                         num_entities, tag_handle,
-                         &tag_values, &tag_values_alloc,
-                         &tag_values_size, &result);
+  else if (iRel_IMESH_IFACE == ifaceTypes[iface_no]) {
+    iMesh_getEHArrData((iMesh_Instance)ifaceInstances[iface_no],
+                       entities,
+                       num_entities, tag_handle,
+                       &tag_values, &tag_values_alloc, 
+                       &tag_values_size, &result);
+    PROCESS_MERROR;
+  }
+
+  return iRel_LAST_ERROR.error_type;
+}
+ 
+int AssocPairC::get_eh_tags(const int iface_no,
+                            iBase_EntitySetHandle *entities,
+                            const int num_entities,
+                            iBase_TagHandle tag_handle,
+                            iBase_EntityHandle *tag_values) 
+{
+  int tag_values_alloc = num_entities, tag_values_size;
+  int result;
+  
+  if (iRel_IGEOM_IFACE != ifaceTypes[iface_no] &&
+      iRel_IMESH_IFACE != ifaceTypes[iface_no]) {
+    iRel_processError(iBase_NOT_SUPPORTED, 
+                      "Interface should be geometry or mesh.");
+    RETURN(iBase_NOT_SUPPORTED);
+  }
+  
+  iRel_LAST_ERROR.error_type = iBase_SUCCESS;
+  if (iRel_IGEOM_IFACE == ifaceTypes[iface_no]) {
+    for (int i = 0; i < num_entities; i++) {
+      iGeom_getEntSetEHData((iGeom_Instance)ifaceInstances[iface_no],
+                            entities[i],
+                            tag_handle, tag_values+i, &result);
       PROCESS_GERROR;
     }
-    else if (iRel_IMESH_IFACE == ifaceTypes[iface_no]) {
-      iMesh_getEHArrData(ifaceInstances[iface_no],
-                         entities,
-                         num_entities, tag_handle,
-                         &tag_values, &tag_values_alloc, 
-                         &tag_values_size, &result);
+  }
+  else if (iRel_IMESH_IFACE == ifaceTypes[iface_no]) {
+    for (int i = 0; i < num_entities; i++) {
+      iMesh_getEntSetEHData((iMesh_Instance)ifaceInstances[iface_no],
+                            entities[i],
+                            tag_handle, tag_values+i, &result);
       PROCESS_MERROR;
     }
   }
@@ -198,7 +232,6 @@ int AssocPairC::set_int_tags(const int iface_no,
                              iBase_EntityHandle *entities,
                              const int num_entities,
                              iBase_TagHandle tag_handle,
-                             bool are_sets,
                              int *tag_values)
 {
   int result;
@@ -211,49 +244,64 @@ int AssocPairC::set_int_tags(const int iface_no,
   }
   
   iRel_LAST_ERROR.error_type = iBase_SUCCESS;
-  if (are_sets) {
-    if (iRel_IGEOM_IFACE == ifaceTypes[iface_no]) {
-      for (int i = 0; i < num_entities; i++) {
-        iGeom_setEntSetIntData(ifaceInstances[iface_no],
-                               entities[i],
-                               tag_handle, tag_values[i], &result);
-        PROCESS_GERROR;
-      }
-    }
-    else if (iRel_IMESH_IFACE == ifaceTypes[iface_no]) {
-      for (int i = 0; i < num_entities; i++) {
-        iMesh_setEntSetIntData(ifaceInstances[iface_no],
-                               entities[i],
-                               tag_handle, tag_values[i], &result);
-        PROCESS_MERROR;
-      }
-    }
+  if (iRel_IGEOM_IFACE == ifaceTypes[iface_no]) {
+    iGeom_setIntArrData((iGeom_Instance)ifaceInstances[iface_no],
+                        entities,
+                        num_entities, tag_handle,
+                        tag_values, num_entities, &result);
+    PROCESS_GERROR;
   }
-  else {
-    if (iRel_IGEOM_IFACE == ifaceTypes[iface_no]) {
-      iGeom_setIntArrData(ifaceInstances[iface_no],
-                          entities,
-                          num_entities, tag_handle,
-                          tag_values, num_entities, &result);
+  else if (iRel_IMESH_IFACE == ifaceTypes[iface_no]) {
+    iMesh_setIntArrData((iMesh_Instance)ifaceInstances[iface_no],
+                        entities,
+                        num_entities, tag_handle,
+                        tag_values, num_entities, &result);
+    PROCESS_MERROR;
+  }
+
+  return iRel_LAST_ERROR.error_type;
+}
+   
+int AssocPairC::set_int_tags(const int iface_no,
+                             iBase_EntitySetHandle *entities,
+                             const int num_entities,
+                             iBase_TagHandle tag_handle,
+                             int *tag_values)
+{
+  int result;
+
+  if (iRel_IGEOM_IFACE != ifaceTypes[iface_no] &&
+      iRel_IMESH_IFACE != ifaceTypes[iface_no]) {
+    iRel_processError(iBase_NOT_SUPPORTED, 
+                      "Interface should be geometry or mesh.");
+    RETURN(iBase_NOT_SUPPORTED);
+  }
+  
+  iRel_LAST_ERROR.error_type = iBase_SUCCESS;
+  if (iRel_IGEOM_IFACE == ifaceTypes[iface_no]) {
+    for (int i = 0; i < num_entities; i++) {
+      iGeom_setEntSetIntData((iGeom_Instance)ifaceInstances[iface_no],
+                             entities[i],
+                             tag_handle, tag_values[i], &result);
       PROCESS_GERROR;
     }
-    else if (iRel_IMESH_IFACE == ifaceTypes[iface_no]) {
-      iMesh_setIntArrData(ifaceInstances[iface_no],
-                          entities,
-                          num_entities, tag_handle,
-                          tag_values, num_entities, &result);
+  }
+  else if (iRel_IMESH_IFACE == ifaceTypes[iface_no]) {
+    for (int i = 0; i < num_entities; i++) {
+      iMesh_setEntSetIntData((iMesh_Instance)ifaceInstances[iface_no],
+                             entities[i],
+                             tag_handle, tag_values[i], &result);
       PROCESS_MERROR;
     }
   }
 
   return iRel_LAST_ERROR.error_type;
 }
-  
+ 
 int AssocPairC::set_eh_tags(const int iface_no,
                             iBase_EntityHandle *entities,
                             const int num_entities,
                             iBase_TagHandle tag_handle,
-                            bool are_sets,
                             iBase_EntityHandle *tag_values)
 {
   int result;
@@ -266,37 +314,53 @@ int AssocPairC::set_eh_tags(const int iface_no,
   }
   
   iRel_LAST_ERROR.error_type = iBase_SUCCESS;
-  if (are_sets) {
-    if (iRel_IGEOM_IFACE == ifaceTypes[iface_no]) {
-      for (int i = 0; i < num_entities; i++) {
-        iGeom_setEntSetEHData(ifaceInstances[iface_no],
-                              entities[i],
-                              tag_handle, tag_values[i], &result);
-        PROCESS_GERROR;
-      }
-    }
-    else if (iRel_IMESH_IFACE == ifaceTypes[iface_no]) {
-      for (int i = 0; i < num_entities; i++) {
-        iMesh_setEntSetEHData(ifaceInstances[iface_no],
-                              entities[i],
-                              tag_handle, tag_values[i], &result);
-        PROCESS_MERROR;
-      }
-    }
+  if (iRel_IGEOM_IFACE == ifaceTypes[iface_no]) {
+    iGeom_setEHArrData((iGeom_Instance)ifaceInstances[iface_no],
+                       entities,
+                       num_entities, tag_handle,
+                       tag_values, num_entities, &result);
+    PROCESS_GERROR;
   }
-  else {
-    if (iRel_IGEOM_IFACE == ifaceTypes[iface_no]) {
-      iGeom_setEHArrData(ifaceInstances[iface_no],
-                         entities,
-                         num_entities, tag_handle,
-                         tag_values, num_entities, &result);
+  else if (iRel_IMESH_IFACE == ifaceTypes[iface_no]) {
+    iMesh_setEHArrData((iMesh_Instance)ifaceInstances[iface_no],
+                       entities,
+                       num_entities, tag_handle,
+                       tag_values, num_entities, &result);
+    PROCESS_MERROR;
+  }
+
+  return iRel_LAST_ERROR.error_type;
+}
+ 
+int AssocPairC::set_eh_tags(const int iface_no,
+                            iBase_EntitySetHandle *entities,
+                            const int num_entities,
+                            iBase_TagHandle tag_handle,
+                            iBase_EntityHandle *tag_values)
+{
+  int result;
+
+  if (iRel_IGEOM_IFACE != ifaceTypes[iface_no] &&
+      iRel_IMESH_IFACE != ifaceTypes[iface_no]) {
+    iRel_processError(iBase_NOT_SUPPORTED, 
+                      "Interface should be geometry or mesh.");
+    RETURN(iBase_NOT_SUPPORTED);
+  }
+  
+  iRel_LAST_ERROR.error_type = iBase_SUCCESS;
+  if (iRel_IGEOM_IFACE == ifaceTypes[iface_no]) {
+    for (int i = 0; i < num_entities; i++) {
+      iGeom_setEntSetEHData((iGeom_Instance)ifaceInstances[iface_no],
+                            entities[i],
+                            tag_handle, tag_values[i], &result);
       PROCESS_GERROR;
     }
-    else if (iRel_IMESH_IFACE == ifaceTypes[iface_no]) {
-      iMesh_setEHArrData(ifaceInstances[iface_no],
-                         entities,
-                         num_entities, tag_handle,
-                         tag_values, num_entities, &result);
+  }
+  else if (iRel_IMESH_IFACE == ifaceTypes[iface_no]) {
+    for (int i = 0; i < num_entities; i++) {
+      iMesh_setEntSetEHData((iMesh_Instance)ifaceInstances[iface_no],
+                            entities[i],
+                            tag_handle, tag_values[i], &result);
       PROCESS_MERROR;
     }
   }
@@ -324,24 +388,26 @@ int AssocPairC::get_all_entities(const int iface_no,
 
   if (iface_type(iface_no) == iRel_IGEOM_IFACE) {
     if (!are_sets)
-      iGeom_getEntities(ifaceInstances[iface_no], 
+      iGeom_getEntities((iGeom_Instance)ifaceInstances[iface_no], 
                         0, iBase_ALL_TYPES, 
                         entities, entities_alloc, entities_size, &result);
     else
-      iGeom_getEntSets(ifaceInstances[iface_no], 0, 
-                       0, entities, entities_alloc, entities_size, &result);
+      iGeom_getEntSets((iGeom_Instance)ifaceInstances[iface_no], 0, 
+                       0, reinterpret_cast<iBase_EntitySetHandle**>(entities), 
+                       entities_alloc, entities_size, &result);
       
     PROCESS_GERROR;
   }
   else if (iface_type(iface_no) == iRel_IMESH_IFACE) {
     if (!are_sets)
-      iMesh_getEntities(ifaceInstances[iface_no], 
+      iMesh_getEntities((iMesh_Instance)ifaceInstances[iface_no], 
                         0, iBase_ALL_TYPES, 
                         iMesh_ALL_TOPOLOGIES, 
                         entities, entities_alloc, entities_size, &result);
     else
-      iMesh_getEntSets(ifaceInstances[iface_no], 
-                       0, 0, entities, entities_alloc, entities_size, &result);
+      iMesh_getEntSets((iMesh_Instance)ifaceInstances[iface_no], 
+                       0, 0, reinterpret_cast<iBase_EntitySetHandle**>(entities), 
+                       entities_alloc, entities_size, &result);
 
     PROCESS_MERROR;
   }
@@ -351,7 +417,7 @@ int AssocPairC::get_all_entities(const int iface_no,
 
 int AssocPairC::get_entities(const int iface_no,
                              const int dimension,
-                             iBase_EntityHandle set_handle,
+                             iBase_EntitySetHandle set_handle,
                              iBase_EntityHandle **entities,
                              int *entities_alloc,
                              int *entities_size) 
@@ -371,7 +437,7 @@ int AssocPairC::get_entities(const int iface_no,
     int this_type =
       (-1 == dimension ? iBase_ALL_TYPES : dimension);
     
-    iGeom_getEntities(ifaceInstances[iface_no], 
+    iGeom_getEntities((iGeom_Instance)ifaceInstances[iface_no], 
                       set_handle, this_type,
                       entities, entities_alloc, entities_size,
                       &result);
@@ -381,7 +447,7 @@ int AssocPairC::get_entities(const int iface_no,
     int this_type =
       (-1 == dimension ? iBase_ALL_TYPES : dimension);
 
-    iMesh_getEntities(ifaceInstances[iface_no], 
+    iMesh_getEntities((iMesh_Instance)ifaceInstances[iface_no], 
                       set_handle, this_type,
                       iMesh_ALL_TOPOLOGIES, 
                       entities, entities_alloc, entities_size, &result);
@@ -410,14 +476,14 @@ int AssocPairC::get_ents_dims(const int iface_no,
   }
 
   if (iface_type(iface_no) == iRel_IGEOM_IFACE) {
-    iGeom_getArrType(ifaceInstances[iface_no], 
+    iGeom_getArrType((iGeom_Instance)ifaceInstances[iface_no], 
                      entities, entities_size, 
                      ent_types, ent_types_alloc, ent_types_size, 
                      &result);
     PROCESS_GERROR;
   }
   else if (iface_type(iface_no) == iRel_IMESH_IFACE) {
-    iMesh_getEntArrType(ifaceInstances[iface_no], 
+    iMesh_getEntArrType((iMesh_Instance)ifaceInstances[iface_no], 
                         entities, entities_size, 
                         ent_types, 
                         ent_types_alloc, ent_types_size, &result);
@@ -447,12 +513,12 @@ iBase_TagHandle AssocPairC::tag_get_handle(const int iface_no,
 
   iBase_TagHandle this_tag = 0;
   if (iface_type(iface_no) == iRel_IGEOM_IFACE) {
-    iGeom_getTagHandle(ifaceInstances[iface_no],
+    iGeom_getTagHandle((iGeom_Instance)ifaceInstances[iface_no],
                        tag_name, &this_tag, &result, strlen(tag_name));
     PROCESS_GERROR;
   }
   else if (iface_type(iface_no) == iRel_IMESH_IFACE) {
-    iMesh_getTagHandle(ifaceInstances[iface_no],
+    iMesh_getTagHandle((iMesh_Instance)ifaceInstances[iface_no],
                        tag_name, &this_tag, &result, strlen(tag_name));
     PROCESS_MERROR;
   }
@@ -460,14 +526,14 @@ iBase_TagHandle AssocPairC::tag_get_handle(const int iface_no,
   if (0 != this_tag || !create_if_missing) return this_tag;
   
   if (iface_type(iface_no) == iRel_IGEOM_IFACE) {
-    iGeom_createTag(ifaceInstances[iface_no],
+    iGeom_createTag((iGeom_Instance)ifaceInstances[iface_no],
                     tag_name, tag_size_values,
                     tag_data_type, &this_tag,
                     &result, strlen(tag_name));
     PROCESS_GERROR;
   }
   else if (iface_type(iface_no) == iRel_IMESH_IFACE) {
-    iMesh_createTag(ifaceInstances[iface_no],
+    iMesh_createTag((iMesh_Instance)ifaceInstances[iface_no],
                     tag_name, tag_size_values,
                     tag_data_type, &this_tag, &result, strlen(tag_name));
     PROCESS_MERROR;
@@ -491,7 +557,7 @@ int AssocPairC::create_mesh_vertex(const double x,
   }
   
   int result;
-  iMesh_createVtx(ifaceInstances[iface_no],
+  iMesh_createVtx((iMesh_Instance)ifaceInstances[iface_no],
                   x, y, z, &vertex, &result);
   RETURN(result);
 }
@@ -512,7 +578,7 @@ int AssocPairC::create_mesh_entity(iMesh_EntityTopology ent_topology,
   }
   
   int result;
-  iMesh_createEnt(ifaceInstances[iface_no],
+  iMesh_createEnt((iMesh_Instance)ifaceInstances[iface_no],
                   ent_topology, lower_handles, 
                   lower_handles_size, 
                   &new_ent, &status, &result);
@@ -534,7 +600,7 @@ int AssocPairC::set_mesh_coords(iBase_EntityHandle *verts,
   }
   
   int result;
-  iMesh_setVtxArrCoords(ifaceInstances[iface_no],
+  iMesh_setVtxArrCoords((iMesh_Instance)ifaceInstances[iface_no],
                         verts, verts_size,
                         order, coords, 3*verts_size, &result);
   RETURN(result);
@@ -557,7 +623,7 @@ int AssocPairC::get_mesh_coords(iBase_EntityHandle *verts,
   }
   
   int result;
-  iMesh_getVtxArrCoords(ifaceInstances[iface_no],
+  iMesh_getVtxArrCoords((iMesh_Instance)ifaceInstances[iface_no],
                         verts, verts_size, order,
                         coords, coords_alloc,
                         coords_size, &result);
@@ -583,7 +649,7 @@ int AssocPairC::get_closest_pt(iBase_EntityHandle *gents,
   }
   
   int result;
-  iGeom_getArrClosestPt(ifaceInstances[iface_no],
+  iGeom_getArrClosestPt((iGeom_Instance)ifaceInstances[iface_no],
                         gents, gents_size,
                         storage_order,
                         near_coords, near_coords_size,

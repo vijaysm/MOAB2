@@ -243,7 +243,7 @@ int relate_geom_mesh_test(iRel_Instance assoc,
     // relate coresponding mesh entity sets for geometry entities
     // get 1-dimensional mesh entitysets
 
-  iBase_EntityHandle *mentity_handles = NULL;
+  iBase_EntitySetHandle *mentity_handles = NULL;
   int mentity_handles_size = 0, mentity_handles_alloc = 0;
   iMesh_getEntSets(mesh, NULL, 1, 
                    &mentity_handles, &mentity_handles_alloc,
@@ -276,7 +276,7 @@ int relate_geom_mesh_test(iRel_Instance assoc,
       continue;
     
     if (dim == 1) 
-      mentities_vec[mentities_vec_size++] = mentity_handles[i];
+      mentities_vec[mentities_vec_size++] = (iBase_EntityHandle)mentity_handles[i];
   }
   
   iRel_inferArrAssociations(assoc, *rel,
@@ -414,7 +414,7 @@ int query_relations_test(iRel_Instance assoc,
   int is_list;
   int i;
   for (i = 0; i < out_mentities_size; i++) {
-    iMesh_isList(mesh, out_mentities[i], &is_list, &result);
+    iMesh_isList(mesh, (iBase_EntitySetHandle)out_mentities[i], &is_list, &result);
     if (iBase_SUCCESS != result) {
       printf("Entity set returned from classification wasn't valid.\n");
       return 0;

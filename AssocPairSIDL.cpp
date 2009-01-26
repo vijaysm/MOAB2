@@ -149,30 +149,10 @@ int AssocPairSIDL::get_int_tags(const int iface_no,
                                             iBase_EntityHandle *entities,
                                             int num_entities,
                                             iBase_TagHandle tag_handle,
-                                            bool are_sets,
                                             int *tag_values) 
 {
   int result = iBase_SUCCESS;
   
-  if (are_sets) {
-    CAST_iBase_INTERFACE(ifaceInstances[iface_no], iface_stag, SetTag,
-                         iBase_FAILURE);
-    for (int i = 0; i < num_entities; i++) {
-      try {
-        tag_values[i] = iface_stag.getEntSetIntData(entities[i],
-                                                    tag_handle);
-      }
-      catch (iBase::Error err) {
-        if (iBase::ErrorType_SUCCESS != err.getErrorType() &&
-            iBase::ErrorType_TAG_NOT_FOUND != err.getErrorType()) {
-          iRel_LAST_ERROR.error_type = iBase_FAILURE;
-          sprintf(iRel_LAST_ERROR.description, "%s", err.getDescription().c_str());
-          result = iBase_FAILURE;
-        }
-      }
-    }
-  }
-  else {
     CAST_iBase_INTERFACE(ifaceInstances[iface_no], iface_atag, ArrTag,
                          iBase_FAILURE);
     sidl::array<int> tag_values_tmp = 
@@ -191,8 +171,6 @@ int AssocPairSIDL::get_int_tags(const int iface_no,
         result = iBase_FAILURE;
       }
     }
-    
-  }
 
   RETURN(iBase_SUCCESS);
 }
@@ -201,30 +179,10 @@ int AssocPairSIDL::get_eh_tags(const int iface_no,
                                            iBase_EntityHandle *entities,
                                            int num_entities,
                                            iBase_TagHandle tag_handle,
-                                           bool are_sets,
-                                           iBase_EntityHandle *tag_values) 
+                                          iBase_EntityHandle *tag_values) 
 {
   int result = iBase_SUCCESS;
   
-  if (are_sets) {
-    CAST_iBase_INTERFACE(ifaceInstances[iface_no], iface_stag, SetTag,
-                         iBase_FAILURE);
-    for (int i = 0; i < num_entities; i++) {
-      try {
-        tag_values[i] = iface_stag.getEntSetEHData(entities[i],
-                                                   tag_handle);
-      }
-      catch (iBase::Error err) {
-        if (iBase::ErrorType_SUCCESS != err.getErrorType() &&
-            iBase::ErrorType_TAG_NOT_FOUND != err.getErrorType()) {
-          iRel_LAST_ERROR.error_type = iBase_FAILURE;
-          sprintf(iRel_LAST_ERROR.description, "%s", err.getDescription().c_str());
-          result = iBase_FAILURE;
-        }
-      }
-    }
-  }
-  else {
     CAST_iBase_INTERFACE(ifaceInstances[iface_no], iface_atag, ArrTag,
                          iBase_FAILURE);
     sidl::array<iBase_EntityHandle> tag_values_tmp = 
@@ -243,7 +201,6 @@ int AssocPairSIDL::get_eh_tags(const int iface_no,
         result = iBase_FAILURE;
       }
     }
-  }
 
   RETURN(result);
 }
@@ -253,19 +210,9 @@ int AssocPairSIDL::set_int_tags(const int iface_no,
                                             iBase_EntityHandle *entities,
                                             int num_entities,
                                             iBase_TagHandle tag_handle,
-                                            bool are_sets,
                                             int *tag_values)
 {
   try {
-    if (are_sets) {
-      CAST_iBase_INTERFACE(ifaceInstances[iface_no], iface_stag, SetTag,
-                           iBase_FAILURE);
-      for (int i = 0; i < num_entities; i++) {
-        tag_values[i] = iface_stag.getEntSetIntData(entities[i],
-                                                    tag_handle);
-      }
-    }
-    else {
       CAST_iBase_INTERFACE(ifaceInstances[iface_no], iface_atag, ArrTag,
                            iBase_FAILURE);
       sidl::array<int> tag_values_tmp = 
@@ -274,7 +221,6 @@ int AssocPairSIDL::set_int_tags(const int iface_no,
       iface_atag.setIntArrData(convert_to_sidl_vector(entities, num_entities),
                                num_entities, tag_handle,
                                tag_values_tmp, num_entities);
-    }
   }
   catch (iBase::Error err) {
     iRel_LAST_ERROR.error_type = iBase_FAILURE;
@@ -289,20 +235,9 @@ int AssocPairSIDL::set_eh_tags(const int iface_no,
                                            iBase_EntityHandle *entities,
                                            int num_entities,
                                            iBase_TagHandle tag_handle,
-                                           bool are_sets,
                                            iBase_EntityHandle *tag_values)
 {
   try {
-    if (are_sets) {
-      CAST_iBase_INTERFACE(ifaceInstances[iface_no], iface_stag, SetTag,
-                           iBase_FAILURE);
-      for (int i = 0; i < num_entities; i++) {
-        iface_stag.setEntSetEHData(entities[i],
-                                   tag_handle,
-                                   tag_values[i]);
-      }
-    }
-    else {
       CAST_iBase_INTERFACE(ifaceInstances[iface_no], iface_atag, ArrTag,
                            iBase_FAILURE);
       sidl::array<iBase_EntityHandle> tag_values_tmp = 
@@ -311,7 +246,111 @@ int AssocPairSIDL::set_eh_tags(const int iface_no,
       iface_atag.setEHArrData(convert_to_sidl_vector(entities, num_entities),
                               num_entities, tag_handle,
                               tag_values_tmp, num_entities);
+  }
+  catch (iBase::Error err) {
+    iRel_LAST_ERROR.error_type = iBase_FAILURE;
+    sprintf(iRel_LAST_ERROR.description, "%s", err.getDescription().c_str());
+    RETURN(iBase_FAILURE);
+  }
+
+  RETURN(iBase_SUCCESS);
+}
+
+
+int AssocPairSIDL::get_int_tags(const int iface_no,
+                                            iBase_EntitySetHandle *entities,
+                                            int num_entities,
+                                            iBase_TagHandle tag_handle,
+                                            int *tag_values) 
+{
+  int result = iBase_SUCCESS;
+  
+    CAST_iBase_INTERFACE(ifaceInstances[iface_no], iface_stag, SetTag,
+                         iBase_FAILURE);
+    for (int i = 0; i < num_entities; i++) {
+      try {
+        tag_values[i] = iface_stag.getEntSetIntData(entities[i],
+                                                    tag_handle);
+      }
+      catch (iBase::Error err) {
+        if (iBase::ErrorType_SUCCESS != err.getErrorType() &&
+            iBase::ErrorType_TAG_NOT_FOUND != err.getErrorType()) {
+          iRel_LAST_ERROR.error_type = iBase_FAILURE;
+          sprintf(iRel_LAST_ERROR.description, "%s", err.getDescription().c_str());
+          result = iBase_FAILURE;
+        }
+      }
     }
+
+  RETURN(iBase_SUCCESS);
+}
+  
+int AssocPairSIDL::get_eh_tags(const int iface_no,
+                                           iBase_EntitySetHandle *entities,
+                                           int num_entities,
+                                           iBase_TagHandle tag_handle,
+                                           iBase_EntityHandle *tag_values) 
+{
+  int result = iBase_SUCCESS;
+  
+    CAST_iBase_INTERFACE(ifaceInstances[iface_no], iface_stag, SetTag,
+                         iBase_FAILURE);
+    for (int i = 0; i < num_entities; i++) {
+      try {
+        tag_values[i] = iface_stag.getEntSetEHData(entities[i],
+                                                   tag_handle);
+      }
+      catch (iBase::Error err) {
+        if (iBase::ErrorType_SUCCESS != err.getErrorType() &&
+            iBase::ErrorType_TAG_NOT_FOUND != err.getErrorType()) {
+          iRel_LAST_ERROR.error_type = iBase_FAILURE;
+          sprintf(iRel_LAST_ERROR.description, "%s", err.getDescription().c_str());
+          result = iBase_FAILURE;
+        }
+      }
+    }
+
+  RETURN(result);
+}
+
+  
+int AssocPairSIDL::set_int_tags(const int iface_no,
+                                            iBase_EntitySetHandle *entities,
+                                            int num_entities,
+                                            iBase_TagHandle tag_handle,
+                                            int *tag_values)
+{
+  try {
+      CAST_iBase_INTERFACE(ifaceInstances[iface_no], iface_stag, SetTag,
+                           iBase_FAILURE);
+      for (int i = 0; i < num_entities; i++) {
+        tag_values[i] = iface_stag.getEntSetIntData(entities[i],
+                                                    tag_handle);
+      }
+  }
+  catch (iBase::Error err) {
+    iRel_LAST_ERROR.error_type = iBase_FAILURE;
+    sprintf(iRel_LAST_ERROR.description, "%s", err.getDescription().c_str());
+    RETURN(iBase_FAILURE);
+  }
+
+  RETURN(iBase_SUCCESS);
+}
+  
+int AssocPairSIDL::set_eh_tags(const int iface_no,
+                                           iBase_EntitySetHandle *entities,
+                                           int num_entities,
+                                           iBase_TagHandle tag_handle,
+                                           iBase_EntityHandle *tag_values)
+{
+  try {
+      CAST_iBase_INTERFACE(ifaceInstances[iface_no], iface_stag, SetTag,
+                           iBase_FAILURE);
+      for (int i = 0; i < num_entities; i++) {
+        iface_stag.setEntSetEHData(entities[i],
+                                   tag_handle,
+                                   tag_values[i]);
+      }
   }
   catch (iBase::Error err) {
     iRel_LAST_ERROR.error_type = iBase_FAILURE;

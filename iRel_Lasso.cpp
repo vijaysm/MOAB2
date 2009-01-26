@@ -235,11 +235,15 @@ void iRel_getEntEntAssociation (
   
   int iface_no = (switch_order ? 1 : 0);
   
-  int result =
-    this_pair->get_eh_tags(iface_no, 
-                           &ent1, 1, this_pair->assocTags[iface_no],
-                           is_set1, ent2);
-
+  int result;
+  if (is_set1) 
+    result = this_pair->get_eh_tags(iface_no, 
+                           reinterpret_cast<iBase_EntitySetHandle*>(&ent1), 
+                           1, this_pair->assocTags[iface_no], ent2);
+  else
+    result = this_pair->get_eh_tags(iface_no, 
+                           &ent1, 1, this_pair->assocTags[iface_no], ent2);
+  
     // if this is a set-type or 'both'-type association, we're returning
     // a set
   if (this_pair->entOrSet[1-iface_no] > 0) *is_set2 = 1;
@@ -279,7 +283,8 @@ void iRel_getEntArrAssociation (
 
     // now if ent2 is a set, get set entities...
   if (!return_sets && is_set2)
-    result = this_pair->get_entities(1-iface_no, -1, ent_set2,
+    result = this_pair->get_entities(1-iface_no, -1, 
+                  reinterpret_cast<iBase_EntitySetHandle>(ent_set2),
                                      ent_array_2,
                                      ent_array_2_allocated,
                                      ent_array_2_size);
@@ -533,9 +538,16 @@ iRel_inferArrArrAssociations(Lasso *lasso,
 
   for (int i = 0; i < 2; i++) {
     ents_gids.reserve(ents_size[i]);
-    result = assoc_pair->get_int_tags(ents_index[i], ents[i], ents_size[i], 
-                                      assoc_pair->gidTags[ents_index[i]],
-                                      is_set[i], &ents_gids[0]);
+    if (is_set[i]) 
+      result = assoc_pair->get_int_tags(ents_index[i], 
+                                        reinterpret_cast<iBase_EntitySetHandle*>(ents[i]), 
+                                        ents_size[i], 
+                                        assoc_pair->gidTags[ents_index[i]],
+                                        &ents_gids[0]);
+    else
+      result = assoc_pair->get_int_tags(ents_index[i], ents[i], ents_size[i], 
+                                        assoc_pair->gidTags[ents_index[i]],
+                                        &ents_gids[0]);
     if (iBase_SUCCESS != result && iBase_TAG_NOT_FOUND != result) {
       RETURN(result);
     }
@@ -544,10 +556,16 @@ iRel_inferArrArrAssociations(Lasso *lasso,
 
       CHECK_SIZE(int, &ents_dims, &ents_dims_alloc, ents_size[i]);
       if (1 == i) std::fill(ents_dims, ents_dims+ents_size[i], -1);
-      result = 
-        assoc_pair->get_int_tags(ents_index[i], ents[i], ents_size[i], 
-                                 assoc_pair->dimTags[ents_index[i]],
-                                 is_set[i], ents_dims);
+      if (is_set[i]) 
+        result = assoc_pair->get_int_tags(ents_index[i], 
+                                          reinterpret_cast<iBase_EntitySetHandle*>(ents[i]), 
+                                          ents_size[i], 
+                                          assoc_pair->gidTags[ents_index[i]],
+                                          ents_dims);
+      else
+        result = assoc_pair->get_int_tags(ents_index[i], ents[i], ents_size[i], 
+                                          assoc_pair->gidTags[ents_index[i]],
+                                          ents_dims);
       if (iBase_SUCCESS != result && iBase_TAG_NOT_FOUND != result) {
         RETURN(result);
       }
@@ -749,7 +767,8 @@ iRel_moveTo(iRel_Instance assoc,
   iBase_EntityHandle *vertices = NULL;
   int vertices_size = 0, vertices_allocated = 0;
   if (is_set) {
-    result = this_pair->get_entities((switched ? 0 : 1), 0, ent_set,
+    result = this_pair->get_entities((switched ? 0 : 1), 0, 
+                      reinterpret_cast<iBase_EntitySetHandle>(ent_set),
                                      &vertices, &vertices_allocated, 
                                      &vertices_size);
     if (iBase_SUCCESS != result) {
