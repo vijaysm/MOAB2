@@ -15,7 +15,7 @@ extern "C"
      * TYPEDEF'S
      *==========================================================
      */
-  typedef struct iBase_Instance_Private* iBase_Instance;
+  typedef void* iBase_Instance;
   typedef struct iBase_EntityHandle_Private* iBase_EntityHandle;
   typedef struct iBase_EntitySetHandle_Private* iBase_EntitySetHandle;
   typedef struct iBase_TagHandle_Private* iBase_TagHandle;
