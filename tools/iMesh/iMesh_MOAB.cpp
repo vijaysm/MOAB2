@@ -3149,7 +3149,7 @@ extern "C" {
                                  /*in*/ const char * const *tag_vals,
                                  /*in*/ const int num_tags_vals,
                                  /*in*/ const int recursive,
-                                 /*out*/ iBase_EntityHandle** set_handles,
+                                 /*out*/ iBase_EntitySetHandle** set_handles,
                                  /*out*/ int* set_handles_allocated,
                                  /*out*/ int* set_handles_size,
                                  /*out*/ int *err)
@@ -3171,7 +3171,7 @@ extern "C" {
     }
 
     CHECK_SIZE(*set_handles, *set_handles_allocated, 
-               (int)out_entities.size(), iBase_EntityHandle, iBase_MEMORY_ALLOCATION_FAILED);
+               (int)out_entities.size(), iBase_EntitySetHandle, iBase_MEMORY_ALLOCATION_FAILED);
 
     std::copy(out_entities.begin(), out_entities.end(), ((MBEntityHandle*) *set_handles));
   

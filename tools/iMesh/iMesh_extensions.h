@@ -140,7 +140,7 @@ extern "C" {
                                  /*in*/ const char * const *tag_vals,
                                  /*in*/ const int num_tags_vals,
                                  /*in*/ const int recursive,
-                                 /*out*/ iBase_EntityHandle** set_handles,
+                                 /*out*/ iBase_EntitySetHandle** set_handles,
                                  /*out*/ int* set_handles_allocated,
                                  /*out*/ int* set_handles_size,
                                  /*out*/ int *err);
