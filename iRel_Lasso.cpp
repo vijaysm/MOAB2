@@ -560,11 +560,11 @@ iRel_inferArrArrAssociations(Lasso *lasso,
         result = assoc_pair->get_int_tags(ents_index[i], 
                                           reinterpret_cast<iBase_EntitySetHandle*>(ents[i]), 
                                           ents_size[i], 
-                                          assoc_pair->gidTags[ents_index[i]],
+                                          assoc_pair->dimTags[ents_index[i]],
                                           ents_dims);
       else
         result = assoc_pair->get_int_tags(ents_index[i], ents[i], ents_size[i], 
-                                          assoc_pair->gidTags[ents_index[i]],
+                                          assoc_pair->dimTags[ents_index[i]],
                                           ents_dims);
       if (iBase_SUCCESS != result && iBase_TAG_NOT_FOUND != result) {
         RETURN(result);
