@@ -532,12 +532,12 @@ iRel_inferArrArrAssociations(Lasso *lasso,
   int result;
 
 
-  std::vector<int> ents_gids;
+  std::vector<int> ents_gids, ent_dims;
   std::map<const int, iBase_EntityHandle> ents_gid_map[4];
   int *ents_dims = NULL, ents_dims_size = 0, ents_dims_alloc;
 
   for (int i = 0; i < 2; i++) {
-    ents_gids.reserve(ents_size[i]);
+    ents_gids.resize(ents_size[i]);
     if (is_set[i]) 
       result = assoc_pair->get_int_tags(ents_index[i], 
                                         reinterpret_cast<iBase_EntitySetHandle*>(ents[i]), 
@@ -552,26 +552,25 @@ iRel_inferArrArrAssociations(Lasso *lasso,
       RETURN(result);
     }
 
+    ent_dims.resize(ents_size[i]);
     if (is_set[i]) {
 
-      CHECK_SIZE(int, &ents_dims, &ents_dims_alloc, ents_size[i]);
       if (1 == i) std::fill(ents_dims, ents_dims+ents_size[i], -1);
       result = assoc_pair->get_int_tags(ents_index[i], 
                                         reinterpret_cast<iBase_EntitySetHandle*>(ents[i]), 
                                         ents_size[i], 
                                         assoc_pair->dimTags[ents_index[i]],
-                                        ents_dims);
+                                        &ents_dims[0]);
       if (iBase_SUCCESS != result && iBase_TAG_NOT_FOUND != result) {
         RETURN(result);
       }
     }
 
     else {
-      CHECK_SIZE(int, &ents_dims, &ents_dims_alloc, ents_size[i]);
-      
+      int* ent_dims_ptr = &ent_dims[0], ent_dims_size = 0, ent_dims_alloc = ent_dims.size();
       result = 
         assoc_pair->get_ents_dims(ents_index[i], ents[i], ents_size[i], 
-                                  &ents_dims, &ents_dims_alloc, &ents_dims_size);
+                                  &ents_dims_ptr, &ents_dims_alloc, &ents_dims_size);
       if (iBase_SUCCESS != result && iBase_TAG_NOT_FOUND != result) {
         RETURN(result);
       }
@@ -583,9 +582,6 @@ iRel_inferArrArrAssociations(Lasso *lasso,
         if (0 <= dim && 3 >= dim)
           ents_gid_map[dim][ents_gids[j]] = ents[i][j];
       }
-
-      free(ents_dims);
-      ents_dims = NULL;
     }
   }
 
