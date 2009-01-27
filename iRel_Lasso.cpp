@@ -532,9 +532,8 @@ iRel_inferArrArrAssociations(Lasso *lasso,
   int result;
 
 
-  std::vector<int> ents_gids, ent_dims;
+  std::vector<int> ents_gids, ents_dims;
   std::map<const int, iBase_EntityHandle> ents_gid_map[4];
-  int *ents_dims = NULL, ents_dims_size = 0, ents_dims_alloc;
 
   for (int i = 0; i < 2; i++) {
     ents_gids.resize(ents_size[i]);
@@ -552,10 +551,8 @@ iRel_inferArrArrAssociations(Lasso *lasso,
       RETURN(result);
     }
 
-    ent_dims.resize(ents_size[i]);
+    ents_dims.resize(ents_size[i], -1);
     if (is_set[i]) {
-
-      if (1 == i) std::fill(ents_dims, ents_dims+ents_size[i], -1);
       result = assoc_pair->get_int_tags(ents_index[i], 
                                         reinterpret_cast<iBase_EntitySetHandle*>(ents[i]), 
                                         ents_size[i], 
@@ -567,7 +564,7 @@ iRel_inferArrArrAssociations(Lasso *lasso,
     }
 
     else {
-      int* ent_dims_ptr = &ent_dims[0], ent_dims_size = 0, ent_dims_alloc = ent_dims.size();
+      int* ents_dims_ptr = &ents_dims[0], ents_dims_size = 0, ents_dims_alloc = ents_dims.size();
       result = 
         assoc_pair->get_ents_dims(ents_index[i], ents[i], ents_size[i], 
                                   &ents_dims_ptr, &ents_dims_alloc, &ents_dims_size);
