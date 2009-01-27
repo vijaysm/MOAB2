@@ -556,29 +556,13 @@ iRel_inferArrArrAssociations(Lasso *lasso,
 
       CHECK_SIZE(int, &ents_dims, &ents_dims_alloc, ents_size[i]);
       if (1 == i) std::fill(ents_dims, ents_dims+ents_size[i], -1);
-      if (is_set[i]) 
-        result = assoc_pair->get_int_tags(ents_index[i], 
-                                          reinterpret_cast<iBase_EntitySetHandle*>(ents[i]), 
-                                          ents_size[i], 
-                                          assoc_pair->dimTags[ents_index[i]],
-                                          ents_dims);
-      else
-        result = assoc_pair->get_int_tags(ents_index[i], ents[i], ents_size[i], 
-                                          assoc_pair->dimTags[ents_index[i]],
-                                          ents_dims);
+      result = assoc_pair->get_int_tags(ents_index[i], 
+                                        reinterpret_cast<iBase_EntitySetHandle*>(ents[i]), 
+                                        ents_size[i], 
+                                        assoc_pair->dimTags[ents_index[i]],
+                                        ents_dims);
       if (iBase_SUCCESS != result && iBase_TAG_NOT_FOUND != result) {
         RETURN(result);
-      }
-
-      if (0 == i) {
-        for (int j = 0; j < ents_size[i]; j++) {
-          int dim = ents_dims[j];
-          if (0 <= dim && 3 >= dim)
-            ents_gid_map[dim][ents_gids[j]] = ents[i][j];
-        }
-      
-        free(ents_dims);
-        ents_dims = NULL;
       }
     }
 
@@ -591,17 +575,17 @@ iRel_inferArrArrAssociations(Lasso *lasso,
       if (iBase_SUCCESS != result && iBase_TAG_NOT_FOUND != result) {
         RETURN(result);
       }
+    }
 
-      if (0 == i) {
-        for (int j = 0; j < ents_size[i]; j++) {
-          int dim = ents_dims[j];
-          if (0 <= dim && 3 >= dim)
-            ents_gid_map[dim][ents_gids[j]] = ents[i][j];
-        }
-
-        free(ents_dims);
-        ents_dims = NULL;
+    if (0 == i) {
+      for (int j = 0; j < ents_size[i]; j++) {
+        int dim = ents_dims[j];
+        if (0 <= dim && 3 >= dim)
+          ents_gid_map[dim][ents_gids[j]] = ents[i][j];
       }
+
+      free(ents_dims);
+      ents_dims = NULL;
     }
   }
 
