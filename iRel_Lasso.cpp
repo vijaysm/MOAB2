@@ -627,7 +627,7 @@ void iRel_inferAllAssociations (
 
     // get all entities in those interfaces
   iBase_EntityHandle *ents1 = NULL, *ents2 = NULL;
-  int ents1_size, ents2_size, ents1_alloc, ents2_alloc;
+  int ents1_size, ents2_size, ents1_alloc = 0, ents2_alloc = 0;
   int result = 
     this_pair->get_all_entities(0, -1, (this_pair->entOrSet[0] > 0),
                                 &ents1, &ents1_alloc, &ents1_size);
@@ -688,7 +688,7 @@ void iRel_inferArrAssociations (
   
     // get all entities in iface2
   iBase_EntityHandle *ents2 = NULL, *ents1 = entities;
-  int ents1_size = entities_size, ents2_size, ents2_alloc;
+  int ents1_size = entities_size, ents2_size, ents2_alloc = 0;
   int result = 
     this_pair->get_all_entities(1-iface_no, -1, 
                                 (this_pair->entOrSet[1-iface_no] > 0),
