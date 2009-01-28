@@ -45,7 +45,7 @@ int print_geom_info(iGeom_Instance geom, iBase_EntityHandle gent)
   }
 
   const char *type_names[] = {"Vertex", "Edge", "Face", "Region"};
-  printf("%s %ld\n", type_names[ent_type], (long)gent);
+  printf("%s 0x%lx\n", type_names[ent_type], (unsigned long)gent);
 
   return 1;
 }
@@ -232,8 +232,8 @@ int relate_geom_mesh_test(iRel_Instance assoc,
     return 0;
   }
 
-  iRel_inferArrAssociations(assoc, *rel,
-                            gentities, gentities_size, 0, 0,
+  iRel_inferEntArrAssociations(assoc, *rel,
+                            gentities, gentities_size, 0,
                             &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to relate geom entities in relate_geom_mesh_test.\n");
@@ -279,9 +279,9 @@ int relate_geom_mesh_test(iRel_Instance assoc,
       mentities_vec[mentities_vec_size++] = (iBase_EntityHandle)mentity_handles[i];
   }
   
-  iRel_inferArrAssociations(assoc, *rel,
+  iRel_inferSetArrAssociations(assoc, *rel,
                             mentities_vec, mentities_vec_size, 
-                            1, 1, &result);
+                            1, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to relate mesh entities in relate_geom_mesh_test.\n");
     return 0;
@@ -310,15 +310,14 @@ int relate_geom_mesh_test(iRel_Instance assoc,
   }
 
     // get related mesh entity sets for geometry entities
-  iBase_EntityHandle *out_mentities = NULL;
+  iBase_EntitySetHandle *out_mentities = NULL;
   int out_mentities_size = 0, out_mentities_alloc = 0;
   int *offsets = NULL;
   int offsets_size = 0, offsets_alloc = 0;
-  iRel_getArrAssociation(assoc, *rel,
-                         gentities, gentities_size, 0, 1, 0,
+  iRel_getEntArrSetArrAssociation(assoc, *rel,
+                         gentities, gentities_size, 0,
                          &out_mentities, &out_mentities_alloc,
                          &out_mentities_size, 
-                         &offsets, &offsets_alloc, &offsets_size,
                          &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to get geom entities in relate_geom_mesh_test.\n");
@@ -337,8 +336,8 @@ int relate_geom_mesh_test(iRel_Instance assoc,
   offsets = NULL;
   offsets_size = offsets_alloc = 0;
 
-  iRel_getArrAssociation(assoc, *rel,
-                         out_mentities, out_mentities_size, 1, 0, 1,
+  iRel_getSetArrEntArrAssociation(assoc, *rel,
+                         out_mentities, out_mentities_size, 1,
                          &out_gentities, &out_gentities_alloc, 
                          &out_gentities_size, 
                          &offsets, &offsets_alloc, &offsets_size,
@@ -378,16 +377,15 @@ int query_relations_test(iRel_Instance assoc,
     return 0;
   }
 
-  iBase_EntityHandle *out_mentities = NULL;
+  iBase_EntitySetHandle *out_mentities = NULL;
   int out_mentities_size, out_mentities_alloc = 0;
   int *offsets = NULL;
   int offsets_size, offsets_alloc = 0;
 
-  iRel_getArrAssociation(assoc, rel,
-                         gentities, gentities_size, 0, 1, 0,
+  iRel_getEntArrSetArrAssociation(assoc, rel,
+                         gentities, gentities_size, 0,
                          &out_mentities, &out_mentities_alloc,
                          &out_mentities_size,
-                         &offsets, &offsets_alloc, &offsets_size, 
                          &result);
     // might not all be 
   if (iBase_SUCCESS != result) {
@@ -396,9 +394,7 @@ int query_relations_test(iRel_Instance assoc,
     
     int i;
     for (i = 0; i < gentities_size; i++) {
-      if (offsets[i] == offsets[i+1]) {
         print_geom_info(geom, gentities[i]);
-      }
     }
 
     return 0;
@@ -428,8 +424,8 @@ int query_relations_test(iRel_Instance assoc,
   offsets = NULL;
   offsets_alloc = 0;
   
-  iRel_getArrAssociation(assoc, rel,
-                         out_mentities, out_mentities_size, 1, 0, 1,
+  iRel_getSetArrEntArrAssociation(assoc, rel,
+                         out_mentities, out_mentities_size, 1,
                          &out_gentities, &out_gentities_alloc,
                          &out_gentities_size, 
                          &offsets, &offsets_alloc, &offsets_size, 

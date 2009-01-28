@@ -71,8 +71,12 @@ public:
 
   virtual int get_all_entities(const int iface_no,
                                const int dimension,
-                               const bool are_sets,
                                iBase_EntityHandle **entities,
+                               int *entities_alloc,
+                               int *entities_size);
+
+  virtual int get_all_sets(const int iface_no,
+                               iBase_EntitySetHandle **entities,
                                int *entities_alloc,
                                int *entities_size);
 

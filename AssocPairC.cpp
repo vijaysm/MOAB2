@@ -370,7 +370,6 @@ int AssocPairC::set_eh_tags(const int iface_no,
 
 int AssocPairC::get_all_entities(const int iface_no,
                                  const int dimension,
-                                 const bool are_sets,
                                  iBase_EntityHandle **entities,
                                  int *entities_alloc,
                                  int *entities_size) 
@@ -387,25 +386,48 @@ int AssocPairC::get_all_entities(const int iface_no,
   }
 
   if (iface_type(iface_no) == iRel_IGEOM_IFACE) {
-    if (!are_sets)
-      iGeom_getEntities((iGeom_Instance)ifaceInstances[iface_no], 
+    iGeom_getEntities((iGeom_Instance)ifaceInstances[iface_no], 
                         0, iBase_ALL_TYPES, 
                         entities, entities_alloc, entities_size, &result);
-    else
-      iGeom_getEntSets((iGeom_Instance)ifaceInstances[iface_no], 0, 
+      
+    PROCESS_GERROR;
+  }
+  else if (iface_type(iface_no) == iRel_IMESH_IFACE) {
+    iMesh_getEntities((iMesh_Instance)ifaceInstances[iface_no], 
+                        0, iBase_ALL_TYPES, 
+                        iMesh_ALL_TOPOLOGIES, 
+                        entities, entities_alloc, entities_size, &result);
+
+    PROCESS_MERROR;
+  }
+  
+  RETURN(iRel_LAST_ERROR.error_type);
+}
+int AssocPairC::get_all_sets(const int iface_no,
+                                 iBase_EntitySetHandle **entities,
+                                 int *entities_alloc,
+                                 int *entities_size) 
+{
+  iRel_LAST_ERROR.error_type = iBase_SUCCESS;
+  
+  int result;
+
+  if (iRel_IGEOM_IFACE != ifaceTypes[iface_no] &&
+      iRel_IMESH_IFACE != ifaceTypes[iface_no]) {
+    iRel_processError(iBase_NOT_SUPPORTED, 
+                      "Interface should be geometry or mesh.");
+    RETURN(iBase_NOT_SUPPORTED);
+  }
+
+  if (iface_type(iface_no) == iRel_IGEOM_IFACE) {
+    iGeom_getEntSets((iGeom_Instance)ifaceInstances[iface_no], 0, 
                        0, reinterpret_cast<iBase_EntitySetHandle**>(entities), 
                        entities_alloc, entities_size, &result);
       
     PROCESS_GERROR;
   }
   else if (iface_type(iface_no) == iRel_IMESH_IFACE) {
-    if (!are_sets)
-      iMesh_getEntities((iMesh_Instance)ifaceInstances[iface_no], 
-                        0, iBase_ALL_TYPES, 
-                        iMesh_ALL_TOPOLOGIES, 
-                        entities, entities_alloc, entities_size, &result);
-    else
-      iMesh_getEntSets((iMesh_Instance)ifaceInstances[iface_no], 
+    iMesh_getEntSets((iMesh_Instance)ifaceInstances[iface_no], 
                        0, 0, reinterpret_cast<iBase_EntitySetHandle**>(entities), 
                        entities_alloc, entities_size, &result);
 

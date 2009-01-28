@@ -363,7 +363,6 @@ int AssocPairSIDL::set_eh_tags(const int iface_no,
 
 int AssocPairSIDL::get_all_entities(const int iface_no,
                                                 const int dimension,
-                                                const bool are_sets,
                                                 iBase_EntityHandle **entities,
                                                 int *entities_alloc,
                                                 int *entities_size) 
@@ -371,12 +370,7 @@ int AssocPairSIDL::get_all_entities(const int iface_no,
   sidl::array<iBase_EntityHandle> entities_tmp;
   int entities_tmp_size = 0;
 
-  if (are_sets) {
-    CAST_iBase_INTERFACE(ifaceInstances[iface_no], eset, EntSet,
-                         iBase_FAILURE);
-    eset.getEntSets(0, 0, entities_tmp, entities_tmp_size);
-  }
-  else if (iface_type(iface_no) == iGeom_IFACE) {
+  if (iface_type(iface_no) == iGeom_IFACE) {
     CAST_iGeom_INTERFACE(ifaceInstances[iface_no], geom_topo, Topology,
                          iBase_FAILURE);
     geom_topo.getEntities(0, iGeom::EntityType_ALL_TYPES, 
@@ -390,6 +384,26 @@ int AssocPairSIDL::get_all_entities(const int iface_no,
                      entities_tmp, entities_tmp_size);
   }
   else RETURN(iBase_FAILURE);
+
+  CHECK_SIZE_VOID(iBase_EntityHandle, entities, entities_alloc,
+                  entities_tmp_size);
+  iBase_EntityHandle *eh = ARRAY_PTR(entities_tmp, iBase_EntityHandle);
+  std::copy(eh, eh+entities_tmp_size, *entities);
+  *entities_size = entities_tmp_size;
+
+  RETURN(iBase_SUCCESS);
+}
+int AssocPairSIDL::get_all_entities(const int iface_no,
+                                                iBase_EntitySetHandle **entities,
+                                                int *entities_alloc,
+                                                int *entities_size) 
+{
+  sidl::array<iBase_EntityHandle> entities_tmp;
+  int entities_tmp_size = 0;
+
+    CAST_iBase_INTERFACE(ifaceInstances[iface_no], eset, EntSet,
+                         iBase_FAILURE);
+    eset.getEntSets(0, 0, entities_tmp, entities_tmp_size);
 
   CHECK_SIZE_VOID(iBase_EntityHandle, entities, entities_alloc,
                   entities_tmp_size);

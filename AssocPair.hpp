@@ -72,8 +72,11 @@ public:
 
   virtual int get_all_entities(const int iface_no,
                                            const int dimension,
-                                           const bool are_sets,
                                            iBase_EntityHandle **entities,
+                                           int *entities_alloc,
+                                           int *entities_size) = 0;
+  virtual int get_all_sets(const int iface_no,
+                                           iBase_EntitySetHandle **entities,
                                            int *entities_alloc,
                                            int *entities_size) = 0;
 
@@ -131,10 +134,10 @@ public:
                                          int *on_coords_alloc, 
                                          int *on_coords_size) = 0;
   
-  int set_assoc_tags(iBase_EntityHandle ent1,
-                                 int is_set1,
-                                 iBase_EntityHandle ent2,
-                                 int is_set2);
+  int set_assoc_tags(iBase_EntityHandle    ent1, iBase_EntityHandle    ent2);
+  int set_assoc_tags(iBase_EntitySetHandle ent1, iBase_EntityHandle    ent2);
+  int set_assoc_tags(iBase_EntityHandle    ent1, iBase_EntitySetHandle ent2);
+  int set_assoc_tags(iBase_EntitySetHandle ent1, iBase_EntitySetHandle ent2);
   
   int entOrSet[2];
 

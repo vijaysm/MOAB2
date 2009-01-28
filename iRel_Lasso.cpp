@@ -134,9 +134,7 @@ void iRel_setEntEntAssociation (
   iRel_Instance instance,
   iRel_RelationHandle rel,    
   iBase_EntityHandle ent1,
-  int is_set1,
   iBase_EntityHandle ent2,
-  int is_set2,
   int *ierr)
 {
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
@@ -146,21 +144,75 @@ void iRel_setEntEntAssociation (
     RETURN(iBase_FAILURE);
   }
 
-  int result = this_pair->set_assoc_tags(ent1, is_set1,
-                                         ent2, is_set2);
+  int result = this_pair->set_assoc_tags(ent1, ent2);
+  
+    // xxx - need to check whether either is a set, and act accordingly!
+  RETURN(result);
+}
+void iRel_setEntSetAssociation (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntityHandle ent1,
+  iBase_EntitySetHandle ent2,
+  int *ierr)
+{
+  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
+  AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
+  if (NULL == this_pair) {
+    iRel_processError(iBase_FAILURE, "Didn't find association pair.");
+    RETURN(iBase_FAILURE);
+  }
+
+  int result = this_pair->set_assoc_tags(ent1, ent2);
+  
+    // xxx - need to check whether either is a set, and act accordingly!
+  RETURN(result);
+}
+void iRel_setSetEntAssociation (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntitySetHandle ent1,
+  iBase_EntityHandle ent2,
+  int *ierr)
+{
+  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
+  AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
+  if (NULL == this_pair) {
+    iRel_processError(iBase_FAILURE, "Didn't find association pair.");
+    RETURN(iBase_FAILURE);
+  }
+
+  int result = this_pair->set_assoc_tags(ent1, ent2);
+  
+    // xxx - need to check whether either is a set, and act accordingly!
+  RETURN(result);
+}
+void iRel_setSetSetAssociation (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntitySetHandle ent1,
+  iBase_EntitySetHandle ent2,
+  int *ierr)
+{
+  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
+  AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
+  if (NULL == this_pair) {
+    iRel_processError(iBase_FAILURE, "Didn't find association pair.");
+    RETURN(iBase_FAILURE);
+  }
+
+  int result = this_pair->set_assoc_tags(ent1, ent2);
   
     // xxx - need to check whether either is a set, and act accordingly!
   RETURN(result);
 }
 
-void iRel_setEntArrAssociation (
+void iRel_setEntEntArrAssociation (
   iRel_Instance instance,
   iRel_RelationHandle rel,    
   iBase_EntityHandle ent1,
-  int is_set1,
   iBase_EntityHandle *ent_array_2,
   int num_entities,
-  int is_set2,
   int switch_order,
   int *ierr)
 {
@@ -169,14 +221,96 @@ void iRel_setEntArrAssociation (
     int tmp_result;
     if (switch_order) {
       iRel_setEntEntAssociation(instance, rel,
-                                ent_array_2[i], is_set2, 
-                                ent1, is_set1, 
-                                &tmp_result);
+                                ent_array_2[i], ent1, &tmp_result);
     }
     else {
       iRel_setEntEntAssociation(instance, rel,
-                                ent1, is_set1, 
-                                ent_array_2[i], is_set2, 
+                                ent1, ent_array_2[i], &tmp_result);
+    }
+      
+    if (iBase_SUCCESS != tmp_result) result = tmp_result;
+  }
+  
+  RETURN(result);
+}
+void iRel_setEntSetArrAssociation (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntityHandle ent1,
+  iBase_EntitySetHandle *ent_array_2,
+  int num_entities,
+  int switch_order,
+  int *ierr)
+{
+  int result = iBase_SUCCESS;
+  for (int i = 0; i < num_entities; i++) {
+    int tmp_result;
+    if (switch_order) {
+      iRel_setSetEntAssociation(instance, rel,
+                                ent_array_2[i], ent1, &tmp_result);
+    }
+    else {
+      iRel_setEntSetAssociation(instance, rel,
+                                ent1, ent_array_2[i], &tmp_result);
+    }
+      
+    if (iBase_SUCCESS != tmp_result) result = tmp_result;
+  }
+  
+  RETURN(result);
+}
+void iRel_setSetEntArrAssociation (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntitySetHandle ent1,
+  iBase_EntityHandle *ent_array_2,
+  int num_entities,
+  int switch_order,
+  int *ierr)
+{
+  int result = iBase_SUCCESS;
+  for (int i = 0; i < num_entities; i++) {
+    int tmp_result;
+    if (switch_order) {
+      iRel_setEntSetAssociation(instance, rel,
+                                ent_array_2[i],  
+                                ent1,  
+                                &tmp_result);
+    }
+    else {
+      iRel_setSetEntAssociation(instance, rel,
+                                ent1,  
+                                ent_array_2[i],  
+                                &tmp_result);
+    }
+      
+    if (iBase_SUCCESS != tmp_result) result = tmp_result;
+  }
+  
+  RETURN(result);
+}
+void iRel_setSetSetArrAssociation (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntitySetHandle ent1,
+  iBase_EntitySetHandle *ent_array_2,
+  int num_entities,
+  int switch_order,
+  int *ierr)
+{
+  int result = iBase_SUCCESS;
+  for (int i = 0; i < num_entities; i++) {
+    int tmp_result;
+    if (switch_order) {
+      iRel_setSetSetAssociation(instance, rel,
+                                ent_array_2[i],  
+                                ent1,  
+                                &tmp_result);
+    }
+    else {
+      iRel_setSetSetAssociation(instance, rel,
+                                ent1,  
+                                ent_array_2[i],  
                                 &tmp_result);
     }
       
@@ -187,15 +321,13 @@ void iRel_setEntArrAssociation (
 //
 }
 
-void iRel_setArrAssociation (
+void iRel_setEntArrEntArrAssociation (
   iRel_Instance instance,
   iRel_RelationHandle rel,    
   iBase_EntityHandle *ent_array_1,
   int num_ent1,
-  int is_set1,
   iBase_EntityHandle *ent_array_2,
   int num_ent2,
-  int is_set2,
   int *ierr)
 {
   if (num_ent1 != num_ent2) {
@@ -208,8 +340,86 @@ void iRel_setArrAssociation (
   for (int i = 0; i < num_ent1; i++) {
     int tmp_result;
     iRel_setEntEntAssociation(instance, rel,
-                              ent_array_1[i], is_set1, 
-                              ent_array_2[i], is_set2, &tmp_result);
+                              ent_array_1[i],  
+                              ent_array_2[i],  &tmp_result);
+    if (iBase_SUCCESS != tmp_result) result = tmp_result;
+  }
+  
+  RETURN(result);
+}
+void iRel_setEntArrSetArrAssociation (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntityHandle *ent_array_1,
+  int num_ent1,
+  iBase_EntitySetHandle *ent_array_2,
+  int num_ent2,
+  int *ierr)
+{
+  if (num_ent1 != num_ent2) {
+    iRel_processError(iBase_NOT_SUPPORTED, 
+                      "setArrAssocation doesn't support different #'s of entities.");
+    RETURN(iBase_NOT_SUPPORTED);
+  }
+  
+  int result = iBase_SUCCESS;
+  for (int i = 0; i < num_ent1; i++) {
+    int tmp_result;
+    iRel_setEntSetAssociation(instance, rel,
+                              ent_array_1[i],  
+                              ent_array_2[i],  &tmp_result);
+    if (iBase_SUCCESS != tmp_result) result = tmp_result;
+  }
+  
+  RETURN(result);
+}
+void iRel_setSetArrEntArrAssociation (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntitySetHandle *ent_array_1,
+  int num_ent1,
+  iBase_EntityHandle *ent_array_2,
+  int num_ent2,
+  int *ierr)
+{
+  if (num_ent1 != num_ent2) {
+    iRel_processError(iBase_NOT_SUPPORTED, 
+                      "setArrAssocation doesn't support different #'s of entities.");
+    RETURN(iBase_NOT_SUPPORTED);
+  }
+  
+  int result = iBase_SUCCESS;
+  for (int i = 0; i < num_ent1; i++) {
+    int tmp_result;
+    iRel_setSetEntAssociation(instance, rel,
+                              ent_array_1[i],  
+                              ent_array_2[i],  &tmp_result);
+    if (iBase_SUCCESS != tmp_result) result = tmp_result;
+  }
+  
+  RETURN(result);
+}
+void iRel_setSetArrSetArrAssociation (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntitySetHandle *ent_array_1,
+  int num_ent1,
+  iBase_EntitySetHandle *ent_array_2,
+  int num_ent2,
+  int *ierr)
+{
+  if (num_ent1 != num_ent2) {
+    iRel_processError(iBase_NOT_SUPPORTED, 
+                      "setArrAssocation doesn't support different #'s of entities.");
+    RETURN(iBase_NOT_SUPPORTED);
+  }
+  
+  int result = iBase_SUCCESS;
+  for (int i = 0; i < num_ent1; i++) {
+    int tmp_result;
+    iRel_setSetSetAssociation(instance, rel,
+                              ent_array_1[i],  
+                              ent_array_2[i], &tmp_result);
     if (iBase_SUCCESS != tmp_result) result = tmp_result;
   }
   
@@ -220,10 +430,8 @@ void iRel_getEntEntAssociation (
   iRel_Instance instance,
   iRel_RelationHandle rel,    
   iBase_EntityHandle ent1,
-  int is_set1,
   int switch_order,
   iBase_EntityHandle *ent2,
-  int *is_set2,
   int *ierr)
 {
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
@@ -235,34 +443,113 @@ void iRel_getEntEntAssociation (
   
   int iface_no = (switch_order ? 1 : 0);
   
-  int result;
-  if (is_set1) 
-    result = this_pair->get_eh_tags(iface_no, 
-                           reinterpret_cast<iBase_EntitySetHandle*>(&ent1), 
-                           1, this_pair->assocTags[iface_no], ent2);
-  else
-    result = this_pair->get_eh_tags(iface_no, 
+  if (this_pair->entOrSet[1-iface_no] > 0) { // iface2 is sets
+    iRel_processError(iBase_INVALID_ENTITY_HANDLE, "Expected EntitySet, got Entity");
+    RETURN(iBase_INVALID_ENTITY_HANDLE);
+  }
+  
+  int result = this_pair->get_eh_tags(iface_no, 
                            &ent1, 1, this_pair->assocTags[iface_no], ent2);
   
-    // if this is a set-type or 'both'-type association, we're returning
-    // a set
-  if (this_pair->entOrSet[1-iface_no] > 0) *is_set2 = 1;
+  RETURN(result);
+}
+void iRel_getEntSetAssociation (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntityHandle ent1,
+  int switch_order,
+  iBase_EntitySetHandle *ent2,
+  int *ierr)
+{
+  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
+  AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
+  if (NULL == this_pair) {
+    iRel_processError(iBase_FAILURE, "Didn't find association pair.");
+    RETURN(iBase_FAILURE);
+  }
+  
+  int iface_no = (switch_order ? 1 : 0);
+  
+  if (this_pair->entOrSet[1-iface_no] == 0) { // iface2 is not sets
+    iRel_processError(iBase_INVALID_ENTITY_HANDLE, "Expected Entity, got EntitySet");
+    RETURN(iBase_INVALID_ENTITY_HANDLE);
+  }
+  
+  int result = this_pair->get_eh_tags(iface_no, 
+                           &ent1, 1, this_pair->assocTags[iface_no], 
+                           reinterpret_cast<iBase_EntityHandle*>(ent2));
+  
+  RETURN(result);
+}
+void iRel_getSetEntAssociation (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntitySetHandle ent1,
+  int switch_order,
+  iBase_EntityHandle *ent2,
+  int *ierr)
+{
+  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
+  AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
+  if (NULL == this_pair) {
+    iRel_processError(iBase_FAILURE, "Didn't find association pair.");
+    RETURN(iBase_FAILURE);
+  }
+  
+  int iface_no = (switch_order ? 1 : 0);
+  
+  if (this_pair->entOrSet[1-iface_no] > 0) { // iface2 is sets
+    iRel_processError(iBase_INVALID_ENTITY_HANDLE, "Expected EntitySet, got Entity");
+    RETURN(iBase_INVALID_ENTITY_HANDLE);
+  }
+  
+  int result = this_pair->get_eh_tags(iface_no, 
+                           &ent1, 1, this_pair->assocTags[iface_no], ent2);
   
   RETURN(result);
 }
 
-void iRel_getEntArrAssociation (
+void iRel_getSetSetAssociation (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntitySetHandle ent1,
+  int switch_order,
+  iBase_EntitySetHandle *ent2,
+  int *ierr)
+{
+  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
+  AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
+  if (NULL == this_pair) {
+    iRel_processError(iBase_FAILURE, "Didn't find association pair.");
+    RETURN(iBase_FAILURE);
+  }
+  
+  int iface_no = (switch_order ? 1 : 0);
+  
+  if (this_pair->entOrSet[1-iface_no] == 0) { // iface2 is not sets
+    iRel_processError(iBase_INVALID_ENTITY_HANDLE, "Expected Entity, got EntitySet");
+    RETURN(iBase_INVALID_ENTITY_HANDLE);
+  }
+  
+  int result = this_pair->get_eh_tags(iface_no, 
+                           &ent1, 1, this_pair->assocTags[iface_no], 
+                           reinterpret_cast<iBase_EntityHandle*>(ent2));
+  
+  RETURN(result);
+}
+
+void iRel_getEntEntArrAssociation (
   iRel_Instance instance,
   iRel_RelationHandle rel,    
   iBase_EntityHandle ent1,
-  int is_set1,
-  int return_sets,
   int switch_order,
   iBase_EntityHandle **ent_array_2,
   int *ent_array_2_allocated,
   int *ent_array_2_size,
   int *ierr)
 {
+  int result;
+
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
   AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
   if (NULL == this_pair) {
@@ -271,42 +558,82 @@ void iRel_getEntArrAssociation (
   }
   int iface_no = (switch_order ? 1 : 0);
   
-  iBase_EntityHandle ent_set2 = 0;
+  if (this_pair->entOrSet[1-iface_no] > 0) { // iface2 is sets
+    iBase_EntitySetHandle ent_set2 = 0;
 
-    // no matter what, get ent-ent assoc
-  int is_set2 = 0;
-  int result;
-  iRel_getEntEntAssociation(instance, rel,
-                            ent1, is_set1, switch_order,
-                            &ent_set2, &is_set2, &result);
-  if (iBase_SUCCESS != result) RETURN(result);
+    iRel_getEntSetAssociation(instance, rel,
+                              ent1, switch_order,
+                              &ent_set2, &result);
+    if (iBase_SUCCESS != result) RETURN(result);
 
-    // now if ent2 is a set, get set entities...
-  if (!return_sets && is_set2)
     result = this_pair->get_entities(1-iface_no, -1, 
-                  reinterpret_cast<iBase_EntitySetHandle>(ent_set2),
+                                     ent_set2,
                                      ent_array_2,
                                      ent_array_2_allocated,
                                      ent_array_2_size);
-
+  }
   else {
       // otherwise put the set into the ent list
     CHECK_SIZE(iBase_EntityHandle, ent_array_2,
                ent_array_2_allocated, 1);
     *ent_array_2_size = 1;
-    (*ent_array_2)[0] = ent_set2;
+    iRel_getEntEntAssociation(instance, rel, ent1, switch_order, 
+                              *ent_array_2, &result );
+  }
+  
+  RETURN(result);
+}
+void iRel_getSetEntArrAssociation (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntitySetHandle ent1,
+  int switch_order,
+  iBase_EntityHandle **ent_array_2,
+  int *ent_array_2_allocated,
+  int *ent_array_2_size,
+  int *ierr)
+{
+  int result;
+
+  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
+  AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
+  if (NULL == this_pair) {
+    iRel_processError(iBase_FAILURE, "Didn't find association pair.");
+    RETURN(iBase_FAILURE);
+  }
+  int iface_no = (switch_order ? 1 : 0);
+  
+  if (this_pair->entOrSet[1-iface_no] > 0) { // iface2 is sets
+    iBase_EntitySetHandle ent_set2 = 0;
+
+    iRel_getSetSetAssociation(instance, rel,
+                              ent1, switch_order,
+                              &ent_set2, &result);
+    if (iBase_SUCCESS != result) RETURN(result);
+
+    result = this_pair->get_entities(1-iface_no, -1, 
+                                     ent_set2,
+                                     ent_array_2,
+                                     ent_array_2_allocated,
+                                     ent_array_2_size);
+  }
+  else {
+      // otherwise put the set into the ent list
+    CHECK_SIZE(iBase_EntityHandle, ent_array_2,
+               ent_array_2_allocated, 1);
+    *ent_array_2_size = 1;
+    iRel_getSetEntAssociation(instance, rel, ent1, switch_order, 
+                              *ent_array_2, &result );
   }
   
   RETURN(result);
 }
 
-void iRel_getArrAssociation(
+void iRel_getEntArrEntArrAssociation(
   iRel_Instance instance,
   iRel_RelationHandle rel,    
   iBase_EntityHandle *ent_array_1,
   int ent_array_1_size,
-  int is_set1,
-  int return_sets,
   int switch_order,
   iBase_EntityHandle **ent_array_2,
   int *ent_array_2_allocated,
@@ -335,8 +662,8 @@ void iRel_getArrAssociation(
     int tmp_result;
     iBase_EntityHandle *tmp_array = NULL;
     int tmp_array_size, tmp_array_allocated;
-    iRel_getEntArrAssociation(instance, rel,
-                              ent_array_1[i], is_set1, return_sets,
+    iRel_getEntEntArrAssociation(instance, rel,
+                              ent_array_1[i], 
                               switch_order,
                               &tmp_array, &tmp_array_allocated,
                               &tmp_array_size, &tmp_result);
@@ -353,6 +680,128 @@ void iRel_getArrAssociation(
              (int)tmp_ents.size());
   *ent_array_2_size = tmp_ents.size();
   std::copy(tmp_ents.begin(), tmp_ents.end(), *ent_array_2);
+  
+  RETURN(result);
+}
+void iRel_getEntArrSetArrAssociation(
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntityHandle *ent_array_1,
+  int ent_array_1_size,
+  int switch_order,
+  iBase_EntitySetHandle **ent_array_2,
+  int *ent_array_2_allocated,
+  int *ent_array_2_size,
+  int *ierr)
+{
+  std::vector<iBase_EntityHandle> tmp_ents;
+  int tmp_result, result = iBase_SUCCESS;
+  CHECK_SIZE(iBase_EntitySetHandle, ent_array_2, ent_array_2_allocated, ent_array_1_size );
+  *ent_array_2_size = ent_array_1_size;
+
+    // get assocpair so we can check whether ents are associated to
+    // entities or sets or both
+  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
+  bool switched = false;
+  AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
+  if (NULL == this_pair) {
+    iRel_processError(iBase_FAILURE, "Didn't find association pair.");
+    RETURN(iBase_FAILURE);
+  }
+  for (int i = 0; i < ent_array_1_size; i++) {
+    iRel_getEntSetAssociation( instance, rel, ent_array_1[i],
+                               switch_order, (*ent_array_2)+i,
+                               &tmp_result );
+    if (iBase_SUCCESS != tmp_result) result = tmp_result;
+  }
+  
+  RETURN(result);
+}
+void iRel_getSetArrEntArrAssociation(
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntitySetHandle *ent_array_1,
+  int ent_array_1_size,
+  int switch_order,
+  iBase_EntityHandle **ent_array_2,
+  int *ent_array_2_allocated,
+  int *ent_array_2_size,
+  int **offset,
+  int *offset_allocated,
+  int *offset_size,
+  int *ierr)
+{
+  std::vector<iBase_EntityHandle> tmp_ents;
+  int result = iBase_SUCCESS;
+  CHECK_SIZE(int, offset, offset_allocated, (ent_array_1_size+1));
+  *offset_size = ent_array_1_size+1;
+
+    // get assocpair so we can check whether ents are associated to
+    // entities or sets or both
+  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
+  bool switched = false;
+  AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
+  if (NULL == this_pair) {
+    iRel_processError(iBase_FAILURE, "Didn't find association pair.");
+    RETURN(iBase_FAILURE);
+  }
+  for (int i = 0; i < ent_array_1_size; i++) {
+    (*offset)[i] = tmp_ents.size();
+    int tmp_result;
+    iBase_EntityHandle *tmp_array = NULL;
+    int tmp_array_size, tmp_array_allocated;
+    iRel_getSetEntArrAssociation(instance, rel,
+                              ent_array_1[i], 
+                              switch_order,
+                              &tmp_array, &tmp_array_allocated,
+                              &tmp_array_size, &tmp_result);
+    if (iBase_SUCCESS == result && NULL != tmp_array) {
+      std::copy(tmp_array, tmp_array+tmp_array_size,
+                std::back_inserter(tmp_ents));
+      free(tmp_array);
+    }
+    
+    if (iBase_SUCCESS != tmp_result) result = tmp_result;
+  }
+  (*offset)[ent_array_1_size] = tmp_ents.size();
+  CHECK_SIZE(iBase_EntityHandle, ent_array_2, ent_array_2_allocated,
+             (int)tmp_ents.size());
+  *ent_array_2_size = tmp_ents.size();
+  std::copy(tmp_ents.begin(), tmp_ents.end(), *ent_array_2);
+  
+  RETURN(result);
+}
+void iRel_getSetArrSetArrAssociation(
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntitySetHandle *ent_array_1,
+  int ent_array_1_size,
+  int switch_order,
+  iBase_EntitySetHandle **ent_array_2,
+  int *ent_array_2_allocated,
+  int *ent_array_2_size,
+  int *ierr)
+{
+  std::vector<iBase_EntityHandle> tmp_ents;
+  int tmp_result, result = iBase_SUCCESS;
+  CHECK_SIZE(iBase_EntitySetHandle, ent_array_2, ent_array_2_allocated, ent_array_1_size );
+  *ent_array_2_size = ent_array_1_size;
+
+    // get assocpair so we can check whether ents are associated to
+    // entities or sets or both
+  Lasso *lasso = reinterpret_cast<Lasso*>(instance);
+  bool switched = false;
+  AssocPair *this_pair = reinterpret_cast<AssocPair*>(rel);
+  if (NULL == this_pair) {
+    iRel_processError(iBase_FAILURE, "Didn't find association pair.");
+    RETURN(iBase_FAILURE);
+  }
+  for (int i = 0; i < ent_array_1_size; i++) {
+    iRel_getSetSetAssociation( instance, rel, ent_array_1[i],
+                               switch_order, (*ent_array_2)+i,
+                               &tmp_result );
+    if (iBase_SUCCESS != tmp_result) result = tmp_result;
+  }
   
   RETURN(result);
 }
@@ -383,8 +832,7 @@ void iRel_createVtxAndAssociate (
   }
   
     // now associate
-  result = this_pair->set_assoc_tags(associatedGeomEnt, false,
-                                     *new_entity_handle, false);
+  result = this_pair->set_assoc_tags(associatedGeomEnt, *new_entity_handle);
   RETURN(result);
 }
 
@@ -419,8 +867,7 @@ void iRel_createEntAndAssociate (
   }
   
     // now associate
-  result = this_pair->set_assoc_tags(associatedGeomEnt, false,
-                                     *new_entity_handle, false);
+  result = this_pair->set_assoc_tags(associatedGeomEnt, *new_entity_handle);
   RETURN(result);
 //
 }
@@ -511,7 +958,7 @@ void iRel_createEntArrAndAssociate (
   RETURN(result);
 }
 
-void
+static void
 iRel_inferArrArrAssociations(Lasso *lasso,
                              AssocPair *assoc_pair,
                              iBase_EntityHandle *ents1,
@@ -583,6 +1030,7 @@ iRel_inferArrArrAssociations(Lasso *lasso,
   }
 
   int dim;
+  int c = !!is_set[0] + 2*!!is_set[1];
   for (int j = 0; j < ents_size[1]; j++) {
     dim = ents_dims[j];
 
@@ -597,13 +1045,38 @@ iRel_inferArrArrAssociations(Lasso *lasso,
       // if it matches, set the association tags for those entities
     if (iter != ents_gid_map[dim].end()) {
       
-      if (ents_index[0] == 0)
-        result = assoc_pair->set_assoc_tags((*iter).second, is_set[0],
-                                            ents[1][j], is_set[1]);
-      else
-        result = assoc_pair->set_assoc_tags(ents[1][j], is_set[1],
-                                            (*iter).second, is_set[0]);
-  
+      switch (c) {
+        case 0: // !is_set[0] && !is_set[1]
+          if (ents_index[0] == 0)
+            result = assoc_pair->set_assoc_tags((*iter).second, ents[1][j]);
+          else
+            result = assoc_pair->set_assoc_tags(ents[1][j], (*iter).second);
+          break;
+        case 1: // is_set[0] && !is_set[1]
+          if (ents_index[0] == 0)
+            result = assoc_pair->set_assoc_tags((iBase_EntitySetHandle)(*iter).second, 
+                                                 ents[1][j]);
+          else
+            result = assoc_pair->set_assoc_tags(ents[1][j],
+                                                (iBase_EntitySetHandle)(*iter).second);
+          break;
+        case 2: // !is_set[0] && is_set[1]
+          if (ents_index[0] == 0)
+            result = assoc_pair->set_assoc_tags((*iter).second,
+                                                (iBase_EntitySetHandle)ents[1][j]);
+          else
+            result = assoc_pair->set_assoc_tags((iBase_EntitySetHandle)ents[1][j],
+                                                (*iter).second);
+          break;
+        case 3: // is_set[0] && is_set[1]
+          if (ents_index[0] == 0)
+            result = assoc_pair->set_assoc_tags((iBase_EntitySetHandle)(*iter).second,
+                                                (iBase_EntitySetHandle)ents[1][j]);
+          else
+            result = assoc_pair->set_assoc_tags((iBase_EntitySetHandle)ents[1][j],
+                                                (iBase_EntitySetHandle)(*iter).second);
+          break;
+      }
       if (iBase_SUCCESS != result) {
         RETURN(result);
       }
@@ -611,6 +1084,61 @@ iRel_inferArrArrAssociations(Lasso *lasso,
   }
 
   RETURN(iBase_SUCCESS);
+}
+void
+iRel_inferEntArrEntArrAssociations(Lasso *lasso,
+                             AssocPair *assoc_pair,
+                             iBase_EntityHandle *ents1,
+                             const int ents1_size,
+                             iBase_EntityHandle *ents2,
+                             const int ents2_size,
+                             int *ierr)
+{
+  iRel_inferArrArrAssociations( lasso, assoc_pair, ents1, ents1_size, 0,
+                                ents2, ents2_size, 0, ierr );
+}
+void
+iRel_inferEntArrSetArrAssociations(Lasso *lasso,
+                             AssocPair *assoc_pair,
+                             iBase_EntityHandle *ents1,
+                             const int ents1_size,
+                             iBase_EntitySetHandle *ents2,
+                             const int ents2_size,
+                             int *ierr)
+{
+  iRel_inferArrArrAssociations( lasso, assoc_pair, ents1, ents1_size, 0,
+                                (iBase_EntityHandle*)ents2, ents2_size, 
+                                1, ierr );
+}
+void
+iRel_inferSetArrEntArrAssociations(Lasso *lasso,
+                             AssocPair *assoc_pair,
+                             iBase_EntitySetHandle *ents1,
+                             const int ents1_size,
+                             iBase_EntityHandle *ents2,
+                             const int ents2_size,
+                             int *ierr)
+{
+  iRel_inferArrArrAssociations( lasso, assoc_pair, 
+                                (iBase_EntityHandle*)ents1, ents1_size, 
+                                1, ents2, ents2_size, 0, ierr );
+}
+void
+iRel_inferSetArrSetArrAssociations(Lasso *lasso,
+                             AssocPair *assoc_pair,
+                             iBase_EntitySetHandle *ents1,
+                             const int ents1_size,
+                             int is_set1,
+                             iBase_EntitySetHandle *ents2,
+                             const int ents2_size,
+                             int is_set2,
+                             int *ierr)
+
+{
+  iRel_inferArrArrAssociations( lasso, assoc_pair, 
+                                (iBase_EntityHandle*)ents1, ents1_size, 
+                                1, (iBase_EntityHandle*)ents2, 
+                                ents2_size, 1, ierr );
 }
 
 void iRel_inferAllAssociations (
@@ -628,15 +1156,19 @@ void iRel_inferAllAssociations (
     // get all entities in those interfaces
   iBase_EntityHandle *ents1 = NULL, *ents2 = NULL;
   int ents1_size, ents2_size, ents1_alloc = 0, ents2_alloc = 0;
-  int result = 
-    this_pair->get_all_entities(0, -1, (this_pair->entOrSet[0] > 0),
-                                &ents1, &ents1_alloc, &ents1_size);
+  int result;
+  if (this_pair->entOrSet[0] > 0)
+    result = this_pair->get_all_sets(0, (iBase_EntitySetHandle**)&ents1, &ents1_alloc, &ents1_size);
+  else
+    result = this_pair->get_all_entities(0, -1, &ents1, &ents1_alloc, &ents1_size);
   if (iBase_SUCCESS != result) {
     RETURN(result);
   }
   
-  result = this_pair->get_all_entities(1, -1, (this_pair->entOrSet[1] > 0),
-                                       &ents2, &ents2_alloc, &ents2_size);
+  if (this_pair->entOrSet[1] > 0)
+    result = this_pair->get_all_sets(1, (iBase_EntitySetHandle**)&ents2, &ents2_alloc, &ents2_size);
+  else
+  result = this_pair->get_all_entities(1, -1, &ents2, &ents2_alloc, &ents2_size);
   if (iBase_SUCCESS != result) {
     RETURN(result);
   }
@@ -655,12 +1187,23 @@ void iRel_inferEntAssociations (
   int iface_no,
   int *ierr)
 {
-  iRel_inferArrAssociations(instance, rel,
-                            &entity, 1, is_set, iface_no, 
+  iRel_inferEntArrAssociations(instance, rel,
+                            &entity, 1, iface_no, 
+                            ierr);
+}
+void iRel_inferSetAssociations (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntitySetHandle entity,
+  int iface_no,
+  int *ierr)
+{
+  iRel_inferSetArrAssociations(instance, rel,
+                            &entity, 1, iface_no, 
                             ierr);
 }
 
-void iRel_inferArrAssociations (
+static void iRel_inferArrAssociations (
   iRel_Instance instance,
   iRel_RelationHandle rel,    
   iBase_EntityHandle *entities,
@@ -689,9 +1232,13 @@ void iRel_inferArrAssociations (
     // get all entities in iface2
   iBase_EntityHandle *ents2 = NULL, *ents1 = entities;
   int ents1_size = entities_size, ents2_size, ents2_alloc = 0;
-  int result = 
-    this_pair->get_all_entities(1-iface_no, -1, 
-                                (this_pair->entOrSet[1-iface_no] > 0),
+  int result;
+  if (this_pair->entOrSet[1-iface_no] > 0)
+    result = this_pair->get_all_sets(1-iface_no, 
+                                (iBase_EntitySetHandle**)&ents2, 
+                                &ents2_alloc, &ents2_size);
+  else
+    result = this_pair->get_all_entities(1-iface_no, -1, 
                                 &ents2, &ents2_alloc, &ents2_size);
   if (iBase_SUCCESS != result) {
     RETURN(result);
@@ -718,6 +1265,27 @@ void iRel_inferArrAssociations (
   RETURN(result);
 }
 
+void iRel_inferEntArrAssociations (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntityHandle *entities,
+  int entities_size,
+  int iface_no,
+  int *ierr)
+{
+  iRel_inferArrAssociations( instance, rel, entities, entities_size, 0, iface_no, ierr );
+}
+void iRel_inferSetArrAssociations (
+  iRel_Instance instance,
+  iRel_RelationHandle rel,    
+  iBase_EntitySetHandle *entities,
+  int entities_size,
+  int iface_no,
+  int *ierr)
+{
+  iRel_inferArrAssociations( instance, rel, (iBase_EntityHandle*)entities, entities_size, 1, iface_no, ierr );
+}
+
 void 
 iRel_moveTo(iRel_Instance assoc,
             /* in */ iGeom_Instance geom, /* in */ iMesh_Instance mesh,
@@ -729,21 +1297,21 @@ iRel_moveTo(iRel_Instance assoc,
   AssocPair *this_pair = lasso->find_pair(geom, mesh, &switched);
 
     // get mesh entity coresponding to the given geom entity
-  iBase_EntityHandle ent_set;
-  int is_set = 0;
   int result;
-  iRel_getEntEntAssociation(assoc, this_pair,
-                            gent, 0, (switched ? 1 : 0), &ent_set, 
-                            &is_set, &result);
-  if (iBase_SUCCESS != result) {
-    iRel_processError(result, "Trouble getting associated set for a gentity.");
-    RETURN(result);
-  }
 
     // get the vertices in the set, inclusive
   iBase_EntityHandle *vertices = NULL;
   int vertices_size = 0, vertices_allocated = 0;
-  if (is_set) {
+  if (this_pair->entOrSet[1-switched]) {
+    iBase_EntitySetHandle ent_set;
+    iRel_getEntSetAssociation(assoc, this_pair,
+                              gent, switched, &ent_set, 
+                              &result);
+    if (iBase_SUCCESS != result) {
+      iRel_processError(result, "Trouble getting associated set for a gentity.");
+      RETURN(result);
+    }
+  
     result = this_pair->get_entities((switched ? 0 : 1), 0, 
                       reinterpret_cast<iBase_EntitySetHandle>(ent_set),
                                      &vertices, &vertices_allocated, 
@@ -757,7 +1325,13 @@ iRel_moveTo(iRel_Instance assoc,
       // just a vertex, we hope - put that in array
     CHECK_SIZE(iBase_EntityHandle, &vertices, &vertices_allocated, 1);
     vertices_size = 1;
-    vertices[0] = ent_set;
+    iRel_getEntEntAssociation(assoc, this_pair,
+                              gent, switched, vertices, 
+                              &result);
+    if (iBase_SUCCESS != result) {
+      iRel_processError(result, "Trouble getting associated set for a gentity.");
+      RETURN(result);
+    }
   }
 
     // check to see if there's nothing to do; if so, THIS IS NOT AN ERROR - e.g. curve with
