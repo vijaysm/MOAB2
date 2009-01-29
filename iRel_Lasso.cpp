@@ -211,9 +211,9 @@ void iRel_setEntEntArrAssociation (
   iRel_Instance instance,
   iRel_RelationHandle rel,    
   iBase_EntityHandle ent1,
+  int switch_order,
   iBase_EntityHandle *ent_array_2,
   int num_entities,
-  int switch_order,
   int *ierr)
 {
   int result = iBase_SUCCESS;
@@ -237,9 +237,9 @@ void iRel_setEntSetArrAssociation (
   iRel_Instance instance,
   iRel_RelationHandle rel,    
   iBase_EntityHandle ent1,
+  int switch_order,
   iBase_EntitySetHandle *ent_array_2,
   int num_entities,
-  int switch_order,
   int *ierr)
 {
   int result = iBase_SUCCESS;
@@ -263,9 +263,9 @@ void iRel_setSetEntArrAssociation (
   iRel_Instance instance,
   iRel_RelationHandle rel,    
   iBase_EntitySetHandle ent1,
+  int switch_order,
   iBase_EntityHandle *ent_array_2,
   int num_entities,
-  int switch_order,
   int *ierr)
 {
   int result = iBase_SUCCESS;
@@ -293,9 +293,9 @@ void iRel_setSetSetArrAssociation (
   iRel_Instance instance,
   iRel_RelationHandle rel,    
   iBase_EntitySetHandle ent1,
+  int switch_order,
   iBase_EntitySetHandle *ent_array_2,
   int num_entities,
-  int switch_order,
   int *ierr)
 {
   int result = iBase_SUCCESS;
