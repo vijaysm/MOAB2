@@ -76,3 +76,17 @@ install-data-hook:
 	echo "IMESH_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 
+
+FPFX=iMesh
+SEDEXPR = 's/^[[:space:]]*void[[:space:]][[:space:]]*$(FPFX)_\([a-z][_a-zA-Z0-9]*\)[[:space:]]*(.*$$/$(FPFX)_\1/p'
+iMesh_protos.h: iMesh.h
+	echo '#include "MBCN_FCDefs.h"' > $@
+	echo '#ifdef FC_FUNC_' >> $@
+	echo >> $@
+	for func in `$(SED) -n $(SEDEXPR) $<`; do \
+	  lower=`echo $$func | tr -s '[:upper:]' '[:lower:]'`; \
+          upper=`echo $$func | tr -s '[:lower:]' '[:upper:]'`; \
+	  echo "#define $$func FC_FUNC_( $$lower, $$upper )" >> $@; \
+        done
+	echo >> $@
+	echo "#endif" >> $@
