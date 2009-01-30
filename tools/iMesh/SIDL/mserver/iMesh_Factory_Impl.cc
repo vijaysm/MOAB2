@@ -1,17 +1,13 @@
 // 
 // File:          iMesh_Factory_Impl.cc
-// Symbol:        iMesh.Factory-v0.7
+// Symbol:        iMesh.Factory-v0.8
 // Symbol Type:   class
-// Babel Version: 0.10.12
-// sidl Created:  20080414 17:40:04 GMT
-// Generated:     20080414 17:40:09 GMT
+// Babel Version: 0.10.10
 // Description:   Server-side implementation for iMesh.Factory
 // 
 // WARNING: Automatically generated; only changes within splicers preserved
 // 
-// babel-version = 0.10.12
-// source-line   = 296
-// source-url    = file:/home/tautges/MOAB/tools/iMesh/SIDL/iMesh.sidl
+// babel-version = 0.10.10
 // 
 #include "iMesh_Factory_Impl.hh"
 

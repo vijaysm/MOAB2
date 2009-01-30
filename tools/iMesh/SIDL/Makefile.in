@@ -39,6 +39,7 @@ INSTALL = @INSTALL@
 BABEL_DIR = @BABEL_DIR@
 USE_BABEL = @USE_BABEL@
 BABEL = $(BABEL_DIR)/bin/babel
+BABELFLAGS = "--suppress-timestamp"
 ECHO = @ECHO@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
@@ -215,22 +216,22 @@ mserver/babel.make: $(SIDL_FILES_PATH) $(SERVER_FILES_PATH)
 	  done \
 	fi
 	@if test "x$(USE_BABEL)" = "xyes"; then \
-	  $(ECHO) '$(BABEL) -sC++ $(SIDL_FILES_PATH) -o mserver' ; \
-	  $(BABEL) -sC++ $(SIDL_FILES_PATH) -o mserver && touch $@; \
+	  $(ECHO) '$(BABEL) $(BABELFLAGS) -sC++ $(SIDL_FILES_PATH) -o mserver' ; \
+	  $(BABEL) $(BABELFLAGS) -sC++ $(SIDL_FILES_PATH) -o mserver && touch $@; \
 	fi
 
 Cclient/babel.make: $(SIDL_FILES)
 	test -d Cclient || $(mkdir_p) Cclient || exit 1
 	@if test "x$(USE_BABEL)" = "xyes"; then \
-	  $(ECHO) '$(BABEL) -cC $(SIDL_FILES_PATH) -o Cclient' ; \
-	  $(BABEL) -cC $(SIDL_FILES_PATH) -o Cclient && touch $@; \
+	  $(ECHO) '$(BABEL) $(BABELFLAGS) -cC $(SIDL_FILES_PATH) -o Cclient' ; \
+	  $(BABEL) $(BABELFLAGS) -cC $(SIDL_FILES_PATH) -o Cclient && touch $@; \
 	fi
 
 Fclient/babel.make: $(SIDL_FILES)
 	test -d Fclient || $(mkdir_p) Fclient || exit 1
 	@if test "x$(USE_BABEL)" = "xyes"; then \
-	  $(ECHO) '$(BABEL) -cF77 $(SIDL_FILES_PATH) -o Fclient' ; \
-	  $(BABEL) -cF77 $(SIDL_FILES_PATH) -o Fclient && touch $@; \
+	  $(ECHO) '$(BABEL) $(BABELFLAGS) -cF77 $(SIDL_FILES_PATH) -o Fclient' ; \
+	  $(BABEL) $(BABELFLAGS) -cF77 $(SIDL_FILES_PATH) -o Fclient && touch $@; \
 	fi
 
 .SUFFIXES: .cpp .cc .c .lo

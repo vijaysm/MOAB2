@@ -2,16 +2,12 @@
 // File:          iMesh_SIDL_MeshSidl_Impl.hh
 // Symbol:        iMesh_SIDL.MeshSidl-v0.2
 // Symbol Type:   class
-// Babel Version: 0.10.12
-// sidl Created:  20070927 14:57:59 CDT
-// Generated:     20070927 14:58:06 CDT
+// Babel Version: 0.10.10
 // Description:   Server-side implementation for iMesh_SIDL.MeshSidl
 // 
 // WARNING: Automatically generated; only changes within splicers preserved
 // 
-// babel-version = 0.10.12
-// source-line   = 5
-// source-url    = file:/home/tautges/MOAB/tools/iMesh/SIDL/iMesh_SIDL.sidl
+// babel-version = 0.10.10
 // 
 
 #ifndef included_iMesh_SIDL_MeshSidl_Impl_hh
@@ -664,7 +660,7 @@ namespace iMesh_SIDL {
     void
     addEntToSet (
       /* in */ void* entity_handle,
-      /* inout */ void*& entity_set
+      /* in */ void* entity_set
     )
     throw ( 
       ::iBase::Error
@@ -676,7 +672,7 @@ namespace iMesh_SIDL {
     void
     rmvEntFromSet (
       /* in */ void* entity_handle,
-      /* inout */ void*& entity_set
+      /* in */ void* entity_set
     )
     throw ( 
       ::iBase::Error
@@ -689,7 +685,7 @@ namespace iMesh_SIDL {
     addEntArrToSet (
       /* in */ ::sidl::array<void*> entity_handles,
       /* in */ int32_t entity_handles_size,
-      /* inout */ void*& entity_set
+      /* in */ void* entity_set
     )
     throw ( 
       ::iBase::Error
@@ -702,7 +698,7 @@ namespace iMesh_SIDL {
     rmvEntArrFromSet (
       /* in */ ::sidl::array<void*> entity_handles,
       /* in */ int32_t entity_handles_size,
-      /* inout */ void*& entity_set
+      /* in */ void* entity_set
     )
     throw ( 
       ::iBase::Error
@@ -714,7 +710,7 @@ namespace iMesh_SIDL {
     void
     addEntSet (
       /* in */ void* entity_set_to_add,
-      /* inout */ void*& entity_set_handle
+      /* in */ void* entity_set_handle
     )
     throw ( 
       ::iBase::Error
@@ -726,7 +722,7 @@ namespace iMesh_SIDL {
     void
     rmvEntSet (
       /* in */ void* entity_set_to_remove,
-      /* inout */ void*& entity_set_handle
+      /* in */ void* entity_set_handle
     )
     throw ( 
       ::iBase::Error
@@ -749,6 +745,20 @@ namespace iMesh_SIDL {
      * user defined non-static method.
      */
     void
+    isEntArrContained (
+      /* in */ void* containing_set,
+      /* in */ ::sidl::array<void*> entity_handles,
+      /* in */ int32_t entity_handles_size,
+      /* inout */ ::sidl::array<int32_t>& is_contained,
+      /* out */ int32_t& is_contained_size
+    )
+    throw () 
+    ;
+
+    /**
+     * user defined non-static method.
+     */
+    void
     isEntSetContained (
       /* in */ void* containing_entity_set,
       /* in */ void* contained_entity_set,
@@ -763,8 +773,8 @@ namespace iMesh_SIDL {
      */
     void
     addPrntChld (
-      /* inout */ void*& parent_entity_set,
-      /* inout */ void*& child_entity_set
+      /* in */ void* parent_entity_set,
+      /* in */ void* child_entity_set
     )
     throw ( 
       ::iBase::Error
@@ -775,8 +785,8 @@ namespace iMesh_SIDL {
      */
     void
     rmvPrntChld (
-      /* inout */ void*& parent_entity_set,
-      /* inout */ void*& child_entity_set
+      /* in */ void* parent_entity_set,
+      /* in */ void* child_entity_set
     )
     throw ( 
       ::iBase::Error
@@ -940,6 +950,17 @@ namespace iMesh_SIDL {
      * user defined non-static method.
      */
     void
+    setGeometricDim (
+      /* in */ int32_t dim
+    )
+    throw ( 
+      ::iBase::Error
+    );
+
+    /**
+     * user defined non-static method.
+     */
+    void
     getDfltStorage (
       /* out */ ::iBase::StorageOrder& dflt_storage
     )
@@ -1001,42 +1022,6 @@ namespace iMesh_SIDL {
      * user defined non-static method.
      */
     void
-    getAllVtxCoords (
-      /* in */ void* entity_set,
-      /* inout */ ::sidl::array<double>& coords,
-      /* out */ int32_t& coords_size,
-      /* inout */ ::sidl::array<int32_t>& in_entity_set,
-      /* out */ int32_t& in_entity_set_size,
-      /* inout */ ::iBase::StorageOrder& storage_order
-    )
-    throw ( 
-      ::iBase::Error
-    );
-
-    /**
-     * user defined non-static method.
-     */
-    void
-    getVtxCoordIndex (
-      /* in */ void* entity_set,
-      /* in */ ::iBase::EntityType requested_entity_type,
-      /* in */ ::iMesh::EntityTopology requested_entity_topology,
-      /* in */ ::iBase::EntityType entity_adjacency_type,
-      /* inout */ ::sidl::array<int32_t>& offset,
-      /* out */ int32_t& offset_size,
-      /* inout */ ::sidl::array<int32_t>& index,
-      /* out */ int32_t& index_size,
-      /* inout */ ::sidl::array< ::iMesh::EntityTopology>& entity_topologies,
-      /* out */ int32_t& entity_topologies_size
-    )
-    throw ( 
-      ::iBase::Error
-    );
-
-    /**
-     * user defined non-static method.
-     */
-    void
     getEntities (
       /* in */ void* entity_set,
       /* in */ ::iBase::EntityType entity_type,
@@ -1075,9 +1060,29 @@ namespace iMesh_SIDL {
       /* inout */ ::sidl::array<void*>& adj_entity_handles,
       /* out */ int32_t& adj_entity_handles_size,
       /* inout */ ::sidl::array<int32_t>& offset,
-      /* out */ int32_t& offset_size,
-      /* inout */ ::sidl::array<int32_t>& in_entity_set,
-      /* out */ int32_t& in_entity_set_size
+      /* out */ int32_t& offset_size
+    )
+    throw ( 
+      ::iBase::Error
+    );
+
+    /**
+     * user defined non-static method.
+     */
+    void
+    getAdjEntIndices (
+      /* in */ void* entity_set_handle,
+      /* in */ ::iBase::EntityType entity_type_requestor,
+      /* in */ ::iMesh::EntityTopology entity_topology_requestor,
+      /* in */ ::iBase::EntityType entity_type_requested,
+      /* inout */ ::sidl::array<void*>& entity_handles,
+      /* out */ int32_t& entity_handles_size,
+      /* inout */ ::sidl::array<void*>& adj_entity_handles,
+      /* out */ int32_t& adj_entity_handles_size,
+      /* inout */ ::sidl::array<int32_t>& adj_entity_indices,
+      /* out */ int32_t& adj_entity_indices_size,
+      /* inout */ ::sidl::array<int32_t>& offset,
+      /* out */ int32_t& offset_size
     )
     throw ( 
       ::iBase::Error

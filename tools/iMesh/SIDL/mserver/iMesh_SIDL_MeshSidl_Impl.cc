@@ -3,15 +3,11 @@
 // Symbol:        iMesh_SIDL.MeshSidl-v0.2
 // Symbol Type:   class
 // Babel Version: 0.10.10
-// sidl Created:  20090130 09:34:06 CST
-// Generated:     20090130 09:34:08 CST
 // Description:   Server-side implementation for iMesh_SIDL.MeshSidl
 // 
 // WARNING: Automatically generated; only changes within splicers preserved
 // 
 // babel-version = 0.10.10
-// source-line   = 5
-// source-url    = file:/home/jason/moab/clean/sidl/tools/iMesh/SIDL/../../../../src/tools/iMesh/SIDL/iMesh_SIDL.sidl
 // 
 #include "iMesh_SIDL_MeshSidl_Impl.hh"
 
@@ -1575,7 +1571,8 @@ iMesh_SIDL::MeshSidl_impl::getAdjEntities (
   /* in */ ::iBase::EntityType entity_type_requested,
   /* inout */ ::sidl::array<void*>& adj_entity_handles,
   /* out */ int32_t& adj_entity_handles_size,
-  /* inout */ ::sidl::array<int32_t>& offset ) 
+  /* inout */ ::sidl::array<int32_t>& offset,
+  /* out */ int32_t& offset_size ) 
 throw ( 
   ::iBase::Error
 ){
