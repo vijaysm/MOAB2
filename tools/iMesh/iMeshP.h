@@ -1016,127 +1016,72 @@ void iMeshP_getNumOfTopo(
             int *num_topo, 
             int *err);
 
-
-
-
-/** \brief Return coordinate data for vertices that are in both a given part and a given entity set.
+/**\brief Get indexed representation of mesh or subset of mesh
  *
- *  Given a part handle and an entity set handle, 
- *  return the coordinate data for all vertices that are in BOTH 
- *  the given part AND the given entity set.  
- *  This function is similar to iMesh_getAllVtxCoords, but it also restricts
- *  the returned data with respect to its existence in the given part.
- *  If the input entity set is 
- *  not the root set, coordinates are returned for vertices either in the set 
- *  or contained by entities in the set. If storage order is
- *  a value other than iBase_UNDETERMINED, coordinates are returned with
- *  that storage order; otherwise the storage order is the implementation's
- *  native order.  On return, storage order contains
- *  order of the returned coordinates.
+ * Given part handle and an entity set and optionally a type or topology, 
+ * for all entities that are in BOTH the part and the entity set, return:
+ * - The entities in the part and set of the specified type or topology
+ * - The entities adjacent to those entities with a specified
+ *    type, as a list of unique handles.
+ * - For each entity in the first list, the adjacent entities,
+ *    specified as indices into the second list.
  *
  *  COMMUNICATION:  None.
  *
- *  \param  instance                (In)     Mesh instance containing the 
- *                                           partition.
- *  \param  partition               (In)     The partition being queried.
- *  \param  part                    (In)     The part being queried.
- *  \param  entity_set              (In)     Entity set handle for the 
- *                                           entity set being queried; 
- *                                           may be the root set.
- *  \param  coordinates             (In/Out) Array of coordinates for 
- *                                           vertices in both the part
- *                                           and entity set.
- *  \param  coordinates_allocated   (In/Out) Allocated size of coordinates 
- *                                           array.
- *  \param  coordinates_size        (Out)    Occupied size of coordinates 
- *                                           array.
- *  \param  in_entity_set           (In/Out) Array of flags returned if 
- *                                           non-root entity set was input; 
- *                                           (*in_entity_set)[i]=1 indicates 
- *                                           vertex i was in the entity set.
- *  \param  in_entity_set_allocated (In/Out) Allocated size of in_entity_set.
- *  \param  in_entity_set_size      (Out)    Occupied size of in_entity_set.
- *  \param  storage_order           (In/Out) Storage order requested/returned.
- *  \param  err                     (Out)    Error code.
+ *\param  instance                (In)     Mesh instance containing the 
+ *                                         partition.
+ *\param  partition               (In)     The partition being queried.
+ *\param  part                    (In)     The part being queried.
+ *\param entity_set_handle        (In)     The set being queried
+ *\param entity_type_requestor    (In)     If not iBase_ALL_TYPES, act only 
+ *                                         on the subset of entities with
+ *                                         the specified type.
+ *\param entity_topology_requestor (In)    If not iMesh_ALL_TOPOLOGIES, act 
+ *                                         only on the subset of entities with
+ *                                         the specified topology.
+ *\param entity_type_requested    (In)     The type of the adjacent entities
+ *                                         to return.
+ *\param entity_handles           (In/Out) The handles of the (non-strict) 
+ *                                         subset of the union of the part
+ *                                         and entity set, and the optional 
+ *                                         type and topology filtering 
+ *                                         arguments.
+ *\param adj_entity_handles       (In/Out) The union of the entities of type 
+ *                                         'requested_entity_type' adjacent 
+ *                                         to each entity in 'entity_handles'.
+ *\param adj_entity_indices       (In/Out) For each entity in 'entity_handles', 
+ *                                         the adjacent entities of type
+ *                                         'entity_type_requested', specified as 
+ *                                         indices into 'adj_entity_handles'.  
+ *                                         The indices are concatenated into a 
+ *                                         single array in the order of the 
+ *                                         entity handles in 'entity_handles'.
+ *\param offset                   (In/Out) For each entity in the 
+ *                                         corresponding position in 
+ *                                         'entity_handles', the position
+ *                                         in 'adj_entity_indices' at which
+ *                                         values for that entity are stored.
  */
-void iMeshP_getAllVtxCoords(
-            iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition,
-            const iMeshP_PartHandle part,
-            const iBase_EntitySetHandle entity_set,
-            double **coordinates,
-            int *coordinates_allocated,
-            int *coordinates_size,
-            int **in_entity_set,
-            int *in_entity_set_allocated,
-            int *in_entity_set_size,
-            int *storage_order, 
-            int *err);
-
-
-
-
-/**\brief  Get adjacent entities as connectivity lists
- *
- *  For a specified part handle, entity set handle, and entity type 
- *  and/or entity topology,
- *  return the connectivity of adjacent entities of specified dimension.  
- *  This function is similar to iMesh_getVtxCoordIndex, but it also restricts
- *  the returned data with respect to its existence in the given part.
- *  Connectivity is expressed as an index into an array of vertices returned
- *  by iMeshP_getEntities.  Entry offset[i] is the index of the first
- *  vertex of the first entity adjacent to entity i in the entity set
- *  or the mesh.  The topology of entities whose connectivity is returned
- *  is given in the entity_topologies array.
- *
- *  COMMUNICATION:  None.
- *
- *  \param  instance                    (In)     Mesh instance containing the 
- *                                               partition.
- *  \param  partition                   (In)     The partition being queried.
- *  \param  part                        (In)     The part being queried.
- *  \param  entity_set                  (In)     Entity set handle for the 
- *                                               entity set being queried; 
- *                                               may be the root set.
- *  \param  entity_type                 (In)     Entity type of the 
- *                                               entities;
- *                                               may be iBase_ALL_TYPES.
- *  \param  entity_topology             (In)     Entity topology of the 
- *                                               entities;
- *                                               may be iMesh_ALL_TOPOLOGIES.
- *  \param  entity_adjacency_type       (In)     Adjacency type
- *  \param  offset                      (In/Out) Array of offsets returned.
- *  \param  offset_allocated            (In/Out) Allocated size of offset.
- *  \param  offset_size                 (Out)    Occupied size of offset.
- *  \param  index                       (In/Out) Array of indices returned.
- *  \param  index_allocated             (In/Out) Allocated size of index.
- *  \param  index_size                  (Out)    Occupied size of index.
- *  \param  entity_topologies           (In/Out) Array of entity topologies 
- *                                               returned.
- *  \param  entity_topologies_allocated (In/Out) Allocated size of 
- *                                               entity_topologies.
- *  \param  entity_topologies_size      (Out)    Occupied size of 
- *                                               entity_topologies.
- *  \param  err                         (Out)    Error code.
- */
-void iMeshP_getVtxCoordIndex(
-            iMesh_Instance instance,
-            const iMeshP_PartitionHandle partition,
-            const iMeshP_PartHandle part,
-            const iBase_EntitySetHandle entity_set,
-            int entity_type,
-            int entity_topology,
-            int entity_adjacency_type,
-            int **offset,
-            int *offset_allocated,
-            int *offset_size,
-            int **index,
-            int *index_allocated,
-            int *index_size,
-            int **entity_topologies,
-            int *entity_topologies_allocated,
-            int *entity_topologies_size, 
-            int *err);
+void iMeshP_getAdjEntIndices(iMesh_Instance instance,
+                             iMeshP_PartitionHandle partition,
+                             iMeshP_PartHandle part,
+                             iBase_EntitySetHandle entity_set_handle,
+                             int entity_type_requestor,
+                             int entity_topology_requestor,
+                             int entity_type_requested,
+                             iBase_EntityHandle** entity_handles,
+                             int* entity_handles_allocated,
+                             int* entity_handles_size,
+                             iBase_EntityHandle** adj_entity_handles,
+                             int* adj_entity_handles_allocated,
+                             int* adj_entity_handles_size,
+                             int** adj_entity_indices,
+                             int* adj_entity_indices_allocated,
+                             int* adj_entity_indices_size,
+                             int** offset,
+                             int* offset_allocated,
+                             int* offset_size,
+                             int *err);
 
 /** \brief Return entities in a both given part and entity set.
  *
@@ -1224,16 +1169,6 @@ void iMeshP_getEntities(
  *  \param  offset                       (In/Out) Array of offsets returned.
  *  \param  offset_allocated             (In/Out) Allocated size of offset.
  *  \param  offset_size                  (Out)    Occupied size of offset.
- *  \param  in_entity_set                (In/Out) Array of flags returned if 
- *                                                non-root entity set was input;
- *                                                (*in_entity_set)[i]=1 
- *                                                indicates
- *                                                (*adj_entities)[i] 
- *                                                is in the entity set.
- *  \param  in_entity_set_allocated      (In/Out) Allocated size of 
- *                                                in_entity_set.
- *  \param  in_entity_set_size           (Out)    Occupied size of 
- *                                                in_entity_set.
  *  \param  err                          (Out)    Error code.
  */
 void iMeshP_getAdjEntities(
@@ -1250,9 +1185,6 @@ void iMeshP_getAdjEntities(
             int **offset,
             int *offset_allocated,
             int *offset_size,
-            int **in_entity_set,
-            int *in_entity_set_allocated,
-            int *in_entity_set_size, 
             int *err);
 
 /** \brief Create an entity iterator for a given part and entity set.  

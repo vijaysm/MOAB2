@@ -831,142 +831,150 @@ void iMeshP_getNumOfTopo( iMesh_Instance instance,
   *num_topo = r.size();
 }
 
-void iMeshP_getAllVtxCoords( iMesh_Instance instance,
-                             const iMeshP_PartitionHandle ,
-                             const iMeshP_PartHandle part_handle,
-                             const iBase_EntitySetHandle entity_set_handle,
-                             double** coordinates,
-                             int* coordinates_allocated,
-                             int* coordinates_size,
-                             int** in_entity_set,
-                             int* in_entity_set_allocated,
-                             int* in_entity_set_size,
-                             int* storage_order,
-                             int *err )
+void iMeshP_getAdjEntIndices(iMesh_Instance instance,
+                             iMeshP_PartitionHandle partition,
+                             iMeshP_PartHandle part,
+                             iBase_EntitySetHandle entity_set_handle,
+                             int entity_type_requestor,
+                             int entity_topology_requestor,
+                             int entity_type_requested,
+                             iBase_EntityHandle** entity_handles,
+                             int* entity_handles_allocated,
+                             int* entity_handles_size,
+                             iBase_EntityHandle** adj_entity_handles,
+                             int* adj_entity_handles_allocated,
+                             int* adj_entity_handles_size,
+                             int** adj_entity_indices,
+                             int* adj_entity_indices_allocated,
+                             int* adj_entity_indices_size,
+                             int** offset,
+                             int* offset_allocated,
+                             int* offset_size,
+                             int *err)
 {
-  int dim;
-  MBErrorCode rval = MBI->get_dimension( dim ); CHKERR(rval);
+  const int allocated_entity_handles = (*entity_handles_allocated == 0);
+  const int allocated_indices = (*adj_entity_indices_allocated == 0);
+  const int allocated_offset = (*offset_allocated == 0);
 
-  MBRange r;
-  set_intersection_query( instance, part_handle, entity_set_handle, 
-                          iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES, r, err );
-  if (*err != iBase_SUCCESS)
+  // get source entities
+  iMeshP_getEntities( instance, 
+                      partition, part,
+                      entity_set_handle,
+                      entity_type_requestor, 
+                      entity_topology_requestor,
+                      entity_handles,
+                      entity_handles_allocated,
+                      entity_handles_size,
+                      err );
+  if (iBase_SUCCESS != *err)
     return;
-    
-  MBRange v;
-  rval = MBI->get_adjacencies( r, 0, false, v, MBInterface::UNION );
-  CHKERR(rval);
-    
-  const size_t n = v.size();
-  ALLOCATE_ARRAY( coordinates, dim*n );
-  ALLOCATE_ARRAY( in_entity_set, n );
-  std::fill( *in_entity_set, (*in_entity_set)+n, 1 );
 
-  switch (*storage_order) {
-    case iBase_UNDETERMINED:
-      *storage_order = iBase_INTERLEAVED;
-      // NO BREAK -- fall through
-    case iBase_INTERLEAVED:
-      rval = MBI->get_coords( v, *coordinates );
-      break;
-    case iBase_BLOCKED:
-      rval = MBI->get_coords( v,
-                               *coordinates,
-                              (*coordinates)+n,
-                              (*coordinates)+2*n );
-      break;
-    default:
-      RETURN (iBase_INVALID_ARGUMENT);
-  }
-  
-  CHKERR(rval);
-  RETURN (iBase_SUCCESS);
-}
-
-void iMeshP_getVtxCoordIndex( iMesh_Instance instance,
-                              const iMeshP_PartitionHandle ,
-                              const iMeshP_PartHandle part_handle,
-                              const iBase_EntitySetHandle entity_set_handle,
-                              const int requested_entity_type,
-                              const int requested_entity_topology,
-                              const int entity_adjacency_type,
-                              int** offset,
-                              int* offset_allocated,
-                              int* offset_size,
-                              int** index,
-                              int* index_allocated,
-                              int* index_size,
-                              int** entity_topologies,
-                              int* entity_topologies_allocated,
-                              int* entity_topologies_size,
-                              int *err )
-{
-  MBRange::iterator i;
-  MBRange r;
-  set_intersection_query( instance, part_handle, entity_set_handle, 
-                          iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES, r, err );
-  if (*err != iBase_SUCCESS)
-    return;
-    
-  MBRange v;
-  MBErrorCode rval = MBI->get_adjacencies( r, 0, false, v, MBInterface::UNION );
-  CHKERR(rval);
-
-  r.clear();
-  set_intersection_query( instance, part_handle, entity_set_handle, 
-                          requested_entity_type, requested_entity_topology, 
-                          r, err );
-  if (*err != iBase_SUCCESS)
-    return;
-    
-  std::vector<MBEntityHandle> sorted(v.size());
-  std::copy( v.begin(), v.end(), sorted.begin() );
-  
-  if (!r.all_of_dimension(entity_adjacency_type)) {
-    MBRange r2;
-    rval =  MBI->get_adjacencies( r, entity_adjacency_type, false, r2, MBInterface::UNION );
-    CHKERR(rval);
-    r.swap(r2);
-  }
-  
-    // count size of connectivity data
-  size_t cn = 0;
-  int num;
-  const MBEntityHandle* conn;
-  std::vector<MBEntityHandle>::iterator s;
-  std::vector<MBEntityHandle> store;
-  for (i = r.begin(); i != r.end(); ++i) {
-    rval = MBI->get_connectivity( *i, conn, num, true, &store );
-    CHKERR(rval);
-    cn += num;
-  }
-
-  const size_t n = r.size();
-  ALLOCATE_ARRAY( offset, n );
-  ALLOCATE_ARRAY( index, cn );
-  ALLOCATE_ARRAY( entity_topologies, n );
-    
-    // populate output arrays
-  int* offset_iterator = *offset;
-  int* index_iterator = *index;
-  int* topo_iterator = *entity_topologies;
-  for (i = r.begin(); i != r.end(); ++i) {
-    *offset_iterator = index_iterator - *index;
-    ++offset_iterator;
-    
-    rval = MBI->get_connectivity( *i, conn, num, true, &store );
-    CHKERR(rval);
-    for (int j = 0; j < num; ++j) {
-      s = std::lower_bound( sorted.begin(), sorted.end(), conn[j] );
-      if (s == sorted.end() || *s != conn[j]) 
-        RETURN(iBase_FAILURE);
-      *index_iterator = s - sorted.begin();
-      ++index_iterator;
+  // get adjacencies
+  iBase_EntityHandle* all_adj_handles = 0;
+  int size = 0, alloc = 0;
+  iMesh_getEntArrAdj( instance,
+                      *entity_handles, *entity_handles_size,
+                      entity_type_requested,
+                      &all_adj_handles, &alloc, &size,
+                      offset, offset_allocated, offset_size,
+                      err );
+  if (*err != iBase_SUCCESS) {
+    if (allocated_entity_handles) {
+      free( *entity_handles );
+      *entity_handles = 0;
+      *entity_handles_allocated = 0;
     }
-    
-    *topo_iterator = tstt_topology_table[ TYPE_FROM_HANDLE(*i) ];
-    ++topo_iterator;
+    return;
   }
+
+  // allocate or check size of adj_entity_indices
+  *adj_entity_indices_size = size;
+  if (allocated_indices) {
+    *adj_entity_indices = (int*)malloc(sizeof(iBase_EntityHandle)*size);
+    if (!*adj_entity_indices) 
+      *err = iBase_MEMORY_ALLOCATION_FAILED;
+    else
+      *adj_entity_indices_allocated = size;
+  }
+  else if (*adj_entity_indices_allocated < size) {
+    *err = iBase_BAD_ARRAY_DIMENSION;
+  }
+  if (iBase_SUCCESS != *err) {
+    free( all_adj_handles );
+    if (allocated_entity_handles) {
+      free( *entity_handles );
+      *entity_handles = 0;
+      *entity_handles_allocated = 0;
+    }
+    if (allocated_offset) {
+      free( *offset );
+      *offset = 0;
+      *offset_allocated = 0;
+    }
+    return;
+  }
+
+  // Now create an array of unique sorted handles from all_adj_handles.
+  // We need to create a copy because we still need all_adj_handles.  We
+  // will eventually need to copy the resulting unique list into 
+  // adj_entity_handles, so if adj_entity_handles is already allocated and
+  // of sufficient size, use it rather than allocating another temporary.
+  iBase_EntityHandle* unique_adj = 0;
+  if (*adj_entity_handles_allocated >= size) {
+    unique_adj = *adj_entity_handles;
+  }
+  else {
+    unique_adj = (iBase_EntityHandle*)malloc(sizeof(iBase_EntityHandle) * size);
+  }
+  std::copy( all_adj_handles, all_adj_handles+size, unique_adj );
+  std::sort( unique_adj, unique_adj + size );
+  *adj_entity_handles_size = std::unique( unique_adj, unique_adj + size ) - unique_adj;
+
+  // If we created a temporary array for unique_adj rather than using
+  // already allocated space in adj_entity_handles, allocate adj_entity_handles
+  // and copy the unique handle list into it
+  if (*adj_entity_handles != unique_adj) {
+    if (!*adj_entity_handles_allocated) {
+      *adj_entity_handles = (iBase_EntityHandle*)malloc(
+                            sizeof(iBase_EntityHandle) * *adj_entity_handles_size);
+      if (!*adj_entity_handles)
+        *err = iBase_MEMORY_ALLOCATION_FAILED;
+      else
+        *adj_entity_handles_allocated = *adj_entity_handles_size;
+    }
+    else if (*adj_entity_handles_allocated < *adj_entity_handles_size) 
+      *err = iBase_BAD_ARRAY_DIMENSION;
+    if (iBase_SUCCESS != *err) {
+      free( unique_adj );
+      free( all_adj_handles );
+      if (allocated_entity_handles) {
+        free( *entity_handles );
+        *entity_handles = 0;
+        *entity_handles_allocated = 0;
+      }
+      if (allocated_offset) {
+        free( *offset );
+        *offset = 0;
+        *offset_allocated = 0;
+      }
+      if (allocated_indices) {
+        free( *adj_entity_indices );
+        *adj_entity_indices = 0;
+        *adj_entity_indices_allocated = 0;
+      }
+      return;
+    }
+
+    std::copy( unique_adj, unique_adj + *adj_entity_handles_size, *adj_entity_handles );
+    free( unique_adj );
+    unique_adj = *adj_entity_handles;
+  }
+
+  // convert from adjacency list to indices into unique_adj
+  for (int i = 0; i < *adj_entity_indices_size; ++i)
+    (*adj_entity_indices)[i] = std::lower_bound( unique_adj, 
+      unique_adj + *adj_entity_handles_size, all_adj_handles[i] ) - unique_adj;
+  free( all_adj_handles );
 }
 
 void iMeshP_getEntities( iMesh_Instance instance,
@@ -1003,9 +1011,6 @@ void iMeshP_getAdjEntities( iMesh_Instance instance,
                             int** offset,
                             int* offset_allocated,
                             int* offset_size,
-                            int** in_entity_set,
-                            int* in_entity_set_allocated,
-                            int* in_entity_set_size,
                             int *err )
 {
   MBErrorCode rval;
@@ -1052,16 +1057,6 @@ void iMeshP_getAdjEntities( iMesh_Instance instance,
       ++arr_pos;
     }
   }
-
-    // get in_entity_set
-  iMesh_isEntArrContained( instance, 
-                           entity_set_handle, 
-                           *adj_entity_handles,
-                           *adj_entity_handles_size,
-                           in_entity_set,
-                           in_entity_set_allocated,
-                           in_entity_set_size,
-                           err );
 }
 
 void iMeshP_initEntIter( iMesh_Instance instance,
