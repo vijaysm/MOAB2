@@ -422,7 +422,7 @@ MBErrorCode report_iface_ents(MBInterface *mbImpl,
     }
 
     for (int i = 0; i < 4; i++) {
-      tmp_result = pcs[p]->get_iface_entities(-1, i, iface_ents[i]);
+      tmp_result = pcs[p]->get_iface_entities(-1, iface_ents[i], i);
       
       if (MB_SUCCESS != tmp_result) {
         std::cerr << "get_iface_entities returned error on proc " 

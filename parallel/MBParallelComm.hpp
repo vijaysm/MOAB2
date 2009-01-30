@@ -294,8 +294,8 @@ public:
      * \param iface_ents Entities returned from function
      */
   MBErrorCode get_iface_entities(int other_proc,
-                                 int dim,
-                                 MBRange &iface_ents);
+                                 MBRange &iface_ents,
+                                 int dim = -1);
 /*  
     //! return partition sets; if tag_name is input, gets sets with
     //! that tag name, otherwise uses PARALLEL_PARTITION tag
@@ -493,6 +493,7 @@ private:
                             unsigned char *&buff_ptr,
                             const bool store_remote_handles,
                             const int to_proc,
+                            const bool is_iface,
                             MBRange &owned_shared);
   
     //! pack a range of entities with equal # verts per entity, along with
@@ -773,11 +774,6 @@ private:
                                    MBRange &ghosted_ents,
                                    std::set<unsigned int> *addl_procs);
   
-    //! get interface entities to send, for deriving remote handles of higher-
-    //! dimensional interface entities
-  MBErrorCode get_iface_sent_entities(unsigned int to_proc, 
-                                      MBRange &sent_ents);
-  
 public:  
     //! add vertices adjacent to entities in this list
   MBErrorCode add_verts(MBRange &sent_ents);
@@ -870,6 +866,9 @@ private:
     //! remove a pc from the iface instance tag PARALLEL_COMM
   void remove_pcomm(MBParallelComm *pc);
   
+    //! reset and populate sharedEnts from sharedEnts2 range
+  MBErrorCode populate_shared_ents();
+
     //! MB interface associated with this writer
   MBInterface *mbImpl;
 
@@ -904,6 +903,7 @@ private:
     //! sharedEnts[i].remoteHandles stores ghost ents from other proc,
     //!    in terms of handles on owning proc
   std::vector<struct GhostStruct> sharedEnts;
+  MBRange sharedEnts2;
   
     //! tags used to save sharing procs and handles
   MBTag sharedpTag, sharedpsTag, sharedhTag, sharedhsTag, pstatusTag, 

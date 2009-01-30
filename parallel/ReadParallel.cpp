@@ -458,7 +458,6 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
     
     MBRange tmp_sets;
       // distribute the partition sets
-    unsigned int tot_sets = myPcomm->partition_sets().size();
     unsigned int num_sets = myPcomm->partition_sets().size() / proc_sz;
     unsigned int num_leftover = myPcomm->partition_sets().size() % proc_sz;
     int begin_set = 0;

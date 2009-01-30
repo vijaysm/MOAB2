@@ -587,7 +587,7 @@ MBErrorCode test_elements_on_several_procs( const char* filename )
   MBRange iface_ents, shared_ents, owned_ents;
   for (unsigned int i = 0; i < pcomm->buff_procs().size(); i++) {
       // get all the interface entities for this proc and the sharedEnts entities
-    rval = pcomm->get_iface_entities(pcomm->buff_procs()[i], -1, iface_ents);
+    rval = pcomm->get_iface_entities(pcomm->buff_procs()[i], iface_ents);
     if (MB_SUCCESS != rval) my_error = 1;
     owned_ents.merge(pcomm->shared_ents()[i].ownedShared);
     shared_ents.merge(pcomm->shared_ents()[i].localHandles);
