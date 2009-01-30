@@ -239,11 +239,11 @@ project( MOAB )
     ${MOAB_LIB_SRCS}
   )
 
-  add_subdirectory( refiner )
-  include_directories( ${MOAB_SOURCE_DIR}/refiner )
-  target_link_libraries( MOAB
-    MOABrefiner
-  )
+  if ( MOAB_USE_MPI AND MPI_FOUND )
+    add_subdirectory( refiner )
+    include_directories( ${MOAB_SOURCE_DIR}/refiner )
+    target_link_libraries( MOAB MOABrefiner )
+  endif ( MOAB_USE_MPI AND MPI_FOUND )
 
   if ( MOAB_USE_HDF AND HDF5_FOUND )
     target_link_libraries( MOAB
@@ -254,9 +254,7 @@ project( MOAB )
 
   if ( MOAB_USE_MPI AND MPI_FOUND )
     add_subdirectory( parallel )
-    target_link_libraries( MOAB
-      MOABpar
-    )
+    target_link_libraries( MOAB MOABpar )
   endif ( MOAB_USE_MPI AND MPI_FOUND )
 
   if ( MOAB_USE_NETCDF AND NetCDF_FOUND )
@@ -280,13 +278,14 @@ project( MOAB )
   endif ( MOAB_BUILD_DAGMC )
 
   # MBCoupler
-  if ( MOAB_BUILD_MBCOUPLER )
+  if ( MOAB_USE_MPI AND MPI_FOUND AND MOAB_BUILD_MBCOUPLER )
     add_subdirectory( tools/mbcoupler )
-  endif ( MOAB_BUILD_MBCOUPLER )
+  endif ( MOAB_USE_MPI AND MPI_FOUND AND MOAB_BUILD_MBCOUPLER )
 
   # iMesh Babel
   if ( MOAB_BUILD_IMESH )
     option( MOAB_IMESH_FORTRAN "Should MOAB include iMesh FORTRAN bindings?" OFF )
+    add_subdirectory( tools/iMesh )
   endif ( MOAB_BUILD_IMESH )
 
   if ( MOAB_IMESH_FORTRAN )
@@ -295,6 +294,7 @@ project( MOAB )
     # to macros which can be used from C to call FORTRAN.
     #include( ${MOAB_SOURCE_DIR}/cmake/FortranCallingConvention.cmake)
   endif ( MOAB_IMESH_FORTRAN )
+  
 
   include( ${MOAB_SOURCE_DIR}/cmake/AutoconfHeader.cmake )
   # Define some more variables so they will be substituted properly in the autoconf files.
