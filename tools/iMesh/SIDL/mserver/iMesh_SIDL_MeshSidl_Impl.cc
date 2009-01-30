@@ -3,15 +3,15 @@
 // Symbol:        iMesh_SIDL.MeshSidl-v0.2
 // Symbol Type:   class
 // Babel Version: 0.10.10
-// sidl Created:  20090120 19:02:01 CST
-// Generated:     20090120 19:02:03 CST
+// sidl Created:  20090130 09:34:06 CST
+// Generated:     20090130 09:34:08 CST
 // Description:   Server-side implementation for iMesh_SIDL.MeshSidl
 // 
 // WARNING: Automatically generated; only changes within splicers preserved
 // 
 // babel-version = 0.10.10
 // source-line   = 5
-// source-url    = file:/home/jason/moab/newimesh/src/tools/iMesh/SIDL/iMesh_SIDL.sidl
+// source-url    = file:/home/jason/moab/clean/sidl/tools/iMesh/SIDL/../../../../src/tools/iMesh/SIDL/iMesh_SIDL.sidl
 // 
 #include "iMesh_SIDL_MeshSidl_Impl.hh"
 
@@ -1575,10 +1575,7 @@ iMesh_SIDL::MeshSidl_impl::getAdjEntities (
   /* in */ ::iBase::EntityType entity_type_requested,
   /* inout */ ::sidl::array<void*>& adj_entity_handles,
   /* out */ int32_t& adj_entity_handles_size,
-  /* inout */ ::sidl::array<int32_t>& offset,
-  /* out */ int32_t& offset_size,
-  /* inout */ ::sidl::array<int32_t>& in_entity_set,
-  /* out */ int32_t& in_entity_set_size ) 
+  /* inout */ ::sidl::array<int32_t>& offset ) 
 throw ( 
   ::iBase::Error
 ){
@@ -1587,7 +1584,6 @@ throw (
   
   CREATE_TEMP_EH_ARRAY(adj_entity_handles);
   CREATE_TEMP_ARRAY(int32_t, offset);
-  CREATE_TEMP_ARRAY(int32_t, in_entity_set);
   
   iMesh_getAdjEntities (imeshInstance, reinterpret_cast<iBase_EntitySetHandle>(entity_set), 
                         (iBase_EntityType)entity_type_requestor,
@@ -1595,13 +1591,12 @@ throw (
                         (iBase_EntityType)entity_type_requested,
                         TEMP_ARRAY_INOUT(adj_entity_handles),
                         TEMP_ARRAY_INOUT(offset),
-                        TEMP_ARRAY_INOUT(in_entity_set), &imeshError);
+                        &imeshError);
   PROCESS_ERROR;
 
 
   ASSIGN_TYPED_ARRAY(void*, adj_entity_handles);
   ASSIGN_TYPED_ARRAY(int32_t, offset);
-  ASSIGN_TYPED_ARRAY(int32_t, in_entity_set);
   // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.getAdjEntities)
 }
 

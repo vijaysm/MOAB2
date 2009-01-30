@@ -393,10 +393,9 @@ extern "C" {
     /**\brief  Get entities adjacent to those of requested type/topology in set or instance
      *
      * Get entities adjacent to those of requested type/topology in set or 
-     * instance.  If set is specified, also returns whether each adjacent entity 
-     * is in the set ((*in_entity_set)[i]=1 indicates that adjacent entity
-     * (*adj_entity_handles)[i] is in the specified set).  If adjacencies for 
-     * all entities of specified type or
+     * instance.  
+     *
+     * If adjacencies for all entities of specified type or
      * topology are desired, specify iMesh_ALL_TOPOLOGIES or iBase_ALL_TYPES,
      * respectively.  Types and topologies input to this function must be values
      * in the iBase_EntityType or iBase_EntityTopology enumerations, respectively.
@@ -419,12 +418,6 @@ extern "C" {
      * \param *offset Pointer to array of offsets returned from function
      * \param *offset_allocated Pointer to allocated size of offset array
      * \param *offset_size Pointer to occupied size of offset array
-     * \param *in_entity_set Pointer to array of in_entity_set returned 
-     *        from function
-     * \param *in_entity_set_allocated Pointer to allocated size of 
-     *        in_entity_set array
-     * \param *in_entity_set_size Pointer to occupied size of in_entity_set 
-     *        array
      * \param *err Pointer to error type returned from function
      */
   void iMesh_getAdjEntities(iMesh_Instance instance,
@@ -438,9 +431,6 @@ extern "C" {
                             /*inout*/ int** offset,
                             /*inout*/ int* offset_allocated,
                             /*out*/ int* offset_size,
-                            /*inout*/ int** in_entity_set,
-                            /*inout*/ int* in_entity_set_allocated,
-                            /*out*/ int* in_entity_set_size, 
                             /*out*/ int *err);
 
     /**\brief Initialize an array iterator over specified entity type, topology, and 
@@ -604,8 +594,8 @@ extern "C" {
  * \param instance iMesh instance for this call
  * \param entity_handles Entities from which adjacencies are requested
  * \param entity_handles_size Number of entities whose adjacencies are requested
- * \param bridge_dimension Bridge dimension for 2nd order adjacencies
- * \param to_dimension Dimension of adjacent entities returned
+ * \param bridge_entity_type  Type of bridge entity for 2nd order adjacencies
+ * \param requested_entity_type Type of adjacent entities returned
  * \param adj_entity_handles Adjacent entities
  * \param adj_entity_handles_allocated Allocated size of returned array
  * \param adj_entity_handles_size Occupied size of returned array
@@ -618,7 +608,7 @@ extern "C" {
   void iMesh_getEntArr2ndAdj( iMesh_Instance instance,
                               iBase_EntityHandle const* entity_handles,
                               int entity_handles_size,
-                              int order_adjacent_key,
+                              int bridge_entity_type,
                               int requested_entity_type,
                               iBase_EntityHandle** adj_entity_handles,
                               int* adj_entity_handles_allocated,
@@ -870,8 +860,8 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_isEntContained(iMesh_Instance instance,
-                            /*in*/ const iBase_EntitySetHandle containing_entity_set,
-                            /*in*/ const iBase_EntityHandle contained_entity,
+                            /*in*/ iBase_EntitySetHandle containing_entity_set,
+                            /*in*/ iBase_EntityHandle contained_entity,
                             /*out*/ int *is_contained,
                             /*out*/ int *err);
 
@@ -1967,8 +1957,8 @@ extern "C" {
  * specified "to" dimension.
  * \param instance iMesh instance for this call
  * \param entity_handle Entity from which adjacencies are requested
- * \param bridge_dimension Bridge dimension for 2nd order adjacencies
- * \param to_dimension Dimension of adjacent entities returned
+ * \param bridge_entity_type  Type of bridge entity for 2nd order adjacencies
+ * \param requested_entity_type Type of adjacent entities returned
  * \param adjacent_entities Adjacent entities
  * \param adjacent_entities_allocated Allocated size of returned array
  * \param adjacent_entities_size Occupied size of returned array
@@ -1976,7 +1966,7 @@ extern "C" {
  */
   void iMesh_getEnt2ndAdj( iMesh_Instance instance,
                            iBase_EntityHandle entity_handle,
-                           int order_adjacent_key,
+                           int bridge_entity_type,
                            int requested_entity_type,
                            iBase_EntityHandle** adjacent_entities,
                            int* adjacent_entities_allocated,

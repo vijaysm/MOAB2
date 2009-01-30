@@ -375,6 +375,13 @@ extern "C" {
     RETURN(iBase_SUCCESS);
   }
 
+  void iMesh_setGeometricDimension(iMesh_Instance instance,
+                                   int geom_dim, int *err)
+  {
+    MBErrorCode rval = MBI->set_dimension(geom_dim);
+    RETURN((MB_SUCCESS == rval ? iBase_SUCCESS : iBase_FAILURE));
+  }
+
   void iMesh_getDfltStorage(iMesh_Instance instance,
                             int *order, int *err)
   {
@@ -710,10 +717,8 @@ extern "C" {
                             /*out*/ int* adj_entity_handles_size,
                             /*inout*/ int** offset,
                             /*inout*/ int* offset_allocated,
-                            /*out*/ int* offset_size,
-                            /*inout*/ int** in_entity_set,
-                            /*inout*/ int* in_entity_set_allocated,
-                            /*out*/ int* in_entity_set_size, int *err) 
+                            /*inout*/ int* offset_size,
+                            /*out*/ int *err) 
   {
     MBEntityHandle in_set = ENTITY_HANDLE(entity_set_handle);
     MBRange entities;
@@ -743,7 +748,7 @@ extern "C" {
 
     if (num_entities == 0) 
     {
-      *adj_entity_handles_size = *offset_size = *in_entity_set_size = 0;
+      *adj_entity_handles_size = *offset_size = 0;
       RETURN(iBase_ERROR_MAP[result]);
     }
 
@@ -778,9 +783,6 @@ extern "C" {
     CHECK_SIZE(*offset, *offset_allocated, 
                (int)entities.size(), int, iBase_MEMORY_ALLOCATION_FAILED);
 
-    CHECK_SIZE(*in_entity_set, *in_entity_set_allocated,
-               num_sub, int, iBase_MEMORY_ALLOCATION_FAILED);
-
       // now iterate over entities
     num_sub = 0;
     int i = 0;
@@ -809,11 +811,6 @@ extern "C" {
       for (std::vector<MBEntityHandle>::iterator vit = adj_ents.begin(); 
            vit != adj_ents.end(); vit++) {
         (*adj_entity_handles)[num_sub] = (iBase_EntityHandle)*vit;
-        if (0 == in_set || entities.find(*vit) != endr)
-          (*in_entity_set)[num_sub] = 1;
-        else
-          (*in_entity_set)[num_sub] = 0;
-
         num_sub++;
       }
 
@@ -822,8 +819,7 @@ extern "C" {
 
     *adj_entity_handles_size = num_sub;
     *offset_size = entities.size();
-    *in_entity_set_size = num_sub;
-
+ 
     RETURN(iBase_SUCCESS);
   }
 

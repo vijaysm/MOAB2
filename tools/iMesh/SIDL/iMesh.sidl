@@ -110,9 +110,7 @@ package iMesh version 0.8
                            inout array<opaque> adj_entity_handles, 
                            out int adj_entity_handles_size,
                            inout array<int> offset,
-                           out int offset_size,
-                           inout array<int> in_entity_set,
-                           out int in_entity_set_size) throws iBase.Error;
+                           out int offset_size) throws iBase.Error;
 
       void getAdjEntIndices( in opaque entity_set_handle,
                              in EntityType entity_type_requestor,
