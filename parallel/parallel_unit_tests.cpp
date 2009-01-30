@@ -117,7 +117,7 @@ int is_any_proc_error( int is_my_error );
  **************************************************************************/
 
 // Check consistancy of sharing data.  (E.g. compare sharing procs for
-// vertics to that of adjacent elements, compare sharing data for 
+// vertices to that of adjacent elements, compare sharing data for 
 // interfaces with that of contained entities, etc.)
 MBErrorCode test_elements_on_several_procs( const char* filename );
 // Test correct ghosting of elements
@@ -215,9 +215,9 @@ int main( int argc, char* argv[] )
   
   num_errors += RUN_TEST( test_elements_on_several_procs, filename );
   num_errors += RUN_TEST( test_ghost_elements_3_2_1, filename );
-//  num_errors += RUN_TEST( test_ghost_elements_3_2_2, filename );
+  num_errors += RUN_TEST( test_ghost_elements_3_2_2, filename );
   num_errors += RUN_TEST( test_ghost_elements_3_0_1, filename );
-//  num_errors += RUN_TEST( test_ghost_elements_2_0_1, filename );
+  num_errors += RUN_TEST( test_ghost_elements_2_0_1, filename );
   num_errors += RUN_TEST( test_ghost_tag_exchange, filename );
   num_errors += RUN_TEST( regression_ghost_tag_exchange_no_default, filename );
   num_errors += RUN_TEST( test_interface_owners, filename );
@@ -581,7 +581,39 @@ MBErrorCode test_elements_on_several_procs( const char* filename )
     my_error = 1;
   }
   PCHECK(!my_error);
-  
+
+    // test contents of interface sets against sharedEnts structure in pcomm;
+  MBParallelComm* pcomm = MBParallelComm::get_pcomm(&moab, 0);
+  MBRange iface_ents, shared_ents, owned_ents;
+  for (unsigned int i = 0; i < pcomm->buff_procs().size(); i++) {
+      // get all the interface entities for this proc and the sharedEnts entities
+    rval = pcomm->get_iface_entities(pcomm->buff_procs()[i], -1, iface_ents);
+    if (MB_SUCCESS != rval) my_error = 1;
+    owned_ents.merge(pcomm->shared_ents()[i].ownedShared);
+    shared_ents.merge(pcomm->shared_ents()[i].localHandles);
+  }
+
+    // over all interfaces, the owned and shared lists should be mutually exclusive
+    // and the interface ents should be contained in one of those
+  if (!(owned_ents.intersect(shared_ents)).empty()) {
+    std::cerr << "Contents of localHandles and ownedShared not consistent on proc "
+              << pcomm->proc_config().proc_rank() << std::endl;
+    my_error = 1;
+  }
+  MBRange rem_ents = iface_ents.subtract(shared_ents);
+  rem_ents = rem_ents.subtract(owned_ents);
+  if (!rem_ents.empty()) {
+    std::cerr << "Interface entities inconsistent with sharedEnts on proc "
+              << pcomm->proc_config().proc_rank() << std::endl;
+    my_error = 1;
+  }
+  PCHECK(!my_error);
+
+    // finally, check adjacencies just to make sure they're consistent
+  rval = mb_instance.check_adjacencies();
+  if (MB_SUCCESS != rval) my_error = 1;
+  PCHECK(!my_error);
+
   return MB_SUCCESS;
 }
 
@@ -688,7 +720,7 @@ MBErrorCode get_expected_ghosts( MBInterface& moab,
       iface_ghosts.clear();
       rval = moab.get_adjacencies( iface_ents, ghost_dimension, false, iface_ghosts, MBInterface::UNION ); CHKERR(rval);
       iface_ents.clear();
-      rval = moab.get_adjacencies( iface_ghosts, bridge_dimension, false, iface_ents, MBInterface::UNION ); CHKERR(rval);
+      rval = moab.get_adjacencies( iface_ghosts, bridge_dimension, true, iface_ents, MBInterface::UNION ); CHKERR(rval);
     }
     
       // intersect with entities in adjacent partitions
@@ -733,6 +765,10 @@ MBErrorCode test_ghost_elements( const char* filename,
   MBParallelComm* pcomm = MBParallelComm::get_pcomm(&moab, 0);
   partition_geom[3] = pcomm->partition_sets();
   PCHECK( !partition_geom[3].empty() );
+
+    // exchange id tags to allow comparison by id
+  rval = pcomm->exchange_tags(id_tag);
+  CHKERR(rval);
   
     // Get geometric surfaces
   MBRange surfs, tmp;
@@ -1259,7 +1295,7 @@ int compare_sharing_data( const std::vector<int>& verts_per_proc,
     if (match)
       continue;
     
-    std::cerr << "INCONSISTANT OWERS FOR VERTEX " << it->first << std::endl
+    std::cerr << "INCONSISTANT OWNERS FOR VERTEX " << it->first << std::endl
               << "  (proc,owner) pairs: ";
     for (size_t i = 0; i < it->second.owners.size(); ++i)
       std::cerr << "(" << it->second.procs[i] 
@@ -1363,6 +1399,13 @@ MBErrorCode test_ghosted_entity_shared_data( const char* )
   rval = pcomm.exchange_ghost_cells( 2, 1, 1, true ); 
   PCHECK(MB_SUCCESS == rval);
   
+  MBTag id_tag;
+  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
+  PCHECK(MB_SUCCESS == rval);
+
+  rval = pcomm.exchange_tags(id_tag);
+  PCHECK(MB_SUCCESS == rval);
+
     // get all vertices
   MBRange vertices;
   mb.get_entities_by_type( 0, MBVERTEX, vertices );
@@ -1371,9 +1414,6 @@ MBErrorCode test_ghosted_entity_shared_data( const char* )
   std::vector<int> vert_ids(vertices.size()), vert_owners(vertices.size());
   std::vector<int> vert_shared(vertices.size()*MAX_SHARING_PROCS);
   std::vector<MBEntityHandle> vert_handles(vertices.size()*MAX_SHARING_PROCS);
-  MBTag id_tag;
-  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
-  PCHECK(MB_SUCCESS == rval);
   rval = mb.tag_get_data( id_tag, vertices, &vert_ids[0] );
   PCHECK(MB_SUCCESS == rval);
   

@@ -73,8 +73,10 @@ static void printdebug( const char* fmt, ... )
 
 
 #ifdef NDEBUG
-#  define assert(A)
+#  undef assert(A)
+#  define assert
 #else
+#  undef assert
 #  define assert(A) if (!(A)) do_assert(__FILE__, __LINE__, #A)
    static void do_assert( const char* file, int line, const char* condstr )
    {
@@ -298,7 +300,8 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
     
   MBRange nonowned;
   tmpset.clear();
-  result = myPcomm->get_owned_entities( nodeSet.range, tmpset );
+  result = myPcomm->filter_owned_shared( nodeSet.range, 
+                                         true, true, false, false, -1, &tmpset );
   if (MB_SUCCESS != result)
     return result;
   nodeSet.range.swap( tmpset );
@@ -307,7 +310,8 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
   for (std::list<ExportSet>::iterator eiter = exportList.begin();
        eiter != exportList.end(); ++eiter ) {
     tmpset.clear();
-    result = myPcomm->get_owned_entities( eiter->range, tmpset );
+    result = myPcomm->filter_owned_shared( eiter->range, 
+                                           true, true, false, false, -1, &tmpset);
     if (MB_SUCCESS != result)
       return result;
     eiter->range.swap( tmpset );

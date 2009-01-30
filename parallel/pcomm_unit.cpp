@@ -71,12 +71,18 @@ void pack_unpack_mesh( MBCore& moab, MBRange& entities )
     CHECK_ERR(rval);
   }
   
-  MBRange tmp_range;
   MBParallelComm *pcomm = new MBParallelComm( &moab );
   int size = 0;
   std::vector<unsigned char> buff;
-  rval = pcomm->pack_buffer( entities, false, true, false, false,
-                             -1, tmp_range, buff, size );
+  std::vector<int> addl_procs;
+
+    // get the necessary vertices too
+  rval = pcomm->add_verts(entities);
+  CHECK_ERR(rval);
+  
+  MBRange tmp_range;
+  rval = pcomm->pack_buffer( entities, addl_procs, false, true, false, 
+                             -1, tmp_range, buff, size);
   CHECK_ERR(rval);
   
   delete pcomm;
@@ -86,7 +92,10 @@ void pack_unpack_mesh( MBCore& moab, MBRange& entities )
   pcomm = new MBParallelComm( &moab);
   
   entities.clear();
-  rval = pcomm->unpack_buffer( &buff[0], false, -1, entities );
+  std::set<unsigned int> my_addl_procs;
+  MBRange nonowned_ghosts[MAX_SHARING_PROCS];
+  rval = pcomm->unpack_buffer( &buff[0], false, -1, -1, entities, 
+                               nonowned_ghosts, my_addl_procs);
   CHECK_ERR(rval);
 
   delete pcomm;

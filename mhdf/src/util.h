@@ -155,7 +155,7 @@ int mhdf_write_max_id( FileHandle* file_ptr, mhdf_Status* status );
 
 
 #ifdef __cplusplus
-} // extern "C"
+} /* extern "C" */
 #endif
 
 #endif

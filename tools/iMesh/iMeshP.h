@@ -11,15 +11,12 @@ extern "C" {
 #endif
 
 /** Handles needed in iMeshP */
-#define ITAPS_DECLARE_HANDLE( NAME ) typedef struct NAME##DummyStruct *NAME
-
-ITAPS_DECLARE_HANDLE( iMeshP_PartitionHandle );
-ITAPS_DECLARE_HANDLE( iMeshP_RequestHandle );
+typedef struct iMeshP_PartitionHandle_Private* iMeshP_PartitionHandle;
+typedef struct iMeshP_RequestHandle_Private* iMeshP_RequestHandle;
 
 /* Since we allow overloading of iMesh functions' entity set handles with
  * part handles, iMeshP_PartHandle must be defined the same as 
  * iBase_EntitySetHandle. */
-/* ITAPS_DECLARE_HANDLE( iMeshP_PartHandle );*/
 typedef iBase_EntitySetHandle iMeshP_PartHandle;
 
 typedef unsigned iMeshP_Part;
@@ -1243,7 +1240,7 @@ void iMeshP_getAdjEntities(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
             const iMeshP_PartHandle part,
-            const iBase_EntityHandle entity_set,
+            const iBase_EntitySetHandle entity_set,
             int entity_type_requestor,
             int entity_topology_requestor,
             int entity_type_requested,

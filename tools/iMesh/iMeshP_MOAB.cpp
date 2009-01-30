@@ -114,7 +114,7 @@ template <typename T> inline T itaps_set_cast_( MBEntityHandle h )
 
 DECLARE_ALLOWED_ITAPS_SET_CONVERSION( iMeshP_PartitionHandle )
 //DECLARE_ALLOWED_ITAPS_SET_CONVERSION( iMeshP_PartHandle )
-//DECLARE_ALLOWED_ITAPS_SET_CONVERSION( iBase_EntitySetHandle )
+DECLARE_ALLOWED_ITAPS_SET_CONVERSION( iBase_EntitySetHandle )
 DECLARE_ALLOWED_ITAPS_CONVERSION( iBase_EntityHandle )
 
 
@@ -787,7 +787,7 @@ void iMeshP_initPartBdryEntArrIter( iMesh_Instance instance,
                                     const int entity_topology,
                                     const int array_size,
                                     const iMeshP_Part nbor_part_id,
-                                    iMesh_EntityIterator* entity_iterator,
+                                    iMesh_EntityArrIterator* entity_iterator,
                                     int* err )
 {
   MBRange entities;
@@ -797,7 +797,7 @@ void iMeshP_initPartBdryEntArrIter( iMesh_Instance instance,
                                             entity_topology,
                                             nbor_part_id,
                                             entities ); CHKERR(rval);
-  *entity_iterator = create_itaps_iterator( entities, array_size );
+  *entity_iterator = (iMesh_EntityArrIterator) create_itaps_iterator( entities, array_size );
   RETURN( entity_iterator ? iBase_SUCCESS : iBase_FAILURE );
 }
 
@@ -993,7 +993,7 @@ void iMeshP_getEntities( iMesh_Instance instance,
 void iMeshP_getAdjEntities( iMesh_Instance instance,
                             const iMeshP_PartitionHandle partition_handle,
                             const iMeshP_PartHandle part_handle,
-                            const iBase_EntityHandle entity_set_handle,
+                            const iBase_EntitySetHandle entity_set_handle,
                             const int entity_type_requestor,
                             const int entity_topology_requestor,
                             const int entity_type_requested,
@@ -1101,7 +1101,7 @@ void iMeshP_initEntArrIter( iMesh_Instance instance,
   if (iBase_SUCCESS != *err)
     return;
   
-  *entArr_iterator = create_itaps_iterator( r, requested_array_size );
+  *entArr_iterator = (iMesh_EntityArrIterator)create_itaps_iterator( r, requested_array_size );
   RETURN (iBase_SUCCESS);
 }
 

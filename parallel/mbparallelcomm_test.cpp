@@ -390,12 +390,17 @@ MBErrorCode test_packing(MBInterface *mbImpl, const char *filename)
   MBParallelComm *pcomm = new MBParallelComm(mbImpl);
   std::vector<unsigned char> buff(1024);
   int buff_size;
-  result = pcomm->pack_buffer(ents, false, true, false, false, -1,
-                              whole_range, buff, buff_size);
+  std::set<unsigned int> my_addl_procs;
+  std::vector<int> addl_procs;
+  MBRange nonowned_ghosts[MAX_SHARING_PROCS];
+  result = pcomm->pack_buffer(ents, addl_procs, false, true, false, -1,
+                              nonowned_ghosts[0], buff, buff_size);
   RRA("Packing buffer count (non-stored handles) failed.");
+  nonowned_ghosts[0].clear();
 
-  result = pcomm->unpack_buffer(&buff[0], false, -1, new_ents);
-  RRA("Unacking buffer (non-stored handles) failed.");
+  result = pcomm->unpack_buffer(&buff[0], false, -1, -1, new_ents, nonowned_ghosts,
+                                my_addl_procs);
+  RRA("Unpacking buffer (non-stored handles) failed.");
 
   return MB_SUCCESS;
 }
@@ -458,6 +463,8 @@ MBErrorCode report_iface_ents(MBInterface *mbImpl,
   
   int failure = MPI_Reduce(&num_local, &num_total, 1,
                            MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  if (failure) result = MB_FAILURE;
+
   if (0 == rank)
     std::cout << "Total # owned regions = " << num_total << std::endl;
     

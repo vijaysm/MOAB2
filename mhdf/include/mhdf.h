@@ -2250,7 +2250,7 @@ mhdf_readSparseTagIndicesWithOpt( hid_t tag_handle,
 
 
 #ifdef __cplusplus
-} // extern "C"
+} /* extern "C" */
 #endif
 
 #endif

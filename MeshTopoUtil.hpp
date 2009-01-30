@@ -89,6 +89,13 @@ public:
                                MBEntityHandle &next_dp1);
   
     //! get "bridge" or "2nd order" adjacencies, going through dimension bridge_dim
+  MBErrorCode get_bridge_adjacencies(MBRange &from_entities,
+                                     int bridge_dim,
+                                     int to_dim, 
+                                     MBRange &to_ents,
+                                     int num_layers = 1);
+  
+    //! get "bridge" or "2nd order" adjacencies, going through dimension bridge_dim
   MBErrorCode get_bridge_adjacencies(const MBEntityHandle from_entity,
                                      const int bridge_dim,
                                      const int to_dim,

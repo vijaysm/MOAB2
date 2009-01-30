@@ -208,6 +208,15 @@ MBEntityHandle MBCore::get_root_set()
 
 void MBCore::deinitialize()
 {
+
+#ifdef USE_MPI    
+  std::vector<MBParallelComm*> pc_list;
+  MBErrorCode result = MBParallelComm::get_all_pcomm(this, pc_list);
+  for (std::vector<MBParallelComm*>::iterator vit = pc_list.begin();
+       vit != pc_list.end(); vit++) 
+    delete *vit;
+#endif
+  
   if (aEntityFactory)
     delete aEntityFactory;
 

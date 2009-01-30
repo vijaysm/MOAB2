@@ -215,7 +215,7 @@ mhdf_readwriteSetMeta( hid_t table_id, int read,
   herr_t rval = 0;
   int dims, i;
   const int fill_val = -1;
-  
+
   if (offset < 0 || count < 0)
   {
     mhdf_setFail( status, "Invalid input for %s: "
