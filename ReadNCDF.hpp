@@ -64,6 +64,10 @@ public:
   
   static MBReaderIface* factory( MBInterface* );
   
+  static void tokenize( const std::string& str,
+                      std::vector<std::string>& tokens,
+                      char* delimiters );
+
     //! load an ExoII file
   MBErrorCode load_file(const char *exodus_file_name,
                          MBEntityHandle& file_set,
@@ -76,6 +80,9 @@ public:
 
    //! Destructor
   virtual ~ReadNCDF();
+
+  //update the coords for deformed mesh according to FileOptions
+  MBErrorCode update(const char *exodus_file_name, FileOptions& opts);
 
 private:
 

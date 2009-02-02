@@ -24,6 +24,7 @@
 #include <time.h>
 #include <string>
 #include <assert.h>
+#include <list>
 #include <stdio.h>
 
 #include "MBCN.hpp"
@@ -34,6 +35,7 @@
 #include "MBInternals.hpp"
 #include "MBReadUtilIface.hpp"
 #include "exodus_order.h"
+#include "FileOptions.hpp"
 
 #define INS_ID(stringvar, prefix, id) \
           sprintf(stringvar, prefix, id)
@@ -1012,14 +1014,13 @@ MBErrorCode ReadNCDF::read_global_ids()
       readMeshIface->report_error("ReadNCDF:: Problem getting node number map data.");
       delete [] ptr;
       return MB_FAILURE;
-  
-      MBRange range(MB_START_ID+vertexOffset, 
-                    MB_START_ID+vertexOffset+numberNodes_loading-1);
-      MBErrorCode error = mdbImpl->tag_set_data(mGlobalIdTag, 
-                                                range, &ptr[0]);
-      if (MB_SUCCESS != error)
-        readMeshIface->report_error("ReadNCDF:: Problem setting node global ids.");
-    }
+    } 
+    MBRange range(MB_START_ID+vertexOffset, 
+                  MB_START_ID+vertexOffset+numberNodes_loading-1);
+    MBErrorCode error = mdbImpl->tag_set_data(mGlobalIdTag, 
+                                              range, &ptr[0]);
+    if (MB_SUCCESS != error)
+      readMeshIface->report_error("ReadNCDF:: Problem setting node global ids.");
   }
   
   delete [] ptr;
@@ -1889,8 +1890,8 @@ MBErrorCode ReadNCDF::read_qa_information(std::vector<char*> &qa_record_list)
 }
 
 MBErrorCode ReadNCDF::read_qa_string(char *temp_string,
-                                       int record_number,
-                                       int record_position)
+                                     int record_number,
+                                     int record_position)
 {
   NcVar *temp_var = ncFile->get_var("qa_records");
   if (NULL == temp_var || !temp_var->is_valid()) {
@@ -1911,4 +1912,195 @@ MBErrorCode ReadNCDF::read_qa_string(char *temp_string,
     // get the variable id in the exodus file
 
   return MB_SUCCESS;
+}
+
+MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
+{
+  //Function : updating current database from new exodus_file. 
+  //Creator:   Jane Hu
+  //opts is currently designed as following
+  //tdata = <var_name>[, time][,op][,destination] 
+  //where var_name show the tag name to be updated, this version just take
+  //coord.
+  //time is the optional, and it gives time step of the each of the mesh
+  //info in exodus file. 
+  //op is the operation that is going to be performed on the var_name info.
+  //currently support 'copy' and 'sum'
+  //destination shows where to store the updated info, currently assume it is
+  //stored in the same database by replacing the old info.
+  MBErrorCode rval;
+  std::string s;
+  rval = opts.get_str_option("tdata", s ); 
+  if(MB_SUCCESS != rval)
+  {
+    readMeshIface->report_error("MBCN:: Problem reading file options.");
+    return MB_FAILURE;
+  }
+  std::vector< std::string > tokens;
+  tokenize(s, tokens,",");
+    
+  std::string filename( exodus_file_name );
+
+  // 0. Check for previously read file.
+  reset();
+  bool previously_loaded = false;
+  rval = check_file_status(filename, previously_loaded);
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  read_exodus_header(exodus_file_name);
+
+  if (! strcmp (tokens[0].c_str(), "coord") || ! strcmp (tokens[0].c_str() ,"COORD"))
+  {
+    //1. check for time step to find the match time
+    int time_step = 1;
+    if(!tokens[1].empty())     
+    { 
+      const char* time_s = tokens[1].c_str();
+      char* endptr;
+      long int pval = strtol( time_s, &endptr, 0 );
+      std::string end = endptr;
+      if (!end.empty()) // syntax error
+        return MB_TYPE_OUT_OF_RANGE;
+
+      // check for overflow (parsing long int, returning int)
+      time_step = pval;
+      if (pval != (long int)time_step)
+        return MB_TYPE_OUT_OF_RANGE;
+    }
+
+    //2. check for the operations, they can be copy or sum.
+    const char *op;
+    if(!tokens[2].empty())
+      op = tokens[2].c_str();
+
+    if(!(!strcmp(op, "copy") || !strcmp( op ,"sum")))
+      return MB_TYPE_OUT_OF_RANGE;
+
+    //3. match the node_num_map.
+    int*    ptr1 = new int [numberNodes_loading];
+    int*    ptr2 ;
+
+    int varid = -1;
+    int cstatus = nc_inq_varid (ncFile->id(), "node_num_map", &varid);
+    if (cstatus == NC_NOERR && varid != -1) {
+      NcVar *temp_var = ncFile->get_var("node_num_map");
+      NcBool status = temp_var->get(ptr1, numberNodes_loading);
+      if (0 == status) {
+        readMeshIface->report_error("ReadNCDF:: Problem getting node number map data.");
+        delete [] ptr1;
+        return MB_FAILURE;
+      }
+      MBRange range(MB_START_ID+vertexOffset,
+                    MB_START_ID+vertexOffset+numberNodes_loading-1);
+      //get the existing db's node map
+      MBErrorCode error = mdbImpl->tag_get_data(mGlobalIdTag,
+                                              range, ptr2);
+      if (MB_SUCCESS != error)
+        readMeshIface->report_error("ReadNCDF:: Problem getting node global ids.");
+    }
+
+    //read in the coordinates from the database.
+    MBEntityHandle node_handle = 0;
+    std::vector<double*> arrays, arrays_DB;
+    readMeshIface->get_node_arrays(3, numberNodes_loading,
+      MB_START_ID, node_handle, arrays);
+
+    // read in the coordinates from the exodus file
+    NcVar *coords = ncFile->get_var("coord");
+    if (NULL == coords || !coords->is_valid()) {
+      readMeshIface->report_error("MBCN:: Problem getting coords variable.");
+      return MB_FAILURE;
+    }
+
+    if(!strcmp(op ,"sum"))
+    {
+      //record the DB coords.
+      readMeshIface->get_node_arrays(3, numberNodes_loading,
+        MB_START_ID, node_handle, arrays_DB);
+    }
+
+    //do operations on all coordinates.
+    for(int node_num = 0; node_num < numberNodes_loading; )
+    {
+      NcBool found = 0;
+      int node_index2, num_of_nodes;
+      for(int i = 0; i < numberNodes_loading; i++)
+      {
+        if(ptr2[i] == ptr1[node_num])
+        //i is the index on the exodus file which matches the (node_num+1)th
+        //node in the node map of existing DB.
+        {
+          found = 1;
+          node_index2 = i;
+          break;
+        }
+      }
+      if(!found)
+      {
+        readMeshIface->report_error("MBCN:: node maps do not match.");
+        return MB_FAILURE;
+      }
+
+      for(int j = 1; ; j++)//j is the number of nodes to be sequentially matched
+        if(ptr2[node_index2+j] != ptr1[node_num +j])  
+        {
+          num_of_nodes = j;
+          break;
+        }    
+      NcBool status = coords->get(arrays[0], node_index2+1, num_of_nodes);
+      if (0 == status) {
+        readMeshIface->report_error("MBCN:: Problem getting x coord array.");
+        return MB_FAILURE;
+      }
+      status = coords->set_cur(1, 0);
+      if (0 == status) {
+        readMeshIface->report_error("MBCN:: Problem getting y coord array.");
+        return MB_FAILURE;
+      }
+      status = coords->get(arrays[1], node_index2+1, num_of_nodes);
+      if (0 == status) {
+        readMeshIface->report_error("MBCN:: Problem getting y coord array.");
+        return MB_FAILURE;
+      }
+      if (numberDimensions_loading == 3 )
+      {
+        status = coords->set_cur(2, 0);
+        if (0 == status) {
+          readMeshIface->report_error("MBCN:: Problem getting z coord array.");
+          return MB_FAILURE;
+        }
+        status = coords->get(arrays[2], node_index2+1, num_of_nodes);
+        if (0 == status) {
+          readMeshIface->report_error("MBCN:: Problem getting z coord array.");
+          return MB_FAILURE;
+        }
+      }    
+      node_num += num_of_nodes;
+    }
+
+    delete [] ptr1;
+    if(!strcmp(op ,"sum"))
+    {
+      for(int i = 0 ; i < numberNodes_loading; i++)
+      {
+        arrays[0][i] += arrays_DB[0][i];
+        arrays[1][i] += arrays_DB[1][i];
+        arrays[2][i] += arrays_DB[2][i];
+      }
+    }
+  } //if token[0] == "coord"
+}
+
+void ReadNCDF::tokenize( const std::string& str,
+                         std::vector<std::string>& tokens,
+                         char* delimiters )
+{
+  std::string::size_type last = str.find_first_not_of( delimiters, 0 );
+  std::string::size_type pos  = str.find_first_of( delimiters, last );
+  while (std::string::npos != pos && std::string::npos != last) {
+    tokens.push_back( str.substr( last, pos - last ) );
+    last = str.find_first_not_of( delimiters, pos );
+    pos  = str.find_first_of( delimiters, last );
+  }
 }
