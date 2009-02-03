@@ -1918,13 +1918,13 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
   //Function : updating current database from new exodus_file. 
   //Creator:   Jane Hu
   //opts is currently designed as following
-  //tdata = <var_name>[, time][,op][,destination] 
+  //tdata = <var_name>[, time][,destination] 
+  //Since deformed mesh will have original coordx, coordy and coordz, and at each 
+  //time_step, a deformation on each direction, so update will sum them to get the new coords
   //where var_name show the tag name to be updated, this version just takes
   //coord.
   //time is the optional, and it gives time step of each of the mesh
   //info in exodus file. 
-  //op is the operation that is going to be performed on the var_name info.
-  //currently support 'copy' and 'sum'
   //destination shows where to store the updated info, currently assume it is
   //stored in the same database by replacing the old info.
   MBErrorCode rval;
@@ -1968,15 +1968,7 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
         return MB_TYPE_OUT_OF_RANGE;
     }
 
-    //2. check for the operations, they can be copy or sum.
-    const char *op = "" ;
-    if(tokens.size() > 2 && !tokens[2].empty())
-      op = tokens[2].c_str();
-
-    if(!(!strcmp(op, "copy") || !strcmp( op ,"sum")))
-      return MB_TYPE_OUT_OF_RANGE;
-
-    //3. match the node_num_map.
+    //2. match the node_num_map.
     int*    ptr1 = new int [numberNodes_loading];
     int*    ptr2 ;
 
@@ -2001,22 +1993,28 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
 
     //read in the coordinates from the database.
     MBEntityHandle node_handle = 0;
-    std::vector<double*> arrays, arrays_DB;
+    std::vector<double*> arrays, deform_arrays ;
+    double*    array1 = new double [numberNodes_loading];
+    double*    array2 = new double [numberNodes_loading];
+    double*    array3 = new double [numberNodes_loading];
+    deform_arrays.push_back(array1);
+    deform_arrays.push_back(array2);
+    deform_arrays.push_back(array3);
+
     readMeshIface->get_node_arrays(3, numberNodes_loading,
       MB_START_ID, node_handle, arrays);
 
     // read in the coordinates from the exodus file
-    NcVar *coords = ncFile->get_var("coord");
-    if (NULL == coords || !coords->is_valid()) {
+    NcVar *coordx = ncFile->get_var("vals_nod_var1");
+    NcVar *coordy = ncFile->get_var("vals_nod_var2");
+    NcVar *coordz;
+    if(numberDimensions_loading == 3)
+      ncFile->get_var("vals_nod_var3");
+    if (NULL == coordx || !coordx->is_valid() ||
+        NULL == coordy || !coordy->is_valid() ||
+        (numberDimensions_loading == 3 && (NULL == coordz || !coordz->is_valid())) ) {
       readMeshIface->report_error("MBCN:: Problem getting coords variable.");
       return MB_FAILURE;
-    }
-
-    if(!strcmp(op ,"sum"))
-    {
-      //record the DB coords.
-      readMeshIface->get_node_arrays(3, numberNodes_loading,
-        MB_START_ID, node_handle, arrays_DB);
     }
 
     //do operations on all coordinates.
@@ -2048,29 +2046,22 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
           num_of_nodes = j;
           break;
         }    
-      NcBool status = coords->get(arrays[0], node_index1+1, num_of_nodes);
+
+      int offset = time_step * numberNodes_loading;
+
+      NcBool status = coordx->get(deform_arrays[0], offset+node_index1+1, num_of_nodes);
       if (0 == status) {
         readMeshIface->report_error("MBCN:: Problem getting x coord array.");
         return MB_FAILURE;
       }
-      status = coords->set_cur(1, 0);
-      if (0 == status) {
-        readMeshIface->report_error("MBCN:: Problem getting y coord array.");
-        return MB_FAILURE;
-      }
-      status = coords->get(arrays[1], node_index1+1, num_of_nodes);
+      status = coordy->get(deform_arrays[1], offset+node_index1+1, num_of_nodes);
       if (0 == status) {
         readMeshIface->report_error("MBCN:: Problem getting y coord array.");
         return MB_FAILURE;
       }
       if (numberDimensions_loading == 3 )
       {
-        status = coords->set_cur(2, 0);
-        if (0 == status) {
-          readMeshIface->report_error("MBCN:: Problem getting z coord array.");
-          return MB_FAILURE;
-        }
-        status = coords->get(arrays[2], node_index1+1, num_of_nodes);
+        status = coordz->get(deform_arrays[2], offset+node_index1+1, num_of_nodes);
         if (0 == status) {
           readMeshIface->report_error("MBCN:: Problem getting z coord array.");
           return MB_FAILURE;
@@ -2078,17 +2069,16 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
       }    
       node_num += num_of_nodes;
     }
-
-    delete [] ptr1;
-    if(!strcmp(op ,"sum"))
+    for(int i = 0; i < numberNodes_loading; i++)
     {
-      for(int i = 0 ; i < numberNodes_loading; i++)
-      {
-        arrays[0][i] += arrays_DB[0][i];
-        arrays[1][i] += arrays_DB[1][i];
-        arrays[2][i] += arrays_DB[2][i];
-      }
+      arrays[0][i] += deform_arrays[0][i];
+      arrays[1][i] += deform_arrays[1][i];
+      arrays[2][i] += deform_arrays[2][i];
     }
+    delete [] ptr1;
+    delete [] array1;
+    delete [] array2;
+    delete [] array3;
   } //if token[0] == "coord"
 }
 
