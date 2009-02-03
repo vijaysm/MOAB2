@@ -1919,9 +1919,9 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
   //Creator:   Jane Hu
   //opts is currently designed as following
   //tdata = <var_name>[, time][,op][,destination] 
-  //where var_name show the tag name to be updated, this version just take
+  //where var_name show the tag name to be updated, this version just takes
   //coord.
-  //time is the optional, and it gives time step of the each of the mesh
+  //time is the optional, and it gives time step of each of the mesh
   //info in exodus file. 
   //op is the operation that is going to be performed on the var_name info.
   //currently support 'copy' and 'sum'
@@ -2023,15 +2023,15 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
     for(int node_num = 0; node_num < numberNodes_loading; )
     {
       NcBool found = 0;
-      int node_index2, num_of_nodes;
+      int node_index1, num_of_nodes;
       for(int i = 0; i < numberNodes_loading; i++)
       {
-        if(ptr2[i] == ptr1[node_num])
+        if(ptr1[i] == ptr2[node_num])
         //i is the index on the exodus file which matches the (node_num+1)th
         //node in the node map of existing DB.
         {
           found = 1;
-          node_index2 = i;
+          node_index1 = i;
           break;
         }
       }
@@ -2043,12 +2043,12 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
 
       for(int j = 1;j <= numberNodes_loading ; j++)
         //j is the number of nodes to be sequentially matched
-        if(ptr2[node_index2+j] != ptr1[node_num +j])  
+        if(ptr1[node_index1+j] != ptr2[node_num +j])  
         {
           num_of_nodes = j;
           break;
         }    
-      NcBool status = coords->get(arrays[0], node_index2+1, num_of_nodes);
+      NcBool status = coords->get(arrays[0], node_index1+1, num_of_nodes);
       if (0 == status) {
         readMeshIface->report_error("MBCN:: Problem getting x coord array.");
         return MB_FAILURE;
@@ -2058,7 +2058,7 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
         readMeshIface->report_error("MBCN:: Problem getting y coord array.");
         return MB_FAILURE;
       }
-      status = coords->get(arrays[1], node_index2+1, num_of_nodes);
+      status = coords->get(arrays[1], node_index1+1, num_of_nodes);
       if (0 == status) {
         readMeshIface->report_error("MBCN:: Problem getting y coord array.");
         return MB_FAILURE;
@@ -2070,7 +2070,7 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
           readMeshIface->report_error("MBCN:: Problem getting z coord array.");
           return MB_FAILURE;
         }
-        status = coords->get(arrays[2], node_index2+1, num_of_nodes);
+        status = coords->get(arrays[2], node_index1+1, num_of_nodes);
         if (0 == status) {
           readMeshIface->report_error("MBCN:: Problem getting z coord array.");
           return MB_FAILURE;
