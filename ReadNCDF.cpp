@@ -24,7 +24,6 @@
 #include <time.h>
 #include <string>
 #include <assert.h>
-#include <list>
 #include <stdio.h>
 
 #include "MBCN.hpp"
@@ -1954,7 +1953,7 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
   {
     //1. check for time step to find the match time
     int time_step = 1;
-    if(!tokens[1].empty())     
+    if(tokens.size() > 1 && !tokens[1].empty())     
     { 
       const char* time_s = tokens[1].c_str();
       char* endptr;
@@ -1970,8 +1969,8 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
     }
 
     //2. check for the operations, they can be copy or sum.
-    const char *op;
-    if(!tokens[2].empty())
+    const char *op = "" ;
+    if(tokens.size() > 2 && !tokens[2].empty())
       op = tokens[2].c_str();
 
     if(!(!strcmp(op, "copy") || !strcmp( op ,"sum")))
@@ -2042,7 +2041,8 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
         return MB_FAILURE;
       }
 
-      for(int j = 1; ; j++)//j is the number of nodes to be sequentially matched
+      for(int j = 1;j <= numberNodes_loading ; j++)
+        //j is the number of nodes to be sequentially matched
         if(ptr2[node_index2+j] != ptr1[node_num +j])  
         {
           num_of_nodes = j;
