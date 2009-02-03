@@ -1922,7 +1922,7 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
   //where var_name show the tag name to be updated, this version just takes
   //coord.
   //time is the optional, and it gives time step of each of the mesh
-  //info in exodus file. 
+  //info in exodus file. It start from 1.
   //op is the operation that is going to be performed on the var_name info.
   //currently support 'sum'
   //destination shows where to store the updated info, currently assume it is
@@ -1965,6 +1965,8 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
       // check for overflow (parsing long int, returning int)
       time_step = pval;
       if (pval != (long int)time_step)
+        return MB_TYPE_OUT_OF_RANGE;
+      if(time_step <= 0)
         return MB_TYPE_OUT_OF_RANGE;
     }
 
@@ -2052,7 +2054,7 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
           break;
         }    
 
-      int offset = time_step * numberNodes_loading;
+      int offset = (time_step-1) * numberNodes_loading;
 
       if(op == "sum")
       {
