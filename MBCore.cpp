@@ -747,8 +747,9 @@ MBErrorCode  MBCore::get_coords(const MBEntityHandle entity_handle,
 
 //! set the coordinate information for this handle if it is of type Vertex
 //! otherwise, return an error
-MBErrorCode  MBCore::set_coords(MBEntityHandle *entity_handles, const int num_entities, 
-                                  const double *coords)
+MBErrorCode  MBCore::set_coords( const MBEntityHandle *entity_handles, 
+                                 const int num_entities, 
+                                 const double *coords)
 {
 
   MBErrorCode status = MB_SUCCESS;

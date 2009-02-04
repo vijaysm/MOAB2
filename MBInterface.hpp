@@ -387,7 +387,7 @@ public:
         double coords[3] = {0.234, -2.52, 12.023};
         set_coords( entity_handle, 1, coords ); \endcode 
     */
-  virtual MBErrorCode  set_coords(MBEntityHandle *entity_handles, 
+  virtual MBErrorCode  set_coords(const MBEntityHandle *entity_handles, 
                                   const int num_entities,
                                   const double *coords)=0;
 

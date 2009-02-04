@@ -154,7 +154,7 @@ public:
 
   //! set the coordinate information for this handle if it is of type Vertex
   //! otherwise, return an error
-  virtual MBErrorCode  set_coords(MBEntityHandle *entity_handles, 
+  virtual MBErrorCode  set_coords( const MBEntityHandle *entity_handles, 
                                    const int num_entities,
                                    const double *coords);
 
