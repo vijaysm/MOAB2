@@ -4,9 +4,6 @@
 #include "MBCore.hpp"
 #include "cgm2moab.hpp"
 #include "cubfile.h"
-#include "Tqdcfr.hpp"
-#include "FileOptions.hpp"
-#include "ReadNCDF.hpp"
 
 #define GF_CUBIT_FILE_TYPE    "CUBIT"
 #define GF_STEP_FILE_TYPE     "STEP"
@@ -161,21 +158,10 @@ int main( int argc, char* argv[] )
       exit(2);
     }
     
-    MBCore *my_impl = new MBCore();
-    Tqdcfr *my_tqd = new Tqdcfr(my_impl);
-    MBEntityHandle file_set;
-    FileOptions opts(NULL);
-
-    MBErrorCode result = my_tqd->load_file(input_name, file_set, opts, 0, 0);
-
-    opts = "tdata=coord, 1, sum";
-    ReadNCDF my_ex_reader(my_impl);
-    result = my_ex_reader.update("2Paul.e", opts);
-
-    int rvalue = cub_file_type( cub_file, tmp_file, CUB_FILE_ACIS );
+    int rval = cub_file_type( cub_file, tmp_file, CUB_FILE_ACIS );
     fclose( cub_file );
     fclose( tmp_file );
-    if (rvalue) {
+    if (rval) {
       remove( temp_name );
       free( temp_name );
       exit(2);
