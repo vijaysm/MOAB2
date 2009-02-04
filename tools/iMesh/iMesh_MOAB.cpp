@@ -1389,7 +1389,7 @@ extern "C" {
   }
 
   void iMesh_addEntArrToSet(iMesh_Instance instance,
-                            /*in*/ iBase_EntityHandle* entity_handles,
+                            /*in*/ const iBase_EntityHandle* entity_handles,
                             /*in*/ int entity_handles_size,
                             /*in*/ iBase_EntitySetHandle entity_set, 
                             int *err)
@@ -1416,7 +1416,7 @@ extern "C" {
   }
 
   void iMesh_rmvEntArrFromSet(iMesh_Instance instance,
-                              /*in*/ iBase_EntityHandle* entity_handles,
+                              /*in*/ const iBase_EntityHandle* entity_handles,
                               /*in*/ int entity_handles_size,
                               /*in*/ iBase_EntitySetHandle entity_set, int *err)
   {
@@ -1699,7 +1699,7 @@ extern "C" {
   }
 
   void iMesh_setVtxArrCoords (iMesh_Instance instance,
-                              /*in*/ iBase_EntityHandle* vertex_handles,
+                              /*in*/ const iBase_EntityHandle* vertex_handles,
                               /*in*/ const int vertex_handles_size,
                               /*in*/ const int storage_order,
                               /*in*/ const double* new_coords,
@@ -1707,11 +1707,11 @@ extern "C" {
   {
     MBErrorCode result = MB_SUCCESS, tmp_result;
     if (storage_order == iBase_INTERLEAVED) {
-      result = MBI->set_coords(HANDLE_ARRAY_PTR(vertex_handles),
+      result = MBI->set_coords(CONST_HANDLE_ARRAY_PTR(vertex_handles),
                                vertex_handles_size, new_coords);
     }
     else {
-      MBEntityHandle *verts = HANDLE_ARRAY_PTR(vertex_handles);
+      const MBEntityHandle *verts = CONST_HANDLE_ARRAY_PTR(vertex_handles);
       double dummy[3];
       for (int i = 0; i < vertex_handles_size; i++) {
         dummy[0] = new_coords[i]; dummy[1] = new_coords[vertex_handles_size+i]; 
@@ -1842,14 +1842,14 @@ extern "C" {
   }
                                                    
   void iMesh_deleteEntArr(iMesh_Instance instance,
-                          /*in*/ iBase_EntityHandle* entity_handles,
+                          /*in*/ const iBase_EntityHandle* entity_handles,
                           /*in*/ const int entity_handles_size, int *err) 
   {
     if (0 == entity_handles_size) {
       RETURN(iBase_SUCCESS);
     }
 
-    MBErrorCode result = MBI->delete_entities(HANDLE_ARRAY_PTR(entity_handles),
+    MBErrorCode result = MBI->delete_entities(CONST_HANDLE_ARRAY_PTR(entity_handles),
                                               entity_handles_size);
     if (MB_SUCCESS != result)
       iMesh_processError(iBase_ERROR_MAP[result], "iMesh_deleteEntArr: trouble deleting entities.");
@@ -2420,7 +2420,7 @@ extern "C" {
   }
 
   void iMesh_setArrData (iMesh_Instance instance,
-                         /*in*/ iBase_EntityHandle* entity_handles,
+                         /*in*/ const iBase_EntityHandle* entity_handles,
                          /*in*/ const int entity_handles_size,
                          /*in*/ const iBase_TagHandle tag_handle,
                          /*in*/ const char* tag_values,
@@ -2431,7 +2431,7 @@ extern "C" {
     }
 
     MBErrorCode result = MBI->tag_set_data(TAG_HANDLE(tag_handle), 
-                                           HANDLE_ARRAY_PTR(entity_handles),
+                                           CONST_HANDLE_ARRAY_PTR(entity_handles),
                                            entity_handles_size,
                                            tag_values);
     if (MB_SUCCESS != result) {
@@ -2444,7 +2444,7 @@ extern "C" {
   }
 
   void iMesh_setIntArrData (iMesh_Instance instance,
-                            /*in*/ iBase_EntityHandle* entity_handles,
+                            /*in*/ const iBase_EntityHandle* entity_handles,
                             /*in*/ const int entity_handles_size,
                             /*in*/ const iBase_TagHandle tag_handle,
                             /*in*/ const int* tag_values,
@@ -2457,7 +2457,7 @@ extern "C" {
   }
 
   void iMesh_setDblArrData (iMesh_Instance instance,
-                            /*in*/ iBase_EntityHandle* entity_handles,
+                            /*in*/ const iBase_EntityHandle* entity_handles,
                             /*in*/ const int entity_handles_size,
                             /*in*/ const iBase_TagHandle tag_handle,
                             /*in*/ const double* tag_values,
@@ -2470,7 +2470,7 @@ extern "C" {
   }
 
   void iMesh_setBoolArrData (iMesh_Instance instance,
-                             /*in*/ iBase_EntityHandle* entity_handles,
+                             /*in*/ const iBase_EntityHandle* entity_handles,
                              /*in*/ const int entity_handles_size,
                              /*in*/ const iBase_TagHandle tag_handle,
                              /*in*/ const bool* tag_values,
@@ -2483,7 +2483,7 @@ extern "C" {
   }
 
   void iMesh_setEHArrData (iMesh_Instance instance,
-                           /*in*/ iBase_EntityHandle* entity_handles,
+                           /*in*/ const iBase_EntityHandle* entity_handles,
                            /*in*/ const int entity_handles_size,
                            /*in*/ const iBase_TagHandle tag_handle,
                            /*in*/ const iBase_EntityHandle* tag_values,
@@ -2496,12 +2496,12 @@ extern "C" {
   }
 
   void iMesh_rmvArrTag (iMesh_Instance instance,
-                        /*in*/ iBase_EntityHandle* entity_handles,
+                        /*in*/ const iBase_EntityHandle* entity_handles,
                         /*in*/ const int entity_handles_size,
                         /*in*/ const iBase_TagHandle tag_handle, int *err) 
   {
     MBErrorCode result = MBI->tag_delete_data(TAG_HANDLE(tag_handle),
-                                              HANDLE_ARRAY_PTR(entity_handles),
+                                              CONST_HANDLE_ARRAY_PTR(entity_handles),
                                               entity_handles_size);
   
       // don't check return; this tag may have never been set on the entity

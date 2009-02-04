@@ -799,7 +799,7 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_addEntArrToSet(iMesh_Instance instance,
-                            /*in*/ iBase_EntityHandle* entity_handles,
+                            /*in*/ const iBase_EntityHandle* entity_handles,
                             /*in*/ int entity_handles_size,
                             /*in*/ iBase_EntitySetHandle entity_set,
                             /*out*/ int *err);
@@ -815,7 +815,7 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_rmvEntArrFromSet(iMesh_Instance instance,
-                              /*in*/ iBase_EntityHandle* entity_handles,
+                              /*in*/ const iBase_EntityHandle* entity_handles,
                               /*in*/ int entity_handles_size,
                               /*in*/ iBase_EntitySetHandle entity_set,
                               /*out*/ int *err);
@@ -1045,7 +1045,7 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_setVtxArrCoords(iMesh_Instance instance,
-                             /*in*/ iBase_EntityHandle* vertex_handles,
+                             /*in*/ const iBase_EntityHandle* vertex_handles,
                              /*in*/ const int vertex_handles_size,
                              /*in*/ const int storage_order,
                              /*in*/ const double* new_coords,
@@ -1128,7 +1128,7 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_deleteEntArr(iMesh_Instance instance,
-                          /*in*/ iBase_EntityHandle* entity_handles,
+                          /*in*/ const iBase_EntityHandle* entity_handles,
                           /*in*/ const int entity_handles_size,
                           /*out*/ int *err);
 
@@ -1579,7 +1579,7 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_setArrData(iMesh_Instance instance,
-                        /*in*/ iBase_EntityHandle* entity_handles,
+                        /*in*/ const iBase_EntityHandle* entity_handles,
                         /*in*/ const int entity_handles_size,
                         /*in*/ const iBase_TagHandle tag_handle,
                         /*in*/ const char* tag_values,
@@ -1598,7 +1598,7 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_setIntArrData(iMesh_Instance instance,
-                           /*in*/ iBase_EntityHandle* entity_handles,
+                           /*in*/ const iBase_EntityHandle* entity_handles,
                            /*in*/ const int entity_handles_size,
                            /*in*/ const iBase_TagHandle tag_handle,
                            /*in*/ const int* tag_values,
@@ -1617,7 +1617,7 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_setDblArrData(iMesh_Instance instance,
-                           /*in*/ iBase_EntityHandle* entity_handles,
+                           /*in*/ const iBase_EntityHandle* entity_handles,
                            /*in*/ const int entity_handles_size,
                            /*in*/ const iBase_TagHandle tag_handle,
                            /*in*/ const double* tag_values,
@@ -1637,7 +1637,7 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_setEHArrData(iMesh_Instance instance,
-                          /*in*/ iBase_EntityHandle* entity_handles,
+                          /*in*/ const iBase_EntityHandle* entity_handles,
                           /*in*/ const int entity_handles_size,
                           /*in*/ const iBase_TagHandle tag_handle,
                           /*in*/ const iBase_EntityHandle* tag_values,
@@ -1654,7 +1654,7 @@ extern "C" {
      * \param *err Pointer to error type returned from function
      */
   void iMesh_rmvArrTag(iMesh_Instance instance,
-                       /*in*/ iBase_EntityHandle* entity_handles,
+                       /*in*/ const iBase_EntityHandle* entity_handles,
                        /*in*/ const int entity_handles_size,
                        /*in*/ const iBase_TagHandle tag_handle,
                        /*out*/ int *err);
