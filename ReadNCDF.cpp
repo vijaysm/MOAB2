@@ -1971,7 +1971,7 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
     }
 
     //2. check for the operations, currently support sum.
-    const char *op = "" ;
+    std::stirng op;
     if(tokens.size() > 2 && !tokens[2].empty())
       op = tokens[2].c_str();
 
@@ -2093,11 +2093,13 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
     delete [] array2;
     delete [] array3;
   } //if token[0] == "coord"
+  
+  return MB_SUCCESS;
 }
 
 void ReadNCDF::tokenize( const std::string& str,
                          std::vector<std::string>& tokens,
-                         char* delimiters )
+                         const char* delimiters )
 {
   std::string::size_type last = str.find_first_not_of( delimiters, 0 );
   std::string::size_type pos  = str.find_first_of( delimiters, last );
