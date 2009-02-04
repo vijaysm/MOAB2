@@ -1971,7 +1971,7 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
     }
 
     //2. check for the operations, currently support sum.
-    std::stirng op;
+    std::string op;
     if(tokens.size() > 2 && !tokens[2].empty())
       op = tokens[2].c_str();
 
