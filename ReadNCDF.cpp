@@ -2000,28 +2000,86 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
 
     //read in the coordinates from the database.
     MBEntityHandle node_handle = 0;
-    std::vector<double*> arrays, deform_arrays ;
+    std::vector<double*> arrays, orig_coords, deform_arrays ;
     double*    array1 = new double [numberNodes_loading];
     double*    array2 = new double [numberNodes_loading];
     double*    array3 = new double [numberNodes_loading];
+    double*    array4 = new double [numberNodes_loading];
+    double*    array5 = new double [numberNodes_loading];
+    double*    array6 = new double [numberNodes_loading];
     deform_arrays.push_back(array1);
     deform_arrays.push_back(array2);
     deform_arrays.push_back(array3);
+    orig_coords.push_back(array4);
+    orig_coords.push_back(array5);
+    orig_coords.push_back(array6);
 
     readMeshIface->get_node_arrays(3, numberNodes_loading,
-      MB_START_ID, node_handle, arrays);
+                                   MB_START_ID, node_handle, arrays);
 
-    // read in the coordinates from the exodus file
+
+    //read in the original coordinates from the exodus file
+    NcVar *coord1 = ncFile->get_var("coordx");
+    NcVar *coord2 = ncFile->get_var("coordy");
+    NcVar *coord3;
+    if(numberDimensions_loading == 3)
+      coord3 = ncFile->get_var("coordz");
+    if (NULL == coord1 || !coord1->is_valid() ||
+        NULL == coord2 || !coord2->is_valid() ||
+        (numberDimensions_loading == 3 && (NULL == coord3 || !coord3->is_valid())) ) {
+      readMeshIface->report_error("MBCN:: Problem getting coords variable.");
+      return MB_FAILURE;
+    }
+ 
+    // read in the deformation from the exodus file
     NcVar *coordx = ncFile->get_var("vals_nod_var1");
     NcVar *coordy = ncFile->get_var("vals_nod_var2");
     NcVar *coordz;
     if(numberDimensions_loading == 3)
-      ncFile->get_var("vals_nod_var3");
+      coordz = ncFile->get_var("vals_nod_var3");
     if (NULL == coordx || !coordx->is_valid() ||
         NULL == coordy || !coordy->is_valid() ||
         (numberDimensions_loading == 3 && (NULL == coordz || !coordz->is_valid())) ) {
       readMeshIface->report_error("MBCN:: Problem getting coords variable.");
       return MB_FAILURE;
+    }
+
+    NcBool status = coord1->get(orig_coords[0], 1, numberNodes_loading);
+    if (0 == status) {
+      readMeshIface->report_error("MBCN:: Problem getting x coord array.");
+      return MB_FAILURE;
+    }
+    status = coord2->get(orig_coords[1], 1, numberNodes_loading);
+    if (0 == status) {
+      readMeshIface->report_error("MBCN:: Problem getting y coord array.");
+      return MB_FAILURE;
+    }
+    if (numberDimensions_loading == 3 )
+    {
+      status = coord3->get(orig_coords[2], 1, numberNodes_loading);
+      if (0 == status) {
+        readMeshIface->report_error("MBCN:: Problem getting z coord array.");
+        return MB_FAILURE;
+      }
+    }
+
+    status = coordx->get(deform_arrays[0], 1, numberNodes_loading);
+    if (0 == status) {
+      readMeshIface->report_error("MBCN:: Problem getting x coord array.");
+      return MB_FAILURE;
+    }
+    status = coordy->get(deform_arrays[1], 1, numberNodes_loading);
+    if (0 == status) {
+      readMeshIface->report_error("MBCN:: Problem getting y coord array.");
+      return MB_FAILURE;
+    }
+    if (numberDimensions_loading == 3 )
+    {
+      status = coordz->get(deform_arrays[2], 1, numberNodes_loading);
+      if (0 == status) {
+        readMeshIface->report_error("MBCN:: Problem getting z coord array.");
+        return MB_FAILURE;
+      }
     }
 
     //do operations on all coordinates.
@@ -2046,52 +2104,34 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
         return MB_FAILURE;
       }
 
+      int offset = (time_step-1) * numberNodes_loading;
+
       for(int j = 1;j <= numberNodes_loading ; j++)
+      {
         //j is the number of nodes to be sequentially matched
+        if(op == "sum")
+        {
+          arrays[0][node_num + j - 1] = orig_coords[0][node_index1+j-1] + deform_arrays[0][offset+node_index1+j-1];
+          arrays[1][node_num + j - 1] = orig_coords[1][node_index1+j-1] + deform_arrays[0][offset+node_index1+j-1];
+          arrays[2][node_num + j - 1] = orig_coords[2][node_index1+j-1] + deform_arrays[0][offset+node_index1+j-1];
+        }
+
         if(ptr1[node_index1+j] != ptr2[node_num +j])  
         {
           num_of_nodes = j;
           break;
         }    
-
-      int offset = (time_step-1) * numberNodes_loading;
-
-      if(op == "sum")
-      {
-        NcBool status = coordx->get(deform_arrays[0], offset+node_index1+1, num_of_nodes);
-        if (0 == status) {
-          readMeshIface->report_error("MBCN:: Problem getting x coord array.");
-          return MB_FAILURE;
-        }
-        status = coordy->get(deform_arrays[1], offset+node_index1+1, num_of_nodes);
-        if (0 == status) {
-          readMeshIface->report_error("MBCN:: Problem getting y coord array.");
-          return MB_FAILURE;
-        }
-        if (numberDimensions_loading == 3 )
-        {
-          status = coordz->get(deform_arrays[2], offset+node_index1+1, num_of_nodes);
-          if (0 == status) {
-            readMeshIface->report_error("MBCN:: Problem getting z coord array.");
-            return MB_FAILURE;
-          }
-        }    
       }
+
       node_num += num_of_nodes;
-    }
-    if(op == "sum")
-    {
-      for(int i = 0; i < numberNodes_loading; i++)
-      {
-        arrays[0][i] += deform_arrays[0][i];
-        arrays[1][i] += deform_arrays[1][i];
-        arrays[2][i] += deform_arrays[2][i];
-      }
     }
     delete [] ptr1;
     delete [] array1;
     delete [] array2;
     delete [] array3;
+    delete [] array4;
+    delete [] array5;
+    delete [] array6;
   } //if token[0] == "coord"
   
   return MB_SUCCESS;
@@ -2107,5 +2147,7 @@ void ReadNCDF::tokenize( const std::string& str,
     tokens.push_back( str.substr( last, pos - last ) );
     last = str.find_first_not_of( delimiters, pos );
     pos  = str.find_first_of( delimiters, last );
+    if(std::string::npos == pos)
+      pos = str.size();
   }
 }
