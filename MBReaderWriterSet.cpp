@@ -26,6 +26,7 @@
 #include "ReadIDEAS.hpp"
 #include "ReadSms.hpp"
 #include "Tqdcfr.hpp"
+#include "ReadTetGen.hpp"
 
 #include "WriteAns.hpp"
 #include "WriteVtk.hpp"
@@ -89,6 +90,9 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
   register_factory( ReadGmsh::factory, WriteGmsh::factory, "Gmsh mesh file", gmsh_sufxs, "GMSH" );
   
   register_factory( ReadSTL::factory, WriteSTL::factory, "Stereo Lithography File (STL)", "stl", "STL" );
+
+  const char* tetgen_sufxs[] = { "node", "ele", "face", "edge", NULL };
+  register_factory( ReadTetGen::factory, 0, "TetGen output files", tetgen_sufxs, "TETGEN" );
 }
 
 
