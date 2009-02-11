@@ -420,7 +420,6 @@ int entity_connectivity_test(iMesh_Instance mesh)
   int type, result;
   int *offsets, offsets_alloc, offsets_size;
   int *indices, indices_alloc, indices_size;
-  int *entity_sets, entity_sets_alloc, entity_sets_size;
   iBase_EntityHandle *entities, *adj_ents, *entities2, *sorted;
   int entities_alloc, entities_size, adj_ents_alloc, adj_ents_size;
   int entities2_alloc, entities2_size;
@@ -514,8 +513,6 @@ int entity_connectivity_test(iMesh_Instance mesh)
 
     offsets = NULL;
     offsets_alloc = 0;
-    entity_sets = NULL;
-    entity_sets_alloc = 0;
     entities = NULL;
     entities_alloc = 0;
 
@@ -523,21 +520,19 @@ int entity_connectivity_test(iMesh_Instance mesh)
                          iMesh_ALL_TOPOLOGIES, iBase_VERTEX, 
                          &entities, &entities_alloc, &entities_size,
                          &offsets, &offsets_alloc, &offsets_size,
-                         &entity_sets, &entity_sets_alloc, &entity_sets_size, &result);
+                         &result);
     if (iBase_SUCCESS != result) {
       printf("Failed to get indices of adjacent entity vertices in connectivity_test.\n");
       return FALSE;
     }
 
     if (entities_alloc != entities_size ||
-        offsets_alloc != offsets_size ||
-        entity_sets_alloc != entity_sets_size) {
+        offsets_alloc != offsets_size) {
       printf("Number of elements didn't agree with array size for an array in connectivity_test.\n");
       return FALSE;
     }
 
     free(offsets);
-    free(entity_sets);
     free(entities);
   }
 
@@ -583,17 +578,15 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
   int all_entities_alloc = 0, all_entities_size, k, l;
   iBase_EntityHandle *adj_faces = NULL;
   int adj_faces_alloc = 0, adj_faces_size;
-  int *face_offsets = NULL, *face_in_sets = NULL;
-  int face_offsets_alloc = 0, face_in_sets_alloc = 0,
-    face_offsets_size, face_in_sets_size;
+  int *face_offsets = NULL;
+  int face_offsets_alloc = 0, face_offsets_size;
   iBase_EntityHandle *hexes = NULL;
   int hexes_alloc = 0, hexes_size;
   iBase_EntitySetHandle hex_set;
   iBase_EntityHandle *adj_faces1 = NULL;
   int adj_faces1_alloc = 0, adj_faces1_size;
-  int *face_offsets1 = NULL, *face_in_sets1 = NULL;
-  int face_offsets1_alloc = 0, face_in_sets1_alloc = 0,
-    face_offsets1_size, face_in_sets1_size;
+  int *face_offsets1 = NULL;
+  int face_offsets1_alloc = 0, face_offsets1_size;
 
     /* get the number of whole mesh */
   int n_whole_mesh = 0;
@@ -1035,14 +1028,14 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     /* get adjacent face of hexes */
   adj_faces = NULL;
   adj_faces_alloc = 0;
-  face_offsets = NULL; face_in_sets = NULL;
-  face_offsets_alloc = 0; face_in_sets_alloc = 0;
+  face_offsets = NULL; 
+  face_offsets_alloc = 0; 
 
   iMesh_getAdjEntities(mesh, root_set, iBase_ALL_TYPES,
                        iMesh_HEXAHEDRON, iBase_FACE,
                        &adj_faces, &adj_faces_alloc, &adj_faces_size,
                        &face_offsets, &face_offsets_alloc, &face_offsets_size,
-                       &face_in_sets, &face_in_sets_alloc, &face_in_sets_size, &result);
+                      &result);
   if (iBase_SUCCESS != result) {
     printf("Problem to get adjacent entities in entitysets_test.\n");
     return FALSE;
@@ -1075,15 +1068,15 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
     /* get adjacent faces of all hexes */
   adj_faces1 = NULL;
   adj_faces1_alloc = 0;
-  face_offsets1 = NULL; face_in_sets1 = NULL;
-  face_offsets1_alloc = 0; face_in_sets1_alloc = 0;
+  face_offsets1 = NULL;
+  face_offsets1_alloc = 0;
 
   iMesh_getAdjEntities(mesh, hex_set,
                        iBase_ALL_TYPES,
                        iMesh_HEXAHEDRON, iBase_FACE,
                        &adj_faces1, &adj_faces1_alloc, &adj_faces1_size, 
                        &face_offsets1, &face_offsets1_alloc, &face_offsets1_size,
-                       &face_in_sets1, &face_in_sets1_alloc, &face_in_sets1_size, &result);
+                       &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to get faces from hexes in entityset_test.\n");
     return FALSE;
@@ -1091,8 +1084,7 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
 
     /* compare number of faces */
   if (adj_faces_size != adj_faces1_size ||
-      face_offsets_size != face_offsets1_size ||
-      face_in_sets_size != face_in_sets1_size)
+      face_offsets_size != face_offsets1_size)
     return FALSE;
   
   if (!check_esets(mesh, n_whole_mesh + num_type + 6)) return FALSE;
@@ -1106,11 +1098,9 @@ int entity_sets_subtest(iMesh_Instance mesh, int is_list,
   free(parents);
   free(es_array1);
   free(all_entities);
-  free(face_in_sets);
   free(face_offsets);
   free(adj_faces);
   free(hexes);
-  free(face_in_sets1);
   free(face_offsets1);
   free(adj_faces1);
   
