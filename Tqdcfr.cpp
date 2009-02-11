@@ -590,14 +590,14 @@ MBErrorCode Tqdcfr::read_sideset(const double data_version,
       // have to read dist factors
     FREADD(sideseth->numDF);
     MBTag distFactorTag;
-    double *dum_val = NULL;
-    MBErrorCode result = mdbImpl->tag_create("distFactor", sizeof(double*), MB_TAG_SPARSE, 
-                                             distFactorTag, 
-                              &dum_val);
+    MBErrorCode result = mdbImpl->tag_create_variable_length( "distFactor", 
+                                                               MB_TAG_SPARSE,
+                                                               MB_TYPE_DOUBLE,
+                                                               distFactorTag );
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
-    double *dist_data = new double[ss_dfs.size()];
-    memcpy(dist_data, &dbl_buf[0], sideseth->numDF*sizeof(double));
-    result = mdbImpl->tag_set_data(distFactorTag, &sideseth->setHandle, 1, &dist_data);
+    const void* dist_data = &dbl_buf[0];
+    const int dist_size = sideseth->numDF * sizeof(double);
+    result = mdbImpl->tag_set_data( distFactorTag, &sideseth->setHandle, 1, &dist_data, &dist_size);
     if (MB_SUCCESS != result) return result;
   }
   

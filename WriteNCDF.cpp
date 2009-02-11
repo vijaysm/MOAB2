@@ -65,43 +65,46 @@ WriteNCDF::WriteNCDF(MBInterface *impl)
   // initialize in case tag_get_handle fails below
   //! get and cache predefined tag handles
   int dum_val = 0;
-  void* dum_ptr = 0;
   MBErrorCode result = impl->tag_get_handle(MATERIAL_SET_TAG_NAME,  mMaterialSetTag);
   if (MB_TAG_NOT_FOUND == result)
-    result = impl->tag_create(MATERIAL_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mMaterialSetTag,
-                              &dum_val);
+    result = impl->tag_create(MATERIAL_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, 
+                              MB_TYPE_INTEGER, mMaterialSetTag, &dum_val);
   
   result = impl->tag_get_handle(DIRICHLET_SET_TAG_NAME, mDirichletSetTag);
   if (MB_TAG_NOT_FOUND == result)
-    result = impl->tag_create(DIRICHLET_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mDirichletSetTag,
-                              &dum_val);
+    result = impl->tag_create(DIRICHLET_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE,
+                              MB_TYPE_INTEGER, mDirichletSetTag, &dum_val);
   
   result = impl->tag_get_handle(NEUMANN_SET_TAG_NAME,   mNeumannSetTag);
   if (MB_TAG_NOT_FOUND == result)
-    result = impl->tag_create(NEUMANN_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mNeumannSetTag,
-                              &dum_val);
+    result = impl->tag_create(NEUMANN_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE,
+                              MB_TYPE_INTEGER, mNeumannSetTag, &dum_val);
   
   result = impl->tag_get_handle(HAS_MID_NODES_TAG_NAME, mHasMidNodesTag);
   if (MB_TAG_NOT_FOUND == result) {
     int dum_val_array[] = {0, 0, 0, 0};
-    result = impl->tag_create(HAS_MID_NODES_TAG_NAME, 4*sizeof(int), MB_TAG_SPARSE, mHasMidNodesTag,
-                              dum_val_array);
+    result = impl->tag_create(HAS_MID_NODES_TAG_NAME, 4*sizeof(int), MB_TAG_SPARSE,
+                              MB_TYPE_INTEGER, mHasMidNodesTag, dum_val_array);
   }
   
   result = impl->tag_get_handle("distFactor",           mDistFactorTag);
   if (MB_TAG_NOT_FOUND == result)
-    result = impl->tag_create("distFactor", sizeof(double*), MB_TAG_SPARSE, mDistFactorTag, 
-                              &dum_val);
+    result = impl->tag_create_variable_length( "distFactor", 
+                                               MB_TAG_SPARSE, 
+                                               MB_TYPE_DOUBLE,
+                                               mDistFactorTag );
   
   result = impl->tag_get_handle("qaRecord",             mQaRecordTag);
   if (MB_TAG_NOT_FOUND == result)
-    result = impl->tag_create("qaRecord", sizeof(void*), MB_TAG_SPARSE, mQaRecordTag,
-                              &dum_ptr);
+    result = impl->tag_create_variable_length( "qaRecord", 
+                                               MB_TAG_SPARSE, 
+                                               MB_TYPE_OPAQUE,
+                                               mQaRecordTag );
   
   result = impl->tag_get_handle(GLOBAL_ID_TAG_NAME,             mGlobalIdTag);
   if (MB_TAG_NOT_FOUND == result)
-    result = impl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mGlobalIdTag,
-                              &dum_val);
+    result = impl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, 
+                              MB_TYPE_INTEGER, mGlobalIdTag, &dum_val);
   
 
   impl->tag_create("WriteNCDF element mark", 1, MB_TAG_BIT, mEntityMark, NULL);
@@ -511,12 +514,16 @@ MBErrorCode WriteNCDF::gather_mesh_information(
 
 
     //get the tag for distribution factors
-    std::vector<double> *dist_factor_vector;
+    const double *dist_factor_vector;
+    int dist_factor_size;
+    const void* ptr = 0;
    
     int has_dist_factors = 0; 
-    if(mdbImpl->tag_get_data(mDistFactorTag,&(*vector_iter), 1, &dist_factor_vector) == MB_SUCCESS &&
-       NULL != dist_factor_vector)
+    if(mdbImpl->tag_get_data(mDistFactorTag,&(*vector_iter), 1, &ptr, &dist_factor_size) == MB_SUCCESS &&
+       dist_factor_size)
       has_dist_factors = 1;
+    dist_factor_size /= sizeof(double);
+    dist_factor_vector = reinterpret_cast<const double*>(ptr);
     std::vector<MBEntityHandle>::iterator iter, end_iter;
     iter = node_vector.begin();
     end_iter= node_vector.end();
@@ -537,7 +544,7 @@ MBErrorCode WriteNCDF::gather_mesh_information(
       {
         nodeset_data.nodes.push_back( *iter );    
         if( has_dist_factors != 0)
-          nodeset_data.node_dist_factors.push_back( (*dist_factor_vector)[j] );
+          nodeset_data.node_dist_factors.push_back( dist_factor_vector[j] );
         else
           nodeset_data.node_dist_factors.push_back( 1.0 );
       }
@@ -598,17 +605,21 @@ MBErrorCode WriteNCDF::get_valid_sides(MBRange &elems, ExodusMeshInfo& /*mesh_in
     // this is where we see if underlying element of side set element is included in output 
 
     //get the sideset-based info for distribution factors
-  std::vector<double> *dist_factor_vector;
+  const double *dist_factor_vector = 0;
+  int dist_factor_size = 0;
 
   // initialize dist_fac_iter to get rid of compiler warning
-  std::vector<double>::iterator dist_fac_iter(0);
+  const double* dist_fac_iter = 0;
+  const void* ptr = 0;
   bool has_dist_factors = false; 
   if(mdbImpl->tag_get_data(mDistFactorTag,
-                           &(sideset_data.mesh_set_handle), 1, &dist_factor_vector) == MB_SUCCESS &&
-     NULL != dist_factor_vector)
+                           &(sideset_data.mesh_set_handle), 1, &ptr, &dist_factor_size) == MB_SUCCESS &&
+     dist_factor_size)
   {
     has_dist_factors = true;
-    dist_fac_iter = (*dist_factor_vector).begin();
+    dist_factor_vector = reinterpret_cast<const double*>(ptr);
+    dist_fac_iter = dist_factor_vector;
+    dist_factor_size /= sizeof(double);
   }
 
   unsigned char element_marked = 0;

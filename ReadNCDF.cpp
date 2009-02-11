@@ -86,42 +86,61 @@ ReadNCDF::ReadNCDF(MBInterface* impl)
   int dum_val = 0;
   MBErrorCode result = impl->tag_get_handle(MATERIAL_SET_TAG_NAME,  mMaterialSetTag);
   if (MB_TAG_NOT_FOUND == result)
-    result = impl->tag_create(MATERIAL_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mMaterialSetTag,
+    result = impl->tag_create(MATERIAL_SET_TAG_NAME, 
+                              sizeof(int), 
+                              MB_TAG_SPARSE, 
+                              MB_TYPE_INTEGER,
+                              mMaterialSetTag,
                               &dum_val);
   
   result = impl->tag_get_handle(DIRICHLET_SET_TAG_NAME, mDirichletSetTag);
   if (MB_TAG_NOT_FOUND == result)
-    result = impl->tag_create(DIRICHLET_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mDirichletSetTag,
+    result = impl->tag_create(DIRICHLET_SET_TAG_NAME, 
+                              sizeof(int), 
+                              MB_TAG_SPARSE, 
+                              MB_TYPE_INTEGER,
+                              mDirichletSetTag,
                               &dum_val);
   
   result = impl->tag_get_handle(NEUMANN_SET_TAG_NAME,   mNeumannSetTag);
   if (MB_TAG_NOT_FOUND == result)
-    result = impl->tag_create(NEUMANN_SET_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mNeumannSetTag,
+    result = impl->tag_create(NEUMANN_SET_TAG_NAME, 
+                              sizeof(int), 
+                              MB_TAG_SPARSE, 
+                              MB_TYPE_INTEGER,
+                              mNeumannSetTag,
                               &dum_val);
   
   result = impl->tag_get_handle(HAS_MID_NODES_TAG_NAME, mHasMidNodesTag);
   if (MB_TAG_NOT_FOUND == result) {
     int dum_val_array[] = {0, 0, 0, 0};
-    result = impl->tag_create(HAS_MID_NODES_TAG_NAME, 4*sizeof(int), MB_TAG_SPARSE, mHasMidNodesTag,
+    result = impl->tag_create(HAS_MID_NODES_TAG_NAME, 
+                              4*sizeof(int), 
+                              MB_TAG_SPARSE, 
+                              MB_TYPE_INTEGER,
+                              mHasMidNodesTag,
                               dum_val_array);
   }
   
   result = impl->tag_get_handle("distFactor",           mDistFactorTag);
   if (MB_TAG_NOT_FOUND == result) {
-    double dum_dbl = 0.0;
-    result = impl->tag_create("distFactor", sizeof(double*), MB_TAG_SPARSE, mDistFactorTag, 
-                              &dum_dbl);
+    result = impl->tag_create_variable_length( "distFactor", 
+                                               MB_TAG_SPARSE,
+                                               MB_TYPE_DOUBLE,
+                                               mDistFactorTag );
   }
   
   result = impl->tag_get_handle("qaRecord",             mQaRecordTag);
   if (MB_TAG_NOT_FOUND == result)
-    result = impl->tag_create("qaRecord", sizeof(int), MB_TAG_SPARSE, mQaRecordTag,
-                              &dum_val);
+    result = impl->tag_create_variable_length( "qaRecord", 
+                                               MB_TAG_SPARSE,
+                                               MB_TYPE_OPAQUE,
+                                               mQaRecordTag );
   
   result = impl->tag_get_handle(GLOBAL_ID_TAG_NAME,             mGlobalIdTag);
   if (MB_TAG_NOT_FOUND == result)
-    result = impl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, mGlobalIdTag,
-                              &dum_val);
+    result = impl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, 
+                              MB_TYPE_INTEGER, mGlobalIdTag, &dum_val);
   
 
   ncFile = NULL;
@@ -676,7 +695,8 @@ MBErrorCode ReadNCDF::read_block_headers(const int *blocks_to_load,
 
     // read header information and initialize header-type block information
   NcDim *temp_dim;
-  char *temp_string = new char[max_str_length+1];
+  std::vector<char> temp_string_storage(max_str_length+1);
+  char *temp_string = &temp_string_storage[0];
   int block_seq_id = 1;
   
   for(; iter != end_iter; iter++, block_seq_id++ )
@@ -715,8 +735,6 @@ MBErrorCode ReadNCDF::read_block_headers(const int *blocks_to_load,
     exodus_id += num_elements;
 
   }
-
-  delete [] temp_string;
 
   return MB_SUCCESS;
 }
@@ -826,7 +844,8 @@ MBErrorCode ReadNCDF::read_elements()
   if( mdbImpl->tag_get_data(tag_handle, &mCurrentMeshHandle, 1, &vertexOffset) != MB_SUCCESS)
     return MB_FAILURE;
 
-  char *temp_string = new char[max_str_length+1];
+  std::vector<char> temp_string_storage(max_str_length+1);
+  char *temp_string = &temp_string_storage[0];
   NcVar *temp_var;
   NcAtt *temp_att;
   int block_seq_id = 1;
@@ -916,7 +935,6 @@ MBErrorCode ReadNCDF::read_elements()
     {
       if ((unsigned)tmp_ptr[i] >= nodesInLoadedBlocks.size()) {
         readMeshIface->report_error( "Invalid node ID in block connectivity\n");
-        delete [] temp_string;
         return MB_FAILURE;
       }
       nodesInLoadedBlocks[tmp_ptr[i]] = 1;
@@ -949,8 +967,6 @@ MBErrorCode ReadNCDF::read_elements()
 
   }
 
-  delete [] temp_string;
-  
   return MB_SUCCESS;
 }
   
@@ -1032,20 +1048,17 @@ MBErrorCode ReadNCDF::read_nodesets()
     // read in the nodesets for the model
 
   if(0 == numberNodeSets_loading) return MB_SUCCESS;
-  
-  int *id_array = new int[numberNodeSets_loading];
+  std::vector<int> id_array(numberNodeSets_loading);
 
     // read in the nodeset ids
   NcVar *temp_var = ncFile->get_var("ns_prop1");
   if (NULL == temp_var || !temp_var->is_valid()) {
     readMeshIface->report_error("MBCN:: Problem getting ns_prop1 variable.");
-    delete [] id_array;
     return MB_FAILURE;
   }
-  NcBool status = temp_var->get(id_array, numberNodeSets_loading);
+  NcBool status = temp_var->get(&id_array[0], numberNodeSets_loading);
   if (0 == status) {
     readMeshIface->report_error("MBCN:: Problem getting nodeset id vector.");
-    delete [] id_array;
     return MB_FAILURE;
   }
 
@@ -1063,7 +1076,8 @@ MBErrorCode ReadNCDF::read_nodesets()
   std::vector<int> node_handles;
 
   int i;
-  char *temp_string = new char[max_str_length+1];
+  std::vector<char> temp_string_storage(max_str_length+1);
+  char *temp_string = &temp_string_storage[0];
   NcDim *temp_dim;
   for(i = 0; i < numberNodeSets_loading; i++)
   {
@@ -1083,14 +1097,12 @@ MBErrorCode ReadNCDF::read_nodesets()
       temp_var = ncFile->get_var(temp_string);
       if (NULL == temp_var || !temp_var->is_valid()) {
         readMeshIface->report_error("MBCN:: Problem getting dist fact variable.");
-        delete [] id_array;
         return MB_FAILURE;
       }
       NcBool status = temp_var->get(&(temp_dist_factor_vector[0]),
                                     number_dist_factors_in_set);
       if (0 == status) {
         readMeshIface->report_error("MBCN:: Problem getting dist factors.");
-        delete [] id_array;
         return MB_FAILURE;
       }
     }
@@ -1105,14 +1117,12 @@ MBErrorCode ReadNCDF::read_nodesets()
     temp_var = ncFile->get_var(temp_string);
     if (NULL == temp_var || !temp_var->is_valid()) {
       readMeshIface->report_error("MBCN:: Problem getting nodeset node variable.");
-      delete [] id_array;
       return MB_FAILURE;
     }
     NcBool status = temp_var->get(&node_handles[0],
                                   number_nodes_in_set);
     if (0 == status) {
       readMeshIface->report_error("MBCN:: Problem getting nodeset nodes data.");
-      delete [] id_array;
       return MB_FAILURE;
     }
 
@@ -1151,7 +1161,7 @@ MBErrorCode ReadNCDF::read_nodesets()
       // TODO: could we have read it into MBEntityHandle sized array in the first place?
     int j, temp;
     std::vector<MBEntityHandle> nodes;
-    std::vector<double> *dist_factor_vector = new std::vector<double>;
+    std::vector<double> dist_factor_vector;
     for (j = 0; j < number_nodes_in_set; j++)
     {
         //see if this node is one we're currently reading in
@@ -1166,7 +1176,7 @@ MBErrorCode ReadNCDF::read_nodesets()
         
           if( number_dist_factors_in_set != 0)
           {
-            dist_factor_vector->push_back( temp_dist_factor_vector[j] );
+            dist_factor_vector.push_back( temp_dist_factor_vector[j] );
           }
         }
       }
@@ -1191,26 +1201,30 @@ MBErrorCode ReadNCDF::read_nodesets()
       if( mdbImpl->tag_set_data(mGlobalIdTag, &ns_handle, 1, &nodeset_id ) != MB_SUCCESS )
         return MB_FAILURE;
 
-      if( !dist_factor_vector->empty() )
-      {      
-        if( mdbImpl->tag_set_data(mDistFactorTag, &ns_handle, 1, &dist_factor_vector ) != MB_SUCCESS )
+      if( !dist_factor_vector.empty() )
+      {
+        int size = dist_factor_vector.size() * sizeof(double);  
+        const void* data = &dist_factor_vector[0];    
+        if( mdbImpl->tag_set_data( mDistFactorTag, &ns_handle, 1, &data, &size ) != MB_SUCCESS )
           return MB_FAILURE;
       }
-      else delete dist_factor_vector;
     }
-    else if( !dist_factor_vector->empty() )
+    else if( !dist_factor_vector.empty() )
     {
         // append dist factors to vector 
-      
-      std::vector<double> *temp_vec;
-      if( mdbImpl->tag_get_data( mDistFactorTag, &ns_handle, 1, &temp_vec ) != MB_SUCCESS ||
-          NULL == temp_vec)
+      const void* ptr = 0;
+      int size = 0;
+      if( mdbImpl->tag_get_data( mDistFactorTag, &ns_handle, 1, &ptr, &size ) != MB_SUCCESS )
         return MB_FAILURE;
-       
-      std::copy(dist_factor_vector->begin(), dist_factor_vector->end(), 
-                std::back_inserter( *temp_vec ) );
-
-      delete dist_factor_vector;
+      
+      size /= sizeof(double);
+      const double* data = reinterpret_cast<const double*>(ptr);
+      dist_factor_vector.reserve( dist_factor_vector.size() + size );
+      std::copy( data, data+size, std::back_inserter( dist_factor_vector ) );
+      size = dist_factor_vector.size() * sizeof(double);  
+      ptr = &dist_factor_vector[0];    
+      if( mdbImpl->tag_set_data( mDistFactorTag, &ns_handle, 1, &ptr, &size ) != MB_SUCCESS )
+        return MB_FAILURE;
     }
 
       // add the nodes to the meshset
@@ -1219,8 +1233,6 @@ MBErrorCode ReadNCDF::read_nodesets()
 
   }
 
-  delete [] id_array;
-  delete [] temp_string;
   return MB_SUCCESS;
 }
 
@@ -1235,23 +1247,19 @@ MBErrorCode ReadNCDF::read_sidesets()
     return MB_SUCCESS;
   
     // read in the sideset ids
-  int *id_array = new int[numberSideSets_loading];
+  std::vector<int> id_array(numberSideSets_loading);
   NcVar *temp_var = ncFile->get_var("ss_prop1");
   if (NULL == temp_var || !temp_var->is_valid()) {
     readMeshIface->report_error("MBCN:: Problem getting ss_prop1 variable.");
-    delete [] id_array;
     return MB_FAILURE;
   }
-  NcBool status = temp_var->get(id_array, numberSideSets_loading);
+  NcBool status = temp_var->get(&id_array[0], numberSideSets_loading);
   if (0 == status) {
     readMeshIface->report_error("MBCN:: Problem getting sideset id vector.");
-    delete [] id_array;
     return MB_FAILURE;
   }
 
   // create a side set for each one
-  int *side_list;
-  int *element_list;
   int number_sides_in_set;
   int number_dist_factors_in_set;
 
@@ -1276,7 +1284,8 @@ MBErrorCode ReadNCDF::read_sidesets()
   MBRange::iterator iter, end_iter;
 
   int i;
-  char *temp_string = new char[max_str_length+1];
+  std::vector<char> temp_string_storage(max_str_length+1);
+  char *temp_string = &temp_string_storage[0];
   NcDim *temp_dim;
   for(i = 0; i < numberSideSets_loading; i++)
   {
@@ -1286,20 +1295,18 @@ MBErrorCode ReadNCDF::read_sidesets()
     GET_DIMB(temp_dim, temp_string, "num_df_ss%d", i+1, number_dist_factors_in_set);
 
     // size new arrays and get element and side lists
-    side_list = new int[number_sides_in_set];
-    element_list = new int[number_sides_in_set];
+    std::vector<int> side_list(number_sides_in_set);
+    std::vector<int> element_list(number_sides_in_set);
     INS_ID(temp_string, "side_ss%d", i+1);
     temp_var = ncFile->get_var(temp_string);
     if (NULL == temp_var || !temp_var->is_valid()) {
       readMeshIface->report_error("MBCN:: Problem getting sideset side variable.");
-      delete [] id_array;
       return MB_FAILURE;
     }
-    NcBool status = temp_var->get(side_list,
+    NcBool status = temp_var->get(&side_list[0],
                                   number_sides_in_set);
     if (0 == status) {
       readMeshIface->report_error("MBCN:: Problem getting sideset sides data.");
-      delete [] id_array;
       return MB_FAILURE;
     }
 
@@ -1307,21 +1314,19 @@ MBErrorCode ReadNCDF::read_sidesets()
     temp_var = ncFile->get_var(temp_string);
     if (NULL == temp_var || !temp_var->is_valid()) {
       readMeshIface->report_error("MBCN:: Problem getting sideset elem variable.");
-      delete [] id_array;
       return MB_FAILURE;
     }
-    status = temp_var->get(element_list,
+    status = temp_var->get(&element_list[0],
                            number_sides_in_set);
     if (0 == status) {
       readMeshIface->report_error("MBCN:: Problem getting sideset elems data.");
-      delete [] id_array;
       return MB_FAILURE;
     }
 
     std::vector<double> temp_dist_factor_vector;
     std::vector<MBEntityHandle> entities_to_add, reverse_entities;
     // create the sideset entities 
-    if( create_ss_elements( element_list, side_list, number_sides_in_set, number_dist_factors_in_set, 
+    if( create_ss_elements( &element_list[0], &side_list[0], number_sides_in_set, number_dist_factors_in_set, 
                             entities_to_add, reverse_entities, temp_dist_factor_vector, 
                             i+1) != MB_SUCCESS )
       return MB_FAILURE;
@@ -1355,7 +1360,6 @@ MBErrorCode ReadNCDF::read_sidesets()
     
         if (ss_handle == 0) 
         {
-          delete [] id_array;
           return MB_FAILURE;
         }
 
@@ -1401,29 +1405,22 @@ MBErrorCode ReadNCDF::read_sidesets()
       if( number_dist_factors_in_set )
       {
         //if this sideset does not already has a distribution factor array...set one
-        std::vector< double > *dist_factor_vector = 0;
-        mdbImpl->tag_get_data( mDistFactorTag, &ss_handle, 1, &dist_factor_vector);
-
-        if( !dist_factor_vector )
-        {
-          dist_factor_vector = new std::vector<double>;
-          if( mdbImpl->tag_set_data(mDistFactorTag, &ss_handle, 1, &dist_factor_vector ) != MB_SUCCESS )
-            return MB_FAILURE;
+        const void* ptr = 0;
+        int size = 0;
+        if (MB_SUCCESS == mdbImpl->tag_get_data( mDistFactorTag, &ss_handle, 1, &ptr, &size )) {
+          const double* data = reinterpret_cast<const double*>(ptr);
+          size /= sizeof(double);
+          std::copy( data, data+size, std::back_inserter( temp_dist_factor_vector ) );
         }
         
-        std::copy( temp_dist_factor_vector.begin(), temp_dist_factor_vector.end(), 
-                   std::back_inserter( *dist_factor_vector ) ); 
-           
+        ptr = &temp_dist_factor_vector[0];
+        size =  temp_dist_factor_vector.size() * sizeof(double);
+        if (mdbImpl->tag_set_data( mDistFactorTag, &ss_handle, 1, &ptr, &size ) != MB_SUCCESS)
+          return MB_FAILURE;
       }
     }
-
-    delete [] side_list;
-    delete [] element_list;
-
   }
 
-  delete [] id_array;
-  delete [] temp_string;
   return MB_SUCCESS;
 
 }
@@ -1444,7 +1441,8 @@ MBErrorCode ReadNCDF::create_ss_elements( int *element_ids,
   // and place this array as a tag onto the sideset meshset
   
   std::vector<double> temp_dist_factor_vector(num_dist_factors);
-  char *temp_string = new char[max_str_length+1];
+  std::vector<char> temp_string_storage(max_str_length+1);
+  char *temp_string = &temp_string_storage[0];
   NcVar *temp_var;
   if( num_dist_factors )
   {
@@ -1712,8 +1710,6 @@ MBErrorCode ReadNCDF::create_ss_elements( int *element_ids,
 
   }
 
-  delete [] temp_string;
-  
   return MB_SUCCESS; 
 }
 
@@ -1843,26 +1839,29 @@ MBErrorCode ReadNCDF::find_side_element_type( const int exodus_id, ExoIIElementT
 
 MBErrorCode ReadNCDF::read_qa_records()
 {
-  std::vector<char*> *qa_records;
-  qa_records = new std::vector<char*>;
-
-  read_qa_information( *qa_records );
+  std::vector<std::string> qa_records;
+  read_qa_information( qa_records );
+  
+  std::vector<char> tag_data;
+  for (std::vector<std::string>::iterator i = qa_records.begin(); i != qa_records.end(); ++i) {
+    std::copy( i->begin(), i->end(), std::back_inserter(tag_data) );
+    tag_data.push_back( '\0' );
+  }
 
   //if there were qa_records...tag them to the mCurrentMeshHandle
-  if( !qa_records->empty() )
+  if( !tag_data.empty() )
   {
-    if( mdbImpl->tag_set_data( mQaRecordTag, &mCurrentMeshHandle, 1, &qa_records ) != MB_SUCCESS ) {
-      delete qa_records;
+    const void* ptr = &tag_data[0];
+    int size = tag_data.size();
+    if( mdbImpl->tag_set_data( mQaRecordTag, &mCurrentMeshHandle, 1, &ptr, &size  ) != MB_SUCCESS ) {
       return MB_FAILURE;
     }
   }
 
-  delete qa_records;
   return MB_SUCCESS;
-
 }
 
-MBErrorCode ReadNCDF::read_qa_information(std::vector<char*> &qa_record_list)
+MBErrorCode ReadNCDF::read_qa_information(std::vector<std::string> &qa_record_list)
 {
   // inquire on the genesis file to find the number of qa records
 
@@ -1870,19 +1869,18 @@ MBErrorCode ReadNCDF::read_qa_information(std::vector<char*> &qa_record_list)
 
   NcDim *temp_dim;
   GET_DIM(temp_dim, "num_qa_rec", number_records);
-  char *data;
-
+  std::vector<char> data(max_str_length+1);
+  
   for(int i = 0; i < number_records; i++)
   {
     for(int j = 0; j < 4; j++)
     {
-      data = new char[max_str_length+1];
       data[max_str_length] = '\0';
-      if (read_qa_string(data, i, j) != MB_SUCCESS)
+      if (read_qa_string(&data[0], i, j) != MB_SUCCESS)
       {
         return MB_FAILURE;
       }
-      qa_record_list.push_back(data);
+      qa_record_list.push_back(&data[0]);
     }
   }
   return MB_SUCCESS;

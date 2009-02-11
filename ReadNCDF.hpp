@@ -134,7 +134,7 @@ private:
 
   //qa record stuff 
   MBErrorCode read_qa_records();
-  MBErrorCode read_qa_information( std::vector<char*> &qa_record_list);
+  MBErrorCode read_qa_information( std::vector<std::string> &qa_record_list);
 
   MBErrorCode read_qa_string(char *string,
                               int record_number,
