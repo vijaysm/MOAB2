@@ -352,7 +352,7 @@ inline TagInfo* TagServer::get_tag_info( MBTag tag )
 
 inline const TagInfo* TagServer::get_tag_info( MBTagId id, MBTagType type ) const
 {
-  if (id <= mTagTable[type].size() && mTagTable[type][id-1].is_valid())
+  if (id > 0 && id <= mTagTable[type].size() && mTagTable[type][id-1].is_valid())
     return &mTagTable[type][id-1];
   else
     return NULL;
@@ -360,7 +360,7 @@ inline const TagInfo* TagServer::get_tag_info( MBTagId id, MBTagType type ) cons
 
 inline TagInfo* TagServer::get_tag_info( MBTagId id, MBTagType type )
 {
-  if (id <= mTagTable[type].size() && mTagTable[type][id-1].is_valid())
+  if (id > 0 && id <= mTagTable[type].size() && mTagTable[type][id-1].is_valid())
     return &mTagTable[type][id-1];
   else
     return NULL;
