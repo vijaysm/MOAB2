@@ -2171,7 +2171,7 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
                              deformed_arrays[2][node_index1+j-1] ;
         }
 
-        if(ptr1[node_index1+j] != ptr2[node_num +j])
+        if(ptr2[node_index1+j] != ptr1[node_num +j])
         {
           num_of_nodes = j;
           break;
