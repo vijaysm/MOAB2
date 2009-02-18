@@ -82,7 +82,7 @@ public:
   virtual ~ReadNCDF();
 
   //update the coords for deformed mesh according to FileOptions
-  MBErrorCode update(const char *exodus_file_name, FileOptions& opts);
+  MBErrorCode update(const char *exodus_file_name, const FileOptions& opts);
 
 private:
 
@@ -91,10 +91,6 @@ private:
   bool dimension_exists(const char *attrib_name);
   
   void reset();
-
-  void do_delete(int *ptr2,
-                 std::vector<double*>* deformed_arrays,
-                 std::vector<double*>*  orig_coords );
 
     //! read the header from the ExoII file
   MBErrorCode read_exodus_header(const char *exodus_file_name);
