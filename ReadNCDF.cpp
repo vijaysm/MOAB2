@@ -2134,6 +2134,9 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
     if(numberDimensions_loading == 3 )
       coords[2] = orig_coords[2][i] + deformed_arrays[2][i];
 
+    else
+      coords[2] = 0.0;
+
     mdbImpl->set_coords(entities, coords);
   }
   return MB_SUCCESS;
