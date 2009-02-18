@@ -431,7 +431,7 @@ MBErrorCode ReadNCDF::check_file_status( std::string& exodus_file_name,
 
 MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
                                 MBEntityHandle& file_set,
-                                const FileOptions&,
+                                const FileOptions& opts,
                                 const int *blocks_to_load,
                                 const int num_blocks)
 {
@@ -441,6 +441,13 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
     // this function directs the reading of an exoii file, but doesn't do any of
     // the actual work
   
+  //See if opts has tdata.
+  MBErrorCode rval;
+  std::string s;
+  rval = opts.get_str_option("tdata", s ); 
+  if(MB_SUCCESS == rval && !s.empty())
+    return update(exodus_file_name, opts); 
+
     // 0. Check for previously read file.
   reset();
   bool previously_loaded = false;
@@ -1913,7 +1920,8 @@ MBErrorCode ReadNCDF::read_qa_string(char *temp_string,
   return MB_SUCCESS;
 }
 
-MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
+MBErrorCode ReadNCDF::update(const char *exodus_file_name, 
+                             const FileOptions& opts)
 {
   //Function : updating current database from new exodus_file. 
   //Creator:   Jane Hu
@@ -1924,7 +1932,7 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
   //time is the optional, and it gives time step of each of the mesh
   //info in exodus file. It start from 1.
   //op is the operation that is going to be performed on the var_name info.
-  //currently support 'sum'
+  //currently support 'set'
   //destination shows where to store the updated info, currently assume it is
   //stored in the same database by replacing the old info if there's no input
   //for destination, or the destination data is given in exodus format and just
@@ -1991,35 +1999,29 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
   read_exodus_header(exodus_file_name);
   
   //read in the node_num_map .
-  int*    ptr2 = new int [numberNodes_loading];
+  std::vector<int> ptr(numberNodes_loading);
 
   int varid = -1;
   int cstatus = nc_inq_varid (ncFile->id(), "node_num_map", &varid);
   if (cstatus == NC_NOERR && varid != -1) {
     NcVar *temp_var = ncFile->get_var("node_num_map");
-    NcBool status = temp_var->get(ptr2, numberNodes_loading);
+    NcBool status = temp_var->get(&ptr[0], numberNodes_loading);
     if (0 == status) {
       readMeshIface->report_error("ReadNCDF:: Problem getting node number map data.");
-      do_delete( ptr2, NULL, NULL);
       return MB_FAILURE;
     }
   }
 
   // read in the deformations.
-  std::vector<double*> deformed_arrays(3) ;
-  std::vector<double*>  orig_coords(3) ;
-  deformed_arrays[0] = new double [numberNodes_loading];
-  deformed_arrays[1] = new double [numberNodes_loading];
-  deformed_arrays[2] = NULL;
-  orig_coords[0] = new double [numberNodes_loading];
-  orig_coords[1] = new double [numberNodes_loading];
-  orig_coords[2] = NULL;
-  if( numberDimensions_loading == 3 )
-  {
-     deformed_arrays[2] = new double [numberNodes_loading];
-     orig_coords[2] = new double [numberNodes_loading];
-   }
-   
+  std::vector< std::vector<double> > deformed_arrays(3) ;
+  std::vector< std::vector<double> >  orig_coords(3) ;
+  deformed_arrays[0].reserve(numberNodes_loading);
+  deformed_arrays[1].reserve(numberNodes_loading);
+  deformed_arrays[2].reserve(numberNodes_loading);
+  orig_coords[0].reserve(numberNodes_loading);
+  orig_coords[1].reserve(numberNodes_loading);
+  orig_coords[2].reserve(numberNodes_loading);
+
   NcVar *coordx = ncFile->get_var("vals_nod_var1");
   NcVar *coordy = ncFile->get_var("vals_nod_var2");
   NcVar *coordz;
@@ -2029,32 +2031,27 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
       NULL == coordy || !coordy->is_valid() ||
       (numberDimensions_loading == 3 && (NULL == coordz || !coordz->is_valid())) ) {
      readMeshIface->report_error("MBCN:: Problem getting coords variable.");
-     do_delete( ptr2, &deformed_arrays, &orig_coords);
      return MB_FAILURE;
    }
 
   NcBool status = coordx->set_cur(time_step-1, 0);
   if (0 == status) {
     readMeshIface->report_error("MBCN:: Problem getting x deformation array.");
-    do_delete( ptr2, &deformed_arrays, &orig_coords);
     return MB_FAILURE;
   }
-  status = coordx->get(deformed_arrays[0], 1,  numberNodes_loading);
+  status = coordx->get(&deformed_arrays[0][0], 1,  numberNodes_loading);
   if (0 == status) {
     readMeshIface->report_error("MBCN:: Problem getting x deformation array.");
-    do_delete( ptr2, &deformed_arrays, &orig_coords);
     return MB_FAILURE;
   }
   status = coordy->set_cur(time_step-1, 0);
   if (0 == status) {
     readMeshIface->report_error("MBCN:: Problem getting y deformation array.");
-    do_delete(ptr2, &deformed_arrays, &orig_coords);
     return MB_FAILURE;
   }
-  status = coordy->get(deformed_arrays[1],  1, numberNodes_loading);
+  status = coordy->get(&deformed_arrays[1][0],  1, numberNodes_loading);
   if (0 == status) {
-    readMeshIface->report_error("MBCN:: Problem getting y deformation array.");     
-    do_delete(ptr2, &deformed_arrays, &orig_coords);
+    readMeshIface->report_error("MBCN:: Problem getting y deformation array.");
     return MB_FAILURE;
   } 
   if (numberDimensions_loading == 3 )
@@ -2062,13 +2059,11 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
     status = coordz->set_cur(time_step-1, 0);
     if (0 == status) {
       readMeshIface->report_error("MBCN:: Problem getting z deformation array.");
-      do_delete( ptr2, &deformed_arrays, &orig_coords);
       return MB_FAILURE;
     }
-    status = coordz->get(deformed_arrays[2], 1,numberNodes_loading);
+    status = coordz->get(&deformed_arrays[2][0], 1,numberNodes_loading);
     if (0 == status) {
       readMeshIface->report_error("MBCN:: Problem getting z deformation array.");
-      do_delete( ptr2, &deformed_arrays, &orig_coords);
       return MB_FAILURE;
     }
   }
@@ -2082,94 +2077,68 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name, FileOptions& opts)
       NULL == coord2 || !coord2->is_valid() ||
       (numberDimensions_loading == 3 && (NULL == coord3 || !coord3->is_valid())) ) {
     readMeshIface->report_error("MBCN:: Problem getting coords variable.");
-    do_delete( ptr2, &deformed_arrays, &orig_coords);
     return MB_FAILURE;
    }
 
-  status = coord1->get(orig_coords[0],  numberNodes_loading);
+  status = coord1->get(&orig_coords[0][0],  numberNodes_loading);
   if (0 == status) {
     readMeshIface->report_error("MBCN:: Problem getting x coord array.");
-    do_delete( ptr2, &deformed_arrays, &orig_coords);
     return MB_FAILURE;
   }
-  status = coord2->get(orig_coords[1],  numberNodes_loading);
+  status = coord2->get(&orig_coords[1][0],  numberNodes_loading);
   if (0 == status) {
     readMeshIface->report_error("MBCN:: Problem getting y coord array.");
-    do_delete( ptr2, &deformed_arrays, &orig_coords);
     return MB_FAILURE;
   }
   if (numberDimensions_loading == 3 )
   {
-    status = coord3->get(orig_coords[2],  numberNodes_loading);
+    status = coord3->get(&orig_coords[2][0],  numberNodes_loading);
     if (0 == status) {
       readMeshIface->report_error("MBCN:: Problem getting z coord array.");
-      do_delete( ptr2, &deformed_arrays, &orig_coords);
       return MB_FAILURE;
     }
   }
 
   //b. Deal with DB file : get node info. according to node_num_map.
+  if (tokens[0] != "coord" && tokens[0] != "COORD")
+    return MB_NOT_IMPLEMENTED;
+
+  if( strcmp (op, "set") && strcmp (op, " set"))
+    return MB_NOT_IMPLEMENTED;
+  
   MBTag *globalId = &mGlobalIdTag; 
   MBEntityHandle entity_h = 0;
+  MBRange entities;
   for(int i = 0; i < numberNodes_loading; i++)
   {
-    int id = ptr2[i];
+    int id = ptr[i];
     void * data[1] = {&id};
-    MBRange entities;
+    double coords[3] = {0, 0, 0};
+    //check for coords.
+    if(!entities.empty())
+      mdbImpl->get_coords(entities, coords);
+
+    entities.clear();
     mdbImpl->get_entities_by_type_and_tag(entity_h, MBVERTEX, globalId, data, 1, entities);
     if(entities.empty())
       continue;
     else if(entities.size() > 1)
     {
       readMeshIface->report_error("ReadNCDF:: Multiple nodes share the same id.");
-      do_delete( ptr2, &deformed_arrays, &orig_coords);
       return MB_FAILURE;
     } 
-    if (! strcmp (tokens[0].c_str(), "coord") || 
-        ! strcmp (tokens[0].c_str() ,"COORD"))
-    {
-      //update the coordinates for this entity.
-      double coords[3] = {0, 0, 0};
-      if(! strcmp (op, "sum") || !strcmp (op, " sum"))
-      {
-        coords[0] = orig_coords[0][i] + deformed_arrays[0][i];
-        coords[1] = orig_coords[1][i] + deformed_arrays[1][i];
-        if(numberDimensions_loading == 3 )
-          coords[2] = orig_coords[2][i] + deformed_arrays[2][i];
-  
-        mdbImpl->set_coords(entities, coords);
-      }
-    }
+
+    //update the coordinates for this entity.
+    coords[0] = orig_coords[0][i] + deformed_arrays[0][i];
+    coords[1] = orig_coords[1][i] + deformed_arrays[1][i];
+    if(numberDimensions_loading == 3 )
+      coords[2] = orig_coords[2][i] + deformed_arrays[2][i];
+
+    mdbImpl->set_coords(entities, coords);
   }
-  do_delete( ptr2, &deformed_arrays, &orig_coords);
   return MB_SUCCESS;
 }
  
-void ReadNCDF::do_delete( int *ptr,
-                      std::vector<double*>* deformed_arrays, 
-                      std::vector<double*>*  orig_coords ) 
-{
-  if(ptr)
-    delete ptr;
-  if(deformed_arrays)
-  {
-    delete [] (*deformed_arrays)[0];
-    delete [] (*deformed_arrays)[1];
-  }
-  if(orig_coords)
-  {
-    delete [] (*orig_coords)[0];
-    delete [] (*orig_coords)[1];
-  }
-  if(numberDimensions_loading == 3 )
-  { 
-    if(deformed_arrays)
-      delete [] (*deformed_arrays)[2];
-    if(orig_coords)
-      delete [] (*orig_coords)[2];
-  }
-}
-
 void ReadNCDF::tokenize( const std::string& str,
                          std::vector<std::string>& tokens,
                          const char* delimiters )
