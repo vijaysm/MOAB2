@@ -2113,10 +2113,7 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
   {
     int id = ptr[i];
     void * data[1] = {&id};
-    double coords[3] = {0, 0, 0};
-    //check for coords.
-    if(!entities.empty())
-      mdbImpl->get_coords(entities, coords);
+    double coords[3] = {0., 0., 0.};
 
     entities.clear();
     mdbImpl->get_entities_by_type_and_tag(entity_h, MBVERTEX, globalId, data, 1, entities);
@@ -2133,9 +2130,6 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
     coords[1] = orig_coords[1][i] + deformed_arrays[1][i];
     if(numberDimensions_loading == 3 )
       coords[2] = orig_coords[2][i] + deformed_arrays[2][i];
-
-    else
-      coords[2] = 0.0;
 
     mdbImpl->set_coords(entities, coords);
   }
