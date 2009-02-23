@@ -33,11 +33,14 @@ endif
 cfgdir = $(libdir)
 cfg_DATA = dagmc.make
 
-TESTS = test_geom
+TESTS = test_geom cub2h5m
 check_PROGRAMS = $(TESTS) pt_vol_test
 test_geom_SOURCES = test_geom.cc
+cub2h5m_SOURCES = cub2h5m.cc
 test_geom_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LIBS_LINK)
+cub2h5m_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS) $(CGM_LIBS_LINK)
 
 pt_vol_test_SOURCES = pt_vol_test.cc
 pt_vol_test_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LIBS_LINK)
+
 

@@ -1976,7 +1976,7 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
       return MB_TYPE_OUT_OF_RANGE;
   }
 
-  //2. check for the operations, currently support sum.
+  //2. check for the operations, currently support set.
   const char* op;
   if(tokens.size() > 2 && !tokens[2].empty())
     op = tokens[2].c_str();

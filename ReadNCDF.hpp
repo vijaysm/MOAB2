@@ -31,7 +31,7 @@
 #define READNCDF_HPP
 
 #ifndef IS_BUILDING_MB
-#error "ReadNCDF.hpp isn't supposed to be included into an application"
+//#error "ReadNCDF.hpp isn't supposed to be included into an application"
 #endif
 
 #include <vector>
