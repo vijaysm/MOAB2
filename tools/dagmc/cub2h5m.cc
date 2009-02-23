@@ -42,27 +42,35 @@ int main( int argc, char* argv[] )
   const char *file_type = NULL;
   
   const char* input_name = 0;
+  const char* update_name = 0;
   const char* output_name = 0;
-
+  const char* time_step = 0;
   double dist_tol = 0.001, len_tol = 0.0;
   int norm_tol = 5;
   bool actuate_attribs = true;
   
     // Process CL args
   bool process_options = true;
+  if(argc < 5)
+  {
+    std::cerr << "Need a cub file, an update exodus file, an export h5m file and a time step." <<std::endl;
+    exit(4);
+  }
+
   for (int i = 1; i < argc; ++i) {
     if (!process_options || argv[i][0] != '-') {
-      if (output_name) {
-        std::cerr << "Unexpected argument: " << argv[i] << std::endl;
-        usage(argv[0]);
-      }
-      else if (input_name)
+      if(input_name && update_name && output_name)
+        time_step = argv[i];
+      else if (input_name && update_name)
         output_name = argv[i];
-      else 
+      else if(input_name) 
+        update_name = argv[i];
+      else
         input_name = argv[i];
       continue;
     }
   }   
+
     // Initialize CGM
   InitCGMA::initialize_cgma();
   if (actuate_attribs) {
@@ -106,15 +114,17 @@ int main( int argc, char* argv[] )
     Tqdcfr *my_tqd = new Tqdcfr(my_impl);
     ReadNCDF my_ex_reader(my_impl);
     MBEntityHandle file_set;
-    FileOptions opts(NULL);
+    char options[120] = "tdata=coord,";
+    strcat(options, time_step);
+    strcat(options,",set");
+    FileOptions opts(options)  ;
 
     MBErrorCode result = my_tqd->load_file(input_name, file_set, opts, 0, 0);
 
     //opts = "tdata=coord, 100, sum, temp.exo";
-    opts = "tdata=coord, 100, set, temp.exo";
-    result =  my_ex_reader.load_file("pin_only05m_idmps-out.e", file_set, opts, 0 , 0);
+    result =  my_ex_reader.load_file(update_name, file_set, opts, 0 , 0);
 
-    result = my_impl->write_mesh( "tree.h5m" );
+    result = my_impl->write_mesh( output_name );
     assert(!result);
   }
   return 0;
