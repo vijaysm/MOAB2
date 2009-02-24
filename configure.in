@@ -112,6 +112,7 @@ fi
 ################################################################################
 
 dnl SNL_CHECK_BOOST( [boost/pool/object_pool.hpp] )
+MK_CHECK_UNORDERED_MAP([CPPFLAGS="$CPPFLAGS -DUNORDERED_MAP_NS=$result -DHAVE_UNORDERED_MAP=${incdir}unordered_map"])
 
 ################################################################################
 #                              MPI OPTIONS
@@ -914,8 +915,6 @@ AC_CONFIG_FILES([Makefile
                  test/obb/Makefile
                  test/perf/Makefile
                  tools/Makefile
-                 tools/converter/Makefile
-                 tools/hexmodops/Makefile
 		 tools/iMesh/Makefile
 		 tools/iMesh/iMesh-Defs.inc
 		 tools/iMesh/SIDL/iMesh-SIDL-Defs.inc
@@ -928,22 +927,16 @@ AC_CONFIG_FILES([Makefile
 		 tools/mbzoltan/Makefile
 		 tools/mcnpmit/Makefile
                  tools/qvdual/Makefile
-                 tools/size/Makefile
-                 tools/skin/Makefile
-                 tools/tagprop/Makefile
-                 tools/spheredecomp/Makefile
-                 tools/surfplot/Makefile
                  tools/dagmc/Makefile
                  tools/dagmc/dagmc.make
-                 tools/gsets/Makefile
                  doc/Makefile
                  doxygen/Makefile
                  ])
 
 AC_OUTPUT
 
-AC_MSG_RESULT([C:   $CC $CFLAGS])
-AC_MSG_RESULT([C++: $CXX $CXXFLAGS])
+AC_MSG_RESULT([C:   $CC $CFLAGS $CPPFLAGS])
+AC_MSG_RESULT([C++: $CXX $CXXFLAGS $CPPFLAGS])
 AC_MSG_RESULT([Fortran: $FC $FCFLAGS])
 
 
