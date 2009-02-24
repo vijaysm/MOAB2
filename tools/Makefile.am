@@ -4,34 +4,42 @@ INCLUDES += -I$(top_srcdir) -I$(top_builddir)
 LDADD = $(top_builddir)/libMOAB.la
 bin_PROGRAMS =
 dist_man1_MANS = 
+doc_DATA = 
 
 if ENABLE_mbconvert
   bin_PROGRAMS += mbconvert
   dist_man1_MANS += mbconvert.man
+  doc_DATA += README.mbconvert
 endif
 
 if ENABLE_hexmodops
   bin_PROGRAMS += hexmodops
+  doc_DATA += README.hexmodops
 endif
 
 if ENABLE_mbsize
   bin_PROGRAMS += mbsize
+  doc_DATA += README.mbsize
 endif
 
 if ENABLE_mbskin
   bin_PROGRAMS += mbskin
+  doc_DATA += README.mbskin
 endif
 
 if ENABLE_mbtagprop
   bin_PROGRAMS += mbtagprop
+  doc_DATA += README.mbtagprop
 endif
 
 if ENABLE_spheredecomp
   bin_PROGRAMS += spheredecomp
+  doc_DATA += README.spheredecomp
 endif
 
 if ENABLE_mbsurfplot
   bin_PROGRAMS += mbsurfplot
+  doc_DATA += README.mbsurfplot
 endif
 
 if ENABLE_gsets
