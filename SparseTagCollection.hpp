@@ -39,7 +39,14 @@
 #pragma warning(disable : 4786)
 #endif
 
-#include <map>
+
+#define STRINGIFY_(X) #X
+#define STRINGIFY(X) STRINGIFY_(X)
+#ifdef HAVE_UNORDERED_MAP
+# include STRINGIFY(HAVE_UNORDERED_MAP)
+#else
+# include <map>
+#endif
 #include <vector>
 
 #include "MBTypes.h"
@@ -134,8 +141,13 @@ protected:
   SparseTagDataAllocator mAllocator;
 
   //! map of entity id and tag data
-  std::map<MBEntityHandle /*entity_handle*/ , void* /*data*/ > mData;
+#ifdef HAVE_UNORDERED_MAP
+  typedef UNORDERED_MAP_NS::unordered_map<MBEntityHandle,void*> myMapType;
+#else
+  typedef std::map<MBEntityHandle /*entity_handle*/ , void* /*data*/ > myMapType;
+#endif
 
+  myMapType mData;
 };
 
 inline bool SparseTagCollection::contains(const MBEntityHandle entity) const
@@ -145,8 +157,7 @@ inline bool SparseTagCollection::contains(const MBEntityHandle entity) const
 
 inline MBErrorCode SparseTagCollection::get_entities(MBRange &entities) const 
 {
-  for (std::map<MBEntityHandle,void*>::const_iterator mit = mData.begin();
-       mit != mData.end(); mit++) 
+  for (myMapType::const_iterator mit = mData.begin(); mit != mData.end(); mit++) 
     entities.insert((*mit).first);
 
   return MB_SUCCESS;

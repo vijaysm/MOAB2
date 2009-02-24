@@ -1,4 +1,38 @@
 #######################################################################################
+# Check for existance unordered_map in either std:: or std::tr1:: namespace
+# Executes first argument if found, second if not found.  If unordered_map
+# is found, the variable 'result' will contain its namespace.
+#######################################################################################
+AC_DEFUN([MK_CHECK_UNORDERED_MAP],[
+
+AC_CACHE_CHECK([for C++ unordered_map],
+               [mk_cv_cxx_unordered_map],
+               [AC_LANG_PUSH(C++)
+                mk_cv_cxx_unordered_map=no
+                AC_TRY_COMPILE([#include <unordered_map>],
+                               [std::unordered_map<int,int> map],
+                               [mk_cv_cxx_unordered_map="std"; incdir=])
+                if test "xno" == "x$mk_cv_cxx_unordered_map"; then
+                  AC_TRY_COMPILE([#include <tr1/unordered_map>],
+                                 [std::tr1::unordered_map<int,int> map],
+                                 [mk_cv_cxx_unordered_map="std::tr1"; incdir=tr1/])
+                fi
+                if test "xno" == "x$mk_cv_cxx_unordered_map"; then
+                  AC_TRY_COMPILE([#include <boost/unordered_map>],
+                                 [boost::unordered_map<int,int> map],
+                                 [mk_cv_cxx_unordered_map="boost"; incdir=boost/])
+                fi
+                AC_LANG_POP(C++)])
+if test "xno" != "x$mk_cv_cxx_unordered_map"; then
+  result="$mk_cv_cxx_unordered_map"
+  $1
+else
+  result=
+  $2
+fi
+])  
+
+#######################################################################################
 # Check for existance of new no-file-extension C++ headers.
 # Conditinionally sets the following preprocessor macros:
 #   CANT_USE_STD

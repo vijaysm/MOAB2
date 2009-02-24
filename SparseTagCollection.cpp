@@ -44,7 +44,7 @@ SparseTagCollection::~SparseTagCollection()
 {
   void* tag_data = NULL;
 
-  std::map<MBEntityHandle, void*>::iterator tag_iterator;
+  myMapType::iterator tag_iterator;
   for(tag_iterator = mData.begin(); tag_iterator != mData.end(); ++tag_iterator)
   {
     tag_data = tag_iterator->second;
@@ -63,8 +63,11 @@ MBErrorCode SparseTagCollection::set_data(const MBEntityHandle entity_handle, co
 
   MBErrorCode ret_val = MB_TAG_NOT_FOUND;
 
-  std::map<MBEntityHandle, void*>::iterator iterator =
-    mData.lower_bound(entity_handle);
+#ifdef HAVE_UNORDERED_MAP
+  myMapType::iterator iterator = mData.find(entity_handle);
+#else
+  myMapType::iterator iterator = mData.lower_bound(entity_handle);
+#endif
   
   // data space already exists
   if (iterator!= mData.end() && iterator->first == entity_handle)
@@ -89,8 +92,7 @@ MBErrorCode SparseTagCollection::get_data(const MBEntityHandle entity_handle, vo
   if (mDataSize == MB_VARIABLE_LENGTH)
     return MB_VARIABLE_DATA_LENGTH;
 
-  std::map<MBEntityHandle, void*>::iterator iter =
-    mData.find(entity_handle);
+  myMapType::iterator iter = mData.find(entity_handle);
 
   if(iter == mData.end())
     return MB_TAG_NOT_FOUND;
@@ -101,8 +103,11 @@ MBErrorCode SparseTagCollection::get_data(const MBEntityHandle entity_handle, vo
 
 MBErrorCode SparseTagCollection::set_data(const MBEntityHandle entity_handle, const void* data, int size)
 {
-  std::map<MBEntityHandle, void*>::iterator iterator =
-    mData.lower_bound(entity_handle);
+#ifdef HAVE_UNORDERED_MAP
+  myMapType::iterator iterator = mData.find(entity_handle);
+#else
+  myMapType::iterator iterator = mData.lower_bound(entity_handle);
+#endif
   
   if (mDataSize == MB_VARIABLE_LENGTH) {
     if (size == 0) {
@@ -134,8 +139,7 @@ MBErrorCode SparseTagCollection::set_data(const MBEntityHandle entity_handle, co
 
 MBErrorCode SparseTagCollection::get_data(const MBEntityHandle entity_handle, const void*& data, int& size)
 {
-  std::map<MBEntityHandle, void*>::iterator iter =
-    mData.find(entity_handle);
+  myMapType::iterator iter = mData.find(entity_handle);
 
   if(iter == mData.end())
     return MB_TAG_NOT_FOUND;
@@ -156,8 +160,7 @@ MBErrorCode SparseTagCollection::get_data(const MBEntityHandle entity_handle, co
 
 MBErrorCode SparseTagCollection::remove_data( const MBEntityHandle entity_handle )
 {
-  std::map<MBEntityHandle, void*>::iterator iterator =
-    mData.find(entity_handle);
+  myMapType::iterator iterator = mData.find(entity_handle);
 
   if(iterator != mData.end())
   {
@@ -175,7 +178,7 @@ MBErrorCode SparseTagCollection::remove_data( const MBEntityHandle entity_handle
 MBErrorCode SparseTagCollection::get_number_entities(MBEntityType type, int& num_entities)
 {
   num_entities = 0;
-  std::map<MBEntityHandle, void*>::iterator iter;
+  myMapType::iterator iter;
   for(iter = mData.begin(); iter != mData.end(); ++iter)
   {
     if(TYPE_FROM_HANDLE(iter->first) == type)
@@ -187,7 +190,7 @@ MBErrorCode SparseTagCollection::get_number_entities(MBEntityType type, int& num
 //! gets all entity handles that match a type and tag
 MBErrorCode SparseTagCollection::get_entities(MBEntityType type, MBRange &entities)
 {
-  std::map<MBEntityHandle, void*>::iterator iter;
+  myMapType::iterator iter;
   for(iter = mData.begin(); iter != mData.end(); ++iter)
   {
     if(TYPE_FROM_HANDLE(iter->first) == type)
@@ -205,11 +208,26 @@ MBErrorCode SparseTagCollection::get_entities_with_tag_value(
                                                     const void* tag_value,
                                                     int value_size)
 {
-  std::map<MBEntityHandle, void*>::iterator iter, end;
+  myMapType::iterator iter, end;
+#ifdef HAVE_UNORDERED_MAP
+  iter = mData.begin();
+  end = mData.end();
+  while(iter != end) {
+    while (iter != end && TYPE_FROM_HANDLE(iter->first) != type)
+      ++iter;
+    myMapType::iterator iter2 = iter;
+    while (iter2 != end && TYPE_FROM_HANDLE(iter2->first) == type)
+      ++iter2;
+    find_tag_values_equal( tag_info, tag_value, value_size, iter, iter2, entities );
+    iter = iter2;
+  }
+    
+#else
   int junk;
   iter = mData.lower_bound( CREATE_HANDLE( type, MB_START_ID, junk ) );
   end = mData.upper_bound( CREATE_HANDLE( type, MB_END_ID, junk ) );
   find_tag_values_equal( tag_info, tag_value, value_size, iter, end, entities );
+#endif
   return MB_SUCCESS;
 }
 
