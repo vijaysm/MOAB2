@@ -21,6 +21,7 @@ INCLUDES += -I$(top_srcdir) \
             -I$(top_srcdir)/tools/iMesh \
             -I$(top_srcdir)/tools/iMesh/SIDL/mserver \
             -I../iMesh/SIDL/mserver \
+            -I../iMesh \
             $(babel_includes)
 
 bin_PROGRAMS = mbperf $(babel_progs) $(imesh_progs)
