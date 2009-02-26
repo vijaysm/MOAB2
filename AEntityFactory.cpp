@@ -806,7 +806,7 @@ MBErrorCode AEntityFactory::get_down_adjacency_elements(MBEntityHandle source_en
     const MBCN::ConnMap &cmap = 
       MBCN::mConnectivityMap[source_type][target_dimension-1];
   
-    int verts_per_sub = cmap.num_nodes_per_sub_element[j];
+    int verts_per_sub = cmap.num_corners_per_sub_element[j];
 
       // get the corner vertices
     for (int i = 0; i < verts_per_sub; i++)
@@ -992,24 +992,27 @@ MBErrorCode AEntityFactory::get_up_adjacency_elements(
     // shouldn't be here if source entity is not an element
   assert(conn_len > 1);
 
-    // create necessary entities
-  if (create_if_missing) {
-    rval = get_adjacency_ptr( conn[0], vtx_adj );
-    if (MB_SUCCESS != rval)
-      return rval;
-    assert(vtx_adj != NULL); // should contain at least source_entity
-
-    std::vector<MBEntityHandle> tmp2, tmp(*vtx_adj); // copy in case adjacency vector is changed
-    for (size_t j = 0; j < tmp.size(); ++j) {
-      if (MBCN::Dimension(TYPE_FROM_HANDLE(tmp[j])) <= (int)target_dimension)
-        continue;
-      if (TYPE_FROM_HANDLE(tmp[j]) == MBENTITYSET)
-        break;
-    
-      tmp2.clear();
-      rval = get_down_adjacency_elements( tmp[j], target_dimension, tmp2, true, option );
+    // create necessary entities. this only makes sense if there exists of a
+    // dimension greater than the target dimension.
+  if (create_if_missing && target_dimension < 3 && MBCN::Dimension(src_type) < 2) {
+    for (size_t i = 0; i < conn_len; ++i) {
+      rval = get_adjacency_ptr( conn[i], vtx_adj );
       if (MB_SUCCESS != rval)
         return rval;
+      assert(vtx_adj != NULL); // should contain at least source_entity
+
+      std::vector<MBEntityHandle> tmp2, tmp(*vtx_adj); // copy in case adjacency vector is changed
+      for (size_t j = 0; j < tmp.size(); ++j) {
+        if (MBCN::Dimension(TYPE_FROM_HANDLE(tmp[j])) <= (int)target_dimension)
+          continue;
+        if (TYPE_FROM_HANDLE(tmp[j]) == MBENTITYSET)
+          break;
+    
+        tmp2.clear();
+        rval = get_down_adjacency_elements( tmp[j], target_dimension, tmp2, true, option );
+        if (MB_SUCCESS != rval)
+          return rval;
+      }
     }
   }
   

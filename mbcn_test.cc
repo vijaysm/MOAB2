@@ -38,9 +38,33 @@ void test_opposite_side_quad();
 void test_opposite_side_tet();
 void test_opposite_side_hex();
 
-void test_has_mid_nodes();
+void test_has_mid_nodes( MBEntityType type );
+void test_has_mid_nodes_edge() { test_has_mid_nodes(MBEDGE); }
+void test_has_mid_nodes_tri()  { test_has_mid_nodes(MBTRI); }
+void test_has_mid_nodes_quad() { test_has_mid_nodes(MBQUAD); }
+void test_has_mid_nodes_tet()  { test_has_mid_nodes(MBTET); }
+void test_has_mid_nodes_pyr()  { test_has_mid_nodes(MBPYRAMID); }
+void test_has_mid_nodes_pri()  { test_has_mid_nodes(MBPRISM); }
+void test_has_mid_nodes_knife(){ test_has_mid_nodes(MBKNIFE); }
+void test_has_mid_nodes_hex()  { test_has_mid_nodes(MBHEX); }
+
 void test_ho_node_parent();
 void test_ho_node_index();
+
+void test_sub_entity_nodes( MBEntityType parent, int sub_dimension );
+void test_sub_entity_nodes( MBEntityType parent, int num_nodes, int sub_dimension );
+void test_sub_entity_nodes_tri_edges()  { test_sub_entity_nodes(MBTRI,     1 ); }
+void test_sub_entity_nodes_quad_edges() { test_sub_entity_nodes(MBQUAD,    1 ); }
+void test_sub_entity_nodes_tet_edges()  { test_sub_entity_nodes(MBTET,     1 ); }
+void test_sub_entity_nodes_tet_faces()  { test_sub_entity_nodes(MBTET,     2 ); }
+void test_sub_entity_nodes_pyr_edges()  { test_sub_entity_nodes(MBPYRAMID, 1 ); }
+void test_sub_entity_nodes_pyr_faces()  { test_sub_entity_nodes(MBPYRAMID, 2 ); }
+void test_sub_entity_nodes_pri_edges()  { test_sub_entity_nodes(MBPRISM,   1 ); }
+void test_sub_entity_nodes_pri_faces()  { test_sub_entity_nodes(MBPRISM,   2 ); }
+void test_sub_entity_nodes_kni_edges()  { test_sub_entity_nodes(MBKNIFE,   1 ); }
+void test_sub_entity_nodes_kni_faces()  { test_sub_entity_nodes(MBKNIFE,   2 ); }
+void test_sub_entity_nodes_hex_edges()  { test_sub_entity_nodes(MBHEX,     1 ); }
+void test_sub_entity_nodes_hex_faces()  { test_sub_entity_nodes(MBHEX,     2 ); }
 
 int main()
 {
@@ -82,7 +106,28 @@ int main()
   result += RUN_TEST(test_opposite_side_tet);
   result += RUN_TEST(test_opposite_side_hex);
   
-  result += RUN_TEST(test_has_mid_nodes);
+  result += RUN_TEST(test_has_mid_nodes_edge);
+  result += RUN_TEST(test_has_mid_nodes_tri);
+  result += RUN_TEST(test_has_mid_nodes_quad);
+  result += RUN_TEST(test_has_mid_nodes_tet);
+  result += RUN_TEST(test_has_mid_nodes_pyr);
+  result += RUN_TEST(test_has_mid_nodes_pri);
+  result += RUN_TEST(test_has_mid_nodes_knife);
+  result += RUN_TEST(test_has_mid_nodes_hex);  
+
+  result += RUN_TEST(test_sub_entity_nodes_tri_edges);  
+  result += RUN_TEST(test_sub_entity_nodes_quad_edges);  
+  result += RUN_TEST(test_sub_entity_nodes_tet_edges);  
+  result += RUN_TEST(test_sub_entity_nodes_tet_faces);  
+  result += RUN_TEST(test_sub_entity_nodes_pyr_edges);  
+  result += RUN_TEST(test_sub_entity_nodes_pyr_faces);  
+  result += RUN_TEST(test_sub_entity_nodes_pri_edges);  
+  result += RUN_TEST(test_sub_entity_nodes_pri_faces);  
+  result += RUN_TEST(test_sub_entity_nodes_kni_edges);  
+  result += RUN_TEST(test_sub_entity_nodes_kni_faces);  
+  result += RUN_TEST(test_sub_entity_nodes_hex_edges);  
+  result += RUN_TEST(test_sub_entity_nodes_hex_faces);  
+
   result += RUN_TEST(test_ho_node_parent);
   result += RUN_TEST(test_ho_node_index);
   return result;
@@ -182,7 +227,7 @@ void test_num_sub_entities()
   CHECK_EQUAL( 5, MBCN::NumSubEntities(MBPRISM, 2));
 
   CHECK_EQUAL( 7, MBCN::NumSubEntities(MBKNIFE, 0));
-  CHECK_EQUAL( 8, MBCN::NumSubEntities(MBKNIFE, 1));
+  CHECK_EQUAL(10, MBCN::NumSubEntities(MBKNIFE, 1));
   CHECK_EQUAL( 5, MBCN::NumSubEntities(MBKNIFE, 2));
 
   CHECK_EQUAL( 8, MBCN::NumSubEntities(MBHEX, 0));
@@ -822,7 +867,7 @@ void test_opposite_side_hex()
   CHECK_EQUAL( 4, idx );
 }
 
-void test_has_mid_nodes()
+void test_has_mid_nodes(MBEntityType type)
 {
   const int combinations[][4] = { { 0, 0, 0, 0 },
                                   { 0, 1, 0, 0 },
@@ -833,8 +878,6 @@ void test_has_mid_nodes()
                                   { 0, 0, 1, 1 },
                                   { 0, 1, 1, 1 } };
   
-  for (const MBEntityType* t = elem_types; *t != MBMAXTYPE; ++t) {
-    const MBEntityType type = *t;
     const int dim = MBCN::Dimension(type);
       // calculate number of valid combinations of ho node flags
     int num_comb = 1;
@@ -857,12 +900,11 @@ void test_has_mid_nodes()
       
       int results[4] = { 0, -1, -1, -1 };
       MBCN::HasMidNodes( type, num_vtx, results );
-      CHECK_EQUAL(           0, results[0] );
-      CHECK_EQUAL( ho_nodes[1], results[1] );
-      CHECK_EQUAL( ho_nodes[2], results[2] );
-      CHECK_EQUAL( ho_nodes[3], results[3] );
+      CHECK_EQUAL(           0, !!results[0] );
+      CHECK_EQUAL( ho_nodes[1], !!results[1] );
+      CHECK_EQUAL( ho_nodes[2], !!results[2] );
+      CHECK_EQUAL( ho_nodes[3], !!results[3] );
     }
-  }
 }
 
 void test_ho_node_parent()
@@ -985,3 +1027,100 @@ void test_ho_node_index()
   } // for each type
 }
 
+void test_sub_entity_nodes( MBEntityType parent, int sub_dimension )
+{
+  const int num_corner = MBCN::VerticesPerEntity( parent );
+  const int num_edge   = MBCN::NumSubEntities( parent, 1 );
+  const int num_face   = MBCN::NumSubEntities( parent, 2 );
+ 
+  switch (MBCN::Dimension(parent)) {
+    case 3:
+      test_sub_entity_nodes( parent, num_corner+num_face, sub_dimension );
+      test_sub_entity_nodes( parent, num_corner+num_edge+num_face, sub_dimension );
+      test_sub_entity_nodes( parent, num_corner+num_face+1, sub_dimension );
+      test_sub_entity_nodes( parent, num_corner+num_edge+num_face+1, sub_dimension );
+    case 2:
+      test_sub_entity_nodes( parent, num_corner+num_edge, sub_dimension );
+      test_sub_entity_nodes( parent, num_corner+num_edge+1, sub_dimension );
+    case 1:
+      test_sub_entity_nodes( parent, num_corner, sub_dimension );
+      test_sub_entity_nodes( parent, num_corner+1, sub_dimension );
+      break;
+    default:
+      CHECK(false);
+  }
+}
+
+void test_sub_entity_nodes( MBEntityType parent, int num_nodes, int sub_dimension )
+{
+  const int num_sub = MBCN::NumSubEntities( parent, sub_dimension );
+  const int parent_ho = MBCN::HasMidNodes( parent, num_nodes );
+  int child_ho = 0;
+  for (int d = 1; d <= sub_dimension; ++d)
+    child_ho |= (parent_ho & (1<<d));
+   
+    // first test the types
+  for (int i = 0; i < num_sub; ++i) {
+    int num, conn[MB_MAX_SUB_ENTITY_VERTICES];
+    MBEntityType type;
+    MBCN::SubEntityNodeIndices( parent, num_nodes, sub_dimension, i, type, num, conn );
+    CHECK_EQUAL( MBCN::SubEntityType(parent, sub_dimension, i), type );
+  }
+ 
+    // now test that they have the correct number of higher-order node
+  for (int i = 0; i < num_sub; ++i) {
+    int num, conn[MB_MAX_SUB_ENTITY_VERTICES];
+    MBEntityType type;
+    MBCN::SubEntityNodeIndices( parent, num_nodes, sub_dimension, i, type, num, conn );
+    const int ho = MBCN::HasMidNodes( type, num );
+    CHECK_EQUAL( child_ho, ho );
+  }
+  
+    // now test the actual indices
+  for (int i = 0; i < num_sub; ++i) {
+    int num, conn[MB_MAX_SUB_ENTITY_VERTICES], corners[MB_MAX_SUB_ENTITY_VERTICES];
+    MBEntityType type;
+    MBCN::SubEntityNodeIndices( parent, num_nodes, sub_dimension, i, type, num, conn );
+    
+      // check corner indices against SubEntityVertexIndices
+    const int num_corner = MBCN::VerticesPerEntity(type);
+    CHECK( num >= num_corner );
+    MBCN::SubEntityVertexIndices( parent, sub_dimension, i, corners );
+    for (int j = 0; j < num_corner; ++j)
+      CHECK_EQUAL( corners[j], conn[j] );
+    
+      // check mid-edge indices, if present
+    int idx = num_corner;
+    if (child_ho & MBCN::MID_EDGE_BIT) {
+        // for each edge in the sub-entity type
+      const int num_edge = MBCN::NumSubEntities( type, 1 );
+      for (int j = 0; j < num_edge; ++j) {
+          // get edge indices for sub-entity connectivity
+        int edge_ends[2];
+        MBCN::SubEntityVertexIndices( type, 1, j, edge_ends );
+          // convert to indices into parent type's connectivity
+        CHECK( edge_ends[0] < num_corner );
+        edge_ends[0] = corners[edge_ends[0]];
+        CHECK( edge_ends[1] < num_corner );
+        edge_ends[1] = corners[edge_ends[1]];
+          // find edge index in parent element
+        int side, sense, off;
+        int result = MBCN::SideNumber( parent, edge_ends, 2, 1, side, sense, off );
+        CHECK_EQUAL( 0, result );
+          // get location in parent entity connectivity for mid-edge node
+        int loc = MBCN::HONodeIndex( parent, num_nodes, 1, side );
+        CHECK_EQUAL( loc, conn[idx++] );
+      }
+    }
+    
+      // check mid-face indices, if present
+    if (child_ho & MBCN::MID_FACE_BIT) {
+      CHECK_EQUAL( 2, MBCN::Dimension(type) );
+      int loc = MBCN::HONodeIndex( parent, num_nodes, 2, i );
+      CHECK_EQUAL( loc, conn[idx++] );
+    }
+    
+      // make sure there were no extra node indices returned
+    CHECK_EQUAL( idx, num );
+  }
+}

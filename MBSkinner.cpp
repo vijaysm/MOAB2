@@ -302,7 +302,7 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
     const struct MBCN::ConnMap* conn_map = &(MBCN::mConnectivityMap[type][mTargetDim-1]);
     for(int i=0; i<conn_map->num_sub_elements; i++)
     {
-      int num_sub_nodes = conn_map->num_nodes_per_sub_element[i];
+      int num_sub_nodes = conn_map->num_corners_per_sub_element[i];
       assert(num_sub_nodes <= 32);
       for(int j=0; j<num_sub_nodes; j++)
         sub_conn[j] = conn[conn_map->conn[i][j]];
@@ -652,7 +652,7 @@ MBErrorCode MBSkinner::classify_2d_boundary( const MBRange &boundary,
     const struct MBCN::ConnMap* conn_map = &(MBCN::mConnectivityMap[type][0]);
     for(int i=0; i<conn_map->num_sub_elements; i++)
     {
-      int num_sub_nodes = conn_map->num_nodes_per_sub_element[i];
+      int num_sub_nodes = conn_map->num_corners_per_sub_element[i];
       assert(num_sub_nodes <= 32);
       for(int j=0; j<num_sub_nodes; j++)
         sub_conn[j] = conn[conn_map->conn[i][j]];

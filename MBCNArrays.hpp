@@ -18,8 +18,9 @@
 const MBCN::ConnMap MBCN::mConnectivityMap[MBMAXTYPE][3] =
 {
     // vertex-edge
-  {{ 0, 0 , {0}, {MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, 
-                  MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, {{0}} },
+  {{ 0, 0 , {0}, 
+    {MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, 
+     MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, {{0}} },
      // vertex-face
    { 0, 0 , {0}, {MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, 
                   MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, {{0}} },
@@ -103,9 +104,9 @@ const MBCN::ConnMap MBCN::mConnectivityMap[MBMAXTYPE][3] =
      {{0,1,2,3,4,5}} }},
 
     // knife-edge
-  {{ 3, 8, {2,2,2,2,2,2,2,2}, {MBEDGE,MBEDGE,MBEDGE,MBEDGE,MBEDGE,MBEDGE,
-                                MBEDGE,MBEDGE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, 
-     { {0,1},{1,2},{2,3},{3,0},{0,4},{1,5},{2,6},{3,5} } },
+  {{ 3, 10, {2,2,2,2,2,2,2,2,2,2}, {MBEDGE,MBEDGE,MBEDGE,MBEDGE,MBEDGE,MBEDGE,
+                                    MBEDGE,MBEDGE,MBEDGE,MBEDGE, MBMAXTYPE, MBMAXTYPE}, 
+     { {0,1},{1,2},{2,3},{3,0},{0,4},{1,5},{2,6},{3,5},{4,5},{5,6} } },
      // knife-face
    { 3, 5, {4,4,4,4,4}, {MBQUAD,MBQUAD,MBQUAD,MBQUAD,MBQUAD, MBMAXTYPE, 
                          MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE, MBMAXTYPE}, 
@@ -687,4 +688,34 @@ const MBCN::UpConnMap MBCN::mUpConnMap[MBMAXTYPE][4][4] =
     {{{0}, {{0}} }, {{0}, {{0}} }, {{0}, {{0}} }} // source dim 3
   } // end type MBENTITYSET
 };
+
+const unsigned char E = MBCN::MID_EDGE_BIT;
+const unsigned char F = MBCN::MID_FACE_BIT;
+const unsigned char R = MBCN::MID_REGION_BIT;
+const unsigned char MBCN::midNodesPerType[MBMAXTYPE][MAX_NODES_PER_ELEMENT+1] = {
+// vertex
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+// edge
+  { 0, 0, 0, E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+// tri
+  { 0, 0, 0, 0, F, 0, E, E|F, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+// quad
+  { 0, 0, 0, 0, 0, F, 0, 0, E, E|F, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+// polygon
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+// tet 1, 2, 3, 4, 5, 6, 7, 8, 9,  10, 11, 12,13, 14,  15
+  { 0, 0, 0, 0, 0, R, 0, 0, F, F|R, E, E|R, 0, 0, E|F, E|F|R, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+// pyramid   3, 4, 5, 6, 7, 8, 9,10, 11, 12,13, 14, 15,16,17, 18,  19
+  { 0, 0, 0, 0, 0, 0, R, 0, 0, 0, F, F|R, 0, E, E|R, 0, 0, 0, E|F, E|F|R, 0, 0, 0, 0, 0, 0, 0, 0 },
+// prism  2, 3, 4, 5, 6, 7, 8, 9,10,11, 12, 13,14,15, 16, 17,18,19, 20,  21
+  { 0, 0, 0, 0, 0, 0, 0, R, 0, 0, 0, F, F|R, 0, 0, E, E|R, 0, 0, 0, E|F, E|F|R, 0, 0, 0, 0, 0, 0 },
+// knife  2, 3, 4, 5, 6, 7, 8, 9,10,11, 12,13, 14,15,16,17, 18, 19,20,21, 22,  23
+  { 0, 0, 0, 0, 0, 0, 0, 0, R, 0, 0, 0, F, F|R, 0, 0, 0, E, E|R, 0, 0, 0, E|F, E|F|R, 0, 0, 0, 0 },
+// hex 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,11,12,13,14,15, 16,17,18,19,20, 21, 22,23,24,25, 26,  27
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, R, 0, 0, 0, 0, F, F|R, 0, 0, 0, 0, E, E|R, 0, 0, 0, 0, E|F, E|F|R },
+// polyhedron
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+// set
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+  };
 #endif
