@@ -514,9 +514,9 @@ inline void MBCN::HasMidNodes(const MBEntityType this_type, const int num_nodes,
 {
   const int bits = HasMidNodes( this_type, num_nodes );
   mid_nodes[0] = 0;
-  mid_nodes[1] = bits & MID_EDGE_BIT;
-  mid_nodes[2] = bits & MID_FACE_BIT;
-  mid_nodes[3] = bits & MID_REGION_BIT;
+  mid_nodes[1] = (bits & (1<<1)) >> 1;
+  mid_nodes[2] = (bits & (1<<2)) >> 2;
+  mid_nodes[3] = (bits & (1<<3)) >> 3;
 }
 
 //! Set permutation or reverse permutation vector
