@@ -129,7 +129,7 @@ void test_file_set();
 void test_tri6 () { test_ho_elements(MBTRI, 6); }
 void test_tri7 () { test_ho_elements(MBTRI, 7); }
 
-void test_quad5() { test_ho_elements(MBQUAD, 6); }
+void test_quad5() { test_ho_elements(MBQUAD, 5); }
 void test_quad8() { test_ho_elements(MBQUAD, 8); }
 void test_quad9() { test_ho_elements(MBQUAD, 9); }
 
