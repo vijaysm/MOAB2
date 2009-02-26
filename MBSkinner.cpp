@@ -280,7 +280,7 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
   for(iter = source_entities.begin(); iter != end_iter; ++iter)
   {
     // get the connectivity of this entity
-    result = thisMB->get_connectivity(*iter, tmp_conn, num_nodes, true);
+    result = thisMB->get_connectivity(*iter, tmp_conn, num_nodes, false);
     if (MB_SUCCESS == result)
       conn = tmp_conn;
     else {
@@ -288,7 +288,7 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
         // which doesn't store connectivity explicitly; use a connect
         // vector instead
       tmp_conn_vec.clear();
-      result = thisMB->get_connectivity(&(*iter), 1, tmp_conn_vec, true);
+      result = thisMB->get_connectivity(&(*iter), 1, tmp_conn_vec, false);
       if (MB_SUCCESS != result) return MB_FAILURE;
       conn = &tmp_conn_vec[0];
       num_nodes = tmp_conn_vec.size();
@@ -327,8 +327,15 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
           if (dum_sub_elems.empty()) {
               // need to create one
             MBEntityHandle tmphndl=0;
-            result = thisMB->create_element(conn_map->target_type[i], sub_conn, num_sub_nodes,
-                                            tmphndl);
+            int indices[MB_MAX_SUB_ENTITY_VERTICES];
+            MBEntityType new_type;
+            int num_new_nodes;
+            MBCN::SubEntityNodeIndices( type, num_nodes, mTargetDim, i, new_type, num_new_nodes, indices );
+            for(int j=0; j<num_new_nodes; j++)
+              sub_conn[j] = conn[indices[j]];
+        
+            result = thisMB->create_element(new_type, sub_conn,  
+                                            num_new_nodes, tmphndl);
             forward_target_entities.insert(tmphndl);
           }
           else {
@@ -358,7 +365,13 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
         if(match == 0)
         {
           MBEntityHandle tmphndl=0;
-          result = thisMB->create_element(conn_map->target_type[i], sub_conn, num_sub_nodes,
+          int indices[MB_MAX_SUB_ENTITY_VERTICES];
+          MBEntityType new_type;
+          int num_new_nodes;
+          MBCN::SubEntityNodeIndices( type, num_nodes, mTargetDim, i, new_type, num_new_nodes, indices );
+          for(int j=0; j<num_new_nodes; j++)
+            sub_conn[j] = conn[indices[j]];
+          result = thisMB->create_element(new_type, sub_conn, num_new_nodes,
                                           tmphndl);
           assert(MB_SUCCESS == result);
           add_adjacency(tmphndl, sub_conn, num_sub_nodes);
@@ -640,7 +653,7 @@ MBErrorCode MBSkinner::classify_2d_boundary( const MBRange &boundary,
   {
     // get the connectivity of this entity
     conn.clear();
-    result = thisMB->get_connectivity(&(*iter), 1, conn, true);
+    result = thisMB->get_connectivity(&(*iter), 1, conn, false);
     assert(MB_SUCCESS == result);
 
     // add node handles to boundary_node range
@@ -665,8 +678,15 @@ MBErrorCode MBSkinner::classify_2d_boundary( const MBRange &boundary,
       if(match == 0)
       {
         MBEntityHandle tmphndl=0;
-        result = thisMB->create_element(conn_map->target_type[i], sub_conn, 
-                                         num_sub_nodes, tmphndl);
+        int indices[MB_MAX_SUB_ENTITY_VERTICES];
+        MBEntityType new_type;
+        int num_new_nodes;
+        MBCN::SubEntityNodeIndices( type, conn.size(), 1, i, new_type, num_new_nodes, indices );
+        for(int j=0; j<num_new_nodes; j++)
+          sub_conn[j] = conn[indices[j]];
+        
+        result = thisMB->create_element(new_type, sub_conn,  
+                                        num_new_nodes, tmphndl);
         assert(MB_SUCCESS == result);
         add_adjacency(tmphndl, sub_conn, num_sub_nodes);
         //target_entities.insert(tmphndl);
