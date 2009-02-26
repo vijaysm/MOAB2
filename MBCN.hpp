@@ -46,7 +46,7 @@
 #define MB_MAX_SUB_ENTITIES  12
 
 // the maximum number of nodes an n-1 dimensional element may have
-#define MB_MAX_SUB_ENTITY_VERTICES 8
+#define MB_MAX_SUB_ENTITY_VERTICES 9
 
 typedef std::pair<MBEntityType, MBEntityType> MBDimensionPair;
 
