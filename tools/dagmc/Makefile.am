@@ -33,7 +33,8 @@ endif
 cfgdir = $(libdir)
 cfg_DATA = dagmc.make
 
-TESTS = test_geom cub2h5m
+noinst_PROGRAMS = cub2h5m
+TESTS = test_geom 
 check_PROGRAMS = $(TESTS) pt_vol_test
 test_geom_SOURCES = test_geom.cc
 cub2h5m_SOURCES = cub2h5m.cc
