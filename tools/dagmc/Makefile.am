@@ -17,6 +17,7 @@ CXXFLAGS += $(CGM_CXXFLAGS)
 
 libdagmc_la_SOURCES += cgm2moab.cc
 
+noinst_PROGRAMS = cub2h5m
 bin_PROGRAMS = cgm2moab
 cgm2moab_SOURCES = main.cc cubfile.c
 cgm2moab_LDFLAGS = $(CGM_LTFLAGS)
@@ -33,7 +34,6 @@ endif
 cfgdir = $(libdir)
 cfg_DATA = dagmc.make
 
-noinst_PROGRAMS = cub2h5m
 TESTS = test_geom 
 check_PROGRAMS = $(TESTS) pt_vol_test
 test_geom_SOURCES = test_geom.cc
