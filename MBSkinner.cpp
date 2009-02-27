@@ -455,7 +455,7 @@ void MBSkinner::find_match( MBEntityType type,
     if( type != tmp_type )
       continue;
 
-    result = thisMB->get_connectivity(*jter, tmp, num_verts);
+    result = thisMB->get_connectivity(*jter, tmp, num_verts, true);
     assert(MB_SUCCESS == result && num_verts >= num_nodes);
     if(connectivity_match(conn, tmp, num_verts, direct))
     {
@@ -657,7 +657,8 @@ MBErrorCode MBSkinner::classify_2d_boundary( const MBRange &boundary,
     assert(MB_SUCCESS == result);
 
     // add node handles to boundary_node range
-    std::copy(conn.begin(), conn.end(), mb_range_inserter(boundary_nodes));
+    std::copy(conn.begin(), conn.begin()+MBCN::VerticesPerEntity(type), 
+              mb_range_inserter(boundary_nodes));
 
     type = thisMB->type_from_handle(*iter);
     
