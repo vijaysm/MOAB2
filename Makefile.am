@@ -359,7 +359,7 @@ exodus_test_DEPENDENCIES = $(tag_test_LDADD)
 mbcn_test_SOURCES = MBCN.hpp MBCN.cpp mbcn_test.cc
 mbcn_test_CPPFLAGS = -DSRCDIR=$(srcdir)  # define anything to work around build issue
 
-EXTRA_DIST = test.cub quad9.cub hex27.cub
+EXTRA_DIST = test.cub 
 
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = dumped_acis.sat tree.h5m
