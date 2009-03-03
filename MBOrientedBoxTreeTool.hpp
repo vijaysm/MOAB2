@@ -280,6 +280,27 @@ class MBOrientedBoxTreeTool
      */
     MBErrorCode stats( MBEntityHandle tree_root_set, std::ostream& stream );
   
+    /**\brief Get tree statistics
+     *
+     * Get summary stats. describing tree
+     * \param set Root of tree for which data is requested
+     * \param total_entities Entities in tree
+     * \param root_volume Total volume of root box
+     * \param tot_node_volume Total volume in all nodes
+     * \param tot_to_root_volume Ratio of total / root volume
+     * \param tree_height Maximum height of tree, from root to leaf
+     * \param node_count Number of nodes in tree
+     * \param num_leaves Number of leaf nodes in tree
+     */
+  MBErrorCode stats( MBEntityHandle set, 
+                     unsigned &entities_in_tree,
+                     double &root_volume,
+                     double &tot_node_volume,
+                     double &tot_to_root_volume,
+                     unsigned &tree_height,
+                     unsigned &node_count,
+                     unsigned &num_leaves);
+  
     /** \brief Implement this and pass instance to preorder_traverse
      * 
      * This interface may be implemented and an instance passed to

@@ -1665,6 +1665,47 @@ static inline double std_dev( double sqr, double sum, double count )
 //#define WW <<std::setw(10)<<std::fixed<<
 #define WE <<std::setw(10)<<
 #define WW WE
+MBErrorCode MBOrientedBoxTreeTool::stats( MBEntityHandle set, 
+                                          unsigned &total_entities,
+                                          double &rv,
+                                          double &tot_node_volume,
+                                          double &tot_to_root_volume,
+                                          unsigned &tree_height,
+                                          unsigned &node_count,
+                                          unsigned &num_leaves)
+{
+  StatData d;
+  MBErrorCode rval;
+  unsigned i;
+  MBCartVect total_dim;
+  
+  rval = recursive_stats( this, instance, set, 0, d, total_entities, total_dim );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  tree_height = d.leaf_depth.size();
+  unsigned min_leaf_depth = tree_height;
+  num_leaves = 0;
+  unsigned max_leaf_per_depth = 0;
+  double sum_leaf_depth = 0, sqr_leaf_depth = 0;
+  for (i = 0; i < d.leaf_depth.size(); ++i) {
+    unsigned val = d.leaf_depth[i];
+    num_leaves += val;
+    sum_leaf_depth += (double)val*i;
+    sqr_leaf_depth += (double)val*i*i;
+    if (val && i < min_leaf_depth)
+      min_leaf_depth = i;
+    if (max_leaf_per_depth < val)
+      max_leaf_per_depth = val;
+  }
+  rv = total_dim[0]*total_dim[1]*total_dim[2];
+  tot_node_volume = d.vol.sum;
+  tot_to_root_volume = d.vol.sum/rv;
+  node_count = d.count;
+
+  return MB_SUCCESS;
+}
+
 MBErrorCode MBOrientedBoxTreeTool::stats( MBEntityHandle set, std::ostream& s )
 {
   StatData d;
