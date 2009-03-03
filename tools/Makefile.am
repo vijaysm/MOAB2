@@ -2,9 +2,20 @@ AUTOMAKE_OPTIONS = foreign
 DEFS = $(DEFINES)
 INCLUDES += -I$(top_srcdir) -I$(top_builddir)
 LDADD = $(top_builddir)/libMOAB.la
+
 bin_PROGRAMS =
 dist_man1_MANS = 
 doc_DATA = 
+
+EXTRA_DIST = README.hexmodops \
+             README.mbconvert \
+             README.mbsize \
+             README.mbskin \
+             README.mbsurfplot \
+             README.mbtagprop \
+             README.spheredecomp \
+             mbzoltan/README
+
 
 if ENABLE_mbconvert
   bin_PROGRAMS += mbconvert
@@ -102,8 +113,6 @@ SUBDIRS = $(imesh_DIR) \
 	  $(mcnpmit_DIR) \
           $(qvdual_DIR) \
           $(dagmc_DIR)
-
-EXTRA_DIST = mbzoltan/README 
 
 mbconvert_SOURCES = convert.cpp
 mbconvert_DEPENDENCIES = $(top_builddir)/libMOAB.la
