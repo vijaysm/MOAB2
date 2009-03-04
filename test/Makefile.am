@@ -23,7 +23,10 @@ EXTRA_DIST  = 125hex.g \
               testquad-cyl.g \
               testquad.g \
               testtet.g \
-	      v3_dodec.h5m
+	      v3_dodec.h5m \
+              ho_test.g \
+              test.cub \
+              ho_test.cub
 
 CLEANFILES = mb_big_test.g \
              cell1.gen \
