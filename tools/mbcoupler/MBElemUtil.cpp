@@ -180,9 +180,8 @@ bool point_in_trilinear_hex(const MBCartVect *hex,
 
 
 
-
-// hex_findpt
 // Wrapper to James Lottes' findpt routines
+// hex_findpt
 // Find the parametric coordinates of an xyz point inside
 // a 3d hex spectral element with n nodes per dimension
 // xm: coordinates fields, value of x,y,z for each of then n*n*n gauss-lobatto nodes. Nodes are in lexicographical order (x is fastest-changing)
@@ -240,4 +239,59 @@ void hex_findpt(real *xm[3],
     free(z[d]);
 }
 
+
+
+
+// hex_eval
+// Evaluate a field in a 3d hex spectral element with n nodes per dimension, at some given parametric coordinates
+// field: field values for each of then n*n*n gauss-lobatto nodes. Nodes are in lexicographical order (x is fastest-changing)
+// n: number of nodes per dimension -- n=2 for a linear element
+// rst: input: parametric coords of the point where we want to evaluate the field
+// value: output: value of field at rst
+
+void hex_eval(real *field,
+	      int n,
+	      MBCartVect rstCartVec,
+	      double &value)       
+{
+  int d;
+  real rst[3];
+  rstCartVec.get(rst);
+
+  //can cache stuff below
+  lagrange_data ld[3]; 
+  real *z[3];
+  for(d=0;d<3;++d){
+    z[d] = tmalloc(real, n);
+    lobatto_nodes(z[d], n);
+    lagrange_setup(&ld[d], z[d], n);
+  } 
+
+  //cut and paste -- see findpt.c
+  const unsigned 
+    nf = n*n,
+    ne = n,
+    nw = 2*n*n + 3*n;
+  real *od_work = tmalloc(real, 6*nf + 9*ne + nw);
+
+  //piece that we shouldn't want to cache
+  for(d=0; d<3; d++){
+    lagrange_0(&ld[d], rst[d]);
+  }
+  
+  value = tensor_i3(ld[0].J,ld[0].n,
+		    ld[1].J,ld[1].n,
+		    ld[2].J,ld[2].n,
+		    field,
+		    od_work);
+
+  //all this could be cached
+  for(d=0; d<3; d++){
+    free(z[d]);
+    lagrange_free(&ld[d]); 
+  }
+  free(od_work);
+}
+
 } // namespace MBElemUtil
+

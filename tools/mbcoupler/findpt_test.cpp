@@ -51,6 +51,33 @@ void test_hex_findpt()
 
 
 
+void test_hex_eval()
+{
+    MBCartVect rst(.5,.3,.4);
+    double value;
+
+    const int n=2; //number of nodes per direction (min is 2, for linear element)
+    double *field = tmalloc(double, n*n*n);
+
+    double scale = 1./(n-1);
+    int node = 0;
+
+    //Stuff field with sample data
+    for(int k=0; k<n; k++){
+      for(int j=0; j<n; j++){
+        for(int i=0; i<n; i++){
+          field[node] = 100*scale*(i); 
+          node++;
+        }
+      }
+    }
+        
+    hex_eval(field, n, rst, value);
+    cout << "Value at " << rst << "is: " << value << endl;
+}
+
+
+
 void test_nat_coords_trilinear_hex2()
 {
   MBCartVect hex[8];
@@ -79,7 +106,7 @@ void test_nat_coords_trilinear_hex2()
 
 
 int main(){
-
   test_nat_coords_trilinear_hex2();
-    //test_hex_findpt();
+  test_hex_findpt();
+  test_hex_eval();
 }

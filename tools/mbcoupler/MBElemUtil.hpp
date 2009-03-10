@@ -30,4 +30,9 @@ namespace MBElemUtil {
                   MBCartVect xyz, 
                   MBCartVect& rst,
                   double& dist);
+
+  void hex_eval(double *field,
+		int n,
+		MBCartVect rst,
+		double &value);
 } // namespace MBElemUtil
