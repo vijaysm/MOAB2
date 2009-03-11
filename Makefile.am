@@ -1,5 +1,8 @@
 # Don't require GNU-standard files (Changelog, README, etc.)
 AUTOMAKE_OPTIONS = foreign
+
+@CGM_CONFIG_OPTIONS@
+
 # Don't loose the autoconf include path
 ACLOCAL_AMFLAGS = -I m4
 
@@ -15,7 +18,8 @@ SUBDIRS += . test tools doc doxygen
 
 
 # Things to build
-lib_LTLIBRARIES = libMOAB.la
+lib_LTLIBRARIES = libMOAB.la 
+
 TESTS = moab_test \
         homxform_test \
         scdseq_test \
@@ -58,12 +62,13 @@ libMOAB_la_includedir = $(includedir)
 # Conditional sources
 MOAB_EXTRA_SRCS =
 MOAB_EXTRA_HDRS =
+
 if NETCDF_FILE
   MOAB_EXTRA_SRCS +=  ReadNCDF.cpp  ReadNCDF.hpp \
                      WriteNCDF.cpp WriteNCDF.hpp \
                      WriteSLAC.cpp WriteSLAC.hpp 
 endif
-libMOAB_la_LIBADD = $(NETCDF_LIBS) $(HDF5_LIBS)
+libMOAB_la_LIBADD = $(NETCDF_LIBS) $(HDF5_LIBS) 
 if HDF5_FILE
   libMOAB_la_LIBADD += $(top_builddir)/mhdf/libmhdf.la
   INCLUDES += -I$(srcdir)/mhdf/include
@@ -74,6 +79,14 @@ if PARALLEL
   libMOAB_la_LIBADD += $(top_builddir)/parallel/libMOABpar.la
   INCLUDES += -I$(srcdir)/parallel
 endif
+
+if HAVE_CGM
+  INCLUDES += $(CGM_INCLUDES)
+  CPPFLAGS += $(CGM_CPPFLAGS) -DCGM $(MOAB_CGM_DEFINES)
+  MOAB_EXTRA_SRCS +=  ReadCGM.cpp  ReadCGM.hpp
+  libMOAB_la_LIBADD += $(CGM_LTFLAGS) $(CGM_LIBS_LINK)
+endif
+
 
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put 

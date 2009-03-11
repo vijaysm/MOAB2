@@ -27,6 +27,7 @@
 #include "ReadSms.hpp"
 #include "Tqdcfr.hpp"
 #include "ReadTetGen.hpp"
+#include "ReadCGM.hpp"
 
 #include "WriteAns.hpp"
 #include "WriteVtk.hpp"
@@ -78,6 +79,9 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
   
   register_factory( Tqdcfr::factory, NULL, "Cubit", "cub", "CUBIT" );
 
+  const char* cgm_sufxs[] = {"stp", "step", "brep", "occ", "sat" };
+  register_factory( ReadCGM::factory, NULL, "CGM", cgm_sufxs, "CGM");
+ 
 #ifdef NETCDF_FILE  
   register_factory( NULL, WriteSLAC::factory, "SLAC", "slac", "SLAC" );
 #endif
