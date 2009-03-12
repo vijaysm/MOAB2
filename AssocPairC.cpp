@@ -633,7 +633,7 @@ int AssocPairC::get_mesh_coords(iBase_EntityHandle *verts,
                                 double **coords,
                                 int *coords_alloc,
                                 int *coords_size,
-                                int *order) 
+                                iBase_StorageOrder order) 
 {
   int iface_no;
   if (iRel_IMESH_IFACE == ifaceTypes[0]) iface_no = 0;

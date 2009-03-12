@@ -647,7 +647,7 @@ int AssocPairSIDL::get_mesh_coords(iBase_EntityHandle *verts,
                                                double **coords,
                                                int *coords_alloc,
                                                int *coords_size,
-                                               int *order) 
+                                               iBase_StorageOrder order) 
 {
   int iface_no;
   if (iMesh_IFACE == ifaceTypes[0]) iface_no = 0;
@@ -665,7 +665,7 @@ int AssocPairSIDL::get_mesh_coords(iBase_EntityHandle *verts,
                          iBase_FAILURE);
     sidl::array<double> tmp_coords = convert_to_sidl_vector(*coords, *coords_size);
     mesh_mod.getVtxArrCoords(convert_to_sidl_vector(verts, verts_size), 
-                             verts_size, (iMesh::StorageOrder&)*order, 
+                             verts_size, (iMesh::StorageOrder)order, 
                              tmp_coords, 
                              *coords_size);
   }

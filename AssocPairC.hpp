@@ -123,7 +123,7 @@ public:
                               double **coords,
                               int *coords_alloc,
                               int *coords_size,
-                              int *order);
+                              iBase_StorageOrder order);
   
   virtual int get_closest_pt(iBase_EntityHandle *gents, 
                              int gents_size,

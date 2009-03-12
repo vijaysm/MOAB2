@@ -1343,10 +1343,9 @@ iRel_moveTo(iRel_Instance assoc,
     // get the coordinates for these vertices
   double *coords = NULL;
   int coords_size = 0, coords_allocated = 0;
-  enum iBase_StorageOrder order = iBase_UNDETERMINED;
   result = this_pair->get_mesh_coords(vertices, vertices_size,
                                       &coords, &coords_allocated, &coords_size, 
-                                      (int*)&order);
+                                      iBase_INTERLEAVED);
   if (iBase_SUCCESS != result) {
     char this_descr[120];
     iMesh_getDescription(mesh, this_descr, ierr, 120);
@@ -1360,8 +1359,7 @@ iRel_moveTo(iRel_Instance assoc,
   std::vector<iBase_EntityHandle> gents(vertices_size);
   std::fill(gents.begin(), gents.end(), gent);
 
-  order = iBase_INTERLEAVED;
-  result = this_pair->get_closest_pt(&gents[0], vertices_size, order,
+  result = this_pair->get_closest_pt(&gents[0], vertices_size, iBase_INTERLEAVED,
                                      coords, coords_size,
                                      &coords, &coords_allocated, &coords_size);
   if (iBase_SUCCESS != result) {
@@ -1376,7 +1374,7 @@ iRel_moveTo(iRel_Instance assoc,
     // now set the coordinates on the vertices
     //order = iBase::StorageOrder_INTERLEAVED;
   result = this_pair->set_mesh_coords(vertices, vertices_size, 
-                                      coords, order);
+                                      coords, iBase_INTERLEAVED);
   if (iBase_SUCCESS != result) {
     char this_descr[120];
     iMesh_getDescription(mesh, this_descr, ierr, 120);
