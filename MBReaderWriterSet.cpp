@@ -81,9 +81,11 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
   
   register_factory( Tqdcfr::factory, NULL, "Cubit", "cub", "CUBIT" );
 
+#ifdef CGM
   const char* cgm_sufxs[] = {"stp", "step", "brep", "occ", "sat" };
   register_factory( ReadCGM::factory, NULL, "CGM", cgm_sufxs, "CGM");
- 
+#endif
+
 #ifdef NETCDF_FILE  
   register_factory( NULL, WriteSLAC::factory, "SLAC", "slac", "SLAC" );
 #endif
