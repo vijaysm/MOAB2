@@ -27,7 +27,9 @@
 #include "ReadSms.hpp"
 #include "Tqdcfr.hpp"
 #include "ReadTetGen.hpp"
-#include "ReadCGM.hpp"
+#ifdef CGM
+#  include "ReadCGM.hpp"
+#endif
 
 #include "WriteAns.hpp"
 #include "WriteVtk.hpp"
