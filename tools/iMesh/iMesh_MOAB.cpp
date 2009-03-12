@@ -446,200 +446,6 @@ extern "C" {
     RETURN(iBase_SUCCESS);
   }
 
-
-  void iMesh_getAllVtxCoords (iMesh_Instance instance,
-                              /*in*/ const iBase_EntitySetHandle entity_set_handle,
-                              /*inout*/ double** coordinates,
-                              /*inout*/ int* coordinates_allocated,
-                              /*out*/ int* coordinates_size,
-                              /*inout*/ int** in_entity_set,
-                              /*inout*/ int* in_entity_set_allocated,
-                              /*out*/ int* in_entity_set_size,
-                              /*inout*/ int* storage_order, int *err) 
-  {
-    MBEntityHandle in_set = ENTITY_HANDLE(entity_set_handle);
-
-      // get all the entities then vertices
-    MBRange entities, vertices;
-    MBErrorCode result = MBI->get_entities_by_handle(in_set, entities, false);
-    if (MB_SUCCESS != result) {
-      std::string msg("iMesh_entitysetGetVertexCoordinates: getting entities didn't succeed, "
-                      "with error type: ");
-      msg += MBI->get_error_string(result);
-      iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
-      RETURN(iBase_ERROR_MAP[result]);
-    }
-
-      // remove any sets
-    entities.erase(entities.lower_bound(MBENTITYSET),
-                   entities.upper_bound(MBENTITYSET));
-  
-      // get all the vertices
-    result = MBI->get_adjacencies(entities, 0, false, vertices,
-                                  MBInterface::UNION);
-    if (MB_SUCCESS != result) {
-      std::string msg("iMesh_entitysetGetVertexCoordinates: getting vertices didn't succeed, "
-                      "with error type: ");
-      msg += MBI->get_error_string(result);
-      iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
-      RETURN(iBase_ERROR_MAP[result]);
-    }
-  
-      // now get all the coordinates
-    CHECK_SIZE(*coordinates, *coordinates_allocated,
-               (int)(3*vertices.size()), double, iBase_MEMORY_ALLOCATION_FAILED);
-    CHECK_SIZE(*in_entity_set, *in_entity_set_allocated,
-               (int)vertices.size(), int, iBase_MEMORY_ALLOCATION_FAILED);
-  
-      // coords will come back interleaved by default
-    MBRange::iterator vit;
-    if (*storage_order == iBase_INTERLEAVED || *storage_order == iBase_UNDETERMINED) {
-      result = MBI->get_coords(vertices, *coordinates);
-      *storage_order = iBase_INTERLEAVED;
-    }
-  
-    else {
-      double *dum_coords = new double[3*vertices.size()];
-      result = MBI->get_coords(vertices, dum_coords);
-      if (MB_SUCCESS == result) {
-        unsigned int offset = vertices.size();
-        for (unsigned int i= 0; i < offset; i++) {
-          (*coordinates)[i]= dum_coords[3*i];
-          (*coordinates)[offset+i] = dum_coords[3*i+1];
-          (*coordinates)[2*offset+i] = dum_coords[3*i+2];
-        }
-      }
-      delete [] dum_coords;
-    }
-  
-    if (MB_SUCCESS != result) {
-      std::string msg("iMesh_entitysetGetVertexCoordinates: problem getting vertex coords, "
-                      "with error type: ");
-      msg += MBI->get_error_string(result);
-      iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
-      RETURN(iBase_ERROR_MAP[result]);
-    }
-  
-      // now fill the in_entity_set array
-    MBRange::iterator endr = entities.end();
-    int i;
-    for (i = 0, vit = vertices.begin(); vit != vertices.end(); vit++, i++) {
-      if (0 == in_set || entities.find(*vit) != endr)
-        (*in_entity_set)[i] = 1;
-      else 
-        (*in_entity_set)[i] = 0;
-    }
-
-    *coordinates_size = 3*vertices.size();
-    *in_entity_set_size = vertices.size();
-  
-    RETURN(iBase_SUCCESS);
-  }
-
-  void iMesh_getVtxCoordIndex (iMesh_Instance instance,
-                               /*in*/ const iBase_EntitySetHandle entity_set_handle,
-                               /*in*/ const int requested_entity_type,
-                               /*in*/ const int requested_entity_topology,
-                               /*in*/ const int entity_adjacency_type,
-                               /*inout*/ int** offset,
-                               /*inout*/ int* offset_allocated,
-                               /*out*/ int* offset_size,
-                               /*inout*/ int** index,
-                               /*inout*/ int* index_allocated,
-                               /*out*/ int* index_size,
-                               /*inout*/  int** entity_topologies,
-                               /*inout*/ int* entity_topologies_allocated,
-                               /*out*/ int* entity_topologies_size, int *err) 
-  {
-    MBEntityType req_type = mb_topology_table[requested_entity_topology];
-    int req_dimension = (req_type != MBMAXTYPE ? (int) requested_entity_type : -1);
-
-    MBEntityHandle in_set = ENTITY_HANDLE(entity_set_handle);
-  
-    MBTag pos_tag = 0;
-    MBRange req_entities;
-    int num_verts;
-    MBErrorCode result = 
-      iMesh_tag_set_vertices(instance, in_set, 
-                             req_dimension, req_type, 
-                             pos_tag, req_entities, num_verts, err);
-    if (MB_SUCCESS != result) {
-      RETURN(iMesh_LAST_ERROR.error_type);
-    }
-
-      // doesn't make sense for vertices, so remove them
-    if (-1 == req_dimension && MBI->type_from_handle(*req_entities.begin()) == MBVERTEX)
-      req_entities = req_entities.subtract(req_entities.subset_by_type(MBVERTEX));
-  
-    if (0 == pos_tag || req_entities.empty()) {
-      *offset_size = 0;
-      *index_size = 0;
-      *entity_topologies_size = 0;
-      RETURN(iBase_SUCCESS);
-    }
-  
-      // now get the connectivity; get it all in one vector before setting indices, so that
-      // we can check size of or allocate index vector; but, we can check and allocate
-      // count vector
-    const MBEntityHandle *tmp_connect;
-    int num_connect;
-    std::vector<MBEntityHandle> connect;
-    CHECK_SIZE(*offset, *offset_allocated, 
-               (int)(req_entities.size()+1), int, iBase_MEMORY_ALLOCATION_FAILED);
-    CHECK_SIZE(*entity_topologies, *entity_topologies_allocated, 
-               (int)req_entities.size(), int, iBase_MEMORY_ALLOCATION_FAILED);
-  
-    MBRange::iterator ent_it;
-    int curr_offset = 0;
-    int i;
-    for (ent_it = req_entities.begin(), i = 0; ent_it != req_entities.end(); 
-         ent_it++, i++) {
-      MBErrorCode result = MBI->get_connectivity(*ent_it, tmp_connect, num_connect);
-      if (MB_SUCCESS != result) {
-        std::string msg("iMesh_getVtxCoordIndex: couldn't get connectivity, with error type: ");
-        msg += MBI->get_error_string(result);
-        iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
-        RETURN(iBase_ERROR_MAP[result]);
-      }
-      std::copy(tmp_connect, tmp_connect+num_connect, std::back_inserter(connect));
-      MBEntityType this_type = MBI->type_from_handle(*ent_it);
-      (*entity_topologies)[i] = tstt_topology_table[this_type];
-      (*offset)[i] = curr_offset;
-      curr_offset += num_connect;
-    }
-      // set the last offset too
-    (*offset)[i] = curr_offset;
-    
-  
-      // now check size of, allocate, and assign index vector
-    CHECK_SIZE(*index, *index_allocated, 
-               (int)connect.size(), int, iBase_MEMORY_ALLOCATION_FAILED);
-      // get the tags all at once, it's more efficient
-    result = MBI->tag_get_data(pos_tag, &connect[0], 
-                               connect.size(), *index);
-    if (MB_SUCCESS != result) {
-      std::string msg("iMesh_getVtxCoordIndex: couldn't get index tag, with error type: ");
-      msg += MBI->get_error_string(result);
-      iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
-      RETURN(iBase_ERROR_MAP[result]);
-    }
-
-      // don't need the tag any more
-    result = MBI->tag_delete(pos_tag);
-    if (MB_SUCCESS != result) {
-      std::string msg("iMesh_getVtxCoordIndex: error deleting tag, with error type: ");
-      msg += MBI->get_error_string(result);
-      iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
-      RETURN(iBase_ERROR_MAP[result]);
-    }
-
-    *offset_size = req_entities.size() + 1;
-    *entity_topologies_size = req_entities.size();
-    *index_size = connect.size();
-
-    RETURN(iBase_SUCCESS);
-  }
-
   void iMesh_getEntities(iMesh_Instance instance,
                          /*in*/ const iBase_EntitySetHandle entity_set_handle,
                          /*in*/ const int entity_type,
@@ -658,7 +464,7 @@ extern "C" {
   void iMesh_getVtxArrCoords (iMesh_Instance instance,
                               /*in*/ const iBase_EntityHandle* vertex_handles,
                               /*in*/ const int vertex_handles_size,
-                              /*inout*/ int* storage_order,
+                              /*inout*/ int storage_order,
                               /*inout*/ double** coords,
                               /*inout*/ int* coords_allocated,
                               /*out*/ int* coords_size, int *err) 
@@ -670,10 +476,9 @@ extern "C" {
       // now get all the coordinates
       // coords will come back interleaved by default
     MBErrorCode result;
-    if (*storage_order == iBase_INTERLEAVED || *storage_order == iBase_UNDETERMINED) {
+    if (storage_order == iBase_INTERLEAVED) {
       result = MBI->get_coords(CONST_HANDLE_ARRAY_PTR(vertex_handles), 
                                vertex_handles_size, *coords);
-      *storage_order = iBase_INTERLEAVED;
     }
   
     else {
@@ -704,122 +509,6 @@ extern "C" {
 
     *coords_size = 3*vertex_handles_size;
   
-    RETURN(iBase_SUCCESS);
-  }
-
-  void iMesh_getAdjEntities(iMesh_Instance instance,
-                            /*in*/ const iBase_EntitySetHandle entity_set_handle,
-                            /*in*/ const int entity_type_requestor,
-                            /*in*/ const int entity_topology_requestor,
-                            /*in*/ const int entity_type_requested,
-                            /*inout*/ iBase_EntityHandle** adj_entity_handles,
-                            /*inout*/ int* adj_entity_handles_allocated,
-                            /*out*/ int* adj_entity_handles_size,
-                            /*inout*/ int** offset,
-                            /*inout*/ int* offset_allocated,
-                            /*inout*/ int* offset_size,
-                            /*out*/ int *err) 
-  {
-    MBEntityHandle in_set = ENTITY_HANDLE(entity_set_handle);
-    MBRange entities;
-    MBEntityType requestor_type = mb_topology_table[entity_topology_requestor];
-    MBErrorCode result;
-
-    if (entity_type_requestor == iBase_ALL_TYPES &&
-        entity_topology_requestor == iMesh_ALL_TOPOLOGIES )
-      result = MBI->get_entities_by_handle( in_set, entities );
-    else if (requestor_type == MBMAXTYPE)
-      result = MBI->get_entities_by_dimension
-        (in_set, entity_type_requestor, entities);
-    else if (entity_topology_requestor == iMesh_SEPTAHEDRON)
-      result = MB_SUCCESS;  // MOAB doesn't do septahedrons, so there are never any of them.
-    else
-      result = MBI->get_entities_by_type(in_set, requestor_type, entities);
-  
-    if (result != MB_SUCCESS) {
-      std::string msg("iMesh_getAdjEntities: ERROR getting requestor entities in entityset, "
-                      "with error type: ");
-      msg += MBI->get_error_string(result);
-      iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
-      RETURN(iBase_ERROR_MAP[result]);
-    }
-
-    int num_entities = entities.size();
-
-    if (num_entities == 0) 
-    {
-      *adj_entity_handles_size = *offset_size = 0;
-      RETURN(iBase_ERROR_MAP[result]);
-    }
-
-      // first, count the number of adjacent entities we'll have
-    int num_sub = 0;
-    int to_dim = entity_type_requested;
-    if (to_dim == 0) {
-      const MBEntityHandle *connect;
-      int num_connect;
-      MBErrorCode result;
-      for (MBRange::const_iterator rit = entities.lower_bound(MBEDGE); rit != entities.end(); rit++) {
-        result = MBI->get_connectivity(*rit, connect, num_connect);
-        if (MB_SUCCESS != result) RETURN(iBase_ERROR_MAP[result]);
-        num_sub += num_connect;
-      }
-    }
-    else {
-      MBRange tmp_adjs;
-      MBErrorCode result;
-      for (MBRange::iterator rit = entities.begin(); rit != entities.end(); rit++) {
-        result = MBI->get_adjacencies(&(*rit), 1, to_dim, false, tmp_adjs);
-        if (MB_SUCCESS != result) RETURN(iBase_ERROR_MAP[result]);
-        num_sub += tmp_adjs.size();
-        tmp_adjs.clear();
-      }
-    }
-  
-      // allocate enough space for those adjacent entities
-    CHECK_SIZE(*adj_entity_handles, *adj_entity_handles_allocated,
-               num_sub, iBase_EntityHandle, iBase_MEMORY_ALLOCATION_FAILED);
-  
-    CHECK_SIZE(*offset, *offset_allocated, 
-               (int)entities.size(), int, iBase_MEMORY_ALLOCATION_FAILED);
-
-      // now iterate over entities
-    num_sub = 0;
-    int i = 0;
-    std::vector<MBEntityHandle> adj_ents;
-    MBRange::iterator endr = entities.end();
-    for (MBRange::iterator rit = entities.begin(); rit != endr; rit++) {
-      adj_ents.clear();
-      (*offset)[i] = num_sub;
-      if (to_dim == 0 && MBI->type_from_handle(*rit) == MBVERTEX) {
-        i++;
-        continue;
-      }
-      
-    
-      result = MBI->get_adjacencies(&(*rit), 1, (int)entity_type_requested, false,
-                                    adj_ents);
-    
-      if (result != MB_SUCCESS) {
-        std::string msg("iMesh_getAdjEntities: ERROR getting adjacencies of requested entities, "
-                        "with error type: ");
-        msg += MBI->get_error_string(result);
-        iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
-        RETURN(iBase_ERROR_MAP[result]);
-      }
-    
-      for (std::vector<MBEntityHandle>::iterator vit = adj_ents.begin(); 
-           vit != adj_ents.end(); vit++) {
-        (*adj_entity_handles)[num_sub] = (iBase_EntityHandle)*vit;
-        num_sub++;
-      }
-
-      i++;
-    }
-
-    *adj_entity_handles_size = num_sub;
-    *offset_size = entities.size();
- 
     RETURN(iBase_SUCCESS);
   }
 
@@ -2234,10 +1923,10 @@ extern "C" {
     RETURN(iBase_ERROR_MAP[result]);
   }
 
-  void iMesh_setVtxCoords (iMesh_Instance instance,
-                           /*in*/ iBase_EntityHandle vertex_handle,
-                           /*in*/ const double x, /*in*/ const double y, 
-                           /*in*/ const double z, int *err)
+  void iMesh_setVtxCoord (iMesh_Instance instance,
+                          /*in*/ iBase_EntityHandle vertex_handle,
+                          /*in*/ const double x, /*in*/ const double y, 
+                          /*in*/ const double z, int *err)
                     
   {
     const double xyz[3] = {x, y, z};
@@ -2716,7 +2405,7 @@ extern "C" {
     int dum = 3;
   
     iMesh_getVtxArrCoords(instance,
-                          &vertex_handle, 1, &order,
+                          &vertex_handle, 1, order,
                           &tmp_xyz, &dum, &dum, err);
     if (iBase_SUCCESS == *err) {
       *x = xyz[0]; *y = xyz[1]; *z = xyz[2];

@@ -28,8 +28,7 @@ package iBase version 0.8
 
    enum StorageOrder {
       BLOCKED,
-      INTERLEAVED,
-      UNDETERMINED
+      INTERLEAVED
    };
 
    enum CreationStatus {	

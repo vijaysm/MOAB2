@@ -287,26 +287,16 @@ void query_elem_to_vert(iMesh_Instance mesh)
     if (iBase_SUCCESS == success) {
         // get vertex coordinates; ; will allocate space on 1st iteration,
         // but will have correct size on subsequent ones
-      int order = iBase_UNDETERMINED;
       iMesh_getVtxArrCoords(mesh, dum_connect, dum_connect_size, 
-                            &order,
+                            iBase_INTERLEAVED,
                             &dum_coords, &dum_coords_allocated, 
                             &dum_coords_size, &success);
 
       double centroid[3] = {0.0, 0.0, 0.0};
-      if (order == iBase_BLOCKED) {
-        for (int j = 0; j < 8; j++) {
-          centroid[0] += dum_coords[j];
-          centroid[1] += dum_coords[8+j];
-          centroid[2] += dum_coords[16+j];
-        }
-      }
-      else {
-        for (int j = 0; j < 8; j++) {
-          centroid[0] += dum_coords[3*j];
-          centroid[1] += dum_coords[3*j+1];
-          centroid[2] += dum_coords[3*j+2];
-        }
+      for (int j = 0; j < 8; j++) {
+        centroid[0] += dum_coords[3*j];
+        centroid[1] += dum_coords[3*j+1];
+        centroid[2] += dum_coords[3*j+2];
       }
     }
       

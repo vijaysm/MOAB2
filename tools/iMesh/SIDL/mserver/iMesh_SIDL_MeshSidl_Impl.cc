@@ -1539,7 +1539,7 @@ void
 iMesh_SIDL::MeshSidl_impl::getVtxArrCoords (
   /* in */ ::sidl::array<void*> vertex_handles,
   /* in */ int32_t vertex_handles_size,
-  /* inout */ ::iBase::StorageOrder& storage_order,
+  /* in */ ::iBase::StorageOrder storage_order,
   /* inout */ ::sidl::array<double>& coords,
   /* out */ int32_t& coords_size ) 
 throw ( 
@@ -1551,50 +1551,13 @@ throw (
   
   iMesh_getVtxArrCoords (imeshInstance,
                          TEMP_TYPED_ARRAY_IN(iBase_EntityHandle, vertex_handles),
-                         (int*)&storage_order,
+                         storage_order,
                          TEMP_ARRAY_INOUT(coords), &imeshError);
   PROCESS_ERROR;
 
   ASSIGN_TYPED_ARRAY(double, coords);
   
   // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.getVtxArrCoords)
-}
-
-/**
- * Method:  getAdjEntities[]
- */
-void
-iMesh_SIDL::MeshSidl_impl::getAdjEntities (
-  /* in */ void* entity_set,
-  /* in */ ::iBase::EntityType entity_type_requestor,
-  /* in */ ::iMesh::EntityTopology entity_topology_requestor,
-  /* in */ ::iBase::EntityType entity_type_requested,
-  /* inout */ ::sidl::array<void*>& adj_entity_handles,
-  /* out */ int32_t& adj_entity_handles_size,
-  /* inout */ ::sidl::array<int32_t>& offset,
-  /* out */ int32_t& offset_size ) 
-throw ( 
-  ::iBase::Error
-){
-  // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.getAdjEntities)
-  // Insert-Code-Here {iMesh_SIDL.MeshSidl.getAdjEntities} (getAdjEntities method)
-  
-  CREATE_TEMP_EH_ARRAY(adj_entity_handles);
-  CREATE_TEMP_ARRAY(int32_t, offset);
-  
-  iMesh_getAdjEntities (imeshInstance, reinterpret_cast<iBase_EntitySetHandle>(entity_set), 
-                        (iBase_EntityType)entity_type_requestor,
-                        (iMesh_EntityTopology)entity_topology_requestor, 
-                        (iBase_EntityType)entity_type_requested,
-                        TEMP_ARRAY_INOUT(adj_entity_handles),
-                        TEMP_ARRAY_INOUT(offset),
-                        &imeshError);
-  PROCESS_ERROR;
-
-
-  ASSIGN_TYPED_ARRAY(void*, adj_entity_handles);
-  ASSIGN_TYPED_ARRAY(int32_t, offset);
-  // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.getAdjEntities)
 }
 
 /**
@@ -2025,10 +1988,10 @@ throw (
 }
 
 /**
- * Method:  setVtxCoords[]
+ * Method:  setVtxCoord[]
  */
 void
-iMesh_SIDL::MeshSidl_impl::setVtxCoords (
+iMesh_SIDL::MeshSidl_impl::setVtxCoord (
   /* in */ void* vertex_handle,
   /* in */ double x,
   /* in */ double y,
@@ -2036,13 +1999,12 @@ iMesh_SIDL::MeshSidl_impl::setVtxCoords (
 throw ( 
   ::iBase::Error
 ){
-  // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.setVtxCoords)
-  // Insert-Code-Here {iMesh_SIDL.MeshSidl.setVtxCoords} (setVtxCoords method)
-  iMesh_setVtxCoords (imeshInstance, 
-                      reinterpret_cast<iBase_EntityHandle>(vertex_handle),
-                      x, y, z, &imeshError);
+  // DO-NOT-DELETE splicer.begin(iMesh_SIDL.MeshSidl.setVtxCoord)
+  iMesh_setVtxCoord (imeshInstance, 
+                     reinterpret_cast<iBase_EntityHandle>(vertex_handle),
+                     x, y, z, &imeshError);
   PROCESS_ERROR;
-  // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.setVtxCoords)
+  // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl.setVtxCoord)
 }
 
 /**
@@ -2257,4 +2219,3 @@ iMesh_SIDL::MeshSidl_impl::processError() throw(::iBase::Error)
 }
 
 // DO-NOT-DELETE splicer.end(iMesh_SIDL.MeshSidl._misc)
-

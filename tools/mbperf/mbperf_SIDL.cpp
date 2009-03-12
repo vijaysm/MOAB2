@@ -361,29 +361,16 @@ void query_elem_to_vert(iMesh::Mesh &mesh)
         // but will have correct size on subsequent ones
       sidl::array<double> dum_coords;
       int dum_coords_size = 0;
-      iBase::StorageOrder order = iBase::StorageOrder_UNDETERMINED;
-      mesh.getVtxArrCoords(dum_connect, dum_connect_size, order,
+      mesh.getVtxArrCoords(dum_connect, dum_connect_size, iBase::StorageOrder_INTERLEAVED,
                            dum_coords, dum_coords_size);
 
       assert(24 == dum_coords_size && ARRAY_SIZE(dum_coords) == 24);
       double *dum_coords_ptr = ARRAY_PTR(dum_coords, double);
       double centroid[3] = {0.0, 0.0, 0.0};
-      if (order == iBase::StorageOrder_BLOCKED) {
-        for (int j = 0; j < 8; j++) {
-          centroid[0] += dum_coords_ptr[j];
-          centroid[1] += dum_coords_ptr[8+j];
-          centroid[2] += dum_coords_ptr[16+j];
-          centroid[0] += dum_coords.get(j);
-          centroid[1] += dum_coords.get(8+j);
-          centroid[2] += dum_coords.get(16+j);
-        }
-      }
-      else {
-        for (int j = 0; j < 8; j++) {
-          centroid[0] += dum_coords_ptr[3*j];
-          centroid[1] += dum_coords_ptr[3*j+1];
-          centroid[2] += dum_coords_ptr[3*j+2];
-        }
+      for (int j = 0; j < 8; j++) {
+        centroid[0] += dum_coords_ptr[3*j];
+        centroid[1] += dum_coords_ptr[3*j+1];
+        centroid[2] += dum_coords_ptr[3*j+2];
       }
     }
   } catch (iBase::Error err) {

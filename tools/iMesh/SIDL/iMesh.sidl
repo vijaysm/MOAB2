@@ -100,17 +100,9 @@ package iMesh version 0.8
                         out int entity_handles_size) throws iBase.Error;
       void getVtxArrCoords( in array<opaque> vertex_handles, 
                             in int vertex_handles_size,
-                            inout StorageOrder storage_order,
+                            in StorageOrder storage_order,
                             inout array<double> coords,
                             out int coords_size) throws iBase.Error;
-      void getAdjEntities( in opaque entity_set,
-                           in EntityType entity_type_requestor, 
-                           in EntityTopology entity_topology_requestor,
-                           in EntityType entity_type_requested,
-                           inout array<opaque> adj_entity_handles, 
-                           out int adj_entity_handles_size,
-                           inout array<int> offset,
-                           out int offset_size) throws iBase.Error;
 
       void getAdjEntIndices( in opaque entity_set_handle,
                              in EntityType entity_type_requestor,
@@ -235,8 +227,8 @@ package iMesh version 0.8
    interface Modify extends Mesh {
 
       // single entities
-      void setVtxCoords( in opaque vertex_handle, 
-                         in double x, in double y, in double z) throws iBase.Error;
+      void setVtxCoord( in opaque vertex_handle, 
+                        in double x, in double y, in double z) throws iBase.Error;
       void createVtx( in double x, in double y, in double z, 
                          out opaque new_vertex_handle) throws iBase.Error;
       void createEnt( in EntityTopology new_entity_topology,
