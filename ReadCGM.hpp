@@ -45,6 +45,10 @@ public:
 
   static MBReaderIface* factory( MBInterface* );
 
+  void tokenize( const std::string& str,
+                 std::vector<std::string>& tokens,
+                 const char* delimiters );
+
     //! load an ExoII file
   MBErrorCode load_file(const char *cgm_file_name,
                          MBEntityHandle& file_set,

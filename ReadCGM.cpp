@@ -46,6 +46,7 @@
 #include <assert.h>
 
 #include "ReadCGM.hpp"
+#include "MBReadUtilIface.hpp"
 
 #define GF_CUBIT_FILE_TYPE    "CUBIT"
 #define GF_STEP_FILE_TYPE     "STEP"
@@ -100,12 +101,68 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
                       const int* blocks_to_load,
                       const int num_blocks)
 {
-  //opts, blocks_to_load and num_blocks are ignored.
+  // blocks_to_load and num_blocks are ignored.
+  //opts is currently designed as following
+  //cgm_opts = [d <tol>|D] [,n <tol>|N] [,l <tol>|L] [,A|a]
+  //currently attribute option is not checked.
+  //-d  max. distance deviation between facet and geometry
+  //-D  no distance tolerance
+  //  (default:0.001)
+  //-n  max. normal angle deviation (degrees) between facet and geometry
+  //  (default:5)
+  //-N  no normal tolerance
+  //-l  max. facet edge length
+  //-L  no facet edge length maximum
+  //  (default:0)
+  //-a  force actuation of all CGM attributes
+  //-A  disable all CGM attributes
   MBErrorCode rval;
   file_set = 0;
 
   std::string filename( cgm_file_name );
   cgmFile = filename;
+
+  std::string string;
+  rval = opts.get_str_option("cgm_opts", string );
+  if(MB_SUCCESS != rval)
+  {
+    readUtilIface->report_error("MBCN:: Problem reading file options.");
+    return MB_FAILURE;
+  }
+  std::vector< std::string > tokens;
+  tokenize(string, tokens,",");
+
+  int norm_tol = 5;
+  double faceting_tol = 0.001, len_tol = 0.0;
+  bool act_att = false;
+  //check for the options.
+  for(int i = 0 ; i < tokens.size(); i++) 
+  {
+    std::string opt = tokens[i];
+    std::string opt_s (opt.substr(2));
+    switch(opt[0]) 
+    {
+      case('d'):
+        if(opt.length() < 3)
+          return MB_TYPE_OUT_OF_RANGE;
+        faceting_tol = atof( opt_s.c_str() );
+        break;
+      case('n'):
+        if(opt.length() < 3)
+          return MB_TYPE_OUT_OF_RANGE;
+        norm_tol = atoi( opt_s.c_str() );
+        if(norm_tol < 0)
+          return MB_TYPE_OUT_OF_RANGE;
+        break;
+      case('l'):
+        if(opt.length() < 3)
+          return MB_TYPE_OUT_OF_RANGE;
+        len_tol = atof( opt_s.c_str() );
+        break; 
+      case('a'):
+        act_att = true;
+    }
+  }
 
   // CGM data
   std::map<RefEntity*,MBEntityHandle> entmap[5]; // one for each dim, and one for groups
@@ -118,6 +175,11 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
 
   // Initialize CGM
   InitCGMA::initialize_cgma();
+
+  if (act_att) {
+    CGMApp::instance()->attrib_manager()->set_all_auto_read_flags( act_att );
+    CGMApp::instance()->attrib_manager()->set_all_auto_actuate_flags( act_att );
+  }
 
   // Get CGM file type
   const char* file_type = 0;
@@ -347,7 +409,6 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
     GeometryQueryEngine* gqe = curve->get_geometry_query_engine();
     data.clean_out();
     int count;
-    double faceting_tol = 0.001;
     CubitStatus s = gqe->get_graphics( curve, count, &data, faceting_tol);
     if (CUBIT_SUCCESS != s)
       return MB_FAILURE;
@@ -433,8 +494,6 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
     GeometryQueryEngine* gqe = surf->get_geometry_query_engine();
     data.clean_out();
     int nt, np, nf;
-    int norm_tol = 5;
-    double faceting_tol = 0.001, len_tol = 0.0;
     CubitStatus s = gqe->get_graphics( surf, nt, np, nf, &data, 
                                        norm_tol, faceting_tol, len_tol);
     if (CUBIT_SUCCESS != s)
@@ -634,3 +693,19 @@ int ReadCGM::is_occ_brep_file( FILE* file )
          fread(buffer, 6, 1, file) &&
          !memcmp(buffer, "DBRep_", 6);
 }
+
+void ReadCGM::tokenize( const std::string& str,
+                        std::vector<std::string>& tokens,
+                        const char* delimiters )
+{
+  std::string::size_type last = str.find_first_not_of( delimiters, 0 );
+  std::string::size_type pos  = str.find_first_of( delimiters, last );
+  while (std::string::npos != pos && std::string::npos != last) {
+    tokens.push_back( str.substr( last, pos - last ) );
+    last = str.find_first_not_of( delimiters, pos );
+    pos  = str.find_first_of( delimiters, last );
+    if(std::string::npos == pos)
+      pos = str.size();
+  }
+}
+
