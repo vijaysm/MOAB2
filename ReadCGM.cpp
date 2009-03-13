@@ -102,67 +102,29 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
                       const int num_blocks)
 {
   // blocks_to_load and num_blocks are ignored.
-  //opts is currently designed as following
-  //cgm_opts = [d <tol>|D] [,n <tol>|N] [,l <tol>|L] [,A|a]
-  //currently attribute option is not checked.
-  //-d  max. distance deviation between facet and geometry
-  //-D  no distance tolerance
-  //  (default:0.001)
-  //-n  max. normal angle deviation (degrees) between facet and geometry
-  //  (default:5)
-  //-N  no normal tolerance
-  //-l  max. facet edge length
-  //-L  no facet edge length maximum
-  //  (default:0)
-  //-a  force actuation of all CGM attributes
-  //-A  disable all CGM attributes
   MBErrorCode rval;
   file_set = 0;
 
   std::string filename( cgm_file_name );
   cgmFile = filename;
 
-  std::string string;
-  rval = opts.get_str_option("cgm_opts", string );
-  if(MB_SUCCESS != rval)
-  {
-    readUtilIface->report_error("MBCN:: Problem reading file options.");
-    return MB_FAILURE;
-  }
-  std::vector< std::string > tokens;
-  tokenize(string, tokens,",");
-
-  int norm_tol = 5;
-  double faceting_tol = 0.001, len_tol = 0.0;
+  int norm_tol, DEFAULT_NORM = 5;
+  double faceting_tol, DEFAULT_FACET_TOL = 0.001, len_tol, DEFAULT_LEN_TOL = 0.0;
   bool act_att = false;
   //check for the options.
-  for(int i = 0 ; i < tokens.size(); i++) 
-  {
-    std::string opt = tokens[i];
-    std::string opt_s (opt.substr(2));
-    switch(opt[0]) 
-    {
-      case('d'):
-        if(opt.length() < 3)
-          return MB_TYPE_OUT_OF_RANGE;
-        faceting_tol = atof( opt_s.c_str() );
-        break;
-      case('n'):
-        if(opt.length() < 3)
-          return MB_TYPE_OUT_OF_RANGE;
-        norm_tol = atoi( opt_s.c_str() );
-        if(norm_tol < 0)
-          return MB_TYPE_OUT_OF_RANGE;
-        break;
-      case('l'):
-        if(opt.length() < 3)
-          return MB_TYPE_OUT_OF_RANGE;
-        len_tol = atof( opt_s.c_str() );
-        break; 
-      case('a'):
-        act_att = true;
-    }
-  }
+  if (MB_SUCCESS != opts.get_int_option( "FACET_NORMAL_TOLERANCE", norm_tol ))
+    norm_tol = DEFAULT_NORM;
+
+  if (MB_SUCCESS != opts.get_real_option("FACET_DISTANCE_TOLERANCE", faceting_tol))
+    faceting_tol = DEFAULT_FACET_TOL;
+
+  if (MB_SUCCESS != opts.get_real_option("MAX_FACET_EDGE_LENGTH", len_tol))
+    len_tol = DEFAULT_LEN_TOL;
+
+  const char* name = "CGM_ATTRIBS";
+  const char* value = "yes";
+  if(MB_SUCCESS == opts.match_option(name,value)) 
+    act_att = true; 
 
   // CGM data
   std::map<RefEntity*,MBEntityHandle> entmap[5]; // one for each dim, and one for groups

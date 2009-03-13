@@ -55,6 +55,22 @@ Specify the precision to use when writing float and double values
   
 Do not overwrite existing file.
 
+  FACET_DISTANCE_TOLERANCE=<D>
+
+Max. distance deviation between facet and geometry, default:0.001.
+
+  FACET_NORMAL_TOLERANCE=<N>
+
+Max. normal angle deviation (degrees) between facet and geometry, default:5.
+
+  MAX_FACET_EDGE_LENGTH=<D>
+
+Max. facet edge length, default:0.
+
+  CGM_ATTRIBS={yes|no}
+
+Actuation of all CGM attributes, default:no.
+
 -------------------
 Parallel IO Options
 -------------------
