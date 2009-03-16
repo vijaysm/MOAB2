@@ -1,5 +1,6 @@
 # Don't require GNU-standard files (Changelog, README, etc.)
 AUTOMAKE_OPTIONS = foreign
+LDADD = $(top_builddir)/libMOAB.la
 
 @CGM_CONFIG_OPTIONS@
 
@@ -85,6 +86,7 @@ if HAVE_CGM
   CPPFLAGS += $(CGM_CPPFLAGS) -DCGM $(MOAB_CGM_DEFINES)
   MOAB_EXTRA_SRCS +=  ReadCGM.cpp  ReadCGM.hpp
   libMOAB_la_LIBADD += $(CGM_LTFLAGS) $(CGM_LIBS_LINK)
+  LDADD += $(CGM_LTFLAGS) 
 endif
 
 
@@ -267,110 +269,88 @@ CPPFLAGS += -DSRCDIR=$(srcdir)
 # Tests and such
 
 moab_test_SOURCES = MBTest.cpp
-moab_test_LDADD = $(top_builddir)/libMOAB.la
 moab_test_DEPENDENCIES = test/mb_big_test.g test/cell1.gen test/cell2.gen $(top_builddir)/libMOAB.la
 
 homxform_test_SOURCES = HomXform.cpp
-homxform_test_LDADD = $(top_builddir)/libMOAB.la
 homxform_test_CXXFLAGS = -DTEST $(CXXFLAGS)
 homxform_test_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 scdseq_test_SOURCES = scdseq_test.cpp
-scdseq_test_LDADD = $(top_builddir)/libMOAB.la
 scdseq_test_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 #scdseq_timing_SOURCES = scdseq_timing.cpp
-#scdseq_timing_LDADD = $(top_builddir)/libMOAB.la
 #scdseq_timing_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 tqdcfr_SOURCES = Tqdcfr.cpp
-tqdcfr_LDADD = $(top_builddir)/libMOAB.la
 tqdcfr_CXXFLAGS = -DTEST_TQDCFR $(CXXFLAGS)
 tqdcfr_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 #test_rms_SOURCES = test_rms.cpp
-#test_rms_LDADD = $(top_builddir)/libMOAB.la
 #test_rms_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 #merge_test_SOURCES = merge_test.cpp
-#merge_test_LDADD = $(top_builddir)/libMOAB.la
 #merge_test_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 #test_exo_SOURCES = test_exo.cpp
-#test_exo_LDADD = $(top_builddir)/libMOAB.la
 #test_exo_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 #test_tag_server_SOURCES = TagServer.cpp
-#test_tag_server_LDADD = $(top_builddir)/libMOAB.la
 #test_tag_server_CXXFLAGS = -DTEST $(CXXFLAGS)
 #test_tag_server_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 test_adj_SOURCES = test_adj.cpp
-test_adj_LDADD = $(top_builddir)/libMOAB.la
 test_adj_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 seq_man_test_SOURCES = TestUtil.hpp TestTypeSequenceManager.cpp 
-seq_man_test_LDADD = $(top_builddir)/libMOAB.la
 
 mesh_set_test_SOURCES = Test_MBMeshSet.cpp TestUtil.hpp
-mesh_set_test_LDADD = $(top_builddir)/libMOAB.la
 
 geom_util_test_SOURCES = TestUtil.hpp GeomUtilTests.cpp 
-geom_util_test_LDADD = $(top_builddir)/libMOAB.la
 geom_util_test_DEPENDENCIES = $(geom_util_test_LDADD)
 
 xform_test_SOURCES = MBAffineXform.cpp
 xform_test_CXXFLAGS = -DTEST $(CXXFLAGS)
-xform_test_LDADD = $(top_builddir)/libMOAB.la
 xform_test_DEPENDENCIES = $(xform_test_LDADD)
 
 obb_test_SOURCES = OBBTest.cpp
-obb_test_LDADD = $(top_builddir)/libMOAB.la
 obb_test_DEPENDENCIES = $(obb_test_LDADD)
 
 vtk_test_SOURCES = TestUtil.hpp VtkTest.cpp
-vtk_test_LDADD = $(top_builddir)/libMOAB.la
 vtk_test_DEPENDENCIES = $(vtk_test_LDADD)
 
 adaptive_kd_tree_tests_SOURCES = adaptive_kd_tree_tests.cpp
-adaptive_kd_tree_tests_LDADD = $(top_builddir)/libMOAB.la
 adaptive_kd_tree_tests_DEPENDENCIES = $(adaptive_kd_tree_tests_LDADD)
 
 kd_tree_tool_SOURCES = kd_tree_tool.cpp
-kd_tree_tool_LDADD = $(top_builddir)/libMOAB.la
 kd_tree_tool_DEPENDENCIES = $(kd_tree_tool_LDADD)
 
 kd_tree_time_SOURCES = kd_tree_time.cpp
-kd_tree_time_LDADD = $(top_builddir)/libMOAB.la
 kd_tree_time_DEPENDENCIES = $(kd_tree_time_LDADD)
 
 kd_tree_test_SOURCES = kd_tree_test.cpp
-kd_tree_test_LDADD = $(top_builddir)/libMOAB.la
 
 bsp_tree_test_SOURCES = bsp_tree_test.cpp
-bsp_tree_test_LDADD = $(top_builddir)/libMOAB.la
 
 file_options_test_SOURCES = TestUtil.hpp FileOptions.cpp 
 file_options_test_CPPFLAGS = -DTEST
+file_optionstest_LDADD = 
 
 var_len_test_SOURCES = TestUtil.hpp VarLenTagTest.cpp
 var_len_test_no_template_SOURCES = $(var_len_test_SOURCES)
 var_len_test_no_template_CPPFLAGS = -UTEMPLATE_SPECIALIZATION
 
 tag_test_SOURCES = TestUtil.hpp TagTest.cpp
-tag_test_LDADD = $(top_builddir)/libMOAB.la
 tag_test_DEPENDENCIES = $(tag_test_LDADD)
 
 cub_file_test_SOURCES = TestUtil.hpp cub_file_test.cc
-cub_file_test_LDADD = $(top_builddir)/libMOAB.la
 cub_file_test_DEPENDENCIES = $(tag_test_LDADD)
 
 exodus_test_SOURCES = TestUtil.hpp exodus_test.cc
-exodus_test_LDADD = $(top_builddir)/libMOAB.la
 exodus_test_DEPENDENCIES = $(tag_test_LDADD)
 
 mbcn_test_SOURCES = MBCN.hpp MBCN.cpp mbcn_test.cc
 mbcn_test_CPPFLAGS = -DSRCDIR=$(srcdir)  # define anything to work around build issue
+mbcn_test_LDADD = 
 
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = dumped_acis.sat tree.h5m

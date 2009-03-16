@@ -3,6 +3,12 @@ DEFS = $(DEFINES)
 INCLUDES += -I$(top_srcdir) -I$(top_builddir)
 LDADD = $(top_builddir)/libMOAB.la
 
+@CGM_CONFIG_OPTIONS@
+
+if HAVE_CGM
+  LDADD += $(CGM_LTFLAGS) 
+endif
+
 bin_PROGRAMS =
 dist_man1_MANS = 
 doc_DATA = 

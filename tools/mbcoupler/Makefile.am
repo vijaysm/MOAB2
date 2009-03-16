@@ -6,6 +6,12 @@ DEFS = $(DEFINES)
 INCLUDES += -I$(top_srcdir) -I$(top_builddir) -I$(top_srcdir)/parallel
 
 lib_LTLIBRARIES = libmbcoupler.la
+libmbcoupler_la_LIBADD = $(top_builddir)/libMOAB.la
+
+LDADD = libmbcoupler.la 
+if HAVE_CGM
+  LDADD += $(CGM_LTFLAGS) 
+endif
 
 libmbcoupler_la_SOURCES = \
    MBElemUtil.cpp \
@@ -37,9 +43,7 @@ cfgdir = $(libdir)
 TESTS = findpt_test elem_util_test
 check_PROGRAMS = $(TESTS)
 findpt_test_SOURCES = findpt_test.cpp
-findpt_test_LDADD = libmbcoupler.la $(top_builddir)/libMOAB.la
 elem_util_test_SOURCES = ElemUtilTest.cpp
-elem_util_test_LDADD = libmbcoupler.la $(top_builddir)/libMOAB.la
 
 bin_PROGRAMS = 
 if PARALLEL
@@ -47,7 +51,6 @@ if PARALLEL
 #  check_PROGRAMS += mbcoupler_test
   bin_PROGRAMS += mbcoupler_test
   mbcoupler_test_SOURCES = mbcoupler_test.cpp
-  mbcoupler_test_LDADD = libmbcoupler.la $(top_builddir)/libMOAB.la
   INCLUDES += -I$(srcdir)/parallel
 endif
 

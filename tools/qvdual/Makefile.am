@@ -1,4 +1,7 @@
 AUTOMAKE_OPTIONS = foreign
+
+@CGM_CONFIG_OPTIONS@
+
 DEFS = $(DEFINES)
 INCLUDES += -I$(top_srcdir) -I$(top_builddir) $(QVDUAL_INCLUDES)
 bin_PROGRAMS = qvdual
@@ -29,6 +32,9 @@ extra_depends = \
 
 
 LDADD = $(extra_depends) $(QVDUAL_LIBS) $(top_builddir)/libMOAB.la 
+if HAVE_CGM
+  LDADD += $(CGM_LTFLAGS) 
+endif
 AM_LDFLAGS = -R $(VTK_LIB_DIR)
 qvdual_DEPENDENCIES = $(extra_depends) $(top_builddir)/libMOAB.la
 

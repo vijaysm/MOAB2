@@ -1,6 +1,8 @@
 AUTOMAKE_OPTIONS = foreign
 BUILT_SOURCES = iMesh_protos.h iMeshP_protos.h iMesh_extensions_protos.h
 
+@CGM_CONFIG_OPTIONS@
+
 if USE_BABEL
   babel_DIR = SIDL
 else
@@ -44,6 +46,10 @@ endif
 TESTS = $(check_PROGRAMS)
 LDADD = libiMesh.la $(top_builddir)/libMOAB.la ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
 TESTDEPS = libiMesh.la $(top_builddir)/libMOAB.la
+
+if HAVE_CGM
+  LDADD += $(CGM_LTFLAGS) 
+endif
 
 testc_cbind_SOURCES = testc_cbind.c
 testc_cbind_DEPENDENCIES = $(TESTDEPS)
