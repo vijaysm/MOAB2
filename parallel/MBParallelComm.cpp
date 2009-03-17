@@ -4492,7 +4492,113 @@ MBErrorCode MBParallelComm::get_sharing_parts( MBEntityHandle entity,
   remote_handles[num_part_ids_out-1] = entity;
   return result;
 }
+ 
 
+MBErrorCode MBParallelComm::exchange_all_shared_handles( shared_entity_map& result )
+{
+  MBErrorCode rval;
+  int ierr;
+  const int tag = 0x4A41534E;
+  const MPI_Comm comm = procConfig.proc_comm();
+
+  std::set<unsigned int> exch_procs;
+  rval = get_comm_procs(exch_procs);  
+  if (MB_SUCCESS != rval)
+    return rval;
+  const int num_proc = exch_procs.size();
+  std::vector<MPI_Request> send_req(num_proc), recv_req(num_proc);
+  const std::vector<int> procs( exch_procs.begin(), exch_procs.end() );
+  
+    // get all shared entities
+  MBRange all_shared;
+  MBTag pstatus = pstatus_tag();
+  for (MBEntityType type = MBVERTEX; type < MBENTITYSET; ++type) {
+    rval = get_moab()->get_entities_by_type_and_tag( 0, type, &pstatus, 0, 1, all_shared );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+
+    // build up send buffers
+  shared_entity_map send_data;
+  int ent_procs[MAX_SHARING_PROCS];
+  MBEntityHandle handles[MAX_SHARING_PROCS];
+  int num_sharing;
+  SharedEntityData tmp;
+  for (MBRange::iterator i = all_shared.begin(); i != all_shared.end(); ++i) {
+    tmp.remote = *i; // swap local/remote so they're correct on the remote proc.
+    rval = get_owner( *i, tmp.owner );
+    if (MB_SUCCESS != rval)
+      return rval;
+    
+    rval = get_sharing_parts( *i, ent_procs, num_sharing, handles );
+    for (int j = 0; j < num_sharing; ++j) {
+      if (ent_procs[j] == (int)proc_config().proc_rank())
+        continue;
+      tmp.local = handles[j];
+      send_data[ent_procs[j]].push_back( tmp );
+    }
+  }
+
+    // set up to receive sizes
+  std::vector<int> sizes_send(num_proc), sizes_recv(num_proc);
+  for (int i = 0; i < num_proc; ++i) {
+    ierr = MPI_Irecv( &sizes_recv[i], 1, MPI_INT, procs[i], tag, comm, &recv_req[i] );
+    if (ierr) 
+      return MB_FILE_WRITE_ERROR;
+  }
+  
+    // send sizes
+  for (int i = 0; i < num_proc; ++i) {
+    sizes_send[i] = send_data[procs[i]].size();
+    ierr = MPI_Isend( &sizes_send[i], 1, MPI_INT, procs[i], tag, comm, &send_req[i] );
+    if (ierr) 
+      return MB_FILE_WRITE_ERROR;
+  }
+  
+    // receive sizes
+  std::vector<MPI_Status> stat(num_proc);
+  ierr = MPI_Waitall( num_proc, &recv_req[0], &stat[0] );
+  if (ierr)
+    return MB_FILE_WRITE_ERROR;
+  
+    // wait until all sizes are sent (clean up pending req's)
+  ierr = MPI_Waitall( num_proc, &send_req[0], &stat[0] );
+  if (ierr)
+    return MB_FILE_WRITE_ERROR;
+  
+    // set up to receive data
+  for (int i = 0; i < num_proc; ++i) {
+    result[procs[i]].resize( sizes_recv[i] );
+    ierr = MPI_Irecv( &result[procs[i]][0], 
+                      sizeof(SharedEntityData)*sizes_recv[i], 
+                      MPI_UNSIGNED_CHAR, 
+                      procs[i], tag, comm, &recv_req[i] );
+    if (ierr) 
+      return MB_FILE_WRITE_ERROR;
+  }
+  
+    // send data
+  for (int i = 0; i < num_proc; ++i) {
+    ierr = MPI_Isend( &send_data[procs[i]][0], 
+                      sizeof(SharedEntityData)*sizes_send[i], 
+                      MPI_UNSIGNED_CHAR, 
+                      procs[i], tag, comm, &send_req[i] );
+    if (ierr) 
+      return MB_FILE_WRITE_ERROR;
+  }
+  
+    // receive data
+  ierr = MPI_Waitall( num_proc, &recv_req[0], &stat[0] );
+  if (ierr)
+    return MB_FILE_WRITE_ERROR;
+  
+    // wait until everything is sent to release send buffers
+  ierr = MPI_Waitall( num_proc, &send_req[0], &stat[0] );
+  if (ierr)
+    return MB_FILE_WRITE_ERROR;
+  
+  return MB_SUCCESS;
+}
 
 #ifdef TEST_PARALLELCOMM
 

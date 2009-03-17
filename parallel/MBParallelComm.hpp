@@ -32,7 +32,36 @@
 #include <map>
 #include <set>
 #include "math.h"
+
+#ifdef SEEK_SET
+#  define SEEK_SET_OLD SEEK_SET
+#  undef SEEK_SET
+#endif
+#ifdef SEEK_CUR
+#  define SEEK_CUR_OLD SEEK_CUR
+#  undef SEEK_CUR
+#endif
+#ifdef SEEK_END
+#  define SEEK_END_OLD SEEK_END
+#  undef SEEK_END
+#endif
 #include "mpi.h"
+#ifdef SEEK_SET_OLD
+#  undef SEEK_SET
+#  define SEEK_SET SEEK_SET_OLD
+#  undef SEEK_SET_OLD
+#endif
+#ifdef SEEK_CUR_OLD
+#  undef SEEK_CUR
+#  define SEEK_CUR SEEK_CUR_OLD
+#  undef SEEK_CUR_OLD
+#endif
+#ifdef SEEK_END_OLD
+#  undef SEEK_END
+#  define SEEK_END SEEK_END_OLD
+#  undef SEEK_END_OLD
+#endif
+
 
 extern "C" {
   struct tuple_list;
@@ -670,8 +699,25 @@ private:
   MBErrorCode update_iface_sets(MBRange &sent_ents,
                                 std::vector<MBEntityHandle> &remote_handles, 
                                 int from_proc);
-
+  
 public:  
+  struct SharedEntityData {
+    MBEntityHandle local;
+    MBEntityHandle remote;
+    int owner;
+  };
+  typedef std::vector< SharedEntityData > shared_entity_vec;
+  //! Map indexed by processor ID and containing, for each processor ID,
+  //! a list of <local,remote> handle pairs, where the local handle is
+  //! the handle on this processor and the remove handle is the handle on
+  //! the processor ID indicated by the map index.
+  typedef std::map< int, shared_entity_vec > shared_entity_map;
+  //! Every processor sends shared entity handle data to every other processor
+  //! that it shares entities with.  Passed back map is all received data,
+  //! indexed by processor ID. This function is intended to be used for 
+  //! debugging.
+  MBErrorCode exchange_all_shared_handles( shared_entity_map& result );
+  
     //! replace handles in from_vec with corresponding handles on
     //! to_proc (by checking shared[p/h]_tag and shared[p/h]s_tag;
     //! if no remote handle and new_ents is non-null, substitute
