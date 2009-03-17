@@ -1,3 +1,6 @@
+
+@CGM_CONFIG_OPTIONS@
+
 DEFS = $(DEFINES)
 INCLUDES += -I$(top_srcdir) \
             -I$(top_srcdir)/mhdf/include \
@@ -6,6 +9,10 @@ INCLUDES += -I$(top_srcdir) \
             -I$(top_builddir)/tools/iMesh
             
 LDADD = $(top_builddir)/libMOAB.la
+
+if HAVE_CGM
+  LDADD += $(CGM_LTFLAGS) 
+endif
 
 check_PROGRAMS = perf seqperf adj_time
 
