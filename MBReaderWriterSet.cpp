@@ -82,8 +82,14 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
   register_factory( Tqdcfr::factory, NULL, "Cubit", "cub", "CUBIT" );
 
 #ifdef CGM
-  const char* cgm_sufxs[] = {"stp", "step", "brep", "occ", "sat" };
-  register_factory( ReadCGM::factory, NULL, "CGM", cgm_sufxs, "CGM");
+  const char* acis_sufxs[] = { "sat", "sab", NULL };
+  const char* occ_sufxs[] = { "brep", "occ", NULL };
+  const char* step_sufxs[] = { "step", "stp", NULL };
+  const char* iges_sufxs[] = { "iges", "igs", NULL };
+  register_factory( ReadCGM::factory, NULL, "ACIS solid model", acis_sufxs, "ACIS");
+  register_factory( ReadCGM::factory, NULL, "OpenCascade solid model", occ_sufxs, "OCC");
+  register_factory( ReadCGM::factory, NULL, "STEP B-Rep exchange", step_sufxs, "STEP");
+  register_factory( ReadCGM::factory, NULL, "IGES B-Rep exchange", iges_sufxs, "IGES");
 #endif
 
 #ifdef NETCDF_FILE  
