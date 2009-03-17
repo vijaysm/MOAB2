@@ -333,7 +333,7 @@ bsp_tree_test_SOURCES = bsp_tree_test.cpp
 
 file_options_test_SOURCES = TestUtil.hpp FileOptions.cpp 
 file_options_test_CPPFLAGS = -DTEST
-file_optionstest_LDADD = 
+file_options_test_LDADD = 
 
 var_len_test_SOURCES = TestUtil.hpp VarLenTagTest.cpp
 var_len_test_no_template_SOURCES = $(var_len_test_SOURCES)
