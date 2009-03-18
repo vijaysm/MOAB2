@@ -641,8 +641,6 @@ MBErrorCode AEntityFactory::get_zero_to_n_elements(MBEntityHandle source_entity,
 {
 
   MBErrorCode result = MB_SUCCESS;
-  if(!target_entities.empty())
-    target_entities.clear();
   
   // case 0 to 3  -- find any 3d element
   if (target_dimension == 3)
@@ -662,8 +660,7 @@ MBErrorCode AEntityFactory::get_zero_to_n_elements(MBEntityHandle source_entity,
       std::lower_bound(start_ent, adj_vec->end(), CREATE_HANDLE(dim_pair.second, MB_END_ID, dum));
 
     // copy the entities
-    target_entities.resize(end_ent - start_ent);
-    std::copy(start_ent, end_ent, target_entities.begin());
+    target_entities.insert( target_entities.end(), start_ent, end_ent );
   }
 
   else if( target_dimension == 2 )
@@ -690,9 +687,8 @@ MBErrorCode AEntityFactory::get_zero_to_n_elements(MBEntityHandle source_entity,
                                  adj_vec->end(), 
                                  CREATE_HANDLE(dim_pair.second, MB_END_ID, dum));
       
-      std::vector<MBEntityHandle> elem_3d(end_ent - start_ent);
-      std::copy(start_ent, end_ent, elem_3d.begin());
-
+      std::vector<MBEntityHandle> elem_3d(start_ent, end_ent);
+ 
       // make 2d elements from all the 3d elements 
       for(start_ent = elem_3d.begin(); start_ent != elem_3d.end(); ++start_ent)
       {
@@ -707,8 +703,7 @@ MBErrorCode AEntityFactory::get_zero_to_n_elements(MBEntityHandle source_entity,
     end_ent = std::lower_bound(start_ent, adj_vec->end(), CREATE_HANDLE(dim_pair.second, MB_END_ID, dum));
 
     // copy the entities
-    target_entities.resize(end_ent - start_ent);
-    std::copy(start_ent, end_ent, target_entities.begin());
+    target_entities.insert( target_entities.end(), start_ent, end_ent );
   }
 
   else if( target_dimension == 1 )
@@ -737,8 +732,7 @@ MBErrorCode AEntityFactory::get_zero_to_n_elements(MBEntityHandle source_entity,
                                  adj_vec->end(), 
                                  CREATE_HANDLE(dim_pair3.second, MB_END_ID, dum));
       
-      std::vector<MBEntityHandle> elems( end_ent - start_ent );
-      std::copy(start_ent, end_ent, elems.begin());
+      std::vector<MBEntityHandle> elems( start_ent, end_ent );
       
       // make 1d elements from all the 2d and 3d elements
       for(start_ent = elems.begin(); start_ent != elems.end(); ++start_ent)
@@ -754,8 +748,7 @@ MBErrorCode AEntityFactory::get_zero_to_n_elements(MBEntityHandle source_entity,
     end_ent = std::lower_bound(start_ent, adj_vec->end(), CREATE_HANDLE(dim_pair2.second, MB_END_ID, dum));
 
     // copy the entities
-    target_entities.resize(end_ent - start_ent);
-    std::copy(start_ent, end_ent, target_entities.begin());
+    target_entities.insert( target_entities.end(), start_ent, end_ent );
   }
 
   return result;
