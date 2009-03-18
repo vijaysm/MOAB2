@@ -510,7 +510,7 @@ public:
         \param to_dimension Dimension of desired adjacencies
         \param create_if_missing If true, MB will create any entities of the specfied dimension
         which have not yet been created (only useful when <em>to_dimension < dim(*from_entities)</em>)
-        \param adj_entities STL vector in which adjacent entities are returned. 
+        \param adj_entities STL vector to which adjacent entities are appended. 
         \param operation_type Enum of INTERSECT or UNION.  Defines whether to take
         the intersection or union of the set of adjacencies recovered for the from_entities.
 

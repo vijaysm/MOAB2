@@ -52,12 +52,27 @@ public:
 //! remove all adjacencies from from the base_entity.
   MBErrorCode remove_all_adjacencies(MBEntityHandle base_entity,
                                      const bool delete_adj_list = false);
-  
-//! get the elements contained by source_entity, of
-//! type target_type, passing back in target_entities; if create_if_missing
-//! is true and no entity is found, one is created; if create_adjacency_option
-//! is >= 0, adjacencies from entities of that dimension to each target_entity
-//! are created (this function uses AEntityFactory::get_element for each element)
+
+/**\brief Get adjacencies for a single source entity.
+ *
+ * Get adjacent entities.
+ *
+ *\param source_entity    The entity for which to retrieve the adjacencies.
+ *\param target_dimension Retrieve adjacent entities of this dimension.  Must
+ *                        be in the range [0,4], where 4 is used to indicated entity sets.
+ *\param target_entities  Requested adjacent entities will be appended to this list.
+ *\param create_if_missing If true, adjacent elements of the specified dimension will
+ *                        be created if they do not already exist.  If the target dimension
+ *                        is less than the dimension of the input entity and greater than zero, the 
+ *                        elements will be created as required to represent the "sides" of
+ *                        the source element.  If the target dimension is greater than that
+ *                        of the source entity and less than 3, then sides of the specified
+ *                        dimension on that are a) of greater dimension and b) adjacent to
+ *                        the input entity will be created.
+ * \param create_adjacency_option If create_adjacency_option is >= 0, adjacencies from 
+ *                        entities of that dimension to each target_entity are created 
+ *                        (this function uses AEntityFactory::get_element for each element)
+ */
   MBErrorCode get_elements(MBEntityHandle source_entity,
                             const unsigned int target_dimension,
                             std::vector<MBEntityHandle> &target_entities,
@@ -89,6 +104,14 @@ public:
                            const MBEntityHandle source_entity = 0,
                            const int create_adjacency_option = -1);
 
+  /**\brief Get adjacent entities
+   *
+   *\param entity            The source entity for which to retrieve adjacent entities.
+   *\param to_dimension      The adjacent entities to retrieve, specified by dimension.
+   *\param create_if_missing Create adjacent entities that do not already exist.
+   *\param adjacent_entities The resulting adjacent entities are appended to this 
+   *                         list.
+   */
   MBErrorCode get_adjacencies(const MBEntityHandle entity,
                                const unsigned int to_dimension,
                                bool create_if_missing,

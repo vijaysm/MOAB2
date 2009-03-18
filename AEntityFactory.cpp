@@ -100,9 +100,6 @@ MBErrorCode AEntityFactory::get_elements(MBEntityHandle source_entity,
 
   if(target_dimension > 4)
     return MB_FAILURE;
-
-  if(!target_entities.empty())
-    target_entities.clear();
   
   std::vector<MBEntityHandle> vertices;
 
@@ -157,8 +154,6 @@ MBErrorCode AEntityFactory::get_associated_meshsets( MBEntityHandle source_entit
 {
 
   MBErrorCode result;
-  if(!target_entities.empty())
-    target_entities.clear();
   
   const MBEntityHandle* adj_vec;
   int num_adj;
@@ -175,8 +170,7 @@ MBErrorCode AEntityFactory::get_associated_meshsets( MBEntityHandle source_entit
     std::lower_bound(start_ent, adj_vec+num_adj, CREATE_HANDLE(dim_pair.second, MB_END_ID, dum));
 
   // copy the the meshsets 
-  target_entities.resize(end_ent - start_ent);
-  std::copy(start_ent, end_ent, target_entities.begin());
+  target_entities.insert( target_entities.end(), start_ent, end_ent );
 
   return result; 
 
@@ -875,7 +869,7 @@ MBErrorCode AEntityFactory::get_down_adjacency_elements_poly(MBEntityHandle sour
   if (MB_SUCCESS != result) return result;
 
   if (target_dimension == 0) {
-    target_entities = vertex_array;
+    target_entities.insert( target_entities.end(), vertex_array.begin(), vertex_array.end() );
     return MB_SUCCESS;
   }
 
@@ -1065,7 +1059,7 @@ MBErrorCode AEntityFactory::get_up_adjacency_elements(
     
     it1 = std::lower_bound( end1, vtx_adj->end(), tgt_beg_handle );
     end1 = std::lower_bound( it1, vtx_adj->end(), tgt_end_handle );
-    target_entities.erase( intersect( target_entities.begin(), target_entities.end(),
+    target_entities.erase( intersect( target_entities.begin()+in_size, target_entities.end(),
                            it1, end1 ), target_entities.end() );
   }
   
@@ -1163,7 +1157,7 @@ MBErrorCode AEntityFactory::get_up_adjacency_elements(MBEntityHandle source_enti
   std::vector<MBEntityHandle> tmp_vec;
   if (!equiv_entities) {
       // get elems adjacent to each node
-    std::vector<MBEntityHandle> *elems = new std::vector<MBEntityHandle>[num_source_vertices];
+    std::vector< std::vector<MBEntityHandle> > elems(num_source_vertices);
     int i;
     for(i=0; i < num_source_vertices; i++)
     {
@@ -1189,8 +1183,7 @@ MBErrorCode AEntityFactory::get_up_adjacency_elements(MBEntityHandle source_enti
     }
 
       // elems[0] contains the intersection, swap with target_entities
-    target_entities.swap(elems[0]);
-    delete [] elems;
+    target_entities.insert( target_entities.end(), elems[0].begin(), elems[0].end() );
   }
   else if (source_type == MBPOLYGON) {
       // get adjacencies using polyhedra's connectivity vectors
@@ -1251,8 +1244,7 @@ MBErrorCode AEntityFactory::get_up_adjacency_elements(MBEntityHandle source_enti
     std::copy(start_ent_td, end_ent_td, mb_range_inserter(target_ents));
     
       // now insert the whole thing into the argument vector
-    target_entities.clear();
-    std::copy(target_ents.begin(), target_ents.end(), std::back_inserter(target_entities));
+    target_entities.insert( target_entities.end(), target_ents.begin(), target_ents.end() );
   }
 
   return result;
