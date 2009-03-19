@@ -62,7 +62,7 @@ private:
   MBErrorCode write_nodes( std::ostream& stream, const MBRange& nodes );
   
     //! Write element connectivity
-  MBErrorCode write_elems( std::ostream& stream, const MBRange& elems );
+  MBErrorCode write_elems( std::ostream& stream, const MBRange& nodes, const MBRange& elems );
   
     //! Write all tags on either the list of nodes or the list of elements
   MBErrorCode write_tags( std::ostream& stream, bool nodes, const MBRange& entities );
@@ -83,8 +83,7 @@ private:
 
   MBInterface* mbImpl;
   MBWriteUtilIface* writeTool;
-  MBTag globalId;
-  
+ 
   bool mStrict; // If true, do not write data that cannot fit in strict VTK file format.
   
 };

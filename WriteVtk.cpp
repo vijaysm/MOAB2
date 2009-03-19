@@ -52,21 +52,13 @@ MBWriterIface *WriteVtk::factory( MBInterface* iface )
   { return new WriteVtk( iface ); }
 
 WriteVtk::WriteVtk(MBInterface *impl) 
-    : mbImpl(impl), writeTool(0), globalId(0), mStrict(DEFAULT_STRICT)
+    : mbImpl(impl), writeTool(0), mStrict(DEFAULT_STRICT)
 {
   assert(impl != NULL);
 
   void* ptr = 0;
   impl->query_interface( "MBWriteUtilIface", &ptr );
   writeTool = reinterpret_cast<MBWriteUtilIface*>(ptr);
-  
-  MBErrorCode result = impl->tag_get_handle(GLOBAL_ID_TAG_NAME, globalId);
-  if (MB_TAG_NOT_FOUND == result)
-    result = impl->tag_create( GLOBAL_ID_TAG_NAME, 
-                               sizeof(int), 
-                               MB_TAG_SPARSE,
-                               MB_TYPE_INTEGER, 
-                               globalId, 0 );
 }
 
 WriteVtk::~WriteVtk() 
@@ -122,7 +114,7 @@ MBErrorCode WriteVtk::write_file(const char *file_name,
     // Write file
   if ((rval = write_header(file              )) != MB_SUCCESS ||
       (rval = write_nodes( file, nodes       )) != MB_SUCCESS ||
-      (rval = write_elems( file, elems       )) != MB_SUCCESS ||
+      (rval = write_elems( file, nodes, elems)) != MB_SUCCESS ||
       (rval = write_tags ( file, true,  nodes)) != MB_SUCCESS ||
       (rval = write_tags ( file, false, elems)) != MB_SUCCESS)
   {
@@ -232,30 +224,23 @@ MBErrorCode WriteVtk::write_nodes( std::ostream& stream, const MBRange& nodes )
 {
   MBErrorCode rval;
   
-    // Allocate storage for node coordinates
-  const unsigned long n = nodes.size();
-  std::vector<double> coord_mem( 3*n );
-  double* x = &coord_mem[0];
-  double* y = &coord_mem[n];
-  double* z = &coord_mem[2*n];
-  std::vector<double*> coord_arrays(3);
-  coord_arrays[0] = x;
-  coord_arrays[1] = y;
-  coord_arrays[2] = z;
-  
-    // Get node coordinates
-  rval = writeTool->get_node_arrays( 3, n, nodes, globalId, 0, coord_arrays );
-  if (MB_SUCCESS != rval)
-    return MB_FAILURE;
-  
   stream << "POINTS " << nodes.size() << " double" << std::endl;
-  for (unsigned long i = 0; i < n; ++i, ++x, ++y, ++z )
-    stream << *x << ' ' << *y << ' ' << *z << std::endl;
+  
+  double coords[3];
+  for (MBRange::const_iterator i = nodes.begin(); i != nodes.end(); ++i) {
+    coords[1] = coords[2] = 0.0;
+    rval = mbImpl->get_coords( &*i, 1, coords );
+    if (MB_SUCCESS != rval)
+      return rval;
+    stream << coords[0] << ' ' << coords[1] << ' ' <<coords[2] << std::endl;
+  }
   
   return MB_SUCCESS;
 }
 
-MBErrorCode WriteVtk::write_elems( std::ostream& stream, const MBRange& elems )
+MBErrorCode WriteVtk::write_elems( std::ostream& stream, 
+                                   const MBRange& nodes,
+                                   const MBRange& elems )
 {
   MBErrorCode rval;
 
@@ -302,11 +287,9 @@ MBErrorCode WriteVtk::write_elems( std::ostream& stream, const MBRange& elems )
 
       // Get IDs from vertex handles
     assert( conn_len > 0 );
-     if (conn_data.size() < (unsigned)conn_len)
-      conn_data.resize( conn_len );
-    rval = mbImpl->tag_get_data( globalId, conn, conn_len, &conn_data[0] );
-    if (MB_SUCCESS != rval)
-      return rval;
+    conn_data.resize( conn_len );
+    for (int j = 0; j < conn_len; ++j)
+      conn_data[j] = nodes.index( conn[j] );
     
       // Save VTK type index for later
     *t = vtk_type->vtk_type;
@@ -366,11 +349,6 @@ MBErrorCode WriteVtk::write_tags( std::ostream& stream, bool nodes, const MBRang
   bool entities_have_tags = false;
   for (std::vector<MBTag>::iterator i = tags.begin(); i != tags.end(); ++i)
   {
-      // Skip this tag because we created this data as part of writing
-      // the mesh.  
-    if (*i == globalId)
-      continue;
-
       // Skip tags holding entity handles -- no way to save them
     MBDataType type;
     rval = mbImpl->tag_get_data_type( *i, type );
