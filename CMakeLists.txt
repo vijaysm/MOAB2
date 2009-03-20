@@ -154,6 +154,7 @@ project( MOAB )
     ReadIDEAS.cpp
     ReadSms.cpp
     ReadSTL.cpp
+    ReadTetGen.cpp
     ReadVtk.cpp
     ScdElementData.cpp
     ScdVertexData.cpp
@@ -162,6 +163,7 @@ project( MOAB )
     SparseTagSuperCollection.cpp
     SparseTagCollection.cpp
     StructuredElementSeq.cpp
+    SweptElementSeq.cpp
     TagInfo.cpp
     TagServer.cpp
     Tqdcfr.cpp
