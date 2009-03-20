@@ -164,6 +164,24 @@ class SequenceManager
                                      MBEntityHandle& first_handle_out,
                                      EntitySequence*& sequence_out );
 
+      /** Create swept mesh */
+    MBErrorCode create_sweep_sequence( int imin, int jmin, int kmin,
+				       int imax, int jmax, int kmax,
+				       int* Cq,
+				       MBEntityType type,
+				       MBEntityID start_id_hint,
+				       MBEntityHandle& first_handle_out,
+				       EntitySequence*& sequence_out );
+    
+      /** Create swept mesh */
+    MBErrorCode create_sweep_sequence( const HomCoord& coord_min,
+				       const HomCoord& coord_max,
+				       int* Cq,
+				       MBEntityType type,
+				       MBEntityID start_id_hint,
+				       MBEntityHandle& first_handle_out,
+				       EntitySequence*& sequence_out );
+
     /** Add a structured vertex sequence to this structured element sequence;
      * see comments in ScdElementData */
   MBErrorCode add_vsequence(EntitySequence *vert_seq,

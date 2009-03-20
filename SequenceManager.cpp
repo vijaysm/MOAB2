@@ -685,6 +685,82 @@ SequenceManager::create_scd_sequence( const HomCoord& coord_min,
                               first_handle_out, sequence_out );
 }
 
+MBErrorCode
+SequenceManager::create_sweep_sequence( int imin, int jmin, int kmin,
+					int imax, int jmax, int kmax,
+					int* Cq,
+					MBEntityType type,
+					MBEntityID start_id_hint,
+					MBEntityHandle& handle,
+					EntitySequence*& sequence )
+{
+  int this_dim = MBCN::Dimension(type);
+
+    // use > instead of != in the following assert to also catch cases where imin > imax, etc.
+  assert((this_dim < 3 || kmax > kmin) &&
+         (this_dim < 2 || jmax > jmin) &&
+         (this_dim < 1 || imax > imin));
+
+    // compute # entities; not as easy as it would appear...
+  MBEntityID num_ent;
+  if (MBVERTEX == type)
+    num_ent = (MBEntityID)(imax-imin+1)*(MBEntityID)(jmax-jmin+1)*(MBEntityID)(kmax-kmin+1);
+  else {
+    num_ent = (imax-imin) *
+      (this_dim >= 2 ? (jmax-jmin) : 1) *
+      (this_dim >= 3 ? (kmax-kmin) : 1);
+  }
+  
+    // get a start handle
+  SequenceData* data = 0;
+  MBEntityID data_size = 0;
+  handle = sequence_start_handle( type, num_ent, -1, start_id_hint, data, data_size );
+
+  if (!handle)
+    return MB_MEMORY_ALLOCATION_FAILED;
+  assert(!data);
+  
+  switch (type) {
+  case MBVERTEX:
+    data = new ScdVertexData( handle, imin, jmin, kmin, imax, jmax, kmax );
+    sequence = new VertexSequence( handle, data->size(), data );
+    break;
+  case MBEDGE:
+  case MBQUAD:
+  case MBHEX:
+    sequence = new StructuredElementSeq( handle, imin, jmin, kmin, imax, jmax, kmax );
+    break;
+  default:
+    return MB_TYPE_OUT_OF_RANGE;
+  }
+  
+  MBErrorCode result = typeData[type].insert_sequence( sequence );
+  if (MB_SUCCESS != result) {
+    data = sequence->data();
+    delete sequence;
+    delete data;
+    return result;
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode
+SequenceManager::create_sweep_sequence( const HomCoord& coord_min,
+					const HomCoord& coord_max,
+					int* Cq,
+					MBEntityType type,
+					MBEntityID start_id_hint,
+					MBEntityHandle& first_handle_out,
+					EntitySequence*& sequence_out )
+{
+  return create_sweep_sequence( coord_min.i(), coord_min.j(), coord_min.k(),
+				coord_max.i(), coord_max.j(), coord_max.k(),
+				Cq,
+				type, start_id_hint,
+				first_handle_out, sequence_out );
+}
+
 MBErrorCode 
 SequenceManager::add_vsequence(EntitySequence *vert_seq,
                                EntitySequence *elem_seq,
