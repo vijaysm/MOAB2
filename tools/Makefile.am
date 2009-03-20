@@ -3,6 +3,9 @@ DEFS = $(DEFINES)
 INCLUDES += -I$(top_srcdir) -I$(top_builddir)
 LDADD = $(top_builddir)/libMOAB.la
 
+# For old (pre 1.10.x) versions of Automake
+docdir = @docdir@
+
 @CGM_CONFIG_OPTIONS@
 
 if HAVE_CGM
