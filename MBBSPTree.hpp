@@ -294,12 +294,12 @@ class MBBSPTreeBoxIter : public MBBSPTreeIter
                                  const MBBSPTree::Plane& plane );
   
   static SideBits opposite_face( const SideBits& bits ) 
-    { return (SideBits)(~bits); }
+    { return (SideBits)((~bits) & 0xFF); }
   
   //! Advance the iterator either left or right in the tree
   //! Note:  stepping past the end of the tree will invalidate
-  //!        the iterator.  It will *not* be work step the
-  //!        other direction.
+  //!        the iterator.  It will *not* work to subsequently 
+  //!        step the other direction.
   virtual MBErrorCode step( Direction direction );
 
     //! Advance to next leaf
