@@ -51,7 +51,7 @@ if PARALLEL_HDF5
   MOAB_PARALLEL_SRCS += WriteHDF5Parallel.cpp 
   MOAB_PARALLEL_HDRS += WriteHDF5Parallel.hpp
   
-  MOAB_PARALLEL_TEST += parallel_hdf5_test mhdf_parallel
+  MOAB_PARALLEL_TEST += parallel_hdf5_test mhdf_parallel parallel_write_test
 endif
 
   MOAB_PARALLEL_CHECK += mbparallelcomm_test
@@ -82,6 +82,9 @@ mhdf_parallel_SOURCES = mhdf_parallel.c
 mhdf_parallel_LDADD = ../mhdf/libmhdf.la
 parallel_unit_tests_SOURCES = parallel_unit_tests.cpp
 parallel_unit_tests_LDADD = ../libMOAB.la
+parallel_write_test_SOURCES = parallel_write_test.cc
+parallel_write_test_LDADD = ../libMOAB.la
+
 
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = mhdf_ll.h5m
