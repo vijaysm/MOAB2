@@ -1125,9 +1125,6 @@ void iMeshP_getEntities(
             int *entities_size,
             int *err);
 
-
-
-
 /** \brief Create an entity iterator for a given part and entity set.  
 
  *  Given a local part and an entity set, return an iterator over the
