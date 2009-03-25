@@ -39,6 +39,7 @@
 #include <string.h>
 #include <limits>
 #include <H5Tpublic.h>
+#include <H5Ppublic.h>
 #include "MBInterface.hpp"
 #include "MBInternals.hpp"
 #include "MBTagConventions.hpp"
@@ -266,7 +267,8 @@ WriteHDF5::WriteHDF5( MBInterface* iface )
     writeSets(false),
     writeSetContents(false),
     writeSetChildren(false),
-    writeSetParents(false)
+    writeSetParents(false),
+    writeProp( H5P_DEFAULT )
 {
 }
 
@@ -719,7 +721,7 @@ MBErrorCode WriteHDF5::write_nodes( )
         memset( buffer, 0, count * sizeof(double) );
       }
     
-      mhdf_writeNodeCoord( node_table, offset, count, d, buffer, &status );
+      mhdf_writeNodeCoordWithOpt( node_table, offset, count, d, buffer, writeProp, &status );
       CHK_MHDF_ERR_1(status, node_table);
     }
     
@@ -775,8 +777,8 @@ MBErrorCode WriteHDF5::write_elems( ExportSet& elems )
       if (0 == (buffer[i] = idMap.find( buffer[i] )))
         return MB_FAILURE;
     
-    mhdf_writeConnectivity( elem_table, offset, count, 
-                            id_type, buffer, &status );
+    mhdf_writeConnectivityWithOpt( elem_table, offset, count, 
+                                   id_type, buffer, writeProp, &status );
     CHK_MHDF_ERR_1(status, elem_table);
     
     offset += count;
@@ -903,18 +905,20 @@ MBErrorCode WriteHDF5::write_sets( )
     
       if (id_list.size())
       {
-        mhdf_writeSetData( content_table, 
-                           content_offset,
-                           id_list.size(),
-                           id_type,
-                           &id_list[0],
-                           &status );
+        mhdf_writeSetDataWithOpt( content_table, 
+                                  content_offset,
+                                  id_list.size(),
+                                  id_type,
+                                  &id_list[0],
+                                  writeProp,
+                                  &status );
         CHK_MHDF_ERR_2C(status, set_table, writeSetContents, content_table );
         content_offset += data_size;
       }
     }
 
-    mhdf_writeSetMeta( set_table, set_offset, count, H5T_NATIVE_LONG, buffer, &status );
+    mhdf_writeSetMetaWithOpt( set_table, set_offset, count, H5T_NATIVE_LONG, 
+                              buffer, writeProp, &status );
     CHK_MHDF_ERR_2C(status, set_table, writeSetContents, content_table );
     set_offset += count;
   }
@@ -953,12 +957,13 @@ MBErrorCode WriteHDF5::write_sets( )
       CHK_MB_ERR_1(rval, child_table, status);
 
 
-      mhdf_writeSetParentsChildren( child_table, 
-                                    child_offset, 
-                                    id_list.size(), 
-                                    id_type, 
-                                    &id_list[0], 
-                                    &status );
+      mhdf_writeSetParentsChildrenWithOpt( child_table, 
+                                           child_offset, 
+                                           id_list.size(), 
+                                           id_type, 
+                                           &id_list[0], 
+                                           writeProp,
+                                           &status );
       CHK_MHDF_ERR_1(status, child_table);
       child_offset += id_list.size();
     }
@@ -991,12 +996,13 @@ MBErrorCode WriteHDF5::write_sets( )
       CHK_MB_ERR_1(rval, parent_table, status);
 
 
-      mhdf_writeSetParentsChildren( parent_table, 
-                                    parent_offset, 
-                                    id_list.size(), 
-                                    id_type, 
-                                    &id_list[0], 
-                                    &status );
+      mhdf_writeSetParentsChildrenWithOpt( parent_table, 
+                                           parent_offset, 
+                                           id_list.size(), 
+                                           id_type, 
+                                           &id_list[0], 
+                                           writeProp,
+                                           &status );
       CHK_MHDF_ERR_1(status, parent_table);
       parent_offset += id_list.size();
     }
@@ -1274,7 +1280,7 @@ MBErrorCode WriteHDF5::write_adjacencies( const ExportSet& elements )
     
     if (count + adj_list.size() + 2 > (unsigned long)chunk_size)
     {
-      mhdf_writeAdjacency( table, offset, count, id_type, buffer, &status );
+      mhdf_writeAdjacencyWithOpt( table, offset, count, id_type, buffer, writeProp, &status );
       CHK_MHDF_ERR_1(status, table);
       
       offset += count;
@@ -1291,7 +1297,7 @@ MBErrorCode WriteHDF5::write_adjacencies( const ExportSet& elements )
   
   if (count)
   {
-    mhdf_writeAdjacency( table, offset, count, id_type, buffer, &status );
+    mhdf_writeAdjacencyWithOpt( table, offset, count, id_type, buffer, writeProp, &status );
     CHK_MHDF_ERR_1(status, table);
 
     offset += count;
@@ -1481,7 +1487,7 @@ MBErrorCode WriteHDF5::write_dense_tag( ExportSet& set,
     }
     else CHK_MB_ERR_1( rval, data_handle, status );
     
-    mhdf_writeDenseTag( data_handle, offset, count, type, dataBuffer, &status );
+    mhdf_writeDenseTagWithOpt( data_handle, offset, count, type, dataBuffer, writeProp, &status );
     CHK_MHDF_ERR_1( status, data_handle );
     
     offset += count;
@@ -1527,8 +1533,8 @@ MBErrorCode WriteHDF5::write_sparse_ids( const SparseTag& tag_data,
     CHK_MB_ERR_0( rval );
     
       // write the data
-    mhdf_writeSparseTagEntities( id_table, offset, count, id_type, 
-                                 id_buffer, &status );
+    mhdf_writeSparseTagEntitiesWithOpt( id_table, offset, count, id_type, 
+                                        id_buffer, writeProp, &status );
     CHK_MHDF_ERR_0( status );
    
     offset += count;
@@ -1646,8 +1652,8 @@ DEBUGOUT((std::string("Tag: ") + name + "\n").c_str());
                           count * mb_size / sizeof(MBEntityHandle) );
     
       // write the data
-    mhdf_writeSparseTagValues( tables[1], offset, count,
-                               value_type, tag_buffer, &status );
+    mhdf_writeSparseTagValuesWithOpt( tables[1], offset, count,
+                                      value_type, tag_buffer, writeProp, &status );
     if (mhdf_isError(&status) && value_type && value_type != id_type)
       H5Tclose( value_type );
     CHK_MHDF_ERR_1(status, tables[1]);
@@ -1768,7 +1774,10 @@ DEBUGOUT((std::string("Var Len Tag: ") + name + "\n").c_str());
       if (bytes + size > data_buffer_size) {
           // write out tag data buffer
         if (bytes) { // bytes might be zero if tag value is larger than buffer
-          mhdf_writeSparseTagValues( tables[1], data_offset, bytes / type_size, hdf_type, data_buffer, &status );
+          mhdf_writeSparseTagValuesWithOpt( tables[1], data_offset, 
+                                            bytes / type_size, 
+                                            hdf_type, data_buffer, 
+                                            writeProp, &status );
           CHK_MHDF_ERR_2(status, tables + 1);
           data_offset += bytes / type_size;
           bytes = 0;
@@ -1783,7 +1792,9 @@ DEBUGOUT((std::string("Var Len Tag: ") + name + "\n").c_str());
                               &tmp_storage[0], tmp_storage.size() );
           ptr = &tmp_storage[0];
         }
-        mhdf_writeSparseTagValues( tables[1], data_offset, size / type_size, hdf_type, ptr, &status );
+        mhdf_writeSparseTagValuesWithOpt( tables[1], data_offset, 
+                                          size / type_size, hdf_type, ptr,
+                                          writeProp, &status );
         CHK_MHDF_ERR_2(status, tables + 1);
         data_offset += size / type_size;
       }
@@ -1800,7 +1811,9 @@ DEBUGOUT((std::string("Var Len Tag: ") + name + "\n").c_str());
     }
     
       // write offsets
-    mhdf_writeSparseTagIndices( tables[2], offset_offset, count, H5T_NATIVE_LONG, offset_buffer, &status );
+    mhdf_writeSparseTagIndicesWithOpt( tables[2], offset_offset, count, 
+                                       H5T_NATIVE_LONG, offset_buffer, 
+                                       writeProp, &status );
     CHK_MHDF_ERR_2(status, tables + 1);
     offset_offset += count;
   }
@@ -1809,7 +1822,8 @@ DEBUGOUT((std::string("Var Len Tag: ") + name + "\n").c_str());
     // flush data buffer
   if (bytes) {
       // write out tag data buffer
-    mhdf_writeSparseTagValues( tables[1], data_offset, bytes / type_size, hdf_type, data_buffer, &status );
+    mhdf_writeSparseTagValuesWithOpt( tables[1], data_offset, bytes / type_size,
+                                      hdf_type, data_buffer, writeProp, &status );
     CHK_MHDF_ERR_2(status, tables + 1);
     data_offset += bytes / type_size;
   }

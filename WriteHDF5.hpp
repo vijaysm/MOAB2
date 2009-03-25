@@ -242,6 +242,11 @@ protected:
 
   //! True if doing parallel write
   bool parallelWrite;
+  
+  //! Property set to pass to H5Dwrite calls. 
+  //! For serial, should be H5P_DEFAULTS.
+  //! For parallel, may request collective IO.
+  hid_t writeProp;
 
 private:
 
