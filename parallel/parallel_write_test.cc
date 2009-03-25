@@ -8,6 +8,17 @@
 #include <string.h>
 #include <math.h>
 #include <assert.h>
+#include <stdio.h>
+
+#define TPRINT(A) tprint( (A) )
+static void tprint(const char* A) 
+{
+  int rank;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  char buffer[128]; 
+  sprintf(buffer,"%02d: %6.2f: %s\n", rank, (double)clock()/CLOCKS_PER_SEC, A);
+  fputs( buffer, stderr ); 
+}
 
 const int DEFAULT_INTERVALS  = 2;
 const char* DEFAULT_FILE_NAME = "paralle_write_test.h5m";
@@ -116,6 +127,7 @@ int main( int argc, char* argv[] )
   }
   
     // Create mesh
+TPRINT("Generating mesh");
   MBCore mb;
   MBInterface& moab = mb;
   MBErrorCode rval = generate_mesh( moab, intervals );
@@ -126,6 +138,7 @@ int main( int argc, char* argv[] )
   
     // Write out local mesh on each processor if requested.
   if (indiv_file_name) {
+TPRINT("Writing individual file");
     char buffer[64];
     int width = (int)ceil( log10( size ) );
     sprintf(buffer,"%0*d-", width, rank );
@@ -138,6 +151,7 @@ int main( int argc, char* argv[] )
     }
   }
 
+TPRINT("Resolving shared entities");
     // Negotiate shared entities using vertex global IDs
   MBRange hexes;
   moab.get_entities_by_type( 0, MBHEX, hexes );
@@ -148,12 +162,16 @@ int main( int argc, char* argv[] )
     return rval;
   }
 
+TPRINT("Beginning parallel write");
     // Do parallel write
   clock_t t = clock();
   rval = moab.write_file( output_file_name, "MOAB", "PARALLEL=FORMAT" );
   t = clock() - t;
   if (MB_SUCCESS != rval) {
-    std::cerr << "File creation failed with error code: " << rval << std::endl;
+    std::string msg;
+    moab.get_last_error( msg );
+    std::cerr << "File creation failed with error code: " << moab.get_error_string( rval ) << std::endl;
+    std::cerr << "\t\"" << msg << '"' << std::endl;
     return (int)rval;
   }
   
@@ -162,10 +180,13 @@ int main( int argc, char* argv[] )
     double sec = (double)t / CLOCKS_PER_SEC;
     std::cout << "Wrote " << hexes.size()*size << " hexes in " << sec << " seconds." << std::endl;
 
-    if (!keep_output_file)
+    if (!keep_output_file) {
+TPRINT("Removing written file");
       remove( output_file_name );
+    }
   }
   
+TPRINT("Finalizing MPI");
   return MPI_Finalize();
 }
 
