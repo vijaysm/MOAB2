@@ -262,7 +262,7 @@ mhdf_readwriteSetMeta( hid_t table_id, int read,
   mem_id = H5Screate_simple( dims, mcounts, NULL );
   if (mem_id < 0)
   {
-    mhdf_setFail( status, "Internal error calling H5Sselect_hyperslab." );
+    mhdf_setFail( status, "Internal error calling H5Screate_simple." );
     return 0;
   }
   
@@ -270,7 +270,10 @@ mhdf_readwriteSetMeta( hid_t table_id, int read,
   if (counts[1] == 4)
   {
     offsets[1] = 0;
-    rval = H5Sselect_hyperslab( slab_id, H5S_SELECT_SET, offsets, NULL, counts, NULL );
+    if (count) 
+      rval = H5Sselect_hyperslab( slab_id, H5S_SELECT_SET, offsets, NULL, counts, NULL );
+    else 
+      rval = H5Sselect_none( slab_id );
     if (rval < 0)
     {
       H5Sclose( mem_id );
@@ -301,7 +304,10 @@ mhdf_readwriteSetMeta( hid_t table_id, int read,
       
       counts[1] = 1;
       offsets[1] = i;
-      rval = H5Sselect_hyperslab( sslab_id, H5S_SELECT_SET, offsets, NULL, counts, NULL );
+      if (count)
+        rval = H5Sselect_hyperslab( sslab_id, H5S_SELECT_SET, offsets, NULL, counts, NULL );
+      else
+        rval = H5Sselect_none( sslab_id );
       if (rval < 0)
       {
         H5Sclose( slab_id );
@@ -475,7 +481,7 @@ mhdf_readSetMetaColumn( hid_t table_id,
   mem_id = H5Screate_simple( 1, &mcount, NULL );
   if (mem_id < 0) {
     H5Sclose( slab_id );
-    mhdf_setFail( status, "Internal error calling H5Sselect_hyperslab." );
+    mhdf_setFail( status, "Internal error calling H5Screate_simple." );
     return 0;
   }
   
@@ -516,7 +522,10 @@ mhdf_readSetMetaColumn( hid_t table_id,
   offsets[0] = (hsize_t)offset;
   counts[0] = (hsize_t)count;
   counts[1] = 1; /* one column */
-  rval = H5Sselect_hyperslab( slab_id, H5S_SELECT_SET, offsets, NULL, counts, NULL );
+  if (count) 
+    rval = H5Sselect_hyperslab( slab_id, H5S_SELECT_SET, offsets, NULL, counts, NULL );
+  else
+    rval = H5Sselect_none( slab_id );
   if (rval < 0)
   {
     H5Sclose( mem_id );
