@@ -166,6 +166,9 @@ protected:
     id_t offset;
     //! Offset for adjacency data.  Always zero except for parallel IO
     MBEntityID adj_offset;
+    //! If doing parallel IO, largest number of entities to write
+    //! for any processor (needed to do collective IO).  Zero if unused.
+    long max_num_ents, max_num_adjs;
     
     bool operator<( const ExportSet& other ) const
       { return type < other.type || 
@@ -194,6 +197,10 @@ public:
     id_t varDataOffset;
     //! Write tag data (for serial, is always equal to !range.empty())
     bool write;
+    //! If doing parallel IO, largest number of tag values to write
+    //! for any processor (needed to do collective IO).  Zero if unused.
+    long max_num_ents;
+    
     
     bool operator<(const SparseTag&) const;
   };
@@ -228,6 +235,9 @@ protected:
   unsigned long setContentsOffset;
   //! Offset into set children table (zero except for parallel)
   unsigned long setChildrenOffset, setParentsOffset;
+  //! If doing parallel IO, largest number of values to write
+  //! for any processor (needed to do collective IO).  Zero if unused.
+  long maxNumSetContent, maxNumSetChildren, maxMumSetParents;
   //! Flags idicating if set data should be written.
   //! For the normal (non-parallel) case, these values
   //! will depend only on whether or not there is any
