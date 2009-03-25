@@ -583,7 +583,7 @@ extern "C" {
       ++(this_it->currentPos);
     }
   
-    *has_data = (this_it->currentPos != this_it->iteratorRange.end());
+    *has_data = !i;
     *entity_handles_size = i;
     RETURN(iBase_SUCCESS);
   }

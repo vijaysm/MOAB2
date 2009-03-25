@@ -431,8 +431,8 @@ extern "C" {
      *        entity_handles array
      * \param *entity_handles_size Pointer to occupied size of entity_handles 
      *        array
-     * \param has_data Pointer to flag; if returned non-zero, next iterator
-     *        has a non-zero number of entities
+     * \param has_data Pointer to flag; zero if no entities returned
+     *        because iterator is at end, one otherwize.
      * \param *err Pointer to error type returned from function
      */
   void iMesh_getNextEntArrIter(iMesh_Instance instance,
@@ -1810,8 +1810,8 @@ extern "C" {
      * \param entity_iterator Iterator being queried
      * \param entity_handle Pointer to an entity handle corresponding to the
      *        current value of iterator
-     * \param has_data Pointer to flag; if returned non-zero, next iterator
-     *        has an entity
+     * \param has_data Pointer to flag; if non-zero, value returned in 
+     *          entity_handle is valid. Otherwise, the iteration as at the end.
      * \param *err Pointer to error type returned from function
      */
   void iMesh_getNextEntIter(iMesh_Instance instance,
