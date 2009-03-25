@@ -6,6 +6,9 @@
 #  include <stdarg.h>
 #endif
 
+#include <stdio.h>
+#include <time.h>
+
 #ifndef HDF5_FILE
 #  error Attempt to compile WriteHDF5Parallel with HDF5 support disabled
 #endif
@@ -38,6 +41,17 @@
 
 #include "WriteHDF5Parallel.hpp"
 
+
+#define TPRINT(A)
+//#define TPRINT(A) tprint( (A) )
+static void tprint(const char* A) 
+{
+  int rank;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  char buffer[128]; 
+  sprintf(buffer,"%02d: %6.2f: %s\n", rank, (double)clock()/CLOCKS_PER_SEC, A);
+  fputs( buffer, stderr ); 
+}
 
 #ifdef DEBUG
 #  define START_SERIAL                     \
@@ -366,11 +380,13 @@ MBErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
     myPcomm = new MBParallelComm(iFace);
     pcommAllocated = true;
   }
-  
+
+TPRINT("Gathering interface meshes");
   rval = gather_interface_meshes();
   if (MB_SUCCESS != rval) return rval;
 
     /**************** get tag names for sets likely to be shared ***********/
+TPRINT("Getting shared entity sets");
   rval = get_sharedset_tags();
   if (MB_SUCCESS != rval) return rval;
   
@@ -385,6 +401,7 @@ MBErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
     for (MBEntityType i = MBEDGE; i < MBENTITYSET; ++i)
       type_names[i] = MBCN::EntityTypeName( i );
    
+TPRINT("call mhdf_createFile");
     filePtr = mhdf_createFile( filename, overwrite, type_names, MBMAXTYPE, &status );
     if (!filePtr)
     {
@@ -392,6 +409,7 @@ MBErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
       return MB_FAILURE;
     }
     
+TPRINT("call write_qa");
     rval = write_qa( qa_records );
     if (MB_SUCCESS != rval) return rval;
   }
@@ -399,30 +417,36 @@ MBErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   
      /**************** Create node coordinate table ***************/
  
+TPRINT("creating node table");
   rval = create_node_table( dimension );
   if (MB_SUCCESS != rval) return rval;
   
     /**************** Create element tables ***************/
 
+TPRINT("negotiating element types");
   rval = negotiate_type_list();
   if (MB_SUCCESS != rval) return rval;
+TPRINT("creating element table");
   rval = create_element_tables();
   if (MB_SUCCESS != rval) return rval;
   
   
     /*************** Exchange file IDs *****************/
 
+TPRINT("communicating file ids");
   rval = exchange_file_ids();
   if (MB_SUCCESS != rval) return rval;
  
 
     /**************** Create adjacency tables *********************/
   
+TPRINT("creating adjacency table");
   rval = create_adjacency_tables();
   if (MB_SUCCESS != rval) return rval;
   
     /**************** Create meshset tables *********************/
   
+TPRINT("creating meshset table");
   rval = create_meshset_tables();
   if (MB_SUCCESS != rval) return rval;
   
@@ -476,6 +500,7 @@ MBErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   
     // Populate proc_tag_offsets on root processor with the values from
     // tag_counts on each processor.
+TPRINT("communicating tag metadata");
   printdebug("Exchanging tag data for %d tags.\n", num_tags);
   std::vector<unsigned long> proc_tag_offsets(2*num_tags*myPcomm->proc_config().proc_size());
   result = MPI_Gather( &tag_counts[0], 2*num_tags, MPI_UNSIGNED_LONG,
@@ -559,6 +584,7 @@ MBErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
     mhdf_closeFile( filePtr, &status );
   }
   
+TPRINT("(re)opening file in parallel mode");
   unsigned long junk;
   hid_t hdf_opt = H5Pcreate( H5P_FILE_ACCESS );
   H5Pset_fapl_mpio( hdf_opt, myPcomm->proc_config().proc_comm(), MPI_INFO_NULL );
@@ -1706,6 +1732,11 @@ END_SERIAL;
 
 MBErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table )
 {
+//char buffer[256];
+//sprintf(buffer, "write_shared_set_descriptions( %u )", (unsigned)parallelSets.size() );
+//TPRINT( buffer );
+TPRINT( "write_shared_set_descriptions" );
+
   const id_t start_id = setSet.first_id;
   MBErrorCode rval;
   mhdf_Status status;
@@ -1739,12 +1770,16 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table )
     }
   }
 
+TPRINT( "finished write_shared_set_descriptions" );
+
   return MB_SUCCESS;
 }
     
 
 MBErrorCode WriteHDF5Parallel::write_shared_set_contents( hid_t table )
 {
+TPRINT( "write_shared_set_contents" );
+
   MBErrorCode rval;
   mhdf_Status status;
   std::vector<MBEntityHandle> handle_list;
@@ -1772,12 +1807,16 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_contents( hid_t table )
     assert(!mhdf_isError(&status));
   }
   
+
+TPRINT( "finished write_shared_set_contents" );
   return MB_SUCCESS;
 }
     
 
 MBErrorCode WriteHDF5Parallel::write_shared_set_children( hid_t table )
 {
+TPRINT( "write_shared_set_children" );
+
   MBErrorCode rval;
   mhdf_Status status;
   std::vector<MBEntityHandle> handle_list;
@@ -1806,12 +1845,15 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_children( hid_t table )
     }
   }
 
+TPRINT( "finished write_shared_set_children" );
   return MB_SUCCESS;
 }
     
 
 MBErrorCode WriteHDF5Parallel::write_shared_set_parents( hid_t table )
 {
+TPRINT( "write_shared_set_parents" );
+
   MBErrorCode rval;
   mhdf_Status status;
   std::vector<MBEntityHandle> handle_list;
@@ -1840,6 +1882,7 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_parents( hid_t table )
     }
   }
 
+TPRINT( "finished write_shared_set_parents" );
   return MB_SUCCESS;
 }
 
