@@ -37,9 +37,31 @@ MBErrorCode generate_mesh( MBInterface& moab, int intervals );
 const char args[] = "[-i <intervals>] [-o <filename>] [-g <filename>]";
 void help() {
   std::cout << "parallel_write_test " << args << std::endl
-            << "-i <N>    Each processor owns an NxNxN cube of hex elements (default: " << DEFAULT_INTERVALS << ")" << std::endl
-            << "-o <name> Retain output file and name it as specified." << std::endl
-            << "-g <name> Write local mesh to file name prefixed with MPI rank" << std::endl
+            << "  -i <N>    Each processor owns an NxNxN cube of hex elements (default: " << DEFAULT_INTERVALS << ")" << std::endl
+            << "  -o <name> Retain output file and name it as specified." << std::endl
+            << "  -g <name> Write local mesh to file name prefixed with MPI rank" << std::endl
+            << std::endl
+            << "This program creates a (non-strict) subset of a regular hex mesh "
+               "such that the mesh is already partitioned, and then attempts to "
+               "write that mesh using MOAB's parallel HDF5 writer.  The mesh size "
+               "will scale with the number of processors and the number of elements "
+               "per processor (the latter is a function of the value specified "
+               "with the '-i' flag.)" << std::endl 
+            << std::endl
+            << "Let N = ceil(cbrt(P)), where P is the number of processes.  "
+               "The mesh will be some subset of a cube with one corner at the "
+               "origin and the other at (N,N,N).  Each processor will own a "
+               "non-overlapping 1x1x1 unit block of mesh within that cube.  "
+               "If P is a power of 3, then the entire NxNxN cube will be "
+               "filled with hex elements.  Otherwise, some connected subset "
+               "of the cube will be meshed.  Each processor is assigned a "
+               "sub-block of the cube by rank where the blocks are enumerated "
+               "sequentally with x increasing most rapidly and z least rapidly." << std::endl
+            << std::endl
+            << "The size of the mesh owned by each processor is controlled by "
+               "the number of intervals along each edge of its block of mesh.  "
+               "If each block has N intervals, than each processor will have "
+               "N^3 hex elements." << std::endl
             << std::endl;
 }
  
