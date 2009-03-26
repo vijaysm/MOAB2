@@ -778,6 +778,30 @@ public:
     //! add vertices adjacent to entities in this list
   MBErrorCode add_verts(MBRange &sent_ents);
   
+  struct SharedEntityData {
+    MBEntityHandle local;
+    MBEntityHandle remote;
+    int owner;
+  };
+
+  typedef std::vector< SharedEntityData > shared_entity_vec;
+
+  //! Map indexed by processor ID and containing, for each processor ID,
+  //! a list of <local,remote> handle pairs, where the local handle is
+  //! the handle on this processor and the remove handle is the handle on
+  //! the processor ID indicated by the map index.
+  typedef std::map< int, shared_entity_vec > shared_entity_map;
+
+  //! Every processor sends shared entity handle data to every other processor
+  //! that it shares entities with.  Passed back map is all received data,
+  //! indexed by processor ID. This function is intended to be used for 
+  //! debugging.
+  MBErrorCode exchange_all_shared_handles( shared_entity_map& result );
+  
+    //! Call exchange_all_shared_handles, then compare the results with tag data
+    //! on local shared entities.
+  MBErrorCode check_all_shared_handles();
+  
     //! replace handles in from_vec with corresponding handles on
     //! to_proc (by checking shared[p/h]_tag and shared[p/h]s_tag;
     //! if no remote handle and new_ents is non-null, substitute

@@ -593,22 +593,14 @@ MBErrorCode test_elements_on_several_procs( const char* filename )
     shared_ents.merge(pcomm->shared_ents()[i].localHandles);
   }
 
-    // over all interfaces, the owned and shared lists should be mutually exclusive
-    // and the interface ents should be contained in one of those
-  if (!(owned_ents.intersect(shared_ents)).empty()) {
-    std::cerr << "Contents of localHandles and ownedShared not consistent on proc "
-              << pcomm->proc_config().proc_rank() << std::endl;
+  rval = pcomm->check_all_shared_handles();
+  if (MB_SUCCESS != rval) {
     my_error = 1;
-  }
-  MBRange rem_ents = iface_ents.subtract(shared_ents);
-  rem_ents = rem_ents.subtract(owned_ents);
-  if (!rem_ents.empty()) {
-    std::cerr << "Interface entities inconsistent with sharedEnts on proc "
+    std::cerr << "check_all_shared_handles test failed on proc " 
               << pcomm->proc_config().proc_rank() << std::endl;
-    my_error = 1;
   }
   PCHECK(!my_error);
-
+  
     // finally, check adjacencies just to make sure they're consistent
   rval = mb_instance.check_adjacencies();
   if (MB_SUCCESS != rval) my_error = 1;
@@ -939,6 +931,10 @@ MBErrorCode test_ghost_elements( const char* filename,
                           MPI_INT, pcomm->proc_config().proc_comm() );
   PCHECK(!error);
  
+  rval = pcomm->check_all_shared_handles();
+  if (MB_SUCCESS != rval) error = 1;
+  PCHECK(!error);
+  
      // for each ghost entity, check owning processor and list of
      // sharing processors.
   int k = 0;
@@ -972,7 +968,8 @@ MBErrorCode test_ghost_elements( const char* filename,
       break;
     }
   }
-    
+  PCHECK(!error);
+
     // done
   return MB_SUCCESS;
 }
