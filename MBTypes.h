@@ -52,6 +52,7 @@ enum MBErrorCode { MB_SUCCESS = 0,
                    MB_ALREADY_ALLOCATED,
                    MB_VARIABLE_DATA_LENGTH,
                    MB_INVALID_SIZE,
+                   MB_UNSUPPORTED_OPERATION,
                    MB_FAILURE};
 
 /** Misc. integer constants, declared in enum for portability */
