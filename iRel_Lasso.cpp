@@ -80,9 +80,9 @@ void iRel_createAssociation (
     
     // assume it's an AssocPairC
   Lasso *lasso = reinterpret_cast<Lasso*>(instance);
-  *rel = new AssocPairC(iface1, ent_or_set1, static_cast<IfaceType>(type1),
-                        iface2, ent_or_set2, static_cast<IfaceType>(type2),
-                        lasso);
+  *rel = (iRel_RelationHandle) new AssocPairC(iface1, ent_or_set1, static_cast<IfaceType>(type1),
+                                              iface2, ent_or_set2, static_cast<IfaceType>(type2),
+                                              lasso);
   
   RETURN(iBase_SUCCESS);
 }
@@ -1304,7 +1304,7 @@ iRel_moveTo(iRel_Instance assoc,
   int vertices_size = 0, vertices_allocated = 0;
   if (this_pair->entOrSet[1-switched]) {
     iBase_EntitySetHandle ent_set;
-    iRel_getEntSetAssociation(assoc, this_pair,
+    iRel_getEntSetAssociation(assoc, (iRel_RelationHandle)this_pair,
                               gent, switched, &ent_set, 
                               &result);
     if (iBase_SUCCESS != result) {
@@ -1325,7 +1325,7 @@ iRel_moveTo(iRel_Instance assoc,
       // just a vertex, we hope - put that in array
     CHECK_SIZE(iBase_EntityHandle, &vertices, &vertices_allocated, 1);
     vertices_size = 1;
-    iRel_getEntEntAssociation(assoc, this_pair,
+    iRel_getEntEntAssociation(assoc, (iRel_RelationHandle)this_pair,
                               gent, switched, vertices, 
                               &result);
     if (iBase_SUCCESS != result) {

@@ -1,28 +1,26 @@
 AUTOMAKE_OPTIONS = foreign
 BUILT_SOURCES = iRel_protos.h
 
-@IGEOM_CONFIG_OPTIONS@
-@IMESH_CONFIG_OPTIONS@
-
-INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I. ${IMESH_INCLUDES} ${IGEOM_INCLUDES}
+INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I. -I${IMESH_DIR}/include -I${IGEOM_DIR}/include
 
 DEFS += $(DEFINES)
 
-LIBS = $(IMESH_CXX_LDFLAGS) $(IMESH_CXX_LIBS)
+LIBS = 
 
 # stuff for c test program
 bin_PROGRAMS = rtestc
 rtestc_SOURCES = rtestc.c
 
-LDADD = libiRel.la ${IGEOM_LIBS} ${IMESH_LIBS}
+LDADD = libiRel.la 
 
-rtestc_DEPENDENCIES = libiRel.la 
+rtestc_DEPENDENCIES = libiRel.la ${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMesh.la 
+rtestc_LDADD = libiRel.la ${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMesh.la 
 
 libiRel_la_SOURCES = \
 	iRel_Lasso.cpp \
 	AssocPair.cpp \
 	AssocPairC.cpp 
-                   
+
 libiRel_la_include_HEADERS = iRel.h \
                              iRel_f.h \
                              iRel_protos.h 

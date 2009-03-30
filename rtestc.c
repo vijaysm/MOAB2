@@ -264,8 +264,8 @@ int relate_geom_mesh_test(iRel_Instance assoc,
   }
 
     // get 1-dimensional mesh entitysets
-  iBase_EntityHandle *mentities_vec = (iBase_EntityHandle*) 
-    malloc(mentity_handles_size*sizeof(iBase_EntityHandle));
+  iBase_EntitySetHandle *mentities_vec = (iBase_EntitySetHandle*) 
+    malloc(mentity_handles_size*sizeof(iBase_EntitySetHandle));
   int mentities_vec_size = 0;
   int i;
   for (i = 0; i < mentity_handles_size; i++) { // test
@@ -276,7 +276,7 @@ int relate_geom_mesh_test(iRel_Instance assoc,
       continue;
     
     if (dim == 1) 
-      mentities_vec[mentities_vec_size++] = (iBase_EntityHandle)mentity_handles[i];
+      mentities_vec[mentities_vec_size++] = mentity_handles[i];
   }
   
   iRel_inferSetArrAssociations(assoc, *rel,
