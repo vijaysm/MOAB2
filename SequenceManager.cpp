@@ -3,6 +3,7 @@
 #include "UnstructuredElemSeq.hpp"
 #include "ScdVertexData.hpp"
 #include "MeshSetSequence.hpp"
+#include "SweptElementSeq.hpp"
 #include "StructuredElementSeq.hpp"
 #include "HomXform.hpp"
 #include "PolyElementSeq.hpp"
@@ -696,12 +697,10 @@ SequenceManager::create_sweep_sequence( int imin, int jmin, int kmin,
 {
   int this_dim = MBCN::Dimension(type);
 
-    // use > instead of != in the following assert to also catch cases where imin > imax, etc.
   assert((this_dim < 3 || kmax > kmin) &&
          (this_dim < 2 || jmax > jmin) &&
          (this_dim < 1 || imax > imin));
 
-    // compute # entities; not as easy as it would appear...
   MBEntityID num_ent;
   if (MBVERTEX == type)
     num_ent = (MBEntityID)(imax-imin+1)*(MBEntityID)(jmax-jmin+1)*(MBEntityID)(kmax-kmin+1);
@@ -728,7 +727,7 @@ SequenceManager::create_sweep_sequence( int imin, int jmin, int kmin,
   case MBEDGE:
   case MBQUAD:
   case MBHEX:
-    sequence = new StructuredElementSeq( handle, imin, jmin, kmin, imax, jmax, kmax );
+    sequence = new SweptElementSeq( handle, imin, jmin, kmin, imax, jmax, kmax, Cq );
     break;
   default:
     return MB_TYPE_OUT_OF_RANGE;
