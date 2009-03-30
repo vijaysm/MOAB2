@@ -364,3 +364,7 @@ test/cell1.gen: $(top_srcdir)/test/cell1.gen.gz
 test/cell2.gen: $(top_srcdir)/test/cell2.gen.gz
 	$(ZCAT) $(top_srcdir)/test/cell2.gen.gz > test/cell2.gen
 
+
+# Utility target: build but don't run tests
+build-check:
+	$(MAKE) 'TESTS_ENVIRONMENT=: ' check
