@@ -31,10 +31,10 @@ AM_CONDITIONAL(USE_MPI, [test "xyes" == "x$WITH_MPI"])
 ################################################################################
 AC_ARG_WITH(igeom, 
 [AC_HELP_STRING([--with-igeom=DIR], [Specify directory containing iGeom libs/includes or dirs under which lib/ and include/ are located])],
-[iGeom_DIR=$withval
+[IGEOM_DIR=$withval
  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-igeom=\"${withval}\""
- ], [iGeom_DIR=])
-case "x$iGeom_DIR" in
+ ], [IGEOM_DIR=])
+case "x$IGEOM_DIR" in
   xno|x)
     IGEOM_MISSING=yes
     ;;
@@ -42,22 +42,22 @@ case "x$iGeom_DIR" in
     AC_MSG_ERROR([--with-igeom requires an argument])
     ;;
   *)
-    if ! test -d "$iGeom_DIR"; then
-      AC_MSG_WARN([$iGeom_DIR : not a directory.])
+    if ! test -d "$IGEOM_DIR"; then
+      AC_MSG_WARN([$IGEOM_DIR : not a directory.])
     fi
     IGEOM_MISSING=no
-    AC_CHECK_FILE([${iGeom_DIR}/lib/iGeom-Defs.inc],
-                  [IGEOM_CONFIG_OPTIONS="include ${iGeom_DIR}/lib/iGeom-Defs.inc";
+    AC_CHECK_FILE([${IGEOM_DIR}/lib/iGeom-Defs.inc],
+                  [IGEOM_CONFIG_OPTIONS="include ${IGEOM_DIR}/lib/iGeom-Defs.inc";
                    DEFINES="$DEFINES -DIGEOM"],
-                  [AC_CHECK_FILE([${iGeom_DIR}/iGeom-Defs.inc],
-                                 [IGEOM_CONFIG_OPTIONS="include ${iGeom_DIR}/iGeom-Defs.inc";
+                  [AC_CHECK_FILE([${IGEOM_DIR}/iGeom-Defs.inc],
+                                 [IGEOM_CONFIG_OPTIONS="include ${IGEOM_DIR}/iGeom-Defs.inc";
                    DEFINES="$DEFINES -DIGEOM"],
-                                 [AC_MSG_WARN([$iGeom_DIR : not a configured iGeom]); 
+                                 [AC_MSG_WARN([$IGEOM_DIR : not a configured iGeom]); 
                                   IGEOM_MISSING=yes])
                   ])
     ;;
 esac
-AC_SUBST(iGeom_DIR)
+AC_SUBST(IGEOM_DIR)
 AC_SUBST(IGEOM_CONFIG_OPTIONS)
 
 ################################################################################
@@ -65,10 +65,10 @@ AC_SUBST(IGEOM_CONFIG_OPTIONS)
 ################################################################################
 AC_ARG_WITH(imesh, 
 [AC_HELP_STRING([--with-imesh=DIR], [Specify directory containing iMesh libs/includes or dirs under which lib/ and include/ are located])],
-[iMesh_DIR=$withval
+[IMESH_DIR=$withval
  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-imesh=\"${withval}\""
- ], [iMesh_DIR=])
-case "x$iMesh_DIR" in
+ ], [IMESH_DIR=])
+case "x$IMESH_DIR" in
   xno|x)
     IMESH_MISSING=yes
     ;;
@@ -76,22 +76,22 @@ case "x$iMesh_DIR" in
     AC_MSG_ERROR([--with-imesh requires an argument])
     ;;
   *)
-    if ! test -d "$iMesh_DIR"; then
-      AC_MSG_WARN([$iMesh_DIR : not a directory.])
+    if ! test -d "$IMESH_DIR"; then
+      AC_MSG_WARN([$IMESH_DIR : not a directory.])
     fi
     IMESH_MISSING=no
-    AC_CHECK_FILE([${iMesh_DIR}/lib/iMesh-Defs.inc],
-                  [IMESH_CONFIG_OPTIONS="include ${iMesh_DIR}/lib/iMesh-Defs.inc";
+    AC_CHECK_FILE([${IMESH_DIR}/lib/iMesh-Defs.inc],
+                  [IMESH_CONFIG_OPTIONS="include ${IMESH_DIR}/lib/iMesh-Defs.inc";
                    DEFINES="$DEFINES -DIMESH"],
-                  [AC_CHECK_FILE([${iMesh_DIR}/iMesh-Defs.inc],
-                                 [IMESH_CONFIG_OPTIONS="include ${iMesh_DIR}/iMesh-Defs.inc";
+                  [AC_CHECK_FILE([${IMESH_DIR}/iMesh-Defs.inc],
+                                 [IMESH_CONFIG_OPTIONS="include ${IMESH_DIR}/iMesh-Defs.inc";
                    DEFINES="$DEFINES -DIMESH"],
-                                 [AC_MSG_WARN([$iMesh_DIR : not a configured iMesh]); 
+                                 [AC_MSG_WARN([$IMESH_DIR : not a configured iMesh]); 
                                   IMESH_MISSING=yes])
                   ])
     ;;
 esac
-AC_SUBST(iMesh_DIR)
+AC_SUBST(IMESH_DIR)
 AC_SUBST(IMESH_CONFIG_OPTIONS)
 
 ################################################################################
@@ -111,18 +111,18 @@ if test "x$enable_babel" != "xno"; then
          DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-babel=\"${enableval}\""], [USE_BABEL=no])
 
   if test "x$IGEOM_MISSING" != "xno"; then
-    AC_CHECK_FILE([${iGeom_DIR}/lib/iGeom-SIDL-Defs.inc],
-                [IGEOM_BABEL_CONFIG_OPTIONS="include ${iGeom_DIR}/lib/iGeom-SIDL-Defs.inc"],
-                [AC_CHECK_FILE([${iGeom_DIR}/iGeom-SIDL-Defs.inc],
-                               [IGEOM_BABEL_CONFIG_OPTIONS="include ${iGeom_DIR}/iGeom-SIDL-Defs.inc"],
+    AC_CHECK_FILE([${IGEOM_DIR}/lib/iGeom-SIDL-Defs.inc],
+                [IGEOM_BABEL_CONFIG_OPTIONS="include ${IGEOM_DIR}/lib/iGeom-SIDL-Defs.inc"],
+                [AC_CHECK_FILE([${IGEOM_DIR}/iGeom-SIDL-Defs.inc],
+                               [IGEOM_BABEL_CONFIG_OPTIONS="include ${IGEOM_DIR}/iGeom-SIDL-Defs.inc"],
                                [AC_MSG_WARN([Can't enable Babel without a Babel-capable iGeom]); USE_BABEL=no])
                 ])
   fi
   if test "x$IMESH_MISSING" != "xno"; then
-    AC_CHECK_FILE([${iMesh_DIR}/lib/iMesh-SIDL-Defs.inc],
-                [IMESH_BABEL_CONFIG_OPTIONS="include ${iMesh_DIR}/lib/iMesh-SIDL-Defs.inc"],
-                [AC_CHECK_FILE([${iMesh_DIR}/iMesh-SIDL-Defs.inc],
-                               [IMESH_BABEL_CONFIG_OPTIONS="include ${iMesh_DIR}/iMesh-SIDL-Defs.inc"],
+    AC_CHECK_FILE([${IMESH_DIR}/lib/iMesh-SIDL-Defs.inc],
+                [IMESH_BABEL_CONFIG_OPTIONS="include ${IMESH_DIR}/lib/iMesh-SIDL-Defs.inc"],
+                [AC_CHECK_FILE([${IMESH_DIR}/iMesh-SIDL-Defs.inc],
+                               [IMESH_BABEL_CONFIG_OPTIONS="include ${IMESH_DIR}/iMesh-SIDL-Defs.inc"],
                                [AC_MSG_WARN([Can't enable Babel without a Babel-capable iMesh]); USE_BABEL=no])
                 ])
   fi
