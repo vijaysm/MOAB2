@@ -57,6 +57,8 @@ MBErrorCode WriteGmsh::write_file(const char *file_name,
                                   const MBEntityHandle *output_list,
                                   const int num_sets,
                                   const std::vector<std::string>& ,
+                                  const MBTag* ,
+                                  int ,
                                   int )
 {
   MBErrorCode rval;
@@ -75,6 +77,7 @@ MBErrorCode WriteGmsh::write_file(const char *file_name,
   if (global_id) 
     mbImpl->tag_get_handle( GEOM_DIMENSION_TAG_NAME, geom_tag );
   mbImpl->tag_get_handle( PARALLEL_PARTITION_TAG_NAME, prtn_tag );
+  
   
     // Define arrays to hold entity sets of interest
   MBRange sets[3];

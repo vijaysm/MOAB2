@@ -335,6 +335,8 @@ MBErrorCode WriteHDF5::write_file( const char* filename,
                                    const MBEntityHandle* set_array,
                                    const int num_sets,
                                    const std::vector<std::string>& qa_records,
+                                   const MBTag* tag_list,
+                                   int num_tags,
                                    int user_dimension )
 {
   mhdf_Status status;
@@ -350,7 +352,9 @@ MBErrorCode WriteHDF5::write_file( const char* filename,
     // Do actual write.
   MBErrorCode result = write_file_impl( filename, overwrite, opts, 
                                         set_array, num_sets, 
-                                        qa_records, user_dimension );
+                                        qa_records, 
+                                        tag_list, num_tags,
+                                        user_dimension );
   
     // Free memory buffer
   free( dataBuffer );
@@ -390,6 +394,8 @@ MBErrorCode WriteHDF5::write_file_impl( const char* filename,
                                         const MBEntityHandle* set_array,
                                         const int num_sets,
                                         const std::vector<std::string>& qa_records,
+                                        const MBTag* tag_list, 
+                                        int num_tags,
                                         int user_dimension )
 {
   MBErrorCode result;
@@ -451,10 +457,10 @@ DEBUGOUT( "Creating File\n" );
   if (parallelWrite) {
     int pcomm_no = 0;
     opts.get_int_option("PARALLEL_COMM", pcomm_no);
-    result = parallel_create_file( filename, overwrite, qa_records, user_dimension, pcomm_no );
+    result = parallel_create_file( filename, overwrite, qa_records, tag_list, num_tags, user_dimension, pcomm_no );
   }
   else {
-    result = serial_create_file( filename, overwrite, qa_records, user_dimension );
+    result = serial_create_file( filename, overwrite, qa_records, tag_list, num_tags, user_dimension );
   }
   if (MB_SUCCESS != result)
     return result;
@@ -1996,7 +2002,7 @@ MBErrorCode WriteHDF5::register_known_tag_types( MBInterface* iface )
 }
 */
 
-MBErrorCode WriteHDF5::gather_tags()
+MBErrorCode WriteHDF5::gather_tags( const MBTag* user_tag_list, int num_tags )
 {
   MBErrorCode result;
   std::string tagname;
@@ -2005,23 +2011,12 @@ MBErrorCode WriteHDF5::gather_tags()
   MBRange range;
     
     // Get list of Tags to write
-  result = iFace->tag_get_tags( tag_list );
+  result = writeUtil->get_tag_list( tag_list, user_tag_list, num_tags );
   CHK_MB_ERR_0(result);
 
     // Get list of tags
   for (t_itor = tag_list.begin(); t_itor != tag_list.end(); ++t_itor)
   {
-      // Don't write tags that have name beginning with "__"
-    result = iFace->tag_get_name( *t_itor, tagname );
-    if (MB_SUCCESS != result)
-      return result;
-      // Skip anonymous tags
-    if (tagname.empty())
-      continue;
-      // skip tags for which the name begins with two underscores
-    if (tagname.size() >= 2 && tagname[0] == '_' && tagname[1] == '_')
-      continue;
-  
       // Add tag to export list
     SparseTag tag_data;
     tag_data.tag_id = *t_itor;
@@ -2105,7 +2100,9 @@ MBErrorCode WriteHDF5::gather_tags()
 MBErrorCode WriteHDF5::parallel_create_file( const char* ,
                                     bool ,
                                     const std::vector<std::string>& ,
+                                    const MBTag*,
                                     int ,
+                                    int,
                                     int  )
 {
   return MB_NOT_IMPLEMENTED;
@@ -2114,6 +2111,8 @@ MBErrorCode WriteHDF5::parallel_create_file( const char* ,
 MBErrorCode WriteHDF5::serial_create_file( const char* filename,
                                     bool overwrite,
                                     const std::vector<std::string>& qa_records,
+                                    const MBTag* user_tag_list,
+                                    int num_user_tags,
                                     int dimension )
 {
   long first_id;
@@ -2236,7 +2235,7 @@ MBErrorCode WriteHDF5::serial_create_file( const char* filename,
   
 DEBUGOUT( "Gathering Tags\n" );
   
-  rval = gather_tags();
+  rval = gather_tags( user_tag_list, num_user_tags );
   CHK_MB_ERR_0(rval);
 
     // Create the tags and tag data tables

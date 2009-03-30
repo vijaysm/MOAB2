@@ -83,11 +83,18 @@ MBErrorCode WriteSTL::write_file(const char *file_name,
                                  const MBEntityHandle *ent_handles,
                                  const int num_sets,
                                  const std::vector<std::string>& qa_list, 
+                                 const MBTag* tag_list,
+                                 int num_tags,
                                  int  )
 {
   char header[81];
   MBRange triangles;
   MBErrorCode rval;
+  
+  if (tag_list && num_tags) {
+    mWriteIface->report_error( "STL file does not support tag data\n" );
+    return MB_TYPE_OUT_OF_RANGE;
+  }
   
   rval = make_header( header, qa_list );
   if (MB_SUCCESS != rval)

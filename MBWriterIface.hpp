@@ -49,6 +49,9 @@ class MBWriterIface
      *\param num_sets       The length of <code>meshset_list</code> or zero
      *                      if the whole mesh is to be exported.
      *\param qa_records     File history metadata
+     *\param tag_list       Array of handles for tags to write.  If null,
+     *                      write all tags.  If non-NULL but num_tags is
+     *                      zero, write no tags.
      *\param requseted_output_dimension  The geometric dimension of the
      *                      output mesh (coord values per vertex.)  If
      *                      zero, the dimension of the mesh as returned
@@ -61,6 +64,8 @@ class MBWriterIface
                                     const MBEntityHandle* meshset_list,
                                     const int num_sets,
                                     const std::vector<std::string>& qa_records,
+                                    const MBTag* tag_list,
+                                    int num_tags,
                                     int requested_output_dimension = 0 ) = 0;
 };
 

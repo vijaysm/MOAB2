@@ -45,6 +45,8 @@ public:
                          const MBEntityHandle *output_list,
                          const int num_sets,
                          const std::vector<std::string>& qa_list,
+                         const MBTag* tag_list,
+                         int num_tags,
                          int export_dimension);
 
 private:
@@ -65,7 +67,8 @@ private:
   MBErrorCode write_elems( std::ostream& stream, const MBRange& nodes, const MBRange& elems );
   
     //! Write all tags on either the list of nodes or the list of elements
-  MBErrorCode write_tags( std::ostream& stream, bool nodes, const MBRange& entities );
+  MBErrorCode write_tags( std::ostream& stream, bool nodes, const MBRange& entities,
+                          const MBTag* tag_list, int num_tags );
   
     //! Write the tad description for the passed tag and call the template
     //! \ref write_tag function to write the tag data.

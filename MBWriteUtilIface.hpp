@@ -299,6 +299,20 @@ public:
   template <typename T> static inline 
   void reorder( const int* order, T* conn, int num_elem, int node_per_elem );
 
+
+  /**\brief Get list of tags to write.
+   *
+   * Get the list of tags to write to the file, possibly using
+   * an optional user-specifed tag list.
+   *
+   *\author Jason Kraftcheck
+   */
+  virtual MBErrorCode 
+  get_tag_list( std::vector<MBTag>& result_list,
+                const MBTag* user_tag_list = 0, 
+                int user_tag_list_length = 0,
+                bool include_variable_length_tags = true ) = 0;
+
     //! if an error occured when reading the mesh, report it to MB
     //! it makes sense to have this as long as MBInterface has a write_mesh function
     //! \return status Return status

@@ -248,6 +248,19 @@ public:
                                int& num_adj );
 
 
+  /**\brief Get list of tags to write.
+   *
+   * Get the list of tags to write to the file, possibly using
+   * an optional user-specifed tag list.
+   *
+   *\author Jason Kraftcheck
+   */
+  virtual MBErrorCode 
+  get_tag_list( std::vector<MBTag>& result_list,
+                const MBTag* user_tag_list = 0, 
+                int user_tag_list_length = 0,
+                bool include_variable_length_tags = true );
+
   //! tell MB there was an error when writing the mesh
   //! it makes sense to have this as long as MBInterface has a write_mesh function
   MBErrorCode report_error( const std::string& error );

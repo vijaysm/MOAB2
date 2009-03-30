@@ -136,6 +136,8 @@ MBErrorCode WriteGMV::write_file( const char* filename,
                                   const MBEntityHandle* output_sets,
                                   const int num_output_sets,
                                   const std::vector<std::string>& ,
+                                  const MBTag*,
+                                  int,
                                   int dimension )
 {
   MBEntityHandle output_set = 0;

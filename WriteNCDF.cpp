@@ -156,6 +156,8 @@ MBErrorCode WriteNCDF::write_file(const char *exodus_file_name,
                                     const MBEntityHandle *ent_handles,
                                     const int num_sets,
                                     const std::vector<std::string> &qa_records,
+                                    const MBTag*,
+                                    int,
                                     int user_dimension)
 {
   assert(0 != mMaterialSetTag &&

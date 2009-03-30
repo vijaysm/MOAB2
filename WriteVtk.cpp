@@ -72,6 +72,8 @@ MBErrorCode WriteVtk::write_file(const char *file_name,
                                  const MBEntityHandle *output_list,
                                  const int num_sets,
                                  const std::vector<std::string>& ,
+                                 const MBTag* tag_list,
+                                 int num_tags,
                                  int )
 {
   MBErrorCode rval;
@@ -115,8 +117,8 @@ MBErrorCode WriteVtk::write_file(const char *file_name,
   if ((rval = write_header(file              )) != MB_SUCCESS ||
       (rval = write_nodes( file, nodes       )) != MB_SUCCESS ||
       (rval = write_elems( file, nodes, elems)) != MB_SUCCESS ||
-      (rval = write_tags ( file, true,  nodes)) != MB_SUCCESS ||
-      (rval = write_tags ( file, false, elems)) != MB_SUCCESS)
+      (rval = write_tags ( file, true,  nodes, tag_list, num_tags)) != MB_SUCCESS ||
+      (rval = write_tags ( file, false, elems, tag_list, num_tags)) != MB_SUCCESS)
   {
     file.close();
     remove( file_name );
@@ -316,7 +318,11 @@ MBErrorCode WriteVtk::write_elems( std::ostream& stream,
 
 
 
-MBErrorCode WriteVtk::write_tags( std::ostream& stream, bool nodes, const MBRange& entities )
+MBErrorCode WriteVtk::write_tags( std::ostream& stream, 
+                                  bool nodes, 
+                                  const MBRange& entities,
+                                  const MBTag* tag_list,
+                                  int num_tags )
 {
   MBErrorCode rval;
   
@@ -341,7 +347,8 @@ MBErrorCode WriteVtk::write_tags( std::ostream& stream, bool nodes, const MBRang
 
     // Get all defined tags
   std::vector<MBTag> tags;
-  rval = mbImpl->tag_get_tags( tags );
+  std::vector<MBTag>::iterator i;
+  rval = writeTool->get_tag_list( tags, tag_list, num_tags, false );
   if (MB_SUCCESS != rval)
     return rval;
   
@@ -357,10 +364,12 @@ MBErrorCode WriteVtk::write_tags( std::ostream& stream, bool nodes, const MBRang
     if (type == MB_TYPE_HANDLE)
       continue;
       
-      // Skip variable-length tags -- not supported by VTK format
+      // Get size.  Variable-length tags should have been filtered
+      // out by MBWriteUtil already.
     int size;
-    if (MB_VARIABLE_DATA_LENGTH == mbImpl->tag_get_size( *i, size ))
-      continue;    
+    rval = mbImpl->tag_get_size( *i, size );
+    if (MB_SUCCESS != rval)
+      return rval;
     
       // If in strict mode, don't write tags that do not fit in any 
       // attribute type (SCALAR : 1 to 4 values, VECTOR : 3 values, TENSOR : 9 values)

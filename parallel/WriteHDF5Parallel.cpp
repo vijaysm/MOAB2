@@ -368,6 +368,8 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
 MBErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
                                             bool overwrite,
                                             const std::vector<std::string>& qa_records,
+                                            const MBTag* user_tag_list,
+                                            int user_tag_count,
                                             int dimension,
                                             int pcomm_no)
 {
@@ -460,7 +462,7 @@ TPRINT("creating meshset table");
       parallel_sets.insert( psiter->handle );
   
   setSet.range.merge( parallel_sets );
-  rval = gather_tags();
+  rval = gather_tags( user_tag_list, user_tag_count );
   if (MB_SUCCESS != rval)
     return rval;
   range_remove( setSet.range, parallel_sets );   

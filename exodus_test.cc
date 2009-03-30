@@ -98,7 +98,7 @@ void write_and_read( MBInterface& write_mb,
   std::vector<std::string> qa_records;
   rval = writer.write_file( tmp_file, true, opts, 
                             write_set_list, write_set_list_len,
-                            qa_records, 3 );
+                            qa_records, NULL, 0, 3 );
   if (MB_SUCCESS != rval) 
     remove(tmp_file);
   CHECK_ERR(rval);

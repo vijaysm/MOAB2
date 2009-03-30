@@ -102,6 +102,8 @@ public:
                           const MBEntityHandle *output_list,
                           const int num_sets,
                           const std::vector<std::string> &qa_records, 
+                          const MBTag*,
+                          int,
                           int user_dimension);
   
 protected:

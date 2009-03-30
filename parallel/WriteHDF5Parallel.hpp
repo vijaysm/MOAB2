@@ -103,6 +103,8 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
     virtual MBErrorCode parallel_create_file( const char* filename,
                                      bool overwrite,
                                      const std::vector<std::string>& qa_records,
+                                     const MBTag* user_tag_list = 0,
+                                     int user_tag_count = 0,
                                      int dimension = 3,
                                      int pcomm_no = 0);
     

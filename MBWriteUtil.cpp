@@ -722,3 +722,77 @@ MBErrorCode MBWriteUtil::get_adjacencies( MBEntityHandle entity,
 {
   return mMB->a_entity_factory()->get_adjacencies( entity, adj_array, num_adj );
 }
+
+MBErrorCode MBWriteUtil::get_tag_list( std::vector<MBTag>& result_list,
+                                       const MBTag* user_tag_list, 
+                                       int user_tag_list_length,
+                                       bool include_variable_length_tags )
+{
+  MBErrorCode rval;
+  
+  if (user_tag_list) {
+    result_list.clear();
+    result_list.reserve( user_tag_list_length );
+    for (int i = 0; i < user_tag_list_length; ++i) {
+      std::string name;
+      rval = mMB->tag_get_name( user_tag_list[i], name );
+      if (MB_SUCCESS != rval) {
+        report_error( "Error %d getting name for tag.  Invalid input tag handle?", (int)rval );
+        return rval;
+      }
+      
+      if (name.empty()) {
+        report_error( "Explicit request to save anonymous tag." );
+        return MB_TAG_NOT_FOUND;
+      }
+      
+      int size;
+      if (!include_variable_length_tags &&
+          MB_VARIABLE_DATA_LENGTH == mMB->tag_get_size( user_tag_list[i], size )) {
+        report_error( "File format cannot store variable-length tag: \"%s\".", name.c_str() );
+        return MB_TYPE_OUT_OF_RANGE;
+      }
+      
+      result_list.push_back( user_tag_list[i] );
+    }
+  }
+  else {
+    std::vector<MBTag> temp_list;
+    rval = mMB->tag_get_tags( temp_list );
+    if (MB_SUCCESS != rval) {
+      report_error( "MBInterface::tag_get_tags failed!" );
+      return rval;
+    }
+
+    result_list.clear();
+    result_list.reserve( temp_list.size() );
+    
+    std::vector<MBTag>::iterator i;
+    for (i = temp_list.begin(); i != temp_list.end(); ++i) {
+      std::string name;
+      rval = mMB->tag_get_name( *i, name );
+      if (MB_SUCCESS != rval) {
+        report_error( "Error %d getting name for tag.  Stale tag handle?", (int)rval );
+        return rval;
+      }
+      
+        // skip anonymous tags
+      if (name.empty())
+        continue;
+      
+        // skip private/internal tags
+      if (name.size() >= 2 && name[0] == '_' && name[1] == '_')
+        continue;
+      
+        // if reqested, skip variable-length tags
+      int size;
+      if (!include_variable_length_tags &&
+          MB_VARIABLE_DATA_LENGTH == mMB->tag_get_size( *i, size ))
+        continue;
+      
+       result_list.push_back( *i );
+    }
+  }
+  
+  return MB_SUCCESS;  
+}

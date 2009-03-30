@@ -66,6 +66,8 @@ public:
                           const MBEntityHandle* export_sets,
                           const int export_set_count,
                           const std::vector<std::string>& qa_records,
+                          const MBTag* tag_list = 0,
+                          int num_tags = 0,
                           int user_dimension = 3 );
 
   /** Create attributes holding the HDF5 type handle for the 
@@ -78,6 +80,8 @@ protected:
   MBErrorCode serial_create_file( const char* filename,
                                   bool overwrite,
                                   const std::vector<std::string>& qa_records,
+                                  const MBTag* tag_list,
+                                  int num_tags,
                                   int dimension = 3 );
 
   /** Function to create the file.  Virtual to allow override
@@ -86,6 +90,8 @@ protected:
   virtual MBErrorCode parallel_create_file( const char* filename,
                                             bool overwrite,
                                             const std::vector<std::string>& qa_records,
+                                            const MBTag* tag_list,
+                                            int num_tags,
                                             int dimension = 3,
                                             int pcomm_no = 0 );
 
@@ -103,7 +109,7 @@ protected:
 
  
   //! Gather tags
-  MBErrorCode gather_tags();
+  MBErrorCode gather_tags( const MBTag* user_tag_list, int user_tag_list_length );
 
   /** Helper function for create-file
    *
@@ -268,6 +274,8 @@ private:
                                const MBEntityHandle* export_sets,
                                const int export_set_count,
                                const std::vector<std::string>& qa_records,
+                               const MBTag* tag_list,
+                               int num_tags,
                                int user_dimension = 3 );
 
   MBErrorCode init();

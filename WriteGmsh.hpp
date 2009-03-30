@@ -57,6 +57,8 @@ public:
                          const MBEntityHandle *output_list,
                          const int num_sets,
                          const std::vector<std::string>& qa_list,
+                         const MBTag* tag_list,
+                         int num_tags,
                          int export_dimension);  
 
 private:
