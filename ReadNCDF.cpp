@@ -432,10 +432,17 @@ MBErrorCode ReadNCDF::check_file_status( std::string& exodus_file_name,
 MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
                                 MBEntityHandle& file_set,
                                 const FileOptions& opts,
+                                const char* set_tag_name,
                                 const int *blocks_to_load,
                                 const int num_blocks)
 {
   MBErrorCode status;
+
+  if (!strcmp( set_tag_name, MATERIAL_SET_TAG_NAME )) {
+    readMeshIface->report_error( "Exodus reader supports subset read only by block ID." );
+    return MB_UNSUPPORTED_OPERATION;
+  }
+
   
   file_set = 0;
     // this function directs the reading of an exoii file, but doesn't do any of

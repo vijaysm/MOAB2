@@ -20,16 +20,18 @@ public:
   MBErrorCode load_file(const char *file_name,
                         MBEntityHandle& file_set,
                         const FileOptions &opts,
-                        const int* material_set_list,
-                        const int num_material_sets );
+                        const char* set_tag_name,
+                        const int* set_tag_values,
+                        const int num_tag_values );
   
     //! load multiple files
   MBErrorCode load_file(const char **file_names,
                         const int num_files,
                         MBEntityHandle& file_set,
                         const FileOptions &opts,
-                        const int* material_set_list,
-                        const int num_material_sets );
+                        const char* set_tag_name,
+                        const int* set_tag_values,
+                        const int num_tag_values );
   
     //! Constructor
   ReadParallel(MBInterface* impl = NULL, MBParallelComm *pc = NULL);
@@ -54,9 +56,10 @@ private:
                         std::vector<int> &partition_tag_vals, 
                         bool distrib,
                         std::vector<int> &pa_vec,
-                        const int* material_set_list,
-                        const int num_material_sets,
                         const FileOptions &opts,
+                        const char* set_tag_name,
+                        const int* set_tag_values,
+                        const int num_tag_values,
                         const int reader_rank,
                         const bool cputime,
                         const int resolve_dim,
@@ -81,11 +84,12 @@ private:
 inline MBErrorCode ReadParallel::load_file(const char *file_name,
                                            MBEntityHandle& file_set,
                                            const FileOptions &opts,
-                                           const int* material_set_list,
-                                           const int num_material_sets ) 
+                                           const char* set_tag_name,
+                                           const int* set_tag_values,
+                                           const int num_tag_values )
 {
   return load_file(&file_name, 1, file_set, opts, 
-                   material_set_list, num_material_sets);
+                   set_tag_name, set_tag_values, num_tag_values);
 }
   
 #endif

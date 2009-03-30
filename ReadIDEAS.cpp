@@ -23,8 +23,13 @@ ReadIDEAS::ReadIDEAS(MBInterface* impl)
 MBErrorCode ReadIDEAS::load_file(const char* fname, 
                                  MBEntityHandle& meshset, 
                                  const FileOptions& options,
-                                 const int* material_set_list,
-                                 int num_material_sets ) {
+                                 const char* name,
+                                 const int*, const int ) {
+
+  if (name) {
+    readMeshIface->report_error( "Reading subset of files not supported for IDEAS." );
+    return MB_UNSUPPORTED_OPERATION;
+  }
 
   file.open( fname );
 

@@ -295,6 +295,7 @@ public:
   MBErrorCode load_file(const char *file_name,
                         MBEntityHandle& file_set,
                         const FileOptions& opts,
+                        const char* block_tag_name,
                         const int* block_list,
                         int num_blocks );
   MBErrorCode read_nodeset(ModelEntry *model,

@@ -181,7 +181,7 @@ void read_file( MBInterface& moab,
   MBEntityHandle set;
   Tqdcfr reader( &moab );
   FileOptions opts("");
-  rval = reader.load_file( input_file, set, opts, 0, 0 );
+  rval = reader.load_file( input_file, set, opts, 0, 0, 0 );
   if (file_set)
     *file_set = set;
   CHECK_ERR(rval);

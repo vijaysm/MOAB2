@@ -49,13 +49,12 @@ public:
   MBErrorCode load_file( const char* filename,
                          MBEntityHandle& file_set,
                          const FileOptions& opts,
-                         const int* material_set_list,
-                         int material_set_count  );
+                         const char* set_tag_name,
+                         const int* set_tag_values,
+                         int num_set_tag_values );
 protected:
 
   MBErrorCode load_file_impl( MBEntityHandle file_set, 
-                              const int*, 
-                              const int num_blocks,
                               bool use_mpio );
 
 private:

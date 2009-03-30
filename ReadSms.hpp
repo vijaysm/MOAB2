@@ -20,8 +20,9 @@ public:
   MBErrorCode load_file(const char *file_name,
                         MBEntityHandle& file_set,
                         const FileOptions& opts,
-                        const int* material_set_list,
-                        int num_material_sets );
+                        const char* set_tag_name,
+                        const int* set_tag_values,
+                        int num_set_tag_values );
   
     //! Constructor
   ReadSms(MBInterface* impl = NULL);
@@ -31,9 +32,7 @@ public:
 
 private:
 
-  MBErrorCode load_file_impl( const char *file_name,
-                              const int* material_set_list,
-                              const int num_material_sets);
+  MBErrorCode load_file_impl( const char *file_name );
   
   MBErrorCode get_set(std::vector<MBEntityHandle> *sets,
                       int set_type, int set_id,

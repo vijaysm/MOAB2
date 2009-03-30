@@ -23,8 +23,9 @@ public:
   MBErrorCode load_file(const char* fname, 
 			MBEntityHandle& meshset, 
 			const FileOptions&,
-			const int* material_set_list,
-			int num_material_sets );
+			const char* set_tag_name,
+                        const int* set_tag_values,
+                        int num_set_tag_values );
   
   //! Constructor
   ReadIDEAS(MBInterface* impl = NULL);

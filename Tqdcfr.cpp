@@ -193,10 +193,16 @@ Tqdcfr::~Tqdcfr()
 MBErrorCode Tqdcfr::load_file(const char *file_name,
                               MBEntityHandle& file_set,
                               const FileOptions& opts,
+                              const char* block_tag_name,
                               const int*, const int) 
 {
   MBErrorCode result;
   file_set = mFileSet = 0;
+
+  if (block_tag_name) {
+    readUtilIface->report_error( "Reading subset of files not supported for CUB files." );
+    return MB_UNSUPPORTED_OPERATION;
+  }
   
     // open file
   cubFile = fopen(file_name, "rb");
@@ -2577,7 +2583,7 @@ int main(int argc, char* argv[])
   MBEntityHandle file_set;
   FileOptions opts(NULL);
   
-  MBErrorCode result = my_tqd->load_file(file, file_set, opts, 0, 0);
+  MBErrorCode result = my_tqd->load_file(file, file_set, opts, 0, 0, 0);
 
   if (MB_SUCCESS == result)
     std::cout << "Success." << std::endl;
@@ -2596,7 +2602,7 @@ int main(int argc, char* argv[])
   my_impl = new MBCore;
   my_tqd = new Tqdcfr(my_impl);
   
-  result = my_tqd->load_file(file, file_set, opts, 0, 0);
+  result = my_tqd->load_file(file, file_set, opts, 0, 0, 0);
 
   if (MB_SUCCESS == result)
     std::cout << "Success." << std::endl;

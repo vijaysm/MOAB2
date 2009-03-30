@@ -77,11 +77,16 @@ bool ReadSTL::Point::operator<( const ReadSTL::Point& other ) const
 MBErrorCode ReadSTL::load_file( const char* filename,
                                 MBEntityHandle& file_set, 
                                 const FileOptions& opts,
-                                const int* blocks, 
-                                const int num_blocks )
+                                const char* name,
+                                const int*, const int )
 {
   mCurrentMeshHandle = 0;
-  const MBErrorCode result = load_file_impl( filename, opts, blocks, num_blocks );
+  const MBErrorCode result = load_file_impl( filename, opts );
+  
+  if (name) {
+    readMeshIface->report_error( "Reading subset of files not supported for STL." );
+    return MB_UNSUPPORTED_OPERATION;
+  }
   
     // If file read has failed, destroy anything that was
     // created during the read.
@@ -102,8 +107,7 @@ MBErrorCode ReadSTL::load_file( const char* filename,
 // pure-virtual function implemented in subclasses to read
 // the data from the file.
 MBErrorCode ReadSTL::load_file_impl(const char *filename,
-                                    const FileOptions& opts,
-                                    const int*, const int) 
+                                    const FileOptions& opts ) 
 {
   MBErrorCode result;
 

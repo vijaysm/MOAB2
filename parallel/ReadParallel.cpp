@@ -52,8 +52,9 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
                                     const int num_files,
                                     MBEntityHandle& file_set,
                                     const FileOptions &opts,
-                                    const int* material_set_list,
-                                    const int num_material_sets ) 
+                                    const char* set_tag_name,
+                                    const int* set_tag_values,
+                                    const int num_tag_values ) 
 {
   MBError *merror = ((MBCore*)mbImpl)->get_error_handler();
 
@@ -185,8 +186,9 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   
   return load_file(file_names, num_files, file_set, parallel_mode, 
                    partition_tag_name,
-                   partition_tag_vals, distrib, pa_vec, material_set_list,
-                   num_material_sets, opts, reader_rank, cputime, 
+                   partition_tag_vals, distrib, pa_vec, opts,
+                   set_tag_name, set_tag_values, num_tag_values,
+                   reader_rank, cputime, 
                    resolve_dim, shared_dim,
                    ghost_dim, bridge_dim, num_layers);
 }
@@ -199,9 +201,10 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
                                     std::vector<int> &partition_tag_vals, 
                                     bool distrib,
                                     std::vector<int> &pa_vec,
-                                    const int* material_set_list,
-                                    const int num_material_sets,
                                     const FileOptions &opts,
+                                    const char* set_tag_name,
+                                    const int* set_tag_values,
+                                    const int num_tag_values,
                                     const int reader_rank,
                                     const bool cputime,
                                     const int resolve_dim,
@@ -217,7 +220,6 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   MBRange entities; 
   MBTag file_set_tag = 0;
   int other_sets = 0;
-  MBReaderIface* reader;
   MBReaderWriterSet::iterator iter;
   MBRange other_file_sets, file_sets;
   MBCore *impl = dynamic_cast<MBCore*>(mbImpl);
@@ -248,33 +250,12 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
               std::cout << "Reading file " << file_names[j] << std::endl;
 
             MBEntityHandle new_file_set = 0;
-          
-            reader = impl->reader_writer_set()->
-                get_file_extension_reader( file_names[j] );
-            if (reader)
-            { 
-              tmp_result = reader->load_file( file_names[j], new_file_set, opts, 
-                                              material_set_list, num_material_sets );
-              delete reader;
-            }
-            else
-            {  
-                // Try all the readers
-              for (iter = impl->reader_writer_set()->begin(); 
-                   iter != impl->reader_writer_set()->end(); ++iter)
-              {
-                reader = iter->make_reader( mbImpl );
-                if (NULL != reader)
-                {
-                  tmp_result = reader->load_file( file_names[j], new_file_set, opts, 
-                                                  material_set_list, num_material_sets );
-                  delete reader;
-                  if (MB_SUCCESS == tmp_result)
-                    break;
-                }
-              }
-            }
-
+            tmp_result = impl->serial_load_file( file_names[j], 
+                                                 new_file_set, 
+                                                 opts,
+                                                 set_tag_name,
+                                                 set_tag_values,
+                                                 num_tag_values );
             if (MB_SUCCESS != tmp_result) break;
 
               // put the contents of each file set for the reader into the 

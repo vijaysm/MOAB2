@@ -339,7 +339,7 @@ MBErrorCode read_file(MBInterface *mbImpl,
       rps[i] = new ReadParallel(mbImpl, pcs[i]);
     
       result = rps[i]->load_file(filenames[i].c_str(), filesets[i], 
-                                 FileOptions(options.str().c_str()), NULL, 0);
+                                 FileOptions(options.str().c_str()), 0, 0, 0);
       if (MB_SUCCESS != result) 
         PRINT_LAST_ERROR;
 

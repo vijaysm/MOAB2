@@ -61,13 +61,18 @@ ReadSms::~ReadSms()
 }
 
 MBErrorCode ReadSms::load_file( const char* filename, 
-                                 MBEntityHandle& file_set,
-                                 const FileOptions& ,
-                                 const int* blocks,
-                                 const int num_blocks )
+                                MBEntityHandle& file_set,
+                                const FileOptions& ,
+                                const char* name,
+                                const int*, const int )
 {
+  if (name) {
+    readMeshIface->report_error( "Reading subset of files not supported for Sms." );
+    return MB_UNSUPPORTED_OPERATION;
+  }
+
   mCurrentMeshHandle = 0;
-  const MBErrorCode result = load_file_impl( filename, blocks, num_blocks );
+  const MBErrorCode result = load_file_impl( filename );
   
     // If file read has failed, destroy anything that was
     // created during the read.
@@ -84,9 +89,7 @@ MBErrorCode ReadSms::load_file( const char* filename,
   return result;
 }
 
-MBErrorCode ReadSms::load_file_impl( const char* filename, 
-                                     const int* material_set_list,
-                                     const int num_material_sets )
+MBErrorCode ReadSms::load_file_impl( const char* filename )
 {
   bool warned = false;
   

@@ -64,10 +64,16 @@ MBErrorCode ReadTetGen::open_file( const std::string& filename,
 MBErrorCode ReadTetGen::load_file( const char* file_name_c,
                                    MBEntityHandle& file_set,
                                    const FileOptions& opts,
-                                   const int*, int )
+                                   const char* name,
+                                   const int*, const int )
 {
   std::ifstream node_file, ele_file, face_file, edge_file;
   MBErrorCode rval;
+  
+  if (name) {
+    readTool->report_error( "Reading subset of files not supported for TetGen." );
+    return MB_UNSUPPORTED_OPERATION;
+  }
   
   std::string suffix, base, filename(file_name_c);
   size_t dot_idx = filename.find_last_of( '.' );

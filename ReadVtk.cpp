@@ -173,6 +173,7 @@ const char* const vtk_type_names[] = { "bit",
 MBErrorCode ReadVtk::load_file(const char *filename,
                                MBEntityHandle& file_set,
                                const FileOptions& opts,
+                               const char* name,
                                const int*, const int) 
 {
   MBErrorCode result;
@@ -182,6 +183,11 @@ MBErrorCode ReadVtk::load_file(const char *filename,
   char vendor_string[257];
   std::vector<MBRange> element_list;
   MBRange vertices;
+  
+  if (name) {
+    readMeshIface->report_error( "Reading subset of files not supported for VTK." );
+    return MB_UNSUPPORTED_OPERATION;
+  }
 
   // Does the caller want a field to be used for partitioning the entities?
   // If not, we'll assume any scalar integer field named MATERIAL_SET specifies partitions.

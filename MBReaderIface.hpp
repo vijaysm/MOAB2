@@ -49,8 +49,9 @@ class MBReaderIface
     virtual MBErrorCode load_file( const char* file_name,
                                    MBEntityHandle& file_set,
                                    const FileOptions& opts,
-                                   const int* material_set_list,
-                                   int material_set_list_len ) = 0;
+                                   const char* set_tag_name = 0,
+                                   const int* set_tag_values = 0,
+                                   int num_set_tag_values = 0 ) = 0;
 
 };
 

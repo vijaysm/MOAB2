@@ -26,6 +26,7 @@ class SequenceManager;
 class TagServer;
 class MBError;
 class MBReaderWriterSet;
+class FileOptions;
 
 #ifdef XPCOM_MB
 
@@ -94,6 +95,14 @@ public:
   virtual MBErrorCode load_file( const char* file_name,
                                  MBEntityHandle& file_set,
                                  const char* options = 0,
+                                 const char* set_tag_name = 0,
+                                 const int* set_tag_values = 0,
+                                 int num_set_tag_values = 0 );
+
+  /**Load or import a file. */
+  virtual MBErrorCode serial_load_file( const char* file_name,
+                                 MBEntityHandle& file_set,
+                                 const FileOptions& opts,
                                  const char* set_tag_name = 0,
                                  const int* set_tag_values = 0,
                                  int num_set_tag_values = 0 );

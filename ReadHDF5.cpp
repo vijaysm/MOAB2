@@ -122,12 +122,17 @@ ReadHDF5::~ReadHDF5()
 MBErrorCode ReadHDF5::load_file( const char* filename, 
                                  MBEntityHandle& file_set, 
                                  const FileOptions& opts,
-                                 const int* p, 
-                                 const int num_blocks )
+                                 const char* name,
+                                 const int*, const int )
 {
   MBErrorCode rval;
   mhdf_Status status;
   ioProp = H5P_DEFAULT;
+
+  if (name) {
+    readUtil->report_error( "Reading subset of files not supported for HDF5." );
+    return MB_UNSUPPORTED_OPERATION;
+  }
 
   if (MB_SUCCESS != init())
     return MB_FAILURE;
@@ -188,7 +193,7 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
   }
     
   
-  rval = load_file_impl( file_set, p, num_blocks, use_mpio );
+  rval = load_file_impl( file_set, use_mpio );
   mhdf_closeFile( filePtr, &status );
   filePtr = 0;
   if (ioProp != H5P_DEFAULT)
@@ -221,8 +226,6 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
 
 MBErrorCode ReadHDF5::load_file_impl( 
                                  MBEntityHandle file_set, 
-                                 const int*, 
-                                 const int num_blocks,
                                  bool use_mpio )
 {
   MBErrorCode rval;
@@ -234,9 +237,6 @@ MBErrorCode ReadHDF5::load_file_impl(
   std::list<ElemSet>::iterator el_itor;
   unsigned int i, num_groups;
   bool have_nodes = true;
-
-  if (num_blocks)
-    return MB_FAILURE;
 
 DEBUGOUT("Reading Nodes.\n");
   

@@ -83,9 +83,14 @@ const int max_type_int = sizeof(typemap) / sizeof(typemap[0]) - 1;
 MBErrorCode ReadGmsh::load_file( const char* filename, 
                                  MBEntityHandle& file_set,
                                  const FileOptions& ,
-                                 const int* blocks,
-                                 const int num_blocks )
+                                 const char* set_tag_name,
+                                 const int* blocks, const int num_blocks )
 {
+  if (!strcmp( set_tag_name, MATERIAL_SET_TAG_NAME )) {
+    readMeshIface->report_error( "GMsh supports subset read only by material ID." );
+    return MB_UNSUPPORTED_OPERATION;
+  }
+
   mCurrentMeshHandle = 0;
   const MBErrorCode result = load_file_impl( filename, blocks, num_blocks );
   

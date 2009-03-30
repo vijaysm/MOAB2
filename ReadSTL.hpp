@@ -74,8 +74,9 @@ public:
   MBErrorCode load_file(const char *file_name,
                         MBEntityHandle& file_set,
                         const FileOptions& opts,
-                        const int* material_set_list,
-                        int num_material_sets );
+                        const char* set_tag_name,
+                        const int* set_tag_values,
+                        int num_set_tag_values );
   
     //! Constructor
   ReadSTL(MBInterface* impl = NULL);
@@ -116,10 +117,7 @@ private:
 
     //! Generic file loading code for both binary and ASCII readers.
     //! Calls reader-specific *_read_triangles function to do actual I/O.
-  MBErrorCode load_file_impl(const char *file_name,
-                             const FileOptions& opts,
-                             const int* material_set_list,
-                             const int num_material_sets );
+  MBErrorCode load_file_impl(const char *file_name, const FileOptions& opts );
 
     //! Meshset Handle for the mesh that is currently being read
   MBEntityHandle mCurrentMeshHandle;

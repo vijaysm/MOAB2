@@ -78,7 +78,7 @@ void read_file( MBInterface& moab,
   MBEntityHandle set;
   ReadNCDF reader( &moab );
   FileOptions opts("");
-  rval = reader.load_file( input_file, set, opts, 0, 0 );
+  rval = reader.load_file( input_file, set, opts, 0, 0, 0 );
   CHECK_ERR(rval);
 }
 
@@ -103,7 +103,7 @@ void write_and_read( MBInterface& write_mb,
     remove(tmp_file);
   CHECK_ERR(rval);
   
-  rval = reader.load_file( tmp_file, set, opts, 0, 0 );
+  rval = reader.load_file( tmp_file, set, opts, 0, 0, 0 );
   remove( tmp_file );
   CHECK_ERR(rval);
 }

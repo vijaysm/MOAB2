@@ -364,24 +364,8 @@ MBErrorCode MBCore::load_file( const char* file_name,
                                const int* set_tag_values,
                                int num_set_tag_values )
 {
-  if (num_set_tag_values < 0)
-    return MB_INDEX_OUT_OF_RANGE;
-   
   FileOptions opts(options);
-  file_set = 0;
-  
   MBErrorCode rval;
-  const MBReaderWriterSet* set = reader_writer_set();
-  
-    // convert from to old block-based reader interface
-  const int* block_id_list = 0;
-  int num_blocks = 0;
-  if (set_tag_name) {
-    if (strcmp(set_tag_name, MATERIAL_SET_TAG_NAME ))
-      return MB_NOT_IMPLEMENTED;
-    block_id_list = set_tag_values;
-    num_blocks = num_set_tag_values;
-  }
   
     // if reading in parallel, call a different reader
   std::string parallel_opt;
@@ -399,19 +383,42 @@ MBErrorCode MBCore::load_file( const char* file_name,
     else if (rval != MB_ENTITY_NOT_FOUND) 
       return rval;
     return ReadParallel(this,pcomm).load_file(file_name, file_set, opts,
-                                        block_id_list, num_blocks);
+                                        set_tag_name, set_tag_values, 
+                                        num_set_tag_values);
 #else
     mError->set_last_error( "PARALLEL option not valid, this instance"
                             " compiled for serial execution.\n" );
     return MB_NOT_IMPLEMENTED;
 #endif
   }
+  else {
+    return serial_load_file( file_name, file_set,
+                             opts, set_tag_name,
+                             set_tag_values, num_set_tag_values );
+  }
+}
+
+MBErrorCode MBCore::serial_load_file( const char* file_name,
+                                      MBEntityHandle& file_set,
+                                      const FileOptions& opts,
+                                      const char* set_tag_name,
+                                      const int* set_tag_values,
+                                      int num_set_tag_values )
+{
+  if (num_set_tag_values < 0)
+    return MB_INDEX_OUT_OF_RANGE;
+   
+  file_set = 0;
+  
+  MBErrorCode rval;
+  const MBReaderWriterSet* set = reader_writer_set();
 
     // otherwise try using the file extension to select a reader
   MBReaderIface* reader = set->get_file_extension_reader( file_name );
   if (reader)
   { 
-    rval = reader->load_file( file_name, file_set, opts, block_id_list, num_blocks );
+    rval = reader->load_file( file_name, file_set, opts, set_tag_name, 
+                              set_tag_values, num_set_tag_values );
     delete reader;
   }
   else
@@ -423,7 +430,8 @@ MBErrorCode MBCore::load_file( const char* file_name,
       MBReaderIface* reader = iter->make_reader( this );
       if (NULL != reader)
       {
-        rval = reader->load_file( file_name, file_set, opts, block_id_list, num_blocks );
+        rval = reader->load_file( file_name, file_set, opts, set_tag_name,
+                                  set_tag_values, num_set_tag_values );
         delete reader;
         if (MB_SUCCESS == rval)
           break;

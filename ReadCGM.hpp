@@ -53,8 +53,9 @@ public:
   MBErrorCode load_file(const char *cgm_file_name,
                          MBEntityHandle& file_set,
                          const FileOptions& opts,
-                         const int* blocks_to_load,
-                         const int num_blocks);
+                         const char* set_tag_name,
+                         const int* set_tag_values,
+                         int num_set_tag_values );
 
    //! Constructor
    ReadCGM(MBInterface* impl = NULL);
