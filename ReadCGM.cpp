@@ -98,14 +98,14 @@ ReadCGM::~ReadCGM()
 MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
                       MBEntityHandle& file_set,
                       const FileOptions& opts,
-                      const char* name,
+                      const char* name_subset,
                       const int*, const int)
 {
   // blocks_to_load and num_blocks are ignored.
   MBErrorCode rval;
   file_set = 0;
 
-  if (name) {
+  if (name_subset) {
     readUtilIface->report_error( "Reading subset of files not supported for CGM data." );
     return MB_UNSUPPORTED_OPERATION;
   }

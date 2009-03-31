@@ -119,10 +119,10 @@ int main( int argc, char* argv[] )
     strcat(options,",set");
     FileOptions opts(options)  ;
 
-    MBErrorCode result = my_tqd->load_file(input_name, file_set, opts, 0, 0);
+    MBErrorCode result = my_tqd->load_file(input_name, file_set, opts, NULL, 0, 0);
 
     //opts = "tdata=coord, 100, sum, temp.exo";
-    result =  my_ex_reader.load_file(update_name, file_set, opts, 0 , 0);
+    result =  my_ex_reader.load_file(update_name, file_set, opts, NULL, 0 , 0);
 
     result = my_impl->write_mesh( output_name );
     assert(!result);
