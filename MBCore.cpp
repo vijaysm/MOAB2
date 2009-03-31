@@ -354,7 +354,8 @@ MBErrorCode  MBCore::load_mesh( const char *file_name,
                                 const int num_blocks )
 {
   MBEntityHandle file_set;
-  return load_file( file_name, file_set, 0, MATERIAL_SET_TAG_NAME, block_id_list, num_blocks );
+  const char* name = block_id_list ? MATERIAL_SET_TAG_NAME : 0;
+  return load_file( file_name, file_set, 0, name, block_id_list, num_blocks );
 }
 
 MBErrorCode MBCore::load_file( const char* file_name,

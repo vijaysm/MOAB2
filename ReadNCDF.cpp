@@ -438,7 +438,7 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
 {
   MBErrorCode status;
 
-  if (!strcmp( set_tag_name, MATERIAL_SET_TAG_NAME )) {
+  if (blocks_to_load && !strcmp( set_tag_name, MATERIAL_SET_TAG_NAME )) {
     readMeshIface->report_error( "Exodus reader supports subset read only by block ID." );
     return MB_UNSUPPORTED_OPERATION;
   }
