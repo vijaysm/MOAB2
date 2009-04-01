@@ -117,7 +117,7 @@ int AssocPair::set_assoc_tags(iBase_EntityHandle ent1, iBase_EntitySetHandle ent
     // entities & set associations for them too
   if (entOrSet[1] == 2) {
     iBase_EntityHandle *entities = NULL, to_ent;
-    int entities_alloc, entities_size, iface_no;
+    int entities_alloc = 0, entities_size, iface_no;
 
       // get ents from set2 & associate to ent1
     result = get_entities(1, -1, ent2, &entities, &entities_alloc, &entities_size);

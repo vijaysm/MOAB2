@@ -47,7 +47,23 @@ AssocPairC::AssocPairC(iBase_Instance iface0,
 }
 
 AssocPairC::~AssocPairC() 
-{}
+{
+    // need to destroy tags for this assoc pair
+  for (int iface_no = 0; iface_no < 2; iface_no++) {
+    int result;
+    if (iface_type(iface_no) == iRel_IGEOM_IFACE) {
+      iGeom_destroyTag((iGeom_Instance)ifaceInstances[iface_no],
+                       assocTags[iface_no], true, &result);
+      PROCESS_GERROR;
+    }
+    else if (iface_type(iface_no) == iRel_IMESH_IFACE) {
+      iMesh_destroyTag((iMesh_Instance)ifaceInstances[iface_no],
+                       assocTags[iface_no], true, &result);
+      PROCESS_MERROR;
+    }
+    assocTags[iface_no] = 0;
+  }
+}
 
 bool AssocPairC::equivalent(iBase_Instance iface0, 
                             iBase_Instance iface1,

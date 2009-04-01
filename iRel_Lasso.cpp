@@ -1176,6 +1176,8 @@ void iRel_inferAllAssociations (
   iRel_inferArrArrAssociations(lasso, this_pair, 
                                ents1, ents1_size, this_pair->entOrSet[0],
                                ents2, ents2_size, this_pair->entOrSet[1], &result);
+
+  free(ents1); free(ents2);
   RETURN(result);
 }
 
@@ -1384,6 +1386,9 @@ iRel_moveTo(iRel_Instance assoc,
     RETURN(result);
   }
 
+  free(vertices);
+  free(coords);
+  
   RETURN(iBase_SUCCESS);
 }
 
