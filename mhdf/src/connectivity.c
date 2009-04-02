@@ -130,6 +130,34 @@ mhdf_openConnectivity( mhdf_FileHandle file_handle,
   return table_id;
 }
 
+hid_t
+mhdf_openConnectivitySimple( mhdf_FileHandle file_handle,
+                             const char* elem_handle,
+                             mhdf_Status* status )
+{
+  FileHandle* file_ptr;
+  hid_t elem_id, table_id;
+  API_BEGIN;
+  
+  file_ptr = (FileHandle*)(file_handle);
+  if (!mhdf_check_valid_file( file_ptr, status ))
+    return -1;
+  
+  elem_id = mhdf_elem_group_from_handle( file_ptr, elem_handle, status );
+  if (elem_id < 0) return -1;
+  
+  table_id = mhdf_open_table_simple( elem_id, CONNECTIVITY_NAME, status );
+  
+  H5Gclose( elem_id );
+  if (table_id < 0)
+    return -1;
+  
+  file_ptr->open_handle_count++;
+  mhdf_setOkay( status );
+  API_END_H(1);
+  return table_id;
+}
+
 void
 mhdf_writeConnectivity( hid_t table_id,
                         long offset,

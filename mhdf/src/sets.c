@@ -202,6 +202,26 @@ mhdf_openSetMeta( mhdf_FileHandle file,
   return table_id;
 }
 
+hid_t
+mhdf_openSetMetaSimple( mhdf_FileHandle file, mhdf_Status* status )
+{
+  FileHandle* file_ptr = (FileHandle*)file;
+  hid_t table_id;
+  API_BEGIN;
+  
+  if (!mhdf_check_valid_file( file_ptr, status ))
+    return -1;
+  
+  table_id = mhdf_open_table_simple( file_ptr->hdf_handle,
+                                     SET_META_PATH, status );
+  if (table_id < 0)
+    return -1;
+ 
+  file_ptr->open_handle_count++;
+  mhdf_setOkay( status );
+  API_END_H(1);
+  return table_id;
+}
 
 static int
 mhdf_readwriteSetMeta( hid_t table_id, int read,

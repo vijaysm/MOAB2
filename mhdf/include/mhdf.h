@@ -209,6 +209,76 @@ mhdf_openFileWithOpt( const char* filename,
                       hid_t options,
                       mhdf_Status* status );
 
+/** Data common to sets, nodes, and each element type */
+struct mhdf_EntDesc {
+  long start_id;           /**< First file ID for table of data */
+  long count;              /**< Number of entities in table */
+  int vals_per_ent;        /**< Connectivity length for elems, dimension for verts, unused for sets */
+  int* dense_tag_indices;  /**< Indices into mhdf_FileDesc::tags for each tag for which dense data is present for these entities */
+  int num_dense_tags;      /**< Length of dense_tag_indices */
+};
+/** Struct describing a tag */
+struct mhdf_TagDesc {
+  const char* name;           /**< Tag name */
+  enum mhdf_TagDataType type; /**< Data type */
+  int size;                   /**< Tag size (num of data type) */
+  int bytes;                  /**< Tag size (number of bytes) */
+  int storage;                /**< MOAB tag type (dense or sparse) */
+  int have_sparse;            /**< Have sparse id/data pairs in file */
+  void* default_value;        /**< Default value, NULL if none. */
+  int default_value_size; 
+  void* global_value;         /**< Global value, NULL if none. */
+  int global_value_size;
+  int* dense_elem_indices;    /**< Array of indices indicating element types for which dense 
+                                   data is stored.  -2 for sets, -1 for nodes. */
+  int num_dense_indices;
+};
+struct mhdf_ElemDesc {
+  const char* handle;       /**< String table identifier */
+  const char* type;         /**< String type designator */
+  struct mhdf_EntDesc desc;
+};
+struct mhdf_FileDesc {
+  struct mhdf_EntDesc nodes;
+  struct mhdf_EntDesc sets;
+  struct mhdf_ElemDesc* elems; /**< Array of element table descriptions */
+  int num_elem_desc;
+  struct mhdf_TagDesc* tags;   /**< Array of tag descriptions */
+  int num_tag_desc;
+  size_t total_size;           /**< Size of memory block containing all struct data */
+  unsigned char* offset;       /**< Unused, may be used by application */
+};
+  
+/** \brief Get summary of data tables contained within file.
+ *
+ * Returned struct, including all pointed-to data, is allocated in a
+ * single contiguous block of memory with a size equal to 'total_size'.
+ * Caller is responsible for freeing the returned struct FileDesc pointer
+ * (and *only* that pointer, not pointers nexted within the struct!). 
+ * Caller may copy (e.g. MPI_BCast) entire struct as one contiguous block,
+ * assuming all nested pointers in the copy are updated to the correct
+ * relative offset from the beginning of the struct.
+ */
+struct mhdf_FileDesc*
+mhdf_getFileSummary( mhdf_FileHandle file_handle, 
+                     hid_t file_id_type,
+                     mhdf_Status* status );
+
+/**\brief Fix nested pointers for copied/moved FileDesc struct
+ *
+ * This is a utility method to facility copying/moving/communicating
+ * struct FileDesc instances.  The structure and all data it references
+ * are allocated in a single contiguous block of memory of size 
+ * FileDesc::total_size.  As such, the struct can be copied with a single
+ * memcpy, packed into a single network packet, communicated with a single
+ * MPI call, etc.  However, the pointers contained within the struct will
+ * not be valid in the copied instance (they will still point into the
+ * original instance.)  Given a pointer to the copied struct and the address
+ * of the original struct, this function will updated all contained pointers.
+ */
+void
+mhdf_fixFileDesc( struct mhdf_FileDesc* copy_ptr, const struct mhdf_FileDesc* orig_addr );
+
 /** \brief Given an element type Id, get the name. 
  * Fails if buffer is not of sufficient size.
  * \param file_handle The file.
@@ -325,6 +395,9 @@ mhdf_openNodeCoords( mhdf_FileHandle file_handle,
                      int* dimension_out,
                      long* first_node_id_out,
                      mhdf_Status* status );
+
+hid_t
+mhdf_openNodeCoordsSimple( mhdf_FileHandle file_handle, mhdf_Status* status );
 
 /** \brief Write node coordinate data
  *
@@ -594,6 +667,12 @@ mhdf_openConnectivity( mhdf_FileHandle file_handle,
                        long* num_elements_out,
                        long* first_elem_id_out,
                        mhdf_Status* status );
+
+hid_t
+mhdf_openConnectivitySimple( mhdf_FileHandle file_handle, 
+                             const char* elem_handle,
+                             mhdf_Status* status );
+                             
 
 /** \brief Write element coordinate data
  *
@@ -1201,6 +1280,9 @@ mhdf_openSetMeta( mhdf_FileHandle file_handle,
                   long* num_sets_out,
                   long* first_set_id_out,
                   mhdf_Status* status );
+
+hid_t
+mhdf_openSetMetaSimple( mhdf_FileHandle file_handle, mhdf_Status* status );
 
 /** \brief Read list of sets and meta-information about sets.
  *

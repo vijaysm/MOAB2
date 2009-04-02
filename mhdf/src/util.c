@@ -38,6 +38,15 @@ void* mhdf_malloc( size_t size, mhdf_Status* status )
   return result;
 }
 
+void* mhdf_realloc( void* ptr, size_t size, mhdf_Status* status )
+{
+  void* result;
+  result = realloc(ptr, size);
+  if (!result)
+    mhdf_setFail( status, "Allocation of %d bytes failed.\n", (int)size );
+  return result;
+}
+
 size_t mhdf_name_to_path( const char* name, char* path, size_t path_len )
 {
   size_t length = 1;
@@ -678,6 +687,28 @@ mhdf_open_table2( hid_t group_id,
   }
 
   mhdf_setOkay( status );
+  return table_id;
+}
+
+hid_t
+mhdf_open_table_simple( hid_t group_id, const char* path, mhdf_Status* status )
+{
+  hid_t table_id;
+  
+#if defined(H5Dopen_vers) && H5Dopen_vers > 1  
+  table_id = H5Dopen2( group_id, path, H5P_DEFAULT );
+#else
+  table_id = H5Dopen( group_id, path );
+#endif
+  if (table_id < 0)
+  {
+    mhdf_setFail( status, "HDF5 DataSet creation failed.");
+  }
+  else 
+  {
+    mhdf_setOkay( status );
+  }
+
   return table_id;
 }
 

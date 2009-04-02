@@ -27,6 +27,7 @@ extern "C" {
 
 
 void* mhdf_malloc( size_t size, mhdf_Status* status );
+void* mhdf_realloc( void* ptr, size_t size, mhdf_Status* status );
 
 size_t mhdf_name_to_path( const char* name, char* path, size_t path_len );
 
@@ -129,6 +130,9 @@ mhdf_open_table2( hid_t group,
                   hsize_t* dims_out,
                   long* start_id_out,
                   mhdf_Status* status );
+
+hid_t
+mhdf_open_table_simple( hid_t group, const char* path, mhdf_Status* status );
 
 int
 mhdf_compact_to_ranges( int* length_in_out, int* ids_in, int ordered );

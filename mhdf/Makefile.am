@@ -1,10 +1,12 @@
 
 noinst_LTLIBRARIES = libmhdf.la
 libmhdf_la_LIBADD = $(HDF5_LIBS)
+bin_PROGRAMS = h5minfo
 
 libmhdf_la_SOURCES = include/mhdf.h \
                      src/adjacency.c \
                      src/connectivity.c \
+                     src/file-desc.c \
                      src/file-handle.c \
                      src/file-handle.h \
                      src/file.c \
@@ -17,6 +19,10 @@ libmhdf_la_SOURCES = include/mhdf.h \
                      src/util.c \
                      src/util.h
 
+h5minfo_SOURCES = include/mhdf.h example/info.c
+h5minfo_LDADD = libmhdf.la
+
 DEFS = -I$(srcdir)/include 
 
 EXTRA_DIST = doc/Doxyfile example/hexes_to_gmsh.c
+

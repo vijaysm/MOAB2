@@ -109,6 +109,26 @@ mhdf_openNodeCoords( mhdf_FileHandle file_handle,
   return table_id;
 }
 
+hid_t
+mhdf_openNodeCoordsSimple( mhdf_FileHandle file_handle, mhdf_Status* status )
+{
+  FileHandle* file_ptr = (FileHandle*)file_handle;
+  hid_t table_id;
+  API_BEGIN;
+  
+  if (!mhdf_check_valid_file( file_ptr, status ))
+    return -1;
+  
+  table_id = mhdf_open_table_simple( file_ptr->hdf_handle,
+                                     NODE_COORD_PATH, status );
+  if (table_id < 0)
+    return -1;
+ 
+  file_ptr->open_handle_count++;
+  mhdf_setOkay( status );
+  API_END_H(1);
+  return table_id;
+}
 
 void
 mhdf_writeNodeCoords( hid_t table_id,
