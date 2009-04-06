@@ -308,7 +308,8 @@ bool AEntityFactory::entities_equivalent(const MBEntityHandle this_entity,
     // need to compare the actual vertices
   const MBEntityHandle *this_vertices;
   int num_this_vertices;
-  thisMB->get_connectivity(this_entity, this_vertices, num_this_vertices);
+  std::vector<MBEntityHandle> storage;
+  thisMB->get_connectivity(this_entity, this_vertices, num_this_vertices, false, &storage);
   
   // see if we can get one node id to match
   assert(vertex_list_size > 0);
@@ -779,7 +780,8 @@ MBErrorCode AEntityFactory::get_down_adjacency_elements(MBEntityHandle source_en
   
     // I know there are already vertex adjacencies for this - call
     // another function to get them
-  MBErrorCode result = thisMB->get_connectivity(source_entity, vertices, num_verts);
+  std::vector<MBEntityHandle> storage;
+  MBErrorCode result = thisMB->get_connectivity(source_entity, vertices, num_verts, false, &storage);
   if (MB_SUCCESS != result) return result;
 
   int has_mid_nodes[4];
@@ -1130,6 +1132,7 @@ MBErrorCode AEntityFactory::get_up_adjacency_elements(MBEntityHandle source_enti
 
   const MBEntityHandle *source_vertices;
   int num_source_vertices;
+  std::vector<MBEntityHandle> conn_storage;
   
     // check to see whether there are any equivalent entities (same verts, different entity);
     // do this by calling get_element with a 0 source_entity, and look for a MB_MULTIPLE_ENTITIES_FOUND
@@ -1138,7 +1141,7 @@ MBErrorCode AEntityFactory::get_up_adjacency_elements(MBEntityHandle source_enti
     // NOTE: we only want corner vertices here, and for the code below which also uses
     // source_vertices
   MBErrorCode result = 
-    thisMB->get_connectivity(source_entity, source_vertices, num_source_vertices, true);
+    thisMB->get_connectivity(source_entity, source_vertices, num_source_vertices, true, &conn_storage);
   if (MB_SUCCESS != result) return result;
   MBEntityHandle temp_entity;
   result = get_element(source_vertices, num_source_vertices,
@@ -1188,8 +1191,9 @@ MBErrorCode AEntityFactory::get_up_adjacency_elements(MBEntityHandle source_enti
       // now filter according to whether each is adjacent to the polygon
     const MBEntityHandle *connect;
     int num_connect;
+    std::vector<MBEntityHandle> storage;
     for (unsigned int i = 0; i < tmp_vec.size(); i++) {
-      result = thisMB->get_connectivity(tmp_vec[i], connect, num_connect);
+      result = thisMB->get_connectivity(tmp_vec[i], connect, num_connect, false, &storage);
       if (MB_SUCCESS != result) return result;
       if (std::find(connect, connect+num_connect, source_entity) != connect+num_connect)
         target_entities.push_back(tmp_vec[i]);
