@@ -323,7 +323,7 @@ mhdf_getFileSummary( mhdf_FileHandle file_handle,
 {
   struct mhdf_FileDesc* result;
   hid_t table_id;
-  int i, j, k, size, *indices;
+  int i, j, k, size, *indices, have;
   void* ptr;
   char **elem_handles = 0, **tag_names = 0;
   unsigned char *array, *matrix;
@@ -335,29 +335,57 @@ mhdf_getFileSummary( mhdf_FileHandle file_handle,
   if (NULL == result) return NULL;
   
     /* get node info */
-  table_id = mhdf_openNodeCoords( file_handle, 
-                                  &result->nodes.count,
-                                  &result->nodes.vals_per_ent,
-                                  &result->nodes.start_id,
-                                  status );
-  if (table_id < 0) {
+  have = mhdf_haveNodes( file_handle, status );
+  if (mhdf_isError(status)) {
     free( result );
     return NULL;
+  }                      
+  if (have) {
+    table_id = mhdf_openNodeCoords( file_handle, 
+                                    &result->nodes.count,
+                                    &result->nodes.vals_per_ent,
+                                    &result->nodes.start_id,
+                                    status );
+    if (table_id < 0) {
+      free( result );
+      return NULL;
+    }
+    mhdf_closeData( file_handle, table_id, status );
   }
-  mhdf_closeData( file_handle, table_id, status );
+  else {
+    result->nodes.count = 0;
+    result->nodes.vals_per_ent = 0;
+    result->nodes.start_id = 0;
+  }
+  
   
   
     /* get set info */
   result->sets.vals_per_ent = -1;
-  table_id = mhdf_openSetMeta( file_handle,
-                               &result->sets.count,
-                               &result->sets.start_id,
-                               status );
-  if (table_id < 0) {
+  have = mhdf_haveSets( file_handle, 
+                        &result->have_set_contents, 
+                        &result->have_set_children, 
+                        &result->have_set_parents, 
+                        status );
+  if (mhdf_isError(status)) {
     free( result );
     return NULL;
+  }                      
+  if (have) {
+    table_id = mhdf_openSetMeta( file_handle,
+                                 &result->sets.count,
+                                 &result->sets.start_id,
+                                 status );
+    if (table_id < 0) {
+      free( result );
+      return NULL;
+    }
+    mhdf_closeData( file_handle, table_id, status );
   }
-  mhdf_closeData( file_handle, table_id, status );
+  else {
+    result->sets.count = 0;
+    result->sets.start_id = 0;
+  }
 
   
     /* get element list */

@@ -16,11 +16,62 @@
 #include <H5Tpublic.h>
 #include <H5Dpublic.h>
 #include <H5Ppublic.h>
+#include <H5Gpublic.h>
 #include "mhdf.h"
 #include "status.h"
 #include "names-and-paths.h"
 #include "util.h"
 #include "file-handle.h"
+
+
+int
+mhdf_haveNodes( mhdf_FileHandle file, mhdf_Status* status )
+{
+  FileHandle* file_ptr = (FileHandle*)file;
+  hid_t root_id, node_id;
+  int result;
+  API_BEGIN;
+  
+  if (!mhdf_check_valid_file( file_ptr, status ))
+    return -1;
+
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  root_id = H5Gopen2( file_ptr->hdf_handle, ROOT_GROUP, H5P_DEFAULT );
+#else
+  root_id = H5Gopen( file_ptr->hdf_handle, ROOT_GROUP );
+#endif
+  if (root_id < 0)
+  {
+    mhdf_setFail( status, "H5Gopen( \"%s\" ) failed.", ROOT_GROUP );
+    return -1;
+  }
+  
+  result = mhdf_is_in_group( root_id, NODE_GROUP_NAME, status );
+  if (result < 1)
+  {
+    H5Gclose(root_id);
+    return result;
+  }
+  
+#if defined(H5Gopen_vers) && H5Gopen_vers > 1  
+  node_id = H5Gopen2( root_id, NODE_GROUP_NAME, H5P_DEFAULT );
+#else
+  node_id = H5Gopen( root_id, NODE_GROUP_NAME );
+#endif
+  H5Gclose( root_id );
+  if (node_id < 0)
+  {
+    mhdf_setFail( status, "H5Gopen( \"%s\" ) failed.", NODE_GROUP );
+    return -1;
+  }
+  
+  result = mhdf_is_in_group( node_id, NODE_COORD_NAME, status );
+  if (result >= 0)
+   mhdf_setOkay( status );
+  H5Gclose( node_id );
+  API_END;
+  return result;
+}
 
 hid_t
 mhdf_createNodeCoords( mhdf_FileHandle file_handle,

@@ -231,11 +231,13 @@ mhdf_readwriteSetMeta( hid_t table_id, int read,
                        mhdf_Status* status )
 {
   hid_t slab_id, sslab_id, smem_id, mem_id;
-  hsize_t offsets[2], counts[2], mcounts[2] = {count,4}, moffsets[2] = {0,0};
+  hsize_t offsets[2], counts[2], mcounts[2], moffsets[2] = {0,0};
   herr_t rval = 0;
   int dims, i;
   const int fill_val = -1;
   
+  mcounts[0] = count;
+  mcounts[1] = 4;
   if (offset < 0 || count < 0)
   {
     mhdf_setFail( status, "Invalid input for %s: "

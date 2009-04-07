@@ -44,7 +44,8 @@
 /* Node paths */
 #define NODE_GROUP_NAME        "nodes"
 #define NODE_GROUP             ROOT_GROUP NODE_GROUP_NAME "/"
-#define NODE_COORD_PATH        NODE_GROUP "coordinates"
+#define NODE_COORD_NAME        "coordinates"
+#define NODE_COORD_PATH        NODE_GROUP NODE_COORD_NAME
 #define NODE_TAG_GROUP         NODE_GROUP DENSE_TAG_SUBGROUP
 #define NODE_ADJCY_PATH        NODE_GROUP ADJACENCY_NAME
 

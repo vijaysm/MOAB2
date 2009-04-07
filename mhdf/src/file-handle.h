@@ -39,7 +39,7 @@ FileHandle* mhdf_alloc_FileHandle( hid_t hdf_handle, mhdf_Status* status );
 int mhdf_check_valid_file( FileHandle* handle, mhdf_Status* status );
 
 #ifdef __cplusplus
-} // extern "C"
+} /* extern "C" */
 #endif
 
 #endif

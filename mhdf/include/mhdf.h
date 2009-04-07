@@ -241,6 +241,9 @@ struct mhdf_ElemDesc {
 struct mhdf_FileDesc {
   struct mhdf_EntDesc nodes;
   struct mhdf_EntDesc sets;
+  int have_set_contents;
+  int have_set_children;
+  int have_set_parents;
   struct mhdf_ElemDesc* elems; /**< Array of element table descriptions */
   int num_elem_desc;
   struct mhdf_TagDesc* tags;   /**< Array of tag descriptions */
@@ -359,6 +362,10 @@ mhdf_readHistory( mhdf_FileHandle file,
 /*@{*/
 
 /* Node Coordinates */
+
+int
+mhdf_haveNodes( mhdf_FileHandle file_handle, mhdf_Status* status );
+                
 
 /** \brief Create new table for node coordinate data 
  *
@@ -2332,7 +2339,7 @@ mhdf_readSparseTagIndicesWithOpt( hid_t tag_handle,
 
 
 #ifdef __cplusplus
-} // extern "C"
+} /* extern "C" */
 #endif
 
 #endif
