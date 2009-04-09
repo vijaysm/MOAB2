@@ -3562,6 +3562,10 @@ MBErrorCode MBParallelComm::exchange_tags(std::vector<MBTag> &tags)
                        buff_ptr, buff_size, true, true, *sit,
                        tags, tag_ranges);
     RRA("Failed to count buffer in pack_send_tag.");
+    if (ownerSBuffs[ind].size() < buff_size) {
+      ownerSBuffs[ind].resize(buff_size);
+      buff_ptr = &ownerSBuffs[ind][0];
+    }
     int real_buff_size = 0;
     result = pack_tags(tag_ents, rit, tag_ents,
                        buff_ptr, real_buff_size, false, true, *sit,
