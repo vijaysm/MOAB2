@@ -55,6 +55,12 @@ public:
   
   /** Find the value corresponding to the specified key.  Returns NullVal if not found */
   inline ValType find( KeyType key ) const;
+  
+  /** Check if range contains key */
+  inline bool exists( KeyType key ) const;
+  
+  /** Check if range contains key */
+  inline bool intersects( KeyType start, KeyType count ) const;
 
   /** Remove a block of values */
   inline iterator erase( KeyType beg, KeyType count );
@@ -162,6 +168,22 @@ ValType RangeMap<KeyType,ValType,NullVal>::find( KeyType key ) const
     return NullVal;
   
   return i->value + key - i->begin;
+}
+
+template <typename KeyType, typename ValType, ValType NullVal> inline
+bool RangeMap<KeyType,ValType,NullVal>::exists( KeyType key ) const
+{
+  Range search = { key, 1, NullVal };
+  typename RangeList::const_iterator i = std::lower_bound( data.begin(), data.end(), search );
+  return i != data.end() && key >= i->begin;
+}
+
+template <typename KeyType, typename ValType, ValType NullVal> inline 
+bool RangeMap<KeyType,ValType,NullVal>::intersects( KeyType start, KeyType count ) const
+{
+  Range search = { start, count, NullVal };
+  typename RangeList::const_iterator i = std::lower_bound( data.begin(), data.end(), search );
+  return i != data.end() && start + count > i->begin && i->begin+i->count > start;
 }
 
 template <typename KeyType, typename ValType, ValType NullVal>
