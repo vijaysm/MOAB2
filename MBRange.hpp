@@ -646,6 +646,22 @@ public:
   const_pair_iterator const_pair_end() const { return const_pair_iterator( &mHead ); }
 };
 
+inline MBRange::const_iterator 
+operator+( const MBRange::const_iterator& it, MBEntityID step )
+  { MBRange::const_iterator tmp(it); return tmp += step; }
+  
+inline MBRange::const_iterator 
+operator+( MBEntityID step, const MBRange::const_iterator& it )
+  { MBRange::const_iterator tmp(it); return tmp += step; }
+  
+inline MBRange::const_iterator 
+operator-( const MBRange::const_iterator& it, MBEntityID step )
+  { MBRange::const_iterator tmp(it); return tmp -= step; }
+  
+inline MBRange::const_iterator 
+operator-( MBEntityID step, const MBRange::const_iterator& it )
+  { MBRange::const_iterator tmp(it); return tmp -= step; }
+
 //! Use as you would an STL back_inserter
 /**
  *  e.g. std::copy(list.begin(), list.end(), mb_range_inserter(my_range);
