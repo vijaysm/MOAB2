@@ -236,6 +236,7 @@ struct mhdf_TagDesc {
 struct mhdf_ElemDesc {
   const char* handle;       /**< String table identifier */
   const char* type;         /**< String type designator */
+  int have_adj;             /**< File contains adjacency data for this element group */
   struct mhdf_EntDesc desc;
 };
 struct mhdf_FileDesc {

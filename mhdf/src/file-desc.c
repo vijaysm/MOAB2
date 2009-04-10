@@ -147,6 +147,14 @@ get_elem_desc( mhdf_FileHandle file_handle,
 
   result->elems[index].desc.dense_tag_indices = NULL;
   result->elems[index].desc.num_dense_tags = 0;
+  result->elems[index].have_adj = mhdf_haveAdjacency( file_handle, 
+                                      result->elems[index].handle,
+                                      status );
+  if (mhdf_isError(status)) {
+    free( result );
+    return 0;
+  }
+  
   return result;
 }
                    

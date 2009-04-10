@@ -44,12 +44,15 @@ static void print_ent_desc( const char* name,
                             const char* subname,
                             struct mhdf_EntDesc* data,
                             const char* vals_label,
+                            const char* extra_label,
                             struct mhdf_FileDesc* all )
 {
   int i, len = 10;
   
   if (vals_label && strlen(vals_label) > len)
     len = strlen(vals_label);
+  if (extra_label && strlen(extra_label) > len)
+    len = strlen(extra_label);
   
   if (subname) 
     printf( "    %s (%s):\n", name, subname );
@@ -58,8 +61,12 @@ static void print_ent_desc( const char* name,
   
   if (vals_label)
     printf( "      %-*s: %d\n", len, vals_label, data->vals_per_ent );
-  
+ 
   printf( "      %-*s: %ld [%ld - %ld]\n", len, "entities", data->count, data->start_id, data->start_id + data->count - 1 );
+   
+  if (extra_label)
+    printf( "      %-*s\n", len, extra_label );
+
   if (!data->num_dense_tags)
     return;
   
@@ -71,7 +78,8 @@ static void print_ent_desc( const char* name,
 
 static void print_elem_desc( struct mhdf_ElemDesc* data, struct mhdf_FileDesc* all )
 {
-  print_ent_desc( data->handle, data->type, &data->desc, "nodes per element", all );
+  const char* adj = data->have_adj ? "adjacencies" : "no adjencies";
+  print_ent_desc( data->handle, data->type, &data->desc, "nodes per element", adj, all );
 }
 
 static const char* tag_type_name( enum mhdf_TagDataType type )
@@ -232,10 +240,10 @@ static int print_file_summary( struct mhdf_FileDesc* data )
   int i;
   
   printf( "  Entities:\n" );
-  print_ent_desc( "Nodes", NULL, &data->nodes, "dimension", data );
+  print_ent_desc( "Nodes", NULL, &data->nodes, "dimension", NULL, data );
   for (i = 0; i < data->num_elem_desc; ++i)
     print_elem_desc( data->elems + i, data );
-  print_ent_desc( "Sets", NULL, &data->sets, NULL, data );
+  print_ent_desc( "Sets", NULL, &data->sets, NULL, NULL, data );
   
   printf( "  Tags:\n" );
   for (i = 0; i < data->num_tag_desc; ++i)
