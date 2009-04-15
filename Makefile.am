@@ -195,8 +195,12 @@ libMOAB_la_SOURCES = \
   SparseTagCollection.hpp \
   StructuredElementSeq.cpp \
   StructuredElementSeq.hpp \
+  SweptElementData.cpp \
+  SweptElementData.hpp \
   SweptElementSeq.cpp \
   SweptElementSeq.hpp \
+  SweptVertexData.cpp \
+  SweptVertexData.hpp \
   TagCompare.hpp \
   TagInfo.cpp \
   TagInfo.hpp \
