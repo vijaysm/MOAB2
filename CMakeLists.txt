@@ -163,7 +163,9 @@ project( MOAB )
     SparseTagSuperCollection.cpp
     SparseTagCollection.cpp
     StructuredElementSeq.cpp
+    SweptElementData.cpp
     SweptElementSeq.cpp
+    SweptVertexData.cpp
     TagInfo.cpp
     TagServer.cpp
     Tqdcfr.cpp

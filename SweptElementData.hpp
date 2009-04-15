@@ -80,7 +80,7 @@ public:
     //! constructor
   SweptElementData( MBEntityHandle start_handle,
                   const int imin, const int jmin, const int kmin,
-                  const int imax, const int jmax, const int kmax
+		    const int imax, const int jmax, const int kmax,
 		  const int* Cq );
   
   virtual ~SweptElementData();
