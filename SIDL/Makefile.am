@@ -4,7 +4,7 @@ vpath = server
 VPATH = server
 
 LD_FLAGS_PIC = -fpic -shared
-SERVER_HDRS := iBase_ArrTag_IOR.h iBase_CreationStatus_IOR.h iBase_EntSet_IOR.h    \
+SERVER_HDRS = iBase_ArrTag_IOR.h iBase_CreationStatus_IOR.h iBase_EntSet_IOR.h    \
   iBase_EntTag_IOR.h iBase_EntityType_IOR.h iBase_ErrorActions_IOR.h          \
   iBase_ErrorType_IOR.h iBase_IOR.h iBase_SetBoolOps_IOR.h  \
   iBase_SetRelation_IOR.h iBase_SetTag_IOR.h iBase_StorageOrder_IOR.h         \
