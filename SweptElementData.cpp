@@ -39,7 +39,6 @@ SweptElementData::SweptElementData(
                              const int imin, const int jmin, const int kmin,
                              const int imax, const int jmax, const int kmax,
 			     const int* Cq ) 
-) 
     : SequenceData(0, start_handle,
                    start_handle + 
                    calc_num_entities( start_handle, imax-imin, jmax-jmin, kmax-kmin )

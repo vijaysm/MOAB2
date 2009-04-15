@@ -37,6 +37,9 @@
 #include <vector>
 #include <algorithm>
 
+class ScdElementData : public SequenceData
+{
+
   //! structure to hold references to bounding vertex blocks
 class VertexDataRef
 {
@@ -52,9 +55,6 @@ public:
     
   bool contains(const HomCoord &coords) const;
 };
-
-class ScdElementData : public SequenceData
-{
 
 private:
 
@@ -205,12 +205,12 @@ inline bool ScdElementData::contains(const HomCoord &temp) const
   return (temp >= elementParams[0] && temp < elementParams[1]);
 }
   
-inline bool VertexDataRef::contains(const HomCoord &coords) const 
+inline bool ScdElementData::VertexDataRef::contains(const HomCoord &coords) const 
 {
   return (minmax[0] <= coords && minmax[1] >= coords);
 }
 
-inline VertexDataRef::VertexDataRef(const HomCoord &this_min, const HomCoord &this_max,
+inline ScdElementData::VertexDataRef::VertexDataRef(const HomCoord &this_min, const HomCoord &this_max,
                                     const HomXform &tmp_xform, ScdVertexData *this_seq)
     : xform(tmp_xform), invXform(tmp_xform.inverse()), srcSeq(this_seq)
 {
