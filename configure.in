@@ -1,9 +1,9 @@
 ################################################################################
 #                           Standard Stuff
 ################################################################################
-AC_INIT(Lasso, 2.0)
+AC_INIT(Lasso, 2.5)
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(Lasso,2.0)
+AM_INIT_AUTOMAKE(Lasso,2.5)
 
 AC_PROG_SED
 
