@@ -13,15 +13,15 @@
  * 
  */
 
-#ifndef SCD_ELEMENT_DATA_HPP
-#define SCD_ELEMENT_DATA_HPP
+#ifndef SWEPT_ELEMENT_DATA_HPP
+#define SWEPT_ELEMENT_DATA_HPP
 
 //
-// Class: ScdElementData
+// Class: SweptElementData
 //
 // Purpose: represent a rectangular element of mesh
 //
-// A ScdElement represents a rectangular element of mesh, including both vertices and
+// A SweptElement represents a rectangular element of mesh, including both vertices and
 // elements, and the parametric space used to address that element.  Vertex data,
 // i.e. coordinates, may not be stored directly in the element, but the element returns
 // information about the vertex handles of vertices in the element.  Vertex and element
@@ -30,7 +30,7 @@
 #include "SequenceData.hpp"
 #include "HomXform.hpp"
 #include "MBCN.hpp"
-#include "ScdVertexData.hpp"
+#include "SweptVertexData.hpp"
 #include "MBInternals.hpp"
 #include "MBRange.hpp"
 
@@ -43,17 +43,17 @@ class VertexDataRef
 private:
   HomCoord minmax[2];
   HomXform xform, invXform;
-  ScdVertexData *srcSeq;
+  SweptVertexData *srcSeq;
 public:
-  friend class ScdElementData;
+  friend class SweptElementData;
   
   VertexDataRef(const HomCoord &min, const HomCoord &max,
-                const HomXform &tmp_xform, ScdVertexData *this_seq);
+                const HomXform &tmp_xform, SweptVertexData *this_seq);
     
   bool contains(const HomCoord &coords) const;
 };
 
-class ScdElementData : public SequenceData
+class SweptElementData : public SequenceData
 {
 
 private:
@@ -70,7 +70,7 @@ private:
   int dIJKm1[3];
 
     //! bare constructor, so compiler doesn't create one for me
-  ScdElementData();
+  SweptElementData();
 
     //! list of bounding vertex blocks
   std::vector<VertexDataRef> vertexSeqRefs;
@@ -78,11 +78,12 @@ private:
 public:
 
     //! constructor
-  ScdElementData( MBEntityHandle start_handle,
+  SweptElementData( MBEntityHandle start_handle,
                   const int imin, const int jmin, const int kmin,
-                  const int imax, const int jmax, const int kmax);
+                  const int imax, const int jmax, const int kmax
+		  const int* Cq );
   
-  virtual ~ScdElementData();
+  virtual ~SweptElementData();
   
     //! get handle of vertex at homogeneous coords
   inline MBEntityHandle get_vertex(const HomCoord &coords) const;
@@ -129,7 +130,7 @@ public:
     //! is input in bb_min and bb_max (allows partial sharing of vseq rather than the whole
     //! vseq); if it's false, the whole vseq is referenced and the eseq-local coordinates
     //! is computed from the transformed bounding box of the vseq
-  MBErrorCode add_vsequence(ScdVertexData *vseq, 
+  MBErrorCode add_vsequence(SweptVertexData *vseq, 
                              const HomCoord &p1, const HomCoord &q1,
                              const HomCoord &p2, const HomCoord &q2,
                              const HomCoord &p3, const HomCoord &q3,
@@ -151,30 +152,30 @@ public:
   unsigned long get_memory_use() const;
 };
 
-inline MBEntityHandle ScdElementData::get_element(const int i, const int j, const int k) const
+inline MBEntityHandle SweptElementData::get_element(const int i, const int j, const int k) const
 {
   return start_handle() + (i-i_min()) + (j-j_min())*dIJKm1[0] + (k-k_min())*dIJKm1[0]*dIJKm1[1];
 }
 
-inline const HomCoord &ScdElementData::min_params() const
+inline const HomCoord &SweptElementData::min_params() const
 {
   return elementParams[0];
 }
 
-inline const HomCoord &ScdElementData::max_params() const
+inline const HomCoord &SweptElementData::max_params() const
 {
   return elementParams[1];
 }
 
   //! get the number of vertices in each direction, inclusive
-inline void ScdElementData::param_extents(int &di, int &dj, int &dk) const
+inline void SweptElementData::param_extents(int &di, int &dj, int &dk) const
 {
   di = dIJK[0];
   dj = dIJK[1];
   dk = dIJK[2];
 }
 
-inline MBErrorCode ScdElementData::get_params(const MBEntityHandle ehandle,
+inline MBErrorCode SweptElementData::get_params(const MBEntityHandle ehandle,
                                               int &i, int &j, int &k) const
 {
   if (TYPE_FROM_HANDLE(ehandle) != TYPE_FROM_HANDLE(start_handle())) return MB_FAILURE;
@@ -198,7 +199,7 @@ inline MBErrorCode ScdElementData::get_params(const MBEntityHandle ehandle,
           k >= k_min() && k <= k_max()) ? MB_SUCCESS : MB_FAILURE;
 }
 
-inline bool ScdElementData::contains(const HomCoord &temp) const 
+inline bool SweptElementData::contains(const HomCoord &temp) const 
 {
     // upper bound is < instead of <= because element params max is one less
     // than vertex params max
@@ -211,14 +212,14 @@ inline bool VertexDataRef::contains(const HomCoord &coords) const
 }
 
 inline VertexDataRef::VertexDataRef(const HomCoord &this_min, const HomCoord &this_max,
-                                    const HomXform &tmp_xform, ScdVertexData *this_seq)
+                                    const HomXform &tmp_xform, SweptVertexData *this_seq)
     : xform(tmp_xform), invXform(tmp_xform.inverse()), srcSeq(this_seq)
 {
   minmax[0] = HomCoord(this_min);
   minmax[1] = HomCoord(this_max); 
 }
 
-inline MBEntityHandle ScdElementData::get_vertex(const HomCoord &coords) const
+inline MBEntityHandle SweptElementData::get_vertex(const HomCoord &coords) const
 {
   assert(boundary_complete());
    for (std::vector<VertexDataRef>::const_iterator it = vertexSeqRefs.begin();
@@ -236,7 +237,7 @@ inline MBEntityHandle ScdElementData::get_vertex(const HomCoord &coords) const
    return 0;
 }
 
-inline MBErrorCode ScdElementData::add_vsequence(ScdVertexData *vseq, 
+inline MBErrorCode SweptElementData::add_vsequence(SweptVertexData *vseq, 
                                                  const HomCoord &p1, const HomCoord &q1,
                                                  const HomCoord &p2, const HomCoord &q2, 
                                                  const HomCoord &p3, const HomCoord &q3,
@@ -285,7 +286,7 @@ inline MBErrorCode ScdElementData::add_vsequence(ScdVertexData *vseq,
   return MB_SUCCESS;
 }
 
-inline MBErrorCode ScdElementData::get_params_connectivity(const int i, const int j, const int k,
+inline MBErrorCode SweptElementData::get_params_connectivity(const int i, const int j, const int k,
                                                            std::vector<MBEntityHandle>& connectivity) const
 {
   if (contains(HomCoord(i, j, k)) == false) return MB_FAILURE;

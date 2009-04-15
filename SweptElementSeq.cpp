@@ -14,8 +14,8 @@
  */
 
 #include "SweptElementSeq.hpp"
-#include "ScdVertexData.hpp"
-#include "ScdElementData.hpp"
+#include "SweptVertexData.hpp"
+#include "SweptElementData.hpp"
 #include "MBInterface.hpp"
 #include "MBReadUtilIface.hpp"
 #include "MBCN.hpp"
@@ -31,9 +31,10 @@ SweptElementSeq::SweptElementSeq(MBEntityHandle start_handle,
                                                         jmax-jmin,
                                                         kmax-kmin ),
                      MBCN::VerticesPerEntity(TYPE_FROM_HANDLE(start_handle)),
-                     new ScdElementData( start_handle, 
-                                        imin, jmin, kmin,
-                                        imax, jmax, kmax ) )
+                     new SweptElementData( start_handle, 
+					   imin, jmin, kmin,
+					   imax, jmax, kmax,
+					   Cq ) )
 {
 }
 
