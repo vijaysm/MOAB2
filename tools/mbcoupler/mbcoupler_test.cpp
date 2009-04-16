@@ -95,7 +95,7 @@ int main(int argc, char **argv)
     rps[i] = new ReadParallel(mbImpl, pcs[i]);
     
     result = rps[i]->load_file(filenames[i], filesets[i], 
-                               FileOptions(opts.c_str()), NULL, 0);
+                               FileOptions(opts.c_str()), 0, 0, 0);
     PRINT_LAST_ERROR;
   }
 
