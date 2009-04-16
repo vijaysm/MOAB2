@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <math.h>
 #include <map>
+#include <string.h>
 
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <unistd.h>
@@ -305,7 +306,7 @@ static int get_entities( iMesh_Instance imesh,
                          iMesh_EntityTopology topo,
                          std::vector<iBase_EntityHandle>& entities )
 {
-  iBase_EntitySetHandle* array = 0;
+  iBase_EntityHandle* array = 0;
   int junk = 0, size = 0, err;
   iMesh_getEntities( imesh, set, type, topo, &array, &junk, &size, &err );
   if (!err) {
@@ -376,15 +377,13 @@ static int get_coords( iMesh_Instance imesh,
   double* junk1 = coords;
   int junk2 = 3*num_verts;
   int junk3;
-  int junk4 = iBase_INTERLEAVED;
   int ierr;
-  iMesh_getVtxArrCoords( imesh, verts, num_verts, &junk4, &junk1, &junk2, &junk3, &ierr );
+  iMesh_getVtxArrCoords( imesh, verts, num_verts, iBase_INTERLEAVED, &junk1, &junk2, &junk3, &ierr );
   if (iBase_SUCCESS != ierr)
     return ierr;
   assert( junk1 == coords );
   assert( junk2 == 3*num_verts );
   assert( junk3 == 3*num_verts );
-  assert( junk4 == iBase_INTERLEAVED );
   return iBase_SUCCESS;
 }
   
@@ -624,9 +623,7 @@ int create_mesh( const char* filename, int num_parts )
                                    elements[2*(i/2)+1][2*(i%2)  ],
                                    elements[2*(i/2)  ][2*(i%2)+1],
                                    elements[2*(i/2)+1][2*(i%2)+1] };
-    iBase_EntitySetHandle set = part;
-    iMesh_addEntArrToSet( imesh, quads, 4, &set, &ierr ); CHKERR;
-    assert(set == part);
+    iMesh_addEntArrToSet( imesh, quads, 4, part, &ierr ); CHKERR;
   }
   
     // assign global ids to vertices
@@ -810,7 +807,7 @@ static int test_get_by_type_topo_all( iMesh_Instance imesh,
   iBase_EntitySetHandle set;
   iMesh_createEntSet( imesh, 1, &set, &ierr );
   CHKERR;
-  iMesh_addEntArrToSet( imesh, &half_quads[0], half_quads.size(), &set, &ierr );
+  iMesh_addEntArrToSet( imesh, &half_quads[0], half_quads.size(), set, &ierr );
   CHKERR;
   
     // test getNumOf*All with defined set
@@ -895,7 +892,7 @@ static int test_get_by_type_topo_local( iMesh_Instance imesh,
   iBase_EntitySetHandle set;
   iMesh_createEntSet( imesh, 1, &set, &ierr );
   CHKERR;
-  iMesh_addEntArrToSet( imesh, &half_quads[0], half_quads.size(), &set, &ierr );
+  iMesh_addEntArrToSet( imesh, &half_quads[0], half_quads.size(), set, &ierr );
   CHKERR;
   
     // check if there exists any quads not in the part that we 
@@ -907,7 +904,7 @@ static int test_get_by_type_topo_local( iMesh_Instance imesh,
   std::set_difference( all_quads.begin(), all_quads.end(),
                        part_quads.begin(), part_quads.end(),
                        std::back_inserter( other_quads ) );
-  iMesh_addEntArrToSet( imesh, &other_quads[0], other_quads.size(), &set, &ierr );
+  iMesh_addEntArrToSet( imesh, &other_quads[0], other_quads.size(), set, &ierr );
   CHKERR;
   
     // compare local counts (using non-root set)
@@ -2567,7 +2564,7 @@ int test_push_tag_data_common( iMesh_Instance imesh,
   iMesh_createTag( imesh, dst_name, 1, iBase_INTEGER, &dst_tag, &ierr, strlen(dst_name) );
   CHKERR;
   
-  iBase_EntityHandle root;
+  iBase_EntitySetHandle root;
   iMesh_getRootSet( imesh, &root, &ierr ); CHKERR;
   
   std::vector<iBase_EntityHandle> verts;
