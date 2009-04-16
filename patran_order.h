@@ -90,22 +90,22 @@ static const int* const patran_pri_order[] = { 0, 0, 0, 0, 0, 0, 0, 0,
    is the same as PATRAN (or the number of nodes is invalid.) */
 
 static const int *const *const patran_elem_order_map[] = { 
-  patran_null_order, // MBVERTEX
-  patran_null_order, // MBEDGE
-  patran_null_order, // MBTRI
-  patran_null_order, // MBQUAD
-  patran_null_order, // MBPOLYGON
-  patran_tet_order,  // MBTET
-  patran_null_order, // MBPYRAMID
-  patran_pri_order,  // MBPRISM
-  patran_null_order, // MBKNIFE
-  patran_hex_order,  // MBHEX
-  patran_null_order, // MBPOLYHEDRON
+  patran_null_order, /*  MBVERTEX */
+  patran_null_order, /*  MBEDGE */
+  patran_null_order, /*  MBTRI */
+  patran_null_order, /*  MBQUAD */
+  patran_null_order, /*  MBPOLYGON */
+  patran_tet_order,  /*  MBTET */
+  patran_null_order, /*  MBPYRAMID */
+  patran_pri_order,  /*  MBPRISM */
+  patran_null_order, /*  MBKNIFE */
+  patran_hex_order,  /*  MBHEX */
+  patran_null_order, /*  MBPOLYHEDRON */
   patran_null_order
 };
 
 #ifdef __cplusplus
-} // extern "C"
+} /*  extern "C" */
 #endif
 
 #endif

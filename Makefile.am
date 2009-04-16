@@ -261,7 +261,7 @@ libMOAB_la_include_HEADERS = \
   MBSkinner.hpp \
   MBTagConventions.hpp \
   MBTypes.h \
-  MBUnknownInterface.h \
+  MBUnknownInterface.hpp \
   MBUtil.hpp \
   MBWriteUtilIface.hpp \
   MBWriterIface.hpp \

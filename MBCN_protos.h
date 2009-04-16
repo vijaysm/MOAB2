@@ -1,7 +1,7 @@
 #include "MBCN_FCDefs.h"
 #ifdef FC_FUNC_
 
-  //! get the basis of the numbering system
+  /* get the basis of the numbering system */
 #define MBCN_GetBasis FC_FUNC_(mbcn_getbasis, MBCN_GETBASIS)
 #define MBCN_SetBasis FC_FUNC_(mbcn_setbasis, MBCN_SETBASIS)
 #define MBCN_EntityTypeName FC_FUNC_(mbcn_entitytypename, MBCN_ENTITYTYPENAME)

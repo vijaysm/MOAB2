@@ -1,5 +1,5 @@
 
-//extra stuff that james didn't expose
+/* extra stuff that james didn't expose */
 
 typedef struct {
   unsigned constraints;

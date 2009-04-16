@@ -54,7 +54,7 @@
 #endif
 
 
-#include "MBUnknownInterface.h"
+#include "MBUnknownInterface.hpp"
 #define MB_INTERFACE_VERSION "2.0.0"
 static const MBuuid IDD_MBCore = MBuuid( 0x8956e0a, 0xc300, 0x4005,
                                          0xbd, 0xf6, 0xc3, 0x4e, 0xf7, 0x1f, 0x5a, 0x52 );

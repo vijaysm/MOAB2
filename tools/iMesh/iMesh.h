@@ -1976,7 +1976,7 @@ extern "C" {
                    /*out*/ int *err);
 
 #ifdef __cplusplus
-} // extern "C"
+} /*  extern "C" */
 #endif
 
 #endif /* ifndef IMESH_CBIND_H__ */

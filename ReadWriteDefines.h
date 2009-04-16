@@ -6,7 +6,7 @@
 #pragma warning(disable : 4786)
 #endif
 
-// CJS  -- we need to figure out how this fits in the component framework
+/* CJS  -- we need to figure out how this fits in the component framework */
 #error "don't include this file"
 
 

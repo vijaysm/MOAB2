@@ -6,7 +6,7 @@
 #warning "gs.h" requires "types.h" and "crystal.h"
 #endif
 
-// typedef struct gs_data_ gs_data;
+/*  typedef struct gs_data_ gs_data; */
 
 #ifndef MPI
 #  define crystal_data void

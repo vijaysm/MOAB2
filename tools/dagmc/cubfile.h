@@ -75,7 +75,7 @@ int cub_file_block( FILE* cubfile, FILE* output_file, int block );
 int cub_file_type( FILE* cubfile, FILE* output_file, enum CubFileType type );
 
 #ifdef __cplusplus
-} // extern "C"
+} /* extern "C" */
 #endif
 
 #endif
