@@ -2032,6 +2032,24 @@ MBErrorCode MBAdaptiveKDTree::ray_intersect_triangles( MBEntityHandle root,
   
   return MB_SUCCESS;
 }
+
+MBErrorCode MBAdaptiveKDTree::depth( MBEntityHandle root, 
+                                     unsigned int& min_depth,
+                                     unsigned int& max_depth )
+{
+  MBAdaptiveKDTreeIter iter;
+  get_tree_iterator( root, iter );
+  iter.step_to_first_leaf(MBAdaptiveKDTreeIter::LEFT);
+  min_depth = max_depth = iter.depth();
+  while (MB_SUCCESS == iter.step()) {
+    if (iter.depth() > max_depth)
+      max_depth = iter.depth();
+    else if (iter.depth() < min_depth)
+      min_depth = iter.depth();
+  }
+  
+  return MB_SUCCESS;
+}
           
 MBErrorCode MBAdaptiveKDTree::get_info(MBEntityHandle root,
                                        double min[3], double max[3], 
@@ -2040,11 +2058,7 @@ MBErrorCode MBAdaptiveKDTree::get_info(MBEntityHandle root,
   MBErrorCode result = get_tree_box(root, min, max);
   if (MB_SUCCESS != result) return result;
   
-  MBAdaptiveKDTreeIter iter;
-  get_tree_iterator( root, iter );
-  iter.step_to_first_leaf(MBAdaptiveKDTreeIter::LEFT);
-  dep = iter.depth();
-
-  return MB_SUCCESS;
+  unsigned min_depth;
+  return depth( root, min_depth, dep );
 }
 

@@ -175,10 +175,14 @@ public:
                           MBEntityHandle& root_set_out,
                           const Settings* settings = 0 );
 
+  MBErrorCode depth( MBEntityHandle root,
+                     unsigned int& min_depth,
+                     unsigned int& max_depth );
+
     //! get some information about the tree
   MBErrorCode get_info(MBEntityHandle root,
                        double min[3], double max[3], 
-                       unsigned int &dep);
+                       unsigned int &max_dep);
   
   //! Find triangle closest to input position. 
   //!\param from_coords  The input position to test against

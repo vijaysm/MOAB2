@@ -15,6 +15,7 @@ if HAVE_CGM
 endif
 
 check_PROGRAMS = perf seqperf adj_time
+noinst_PROGRAMS = point_in_elem
 
 perf_SOURCES = perf.cpp
 seqperf_SOURCES = seqperf.cpp
