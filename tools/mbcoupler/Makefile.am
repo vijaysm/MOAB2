@@ -14,7 +14,6 @@ if HAVE_CGM
 endif
 
 libmbcoupler_la_SOURCES = \
-   MBElemUtil.cpp \
    poly.c   \
    poly.h   \
    tensor.c \
@@ -29,7 +28,6 @@ libmbcoupler_la_SOURCES = \
    MBCoupler.cpp
 
 libmbcoupler_la_include_HEADERS = \
-   MBElemUtil.hpp \
    MBCoupler.hpp
 
 libmbcoupler_la_includedir = $(includedir)
