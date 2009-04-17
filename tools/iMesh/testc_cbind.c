@@ -404,6 +404,65 @@ int topology_adjacency_test(iMesh_Instance mesh)
   return TRUE;
 }
 
+int adjacent_indices_test(iMesh_Instance mesh)
+{
+  int i, count[5], idxcount[5], err, idxsum = 0;
+  iBase_EntityHandle *ent_arr, *adj_arr;
+  int *off_arr, *idx_arr;
+  int ent_arr_size, adj_arr_size, off_arr_size, idx_arr_size;
+  int junk1, junk2, junk3, junk4;
+  
+  count[4] = 0;
+  for (i = 0; i < 4; ++i) {
+    iMesh_getNumOfType( mesh, 0, i, count+i, &err );
+    count[4] += count[i];
+  }
+  
+  
+  for (i = 0; i < 5; ++i) {
+    ent_arr = adj_arr = NULL;
+    off_arr = idx_arr = NULL;
+    junk1 = junk2 = junk3 = junk4 = 0;
+    iMesh_getAdjEntIndices( mesh, 0, i, iMesh_ALL_TOPOLOGIES, iBase_VERTEX,
+                            &ent_arr, &junk1, &ent_arr_size, 
+                            &adj_arr, &junk2, &adj_arr_size,
+                            &idx_arr, &junk3, &idx_arr_size,
+                            &off_arr, &junk4, &off_arr_size,
+                            &err );
+    free( ent_arr );
+    free( adj_arr );
+    free( idx_arr );
+    free( off_arr );
+    
+    if (err) {
+      printf( "%s:%d : iMesh_getAdjEntIndices failed with dimension = %d.  Error code = %d\n",
+              __FILE__, __LINE__, i, err );
+      return FALSE;
+    }
+                            
+    if (count[i] != ent_arr_size) {
+      printf( "%s:%d : Invalid number of source entities returned from iMesh_getAdjEntIndices with dimension = %d.  Expected %d, got %d\n",
+              __FILE__, __LINE__, i, count[i], ent_arr_size );
+      return FALSE;
+    }
+    
+    idxcount[i] = idx_arr_size;
+  }
+  
+  idxsum = 0;
+  for (i =0; i < 4; ++i)
+    idxsum += idxcount[i];
+  if (idxsum != idxcount[4]) {
+    printf( "%s:%d : Invalid adjacent entity count returned from iMesh_getAdjEntIndices for iBase_ALL_TYPES.  Expected %d (%d + %d + %d + %d), got %d\n",
+            __FILE__, __LINE__, idxsum, idxcount[0], idxcount[1], idxcount[2], 
+                                        idxcount[3], idxcount[4] );
+    return FALSE;
+  }
+  
+  return TRUE;
+}
+
+
 int qsort_comp_handles( const void* h1, const void* h2 )
 {
   return *(char**)h1 - *(char**)h2;
@@ -2115,6 +2174,15 @@ int main( int argc, char *argv[] )
     /* topology_adjacency_test */
   printf("   topology_adjacency_test: ");
   result = topology_adjacency_test(mesh);
+  handle_error_code(result, &number_tests_failed,
+                    &number_tests_not_implemented,
+                    &number_tests_successful);
+  number_tests++;
+  printf("\n");
+
+    /* adjacent_indices_test */
+  printf("   adjacent_indices_test: ");
+  result = adjacent_indices_test(mesh);
   handle_error_code(result, &number_tests_failed,
                     &number_tests_not_implemented,
                     &number_tests_successful);

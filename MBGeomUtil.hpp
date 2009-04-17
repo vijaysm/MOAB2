@@ -254,6 +254,18 @@ bool box_tet_overlap( const MBCartVect tet_corners[4],
                       const MBCartVect& box_center,
                       const MBCartVect& box_dims);
 
+//
+// point_in_trilinear_hex
+// Tests if a point in xyz space is within a hex element defined with
+// its eight vertex points forming a trilinear basis function.  Computes
+// the natural coordinates with respect to the hex of the xyz point 
+// and checks if each are between +/-1.  If anyone is outside the range
+// the function returns false, otherwise it returns true.
+//
+bool point_in_trilinear_hex(const MBCartVect *hex, 
+                            const MBCartVect& xyz,
+                            double etol);
+
 } // namespace MBGeoemtry
 
 #endif

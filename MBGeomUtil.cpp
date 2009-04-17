@@ -21,6 +21,7 @@
 #include "MBCartVect.hpp"
 #include "MBCN.hpp"
 #include "MBGeomUtil.hpp"
+#include "MBMatrix3.hpp"
 #include <cmath>
 #include <algorithm>
 #include <assert.h>
@@ -1128,5 +1129,118 @@ bool box_point_overlap( const MBCartVect& box_min_corner,
   closest -= point;
   return closest % closest < tolerance * tolerance;
 }
+
+
+/**\brief Class representing a 3-D mapping function (e.g. shape function for volume element) */
+class VolMap {
+  public:
+      /**\brief Return $\vec \xi$ corresponding to logical center of element */
+    virtual MBCartVect center_xi() const = 0;
+      /**\brief Evaluate mapping function (calculate $\vec x = F($\vec \xi)$ )*/
+    virtual MBCartVect evaluate( const MBCartVect& xi ) const = 0;
+      /**\brief Evaluate Jacobian of mapping function */
+    virtual MBMatrix3 jacobian( const MBCartVect& xi ) const = 0;
+      /**\brief Evaluate inverse of mapping function (calculate $\vec \xi = F^-1($\vec x)$ )*/
+    bool solve_inverse( const MBCartVect& x, MBCartVect& xi, double tol ) const ;
+};
+
+bool VolMap::solve_inverse( const MBCartVect& x, MBCartVect& xi, double tol ) const
+{
+  const double error_tol_sqr = tol*tol;
+  double det;
+  xi = center_xi();
+  MBCartVect delta = evaluate(xi) - x;
+  MBMatrix3 J;
+  while (delta % delta > error_tol_sqr) {
+    J = jacobian(xi);
+    det = J.determinant();
+    if (det < std::numeric_limits<double>::epsilon())
+      return false;
+    xi -= J.inverse(1.0/det) * delta;
+    delta = evaluate( xi ) - x;
+  }
+  return true;
+}
+
+/**\brief Shape function for trilinear hexahedron */
+class LinearHexMap : public VolMap {
+  public:
+    LinearHexMap( const MBCartVect* corner_coords ) : corners(corner_coords) {}
+    virtual MBCartVect center_xi() const;
+    virtual MBCartVect evaluate( const MBCartVect& xi ) const;
+    virtual MBMatrix3 jacobian( const MBCartVect& xi ) const;
+  private:
+    const MBCartVect* corners;
+    static const double corner_xi[8][3];
+};
+
+const double LinearHexMap::corner_xi[8][3] = { { -1, -1, -1 },
+                                               {  1, -1, -1 },
+                                               {  1,  1, -1 },
+                                               { -1,  1, -1 },
+                                               { -1, -1,  1 },
+                                               {  1, -1,  1 },
+                                               {  1,  1,  1 },
+                                               { -1,  1,  1 } };
+MBCartVect LinearHexMap::center_xi() const
+  { return MBCartVect(0.0); }
+
+MBCartVect LinearHexMap::evaluate( const MBCartVect& xi ) const
+{
+  MBCartVect x(0.0);
+  for (unsigned i = 0; i < 8; ++i) {
+    const double N_i = (1 + xi[0]*corner_xi[i][0])
+                     * (1 + xi[1]*corner_xi[i][1])
+                     * (1 + xi[2]*corner_xi[i][2]);
+    x += N_i * corners[i];
+  }
+  x *= 0.125;
+  return x;
+}
+
+MBMatrix3 LinearHexMap::jacobian( const MBCartVect& xi ) const
+{
+  MBMatrix3 J(0.0);
+  for (unsigned i = 0; i < 8; ++i) {
+    const double   xi_p = 1 + xi[0]*corner_xi[i][0];
+    const double  eta_p = 1 + xi[1]*corner_xi[i][1];
+    const double zeta_p = 1 + xi[2]*corner_xi[i][2];
+    const double dNi_dxi   = corner_xi[i][0] * eta_p * zeta_p;
+    const double dNi_deta  = corner_xi[i][1] *  xi_p * zeta_p;
+    const double dNi_dzeta = corner_xi[i][2] *  xi_p *  eta_p;
+    J(0,0) += dNi_dxi   * corners[i][0];
+    J(1,0) += dNi_dxi   * corners[i][1];
+    J(2,0) += dNi_dxi   * corners[i][2];
+    J(0,1) += dNi_deta  * corners[i][0];
+    J(1,1) += dNi_deta  * corners[i][1];
+    J(2,1) += dNi_deta  * corners[i][2];
+    J(0,2) += dNi_dzeta * corners[i][0];
+    J(1,2) += dNi_dzeta * corners[i][1];
+    J(2,2) += dNi_dzeta * corners[i][2];
+  }
+  return J *= 0.125;
+}
+
+bool nat_coords_trilinear_hex( const MBCartVect* corner_coords,
+                               const MBCartVect& x,
+                               MBCartVect& xi,
+                               double tol )
+{
+  return LinearHexMap( corner_coords ).solve_inverse( x, xi, tol );
+}
+
+
+bool point_in_trilinear_hex(const MBCartVect *hex, 
+                            const MBCartVect& xyz,
+                            double etol) 
+{
+  MBCartVect xi;
+  return nat_coords_trilinear_hex( hex, xyz, xi, etol )
+      && fabs(xi[0])-1 < etol 
+      && fabs(xi[1])-1 < etol 
+      && fabs(xi[2])-1 < etol;
+}
+
+
 
 } // namespace MBGeoemtry

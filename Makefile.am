@@ -139,7 +139,6 @@ libMOAB_la_SOURCES = \
   MBCN.cpp \
   MBCNArrays.hpp \
   MBCartVect.cpp \
-  MBElemUtil.cpp \
   MBMatrix3.cpp \
   MBMatrix3.hpp \
   MBCore.cpp \
@@ -246,7 +245,6 @@ libMOAB_la_include_HEADERS = \
   MBCN_protos.h \
   MBCartVect.hpp \
   MBCore.hpp \
-  MBElemUtil.hpp \
   MBEntityType.h \
   MBEntityHandle.h \
   MBError.hpp \
