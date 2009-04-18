@@ -20,4 +20,6 @@ noinst_PROGRAMS = point_in_elem
 perf_SOURCES = perf.cpp
 seqperf_SOURCES = seqperf.cpp
 adj_time_SOURCES = adj_time.cpp
+point_in_elem_SOURCES = point_in_elem.cpp
+
 
