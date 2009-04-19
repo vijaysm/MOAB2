@@ -584,7 +584,7 @@ extern "C" {
       ++(this_it->currentPos);
     }
   
-    *has_data = !i;
+    *has_data = (i!=0);
     *entity_handles_size = i;
     RETURN(iBase_SUCCESS);
   }
