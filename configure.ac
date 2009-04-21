@@ -3,6 +3,7 @@
 ################################################################################
 AC_INIT(MOAB, 3.99)
 AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_AUX_DIR([.])
 AC_CANONICAL_SYSTEM
 AM_INIT_AUTOMAKE
 
