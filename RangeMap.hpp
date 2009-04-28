@@ -44,6 +44,9 @@ public:
   typedef typename std::vector<Range> RangeList;
   typedef typename RangeList::const_iterator iterator;
   
+  inline bool empty() const
+    { return data.empty(); }
+  
   /**\brief Insert mapping between range of keys and range of values
    * 
    * Insert mapping from [first_key, first_key+count) to [first_val, first_val+count) 

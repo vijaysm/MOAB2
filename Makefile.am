@@ -135,7 +135,6 @@ libMOAB_la_SOURCES = \
   MBBits.cpp \
   MBBits.hpp \
   MBBSPTree.cpp \
-  MBBSPTree.hpp \
   MBCN.cpp \
   MBCNArrays.hpp \
   MBCartVect.cpp \
@@ -240,6 +239,7 @@ libMOAB_la_include_HEADERS = \
   HigherOrderFactory.hpp \
   HomXform.hpp \
   MBAdaptiveKDTree.hpp \
+  MBBSPTree.hpp \
   MBCN.hpp \
   MBCN_FCDefs.h \
   MBCN_protos.h \

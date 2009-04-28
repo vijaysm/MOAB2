@@ -129,3 +129,30 @@ Write binary or text STL file.  Default is text.
    
 Force byte ordering of binary data.  Default is BIG_ENDIAN for writing
 and autodetection for reading (BIG_ENDIAN if autodetect fails).
+
+
+MOAB Native (HDF5-based MHDF) format
+------------------------------------
+
+   ELEMENTS={EXPLICIT|NODES}
+
+If reading only part of a file, specify which additional elements to read
+in addition to those contained in the specified set.  The options are:
+   EXPLICIT    - read only explicitly designated elements
+   NODES       - read any element for which all the nodes are being read.
+Default is EXPLICIT unless only nodesa are explicitly specified, in which
+case NODES will be used.
+
+   CHILDREN={NONE|SETS|CONTENTS}
+
+If reading only part of a file, specify which whether or not child sets
+of input sets are to be read.  The options are:
+   NONE     - Do not read sets because they are children of designated sets.
+   SETS     - Read all child sets of designated input sets.
+   CONTENTS - (Default).  Read all child sets and any entities contained
+              in those sets.
+
+
+   BUFFER_SIZE=<BYTES>
+   
+Reduce buffer size for debugging purposes.
