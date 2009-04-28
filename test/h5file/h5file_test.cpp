@@ -469,8 +469,8 @@ bool compare_sets( int id, const char* tag_name = 0 )
   if (opt1 != opt2)
   {
     fprintf(stderr, "Sets with id %d do not have matching options.\n"
-                    "Set 1: track_owner=%s set=%s ordered=%s\n"
-                    "Set 2: track_owner=%s set=%s ordered=%s\n",
+                    "Set 1: track_onwer=%s set=%s ordered=%s\n"
+                    "Set 2: track_onwer=%s set=%s ordered=%s\n",
                     id,
                     opt1 & MESHSET_TRACK_OWNER ? "yes" : "no",
                     opt1 & MESHSET_SET         ? "yes" : "no",

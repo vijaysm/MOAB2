@@ -180,8 +180,7 @@ get_tag_desc( mhdf_FileHandle file_handle,
 {
   void* ptr;
   int have_default, have_global;
-  int valsize, size, close_type = 0;
-  hsize_t array_len;
+  int valsize, size;
   
   ptr = realloc_data( &result, strlen(name)+1, status );
   if (NULL == ptr) return NULL;
@@ -227,7 +226,7 @@ get_tag_desc( mhdf_FileHandle file_handle,
       type = H5T_NATIVE_UCHAR;
       break;
     case mhdf_INTEGER: 
-      type = H5T_NATIVE_INT;
+      type = H5T_INTEGER;
       have_default *= sizeof(int);
       have_global *= sizeof(int);
       valsize *= sizeof(int);
@@ -268,7 +267,6 @@ get_tag_desc( mhdf_FileHandle file_handle,
         mhdf_setFail( status, "Cannot create a bit tag larger than 64-bits.  %d bits requested.\n", (int)valsize);
         return NULL;
       }
-      close_type = 1;
       break;
     case mhdf_ENTITY_ID:
       if (0 == type)
@@ -289,27 +287,13 @@ get_tag_desc( mhdf_FileHandle file_handle,
       return NULL;
   }
   result->tags[index].bytes = valsize;
-  
-  if (result->tags[index].type != mhdf_OPAQUE &&
-      result->tags[index].type != mhdf_BITFIELD &&
-      result->tags[index].size > 1) {
-    close_type = 1;
-    array_len = result->tags[index].size;
-    type = H5Tarray_create( type, 1, &array_len, 0 );
-    if (type < 0) {
-      mhdf_setFail( status, "H5Tarray_create failed for tag (\"%s\")", name );
-      free( result );
-      return NULL;
-    }
-  }
 
   if (have_default || have_global) {
     if (have_default) {
       ptr = realloc_data( &result, have_default, status );
       if (NULL == ptr) {
-        if (close_type) {
+        if (result->tags[index].type == mhdf_BITFIELD)
           H5Tclose( type );
-        }
         return NULL;
       }
       result->tags[index].default_value = ptr;
@@ -317,9 +301,8 @@ get_tag_desc( mhdf_FileHandle file_handle,
     if (have_global) {
       ptr = realloc_data( &result, have_global, status );
       if (NULL == ptr) {
-        if (close_type) {
+        if (result->tags[index].type == mhdf_BITFIELD)
           H5Tclose( type );
-        }
         return NULL;
       }
       result->tags[index].global_value = ptr;
@@ -330,9 +313,8 @@ get_tag_desc( mhdf_FileHandle file_handle,
                        result->tags[index].default_value,
                        result->tags[index].global_value,
                        status );
-    if (close_type) {
+    if (result->tags[index].type == mhdf_BITFIELD)
       H5Tclose( type );
-    }
     if (mhdf_isError(status)) {
       free( result );
       return NULL;

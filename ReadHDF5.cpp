@@ -44,7 +44,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits>
-#include <functional>
 
 #undef DEBUG
 
@@ -57,27 +56,6 @@
 
 #define READ_HDF5_BUFFER_SIZE (40*1024*1024)
 
-static void copy_sorted_file_ids( const MBEntityHandle* sorted_ids, 
-                                  long num_ids,
-                                  MBRange& results )
-{
-  MBRange::iterator hint = results.begin();
-  long i = 0;
-  while (i < num_ids) {
-    MBEntityHandle start = sorted_ids[i];
-    for (++i; i < num_ids && sorted_ids[i] == 1+sorted_ids[i-1]; ++i);
-    hint = results.insert( hint, start, sorted_ids[i-1] );
-  }
-}
-
-static void intersect( const mhdf_EntDesc& group, const MBRange& range, MBRange& result )
-{
-  MBRange::const_iterator s, e;
-  s = MBRange::lower_bound( range.begin(), range.end(), group.start_id );
-  e = MBRange::lower_bound( s, range.end(), group.start_id + group.count );
-  result.merge( s, e );
-}
-
 MBReaderIface* ReadHDF5::factory( MBInterface* iface )
   { return new ReadHDF5( iface ); }
 
@@ -86,7 +64,6 @@ ReadHDF5::ReadHDF5( MBInterface* iface )
     dataBuffer( 0 ),
     iFace( iface ), 
     filePtr( 0 ), 
-    fileInfo( 0 ), 
     readUtil( 0 ),
     handleType( 0 ),
     ioProp( H5P_DEFAULT )
@@ -122,8 +99,12 @@ MBErrorCode ReadHDF5::init()
   }
   readUtil = reinterpret_cast<MBReadUtilIface*>(ptr);
   
-  idMap.clear();
-  fileInfo = 0;
+  setSet.first_id = 0;
+  setSet.type2 = mhdf_set_type_handle();
+  setSet.type = MBENTITYSET;
+  nodeSet.first_id = 0;
+  nodeSet.type2 = mhdf_node_type_handle();
+  nodeSet.type = MBVERTEX;
   
   return MB_SUCCESS;
 }
@@ -142,12 +123,16 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
                                  MBEntityHandle& file_set, 
                                  const FileOptions& opts,
                                  const char* name,
-                                 const int* id_list, 
-                                 const int num_ids )
+                                 const int*, const int )
 {
   MBErrorCode rval;
   mhdf_Status status;
   ioProp = H5P_DEFAULT;
+
+  if (name) {
+    readUtil->report_error( "Reading subset of files not supported for HDF5." );
+    return MB_UNSUPPORTED_OPERATION;
+  }
 
   if (MB_SUCCESS != init())
     return MB_FAILURE;
@@ -170,18 +155,6 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
       use_mpio = false;
     }
 #endif
-  }
-  
-  // This option is intended for testing purposes only, and thus
-  // is not documented anywhere.  Decreasing the buffer size can
-  // expose bugs that would otherwise only be seen when reading
-  // very large files.
-  rval = opts.get_int_option( "BUFFER_SIZE", bufferSize );
-  if (MB_SUCCESS != rval) {
-    bufferSize = READ_HDF5_BUFFER_SIZE;
-  }
-  else if (bufferSize < (int)std::max( sizeof(MBEntityHandle), sizeof(void*) )) {
-    return MB_INVALID_SIZE;
   }
   
   dataBuffer = (char*)malloc( bufferSize );
@@ -218,130 +191,152 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
     iFace->delete_entities( &file_set, 1 );
     return MB_FAILURE;
   }
-
-    // get file info
-  fileInfo = mhdf_getFileSummary( filePtr, handleType, &status );
-  if (is_error(status)) {
-    free( dataBuffer );
-    if (ioProp != H5P_DEFAULT)
-      H5Pclose( ioProp );
-    mhdf_closeFile( filePtr, &status );
-    iFace->delete_entities( &file_set, 1 );
-    return MB_FAILURE;
-  }
- 
-  if (name) 
-    rval = load_file_partial( file_set, name, id_list, num_ids, opts );
-  else
-    rval = load_file_impl( file_set, opts );
+    
+  
+  rval = load_file_impl( file_set, use_mpio );
   mhdf_closeFile( filePtr, &status );
   filePtr = 0;
   if (ioProp != H5P_DEFAULT)
     H5Pclose( ioProp );
-  if (MB_SUCCESS == rval && is_error(status))
-    rval = MB_FAILURE;
-
-  if (file_set && MB_SUCCESS == rval) {
-    DEBUGOUT("Creating entity set for file contents\n")
-    MBRange range;
-    MBRange::iterator hint = range.begin();
-    for (IDMap::iterator j = idMap.begin(); j != idMap.end(); ++j)
-      hint = range.insert( hint, j->value, j->value + j->count - 1);
-    rval = iFace->add_entities( file_set, range );
+  if (mhdf_isError( &status )) {
+    if (MB_SUCCESS == rval)
+      rval = MB_FAILURE;
+    readUtil->report_error( mhdf_message( &status ));
   }
         
       // delete everything that was read in if read failed part-way through
   if (MB_SUCCESS != rval) {
-    MBRange range;
-    range.insert( file_set );
-    for (IDMap::iterator i = idMap.begin(); i != idMap.end(); ++i) 
-      range.insert( i->value, i->value + i->count - 1 );
-    iFace->delete_entities( range );
+    iFace->delete_entities( &file_set, 1 );
+    file_set = 0;
+    iFace->delete_entities( setSet.range );
+    for (std::list<ElemSet>::reverse_iterator rel_itor = elemList.rbegin();
+         rel_itor != elemList.rend(); ++rel_itor)
+      iFace->delete_entities( rel_itor->range );
+    iFace->delete_entities( nodeSet.range );
   }
   
+  elemList.clear();
+  nodeSet.range.clear();
+  setSet.range.clear();
   free( dataBuffer );
-  free( fileInfo );
   return rval;
 }
   
 
 
-MBErrorCode ReadHDF5::load_file_impl( MBEntityHandle file_set, const FileOptions& opts )
+MBErrorCode ReadHDF5::load_file_impl( 
+                                 MBEntityHandle file_set, 
+                                 bool use_mpio )
 {
   MBErrorCode rval;
   mhdf_Status status;
   std::string tagname;
-  int i;
+  int num_tags = 0;
+  char** tag_names = NULL;
+  char** groups = NULL;
+  std::list<ElemSet>::iterator el_itor;
+  unsigned int i, num_groups;
+  bool have_nodes = true;
 
 DEBUGOUT("Reading Nodes.\n");
   
-  MBRange ids;
-  if (fileInfo->nodes.count) {
-    ids.insert( fileInfo->nodes.start_id,
-                fileInfo->nodes.start_id + fileInfo->nodes.count - 1);
-    rval = read_nodes( ids );
-    if (MB_SUCCESS != rval)
-      return rval;
+  rval = read_nodes();
+  if (MB_FILE_WRITE_ERROR == rval) {
+    DEBUGOUT("No nodes in file.!\n");
+    have_nodes = false;
   }
+  else if (MB_SUCCESS != rval)
+    return rval;
 
 DEBUGOUT("Reading element connectivity.\n");
 
-  std::vector<int> polyhedra; // need to do these last so that faces are loaded
-  for (i = 0; i < fileInfo->num_elem_desc; ++i) {
-    if (MBCN::EntityTypeFromName(fileInfo->elems[i].type) == MBPOLYHEDRON) {
-      polyhedra.push_back(i);
-      continue;
-    }
-    
-    rval = read_elems( i );
-    if (MB_SUCCESS != rval)
-      return rval;
+  groups = mhdf_getElemHandles( filePtr, &num_groups, &status );
+  if (mhdf_isError( &status ))
+  {
+    readUtil->report_error( mhdf_message( &status ));
+    return MB_FAILURE;
   }
-  for (std::vector<int>::iterator it = polyhedra.begin();
-       it != polyhedra.end(); ++it) {
-    rval = read_elems( *it );
-    if (MB_SUCCESS != rval)
+
+  for (i = 0; i < num_groups; ++i)
+  {
+    int poly = mhdf_isPolyElement( filePtr, groups[i], &status );
+    if (mhdf_isError( &status ))
+    {
+      readUtil->report_error( mhdf_message( &status ));
+      free(groups);
+      return MB_FAILURE;
+    }
+
+    if (poly)
+      rval = read_poly( groups[i] );
+    else
+      rval = read_elems( groups[i] );
+      
+    if (MB_SUCCESS != rval) {
+      free( groups );
       return rval;
+    }
   }
   
 DEBUGOUT("Reading sets.\n");
   
-  ids.clear();
-  if (fileInfo->sets.count) {
-    ids.insert( fileInfo->sets.start_id,
-                fileInfo->sets.start_id + fileInfo->sets.count - 1);
-    rval = read_sets( ids );
-    if (rval != MB_SUCCESS) {
-      return rval;
-    }
+  rval = read_sets();
+  if (rval != MB_SUCCESS) {
+    free( groups );
+    return rval;
   }
   
 DEBUGOUT("Reading adjacencies.\n");
-
-  for (i = 0; i < fileInfo->num_elem_desc; ++i) {
-    if (!fileInfo->elems[i].have_adj)
-      continue;
-    
-    long table_len;
-    hid_t table = mhdf_openAdjacency( filePtr, 
-                                      fileInfo->elems[i].handle,
-                                      &table_len,
-                                      &status );
-    if (is_error(status))
-      return MB_FAILURE;
-      
-    rval = read_adjacencies( table, table_len );
-    mhdf_closeData( filePtr, table, &status );
-    if (MB_SUCCESS != rval)
+  
+  rval = read_adjacencies( nodeSet );
+  if (rval != MB_SUCCESS) {
+    free( groups );
+    return rval;
+  }
+  for (el_itor = elemList.begin(); el_itor != elemList.end(); ++el_itor) {
+    rval = read_adjacencies( *el_itor );
+    if (MB_SUCCESS != rval) {
+      free( groups );
       return rval;
-    if (is_error(status))
-      return MB_FAILURE;
+    }
   }
 
 DEBUGOUT("Reading tags.\n");
   
-  for (i = 0; i < fileInfo->num_tag_desc; ++i) {
-    rval = read_tag( i );
+  tag_names = mhdf_getTagNames( filePtr, &num_tags, &status );
+  if (mhdf_isError( &status ))
+  {
+    readUtil->report_error( mhdf_message( &status ));
+    free( groups );
+    return MB_FAILURE;
+  }
+  
+  for (int t = 0; t < num_tags; ++t)
+  {
+    rval = read_tag( tag_names[t] );
+    free( tag_names[t] );
+    if (MB_SUCCESS != rval) {
+      for (; t < num_tags; ++t)
+        free( tag_names[t] );
+      free( tag_names );
+      free( groups );
+      return MB_FAILURE;
+    }
+  }
+  free( tag_names );
+
+  free( groups );
+  if (file_set) {
+    DEBUGOUT("Creating entity set for file contents\n")
+    rval = iFace->add_entities( file_set, nodeSet.range );
+    if (MB_SUCCESS != rval)
+      return rval;
+    for (el_itor = elemList.begin(); el_itor != elemList.end(); ++el_itor) {
+      rval = iFace->add_entities( file_set, el_itor->range);
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
+    rval = iFace->add_entities( file_set, setSet.range );
     if (MB_SUCCESS != rval)
       return rval;
   }
@@ -351,354 +346,30 @@ DEBUGOUT("Finishing read.\n");
   return rval;
 }
 
-MBErrorCode ReadHDF5::load_file_partial( MBEntityHandle file_set, 
-                                         const char* name,
-                                         const int* id_list,
-                                         int num_ids,
-                                         const FileOptions& opts )
-{
-  mhdf_Status status;
-  
-DEBUGOUT( "RETREIVING TAGGED ENTITIES" );
-    
-  int tag_index;
-  for (tag_index = 0; tag_index < fileInfo->num_tag_desc; ++tag_index) 
-    if (!strcmp( name, fileInfo->tags[tag_index].name))
-      break;
-  if (tag_index == fileInfo->num_tag_desc) {
-    readUtil->report_error( "File does not contain subset tag '%s'", name );
-    return MB_TAG_NOT_FOUND;
-  }
-  if (fileInfo->tags[tag_index].type != mhdf_INTEGER ||
-      fileInfo->tags[tag_index].size != 1) {
-    readUtil->report_error( "Tag '%s' does not containa single integer value", name );
-    return MB_TYPE_OUT_OF_RANGE;
-  }
-  
-    
-  MBErrorCode rval;
-  MBRange file_ids;
-  std::vector<int> ids( id_list, id_list+num_ids );
-  std::sort( ids.begin(), ids.end() );
-  rval = search_tag_values( tag_index, ids, file_ids );
-  if (MB_SUCCESS != rval) {
-    return rval;
-  }
-  
-DEBUGOUT( "GATHERING ADDITIONAL ENTITIES" );
-  
-  int set_mode;
-  const char* const set_opts[] = { "NONE", "SETS", "CONTENTS" };
-  rval = opts.match_option( "CHILDREN", set_opts, set_mode );
-  if (MB_ENTITY_NOT_FOUND == rval)
-    set_mode = 2;
-  else if (MB_SUCCESS != rval) {
-    readUtil->report_error( "Invalid value for 'CHILDREN' option" );
-    return rval;
-  }
-  
-  MBRange sets;
-  intersect( fileInfo->sets, file_ids, sets );
-  if (set_mode == 2) {
-    rval = read_child_sets( sets );
-    if (MB_SUCCESS != rval)
-      return rval;
-  }
-  
-    // get elements and vertices contained in sets
-  rval = get_set_contents( sets, file_ids );
-  if (MB_SUCCESS != rval)
-    return rval;
-
-    
-DEBUGOUT( "READING NODES" );
-  
-    // if input contained any polyhedra, need to get faces
-  for (int i = 0; i < fileInfo->num_elem_desc; ++i) {
-    MBEntityType type = MBCN::EntityTypeFromName( fileInfo->elems[i].type );
-    if (type != MBPOLYHEDRON)
-      continue;
-    
-    MBRange polyhedra;
-    intersect( fileInfo->elems[i].desc, file_ids, polyhedra );
-    rval = read_elems( i, polyhedra, file_ids );
-    if (MB_SUCCESS != rval)
-      return rval;
-  }
-  
-    // get node file ids for all elements
-  MBRange nodes;
-  intersect( fileInfo->nodes, file_ids, nodes );
-  for (int i = 0; i < fileInfo->num_elem_desc; ++i) {
-    MBEntityType type = MBCN::EntityTypeFromName( fileInfo->elems[i].type );
-    if (type <= MBVERTEX || type >= MBENTITYSET) {
-      assert( false ); // for debug code die for unknown element tyoes
-      continue; // for release code, skip unknown element types
-    }
-    if (MBPOLYHEDRON == type)
-      continue;
-    
-    MBRange subset;
-    intersect( fileInfo->elems[i].desc, file_ids, subset );
-    rval = read_elems( i, subset, nodes );
-    if (MB_SUCCESS != rval)
-      return rval;
-  }
-  
-    // Read node coordinates and create vertices in MOAB
-    // NOTE:  This populates the RangeMap with node file ids,
-    //        which is expected by read_node_adj_elems.
-  rval = read_nodes( nodes );
-  if (MB_SUCCESS != rval)
-    return rval;
-
- 
-DEBUGOUT( "READING ELEMENTS" );
- 
-    // decide if we need to read additional elements
-  int mode;
-  const char* const options[] = { "EXPLICIT", "ADJACENT", 0 };
-  rval = opts.match_option( "ELEMENTS", options, mode );
-  bool read_adjacent_elements;
-  if (MB_SUCCESS == rval) {
-    read_adjacent_elements = (mode == 1);
-  }
-  if (MB_ENTITY_NOT_FOUND == rval) {
-      // Chose default based on whether or not any elements have been
-      // specified.
-    MBRange tmp;
-    intersect( fileInfo->nodes, file_ids, tmp );
-    if (tmp.empty()) // can't do 'ADJACENT' mode if no nodes
-      read_adjacent_elements = false;
-    else {  // check if we have any elements, default to 'ADJACENT' only if no 
-            // explicitly specified elements
-      tmp.merge( sets );
-      MBRange elems = file_ids.subtract( tmp );
-      read_adjacent_elements = elems.empty();
-    }
-  }
-  else {
-    readUtil->report_error( "Invalid value for 'ELEMENTS' option" );
-    return rval;
-  }
-  
-  if (read_adjacent_elements) {
-    for (int dim = 1; dim <= 3; ++dim) {
-      for (int i = 0; i < fileInfo->num_elem_desc; ++i) {
-        MBEntityType type = MBCN::EntityTypeFromName( fileInfo->elems[i].type );
-        if (MBCN::Dimension(type) == dim) {
-          rval = read_node_adj_elems( fileInfo->elems[i] );
-          if (MB_SUCCESS != rval)
-            return rval;
-        }
-      }
-    }
-  }
-  else {
-    for (int dim = 1; dim <= 3; ++dim) {
-      for (int i = 0; i < fileInfo->num_elem_desc; ++i) {
-        MBEntityType type = MBCN::EntityTypeFromName( fileInfo->elems[i].type );
-        if (MBCN::Dimension(type) == dim) {
-          MBRange subset;
-          intersect( fileInfo->elems[i].desc, file_ids, subset );
-          rval = read_elems( fileInfo->elems[i],  subset );
-          if (MB_SUCCESS != rval)
-            return rval;
-        }
-      }
-    }
-  }
-  
-DEBUGOUT( "READING SETS" );
-    
-    // If reading child sets, but not all contents of child sets,
-    // need to get child sets after having read other entity types.
-  if (set_mode == 1) {
-    rval = read_child_sets( sets );
-    if (MB_SUCCESS != rval)
-      return rval;
-  }
-    // Append file IDs of sets containing any of the nodes or elements
-    // we've read up to this point.
-  rval = find_sets_containing( sets );
-  if (MB_SUCCESS != rval)
-    return rval;
-    // Now actually read all set data and instantiate sets in MOAB.
-  rval = read_sets( sets );
-  if (MB_SUCCESS != rval)
-    return rval;
-
-  
-DEBUGOUT( "READING ADJACENCIES" );
-    
-  for (int i = 0; i < fileInfo->num_elem_desc; ++i) {
-    if (fileInfo->elems[i].have_adj &&
-        idMap.intersects( fileInfo->elems[i].desc.start_id, fileInfo->elems[i].desc.count )) {
-      long len;
-      hid_t th = mhdf_openAdjacency( filePtr, fileInfo->elems[i].handle, &len, &status );
-      if (is_error(status))
-        return MB_FAILURE;
-
-      rval = read_adjacencies( th, len );
-      mhdf_closeData( filePtr, th, &status );
-      if (MB_SUCCESS != rval)
-        return rval;
-    }
-  }
-  
-DEBUGOUT( "READING TAGS" );
-  
-  for (int i = 0; i < fileInfo->num_tag_desc; ++i) {
-    rval = read_tag( i );
-    if (MB_SUCCESS != rval)
-      return rval;
-  }
-  
-  return MB_SUCCESS;
-}
-
-MBErrorCode ReadHDF5::search_tag_values( int tag_index,
-                                         const std::vector<int>& sorted_values,
-                                         MBRange& file_ids )
+MBErrorCode ReadHDF5::read_nodes()
 {
   MBErrorCode rval;
   mhdf_Status status;
-  std::vector<long>::iterator iter;
-  const mhdf_TagDesc& tag = fileInfo->tags[tag_index];
-  long size;
-  long start_id;
-   
-    // do dense data
-    
-  hid_t table;
-  const char* name;
-  std::vector<long> indices;
-    // These are probably in order of dimension, so iterate
-    // in reverse order to make MBRange insertions more efficient.
-  std::vector<int> grp_indices( tag.dense_elem_indices, tag.dense_elem_indices+tag.num_dense_indices );
-  for (std::vector<int>::reverse_iterator i = grp_indices.rbegin(); i != grp_indices.rend(); ++i)
-  {
-    int idx = *i;
-    if (idx == -2) {
-      name = mhdf_set_type_handle();
-      start_id = fileInfo->sets.start_id;
-    }
-    else if (idx == -1) {
-      name = mhdf_node_type_handle();
-     start_id = fileInfo->nodes.start_id;
-    }
-    else {
-      if (idx < 0 || idx >= fileInfo->num_elem_desc) 
-        return MB_FAILURE;
-      name = fileInfo->elems[idx].handle;
-      start_id = fileInfo->elems[idx].desc.start_id;
-    }
-    table = mhdf_openDenseTagData( filePtr, tag.name, name, &size, &status );
-    if (is_error(status))
-      return MB_FAILURE;
-    rval = search_tag_values( table, size, sorted_values, indices );
-    mhdf_closeData( filePtr, table, &status );
-    if (MB_SUCCESS != rval || is_error(status))
-      return MB_FAILURE;
-      // Convert from table indices to file IDs and add to result list
-    std::sort( indices.begin(), indices.end(), std::greater<long>() );
-    std::transform( indices.begin(), indices.end(), mb_range_inserter(file_ids),
-                    std::bind1st( std::plus<long>(), start_id ) );
-    indices.clear();
-  }
-  
-  if (!tag.have_sparse)
-    return MB_SUCCESS;
-  
-    // do sparse data
-    
-  hid_t tables[2]; 
-  long junk; // redundant value for non-variable-length tags
-  mhdf_openSparseTagData( filePtr, tag.name, &size, &junk, tables, &status );
-  if (is_error(status))
-    return MB_FAILURE;
-  rval = search_tag_values( tables[1], size, sorted_values, indices );
-  mhdf_closeData( filePtr, tables[1], &status );
-  if (MB_SUCCESS != rval || is_error(status)) {
-    mhdf_closeData( filePtr, tables[0], &status );
-    return MB_FAILURE;
-  }
-    // convert to ranges
-  std::sort( indices.begin(), indices.end() );
-  std::vector<long> ranges;
-  iter = indices.begin();
-  while (iter != indices.end()) {
-    ranges.push_back( *iter );
-    long last = *iter;
-    for (++iter; iter != indices.end() && (last + 1) == *iter; ++iter, ++last);
-    ranges.push_back( last );
-  }
-    // read file ids
-  iter = ranges.begin();
-  unsigned long offset = 0;
-  while (iter != ranges.end()) {
-    long begin = *iter; ++iter;
-    long end   = *iter; ++iter;
-    mhdf_readSparseTagEntities( tables[0], begin, end - begin + 1, 
-                                H5T_NATIVE_LONG, &indices[offset], &status );
-    if (is_error(status)) {
-      mhdf_closeData( filePtr, tables[0], &status );
-      return MB_FAILURE;
-    }
-    offset += end - begin + 1;
-  }
-  mhdf_closeData( filePtr, tables[0], &status );
-  if (is_error(status))
-    return MB_FAILURE;
-  assert( offset == indices.size() );
-  std::sort( indices.begin(), indices.end() );
-  copy_sorted_file_ids( (MBEntityHandle*)&indices[0], indices.size(), file_ids );
-  
-  return MB_SUCCESS;  
-}
-
-MBErrorCode ReadHDF5::search_tag_values( hid_t tag_table, 
-                                         unsigned long table_size,
-                                         const std::vector<int>& sorted_values,
-                                         std::vector<long>& value_indices )
-{
-  mhdf_Status status;
-  size_t chunk_size = bufferSize / sizeof(unsigned);
-  unsigned * buffer = reinterpret_cast<unsigned*>(dataBuffer);
-  size_t remaining = table_size, offset = 0;
-  while (remaining) {
-      // Get a block of tag values
-    size_t count = std::min( chunk_size, remaining );
-    mhdf_readDenseTag( tag_table, offset, count, H5T_NATIVE_UINT, buffer, &status );
-    if (is_error(status))
-      return MB_FAILURE;
-    
-      // search tag values
-    for (size_t i = 0; i < count; ++i)
-      if (std::binary_search( sorted_values.begin(), sorted_values.end(), buffer[i] ))
-        value_indices.push_back( i + offset );
-    
-    offset += count;
-    remaining -= count;
-  }
-
-  return MB_SUCCESS;
-}
-
-MBErrorCode ReadHDF5::read_nodes( const MBRange& node_file_ids )
-{
-  MBErrorCode rval;
-  mhdf_Status status;
-  const int dim = fileInfo->nodes.vals_per_ent;
+  long count, first_id;
+  int dim;
   MBRange range;
-  
-  if (node_file_ids.empty())
-    return MB_SUCCESS;
   
   int cdim;
   rval = iFace->get_dimension( cdim );
   if (MB_SUCCESS != rval)
     return rval;
+  
+  hid_t data_id = mhdf_openNodeCoords( filePtr, &count, &dim, &first_id, &status );
+  if (mhdf_isError( &status ))
+  {
+    //readUtil->report_error( mhdf_message( &status ));
+    // Failed because no node data in file?
+    nodeSet.range.clear();
+    nodeSet.first_id = std::numeric_limits<long>::max();
+    nodeSet.type = MBVERTEX;
+    nodeSet.type2 = mhdf_node_type_handle();
+    return MB_FILE_WRITE_ERROR;
+  }
   
   if (cdim < dim)
   {
@@ -707,45 +378,33 @@ MBErrorCode ReadHDF5::read_nodes( const MBRange& node_file_ids )
       return rval;
   }
   
-  hid_t data_id = mhdf_openNodeCoordsSimple( filePtr, &status );
-  if (is_error(status))
-    return MB_FAILURE;
-
-  
   MBEntityHandle handle;
   std::vector<double*> arrays(dim);
-  rval = readUtil->get_node_arrays( dim, (int)node_file_ids.size(), 0, handle, arrays );
+  rval = readUtil->get_node_arrays( dim, (int)count, (int)first_id, 
+                                    handle, arrays );
   if (MB_SUCCESS != rval)
   {
     mhdf_closeData( filePtr, data_id, &status );
     return rval;
   }
   
-    // read blocks of coordinates
-  MBRange::const_pair_iterator p;
-  for (p = node_file_ids.const_pair_begin(); p != node_file_ids.const_pair_end(); ++p)
+  nodeSet.range.clear();
+  nodeSet.range.insert( handle, handle + count - 1 );
+  nodeSet.first_id = first_id;
+  nodeSet.type = MBVERTEX;
+  nodeSet.type2 = mhdf_node_type_handle();
+  for (int i = 0; i < dim; i++)
   {
-    long count = p->second - p->first + 1;
-    long offset = p->first - fileInfo->nodes.start_id;
-    for (int i = 0; i < dim; ++i) {
-      mhdf_readNodeCoord( data_id, offset, count, i, arrays[i], &status );
-      if (is_error(status)) {
-        mhdf_closeData( filePtr, data_id, &status );
-        return MB_FAILURE;
-      }
-      arrays[i] += count;
-    }
-    for (int i = dim; i < cdim; ++i) {
-      memset( arrays[i], 0, count*sizeof(double) );
-      arrays[i] += count;
-    }
-    IDMap::iterator ins = idMap.insert( p->first, handle, count );
-    if (ins == idMap.end()) {
+    mhdf_readNodeCoordWithOpt( data_id, 0, count, i, arrays[i], ioProp, &status );
+    if (mhdf_isError( &status ))
+    {
+      readUtil->report_error( mhdf_message(&status) );
       mhdf_closeData( filePtr, data_id, &status );
       return MB_FAILURE;
     }
-    handle += count;
   }
+  for (int j = dim; j < cdim; j++)
+    memset( arrays[j], 0, count * sizeof(double) );
   
   mhdf_closeData( filePtr, data_id, &status );
   if (mhdf_isError( &status ))
@@ -757,289 +416,95 @@ MBErrorCode ReadHDF5::read_nodes( const MBRange& node_file_ids )
   return MB_SUCCESS;
 }
 
-MBErrorCode ReadHDF5::read_elems( int i )
-{
-  MBRange ids;
-  ids.insert( fileInfo->elems[i].desc.start_id,
-              fileInfo->elems[i].desc.start_id + fileInfo->elems[i].desc.count - 1);
-  return read_elems( i, ids );
-}
-
-MBErrorCode ReadHDF5::read_elems( int i, const MBRange& file_ids )
-{
-  if (fileInfo->elems[i].desc.vals_per_ent < 0)
-    return read_poly( fileInfo->elems[i], file_ids );
-  else
-    return read_elems( fileInfo->elems[i], file_ids );
-}
-
-MBErrorCode ReadHDF5::read_elems( const mhdf_ElemDesc& elems, const MBRange& file_ids )
+MBErrorCode ReadHDF5::read_elems( const char* elem_group )
 {
   MBErrorCode rval;
   mhdf_Status status;
+  char name[64];
   
-  MBEntityType type = MBCN::EntityTypeFromName( elems.type );
-  if (type == MBMAXTYPE)
+    // Put elem set in list early so clean up code can 
+    // get rid of them if we fail.
+  ElemSet empty_set;
+  empty_set.type2 = elem_group;
+  elemList.push_back( empty_set );
+  std::list<ElemSet>::iterator it = elemList.end();
+  --it;
+  ElemSet& elems = *it;
+  
+  mhdf_getElemTypeName( filePtr, elem_group, name, sizeof(name), &status );
+  if (mhdf_isError( &status ))
   {
-    readUtil->report_error( "Unknown element type: \"%s\".\n", elems.type );
+    readUtil->report_error( mhdf_message( &status ) );
     return MB_FAILURE;
   }
   
-  const int nodes_per_elem = elems.desc.vals_per_ent;
-  const long first_id = elems.desc.start_id;
-  hid_t data_id = mhdf_openConnectivitySimple( filePtr, elems.handle, &status );
-  if (is_error(status))
+  elems.type = MBCN::EntityTypeFromName( name );
+  if (elems.type == MBMAXTYPE)
+  {
+    readUtil->report_error( "Unknown element type: \"%s\".\n", name );
     return MB_FAILURE;
-
-  MBRange::const_pair_iterator p;
-  for (p = file_ids.const_pair_begin(); p != file_ids.const_pair_end(); ++p) {
-    const long count = p->second - p->first + 1;
-    
-    MBEntityHandle handle;
-    MBEntityHandle* array;
-    rval = readUtil->get_element_array( (int)count,
-                                         nodes_per_elem,
-                                         type,
-                                         0,
-                                         handle, 
-                                         array );
-    if (MB_SUCCESS != rval) 
-      break;
-    IDMap::iterator ins = idMap.insert( p->first, handle, count );
-    if (ins == idMap.end()) 
-      { rval = MB_FAILURE; break; }
-
-    mhdf_readConnectivityWithOpt( data_id, p->first - first_id, count, handleType, array, ioProp, &status );
-    if (is_error(status)) 
-      break;
-
-    rval = convert_id_to_handle( array, (size_t)(nodes_per_elem*count) );
-    if (MB_SUCCESS != rval) 
-      break;
-
-      // notify MOAB of the new elements
-    rval = readUtil->update_adjacencies(handle, count, nodes_per_elem, array);
-    if (MB_SUCCESS != rval) 
-      break;
   }
-
-
+  
+  int nodes_per_elem;
+  long count, first_id;
+  hid_t data_id = mhdf_openConnectivity( filePtr, 
+                                         elem_group,
+                                         &nodes_per_elem,
+                                         &count,
+                                         &first_id,
+                                         &status );
+  if (mhdf_isError( &status ))
+  {
+    readUtil->report_error( mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
+  elems.first_id = first_id;
+  
+  MBEntityHandle handle;
+  MBEntityHandle* array;
+  rval = readUtil->get_element_array( (int)count,
+                                       nodes_per_elem,
+                                       elems.type,
+                                      (int)first_id,
+                                       handle, 
+                                       array );
+  if (MB_SUCCESS != rval)
+  {
+    mhdf_closeData( filePtr, data_id, &status );
+    return rval;
+  }
+  
+  elems.range.insert( handle, handle + count - 1 );
+  mhdf_readConnectivityWithOpt( data_id, 0, count, handleType, array, ioProp, &status );
+  if (mhdf_isError( &status ))
+  {
+    readUtil->report_error( mhdf_message( &status ) );
+    mhdf_closeData( filePtr, data_id, &status );
+    return MB_FAILURE;
+  }
+  
   mhdf_closeData( filePtr, data_id, &status );
-  if (is_error(status) && MB_SUCCESS == rval)
-    rval = MB_FAILURE;
-  return rval;
-}
-
-MBErrorCode ReadHDF5::read_node_adj_elems( const mhdf_ElemDesc& group )
-{
-  mhdf_Status status;
-  MBErrorCode rval;
-  
-  hid_t table = mhdf_openConnectivitySimple( filePtr, group.handle, &status );
-  if (is_error(status))
-    return MB_FAILURE;
-    
-  rval = read_node_adj_elems( group, table );
-  
-  mhdf_closeData( filePtr, table, &status );
-  if (MB_SUCCESS == rval && is_error(status))
-    return rval = MB_FAILURE;
-  return rval;
-}
-
-MBErrorCode ReadHDF5::read_node_adj_elems( const mhdf_ElemDesc& group, 
-                                           hid_t table_handle )
-{
-  mhdf_Status status;
-  MBErrorCode rval;
-
-    // copy data to local variables (makes other code clearer)
-  const int node_per_elem = group.desc.vals_per_ent;
-  long start_id = group.desc.start_id;
-  long remaining = group.desc.count;
-  const MBEntityType type = MBCN::EntityTypeFromName( group.type );
-  
-    // figure out how many elements we can read in each pass
-  long* const buffer = reinterpret_cast<long*>( dataBuffer );
-  const long buffer_size = bufferSize / (node_per_elem * sizeof(buffer[0]));
-    // read all element connectivity in buffer_size blocks
-  long offset = 0;
-  while (remaining) {
-      // read a block of connectivity data
-    const long count = std::min( remaining, buffer_size );
-    mhdf_readConnectivity( table_handle, offset, count, H5T_NATIVE_LONG, buffer, &status );
-    if (is_error(status))
-      return MB_FAILURE;
-    offset += count;
-    remaining -= count;
-    
-      // count the number of elements in the block that we want,
-      // zero connectivity for other elements
-    long num_elem = 0;
-    long* iter = buffer;
-    for (long i = 0; i < count; ++i) {
-      for (int j = 0; j < node_per_elem; ++j) {
-        iter[j] = (long)idMap.find( iter[j] );
-        if (!iter[j]) {
-          iter[0] = 0;
-          break;
-        }
-      }
-      if (iter[0])
-        ++num_elem;
-      iter += node_per_elem;
-    }
-    
-    if (!num_elem) {
-      start_id += count;
-      continue;
-    }
-    
-      // create elements
-    MBEntityHandle handle;
-    MBEntityHandle* array;
-    rval = readUtil->get_element_array( (int)num_elem,
-                                         node_per_elem,
-                                         type,
-                                         0,
-                                         handle, 
-                                         array );
-    if (MB_SUCCESS != rval)
-      return rval;
-    
-      // copy all non-zero connectivity values
-    iter = buffer;
-    MBEntityHandle* iter2 = array;
-    MBEntityHandle h = handle;
-    for (long i = 0; i < count; ++i) {
-      if (!*iter) {
-        iter += node_per_elem;
-        continue;
-      }
-      IDMap::iterator ins = idMap.insert( start_id + i, h++, 1 );
-      if (ins == idMap.end()) 
-        return MB_FAILURE;
-        
-      long* const end = iter + node_per_elem;
-      for (; iter != end; ++iter, ++iter2)
-        *iter2 = (MBEntityHandle)*iter;
-    }
-    assert( iter2 - array == num_elem * node_per_elem );
-    start_id += count;
-  }
-  
-  return MB_SUCCESS;
-}
-  
-
-MBErrorCode ReadHDF5::read_elems( int i, const MBRange& elems_in, MBRange& nodes )
-{
-  MBEntityHandle* const buffer = reinterpret_cast<MBEntityHandle*>(dataBuffer);
-  const size_t buffer_size = bufferSize / sizeof(MBEntityHandle);
-  int node_per_elem = fileInfo->elems[i].desc.vals_per_ent;
-  
-  if (elems_in.empty())
-    return MB_SUCCESS;
-    
-  assert( (long)elems_in.front() >= fileInfo->elems[i].desc.start_id );
-  assert( (long)elems_in.back() - fileInfo->elems[i].desc.start_id < fileInfo->elems[i].desc.count );
-  
-    // we don't support version 3 style poly element data
-  if (fileInfo->elems[i].desc.vals_per_ent <= 0)
-    return MB_TYPE_OUT_OF_RANGE;
-  
-  mhdf_Status status;
-  hid_t table = mhdf_openConnectivitySimple( filePtr, fileInfo->elems[i].handle, &status );
-  if (is_error(status))
-    return MB_FAILURE;
-    
-  MBRange elements( elems_in );
-  while (!elements.empty()) {
-    MBEntityHandle file_id = elements.front();
-    long count = elements.const_pair_begin()->second - file_id + 1;
-    long offset = file_id - fileInfo->elems[i].desc.start_id;
-    if (count*node_per_elem > (long)buffer_size)
-      count = buffer_size/node_per_elem;
-    elements.erase( elements.begin(), elements.begin()+count );
-    
-      // read element connectivity
-    mhdf_readConnectivity( table, offset, count, handleType, buffer, &status );
-    if (is_error(status)) {
-      mhdf_closeData( filePtr, table, &status );
-      return MB_FAILURE;
-    }
-    
-    count *= node_per_elem;
-    std::sort( buffer, buffer + count );
-    count = std::unique( buffer, buffer + count ) - buffer;
-    copy_sorted_file_ids( buffer, count, nodes );
-  }
-  
-  mhdf_closeData( filePtr, table, &status );
-  return is_error(status) ? MB_FAILURE : MB_SUCCESS;
-}
-
-MBErrorCode ReadHDF5::read_poly( const mhdf_ElemDesc& elems, const MBRange& file_ids )
-{
-  class PolyReader : public ContentReader {
-    private:
-      const MBEntityType type;
-      hid_t indexHandle, connHandle, handleType;
-      MBInterface *const mb;
-      IDMap& idMap;
-    public:
-    PolyReader( MBEntityType elem_type, hid_t idx, hid_t conn, 
-                hid_t handle_type, MBInterface* iface, IDMap& id_map )
-               : type(elem_type), indexHandle(idx), connHandle(conn), 
-                 handleType(handle_type), mb(iface), idMap(id_map) 
-               {}
-    void read_indices( long offset, long count, long* buffer, mhdf_Status& status ) 
-      { mhdf_readPolyConnIndices( indexHandle, offset, count, H5T_NATIVE_LONG, buffer, &status ); }
-    void read_contents( long offset, long count, MBEntityHandle* buffer, mhdf_Status& status )
-      { mhdf_readPolyConnIDs( connHandle, offset, count, handleType, buffer, &status ); }
-    MBErrorCode store_data( MBEntityHandle, long file_id, MBEntityHandle* conn, long len, bool )
-    {
-      size_t valid = len;
-      convert_id_to_handle( conn, valid, idMap );
-      MBEntityHandle handle;
-      MBErrorCode rval = mb->create_element( type, conn, len, handle );
-      if (MB_SUCCESS != rval)
-        return rval;
-      IDMap::iterator ins = idMap.insert( file_id, handle, 1 );
-      if (ins == idMap.end()) 
-        return MB_FAILURE;
-      return MB_SUCCESS;
-    }
-  };
-  
-  MBEntityType type = MBCN::EntityTypeFromName( elems.type );
-  if (type == MBMAXTYPE)
+  if (mhdf_isError( &status ))
   {
-    readUtil->report_error( "Unknown element type: \"%s\".\n", elems.type );
+    readUtil->report_error( mhdf_message( &status ) );
     return MB_FAILURE;
   }
   
-  hid_t handles[2];
-  mhdf_Status status;
-  long num_poly, num_conn, first_id;
-  mhdf_openPolyConnectivity( filePtr, elems.handle, &num_poly, &num_conn, &first_id, 
-                             handles, &status );
-  if (is_error(status))
-    return MB_FAILURE;
+  if (elems.type == MBPOLYHEDRON)
+    rval = convert_id_to_handle( array, (size_t)(nodes_per_elem*count) );
+  else
+    rval = convert_id_to_handle( nodeSet, array, (size_t)(nodes_per_elem*count) );
 
-  PolyReader tool( type, handles[0], handles[1], handleType, iFace, idMap );
-  MBRange empty;
-  MBErrorCode rval = read_contents( tool, file_ids, first_id, 0, num_poly, num_conn, empty );
-  mhdf_closeData( filePtr, handles[0], &status );
-  if (MB_SUCCESS == rval && is_error(status))
-    rval = MB_FAILURE;
-  mhdf_closeData( filePtr, handles[1], &status );
-  if (MB_SUCCESS == rval && is_error(status))
-    rval = MB_FAILURE;
+  if (MB_SUCCESS != rval) return rval;
+  
+    // notify MOAB of the new elements
+  MBErrorCode result = readUtil->update_adjacencies(handle, count,
+                                                    nodes_per_elem, array);
+  if (MB_SUCCESS != result) return result;
 
   return rval;
 }
-/*
+
 MBErrorCode ReadHDF5::read_poly( const char* elem_group )
 {
   MBErrorCode rval;
@@ -1095,7 +560,8 @@ MBErrorCode ReadHDF5::read_poly( const char* elem_group )
     }
     
     rval= convert_id_to_handle( &connectivity[0], connectivity.size() );
-    if (MB_SUCCESS != rval)     {
+    if (MB_SUCCESS != rval) 
+    {
       mhdf_closeData( filePtr, handles[0], &status );
       mhdf_closeData( filePtr, handles[1], &status );
       return rval;
@@ -1130,750 +596,511 @@ MBErrorCode ReadHDF5::read_poly( const char* elem_group )
   }
   return result;
 }
-*/
 
-MBErrorCode ReadHDF5::read_sets( const MBRange& file_ids )
-{
-  mhdf_Status status;
-  MBErrorCode rval;
-  if (fileInfo->sets.count == 0 || file_ids.empty()) {
-    assert(file_ids.empty());
-    return MB_SUCCESS;
+template <typename T>
+class auto_array {
+private:
+  T* data;
+public:
+  auto_array( size_t s ) : data(new T[s]) {}
+  auto_array()           : data(0)        {}
+  ~auto_array()                         { delete [] data; }
+  T*       get       ()                 { return data;    }
+  const T* get       ()           const { return data;    }
+  T&       operator[]( size_t i )       { return data[i]; }
+  const T& operator[]( size_t i ) const { return data[i]; }
+  T&       operator* ()                 { return *data;   }
+  const T* operator* ()           const { return *data;   }
+  T*       operator->()                 { return data;    }
+  const T* operator->()           const { return data;    }
+// auto_ptr-style destrutive assigment
+  auto_array( auto_array<T>& c ) {
+    data = c.data;
+    const_cast<auto_array<T>&>(c).data = 0;
   }
+  auto_array<T>& operator=( auto_array<T>& c ) {
+    data = c.data;
+    const_cast<auto_array<T>&>(c).data = 0;
+  }
+};
   
-  hid_t meta_handle = mhdf_openSetMetaSimple( filePtr, &status );
-  if (is_error(status))
-    return MB_FAILURE;
 
-
-    // create sets 
-  MBRange ranged_set_ids;
-  MBEntityHandle start_handle;
-  rval = read_sets( file_ids, meta_handle, ranged_set_ids, start_handle );
-  if (MB_SUCCESS != rval) {
-    mhdf_closeData( filePtr, meta_handle, &status );
-    return rval;
-  }
-    
-    // read contents
-  if (fileInfo->have_set_contents) {
-    long len = 0;
-    hid_t handle = mhdf_openSetData( filePtr, &len, &status );
-    if (is_error(status)) {
-      mhdf_closeData( filePtr, meta_handle, &status );
-      return MB_FAILURE;
-    }
-    
-    rval = read_contents( file_ids, start_handle, meta_handle, handle, len,
-                          ranged_set_ids );
-    mhdf_closeData( filePtr, handle, &status );
-    if (MB_SUCCESS == rval && is_error(status))
-      rval = MB_FAILURE;
-    if (MB_SUCCESS != rval) {
-      mhdf_closeData( filePtr, meta_handle, &status );
-      return rval;
-    }
-  }
-  
-    // read set child lists
-  if (fileInfo->have_set_children) {
-    long len = 0;
-    hid_t handle = mhdf_openSetChildren( filePtr, &len, &status );
-    if (is_error(status)) {
-      mhdf_closeData( filePtr, meta_handle, &status );
-      return MB_FAILURE;
-    }
-    
-    rval = read_children( file_ids, start_handle, meta_handle, handle, len );
-    mhdf_closeData( filePtr, handle, &status );
-    if (MB_SUCCESS == rval && is_error(status))
-      rval = MB_FAILURE;
-    if (MB_SUCCESS != rval) {
-      mhdf_closeData( filePtr, meta_handle, &status );
-      return rval;
-    }
-  }
-  
-    // read set parent lists
-  if (fileInfo->have_set_parents) {
-    long len = 0;
-    hid_t handle = mhdf_openSetParents( filePtr, &len, &status );
-    if (is_error(status)) {
-      mhdf_closeData( filePtr, meta_handle, &status );
-      return MB_FAILURE;
-    }
-    
-    rval = read_parents( file_ids, start_handle, meta_handle, handle, len );
-    mhdf_closeData( filePtr, handle, &status );
-    if (MB_SUCCESS == rval && is_error(status))
-      rval = MB_FAILURE;
-    if (MB_SUCCESS != rval) {
-      mhdf_closeData( filePtr, meta_handle, &status );
-      return rval;
-    }
-  }
-    
-  mhdf_closeData( filePtr, meta_handle, &status );
-  return is_error(status) ? MB_FAILURE : MB_SUCCESS;
-}
-
-MBErrorCode ReadHDF5::read_child_sets( MBRange& sets_in_out )
-{
-  if (!fileInfo->have_set_children)
-    return MB_SUCCESS;
-
-    // open data tables
-  if (fileInfo->sets.count == 0) {
-    assert( sets_in_out.empty() );
-    return MB_SUCCESS;
-  }
-  
-  mhdf_Status status;
-  hid_t meta_handle = mhdf_openSetMetaSimple( filePtr, &status );
-  if (is_error(status))
-    return MB_FAILURE;
-  
-  long child_len = 0;
-  hid_t child_handle = mhdf_openSetChildren( filePtr, &child_len, &status );
-  if (is_error(status)) {
-    mhdf_closeData( filePtr, meta_handle, &status );
-    return MB_FAILURE;
-  }
-  
-  MBErrorCode rval = read_child_ids_recursive( sets_in_out, meta_handle, child_handle );
-  
-  mhdf_closeData( filePtr, child_handle, &status );
-  if (MB_SUCCESS == rval && is_error(status))
-    rval = MB_FAILURE;
-  mhdf_closeData( filePtr, meta_handle, &status );
-  if (MB_SUCCESS == rval && is_error(status))
-    rval = MB_FAILURE;
-  
-  return rval;
-}
-
-MBErrorCode ReadHDF5::find_sets_containing( MBRange& sets_out )
+MBErrorCode ReadHDF5::read_set_contents( hid_t meta_id, hid_t data_id,
+                                         const unsigned long data_len )
 {
   MBErrorCode rval;
   mhdf_Status status;
-
-  if (!fileInfo->have_set_contents)
-    return MB_SUCCESS;
-  assert( fileInfo->sets.count );
-
-    // open data tables
-  hid_t meta_handle = mhdf_openSetMetaSimple( filePtr, &status );
-  if (is_error(status))
-    return MB_FAILURE;
-  long content_len = 0;
-  hid_t content_handle = mhdf_openSetData( filePtr, &content_len, &status );
-  if (is_error(status)) {
-    mhdf_closeData( filePtr, meta_handle, &status );
-    return MB_FAILURE;
-  }
-
-  rval = find_sets_containing( meta_handle, content_handle, content_len, sets_out );
-
-  mhdf_closeData( filePtr, content_handle, &status );
-  if(MB_SUCCESS == rval && is_error(status))
-    rval = MB_FAILURE;
-  mhdf_closeData( filePtr, meta_handle, &status );
-  if(MB_SUCCESS == rval && is_error(status))
-    rval = MB_FAILURE;
-    
-  return rval;
-}
-
-static bool set_map_intersect( unsigned short flags,
-                               const long* contents,
-                               int content_len,
-                               const RangeMap<long,MBEntityHandle>& id_map  )
-{
-  if (flags & mhdf_SET_RANGE_BIT) {
-    if (!content_len || id_map.empty())
-      return false;
-      
-    const long* j = contents;
-    const long* const end = contents + content_len;
-    assert(content_len % 2 == 0);
-    while (j != end) {
-      long start = *(j++);
-      long count = *(j++);
-      if (id_map.intersects( start, count ))
-        return true;
+  
+    // create extra buffers for storing end indices and flags
+  const unsigned long offset_size = bufferSize / sizeof(long);
+  auto_array<long> offsets(offset_size);
+  auto_array<unsigned short> flags(offset_size);
+  
+  MBEntityHandle* buffer = (MBEntityHandle*)dataBuffer;
+  size_t chunk_size = bufferSize / sizeof(MBEntityHandle);
+  if (chunk_size % 2)
+    --chunk_size; // makes reading range data easier.
+  
+  unsigned long set_offset = 0;  /* running offset into description table */
+  unsigned long sets_remaining = setSet.range.size();
+  unsigned long file_offset = 0; /* running offset into child table */
+  MBRange::const_iterator set_iter = setSet.range.begin();
+  while (sets_remaining) {
+      // read end indices from meta data
+    unsigned long set_count = sets_remaining < offset_size ? sets_remaining : offset_size;
+    mhdf_readSetContentEndIndicesWithOpt( meta_id, set_offset, set_count, 
+                                   H5T_NATIVE_LONG, offsets.get(), ioProp, &status );
+    if (mhdf_isError( &status )) {
+      readUtil->report_error( mhdf_message( &status ) );
+      return MB_FAILURE;
     }
-  }
-  else {
-    const long* const end = contents + content_len;
-    for (const long* i = contents; i != end; ++i)
-      if (id_map.exists( *i ))
-        return true;
-  }
-  return false;
-}
-
-MBErrorCode ReadHDF5::find_sets_containing( hid_t meta_handle,
-                                            hid_t contents_handle, 
-                                            long contents_len,
-                                            MBRange& file_ids )
-{
-  const long avg_set_len = contents_len / fileInfo->sets.count;
-  long sets_per_buffer = bufferSize / (sizeof(short) + sizeof(long) * (2+avg_set_len));
-    // round to down multiple of 8 to avoid alignment issues
-  sets_per_buffer = 8 * (sets_per_buffer / 8);
-  if (sets_per_buffer < 10) // just in case there's one huge set
-    sets_per_buffer = 10;  
-  unsigned short* flag_buffer = (unsigned short*)dataBuffer;
-  long* offset_buffer = (long*)(flag_buffer + sets_per_buffer);
-  long* content_buffer = offset_buffer + sets_per_buffer;
-  assert(bufferSize % sizeof(long) == 0);
-  long content_len = (long*)(dataBuffer + bufferSize) - content_buffer;
-  assert(dataBuffer + bufferSize >= (char*)(content_buffer + content_len));
-    // scan set table  
-  mhdf_Status status;
-  MBRange::iterator hint = file_ids.begin();
-  long remaining = fileInfo->sets.count;
-  long offset = 0;
-  long prev_idx = -1;
-  while (remaining) {
-    long count = std::min( remaining, sets_per_buffer );
-    mhdf_readSetFlags( meta_handle, offset, count, H5T_NATIVE_USHORT, flag_buffer, &status );
-    if (is_error(status)) 
+    mhdf_readSetFlagsWithOpt( meta_id, set_offset, set_count, H5T_NATIVE_USHORT, 
+                       flags.get(), ioProp, &status );
+    if (mhdf_isError( &status )) {
+      readUtil->report_error( mhdf_message( &status ) );
       return MB_FAILURE;
-    mhdf_readSetContentEndIndices( meta_handle, offset, count, H5T_NATIVE_LONG, offset_buffer, &status );
-    if (is_error(status))
-      return MB_FAILURE;
+    }
     
-    long sets_remaining = remaining;
-    long sets_offset = 0;
-    while (sets_remaining) {
-        // figure how many of the remaining sets are required to 
-        // fill the set contents buffer.
-      long sets_count = std::lower_bound( offset_buffer + sets_offset, 
-                          offset_buffer + count, content_len + prev_idx )
-                          - offset_buffer - sets_offset;
-      if (!sets_count) { // contents of single set don't fit in buffer
-        long content_remaining = offset_buffer[sets_offset] - prev_idx;
-        long content_offset = prev_idx+1;
-        while (content_remaining) {
-          long content_count = content_len < content_remaining ?
-                               2*(content_len/2) : content_remaining;
-          mhdf_readSetData( contents_handle, content_offset,
-                            content_count, H5T_NATIVE_LONG, 
-                            content_buffer, &status );
-          if (is_error(status))
-            return MB_FAILURE;
-          if (set_map_intersect( flag_buffer[sets_offset],
-                                 content_buffer, content_count, idMap )) {
-            long id = fileInfo->sets.start_id + offset + sets_offset;
-            hint = file_ids.insert( hint, id, id );
-            break;
-          }
-          content_remaining -= content_count;
-          content_offset += content_count;
-        }
-        prev_idx = offset_buffer[sets_offset];
-        sets_count = 1;
-      }
-      else {
-        assert(sets_count > 0);
-        mhdf_readSetData( contents_handle, prev_idx+1, 
-                         offset_buffer[sets_offset + sets_count - 1] - prev_idx, 
-                         H5T_NATIVE_LONG, content_buffer, &status );
-        if (is_error(status))
+      // now iterate over sets, reading set content lists
+    unsigned long i, r = 0; // number of sets for which data has been read.
+    while (r < set_count) {
+        // figure out how many we can read at once
+      for (i = r; i < set_count; ++i)
+        if ((unsigned long)(offsets[i] + 1 - file_offset) > chunk_size)
+          break;
+    
+        // special case: set content list for single set greater than buffer
+      if (i == r) {
+           // Check if set contents are stored as ranges or a simple list
+        bool ranged = (0 != (flags[r] & (unsigned short)mhdf_SET_RANGE_BIT));
+
+        assert( set_iter != setSet.range.end() );
+        MBEntityHandle h = *set_iter; ++set_iter;
+        size_t remaining = offsets[r] + 1 - file_offset;
+        if (remaining > data_len - file_offset) {
+          readUtil->report_error( "Invalid set contents offset read from file." );
           return MB_FAILURE;
-        
-        for (long i = 0; i < sets_count; prev_idx = offset_buffer[i++]) {
-          if (set_map_intersect( flag_buffer[sets_offset+i],
-                                 content_buffer + (1 + prev_idx),
-                                 offset_buffer[i] - prev_idx,
-                                 idMap )) {
-            long id = fileInfo->sets.start_id + offset + sets_offset + i;
-            hint = file_ids.insert( hint, id, id );
+        }
+        while (remaining)
+        {
+          size_t count = remaining > chunk_size ? chunk_size : remaining;
+          remaining -= count;
+          mhdf_readSetDataWithOpt( data_id, file_offset, count, handleType, buffer, ioProp, &status );
+          if (mhdf_isError( &status )) {
+            readUtil->report_error( mhdf_message( &status ) );
+            return MB_FAILURE;
           }
+          file_offset += count;
+
+            // convert data from file ids to MBEntityHandles and add to set
+          if (ranged)
+          {
+            if (count % 2 != 0) {
+              readUtil->report_error( "Invalid ranged set contents spec." );
+              return MB_FAILURE;
+            }
+            MBRange range;
+            rval = convert_range_to_handle( buffer, count / 2, range );
+            if (MB_SUCCESS != rval) {
+              readUtil->report_error( "Invalid entities in set contents" );
+              return rval;
+            }
+            rval = iFace->add_entities( h, range );
+            if (MB_SUCCESS != rval)
+              return rval;
+          }
+          else
+          {
+            rval = convert_id_to_handle( buffer, count );
+            if (MB_SUCCESS != rval) {
+              readUtil->report_error( "Invalid entities in set contents" );
+              return rval;
+            }
+            rval = iFace->add_entities( h, buffer, count );
+            if (MB_SUCCESS != rval)
+              return rval;
+          }
+        } // while(remaining)
+        ++r;
+      } // end special case (really big set)
+      
+        // normal case - read data for several sets
+      else {
+        
+          // read data for sets in [r,i)
+          
+        size_t count = offsets[i-1] + 1 - file_offset;
+        if (count > data_len - file_offset) {
+          readUtil->report_error( "Invalid set contents offset read from file." );
+          return MB_FAILURE;
+        }
+          
+        mhdf_readSetDataWithOpt( data_id, file_offset, count, handleType, buffer, ioProp, &status );
+        if (mhdf_isError( &status )) {
+          readUtil->report_error( mhdf_message( &status ) );
+          return MB_FAILURE;
+        }
+          
+          // add contents to each set
+        size_t mem_offset = 0;
+        for (; r < i; ++r) {
+          bool ranged = (0 != (flags[r] & (long)mhdf_SET_RANGE_BIT));
+          count = offsets[r] + 1 - file_offset;
+          assert( set_iter != setSet.range.end() );
+          MBEntityHandle h = *set_iter; ++set_iter;
+
+          if (ranged)
+          {
+            if (count % 2 != 0) {
+              readUtil->report_error( "Invalid ranged set contenst spec." );
+              return MB_FAILURE;
+            }
+            MBRange range;
+            rval = convert_range_to_handle( buffer+mem_offset, count / 2, range );
+            if (MB_SUCCESS != rval) {
+              readUtil->report_error( "Invalid entities in set contents" );
+              return rval;
+            }
+            rval = iFace->add_entities( h, range );
+            if (MB_SUCCESS != rval)
+              return rval;
+          }
+          else
+          {
+            rval = convert_id_to_handle( buffer+mem_offset, count );
+            if (MB_SUCCESS != rval) {
+              readUtil->report_error( "Invalid entities in set contents" );
+              return rval;
+            }
+            rval = iFace->add_entities( h, buffer+mem_offset, count );
+            if (MB_SUCCESS != rval)
+              return rval;
+          }
+
+          file_offset += count;
+          mem_offset += count;
         }
       }
+    } // while(r < num_sets)
     
-      sets_offset += sets_count;
-      sets_remaining -= sets_count;
+    set_offset += set_count;
+    sets_remaining -= set_count;
+  } // while (sets_remaining)
+
+  assert( set_iter == setSet.range.end() );
+  return MB_SUCCESS;
+}
+
+MBErrorCode ReadHDF5::read_parents_children( bool parents,
+                                             hid_t meta_id, 
+                                             hid_t data_id,
+                                             const unsigned long data_len )
+{
+  MBErrorCode rval;
+  mhdf_Status status;
+  
+  // create an extra buffer for storing offsets
+  const unsigned long offset_size = bufferSize / sizeof(long);
+  auto_array<long> offsets( offset_size );
+  // use the existing buffer for storing set child lists
+  MBEntityHandle* buffer = (MBEntityHandle*)dataBuffer;
+  size_t chunk_size = bufferSize / sizeof(MBEntityHandle);
+  const size_t total_sets = setSet.range.size();
+  
+  unsigned long set_offset = 0;  /* running offset into description table */
+  unsigned long sets_remaining = setSet.range.size();
+  unsigned long file_offset = 0; /* running offset into child table */
+  MBRange::const_iterator set_iter = setSet.range.begin();
+  while (sets_remaining) {
+      // read end indices from meta data
+    unsigned long set_count = sets_remaining < offset_size ? sets_remaining : offset_size;
+    if (parents)
+      mhdf_readSetParentEndIndicesWithOpt( meta_id, set_offset, set_count, 
+                                    H5T_NATIVE_LONG, offsets.get(), 
+                                    ioProp, &status );
+    else
+      mhdf_readSetChildEndIndicesWithOpt(  meta_id, set_offset, set_count, 
+                                    H5T_NATIVE_LONG, offsets.get(), 
+                                    ioProp, &status );
+    if (mhdf_isError( &status )) {
+      readUtil->report_error( mhdf_message( &status ) );
+      return MB_FAILURE;
     }
     
+      // now iterate over sets, reading parent/child lists
+    unsigned long i, r = 0; // number of sets for which data has been read.
+    while (r < set_count) {
+        // figure out how many we can read at once
+      for (i = r; i < set_count; ++i)
+        if ((unsigned long)(offsets[i] + 1 - file_offset) > chunk_size)
+          break;
+    
+        // special case: children of one set greater than buffer
+      if (i == r) {
+        assert( set_iter != setSet.range.end() );
+        MBEntityHandle h = *set_iter; ++set_iter;
+        size_t remaining = offsets[r] + 1 - file_offset;
+        if (remaining > data_len - file_offset) {
+          readUtil->report_error( "Invalid set %s offset read from file.",
+                                  parents ? "parent" : "child" );
+          return MB_FAILURE;
+        }
+        while (remaining)
+        {
+          size_t count = remaining > chunk_size ? chunk_size : remaining;
+          remaining -= count;
+          mhdf_readSetParentsChildrenWithOpt( data_id, file_offset, count, handleType, 
+                                              buffer, ioProp, &status );
+          if (mhdf_isError( &status )) {
+            readUtil->report_error( mhdf_message( &status ) );
+            return MB_FAILURE;
+          }
+          file_offset += count;
+
+            // convert from file_ids to set handles
+          for (size_t j = 0; j < count; ++j) {
+            buffer[j] -= setSet.first_id;
+            if (buffer[j] >= total_sets) { 
+              readUtil->report_error("Invalid set %s ID", parents ? "parent" : "child" );
+              return MB_FAILURE;
+            }
+            buffer[j] += setSet.range.front();
+          }
+
+          if (parents)
+            rval = iFace->add_parent_meshsets( h, buffer, count );
+          else
+            rval = iFace->add_child_meshsets( h, buffer, count );
+          if (MB_SUCCESS != rval)
+            return rval;
+        } // while(remaining)
+        ++r;
+      } // end special case (really big set)
+      
+        // normal case - read data for several sets
+      else {
+        
+          // read data for sets in [r,i)
+        size_t count = offsets[i-1] + 1 - file_offset;
+        if (count > data_len - file_offset) {
+          readUtil->report_error( "Invalid set %s offset read from file.",
+                                  parents ? "parent" : "child" );
+          return MB_FAILURE;
+        }
+        mhdf_readSetParentsChildrenWithOpt( data_id, file_offset, count, handleType, 
+                                            buffer, ioProp, &status );
+        if (mhdf_isError( &status )) {
+          readUtil->report_error( mhdf_message( &status ) );
+          return MB_FAILURE;
+        }
+        
+          // convert from file_ids to set handles
+        for (size_t j = 0; j < count; ++j) {
+          buffer[j] -= setSet.first_id;
+          if (buffer[j] >= total_sets) { 
+            readUtil->report_error("Invalid set %s ID", parents ? "parent" : "child" );
+            return MB_FAILURE;
+          }
+          buffer[j] += setSet.range.front();
+        }
+          
+          // add children to each set
+        size_t mem_offset = 0;
+        for (; r < i; ++r) {
+          assert( set_iter != setSet.range.end() );
+          MBEntityHandle h = *set_iter; ++set_iter;
+          count = offsets[r] + 1 - file_offset;
+          if (parents)
+            rval = iFace->add_parent_meshsets( h, buffer+mem_offset, count );
+          else
+            rval = iFace->add_child_meshsets(  h, buffer+mem_offset, count );
+          if (MB_SUCCESS != rval)
+            return rval;
+
+          file_offset += count;
+          mem_offset += count;
+        }
+      }
+    } // while(r < num_sets)
+    
+    set_offset += set_count;
+    sets_remaining -= set_count;
+  } // while (sets_remaining)
+
+  assert( set_iter == setSet.range.end() );
+  return MB_SUCCESS;
+}
+
+
+MBErrorCode ReadHDF5::read_sets()
+{
+  MBErrorCode rval;
+  mhdf_Status status;
+  
+    // Check what data is in the file for sets
+  int have_sets, have_data, have_children, have_parents;
+  have_sets = mhdf_haveSets( filePtr, &have_data, &have_children, &have_parents, &status );
+  if (mhdf_isError( &status ))
+  {
+    readUtil->report_error( mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
+
+  if (!have_sets)
+    return MB_SUCCESS;
+  
+    // Open the list of sets
+  long num_sets, first_id;
+  hid_t meta_id = mhdf_openSetMeta( filePtr, &num_sets, &first_id, &status );
+  if (mhdf_isError( &status ))
+  {
+    readUtil->report_error( mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
+
+    // Initialize internal bookkeeping
+  setSet.first_id = first_id;
+  setSet.type = MBENTITYSET;
+  setSet.type2 = mhdf_set_type_handle();
+  if (!num_sets) { // shouldn't happen if have_sets == true, but...
+    mhdf_closeData( filePtr, meta_id, &status );
+    return MB_SUCCESS;
+  }
+  
+    // Get last used MeshSet handle
+  MBRange junk;
+  iFace->get_entities_by_type( 0, MBENTITYSET, junk );
+  MBEntityHandle start_handle = junk.empty() ? 1 : junk.back() + 1;
+  junk.clear();
+  bool first = true;
+  
+  
+    // Iterate over set metadata, creating all the sets.
+    // Don't read any contents or parent/child links yet.
+    // Create all the sets first, so all the contents
+    // and parent/child links are valid.
+  MBEntityHandle handle;
+  size_t chunk_size = bufferSize / sizeof(unsigned);
+  unsigned * buffer = reinterpret_cast<unsigned*>(dataBuffer);
+  size_t remaining = num_sets, offset = 0;
+  MBRange::iterator insert_iter = setSet.range.begin();
+  while (remaining) {
+      // Get a block of set flags
+    size_t count = remaining > chunk_size ? chunk_size : remaining;
+    mhdf_readSetFlagsWithOpt( meta_id, offset, count, H5T_NATIVE_UINT, 
+                              buffer, ioProp, &status );
+    if (mhdf_isError( &status )) {
+      readUtil->report_error( mhdf_message( &status ) );
+      mhdf_closeData( filePtr, meta_id, &status );
+      return MB_FAILURE;
+    }
     offset += count;
     remaining -= count;
-  }
-  
-  return MB_SUCCESS;
-}
-
-MBErrorCode ReadHDF5::read_child_ids_recursive( MBRange& file_ids,
-                                                hid_t meta_handle,
-                                                hid_t child_handle )
-{
-  MBErrorCode rval = MB_SUCCESS;
-  MBRange children, new_children(file_ids);
-  do {
-    children.clear();
-    rval = read_child_ids( new_children, meta_handle, child_handle, children );
-    if (MB_SUCCESS != rval)
-      break;
     
-    new_children = children.subtract( file_ids );
-    file_ids.merge( new_children );
-  } while (!new_children.empty());
-  return rval;
-}
-
-MBErrorCode ReadHDF5::read_child_ids( const MBRange& input_file_ids,
-                                      hid_t meta_handle,
-                                      hid_t child_handle,
-                                      MBRange& child_file_ids )
-{
-  mhdf_Status status;
-  long* buffer = reinterpret_cast<long*>(dataBuffer);
-  long buffer_size = bufferSize / sizeof(long);
-  long first, range[2], count, remaining;
-  MBRange sets(input_file_ids);
-  MBRange::iterator hint;
-  while (!sets.empty()) {
-    first = (long)sets.front() - fileInfo->sets.start_id;
-    count = (long)sets.const_pair_begin()->second - first + 1;
-    sets.erase( sets.begin(), sets.begin() + count );
-    
-    if (!first) {
-      range[0] = -1;
-      mhdf_readSetChildEndIndices( meta_handle, first+count-1, 1, H5T_NATIVE_LONG, range+1, &status );
-      if (is_error(status))
-        return MB_FAILURE;
-    }
-    else if (count == 1) {
-      mhdf_readSetChildEndIndices( meta_handle, first-1, 2, H5T_NATIVE_LONG, range, &status );
-      if (is_error(status))
-        return MB_FAILURE;
-    }
-    else {
-      mhdf_readSetChildEndIndices( meta_handle, first-1, 1, H5T_NATIVE_LONG, range+1, &status );
-      if (is_error(status))
-        return MB_FAILURE;
-      mhdf_readSetChildEndIndices( meta_handle, first+count-1, 1, H5T_NATIVE_LONG, range+1, &status );
-      if (is_error(status))
-        return MB_FAILURE;
-    }
-    
-    remaining = range[1] - range[0];
-    long offset = range[0] + 1;
-    while (remaining) {
-      count = std::min( buffer_size, remaining );
-      remaining -= count;
-      mhdf_readSetParentsChildren( child_handle, offset, count, H5T_NATIVE_LONG, buffer, &status );
-  
-      std::sort( buffer, buffer + count );
-      count = std::unique( buffer, buffer + count ) - buffer;
-      hint = child_file_ids.begin();
-      for (long i = 0; i < count; ++i) {
-        MBEntityHandle h = (MBEntityHandle)buffer[i];
-        hint = child_file_ids.insert( hint, h, h );
-      }
-    }
-  }
-  
-  return MB_SUCCESS;
-}
-
-MBErrorCode ReadHDF5::read_sets( const MBRange& file_ids,
-                                 hid_t meta_handle, 
-                                 MBRange& ranged_file_ids,
-                                 MBEntityHandle& start_handle,
-                                 bool create )
-{
-  MBErrorCode rval;
-  mhdf_Status status;
-
-  size_t count = file_ids.size();
-  if (!count)
-    return MB_SUCCESS;
-
-  std::vector<unsigned> tmp_buffer;
-  unsigned* buffer;
-  if (count > (bufferSize/sizeof(unsigned))) {
-    tmp_buffer.resize( count );
-    buffer = &tmp_buffer[0];
-  }
-  else {
-    buffer = reinterpret_cast<unsigned*>(dataBuffer);
-  }
-  
-  unsigned* buff_iter = buffer;
-  MBRange::const_pair_iterator p;
-  for (p = file_ids.const_pair_begin(); p != file_ids.const_pair_end(); ++p) {
-    long offset = p->first - fileInfo->sets.start_id;
-    long count = p->second - p->first + 1;
-    mhdf_readSetFlags( meta_handle, offset, count, H5T_NATIVE_UINT, buff_iter, &status );
-    if (is_error(status))
-      return MB_FAILURE;
-    offset += count;
-    buff_iter += count;
-  }
-  
-  buff_iter = buffer;
-  MBRange::iterator hint = ranged_file_ids.begin();
-  for (MBRange::iterator i = file_ids.begin(); i != file_ids.end(); ++i, ++buff_iter) {
-    if ((*buff_iter) & mhdf_SET_RANGE_BIT) {
-      *buff_iter &= ~(unsigned)mhdf_SET_RANGE_BIT;
-      hint = ranged_file_ids.insert( hint, *i, *i );
-    }
-  }
-  
-  if (create) {
-    rval = readUtil->create_entity_sets( count, buffer, 0, start_handle );
-    if (MB_SUCCESS != rval)
+      // clear ranged-storage bit.  Its internal data for the file
+      // format, not one of MOAB's set flags.
+    for (size_t i = 0;i < count; ++i)
+      buffer[i] &= ~(unsigned)mhdf_SET_RANGE_BIT;
+      
+      // create block of sets
+    rval = readUtil->create_entity_sets( count,
+                                         buffer, 
+                                         ID_FROM_HANDLE(start_handle),
+                                         handle );
+    if (MB_SUCCESS != rval) {
+      mhdf_closeData( filePtr, meta_id, &status );
       return rval;
-      
-    MBEntityHandle h = start_handle;
-    for (p = file_ids.const_pair_begin(); p != file_ids.const_pair_end(); ++p) {
-      long count = p->second - p->first + 1;
-      IDMap::iterator ins = idMap.insert( p->first, h, count );
-      if (ins == idMap.end()) 
-        return MB_FAILURE;
-      h += count;
     }
-  }
-  
-  return MB_SUCCESS;
-}
-
-
-MBErrorCode ReadHDF5::read_contents( ContentReader& tool,
-                                     const MBRange& file_ids,
-                                     const long start_id,
-                                     const MBEntityHandle start_handle,
-                                     const long entity_count,
-                                     const long content_len,
-                                     const MBRange& ranged_ids_in )
-{
-  MBErrorCode rval;
-  mhdf_Status status;
-  if (file_ids.empty())
-    return MB_SUCCESS;
     
-    // things will get messed up if this isn't true
-  assert( ranged_ids_in.subtract( file_ids ).empty() );
-  assert( file_ids.front() >= (MBEntityHandle)start_id );
-  assert( file_ids.back() - start_id < (MBEntityHandle)entity_count );
-
-  const long avg_set_len = content_len / entity_count;
-  long sets_per_buffer = bufferSize / (sizeof(long) + (avg_set_len+1)*sizeof(MBEntityHandle));
-    // round to down multiple of 8 to avoid alignment issues
-  sets_per_buffer = 8 * (sets_per_buffer / 8);
-  if (sets_per_buffer < 10) // just in case there's one huge set
-    sets_per_buffer = 10;  
-  long* offset_buffer = (long*)dataBuffer;
-  MBEntityHandle* content_buffer = (MBEntityHandle*)(offset_buffer + sets_per_buffer);
-  assert(bufferSize % sizeof(long) == 0);
-  long content_size = (MBEntityHandle*)(dataBuffer + bufferSize) - content_buffer;
-  assert(dataBuffer + bufferSize >= (char*)(content_buffer + content_size));
- 
-  MBRange ranged_ids(ranged_ids_in);
-  MBEntityHandle h = start_handle;
-  MBRange sets(file_ids), range;
-  long prev_start = start_id;
-  long prev_count = 0;
-  while (!sets.empty()) {
-    long start = sets.front();
-    long count = sets.const_pair_begin()->second - start + 1;
-    long file_id = start;
-    if (count >= sets_per_buffer)
-      count = sets_per_buffer - 1; // less one because we need the previous offset
-    sets.erase( sets.begin(), sets.begin() + count );
-
-    if (start == start_id) {
-      offset_buffer[0] = -1;
-      tool.read_indices( 0, count, offset_buffer + 1, status );
+      // We are careful to request start IDs such that the
+      // resulting MBEntityHandles are always increasing.
+      // We are relying on increasing handles, so make sure
+      // that's what we get.
+    if (!first && handle < start_handle) {
+      readUtil->report_error( "Non-increasing handle space for mesh sets" );
+      mhdf_closeData( filePtr, meta_id, &status );
+      return MB_FAILURE;
     }
-    else if (prev_start + prev_count == start) {
-      offset_buffer[0] = offset_buffer[prev_count];
-      tool.read_indices( start - start_id, count, offset_buffer + 1, status );
+    first = false;
+    start_handle = handle + count;
+    
+    insert_iter = setSet.range.insert( insert_iter, handle, handle + count - 1 );
+  }
+  assert( setSet.range.size() == (size_t)num_sets );
+  
+  MBErrorCode result = MB_SUCCESS;
+  if (have_data) {
+    long data_len; 
+    hid_t data_id = mhdf_openSetData( filePtr, &data_len, &status );
+    if (mhdf_isError(&status)) {
+      readUtil->report_error( mhdf_message( &status ) );
+      result = MB_FAILURE;
     }
     else {
-      tool.read_indices( start - start_id - 1, count+1, offset_buffer, status );
+      rval = read_set_contents( meta_id, data_id, data_len );
+      mhdf_closeData( filePtr, data_id, &status );
+      if (MB_SUCCESS != rval)
+        result = rval;
     }
-    if (is_error(status))
-      return MB_FAILURE;
-    prev_start = start;
-    prev_count = count;
-     
-      // read set contents
-    long remaining = count; //offset_buffer[count] - offset_buffer[0];
-    long offset = 0;
-    while (remaining) {
-        // Figure out how many set contents list we can fit in the
-        // buffer.
-      long read_count;
-      for (read_count = 1; read_count < remaining; ++read_count) 
-        if (offset_buffer[read_count+offset+1] - offset_buffer[offset] >= content_size)
-          break;
-        // If no set contents list fit in the buffer, special case:
-        // iteratively read subsets of the content list.
-      if (read_count == 1) { 
-        assert( 0 == content_size % 2 ); // otherwise problems with ranged data
-        long rem_contents = offset_buffer[offset+1] - offset_buffer[offset];
-        long set_offset = 0;
-        const bool ranged = !ranged_ids.empty() && ((long)ranged_ids.front() == start);
-        if (ranged) 
-          ranged_ids.pop_front();
-        while (rem_contents) {
-          long content_count = std::min( content_size, rem_contents );
-          tool.read_contents( offset_buffer[offset]+1 + set_offset, content_count, content_buffer, status );
-          if (is_error(status)) 
-            return MB_FAILURE;
-         
-          rval = tool.store_data( h, file_id, content_buffer, content_count, ranged );
-          if (MB_SUCCESS != rval)
-            return rval;
-         
-          set_offset += content_count;
-          rem_contents -= content_count;
-        }
-        ++h;
-        ++file_id;
-      }
-        // Read contents for 'read_count' sets.
-      else {
-        tool.read_contents( offset_buffer[offset]+1, 
-                            offset_buffer[read_count+offset] - offset_buffer[offset], 
-                            content_buffer, status );
-        if (is_error(status))
-          return MB_FAILURE;
-        MBEntityHandle* content_iter = content_buffer;
-        for (long i = 0; i < read_count; ++i) {
-          long content_count = offset_buffer[i+1] - offset_buffer[i];
-          bool ranged = !ranged_ids.empty() && ((long)ranged_ids.front() == file_id);
-          rval = tool.store_data( h, file_id, content_iter, content_count, ranged );
-          if (MB_SUCCESS != rval)
-            return rval;
-         
-          content_iter += content_count;
-          ++file_id;
-          ++h;
-          
-          if (ranged)
-            ranged_ids.pop_front();
-        }
-      }
-      
-      remaining -= read_count;
-      offset += read_count;
+  }
+
+  if (have_children) {
+    long data_len; 
+    hid_t data_id = mhdf_openSetChildren( filePtr, &data_len, &status );
+    if (mhdf_isError(&status)) {
+      readUtil->report_error( mhdf_message( &status ) );
+      result = MB_FAILURE;
+    }
+    else {
+      rval = read_parents_children( false, meta_id, data_id, data_len );
+      mhdf_closeData( filePtr, data_id, &status );
+      if (MB_SUCCESS != rval)
+        result = rval;
+    }
+  }
+
+  if (have_parents) {
+    long data_len; 
+    hid_t data_id = mhdf_openSetParents( filePtr, &data_len, &status );
+    if (mhdf_isError(&status)) {
+      readUtil->report_error( mhdf_message( &status ) );
+      result = MB_FAILURE;
+    }
+    else {
+      rval = read_parents_children( true, meta_id, data_id, data_len );
+      mhdf_closeData( filePtr, data_id, &status );
+      if (MB_SUCCESS != rval)
+        result = rval;
     }
   }
   
-  return MB_SUCCESS;
+  mhdf_closeData( filePtr, meta_id, &status );
+  return result;
 }
 
-
-
-MBErrorCode ReadHDF5::read_contents( const MBRange& set_file_ids,
-                                     MBEntityHandle start_handle,
-                                     hid_t set_meta_data_table,
-                                     hid_t set_contents_table,
-                                     long set_contents_length,
-                                     const MBRange& ranged_set_file_ids )
-{
-
-  class ReadSetContents : public ReadHDF5::ContentReader {
-    const hid_t metaHandle, contentHandle, handleType;
-    MBInterface *const mb;
-    const IDMap& idMap;
-  public:
-    ReadSetContents( hid_t meta, hid_t content, hid_t handle_type, MBInterface* iface, 
-                    const IDMap& id_map )
-                    : metaHandle(meta), contentHandle(content), 
-                      handleType(handle_type), mb(iface), idMap(id_map) 
-                    {}
-    void read_indices( long offset, long count, long* buffer, mhdf_Status& status )
-      { mhdf_readSetContentEndIndices( metaHandle, offset, count, H5T_NATIVE_LONG, buffer, &status ); }
-    void read_contents( long offset, long count, MBEntityHandle* buffer, mhdf_Status& status )
-      { mhdf_readSetData( contentHandle, offset, count, handleType, buffer, &status ); }
-    MBErrorCode store_data( MBEntityHandle set, long, MBEntityHandle* array, long len, bool ranged ) 
-    {
-      if (ranged) {
-        assert(len % 2 == 0);
-        MBRange range;
-        convert_range_to_handle( array, len/2, idMap, range );
-        return mb->add_entities( set, range );
-      }
-      else {
-        assert(len >= 0);
-        size_t valid = len;
-        convert_id_to_handle( array, valid, idMap );
-        return mb->add_entities( set, array, valid );
-      }
-    }
-  };
-
-  ReadSetContents tool( set_meta_data_table, set_contents_table, 
-                        handleType, iFace, idMap );
-  return read_contents( tool, set_file_ids, fileInfo->sets.start_id, start_handle, 
-                        fileInfo->sets.count, set_contents_length, ranged_set_file_ids );
-}
-
-
-MBErrorCode ReadHDF5::read_children( const MBRange& set_file_ids,
-                                     MBEntityHandle start_handle,
-                                     hid_t set_meta_data_table,
-                                     hid_t set_contents_table,
-                                     long set_contents_length )
-{
-  class ReadSetChildren : public ReadHDF5::ContentReader {
-    const hid_t metaHandle, contentHandle, handleType;
-    MBInterface *const mb;
-    const IDMap& idMap;
-  public:
-    ReadSetChildren( hid_t meta, hid_t content, hid_t handle_type, MBInterface* iface, 
-                    const IDMap& id_map )
-                    : metaHandle(meta), contentHandle(content), 
-                      handleType(handle_type), mb(iface), idMap(id_map) 
-                    {}
-    void read_indices( long offset, long count, long* buffer, mhdf_Status& status )
-      { mhdf_readSetChildEndIndices( metaHandle, offset, count, H5T_NATIVE_LONG, buffer, &status ); }
-    void read_contents( long offset, long count, MBEntityHandle* buffer, mhdf_Status& status )
-      { mhdf_readSetParentsChildren( contentHandle, offset, count, handleType, buffer, &status ); }
-    MBErrorCode store_data( MBEntityHandle set, long, MBEntityHandle* array, long len, bool ranged ) 
-    {
-      assert(!ranged);
-      size_t valid = len;
-      convert_id_to_handle( array, valid, idMap );
-      return mb->add_child_meshsets( set, array, valid );
-    }
-  };
-
-  MBRange empty;
-  ReadSetChildren tool( set_meta_data_table, set_contents_table, 
-                        handleType, iFace, idMap );
-  return read_contents( tool, set_file_ids, fileInfo->sets.start_id, start_handle, 
-                        fileInfo->sets.count, set_contents_length, empty );
-}
-
-MBErrorCode ReadHDF5::read_parents( const MBRange& set_file_ids,
-                                    MBEntityHandle start_handle,
-                                    hid_t set_meta_data_table,
-                                    hid_t set_contents_table,
-                                    long set_contents_length )
-{
-  class ReadSetParents : public ReadHDF5::ContentReader {
-    const hid_t metaHandle, contentHandle, handleType;
-    MBInterface *const mb;
-    const IDMap& idMap;
-  public:
-    ReadSetParents( hid_t meta, hid_t content, hid_t handle_type, MBInterface* iface, 
-                    const IDMap& id_map )
-                    : metaHandle(meta), contentHandle(content), 
-                      handleType(handle_type), mb(iface), idMap(id_map) 
-                    {}
-    void read_indices( long offset, long count, long* buffer, mhdf_Status& status )
-      { mhdf_readSetParentEndIndices( metaHandle, offset, count, H5T_NATIVE_LONG, buffer, &status ); }
-    void read_contents( long offset, long count, MBEntityHandle* buffer, mhdf_Status& status )
-      { mhdf_readSetParentsChildren( contentHandle, offset, count, handleType, buffer, &status ); }
-    MBErrorCode store_data( MBEntityHandle set, long, MBEntityHandle* array, long len, bool ranged ) 
-    {
-      assert(!ranged);
-      size_t valid = len;
-      convert_id_to_handle( array, valid, idMap );
-      return mb->add_parent_meshsets( set, array, valid );
-    }
-  };
-
-  MBRange empty;
-  ReadSetParents tool( set_meta_data_table, set_contents_table, 
-                        handleType, iFace, idMap );
-  return read_contents( tool, set_file_ids, fileInfo->sets.start_id, start_handle, 
-                        fileInfo->sets.count, set_contents_length, empty );
-}
-
-static void copy_set_contents( int ranged,
-                               const MBEntityHandle* contents,
-                               long length,
-                               MBRange& results )
-{
-  if (ranged) {
-    assert( length%2 == 0 );
-    MBRange::iterator hint = results.begin();
-    for (long i = 0; i < length; i += 2)
-      hint = results.insert( hint, contents[i], contents[i] + contents[i+1] - 1 );
-  }
-  else {
-    for (long i = 0; i < length; ++i)
-      results.insert( contents[i] );
-  }
-}
-
-
-MBErrorCode ReadHDF5::get_set_contents( const MBRange& sets, MBRange& file_ids )
-{
-  class GetContentList : public ReadHDF5::ContentReader {
-    const hid_t metaHandle, contentHandle, handleType;
-    MBRange *const resultList;
-  public:
-    GetContentList( hid_t meta, hid_t content, hid_t handle_type, MBRange* result_set )
-                    : metaHandle(meta), contentHandle(content), 
-                      handleType(handle_type), resultList(result_set) 
-                    {}
-
-    void read_indices( long offset, long count, long* buffer, mhdf_Status& status )
-      { mhdf_readSetContentEndIndices( metaHandle, offset, count, H5T_NATIVE_LONG, buffer, &status ); }
-    void read_contents( long offset, long count, MBEntityHandle* buffer, mhdf_Status& status )
-      { mhdf_readSetData( contentHandle, offset, count, handleType, buffer, &status ); }
-    MBErrorCode store_data( MBEntityHandle set, long, MBEntityHandle* array, long len, bool ranged ) 
-    {
-      if (ranged) {
-        copy_set_contents( 1, array, len, *resultList );
-      }
-      else {
-        std::sort( array, array+len );
-        copy_sorted_file_ids( array, len, *resultList );
-      }
-      return MB_SUCCESS;
-    }
-  };
-
-  MBErrorCode rval;
-  if (sets.empty())
-    return MB_SUCCESS;
-
-  mhdf_Status status;
-  long content_len;
-  hid_t meta, contents;
-  meta = mhdf_openSetMetaSimple( filePtr, &status );
-  if (is_error(status))
-    return MB_FAILURE;
-  contents = mhdf_openSetData( filePtr, &content_len, &status );
-  if (is_error(status)) {
-    mhdf_closeData( filePtr, meta, &status );
-    return MB_FAILURE;
-  }
-
-  MBEntityHandle junk;
-  MBRange ranged;
-  rval = read_sets( sets, meta, ranged, junk, false );
-  if (MB_SUCCESS != rval) {
-    mhdf_closeData( filePtr, meta, &status );
-    mhdf_closeData( filePtr, contents, &status );
-    return rval;
-  }
-  
-  GetContentList tool( meta, contents, handleType, &file_ids );
-  rval = read_contents( tool, sets, fileInfo->sets.start_id, junk, 
-                        fileInfo->sets.count, content_len, ranged );
-  mhdf_closeData( filePtr, meta, &status );
-  mhdf_closeData( filePtr, contents, &status );
-  return rval;
-}
-
-
-MBErrorCode ReadHDF5::read_adjacencies( hid_t adjacency_table, long table_len )
+MBErrorCode ReadHDF5::read_adjacencies( ElemSet& elems )
 {
   MBErrorCode rval;
   mhdf_Status status;
   hid_t table;
   long data_len;
+  
+  int adj = mhdf_haveAdjacency( filePtr, elems.type2, &status );
+  if (mhdf_isError(&status))
+  {
+    readUtil->report_error( mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
+  
+  if (!adj)
+    return MB_SUCCESS;
+  
+  table = mhdf_openAdjacency( filePtr, elems.type2, &data_len, &status );
+  if (mhdf_isError(&status))
+  {
+    readUtil->report_error( mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
   
   MBEntityHandle* buffer = (MBEntityHandle*)dataBuffer;
   size_t chunk_size = bufferSize / sizeof(MBEntityHandle);
@@ -1882,42 +1109,57 @@ MBErrorCode ReadHDF5::read_adjacencies( hid_t adjacency_table, long table_len )
   size_t offset = 0;
   while (remaining)
   {
-    size_t count = std::min( chunk_size, remaining );
+    size_t count = remaining > chunk_size ? chunk_size : remaining;
     count -= leading;
     remaining -= count;
     
     mhdf_readAdjacencyWithOpt( table, offset, count, handleType, buffer + leading,
                                ioProp, &status );
-    if (is_error(status))
+    if (mhdf_isError(&status))
+    {
+      readUtil->report_error( mhdf_message( &status ) );
+      mhdf_closeData( filePtr, table, &status );
       return MB_FAILURE;
+    }
     
     MBEntityHandle* iter = buffer;
     MBEntityHandle* end = buffer + count + leading;
     while (end - iter >= 3)
     {
-      MBEntityHandle h = idMap.find( *iter );
-      MBEntityHandle count2 = *++iter;
-      if (!h) {
-        iter += count2;
-        continue;
+      rval = convert_id_to_handle( elems, iter, 1 );
+      MBEntityHandle entity = *iter;
+      MBEntityHandle count = *++iter;
+      if (MB_SUCCESS != rval || count < 1)
+      {
+        assert(0);
+        mhdf_closeData( filePtr, table, &status );
+        return rval == MB_SUCCESS ? MB_FAILURE : rval;
       }
-
-      if (count2 < 1)
-        return MB_FAILURE;
-
       ++iter;
-      if (end < count2 + iter)
+      
+      if (end < count + iter)
       {
         iter -= 2;
         break;
       }
       
-      convert_id_to_handle( iter, count2, idMap );
-      rval = iFace->add_adjacencies( h, iter, count2, false );
+      rval = convert_id_to_handle( iter, count );
       if (MB_SUCCESS != rval)
+      {
+        assert(0);
+        mhdf_closeData( filePtr, table, &status );
         return rval;
-     
-      iter += count2;
+      }
+      
+      rval = iFace->add_adjacencies( entity, iter, count, false );
+      if (MB_SUCCESS != rval)
+      {
+        assert(0);
+        mhdf_closeData( filePtr, table, &status );
+        return rval;
+      }
+      
+      iter += count;
     }
     
     leading = end - iter;
@@ -1927,245 +1169,201 @@ MBErrorCode ReadHDF5::read_adjacencies( hid_t adjacency_table, long table_len )
   assert(!leading);  // unexpected truncation of data
   
   mhdf_closeData( filePtr, table, &status );
-  if (is_error(status))
+  if (mhdf_isError(&status))
+  {
+    readUtil->report_error( mhdf_message( &status ) );
     return MB_FAILURE;
+  }
   
   return MB_SUCCESS;  
 }
 
-
-MBErrorCode ReadHDF5::read_tag( int tag_index )
+MBErrorCode ReadHDF5::read_tag( const char* name )
 {
   MBErrorCode rval;
   mhdf_Status status;
-  MBTag tag = 0;
-  hid_t read_type;
-  rval = create_tag( fileInfo->tags[tag_index], tag, read_type ); 
-  if (MB_SUCCESS != rval)
-    return rval;
-
-  if (fileInfo->tags[tag_index].have_sparse) {
-    hid_t handles[3];
-    long num_ent, num_val;
-    mhdf_openSparseTagData( filePtr, 
-                            fileInfo->tags[tag_index].name,
-                            &num_ent, &num_val,
-                            handles, &status );
-    if (is_error(status)) {
-      if (read_type) H5Tclose( read_type );
-      return MB_FAILURE;
-    }
-
-    if (fileInfo->tags[tag_index].size > 0)
-      rval = read_sparse_tag( tag, read_type, handles[0], handles[1], num_ent );
-    else
-      rval = read_var_len_tag( tag, read_type, handles[0], handles[1], handles[2], num_ent, num_val );
-
-    mhdf_closeData( filePtr, handles[0], &status );
-    if (MB_SUCCESS == rval && is_error(status))
-      rval = MB_FAILURE;
-    mhdf_closeData( filePtr, handles[1], &status );
-    if (MB_SUCCESS == rval && is_error(status))
-      rval = MB_FAILURE;
-    if (fileInfo->tags[tag_index].size <= 0) {
-      mhdf_closeData( filePtr, handles[2], &status );
-      if (MB_SUCCESS == rval && is_error(status))
-        rval = MB_FAILURE;
-    }
-    if (MB_SUCCESS != rval) {
-      if (read_type) H5Tclose( read_type );
-      return rval;
-    }
-  }
+  std::string tag_type_name;
   
-  for (int j = 0; j < fileInfo->tags[tag_index].num_dense_indices; ++j) {
-    long count;
-    const char* name = 0;
-    mhdf_EntDesc* desc;
-    int elem_idx = fileInfo->tags[tag_index].dense_elem_indices[j];
-    if (elem_idx == -2) {
-      desc = &fileInfo->sets;
-      name = mhdf_set_type_handle();
-    }
-    else if (elem_idx == -1) {
-      desc = &fileInfo->nodes;
-      name = mhdf_node_type_handle();
-    }
-    else if (elem_idx >= 0 && elem_idx < fileInfo->num_elem_desc) {
-      desc = &fileInfo->elems[elem_idx].desc;
-      name = fileInfo->elems[elem_idx].handle;
-    }
-    
-    hid_t handle = mhdf_openDenseTagData( filePtr, 
-                                          fileInfo->tags[tag_index].name,
-                                          name,
-                                          &count, &status );
-    if (is_error(status)) {
-      rval = MB_FAILURE;
-      break;
-    }
-    
-    if (count > desc->count) {
-      readUtil->report_error( "Invalid data length for dense tag data: %s/%s\n",
-                              name, fileInfo->tags[tag_index].name );
-      mhdf_closeData( filePtr, handle, &status );
-      rval = MB_FAILURE;
-      break;
-    }
-
-    rval = read_dense_tag( tag, read_type, handle, desc->start_id, count );
-    mhdf_closeData( filePtr, handle, &status );
-    if (MB_SUCCESS != rval)
-      break;
-    if (is_error(status)) {
-      rval = MB_FAILURE;
-      break;
-    }
-  }
-  
-  if (read_type) 
-    H5Tclose( read_type );
-  return rval;
-}
-                              
-                                            
-    
-
-
-MBErrorCode ReadHDF5::create_tag( const mhdf_TagDesc& info,
-                                  MBTag& handle,
-                                  hid_t& hdf_type )
-{
-  MBErrorCode rval;
-  mhdf_Status status;
+  mhdf_TagDataType mhdf_type;  // Enum for tag data type
+  int tag_size;                // Size of tag
+  int mhdf_storage;            // TSTT storage type (dense vs. sparse)
+  int have_default;            // File contains default value for tag
+  int have_global;             // File contains global value for tag
+  int have_sparse;             // File contains sparse data table for tag
+  hid_t hdf_type = 0;          // Type to use when reading tag data.
+  int elem_size;               // Bytes required for one elem of array
+  int array_size;              // If tag is not opaque, the number of data per entity
+  MBTag handle;                // The handle for the tag
+  MBDataType mb_type;          // The MOAB data type for the data
   MBTagType storage;
-  MBDataType mb_type;
-  bool re_read_default = false;
-
-  switch (info.storage) {
+  
+    // Get description of tag
+  mhdf_getTagInfo( filePtr, name, &mhdf_type, &tag_size, &mhdf_storage,
+                   &have_default, &have_global, &have_sparse, &status );
+  if (mhdf_isError( &status ))
+  {
+    readUtil->report_error( mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
+  switch (mhdf_storage) {
     case mhdf_DENSE_TYPE : storage = MB_TAG_DENSE ; break;
     case mhdf_SPARSE_TYPE: storage = MB_TAG_SPARSE; break;
     case mhdf_BIT_TYPE   : storage = MB_TAG_BIT;    break;
     case mhdf_MESH_TYPE  : storage = MB_TAG_MESH;   break;
     default:
-      readUtil->report_error( "Invalid storage type for tag '%s': %d\n", info.name, info.storage );
+      readUtil->report_error( "Invalid storage type for tag '%s': %d\n", name, mhdf_storage );
       return MB_FAILURE;
   }
 
     // Type-specific stuff
-  if (info.type == mhdf_BITFIELD) {
-    if (info.size < 1 || info.size > 8)
-    {
-      readUtil->report_error( "Invalid bit tag:  class is MB_TAG_BIT, num bits = %d\n", info.size );
-      return MB_FAILURE;
-    }
-    hdf_type = H5Tcopy(H5T_NATIVE_B8);
-    mb_type = MB_TYPE_BIT;
-    if (hdf_type < 0)
-      return MB_FAILURE;
-  }
-  else if (info.type == mhdf_OPAQUE) {
-    mb_type = MB_TYPE_OPAQUE;
-
-      // Check for user-provided type
-    MBTag type_handle;
-    std::string tag_type_name = "__hdf5_tag_type_";
-    tag_type_name += info.name;
-    rval = iFace->tag_get_handle( tag_type_name.c_str(), type_handle );
-    if (MB_SUCCESS == rval) {
-      rval = iFace->tag_get_data( type_handle, 0, 0, &hdf_type );
-      if (MB_SUCCESS != rval)
-        return rval;
-      hdf_type = H5Tcopy( hdf_type );
-      re_read_default = true;
-    }
-    else if (MB_TAG_NOT_FOUND == rval) {
-      hdf_type = 0;
-    }
-    else
-      return rval;
-      
-    if (hdf_type < 0)
-      return MB_FAILURE;
-  }
-  else {
-    switch (info.type)
-    {
-      case mhdf_INTEGER:
-        hdf_type = H5T_NATIVE_INT;
-        mb_type = MB_TYPE_INTEGER;
-        break;
-
-      case mhdf_FLOAT:
-        hdf_type = H5T_NATIVE_DOUBLE;
-        mb_type = MB_TYPE_DOUBLE;
-        break;
-
-      case mhdf_BOOLEAN:
-        hdf_type = H5T_NATIVE_UINT;
-        mb_type = MB_TYPE_INTEGER;
-        break;
-
-      case mhdf_ENTITY_ID:
-        hdf_type = handleType;
-        mb_type = MB_TYPE_HANDLE;
-        break;
-
-      default:
-        return MB_FAILURE;
-    }
+  switch (mhdf_type)
+  {
+    case mhdf_BITFIELD:
     
-    if (info.size > 1) { // array
-        hsize_t tmpsize = info.size;
+      if (!tag_size || tag_size > 8)
+      {
+        readUtil->report_error( "Invalid bit tag:  class is MB_TAG_BIT, num bits = %d\n", tag_size );
+        return MB_FAILURE;
+      }
+    
+      elem_size = tag_size;
+      tag_size = 1;
+      array_size = 1;
+      hdf_type = H5T_NATIVE_B8;
+      mb_type = MB_TYPE_BIT;
+      break;
+      
+    case mhdf_INTEGER:
+    
+      elem_size = sizeof(int);
+      array_size = tag_size;
+      hdf_type = H5T_NATIVE_INT;
+      tag_size = elem_size * array_size;
+      mb_type = MB_TYPE_INTEGER;
+      break;
+      
+    case mhdf_FLOAT:
+      
+      elem_size = sizeof(double);
+      array_size = tag_size;
+      hdf_type = H5T_NATIVE_DOUBLE;
+      tag_size = elem_size * array_size;
+      mb_type = MB_TYPE_DOUBLE;
+      break;
+    
+    case mhdf_BOOLEAN:
+      
+      elem_size = sizeof(int);
+      array_size = tag_size;
+      hdf_type = H5T_NATIVE_UINT;
+      tag_size = elem_size * array_size;
+      mb_type = MB_TYPE_INTEGER;
+      break;
+    
+    case mhdf_ENTITY_ID:
+      
+      elem_size = sizeof(MBEntityHandle);
+      array_size = tag_size;
+      hdf_type = handleType;
+      tag_size = elem_size * array_size;
+      mb_type = MB_TYPE_HANDLE;
+      break;
+      
+    case mhdf_OPAQUE:
+    default:
+
+      if (tag_size < 0) { // variable-length
+        elem_size = 1;
+        array_size = -1;
+      }
+      else {
+        elem_size = tag_size;
+        array_size = 1;
+      }
+      mb_type = MB_TYPE_OPAQUE;
+      hdf_type = (hid_t)0;
+      
+        // Check for user-provided type
+      MBTag type_handle;
+      tag_type_name = "__hdf5_tag_type_";
+      tag_type_name += name;
+      rval = iFace->tag_get_handle( tag_type_name.c_str(), type_handle );
+      if (MB_SUCCESS == rval)
+      {
+        rval = iFace->tag_get_data( type_handle, 0, 0, &hdf_type );
+        if (MB_SUCCESS == rval)
+          elem_size = H5Tget_size( hdf_type );
+        else if (MB_TAG_NOT_FOUND != rval)
+          return rval;
+      }
+      else if (MB_TAG_NOT_FOUND != rval)
+        return rval;
+
+      break;
+  }
+  if (tag_size < 0)  // variable length
+    tag_size = MB_VARIABLE_LENGTH;
+
+  
+    // Create array type from base type if array
+  if (array_size > 1)
+  {
+    hsize_t tmpsize = array_size;
 #if defined(H5Tarray_create_vers) && H5Tarray_create_vers > 1  
-        hdf_type = H5Tarray_create2( hdf_type, 1, &tmpsize );
+    hdf_type = H5Tarray_create2( hdf_type, 1, &tmpsize );
 #else
-        hdf_type = H5Tarray_create( hdf_type, 1, &tmpsize, NULL );
+    hdf_type = H5Tarray_create( hdf_type, 1, &tmpsize, NULL );
 #endif
-    }
-    else {
-      hdf_type = H5Tcopy( hdf_type );
-    }
     if (hdf_type < 0)
       return MB_FAILURE;
-  }
+  }  
 
   
     // If default or global/mesh value in file, read it.
-  if (info.default_value || info.global_value)
+  void *default_ptr = 0, *global_ptr = 0;
+  int default_size = 0, global_size = 0;
+  if (have_default || have_global)
   {
-    if (re_read_default) {
-      mhdf_getTagValues( filePtr, info.name, hdf_type, info.default_value, info.global_value, &status );
-      if (mhdf_isError( &status ))
-      {
-        readUtil->report_error( mhdf_message( &status ) );
-        if (hdf_type) H5Tclose( hdf_type );
-        return MB_FAILURE;
-      }
+    if (array_size == -1) { // variable-length tag
+      default_size = have_default;
+      global_size = have_global;
+    }
+    else {
+      default_size = global_size = array_size;
+    }
+    
+    assert( (default_size + global_size) * elem_size <= bufferSize );
+    default_ptr = dataBuffer;
+    global_ptr = dataBuffer + default_size*elem_size;
+
+    mhdf_getTagValues( filePtr, name, hdf_type, default_ptr, global_ptr, &status );
+    if (mhdf_isError( &status ))
+    {
+      readUtil->report_error( mhdf_message( &status ) );
+      return MB_FAILURE;
     }
     
     if (MB_TYPE_HANDLE == mb_type) {
-      if (info.default_value) {
-        rval = convert_id_to_handle( (MBEntityHandle*)info.default_value, info.default_value_size );
-        if (MB_SUCCESS != rval) {
-          if (hdf_type) H5Tclose( hdf_type );
-          return rval;
-        }
+      if (have_default) {
+        rval = convert_id_to_handle( (MBEntityHandle*)default_ptr, default_size );
+        if (MB_SUCCESS != rval)
+          have_default = 0;
       }
-      if (info.global_value) {
-        rval = convert_id_to_handle( (MBEntityHandle*)info.global_value, info.global_value_size );
-        if (MB_SUCCESS != rval) {
-          if (hdf_type) H5Tclose( hdf_type );
-          return rval;
-        }
+      if (have_global) {
+        rval = convert_id_to_handle( (MBEntityHandle*)global_ptr, global_size );
+        if (MB_SUCCESS != rval)
+          have_global = 0;
       }
     }
   }
+  global_size *= elem_size;
+  default_size *= elem_size;
   
   
     // Check if tag already exists
-  rval = iFace->tag_get_handle( info.name, handle );
-  if (MB_SUCCESS == rval) {
+  rval = iFace->tag_get_handle( name, handle );
+  if (MB_SUCCESS == rval)
+  {
     // If tag exists, make sure it is consistant with the type in the file
     int curr_size;
     MBDataType curr_type;
@@ -2174,168 +1372,249 @@ MBErrorCode ReadHDF5::create_tag( const mhdf_TagDesc& info,
     rval = iFace->tag_get_size( handle, curr_size );
     if (MB_VARIABLE_DATA_LENGTH == rval)
       curr_size = -1;
-    else if (MB_SUCCESS != rval) {
-      if (hdf_type) H5Tclose( hdf_type );
+    else if (MB_SUCCESS != rval)
       return rval;
-    }
-    
+      
     rval = iFace->tag_get_data_type( handle, curr_type );
-    if (MB_SUCCESS != rval) {
-      if (hdf_type) H5Tclose( hdf_type );
+    if (MB_SUCCESS != rval)
       return rval;
-    }
     
     rval = iFace->tag_get_type( handle, curr_store );
-    if (MB_SUCCESS != rval) {
-      if (hdf_type) H5Tclose( hdf_type );
+    if (MB_SUCCESS != rval)
       return rval;
-    }
     
-    if ((curr_store != MB_TAG_BIT && curr_size != info.bytes) || curr_type != mb_type ||
+    if ((curr_store != MB_TAG_BIT && curr_size != tag_size) || curr_type != mb_type ||
         ((curr_store == MB_TAG_BIT || storage == MB_TAG_BIT) && 
           curr_store != storage))
     {
       readUtil->report_error( "Tag type in file does not match type in "
-                              "database for \"%s\"\n", info.name );
-      if (hdf_type) H5Tclose( hdf_type );
+                              "database for \"%s\"\n", name );
       return MB_FAILURE;
     }
   }
     // Create the tag if it doesn't exist
   else if (MB_TAG_NOT_FOUND == rval)
   {
-    if (info.size < 0) {
-      size_t size = hdf_type ? H5Tget_size(hdf_type) : 1;
-      rval = iFace->tag_create_variable_length( info.name, storage, mb_type,
-                                                handle, info.default_value, 
-                                                info.default_value_size * size );
-    }
+    if (tag_size == MB_VARIABLE_LENGTH)
+      rval = iFace->tag_create_variable_length( name, storage, mb_type,
+                                                handle, default_ptr, default_size );
     else
-      rval = iFace->tag_create( info.name, info.bytes, storage, mb_type,
-                                handle, info.default_value );
-    if (MB_SUCCESS != rval) {
-      if (hdf_type) H5Tclose( hdf_type );
+      rval = iFace->tag_create( name, tag_size, storage, mb_type,
+                                handle, default_ptr );
+    if (MB_SUCCESS != rval)
       return rval;
-    }
   }
     // error
-  else {
-    if (hdf_type) H5Tclose( hdf_type );
+  else
     return rval;
-  }
     
-  if (info.global_value) {
-    int type_size = hdf_type ? H5Tget_size(hdf_type) : 1;
-    int tag_size = info.global_value_size * type_size;
-    rval = iFace->tag_set_data( handle, 0, 0, &info.global_value, &tag_size );
-    if (MB_SUCCESS != rval) {
-      if (hdf_type) H5Tclose( hdf_type );
+  if (have_global) {
+    rval = iFace->tag_set_data( handle, 0, 0, &global_ptr, &global_size );
+    if (MB_SUCCESS != rval)
       return rval;
-    }
   }
   
-  return MB_SUCCESS;
+    // Read tag data
+  MBErrorCode tmp = MB_SUCCESS;
+  if (have_sparse) {
+    if (tag_size == MB_VARIABLE_LENGTH)
+      tmp = read_var_len_tag( handle, hdf_type, mb_type == MB_TYPE_HANDLE );
+    else 
+      tmp = read_sparse_tag( handle, hdf_type, tag_size, mb_type == MB_TYPE_HANDLE );
+  }
+  rval = read_dense_tag( handle, hdf_type, tag_size, mb_type == MB_TYPE_HANDLE );
+  
+  
+    // If an array type, need to release the type object created above.
+  if (array_size > 1)
+    H5Tclose( hdf_type );
+  
+  return MB_SUCCESS == tmp ? rval : tmp;
 }
+  
 
 MBErrorCode ReadHDF5::read_dense_tag( MBTag tag_handle,
                                       hid_t hdf_read_type,
-                                      hid_t data,
-                                      long start_id,
-                                      long num_values )
+                                      size_t read_size,
+                                      bool is_handle_type )
 {
+  std::list<ElemSet>::iterator iter;
+  const std::list<ElemSet>::iterator end = elemList.end();
   mhdf_Status status;
+  std::string name;
   MBErrorCode rval;
-  MBDataType mb_type;
+  int have;
   
-  rval = iFace->tag_get_data_type( tag_handle, mb_type );
-  if (MB_SUCCESS != rval) 
+  rval = iFace->tag_get_name( tag_handle, name );
+  if (MB_SUCCESS != rval)
     return rval;
   
-  hsize_t read_size = 0;
-  if (mb_type == MB_TYPE_HANDLE) {
-    read_size = H5Tget_size( hdf_read_type );
-    if (!read_size)
-      return MB_FAILURE;
+  have = mhdf_haveDenseTag( filePtr, name.c_str(), nodeSet.type2, &status );
+  if (mhdf_isError( &status ))
+  {
+    readUtil->report_error( mhdf_message( &status ) );
+    return MB_FAILURE;
   }
   
-    // get actual entities read from file
-  MBRange file_ids;
-  IDMap::iterator l, u;
-  l = idMap.lower_bound( start_id );
-  u = idMap.lower_bound( start_id + num_values - 1 );
-  if (l != idMap.end() && start_id + num_values > l->begin) {
-    if (l == u) {
-      file_ids.insert( std::max(start_id, l->begin), 
-                       std::min(start_id + num_values, u->begin + u->count) - 1 );
+  if (have)
+  {
+    rval = read_dense_tag( nodeSet, tag_handle, hdf_read_type, read_size, is_handle_type );
+    if (!rval)
+      return rval;
+  }
+  
+   
+  have = mhdf_haveDenseTag( filePtr, name.c_str(), setSet.type2, &status );
+  if (mhdf_isError( &status ))
+  {
+    readUtil->report_error( mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
+  
+  if (have)
+  {
+    rval = read_dense_tag( setSet, tag_handle, hdf_read_type, read_size, is_handle_type );
+    if (!rval)
+      return rval;
+  }
+  
+  
+  for (iter = elemList.begin(); iter != end; ++iter)
+  {
+    have = mhdf_haveDenseTag( filePtr, name.c_str(), iter->type2, &status );
+    if (mhdf_isError( &status ))
+    {
+      readUtil->report_error( mhdf_message( &status ) );
+      return MB_FAILURE;
     }
-    else {
-      file_ids.insert( std::max(start_id, l->begin), l->begin + l->count - 1 );
-      if (u != idMap.end() && u->begin < start_id + num_values)
-        file_ids.insert( u->begin, std::min( start_id + num_values, u->begin + u->count) - 1 );
-      for (++l; l != u; ++l) 
-        file_ids.insert( l->begin, l->begin + l->count - 1 );
+    
+    if (have)
+    {
+      rval = read_dense_tag( *iter, tag_handle, hdf_read_type, read_size, is_handle_type );
+      if (!rval)
+        return rval;
     }
   }
 
-  long buffer_size = bufferSize / read_size;
-  while (!file_ids.empty()) {
-    long first = file_ids.front();
-    long count = file_ids.const_pair_begin()->second - first + 1;
-    if (buffer_size < count)
-      count = buffer_size;
-    file_ids.erase( file_ids.begin(), file_ids.begin() + (count - 1) );
-    
-    mhdf_readDenseTagWithOpt( data, first - start_id, count, hdf_read_type, 
-                              dataBuffer, ioProp, &status );
-    if (is_error(status))
-      return MB_FAILURE;
+  return MB_SUCCESS;
+}
   
-    if (MB_TYPE_HANDLE == mb_type) {
-      rval = convert_id_to_handle( (MBEntityHandle*)dataBuffer, count * read_size / sizeof(MBEntityHandle) );
-      if (MB_SUCCESS != rval)
-        return rval;
+  
+MBErrorCode ReadHDF5::read_dense_tag( ElemSet& set,
+                                      MBTag tag_handle,
+                                      hid_t hdf_read_type,
+                                      size_t read_size, 
+                                      bool is_handle_type )
+{
+  mhdf_Status status;
+  std::string name;
+  MBErrorCode rval;
+  long num_values;
+  
+  rval = iFace->tag_get_name( tag_handle, name );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  hid_t data = mhdf_openDenseTagData( filePtr, name.c_str(), 
+                                      set.type2, &num_values, &status );
+  if (mhdf_isError( &status ) )
+  {
+    readUtil->report_error( mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
+  
+  if ((unsigned long)num_values != set.range.size())
+  {
+    assert( 0 );
+    return MB_FAILURE;
+  }
+  
+  MBRange::const_iterator iter = set.range.begin();
+  MBRange subrange;
+  
+  assert ((hdf_read_type == 0) || (H5Tget_size(hdf_read_type) == read_size));
+  size_t chunk_size = bufferSize / read_size;
+  size_t remaining = set.range.size();
+  size_t offset = 0;
+  while (remaining)
+  {
+    size_t count = remaining > chunk_size ? chunk_size : remaining;
+    remaining -= count;
+    
+    MBRange::const_iterator stop = iter;
+    stop += count;
+    subrange.clear();
+    subrange.merge( iter, stop );
+    iter = stop;
+    
+    mhdf_readDenseTagWithOpt( data, offset, count, hdf_read_type, dataBuffer, 
+                              ioProp, &status );
+    offset += count;
+    if (mhdf_isError( &status ))
+    {
+      readUtil->report_error( mhdf_message( &status ) );
+      mhdf_closeData( filePtr, data, &status );
+      return MB_FAILURE;
     }
     
-    MBRange ents;
-    ents.insert( idMap.find( first ), idMap.find( first + count - 1 ) );
-    rval = iFace->tag_set_data( tag_handle, ents, dataBuffer );
-    if (MB_SUCCESS != rval)
-      return MB_FAILURE;
-  }
+    if (is_handle_type)
+    {
+      rval = convert_id_to_handle( (MBEntityHandle*)dataBuffer, count * read_size / sizeof(MBEntityHandle) );
+      if (MB_SUCCESS != rval)
+      {
+        mhdf_closeData( filePtr, data, &status );
+        return rval;
+      }
+    }
     
+    rval = iFace->tag_set_data( tag_handle, subrange, dataBuffer );
+    if (MB_SUCCESS != rval)
+    {
+      mhdf_closeData( filePtr, data, &status );
+      return MB_FAILURE;
+    }
+  }
+  
+  mhdf_closeData( filePtr, data, &status );
+  if (mhdf_isError( &status ) )
+  {
+    readUtil->report_error( mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
+
   return MB_SUCCESS;
 }
 
 
 MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
                                        hid_t hdf_read_type,
-                                       hid_t id_table,
-                                       hid_t value_table,
-                                       long num_values )
+                                       size_t read_size,
+                                       bool is_handle_type )
 {
   mhdf_Status status;
+  std::string name;
   MBErrorCode rval;
-  MBDataType mbtype;
+  long num_values, data_size;
+  hid_t data[3];
+  MBTagType mbtype;
+  assert ((hdf_read_type == 0) || (H5Tget_size(hdf_read_type) == read_size));
   
-  rval = iFace->tag_get_data_type( tag_handle, mbtype );
-  if (MB_SUCCESS != rval) 
+  rval = iFace->tag_get_name( tag_handle, name );
+  if (MB_SUCCESS != rval)
     return rval;
   
-  int read_size;
-  rval = iFace->tag_get_size( tag_handle, read_size );
-  if (MB_SUCCESS != rval) // wrong function for variable-length tags
+  rval = iFace->tag_get_type( tag_handle, mbtype );
+  if (MB_SUCCESS != rval)
     return rval;
-  if (MB_TYPE_BIT == mbtype) 
-    read_size = (read_size + 7)/8; // convert bits to bytes, plus 7 for ceiling
-    
-  if (hdf_read_type) { // if not opaque
-    hsize_t hdf_size = H5Tget_size( hdf_read_type );
-    if (hdf_size != (hsize_t)read_size) 
-      return MB_FAILURE;
+  
+  mhdf_openSparseTagData( filePtr, name.c_str(), &num_values, &data_size, data, &status );
+  if (mhdf_isError( &status ) )
+  {
+    readUtil->report_error( mhdf_message( &status ) );
+    return MB_FAILURE;
   }
-
-  const int handles_per_tag = read_size/sizeof(MBEntityHandle);
-  
+    // fixed-length tag
+  assert( num_values == data_size );
   
     // Split buffer into two portions: one for handles and one for data.
     
@@ -2344,7 +1623,7 @@ MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
     // pass as the size of the buffer over the sum of the size of a handle
     // and value.  Subtract off the size of one value so we reserve space
     // for adjusting for data alignment.
-  long chunk_size = (bufferSize - read_size) / (sizeof(MBEntityHandle) + read_size);
+  size_t chunk_size = (bufferSize - read_size) / (sizeof(MBEntityHandle) + read_size);
   
     // Use the first half of the buffer for the handles.
   MBEntityHandle* idbuf = (MBEntityHandle*)dataBuffer;
@@ -2356,99 +1635,80 @@ MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
       // Make sure the above calculations are correct
   assert( databuf + chunk_size*read_size < dataBuffer + bufferSize );
   
-  long remaining = num_values;
-  long offset = 0;
+  size_t remaining = (size_t)num_values;
+  size_t offset = 0;
   while (remaining)
   {
-    long count = std::min( chunk_size, remaining );
-    long next_offset = offset + count;
+    size_t count = remaining > chunk_size ? chunk_size : remaining;
     remaining -= count;
     
-    mhdf_readSparseTagEntitiesWithOpt( id_table, offset, count, handleType, idbuf,
+    mhdf_readSparseTagEntitiesWithOpt( data[0], offset, count, handleType, idbuf,
                                        ioProp, &status );
-    if (is_error(status))
+    if (mhdf_isError( &status ))
+    {
+      readUtil->report_error( mhdf_message( &status ) );
+      mhdf_closeData( filePtr, data[0], &status );
+      mhdf_closeData( filePtr, data[1], &status );
       return MB_FAILURE;
+    }
+    
+    mhdf_readSparseTagValuesWithOpt( data[1], offset, count, hdf_read_type, 
+                                     databuf, ioProp, &status );
+    if (mhdf_isError( &status ))
+    {
+      readUtil->report_error( mhdf_message( &status ) );
+      mhdf_closeData( filePtr, data[0], &status );
+      mhdf_closeData( filePtr, data[1], &status );
+      return MB_FAILURE;
+    }
+    
+    offset += count;
     
     rval = convert_id_to_handle( idbuf, count );
     if (MB_SUCCESS != rval)
-     return rval;
-     
-      // Find contiguous blocks of values to read.
-      // (convert_id_to_handle will return zero-valued handles for entities
-      //  not read from the file--i.e. values to skip).
-    long i = 0, j;
-    for (;;) {
-        // skip initial zeros
-      while (i < count && 0 == idbuf[i])
-        ++i;
-        // if no more, stop
-      if (i == count)
-        break;
-        // advance to end of range of non-zero handles
-      j = i +1;
-      while (j < count && 0 != idbuf[j])
-        ++j;
-        
-        // if we've reached the end and the chunk is fairly small,
-        // shift to the front of the buffer and read more to avoid
-        // small data reads when blocks get split due to the buffer
-        // size
-      if (j == count && 2*i >= count && remaining > count) {
-        long keep = j - i;
-        memmove( idbuf, idbuf + i, sizeof(MBEntityHandle)*keep );
-        long count2 = std::min( remaining - keep, count - keep );
-        mhdf_readSparseTagEntitiesWithOpt( id_table, next_offset, count2, handleType, 
-                                           idbuf+keep, ioProp, &status );
-        if (is_error(status))
-          return MB_FAILURE;
-        offset += i;
-        next_offset += count2;
-        remaining -= count2;
-        i = 0;
-
-        rval = convert_id_to_handle( idbuf + keep, count2 );
-        if (MB_SUCCESS != rval)
-         return rval;
-      
-        j = keep;
-        while (j < count && 0 != idbuf[j])
-          ++j;
-      }
-      
-        // read tag values 
-      mhdf_readSparseTagValuesWithOpt( value_table, offset + i, j - i,
-                                       hdf_read_type, databuf + i*read_size, 
-                                       ioProp, &status );
-      if (is_error(status))
-        return MB_FAILURE;
-      
-      if (MB_TYPE_HANDLE == mbtype) {
-        rval = convert_id_to_handle( (MBEntityHandle*)databuf + i*handles_per_tag, 
-                                     (j-i) * handles_per_tag );
-        if (MB_SUCCESS != rval)
-          return rval;
-      }
-      
-/*** FIX ME - need to do one at a time for BIT tags!  This is stupid. ***/
-      if (mbtype == MB_TYPE_BIT)
-      {
-        rval = MB_SUCCESS;
-        for ( ; MB_SUCCESS == rval && i < j; ++i)
-          rval = iFace->tag_set_data( tag_handle, idbuf + i, 1, databuf + i );
-      }
-      else
-      {
-        rval = iFace->tag_set_data( tag_handle, idbuf + i, j - i, databuf + i*read_size );
-        i = j;
-      }
+    {
+      mhdf_closeData( filePtr, data[0], &status );
+      mhdf_closeData( filePtr, data[1], &status );
+      return rval;
+    }
+    
+    if (is_handle_type)
+    {
+      rval = convert_id_to_handle( (MBEntityHandle*)databuf, count * read_size / sizeof(MBEntityHandle) );
       if (MB_SUCCESS != rval)
+      {
+        mhdf_closeData( filePtr, data[0], &status );
+        mhdf_closeData( filePtr, data[1], &status );
         return rval;
-    } // for(ever)
-    
-    
-    offset = next_offset;
-  } // while(remaining)
+      }
+    }
+
+/*** FIX ME - need to do one at a time for BIT tags!  This is stupid. ***/
+    if (mbtype == MB_TAG_BIT)
+    {
+      rval = MB_SUCCESS;
+      for (size_t i = 0; MB_SUCCESS == rval && i < count; ++i)
+        rval = iFace->tag_set_data( tag_handle, idbuf + i, 1, databuf + i );
+    }
+    else
+    {
+      rval = iFace->tag_set_data( tag_handle, idbuf, count, databuf );
+    }
+    if (MB_SUCCESS != rval)
+    {
+      mhdf_closeData( filePtr, data[0], &status );
+      mhdf_closeData( filePtr, data[1], &status );
+      return rval;
+    }
+  }
   
+  mhdf_closeData( filePtr, data[0], &status );
+  if (mhdf_isError( &status ) )
+    readUtil->report_error( mhdf_message( &status ) );
+  mhdf_closeData( filePtr, data[1], &status );
+  if (mhdf_isError( &status ) )
+    readUtil->report_error( mhdf_message( &status ) );
+
   return MB_SUCCESS;
 }
 
@@ -2457,58 +1717,50 @@ MBErrorCode ReadHDF5::read_sparse_tag( MBTag tag_handle,
 
 MBErrorCode ReadHDF5::read_var_len_tag( MBTag tag_handle,
                                         hid_t hdf_read_type,
-                                        hid_t ent_table,
-                                        hid_t val_table,
-                                        hid_t off_table,
-                                        long num_entities,
-                                        long num_values )
+                                        bool is_handle_type )
 {
-  std::vector<char> tmp_buffer;
   mhdf_Status status;
+  std::string name;
   MBErrorCode rval;
-  MBDataType mbtype;
+  long num_values, num_data;
+  hid_t data[3];
+  MBTagType mbtype;
+    // hdf_read_type is NULL (zero) for opaque tag data.
+  long elem_size = hdf_read_type ? H5Tget_size( hdf_read_type ) : 1;
+  if (elem_size < 1) // invalid type handle?
+    return MB_FAILURE;
   
-  rval = iFace->tag_get_data_type( tag_handle, mbtype );
-  if (MB_SUCCESS != rval) 
+  rval = iFace->tag_get_name( tag_handle, name );
+  if (MB_SUCCESS != rval)
     return rval;
+  
+  rval = iFace->tag_get_type( tag_handle, mbtype );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  mhdf_openSparseTagData( filePtr, name.c_str(), &num_values, &num_data, data, &status );
+  if (mhdf_isError( &status ) )
+  {
+    readUtil->report_error( mhdf_message( &status ) );
+    return MB_FAILURE;
+  }
     
-    // can't do variable-length bit tags
-  if (MB_TYPE_BIT == mbtype)
-    return MB_VARIABLE_DATA_LENGTH;
-
-    // if here, MOAB tag must be variable-length
-  int mbsize;
-  if (MB_VARIABLE_DATA_LENGTH != iFace->tag_get_size( tag_handle, mbsize )) {
-    assert(false);
-    return MB_VARIABLE_DATA_LENGTH;
-  }
-  
-  int read_size;
-  if (hdf_read_type) {
-    hsize_t hdf_size = H5Tget_size( hdf_read_type );
-    if (hdf_size < 1)
-      return MB_FAILURE;
-    read_size = hdf_size;
-  }
-  else {
-    // opaque
-    read_size = 1;
-  }
-  
-    // Subdivide buffer into 4 chunks:
+    // Subdivide buffer into 5 chunks:
     // Be careful of order so alignment is valid
-    // 1) pointer array (input for MOAB) / offset array (read from file)
-    // 2) entity handles (read as file IDs and converted to handles)
-    // 3) tag sizes (calculated from file data)
-    // 4) tag data
-  const long avg_data_size = (num_values * read_size) / num_entities;
-  const long per_ent_size = sizeof(long) + sizeof(MBEntityHandle) + sizeof(int);
-  long num_ent = bufferSize / (per_ent_size + avg_data_size + avg_data_size/2);
+    // 1) pointer array (input for MOAB)
+    // 2) offset array (read from file)
+    // 3) entity handles
+    // 4) tag sizes (calculated from file data)
+    // 5) tag data
+  const size_t avg_data_size = (num_data * elem_size) / num_values;
+  const size_t per_ent_size = sizeof(void*) + sizeof(long) + sizeof(MBEntityHandle) + sizeof(int);
+  long num_ent = bufferSize / (per_ent_size + 2*avg_data_size);
   if (num_ent == 0) 
     num_ent = bufferSize / 4 / sizeof(void*);
-  const long data_buffer_size = (bufferSize - num_ent * per_ent_size) / read_size;
-  long* const end_idx_buffer = reinterpret_cast<long*>(dataBuffer);
-  char* handle_buffer_start = reinterpret_cast<char*>(end_idx_buffer + num_ent+1);
+  const size_t data_buffer_size = (bufferSize - num_ent * per_ent_size) / elem_size;
+  const void** const pointer_buffer = reinterpret_cast<const void**>(dataBuffer);
+  long* const end_idx_buffer = reinterpret_cast<long*>(pointer_buffer + num_ent);
+  char* handle_buffer_start = reinterpret_cast<char*>(end_idx_buffer + num_ent);
   if (((size_t)handle_buffer_start) % sizeof(MBEntityHandle))
     handle_buffer_start += sizeof(MBEntityHandle) - ((size_t)handle_buffer_start);
   MBEntityHandle* const handle_buffer = reinterpret_cast<MBEntityHandle*>(handle_buffer_start);
@@ -2517,158 +1769,184 @@ MBErrorCode ReadHDF5::read_var_len_tag( MBTag tag_handle,
   
   
     // do num_ent blocks of entities
-  long remaining = num_entities;
+  long remaining = num_values;
   long offset = 0;
-  long prev_end_idx = -1;
-  long prev_end = 0;
+  long data_offset = 0;
   while (remaining) {
-    const long count = std::min( remaining, num_ent );
-    long next_offset = offset + count;
+    const long count = remaining < num_ent ? remaining : num_ent;
     remaining -= count;
- 
+
       // read entity IDs
     assert_range( handle_buffer, count * sizeof(MBEntityHandle) );
-    mhdf_readSparseTagEntitiesWithOpt( ent_table, offset, count, handleType, 
+    mhdf_readSparseTagEntitiesWithOpt( data[0], offset, count, handleType, 
                                        handle_buffer, ioProp, &status );
-    if (is_error(status))
+    if (mhdf_isError( &status ))
+    {
+      readUtil->report_error( mhdf_message( &status ) );
+      mhdf_closeData( filePtr, data[0], &status );
+      mhdf_closeData( filePtr, data[1], &status );
+      mhdf_closeData( filePtr, data[2], &status );
       return MB_FAILURE;
-    
+    }
       // convert entity ID to MBEntityHandle
     rval = convert_id_to_handle( handle_buffer, count );
     if (MB_SUCCESS != rval)
+    {
+      mhdf_closeData( filePtr, data[0], &status );
+      mhdf_closeData( filePtr, data[1], &status );
+      mhdf_closeData( filePtr, data[2], &status );
       return rval;
-     
-      // Find contiguous blocks of values to read.
-      // (convert_id_to_handle will return zero-valued handles for entities
-      //  not read from the file--i.e. tag values to skip).
-    long i = 0, j;
-    for (;;) {
-        // skip initial zeros
-      while (i < count && 0 == handle_buffer[i])
-        ++i;
-        // if no more, stop
-      if (i == count)
-        break;
-        // advance to end of range of non-zero handles
-      j = i +1;
-      while (j < count && 0 != handle_buffer[j])
-        ++j;
-        
-        // if we've reached the end and the chunk is fairly small,
-        // shift to the front of the buffer and read more to avoid
-        // small data reads when blocks get split due to the buffer
-        // size
-      if (j == count && 2*i >= count && remaining > count) {
-        long keep = j - i;
-        memmove( handle_buffer, handle_buffer + i, sizeof(MBEntityHandle)*keep );
-          // read more entity IDs
-        long count2 = std::min( remaining - keep, count - keep );
-        mhdf_readSparseTagEntitiesWithOpt( ent_table, next_offset, count2, handleType, 
-                                           handle_buffer+i, ioProp, &status );
-        if (is_error(status))
-          return MB_FAILURE;
-        offset += i;
-        next_offset += count2;
-        remaining -= count2;
-        i = 0;
-
-        rval = convert_id_to_handle( handle_buffer + keep, count2 );
-        if (MB_SUCCESS != rval)
-         return rval;
+    }
+      // read end index of tag value
+    assert_range( end_idx_buffer, count * sizeof(long) );
+    mhdf_readSparseTagIndicesWithOpt( data[2], offset, count, H5T_NATIVE_LONG, 
+                                      end_idx_buffer, ioProp, &status );
+    if (mhdf_isError( &status ))
+    {
+      readUtil->report_error( mhdf_message( &status ) );
+      mhdf_closeData( filePtr, data[0], &status );
+      mhdf_closeData( filePtr, data[1], &status );
+      mhdf_closeData( filePtr, data[2], &status );
+      return MB_FAILURE;
+    }
+      // update entity offset
+    offset += count;
+    
+    char* pointer = data_buffer;
+    long finished = 0;
+    while (finished < count) {
       
-        j = keep;
-        while (j < count && 0 != handle_buffer[j])
-          ++j;
-      }
- 
-        // Read end-indices for each tagged entity.  Also need the
-        // end of the previous entity.  If no previous entity, then -1.
-      long remaining_ent = j - i;     
-      if (offset + i == prev_end) {
-        end_idx_buffer[0] = prev_end_idx;
-        mhdf_readSparseTagIndicesWithOpt( off_table, offset + i, 
-                                          remaining_ent, H5T_NATIVE_LONG, 
-                                          end_idx_buffer + 1, ioProp, &status );
-      }
-      else {
-        mhdf_readSparseTagIndicesWithOpt( off_table, offset + i - 1, 
-                                          remaining_ent + 1, H5T_NATIVE_LONG, 
-                                          end_idx_buffer, ioProp, &status );
-      }
-      if (is_error(status))
-        return MB_FAILURE;
-      prev_end = offset + i + remaining_ent;
-        
-        
-      prev_end_idx = end_idx_buffer[0];
-      long* idx_buffer = end_idx_buffer + 1;
-      while (remaining_ent) {
-          // Count the subset of remaining_ent entities for which the
-          // concatentated tag data will fit in the data buffer.
-        long tag_count = 0;
-        while (tag_count < remaining_ent && 
-               idx_buffer[tag_count] - prev_end_idx < data_buffer_size)
-          ++tag_count;
-        
-          // If the tag value for a single entity doesn't fit in the buffer,
-          // then we need to allocate a temporary buffer for it.
-        long val_count;
-        char* memptr = data_buffer;
-        if (tag_count == 0) {
-          tag_count = 1;
-          val_count = idx_buffer[0] - prev_end_idx;
-          tmp_buffer.resize(val_count * read_size);
-          memptr = &tmp_buffer[0];
-        }
-        else {
-          val_count = idx_buffer[tag_count-1] - prev_end_idx;
-        }
-
-          // Read the tag data
-        mhdf_readSparseTagValues( val_table, prev_end_idx + 1,
-                                  val_count, hdf_read_type, memptr, &status );
-        if (is_error(status))
+        // iterate over entities until we have enough to fill the data buffer
+      long i = finished;
+      long prev_end_idx = data_offset - 1;
+      for (; i < count && end_idx_buffer[i] - data_offset < (long)data_buffer_size; ++i) {
+          // calculate tag size for entity
+        const int size = (end_idx_buffer[i] - prev_end_idx);
+        if (size < 0 || (long)size != (end_idx_buffer[i] - prev_end_idx)) {
+          readUtil->report_error( "Invalid end index in variable length tag data for tag: \"%s\"", name.c_str() );
+          mhdf_closeData( filePtr, data[0], &status );
+          mhdf_closeData( filePtr, data[1], &status );
+          mhdf_closeData( filePtr, data[2], &status );
           return MB_FAILURE;
+        }
+        assert_range( size_buffer + i - finished, sizeof(int) );
+        size_buffer[i-finished] = size * elem_size;
+        assert_range( pointer_buffer + i - finished, sizeof(void*) );
+        pointer_buffer[i-finished] = pointer;
+        assert_range( pointer_buffer[i-finished], size_buffer[i - finished] );
+        pointer += size_buffer[i-finished];
+        prev_end_idx = end_idx_buffer[i];
+      }
       
-        if (MB_TYPE_HANDLE == mbtype) {
-          rval = convert_id_to_handle( (MBEntityHandle*)memptr, val_count );
-          if (MB_SUCCESS != rval)
+      const size_t num_val = prev_end_idx - data_offset + 1;
+      if (num_val) {
+          // read data
+        assert( num_val <= data_buffer_size );
+        assert_range( data_buffer, num_val * elem_size );
+        mhdf_readSparseTagValuesWithOpt( data[1], data_offset, num_val, 
+                                         hdf_read_type, data_buffer,
+                                         ioProp, &status );
+        if (mhdf_isError( &status )) {
+          readUtil->report_error( mhdf_message( &status ) );
+          mhdf_closeData( filePtr, data[0], &status );
+          mhdf_closeData( filePtr, data[1], &status );
+          mhdf_closeData( filePtr, data[2], &status );
+          return MB_FAILURE;
+        }
+        data_offset += num_val;
+
+        if (is_handle_type) {
+          rval = convert_id_to_handle( reinterpret_cast<MBEntityHandle*>(data_buffer), num_val );
+          if (MB_SUCCESS != rval) {
+            mhdf_closeData( filePtr, data[0], &status );
+            mhdf_closeData( filePtr, data[1], &status );
+            mhdf_closeData( filePtr, data[2], &status );
             return rval;
+          }
         }
-        
-          // Calculate sizes from end indices
-        size_buffer[0] = read_size * (idx_buffer[0] - prev_end_idx);
-        for (long k = 1; k < tag_count; ++k)
-          size_buffer[k] = read_size * (idx_buffer[k] - idx_buffer[k-1]);
-          // save prev_end_index for next iteration because it will
-          // get overwritten in the buffer next.
-        prev_end_idx = idx_buffer[tag_count-1];
-          // store pointers to individual tag values in end_idx_buffer
-        assert(sizeof(long) == sizeof(void*));
-        const void** ptr_buffer = reinterpret_cast<const void**>(idx_buffer);
-        const char* ptr_iter = memptr;
-        ptr_buffer[0] = ptr_iter;
-        ptr_iter += size_buffer[0];
-        for (long k = 1; k < tag_count; ++k) {
-          ptr_buffer[k] = ptr_iter;
-          ptr_iter += size_buffer[k];
-        }
-      
-          // Pass data to MOAB to store for each tag
-        rval = iFace->tag_set_data( tag_handle, handle_buffer+i, tag_count, 
-                                    ptr_buffer, size_buffer );
-        if (MB_SUCCESS != rval)
+          // put data in tags
+        rval = iFace->tag_set_data( tag_handle, handle_buffer + finished, i - finished, pointer_buffer, size_buffer );
+        if (MB_SUCCESS != rval) {
+          mhdf_closeData( filePtr, data[0], &status );
+          mhdf_closeData( filePtr, data[1], &status );
+          mhdf_closeData( filePtr, data[2], &status );
           return rval;
-        remaining_ent -= tag_count;
-        i +=  tag_count;
-        idx_buffer += tag_count;
+        }
+
+        finished = i;
       }
+      else if (finished < i) { // zero-length tag values???
+        finished = i;
+      }
+        // if tag value to big for buffer
+      else {
+        const int size = (end_idx_buffer[i] - prev_end_idx);
+        std::vector<char*> tmp_buffer( size * elem_size );
+        mhdf_readSparseTagValuesWithOpt( data[1], data_offset, size, 
+                                         hdf_read_type, &tmp_buffer[0],
+                                         ioProp, &status );
+        if (mhdf_isError( &status )) {
+          readUtil->report_error( mhdf_message( &status ) );
+          mhdf_closeData( filePtr, data[0], &status );
+          mhdf_closeData( filePtr, data[1], &status );
+          mhdf_closeData( filePtr, data[2], &status );
+          return MB_FAILURE;
+        }
+        data_offset += size;
         
-    } // for(ever)
-    
-    
-    offset = next_offset;
-  } // while(remaining)
+        if (is_handle_type) {
+          rval = convert_id_to_handle( reinterpret_cast<MBEntityHandle*>(&tmp_buffer[0]), size );
+          if (MB_SUCCESS != rval) {
+            mhdf_closeData( filePtr, data[0], &status );
+            mhdf_closeData( filePtr, data[1], &status );
+            mhdf_closeData( filePtr, data[2], &status );
+            return rval;
+          }
+        }
+        
+        pointer_buffer[0] = &tmp_buffer[0];
+        size_buffer[0] = size * elem_size;
+        rval = iFace->tag_set_data( tag_handle, handle_buffer + i, 1, pointer_buffer, size_buffer );
+        if (MB_SUCCESS != rval) {
+          mhdf_closeData( filePtr, data[0], &status );
+          mhdf_closeData( filePtr, data[1], &status );
+          mhdf_closeData( filePtr, data[2], &status );
+          return rval;
+        }
+        
+        prev_end_idx = end_idx_buffer[i];
+        ++finished;
+      }
+    }
+  }
+  
+  mhdf_closeData( filePtr, data[0], &status );
+  if (mhdf_isError( &status ) )
+    readUtil->report_error( mhdf_message( &status ) );
+  mhdf_closeData( filePtr, data[1], &status );
+  if (mhdf_isError( &status ) )
+    readUtil->report_error( mhdf_message( &status ) );
+  mhdf_closeData( filePtr, data[2], &status );
+  if (mhdf_isError( &status ) )
+    readUtil->report_error( mhdf_message( &status ) );
+
+  return MB_SUCCESS;
+}
+
+MBErrorCode ReadHDF5::convert_id_to_handle( const ElemSet& elems,
+                                            MBEntityHandle* array,
+                                            size_t size )
+{
+  MBEntityHandle offset = elems.first_id;
+  MBEntityHandle last = offset + elems.range.size();
+  for (MBEntityHandle *const end = array + size; array != end; ++array)
+  {
+    if (*array >= last || *array < (MBEntityHandle)offset)
+      return MB_FAILURE;
+    MBRange:: const_iterator iter = elems.range.begin();
+    iter += *array - offset;
+    *array = *iter;
+  }
   
   return MB_SUCCESS;
 }
@@ -2676,46 +1954,127 @@ MBErrorCode ReadHDF5::read_var_len_tag( MBTag tag_handle,
 MBErrorCode ReadHDF5::convert_id_to_handle( MBEntityHandle* array, 
                                             size_t size )
 {
-  convert_id_to_handle( array, size, idMap );
-  return MB_SUCCESS;
-}
+  MBEntityHandle offset = 1;
+  MBEntityHandle last = 0;
+  ElemSet* set = 0;
+  std::list<ElemSet>::iterator iter;
+  const std::list<ElemSet>::iterator i_end = elemList.end();
 
-void ReadHDF5::convert_id_to_handle( MBEntityHandle* array, 
-                                     size_t size,
-                                     const RangeMap<long,MBEntityHandle>& id_map )
-{
-  for (MBEntityHandle* const end = array + size; array != end; ++array)
-    *array = id_map.find( *array );
-}
-
-void ReadHDF5::convert_range_to_handle( const MBEntityHandle* ranges,
-                                        size_t num_ranges,
-                                        const RangeMap<long,MBEntityHandle>& id_map,
-                                        MBRange& merge )
-{
-  RangeMap<long,MBEntityHandle>::iterator it = id_map.begin();
-  for (size_t i = 0; i < num_ranges; ++i) {
-    long id = ranges[2*i];
-    const long end = id + ranges[2*i+1];
-    it = id_map.lower_bound( it, id_map.end(), id );
-    if (id < it->begin)
-      id = it->begin;
-    const long off = id - it->begin;
-    while (id < end) {
-      long count = std::min( it->count - off,  end - id );
-      merge.insert( it->value + off, it->value + off + count - 1 );
-      id += count;
-      if (id < end)
-        ++it;
+  for (MBEntityHandle *const end = array + size; array != end; ++array)
+  {
+      // special case for ZERO
+    if (!*array)
+      continue;
+    
+    if (nodeSet.first_id && (*array < offset || *array >= last))
+    {
+      offset = nodeSet.first_id;
+      last = offset + nodeSet.range.size();
+      set = &nodeSet;
     }
+    if (setSet.first_id && (*array < offset || *array >= last))
+    {
+      offset = setSet.first_id;
+      last = offset + setSet.range.size();
+      set = &setSet;
+    }
+    iter = elemList.begin();
+    while (*array < offset || *array >= last)
+    {
+      if (iter == i_end)
+      {
+        return MB_FAILURE;
+      }
+      
+      set = &*iter;
+      offset = set->first_id;
+      last = offset + set->range.size();
+      ++iter;
+    }
+  
+    MBRange:: const_iterator riter = set->range.begin();
+    riter += *array - offset;
+    *array = *riter;
   }
+  
+  return MB_SUCCESS;
 }
 
 MBErrorCode ReadHDF5::convert_range_to_handle( const MBEntityHandle* array,
                                                size_t num_ranges,
                                                MBRange& range )
 {
-  convert_range_to_handle( array, num_ranges, idMap, range );
+  const MBEntityHandle *const end = array + 2*num_ranges;
+  MBEntityHandle offset = 1;
+  MBEntityHandle last = 0;
+  ElemSet* set = 0;
+  std::list<ElemSet>::iterator iter;
+  const std::list<ElemSet>::iterator i_end = elemList.end();
+  MBEntityHandle start = *(array++);
+  MBEntityHandle count = *(array++);
+  
+  while (true)
+  {
+    if (nodeSet.first_id && (start < offset || start >= last))
+    {
+      offset = nodeSet.first_id;
+      last = offset + nodeSet.range.size();
+      set = &nodeSet;
+    }
+    if (setSet.first_id && (start < offset || start >= last))
+    {
+      offset = setSet.first_id;
+      last = offset + setSet.range.size();
+      set = &setSet;
+    }
+    iter = elemList.begin();
+    while (start < offset || start >= last)
+    {
+      if (iter == i_end)
+      {
+        return MB_FAILURE;
+      }
+      
+      set = &*iter;
+      offset = set->first_id;
+      last = offset + set->range.size();
+      ++iter;
+    }
+  
+    MBEntityHandle s_rem = set->range.size() - (start - offset);
+    MBEntityHandle num = count > s_rem ? s_rem : count;
+    MBRange::const_iterator riter = set->range.begin();
+    riter += (start - offset);
+    MBRange::const_iterator rend = riter;
+    rend += num;
+    assert( riter != rend );
+    MBEntityHandle h_start = *riter++;
+    MBEntityHandle h_prev = h_start;
+    
+    while (riter != rend)
+    {
+      if (h_prev + 1 != *riter)
+      {
+        range.insert( h_start, h_prev );
+        h_start = *riter;
+      }
+      h_prev = *riter;
+      ++riter;
+    }
+    range.insert( h_start, h_prev );
+    
+    count -= num;
+    start += num;
+    if (count == 0)
+    {
+      if (array == end)
+        break;
+      
+      start = *(array++);
+      count = *(array++);
+    }
+  }
+  
   return MB_SUCCESS;
 }
   
