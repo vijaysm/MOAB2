@@ -85,6 +85,16 @@ static bool point_in_box( const double corners[8][3],
   return true;
 }
 
+void MBBSPTree::Plane::set( const double pt1[3], const double pt2[3], const double pt3[3] )
+{
+  const double v1[] = { pt2[0] - pt1[0], pt2[1] - pt1[1], pt2[2] - pt1[2] };
+  const double v2[] = { pt3[0] - pt1[0], pt3[1] - pt1[1], pt3[2] - pt1[2] };
+  const double norm[] = { v1[1]*v2[2] - v1[2]*v2[1],
+                          v1[2]*v2[0] - v1[0]*v2[2],
+                          v1[0]*v2[1] - v1[1]*v2[0] };
+  set( norm, pt1 );
+}
+
 MBErrorCode MBBSPTree::init_tags( const char* tagname )
 {
   if (!tagname) 

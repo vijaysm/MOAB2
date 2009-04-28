@@ -65,7 +65,7 @@ public:
    */
   struct Plane {
     Plane() {}
-    Plane( double n[3], double d ) : coeff(d)
+    Plane( const double n[3], double d ) : coeff(d)
       { norm[0] = n[0]; norm[1] = n[1]; norm[2] = n[2]; }
       /** a x + b y + c z + d = 0 */
     Plane( double a, double b, double c, double d ) : coeff(d)
@@ -96,6 +96,14 @@ public:
       /** reverse plane normal */
     void flip()
       { norm[0] = -norm[0]; norm[1] = -norm[1]; norm[2] = -norm[2]; coeff = -coeff; }
+  
+    void set( const double normal[3], const double point[3] )
+      { 
+         const double dot = normal[0]*point[0] + normal[1]*point[1] + normal[2]*point[2];
+        *this = Plane( normal, -dot ); 
+      }
+      
+    void set( const double pt1[3], const double pt2[3], const double pt3[3] );
   };
   
   //! Get split plane for tree node

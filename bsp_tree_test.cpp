@@ -2,6 +2,7 @@
 #include "TestUtil.hpp"
 #include "MBBSPTree.hpp"
 
+void test_set_plane();
 void test_iterator();
 void test_box_iterator();
 void test_tree_create();
@@ -14,6 +15,7 @@ int main()
 {
   int failures = 0;
   
+  failures += RUN_TEST( test_set_plane );
   failures += RUN_TEST( test_iterator );
   failures += RUN_TEST( test_box_iterator );
   failures += RUN_TEST( test_tree_create );
@@ -48,6 +50,16 @@ void check_equal( const MBBSPTree::Plane& p1,
     FLAG_ERROR;
   }    
 }         
+
+void test_set_plane()
+{
+  MBBSPTree::Plane p;
+  const double points[3][3] = { { 1, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 } };
+  p.set( points[0], points[1], points[2] );
+  CHECK_REAL_EQUAL( 0.0, p.distance( points[0] ), 1e-10 );
+  CHECK_REAL_EQUAL( 0.0, p.distance( points[1] ), 1e-10 );
+  CHECK_REAL_EQUAL( 0.0, p.distance( points[2] ), 1e-10 );
+}
 
 void test_iterator()
 {
