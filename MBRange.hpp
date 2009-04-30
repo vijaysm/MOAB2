@@ -277,6 +277,10 @@ public:
                                     const_iterator last,
                                     MBEntityHandle val);
   
+  const_iterator lower_bound( MBEntityHandle val ) const 
+    { return lower_bound( begin(), end(), val ); }
+  const_iterator upperbound( MBEntityHandle val ) const 
+    { return upper_bound( begin(), end(), val ); }
   const_iterator lower_bound( MBEntityType type ) const;
   const_iterator upper_bound( MBEntityType type ) const;
   std::pair<const_iterator, const_iterator> equal_range( MBEntityType type ) const;
