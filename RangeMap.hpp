@@ -43,6 +43,10 @@ public:
   };
   typedef typename std::vector<Range> RangeList;
   typedef typename RangeList::const_iterator iterator;
+  typedef typename RangeList::const_iterator const_iterator;
+  
+  inline bool empty() const
+    { return data.empty(); }
   
   /**\brief Insert mapping between range of keys and range of values
    * 
