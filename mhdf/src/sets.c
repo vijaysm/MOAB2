@@ -493,7 +493,7 @@ mhdf_readSetMetaColumn( hid_t table_id,
     H5Sclose( slab_id );
     mhdf_setFail( status, 
       "Requested read of rows %ld to %ld of a %ld row table.\n",
-      offset, offset+count-1, (long)counts[dims-1]);
+      offset, offset+count-1, (long)counts[0]);
     return 0;
   }
 

@@ -180,7 +180,8 @@ get_tag_desc( mhdf_FileHandle file_handle,
 {
   void* ptr;
   int have_default, have_global;
-  int valsize, size;
+  int valsize, size, close_type = 0;
+  hsize_t array_len;
   
   ptr = realloc_data( &result, strlen(name)+1, status );
   if (NULL == ptr) return NULL;
@@ -226,7 +227,7 @@ get_tag_desc( mhdf_FileHandle file_handle,
       type = H5T_NATIVE_UCHAR;
       break;
     case mhdf_INTEGER: 
-      type = H5T_INTEGER;
+      type = H5T_NATIVE_INT;
       have_default *= sizeof(int);
       have_global *= sizeof(int);
       valsize *= sizeof(int);
@@ -267,6 +268,7 @@ get_tag_desc( mhdf_FileHandle file_handle,
         mhdf_setFail( status, "Cannot create a bit tag larger than 64-bits.  %d bits requested.\n", (int)valsize);
         return NULL;
       }
+      close_type = 1;
       break;
     case mhdf_ENTITY_ID:
       if (0 == type)
@@ -287,13 +289,27 @@ get_tag_desc( mhdf_FileHandle file_handle,
       return NULL;
   }
   result->tags[index].bytes = valsize;
+  
+  if (result->tags[index].type != mhdf_OPAQUE &&
+      result->tags[index].type != mhdf_BITFIELD &&
+      result->tags[index].size > 1) {
+    close_type = 1;
+    array_len = result->tags[index].size;
+    type = H5Tarray_create( type, 1, &array_len, 0 );
+    if (type < 0) {
+      mhdf_setFail( status, "H5Tarray_create failed for tag (\"%s\")", name );
+      free( result );
+      return NULL;
+    }
+  }
 
   if (have_default || have_global) {
     if (have_default) {
       ptr = realloc_data( &result, have_default, status );
       if (NULL == ptr) {
-        if (result->tags[index].type == mhdf_BITFIELD)
+        if (close_type) {
           H5Tclose( type );
+        }
         return NULL;
       }
       result->tags[index].default_value = ptr;
@@ -301,8 +317,9 @@ get_tag_desc( mhdf_FileHandle file_handle,
     if (have_global) {
       ptr = realloc_data( &result, have_global, status );
       if (NULL == ptr) {
-        if (result->tags[index].type == mhdf_BITFIELD)
+        if (close_type) {
           H5Tclose( type );
+        }
         return NULL;
       }
       result->tags[index].global_value = ptr;
@@ -313,8 +330,9 @@ get_tag_desc( mhdf_FileHandle file_handle,
                        result->tags[index].default_value,
                        result->tags[index].global_value,
                        status );
-    if (result->tags[index].type == mhdf_BITFIELD)
+    if (close_type) {
       H5Tclose( type );
+    }
     if (mhdf_isError(status)) {
       free( result );
       return NULL;
@@ -322,6 +340,14 @@ get_tag_desc( mhdf_FileHandle file_handle,
   }
   
   return result;
+}
+
+static void free_string_list( char** list, int count )
+{ 
+  int i;
+  for (i = 0; i < count; ++i)
+    free( list[i] );
+  free( list );
 }
 
 struct mhdf_FileDesc* 
@@ -437,7 +463,7 @@ mhdf_getFileSummary( mhdf_FileHandle file_handle,
   ptr = realloc_data( &result, size, status );
   if (NULL == ptr) {
     free( elem_handles );
-    free( tag_names );
+    free_string_list( tag_names, result->num_tag_desc );
     return NULL;
   }
   memset( ptr, 0, size );
@@ -448,7 +474,7 @@ mhdf_getFileSummary( mhdf_FileHandle file_handle,
     result = get_tag_desc( file_handle, result, tag_names[i], i, file_id_type, status );
     if (NULL == result) {
       free( elem_handles );
-      free( tag_names );
+      free_string_list( tag_names, result->num_tag_desc );
       return NULL;
     }
   }
@@ -459,7 +485,7 @@ mhdf_getFileSummary( mhdf_FileHandle file_handle,
   array = mhdf_malloc( size, status );
   if (NULL == array) {
     free( elem_handles );
-    free( tag_names );
+    free_string_list( tag_names, result->num_tag_desc );
     free( result );
     return NULL;
   }
@@ -476,7 +502,7 @@ mhdf_getFileSummary( mhdf_FileHandle file_handle,
         matrix[i*result->num_tag_desc+j] = 1;
   }
   free( elem_handles );
-  free( tag_names );
+  free_string_list( tag_names, result->num_tag_desc );
   
     /* Populate dense tag lists for element types */
   for (i = -2; i < result->num_elem_desc; ++i) {
