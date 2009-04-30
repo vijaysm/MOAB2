@@ -2000,6 +2000,9 @@ MBErrorCode ReadHDF5::read_tag( int tag_index )
       desc = &fileInfo->elems[elem_idx].desc;
       name = fileInfo->elems[elem_idx].handle;
     }
+    else {
+      return error(MB_FAILURE);
+    }
     
     hid_t handle = mhdf_openDenseTagData( filePtr, 
                                           fileInfo->tags[tag_index].name,
