@@ -115,23 +115,23 @@ void lagrange_weights_deriv(const real *z, unsigned n,
    Usage:
    
      lagrange_data p;
-     lagrange_setup(&p,z,n);    /*  setup for nodes z[0 ... n-1] */
+     lagrange_setup(&p,z,n);    *  setup for nodes z[0 ... n-1] *
      
      the weights
        p->J [0 ... n-1]     interpolation weights
        p->D [0 ... n-1]     1st derivative weights
        p->D2[0 ... n-1]     2nd derivative weights
      are computed for a given x with:
-       lagrange_0(p,x);  /*  compute p->J */
-       lagrange_1(p,x);  /*  compute p->J, p->D */
-       lagrange_2(p,x);  /*  compute p->J, p->D, p->D2 */
-       lagrange_2u(p);   /*  compute p->D2 after call of lagrange_1(p,x); */
+       lagrange_0(p,x);  *  compute p->J *
+       lagrange_1(p,x);  *  compute p->J, p->D *
+       lagrange_2(p,x);  *  compute p->J, p->D, p->D2 *
+       lagrange_2u(p);   *  compute p->D2 after call of lagrange_1(p,x); *
      These functions use the z array supplied to setup
        (that pointer should not be freed between calls)
      Weights for x=z[0] and x=z[n-1] are computed during setup; access as:
        p->J_z0, etc. and p->J_zn, etc.
 
-     lagrange_free(&p);  /*  deallocate memory allocated by setup */
+     lagrange_free(&p);  *  deallocate memory allocated by setup *
   --------------------------------------------------------------------------*/
 
 typedef struct {
