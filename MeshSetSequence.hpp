@@ -101,7 +101,8 @@ private:
                                     
   static MBErrorCode recursive_get_sets( MBEntityHandle start_set,
                             SequenceManager const* set_sequences,
-                            std::vector<const MBMeshSet*>& sets_out );
+                            std::vector<const MBMeshSet*>* sets_out = 0,
+                            MBRange* set_handles_out = 0 );
   static MBErrorCode recursive_get_sets( MBEntityHandle start_set,
                             SequenceManager* set_sequences,
                             std::vector<MBMeshSet*>& sets_out );

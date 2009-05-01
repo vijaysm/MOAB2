@@ -1243,14 +1243,11 @@ MBErrorCode MBCore::get_entities_by_dimension(const MBEntityHandle meshset,
   return result;
 }
 
-MBErrorCode MBCore::get_entities_by_type(const MBEntityHandle meshset,
-                                           const MBEntityType type, 
-                                           MBRange &entities,
-                                           const bool recursive) const
+MBErrorCode MBCore::get_entities_by_type( const MBEntityHandle meshset,
+                                          const MBEntityType type, 
+                                          MBRange &entities,
+                                          const bool recursive) const
 {
-  if (recursive && type == MBENTITYSET)  // will never return anything
-    return MB_TYPE_OUT_OF_RANGE;
-  
   MBErrorCode result = MB_SUCCESS;
   if (meshset) {
     const EntitySequence* seq;
