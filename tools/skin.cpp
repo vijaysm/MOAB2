@@ -2,6 +2,7 @@
 #include <time.h>
 #include <vector>
 #include <cstdlib>
+#include <cstdio>
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <unistd.h>
 #include <sys/types.h>
