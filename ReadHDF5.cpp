@@ -392,20 +392,31 @@ DEBUGOUT( "RETREIVING TAGGED ENTITIES" );
   
 DEBUGOUT( "GATHERING ADDITIONAL ENTITIES" );
   
-  int set_mode;
   const char* const set_opts[] = { "NONE", "SETS", "CONTENTS" };
-  rval = opts.match_option( "CHILDREN", set_opts, set_mode );
+  int child_mode;
+  rval = opts.match_option( "CHILDREN", set_opts, child_mode );
   if (MB_ENTITY_NOT_FOUND == rval)
-    set_mode = 2;
+    child_mode = 2;
   else if (MB_SUCCESS != rval) {
     readUtil->report_error( "Invalid value for 'CHILDREN' option" );
     return error(rval);
   }
+  int content_mode;
+  rval = opts.match_option( "SETS", set_opts, content_mode );
+  if (MB_ENTITY_NOT_FOUND == rval)
+    content_mode = 2;
+  else if (MB_SUCCESS != rval) {
+    readUtil->report_error( "Invalid value for 'SETS' option" );
+    return error(rval);
+  }
   
+    // If we want the contents of contained/child sets, 
+    // search for them now (before gathering the non-set contents
+    // of the sets.)
   MBRange sets;
   intersect( fileInfo->sets, file_ids, sets );
-  if (set_mode == 2) {
-    rval = read_child_sets( sets );
+  if (content_mode == 2 || child_mode == 2) {
+    rval = read_set_ids_recursive( sets, content_mode == 2, child_mode == 2 );
     if (MB_SUCCESS != rval)
       return error(rval);
   }
@@ -516,10 +527,11 @@ DEBUGOUT( "READING ELEMENTS" );
   
 DEBUGOUT( "READING SETS" );
     
-    // If reading child sets, but not all contents of child sets,
-    // need to get child sets after having read other entity types.
-  if (set_mode == 1) {
-    rval = read_child_sets( sets );
+    // If reading contained/child sets but not their contents then find
+    // them now. If we were also reading their contents we would
+    // have found them already.
+  if (content_mode == 1 || child_mode == 1) {
+    rval = read_set_ids_recursive( sets, content_mode != 0, child_mode != 0 );
     if (MB_SUCCESS != rval)
       return error(rval);
   }
@@ -1228,9 +1240,15 @@ MBErrorCode ReadHDF5::read_sets( const MBRange& file_ids )
   return is_error(status) ? error(MB_FAILURE) : MB_SUCCESS;
 }
 
-MBErrorCode ReadHDF5::read_child_sets( MBRange& sets_in_out )
+MBErrorCode ReadHDF5::read_set_ids_recursive( MBRange& sets_in_out,
+                                              bool contained_sets,
+                                              bool child_sets )
 {
   if (!fileInfo->have_set_children)
+    child_sets = false;
+  if (!fileInfo->have_set_contents)
+    contained_sets = false;
+  if (!child_sets && !contained_sets)
     return MB_SUCCESS;
 
     // open data tables
@@ -1239,23 +1257,64 @@ MBErrorCode ReadHDF5::read_child_sets( MBRange& sets_in_out )
     return MB_SUCCESS;
   }
   
+  if (!contained_sets && !child_sets)
+    return MB_SUCCESS;
+  
+  hid_t meta_handle, content_handle = 0, child_handle = 0;
+  
   mhdf_Status status;
-  hid_t meta_handle = mhdf_openSetMetaSimple( filePtr, &status );
+  meta_handle = mhdf_openSetMetaSimple( filePtr, &status );
   if (is_error(status))
     return error(MB_FAILURE);
   
-  long child_len = 0;
-  hid_t child_handle = mhdf_openSetChildren( filePtr, &child_len, &status );
-  if (is_error(status)) {
-    mhdf_closeData( filePtr, meta_handle, &status );
-    return error(MB_FAILURE);
+  if (contained_sets) {
+    long content_len = 0;
+    content_handle = mhdf_openSetData( filePtr, &content_len, &status );
+    if (is_error(status)) {
+      mhdf_closeData( filePtr, meta_handle, &status );
+      return error(MB_FAILURE);
+    }
   }
   
-  MBErrorCode rval = read_child_ids_recursive( sets_in_out, meta_handle, child_handle );
+  if (child_sets) {
+    long child_len = 0;
+    child_handle = mhdf_openSetChildren( filePtr, &child_len, &status );
+    if (is_error(status)) {
+      if (contained_sets)
+        mhdf_closeData( filePtr, content_handle, &status );
+      mhdf_closeData( filePtr, meta_handle, &status );
+      return error(MB_FAILURE);
+    }
+  }
   
-  mhdf_closeData( filePtr, child_handle, &status );
-  if (MB_SUCCESS == rval && is_error(status))
-    rval = error(MB_FAILURE);
+  MBErrorCode rval = MB_SUCCESS;
+  MBRange children, new_children(sets_in_out);
+  do {
+    children.clear();
+    if (child_sets) {
+      rval = read_child_ids( new_children, meta_handle, child_handle, children );
+      if (MB_SUCCESS != rval)
+        break;
+    }
+    if (contained_sets) {
+      rval = read_contained_set_ids( new_children, meta_handle, content_handle, children );
+      if (MB_SUCCESS != rval)
+        break;
+    }
+    new_children = children.subtract( sets_in_out );
+    sets_in_out.merge( new_children );
+  } while (!new_children.empty());
+  
+  if (child_sets) {
+    mhdf_closeData( filePtr, child_handle, &status );
+    if (MB_SUCCESS == rval && is_error(status))
+      rval = error(MB_FAILURE);
+  }
+  if (contained_sets) {
+    mhdf_closeData( filePtr, content_handle, &status );
+    if (MB_SUCCESS == rval && is_error(status))
+      rval = error(MB_FAILURE);
+  }
   mhdf_closeData( filePtr, meta_handle, &status );
   if (MB_SUCCESS == rval && is_error(status))
     rval = error(MB_FAILURE);
@@ -1395,8 +1454,8 @@ MBErrorCode ReadHDF5::find_sets_containing( hid_t meta_handle,
         
         long* buff_iter = content_buffer;
         for (long i = 0; i < sets_count; ++i) {
-          long set_size = offset_buffer[i] - prev_idx;
-          prev_idx = offset_buffer[i];
+          long set_size = offset_buffer[i+sets_offset] - prev_idx;
+          prev_idx += set_size;
           if (set_map_intersect( flag_buffer[sets_offset+i],
                                  buff_iter, set_size, idMap )) {
             long id = fileInfo->sets.start_id + offset + sets_offset + i;
@@ -1415,24 +1474,6 @@ MBErrorCode ReadHDF5::find_sets_containing( hid_t meta_handle,
   }
   
   return MB_SUCCESS;
-}
-
-MBErrorCode ReadHDF5::read_child_ids_recursive( MBRange& file_ids,
-                                                hid_t meta_handle,
-                                                hid_t child_handle )
-{
-  MBErrorCode rval = MB_SUCCESS;
-  MBRange children, new_children(file_ids);
-  do {
-    children.clear();
-    rval = read_child_ids( new_children, meta_handle, child_handle, children );
-    if (MB_SUCCESS != rval)
-      break;
-    
-    new_children = children.subtract( file_ids );
-    file_ids.merge( new_children );
-  } while (!new_children.empty());
-  return rval;
 }
 
 MBErrorCode ReadHDF5::read_child_ids( const MBRange& input_file_ids,
@@ -1484,6 +1525,106 @@ MBErrorCode ReadHDF5::read_child_ids( const MBRange& input_file_ids,
       for (long i = 0; i < count; ++i) {
         MBEntityHandle h = (MBEntityHandle)buffer[i];
         hint = child_file_ids.insert( hint, h, h );
+      }
+    }
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode ReadHDF5::read_contained_set_ids( const MBRange& input_file_ids,
+                                              hid_t meta_handle,
+                                              hid_t content_handle,
+                                              MBRange& contained_set_file_ids )
+{
+  mhdf_Status status;
+  long buffer_size = bufferSize / (sizeof(long) + sizeof(short));
+    // don't want to worry about reading half of a range pair later
+  if (buffer_size % 2) --buffer_size;
+  long* content_buffer = reinterpret_cast<long*>(dataBuffer);
+  unsigned short* flag_buffer = reinterpret_cast<unsigned short*>(content_buffer + buffer_size);
+  long first, range[2], count, remaining, sets_offset;
+
+  MBRange sets(input_file_ids);
+  MBRange::iterator hint;
+  while (!sets.empty()) {
+    count = (long)sets.const_pair_begin()->second - sets.front() + 1;
+    first = (long)sets.front() - fileInfo->sets.start_id;
+    if (count > buffer_size)
+      count = buffer_size;
+    sets.erase( sets.begin(), sets.begin() + count );
+    
+    mhdf_readSetFlags( meta_handle, first, count, H5T_NATIVE_USHORT, flag_buffer, &status );
+    if (is_error(status))
+      return MB_FAILURE;
+    
+    sets_offset = 0;
+    while (sets_offset < count) {
+        // Find block of sets with same value for ranged flag
+      long start_idx = sets_offset;
+      unsigned short ranged = flag_buffer[start_idx] & mhdf_SET_RANGE_BIT;
+      for (++sets_offset; sets_offset < count; ++sets_offset)
+        if ((flag_buffer[sets_offset] & mhdf_SET_RANGE_BIT) != ranged)
+          break;
+          
+      if (!first && !start_idx) { // first set
+        range[0] = -1;
+        mhdf_readSetContentEndIndices( meta_handle, first+sets_offset-1, 1, 
+                                       H5T_NATIVE_LONG, range+1, &status );
+        if (is_error(status))
+          return error(MB_FAILURE);
+      }
+      else if (count == 1) {
+        mhdf_readSetContentEndIndices( meta_handle, first+start_idx-1, 2, 
+                                       H5T_NATIVE_LONG, range, &status );
+        if (is_error(status))
+          return error(MB_FAILURE);
+      }
+      else {
+        mhdf_readSetContentEndIndices( meta_handle, first+start_idx-1, 1, 
+                                       H5T_NATIVE_LONG, range, &status );
+        if (is_error(status))
+          return error(MB_FAILURE);
+        mhdf_readSetContentEndIndices( meta_handle, first+sets_offset-1, 1, 
+                                       H5T_NATIVE_LONG, range+1, &status );
+        if (is_error(status))
+          return error(MB_FAILURE);
+      }
+    
+      remaining = range[1] - range[0];
+      long offset = range[0] + 1;
+      while (remaining) {
+        assert( !ranged || !(remaining % 2) );
+        long content_count = std::min( buffer_size, remaining );
+        remaining -= content_count;
+        mhdf_readSetData( content_handle, offset, content_count, H5T_NATIVE_LONG, content_buffer, &status );
+  
+        if (ranged) {
+          hint = contained_set_file_ids.begin();
+          for (long i = 0; i < content_count; i += 2) {
+            MBEntityHandle s = (MBEntityHandle)content_buffer[i];
+            MBEntityHandle e = s + content_buffer[i+1];
+            if ((long)s < fileInfo->sets.start_id)
+              s = fileInfo->sets.start_id;
+            if ((long)e > fileInfo->sets.start_id + fileInfo->sets.count)
+              e = fileInfo->sets.start_id + fileInfo->sets.count;
+            if (s < e) 
+              hint = contained_set_file_ids.insert( hint, s, e - 1 );
+          }
+        }
+        else {
+          std::sort( content_buffer, content_buffer + content_count );
+          long* s = std::lower_bound( content_buffer, content_buffer + content_count,
+                                      fileInfo->sets.start_id );
+          long* e = std::lower_bound( s, content_buffer + content_count, 
+                                      fileInfo->sets.start_id + fileInfo->sets.count );
+          e = std::unique( s, e );
+          hint = contained_set_file_ids.begin();
+          for ( ; s != e; ++s) {
+            MBEntityHandle h = *s;
+            hint = contained_set_file_ids.insert( hint, h, h );
+          }
+        }
       }
     }
   }

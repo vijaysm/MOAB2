@@ -8,7 +8,7 @@
 #include <limits>
 
 const char TEST_FILE[] = "partial.h5m";
-const char READ_OPTS[] = "BUFFER_SIZE=256";
+#define READ_OPTS "BUFFER_SIZE=256"
 const char ID_TAG_NAME[] = "test_id_tag";
 
 
@@ -43,8 +43,9 @@ static MBTag check_tag( MBInterface& mb,
                         MBDataType type,
                         int size );
 
-enum ChildTestMode { CHILD_SETS, CHILD_CONTENTS, CHILD_NONE };
-void test_read_children_common( ChildTestMode mode );
+enum GatherTestMode { GATHER_SETS, GATHER_CONTENTS, GATHER_NONE };
+void test_gather_sets_common( bool contained_sets, GatherTestMode mode );
+void test_gather_sets_ranged( bool contained_sets, GatherTestMode mode );
 
 
 //! Read a set containing no entities
@@ -82,11 +83,27 @@ void test_read_two_sets_elems();
 //! containing read entities, or contained in an explcitly designated
 //! set, any child sets are also read.  Check that here.
 void test_read_child_sets_only()
-{ test_read_children_common( CHILD_SETS ); }
+{ test_gather_sets_common( false, GATHER_SETS );
+  test_gather_sets_ranged( false, GATHER_SETS ); }
 void test_read_child_set_contents()
-{ test_read_children_common( CHILD_CONTENTS ); }
+{ test_gather_sets_common( false, GATHER_CONTENTS ); 
+  test_gather_sets_ranged( false, GATHER_CONTENTS ); }
 void test_read_no_child_sets()
-{ test_read_children_common( CHILD_NONE ); }
+{ test_gather_sets_common( false, GATHER_NONE );
+  test_gather_sets_ranged( false, GATHER_NONE ); }
+
+//! For any set selected to be read by either explicit designation,
+//! containing read entities, or contained in an explcitly designated
+//! set, any contained sets are also read.  Check that here.
+void test_read_contained_sets_only()
+{ test_gather_sets_common( true, GATHER_SETS );
+  test_gather_sets_ranged( true, GATHER_SETS ); }
+void test_read_contained_set_contents()
+{ test_gather_sets_common( true, GATHER_CONTENTS );
+  test_gather_sets_ranged( true, GATHER_CONTENTS ); }
+void test_read_no_contained_sets()
+{ test_gather_sets_common( true, GATHER_NONE );
+  test_gather_sets_ranged( true, GATHER_NONE ); }
 
 //! Read in the sets contained in a set.  
 //! Should read all sets containing read elements or nodes
@@ -139,6 +156,9 @@ int main( int argc, char* argv[] )
   result += RUN_TEST(test_read_child_sets_only);
   result += RUN_TEST(test_read_child_set_contents);
   result += RUN_TEST(test_read_no_child_sets);
+  result += RUN_TEST(test_read_contained_sets_only);
+  result += RUN_TEST(test_read_contained_set_contents);
+  result += RUN_TEST(test_read_no_contained_sets);
   result += RUN_TEST(test_read_containing_sets);
   result += RUN_TEST(test_read_double_tag);
   result += RUN_TEST(test_read_opaque_tag);
@@ -932,7 +952,7 @@ void test_read_set_sets()
     
     MBEntityHandle file;
     int id = i+1;
-    rval = mb.load_file( TEST_FILE, file, READ_OPTS, ID_TAG_NAME, &id, 1 );
+    rval = mb.load_file( TEST_FILE, file, READ_OPTS ";SETS=NONE", ID_TAG_NAME, &id, 1 );
     CHECK_ERR(rval);
     
       // check that the total number of sets read is as expected
@@ -970,10 +990,12 @@ void test_read_set_sets()
   }
 }
 
-static void check_children( ChildTestMode mode, MBInterface& mb, int id, MBTag id_tag, MBEntityHandle file )
+static void check_children( bool contents, GatherTestMode mode, MBInterface& mb, int id, MBTag id_tag, MBEntityHandle file )
 {
-  const int exp_num_sets = (mode == CHILD_NONE) ? 1 : id;
-  const int exp_num_edges = (mode == CHILD_CONTENTS) ? id : 1;
+    // Increase number of expected sets by one if contents is true because
+    // we always read immediately contained (depth 1) sets.
+  const int exp_num_sets = (mode == GATHER_NONE) ? 1+contents : id;
+  const int exp_num_edges = (mode == GATHER_CONTENTS) ? id : 1;
   
   MBErrorCode rval;
   MBRange range;
@@ -996,7 +1018,7 @@ static void check_children( ChildTestMode mode, MBInterface& mb, int id, MBTag i
   CHECK_EQUAL( 1, (int)range.size() );
   set = range.front();
   
-  if (mode == CHILD_NONE) {
+  if (mode == GATHER_NONE) {
     range.clear();
     rval = mb.get_entities_by_type( set, MBEDGE , range );
     CHECK_ERR(rval);
@@ -1013,7 +1035,7 @@ static void check_children( ChildTestMode mode, MBInterface& mb, int id, MBTag i
     range.clear();
     rval = mb.get_entities_by_type( set, MBEDGE, range );
     CHECK_ERR(rval);
-    if (mode == CHILD_CONTENTS || i == id) {
+    if (mode == GATHER_CONTENTS || i == id) {
       CHECK_EQUAL( 1, (int)range.size() );
       const MBEntityHandle* conn;
       int len;
@@ -1028,9 +1050,12 @@ static void check_children( ChildTestMode mode, MBInterface& mb, int id, MBTag i
     else {
       CHECK( range.empty() );
     }
-      
+    
     std::vector<MBEntityHandle> children;
-    rval = mb.get_child_meshsets( set, children );
+    if (contents)
+      rval = mb.get_entities_by_type( set, MBENTITYSET, children );
+    else
+      rval = mb.get_child_meshsets( set, children );
     CHECK_ERR(rval);
     if (i == 1) {
       CHECK( children.empty() );
@@ -1044,7 +1069,7 @@ static void check_children( ChildTestMode mode, MBInterface& mb, int id, MBTag i
 
 
 const char* set_read_opts[] = { "SETS", "CONTENTS", "NONE" };
-void test_read_children_common( ChildTestMode mode )
+void test_gather_sets_common( bool contents, GatherTestMode mode )
 {
   MBErrorCode rval;
   MBCore instance;
@@ -1078,7 +1103,10 @@ void test_read_children_common( ChildTestMode mode )
     rval = mb.tag_set_data( id_tag, sets + i, 1, &id );
     CHECK_ERR(rval);
     if (i > 0) {
-      rval = mb.add_child_meshset( sets[i], sets[i-1] );
+      if (contents) 
+        rval = mb.add_entities( sets[i], sets + (i-1), 1 );
+      else
+        rval = mb.add_child_meshset( sets[i], sets[i-1] );
       CHECK_ERR(rval);
     }
   }
@@ -1089,7 +1117,10 @@ void test_read_children_common( ChildTestMode mode )
  
   MBEntityHandle file;
   std::string opt( READ_OPTS );
-  opt += ";CHILDREN=";
+  if (contents)
+    opt += ";CHILDREN=NONE;SETS=";
+  else
+    opt += ";SETS=NONE;CHILDREN=";
   opt += set_read_opts[mode];
 
   const int test_ids[] = { 2, 7, INT/3-1, INT/2+1, INT-3 };
@@ -1105,7 +1136,111 @@ void test_read_children_common( ChildTestMode mode )
     rval = mb.tag_get_handle( ID_TAG_NAME, id_tag );
     CHECK_ERR(rval);
     
-    check_children( mode, mb, test_ids[i], id_tag, file );
+    check_children( contents, mode, mb, test_ids[i], id_tag, file );
+  }
+}
+
+
+void test_gather_sets_ranged( bool contents, GatherTestMode mode )
+{
+  MBErrorCode rval;
+  MBCore instance;
+  MBInterface& mb = instance;
+  
+  MBRange verts;
+  MBTag id_tag;
+  rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
+  CHECK_ERR(rval);
+  
+    // create four groups of vertices, where all vertices in the same group
+    // have the same x-coordinate
+  const int NUM_GRP_VTX = 20;
+  const int NUM_GRP = 4;
+  MBEntityHandle sets[NUM_GRP];
+  for (int i = 0; i < NUM_GRP; ++i) {
+    double coords[3*NUM_GRP_VTX];
+    for (int j = 0; j < NUM_GRP_VTX; ++j) {
+      coords[3*j  ] = i;
+      coords[3*j+1] = j;
+      coords[3*j+2] = 0;
+    }
+    rval = mb.create_vertices( coords, NUM_GRP_VTX, verts );
+    CHECK_ERR(rval);
+    
+    rval = mb.create_meshset( MESHSET_SET, sets[i] );
+    CHECK_ERR(rval);
+    rval = mb.add_entities( sets[i], verts );
+    CHECK_ERR(rval);
+    int id = i + 1;
+    rval = mb.tag_set_data( id_tag, sets+i, 1, &id );
+    CHECK_ERR(rval);
+  }
+  
+    // place two of the sets inside the others
+  if (contents) {
+    rval = mb.add_entities( sets[0], &sets[1], 1 ); CHECK_ERR(rval);
+    rval = mb.add_entities( sets[2], &sets[3], 1 ); CHECK_ERR(rval);
+  }
+  else {
+    rval = mb.add_child_meshset( sets[0], sets[1] ); CHECK_ERR(rval);
+    rval = mb.add_child_meshset( sets[2], sets[3] ); CHECK_ERR(rval);
+  }
+    
+    // Write the data
+  rval = mb.write_file( TEST_FILE, "MOAB" );
+  CHECK_ERR(rval);
+ 
+    // Read the data
+  std::string opt( READ_OPTS );
+  if (contents)
+    opt += ";CHILDREN=NONE;SETS=";
+  else
+    opt += ";SETS=NONE;CHILDREN=";
+  opt += set_read_opts[mode];
+
+  MBEntityHandle file;
+  const int read_id = 3;
+  rval = mb.delete_mesh(); CHECK_ERR(rval);
+  rval = mb.load_file( TEST_FILE, file, opt.c_str(), ID_TAG_NAME, &read_id, 1 );
+  CHECK_ERR(rval);
+  
+    // get any sets that were read it
+  MBRange read_sets;
+  rval = mb.get_entities_by_type( file, MBENTITYSET, read_sets );
+  CHECK_ERR(rval);
+  
+    // count number of vertices in each group
+  int counts[NUM_GRP];
+  memset( counts, 0, sizeof(counts) );
+  verts.clear();
+  rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
+  CHECK_ERR(rval);
+  for (MBRange::iterator it = verts.begin(); it != verts.end(); ++it) {
+    double coords[3];
+    rval = mb.get_coords( &*it, 1, coords );
+    CHECK_ERR(rval);
+    int i = (int)(coords[0]+1e-12);
+    CHECK( i >= 0 && i < NUM_GRP );
+    counts[i]++;
+  }
+  
+    // check expected counts
+  CHECK_EQUAL( 0, counts[0] );
+  CHECK_EQUAL( 0, counts[1] );
+  CHECK_EQUAL( NUM_GRP_VTX, counts[2] );
+  switch (mode) {
+    case GATHER_NONE:
+      CHECK_EQUAL( 0, counts[3] );
+      CHECK_EQUAL( 1+contents, (int)read_sets.size() );
+      break;
+    case GATHER_SETS:
+      CHECK_EQUAL( 0, counts[3] );
+      CHECK_EQUAL( 2, (int)read_sets.size() );
+      break;
+    case GATHER_CONTENTS:
+      CHECK_EQUAL( NUM_GRP_VTX, counts[3] );
+      CHECK_EQUAL( 2, (int)read_sets.size() );
+      break;
   }
 }
 

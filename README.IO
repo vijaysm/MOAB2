@@ -144,9 +144,11 @@ Default is EXPLICIT unless only nodesa are explicitly specified, in which
 case NODES will be used.
 
    CHILDREN={NONE|SETS|CONTENTS}
+   SETS={NONE|SETS|CONTETS}
 
-If reading only part of a file, specify which whether or not child sets
-of input sets are to be read.  The options are:
+If reading only part of a file, specify which whether or not child or
+contained sets (CHILDREN an SETS, respectively) of input sets are to be read.  
+The options are:
    NONE     - Do not read sets because they are children of designated sets.
    SETS     - Read all child sets of designated input sets.
    CONTENTS - (Default).  Read all child sets and any entities contained

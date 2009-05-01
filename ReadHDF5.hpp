@@ -246,7 +246,9 @@ private:
   /** Given a list of file IDs for entity sets, find all child sets
    *  (at any depth) and append them to the MBRange of file IDs.
    */
-  MBErrorCode read_child_sets( MBRange& sets_in_out );
+  MBErrorCode read_set_ids_recursive( MBRange& sets_in_out,
+                                      bool containted_sets,
+                                      bool child_sets );
   
   /** Find all sets containing one or more entities read from the file
    *  and added to idMap 
@@ -269,11 +271,6 @@ private:
                                     hid_t content_handle, 
                                     long content_len,
                                     MBRange& file_ids );  
-  
-  /** Recursively find all child sets contained in file */
-  MBErrorCode read_child_ids_recursive( MBRange& file_ids,
-                                        hid_t meta_handle,
-                                        hid_t child_handle );
  
   /** Given a list of file IDs for entity sets, read the list of 
    *  file IDs for all child entity sets.
@@ -282,6 +279,14 @@ private:
                               hid_t meta_handle,
                               hid_t child_handle,
                               MBRange& child_file_ids );
+ 
+  /** Given a list of file IDs for entity sets, read the list of 
+   *  file IDs for all contained entity sets.
+   */
+  MBErrorCode read_contained_set_ids( const MBRange& set_file_ids,
+                                      hid_t meta_handle,
+                                      hid_t contents_handle,
+                                      MBRange& containd_set_file_ids );
     
     /**\brief Create sets 
      *
