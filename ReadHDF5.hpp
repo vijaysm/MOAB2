@@ -232,7 +232,7 @@ private:
   MBErrorCode search_tag_values( hid_t tag_table, 
                                  unsigned long table_size,
                                  const std::vector<int>& sorted_values,
-                                 std::vector<long>& value_indices );
+                                 std::vector<MBEntityHandle>& value_indices );
   
   /**\brief Get the file IDs for nodes and elements contained in sets.
    *

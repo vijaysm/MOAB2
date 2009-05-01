@@ -572,7 +572,7 @@ MBErrorCode ReadHDF5::search_tag_values( int tag_index,
 {
   MBErrorCode rval;
   mhdf_Status status;
-  std::vector<long>::iterator iter;
+  std::vector<MBEntityHandle>::iterator iter;
   const mhdf_TagDesc& tag = fileInfo->tags[tag_index];
   long size;
   long start_id;
@@ -581,7 +581,7 @@ MBErrorCode ReadHDF5::search_tag_values( int tag_index,
     
   hid_t table;
   const char* name;
-  std::vector<long> indices;
+  std::vector<MBEntityHandle> indices;
     // These are probably in order of dimension, so iterate
     // in reverse order to make MBRange insertions more efficient.
   std::vector<int> grp_indices( tag.dense_elem_indices, tag.dense_elem_indices+tag.num_dense_indices );
@@ -610,7 +610,7 @@ MBErrorCode ReadHDF5::search_tag_values( int tag_index,
     if (MB_SUCCESS != rval || is_error(status))
       return error(MB_FAILURE);
       // Convert from table indices to file IDs and add to result list
-    std::sort( indices.begin(), indices.end(), std::greater<long>() );
+    std::sort( indices.begin(), indices.end(), std::greater<MBEntityHandle>() );
     std::transform( indices.begin(), indices.end(), mb_range_inserter(file_ids),
                     std::bind1st( std::plus<long>(), start_id ) );
     indices.clear();
@@ -634,11 +634,11 @@ MBErrorCode ReadHDF5::search_tag_values( int tag_index,
   }
     // convert to ranges
   std::sort( indices.begin(), indices.end() );
-  std::vector<long> ranges;
+  std::vector<MBEntityHandle> ranges;
   iter = indices.begin();
   while (iter != indices.end()) {
     ranges.push_back( *iter );
-    long last = *iter;
+    MBEntityHandle last = *iter;
     for (++iter; iter != indices.end() && (last + 1) == *iter; ++iter, ++last);
     ranges.push_back( last );
   }
@@ -649,7 +649,7 @@ MBErrorCode ReadHDF5::search_tag_values( int tag_index,
     long begin = *iter; ++iter;
     long end   = *iter; ++iter;
     mhdf_readSparseTagEntities( tables[0], begin, end - begin + 1, 
-                                H5T_NATIVE_LONG, &indices[offset], &status );
+                                handleType, &indices[offset], &status );
     if (is_error(status)) {
       mhdf_closeData( filePtr, tables[0], &status );
       return error(MB_FAILURE);
@@ -661,7 +661,7 @@ MBErrorCode ReadHDF5::search_tag_values( int tag_index,
     return error(MB_FAILURE);
   assert( offset == indices.size() );
   std::sort( indices.begin(), indices.end() );
-  copy_sorted_file_ids( (MBEntityHandle*)&indices[0], indices.size(), file_ids );
+  copy_sorted_file_ids( &indices[0], indices.size(), file_ids );
   
   return MB_SUCCESS;  
 }
@@ -669,7 +669,7 @@ MBErrorCode ReadHDF5::search_tag_values( int tag_index,
 MBErrorCode ReadHDF5::search_tag_values( hid_t tag_table, 
                                          unsigned long table_size,
                                          const std::vector<int>& sorted_values,
-                                         std::vector<long>& value_indices )
+                                         std::vector<MBEntityHandle>& value_indices )
 {
   mhdf_Status status;
   size_t chunk_size = bufferSize / sizeof(unsigned);
