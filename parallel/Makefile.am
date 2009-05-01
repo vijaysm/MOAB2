@@ -45,6 +45,8 @@ if PARALLEL
      ReadParallel.hpp \
      crystal.h errmem.h types.h
 
+  MOAB_PARALLEL_TEST += pcomm_unit parallel_unit_tests
+
 if PARALLEL_HDF5
 #  libMOABpar_la_LIBADD = $(top_builddir)/mhdf/libmhdf.la
   INCLUDES += -I$(top_srcdir)/mhdf/include
@@ -59,7 +61,6 @@ endif
   mbparallelcomm_test_LDADD = $(top_builddir)/libMOAB.la
   mbparallelcomm_test_DEPENDENCIES = $(mbparallelcomm_test_LDADD)
 
-  MOAB_PARALLEL_TEST += pcomm_unit parallel_unit_tests
 endif
 
 # The list of source files, and any header files that do not need to be installed

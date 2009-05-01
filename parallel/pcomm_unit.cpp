@@ -81,8 +81,8 @@ void pack_unpack_mesh( MBCore& moab, MBRange& entities )
   CHECK_ERR(rval);
   
   MBRange tmp_range;
-  rval = pcomm->pack_buffer( entities, addl_procs, false, true, false, 
-                             -1, tmp_range, buff, size);
+  rval = pcomm->pack_buffer( entities, false, true, false, 
+                             -1, buff, size);
   CHECK_ERR(rval);
   
   delete pcomm;
@@ -92,10 +92,11 @@ void pack_unpack_mesh( MBCore& moab, MBRange& entities )
   pcomm = new MBParallelComm( &moab);
   
   entities.clear();
-  std::set<unsigned int> my_addl_procs;
-  MBRange nonowned_ghosts[MAX_SHARING_PROCS];
-  rval = pcomm->unpack_buffer( &buff[0], false, -1, -1, entities, 
-                               nonowned_ghosts, my_addl_procs);
+  std::vector<std::vector<MBEntityHandle> > L1h;
+  std::vector<MBEntityHandle> L2hloc, L2hrem;
+  std::vector<unsigned int> L2p;
+  rval = pcomm->unpack_buffer( &buff[0], false, -1, -1, L1h, L2hloc, 
+                               L2hrem, L2p, entities);
   CHECK_ERR(rval);
 
   delete pcomm;

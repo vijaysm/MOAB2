@@ -390,16 +390,16 @@ MBErrorCode test_packing(MBInterface *mbImpl, const char *filename)
   MBParallelComm *pcomm = new MBParallelComm(mbImpl);
   std::vector<unsigned char> buff(1024);
   int buff_size;
-  std::set<unsigned int> my_addl_procs;
-  std::vector<int> addl_procs;
-  MBRange nonowned_ghosts[MAX_SHARING_PROCS];
-  result = pcomm->pack_buffer(ents, addl_procs, false, true, false, -1,
-                              nonowned_ghosts[0], buff, buff_size);
+  result = pcomm->pack_buffer(ents, false, true, false, -1,
+                              buff, buff_size);
   RRA("Packing buffer count (non-stored handles) failed.");
-  nonowned_ghosts[0].clear();
 
-  result = pcomm->unpack_buffer(&buff[0], false, -1, -1, new_ents, nonowned_ghosts,
-                                my_addl_procs);
+  std::vector<std::vector<MBEntityHandle> > L1h;
+  std::vector<MBEntityHandle> L2hloc, L2hrem;
+  std::vector<unsigned int> L2p;
+  
+  result = pcomm->unpack_buffer(&buff[0], false, -1, -1, L1h, L2hloc, 
+                                L2hrem, L2p, new_ents);
   RRA("Unpacking buffer (non-stored handles) failed.");
 
   return MB_SUCCESS;
