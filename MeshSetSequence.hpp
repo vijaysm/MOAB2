@@ -74,7 +74,9 @@ public:
   
   MBErrorCode get_entities( MBEntityHandle set, std::vector<MBEntityHandle>& entities ) const;
   MBErrorCode get_entities(  SequenceManager const* seqman, MBEntityHandle set,                    MBRange& entities, bool recursive ) const;
+  MBErrorCode get_dimension( SequenceManager const* seqman, MBEntityHandle set, int dim,           std::vector<MBEntityHandle>& entities, bool recursive ) const;
   MBErrorCode get_dimension( SequenceManager const* seqman, MBEntityHandle set, int dim,           MBRange& entities, bool recursive ) const;
+  MBErrorCode get_type(      SequenceManager const* seqman, MBEntityHandle set, MBEntityType type, std::vector<MBEntityHandle>& entities, bool recursive ) const;
   MBErrorCode get_type(      SequenceManager const* seqman, MBEntityHandle set, MBEntityType type, MBRange& entities, bool recursive ) const;
   
   MBErrorCode num_entities(  SequenceManager const* seqman, MBEntityHandle set,                    int& count, bool recursive ) const;
@@ -102,7 +104,8 @@ private:
   static MBErrorCode recursive_get_sets( MBEntityHandle start_set,
                             SequenceManager const* set_sequences,
                             std::vector<const MBMeshSet*>* sets_out = 0,
-                            MBRange* set_handles_out = 0 );
+                            MBRange* set_handles_out = 0,
+                            std::vector<MBEntityHandle>* set_handle_vect_out = 0 );
   static MBErrorCode recursive_get_sets( MBEntityHandle start_set,
                             SequenceManager* set_sequences,
                             std::vector<MBMeshSet*>& sets_out );

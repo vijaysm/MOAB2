@@ -172,6 +172,25 @@ MBErrorCode MeshSetSequence::get_entities( MBEntityHandle handle,
 MBErrorCode MeshSetSequence::get_dimension( const SequenceManager* seqman,
                                             MBEntityHandle handle,
                                             int dimension,
+                                            std::vector<MBEntityHandle>& entities,
+                                            bool recursive ) const
+{
+  if (!recursive) {
+    get_set(handle)->get_entities_by_dimension( dimension, entities );
+    return MB_SUCCESS;
+  }
+  else {
+    std::vector<const MBMeshSet*> list;
+    MBErrorCode rval = recursive_get_sets( handle, seqman, &list );
+    for (std::vector<const MBMeshSet*>::iterator i = list.begin(); i != list.end(); ++i)
+      (*i)->get_entities_by_dimension( dimension, entities );
+    return rval;
+  }
+}
+
+MBErrorCode MeshSetSequence::get_dimension( const SequenceManager* seqman,
+                                            MBEntityHandle handle,
+                                            int dimension,
                                             MBRange& entities,
                                             bool recursive ) const
 {
@@ -184,6 +203,28 @@ MBErrorCode MeshSetSequence::get_dimension( const SequenceManager* seqman,
     MBErrorCode rval = recursive_get_sets( handle, seqman, &list );
     for (std::vector<const MBMeshSet*>::iterator i = list.begin(); i != list.end(); ++i)
       (*i)->get_entities_by_dimension( dimension, entities );
+    return rval;
+  }
+}
+
+MBErrorCode MeshSetSequence::get_type( const SequenceManager* seqman,
+                                       MBEntityHandle handle,
+                                       MBEntityType type,
+                                       std::vector<MBEntityHandle>& entities,
+                                       bool recursive ) const
+{
+  if (!recursive) {
+    get_set(handle)->get_entities_by_type( type, entities );
+    return MB_SUCCESS;
+  }
+  else if (type == MBENTITYSET) {
+    return recursive_get_sets( handle, seqman, 0, 0, &entities );
+  }
+  else {
+    std::vector<const MBMeshSet*> list;
+    MBErrorCode rval = recursive_get_sets( handle, seqman, &list );
+    for (std::vector<const MBMeshSet*>::iterator i = list.begin(); i != list.end(); ++i)
+      (*i)->get_entities_by_type( type, entities );
     return rval;
   }
 }
@@ -266,7 +307,8 @@ MBErrorCode MeshSetSequence::num_type( const SequenceManager* seqman,
 MBErrorCode MeshSetSequence::recursive_get_sets( MBEntityHandle start_set,
                               const SequenceManager* seq_sets,
                               std::vector<const MBMeshSet*>* sets,
-                              MBRange* set_handles )
+                              MBRange* set_handles,
+                              std::vector<MBEntityHandle>* set_vector )
 {
   std::set<MBEntityHandle> visited;
   std::vector<MBEntityHandle> stack;
@@ -304,6 +346,12 @@ MBErrorCode MeshSetSequence::recursive_get_sets( MBEntityHandle start_set,
     std::set<MBEntityHandle>::iterator it;
     for (it = visited.begin(); it != visited.end(); ++it)
       hint = set_handles->insert( hint, *it, *it );
+  }
+  
+  if (set_vector) {
+    if (remove_start_set)
+      visited.erase( start_set );
+    std::copy( visited.begin(), visited.end(), std::back_inserter(*set_vector) );
   }
     
   return MB_SUCCESS;

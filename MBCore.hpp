@@ -331,9 +331,14 @@ public:
           MBRange entities;
           get_entities_by_dimension( dimension, entities ); //get 2D MBEntityHandles in the database
           \endcode */
-    virtual MBErrorCode get_entities_by_dimension(const MBEntityHandle meshset,
+    virtual MBErrorCode get_entities_by_dimension( const MBEntityHandle meshset,
                                                    const int dimension, 
                                                    MBRange &entities,
+                                                   const bool recursive = false) const;
+
+    virtual MBErrorCode get_entities_by_dimension( const MBEntityHandle meshset,
+                                                   const int dimension, 
+                                                   std::vector<MBEntityHandle> &entities,
                                                    const bool recursive = false) const;
 
       //! Retrieves all entities in the data base of given type.  
@@ -345,9 +350,14 @@ public:
           MBRange entities;
           get_entities_by_dimension( type, entities ); //get MeshTet type MBEntityHandles in the database
           \endcode */
-    virtual MBErrorCode get_entities_by_type(const MBEntityHandle meshset,
+    virtual MBErrorCode get_entities_by_type( const MBEntityHandle meshset,
                                               const MBEntityType type, 
                                               MBRange &entities,
+                                              const bool recursive = false) const;
+
+    virtual MBErrorCode get_entities_by_type( const MBEntityHandle meshset,
+                                              const MBEntityType type, 
+                                              std::vector<MBEntityHandle> &entities,
                                               const bool recursive = false) const;
 
     virtual MBErrorCode get_entities_by_type_and_tag(const MBEntityHandle meshset,

@@ -609,6 +609,11 @@ public:
                                                 MBRange &entities,
                                                 const bool recursive = false)  const = 0;
 
+  virtual MBErrorCode get_entities_by_dimension(const MBEntityHandle meshset,
+                                                const int dimension, 
+                                                std::vector<MBEntityHandle> &entities,
+                                                const bool recursive = false)  const = 0;
+
     //! Retrieve all entities of a given type in the database or meshset.
     /** Appends entities to list passed in.
         \param meshset Meshset whose entities are being queried (zero if query is for entire mesh).
@@ -628,6 +633,11 @@ public:
   virtual MBErrorCode get_entities_by_type(const MBEntityHandle meshset,
                                            const MBEntityType type, 
                                            MBRange &entities,
+                                           const bool recursive = false) const = 0;
+
+  virtual MBErrorCode get_entities_by_type(const MBEntityHandle meshset,
+                                           const MBEntityType type, 
+                                           std::vector<MBEntityHandle> &entities,
                                            const bool recursive = false) const = 0;
 
     //! Retrieve entities in the database or meshset which have any or all of the tag(s) and (optionally)

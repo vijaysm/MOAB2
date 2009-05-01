@@ -37,6 +37,10 @@ class SequenceManager
    void get_entities( MBEntityType type, MBRange& entities_out ) const
       { typeData[type].get_entities( entities_out ); }
     
+      /** Get all entities of a given MBEntityType */
+   void get_entities( MBEntityType type, std::vector<MBEntityHandle>& entities_out ) const
+      { typeData[type].get_entities( entities_out ); }
+    
       /** Count entities of a given MBEntityType */
     MBEntityID get_number_entities( MBEntityType type ) const
       { return typeData[type].get_number_entities(); }

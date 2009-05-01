@@ -5,6 +5,7 @@
 #include "MBRange.hpp"
 
 #include <set>
+#include <vector>
 class TagServer;
 
 /**\brief Maintain data structures organizing EntitySequence instances
@@ -180,6 +181,9 @@ public:
   
     /**\brief Get handles for all entities in all sequences. */
   inline void get_entities( MBRange& entities_out ) const;
+  
+    /**\brief Get handles for all entities in all sequences. */
+  inline void get_entities( std::vector<MBEntityHandle>& entities_out ) const;
   
     /**\brief Get number of entities represented by all sequences. */
   inline MBEntityID get_number_entities() const;
@@ -420,6 +424,13 @@ inline void TypeSequenceManager::get_entities( MBRange& entities_out ) const
   MBRange::iterator in = entities_out.begin();
   for (const_iterator i = begin(); i != end(); ++i)
     in = entities_out.insert( in, (*i)->start_handle(), (*i)->end_handle() );
+}
+
+inline void TypeSequenceManager::get_entities( std::vector<MBEntityHandle>& entities_out ) const
+{
+  for (const_iterator i = begin(); i != end(); ++i)
+    for (MBEntityHandle j = (*i)->start_handle(); j <= (*i)->end_handle(); ++j)
+      entities_out.push_back( j );
 }
 
 inline MBEntityID TypeSequenceManager::get_number_entities() const

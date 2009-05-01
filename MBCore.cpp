@@ -1243,9 +1243,60 @@ MBErrorCode MBCore::get_entities_by_dimension(const MBEntityHandle meshset,
   return result;
 }
 
+MBErrorCode MBCore::get_entities_by_dimension(const MBEntityHandle meshset,
+                                                const int dimension, 
+                                                std::vector<MBEntityHandle> &entities,
+                                                const bool recursive) const
+{
+  MBErrorCode result = MB_SUCCESS;
+  if (meshset) {
+    const EntitySequence* seq;
+    result = sequence_manager()->find( meshset, seq );
+    if (MB_SUCCESS != result)
+      return result;
+    const MeshSetSequence* mseq = reinterpret_cast<const MeshSetSequence*>(seq);
+    result = mseq->get_dimension( sequence_manager(), meshset, dimension, entities, recursive );
+  }
+  else if (dimension > 3) {
+    sequence_manager()->get_entities( MBENTITYSET, entities );
+    result = MB_SUCCESS;
+  } 
+  else {
+    for (MBEntityType this_type = MBCN::TypeDimensionMap[dimension].first;
+         this_type <= MBCN::TypeDimensionMap[dimension].second;
+         this_type++) {
+      sequence_manager()->get_entities( this_type, entities );
+    }
+  }
+
+  return result;
+}
+
 MBErrorCode MBCore::get_entities_by_type( const MBEntityHandle meshset,
                                           const MBEntityType type, 
                                           MBRange &entities,
+                                          const bool recursive) const
+{
+  MBErrorCode result = MB_SUCCESS;
+  if (meshset) {
+    const EntitySequence* seq;
+    result = sequence_manager()->find( meshset, seq );
+    if (MB_SUCCESS != result)
+      return result;
+    const MeshSetSequence* mseq = reinterpret_cast<const MeshSetSequence*>(seq);
+    result = mseq->get_type( sequence_manager(), meshset, type, entities, recursive );
+  }  
+  else {
+    sequence_manager()->get_entities( type, entities );
+    result = MB_SUCCESS;
+  }
+
+  return result;
+}
+
+MBErrorCode MBCore::get_entities_by_type( const MBEntityHandle meshset,
+                                          const MBEntityType type, 
+                                          std::vector<MBEntityHandle> &entities,
                                           const bool recursive) const
 {
   MBErrorCode result = MB_SUCCESS;
