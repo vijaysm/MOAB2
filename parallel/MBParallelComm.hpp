@@ -356,12 +356,6 @@ public:
     //! return pstatus tag
   MBTag pstatus_tag();
 
-    //! return tmpiface tag
-  MBTag tmpiface_tag();
-  
-    //! reset the tmpiface tag
-  void reset_tmpiface_tag();
-
     //! return pcomm tag; static because might not have a pcomm before going
     //! to look for one on the interface
   static MBTag pcomm_tag(MBInterface *impl,
@@ -902,7 +896,7 @@ private:
   MBRange sharedEnts;
   
     //! tags used to save sharing procs and handles
-  MBTag sharedpTag, sharedpsTag, tmpifaceTag, sharedhTag, sharedhsTag, pstatusTag, 
+  MBTag sharedpTag, sharedpsTag, sharedhTag, sharedhsTag, pstatusTag, 
       ifaceSetsTag, partitionTag;
     
   int globalPartCount; //!< Cache of global part count

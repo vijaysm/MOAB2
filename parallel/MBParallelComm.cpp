@@ -146,7 +146,7 @@ enum MBMessageTag {MB_MESG_ANY=MPI_ANY_TAG,
     
 MBParallelComm::MBParallelComm(MBInterface *impl, MPI_Comm comm, int* id ) 
         : mbImpl(impl), procConfig(comm),
-          sharedpTag(0), sharedpsTag(0), tmpifaceTag(0),
+          sharedpTag(0), sharedpsTag(0), 
           sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0),
           partitionTag(0), globalPartCount(-1), partitioningSet(0)
 {
@@ -175,7 +175,7 @@ MBParallelComm::MBParallelComm(MBInterface *impl,
                                MPI_Comm comm,
                                int* id) 
     : mbImpl(impl), procConfig(comm),
-      sharedpTag(0), sharedpsTag(0), tmpifaceTag(0),
+      sharedpTag(0), sharedpsTag(0), 
       sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0),
       partitionTag(0), globalPartCount(-1), partitioningSet(0)
 {
@@ -2512,9 +2512,6 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBEntityHandle this_set,
 
   gs_data_free(gsd);
 
-    // get rid of the temporary data we kept around for interface resolution
-  reset_tmpiface_tag();
-  
     // done
   return result;
 }
@@ -2828,10 +2825,6 @@ MBErrorCode MBParallelComm::tag_shared_ents(int resolve_dim,
       if (sharing_procs.empty()) continue;
 
       proc_nranges[sharing_procs].insert(*rit);
-
-      sharing_procs.resize(MAX_SHARING_PROCS, -1);
-      result = mbImpl->tag_set_data(tmpiface_tag(), &(*rit), 1, &sharing_procs[0]);
-      RRA("Failed to set tmpiface_tag.");
 
         // reset sharing proc(s) tags
       sharing_procs.clear();
@@ -4038,31 +4031,6 @@ MBTag MBParallelComm::pstatus_tag()
   return pstatusTag;
 }
   
-  //! return tmpiface tag
-MBTag MBParallelComm::tmpiface_tag()
-{
-  if (!tmpifaceTag) {
-    MBErrorCode result = mbImpl->tag_create(NULL, 
-                                            MAX_SHARING_PROCS*sizeof(int), 
-                                            MB_TAG_SPARSE,
-                                            MB_TYPE_INTEGER, tmpifaceTag, NULL, true);
-    if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) 
-      return 0;
-  }
-  
-  return tmpifaceTag;
-}
-  
-  //! reset tmpiface tag
-void MBParallelComm::reset_tmpiface_tag()
-{
-  if (tmpifaceTag) {
-    MBErrorCode result = mbImpl->tag_delete(tmpifaceTag);
-    assert(MB_SUCCESS == result);
-    tmpifaceTag = 0;
-  }
-}
-  
   //! return partition set tag
 MBTag MBParallelComm::partition_tag()
 {  
@@ -4572,14 +4540,15 @@ MBErrorCode MBParallelComm::exchange_all_shared_handles( shared_entity_map& resu
   const std::vector<int> procs( exch_procs.begin(), exch_procs.end() );
   
     // get all shared entities
-  MBRange all_shared;
-  MBTag pstatus = pstatus_tag();
-  for (MBEntityType type = MBVERTEX; type < MBENTITYSET; ++type) {
-    rval = get_moab()->get_entities_by_type_and_tag( 0, type, &pstatus, 0, 1, all_shared,
-                                                     MBInterface::UNION);
-    if (MB_SUCCESS != rval)
-      return rval;
-  }
+  MBRange all_shared, dum_range;
+  rval = mbImpl->get_entities_by_handle(0, all_shared);
+  if (MB_SUCCESS != rval)
+    return rval;
+  rval = get_pstatus_entities(-1, 0, dum_range);
+  if (MB_SUCCESS != rval)
+    return rval;
+  all_shared = all_shared.subtract(dum_range);
+  all_shared.erase(all_shared.upper_bound(MBPOLYHEDRON), all_shared.end());
 
     // build up send buffers
   shared_entity_map send_data;
@@ -4675,13 +4644,23 @@ MBErrorCode MBParallelComm::check_all_shared_handles()
     return MB_SUCCESS;
   
     // now check against what I think data should be
-  MBRange dum_range, bad_ents, local_shared;
+    // get all shared entities
+  MBRange all_shared, dum_range;
+  result = mbImpl->get_entities_by_handle(0, all_shared);
+  if (MB_SUCCESS != result)
+    return result;
+  result = get_pstatus_entities(-1, 0, dum_range);
+  if (MB_SUCCESS != result)
+    return result;
+  all_shared = all_shared.subtract(dum_range);
+  all_shared.erase(all_shared.upper_bound(MBPOLYHEDRON), all_shared.end());
+
+  MBRange bad_ents, local_shared;
   for (shared_entity_map::iterator mit = shents.begin(); mit != shents.end(); mit++) {
     int other_proc = (*mit).first;
     int ind = get_buffers(other_proc);
     if (-1 == ind) return MB_FAILURE;
-    assert(false);
-      //local_shared = shared_ents()[ind].ownedShared;
+    local_shared = all_shared;
     shared_entity_vec &shvec = (*mit).second;
     for (shared_entity_vec::iterator vit = shvec.begin(); vit != shvec.end(); vit++) {
       MBEntityHandle localh = vit->local, remoteh = vit->remote, dumh;
