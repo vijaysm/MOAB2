@@ -472,45 +472,28 @@ DEBUGOUT( "READING NODES" );
 DEBUGOUT( "READING ELEMENTS" );
  
     // decide if we need to read additional elements
-  int mode;
-  const char* const options[] = { "EXPLICIT", "ADJACENT", 0 };
-  rval = opts.match_option( "ELEMENTS", options, mode );
-  bool read_adjacent_elements;
-  if (MB_SUCCESS == rval) {
-    read_adjacent_elements = (mode == 1);
-  }
+  int side_mode;
+  const char* const options[] = { "EXPLICIT", "NODES", "SIDES", 0 };
+  rval = opts.match_option( "ELEMENTS", options, side_mode );
   if (MB_ENTITY_NOT_FOUND == rval) {
       // Chose default based on whether or not any elements have been
       // specified.
     MBRange tmp;
     intersect( fileInfo->nodes, file_ids, tmp );
-    if (tmp.empty()) // can't do 'ADJACENT' mode if no nodes
-      read_adjacent_elements = false;
-    else {  // check if we have any elements, default to 'ADJACENT' only if no 
-            // explicitly specified elements
-      tmp.merge( sets );
-      MBRange elems = file_ids.subtract( tmp );
-      read_adjacent_elements = elems.empty();
-    }
+      // If only nodes were specified, then default to "NODES", otherwise
+      // default to "SIDES".
+    if (!tmp.empty() && (tmp.size() + sets.size()) == file_ids.size())
+      side_mode = 1;
+    else
+      side_mode = 2;
   }
-  else {
+  else if (MB_SUCCESS != rval) {
     readUtil->report_error( "Invalid value for 'ELEMENTS' option" );
     return error(rval);
   }
   
-  if (read_adjacent_elements) {
-    for (int dim = 1; dim <= 3; ++dim) {
-      for (int i = 0; i < fileInfo->num_elem_desc; ++i) {
-        MBEntityType type = MBCN::EntityTypeFromName( fileInfo->elems[i].type );
-        if (MBCN::Dimension(type) == dim) {
-          rval = read_node_adj_elems( fileInfo->elems[i] );
-          if (MB_SUCCESS != rval)
-            return error(rval);
-        }
-      }
-    }
-  }
-  else {
+  switch (side_mode) {
+    case 0: // ELEMENTS=EXPLICIT : read only specified element IDS
     for (int dim = 1; dim <= 3; ++dim) {
       for (int i = 0; i < fileInfo->num_elem_desc; ++i) {
         MBEntityType type = MBCN::EntityTypeFromName( fileInfo->elems[i].type );
@@ -523,7 +506,28 @@ DEBUGOUT( "READING ELEMENTS" );
         }
       }
     }
+    break;
+    
+    case 1: // ELEMENTS=NODES : read all elements for which all nodes have been read
+    for (int dim = 1; dim <= 3; ++dim) {
+      for (int i = 0; i < fileInfo->num_elem_desc; ++i) {
+        MBEntityType type = MBCN::EntityTypeFromName( fileInfo->elems[i].type );
+        if (MBCN::Dimension(type) == dim) {
+          rval = read_node_adj_elems( fileInfo->elems[i] );
+          if (MB_SUCCESS != rval)
+            return error(rval);
+        }
+      }
+    }
+    break;
+    
+    case 2: // ELEMENTS=SIDES : read explicitly specified elems and any sides of those elems
+    rval = read_elements_and_sides( file_ids );
+    if (MB_SUCCESS != rval)
+      return error(rval);
+    break;
   }
+  
   
 DEBUGOUT( "READING SETS" );
     
@@ -1154,6 +1158,163 @@ MBErrorCode ReadHDF5::read_poly( const char* elem_group )
   return result;
 }
 */
+
+MBErrorCode ReadHDF5::read_elements_and_sides( const MBRange& file_ids )
+{
+  MBErrorCode rval;
+  MBEntityType type;
+    
+    // determine largest element dimension
+  int max_dim = 0;
+  for (int i = 0; i < fileInfo->num_elem_desc; ++i) {
+    type = MBCN::EntityTypeFromName( fileInfo->elems[i].type );
+    int dim = MBCN::Dimension(type);
+    if (dim > max_dim) {
+      MBEntityHandle start = (MBEntityHandle)fileInfo->elems[i].desc.start_id;
+      MBRange::iterator it = file_ids.lower_bound( start );
+      if (it != file_ids.end() && (long)(*it - start ) < fileInfo->elems[i].desc.count)
+        max_dim = dim;
+    }
+  }
+  
+    // Get MBRange of element IDs only
+  MBRange elem_ids( file_ids );
+  MBRange::iterator s, e;
+  if (fileInfo->nodes.count) {
+    MBEntityHandle first = (MBEntityHandle)fileInfo->nodes.start_id;
+    s = elem_ids.lower_bound( first );
+    e = MBRange::lower_bound( s, elem_ids.end(), first + fileInfo->nodes.count );
+    elem_ids.erase( s, e );
+  }
+  if (fileInfo->sets.count) {
+    MBEntityHandle first = (MBEntityHandle)fileInfo->sets.start_id;
+    s = elem_ids.lower_bound( first );
+    e = MBRange::lower_bound( s, elem_ids.end(), first + fileInfo->sets.count );
+    elem_ids.erase( s, e );
+  }
+  
+    // read all node-adjacent elements of smaller dimensions
+  for (int i = 0; i < fileInfo->num_elem_desc; ++i) {
+    MBEntityType type = MBCN::EntityTypeFromName( fileInfo->elems[i].type );
+    if (MBCN::Dimension(type) < max_dim) {
+      rval = read_node_adj_elems( fileInfo->elems[i] );
+      if (MB_SUCCESS != rval)
+        return error(rval);
+    }
+  }
+  
+    // Read the subset of the explicitly sepecified elements that are of the
+    // largest dimension.   We could read all explicitly specified elements,
+    // but then the lower-dimension elements will be read a second when reading
+    // node-adjacent elements.
+  for (int i = 0; i < fileInfo->num_elem_desc; ++i) {
+    type = MBCN::EntityTypeFromName( fileInfo->elems[i].type );
+    if (MBCN::Dimension(type) == max_dim) {
+      MBRange subset;
+      intersect( fileInfo->elems[i].desc, elem_ids, subset );
+      if (!subset.empty()) {
+        elem_ids.subtract( subset );
+        rval = read_elems( fileInfo->elems[i],  subset );
+        if (MB_SUCCESS != rval)
+          return error(rval); 
+      } 
+    }
+  } 
+      
+    // delete anything we read in that we should not have
+    // (e.g. an edge spanning two disjoint blocks of elements)
+    
+    // get MBRange of all explicitly specified elements, grouped by dimension
+  MBRange explicit_elems[4];
+  MBRange::iterator hints[4] = { explicit_elems[0].begin(),
+                                explicit_elems[1].begin(),
+                                explicit_elems[2].begin(),
+                                explicit_elems[3].begin() };
+  RangeMap<long, MBEntityHandle>::iterator rit;
+  while (!elem_ids.empty()) {
+    long start = elem_ids.front();
+    long count = elem_ids.const_pair_begin()->second - start + 1;
+    rit = idMap.lower_bound( start );
+    assert( rit->begin <= start && rit->begin + rit->count > start );
+    long offset = start - rit->begin;
+    long avail = rit->count - offset;
+    if (avail > count)
+      count = avail;
+    MBEntityHandle start_h = rit->value + offset;
+    int d = MBCN::Dimension( TYPE_FROM_HANDLE( start_h ) );
+    if (MBCN::Dimension( TYPE_FROM_HANDLE( start_h + count - 1 ) ) != d) 
+      count = start - LAST_HANDLE( TYPE_FROM_HANDLE(start_h) ) + 1;
+    
+    elem_ids.erase( elem_ids.begin(), elem_ids.begin() + count );
+    hints[d] = explicit_elems[d].insert( hints[d], rit->value + offset, rit->value + offset + count - 1 );
+  }
+  
+    // get MBRange of all read elements, and remove any that were explicity specified
+    // get handles for everything we've read
+  MBRange all_elems;
+  MBRange::iterator hint = all_elems.begin();
+  for (rit = idMap.begin(); rit != idMap.end(); ++rit)
+    hint = all_elems.insert( hint, rit->value, rit->value + rit->count - 1 );
+    // remove any vertex handles
+  all_elems.erase( all_elems.begin(), all_elems.upper_bound( MBVERTEX ) );
+    // remove any set handles and any handles for elements >= max_dim
+  all_elems.erase( all_elems.lower_bound( MBCN::TypeDimensionMap[max_dim].first ), all_elems.end() );
+    // remove explicit elements < max_dim
+  if (!explicit_elems[1].empty() && max_dim > 1)
+    all_elems = all_elems.subtract( explicit_elems[1] );
+  if (!explicit_elems[2].empty() && max_dim > 2)
+    all_elems = all_elems.subtract( explicit_elems[2] );
+ 
+    // remove any elements that are adjacent to some explicity specified element.
+  if (max_dim > 1 && !explicit_elems[2].empty()) {
+    MBRange adj;
+    rval = iFace->get_adjacencies( explicit_elems[2], 1, false, adj, MBInterface::UNION );
+    if (MB_SUCCESS != rval)
+      return error(rval);
+    if (!adj.empty())
+      all_elems = all_elems.subtract( adj );
+  }
+  if (max_dim == 3) {
+    MBRange adj;
+    rval = iFace->get_adjacencies( explicit_elems[3], 1, false, adj, MBInterface::UNION );
+    if (MB_SUCCESS != rval)
+      return error(rval);
+    if (!adj.empty())
+      all_elems = all_elems.subtract( adj );
+    adj.clear();
+    rval = iFace->get_adjacencies( explicit_elems[3], 2, false, adj, MBInterface::UNION );
+    if (MB_SUCCESS != rval)
+      return error(rval);
+    if (!adj.empty())
+      all_elems = all_elems.subtract( adj );
+  }
+  
+    // now delete anything remaining in all_elems
+  rval = iFace->delete_entities( all_elems );
+  if (MB_SUCCESS != rval)
+    return error(rval);
+  
+    // remove dead entities from ID map
+  while (!all_elems.empty()) {
+    MBEntityHandle start = all_elems.front();
+    MBEntityID count = all_elems.const_pair_begin()->second - start + 1;
+    for (rit = idMap.begin(); rit != idMap.end(); ++rit) 
+      if (rit->value <= start && (long)(start - rit->value) < rit->count)
+        break;
+    if (rit == idMap.end())
+      return error(MB_FAILURE);
+  
+    MBEntityID offset = start - rit->value;
+    MBEntityID avail = rit->count - offset;
+    if (avail < count)
+      count = avail;
+    
+    all_elems.erase( all_elems.begin(), all_elems.begin() + count );
+    idMap.erase( rit->begin + offset, count );
+  }
+  
+  return MB_SUCCESS;
+}
 
 MBErrorCode ReadHDF5::read_sets( const MBRange& file_ids )
 {

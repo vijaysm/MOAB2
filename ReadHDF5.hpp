@@ -132,6 +132,9 @@ private:
   //! Read poly(gons|hedra)
   MBErrorCode read_poly( const mhdf_ElemDesc& elems, const MBRange& file_ids );
   
+  //! Read specified elements and any adjacent elemnets of lower dimension
+  MBErrorCode read_elements_and_sides( const MBRange& file_ids );
+  
   //! Read sets
   MBErrorCode read_sets( const MBRange& set_file_ids );
   

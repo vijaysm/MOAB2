@@ -134,13 +134,15 @@ and autodetection for reading (BIG_ENDIAN if autodetect fails).
 MOAB Native (HDF5-based MHDF) format
 ------------------------------------
 
-   ELEMENTS={EXPLICIT|NODES}
+   ELEMENTS={EXPLICIT|NODES|SIDES}
 
 If reading only part of a file, specify which additional elements to read
 in addition to those contained in the specified set.  The options are:
    EXPLICIT    - read only explicitly designated elements
    NODES       - read any element for which all the nodes are being read.
-Default is EXPLICIT unless only nodesa are explicitly specified, in which
+   SIDES       - read explicilty specified elements and any elements that
+                 are sides of those elements.
+Default is SIDES unless only nodes are explicitly specified, in which
 case NODES will be used.
 
    CHILDREN={NONE|SETS|CONTENTS}

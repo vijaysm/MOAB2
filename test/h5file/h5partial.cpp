@@ -132,6 +132,7 @@ void test_read_tagged_elems();
 
 void test_read_tagged_nodes();
 
+void test_read_sides();
 
 
 int main( int argc, char* argv[] )
@@ -167,6 +168,7 @@ int main( int argc, char* argv[] )
   result += RUN_TEST(test_read_adjacencies);
   result += RUN_TEST(test_read_tagged_elems);
   result += RUN_TEST(test_read_tagged_nodes);
+  result += RUN_TEST(test_read_sides);
 
   if (argc == 1)
     remove( TEST_FILE );
@@ -1396,3 +1398,85 @@ void test_read_adjacencies()
 }
 
 
+void test_read_sides()
+{
+  MBErrorCode rval;
+  MBCore instance;
+  MBInterface& mb = instance;
+  
+    // create 4x4 grid of quads with edges
+  const int INT = 4;
+  MBEntityHandle verts[INT+1][INT+1];
+  for (int j = 0; j <= INT; ++j) {
+    for (int i = 0; i <= INT; ++i) {
+      double coords[3] = { i, j, 0 };
+      rval = mb.create_vertex( coords, verts[INT-j][i] );
+      CHECK_ERR(rval);
+    }
+  }
+  MBEntityHandle quads[INT][INT];
+  for (int j = 0; j < INT; ++j) {
+    for (int i = 0; i < INT; ++i) {
+      MBEntityHandle conn[4] = { verts[INT-j][i],
+                                 verts[INT-j][i+1],
+                                 verts[INT-j-1][i+1],
+                                 verts[INT-j-1][i] };
+      rval = mb.create_element( MBQUAD, conn, 4, quads[INT-j-1][i] );
+      CHECK_ERR(rval);
+    }
+  }
+  MBRange edges;
+  rval = mb.get_adjacencies( &quads[0][0], INT*INT, 1, true, edges, MBInterface::UNION );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( 40, (int)edges.size() );
+  
+    // group quads into two sets
+  MBEntityHandle sets[2];
+  rval = mb.create_meshset( MESHSET_SET, sets[0] ); CHECK_ERR(rval);
+  rval = mb.create_meshset( MESHSET_SET, sets[1] ); CHECK_ERR(rval);
+  rval = mb.add_entities( sets[0], quads[0], INT ); CHECK_ERR(rval);
+  rval = mb.add_entities( sets[1], quads[1], INT ); CHECK_ERR(rval);
+  rval = mb.add_entities( sets[0], quads[2], INT ); CHECK_ERR(rval);
+  rval = mb.add_entities( sets[1], quads[3], INT ); CHECK_ERR(rval);
+  
+    // assign IDS
+  MBTag id_tag;
+  rval = mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id_tag, 0 );
+  CHECK_ERR(rval);
+  int ids[2] = { 4, 5 };
+  rval = mb.tag_set_data( id_tag, sets, 2, ids );
+  CHECK_ERR(rval);
+  
+    // write mesh
+  rval = mb.write_file( TEST_FILE, "MOAB" );
+  CHECK_ERR(rval);
+  
+    // read first set back in
+  rval = mb.delete_mesh(); CHECK_ERR(rval);
+  MBEntityHandle file;
+  rval = mb.load_file( TEST_FILE, file, READ_OPTS, ID_TAG_NAME, ids, 1 );
+  CHECK_ERR(rval);
+  
+    // check expected counts
+  int count;
+  rval = mb.get_number_entities_by_type( 0, MBVERTEX, count );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( (INT+1)*INT, count );
+  rval = mb.get_number_entities_by_type( 0, MBQUAD, count );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( INT*INT/2, count );
+  rval = mb.get_number_entities_by_type( 0, MBEDGE, count );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( 2*(INT+1) + INT*INT, count );
+
+    // check edges adjacent to each quad
+  MBRange elems;
+  rval = mb.get_entities_by_type( 0, MBQUAD, elems );
+  CHECK_ERR(rval);
+  for (MBRange::iterator it = elems.begin(); it != elems.end(); ++it) {
+    edges.clear();
+    rval = mb.get_adjacencies( &*it, 1, 1, false, edges );
+    CHECK_ERR(rval);
+    CHECK_EQUAL( 4, (int)edges.size() );
+  }
+}
