@@ -349,7 +349,8 @@ MBErrorCode read_file(MBInterface *mbImpl,
       }
 
         // exchange tag
-      result = pcs[i]->exchange_tags("GLOBAL_ID");
+      MBRange tmp_range;
+      result = pcs[i]->exchange_tags("GLOBAL_ID", tmp_range);
       if (MB_SUCCESS != result) {
         std::cerr << "Tag exchange didn't work." << std::endl;
         break;
@@ -388,10 +389,11 @@ MBErrorCode test_packing(MBInterface *mbImpl, const char *filename)
   ents.insert(file_set);
   
   MBParallelComm *pcomm = new MBParallelComm(mbImpl);
+
   std::vector<unsigned char> buff(1024);
   int buff_size;
   result = pcomm->pack_buffer(ents, false, true, false, -1,
-                              buff, buff_size);
+                                   buff, buff_size);
   RRA("Packing buffer count (non-stored handles) failed.");
 
   std::vector<std::vector<MBEntityHandle> > L1h;
@@ -399,7 +401,7 @@ MBErrorCode test_packing(MBInterface *mbImpl, const char *filename)
   std::vector<unsigned int> L2p;
   
   result = pcomm->unpack_buffer(&buff[0], false, -1, -1, L1h, L2hloc, 
-                                L2hrem, L2p, new_ents);
+                         L2hrem, L2p, new_ents);
   RRA("Unpacking buffer (non-stored handles) failed.");
 
   return MB_SUCCESS;
@@ -422,7 +424,7 @@ MBErrorCode report_iface_ents(MBInterface *mbImpl,
     }
 
     for (int i = 0; i < 4; i++) {
-      tmp_result = pcs[p]->get_iface_entities(-1, iface_ents[i], i);
+      tmp_result = pcs[p]->get_iface_entities(-1, i, iface_ents[i]);
       
       if (MB_SUCCESS != tmp_result) {
         std::cerr << "get_iface_entities returned error on proc " 

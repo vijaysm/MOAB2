@@ -50,6 +50,10 @@ class MBParallelComm
 {
 public:
 
+    // ==================================
+    // \section CONSTRUCTORS/DESTRUCTORS/PCOMM MANAGEMENT
+    // ==================================
+
     //! constructor
   MBParallelComm(MBInterface *impl,
                  MPI_Comm comm = MPI_COMM_WORLD,
@@ -82,6 +86,10 @@ public:
   
   static unsigned char PROC_SHARED, PROC_OWNER;
   
+    // ==================================
+    // \section GLOBAL IDS
+    // ==================================
+
     //! assign a global id space, for largest-dimension or all entities (and
     //! in either case for vertices too)
   MBErrorCode assign_global_ids(MBEntityHandle this_set,
@@ -98,6 +106,9 @@ public:
                                const bool largest_dim_only = true,
                                const bool parallel = true);
   
+    // ==================================
+    // \section HIGH-LEVEL COMMUNICATION (send/recv/bcast ents, exchange tags)
+    // ==================================
 
     /** \brief send entities to another processor, optionally waiting until it's done
      *
@@ -164,24 +175,24 @@ public:
      * tag (or the tag should have a default value).
      * \param tags Vector of tag handles to be exchanged
      */
-  MBErrorCode exchange_tags(std::vector<MBTag> &tags);
+  MBErrorCode exchange_tags(std::vector<MBTag> &src_tags,
+                            std::vector<MBTag> &dst_tags,
+                            const MBRange &entities);
   
     /** \brief Exchange tags for all shared and ghosted entities
      * This function should be called collectively over the communicator for this MBParallelComm
      * \param tag_name Name of tag to be exchanged
      */
-  MBErrorCode exchange_tags(const char *tag_name);
+  MBErrorCode exchange_tags(const char *tag_name,
+                            const MBRange &entities);
   
     /** \brief Exchange tags for all shared and ghosted entities
      * This function should be called collectively over the communicator for this MBParallelComm
      * \param tagh Handle of tag to be exchanged
      */
-  MBErrorCode exchange_tags(MBTag tagh);
+  MBErrorCode exchange_tags(MBTag tagh,
+                            const MBRange &entities);
   
-  MBErrorCode exchange_tags( MBTag src_tag, 
-                             MBTag dst_tag, 
-                             const MBRange& entities );
-
     /** \brief Broadcast all entities resident on from_proc to other processors
      * This function assumes remote handles are *not* being stored, since (usually)
      * every processor will know about the whole mesh.
@@ -194,6 +205,10 @@ public:
                                  MBRange& entities,
                                  const bool adjacencies = false,
                                  const bool tags = true );
+
+    // ==================================
+    // \section INITIALIZATION OF PARALLEL DATA (resolve_shared_ents, etc.)
+    // ==================================
 
     /** \brief Resolve shared entities between processors
      *
@@ -231,6 +246,10 @@ public:
                                   int resolve_dim = 3, 
                                   int shared_dim = -1);
   
+    // ==================================
+    // \section GET PARALLEL DATA (shared/owned/iface entities, etc.)
+    // ==================================
+
     /** \brief Get entities with the given pstatus bit(s) set
      * Returns any entities whose pstatus tag value v satisfies (v & pstatus_val)
      *
@@ -242,39 +261,6 @@ public:
                                    unsigned char pstatus_val,
                                    MBRange &pstatus_ents);
   
-    /** \brief Set pstatus values on entities
-     *
-     * \param pstatus_ents Entities to be set
-     * \param pstatus_val Pstatus value to be set
-     * \param lower_dim_ents If true, lower-dimensional ents (incl. vertices) set too
-     *        (and created if they don't exist)
-     * \param verts_too If true, vertices also set
-     * \param operation If UNION, pstatus_val is OR-d with existing value, otherwise
-     *        existing value is over-written
-     */
-  MBErrorCode set_pstatus_entities(MBRange &pstatus_ents,
-                                   unsigned char pstatus_val,
-                                   bool lower_dim_ents = false,
-                                   bool verts_too = true,
-                                   int operation = MBInterface::UNION);
-
-    /** \brief Set pstatus values on entities (vector-based function)
-     *
-     * \param pstatus_ents Entities to be set
-     * \param pstatus_val Pstatus value to be set
-     * \param lower_dim_ents If true, lower-dimensional ents (incl. vertices) set too
-     *        (and created if they don't exist)
-     * \param verts_too If true, vertices also set
-     * \param operation If UNION, pstatus_val is OR-d with existing value, otherwise
-     *        existing value is over-written
-     */
-  MBErrorCode set_pstatus_entities(MBEntityHandle *pstatus_ents,
-                                   int num_ents,
-                                   unsigned char pstatus_val,
-                                   bool lower_dim_ents = false,
-                                   bool verts_too = true,
-                                   int operation = MBInterface::UNION);
-
     /** \brief Return the rank of the entity owner
      */
   MBErrorCode get_owner(MBEntityHandle entity,
@@ -303,12 +289,15 @@ public:
      * If other_proc is -1, any interface entities are returned.  If dim is -1,
      * entities of all dimensions on interface are returned.
      * \param other_proc Rank of processor for which interface entities are requested
+     * \param shared_ents Entities returned from function
      * \param dim Dimension of interface entities requested
-     * \param iface_ents Entities returned from function
+     * \param iface If true, return only entities on the interface
      */
-  MBErrorCode get_iface_entities(int other_proc,
-                                 MBRange &iface_ents,
-                                 int dim = -1);
+  MBErrorCode get_shared_entities(int other_proc,
+                                  MBRange &shared_ents,
+                                  int dim = -1,
+                                  const bool iface = false,
+                                  const bool owned_filter = false);
 /*  
     //! return partition sets; if tag_name is input, gets sets with
     //! that tag name, otherwise uses PARALLEL_PARTITION tag
@@ -322,6 +311,10 @@ public:
     //! get processors with which this processor communicates
   MBErrorCode get_comm_procs(std::set<unsigned int> &procs);
   
+    // ==================================
+    // \section LOW-LEVEL DATA (tags, sets on interface/partition, etc.)
+    // ==================================
+
     //! Get proc config for this communication object
   const MBProcConfig &proc_config() const {return procConfig;}
   
@@ -365,31 +358,13 @@ public:
   MBTag partition_tag();
   MBTag part_tag() { return partition_tag(); }
 
+    // ==================================
+    // \section IMESHP-RELATED FUNCTIONS
+    // ==================================
+
     //! return all the entities in parts owned locally
   MBErrorCode get_part_entities(MBRange &ents, int dim = -1);
   
-    /** Filter the entities by ownership and sharing value(s); if testing
-     * for sharing value, optional sharing processor can be specified.  Results
-     * returned in input list, unless result_ents is passed in non-null.
-     *\param ents       Input entities to filter
-     *\param owned_test Whether to perform ownership test
-     *\param owned_val Ownership value required to remain in list
-     *\param shared_test Whether to perform shared test
-     *\param shared_val Shared value required to remain in list (also subject
-     *                  to to_proc
-     *\param to_proc If non-negative and shared test is requested, proc
-     *               with which this entity must be shared to remain in list
-     *\param result_ents If non-null, results of filter are put in the 
-     *       pointed-to range
-     */
-  MBErrorCode filter_owned_shared( MBRange &ents,
-                                   bool owned_test,
-                                   bool owned_val,
-                                   bool shared_test,
-                                   bool shared_val,
-                                   int to_proc = -1,
-                                   MBRange *returned_ents = NULL);
-
   MBEntityHandle get_partitioning() const { return partitioningSet; }
   MBErrorCode set_partitioning( MBEntityHandle h );
   MBErrorCode get_global_part_count( int& count_out ) const;
@@ -417,6 +392,45 @@ public:
     // from the onwing processor to any procs with copies.
   MBErrorCode update_shared_mesh();
 
+    /** Filter the entities by pstatus tag.  
+     * op is one of PSTATUS_ AND, OR, NOT; an entity is output if:
+     * AND: all bits set in pstatus_val are also set on entity
+     * OR: any bits set in pstatus_val also set on entity
+     * NOT: any bits set in pstatus_val are not set on entity
+     *
+     * Results returned in input list, unless result_ents is passed in non-null,
+     * in which case results are returned in result_ents.
+     *
+     * If ents is passed in empty, filter is done on shared entities in this
+     * pcomm instance, i.e. contents of sharedEnts.
+     *
+     *\param ents       Input entities to filter
+     *\param pstatus_val pstatus value to which entities are compared
+     *\param op Bitwise operation performed between pstatus values
+     *\param to_proc If non-negative and PSTATUS_SHARED is set on pstatus_val,
+     *               only entities shared with to_proc are returned
+     *\param result_ents If non-null, results of filter are put in the 
+     *       pointed-to range
+     */
+  MBErrorCode filter_pstatus( MBRange &ents,
+                              const unsigned char pstatus_val,
+                              const unsigned char op,
+                              int to_proc = -1,
+                              MBRange *returned_ents = NULL);
+
+    /** \brief Get entities on interfaces shared with another proc
+     *
+     * \param other_proc Other proc sharing the interface
+     * \param dim Dimension of entities to return, -1 if all dims
+     * \param iface_ents Returned entities
+     */
+  MBErrorCode get_iface_entities(int other_proc,
+                                 int dim,
+                                 MBRange &iface_ents);
+  
+  MBInterface* get_moab() const { return mbImpl; }
+
+    //! public 'cuz we want to unit test these externally
   MBErrorCode pack_buffer(MBRange &orig_ents, 
                           const bool adjacencies,
                           const bool tags,
@@ -435,7 +449,44 @@ public:
                             std::vector<unsigned int> &L2p,
                             MBRange &new_ents);
   
+    //! Call exchange_all_shared_handles, then compare the results with tag data
+    //! on local shared entities.
+  MBErrorCode check_all_shared_handles();
+  
 private:
+
+    /** \brief Set pstatus values on entities
+     *
+     * \param pstatus_ents Entities to be set
+     * \param pstatus_val Pstatus value to be set
+     * \param lower_dim_ents If true, lower-dimensional ents (incl. vertices) set too
+     *        (and created if they don't exist)
+     * \param verts_too If true, vertices also set
+     * \param operation If UNION, pstatus_val is OR-d with existing value, otherwise
+     *        existing value is over-written
+     */
+  MBErrorCode set_pstatus_entities(MBRange &pstatus_ents,
+                                   unsigned char pstatus_val,
+                                   bool lower_dim_ents = false,
+                                   bool verts_too = true,
+                                   int operation = MBInterface::UNION);
+
+    /** \brief Set pstatus values on entities (vector-based function)
+     *
+     * \param pstatus_ents Entities to be set
+     * \param pstatus_val Pstatus value to be set
+     * \param lower_dim_ents If true, lower-dimensional ents (incl. vertices) set too
+     *        (and created if they don't exist)
+     * \param verts_too If true, vertices also set
+     * \param operation If UNION, pstatus_val is OR-d with existing value, otherwise
+     *        existing value is over-written
+     */
+  MBErrorCode set_pstatus_entities(MBEntityHandle *pstatus_ents,
+                                   int num_ents,
+                                   unsigned char pstatus_val,
+                                   bool lower_dim_ents = false,
+                                   bool verts_too = true,
+                                   int operation = MBInterface::UNION);
 
   int num_subranges(const MBRange &this_range);
 
@@ -466,24 +517,6 @@ private:
                              MPI_Request &recv_req,
                              int mesg_tag);
   
-    //! process contents of receive buffer to get new entities; if store_remote_handles
-    //! is true, also Isend (using send_buff) handles for these entities back to 
-    //! source proc, returning request handle in &send_req; if iface_layer is true,
-    //! don't instantiate the entities, just check to see if they correspond to 
-    //! existing entities, and if not, set corresponding recd_ents handle to zero
-  MBErrorCode recv_unpack_entities(const int from_proc,
-                                   const bool store_remote_handles,
-                                   const bool iface_layer,
-                                   std::vector<unsigned char> &recv_buff,
-                                   MBRange &recd_ents);
-  
-    //! for all the entities in the received buffer; for each, save
-    //! entities in this instance which match connectivity, or zero if none found
-  MBErrorCode unpack_iface_entities(unsigned char *&buff_ptr, 
-                                    const int from_proc,
-                                    const int ind,
-                                    std::vector<MBEntityHandle> &recd_ents);
-  
   MBErrorCode pack_entities(MBRange &entities,
                             std::vector<unsigned char> &buff,
                             unsigned char *&buff_ptr,
@@ -513,10 +546,12 @@ private:
                               std::vector<unsigned int> &L2p,
                               MBRange &new_ents);
   
-    //! given connectivity and type, find an existing entity, if there is one
-  MBEntityHandle find_existing_entity(const MBEntityHandle *connect,
-                                      const int num_connect,
-                                      const MBEntityType this_type);
+    //! for all the entities in the received buffer; for each, save
+    //! entities in this instance which match connectivity, or zero if none found
+  MBErrorCode unpack_iface_entities(unsigned char *&buff_ptr, 
+                                    const int from_proc,
+                                    const int ind,
+                                    std::vector<MBEntityHandle> &recd_ents);
   
   MBErrorCode pack_sets(MBRange &entities,
                         std::vector<unsigned char> &buff,
@@ -571,6 +606,11 @@ private:
                                     const unsigned char *buff_ptr,
                                     const bool is_iface,
                                     const int ind);
+  
+    //! given connectivity and type, find an existing entity, if there is one
+  MBEntityHandle find_existing_entity(const MBEntityHandle *connect,
+                                      const int num_connect,
+                                      const MBEntityType this_type);
   
   /**\brief Get list of tags for which to exchange data
    *
@@ -635,7 +675,8 @@ private:
    *                            for each corresponding tag handle in 'all_tags.
    */
   MBErrorCode pack_tags(MBRange &entities,
-                        const std::vector<MBTag> &all_tags,
+                        const std::vector<MBTag> &src_tags,
+                        const std::vector<MBTag> &dst_tags,
                         const std::vector<MBRange> &tag_ranges,
                         std::vector<unsigned char> &buff,
                         unsigned char *&buff_ptr,
@@ -713,10 +754,6 @@ private:
     // after verifying shared entities, now parent/child links between sets can be established
   MBErrorCode create_iface_pc_links();
   
-    //! resolve remote handles for shared non-vertex ents, assuming
-    //! this has already been done for vertices
-  MBErrorCode resolve_ent_remote_handles();
-  
     //! pack a range map with keys in this_range and values a contiguous series
     //! of handles starting at actual_start
   MBErrorCode pack_range_map(MBRange &this_range, MBEntityHandle actual_start,
@@ -740,7 +777,6 @@ private:
                                    int num_layers,
                                    MBRange &ghosted_ents);
   
-public:  
     //! add vertices adjacent to entities in this list
   MBErrorCode add_verts(MBRange &sent_ents);
   
@@ -763,10 +799,6 @@ public:
   //! indexed by processor ID. This function is intended to be used for 
   //! debugging.
   MBErrorCode exchange_all_shared_handles( shared_entity_map& result );
-  
-    //! Call exchange_all_shared_handles, then compare the results with tag data
-    //! on local shared entities.
-  MBErrorCode check_all_shared_handles();
   
     //! replace handles in from_vec with corresponding handles on
     //! to_proc (by checking shared[p/h]_tag and shared[p/h]s_tag;
@@ -794,11 +826,8 @@ public:
                                  int to_proc,
                                  const MBRange &new_ents);
 
-  MBInterface* get_moab() const { return mbImpl; }
-
   std::vector<unsigned int> &buff_procs();
 
-private:  
     //! goes through from_vec, and for any with type MBMAXTYPE, replaces with
     //! new_ents value at index corresponding to id of entity in from_vec
   MBErrorCode get_local_handles(MBEntityHandle *from_vec, 
@@ -926,7 +955,8 @@ inline MBErrorCode MBParallelComm::get_shared_proc_tags(MBTag &sharedp,
   return MB_SUCCESS;
 }
 
-inline MBErrorCode MBParallelComm::exchange_tags(const char *tag_name)
+inline MBErrorCode MBParallelComm::exchange_tags(const char *tag_name,
+                                                 const MBRange &entities)
 {
     // get the tag handle
   std::vector<MBTag> tags(1);
@@ -934,16 +964,17 @@ inline MBErrorCode MBParallelComm::exchange_tags(const char *tag_name)
   if (MB_SUCCESS != result) return result;
   else if (!tags[0]) return MB_TAG_NOT_FOUND;
   
-  return exchange_tags(tags);
+  return exchange_tags(tags, tags, entities);
 }
   
-inline MBErrorCode MBParallelComm::exchange_tags(MBTag tagh)
+inline MBErrorCode MBParallelComm::exchange_tags(MBTag tagh,
+                                                 const MBRange &entities)
 {
     // get the tag handle
   std::vector<MBTag> tags;
   tags.push_back(tagh);
   
-  return exchange_tags(tags);
+  return exchange_tags(tags, tags, entities);
 }
   
 inline MBErrorCode MBParallelComm::get_comm_procs(std::set<unsigned int> &procs) 

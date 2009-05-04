@@ -258,13 +258,14 @@ void count_owned_entities( MBInterface& moab, int counts[MBENTITYSET] )
   std::fill( counts, counts+MBENTITYSET, 0u );
   
   for (MBEntityType t = MBVERTEX; t < MBENTITYSET; ++t) {
-    MBRange range, r2;
+    MBRange range;
     rval = moab.get_entities_by_type( 0, t, range );
     CHECK_ERR(rval);
-    rval = pcomm->filter_owned_shared(range, true, true, false, false, 
-                                      -1, &r2);
+    rval = pcomm->filter_pstatus(range, PSTATUS_SHARED, PSTATUS_AND);
     CHECK_ERR(rval);
-    counts[t] = r2.size();
+    rval = pcomm->filter_pstatus(range, PSTATUS_NOT_OWNED, PSTATUS_NOT);
+    CHECK_ERR(rval);
+    counts[t] = range.size();
   }
 }
 

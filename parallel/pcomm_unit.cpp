@@ -1,4 +1,5 @@
 #include "MBParallelComm.hpp"
+#include "MBParallelConventions.h"
 #include "MBCore.hpp"
 #include "TestUtil.hpp"
 #include <algorithm>
@@ -33,6 +34,8 @@ void test_pack_bit_tag_data();
 void test_pack_variable_length_tag();
 /** Test pack/unpack tag values*/
 void test_pack_tag_handle_data();
+/** Test filter_pstatus function*/
+void test_filter_pstatus();
 
 int main( int argc, char* argv[] )
 {
@@ -55,6 +58,7 @@ int main( int argc, char* argv[] )
   //num_err += RUN_TEST( test_pack_bit_tag_data );
   num_err += RUN_TEST( test_pack_variable_length_tag );
   num_err += RUN_TEST( test_pack_tag_handle_data );
+  num_err += RUN_TEST( test_filter_pstatus );
   
 #ifdef USE_MPI
   MPI_Finalize();
@@ -77,10 +81,12 @@ void pack_unpack_mesh( MBCore& moab, MBRange& entities )
   std::vector<int> addl_procs;
 
     // get the necessary vertices too
-  rval = pcomm->add_verts(entities);
+  MBRange tmp_range = entities.subset_by_type(MBENTITYSET);
+  entities = entities.subtract(tmp_range);
+  rval = moab.get_adjacencies(entities, 0, false, entities, MBInterface::UNION);
   CHECK_ERR(rval);
+  entities.merge(tmp_range);
   
-  MBRange tmp_range;
   rval = pcomm->pack_buffer( entities, false, true, false, 
                              -1, buff, size);
   CHECK_ERR(rval);
@@ -1451,7 +1457,6 @@ void test_pack_variable_length_tag()
   }
 }
 
-  
 void test_pack_tag_handle_data()
 {
   MBRange::iterator i;
@@ -1565,4 +1570,106 @@ void test_pack_tag_handle_data()
       CHECK_EQUAL( (MBEntityHandle)0, tagdata[j] );
     }
   }
+}
+  
+void test_filter_pstatus()
+{
+  MBRange::iterator i;
+  MBCore moab;
+  MBInterface& mb = moab;
+  MBErrorCode rval;
+  
+    // create some mesh
+  create_simple_grid( mb, 3 );  
+  std::vector<MBEntityHandle> verts;
+  MBRange dum_vertsr, vertsr;
+  rval = mb.get_entities_by_type( 0, MBVERTEX, dum_vertsr );
+  CHECK_ERR(rval);
+  vertsr.insert(dum_vertsr[0], dum_vertsr[8]);
+  for (unsigned int i = 0; i < 9; i++) verts.push_back(vertsr[i]);
+
+  CHECK( !verts.empty() );
+ 
+  MBParallelComm *pcomm = new MBParallelComm( &moab );
+
+  std::vector<int> procs(70, -1);
+  for (unsigned int i = 0; i < 6; i++) procs[i] = i;
+
+  std::vector<unsigned char> pvals(verts.size(), 0);
+    // interface, owned
+  pvals[0] = (PSTATUS_INTERFACE | PSTATUS_SHARED); // p0
+  rval = moab.tag_set_data(pcomm->sharedp_tag(), &verts[0], 1, &procs[0]); CHECK_ERR(rval);  
+    // interface, not owned
+  pvals[1] = (PSTATUS_NOT_OWNED | PSTATUS_INTERFACE | PSTATUS_SHARED); // p1
+  rval = moab.tag_set_data(pcomm->sharedp_tag(), &verts[1], 1, &procs[1]); CHECK_ERR(rval);  
+    // interface, multi-shared, owned
+  pvals[2] = (PSTATUS_INTERFACE | PSTATUS_SHARED | PSTATUS_MULTISHARED); // p0, p1
+  rval = moab.tag_set_data(pcomm->sharedps_tag(), &verts[2], 1, &procs[0]); CHECK_ERR(rval);  
+    // interface, multi-shared, not owned
+  pvals[3] = (PSTATUS_INTERFACE | PSTATUS_MULTISHARED | PSTATUS_NOT_OWNED | PSTATUS_SHARED); // p1, p2
+  rval = moab.tag_set_data(pcomm->sharedps_tag(), &verts[3], 1, &procs[1]); CHECK_ERR(rval);  
+    // ghost, shared
+  pvals[4] = (PSTATUS_GHOST | PSTATUS_SHARED | PSTATUS_NOT_OWNED); // p2
+  rval = moab.tag_set_data(pcomm->sharedp_tag(), &verts[4], 1, &procs[2]); CHECK_ERR(rval);  
+    // ghost, multi-shared
+  pvals[5] = (PSTATUS_GHOST | PSTATUS_MULTISHARED | PSTATUS_NOT_OWNED | PSTATUS_SHARED); // p2, p3
+  rval = moab.tag_set_data(pcomm->sharedps_tag(), &verts[5], 1, &procs[2]); CHECK_ERR(rval);  
+    // owned, shared
+  pvals[6] = (PSTATUS_SHARED); // p4
+  rval = moab.tag_set_data(pcomm->sharedp_tag(), &verts[6], 1, &procs[4]); CHECK_ERR(rval);  
+    // owned, multi-shared
+  pvals[7] = (PSTATUS_MULTISHARED | PSTATUS_SHARED); // p4, p5
+  rval = moab.tag_set_data(pcomm->sharedps_tag(), &verts[7], 1, &procs[4]); CHECK_ERR(rval);  
+    // not shared, owned
+  pvals[8] = 0x0;
+
+  rval = moab.tag_set_data(pcomm->pstatus_tag(), &verts[0], 9, &pvals[0]);
+  CHECK_ERR(rval);
+  
+
+  MBRange tmp_range = vertsr;
+
+    // interface ents
+  rval = pcomm->filter_pstatus(tmp_range, PSTATUS_INTERFACE, PSTATUS_AND);
+  CHECK_ERR(rval);
+  CHECK(tmp_range.size() == 4 && *tmp_range.begin() == verts[0] && 
+        *tmp_range.rbegin() == verts[3]);
+    // not interface
+  tmp_range = vertsr;
+  rval = pcomm->filter_pstatus(tmp_range, PSTATUS_INTERFACE, PSTATUS_NOT);
+  CHECK_ERR(rval);
+  CHECK(tmp_range.size() == 5 && *tmp_range.begin() == verts[4] && 
+        *tmp_range.rbegin() == verts[8]);
+    // interface not owned
+  tmp_range = vertsr;
+  rval = pcomm->filter_pstatus(tmp_range, PSTATUS_INTERFACE | PSTATUS_NOT_OWNED, PSTATUS_AND);
+  CHECK_ERR(rval);
+  CHECK(tmp_range.size() == 2 && *tmp_range.begin() == verts[1] && 
+        *tmp_range.rbegin() == verts[3]);
+    // ghost
+  tmp_range = vertsr;
+  rval = pcomm->filter_pstatus(tmp_range, PSTATUS_GHOST, PSTATUS_AND);
+  CHECK_ERR(rval);
+  CHECK(tmp_range.size() == 2 && *tmp_range.begin() == verts[4] && 
+        *tmp_range.rbegin() == verts[5]);
+    // shared not multi-shared
+  tmp_range = vertsr;
+  rval = pcomm->filter_pstatus(tmp_range, PSTATUS_SHARED, PSTATUS_AND);
+  CHECK_ERR(rval);
+  rval = pcomm->filter_pstatus(tmp_range, PSTATUS_MULTISHARED, PSTATUS_NOT);
+  CHECK_ERR(rval);
+  CHECK(tmp_range.size() == 4 && tmp_range[0] == verts[0] && 
+        tmp_range[1] == verts[1] && tmp_range[2] == verts[4] && tmp_range[3] == verts[6]);
+    // shared w/ p0
+  tmp_range = vertsr;
+  rval = pcomm->filter_pstatus(tmp_range, PSTATUS_SHARED, PSTATUS_AND, 0);
+  CHECK_ERR(rval);
+  CHECK(tmp_range.size() == 2 && tmp_range[1] == verts[2]);
+    // shared w/ p2 && not owned
+  tmp_range = vertsr;
+  rval = pcomm->filter_pstatus(tmp_range, PSTATUS_SHARED | PSTATUS_NOT_OWNED, PSTATUS_AND, 2);
+  CHECK_ERR(rval);
+  CHECK(tmp_range.size() == 3 && tmp_range[0] == verts[3] && 
+        tmp_range[1] == verts[4] && tmp_range[2] == verts[5]);
+  
 }

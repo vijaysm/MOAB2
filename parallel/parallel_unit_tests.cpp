@@ -750,7 +750,8 @@ MBErrorCode test_ghost_elements( const char* filename,
   PCHECK( !partition_geom[3].empty() );
 
     // exchange id tags to allow comparison by id
-  rval = pcomm->exchange_tags(id_tag);
+  MBRange tmp_ents;
+  rval = pcomm->exchange_tags(id_tag, tmp_ents);
   CHKERR(rval);
   
     // Get geometric surfaces
@@ -1031,7 +1032,8 @@ MBErrorCode test_ghost_tag_exchange( const char* filename )
   rval = moab.tag_set_data( dense_test_tag, local, &handles[0] ); CHKERR(rval);
   
     // exchange tag data
-  rval = pcomm->exchange_tags( dense_test_tag ); CHKERR(rval);
+  MBRange tmp_range;
+  rval = pcomm->exchange_tags( dense_test_tag, tmp_range ); CHKERR(rval);
   
     // make sure local values are unchanged
   handles2.resize( local.size() );
@@ -1056,7 +1058,8 @@ MBErrorCode test_ghost_tag_exchange( const char* filename )
   rval = moab.tag_set_data( sparse_test_tag, local, &procs1[0] ); CHKERR(rval);
   
     // exchange tag data
-  rval = pcomm->exchange_tags( sparse_test_tag ); 
+  tmp_range.clear();
+  rval = pcomm->exchange_tags( sparse_test_tag, tmp_range ); 
   PCHECK( MB_SUCCESS == rval );
   
     // make sure local values are unchanged
@@ -1100,7 +1103,8 @@ MBErrorCode regression_ghost_tag_exchange_no_default( const char* filename )
   
     // exchange tag data
   MBParallelComm* pcomm = MBParallelComm::get_pcomm(&moab, 0);
-  rval = pcomm->exchange_tags( dense_test_tag ); 
+  MBRange tmp_range;
+  rval = pcomm->exchange_tags( dense_test_tag, tmp_range ); 
   PCHECK(MB_SUCCESS == rval);
   
   return MB_SUCCESS;
@@ -1391,7 +1395,8 @@ MBErrorCode test_ghosted_entity_shared_data( const char* )
   rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
   PCHECK(MB_SUCCESS == rval);
 
-  rval = pcomm.exchange_tags(id_tag);
+  MBRange tmp_range;
+  rval = pcomm.exchange_tags(id_tag, tmp_range);
   PCHECK(MB_SUCCESS == rval);
 
     // get all vertices

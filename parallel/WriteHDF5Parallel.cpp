@@ -299,23 +299,19 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
     // that this processor will write to the 'nonowned' list.
     
   MBRange nonowned;
-  tmpset.clear();
-  result = myPcomm->filter_owned_shared( nodeSet.range, 
-                                         true, true, false, false, -1, &tmpset );
+  result = myPcomm->filter_pstatus( nodeSet.range, PSTATUS_NOT_OWNED, PSTATUS_AND, -1, &nonowned);
   if (MB_SUCCESS != result)
     return result;
-  nodeSet.range.swap( tmpset );
-  nonowned.merge( tmpset.subtract( nodeSet.range ) );
+  nodeSet.range = nodeSet.range.subtract(nonowned);
   
   for (std::list<ExportSet>::iterator eiter = exportList.begin();
        eiter != exportList.end(); ++eiter ) {
     tmpset.clear();
-    result = myPcomm->filter_owned_shared( eiter->range, 
-                                           true, true, false, false, -1, &tmpset);
+    result = myPcomm->filter_pstatus( eiter->range, PSTATUS_NOT_OWNED, PSTATUS_AND, -1, &tmpset);
     if (MB_SUCCESS != result)
       return result;
-    eiter->range.swap( tmpset );
-    nonowned.merge( tmpset.subtract( eiter->range ) );
+    eiter->range = eiter->range.subtract( tmpset );
+    nonowned.merge(tmpset);
   }
   
     // Now remove from interfaceMesh any entities that are not
@@ -1917,7 +1913,8 @@ printrange( interfaceMesh[myPcomm->proc_config().proc_rank()] );
   }
   
     // do communication
-  rval = myPcomm->exchange_tags( file_id_tag );
+  MBRange dum_range;
+  rval = myPcomm->exchange_tags( file_id_tag, dum_range );
   if (MB_SUCCESS != rval) {
     iFace->tag_delete( file_id_tag );
     return rval;
