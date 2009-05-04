@@ -2,8 +2,6 @@
 AUTOMAKE_OPTIONS = foreign
 LDADD = $(top_builddir)/libMOAB.la
 
-@CGM_CONFIG_OPTIONS@
-
 # Don't loose the autoconf include path
 ACLOCAL_AMFLAGS = -I m4
 
@@ -82,11 +80,9 @@ if PARALLEL
 endif
 
 if HAVE_CGM
-  INCLUDES += $(CGM_INCLUDES)
-  CPPFLAGS += $(CGM_CPPFLAGS) -DCGM $(MOAB_CGM_DEFINES)
+  CPPFLAGS += @CGM_CPPFLAGS@ -DCGM @MOAB_CGM_DEFINES@
   MOAB_EXTRA_SRCS +=  ReadCGM.cpp  ReadCGM.hpp
-  libMOAB_la_LIBADD += $(CGM_LTFLAGS) $(CGM_LIBS_LINK)
-  LDADD += $(CGM_LTFLAGS) 
+  libMOAB_la_LIBADD += @CGM_LIBS@
 endif
 
 

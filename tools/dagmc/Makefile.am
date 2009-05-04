@@ -1,7 +1,5 @@
 AUTOMAKE_OPTIONS = foreign
 
-@CGM_CONFIG_OPTIONS@
-
 DEFS = $(DEFINES)
 INCLUDES += -I$(top_srcdir) -I$(top_builddir) 
 
@@ -20,12 +18,16 @@ libdagmc_la_SOURCES += cgm2moab.cc
 noinst_PROGRAMS = cub2h5m
 bin_PROGRAMS = cgm2moab
 cgm2moab_SOURCES = main.cc cubfile.c
-cgm2moab_LDFLAGS = $(CGM_LTFLAGS)
-cgm2moab_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LIBS_LINK)
+cgm2moab_LDFLAGS = $(CGM_LTFLAGS) $(CGM_LDLFAGS)
+cgm2moab_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LIBS)
 cgm2moab_DEPENDENCIES = libdagmc.la $(top_builddir)/libMOAB.la
 dist_man1_MANS = cgm2moab.man
 endif
                    
+CGM_CPPFLAGS = @CGM_CPPFLAGS@
+CGM_LDFLAGS = @CGM_LDFLAGS@
+CGM_LTFLAGS = @CGM_LTFLAGS@
+CGM_LIBS = @CGM_LIBS@
 
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put 
@@ -38,13 +40,13 @@ TESTS = test_geom
 check_PROGRAMS = $(TESTS) pt_vol_test ray_fire_test
 test_geom_SOURCES = test_geom.cc
 cub2h5m_SOURCES = cub2h5m.cc
-test_geom_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LIBS_LINK)
-cub2h5m_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS) $(CGM_LIBS_LINK)
+test_geom_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LDFLAGS) $(CGM_LIBS)
+cub2h5m_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS) $(CGM_LDFLAGS) $(CGM_LIBS)
 
 pt_vol_test_SOURCES = pt_vol_test.cc
-pt_vol_test_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LIBS_LINK)
+pt_vol_test_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LDFLAGS) $(CGM_LIBS)
 
 ray_fire_test_SOURCES = ray_fire_test.cc
-ray_fire_test_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LIBS_LINK)
+ray_fire_test_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LDFLAGS) $(CGM_LIBS)
 
 

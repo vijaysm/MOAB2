@@ -23,7 +23,7 @@ default:
 include $1
 SNL_END_OF_MAKEFILE
 if make -f $snl_makefile > /dev/null 2>&1; then
-  make_val=`make -f $snl_makefile`
+  make_val=`make -s -f $snl_makefile`
   rm -f $snl_makefile
   $3
 else

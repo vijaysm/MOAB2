@@ -1,7 +1,5 @@
 AUTOMAKE_OPTIONS = foreign
 
-@CGM_CONFIG_OPTIONS@
-
 DEFS = $(DEFINES)
 INCLUDES += -I$(top_srcdir) -I$(top_builddir) -I$(top_srcdir)/parallel
 
@@ -9,9 +7,6 @@ lib_LTLIBRARIES = libmbcoupler.la
 libmbcoupler_la_LIBADD = $(top_builddir)/libMOAB.la
 
 LDADD = libmbcoupler.la 
-if HAVE_CGM
-  LDADD += $(CGM_LTFLAGS) 
-endif
 
 libmbcoupler_la_SOURCES = \
    MBElemUtil.cpp \
