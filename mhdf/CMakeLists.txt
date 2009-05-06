@@ -8,6 +8,7 @@ set ( mhdf_LIB_SRCS
   src/adjacency.c
   src/connectivity.c
   src/file-handle.c
+  src/file-desc.c
   src/file.c
   src/nodes.c
   src/sets.c
