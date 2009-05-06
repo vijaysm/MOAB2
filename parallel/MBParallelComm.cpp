@@ -679,7 +679,6 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
     RRA("Failed to get sharedp_tag.");
   
     unsigned int i, j;
-    unsigned char *buff_tmp;
     std::vector<std::set<unsigned int> >::iterator vit;
     int tmp_procs[MAX_SHARING_PROCS];
     MBEntityHandle zeroh = 0, tmp_handles[MAX_SHARING_PROCS];
@@ -701,7 +700,6 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
         num_ents += 3;
       else {
           // variable # already-sharing procs
-        buff_tmp = buff_ptr + sizeof(int);
         result = mbImpl->tag_get_data(sharedps_tag(), entities, tmp_procs);
         RRA("Failed to get sharedps tag.");
         result = mbImpl->tag_get_data(sharedhs_tag(), entities, tmp_handles);
@@ -719,13 +717,11 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
         //   a. # procs sharing e, incl. sender and receiver = P
       PACK_INT(buff_ptr, num_ents);
 
-      buff_tmp = buff_ptr + num_ents*sizeof(int);
-    
         // pack procs/handles on sender/receiver first
       PACK_INT(buff_ptr, procConfig.proc_rank());
-      PACK_EH(buff_tmp, &(*rit), 1);
+      PACK_EH(buff_ptr, &(*rit), 1);
       PACK_INT(buff_ptr, to_proc);
-      PACK_EH(buff_tmp, &zeroh, 1);
+      PACK_EH(buff_ptr, &zeroh, 1);
 
         // now other procs to which this ent is being sent, with zero handle for now,
         // only if not on iface
@@ -734,7 +730,7 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
              sit != (*entprocs)[i].end(); sit++) {
           if (to_proc == (int)*sit) continue;
           PACK_INT(buff_ptr, *sit);
-          PACK_EH(buff_tmp, &zeroh, 1);
+          PACK_EH(buff_ptr, &zeroh, 1);
         }
       }
     
@@ -1134,7 +1130,9 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
 
   if (store_remote_handles) {
     UNPACK_INT(buff_ptr, num_ents);
-  
+
+    buff_save = buff_ptr;
+    
       // save place where remote handle info starts, then scan forward to ents
     for (i = 0; i < num_ents; i++) {
       UNPACK_INT(buff_ptr, j);
@@ -1162,6 +1160,8 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
       UNPACK_INT(buff_ptr, verts_per_entity);
     }
       
+    std::vector<int> ps(MAX_SHARING_PROCS, -1);
+    std::vector<MBEntityHandle> hs(MAX_SHARING_PROCS, 0);
     for (int e = 0; e < num_ents2; e++) {
         // check for existing entity, otherwise make new one
       MBEntityHandle new_h = 0;
@@ -1169,24 +1169,26 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
       MBEntityHandle *connect;
       if (this_type != MBVERTEX) connect = (MBEntityHandle*) buff_ptr;
 
-      int num_ps;
-      int *ps;
-      MBEntityHandle *hs;
+      int num_ps = -1;
+      int minproc = -1;
       
       if (store_remote_handles) {
           // pointers to other procs/handles
-        num_ps = *((int*)buff_save);
-        ps = (int*)(buff_save + sizeof(int));
-        hs = (MBEntityHandle*)(buff_save + num_ps*sizeof(int));
-        buff_save += sizeof(int) + num_ps * (sizeof(int) + sizeof(MBEntityHandle));
-
+        UNPACK_INT(buff_save, num_ps);
+        for (i = 0; i < num_ps; i++) {
+          UNPACK_INT(buff_save, ps[i]);
+          UNPACK_EH(buff_save, &hs[i], 1);
+        }
+          
           // if multi-shared entity, need to see if we have received it from
           // another proc already; look up by owner proc and handle in L2 lists
         if (num_ps > 2) {
-          int idx = get_buffers(ps[0]);
+          minproc = std::min_element(&ps[0], &ps[num_ps]) - &ps[0];
+          assert(minproc < num_ps);
+          int idx = get_buffers(ps[minproc]);
           if (idx == (int)L1h.size()) L1h.resize(idx+1);
           for (k = 0; k < L2hrem.size(); k++) {
-            if (L2hrem[k] == hs[0] && ps[0] == (int) L2p[k])
+            if (L2hrem[k] == hs[minproc] && ps[minproc] == (int) L2p[k])
               new_h = L2hloc[k];
           }        
         }
@@ -1222,9 +1224,10 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
 
           // if a new multi-shared entity, save owner for subsequent lookup in L2 lists
         if (store_remote_handles && !is_iface && num_ps > 2) {
-          L2hrem.push_back(hs[0]);
+          assert(-1 != minproc);
+          L2hrem.push_back(hs[minproc]);
           L2hloc.push_back(new_h);
-          L2p.push_back(ps[0]);
+          L2p.push_back(ps[minproc]);
         }
 
         if (!is_iface) {
@@ -1236,7 +1239,7 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
       if (store_remote_handles) {
         
           // update sharing data and pstatus, adjusting order if iface
-        result = update_remote_data(new_h, ps, hs, num_ps, is_iface);
+        result = update_remote_data(new_h, &ps[0], &hs[0], num_ps, is_iface);
         RRA("");
       
           // need to send this new handle to all sharing procs
@@ -1250,13 +1253,19 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
         }
       }
 
+      if (store_remote_handles) {
+        assert(-1 != num_ps);
+        std::fill(&ps[0], &ps[num_ps], -1);
+        std::fill(&hs[0], &hs[num_ps], 0);
+      }
     }
+    
     
     if (MBVERTEX == this_type) buff_ptr += 2*num_ents2*sizeof(double);
 
 #ifdef DEBUG_PACKING
       std::cerr << "Unpacked " << num_ents << " ents of type " 
-                << MBCN::EntityTypeName(TYPE_FROM_HANDLE(actual_start)) << std::endl;
+                << MBCN::EntityTypeName(TYPE_FROM_HANDLE(this_type)) << std::endl;
 #endif      
 
   }
@@ -1274,37 +1283,46 @@ MBErrorCode MBParallelComm::update_remote_data(MBEntityHandle new_h,
                                                int num_ps,
                                                const bool is_iface) 
 {
-  std::vector<MBEntityHandle> tmp_hs(MAX_SHARING_PROCS, 0);
-  std::vector<int> tmp_ps(MAX_SHARING_PROCS, -1);
+  MBEntityHandle tmp_hs[MAX_SHARING_PROCS];
+  int tmp_ps[MAX_SHARING_PROCS];
   unsigned char pstat;
-    // get initial sharing data
-  MBErrorCode result = get_sharing_data(new_h, &tmp_ps[0], &tmp_hs[0], pstat);
+    // get initial sharing data; tmp_ps and tmp_hs get terminated with -1 and 0
+    // in this function, so no need to initialize
+  MBErrorCode result = get_sharing_data(new_h, tmp_ps, tmp_hs, pstat);
   RRA("");
   
     // add any new sharing data
-  int num_exist = std::find(tmp_ps.begin(), tmp_ps.end(), -1) - tmp_ps.begin();
+  int num_exist = std::find(tmp_ps, tmp_ps+MAX_SHARING_PROCS, -1) - tmp_ps;
   bool changed = false;
   int idx;
-  for (int i = 0; i < num_ps; i++) {
-    idx = std::find(&tmp_ps[0], &tmp_ps[num_exist], ps[i]) - &tmp_ps[0];
-    if (idx == num_exist) {
-      tmp_ps[num_exist] = ps[i];
-      tmp_hs[num_exist] = hs[i];
-      num_exist++;
-      changed = true;
-    }
-    else if (0 == tmp_hs[idx]) {
-      tmp_hs[idx] = hs[i];
-      changed = true;
-    }
-    else {
-      assert(hs[i] == tmp_hs[idx]);
+  if (!num_exist) {
+    memcpy(tmp_ps, ps, num_ps*sizeof(int));
+    memcpy(tmp_hs, hs, num_ps*sizeof(MBEntityHandle));
+    num_exist = num_ps;
+    changed = true;
+  }
+  else {
+    for (int i = 0; i < num_ps; i++) {
+      idx = std::find(tmp_ps, tmp_ps+num_exist, ps[i]) - tmp_ps;
+      if (idx == num_exist) {
+        tmp_ps[num_exist] = ps[i];
+        tmp_hs[num_exist] = hs[i];
+        num_exist++;
+        changed = true;
+      }
+      else if (0 == tmp_hs[idx]) {
+        tmp_hs[idx] = hs[i];
+        changed = true;
+      }
+      else {
+        assert(hs[i] == tmp_hs[idx]);
+      }
     }
   }
-
+  
     // adjust for interface layer if necessary
   if (is_iface) {
-    idx = std::min_element(tmp_ps.begin(), tmp_ps.end()) - tmp_ps.begin();
+    idx = std::min_element(tmp_ps, tmp_ps+num_exist) - tmp_ps;
     if (idx) {
       int tmp_proc = tmp_ps[idx];
       tmp_ps[idx] = tmp_ps[0];
@@ -1331,9 +1349,9 @@ MBErrorCode MBParallelComm::update_remote_data(MBEntityHandle new_h,
       RRA("Couldn't set sharedh tag.");
     }
     if (num_exist > 2) {
-      result = mbImpl->tag_set_data(sharedps_tag(), &new_h, 1, &tmp_ps[0]);
+      result = mbImpl->tag_set_data(sharedps_tag(), &new_h, 1, tmp_ps);
       RRA("Couldn't set sharedps tag.");
-      result = mbImpl->tag_set_data(sharedhs_tag(), &new_h, 1, &tmp_hs[0]);
+      result = mbImpl->tag_set_data(sharedhs_tag(), &new_h, 1, tmp_hs);
       RRA("Couldn't set sharedhs tag.");
       pstat |= PSTATUS_MULTISHARED;
     }
@@ -1381,6 +1399,10 @@ MBErrorCode MBParallelComm::get_sharing_data(MBEntityHandle entity,
       // initialize past end of data
     ps[1] = -1;
     hs[1] = 0;
+  }
+  else {
+    ps[0] = -1;
+    hs[0] = 0;
   }
 
   return MB_SUCCESS;
@@ -2500,6 +2522,13 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBEntityHandle this_set,
   result = create_interface_sets(proc_nranges, this_set, resolve_dim, shared_dim);
   RRA("Trouble creating iface sets.");
 
+    // establish comm procs and buffers for them
+  std::set<unsigned int> procs;
+  result = get_interface_procs(procs);
+  RRA("Trouble getting iface procs.");
+  for (std::set<unsigned int>::iterator sit = procs.begin(); sit != procs.end(); sit++)
+    get_buffers(*sit);
+
     // resolve shared entity remote handles; implemented in ghost cell exchange
     // code because it's so similar
   result = exchange_ghost_cells(-1, -1, 0, true, true);
@@ -3165,8 +3194,6 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
   int ind;
   for (ind = 0, proc_it = buffProcs.begin(); 
        proc_it != buffProcs.end(); proc_it++, ind++) {
-      // for interface, only get ents from higher-rank procs
-    if (is_iface && procConfig.proc_rank() < *proc_it) continue;
     success = MPI_Irecv(&ghostRBuffs[ind][0], ghostRBuffs[ind].size(), 
                         MPI_UNSIGNED_CHAR, buffProcs[ind],
                         MB_MESG_ANY, procConfig.proc_comm(), 
@@ -3288,6 +3315,10 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
                                store_remote_handles, ind, is_iface,
                                L1h, L2hloc, L2hrem, L2p, new_ents);
       RRA("Failed to unpack entities.");
+    }
+    else {
+      assert(false);
+      return MB_FAILURE;
     }
   }
 
