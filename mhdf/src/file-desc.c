@@ -295,7 +295,11 @@ get_tag_desc( mhdf_FileHandle file_handle,
       result->tags[index].size > 1) {
     close_type = 1;
     array_len = result->tags[index].size;
+#if defined(H5Tarray_create_vers) && H5Tarray_create_vers > 1  
+    type = H5Tarray_create2( type, 1, &array_len );
+#else
     type = H5Tarray_create( type, 1, &array_len, 0 );
+#endif
     if (type < 0) {
       mhdf_setFail( status, "H5Tarray_create failed for tag (\"%s\")", name );
       free( result );
