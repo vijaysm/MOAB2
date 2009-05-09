@@ -10,6 +10,7 @@
 #include <sstream>
 #include <stdlib.h>
 #include <limits>
+#include <cstdio>
 #include <set>
 #include <map>
 

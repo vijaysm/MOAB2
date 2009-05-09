@@ -6,6 +6,7 @@
 #include "MBRange.hpp"
 #include <iostream>
 #include <iomanip>
+#include <cstdio>
 #include <limits>
 #include <stdlib.h>
 #include <time.h>
