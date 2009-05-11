@@ -7,34 +7,34 @@
 
 typedef struct
 {
-  PyObject_HEAD
-  iBase_EntityHandle handle;
+    PyObject_HEAD
+    iBase_EntityHandle handle;
 } iBaseEntity_Object;
 
-#define iBaseEntity_New()			 \
-  (iBaseEntity_Object*)PyObject_CallObject(	 \
-    (PyObject*)&iBaseEntity_Type,NULL)
+#define iBaseEntity_New()                               \
+    (iBaseEntity_Object*)PyObject_CallObject(           \
+        (PyObject*)&iBaseEntity_Type,NULL)
 
-#define iBaseEntity_Check(o)			 \
-  PyObject_TypeCheck((o),&iBaseEntity_Type)
+#define iBaseEntity_Check(o)                            \
+    PyObject_TypeCheck((o),&iBaseEntity_Type)
 
-#define iBaseEntity_GetHandle(o)		 \
-  ((iBaseEntity_Object*)(o))->handle
+#define iBaseEntity_GetHandle(o)                        \
+    ((iBaseEntity_Object*)(o))->handle
 
 typedef struct
 {
-  PyObject_HEAD
-  iBase_EntitySetHandle handle;
+    PyObject_HEAD
+    iBase_EntitySetHandle handle;
 } iBaseEntitySet_Object;
 
-#define iBaseEntitySet_New()			\
-  (iBaseEntitySet_Object*)PyObject_CallObject(  \
-    (PyObject*)&iBaseEntitySet_Type,NULL)
+#define iBaseEntitySet_New()                            \
+    (iBaseEntitySet_Object*)PyObject_CallObject(        \
+        (PyObject*)&iBaseEntitySet_Type,NULL)
 
-#define iBaseEntitySet_Check(o)			\
+#define iBaseEntitySet_Check(o)                         \
   PyObject_TypeCheck((o),&iBaseEntitySet_Type)
 
-#define iBaseEntitySet_GetHandle(o)		\
+#define iBaseEntitySet_GetHandle(o)                     \
   ((iBaseEntitySet_Object*)(o))->handle
 
 typedef struct
@@ -43,15 +43,15 @@ typedef struct
   iBase_TagHandle handle;
 } iBaseTag_Object;
 
-#define iBaseTag_New()				\
-  (iBaseTag_Object*)PyObject_CallObject(	\
-    (PyObject*)&iBaseTag_Type,NULL)
+#define iBaseTag_New()                                  \
+    (iBaseTag_Object*)PyObject_CallObject(              \
+        (PyObject*)&iBaseTag_Type,NULL)
 
-#define iBaseTag_Check(o)			\
-  PyObject_TypeCheck((o),&iBaseTag_Type)
+#define iBaseTag_Check(o)                               \
+    PyObject_TypeCheck((o),&iBaseTag_Type)
 
-#define iBaseTag_GetHandle(o)			\
-  ((iBaseTag_Object*)(o))->handle
+#define iBaseTag_GetHandle(o)                           \
+    ((iBaseTag_Object*)(o))->handle
 
 
 
@@ -81,28 +81,28 @@ static void **IBase_API = NULL;
 #if !defined(NO_IMPORT_ARRAY) && !defined(NO_IMPORT)
 static int import_iBase(void)
 {
-  PyObject *module = PyImport_ImportModule("itaps.iBase");
-  PyObject *c_api = NULL;
+    PyObject *module = PyImport_ImportModule("itaps.iBase");
+    PyObject *c_api = NULL;
 
-  if(module == NULL)
-    return -1;
+    if(module == NULL)
+        return -1;
 
-  c_api = PyObject_GetAttrString(module,"_C_API");
-  if(c_api == NULL)
+    c_api = PyObject_GetAttrString(module,"_C_API");
+    if(c_api == NULL)
     {
-      Py_DECREF(module);
-      return -1;
+        Py_DECREF(module);
+        return -1;
     }
 
-  if(PyCObject_Check(c_api))
-    IBase_API = (void **)PyCObject_AsVoidPtr(c_api);
+    if(PyCObject_Check(c_api))
+        IBase_API = (void **)PyCObject_AsVoidPtr(c_api);
 
-  Py_DECREF(c_api);
-  Py_DECREF(module);
+    Py_DECREF(c_api);
+    Py_DECREF(module);
 
-  if(IBase_API == NULL)
-    return -1;
-  return 0;
+    if(IBase_API == NULL)
+        return -1;
+    return 0;
 }
 #endif
 

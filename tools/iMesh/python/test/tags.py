@@ -109,14 +109,13 @@ class TestTags(unittest.TestCase):
                           self.ents,self.etag)
 
     def testRawArrData(self):
-        data = array([1,2,3], int8)
+        data = array(3*[1,2,3], int8)
         self.mesh.setData(self.ents, self.btag, data)
 
-        cmp = array([1,2,3, 0,0,0, 0,0,0], int8) # Huh??
         self.assert_((self.mesh.getData(self.ents, self.btag, 'b') ==
-                      cmp).all())
-        self.assert_((self.mesh.getData(self.ents[0], self.btag, 'b') == data).
-                     all())
+                      data).all())
+        self.assert_((self.mesh.getData(self.ents[0], self.btag, 'b') == 
+                      data[0:3]).all())
 
         self.mesh.rmvTag(self.ents, self.btag)
         self.assertRaises(RuntimeError, self.mesh.getData,
