@@ -25,7 +25,9 @@ class AEntityFactory;
 class SequenceManager;
 class TagServer;
 class MBError;
+class HomCoord;
 class MBReaderWriterSet;
+class EntitySequence;
 class FileOptions;
 
 #ifdef XPCOM_MB
@@ -966,6 +968,26 @@ public:
   SequenceManager* sequence_manager() { return sequenceManager; }
   const SequenceManager* sequence_manager() const { return sequenceManager; }
 
+    /// create structured sequence
+  MBErrorCode create_scd_sequence(const HomCoord &    coord_min,
+                                  const HomCoord &  coord_max,
+                                  MBEntityType  type,
+                                  MBEntityID  start_id_hint,
+                                  MBEntityHandle &  first_handle_out,
+                                  EntitySequence *&  sequence_out );
+
+  MBErrorCode add_vsequence(EntitySequence *    vert_seq,
+                            EntitySequence *  elem_seq,
+                            const HomCoord &  p1,
+                            const HomCoord &  q1,
+                            const HomCoord &  p2,
+                            const HomCoord &  q2,
+                            const HomCoord &  p3,
+                            const HomCoord &  q3,
+                            bool  bb_input = false,
+                            const HomCoord *  bb_min = NULL,
+                            const HomCoord *  bb_max = NULL);
+   
     //! return the a_entity_factory pointer
   AEntityFactory *a_entity_factory() { return aEntityFactory; }
   const AEntityFactory *a_entity_factory() const { return aEntityFactory; }

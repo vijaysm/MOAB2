@@ -208,6 +208,15 @@ MBEntityHandle MBCore::get_root_set()
 
 void MBCore::deinitialize()
 {
+
+#ifdef USE_MPI    
+  std::vector<MBParallelComm*> pc_list;
+  MBErrorCode result = MBParallelComm::get_all_pcomm(this, pc_list);
+  for (std::vector<MBParallelComm*>::iterator vit = pc_list.begin();
+       vit != pc_list.end(); vit++) 
+    delete *vit;
+#endif
+  
   if (aEntityFactory)
     delete aEntityFactory;
 
@@ -3242,4 +3251,35 @@ void MBCore::print_database() const
       }
     }
   }
+}
+
+MBErrorCode MBCore::create_scd_sequence(const HomCoord & coord_min,
+					const HomCoord &  coord_max,
+					MBEntityType  type,
+					MBEntityID  start_id_hint,
+					MBEntityHandle &  first_handle_out,
+					EntitySequence *&  sequence_out )
+{
+  return sequence_manager()->create_scd_sequence(coord_min, coord_max, type,
+						 start_id_hint, 
+						 first_handle_out,
+						 sequence_out);
+}
+
+MBErrorCode MBCore::add_vsequence(EntitySequence *    vert_seq,
+				  EntitySequence *  elem_seq,
+				  const HomCoord &  p1,
+				  const HomCoord &  q1,
+				  const HomCoord &  p2,
+				  const HomCoord &  q2,
+				  const HomCoord &  p3,
+				  const HomCoord &  q3,
+				  bool  bb_input,
+				  const HomCoord *  bb_min,
+				  const HomCoord *  bb_max )
+{
+  return sequence_manager()->add_vsequence(vert_seq, elem_seq, 
+					   p1, q1, p2, q2, p3, q3,
+					   bb_input, bb_min, bb_max);
+
 }
