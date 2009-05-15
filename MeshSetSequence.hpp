@@ -83,12 +83,16 @@ public:
   MBErrorCode num_dimension( SequenceManager const* seqman, MBEntityHandle set, int dim,           int& count, bool recursive ) const;
   MBErrorCode num_type(      SequenceManager const* seqman, MBEntityHandle set, MBEntityType type, int& count, bool recursive ) const;
 
-  MBErrorCode get_parents ( SequenceManager const* seqman, MBEntityHandle of, std::vector<MBEntityHandle>& parents,  int num_hops ) const;
-  MBErrorCode get_children( SequenceManager const* seqman, MBEntityHandle of, std::vector<MBEntityHandle>& children, int num_hops ) const;
-  MBErrorCode num_parents ( SequenceManager const* seqman, MBEntityHandle of, int& number, int num_hops ) const;
-  MBErrorCode num_children( SequenceManager const* seqman, MBEntityHandle of, int& number, int num_hops ) const;
+  MBErrorCode get_parents       ( SequenceManager const* seqman, MBEntityHandle of, std::vector<MBEntityHandle>& parents,  int num_hops ) const;
+  MBErrorCode get_children      ( SequenceManager const* seqman, MBEntityHandle of, std::vector<MBEntityHandle>& children, int num_hops ) const;
+  MBErrorCode get_contained_sets( SequenceManager const* seqman, MBEntityHandle of, std::vector<MBEntityHandle>& contents, int num_hops ) const;
+  MBErrorCode num_parents       ( SequenceManager const* seqman, MBEntityHandle of, int& number, int num_hops ) const;
+  MBErrorCode num_children      ( SequenceManager const* seqman, MBEntityHandle of, int& number, int num_hops ) const;
+  MBErrorCode num_contained_sets( SequenceManager const* seqman, MBEntityHandle of, int& number, int num_hops ) const;
   
 private:
+
+  enum SearchType { PARENTS, CHILDREN, CONTAINED };
 
   MeshSetSequence( MeshSetSequence& split_from, MBEntityHandle split_at )
     : EntitySequence( split_from, split_at )
@@ -99,7 +103,7 @@ private:
   MBErrorCode get_parent_child_meshsets( MBEntityHandle meshset,
                                     SequenceManager const* set_sequences,
                                     std::vector<MBEntityHandle>& results,
-                                    int num_hops, bool parents ) const;
+                                    int num_hops, SearchType link_type ) const;
                                     
   static MBErrorCode recursive_get_sets( MBEntityHandle start_set,
                             SequenceManager const* set_sequences,

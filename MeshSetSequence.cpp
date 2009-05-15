@@ -391,12 +391,14 @@ MBErrorCode MeshSetSequence::recursive_get_sets( MBEntityHandle start_set,
 MBErrorCode MeshSetSequence::get_parent_child_meshsets( MBEntityHandle meshset,
                                     const SequenceManager* seq_sets,
                                     std::vector<MBEntityHandle>& results,
-                                    int num_hops, bool parents ) const
+                                    int num_hops, SearchType link_type ) const
 {
   MBErrorCode result = MB_SUCCESS;
   std::vector<MBEntityHandle>::iterator i;
-  const MBEntityHandle* array;
-  int k, count;
+  const MBEntityHandle *array, *end;
+  MBEntityHandle s, e;
+  int count;
+  size_t n;
   
     // Skip any meshsets already in input vector (yes, don't
     // get their children either even if num_hops would indicate
@@ -422,12 +424,50 @@ MBErrorCode MeshSetSequence::get_parent_child_meshsets( MBEntityHandle meshset,
         return rval;
       const MBMeshSet *ms_ptr = reinterpret_cast<const MeshSetSequence*>(seq)->get_set( *i );
       
-        // querying for parents or children?
-      array = parents ? ms_ptr->get_parents(count) : ms_ptr->get_children(count);
+      
+      switch (link_type) {
+      case CONTAINED:
+        array = ms_ptr->get_contents(n);
+        end = array + n;
+        if (ms_ptr->vector_based()) {
+          for (; array != end; ++array) 
+            if (MBENTITYSET == TYPE_FROM_HANDLE(*array) &&
+                visited.insert(*array).second) 
+              lists[1-index].push_back(*array);
+        }
+        else {
+          assert(n%2 == 0);
+          array = std::lower_bound( array, array+n, FIRST_HANDLE(MBENTITYSET) );
+            // only part of first block is of type
+          if ((end - array)%2) {
+            ++array;
+            s = FIRST_HANDLE(MBENTITYSET);
+            e = *array;
+            for (; s <= e; ++s) 
+              if (visited.insert(s).second)
+                lists[1-index].push_back(s);
+          }
+          while (array < end) {
+            s = *array++;
+            e = *array++;
+            for (; s <= e; ++s) 
+              if (visited.insert(s).second)
+                lists[1-index].push_back(s);
+          }
+        }
+        continue;
+      case PARENTS:
+        array = ms_ptr->get_parents(count);
+        break;
+      case CHILDREN:
+        array = ms_ptr->get_children(count);
+        break;
+      }
+      
         // copy any parents/children we haven't visited yet into list
-      for (k = 0; k < count; ++k) 
-        if (visited.insert(array[k]).second) 
-          lists[1-index].push_back(array[k]);
+      for (end = array+count; array != end; ++array) 
+        if (visited.insert(*array).second) 
+          lists[1-index].push_back(*array);
     }
     
       // iterate
@@ -463,9 +503,9 @@ MBErrorCode MeshSetSequence::get_parents( const SequenceManager* seqman,
   }
   
   if (num_hops > 0)
-    return get_parent_child_meshsets( handle, seqman, parents, num_hops, true );
+    return get_parent_child_meshsets( handle, seqman, parents, num_hops, PARENTS );
   else
-    return get_parent_child_meshsets( handle, seqman, parents, -1, true );
+    return get_parent_child_meshsets( handle, seqman, parents, -1, PARENTS );
 }
 
 MBErrorCode MeshSetSequence::get_children( const SequenceManager* seqman,
@@ -487,9 +527,24 @@ MBErrorCode MeshSetSequence::get_children( const SequenceManager* seqman,
   }
 
   if (num_hops > 0) 
-    return get_parent_child_meshsets( handle, seqman, children, num_hops, false );
+    return get_parent_child_meshsets( handle, seqman, children, num_hops, CHILDREN );
   else 
-    return get_parent_child_meshsets( handle, seqman, children, -1, false );
+    return get_parent_child_meshsets( handle, seqman, children, -1, CHILDREN );
+}
+
+MBErrorCode MeshSetSequence::get_contained_sets( const SequenceManager* seqman,
+                                           MBEntityHandle handle,
+                                           std::vector<MBEntityHandle>& contained,
+                                           int num_hops ) const
+{
+  if (num_hops == 1 && contained.empty()) {
+    return get_set(handle)->get_entities_by_type( MBENTITYSET, contained );
+  }
+
+  if (num_hops > 0) 
+    return get_parent_child_meshsets( handle, seqman, contained, num_hops, CONTAINED );
+  else 
+    return get_parent_child_meshsets( handle, seqman, contained, -1, CONTAINED );
 }
 
 MBErrorCode MeshSetSequence::num_parents( const SequenceManager* seqman,
@@ -522,5 +577,21 @@ MBErrorCode MeshSetSequence::num_children( const SequenceManager* seqman,
   std::vector<MBEntityHandle> children;
   MBErrorCode result = get_children( seqman, handle, children, num_hops );
   number = children.size();
+  return result;
+}
+
+MBErrorCode MeshSetSequence::num_contained_sets( const SequenceManager* seqman,
+                                           MBEntityHandle handle,
+                                           int& number,
+                                           int num_hops ) const
+{
+  if (num_hops == 1) {
+    number = get_set( handle )->num_entities_by_type(MBENTITYSET);
+    return MB_SUCCESS;
+  }
+  
+  std::vector<MBEntityHandle> contained;
+  MBErrorCode result = get_contained_sets( seqman, handle, contained, num_hops );
+  number = contained.size();
   return result;
 }

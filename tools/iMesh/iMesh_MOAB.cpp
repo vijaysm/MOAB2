@@ -1023,25 +1023,17 @@ extern "C" {
                            /*in*/ const int num_hops,
                            int *num_sets, int *err) 
   {
-    if (num_hops > 1) {
-      iMesh_processError(iBase_NOT_SUPPORTED, 
-                         "iMesh_getNumEntSets: not currently implemented for num_hops > 1.");
-      *num_sets = 0;
-      RETURN(iBase_NOT_SUPPORTED);
-    }
-    
-    MBErrorCode result = MBI->get_number_entities_by_type
-      (ENTITY_HANDLE(entity_set_handle), MBENTITYSET, 
-       *num_sets, (num_hops == -1 ? true : false));
-
-    if (result != MB_SUCCESS) {
+    MBErrorCode rval = MBI->num_contained_meshsets( ENTITY_HANDLE(entity_set_handle),
+                                                    num_sets,
+                                                    std::max(0,num_hops) );
+    if (rval != MB_SUCCESS) {
       std::string msg("iMesh_entitysetGetNumberEntitySets:ERROR getting number of entitysets "
                       "in EntitySet, with error type: ");
-      msg += MBI->get_error_string(result);
-      iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
+      msg += MBI->get_error_string(rval);
+      iMesh_processError(iBase_ERROR_MAP[rval], msg.c_str());
     }
 
-    RETURN(iBase_ERROR_MAP[result]);
+    RETURN(iBase_ERROR_MAP[rval]);
   } 
 
   void iMesh_getEntSets(iMesh_Instance instance,
@@ -1051,29 +1043,18 @@ extern "C" {
                         /*inout*/ int* contained_entset_handles_allocated,
                         /*inout*/ int* contained_entset_handles_size, int *err) 
   {
-    if (num_hops > 1) {
-      iMesh_processError(iBase_NOT_SUPPORTED, "iMesh_getEntSets: not currently implemented for num_hops > 1.");
-      RETURN(iBase_NOT_SUPPORTED);
+    std::vector<MBEntityHandle> sets;
+    MBErrorCode rval = MBI->get_contained_meshsets( ENTITY_HANDLE(entity_set_handle),
+                                                    sets, 
+                                                    std::max( num_hops, 0 ) );
+    if (MB_SUCCESS != rval) {
+      iMesh_processError(iBase_ERROR_MAP[rval], "iMesh_entitysetGetEntitySets: problem getting entities by type.");
+      RETURN(iBase_ERROR_MAP[rval]);
     }
-    
-    MBRange sets;
-    MBErrorCode result = MBI->get_entities_by_type
-      (ENTITY_HANDLE(entity_set_handle), MBENTITYSET, sets, (num_hops == -1 ? true : false));
-    if (MB_SUCCESS != result) {
-      iMesh_processError(iBase_ERROR_MAP[result], "iMesh_entitysetGetEntitySets: problem getting entities by type.");
-      RETURN(iBase_ERROR_MAP[result]);
-    }
-
     CHECK_SIZE(*contained_entset_handles, *contained_entset_handles_allocated,
                (int)sets.size(), iBase_EntitySetHandle, iBase_MEMORY_ALLOCATION_FAILED);
 
-    MBRange::iterator iter = sets.begin();
-    MBRange::iterator end_iter = sets.end();
-    int k = 0;
-
-    for (; iter != end_iter; iter++)
-      (*contained_entset_handles)[k++] = (iBase_EntitySetHandle)*iter;
-
+    std::copy( sets.begin(), sets.end(), (MBEntityHandle*)*contained_entset_handles );
     *contained_entset_handles_size = sets.size();
     RETURN(iBase_SUCCESS);
   }

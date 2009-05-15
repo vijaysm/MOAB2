@@ -2578,6 +2578,39 @@ MBErrorCode MBCore::get_child_meshsets(const MBEntityHandle meshset,
   return MB_SUCCESS;
 }
 
+MBErrorCode MBCore::get_contained_meshsets( const MBEntityHandle meshset,
+                                            std::vector<MBEntityHandle> &children,
+                                            const int num_hops) const
+{
+  if (0 == meshset) {
+    return get_entities_by_type( meshset, MBENTITYSET, children );
+  }
+
+  const EntitySequence *seq;
+  MBErrorCode rval = sequence_manager()->find( meshset, seq );
+  if (MB_SUCCESS != rval)
+    return MB_ENTITY_NOT_FOUND;
+  const MeshSetSequence* mseq = reinterpret_cast<const MeshSetSequence*>(seq);
+
+  return mseq->get_contained_sets( sequence_manager(), meshset, children, num_hops );
+}
+
+MBErrorCode MBCore::get_contained_meshsets( const MBEntityHandle meshset,
+                                            MBRange &children,
+                                            const int num_hops) const
+{
+  if (0 == meshset) {
+    return get_entities_by_type( meshset, MBENTITYSET, children );
+  }
+
+  std::vector<MBEntityHandle> child_vec;
+  MBErrorCode result = get_contained_meshsets(meshset, child_vec, num_hops);
+  if (MB_SUCCESS != result) return result;
+  std::sort( child_vec.begin(), child_vec.end() );
+  std::copy(child_vec.rbegin(), child_vec.rend(), mb_range_inserter(children));
+  return MB_SUCCESS;
+}
+
 MBErrorCode MBCore::num_parent_meshsets(const MBEntityHandle meshset, int* number,
                                         const int num_hops) const
 {
@@ -2610,6 +2643,22 @@ MBErrorCode MBCore::num_child_meshsets(const MBEntityHandle meshset, int* number
   const MeshSetSequence* mseq = reinterpret_cast<const MeshSetSequence*>(seq);
 
   return mseq->num_children( sequence_manager(), meshset, *number, num_hops );
+}
+
+MBErrorCode MBCore::num_contained_meshsets(const MBEntityHandle meshset, int* number,
+                                       const int num_hops) const
+{
+  if (0 == meshset) {
+    return get_number_entities_by_type( 0, MBENTITYSET, *number );
+  }
+  
+  const EntitySequence *seq;
+  MBErrorCode rval = sequence_manager()->find( meshset, seq );
+  if (MB_SUCCESS != rval)
+    return MB_ENTITY_NOT_FOUND;
+  const MeshSetSequence* mseq = reinterpret_cast<const MeshSetSequence*>(seq);
+
+  return mseq->num_contained_sets( sequence_manager(), meshset, *number, num_hops );
 }
 
 

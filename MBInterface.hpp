@@ -1458,6 +1458,36 @@ public:
                                          MBRange &children, 
                                          const int num_hops = 1) const = 0;
 
+    /**\brief Get mesh sets contained in a mesh set
+     *
+     * If <em>num_hops</em> is 1, only immediate contents are returned. 
+     * Otherwise a recursive query of all contained sets is performed, 
+     * returning every visted set.  The value of num_hops limites the
+     * depth of the search, with zero indicating no depth limit. 
+     *
+     *\param meshset The mesh set whose contents are being queried
+     *\param contained The result list.
+     *\param num_hops Number of generations to traverse (0 = all)
+     */
+  virtual MBErrorCode get_contained_meshsets(const MBEntityHandle meshset, 
+                                         std::vector<MBEntityHandle> &contained, 
+                                         const int num_hops = 1) const = 0;
+
+    /**\brief Get mesh sets contained in a mesh set
+     *
+     * If <em>num_hops</em> is 1, only immediate contents are returned. 
+     * Otherwise a recursive query of all contained sets is performed, 
+     * returning every visted set.  The value of num_hops limites the
+     * depth of the search, with zero indicating no depth limit. 
+     *
+     *\param meshset The mesh set whose contents are being queried
+     *\param contained The result list.
+     *\param num_hops Number of generations to traverse (0 = all)
+     */
+  virtual MBErrorCode get_contained_meshsets(const MBEntityHandle meshset, 
+                                             MBRange &contained, 
+                                             const int num_hops = 1) const = 0;
+
     //! Get the number of parent mesh sets of a mesh set
     /** Identical to get_parent_meshsets, only number is returned instead of actual parents.
         \param meshset The mesh set whose parents are being queried
@@ -1475,6 +1505,18 @@ public:
   virtual MBErrorCode num_child_meshsets(const MBEntityHandle meshset, 
                                          int *number,
                                          const int num_hops = 1) const = 0;
+
+    /**\brief Get the number of mesh sets contained in a mesh set
+     *
+     * Return the number of sets that would be returned by get_contained_meshsets
+     *
+     *\param meshset  The initial set to begin the query from.
+     *\param number   (Output) The result count.
+     *\param num_hops Search depth (0 => unbounded).
+     */
+  virtual MBErrorCode num_contained_meshsets(const MBEntityHandle meshset, 
+                                             int *number,
+                                             const int num_hops = 1) const = 0;
 
     //! Add a parent mesh set to a mesh set
     /** Make <em>parent_meshset</em> a new parent of <em>child_meshset</em>.  This function does 

@@ -900,6 +900,16 @@ public:
                                          MBRange &children, 
                                           const int num_hops = 1) const;
 
+  //! get contained meshsets
+  virtual MBErrorCode get_contained_meshsets(const MBEntityHandle meshset, 
+                                             std::vector<MBEntityHandle> &contained, 
+                                             const int num_hops = 1) const;
+
+  //! get contained meshsets
+  virtual MBErrorCode get_contained_meshsets(const MBEntityHandle meshset, 
+                                             MBRange &contained, 
+                                             const int num_hops = 1) const;
+
   //! gets number of parent meshsets
   virtual MBErrorCode num_parent_meshsets(const MBEntityHandle meshset,  
                                           int *number,
@@ -909,6 +919,11 @@ public:
   virtual MBErrorCode num_child_meshsets(const MBEntityHandle meshset, 
                                          int *number, 
                                          const int num_hops = 1) const;
+
+  //! gets number of contained meshsets
+  virtual MBErrorCode num_contained_meshsets(const MBEntityHandle meshset, 
+                                             int *number, 
+                                             const int num_hops = 1) const;
 
   //! add a parent meshset
   virtual MBErrorCode add_parent_meshset(MBEntityHandle meshset, 
