@@ -61,7 +61,7 @@ iMeshObj_load(iMeshObject *self,PyObject *args)
     iBaseEntitySet_Object *set;
     const char *name = 0;
     const char *options = "";
-    if(!PyArg_ParseTuple(args,"Os|s",&set,&name,&options))
+    if(!PyArg_ParseTuple(args,"O!s|s",&iBaseEntitySet_Type,&set,&name,&options))
         return NULL;
 
     int err;
@@ -79,7 +79,7 @@ iMeshObj_save(iMeshObject *self,PyObject *args)
     iBaseEntitySet_Object *set;
     const char *name = 0;
     const char *options = "";
-    if(!PyArg_ParseTuple(args,"Os|s",&set,&name,&options))
+    if(!PyArg_ParseTuple(args,"O!s|s",&iBaseEntitySet_Type,&set,&name,&options))
         return NULL;
 
     int err;
@@ -1573,6 +1573,11 @@ PyMODINIT_FUNC initiMesh(void)
 {
     PyObject *m;
     PyArray_Descr *descr;
+
+    /* TODO: remove */
+    _MyDeallocType.tp_new = PyType_GenericNew;
+    if (PyType_Ready(&_MyDeallocType) < 0)
+        return;
 
     m = Py_InitModule("iMesh",module_methods);
     import_array();
