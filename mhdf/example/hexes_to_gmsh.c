@@ -108,7 +108,7 @@ int main( int argc, char* argv[] )
   hid_t sparse_handle[2];         /* handle pair for sparse tag data */
   unsigned* sparse_entities;      /* temp storage of sparse tag file ids */
   unsigned* sparse_ids;           /* temp storage of GLOBAL_ID values in spasre tag */
-  long numtag;                    /* number of entities for which tag data is available */
+  long junk, numtag;              /* number of entities for which tag data is available */
   long fileid, globalid;          /* temporary values */
   long ncount = 0, hcount = 0;    /* temporary count of number of tag values */
   
@@ -200,7 +200,7 @@ int main( int argc, char* argv[] )
       /* Check for and read sparse-format tag data */
     if (havesparse) 
     {
-      mhdf_openSparseTagData( file, "GLOBAL_ID", &numtag, sparse_handle, sptr ); CHK_ERR(sptr);
+      mhdf_openSparseTagData( file, "GLOBAL_ID", &numtag, &junk, sparse_handle, sptr ); CHK_ERR(sptr);
       sparse_entities = (unsigned*)malloc(numtag * sizeof(unsigned));
       mhdf_readSparseTagEntities( sparse_handle[0], 0, numtag, H5T_NATIVE_UINT, 
                                   sparse_entities, sptr ); CHK_ERR(sptr);
