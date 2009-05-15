@@ -1121,6 +1121,11 @@ public:
 
 private:
 
+  /**\brief Do not allow copying */
+  MBCore( const MBCore& copy );
+  /**\brief Do not allow copying */
+  MBCore& operator=( const MBCore& copy );
+
   void estimated_memory_use_internal( const MBRange* ents,
                             unsigned long* total_storage,
                             unsigned long* total_amortized_storage,
