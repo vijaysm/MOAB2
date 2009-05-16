@@ -1285,7 +1285,7 @@ void test_box_iter_neighbors()
   //        not return leaves that are not face-adjacent (e.g. adjacent
   //        only along edges or at corners.)  The determining factor
   //        for whether or not such a neighbor is returned is which
-  //        sub-tree from the split that defined the source leaf side
+  //        sub-tree of the split that defined the source leaf side
   //        the neighbor is on.  The algorithm will not search the subtree
   //        of the split that created the side and that contains the 
   //        source leaf.
