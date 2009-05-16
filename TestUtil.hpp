@@ -20,6 +20,8 @@
 #define CHECK_EQUAL( EXP, ACT )           check_equal( (EXP), (ACT), #EXP, #ACT, __LINE__, __FILE__ )
 /** Check that two real (float or double) values are equal within EPS */
 #define CHECK_REAL_EQUAL( EXP, ACT, EPS ) check_equal( (EXP), (ACT), (EPS), #EXP, #ACT, __LINE__, __FILE__ )
+/** Check that two arrays contain the same values in the same order */
+#define CHECK_ARRAYS_EQUAL( EXP, EXP_LEN, ACT, ACT_LEN ) check_array_equal( (EXP), (EXP_LEN), (ACT), (ACT_LEN), #EXP, #ACT, __LINE__, __FILE__ )
 /** Run a test
  *  Argument should be a function with the signature:  void func(void)
  *  Evaluates to zero if test is successful, one otherwise.
@@ -65,6 +67,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
+#ifdef __cplusplus
+#include <iostream>
+#endif
 
 /***************************************************************************************
  *                     Define What to do when a test fails.
@@ -259,7 +264,7 @@ int run_test( test_func test, const char* func_name )
   
     /* If here, then parent process */
     
-    /* Wait until child process exists */
+    /* Wait until child process exits */
   waitpid( pid, &status, 0 );
   
     /* Check child exit status */
@@ -440,5 +445,95 @@ void check_true( bool cond, const char* str, int line, const char* file )
     flag_error(); 
   }
 }
+
+#ifdef __cplusplus
+
+template <typename T>
+void check_array_equal( const T* A, size_t A_size,
+                        const T* B, size_t B_size, 
+                        const char* sA, const char* sB, 
+                        int line, const char* file )
+{
+  size_t i = 0;
+  for (;;) {
+    if (i == A_size && i == B_size)
+      return; // equal
+    else if (i == A_size || i == B_size)
+      break; // differene lengths
+    else if (A[i] != B[i])
+      break;
+    ++i;
+  }
+  
+  std::cout << "Equality Test Failed: " << sA << " == " << sB << std::endl;
+  std::cout << "  at line " << line << " of '" << file << "'" << std::endl;
+  std::cout << "  Vectors differ at position " << i << std::endl;
+  
+    // print at most 10 values, roughly centered on the unequal one
+  size_t count = 10, num_front_values = std::min(count/2,i);
+  size_t max_len = std::max(A_size,B_size);
+  if (i + count - num_front_values > max_len) {
+    if (count > max_len) {
+      num_front_values = i;
+      count = max_len;
+    }
+    else {
+      num_front_values = count - (max_len - i);
+    }
+  }
+  
+  std::cout << "  Expected: ";
+  if (!A_size) {
+    std::cout << "(empty)" << std::endl;
+  }
+  else {
+    size_t j = i - num_front_values;
+    size_t end = std::min(j + count, A_size);
+    if (j) 
+      std::cout << "... ";
+    for (; j < end; ++j) {
+      if (j == i)
+        std::cout << '>' << A[j] << "< ";
+      else
+        std::cout << A[j] << " ";
+    }
+    if (end != A_size)
+      std::cout << "...";
+    std::cout << std::endl;
+  }
+  
+  std::cout << "  Actual:   ";
+  if (!B_size) {
+    std::cout << "(empty)" << std::endl;
+  }
+  else {
+    size_t j = i - num_front_values;
+    size_t end = std::min(j + count, B_size);
+    if (j) 
+      std::cout << "... ";
+    for (; j < end; ++j) {
+      if (j == i)
+        std::cout << '>' << B[j] << "< ";
+      else
+        std::cout << B[j] << " ";
+    }
+    if (end != B_size)
+      std::cout << ", ...";
+    std::cout << std::endl;
+  }
+  
+  flag_error(); 
+}
+  
+ 
+template <typename T>
+void check_equal( const std::vector<T>& A, const std::vector<T>& B, 
+                  const char* sA, const char* sB, 
+                  int line, const char* file )
+{
+  check_array_equal( &A[0], A.size(), &B[0], B.size(), sA, sB, line, file );
+}
+
+#endif
 
 #endif
