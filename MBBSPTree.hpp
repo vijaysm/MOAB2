@@ -304,6 +304,10 @@ class MBBSPTreeBoxIter : public MBBSPTreeIter
   static SideBits opposite_face( const SideBits& bits ) 
     { return (SideBits)((~bits) & 0xFF); }
   
+  static MBErrorCode face_corners( const SideBits face, 
+                                   const double hex_corners[8][3],
+                                   double face_corners_out[4][3] );
+  
   //! Advance the iterator either left or right in the tree
   //! Note:  stepping past the end of the tree will invalidate
   //!        the iterator.  It will *not* work to subsequently 
@@ -335,6 +339,22 @@ class MBBSPTreeBoxIter : public MBBSPTreeIter
     //!        MB_SUCCESS otherwise.
   MBErrorCode sibling_side( SideBits& side_out ) const;
   
+    //! Get adjacent leaf nodes on indicated side
+    //!
+    //!\param side   Face of box for which to retrieve neighbors
+    //!\param results List to which to append results.  This function does
+    //!             *not* clear existing values in list.
+    //!\param epsilon Tolerance on overlap.  A positive value E will
+    //!              result in nodes that are separated by as much as E
+    //!              to be considered touching.  A negative value -E will
+    //!              cause leaves that do not overlap by at least E to be
+    //!              considered non-overlapping.  Amongst other things, 
+    //!              this value can be used to control whether or not
+    //!              leaves adjacent at only their edges or corners are
+    //!              returned.
+  MBErrorCode get_neighbors( SideBits side,
+                             std::vector<MBBSPTreeBoxIter>& results,
+                             double epsilon = 0.0 ) const;
 };
 
 #endif

@@ -541,6 +541,62 @@ MBBSPTreeBoxIter::side_on_plane( const double hex_coords[8][3],
   return (MBBSPTreeBoxIter::SideBits)result;
 }
 
+static inline void copy_coords( const double src[3], double dest[3] )
+{
+  dest[0] = src[0];
+  dest[1] = src[1];
+  dest[2] = src[2];
+}
+
+MBErrorCode MBBSPTreeBoxIter::face_corners( const SideBits face,
+                                            const double hex_corners[8][3],
+                                            double face_corners[4][3] )
+{
+  switch (face) {
+    case MBBSPTreeBoxIter::B0154:
+      copy_coords( hex_corners[0], face_corners[0] );
+      copy_coords( hex_corners[1], face_corners[1] );
+      copy_coords( hex_corners[5], face_corners[2] );
+      copy_coords( hex_corners[4], face_corners[3] );
+      break;
+    case MBBSPTreeBoxIter::B1265:
+      copy_coords( hex_corners[1], face_corners[0] );
+      copy_coords( hex_corners[2], face_corners[1] );
+      copy_coords( hex_corners[6], face_corners[2] );
+      copy_coords( hex_corners[5], face_corners[3] );
+      break;
+    case MBBSPTreeBoxIter::B2376:
+      copy_coords( hex_corners[2], face_corners[0] );
+      copy_coords( hex_corners[3], face_corners[1] );
+      copy_coords( hex_corners[7], face_corners[2] );
+      copy_coords( hex_corners[6], face_corners[3] );
+      break;
+    case MBBSPTreeBoxIter::B3047:
+      copy_coords( hex_corners[3], face_corners[0] );
+      copy_coords( hex_corners[0], face_corners[1] );
+      copy_coords( hex_corners[4], face_corners[2] );
+      copy_coords( hex_corners[7], face_corners[3] );
+      break;
+    case MBBSPTreeBoxIter::B3210:
+      copy_coords( hex_corners[3], face_corners[0] );
+      copy_coords( hex_corners[2], face_corners[1] );
+      copy_coords( hex_corners[1], face_corners[2] );
+      copy_coords( hex_corners[0], face_corners[3] );
+      break;
+    case MBBSPTreeBoxIter::B4567:
+      copy_coords( hex_corners[4], face_corners[0] );
+      copy_coords( hex_corners[5], face_corners[1] );
+      copy_coords( hex_corners[6], face_corners[2] );
+      copy_coords( hex_corners[7], face_corners[3] );
+      break;
+    default:
+      return MB_FAILURE; // child is not a box
+  }
+  
+  return MB_SUCCESS;
+
+}
+
 /** \brief Clip an edge using a plane
  *
  * Given an edge from keep_end_coords to cut_end_coords,
@@ -843,6 +899,113 @@ MBErrorCode MBBSPTreeBoxIter::sibling_side( SideBits& side_out ) const
     return MB_FAILURE;
   
   side_out = side_on_plane( leafCoords, plane );
+  return MB_SUCCESS;
+}
+
+MBErrorCode MBBSPTreeBoxIter::get_neighbors( 
+                      SideBits side,
+                      std::vector<MBBSPTreeBoxIter>& results,
+                      double epsilon ) const
+{
+  MBEntityHandle handle;
+  MBBSPTree::Plane plane;
+  MBErrorCode rval;
+  int n;
+   
+  Corners face;
+  rval = face_corners( side, leafCoords, face.coords );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+    // Move up tree until we find the split that created the specified side.
+    // Push the sibling at that level onto the iterator stack as
+    // all neighbors will be rooted at that node.
+  MBBSPTreeBoxIter iter( *this ); // temporary iterator (don't modifiy *this)
+  for (;;) {
+    handle = iter.handle();
+  
+    rval = iter.up();
+    if (MB_SUCCESS != rval) // reached root - no neighbors on that side
+      return (rval == MB_ENTITY_NOT_FOUND) ? MB_SUCCESS : rval;
+    
+    iter.childVect.clear();
+    rval = tool()->moab()->get_child_meshsets( iter.handle(), iter.childVect );
+    if (MB_SUCCESS!= rval)
+      return rval;
+    
+    rval = tool()->get_split_plane( iter.handle(), plane );
+    if (MB_SUCCESS != rval)
+      return rval;
+    SideBits s = side_above_plane( iter.leafCoords, plane );
+
+    if (handle == iter.childVect[0] && s == side) {
+      rval = iter.down( plane, RIGHT );
+      if (MB_SUCCESS != rval)
+        return rval;
+      break;
+    }
+    else if (handle == iter.childVect[1] && opposite_face(s) == side) {
+      rval = iter.down( plane, LEFT );
+      if (MB_SUCCESS != rval)
+        return rval;
+      break;
+    }
+  }
+
+    // now move down tree, searching for adjacent boxes
+  std::vector<MBBSPTreeBoxIter> list;
+    // loop over all potential paths to neighbors (until list is empty)
+  for (;;) {
+      // follow a single path to a leaf, append any other potential
+      // paths to neighbors to 'list'
+    for (;;) { 
+      rval = tool()->moab()->num_child_meshsets( iter.handle(), &n );
+      if (MB_SUCCESS != rval)
+        return rval;
+        
+        // if leaf
+      if (!n) {
+        results.push_back( iter );
+        break; 
+      }
+      
+      rval = tool()->get_split_plane( iter.handle(), plane );
+      if (MB_SUCCESS != rval)
+        return rval;
+     
+      bool some_above = false, some_below = false;
+      for (int i = 0; i < 4; ++i) {
+        double signed_d = plane.signed_distance( face.coords[i] );
+        if (signed_d > -epsilon)
+          some_above = true;
+        if (signed_d < epsilon)
+          some_below = true;
+      }
+     
+      if (some_above && some_below) {
+        list.push_back( iter );
+        list.back().down( plane, RIGHT );
+        iter.down( plane, LEFT );
+      }
+      else if (some_above) {
+        iter.down( plane, RIGHT );
+      }
+      else if (some_below) {
+        iter.down( plane, LEFT );
+      }
+      else {
+        // tolerance issue -- epsilon to small? 2D box?
+        return MB_FAILURE;
+      }
+    }
+    
+    if (list.empty())
+      break;
+    
+    iter = list.back();
+    list.pop_back();
+  }
+  
   return MB_SUCCESS;
 }
 

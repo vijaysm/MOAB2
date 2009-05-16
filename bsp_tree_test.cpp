@@ -1,6 +1,7 @@
 #include "MBCore.hpp"
 #include "TestUtil.hpp"
 #include "MBBSPTree.hpp"
+#include <algorithm>
 
 void test_set_plane();
 void test_iterator();
@@ -10,6 +11,7 @@ void test_box_tree_create();
 void test_leaf_containing_point_bounded_tree();
 void test_leaf_containing_point_unbounded_tree();
 void test_merge_leaf();
+void test_box_iter_neighbors();
 
 int main()
 {
@@ -23,6 +25,7 @@ int main()
   failures += RUN_TEST( test_leaf_containing_point_bounded_tree );
   failures += RUN_TEST( test_leaf_containing_point_unbounded_tree );
   failures += RUN_TEST( test_merge_leaf );
+  failures += RUN_TEST( test_box_iter_neighbors );
 
   return failures;
 }
@@ -1111,5 +1114,349 @@ void test_merge_leaf()
   
   rval = iter.step();
   CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+}
+
+static std::vector<int>
+neighbors( const MBBSPTreeBoxIter& iter, 
+           const MBEntityHandle leaves[8], 
+           MBBSPTreeBoxIter::SideBits side, 
+           double epsilon ) 
+{
+  std::vector<MBBSPTreeBoxIter> list;
+  MBErrorCode rval = iter.get_neighbors( side, list, epsilon );
+  CHECK_ERR(rval);
+  
+  std::vector<int> results;
+  for (size_t i = 0; i < list.size(); ++i) 
+    results.push_back( std::find( leaves, leaves+8, list[i].handle() ) - leaves );
+  std::sort( results.begin(), results.end() );
+  return results;
+}
+
+void test_box_iter_neighbors()
+{
+  MBCore moab;
+  MBBSPTree tool( &moab );
+  MBErrorCode rval;
+  MBEntityHandle root;
+  MBBSPTreeBoxIter iter;
+  MBBSPTree::Plane p;
+
+
+/*  Build Tree */
+
+  
+  const double corners[8][3] = { { 0, 0, 0 },
+                                 { 8, 0, 0 },
+                                 { 8, 2, 0 },
+                                 { 0, 2, 0 },
+                                 { 0, 0, 1 },
+                                 { 8, 0, 1 },
+                                 { 8, 2, 1 },
+                                 { 0, 2, 1 } };
+  rval = tool.create_tree( corners, root );
+  CHECK_ERR(rval);
+  rval = tool.get_tree_iterator( root, iter );
+  CHECK_ERR(rval);
+  MBEntityHandle leaves[8];
+  
+  /* +----------------------------------------+
+     |                                        |
+     |                   0*                   |
+     |                                        |
+     +----------------------------------------+ */
+  
+  p = MBBSPTree::Plane( 1, 0, 0, -4 );
+  rval = tool.split_leaf( iter, p );
+  CHECK_ERR(rval);
+  
+  /* +-------------------+--------------------+
+     |                   |                    |
+     |         0*        |         1          |
+     |                   |                    |
+     +----------------------------------------+ */
+  
+  p = MBBSPTree::Plane( -1, 0, 0, 2 );
+  rval = tool.split_leaf( iter, p );
+  CHECK_ERR(rval);
+   
+  /* +---------+---------+--------------------+
+     |         |         |                    |
+     |    1    |    0*   |         2          |
+     |         |         |                    |
+     +----------------------------------------+ */
+ 
+  p = MBBSPTree::Plane( 0, 1, 0, -1 );
+  rval = tool.split_leaf( iter, p );
+  CHECK_ERR(rval);
+   
+  /* +---------+---------+--------------------+
+     |         |    1    |                    |
+     |    2    +---------+         3          |
+     |         |    0*   |                    |
+     +----------------------------------------+ */
+
+  leaves[0] = iter.handle();
+  rval = iter.step(); CHECK_ERR(rval);
+  leaves[1] = iter.handle();
+  rval = iter.step(); CHECK_ERR(rval);
+   
+  /* +---------+---------+--------------------+
+     |         |    1    |                    |
+     |    2*   +---------+         3          |
+     |         |    0    |                    |
+     +----------------------------------------+ */
+ 
+  p = MBBSPTree::Plane( 0, -1, 0, 1 );
+  rval = tool.split_leaf( iter, p );
+  CHECK_ERR(rval);
+   
+  /* +---------+---------+--------------------+
+     |    2*   |    1    |                    |
+     +---------+---------+         4          |
+     |    3    |    0    |                    |
+     +----------------------------------------+ */
+
+  leaves[2] = iter.handle();
+  rval = iter.step(); CHECK_ERR(rval);
+  leaves[3] = iter.handle();
+  rval = iter.step(); CHECK_ERR(rval);
+   
+  /* +---------+---------+--------------------+
+     |    2    |    1    |                    |
+     +---------+---------+         4*         |
+     |    3    |    0    |                    |
+     +----------------------------------------+ */
+
+  p = MBBSPTree::Plane( 0, 1, 0, -1 );
+  rval = tool.split_leaf( iter, p );
+  CHECK_ERR(rval);
+   
+  /* +---------+---------+--------------------+
+     |    2    |    1    |         5          |
+     +---------+---------+--------------------+
+     |    3    |    0    |         4*         |
+     +----------------------------------------+ */
+
+  p = MBBSPTree::Plane( 1, 0, 0, -6 );
+  rval = tool.split_leaf( iter, p );
+  CHECK_ERR(rval);
+   
+  /* +---------+---------+--------------------+
+     |    2    |    1    |          6         |
+     +---------+---------+----------+---------+
+     |    3    |    0    |    4*    |    5    |
+     +------------------------------+---------+ */
+
+  leaves[4] = iter.handle();
+  rval = iter.step(); CHECK_ERR(rval);
+  leaves[5] = iter.handle();
+  rval = iter.step(); CHECK_ERR(rval);
+
+  /* +---------+---------+--------------------+
+     |    2    |    1    |          6*        |
+     +---------+---------+----------+---------+
+     |    3    |    0    |     4    |    5    |
+     +------------------------------+---------+ */
+
+  p = MBBSPTree::Plane( -1, 0, 0, 6 );
+  rval = tool.split_leaf( iter, p );
+  CHECK_ERR(rval);
+   
+  /* +---------+---------+--------------------+
+     |    2    |    1    |     7    |    6    |
+     +---------+---------+----------+---------+
+     |    3    |    0    |     4    |    5    |
+     +------------------------------+---------+ */
+
+  leaves[6] = iter.handle();
+  rval = iter.step(); CHECK_ERR(rval);
+  leaves[7] = iter.handle();
+
+
+    /* check all neighbors of each leaf */
+
+  rval = tool.get_tree_iterator( root, iter );
+  CHECK_ERR(rval);
+  
+  // NOTE:  Several values in the expected result list are 
+  //        commented out in the tests below.  When the tolerance
+  //        is greater than zero, the search algorithm may or may
+  //        not return leaves that are not face-adjacent (e.g. adjacent
+  //        only along edges or at corners.)  The determining factor
+  //        for whether or not such a neighbor is returned is which
+  //        sub-tree from the split that defined the source leaf side
+  //        the neighbor is on.  The algorithm will not search the subtree
+  //        of the split that created the side and that contains the 
+  //        source leaf.
+  
+  
+    // check neighbors of leaf 0
+  std::vector<int> expected;
+  CHECK_EQUAL( leaves[0], iter.handle() );
+  expected.clear(); 
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3210, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B4567, 1e-6 ) );
+  expected.push_back( 3 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047, -1e-6 ) );
+  expected.insert( expected.begin(), 2 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047,  1e-6 ) );
+  expected.clear(); expected.push_back( 1 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376, -1e-6 ) );
+  // See NOTE //  expected.push_back( 2 ); expected.push_back( 7 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376,  1e-6 ) );
+  expected.clear(); expected.push_back( 4 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265, -1e-6 ) );
+  expected.push_back( 7 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265,  1e-6 ) );
+  
+    // check neighbors of leaf 1
+  CHECK_ERR( iter.step() );
+  CHECK_EQUAL( leaves[1], iter.handle() );
+  expected.clear(); 
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3210, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B4567, 1e-6 ) );
+  expected.push_back( 2 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047, -1e-6 ) );
+  expected.push_back( 3 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047,  1e-6 ) );
+  expected.clear(); expected.push_back( 0 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154, -1e-6 ) );
+  // See NOTE //  expected.push_back( 3 ); expected.push_back( 4 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154,  1e-6 ) );
+  expected.clear(); expected.push_back( 7 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265, -1e-6 ) );
+  expected.insert( expected.begin(), 4 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265,  1e-6 ) );
+    
+  /* +---------+---------+--------------------+
+     |    2    |    1    |     7    |    6    |
+     +---------+---------+----------+---------+
+     |    3    |    0    |     4    |    5    |
+     +------------------------------+---------+ */
+
+    // check neighbors of leaf 2
+  CHECK_ERR( iter.step() );
+  CHECK_EQUAL( leaves[2], iter.handle() );
+  expected.clear(); 
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3210, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B4567, 1e-6 ) );
+  expected.push_back( 3 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154, -1e-6 ) );
+  // See NOTE // expected.insert( expected.begin(), 0 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154,  1e-6 ) );
+  expected.clear(); expected.push_back( 1 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265, -1e-6 ) );
+  expected.insert( expected.begin(), 0 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265,  1e-6 ) );
+
+    // check neighbors of leaf 3
+  CHECK_ERR( iter.step() );
+  CHECK_EQUAL( leaves[3], iter.handle() );
+  expected.clear(); 
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3210, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B4567, 1e-6 ) );
+  expected.push_back( 2 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376, -1e-6 ) );
+  // See NOTE // expected.insert( expected.begin(), 1 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376,  1e-6 ) );
+  expected.clear(); expected.push_back( 0 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265, -1e-6 ) );
+  expected.push_back( 1 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265,  1e-6 ) );
+    
+  /* +---------+---------+--------------------+
+     |    2    |    1    |     7    |    6    |
+     +---------+---------+----------+---------+
+     |    3    |    0    |     4    |    5    |
+     +------------------------------+---------+ */
+
+    // check neighbors of leaf 4
+  CHECK_ERR( iter.step() );
+  CHECK_EQUAL( leaves[4], iter.handle() );
+  expected.clear(); 
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3210, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B4567, 1e-6 ) );
+  expected.push_back( 0 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047, -1e-6 ) );
+  expected.push_back( 1 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047,  1e-6 ) );
+  expected.clear(); expected.push_back( 7 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376, -1e-6 ) );
+  expected.insert( expected.begin(), 6 ); 
+  // See NOTE // expected.insert( expected.begin(), 1 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376,  1e-6 ) );
+  expected.clear(); expected.push_back( 5 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265, -1e-6 ) );
+  // See NOTE // expected.push_back( 6 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265,  1e-6 ) );
+
+    // check neighbors of leaf 5
+  CHECK_ERR( iter.step() );
+  CHECK_EQUAL( leaves[5], iter.handle() );
+  expected.clear(); 
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3210, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B4567, 1e-6 ) );
+  expected.push_back( 4 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047, -1e-6 ) );
+  // See NOTE // expected.push_back( 7 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047,  1e-6 ) );
+  expected.clear(); expected.push_back( 6 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376, -1e-6 ) );
+  expected.push_back( 7 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376,  1e-6 ) );
+    
+  /* +---------+---------+--------------------+
+     |    2    |    1    |     7    |    6    |
+     +---------+---------+----------+---------+
+     |    3    |    0    |     4    |    5    |
+     +------------------------------+---------+ */
+
+    // check neighbors of leaf 6
+  CHECK_ERR( iter.step() );
+  CHECK_EQUAL( leaves[6], iter.handle() );
+  expected.clear(); 
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3210, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B4567, 1e-6 ) );
+  expected.push_back( 7 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047, -1e-6 ) );
+  // See NOTE // expected.insert( expected.begin(), 4 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047,  1e-6 ) );
+  expected.clear(); expected.push_back( 5 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154, -1e-6 ) );
+  expected.insert( expected.begin(), 4 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154,  1e-6 ) );
+
+    // check neighbors of leaf 7
+  CHECK_ERR( iter.step() );
+  CHECK_EQUAL( leaves[7], iter.handle() );
+  expected.clear(); 
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B2376, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3210, 1e-6 ) );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B4567, 1e-6 ) );
+  expected.push_back( 1 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047, -1e-6 ) );
+  expected.insert( expected.begin(), 0 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B3047,  1e-6 ) );
+  expected.clear(); expected.push_back( 4 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154, -1e-6 ) );
+  // See NOTE // expected.insert( expected.begin(), 0 ); 
+  expected.push_back( 5 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B0154,  1e-6 ) );
+  expected.clear(); expected.push_back( 6 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265, -1e-6 ) );
+  // See NOTE // expected.insert( expected.begin(), 5 );
+  CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265,  1e-6 ) );
 }
 
