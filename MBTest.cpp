@@ -32,6 +32,7 @@
 #include <time.h>
 #include <assert.h>
 #include <math.h>
+#include <stdio.h>
 #include "MBInterface.hpp"
 #include "MBTagConventions.hpp"
 #include "MBRange.hpp"
