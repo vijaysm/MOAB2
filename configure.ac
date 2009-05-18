@@ -938,7 +938,6 @@ AC_CONFIG_FILES([Makefile
 		 tools/mcnpmit/Makefile
                  tools/qvdual/Makefile
                  tools/dagmc/Makefile
-                 tools/dagmc/dagmc.make
                  doc/Makefile
                  doxygen/Makefile
                  ])
