@@ -15,7 +15,7 @@ CXXFLAGS += $(CGM_CXXFLAGS)
 
 libdagmc_la_SOURCES += cgm2moab.cc
 
-noinst_PROGRAMS = cub2h5m
+noinst_PROGRAMS = update_coords quads_to_tris
 bin_PROGRAMS = cgm2moab
 cgm2moab_SOURCES = main.cc cubfile.c
 cgm2moab_LDFLAGS = $(CGM_LTFLAGS) $(CGM_LDLFAGS)
@@ -38,15 +38,18 @@ cfg_DATA = dagmc.make
 
 TESTS = test_geom 
 check_PROGRAMS = $(TESTS) pt_vol_test ray_fire_test
+
+quads_to_tris_SOURCES = quads_to_tris_driver.cpp quads_to_tris.cpp
+quads_to_tris_LDADD = $(top_builddir)/libMOAB.la
+
 test_geom_SOURCES = test_geom.cc
-cub2h5m_SOURCES = cub2h5m.cc
 test_geom_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LDFLAGS) $(CGM_LIBS)
-cub2h5m_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS) $(CGM_LDFLAGS) $(CGM_LIBS)
+
+update_coords_SOURCES = cub2h5m.cc quads_to_tris.cpp
+update_coords_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS) $(CGM_LDFLAGS) $(CGM_LIBS)
 
 pt_vol_test_SOURCES = pt_vol_test.cc
 pt_vol_test_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LDFLAGS) $(CGM_LIBS)
 
 ray_fire_test_SOURCES = ray_fire_test.cc
 ray_fire_test_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LDFLAGS) $(CGM_LIBS)
-
-

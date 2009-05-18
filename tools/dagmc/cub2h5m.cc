@@ -7,6 +7,7 @@
 #include "Tqdcfr.hpp"
 #include "FileOptions.hpp"
 #include "ReadNCDF.hpp"
+#include "quads_to_tris.hpp"
 
 #define GF_CUBIT_FILE_TYPE    "CUBIT"
 #define GF_STEP_FILE_TYPE     "STEP"
@@ -123,6 +124,9 @@ int main( int argc, char* argv[] )
 
     //opts = "tdata=coord, 100, sum, temp.exo";
     result =  my_ex_reader.load_file(update_name, file_set, opts, NULL, 0 , 0);
+
+    // convert the quads to tris
+    quads_to_tris( my_impl, file_set );
 
     result = my_impl->write_mesh( output_name );
     assert(!result);
