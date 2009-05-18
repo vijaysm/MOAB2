@@ -57,6 +57,9 @@ public:
              unsigned meshset_creation_flags = MESHSET_SET );
   
   ~MBBSPTree();
+
+  //! Enumeriate split plane directions
+  enum Axis { X = 0, Y = 1, Z = 2 };
   
   /**\brief struct to store a plane 
    *
@@ -70,6 +73,9 @@ public:
       /** a x + b y + c z + d = 0 */
     Plane( double a, double b, double c, double d ) : coeff(d)
       { norm[0] = a; norm[1] = b; norm[2] = c; }
+      /** Create Y = 1 plane by doing Plane( Y, 1.0 ); */
+    Plane( Axis normal, double point_on_axis ) : coeff(-point_on_axis)
+      { norm[0] = norm[1] = norm[2] = 0; norm[normal] = 1.0; }
   
     double norm[3]; //!< Unit normal of plane
     double coeff;   //!< norm[0]*x + norm[1]*y + norm[2]*z + coeff = 0
@@ -104,6 +110,14 @@ public:
       }
       
     void set( const double pt1[3], const double pt2[3], const double pt3[3] );
+    
+      /** Create Y = 1 plane by doing set( Y, 1.0 ); */
+    void set( Axis normal, double point_on_axis )
+      { 
+        coeff = -point_on_axis;
+        norm[0] = norm[1] = norm[2] = 0; 
+        norm[normal] = 1.0; 
+      }
   };
   
   //! Get split plane for tree node
