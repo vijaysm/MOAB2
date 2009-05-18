@@ -1569,15 +1569,60 @@ int NPY_IMESHTAG;
 
 ENUM_TYPE(topology,"iMesh.topology","");
 
+
+static void
+ArrDeallocObj_dealloc(ArrDealloc_Object *self)
+{
+    free(self->memory);
+    self->ob_type->tp_free((PyObject *)self);
+}
+
+static PyTypeObject ArrDealloc_Type = {
+    PyObject_HEAD_INIT(NULL)
+    0,                                          /* ob_size */
+    "mydeallocator",                            /* tp_name */
+    sizeof(ArrDealloc_Object),                  /* tp_basicsize */
+    0,                                          /* tp_itemsize */
+    (destructor)ArrDeallocObj_dealloc,          /* tp_dealloc */
+    0,                                          /* tp_print */
+    0,                                          /* tp_getattr */
+    0,                                          /* tp_setattr */
+    0,                                          /* tp_compare */
+    0,                                          /* tp_repr */
+    0,                                          /* tp_as_number */
+    0,                                          /* tp_as_sequence */
+    0,                                          /* tp_as_mapping */
+    0,                                          /* tp_hash */
+    0,                                          /* tp_call */
+    0,                                          /* tp_str */
+    0,                                          /* tp_getattro */
+    0,                                          /* tp_setattro */
+    0,                                          /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
+    "Internal deallocator object",              /* tp_doc */
+};
+
+PyObject *
+PyArray_NewFromMallocData(int nd,npy_intp *dims,int typenum,void *data)
+{
+    ArrDealloc_Object *newobj;
+    PyObject *arr =  PyArray_New(&PyArray_Type, nd, dims, typenum, NULL,
+                                 data, 0, NPY_CARRAY, NULL);
+    newobj = PyObject_New(ArrDealloc_Object, &ArrDealloc_Type);
+    newobj->memory = data;
+    PyArray_BASE(arr) = (PyObject*)newobj;
+    return arr;
+}
+
 PyMODINIT_FUNC initiMesh(void)
 {
     PyObject *m;
     PyArray_Descr *descr;
 
     /* TODO: remove */
-    _MyDeallocType.tp_new = PyType_GenericNew;
-    if (PyType_Ready(&_MyDeallocType) < 0)
-        return;
+    ArrDealloc_Type.tp_new = PyType_GenericNew;
+    if (PyType_Ready(&ArrDealloc_Type) < 0)
+    return;
 
     m = Py_InitModule("iMesh",module_methods);
     import_array();

@@ -28,9 +28,9 @@ c_stats  = {}
 py_stats = {}
 list_stats = {}
 
-path = raw_input('Where da files at: ')
+path = raw_input('Location of test files: ')
 if(len(path) == 0):
-    path = '/home/porterj/moab-3.99/test'
+    path = '.'
 
 ##### Run some tests in C #####
 lines = csv.reader( subprocess.Popen('./perf %s' % path, shell=True,
