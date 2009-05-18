@@ -1619,10 +1619,9 @@ PyMODINIT_FUNC initiMesh(void)
     PyObject *m;
     PyArray_Descr *descr;
 
-    /* TODO: remove */
     ArrDealloc_Type.tp_new = PyType_GenericNew;
     if (PyType_Ready(&ArrDealloc_Type) < 0)
-    return;
+        return;
 
     m = Py_InitModule("iMesh",module_methods);
     import_array();

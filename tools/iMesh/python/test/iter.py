@@ -12,12 +12,10 @@ class TestIter(unittest.TestCase):
     def testEmpty(self):
         for i in self.empty.iterate(iBase.type.all, iMesh.topology.all):
             self.fail('empty iterator has >0 elements')
-        iter.reset()
 
     def testArrEmpty(self):
         for i in self.empty.iterate(iBase.type.all, iMesh.topology.all, 16):
             self.fail('empty iterator has >0 elements')
-        iter.reset()
 
     def testSingle(self):
         count = 0
@@ -30,7 +28,7 @@ class TestIter(unittest.TestCase):
         count = 0
         for i in self.set.iterate(iBase.type.all, iMesh.topology.all, 16):
             count += 1
-            self.assertEqual(i, self.ent) # TODO
+            self.assertEqual(i[0], self.ent)
         self.assertEqual(count,1)
 
     def testAlternate(self):
@@ -41,6 +39,7 @@ class TestIter(unittest.TestCase):
             count += 1
             self.assertEqual(i, self.ent)
         self.assertEqual(count, 1)
+        iter.reset()
 
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestIter)

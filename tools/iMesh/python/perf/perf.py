@@ -4,8 +4,6 @@ import sys
 import subprocess
 import csv
 from datetime import *
-sys.path.append('../build/lib.linux-x86_64-2.5/')
-
 from itaps import *
 
 class stopwatch:
