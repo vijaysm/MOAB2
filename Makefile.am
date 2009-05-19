@@ -174,6 +174,8 @@ libMOAB_la_SOURCES = \
   ReadVtk.hpp \
   ReadIDEAS.cpp \
   ReadIDEAS.hpp \
+  ReadMCNP5.cpp \
+  ReadMCNP5.hpp \
   ReadTetGen.cpp \
   ReadTetGen.hpp \
   ScdElementData.cpp \
