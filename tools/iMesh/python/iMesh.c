@@ -162,7 +162,7 @@ iMeshObj_getAdjTable(iMeshObject *self,void *closure)
         return NULL;
 
     npy_intp dims[] = {4,4};
-    return PyArray_NewFromMallocData(2,dims,NPY_INT,adjtable);
+    return PyArray_NewFromMalloc(2,dims,NPY_INT,adjtable);
 }
 
 static PyObject *
@@ -229,7 +229,7 @@ iMeshObj_getEntities(iMeshObject *self,PyObject *args)
         return NULL;
 
     npy_intp dims[] = {size};
-    return PyArray_NewFromMallocData(1,dims,NPY_IBASEENT,entities);
+    return PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,entities);
 }
 
 static PyObject *
@@ -272,7 +272,7 @@ iMeshObj_getVtxCoords(iMeshObject *self,PyObject *args)
             outer = size;
         /* TODO: think about this */
         npy_intp dims[] = {outer,coords_size/outer};
-        return PyArray_NewFromMallocData(2,dims,NPY_DOUBLE,coords);
+        return PyArray_NewFromMalloc(2,dims,NPY_DOUBLE,coords);
     }
     else if(iBaseEntity_Check(obj))
     {
@@ -283,7 +283,7 @@ iMeshObj_getVtxCoords(iMeshObject *self,PyObject *args)
             return NULL;
 
         npy_intp dims[] = {3};
-        return PyArray_NewFromMallocData(1,dims,NPY_DOUBLE,v);
+        return PyArray_NewFromMalloc(1,dims,NPY_DOUBLE,v);
     }
     else
     {
@@ -319,7 +319,7 @@ iMeshObj_getEntTopo(iMeshObject *self,PyObject *args)
             return NULL;
 
         npy_intp dims[] = {topo_size};
-        return PyArray_NewFromMallocData(1,dims,NPY_UINT,topos);
+        return PyArray_NewFromMalloc(1,dims,NPY_UINT,topos);
     }
     else if(iBaseEntity_Check(obj))
     {
@@ -366,7 +366,7 @@ iMeshObj_getEntType(iMeshObject *self,PyObject *args)
             return NULL;
     
         npy_intp dims[] = {type_size};
-        return PyArray_NewFromMallocData(1,dims,NPY_UINT,types);
+        return PyArray_NewFromMalloc(1,dims,NPY_UINT,types);
     }
     else if(iBaseEntity_Check(obj))
     {
@@ -421,11 +421,11 @@ iMeshObj_getEntAdj(iMeshObject *self,PyObject *args)
 
         dims[0] = adj_size;
         PyTuple_SET_ITEM(pair, 0,
-            PyArray_NewFromMallocData(1,dims,NPY_IBASEENT,adj));
+            PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,adj));
 
         dims[0] = offsets_size;
         PyTuple_SET_ITEM(pair, 1,
-            PyArray_NewFromMallocData(1,dims,NPY_INT,offsets));
+            PyArray_NewFromMalloc(1,dims,NPY_INT,offsets));
 
         return pair;
     }
@@ -441,7 +441,7 @@ iMeshObj_getEntAdj(iMeshObject *self,PyObject *args)
             return NULL;
 
         npy_intp dims[] = {adj_size};
-        return PyArray_NewFromMallocData(1,dims,NPY_IBASEENT,adj);
+        return PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,adj);
     }
     else
     {
@@ -486,11 +486,11 @@ iMeshObj_getEnt2ndAdj(iMeshObject *self,PyObject *args)
 
         dims[0] = adj_size;
         PyTuple_SET_ITEM(pair, 0,
-            PyArray_NewFromMallocData(1,dims,NPY_IBASEENT,adj));
+            PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,adj));
 
         dims[0] = offsets_size;
         PyTuple_SET_ITEM(pair, 1,
-            PyArray_NewFromMallocData(1,dims,NPY_INT,offsets));
+            PyArray_NewFromMalloc(1,dims,NPY_INT,offsets));
 
         return pair;
     }
@@ -506,7 +506,7 @@ iMeshObj_getEnt2ndAdj(iMeshObject *self,PyObject *args)
             return NULL;
 
         npy_intp dims[] = {adj_size};
-        return PyArray_NewFromMallocData(1,dims,NPY_IBASEENT,adj);
+        return PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,adj);
     }
     else
     {
@@ -551,19 +551,19 @@ iMeshObj_getAdjEntIndices(iMeshObject *self,PyObject *args)
 
     dims[0] = ent_size;
     PyTuple_SET_ITEM(tup, 0,
-        PyArray_NewFromMallocData(1,dims,NPY_IBASEENT,entities));
+        PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,entities));
 
     dims[0] = adj_size;
     PyTuple_SET_ITEM(tup, 1,
-        PyArray_NewFromMallocData(1,dims,NPY_IBASEENT,adj_ents));
+        PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,adj_ents));
 
     dims[0] = ind_size;
     PyTuple_SET_ITEM(tup, 2,
-        PyArray_NewFromMallocData(1,dims,NPY_INT,indices));
+        PyArray_NewFromMalloc(1,dims,NPY_INT,indices));
 
     dims[0] = off_size;
     PyTuple_SET_ITEM(tup, 3,
-        PyArray_NewFromMallocData(1,dims,NPY_INT,offsets));
+        PyArray_NewFromMalloc(1,dims,NPY_INT,offsets));
 
     return tup;
 }
@@ -714,7 +714,7 @@ iMeshObj_createVtx(iMeshObject *self,PyObject *args)
             return NULL;
 
         npy_intp dims[] = {ent_size};
-        return PyArray_NewFromMallocData(1,dims,NPY_IBASEENT,entities);
+        return PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,entities);
     }
     else if( (vertices = PyArray_TryFromObject(data,NPY_DOUBLE,1,1)) != NULL)
     {
@@ -811,11 +811,11 @@ iMeshObj_createEntArr(iMeshObject *self,PyObject *args)
 
     dims[0] = ent_size;
     PyTuple_SET_ITEM(pair, 0,
-        PyArray_NewFromMallocData(1,dims,NPY_IBASEENT,entities));
+        PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,entities));
 
     dims[0] = stat_size;
     PyTuple_SET_ITEM(pair, 1,
-        PyArray_NewFromMallocData(1,dims,NPY_INT,status));
+        PyArray_NewFromMalloc(1,dims,NPY_INT,status));
 
     return pair;
 }
@@ -1166,7 +1166,7 @@ iMeshObj_getData(iMeshObject *self,PyObject *args)
             if(!checkError(self->mesh,err))
             {
                 npy_intp dims[] = {size};
-                ret = PyArray_NewFromMallocData(1,dims,NPY_INT,data);
+                ret = PyArray_NewFromMalloc(1,dims,NPY_INT,data);
             }
         }
         else if(type == iBase_DOUBLE)
@@ -1179,7 +1179,7 @@ iMeshObj_getData(iMeshObject *self,PyObject *args)
             if(!checkError(self->mesh,err))
             {
                 npy_intp dims[] = {size};
-                ret = PyArray_NewFromMallocData(1,dims,NPY_DOUBLE,data);
+                ret = PyArray_NewFromMalloc(1,dims,NPY_DOUBLE,data);
             }
         }
         else if(type == iBase_ENTITY_HANDLE)
@@ -1192,7 +1192,7 @@ iMeshObj_getData(iMeshObject *self,PyObject *args)
             if(!checkError(self->mesh,err))
             {
                 npy_intp dims[] = {size};
-                ret = PyArray_NewFromMallocData(1,dims,NPY_IBASEENT,data);
+                ret = PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,data);
             }
         }
         else /* iBase_BYTES */
@@ -1205,7 +1205,7 @@ iMeshObj_getData(iMeshObject *self,PyObject *args)
             if(!checkError(self->mesh,err))
             {
                 npy_intp dims[] = {size};
-                ret = PyArray_NewFromMallocData(1,dims,NPY_BYTE,data);
+                ret = PyArray_NewFromMalloc(1,dims,NPY_BYTE,data);
             }
         }
 
@@ -1253,7 +1253,7 @@ iMeshObj_getData(iMeshObject *self,PyObject *args)
             if(checkError(self->mesh,err))
                 return NULL;
             npy_intp dims[] = {size};
-            return PyArray_NewFromMallocData(1,dims,NPY_BYTE,data);
+            return PyArray_NewFromMalloc(1,dims,NPY_BYTE,data);
         }
     }
     else if(iBaseEntity_Check(obj))
@@ -1296,7 +1296,7 @@ iMeshObj_getData(iMeshObject *self,PyObject *args)
             if(checkError(self->mesh,err))
                 return NULL;
             npy_intp dims[] = {size};
-            return PyArray_NewFromMallocData(1,dims,NPY_BYTE,data);
+            return PyArray_NewFromMalloc(1,dims,NPY_BYTE,data);
         }
     }
     else
@@ -1340,10 +1340,8 @@ iMeshObj_getAllTags(iMeshObject *self,PyObject *args)
     }
 
     npy_intp dims[] = {size};
-    PyObject *arr = PyArray_NewFromMallocData(1,dims,NPY_IMESHTAG,tags);
-    Py_INCREF(self);
-    PyArray_BASE(arr) = (PyObject*)self;
-    return arr;
+    return PyArray_NewFromMallocBase(1,dims,NPY_IMESHTAG,tags,
+                                     (PyObject*)self);
 }
 
 static PyObject *
@@ -1371,7 +1369,7 @@ iMeshObj_rmvTag(iMeshObject *self,PyObject *args)
     }
     else if(iBaseEntity_Check(obj))
     {
-        iBase_EntityHandle entity =iBaseEntity_GetHandle(obj);
+        iBase_EntityHandle entity = iBaseEntity_GetHandle(obj);
         iMesh_rmvTag(self->mesh,entity,tag->handle,&err);
     }
     else
@@ -1540,7 +1538,8 @@ static PyMethodDef module_methods[] = {
 static PyObject *
 iMeshEntSetArr_getitem(void *data,void *arr)
 {
-    iMeshObject *mesh = (iMeshObject*)PyArray_BASE(arr);
+    ArrDealloc_Object *b = (ArrDealloc_Object*)PyArray_BASE(arr);
+    iMeshObject *mesh = (iMeshObject*)b->base;
     iMeshEntitySet_Object *o = iMeshEntitySet_New();
 
     o->set.handle = *(iBase_EntitySetHandle*)data;
@@ -1552,7 +1551,8 @@ iMeshEntSetArr_getitem(void *data,void *arr)
 static PyObject *
 iMeshTagArr_getitem(void *data,void *arr)
 {
-    iMeshObject *mesh = (iMeshObject*)PyArray_BASE(arr);
+    ArrDealloc_Object *b = (ArrDealloc_Object*)PyArray_BASE(arr);
+    iMeshObject *mesh = (iMeshObject*)b->base;
     iMeshTag_Object *o = iMeshTag_New();
 
     o->tag.handle = *(iBase_TagHandle*)data;
@@ -1574,13 +1574,15 @@ static void
 ArrDeallocObj_dealloc(ArrDealloc_Object *self)
 {
     free(self->memory);
+    Py_XDECREF(self->base);
+
     self->ob_type->tp_free((PyObject *)self);
 }
 
 static PyTypeObject ArrDealloc_Type = {
     PyObject_HEAD_INIT(NULL)
     0,                                          /* ob_size */
-    "mydeallocator",                            /* tp_name */
+    "arrdealloc",                               /* tp_name */
     sizeof(ArrDealloc_Object),                  /* tp_basicsize */
     0,                                          /* tp_itemsize */
     (destructor)ArrDeallocObj_dealloc,          /* tp_dealloc */
@@ -1603,13 +1605,18 @@ static PyTypeObject ArrDealloc_Type = {
 };
 
 PyObject *
-PyArray_NewFromMallocData(int nd,npy_intp *dims,int typenum,void *data)
+PyArray_NewFromMallocBaseStrided(int nd,npy_intp *dims,npy_intp *strides,
+                                 int typenum,void *data,PyObject *base)
 {
     ArrDealloc_Object *newobj;
-    PyObject *arr =  PyArray_New(&PyArray_Type, nd, dims, typenum, NULL,
-                                 data, 0, NPY_CARRAY, NULL);
-    newobj = PyObject_New(ArrDealloc_Object, &ArrDealloc_Type);
+    PyObject *arr = PyArray_New(&PyArray_Type,nd,dims,typenum,strides,data,0,
+                                NPY_CARRAY,NULL);
+
+    newobj = PyObject_New(ArrDealloc_Object,&ArrDealloc_Type);
     newobj->memory = data;
+    Py_XINCREF(base);
+    newobj->base = base;
+
     PyArray_BASE(arr) = (PyObject*)newobj;
     return arr;
 }

@@ -47,7 +47,8 @@ iMeshEntSetObj_getEntSets(iMeshEntitySet_Object *self,PyObject *args)
         return NULL;
 
     npy_intp dims[] = {sets_size};
-    return PyArray_NewFromMallocData(1,dims,NPY_IBASEENTSET,sets);
+    return PyArray_NewFromMallocBase(1,dims,NPY_IMESHENTSET,sets,
+                                     (PyObject*)self->mesh);
 }
 
 static PyObject *
@@ -153,8 +154,7 @@ iMeshEntSetObj_contains(iMeshEntitySet_Object *self,PyObject *args)
 
         npy_intp dims[] = {contains_size};
         npy_intp strides[] = {sizeof(int)/sizeof(npy_bool)};
-        return PyArray_New(&PyArray_Type,1,dims,NPY_BOOL,strides,contains,
-                           0,NPY_CARRAY|NPY_OWNDATA,NULL); /* TODO: careful! */
+        return PyArray_NewFromMallocStrided(1,dims,strides,NPY_BOOL,contains);
     }
     else if(iBaseEntitySet_Check(obj))
     {
@@ -283,10 +283,8 @@ iMeshEntSetObj_getChildren(iMeshEntitySet_Object *self,PyObject *args)
         return NULL;
 
     npy_intp dims[] = {sets_size};
-    PyObject *o = PyArray_NewFromMallocData(1,dims,NPY_IMESHENTSET,sets);
-    Py_INCREF(self->mesh);
-    PyArray_BASE(o) = (PyObject*)self->mesh;
-    return o;
+    return PyArray_NewFromMallocBase(1,dims,NPY_IMESHENTSET,sets,
+                                     (PyObject*)self->mesh);
 }
 
 static PyObject *
@@ -304,10 +302,8 @@ iMeshEntSetObj_getParents(iMeshEntitySet_Object *self,PyObject *args)
         return NULL;
 
     npy_intp dims[] = {sets_size};
-    PyObject *o = PyArray_NewFromMallocData(1,dims,NPY_IMESHENTSET,sets);
-    Py_INCREF(self->mesh);
-    PyArray_BASE(o) = (PyObject*)self->mesh;
-    return o;
+    return PyArray_NewFromMallocBase(1,dims,NPY_IMESHENTSET,sets,
+                                     (PyObject*)self->mesh);
 }
 
 static PyObject *

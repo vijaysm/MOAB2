@@ -89,7 +89,7 @@ iMeshIterObj_iternext(iMeshIter_Object *self)
             return NULL;
 
         npy_intp dims[] = {size};
-        return PyArray_NewFromMallocData(1,dims,NPY_IBASEENT,entities);
+        return PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,entities);
     }
     else
     {
