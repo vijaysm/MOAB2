@@ -56,7 +56,7 @@ const MBEntityType ExoIIUtil::ExoIIElementMBEntity[] =
   MBTET, // TETRA14,
   MBPYRAMID, // PYRAMID,
   MBPYRAMID, // PYRAMID5,
-  MBPYRAMID, // PYRAMID8,
+  MBPYRAMID, // PYRAMID10,
   MBPYRAMID, // PYRAMID13,
   MBPYRAMID, // PYRAMID18,
   MBPRISM, // WEDGE,
@@ -94,8 +94,8 @@ const char* ExoIIUtil::ElementTypeNames[] =
   "QUAD8", 
   "QUAD9",
   "SHELL", 
-  "SHELL5", 
   "SHELL4", 
+  "SHELL5", 
   "SHELL8", 
   "SHELL9",
   "TETRA", 
@@ -105,7 +105,7 @@ const char* ExoIIUtil::ElementTypeNames[] =
   "TETRA14",
   "PYRAMID", 
   "PYRAMID5", 
-  "PYRAMID8", 
+  "PYRAMID10", 
   "PYRAMID13", 
   "PYRAMID18",
   "WEDGE",
@@ -153,7 +153,7 @@ const int ExoIIUtil::VerticesPerElement[] =
   14,  // TETRA
   5, 
   5,  
-  8, 
+  10, 
   13, 
   18,  // PYRAMID
   6,  // WEDGE
@@ -201,7 +201,7 @@ const int ExoIIUtil::HasMidNodes[][4] =
   {0, 1, 1, 0}, // TETRA14 - mid nodes on edges and faces
   {0, 0, 0, 0}, // PYRAMID - no mid nodes
   {0, 0, 0, 0}, // PYRAMID5 - no mid nodes
-  {0, 0, 1, 0}, // PYRAMID8 - *** TODO - not sure if this is right...
+  {0, 0, 1, 0}, // PYRAMID10 - *** TODO - not sure if this is right...
   {0, 1, 0, 0}, // PYRAMID13 - *** TODO - not sure if this is right...
   {0, 1, 1, 0}, // PYRAMID18 - *** TODO - not sure if this is right...
   {0, 0, 0, 0}, // WEDGE - no mid nodes

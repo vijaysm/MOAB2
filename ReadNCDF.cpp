@@ -1451,7 +1451,7 @@ MBErrorCode ReadNCDF::create_ss_elements( int *element_ids,
                                            int ss_seq_id)
 {
   //determine entity type from element id
-  int i,k;
+  int i, k;
 
   // if there are dist. factors, create a vector to hold the array
   // and place this array as a tag onto the sideset meshset
@@ -1476,6 +1476,12 @@ MBErrorCode ReadNCDF::create_ss_elements( int *element_ids,
     }
   }
 
+  MBEntityType subtype;
+  int num_side_nodes, num_elem_nodes;
+  const MBEntityHandle* nodes;
+  std::vector<MBEntityHandle> connectivity;
+  int side_node_idx[32];
+
   int df_index = 0;
   for(i=0; i < num_sides; i++)
   {
@@ -1490,41 +1496,24 @@ MBErrorCode ReadNCDF::create_ss_elements( int *element_ids,
 
     MBEntityHandle ent_handle = element_ids[i] - block_data.startExoId + block_data.startMBId;
 
-    std::vector<MBEntityHandle> nodes;
-
+    const int side_num = side_list[i] - 1;
     if(type == MBHEX)
     {
-      //ent_handle = CREATE_HANDLE(MBHEX, base_id, error );
-
-      //get the nodes of the Hex
-      //if( mdbImpl->get_adjacencies( ent_handle, false, 0, nodes ) != MB_SUCCESS )
-      if( mdbImpl->get_connectivity(&( ent_handle), 1, nodes) != MB_SUCCESS )
+      //get the nodes of the element
+      if( mdbImpl->get_connectivity( ent_handle, nodes, num_elem_nodes ) != MB_SUCCESS )
         return MB_FAILURE;
 
-      std::vector<MBEntityHandle> connectivity;
-
-      //get the correct nodes to make the element
-      int temp_index = MBCN::mConnectivityMap[MBHEX][1].conn[side_list[i]-1][0];
-      assert(temp_index < MBCN::VerticesPerEntity(mdbImpl->type_from_handle(ent_handle)));
-      connectivity.push_back(nodes[temp_index]);
-      temp_index = MBCN::mConnectivityMap[MBHEX][1].conn[side_list[i]-1][1];
-      assert(temp_index < MBCN::VerticesPerEntity(mdbImpl->type_from_handle(ent_handle)));
-      connectivity.push_back( nodes[temp_index]);
-      temp_index = MBCN::mConnectivityMap[MBHEX][1].conn[side_list[i]-1][2];
-      assert(temp_index < MBCN::VerticesPerEntity(mdbImpl->type_from_handle(ent_handle)));
-      connectivity.push_back( nodes[temp_index]);
-      temp_index = MBCN::mConnectivityMap[MBHEX][1].conn[side_list[i]-1][3];
-      assert(temp_index < MBCN::VerticesPerEntity(mdbImpl->type_from_handle(ent_handle)));
-      connectivity.push_back( nodes[temp_index]);
-     
-      ent_handle = 0;
-
-      if(create_sideset_element(connectivity, MBQUAD, ent_handle) == MB_SUCCESS)
-      {
-        entities_to_add.push_back(ent_handle);
-      }
-      else 
+      MBCN::SubEntityNodeIndices( type, num_elem_nodes, 2, side_num, subtype, num_side_nodes, side_node_idx );
+      if (num_side_nodes <= 0)
         return MB_FAILURE;
+      
+      connectivity.resize( num_side_nodes );
+      for (k = 0; k < num_side_nodes; ++k)
+        connectivity[k] = nodes[ side_node_idx[k] ];
+        
+      if (MB_SUCCESS != create_sideset_element( connectivity, subtype, ent_handle ))
+        return MB_FAILURE;
+      entities_to_add.push_back( ent_handle );
 
       //read in distribution factor array
       if( num_dist_factors )
@@ -1532,39 +1521,26 @@ MBErrorCode ReadNCDF::create_ss_elements( int *element_ids,
         for(k=0; k<4; k++)
           dist_factor_vector.push_back( temp_dist_factor_vector[df_index++] );
       }
-
     }
 
     // if it is a Tet
     else if(type == MBTET)
     {
-      //ent_handle = CREATE_HANDLE(MBTET, base_id, error );
-
-      //get the nodes of the Tet
-      //if( mdbImpl->get_adjacencies( ent_handle, 0, false, nodes ) != MB_SUCCESS )
-      if( mdbImpl->get_connectivity(&( ent_handle), 1, nodes) != MB_SUCCESS )
+      //get the nodes of the element
+      if( mdbImpl->get_connectivity( ent_handle, nodes, num_elem_nodes ) != MB_SUCCESS )
         return MB_FAILURE;
 
-      std::vector<MBEntityHandle> connectivity;
-
-      //get the correct nodes to make the element
-      int temp_index = MBCN::mConnectivityMap[MBTET][1].conn[ side_list[i]-1][0];      
-      connectivity.push_back( nodes[temp_index]);
-      temp_index = MBCN::mConnectivityMap[MBTET][1].conn[ side_list[i]-1][1];
-      assert(temp_index < MBCN::VerticesPerEntity(mdbImpl->type_from_handle(ent_handle)));
-      connectivity.push_back( nodes[temp_index]);
-      temp_index = MBCN::mConnectivityMap[MBTET][1].conn[ side_list[i]-1][2];
-      assert(temp_index < MBCN::VerticesPerEntity(mdbImpl->type_from_handle(ent_handle)));
-      connectivity.push_back( nodes[temp_index]);
-     
-      ent_handle = 0; 
+      MBCN::SubEntityNodeIndices( type, num_elem_nodes, 2, side_num, subtype, num_side_nodes, side_node_idx );
+      if (num_side_nodes <= 0)
+        return MB_FAILURE;
       
-      if(create_sideset_element(connectivity, MBTRI, ent_handle) == MB_SUCCESS)
-      {
-        entities_to_add.push_back(ent_handle);
-      }
-      else
+      connectivity.resize( num_side_nodes );
+      for (k = 0; k < num_side_nodes; ++k)
+        connectivity[k] = nodes[ side_node_idx[k] ];
+        
+      if (MB_SUCCESS != create_sideset_element( connectivity, subtype, ent_handle ))
         return MB_FAILURE;
+      entities_to_add.push_back( ent_handle );
 
       //read in distribution factor array
       if( num_dist_factors )
@@ -1575,7 +1551,7 @@ MBErrorCode ReadNCDF::create_ss_elements( int *element_ids,
 
     }
     else if( type == MBQUAD &&
-             exoii_type >= EXOII_SHEL && exoii_type <= EXOII_SHELL9 )
+             exoii_type >= EXOII_SHELL && exoii_type <= EXOII_SHELL9 )
     {
 
       //ent_handle = CREATE_HANDLE(MBQUAD, base_id, error );
@@ -1607,27 +1583,21 @@ MBErrorCode ReadNCDF::create_ss_elements( int *element_ids,
       }
       else
       {
-        //ent_handle = CREATE_HANDLE(MBQUAD, base_id, error );
-        //if( mdbImpl->get_adjacencies( ent_handle, 0, false, nodes ) != MB_SUCCESS )
-        if( mdbImpl->get_connectivity(&( ent_handle), 1, nodes) != MB_SUCCESS )
+        //get the nodes of the element
+        if( mdbImpl->get_connectivity( ent_handle, nodes, num_elem_nodes ) != MB_SUCCESS )
           return MB_FAILURE;
 
-        std::vector<MBEntityHandle> connectivity;
-        int index = MBCN::mConnectivityMap[MBQUAD][0].conn[ side_list[i]-1-2][0];
-        assert(index < MBCN::VerticesPerEntity(mdbImpl->type_from_handle(ent_handle)));
-        connectivity.push_back( nodes[index] );
-        index = MBCN::mConnectivityMap[MBQUAD][0].conn[ side_list[i]-1-2][1];
-        assert(index < MBCN::VerticesPerEntity(mdbImpl->type_from_handle(ent_handle)));
-        connectivity.push_back( nodes[index] );
-     
-        ent_handle = 0; 
-      
-        if(create_sideset_element(connectivity, MBEDGE, ent_handle) == MB_SUCCESS)
-        {
-          entities_to_add.push_back(ent_handle);
-        }
-        else
+        MBCN::SubEntityNodeIndices( type, num_elem_nodes, 1, side_num-2, subtype, num_side_nodes, side_node_idx );
+        if (num_side_nodes <= 0)
           return MB_FAILURE;
+
+        connectivity.resize( num_side_nodes );
+        for (k = 0; k < num_side_nodes; ++k)
+          connectivity[k] = nodes[ side_node_idx[k] ];
+
+        if (MB_SUCCESS != create_sideset_element( connectivity, subtype, ent_handle ))
+          return MB_FAILURE;
+        entities_to_add.push_back( ent_handle );
 
         if( num_dist_factors )
         {
@@ -1639,31 +1609,21 @@ MBErrorCode ReadNCDF::create_ss_elements( int *element_ids,
     // if it is a Quad
     else if(type == MBQUAD)
     {
-      //ent_handle = CREATE_HANDLE(MBQUAD, base_id, error );
-
-      //get the nodes of the Quad 
-      //if( mdbImpl->get_adjacencies( ent_handle, 0, false, nodes ) != MB_SUCCESS )
-      if( mdbImpl->get_connectivity(&( ent_handle), 1, nodes) != MB_SUCCESS )
+      //get the nodes of the element
+      if( mdbImpl->get_connectivity( ent_handle, nodes, num_elem_nodes ) != MB_SUCCESS )
         return MB_FAILURE;
 
-      std::vector<MBEntityHandle> connectivity;
-
-      //get the correct nodes to make the element
-      int index = MBCN::mConnectivityMap[MBQUAD][0].conn[ side_list[i]-1][0];
-      assert(index < MBCN::VerticesPerEntity(mdbImpl->type_from_handle(ent_handle)));
-      connectivity.push_back( nodes[index] );
-      index = MBCN::mConnectivityMap[MBQUAD][0].conn[ side_list[i]-1][1];
-      assert(index < MBCN::VerticesPerEntity(mdbImpl->type_from_handle(ent_handle)));
-      connectivity.push_back( nodes[index] );
-     
-      ent_handle = 0; 
+      MBCN::SubEntityNodeIndices( type, num_elem_nodes, 1, side_num, subtype, num_side_nodes, side_node_idx );
+      if (num_side_nodes <= 0)
+        return MB_FAILURE;
       
-      if(create_sideset_element(connectivity, MBEDGE, ent_handle) == MB_SUCCESS)
-      {
-        entities_to_add.push_back(ent_handle);
-      }
-      else
+      connectivity.resize( num_side_nodes );
+      for (k = 0; k < num_side_nodes; ++k)
+        connectivity[k] = nodes[ side_node_idx[k] ];
+        
+      if (MB_SUCCESS != create_sideset_element( connectivity, subtype, ent_handle ))
         return MB_FAILURE;
+      entities_to_add.push_back( ent_handle );
 
       //read in distribution factor array
       if( num_dist_factors )
@@ -1671,7 +1631,6 @@ MBErrorCode ReadNCDF::create_ss_elements( int *element_ids,
         for(k=0; k<2; k++)
           dist_factor_vector.push_back( temp_dist_factor_vector[df_index++] );
       }
-
     }
     else if(type == MBTRI)
     {
@@ -1693,28 +1652,22 @@ MBErrorCode ReadNCDF::create_ss_elements( int *element_ids,
             side_offset = 2;
         }
 
-        //ent_handle = CREATE_HANDLE(MBTRI, base_id, error );
-        //if( mdbImpl->get_adjacencies( ent_handle, 0, false, nodes ) != MB_SUCCESS )
-        if( mdbImpl->get_connectivity(&( ent_handle), 1, nodes) != MB_SUCCESS )
-            return MB_FAILURE;
-
-        std::vector<MBEntityHandle> connectivity;
-
-        int index = MBCN::mConnectivityMap[MBTRI][0].conn[ side_list[i]-1-side_offset][0];
-        assert(index < MBCN::VerticesPerEntity(mdbImpl->type_from_handle(ent_handle)));
-        connectivity.push_back( nodes[index] );
-        index = MBCN::mConnectivityMap[MBTRI][0].conn[ side_list[i]-1-side_offset][1];
-        assert(index < MBCN::VerticesPerEntity(mdbImpl->type_from_handle(ent_handle)));
-        connectivity.push_back( nodes[index] );
-       
-        ent_handle = 0; 
-        
-        if(create_sideset_element(connectivity, MBEDGE, ent_handle) == MB_SUCCESS)
-        {
-          entities_to_add.push_back(ent_handle);
-        }
-        else
+        //get the nodes of the element
+        if( mdbImpl->get_connectivity( ent_handle, nodes, num_elem_nodes ) != MB_SUCCESS )
           return MB_FAILURE;
+
+        MBCN::SubEntityNodeIndices( type, num_elem_nodes, 1, side_num-side_offset, subtype, num_side_nodes, side_node_idx );
+        if (num_side_nodes <= 0)
+          return MB_FAILURE;
+
+        connectivity.resize( num_side_nodes );
+        for (k = 0; k < num_side_nodes; ++k)
+          connectivity[k] = nodes[ side_node_idx[k] ];
+
+        if (MB_SUCCESS != create_sideset_element( connectivity, subtype, ent_handle ))
+          return MB_FAILURE;
+        entities_to_add.push_back( ent_handle );
+
         if( num_dist_factors )
         {
           for(k=0; k<2; k++)
@@ -1729,7 +1682,7 @@ MBErrorCode ReadNCDF::create_ss_elements( int *element_ids,
   return MB_SUCCESS; 
 }
 
-MBErrorCode ReadNCDF::create_sideset_element( std::vector<MBEntityHandle> connectivity, 
+MBErrorCode ReadNCDF::create_sideset_element( const std::vector<MBEntityHandle>& connectivity, 
                                               MBEntityType type, MBEntityHandle& handle)
 {
   // get adjacent entities
@@ -1831,7 +1784,7 @@ MBErrorCode ReadNCDF::find_side_element_type( const int exodus_id, ExoIIElementT
           df_index += 3;
         else if( elem_type >= EXOII_QUAD && elem_type <= EXOII_QUAD9 )
           df_index += 2;
-        else if( elem_type >= EXOII_SHEL && elem_type <= EXOII_SHELL9)
+        else if( elem_type >= EXOII_SHELL && elem_type <= EXOII_SHELL9)
         {
          if(side_id == 1 || side_id == 2)
            df_index += 4;

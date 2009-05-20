@@ -160,7 +160,7 @@ private:
                                          */
 
   //! creates an element with the given connectivity
-  MBErrorCode create_sideset_element( std::vector<MBEntityHandle>, MBEntityType, MBEntityHandle&);
+  MBErrorCode create_sideset_element( const std::vector<MBEntityHandle>&, MBEntityType, MBEntityHandle&);
 
   //! I think this ought to be moved to MBCore. KGM
   MBErrorCode check_file_status(std::string& filename,
