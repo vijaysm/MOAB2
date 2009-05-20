@@ -29,13 +29,6 @@ CGM_LDFLAGS = @CGM_LDFLAGS@
 CGM_LTFLAGS = @CGM_LTFLAGS@
 CGM_LIBS = @CGM_LIBS@
 
-# Automake doesn't seem to have a directory defined for
-# platform-dependent data (or include) files. So put 
-# in $(libdir).  Define a $(cfgdir) to get around automake's
-# check that only libraries are going in $(libdir)
-cfgdir = $(libdir)
-cfg_DATA = dagmc.make
-
 TESTS = test_geom 
 check_PROGRAMS = $(TESTS) pt_vol_test ray_fire_test
 
