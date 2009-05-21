@@ -1,4 +1,5 @@
 from core import *
+import tempfile
 
 class TestBasic(unittest.TestCase):
     def testMinimal(self):
@@ -72,15 +73,17 @@ class TestBasic(unittest.TestCase):
         self.assertEqual(mesh.getNumOfTopo(root, topo.line_segment),  2)
 
     def testSave(self):
+        file = tempfile.NamedTemporaryFile()
+
         mesh = iMesh()
         verts = [1,2,3]
         mesh.createVtx(verts)
         
-        mesh.save(mesh.rootSet,'test')
+        mesh.save(mesh.rootSet,file.name)
         
         mesh = iMesh()
         root = mesh.rootSet
-        mesh.load(root,'test')
+        mesh.load(root,file.name)
         ents = mesh.getEntities(root,iBase.type.all,iMesh.topology.all)
 
         self.assertEqual(mesh.getNumOfType(root, iBase.type.vertex), 1)

@@ -271,7 +271,7 @@ iMeshObj_getVtxCoords(iMeshObject *self,PyObject *args)
         else
             outer = size;
         /* TODO: think about this */
-        npy_intp dims[] = {outer,coords_size/outer};
+        npy_intp dims[] = {outer, coords_size/outer};
         return PyArray_NewFromMalloc(2,dims,NPY_DOUBLE,coords);
     }
     else if(iBaseEntity_Check(obj))
@@ -1010,7 +1010,6 @@ iMeshObj_setData(iMeshObject *self,PyObject *args)
     }
         else /* iBase_BYTES */
         {
-            /* TODO: I have no idea if this is right */
             data_arr = PyArray_FROMANY(data_obj,NPY_BYTE,1,1,NPY_C_CONTIGUOUS);
             if(data_arr == NULL)
                 return NULL;
