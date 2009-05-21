@@ -18,6 +18,8 @@ iMesh = Extension('itaps.iMesh',
 setup(name = 'PyTAPS',
       version = '0.1',
       description = 'Python bindings for iBase and iMesh interfaces',
+      author = 'Jim Porter',
+      author_email = 'jvporter@wisc.edu',
       packages = ['itaps'],
       ext_modules = [iBase, iMesh]
       )
