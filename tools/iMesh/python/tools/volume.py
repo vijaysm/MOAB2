@@ -1,7 +1,7 @@
 from numpy import *
 from numpy.linalg import *
 from itaps import *
-import sys
+from optparse import OptionParser
 from pylab import *
 
 def distance(v):
@@ -46,22 +46,30 @@ def calc_volume(filename):
         x+=1
     return volume
 
-if(len(sys.argv) != 3):
-    print "Usage: python volume.py file1 file2"
+parser = OptionParser()
+parser.add_option('-r', '--raw', action='store_true', dest='raw')
+
+(options, args) = parser.parse_args()
+
+if len(args) != 2:
+    print 'Usage: python volume.py [opts] file1 file2'
     exit(1)
 
 volume_pre  = calc_volume(sys.argv[1])
 volume_post = calc_volume(sys.argv[2])
-r = arange(len(volume_pre))
 
-print volume_pre
+if options.raw:
+    for i in range(len(volume_pre)):
+        print "%f,%f" % (volume_pre[i], volume_post[i])
+else:
+    r = arange(len(volume_pre))
 
-plot(r, volume_pre,  linewidth=1)
-plot(r, volume_post, linewidth=1)
+    plot(r, volume_pre,  linewidth=1)
+    plot(r, volume_post, linewidth=1)
 
-xlabel('polyhedron index')
-ylabel('volume')
-title('Volume comparison pre- and post-deformation')
-show()
+    xlabel('polyhedron index')
+    ylabel('volume')
+    title('Volume comparison pre- and post-deformation')
+    show()
 
 
