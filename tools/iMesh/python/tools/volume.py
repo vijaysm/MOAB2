@@ -58,18 +58,33 @@ if len(args) != 2:
 volume_pre  = calc_volume(sys.argv[1])
 volume_post = calc_volume(sys.argv[2])
 
+if len(volume_pre) != len(volume_post):
+    print 'volume.py: Meshes should have the same number of regions'
+    exit(1)
+
+volume_diff = volume_pre / volume_post
+
 if options.raw:
     for i in range(len(volume_pre)):
-        print "%f,%f" % (volume_pre[i], volume_post[i])
+        print '%f,%f,%f' % (volume_pre[i], volume_post[i], volume_diff[i])
 else:
     r = arange(len(volume_pre))
 
-    plot(r, volume_pre,  linewidth=1)
-    plot(r, volume_post, linewidth=1)
+    subplot(2,1,1)
+    plot(r, volume_pre,  '.',
+         r, volume_post, '.')
+
+    title('Volume comparison pre- and post-deformation')
 
     xlabel('polyhedron index')
     ylabel('volume')
-    title('Volume comparison pre- and post-deformation')
+
+    subplot(2,1,2)
+    plot(r, volume_diff, '.')
+
+    xlabel('polyhedron index')
+    ylabel('volume ratio')
+
     show()
 
 
