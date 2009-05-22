@@ -14,17 +14,17 @@ def tet_volume(coords):
 
 def hex_volume(coords):
     # assumes not-quite logical vertex ordering
-    def subvolume(a,b,c,d,e):
-        base = ( distance(cross(b-a,d-a)) +
-                 distance(cross(c-a,d-a)) ) / 2
-        norm = cross(b-a,c-a)
+    def subvolume(a, b, c, d, e):
+        base = ( distance(cross(b-a, d-a)) +
+                 distance(cross(c-a, d-a)) ) / 2
+        norm = cross(b-a, c-a)
         norm = norm / distance(norm)
-        height = abs(dot(norm,e-a))
+        height = abs(dot(norm, e-a))
         return base*height / 3
 
-    return subvolume(coords[0],coords[1],coords[3],coords[2],coords[7]) + \
-           subvolume(coords[0],coords[1],coords[4],coords[5],coords[7]) + \
-           subvolume(coords[1],coords[2],coords[5],coords[6],coords[7])
+    return subvolume(coords[0], coords[1], coords[3], coords[2], coords[7]) + \
+           subvolume(coords[0], coords[1], coords[4], coords[5], coords[7]) + \
+           subvolume(coords[1], coords[2], coords[5], coords[6], coords[7])
 
 def calc_volume(filename):
     mesh = iMesh()
@@ -86,5 +86,3 @@ else:
     ylabel('volume ratio')
 
     show()
-
-

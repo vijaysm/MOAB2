@@ -1,4 +1,5 @@
-from core import *
+from itaps import *
+import unittest
 
 class TestIter(unittest.TestCase):
     def setUp(self):

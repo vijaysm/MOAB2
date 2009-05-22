@@ -1,4 +1,5 @@
-from core import *
+from itaps import *
+import unittest
 import tempfile
 
 class TestBasic(unittest.TestCase):

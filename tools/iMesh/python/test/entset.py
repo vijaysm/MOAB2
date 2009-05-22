@@ -1,4 +1,5 @@
-from core import *
+from itaps import *
+import unittest
 
 class TestEntSet(unittest.TestCase):
     def setUp(self):

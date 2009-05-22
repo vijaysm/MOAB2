@@ -1,4 +1,5 @@
-from core import *
+from itaps import *
+import unittest
 from numpy import *
 
 class TestTags(unittest.TestCase):
