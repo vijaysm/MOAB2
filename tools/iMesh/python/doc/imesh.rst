@@ -71,6 +71,62 @@
    .. method:: rmvTag(entities, tag)
 
 
+.. class:: itaps.iMesh.topology
+
+   An enumeration of mesh element topologies corresponding to
+   ``iMesh_EntityTopology``.
+
+   .. data:: point
+
+      A general zero-dimensional entity
+
+   .. data:: line_segment
+
+      A general one-dimensional entity
+
+   .. data:: polygon
+
+      A general two-dimensional element
+
+   .. data:: triangle
+
+      A three-sided, two-dimensional element
+
+   .. data:: quadrilateral
+
+      A four-sided, two-dimensional element
+
+   .. data:: polyhedron
+
+      A general three-dimensional element
+
+   .. data:: tetrahedron
+
+      A four-sided, three-dimensional element whose faces are triangles
+
+   .. data:: hexahedron
+
+      A six-sided, three-dimensional element whose faces are quadrilaterals
+
+   .. data:: prism
+
+      A five-sided, three-dimensional element which has three quadrilateral
+      faces and two triangular faces
+
+   .. data:: pyramid
+
+      A five-sided, three-dimensional element which has one quadrilateral face
+      and four triangular faces
+
+   .. data:: septahedron
+
+      A hexahedral entity with one collapsed edge
+
+   .. data:: all
+
+      Allows the user to request information about all the topology types
+
+
 .. class:: itaps.iMesh.iterator
 
    .. method:: reset()
@@ -104,7 +160,7 @@
 
    .. method:: getParents(numHops)
 
-   .. method:: iterate(type, topo[, count])
+   .. method:: iterate(type, topo[, count=1])
 
    .. method:: difference(entSet)
 
