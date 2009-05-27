@@ -1,10 +1,9 @@
 import re
 import os
-import sys
 import subprocess
-import csv
 from datetime import *
 from itaps import *
+from optparse import OptionParser
 
 class stopwatch:
     def __init__(self):
@@ -22,36 +21,56 @@ def testable(name):
         not re.match('testquad',name)
 
 
-c_stats  = {}
-py_stats = {}
+##### Parse command line options #####
+parser = OptionParser(usage='usage: %prog [options] [files...]')
+parser.add_option('-c', '--count', action='store', type='int', default=20,
+                  help='number of times to run the performance tests',
+                  metavar='NUM')
+
+(options, args) = parser.parse_args()
+
+if len(args) == 0:
+    args = ['.']
+
+files = []
+for path in args:
+    if os.path.isdir(path):
+        files.extend([ os.path.join(path,i) for i in 
+                       filter(testable, os.listdir(path)) ])
+    else:
+        files.append(path)
+
+count = options.count
+
+
+c_stats    = {}
+py_stats   = {}
 list_stats = {}
 
-path = raw_input('Location of test files: ')
-if(len(path) == 0):
-    path = '.'
-
 ##### Run some tests in C #####
-lines = csv.reader( subprocess.Popen('./perf %s' % path, shell=True,
-                                     stdout=subprocess.PIPE).stdout )
-for row in lines:
-    c_stats[row[0]] = [float(i)/100 for i in row[1:]]
-
+for file in files:
+    results = subprocess.Popen('./perf %d "%s"' % (count, file), shell=True,
+                               stdout=subprocess.PIPE).stdout
+    c_stats[file] = [float(line)/count for line in results]
 
 ##### Run some tests in Python #####
-os.chdir(path)
 timer = stopwatch()
 
-for file in filter(testable, os.listdir(path)):
+for file in files:
     py_stats[file] = []
     list_stats[file] = []
 
     ##### 1 #####
     timer.reset()
-    for x in range(100):
+    for x in range(count):
         m = iMesh()
-        m.load(m.rootSet, file)
+        try:
+            m.load(m.rootSet, file)
+        except:
+            print file
+            exit(0)
         m = None
-    py_stats[file].append( timer.delta()/100 )
+    py_stats[file].append( timer.delta()/count )
     list_stats[file].append(0)
 
     ##### Intermission #####
@@ -61,10 +80,10 @@ for file in filter(testable, os.listdir(path)):
 
     ##### 2 #####
     timer.reset()
-    for x in range(100):
+    for x in range(count):
         mesh.getAdjEntIndices(root, iBase.type.all,
                               iMesh.topology.all, iBase.type.all)
-    py_stats[file].append( timer.delta()/100 )
+    py_stats[file].append( timer.delta()/count )
     list_stats[file].append(0)
 
     ##### Intermission #####
@@ -74,25 +93,25 @@ for file in filter(testable, os.listdir(path)):
 
     ##### 3 #####
     timer.reset()
-    for x in range(100):
+    for x in range(count):
         mesh.getEntAdj(arr[0], iBase.type.all)
-    py_stats[file].append( timer.delta()/100 )
+    py_stats[file].append( timer.delta()/count )
 
     timer.reset()
-    for x in range(100):
+    for x in range(count):
         mesh.getEntAdj(list[0], iBase.type.all)
-    list_stats[file].append( timer.delta()/100 )
+    list_stats[file].append( timer.delta()/count )
 
     ##### 4 #####
     timer.reset()
-    for x in range(100):
+    for x in range(count):
         mesh.getEnt2ndAdj(arr[0], iBase.type.edge, iBase.type.vertex)
-    py_stats[file].append( timer.delta()/100 )
+    py_stats[file].append( timer.delta()/count )
 
     timer.reset()
-    for x in range(100):
+    for x in range(count):
         mesh.getEnt2ndAdj(list[0], iBase.type.edge, iBase.type.vertex)
-    list_stats[file].append( timer.delta()/100 )
+    list_stats[file].append( timer.delta()/count )
 
     mesh = None
     arr = None
@@ -104,7 +123,7 @@ import matplotlib.pyplot as plt
 import numpy
 
 i = 1
-for file in filter(testable, os.listdir(path)):
+for file in files:
     ind = numpy.arange(len(py_stats[file]))
     width = 0.25
     plt.figure(i)
