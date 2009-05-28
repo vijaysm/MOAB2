@@ -4,7 +4,12 @@
 
 .. module:: itaps
 
-.. class:: itaps.iMesh
+.. class:: itaps.iMesh([options])
+
+   Return a new ``iMesh`` object with any implementation-specific options
+   defined in ``options``.
+
+   :param options: Implementation-specific options string
 
    .. attribute:: rootSet
 
@@ -56,18 +61,6 @@
       :param doReset: If true, perform a reset on the starting point after
                       which handles are invariant.
       :return: True iff entity handles have changed
-
-   .. method:: getEntities(entSet, type, topo)
-
-      Get entities of a specific type and/or topology in ``entSet``. All 
-      entities of a given type or topology are requested by specifying
-      ``iBase.type.all`` or ``iMesh.topology.all``, respectively.
-
-      :param entSet: Entity set being queried
-      :param type: Type of entities being requested
-      :param topo: Topology of entities being requested
-      :return: Array of entity handles from ``entSet`` meeting the requirements
-               of ``type`` and ``topo``.      
 
    .. method:: getVtxCoords(entities[, storageOrder])
 
@@ -131,8 +124,6 @@
       :return: If ``entities`` is a single element, an array of adjacent
                entities. Otherwise, a tuple containing an array of offsets and
                an array of adjacent entities.
-
-   .. method:: getAdjEntIndices(entSet, typeRequestor, topoRequestor, typeRequested)
 
    .. method:: createEntSet(isList)
 
@@ -198,15 +189,15 @@
       size is the number of values of type ``type`` that can be held. ``type``
       is one of the following:
 
-      +---+---------------+
-      | i | Integer       |
-      +---+---------------+
-      | d | Double        |
-      +---+---------------+
-      | E | Entity handle |
-      +---+---------------+
-      | b | Binary data   |
-      +---+---------------+
+      +-------+---------------+
+      | ``i`` | Integer       |
+      +-------+---------------+
+      | ``d`` | Double        |
+      +-------+---------------+
+      | ``E`` | Entity handle |
+      +-------+---------------+
+      | ``b`` | Binary data   |
+      +-------+---------------+
 
       :param name: Tag name
       :param size: Size of tag in number of values
@@ -230,44 +221,12 @@
       :param name: The name of the tag to find
       :return: The tag with the specified name
 
-   .. method:: setData(entities, tag, data[, type])
-
-      Set value(s) for a tag on an entity, entity set, or array of entities.
-      If ``type`` is not specified, this function will retrieve the tag type
-      automatically.
-
-      :param entities: Entity, entity set, or array of entities on which tag is
-                       being set
-      :param tag: Tag being set
-      :param data: Data to set
-      :param type: Character representing the tag's type (as above)
-
-   .. method:: getData(entities, tag[, type])
-
-      Get value(s) for a tag on an entity, entity set, or array of entities.
-      If ``type`` is not specified, this function will retrieve the tag type
-      automatically.
-
-      :param entities: Entity, entity set, or array of entities on which tag is
-                       being retrieved
-      :param tag: Tag being retrieved
-      :param type: Character representing the tag's type (as above)
-      :return: The retrieved data
-
    .. method:: getAllTags(entities)
 
       Get all the tags associated with a specified entity or entity set.
 
       :param entities: Entity or entity set being queried
       :return: Array of tags associated with ``entities``
-
-   .. method:: rmvTag(entities, tag)
-
-      Remove a tag value from an entity, entity set, or array of entities.
-
-      :param entities: Entity, entity set, or array of entities from which tag
-                       is being removed
-      :param tag: Tag to be removed
 
 
 .. class:: itaps.iMesh.topology
@@ -326,85 +285,276 @@
       Allows the user to request information about all the topology types
 
 
-.. class:: itaps.iMesh.iterator
+.. class:: itaps.iMesh.iterator(set, type, topology[, size=1])
+
+   Return a new iterator on the entity set ``set`` to iterate over entities of
+   the specified ``type`` and ``topology``. If ``size`` is greater than 1, each
+   step of the iteration will return an array of ``size`` entities. All
+   entities of a given type or topology are requested by specifying 
+   ``iBase.type.all`` or  `iMesh.topology.all``, respectively.
+
+   :param set: Entity set to iterate over
+   :param type: Type of entities being requested
+   :param topo: Topology of entities being requested
+   :param count: Number of entities to return on each step of iteration
 
    .. method:: reset()
+
+      Resets the iterator to the beginning.
 
 
 .. class:: itaps.iMesh.entitySet
 
    .. attribute:: isList
 
-      Returns whether the entity set is ordered.
+      Return whether this entity set is ordered.
 
    .. method:: load(entSet, filename[, options])
 
-      Load a mesh from a file, adding it to the entity set.
+      Load a mesh from a file, adding it to this entity set.
 
       :param filename: File name from which the mesh is to be loaded
       :param options: Implementation-specific options string
 
    .. method:: save(filename[, options])
 
-      Save the subset of the mesh contained in the entity set to a file.
+      Save the subset of the mesh contained in this entity set to a file.
 
       :param filename: File name to which the mesh is to be saved
       :param options: Implementation-specific options string
 
    .. method:: getNumOfType(type)
 
-      Get the number of entities with the specified type in the entity set.
+      Get the number of entities with the specified type in this entity set.
 
       :param type: Type of entity requested
       :return: The number of entities in entity set of the requested type
 
    .. method:: getNumOfTopo(topo)
 
-      Get the number of entities with the specified topology in the entity set.
+      Get the number of entities with the specified topology in this entity set.
 
       :param type: Topology of entity requested
       :return: The number of entities in the entity set of the requested
                topology
 
+   .. method:: getEntities(type, topo)
+
+      Get entities of a specific type and/or topology in this entity set. All 
+      entities of a given type or topology are requested by specifying
+      ``iBase.type.all`` or ``iMesh.topology.all``, respectively.
+
+      :param entSet: Entity set being queried
+      :param type: Type of entities being requested
+      :param topo: Topology of entities being requested
+      :return: Array of entity handles from ``entSet`` meeting the requirements
+               of ``type`` and ``topo``.
+
+   .. method:: getAdjEntIndices(type, topo, adjType)
+
+      Given an entity set and optionally a type or topology, return a tuple
+      containing the following:
+
+      * The entities in the set of the specified ``type`` and/or ``topology``
+      * The entities adjacent to those entities with the specified type
+        ``adjType``, as a list of unique handles
+      * An index buffer containing, for each entity in the first list,
+        the indices of the entities adjacent to it
+      * An array of offsets into the index buffer for each entity in the first
+        list
+
+      That is, given an entity located in ``ret[0][i]``, the list of entities to
+      which it is adjacent is::
+
+        ret[1][  ret[2][ ret[3][i]:ret[3][i+1] ]  ]
+
+      :param type: Type of entities being requested
+      :param topo: Topology of entities being requested
+      :param adjType: Type of adjacent entities being requested
+      :return: 4-tuple containing the adjacency information
+
    .. method:: getNumEntSets(numHops)
+
+      Get the number of sets contained in this entity set. If this entity set is
+      not the root set, ``numHops`` indicates the maximum number of contained
+      sets from ``self`` to one of the contained sets, inclusive of ``self``.
+
+      :param numHops: Maximum number of contained sets from ``self`` to a
+                      contained set, including ``self``.
+      :return: Number of entity sets found
 
    .. method:: getEntSets(numHops)
 
+      Get the sets contained in this entity set. If this entity set is not the
+      root set, ``numHops`` indicates the maximum number of contained sets from
+      ``self`` to one of the contained sets, inclusive of ``self``.
+
+      :param numHops: Maximum number of contained sets from ``self`` to a
+                      contained set, including ``self``.
+      :return: Array of entity sets found      
+
    .. method:: add(entities)
+
+      Add an entity, entity set, or array of entities to this entity set.
+
+      :param entities: The entity, entity set, or array of entities to add
 
    .. method:: remove(entities)
 
+      Remove an entity, entity set, or array of entities from this entity set.
+
+      :param entities: The entity, entity set, or array of entities to remove
+
    .. method:: contains(entities)
+
+      Return whether an entity, entity set, or array of entities is contained
+      in this entity set.
+
+      :param entities: The entity, entity set, or array of entities to query
+      :return: If ``entities`` is an array of entities, an array of booleans
+               corresponding to each element of ``entities``. Otherwise, a
+               single boolean.
 
    .. method:: addChild(entSet)
 
+      Add ``entSet`` as a child to this entity set.
+
+      :param entSet: The entity set to add
+
    .. method:: removeChild(entSet)
+
+      Remove ``entSet`` as a child from this entity set.
+
+      :param entSet: The entity set to remove
 
    .. method:: isChild(entSet)
 
+      Return whether an entity set is a child of this entity set.
+
+      :param entSet: The entity set to query:
+      :return: True if ``entSet`` is a child of this entity set, false otherwise
+
    .. method:: getNumChildren(numHops)
+
+      Get the number of child sets linked from this entity set. If ``numHops``
+      is non-zero, this represents the maximum hops from this entity set to any
+      child in the count.
+
+      :param numHops: Maximum hops from this entity set to a child set,
+                      inclusive of the child set
+      :return: Number of children
 
    .. method:: getNumParents(numHops)
 
+      Get the number of parent sets linked from this entity set. If ``numHops``
+      is non-zero, this represents the maximum hops from this entity set to any
+      parents in the count.
+
+      :param numHops: Maximum hops from this entity set to a parent set,
+                      inclusive of the parent set
+      :return: Number of parents
+
    .. method:: getChildren(numHops)
+
+      Get the child sets linked from this entity set. If ``numHops`` is
+      non-zero, this represents the maximum hops from this entity set to any
+      child in the result.
+
+      :param numHops: Maximum hops from this entity set to a child set,
+                      inclusive of the child set
+      :return: Array of children
 
    .. method:: getParents(numHops)
 
+      Get the parents sets linked from this entity set. If ``numHops`` is
+      non-zero, this represents the maximum hops from this entity set to any
+      parent in the result.
+
+      :param numHops: Maximum hops from this entity set to a parent set,
+                      inclusive of the parent set
+      :return: Array of parents
+
    .. method:: iterate(type, topo[, count=1])
+
+      Initialize an iterator over the specified entity type and topology for
+      this entity set. If ``count`` is greater than 1, each step of the
+      iteration returns an array of ``count`` entities. Equivalent to::
+
+        itaps.iMesh.iterator(self, type, topo, count)
+
+      :param type: Type of entities being requested
+      :param topo: Topology of entities being requested
+      :param count: Number of entities to return on each step of iteration
+      :return: An ``itaps.iMesh.iterator`` instance
 
    .. method:: difference(entSet)
 
+      Subtract contents of an entity set from this set. Equivalent to
+      ``self - entSet``.
+
+      :param entSet: Entity set to subtract
+      :return: Resulting entity set
+
    .. method:: intersection(entSet)
 
+      Intersect contents of an entity set with this set. Equivalent to
+      ``self & entSet``.
+
+      :param entSet: Entity set to intersect
+      :return: Resulting entity set
+
    .. method:: union(entSet)
+
+      Unite contents of an entity set with this set. Equivalent to
+      ``self | entSet``.
+
+      :param entSet: Entity set to unite
+      :return: Resulting entity set
 
 
 .. class:: itaps.iMesh.tag
 
    .. attribute:: name
 
+      Get the name for this tag.
+
    .. attribute:: sizeValues
+
+      Get the size in number of values for this tag.
 
    .. attribute:: sizeBytes
 
+      Get the size in bytes for this tag.
+
    .. attribute:: type
+
+      Get the data type for this tag as a character code (see above).
+
+   .. method:: setData(entities, data[, type])
+
+      Set value(s) for the tag on an entity, entity set, or array of entities.
+      If ``type`` is not specified, this function will retrieve the tag type
+      automatically.
+
+      :param entities: Entity, entity set, or array of entities on which tag is
+                       being set
+      :param data: Data to set
+      :param type: Character representing the tag's type (as above)
+
+   .. method:: getData(entities, [, type])
+
+      Get value(s) for the tag on an entity, entity set, or array of entities.
+      If ``type`` is not specified, this function will retrieve the tag type
+      automatically.
+
+      :param entities: Entity, entity set, or array of entities on which tag is
+                       being retrieved
+      :param type: Character representing the tag's type (as above)
+      :return: The retrieved data
+
+   .. method:: rmvTag(entities)
+
+      Remove the tag value from an entity, entity set, or array of entities.
+
+      :param entities: Entity, entity set, or array of entities from which tag
+                       is being removed

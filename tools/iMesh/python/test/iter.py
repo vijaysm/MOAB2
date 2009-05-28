@@ -34,8 +34,7 @@ class TestIter(unittest.TestCase):
 
     def testAlternate(self):
         count = 0
-        iter = iMesh.iterator(self.mesh, self.set, iBase.type.all,
-                              iMesh.topology.all)
+        iter = iMesh.iterator(self.set, iBase.type.all, iMesh.topology.all)
         for i in iter:
             count += 1
             self.assertEqual(i, self.ent)

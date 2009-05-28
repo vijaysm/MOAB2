@@ -7,26 +7,26 @@
 static int
 iMeshIterObj_init(iMeshIter_Object *self,PyObject *args,PyObject *kwds)
 {
-    static char *kwlist[] = {"mesh","entity_set","type","topology",
-                             "array_size",0};
-    iMeshObject *mesh;
-    iBaseEntitySet_Object *set;
+    static char *kwlist[] = {"set","type","topology","size",0};
+    iMeshEntitySet_Object *set;
     int type,topo,array_size=1,err;
 
-    if( !PyArg_ParseTupleAndKeywords(args,kwds,"OOii|i",kwlist,&mesh,&set,
-                                     &type,&topo,&array_size) )
+    if( !PyArg_ParseTupleAndKeywords(args,kwds,"O!ii|i",kwlist,
+                                     &iMeshEntitySet_Type,&set,&type,&topo,
+                                     &array_size) )
         return -1;
 
-    self->mesh = mesh->mesh;
+    self->mesh = set->mesh->mesh;
     if(array_size == 1)
     {
         self->is_arr = 0;
-        iMesh_initEntIter(self->mesh,set->handle,type,topo,&self->iter,&err);
+        iMesh_initEntIter(self->mesh,set->set.handle,type,topo,&self->iter,
+                          &err);
     }
     else
     {
         self->is_arr = 1;
-        iMesh_initEntArrIter(self->mesh,set->handle,type,topo,array_size,
+        iMesh_initEntArrIter(self->mesh,set->set.handle,type,topo,array_size,
                              &self->arr_iter,&err);
     }
     if(checkError(self->mesh,err))

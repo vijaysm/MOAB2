@@ -85,8 +85,8 @@ class TestAdj(unittest.TestCase):
     def testAdjIndices(self):
         set = self.mesh.createEntSet(True)
         set.add(self.ents)
-        adj = self.mesh.getAdjEntIndices(set, iBase.type.all, topo.all,
-                                         iBase.type.all)
+        adj = set.getAdjEntIndices(iBase.type.all, topo.all,
+                                   iBase.type.all)
 
         self.assertEqual(adj[0].tolist(), self.ents.tolist())
         self.assertEqual(adj[1].tolist(), self.lines)

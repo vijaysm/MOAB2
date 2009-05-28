@@ -48,7 +48,7 @@ iMeshEntSetObj_getNumOfType(iMeshEntitySet_Object *self,PyObject *args)
         return NULL;
 
     iMesh_getNumOfType(self->mesh->mesh,self->set.handle,type,&num,&err);
-    if(checkError(self->mesh,err))
+    if(checkError(self->mesh->mesh,err))
         return NULL;
 
     return Py_BuildValue("i",num);
@@ -63,10 +63,82 @@ iMeshEntSetObj_getNumOfTopo(iMeshEntitySet_Object *self,PyObject *args)
         return NULL;
 
     iMesh_getNumOfTopo(self->mesh->mesh,self->set.handle,topo,&num,&err);
-    if(checkError(self->mesh,err))
+    if(checkError(self->mesh->mesh,err))
         return NULL;
 
     return Py_BuildValue("i",num);
+}
+
+static PyObject *
+iMeshEntSetObj_getEntities(iMeshEntitySet_Object *self,PyObject *args)
+{
+    enum iBase_EntityType type;
+    enum iMesh_EntityTopology topo;
+    iBase_EntityHandle *entities=0;
+    int alloc=0,size,err;
+
+    if(!PyArg_ParseTuple(args,"ii",&type,&topo))
+        return NULL;
+
+    iMesh_getEntities(self->mesh->mesh,self->set.handle,type,topo,&entities,
+                      &alloc,&size,&err);
+    if(checkError(self->mesh->mesh,err))
+        return NULL;
+
+    npy_intp dims[] = {size};
+    return PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,entities);
+}
+
+static PyObject *
+iMeshEntSetObj_getAdjEntIndices(iMeshEntitySet_Object *self,PyObject *args)
+{
+    int type_requestor,topo_requestor,type_requested;
+    int err;
+
+    if(!PyArg_ParseTuple(args,"iii",&type_requestor,&topo_requestor,
+                         &type_requested))
+        return NULL;
+
+    iBase_EntityHandle *entities=0;
+    int ent_alloc=0,ent_size;
+    iBase_EntityHandle *adj_ents=0;
+    int adj_alloc=0,adj_size;
+    int *indices=0;
+    int ind_alloc=0,ind_size;
+    int *offsets=0;
+    int off_alloc=0,off_size;
+
+    iMesh_getAdjEntIndices(self->mesh->mesh,self->set.handle,type_requestor,
+                           topo_requestor,type_requested,
+                           &entities,&ent_alloc,&ent_size,
+                           &adj_ents,&adj_alloc,&adj_size,
+                           &indices, &ind_alloc,&ind_size,
+                           &offsets, &off_alloc,&off_size,
+                           &err);
+    if(checkError(self->mesh->mesh,err))
+        return NULL;
+
+    /* TODO: this is clunky */
+    PyObject *tup = PyTuple_New(4);
+    npy_intp dims[1];
+
+    dims[0] = ent_size;
+    PyTuple_SET_ITEM(tup, 0,
+        PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,entities));
+
+    dims[0] = adj_size;
+    PyTuple_SET_ITEM(tup, 1,
+        PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,adj_ents));
+
+    dims[0] = ind_size;
+    PyTuple_SET_ITEM(tup, 2,
+        PyArray_NewFromMalloc(1,dims,NPY_INT,indices));
+
+    dims[0] = off_size;
+    PyTuple_SET_ITEM(tup, 3,
+        PyArray_NewFromMalloc(1,dims,NPY_INT,offsets));
+
+    return tup;
 }
 
 static PyObject *
@@ -378,7 +450,7 @@ iMeshEntSetObj_iterate(iMeshEntitySet_Object *self,PyObject *args)
 
     if(!PyArg_UnpackTuple(args,"iterate",2,3,&type,&topo,&count))
         return NULL;
-    tuple = PyTuple_Pack(size+2,self->mesh,self,type,topo,count);
+    tuple = PyTuple_Pack(size+1,self,type,topo,count);
 
     ret = PyObject_CallObject((PyObject*)&iMeshIter_Type,tuple);
     Py_DECREF(tuple);
@@ -486,32 +558,39 @@ iMeshEntSetObj_union(iMeshEntitySet_Object *self,PyObject *args)
 
 static PyMethodDef iMeshEntSetObj_methods[] = {
     { "load", (PyCFunction)iMeshEntSetObj_load, METH_VARARGS,
-      "Load a mesh from a file"
+      "Load a mesh from a file into this set"
     },
     { "save", (PyCFunction)iMeshEntSetObj_save, METH_VARARGS,
-      "Save the mesh to a file"
+      "Save this set of the mesh to a file"
     },
     { "getNumOfType", (PyCFunction)iMeshEntSetObj_getNumOfType, METH_VARARGS,
-      "Get the number of entities with the specified type in the set"
+      "Get the number of entities with the specified type in this set"
     },
     { "getNumOfTopo", (PyCFunction)iMeshEntSetObj_getNumOfTopo, METH_VARARGS,
       "Get the number of entities with the specified topology in the set"
     },
+    { "getEntities", (PyCFunction)iMeshEntSetObj_getEntities, METH_VARARGS,
+      "Get entities of specific type and/or topology in this set"
+    },
+    { "getAdjEntIndices", (PyCFunction)iMeshEntSetObj_getAdjEntIndices,
+      METH_VARARGS,
+      "Get indexed representation of this set"
+    },
     { "getNumEntSets", (PyCFunction)iMeshEntSetObj_getNumEntSets, METH_VARARGS,
-      "Get the number of entity sets contained in the set"
+      "Get the number of entity sets contained in this set"
     },
     { "getEntSets", (PyCFunction)iMeshEntSetObj_getEntSets, METH_VARARGS,
-      "Get the entity sets contained in the set"
+      "Get the entity sets contained in this set"
     },
     { "add", (PyCFunction)iMeshEntSetObj_add, METH_VARARGS,
-      "Add an entity (or array of entities or entity set) to the set"
+      "Add an entity (or array of entities or entity set) to this set"
     },
     { "remove", (PyCFunction)iMeshEntSetObj_remove, METH_VARARGS,
-      "Remove an entity (or array of entities or entity set) from the set"
+      "Remove an entity (or array of entities or entity set) from this set"
     },
     { "contains", (PyCFunction)iMeshEntSetObj_contains, METH_VARARGS,
       "Return whether an entity (or array of entities or entity set) are "
-      "contained in the set"
+      "contained in this set"
     },
     { "addChild", (PyCFunction)iMeshEntSetObj_addChild, METH_VARARGS,
       "Add parent/child links between two sets"

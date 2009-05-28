@@ -85,7 +85,27 @@ class TestBasic(unittest.TestCase):
         mesh = iMesh()
         root = mesh.rootSet
         mesh.load(file.name)
-        ents = mesh.getEntities(root, iBase.type.all, iMesh.topology.all)
+        ents = root.getEntities(iBase.type.all, iMesh.topology.all)
+
+        self.assertEqual(root.getNumOfType(iBase.type.vertex),    1)
+        self.assertEqual(root.getNumOfTopo(iMesh.topology.point), 1)
+
+        coords = mesh.getVtxCoords(ents, iBase.storageOrder.interleaved)
+        self.assert_( (coords == [1,2,3]).all() )
+
+    def testAltSave(self):
+        file = tempfile.NamedTemporaryFile()
+
+        mesh = iMesh()
+        verts = [1,2,3]
+        mesh.createVtx(verts)
+        
+        mesh.rootSet.save(file.name)
+        
+        mesh = iMesh()
+        root = mesh.rootSet
+        root.load(file.name)
+        ents = root.getEntities(iBase.type.all, iMesh.topology.all)
 
         self.assertEqual(root.getNumOfType(iBase.type.vertex),    1)
         self.assertEqual(root.getNumOfTopo(iMesh.topology.point), 1)

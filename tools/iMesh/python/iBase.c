@@ -35,9 +35,10 @@ iBaseTag_FromHandle(iBase_TagHandle h)
 }
 static int NPY_IBASETAG;
 
-ENUM_TYPE(type,         "iBase.type",         "");
-ENUM_TYPE(adjCost,      "iBase.adjCost",      "");
-ENUM_TYPE(storageOrder, "iBase.storageOrder", "");
+ENUM_TYPE(type,           "iBase.type",           "");
+ENUM_TYPE(adjCost,        "iBase.adjCost",        "");
+ENUM_TYPE(storageOrder,   "iBase.storageOrder",   "");
+ENUM_TYPE(creationStatus, "iBase.creationStatus", "");
 
 static PyMethodDef module_methods[] = {
     {0}
@@ -85,6 +86,9 @@ iBaseEntObj_repr(iBaseEntity_Object *self)
 static PyObject *
 iBaseEntObj_richcompare(iBaseEntity_Object *lhs,iBaseEntity_Object *rhs,int op)
 {
+    if(!iBaseEntity_Check(lhs) || !iBaseEntity_Check(rhs))
+        return Py_NotImplemented;
+
     switch(op)
     {
     case Py_EQ:
@@ -150,6 +154,9 @@ static PyObject *
 iBaseEntSetObj_richcompare(iBaseEntitySet_Object *lhs,
                            iBaseEntitySet_Object *rhs,int op)
 {
+    if(!iBaseEntitySet_Check(lhs) || !iBaseEntitySet_Check(rhs))
+        return Py_NotImplemented;
+
     switch(op)
     {
     case Py_EQ:
@@ -269,6 +276,14 @@ PyMODINIT_FUNC initiBase(void)
 
     ADD_ENUM(&storageOrder_Type,"blocked",    iBase_BLOCKED);
     ADD_ENUM(&storageOrder_Type,"interleaved",iBase_INTERLEAVED);
+
+    /***** initialize creation status enum *****/
+    REGISTER_SIMPLE(m,creationStatus);
+
+    ADD_ENUM(&creationStatus_Type,"new",        iBase_NEW);
+    ADD_ENUM(&creationStatus_Type,"exists",     iBase_ALREADY_EXISTED);
+    ADD_ENUM(&creationStatus_Type,"duplicated", iBase_CREATED_DUPLICATE);
+    ADD_ENUM(&creationStatus_Type,"failed",     iBase_CREATION_FAILED);
 
     /***** initialize iBaseEntity handle *****/
     iBaseEntity_Type.tp_repr = (reprfunc)iBaseEntObj_repr;

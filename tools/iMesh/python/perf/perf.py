@@ -77,14 +77,14 @@ for file in files:
     ##### 2 #####
     timer.reset()
     for x in range(count):
-        mesh.getAdjEntIndices(root, iBase.type.all,
-                              iMesh.topology.all, iBase.type.all)
+        root.getAdjEntIndices(iBase.type.all, iMesh.topology.all,
+                              iBase.type.all)
     py_stats[file].append( timer.delta()/count )
     list_stats[file].append(0)
 
     ##### Intermission #####
-    arr = mesh.getAdjEntIndices(root, iBase.type.all,
-                                iMesh.topology.all, iBase.type.all)
+    arr = root.getAdjEntIndices(iBase.type.all, iMesh.topology.all,
+                                iBase.type.all)
     list = map(lambda x: x.tolist(), arr)
 
     ##### 3 #####

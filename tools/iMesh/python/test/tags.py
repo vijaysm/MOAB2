@@ -29,46 +29,41 @@ class TestTags(unittest.TestCase):
         self.assertRaises(RuntimeError, self.mesh.getTagHandle, 'potato')
 
     def testIntData(self):
-        self.mesh.setData(self.ent, self.itag, 42)
-        self.assertEqual(self.mesh.getData(self.ent, self.itag), 42)
-        self.assertEqual(self.mesh.getData(self.ent, self.itag, 'i'), 42)
+        self.itag.setData(self.ent, 42)
+        self.assertEqual(self.itag.getData(self.ent),      42)
+        self.assertEqual(self.itag.getData(self.ent, 'i'), 42)
 
-        self.mesh.rmvTag(self.ent, self.itag)
-        self.assertRaises(RuntimeError, self.mesh.getData,
-                          self.ent,self.itag)
+        self.itag.remove(self.ent)
+        self.assertRaises(RuntimeError, self.itag.getData, self.ent)
 
     def testDblData(self):
-        self.mesh.setData(self.ent, self.dtag, 42.0)
-        self.assertEqual(self.mesh.getData(self.ent, self.dtag), 42.0)
-        self.assertEqual(self.mesh.getData(self.ent, self.dtag, 'd'), 42.0)
+        self.dtag.setData(self.ent, 42.0)
+        self.assertEqual(self.dtag.getData(self.ent),      42)
+        self.assertEqual(self.dtag.getData(self.ent, 'd'), 42)
 
-        self.mesh.rmvTag(self.ent, self.dtag)
-        self.assertRaises(RuntimeError, self.mesh.getData,
-                          self.ent,self.dtag)
+        self.dtag.remove(self.ent)
+        self.assertRaises(RuntimeError, self.dtag.getData, self.ent)
 
     def testEHData(self):
-        self.mesh.setData(self.ent, self.etag, self.ent)
-        self.assertEqual(self.mesh.getData(self.ent, self.etag), self.ent)
-        self.assertEqual(self.mesh.getData(self.ent, self.etag, 'E'), self.ent)
+        self.etag.setData(self.ent, self.ent)
+        self.assertEqual(self.etag.getData(self.ent),      self.ent)
+        self.assertEqual(self.etag.getData(self.ent, 'E'), self.ent)
 
-        self.mesh.rmvTag(self.ent, self.etag)
-        self.assertRaises(RuntimeError, self.mesh.getData,
-                          self.ent,self.etag)        
+        self.etag.remove(self.ent)
+        self.assertRaises(RuntimeError, self.etag.getData, self.ent)        
 
     def testRawData(self):
         data = array([1,2,3], int8)
-        self.mesh.setData(self.ent, self.btag, data)
-        self.assert_( (self.mesh.getData(self.ent, self.btag) == data).all() )
-        self.assert_( (self.mesh.getData(self.ent, self.btag, 'b') == data)
-                      .all() )
+        self.btag.setData(self.ent, data)
+        self.assert_( (self.btag.getData(self.ent)      == data).all() )
+        self.assert_( (self.btag.getData(self.ent, 'b') == data).all() )
 
-        self.mesh.rmvTag(self.ent, self.btag)
-        self.assertRaises(RuntimeError, self.mesh.getData,
-                          self.ent,self.btag)
+        self.btag.remove(self.ent)
+        self.assertRaises(RuntimeError, self.btag.getData, self.ent)
 
     def testGetAll(self):
-        self.mesh.setData(self.ent, self.itag, 42)
-        self.mesh.setData(self.ent, self.dtag, 42)
+        self.itag.setData(self.ent, 42)
+        self.dtag.setData(self.ent, 42)
 
         tags = self.mesh.getAllTags(self.ent)
         self.assertEqual(tags[0].name, self.itag.name) # TODO: ignore order?
@@ -76,96 +71,94 @@ class TestTags(unittest.TestCase):
 
 
     def testIntArrData(self):
-        self.mesh.setData(self.ents, self.itag, 3*[42])
+        self.itag.setData(self.ents, 3*[42])
 
-        self.assert_((self.mesh.getData(self.ents, self.itag, 'i') ==
-                      3*[42]).all())
-        self.assertEqual(self.mesh.getData(self.ents[0], self.itag, 'i'), 42)
+        self.assert_((self.itag.getData(self.ents)      == 3*[42]).all())
+        self.assert_((self.itag.getData(self.ents, 'i') == 3*[42]).all())
 
-        self.mesh.rmvTag(self.ents, self.itag)
-        self.assertRaises(RuntimeError, self.mesh.getData,
-                          self.ents,self.itag)
+        self.assertEqual(self.itag.getData(self.ents[0]),      42)
+        self.assertEqual(self.itag.getData(self.ents[0], 'i'), 42)
+
+        self.itag.remove(self.ents)
+        self.assertRaises(RuntimeError, self.itag.getData, self.ents)
 
     def testDblArrData(self):
-        self.mesh.setData(self.ents, self.dtag, 3*[42.0])
+        self.dtag.setData(self.ents, 3*[42])
 
-        self.assert_((self.mesh.getData(self.ents, self.dtag, 'd') ==
-                      3*[42.0]).all())
-        self.assertEqual(self.mesh.getData(self.ents[0], self.dtag, 'd'), 42.0)
+        self.assert_((self.dtag.getData(self.ents)      == 3*[42]).all())
+        self.assert_((self.dtag.getData(self.ents, 'd') == 3*[42]).all())
 
-        self.mesh.rmvTag(self.ents, self.dtag)
-        self.assertRaises(RuntimeError, self.mesh.getData,
-                          self.ents,self.dtag)
+        self.assertEqual(self.dtag.getData(self.ents[0]),      42)
+        self.assertEqual(self.dtag.getData(self.ents[0], 'd'), 42)
+
+        self.dtag.remove(self.ents)
+        self.assertRaises(RuntimeError, self.dtag.getData, self.ents)
 
     def testEHArrData(self):
-        self.mesh.setData(self.ents, self.etag, self.ents)
+        self.etag.setData(self.ents, self.ents)
 
-        self.assertEqual(str(self.mesh.getData(self.ents, self.etag, 'E')),
-                         str(self.ents))
-        self.assertEqual(self.mesh.getData(self.ents[0], self.etag, 'E'),
-                         self.ents[0])
+        self.assertEqual(self.etag.getData(self.ents).tolist(),
+                         self.ents.tolist())
+        self.assertEqual(self.etag.getData(self.ents, 'E').tolist(),
+                         self.ents.tolist())
 
-        self.mesh.rmvTag(self.ents, self.etag)
-        self.assertRaises(RuntimeError, self.mesh.getData,
-                          self.ents,self.etag)
+        self.assertEqual(self.etag.getData(self.ents[0]),      self.ents[0])
+        self.assertEqual(self.etag.getData(self.ents[0], 'E'), self.ents[0])
+
+        self.etag.remove(self.ents)
+        self.assertRaises(RuntimeError, self.etag.getData, self.ents)
 
     def testRawArrData(self):
         data = array(3*[1,2,3], int8)
-        self.mesh.setData(self.ents, self.btag, data)
+        self.btag.setData(self.ents, data)
 
-        self.assert_((self.mesh.getData(self.ents, self.btag, 'b') ==
-                      data).all())
-        self.assert_((self.mesh.getData(self.ents[0], self.btag, 'b') == 
-                      data[0:3]).all())
+        self.assert_((self.btag.getData(self.ents)      == data).all())
+        self.assert_((self.btag.getData(self.ents, 'b') == data).all())
 
-        self.mesh.rmvTag(self.ents, self.btag)
-        self.assertRaises(RuntimeError, self.mesh.getData,
-                          self.ents,self.btag)
+        self.assert_((self.btag.getData(self.ents[0])      == data[0:3]).all())
+        self.assert_((self.btag.getData(self.ents[0], 'b') == data[0:3]).all())
 
+        self.btag.remove(self.ents)
+        self.assertRaises(RuntimeError, self.btag.getData, self.ents)
 
 
     def testIntSetData(self):
-        self.mesh.setData(self.set, self.itag, 42)
-        self.assertEqual(self.mesh.getData(self.set, self.itag), 42)
-        self.assertEqual(self.mesh.getData(self.set, self.itag, 'i'), 42)
+        self.itag.setData(self.set, 42)
+        self.assertEqual(self.itag.getData(self.set),      42)
+        self.assertEqual(self.itag.getData(self.set, 'i'), 42)
 
-        self.mesh.rmvTag(self.set, self.itag)
-        self.assertRaises(RuntimeError, self.mesh.getData,
-                          self.set,self.itag)
+        self.itag.remove(self.set)
+        self.assertRaises(RuntimeError, self.itag.getData, self.set)
 
     def testDblSetData(self):
-        self.mesh.setData(self.set, self.dtag, 42)
-        self.assertEqual(self.mesh.getData(self.set, self.dtag), 42)
-        self.assertEqual(self.mesh.getData(self.set, self.dtag, 'd'), 42)
+        self.dtag.setData(self.set, 42)
+        self.assertEqual(self.dtag.getData(self.set),      42)
+        self.assertEqual(self.dtag.getData(self.set, 'd'), 42)
 
-        self.mesh.rmvTag(self.set, self.dtag)
-        self.assertRaises(RuntimeError, self.mesh.getData,
-                          self.set,self.dtag)
+        self.dtag.remove(self.set)
+        self.assertRaises(RuntimeError, self.dtag.getData, self.set)
         
     def testEHSetData(self):
-        self.mesh.setData(self.set, self.etag, self.ent)
-        self.assertEqual(self.mesh.getData(self.set, self.etag), self.ent)
-        self.assertEqual(self.mesh.getData(self.set, self.etag, 'd'), self.ent)
+        self.etag.setData(self.set, self.ent)
+        self.assertEqual(self.etag.getData(self.set),      self.ent)
+        self.assertEqual(self.etag.getData(self.set, 'E'), self.ent)
 
-        self.mesh.rmvTag(self.set, self.etag)
-        self.assertRaises(RuntimeError, self.mesh.getData,
-                          self.set,self.etag)
+        self.etag.remove(self.set)
+        self.assertRaises(RuntimeError, self.etag.getData, self.set)
 
     def testRawSetData(self):
         data = array([1,2,3], int8)
-        self.mesh.setData(self.set, self.btag, data)
+        self.btag.setData(self.set, data)
 
-        self.assert_((self.mesh.getData(self.set, self.btag) == data).all())
-        self.assert_((self.mesh.getData(self.set, self.btag, 'b') == data)
-                     .all())
+        self.assert_((self.btag.getData(self.set)      == data).all())
+        self.assert_((self.btag.getData(self.set, 'b') == data).all())
 
-        self.mesh.rmvTag(self.set, self.btag)
-        self.assertRaises(RuntimeError, self.mesh.getData,
-                          self.set,self.btag)
+        self.btag.remove(self.set)
+        self.assertRaises(RuntimeError, self.btag.getData, self.set)
 
     def testGetAllSet(self):
-        self.mesh.setData(self.set, self.itag, 42)
-        self.mesh.setData(self.set, self.dtag, 42)
+        self.itag.setData(self.set, 42)
+        self.dtag.setData(self.set, 42)
 
         tags = self.mesh.getAllTags(self.set)
         self.assertEqual(tags[0].name, self.itag.name) # TODO: ignore order?
