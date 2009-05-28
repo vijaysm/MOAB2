@@ -36,25 +36,25 @@ class TestAdj(unittest.TestCase):
         quad = self.mesh.createEnt(topo.quadrilateral, self.lines)[0]
         root = self.mesh.rootSet
 
-        self.assertEqual(self.mesh.getNumOfType(root, iBase.type.vertex),  4)
-        self.assertEqual(self.mesh.getNumOfType(root, iBase.type.edge),    4)
-        self.assertEqual(self.mesh.getNumOfType(root, iBase.type.face),    1)
+        self.assertEqual(root.getNumOfType(iBase.type.vertex),  4)
+        self.assertEqual(root.getNumOfType(iBase.type.edge),    4)
+        self.assertEqual(root.getNumOfType(iBase.type.face),    1)
 
-        self.assertEqual(self.mesh.getNumOfTopo(root, topo.point),         4)
-        self.assertEqual(self.mesh.getNumOfTopo(root, topo.line_segment),  4)
-        self.assertEqual(self.mesh.getNumOfTopo(root, topo.quadrilateral), 1)
+        self.assertEqual(root.getNumOfTopo(topo.point),         4)
+        self.assertEqual(root.getNumOfTopo(topo.line_segment),  4)
+        self.assertEqual(root.getNumOfTopo(topo.quadrilateral), 1)
 
         self.mesh.deleteEnt(quad)
-        self.assertEqual(self.mesh.getNumOfType(root, iBase.type.face),    0)
-        self.assertEqual(self.mesh.getNumOfTopo(root, topo.quadrilateral), 0)
+        self.assertEqual(root.getNumOfType(iBase.type.face),    0)
+        self.assertEqual(root.getNumOfTopo(topo.quadrilateral), 0)
 
         self.mesh.deleteEnt(self.lines)
-        self.assertEqual(self.mesh.getNumOfType(root, iBase.type.edge),    0)
-        self.assertEqual(self.mesh.getNumOfTopo(root, topo.line_segment),  0)
+        self.assertEqual(root.getNumOfType(iBase.type.edge),    0)
+        self.assertEqual(root.getNumOfTopo(topo.line_segment),  0)
 
         self.mesh.deleteEnt(self.ents)
-        self.assertEqual(self.mesh.getNumOfType(root, iBase.type.vertex),  0)
-        self.assertEqual(self.mesh.getNumOfTopo(root, topo.point),         0)
+        self.assertEqual(root.getNumOfType(iBase.type.vertex),  0)
+        self.assertEqual(root.getNumOfTopo(topo.point),         0)
 
     def testAdj(self):
         adj = self.mesh.getEntAdj(self.ents[1], iBase.type.all)

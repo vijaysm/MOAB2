@@ -6,6 +6,70 @@
 #include "iBase_Python.h"
 
 static PyObject *
+iMeshEntSetObj_load(iMeshEntitySet_Object *self,PyObject *args)
+{
+    const char *name = 0;
+    const char *options = "";
+    if(!PyArg_ParseTuple(args,"s|s",&name,&options))
+        return NULL;
+
+    int err;
+    iMesh_load(self->mesh->mesh,self->set.handle,name,options,&err,strlen(name),
+               strlen(options));
+    if(checkError(self->mesh->mesh,err))
+        return NULL;
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+iMeshEntSetObj_save(iMeshEntitySet_Object *self,PyObject *args)
+{
+    const char *name = 0;
+    const char *options = "";
+    if(!PyArg_ParseTuple(args,"s|s",&name,&options))
+        return NULL;
+
+    int err;
+    iMesh_save(self->mesh->mesh,self->set.handle,name,options,&err,strlen(name),
+               strlen(options));
+    if(checkError(self->mesh->mesh,err))
+        return NULL;
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+iMeshEntSetObj_getNumOfType(iMeshEntitySet_Object *self,PyObject *args)
+{
+    enum iBase_EntityType type;
+    int num,err;
+    if(!PyArg_ParseTuple(args,"i",&type))
+        return NULL;
+
+    iMesh_getNumOfType(self->mesh->mesh,self->set.handle,type,&num,&err);
+    if(checkError(self->mesh,err))
+        return NULL;
+
+    return Py_BuildValue("i",num);
+}
+
+static PyObject *
+iMeshEntSetObj_getNumOfTopo(iMeshEntitySet_Object *self,PyObject *args)
+{
+    enum iMesh_EntityTopology topo;
+    int num,err;
+    if(!PyArg_ParseTuple(args,"i",&topo))
+        return NULL;
+
+    iMesh_getNumOfTopo(self->mesh->mesh,self->set.handle,topo,&num,&err);
+    if(checkError(self->mesh,err))
+        return NULL;
+
+    return Py_BuildValue("i",num);
+}
+
+static PyObject *
 iMeshEntSetObj_isList(iMeshEntitySet_Object *self,void *closure)
 {
     int is_list,err;
@@ -421,11 +485,23 @@ iMeshEntSetObj_union(iMeshEntitySet_Object *self,PyObject *args)
 
 
 static PyMethodDef iMeshEntSetObj_methods[] = {
+    { "load", (PyCFunction)iMeshEntSetObj_load, METH_VARARGS,
+      "Load a mesh from a file"
+    },
+    { "save", (PyCFunction)iMeshEntSetObj_save, METH_VARARGS,
+      "Save the mesh to a file"
+    },
+    { "getNumOfType", (PyCFunction)iMeshEntSetObj_getNumOfType, METH_VARARGS,
+      "Get the number of entities with the specified type in the set"
+    },
+    { "getNumOfTopo", (PyCFunction)iMeshEntSetObj_getNumOfTopo, METH_VARARGS,
+      "Get the number of entities with the specified topology in the set"
+    },
     { "getNumEntSets", (PyCFunction)iMeshEntSetObj_getNumEntSets, METH_VARARGS,
-      "Get the number of entity sets contained in the set or interface"
+      "Get the number of entity sets contained in the set"
     },
     { "getEntSets", (PyCFunction)iMeshEntSetObj_getEntSets, METH_VARARGS,
-      "Get the entity sets contained in the set or interface"
+      "Get the entity sets contained in the set"
     },
     { "add", (PyCFunction)iMeshEntSetObj_add, METH_VARARGS,
       "Add an entity (or array of entities or entity set) to the set"

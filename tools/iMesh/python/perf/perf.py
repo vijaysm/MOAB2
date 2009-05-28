@@ -64,11 +64,7 @@ for file in files:
     timer.reset()
     for x in range(count):
         m = iMesh()
-        try:
-            m.load(m.rootSet, file)
-        except:
-            print file
-            exit(0)
+        m.load(file)
         m = None
     py_stats[file].append( timer.delta()/count )
     list_stats[file].append(0)
@@ -76,7 +72,7 @@ for file in files:
     ##### Intermission #####
     mesh = iMesh()
     root = mesh.rootSet
-    mesh.load(root, file)
+    mesh.load(file)
 
     ##### 2 #####
     timer.reset()
@@ -114,7 +110,8 @@ for file in files:
     list_stats[file].append( timer.delta()/count )
 
     mesh = None
-    arr = None
+    root = None
+    arr  = None
     list = None
 
 

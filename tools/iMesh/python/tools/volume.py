@@ -28,9 +28,9 @@ def hex_volume(coords):
 
 def calc_volume(filename):
     mesh = iMesh()
-    mesh.load(mesh.rootSet, filename)
+    mesh.load(filename)
 
-    volume = ndarray(mesh.getNumOfType(mesh.rootSet, iBase.type.region), float_)
+    volume = ndarray(mesh.rootSet.getNumOfType(iBase.type.region), float_)
     x=0
     for i in mesh.rootSet.iterate(iBase.type.region, iMesh.topology.all):
         topo = mesh.getEntTopo(i)

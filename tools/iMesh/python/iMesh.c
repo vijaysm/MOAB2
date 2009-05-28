@@ -58,15 +58,19 @@ iMeshObj_dealloc(iMeshObject *self)
 static PyObject *
 iMeshObj_load(iMeshObject *self,PyObject *args)
 {
-    iBaseEntitySet_Object *set;
     const char *name = 0;
     const char *options = "";
-    if(!PyArg_ParseTuple(args,"O!s|s",&iBaseEntitySet_Type,&set,&name,&options))
+    iBase_EntitySetHandle root;
+    int err;
+
+    if(!PyArg_ParseTuple(args,"s|s",&name,&options))
         return NULL;
 
-    int err;
-    iMesh_load(self->mesh,set->handle,name,options,&err,strlen(name),
-               strlen(options));
+    iMesh_getRootSet(self->mesh,&root,&err);
+    if(checkError(self->mesh,err))
+        return NULL;
+
+    iMesh_load(self->mesh,root,name,options,&err,strlen(name),strlen(options));
     if(checkError(self->mesh,err))
         return NULL;
 
@@ -76,15 +80,19 @@ iMeshObj_load(iMeshObject *self,PyObject *args)
 static PyObject *
 iMeshObj_save(iMeshObject *self,PyObject *args)
 {
-    iBaseEntitySet_Object *set;
     const char *name = 0;
     const char *options = "";
-    if(!PyArg_ParseTuple(args,"O!s|s",&iBaseEntitySet_Type,&set,&name,&options))
+    iBase_EntitySetHandle root;
+    int err;
+
+    if(!PyArg_ParseTuple(args,"s|s",&name,&options))
         return NULL;
 
-    int err;
-    iMesh_save(self->mesh,set->handle,name,options,&err,strlen(name),
-               strlen(options));
+    iMesh_getRootSet(self->mesh,&root,&err);
+    if(checkError(self->mesh,err))
+        return NULL;
+
+    iMesh_save(self->mesh,root,name,options,&err,strlen(name),strlen(options));
     if(checkError(self->mesh,err))
         return NULL;
 
@@ -163,38 +171,6 @@ iMeshObj_getAdjTable(iMeshObject *self,void *closure)
 
     npy_intp dims[] = {4,4};
     return PyArray_NewFromMalloc(2,dims,NPY_INT,adjtable);
-}
-
-static PyObject *
-iMeshObj_getNumOfType(iMeshObject *self,PyObject *args)
-{
-    iBaseEntitySet_Object *set;
-    enum iBase_EntityType type;
-    int num,err;
-    if(!PyArg_ParseTuple(args,"O!i",&iBaseEntitySet_Type,&set,&type))
-        return NULL;
-
-    iMesh_getNumOfType(self->mesh,set->handle,type,&num,&err);
-    if(checkError(self->mesh,err))
-        return NULL;
-
-    return Py_BuildValue("i",num);
-}
-
-static PyObject *
-iMeshObj_getNumOfTopo(iMeshObject *self,PyObject *args)
-{
-    iBaseEntitySet_Object *set;
-    enum iMesh_EntityTopology topo;
-    int num,err;
-    if(!PyArg_ParseTuple(args,"O!i",&iBaseEntitySet_Type,&set,&topo))
-        return NULL;
-
-    iMesh_getNumOfTopo(self->mesh,set->handle,topo,&num,&err);
-    if(checkError(self->mesh,err))
-        return NULL;
-
-    return Py_BuildValue("i",num);
 }
 
 static PyObject *
@@ -761,7 +737,6 @@ iMeshObj_createEnt(iMeshObject *self,PyObject *args)
     int lower_size = PyArray_SIZE(ents);
     iBase_EntityHandle *lower = PyArray_DATA(ents);
 
-    PyObject *pair = PyTuple_New(2);
     iBaseEntity_Object *entity = iBaseEntity_New();
 
     iMesh_createEnt(self->mesh,topo,lower,lower_size,&entity->handle,&status,
@@ -769,11 +744,11 @@ iMeshObj_createEnt(iMeshObject *self,PyObject *args)
     Py_DECREF(ents);
     if(checkError(self->mesh,err))
     {
-        Py_DECREF(pair);
         Py_DECREF((PyObject*)entity);
         return NULL;
     }
 
+    PyObject *pair = PyTuple_New(2);
     PyTuple_SET_ITEM(pair,0,(PyObject*)entity);
     PyTuple_SET_ITEM(pair,1,Py_BuildValue("i",status));
     return pair;
@@ -1007,7 +982,7 @@ iMeshObj_setData(iMeshObject *self,PyObject *args)
             iBase_EntityHandle *data = PyArray_DATA(data_arr);
             iMesh_setEHArrData(self->mesh,entities,ent_size,tag->handle,data,
                                data_size,&err);
-    }
+        }
         else /* iBase_BYTES */
         {
             data_arr = PyArray_FROMANY(data_obj,NPY_BYTE,1,1,NPY_C_CONTIGUOUS);
@@ -1385,18 +1360,10 @@ iMeshObj_rmvTag(iMeshObject *self,PyObject *args)
 
 static PyMethodDef iMesh_methods[] = {
     { "load", (PyCFunction)iMeshObj_load, METH_VARARGS,
-      "Load a mesh"
+      "Load a mesh from a file"
     },
     { "save", (PyCFunction)iMeshObj_save, METH_VARARGS,
-      "Save the mesh"
-    },
-    { "getNumOfType", (PyCFunction)iMeshObj_getNumOfType, METH_VARARGS,
-      "Get the number of entities with the specified type in the instance or "
-      "set"
-    },
-    { "getNumOfTopo", (PyCFunction)iMeshObj_getNumOfTopo, METH_VARARGS,
-      "Get the number of entities with the specified topology in the instance "
-      "or set"
+      "Save the mesh to a file"
     },
     { "areEHValid", (PyCFunction)iMeshObj_areEHValid, METH_VARARGS,
       "Return whether entity handles have changed since last reset or since "

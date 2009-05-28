@@ -12,8 +12,8 @@ class TestBasic(unittest.TestCase):
         mesh.dfltStorage
 
         self.assert_(mesh.areEHValid(True))
-        self.assertEqual(mesh.getNumOfType(root, iBase.type.all), 0)
-        self.assertEqual(mesh.getNumOfTopo(root, iMesh.topology.all), 0)
+        self.assertEqual(root.getNumOfType(iBase.type.all),     0)
+        self.assertEqual(root.getNumOfTopo(iMesh.topology.all), 0)
         self.assertEqual(mesh.adjTable.shape, (4,4))
 
     def testVertex(self):
@@ -21,8 +21,8 @@ class TestBasic(unittest.TestCase):
         ent = mesh.createVtx([1,2,3])
         root = mesh.rootSet
 
-        self.assertEqual(mesh.getNumOfType(root, iBase.type.vertex), 1)
-        self.assertEqual(mesh.getNumOfTopo(root, iMesh.topology.point), 1)
+        self.assertEqual(root.getNumOfType(iBase.type.vertex),    1)
+        self.assertEqual(root.getNumOfTopo(iMesh.topology.point), 1)
 
         self.assert_( (mesh.getVtxCoords(ent) == [1,2,3]).all() )
         self.assert_( (mesh.getVtxCoords([ent], iBase.storageOrder.interleaved)
@@ -40,8 +40,8 @@ class TestBasic(unittest.TestCase):
         ents = mesh.createVtx(verts, iBase.storageOrder.interleaved)
         root = mesh.rootSet
 
-        self.assertEqual(mesh.getNumOfType(root, iBase.type.vertex), 4)
-        self.assertEqual(mesh.getNumOfTopo(root, iMesh.topology.point), 4)
+        self.assertEqual(root.getNumOfType(iBase.type.vertex),    4)
+        self.assertEqual(root.getNumOfTopo(iMesh.topology.point), 4)
 
         coords = mesh.getVtxCoords(ents, iBase.storageOrder.interleaved)
         self.assert_( (coords == verts).all())
@@ -67,11 +67,11 @@ class TestBasic(unittest.TestCase):
         topo = iMesh.topology
 
         lines = mesh.createEntArr(topo.line_segment,ents)[0]
-        self.assertEqual(mesh.getNumOfType(root, iBase.type.vertex),  4)
-        self.assertEqual(mesh.getNumOfType(root, iBase.type.edge),    2)
+        self.assertEqual(root.getNumOfType(iBase.type.vertex),  4)
+        self.assertEqual(root.getNumOfType(iBase.type.edge),    2)
 
-        self.assertEqual(mesh.getNumOfTopo(root, topo.point),         4)
-        self.assertEqual(mesh.getNumOfTopo(root, topo.line_segment),  2)
+        self.assertEqual(root.getNumOfTopo(topo.point),         4)
+        self.assertEqual(root.getNumOfTopo(topo.line_segment),  2)
 
     def testSave(self):
         file = tempfile.NamedTemporaryFile()
@@ -80,17 +80,17 @@ class TestBasic(unittest.TestCase):
         verts = [1,2,3]
         mesh.createVtx(verts)
         
-        mesh.save(mesh.rootSet,file.name)
+        mesh.save(file.name)
         
         mesh = iMesh()
         root = mesh.rootSet
-        mesh.load(root,file.name)
-        ents = mesh.getEntities(root,iBase.type.all,iMesh.topology.all)
+        mesh.load(file.name)
+        ents = mesh.getEntities(root, iBase.type.all, iMesh.topology.all)
 
-        self.assertEqual(mesh.getNumOfType(root, iBase.type.vertex), 1)
-        self.assertEqual(mesh.getNumOfTopo(root, iMesh.topology.point), 1)
+        self.assertEqual(root.getNumOfType(iBase.type.vertex),    1)
+        self.assertEqual(root.getNumOfTopo(iMesh.topology.point), 1)
 
-        coords = mesh.getVtxCoords(ents,iBase.storageOrder.interleaved)
+        coords = mesh.getVtxCoords(ents, iBase.storageOrder.interleaved)
         self.assert_( (coords == [1,2,3]).all() )
 
 
