@@ -7,3 +7,4 @@
 #define ERR_ARR_SIZE      "unexpected array size"
 #define ERR_ARR_DIMS      "1- or 2-dimensional array expected"
 #define ERR_TYPE_CODE     "invalid type code"
+#define ERR_ADJ_LIST      "unable to create adjacency list"

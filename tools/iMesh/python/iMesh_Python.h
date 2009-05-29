@@ -40,6 +40,12 @@ int checkError(iMesh_Instance mesh,int err);
 enum iBase_TagValueType char_to_type(char c);
 char type_to_char(enum iBase_TagValueType t);
 
+PyObject *
+AdjacencyList_New(PyObject *adj,PyObject *offsets);
+PyObject *
+IndexedAdjacencyList_New(PyObject *ents, PyObject *adj,PyObject *indices,
+                         PyObject *offsets);
+
 typedef struct
 {
     PyObject_HEAD

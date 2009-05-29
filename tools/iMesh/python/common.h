@@ -36,10 +36,11 @@
   SIMPLE_TYPE(name ## _Object,name ## _Type,		\
 		     namestr,docstr)
 
-#define ADD_ENUM(type,name,value)                       \
+#define ADD_ENUM(typename,name,value)                   \
   do {                                                  \
     PyObject *o = Py_BuildValue("i",(value));           \
-    PyDict_SetItemString((type)->tp_dict,(name),o);     \
+    PyDict_SetItemString((&typename ## _Type)->         \
+                         tp_dict,(name),o);             \
     Py_DECREF(o);                                       \
   } while(0)
 

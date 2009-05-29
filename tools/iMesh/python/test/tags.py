@@ -4,7 +4,7 @@ from numpy import *
 
 class TestTags(unittest.TestCase):
     def setUp(self):
-        self.mesh = iMesh()
+        self.mesh = iMesh.Mesh()
 
         self.itag = self.mesh.createTag('int',    1, 'i')
         self.dtag = self.mesh.createTag('double', 1, 'd')
@@ -12,7 +12,7 @@ class TestTags(unittest.TestCase):
         self.btag = self.mesh.createTag('bytes',  3, 'b')
 
         self.ents = self.mesh.createVtx([[1,2,3], [4,5,6], [7,8,9]],
-                                        iBase.storageOrder.interleaved)
+                                        iBase.StorageOrder.interleaved)
         self.ent = self.ents[0]
         self.set = self.mesh.createEntSet(True)
 

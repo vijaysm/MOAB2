@@ -118,27 +118,16 @@ iMeshEntSetObj_getAdjEntIndices(iMeshEntitySet_Object *self,PyObject *args)
     if(checkError(self->mesh->mesh,err))
         return NULL;
 
-    /* TODO: this is clunky */
-    PyObject *tup = PyTuple_New(4);
-    npy_intp dims[1];
+    npy_intp ent_dims[] = {ent_size};
+    npy_intp adj_dims[] = {adj_size};
+    npy_intp ind_dims[] = {ind_size};
+    npy_intp off_dims[] = {off_size};
 
-    dims[0] = ent_size;
-    PyTuple_SET_ITEM(tup, 0,
-        PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,entities));
-
-    dims[0] = adj_size;
-    PyTuple_SET_ITEM(tup, 1,
-        PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,adj_ents));
-
-    dims[0] = ind_size;
-    PyTuple_SET_ITEM(tup, 2,
-        PyArray_NewFromMalloc(1,dims,NPY_INT,indices));
-
-    dims[0] = off_size;
-    PyTuple_SET_ITEM(tup, 3,
-        PyArray_NewFromMalloc(1,dims,NPY_INT,offsets));
-
-    return tup;
+    return IndexedAdjacencyList_New(
+        PyArray_NewFromMalloc(1,ent_dims,NPY_IBASEENT,entities),
+        PyArray_NewFromMalloc(1,adj_dims,NPY_IBASEENT,adj_ents),
+        PyArray_NewFromMalloc(1,ind_dims,NPY_INT,indices),
+        PyArray_NewFromMalloc(1,off_dims,NPY_INT,offsets) );
 }
 
 static PyObject *

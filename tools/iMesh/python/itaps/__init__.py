@@ -1,2 +1,1 @@
-import iBase
-from iMesh import *
+__all__ = ['iBase', 'iMesh', 'helpers']

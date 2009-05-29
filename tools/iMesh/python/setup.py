@@ -21,5 +21,6 @@ setup(name = 'PyTAPS',
       author = 'Jim Porter',
       author_email = 'jvporter@wisc.edu',
       packages = ['itaps'],
-      ext_modules = [iBase, iMesh]
+      ext_modules = [iBase, iMesh],
+      py_modules = ['itaps.helpers']
       )

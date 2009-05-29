@@ -63,50 +63,49 @@ for file in files:
     ##### 1 #####
     timer.reset()
     for x in range(count):
-        m = iMesh()
+        m = iMesh.Mesh()
         m.load(file)
         m = None
     py_stats[file].append( timer.delta()/count )
     list_stats[file].append(0)
 
     ##### Intermission #####
-    mesh = iMesh()
+    mesh = iMesh.Mesh()
     root = mesh.rootSet
     mesh.load(file)
 
     ##### 2 #####
     timer.reset()
     for x in range(count):
-        root.getAdjEntIndices(iBase.type.all, iMesh.topology.all,
-                              iBase.type.all)
+        root.getAdjEntIndices(iBase.Type.all, iMesh.Topology.all,
+                              iBase.Type.all)
     py_stats[file].append( timer.delta()/count )
     list_stats[file].append(0)
 
     ##### Intermission #####
-    arr = root.getAdjEntIndices(iBase.type.all, iMesh.topology.all,
-                                iBase.type.all)
-    list = map(lambda x: x.tolist(), arr)
+    arr = root.getEntities(iBase.Type.all, iMesh.Topology.all)
+    list = arr.tolist()
 
     ##### 3 #####
     timer.reset()
     for x in range(count):
-        mesh.getEntAdj(arr[0], iBase.type.all)
+        mesh.getEntAdj(arr, iBase.Type.all)
     py_stats[file].append( timer.delta()/count )
 
     timer.reset()
     for x in range(count):
-        mesh.getEntAdj(list[0], iBase.type.all)
+        mesh.getEntAdj(list, iBase.Type.all)
     list_stats[file].append( timer.delta()/count )
 
     ##### 4 #####
     timer.reset()
     for x in range(count):
-        mesh.getEnt2ndAdj(arr[0], iBase.type.edge, iBase.type.vertex)
+        mesh.getEnt2ndAdj(arr, iBase.Type.edge, iBase.Type.vertex)
     py_stats[file].append( timer.delta()/count )
 
     timer.reset()
     for x in range(count):
-        mesh.getEnt2ndAdj(list[0], iBase.type.edge, iBase.type.vertex)
+        mesh.getEnt2ndAdj(list, iBase.Type.edge, iBase.Type.vertex)
     list_stats[file].append( timer.delta()/count )
 
     mesh = None

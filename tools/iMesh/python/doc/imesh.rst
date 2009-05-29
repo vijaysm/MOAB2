@@ -2,11 +2,11 @@
  iMesh Interface
 =================
 
-.. module:: itaps
+.. module:: itaps.iMesh
 
-.. class:: itaps.iMesh([options])
+.. class:: itaps.iMesh.Mesh([options])
 
-   Return a new ``iMesh`` object with any implementation-specific options
+   Return a new ``Mesh`` object with any implementation-specific options
    defined in ``options``.
 
    :param options: Implementation-specific options string
@@ -229,7 +229,7 @@
       :return: Array of tags associated with ``entities``
 
 
-.. class:: itaps.iMesh.topology
+.. class:: itaps.iMesh.Topology
 
    An enumeration of mesh element topologies corresponding to
    ``iMesh_EntityTopology``.
@@ -285,13 +285,13 @@
       Allows the user to request information about all the topology types
 
 
-.. class:: itaps.iMesh.iterator(set, type, topology[, size=1])
+.. class:: itaps.iMesh.Iterator(set, type, topology[, count=1])
 
    Return a new iterator on the entity set ``set`` to iterate over entities of
    the specified ``type`` and ``topology``. If ``size`` is greater than 1, each
    step of the iteration will return an array of ``size`` entities. All
    entities of a given type or topology are requested by specifying 
-   ``iBase.type.all`` or  `iMesh.topology.all``, respectively.
+   ``iBase.Type.all`` or  ``iMesh.Topology.all``, respectively.
 
    :param set: Entity set to iterate over
    :param type: Type of entities being requested
@@ -303,7 +303,7 @@
       Resets the iterator to the beginning.
 
 
-.. class:: itaps.iMesh.entitySet
+.. class:: itaps.iMesh.EntitySet
 
    .. attribute:: isList
 
@@ -342,7 +342,7 @@
 
       Get entities of a specific type and/or topology in this entity set. All 
       entities of a given type or topology are requested by specifying
-      ``iBase.type.all`` or ``iMesh.topology.all``, respectively.
+      ``iBase.Type.all`` or ``iMesh.Topology.all``, respectively.
 
       :param entSet: Entity set being queried
       :param type: Type of entities being requested
@@ -480,12 +480,12 @@
       this entity set. If ``count`` is greater than 1, each step of the
       iteration returns an array of ``count`` entities. Equivalent to::
 
-        itaps.iMesh.iterator(self, type, topo, count)
+        itaps.iMesh.Iterator(self, type, topo, count)
 
       :param type: Type of entities being requested
       :param topo: Topology of entities being requested
       :param count: Number of entities to return on each step of iteration
-      :return: An ``itaps.iMesh.iterator`` instance
+      :return: An ``itaps.iMesh.Iterator`` instance
 
    .. method:: difference(entSet)
 
@@ -512,7 +512,7 @@
       :return: Resulting entity set
 
 
-.. class:: itaps.iMesh.tag
+.. class:: itaps.iMesh.Tag
 
    .. attribute:: name
 
@@ -541,7 +541,7 @@
       :param data: Data to set
       :param type: Character representing the tag's type (as above)
 
-   .. method:: getData(entities, [, type])
+   .. method:: getData(entities[, type])
 
       Get value(s) for the tag on an entity, entity set, or array of entities.
       If ``type`` is not specified, this function will retrieve the tag type
@@ -552,7 +552,7 @@
       :param type: Character representing the tag's type (as above)
       :return: The retrieved data
 
-   .. method:: rmvTag(entities)
+   .. method:: remove(entities)
 
       Remove the tag value from an entity, entity set, or array of entities.
 

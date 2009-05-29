@@ -27,19 +27,19 @@ def hex_volume(coords):
            subvolume(coords[1], coords[2], coords[5], coords[6], coords[7])
 
 def calc_volume(filename):
-    mesh = iMesh()
+    mesh = iMesh.Mesh()
     mesh.load(filename)
 
-    volume = ndarray(mesh.rootSet.getNumOfType(iBase.type.region), float_)
+    volume = ndarray(mesh.rootSet.getNumOfType(iBase.Type.region), float_)
     x=0
-    for i in mesh.rootSet.iterate(iBase.type.region, iMesh.topology.all):
+    for i in mesh.rootSet.iterate(iBase.Type.region, iMesh.Topology.all):
         topo = mesh.getEntTopo(i)
-        curr = mesh.getVtxCoords( mesh.getEntAdj(i, iBase.type.vertex),
-                                  iBase.storageOrder.interleaved )
+        curr = mesh.getVtxCoords( mesh.getEntAdj(i, iBase.Type.vertex),
+                                  iBase.StorageOrder.interleaved )
 
-        if topo == iMesh.topology.tetrahedron:
+        if topo == iMesh.Topology.tetrahedron:
             volume[x] = tet_volume(curr)
-        elif topo == iMesh.topology.hexahedron:
+        elif topo == iMesh.Topology.hexahedron:
             volume[x] = hex_volume(curr)
         else:
             assert(False)

@@ -35,10 +35,10 @@ iBaseTag_FromHandle(iBase_TagHandle h)
 }
 static int NPY_IBASETAG;
 
-ENUM_TYPE(type,           "iBase.type",           "");
-ENUM_TYPE(adjCost,        "iBase.adjCost",        "");
-ENUM_TYPE(storageOrder,   "iBase.storageOrder",   "");
-ENUM_TYPE(creationStatus, "iBase.creationStatus", "");
+ENUM_TYPE(Type,           "iBase.Type",           "");
+ENUM_TYPE(AdjCost,        "iBase.AdjCost",        "");
+ENUM_TYPE(StorageOrder,   "iBase.StorageOrder",   "");
+ENUM_TYPE(CreationStatus, "iBase.CreationStatus", "");
 
 static PyMethodDef module_methods[] = {
     {0}
@@ -252,38 +252,38 @@ PyMODINIT_FUNC initiBase(void)
         PyModule_AddObject(m, "_C_API", api_obj);
 
     /***** initialize type enum *****/
-    REGISTER_SIMPLE(m,type);
+    REGISTER_SIMPLE(m,Type);
 
-    ADD_ENUM(&type_Type,"vertex", iBase_VERTEX);
-    ADD_ENUM(&type_Type,"edge",   iBase_EDGE);
-    ADD_ENUM(&type_Type,"face",   iBase_FACE);
-    ADD_ENUM(&type_Type,"region", iBase_REGION);
-    ADD_ENUM(&type_Type,"all",    iBase_ALL_TYPES);
+    ADD_ENUM(Type,"vertex", iBase_VERTEX);
+    ADD_ENUM(Type,"edge",   iBase_EDGE);
+    ADD_ENUM(Type,"face",   iBase_FACE);
+    ADD_ENUM(Type,"region", iBase_REGION);
+    ADD_ENUM(Type,"all",    iBase_ALL_TYPES);
 
     /***** initialize adjacency cost enum *****/
-    REGISTER_SIMPLE(m,adjCost);
+    REGISTER_SIMPLE(m,AdjCost);
 
-    ADD_ENUM(&adjCost_Type,"unavailable",     iBase_UNAVAILABLE);
-    ADD_ENUM(&adjCost_Type,"all_order_1",     iBase_ALL_ORDER_1);
-    ADD_ENUM(&adjCost_Type,"all_order_logn",  iBase_ALL_ORDER_LOGN);
-    ADD_ENUM(&adjCost_Type,"all_order_n",     iBase_ALL_ORDER_N);
-    ADD_ENUM(&adjCost_Type,"some_order_1",    iBase_SOME_ORDER_1);
-    ADD_ENUM(&adjCost_Type,"some_order_logn", iBase_SOME_ORDER_LOGN);
-    ADD_ENUM(&adjCost_Type,"some_order_n",    iBase_SOME_ORDER_N);
+    ADD_ENUM(AdjCost,"unavailable",     iBase_UNAVAILABLE);
+    ADD_ENUM(AdjCost,"all_order_1",     iBase_ALL_ORDER_1);
+    ADD_ENUM(AdjCost,"all_order_logn",  iBase_ALL_ORDER_LOGN);
+    ADD_ENUM(AdjCost,"all_order_n",     iBase_ALL_ORDER_N);
+    ADD_ENUM(AdjCost,"some_order_1",    iBase_SOME_ORDER_1);
+    ADD_ENUM(AdjCost,"some_order_logn", iBase_SOME_ORDER_LOGN);
+    ADD_ENUM(AdjCost,"some_order_n",    iBase_SOME_ORDER_N);
 
     /***** initialize storage order enum *****/
-    REGISTER_SIMPLE(m,storageOrder);
+    REGISTER_SIMPLE(m,StorageOrder);
 
-    ADD_ENUM(&storageOrder_Type,"blocked",    iBase_BLOCKED);
-    ADD_ENUM(&storageOrder_Type,"interleaved",iBase_INTERLEAVED);
+    ADD_ENUM(StorageOrder,"blocked",     iBase_BLOCKED);
+    ADD_ENUM(StorageOrder,"interleaved", iBase_INTERLEAVED);
 
     /***** initialize creation status enum *****/
-    REGISTER_SIMPLE(m,creationStatus);
+    REGISTER_SIMPLE(m,CreationStatus);
 
-    ADD_ENUM(&creationStatus_Type,"new",        iBase_NEW);
-    ADD_ENUM(&creationStatus_Type,"exists",     iBase_ALREADY_EXISTED);
-    ADD_ENUM(&creationStatus_Type,"duplicated", iBase_CREATED_DUPLICATE);
-    ADD_ENUM(&creationStatus_Type,"failed",     iBase_CREATION_FAILED);
+    ADD_ENUM(CreationStatus,"new",        iBase_NEW);
+    ADD_ENUM(CreationStatus,"exists",     iBase_ALREADY_EXISTED);
+    ADD_ENUM(CreationStatus,"duplicated", iBase_CREATED_DUPLICATE);
+    ADD_ENUM(CreationStatus,"failed",     iBase_CREATION_FAILED);
 
     /***** initialize iBaseEntity handle *****/
     iBaseEntity_Type.tp_repr = (reprfunc)iBaseEntObj_repr;

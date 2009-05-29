@@ -2,7 +2,6 @@
 #include "iMesh_Python.h"
 #include "iBase_Python.h"
 
-
 int checkError(iMesh_Instance mesh,int err)
 {
     if(err)
@@ -24,6 +23,45 @@ PyArray_TryFromObject(PyObject *obj,int typenum,int min_depth,int max_depth)
                                     min_depth,max_depth,NPY_C_CONTIGUOUS,NULL);
     PyErr_Clear();
     return ret;
+}
+
+/* TODO: these are never freed! */
+static PyObject *g_helper_module;
+static PyObject *g_adj_list;
+static PyObject *g_ind_adj_list;
+
+/* NOTE: steals references to adj and offsets */
+PyObject *
+AdjacencyList_New(PyObject *adj,PyObject *offsets)
+{
+    PyObject *res;
+
+    if( (res = PyObject_CallFunction(g_adj_list,"OO",adj,offsets)) == NULL)
+        PyErr_SetString(PyExc_RuntimeError,ERR_ADJ_LIST);
+
+    Py_DECREF(adj);
+    Py_DECREF(offsets);
+
+    return res;
+}
+
+/* NOTE: steals references to adj and offsets */
+PyObject *
+IndexedAdjacencyList_New(PyObject *ents, PyObject *adj,PyObject *indices,
+                         PyObject *offsets)
+{
+    PyObject *res;
+
+    if( (res = PyObject_CallFunction(g_ind_adj_list,"OOOO",ents,adj,indices,
+                                     offsets)) == NULL)
+        PyErr_SetString(PyExc_RuntimeError,ERR_ADJ_LIST);
+
+    Py_DECREF(ents);
+    Py_DECREF(adj);
+    Py_DECREF(indices);
+    Py_DECREF(offsets);
+
+    return res;
 }
 
 static int
@@ -370,10 +408,16 @@ iMeshObj_getEntAdj(iMeshObject *self,PyObject *args)
         if(checkError(self->mesh,err))
             return NULL;
 
-        /* TODO: this is clunky */
+        npy_intp adj_dims[] = {adj_size};
+        npy_intp off_dims[] = {offsets_size};
+
+        return AdjacencyList_New(
+            PyArray_NewFromMalloc(1,adj_dims,NPY_IBASEENT,adj),
+            PyArray_NewFromMalloc(1,off_dims,NPY_INT,offsets) );
+
         PyObject *pair = PyTuple_New(2);
         npy_intp dims[1];
-
+ 
         dims[0] = adj_size;
         PyTuple_SET_ITEM(pair, 0,
             PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,adj));
@@ -435,10 +479,16 @@ iMeshObj_getEnt2ndAdj(iMeshObject *self,PyObject *args)
         if(checkError(self->mesh,err))
             return NULL;
 
-        /* TODO: this is clunky */
+        npy_intp adj_dims[] = {adj_size};
+        npy_intp off_dims[] = {offsets_size};
+
+        return AdjacencyList_New(
+            PyArray_NewFromMalloc(1,adj_dims,NPY_IBASEENT,adj),
+            PyArray_NewFromMalloc(1,off_dims,NPY_INT,offsets) );
+
         PyObject *pair = PyTuple_New(2);
         npy_intp dims[1];
-
+ 
         dims[0] = adj_size;
         PyTuple_SET_ITEM(pair, 0,
             PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,adj));
@@ -954,7 +1004,7 @@ static PyGetSetDef iMesh_getset[] = {
 static PyTypeObject iMeshType = {
     PyObject_HEAD_INIT(NULL)
     0,                            /* ob_size */
-    "itaps.iMesh",                /* tp_name */
+    "itaps.iMesh.Mesh",           /* tp_name */
     sizeof(iMeshObject),          /* tp_basicsize */
     0,                            /* tp_itemsize */
     (destructor)iMeshObj_dealloc, /* tp_dealloc */
@@ -1031,7 +1081,7 @@ int NPY_IMESHENTSET;
 static PyArray_ArrFuncs iMeshTagArr_Funcs;
 int NPY_IMESHTAG;
 
-ENUM_TYPE(topology,"iMesh.topology","");
+ENUM_TYPE(Topology,"iMesh.Topology","");
 
 
 static void
@@ -1098,45 +1148,55 @@ PyMODINIT_FUNC initiMesh(void)
     import_array();
     import_iBase();
 
+    /***** import helper module *****/
+    if( (g_helper_module = PyImport_ImportModule("itaps.helpers")) == NULL)
+        return;
+    if( (g_adj_list = PyObject_GetAttrString(g_helper_module,"AdjacencyList") )
+        == NULL)
+        return;
+    if( (g_ind_adj_list = PyObject_GetAttrString(g_helper_module,
+        "IndexedAdjacencyList")) == NULL)
+        return;
+
     iMeshType.tp_new = PyType_GenericNew;
     if(PyType_Ready(&iMeshType) < 0)
         return;
     Py_INCREF(&iMeshType);
-    PyModule_AddObject(m,"iMesh",(PyObject *)&iMeshType);
+    PyModule_AddObject(m,"Mesh",(PyObject *)&iMeshType);
 
     /***** initialize topology enum *****/
-    REGISTER_SIMPLE_SUB(iMeshType,topology);
+    REGISTER_SIMPLE(m,Topology);
 
-    ADD_ENUM(&topology_Type,"point",         iMesh_POINT);
-    ADD_ENUM(&topology_Type,"line_segment",  iMesh_LINE_SEGMENT);
-    ADD_ENUM(&topology_Type,"polygon",       iMesh_POLYGON);
-    ADD_ENUM(&topology_Type,"triangle",      iMesh_TRIANGLE);
-    ADD_ENUM(&topology_Type,"quadrilateral", iMesh_QUADRILATERAL);
-    ADD_ENUM(&topology_Type,"polyhedron",    iMesh_POLYHEDRON);
-    ADD_ENUM(&topology_Type,"tetrahedron",   iMesh_TETRAHEDRON);
-    ADD_ENUM(&topology_Type,"hexahedron",    iMesh_HEXAHEDRON);
-    ADD_ENUM(&topology_Type,"prism",         iMesh_PRISM);
-    ADD_ENUM(&topology_Type,"pyramid",       iMesh_PYRAMID);
-    ADD_ENUM(&topology_Type,"septahedron",   iMesh_SEPTAHEDRON);
-    ADD_ENUM(&topology_Type,"all",           iMesh_ALL_TOPOLOGIES);
+    ADD_ENUM(Topology,"point",         iMesh_POINT);
+    ADD_ENUM(Topology,"line_segment",  iMesh_LINE_SEGMENT);
+    ADD_ENUM(Topology,"polygon",       iMesh_POLYGON);
+    ADD_ENUM(Topology,"triangle",      iMesh_TRIANGLE);
+    ADD_ENUM(Topology,"quadrilateral", iMesh_QUADRILATERAL);
+    ADD_ENUM(Topology,"polyhedron",    iMesh_POLYHEDRON);
+    ADD_ENUM(Topology,"tetrahedron",   iMesh_TETRAHEDRON);
+    ADD_ENUM(Topology,"hexahedron",    iMesh_HEXAHEDRON);
+    ADD_ENUM(Topology,"prism",         iMesh_PRISM);
+    ADD_ENUM(Topology,"pyramid",       iMesh_PYRAMID);
+    ADD_ENUM(Topology,"septahedron",   iMesh_SEPTAHEDRON);
+    ADD_ENUM(Topology,"all",           iMesh_ALL_TOPOLOGIES);
 
+    /***** initialize iterator type *****/
     iMeshIter_Type.tp_new = PyType_GenericNew;
     if(PyType_Ready(&iMeshIter_Type) < 0)
         return;
-    PyDict_SetItemString(iMeshType.tp_dict,"iterator",
-                         (PyObject *)&iMeshIter_Type);
+    PyModule_AddObject(m,"Iterator",(PyObject *)&iMeshIter_Type);
 
+    /***** initialize entity set type *****/
     iMeshEntitySet_Type.tp_base = &iBaseEntitySet_Type;
     if(PyType_Ready(&iMeshEntitySet_Type) < 0)
         return;
-    PyDict_SetItemString(iMeshType.tp_dict,"entitySet",
-                         (PyObject *)&iMeshEntitySet_Type);
+    PyModule_AddObject(m,"EntitySet",(PyObject *)&iMeshEntitySet_Type);
 
+    /***** initialize tag type *****/
     iMeshTag_Type.tp_base = &iBaseTag_Type;
     if(PyType_Ready(&iMeshTag_Type) < 0)
         return;
-    PyDict_SetItemString(iMeshType.tp_dict,"tag",
-                         (PyObject *)&iMeshTag_Type);
+    PyModule_AddObject(m,"Tag",(PyObject *)&iMeshTag_Type);
 
 
     /***** initialize iMeshEntitySet array *****/

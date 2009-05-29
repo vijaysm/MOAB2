@@ -3,7 +3,7 @@ import unittest
 
 class TestEntSet(unittest.TestCase):
     def setUp(self):
-        self.mesh = iMesh()
+        self.mesh = iMesh.Mesh()
         self.set = self.mesh.createEntSet(True)
 
     def tearDown(self):
@@ -33,7 +33,7 @@ class TestEntSet(unittest.TestCase):
 
     def testEntArr(self):
         ents = self.mesh.createVtx([[1,2,3], [4,5,6], [7,8,9]],
-                                   iBase.storageOrder.interleaved)
+                                   iBase.StorageOrder.interleaved)
         
         self.assertFalse(self.set.contains(ents).any())
 
@@ -74,7 +74,7 @@ class TestEntSet(unittest.TestCase):
     def testSubtract(self):
         set2 = self.mesh.createEntSet(True)
         ents = self.mesh.createVtx([[1,2,3], [4,5,6]],
-                                   iBase.storageOrder.interleaved)
+                                   iBase.StorageOrder.interleaved)
         self.set.add(ents)
         set2.add(ents[0])
 
@@ -89,7 +89,7 @@ class TestEntSet(unittest.TestCase):
     def testIntersect(self):
         set2 = self.mesh.createEntSet(True)
         ents = self.mesh.createVtx([[1,2,3], [4,5,6], [7,8,9]],
-                                   iBase.storageOrder.interleaved)
+                                   iBase.StorageOrder.interleaved)
         self.set.add(ents[0:2])
         set2.add(ents[1:3])
 
@@ -106,7 +106,7 @@ class TestEntSet(unittest.TestCase):
     def testUnite(self):
         set2 = self.mesh.createEntSet(True)
         ents = self.mesh.createVtx([[1,2,3], [4,5,6]],
-                                   iBase.storageOrder.interleaved)
+                                   iBase.StorageOrder.interleaved)
         self.set.add(ents[0])
         set2.add(ents[1])
 
