@@ -223,7 +223,7 @@ Mesh
       Get all the tags associated with a specified entity or entity set.
 
       :param entities: Entity or entity set being queried
-      :return: Array of :class:`Tag`s associated with ``entities``
+      :return: Array of :class:`Tag` s associated with ``entities``
 
 
 EntitySet
