@@ -11,8 +11,14 @@ class AdjacencyList:
         else:
             return self.adj[ self.offsets[key]:self.offsets[key+1] ]
 
-    def length(self, i):
-        return self.offsets[i+1] - self.offsets[i]
+    def length(self, i = None):
+        if i == None:
+            return len(self.offsets)-1
+        else:
+            return self.offsets[i+1] - self.offsets[i]
+
+    def __len__(self):
+        return self.length()
 
 
 class IndexedAdjacencyList:
@@ -33,5 +39,11 @@ class IndexedAdjacencyList:
         else:
             return self.indices[ self.offsets[key]:self.offsets[key+1] ]
 
-    def length(self, i):
-        return self.offsets[i+1] - self.offsets[i]
+    def length(self, i = None):
+        if i == None:
+            return len(self.offsets)-1
+        else:
+            return self.offsets[i+1] - self.offsets[i]
+
+    def __len__(self):
+        return self.length()

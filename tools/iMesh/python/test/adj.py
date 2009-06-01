@@ -53,10 +53,18 @@ class TestAdj(unittest.TestCase):
 
         adj = self.mesh.getEntAdj(self.ents, iBase.Type.all)
 
+        for i in range( len(adj) ):
+            self.assertEqual(adj.length(i), 2)
+
         self.assertEqual(adj[0].tolist(), self.lines[::3])
         self.assertEqual(adj[1].tolist(), self.lines[0:2])
         self.assertEqual(adj[2].tolist(), self.lines[1:3])
         self.assertEqual(adj[3].tolist(), self.lines[2:4])
+
+        self.assertEqual(adj[0,0], self.lines[0])
+        self.assertEqual(adj[2,1], self.lines[2])
+
+        self.assertRaises(IndexError, adj.__getitem__, (0,2))
 
     def test2ndAdj(self):
         quad = self.mesh.createEnt(topo.quadrilateral, self.lines)[0]
@@ -68,10 +76,18 @@ class TestAdj(unittest.TestCase):
         adj = self.mesh.getEnt2ndAdj(self.ents, iBase.Type.edge,
                                      iBase.Type.vertex)
 
+        for i in range( len(adj) ):
+            self.assertEqual(adj.length(i), 2)
+
         self.assertEqual(adj[0].tolist(), self.ents[1::2].tolist())
         self.assertEqual(adj[1].tolist(), self.ents[0::2].tolist())
         self.assertEqual(adj[2].tolist(), self.ents[1::2].tolist())
         self.assertEqual(adj[3].tolist(), self.ents[0::2].tolist())
+
+        self.assertEqual(adj[0,0], self.ents[1])
+        self.assertEqual(adj[2,1], self.ents[3])
+
+        self.assertRaises(IndexError, adj.__getitem__, (0,2))
 
     def testAdjIndices(self):
         set = self.mesh.createEntSet(True)

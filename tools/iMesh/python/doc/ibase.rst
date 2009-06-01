@@ -4,7 +4,10 @@
 
 .. module:: itaps.iBase
 
-.. class:: itaps.iBase.Type
+Type
+====
+
+.. class:: Type
 
    An enumeration of entity types corresponding to ``iBase_EntityType``.
 
@@ -29,7 +32,10 @@
       Allows the user to request information about all the types
 
 
-.. class:: itaps.iBase.AdjCost
+AdjCost
+=======
+
+.. class:: AdjCost
 
    An enumeration of entity types corresponding to ``iBase_AdjacencyCost``.
 
@@ -62,7 +68,10 @@
       Only some adjacency info, exhaustive
 
 
-.. class:: itaps.iBase.StorageOrder
+StorageOrder
+============
+
+.. class:: StorageOrder
 
    An enumeration of entity types corresponding to ``iBase_StorageOrder``.
 
@@ -76,7 +85,10 @@
       ...]``.
 
 
-.. class:: itaps.iBase.CreationStatus
+CreationStatus
+==============
+
+.. class:: CreationStatus
 
    An enumeration of entity types corresponding to ``iBase_CreationStatus``.
 

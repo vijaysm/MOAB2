@@ -11,3 +11,4 @@ PyTAPS is a Python package designed to interface with `ITAPS
    build
    ibase
    imesh
+   helpers

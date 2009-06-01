@@ -4,7 +4,10 @@
 
 .. module:: itaps.iMesh
 
-.. class:: itaps.iMesh.Mesh([options])
+Mesh
+====
+
+.. class:: Mesh([options])
 
    Return a new ``Mesh`` object with any implementation-specific options
    defined in ``options``.
@@ -93,46 +96,39 @@
 
       Get entities of the specified type adjacent to elements of ``entities``.
       If ``entities`` is a single entity handle, returns an array of adjacent
-      entities.
-
-      If ``entities`` is an array of entities, returns a tuple type, with the
-      first element being an array of offsets into the second element such that
-      ``ret[0][ ret[1][i]:ret[1][i+1] ]`` is a list of entities adjacent to
-      ``entities[i]``.
+      entities. If ``entities`` is an array of entities, return an
+      :class:`~itaps.helpers.AdjacencyList` instance.
 
       :param entities: Entity or array of entities being queried
       :param typeReq: Type of adjacent entities being requested
       :return: If ``entities`` is a single element, an array of adjacent
-               entities. Otherwise, a tuple containing an array of offsets and
-               an array of adjacent entities.
+               entities. Otherwise, an :class:`~itaps.helpers.AdjacencyList`
+               instance.
 
    .. method:: getEnt2ndAdj(entities, bridgeType, typeReq)
 
       Get "2nd order" adjacencies to an array of entities, that is, from each 
       entity, through other entities of a specified "bridge" dimension, to
       other entities of another specified "to" dimension. If ``entities`` is a
-      single entity handle, returns an array of adjacent entities.
-
-      If ``entities`` is an array of entities, returns a tuple type, with the
-      first element being an array of offsets into the second element such that
-      ``ret[0][ ret[1][i]:ret[1][i+1] ]`` is a list of entities adjacent to
-      ``entities[i]``.
+      single entity handle, returns an array of adjacent entities. If 
+      ``entities`` is an array of entities, return an
+      :class:`~itaps.helpers.AdjacencyList` instance.
 
       :param entities: Entity or array of entities being queried
       :param brideType: Type of bridge entity for 2nd order adjacencies
       :param typeReq: Type of adjacent entities being requested
       :return: If ``entities`` is a single element, an array of adjacent
-               entities. Otherwise, a tuple containing an array of offsets and
-               an array of adjacent entities.
+               entities. Otherwise, an :class:`~itaps.helpers.AdjacencyList`
+               instance.
 
    .. method:: createEntSet(isList)
 
-      Create an entity set, either ordered (``isList == True``) or unordered 
-      (``isList == False``). Unordered entity sets can contain a given entity
-      or set only once.
+      Create an :class:`EntitySet`, either ordered (``isList == True``) or
+      unordered (``isList == False``). Unordered entity sets can contain a
+      given entity or set only once.
 
       :param isList: True if the list should be ordered, false otherwise
-      :return: The newly-created entity set
+      :return: The newly-created :class:`EntitySet`
 
    .. method:: destroyEntSet(entSet)
 
@@ -185,9 +181,9 @@
 
    .. method:: createTag(name, size, type)
 
-      Create a tag with specified ``name``, ``size``, and ``type``. The tag
-      size is the number of values of type ``type`` that can be held. ``type``
-      is one of the following:
+      Create a :class:`Tag` with specified ``name``, ``size``, and ``type``.
+      The tag's ``size`` is the number of values of type ``type`` that can be
+      held. ``type`` is one of the following:
 
       +-------+---------------+
       | ``i`` | Integer       |
@@ -202,15 +198,16 @@
       :param name: Tag name
       :param size: Size of tag in number of values
       :param type: Character representing the tag's type
-      :return: The created tag
+      :return: The created :class:`Tag`
 
    .. method:: destroyTag(tag, forced)
 
-      Destroy a tag. If ``forced`` is true and entities still have values set
-      for this tag, the tag is deleted anyway and those values disappear.
-      Otherwise the tag is not deleted if entities still have values set for it.
+      Destroy a :class:`Tag`. If ``forced`` is true and entities still have
+      values set for this tag, the tag is deleted anyway and those values
+      disappear. Otherwise the tag is not deleted if entities still have values
+      set for it.
 
-      :param tag: Tag to delete
+      :param tag: :class:`Tag` to delete
       :param forced: True if the tag should be deleted even if there are values
                      set for it
 
@@ -219,91 +216,20 @@
       Get the handle of an existing tag with the specified ``name``.
 
       :param name: The name of the tag to find
-      :return: The tag with the specified name
+      :return: The :class:`Tag` with the specified name
 
    .. method:: getAllTags(entities)
 
       Get all the tags associated with a specified entity or entity set.
 
       :param entities: Entity or entity set being queried
-      :return: Array of tags associated with ``entities``
+      :return: Array of :class:`Tag`s associated with ``entities``
 
 
-.. class:: itaps.iMesh.Topology
+EntitySet
+=========
 
-   An enumeration of mesh element topologies corresponding to
-   ``iMesh_EntityTopology``.
-
-   .. data:: point
-
-      A general zero-dimensional entity
-
-   .. data:: line_segment
-
-      A general one-dimensional entity
-
-   .. data:: polygon
-
-      A general two-dimensional element
-
-   .. data:: triangle
-
-      A three-sided, two-dimensional element
-
-   .. data:: quadrilateral
-
-      A four-sided, two-dimensional element
-
-   .. data:: polyhedron
-
-      A general three-dimensional element
-
-   .. data:: tetrahedron
-
-      A four-sided, three-dimensional element whose faces are triangles
-
-   .. data:: hexahedron
-
-      A six-sided, three-dimensional element whose faces are quadrilaterals
-
-   .. data:: prism
-
-      A five-sided, three-dimensional element which has three quadrilateral
-      faces and two triangular faces
-
-   .. data:: pyramid
-
-      A five-sided, three-dimensional element which has one quadrilateral face
-      and four triangular faces
-
-   .. data:: septahedron
-
-      A hexahedral entity with one collapsed edge
-
-   .. data:: all
-
-      Allows the user to request information about all the topology types
-
-
-.. class:: itaps.iMesh.Iterator(set, type, topology[, count=1])
-
-   Return a new iterator on the entity set ``set`` to iterate over entities of
-   the specified ``type`` and ``topology``. If ``size`` is greater than 1, each
-   step of the iteration will return an array of ``size`` entities. All
-   entities of a given type or topology are requested by specifying 
-   ``iBase.Type.all`` or  ``iMesh.Topology.all``, respectively.
-
-   :param set: Entity set to iterate over
-   :param type: Type of entities being requested
-   :param topo: Topology of entities being requested
-   :param count: Number of entities to return on each step of iteration
-
-   .. method:: reset()
-
-      Resets the iterator to the beginning.
-
-
-.. class:: itaps.iMesh.EntitySet
+.. class:: EntitySet
 
    .. attribute:: isList
 
@@ -342,7 +268,8 @@
 
       Get entities of a specific type and/or topology in this entity set. All 
       entities of a given type or topology are requested by specifying
-      ``iBase.Type.all`` or ``iMesh.Topology.all``, respectively.
+      :attr:`itaps.iBase.Type.all` or :attr:`itaps.iMesh.Topology.all`,
+      respectively.
 
       :param entSet: Entity set being queried
       :param type: Type of entities being requested
@@ -352,8 +279,8 @@
 
    .. method:: getAdjEntIndices(type, topo, adjType)
 
-      Given an entity set and optionally a type or topology, return a tuple
-      containing the following:
+      Given an entity set and optionally a type or topology, return an
+      :class:`~itaps.helpers.IndexedAdjacencyList` containing the following:
 
       * The entities in the set of the specified ``type`` and/or ``topology``
       * The entities adjacent to those entities with the specified type
@@ -363,15 +290,10 @@
       * An array of offsets into the index buffer for each entity in the first
         list
 
-      That is, given an entity located in ``ret[0][i]``, the list of entities to
-      which it is adjacent is::
-
-        ret[1][  ret[2][ ret[3][i]:ret[3][i+1] ]  ]
-
       :param type: Type of entities being requested
       :param topo: Topology of entities being requested
       :param adjType: Type of adjacent entities being requested
-      :return: 4-tuple containing the adjacency information
+      :return: An :class:`~itaps.helpers.IndexedAdjacencyList` instance
 
    .. method:: getNumEntSets(numHops)
 
@@ -476,16 +398,16 @@
 
    .. method:: iterate(type, topo[, count=1])
 
-      Initialize an iterator over the specified entity type and topology for
-      this entity set. If ``count`` is greater than 1, each step of the
-      iteration returns an array of ``count`` entities. Equivalent to::
+      Initialize an :class:`Iterator` over the specified entity type and
+      topology for this entity set. If ``count`` is greater than 1, each step
+      of the iteration returns an array of ``count`` entities. Equivalent to::
 
         itaps.iMesh.Iterator(self, type, topo, count)
 
       :param type: Type of entities being requested
       :param topo: Topology of entities being requested
       :param count: Number of entities to return on each step of iteration
-      :return: An ``itaps.iMesh.Iterator`` instance
+      :return: An :class:`Iterator` instance
 
    .. method:: difference(entSet)
 
@@ -512,7 +434,32 @@
       :return: Resulting entity set
 
 
-.. class:: itaps.iMesh.Tag
+Iterator
+========
+
+.. class:: Iterator(set, type, topology[, count=1])
+
+   Return a new iterator on the entity set ``set`` to iterate over entities of
+   the specified ``type`` and ``topology``. If ``size`` is greater than 1, each
+   step of the iteration will return an array of ``size`` entities. All
+   entities of a given type or topology are requested by specifying 
+   :attr:`itaps.iBase.Type.all` or :attr:`itaps.iMesh.Topology.all`,
+   respectively.
+
+   :param set: Entity set to iterate over
+   :param type: Type of entities being requested
+   :param topo: Topology of entities being requested
+   :param count: Number of entities to return on each step of iteration
+
+   .. method:: reset()
+
+      Resets the iterator to the beginning.
+
+
+Tag
+===
+
+.. class:: Tag
 
    .. attribute:: name
 
@@ -558,3 +505,61 @@
 
       :param entities: Entity, entity set, or array of entities from which tag
                        is being removed
+
+Topology
+========
+
+.. class:: Topology
+
+   An enumeration of mesh element topologies corresponding to
+   ``iMesh_EntityTopology``.
+
+   .. data:: point
+
+      A general zero-dimensional entity
+
+   .. data:: line_segment
+
+      A general one-dimensional entity
+
+   .. data:: polygon
+
+      A general two-dimensional element
+
+   .. data:: triangle
+
+      A three-sided, two-dimensional element
+
+   .. data:: quadrilateral
+
+      A four-sided, two-dimensional element
+
+   .. data:: polyhedron
+
+      A general three-dimensional element
+
+   .. data:: tetrahedron
+
+      A four-sided, three-dimensional element whose faces are triangles
+
+   .. data:: hexahedron
+
+      A six-sided, three-dimensional element whose faces are quadrilaterals
+
+   .. data:: prism
+
+      A five-sided, three-dimensional element which has three quadrilateral
+      faces and two triangular faces
+
+   .. data:: pyramid
+
+      A five-sided, three-dimensional element which has one quadrilateral face
+      and four triangular faces
+
+   .. data:: septahedron
+
+      A hexahedral entity with one collapsed edge
+
+   .. data:: all
+
+      Allows the user to request information about all the topology types
