@@ -223,13 +223,17 @@ Mesh
       Get all the tags associated with a specified entity or entity set.
 
       :param entities: Entity or entity set being queried
-      :return: Array of :class:`Tag` s associated with ``entities``
+      :return: Array of :class:`Tag`\ s associated with ``entities``
 
 
 EntitySet
 =========
 
 .. class:: EntitySet
+
+   .. attribute:: instance
+
+      Return the :class:`Mesh` instance from which this entity set was created.
 
    .. attribute:: isList
 
@@ -451,6 +455,10 @@ Iterator
    :param topo: Topology of entities being requested
    :param count: Number of entities to return on each step of iteration
 
+   .. attribute:: instance
+
+      Return the :class:`Mesh` instance from which this iterator was created.
+
    .. method:: reset()
 
       Resets the iterator to the beginning.
@@ -460,6 +468,10 @@ Tag
 ===
 
 .. class:: Tag
+
+   .. attribute:: instance
+
+      Return the :class:`Mesh` instance from which this tag was created.
 
    .. attribute:: name
 

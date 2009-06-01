@@ -50,13 +50,13 @@ typedef struct
 {
     PyObject_HEAD
     iMesh_Instance mesh;
-} iMeshObject;
+} iMesh_Object;
 
 
 typedef struct
 {
     PyObject_HEAD
-    iMesh_Instance mesh;
+    iMesh_Object *mesh;
     int is_arr;
     union
     {
@@ -70,13 +70,15 @@ extern PyTypeObject iMeshIter_Type;
 typedef struct
 {
     iBaseEntitySet_Object set;
-    iMeshObject *mesh;
+    iMesh_Object *mesh;
 } iMeshEntitySet_Object;
 
 extern PyTypeObject iMeshEntitySet_Type;
 extern int NPY_IMESHENTSET;
 
-#define iMeshEntitySet_New()                            \
+iMeshEntitySet_Object * iMeshEntitySet_New(iMesh_Object *mesh);
+
+#define iMeshEntitySet_NewRaw()                         \
     (iMeshEntitySet_Object*)PyObject_CallObject(        \
         (PyObject*)&iMeshEntitySet_Type,NULL)
 
@@ -89,13 +91,15 @@ extern int NPY_IMESHENTSET;
 typedef struct
 {
     iBaseTag_Object tag;
-    iMeshObject *mesh;
+    iMesh_Object *mesh;
 } iMeshTag_Object;
 
 extern PyTypeObject iMeshTag_Type;
 extern int NPY_IMESHTAG;
 
-#define iMeshTag_New()                                  \
+iMeshTag_Object * iMeshTag_New(iMesh_Object *mesh);
+
+#define iMeshTag_NewRaw()                               \
     (iMeshTag_Object*)PyObject_CallObject(              \
         (PyObject*)&iMeshTag_Type,NULL)
 

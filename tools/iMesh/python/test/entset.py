@@ -10,6 +10,7 @@ class TestEntSet(unittest.TestCase):
         self.mesh = None
 
     def testCreation(self):
+        self.assertEqual(self.set.instance, self.mesh)
         self.assertEqual(self.set.isList, True)
         self.assertEqual(self.set.getNumEntSets(1), 0)
         self.assertEqual(self.mesh.rootSet.getNumEntSets(0), 1)

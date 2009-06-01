@@ -4,6 +4,14 @@
 #include "errors.h"
 #include "iMesh_Python.h"
 #include "iBase_Python.h"
+#include "structmember.h"
+
+static void
+iMeshEntSetObj_dealloc(iMeshEntitySet_Object *self)
+{
+    Py_XDECREF(self->mesh);
+    ((PyObject*)self)->ob_type->tp_free((PyObject*)self);
+}
 
 static PyObject *
 iMeshEntSetObj_load(iMeshEntitySet_Object *self,PyObject *args)
@@ -456,8 +464,8 @@ iMeshEntSetObj_sub(iMeshEntitySet_Object *lhs,iMeshEntitySet_Object *rhs)
     if(lhs->mesh->mesh != rhs->mesh->mesh)
         return NULL;
 
-    result = iMeshEntitySet_New();
-    result->mesh = lhs->mesh; /* TODO: incref? */
+    result = iMeshEntitySet_New(lhs->mesh);
+
     iMesh_subtract(lhs->mesh->mesh,lhs->set.handle,rhs->set.handle,
                    &result->set.handle,&err);
     if(checkError(lhs->mesh->mesh,err))
@@ -478,8 +486,8 @@ iMeshEntSetObj_bitand(iMeshEntitySet_Object *lhs,iMeshEntitySet_Object *rhs)
     if(lhs->mesh->mesh != rhs->mesh->mesh)
         return NULL;
 
-    result = iMeshEntitySet_New();
-    result->mesh = lhs->mesh; /* TODO: incref? */
+    result = iMeshEntitySet_New(lhs->mesh);
+
     iMesh_intersect(lhs->mesh->mesh,lhs->set.handle,rhs->set.handle,
                     &result->set.handle,&err);
     if(checkError(lhs->mesh->mesh,err))
@@ -500,8 +508,8 @@ iMeshEntSetObj_bitor(iMeshEntitySet_Object *lhs,iMeshEntitySet_Object *rhs)
     if(lhs->mesh->mesh != rhs->mesh->mesh)
         return NULL;
 
-    result = iMeshEntitySet_New();
-    result->mesh = lhs->mesh; /* TODO: incref? */
+    result = iMeshEntitySet_New(lhs->mesh);
+
     iMesh_unite(lhs->mesh->mesh,lhs->set.handle,rhs->set.handle,
                 &result->set.handle,&err);
     if(checkError(lhs->mesh->mesh,err))
@@ -618,6 +626,12 @@ static PyMethodDef iMeshEntSetObj_methods[] = {
     {0}
 };
 
+static PyMemberDef iMeshEntSetObj_members[] = {
+    {"instance", T_OBJECT_EX, offsetof(iMeshEntitySet_Object, mesh), READONLY,
+     "base iMesh instance"},
+    {0}
+};
+
 static PyGetSetDef iMeshEntSetObj_getset[] = {
     { "isList", (getter)iMeshEntSetObj_isList, 0,
       "Return whether a specified set is ordered or unordered", 0 },
@@ -653,10 +667,10 @@ static PyNumberMethods iMeshEntSetObj_num = {
 PyTypeObject iMeshEntitySet_Type = {
     PyObject_HEAD_INIT(NULL)
     0,                                   /* ob_size */
-    "itaps.iMesh.entitySet",             /* tp_name */
+    "itaps.iMesh.EntitySet",             /* tp_name */
     sizeof(iMeshEntitySet_Object),       /* tp_basicsize */
     0,                                   /* tp_itemsize */
-    0,                                   /* tp_dealloc */
+    (destructor)iMeshEntSetObj_dealloc,  /* tp_dealloc */
     0,                                   /* tp_print */
     0,                                   /* tp_getattr */
     0,                                   /* tp_setattr */
@@ -681,7 +695,7 @@ PyTypeObject iMeshEntitySet_Type = {
     0,                                   /* tp_iter */
     0,                                   /* tp_iternext */
     iMeshEntSetObj_methods,              /* tp_methods */
-    0,                                   /* tp_members */
+    iMeshEntSetObj_members,              /* tp_members */
     iMeshEntSetObj_getset,               /* tp_getset */
     0,                                   /* tp_base */
     0,                                   /* tp_dict */

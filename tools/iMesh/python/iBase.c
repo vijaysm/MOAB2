@@ -3,10 +3,9 @@
 
 #include <numpy/arrayobject.h>
 
-SIMPLE_TYPE(iBaseEntity_Object,iBaseEntity_Type,"itaps.iBase.iBaseEntity","");
-SIMPLE_TYPE(iBaseEntitySet_Object,iBaseEntitySet_Type,
-            "itaps.iBase.iBaseEntitySet","");
-SIMPLE_TYPE(iBaseTag_Object,iBaseTag_Type,"itaps.iBase.iBaseTag","");
+SIMPLE_TYPE(iBaseEntity,"itaps.iBase.Entity","");
+SIMPLE_TYPE(iBaseEntitySet,"itaps.iBase.EntitySet","");
+SIMPLE_TYPE(iBaseTag,"itaps.iBase.Tag","");
 
 static PyObject *
 iBaseEntity_FromHandle(iBase_EntityHandle h)
@@ -35,10 +34,10 @@ iBaseTag_FromHandle(iBase_TagHandle h)
 }
 static int NPY_IBASETAG;
 
-ENUM_TYPE(Type,           "iBase.Type",           "");
-ENUM_TYPE(AdjCost,        "iBase.AdjCost",        "");
-ENUM_TYPE(StorageOrder,   "iBase.StorageOrder",   "");
-ENUM_TYPE(CreationStatus, "iBase.CreationStatus", "");
+ENUM_TYPE(iBaseType,           "iBase.Type",           "");
+ENUM_TYPE(iBaseAdjCost,        "iBase.AdjCost",        "");
+ENUM_TYPE(iBaseStorageOrder,   "iBase.StorageOrder",   "");
+ENUM_TYPE(iBaseCreationStatus, "iBase.CreationStatus", "");
 
 static PyMethodDef module_methods[] = {
     {0}
@@ -79,7 +78,7 @@ static PyObject *
 iBaseEntObj_repr(iBaseEntity_Object *self)
 {
     char out[64];
-    snprintf(out,64,"<iBase_EntityHandle %p>",self->handle);
+    snprintf(out,64,"<itaps.iBase.Entity %p>",self->handle);
     return Py_BuildValue("s",out);
 }
 
@@ -146,7 +145,7 @@ static PyObject *
 iBaseEntSetObj_repr(iBaseEntitySet_Object *self)
 {
     char out[64];
-    snprintf(out,64,"<iBase_EntitySetHandle %p>",self->handle);
+    snprintf(out,64,"<itaps.iBase.EntitySet %p>",self->handle);
     return Py_BuildValue("s",out);
 }
 
@@ -252,65 +251,54 @@ PyMODINIT_FUNC initiBase(void)
         PyModule_AddObject(m, "_C_API", api_obj);
 
     /***** initialize type enum *****/
-    REGISTER_SIMPLE(m,Type);
+    REGISTER_SIMPLE(m,"Type",iBaseType);
 
-    ADD_ENUM(Type,"vertex", iBase_VERTEX);
-    ADD_ENUM(Type,"edge",   iBase_EDGE);
-    ADD_ENUM(Type,"face",   iBase_FACE);
-    ADD_ENUM(Type,"region", iBase_REGION);
-    ADD_ENUM(Type,"all",    iBase_ALL_TYPES);
+    ADD_ENUM(iBaseType,"vertex", iBase_VERTEX);
+    ADD_ENUM(iBaseType,"edge",   iBase_EDGE);
+    ADD_ENUM(iBaseType,"face",   iBase_FACE);
+    ADD_ENUM(iBaseType,"region", iBase_REGION);
+    ADD_ENUM(iBaseType,"all",    iBase_ALL_TYPES);
 
     /***** initialize adjacency cost enum *****/
-    REGISTER_SIMPLE(m,AdjCost);
+    REGISTER_SIMPLE(m,"AdjCost",iBaseAdjCost);
 
-    ADD_ENUM(AdjCost,"unavailable",     iBase_UNAVAILABLE);
-    ADD_ENUM(AdjCost,"all_order_1",     iBase_ALL_ORDER_1);
-    ADD_ENUM(AdjCost,"all_order_logn",  iBase_ALL_ORDER_LOGN);
-    ADD_ENUM(AdjCost,"all_order_n",     iBase_ALL_ORDER_N);
-    ADD_ENUM(AdjCost,"some_order_1",    iBase_SOME_ORDER_1);
-    ADD_ENUM(AdjCost,"some_order_logn", iBase_SOME_ORDER_LOGN);
-    ADD_ENUM(AdjCost,"some_order_n",    iBase_SOME_ORDER_N);
+    ADD_ENUM(iBaseAdjCost,"unavailable",     iBase_UNAVAILABLE);
+    ADD_ENUM(iBaseAdjCost,"all_order_1",     iBase_ALL_ORDER_1);
+    ADD_ENUM(iBaseAdjCost,"all_order_logn",  iBase_ALL_ORDER_LOGN);
+    ADD_ENUM(iBaseAdjCost,"all_order_n",     iBase_ALL_ORDER_N);
+    ADD_ENUM(iBaseAdjCost,"some_order_1",    iBase_SOME_ORDER_1);
+    ADD_ENUM(iBaseAdjCost,"some_order_logn", iBase_SOME_ORDER_LOGN);
+    ADD_ENUM(iBaseAdjCost,"some_order_n",    iBase_SOME_ORDER_N);
 
     /***** initialize storage order enum *****/
-    REGISTER_SIMPLE(m,StorageOrder);
+    REGISTER_SIMPLE(m,"StorageOrder",iBaseStorageOrder);
 
-    ADD_ENUM(StorageOrder,"blocked",     iBase_BLOCKED);
-    ADD_ENUM(StorageOrder,"interleaved", iBase_INTERLEAVED);
+    ADD_ENUM(iBaseStorageOrder,"blocked",     iBase_BLOCKED);
+    ADD_ENUM(iBaseStorageOrder,"interleaved", iBase_INTERLEAVED);
 
     /***** initialize creation status enum *****/
-    REGISTER_SIMPLE(m,CreationStatus);
+    REGISTER_SIMPLE(m,"CreationStatus",iBaseCreationStatus);
 
-    ADD_ENUM(CreationStatus,"new",        iBase_NEW);
-    ADD_ENUM(CreationStatus,"exists",     iBase_ALREADY_EXISTED);
-    ADD_ENUM(CreationStatus,"duplicated", iBase_CREATED_DUPLICATE);
-    ADD_ENUM(CreationStatus,"failed",     iBase_CREATION_FAILED);
+    ADD_ENUM(iBaseCreationStatus,"new",        iBase_NEW);
+    ADD_ENUM(iBaseCreationStatus,"exists",     iBase_ALREADY_EXISTED);
+    ADD_ENUM(iBaseCreationStatus,"duplicated", iBase_CREATED_DUPLICATE);
+    ADD_ENUM(iBaseCreationStatus,"failed",     iBase_CREATION_FAILED);
 
     /***** initialize iBaseEntity handle *****/
     iBaseEntity_Type.tp_repr = (reprfunc)iBaseEntObj_repr;
     iBaseEntity_Type.tp_richcompare = (richcmpfunc)iBaseEntObj_richcompare;
-    iBaseEntity_Type.tp_new = PyType_GenericNew;
-    if(PyType_Ready(&iBaseEntity_Type) < 0)
-        return;
-    Py_INCREF(&iBaseEntity_Type);
-    PyModule_AddObject(m,"iBaseEntity",(PyObject *)&iBaseEntity_Type);
+
+    REGISTER_SIMPLE(m,"Entity",iBaseEntity);
 
     /***** initialize iBaseEntitySet handle *****/
     iBaseEntitySet_Type.tp_repr = (reprfunc)iBaseEntSetObj_repr;
     iBaseEntitySet_Type.tp_richcompare = 
         (richcmpfunc)iBaseEntSetObj_richcompare;
-    iBaseEntitySet_Type.tp_new = PyType_GenericNew;
-    if(PyType_Ready(&iBaseEntitySet_Type) < 0)
-        return;
-    Py_INCREF(&iBaseEntitySet_Type);
-    PyModule_AddObject(m,"iBaseEntitySet",(PyObject *)&iBaseEntitySet_Type);
+
+    REGISTER_SIMPLE(m,"EntitySet",iBaseEntitySet);
 
     /***** initialize iBaseTag handle *****/
-    iBaseTag_Type.tp_new = PyType_GenericNew;
-    if(PyType_Ready(&iBaseTag_Type) < 0)
-        return;
-    Py_INCREF(&iBaseTag_Type);
-    PyModule_AddObject(m,"iBaseTag",(PyObject *)&iBaseTag_Type);
-
+    REGISTER_SIMPLE(m,"Tag",iBaseTag);
 
     /***** initialize iBaseEntity array type *****/
     descr = PyArray_DescrNewFromType(NPY_INTP);

@@ -45,7 +45,7 @@ AdjacencyList_New(PyObject *adj,PyObject *offsets)
     return res;
 }
 
-/* NOTE: steals references to adj and offsets */
+/* NOTE: steals references to ents, adj, indices, and offsets */
 PyObject *
 IndexedAdjacencyList_New(PyObject *ents, PyObject *adj,PyObject *indices,
                          PyObject *offsets)
@@ -64,8 +64,26 @@ IndexedAdjacencyList_New(PyObject *ents, PyObject *adj,PyObject *indices,
     return res;
 }
 
+iMeshEntitySet_Object *
+iMeshEntitySet_New(iMesh_Object *mesh)
+{
+    iMeshEntitySet_Object *o = iMeshEntitySet_NewRaw();
+    o->mesh = mesh;
+    Py_INCREF(o->mesh);
+    return o;
+}
+
+iMeshTag_Object *
+iMeshTag_New(iMesh_Object *mesh)
+{
+    iMeshTag_Object *o = iMeshTag_NewRaw();
+    o->mesh = mesh;
+    Py_INCREF(o->mesh);
+    return o;
+}
+
 static int
-iMeshObj_init(iMeshObject *self,PyObject *args,PyObject *kwds)
+iMeshObj_init(iMesh_Object *self,PyObject *args,PyObject *kwds)
 {
     static char *kwlist[] = {"options",0};
     const char *options = "";
@@ -77,24 +95,22 @@ iMeshObj_init(iMeshObject *self,PyObject *args,PyObject *kwds)
     iMesh_newMesh(options,&self->mesh,&err,strlen(options));
     if(checkError(self->mesh,err))
         return -1;
-
     return 0;
 }
 
 static void
-iMeshObj_dealloc(iMeshObject *self)
+iMeshObj_dealloc(iMesh_Object *self)
 {
     if(self->mesh)
     {
         int err;
         iMesh_dtor(self->mesh,&err);
     }
-
     self->ob_type->tp_free((PyObject*)self);
 }
 
 static PyObject *
-iMeshObj_load(iMeshObject *self,PyObject *args)
+iMeshObj_load(iMesh_Object *self,PyObject *args)
 {
     const char *name = 0;
     const char *options = "";
@@ -116,7 +132,7 @@ iMeshObj_load(iMeshObject *self,PyObject *args)
 }
 
 static PyObject *
-iMeshObj_save(iMeshObject *self,PyObject *args)
+iMeshObj_save(iMesh_Object *self,PyObject *args)
 {
     const char *name = 0;
     const char *options = "";
@@ -138,10 +154,9 @@ iMeshObj_save(iMeshObject *self,PyObject *args)
 }
 
 static PyObject *
-iMeshObj_getRootSet(iMeshObject *self,void *closure)
+iMeshObj_getRootSet(iMesh_Object *self,void *closure)
 {
-    iMeshEntitySet_Object *rootset = iMeshEntitySet_New();
-    rootset->mesh = self; /* TODO: incref? */
+    iMeshEntitySet_Object *rootset = iMeshEntitySet_New(self);
 
     int err;
     iMesh_getRootSet(self->mesh,&rootset->set.handle,&err);
@@ -156,7 +171,7 @@ iMeshObj_getRootSet(iMeshObject *self,void *closure)
 
 
 static PyObject *
-iMeshObj_getGeometricDimension(iMeshObject *self,void *closure)
+iMeshObj_getGeometricDimension(iMesh_Object *self,void *closure)
 {
     int dim,err;
     iMesh_getGeometricDimension(self->mesh,&dim,&err);
@@ -167,7 +182,7 @@ iMeshObj_getGeometricDimension(iMeshObject *self,void *closure)
 }
 
 static int
-iMeshObj_setGeometricDimension(iMeshObject *self,PyObject *value,void *closure)
+iMeshObj_setGeometricDimension(iMesh_Object *self,PyObject *value,void *closure)
 {
     if(value == NULL)
     {
@@ -187,7 +202,7 @@ iMeshObj_setGeometricDimension(iMeshObject *self,PyObject *value,void *closure)
 }
 
 static PyObject *
-iMeshObj_getDfltStorage(iMeshObject *self,void *closure)
+iMeshObj_getDfltStorage(iMesh_Object *self,void *closure)
 {
     int order,err;
     iMesh_getDfltStorage(self->mesh,&order,&err);
@@ -198,7 +213,7 @@ iMeshObj_getDfltStorage(iMeshObject *self,void *closure)
 }
 
 static PyObject *
-iMeshObj_getAdjTable(iMeshObject *self,void *closure)
+iMeshObj_getAdjTable(iMesh_Object *self,void *closure)
 {
     int *adjtable=0;
     int alloc=0,size,err;
@@ -212,7 +227,7 @@ iMeshObj_getAdjTable(iMeshObject *self,void *closure)
 }
 
 static PyObject *
-iMeshObj_areEHValid(iMeshObject *self,PyObject *args)
+iMeshObj_areEHValid(iMesh_Object *self,PyObject *args)
 {
     int doReset,areInv,err;
     if(!PyArg_ParseTuple(args,"i",&doReset))
@@ -226,7 +241,7 @@ iMeshObj_areEHValid(iMeshObject *self,PyObject *args)
 }
 
 static PyObject *
-iMeshObj_getVtxCoords(iMeshObject *self,PyObject *args)
+iMeshObj_getVtxCoords(iMesh_Object *self,PyObject *args)
 {
     PyObject *obj;
     int storage_order=-1;
@@ -286,7 +301,7 @@ iMeshObj_getVtxCoords(iMeshObject *self,PyObject *args)
 }
 
 static PyObject *
-iMeshObj_getEntTopo(iMeshObject *self,PyObject *args)
+iMeshObj_getEntTopo(iMesh_Object *self,PyObject *args)
 {
     PyObject *obj;
     int err;
@@ -333,7 +348,7 @@ iMeshObj_getEntTopo(iMeshObject *self,PyObject *args)
 }
 
 static PyObject *
-iMeshObj_getEntType(iMeshObject *self,PyObject *args)
+iMeshObj_getEntType(iMesh_Object *self,PyObject *args)
 {
     PyObject *obj;
     int err;
@@ -379,7 +394,7 @@ iMeshObj_getEntType(iMeshObject *self,PyObject *args)
 }
 
 static PyObject *
-iMeshObj_getEntAdj(iMeshObject *self,PyObject *args)
+iMeshObj_getEntAdj(iMesh_Object *self,PyObject *args)
 {
     PyObject *obj;
     int type_req;
@@ -450,7 +465,7 @@ iMeshObj_getEntAdj(iMeshObject *self,PyObject *args)
 }
 
 static PyObject *
-iMeshObj_getEnt2ndAdj(iMeshObject *self,PyObject *args)
+iMeshObj_getEnt2ndAdj(iMesh_Object *self,PyObject *args)
 {
     PyObject *obj;
     int bridge_type,type_req;
@@ -521,7 +536,7 @@ iMeshObj_getEnt2ndAdj(iMeshObject *self,PyObject *args)
 }
 
 static PyObject *
-iMeshObj_createEntSet(iMeshObject *self,PyObject *args)
+iMeshObj_createEntSet(iMesh_Object *self,PyObject *args)
 {
     int isList,err;
     PyObject *obj;
@@ -530,9 +545,7 @@ iMeshObj_createEntSet(iMeshObject *self,PyObject *args)
     if(!PyArg_ParseTuple(args,"O!",&PyBool_Type,&obj))
         return NULL;
 
-    set = iMeshEntitySet_New();
-    set->mesh = self;
-    /*Py_INCREF(self); TODO?? */
+    set = iMeshEntitySet_New(self);
 
     isList = (obj == Py_True);
   
@@ -547,7 +560,7 @@ iMeshObj_createEntSet(iMeshObject *self,PyObject *args)
 }
 
 static PyObject *
-iMeshObj_destroyEntSet(iMeshObject *self,PyObject *args)
+iMeshObj_destroyEntSet(iMesh_Object *self,PyObject *args)
 {
     int err;
     iBaseEntitySet_Object *set;
@@ -563,7 +576,7 @@ iMeshObj_destroyEntSet(iMeshObject *self,PyObject *args)
 }
 
 static PyObject *
-iMeshObj_setVtxCoords(iMeshObject *self,PyObject *args)
+iMeshObj_setVtxCoords(iMesh_Object *self,PyObject *args)
 {
     PyObject *obj;
     int storage_order = -1;
@@ -633,7 +646,7 @@ err:
 }
 
 static PyObject *
-iMeshObj_createVtx(iMeshObject *self,PyObject *args)
+iMeshObj_createVtx(iMesh_Object *self,PyObject *args)
 {
     int storage_order=-1;
     PyObject *data;
@@ -698,7 +711,7 @@ iMeshObj_createVtx(iMeshObject *self,PyObject *args)
 }
 
 static PyObject *
-iMeshObj_createEnt(iMeshObject *self,PyObject *args)
+iMeshObj_createEnt(iMesh_Object *self,PyObject *args)
 {
     int topo,status,err;
     PyObject *obj;
@@ -731,7 +744,7 @@ iMeshObj_createEnt(iMeshObject *self,PyObject *args)
 }
 
 static PyObject *
-iMeshObj_createEntArr(iMeshObject *self,PyObject *args)
+iMeshObj_createEntArr(iMesh_Object *self,PyObject *args)
 {
     int topo,err;
     PyObject *obj;
@@ -773,7 +786,7 @@ iMeshObj_createEntArr(iMeshObject *self,PyObject *args)
 
 
 static PyObject *
-iMeshObj_deleteEnt(iMeshObject *self,PyObject *args)
+iMeshObj_deleteEnt(iMesh_Object *self,PyObject *args)
 {
     PyObject *obj;
     int err;
@@ -807,7 +820,7 @@ iMeshObj_deleteEnt(iMeshObject *self,PyObject *args)
 
 
 static PyObject *
-iMeshObj_createTag(iMeshObject *self,PyObject *args)
+iMeshObj_createTag(iMesh_Object *self,PyObject *args)
 {
     char *name;
     char typechar;
@@ -824,9 +837,7 @@ iMeshObj_createTag(iMeshObject *self,PyObject *args)
         return NULL;
     }
 
-    tag = iMeshTag_New();
-    tag->mesh = self;
-    /*Py_INCREF(self); TODO?? */
+    tag = iMeshTag_New(self);
 
     iMesh_createTag(self->mesh,name,size,type,&tag->tag.handle,&err,
                     strlen(name));
@@ -840,7 +851,7 @@ iMeshObj_createTag(iMeshObject *self,PyObject *args)
 }
 
 static PyObject *
-iMeshObj_destroyTag(iMeshObject *self,PyObject *args)
+iMeshObj_destroyTag(iMesh_Object *self,PyObject *args)
 {
     int forced,err;
     iBaseTag_Object *tag;
@@ -859,7 +870,7 @@ iMeshObj_destroyTag(iMeshObject *self,PyObject *args)
 }
 
 static PyObject *
-iMeshObj_getTagHandle(iMeshObject *self,PyObject *args)
+iMeshObj_getTagHandle(iMesh_Object *self,PyObject *args)
 {
     char *name;
     iMeshTag_Object *tag;
@@ -868,9 +879,7 @@ iMeshObj_getTagHandle(iMeshObject *self,PyObject *args)
     if(!PyArg_ParseTuple(args,"s",&name))
         return NULL;
 
-    tag = iMeshTag_New();
-    tag->mesh = self;
-    /*Py_INCREF(self); TODO?? */
+    tag = iMeshTag_New(self);
 
     iMesh_getTagHandle(self->mesh,name,&tag->tag.handle,&err,strlen(name));
     if(checkError(self->mesh,err))
@@ -883,7 +892,7 @@ iMeshObj_getTagHandle(iMeshObject *self,PyObject *args)
 }
 
 static PyObject *
-iMeshObj_getAllTags(iMeshObject *self,PyObject *args)
+iMeshObj_getAllTags(iMesh_Object *self,PyObject *args)
 {
     PyObject *ents;
     iBase_TagHandle *tags=0;
@@ -1001,11 +1010,11 @@ static PyGetSetDef iMesh_getset[] = {
     {0}
 };
 
-static PyTypeObject iMeshType = {
+static PyTypeObject iMesh_Type = {
     PyObject_HEAD_INIT(NULL)
     0,                            /* ob_size */
     "itaps.iMesh.Mesh",           /* tp_name */
-    sizeof(iMeshObject),          /* tp_basicsize */
+    sizeof(iMesh_Object),         /* tp_basicsize */
     0,                            /* tp_itemsize */
     (destructor)iMeshObj_dealloc, /* tp_dealloc */
     0,                            /* tp_print */
@@ -1053,11 +1062,10 @@ static PyObject *
 iMeshEntSetArr_getitem(void *data,void *arr)
 {
     ArrDealloc_Object *b = (ArrDealloc_Object*)PyArray_BASE(arr);
-    iMeshObject *mesh = (iMeshObject*)b->base;
-    iMeshEntitySet_Object *o = iMeshEntitySet_New();
+    iMesh_Object *mesh = (iMesh_Object*)b->base;
+    iMeshEntitySet_Object *o = iMeshEntitySet_New(mesh);
 
     o->set.handle = *(iBase_EntitySetHandle*)data;
-    o->mesh = mesh; /* TODO: incref? */
 
     return (PyObject*)o;
 }
@@ -1066,11 +1074,10 @@ static PyObject *
 iMeshTagArr_getitem(void *data,void *arr)
 {
     ArrDealloc_Object *b = (ArrDealloc_Object*)PyArray_BASE(arr);
-    iMeshObject *mesh = (iMeshObject*)b->base;
-    iMeshTag_Object *o = iMeshTag_New();
+    iMesh_Object *mesh = (iMesh_Object*)b->base;
+    iMeshTag_Object *o = iMeshTag_New(mesh);
 
     o->tag.handle = *(iBase_TagHandle*)data;
-    o->mesh = mesh; /* TODO: incref? */
 
     return (PyObject*)o;
 }
@@ -1081,7 +1088,7 @@ int NPY_IMESHENTSET;
 static PyArray_ArrFuncs iMeshTagArr_Funcs;
 int NPY_IMESHTAG;
 
-ENUM_TYPE(Topology,"iMesh.Topology","");
+ENUM_TYPE(iMeshTopology,"iMesh.Topology","");
 
 
 static void
@@ -1158,27 +1165,23 @@ PyMODINIT_FUNC initiMesh(void)
         "IndexedAdjacencyList")) == NULL)
         return;
 
-    iMeshType.tp_new = PyType_GenericNew;
-    if(PyType_Ready(&iMeshType) < 0)
-        return;
-    Py_INCREF(&iMeshType);
-    PyModule_AddObject(m,"Mesh",(PyObject *)&iMeshType);
+    REGISTER_SIMPLE(m,"Mesh",iMesh);
 
     /***** initialize topology enum *****/
-    REGISTER_SIMPLE(m,Topology);
+    REGISTER_SIMPLE(m,"Topology",iMeshTopology);
 
-    ADD_ENUM(Topology,"point",         iMesh_POINT);
-    ADD_ENUM(Topology,"line_segment",  iMesh_LINE_SEGMENT);
-    ADD_ENUM(Topology,"polygon",       iMesh_POLYGON);
-    ADD_ENUM(Topology,"triangle",      iMesh_TRIANGLE);
-    ADD_ENUM(Topology,"quadrilateral", iMesh_QUADRILATERAL);
-    ADD_ENUM(Topology,"polyhedron",    iMesh_POLYHEDRON);
-    ADD_ENUM(Topology,"tetrahedron",   iMesh_TETRAHEDRON);
-    ADD_ENUM(Topology,"hexahedron",    iMesh_HEXAHEDRON);
-    ADD_ENUM(Topology,"prism",         iMesh_PRISM);
-    ADD_ENUM(Topology,"pyramid",       iMesh_PYRAMID);
-    ADD_ENUM(Topology,"septahedron",   iMesh_SEPTAHEDRON);
-    ADD_ENUM(Topology,"all",           iMesh_ALL_TOPOLOGIES);
+    ADD_ENUM(iMeshTopology,"point",         iMesh_POINT);
+    ADD_ENUM(iMeshTopology,"line_segment",  iMesh_LINE_SEGMENT);
+    ADD_ENUM(iMeshTopology,"polygon",       iMesh_POLYGON);
+    ADD_ENUM(iMeshTopology,"triangle",      iMesh_TRIANGLE);
+    ADD_ENUM(iMeshTopology,"quadrilateral", iMesh_QUADRILATERAL);
+    ADD_ENUM(iMeshTopology,"polyhedron",    iMesh_POLYHEDRON);
+    ADD_ENUM(iMeshTopology,"tetrahedron",   iMesh_TETRAHEDRON);
+    ADD_ENUM(iMeshTopology,"hexahedron",    iMesh_HEXAHEDRON);
+    ADD_ENUM(iMeshTopology,"prism",         iMesh_PRISM);
+    ADD_ENUM(iMeshTopology,"pyramid",       iMesh_PYRAMID);
+    ADD_ENUM(iMeshTopology,"septahedron",   iMesh_SEPTAHEDRON);
+    ADD_ENUM(iMeshTopology,"all",           iMesh_ALL_TOPOLOGIES);
 
     /***** initialize iterator type *****/
     iMeshIter_Type.tp_new = PyType_GenericNew;

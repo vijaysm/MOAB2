@@ -4,6 +4,7 @@
 #include "iMesh_Python.h"
 #include "iBase_Python.h"
 #include "errors.h"
+#include "structmember.h"
 
 static char typechars[] = {'i','d','E','b'};
 
@@ -25,6 +26,13 @@ type_to_char(enum iBase_TagValueType t)
     return typechars[t];
 }
 
+
+static void
+iMeshTagObj_dealloc(iMeshTag_Object *self)
+{
+    Py_XDECREF(self->mesh);
+    ((PyObject*)self)->ob_type->tp_free((PyObject*)self);
+}
 
 static PyObject *
 iMeshTagObj_getName(iMeshTag_Object *self,void *closure)
@@ -501,6 +509,12 @@ static PyMethodDef iMeshTagObj_methods[] = {
     {0}
 };
 
+static PyMemberDef iMeshTagObj_members[] = {
+    {"instance", T_OBJECT_EX, offsetof(iMeshTag_Object, mesh), READONLY,
+     "base iMesh instance"},
+    {0}
+};
+
 static PyGetSetDef iMeshTagObj_getset[] = {
     { "name", (getter)iMeshTagObj_getName, 0,
       "Get the name for a given tag handle", 0
@@ -521,10 +535,10 @@ static PyGetSetDef iMeshTagObj_getset[] = {
 PyTypeObject iMeshTag_Type = {
     PyObject_HEAD_INIT(NULL)
     0,                                   /* ob_size */
-    "itaps.iMesh.tag",                   /* tp_name */
+    "itaps.iMesh.Tag",                   /* tp_name */
     sizeof(iMeshTag_Object),             /* tp_basicsize */
     0,                                   /* tp_itemsize */
-    0,                                   /* tp_dealloc */
+    (destructor)iMeshTagObj_dealloc,     /* tp_dealloc */
     0,                                   /* tp_print */
     0,                                   /* tp_getattr */
     0,                                   /* tp_setattr */
@@ -549,7 +563,7 @@ PyTypeObject iMeshTag_Type = {
     0,                                   /* tp_iter */
     0,                                   /* tp_iternext */
     iMeshTagObj_methods,                 /* tp_methods */
-    0,                                   /* tp_members */
+    iMeshTagObj_members,                 /* tp_members */
     iMeshTagObj_getset,                  /* tp_getset */
     0,                                   /* tp_base */
     0,                                   /* tp_dict */

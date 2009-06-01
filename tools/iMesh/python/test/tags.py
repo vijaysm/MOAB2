@@ -17,10 +17,27 @@ class TestTags(unittest.TestCase):
         self.set = self.mesh.createEntSet(True)
 
     def testCreation(self):
+        self.assertEqual(self.itag.instance, self.mesh)
         self.assertEqual(self.itag.name, 'int')
         self.assertEqual(self.itag.type, 'i')
         self.assertEqual(self.itag.sizeValues, 1)
-        self.assertEqual(self.itag.sizeBytes, 4)
+
+        self.assertEqual(self.dtag.instance, self.mesh)
+        self.assertEqual(self.dtag.name, 'double')
+        self.assertEqual(self.dtag.type, 'd')
+        self.assertEqual(self.dtag.sizeValues, 1)
+        self.assertEqual(self.dtag.sizeBytes, 8)
+
+        self.assertEqual(self.etag.instance, self.mesh)
+        self.assertEqual(self.etag.name, 'handle')
+        self.assertEqual(self.etag.type, 'E')
+        self.assertEqual(self.etag.sizeValues, 1)
+
+        self.assertEqual(self.btag.instance, self.mesh)
+        self.assertEqual(self.btag.name, 'bytes')
+        self.assertEqual(self.btag.type, 'b')
+        self.assertEqual(self.btag.sizeValues, 3)
+        self.assertEqual(self.btag.sizeBytes, 3)
 
     def testFind(self):
         t = self.mesh.getTagHandle('int')
