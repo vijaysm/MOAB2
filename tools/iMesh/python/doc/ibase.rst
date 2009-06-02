@@ -3,6 +3,7 @@
 =================
 
 .. module:: itaps.iBase
+   :synopsis: Utilities and definitions used in multiple ITAPS core interfaces.
 
 Type
 ====

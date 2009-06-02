@@ -8,6 +8,7 @@ PyTAPS is a Python package designed to interface with `ITAPS
 .. toctree::
    :maxdepth: 2
 
+   intro
    build
    ibase
    imesh

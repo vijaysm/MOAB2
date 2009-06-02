@@ -26,10 +26,7 @@ def hex_volume(coords):
            subvolume(coords[0], coords[1], coords[4], coords[5], coords[7]) + \
            subvolume(coords[1], coords[2], coords[5], coords[6], coords[7])
 
-def calc_volume(filename):
-    mesh = iMesh.Mesh()
-    mesh.load(filename)
-
+def calc_volume(mesh):
     volume = ndarray(mesh.rootSet.getNumOfType(iBase.Type.region), float_)
     x=0
     for i in mesh.rootSet.iterate(iBase.Type.region, iMesh.Topology.all):
@@ -55,12 +52,18 @@ if len(args) != 2:
     print 'Usage: python volume.py [opts] file1 file2'
     exit(1)
 
-volume_pre  = calc_volume(sys.argv[1])
-volume_post = calc_volume(sys.argv[2])
+mesh_pre = iMesh.Mesh()
+mesh_pre.load(args[0])
+mesh_post = iMesh.Mesh()
+mesh_post.load(args[1])
 
-if len(volume_pre) != len(volume_post):
+if mesh_pre. rootSet.getNumOfType(iBase.Type.region) != \
+   mesh_post.rootSet.getNumOfType(iBase.Type.region):
     print 'volume.py: Meshes should have the same number of regions'
     exit(1)
+
+volume_pre  = calc_volume(mesh_pre)
+volume_post = calc_volume(mesh_post)
 
 volume_diff = volume_pre / volume_post
 
