@@ -1811,10 +1811,10 @@ void test_pack_shared_entities()
   CHECK_ERR(rval);
 
   buffer.clear(); buff_ptr = &buffer[0];
+  ent_verts.clear(); sent_ents.clear();
 
     //========================
     // interface, multishared, 1st message, 0->1
-  ent_verts.clear();
   ent_verts.push_back(verts[0][8]); ent_verts.push_back(verts[0][5]);
   ent_verts.push_back(verts[0][5]); ent_verts.push_back(verts[0][2]);
   rval = get_entities(mb[0], ent_verts, 2, 1, sent_ents);
@@ -1837,7 +1837,7 @@ void test_pack_shared_entities()
 
   entprocs[0].clear(); entprocs[1].clear();
   buffer.clear(); buff_ptr = &buffer[0];
-  sent_ents.clear();
+  ent_verts.clear(); sent_ents.clear();
   
     //========================
     // interface, multishared, 2nd message, 3->1
