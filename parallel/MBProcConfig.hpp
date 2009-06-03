@@ -79,7 +79,11 @@ public:
     //! get/set the communicator for this proc config
   const MPI_Comm proc_comm() const {return procComm;}
   void proc_comm(MPI_Comm this_comm) {procComm = this_comm;}
-  
+
+    //! set rank/size; USED FOR TESTING ONLY!
+  void proc_rank(unsigned r) {procRank = r;}
+  void proc_size(unsigned s) {procSize = s;}
+
 private:
 
     //! MPI communicator set for this instance

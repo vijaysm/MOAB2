@@ -83,6 +83,9 @@
 #define PSTATUS_SHARED 0x2
 #define PSTATUS_MULTISHARED 0x4
 #define PSTATUS_INTERFACE 0x8
-#define PSTATUS_GHOST 0x16
+#define PSTATUS_GHOST 0x10
 
+#define PSTATUS_AND 0x1
+#define PSTATUS_OR 0x2
+#define PSTATUS_NOT 0x3
 #endif

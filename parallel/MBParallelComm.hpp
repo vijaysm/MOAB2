@@ -449,9 +449,31 @@ public:
                             std::vector<unsigned int> &L2p,
                             MBRange &new_ents);
   
+  MBErrorCode pack_entities(MBRange &entities,
+                            std::vector<unsigned char> &buff,
+                            unsigned char *&buff_ptr,
+                            const bool store_remote_handles,
+                            const int to_proc,
+                            const bool is_iface,
+                            std::vector<std::set<unsigned int> > *entprocs = NULL);
+
+    //! unpack entities in buff_ptr
+  MBErrorCode unpack_entities(unsigned char *&buff_ptr,
+                              const bool store_remote_handles,
+                              const int from_ind,
+                              const bool is_iface,
+                              std::vector<std::vector<MBEntityHandle> > &L1h,
+                              std::vector<MBEntityHandle> &L2hloc, 
+                              std::vector<MBEntityHandle> &L2hrem,
+                              std::vector<unsigned int> &L2p,
+                              MBRange &new_ents);
+  
     //! Call exchange_all_shared_handles, then compare the results with tag data
     //! on local shared entities.
   MBErrorCode check_all_shared_handles();
+
+    //! set rank for this pcomm; USED FOR TESTING ONLY!
+  void set_rank(unsigned int r);
   
 private:
 
@@ -517,14 +539,6 @@ private:
                              MPI_Request &recv_req,
                              int mesg_tag);
   
-  MBErrorCode pack_entities(MBRange &entities,
-                            std::vector<unsigned char> &buff,
-                            unsigned char *&buff_ptr,
-                            const bool store_remote_handles,
-                            const int to_proc,
-                            const bool is_iface,
-                            std::vector<std::set<unsigned int> > *entprocs = NULL);
-
     //! pack a range of entities with equal # verts per entity, along with
     //! the range on the sending proc
   MBErrorCode pack_entity_seq(const int nodes_per_entity,
@@ -535,16 +549,7 @@ private:
                               std::vector<unsigned char> &buff,
                               unsigned char *&buff_ptr);
   
-    //! unpack entities in buff_ptr
-  MBErrorCode unpack_entities(unsigned char *&buff_ptr,
-                              const bool store_remote_handles,
-                              const int from_ind,
-                              const bool is_iface,
-                              std::vector<std::vector<MBEntityHandle> > &L1h,
-                              std::vector<MBEntityHandle> &L2hloc, 
-                              std::vector<MBEntityHandle> &L2hrem,
-                              std::vector<unsigned int> &L2p,
-                              MBRange &new_ents);
+  MBErrorCode print_buffer(unsigned char *buff_ptr);
   
     //! for all the entities in the received buffer; for each, save
     //! entities in this instance which match connectivity, or zero if none found
@@ -608,9 +613,25 @@ private:
                                     const int ind);
   
     //! given connectivity and type, find an existing entity, if there is one
-  MBEntityHandle find_existing_entity(const MBEntityHandle *connect,
-                                      const int num_connect,
-                                      const MBEntityType this_type);
+  MBErrorCode find_existing_entity(const bool is_iface,
+                                   const int *ps,
+                                   const MBEntityHandle *hs,
+                                   const int num_ents,
+                                   const MBEntityHandle *connect,
+                                   const int num_connect,
+                                   const MBEntityType this_type,
+                                   std::vector<MBEntityHandle> &L2hloc,
+                                   std::vector<MBEntityHandle> &L2hrem,
+                                   std::vector<MBEntityHandle> &L2p,
+                                   MBEntityHandle &new_h);
+  
+  MBErrorCode build_sharedhps_list(const MBEntityHandle entity,
+                                   const unsigned char pstatus,
+                                   const int sharedp, 
+                                   const std::set<unsigned int> &entprocs,
+                                   unsigned int &num_ents,
+                                   int *tmp_procs,
+                                   MBEntityHandle *tmp_handles);
   
   /**\brief Get list of tags for which to exchange data
    *
@@ -1005,5 +1026,11 @@ inline MBErrorCode MBParallelComm::unpack_remote_handles(unsigned int from_proc,
   unsigned char *tmp_buff = const_cast<unsigned char*>(buff_ptr);
   return unpack_remote_handles(from_proc, tmp_buff, is_iface, ind);
 }
-  
+
+inline void MBParallelComm::set_rank(unsigned int r) 
+{
+  procConfig.proc_rank(r);
+  if (procConfig.proc_size() < r) procConfig.proc_size(r+1);
+}
+
 #endif
