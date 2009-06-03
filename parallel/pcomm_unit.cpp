@@ -219,9 +219,103 @@ void create_simple_grid( MBInterface& moab, unsigned x, unsigned y, unsigned z )
   delete [] elems;
 }
 
-#define NVERTS 25
-#define NQUADS 16
-MBErrorCode create_shared_grid(MBInterface &moab, MBRange &verts, MBRange &quads) 
+MBErrorCode set_owners(unsigned char pstatus,
+                       MBParallelComm *pc0, MBEntityHandle ent0, 
+                       MBParallelComm *pc1, MBEntityHandle ent1, 
+                       MBParallelComm *pc2 = NULL, MBEntityHandle ent2 = 0, 
+                       MBParallelComm *pc3 = NULL, MBEntityHandle ent3 = 0)
+{
+  int owners[MAX_SHARING_PROCS];
+  MBEntityHandle tmp_handles[MAX_SHARING_PROCS];
+  
+  MBErrorCode result = MB_SUCCESS;
+  
+  std::fill(owners, owners+MAX_SHARING_PROCS, -1);
+  std::fill(tmp_handles, tmp_handles+MAX_SHARING_PROCS, 0);
+  owners[0] = pc0->proc_config().proc_rank(); owners[1] = pc1->proc_config().proc_rank();
+  tmp_handles[0] = ent0; tmp_handles[1] = ent1;
+  int np = 2;
+  if (pc2) {
+    owners[2] = pc2->proc_config().proc_rank();
+    tmp_handles[2] = ent2;
+    np++;
+  }
+  if (pc3) {
+    owners[3] = pc3->proc_config().proc_rank();
+    tmp_handles[3] = ent3;
+    np++;
+  }
+  if (np > 2) {
+    result = pc0->get_moab()->tag_set_data(pc0->sharedps_tag(), &ent0, 1, owners);
+    result = pc0->get_moab()->tag_set_data(pc0->sharedhs_tag(), &ent0, 1, tmp_handles);
+    result = pc0->get_moab()->tag_set_data(pc0->pstatus_tag(), &ent0, 1, &pstatus);
+      // 2nd and greater don't own them
+    pstatus |= PSTATUS_NOT_OWNED;
+    result = pc1->get_moab()->tag_set_data(pc1->sharedps_tag(), &ent1, 1, owners);
+    result = pc1->get_moab()->tag_set_data(pc1->sharedhs_tag(), &ent1, 1, tmp_handles);
+    result = pc1->get_moab()->tag_set_data(pc1->pstatus_tag(), &ent1, 1, &pstatus);
+    if (pc2) {
+      result = pc2->get_moab()->tag_set_data(pc2->sharedps_tag(), &ent2, 1, owners);
+      result = pc2->get_moab()->tag_set_data(pc2->sharedhs_tag(), &ent2, 1, tmp_handles);
+      result = pc2->get_moab()->tag_set_data(pc2->pstatus_tag(), &ent2, 1, &pstatus);
+    }
+    if (pc3) {
+      result = pc3->get_moab()->tag_set_data(pc3->sharedps_tag(), &ent3, 1, owners);
+      result = pc3->get_moab()->tag_set_data(pc3->sharedhs_tag(), &ent3, 1, tmp_handles);
+      result = pc3->get_moab()->tag_set_data(pc3->pstatus_tag(), &ent3, 1, &pstatus);
+    }
+  }
+  else {
+    result = pc0->get_moab()->tag_set_data(pc0->sharedp_tag(), &ent0, 1, &owners[1]);
+    result = pc0->get_moab()->tag_set_data(pc0->sharedh_tag(), &ent0, 1, &tmp_handles[1]);
+    result = pc0->get_moab()->tag_set_data(pc0->pstatus_tag(), &ent0, 1, &pstatus);
+      // 2nd and greater don't own them
+    pstatus |= PSTATUS_NOT_OWNED;
+    result = pc1->get_moab()->tag_set_data(pc1->sharedp_tag(), &ent1, 1, owners);
+    result = pc1->get_moab()->tag_set_data(pc1->sharedh_tag(), &ent1, 1, tmp_handles);
+    result = pc1->get_moab()->tag_set_data(pc1->pstatus_tag(), &ent1, 1, &pstatus);
+  }
+  
+  return result;
+}
+
+MBErrorCode create_patch(MBInterface *moab, MBRange &verts, MBRange &quads,
+                         unsigned int n, double *xyz, int *gids) 
+{
+    // create vertices/quads in square array
+  MBErrorCode result = moab->create_vertices(xyz, n*n, verts);
+  if (MB_SUCCESS != result) return result;
+  std::vector<MBEntityHandle> connect;
+  for (unsigned int j = 0; j < n-1; j++) {
+    for (unsigned int i = 0; i < n-1; i++) {
+      connect.push_back(verts[n*j+i]);
+      connect.push_back(verts[n*j+i+1]);
+      connect.push_back(verts[n*(j+1)+i+1]);
+      connect.push_back(verts[n*(j+1)+i]);
+    }
+  }
+  
+  unsigned int nquads = (n-1)*(n-1);
+  for (unsigned int i = 0; i < nquads; i++) {
+    MBEntityHandle dum_quad;
+    result = moab->create_element(MBQUAD, &connect[4*i], 4, dum_quad);
+    if (MB_SUCCESS != result) return result;
+    quads.insert(dum_quad);
+  }
+  
+    // global ids
+  MBTag gid_tag;
+  int dum_default = -1;
+  result = moab->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE,
+                           MB_TYPE_INTEGER, gid_tag, &dum_default, true);
+  if (MB_SUCCESS != result) return result;
+  result = moab->tag_set_data(gid_tag, verts, gids);
+  if (MB_SUCCESS != result) return result;
+
+  return result;
+}
+
+MBErrorCode create_shared_grid(MBParallelComm **pc, MBRange *verts, MBRange *quads) 
 {
 //          
 //        P2______
@@ -243,11 +337,11 @@ MBErrorCode create_shared_grid(MBInterface &moab, MBRange &verts, MBRange &quads
 //       3  4  5     2         5  21 22 
 //   P0  0  1  2               2  19 20 
 
-  int connecti[] = {
-      0, 1, 4, 3,    1, 2, 5, 4,    3, 4, 7, 6,      4, 5, 8, 7, // P0
-      2, 9, 11, 5,   9, 10, 12, 11,   5, 11, 13, 8,   11, 12, 14, 13, // P1
-      6, 7, 15, 17,  7, 8, 13, 15,   17, 15, 16, 18,   15, 13, 14, 16, // P2
-      2, 19, 21, 5,  19, 20, 22, 21,  5, 21, 23, 8,  21, 22, 24, 23 // P3
+  int gids[] = {
+      0, 1, 2, 3, 4, 5, 6, 7, 8, // P0
+      2, 9, 10, 5, 11, 12, 8, 13, 14, // P1
+      6, 7, 8, 17, 15, 13, 18, 16, 14, // P2
+      2, 19, 20, 5, 21, 22, 8, 23, 24 // P3
   };
   double xyz[] =  {
       -1.0, 0.0, 0.0, -0.5, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.5, 0.0,
@@ -259,244 +353,35 @@ MBErrorCode create_shared_grid(MBInterface &moab, MBRange &verts, MBRange &quads
       0.5, 0.0, 0.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.0, 1.0, 0.5, 0.0, 
       0.5, 1.0, 0.0, 1.0, 1.0, 0.0, // n19-24
   };
+  double xyztmp[27];
 
-    // create vertices/quads
-  MBErrorCode result = moab.create_vertices(xyz, NVERTS, verts);
-  if (MB_SUCCESS != result) return result;
-  MBEntityHandle connect[4*NQUADS];
-  for (unsigned int i = 0; i < 4*NQUADS; i++) connect[i] = verts[connecti[i]];
-  for (unsigned int i = 0; i < NQUADS; i++) {
-    MBEntityHandle dum_quad;
-    result = moab.create_element(MBQUAD, connect+4*i, 4, dum_quad);
-    if (MB_SUCCESS != result) return result;
-    quads.insert(dum_quad);
-  }
-  
-    // global ids
-  int gids[4*NQUADS];
-  for (unsigned int i = 0; i < 4*NQUADS; i++) gids[i] = i;
-  MBTag gid_tag;
-  int dum_default = -1;
-  result = moab.tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE,
-                           MB_TYPE_INTEGER, gid_tag, &dum_default, true);
-  if (MB_SUCCESS != result) return result;
-  result = moab.tag_set_data(gid_tag, verts, gids);
-  if (MB_SUCCESS != result) return result;
-  result = moab.tag_set_data(gid_tag, quads, gids);
-  if (MB_SUCCESS != result) return result;
-
-  return result;
-}
-
-MBErrorCode set_owners(MBInterface &moab,
-                       MBParallelComm &pcomm,
-                       MBRange &verts, 
-                       bool edges_too) 
-{
-  unsigned int owner = pcomm.proc_config().proc_rank();
-  
-    // vert owners
-  MBEntityHandle dum_verts[9];
-  int dum_owners[MAX_SHARING_PROCS];
-  MBEntityHandle dum_handles[MAX_SHARING_PROCS];
-  unsigned char pstatus[MAX_SHARING_PROCS];
-  unsigned char dum_status;
-  
-  MBErrorCode result = MB_FAILURE;
-  
-  std::fill(dum_owners, dum_owners+MAX_SHARING_PROCS, -1);
-  std::fill(dum_handles, dum_handles+MAX_SHARING_PROCS, 0);
-  std::fill(pstatus, pstatus+MAX_SHARING_PROCS, 0x0);
-
-    // multi-shared vertices, P0-P1-P3
-  if (owner == 0)
-    dum_status = (PSTATUS_INTERFACE | PSTATUS_SHARED | PSTATUS_MULTISHARED);
-  else
-    dum_status = (PSTATUS_INTERFACE | PSTATUS_NOT_OWNED | PSTATUS_SHARED | PSTATUS_MULTISHARED);
-  dum_owners[0] = 0; dum_owners[1] = 1; dum_owners[2] = 2; dum_owners[3] = 3;
-  dum_handles[0] = verts[8]; dum_handles[1] = verts[8]; dum_handles[2] = verts[8]; dum_handles[3] = verts[8];
-  result = moab.tag_set_data(pcomm.sharedps_tag(), dum_handles, 1, dum_owners);
-  if (MB_SUCCESS != result) return result;
-  result = moab.tag_set_data(pcomm.sharedhs_tag(), dum_handles, 1, dum_handles);
-  if (MB_SUCCESS != result) return result;
-  result = moab.tag_set_data(pcomm.pstatus_tag(), dum_handles, 1, &dum_status);
-  if (MB_SUCCESS != result) return result;
-  dum_owners[3] = -1;
-  dum_handles[3] = 0;
-  dum_handles[0] = verts[5]; dum_handles[1] = verts[5]; dum_handles[2] = verts[5];
-  result = moab.tag_set_data(pcomm.sharedps_tag(), dum_handles, 1, dum_owners);
-  if (MB_SUCCESS != result) return result;
-  result = moab.tag_set_data(pcomm.sharedhs_tag(), dum_handles, 1, dum_handles);
-  if (MB_SUCCESS != result) return result;
-  result = moab.tag_set_data(pcomm.pstatus_tag(), dum_handles, 1, &dum_status);
-  if (MB_SUCCESS != result) return result;
-  dum_handles[0] = verts[2]; dum_handles[1] = verts[2]; dum_handles[2] = verts[2];
-  result = moab.tag_set_data(pcomm.sharedps_tag(), dum_handles, 1, dum_owners);
-  if (MB_SUCCESS != result) return result;
-  result = moab.tag_set_data(pcomm.sharedhs_tag(), dum_handles, 1, dum_handles);
-  if (MB_SUCCESS != result) return result;
-  result = moab.tag_set_data(pcomm.pstatus_tag(), dum_handles, 1, &dum_status);
-  if (MB_SUCCESS != result) return result;
-
-    // shared, P0-P2
-  dum_verts[0] = verts[6]; dum_verts[1] = verts[7]; dum_verts[2] = 0; dum_verts[3] = 0;
-  if (owner == 0) {
-    dum_status = (PSTATUS_INTERFACE | PSTATUS_SHARED);
-    dum_owners[0] = 2; dum_owners[1] = 2; dum_owners[2] = -1;
-  }
-  else {
-    dum_owners[0] = 0; dum_owners[1] = 0; dum_owners[2] = -1;
-    dum_status = (PSTATUS_INTERFACE | PSTATUS_SHARED | PSTATUS_NOT_OWNED);
-  }
-  result = moab.tag_set_data(pcomm.sharedp_tag(), dum_verts, 2, dum_owners);
-  if (MB_SUCCESS != result) return result;
-  result = moab.tag_set_data(pcomm.sharedh_tag(), dum_verts, 2, dum_verts);
-  if (MB_SUCCESS != result) return result;
-
-    // shared, P1-P2
-  dum_verts[0] = verts[13]; dum_verts[1] = verts[14]; dum_verts[2] = 0;
-  if (owner == 1) {
-    dum_status = (PSTATUS_INTERFACE | PSTATUS_SHARED);
-    dum_owners[0] = 2; dum_owners[1] = 2; dum_owners[2] = -1;
-  }  
-  else {
-    dum_status = (PSTATUS_INTERFACE | PSTATUS_SHARED | PSTATUS_NOT_OWNED);    
-    dum_owners[0] = 1; dum_owners[1] = 1; dum_owners[2] = -1;
-  }
-  result = moab.tag_set_data(pcomm.sharedp_tag(), dum_verts, 2, dum_owners);
-  if (MB_SUCCESS != result) return result;
-  result = moab.tag_set_data(pcomm.sharedh_tag(), dum_verts, 2, dum_verts);
-  if (MB_SUCCESS != result) return result;
-        
-  if (edges_too) {
-    MBRange tmpr;
-      // P0 - P1 - P3
-    pstatus[0] = (PSTATUS_INTERFACE | PSTATUS_SHARED | PSTATUS_MULTISHARED);
-    dum_verts[0] = verts[8]; dum_verts[1] = verts[5];
-    result = moab.get_adjacencies(verts, 1, true, tmpr);
-    if (MB_SUCCESS != result || tmpr.size() != 1) return MB_FAILURE;
-    dum_handles[0] = dum_handles[1] = dum_handles[2] = *tmpr.begin(); tmpr.clear();
-    dum_handles[3] = 0;
-    if (owner != 0)
-      pstatus[0] |= PSTATUS_NOT_OWNED;
-    dum_owners[0] = 0; dum_owners[1] = 1; dum_owners[2] = 3;
-    result = moab.tag_set_data(pcomm.sharedps_tag(), dum_handles, 1, dum_owners);
-    if (MB_SUCCESS != result) return result;
-    result = moab.tag_set_data(pcomm.sharedhs_tag(), dum_handles, 1, dum_handles);
-    if (MB_SUCCESS != result) return result;
-    result = moab.tag_set_data(pcomm.pstatus_tag(), dum_handles, 1, pstatus);
-    if (MB_SUCCESS != result) return result;
-
-    dum_verts[0] = verts[5]; dum_verts[1] = verts[2];
-    result = moab.get_adjacencies(verts, 1, true, tmpr);
-    if (MB_SUCCESS != result || tmpr.size() != 1) return MB_FAILURE;
-    dum_handles[0] = dum_handles[1] = dum_handles[2] = *tmpr.begin(); tmpr.clear();
-    result = moab.tag_set_data(pcomm.sharedps_tag(), dum_handles, 1, dum_owners);
-    if (MB_SUCCESS != result) return result;
-    result = moab.tag_set_data(pcomm.sharedhs_tag(), dum_handles, 1, dum_handles);
-    if (MB_SUCCESS != result) return result;
-    result = moab.tag_set_data(pcomm.pstatus_tag(), dum_handles, 1, pstatus);
-    if (MB_SUCCESS != result) return result;
+    // create the test mesh above
+  for (unsigned int i = 0; i < 4; i++) {
+    for (unsigned int j = 0; j < 9; j++) {
+      xyztmp[3*j] = xyz[3*gids[9*i+j]];
+      xyztmp[3*j+1] = xyz[3*gids[9*i+j]+1];
+      xyztmp[3*j+2] = xyz[3*gids[9*i+j]+2];
+    }
     
-      // P0 - P2
-    pstatus[0] = (PSTATUS_INTERFACE | PSTATUS_SHARED);
-    dum_verts[0] = verts[6]; dum_verts[1] = verts[7];
-    result = moab.get_adjacencies(verts, 1, true, tmpr);
-    if (MB_SUCCESS != result || tmpr.size() != 1) return MB_FAILURE;
-    dum_handles[0] = *tmpr.begin(); tmpr.clear();
-    dum_verts[0] = verts[7]; dum_verts[1] = verts[8];
-    result = moab.get_adjacencies(verts, 1, true, tmpr);
-    if (MB_SUCCESS != result || tmpr.size() != 1) return MB_FAILURE;
-    dum_handles[1] = *tmpr.begin(); tmpr.clear();
-    dum_handles[2] = 0;
-    if (owner == 0) {
-      dum_owners[0] = 2; dum_owners[1] = 2; dum_owners[2] = -1;
-    }
-    else {
-      pstatus[0] |= PSTATUS_NOT_OWNED;
-      dum_owners[0] = 0; dum_owners[1] = 0; dum_owners[2] = -1;
-    }
-    result = moab.tag_set_data(pcomm.sharedp_tag(), dum_handles, 2, dum_owners);
-    if (MB_SUCCESS != result) return result;
-    result = moab.tag_set_data(pcomm.sharedh_tag(), dum_handles, 2, dum_handles);
-    if (MB_SUCCESS != result) return result;
-    result = moab.tag_set_data(pcomm.pstatus_tag(), dum_handles, 2, pstatus);
-    if (MB_SUCCESS != result) return result;
-    
-      // P1 - P2
-    pstatus[0] = (PSTATUS_INTERFACE | PSTATUS_SHARED);
-    dum_verts[0] = verts[8]; dum_verts[1] = verts[13];
-    result = moab.get_adjacencies(verts, 1, true, tmpr);
-    if (MB_SUCCESS != result || tmpr.size() != 1) return MB_FAILURE;
-    dum_handles[0] = *tmpr.begin(); tmpr.clear();
-    dum_verts[0] = verts[13]; dum_verts[1] = verts[14];
-    result = moab.get_adjacencies(verts, 1, true, tmpr);
-    if (MB_SUCCESS != result || tmpr.size() != 1) return MB_FAILURE;
-    dum_handles[1] = *tmpr.begin(); tmpr.clear();
-    dum_handles[2] = 0;
-    if (owner == 1) {
-      dum_owners[0] = 2; dum_owners[1] = 2; dum_owners[2] = -1;
-    }
-    else {
-      pstatus[0] |= PSTATUS_NOT_OWNED;
-      dum_owners[0] = 1; dum_owners[1] = 1; dum_owners[2] = -1;
-    }
-    result = moab.tag_set_data(pcomm.sharedp_tag(), dum_handles, 2, dum_owners);
-    if (MB_SUCCESS != result) return result;
-    result = moab.tag_set_data(pcomm.sharedh_tag(), dum_handles, 2, dum_handles);
-    if (MB_SUCCESS != result) return result;
-    result = moab.tag_set_data(pcomm.pstatus_tag(), dum_handles, 2, pstatus);
-    if (MB_SUCCESS != result) return result;
-  }
-  
-  return result;
-}
-
-MBErrorCode set_owners(MBInterface &moab,
-                       MBParallelComm &pcomm,
-                       MBRange &ents, 
-                       unsigned char pstat,
-                       std::vector<int> &procs,
-                       std::vector<MBEntityHandle> &handles) 
-{
-  int owners[MAX_SHARING_PROCS];
-  MBEntityHandle tmp_handles[MAX_SHARING_PROCS];
-  int negone = -1;
-  MBEntityHandle zeroh = 0;
-  assert(handles.size() == ents.size()*procs.size());
-  
-  MBErrorCode result = MB_SUCCESS;
-  
-  std::fill(owners, owners+MAX_SHARING_PROCS, -1);
-  std::fill(tmp_handles, tmp_handles+MAX_SHARING_PROCS, 0);
-  std::copy(procs.begin(), procs.end(), owners);
-  std::vector<MBEntityHandle>::iterator vit = handles.begin();
-  for (MBRange::iterator rit = ents.begin(); rit != ents.end(); rit++) {
-    if (procs.size() > 1 || procs.empty()) {
-      result = moab.tag_set_data(pcomm.sharedp_tag(), &(*rit), 1, &negone);
-      result = moab.tag_set_data(pcomm.sharedh_tag(), &(*rit), 1, &zeroh);
-    }
-    if (procs.size() > 1) {
-      result = moab.tag_set_data(pcomm.sharedps_tag(), &(*rit), 1, owners);
-      for (unsigned int i = 0; i < procs.size(); i++) {
-        assert(vit != handles.end());
-        tmp_handles[i] = *vit++;
-      }
-      result = moab.tag_set_data(pcomm.sharedhs_tag(), &(*rit), 1, tmp_handles);
-    }
-    else {
-      result = moab.tag_set_data(pcomm.sharedp_tag(), &(*rit), 1, owners);
-      if (vit != handles.end()) tmp_handles[0] = *vit++;
-      result = moab.tag_set_data(pcomm.sharedh_tag(), &(*rit), 1, tmp_handles);
-      result = moab.tag_delete_data(pcomm.sharedps_tag(), &(*rit), 1);
-      result = moab.tag_delete_data(pcomm.sharedhs_tag(), &(*rit), 1);
-    }
-    result = moab.tag_set_data(pcomm.pstatus_tag(), &(*rit), 1, &pstat);
-    std::fill(owners, owners+procs.size(), -1);
-    std::fill(tmp_handles, tmp_handles+procs.size(), 0);
+    create_patch(pc[i]->get_moab(), verts[i], quads[i], 3, xyztmp, &gids[9*i]);
   }
 
-  return result;
+    // P0-P2
+  unsigned char pstat = PSTATUS_SHARED | PSTATUS_INTERFACE;
+  MBErrorCode rval = set_owners(pstat, pc[0], verts[0][6], pc[2], verts[2][0]);
+  rval = set_owners(pstat, pc[0], verts[0][7], pc[2], verts[2][1]);
+    // P1-P2
+  rval = set_owners(pstat, pc[1], verts[1][7], pc[2], verts[2][5]);
+  rval = set_owners(pstat, pc[1], verts[1][8], pc[2], verts[2][8]);
+    // P0-P1-P3
+  pstat |= PSTATUS_MULTISHARED;
+  rval = set_owners(pstat, pc[0], verts[0][2], pc[1], verts[1][0], pc[3], verts[3][0]);
+  rval = set_owners(pstat, pc[0], verts[0][5], pc[1], verts[1][3], pc[3], verts[3][3]);
+    // P0-P1-P2-P3
+  rval = set_owners(pstat, pc[0], verts[0][8], pc[1], verts[1][6], 
+                    pc[2], verts[3][2], pc[3], verts[0][6]);
+
+  return MB_SUCCESS;
 }
 
 void test_pack_vertices()
@@ -1857,7 +1742,7 @@ void test_pack_tag_handle_data()
   }
 }
   
-MBErrorCode get_entities(MBInterface &mb,
+MBErrorCode get_entities(MBInterface *mb,
                          std::vector<MBEntityHandle> &ent_verts, 
                          int verts_per_entity, int dim, 
                          MBRange &ents) 
@@ -1867,7 +1752,7 @@ MBErrorCode get_entities(MBInterface &mb,
   MBRange dum_ents;
   MBErrorCode result;
   for (unsigned int i = 0; i < num_ents; i++) {
-    result = mb.get_adjacencies(&ent_verts[verts_per_entity*i], verts_per_entity,
+    result = mb->get_adjacencies(&ent_verts[verts_per_entity*i], verts_per_entity,
                                 dim, true, dum_ents);
     CHECK_ERR(result);
     assert(dum_ents.size() == 1);
@@ -1879,20 +1764,22 @@ MBErrorCode get_entities(MBInterface &mb,
   
 void test_pack_shared_entities()
 {
-  MBRange::iterator i;
-  MBCore moab;
-  MBInterface& mb = moab;
-  MBParallelComm *pcomm = new MBParallelComm( &moab );
-  MBErrorCode rval;
-  std::vector<std::vector<MBEntityHandle> > L1h;
-  std::vector<MBEntityHandle> L2hloc;
-  std::vector<MBEntityHandle> L2hrem;
-  std::vector<unsigned int> L2p;
-  MBRange new_ents;
-  
-    // create some mesh, from proc 0's perspective
-  MBRange verts, quads;
-  create_shared_grid(mb, verts, quads);
+  MBCore moab[4];
+  MBInterface *mb[] = {&moab[0], &moab[1], &moab[2], &moab[3]};
+  MBParallelComm *pc[4];
+  for (unsigned int i = 0; i < 4; i++) {
+    pc[i] = new MBParallelComm(&moab[i]);
+    pc[i]->set_rank(i);
+  }
+
+  MBRange verts[4], quads[4];
+  MBErrorCode rval = create_shared_grid(pc, verts, quads);
+
+  std::vector<std::vector<MBEntityHandle> > L1h[4];
+  std::vector<MBEntityHandle> L2hloc[4];
+  std::vector<MBEntityHandle> L2hrem[4];
+  std::vector<unsigned int> L2p[4];
+  MBRange new_ents[4];
   MBRange sent_ents;
   std::vector<MBEntityHandle> ent_verts, dum_handles;
   std::vector<int> dum_procs;
@@ -1903,94 +1790,77 @@ void test_pack_shared_entities()
 
     //========================
     // interface, shared, 0->2
-  pcomm->set_rank(0);
-  rval = set_owners(moab, *pcomm, verts, false);
-  CHECK_ERR(rval);
     // get edges that we want
-  ent_verts.push_back(verts[6]); ent_verts.push_back(verts[7]);
-  ent_verts.push_back(verts[7]); ent_verts.push_back(verts[8]);
-  rval = get_entities(mb, ent_verts, 2, 1, sent_ents);
+  ent_verts.push_back(verts[0][6]); ent_verts.push_back(verts[0][7]);
+  ent_verts.push_back(verts[0][7]); ent_verts.push_back(verts[0][8]);
+  rval = get_entities(mb[0], ent_verts, 2, 1, sent_ents);
   CHECK_ERR(rval);
   assert(2 == sent_ents.size());
     // set entprocs
   entprocs[0].insert(1); entprocs[1].insert(1);
   
-  rval = pcomm->pack_entities(sent_ents, buffer, buff_ptr, true, 2,
+  rval = pc[0]->pack_entities(sent_ents, buffer, buff_ptr, true, 2,
                               true, &entprocs);
   CHECK_ERR(rval);
 
     // now unpack the buffer
-  pcomm->set_rank(2);
-  rval = set_owners(moab, *pcomm, verts, false);
-  CHECK_ERR(rval);
   buff_ptr = &buffer[0];
-  rval = pcomm->unpack_entities(buff_ptr, true, 0, true,
-                                L1h, L2hloc, L2hrem, L2p, new_ents);
-  if (!L1h.empty() || !L2p.empty() || !new_ents.empty()) rval = MB_FAILURE;
+  rval = pc[2]->unpack_entities(buff_ptr, true, 0, true,
+                                L1h[2], L2hloc[2], L2hrem[2], L2p[2], new_ents[2]);
+  if (!L1h[2].empty() || !L2p[2].empty() || !new_ents[2].empty()) rval = MB_FAILURE;
   CHECK_ERR(rval);
 
-  ent_verts.clear(); sent_ents.clear();
-  entprocs[0].clear(); entprocs[1].clear();
   buffer.clear(); buff_ptr = &buffer[0];
 
     //========================
     // interface, multishared, 1st message, 0->1
-  pcomm->set_rank(0);
-  ent_verts.push_back(verts[8]); ent_verts.push_back(verts[5]);
-  ent_verts.push_back(verts[5]); ent_verts.push_back(verts[2]);
-  rval = get_entities(mb, ent_verts, 2, 1, sent_ents);
+  ent_verts.clear();
+  ent_verts.push_back(verts[0][8]); ent_verts.push_back(verts[0][5]);
+  ent_verts.push_back(verts[0][5]); ent_verts.push_back(verts[0][2]);
+  rval = get_entities(mb[0], ent_verts, 2, 1, sent_ents);
   CHECK_ERR(rval);
   assert(2 == sent_ents.size());
     // sending these edges to 1 and 3
   entprocs[0].insert(1); entprocs[0].insert(3);
   entprocs[1].insert(1); entprocs[1].insert(3);
 
-  rval = pcomm->pack_entities(sent_ents, buffer, buff_ptr, true, 1,
+  rval = pc[0]->pack_entities(sent_ents, buffer, buff_ptr, true, 1,
                               true, &entprocs);
   CHECK_ERR(rval);
 
     // now unpack the buffer
-  pcomm->set_rank(1);
-  rval = set_owners(moab, *pcomm, verts, false);
-  CHECK_ERR(rval);
   buff_ptr = &buffer[0];
-  rval = pcomm->unpack_entities(buff_ptr, true, 0, true,
-                                L1h, L2hloc, L2hrem, L2p, new_ents);
-  if (!L1h.empty() || !L2p.empty() || !new_ents.empty()) rval = MB_FAILURE;
+  rval = pc[1]->unpack_entities(buff_ptr, true, 0, true,
+                                L1h[1], L2hloc[1], L2hrem[1], L2p[1], new_ents[1]);
+  if (!L1h[1].empty() || !L2p[1].empty() || !new_ents[1].empty()) rval = MB_FAILURE;
   CHECK_ERR(rval);
 
   entprocs[0].clear(); entprocs[1].clear();
   buffer.clear(); buff_ptr = &buffer[0];
+  sent_ents.clear();
   
     //========================
     // interface, multishared, 2nd message, 3->1
-  pcomm->set_rank(3);
     // sending these edges to 0 and 1
+  ent_verts.push_back(verts[3][6]); ent_verts.push_back(verts[3][3]);
+  ent_verts.push_back(verts[3][3]); ent_verts.push_back(verts[3][0]);
+  rval = get_entities(mb[3], ent_verts, 2, 1, sent_ents);
+  CHECK_ERR(rval);
+  assert(2 == sent_ents.size());
   entprocs[0].insert(0); entprocs[0].insert(1);
   entprocs[1].insert(0); entprocs[1].insert(1);
-    // need to reset sharing data on edges, since it was set in prev unpack
-  rval = set_owners(moab, *pcomm, sent_ents, 0x0, dum_procs, dum_handles);
-  rval = pcomm->pack_entities(sent_ents, buffer, buff_ptr, true, 1,
+  rval = pc[3]->pack_entities(sent_ents, buffer, buff_ptr, true, 1,
                               true, &entprocs);
   CHECK_ERR(rval);
 
     // now unpack the buffer
-  pcomm->set_rank(1);
-  rval = set_owners(moab, *pcomm, verts, false);
-  dum_procs.push_back(0); dum_procs.push_back(1); dum_procs.push_back(3); 
-  dum_handles.push_back(*sent_ents.begin()); dum_handles.push_back(*sent_ents.begin()); dum_handles.push_back(0); 
-  dum_handles.push_back(*sent_ents.rbegin()); dum_handles.push_back(*sent_ents.rbegin()); dum_handles.push_back(0); 
-  unsigned char pstat = 
-      PSTATUS_SHARED | PSTATUS_MULTISHARED | PSTATUS_INTERFACE | PSTATUS_NOT_OWNED;
-  rval = set_owners(moab, *pcomm, sent_ents, pstat, dum_procs, dum_handles);
-  CHECK_ERR(rval);
   buff_ptr = &buffer[0];
-  rval = pcomm->unpack_entities(buff_ptr, true, 3, true,
-                                L1h, L2hloc, L2hrem, L2p, new_ents);
-  if (!L1h.empty()) rval = MB_FAILURE;
+  rval = pc[1]->unpack_entities(buff_ptr, true, 3, true,
+                                L1h[1], L2hloc[1], L2hrem[1], L2p[1], new_ents[1]);
+  if (!L1h[1].empty()) rval = MB_FAILURE;
   CHECK_ERR(rval);
 
-  ent_verts.clear(); sent_ents.clear(); dum_procs.clear(); dum_handles.clear();
+  ent_verts.clear(); sent_ents.clear();
   entprocs[0].clear(); entprocs[1].clear();
   buffer.clear(); buff_ptr = &buffer[0];
   

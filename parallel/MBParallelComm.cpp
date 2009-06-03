@@ -1231,7 +1231,7 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
           RRA("Couldn't make new vertex.");
 
             // update adjacencies
-          result = ru->update_adjacencies(new_h, num_ents, 
+          result = ru->update_adjacencies(new_h, 1, 
                                           verts_per_entity, connect);
           RRA("Failed to update adjacencies.");
         }
