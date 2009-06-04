@@ -7,6 +7,21 @@ setup consists simply of typing ``python setup.py install`` at the root
 directory for PyTAPS. However, certain iMesh interfaces may require some
 additional setup.
 
+Requirements
+============
+
+In order to build PyTAPS, several external libraries are required:
+
+* Python 2.5+
+* `Numpy <http://numpy.scipy.org/>`_ 1.3.0+
+* An iMesh implementation (currently only `MOAB
+  <http://trac.mcs.anl.gov/projects/ITAPS/wiki/MOAB>`_ is supported)
+
+To run the performance tests or tools, `Matplotlib
+<http://matplotlib.sourceforge.net/>`_ is also required. Finally, to build the
+documentation (you're reading it!), `Sphinx <http://sphinx.pocoo.org/>`_ is
+required.
+
 With MOAB
 =========
 
