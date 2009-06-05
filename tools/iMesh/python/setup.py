@@ -41,8 +41,8 @@ iMesh = Extension('itaps.iMesh',
                              'iMesh_tag.c']
                   )
 
-class test(Command):
-    description = 'Execute tests'
+class TestCommand(Command):
+    description = 'Execute a variety of unit tests'
     user_options = [
         ('verbosity=', 'v', 'verbosity level')
         ]
@@ -74,6 +74,33 @@ class test(Command):
         os.chdir(old)
 
 
+class DocCommand(Command):
+    description = 'Build documentation'
+    user_options = [
+        ('builder=', 'b', 'documentation builder'),
+        ('target=', 't', 'target directory')
+        ]
+
+    def initialize_options(self):
+        self.builder = 'html'
+        self.target = None
+        self.root = os.path.normpath(os.path.join(
+                os.path.abspath(sys.argv[0]), '../doc'))
+
+    def finalize_options(self):
+        if not self.target:
+            self.target = '_build/' + self.builder
+        self.target = os.path.abspath(os.path.join(self.root, self.target))
+
+    def run(self):
+        old = os.getcwd()
+
+        os.chdir(self.root)
+        os.system('sphinx-build -b "%s" -d _build/doctrees . "%s"' %
+                  (self.builder, self.target))
+        os.chdir(old)        
+
+
 setup(name = 'PyTAPS',
       version = '1.0b1',
       description = 'Python bindings for iBase and iMesh interfaces',
@@ -85,5 +112,6 @@ setup(name = 'PyTAPS',
       ext_modules = [iBase, iMesh],
       py_modules = ['itaps.helpers'],
 
-      cmdclass = {'test' : test}
+      cmdclass = { 'test' : TestCommand,
+                   'doc'  : DocCommand }
       )

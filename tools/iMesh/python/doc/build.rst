@@ -31,6 +31,25 @@ To run the performance tests or tools, `Matplotlib
 documentation (you're reading it!), `Sphinx <http://sphinx.pocoo.org/>`_ is
 required.
 
+Testing
+=======
+
+To run unit/regression tests on the package, you may specify ``test`` as an
+argument to `setup.py`. The test command also accepts a verbosity level (an
+integer), specified with ``-v`` or ``--verbosity``.
+
+Building Documentation
+======================
+
+The documentation that you're currently reading can be built from `setup.py` by
+specifying ``doc`` as an argument. This command supports the following options:
+
++-----------------------+--------+---------------------------------------+
+| ``--builder=BUILDER`` | ``-b`` | documentation builder (default: html) |
++-----------------------+--------+---------------------------------------+
+| ``--target=TARGET``   | ``-t`` | target directory for output           |
++-----------------------+--------+---------------------------------------+
+
 With MOAB
 =========
 
