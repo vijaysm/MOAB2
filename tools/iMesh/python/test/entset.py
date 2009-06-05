@@ -119,7 +119,7 @@ class TestEntSet(unittest.TestCase):
         self.assertTrue(union.contains(ents[0]))
         self.assertTrue(union.contains(ents[1]))
 
+if __name__ == '__main__':
+    unittest.main()
 
-suite = unittest.TestLoader().loadTestsFromTestCase(TestEntSet)
-unittest.TextTestRunner(verbosity=2).run(suite)
 

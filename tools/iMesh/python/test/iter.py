@@ -44,6 +44,5 @@ class TestIter(unittest.TestCase):
         self.assertEqual(count, 1)
         iter.reset()
 
-
-suite = unittest.TestLoader().loadTestsFromTestCase(TestIter)
-unittest.TextTestRunner(verbosity=2).run(suite)
+if __name__ == '__main__':
+    unittest.main()

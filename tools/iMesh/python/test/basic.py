@@ -113,6 +113,5 @@ class TestBasic(unittest.TestCase):
         coords = mesh.getVtxCoords(ents, iBase.StorageOrder.interleaved)
         self.assert_( (coords == [1,2,3]).all() )
 
-
-suite = unittest.TestLoader().loadTestsFromTestCase(TestBasic)
-unittest.TextTestRunner(verbosity=2).run(suite)
+if __name__ == '__main__':
+    unittest.main()

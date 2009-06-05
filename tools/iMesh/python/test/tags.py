@@ -182,5 +182,5 @@ class TestTags(unittest.TestCase):
         self.assertEqual(tags[1].name, self.dtag.name)
         
 
-suite = unittest.TestLoader().loadTestsFromTestCase(TestTags)
-unittest.TextTestRunner(verbosity=2).run(suite)
+if __name__ == '__main__':
+    unittest.main()

@@ -103,5 +103,6 @@ class TestAdj(unittest.TestCase):
         self.assert_( (adj.index(2) == [1,2]).all() )
         self.assert_( (adj.index(3) == [2,3]).all() )
 
-suite = unittest.TestLoader().loadTestsFromTestCase(TestAdj)
-unittest.TextTestRunner(verbosity=2).run(suite)
+if __name__ == '__main__':
+    unittest.main()
+
