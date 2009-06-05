@@ -25,8 +25,22 @@ AC_DEFUN([ITAPS_LIBTOOL_VAR], [
 #  CXXFLAGS - C++ compiler flags
 #  WITH_MPI - 'yes' if parallel support, 'no' otherwise
 #
+# Arguments:  three strings that msut be either "yes" or "no".
+#             - test for C compiler
+#             - test for C++ compiler
+#             - test for Fortran compiler
 #######################################################################################
 AC_DEFUN([SNL_CHECK_COMPILERS], [
+
+CHECK_CC="$1"
+CHECK_CXX="$2"
+CHECK_FC="$3"
+
+# If not specified or invalid value, change to yes.
+test "xno" = "x$CHECK_CC" || CHECK_CC=yes 
+test "xno" = "x$CHECK_CXX" || CHECK_CXX=yes 
+test "xno" = "x$CHECK_FC" || CHECK_FC=yes 
+
 
   # Save these before calling AC_PROG_CC or AC_PROG_CXX
   # because those macros will modify them, and we want
@@ -95,17 +109,31 @@ case "x$WITH_MPI" in
     WITH_MPI=yes
     ;;
 esac
-AC_PROG_CC( [$CC_LIST] )
+
+if test "xno" != "x$CHECK_CC"; then
+  AC_PROG_CC( [$CC_LIST] )
+  SNL_CC_FLAGS
+else
+  CC=
+fi
 AC_PROG_CPP
-AC_PROG_CXX( [$CXX_LIST] )
-AC_PROG_CXXCPP
-AC_PROG_FC( [$FC_LIST] )
-AC_PROG_F77( [$F77_LIST] )
+if test "xno" != "x$CHECK_CXX"; then
+  AC_PROG_CXX( [$CXX_LIST] )
+  AC_PROG_CXXCPP
+  SNL_CXX_FLAGS
+else
+  CXX=
+fi
+if test "xno" != "x$CHECK_FC"; then
+  AC_PROG_FC( [$FC_LIST] )
+  AC_PROG_F77( [$F77_LIST] )
+else
+  FC=
+  F77=
+fi
 
 # Try to determine compiler-specific flags.  This must be done
 # before setting up libtool so that it can override libtool settings.
-SNL_CC_FLAGS
-SNL_CXX_FLAGS
 CFLAGS="$USER_CFLAGS $SNL_CC_SPECIAL"
 CXXFLAGS="$USER_CXXFLAGS $SNL_CXX_SPECIAL"
 

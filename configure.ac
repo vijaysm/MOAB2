@@ -10,8 +10,43 @@ AM_INIT_AUTOMAKE
 AC_CHECK_PROG( [SED], [sed], [sed], [true] )
 
 
+################################################################################
+#                           iMesh
+################################################################################
+CONFIGURE_FORTRAN=no
+AC_ARG_ENABLE( [imesh],
+[AC_HELP_STRING([--enable-imesh(=nofortran)],[Build iMesh interface.  If optional
+'nofortran' argument is given, support for FORTRAN name mangling will be disabled.])
+AC_HELP_STRING([--disable-imesh],[Don't build support for iMesh interface.])],
+[DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-imesh=\"${enableval}\""],
+[enableval=yes] )
+
+case $enableval in
+  yes)
+    ENABLE_imesh=yes
+    CONFIGURE_FORTRAN=yes
+    ;;
+  nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
+    ENABLE_imesh=yes
+    ;;
+  no)
+    ENABLE_imesh=no
+    ;;
+  *)
+    AC_MSG_ERROR([Invalid argument to --enable-imesh : $enableval])
+    ;;
+esac
+AC_MSG_CHECKING([if iMesh support is to be built])
+AC_MSG_RESULT([$ENABLE_imesh])
+AM_CONDITIONAL([ENABLE_imesh],[test "xyes" == "x$ENABLE_imesh"])
+
+
+################################################################################
+#                           Compilers
+################################################################################
+
 EXTRA_GNU_FLAGS='-Wall -pipe -pedantic'
-SNL_CHECK_COMPILERS
+SNL_CHECK_COMPILERS([yes],[yes],[$CONFIGURE_FORTRAN])
 AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" != "xno"])
 LIBS="-lm"
 
@@ -275,36 +310,6 @@ MB_OPTIONAL_TOOL([mbsurfplot],   [yes])
 MB_OPTIONAL_TOOL([mbzoltan],     [no] )
 MB_OPTIONAL_TOOL([dagmc],        [yes])
 MB_OPTIONAL_TOOL([gsets],        [yes])
-
-
-
-################################################################################
-#                           iMesh
-################################################################################
-AC_ARG_ENABLE( [imesh],
-[AC_HELP_STRING([--enable-imesh(=nofortran)],[Build iMesh interface.  If optional
-'nofortran' argument is given, support for FORTRAN name mangling will be disabled.])
-AC_HELP_STRING([--disable-imesh],[Don't build support for iMesh interface.])],
-[DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-imesh=\"${enableval}\""],
-[enableval=yes] )
-
-case $enableval in
-  yes)
-    ENABLE_imesh=yes
-    ;;
-  nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
-    ENABLE_imesh=yes
-    ;;
-  no)
-    ENABLE_imesh=no
-    ;;
-  *)
-    AC_MSG_ERROR([Invalid argument to --enable-imesh : $enableval])
-    ;;
-esac
-AC_MSG_CHECKING([if iMesh support is to be built])
-AC_MSG_RESULT([$ENABLE_imesh])
-AM_CONDITIONAL([ENABLE_imesh],[test "xyes" == "x$ENABLE_imesh"])
 
 
 ################################################################################
