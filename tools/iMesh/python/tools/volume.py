@@ -43,13 +43,13 @@ def calc_volume(mesh):
         x+=1
     return volume
 
-parser = OptionParser()
+parser = OptionParser('Usage: %prog [options] file1 file2')
 parser.add_option('-r', '--raw', action='store_true', dest='raw')
 
 (options, args) = parser.parse_args()
 
 if len(args) != 2:
-    print 'Usage: python volume.py [opts] file1 file2'
+    print 'Usage: volume.py [options] file1 file2'
     exit(1)
 
 mesh_pre = iMesh.Mesh()

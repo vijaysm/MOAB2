@@ -123,6 +123,9 @@ iBaseEntSetArr_getitem(void *data,void *arr)
 static int
 iBaseEntSetArr_setitem(PyObject *item,void *data,void *arr)
 {
+    if(!iBaseEntitySet_Check(item))
+        return -1;
+    *(iBase_EntitySetHandle*)data = iBaseEntitySet_GetHandle(item);
     return 0;
 }
 
@@ -192,6 +195,9 @@ iBaseTagArr_getitem(void *data,void *arr)
 static int
 iBaseTagArr_setitem(PyObject *item,void *data,void *arr)
 {
+    if(!iBaseTag_Check(item))
+        return -1;
+    *(iBase_TagHandle*)data = iBaseTag_GetHandle(item);
     return 0;
 }
 
