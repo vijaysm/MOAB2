@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PYTAPS_COMMON_H
+#define PYTAPS_COMMON_H
 
 #include <Python.h>
 
@@ -52,3 +53,5 @@
         PyModule_AddObject(m,py_name,                           \
                            (PyObject *)&name ## _Type);         \
     } while(0)
+
+#endif

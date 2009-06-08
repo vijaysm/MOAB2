@@ -1083,10 +1083,10 @@ iMeshTagArr_getitem(void *data,void *arr)
 }
 
 static PyArray_ArrFuncs iMeshEntSetArr_Funcs;
-int NPY_IMESHENTSET;
+static int NPY_IMESHENTSET;
 
 static PyArray_ArrFuncs iMeshTagArr_Funcs;
-int NPY_IMESHTAG;
+static int NPY_IMESHTAG;
 
 ENUM_TYPE(iMeshTopology,"iMesh.Topology","");
 
@@ -1224,3 +1224,8 @@ PyMODINIT_FUNC initiMesh(void)
 
     NPY_IMESHTAG = PyArray_RegisterDataType(descr);
 }
+
+/* Include source files so that everything is in one translation unit */
+#include "iMesh_entSet.inl"
+#include "iMesh_iter.inl"
+#include "iMesh_tag.inl"

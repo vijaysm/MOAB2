@@ -11,7 +11,6 @@ import sys
 iMesh_libs = []
 iMesh_libdirs = []
 iMesh_incs = []
-compileargs = ''
 
 if 'IMESHPATH' in os.environ:
     defs = parse_makefile( os.path.join(os.environ['IMESHPATH'],
@@ -38,10 +37,10 @@ iMesh = Extension('itaps.iMesh',
                   include_dirs = iMesh_incs,
                   libraries    = iMesh_libs,
                   library_dirs = iMesh_libdirs,
-                  depends      = ['common.h', 'iMesh_Python.h',
-                                  'iBase_Python.h', 'errors.h'],
-                  sources      = ['iMesh.c', 'iMesh_iter.c', 'iMesh_entSet.c',
-                                  'iMesh_tag.c']
+                  depends      = ['common.h', 'errors.h', 'iMesh_Python.h',
+                                  'iBase_Python.h', 'iMesh_entSet.inl',
+                                  'iMesh_iter.inl', 'iMesh_tag.inl'],
+                  sources      = ['iMesh.c']
                   )
 
 class TestCommand(Command):

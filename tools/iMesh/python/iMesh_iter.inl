@@ -117,7 +117,7 @@ static PyMemberDef iMeshIterObj_members[] = {
     {0}
 };
 
-PyTypeObject iMeshIter_Type = {
+static PyTypeObject iMeshIter_Type = {
     PyObject_HEAD_INIT(NULL)
     0,                                   /* ob_size */
     "itaps.iMesh.Iterator",              /* tp_name */

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PYTAPS_IBASE_PYTHON_H
+#define PYTAPS_IBASE_PYTHON_H
 
 #include "common.h"
 
@@ -104,6 +105,8 @@ static int import_iBase(void)
         return -1;
     return 0;
 }
+#endif
+
 #endif
 
 #endif

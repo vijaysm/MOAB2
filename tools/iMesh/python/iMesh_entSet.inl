@@ -664,7 +664,7 @@ static PyNumberMethods iMeshEntSetObj_num = {
     0,                                   /* nb_hex */
 };
 
-PyTypeObject iMeshEntitySet_Type = {
+static PyTypeObject iMeshEntitySet_Type = {
     PyObject_HEAD_INIT(NULL)
     0,                                   /* ob_size */
     "itaps.iMesh.EntitySet",             /* tp_name */

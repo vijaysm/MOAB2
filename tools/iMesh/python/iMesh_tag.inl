@@ -8,7 +8,7 @@
 
 static char typechars[] = {'i','d','E','b'};
 
-enum iBase_TagValueType
+static enum iBase_TagValueType
 char_to_type(char c)
 {
     int i;
@@ -20,7 +20,7 @@ char_to_type(char c)
     return -1;
 }
 
-char
+static char
 type_to_char(enum iBase_TagValueType t)
 {
     return typechars[t];
@@ -532,7 +532,7 @@ static PyGetSetDef iMeshTagObj_getset[] = {
 };
 
 
-PyTypeObject iMeshTag_Type = {
+static PyTypeObject iMeshTag_Type = {
     PyObject_HEAD_INIT(NULL)
     0,                                   /* ob_size */
     "itaps.iMesh.Tag",                   /* tp_name */
