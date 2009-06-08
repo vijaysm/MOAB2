@@ -24,8 +24,8 @@ if 'IMESHPATH' in os.environ:
         elif match.group(1) == 'L':
             iMesh_libdirs.append( match.group(2) )
 
-    inc_match = re.compile(r'(?:(?<=\s|^)-(I)\s*(\S*)')
-    for match in defs['IMESH_INCLUDES']:
+    inc_match = re.compile(r'(?:(?<=\s)|^)-(I)\s*(\S*)')
+    for match in inc_match.finditer( defs['IMESH_INCLUDES'] ):
         iMesh_incs.append( match.group(2) )
 
 iBase = Extension('itaps.iBase',
