@@ -94,6 +94,7 @@ private:
                                               bool                debug,
                                               std::vector<double> planes[3],
                                               int                 n_chopped_x2_planes,
+                                              particle            tally_particle,
                                               double              values[],
                                               double              errors[] );
 
