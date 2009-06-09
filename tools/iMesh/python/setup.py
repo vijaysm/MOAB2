@@ -1,12 +1,11 @@
 from distutils.core import setup, Extension, Command
 from distutils.sysconfig import parse_makefile
 from distutils.errors import DistutilsOptionError
+from distutils.command.build_ext import build_ext
 from unittest import TextTestRunner, TestLoader
 import re
 import os
 import sys
-
-from distutils.command.build_ext import build_ext
 
 def pair_fun(pre, post):
     def tmp(self):
@@ -15,8 +14,8 @@ def pair_fun(pre, post):
     return tmp
 
 def new_run(self):
-    if self.imesh_path:
-        defs = parse_makefile( os.path.join(self.imesh_path,
+    if self.imesh_dir:
+        defs = parse_makefile( os.path.join(self.imesh_dir,
                                             'lib/iMesh-Defs.inc') )
 
         lib_match = re.compile(r'(?:(?<=\s)|^)-([lL])\s*(\S*)')
@@ -31,9 +30,9 @@ def new_run(self):
             self.include_dirs.append( match.group(2) )
 
 def new_init(self):
-    self.imesh_path = None
+    self.imesh_dir = None
 
-build_ext.user_options.append(('imesh-path=', None, 'blah blah'))
+build_ext.user_options.append(('imesh-dir=', None, 'blah blah'))
 build_ext.initialize_options = pair_fun(new_init, build_ext.initialize_options)
 build_ext.run = pair_fun(new_run, build_ext.run)
 

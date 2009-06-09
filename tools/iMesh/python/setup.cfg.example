@@ -1,0 +1,3 @@
+[build_ext]
+include-dirs = /path/to/include
+imesh-dir = /path/to/imesh

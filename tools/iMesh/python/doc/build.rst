@@ -9,15 +9,17 @@ additional setup.
 
 The PyTAPS setup script supports importing definitions from the
 `iMesh-Defs.inc` file. In order to make use of this, specify the command-line
-options ``--imesh-path=PATH`` to the `build_ext` command. For example, if your
+options ``--imesh-dir=PATH`` to the `build_ext` command. For example, if your
 `iMesh-Defs.inc` is located in `/usr/local/iMesh/lib/iMesh-Defs.inc`, then
-``--imesh-path`` should be `/usr/local/iMesh`.  This options may also be
-specified in the `setup.cfg` file (see below). 
+``--imesh-dir`` should be `/usr/local/iMesh`.  This options may also be
+specified in the `setup.cfg` file:
+
+.. literalinclude:: ../setup.cfg.example
+   :language: ini
 
 If the `iMesh-Defs.inc` file was not installed, or you don't wish to use it,
 you can manually specify the build options as described below in `Non-standard
 Library Locations`_.
-
 
 Requirements
 ============
@@ -66,5 +68,6 @@ Non-standard Library Locations
 In some cases, required objects for building PyTAPS aren't in the expected
 directories. One solution to this is to include the appropriate directories in
 the environment variables ``CPATH`` and ``PYTHONPATH``. Another, more flexible
-method is to use the ``setup.cfg`` file. Information on how to use this file can
-be found in the official Python `documentation <http://docs.python.org/install/index.html#distutils-configuration-files>`_.
+method is to use the `setup.cfg` file. Information on how to use this file can
+be found in the official Python `documentation
+<http://docs.python.org/install/index.html#distutils-configuration-files>`_.
