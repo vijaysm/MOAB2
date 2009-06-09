@@ -2,6 +2,7 @@
 #include "MBParallelConventions.h"
 #include "MBTagConventions.hpp"
 #include "MBCore.hpp"
+#include "MeshTopoUtil.hpp"
 #include "TestUtil.hpp"
 #include <algorithm>
 #include <vector>
@@ -105,9 +106,10 @@ void pack_unpack_noremoteh( MBCore& moab, MBRange& entities )
   
   entities.clear();
   std::vector<std::vector<MBEntityHandle> > L1h;
+  std::vector<std::vector<int> > L1p;
   std::vector<MBEntityHandle> L2hloc, L2hrem;
   std::vector<unsigned int> L2p;
-  rval = pcomm->unpack_buffer( &buff[0], false, -1, -1, L1h, L2hloc, 
+  rval = pcomm->unpack_buffer( &buff[0], false, -1, -1, L1h, L1p, L2hloc, 
                                L2hrem, L2p, entities);
   CHECK_ERR(rval);
 
@@ -315,6 +317,80 @@ MBErrorCode create_patch(MBInterface *moab, MBRange &verts, MBRange &quads,
   return result;
 }
 
+MBErrorCode set_owners(MBParallelComm **pc, MBRange *verts, MBRange *quads,
+                       const bool edges_too) 
+{
+    // P0-P2
+  unsigned char pstat = PSTATUS_SHARED | PSTATUS_INTERFACE;
+  MBErrorCode rval = set_owners(pstat, pc[0], verts[0][6], pc[2], verts[2][0]);
+  rval = set_owners(pstat, pc[0], verts[0][7], pc[2], verts[2][1]); CHECK_ERR(rval);
+
+    // P1-P2
+  rval = set_owners(pstat, pc[1], verts[1][7], pc[2], verts[2][5]); CHECK_ERR(rval);
+  rval = set_owners(pstat, pc[1], verts[1][8], pc[2], verts[2][8]); CHECK_ERR(rval);
+    // P0-P1-P3
+  pstat |= PSTATUS_MULTISHARED;
+  rval = set_owners(pstat, pc[0], verts[0][2], pc[1], verts[1][0], pc[3], verts[3][0]); CHECK_ERR(rval);
+  rval = set_owners(pstat, pc[0], verts[0][5], pc[1], verts[1][3], pc[3], verts[3][3]); CHECK_ERR(rval);
+    // P0-P1-P2-P3
+  rval = set_owners(pstat, pc[0], verts[0][8], pc[1], verts[1][6], 
+                    pc[2], verts[2][2], pc[3], verts[3][6]); CHECK_ERR(rval);
+
+  if (edges_too) {
+    MeshTopoUtil *mtu[4];
+    MBInterface *mb[4];
+    MBRange dum_range;
+      // create mtu's and explicit edges
+    for (unsigned int i = 0; i < 4; i++) {
+      mb[i] = pc[i]->get_moab();
+      assert(mb[i]);
+      mtu[i] = new MeshTopoUtil(mb[i]);
+      rval = mb[i]->get_adjacencies(quads[i], 1, true, dum_range, 
+                                    MBInterface::UNION);
+      CHECK_ERR(rval);
+      dum_range.clear();
+    }
+    
+    MBEntityHandle edge1, edge2, edge3;
+    pstat = PSTATUS_SHARED | PSTATUS_INTERFACE;
+      // P0-P2
+    edge1 = mtu[0]->common_entity(verts[0][6], verts[0][7], 1);
+    edge2 = mtu[2]->common_entity(verts[2][0], verts[2][1], 1);
+    assert(edge1 && edge2);
+    rval = set_owners(pstat, pc[0], edge1, pc[2], edge2); CHECK_ERR(rval);
+    edge1 = mtu[0]->common_entity(verts[0][7], verts[0][8], 1);
+    edge2 = mtu[2]->common_entity(verts[2][1], verts[2][2], 1);
+    assert(edge1 && edge2);
+    rval = set_owners(pstat, pc[0], edge1, pc[2], edge2); CHECK_ERR(rval);
+      // P1-P2
+    edge1 = mtu[1]->common_entity(verts[1][6], verts[1][7], 1);
+    edge2 = mtu[2]->common_entity(verts[2][2], verts[2][5], 1);
+    assert(edge1 && edge2);
+    rval = set_owners(pstat, pc[1], edge1, pc[2], edge2); CHECK_ERR(rval);
+    edge1 = mtu[1]->common_entity(verts[1][7], verts[1][8], 1);
+    edge2 = mtu[2]->common_entity(verts[2][5], verts[2][8], 1);
+    assert(edge1 && edge2);
+    rval = set_owners(pstat, pc[1], edge1, pc[2], edge2); CHECK_ERR(rval);
+      // P0-P1-P3
+    pstat |= PSTATUS_MULTISHARED;
+    edge1 = mtu[0]->common_entity(verts[0][2], verts[0][5], 1);
+    edge2 = mtu[1]->common_entity(verts[1][0], verts[1][3], 1);
+    edge3 = mtu[3]->common_entity(verts[3][0], verts[3][3], 1);
+    assert(edge1 && edge2 && edge3);
+    rval = set_owners(pstat, pc[0], edge1, pc[1], edge2, pc[3], edge3); CHECK_ERR(rval);
+    edge1 = mtu[0]->common_entity(verts[0][5], verts[0][8], 1);
+    edge2 = mtu[1]->common_entity(verts[1][3], verts[1][6], 1);
+    edge3 = mtu[3]->common_entity(verts[3][3], verts[3][6], 1);
+    assert(edge1 && edge2 && edge3);
+    rval = set_owners(pstat, pc[0], edge1, pc[1], edge2, pc[3], edge3); CHECK_ERR(rval);
+
+    for (unsigned int i = 0; i < 4; i++)
+      delete mtu[i];
+  }
+    
+  return MB_SUCCESS;
+}
+
 MBErrorCode create_shared_grid(MBParallelComm **pc, MBRange *verts, MBRange *quads) 
 {
 //          
@@ -366,22 +442,9 @@ MBErrorCode create_shared_grid(MBParallelComm **pc, MBRange *verts, MBRange *qua
     create_patch(pc[i]->get_moab(), verts[i], quads[i], 3, xyztmp, &gids[9*i]);
   }
 
-    // P0-P2
-  unsigned char pstat = PSTATUS_SHARED | PSTATUS_INTERFACE;
-  MBErrorCode rval = set_owners(pstat, pc[0], verts[0][6], pc[2], verts[2][0]);
-  rval = set_owners(pstat, pc[0], verts[0][7], pc[2], verts[2][1]);
-    // P1-P2
-  rval = set_owners(pstat, pc[1], verts[1][7], pc[2], verts[2][5]);
-  rval = set_owners(pstat, pc[1], verts[1][8], pc[2], verts[2][8]);
-    // P0-P1-P3
-  pstat |= PSTATUS_MULTISHARED;
-  rval = set_owners(pstat, pc[0], verts[0][2], pc[1], verts[1][0], pc[3], verts[3][0]);
-  rval = set_owners(pstat, pc[0], verts[0][5], pc[1], verts[1][3], pc[3], verts[3][3]);
-    // P0-P1-P2-P3
-  rval = set_owners(pstat, pc[0], verts[0][8], pc[1], verts[1][6], 
-                    pc[2], verts[3][2], pc[3], verts[0][6]);
-
-  return MB_SUCCESS;
+  MBErrorCode rval = set_owners(pc, verts, quads, false);
+  CHECK_ERR(rval);
+  return rval;
 }
 
 void test_pack_vertices()
@@ -1770,12 +1833,22 @@ void test_pack_shared_entities()
   for (unsigned int i = 0; i < 4; i++) {
     pc[i] = new MBParallelComm(&moab[i]);
     pc[i]->set_rank(i);
+    for (unsigned int j = 0; j < 4; j++) {
+      if (j == i) continue;
+      else pc[i]->get_buffers(j);
+    }
   }
 
   MBRange verts[4], quads[4];
   MBErrorCode rval = create_shared_grid(pc, verts, quads);
 
   std::vector<std::vector<MBEntityHandle> > L1h[4];
+  std::vector<std::vector<int> > L1p[4];
+  for (unsigned int i = 0; i < 4; i++) {
+    L1h[i].resize(4);
+    L1p[i].resize(4);
+  }
+  
   std::vector<MBEntityHandle> L2hloc[4];
   std::vector<MBEntityHandle> L2hrem[4];
   std::vector<unsigned int> L2p[4];
@@ -1797,7 +1870,7 @@ void test_pack_shared_entities()
   CHECK_ERR(rval);
   assert(2 == sent_ents.size());
     // set entprocs
-  entprocs[0].insert(1); entprocs[1].insert(1);
+  entprocs[0].insert(2); entprocs[1].insert(2);
   
   rval = pc[0]->pack_entities(sent_ents, buffer, buff_ptr, true, 2,
                               true, &entprocs);
@@ -1806,8 +1879,11 @@ void test_pack_shared_entities()
     // now unpack the buffer
   buff_ptr = &buffer[0];
   rval = pc[2]->unpack_entities(buff_ptr, true, 0, true,
-                                L1h[2], L2hloc[2], L2hrem[2], L2p[2], new_ents[2]);
-  if (!L1h[2].empty() || !L2p[2].empty() || !new_ents[2].empty()) rval = MB_FAILURE;
+                                L1h[2], L1p[2], L2hloc[2], L2hrem[2], L2p[2], new_ents[2]);
+    // all L1h lists should be empty, since we're dealing with iface
+  if (!L1h[2][0].empty() || !L1h[2][1].empty() || 
+      !L1h[2][2].empty() || !L1h[2][3].empty() || 
+      !L2p[2].empty() || !new_ents[2].empty()) rval = MB_FAILURE;
   CHECK_ERR(rval);
 
   buffer.clear(); buff_ptr = &buffer[0];
@@ -1831,8 +1907,11 @@ void test_pack_shared_entities()
     // now unpack the buffer
   buff_ptr = &buffer[0];
   rval = pc[1]->unpack_entities(buff_ptr, true, 0, true,
-                                L1h[1], L2hloc[1], L2hrem[1], L2p[1], new_ents[1]);
-  if (!L1h[1].empty() || !L2p[1].empty() || !new_ents[1].empty()) rval = MB_FAILURE;
+                                L1h[1], L1p[1], L2hloc[1], L2hrem[1], L2p[1], new_ents[1]);
+    // all L1h lists should be empty, since we're dealing with iface
+  if (!L1h[1][0].empty() || !L1h[1][1].empty() || 
+      !L1h[1][2].empty() || !L1h[1][3].empty() || 
+      !L2p[1].empty() || !new_ents[1].empty()) rval = MB_FAILURE;
   CHECK_ERR(rval);
 
   entprocs[0].clear(); entprocs[1].clear();
@@ -1856,27 +1935,163 @@ void test_pack_shared_entities()
     // now unpack the buffer
   buff_ptr = &buffer[0];
   rval = pc[1]->unpack_entities(buff_ptr, true, 3, true,
-                                L1h[1], L2hloc[1], L2hrem[1], L2p[1], new_ents[1]);
-  if (!L1h[1].empty()) rval = MB_FAILURE;
+                                L1h[1], L1p[1], L2hloc[1], L2hrem[1], L2p[1], new_ents[1]);
+    // all L1h lists should be empty, since we're dealing with iface
+  if (!L1h[1][0].empty() || !L1h[1][1].empty() || 
+      !L1h[1][2].empty() || !L1h[1][3].empty())
+    rval = MB_FAILURE;
   CHECK_ERR(rval);
 
   ent_verts.clear(); sent_ents.clear();
   entprocs[0].clear(); entprocs[1].clear();
   buffer.clear(); buff_ptr = &buffer[0];
   
+    //========================================================================
+    // prepare for ghost communication; set all iface entities ownership
+    // stuff, so we don't need to do it explicitly using pack/unpack;
+    // passing true makes it happen for edges too
+  rval = set_owners(pc, verts, quads, true);
+  CHECK_ERR(rval);
 
     //========================
     // ghost, unshared, 2->1
+  sent_ents.insert(quads[2][3]);  
+    // add vertices not already shared
+  sent_ents.insert(verts[2][4]); 
+  sent_ents.insert(verts[2][7]); 
+    // entprocs lists are all just 1
+  entprocs.resize(sent_ents.size());
+  entprocs[0].insert(1); 
+  entprocs[1].insert(1); 
+  entprocs[2].insert(1); 
+
+  rval = pc[2]->pack_entities(sent_ents, buffer, buff_ptr, true, 1,
+                              true, &entprocs);
+  CHECK_ERR(rval);
+
+    // now unpack the buffer
+  buff_ptr = &buffer[0];
+  rval = pc[1]->unpack_entities(buff_ptr, true, 2, false,
+                                L1h[1], L1p[1], L2hloc[1], L2hrem[1], L2p[1], new_ents[1]);
+  if (
+        // to P2: 2 handles per 3 entities = 6
+      L1h[1][1].size() != 6 || 
+        // to all others, 0
+      !L1h[1][0].empty() || !L1h[1][2].empty() || !L1h[1][3].empty()) 
+    rval = MB_FAILURE;
+  CHECK_ERR(rval);
+
+  buffer.clear(); buff_ptr = &buffer[0];
+  rval = pc[1]->pack_remote_handles(L1h[1][1], L1p[1][1], 2, buffer, buff_ptr);
+  CHECK_ERR(rval);
+
+  buff_ptr = &buffer[0];
+  rval = pc[2]->unpack_remote_handles(1, buff_ptr, false, L2hloc[2], L2hrem[2], L2p[2]);
+  CHECK_ERR(rval);
+
+  ent_verts.clear(); sent_ents.clear();
+  entprocs[0].clear(); entprocs[1].clear(); entprocs[2].clear();
+  buffer.clear(); buff_ptr = &buffer[0]; L1h[1][1].clear();
 
     //========================
-    // ghost, multishared, 1st message, 0->2
-    // 
-    //========================
-    // ghost, multishared, 2nd message, 1->2
+    // ghost, multishared, 1st message, 2->0
+    // sent: v3, v4, v5, q0, q1
+  sent_ents.insert(quads[2][0]); sent_ents.insert(quads[2][1]);  
+    // add vertices not already shared
+  sent_ents.insert(verts[2][3]); sent_ents.insert(verts[2][4]); 
+  sent_ents.insert(verts[2][5]); 
+    // entprocs lists are entity-dependent
+    // v3, v4, v5, q1: only to 0 (v4, v5 already on 1)
+  entprocs.resize(sent_ents.size());
+  entprocs[0].insert(0); 
+  entprocs[1].insert(0); 
+  entprocs[2].insert(0); 
+  entprocs[3].insert(0); 
+    // q2: P0 and P1
+  entprocs[4].insert(0); entprocs[4].insert(1); 
+
+  rval = pc[2]->pack_entities(sent_ents, buffer, buff_ptr, true, 0,
+                              true, &entprocs);
+  CHECK_ERR(rval);
+
+    // now unpack the buffer
+  buff_ptr = &buffer[0];
+  rval = pc[0]->unpack_entities(buff_ptr, true, 2, false,
+                                L1h[0], L1p[0], L2hloc[0], L2hrem[0], L2p[0], new_ents[0]);
+  if (
+        // 2 handles per 5 entities = 10
+      L1h[0][1].size() != 10 || 
+        // 2 handles per 3 entities
+      L1h[0][0].size() != 6 || 
+        // none received from 3, no 4th proc
+      !L1h[0][2].empty() || !L1h[0][3].empty()) 
+    rval = MB_FAILURE;
+  CHECK_ERR(rval);
+
+  ent_verts.clear(); sent_ents.clear();
+  for (int i = 0; i < 5; i++) entprocs[i].clear();
+  L1p[0][1].clear();  L1h[0][1].clear();
+  L1p[0][0].clear();  L1h[0][0].clear();
+  buffer.clear(); buff_ptr = &buffer[0];
 
     //========================
-    // pack and unpack
+    // ghost, multishared, 2nd message, 1->0
+    // sent: v1, v4, v7, q0, q2
+  sent_ents.insert(quads[1][0]); sent_ents.insert(quads[1][2]);
+    // add vertices not already shared
+  sent_ents.insert(verts[1][1]); sent_ents.insert(verts[1][4]); 
+  sent_ents.insert(verts[1][7]); 
+    // entprocs lists are entity-dependent
+    // v1, q0: only to 0
+  entprocs.resize(sent_ents.size());
+  entprocs[0].insert(0); 
+  entprocs[2].insert(0);
+  entprocs[3].insert(0); 
+    // v4, v7, q2: P0 and P2
+  entprocs[1].insert(0); entprocs[1].insert(2); 
+  entprocs[4].insert(0); entprocs[4].insert(2); 
 
+  rval = pc[1]->pack_entities(sent_ents, buffer, buff_ptr, true, 0,
+                              true, &entprocs);
+  CHECK_ERR(rval);
+
+    // now unpack the buffer
+  buff_ptr = &buffer[0];
+  rval = pc[0]->unpack_entities(buff_ptr, true, 1, false,
+                                L1h[0], L1p[0], L2hloc[0], L2hrem[0], L2p[0], new_ents[0]);
+  if (
+        // 2 handles per 5 entities = 10
+      L1h[0][0].size() != 10 || 
+        // 2 handles per 3 entities
+      L1h[0][1].size() != 6 || 
+        // none received from 3, no 4th proc
+      !L1h[0][2].empty() || !L1h[0][3].empty()) 
+    rval = MB_FAILURE;
+  CHECK_ERR(rval);
+
+    //========================
+    // now pack/unpack the handles
+    // P0 -> P2
+    // xxx moved pack/unpack handles to after P2, P1 send
+  buffer.clear(); buff_ptr = &buffer[0];
+  rval = pc[0]->pack_remote_handles(L1h[0][1], L1p[0][1], 2, buffer, buff_ptr);
+  CHECK_ERR(rval);
+
+  rval = pc[2]->unpack_remote_handles(0, buff_ptr, false, L2hloc[2], L2hrem[2], L2p[2]);
+  CHECK_ERR(rval);
+
+    // P0 -> P1
+  buffer.clear(); buff_ptr = &buffer[0];
+  rval = pc[0]->pack_remote_handles(L1h[0][0], L1p[0][0], 1, buffer, buff_ptr);
+  CHECK_ERR(rval);
+
+  rval = pc[1]->unpack_remote_handles(0, buff_ptr, false, L2hloc[1], L2hrem[1], L2p[1]);
+  CHECK_ERR(rval);
+
+  ent_verts.clear(); sent_ents.clear();
+  for (int i = 0; i < 5; i++) entprocs[i].clear();
+  L1p[0][1].clear();  L1h[0][1].clear();
+  buffer.clear(); buff_ptr = &buffer[0];
 
 }
 

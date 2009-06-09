@@ -431,10 +431,11 @@ MBErrorCode MBParallelComm::broadcast_entities( const int from_proc,
 
   if ((int)procConfig.proc_rank() != from_proc) {
     std::vector<std::vector<MBEntityHandle> > dum1;
+    std::vector<std::vector<int> > dum1p;
     std::vector<MBEntityHandle> dum2;
     std::vector<unsigned int> dum3;
     result = unpack_buffer(&buff[0], false, from_proc, -1, 
-                           dum1, dum2, dum2, dum3, entities);
+                           dum1, dum1p, dum2, dum2, dum3, entities);
     RRA("Failed to unpack buffer in broadcast_entities.");
   }
 
@@ -501,6 +502,7 @@ MBErrorCode MBParallelComm::unpack_buffer(unsigned char *buff_ptr,
                                           const int from_proc,
                                           const int ind,
                                           std::vector<std::vector<MBEntityHandle> > &L1h,
+                                          std::vector<std::vector<int> > &L1p,
                                           std::vector<MBEntityHandle> &L2hloc, 
                                           std::vector<MBEntityHandle> &L2hrem,
                                           std::vector<unsigned int> &L2p,
@@ -513,7 +515,7 @@ MBErrorCode MBParallelComm::unpack_buffer(unsigned char *buff_ptr,
 #endif  
     MBErrorCode result;
     result = unpack_entities(buff_ptr, store_remote_handles,
-                             ind, false, L1h, L2hloc, L2hrem, L2p, new_ents);
+                             ind, false, L1h, L1p, L2hloc, L2hrem, L2p, new_ents);
   RRA("Unpacking entities failed.");
 #ifdef DEBUG_PACKING
     std::cerr << "unpack_entities buffer space: " << buff_ptr - tmp_buff << " bytes." << std::endl;
@@ -796,44 +798,35 @@ MBErrorCode MBParallelComm::build_sharedhps_list(const MBEntityHandle entity,
                                                  int *tmp_procs,
                                                  MBEntityHandle *tmp_handles)
 {
-  MBErrorCode result = MB_SUCCESS;
-  MBEntityHandle zeroh = 0, sharedh;
+  num_ents = 0;
+  unsigned char pstat;
+  MBErrorCode result = get_sharing_data(entity, tmp_procs, tmp_handles,
+                                        pstat, num_ents);
+  RRA("Failed in get_sharing_data.");
+  assert(pstat == pstatus);
   
     // build shared proc/handle lists
-  num_ents = 0;
     // start with multi-shared, since if it is the owner will be first
   if (pstatus & PSTATUS_MULTISHARED) {
-    result = mbImpl->tag_get_data(sharedps_tag(), &entity, 1, tmp_procs);
-    RRA("Failed to get sharedps tag.");
-    result = mbImpl->tag_get_data(sharedhs_tag(), &entity, 1, tmp_handles);
-    RRA("Failed to get sharedhs tag.");
-    assert(-1 != tmp_procs[2] && 0 != tmp_handles[2] &&
-           "Shared procs/handles should have at least 3 non-zeros for multi-shared ents");
-    int j = 3;
-      // scan forward to first unoccupied shared proc or end of shared proc tag
-    while (j < MAX_SHARING_PROCS && tmp_procs[j] != -1)
-      j++;
-    num_ents += j;
-    assert(num_ents < MAX_SHARING_PROCS);
   }
   else if (pstatus & PSTATUS_NOT_OWNED) {
       // if not multishared and not owned, other sharing proc is owner, put that
       // one first
     assert("If not owned, I should be shared too" &&
-           pstatus & PSTATUS_SHARED);
-    tmp_procs[0] = sharedp; 
+           pstatus & PSTATUS_SHARED &&
+           num_ents == 1);
     tmp_procs[1] = procConfig.proc_rank();
-    tmp_handles[0] = sharedh;
     tmp_handles[1] = entity;
     num_ents = 2;
   }
   else if (pstatus & PSTATUS_SHARED) {
       // if not multishared and owned, I'm owner
+    assert("shared and owned, should be only 1 sharing proc" &&
+           1 == num_ents);
+    tmp_procs[1] = tmp_procs[0];
     tmp_procs[0] = procConfig.proc_rank();
-    tmp_procs[1] = sharedp; 
+    tmp_handles[1] = tmp_handles[0];
     tmp_handles[0] = entity;
-    result = mbImpl->tag_get_data(sharedh_tag(), &entity, 1, tmp_handles+1);
-    RRA("Failed to get sharedh tag.");
     num_ents = 2;
   }
   else {
@@ -843,11 +836,15 @@ MBErrorCode MBParallelComm::build_sharedhps_list(const MBEntityHandle entity,
     num_ents = 1;
   }
 
+  int tmp_ps = num_ents;
+  
     // now add others, with zero handle for now
   for (std::set<unsigned int>::iterator sit = entprocs.begin();
        sit != entprocs.end(); sit++) {
+    assert("these procs shouldn't already be in the shared list" &&
+           std::find(tmp_procs, tmp_procs+tmp_ps, *sit) == tmp_procs+tmp_ps);
     tmp_procs[num_ents] = *sit;
-    tmp_handles[num_ents] = zeroh;
+    tmp_handles[num_ents] = 0;
     num_ents++;
   }
 
@@ -1089,6 +1086,7 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
                                             const int from_ind,
                                             const bool is_iface,
                                             std::vector<std::vector<MBEntityHandle> > &L1h,
+                                            std::vector<std::vector<int> > &L1p,
                                             std::vector<MBEntityHandle> &L2hloc, 
                                             std::vector<MBEntityHandle> &L2hrem,
                                             std::vector<unsigned int> &L2p,
@@ -1113,9 +1111,10 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
     //      o if !iface, save new handle on L1 for all sharing procs
 
     // lists of handles/procs to return to sending/other procs
-    // L1h[p]: handle pairs [h, h'], where h is the sending proc handle
-    //         and h' is the receiving proc handle; this list only for
-    //         entities shared only between 2 procs, i.e. new shared entities
+    // L1h[p]: handle pairs [h, h'], where h' is the local proc handle
+    //         and h is either the remote proc handle (if that is known) or
+    //         the owner proc handle (otherwise);
+    // L1p[p]: indicates whether h is remote handle (= -1) or owner (rank of owner)
     // L2hloc, L2hrem: local/remote handles for entities shared by > 2 procs;
     //         remote handles are on owning proc
     // L2p: owning procs for handles in L2hrem
@@ -1207,7 +1206,7 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
         // entity, if there is one
         //=======================================
       if (store_remote_handles) {
-        result = find_existing_entity(is_iface, &ps[0], &hs[0], num_ps, 
+        result = find_existing_entity(is_iface, ps[0], hs[0], num_ps, 
                                       connect, verts_per_entity,
                                       this_type,
                                       L2hloc, L2hrem, L2p,
@@ -1218,6 +1217,8 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
         //=======================================
         // if we didn't find one, we'll have to create one
         //=======================================
+
+      bool created_here = false;
       if (!new_h) {
         
         if (MBVERTEX == this_type) {
@@ -1251,6 +1252,8 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
                  new_ents.find(new_h) == new_ents.end());
           new_ents.insert(new_h);
         }
+
+        created_here = true;
       }
 
         //=======================================
@@ -1259,7 +1262,8 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
       if (store_remote_handles) {
         
           // update sharing data and pstatus, adjusting order if iface
-        result = update_remote_data(new_h, &ps[0], &hs[0], num_ps, is_iface);
+        result = update_remote_data(new_h, &ps[0], &hs[0], num_ps, is_iface,
+                                    created_here);
         RRA("");
       
           // need to send this new handle to all sharing procs
@@ -1267,10 +1271,20 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
           for (j = 0; j < num_ps; j++) {
             if (ps[j] == (int)procConfig.proc_rank()) continue;
             int idx = get_buffers(ps[j]);
-            if (idx == (int)L1h.size()) L1h.resize(idx+1);
-            assert("Returned handles should always be non-zero" &&
-                   hs[j] && new_h);
-            L1h[idx].push_back(hs[j]);
+            if (idx == (int)L1h.size()) {
+              L1h.resize(idx+1);
+              L1p.resize(idx+1);
+            }
+            
+            if (!hs[j]) {
+              assert(-1 != ps[0] && num_ps > 2);
+              L1p[idx].push_back(ps[0]);
+              L1h[idx].push_back(hs[0]);
+            }
+            else {
+              L1p[idx].push_back(-1);
+              L1h[idx].push_back(hs[j]);
+            }
             L1h[idx].push_back(new_h);
           }
         }
@@ -1373,22 +1387,65 @@ MBErrorCode MBParallelComm::print_buffer(unsigned char *buff_ptr)
   return MB_SUCCESS;
 }
 
+MBErrorCode MBParallelComm::list_entities(const MBEntityHandle *ents, int num_ents) 
+{
+  unsigned char pstat;
+  MBEntityHandle tmp_handles[MAX_SHARING_PROCS];
+  int tmp_procs[MAX_SHARING_PROCS];
+  unsigned int num_ps;
+  MBErrorCode result;
+
+  for (int i = 0; i < num_ents; i++) {
+    result = get_sharing_data(ents[i], tmp_procs, tmp_handles, pstat, num_ps);
+    RRA("Failed to get sharing data.");
+
+    result = mbImpl->list_entities(ents+i, 1);
+    std::cout << "Pstatus: ";
+    if (!num_ps)
+      std::cout << "local " << std::endl;
+    else {
+      if (pstat & PSTATUS_NOT_OWNED) std::cout << "NOT_OWNED; ";
+      if (pstat & PSTATUS_SHARED) std::cout << "SHARED; ";
+      if (pstat & PSTATUS_MULTISHARED) std::cout << "MULTISHARED; ";
+      if (pstat & PSTATUS_INTERFACE) std::cout << "INTERFACE; ";
+      if (pstat & PSTATUS_GHOST) std::cout << "GHOST; ";
+      std::cout << std::endl;
+      for (unsigned int j = 0; j < num_ps; j++) {
+        std::cout << "  proc " << tmp_procs[j] << " id (handle) " 
+                  << mbImpl->id_from_handle(tmp_handles[j]) 
+                  << "(" << tmp_handles[j] << ")" << std::endl;
+      }
+    }
+    std::cout << std::endl;
+  }
+
+  return MB_SUCCESS;
+}
+  
+MBErrorCode MBParallelComm::list_entities(const MBRange &ents) 
+{
+  for (MBRange::iterator rit = ents.begin(); rit != ents.end(); rit++)
+    list_entities(&(*rit), 1);
+  return MB_SUCCESS;
+}
+
 MBErrorCode MBParallelComm::update_remote_data(MBEntityHandle new_h,
                                                int *ps,
                                                MBEntityHandle *hs,
                                                int num_ps,
-                                               const bool is_iface) 
+                                               const bool is_iface,
+                                               const bool created_here) 
 {
   MBEntityHandle tag_hs[MAX_SHARING_PROCS];
   int tag_ps[MAX_SHARING_PROCS];
   unsigned char pstat;
     // get initial sharing data; tag_ps and tag_hs get terminated with -1 and 0
     // in this function, so no need to initialize
-  MBErrorCode result = get_sharing_data(new_h, tag_ps, tag_hs, pstat);
+  unsigned int num_exist;
+  MBErrorCode result = get_sharing_data(new_h, tag_ps, tag_hs, pstat, num_exist);
   RRA("");
   
     // add any new sharing data
-  int num_exist = std::find(tag_ps, tag_ps+MAX_SHARING_PROCS, -1) - tag_ps;
   bool changed = false;
   int idx;
   if (!num_exist) {
@@ -1400,7 +1457,7 @@ MBErrorCode MBParallelComm::update_remote_data(MBEntityHandle new_h,
   else {
     for (int i = 0; i < num_ps; i++) {
       idx = std::find(tag_ps, tag_ps+num_exist, ps[i]) - tag_ps;
-      if (idx == num_exist) {
+      if (idx == (int) num_exist) {
         tag_ps[num_exist] = ps[i];
         tag_hs[num_exist] = hs[i];
         num_exist++;
@@ -1432,6 +1489,22 @@ MBErrorCode MBParallelComm::update_remote_data(MBEntityHandle new_h,
   }
     
   if (changed) {
+    if (is_iface && num_exist > 1) 
+      pstat |= PSTATUS_INTERFACE;
+      // if we created the entity in this unpack and it's shared,
+      // that means it's a ghost and we don't own it
+    else if (!is_iface && created_here && num_exist > 1)
+      pstat |= (PSTATUS_GHOST | PSTATUS_NOT_OWNED);
+
+      // if it's multi-shared and we created the entity in this unpack,
+      // local handle probably isn't in handle list yet
+    if (created_here && num_exist > 2) {
+      idx = std::find(tag_ps, tag_ps+num_exist, procConfig.proc_rank()) - tag_ps;
+      assert(idx < (int) num_exist);
+      if (!tag_hs[idx])
+        tag_hs[idx] = new_h;
+    }
+      
     int tag_p;
     MBEntityHandle tag_h;
     if (num_exist > 2 && !(pstat & PSTATUS_MULTISHARED) &&
@@ -1463,9 +1536,6 @@ MBErrorCode MBParallelComm::update_remote_data(MBEntityHandle new_h,
       pstat |= PSTATUS_SHARED;
     }
 
-    if (is_iface && num_exist > 1) 
-      pstat |= PSTATUS_INTERFACE;
-
       // now set new pstatus
     result = mbImpl->tag_set_data(pstatus_tag(), &new_h, 1, &pstat);
     RRA("Couldn't set pstatus tag.");
@@ -1479,7 +1549,8 @@ MBErrorCode MBParallelComm::update_remote_data(MBEntityHandle new_h,
 MBErrorCode MBParallelComm::get_sharing_data(MBEntityHandle entity,
                                              int *ps, 
                                              MBEntityHandle *hs,
-                                             unsigned char &pstat) 
+                                             unsigned char &pstat,
+                                             unsigned int &num_ps)
 {
   MBErrorCode result = mbImpl->tag_get_data(pstatus_tag(), &entity, 1, &pstat);
   RRA("Couldn't get pstatus tag.");
@@ -1488,6 +1559,7 @@ MBErrorCode MBParallelComm::get_sharing_data(MBEntityHandle entity,
     RRA("Couldn't get sharedps tag.");
     result = mbImpl->tag_get_data(sharedhs_tag(), &entity, 1, hs);
     RRA("Couldn't get sharedhs tag.");
+    num_ps = std::find(ps, ps+MAX_SHARING_PROCS, -1) - ps;
   }
   else if (pstat & PSTATUS_SHARED) {
     result = mbImpl->tag_get_data(sharedp_tag(), &entity, 1, ps);
@@ -1497,30 +1569,34 @@ MBErrorCode MBParallelComm::get_sharing_data(MBEntityHandle entity,
       // initialize past end of data
     ps[1] = -1;
     hs[1] = 0;
+    num_ps = 1;
   }
   else {
     ps[0] = -1;
     hs[0] = 0;
+    num_ps = 0;
   }
 
+  assert(0 <= num_ps && MAX_SHARING_PROCS >= num_ps);
+  
   return MB_SUCCESS;
 }
   
 MBErrorCode MBParallelComm::find_existing_entity(const bool is_iface,
-                                                 const int *ps,
-                                                 const MBEntityHandle *hs,
+                                                 const int owner_p,
+                                                 const MBEntityHandle owner_h,
                                                  const int num_ps,
                                                  const MBEntityHandle *connect,
                                                  const int num_connect,
                                                  const MBEntityType this_type,
                                                  std::vector<MBEntityHandle> &L2hloc,
                                                  std::vector<MBEntityHandle> &L2hrem,
-                                                 std::vector<MBEntityHandle> &L2p,
+                                                 std::vector<unsigned int> &L2p,
                                                  MBEntityHandle &new_h) 
 {
   if (!is_iface && num_ps > 2) {
     for (unsigned int i = 0; i < L2hrem.size(); i++) {
-      if (L2hrem[i] == hs[0] && ps[0] == (int) L2p[i]) {
+      if (L2hrem[i] == owner_h && owner_p == (int) L2p[i]) {
         new_h = L2hloc[i];
         return MB_SUCCESS;
       }
@@ -1528,7 +1604,7 @@ MBErrorCode MBParallelComm::find_existing_entity(const bool is_iface,
   }
 
     // if we got here and it's a vertex, we don't need to look further
-  if (MBVERTEX == this_type) return MB_SUCCESS;
+  if (MBVERTEX == this_type || !connect || !num_connect) return MB_SUCCESS;
   
   MBRange tmp_range;
   MBErrorCode result = mbImpl->get_adjacencies(connect, num_connect, 
@@ -3412,6 +3488,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
   std::vector<MPI_Status> status(buffProcs.size());
   std::vector<std::vector<MBEntityHandle> > recd_ents(num_incoming);
   std::vector<std::vector<MBEntityHandle> > L1h(buffProcs.size());
+  std::vector<std::vector<int> > L1p(buffProcs.size());
   std::vector<MBEntityHandle> L2hloc, L2hrem;
   std::vector<unsigned int> L2p;
   MBRange new_ents;
@@ -3446,7 +3523,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
       unsigned char *buff_ptr = &ghostRBuffs[ind][0];
       result = unpack_entities(buff_ptr,
                                store_remote_handles, ind, is_iface,
-                               L1h, L2hloc, L2hrem, L2p, new_ents);
+                               L1h, L1p, L2hloc, L2hrem, L2p, new_ents);
       RRA("Failed to unpack entities.");
     }
     else {
@@ -3495,7 +3572,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
        proc_it != buffProcs.end(); proc_it++, ind++) {
       // skip if iface layer and higher-rank proc
     buff_ptr = &ghostSBuffs[ind][0];
-      result = pack_remote_handles(L1h[ind], *proc_it,
+    result = pack_remote_handles(L1h[ind], L1p[ind], *proc_it,
                                    ghostSBuffs[ind], buff_ptr);
     RRA("Failed to pack remote handles.");
     result = send_buffer(buffProcs[ind], &ghostSBuffs[ind][0], 
@@ -3531,7 +3608,8 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     }
     else if (MB_MESG_REMOTE_HANDLES == status[0].MPI_TAG) {
         // incoming remote handles
-      result = unpack_remote_handles(buffProcs[ind], &ghostRBuffs[ind][0], is_iface, ind);
+      result = unpack_remote_handles(buffProcs[ind], &ghostRBuffs[ind][0], is_iface, 
+                                     L2hloc, L2hrem, L2p);
       RRA("Failed to unpack remote handles.");
     }
     else assert(false);
@@ -3612,16 +3690,19 @@ MBErrorCode MBParallelComm::check_sent_ents(MBRange &allsent)
 }
 
 MBErrorCode MBParallelComm::pack_remote_handles(std::vector<MBEntityHandle> &L1h,
+                                                std::vector<int> &L1p,
                                                 unsigned int to_proc,
                                                 std::vector<unsigned char> &buff,
                                                 unsigned char *&buff_ptr) 
 {
-    // 2 vectors of handles
-  CHECK_BUFF_SPACE(buff, buff_ptr, sizeof(int) + L1h.size()*sizeof(MBEntityHandle));
+    // 2 vectors of handles plus ints
+  CHECK_BUFF_SPACE(buff, buff_ptr, ((L1p.size()+1)*sizeof(int) + 
+                                    L1h.size()*sizeof(MBEntityHandle)));
   
     // should be in pairs of handles
   assert(!(L1h.size()%2));
   PACK_INT(buff_ptr, L1h.size()/2);
+  PACK_INTS(buff_ptr, &L1p[0], L1p.size());
   PACK_EH(buff_ptr, &L1h[0], L1h.size());
   
   return MB_SUCCESS;
@@ -3630,16 +3711,31 @@ MBErrorCode MBParallelComm::pack_remote_handles(std::vector<MBEntityHandle> &L1h
 MBErrorCode MBParallelComm::unpack_remote_handles(unsigned int from_proc,
                                                   unsigned char *&buff_ptr,
                                                   const bool is_iface,
-                                                  const int ind) 
+                                                  std::vector<MBEntityHandle> &L2hloc,
+                                                  std::vector<MBEntityHandle> &L2hrem,
+                                                  std::vector<unsigned int> &L2p)
 {
     // incoming remote handles; use to set remote handles
   int num_eh;
   UNPACK_INT(buff_ptr, num_eh);
 
+  unsigned char *buff_proc = buff_ptr;
+  buff_ptr += num_eh * sizeof(int);
   MBErrorCode result;
   MBEntityHandle hpair[2];
+  int proc;
   for (int i = 0; i < num_eh; i++) {
+    UNPACK_INT(buff_proc, proc);
     UNPACK_EH(buff_ptr, hpair, 2);
+
+    if (-1 != proc) {
+      MBEntityHandle dum_h;
+      result = find_existing_entity(is_iface, proc, hpair[0], 3, NULL, 0,
+                                    mbImpl->type_from_handle(hpair[1]),
+                                    L2hloc, L2hrem, L2p, dum_h);
+      RRA("Didn't get existing entity.");
+      if (dum_h) hpair[0] = dum_h;
+    }
     assert(hpair[0] && hpair[1]);
     result = add_remote_data(hpair[0], from_proc, hpair[1]);
     RRA("Trouble setting remote data range on sent entities in ghost exchange.");

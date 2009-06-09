@@ -283,7 +283,14 @@ public:
   MBErrorCode get_sharing_data(MBEntityHandle entity,
                                int *ps, 
                                MBEntityHandle *hs,
-                               unsigned char &pstat);
+                               unsigned char &pstat,
+                               unsigned int &num_ps);
+
+  MBErrorCode get_sharing_data(MBEntityHandle entity,
+                               int *ps, 
+                               MBEntityHandle *hs,
+                               unsigned char &pstat,
+                               int &num_ps);
   
     /** \brief Get entities on an inter-processor interface and of specified dimension
      * If other_proc is -1, any interface entities are returned.  If dim is -1,
@@ -444,6 +451,7 @@ public:
                             const int from_proc,
                             const int ind,
                             std::vector<std::vector<MBEntityHandle> > &L1h,
+                            std::vector<std::vector<int> > &L1p,
                             std::vector<MBEntityHandle> &L2hloc, 
                             std::vector<MBEntityHandle> &L2hrem,
                             std::vector<unsigned int> &L2p,
@@ -463,6 +471,7 @@ public:
                               const int from_ind,
                               const bool is_iface,
                               std::vector<std::vector<MBEntityHandle> > &L1h,
+                              std::vector<std::vector<int> > &L1p,
                               std::vector<MBEntityHandle> &L2hloc, 
                               std::vector<MBEntityHandle> &L2hrem,
                               std::vector<unsigned int> &L2p,
@@ -474,6 +483,35 @@ public:
 
     //! set rank for this pcomm; USED FOR TESTING ONLY!
   void set_rank(unsigned int r);
+  
+    //! get (and possibly allocate) buffers for messages to/from to_proc; returns
+    //! index of to_proc in buffProcs vector; if is_new is non-NULL, sets to
+    //! whether new buffer was allocated
+    //! PUBLIC ONLY FOR TESTING!
+  int get_buffers(int to_proc, bool *is_new = NULL);
+
+    /* \brief Unpack message with remote handles
+     * PUBLIC ONLY FOR TESTING!
+     */
+  MBErrorCode unpack_remote_handles(unsigned int from_proc,
+                                    unsigned char *&buff_ptr,
+                                    const bool is_iface,
+                                    std::vector<MBEntityHandle> &L2hloc,
+                                    std::vector<MBEntityHandle> &L2hrem,
+                                    std::vector<unsigned int> &L2p);
+  
+    /* \brief Pack message with remote handles
+     * PUBLIC ONLY FOR TESTING!
+     */
+  MBErrorCode pack_remote_handles(std::vector<MBEntityHandle> &entities,
+                                  std::vector<int> &procs,
+                                  unsigned int to_proc,
+                                  std::vector<unsigned char> &buff,
+                                  unsigned char *&buff_ptr);
+  
+  MBErrorCode list_entities(const MBEntityHandle *ents, int num_ents);
+  
+  MBErrorCode list_entities(const MBRange &ents);
   
 private:
 
@@ -520,11 +558,6 @@ private:
   int estimate_sets_buffer_size(MBRange &entities,
                                 const bool store_remote_handles);
   
-    //! get (and possibly allocate) buffers for messages to/from to_proc; returns
-    //! index of to_proc in buffProcs vector; if is_new is non-NULL, sets to
-    //! whether new buffer was allocated
-  int get_buffers(int to_proc, bool *is_new = NULL);
-
     //! send the indicated buffer, possibly sending size first
   MBErrorCode send_buffer(const unsigned int to_proc,
                           const unsigned char *send_buff,
@@ -584,38 +617,19 @@ private:
                                  const int from_proc);
   
 
-    /* \brief Pack message with remote handles
-     */
-  MBErrorCode pack_remote_handles(MBRange &entities,
-                                  unsigned int to_proc,
-                                  std::vector<unsigned char> &buff,
-                                  unsigned char *&buff_ptr);
-  
-    /* \brief Pack message with remote handles
-     */
-  MBErrorCode pack_remote_handles(std::vector<MBEntityHandle> &entities,
-                                  unsigned int to_proc,
-                                  std::vector<unsigned char> &buff,
-                                  unsigned char *&buff_ptr);
-  
-    /* \brief Unpack message with remote handles
-     */
-  MBErrorCode unpack_remote_handles(unsigned int from_proc,
-                                    unsigned char *&buff_ptr,
-                                    const bool is_iface,
-                                    const int ind);
-  
     /* \brief Unpack message with remote handles (const pointer to buffer)
      */
   MBErrorCode unpack_remote_handles(unsigned int from_proc,
                                     const unsigned char *buff_ptr,
                                     const bool is_iface,
-                                    const int ind);
+                                    std::vector<MBEntityHandle> &L2hloc,
+                                    std::vector<MBEntityHandle> &L2hrem,
+                                    std::vector<unsigned int> &L2p);
   
     //! given connectivity and type, find an existing entity, if there is one
   MBErrorCode find_existing_entity(const bool is_iface,
-                                   const int *ps,
-                                   const MBEntityHandle *hs,
+                                   const int owner_p,
+                                   const MBEntityHandle owner_h,
                                    const int num_ents,
                                    const MBEntityHandle *connect,
                                    const int num_connect,
@@ -882,7 +896,8 @@ private:
                                  int *ps,
                                  MBEntityHandle *hs,
                                  int num_ps,
-                                 const bool is_iface);
+                                 const bool is_iface,
+                                 const bool created_here);
   
   MBErrorCode add_remote_data(MBEntityHandle this_h,
                               int other_proc,
@@ -1020,17 +1035,31 @@ inline MBErrorCode MBParallelComm::get_owner(MBEntityHandle entity,
 inline MBErrorCode MBParallelComm::unpack_remote_handles(unsigned int from_proc,
                                                          const unsigned char *buff_ptr,
                                                          const bool is_iface,
-                                                         const int ind) 
+                                                         std::vector<MBEntityHandle> &L2hloc,
+                                                         std::vector<MBEntityHandle> &L2hrem,
+                                                         std::vector<unsigned int> &L2p) 
 {
     // cast away const-ness, we won't be passing back a modified ptr
   unsigned char *tmp_buff = const_cast<unsigned char*>(buff_ptr);
-  return unpack_remote_handles(from_proc, tmp_buff, is_iface, ind);
+  return unpack_remote_handles(from_proc, tmp_buff, is_iface, L2hloc, L2hrem, L2p);
 }
 
 inline void MBParallelComm::set_rank(unsigned int r) 
 {
   procConfig.proc_rank(r);
   if (procConfig.proc_size() < r) procConfig.proc_size(r+1);
+}
+
+inline MBErrorCode MBParallelComm::get_sharing_data(MBEntityHandle entity,
+                                                    int *ps, 
+                                                    MBEntityHandle *hs,
+                                                    unsigned char &pstat,
+                                                    int &num_ps) 
+{
+  unsigned int dum_int;
+  MBErrorCode result = get_sharing_data(entity, ps, hs, pstat, dum_int);
+  num_ps = dum_int;
+  return result;
 }
 
 #endif
