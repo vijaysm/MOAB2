@@ -749,8 +749,12 @@ MBErrorCode test_ghost_elements( const char* filename,
   partition_geom[3] = pcomm->partition_sets();
   PCHECK( !partition_geom[3].empty() );
 
+  rval = pcomm->check_all_shared_handles();
+  CHKERR(rval);
+  
     // exchange id tags to allow comparison by id
   MBRange tmp_ents;
+  rval = pcomm->get_shared_entities(-1, tmp_ents, -1, false, true);
   rval = pcomm->exchange_tags(id_tag, tmp_ents);
   CHKERR(rval);
   
@@ -878,90 +882,10 @@ MBErrorCode test_ghost_elements( const char* filename,
   rval = moab.get_entities_by_dimension( 0, ghost_dimension, ents );
   PCHECK( ents == myents );
     
-    // Verify correct ownership and sharing of ghost entities.
-  ents.clear();
-  for (MBRange::iterator i = myents.begin(); i != myents.end(); ++i) {
-    int owner;
-    rval = pcomm->get_owner( *i, owner ); CHKERR(rval);
-    if ((unsigned)owner == pcomm->proc_config().proc_rank())
-      ents.insert( *i );
-  }
-  myents.swap(ents);
-  std::vector<int> my_ent_ids(ents.size());
-  rval = moab.tag_get_data( id_tag, myents, &my_ent_ids[0] );
-  PCHECK(MB_SUCCESS == rval);
-  
-  std::sort( my_ent_ids.begin(), my_ent_ids.end() );
-  int counts[2] = { my_ent_ids.size(), actual_ghost_ent_ids.size() };
-  int totals[2] = {0,0};
-  error = MPI_Allreduce( counts, totals, 2, MPI_INT, MPI_SUM,
-                         pcomm->proc_config().proc_comm() );
-  PCHECK(!error);
-  std::vector<int> all_owned(totals[0]), all_ghost(totals[1]), 
-                   owned_counts(pcomm->proc_config().proc_size()),
-                   owned_displs(pcomm->proc_config().proc_size()),
-                   ghost_counts(pcomm->proc_config().proc_size()),
-                   ghost_displs(pcomm->proc_config().proc_size());
-  error = MPI_Allgather( counts, 1, MPI_INT, &owned_counts[0], 1, MPI_INT,
-                         pcomm->proc_config().proc_comm() );
-  PCHECK(!error);
-  error = MPI_Allgather( counts+1, 1, MPI_INT, &ghost_counts[0], 1, MPI_INT,
-                         pcomm->proc_config().proc_comm() );
-  PCHECK(!error);
-  owned_displs[0] = ghost_displs[0] = 0;
-  for (unsigned i = 1; i < pcomm->proc_config().proc_size(); ++i) {
-    owned_displs[i] = owned_displs[i-1] + owned_counts[i-1];
-    ghost_displs[i] = ghost_displs[i-1] + ghost_counts[i-1];
-  }
-  
-  error = MPI_Allgatherv( &my_ent_ids[0], my_ent_ids.size(), MPI_INT,
-                          &all_owned[0], &owned_counts[0], &owned_displs[0],
-                          MPI_INT, pcomm->proc_config().proc_comm() );
-  PCHECK(!error);
-  error = MPI_Allgatherv( &actual_ghost_ent_ids[0], actual_ghost_ent_ids.size(), MPI_INT,
-                          &all_ghost[0], &ghost_counts[0], &ghost_displs[0],
-                          MPI_INT, pcomm->proc_config().proc_comm() );
-  PCHECK(!error);
- 
   rval = pcomm->check_all_shared_handles();
   if (MB_SUCCESS != rval) error = 1;
   PCHECK(!error);
   
-     // for each ghost entity, check owning processor and list of
-     // sharing processors.
-  int k = 0;
-  error = 0;
-  for (MBRange::iterator i = ghost_ents.begin(); !error && i != ghost_ents.end(); ++i) {
-    std::vector<int> act_procs, exp_procs;
-    int act_owner, exp_owner;
-    int id = actual_ghost_ent_ids[k++];
-    for (unsigned j = 0; j < pcomm->proc_config().proc_size(); ++j) {
-      const int* proc_owned_begin = &all_owned[0] + owned_displs[j];
-      const int* proc_owned_end = proc_owned_begin + owned_counts[j];
-      if (std::binary_search( proc_owned_begin, proc_owned_end, id ))
-        exp_owner = j;
-      
-      const int* proc_ghost_begin = &all_ghost[0] + ghost_displs[j];
-      const int* proc_ghost_end = proc_ghost_begin + ghost_counts[j];
-      if (std::binary_search( proc_ghost_begin, proc_ghost_end, id ))
-        exp_procs.push_back(j);
-    }
-    
-    rval = pcomm->get_owner( *i, act_owner ); CHKERR(rval);
-    if (exp_owner != act_owner) {
-      error = 1;
-      break;
-    }
-    
-    rval = get_sharing_processors( moab, *i, act_procs ); CHKERR(rval);
-    std::sort(act_procs.begin(), act_procs.end());
-    if (exp_procs != act_procs) {
-      error = 1;
-      break;
-    }
-  }
-  PCHECK(!error);
-
     // done
   return MB_SUCCESS;
 }

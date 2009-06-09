@@ -1986,7 +1986,7 @@ void test_pack_shared_entities()
   CHECK_ERR(rval);
 
   buff_ptr = &buffer[0];
-  rval = pc[2]->unpack_remote_handles(1, buff_ptr, false, L2hloc[2], L2hrem[2], L2p[2]);
+  rval = pc[2]->unpack_remote_handles(1, buff_ptr, L2hloc[2], L2hrem[2], L2p[2]);
   CHECK_ERR(rval);
 
   ent_verts.clear(); sent_ents.clear();
@@ -2026,6 +2026,7 @@ void test_pack_shared_entities()
         // none received from 3, no 4th proc
       !L1h[0][2].empty() || !L1h[0][3].empty()) 
     rval = MB_FAILURE;
+
   CHECK_ERR(rval);
 
   ent_verts.clear(); sent_ents.clear();
@@ -2077,7 +2078,7 @@ void test_pack_shared_entities()
   rval = pc[0]->pack_remote_handles(L1h[0][1], L1p[0][1], 2, buffer, buff_ptr);
   CHECK_ERR(rval);
 
-  rval = pc[2]->unpack_remote_handles(0, buff_ptr, false, L2hloc[2], L2hrem[2], L2p[2]);
+  rval = pc[2]->unpack_remote_handles(0, buff_ptr, L2hloc[2], L2hrem[2], L2p[2]);
   CHECK_ERR(rval);
 
     // P0 -> P1
@@ -2085,7 +2086,7 @@ void test_pack_shared_entities()
   rval = pc[0]->pack_remote_handles(L1h[0][0], L1p[0][0], 1, buffer, buff_ptr);
   CHECK_ERR(rval);
 
-  rval = pc[1]->unpack_remote_handles(0, buff_ptr, false, L2hloc[1], L2hrem[1], L2p[1]);
+  rval = pc[1]->unpack_remote_handles(0, buff_ptr, L2hloc[1], L2hrem[1], L2p[1]);
   CHECK_ERR(rval);
 
   ent_verts.clear(); sent_ents.clear();

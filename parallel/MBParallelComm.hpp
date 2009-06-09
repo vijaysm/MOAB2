@@ -495,7 +495,6 @@ public:
      */
   MBErrorCode unpack_remote_handles(unsigned int from_proc,
                                     unsigned char *&buff_ptr,
-                                    const bool is_iface,
                                     std::vector<MBEntityHandle> &L2hloc,
                                     std::vector<MBEntityHandle> &L2hrem,
                                     std::vector<unsigned int> &L2p);
@@ -621,7 +620,6 @@ private:
      */
   MBErrorCode unpack_remote_handles(unsigned int from_proc,
                                     const unsigned char *buff_ptr,
-                                    const bool is_iface,
                                     std::vector<MBEntityHandle> &L2hloc,
                                     std::vector<MBEntityHandle> &L2hrem,
                                     std::vector<unsigned int> &L2p);
@@ -875,45 +873,16 @@ private:
                                 MBRange &local_handles,
                                 const MBRange &new_ents);
   
-    //! adjust shared proc tags/handles to incude from_proc and remote_range
-  MBErrorCode set_remote_data(MBRange &local_range,
-                              MBRange &remote_range,
-                              int from_proc);
+  MBErrorCode update_remote_data(MBRange &local_range,
+                                 MBRange &remote_range,
+                                 int other_proc,
+                                 const unsigned char add_pstat);
   
-    //! adjust shared proc tags/handles to incude from_proc and remote_range
-  MBErrorCode set_remote_data(MBEntityHandle *local_ents,
-                              MBEntityHandle *remote_ents,
-                              int num_ents,
-                              int other_proc);
-  
-    //! remove a remote processor and the entity's handle
-  MBErrorCode rmv_remote_proc(MBEntityHandle ent,
-                              int *remote_procs,
-                              MBEntityHandle *remote_hs,
-                              int remote_proc);
-  
-  MBErrorCode update_remote_data(MBEntityHandle new_h,
-                                 int *ps,
-                                 MBEntityHandle *hs,
-                                 int num_ps,
-                                 const bool is_iface,
-                                 const bool created_here);
-  
-  MBErrorCode add_remote_data(MBEntityHandle this_h,
-                              int other_proc,
-                              MBEntityHandle other_h);
-
-    //! add a remote proc, after getting existing sharedp/h tags
-  MBErrorCode add_remote_proc(MBEntityHandle ent,
-                              int remote_proc,
-                              MBEntityHandle remote_handle);
-  
-    //! add a remote processor and the entity's handle
-  MBErrorCode add_remote_proc(MBEntityHandle ent,
-                              int *remote_procs,
-                              MBEntityHandle *remote_hs,
-                              int remote_proc,
-                              MBEntityHandle remote_handle);
+  MBErrorCode update_remote_data(const MBEntityHandle new_h,
+                                 const int *ps,
+                                 const MBEntityHandle *hs,
+                                 const int num_ps,
+                                 const unsigned char add_pstat);
   
     /** \brief Set pstatus tag interface bit on entities in sets passed in
      */
@@ -1034,14 +1003,13 @@ inline MBErrorCode MBParallelComm::get_owner(MBEntityHandle entity,
      */
 inline MBErrorCode MBParallelComm::unpack_remote_handles(unsigned int from_proc,
                                                          const unsigned char *buff_ptr,
-                                                         const bool is_iface,
                                                          std::vector<MBEntityHandle> &L2hloc,
                                                          std::vector<MBEntityHandle> &L2hrem,
                                                          std::vector<unsigned int> &L2p) 
 {
     // cast away const-ness, we won't be passing back a modified ptr
   unsigned char *tmp_buff = const_cast<unsigned char*>(buff_ptr);
-  return unpack_remote_handles(from_proc, tmp_buff, is_iface, L2hloc, L2hrem, L2p);
+  return unpack_remote_handles(from_proc, tmp_buff, L2hloc, L2hrem, L2p);
 }
 
 inline void MBParallelComm::set_rank(unsigned int r) 

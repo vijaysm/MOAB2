@@ -1262,8 +1262,9 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
       if (store_remote_handles) {
         
           // update sharing data and pstatus, adjusting order if iface
-        result = update_remote_data(new_h, &ps[0], &hs[0], num_ps, is_iface,
-                                    created_here);
+        result = update_remote_data(new_h, &ps[0], &hs[0], num_ps, 
+                                    (is_iface ? PSTATUS_INTERFACE :
+                                     (created_here ? (PSTATUS_GHOST | PSTATUS_NOT_OWNED) : 0)));
         RRA("");
       
           // need to send this new handle to all sharing procs
@@ -1389,6 +1390,16 @@ MBErrorCode MBParallelComm::print_buffer(unsigned char *buff_ptr)
 
 MBErrorCode MBParallelComm::list_entities(const MBEntityHandle *ents, int num_ents) 
 {
+  if (NULL == ents && 0 == num_ents) {
+    return mbImpl->list_entities(0, 0);
+  }
+  
+  else if (NULL == ents || 0 == num_ents) {
+    MBRange dum_ents;
+    mbImpl->get_entities_by_handle(0, dum_ents);
+    return list_entities(dum_ents);
+  }
+    
   unsigned char pstat;
   MBEntityHandle tmp_handles[MAX_SHARING_PROCS];
   int tmp_procs[MAX_SHARING_PROCS];
@@ -1429,12 +1440,30 @@ MBErrorCode MBParallelComm::list_entities(const MBRange &ents)
   return MB_SUCCESS;
 }
 
-MBErrorCode MBParallelComm::update_remote_data(MBEntityHandle new_h,
-                                               int *ps,
-                                               MBEntityHandle *hs,
-                                               int num_ps,
-                                               const bool is_iface,
-                                               const bool created_here) 
+MBErrorCode MBParallelComm::update_remote_data(MBRange &local_range,
+                                               MBRange &remote_range,
+                                               int other_proc,
+                                               const unsigned char add_pstat) 
+{
+  MBRange::iterator rit, rit2;
+  MBErrorCode result = MB_SUCCESS;
+
+    // for each pair of local/remote handles:
+  for (rit = local_range.begin(), rit2 = remote_range.begin(); 
+       rit != local_range.end(); rit++, rit2++) {
+
+    result = update_remote_data(*rit, &other_proc, &(*rit2), 1, add_pstat);
+    RRA(" ");
+  }
+
+  return result;
+}
+  
+MBErrorCode MBParallelComm::update_remote_data(const MBEntityHandle new_h,
+                                               const int *ps,
+                                               const MBEntityHandle *hs,
+                                               const int num_ps,
+                                               const unsigned char add_pstat) 
 {
   MBEntityHandle tag_hs[MAX_SHARING_PROCS];
   int tag_ps[MAX_SHARING_PROCS];
@@ -1449,9 +1478,13 @@ MBErrorCode MBParallelComm::update_remote_data(MBEntityHandle new_h,
   bool changed = false;
   int idx;
   if (!num_exist) {
+      // just take what caller passed
     memcpy(tag_ps, ps, num_ps*sizeof(int));
     memcpy(tag_hs, hs, num_ps*sizeof(MBEntityHandle));
     num_exist = num_ps;
+      // if it's only one, hopefully I'm not there yet...
+    assert("I shouldn't be the only proc there." &&
+           (1 != num_exist || ps[0] != procConfig.proc_rank()));
     changed = true;
   }
   else {
@@ -1474,7 +1507,7 @@ MBErrorCode MBParallelComm::update_remote_data(MBEntityHandle new_h,
   }
   
     // adjust for interface layer if necessary
-  if (is_iface) {
+  if (add_pstat & PSTATUS_INTERFACE) {
     idx = std::min_element(tag_ps, tag_ps+num_exist) - tag_ps;
     if (idx) {
       int tag_proc = tag_ps[idx];
@@ -1488,60 +1521,68 @@ MBErrorCode MBParallelComm::update_remote_data(MBEntityHandle new_h,
     }
   }
     
-  if (changed) {
-    if (is_iface && num_exist > 1) 
-      pstat |= PSTATUS_INTERFACE;
-      // if we created the entity in this unpack and it's shared,
-      // that means it's a ghost and we don't own it
-    else if (!is_iface && created_here && num_exist > 1)
-      pstat |= (PSTATUS_GHOST | PSTATUS_NOT_OWNED);
-
-      // if it's multi-shared and we created the entity in this unpack,
-      // local handle probably isn't in handle list yet
-    if (created_here && num_exist > 2) {
-      idx = std::find(tag_ps, tag_ps+num_exist, procConfig.proc_rank()) - tag_ps;
-      assert(idx < (int) num_exist);
-      if (!tag_hs[idx])
-        tag_hs[idx] = new_h;
-    }
-      
-    int tag_p;
-    MBEntityHandle tag_h;
-    if (num_exist > 2 && !(pstat & PSTATUS_MULTISHARED) &&
-        (pstat & PSTATUS_SHARED)) {
-        // must remove sharedp/h first, which really means set to default value
-      tag_p = -1;
-      result = mbImpl->tag_set_data(sharedp_tag(), &new_h, 1, &tag_p);
-      RRA("Couldn't set sharedp tag.");
-      tag_h = 0;
-      result = mbImpl->tag_set_data(sharedh_tag(), &new_h, 1, &tag_h);
-      RRA("Couldn't set sharedh tag.");
-    }
-    if (num_exist > 2) {
-      std::fill(tag_ps+num_exist, tag_ps+MAX_SHARING_PROCS, -1);
-      std::fill(tag_hs+num_exist, tag_hs+MAX_SHARING_PROCS, 0);
-      result = mbImpl->tag_set_data(sharedps_tag(), &new_h, 1, tag_ps);
-      RRA("Couldn't set sharedps tag.");
-      result = mbImpl->tag_set_data(sharedhs_tag(), &new_h, 1, tag_hs);
-      RRA("Couldn't set sharedhs tag.");
-      pstat |= (PSTATUS_MULTISHARED | PSTATUS_SHARED);
-    }
-    else if (num_exist == 2) {
-      tag_p = (tag_ps[0] == (int) procConfig.proc_rank() ? tag_ps[1] : tag_ps[0]);
-      tag_h = (tag_ps[0] == (int) procConfig.proc_rank() ? tag_hs[1] : tag_hs[0]);
-      result = mbImpl->tag_set_data(sharedp_tag(), &new_h, 1, &tag_p);
-      RRA("Couldn't set sharedps tag.");
-      result = mbImpl->tag_set_data(sharedh_tag(), &new_h, 1, &tag_h);
-      RRA("Couldn't set sharedhs tag.");
-      pstat |= PSTATUS_SHARED;
-    }
-
-      // now set new pstatus
-    result = mbImpl->tag_set_data(pstatus_tag(), &new_h, 1, &pstat);
-    RRA("Couldn't set pstatus tag.");
-
-    if (pstat & PSTATUS_SHARED) sharedEnts.insert(new_h);
+  if (!changed) return MB_SUCCESS;
+  
+  assert("interface entities should have > 1 proc" &&
+         (!(add_pstat & PSTATUS_INTERFACE) || num_exist > 1));
+  assert("ghost entities should have > 1 proc" &&
+         (!(add_pstat & PSTATUS_GHOST) || num_exist > 1));
+  
+    // if it's multi-shared and we created the entity in this unpack,
+    // local handle probably isn't in handle list yet
+  if (add_pstat & PSTATUS_GHOST && num_exist > 2) {
+    idx = std::find(tag_ps, tag_ps+num_exist, procConfig.proc_rank()) - tag_ps;
+    assert(idx < (int) num_exist);
+    if (!tag_hs[idx])
+      tag_hs[idx] = new_h;
   }
+      
+  int tag_p;
+  MBEntityHandle tag_h;
+
+    // reset single shared proc/handle if was shared and moving to multi-shared
+  if (num_exist > 2 && !(pstat & PSTATUS_MULTISHARED) &&
+      (pstat & PSTATUS_SHARED)) {
+      // must remove sharedp/h first, which really means set to default value
+    tag_p = -1;
+    result = mbImpl->tag_set_data(sharedp_tag(), &new_h, 1, &tag_p);
+    RRA("Couldn't set sharedp tag.");
+    tag_h = 0;
+    result = mbImpl->tag_set_data(sharedh_tag(), &new_h, 1, &tag_h);
+    RRA("Couldn't set sharedh tag.");
+  }
+
+    // update pstat
+  pstat |= add_pstat;
+  
+    // set sharing tags
+  if (num_exist > 2) {
+    std::fill(tag_ps+num_exist, tag_ps+MAX_SHARING_PROCS, -1);
+    std::fill(tag_hs+num_exist, tag_hs+MAX_SHARING_PROCS, 0);
+    result = mbImpl->tag_set_data(sharedps_tag(), &new_h, 1, tag_ps);
+    RRA("Couldn't set sharedps tag.");
+    result = mbImpl->tag_set_data(sharedhs_tag(), &new_h, 1, tag_hs);
+    RRA("Couldn't set sharedhs tag.");
+    pstat |= (PSTATUS_MULTISHARED | PSTATUS_SHARED);
+  }
+  else if (num_exist == 2 || num_exist == 1) {
+    if (tag_ps[0] == (int) procConfig.proc_rank()) {
+      assert(2 == num_exist);
+      tag_ps[0] = tag_ps[1];
+      tag_hs[0] = tag_hs[1];
+    }
+    result = mbImpl->tag_set_data(sharedp_tag(), &new_h, 1, tag_ps);
+    RRA("Couldn't set sharedp tag.");
+    result = mbImpl->tag_set_data(sharedh_tag(), &new_h, 1, tag_hs);
+    RRA("Couldn't set sharedh tag.");
+    pstat |= PSTATUS_SHARED;
+  }
+
+    // now set new pstatus
+  result = mbImpl->tag_set_data(pstatus_tag(), &new_h, 1, &pstat);
+  RRA("Couldn't set pstatus tag.");
+
+  if (pstat & PSTATUS_SHARED) sharedEnts.insert(new_h);
   
   return MB_SUCCESS;
 }
@@ -1652,131 +1693,6 @@ MBErrorCode MBParallelComm::get_local_handles(MBEntityHandle *from_vec,
   return MB_SUCCESS;
 }
 
-MBErrorCode MBParallelComm::set_remote_data(MBRange &local_range,
-                                            MBRange &remote_range,
-                                            int other_proc) 
-{
-    // NOTE: THIS IMPLEMENTATION IS JUST LIKE THE VECTOR-BASED VERSION, NO REUSE
-    // AT THIS TIME, SO IF YOU FIX A BUG IN THIS VERSION, IT MAY BE IN THE
-    // OTHER VERSION TOO!!!
-
-  MBTag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
-  MBErrorCode result = get_shared_proc_tags(sharedp_tag, sharedps_tag, 
-                                            sharedh_tag, sharedhs_tag, pstatus_tag);
-
-    // get remote procs tag, if any
-  MBRange tmp_range, tmp_local_range = local_range;
-  std::vector<int> remote_proc(local_range.size());
-  int remote_procs[MAX_SHARING_PROCS];
-  std::vector<MBEntityHandle> remote_handle(local_range.size());
-  MBEntityHandle remote_handles[MAX_SHARING_PROCS];
-  std::fill(remote_procs, remote_procs+MAX_SHARING_PROCS, -1);
-  std::fill(remote_handles, remote_handles+MAX_SHARING_PROCS, 0);
-  result = mbImpl->tag_get_data(sharedp_tag, local_range,
-                                &remote_proc[0]);
-  RRA("Couldn't get sharedp tag (range).");
-  result = mbImpl->tag_get_data(sharedh_tag, local_range,
-                                &remote_handle[0]);
-  RRA("Couldn't get sharedh tag (range).");
-  MBRange::iterator rit, rit2;
-  int i = 0;
-
-    // for each pair of local/remote handles:
-  for (rit = tmp_local_range.begin(), rit2 = remote_range.begin(); 
-       rit != tmp_local_range.end(); rit++, rit2++, i++) {
-
-      // get existing remote proc(s), handle(s) for this local handle
-    remote_procs[0] = remote_proc[i];
-    if (-1 != remote_procs[0]) remote_handles[0] = remote_handle[i];
-    else {
-      result = mbImpl->tag_get_data(sharedps_tag, &(*rit), 1,
-                                    remote_procs);
-      if (MB_SUCCESS == result) {
-        result = mbImpl->tag_get_data(sharedhs_tag, &(*rit), 1,
-                                      remote_handles);
-        RRA("Couldn't get sharedhs tag (range).");
-      }
-    }
-
-    result = add_remote_proc(*rit, remote_procs, remote_handles,
-                             other_proc, *rit2);
-    RRA(" ");
-  }
-
-    // also update shared flag for these ents
-  result = set_pstatus_entities(local_range, PSTATUS_SHARED, false, false);
-  RRA("Couldn't set pstatus tag (range)");  
-  
-  return MB_SUCCESS;
-}
-  
-MBErrorCode MBParallelComm::add_remote_data(MBEntityHandle this_h,
-                                            int other_proc,
-                                            MBEntityHandle other_h) 
-{
-  MBTag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
-  MBErrorCode result = get_shared_proc_tags(sharedp_tag, sharedps_tag, 
-                                            sharedh_tag, sharedhs_tag, pstatus_tag);
-
-    // get remote procs tag, if any
-  int remote_proc;
-  int remote_procs[MAX_SHARING_PROCS];
-  MBEntityHandle remote_handle;
-  MBEntityHandle remote_handles[MAX_SHARING_PROCS];
-  unsigned char pstatus_val;
-  result = mbImpl->tag_get_data(sharedp_tag, &this_h, 1, &remote_proc);
-  RRA("Couldn't get sharedp tag");
-  result = mbImpl->tag_get_data(sharedh_tag, &this_h, 1, &remote_handle);
-  RRA("Couldn't get sharedh tag");
-  result = mbImpl->tag_get_data(pstatus_tag, &this_h, 1, &pstatus_val);
-  RRA("Couldn't get pstatus tag");
-
-    // get existing remote proc(s), handle(s) for this local handle
-  if (!(pstatus_val & PSTATUS_SHARED)) {
-    std::fill(remote_procs, remote_procs+MAX_SHARING_PROCS, -1);
-    std::fill(remote_handles, remote_handles+MAX_SHARING_PROCS, 0);
-  }
-  else if (-1 != remote_proc) {
-    remote_procs[0] = remote_proc;
-    remote_handles[0] = remote_handle;
-    std::fill(remote_procs+1, remote_procs+MAX_SHARING_PROCS-1, -1);
-    std::fill(remote_handles+1, remote_handles+MAX_SHARING_PROCS-1, 0);
-  }
-  else {
-    result = mbImpl->tag_get_data(sharedps_tag, &this_h, 1, remote_procs);
-    RRA("Couldn't get sharedps tag");
-      
-    result = mbImpl->tag_get_data(sharedhs_tag, &this_h, 1, remote_handles);
-    RRA("Couldn't get sharedhs tag");
-  }
-
-    // now either insert other_proc, handle into these, or remove if
-    // remote handle is 0
-  int *this_idx = std::find(remote_procs, remote_procs+MAX_SHARING_PROCS,
-                            other_proc);
-  if (this_idx != remote_procs+MAX_SHARING_PROCS) {
-    int idx = this_idx-remote_procs;
-    remote_handles[idx] = this_h;
-    if (!idx && remote_procs[1] == -1) 
-      result = mbImpl->tag_set_data(sharedh_tag, &this_h, 1, remote_handles);
-    else
-      result = mbImpl->tag_set_data(sharedhs_tag, &this_h, 1, remote_handles);
-    RRA("Couldn't get sharedhs tag");
-  }
-  else {
-    result = add_remote_proc(this_h, remote_procs, remote_handles,
-                             other_proc, other_h);
-    RRA(" ");
-  }
-
-    // also update shared flag for these ents
-  result = set_pstatus_entities(&this_h, 1, PSTATUS_SHARED,
-                                false, false);
-  RRA("Couldn't set pstatus tag (range)");  
-
-  return MB_SUCCESS;
-}
-
 template <typename T> void
 insert_in_array( T* array, size_t array_size, size_t location, T value )
 {
@@ -1784,75 +1700,6 @@ insert_in_array( T* array, size_t array_size, size_t location, T value )
   for (size_t i = array_size-1; i > location; --i)
     array[i] = array[i-1];
   array[location] = value;
-}
-
-MBErrorCode MBParallelComm::add_remote_proc(MBEntityHandle ent,
-                                            int *remote_procs,
-                                            MBEntityHandle *remote_hs,
-                                            int remote_proc,
-                                            MBEntityHandle remote_handle) 
-{
-  MBErrorCode result;
-  int* ptr = std::find( remote_procs, remote_procs+MAX_SHARING_PROCS, -1 );
-  const size_t n = ptr - remote_procs;
-  ptr = std::lower_bound( remote_procs, remote_procs+n, remote_proc );
-  const size_t i = ptr - remote_procs;
-  
-  const int invalid_proc = -1;
-  const MBEntityHandle invalid_handle = 0;
-  if (i == n || remote_procs[i] != remote_proc) {
-    if (0 == n) {
-      remote_procs[0] = remote_proc;
-      remote_hs[0] = remote_handle;
-    }
-    else {
-      insert_in_array( remote_procs, MAX_SHARING_PROCS, i, remote_proc );
-      insert_in_array( remote_hs, MAX_SHARING_PROCS, i, remote_handle );
-        // also insert this proc/handle if it's not already there
-      ptr = std::lower_bound( remote_procs, remote_procs+n+1, procConfig.proc_rank() );
-      const size_t i = ptr - remote_procs;
-      if (i == n+1 || remote_procs[i] != (int)procConfig.proc_rank()) {
-        insert_in_array( remote_procs, MAX_SHARING_PROCS, i, (int)procConfig.proc_rank());
-        insert_in_array( remote_hs, MAX_SHARING_PROCS, i, ent);
-      }
-    }
-    
-    switch (n) {
-      case 0:
-        result = mbImpl->tag_set_data( sharedp_tag(), &ent, 1, remote_procs );
-        RRA("Couldn't set sharedp tag");
-        result = mbImpl->tag_set_data( sharedh_tag(), &ent, 1, remote_hs );
-        RRA("Couldn't set sharedh tag");
-        break;
-      case 1:
-          // going from 1 -> many, so clear single-value tag
-        result = mbImpl->tag_set_data(  sharedp_tag(), &ent, 1, &invalid_proc );
-        RRA("Couldn't set sharedp tag");
-        result = mbImpl->tag_set_data( sharedh_tag(), &ent, 1, &invalid_handle );
-        RRA("Couldn't set sharedh tag");
-          // NO BREAK: fall through to next block to set many-valued tags
-      default:
-        result = mbImpl->tag_set_data(  sharedps_tag(), &ent, 1, remote_procs );
-        RRA("Couldn't set sharedps tag");
-        result = mbImpl->tag_set_data( sharedhs_tag(), &ent, 1, remote_hs );
-        RRA("Couldn't set sharedhs tag");
-        break;
-    }
-  }
-  else if (remote_hs[i] != remote_handle) {
-    assert(remote_hs[i] == invalid_handle);
-    remote_hs[i] = remote_handle;
-    if (n == 1) {
-      result = mbImpl->tag_set_data( sharedh_tag(), &ent, 1, remote_hs );
-      RRA("Couldn't set sharedh tag");
-    }
-    else {
-      result = mbImpl->tag_set_data( sharedhs_tag(), &ent, 1, remote_hs );
-      RRA("Couldn't set sharedhs tag");
-    }
-  }
-  
-  return MB_SUCCESS;
 }
 
 MBErrorCode MBParallelComm::pack_range_map(MBRange &key_range, MBEntityHandle val_start,
@@ -2094,7 +1941,7 @@ MBErrorCode MBParallelComm::unpack_sets(unsigned char *&buff_ptr,
   MBRange dum_range;
   if (store_remote_handles && !new_sets.empty()) {
     UNPACK_RANGE(buff_ptr, dum_range);
-    result = set_remote_data(new_sets, dum_range, from_proc);
+    result = update_remote_data(new_sets, dum_range, from_proc, 0);
     RRA("Couldn't set sharing data for sets");
   }
 
@@ -3608,7 +3455,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     }
     else if (MB_MESG_REMOTE_HANDLES == status[0].MPI_TAG) {
         // incoming remote handles
-      result = unpack_remote_handles(buffProcs[ind], &ghostRBuffs[ind][0], is_iface, 
+      result = unpack_remote_handles(buffProcs[ind], &ghostRBuffs[ind][0],
                                      L2hloc, L2hrem, L2p);
       RRA("Failed to unpack remote handles.");
     }
@@ -3710,7 +3557,6 @@ MBErrorCode MBParallelComm::pack_remote_handles(std::vector<MBEntityHandle> &L1h
 
 MBErrorCode MBParallelComm::unpack_remote_handles(unsigned int from_proc,
                                                   unsigned char *&buff_ptr,
-                                                  const bool is_iface,
                                                   std::vector<MBEntityHandle> &L2hloc,
                                                   std::vector<MBEntityHandle> &L2hrem,
                                                   std::vector<unsigned int> &L2p)
@@ -3730,14 +3576,15 @@ MBErrorCode MBParallelComm::unpack_remote_handles(unsigned int from_proc,
 
     if (-1 != proc) {
       MBEntityHandle dum_h;
-      result = find_existing_entity(is_iface, proc, hpair[0], 3, NULL, 0,
+      result = find_existing_entity(false, proc, hpair[0], 3, NULL, 0,
                                     mbImpl->type_from_handle(hpair[1]),
                                     L2hloc, L2hrem, L2p, dum_h);
       RRA("Didn't get existing entity.");
       if (dum_h) hpair[0] = dum_h;
     }
     assert(hpair[0] && hpair[1]);
-    result = add_remote_data(hpair[0], from_proc, hpair[1]);
+    int this_proc = from_proc;
+    result = update_remote_data(hpair[0], &this_proc, hpair+1, 1, 0);
     RRA("Trouble setting remote data range on sent entities in ghost exchange.");
   }
   
@@ -4950,6 +4797,45 @@ MBErrorCode MBParallelComm::check_all_shared_handles()
   
   if (!bad_ents.empty() || !local_shared.empty()) return MB_FAILURE;
   else return MB_SUCCESS;
+}
+
+MBErrorCode MBParallelComm::get_shared_entities(int other_proc,
+                                                MBRange &shared_ents,
+                                                int dim,
+                                                const bool iface,
+                                                const bool owned_filter) 
+{
+  shared_ents.clear();
+  MBErrorCode result = MB_SUCCESS;
+  
+    // dimension
+  if (-1 != dim) {
+    MBDimensionPair dp = MBCN::TypeDimensionMap[dim];
+    MBRange dum_range;
+    shared_ents.merge(sharedEnts.lower_bound(dp.first), 
+                      sharedEnts.upper_bound(dp.second));
+  }
+  else shared_ents = sharedEnts;
+
+    // filter by iface
+  if (iface) {
+    result = filter_pstatus(shared_ents, PSTATUS_INTERFACE, PSTATUS_AND);
+    RRA("");
+  }
+  
+    // filter by owned
+  if (owned_filter) {
+    result = filter_pstatus(shared_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);
+    RRA("");
+  }
+
+    // filter by proc
+  if (-1 != other_proc) {
+    result = filter_pstatus(shared_ents, PSTATUS_SHARED, PSTATUS_AND, other_proc);
+    RRA("");
+  }
+  
+  return result;
 }
 
 #ifdef TEST_PARALLELCOMM
