@@ -6,37 +6,44 @@ import re
 import os
 import sys
 
-# this is an enormous hack because distutils won't let me specify libraries in
-# 'extra_link_args' for unknown reasons
-iMesh_libs = []
-iMesh_libdirs = []
-iMesh_incs = []
+from distutils.command.build_ext import build_ext
 
-if 'IMESHPATH' in os.environ:
-    defs = parse_makefile( os.path.join(os.environ['IMESHPATH'],
-                                        'lib/iMesh-Defs.inc') )
+def pair_fun(pre, post):
+    def tmp(self):
+        pre(self)
+        post(self)
+    return tmp
 
-    lib_match = re.compile(r'(?:(?<=\s)|^)-([lL])\s*(\S*)')
-    for match in lib_match.finditer( defs['IMESH_LIBS'] ):
-        if match.group(1) == 'l':
-            iMesh_libs.append( match.group(2) )
-        elif match.group(1) == 'L':
-            iMesh_libdirs.append( match.group(2) )
+def new_run(self):
+    if self.imesh_path:
+        defs = parse_makefile( os.path.join(self.imesh_path,
+                                            'lib/iMesh-Defs.inc') )
 
-    inc_match = re.compile(r'(?:(?<=\s)|^)-(I)\s*(\S*)')
-    for match in inc_match.finditer( defs['IMESH_INCLUDES'] ):
-        iMesh_incs.append( match.group(2) )
+        lib_match = re.compile(r'(?:(?<=\s)|^)-([lL])\s*(\S*)')
+        for match in lib_match.finditer( defs['IMESH_LIBS'] ):
+            if match.group(1) == 'l':
+                self.libraries.append( match.group(2) )
+            elif match.group(1) == 'L':
+                self.library_dirs.append( match.group(2) )
+
+        inc_match = re.compile(r'(?:(?<=\s)|^)-(I)\s*(\S*)')
+        for match in inc_match.finditer( defs['IMESH_INCLUDES'] ):
+            self.include_dirs.append( match.group(2) )
+
+def new_init(self):
+    self.imesh_path = None
+
+build_ext.user_options.append(('imesh-path=', None, 'blah blah'))
+build_ext.initialize_options = pair_fun(new_init, build_ext.initialize_options)
+build_ext.run = pair_fun(new_run, build_ext.run)
+
 
 iBase = Extension('itaps.iBase',
-                  include_dirs = iMesh_incs,
                   depends      = ['common.h', 'iBase_Python.h'],
                   sources      = ['iBase.c']
                   )
 
 iMesh = Extension('itaps.iMesh',
-                  include_dirs = iMesh_incs,
-                  libraries    = iMesh_libs,
-                  library_dirs = iMesh_libdirs,
                   depends      = ['common.h', 'errors.h', 'iMesh_Python.h',
                                   'iBase_Python.h', 'iMesh_entSet.inl',
                                   'iMesh_iter.inl', 'iMesh_tag.inl'],

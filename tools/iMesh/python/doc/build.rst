@@ -8,13 +8,16 @@ directory for PyTAPS. However, certain iMesh interfaces may require some
 additional setup.
 
 The PyTAPS setup script supports importing definitions from the
-`iMesh-Defs.inc` file. In order to make use of this, specify the root
-location of your iMesh installation in the environment variable ``IMESHPATH``.
-For example, if your `iMesh-Defs.inc` is located in
-`/usr/local/iMesh/lib/iMesh-Defs.inc`, then ``IMESHPATH`` should be
-`/usr/local/iMesh`. If the `iMesh-Defs.inc` file was not installed, or you
-don't wish to use it, you can manually specify the build options as described
-below in `Non-standard Library Locations`_.
+`iMesh-Defs.inc` file. In order to make use of this, specify the command-line
+options ``--imesh-path=PATH`` to the `build_ext` command. For example, if your
+`iMesh-Defs.inc` is located in `/usr/local/iMesh/lib/iMesh-Defs.inc`, then
+``--imesh-path`` should be `/usr/local/iMesh`.  This options may also be
+specified in the `setup.cfg` file (see below). 
+
+If the `iMesh-Defs.inc` file was not installed, or you don't wish to use it,
+you can manually specify the build options as described below in `Non-standard
+Library Locations`_.
+
 
 Requirements
 ============
