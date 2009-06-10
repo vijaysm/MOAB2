@@ -13,10 +13,8 @@ def pair_fun(pre, post):
         post(self)
     return tmp
 
-def new_run(self):
-    if self.imesh_dir:
-        defs = parse_makefile( os.path.join(self.imesh_dir,
-                                            'lib/iMesh-Defs.inc') )
+def add_imesh_defs(imesh_dir, self):
+        defs = parse_makefile( os.path.join(imesh_dir, 'lib/iMesh-Defs.inc') )
 
         lib_match = re.compile(r'(?:(?<=\s)|^)-([lL])\s*(\S*)')
         for match in lib_match.finditer( defs['IMESH_LIBS'] ):
@@ -32,9 +30,14 @@ def new_run(self):
 def new_init(self):
     self.imesh_dir = None
 
-build_ext.user_options.append(('imesh-dir=', None, 'blah blah'))
-build_ext.initialize_options = pair_fun(new_init, build_ext.initialize_options)
-build_ext.run = pair_fun(new_run, build_ext.run)
+def new_fin(self):
+    if self.imesh_dir:
+        add_imesh_defs(self.imesh_dir, self)
+
+build_ext.user_options.append(('imesh-dir=', None,
+                               'root directory for iMesh interface'))
+build_ext.initialize_options = pair_fun(build_ext.initialize_options, new_init)
+build_ext.finalize_options   = pair_fun(build_ext.finalize_options,   new_fin)
 
 
 iBase = Extension('itaps.iBase',
@@ -50,9 +53,9 @@ iMesh = Extension('itaps.iMesh',
                   )
 
 class TestCommand(Command):
-    description = 'Execute a variety of unit tests'
+    description = 'execute a variety of unit tests'
     user_options = [
-        ('verbosity=', 'v', 'verbosity level')
+        ('verbosity=', 'v', 'verbosity level'),
         ]
 
     def initialize_options(self):
@@ -83,10 +86,10 @@ class TestCommand(Command):
 
 
 class DocCommand(Command):
-    description = 'Build documentation'
+    description = 'build documentation'
     user_options = [
         ('builder=', 'b', 'documentation builder'),
-        ('target=',  't', 'target directory')
+        ('target=',  't', 'target directory'),
         ]
 
     def initialize_options(self):
@@ -110,10 +113,10 @@ class DocCommand(Command):
         os.chdir(old)        
 
 class PerfCommand(Command):
-    description = 'Execute performance tests'
+    description = 'build/execute performance tests'
     user_options = [
-        ('file=',  'f', 'test file'),
-        ('count=', 'c', 'number of times to test')
+        ('file=',  'F', 'file or directory containing test file(s)'),
+        ('count=', 'c', 'number of times to test'),
         ]
 
     def initialize_options(self):
@@ -130,17 +133,88 @@ class PerfCommand(Command):
             raise DistutilsOptionError('"count" option must be an integer')
 
     def run(self):
+        for cmd_name in self.get_sub_commands():
+            self.run_command(cmd_name)
+
+    sub_commands = [
+        ('perf_build', None),
+        ('perf_run',   None),
+        ]
+
+class PerfBuildCommand(Command):
+    description = 'build performance tests'
+
+    sep_by = " (separated by '%s')" % os.pathsep
+    user_options = [
+        ('include-dirs=', 'I',
+         'list of directories to search for header files' + sep_by),
+        ('libraries=', 'l',
+         'external C libraries to link with'),
+        ('library-dirs=', 'L',
+         'directories to search for external C libraries' + sep_by),
+        ('imesh-dir=', None, 'root directory for iMesh interface'),
+        ]
+
+    def initialize_options(self):
+        self.include_dirs = []
+        self.library_dirs = []
+        self.libraries = []
+        self.imesh_dir = None
+
+    def finalize_options(self):
+        if self.imesh_dir:
+            add_imesh_defs(self.imesh_dir, self)
+
+    def run(self):
         root = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]),
                                              '../perf'))
         old = os.getcwd()
-
         os.chdir(root)
-        os.system('make all')
-        os.system('python perf.py -c%d "%s"' % (self.count, self.file))
+
+        from distutils.ccompiler import new_compiler
+        self.compiler = new_compiler()
+
+        objs = self.compiler.compile(['perf.c'], include_dirs=self.include_dirs)
+        self.compiler.link_executable(objs, 'perf',
+                                      library_dirs=self.library_dirs,
+                                      libraries=self.libraries)
+
         os.chdir(old)
 
+class PerfRunCommand(Command):
+    description = 'execute performance tests'
+    user_options = [
+        ('file=',  'F', 'file or directory containing test file(s)'),
+        ('count=', 'c', 'number of times to test'),
+        ]
+
+    def initialize_options(self):
+        self.file = None
+        self.count = 20
+
+    def finalize_options(self):
+        self.set_undefined_options('perf',
+                                   ('file', 'file'),
+                                   ('count', 'count') )
+
+        if not self.file:
+            raise DistutilsOptionError('"file" must be specified')
+
+        try:
+            self.count = int(self.count)
+        except ValueError:
+            raise DistutilsOptionError('"count" option must be an integer')
+
+    def run(self):
+        root = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]),
+                                             '../perf'))
+        old = os.getcwd()
+        os.chdir(root)
+        os.system('python perf.py -c%d "%s"' % (self.count, self.file))
+        os.chdir(old) 
+
 setup(name = 'PyTAPS',
-      version = '1.0b1',
+      version = '1.0',
       description = 'Python bindings for iBase and iMesh interfaces',
       author = 'Jim Porter',
       author_email = 'jvporter@wisc.edu',
@@ -153,7 +227,10 @@ setup(name = 'PyTAPS',
       ext_modules = [iBase, iMesh],
       py_modules = ['itaps.helpers'],
 
-      cmdclass = { 'test' : TestCommand,
-                   'doc'  : DocCommand,
-                   'perf' : PerfCommand }
+      cmdclass = { 'test'       : TestCommand,
+                   'doc'        : DocCommand,
+                   'perf'       : PerfCommand,
+                   'perf_build' : PerfBuildCommand,
+                   'perf_run'   : PerfRunCommand
+                   }
       )

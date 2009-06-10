@@ -9,10 +9,10 @@ additional setup.
 
 The PyTAPS setup script supports importing definitions from the
 `iMesh-Defs.inc` file. In order to make use of this, specify the command-line
-options ``--imesh-dir=PATH`` to the `build_ext` command. For example, if your
-`iMesh-Defs.inc` is located in `/usr/local/iMesh/lib/iMesh-Defs.inc`, then
-``--imesh-dir`` should be `/usr/local/iMesh`.  This options may also be
-specified in the `setup.cfg` file:
+options ``--imesh-dir=PATH`` to the `build_ext` and `perf_build` commands. For
+example, if your `iMesh-Defs.inc` is located in
+`/usr/local/iMesh/lib/iMesh-Defs.inc`, then ``--imesh-dir`` should be
+`/usr/local/iMesh`.  This options may also be specified in the `setup.cfg` file:
 
 .. literalinclude:: ../setup.cfg.example
    :language: ini
@@ -42,6 +42,48 @@ Testing
 To run unit/regression tests on the package, you may specify ``test`` as an
 argument to `setup.py`. The test command also accepts a verbosity level (an
 integer), specified with ``-v`` or ``--verbosity``.
+
+Performance Testing
+===================
+
+To run performance tests on the package comparing the speed of a pure-C
+usage of ITAPS with PyTAPS, you may pass ``perf`` as a command to `setup.py`.
+The performance test requires an input file to test. You may also specify the
+number of times to repeat the tests::
+
+  python setup.py perf --file=/path/to/file --count=N
+
+The performance tests consist of two sub-commands, described below.
+
+Building the Performance Test
+-----------------------------
+
+This command builds the C portion of the performance tests. The following
+options are allowed:
+
++--------------------------+--------+---------------------------------------+
+| ``--include-dirs=PATHS`` | ``-I`` | list of directories to search for     |
+|                          |        | include files                         |
++--------------------------+--------+---------------------------------------+
+| ``--library-dirs=PATHS`` | ``-L`` | list of directories to search for     |
+|                          |        | library files                         |
++--------------------------+--------+---------------------------------------+
+| ``--libraries=LIBS``     | ``-l`` | list of libraries to link to          |
++--------------------------+--------+---------------------------------------+
+| ``--imesh-dir=PATH``     | N/A    | root location of iMesh implementation |
++--------------------------+--------+---------------------------------------+
+
+Running the Performance Test
+----------------------------
+
+This command executes the performance tests. The following options are allowed
+(as with ``perf``):
+
++-----------------+--------+-------------------------------------------+
+| ``--file=PATH`` | ``-F`` | file or directory containing test file(s) |
++-----------------+--------+-------------------------------------------+
+| ``--count=N``   | ``-c`` | number of times to repeat each test       |
++-----------------+--------+-------------------------------------------+
 
 Building Documentation
 ======================
