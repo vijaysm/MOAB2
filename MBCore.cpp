@@ -91,6 +91,7 @@ const char *MBCore::errorStrings[] = {
   "MB_ALREADY_ALLOCATED",
   "MB_VARIABLE_DATA_LENGTH",
   "MB_INVALID_SIZE",
+  "MB_UNSUPPORTED_OPERATION",
   "MB_FAILURE",
 };
 
