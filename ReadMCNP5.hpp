@@ -21,16 +21,16 @@ public:
                         const int*        material_set_list,
                         const int         num_material_sets );
 
-  // Constructor
+  // constructor
   ReadMCNP5(MBInterface* impl = NULL);
 
-  // Destructor
+  // destructor
   virtual ~ReadMCNP5();
   
 protected:
   
 private:
-  // Constants
+  // constants
   static const double PI;
   static const double C2PI;
   static const double CPI;
@@ -43,11 +43,17 @@ private:
                   PHOTON,
                   ELECTRON };
   
-  // Read mesh interface
+  // read mesh interface
   MBReadUtilIface* readMeshIface;
   
   // MOAB Interface
   MBInterface* MBI;
+
+  // reads the meshtal file
+  MBErrorCode load_one_file( const char        *fname,
+                             MBEntityHandle    &input_meshset,
+                             const FileOptions &options,
+                             const bool        average );
   
   MBErrorCode create_tags( MBTag &date_and_time_tag,  
                            MBTag &title_tag,
@@ -88,12 +94,15 @@ private:
                                 std::vector<double>  planes[3], 
                                 coordinate_system    &coord_sys);
 
-  MBErrorCode get_mesh_plane( std::istringstream &ss, std::vector<double> &plane);
+  MBErrorCode get_mesh_plane( std::istringstream  &ss, 
+                              bool                debug, 
+                              std::vector<double> &plane);
 
   MBErrorCode read_element_values_and_errors( std::fstream        &file,
                                               bool                debug,
                                               std::vector<double> planes[3],
-                                              int                 n_chopped_x2_planes,
+                                              unsigned int        n_chopped_x0_planes,
+                                              unsigned int        n_chopped_x2_planes,
                                               particle            tally_particle,
                                               double              values[],
                                               double              errors[] );
@@ -109,15 +118,15 @@ private:
                               MBTag             tally_coord_sys_tag );
 
   MBErrorCode create_vertices( std::vector<double> planes[3],
-                               //MBRange             &vert_handles,
+                               bool                debug,
                                MBEntityHandle      &start_vert,
                                coordinate_system   coord_sys,
                                MBEntityHandle      tally_meshset );
  
   MBErrorCode create_elements( bool                debug, 
                                std::vector<double> planes[3],
-                               int                 n_chopped_x2_planes,
-                               //MBRange             vert_handles,
+                               unsigned int        n_chopped_x0_planes,
+                               unsigned int        n_chopped_x2_planes,
                                MBEntityHandle      start_vert,
                                double              values[],
                                double              errors[],
@@ -125,7 +134,8 @@ private:
                                MBTag               error_tag,
                                MBEntityHandle      tally_meshset );
 
-  MBErrorCode average_with_existing_tally( unsigned long int &new_nps,
+  MBErrorCode average_with_existing_tally( bool              debug,
+                                           unsigned long int &new_nps,
                                            unsigned long int nps,
                                            unsigned int      tally_number,
                                            MBTag             tally_number_tag,
@@ -147,5 +157,4 @@ private:
                                    double                  *errors0,
                                    const double            *errors1,
                                    const unsigned long int n_values);
-  
 };
