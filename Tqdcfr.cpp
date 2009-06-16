@@ -30,6 +30,7 @@
 #endif
 
 #include <iostream>
+#include <sstream>
 #include <assert.h>
 
 const bool debug = false;
@@ -803,6 +804,7 @@ MBErrorCode Tqdcfr::read_group(const unsigned int group_index,
 {
     // position file
   FSEEK(model->modelOffset+grouph->memOffset);
+  char name_tag_data[NAME_TAG_SIZE];
   
     // read ids for each entity type
   int this_type, num_ents;
@@ -833,37 +835,42 @@ MBErrorCode Tqdcfr::read_group(const unsigned int group_index,
     if (0 == entityNameTag) {
       result = mdbImpl->tag_get_handle(NAME_TAG_NAME, entityNameTag);
       if (MB_SUCCESS != result || 0 == entityNameTag) {
-        char dum_val[NAME_TAG_SIZE]; dum_val[0] = '\0';
+        memset( name_tag_data, 0, NAME_TAG_SIZE );
         result = mdbImpl->tag_create(NAME_TAG_NAME, NAME_TAG_SIZE, MB_TAG_SPARSE, 
-                                     entityNameTag, &dum_val);
+                                     entityNameTag, &name_tag_data);
       }
     }
     if (0 == entityNameTag) return MB_FAILURE;
     assert(md_entry->mdStringValue.length()+1 <= NAME_TAG_SIZE);
+    memset( name_tag_data, 0, NAME_TAG_SIZE ); // make sure any extra bytes zeroed
+    strncpy( name_tag_data, md_entry->mdStringValue.c_str(), NAME_TAG_SIZE );
     result = mdbImpl->tag_set_data(entityNameTag, &grouph->setHandle, 1, 
-                                   md_entry->mdStringValue.c_str());
+                                   name_tag_data);
     
       // look for extra names
     md_index = model->groupMD.get_md_entry(group_index, "NumExtraNames");
     if (-1 != md_index) {
       int num_names = model->groupMD.metadataEntries[md_index].mdIntValue;
-      char extra_name_label[NAME_TAG_SIZE], moab_extra_name[NAME_TAG_SIZE];
       for (int i = 0; i < num_names; i++) {
-        sprintf(extra_name_label, "ExtraName%d", i);
-        sprintf(moab_extra_name, "%s%s%d", "EXTRA_", NAME_TAG_NAME, i);
-        md_index = model->groupMD.get_md_entry(group_index, extra_name_label);
+        std::ostringstream extra_name_label( "ExtraName" );
+        extra_name_label << i;
+        std::ostringstream moab_extra_name( "EXTRA_" );
+        moab_extra_name << NAME_TAG_NAME << i;
+        md_index = model->groupMD.get_md_entry(group_index, extra_name_label.str().c_str());
         if (-1 != md_index) {
           md_entry = &(model->groupMD.metadataEntries[md_index]);
           MBTag extra_name_tag;
-          result = mdbImpl->tag_get_handle(moab_extra_name, extra_name_tag);
+          result = mdbImpl->tag_get_handle(moab_extra_name.str().c_str(), extra_name_tag);
           assert(md_entry->mdStringValue.length()+1 <= NAME_TAG_SIZE);
           if (MB_SUCCESS != result || 0 == extra_name_tag) {
-            char dum_val[NAME_TAG_SIZE]; dum_val[0] = '\0';
-            result = mdbImpl->tag_create(moab_extra_name, NAME_TAG_SIZE, MB_TAG_SPARSE, 
-                                         extra_name_tag, &dum_val);
+            memset( name_tag_data, 0, NAME_TAG_SIZE );
+            result = mdbImpl->tag_create(moab_extra_name.str().c_str(), NAME_TAG_SIZE, MB_TAG_SPARSE, 
+                                         extra_name_tag, &name_tag_data );
           }
+          memset( name_tag_data, 0, NAME_TAG_SIZE ); // make sure any extra bytes zeroed
+          strncpy( name_tag_data, md_entry->mdStringValue.c_str(), NAME_TAG_SIZE );
           result = mdbImpl->tag_set_data(extra_name_tag, &grouph->setHandle, 1, 
-                                         md_entry->mdStringValue.c_str());
+                                         name_tag_data);
         }
       }
     }
