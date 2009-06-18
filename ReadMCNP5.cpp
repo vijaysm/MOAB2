@@ -74,7 +74,7 @@ MBErrorCode ReadMCNP5::load_file(const char        *filename,
                             input_meshset, 
                             options, 
                             average );
-    assert(MB_SUCCESS==result);
+    if(MB_SUCCESS != result) return result;
 
     // get the root filename
     std::string root_filename(filename);
@@ -91,7 +91,7 @@ MBErrorCode ReadMCNP5::load_file(const char        *filename,
                               input_meshset, 
                               options, 
                               average );
-      assert(MB_SUCCESS==result);
+      if(MB_SUCCESS != result) return result;
     }
  
   // if not averaging, read a single file
@@ -100,7 +100,7 @@ MBErrorCode ReadMCNP5::load_file(const char        *filename,
                             input_meshset, 
                             options, 
                             average );
-    assert(MB_SUCCESS == result);
+    if(MB_SUCCESS != result) return result;
   }
   
   return MB_SUCCESS;
@@ -141,7 +141,7 @@ MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
                         tally_coord_sys_tag, 
                         tally_tag,         
                         error_tag );
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
 
   // ******************************************************************
   // This info exists only at the top of each meshtal file
@@ -161,7 +161,7 @@ MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
                              date_and_time, 
                              title,
                              nps );
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
 
   // blank line
   file.getline(line, 10000);
@@ -171,7 +171,7 @@ MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
   MBEntityHandle output_meshset;
   if (!average) {
     result = MBI->create_meshset( MESHSET_SET, output_meshset );
-    assert(MB_SUCCESS == result);
+    if(MB_SUCCESS != result) return result;
     result = set_header_tags( output_meshset, 
                               date_and_time,
                               title,
@@ -179,7 +179,7 @@ MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
                               date_and_time_tag,
                               title_tag,
                               nps_tag );
-    assert(MB_SUCCESS == result);
+    if(MB_SUCCESS != result) return result;
   }
 
   // ******************************************************************
@@ -204,7 +204,7 @@ MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
                                 tally_number, 
                                 tally_comment,
                                 tally_particle );
-    assert(MB_SUCCESS == result);
+    if(MB_SUCCESS != result) return result;
     
     // blank line
     file.getline(line, 10000);
@@ -214,7 +214,7 @@ MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
                                debug, 
                                planes, 
                                tally_coord_sys );
-    assert(MB_SUCCESS == result);
+    if(MB_SUCCESS != result) return result;
 
     // get energy boundaries
     file.getline(line, 10000);
@@ -269,7 +269,7 @@ MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
                                              tally_particle,
                                              values, 
                                              errors );
-    assert(MB_SUCCESS == result);
+    if(MB_SUCCESS != result) return result;
     
     // blank line
     file.getline(line, 10000);
@@ -282,7 +282,7 @@ MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
     if (!average) {
       MBEntityHandle tally_meshset;
       result = MBI->create_meshset(MESHSET_SET, tally_meshset);
-      assert(MB_SUCCESS == result);
+      if(MB_SUCCESS != result) return result;
       
       // set tags on the tally
       result = set_tally_tags( tally_meshset,
@@ -294,7 +294,7 @@ MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
                                tally_comment_tag,
                                tally_particle_tag,
                                tally_coord_sys_tag );
-      assert(MB_SUCCESS == result);
+      if(MB_SUCCESS != result) return result;
 
       // The only info needed to build elements is the mesh plane boundaries.
       // Build vertices...
@@ -304,7 +304,7 @@ MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
                                 start_vert, 
                                 tally_coord_sys,
                                 tally_meshset );
-      assert(MB_SUCCESS == result); 
+      if(MB_SUCCESS != result) return result; 
       
       // Build elements and tag them with tally values and errors, then add
       // them to the tally_meshset.
@@ -318,12 +318,12 @@ MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
                                 tally_tag, 
                                 error_tag, 
                                 tally_meshset );
-      assert(MB_SUCCESS == result); 
+      if(MB_SUCCESS != result) return result; 
       
       // add this tally's meshset to the output meshset
       if (debug) std::cout << "not averaging tally" << std::endl;
       result = MBI->add_entities( output_meshset, &tally_meshset, 1);
-      assert(MB_SUCCESS == result);
+      if(MB_SUCCESS != result) return result;
 
     // average the tally values, then delete stuff that was created
     } else {
@@ -339,7 +339,7 @@ MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
                                             values,
                                             errors,
                                             n_elements );
-      assert(MB_SUCCESS == result);
+      if(MB_SUCCESS != result) return result;
     }
 
     // clean up
@@ -354,12 +354,12 @@ MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
     MBRange matching_nps_sets;
     result = MBI->get_entities_by_type_and_tag( 0, MBENTITYSET, &nps_tag, 
                                                 0, 1, matching_nps_sets );
-    assert(MB_SUCCESS == result);
+    if(MB_SUCCESS != result) return result;
     if (debug) std::cout << "number of matching nps meshsets=" 
                          << matching_nps_sets.size() << std::endl;
     assert(1 == matching_nps_sets.size());
     result = MBI->tag_set_data( nps_tag, matching_nps_sets, &new_nps );
-    assert(MB_SUCCESS == result);
+    if(MB_SUCCESS != result) return result;
 
   // If this file is not being averaged, return the output meshset.
   } else {
@@ -383,31 +383,31 @@ MBErrorCode ReadMCNP5::create_tags( MBTag &date_and_time_tag,
   MBErrorCode result;
   result = MBI->tag_create("DATE_AND_TIME_TAG", sizeof(char[100]), MB_TAG_SPARSE, 
                            MB_TYPE_OPAQUE, date_and_time_tag, 0);
-  assert(MB_SUCCESS==result || MB_ALREADY_ALLOCATED==result);
+  if(MB_SUCCESS!=result && MB_ALREADY_ALLOCATED!=result) return result;
   result = MBI->tag_create("TITLE_TAG", sizeof(char[100]), MB_TAG_SPARSE, 
                            MB_TYPE_OPAQUE, title_tag, 0);
-  assert(MB_SUCCESS==result || MB_ALREADY_ALLOCATED==result);
+  if(MB_SUCCESS!=result && MB_ALREADY_ALLOCATED!=result) return result;
   result = MBI->tag_create("NPS_TAG", sizeof(unsigned long int), 
                            MB_TAG_SPARSE, MB_TYPE_OPAQUE, nps_tag, 0);
-  assert(MB_SUCCESS==result || MB_ALREADY_ALLOCATED==result);
+  if(MB_SUCCESS!=result && MB_ALREADY_ALLOCATED!=result) return result;
   result = MBI->tag_create("TALLY_NUMBER_TAG", sizeof(int), MB_TAG_SPARSE, 
                            MB_TYPE_INTEGER, tally_number_tag, 0);
-  assert(MB_SUCCESS==result || MB_ALREADY_ALLOCATED==result);
+  if(MB_SUCCESS!=result && MB_ALREADY_ALLOCATED!=result) return result;
   result = MBI->tag_create("TALLY_COMMENT_TAG", sizeof(char[100]), MB_TAG_SPARSE,
                            MB_TYPE_OPAQUE, tally_comment_tag, 0);
-  assert(MB_SUCCESS==result || MB_ALREADY_ALLOCATED==result);
+  if(MB_SUCCESS!=result && MB_ALREADY_ALLOCATED!=result) return result;
   result = MBI->tag_create("TALLY_PARTICLE_TAG", sizeof(particle), MB_TAG_SPARSE,
                            MB_TYPE_OPAQUE, tally_particle_tag, 0);
-  assert(MB_SUCCESS==result || MB_ALREADY_ALLOCATED==result);
+  if(MB_SUCCESS!=result && MB_ALREADY_ALLOCATED!=result) return result;
   result = MBI->tag_create("TALLY_COORD_SYS_TAG", sizeof(coordinate_system), MB_TAG_SPARSE,
                            MB_TYPE_OPAQUE, tally_coord_sys_tag, 0);
-  assert(MB_SUCCESS==result || MB_ALREADY_ALLOCATED==result);
+  if(MB_SUCCESS!=result && MB_ALREADY_ALLOCATED!=result) return result;
   result = MBI->tag_create("TALLY_TAG", sizeof(double), MB_TAG_DENSE, 
                            MB_TYPE_DOUBLE, tally_tag, 0);
-  assert(MB_SUCCESS==result || MB_ALREADY_ALLOCATED==result);
+  if(MB_SUCCESS!=result && MB_ALREADY_ALLOCATED!=result) return result;
   result = MBI->tag_create("ERROR_TAG", sizeof(double), MB_TAG_DENSE, 
                            MB_TYPE_DOUBLE, error_tag, 0);
-  assert(MB_SUCCESS==result || MB_ALREADY_ALLOCATED==result);
+  if(MB_SUCCESS!=result && MB_ALREADY_ALLOCATED!=result) return result;
   return MB_SUCCESS;
 }
 
@@ -454,11 +454,11 @@ MBErrorCode ReadMCNP5::set_header_tags( MBEntityHandle    output_meshset,
                                         MBTag             nps_tag ) {
   MBErrorCode result;
   result = MBI->tag_set_data( data_and_time_tag, &output_meshset, 1, &date_and_time);
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   result = MBI->tag_set_data( title_tag, &output_meshset, 1, &title);
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   result = MBI->tag_set_data( nps_tag, &output_meshset, 1, &nps);
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   return MB_SUCCESS;
 }
 
@@ -470,7 +470,7 @@ MBErrorCode ReadMCNP5::read_tally_header( std::fstream   &file,
 
   // get tally number
   // Mesh Tally Number 104
-  MBEntityHandle result;
+  MBErrorCode result;
   char line[100];
   file.getline(line, 100);
   std::string a = line;
@@ -500,7 +500,7 @@ MBErrorCode ReadMCNP5::read_tally_header( std::fstream   &file,
     file.getline(line, 100);
     a = line;
     result = get_tally_particle(a, debug, tally_particle);
-    assert(MB_SUCCESS==result);
+    if(MB_SUCCESS != result) return result;
   }
   if (debug) std::cout << "tally_comment=| " << tally_comment << std::endl;
   return MB_SUCCESS;
@@ -578,7 +578,7 @@ MBErrorCode ReadMCNP5::read_mesh_planes( std::fstream        &file,
     if (std::string::npos != b) {
       std::istringstream ss(a.substr(b+sizeof("R direction"),10000));
       result = get_mesh_plane( ss, debug, planes[0] );
-      assert(MB_SUCCESS == result);
+      if(MB_SUCCESS != result) return result;
     } else return MB_FAILURE;
 
     // get z planes
@@ -589,7 +589,7 @@ MBErrorCode ReadMCNP5::read_mesh_planes( std::fstream        &file,
     if (std::string::npos != b) {
       std::istringstream ss(a.substr(b+sizeof("Z direction"),10000));
       result = get_mesh_plane( ss, debug, planes[1] );
-      assert(MB_SUCCESS == result);
+      if(MB_SUCCESS != result) return result;
     } else return MB_FAILURE;
 
     // get theta planes
@@ -600,7 +600,7 @@ MBErrorCode ReadMCNP5::read_mesh_planes( std::fstream        &file,
     if (std::string::npos != b) {
       std::istringstream ss(a.substr(b+sizeof("Theta direction (revolutions):"),10000));
       result = get_mesh_plane( ss, debug, planes[2] );
-      assert(MB_SUCCESS == result);
+      if(MB_SUCCESS != result) return result;
     } else return MB_FAILURE;
     
   // Cartesian coordinate system:
@@ -612,7 +612,7 @@ MBErrorCode ReadMCNP5::read_mesh_planes( std::fstream        &file,
     if (std::string::npos != b) {
       std::istringstream ss(a.substr(b+sizeof("X direction"),10000));
       result = get_mesh_plane( ss, debug, planes[0] );
-      assert(MB_SUCCESS == result);
+      if(MB_SUCCESS != result) return result;
     } else return MB_FAILURE;
 
     // get y planes
@@ -623,7 +623,7 @@ MBErrorCode ReadMCNP5::read_mesh_planes( std::fstream        &file,
     if (std::string::npos != b) {
       std::istringstream ss(a.substr(b+sizeof("Y direction"),10000));
       result = get_mesh_plane( ss, debug, planes[1] );
-      assert(MB_SUCCESS == result);
+      if(MB_SUCCESS != result) return result;
     } else return MB_FAILURE;
 
     // get z planes
@@ -634,7 +634,7 @@ MBErrorCode ReadMCNP5::read_mesh_planes( std::fstream        &file,
     if (std::string::npos != b) {
       std::istringstream ss(a.substr(b+sizeof("Z direction"),10000));
       result = get_mesh_plane( ss, debug, planes[2] );
-      assert(MB_SUCCESS == result);
+      if(MB_SUCCESS != result) return result;
     } else return MB_FAILURE;
 
   // Spherical coordinate system not yet implemented:
@@ -720,13 +720,13 @@ MBErrorCode ReadMCNP5::set_tally_tags( MBEntityHandle    tally_meshset,
                                        MBTag             tally_coord_sys_tag ) {
   MBErrorCode result;
   result = MBI->tag_set_data( tally_number_tag,    &tally_meshset, 1, &tally_number);
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   result = MBI->tag_set_data( tally_comment_tag,   &tally_meshset, 1, &tally_comment);
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   result = MBI->tag_set_data( tally_particle_tag,  &tally_meshset, 1, &tally_particle);
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   result = MBI->tag_set_data( tally_coord_sys_tag, &tally_meshset, 1, &tally_coord_sys);
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   return MB_SUCCESS;
 }
 
@@ -743,7 +743,7 @@ MBErrorCode ReadMCNP5::create_vertices( std::vector<double> planes[3],
   std::vector<double*> coord_arrays(3);
   result = readMeshIface->get_node_arrays( 3, n_verts, MB_START_ID, 
                                            start_vert, coord_arrays );
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   assert(0 != start_vert); // check for NULL
 
   for (unsigned int k=0; k < planes[2].size(); k++) {
@@ -757,7 +757,7 @@ MBErrorCode ReadMCNP5::create_vertices( std::vector<double> planes[3],
         in[1] = planes[1][j];
         in[2] = planes[2][k];
         result = transform_point_to_cartesian( in, out, coord_sys );
-        assert(MB_SUCCESS == result);
+        if(MB_SUCCESS != result) return result;
 
         coord_arrays[0][idx] = out[0];
         coord_arrays[1][idx] = out[1];
@@ -767,7 +767,7 @@ MBErrorCode ReadMCNP5::create_vertices( std::vector<double> planes[3],
   }
   MBRange vert_range(start_vert, start_vert+n_verts-1);
   result = MBI->add_entities( tally_meshset, vert_range );
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   return MB_SUCCESS;
 }
 
@@ -789,7 +789,7 @@ MBErrorCode ReadMCNP5::create_elements( bool                debug,
   MBEntityHandle *connect;
   result = readMeshIface->get_element_array( n_elements, 8, MBHEX, MB_START_ID, 
                                              start_element, connect );
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   assert(0 != start_element); // check for NULL
 
   unsigned int counter = 0;
@@ -818,13 +818,13 @@ MBErrorCode ReadMCNP5::create_elements( bool                debug,
 
   MBRange element_range(start_element, start_element+n_elements-1);
   result = MBI->tag_set_data(tally_tag, element_range, values);
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   result = MBI->tag_set_data(error_tag, element_range, errors);
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   
   // add the elements to the tally set
   result = MBI->add_entities( tally_meshset, element_range );
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   if (debug) std::cout << "Read " << n_elements << " elements from tally." << std::endl;
   return MB_SUCCESS;
 }
@@ -852,7 +852,7 @@ MBErrorCode ReadMCNP5::average_with_existing_tally( bool         debug,
   result = MBI->get_entities_by_type_and_tag( 0, MBENTITYSET, &tally_number_tag, 
                                               tally_number_val, 1, 
                                               matching_tally_number_sets );
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   if (debug) std::cout << "number of matching meshsets=" 
                        << matching_tally_number_sets.size() << std::endl;
   assert(1 == matching_tally_number_sets.size());
@@ -864,7 +864,7 @@ MBErrorCode ReadMCNP5::average_with_existing_tally( bool         debug,
   // get the existing elements from the set
   MBRange existing_elements;
   result = MBI->get_entities_by_type( existing_meshset, MBHEX, existing_elements );
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   assert(existing_elements.size() == n_elements);
 
   // get the nps of the existing and new tally
@@ -872,11 +872,11 @@ MBErrorCode ReadMCNP5::average_with_existing_tally( bool         debug,
   MBRange sets_with_this_tag;
   result = MBI->get_entities_by_type_and_tag( 0, MBENTITYSET, &nps_tag, 0, 1, 
                                               sets_with_this_tag);
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   if (debug) std::cout << "number of nps sets=" << sets_with_this_tag.size() << std::endl;
   assert(1 == sets_with_this_tag.size());
   result = MBI->tag_get_data( nps_tag, &sets_with_this_tag.front(), 1, &nps0);
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   if (debug) std::cout << "nps0=" << nps0 << " nps1=" << nps1 << std::endl;
   new_nps = nps0 + nps1;
 
@@ -884,20 +884,20 @@ MBErrorCode ReadMCNP5::average_with_existing_tally( bool         debug,
   double *values0 = new double [existing_elements.size()];
   double *errors0 = new double [existing_elements.size()];
   result = MBI->tag_get_data( tally_tag, existing_elements, values0 );
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   result = MBI->tag_get_data( error_tag, existing_elements, errors0 );
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
 
   // average the values and errors
   result = average_tally_values( nps0, nps1, values0, values1, 
                                  errors0, errors1, n_elements );
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   
   // set the averaged information back onto the existing elements
   result = MBI->tag_set_data( tally_tag, existing_elements, values0 );
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   result = MBI->tag_set_data( error_tag, existing_elements, errors0 );
-  assert(MB_SUCCESS == result);
+  if(MB_SUCCESS != result) return result;
   
   // cleanup
   delete[] values0;
