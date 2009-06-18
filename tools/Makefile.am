@@ -41,6 +41,10 @@ if ENABLE_mbskin
   doc_DATA += README.mbskin
 endif
 
+if ENABLE_mbdepth
+  bin_PROGRAMS += mbdepth
+endif
+
 if ENABLE_mbtagprop
   bin_PROGRAMS += mbtagprop
   doc_DATA += README.mbtagprop
@@ -131,6 +135,9 @@ mbsize_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 mbskin_SOURCES = skin.cpp
 mbskin_DEPENDENCIES = $(top_builddir)/libMOAB.la
+
+mbdepth_SOURCES = depth.cpp
+mbdepth_DEPENDENCIES = $(top_builddir)/libMOAB.la
 
 spheredecomp_SOURCES = SphereDecomp.hpp SphereDecomp.cpp main.cpp
 spheredecomp_DEPENDENCIES = $(top_builddir)/libMOAB.la

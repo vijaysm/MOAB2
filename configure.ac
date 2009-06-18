@@ -310,6 +310,7 @@ MB_OPTIONAL_TOOL([mbsurfplot],   [yes])
 MB_OPTIONAL_TOOL([mbzoltan],     [no] )
 MB_OPTIONAL_TOOL([dagmc],        [yes])
 MB_OPTIONAL_TOOL([gsets],        [yes])
+MB_OPTIONAL_TOOL([mbdepth],      [yes])
 
 
 ################################################################################
