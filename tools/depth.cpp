@@ -153,4 +153,6 @@ void tag_depth( MBInterface& mb, MBTag tag )
         elems.insert( *i );
     }
   }
+  
+  std::cout << "Maximum depth: " << depth << std::endl;
 }
