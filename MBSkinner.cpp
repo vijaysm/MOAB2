@@ -312,16 +312,22 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
         result = thisMB->get_adjacencies(sub_conn, num_sub_nodes, source_dim, false,
                                          dum_elems);
         if (MB_SUCCESS != result) return result;
-        assert(0 < dum_elems.size() && 3 > dum_elems.size());
-        if (1 == dum_elems.size() ||
-            (2 == dum_elems.size() && 
-             (source_entities.find(*dum_elems.begin()) == source_entities.end() ||
-              source_entities.find(*dum_elems.rbegin()) == source_entities.end()))) {
+        dum_elems = dum_elems.intersect( source_entities );
+        if (dum_elems.empty()) {
+          assert(false);  // should never happen
+          return MB_FAILURE;
+        }
+        // if (dum_elems.size() > 2) { 
+          // source entities do not form a valid source-dim patch (t-junction).
+          // do we care?
+        // }
+        
+        if (1 == dum_elems.size()) {
             // this sub_element is on the skin
 
             // check for existing entity
           dum_sub_elems.clear();
-          result = thisMB->get_adjacencies(sub_conn, num_sub_nodes, source_dim-1, false,
+          result = thisMB->get_adjacencies(sub_conn, num_sub_nodes, mTargetDim, false,
                                            dum_sub_elems);
           if (MB_SUCCESS != result) return result;
           if (dum_sub_elems.empty()) {
