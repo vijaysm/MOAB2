@@ -1217,7 +1217,7 @@ MBErrorCode WriteHDF5::range_to_id_list( const MBRange& range,
         continue;
       }
 
-      id_t n = pi->second - pi->first + 1;
+      id_t n = pi->second - h + 1;
       if (n > ri->count)
         n = ri->count;
 
