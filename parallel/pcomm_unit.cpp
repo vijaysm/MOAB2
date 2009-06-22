@@ -38,8 +38,10 @@ void test_pack_bit_tag_data();
 void test_pack_variable_length_tag();
 /** Test pack/unpack tag values*/
 void test_pack_tag_handle_data();
-/** Test pack/unpack of shared entities*/
-void test_pack_shared_entities();
+/** Test pack/unpack of shared entities in 2d*/
+void test_pack_shared_entities_2d();
+/** Test pack/unpack of shared entities in 3d*/
+void test_pack_shared_entities_3d();
 /** Test filter_pstatus function*/
 void test_filter_pstatus();
 
@@ -64,7 +66,8 @@ int main( int argc, char* argv[] )
   //num_err += RUN_TEST( test_pack_bit_tag_data );
   num_err += RUN_TEST( test_pack_variable_length_tag );
   num_err += RUN_TEST( test_pack_tag_handle_data );
-  num_err += RUN_TEST( test_pack_shared_entities );
+  num_err += RUN_TEST( test_pack_shared_entities_2d );
+  num_err += RUN_TEST( test_pack_shared_entities_3d );
   num_err += RUN_TEST( test_filter_pstatus );
   
 #ifdef USE_MPI
@@ -105,11 +108,11 @@ void pack_unpack_noremoteh( MBCore& moab, MBRange& entities )
   pcomm = new MBParallelComm( &moab);
   
   entities.clear();
-  std::vector<std::vector<MBEntityHandle> > L1h;
+  std::vector<std::vector<MBEntityHandle> > L1hloc, L1hrem;
   std::vector<std::vector<int> > L1p;
   std::vector<MBEntityHandle> L2hloc, L2hrem;
   std::vector<unsigned int> L2p;
-  rval = pcomm->unpack_buffer( &buff[0], false, -1, -1, L1h, L1p, L2hloc, 
+  rval = pcomm->unpack_buffer( &buff[0], false, -1, -1, L1hloc, L1hrem, L1p, L2hloc, 
                                L2hrem, L2p, entities);
   CHECK_ERR(rval);
 
@@ -310,7 +313,7 @@ MBErrorCode create_patch(MBInterface *moab, MBRange &verts, MBRange &quads,
   int dum_default = -1;
   result = moab->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE,
                            MB_TYPE_INTEGER, gid_tag, &dum_default, true);
-  if (MB_SUCCESS != result) return result;
+  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
   result = moab->tag_set_data(gid_tag, verts, gids);
   if (MB_SUCCESS != result) return result;
 
@@ -391,7 +394,7 @@ MBErrorCode set_owners(MBParallelComm **pc, MBRange *verts, MBRange *quads,
   return MB_SUCCESS;
 }
 
-MBErrorCode create_shared_grid(MBParallelComm **pc, MBRange *verts, MBRange *quads) 
+MBErrorCode create_shared_grid_2d(MBParallelComm **pc, MBRange *verts, MBRange *quads) 
 {
 //          
 //        P2______
@@ -442,7 +445,101 @@ MBErrorCode create_shared_grid(MBParallelComm **pc, MBRange *verts, MBRange *qua
     create_patch(pc[i]->get_moab(), verts[i], quads[i], 3, xyztmp, &gids[9*i]);
   }
 
-  MBErrorCode rval = set_owners(pc, verts, quads, false);
+  MBErrorCode rval = MBParallelComm::resolve_shared_ents(pc, 4, 2);
+  CHECK_ERR(rval);
+
+  return rval;
+}
+
+MBErrorCode create_shared_grid_3d(MBParallelComm **pc, MBRange *verts, MBRange *hexes) 
+{
+//    
+//   4 _____   _____ 
+//    |  |  | |  |  |
+//   3|__|__| |__|__|
+//    |P1|  | |P2|  |
+//    |__|__| |__|__|
+//    2 ___________         P3 - k = 2..4
+//     |  |  |  |  | 
+// /  1|__|__|__|__|         
+// |   |  |P0|  |  |         
+// J  0|__|__|__|__|        
+// I-> 0  1  2  3  4
+  
+    // create structured meshes
+    // ijkmin[p][ijk], ijkmax[p][ijk]
+#define P 4
+  int ijkmin[P][3] = { {0, 0, 0}, {0, 2, 0}, {2, 2, 0}, {0, 0, 2}};
+  int ijkmax[P][3] = { {4, 2, 2}, {2, 4, 2}, {4, 4, 2}, {4, 4, 4}};
+
+  int nijk[P][3];
+  int NIJK[3] = {0, 0, 0};
+#define INDEX(i, j, k) (k * NIJK[1] * NIJK[0] + j * NIJK[0] + i)
+
+  int p, i, j, k;
+  for (int p = 0; p < P; p++) {
+    for (int i = 0; i < 3; i++) {
+      nijk[p][i] =  ijkmax[p][i] - ijkmin[p][i] + 1;
+      NIJK[i] = std::max(NIJK[i], nijk[p][i]);
+    }
+  }
+    
+  std::vector<int> gids;
+  std::vector<double> xyz;
+  MBErrorCode rval;
+  MBTag gid_tag;
+  int dum_default = -1;
+  if (MB_SUCCESS != rval) return rval;
+
+  for (p = 0; p < P; p++) {
+    rval = pc[p]->get_moab()->tag_create(GLOBAL_ID_TAG_NAME, 
+                                         sizeof(int), MB_TAG_DENSE,
+                                         MB_TYPE_INTEGER, gid_tag, 
+                                         &dum_default, true);
+    if (MB_SUCCESS != rval && MB_ALREADY_ALLOCATED != rval) return rval;
+
+      // make vertices
+    int nverts = nijk[p][0] * nijk[p][1] * nijk[p][2];
+    xyz.resize(3*nverts);
+    gids.resize(nverts);
+    rval = pc[p]->get_moab()->create_vertices(&xyz[0], nverts, verts[p]);
+    CHECK_ERR(rval);
+
+      // set vertex gids
+    int nv = 0;
+    for (k = ijkmin[p][2]; k < ijkmax[p][2]; k++) 
+      for (j = ijkmin[p][1]; j < ijkmax[p][1]; j++) 
+        for (i = ijkmin[p][0]; i < ijkmax[p][0]; i++)
+            // gid
+          gids[nv++] = INDEX(i, j, k);
+
+    rval = pc[p]->get_moab()->tag_set_data(gid_tag, verts[p], &gids[0]);
+    if (MB_SUCCESS != rval) return rval;
+
+      // make elements
+    nv = 0;
+    MBEntityHandle connect[8], dum_hex;
+    for (k = ijkmin[p][2]; k < ijkmax[p][2]-1; k++) 
+      for (j = ijkmin[p][1]; j < ijkmax[p][1]-1; j++) 
+        for (i = ijkmin[p][0]; i < ijkmax[p][0]-1; i++) {
+            // gid
+          connect[0] = verts[p][INDEX(i, j, k)];
+          connect[1] = verts[p][INDEX(i+1, j, k)];
+          connect[2] = verts[p][INDEX(i+1, j+1, k)];
+          connect[3] = verts[p][INDEX(i, j+1, k)];
+          connect[4] = verts[p][INDEX(i, j, k+1)];
+          connect[5] = verts[p][INDEX(i+1, j, k+1)];
+          connect[6] = verts[p][INDEX(i+1, j+1, k+1)];
+          connect[7] = verts[p][INDEX(i, j+1, k+1)];
+          rval = pc[p]->get_moab()->create_element(MBHEX, connect, 8, dum_hex);
+          hexes[p].insert(dum_hex);
+          gids[nv++] = INDEX(i, j, k);
+        }
+    rval = pc[p]->get_moab()->tag_set_data(gid_tag, hexes[p], &gids[0]);
+    if (MB_SUCCESS != rval) return rval;
+  }
+  
+  rval = MBParallelComm::resolve_shared_ents(pc, 3, 3);
   CHECK_ERR(rval);
   return rval;
 }
@@ -1282,6 +1379,7 @@ void test_pack_tag_data_sparse()
                         MB_TYPE_INTEGER,
                         sparse_2_int_tag,
                         0 );
+  if (MB_ALREADY_ALLOCATED == rval) rval = MB_SUCCESS;
   CHECK_ERR(rval);
   bool skip = false;
   for (i = elems.begin(); i != elems.end(); ++i, skip = !skip) {
@@ -1825,10 +1923,30 @@ MBErrorCode get_entities(MBInterface *mb,
   return MB_SUCCESS;
 }
   
-void test_pack_shared_entities()
+void test_pack_shared_entities_2d()
 {
   MBCore moab[4];
-  MBInterface *mb[] = {&moab[0], &moab[1], &moab[2], &moab[3]};
+  MBParallelComm *pc[4];
+  for (unsigned int i = 0; i < 4; i++) {
+    pc[i] = new MBParallelComm(&moab[i]);
+    pc[i]->set_rank(i);
+  }
+
+  MBRange verts[4], quads[4];
+  MBErrorCode rval = create_shared_grid_2d(pc, verts, quads);
+
+    // exchange interface cells
+  rval = MBParallelComm::exchange_ghost_cells(pc, 4, -1, -1, 0, true);
+  CHECK_ERR(rval);
+  
+    // now 1 layer of hex ghosts
+  rval = MBParallelComm::exchange_ghost_cells(pc, 4, 2, 0, 1, true);
+  CHECK_ERR(rval);
+}
+
+void test_pack_shared_entities_3d()
+{
+  MBCore moab[4];
   MBParallelComm *pc[4];
   for (unsigned int i = 0; i < 4; i++) {
     pc[i] = new MBParallelComm(&moab[i]);
@@ -1839,261 +1957,16 @@ void test_pack_shared_entities()
     }
   }
 
-  MBRange verts[4], quads[4];
-  MBErrorCode rval = create_shared_grid(pc, verts, quads);
+  MBRange verts[4], hexes[4];
+  MBErrorCode rval = create_shared_grid_3d(pc, verts, hexes);
 
-  std::vector<std::vector<MBEntityHandle> > L1h[4];
-  std::vector<std::vector<int> > L1p[4];
-  for (unsigned int i = 0; i < 4; i++) {
-    L1h[i].resize(4);
-    L1p[i].resize(4);
-  }
+    // exchange interface cells
+  rval = MBParallelComm::exchange_ghost_cells(pc, 4, -1, -1, 0, true);
+  CHECK_ERR(rval);
   
-  std::vector<MBEntityHandle> L2hloc[4];
-  std::vector<MBEntityHandle> L2hrem[4];
-  std::vector<unsigned int> L2p[4];
-  MBRange new_ents[4];
-  MBRange sent_ents;
-  std::vector<MBEntityHandle> ent_verts, dum_handles;
-  std::vector<int> dum_procs;
-  std::vector<std::set<unsigned int> > entprocs(4);
-  std::vector<unsigned char> buffer;
-  buffer.reserve(1);
-  unsigned char *buff_ptr = &buffer[0];
-
-    //========================
-    // interface, shared, 0->2
-    // get edges that we want
-  ent_verts.push_back(verts[0][6]); ent_verts.push_back(verts[0][7]);
-  ent_verts.push_back(verts[0][7]); ent_verts.push_back(verts[0][8]);
-  rval = get_entities(mb[0], ent_verts, 2, 1, sent_ents);
+    // now 1 layer of hex ghosts
+  rval = MBParallelComm::exchange_ghost_cells(pc, 4, 3, 0, 1, true);
   CHECK_ERR(rval);
-  assert(2 == sent_ents.size());
-    // set entprocs
-  entprocs[0].insert(2); entprocs[1].insert(2);
-  
-  rval = pc[0]->pack_entities(sent_ents, buffer, buff_ptr, true, 2,
-                              true, &entprocs);
-  CHECK_ERR(rval);
-
-    // now unpack the buffer
-  buff_ptr = &buffer[0];
-  rval = pc[2]->unpack_entities(buff_ptr, true, 0, true,
-                                L1h[2], L1p[2], L2hloc[2], L2hrem[2], L2p[2], new_ents[2]);
-    // all L1h lists should be empty, since we're dealing with iface
-  if (!L1h[2][0].empty() || !L1h[2][1].empty() || 
-      !L1h[2][2].empty() || !L1h[2][3].empty() || 
-      !L2p[2].empty() || !new_ents[2].empty()) rval = MB_FAILURE;
-  CHECK_ERR(rval);
-
-  buffer.clear(); buff_ptr = &buffer[0];
-  ent_verts.clear(); sent_ents.clear();
-
-    //========================
-    // interface, multishared, 1st message, 0->1
-  ent_verts.push_back(verts[0][8]); ent_verts.push_back(verts[0][5]);
-  ent_verts.push_back(verts[0][5]); ent_verts.push_back(verts[0][2]);
-  rval = get_entities(mb[0], ent_verts, 2, 1, sent_ents);
-  CHECK_ERR(rval);
-  assert(2 == sent_ents.size());
-    // sending these edges to 1 and 3
-  entprocs[0].insert(1); entprocs[0].insert(3);
-  entprocs[1].insert(1); entprocs[1].insert(3);
-
-  rval = pc[0]->pack_entities(sent_ents, buffer, buff_ptr, true, 1,
-                              true, &entprocs);
-  CHECK_ERR(rval);
-
-    // now unpack the buffer
-  buff_ptr = &buffer[0];
-  rval = pc[1]->unpack_entities(buff_ptr, true, 0, true,
-                                L1h[1], L1p[1], L2hloc[1], L2hrem[1], L2p[1], new_ents[1]);
-    // all L1h lists should be empty, since we're dealing with iface
-  if (!L1h[1][0].empty() || !L1h[1][1].empty() || 
-      !L1h[1][2].empty() || !L1h[1][3].empty() || 
-      !L2p[1].empty() || !new_ents[1].empty()) rval = MB_FAILURE;
-  CHECK_ERR(rval);
-
-  entprocs[0].clear(); entprocs[1].clear();
-  buffer.clear(); buff_ptr = &buffer[0];
-  ent_verts.clear(); sent_ents.clear();
-  
-    //========================
-    // interface, multishared, 2nd message, 3->1
-    // sending these edges to 0 and 1
-  ent_verts.push_back(verts[3][6]); ent_verts.push_back(verts[3][3]);
-  ent_verts.push_back(verts[3][3]); ent_verts.push_back(verts[3][0]);
-  rval = get_entities(mb[3], ent_verts, 2, 1, sent_ents);
-  CHECK_ERR(rval);
-  assert(2 == sent_ents.size());
-  entprocs[0].insert(0); entprocs[0].insert(1);
-  entprocs[1].insert(0); entprocs[1].insert(1);
-  rval = pc[3]->pack_entities(sent_ents, buffer, buff_ptr, true, 1,
-                              true, &entprocs);
-  CHECK_ERR(rval);
-
-    // now unpack the buffer
-  buff_ptr = &buffer[0];
-  rval = pc[1]->unpack_entities(buff_ptr, true, 3, true,
-                                L1h[1], L1p[1], L2hloc[1], L2hrem[1], L2p[1], new_ents[1]);
-    // all L1h lists should be empty, since we're dealing with iface
-  if (!L1h[1][0].empty() || !L1h[1][1].empty() || 
-      !L1h[1][2].empty() || !L1h[1][3].empty())
-    rval = MB_FAILURE;
-  CHECK_ERR(rval);
-
-  ent_verts.clear(); sent_ents.clear();
-  entprocs[0].clear(); entprocs[1].clear();
-  buffer.clear(); buff_ptr = &buffer[0];
-  
-    //========================================================================
-    // prepare for ghost communication; set all iface entities ownership
-    // stuff, so we don't need to do it explicitly using pack/unpack;
-    // passing true makes it happen for edges too
-  rval = set_owners(pc, verts, quads, true);
-  CHECK_ERR(rval);
-
-    //========================
-    // ghost, unshared, 2->1
-  sent_ents.insert(quads[2][3]);  
-    // add vertices not already shared
-  sent_ents.insert(verts[2][4]); 
-  sent_ents.insert(verts[2][7]); 
-    // entprocs lists are all just 1
-  entprocs.resize(sent_ents.size());
-  entprocs[0].insert(1); 
-  entprocs[1].insert(1); 
-  entprocs[2].insert(1); 
-
-  rval = pc[2]->pack_entities(sent_ents, buffer, buff_ptr, true, 1,
-                              true, &entprocs);
-  CHECK_ERR(rval);
-
-    // now unpack the buffer
-  buff_ptr = &buffer[0];
-  rval = pc[1]->unpack_entities(buff_ptr, true, 2, false,
-                                L1h[1], L1p[1], L2hloc[1], L2hrem[1], L2p[1], new_ents[1]);
-  if (
-        // to P2: 2 handles per 3 entities = 6
-      L1h[1][1].size() != 6 || 
-        // to all others, 0
-      !L1h[1][0].empty() || !L1h[1][2].empty() || !L1h[1][3].empty()) 
-    rval = MB_FAILURE;
-  CHECK_ERR(rval);
-
-  buffer.clear(); buff_ptr = &buffer[0];
-  rval = pc[1]->pack_remote_handles(L1h[1][1], L1p[1][1], 2, buffer, buff_ptr);
-  CHECK_ERR(rval);
-
-  buff_ptr = &buffer[0];
-  rval = pc[2]->unpack_remote_handles(1, buff_ptr, L2hloc[2], L2hrem[2], L2p[2]);
-  CHECK_ERR(rval);
-
-  ent_verts.clear(); sent_ents.clear();
-  entprocs[0].clear(); entprocs[1].clear(); entprocs[2].clear();
-  buffer.clear(); buff_ptr = &buffer[0]; L1h[1][1].clear();
-
-    //========================
-    // ghost, multishared, 1st message, 2->0
-    // sent: v3, v4, v5, q0, q1
-  sent_ents.insert(quads[2][0]); sent_ents.insert(quads[2][1]);  
-    // add vertices not already shared
-  sent_ents.insert(verts[2][3]); sent_ents.insert(verts[2][4]); 
-  sent_ents.insert(verts[2][5]); 
-    // entprocs lists are entity-dependent
-    // v3, v4, v5, q1: only to 0 (v4, v5 already on 1)
-  entprocs.resize(sent_ents.size());
-  entprocs[0].insert(0); 
-  entprocs[1].insert(0); 
-  entprocs[2].insert(0); 
-  entprocs[3].insert(0); 
-    // q2: P0 and P1
-  entprocs[4].insert(0); entprocs[4].insert(1); 
-
-  rval = pc[2]->pack_entities(sent_ents, buffer, buff_ptr, true, 0,
-                              true, &entprocs);
-  CHECK_ERR(rval);
-
-    // now unpack the buffer
-  buff_ptr = &buffer[0];
-  rval = pc[0]->unpack_entities(buff_ptr, true, 2, false,
-                                L1h[0], L1p[0], L2hloc[0], L2hrem[0], L2p[0], new_ents[0]);
-  if (
-        // 2 handles per 5 entities = 10
-      L1h[0][1].size() != 10 || 
-        // 2 handles per 3 entities
-      L1h[0][0].size() != 6 || 
-        // none received from 3, no 4th proc
-      !L1h[0][2].empty() || !L1h[0][3].empty()) 
-    rval = MB_FAILURE;
-
-  CHECK_ERR(rval);
-
-  ent_verts.clear(); sent_ents.clear();
-  for (int i = 0; i < 5; i++) entprocs[i].clear();
-  L1p[0][1].clear();  L1h[0][1].clear();
-  L1p[0][0].clear();  L1h[0][0].clear();
-  buffer.clear(); buff_ptr = &buffer[0];
-
-    //========================
-    // ghost, multishared, 2nd message, 1->0
-    // sent: v1, v4, v7, q0, q2
-  sent_ents.insert(quads[1][0]); sent_ents.insert(quads[1][2]);
-    // add vertices not already shared
-  sent_ents.insert(verts[1][1]); sent_ents.insert(verts[1][4]); 
-  sent_ents.insert(verts[1][7]); 
-    // entprocs lists are entity-dependent
-    // v1, q0: only to 0
-  entprocs.resize(sent_ents.size());
-  entprocs[0].insert(0); 
-  entprocs[2].insert(0);
-  entprocs[3].insert(0); 
-    // v4, v7, q2: P0 and P2
-  entprocs[1].insert(0); entprocs[1].insert(2); 
-  entprocs[4].insert(0); entprocs[4].insert(2); 
-
-  rval = pc[1]->pack_entities(sent_ents, buffer, buff_ptr, true, 0,
-                              true, &entprocs);
-  CHECK_ERR(rval);
-
-    // now unpack the buffer
-  buff_ptr = &buffer[0];
-  rval = pc[0]->unpack_entities(buff_ptr, true, 1, false,
-                                L1h[0], L1p[0], L2hloc[0], L2hrem[0], L2p[0], new_ents[0]);
-  if (
-        // 2 handles per 5 entities = 10
-      L1h[0][0].size() != 10 || 
-        // 2 handles per 3 entities
-      L1h[0][1].size() != 6 || 
-        // none received from 3, no 4th proc
-      !L1h[0][2].empty() || !L1h[0][3].empty()) 
-    rval = MB_FAILURE;
-  CHECK_ERR(rval);
-
-    //========================
-    // now pack/unpack the handles
-    // P0 -> P2
-    // xxx moved pack/unpack handles to after P2, P1 send
-  buffer.clear(); buff_ptr = &buffer[0];
-  rval = pc[0]->pack_remote_handles(L1h[0][1], L1p[0][1], 2, buffer, buff_ptr);
-  CHECK_ERR(rval);
-
-  rval = pc[2]->unpack_remote_handles(0, buff_ptr, L2hloc[2], L2hrem[2], L2p[2]);
-  CHECK_ERR(rval);
-
-    // P0 -> P1
-  buffer.clear(); buff_ptr = &buffer[0];
-  rval = pc[0]->pack_remote_handles(L1h[0][0], L1p[0][0], 1, buffer, buff_ptr);
-  CHECK_ERR(rval);
-
-  rval = pc[1]->unpack_remote_handles(0, buff_ptr, L2hloc[1], L2hrem[1], L2p[1]);
-  CHECK_ERR(rval);
-
-  ent_verts.clear(); sent_ents.clear();
-  for (int i = 0; i < 5; i++) entprocs[i].clear();
-  L1p[0][1].clear();  L1h[0][1].clear();
-  buffer.clear(); buff_ptr = &buffer[0];
-
 }
 
 void test_filter_pstatus()

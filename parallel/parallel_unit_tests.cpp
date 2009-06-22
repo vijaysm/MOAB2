@@ -484,6 +484,22 @@ MBErrorCode test_elements_on_several_procs( const char* filename )
                          "PARALLEL_RESOLVE_SHARED_ENTS" );
   CHKERR(rval);
   
+    // test contents of interface sets against sharedEnts structure in pcomm;
+  int my_error = 0;
+  MBParallelComm* pcomm = MBParallelComm::get_pcomm(&moab, 0);
+  rval = pcomm->check_all_shared_handles();
+  if (MB_SUCCESS != rval) {
+    my_error = 1;
+    std::cerr << "check_all_shared_handles test failed on proc " 
+              << pcomm->proc_config().proc_rank() << std::endl;
+  }
+  PCHECK(!my_error);
+  
+    // check adjacencies just to make sure they're consistent
+  rval = mb_instance.check_adjacencies();
+  if (MB_SUCCESS != rval) my_error = 1;
+  PCHECK(!my_error);
+
   MBTag geom_tag, id_tag;
   rval = moab.tag_get_handle( GEOM_DIMENSION_TAG_NAME, geom_tag ); CHKERR(rval);
   rval = moab.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag ); CHKERR(rval);  
@@ -514,7 +530,6 @@ MBErrorCode test_elements_on_several_procs( const char* filename )
     // if the vertices owned by any geometric entity do not
     // have consistent shared processor ids, list the geometric
     // entities and return failure.
-  int my_error = 0;
   if (!invalid_proc_ents.empty()) {
     my_error = 1;
     std::cerr << "Vertices owned by a single geometric entity are "
@@ -580,21 +595,6 @@ MBErrorCode test_elements_on_several_procs( const char* filename )
     
     my_error = 1;
   }
-  PCHECK(!my_error);
-
-    // test contents of interface sets against sharedEnts structure in pcomm;
-  MBParallelComm* pcomm = MBParallelComm::get_pcomm(&moab, 0);
-  rval = pcomm->check_all_shared_handles();
-  if (MB_SUCCESS != rval) {
-    my_error = 1;
-    std::cerr << "check_all_shared_handles test failed on proc " 
-              << pcomm->proc_config().proc_rank() << std::endl;
-  }
-  PCHECK(!my_error);
-  
-    // finally, check adjacencies just to make sure they're consistent
-  rval = mb_instance.check_adjacencies();
-  if (MB_SUCCESS != rval) my_error = 1;
   PCHECK(!my_error);
 
   return MB_SUCCESS;
@@ -1337,8 +1337,9 @@ MBErrorCode test_ghosted_entity_shared_data( const char* )
   MBRange::iterator it = vertices.begin();
   for (int idx = 0; it != vertices.end(); ++it, ++idx) {
     int n;
-    rval = pcomm.get_sharing_parts( *it, &vert_shared[idx*MAX_SHARING_PROCS],
-                                    n, &vert_handles[idx*MAX_SHARING_PROCS] );
+    unsigned char pstat;
+    rval = pcomm.get_sharing_data( *it, &vert_shared[idx*MAX_SHARING_PROCS],
+                                   &vert_handles[idx*MAX_SHARING_PROCS], pstat, n );
     if (MB_SUCCESS != rval)
       break;
     std::fill( vert_shared.begin() + idx*MAX_SHARING_PROCS + n,

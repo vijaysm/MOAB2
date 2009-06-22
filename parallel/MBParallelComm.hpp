@@ -169,6 +169,15 @@ public:
                                    bool store_remote_handles,
                                    bool wait_all = true);
 
+    /** \brief Static version of exchange_ghost_cells, exchanging info through
+     * buffers rather than messages
+     */
+  static MBErrorCode exchange_ghost_cells(MBParallelComm **pc,
+                                          unsigned int num_procs,
+                                          int ghost_dim, int bridge_dim,
+                                          int num_layers,
+                                          bool store_remote_handles);
+  
     /** \brief Exchange tags for all shared and ghosted entities
      * This function should be called collectively over the communicator for this MBParallelComm.
      * If this version is called, all ghosted/shared entities should have a value for this
@@ -245,6 +254,10 @@ public:
   MBErrorCode resolve_shared_ents(MBEntityHandle this_set,
                                   int resolve_dim = 3, 
                                   int shared_dim = -1);
+  
+  static MBErrorCode resolve_shared_ents(MBParallelComm **pc, 
+                                         const unsigned int np, 
+                                         const int to_dim);
   
     // ==================================
     // \section GET PARALLEL DATA (shared/owned/iface entities, etc.)
@@ -390,11 +403,6 @@ public:
   MBErrorCode get_owning_part( MBEntityHandle entity, 
                                int& owning_part_id_out,
                                MBEntityHandle* owning_handle = 0 );
-  MBErrorCode get_sharing_parts( MBEntityHandle entity, 
-                                 int part_ids_out[MAX_SHARING_PROCS],
-                                 int& num_part_ids_out,
-                                 MBEntityHandle remote_handles[MAX_SHARING_PROCS] = 0 );
-
     // Propogate mesh modification amongst shared entities
     // from the onwing processor to any procs with copies.
   MBErrorCode update_shared_mesh();
@@ -450,7 +458,8 @@ public:
                             const bool store_remote_handles,
                             const int from_proc,
                             const int ind,
-                            std::vector<std::vector<MBEntityHandle> > &L1h,
+                            std::vector<std::vector<MBEntityHandle> > &L1hloc,
+                            std::vector<std::vector<MBEntityHandle> > &L1hrem,
                             std::vector<std::vector<int> > &L1p,
                             std::vector<MBEntityHandle> &L2hloc, 
                             std::vector<MBEntityHandle> &L2hrem,
@@ -463,14 +472,16 @@ public:
                             const bool store_remote_handles,
                             const int to_proc,
                             const bool is_iface,
-                            std::vector<std::set<unsigned int> > *entprocs = NULL);
+                            std::vector<std::set<unsigned int> > *entprocs = NULL,
+                            MBRange *allsent = NULL);
 
     //! unpack entities in buff_ptr
   MBErrorCode unpack_entities(unsigned char *&buff_ptr,
                               const bool store_remote_handles,
                               const int from_ind,
                               const bool is_iface,
-                              std::vector<std::vector<MBEntityHandle> > &L1h,
+                              std::vector<std::vector<MBEntityHandle> > &L1hloc,
+                              std::vector<std::vector<MBEntityHandle> > &L1hrem,
                               std::vector<std::vector<int> > &L1p,
                               std::vector<MBEntityHandle> &L2hloc, 
                               std::vector<MBEntityHandle> &L2hrem,
@@ -502,7 +513,8 @@ public:
     /* \brief Pack message with remote handles
      * PUBLIC ONLY FOR TESTING!
      */
-  MBErrorCode pack_remote_handles(std::vector<MBEntityHandle> &entities,
+  MBErrorCode pack_remote_handles(std::vector<MBEntityHandle> &L1hloc,
+                                  std::vector<MBEntityHandle> &L1hrem,
                                   std::vector<int> &procs,
                                   unsigned int to_proc,
                                   std::vector<unsigned char> &buff,
@@ -514,6 +526,12 @@ public:
   
 private:
 
+  MBErrorCode get_sent_ents(const bool is_iface,
+                            const int bridge_dim, const int ghost_dim,
+                            const int num_layers,
+                            MBRange *sent_ents, MBRange &allsent,
+                            std::vector<std::set<unsigned int> > &entprocs);
+  
     /** \brief Set pstatus values on entities
      *
      * \param pstatus_ents Entities to be set
@@ -771,7 +789,6 @@ private:
   
   MBErrorCode tag_shared_ents(int resolve_dim,
                               int shared_dim,
-                              tuple_list &shared_verts,
                               MBRange *skin_ents,
                               std::map<std::vector<int>, MBRange> &proc_nranges);
 
@@ -781,8 +798,10 @@ private:
     // returned; NOTE: a subsequent step is used to verify entities on the interface
     // and remove them if they're not shared
   MBErrorCode create_interface_sets(std::map<std::vector<int>, MBRange> &proc_nranges,
-                                    MBEntityHandle this_set,
                                     int resolve_dim, int shared_dim);
+
+    // do the same but working straight from sharedEnts
+  MBErrorCode create_interface_sets(int resolve_dim, int shared_dim);
 
     // after verifying shared entities, now parent/child links between sets can be established
   MBErrorCode create_iface_pc_links();
@@ -819,19 +838,11 @@ private:
     int owner;
   };
 
-  typedef std::vector< SharedEntityData > shared_entity_vec;
-
-  //! Map indexed by processor ID and containing, for each processor ID,
-  //! a list of <local,remote> handle pairs, where the local handle is
-  //! the handle on this processor and the remove handle is the handle on
-  //! the processor ID indicated by the map index.
-  typedef std::map< int, shared_entity_vec > shared_entity_map;
-
   //! Every processor sends shared entity handle data to every other processor
   //! that it shares entities with.  Passed back map is all received data,
   //! indexed by processor ID. This function is intended to be used for 
   //! debugging.
-  MBErrorCode exchange_all_shared_handles( shared_entity_map& result );
+  MBErrorCode exchange_all_shared_handles(std::vector<std::vector<SharedEntityData> > &result);
   
     //! replace handles in from_vec with corresponding handles on
     //! to_proc (by checking shared[p/h]_tag and shared[p/h]s_tag;
@@ -865,13 +876,17 @@ private:
     //! new_ents value at index corresponding to id of entity in from_vec
   MBErrorCode get_local_handles(MBEntityHandle *from_vec, 
                                 int num_ents,
-                                const MBRange &new_ents,
-                                std::vector<MBEntityHandle> *no_ents = NULL);
+                                const MBRange &new_ents);
 
     //! same as above except puts results in range
   MBErrorCode get_local_handles(const MBRange &remote_handles,
                                 MBRange &local_handles,
                                 const MBRange &new_ents);
+  
+    //! same as above except gets new_ents from vector
+  MBErrorCode get_local_handles(MBEntityHandle *from_vec,
+                                int num_ents,
+                                const std::vector<MBEntityHandle> &new_ents);
   
   MBErrorCode update_remote_data(MBRange &local_range,
                                  MBRange &remote_range,
