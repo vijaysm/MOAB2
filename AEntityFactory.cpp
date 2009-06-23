@@ -806,7 +806,7 @@ MBErrorCode AEntityFactory::get_down_adjacency_elements(MBEntityHandle source_en
     const MBCN::ConnMap &cmap = 
       MBCN::mConnectivityMap[source_type][target_dimension-1];
   
-    int verts_per_sub = cmap.num_nodes_per_sub_element[j];
+    int verts_per_sub = cmap.num_corners_per_sub_element[j];
 
       // get the corner vertices
     for (int i = 0; i < verts_per_sub; i++)

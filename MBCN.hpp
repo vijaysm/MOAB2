@@ -38,6 +38,7 @@
 
 #include <vector>
 #include <algorithm>
+#include <cassert>
 
 #include "MBEntityType.h"
 
@@ -67,6 +68,11 @@ private:
   
 public:
 
+  enum { MAX_NODES_PER_ELEMENT = 27 };
+  enum { MID_EDGE_BIT   = 1<<1,
+         MID_FACE_BIT   = 1<<2,
+         MID_REGION_BIT = 1<<3 };
+
     //! enum used to specify operation type
   enum {INTERSECT = 0, UNION};
 
@@ -82,7 +88,7 @@ public:
     short int num_sub_elements;
     
       // Number of nodes in each sub-element of this dimension
-    short int num_nodes_per_sub_element[MB_MAX_SUB_ENTITIES];
+    short int num_corners_per_sub_element[MB_MAX_SUB_ENTITIES];
 
       // Type of each sub-element
     MBEntityType target_type[MB_MAX_SUB_ENTITIES];
@@ -93,7 +99,7 @@ public:
 
     // mConnectivityMap[i=entity type][j=0,1,2]:
     //  num_sub_elements = # bounding edges(j=0) or faces(j=1) for entity type i, or self (j=2)
-    //  num_nodes_per_sub_element[k] (k=0..num_sub_elements-1) = number of nodes in sub-facet k
+    //  num_corners_per_sub_element[k] (k=0..num_sub_elements-1) = number of nodes in sub-facet k
     //    (can vary over sub-facets, e.g. faces bounding a pyramid) or self (j=2)
     //  target_type[k] = entity type of sub-facet k (e.g. MBTRI or MBQUAD bounding a pyramid) or self (j=2)
     //  conn[k][l] (l=0..MBCN::VerticesPerEntity[target_type[k]]) = vertex connectivity of sub-facet k,
@@ -117,6 +123,9 @@ public:
     // efficient sorting)
     // (not documented with Doxygen)
   static const UpConnMap mUpConnMap[MBMAXTYPE][4][4];
+
+    // Mid-node bits indexed by number of nodes in element
+  static const unsigned char midNodesPerType[MBMAXTYPE][MAX_NODES_PER_ELEMENT+1];
 
     //! Permutation and reverse permutation vectors
   static short int permuteVec[MBMAXTYPE][3][MB_MAX_SUB_ENTITIES+1];
@@ -166,6 +175,22 @@ public:
                                      const int sub_dimension,
                                      const int sub_index,
                                      int sub_entity_conn[]);
+
+  //! return the node indices of the specified sub-entity.
+  //! \param this_topo            The topology of the queried element type
+  //! \param num_nodes            The number of nodes in the queried element type.
+  //! \param sub_dimension        Dimension of sub-entity
+  //! \param sub_index            Index of sub-entity
+  //! \param sub_entity_topo      (Output) Topology of requested sub-entity.
+  //! \param num_sub_entity_nodes (Output) Number of nodes in the requested sub-entity.
+  //! \param sub_entity_conn      (Output) Connectivity of sub-entity
+  static void SubEntityNodeIndices(const MBEntityType this_topo, 
+                                   const int num_nodes,
+                                   const int sub_dimension,
+                                   const int sub_index,
+                                   MBEntityType& sub_entity_topo,
+                                   int& num_sub_entity_nodes,
+                                   int sub_entity_conn[]);
 
   //! return the vertices of the specified sub entity
   //! \param parent_conn Connectivity of parent entity
@@ -376,6 +401,12 @@ public:
                           const int num_verts, 
                           int mid_nodes[4]);
 
+  //! Same as above, except returns a single integer with the bits, from
+  //! least significant to most significant set to one if the corresponding
+  //! mid nodes on sub entities of the least dimension (0) to the highest
+  //! dimension (3) are present in the elment type.
+  static int HasMidNodes( const MBEntityType this_type, const int num_verts );
+
   //! given data about an element and a vertex in that element, return the dimension
   //! and index of the sub-entity that the vertex resolves.  If it does not resolve a
   //! sub-entity, either because it's a corner node or it's not in the element, -1 is
@@ -418,7 +449,7 @@ inline short int MBCN::Dimension(const MBEntityType t)
 
 inline short int MBCN::VerticesPerEntity(const MBEntityType t) 
 {
-  return (MBVERTEX == t ? 1 : mConnectivityMap[t][mConnectivityMap[t][0].topo_dimension-1].num_nodes_per_sub_element[0]);
+  return (MBVERTEX == t ? 1 : mConnectivityMap[t][mConnectivityMap[t][0].topo_dimension-1].num_corners_per_sub_element[0]);
 }
 
 inline short int MBCN::NumSubEntities(const MBEntityType t, const int d)
@@ -506,23 +537,20 @@ inline bool MBCN::HasMidRegionNodes(const MBEntityType this_type,
     return false;
 }
 
+inline int MBCN::HasMidNodes( const MBEntityType this_type, const int num_nodes )
+{
+  assert( (unsigned)num_nodes <= (unsigned)MAX_NODES_PER_ELEMENT );
+  return midNodesPerType[this_type][num_nodes];
+}
+
 inline void MBCN::HasMidNodes(const MBEntityType this_type, const int num_nodes,
                               int mid_nodes[4])
 {
-  if (num_nodes <= VerticesPerEntity(this_type) ||
-    // poly elements never have mid nodes as far as canonical ordering is concerned
-      MBPOLYGON == this_type || MBPOLYHEDRON == this_type) {
-    mid_nodes[0] = 0;
-    mid_nodes[1] = 0;
-    mid_nodes[2] = 0;
-    mid_nodes[3] = 0;
-    return;
-  }
-  
+  const int bits = HasMidNodes( this_type, num_nodes );
   mid_nodes[0] = 0;
-  mid_nodes[1] = HasMidEdgeNodes(this_type, num_nodes);
-  mid_nodes[2] = HasMidFaceNodes(this_type, num_nodes);
-  mid_nodes[3] = HasMidRegionNodes(this_type, num_nodes);
+  mid_nodes[1] = (bits & (1<<1)) >> 1;
+  mid_nodes[2] = (bits & (1<<2)) >> 2;
+  mid_nodes[3] = (bits & (1<<3)) >> 3;
 }
 
 //! Set permutation or reverse permutation vector

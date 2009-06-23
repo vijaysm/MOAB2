@@ -343,7 +343,7 @@ MBErrorCode HigherOrderFactory::add_mid_face_nodes(ElementSequence* seq)
       tmp_face_conn[0] = element[entity_faces.conn[i][0]];
       tmp_face_conn[1] = element[entity_faces.conn[i][1]];
       tmp_face_conn[2] = element[entity_faces.conn[i][2]];
-      if(entity_faces.num_nodes_per_sub_element[i] == 4)
+      if(entity_faces.num_corners_per_sub_element[i] == 4)
         tmp_face_conn[3] = element[entity_faces.conn[i][3]];
       else
         tmp_face_conn[3] = 0;
@@ -359,7 +359,7 @@ MBErrorCode HigherOrderFactory::add_mid_face_nodes(ElementSequence* seq)
       {
         EntitySequence* tmp_sequence = NULL;
         double sum_coords[3] = {0,0,0};
-        int max_nodes = entity_faces.num_nodes_per_sub_element[i];
+        int max_nodes = entity_faces.num_corners_per_sub_element[i];
         for(int k=0; k<max_nodes; k++)
         {
           seq_manager->find(tmp_face_conn[k], tmp_sequence);

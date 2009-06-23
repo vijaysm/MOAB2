@@ -108,7 +108,7 @@ short int MBCN::AdjacentSubEntities(const MBEntityType this_type,
          ((source_dim > 0 && 
            *it1 < mConnectivityMap[this_type][source_dim-1].num_sub_elements) ||
           (source_dim == 0 && 
-           *it1 < mConnectivityMap[this_type][Dimension(this_type)-1].num_nodes_per_sub_element[0])) && 
+           *it1 < mConnectivityMap[this_type][Dimension(this_type)-1].num_corners_per_sub_element[0])) && 
          *it1 >= 0);
 
 
@@ -122,7 +122,7 @@ short int MBCN::AdjacentSubEntities(const MBEntityType this_type,
       // less than source_dim, which should give the connectivity of that sub element
     const ConnMap &cm = mConnectivityMap[this_type][source_dim-1];
     std::copy(cm.conn[source_indices[0]],
-              cm.conn[source_indices[0]]+cm.num_nodes_per_sub_element[source_indices[0]],
+              cm.conn[source_indices[0]]+cm.num_corners_per_sub_element[source_indices[0]],
               std::back_inserter(index_list));
     return 0;
   }
@@ -650,6 +650,49 @@ void MBCN_SubEntityVertexIndices(const int this_type,
 {
   MBCN::SubEntityVertexIndices((MBEntityType)this_type, sub_dimension, 
                                sub_index, sub_entity_conn);
+}
+
+void MBCN::SubEntityNodeIndices( const MBEntityType this_topo, 
+                                 const int num_nodes,
+                                 const int sub_dimension,
+                                 const int sub_index,
+                                 MBEntityType& subentity_topo,
+                                 int& num_sub_entity_nodes,
+                                 int sub_entity_conn[] )
+{
+    // If asked for a node, the special case...
+  if (sub_dimension == 0) {
+    assert( sub_index < num_nodes );
+    subentity_topo = MBVERTEX;
+    num_sub_entity_nodes = 1;
+    sub_entity_conn[0] = sub_index;
+    return;
+  }
+  
+  const int ho_bits = HasMidNodes( this_topo, num_nodes );
+  subentity_topo = SubEntityType(this_topo, sub_dimension, sub_index);
+  num_sub_entity_nodes = VerticesPerEntity(subentity_topo);
+  const short* corners = mConnectivityMap[this_topo][sub_dimension-1].conn[sub_index];
+  std::copy( corners, corners+num_sub_entity_nodes, sub_entity_conn );
+  
+  int sub_sub_corners[MB_MAX_SUB_ENTITY_VERTICES];
+  int side, sense, offset;
+  for (int dim = 1; dim <= sub_dimension; ++dim) {
+    if (!(ho_bits & (1<<dim)))
+      continue;
+    
+    const short num_mid = NumSubEntities( subentity_topo, dim );
+    for (int i = 0; i < num_mid; ++i) {
+      const MBEntityType sub_sub_topo = SubEntityType( subentity_topo, dim, i );
+      const int sub_sub_num_vert = VerticesPerEntity( sub_sub_topo );
+      SubEntityVertexIndices( subentity_topo, dim, i, sub_sub_corners );
+
+      for (int j = 0; j < sub_sub_num_vert; ++j)
+        sub_sub_corners[j] = corners[sub_sub_corners[j]];
+      SideNumber( this_topo, sub_sub_corners, sub_sub_num_vert, dim, side, sense, offset );
+      sub_entity_conn[num_sub_entity_nodes++] = HONodeIndex( this_topo, num_nodes, dim, side );
+    }
+  }
 }
 
   //! return the vertices of the specified sub entity
