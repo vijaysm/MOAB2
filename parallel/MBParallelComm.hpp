@@ -186,21 +186,21 @@ public:
      */
   MBErrorCode exchange_tags(std::vector<MBTag> &src_tags,
                             std::vector<MBTag> &dst_tags,
-                            const MBRange &entities);
+                            MBRange &entities);
   
     /** \brief Exchange tags for all shared and ghosted entities
      * This function should be called collectively over the communicator for this MBParallelComm
      * \param tag_name Name of tag to be exchanged
      */
   MBErrorCode exchange_tags(const char *tag_name,
-                            const MBRange &entities);
+                            MBRange &entities);
   
     /** \brief Exchange tags for all shared and ghosted entities
      * This function should be called collectively over the communicator for this MBParallelComm
      * \param tagh Handle of tag to be exchanged
      */
   MBErrorCode exchange_tags(MBTag tagh,
-                            const MBRange &entities);
+                            MBRange &entities);
   
     /** \brief Broadcast all entities resident on from_proc to other processors
      * This function assumes remote handles are *not* being stored, since (usually)
@@ -976,7 +976,7 @@ inline MBErrorCode MBParallelComm::get_shared_proc_tags(MBTag &sharedp,
 }
 
 inline MBErrorCode MBParallelComm::exchange_tags(const char *tag_name,
-                                                 const MBRange &entities)
+                                                 MBRange &entities)
 {
     // get the tag handle
   std::vector<MBTag> tags(1);
@@ -988,7 +988,7 @@ inline MBErrorCode MBParallelComm::exchange_tags(const char *tag_name,
 }
   
 inline MBErrorCode MBParallelComm::exchange_tags(MBTag tagh,
-                                                 const MBRange &entities)
+                                                 MBRange &entities)
 {
     // get the tag handle
   std::vector<MBTag> tags;

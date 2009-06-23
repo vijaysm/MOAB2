@@ -396,12 +396,12 @@ MBErrorCode test_packing(MBInterface *mbImpl, const char *filename)
                                    buff, buff_size);
   RRA("Packing buffer count (non-stored handles) failed.");
 
-  std::vector<std::vector<MBEntityHandle> > L1h;
+  std::vector<std::vector<MBEntityHandle> > L1hloc, L1hrem;
   std::vector<std::vector<int> > L1p;
   std::vector<MBEntityHandle> L2hloc, L2hrem;
   std::vector<unsigned int> L2p;
   
-  result = pcomm->unpack_buffer(&buff[0], false, -1, -1, L1h, L1p, L2hloc, 
+  result = pcomm->unpack_buffer(&buff[0], false, -1, -1, L1hloc, L1hrem, L1p, L2hloc, 
                          L2hrem, L2p, new_ents);
   RRA("Unpacking buffer (non-stored handles) failed.");
 

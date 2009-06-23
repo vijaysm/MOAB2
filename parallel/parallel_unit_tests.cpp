@@ -1193,9 +1193,10 @@ int compare_sharing_data( const std::vector<int>& verts_per_proc,
         // find handle from senting proc
       pi2 = pi1 + MAX_SHARING_PROCS;
       pi3 = std::find( pi1, pi2, (int)i );
-      assert( pi3 != pi2 );
-      int idx = pi3 - vert_procs.begin();
-      data_by_id[id].handles.push_back( vert_handles[idx] );
+      if( pi3 != pi2 ) {
+        int idx = pi3 - vert_procs.begin();
+        data_by_id[id].handles.push_back( vert_handles[idx] );
+      }
       pi1 = pi2;
     }
   }
@@ -1229,7 +1230,8 @@ int compare_sharing_data( const std::vector<int>& verts_per_proc,
       int idx = std::lower_bound( it->second.procs.begin(), 
                                   it->second.procs.end(),
                                   procs[i] ) - it->second.procs.begin();
-      it->second.handles[idx] = handles[i];
+      if (!handles.empty())
+        it->second.handles[idx] = handles[i];
     }
   }
   

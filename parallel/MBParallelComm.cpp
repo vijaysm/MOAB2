@@ -3990,7 +3990,7 @@ MBErrorCode MBParallelComm::add_verts(MBRange &sent_ents)
 
 MBErrorCode MBParallelComm::exchange_tags(std::vector<MBTag> &src_tags,
                                           std::vector<MBTag> &dst_tags,
-                                          const MBRange &entities)
+                                          MBRange &entities)
 {
   MBErrorCode result;
   int success;
@@ -4019,6 +4019,9 @@ MBErrorCode MBParallelComm::exchange_tags(std::vector<MBTag> &src_tags,
     // pack and send tags from this proc to others
     // make sendReqs vector to simplify initialization
   std::fill(sendReqs, sendReqs+MAX_SHARING_PROCS, MPI_REQUEST_NULL);
+
+    // take all shared entities if incoming list is empty
+  if (entities.empty()) entities = sharedEnts;
   
   for (ind = 0, sit = buffProcs.begin(); sit != buffProcs.end(); sit++, ind++) {
     
@@ -4029,8 +4032,10 @@ MBErrorCode MBParallelComm::exchange_tags(std::vector<MBTag> &src_tags,
     RRA("Failed pstatus AND check.");
     
       // remote nonowned entities
-    result = filter_pstatus(tag_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);
-    RRA("Failed pstatus NOT check.");
+    if (!tag_ents.empty()) {
+      result = filter_pstatus(tag_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);
+      RRA("Failed pstatus NOT check.");
+    }
     
       // pack-send; this also posts receives if store_remote_handles is true
     std::vector<MBRange> tag_ranges;

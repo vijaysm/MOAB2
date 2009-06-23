@@ -261,9 +261,11 @@ void count_owned_entities( MBInterface& moab, int counts[MBENTITYSET] )
     MBRange range;
     rval = moab.get_entities_by_type( 0, t, range );
     CHECK_ERR(rval);
-    rval = pcomm->filter_pstatus(range, PSTATUS_SHARED, PSTATUS_AND);
+    if (!range.empty())
+      rval = pcomm->filter_pstatus(range, PSTATUS_SHARED, PSTATUS_AND);
     CHECK_ERR(rval);
-    rval = pcomm->filter_pstatus(range, PSTATUS_NOT_OWNED, PSTATUS_NOT);
+    if (!range.empty())
+      rval = pcomm->filter_pstatus(range, PSTATUS_NOT_OWNED, PSTATUS_NOT);
     CHECK_ERR(rval);
     counts[t] = range.size();
   }
