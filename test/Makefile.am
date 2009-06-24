@@ -9,6 +9,7 @@ EXTRA_DIST  = 125hex.g \
               3k-tri-sphere.vtk \
               4k-tri-plane.vtk \
               4tet.g \
+              64bricks_512hex.cub \
               8hex.g \
               brick_cubit10.1.cub \
               brick_cubit10.2.cub \
