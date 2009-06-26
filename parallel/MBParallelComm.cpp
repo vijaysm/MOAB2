@@ -331,9 +331,9 @@ int MBParallelComm::get_buffers(int to_proc, bool *is_new)
     ind = buffProcs.size();
     buffProcs.push_back((unsigned int)to_proc);
     ownerSBuffs.push_back(std::vector<unsigned char>());
-    ghostRBuffs.push_back(std::vector<unsigned char>());
+    ghostRBuffs.push_back(std::vector<unsigned char>(INITIAL_BUFF_SIZE));
       // allocate these other buffs in case we're storing remote handles
-    ownerRBuffs.push_back(std::vector<unsigned char>());
+    ownerRBuffs.push_back(std::vector<unsigned char>(INITIAL_BUFF_SIZE));
     ghostSBuffs.push_back(std::vector<unsigned char>());
     if (is_new) *is_new = true;
   }
