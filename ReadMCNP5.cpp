@@ -317,7 +317,8 @@ MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
                                 errors, 
                                 tally_tag, 
                                 error_tag, 
-                                tally_meshset );
+                                tally_meshset,
+                                tally_coord_sys );
       if(MB_SUCCESS != result) return result; 
       
       // add this tally's meshset to the output meshset
@@ -780,7 +781,8 @@ MBErrorCode ReadMCNP5::create_elements( bool                debug,
                                         double              *errors,
                                         MBTag               tally_tag,
                                         MBTag               error_tag,
-                                        MBEntityHandle      tally_meshset ) {
+                                        MBEntityHandle      tally_meshset,
+                                        coordinate_system   tally_coord_sys ) {
   MBErrorCode result;
   unsigned int index;
   MBEntityHandle start_element = 0;
@@ -798,16 +800,32 @@ MBErrorCode ReadMCNP5::create_elements( bool                debug,
       for (unsigned int k=0; k<planes[2].size()-1; k++) {
           
         index = start_vert + i + j*planes[0].size() + k*planes[0].size()*planes[1].size();
+        // for rectangular mesh, the file prints: x y z
+        // z changes the fastest and x changes the slowest.
+        // This means that the connectivitiy ordering is not consistent between
+        // rectangular and cylindrical mesh.
+        if(CARTESIAN == tally_coord_sys) {
+          connect[0] = index;
+          connect[1] = index + 1;  
+          connect[2] = index + 1 + planes[0].size();     
+          connect[3] = index +     planes[0].size();
+          connect[4] = index +                        planes[0].size()*planes[1].size();
+          connect[5] = index + 1 +                    planes[0].size()*planes[1].size();    
+          connect[6] = index + 1 + planes[0].size() + planes[0].size()*planes[1].size();
+          connect[7] = index +     planes[0].size() + planes[0].size()*planes[1].size();        
+        // for cylindrical mesh, the file prints: r z theta
+        // Theta changes the fastest and r changes the slowest.
+        } else if(CYLINDRICAL == tally_coord_sys) {
+          connect[0] = index;
+          connect[1] = index + 1;  
+          connect[2] = index + 1 +                    planes[0].size()*planes[1].size();     
+          connect[3] = index +                        planes[0].size()*planes[1].size();
+          connect[4] = index +     planes[0].size();
+          connect[5] = index + 1 + planes[0].size();    
+          connect[6] = index + 1 + planes[0].size() + planes[0].size()*planes[1].size();
+          connect[7] = index +     planes[0].size() + planes[0].size()*planes[1].size();
+	} else return MB_NOT_IMPLEMENTED;
 
-        connect[0] = index;
-        connect[1] = index + 1;  
-        connect[2] = index + 1 +                    planes[0].size()*planes[1].size();     
-        connect[3] = index +                        planes[0].size()*planes[1].size();
-        connect[4] = index +     planes[0].size();
-        connect[5] = index + 1 + planes[0].size();    
-        connect[6] = index + 1 + planes[0].size() + planes[0].size()*planes[1].size();
-        connect[7] = index +     planes[0].size() + planes[0].size()*planes[1].size();
-    
 	connect += 8;
 	counter++;
       }

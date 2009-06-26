@@ -132,7 +132,8 @@ private:
                                double              errors[],
                                MBTag               tally_tag,
                                MBTag               error_tag,
-                               MBEntityHandle      tally_meshset );
+                               MBEntityHandle      tally_meshset,
+                               coordinate_system   tally_coord_sys );
 
   MBErrorCode average_with_existing_tally( bool              debug,
                                            unsigned long int &new_nps,
