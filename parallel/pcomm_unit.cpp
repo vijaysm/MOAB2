@@ -3,6 +3,8 @@
 #include "MBTagConventions.hpp"
 #include "MBCore.hpp"
 #include "MeshTopoUtil.hpp"
+#include "ReadParallel.hpp"
+#include "FileOptions.hpp"
 #include "TestUtil.hpp"
 #include <algorithm>
 #include <vector>
@@ -43,6 +45,8 @@ void test_pack_tag_handle_data();
 void test_pack_shared_entities_2d();
 /** Test pack/unpack of shared entities in 3d*/
 void test_pack_shared_entities_3d();
+/** Test pack/unpack of arbitrary mesh file */
+void test_pack_shared_arbitrary();
 /** Test filter_pstatus function*/
 void test_filter_pstatus();
 
@@ -69,6 +73,7 @@ int main( int argc, char* argv[] )
   num_err += RUN_TEST( test_pack_tag_handle_data );
   num_err += RUN_TEST( test_pack_shared_entities_2d );
   num_err += RUN_TEST( test_pack_shared_entities_3d );
+  num_err += RUN_TEST( test_pack_shared_arbitrary );
   num_err += RUN_TEST( test_filter_pstatus );
   
 #ifdef USE_MPI
@@ -1848,6 +1853,52 @@ void test_pack_shared_entities_3d()
   
     // now 1 layer of hex ghosts
   rval = MBParallelComm::exchange_ghost_cells(pc, 4, 3, 0, 1, true);
+  CHECK_ERR(rval);
+}
+
+void test_pack_shared_arbitrary()
+{
+#define NP 4
+  MBCore moab[NP];
+  MBParallelComm *pc[NP];
+  for (unsigned int i = 0; i < NP; i++) {
+    pc[i] = new MBParallelComm(&moab[i]);
+    pc[i]->set_rank(i);
+    pc[i]->set_size(NP);
+  }
+
+  std::string ptag_name("MATERIAL_SET");
+  std::vector<int> pa_vec;
+  pa_vec.push_back(0);
+  pa_vec.push_back(4);
+  pa_vec.push_back(2);
+  MBErrorCode rval;
+
+  const char *fnames[] = {"/home/tautges/MOABpar2/test/64bricks_512hex.h5m"};
+  
+  std::string partition_name("MATERIAL_SET");
+  FileOptions fopts(NULL);
+  
+  for (unsigned int i = 0; i < NP; i++) {
+    ReadParallel rp(moab+i, pc[i]);
+    MBEntityHandle tmp_set = 0;
+    std::vector<int> partition_tag_vals;
+    rval = rp.load_file(fnames, 1, tmp_set, ReadParallel::POPT_READ_DELETE,
+                        partition_name, 
+                        partition_tag_vals, true, pa_vec, NULL, 0,
+                        fopts, i, false, -1, -1, -1, -1, 0);
+    CHECK_ERR(rval);
+  }
+  
+  rval = MBParallelComm::resolve_shared_ents(pc, NP, 3);
+  CHECK_ERR(rval);
+
+    // exchange interface cells
+  rval = MBParallelComm::exchange_ghost_cells(pc, NP, -1, -1, 0, true);
+  CHECK_ERR(rval);
+  
+    // now 1 layer of hex ghosts
+  rval = MBParallelComm::exchange_ghost_cells(pc, NP, 3, 0, 1, true);
   CHECK_ERR(rval);
 }
 

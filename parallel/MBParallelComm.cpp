@@ -104,7 +104,7 @@ std::string __PACK_string, __UNPACK_string;
       unsigned int _old_size = buff_ptr - &buff_vec[0],            \
           _new_size = _old_size + (addl_space);    \
       if (_new_size > buff_vec.size()) {               \
-        buff_vec.resize(1.5*_new_size);             \
+        buff_vec.resize(1.5*_new_size);            \
         buff_ptr = &buff_vec[_new_size-(addl_space)];} }
     
 
@@ -330,11 +330,11 @@ int MBParallelComm::get_buffers(int to_proc, bool *is_new)
   if (vit == buffProcs.end()) {
     ind = buffProcs.size();
     buffProcs.push_back((unsigned int)to_proc);
-    ownerSBuffs.push_back(std::vector<unsigned char>(INITIAL_BUFF_SIZE));
-    ghostRBuffs.push_back(std::vector<unsigned char>(INITIAL_BUFF_SIZE));
+    ownerSBuffs.push_back(std::vector<unsigned char>());
+    ghostRBuffs.push_back(std::vector<unsigned char>());
       // allocate these other buffs in case we're storing remote handles
-    ownerRBuffs.push_back(std::vector<unsigned char>(INITIAL_BUFF_SIZE));
-    ghostSBuffs.push_back(std::vector<unsigned char>(INITIAL_BUFF_SIZE));
+    ownerRBuffs.push_back(std::vector<unsigned char>());
+    ghostSBuffs.push_back(std::vector<unsigned char>());
     if (is_new) *is_new = true;
   }
   else {
@@ -1427,7 +1427,8 @@ MBErrorCode MBParallelComm::print_buffer(unsigned char *buff_ptr)
 MBErrorCode MBParallelComm::list_entities(const MBEntityHandle *ents, int num_ents) 
 {
   if (NULL == ents && 0 == num_ents) {
-    return list_entities(NULL, 0);
+    sharedEnts.print("Shared entities:\n");
+    return MB_SUCCESS;
   }
   
   else if (NULL == ents || 0 == num_ents) {
@@ -2611,10 +2612,8 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBEntityHandle this_set,
 
     // establish comm procs and buffers for them
   std::set<unsigned int> procs;
-  result = get_interface_procs(procs);
+  result = get_interface_procs(procs, true);
   RRA("Trouble getting iface procs.");
-  for (std::set<unsigned int>::iterator sit = procs.begin(); sit != procs.end(); sit++)
-    get_buffers(*sit);
 
     // resolve shared entity remote handles; implemented in ghost cell exchange
     // code because it's so similar
@@ -2718,11 +2717,8 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBParallelComm **pc,
     if (MB_SUCCESS != rval) return rval;
       // establish comm procs and buffers for them
     psets.clear();
-    rval = pc[p]->get_interface_procs(psets);
+    rval = pc[p]->get_interface_procs(psets, true);
     if (MB_SUCCESS != rval) return rval;
-    for (std::set<unsigned int>::iterator sit = psets.begin(); sit != psets.end(); sit++)
-      pc[p]->get_buffers(*sit);
-
   }
   
   return MB_SUCCESS;
@@ -3167,7 +3163,8 @@ MBErrorCode MBParallelComm::tag_shared_verts(tuple_list &shared_ents,
 }
   
   //! get processors with which this processor communicates; sets are sorted by processor
-MBErrorCode MBParallelComm::get_interface_procs(std::set<unsigned int> &procs_set)
+MBErrorCode MBParallelComm::get_interface_procs(std::set<unsigned int> &procs_set,
+                                                bool get_buffs)
 {
     // make sure the sharing procs vector is empty
   procs_set.clear();
@@ -3199,6 +3196,11 @@ MBErrorCode MBParallelComm::get_interface_procs(std::set<unsigned int> &procs_se
         }
       }
     }
+  }
+
+  if (get_buffs) {
+    for (std::set<unsigned int>::iterator sit = procs_set.begin(); sit != procs_set.end(); sit++)
+      get_buffers(*sit);
   }
   
   return MB_SUCCESS;
@@ -3739,6 +3741,12 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(MBParallelComm **pcs,
     for (ind = 0; ind < pc->buffProcs.size(); ind++) {
         // incoming ghost entities; unpack; returns entities received
         // both from sending proc and from owning proc (which may be different)
+
+        // buffer could be empty, which means there isn't any message to
+        // unpack (due to this comm proc getting added as a result of indirect
+        // communication); just skip this unpack
+      if (pc->ownerSBuffs[ind].empty()) continue;
+
       unsigned int to_p = pc->buffProcs[ind];
       unsigned char *buff_ptr = &pc->ownerSBuffs[ind][0];
       result = pcs[to_p]->unpack_entities(buff_ptr,

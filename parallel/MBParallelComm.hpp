@@ -326,7 +326,8 @@ public:
                                  const char *tag_name = NULL);
 */
     //! get processors with which this processor shares an interface
-  MBErrorCode get_interface_procs(std::set<unsigned int> &iface_procs);
+  MBErrorCode get_interface_procs(std::set<unsigned int> &iface_procs,
+                                  const bool get_buffs = false);
 
     //! get processors with which this processor communicates
   MBErrorCode get_comm_procs(std::set<unsigned int> &procs);
@@ -494,6 +495,9 @@ public:
 
     //! set rank for this pcomm; USED FOR TESTING ONLY!
   void set_rank(unsigned int r);
+  
+    //! set rank for this pcomm; USED FOR TESTING ONLY!
+  void set_size(unsigned int r);
   
     //! get (and possibly allocate) buffers for messages to/from to_proc; returns
     //! index of to_proc in buffProcs vector; if is_new is non-NULL, sets to
@@ -1031,6 +1035,11 @@ inline void MBParallelComm::set_rank(unsigned int r)
 {
   procConfig.proc_rank(r);
   if (procConfig.proc_size() < r) procConfig.proc_size(r+1);
+}
+
+inline void MBParallelComm::set_size(unsigned int s) 
+{
+  procConfig.proc_size(s);
 }
 
 inline MBErrorCode MBParallelComm::get_sharing_data(MBEntityHandle entity,

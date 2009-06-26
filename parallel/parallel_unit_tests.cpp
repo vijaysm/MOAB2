@@ -187,9 +187,9 @@ int main( int argc, char* argv[] )
 
   if (!filename) {
 #ifdef SRCDIR
-    filename = STRINGIFY(SRCDIR) "/ptest.cub";
+    filename = STRINGIFY(SRCDIR) "/../test/64bricks_512hex.h5m";
 #else
-    filename = "ptest.cub";
+    filename = "../test/64bricks_512hex.h5m";
 #endif
   }
 
