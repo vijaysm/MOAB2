@@ -1,6 +1,3 @@
-#define NO_IMPORT_ARRAY
-#define NO_IMPORT_IBASE
-
 #include "iMesh_Python.h"
 #include "iBase_Python.h"
 #include "errors.h"

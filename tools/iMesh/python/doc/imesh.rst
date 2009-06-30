@@ -39,22 +39,6 @@ Mesh
       the relative cost of retrieving adjacencies between entities of dimension
       i to entities of dimension j.
 
-   .. method:: load(filename[, options])
-
-      Load a mesh from a file. Equivalent to ``rootSet.load(filename,
-      options)``.
-
-      :param filename: File name from which the mesh is to be loaded
-      :param options: Implementation-specific options string
-
-   .. method:: save(filename[, options])
-
-      Save the mesh to a file. Equivalent to ``rootSet.load(filename,
-      options)``.
-
-      :param filename: File name to which the mesh is to be saved
-      :param options: Implementation-specific options string
-
    .. method:: areEHValid(doReset)
 
       Return whether entity handles have changed since last reset or since
@@ -227,6 +211,17 @@ Mesh
       :param entities: Entity or entity set being queried
       :return: Array of :class:`Tag`\ s associated with ``entities``
 
+Forwards
+--------
+
+In addition to the methods listed above, :class:`Mesh` automatically forwards
+method calls to the root :class:`EntitySet`. Thus, ::
+
+  mesh.getEntities(iBase.type.all, iMesh.topology.all)
+
+is equivalent to::
+
+  mesh.rootSet.getEntities(iBase.type.all, iMesh.topology.all)
 
 EntitySet
 =========

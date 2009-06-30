@@ -2,7 +2,13 @@
 #include "iMesh_Python.h"
 #include "iBase_Python.h"
 
-int checkError(iMesh_Instance mesh,int err)
+/* TODO: these are never freed! */
+static PyObject *g_helper_module;
+static PyObject *g_adj_list;
+static PyObject *g_ind_adj_list;
+
+static int
+checkError(iMesh_Instance mesh,int err)
 {
     if(err)
     {
@@ -16,22 +22,8 @@ int checkError(iMesh_Instance mesh,int err)
         return 0;
 }
 
-PyObject *
-PyArray_TryFromObject(PyObject *obj,int typenum,int min_depth,int max_depth)
-{
-    PyObject *ret = PyArray_FromAny(obj,PyArray_DescrFromType(typenum),
-                                    min_depth,max_depth,NPY_C_CONTIGUOUS,NULL);
-    PyErr_Clear();
-    return ret;
-}
-
-/* TODO: these are never freed! */
-static PyObject *g_helper_module;
-static PyObject *g_adj_list;
-static PyObject *g_ind_adj_list;
-
 /* NOTE: steals references to adj and offsets */
-PyObject *
+static PyObject *
 AdjacencyList_New(PyObject *adj,PyObject *offsets)
 {
     PyObject *res;
@@ -46,7 +38,7 @@ AdjacencyList_New(PyObject *adj,PyObject *offsets)
 }
 
 /* NOTE: steals references to ents, adj, indices, and offsets */
-PyObject *
+static PyObject *
 IndexedAdjacencyList_New(PyObject *ents, PyObject *adj,PyObject *indices,
                          PyObject *offsets)
 {
@@ -64,7 +56,7 @@ IndexedAdjacencyList_New(PyObject *ents, PyObject *adj,PyObject *indices,
     return res;
 }
 
-iMeshEntitySet_Object *
+static iMeshEntitySet_Object *
 iMeshEntitySet_New(iMesh_Object *mesh)
 {
     iMeshEntitySet_Object *o = iMeshEntitySet_NewRaw();
@@ -73,7 +65,7 @@ iMeshEntitySet_New(iMesh_Object *mesh)
     return o;
 }
 
-iMeshTag_Object *
+static iMeshTag_Object *
 iMeshTag_New(iMesh_Object *mesh)
 {
     iMeshTag_Object *o = iMeshTag_NewRaw();
@@ -107,50 +99,6 @@ iMeshObj_dealloc(iMesh_Object *self)
         iMesh_dtor(self->mesh,&err);
     }
     self->ob_type->tp_free((PyObject*)self);
-}
-
-static PyObject *
-iMeshObj_load(iMesh_Object *self,PyObject *args)
-{
-    const char *name = 0;
-    const char *options = "";
-    iBase_EntitySetHandle root;
-    int err;
-
-    if(!PyArg_ParseTuple(args,"s|s",&name,&options))
-        return NULL;
-
-    iMesh_getRootSet(self->mesh,&root,&err);
-    if(checkError(self->mesh,err))
-        return NULL;
-
-    iMesh_load(self->mesh,root,name,options,&err,strlen(name),strlen(options));
-    if(checkError(self->mesh,err))
-        return NULL;
-
-    Py_RETURN_NONE;
-}
-
-static PyObject *
-iMeshObj_save(iMesh_Object *self,PyObject *args)
-{
-    const char *name = 0;
-    const char *options = "";
-    iBase_EntitySetHandle root;
-    int err;
-
-    if(!PyArg_ParseTuple(args,"s|s",&name,&options))
-        return NULL;
-
-    iMesh_getRootSet(self->mesh,&root,&err);
-    if(checkError(self->mesh,err))
-        return NULL;
-
-    iMesh_save(self->mesh,root,name,options,&err,strlen(name),strlen(options));
-    if(checkError(self->mesh,err))
-        return NULL;
-
-    Py_RETURN_NONE;
 }
 
 static PyObject *
@@ -931,12 +879,6 @@ iMeshObj_getAllTags(iMesh_Object *self,PyObject *args)
 
 
 static PyMethodDef iMesh_methods[] = {
-    { "load", (PyCFunction)iMeshObj_load, METH_VARARGS,
-      "Load a mesh from a file"
-    },
-    { "save", (PyCFunction)iMeshObj_save, METH_VARARGS,
-      "Save the mesh to a file"
-    },
     { "areEHValid", (PyCFunction)iMeshObj_areEHValid, METH_VARARGS,
       "Return whether entity handles have changed since last reset or since "
       "instance construction"
@@ -1010,6 +952,25 @@ static PyGetSetDef iMesh_getset[] = {
     {0}
 };
 
+static PyObject * iMeshObj_getAttr(PyObject *self,PyObject *attr_name)
+{
+    PyObject *ret;
+
+    ret = PyObject_GenericGetAttr(self,attr_name);
+    if(ret)
+        return ret;
+    else
+    {
+        PyErr_Clear();
+        PyObject *root = iMeshObj_getRootSet((iMesh_Object*)self,0);
+        if(!root)
+            return NULL;
+        ret = PyObject_GetAttr(root,attr_name);
+        Py_DECREF(root);
+        return ret;
+    }
+}
+
 static PyTypeObject iMesh_Type = {
     PyObject_HEAD_INIT(NULL)
     0,                            /* ob_size */
@@ -1028,7 +989,7 @@ static PyTypeObject iMesh_Type = {
     0,                            /* tp_hash */
     0,                            /* tp_call */
     0,                            /* tp_str */
-    0,                            /* tp_getattro */
+    iMeshObj_getAttr,             /* tp_getattro */
     0,                            /* tp_setattro */
     0,                            /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT |
@@ -1090,57 +1051,6 @@ static int NPY_IMESHTAG;
 
 ENUM_TYPE(iMeshTopology,"iMesh.Topology","");
 
-
-static void
-ArrDeallocObj_dealloc(ArrDealloc_Object *self)
-{
-    free(self->memory);
-    Py_XDECREF(self->base);
-
-    self->ob_type->tp_free((PyObject *)self);
-}
-
-static PyTypeObject ArrDealloc_Type = {
-    PyObject_HEAD_INIT(NULL)
-    0,                                          /* ob_size */
-    "arrdealloc",                               /* tp_name */
-    sizeof(ArrDealloc_Object),                  /* tp_basicsize */
-    0,                                          /* tp_itemsize */
-    (destructor)ArrDeallocObj_dealloc,          /* tp_dealloc */
-    0,                                          /* tp_print */
-    0,                                          /* tp_getattr */
-    0,                                          /* tp_setattr */
-    0,                                          /* tp_compare */
-    0,                                          /* tp_repr */
-    0,                                          /* tp_as_number */
-    0,                                          /* tp_as_sequence */
-    0,                                          /* tp_as_mapping */
-    0,                                          /* tp_hash */
-    0,                                          /* tp_call */
-    0,                                          /* tp_str */
-    0,                                          /* tp_getattro */
-    0,                                          /* tp_setattro */
-    0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
-    "Internal deallocator object",              /* tp_doc */
-};
-
-PyObject *
-PyArray_NewFromMallocBaseStrided(int nd,npy_intp *dims,npy_intp *strides,
-                                 int typenum,void *data,PyObject *base)
-{
-    ArrDealloc_Object *newobj;
-    PyObject *arr = PyArray_New(&PyArray_Type,nd,dims,typenum,strides,data,0,
-                                NPY_CARRAY,NULL);
-
-    newobj = PyObject_New(ArrDealloc_Object,&ArrDealloc_Type);
-    newobj->memory = data;
-    Py_XINCREF(base);
-    newobj->base = base;
-
-    PyArray_BASE(arr) = (PyObject*)newobj;
-    return arr;
-}
 
 PyMODINIT_FUNC initiMesh(void)
 {
@@ -1229,3 +1139,4 @@ PyMODINIT_FUNC initiMesh(void)
 #include "iMesh_entSet.inl"
 #include "iMesh_iter.inl"
 #include "iMesh_tag.inl"
+#include "numpy_extensions.inl"

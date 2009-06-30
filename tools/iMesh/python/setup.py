@@ -48,7 +48,8 @@ iBase = Extension('itaps.iBase',
 iMesh = Extension('itaps.iMesh',
                   depends      = ['common.h', 'errors.h', 'iMesh_Python.h',
                                   'iBase_Python.h', 'iMesh_entSet.inl',
-                                  'iMesh_iter.inl', 'iMesh_tag.inl'],
+                                  'iMesh_iter.inl', 'iMesh_tag.inl',
+                                  'numpy_extensions.h', 'numpy_extensions.inl'],
                   sources      = ['iMesh.c']
                   )
 
