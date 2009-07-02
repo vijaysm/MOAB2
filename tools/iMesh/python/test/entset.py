@@ -13,12 +13,15 @@ class TestEntSet(unittest.TestCase):
         self.assertEqual(self.set.instance, self.mesh)
         self.assertEqual(self.set.isList, True)
         self.assertEqual(self.set.getNumEntSets(1), 0)
+        self.assertEqual(self.mesh.getNumEntSets(0), 1)
         self.assertEqual(self.mesh.rootSet.getNumEntSets(0), 1)
 
-        foo = self.mesh.rootSet.getEntSets(0)[0]
-        self.assertEqual(self.set, foo)
+        my_set = self.mesh.getEntSets(0)[0]
+        self.assertEqual(my_set, self.mesh.rootSet.getEntSets(0)[0])
+        self.assertEqual(self.set, my_set)
 
         self.mesh.destroyEntSet(self.set)
+        self.assertEqual(self.mesh.getNumEntSets(0), 0)
         self.assertEqual(self.mesh.rootSet.getNumEntSets(0), 0)
 
     def testEnt(self):

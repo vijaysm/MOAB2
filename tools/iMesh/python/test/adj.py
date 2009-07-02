@@ -16,36 +16,28 @@ class TestAdj(unittest.TestCase):
             self.mesh.createEnt(topo.line_segment, self.ents[2:4] )[0],
             self.mesh.createEnt(topo.line_segment, self.ents[::-3])[0] ]
 
-    def tearDown(self):
-        self.mesh  = None
-        self.verts = None
-        self.ents  = None
-        self.root  = None
-        self.lines = None
-
     def testSquare(self):
         quad = self.mesh.createEnt(topo.quadrilateral, self.lines)[0]
-        root = self.mesh.rootSet
 
-        self.assertEqual(root.getNumOfType(iBase.Type.vertex),  4)
-        self.assertEqual(root.getNumOfType(iBase.Type.edge),    4)
-        self.assertEqual(root.getNumOfType(iBase.Type.face),    1)
+        self.assertEqual(self.mesh.getNumOfType(iBase.Type.vertex),  4)
+        self.assertEqual(self.mesh.getNumOfType(iBase.Type.edge),    4)
+        self.assertEqual(self.mesh.getNumOfType(iBase.Type.face),    1)
 
-        self.assertEqual(root.getNumOfTopo(topo.point),         4)
-        self.assertEqual(root.getNumOfTopo(topo.line_segment),  4)
-        self.assertEqual(root.getNumOfTopo(topo.quadrilateral), 1)
+        self.assertEqual(self.mesh.getNumOfTopo(topo.point),         4)
+        self.assertEqual(self.mesh.getNumOfTopo(topo.line_segment),  4)
+        self.assertEqual(self.mesh.getNumOfTopo(topo.quadrilateral), 1)
 
         self.mesh.deleteEnt(quad)
-        self.assertEqual(root.getNumOfType(iBase.Type.face),    0)
-        self.assertEqual(root.getNumOfTopo(topo.quadrilateral), 0)
+        self.assertEqual(self.mesh.getNumOfType(iBase.Type.face),    0)
+        self.assertEqual(self.mesh.getNumOfTopo(topo.quadrilateral), 0)
 
         self.mesh.deleteEnt(self.lines)
-        self.assertEqual(root.getNumOfType(iBase.Type.edge),    0)
-        self.assertEqual(root.getNumOfTopo(topo.line_segment),  0)
+        self.assertEqual(self.mesh.getNumOfType(iBase.Type.edge),    0)
+        self.assertEqual(self.mesh.getNumOfTopo(topo.line_segment),  0)
 
         self.mesh.deleteEnt(self.ents)
-        self.assertEqual(root.getNumOfType(iBase.Type.vertex),  0)
-        self.assertEqual(root.getNumOfTopo(topo.point),         0)
+        self.assertEqual(self.mesh.getNumOfType(iBase.Type.vertex),  0)
+        self.assertEqual(self.mesh.getNumOfTopo(topo.point),         0)
 
     def testAdj(self):
         adj = self.mesh.getEntAdj(self.ents[1], iBase.Type.all)

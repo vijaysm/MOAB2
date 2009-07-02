@@ -217,11 +217,11 @@ Forwards
 In addition to the methods listed above, :class:`Mesh` automatically forwards
 method calls to the root :class:`EntitySet`. Thus, ::
 
-  mesh.getEntities(iBase.type.all, iMesh.topology.all)
+  mesh.getEntities(iBase.Type.all, iMesh.Topology.all)
 
 is equivalent to::
 
-  mesh.rootSet.getEntities(iBase.type.all, iMesh.topology.all)
+  mesh.rootSet.getEntities(iBase.Type.all, iMesh.Topology.all)
 
 EntitySet
 =========
