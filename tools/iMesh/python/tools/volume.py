@@ -27,9 +27,9 @@ def hex_volume(coords):
            subvolume(coords[1], coords[2], coords[5], coords[6], coords[7])
 
 def calc_volume(mesh):
-    volume = ndarray(mesh.rootSet.getNumOfType(iBase.Type.region), float_)
+    volume = ndarray(mesh.getNumOfType(iBase.Type.region), float_)
     x=0
-    for i in mesh.rootSet.iterate(iBase.Type.region, iMesh.Topology.all):
+    for i in mesh.iterate(iBase.Type.region, iMesh.Topology.all):
         topo = mesh.getEntTopo(i)
         curr = mesh.getVtxCoords( mesh.getEntAdj(i, iBase.Type.vertex),
                                   iBase.StorageOrder.interleaved )
@@ -57,8 +57,8 @@ mesh_pre.load(args[0])
 mesh_post = iMesh.Mesh()
 mesh_post.load(args[1])
 
-if mesh_pre. rootSet.getNumOfType(iBase.Type.region) != \
-   mesh_post.rootSet.getNumOfType(iBase.Type.region):
+if mesh_pre. getNumOfType(iBase.Type.region) != \
+   mesh_post.getNumOfType(iBase.Type.region):
     print 'volume.py: Meshes should have the same number of regions'
     exit(1)
 

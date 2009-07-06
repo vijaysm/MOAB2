@@ -71,19 +71,18 @@ for file in files:
 
     ##### Intermission #####
     mesh = iMesh.Mesh()
-    root = mesh.rootSet
     mesh.load(file)
 
     ##### 2 #####
     timer.reset()
     for x in range(count):
-        root.getAdjEntIndices(iBase.Type.all, iMesh.Topology.all,
+        mesh.getAdjEntIndices(iBase.Type.all, iMesh.Topology.all,
                               iBase.Type.all)
     py_stats[file].append( timer.delta()/count )
     list_stats[file].append(0)
 
     ##### Intermission #####
-    arr = root.getEntities(iBase.Type.all, iMesh.Topology.all)
+    arr = mesh.getEntities(iBase.Type.all, iMesh.Topology.all)
     list = arr.tolist()
 
     ##### 3 #####
@@ -109,7 +108,6 @@ for file in files:
     list_stats[file].append( timer.delta()/count )
 
     mesh = None
-    root = None
     arr  = None
     list = None
 
