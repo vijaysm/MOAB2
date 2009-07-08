@@ -95,20 +95,6 @@ MBErrorCode parallel_create_mesh( MBInterface& mb,
                                   MBEntityHandle output_vertex_handles[9],
                                   MBRange& output_elements );
 
-// For each handle, pass back 1 if this processor owns the entity or
-// 0 if it does not.
-void check_if_owner( MBParallelComm& pcomm,
-                     const MBEntityHandle* handles,
-                     int num_handles,
-                     int* results );
-
-// Get data about shared entity.
-MBErrorCode get_sharing_data( MBParallelComm& pcomm,
-                              MBEntityHandle ent,
-                              int& owner,
-                              std::vector<int>& sharing_procs,
-                              std::vector<MBEntityHandle>& sharing_handles );
-                                     
 // Test if is_my_error is non-zero on any processor in MPI_COMM_WORLD
 int is_any_proc_error( int is_my_error );
 
@@ -401,67 +387,6 @@ MBErrorCode parallel_create_mesh( MBInterface& mb,
     rval = mb.tag_set_data( id_tag, &h, 1, &id ); CHKERR(rval);
   }
   
-  return MB_SUCCESS;
-}
-
-void check_if_owner( MBParallelComm& pcomm,
-                     const MBEntityHandle* handles,
-                     int num_handles,
-                     int* results )
-{
-  MBErrorCode rval;
-  int owner, me = pcomm.proc_config().proc_rank();
-  for (int i = 0; i < num_handles; ++i) {
-    rval = pcomm.get_owner( handles[i], owner );
-    results[i] = (rval == MB_SUCCESS) && (owner == me);
-  }
-}
-
-MBErrorCode get_sharing_data( MBParallelComm& pcomm,
-                              MBEntityHandle ent,
-                              int& owner,
-                              std::vector<int>& sharing_procs,
-                              std::vector<MBEntityHandle>& sharing_handles )
-{
-  MBInterface* const moab = pcomm.get_moab();
-  MBErrorCode rval;
-  sharing_procs.clear();
-  sharing_handles.clear();
-  
-  unsigned char status;
-  rval = moab->tag_get_data( pcomm.pstatus_tag(), &ent, 1, &status );
-  if (MB_TAG_NOT_FOUND == rval) {
-    owner = pcomm.proc_config().proc_rank();
-    return MB_SUCCESS;
-  }
-  else { CHKERR(rval); }
-  
-  if (!(status & PSTATUS_SHARED)) {
-    owner = pcomm.proc_config().proc_rank();
-    return MB_SUCCESS;
-  }
-  
-  int ranks[MAX_SHARING_PROCS];
-  int handles[MAX_SHARING_PROCS];
-  rval = moab->tag_get_data( pcomm.sharedp_tag(), &ent, 1, ranks );
-  if (MB_SUCCESS != rval)
-    return rval;
-  if (ranks[0] >= 0) {
-    ranks[1] = -1;
-    rval = moab->tag_get_data( pcomm.sharedh_tag(), &ent, 1, handles ); CHKERR(rval);
-  }
-  else {
-    rval = moab->tag_get_data( pcomm.sharedps_tag(), &ent, 1, ranks ); CHKERR(rval);
-    rval = moab->tag_get_data( pcomm.sharedhs_tag(), &ent, 1, handles ); CHKERR(rval);
-  }
-  owner = status & PSTATUS_NOT_OWNED ? ranks[0] : pcomm.proc_config().proc_rank();
-  
-  for (int i = 0; i < MAX_SHARING_PROCS && ranks[i] >= 0; ++i) {
-    if (ranks[i] < 0 || (unsigned)ranks[i] != pcomm.proc_config().proc_rank()) {
-      sharing_procs.push_back(ranks[i]);
-      sharing_handles.push_back(handles[i]);
-    }
-  }
   return MB_SUCCESS;
 }
 
@@ -1174,129 +1099,6 @@ struct VtxData {
   std::vector<MBEntityHandle> handles;
 };
 
-int compare_sharing_data( const std::vector<int>& verts_per_proc,
-                          const std::vector<int>& vert_ids,
-                          const std::vector<int>& vert_owners,
-                          const std::vector<int>& vert_procs,
-                          const std::vector<MBEntityHandle>& vert_handles )
-{
-    // build per-vertex data
-  size_t k = 0;
-  std::map< int, VtxData > data_by_id;
-  std::vector<int>::const_iterator pi1, pi2, pi3;
-  pi1 = vert_procs.begin();
-  for (size_t i = 0; i < verts_per_proc.size(); ++i) {
-    for (int j = 0; j < verts_per_proc[i]; ++j, ++k) {
-      int id = vert_ids[k];
-      data_by_id[id].procs.push_back( i );
-      data_by_id[id].owners.push_back( vert_owners[k] );
-        // find handle from senting proc
-      pi2 = pi1 + MAX_SHARING_PROCS;
-      pi3 = std::find( pi1, pi2, (int)i );
-      if( pi3 != pi2 ) {
-        int idx = pi3 - vert_procs.begin();
-        data_by_id[id].handles.push_back( vert_handles[idx] );
-      }
-      pi1 = pi2;
-    }
-  }
-      
-    // check that all procs agree on vertex owner
-  int num_errors = 0;
-  std::map< int, VtxData >::iterator it;
-  for (it = data_by_id.begin(); it != data_by_id.end(); ++it) {
-    bool match = true;
-    for (size_t i = 1; i < it->second.owners.size(); ++i)
-      if (it->second.owners[0] != it->second.owners[i])
-        match = false;
-    if (match)
-      continue;
-    
-    std::cerr << "INCONSISTANT OWNERS FOR VERTEX " << it->first << std::endl
-              << "  (proc,owner) pairs: ";
-    for (size_t i = 0; i < it->second.owners.size(); ++i)
-      std::cerr << "(" << it->second.procs[i] 
-                << "," << it->second.owners[i] << ") ";
-    std::cerr << std::endl;
-    ++num_errors;
-  }
-  
-    // sort per-proc data for each vertex
-  for (it = data_by_id.begin(); it != data_by_id.end(); ++it) {
-    std::vector<int> procs = it->second.procs;
-    std::vector<MBEntityHandle> handles = it->second.handles;
-    std::sort( it->second.procs.begin(), it->second.procs.end() );
-    for (size_t i = 0; i < procs.size(); ++i) {
-      int idx = std::lower_bound( it->second.procs.begin(), 
-                                  it->second.procs.end(),
-                                  procs[i] ) - it->second.procs.begin();
-      if (!handles.empty())
-        it->second.handles[idx] = handles[i];
-    }
-  }
-  
-    // check that all procs have correct sharing lists
-  std::vector<MBEntityHandle>::const_iterator hi1, hi2;
-  pi1 = vert_procs.begin();
-  hi1 = vert_handles.begin();
-  k = 0;
-  for (size_t i = 0; i < verts_per_proc.size(); ++i) {
-    for (int j = 0; j < verts_per_proc[i]; ++j, ++k) {
-      int id = vert_ids[k];
-      pi2 = pi1 + MAX_SHARING_PROCS;
-      std::vector<int> sharing_procs, tmplist;
-      for ( ; pi1 != pi2 && *pi1 != -1; ++pi1)
-        tmplist.push_back( *pi1 );
-      pi1 = pi2;
-      
-      sharing_procs = tmplist;
-      std::sort( sharing_procs.begin(), sharing_procs.end() );
-
-      hi2 = hi1 + MAX_SHARING_PROCS;
-      std::vector<MBEntityHandle> sharing_handles(tmplist.size());
-      for (size_t m = 0; m < tmplist.size(); ++m, ++hi1) {
-        int idx = std::lower_bound( sharing_procs.begin(),
-                                    sharing_procs.end(),
-                                    tmplist[m] ) - sharing_procs.begin();
-        sharing_handles[idx] = *hi1;
-      }
-      hi1 = hi2;
-        
-      const VtxData& data = data_by_id[id];
-      if (sharing_procs != data.procs) {
-        std::cerr << "PROCESSOR " << i << " has incorrect sharing proc list "
-                  << "for vertex " << id << std::endl
-                  << "  expected: ";
-        for (size_t i = 0; i < data.procs.size(); ++i)
-          std::cerr << data.procs[i] << ", ";
-        std::cerr << std::endl << "  actual: ";
-        for (size_t i = 0; i < sharing_procs.size(); ++i)
-          std::cerr << sharing_procs[i] << ", ";
-        std::cerr << std::endl;
-        ++num_errors;
-      }
-      else if (sharing_handles != data.handles) {
-        std::cerr << "PROCESSOR " << i << " has incorrect sharing proc list "
-                  << "for vertex " << id << std::endl
-                  << "  procs: ";
-        for (size_t i = 0; i < data.procs.size(); ++i)
-          std::cerr << data.procs[i] << ", ";
-        std::cerr << std::endl << "  expected: ";
-        for (size_t i = 0; i < data.handles.size(); ++i)
-          std::cerr << data.handles[i] << ", ";
-        std::cerr << std::endl << "  actual: ";
-        for (size_t i = 0; i < sharing_handles.size(); ++i)
-          std::cerr << sharing_handles[i] << ", ";
-        std::cerr << std::endl;
-        ++num_errors;
-      }
-    }
-  }
-  
-  return num_errors;
-}
-
-
 MBErrorCode test_ghosted_entity_shared_data( const char* )
 {
   MBErrorCode rval;  
@@ -1304,7 +1106,7 @@ MBErrorCode test_ghosted_entity_shared_data( const char* )
   MBInterface& mb = moab_instance;
   MBParallelComm pcomm( &mb );
 
-  int rank, size, ierr;
+  int rank, size;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   MPI_Comm_size( MPI_COMM_WORLD, &size );
    
@@ -1317,97 +1119,8 @@ MBErrorCode test_ghosted_entity_shared_data( const char* )
   rval = pcomm.exchange_ghost_cells( 2, 1, 1, true ); 
   PCHECK(MB_SUCCESS == rval);
   
-  MBTag id_tag;
-  rval = mb.tag_get_handle( GLOBAL_ID_TAG_NAME, id_tag );
-  PCHECK(MB_SUCCESS == rval);
-
-  MBRange tmp_range;
-  rval = pcomm.exchange_tags(id_tag, tmp_range);
-  PCHECK(MB_SUCCESS == rval);
-
-    // get all vertices
-  MBRange vertices;
-  mb.get_entities_by_type( 0, MBVERTEX, vertices );
-  
-    // get owner for each entity
-  std::vector<int> vert_ids(vertices.size()), vert_owners(vertices.size());
-  std::vector<int> vert_shared(vertices.size()*MAX_SHARING_PROCS);
-  std::vector<MBEntityHandle> vert_handles(vertices.size()*MAX_SHARING_PROCS);
-  rval = mb.tag_get_data( id_tag, vertices, &vert_ids[0] );
+  rval = pcomm.check_all_shared_handles();
   PCHECK(MB_SUCCESS == rval);
   
-  MBRange::iterator it = vertices.begin();
-  for (int idx = 0; it != vertices.end(); ++it, ++idx) {
-    int n;
-    unsigned char pstat;
-    rval = pcomm.get_sharing_data( *it, &vert_shared[idx*MAX_SHARING_PROCS],
-                                   &vert_handles[idx*MAX_SHARING_PROCS], pstat, n );
-    if (MB_SUCCESS != rval)
-      break;
-    std::fill( vert_shared.begin() + idx*MAX_SHARING_PROCS + n,
-               vert_shared.begin() + idx*MAX_SHARING_PROCS + MAX_SHARING_PROCS,
-               -1 );
-    std::fill( vert_handles.begin() + idx*MAX_SHARING_PROCS + n,
-               vert_handles.begin() + idx*MAX_SHARING_PROCS + MAX_SHARING_PROCS,
-               0 );
-    rval = pcomm.get_owner( *it, vert_owners[idx] );
-    if (MB_SUCCESS != rval)
-      break;
-  }
-  PCHECK( MB_SUCCESS == rval );
-  
-  
-    // sent vertex and quad counts
-  int count = vertices.size();
-  std::vector<int> counts(size );
-  ierr = MPI_Gather( &count, 1, MPI_INT, &counts[0], 1, MPI_INT, 0, MPI_COMM_WORLD );
-  if (ierr)
-    return MB_FAILURE;
-  
-  std::vector<int> disp(size), counts2(size), disp2(size);
-  int sum = 0, sum2 = 0;
-  for (int i = 0; i < size; ++i) {
-    disp[i] = sum;
-    sum += counts[i];
-    
-    counts2[i] = MAX_SHARING_PROCS * counts[i];
-    disp2[i] = sum2;
-    sum2 += counts2[i];
-  }
-  
-  std::vector<int> all_vert_ids(sum), all_vert_owners(sum), 
-                   all_vert_shared(sum * MAX_SHARING_PROCS);
-  std::vector<MBEntityHandle> all_vert_handles(sum * MAX_SHARING_PROCS);
-  
-  ierr = MPI_Gatherv( &vert_ids[0], vert_ids.size(), MPI_INT,
-                      &all_vert_ids[0], &counts[0], &disp[0], MPI_INT,
-                      0, MPI_COMM_WORLD );
-  if (ierr)
-    return MB_FAILURE;
-  
-  ierr = MPI_Gatherv( &vert_owners[0], vert_owners.size(), MPI_INT,
-                      &all_vert_owners[0], &counts[0], &disp[0], MPI_INT,
-                      0, MPI_COMM_WORLD );
-  if (ierr)
-    return MB_FAILURE;
-  
-  ierr = MPI_Gatherv( &vert_shared[0], vert_shared.size(), MPI_INT,
-                      &all_vert_shared[0], &counts2[0], &disp2[0], MPI_INT,
-                      0, MPI_COMM_WORLD );
-  if (ierr)
-    return MB_FAILURE;
-  
-  MPI_Datatype t = (sizeof(unsigned) == sizeof(MBEntityHandle)) ? MPI_UNSIGNED : MPI_UNSIGNED_LONG;
-  ierr = MPI_Gatherv( &vert_handles[0], vert_handles.size(), t,
-                      &all_vert_handles[0], &counts2[0], &disp2[0], t,
-                      0, MPI_COMM_WORLD );
-  if (ierr)
-    return MB_FAILURE;
-  
-  int errors = 0;
-  if (rank == 0)
-    errors = compare_sharing_data( counts, all_vert_ids, all_vert_owners,
-                                   all_vert_shared, all_vert_handles );
-  MPI_Bcast( &errors, 1, MPI_INT, 0, MPI_COMM_WORLD );
-  return errors ? MB_FAILURE : MB_SUCCESS;
+  return MB_SUCCESS;
 }
