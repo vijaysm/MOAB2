@@ -269,9 +269,9 @@ MBErrorCode MBParallelComm::assign_global_ids(MBEntityHandle this_set,
   std::vector<int> num_elements(procConfig.proc_size()*4);
 #ifdef USE_MPI
   if (procConfig.proc_size() > 1 && parallel) {
-    int retval = MPI_Alltoall(local_num_elements, 4, MPI_INT,
-                              &num_elements[0], procConfig.proc_size()*4, 
-                              MPI_INT, procConfig.proc_comm());
+    int retval = MPI_Allgather(local_num_elements, 4, MPI_INT,
+                               &num_elements[0], 4, 
+                               MPI_INT, procConfig.proc_comm());
     if (0 != retval) return MB_FAILURE;
   }
   else
