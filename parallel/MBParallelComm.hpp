@@ -493,6 +493,21 @@ public:
     //! on local shared entities.
   MBErrorCode check_all_shared_handles();
 
+  static MBErrorCode check_all_shared_handles(MBParallelComm **pcs,
+                                              int num_pcs);
+  
+  struct SharedEntityData {
+    MBEntityHandle local;
+    MBEntityHandle remote;
+    int owner;
+  };
+
+  MBErrorCode pack_shared_handles(
+      std::vector<std::vector<SharedEntityData> > &send_data);
+
+  MBErrorCode check_my_shared_handles(
+      std::vector<std::vector<SharedEntityData> > &shents);
+  
     //! set rank for this pcomm; USED FOR TESTING ONLY!
   void set_rank(unsigned int r);
   
@@ -836,17 +851,13 @@ private:
     //! add vertices adjacent to entities in this list
   MBErrorCode add_verts(MBRange &sent_ents);
   
-  struct SharedEntityData {
-    MBEntityHandle local;
-    MBEntityHandle remote;
-    int owner;
-  };
-
   //! Every processor sends shared entity handle data to every other processor
   //! that it shares entities with.  Passed back map is all received data,
   //! indexed by processor ID. This function is intended to be used for 
   //! debugging.
-  MBErrorCode exchange_all_shared_handles(std::vector<std::vector<SharedEntityData> > &result);
+  MBErrorCode exchange_all_shared_handles(  
+      std::vector<std::vector<SharedEntityData> > &send_data, 
+      std::vector<std::vector<SharedEntityData> > &result);
   
     //! replace handles in from_vec with corresponding handles on
     //! to_proc (by checking shared[p/h]_tag and shared[p/h]s_tag;
