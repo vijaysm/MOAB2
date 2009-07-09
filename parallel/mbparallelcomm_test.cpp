@@ -349,7 +349,8 @@ MBErrorCode read_file(MBInterface *mbImpl,
       }
 
         // exchange tag
-      result = pcs[i]->exchange_tags("GLOBAL_ID");
+      MBRange tmp_range;
+      result = pcs[i]->exchange_tags("GLOBAL_ID", tmp_range);
       if (MB_SUCCESS != result) {
         std::cerr << "Tag exchange didn't work." << std::endl;
         break;
@@ -388,14 +389,21 @@ MBErrorCode test_packing(MBInterface *mbImpl, const char *filename)
   ents.insert(file_set);
   
   MBParallelComm *pcomm = new MBParallelComm(mbImpl);
+
   std::vector<unsigned char> buff(1024);
   int buff_size;
-  result = pcomm->pack_buffer(ents, false, true, false, false, -1,
-                              whole_range, buff, buff_size);
+  result = pcomm->pack_buffer(ents, false, true, false, -1,
+                                   buff, buff_size);
   RRA("Packing buffer count (non-stored handles) failed.");
 
-  result = pcomm->unpack_buffer(&buff[0], false, -1, new_ents);
-  RRA("Unacking buffer (non-stored handles) failed.");
+  std::vector<std::vector<MBEntityHandle> > L1hloc, L1hrem;
+  std::vector<std::vector<int> > L1p;
+  std::vector<MBEntityHandle> L2hloc, L2hrem;
+  std::vector<unsigned int> L2p;
+  
+  result = pcomm->unpack_buffer(&buff[0], false, -1, -1, L1hloc, L1hrem, L1p, L2hloc, 
+                         L2hrem, L2p, new_ents);
+  RRA("Unpacking buffer (non-stored handles) failed.");
 
   return MB_SUCCESS;
 }
@@ -458,6 +466,8 @@ MBErrorCode report_iface_ents(MBInterface *mbImpl,
   
   int failure = MPI_Reduce(&num_local, &num_total, 1,
                            MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  if (failure) result = MB_FAILURE;
+
   if (0 == rank)
     std::cout << "Total # owned regions = " << num_total << std::endl;
     

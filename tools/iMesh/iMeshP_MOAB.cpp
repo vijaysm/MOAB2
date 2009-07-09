@@ -998,6 +998,80 @@ void iMeshP_getEntities( iMesh_Instance instance,
   RETURN(iBase_SUCCESS);
 }
 
+void iMeshP_getAdjEntities( iMesh_Instance instance,
+                            const iMeshP_PartitionHandle partition_handle,
+                            const iMeshP_PartHandle part_handle,
+                            const iBase_EntitySetHandle entity_set_handle,
+                            const int entity_type_requestor,
+                            const int entity_topology_requestor,
+                            const int entity_type_requested,
+                            iBase_EntityHandle** adj_entity_handles,
+                            int* adj_entity_handles_allocated,
+                            int* adj_entity_handles_size,
+                            int** offset,
+                            int* offset_allocated,
+                            int* offset_size,
+                            int** in_entity_set,
+                            int* in_entity_set_allocated,
+                            int* in_entity_set_size,
+                            int *err )
+{
+  MBErrorCode rval;
+  MBRange r;
+  set_intersection_query( instance, part_handle, entity_set_handle,
+                           entity_type_requestor, entity_topology_requestor,
+                           r, err );
+  if (iBase_SUCCESS != *err)
+    return;
+  
+    // count adjacencies
+  std::vector<MBEntityHandle> tmp_storage;
+  int num_adj = 0;
+  int num_conn;
+  const MBEntityHandle* conn_ptr;
+  for (MBRange::iterator i = r.begin(); i != r.end(); ++i)  {
+    if (entity_type_requested || TYPE_FROM_HANDLE(*i) == MBPOLYHEDRON) {
+      tmp_storage.clear();
+      rval = MBI->get_adjacencies( &*i, 1, entity_type_requested, false, tmp_storage );
+      CHKERR(rval);
+      num_adj += tmp_storage.size();
+    }
+    else {
+      rval = MBI->get_connectivity( *i, conn_ptr, num_conn, false, &tmp_storage );
+      CHKERR(rval);
+      num_adj += num_conn;
+    }
+  }
+  
+    // get adjacencies
+  ALLOCATE_ARRAY( adj_entity_handles, num_adj );
+  ALLOCATE_ARRAY( offset, r.size() );
+  int arr_pos = 0;
+  int* offset_iter = *offset;
+  for (MBRange::iterator i = r.begin(); i != r.end(); ++i)  {
+    *offset_iter = arr_pos; 
+    ++offset_iter;
+
+    tmp_storage.clear();
+    rval = MBI->get_adjacencies( &*i, 1, entity_type_requested, false, tmp_storage );
+    CHKERR(rval);
+    for (std::vector<MBEntityHandle>::iterator j = tmp_storage.begin(); j != tmp_storage.end(); ++j) {
+      (*adj_entity_handles)[arr_pos] = itaps_cast<iBase_EntityHandle>(*j);
+      ++arr_pos;
+    }
+  }
+
+    // get in_entity_set
+  iMesh_isEntArrContained( instance, 
+                           entity_set_handle, 
+                           *adj_entity_handles,
+                           *adj_entity_handles_size,
+                           in_entity_set,
+                           in_entity_set_allocated,
+                           in_entity_set_size,
+                           err );
+}
+
 void iMeshP_initEntIter( iMesh_Instance instance,
                          const iMeshP_PartitionHandle partition_handle,
                          const iMeshP_PartHandle part_handle,
@@ -1406,16 +1480,18 @@ void iMeshP_pushTags( iMesh_Instance instance,
     --types.second; 
   }
   
-  MBTag src_handle = itaps_cast<MBTag>(source_tag);
-  MBTag dst_handle = itaps_cast<MBTag>(dest_tag);
+  std::vector<MBTag> src_tags(1, itaps_cast<MBTag>(source_tag));
+  std::vector<MBTag> dst_tags(1, itaps_cast<MBTag>(dest_tag));
+  
   MBErrorCode rval;
   MBRange entities;
   for (MBEntityType t = types.first; t <= types.second; ++t) {
-    rval = MBI->get_entities_by_type_and_tag( 0, t, &src_handle, 0, 1, entities, MBInterface::UNION );
+    rval = MBI->get_entities_by_type_and_tag( 0, t, &src_tags[0], 0, 1, 
+                                              entities, MBInterface::UNION );
     CHKERR(rval);
   }
   
-  rval = pcomm->exchange_tags( src_handle, dst_handle, entities );
+  rval = pcomm->exchange_tags( src_tags, dst_tags, entities );
   CHKERR(rval);
   RETURN (iBase_SUCCESS);
 }
@@ -1433,10 +1509,10 @@ void iMeshP_pushTagsEnt( iMesh_Instance instance,
   const MBEntityHandle* ents = itaps_cast<const MBEntityHandle*>(entities);
   std::copy( ents, ents+entities_size, mb_range_inserter(range) );
   
-  MBTag src_handle = itaps_cast<MBTag>(source_tag);
-  MBTag dst_handle = itaps_cast<MBTag>(dest_tag);
+  std::vector<MBTag> src_tags(1, itaps_cast<MBTag>(source_tag));
+  std::vector<MBTag> dst_tags(1, itaps_cast<MBTag>(dest_tag));
   MBParallelComm* pcomm = PCOMM;
-  MBErrorCode rval = pcomm->exchange_tags( src_handle, dst_handle, range );
+  MBErrorCode rval = pcomm->exchange_tags( src_tags, dst_tags, range );
   CHKERR(rval);
   RETURN (iBase_SUCCESS);
 }

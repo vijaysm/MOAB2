@@ -1125,6 +1125,79 @@ void iMeshP_getEntities(
             int *entities_size,
             int *err);
 
+/** \brief Return entities adjacent to entities in a given part and entity set.
+ *
+ *  Given an entity set handle 
+ *  and a part handle, return entities adjacent (with respect to a given
+ *  entity type and/or topology) to entities
+ *  that are in both the part and the entity set.
+ *  This function is similar to iMesh_getAdjEntities, but it also restricts
+ *  the returned data with respect to its existence in the given part.
+ *  If a non-root entity set is specified, the function also returns
+ *  flags indicating whether each adjacent entity 
+ *  is in the entity set; (*in_entity_set)[i]=1 indicates that adjacent entity
+ *  (*adj_entities)[i] is in the specified entity set.  
+ *  Array entry offset[i] stores the index of first adjacent entity to 
+ *  entity i.
+ *
+ *  COMMUNICATION:  None.
+ *
+ *  \param  instance                     (In)     Mesh instance containing the 
+ *                                                partition.
+ *  \param  partition                    (In)     The partition being queried.
+ *  \param  part                         (In)     The part being queried.
+ *  \param  entity_set                   (In)     Entity set handle for the 
+ *                                                entity set being queried; 
+ *                                                may be the root set.
+ *  \param  entity_type_requestor        (In)     Return entities adjacent to 
+ *                                                entities of this type;
+ *                                                may be iBase_ALL_TYPES.
+ *  \param  entity_topology_requestor    (In)     Return entities adjacent to
+ *                                                entities of this topology;
+ *                                                may be iMesh_ALL_TOPOLOGIES.
+ *  \param  entity_type_requested        (In)     Return adjacent entities of 
+ *                                                this type;
+ *                                                may be iBase_ALL_TYPES.
+ *  \param  adj_entities                 (In/Out) Array of adjacent entity 
+ *                                                handles returned.
+ *  \param  adj_entities_allocated       (In/Out) Allocated size of 
+ *                                                adj_entities.
+ *  \param  adj_entities_size            (Out)    Occupied size of 
+ *                                                adj_entities.
+ *  \param  offset                       (In/Out) Array of offsets returned.
+ *  \param  offset_allocated             (In/Out) Allocated size of offset.
+ *  \param  offset_size                  (Out)    Occupied size of offset.
+ *  \param  in_entity_set                (In/Out) Array of flags returned if 
+ *                                                non-root entity set was input;
+ *                                                (*in_entity_set)[i]=1 
+ *                                                indicates
+ *                                                (*adj_entities)[i] 
+ *                                                is in the entity set.
+ *  \param  in_entity_set_allocated      (In/Out) Allocated size of 
+ *                                                in_entity_set.
+ *  \param  in_entity_set_size           (Out)    Occupied size of 
+ *                                                in_entity_set.
+ *  \param  err                          (Out)    Error code.
+ */
+void iMeshP_getAdjEntities(
+            iMesh_Instance instance,
+            const iMeshP_PartitionHandle partition,
+            const iMeshP_PartHandle part,
+            const iBase_EntitySetHandle entity_set,
+            int entity_type_requestor,
+            int entity_topology_requestor,
+            int entity_type_requested,
+            iBase_EntityHandle **adj_entities,
+            int *adj_entities_allocated,
+            int *adj_entities_size,
+            int **offset,
+            int *offset_allocated,
+            int *offset_size,
+            int **in_entity_set,
+            int *in_entity_set_allocated,
+            int *in_entity_set_size, 
+            int *err);
+
 /** \brief Create an entity iterator for a given part and entity set.  
 
  *  Given a local part and an entity set, return an iterator over the

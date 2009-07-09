@@ -688,7 +688,6 @@ const MBCN::UpConnMap MBCN::mUpConnMap[MBMAXTYPE][4][4] =
     {{{0}, {{0}} }, {{0}, {{0}} }, {{0}, {{0}} }} // source dim 3
   } // end type MBENTITYSET
 };
-
 const unsigned char E = MBCN::MID_EDGE_BIT;
 const unsigned char F = MBCN::MID_FACE_BIT;
 const unsigned char R = MBCN::MID_REGION_BIT;

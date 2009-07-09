@@ -104,7 +104,7 @@ static void crystal_partition(crystal_data *p, uint cutoff,
 
 static void crystal_send(crystal_data *p, uint target, int recvn)
 {
-  MPI_Request req[3];
+  MPI_Request req[3] = {MPI_REQUEST_NULL, MPI_REQUEST_NULL, MPI_REQUEST_NULL};
   MPI_Status status[3];
   uint count[2]={0,0},sum,*recv[2];
   crystal_buf *t;

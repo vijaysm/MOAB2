@@ -23,6 +23,8 @@
 
 #include <H5Ppublic.h>
 #include <H5Tpublic.h>
+#include <H5FDmpi.h>
+#include <H5FDmpio.h>
 
 const char* filename = "mhdf_ll.h5m";
 const char* proc_tag_name = "proc_id";
@@ -43,7 +45,7 @@ void check( mhdf_Status* status, int line )
 /* create file layout in serial */
 void create_file()
 {
-  const char* elem_types[] = { elem_handle };
+  const char* elem_types[1] = {elem_handle};
   const int num_elem_types = sizeof(elem_types)/sizeof(elem_types[0]);
   const int num_nodes = 4+4*NUM_PROC;
   const int num_hexes = NUM_PROC;
@@ -56,7 +58,8 @@ void create_file()
   hid_t data, tagdata[2];
   long junk;
   
-  time_t t = time(NULL);
+  time_t t;
+  t = time(NULL);
   history[1] = ctime(&t);
   
   mhdf_Status status;
@@ -110,6 +113,7 @@ void write_file_data()
   const int total_num_nodes = 4+4*NUM_PROC;
   const int total_num_hexes = NUM_PROC;
   long first_node, first_elem, first_set, count, ntag;
+  unsigned long ucount;
   long set_desc[4] = { 0, -1, -1, MESHSET_SET };
   hid_t handle, handles[2];
   mhdf_Status status;
@@ -122,14 +126,15 @@ void write_file_data()
                          0.0, 1.0, 0.0, 
                          0.0, 1.0, 1.0, 
                          0.0, 0.0, 1.0 };
-  int i, list[10], tagdata[10] = {RANK,RANK,RANK,RANK,RANK,RANK,RANK,RANK,RANK,RANK};
+  int i, list[10], tagdata[10];
+  for (i = 0; i < 10; i++) tagdata[i] = RANK;
   int num_node, offset, dim;
   
   
     /* open file */
   handle = H5Pcreate( H5P_FILE_ACCESS );
   H5Pset_fapl_mpio( handle, MPI_COMM_WORLD, MPI_INFO_NULL );
-  file = mhdf_openFileWithOpt( filename, 1, &count, handle, &status );
+  file = mhdf_openFileWithOpt( filename, 1, &ucount, handle, &status );
   CHECK(status);
   H5Pclose( handle );
   
@@ -249,7 +254,6 @@ void write_file_data()
  
 int main( int argc, char* argv[] )
 {
-  mhdf_Status status;
   int rval;
   
   rval = MPI_Init( &argc, &argv );

@@ -73,14 +73,19 @@
  *
  * bit 0: !owned (0=owned, 1=not owned)
  * bit 1: shared (0=not shared, 1=shared)
- * bit 2: interface (0=not interface, 1=interface)
- * bit 3: ghost (0=not ghost, 1=ghost)
+ * bit 2: multishared (shared by > 2 procs; 0=not shared, 1=shared)
+ * bit 3: interface (0=not interface, 1=interface)
+ * bit 4: ghost (0=not ghost, 1=ghost)
  */
 #define PARALLEL_STATUS_TAG_NAME "__PARALLEL_STATUS"
 
 #define PSTATUS_NOT_OWNED 0x1
 #define PSTATUS_SHARED 0x2
-#define PSTATUS_INTERFACE 0x4
-#define PSTATUS_GHOST 0x8
+#define PSTATUS_MULTISHARED 0x4
+#define PSTATUS_INTERFACE 0x8
+#define PSTATUS_GHOST 0x10
 
+#define PSTATUS_AND 0x1
+#define PSTATUS_OR 0x2
+#define PSTATUS_NOT 0x3
 #endif

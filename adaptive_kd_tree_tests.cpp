@@ -413,7 +413,6 @@ bool create_simple_2d_tree( MBAdaptiveKDTree& tool,
                             MBEntityHandle leaves[9] )
 {
   MBErrorCode rval;
-  MBInterface* mb = tool.moab();
   MBAdaptiveKDTree::Plane plane;
 
     // create a single-node tree

@@ -235,7 +235,7 @@ mhdf_readwriteSetMeta( hid_t table_id, int read,
   herr_t rval = 0;
   int dims, i;
   const int fill_val = -1;
-  
+
   mcounts[0] = count;
   mcounts[1] = 4;
   if (offset < 0 || count < 0)

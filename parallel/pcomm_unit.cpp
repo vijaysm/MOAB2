@@ -1,7 +1,15 @@
 #include "MBParallelComm.hpp"
+#include "MBParallelConventions.h"
+#include "MBTagConventions.hpp"
 #include "MBCore.hpp"
+#include "MeshTopoUtil.hpp"
+#include "ReadParallel.hpp"
+#include "FileOptions.hpp"
 #include "TestUtil.hpp"
 #include <algorithm>
+#include <vector>
+#include <set>
+#include <sstream>
 
 #ifdef USE_MPI
 #  include <mpi.h>
@@ -33,6 +41,14 @@ void test_pack_bit_tag_data();
 void test_pack_variable_length_tag();
 /** Test pack/unpack tag values*/
 void test_pack_tag_handle_data();
+/** Test pack/unpack of shared entities in 2d*/
+void test_pack_shared_entities_2d();
+/** Test pack/unpack of shared entities in 3d*/
+void test_pack_shared_entities_3d();
+/** Test pack/unpack of arbitrary mesh file */
+void test_pack_shared_arbitrary();
+/** Test filter_pstatus function*/
+void test_filter_pstatus();
 
 int main( int argc, char* argv[] )
 {
@@ -55,6 +71,10 @@ int main( int argc, char* argv[] )
   //num_err += RUN_TEST( test_pack_bit_tag_data );
   num_err += RUN_TEST( test_pack_variable_length_tag );
   num_err += RUN_TEST( test_pack_tag_handle_data );
+  num_err += RUN_TEST( test_pack_shared_entities_2d );
+  num_err += RUN_TEST( test_pack_shared_entities_3d );
+  num_err += RUN_TEST( test_pack_shared_arbitrary );
+  num_err += RUN_TEST( test_filter_pstatus );
   
 #ifdef USE_MPI
   MPI_Finalize();
@@ -63,7 +83,7 @@ int main( int argc, char* argv[] )
 }
 
 /* Utility method: pack mesh data, clear moab instance, and unpack */
-void pack_unpack_mesh( MBCore& moab, MBRange& entities )
+void pack_unpack_noremoteh( MBCore& moab, MBRange& entities )
 {
   MBErrorCode rval;
   if (entities.empty()) {
@@ -71,12 +91,20 @@ void pack_unpack_mesh( MBCore& moab, MBRange& entities )
     CHECK_ERR(rval);
   }
   
-  MBRange tmp_range;
   MBParallelComm *pcomm = new MBParallelComm( &moab );
   int size = 0;
   std::vector<unsigned char> buff;
-  rval = pcomm->pack_buffer( entities, false, true, false, false,
-                             -1, tmp_range, buff, size );
+  std::vector<int> addl_procs;
+
+    // get the necessary vertices too
+  MBRange tmp_range = entities.subset_by_type(MBENTITYSET);
+  entities = entities.subtract(tmp_range);
+  rval = moab.get_adjacencies(entities, 0, false, entities, MBInterface::UNION);
+  CHECK_ERR(rval);
+  entities.merge(tmp_range);
+  
+  rval = pcomm->pack_buffer( entities, false, true, false, 
+                             -1, buff, size);
   CHECK_ERR(rval);
   
   delete pcomm;
@@ -86,15 +114,20 @@ void pack_unpack_mesh( MBCore& moab, MBRange& entities )
   pcomm = new MBParallelComm( &moab);
   
   entities.clear();
-  rval = pcomm->unpack_buffer( &buff[0], false, -1, entities );
+  std::vector<std::vector<MBEntityHandle> > L1hloc, L1hrem;
+  std::vector<std::vector<int> > L1p;
+  std::vector<MBEntityHandle> L2hloc, L2hrem;
+  std::vector<unsigned int> L2p;
+  rval = pcomm->unpack_buffer( &buff[0], false, -1, -1, L1hloc, L1hrem, L1p, L2hloc, 
+                               L2hrem, L2p, entities);
   CHECK_ERR(rval);
 
   delete pcomm;
 }
-void pack_unpack_mesh( MBCore& moab )
+void pack_unpack_noremoteh( MBCore& moab )
 {
   MBRange empty;
-  pack_unpack_mesh( moab, empty );
+  pack_unpack_noremoteh( moab, empty );
 }
 
 /* Utility method -- check expected sizes */
@@ -197,6 +230,206 @@ void create_simple_grid( MBInterface& moab, unsigned x, unsigned y, unsigned z )
   delete [] elems;
 }
 
+MBErrorCode create_patch(MBInterface *moab, MBRange &verts, MBRange &quads,
+                         unsigned int n, double *xyz, int *gids) 
+{
+    // create vertices/quads in square array
+  MBErrorCode result = moab->create_vertices(xyz, n*n, verts);
+  if (MB_SUCCESS != result) return result;
+  std::vector<MBEntityHandle> connect;
+  for (unsigned int j = 0; j < n-1; j++) {
+    for (unsigned int i = 0; i < n-1; i++) {
+      connect.push_back(verts[n*j+i]);
+      connect.push_back(verts[n*j+i+1]);
+      connect.push_back(verts[n*(j+1)+i+1]);
+      connect.push_back(verts[n*(j+1)+i]);
+    }
+  }
+  
+  unsigned int nquads = (n-1)*(n-1);
+  for (unsigned int i = 0; i < nquads; i++) {
+    MBEntityHandle dum_quad;
+    result = moab->create_element(MBQUAD, &connect[4*i], 4, dum_quad);
+    if (MB_SUCCESS != result) return result;
+    quads.insert(dum_quad);
+  }
+  
+    // global ids
+  MBTag gid_tag;
+  int dum_default = -1;
+  result = moab->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE,
+                           MB_TYPE_INTEGER, gid_tag, &dum_default, true);
+  if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
+  result = moab->tag_set_data(gid_tag, verts, gids);
+  if (MB_SUCCESS != result) return result;
+
+  return result;
+}
+
+MBErrorCode create_shared_grid_2d(MBParallelComm **pc, MBRange *verts, MBRange *quads) 
+{
+//          
+//        P2______
+//         /__/__/ /|P1
+//    y:  /__/__/ /||
+//     1  _____   ||/     _____  1   
+//       |  |  |  |/|-1  |  |  | 
+//    .5 |__|__|  ||/    |__|__| .5
+//       |P0|  |  |/-.5  |P3|  | 
+//     0 |__|__| z:0     |__|__| 0
+//    x:-1 -.5  0       0  .5  1  
+//
+// nodes:   P2
+//            18 16 14      P1
+//          17 15 13      14               
+//         6  7  8     13 12            
+//                   8 11 10               
+//       6  7  8     5  9      8  23 24 P3
+//       3  4  5     2         5  21 22 
+//   P0  0  1  2               2  19 20 
+
+  int gids[] = {
+      0, 1, 2, 3, 4, 5, 6, 7, 8, // P0
+      2, 9, 10, 5, 11, 12, 8, 13, 14, // P1
+      6, 7, 8, 17, 15, 13, 18, 16, 14, // P2
+      2, 19, 20, 5, 21, 22, 8, 23, 24 // P3
+  };
+  double xyz[] =  {
+      -1.0, 0.0, 0.0, -0.5, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.5, 0.0,
+      -0.5, 0.5, 0.0, 0.0, 0.5, 0.0, -1.0, 1.0, 0.0, -0.5, 1.0, 0.0,
+      0.0, 1.0, 0.0, // n0-8
+      0.0, 0.0, -0.5, 0.0, 0.0, -1.0, 0.0, 0.5, -0.5, 
+      0.0, 0.5, -1.0, 0.0, 1.0, -0.5, 0.0, 1.0, -1.0, // n9-14
+      -0.5, 1.0, -0.5, -0.5, 1.0, -1.0, -1.0, 1.0, -0.5, -1.0, 1.0, -1.0, // n15-18
+      0.5, 0.0, 0.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.0, 1.0, 0.5, 0.0, 
+      0.5, 1.0, 0.0, 1.0, 1.0, 0.0, // n19-24
+  };
+  double xyztmp[27];
+
+    // create the test mesh above
+  for (unsigned int i = 0; i < 4; i++) {
+    for (unsigned int j = 0; j < 9; j++) {
+      xyztmp[3*j] = xyz[3*gids[9*i+j]];
+      xyztmp[3*j+1] = xyz[3*gids[9*i+j]+1];
+      xyztmp[3*j+2] = xyz[3*gids[9*i+j]+2];
+    }
+    
+    create_patch(pc[i]->get_moab(), verts[i], quads[i], 3, xyztmp, &gids[9*i]);
+  }
+
+  MBErrorCode rval = MBParallelComm::resolve_shared_ents(pc, 4, 2);
+  CHECK_ERR(rval);
+
+  return rval;
+}
+
+MBErrorCode create_shared_grid_3d(MBParallelComm **pc, MBRange *verts, MBRange *hexes) 
+{
+//    
+//   4 _____   _____ 
+//    |  |  | |  |  |
+//   3|__|__| |__|__|          GIDS               HANDLES
+//    |P1|  | |P2|  |
+//    |__|__| |__|__|   20 21 22   22 23 24      7  8  9    7  8  9
+//    2 ___________     15 16 17   17 18 19      4  5  6    4  5  6
+//     |  |  |  |  |    10 11 12   12 13 14      1  2  3    1  2  3
+// /  1|__|__|__|__|         
+// |   |  |P0|  |  |     10 11 12 13 14           10 11 12 13 14     
+// J  0|__|__|__|__|      5  6  7  8  9            5  6  7  8  9
+// I-> 0  1  2  3  4      0  1  2  3  4            0  1  2  3  4
+//
+//  P3 - k = 2..4
+  
+    // create structured meshes
+    // ijkmin[p][ijk], ijkmax[p][ijk]
+#define P 4
+  int ijkmin[P][3] = { {0, 0, 0}, {0, 2, 0}, {2, 2, 0}, {0, 0, 2}};
+  int ijkmax[P][3] = { {4, 2, 2}, {2, 4, 2}, {4, 4, 2}, {4, 4, 4}};
+
+  int nijk[P][3];
+  int NIJK[3] = {0, 0, 0};
+#define INDEXG(i, j, k) (k * NIJK[1] * NIJK[0] + j * NIJK[0] + i)
+#define INDEXL(i, j, k) ((k-ijkmin[p][2])*nijk[p][1]*nijk[p][0] + \
+                         (j-ijkmin[p][1])*nijk[p][0] + (i - ijkmin[p][0]))
+
+  int p, i, j, k;
+  for (int p = 0; p < P; p++) {
+    for (int i = 0; i < 3; i++) {
+      nijk[p][i] =  ijkmax[p][i] - ijkmin[p][i] + 1;
+      NIJK[i] = std::max(NIJK[i], nijk[p][i]);
+    }
+  }
+    
+  std::vector<int> gids;
+  std::vector<double> xyz;
+  MBErrorCode rval;
+  MBTag gid_tag;
+  int dum_default = -1;
+
+  for (p = 0; p < P; p++) {
+    rval = pc[p]->get_moab()->tag_create(GLOBAL_ID_TAG_NAME, 
+                                         sizeof(int), MB_TAG_DENSE,
+                                         MB_TYPE_INTEGER, gid_tag, 
+                                         &dum_default, true);
+    if (MB_SUCCESS != rval && MB_ALREADY_ALLOCATED != rval) return rval;
+
+      // make vertices
+    int nverts = nijk[p][0] * nijk[p][1] * nijk[p][2];
+    xyz.resize(3*nverts);
+    gids.resize(nverts);
+
+      // set vertex gids
+    int nv = 0;
+    for (k = ijkmin[p][2]; k <= ijkmax[p][2]; k++) 
+      for (j = ijkmin[p][1]; j <= ijkmax[p][1]; j++) 
+        for (i = ijkmin[p][0]; i <= ijkmax[p][0]; i++) {
+            // xyz
+          xyz[3*nv] = i;
+          xyz[3*nv+1] = j;
+          xyz[3*nv+2] = k;
+          
+            // gid
+          gids[nv++] = INDEXG(i, j, k);
+        }
+    
+
+    rval = pc[p]->get_moab()->create_vertices(&xyz[0], nverts, verts[p]);
+    CHECK_ERR(rval);
+
+    rval = pc[p]->get_moab()->tag_set_data(gid_tag, verts[p], &gids[0]);
+    if (MB_SUCCESS != rval) return rval;
+
+      // make elements
+    nv = 0;
+    MBEntityHandle connect[8], dum_hex;
+    for (k = ijkmin[p][2]; k < ijkmax[p][2]; k++) 
+      for (j = ijkmin[p][1]; j < ijkmax[p][1]; j++) 
+        for (i = ijkmin[p][0]; i < ijkmax[p][0]; i++) {
+            // gid
+          connect[0] = verts[p][INDEXL(i, j, k)];
+          connect[1] = verts[p][INDEXL(i+1, j, k)];
+          connect[2] = verts[p][INDEXL(i+1, j+1, k)];
+          connect[3] = verts[p][INDEXL(i, j+1, k)];
+          connect[4] = verts[p][INDEXL(i, j, k+1)];
+          connect[5] = verts[p][INDEXL(i+1, j, k+1)];
+          connect[6] = verts[p][INDEXL(i+1, j+1, k+1)];
+          connect[7] = verts[p][INDEXL(i, j+1, k+1)];
+          rval = pc[p]->get_moab()->create_element(MBHEX, connect, 8, dum_hex);
+          hexes[p].insert(dum_hex);
+          gids[nv++] = INDEXG(i, j, k);
+        }
+    rval = pc[p]->get_moab()->tag_set_data(gid_tag, hexes[p], &gids[0]);
+    if (MB_SUCCESS != rval) return rval;
+
+    std::ostringstream fname;
+    fname << "tmp" << p << ".h5m";
+    rval = pc[p]->get_moab()->write_file(fname.str().c_str());
+    if (MB_SUCCESS != rval) return rval;
+  }
+  rval = MBParallelComm::resolve_shared_ents(pc, 4, 3);
+  CHECK_ERR(rval);
+  return rval;
+}
 
 void test_pack_vertices()
 {
@@ -213,7 +446,7 @@ void test_pack_vertices()
   rval = moab.create_vertices( coords, num_verts, verts );
   CHECK_ERR(rval);
   
-  pack_unpack_mesh( moab, verts );
+  pack_unpack_noremoteh( moab, verts );
   CHECK_EQUAL( num_verts, verts.size() );
   
   double coords2[3*num_verts];
@@ -343,7 +576,7 @@ void test_pack_elements()
   elems.insert( pyr );
   
     // pack and unpack mesh
-  pack_unpack_mesh( moab, elems );
+  pack_unpack_noremoteh( moab, elems );
   
     // check_counts
   check_sizes( moab, num_verts, 0, num_tri, num_quad, 0, 
@@ -455,7 +688,7 @@ void test_pack_higher_order()
   elems.insert( tri );
   
     // pack and unpack mesh
-  pack_unpack_mesh( moab, elems );
+  pack_unpack_noremoteh( moab, elems );
   
     // check_counts
   check_sizes( moab, num_vert, 0, num_tri, 0, 0, num_tet, 0, 0, 0, 0, 0 );
@@ -583,7 +816,7 @@ void test_pack_poly()
   elems.insert( polyhedron );
   elems.insert( octagon );
   std::copy( tri, tri+num_tri, mb_range_inserter(elems) );
-  pack_unpack_mesh( moab, elems );
+  pack_unpack_noremoteh( moab, elems );
   
     // check counts
   check_sizes( moab, num_vert, 0, num_tri, 0, num_polygon, 
@@ -706,7 +939,7 @@ void test_pack_sets_simple()
   CHECK_ERR(rval);
   
     // do pack and unpack
-  pack_unpack_mesh( moab, entities );
+  pack_unpack_noremoteh( moab, entities );
   
     // get entities by type
   verts.clear();
@@ -807,7 +1040,7 @@ void test_pack_set_contents()
     // Will fail unless we also pass in set contents explicitly
   MBRange entities( vertices );
   entities.insert( set );
-  pack_unpack_mesh( moab, entities );
+  pack_unpack_noremoteh( moab, entities );
   
     // expect single set in mesh
   entities.clear();
@@ -862,7 +1095,7 @@ void test_pack_sets_of_sets()
   sets.insert( set3 );
   
     // pack and unpack
-  pack_unpack_mesh( moab, sets );
+  pack_unpack_noremoteh( moab, sets );
   
     // get sets
   sets.clear();
@@ -964,7 +1197,7 @@ void test_pack_set_parent_child()
   CHECK( MB_SUCCESS == rval && 0 == count );
   
     // pack and unpack
-  pack_unpack_mesh( moab, sets );
+  pack_unpack_noremoteh( moab, sets );
   
     // get sets
   sets.clear();
@@ -1033,6 +1266,7 @@ void test_pack_tag_data_sparse()
                         MB_TYPE_INTEGER,
                         sparse_2_int_tag,
                         0 );
+  if (MB_ALREADY_ALLOCATED == rval) rval = MB_SUCCESS;
   CHECK_ERR(rval);
   bool skip = false;
   for (i = elems.begin(); i != elems.end(); ++i, skip = !skip) {
@@ -1053,7 +1287,7 @@ void test_pack_tag_data_sparse()
   
     // pack and unpack
   MBRange ents;
-  pack_unpack_mesh( moab, ents );
+  pack_unpack_noremoteh( moab, ents );
   elems.clear();
   rval = mb.get_entities_by_type( 0, MBHEX, elems );
   CHECK_ERR(rval);
@@ -1138,7 +1372,7 @@ void test_pack_tag_data_dense()
   
     // pack and unpack
   MBRange ents;
-  pack_unpack_mesh( moab, ents );
+  pack_unpack_noremoteh( moab, ents );
   verts.clear();
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
@@ -1211,7 +1445,7 @@ void test_pack_tag_data_default_value()
   
     // pack and unpack
   MBRange ents;
-  pack_unpack_mesh( moab, ents );
+  pack_unpack_noremoteh( moab, ents );
   elems.clear();
   verts.clear();
   sets.clear();
@@ -1306,7 +1540,7 @@ void test_pack_bit_tag_data()
   
     // pack and unpack
   MBRange ents;
-  pack_unpack_mesh( moab, ents );
+  pack_unpack_noremoteh( moab, ents );
   verts.clear();
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
@@ -1387,7 +1621,7 @@ void test_pack_variable_length_tag()
   }
   
     // pack and unpack
-  pack_unpack_mesh( moab );
+  pack_unpack_noremoteh( moab );
   verts.clear();
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
@@ -1441,7 +1675,6 @@ void test_pack_variable_length_tag()
   }
 }
 
-  
 void test_pack_tag_handle_data()
 {
   MBRange::iterator i;
@@ -1494,7 +1727,7 @@ void test_pack_tag_handle_data()
   }
   
     // pack and unpack
-  pack_unpack_mesh( moab );
+  pack_unpack_noremoteh( moab );
   verts.clear();
   rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
@@ -1555,4 +1788,218 @@ void test_pack_tag_handle_data()
       CHECK_EQUAL( (MBEntityHandle)0, tagdata[j] );
     }
   }
+}
+  
+MBErrorCode get_entities(MBInterface *mb,
+                         std::vector<MBEntityHandle> &ent_verts, 
+                         int verts_per_entity, int dim, 
+                         MBRange &ents) 
+{
+  assert(!(ent_verts.size()%verts_per_entity));
+  unsigned int num_ents = ent_verts.size() / verts_per_entity;
+  MBRange dum_ents;
+  MBErrorCode result;
+  for (unsigned int i = 0; i < num_ents; i++) {
+    result = mb->get_adjacencies(&ent_verts[verts_per_entity*i], verts_per_entity,
+                                dim, true, dum_ents);
+    CHECK_ERR(result);
+    assert(dum_ents.size() == 1);
+    ents.merge(dum_ents);
+    dum_ents.clear();
+  }
+  return MB_SUCCESS;
+}
+  
+void test_pack_shared_entities_2d()
+{
+  MBCore moab[4];
+  MBParallelComm *pc[4];
+  for (unsigned int i = 0; i < 4; i++) {
+    pc[i] = new MBParallelComm(&moab[i]);
+    pc[i]->set_rank(i);
+  }
+
+  MBRange verts[4], quads[4];
+  MBErrorCode rval = create_shared_grid_2d(pc, verts, quads);
+
+    // exchange interface cells
+  rval = MBParallelComm::exchange_ghost_cells(pc, 4, -1, -1, 0, true);
+  CHECK_ERR(rval);
+  
+    // now 1 layer of hex ghosts
+  rval = MBParallelComm::exchange_ghost_cells(pc, 4, 2, 0, 1, true);
+  CHECK_ERR(rval);
+}
+
+void test_pack_shared_entities_3d()
+{
+  MBCore moab[4];
+  MBParallelComm *pc[4];
+  for (unsigned int i = 0; i < 4; i++) {
+    pc[i] = new MBParallelComm(&moab[i]);
+    pc[i]->set_rank(i);
+    for (unsigned int j = 0; j < 4; j++) {
+      if (j == i) continue;
+      else pc[i]->get_buffers(j);
+    }
+  }
+
+  MBRange verts[4], hexes[4];
+  MBErrorCode rval = create_shared_grid_3d(pc, verts, hexes);
+
+    // exchange interface cells
+  rval = MBParallelComm::exchange_ghost_cells(pc, 4, -1, -1, 0, true);
+  CHECK_ERR(rval);
+  
+    // now 1 layer of hex ghosts
+  rval = MBParallelComm::exchange_ghost_cells(pc, 4, 3, 0, 1, true);
+  CHECK_ERR(rval);
+}
+
+void test_pack_shared_arbitrary()
+{
+#define NP 4
+  MBCore moab[NP];
+  MBParallelComm *pc[NP];
+  for (unsigned int i = 0; i < NP; i++) {
+    pc[i] = new MBParallelComm(&moab[i]);
+    pc[i]->set_rank(i);
+    pc[i]->set_size(NP);
+  }
+
+  std::string ptag_name("MATERIAL_SET");
+  std::vector<int> pa_vec;
+  pa_vec.push_back(0);
+  pa_vec.push_back(4);
+  pa_vec.push_back(2);
+  MBErrorCode rval;
+
+  const char *fnames[] = {"/home/tautges/MOABpar2/test/64bricks_512hex.h5m"};
+  
+  std::string partition_name("MATERIAL_SET");
+  FileOptions fopts(NULL);
+  
+  for (unsigned int i = 0; i < NP; i++) {
+    ReadParallel rp(moab+i, pc[i]);
+    MBEntityHandle tmp_set = 0;
+    std::vector<int> partition_tag_vals;
+    rval = rp.load_file(fnames, 1, tmp_set, ReadParallel::POPT_READ_DELETE,
+                        partition_name, 
+                        partition_tag_vals, true, pa_vec, 
+                        fopts, NULL, NULL, 0, i, false, -1, -1, -1, -1, 0);
+    CHECK_ERR(rval);
+  }
+  
+  rval = MBParallelComm::resolve_shared_ents(pc, NP, 3);
+  CHECK_ERR(rval);
+
+    // exchange interface cells
+  rval = MBParallelComm::exchange_ghost_cells(pc, NP, -1, -1, 0, true);
+  CHECK_ERR(rval);
+  
+    // now 1 layer of hex ghosts
+  rval = MBParallelComm::exchange_ghost_cells(pc, NP, 3, 0, 1, true);
+  CHECK_ERR(rval);
+}
+
+void test_filter_pstatus()
+{
+  MBRange::iterator i;
+  MBCore moab;
+  MBInterface& mb = moab;
+  MBErrorCode rval;
+  
+    // create some mesh
+  create_simple_grid( mb, 3 );  
+  std::vector<MBEntityHandle> verts;
+  MBRange dum_vertsr, vertsr;
+  rval = mb.get_entities_by_type( 0, MBVERTEX, dum_vertsr );
+  CHECK_ERR(rval);
+  vertsr.insert(dum_vertsr[0], dum_vertsr[8]);
+  for (unsigned int i = 0; i < 9; i++) verts.push_back(vertsr[i]);
+
+  CHECK( !verts.empty() );
+ 
+  MBParallelComm *pcomm = new MBParallelComm( &moab );
+
+  std::vector<int> procs(70, -1);
+  for (unsigned int i = 0; i < 6; i++) procs[i] = i;
+
+  std::vector<unsigned char> pvals(verts.size(), 0);
+    // interface, owned
+  pvals[0] = (PSTATUS_INTERFACE | PSTATUS_SHARED); // p0
+  rval = moab.tag_set_data(pcomm->sharedp_tag(), &verts[0], 1, &procs[0]); CHECK_ERR(rval);  
+    // interface, not owned
+  pvals[1] = (PSTATUS_NOT_OWNED | PSTATUS_INTERFACE | PSTATUS_SHARED); // p1
+  rval = moab.tag_set_data(pcomm->sharedp_tag(), &verts[1], 1, &procs[1]); CHECK_ERR(rval);  
+    // interface, multi-shared, owned
+  pvals[2] = (PSTATUS_INTERFACE | PSTATUS_SHARED | PSTATUS_MULTISHARED); // p0, p1
+  rval = moab.tag_set_data(pcomm->sharedps_tag(), &verts[2], 1, &procs[0]); CHECK_ERR(rval);  
+    // interface, multi-shared, not owned
+  pvals[3] = (PSTATUS_INTERFACE | PSTATUS_MULTISHARED | PSTATUS_NOT_OWNED | PSTATUS_SHARED); // p1, p2
+  rval = moab.tag_set_data(pcomm->sharedps_tag(), &verts[3], 1, &procs[1]); CHECK_ERR(rval);  
+    // ghost, shared
+  pvals[4] = (PSTATUS_GHOST | PSTATUS_SHARED | PSTATUS_NOT_OWNED); // p2
+  rval = moab.tag_set_data(pcomm->sharedp_tag(), &verts[4], 1, &procs[2]); CHECK_ERR(rval);  
+    // ghost, multi-shared
+  pvals[5] = (PSTATUS_GHOST | PSTATUS_MULTISHARED | PSTATUS_NOT_OWNED | PSTATUS_SHARED); // p2, p3
+  rval = moab.tag_set_data(pcomm->sharedps_tag(), &verts[5], 1, &procs[2]); CHECK_ERR(rval);  
+    // owned, shared
+  pvals[6] = (PSTATUS_SHARED); // p4
+  rval = moab.tag_set_data(pcomm->sharedp_tag(), &verts[6], 1, &procs[4]); CHECK_ERR(rval);  
+    // owned, multi-shared
+  pvals[7] = (PSTATUS_MULTISHARED | PSTATUS_SHARED); // p4, p5
+  rval = moab.tag_set_data(pcomm->sharedps_tag(), &verts[7], 1, &procs[4]); CHECK_ERR(rval);  
+    // not shared, owned
+  pvals[8] = 0x0;
+
+  rval = moab.tag_set_data(pcomm->pstatus_tag(), &verts[0], 9, &pvals[0]);
+  CHECK_ERR(rval);
+  
+
+  MBRange tmp_range = vertsr;
+
+    // interface ents
+  rval = pcomm->filter_pstatus(tmp_range, PSTATUS_INTERFACE, PSTATUS_AND);
+  CHECK_ERR(rval);
+  CHECK(tmp_range.size() == 4 && *tmp_range.begin() == verts[0] && 
+        *tmp_range.rbegin() == verts[3]);
+    // not interface
+  tmp_range = vertsr;
+  rval = pcomm->filter_pstatus(tmp_range, PSTATUS_INTERFACE, PSTATUS_NOT);
+  CHECK_ERR(rval);
+  CHECK(tmp_range.size() == 5 && *tmp_range.begin() == verts[4] && 
+        *tmp_range.rbegin() == verts[8]);
+    // interface not owned
+  tmp_range = vertsr;
+  rval = pcomm->filter_pstatus(tmp_range, PSTATUS_INTERFACE | PSTATUS_NOT_OWNED, PSTATUS_AND);
+  CHECK_ERR(rval);
+  CHECK(tmp_range.size() == 2 && *tmp_range.begin() == verts[1] && 
+        *tmp_range.rbegin() == verts[3]);
+    // ghost
+  tmp_range = vertsr;
+  rval = pcomm->filter_pstatus(tmp_range, PSTATUS_GHOST, PSTATUS_AND);
+  CHECK_ERR(rval);
+  CHECK(tmp_range.size() == 2 && *tmp_range.begin() == verts[4] && 
+        *tmp_range.rbegin() == verts[5]);
+    // shared not multi-shared
+  tmp_range = vertsr;
+  rval = pcomm->filter_pstatus(tmp_range, PSTATUS_SHARED, PSTATUS_AND);
+  CHECK_ERR(rval);
+  rval = pcomm->filter_pstatus(tmp_range, PSTATUS_MULTISHARED, PSTATUS_NOT);
+  CHECK_ERR(rval);
+  CHECK(tmp_range.size() == 4 && tmp_range[0] == verts[0] && 
+        tmp_range[1] == verts[1] && tmp_range[2] == verts[4] && tmp_range[3] == verts[6]);
+    // shared w/ p0
+  tmp_range = vertsr;
+  rval = pcomm->filter_pstatus(tmp_range, PSTATUS_SHARED, PSTATUS_AND, 0);
+  CHECK_ERR(rval);
+  CHECK(tmp_range.size() == 2 && tmp_range[1] == verts[2]);
+    // shared w/ p2 && not owned
+  tmp_range = vertsr;
+  rval = pcomm->filter_pstatus(tmp_range, PSTATUS_SHARED | PSTATUS_NOT_OWNED, PSTATUS_AND, 2);
+  CHECK_ERR(rval);
+  CHECK(tmp_range.size() == 3 && tmp_range[0] == verts[3] && 
+        tmp_range[1] == verts[4] && tmp_range[2] == verts[5]);
+  
 }

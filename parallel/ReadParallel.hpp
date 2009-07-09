@@ -33,21 +33,6 @@ public:
                         const int* set_tag_values,
                         const int num_tag_values );
   
-    //! Constructor
-  ReadParallel(MBInterface* impl = NULL, MBParallelComm *pc = NULL);
-
-   //! Destructor
-  virtual ~ReadParallel() {}
-
-  static const char *parallelOptsNames[];
-  
-  enum ParallelOpts {POPT_NONE=0, POPT_BCAST, POPT_BCAST_DELETE, 
-                     POPT_READ_DELETE, POPT_READ_PARALLEL,
-                     POPT_FORMAT, POPT_DEFAULT};
-  
-protected:
-
-private:
   MBErrorCode load_file(const char **file_names,
                         const int num_files,
                         MBEntityHandle& file_set,
@@ -67,13 +52,29 @@ private:
                         const int ghost_dim,
                         const int bridge_dim,
                         const int num_layers);
+    //! Constructor
+  ReadParallel(MBInterface* impl = NULL, MBParallelComm *pc = NULL);
 
+   //! Destructor
+  virtual ~ReadParallel() {}
+
+  static const char *parallelOptsNames[];
+  
+  enum ParallelOpts {POPT_NONE=0, POPT_BCAST, POPT_BCAST_DELETE, 
+                     POPT_READ_DELETE, POPT_READ_PARALLEL,
+                     POPT_FORMAT, POPT_DEFAULT};
+
+    //! PUBLIC TO ALLOW TESTING
   MBErrorCode delete_nonlocal_entities(std::string &ptag_name,
                                        std::vector<int> &ptag_vals,
                                        bool distribute,
                                        MBEntityHandle file_set);
   
   MBErrorCode delete_nonlocal_entities(MBEntityHandle file_set);
+
+protected:
+
+private:
 
   MBInterface *mbImpl;
 
