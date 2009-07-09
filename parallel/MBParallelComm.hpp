@@ -705,7 +705,7 @@ private:
                                    const MBEntityType this_type,
                                    std::vector<MBEntityHandle> &L2hloc,
                                    std::vector<MBEntityHandle> &L2hrem,
-                                   std::vector<MBEntityHandle> &L2p,
+                                   std::vector<unsigned int> &L2p,
                                    MBEntityHandle &new_h);
   
   MBErrorCode build_sharedhps_list(const MBEntityHandle entity,
@@ -978,8 +978,7 @@ private:
   std::vector<unsigned char> myBuffer;
 
     //! more data buffers, proc-specific
-  std::vector<std::vector<unsigned char> > ownerRBuffs,
-      ownerSBuffs, ghostRBuffs, ghostSBuffs;
+  std::vector<std::vector<unsigned char> > ownerSBuffs, ghostRBuffs;
 
     //! request objects, may be used if store_remote_handles is used
   MPI_Request sendReqs[2*MAX_SHARING_PROCS];

@@ -44,7 +44,7 @@ extern "C"
 const int INITIAL_BUFF_SIZE = 1024;
 const int MAX_BCAST_SIZE = (1<<28);
 
-#define DEBUG_COMM 1
+#undef DEBUG_COMM
 #undef DEBUG_PACKING
 #ifdef DEBUG_PACKING
 unsigned int __PACK_num = 0, __UNPACK_num = 0, __PACK_count = 0, __UNPACK_count = 0;
@@ -334,9 +334,6 @@ int MBParallelComm::get_buffers(int to_proc, bool *is_new)
     buffProcs.push_back((unsigned int)to_proc);
     ownerSBuffs.push_back(std::vector<unsigned char>());
     ghostRBuffs.push_back(std::vector<unsigned char>(INITIAL_BUFF_SIZE));
-      // allocate these other buffs in case we're storing remote handles
-    ownerRBuffs.push_back(std::vector<unsigned char>(INITIAL_BUFF_SIZE));
-    ghostSBuffs.push_back(std::vector<unsigned char>());
     if (is_new) *is_new = true;
   }
   else {
@@ -3590,12 +3587,12 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
   for (ind = 0, proc_it = buffProcs.begin(); 
        proc_it != buffProcs.end(); proc_it++, ind++) {
       // skip if iface layer and higher-rank proc
-    buff_ptr = &ghostSBuffs[ind][0];
+    buff_ptr = &ownerSBuffs[ind][0];
     result = pack_remote_handles(L1hloc[ind], L1hrem[ind], L1p[ind], *proc_it,
-                                   ghostSBuffs[ind], buff_ptr);
+                                   ownerSBuffs[ind], buff_ptr);
     RRA("Failed to pack remote handles.");
-    result = send_buffer(buffProcs[ind], &ghostSBuffs[ind][0], 
-                         buff_ptr - &ghostSBuffs[ind][0], 
+    result = send_buffer(buffProcs[ind], &ownerSBuffs[ind][0], 
+                         buff_ptr - &ownerSBuffs[ind][0], 
                          MB_MESG_REMOTE_HANDLES, send_reqs[ind]);
     RRA("Failed to send remote handles.");
   }
@@ -3833,9 +3830,9 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(MBParallelComm **pcs,
     for (ind = 0, proc_it = pc->buffProcs.begin(); 
          proc_it != pc->buffProcs.end(); proc_it++, ind++) {
         // skip if iface layer and higher-rank proc
-      unsigned char *buff_ptr = &pc->ghostSBuffs[ind][0];
+      unsigned char *buff_ptr = &pc->ownerSBuffs[ind][0];
       result = pc->pack_remote_handles(L1hloc[p][ind], L1hrem[p][ind], L1p[p][ind], *proc_it,
-                                       pc->ghostSBuffs[ind], buff_ptr);
+                                       pc->ownerSBuffs[ind], buff_ptr);
       RRAI(pc->get_moab(), "Failed to pack remote handles.");
     }
   }
@@ -3850,7 +3847,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(MBParallelComm **pcs,
          proc_it != pc->buffProcs.end(); proc_it++, ind++) {
         // incoming remote handles
       unsigned int to_p = pc->buffProcs[ind];
-      result = pcs[to_p]->unpack_remote_handles(p, &pc->ghostSBuffs[ind][0],
+      result = pcs[to_p]->unpack_remote_handles(p, &pc->ownerSBuffs[ind][0],
                                                 L2hloc[to_p], L2hrem[to_p], L2p[to_p]);
       RRAI(pc->get_moab(), "Failed to unpack remote handles.");
     }
