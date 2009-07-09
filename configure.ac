@@ -45,7 +45,7 @@ AM_CONDITIONAL([ENABLE_imesh],[test "xyes" == "x$ENABLE_imesh"])
 #                           Compilers
 ################################################################################
 
-EXTRA_GNU_FLAGS='-Wall -pipe -pedantic'
+EXTRA_GNU_FLAGS='-Wall -pipe'
 SNL_CHECK_COMPILERS([yes],[yes],[$CONFIGURE_FORTRAN])
 AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" != "xno"])
 LIBS="-lm"
