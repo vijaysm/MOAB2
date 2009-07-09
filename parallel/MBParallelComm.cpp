@@ -43,6 +43,7 @@ extern "C"
 
 #define INITIAL_BUFF_SIZE 1024
 
+#define DEBUG_COMM 1
 #undef DEBUG_PACKING
 #ifdef DEBUG_PACKING
 unsigned int __PACK_num = 0, __UNPACK_num = 0, __PACK_count = 0, __UNPACK_count = 0;
@@ -360,14 +361,20 @@ MBErrorCode MBParallelComm::send_buffer(const unsigned int to_proc,
 
     // if the message is large, send a first message to tell how large
   if (INITIAL_BUFF_SIZE < buff_size) {
+#ifdef DEBUG_COMM
+    std::cerr << "Sending MESG_SIZE " << buff_size << " to proc " << to_proc << std::endl;
+#endif    
     int tmp_buff_size = -buff_size;
-    int success = MPI_Isend(&tmp_buff_size, sizeof(int), MPI_UNSIGNED_CHAR, 
-                            to_proc, MB_MESG_SIZE, procConfig.proc_comm(),
-                            &send_req);
+    int success = MPI_Send(&tmp_buff_size, sizeof(int), MPI_UNSIGNED_CHAR, 
+                           to_proc, MB_MESG_SIZE, procConfig.proc_comm());
     if (success != MPI_SUCCESS) return MB_FAILURE;
   }
     
     // send the buffer
+#ifdef DEBUG_COMM
+  std::cerr << "Isending " << buff_size << " bytes to proc " << to_proc 
+            << " with message type " << msg_type << std::endl;
+#endif
   success = MPI_Isend(const_cast<unsigned char*>(send_buff), buff_size, MPI_UNSIGNED_CHAR, to_proc, 
                       msg_type, procConfig.proc_comm(), &send_req);
   if (success != MPI_SUCCESS) return MB_FAILURE;
@@ -3496,6 +3503,18 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
       result = MB_FAILURE;
       RRA("Failed in waitany in ghost exchange.");
     }
+#ifdef DEBUG_COMM
+    {
+      int this_count;
+      success = MPI_Get_count(&status[0], MPI_UNSIGNED_CHAR, &this_count);
+      if (MPI_SUCCESS != success) this_count = -1;
+      
+      std::cerr << "Received from " << status[0].MPI_SOURCE
+                << ": count = " << this_count << ", tag = " << status[0].MPI_TAG;
+      if (MB_MESG_SIZE == status[0].MPI_TAG) std::cerr << "; new_size = " << *((int*)&ghostRBuffs[ind][0]);
+      std::cerr << std::endl;
+    }
+#endif    
     
       // ok, received something; decrement incoming counter
     num_incoming--;
@@ -3505,11 +3524,15 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
         // incoming message just has size; resize buffer and re-call recv,
         // then re-increment incoming count
       int new_size = *((int*)&ghostRBuffs[ind][0]);
-      assert(0 > new_size);
-      result = recv_size_buff(buffProcs[ind], ghostRBuffs[ind], recv_reqs[ind],
-                              MB_MESG_ENTS);
-      RRA("Failed to resize recv buffer.");
-      num_incoming++;
+      if (0 != new_size) {
+          // assert(0 > new_size);
+        if (0 <= new_size) std::cerr << "Bad size received in MESG_SIZE message, size " 
+                                     << new_size << std::endl;
+        result = recv_size_buff(buffProcs[ind], ghostRBuffs[ind], recv_reqs[ind],
+                                MB_MESG_ENTS);
+        RRA("Failed to resize recv buffer.");
+        num_incoming++;
+      }
     }
     else if (MB_MESG_ENTS == status[0].MPI_TAG) {
       
@@ -3590,6 +3613,19 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
       // ok, received something; decrement incoming counter
     num_incoming--;
     
+#ifdef DEBUG_COMM
+    {
+      int this_count;
+      success = MPI_Get_count(&status[0], MPI_UNSIGNED_CHAR, &this_count);
+      if (MPI_SUCCESS != success) this_count = -1;
+      
+      std::cerr << "Received from " << status[0].MPI_SOURCE
+                << ": count = " << this_count << ", tag = " << status[0].MPI_TAG;
+      if (MB_MESG_SIZE == status[0].MPI_TAG) std::cerr << "; new_size = " << *((int*)&ghostRBuffs[ind][0]);
+      std::cerr << std::endl;
+    }
+#endif    
+
       // branch on message type
     if (MB_MESG_SIZE == status[0].MPI_TAG) {
         // incoming message just has size; resize buffer and re-call recv,
