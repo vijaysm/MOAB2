@@ -262,9 +262,6 @@ void count_owned_entities( MBInterface& moab, int counts[MBENTITYSET] )
     rval = moab.get_entities_by_type( 0, t, range );
     CHECK_ERR(rval);
     if (!range.empty())
-      rval = pcomm->filter_pstatus(range, PSTATUS_SHARED, PSTATUS_AND);
-    CHECK_ERR(rval);
-    if (!range.empty())
       rval = pcomm->filter_pstatus(range, PSTATUS_NOT_OWNED, PSTATUS_NOT);
     CHECK_ERR(rval);
     counts[t] = range.size();
@@ -346,15 +343,18 @@ void test_write_elements()
   err = MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   CHECK(!err);
   
+    // load and partition a .cub file
   MBCore moab_instance;
   MBInterface& moab = moab_instance;
   load_and_partition( moab, InputFile );
   
+    // count number of owned entities of each type and sum over all procs
   count_owned_entities( moab, proc_counts );
   std::fill( all_counts, all_counts+MBENTITYSET, 0u );
   err = MPI_Allreduce( proc_counts, all_counts, MBENTITYSET, MPI_INT, MPI_SUM, MPI_COMM_WORLD );
   CHECK(!err);
   
+    // do parallel write and on root proc do serial read of written file
   save_and_load_on_root( moab, "test_write_elements.h5m" );
   if (rank == 0) {
     for (MBEntityType t = MBVERTEX; t < MBENTITYSET; ++t) {
@@ -363,6 +363,8 @@ void test_write_elements()
     }
   }
   
+    // check that sum of owned entities equals number of entities from serial read
+    
   err = MPI_Bcast( file_counts, MBENTITYSET, MPI_INT, 0, MPI_COMM_WORLD );
   CHECK(!err);
   
@@ -378,6 +380,8 @@ void test_write_elements()
   }
   
   CHECK(all_equal);
+  
+    // on root processor, do serial read of original .cub file and compare
   
   if (rank == 0) {
     MBCore moab2;
