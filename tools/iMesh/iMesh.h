@@ -277,6 +277,22 @@ extern "C" {
                           /*out*/ int* adjacency_table_size, 
                           /*out*/ int *err);
 
+    /**\brief  Set the adjacency table as requested by the application
+     *
+     * Set the adjacency table as requested by the application.  This table 
+     * is a 4x4 array, with indices 0-based, where A(i,j) (i=row, j=column) 
+     * represents the relative cost of retrieving adjacencies between
+     * entities of dimension i to entities of dimension j
+     * \param instance iMesh instance handle
+     * \param adjacency_table Array representing adjacency table requested by application
+     * \param adjacency_table_size Size of adj table array
+     * \param *err Pointer to error type returned from function
+     */
+  void iMesh_setAdjTable (iMesh_Instance instance,
+                          /*in*/ int* adjacency_table,
+                          /*in*/ int adjacency_table_size, 
+                          /*out*/ int *err);
+
     /**\brief  Get the number of entities with the specified type in the instance or set
      *
      * Get the number of entities with the specified type in the instance 

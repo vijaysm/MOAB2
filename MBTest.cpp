@@ -29,6 +29,7 @@
 
 #include <iostream>
 #include <algorithm>
+#include <cstdio>
 #include <time.h>
 #include <assert.h>
 #include <math.h>

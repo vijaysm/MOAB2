@@ -149,7 +149,12 @@ MBErrorCode gather_set_stats( MBEntityHandle set, set_stats& stats )
 
         for (int e = 0; e < num_edges; ++e)
         {
-          MBCN::SubEntityVertexIndices( type, 1, e, edge_vtx_idx );
+          if (type == MBPOLYGON) {
+            edge_vtx_idx[0] = e;
+            edge_vtx_idx[1] = e+1;
+          }
+          else
+            MBCN::SubEntityVertexIndices( type, 1, e, edge_vtx_idx );
           stats.edge_uses.add( edge_length( &coords[3*edge_vtx_idx[0]],
                                             &coords[3*edge_vtx_idx[1]] ) );
         }

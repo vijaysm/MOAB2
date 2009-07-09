@@ -392,6 +392,39 @@ MBErrorCode MeshTopoUtil::get_manifold(const MBEntityHandle star_entity,
 }
 
     //! get "bridge" or "2nd order" adjacencies, going through dimension bridge_dim
+MBErrorCode MeshTopoUtil::get_bridge_adjacencies(MBRange &from_entities,
+                                                 int bridge_dim,
+                                                 int to_dim, 
+                                                 MBRange &to_ents,
+                                                 int num_layers)
+{
+  MBRange bridge_ents, last_toents, new_toents(from_entities);
+  MBErrorCode result;
+  if (0 == num_layers || from_entities.empty()) return MB_FAILURE;
+  
+    // for each layer, get bridge-adj entities and accumulate
+  for (int nl = 0; nl < num_layers; nl++) {
+    MBRange new_bridges;
+      // get bridge ents
+    result = mbImpl->get_adjacencies(new_toents, bridge_dim, true, new_bridges,
+                                     MBInterface::UNION);
+    if (MB_SUCCESS != result) return result;
+    
+      // get to_dim adjacencies, merge into to_ents
+    last_toents =  to_ents;
+    result = mbImpl->get_adjacencies(new_bridges, to_dim, false, to_ents,
+                                     MBInterface::UNION);
+    if (MB_SUCCESS != result) return result;
+    
+      // subtract last_toents to get new_toents
+    if (nl < num_layers-1)
+      new_toents = to_ents.subtract(last_toents);
+  }
+
+  return MB_SUCCESS;
+}
+
+    //! get "bridge" or "2nd order" adjacencies, going through dimension bridge_dim
 MBErrorCode MeshTopoUtil::get_bridge_adjacencies(const MBEntityHandle from_entity,
                                                  const int bridge_dim,
                                                  const int to_dim,

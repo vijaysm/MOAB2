@@ -5,6 +5,7 @@
 #include <math.h>
 #include <assert.h>
 #include <float.h>
+#include <cstdio>
 
 #include "MBCartVect.hpp"
 

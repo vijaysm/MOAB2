@@ -400,8 +400,9 @@ public:
   static void HasMidNodes(const MBEntityType this_type, 
                           const int num_verts, 
                           int mid_nodes[4]);
-  //! Same as above, except returns a single integer withthe bits, from
-  //! least significant to most significant set to one if the cooresponding
+
+  //! Same as above, except returns a single integer with the bits, from
+  //! least significant to most significant set to one if the corresponding
   //! mid nodes on sub entities of the least dimension (0) to the highest
   //! dimension (3) are present in the elment type.
   static int HasMidNodes( const MBEntityType this_type, const int num_verts );

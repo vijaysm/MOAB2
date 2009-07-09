@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits>
+#include <cstdio>
 #include <H5Tpublic.h>
 #include <H5Ppublic.h>
 #include "MBInterface.hpp"
