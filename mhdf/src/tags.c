@@ -743,6 +743,7 @@ static int get_attrib_array_length_handle( hid_t attrib_id )
   hid_t type_id;
   int rank;
   hsize_t dims[H5S_MAX_RANK];
+  int perm[H5S_MAX_RANK];
   
   type_id = H5Aget_type( attrib_id );
   switch (H5Tget_class(type_id)) {
@@ -820,6 +821,7 @@ mhdf_getTagInfo( mhdf_FileHandle file_handle,
   unsigned int index;
   int rank, var_data;
   hsize_t dims[H5S_MAX_RANK];
+  int perm[H5S_MAX_RANK];
   H5T_class_t class_tmp;
 
   API_BEGIN;
