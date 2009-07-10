@@ -2316,7 +2316,7 @@ MBErrorCode WriteHDF5::count_set_size( const MBRange& sets,
 {
   MBErrorCode rval;
   MBRange set_contents;
-  MBRange::const_iterator iter = sets.begin();
+  MBRange::const_iterator iter = sets.begin(), ins = compressed_sets.begin();
   const MBRange::const_iterator end = sets.end();
   long contents_length_set, children_length_set, parents_length_set;
   unsigned long flags;
@@ -2333,7 +2333,7 @@ MBErrorCode WriteHDF5::count_set_size( const MBRange& sets,
     CHK_MB_ERR_0(rval);
     
       // check if can and should compress as ranges
-    if ((flags&MESHSET_SET) && !(flags&MESHSET_ORDERED))
+    if ((flags&MESHSET_SET) && !(flags&MESHSET_ORDERED) && contents_length_set > 4)
     {
       set_contents.clear();
       rval = iFace->get_entities_by_handle( *iter, set_contents, false );
@@ -2347,7 +2347,7 @@ MBErrorCode WriteHDF5::count_set_size( const MBRange& sets,
       {
         assert (set_contents_ids.size() % 2 == 0);
         contents_length_set = set_contents_ids.size();
-        compressed_sets.insert( *iter );
+        ins = compressed_sets.insert( ins, *iter, *iter );
       }
     }
     
