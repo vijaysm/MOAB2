@@ -1868,6 +1868,14 @@ MBErrorCode ReadHDF5::read_contents( ContentReader& tool,
   mhdf_Status status;
   if (file_ids.empty())
     return MB_SUCCESS;
+
+// If doing a full reed, we should end up reading the entire offset
+// column in order
+#ifndef NDEBUG
+  const bool full_read = (file_ids.front() == (MBEntityHandle)start_id) 
+                      && (file_ids.size() == (size_t)entity_count);
+  int offset_idx = 0;
+#endif
     
     // things will get messed up if this isn't true
   assert( ranged_ids_in.subtract( file_ids ).empty() );
@@ -1900,14 +1908,26 @@ MBErrorCode ReadHDF5::read_contents( ContentReader& tool,
     sets.erase( sets.begin(), sets.begin() + count );
 
     if (start == start_id) {
+#ifndef NDEBUG
+      assert(!offset_idx);
+      offset_idx += count;
+#endif
       offset_buffer[0] = -1;
       tool.read_indices( 0, count, offset_buffer + 1, status );
     }
     else if (prev_start + prev_count == start) {
+#ifndef NDEBUG
+      assert(!full_read || offset_idx == start - start_id);
+      offset_idx = start - start_id + count;
+#endif
       offset_buffer[0] = offset_buffer[prev_count];
       tool.read_indices( start - start_id, count, offset_buffer + 1, status );
     }
     else {
+#ifndef NDEBUG
+      assert(!full_read);
+      offset_idx = start - start_id + count;
+#endif
       tool.read_indices( start - start_id - 1, count+1, offset_buffer, status );
     }
     if (is_error(status))
@@ -1958,7 +1978,12 @@ MBErrorCode ReadHDF5::read_contents( ContentReader& tool,
           return error(MB_FAILURE);
         MBEntityHandle* content_iter = content_buffer;
         for (long i = 0; i < read_count; ++i) {
-          long content_count = offset_buffer[i+1] - offset_buffer[i];
+#ifndef NDEBUG
+          size_t exp_off = file_id - start_id; // the offset we think we are at
+          size_t act_off = offset_idx - count + offset + i;
+          assert( exp_off == act_off );
+#endif
+          long content_count = offset_buffer[offset+i+1] - offset_buffer[offset+i];
           bool ranged = !ranged_ids.empty() && ((long)ranged_ids.front() == file_id);
           rval = tool.store_data( h, file_id, content_iter, content_count, ranged );
           if (MB_SUCCESS != rval)
