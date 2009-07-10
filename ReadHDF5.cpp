@@ -1931,7 +1931,7 @@ MBErrorCode ReadHDF5::read_contents( ContentReader& tool,
         assert( 0 == content_size % 2 ); // otherwise problems with ranged data
         long rem_contents = offset_buffer[offset+1] - offset_buffer[offset];
         long set_offset = 0;
-        const bool ranged = !ranged_ids.empty() && ((long)ranged_ids.front() == start);
+        const bool ranged = !ranged_ids.empty() && ((long)ranged_ids.front() == file_id);
         if (ranged) 
           ranged_ids.pop_front();
         while (rem_contents) {
