@@ -2345,7 +2345,7 @@ MBErrorCode WriteHDF5::count_set_size( const MBRange& sets,
       
       if (blocked_list)
       {
-        assert (set_contents_ids % 2 == 0);
+        assert (set_contents_ids.size() % 2 == 0);
         contents_length_set = set_contents_ids.size();
         compressed_sets.insert( *iter );
       }
