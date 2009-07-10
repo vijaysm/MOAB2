@@ -434,10 +434,17 @@ MBErrorCode MBParallelComm::broadcast_entities( const int from_proc,
   if ((int)procConfig.proc_rank() != from_proc) 
     buff.resize(buff_size);
 
-  success = MPI_Bcast( &buff[0], buff_size, MPI_UNSIGNED_CHAR, from_proc, procConfig.proc_comm() );
-  if (MPI_SUCCESS != success) {
-    result = MB_FAILURE;
-    RRA("MPI_Bcast of buffer failed.");
+  size_t offset = 0;
+  while (buff_size) {
+    int size = std::min( buff_size, MAX_BCAST_SIZE );
+    success = MPI_Bcast( &buff[offset], size, MPI_UNSIGNED_CHAR, from_proc, procConfig.proc_comm() );
+    if (MPI_SUCCESS != success) {
+      result = MB_FAILURE;
+      RRA("MPI_Bcast of buffer failed.");
+    }
+    
+    offset += size;
+    buff_size -= size;
   }
 
   if ((int)procConfig.proc_rank() != from_proc) {
