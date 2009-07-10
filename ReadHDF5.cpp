@@ -2008,13 +2008,15 @@ MBErrorCode ReadHDF5::read_contents( const MBRange& set_file_ids,
     MBErrorCode store_data( MBEntityHandle set, long, MBEntityHandle* array, long len, bool ranged ) 
     {
       if (ranged) {
-        assert(len % 2 == 0);
+        if (len % 2) 
+          return error(MB_INDEX_OUT_OF_RANGE);
         MBRange range;
         convert_range_to_handle( array, len/2, idMap, range );
         return mb->add_entities( set, range );
       }
       else {
-        assert(len >= 0);
+        if (!len)
+          return MB_SUCCESS;
         size_t valid;
         convert_id_to_handle( array, len, valid, idMap );
         return mb->add_entities( set, array, valid );
@@ -2137,6 +2139,8 @@ MBErrorCode ReadHDF5::get_set_contents( const MBRange& sets, MBRange& file_ids )
     MBErrorCode store_data( MBEntityHandle set, long, MBEntityHandle* array, long len, bool ranged ) 
     {
       if (ranged) {
+        if (len % 2)
+          return error(MB_INDEX_OUT_OF_RANGE);
         copy_set_contents( 1, array, len, *resultList );
       }
       else {
