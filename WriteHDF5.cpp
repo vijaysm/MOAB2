@@ -418,8 +418,7 @@ DEBUGOUT("Gathering Mesh\n");
   }
   else
   {
-    std::vector<MBEntityHandle> passed_export_list(num_sets);
-    memcpy( &passed_export_list[0], set_array, sizeof(MBEntityHandle)*num_sets );
+    std::vector<MBEntityHandle> passed_export_list(set_array, set_array+num_sets);
     result = gather_mesh_info( passed_export_list );
     if (MB_SUCCESS != result) 
       return result;
@@ -554,6 +553,7 @@ MBErrorCode WriteHDF5::initialize_mesh( const MBRange ranges[5] )
 
       // Group entities by connectivity length
     bins.clear();
+    assert(dim >= 0 && dim <= 4);
     std::pair<MBRange::const_iterator,MBRange::const_iterator> p = ranges[dim].equal_range(type);
     MBRange::const_iterator i = p.first;
     while (i != p.second) {
@@ -922,8 +922,10 @@ MBErrorCode WriteHDF5::write_sets( )
         bool blocked_list;
         rval = range_to_blocked_list( set_contents, id_list, blocked_list );
         CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
-
-        assert (blocked_list && id_list.size() < (unsigned long)data_size);
+        
+        assert (blocked_list);
+        assert (id_list.size() < (unsigned long)data_size);
+        assert (id_list.size() % 2 == 0);
         flags |= mhdf_SET_RANGE_BIT;
         data_size = id_list.size();
         ++comp;
@@ -2343,6 +2345,7 @@ MBErrorCode WriteHDF5::count_set_size( const MBRange& sets,
       
       if (blocked_list)
       {
+        assert (set_contents_ids % 2 == 0);
         contents_length_set = set_contents_ids.size();
         compressed_sets.insert( *iter );
       }
