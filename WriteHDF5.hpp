@@ -33,7 +33,7 @@
 class MBWriteUtilIface;
 
 /* If this define is not set, node->entity adjacencies will not be written */
-#undef WRITE_NODE_ADJACENCIES
+#undef MB_H5M_WRITE_NODE_ADJACENCIES
 
 class MB_DLL_EXPORT WriteHDF5 : public MBWriterIface
 {
@@ -133,7 +133,6 @@ protected:
    * Calculate total length of set contents and child tables.
    */
   MBErrorCode count_set_size( const MBRange& sets,
-                              MBRange& compressed_sets_out,
                               long& contents_length_out,
                               long& children_length_out,
                               long& parents_length_out );
@@ -234,8 +233,6 @@ protected:
   ExportSet nodeSet;
   //! The list of sets to export
   ExportSet setSet;
-  //! Sets to be compressed into ranges
-  MBRange rangeSets;
   
   //! Offset into set contents table (zero except for parallel)
   unsigned long setContentsOffset;
@@ -319,7 +316,7 @@ protected:
    * Otherwise it will be 'false'.
    */
   MBErrorCode range_to_blocked_list( const MBRange& input_range,
-                                     std::vector<id_t>& output_id_list,
+                                     std::vector<id_t>& output_id_list , 
                                      bool& ranged_list );
   
 
@@ -401,6 +398,8 @@ private:
    *       so entities have assigned IDs.
    */
   MBErrorCode write_sets( );
+
+  MBErrorCode write_parents_children( bool children );
   
   /** Write adjacency info for passed set of elements
    *
