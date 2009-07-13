@@ -384,7 +384,7 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
   if (MB_SUCCESS != result) 
     return result;
 
-  after_ents = after_ents.subtract(beforeEnts);
+  after_ents = subtract( after_ents, beforeEnts);
   result = mdbImpl->add_entities(mFileSet, after_ents);
 
   return result;
@@ -1069,7 +1069,7 @@ MBErrorCode Tqdcfr::read_nodes(const unsigned int gindex,
     MBRange vrange, tmp_range(dum_range);
     result = mdbImpl->get_entities_by_type(0, MBVERTEX, vrange); RR;
     if (!beforeEnts.empty()) tmp_range.merge(beforeEnts.subset_by_type(MBVERTEX));
-    vrange = vrange.subtract(tmp_range);
+    vrange = subtract( vrange, tmp_range);
       // compute the max cid; map is indexed by cid, so size is max_cid+1
 #define MAX(a,b) (a > b ? a : b)
 #define MIN(a,b) (a < b ? a : b)

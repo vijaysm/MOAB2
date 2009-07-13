@@ -239,7 +239,7 @@ MBErrorCode MBReadUtil::gather_related_ents(MBRange &partition,
       
       tmp_ents.clear();
       result = mMB->get_entities_by_handle(*rit, tmp_ents, true); RR;
-      MBRange tmp_ents2 = tmp_ents.intersect(related_ents);
+      MBRange tmp_ents2 = intersect( tmp_ents, related_ents);
     
         // if the intersection is not empty, set is related
       if (!tmp_ents2.empty()) related_ents.insert(*rit);

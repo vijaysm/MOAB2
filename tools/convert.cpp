@@ -459,7 +459,7 @@ int main(int argc, char* argv[])
       dead_entities.merge( empty_sets );
       MBRange tmp_range;
       remove_entities_from_sets( gMB, empty_sets, tmp_range );
-      empty_sets = tmp_range.subtract( dead_entities );
+      empty_sets = subtract( tmp_range,  dead_entities );
     }
       // Destroy dead entities
     result = gMB->delete_entities( dead_entities );
@@ -752,7 +752,7 @@ void remove_entities_from_sets( MBInterface* gMB, MBRange& dead_entities, MBRang
   for (MBRange::iterator i = sets.begin(); i != sets.end(); ++i) {
     MBRange set_contents;
     gMB->get_entities_by_handle( *i, set_contents, false );
-    set_contents = set_contents.intersect( dead_entities );
+    set_contents = intersect( set_contents, dead_entities );
     gMB->remove_entities( *i, set_contents );
     set_contents.clear();
     gMB->get_entities_by_handle( *i, set_contents, false );

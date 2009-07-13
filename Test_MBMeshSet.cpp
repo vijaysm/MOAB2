@@ -846,7 +846,7 @@ void test_remove_entities( unsigned flags )
   remove.insert( 190, 200 );
   remove.insert( 210, 220 );
   remove.insert( 230, 240 );
-  range = range.subtract( remove );
+  range = subtract( range,  remove );
   
   contents.clear();
   std::copy( range.begin(), range.end(), std::back_inserter(contents) );
@@ -953,13 +953,13 @@ bool test_boolean( MBCore& mb, BoolOp op,
       rval = mb.unite_meshset( set1, set2 );
       break;
     case INTERSECT:
-      tmp_range = set1_ents.intersect( set2_ents );
+      tmp_range = intersect( set1_ents, set2_ents );
       expected.resize(tmp_range.size());
       std::copy( tmp_range.begin(), tmp_range.end(), expected.begin() );
       rval = mb.intersect_meshset( set1, set2 );
       break;
     case SUBTRACT:
-      tmp_range = set1_ents.subtract( set2_ents );
+      tmp_range = subtract( set1_ents, set2_ents );
       expected.resize(tmp_range.size());
       std::copy( tmp_range.begin(), tmp_range.end(), expected.begin() );
       rval = mb.subtract_meshset( set1, set2 );

@@ -291,7 +291,7 @@ MBErrorCode get_geom_inclusive_mesh( MBInterface& moab,
   for (MBRange::iterator i = children.begin(); i != children.end(); ++i) {
     child_ents.clear();
     rval = get_set_contents( moab, *i, type, child_ents );  CHKERR(rval);
-    tmp_range = contents_out.subtract( child_ents );
+    tmp_range = subtract( contents_out,  child_ents );
     contents_out.swap( tmp_range );
   }
   
@@ -619,7 +619,7 @@ MBErrorCode get_expected_ghosts( MBInterface& moab,
       rval = moab.get_adjacencies( adj_proc_ents, d, false, tmprange, MBInterface::UNION );
       CHKERR(rval);
     }
-    adj_proc_ents.merge( tmprange.subtract( all_iface_ents ) );
+    adj_proc_ents.merge( subtract( tmprange,  all_iface_ents ) );
     
       // get adjacent entities
     MBRange iface_ghosts, iface_ents;
@@ -632,7 +632,7 @@ MBErrorCode get_expected_ghosts( MBInterface& moab,
     }
     
       // intersect with entities in adjacent partitions
-    ghosts.merge( iface_ghosts.intersect( adj_proc_ents ) );
+    ghosts.merge( intersect( iface_ghosts,  adj_proc_ents ) );
   }
   
     // get ids

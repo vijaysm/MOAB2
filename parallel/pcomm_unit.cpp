@@ -98,7 +98,7 @@ void pack_unpack_noremoteh( MBCore& moab, MBRange& entities )
 
     // get the necessary vertices too
   MBRange tmp_range = entities.subset_by_type(MBENTITYSET);
-  entities = entities.subtract(tmp_range);
+  entities = subtract( entities, tmp_range);
   rval = moab.get_adjacencies(entities, 0, false, entities, MBInterface::UNION);
   CHECK_ERR(rval);
   entities.merge(tmp_range);

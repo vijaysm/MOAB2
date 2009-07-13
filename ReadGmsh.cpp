@@ -519,7 +519,7 @@ MBErrorCode ReadGmsh::create_sets( MBEntityType type,
     
       // Don't use existing geometry sets (from some other file)
     if (1 == set_type) // geometry
-      sets = sets.intersect( geomSets );
+      sets = intersect( sets,  geomSets );
     
       // Get set handle
     MBEntityHandle set;

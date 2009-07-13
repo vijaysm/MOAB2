@@ -402,7 +402,7 @@ MBErrorCode WriteVtk::write_tags( std::ostream& stream,
       rval = mbImpl->get_entities_by_type_and_tag( 0, type, &*i, 0, 1, tmp_tagged );
       if (MB_SUCCESS != rval)
         return rval;
-      tmp_tagged = tmp_tagged.intersect( entities );
+      tmp_tagged = intersect( tmp_tagged, entities );
       tagged.merge( tmp_tagged );
     }
 

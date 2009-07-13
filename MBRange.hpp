@@ -197,11 +197,8 @@ public:
   typedef const_iterator iterator;
   typedef const_reverse_iterator reverse_iterator;
  
-    //! intersect two ranges, placing the results in the return range
-  MBRange intersect(const MBRange &range2) const;
-
-    //! subtract range2 from this, placing the results in the return range
-  MBRange subtract(const MBRange &range2) const;
+  friend MBRange intersect( const MBRange&, const MBRange& );
+  friend MBRange subtract( const MBRange&, const MBRange& );
 
   //! for short hand notation, lets typedef the 
   //! container class that holds the ranges
@@ -403,6 +400,8 @@ public:
     {
       return mNode != other.mNode;
     }
+  
+    PairNode* node() { return mNode; }
 
   private:
     
@@ -652,6 +651,18 @@ public:
   const_pair_iterator const_pair_begin() const { return const_pair_iterator( mHead.mNext ); }
   const_pair_iterator const_pair_end() const { return const_pair_iterator( &mHead ); }
 };
+
+ 
+    //! intersect two ranges, placing the results in the return range
+MBRange intersect( const MBRange&, const MBRange& );
+
+    //! subtract range2 from this, placing the results in the return range
+MBRange subtract( const MBRange& from, const MBRange& );
+
+    //! unite two ranges, placing the results in the return range
+inline MBRange unite( const MBRange& r1, const MBRange& r2 )
+  { MBRange r(r1); r.merge(r2); return r; }
+
 
 inline MBRange::const_iterator 
 operator+( const MBRange::const_iterator& it, MBEntityID step )

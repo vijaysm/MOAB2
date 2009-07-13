@@ -916,7 +916,7 @@ MBErrorCode DualTool::traverse_hyperplane(const MBTag hp_tag,
 
       // get the bridge adjacencies through higher dimension
     result = mtu.get_bridge_adjacencies(this_ent, dim+1, dim, tmp_star); RR;
-    tmp_range = star.subtract(tmp_star);
+    tmp_range = subtract( star, tmp_star);
     
     for (MBRange::iterator rit = tmp_range.begin(); rit != tmp_range.end(); rit++) {
       if (new_hyperplane_ents.find(*rit) != new_hyperplane_ents.end()) continue;
@@ -1343,7 +1343,7 @@ MBEntityHandle DualTool::next_loop_vertex(const MBEntityHandle last_v,
   result = mbImpl->get_adjacencies(tcells, 0, false, verts);
   if (MB_SUCCESS != result || verts.empty()) return 0;
   
-  MBRange tmp_verts = other_verts.subtract(verts);
+  MBRange tmp_verts = subtract( other_verts, verts);
   other_verts.swap(tmp_verts);
   if (0 != last_v) other_verts.erase(last_v);
 
@@ -1582,11 +1582,11 @@ MBErrorCode DualTool::rev_atomic_pillow(MBEntityHandle pillow, MBRange &chords)
   result = mbImpl->get_adjacencies(hexes, 2, 2, false, del_faces); RR;
   assert(5 == del_faces.size());
   std::copy(pcells[2].begin(), pcells[2].end(), mb_range_inserter(tmp_faces));
-  tmp_faces = tmp_faces.subtract(del_faces);
+  tmp_faces = subtract( tmp_faces, del_faces);
   del_faces.insert(*tmp_faces.rbegin());
   result = mbImpl->get_adjacencies(tmp_faces, 0, false, tmp_verts); RR;
   std::copy(pcells[0].begin(), pcells[0].end(), mb_range_inserter(del_verts));
-  del_verts = del_verts.subtract(tmp_verts);
+  del_verts = subtract( del_verts, tmp_verts);
   assert(4 == del_verts.size());
   result = mbImpl->get_adjacencies(del_verts, 1, false, del_edges, MBInterface::UNION); RR;
   assert(8 == del_edges.size());
@@ -1808,7 +1808,7 @@ MBErrorCode DualTool::foc_get_ents(MBEntityHandle ocl,
       result = mbImpl->get_adjacencies(&split_quads[i], 1, 1, false, 
                                        tmp_edges);
       if (MB_SUCCESS != result) return result;
-      tmp_edges = tmp_edges.subtract(common_edges);
+      tmp_edges = subtract( tmp_edges, common_edges);
       assert(tmp_edges.size() == 1);
       other_edges[i] = *tmp_edges.begin();
     }
@@ -2079,7 +2079,7 @@ MBErrorCode DualTool::foc_get_addl_ents(std::vector<MBEntityHandle> *star_dp1,
     MBRange R1, R3;
     result = mbImpl->get_adjacencies(&star_dp1[i][0], star_dp1[i].size(), 1, false, 
                                      R1, MBInterface::UNION); RR;
-    R3 = R1.intersect(R2);
+    R3 = intersect( R1, R2);
     for (int j = 0; j < 3; j++)
       if (split_edges[j]) R3.erase(split_edges[j]);
     addl_ents[i].merge(R3);
@@ -2392,7 +2392,7 @@ MBErrorCode DualTool::get_opposite_verts(const MBEntityHandle middle_edge,
   MBRange dum_connect, middle_connect;
   result = mbImpl->get_connectivity(&middle_edge, 1, middle_connect); RR;
   result = mbImpl->get_connectivity(&(*vit), 1, dum_connect); RR;
-  dum_connect = dum_connect.subtract(middle_connect);
+  dum_connect = subtract( dum_connect, middle_connect);
   if (dum_connect.size() != 1) {
     std::cerr << "Trouble traversing chord." << std::endl;
     return MB_FAILURE;
@@ -2407,7 +2407,7 @@ MBErrorCode DualTool::get_opposite_verts(const MBEntityHandle middle_edge,
   vit++;
   dum_connect.clear();
   result = mbImpl->get_connectivity(&(*vit), 1, dum_connect); RR;
-  dum_connect = dum_connect.subtract(middle_connect);
+  dum_connect = subtract( dum_connect, middle_connect);
   if (dum_connect.size() != 1) {
     std::cerr << "Trouble traversing chord." << std::endl;
     return MB_FAILURE;
@@ -2993,7 +2993,7 @@ MBErrorCode DualTool::fsr_get_fourth_quad(std::vector<MBEntityHandle> *connects,
     if (MB_SUCCESS != result) return result;
     assert(quads.size() == 1);
     result = mbImpl->get_adjacencies(&(*quads.begin()), 1, 0, false, tmp_verts); RR;
-    tmp_verts = tmp_verts.subtract(start_verts);
+    tmp_verts = subtract( tmp_verts, start_verts);
     assert(1 == tmp_verts.size());
     connects[3].push_back(*tmp_verts.begin());
   }

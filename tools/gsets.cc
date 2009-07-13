@@ -156,7 +156,7 @@ void dot_get_sets( MBRange& curr_sets, MBRange& result_sets,
     
   result_sets.clear();
   mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &tag, &tag_val, 1, result_sets );
-  result_sets = result_sets.subtract( curr_sets );
+  result_sets = subtract( result_sets,  curr_sets );
   curr_sets.merge( result_sets );
 }
 
@@ -203,7 +203,7 @@ void dot_nodes( std::ostream& s, MBRange& sets )
 
   if (printAnonSets) {
     mb.get_entities_by_type( 0, MBENTITYSET, other_sets );
-    MBRange xsect = other_sets.subtract( sets );
+    MBRange xsect = subtract( other_sets,  sets );
     sets.swap(other_sets);
     other_sets.swap(xsect);
   }
@@ -257,7 +257,7 @@ void dot_children( std::ostream& s,
   for (MBRange::iterator i = sets.begin(); i != sets.end(); ++i) {
     MBRange parents;
     mb.get_parent_meshsets( *i, parents );
-    parents = parents.intersect( sets );
+    parents = intersect( parents,  sets );
     
     for (MBRange::iterator j = parents.begin(); j != parents.end(); ++j) {
       const char* linklabel = 0;
@@ -276,7 +276,7 @@ void dot_contained( std::ostream& s,
   for (MBRange::iterator i = sets.begin(); i != sets.end(); ++i) {
     MBRange contained;
     mb.get_entities_by_type(*i, MBENTITYSET, contained );
-    contained = contained.intersect( sets );
+    contained = intersect( contained,  sets );
     
     for (MBRange::iterator j = contained.begin(); j != contained.end(); ++j)
       dot_down_link( s, *i, *j, dashed );

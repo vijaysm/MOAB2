@@ -2092,19 +2092,19 @@ MBErrorCode WriteHDF5::gather_tags( const MBTag* user_tag_list, int num_tags )
       range.clear();
       result = iFace->get_entities_by_type_and_tag( 0, e_iter->type, &handle, NULL, 1, range );
       CHK_MB_ERR_0(result);
-      td_iter->range.merge( range.intersect( e_iter->range ) );
+      td_iter->range.merge( intersect( range, e_iter->range ) );
     }
     
     range.clear();
     result = iFace->get_entities_by_type_and_tag( 0, MBVERTEX, &handle, NULL, 1, range );
     CHK_MB_ERR_0(result);
-    td_iter->range.merge( range.intersect( nodeSet.range ) );
+    td_iter->range.merge( intersect( range, nodeSet.range ) );
 
 
     range.clear();
     result = iFace->get_entities_by_type_and_tag( 0, MBENTITYSET, &handle, NULL, 1, range );
     CHK_MB_ERR_0(result);
-    td_iter->range.merge( range.intersect( setSet.range ) );
+    td_iter->range.merge( intersect( range, setSet.range ) );
 
 /* This breaks for variable-length tags, is slow, and is questionable.
    Is it really better to not write the tag at all, as opposed to writing

@@ -390,7 +390,7 @@ void test_get_set( const char* name,
       handle_range.insert( mid+1, i->second );
     }
   }
-  entities = entities.subtract( handle_range );
+  entities = subtract( entities,  handle_range );
   for (unsigned i = 0; i < handle_list.size(); ++i)
     entities.erase( handle_list[i] );
   
@@ -1391,7 +1391,7 @@ void test_get_set_variable_length( const char* name,
       handle_range.insert( mid+1, i->second );
     }
   }
-  entities = entities.subtract( handle_range );
+  entities = subtract( entities,  handle_range );
   for (unsigned i = 0; i < handle_list.size(); ++i)
     entities.erase( handle_list[i] );
   

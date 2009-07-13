@@ -678,8 +678,8 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
     MBRange adj_2cells;
     result = MBI->get_connectivity(tcell1, connect, num_connect); RR;
     result = MBI->get_adjacencies(connect, num_connect, 2, false, adj_2cells); RR;
-    adj_2cells = degen_2cells.intersect(adj_2cells);
-    if (!adj_2cells.empty()) degen_2cells = degen_2cells.subtract(adj_2cells);
+    adj_2cells = intersect( degen_2cells, adj_2cells);
+    if (!adj_2cells.empty()) degen_2cells = subtract( degen_2cells, adj_2cells);
     
       // ok, have all the adjacent degen 2cells; get the 1cells
     MBRange adj_1cells;
@@ -736,7 +736,7 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
           // get the other 2cell
         MBRange dum = dcells;
         result = MBI->get_adjacencies(&(*rit), 1, 2, false, dum);
-        dum = dum.subtract(adj_2cells);
+        dum = subtract( dum, adj_2cells);
         assert(1 == dum.size());
           // get the vertices and points of them, and average their positions
         const MBEntityHandle *connect2;
@@ -777,7 +777,7 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
           // get the other 2cell
         MBRange dum = dcells;
         result = MBI->get_adjacencies(&(*rit), 1, 2, false, dum);
-        dum = dum.subtract(adj_2cells);
+        dum = subtract( dum, adj_2cells);
         assert(1 == dum.size());
           // get the vertices and points of them, and average their positions
         const MBEntityHandle *connect;
@@ -818,7 +818,7 @@ MBErrorCode DrawDual::fixup_degen_bchords(MBEntityHandle dual_surf)
           // check that 1cells are in proper order, i.e. they share 2cell with adj 1cell
         MBRange dum;
         result = MBI->get_adjacencies(&edges[0], 2, 2, false, dum); RR;
-        dum = dum.intersect(adj_2cells);
+        dum = intersect( dum, adj_2cells);
         if (dum.empty()) {
             // not adjacent - switch list order
           MBEntityHandle dum_h = edges[1];
@@ -1088,7 +1088,7 @@ MBErrorCode DrawDual::make_vtk_cells(const MBRange &cell_range, const int dim,
       result = MBI->get_adjacencies(tmp_verts, 1, false, shared_edges); RR;
       if (shared_edges.size() > 1) {
           // filter for ones in this cell
-        shared_edges = shared_edges.intersect(cell_edges);
+        shared_edges = intersect( shared_edges, cell_edges);
         assert(!shared_edges.empty());
           // get the mid-pt of this edge and include in list; if we're inside a 2-edge
           // cell and we're on the 2nd vertex, take the 2nd edge
@@ -1679,7 +1679,7 @@ MBErrorCode DrawDual::compute_fixed_points(MBEntityHandle dual_surf, MBRange &dv
     loops.push_back(loop_vs);
     
       // ok, we've got them all; first, remove them from face_verts
-    MBRange temp_range = new_face_verts.subtract(temp_face_verts);
+    MBRange temp_range = subtract( new_face_verts, temp_face_verts);
     new_face_verts.swap(temp_range);
   }
   
@@ -1811,7 +1811,7 @@ MBErrorCode DrawDual::compute_pillow_fixed_points(MBEntityHandle dual_surf,
   MBRange tmp_verts;
   result = MBI->get_entities_by_dimension(chords[1], 1, tmp_range); RR;
   result = MBI->get_adjacencies(tmp_range, 0, false, tmp_verts, MBInterface::UNION); RR;
-  tmp_verts = tmp_verts.subtract(face_verts);
+  tmp_verts = subtract( tmp_verts, face_verts);
   assert(!tmp_verts.empty());
   face_verts.insert(*tmp_verts.begin());
   
@@ -2315,7 +2315,7 @@ MBErrorCode DrawDual::smooth_dual_surf(MBEntityHandle dual_surf,
 
   const int num_its = 10;
   
-  dverts = dverts.subtract(face_verts);
+  dverts = subtract( dverts, face_verts);
   double tmp_coords[12];
   MeshTopoUtil mtu(vtkMOABUtils::mbImpl);
 
@@ -2417,7 +2417,7 @@ MBErrorCode DrawDual::process_pick(MBEntityHandle dual_surf,
   MBRange int_verts, face_verts;
   MBErrorCode result = vtkMOABUtils::dualTool->get_dual_entities(dual_surf, NULL, NULL, 
                                                    &int_verts, &face_verts, NULL);
-  int_verts = int_verts.subtract(face_verts);
+  int_verts = subtract( int_verts, face_verts);
   
     // get vertices on sheet drawing for that sheet, and their positions
   std::vector<MBEntityHandle> int_points(int_verts.size());

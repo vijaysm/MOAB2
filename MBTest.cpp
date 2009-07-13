@@ -4775,7 +4775,7 @@ MBErrorCode mb_range_test(MBInterface *)
   r2.insert(h5, h10);
   r2.insert(h15, h20);
   
-  rhs = r1.intersect(r2);
+  rhs = intersect( r1, r2);
   if (rhs.size() != 3) {
     result = MB_FAILURE;
     std::cout << "Range test equal start/end failed." << std::endl;
@@ -4785,7 +4785,7 @@ MBErrorCode mb_range_test(MBInterface *)
   r1.clear(); r2.clear(); rhs.clear();
   r1.insert(h1, h5); r1.insert(h10, h20); 
   r2.insert(h1, h5); r2.insert(h10, h20); 
-  rhs = r1.intersect(r2);
+  rhs = intersect( r1, r2);
   if (rhs.size() != r1.size() || rhs.size() != r2.size()) {
     result = MB_FAILURE;
     std::cout << "Range test identical ranges failed." << std::endl;
@@ -4795,7 +4795,7 @@ MBErrorCode mb_range_test(MBInterface *)
   r1.clear(); r2.clear(); rhs.clear();
   r1.insert(h1, h4); r1.insert(h10, h15); 
   r2.insert(h5, h9); r2.insert(h16, h20);
-  rhs = r1.intersect(r2);
+  rhs = intersect( r1, r2);
   if (rhs.size() != 0) {
     result = MB_FAILURE;
     std::cout << "Range test off by one failed." << std::endl;
@@ -4805,7 +4805,7 @@ MBErrorCode mb_range_test(MBInterface *)
   r1.clear(); r2.clear(); rhs.clear();
   r1.insert(h1, h20); 
   r2.insert(h5, h10); 
-  rhs = r1.intersect(r2);
+  rhs = intersect( r1, r2);
   if (rhs.size() != r2.size()) {
     result = MB_FAILURE;
     std::cout << "Range test interior failed." << std::endl;
@@ -4815,7 +4815,7 @@ MBErrorCode mb_range_test(MBInterface *)
   r1.clear(); r2.clear(); rhs.clear();
   r1.insert(h1, h10);
   r2.insert(h5, h20);
-  rhs = r1.intersect(r2);
+  rhs = intersect( r1, r2);
   if (rhs.size() != h10-h5+1) {
     result = MB_FAILURE;
     std::cout << "Range test half-above failed." << std::endl;
@@ -4825,7 +4825,7 @@ MBErrorCode mb_range_test(MBInterface *)
   r1.clear(); r2.clear(); rhs.clear();
   r1.insert(h5, h20);
   r2.insert(h1, h10);
-  rhs = r1.intersect(r2);
+  rhs = intersect( r1, r2);
   if (rhs.size() != h10-h5+1) {
     result = MB_FAILURE;
     std::cout << "Range test half-below failed." << std::endl;
@@ -4945,7 +4945,7 @@ MBErrorCode mb_range_test(MBInterface *)
   r1.insert(h4);
   r1.insert(h5);
   r2.insert(h4);
-  MBRange r3 = r1.subtract(r2);
+  MBRange r3 = subtract( r1, r2);
   if (r3.size() != 2 ||
       r3.find(h1) == r3.end() ||
       r3.find(h5) == r3.end() ||
@@ -4961,7 +4961,7 @@ MBErrorCode mb_range_test(MBInterface *)
   r1.insert(h1);
   r1.insert(h4);
   r1.insert(h5);
-  r3 = r1.subtract(r2);
+  r3 = subtract( r1, r2);
   if (r3.size() != 3 ||
       r3.find(h1) == r3.end() ||
       r3.find(h4) == r3.end() ||

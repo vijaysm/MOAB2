@@ -705,7 +705,7 @@ void test_geometric_sets()
       tmp.clear();
       rval = mb.get_adjacencies( ents, 0, false, tmp, MBInterface::UNION );
       CHECK_ERR(rval);
-      nodes = nodes.subtract( tmp );
+      nodes = subtract( nodes, tmp );
       CHECK( nodes.empty() );
     }
   }
@@ -1058,7 +1058,7 @@ void test_multiple_files()
   CHECK_ERR(rval);
   CHECK( !file2_verts.empty() );
   CHECK_EQUAL( file1_verts.size(), file2_verts.size() );
-  CHECK( file1_verts.intersect( file2_verts ).empty() );
+  CHECK( intersect( file1_verts,  file2_verts ).empty() );
   
     // now check that we get the same number of elements from 
     // each file and that they are distinct
@@ -1070,7 +1070,7 @@ void test_multiple_files()
   CHECK_ERR(rval);
   CHECK( !file2_elems.empty() );
   CHECK_EQUAL( file1_elems.size(), file2_elems.size() );
-  CHECK( file1_elems.intersect( file2_elems ).empty() );
+  CHECK( intersect( file1_elems,  file2_elems ).empty() );
 
     // now check that the connectivity for each element is
     // defined using the appropriate vertex instances
@@ -1080,8 +1080,8 @@ void test_multiple_files()
   rval = mb.get_adjacencies( file2_elems, 0, false, file2_elem_verts, MBInterface::UNION );
   CHECK_ERR(rval);
   CHECK_EQUAL( file1_elem_verts.size(), file2_elem_verts.size() );
-  CHECK( file1_elem_verts.intersect( file1_verts ) == file1_elem_verts );
-  CHECK( file2_elem_verts.intersect( file2_verts ) == file2_elem_verts );
+  CHECK( intersect( file1_elem_verts,  file1_verts ) == file1_elem_verts );
+  CHECK( intersect( file2_elem_verts,  file2_verts ) == file2_elem_verts );
 }
 
   

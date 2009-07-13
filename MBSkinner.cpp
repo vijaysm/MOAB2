@@ -312,7 +312,7 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
         result = thisMB->get_adjacencies(sub_conn, num_sub_nodes, source_dim, false,
                                          dum_elems);
         if (MB_SUCCESS != result) return result;
-        dum_elems = dum_elems.intersect( source_entities );
+        dum_elems = intersect( dum_elems, source_entities );
         if (dum_elems.empty()) {
           assert(false);  // should never happen
           return MB_FAILURE;

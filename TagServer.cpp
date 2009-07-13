@@ -797,7 +797,7 @@ MBErrorCode TagServer::get_entities(const MBRange &range,
     case MB_TAG_DENSE: {
       MBRange temp;
       result = sequenceManager->get_tagged_entities(id, type, temp);
-      entities.merge( range.intersect(temp) );
+      entities.merge( intersect( range, temp) );
       }
       break;
     case MB_TAG_BIT:
@@ -919,14 +919,14 @@ MBErrorCode TagServer::get_entities_with_tag_values( const MBRange &input_range,
       // if we're doing a running intersection and we're just starting and
       // the list comes in empty, the 1st result is the start
     if (0 == it && condition == MBInterface::INTERSECT && entities.empty()) {
-      entities = temp1.intersect(range);
+      entities = intersect( temp1, range);
     }
 
       // else if we're doing a running intersection, intersect this result (temp1)
       // with the running result (entities) into temp2, then move that to the running
       // result (entities)
     else if (condition == MBInterface::INTERSECT) {
-      entities = entities.intersect(temp1);
+      entities = intersect( entities, temp1);
       if (entities.empty()) return MB_SUCCESS;
 
         // also restrict the range at which we look; entities has already been 

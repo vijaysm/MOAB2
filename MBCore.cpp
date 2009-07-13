@@ -1352,7 +1352,7 @@ MBErrorCode MBCore::get_entities_by_type_and_tag(const MBEntityHandle meshset,
     return MB_SUCCESS;
   }
   else if (!entities.empty() && MBInterface::INTERSECT == condition) {
-    entities = entities.intersect(tmp_range);
+    entities = intersect( entities, tmp_range);
     if (entities.empty()) return MB_SUCCESS;
     tmp_range = entities;
   }

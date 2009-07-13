@@ -216,7 +216,7 @@ void range_remove( MBRange& from, const MBRange& removed )
 
   if (removed.size())
   {
-    MBRange tmp = from.subtract(removed);
+    MBRange tmp = subtract( from, removed);
     from.swap( tmp );
   }
 }
@@ -316,7 +316,7 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
   result = myPcomm->filter_pstatus( nodeSet.range, PSTATUS_NOT_OWNED, PSTATUS_AND, -1, &nonowned);
   if (MB_SUCCESS != result)
     return result;
-  nodeSet.range = nodeSet.range.subtract(nonowned);
+  nodeSet.range = subtract( nodeSet.range, nonowned);
   
   for (std::list<ExportSet>::iterator eiter = exportList.begin();
        eiter != exportList.end(); ++eiter ) {
@@ -324,7 +324,7 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
     result = myPcomm->filter_pstatus( eiter->range, PSTATUS_NOT_OWNED, PSTATUS_AND, -1, &tmpset);
     if (MB_SUCCESS != result)
       return result;
-    eiter->range = eiter->range.subtract( tmpset );
+    eiter->range = subtract( eiter->range,  tmpset );
     nonowned.merge(tmpset);
   }
   
@@ -333,7 +333,7 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
     // (on any processor.)
   for (proc_iter i = interfaceMesh.begin(); i != interfaceMesh.end(); ++i)
     if (i->first != myPcomm->proc_config().proc_rank())
-      i->second = nonowned.intersect( i->second );
+      i->second = intersect( nonowned,  i->second );
   
     // For the 'interfaceMesh' list for this processor, just remove
     // entities we aren't writing.
@@ -343,7 +343,7 @@ MBErrorCode WriteHDF5Parallel::gather_interface_meshes()
        eiter != exportList.end(); ++eiter ) 
     tmpset.merge( eiter->range );
   MBRange& my_remote_mesh = interfaceMesh[myPcomm->proc_config().proc_rank()];
-  my_remote_mesh = my_remote_mesh.intersect( tmpset );
+  my_remote_mesh = intersect( my_remote_mesh,  tmpset );
   
     // print some debug output summarizing what we've accomplished
   printdebug("Remote mesh:\n");
@@ -483,6 +483,7 @@ TPRINT("creating meshset table");
   std::vector<unsigned long>::iterator tag_off_iter = tag_counts.begin();
   for (tag_iter = tagList.begin(); tag_iter != tagList.end(); ++tag_iter) {
     int s;
+    assert(tag_off_iter < tag_counts.begin() + tag_counts.size());
     *tag_off_iter = tag_iter->range.size();
     ++tag_off_iter;
     if (MB_VARIABLE_DATA_LENGTH == iFace->tag_get_size( tag_iter->tag_id, s )) {
@@ -491,6 +492,7 @@ TPRINT("creating meshset table");
       if (MB_SUCCESS != rval)
         return rval;
       
+      assert(tag_off_iter < tag_counts.begin() + tag_counts.size());
       *tag_off_iter = total_len;
       assert(total_len == *tag_off_iter);
     }
@@ -519,19 +521,26 @@ TPRINT("communicating tag metadata");
   tag_iter = tagList.begin();
   for (int i = 0; i < num_tags; ++i, ++tag_iter)
   {
+    assert((unsigned)(2*i+1) < tag_counts.size());
     tag_counts[2*i] = tag_counts[2*i+1] = 0;
     unsigned long next_offset = 0;
     unsigned long next_var_len_offset = 0;
     for (unsigned int j = 0; j < myPcomm->proc_config().proc_size(); j++)
     {
-      unsigned long count = proc_tag_offsets[2*i + j*2*num_tags];
-      proc_tag_offsets[2*i + j*2*num_tags] = next_offset;
+      unsigned idx = 2*i + j*2*num_tags;
+      assert(idx < proc_tag_offsets.size());
+      unsigned long count = proc_tag_offsets[idx];
+      proc_tag_offsets[idx] = next_offset;
       next_offset += count;
+      assert((unsigned)(2*i) < tag_counts.size());
       tag_counts[2*i] += count;
       
-      count = proc_tag_offsets[2*i + 1 + j*2*num_tags];
-      proc_tag_offsets[2*i + 1 + j*2*num_tags] = next_var_len_offset;
+      ++idx;
+      assert(idx < proc_tag_offsets.size());
+      count = proc_tag_offsets[idx];
+      proc_tag_offsets[idx] = next_var_len_offset;
       next_var_len_offset += count;
+      assert((unsigned)(2*i + 1) < tag_counts.size());
       tag_counts[2*i + 1] += count;
     }
 
@@ -560,6 +569,7 @@ TPRINT("communicating tag metadata");
   tag_iter = tagList.begin();
   for (int i = 0; i < num_tags; ++i, ++tag_iter)
   {
+    assert((unsigned)(2*i) < tag_counts.size());
     tag_iter->offset = tag_offsets[2*i];
     tag_iter->write = tag_counts[2*i] > 0;
     tag_iter->varDataOffset = tag_offsets[2*i + 1];
@@ -1115,7 +1125,7 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
                                                 2,
                                                 data.range );
     if (rval != MB_SUCCESS) return rval;
-    MBRange tmp = data.range.intersect( setSet.range );
+    MBRange tmp = intersect( data.range,  setSet.range );
     data.range.swap( tmp );
     range_remove( setSet.range, data.range );
   }
@@ -1405,14 +1415,14 @@ void WriteHDF5Parallel::remove_remote_entities( MBEntityHandle relative,
                                                 MBRange& range )
 {
   MBRange result;
-  result.merge( range.intersect( nodeSet.range ) );
-  result.merge( range.intersect( setSet.range ) );  
+  result.merge( intersect( range,  nodeSet.range ) );
+  result.merge( intersect( range,  setSet.range ) );  
   for (std::list<ExportSet>::iterator eiter = exportList.begin();
            eiter != exportList.end(); ++eiter )
   {
-    result.merge( range.intersect( eiter->range ) );
+    result.merge( intersect( range, eiter->range ) );
   }
-  //result.merge( range.intersect( myParallelSets ) );
+  //result.merge( intersect( range, myParallelSets ) );
   MBRange sets;
   int junk;
   sets.merge( MBRange::lower_bound( range.begin(), range.end(), CREATE_HANDLE(MBENTITYSET, 0, junk )), range.end() );
@@ -1424,9 +1434,9 @@ void WriteHDF5Parallel::remove_remote_entities( MBEntityHandle relative,
 void WriteHDF5Parallel::remove_remote_sets( MBEntityHandle relative, 
                                             MBRange& range )
 {
-  MBRange result( range.intersect( setSet.range ) );
-  //result.merge( range.intersect( myParallelSets ) );
-  MBRange remaining( range.subtract( result ) );
+  MBRange result( intersect( range,  setSet.range ) );
+  //result.merge( intersect( range, yParallelSets ) );
+  MBRange remaining( subtract( range, result ) );
   
   for(MBRange::iterator i = remaining.begin(); i != remaining.end(); ++i)
   {

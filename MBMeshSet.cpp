@@ -998,7 +998,7 @@ MBErrorCode MBMeshSet::intersect( const MBMeshSet* other, MBEntityHandle my_hand
     if (MB_SUCCESS != rval)
       return rval;
     rval = other->get_entities(other_ents);
-    return remove_entities( my_ents.subtract(other_ents), my_handle, adj );
+    return remove_entities( ::subtract(my_ents, other_ents), my_handle, adj );
   }
 }
 

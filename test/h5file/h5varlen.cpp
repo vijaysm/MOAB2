@@ -131,7 +131,7 @@ void test_var_length_data_common( const char* filename, MBInterface& mb1, bool o
     // remove sets created during read/write process
   MBRange sets;
   mb2.get_entities_by_type( 0, MBENTITYSET, sets );
-  entities = entities.subtract(sets);
+  entities = subtract( entities, sets);
   for (MBRange::const_iterator i = entities.begin(); i != entities.end(); ++i) {
       // get data
     const void* ptrarr[] = { NULL };

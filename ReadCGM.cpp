@@ -551,7 +551,7 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
   rval = mdbImpl->get_entities_by_handle(0, loaded_range);
   if (MB_FAILURE == rval) return rval;
   rval = mdbImpl->get_entities_by_handle(0, init_range);
-  loaded_range = loaded_range.subtract(init_range);
+  loaded_range = subtract( loaded_range, init_range);
   rval = mdbImpl->add_entities(mCurrentMeshHandle, loaded_range);
   if (MB_FAILURE == rval) return rval;
 

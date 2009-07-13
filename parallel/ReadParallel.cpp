@@ -522,11 +522,11 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBEntityHandle file_set)
   }
   
     // get deletable entities by subtracting partition ents from file ents
-  MBRange deletable_ents = file_ents.subtract(partition_ents);
+  MBRange deletable_ents = subtract( file_ents, partition_ents);
 
     // cache deletable vs. keepable sets
-  MBRange deletable_sets = all_sets.intersect(deletable_ents);
-  MBRange keepable_sets = all_sets.subtract(deletable_sets);
+  MBRange deletable_sets = intersect( all_sets, deletable_ents);
+  MBRange keepable_sets = subtract( all_sets, deletable_sets);
   
   if (debug) std::cout << "Removing deletable entities from keepable sets." << std::endl;
 
@@ -551,7 +551,7 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(MBEntityHandle file_set)
     result = mbImpl->delete_entities(deletable_sets);
   RR("Failure deleting sets in delete_nonlocal_entities.");
 
-  deletable_ents = deletable_ents.subtract(deletable_sets);
+  deletable_ents = subtract( deletable_ents, deletable_sets);
 
   if (debug && myPcomm->proc_config().proc_rank() == 0) {
     std::cout << "Deletable entities: " << std::endl;

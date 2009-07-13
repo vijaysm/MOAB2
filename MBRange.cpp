@@ -590,16 +590,17 @@ void MBRange::print(std::ostream& stream, const char *indent_prefix) const
   // intersect two ranges, placing the results in the return range
 #define MAX(a,b) (a < b ? b : a)
 #define MIN(a,b) (a > b ? b : a)
-MBRange MBRange::intersect(const MBRange &range2) const 
+MBRange intersect(const MBRange &range1, const MBRange &range2) 
 {
-  pair_iterator r_it[2] = {pair_iterator(begin()), pair_iterator(range2.begin())};
+  MBRange::const_pair_iterator r_it[2] = { range1.const_pair_begin(), 
+                                           range2.const_pair_begin() };
   MBEntityHandle low_it, high_it;
   
   MBRange lhs;
   
     // terminate the while loop when at least one "start" iterator is at the
     // end of the list
-  while (r_it[0] != end() && r_it[1] != range2.end()) {
+  while (r_it[0] != range1.end() && r_it[1] != range2.end()) {
     
     if (r_it[0]->second < r_it[1]->first)
         // 1st subrange completely below 2nd subrange
@@ -625,58 +626,58 @@ MBRange MBRange::intersect(const MBRange &range2) const
   return lhs;
 }
 
-MBRange MBRange::subtract(const MBRange &range2) const 
+MBRange subtract(const MBRange &range1, const MBRange &range2) 
 {
   const bool braindead = false;
   
   if (braindead) {
       // brain-dead implementation right now
-    MBRange res = *this;
+    MBRange res( range1 );
     for (MBRange::const_iterator rit = range2.begin(); rit != range2.end(); rit++)
       res.erase(*rit);
 
     return res;
   }
   else {
-    MBRange lhs = *this;
+    MBRange lhs( range1 );
   
-    pair_iterator r_it[2] = {pair_iterator(lhs.begin()), 
-                             pair_iterator(range2.begin())};
+    MBRange::pair_iterator r_it0 = lhs.pair_begin();
+    MBRange::const_pair_iterator r_it1 = range2.const_pair_begin();
   
       // terminate the while loop when at least one "start" iterator is at the
       // end of the list
-    while (r_it[0] != lhs.end() && r_it[1] != range2.end()) {
+    while (r_it0 != lhs.end() && r_it1 != range2.end()) {
         // case a: pair wholly within subtracted pair
-      if (r_it[0]->first >= r_it[1]->first && r_it[0]->second <= r_it[1]->second) {
-        PairNode *rtmp = r_it[0].mNode;
-        r_it[0]++;
+      if (r_it0->first >= r_it1->first && r_it0->second <= r_it1->second) {
+        MBRange::PairNode *rtmp = r_it0.node();
+        r_it0++;
         lhs.delete_pair_node(rtmp);
       }
         // case b: pair overlaps upper part of subtracted pair
-      else if (r_it[0]->first <= r_it[1]->second &&
-               r_it[0]->first >= r_it[1]->first) {
-        r_it[0]->first = r_it[1]->second + 1;
-        r_it[1]++;
+      else if (r_it0->first <= r_it1->second &&
+               r_it0->first >= r_it1->first) {
+        r_it0->first = r_it1->second + 1;
+        r_it1++;
       }
         // case c: pair overlaps lower part of subtracted pair
-      else if (r_it[0]->second >= r_it[1]->first &&
-               r_it[0]->second <= r_it[1]->second) {
-        r_it[0]->second = r_it[1]->first - 1;
-        r_it[0]++;
+      else if (r_it0->second >= r_it1->first &&
+               r_it0->second <= r_it1->second) {
+        r_it0->second = r_it1->first - 1;
+        r_it0++;
       }
         // case d: pair completely surrounds subtracted pair
-      else if (r_it[0]->first < r_it[1]->first && 
-               r_it[0]->second > r_it[1]->second) {
-        PairNode* new_node = alloc_pair(r_it[0].mNode, r_it[0].mNode->mPrev, 
-                                        r_it[0]->first, r_it[1]->first - 1);
+      else if (r_it0->first < r_it1->first && 
+               r_it0->second > r_it1->second) {
+        MBRange::PairNode* new_node = alloc_pair(r_it0.node(), r_it0.node()->mPrev, 
+                                        r_it0->first, r_it1->first - 1);
         new_node->mPrev->mNext = new_node->mNext->mPrev = new_node;
-        r_it[0].mNode->first = r_it[1]->second+1;
-        r_it[1]++;
+        r_it0.node()->first = r_it1->second+1;
+        r_it1++;
       }
       else {
-        while (r_it[0]->second < r_it[1]->first && r_it[0] != lhs.end()) r_it[0]++;
-        if (r_it[0] == lhs.end()) break;
-        while (r_it[1]->second < r_it[0]->first && r_it[1] != range2.end()) r_it[1]++;
+        while (r_it0->second < r_it1->first && r_it0 != lhs.end()) r_it0++;
+        if (r_it0 == lhs.end()) break;
+        while (r_it1->second < r_it0->first && r_it1 != range2.end()) r_it1++;
       }
     }
     

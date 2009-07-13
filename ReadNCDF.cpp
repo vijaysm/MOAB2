@@ -509,7 +509,7 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
   MBRange loaded_range;
   status = mdbImpl->get_entities_by_handle(0, loaded_range);
   if (MB_FAILURE == status) return status;
-  loaded_range = loaded_range.subtract(initRange);
+  loaded_range = subtract( loaded_range, initRange);
   status = mdbImpl->add_entities(mCurrentMeshHandle, loaded_range);
   if (MB_FAILURE == status) return status;
   
@@ -780,7 +780,7 @@ MBErrorCode ReadNCDF::remove_previously_loaded_blocks(const int *blocks_to_load,
   if(mdbImpl->get_entities_by_type(0, MBENTITYSET, child_meshsets ) != MB_SUCCESS )
     return MB_FAILURE;
 
-  child_meshsets = child_meshsets.subtract(initRange);
+  child_meshsets = subtract( child_meshsets, initRange);
 
   MBTag tag_handle;
 
@@ -1147,7 +1147,7 @@ MBErrorCode ReadNCDF::read_nodesets()
     if( mdbImpl->get_entities_by_handle(0, child_meshsets ) != MB_SUCCESS ) 
       return MB_FAILURE;
 
-    child_meshsets = child_meshsets.subtract(initRange);
+    child_meshsets = subtract( child_meshsets, initRange);
 
     MBRange::iterator iter, end_iter;
     iter = child_meshsets.begin();
@@ -1295,7 +1295,7 @@ MBErrorCode ReadNCDF::read_sidesets()
                                     child_meshsets ) != MB_SUCCESS ) 
     return MB_FAILURE;
 
-  child_meshsets = child_meshsets.subtract(initRange);
+  child_meshsets = subtract( child_meshsets, initRange);
 
   MBRange::iterator iter, end_iter;
 

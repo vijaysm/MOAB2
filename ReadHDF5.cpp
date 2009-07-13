@@ -1213,7 +1213,7 @@ MBErrorCode ReadHDF5::read_elements_and_sides( const MBRange& file_ids )
       MBRange subset;
       intersect( fileInfo->elems[i].desc, elem_ids, subset );
       if (!subset.empty()) {
-        elem_ids.subtract( subset );
+        subtract( elem_ids,  subset );
         rval = read_elems( fileInfo->elems[i],  subset );
         if (MB_SUCCESS != rval)
           return error(rval); 
@@ -1261,9 +1261,9 @@ MBErrorCode ReadHDF5::read_elements_and_sides( const MBRange& file_ids )
   all_elems.erase( all_elems.lower_bound( MBCN::TypeDimensionMap[max_dim].first ), all_elems.end() );
     // remove explicit elements < max_dim
   if (!explicit_elems[1].empty() && max_dim > 1)
-    all_elems = all_elems.subtract( explicit_elems[1] );
+    all_elems = subtract( all_elems,  explicit_elems[1] );
   if (!explicit_elems[2].empty() && max_dim > 2)
-    all_elems = all_elems.subtract( explicit_elems[2] );
+    all_elems = subtract( all_elems,  explicit_elems[2] );
  
     // remove any elements that are adjacent to some explicity specified element.
   if (max_dim > 1 && !explicit_elems[2].empty()) {
@@ -1272,7 +1272,7 @@ MBErrorCode ReadHDF5::read_elements_and_sides( const MBRange& file_ids )
     if (MB_SUCCESS != rval)
       return error(rval);
     if (!adj.empty())
-      all_elems = all_elems.subtract( adj );
+      all_elems = subtract( all_elems,  adj );
   }
   if (max_dim == 3) {
     MBRange adj;
@@ -1280,13 +1280,13 @@ MBErrorCode ReadHDF5::read_elements_and_sides( const MBRange& file_ids )
     if (MB_SUCCESS != rval)
       return error(rval);
     if (!adj.empty())
-      all_elems = all_elems.subtract( adj );
+      all_elems = subtract( all_elems,  adj );
     adj.clear();
     rval = iFace->get_adjacencies( explicit_elems[3], 2, false, adj, MBInterface::UNION );
     if (MB_SUCCESS != rval)
       return error(rval);
     if (!adj.empty())
-      all_elems = all_elems.subtract( adj );
+      all_elems = subtract( all_elems,  adj );
   }
   
     // now delete anything remaining in all_elems
@@ -1462,7 +1462,7 @@ MBErrorCode ReadHDF5::read_set_ids_recursive( MBRange& sets_in_out,
       if (MB_SUCCESS != rval)
         break;
     }
-    new_children = children.subtract( sets_in_out );
+    new_children = subtract( children,  sets_in_out );
     sets_in_out.merge( new_children );
   } while (!new_children.empty());
   
@@ -1878,7 +1878,7 @@ MBErrorCode ReadHDF5::read_contents( ContentReader& tool,
 #endif
     
     // things will get messed up if this isn't true
-  assert( ranged_ids_in.subtract( file_ids ).empty() );
+  assert( subtract( ranged_ids_in, file_ids ).empty() );
   assert( file_ids.front() >= (MBEntityHandle)start_id );
   assert( file_ids.back() - start_id < (MBEntityHandle)entity_count );
 

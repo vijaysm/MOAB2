@@ -1335,7 +1335,7 @@ bool test_subset( )
   rval = moab.get_adjacencies( new_elems, 0, false, elem_verts, MBInterface::UNION );
   MBCHECK(rval);
   CHECK(elem_verts.size() == 6);
-  MBRange free_verts( new_verts.subtract(elem_verts ) );
+  MBRange free_verts( subtract( new_verts, elem_verts ) );
   CHECK(free_verts.size() == 1 );
   double vcoords[3];
   rval = moab.get_coords( free_verts, vcoords );

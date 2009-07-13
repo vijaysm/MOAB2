@@ -227,7 +227,7 @@ MBErrorCode MeshTopoUtil::star_next_entity(const MBEntityHandle star_center,
     result = mbImpl->get_adjacencies(*star_candidates_dp1, dim+1, false,
                                      from_ents, MBInterface::UNION);
     if (MB_SUCCESS != result) return result;
-    to_ents = to_ents.intersect(from_ents);
+    to_ents = intersect( to_ents, from_ents);
   }
   
   if (!to_ents.empty()) next_entity = *to_ents.begin();
@@ -430,7 +430,7 @@ MBErrorCode MeshTopoUtil::get_bridge_adjacencies(MBRange &from_entities,
 
       // subtract last_toents to get new_toents
     if (nl < num_layers-1)
-      new_toents = to_ents.subtract(last_toents);
+      new_toents = subtract( to_ents, last_toents);
   }
 
   return MB_SUCCESS;
@@ -742,8 +742,8 @@ MBErrorCode MeshTopoUtil::split_entity_nonmanifold(MBEntityHandle split_ent,
       result = mbImpl->get_adjacencies(&split_ent, 1, i, false, other_adjs, 
                                        MBInterface::UNION); RR;
     }
-    other_adjs = other_adjs.subtract(old_adjs);
-    other_adjs = other_adjs.subtract(new_adjs);
+    other_adjs = subtract( other_adjs, old_adjs);
+    other_adjs = subtract( other_adjs, new_adjs);
     for (MBRange::iterator rit1 = other_adjs.begin(); rit1 != other_adjs.end(); rit1++) {
         // find an adjacent lower-dimensional entity in old_ or new_ adjs
       bool found = false;

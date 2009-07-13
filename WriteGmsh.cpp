@@ -239,7 +239,7 @@ MBErrorCode WriteGmsh::write_file(const char *file_name,
       if (MB_SUCCESS != rval)
         return rval;
 
-      elems = elems.intersect( elements );
+      elems = intersect( elems,  elements );
       for (MBRange::iterator j = elems.begin(); j != elems.end(); ++j)
         elem_sets[*j].set( s, id );
     }

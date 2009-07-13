@@ -268,7 +268,7 @@ MBErrorCode test_interpolation(MBInterface *mbImpl,
     // then get non-owned verts and subtract 
   result = pcs[1]->get_pstatus_entities(0, PSTATUS_NOT_OWNED, tmp_verts);
   PRINT_LAST_ERROR;
-  targ_verts = targ_verts.subtract(tmp_verts);
+  targ_verts = subtract( targ_verts, tmp_verts);
   
     // get position of these entities; these are the target points
   std::vector<double> vpos(3*targ_verts.size());

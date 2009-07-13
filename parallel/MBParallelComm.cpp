@@ -289,7 +289,7 @@ MBErrorCode MBParallelComm::assign_global_ids(MBEntityHandle this_set,
     for (rit = entities[dim].begin(), i = 0; rit != entities[dim].end(); rit++, i++)
       if (pstatus[i] & PSTATUS_NOT_OWNED)
         dum_range.insert(*rit);
-    entities[dim] = entities[dim].subtract(dum_range);
+    entities[dim] = subtract( entities[dim], dum_range);
     
     local_num_elements[dim] = entities[dim].size();
   }
@@ -2307,7 +2307,7 @@ MBErrorCode MBParallelComm::get_tag_send_list( const MBRange& whole_range,
     MBRange tmp_range;
     result = tagServer->get_entities(*tag_it, tmp_range);
     RRA("Failed to get entities for tag in pack_tags.");
-    tmp_range = tmp_range.intersect(whole_range);
+    tmp_range = intersect( tmp_range, whole_range);
 
     if (tmp_range.empty()) continue;
         
@@ -3773,7 +3773,7 @@ MBErrorCode MBParallelComm::get_sent_ents(const bool is_iface,
                             buffProcs[ind], &tmp_range);
     RRA("Couldn't filter on owner.");
     if (!tmp_range.empty()) 
-      sent_ents[ind] = sent_ents[ind].subtract(tmp_range);
+      sent_ents[ind] = subtract( sent_ents[ind], tmp_range);
 
     allsent.merge(sent_ents[ind]);
   }
@@ -4194,7 +4194,7 @@ MBErrorCode MBParallelComm::exchange_tags(std::vector<MBTag> &src_tags,
       if (tagServer->get_default_data_ref( *vit, ptr, size ) != MB_SUCCESS) {
         MBRange tagged_ents;
         tagServer->get_entities( *vit, tagged_ents );
-        tag_ranges.push_back(tag_ents.intersect(tagged_ents));
+        tag_ranges.push_back( intersect( tag_ents, tagged_ents ) );
       } 
       else {
         tag_ranges.push_back(tag_ents);
@@ -5138,7 +5138,7 @@ MBErrorCode MBParallelComm::pack_shared_handles(
   rval = get_pstatus_entities(-1, 0, dum_range);
   if (MB_SUCCESS != rval)
     return rval;
-  all_shared = all_shared.subtract(dum_range);
+  all_shared = subtract( all_shared, dum_range);
   all_shared.erase(all_shared.upper_bound(MBPOLYHEDRON), all_shared.end());
   assert(sharedEnts == all_shared);
 

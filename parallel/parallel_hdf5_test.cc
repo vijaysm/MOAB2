@@ -125,7 +125,7 @@ void print_partitioned_entities( MBInterface& moab, bool list_non_shared = false
       for (MBRange::const_iterator j = children.begin(); j != children.end(); ++j) {
         tmp_entities.clear();
         rval = moab.get_entities_by_handle( *j, tmp_entities ); CHECK_ERR(rval);
-        diff = entities.subtract( tmp_entities );
+        diff = subtract( entities, tmp_entities );
         entities.swap( diff );
       }
       

@@ -254,7 +254,7 @@ static void set_intersection_query( iMesh_Instance instance,
     CHKERR(rval);
     rval = get_entities( MBI, itaps_cast<MBEntityHandle>(set2), type, topo, r2 );
     CHKERR(rval);
-    result.merge( r1.intersect(r2) );
+    result.merge( intersect( r1, r2) );
   }
   
   RETURN (iBase_SUCCESS);
