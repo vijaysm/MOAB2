@@ -236,6 +236,9 @@ public:
 
   //! return the number of values this Ranges represents
   MBEntityHandle size() const;
+
+  //! return the number of range pairs in the list
+  MBEntityHandle psize() const;
   
   //! return whether empty or not 
   //! always use "if(!Ranges::empty())" instead of "if(Ranges::size())"

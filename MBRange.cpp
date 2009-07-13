@@ -68,6 +68,20 @@ MBEntityHandle MBRange::size() const
   }
   return size;
 }
+/*! 
+  returns the number of pairs in the list
+ */
+MBEntityHandle MBRange::psize() const
+{
+  // go through each pair and add up the number of values
+  // we have.
+  MBEntityHandle size=0;
+  for(PairNode* iter = mHead.mNext; iter != &mHead; iter = iter->mNext)
+  {
+    ++size;
+  }
+  return size;
+}
 
 /*!
   advance iterator
