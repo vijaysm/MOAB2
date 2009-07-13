@@ -314,7 +314,6 @@ MBErrorCode WriteHDF5::write_finished()
   exportList.clear();
   nodeSet.range.clear();
   setSet.range.clear();
-  rangeSets.clear();
   tagList.clear();
   idMap.clear();
   return MB_SUCCESS;
@@ -494,7 +493,7 @@ DEBUGOUT("Writing adjacencies.\n");
   
     // Write adjacencies
   // Tim says don't save node adjacencies!
-#ifdef WRITE_NODE_ADJACENCIES
+#ifdef MB_H5M_WRITE_NODE_ADJACENCIES
   result = write_adjacencies( nodeSet );
   if (MB_SUCCESS != result) 
     return result;
@@ -894,7 +893,6 @@ MBErrorCode WriteHDF5::write_sets( )
   MBRange set_contents;
   MBRange::const_iterator iter = sets.begin();
   const MBRange::const_iterator end = sets.end();
-  MBRange::const_iterator comp = rangeSets.begin();
   long set_offset = setSet.offset;
   long content_offset = setContentsOffset;
   long child_offset = setChildrenOffset;
@@ -912,8 +910,7 @@ MBErrorCode WriteHDF5::write_sets( )
       CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
 
       id_list.clear();
-      if (*iter == *comp)
-      {
+      if (flags & MESHSET_SET) {
         set_contents.clear();
 
         rval = iFace->get_entities_by_handle( *iter, set_contents, false );
@@ -922,13 +919,12 @@ MBErrorCode WriteHDF5::write_sets( )
         bool blocked_list;
         rval = range_to_blocked_list( set_contents, id_list, blocked_list );
         CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
-        
-        assert (blocked_list);
-        assert (id_list.size() < (unsigned long)data_size);
-        assert (id_list.size() % 2 == 0);
-        flags |= mhdf_SET_RANGE_BIT;
-        data_size = id_list.size();
-        ++comp;
+
+        assert (id_list.size() <= (unsigned long)data_size);
+        if (blocked_list) {
+          assert (id_list.size() % 2 == 0);
+          flags |= mhdf_SET_RANGE_BIT;
+        }
       }
       else
       {
@@ -940,6 +936,7 @@ MBErrorCode WriteHDF5::write_sets( )
         rval = vector_to_id_list( handle_list, id_list );
         CHK_MB_ERR_2C(rval, set_table, writeSetContents, content_table, status);
       }
+      data_size = id_list.size();
 
       child_offset += child_size;
       parent_offset += parent_size;
@@ -1124,12 +1121,12 @@ MBErrorCode WriteHDF5::range_to_blocked_list( const MBRange& input_range,
 }
 */
 MBErrorCode WriteHDF5::range_to_blocked_list( const MBRange& input_range,
-                                              std::vector<id_t>& output_id_list,
+                                              std::vector<id_t>& output_id_list, 
                                               bool& ranged_list )
 {
+  output_id_list.clear();
   ranged_list = false;
   if (input_range.empty()) {
-    output_id_list.clear();
     return MB_SUCCESS;
   }
 
@@ -1137,8 +1134,9 @@ MBErrorCode WriteHDF5::range_to_blocked_list( const MBRange& input_range,
     // non-range format size.
   RangeMap<MBEntityHandle,id_t>::iterator ri = idMap.begin();
   MBRange::const_pair_iterator pi;
-  output_id_list.resize( input_range.size() );
-  std::vector<id_t>::iterator i = output_id_list.begin();
+    // if we end up with more than this many range blocks, then
+    // we're better off just writing the set as a simple list
+  size_t pairs_remaining = input_range.size() / 2; 
   for (pi = input_range.const_pair_begin(); pi != input_range.const_pair_end(); ++pi) {
     MBEntityHandle h = pi->first;
     while (h <= pi->second) {
@@ -1152,37 +1150,34 @@ MBErrorCode WriteHDF5::range_to_blocked_list( const MBRange& input_range,
       if (n > ri->count)
         n = ri->count;
   
-      if (output_id_list.end() - i < 2)
-        break;
+        // if we ran out of space, (or set is empty) just do list format
+      if (!pairs_remaining) {
+        output_id_list.resize( input_range.size() );
+        range_to_id_list( input_range, &output_id_list[0] );
+        output_id_list.erase( std::remove( output_id_list.begin(), 
+                                           output_id_list.end(), 
+                                           0 ), 
+                              output_id_list.end() );
+        return MB_SUCCESS;
+      }
 
+      --pairs_remaining;
       id_t id = ri->value + (h - ri->begin);
-      *i = id; ++i;
-      *i = n; ++i;
+      output_id_list.push_back(id);
+      output_id_list.push_back(n);
       h += n;
     }
   }
   
     // if we aren't writing anything (no entities in MBRange are
     // being written to to file), clean up and return
-  if (i == output_id_list.begin()) {
-    output_id_list.clear();
+  if (output_id_list.empty())
     return MB_SUCCESS;
-  }
-  
-    // if we ran out of space, (or set is empty) just do list format
-  if (output_id_list.end() - i < 2) {
-    range_to_id_list( input_range, &output_id_list[0] );
-    output_id_list.erase( std::remove( output_id_list.begin(), 
-                                       output_id_list.end(), 
-                                       0 ), 
-                          output_id_list.end() );
-    return MB_SUCCESS;
-  }
   
     // otherwise check if we can compact the list further
   ranged_list = true;
   size_t r, w = 2;
-  const size_t e = i - output_id_list.begin() - 1;
+  const size_t e = output_id_list.size() - 1;
   for (r = 2; r < e; r += 2) {
     if (output_id_list[w-2] + output_id_list[w-1] == output_id_list[r])
       output_id_list[w-1] += output_id_list[r+1];
@@ -2170,7 +2165,7 @@ MBErrorCode WriteHDF5::serial_create_file( const char* filename,
 
     // create node adjacency table
   id_t num_adjacencies;
-#ifdef WRITE_NODE_ADJACENCIES  
+#ifdef MB_H5M_WRITE_NODE_ADJACENCIES  
   rval = count_adjacencies( nodeSet.range, num_adjacencies );
   CHK_MB_ERR_0(rval);
   if (num_adjacencies > 0)
@@ -2221,7 +2216,7 @@ MBErrorCode WriteHDF5::serial_create_file( const char* filename,
     rval = assign_ids( setSet.range, setSet.first_id );
     CHK_MB_ERR_0(rval);
     
-    rval = count_set_size( setSet.range, rangeSets, contents_len, children_len, parents_len );
+    rval = count_set_size( setSet.range, contents_len, children_len, parents_len );
     CHK_MB_ERR_0(rval);
     
     rval = create_set_tables( contents_len, children_len, parents_len );
@@ -2309,14 +2304,13 @@ MBErrorCode WriteHDF5::create_elem_tables( MBEntityType mb_type,
 
 
 MBErrorCode WriteHDF5::count_set_size( const MBRange& sets, 
-                                       MBRange& compressed_sets,
                                        long& contents_length_out,
                                        long& children_length_out,
                                        long& parents_length_out )
 {
   MBErrorCode rval;
   MBRange set_contents;
-  MBRange::const_iterator iter = sets.begin(), ins = compressed_sets.begin();
+  MBRange::const_iterator iter = sets.begin();
   const MBRange::const_iterator end = sets.end();
   long contents_length_set, children_length_set, parents_length_set;
   unsigned long flags;
@@ -2347,10 +2341,9 @@ MBErrorCode WriteHDF5::count_set_size( const MBRange& sets,
       {
         assert (set_contents_ids.size() % 2 == 0);
         contents_length_set = set_contents_ids.size();
-        ins = compressed_sets.insert( ins, *iter, *iter );
       }
     }
-    
+
     contents_length_out += contents_length_set;
     children_length_out += children_length_set;
     parents_length_out += parents_length_set;
