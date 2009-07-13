@@ -44,7 +44,7 @@ extern "C"
 const unsigned int INITIAL_BUFF_SIZE = 1024;
 const int MAX_BCAST_SIZE = (1<<28);
 
-#define DEBUG_MPE
+#undef DEBUG_MPE
 #ifdef DEBUG_MPE
 #include "mpe.h"
 int IFACE_START, IFACE_END;
