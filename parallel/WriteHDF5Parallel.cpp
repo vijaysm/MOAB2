@@ -1353,7 +1353,7 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   
     // Communicate counts for local sets
   long data_counts[3];
-  rval = count_set_size( setSet.range, rangeSets, data_counts[0], data_counts[1], data_counts[2] );
+  rval = count_set_size( setSet.range, data_counts[0], data_counts[1], data_counts[2] );
   if (MB_SUCCESS != rval) return rval;
   std::vector<long> set_counts(3*myPcomm->proc_config().proc_size());
   result = MPI_Gather( data_counts,    3, MPI_LONG,
