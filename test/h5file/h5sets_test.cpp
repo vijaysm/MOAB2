@@ -116,15 +116,120 @@ void test_file_set()
   CHECK_ERR(rval);
   CHECK_EQUAL( 1, count );
 }
+
+
+void recursive_build_tree( MBInterface& mb,
+                           MBTag tag,
+                           MBEntityHandle p,
+                           int depth,
+                           int& idx )
+{
+  MBErrorCode rval = mb.tag_set_data( tag, &p, 1, &idx ); CHECK_ERR(rval);
+  ++idx;
+  if (depth == 20)
+    return;
+
+  MBEntityHandle l, r;
+  rval = mb.create_meshset( MESHSET_SET, l ); CHECK_ERR(rval);
+  rval = mb.create_meshset( MESHSET_SET, r ); CHECK_ERR(rval);
+  rval = mb.add_parent_child( p, l ); CHECK_ERR(rval);
+  rval = mb.add_parent_child( p, r ); CHECK_ERR(rval);
   
+  recursive_build_tree( mb, tag, l, depth+1, idx );
+  recursive_build_tree( mb, tag, r, depth+1, idx );
+}
+ 
+void recursive_check_tree( MBInterface& mb,
+                           MBTag tag,
+                           MBEntityHandle p,
+                           int depth,
+                           int& idx )
+{
+  int id;
+  MBErrorCode rval = mb.tag_get_data( tag, &p, 1, &id); CHECK_ERR(rval);
+  CHECK_EQUAL( idx, id );
+  ++idx;
+  
+  std::vector<MBEntityHandle> children, parents;
+
+  rval = mb.get_child_meshsets( p, children ); CHECK_ERR(rval);
+  if (depth == 20) {
+    CHECK_EQUAL( (size_t)0, children.size() );
+    return;
+  }
+  
+  CHECK_EQUAL( (size_t)2, children.size() );
+  MBEntityHandle l = children.front();
+  MBEntityHandle r = children.back();
+  
+  parents.clear();
+  rval = mb.get_parent_meshsets( l, parents ); CHECK_ERR(rval);
+  CHECK_EQUAL( (size_t)1, parents.size() );
+  CHECK_EQUAL( p, parents.front() );
+  parents.clear();
+  rval = mb.get_parent_meshsets( r, parents ); CHECK_ERR(rval);
+  CHECK_EQUAL( (size_t)1, parents.size() );
+  CHECK_EQUAL( p, parents.front() );
+  
+  recursive_check_tree( mb, tag, l, depth+1, idx );
+  recursive_check_tree( mb, tag, r, depth+1, idx );
+}
+ 
+
+void test_big_tree() 
+{
+  MBErrorCode rval;
+  MBCore moab;
+  MBInterface& mb = moab;
+  MBEntityHandle root;
+  
+  // create tag in which to store number for each tree node,
+  // in depth-first in-order search order.
+  MBTag tag;
+  rval = mb.tag_get_handle( "GLOBAL_ID", tag ); CHECK_ERR(rval);
+  
+  // create a binary tree to a depth of 20 (about 1 million nodes)
+  rval = mb.create_meshset( MESHSET_SET, root ); CHECK_ERR(rval);
+  int idx = 0;
+  recursive_build_tree( mb, tag, root, 1, idx );
+  const int last_idx = idx;
+  std::cerr << "Created binary tree containing " << last_idx << " nodes." << std::endl;
+  
+  // write file and read back in
+  rval = mb.write_file( "big_tree.h5m" ); CHECK_ERR(rval);
+  mb.delete_mesh();
+  rval = mb.load_file( "big_tree.h5m", root );
+  if (!keep_file)
+    remove( "big_tree.h5m" );
+  CHECK_ERR(rval);
+  
+  // get tree root
+  rval = mb.tag_get_handle( "GLOBAL_ID", tag ); CHECK_ERR(rval);
+  MBRange roots;
+  idx = 0;
+  const void* vals[] = {&idx};
+  rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &tag, vals, 1, roots );
+  CHECK_EQUAL( (MBEntityHandle)1, roots.size() );
+  root = roots.front();
+  
+  // check that tree is as we expect it
+  idx = 0;
+  recursive_check_tree( mb, tag, root, 1, idx );
+  CHECK_EQUAL( last_idx, idx );
+}
 
 int main(int argc, char* argv[])
 {
-  if (argc == 2 &&  std::string(argv[1]) == "-k")
-    keep_file = true;
-  else if (argc != 1) {
-    std::cerr << "Usage: " << argv[0] << " [-k]" << std::endl;
-    return 1;
+  bool do_big_tree_test = false;
+  for (int i = 1; i < argc; ++i) {
+    if (std::string(argv[i]) == "-k")
+      keep_file = true;
+    else if (std::string(argv[i]) == "-b")
+      do_big_tree_test = true;
+    else {
+      std::cerr << "Usage: " << argv[0] << " [-k] [-b]" << std::endl;
+      return 1;
+    }
   }
 
   // only one test so far... should probably add second test
@@ -132,6 +237,9 @@ int main(int argc, char* argv[])
   int exitval = 0;
   exitval += RUN_TEST( test_ranged_set_with_holes );
   exitval += RUN_TEST( test_file_set );
+  if (do_big_tree_test) {
+    exitval += RUN_TEST( test_big_tree );
+  }
   return exitval;
 }
 
