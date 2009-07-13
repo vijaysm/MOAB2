@@ -579,6 +579,8 @@ public:
   
 private:
 
+  void define_mpe();
+
   MBErrorCode get_sent_ents(const bool is_iface,
                             const int bridge_dim, const int ghost_dim,
                             const int num_layers,
@@ -633,14 +635,16 @@ private:
                           const unsigned char *send_buff,
                           const unsigned int buff_size,
                           const int msg_type,
-                          MPI_Request &send_req);
+                          MPI_Request &send_req1,
+                          MPI_Request &send_req2);
   
     //! use integer size in buffer to resize buffer, then post an
     //! Irecv to get message
-  MBErrorCode recv_size_buff(const int from_proc,
-                             std::vector<unsigned char> &recv_buff,
-                             MPI_Request &recv_req,
-                             int mesg_tag);
+  MBErrorCode recv_buffer(int mesg_tag_expected,
+                          const MPI_Status &mpi_status,
+                          std::vector<unsigned char> &recv_buff,
+                          MPI_Request &recv_req,
+                          bool &done);
   
     //! pack a range of entities with equal # verts per entity, along with
     //! the range on the sending proc

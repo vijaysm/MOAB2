@@ -88,7 +88,7 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  int npos = 1, tag_val, distrib, with_ghosts = 0, resolve_shared = 1, use_mpio = 0;
+  int npos = 1, tag_val, distrib, with_ghosts = 1, resolve_shared = 1, use_mpio = 0;
   const char *tag_name;
   std::vector<std::string> filenames;
   int parallel_option = 0;
