@@ -2152,6 +2152,10 @@ MBErrorCode MBCore::side_number(const MBEntityHandle parent,
   const MBEntityHandle *parent_conn, *child_conn;
   int num_parent_vertices, num_child_vertices;
   MBErrorCode result = get_connectivity(parent, parent_conn, num_parent_vertices, true);
+  if (MB_NOT_IMPLEMENTED == result) {
+    static std::vector<MBEntityHandle> tmp_connect(MBCN::MAX_NODES_PER_ELEMENT);
+    result = get_connectivity(parent, parent_conn, num_parent_vertices, true, &tmp_connect);
+  }
   if (MB_SUCCESS != result) return result;
 
   if (TYPE_FROM_HANDLE(child) == MBVERTEX) {

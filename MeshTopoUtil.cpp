@@ -412,10 +412,22 @@ MBErrorCode MeshTopoUtil::get_bridge_adjacencies(MBRange &from_entities,
     
       // get to_dim adjacencies, merge into to_ents
     last_toents =  to_ents;
-    result = mbImpl->get_adjacencies(new_bridges, to_dim, false, to_ents,
-                                     MBInterface::UNION);
-    if (MB_SUCCESS != result) return result;
-    
+    if (-1 == to_dim) {
+      result = mbImpl->get_adjacencies(new_bridges, 3, false, to_ents,
+				       MBInterface::UNION);
+      if (MB_SUCCESS != result) return result;
+      for (int d = 2; d >= 1; d--) {
+	result = mbImpl->get_adjacencies(to_ents, d, true, to_ents,
+					 MBInterface::UNION);
+	if (MB_SUCCESS != result) return result;
+      }
+    }
+    else {
+      result = mbImpl->get_adjacencies(new_bridges, to_dim, false, to_ents,
+				       MBInterface::UNION);
+      if (MB_SUCCESS != result) return result;
+    }
+
       // subtract last_toents to get new_toents
     if (nl < num_layers-1)
       new_toents = to_ents.subtract(last_toents);
