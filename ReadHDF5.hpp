@@ -15,7 +15,7 @@
 
 /**
  * \class  ReadHDF5
- * \brief  Read mesh from TSTT HDF5 file.
+ * \brief  Read mesh from MOAB HDF5 (.h5m) file.
  * \author Jason Kraftcheck
  * \date   18 April 2004
  */
@@ -32,7 +32,7 @@
 #include "MBReaderIface.hpp"
 #include "RangeMap.hpp"
 
-class MB_DLL_EXPORT ReadHDF5 : public MBReaderIface
+class ReadHDF5 : public MBReaderIface
 {
 public:
 
@@ -99,7 +99,11 @@ private:
   hid_t handleType;
   
   //! read/write property handle
-  hid_t ioProp;
+  //! indepIO -> idependent IO during true parallel read
+  //! collIO  -> collective IO during true parallel read
+  //! Both are H5P_DEFAULT for serial IO and collective
+  //! when reading the entire file on all processors.
+  hid_t indepIO, collIO;
   
   MBErrorCode read_nodes( const MBRange& node_file_ids );
   
@@ -121,18 +125,23 @@ private:
     // Scan all elements in group.  For each element for which all vertices
     // are contained in idMap (class member), read the element.  All new
     // elements are added to idMap.
+    //
+    // NOTE: Collective IO calls in parallel.
   MBErrorCode read_node_adj_elems( const mhdf_ElemDesc& group );
   
     // Scan all elements in specified file table.  For each element for 
     // which all vertices are contained in idMap (class member), read the 
     // element.  All new elements are added to idMap.
+    //
+    // NOTE: Collective IO calls in parallel.
   MBErrorCode read_node_adj_elems( const mhdf_ElemDesc& group,
                                    hid_t connectivity_handle );
 
   //! Read poly(gons|hedra)
   MBErrorCode read_poly( const mhdf_ElemDesc& elems, const MBRange& file_ids );
   
-  //! Read specified elements and any adjacent elemnets of lower dimension
+  //! Read specified elements and any adjacent elements of lower dimension.
+  //! Assumes vertices are already read in.
   MBErrorCode read_elements_and_sides( const MBRange& file_ids );
   
   //! Read sets
@@ -212,6 +221,8 @@ private:
   
   /**\brief Search for entities with specified tag values 
    * 
+   *\NOTE For parallel reads, this function does collective IO.
+   *
    *\param tag_index  Index into info->tags specifying which tag to search.
    *\param sorted_values  List of tag values to check for, in ascending sorted
    *                  order.
@@ -225,6 +236,8 @@ private:
    *
    * Search a table of tag values, returning the indices into the table
    * at which matches were found.
+   *\NOTE For parallel reads, this function does collective IO.
+   *
    *\param info       Summary of data contained in file.
    *\param tag_table     HDF5/mhdf handle for tag values
    *\param table_size    Number of values in table
@@ -246,8 +259,9 @@ private:
    */
   MBErrorCode get_set_contents( const MBRange& sets, MBRange& file_ids );
  
-  /** Given a list of file IDs for entity sets, find all child sets
-   *  (at any depth) and append them to the MBRange of file IDs.
+  /** Given a list of file IDs for entity sets, find all contained
+   *  or child sets (at any depth) and append them to the MBRange 
+   *  of file IDs.
    */
   MBErrorCode read_set_ids_recursive( MBRange& sets_in_out,
                                       bool containted_sets,
