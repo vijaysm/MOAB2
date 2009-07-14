@@ -42,6 +42,8 @@ int main( int argc, char* argv[] )
   const char* input_name = 0;
   const char* output_name = 0;
 
+  char options[256];
+
   double dist_tol = 0.001, len_tol = 0.0;
   int norm_tol = 5;
   bool actuate_attribs = true;
@@ -112,21 +114,7 @@ int main( int argc, char* argv[] )
   
   if (!output_name)
     usage(argv[0]);
-        
-  
-    // Initialize CGM
-  InitCGMA::initialize_cgma();
-  if (actuate_attribs) {
-    CGMApp::instance()->attrib_manager()->set_all_auto_read_flags( actuate_attribs );
-    CGMApp::instance()->attrib_manager()->set_all_auto_actuate_flags( actuate_attribs );
-  }
-  
-  
-    // Intitalize MOAB
-  MBCore moab;
-  MBInterface* iface = &moab;
-  
-    // Get CGM file type
+ 
   if (!file_type) {
     file_type = get_geom_file_type( input_name );
     if (!file_type) {
@@ -135,8 +123,17 @@ int main( int argc, char* argv[] )
     }
   }
   
-    // If CUB file, extract ACIS geometry
-  CubitStatus s;
+
+  sprintf(options,"CGM_ATTRIBS=%s;FACET_DISTANCE_TOLERANCE=%g;FACET_NORMAL_TOLERANCE=%d;MAX_FACET_EDGE_LENGTH=%g;",
+	  actuate_attribs?"yes":"no",dist_tol,norm_tol,len_tol);
+      
+    // Intitalize MOAB
+  MBCore moab;
+  MBInterface* iface = &moab;
+  MBEntityHandle file_set;
+  MBErrorCode rval;
+
+// If CUB file, extract ACIS geometry
   if (!strcmp( file_type, "CUBIT" )) {
     char* temp_name = tempnam( 0, "cgm" );
     if (!temp_name) {
@@ -158,36 +155,29 @@ int main( int argc, char* argv[] )
       exit(2);
     }
     
-    int rval = cub_file_type( cub_file, tmp_file, CUB_FILE_ACIS );
+    int crval = cub_file_type( cub_file, tmp_file, CUB_FILE_ACIS );
     fclose( cub_file );
     fclose( tmp_file );
-    if (rval) {
+    if (crval) {
       remove( temp_name );
       free( temp_name );
       exit(2);
     }
-    
-    s = GeometryQueryTool::instance()->import_solid_model( temp_name, "ACIS_SAT" );
+
+    rval = iface->load_file(temp_name,file_set,options,NULL,0,0);
     remove( temp_name );
     free( temp_name );
   }
   else {
-    s = GeometryQueryTool::instance()->import_solid_model( input_name, file_type );
+    rval = iface->load_file(input_name,file_set,options,NULL,0,0);
   }
-  if (CUBIT_SUCCESS != s) {
+  if (MB_SUCCESS != rval) {
     std::cerr << "Failed to read '" << input_name << "' of type '" << file_type << "'" << std::endl;
     exit(2);
   }
-  
-    // copy geometry facets into mesh database
-  if (!cgm2moab(iface, dist_tol, norm_tol, 
-                len_tol, actuate_attribs)) {
-    std::cerr << "Internal error copying geometry" << std::endl;
-    exit(5);
-  }
-  
+
     // write mesh database
-  MBErrorCode rval = iface->write_mesh( output_name );
+  rval = iface->write_mesh( output_name );
   if (MB_SUCCESS != rval) {
     std::cerr << "Failed to write '" << output_name << "'" << std::endl;
     exit(2);
