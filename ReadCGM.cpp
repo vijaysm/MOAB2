@@ -148,6 +148,8 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
     CGMApp::instance()->attrib_manager()->set_all_auto_actuate_flags( act_att );
   }
 
+  CubitStatus s;
+
   // Get CGM file type
   const char* file_type = 0;
   file_type = get_geom_file_type( cgm_file_name );
@@ -157,12 +159,13 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
   }
   else if(!strcmp(file_type ,"CUBIT"))
   {
-     std::cerr << cgm_file_name << " : cub file are not handled here." << std::endl;
+    std::cerr << cgm_file_name << " : CUB files are currently not supported." << std::endl;
     return MB_FAILURE;
+   }
+  else {
+    s = GeometryQueryTool::instance()->import_solid_model( cgm_file_name, file_type );
   }
 
-  CubitStatus s;
-  s = GeometryQueryTool::instance()->import_solid_model( cgm_file_name, file_type );
   if (CUBIT_SUCCESS != s) {
     std::cerr << "Failed to read '" << cgm_file_name << "' of type '" << file_type << "'" << std::endl;
     return MB_FAILURE;
@@ -254,7 +257,7 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
         return rval;
     }
   }
-  
+
     // create entity sets for all ref groups
   std::vector<MBTag> extra_name_tags;
   DLIList<CubitString*> name_list;

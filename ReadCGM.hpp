@@ -49,7 +49,12 @@ public:
                  std::vector<std::string>& tokens,
                  const char* delimiters );
 
-    //! load an ExoII file
+    //! load a CGM file
+    //  Supported FileOptions:
+    //  * FACET_NORMAL_TOLERANCE=<int> (default: 5)
+    //  * FACET_DISTANCE_TOLERANCE=<real> (default: 0.001)
+    //  * MAX_FACET_EDGE_LENGTH=<real> (default: 0.0)
+    //  * CGM_ATTRIBS=<yes|no>         (default: no)
   MBErrorCode load_file(const char *cgm_file_name,
                          MBEntityHandle& file_set,
                          const FileOptions& opts,
