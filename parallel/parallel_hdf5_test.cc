@@ -137,9 +137,11 @@ void print_partitioned_entities( MBInterface& moab, bool list_non_shared = false
         // keep default values of zero (not shared)
       }
       CHECK_ERR(rval);
-      unsigned num_shared = 0;
-      for (size_t j = 0; j < status_flags.size(); ++j)
+      unsigned num_shared = 0, num_owned = 0;
+      for (size_t j = 0; j < status_flags.size(); ++j) {
         num_shared += !!(status_flags[j] & PSTATUS_SHARED);
+        num_owned += !(status_flags[j] & PSTATUS_NOT_OWNED);
+      }
       
       if (!num_shared) {
         if (list_non_shared)
@@ -150,6 +152,11 @@ void print_partitioned_entities( MBInterface& moab, bool list_non_shared = false
         buffer << rank << ":\t" << topo_names_s[t] << " " << id << ":\t"
                << "ERROR: " << num_shared << " of " << entities.size() 
                << " entities marked as 'shared'" << std::endl;
+      }
+      else if (num_owned && num_owned != entities.size()) {
+        buffer << rank << ":\t" << topo_names_s[t] << " " << id << ":\t"
+               << "ERROR: " << num_owned << " of " << entities.size() 
+               << " entities owned by this processor" << std::endl;
       }
       else {
         rval = moab.tag_get_data( sharedp_tag, entities, &shared_procs[0] );
@@ -165,7 +172,10 @@ void print_partitioned_entities( MBInterface& moab, bool list_non_shared = false
         }
         else if (proc != -1) {
           buffer << rank << ":\t" << topo_names_s[t] << " " << id << ":\t"
-                 << "shared with processor " << proc << std::endl;
+                 << "shared with processor " << proc;
+          if (num_owned)
+            buffer << " (owned by this processor)";
+          buffer << std::endl;
         }
         else if (entities.empty()) {
           buffer << rank << ":\t" << topo_names_s[t] << " " << id << ":\t"
@@ -191,7 +201,9 @@ void print_partitioned_entities( MBInterface& moab, bool list_non_shared = false
             for (int j = 0; j < MAX_SHARING_PROCS; ++j)
               if (ent_procs[j] != -1)
                 buffer << ent_procs[j] << ", ";
-              buffer << std::endl;
+            if (num_owned)
+              buffer << " (owned by this processor)";
+            buffer << std::endl;
           }
         }
       }
@@ -346,7 +358,7 @@ void test_write_elements()
     // load and partition a .cub file
   MBCore moab_instance;
   MBInterface& moab = moab_instance;
-  load_and_partition( moab, InputFile );
+  load_and_partition( moab, InputFile, true );
   
     // count number of owned entities of each type and sum over all procs
   count_owned_entities( moab, proc_counts );
