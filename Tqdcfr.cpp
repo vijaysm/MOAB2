@@ -195,7 +195,8 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
                               MBEntityHandle& file_set,
                               const FileOptions& opts,
                               const char* block_tag_name,
-                              const int*, const int) 
+                              const int*, const int,
+                              const MBTag* file_id_tag) 
 {
   MBErrorCode result;
   file_set = mFileSet = 0;
@@ -386,6 +387,9 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
 
   after_ents = subtract( after_ents, beforeEnts);
   result = mdbImpl->add_entities(mFileSet, after_ents);
+  
+  if (file_id_tag)
+    readUtilIface->assign_ids( *file_id_tag, after_ents );
 
   return result;
 }

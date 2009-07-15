@@ -147,7 +147,8 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
                                  const FileOptions& opts,
                                  const char* name,
                                  const int* id_list, 
-                                 const int num_ids )
+                                 const int num_ids,
+                                 const MBTag* file_id_tag )
 {
   MBErrorCode rval;
   mhdf_Status status;
@@ -262,6 +263,9 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
     for (IDMap::iterator i = idMap.begin(); i != idMap.end(); ++i) 
       range.insert( i->value, i->value + i->count - 1 );
     iFace->delete_entities( range );
+  }
+  else if (file_id_tag) {
+    rval = store_file_ids( *file_id_tag );
   }
   
   free( dataBuffer );
@@ -3158,5 +3162,38 @@ MBErrorCode ReadHDF5::read_qa( MBEntityHandle import_set )
   return MB_SUCCESS;
 }
 
-  
+MBErrorCode ReadHDF5::store_file_ids( MBTag tag )
+{
+  typedef int tag_type;
+  tag_type* buffer = reinterpret_cast<tag_type*>(dataBuffer);
+  const long buffer_size = bufferSize / sizeof(tag_type);
+  for (IDMap::iterator i = idMap.begin(); i != idMap.end(); ++i) {
+    IDMap::Range range = *i;
+    
+      // make sure the values will fit in the tag type
+    IDMap::key_type rv = range.begin + (range.count - 1);
+    tag_type tv = (tag_type)rv;
+    if ((IDMap::key_type)tv != rv) {
+      assert(false);
+      return MB_INDEX_OUT_OF_RANGE;
+    }
+    
+    while (range.count) {
+      long count = buffer_size < range.count ? buffer_size : range.count;
+
+      MBRange handles;
+      handles.insert( range.value, range.value + count - 1 );
+      range.value += count;
+      range.count -= count;
+      for (long i = 0; i < count; ++i) 
+        buffer[i] = (tag_type)range.begin++;
+
+      MBErrorCode rval = iFace->tag_set_data( tag, handles, buffer );
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
+  }
+  return MB_SUCCESS;
+}
+
     

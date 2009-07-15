@@ -37,7 +37,8 @@ public:
                         const FileOptions&,
                         const char* set_tag_name,
                         const int* set_tag_values,
-                        int num_set_tag_values );
+                        int num_set_tag_values,
+                        const MBTag* file_id_tag );
   
     //! Constructor
   ReadVtk(MBInterface* impl = NULL);
@@ -130,6 +131,10 @@ protected:
   MBErrorCode vtk_read_field_attrib( FileTokenizer& tokens, 
                                      std::vector<MBRange>& entities,
                                      const char* name);
+
+  MBErrorCode store_file_ids( MBTag tag,
+                              const MBRange& vertices,
+                              const std::vector<MBRange>& elements );
 
 private:
 

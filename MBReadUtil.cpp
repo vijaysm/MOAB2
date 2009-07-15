@@ -318,3 +318,75 @@ MBErrorCode MBReadUtil::get_ordered_vertices(MBEntityHandle *bound_ents,
   etype = MBMAXTYPE;
   return MB_FAILURE;
 }
+
+static MBErrorCode check_int_tag( MBInterface* mb, MBTag tag )
+{
+  int size;
+  MBDataType type;
+  MBErrorCode rval = mb->tag_get_size( tag, size );
+  if (MB_SUCCESS != rval)
+    return rval;
+  if (size != sizeof(int))
+    return MB_TYPE_OUT_OF_RANGE;
+  rval = mb->tag_get_data_type( tag, type );
+  if (type != MB_TYPE_OPAQUE && type != MB_TYPE_INTEGER)
+    return MB_TYPE_OUT_OF_RANGE;
+  return MB_SUCCESS;
+}
+
+MBErrorCode MBReadUtil::assign_ids( MBTag id_tag, const MBRange& ents, int start )
+{
+  MBErrorCode rval = check_int_tag( mMB, id_tag );
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  MBRange tmp_range;
+  std::vector<int> data;
+  for (MBRange::const_pair_iterator i = ents.pair_begin(); 
+       i != ents.pair_end(); ++i) {
+    data.resize( i->second + 1 - i->first );
+    for (std::vector<int>::iterator j = data.begin(); j != data.end(); ++j)
+      *j = start++;
+    tmp_range.clear();
+    tmp_range.insert( i->first, i->second );
+    rval = mMB->tag_set_data( id_tag, tmp_range, &data[0] );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode MBReadUtil::assign_ids( MBTag id_tag, 
+                                    const MBEntityHandle* ents, 
+                                    size_t num_ents, 
+                                    int start )
+{
+  MBErrorCode rval = check_int_tag( mMB, id_tag );
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  std::vector<int> data;
+  const MBEntityHandle* const end = ents + num_ents;
+  const MBEntityHandle* i = ents;
+  while (i != end) {
+    const MBEntityHandle* next = std::find( i, end, 0 );
+    size_t size = next - i;
+    if (!size) {
+      ++i;
+      continue;
+    }
+    
+    int id = start + (i - ents);
+    data.resize(size);
+    for (std::vector<int>::iterator j = data.begin(); j != data.end(); ++j)
+      *j = id++;
+    
+    rval = mMB->tag_set_data( id_tag, i, size, &data[0] );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  
+  return MB_SUCCESS;
+}
+

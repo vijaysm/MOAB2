@@ -39,11 +39,17 @@ class MBReaderIface
      *
      * Method all readers must provide to import a mesh.
      *
-     *\param file_name           The file to read.
-     *\param file_set            Output: a new entity set containing all data read from file.
-     *\param material_set_list   A list of material sets to read, or NULL
-     *                           if the entire file is to be read.
-     *\param material_set_list_len The length of <code>material_set_list</code>
+     *\param file_name      The file to read.
+     *\param file_set       Output: a new entity set containing all data read from file.
+     *\param set_tag_name   If only reading part of the file, the entities
+     *                      to be read will be identified by their values
+     *                      for this integer tag.
+     *\param set_tag_values For the integer tag with the name indicated by
+     *                      set_tag_name, the list of tag values for entities/sets
+     *                      to read.
+     *\param num_set_tag_values The length of the 'set_tag_values' array.
+     *\param file_id_tag    If specified, reader should store for each entity
+     *                      it reads, a unique integer ID for this tag.
      *\author Jason Kraftcheck
      */
     virtual MBErrorCode load_file( const char* file_name,
@@ -51,7 +57,8 @@ class MBReaderIface
                                    const FileOptions& opts,
                                    const char* set_tag_name = 0,
                                    const int* set_tag_values = 0,
-                                   int num_set_tag_values = 0 ) = 0;
+                                   int num_set_tag_values = 0,
+                                   const MBTag* file_id_tag = 0 ) = 0;
 
 };
 

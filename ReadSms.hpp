@@ -22,7 +22,8 @@ public:
                         const FileOptions& opts,
                         const char* set_tag_name,
                         const int* set_tag_values,
-                        int num_set_tag_values );
+                        int num_set_tag_values,
+                        const MBTag* file_id_tag = 0 );
   
     //! Constructor
   ReadSms(MBInterface* impl = NULL);
@@ -32,12 +33,17 @@ public:
 
 private:
 
-  MBErrorCode load_file_impl( FILE* file );
+  MBErrorCode add_entities( MBEntityHandle start, 
+                            MBEntityHandle count,
+                            const MBTag* file_id_tag );
+
+  MBErrorCode load_file_impl( FILE* file, const MBTag* file_id_tag );
   
   MBErrorCode get_set(std::vector<MBEntityHandle> *sets,
                       int set_type, int set_id,
                       MBTag set_tag,
-                      MBEntityHandle &this_set);
+                      MBEntityHandle &this_set,
+                      const MBTag* file_id_tag );
 
   MBErrorCode read_parallel_info(FILE *file_ptr);
 
@@ -50,6 +56,8 @@ private:
   MBEntityHandle mCurrentMeshHandle;
   
   MBTag globalId, paramCoords, geomDimension;
+  
+  int setId;
 };
 
 

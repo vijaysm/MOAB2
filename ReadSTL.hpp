@@ -76,7 +76,8 @@ public:
                         const FileOptions& opts,
                         const char* set_tag_name,
                         const int* set_tag_values,
-                        int num_set_tag_values );
+                        int num_set_tag_values,
+                        const MBTag* file_id_tag );
   
     //! Constructor
   ReadSTL(MBInterface* impl = NULL);
@@ -117,7 +118,9 @@ private:
 
     //! Generic file loading code for both binary and ASCII readers.
     //! Calls reader-specific *_read_triangles function to do actual I/O.
-  MBErrorCode load_file_impl(const char *file_name, const FileOptions& opts );
+  MBErrorCode load_file_impl( const char *file_name, 
+                              const FileOptions& opts,
+                              const MBTag* file_id_tag );
 
     //! Meshset Handle for the mesh that is currently being read
   MBEntityHandle mCurrentMeshHandle;

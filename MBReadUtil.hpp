@@ -104,6 +104,11 @@ __attribute__((format(printf,2,3)))
                                    int dim,
                                    MBEntityHandle *bound_verts, 
                                    MBEntityType &etype);
+
+
+  MBErrorCode assign_ids( MBTag id_tag, const MBRange& ents, int start = 0 );
+  MBErrorCode assign_ids( MBTag id_tag, const MBEntityHandle* ents, 
+                          size_t num_ents, int start = 0 );
 };
 
 #endif

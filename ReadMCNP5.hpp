@@ -19,7 +19,8 @@ public:
                         const FileOptions &options,
                         const char*       set_tag_name, /* not used */
                         const int*        material_set_list,
-                        const int         num_material_sets );
+                        const int         num_material_sets,
+                        const MBTag*      file_id_tag );
 
   // constructor
   ReadMCNP5(MBInterface* impl = NULL);
@@ -48,6 +49,9 @@ private:
   
   // MOAB Interface
   MBInterface* MBI;
+  
+  const MBTag* fileIDTag;
+  int nodeId, elemId;
 
   // reads the meshtal file
   MBErrorCode load_one_file( const char        *fname,

@@ -84,7 +84,9 @@ MBErrorCode ReadGmsh::load_file( const char* filename,
                                  MBEntityHandle& file_set,
                                  const FileOptions& ,
                                  const char* set_tag_name,
-                                 const int* blocks, const int num_blocks )
+                                 const int* blocks, 
+                                 const int num_blocks,
+                                 const MBTag* file_id_tag )
 {
   if (!strcmp( set_tag_name, MATERIAL_SET_TAG_NAME )) {
     readMeshIface->report_error( "GMsh supports subset read only by material ID." );
@@ -92,7 +94,7 @@ MBErrorCode ReadGmsh::load_file( const char* filename,
   }
 
   mCurrentMeshHandle = 0;
-  const MBErrorCode result = load_file_impl( filename, blocks, num_blocks );
+  const MBErrorCode result = load_file_impl( filename, blocks, num_blocks, file_id_tag );
   
     // If file read has failed, destroy anything that was
     // created during the read.
@@ -112,7 +114,8 @@ MBErrorCode ReadGmsh::load_file( const char* filename,
 
 MBErrorCode ReadGmsh::load_file_impl( const char* filename, 
                                       const int* material_set_list,
-                                      const int num_material_sets )
+                                      const int num_material_sets,
+                                      const MBTag* file_id_tag )
 {
   geomSets.clear();
   MBErrorCode result = mdbImpl->tag_get_handle( GLOBAL_ID_TAG_NAME, globalId );
@@ -195,7 +198,7 @@ MBErrorCode ReadGmsh::load_file_impl( const char* filename,
   double *x = coord_arrays[0], 
          *y = coord_arrays[1],
          *z = coord_arrays[2];
-  for( long i = 0; i < num_nodes; ++i )
+  for( long i = 0; i < num_nodes; ++i, ++handle )
   {
     long id;
     if (!tokens.get_long_ints( 1, &id ) ||
@@ -204,7 +207,7 @@ MBErrorCode ReadGmsh::load_file_impl( const char* filename,
         !tokens.get_doubles( 1, z++ ))
       return MB_FILE_WRITE_ERROR;
     
-    if (!node_id_map.insert( std::pair<long,MBEntityHandle>( id, handle++ ) ).second)
+    if (!node_id_map.insert( std::pair<long,MBEntityHandle>( id, handle ) ).second)
     {
       readMeshIface->report_error( "Dulicate node ID at line %d\n",
                                    tokens.line_number() );
@@ -227,6 +230,11 @@ MBErrorCode ReadGmsh::load_file_impl( const char* filename,
   result = mdbImpl->tag_set_data( globalId, &handles[0], num_nodes, &ids[0] );
   if (MB_SUCCESS != result)
     return result;
+  if (file_id_tag) {
+    result = mdbImpl->tag_set_data( *file_id_tag, &handles[0], num_nodes, &ids[0] );
+    if (MB_SUCCESS != result) 
+      return result;
+  }
   ids.clear();
   handles.clear();
   
@@ -296,7 +304,8 @@ MBErrorCode ReadGmsh::load_file_impl( const char* filename,
                                   mat_set_list,
                                   geom_set_list,
                                   part_set_list,
-                                  connectivity ) ;
+                                  connectivity,
+                                  file_id_tag ) ;
         if (MB_SUCCESS != result)
           return result;
       }
@@ -348,7 +357,8 @@ MBErrorCode ReadGmsh::load_file_impl( const char* filename,
                               mat_set_list,
                               geom_set_list,
                               part_set_list,
-                              connectivity ) ;
+                              connectivity,
+                              file_id_tag ) ;
     if (MB_SUCCESS != result)
       return result;
   }
@@ -367,7 +377,8 @@ MBErrorCode ReadGmsh::create_elements( const ElementType& type,
                                const std::vector<int>& matl_ids,
                                const std::vector<int>& geom_ids,
                                const std::vector<int>& prtn_ids,
-                               const std::vector<MBEntityHandle>& connectivity )
+                               const std::vector<MBEntityHandle>& connectivity,
+                               const MBTag* file_id_tag )
 {
   MBErrorCode result;
   
@@ -415,6 +426,11 @@ MBErrorCode ReadGmsh::create_elements( const ElementType& type,
   result = mdbImpl->tag_set_data( globalId, elements, &elem_ids[0] );
   if (MB_SUCCESS != result)
     return result;
+  if (file_id_tag) {
+    result = mdbImpl->tag_set_data( *file_id_tag, elements, &elem_ids[0] );
+    if (MB_SUCCESS != result) 
+      return result;
+  }
   
     // Add elements to material sets
   result = create_sets( type.mbtype, elements, matl_ids, 0 );

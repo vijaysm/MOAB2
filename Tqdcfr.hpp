@@ -297,7 +297,8 @@ public:
                         const FileOptions& opts,
                         const char* block_tag_name,
                         const int* block_list,
-                        int num_blocks );
+                        int num_blocks,
+                        const MBTag* file_id_tag = 0 );
   MBErrorCode read_nodeset(ModelEntry *model,
                     NodesetHeader *nodeseth);
   MBErrorCode read_sideset(const double data_version,

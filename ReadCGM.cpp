@@ -99,7 +99,8 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
                       MBEntityHandle& file_set,
                       const FileOptions& opts,
                       const char* name_subset,
-                      const int*, const int)
+                      const int*, const int,
+                      const MBTag* file_id_tag)
 {
   // blocks_to_load and num_blocks are ignored.
   MBErrorCode rval;
@@ -557,6 +558,9 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
   loaded_range = subtract( loaded_range, init_range);
   rval = mdbImpl->add_entities(mCurrentMeshHandle, loaded_range);
   if (MB_FAILURE == rval) return rval;
+  
+  if (file_id_tag)
+    readUtilIface->assign_ids( *file_id_tag, loaded_range );
 
   file_set = mCurrentMeshHandle;
   return MB_SUCCESS;

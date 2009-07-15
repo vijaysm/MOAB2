@@ -43,7 +43,8 @@ public:
                         const FileOptions& opts,
                         const char* set_tag_name,
                         const int* set_tag_values,
-                        int num_set_tag_values );
+                        int num_set_tag_values,
+                        const MBTag* file_id_tag );
   
     //! Constructor
   ReadGmsh(MBInterface* impl = NULL);
@@ -61,14 +62,16 @@ private:
 
   MBErrorCode load_file_impl( const char *file_name,
                               const int* material_set_list,
-                              const int num_material_sets );
+                              const int num_material_sets,
+                              const MBTag* file_id_tag );
   
   MBErrorCode create_elements( const ElementType& type,
                                const std::vector<int>& elem_ids,
                                const std::vector<int>& matl_ids,
                                const std::vector<int>& geom_ids,
                                const std::vector<int>& prtn_ids,
-                               const std::vector<MBEntityHandle>& connectivity );
+                               const std::vector<MBEntityHandle>& connectivity,
+                               const MBTag* file_id_tag );
 
   MBErrorCode create_sets( MBEntityType element_type,
                            const MBRange& elements,

@@ -650,6 +650,8 @@ public:
 
   const_pair_iterator const_pair_begin() const { return const_pair_iterator( mHead.mNext ); }
   const_pair_iterator const_pair_end() const { return const_pair_iterator( &mHead ); }
+  const_pair_iterator pair_begin() const { return const_pair_iterator( mHead.mNext ); }
+  const_pair_iterator pair_end() const { return const_pair_iterator( &mHead ); }
 };
 
  

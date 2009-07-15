@@ -74,7 +74,8 @@ public:
                          const FileOptions& opts,
                          const char* set_tag_name,
                          const int* blocks_to_load,
-                         const int num_blocks);
+                         const int num_blocks,
+                         const MBTag* file_id_tag = 0);
   
    //! Constructor
    ReadNCDF(MBInterface* impl = NULL);
@@ -97,14 +98,14 @@ private:
   MBErrorCode read_exodus_header(const char *exodus_file_name);
   
     //! read the nodes
-  MBErrorCode read_nodes();
+  MBErrorCode read_nodes(const MBTag* file_id_tag);
   
     //! read block headers, containing info about element type, number, etc.
   MBErrorCode read_block_headers(const int *blocks_to_load,
                                   const int num_blocks);
   
     //! read the element blocks
-  MBErrorCode read_elements();
+  MBErrorCode read_elements(const MBTag* file_id_tag);
   
     //! read in the global element ids
   MBErrorCode read_global_ids();

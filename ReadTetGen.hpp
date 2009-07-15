@@ -41,7 +41,8 @@ public:
                         const FileOptions&,
                         const char* set_tag_name,
                         const int* set_tag_values,
-                        int num_set_tag_values );
+                        int num_set_tag_values,
+                        const MBTag* file_id_tag );
   
     //! Constructor
   ReadTetGen(MBInterface* impl = NULL);

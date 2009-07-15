@@ -52,7 +52,8 @@ public:
                          const FileOptions& opts,
                          const char* set_tag_name,
                          const int* set_tag_values,
-                         int num_set_tag_values );
+                         int num_set_tag_values,
+                         const MBTag* file_id_tag );
 protected:
 
   MBErrorCode load_file_impl( MBEntityHandle file_set,
@@ -381,6 +382,13 @@ private:
                              const long num_sets,
                              const long set_content_len,
                              const MBRange& ranged_file_ids );
+  
+    /**\brief Store file IDS in tag values
+     *
+     * Copy fild ID from IDMap for each entity read from file
+     * into a tag value on the entity.
+     */
+  MBErrorCode store_file_ids( MBTag tag );
 };
 
 #endif

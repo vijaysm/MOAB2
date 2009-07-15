@@ -434,7 +434,8 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
                                 const FileOptions& opts,
                                 const char* set_tag_name,
                                 const int *blocks_to_load,
-                                const int num_blocks)
+                                const int num_blocks,
+                                const MBTag* file_id_tag)
 {
   MBErrorCode status;
 
@@ -474,7 +475,7 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
     // 2. Read the nodes unless they've already been read before
   if (!previously_loaded)
   {
-    status = read_nodes();
+    status = read_nodes(file_id_tag);
     if (MB_FAILURE == status) return status;
   }
  
@@ -483,7 +484,7 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
   if (MB_FAILURE == status) return status;
 
     // 4. Read elements (might not read them, depending on active blocks)
-  status = read_elements();
+  status = read_elements(file_id_tag);
   if (MB_FAILURE == status) return status;
   
     // 5. Read global ids
@@ -586,7 +587,7 @@ MBErrorCode ReadNCDF::read_exodus_header(const char *exodus_file_name)
   return MB_SUCCESS;
 }
  
-MBErrorCode ReadNCDF::read_nodes()
+MBErrorCode ReadNCDF::read_nodes(const MBTag* file_id_tag)
 {
 
     // read the nodes into memory
@@ -651,7 +652,13 @@ MBErrorCode ReadNCDF::read_nodes()
       return MB_FAILURE;
     }
   }
-
+  
+  if (file_id_tag) {
+    MBRange nodes;
+    nodes.insert( node_handle, node_handle + numberNodes_loading - 1 );
+    readMeshIface->assign_ids( *file_id_tag, nodes, vertexOffset );
+  }
+  
   return MB_SUCCESS;
 }
 
@@ -826,7 +833,7 @@ MBErrorCode ReadNCDF::remove_previously_loaded_blocks(const int *blocks_to_load,
 }
 
 
-MBErrorCode ReadNCDF::read_elements()
+MBErrorCode ReadNCDF::read_elements(const MBTag* file_id_tag)
 {
     // read in elements
   
@@ -980,7 +987,13 @@ MBErrorCode ReadNCDF::read_elements()
       return MB_FAILURE;
     if( mdbImpl->tag_set_data( mGlobalIdTag, &ms_handle, 1, &block_id ) != MB_SUCCESS )
       return MB_FAILURE;
-
+      
+      
+    if (file_id_tag) {
+      MBRange range;
+      range.insert( this_it->startMBId, this_it->startMBId + this_it->numElements - 1 );
+      readMeshIface->assign_ids( *file_id_tag, range, this_it->startExoId );
+    }
   }
 
   return MB_SUCCESS;

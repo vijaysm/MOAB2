@@ -25,7 +25,8 @@ public:
 			const FileOptions&,
 			const char* set_tag_name,
                         const int* set_tag_values,
-                        int num_set_tag_values );
+                        int num_set_tag_values,
+                        const MBTag* file_id_tag );
   
   //! Constructor
   ReadIDEAS(MBInterface* impl = NULL);
@@ -35,9 +36,9 @@ public:
 
 protected:
   
-  void skip_header();
-  void create_vertices();
-  void create_tetrahedral_elements();
+  MBErrorCode skip_header();
+  MBErrorCode create_vertices(MBEntityHandle& first_vertex, const MBTag* file_id_tag);
+  MBErrorCode create_tetrahedral_elements(MBEntityHandle first_vertex, const MBTag* file_id_tag);
   
 private:
   

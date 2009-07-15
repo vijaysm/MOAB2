@@ -174,7 +174,8 @@ MBErrorCode ReadVtk::load_file(const char *filename,
                                MBEntityHandle& file_set,
                                const FileOptions& opts,
                                const char* name,
-                               const int*, const int) 
+                               const int*, const int,
+                               const MBTag* file_id_tag) 
 {
   MBErrorCode result;
   file_set = 0;
@@ -256,6 +257,12 @@ MBErrorCode ReadVtk::load_file(const char *filename,
   result = vtk_read_dataset( tokens, vertices, element_list );
   if (MB_SUCCESS != result) 
     return result;
+  
+  if (file_id_tag) {
+    result = store_file_ids( *file_id_tag, vertices, element_list );
+    if (MB_SUCCESS != result)
+      return result;
+  }
   
     // Count the number of elements read
   long elem_count = 0;
@@ -1281,4 +1288,23 @@ MBErrorCode ReadVtk::vtk_read_field_attrib( FileTokenizer& tokens,
   return MB_SUCCESS;
 }
 
+MBErrorCode ReadVtk::store_file_ids( MBTag tag, const MBRange& verts,
+                                     const std::vector<MBRange>& elems )
+{
+  MBErrorCode rval;
+  
+  rval = readMeshIface->assign_ids( tag, verts );
+  if (MB_SUCCESS != rval)
+    return rval;
 
+  int id = 0;
+  for (size_t i = 0; i < elems.size(); ++i) {
+    rval = readMeshIface->assign_ids( tag, elems[i], id );
+    id += elems[i].size();
+  }
+  
+  return MB_SUCCESS;
+}
+
+    
+    

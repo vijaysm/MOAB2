@@ -35,6 +35,9 @@ template <typename KeyType, typename ValType, ValType NullVal = 0>
 class RangeMap 
 {
 public:
+  typedef KeyType key_type;
+  typedef ValType value_type;
+
   struct Range {
     KeyType begin, count;
     ValType value;

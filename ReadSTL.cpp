@@ -78,10 +78,11 @@ MBErrorCode ReadSTL::load_file( const char* filename,
                                 MBEntityHandle& file_set, 
                                 const FileOptions& opts,
                                 const char* name,
-                                const int*, const int )
+                                const int*, const int,
+                                const MBTag* file_id_tag )
 {
   mCurrentMeshHandle = 0;
-  const MBErrorCode result = load_file_impl( filename, opts );
+  const MBErrorCode result = load_file_impl( filename, opts, file_id_tag );
   
   if (name) {
     readMeshIface->report_error( "Reading subset of files not supported for STL." );
@@ -107,7 +108,8 @@ MBErrorCode ReadSTL::load_file( const char* filename,
 // pure-virtual function implemented in subclasses to read
 // the data from the file.
 MBErrorCode ReadSTL::load_file_impl(const char *filename,
-                                    const FileOptions& opts ) 
+                                    const FileOptions& opts,
+                                    const MBTag* file_id_tag ) 
 {
   MBErrorCode result;
 
@@ -178,6 +180,12 @@ MBErrorCode ReadSTL::load_file_impl(const char *filename,
   if (MB_SUCCESS != result)
     return result;
   
+  if (file_id_tag) {
+    result = readMeshIface->assign_ids( *file_id_tag, range );
+    if (MB_SUCCESS != result)
+      return result;
+  }
+    
     // Copy vertex coordinates into entity sequence coordinate arrays
     // and copy handle into vertex_map.
   double *x = coord_arrays[0], *y = coord_arrays[1], *z = coord_arrays[2];
@@ -207,6 +215,12 @@ MBErrorCode ReadSTL::load_file_impl(const char *filename,
   result = mdbImpl->add_entities(mCurrentMeshHandle, range2);
   if (MB_SUCCESS != result)
     return result;
+  
+  if (file_id_tag) {
+    result = readMeshIface->assign_ids( *file_id_tag, range2 );
+    if (MB_SUCCESS != result)
+      return result;
+  }
   
     // Use vertex_map to reconver triangle connectivity from
     // vertex coordinates.

@@ -65,7 +65,8 @@ MBErrorCode ReadTetGen::load_file( const char* file_name_c,
                                    MBEntityHandle& file_set,
                                    const FileOptions& opts,
                                    const char* name,
-                                   const int*, const int )
+                                   const int*, const int,
+                                   const MBTag* file_id_tag )
 {
   std::ifstream node_file, ele_file, face_file, edge_file;
   MBErrorCode rval;
@@ -143,6 +144,14 @@ MBErrorCode ReadTetGen::load_file( const char* file_name_c,
     rval = mbIface->add_entities( file_set, tris );
   if (MB_SUCCESS == rval)
     rval = mbIface->add_entities( file_set, edges );
+  if (file_id_tag && MB_SUCCESS == rval)
+    rval = readTool->assign_ids( *file_id_tag, &nodes[0], nodes.size() );
+  if (file_id_tag && MB_SUCCESS == rval)
+    rval = readTool->assign_ids( *file_id_tag, edges );
+  if (file_id_tag && MB_SUCCESS == rval)
+    rval = readTool->assign_ids( *file_id_tag, tris );
+  if (file_id_tag && MB_SUCCESS == rval)
+    rval = readTool->assign_ids( *file_id_tag, tets );
   
   if (MB_SUCCESS != rval) {
     if (file_set) 

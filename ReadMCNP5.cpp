@@ -29,7 +29,7 @@ MBReaderIface* ReadMCNP5::factory( MBInterface* iface ) {
 
 // constructor
 ReadMCNP5::ReadMCNP5(MBInterface* impl)
-  : MBI(impl) {
+  : MBI(impl), fileIDTag(0) {
     assert( NULL!=impl);
     void *ptr = 0;
     MBI->query_interface("MBReadUtilIface", &ptr);
@@ -51,13 +51,16 @@ MBErrorCode ReadMCNP5::load_file(const char        *filename,
                                  const FileOptions &options,
                                  const char        *set_tag_name,        // not used
                                  const int         *material_set_list,   // not used
-                                 const int         num_material_sets ) { // not used
-  
+                                 const int         num_material_sets,    // not used
+                                 const MBTag*      file_id_tag) {
   // at this time there is no support for reading a subset of the file
   if (set_tag_name) {
     readMeshIface->report_error( "Reading subset of files not supported for meshtal." );
     return MB_UNSUPPORTED_OPERATION;
   }
+  
+  nodeId = elemId = 0;
+  fileIDTag = file_id_tag;
 
   // Average several meshtal files if the AVERAGE_TALLY option is givin.
   // In this case, the integer value is the number of files to average.
@@ -735,7 +738,7 @@ MBErrorCode ReadMCNP5::create_vertices( std::vector<double> planes[3],
                                         bool                debug,
                                         MBEntityHandle      &start_vert,
                                         coordinate_system   coord_sys,
-                                        MBEntityHandle      tally_meshset) {
+                                        MBEntityHandle      tally_meshset ) {
                                          
   // The only info needed to build elements is the mesh plane boundaries.
   MBErrorCode result;
@@ -769,6 +772,14 @@ MBErrorCode ReadMCNP5::create_vertices( std::vector<double> planes[3],
   MBRange vert_range(start_vert, start_vert+n_verts-1);
   result = MBI->add_entities( tally_meshset, vert_range );
   if(MB_SUCCESS != result) return result;
+  
+  if (fileIDTag) {
+    result = readMeshIface->assign_ids( *fileIDTag, vert_range, nodeId );
+    if (MB_SUCCESS != result)
+      return result;
+    nodeId += vert_range.size();
+  }
+  
   return MB_SUCCESS;
 }
 
@@ -844,6 +855,14 @@ MBErrorCode ReadMCNP5::create_elements( bool                debug,
   result = MBI->add_entities( tally_meshset, element_range );
   if(MB_SUCCESS != result) return result;
   if (debug) std::cout << "Read " << n_elements << " elements from tally." << std::endl;
+  
+  if (fileIDTag) {
+    result = readMeshIface->assign_ids( *fileIDTag, element_range, elemId );
+    if (MB_SUCCESS != result)
+      return result;
+    elemId += element_range.size();
+  }
+
   return MB_SUCCESS;
 }
 

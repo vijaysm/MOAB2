@@ -65,13 +65,15 @@ MBErrorCode ReadSms::load_file( const char* filename,
                                 MBEntityHandle& file_set,
                                 const FileOptions& ,
                                 const char* name,
-                                const int*, const int )
+                                const int*, const int,
+                                const MBTag* file_id_tag )
 {
   if (name) {
     readMeshIface->report_error( "Reading subset of files not supported for Sms." );
     return MB_UNSUPPORTED_OPERATION;
   }
 
+  setId = 1;
     
     // Open file
   FILE* file_ptr = fopen( filename, "r" );
@@ -82,7 +84,7 @@ MBErrorCode ReadSms::load_file( const char* filename,
   }
 
   mCurrentMeshHandle = 0;
-  const MBErrorCode result = load_file_impl( file_ptr );
+  const MBErrorCode result = load_file_impl( file_ptr, file_id_tag );
   fclose( file_ptr );
   
     // If file read has failed, destroy anything that was
@@ -100,7 +102,7 @@ MBErrorCode ReadSms::load_file( const char* filename,
   return result;
 }
 
-MBErrorCode ReadSms::load_file_impl( FILE* file_ptr )
+MBErrorCode ReadSms::load_file_impl( FILE* file_ptr, const MBTag* file_id_tag )
 {
   bool warned = false;
   
@@ -159,6 +161,10 @@ MBErrorCode ReadSms::load_file_impl( FILE* file_ptr )
   CHECK("Failed to get node arrays.");
   if (MB_SUCCESS != result)
     return result;
+    
+  result = add_entities( vstart, nvertices, file_id_tag );
+  if (MB_SUCCESS != result)
+    return result;
   
   MBEntityHandle this_gent, new_handle;
   std::vector<MBEntityHandle> gentities[4];
@@ -175,7 +181,7 @@ MBErrorCode ReadSms::load_file_impl( FILE* file_ptr )
            coord_arrays[0]+i, coord_arrays[1]+i, coord_arrays[2]+i);
     CHECKN(5);
     
-    result = get_set(gentities, gent_type, gent_id, geomDimension, this_gent);
+    result = get_set(gentities, gent_type, gent_id, geomDimension, this_gent, file_id_tag );
     if (MB_SUCCESS != result)
       return result;
 
@@ -216,6 +222,10 @@ MBErrorCode ReadSms::load_file_impl( FILE* file_ptr )
   result = readMeshIface->get_element_array(nedges, 2, MBEDGE, 1, estart, connect);
   CHECK("Failed to create array of edges.");
   if (MB_SUCCESS != result) return result;
+    
+  result = add_entities( estart, nedges, file_id_tag );
+  if (MB_SUCCESS != result)
+    return result;
 
   for(int i = 0; i < nedges; i++)
   {
@@ -238,7 +248,7 @@ MBErrorCode ReadSms::load_file_impl( FILE* file_ptr )
       warned = true;
     }
 
-    result = get_set(gentities, gent_type, gent_id, geomDimension, this_gent);
+    result = get_set(gentities, gent_type, gent_id, geomDimension, this_gent, file_id_tag);
     CHECK("Problem getting geom set for edge.");
     if (MB_SUCCESS != result)
       return result;
@@ -292,7 +302,7 @@ MBErrorCode ReadSms::load_file_impl( FILE* file_ptr )
     n = fscanf(file_ptr,"%d %d", &gent_type, &num_bounding);
     CHECKN(2);
 
-    result = get_set(gentities, gent_type, gent_id, geomDimension, this_gent);
+    result = get_set(gentities, gent_type, gent_id, geomDimension, this_gent, file_id_tag);
     CHECK("Problem getting geom set for face.");
     if (MB_SUCCESS != result)
       return result;
@@ -326,6 +336,9 @@ MBErrorCode ReadSms::load_file_impl( FILE* file_ptr )
     CHECK("Failed to create edge.");
     if (MB_SUCCESS != result) return result;
 
+    result = mdbImpl->add_entities(mCurrentMeshHandle, &new_faces[i], 1);
+    if (MB_SUCCESS != result) return result;
+
     result = mdbImpl->add_entities(this_gent, &new_faces[i], 1);
     CHECK("Failed to add edge to geom set.");
     if (MB_SUCCESS != result) return result;
@@ -355,6 +368,12 @@ MBErrorCode ReadSms::load_file_impl( FILE* file_ptr )
     }
 
   } // end of reading faces
+  
+  if (file_id_tag) {
+    result = readMeshIface->assign_ids( *file_id_tag, &new_faces[0], new_faces.size(), 1 );
+    if (MB_SUCCESS != result)
+      return result;
+  }
 
 
 // *******************************
@@ -363,11 +382,14 @@ MBErrorCode ReadSms::load_file_impl( FILE* file_ptr )
   int sense[MB_MAX_SUB_ENTITIES];
   bound_verts.resize(MB_MAX_SUB_ENTITIES);
 
+  std::vector<MBEntityHandle> regions;
+  if (file_id_tag)
+    regions.resize( nregions );
   for(int i = 0; i < nregions; i++)
   {
     n = fscanf(file_ptr, "%d", &gent_id); CHECKN(1);
     if (!gent_id) continue;
-    result = get_set(gentities, 3, gent_id, geomDimension, this_gent);
+    result = get_set(gentities, 3, gent_id, geomDimension, this_gent, file_id_tag);
     CHECK("Couldn't get geom set for region.");
     if (MB_SUCCESS != result)
       return result;
@@ -398,9 +420,18 @@ MBErrorCode ReadSms::load_file_impl( FILE* file_ptr )
     CHECK("Failed to add region to geom set.");
     if (MB_SUCCESS != result) return result;
 
+    if (file_id_tag)
+      regions[i] = new_handle;
+  
     n = fscanf(file_ptr, "%d ", &dum_int); CHECKN(1);
 
   } // end of reading regions
+  
+  if (file_id_tag) {
+    result = readMeshIface->assign_ids( *file_id_tag, &regions[0], regions.size(), 1 );
+    if (MB_SUCCESS != result)
+      return result;
+  }
 
   return MB_SUCCESS;
 }
@@ -408,9 +439,13 @@ MBErrorCode ReadSms::load_file_impl( FILE* file_ptr )
 MBErrorCode ReadSms::get_set(std::vector<MBEntityHandle> *sets,
                              int set_dim, int set_id,
                              MBTag dim_tag,
-                             MBEntityHandle &this_set) 
+                             MBEntityHandle &this_set,
+                             const MBTag* file_id_tag) 
 {
   MBErrorCode result = MB_SUCCESS;
+  
+  if (set_dim < 0 || set_dim > 3)
+    return MB_FILE_WRITE_ERROR;
   
   if ((int)sets[set_dim].size() <= set_id || 
       !sets[set_dim][set_id]) {
@@ -429,6 +464,18 @@ MBErrorCode ReadSms::get_set(std::vector<MBEntityHandle> *sets,
                                      &sets[set_dim][set_id], 1,
                                      &set_dim);
       if (MB_SUCCESS != result) return result;
+      
+      result = mdbImpl->add_entities( mCurrentMeshHandle,
+                                      &sets[set_dim][set_id],
+                                      1 );
+      if (MB_SUCCESS != result) return result;
+      
+      if (file_id_tag) {
+        result = mdbImpl->tag_set_data(*file_id_tag,
+                                     &sets[set_dim][set_id], 1,
+                                     &setId);
+        ++setId;
+      }
     }
   }
 
@@ -472,3 +519,24 @@ MBErrorCode ReadSms::read_parallel_info(FILE *file_ptr)
     */
 }
 
+MBErrorCode ReadSms::add_entities( MBEntityHandle start,
+                                   MBEntityHandle count,
+                                   const MBTag* file_id_tag )
+{
+  if (!count)
+    return MB_FAILURE;
+  MBRange range;
+  range.insert( start, start + count - 1 );
+  
+  MBErrorCode rval = mdbImpl->add_entities( mCurrentMeshHandle, range );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  if (file_id_tag) {
+    rval = readMeshIface->assign_ids( *file_id_tag, range, 1 );
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  
+  return MB_SUCCESS;
+}

@@ -146,6 +146,16 @@ __attribute__((format(printf,2,3)))
                                            int dim,
                                            MBEntityHandle *bound_verts, 
                                            MBEntityType &etype) = 0;
+
+    //! Assign sequential IDS to entities in range and store IDs in tag
+  virtual MBErrorCode assign_ids( MBTag id_tag, const MBRange& ents, 
+                                  int start = 0 ) = 0;
+  
+    //! Assign to each entity in an array the ID that is its position
+    //! in the array plus the value of 'start'.  For any non-zero handles
+    //! in the array, store the ID value in the passed tag.
+  virtual MBErrorCode assign_ids( MBTag id_tag, const MBEntityHandle* ents, 
+                                  size_t num_ents, int start = 0 ) = 0;
 };
 
 inline 
