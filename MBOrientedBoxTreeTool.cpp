@@ -1224,7 +1224,7 @@ MBErrorCode MBOrientedBoxTreeTool::closest_to_location( const double* point,
         diff = tmp - loc;
         dist_sqr = diff % diff;
         if (dist_sqr < smallest_dist_sqr) {
-          if (dist_sqr < smallest_dist_sqr + tolerance*(tolerance - 2*smallest_dist)) {
+          if (0.5*dist_sqr < 0.5*smallest_dist_sqr + tolerance*(0.5*tolerance - smallest_dist)) {
             facets_out.clear();
             if (sets_out)
               sets_out->clear();
