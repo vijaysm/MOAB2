@@ -32,7 +32,7 @@ public:
 
 private:
 
-  MBErrorCode load_file_impl( const char *file_name );
+  MBErrorCode load_file_impl( FILE* file );
   
   MBErrorCode get_set(std::vector<MBEntityHandle> *sets,
                       int set_type, int set_id,

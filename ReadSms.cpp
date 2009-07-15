@@ -39,7 +39,8 @@
       std::cerr << a << std::endl;                \
       return result;                              \
     }
-    
+
+#define CHECKN(a) if (n != (a)) return MB_FILE_WRITE_ERROR
 
 MBReaderIface* ReadSms::factory( MBInterface* iface )
   { return new ReadSms(iface); }
@@ -71,8 +72,18 @@ MBErrorCode ReadSms::load_file( const char* filename,
     return MB_UNSUPPORTED_OPERATION;
   }
 
+    
+    // Open file
+  FILE* file_ptr = fopen( filename, "r" );
+  if (!file_ptr)
+  {
+    readMeshIface->report_error( "%s: %s\n", filename, strerror(errno) );
+    return MB_FILE_DOES_NOT_EXIST;
+  }
+
   mCurrentMeshHandle = 0;
-  const MBErrorCode result = load_file_impl( filename );
+  const MBErrorCode result = load_file_impl( file_ptr );
+  fclose( file_ptr );
   
     // If file read has failed, destroy anything that was
     // created during the read.
@@ -89,7 +100,7 @@ MBErrorCode ReadSms::load_file( const char* filename,
   return result;
 }
 
-MBErrorCode ReadSms::load_file_impl( const char* filename )
+MBErrorCode ReadSms::load_file_impl( FILE* file_ptr )
 {
   bool warned = false;
   
@@ -121,18 +132,12 @@ MBErrorCode ReadSms::load_file_impl( const char* filename )
   CHECK("Failed to create geom dim tag.");
   if (MB_SUCCESS != result)
     return result;
-    
-    // Open file
-  FILE* file_ptr = fopen( filename, "r" );
-  if (!file_ptr)
-  {
-    readMeshIface->report_error( "%s: %s\n", filename, strerror(errno) );
-    return MB_FILE_DOES_NOT_EXIST;
-  }
 
+  int n;
   char line[256];
   int file_type;
-  fscanf(file_ptr, "%s %d", line, &file_type);
+  n = fscanf(file_ptr, "%s %d", line, &file_type);
+  CHECKN(2);
 
   if (3 == file_type) {
     result = read_parallel_info(file_ptr);
@@ -140,8 +145,11 @@ MBErrorCode ReadSms::load_file_impl( const char* filename )
   }
 
   int nregions, nfaces, nedges, nvertices, npoints;
-  fscanf(file_ptr, "%d %d %d %d %d", &nregions, &nfaces, &nedges,
+  n = fscanf(file_ptr, "%d %d %d %d %d", &nregions, &nfaces, &nedges,
          &nvertices, &npoints);
+  CHECKN(5);
+  if (nregions < 0 || nfaces < 0 || nedges < 0 || nvertices < 0 || npoints < 0)
+    return MB_FILE_WRITE_ERROR;
 
     // create the vertices
   std::vector<double*> coord_arrays;
@@ -159,13 +167,17 @@ MBErrorCode ReadSms::load_file_impl( const char* filename )
   
   for(int i = 0; i < nvertices; i++)
   {
-    fscanf(file_ptr, "%d", &gent_id); 
+    n = fscanf(file_ptr, "%d", &gent_id); 
+    CHECKN(1);
     if (!gent_id) continue;
 
-    fscanf(file_ptr,"%d %d %lf %lf %lf", &gent_type, &num_connections,
+    n = fscanf(file_ptr,"%d %d %lf %lf %lf", &gent_type, &num_connections,
            coord_arrays[0]+i, coord_arrays[1]+i, coord_arrays[2]+i);
+    CHECKN(5);
     
     result = get_set(gentities, gent_type, gent_id, geomDimension, this_gent);
+    if (MB_SUCCESS != result)
+      return result;
 
     new_handle = vstart + i;
     result = mdbImpl->add_entities(this_gent, &new_handle, 1);
@@ -175,13 +187,15 @@ MBErrorCode ReadSms::load_file_impl( const char* filename )
     switch(gent_type)
     {
       case 1:
-          fscanf(file_ptr, "%le", dum_params);
+          n = fscanf(file_ptr, "%le", dum_params);
+          CHECKN(1);
           result = mdbImpl->tag_set_data(paramCoords, &new_handle, 1, dum_params);
           CHECK("Failed to set param coords tag for vertex.");
           if (MB_SUCCESS != result) return result;
           break;
       case 2:
-          fscanf(file_ptr, "%le %le %d", dum_params, dum_params+1, &dum_int);
+          n = fscanf(file_ptr, "%le %le %d", dum_params, dum_params+1, &dum_int);
+          CHECKN(3);
           dum_params[2] = dum_int;
           result = mdbImpl->tag_set_data(paramCoords, &new_handle, 1, dum_params);
           CHECK("Failed to set param coords tag for vertex.");
@@ -205,11 +219,18 @@ MBErrorCode ReadSms::load_file_impl( const char* filename )
 
   for(int i = 0; i < nedges; i++)
   {
-    fscanf(file_ptr,"%d",&gent_id);
+    n = fscanf(file_ptr,"%d",&gent_id);
+    CHECKN(1);
     if (!gent_id) continue;
 
-    fscanf(file_ptr, "%d %d %d %d %d", &gent_type, &vert1, &vert2, 
+    n = fscanf(file_ptr, "%d %d %d %d %d", &gent_type, &vert1, &vert2, 
            &num_connections, &num_pts);
+    CHECKN(5);
+    if (vert1 < 1 || vert1 > nvertices)
+      return MB_FILE_WRITE_ERROR;
+    if (vert2 < 1 || vert2 > nvertices)
+      return MB_FILE_WRITE_ERROR;
+    
     connect[0] = vstart + vert1 - 1;
     connect[1] = vstart + vert2 - 1;
     if (num_pts > 1 && !warned) {
@@ -219,6 +240,8 @@ MBErrorCode ReadSms::load_file_impl( const char* filename )
 
     result = get_set(gentities, gent_type, gent_id, geomDimension, this_gent);
     CHECK("Problem getting geom set for edge.");
+    if (MB_SUCCESS != result)
+      return result;
 
     new_handle = estart + i;
     result = mdbImpl->add_entities(this_gent, &new_handle, 1);
@@ -230,13 +253,15 @@ MBErrorCode ReadSms::load_file_impl( const char* filename )
     for(int j = 0; j < num_pts; j++) {
       switch(gent_type) {
         case 1: 
-            fscanf(file_ptr, "%le", dum_params);
+            n = fscanf(file_ptr, "%le", dum_params);
+            CHECKN(1);
             result = mdbImpl->tag_set_data(paramCoords, &new_handle, 1, dum_params);
             CHECK("Failed to set param coords tag for edge.");
             if (MB_SUCCESS != result) return result;
             break;
         case 2: 
-            fscanf(file_ptr, "%le %le %d", dum_params, dum_params+1, &dum_int);
+            n = fscanf(file_ptr, "%le %le %d", dum_params, dum_params+1, &dum_int);
+            CHECKN(3);
             dum_params[2] = dum_int;
             result = mdbImpl->tag_set_data(paramCoords, &new_handle, 1, dum_params);
             CHECK("Failed to set param coords tag for edge.");
@@ -260,20 +285,27 @@ MBErrorCode ReadSms::load_file_impl( const char* filename )
     
   for(int i = 0; i < nfaces; i++)
   {
-    fscanf(file_ptr, "%d", &gent_id);
+    n = fscanf(file_ptr, "%d", &gent_id);
+    CHECKN(1);
     if(!gent_id) continue;
 
-    fscanf(file_ptr,"%d %d", &gent_type, &num_bounding);
+    n = fscanf(file_ptr,"%d %d", &gent_type, &num_bounding);
+    CHECKN(2);
 
     result = get_set(gentities, gent_type, gent_id, geomDimension, this_gent);
     CHECK("Problem getting geom set for face.");
+    if (MB_SUCCESS != result)
+      return result;
 
     bound_ents.resize(num_bounding+1);
     bound_verts.resize(num_bounding);
     for(int j = 0; j < num_bounding; j++) {
-      fscanf(file_ptr, "%d ", &bound_id);
+      n = fscanf(file_ptr, "%d ", &bound_id);
+      CHECKN(1);
       if (0 > bound_id) bound_id = abs(bound_id);
       assert(0 < bound_id && bound_id <= nedges);
+      if (bound_id < 1 || bound_id > nedges)
+        return MB_FILE_WRITE_ERROR;
       bound_ents[j] = estart + abs(bound_id) - 1;
     }
 
@@ -304,13 +336,14 @@ MBErrorCode ReadSms::load_file_impl( const char* filename )
     for(int j = 0; j < num_pts; j++) {
       switch(gent_type) {
         case 1: 
-            fscanf(file_ptr, "%le", dum_params);
+            n = fscanf(file_ptr, "%le", dum_params); CHECKN(1);
             result = mdbImpl->tag_set_data(paramCoords, &new_faces[i], 1, dum_params);
             CHECK("Failed to set param coords tag for face.");
             if (MB_SUCCESS != result) return result;
             break;
         case 2: 
-            fscanf(file_ptr, "%le %le %d", dum_params, dum_params+1, &dum_int);
+            n = fscanf(file_ptr, "%le %le %d", dum_params, dum_params+1, &dum_int);
+            CHECKN(3);
             dum_params[2] = dum_int;
             result = mdbImpl->tag_set_data(paramCoords, &new_faces[i], 1, dum_params);
             CHECK("Failed to set param coords tag for face.");
@@ -332,15 +365,19 @@ MBErrorCode ReadSms::load_file_impl( const char* filename )
 
   for(int i = 0; i < nregions; i++)
   {
-    fscanf(file_ptr, "%d", &gent_id);
+    n = fscanf(file_ptr, "%d", &gent_id); CHECKN(1);
     if (!gent_id) continue;
     result = get_set(gentities, 3, gent_id, geomDimension, this_gent);
     CHECK("Couldn't get geom set for region.");
-    fscanf(file_ptr, "%d", &num_bounding);
+    if (MB_SUCCESS != result)
+      return result;
+    n = fscanf(file_ptr, "%d", &num_bounding); CHECKN(1);
     bound_ents.resize(num_bounding);
     for(int j = 0; j < num_bounding; j++) {
-      fscanf(file_ptr, "%d ", &bound_id);
+      n = fscanf(file_ptr, "%d ", &bound_id); CHECKN(1);
       assert(abs(bound_id) < (int)new_faces.size()+1 && bound_id);
+      if (!bound_id || abs(bound_id) > nfaces)
+        return MB_FILE_WRITE_ERROR;
       sense[j] = (bound_id < 0) ? -1 : 1;
       bound_ents[j] = new_faces[abs(bound_id)-1];
     }
@@ -361,7 +398,7 @@ MBErrorCode ReadSms::load_file_impl( const char* filename )
     CHECK("Failed to add region to geom set.");
     if (MB_SUCCESS != result) return result;
 
-    fscanf(file_ptr, "%d ", &dum_int);
+    n = fscanf(file_ptr, "%d ", &dum_int); CHECKN(1);
 
   } // end of reading regions
 
