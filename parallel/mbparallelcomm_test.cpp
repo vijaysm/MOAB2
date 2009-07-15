@@ -47,7 +47,8 @@ MBErrorCode create_scd_mesh(MBInterface *mbImpl,
 
 MBErrorCode read_file(MBInterface *mbImpl, std::vector<std::string> &filenames,
                       const char *tag_name, int tag_val, int distrib,
-                      int parallel_option, int resolve_shared, int with_ghosts, int use_mpio);
+                      int parallel_option, int resolve_shared, int with_ghosts, 
+                      int use_mpio, bool print_parallel);
 
 MBErrorCode test_packing(MBInterface *mbImpl, const char *filename);
 
@@ -88,11 +89,15 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  int npos = 1, tag_val, distrib, with_ghosts = 1, resolve_shared = 1, use_mpio = 0;
+  int npos = 1, tag_val, distrib, with_ghosts = 1, resolve_shared = 1, 
+      use_mpio = 0;
+  bool print_parallel = false;
   const char *tag_name;
   std::vector<std::string> filenames;
   int parallel_option = 0;
   int num_files;
+
+  if (!strcmp(argv[npos], "-p")) print_parallel = true;
 
   while (npos != argc) {    
     MBErrorCode tmp_result;
@@ -128,7 +133,8 @@ int main(int argc, char **argv)
 
           tmp_result = read_file(mbImpl, filenames, tag_name, tag_val,
                                  distrib, parallel_option, 
-                                 resolve_shared, with_ghosts, use_mpio);
+                                 resolve_shared, with_ghosts, use_mpio,
+                                 print_parallel);
           if (MB_SUCCESS != tmp_result) {
             result = tmp_result;
             std::cerr << "Couldn't read mesh; error message:" << std::endl;
@@ -159,7 +165,7 @@ int main(int argc, char **argv)
             filenames.push_back(std::string(argv[npos++]));
           tmp_result = read_file(mbImpl, filenames, tag_name, tag_val,
                                  distrib, parallel_option, resolve_shared,
-                                 with_ghosts, use_mpio);
+                                 with_ghosts, use_mpio, print_parallel);
           if (MB_SUCCESS != tmp_result) {
             result = tmp_result;
             std::cerr << "Couldn't read mesh; error message:" << std::endl;
@@ -291,7 +297,7 @@ MBErrorCode read_file(MBInterface *mbImpl,
                       std::vector<std::string> &filenames,
                       const char *tag_name, int tag_val,
                       int distrib, int parallel_option, int resolve_shared,
-                      int with_ghosts, int use_mpio) 
+                      int with_ghosts, int use_mpio, bool print_parallel) 
 {
   std::ostringstream options;
   switch (parallel_option) {
@@ -327,6 +333,9 @@ MBErrorCode read_file(MBInterface *mbImpl,
     options << ";USE_MPIO";
 
   options << ";CPUTIME";
+
+  if (print_parallel) 
+    options << ";PRINT_PARALLEL";
 
   std::vector<MBEntityHandle> filesets(filenames.size());
   std::vector<MBParallelComm*> pcs(filenames.size());

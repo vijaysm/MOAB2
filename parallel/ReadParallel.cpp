@@ -23,7 +23,7 @@ const bool debug = false;
 enum ParallelActions {PA_READ=0, PA_BROADCAST, PA_DELETE_NONLOCAL,
                       PA_CHECK_GIDS_SERIAL, PA_GET_FILESET_ENTS, 
                       PA_RESOLVE_SHARED_ENTS,
-                      PA_EXCHANGE_GHOSTS};
+                      PA_EXCHANGE_GHOSTS, PA_PRINT_PARALLEL};
 const char *ParallelActionsNames[] = {
     "PARALLEL READ",
     "PARALLEL BROADCAST", 
@@ -31,7 +31,8 @@ const char *ParallelActionsNames[] = {
     "PARALLEL CHECK_GIDS_SERIAL",
     "PARALLEL GET_FILESET_ENTS",
     "PARALLEL RESOLVE_SHARED_ENTS",
-    "PARALLEL EXCHANGE_GHOSTS"
+    "PARALLEL EXCHANGE_GHOSTS",
+    "PARALLEL PRINT_PARALLEL"
 };
 
 const char* ReadParallel::parallelOptsNames[] = { "NONE", "BCAST", "BCAST_DELETE", 
@@ -87,6 +88,11 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   bool cputime = false;
   result = opts.get_null_option("CPUTIME");
   if (MB_SUCCESS == result) cputime = true;
+
+    // see if we need to report times
+  bool print_parallel = false;
+  result = opts.get_null_option("PRINT_PARALLEL");
+  if (MB_SUCCESS == result) print_parallel = true;
 
     // get ghosting options
   std::string ghost_str;
@@ -182,7 +188,8 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   if (-2 != resolve_dim) pa_vec.push_back(PA_RESOLVE_SHARED_ENTS);
 
   if (-1 != ghost_dim) pa_vec.push_back(PA_EXCHANGE_GHOSTS);
-  
+
+  if (print_parallel) pa_vec.push_back(PA_PRINT_PARALLEL);
   
   return load_file(file_names, num_files, file_set, parallel_mode, 
                    partition_tag_name,
@@ -355,6 +362,14 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
 
           tmp_result = myPcomm->exchange_ghost_cells(ghost_dim, bridge_dim, 
                                                      num_layers, true);
+          break;
+        
+//==================
+      case PA_PRINT_PARALLEL:
+          if (debug)
+            std::cout << "Printing parallel information." << std::endl;
+
+          tmp_result = myPcomm->list_entities(0, -1);
           break;
         
 //==================
