@@ -186,7 +186,13 @@ MBErrorCode ReadHDF5::set_up_read( const char* filename,
     free(dataBuffer);
     return MB_NOT_IMPLEMENTED;
 #else
-    MBParallelComm* myPcomm = MBParallelComm::get_pcomm(iFace, 0);
+    int pcomm_no = 0;
+    result = opts.get_int_option("PARALLEL_COMM", pcomm_no);
+    if (result == MB_TYPE_OUT_OF_RANGE) {
+      readUtil->report_error("Invalid value for PARALLEL_COMM option");
+      return result;
+    }
+    MBParallelComm* myPcomm = MBParallelComm::get_pcomm(iFace, pcomm_no);
     if (0 == myPcomm) {
       myPcomm = new MBParallelComm(iFace);
     }
