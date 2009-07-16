@@ -33,9 +33,10 @@
 #include "MBCN.hpp"
 #include "FileOptions.hpp"
 #ifdef HDF5_PARALLEL
-#include "ReadParallel.hpp"
-#include <H5FDmpi.h>
-#include <H5FDmpio.h>
+#  include "ReadParallel.hpp"
+#  include "MBParallelComm.hpp"
+#  include <H5FDmpi.h>
+#  include <H5FDmpio.h>
 #endif
 //#include "WriteHDF5.hpp"
 
@@ -179,46 +180,88 @@ MBErrorCode ReadHDF5::set_up_read( const char* filename,
   if (!dataBuffer)
     return error(MB_MEMORY_ALLOCATION_FAILED);
   
-  hid_t file_prop = H5P_DEFAULT;
   if (use_mpio || native_parallel) {
 #ifndef HDF5_PARALLEL
     readUtil->report_error("MOAB not configured with parallel HDF5 support");
     free(dataBuffer);
     return MB_NOT_IMPLEMENTED;
 #else
-    file_prop = H5Pcreate(H5P_FILE_ACCESS);
-    H5Pset_fapl_mpio(file_prop, MPI_COMM_WORLD, MPI_INFO_NULL);
+    MBParallelComm* myPcomm = MBParallelComm::get_pcomm(iFace, 0);
+    if (0 == myPcomm) {
+      myPcomm = new MBParallelComm(iFace);
+    }
+    const int rank = myPcomm->proc_config().proc_rank();
+
+      // Open the file in serial on root to read summary
+    fileInfo = 0;
+    unsigned long size = 0;
+    if (rank == 0) {
+      filePtr = mhdf_openFile( filename, 0, NULL, &status );
+      if (filePtr) {  
+        fileInfo = mhdf_getFileSummary( filePtr, handleType, &status );
+        if (!is_error(status)) {
+          size = fileInfo->total_size;
+          fileInfo->offset = (unsigned char*)fileInfo;
+        }
+      }
+      mhdf_closeFile( filePtr, &status );
+      if (fileInfo && mhdf_isError(&status)) {
+        free(fileInfo);
+        fileInfo = 0;
+      }
+    }
+      // Broadcast the size of the struct (zero indicates an error)
+    int err = MPI_Bcast( &size, 1, MPI_UNSIGNED_LONG, 0, myPcomm->proc_config().proc_comm() );
+    if (err || !size)
+      return MB_FAILURE;
+    
+      // allocate structure
+    if (rank != 0) 
+      fileInfo = reinterpret_cast<mhdf_FileDesc*>( malloc( size ) );
+      // bcast file summary
+    MPI_Bcast( fileInfo, size, MPI_BYTE, 0, myPcomm->proc_config().proc_comm() );
+      // fix up internal pointers in file summary struct
+    if (rank != 0)
+      mhdf_fixFileDesc( fileInfo, reinterpret_cast<mhdf_FileDesc*>(fileInfo->offset) );
+  
+      // configure HDF5 properties  
+    hid_t file_prop = H5Pcreate(H5P_FILE_ACCESS);
+    H5Pset_fapl_mpio(file_prop, myPcomm->proc_config().proc_comm(), MPI_INFO_NULL);
     collIO = H5Pcreate(H5P_DATASET_XFER);
     H5Pset_dxpl_mpio(collIO, H5FD_MPIO_COLLECTIVE);
     indepIO = native_parallel ? H5P_DEFAULT : collIO;
+
+      // re-open file in parallel
+    filePtr = mhdf_openFileWithOpt( filename, 0, NULL, file_prop, &status );
+    H5Pclose( file_prop );
+    if (!filePtr)
+    {
+      readUtil->report_error( mhdf_message( &status ));
+      free( dataBuffer );
+      H5Pclose( indepIO ); 
+      if (collIO != indepIO)
+        H5Pclose( collIO );
+      return error(MB_FAILURE);
+    }
 #endif
   }
-  
-    // Open the file
-  filePtr = mhdf_openFileWithOpt( filename, 0, NULL, file_prop, &status );
-  if (file_prop != H5P_DEFAULT)
-    H5Pclose( file_prop );
-  if (!filePtr)
-  {
-    readUtil->report_error( mhdf_message( &status ));
-    free( dataBuffer );
-    if (indepIO != H5P_DEFAULT)
-      H5Pclose( indepIO ); 
-    if (collIO != indepIO)
-      H5Pclose( collIO );
-    return error(MB_FAILURE);
-  }
+  else {
+      // Open the file
+    filePtr = mhdf_openFile( filename, 0, NULL, &status );
+    if (!filePtr)
+    {
+      readUtil->report_error( mhdf_message( &status ));
+      free( dataBuffer );
+      return error(MB_FAILURE);
+    }
 
-    // get file info
-  fileInfo = mhdf_getFileSummary( filePtr, handleType, &status );
-  if (is_error(status)) {
-    free( dataBuffer );
-    if (indepIO != H5P_DEFAULT)
-      H5Pclose( indepIO );
-    if (collIO != indepIO)
-      H5Pclose( collIO );
-    mhdf_closeFile( filePtr, &status );
-    return error(MB_FAILURE);
+      // get file info
+    fileInfo = mhdf_getFileSummary( filePtr, handleType, &status );
+    if (is_error(status)) {
+      free( dataBuffer );
+      mhdf_closeFile( filePtr, &status );
+      return error(MB_FAILURE);
+    }
   }
   
   return MB_SUCCESS;
