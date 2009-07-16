@@ -187,7 +187,7 @@ TPRINT("Resolving shared entities");
 TPRINT("Beginning parallel write");
     // Do parallel write
   clock_t t = clock();
-  rval = moab.write_file( output_file_name, "MOAB", "PARALLEL=FORMAT" );
+  rval = moab.write_file( output_file_name, "MOAB", "PARALLEL=WRITE_PART" );
   t = clock() - t;
   if (MB_SUCCESS != rval) {
     std::string msg;

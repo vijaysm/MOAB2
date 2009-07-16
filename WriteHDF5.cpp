@@ -452,7 +452,9 @@ DEBUGOUT( "Creating File\n" );
   
     // Create the file layout, including all tables (zero-ed) and
     // all structure and meta information.
-  parallelWrite = (MB_SUCCESS == opts.match_option( "PARALLEL", "FORMAT" ));
+  const char* optnames[] = { "WRITE_PART", "FORMAT", 0 };
+  int junk;
+  parallelWrite = (MB_SUCCESS == opts.match_option( "PARALLEL", optnames, junk ));
   if (parallelWrite) {
     int pcomm_no = 0;
     opts.get_int_option("PARALLEL_COMM", pcomm_no);

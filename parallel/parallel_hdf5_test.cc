@@ -242,7 +242,7 @@ void save_and_load_on_root( MBInterface& moab, const char* tmp_filename )
   int procnum;
   MPI_Comm_rank( MPI_COMM_WORLD, &procnum );
   
-  rval = moab.write_file( tmp_filename, 0, "PARALLEL=FORMAT" );
+  rval = moab.write_file( tmp_filename, 0, "PARALLEL=WRITE_PART" );
   if (MB_SUCCESS != rval) {
     std::cerr << "Parallel write filed on processor " << procnum << std::endl;
     if (procnum == 0 && !KeepTmpFiles)
@@ -521,7 +521,7 @@ void test_var_length_parallel()
   CHECK_ERR(rval);
   
   // Write file
-  rval = mb.write_file( filename, "MOAB", "PARALLEL=FORMAT" );
+  rval = mb.write_file( filename, "MOAB", "PARALLEL=WRITE_PART" );
   CHECK_ERR(rval);
   
   // Read file.  We only reset and re-read the file on the

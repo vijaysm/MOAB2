@@ -36,8 +36,7 @@ const char *ParallelActionsNames[] = {
 };
 
 const char* ReadParallel::parallelOptsNames[] = { "NONE", "BCAST", "BCAST_DELETE", 
-                                                  "READ_DELETE", "READ_PARALLEL", 
-                                                  "FORMAT", "", 0 };
+                                                  "READ_DELETE", "READ_PART", "", 0 };
       
 ReadParallel::ReadParallel(MBInterface* impl, 
                            MBParallelComm *pc) 
@@ -175,11 +174,8 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
         pa_vec.push_back(PA_DELETE_NONLOCAL);
         break;
 
-    case POPT_FORMAT:
+    case POPT_READ_PART:
         merror->set_last_error( "Access to format-specific parallel read not implemented.\n");
-        return MB_NOT_IMPLEMENTED;
-    case POPT_READ_PARALLEL:
-        merror->set_last_error( "Partitioning for PARALLEL=READ_PARALLEL not supported yet.\n");
         return MB_NOT_IMPLEMENTED;
     default:
         return MB_FAILURE;

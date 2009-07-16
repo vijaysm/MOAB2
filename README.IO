@@ -81,17 +81,23 @@ can be used.
 Parallel Read Options:
 ----------------------
 
-  PARALLEL={NONE|BCAST|BCAST_DELETE|READ_DELETE|READ_PARALLEL|FORMAT}
+  PARALLEL={NONE|BCAST|BCAST_DELETE|READ_DELETE|READ_PART}
 
 Set parallel read mode.  Options are:
   - NONE  - force serial read/write on each processor (default)
   - BCAST - read on one processor and broadcast a copy to all others
-  - BCAST_DELETE - ?
+  - BCAST_DELETE - read file on one processor, broadcasting partitioned
+                   data to other processors.
   - READ_DELETE - read file on all processors and partition by deleting
                   mesh from non-local partitions.
-  - READ_PARALLEL - ?
-  - FORMAT- use format-specific parallel IO capabilities, if available
-
+  - READ_PART - read only relevant subset of file on each processor,
+                utilizing format-specific parallel I/O if available
+                (this option is not supported for all file formats.)
+  - WRITE_PART - write only relevant subset of file on each processor,
+                 creating a single file utilizing format-specific parallel 
+                 I/O if available (this option is not supported for all 
+                 file formats.)
+  - FORMAT - depricated (use WRITE_PART)
   
   PARTITION
   PARTITION=<tag_name>
