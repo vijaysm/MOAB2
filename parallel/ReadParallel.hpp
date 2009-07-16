@@ -9,7 +9,7 @@
 class MBReadUtilIface;
 class MBParallelComm;
 
-class ReadParallel : public MBReaderIface
+class ReadParallel
 {
    
 public:
