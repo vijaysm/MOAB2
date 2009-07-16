@@ -16,6 +16,7 @@
 #include "MeshTopoUtil.hpp"
 
 #include <iostream>
+#include <sstream>
 #include <algorithm>
 #include <numeric>
 
@@ -3632,6 +3633,12 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
   }
     
   if (is_iface) {
+      // need to check over entities I sent and make sure I received 
+      // handles for them from all expected procs; if not, need to clean
+      // them up
+    result = check_clean_iface(allsent);
+    RRA("Failed check.");
+    
 #ifndef NDEBUG
     result = check_sent_ents(allsent);
     RRA("Failed check on shared entities.");
@@ -3740,6 +3747,88 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
 #endif
 
   return MB_SUCCESS;
+}
+
+MBErrorCode MBParallelComm::check_clean_iface(MBRange &allsent) 
+{
+    // allsent is all entities I think are on interface; go over them, looking
+    // for zero-valued handles, and fix any I find
+
+  MBErrorCode result;
+  MBRange::iterator rit;
+  unsigned char pstatus;
+  int sharedp[MAX_SHARING_PROCS], nump;
+  MBEntityHandle sharedh[MAX_SHARING_PROCS];
+  for (rit = allsent.begin(); rit != allsent.end(); rit++) {
+    result = get_sharing_data(*rit, sharedp, sharedh, pstatus, nump);
+    RRA("");
+    assert("Should be shared with at least one other proc" && 
+           (nump > 1 || sharedp[0] != (int)procConfig.proc_rank()));
+    int numz = 0;
+    for (int i = 0; i < nump; i++) {
+      if (!sharedh[i]) numz++;
+      else if (numz) {
+          // shift downward
+        sharedh[i-numz] = sharedh[i];
+        sharedp[i-numz] = sharedp[i];
+      }
+    }
+    if (numz) {
+      result = set_sharing_data(*rit, pstatus, nump, nump-numz, sharedp, sharedh);
+      RRA("");
+    }
+  }
+  
+  return result;
+}
+
+MBErrorCode MBParallelComm::set_sharing_data(MBEntityHandle ent, unsigned char pstatus,
+                                             int old_nump, int new_nump,
+                                             int *ps, MBEntityHandle *hs) 
+{
+  assert("Should call this function only when reducing sharing procs." &&
+         new_nump < old_nump);
+
+    // set sharing data to what's passed in; may have to clean up existing sharing tags
+    // if things changed too much
+  
+  MBErrorCode result;
+  if (pstatus & PSTATUS_MULTISHARED && new_nump < 3) {
+      // need to remove multishared tags
+    result = mbImpl->tag_delete_data(sharedps_tag(), &ent, 1);
+    RRA("");
+    result = mbImpl->tag_delete_data(sharedhs_tag(), &ent, 1);
+    RRA("");
+    pstatus ^= PSTATUS_MULTISHARED;
+    if (new_nump < 2) pstatus = 0x0;
+  }
+  else if (pstatus & PSTATUS_SHARED && new_nump < 2) {
+    hs[0] = 0;
+    ps[0] = -1;
+    pstatus = 0x0;
+  }
+
+  if (new_nump > 2) {
+    result = mbImpl->tag_set_data(sharedps_tag(), &ent, 1, ps);
+    RRA("");
+    result = mbImpl->tag_set_data(sharedhs_tag(), &ent, 1, hs);
+    RRA("");
+  }
+  else {
+    unsigned int j = (ps[0] == procConfig.proc_rank() ? 1 : 0);
+    assert(-1 != ps[j]);
+    result = mbImpl->tag_set_data(sharedp_tag(), &ent, 1, ps+j);
+    RRA("");
+    result = mbImpl->tag_set_data(sharedh_tag(), &ent, 1, hs+j);
+    RRA("");
+  }
+  
+  result = mbImpl->tag_set_data(pstatus_tag(), &ent, 1, &pstatus);
+  RRA("");
+
+  if (old_nump > 1 && new_nump < 2) sharedEnts.erase(ent);
+
+  return result;
 }
 
 MBErrorCode MBParallelComm::get_sent_ents(const bool is_iface, 
@@ -3896,6 +3985,14 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(MBParallelComm **pcs,
   }
 
   if (is_iface) {
+      // need to check over entities I sent and make sure I received 
+      // handles for them from all expected procs; if not, need to clean
+      // them up
+    for (unsigned int p = 0; p < num_procs; p++) {
+      result = pcs[p]->check_clean_iface(allsent[p]);
+      RRAI(pcs[p]->get_moab(), "Failed check on shared entities.");
+    }
+
 #ifndef NDEBUG
     for (unsigned int p = 0; p < num_procs; p++) {
       result = pcs[p]->check_sent_ents(allsent[p]);
@@ -5268,15 +5365,15 @@ MBErrorCode MBParallelComm::check_all_shared_handles(MBParallelComm **pcs,
                                                      int num_pcs) 
 {
   std::vector<std::vector<std::vector<SharedEntityData> > > shents, send_data;
-  MBErrorCode result;
+  MBErrorCode result = MB_SUCCESS, tmp_result;
 
     // get all shared ent data from each proc to all other procs
   send_data.resize(num_pcs);
   for (int p = 0; p < num_pcs; p++) {
-    result = pcs[p]->pack_shared_handles(send_data[p]);
-    if (MB_SUCCESS != result)
-      return result;
+    tmp_result = pcs[p]->pack_shared_handles(send_data[p]);
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
   }
+  if (MB_SUCCESS != result) return result;
 
     // move the data sorted by sending proc to data sorted by receiving proc
   shents.resize(num_pcs);
@@ -5294,15 +5391,18 @@ MBErrorCode MBParallelComm::check_all_shared_handles(MBParallelComm **pcs,
   }
   
   for (int p = 0; p < num_pcs; p++) {
-    result = pcs[p]->check_my_shared_handles(shents[p]);
-    if (MB_SUCCESS != result) return result;
+    std::ostringstream ostr;
+    ostr << "Processor " << p << " bad entities:";
+    tmp_result = pcs[p]->check_my_shared_handles(shents[p], ostr.str().c_str());
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
   }
   
-  return MB_SUCCESS;
+  return result;
 }
 
 MBErrorCode MBParallelComm::check_my_shared_handles(
-    std::vector<std::vector<SharedEntityData> > &shents) 
+    std::vector<std::vector<SharedEntityData> > &shents,
+                                                    const char *prefix) 
 {
     // now check against what I think data should be
     // get all shared entities
@@ -5325,11 +5425,16 @@ MBErrorCode MBParallelComm::check_my_shared_handles(
     }
 
     if (!local_shared.empty()) 
-      return MB_FAILURE;
+      bad_ents.merge(local_shared);
   }
   
-  if (!bad_ents.empty()) 
+  if (!bad_ents.empty()) {
+    if (prefix) {
+      std::cout << prefix << std::endl;
+      list_entities(bad_ents);
+    }
     return MB_FAILURE;
+  }
 
   else return MB_SUCCESS;
 }

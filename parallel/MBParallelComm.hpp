@@ -540,7 +540,8 @@ public:
       std::vector<std::vector<SharedEntityData> > &send_data);
 
   MBErrorCode check_my_shared_handles(
-      std::vector<std::vector<SharedEntityData> > &shents);
+      std::vector<std::vector<SharedEntityData> > &shents,
+                                      const char *prefix = NULL);
   
     //! set rank for this pcomm; USED FOR TESTING ONLY!
   void set_rank(unsigned int r);
@@ -579,6 +580,12 @@ public:
   
 private:
 
+  MBErrorCode set_sharing_data(MBEntityHandle ent, unsigned char pstatus,
+                               int old_nump, int new_nump,
+                               int *ps, MBEntityHandle *hs);
+  
+  MBErrorCode check_clean_iface(MBRange &allsent);
+  
   void define_mpe();
 
   MBErrorCode get_sent_ents(const bool is_iface,
