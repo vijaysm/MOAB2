@@ -36,13 +36,19 @@ public:
   static MBReaderIface* factory( MBInterface* );
 
     //! load a file
-  MBErrorCode load_file(const char *file_name,
-                        MBEntityHandle& file_set,
-                        const FileOptions&,
-                        const char* set_tag_name,
-                        const int* set_tag_values,
-                        int num_set_tag_values,
-                        const MBTag* file_id_tag );
+  MBErrorCode load_file( const char *file_name,
+                         MBEntityHandle& file_set,
+                         const FileOptions&,
+                         const MBReaderIface::IDTag* subset_list = 0,
+                         int subset_list_length = 0,
+                         const MBTag* file_id_tag = 0 );
+
+  MBErrorCode read_tag_values( const char* file_name,
+                               const char* tag_name,
+                               const FileOptions& opts,
+                               std::vector<int>& tag_values_out,
+                               const IDTag* subset_list = 0,
+                               int subset_list_length = 0 );
   
     //! Constructor
   ReadTetGen(MBInterface* impl = NULL);

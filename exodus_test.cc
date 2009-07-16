@@ -65,6 +65,10 @@ void test_read_shell_side()   { test_read_side( 3, MBQUAD, 9, true ); } // sides
 void test_read_shell_edge()   { test_read_side( 4, MBEDGE, 3 ); } // sideset 4
 void test_read_hex20_side()   { test_read_side( 2, MBQUAD, 8 ); }  // sideset 2
 
+void test_read_block_ids();
+void test_read_sideset_ids();
+void test_read_nodeset_ids();
+
 int main()
 {
   int result = 0;
@@ -87,6 +91,10 @@ int main()
   result += RUN_TEST(test_read_shell_side);
   result += RUN_TEST(test_read_shell_edge);
   result += RUN_TEST(test_read_hex20_side);
+  
+  result += RUN_TEST(test_read_block_ids );
+  result += RUN_TEST(test_read_sideset_ids);
+  result += RUN_TEST(test_read_nodeset_ids);
   
   return result;
 }
@@ -389,5 +397,38 @@ void test_read_side( int id,
     CHECK_EQUAL( 1, (int)adj.size() );
   }
     
+}
+
+void test_read_ids_common( const char* file_name,
+                           const char* tag_name,
+                           const int* expected_vals,
+                           int num_expected )
+{
+  MBCore mb;
+  ReadNCDF reader(&mb);
+  
+  FileOptions opts("");
+  std::vector<int> values;
+  MBErrorCode rval = reader.read_tag_values( file_name, tag_name, opts, values );
+  CHECK_ERR(rval);
+  
+  std::vector<int> expected( expected_vals, expected_vals+num_expected );
+  std::sort( values.begin(), values.end() );
+  std::sort( expected.begin(), expected.end() );
+  CHECK_EQUAL( expected, values );
+}
+
+void test_read_block_ids() {
+  const int expected[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
+  test_read_ids_common( ho_file, MATERIAL_SET_TAG_NAME, expected, sizeof(expected)/sizeof(expected[0]) );
+}
+
+void test_read_sideset_ids() {
+  const int expected[] = { 1, 2, 3, 4 };
+  test_read_ids_common( ho_file, NEUMANN_SET_TAG_NAME, expected, sizeof(expected)/sizeof(expected[0]) );
+}
+
+void test_read_nodeset_ids() {
+  test_read_ids_common( ho_file, DIRICHLET_SET_TAG_NAME, 0, 0 );
 }
 

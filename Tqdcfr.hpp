@@ -295,10 +295,17 @@ public:
   MBErrorCode load_file(const char *file_name,
                         MBEntityHandle& file_set,
                         const FileOptions& opts,
-                        const char* block_tag_name,
-                        const int* block_list,
-                        int num_blocks,
+                        const MBReaderIface::IDTag* subset_list = 0,
+                        int subset_list_length = 0,
                         const MBTag* file_id_tag = 0 );
+
+  MBErrorCode read_tag_values( const char* file_name,
+                               const char* tag_name,
+                               const FileOptions& opts,
+                               std::vector<int>& tag_values_out,
+                               const IDTag* subset_list = 0,
+                               int subset_list_length = 0 );
+                               
   MBErrorCode read_nodeset(ModelEntry *model,
                     NodesetHeader *nodeseth);
   MBErrorCode read_sideset(const double data_version,

@@ -1,6 +1,9 @@
 #include "MBCore.hpp"
 #include "MBRange.hpp"
 #include "TestUtil.hpp"
+#include "ReadHDF5.hpp"
+#include "MBTagConventions.hpp"
+#include "FileOptions.hpp"
 #include <vector>
 #include <stdlib.h>
 #include <iostream>
@@ -134,6 +137,9 @@ void test_read_tagged_nodes();
 
 void test_read_sides();
 
+void test_read_ids();
+
+void test_read_partial_ids();
 
 int main( int argc, char* argv[] )
 {
@@ -169,6 +175,8 @@ int main( int argc, char* argv[] )
   result += RUN_TEST(test_read_tagged_elems);
   result += RUN_TEST(test_read_tagged_nodes);
   result += RUN_TEST(test_read_sides);
+  result += RUN_TEST(test_read_ids);
+  result += RUN_TEST(test_read_partial_ids);
 
   if (argc == 1)
     remove( TEST_FILE );
@@ -1479,4 +1487,91 @@ void test_read_sides()
     CHECK_ERR(rval);
     CHECK_EQUAL( 4, (int)edges.size() );
   }
+}
+
+const int expected_ids[] = { 2, 4, 6, 8, 10, 12, 14, 16, 18 };
+const int expected_vols[] = { 3, 7, 10 };
+
+void write_id_test_file()
+{
+  MBCore moab;
+  MBInterface& mb = moab;
+  MBErrorCode rval;
+  
+    // create 12 entity sets
+  MBEntityHandle sets[12];
+  for (int i = 0; i < 12; ++i) {
+    rval = mb.create_meshset( MESHSET_SET, sets[i] );
+    CHECK_ERR(rval);
+  }
+  
+    // create tag handles
+  MBTag id = 0, gid = 0, dim = 0;
+  mb.tag_create( ID_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, id, 0 );
+  mb.tag_create( GEOM_DIMENSION_TAG_NAME, sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, dim, 0 );
+  mb.tag_create( GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, gid, 0 );
+  
+    // set ID tag on first 10 sets
+  rval = mb.tag_set_data( id, sets, sizeof(expected_ids)/sizeof(int), expected_ids );
+  CHECK_ERR(rval);
+    // set geom dim on all sets, only three of them have dim == 3
+  int num_vol = sizeof(expected_vols)/sizeof(int);
+  int dims[12], ids[12];
+  int v = 0;
+  for (int i = 0; i < 12; ++i) {
+    dims[i] = i % 3 + 1;
+    if (dims[i] == 3) {
+      if (v < num_vol) 
+        ids[i] = expected_vols[v++];
+      else
+        ids[i] = expected_vols[0];
+    }
+    else
+      ids[i] = 100;
+  }
+  rval = mb.tag_set_data( gid, sets, 12, ids );
+  CHECK_ERR(rval);
+  rval = mb.tag_set_data( dim, sets, 12, dims );
+  CHECK_ERR(rval);
+  
+  rval = mb.write_file( TEST_FILE, "MOAB" );
+  CHECK_ERR(rval);
+}
+
+void test_read_ids()
+{
+  write_id_test_file();
+  
+  MBCore moab;
+  ReadHDF5 reader(&moab);
+  FileOptions opts("");
+  MBErrorCode rval;
+  std::vector<int> values;
+  rval = reader.read_tag_values( TEST_FILE, ID_TAG_NAME, opts, values );
+  remove( TEST_FILE );
+  CHECK_ERR(rval);
+  
+  std::sort( values.begin(), values.end() );
+  std::vector<int> expected( expected_ids, expected_ids+sizeof(expected_ids)/sizeof(int) );
+  CHECK_EQUAL( expected, values );
+}
+
+void test_read_partial_ids()
+{
+  write_id_test_file();
+  
+  const int three = 3;
+  MBReaderIface::IDTag vols = { GEOM_DIMENSION_TAG_NAME, &three, 1 };
+  
+  MBCore moab;
+  ReadHDF5 reader(&moab);
+  FileOptions opts("");
+  MBErrorCode rval;
+  std::vector<int> values;
+  rval = reader.read_tag_values( TEST_FILE, GLOBAL_ID_TAG_NAME, opts, values, &vols, 1 );
+  remove( TEST_FILE );
+  CHECK_ERR(rval);
+  
+  std::sort( values.begin(), values.end() );
+  std::vector<int> expected( expected_ids, expected_ids+sizeof(expected_ids)/sizeof(int) );
 }

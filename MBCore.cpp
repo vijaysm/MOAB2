@@ -424,12 +424,23 @@ MBErrorCode MBCore::serial_load_file( const char* file_name,
   MBErrorCode rval;
   const MBReaderWriterSet* set = reader_writer_set();
 
+  MBReaderIface::IDTag subset = { set_tag_name, set_tag_values, num_set_tag_values };
+  MBReaderIface::IDTag* subsets;
+  int num_sets;    
+  if (set_tag_name && num_set_tag_values) {
+    num_sets = 1;
+    subsets = &subset;
+  }
+  else {
+    num_sets = 0;
+    subsets = 0;
+  }
+
     // otherwise try using the file extension to select a reader
   MBReaderIface* reader = set->get_file_extension_reader( file_name );
   if (reader)
-  { 
-    rval = reader->load_file( file_name, file_set, opts, set_tag_name, 
-                              set_tag_values, num_set_tag_values );
+  {
+    rval = reader->load_file( file_name, file_set, opts, subsets, num_sets );
     delete reader;
   }
   else
@@ -441,8 +452,7 @@ MBErrorCode MBCore::serial_load_file( const char* file_name,
       MBReaderIface* reader = iter->make_reader( this );
       if (NULL != reader)
       {
-        rval = reader->load_file( file_name, file_set, opts, set_tag_name,
-                                  set_tag_values, num_set_tag_values );
+        rval = reader->load_file( file_name, file_set, opts, subsets, num_sets );
         delete reader;
         if (MB_SUCCESS == rval)
           break;

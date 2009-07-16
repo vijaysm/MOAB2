@@ -142,13 +142,8 @@ ReadHDF5::~ReadHDF5()
   H5Tclose( handleType );
 }
 
-MBErrorCode ReadHDF5::load_file( const char* filename, 
-                                 MBEntityHandle& file_set, 
-                                 const FileOptions& opts,
-                                 const char* name,
-                                 const int* id_list, 
-                                 const int num_ids,
-                                 const MBTag* file_id_tag )
+MBErrorCode ReadHDF5::set_up_read( const char* filename,
+                                   const FileOptions& opts )
 {
   MBErrorCode rval;
   mhdf_Status status;
@@ -183,12 +178,6 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
   dataBuffer = (char*)malloc( bufferSize );
   if (!dataBuffer)
     return error(MB_MEMORY_ALLOCATION_FAILED);
-
-  rval = iFace->create_meshset( MESHSET_SET, file_set );
-  if (MB_SUCCESS != rval) {
-    free(dataBuffer);
-    return error(rval);
-  }
   
   hid_t file_prop = H5P_DEFAULT;
   if (use_mpio || native_parallel) {
@@ -214,10 +203,9 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
     readUtil->report_error( mhdf_message( &status ));
     free( dataBuffer );
     if (indepIO != H5P_DEFAULT)
-      H5Pclose( indepIO );
+      H5Pclose( indepIO ); 
     if (collIO != indepIO)
       H5Pclose( collIO );
-    iFace->delete_entities( &file_set, 1 );
     return error(MB_FAILURE);
   }
 
@@ -230,30 +218,62 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
     if (collIO != indepIO)
       H5Pclose( collIO );
     mhdf_closeFile( filePtr, &status );
-    iFace->delete_entities( &file_set, 1 );
     return error(MB_FAILURE);
   }
- 
-  if (name) 
-    rval = load_file_partial( file_set, name, id_list, num_ids, opts );
-  else
-    rval = load_file_impl( file_set, opts );
-  mhdf_closeFile( filePtr, &status );
-  filePtr = 0;
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode ReadHDF5::clean_up_read( const FileOptions& )
+{
+  free( dataBuffer );
+  free( fileInfo );
+
   if (indepIO != H5P_DEFAULT)
     H5Pclose( indepIO );
   if (collIO != indepIO)
     H5Pclose( collIO );
-  if (MB_SUCCESS == rval && is_error(status))
-    rval = MB_FAILURE;
 
-  if (file_set && MB_SUCCESS == rval) {
+  mhdf_Status status;
+  mhdf_closeFile( filePtr, &status );
+  filePtr = 0;
+  return is_error(status) ? MB_FAILURE : MB_SUCCESS;
+    return MB_FAILURE;
+}
+
+MBErrorCode ReadHDF5::load_file( const char* filename, 
+                                 MBEntityHandle& file_set, 
+                                 const FileOptions& opts,
+                                 const MBReaderIface::IDTag* subset_list,
+                                 int subset_list_length,
+                                 const MBTag* file_id_tag )
+{
+  MBErrorCode rval;
+ 
+  rval = set_up_read( filename, opts );
+  if (MB_SUCCESS != rval)
+    return rval;
+ 
+  if (subset_list && subset_list_length) 
+    rval = load_file_partial( file_set, subset_list, subset_list_length, opts );
+  else
+    rval = load_file_impl( file_set, opts );
+    
+  MBErrorCode rval2 = clean_up_read( opts );
+  if (rval == MB_SUCCESS && rval2 != MB_SUCCESS)
+    rval = rval2;
+  
+  if (MB_SUCCESS == rval) {
     DEBUGOUT("Creating entity set for file contents\n")
-    MBRange range;
-    MBRange::iterator hint = range.begin();
-    for (IDMap::iterator j = idMap.begin(); j != idMap.end(); ++j)
-      hint = range.insert( hint, j->value, j->value + j->count - 1);
-    rval = iFace->add_entities( file_set, range );
+
+    rval = iFace->create_meshset( MESHSET_SET, file_set );
+    if (MB_SUCCESS == rval) {
+      MBRange range;
+      MBRange::iterator hint = range.begin();
+      for (IDMap::iterator j = idMap.begin(); j != idMap.end(); ++j)
+        hint = range.insert( hint, j->value, j->value + j->count - 1);
+      rval = iFace->add_entities( file_set, range );
+    }
   }
         
       // delete everything that was read in if read failed part-way through
@@ -268,14 +288,13 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
     rval = store_file_ids( *file_id_tag );
   }
   
-  free( dataBuffer );
-  free( fileInfo );
   return rval;
 }
   
 
 
-MBErrorCode ReadHDF5::load_file_impl( MBEntityHandle file_set, const FileOptions& opts )
+MBErrorCode ReadHDF5::load_file_impl( MBEntityHandle file_set, 
+                                      const FileOptions& opts )
 {
   MBErrorCode rval;
   mhdf_Status status;
@@ -360,39 +379,69 @@ DEBUGOUT("Finishing read.\n");
   return rval;
 }
 
+MBErrorCode ReadHDF5::find_int_tag( const char* name, int& index )
+{
+  for (index = 0; index < fileInfo->num_tag_desc; ++index) 
+    if (!strcmp( name, fileInfo->tags[index].name))
+      break;
+
+  if (index == fileInfo->num_tag_desc) {
+    readUtil->report_error( "File does not contain subset tag '%s'", name );
+    return error(MB_TAG_NOT_FOUND);
+  }
+
+  if (fileInfo->tags[index].type != mhdf_INTEGER ||
+      fileInfo->tags[index].size != 1) {
+    readUtil->report_error( "Tag '%s' does not containa single integer value", name );
+    return error(MB_TYPE_OUT_OF_RANGE);
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode ReadHDF5::get_subset_ids( const MBReaderIface::IDTag* subset_list,
+                                      int subset_list_length,
+                                      MBRange& file_ids )
+{
+  MBErrorCode rval;
+  
+  for (int i = 0; i < subset_list_length; ++i) {  
+    
+    int tag_index;
+    rval = find_int_tag( subset_list[i].tag_name, tag_index );
+    if (MB_SUCCESS != rval)
+      return error(rval);
+  
+    MBRange tmp_file_ids;
+    std::vector<int> ids( subset_list[i].tag_values, 
+                          subset_list[i].tag_values + subset_list[i].num_tag_values );
+    std::sort( ids.begin(), ids.end() );
+    rval = search_tag_values( tag_index, ids, tmp_file_ids );
+    if (MB_SUCCESS != rval)
+      return error(rval);
+    
+    if (i == 0) 
+      file_ids.swap( tmp_file_ids );
+    else 
+      file_ids = intersect( tmp_file_ids, file_ids );
+  }
+  
+  return MB_SUCCESS;
+}
+
 MBErrorCode ReadHDF5::load_file_partial( MBEntityHandle file_set, 
-                                         const char* name,
-                                         const int* id_list,
-                                         int num_ids,
+                                         const MBReaderIface::IDTag* subset_list,
+                                         int subset_list_length,
                                          const FileOptions& opts )
 {
   mhdf_Status status;
   
 DEBUGOUT( "RETREIVING TAGGED ENTITIES" );
     
-  int tag_index;
-  for (tag_index = 0; tag_index < fileInfo->num_tag_desc; ++tag_index) 
-    if (!strcmp( name, fileInfo->tags[tag_index].name))
-      break;
-  if (tag_index == fileInfo->num_tag_desc) {
-    readUtil->report_error( "File does not contain subset tag '%s'", name );
-    return error(MB_TAG_NOT_FOUND);
-  }
-  if (fileInfo->tags[tag_index].type != mhdf_INTEGER ||
-      fileInfo->tags[tag_index].size != 1) {
-    readUtil->report_error( "Tag '%s' does not containa single integer value", name );
-    return error(MB_TYPE_OUT_OF_RANGE);
-  }
-  
-    
-  MBErrorCode rval;
   MBRange file_ids;
-  std::vector<int> ids( id_list, id_list+num_ids );
-  std::sort( ids.begin(), ids.end() );
-  rval = search_tag_values( tag_index, ids, file_ids );
-  if (MB_SUCCESS != rval) {
+  MBErrorCode rval = get_subset_ids( subset_list, subset_list_length, file_ids );
+  if (MB_SUCCESS != rval)
     return error(rval);
-  }
   
 DEBUGOUT( "GATHERING ADDITIONAL ENTITIES" );
   
@@ -3196,4 +3245,285 @@ MBErrorCode ReadHDF5::store_file_ids( MBTag tag )
   return MB_SUCCESS;
 }
 
+MBErrorCode ReadHDF5::read_tag_values( const char* file_name,
+                                       const char* tag_name,
+                                       const FileOptions& opts,
+                                       std::vector<int>& tag_values_out,
+                                       const IDTag* subset_list,
+                                       int subset_list_length )
+{
+  MBErrorCode rval;
+  
+  rval = set_up_read( file_name, opts );
+  if (MB_SUCCESS != rval)
+    return error(rval);
+  
+  int tag_index;
+  rval = find_int_tag( tag_name, tag_index );
+  if (MB_SUCCESS != rval) {
+    clean_up_read( opts );
+    return error(rval);
+  }
+  
+  if (subset_list && subset_list_length) {
+    MBRange file_ids;
+    rval = get_subset_ids( subset_list, subset_list_length, file_ids );
+    if (MB_SUCCESS != rval) {
+      clean_up_read( opts );
+      return error(rval);
+    }
     
+    rval = read_tag_values_partial( tag_index, file_ids, tag_values_out );
+    if (MB_SUCCESS != rval) {
+      clean_up_read( opts );
+      return error(rval);
+    }
+  }
+  else {
+    rval = read_tag_values_all( tag_index, tag_values_out );
+    if (MB_SUCCESS != rval) {
+      clean_up_read( opts );
+      return error(rval);
+    }
+  }
+    
+  return clean_up_read( opts );
+}
+
+MBErrorCode ReadHDF5::read_tag_values_partial( int tag_index,
+                                               const MBRange& file_ids,
+                                               std::vector<int>& tag_values )
+{
+  mhdf_Status status;
+  const mhdf_TagDesc& tag = fileInfo->tags[tag_index];
+  long num_ent, num_val;
+  
+    // read sparse values
+  if (tag.have_sparse) {
+    hid_t handles[3];
+    mhdf_openSparseTagData( filePtr, tag.name, &num_ent, &num_val, handles, &status );
+    if (mhdf_isError( &status )) {
+      readUtil->report_error( "%s", mhdf_message( &status ) );
+      return error(MB_FAILURE);
+    }
+    
+      // read all entity handles and fill 'offsets' with ranges of
+      // offsets into the data table for entities that we want.
+    MBRange offsets;
+    long* buffer = reinterpret_cast<long*>(dataBuffer);
+    const long buffer_size = bufferSize/sizeof(long);
+    long remaining = num_ent, offset = 0;
+    while (remaining) {
+      long count = std::min( remaining, buffer_size );
+      mhdf_readSparseTagEntitiesWithOpt( handles[0], offset, count, 
+                                         H5T_NATIVE_LONG, buffer, collIO, 
+                                         &status );
+      if (mhdf_isError( &status )) {
+        readUtil->report_error( "%s", mhdf_message( &status ) );
+        mhdf_closeData( filePtr, handles[1], &status );
+        mhdf_closeData( filePtr, handles[0], &status );
+        return error(MB_FAILURE);
+      }
+      
+      std::sort( buffer, buffer+count );
+      MBRange::iterator ins = offsets.begin();
+      MBRange::const_iterator i = file_ids.begin();
+      for (long j = 0; j < count; ++j) {
+        if (i == file_ids.end())
+          break;
+        while ((long)*i < buffer[j])
+          ++i;
+        if ((long)*i == buffer[j]) {
+          ins = offsets.insert( ins, j+offset, j+offset );
+        }
+      }
+      
+      remaining -= count;
+      offset += count;
+    }
+    
+    mhdf_closeData( filePtr, handles[0], &status );
+    if (mhdf_isError( &status )) {
+      readUtil->report_error( "%s", mhdf_message( &status ) );
+      mhdf_closeData( filePtr, handles[1], &status );
+      return error(MB_FAILURE);
+    }
+
+    tag_values.clear();
+    MBRange::const_pair_iterator p;
+    for (p = offsets.const_pair_begin(); p != offsets.const_pair_end(); ++p) {
+      long offset = p->first;
+      long count = p->second - p->first + 1;
+      size_t prev_size = tag_values.size();
+      tag_values.resize( prev_size + count );
+      mhdf_readSparseTagValuesWithOpt( handles[1], offset, count, H5T_NATIVE_INT,
+                                       &tag_values[prev_size], indepIO, &status );
+      if (mhdf_isError( &status )) {
+        readUtil->report_error( "%s", mhdf_message( &status ) );
+        mhdf_closeData( filePtr, handles[1], &status );
+        return error(MB_FAILURE);
+      }
+    }   
+    
+    mhdf_closeData( filePtr, handles[1], &status );
+    if (mhdf_isError( &status )) {
+      readUtil->report_error( "%s", mhdf_message( &status ) );
+      return error(MB_FAILURE);
+    }
+  }
+  
+  std::sort( tag_values.begin(), tag_values.end() );
+  tag_values.erase( std::unique(tag_values.begin(), tag_values.end()), tag_values.end() );
+  
+    // read dense values
+  std::vector<int> prev_data, curr_data;
+  for (int i = 0; i < tag.num_dense_indices; ++i) {
+    int grp = tag.dense_elem_indices[i];
+    const char* gname = 0;
+    mhdf_EntDesc* desc = 0;
+    if (grp == -1) {
+      gname = mhdf_node_type_handle();
+      desc = &fileInfo->nodes;
+    }
+    else if (grp == -2) {
+      gname = mhdf_set_type_handle();
+      desc = &fileInfo->sets;
+    }
+    else {
+      assert(grp >= 0 && grp < fileInfo->num_elem_desc);
+      gname = fileInfo->elems[grp].handle;
+      desc = &fileInfo->elems[grp].desc;
+    }
+    
+    MBRange::iterator s = file_ids.lower_bound( (MBEntityHandle)(desc->start_id) );
+    MBRange::iterator e = MBRange::lower_bound( s, file_ids.end(),  
+                                   (MBEntityHandle)(desc->start_id) + desc->count );
+    MBRange subset;
+    subset.merge( s, e );
+    
+    hid_t handle = mhdf_openDenseTagData( filePtr, tag.name, gname, &num_val, &status );
+    if (mhdf_isError( &status )) {
+      readUtil->report_error( "%s", mhdf_message( &status ) );
+      return error(MB_FAILURE);
+    }
+    
+    curr_data.clear();
+    MBRange::const_pair_iterator p;
+    for (p = subset.const_pair_begin(); p != subset.const_pair_end(); ++p) {
+      long offset = p->first - desc->start_id;
+      long count = p->second - p->first + 1;
+      size_t prev_size = curr_data.size();
+      curr_data.resize( prev_size + count );
+      mhdf_readDenseTagWithOpt( handle, offset, count, H5T_NATIVE_INT,
+                                &curr_data[prev_size], indepIO, &status );
+      if (mhdf_isError( &status )) {
+        readUtil->report_error( "%s", mhdf_message( &status ) );
+        mhdf_closeData( filePtr, handle, &status );
+        return error(MB_FAILURE);
+      }
+    }   
+    
+    mhdf_closeData( filePtr, handle, &status );
+    if (mhdf_isError( &status )) {
+      readUtil->report_error( "%s", mhdf_message( &status ) );
+      return error(MB_FAILURE);
+    }
+ 
+    std::sort( curr_data.begin(), curr_data.end() );
+    curr_data.erase( std::unique(curr_data.begin(), curr_data.end()), curr_data.end() );
+    
+    prev_data.clear();
+    tag_values.swap( prev_data );
+    std::set_union( prev_data.begin(), prev_data.end(),
+                    curr_data.begin(), curr_data.end(),
+                    std::back_inserter( tag_values ) );
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode ReadHDF5::read_tag_values_all( int tag_index,
+                                           std::vector<int>& tag_values )
+{
+  mhdf_Status status;
+  const mhdf_TagDesc& tag = fileInfo->tags[tag_index];
+  long junk, num_val;
+  
+    // read sparse values
+  if (tag.have_sparse) {
+    hid_t handles[3];
+    mhdf_openSparseTagData( filePtr, tag.name, &junk, &num_val, handles, &status );
+    if (mhdf_isError( &status )) {
+      readUtil->report_error( "%s", mhdf_message( &status ) );
+      return error(MB_FAILURE);
+    }
+    
+    mhdf_closeData( filePtr, handles[0], &status );
+    if (mhdf_isError( &status )) {
+      readUtil->report_error( "%s", mhdf_message( &status ) );
+      mhdf_closeData( filePtr, handles[1], &status );
+      return error(MB_FAILURE);
+    }
+    
+    tag_values.resize( num_val );
+    mhdf_readSparseTagValuesWithOpt( handles[1], 0, num_val, H5T_NATIVE_INT,
+                                     &tag_values[0], collIO, &status );
+    if (mhdf_isError( &status )) {
+      readUtil->report_error( "%s", mhdf_message( &status ) );
+      mhdf_closeData( filePtr, handles[1], &status );
+      return error(MB_FAILURE);
+    }
+    
+    mhdf_closeData( filePtr, handles[1], &status );
+    if (mhdf_isError( &status )) {
+      readUtil->report_error( "%s", mhdf_message( &status ) );
+      return error(MB_FAILURE);
+    }
+  }
+  
+  std::sort( tag_values.begin(), tag_values.end() );
+  tag_values.erase( std::unique(tag_values.begin(), tag_values.end()), tag_values.end() );
+  
+    // read dense values
+  std::vector<int> prev_data, curr_data;
+  for (int i = 0; i < tag.num_dense_indices; ++i) {
+    int grp = tag.dense_elem_indices[i];
+    const char* gname = 0;
+    if (grp == -1)
+      gname = mhdf_node_type_handle();
+    else if (grp == -2)
+      gname = mhdf_set_type_handle();
+    else
+      gname = fileInfo->elems[grp].handle;
+    hid_t handle = mhdf_openDenseTagData( filePtr, tag.name, gname, &num_val, &status );
+    if (mhdf_isError( &status )) {
+      readUtil->report_error( "%s", mhdf_message( &status ) );
+      return error(MB_FAILURE);
+    }
+    
+    curr_data.resize( num_val );
+    mhdf_readDenseTagWithOpt( handle, 0, num_val, H5T_NATIVE_INT, &curr_data[0], collIO, &status );
+    if (mhdf_isError( &status )) {
+      readUtil->report_error( "%s", mhdf_message( &status ) );
+      mhdf_closeData( filePtr, handle, &status );
+      return error(MB_FAILURE);
+    }
+    
+    mhdf_closeData( filePtr, handle, &status );
+    if (mhdf_isError( &status )) {
+      readUtil->report_error( "%s", mhdf_message( &status ) );
+      return error(MB_FAILURE);
+    }
+ 
+    std::sort( curr_data.begin(), curr_data.end() );
+    curr_data.erase( std::unique(curr_data.begin(), curr_data.end()), curr_data.end() );
+    
+    prev_data.clear();
+    tag_values.swap( prev_data );
+    std::set_union( prev_data.begin(), prev_data.end(),
+                    curr_data.begin(), curr_data.end(),
+                    std::back_inserter( tag_values ) );
+  }
+  
+  return MB_SUCCESS;
+}

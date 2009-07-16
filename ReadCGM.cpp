@@ -94,19 +94,32 @@ ReadCGM::~ReadCGM()
   delete myGeomTool;
 }
 
+
+MBErrorCode ReadCGM::read_tag_values( const char* /* file_name */,
+                                      const char* /* tag_name */,
+                                      const FileOptions& /* opts */,
+                                      std::vector<int>& /* tag_values_out */,
+                                      const IDTag* /* subset_list */,
+                                      int /* subset_list_length */ )
+{
+  return MB_NOT_IMPLEMENTED;
+}
+
+
+
 // copy geometry into mesh database
 MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
                       MBEntityHandle& file_set,
                       const FileOptions& opts,
-                      const char* name_subset,
-                      const int*, const int,
+                      const MBReaderIface::IDTag* subset_list,
+                      int subset_list_length,
                       const MBTag* file_id_tag)
 {
   // blocks_to_load and num_blocks are ignored.
   MBErrorCode rval;
   file_set = 0;
 
-  if (name_subset) {
+  if (subset_list && subset_list_length) {
     readUtilIface->report_error( "Reading subset of files not supported for CGM data." );
     return MB_UNSUPPORTED_OPERATION;
   }

@@ -428,22 +428,89 @@ MBErrorCode ReadNCDF::check_file_status( std::string& exodus_file_name,
 }
   
 
+MBErrorCode ReadNCDF::read_tag_values(const char* file_name,
+                                      const char* tag_name,
+                                      const FileOptions& opts,
+                                      std::vector<int>& id_array,
+                                      const IDTag* subset_list,
+                                      int subset_list_length )
+{
+  if (subset_list && subset_list_length) {
+    readMeshIface->report_error( "ExodusII reader supports subset read only by material ID." );
+    return MB_UNSUPPORTED_OPERATION;
+  }
+
+    // 1. Read the header
+  MBErrorCode rval = read_exodus_header( file_name );
+  if (MB_FAILURE == rval) 
+    return rval;
+  
+  int count = 0;
+  const char* prop;
+  const char* blocks   = "eb_prop1";
+  const char* nodesets = "ns_prop1";
+  const char* sidesets = "ss_prop1";
+  
+  if (!strcmp(tag_name, MATERIAL_SET_TAG_NAME)) {
+    count = numberElementBlocks_loading;
+    prop = blocks;
+  }
+  else if (!strcmp(tag_name, DIRICHLET_SET_TAG_NAME)) {
+    count = numberNodeSets_loading;
+    prop = nodesets;
+  }
+  else if (!strcmp(tag_name, NEUMANN_SET_TAG_NAME)) {
+    count = numberSideSets_loading;
+    prop = sidesets;
+  }
+  else {  
+    delete ncFile;
+    ncFile = 0;
+    return MB_TAG_NOT_FOUND;
+  }
+  
+  if (count) {
+    NcVar *nc_var = ncFile->get_var( prop );
+    if (NULL == nc_var || !nc_var->is_valid()) {
+      readMeshIface->report_error("Problem getting prop variable.");
+      rval = MB_FAILURE;
+    }
+    else {
+      id_array.resize( count );
+      NcBool status = nc_var->get(&id_array[0], count);
+      if (0 == status) {
+        readMeshIface->report_error("Problem getting element id vector.");
+        rval = MB_FAILURE;
+      }
+    }
+  }
+  
+  delete ncFile;
+  ncFile = 0;
+  return rval;
+}
+
+
 
 MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
                                 MBEntityHandle& file_set,
                                 const FileOptions& opts,
-                                const char* set_tag_name,
-                                const int *blocks_to_load,
-                                const int num_blocks,
+                                const MBReaderIface::IDTag* subset_list,
+                                int subset_list_length,
                                 const MBTag* file_id_tag)
 {
   MBErrorCode status;
 
-  if (blocks_to_load && !strcmp( set_tag_name, MATERIAL_SET_TAG_NAME )) {
-    readMeshIface->report_error( "Exodus reader supports subset read only by block ID." );
-    return MB_UNSUPPORTED_OPERATION;
+  int num_blocks = 0;
+  const int* blocks_to_load = 0;
+  if (subset_list && subset_list_length) {
+    if (subset_list_length > 1 && !strcmp( subset_list[0].tag_name, MATERIAL_SET_TAG_NAME) ) {
+      readMeshIface->report_error( "ExodusII reader supports subset read only by material ID." );
+      return MB_UNSUPPORTED_OPERATION;
+    }
+    blocks_to_load = subset_list[0].tag_values;
+    num_blocks = subset_list[0].num_tag_values;
   }
-
   
   file_set = 0;
     // this function directs the reading of an exoii file, but doesn't do any of
@@ -517,6 +584,8 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
     // what about properties???
 
   file_set = mCurrentMeshHandle;
+  delete ncFile;
+  ncFile = 0;
   return MB_SUCCESS;
 }
 

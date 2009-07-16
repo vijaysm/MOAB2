@@ -50,20 +50,30 @@ public:
   MBErrorCode load_file( const char* filename,
                          MBEntityHandle& file_set,
                          const FileOptions& opts,
-                         const char* set_tag_name,
-                         const int* set_tag_values,
-                         int num_set_tag_values,
-                         const MBTag* file_id_tag );
+                         const MBReaderIface::IDTag* subset_list = 0,
+                         int subset_list_length = 0,
+                         const MBTag* file_id_tag = 0 );
+
+  MBErrorCode read_tag_values( const char* file_name,
+                               const char* tag_name,
+                               const FileOptions& opts,
+                               std::vector<int>& tag_values_out,
+                               const IDTag* subset_list = 0,
+                               int subset_list_length = 0 );
+
 protected:
 
   MBErrorCode load_file_impl( MBEntityHandle file_set,
                               const FileOptions& opts );
 
   MBErrorCode load_file_partial( MBEntityHandle file_set, 
-                                 const char* set_tag_name,
-                                 const int* set_tag_values,
-                                 int num_set_tag_values,
+                                 const MBReaderIface::IDTag* subset_list,
+                                 int subset_list_length,
                                  const FileOptions& opts );
+
+  MBErrorCode read_tag_values_all( int tag_index, std::vector<int>& results );
+  MBErrorCode read_tag_values_partial( int tag_index, const MBRange& file_ids,
+                                       std::vector<int>& results );
 
 private:
   MBErrorCode init();
@@ -105,6 +115,16 @@ private:
   //! Both are H5P_DEFAULT for serial IO and collective
   //! when reading the entire file on all processors.
   hid_t indepIO, collIO;
+  
+  MBErrorCode set_up_read( const char* file_name, const FileOptions& opts );
+  MBErrorCode clean_up_read( const FileOptions& opts );
+  
+  
+  //! Given a list of tags and values, get the file ids for the
+  //! corresponding entities in the file.
+  MBErrorCode get_subset_ids( const MBReaderIface::IDTag* subset_list,
+                              int subset_list_length,
+                              MBRange& file_ids_out );
   
   MBErrorCode read_nodes( const MBRange& node_file_ids );
   
@@ -389,6 +409,13 @@ private:
      * into a tag value on the entity.
      */
   MBErrorCode store_file_ids( MBTag tag );
+  
+    /**\brief Find index in mhdf_FileDesc* fileInfo for specified tag name
+     *
+     * Given a tag name, find its index in fileInfo and verify that
+     * each tag value is a single integer.
+     */
+  MBErrorCode find_int_tag( const char* name, int& index_out );
 };
 
 #endif

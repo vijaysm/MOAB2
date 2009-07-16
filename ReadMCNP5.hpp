@@ -14,13 +14,19 @@ public:
   // factory method
   static MBReaderIface* factory( MBInterface* );
   
-  MBErrorCode load_file(const char*       fname,
-                        MBEntityHandle    &input_meshset,
-                        const FileOptions &options,
-                        const char*       set_tag_name, /* not used */
-                        const int*        material_set_list,
-                        const int         num_material_sets,
-                        const MBTag*      file_id_tag );
+  MBErrorCode load_file( const char*                 fname,
+                         MBEntityHandle              &input_meshset,
+                         const FileOptions           &options,
+                         const MBReaderIface::IDTag* subset_list = 0,
+                         int                         subset_list_length = 0,
+                         const MBTag*                file_id_tag = 0 );
+
+  MBErrorCode read_tag_values( const char*        file_name,
+                               const char*        tag_name,
+                               const FileOptions& opts,
+                               std::vector<int>&  tag_values_out,
+                               const IDTag*       subset_list = 0,
+                               int                subset_list_length = 0 );
 
   // constructor
   ReadMCNP5(MBInterface* impl = NULL);

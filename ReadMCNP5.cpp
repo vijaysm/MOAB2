@@ -45,16 +45,27 @@ ReadMCNP5::~ReadMCNP5() {
   }
 }
 
+
+MBErrorCode ReadMCNP5::read_tag_values( const char* /* file_name */,
+                                        const char* /* tag_name */,
+                                        const FileOptions& /* opts */,
+                                        std::vector<int>& /* tag_values_out */,
+                                        const IDTag* /* subset_list */,
+                                        int /* subset_list_length */ )
+{
+  return MB_NOT_IMPLEMENTED;
+}
+
+
 // load the file as called by the MBInterface function
 MBErrorCode ReadMCNP5::load_file(const char        *filename, 
                                  MBEntityHandle    &input_meshset, 
                                  const FileOptions &options,
-                                 const char        *set_tag_name,        // not used
-                                 const int         *material_set_list,   // not used
-                                 const int         num_material_sets,    // not used
+                                 const MBReaderIface::IDTag* subset_list,
+                                 int               subset_list_length,
                                  const MBTag*      file_id_tag) {
   // at this time there is no support for reading a subset of the file
-  if (set_tag_name) {
+  if (subset_list && subset_list_length) {
     readMeshIface->report_error( "Reading subset of files not supported for meshtal." );
     return MB_UNSUPPORTED_OPERATION;
   }

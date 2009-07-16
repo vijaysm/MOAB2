@@ -34,6 +34,13 @@ class MBReaderIface
   
     virtual ~MBReaderIface() {}
     
+      /** Struct used to specify subset of file to read */
+    struct IDTag {
+      const char* tag_name;  //!< Name of tag containing integer IDs
+      const int* tag_values; //!< Array of integer ID values
+      int num_tag_values;    //!< Length of tag_values array
+    };
+    
     /**
      *\brief Load mesh from a file.
      *
@@ -41,13 +48,11 @@ class MBReaderIface
      *
      *\param file_name      The file to read.
      *\param file_set       Output: a new entity set containing all data read from file.
-     *\param set_tag_name   If only reading part of the file, the entities
-     *                      to be read will be identified by their values
-     *                      for this integer tag.
-     *\param set_tag_values For the integer tag with the name indicated by
-     *                      set_tag_name, the list of tag values for entities/sets
-     *                      to read.
-     *\param num_set_tag_values The length of the 'set_tag_values' array.
+     *\param subset_list    An array of tag name and value sets specifying
+     *                      the subset of the file to read.  If multiple
+     *                      tags are specified, the sets that match all
+     *                      tags (intersection) should be read.
+     *\param subset_list_length The length of the 'subset_list' array.
      *\param file_id_tag    If specified, reader should store for each entity
      *                      it reads, a unique integer ID for this tag.
      *\author Jason Kraftcheck
@@ -55,11 +60,32 @@ class MBReaderIface
     virtual MBErrorCode load_file( const char* file_name,
                                    MBEntityHandle& file_set,
                                    const FileOptions& opts,
-                                   const char* set_tag_name = 0,
-                                   const int* set_tag_values = 0,
-                                   int num_set_tag_values = 0,
+                                   const IDTag* subset_list = 0,
+                                   int subset_list_length = 0,
                                    const MBTag* file_id_tag = 0 ) = 0;
 
+
+    /**
+     *\brief Read tag values from a file.
+     *
+     * Read the list if all integer tag values from the file for
+     * a tag that is a single integer value per entity.
+     *
+     *\param file_name      The file to read.
+     *\param tag_name       The tag for which to read values
+     *\param tag_values_out Output: The list of tag values.
+     *\param subset_list    An array of tag name and value sets specifying
+     *                      the subset of the file to read.  If multiple
+     *                      tags are specified, the sets that match all
+     *                      tags (intersection) should be read.
+     *\param subset_list_length The length of the 'subset_list' array.
+     */
+    virtual MBErrorCode read_tag_values( const char* file_name,
+                                         const char* tag_name,
+                                         const FileOptions& opts,
+                                         std::vector<int>& tag_values_out,
+                                         const IDTag* subset_list = 0,
+                                         int subset_list_length = 0 ) = 0;
 };
 
 #endif

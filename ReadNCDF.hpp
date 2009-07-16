@@ -69,13 +69,19 @@ public:
                  const char* delimiters );
 
     //! load an ExoII file
-  MBErrorCode load_file(const char *exodus_file_name,
+  MBErrorCode load_file( const char *exodus_file_name,
                          MBEntityHandle& file_set,
                          const FileOptions& opts,
-                         const char* set_tag_name,
-                         const int* blocks_to_load,
-                         const int num_blocks,
-                         const MBTag* file_id_tag = 0);
+                         const MBReaderIface::IDTag* subset_list = 0,
+                         int subset_list_length = 0,
+                         const MBTag* file_id_tag = 0 );
+
+  MBErrorCode read_tag_values( const char* file_name,
+                               const char* tag_name,
+                               const FileOptions& opts,
+                               std::vector<int>& tag_values_out,
+                               const IDTag* subset_list = 0,
+                               int subset_list_length = 0 );
   
    //! Constructor
    ReadNCDF(MBInterface* impl = NULL);

@@ -80,17 +80,33 @@ const ReadGmsh::ElementType typemap[] = {
 const int max_type_int = sizeof(typemap) / sizeof(typemap[0]) - 1;
 
 
+MBErrorCode ReadGmsh::read_tag_values( const char* /* file_name */,
+                                       const char* /* tag_name */,
+                                       const FileOptions& /* opts */,
+                                       std::vector<int>& /* tag_values_out */,
+                                       const IDTag* /* subset_list */,
+                                       int /* subset_list_length */ )
+{
+  return MB_NOT_IMPLEMENTED;
+}
+
+
 MBErrorCode ReadGmsh::load_file( const char* filename, 
                                  MBEntityHandle& file_set,
                                  const FileOptions& ,
-                                 const char* set_tag_name,
-                                 const int* blocks, 
-                                 const int num_blocks,
+                                 const MBReaderIface::IDTag* subset_list,
+                                 int subset_list_length,
                                  const MBTag* file_id_tag )
 {
-  if (!strcmp( set_tag_name, MATERIAL_SET_TAG_NAME )) {
-    readMeshIface->report_error( "GMsh supports subset read only by material ID." );
-    return MB_UNSUPPORTED_OPERATION;
+  int num_blocks = 0;
+  const int* blocks = 0;
+  if (subset_list && subset_list_length) {
+    if (subset_list_length > 1 && !strcmp( subset_list[0].tag_name, MATERIAL_SET_TAG_NAME) ) {
+      readMeshIface->report_error( "GMsh supports subset read only by material ID." );
+      return MB_UNSUPPORTED_OPERATION;
+    }
+    blocks = subset_list[0].tag_values;
+    num_blocks = subset_list[0].num_tag_values;
   }
 
   mCurrentMeshHandle = 0;

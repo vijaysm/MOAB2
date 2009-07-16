@@ -61,17 +61,29 @@ MBErrorCode ReadTetGen::open_file( const std::string& filename,
   return MB_SUCCESS;
 }
 
+
+MBErrorCode ReadTetGen::read_tag_values( const char* /* file_name */,
+                                         const char* /* tag_name */,
+                                         const FileOptions& /* opts */,
+                                         std::vector<int>& /* tag_values_out */,
+                                         const IDTag* /* subset_list */,
+                                         int /* subset_list_length */ )
+{
+  return MB_NOT_IMPLEMENTED;
+}
+
+
 MBErrorCode ReadTetGen::load_file( const char* file_name_c,
                                    MBEntityHandle& file_set,
                                    const FileOptions& opts,
-                                   const char* name,
-                                   const int*, const int,
+                                   const MBReaderIface::IDTag* subset_list,
+                                   int subset_list_length,
                                    const MBTag* file_id_tag )
 {
   std::ifstream node_file, ele_file, face_file, edge_file;
   MBErrorCode rval;
   
-  if (name) {
+  if (subset_list && subset_list_length) {
     readTool->report_error( "Reading subset of files not supported for TetGen." );
     return MB_UNSUPPORTED_OPERATION;
   }
