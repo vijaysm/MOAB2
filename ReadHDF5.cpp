@@ -187,10 +187,10 @@ MBErrorCode ReadHDF5::set_up_read( const char* filename,
     return MB_NOT_IMPLEMENTED;
 #else
     int pcomm_no = 0;
-    result = opts.get_int_option("PARALLEL_COMM", pcomm_no);
-    if (result == MB_TYPE_OUT_OF_RANGE) {
+    rval = opts.get_int_option("PARALLEL_COMM", pcomm_no);
+    if (rval == MB_TYPE_OUT_OF_RANGE) {
       readUtil->report_error("Invalid value for PARALLEL_COMM option");
-      return result;
+      return rval;
     }
     MBParallelComm* myPcomm = MBParallelComm::get_pcomm(iFace, pcomm_no);
     if (0 == myPcomm) {
