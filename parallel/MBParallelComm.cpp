@@ -2457,7 +2457,8 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
 
 MBErrorCode MBParallelComm::resolve_shared_ents(MBEntityHandle this_set,
                                                 int resolve_dim,
-                                                int shared_dim) 
+                                                int shared_dim,
+                                                MBTag* id_tag) 
 {
   MBErrorCode result;
   MBRange proc_ents;
@@ -2487,13 +2488,14 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBEntityHandle this_set,
   
     // must call even if we don't have any entities, to make sure
     // collective comm'n works
-  return resolve_shared_ents(this_set, proc_ents, resolve_dim, shared_dim);
+  return resolve_shared_ents(this_set, proc_ents, resolve_dim, shared_dim, id_tag);
 }
   
 MBErrorCode MBParallelComm::resolve_shared_ents(MBEntityHandle this_set,
                                                 MBRange &proc_ents,
                                                 int resolve_dim,
-                                                int shared_dim) 
+                                                int shared_dim,
+                                                MBTag* id_tag) 
 {
 #ifdef DEBUG_MPE
   define_mpe();
@@ -2554,17 +2556,21 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBEntityHandle this_set,
 
     // global id tag
   MBTag gid_tag; int def_val = -1;
-  result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int),
-                              MB_TAG_DENSE, MB_TYPE_INTEGER, gid_tag,
-                              &def_val, true);
-  if (MB_FAILURE == result) return result;
+  if (id_tag)
+    gid_tag = *id_tag;
+  else {
+    result = mbImpl->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int),
+                                MB_TAG_DENSE, MB_TYPE_INTEGER, gid_tag,
+                                &def_val, true);
+    if (MB_FAILURE == result) return result;
 
-  else if (MB_ALREADY_ALLOCATED != result) {
-      // just created it, so we need global ids
-    result = assign_global_ids(0, skin_dim+1);
-    RRA("Failed assigning global ids.");
+    else if (MB_ALREADY_ALLOCATED != result) {
+        // just created it, so we need global ids
+      result = assign_global_ids(0, skin_dim+1);
+      RRA("Failed assigning global ids.");
+    }
   }
-
+  
     // store index in temp tag; reuse gid_data 
   gid_data.resize(2*skin_ents[0].size());
   int idx = 0;

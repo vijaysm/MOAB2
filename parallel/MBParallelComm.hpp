@@ -267,7 +267,8 @@ public:
   MBErrorCode resolve_shared_ents(MBEntityHandle this_set,
                                   MBRange &proc_ents, 
                                   int resolve_dim = -1,
-                                  int shared_dim = -1);
+                                  int shared_dim = -1,
+                                  MBTag* id_tag = 0);
   
     /** \brief Resolve shared entities between processors
      *
@@ -282,7 +283,8 @@ public:
      */
   MBErrorCode resolve_shared_ents(MBEntityHandle this_set,
                                   int resolve_dim = 3, 
-                                  int shared_dim = -1);
+                                  int shared_dim = -1,
+                                  MBTag* id_tag = 0);
   
   static MBErrorCode resolve_shared_ents(MBParallelComm **pc, 
                                          const unsigned int np, 
