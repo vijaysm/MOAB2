@@ -42,6 +42,31 @@ AM_CONDITIONAL([ENABLE_imesh],[test "xyes" == "x$ENABLE_imesh"])
 
 
 ################################################################################
+#                           PyTAPS
+################################################################################
+AC_ARG_ENABLE([pytaps],[
+AC_HELP_STRING([--enable-pytaps],[Build Python iMesh interface.])
+AC_HELP_STRING([--disable-pytaps],[Don't build Python iMesh interface.])
+],
+[ENABLE_pytaps=yes],
+[ENABLE_pytaps=no]
+)
+
+case $ENABLE_pytaps in
+  yes)
+    if test "x$with_pic" != "xyes"; then
+      AC_MSG_ERROR([Need PIC support for PyTAPS])
+    fi
+    ;;
+  no)
+    ;;
+  *)
+    AC_MSG_ERROR([Invalid argument to --enable-pytaps : $ENABLE_pytaps])
+    ;;
+esac
+AM_CONDITIONAL([ENABLE_pytaps],[test "xyes" == "x$ENABLE_pytaps"])
+
+################################################################################
 #                           Compilers
 ################################################################################
 
@@ -268,7 +293,7 @@ AM_CONDITIONAL([ENABLE_DOXYGEN],[test "x$ENABLE_DOXYGEN" != "xno"])
 #                           Optional Tools
 ###############################################################################
   # Define a macro to avoid typing this for each individual tool
-  # Usage: MB_OPTIOANL_TOOL( name, default )
+  # Usage: MB_OPTIONAL_TOOL( name, default )
   #  name      - name of option
   #  default   - yes/no, $ENABLE_TOOLS overrides this if set
   # Actions:
@@ -900,6 +925,19 @@ else
 fi
 AM_CONDITIONAL(USE_BABEL, [test "xno" != "x$USE_BABEL"])
 
+################################################################################
+#                           PyTAPS libraries (Python/Numpy)
+################################################################################
+if test "x$ENABLE_pytaps" = "xyes"; then
+  AC_ARG_WITH(python,[AC_HELP_STRING([--with-python=DIR],
+          [Specify directory containing Python headers])],
+  [PYTHON_DIR=$withval])
+  AC_ARG_WITH(numpy,[AC_HELP_STRING([--with-numpy=DIR],
+          [Specify directory containing Numpy headers])],
+  [NUMPY_DIR=$withval])
+  AC_SUBST(PYTHON_DIR)
+  AC_SUBST(NUMPY_DIR)
+fi
 
 ################################################################################
 #                           Output Files
@@ -923,7 +961,7 @@ AC_CONFIG_HEADERS([MBCN_FCDefs.h])
 AC_CONFIG_FILES([Makefile 
                  moab.make 
                  testdir.h
-		 parallel/Makefile
+                 parallel/Makefile
                  mhdf/Makefile
                  test/Makefile
                  test/h5file/Makefile
@@ -931,17 +969,18 @@ AC_CONFIG_FILES([Makefile
                  test/obb/Makefile
                  test/perf/Makefile
                  tools/Makefile
-		 tools/iMesh/Makefile
-		 tools/iMesh/iMesh-Defs.inc
-		 tools/iMesh/SIDL/iMesh-SIDL-Defs.inc
-		 tools/iMesh/SIDL/Makefile
+                 tools/iMesh/Makefile
+                 tools/iMesh/iMesh-Defs.inc
+                 tools/iMesh/SIDL/iMesh-SIDL-Defs.inc
+                 tools/iMesh/SIDL/Makefile
                  tools/iMesh/SIDL/common.make
+                 tools/iMesh/python/setup.cfg
                  tools/mbperf/Makefile
                  tools/mbchaco/Makefile
                  tools/mbcoupler/Makefile
-		 tools/mbzoltan/Config.moab
-		 tools/mbzoltan/Makefile
-		 tools/mcnpmit/Makefile
+                 tools/mbzoltan/Config.moab
+                 tools/mbzoltan/Makefile
+                 tools/mcnpmit/Makefile
                  tools/qvdual/Makefile
                  tools/dagmc/Makefile
                  doc/Makefile

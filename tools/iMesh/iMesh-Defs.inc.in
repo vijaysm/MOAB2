@@ -12,7 +12,7 @@ IMESH_FCDEFS = @DEFS@
 IMESH_INCLUDES = -I$(IMESH_INCLUDEDIR)
 
 IMESH_LIBS = $(IMESH_LDFLAGS) -L$(MOAB_LIBDIR) \
-             -L${IMESH_LIBDIR} -liMesh -lMOAB \
+             -L$(IMESH_LIBDIR) -liMesh -lMOAB \
              @NETCDF_LIBS@ @HDF5_LIBS@ @LIBS@ \
              $(IMESH_CXX_LDFLAGS) $(IMESH_CXX_LIBS) \
              @CGM_LDFLAGS@ @CGM_LIBS@

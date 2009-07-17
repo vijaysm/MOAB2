@@ -5,9 +5,15 @@ if USE_BABEL
   babel_DIR = SIDL
 else
   babel_DIR = 
-endif 
+endif
 
-SUBDIRS = . $(babel_DIR)
+if ENABLE_pytaps
+  pytaps_DIR = python
+else
+  pytaps_DIR = 
+endif
+
+SUBDIRS = . $(babel_DIR) $(pytaps_DIR)
 
 INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I.
 

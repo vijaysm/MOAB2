@@ -14,7 +14,7 @@ def pair_fun(pre, post):
     return tmp
 
 def add_imesh_defs(imesh_dir, self):
-        defs = parse_makefile( os.path.join(imesh_dir, 'lib/iMesh-Defs.inc') )
+        defs = parse_makefile( os.path.join(imesh_dir, 'iMesh-Defs.inc') )
 
         lib_match = re.compile(r'(?:(?<=\s)|^)-([lL])\s*(\S*)')
         for match in lib_match.finditer( defs['IMESH_LIBS'] ):

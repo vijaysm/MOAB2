@@ -12,7 +12,8 @@ The PyTAPS setup script supports importing definitions from the
 options ``--imesh-dir=PATH`` to the `build_ext` and `perf_build` commands. For
 example, if your `iMesh-Defs.inc` is located in
 `/usr/local/iMesh/lib/iMesh-Defs.inc`, then ``--imesh-dir`` should be
-`/usr/local/iMesh`.  This options may also be specified in the `setup.cfg` file:
+`/usr/local/iMesh/lib`.  This options may also be specified in the `setup.cfg`
+file:
 
 .. literalinclude:: ../setup.cfg.example
    :language: ini
@@ -70,7 +71,7 @@ options are allowed:
 +--------------------------+--------+---------------------------------------+
 | ``--libraries=LIBS``     | ``-l`` | list of libraries to link to          |
 +--------------------------+--------+---------------------------------------+
-| ``--imesh-dir=PATH``     | N/A    | root location of iMesh implementation |
+| ``--imesh-dir=PATH``     | N/A    | root location of iMesh libraries      |
 +--------------------------+--------+---------------------------------------+
 
 Running the Performance Test
