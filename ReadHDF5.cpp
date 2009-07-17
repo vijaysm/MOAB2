@@ -308,6 +308,9 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
   else
     rval = load_file_impl( file_set, opts );
     
+  if (MB_SUCCESS == rval && file_id_tag)
+    rval = store_file_ids( *file_id_tag );
+    
   MBErrorCode rval2 = clean_up_read( opts );
   if (rval == MB_SUCCESS && rval2 != MB_SUCCESS)
     rval = rval2;
@@ -332,9 +335,6 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
     for (IDMap::iterator i = idMap.begin(); i != idMap.end(); ++i) 
       range.insert( i->value, i->value + i->count - 1 );
     iFace->delete_entities( range );
-  }
-  else if (file_id_tag) {
-    rval = store_file_ids( *file_id_tag );
   }
   
   return rval;
@@ -1772,7 +1772,7 @@ MBErrorCode ReadHDF5::read_child_ids( const MBRange& input_file_ids,
     }
     else {
       mhdf_readSetChildEndIndicesWithOpt( meta_handle, first-1, 1, 
-                                          H5T_NATIVE_LONG, range+1, 
+                                          H5T_NATIVE_LONG, range, 
                                           indepIO, &status );
       if (is_error(status))
         return error(MB_FAILURE);
@@ -1783,6 +1783,8 @@ MBErrorCode ReadHDF5::read_child_ids( const MBRange& input_file_ids,
         return error(MB_FAILURE);
     }
     
+    if (range[0] > range[1]) 
+      return error(MB_FAILURE);
     remaining = range[1] - range[0];
     long offset = range[0] + 1;
     while (remaining) {
@@ -3212,7 +3214,12 @@ void ReadHDF5::convert_range_to_handle( const MBEntityHandle* ranges,
   for (size_t i = 0; i < num_ranges; ++i) {
     long id = ranges[2*i];
     const long end = id + ranges[2*i+1];
+      // we assume that 'ranges' is sorted, but check just in case it isn't.
+    if (it == id_map.end() || it->begin > id)
+      it = id_map.begin();
     it = id_map.lower_bound( it, id_map.end(), id );
+    if (it == id_map.end())
+      continue;
     if (id < it->begin)
       id = it->begin;
     const long off = id - it->begin;
@@ -3221,7 +3228,8 @@ void ReadHDF5::convert_range_to_handle( const MBEntityHandle* ranges,
       merge.insert( it->value + off, it->value + off + count - 1 );
       id += count;
       if (id < end)
-        ++it;
+        if (++it == id_map.end())
+          break;
     }
   }
 }
@@ -3283,8 +3291,8 @@ MBErrorCode ReadHDF5::store_file_ids( MBTag tag )
       handles.insert( range.value, range.value + count - 1 );
       range.value += count;
       range.count -= count;
-      for (long i = 0; i < count; ++i) 
-        buffer[i] = (tag_type)range.begin++;
+      for (long j = 0; j < count; ++j) 
+        buffer[j] = (tag_type)range.begin++;
 
       MBErrorCode rval = iFace->tag_set_data( tag, handles, buffer );
       if (MB_SUCCESS != rval)
@@ -3378,10 +3386,10 @@ MBErrorCode ReadHDF5::read_tag_values_partial( int tag_index,
       MBRange::iterator ins = offsets.begin();
       MBRange::const_iterator i = file_ids.begin();
       for (long j = 0; j < count; ++j) {
+        while (i != file_ids.end() && (long)*i < buffer[j])
+          ++i;
         if (i == file_ids.end())
           break;
-        while ((long)*i < buffer[j])
-          ++i;
         if ((long)*i == buffer[j]) {
           ins = offsets.insert( ins, j+offset, j+offset );
         }
