@@ -64,6 +64,8 @@ case $ENABLE_pytaps in
     AC_MSG_ERROR([Invalid argument to --enable-pytaps : $ENABLE_pytaps])
     ;;
 esac
+AC_MSG_CHECKING([if Python support is to be built])
+AC_MSG_RESULT([$ENABLE_pytaps])
 AM_CONDITIONAL([ENABLE_pytaps],[test "xyes" == "x$ENABLE_pytaps"])
 
 ################################################################################

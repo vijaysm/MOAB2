@@ -1,3 +1,5 @@
 [build_ext]
 imesh-dir = @abs_srcdir@/..
 include-dirs = @PYTHON_DIR@:@NUMPY_DIR@:@abs_top_srcdir@
+[install]
+install-base = @prefix@
