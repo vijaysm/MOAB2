@@ -541,6 +541,11 @@ public:
   MBErrorCode pack_shared_handles(
       std::vector<std::vector<SharedEntityData> > &send_data);
 
+    // check consistency of sharedEnts against their tags and their
+    // vertices' tags
+  MBErrorCode check_local_shared();
+  
+    // check contents of communicated shared entity data against tags
   MBErrorCode check_my_shared_handles(
       std::vector<std::vector<SharedEntityData> > &shents,
                                       const char *prefix = NULL);
