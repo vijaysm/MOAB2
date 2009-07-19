@@ -976,6 +976,7 @@ AC_CONFIG_FILES([Makefile
                  tools/iMesh/SIDL/iMesh-SIDL-Defs.inc
                  tools/iMesh/SIDL/Makefile
                  tools/iMesh/SIDL/common.make
+                 tools/iMesh/python/Makefile
                  tools/iMesh/python/setup.cfg
                  tools/mbperf/Makefile
                  tools/mbchaco/Makefile
