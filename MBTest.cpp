@@ -4323,6 +4323,122 @@ MBErrorCode mb_merge_test(MBInterface *MB)
   return result;
 }
 
+MBErrorCode mb_merge_update_test(MBInterface*)
+{
+  MBCore moab;
+  MBInterface* mb = &moab;
+  MBErrorCode rval;
+  
+    // create two quads with a coincident edge pair
+  double coords[] = { 0, 0, 0,
+                      1, 0, 0,
+                      1, 1, 0,
+                      0, 1, 0,
+                      1, 1, 0,
+                      1, 0, 0,
+                      2, 0, 0,
+                      2, 1, 0 };
+  MBEntityHandle verts[8];
+  for (int i = 0; i < 8; ++i) 
+    mb->create_vertex( coords + 3*i, verts[i] );
+  MBEntityHandle quad1, quad2, edge1, edge2;
+  mb->create_element( MBQUAD, verts, 4, quad1 );
+  mb->create_element( MBQUAD, verts+4, 4, quad2 );
+  mb->create_element( MBEDGE, verts+1, 2, edge1 );
+  mb->create_element( MBEDGE, verts+4, 2, edge2 );
+  
+    // create two tracking sets containing the vertices
+    // and edge of each quad
+  MBEntityHandle set1, set2;
+  mb->create_meshset( MESHSET_TRACK_OWNER, set1 );
+  mb->create_meshset( MESHSET_TRACK_OWNER, set2 );
+  mb->add_entities( set1, verts, 4 );
+  mb->add_entities( set2, verts+4, 4 );
+  mb->add_entities( set1, &edge1, 1 );
+  mb->add_entities( set2, &edge2, 1 );
+  
+    // now merge the coincident edges
+  rval = mb->merge_entities( verts[1], verts[5], false, true );
+  if (MB_SUCCESS != rval) {
+    std::cerr << "Merge failed at " << __FILE__ << ":" << __LINE__ << std::endl;
+    return rval;
+  }
+  rval = mb->merge_entities( verts[2], verts[4], false, true );
+  if (MB_SUCCESS != rval) {
+    std::cerr << "Merge failed at " << __FILE__ << ":" << __LINE__ << std::endl;
+    return rval;
+  }
+  rval = mb->merge_entities( edge1, edge2, false, true );
+  if (MB_SUCCESS != rval) {
+    std::cerr << "Merge failed at " << __FILE__ << ":" << __LINE__ << std::endl;
+    return rval;
+  }
+  
+    // check that there is only one edge and that it has the correct connectivity
+  MBRange r;
+  mb->get_entities_by_type( 0, MBEDGE, r );
+  if (r.size() != 1 || r.front() != edge1) {
+    std::cerr << "Edge merge failed at " << __FILE__ << ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+  std::vector<MBEntityHandle> exp(verts+1, verts+3), act;
+  mb->get_connectivity( &edge1, 1, act );
+  if (exp != act) {
+    std::cerr << "Incorrect conn for edge at " << __FILE__ << ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+  
+    // check that quad connectivity is as expected
+  exp = std::vector<MBEntityHandle>(verts, verts+4);
+  act.clear();
+  mb->get_connectivity( &quad1, 1, act );
+  if (exp != act) {
+    std::cerr << "Incorrect conn for quad at " << __FILE__ << ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+  exp.resize(4);
+  exp[0] = verts[2];
+  exp[1] = verts[1];
+  exp[2] = verts[6];
+  exp[3] = verts[7];
+  act.clear();
+  mb->get_connectivity( &quad2, 1, act );
+  if (exp != act) {
+    std::cerr << "Incorrect conn for quad at " << __FILE__ << ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+  
+    // check that set contents are correctly updated
+  exp = std::vector<MBEntityHandle>(verts, verts+4);
+  exp.push_back( edge1 );
+  act.clear();
+  mb->get_entities_by_handle( set1, act );
+  std::sort( exp.begin(), exp.end() );
+  std::sort( act.begin(), act.end() );
+  if (exp != act) {
+    std::cerr << "Incorrect set contents at " << __FILE__ << ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+  
+  exp.resize(5);
+  exp[0] = verts[2];
+  exp[1] = verts[1];
+  exp[2] = verts[6];
+  exp[3] = verts[7];
+  exp[4] = edge1;
+  act.clear();
+  mb->get_entities_by_handle( set2, act );
+  std::sort( exp.begin(), exp.end() );
+  std::sort( act.begin(), act.end() );
+  if (exp != act) {
+    std::cerr << "Incorrect set contents at " << __FILE__ << ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+
+  return MB_SUCCESS;
+}
+  
+  
 
 MBErrorCode mb_stress_test(MBInterface *MB)
 {
@@ -6040,6 +6156,7 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_poly_adjacency_test );
   RUN_TEST( mb_memory_use_test );
   RUN_TEST( mb_merge_test );
+  RUN_TEST( mb_merge_update_test );
   if (stress_test) RUN_TEST( mb_stress_test );
 
     // summary

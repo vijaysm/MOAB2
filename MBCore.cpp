@@ -1934,7 +1934,7 @@ MBErrorCode MBCore::merge_entities( MBEntityHandle entity_to_keep,
 
   result = aEntityFactory->merge_adjust_adjacencies(entity_to_keep, entity_to_remove);
   
-  if (delete_removed_entity) 
+  if (MB_SUCCESS == result && delete_removed_entity) 
     result = delete_entities(&entity_to_remove, 1);
 
   return result;

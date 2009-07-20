@@ -1339,7 +1339,14 @@ MBErrorCode AEntityFactory::merge_adjust_adjacencies(MBEntityHandle entity_to_ke
     return result;
     // set them all, and if to_entity is a set, add to that one too
   for (unsigned int i = 0; i < adjs.size(); i++) {
-    if(ent_dim == 0)
+    if (TYPE_FROM_HANDLE(adjs[i]) == MBENTITYSET) 
+    {
+      result = this->add_adjacency(entity_to_keep, adjs[i]);
+      if(result != MB_SUCCESS) return result;
+      result = thisMB->add_entities(adjs[i], &entity_to_keep, 1);
+      if(result != MB_SUCCESS) return result;
+    }
+    else if(ent_dim == 0)
     {
       conn.clear();
       result = thisMB->get_connectivity(&adjs[i], 1, conn);
@@ -1355,10 +1362,6 @@ MBErrorCode AEntityFactory::merge_adjust_adjacencies(MBEntityHandle entity_to_ke
     else {
       result = this->add_adjacency(entity_to_keep, adjs[i]);
       if(result != MB_SUCCESS) return result;
-      if (TYPE_FROM_HANDLE(adjs[i]) == MBENTITYSET) {
-        result = thisMB->add_entities(adjs[i], &entity_to_keep, 1);
-        if(result != MB_SUCCESS) return result;
-      }
     }
   }
 
