@@ -66,6 +66,8 @@ private:
 //! switch the basis
   static void SwitchBasis(const int old_basis, const int new_basis);
   
+  static short increasingInts[];
+  
 public:
 
   enum { MAX_NODES_PER_ELEMENT = 27 };
@@ -175,6 +177,17 @@ public:
                                      const int sub_dimension,
                                      const int sub_index,
                                      int sub_entity_conn[]);
+  
+  //! return the vertex indices of the specified sub-entity.
+  //! \param this_type Type of entity for which sub-entity connectivity is being queried
+  //! \param sub_dimension Dimension of sub-entity
+  //! \param sub_index Index of sub-entity
+  //! \param num_sub_ent_vertices the number of vertices in the sub-entity
+  static const short* SubEntityVertexIndices( const MBEntityType this_type, 
+                                              const int sub_dimension,
+                                              const int sub_index,
+                                              MBEntityType& sub_type,
+                                              int& num_sub_ent_vertices );
   
   //! return the node indices of the specified sub-entity.
   //! \param this_topo            The topology of the queried element type
@@ -468,6 +481,25 @@ inline MBEntityType MBCN::SubEntityType(const MBEntityType this_type,
           (Dimension(this_type) == sub_dimension && 0 == index ? this_type :
           mConnectivityMap[this_type][sub_dimension-1].target_type[index]));
 }
+
+inline const short* MBCN::SubEntityVertexIndices( const MBEntityType this_type, 
+                                                  const int sub_dimension,
+                                                  const int index,
+                                                  MBEntityType& sub_type,
+                                                  int& n ) 
+{
+  if (sub_dimension == 0) {
+    n = 1;
+    sub_type = MBVERTEX;
+    return increasingInts + index;
+  }
+  else {
+    const MBCN::ConnMap& map = mConnectivityMap[this_type][sub_dimension-1];
+    sub_type = map.target_type[index];
+    n = map.num_corners_per_sub_element[index];
+    return map.conn[index];
+  }
+}
   
   //! return the connectivity of the specified sub-entity.
 inline void MBCN::SubEntityVertexIndices(const MBEntityType this_type, 
@@ -475,11 +507,10 @@ inline void MBCN::SubEntityVertexIndices(const MBEntityType this_type,
                                          const int index,
                                          int sub_entity_conn[]) 
 {
-  for (int i = 0; i < VerticesPerEntity(SubEntityType(this_type, sub_dimension, index)); i++)
-    sub_entity_conn[i] = (MBVERTEX == this_type && 0 == sub_dimension && 
-                          0 == index) ? 0 : 
-      (0 == sub_dimension ? index :
-      mConnectivityMap[this_type][sub_dimension-1].conn[index][i]);
+  MBEntityType type;
+  int n;
+  const short* indices = SubEntityVertexIndices( this_type, sub_dimension, index, type, n );
+  std::copy( indices, indices+n, sub_entity_conn );
 }
 
 inline bool MBCN::HasMidEdgeNodes(const MBEntityType this_type, 

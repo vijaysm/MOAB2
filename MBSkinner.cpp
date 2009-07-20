@@ -90,7 +90,8 @@ void MBSkinner::initialize()
       result = thisMB->tag_set_data(mDeletableMBTag, &(*iter), 1, &bit);
       assert(MB_SUCCESS == result);
         // add adjacency information too
-      add_adjacency(*iter);
+      if (TYPE_FROM_HANDLE(*iter) != MBVERTEX)
+        add_adjacency(*iter);
     }
   }
 }
@@ -265,47 +266,39 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
 
   MBRange::const_iterator iter, end_iter;
   end_iter = source_entities.end();
-  const MBEntityHandle *tmp_conn, *conn;
+  const MBEntityHandle *conn;
   MBEntityHandle match;
 
   direction direct;
   MBErrorCode result;
     // assume we'll never have more than 32 vertices on a facet (checked
     // with assert later)
-  static MBEntityHandle sub_conn[32];
-  static std::vector<MBEntityHandle> tmp_conn_vec;
-  int num_nodes;
+  MBEntityHandle sub_conn[32];
+  std::vector<MBEntityHandle> tmp_conn_vec;
+  int num_nodes, num_sub_nodes, num_sides;
+  const short *sub_indices;
+  MBEntityType sub_type;
 
   // for each source entity
   for(iter = source_entities.begin(); iter != end_iter; ++iter)
   {
     // get the connectivity of this entity
-    result = thisMB->get_connectivity(*iter, tmp_conn, num_nodes, false);
-    if (MB_SUCCESS == result)
-      conn = tmp_conn;
-    else {
-        // that didn't work, possibly because it's a structured mesh
-        // which doesn't store connectivity explicitly; use a connect
-        // vector instead
-      tmp_conn_vec.clear();
-      result = thisMB->get_connectivity(&(*iter), 1, tmp_conn_vec, false);
-      if (MB_SUCCESS != result) return MB_FAILURE;
-      conn = &tmp_conn_vec[0];
-      num_nodes = tmp_conn_vec.size();
-    }
+    result = thisMB->get_connectivity(*iter, conn, num_nodes, false, &tmp_conn_vec);
+    if (MB_SUCCESS != result)
+      return result;
     
     type = thisMB->type_from_handle(*iter);
     MBRange::iterator seek_iter;
     MBRange dum_elems, dum_sub_elems;
     
     // get connectivity of each n-1 dimension entity
-    const struct MBCN::ConnMap* conn_map = &(MBCN::mConnectivityMap[type][mTargetDim-1]);
-    for(int i=0; i<conn_map->num_sub_elements; i++)
+    num_sides = MBCN::NumSubEntities( type, mTargetDim );
+    for(int i=0; i<num_sides; i++)
     {
-      int num_sub_nodes = conn_map->num_corners_per_sub_element[i];
+      sub_indices = MBCN::SubEntityVertexIndices( type, mTargetDim, i, sub_type, num_sub_nodes );
       assert(num_sub_nodes <= 32);
       for(int j=0; j<num_sub_nodes; j++)
-        sub_conn[j] = conn[conn_map->conn[i][j]];
+        sub_conn[j] = conn[sub_indices[j]];
       
       if (use_adjs) {
         dum_elems.clear();
@@ -365,8 +358,8 @@ MBErrorCode MBSkinner::find_skin(const MBRange &source_entities,
         
           // see if we can match this connectivity with
           // an existing entity
-        find_match( conn_map->target_type[i], sub_conn, num_sub_nodes, match, direct );
-  
+        find_match( sub_type, sub_conn, num_sub_nodes, match, direct );
+        
           // if there is no match, create a new entity
         if(match == 0)
         {
@@ -436,6 +429,12 @@ void MBSkinner::find_match( MBEntityType type,
                              MBSkinner::direction &direct)
 {
   match = 0;
+
+  if (type == MBVERTEX) {
+    match = *conn;
+    direct = FORWARD;
+    return;
+  }
 
   const MBEntityHandle *iter = std::min_element(conn, conn+num_nodes);
 
@@ -646,12 +645,16 @@ MBErrorCode MBSkinner::classify_2d_boundary( const MBRange &boundary,
   end_iter = boundary.end();
 
   std::vector<MBEntityHandle> conn;
-  static MBEntityHandle sub_conn[32];
+  static MBEntityHandle sub_conn[2];
   MBEntityHandle match;
 
   MBRange edge_list;
   MBRange boundary_nodes;
   MBSkinner::direction direct;
+  
+  MBEntityType sub_type;
+  int num_edge, num_sub_ent_vert;
+  const short* edge_verts;
   
   // now, process each entity in the boundary
 
@@ -670,16 +673,18 @@ MBErrorCode MBSkinner::classify_2d_boundary( const MBRange &boundary,
     
     // get connectivity of each n-1 dimension entity (edge in this case)
     const struct MBCN::ConnMap* conn_map = &(MBCN::mConnectivityMap[type][0]);
-    for(int i=0; i<conn_map->num_sub_elements; i++)
+    num_edge = MBCN::NumSubEntities( type, 1 );
+    for(int i=0; i<num_edge; i++)
     {
+      edge_verts = MBCN::SubEntityVertexIndices( type, 1, i, sub_type, num_sub_ent_vert );
+      assert( sub_type == MBEDGE && num_sub_ent_vert == 2 );
+      sub_conn[0] = conn[edge_verts[0]];
+      sub_conn[1] = conn[edge_verts[1]];
       int num_sub_nodes = conn_map->num_corners_per_sub_element[i];
-      assert(num_sub_nodes <= 32);
-      for(int j=0; j<num_sub_nodes; j++)
-        sub_conn[j] = conn[conn_map->conn[i][j]];
       
       // see if we can match this connectivity with
       // an existing entity
-      find_match( conn_map->target_type[i], sub_conn, num_sub_nodes, match, direct );
+      find_match( MBEDGE, sub_conn, num_sub_nodes, match, direct );
   
       // if there is no match, create a new entity
       if(match == 0)
