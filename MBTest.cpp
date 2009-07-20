@@ -6033,7 +6033,203 @@ MBErrorCode mb_memory_use_test( MBInterface* )
   return MB_SUCCESS;
 }
   
+MBErrorCode mb_skin_curve_test( MBInterface* )
+{
+  MBErrorCode rval;
+  MBCore moab;
+  MBInterface *mb = &moab;
+  
+  std::vector<MBEntityHandle> verts;
+  for (unsigned i = 0; i < 10; ++i) {
+    double coords[] = { i, 0, 0 };
+    MBEntityHandle h;
+    mb->create_vertex( coords, h );
+    verts.push_back(h);
+  }
+  MBRange edges;
+  for (unsigned i = 1; i < verts.size(); ++i) {
+    MBEntityHandle conn[] = { verts[i-1], verts[i] };
+    MBEntityHandle h;
+    mb->create_element( MBEDGE, conn, 2, h );
+    edges.insert(h);
+  }
+  
+  MBRange skin;
+  MBSkinner tool(mb);
+  rval = tool.find_skin( edges, 0, skin );
+  if (MB_SUCCESS != rval) {
+    std::cerr << "Skinner failure at " __FILE__ ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+  if (skin.size() != 2) {
+    std::cerr << "Skinner bad result at " __FILE__ ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
 
+  if (verts.front() > verts.back())
+    std::swap( verts.front(), verts.back() );
+  if (skin.front() != verts.front() ||
+      skin.back()  != verts.back()) {
+    std::cerr << "Skinner bad result at " __FILE__ ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+
+  return MB_SUCCESS;
+}
+
+MBErrorCode mb_skin_surface_test( MBInterface* )
+{
+  MBErrorCode rval;
+  MBCore moab;
+  MBInterface *mb = &moab;
+  
+    /* Create 4 of 5 faces of a wedge: */
+    /*
+            4
+           /|\
+          / | \
+         /  |  \
+        /   2   \
+       3.../.\...5
+       |  /   \  |
+       | /     \ |
+       |/       \|
+       0_________1
+     */
+     
+  const double coords[][3] = { { 0, 0, 0 },
+                               { 2, 0, 0 },
+                               { 1, 0, 1 },
+                               { 0, 2, 0 },
+                               { 2, 2, 0 },
+                               { 1, 2, 1 } };
+  MBEntityHandle verts[6];
+  for (unsigned i = 0; i < 6; ++i)
+    mb->create_vertex( coords[i], verts[i] );
+
+  MBEntityHandle faces[4];
+  MBEntityHandle tri[] = { verts[0], verts[1], verts[2] };
+  MBEntityHandle quad1[] = { verts[0], verts[1], verts[5], verts[3] };
+  MBEntityHandle quad2[] = { verts[1], verts[5], verts[4], verts[2] };
+  MBEntityHandle quad3[] = { verts[2], verts[4], verts[3], verts[0] };
+  mb->create_element( MBTRI, tri, 3, faces[0] );
+  mb->create_element( MBQUAD, quad1, 4, faces[1] );
+  mb->create_element( MBQUAD, quad2, 4, faces[2] );
+  mb->create_element( MBQUAD, quad3, 4, faces[3] );
+  MBRange source;
+  std::copy( faces, faces+4, mb_range_inserter(source) );
+  
+    // Now skin the mesh.  The only missing face is the 
+    // back triangle (verts 3, 4, & 5) so the skin should
+    // be the edges bordering that face.
+  
+  MBRange skin;
+  MBSkinner tool(mb);
+  rval = tool.find_skin( source, 1, skin );
+  if (MB_SUCCESS != rval) {
+    std::cerr << "Skinner failure at " __FILE__ ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+  if (skin.size() != 3 || !skin.all_of_type(MBEDGE)) {
+    std::cerr << "Skinner bad result at " __FILE__ ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+
+    // Check each edge
+  std::vector<MBEntityHandle> conn[3];
+  rval = mb->get_connectivity( &skin.front(), 1, conn[0] );
+  rval = mb->get_connectivity( &*++skin.begin(), 1, conn[1] );
+  rval = mb->get_connectivity( &skin.back(), 1, conn[2] );
+  for (int i = 0; i < 3; ++i)
+    if (conn[i][0] > conn[i][1])
+      std::swap(conn[i][0], conn[i][1]);
+
+  for (int i = 0; i < 3; ++i) {
+    MBEntityHandle s = verts[i+3], e = verts[(i+1)%3 + 3];
+    if (s > e)
+      std::swap(s,e);
+    int j = 0; 
+    for (j = 0; j < 3; ++j) 
+      if (conn[j][0] == s && conn[j][1] == e)
+        break;
+    
+    if (j == 3) {
+      std::cerr << "Skin does not contain edge [" << s << "," << e << "] at " 
+                << __FILE__ ":" << __LINE__ << std::endl;
+      return MB_FAILURE;
+    }
+  }
+
+  return MB_SUCCESS;
+}
+
+MBErrorCode mb_skin_volume_test( MBInterface* )
+{
+  MBErrorCode rval;
+  MBCore moab;
+  MBInterface *mb = &moab;
+  
+    /* A 2 adjacent hexes hexes */
+    /*
+          9-----10----11
+         /     /     /|
+        /     /     / |
+       6-----7-----8..5
+       | .   | .   | /
+       |.    |.    |/
+       0-----1-----2
+     */
+     
+  const double coords[][3] = { { 0, 0, 0 },
+                               { 1, 0, 0 },
+                               { 2, 0, 0 },
+                               { 0, 1, 0 },
+                               { 1, 1, 0 },
+                               { 2, 1, 0 },
+                               { 0, 0, 1 },
+                               { 1, 0, 1 },
+                               { 2, 0, 1 },
+                               { 0, 1, 1 },
+                               { 1, 1, 1 },
+                               { 2, 1, 1 } };
+  MBEntityHandle verts[12];
+  for (unsigned i = 0; i < 12; ++i)
+    mb->create_vertex( coords[i], verts[i] );
+
+  MBEntityHandle hex1c[] = { verts[0], verts[1], verts[4], verts[3],
+                          verts[6], verts[7], verts[10], verts[9] };
+  MBEntityHandle hex2c[] = { verts[1], verts[2], verts[5], verts[4],
+                          verts[7], verts[8], verts[11], verts[10] };
+  MBEntityHandle hex1, hex2;
+  mb->create_element( MBHEX, hex1c, 8, hex1 );
+  mb->create_element( MBHEX, hex2c, 8, hex2 );
+  MBRange source;
+  source.insert( hex1 );
+  source.insert( hex2 );
+    
+    // get all quads and shared face
+  MBRange tmp, all_faces;
+  mb->get_adjacencies( source, 2, true, all_faces, MBInterface::UNION );
+  mb->get_adjacencies( source, 2, true, tmp, MBInterface::INTERSECT );
+  assert(tmp.size() == 1);
+  MBRange non_shared = subtract( all_faces, tmp );
+  
+    // Now skin the mesh.  
+  
+  MBRange skin;
+  MBSkinner tool(mb);
+  rval = tool.find_skin( source, 2, skin );
+  if (MB_SUCCESS != rval) {
+    std::cerr << "Skinner failure at " __FILE__ ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+  if (skin != non_shared) {
+    std::cerr << "Skinner bad result at " __FILE__ ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+
+  return MB_SUCCESS;
+}
 
 int number_tests = 0;
 int number_tests_failed = 0;
@@ -6155,6 +6351,9 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_range_seq_intersect_test );
   RUN_TEST( mb_poly_adjacency_test );
   RUN_TEST( mb_memory_use_test );
+  RUN_TEST( mb_skin_curve_test );
+  RUN_TEST( mb_skin_surface_test );
+  RUN_TEST( mb_skin_volume_test );
   RUN_TEST( mb_merge_test );
   RUN_TEST( mb_merge_update_test );
   if (stress_test) RUN_TEST( mb_stress_test );
