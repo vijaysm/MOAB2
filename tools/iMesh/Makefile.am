@@ -83,43 +83,11 @@ install-data-hook:
 	echo "IMESH_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 
-
-FPFX=iMesh
-SEDEXPR = 's/^[[:space:]]*void[[:space:]][[:space:]]*$(FPFX)_\([a-z][_a-zA-Z0-9]*\)[[:space:]]*(.*$$/$(FPFX)_\1/p'
 iMesh_protos.h: iMesh.h
-	echo '#include "MBCN_FCDefs.h"' > $@
-	echo '#ifdef FC_FUNC_' >> $@
-	echo >> $@
-	for func in `$(SED) -n $(SEDEXPR) $<`; do \
-	  lower=`echo $$func | tr '[:upper:]' '[:lower:]'`; \
-          upper=`echo $$func | tr '[:lower:]' '[:upper:]'`; \
-	  echo "#define $$func FC_FUNC_( $$lower, $$upper )" >> $@; \
-        done
-	echo >> $@
-	echo "#endif" >> $@
+	$(srcdir)/mkprotos.sh iMesh $< $@
 
 iMesh_extensions_protos.h: iMesh_extensions.h
-	echo '#include "MBCN_FCDefs.h"' > $@
-	echo '#ifdef FC_FUNC_' >> $@
-	echo >> $@
-	for func in `$(SED) -n $(SEDEXPR) $<`; do \
-	  lower=`echo $$func | tr '[:upper:]' '[:lower:]'`; \
-          upper=`echo $$func | tr '[:lower:]' '[:upper:]'`; \
-	  echo "#define $$func FC_FUNC_( $$lower, $$upper )" >> $@; \
-        done
-	echo >> $@
-	echo "#endif" >> $@
+	$(srcdir)/mkprotos.sh iMesh $< $@
 
-PFPFX=iMeshP
-PSEDEXPR = 's/^[[:space:]]*void[[:space:]][[:space:]]*$(PFPFX)_\([a-z][_a-zA-Z0-9]*\)[[:space:]]*(.*$$/$(PFPFX)_\1/p'
 iMeshP_protos.h: iMeshP.h
-	echo '#include "MBCN_FCDefs.h"' > $@
-	echo '#ifdef FC_FUNC_' >> $@
-	echo >> $@
-	for func in `$(SED) -n $(PSEDEXPR) $<`; do \
-	  lower=`echo $$func | tr '[:upper:]' '[:lower:]'`; \
-          upper=`echo $$func | tr '[:lower:]' '[:upper:]'`; \
-	  echo "#define $$func FC_FUNC_( $$lower, $$upper )" >> $@; \
-        done
-	echo >> $@
-	echo "#endif" >> $@
+	$(srcdir)/mkprotos.sh iMeshP $< $@

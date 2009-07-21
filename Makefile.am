@@ -15,6 +15,7 @@ if PARALLEL
 endif
 SUBDIRS += . test tools doc doxygen 
 
+BUILT_SOURCES = MBCN_protos.h
 
 # Things to build
 lib_LTLIBRARIES = libMOAB.la 
@@ -239,6 +240,7 @@ libMOAB_la_include_HEADERS = \
   MBAdaptiveKDTree.hpp \
   MBBSPTree.hpp \
   MBCN.hpp \
+  MBCN.h \
   MBCN_FCDefs.h \
   MBCN_protos.h \
   MBCartVect.hpp \
@@ -267,6 +269,9 @@ libMOAB_la_include_HEADERS = \
   ReadWriteDefines.h \
   WriteTemplate.hpp \
   $(MOAB_EXTRA_HDRS)
+
+MBCN_protos.h: MBCN.h
+	$(srcdir)/tools/iMesh/mkprotos.sh MBCN $< $@ MBCN_FCDefs.h
 
 CPPFLAGS += -DSRCDIR=$(srcdir)
 
