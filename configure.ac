@@ -68,7 +68,7 @@ SNL_TEMPLATE_SPECIALIZATION
 SNL_TEMPLATE_FUNC_SPECIALIZATION
 DEFINES="$DEFINES $TEMPLATE_SPECIALIZATION $TEMPLATE_FUNC_SPECIALIZATION"
 
-if test "x" != "x$FC"; then
+if test "xno" != "x$CONFIGURE_FORTRAN"; then
   AC_FC_WRAPPERS
 fi
 
@@ -1083,8 +1083,9 @@ AC_OUTPUT
 
 AC_MSG_RESULT([C:   $CC $CFLAGS $CPPFLAGS])
 AC_MSG_RESULT([C++: $CXX $CXXFLAGS $CPPFLAGS])
-AC_MSG_RESULT([Fortran: $FC $FCFLAGS])
-
+if test "xno" != "x$CONFIGURE_FORTRAN"; then
+  AC_MSG_RESULT([Fortran: $FC $FCFLAGS])
+fi
 
 if test "x$GRAPHVIZ_MISSING" = "xyes"; then
   AC_MSG_WARN([Could not find GraphViz library.  Build will FAIL!!! Try \"--with-graphviz=DIR\"])
