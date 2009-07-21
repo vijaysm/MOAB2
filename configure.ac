@@ -214,35 +214,40 @@ else
 fi
 rm -f check.py
 
-if test "xPYTHON" != "x"; then
+if test "x$PYTHON" != "x"; then
  
     # Allow user to specify location of python includes
-  AC_ARG_WITH(python-includes,[AC_HELP_STRING([--python-includes=DIR],
+  AC_ARG_WITH(python-includes,[AC_HELP_STRING([--with-python-includes=DIR],
           [Specify directory containing Python headers])],
           [PYTHON_DIR="$withval"],[PYTHON_DIR=])
 
-    # If user did not specify, try to guess
-  if test "x" = "x$PYTHON_DIR"; then
-    AC_MSG_CHECKING([for location of python headers])
+    # Get the default Python include dir containing pyconfig.h
+    # Note: Python does this automatically via distutils
+  AC_MSG_CHECKING([for location of python headers])
 cat >check.py <<'ENDPYINCTEST'
 import sys
 minor = sys.hexversion >> 16 & 0xff
 major = sys.hexversion >> 24
 print "%s/include/python%d.%d" % (sys.prefix,major,minor)
 ENDPYINCTEST
-    if pydir_out=`$PYTHON check.py`; then
-      rm -f check.py
-      PYTHON_DIR="$pydir_out"
-      AC_MSG_RESULT("$PYTHON_DIR")
-    else
-      rm -f check.py
-      AC_MSG_ERROR("python interpretor is broken?")
-    fi
+  if pydir_out=`$PYTHON check.py`; then
+    rm -f check.py
+    PYCONFIG_DIR="$pydir_out"
+    AC_MSG_RESULT($PYCONFIG_DIR)
+  else
+    rm -f check.py
+    AC_MSG_ERROR("python interpretor is broken?")
   fi
-  
+
+    # If user did not specify an include dir, use the default
+  if test "x" = "x$PYTHON_DIR"; then
+    PYTHON_DIR=PYCONFIG_DIR
+  fi
+
     # Check for expected header in python include dir
   old_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS -I$PYTHON_DIR"
+  CPPFLAGS="$CPPFLAGS -I$PYTHON_DIR -I$PYCONFIG_DIR"
+  AC_CHECK_HEADER([pyconfig.h],[],[PYTHON_DIR=; AC_MSG_WARN([mis-detected python include dir])],[])
   AC_CHECK_HEADER([Python.h],[],[PYTHON_DIR=; AC_MSG_WARN([mis-detected python include dir])],[])
   CPPFLAGS="$old_CPPFLAGS"
   
@@ -280,7 +285,7 @@ ENDNUMPYTEST
     # Check for expected headers in NUMPY_DIR
     
     old_CPPFLAGS="$CPPFLAGS"
-    CPPFLAGS="$CPPFLAGS -I$NUMPY_DIR -I$PYTHON_DIR"
+    CPPFLAGS="$CPPFLAGS -I$NUMPY_DIR -I$PYTHON_DIR -I$PYCONFIG_DIR"
     AC_CHECK_HEADER([numpy/arrayobject.h],[],[NUMPY_DIR=; AC_MSG_WARN([mis-detected NumPy include dir])],[#include "Python.h"])
     CPPFLAGS="$old_CPPFLAGS"
   fi
