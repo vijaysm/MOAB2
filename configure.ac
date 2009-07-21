@@ -38,35 +38,8 @@ case $enableval in
 esac
 AC_MSG_CHECKING([if iMesh support is to be built])
 AC_MSG_RESULT([$ENABLE_imesh])
-AM_CONDITIONAL([ENABLE_imesh],[test "xyes" == "x$ENABLE_imesh"])
+AM_CONDITIONAL([ENABLE_imesh],[test "xyes" = "x$ENABLE_imesh"])
 
-
-################################################################################
-#                           PyTAPS
-################################################################################
-AC_ARG_ENABLE([pytaps],[
-AC_HELP_STRING([--enable-pytaps],[Build Python iMesh interface.])
-AC_HELP_STRING([--disable-pytaps],[Don't build Python iMesh interface.])
-],
-[ENABLE_pytaps=yes],
-[ENABLE_pytaps=no]
-)
-
-case $ENABLE_pytaps in
-  yes)
-    if test "x$with_pic" != "xyes"; then
-      AC_MSG_ERROR([Need PIC support for PyTAPS])
-    fi
-    ;;
-  no)
-    ;;
-  *)
-    AC_MSG_ERROR([Invalid argument to --enable-pytaps : $ENABLE_pytaps])
-    ;;
-esac
-AC_MSG_CHECKING([if Python support is to be built])
-AC_MSG_RESULT([$ENABLE_pytaps])
-AM_CONDITIONAL([ENABLE_pytaps],[test "xyes" == "x$ENABLE_pytaps"])
 
 ################################################################################
 #                           Compilers
@@ -218,6 +191,137 @@ if test "x$WITH_MPI" != "xno"; then
 fi
 AM_CONDITIONAL(USE_MPI, [test "xno" != "x$WITH_MPI"])
 AM_CONDITIONAL(USE_MPIEXEC, [test "x$MPIEXEC" != "xtrue"])
+
+################################################################################
+#                           Python
+################################################################################
+
+AC_ARG_VAR([PYTHON],[Python interpretper])
+AC_CHECK_PROG([PYTHON],[python],[python])
+
+# Check if python interpreter works
+AC_MSG_CHECKING([if python works])
+cat >check.py <<'ENDPYTEST'
+from math import *
+aTuple = ('robots', 77, 93, 'try')
+sqrt(aTuple[[1]])
+ENDPYTEST
+if ${PYTHON} check.py >/dev/null 2>&1; then
+  AC_MSG_RESULT([yes])
+else
+  AC_MSG_RESULT([NO])
+  PYTHON=
+fi
+rm -f check.py
+
+if test "xPYTHON" != "x"; then
+ 
+    # Allow user to specify location of python includes
+  AC_ARG_WITH(python-includes,[AC_HELP_STRING([--python-includes=DIR],
+          [Specify directory containing Python headers])],
+          [PYTHON_DIR="$withval"],[PYTHON_DIR=])
+
+    # If user did not specify, try to guess
+  if test "x" = "x$PYTHON_DIR"; then
+    AC_MSG_CHECKING([for location of python headers])
+cat >check.py <<'ENDPYINCTEST'
+import sys
+minor = sys.hexversion >> 16 & 0xff
+major = sys.hexversion >> 24
+print "%s/include/python%d.%d" % (sys.prefix,major,minor)
+ENDPYINCTEST
+    if pydir_out=`$PYTHON check.py`; then
+      rm -f check.py
+      PYTHON_DIR="$pydir_out"
+      AC_MSG_RESULT("$PYTHON_DIR")
+    else
+      rm -f check.py
+      AC_MSG_ERROR("python interpretor is broken?")
+    fi
+  fi
+  
+    # Check for expected header in python include dir
+  old_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS -I$PYTHON_DIR"
+  AC_CHECK_HEADER([Python.h],[],[PYTHON_DIR=; AC_MSG_WARN([mis-detected python include dir])],[])
+  CPPFLAGS="$old_CPPFLAGS"
+  
+    # Check that NumPy module is installed
+  HAVE_NUMPY=no
+  AC_MSG_CHECKING([for NumPy module])
+  if "${PYTHON}" -c "import numpy.core" >/dev/null 2>&1; then
+    HAVE_NUMPY=yes
+  fi
+  AC_MSG_RESULT($HAVE_NUMPY)
+  
+  if test yes = $HAVE_NUMPY; then
+  
+      # Allow user to specify location of NumPy includes
+    AC_ARG_WITH(numpy,[AC_HELP_STRING([--with-numpy=DIR],
+            [Specify directory containing Numpy include directory])],
+            [NUMPY_DIR="$withval"],[NUMPY_DIR=])
+
+      # If numpy directory was not specified, guess
+    if test "x" = "x$NUMPY_DIR"; then
+      AC_MSG_CHECKING([for location of NumPy includes])
+      if test -d "${PYTHON_DIR}/numpy"; then
+        NUMPY_DIR="${PYTHON_DIR}"
+      else
+cat >check.py <<'ENDNUMPYTEST'
+import numpy.core
+print numpy.core
+ENDNUMPYTEST
+        NUMPY_DIR=`$PYTHON check.py | cut -d "'" -f 4 | sed -e 's/__init__.pyc/include/'`
+        rm -f check.py
+      fi
+      AC_MSG_RESULT([$NUMPY_DIR])
+    fi
+    
+    # Check for expected headers in NUMPY_DIR
+    
+    old_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS -I$NUMPY_DIR -I$PYTHON_DIR"
+    AC_CHECK_HEADER([numpy/arrayobject.h],[],[NUMPY_DIR=; AC_MSG_WARN([mis-detected NumPy include dir])],[#include "Python.h"])
+    CPPFLAGS="$old_CPPFLAGS"
+  fi
+fi
+
+AC_SUBST(PYTHON)
+AC_SUBST(PYTHON_DIR)
+AC_SUBST(NUMPY_DIR)
+
+
+################################################################################
+#                           PyTAPS
+################################################################################
+AC_ARG_ENABLE([pytaps],[
+AC_HELP_STRING([--enable-pytaps],[Build Python iMesh interface.])
+AC_HELP_STRING([--disable-pytaps],[Don't build Python iMesh interface.])
+],
+[ENABLE_pytaps="$enableval"],
+[ENABLE_pytaps=no]
+)
+
+case "x$ENABLE_pytaps" in
+  xyes)
+#    if test "x$with_pic" != "xyes"; then
+#      AC_MSG_ERROR([Need PIC support for PyTAPS])
+#    fi
+    test "x"   != "x$PYTHON"       || AC_MSG_ERROR([Cannot build pytaps w/out python])
+    test "x"   != "x$PYTHON_DIR"   || AC_MSG_ERROR([Pytaps requires python C includes])
+    test "xyes" = "x$HAVE_NUMPY"   || AC_MSG_ERROR([Pytaps requires NumPy module])
+    test "x"   != "x$NUMPY_DIR"    || AC_MSG_ERROR([Pytaps requires NumPy C includes])
+    test "xyes" = "x$ENABLE_imesh" || AC_MSG_ERROR([PyTAPS requires iMesh])
+    ;;
+  xno)
+    ;;
+  *)
+    AC_MSG_ERROR([Invalid argument to --enable-pytaps : $ENABLE_pytaps])
+    ;;
+esac
+AC_MSG_CHECKING([if Python support is to be built])
+AC_MSG_RESULT([$ENABLE_pytaps])
+AM_CONDITIONAL([ENABLE_pytaps],[test "xyes" = "x$ENABLE_pytaps"])
 
 ################################################################################
 #                              HDF5 OPTIONS
@@ -926,20 +1030,6 @@ else
   USE_BABEL=no
 fi
 AM_CONDITIONAL(USE_BABEL, [test "xno" != "x$USE_BABEL"])
-
-################################################################################
-#                           PyTAPS libraries (Python/Numpy)
-################################################################################
-if test "x$ENABLE_pytaps" = "xyes"; then
-  AC_ARG_WITH(python,[AC_HELP_STRING([--with-python=DIR],
-          [Specify directory containing Python headers])],
-  [PYTHON_DIR=$withval])
-  AC_ARG_WITH(numpy,[AC_HELP_STRING([--with-numpy=DIR],
-          [Specify directory containing Numpy headers])],
-  [NUMPY_DIR=$withval])
-  AC_SUBST(PYTHON_DIR)
-  AC_SUBST(NUMPY_DIR)
-fi
 
 ################################################################################
 #                           Output Files
