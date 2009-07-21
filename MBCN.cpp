@@ -15,7 +15,7 @@
 
 #include "MBCN.hpp"
 #include "MBCNArrays.hpp"
-#include "MBCN_protos.h"
+#include "MBCN.h"
 #include <assert.h>
 #include <string.h>
 
