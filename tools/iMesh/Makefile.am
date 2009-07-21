@@ -64,6 +64,7 @@ libiMesh_la_includedir = $(includedir)
 
 libiMesh_la_LIBADD = $(top_builddir)/libMOAB.la
 
+EXTRA_DIST = mkprotos.sh
 
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put 
