@@ -113,23 +113,16 @@ esac
 if test "xno" != "x$CHECK_CC"; then
   AC_PROG_CC( [$CC_LIST] )
   SNL_CC_FLAGS
-else
-  CC=
 fi
 AC_PROG_CPP
 if test "xno" != "x$CHECK_CXX"; then
   AC_PROG_CXX( [$CXX_LIST] )
   AC_PROG_CXXCPP
   SNL_CXX_FLAGS
-else
-  CXX=
 fi
 if test "xno" != "x$CHECK_FC"; then
   AC_PROG_FC( [$FC_LIST] )
   AC_PROG_F77( [$F77_LIST] )
-else
-  FC=
-  F77=
 fi
 
 # Try to determine compiler-specific flags.  This must be done
