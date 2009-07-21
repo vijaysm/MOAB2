@@ -66,7 +66,7 @@ case "x$WITH_MPI" in
     F77_LIST="mpif77"
     ;;
   x*)
-    if test -z "$CC";then
+    if test "x" = "x$CC"; then
       for prog in mpicc mpcc; do
         if test -x ${WITH_MPI}/bin/$prog; then
           CC="${WITH_MPI}/bin/$prog"
@@ -76,7 +76,7 @@ case "x$WITH_MPI" in
     else
       CC_LIST="$CC"
     fi
-    if test -z "$CXX";then
+    if test "x" = "x$CXX"; then
       for prog in mpicxx mpiCC mpCC mpicxx; do
         if test -x ${WITH_MPI}/bin/$prog; then
           CXX="${WITH_MPI}/bin/$prog"
@@ -86,7 +86,7 @@ case "x$WITH_MPI" in
     else
       CXX_LIST="$CXX"
     fi
-    if test -z "$FC";then
+    if test "x" = "x$FC"; then
       for prog in mpif90; do
         if test -x ${WITH_MPI}/bin/$prog; then
           FC="${WITH_MPI}/bin/$prog"
@@ -96,7 +96,7 @@ case "x$WITH_MPI" in
     else
       FC_LIST="$FC"
     fi
-    if test -z "$F77";then
+    if test "x" = "x$F77";then
       for prog in mpif77; do
         if test -x ${WITH_MPI}/bin/$prog; then
           F77="${WITH_MPI}/bin/$prog"
