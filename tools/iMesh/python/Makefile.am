@@ -11,14 +11,14 @@ INSTALL_FLAGS = --skip-build \
                 --install-scripts="$(bindir)"
 
 all:
-	python setup.py build_ext $(BUILD_EXT_FLAGS)
-	python setup.py build
+	$(PYTHON) setup.py build_ext $(BUILD_EXT_FLAGS)
+	$(PYTHON) setup.py build
 
 install:
-	python setup.py install $(INSTALL_FLAGS)
+	$(PYTHON) setup.py install $(INSTALL_FLAGS)
 
 clean:
-	python setup.py clean --all
+	$(PYTHON) setup.py clean --all
 
 EXTRA_DIST = doc perf pkg test tools \
              common.h \
