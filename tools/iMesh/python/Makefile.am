@@ -19,3 +19,19 @@ install:
 
 clean:
 	python setup.py clean --all
+
+EXTRA_DIST = doc perf pkg test tools \
+             common.h \
+             errors.h \
+             iBase.c \
+             iBase_Python.h \
+             iMesh.c \
+	     iMesh_entSet.inl \
+	     iMesh_iter.inl \
+	     iMesh_Python.h \
+	     iMesh_tag.inl \
+	     Makefile.am \
+	     numpy_extensions.h \
+	     numpy_extensions.inl \
+	     setup.cfg.example \
+	     setup.py
