@@ -2173,10 +2173,12 @@ MBErrorCode MBCore::side_number(const MBEntityHandle parent,
                                 child) - parent_conn;
     if (child_index == num_parent_vertices) {
       side_number = -1;
+      sense = 0;
       return MB_SUCCESS;
     }
     else {
       side_number = child_index;
+      sense = 1; 
       return MB_SUCCESS;
     }
   }
