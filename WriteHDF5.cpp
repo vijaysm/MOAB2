@@ -341,6 +341,12 @@ MBErrorCode WriteHDF5::write_file( const char* filename,
 {
   mhdf_Status status;
 
+  bufferSize = WRITE_HDF5_BUFFER_SIZE;
+  int buf_size;
+  MBErrorCode rval = opts.get_int_option( "BUFFER_SIZE", buf_size );
+  if (MB_SUCCESS == rval && buf_size >= 24)
+    bufferSize = buf_size;
+
     // Allocate internal buffer to use when gathering data to write.
   dataBuffer = (char*)malloc( bufferSize );
   if (!dataBuffer)
@@ -974,7 +980,7 @@ MBErrorCode WriteHDF5::write_sets( )
       ++chunk_size;
     content_chunk_size = (bufferSize - 4*sizeof(long)*chunk_size)/sizeof(id_t);
     assert(content_chunk_size>0);
-    content_buffer = reinterpret_cast<id_t*>(buffer+chunk_size);
+    content_buffer = reinterpret_cast<id_t*>(buffer+4*chunk_size);
   }
     
   MBRange set_contents;

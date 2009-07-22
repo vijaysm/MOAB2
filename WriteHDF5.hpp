@@ -212,7 +212,7 @@ public:
 protected:
   
   //! The size of the data buffer (<code>dataBuffer</code>).
-  const int bufferSize;
+  size_t bufferSize;
   //! A memory buffer to use for all I/O operations.
   char* dataBuffer;
 
