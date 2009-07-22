@@ -4,7 +4,6 @@ BUILD_EXT_FLAGS = -I"$(PYTHON_DIR):$(NUMPY_DIR):$(abs_top_builddir)" \
 INSTALL_FLAGS = --skip-build \
                 --prefix="$(prefix)" \
                 --exec-prefix="$(exec_prefix)" \
-                --install-lib="$(libdir)" \
                 --install-headers="$(includedir)" \
                 --install-data="$(datadir)" \
                 --install-scripts="$(bindir)"
