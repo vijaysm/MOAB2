@@ -270,8 +270,8 @@ libMOAB_la_include_HEADERS = \
   WriteTemplate.hpp \
   $(MOAB_EXTRA_HDRS)
 
-MBCN_protos.h: MBCN.h
-	$(srcdir)/tools/iMesh/mkprotos.sh MBCN $< $@ MBCN_FCDefs.h
+MBCN_protos.h: MBCN.h tools/iMesh/mkprotos.sh
+	$(srcdir)/tools/iMesh/mkprotos.sh MBCN $< $@
 
 CPPFLAGS += -DSRCDIR=$(srcdir)
 

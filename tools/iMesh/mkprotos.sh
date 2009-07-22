@@ -1,6 +1,6 @@
 #!/bin/sh
 
-default_fcdefs=iBase_FCDefs.h
+default_fcdefs=MBCN_FCDefs.h
 case "x$1" in
   x|x-*)
     echo "Usage: $0 <PREFIX> <INPUT_FILE> <OUTPUT_FILE> [<FCDEFS>=${default_fcdefs}]"
