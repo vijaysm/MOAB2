@@ -21,7 +21,7 @@ DEFS += $(DEFINES) -DSRCDIR=$(srcdir)
 
 # stuff for c test program
 check_PROGRAMS = testc_cbind
-EXTRA_DIST = brick.vtk quad9.cub
+EXTRA_DIST = brick.vtk quad9.cub mkprotos.sh
 
 libiMesh_la_SOURCES = \
 	iMesh_MOAB.cpp \
@@ -64,8 +64,6 @@ libiMesh_la_includedir = $(includedir)
 
 libiMesh_la_LIBADD = $(top_builddir)/libMOAB.la
 
-EXTRA_DIST = mkprotos.sh
-
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put 
 # in $(libdir).  Define a $(cfgdir) to get around automake's
@@ -84,11 +82,11 @@ install-data-hook:
 	echo "IMESH_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 
-iMesh_protos.h: iMesh.h
+iMesh_protos.h: iMesh.h mkprotos.sh
 	$(srcdir)/mkprotos.sh iMesh $< $@
 
-iMesh_extensions_protos.h: iMesh_extensions.h
+iMesh_extensions_protos.h: iMesh_extensions.h mkprotos.sh
 	$(srcdir)/mkprotos.sh iMesh $< $@
 
-iMeshP_protos.h: iMeshP.h
+iMeshP_protos.h: iMeshP.h mkprotos.sh
 	$(srcdir)/mkprotos.sh iMeshP $< $@
