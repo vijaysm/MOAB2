@@ -2,11 +2,12 @@ BUILD_EXT_FLAGS = -I"$(PYTHON_DIR):$(NUMPY_DIR):$(abs_top_builddir)" \
                   --imesh-dir="$(abs_builddir)/.."
 
 INSTALL_FLAGS = --skip-build \
-                --prefix="$(prefix)" \
-                --exec-prefix="$(exec_prefix)" \
-                --install-headers="$(includedir)" \
-                --install-data="$(datadir)" \
-                --install-scripts="$(bindir)"
+                --prefix="$(DESTDIR)$(prefix)" \
+                --exec-prefix="$(DESTDIR)$(exec_prefix)" \
+                --install-headers="$(DESTDIR)$(includedir)" \
+                --install-lib="$(DESTDIR)$(pylibdir)" \
+                --install-data="$(DESTDIR)$(datadir)" \
+                --install-scripts="$(DESTDIR)$(bindir)"
 
 all:
 	$(PYTHON) $(abs_srcdir)/setup.py build_ext $(BUILD_EXT_FLAGS)

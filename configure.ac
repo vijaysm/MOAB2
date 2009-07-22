@@ -201,18 +201,14 @@ AC_CHECK_PROG([PYTHON],[python],[python])
 
 # Check if python interpreter works
 AC_MSG_CHECKING([if python works])
-cat >check.py <<'ENDPYTEST'
-from math import *
-aTuple = ('robots', 77, 93, 'try')
-sqrt(aTuple[[1]])
-ENDPYTEST
-if ${PYTHON} check.py >/dev/null 2>&1; then
+py_command="from math import *; aTuple = ('robots', 77, 93, 'try'); \
+  sqrt(aTuple[[1]])"
+if ${PYTHON} -c "$py_command" >/dev/null 2>&1; then
   AC_MSG_RESULT([yes])
 else
   AC_MSG_RESULT([NO])
   PYTHON=
 fi
-rm -f check.py
 
 if test "x$PYTHON" != "x"; then
  
@@ -224,25 +220,25 @@ if test "x$PYTHON" != "x"; then
     # Get the default Python include dir containing pyconfig.h
     # Note: Python does this automatically via distutils
   AC_MSG_CHECKING([for location of python headers])
-cat >check.py <<'ENDPYINCTEST'
-import sys
-minor = sys.hexversion >> 16 & 0xff
-major = sys.hexversion >> 24
-print "%s/include/python%d.%d" % (sys.prefix,major,minor)
-ENDPYINCTEST
-  if pydir_out=`$PYTHON check.py`; then
-    rm -f check.py
+  py_command="import sys; print '%s/include/python%d.%d' % (sys.prefix, \
+    sys.version_info[[0]],sys.version_info[[1]])"
+  if pydir_out=`$PYTHON -c "$py_command"`; then
     PYCONFIG_DIR="$pydir_out"
     AC_MSG_RESULT($PYCONFIG_DIR)
   else
-    rm -f check.py
-    AC_MSG_ERROR("python interpretor is broken?")
+    AC_MSG_ERROR("python interpreter is broken?")
   fi
 
     # If user did not specify an include dir, use the default
   if test "x" = "x$PYTHON_DIR"; then
     PYTHON_DIR=PYCONFIG_DIR
   fi
+
+    # Determine location for python libraries
+  py_command="import sys; print '$libdir/python%d.%d/site-packages' % (\
+    sys.version_info[[0]],sys.version_info[[1]])"
+  pylibdir=`$PYTHON -c "$py_command"`
+  AC_SUBST(pylibdir)
 
     # Check for expected header in python include dir
   old_CPPFLAGS="$CPPFLAGS"
@@ -272,12 +268,8 @@ ENDPYINCTEST
       if test -d "${PYTHON_DIR}/numpy"; then
         NUMPY_DIR="${PYTHON_DIR}"
       else
-cat >check.py <<'ENDNUMPYTEST'
-import numpy.core
-print numpy.core
-ENDNUMPYTEST
-        NUMPY_DIR=`$PYTHON check.py | cut -d "'" -f 4 | sed -e 's/__init__.pyc/include/'`
-        rm -f check.py
+        py_command="import numpy.core; print numpy.core.__path__[[0]]"
+        NUMPY_DIR=`$PYTHON -c "$py_command"`/include
       fi
       AC_MSG_RESULT([$NUMPY_DIR])
     fi
