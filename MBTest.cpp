@@ -6032,8 +6032,32 @@ MBErrorCode mb_memory_use_test( MBInterface* )
   
   return MB_SUCCESS;
 }
-  
+
+MBErrorCode mb_skin_curve_test_common( bool use_adj );
+
 MBErrorCode mb_skin_curve_test( MBInterface* )
+  { return mb_skin_curve_test_common( false ); }
+
+MBErrorCode mb_skin_curve_adj_test( MBInterface* )
+  { return mb_skin_curve_test_common( true ); }
+
+MBErrorCode mb_skin_surface_test_common( bool use_adj );
+
+MBErrorCode mb_skin_surface_test( MBInterface* )
+  { return mb_skin_surface_test_common( false ); }
+
+MBErrorCode mb_skin_surface_adj_test( MBInterface* )
+  { return mb_skin_surface_test_common( true ); }
+
+MBErrorCode mb_skin_volume_test_common( bool use_adj );
+
+MBErrorCode mb_skin_volume_test( MBInterface* )
+  { return mb_skin_volume_test_common( false ); }
+
+MBErrorCode mb_skin_volume_adj_test( MBInterface* )
+  { return mb_skin_volume_test_common( true ); }
+  
+MBErrorCode mb_skin_curve_test_common( bool use_adj )
 {
   MBErrorCode rval;
   MBCore moab;
@@ -6056,7 +6080,7 @@ MBErrorCode mb_skin_curve_test( MBInterface* )
   
   MBRange skin;
   MBSkinner tool(mb);
-  rval = tool.find_skin( edges, 0, skin );
+  rval = tool.find_skin( edges, 0, skin, use_adj );
   if (MB_SUCCESS != rval) {
     std::cerr << "Skinner failure at " __FILE__ ":" << __LINE__ << std::endl;
     return MB_FAILURE;
@@ -6073,11 +6097,34 @@ MBErrorCode mb_skin_curve_test( MBInterface* )
     std::cerr << "Skinner bad result at " __FILE__ ":" << __LINE__ << std::endl;
     return MB_FAILURE;
   }
+  
+  
+    // now test again with only one edge
+  MBEntityHandle edge = edges.front();
+  MBRange range(edge,edge);
+  skin.clear();
+  rval = tool.find_skin( range, 0, skin, use_adj );
+  if (MB_SUCCESS != rval) {
+    std::cerr << "Skinner failure at " __FILE__ ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+  if (skin.size() != 2) {
+    std::cerr << "Skinner bad result at " __FILE__ ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+
+  MBRange verts2;
+  mb->get_connectivity( &edge, 1, verts2 );
+  if (skin.front() != verts2.front() ||
+      skin.back()  != verts2.back()) {
+    std::cerr << "Skinner bad result at " __FILE__ ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
 
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_skin_surface_test( MBInterface* )
+MBErrorCode mb_skin_surface_test_common( bool use_adj )
 {
   MBErrorCode rval;
   MBCore moab;
@@ -6125,7 +6172,7 @@ MBErrorCode mb_skin_surface_test( MBInterface* )
   
   MBRange skin;
   MBSkinner tool(mb);
-  rval = tool.find_skin( source, 1, skin );
+  rval = tool.find_skin( source, 1, skin, use_adj );
   if (MB_SUCCESS != rval) {
     std::cerr << "Skinner failure at " __FILE__ ":" << __LINE__ << std::endl;
     return MB_FAILURE;
@@ -6163,7 +6210,7 @@ MBErrorCode mb_skin_surface_test( MBInterface* )
   return MB_SUCCESS;
 }
 
-MBErrorCode mb_skin_volume_test( MBInterface* )
+MBErrorCode mb_skin_volume_test_common( bool use_adj )
 {
   MBErrorCode rval;
   MBCore moab;
@@ -6218,7 +6265,7 @@ MBErrorCode mb_skin_volume_test( MBInterface* )
   
   MBRange skin;
   MBSkinner tool(mb);
-  rval = tool.find_skin( source, 2, skin );
+  rval = tool.find_skin( source, 2, skin, use_adj );
   if (MB_SUCCESS != rval) {
     std::cerr << "Skinner failure at " __FILE__ ":" << __LINE__ << std::endl;
     return MB_FAILURE;
@@ -6352,8 +6399,11 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_poly_adjacency_test );
   RUN_TEST( mb_memory_use_test );
   RUN_TEST( mb_skin_curve_test );
+  RUN_TEST( mb_skin_curve_adj_test );
   RUN_TEST( mb_skin_surface_test );
+  RUN_TEST( mb_skin_surface_adj_test );
   RUN_TEST( mb_skin_volume_test );
+  RUN_TEST( mb_skin_volume_adj_test );
   RUN_TEST( mb_merge_test );
   RUN_TEST( mb_merge_update_test );
   if (stress_test) RUN_TEST( mb_stress_test );
