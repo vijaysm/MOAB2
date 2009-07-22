@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <sstream>
 #include <stdlib.h>
 #include <math.h>
 
@@ -118,15 +119,45 @@ void test_file_set()
 }
 
 
-void recursive_build_tree( MBInterface& mb,
+int coords_by_idx( int idx, double coords[][3] )
+{
+  coords[0][0] = idx;
+  coords[0][1] = 0;
+  coords[0][2] = 0;
+  coords[1][0] = 0;
+  coords[1][1] = idx;
+  coords[1][2] = 0;
+  coords[2][0] = 0;
+  coords[2][1] = 0;
+  coords[2][2] = idx;
+  coords[3][0] = 3.14*idx;
+  coords[3][1] = 1;
+  coords[3][2] = 1;
+  coords[4][0] = 1;
+  coords[4][1] = 3.14*idx;
+  coords[4][2] = 1;
+  coords[5][0] = 1;
+  coords[5][1] = 1;
+  coords[5][2] = 3.14*idx;
+  return idx % 5  + 1;
+}
+
+void recursive_build_tree( int max_depth,
+                           MBInterface& mb,
                            MBTag tag,
                            MBEntityHandle p,
                            int depth,
                            int& idx )
 {
   MBErrorCode rval = mb.tag_set_data( tag, &p, 1, &idx ); CHECK_ERR(rval);
+  
+  MBRange verts;
+  double coords[6][3];
+  int num_vtx = coords_by_idx( idx, coords );
+  rval = mb.create_vertices( &coords[0][0], num_vtx, verts );
+  rval = mb.add_entities( p, verts );
   ++idx;
-  if (depth == 20)
+  if (depth == max_depth)
     return;
 
   MBEntityHandle l, r;
@@ -135,11 +166,12 @@ void recursive_build_tree( MBInterface& mb,
   rval = mb.add_parent_child( p, l ); CHECK_ERR(rval);
   rval = mb.add_parent_child( p, r ); CHECK_ERR(rval);
   
-  recursive_build_tree( mb, tag, l, depth+1, idx );
-  recursive_build_tree( mb, tag, r, depth+1, idx );
+  recursive_build_tree( max_depth, mb, tag, l, depth+1, idx );
+  recursive_build_tree( max_depth, mb, tag, r, depth+1, idx );
 }
  
-void recursive_check_tree( MBInterface& mb,
+void recursive_check_tree( int max_depth,
+                           MBInterface& mb,
                            MBTag tag,
                            MBEntityHandle p,
                            int depth,
@@ -148,12 +180,44 @@ void recursive_check_tree( MBInterface& mb,
   int id;
   MBErrorCode rval = mb.tag_get_data( tag, &p, 1, &id); CHECK_ERR(rval);
   CHECK_EQUAL( idx, id );
+  
+  MBRange verts;
+  double coords[6][3];
+  int num_vtx = coords_by_idx( idx, coords );
+  rval = mb.get_entities_by_handle( p, verts );
+  CHECK( verts.all_of_type( MBVERTEX ) );
+  CHECK_EQUAL( num_vtx, (int)verts.size() );
+  double coords2[6][3];
+  rval = mb.get_coords( verts, &coords2[0][0] );
+  std::vector<bool> match(6,true);
+  for (int i = 0; i < num_vtx; ++i) {
+    match[i] = false;
+    for (int j = 0; j < num_vtx; ++j) {
+      if (!match[j]) {
+        double d[3] = { coords[i][0] - coords2[j][0],
+                        coords[i][1] - coords2[j][1],
+                        coords[i][2] - coords2[j][2] };
+        double ds = d[0]*d[0] + d[1]*d[1] + d[2]*d[2];
+        if (ds < 1e-12) {
+          match[j] = true;
+          break;
+        }
+      }
+    }
+  }
+  CHECK( match[0] );
+  CHECK( match[1] );
+  CHECK( match[2] );
+  CHECK( match[3] );
+  CHECK( match[4] );
+  CHECK( match[5] );
+ 
   ++idx;
   
   std::vector<MBEntityHandle> children, parents;
 
   rval = mb.get_child_meshsets( p, children ); CHECK_ERR(rval);
-  if (depth == 20) {
+  if (depth == max_depth) {
     CHECK_EQUAL( (size_t)0, children.size() );
     return;
   }
@@ -171,12 +235,12 @@ void recursive_check_tree( MBInterface& mb,
   CHECK_EQUAL( (size_t)1, parents.size() );
   CHECK_EQUAL( p, parents.front() );
   
-  recursive_check_tree( mb, tag, l, depth+1, idx );
-  recursive_check_tree( mb, tag, r, depth+1, idx );
+  recursive_check_tree( max_depth, mb, tag, l, depth+1, idx );
+  recursive_check_tree( max_depth, mb, tag, r, depth+1, idx );
 }
  
 
-void test_big_tree() 
+void test_tree( int max_depth ) 
 {
   MBErrorCode rval;
   MBCore moab;
@@ -191,16 +255,19 @@ void test_big_tree()
   // create a binary tree to a depth of 20 (about 1 million nodes)
   rval = mb.create_meshset( MESHSET_SET, root ); CHECK_ERR(rval);
   int idx = 0;
-  recursive_build_tree( mb, tag, root, 1, idx );
+  recursive_build_tree( max_depth, mb, tag, root, 1, idx );
   const int last_idx = idx;
   std::cerr << "Created binary tree containing " << last_idx << " nodes." << std::endl;
   
+  std::ostringstream str;
+  str << "tree-" << max_depth << ".h5m";
+  
   // write file and read back in
-  rval = mb.write_file( "big_tree.h5m" ); CHECK_ERR(rval);
+  rval = mb.write_file( str.str().c_str(), 0, "BUFFER_SIZE=1024" ); CHECK_ERR(rval);
   mb.delete_mesh();
-  rval = mb.load_file( "big_tree.h5m", root );
+  rval = mb.load_file( str.str().c_str(), root );
   if (!keep_file)
-    remove( "big_tree.h5m" );
+    remove( str.str().c_str() );
   CHECK_ERR(rval);
   
   // get tree root
@@ -214,10 +281,24 @@ void test_big_tree()
   
   // check that tree is as we expect it
   idx = 0;
-  recursive_check_tree( mb, tag, root, 1, idx );
+  recursive_check_tree( max_depth, mb, tag, root, 1, idx );
   CHECK_EQUAL( last_idx, idx );
 }
 
+void test_small_tree() 
+{ 
+  int max_depth = 5;
+  const char* str = getenv("MAX_DEPTH");
+  if (str) {
+    max_depth = atoi(str);
+    CHECK(max_depth > 0);
+  }
+  test_tree( max_depth );
+}
+
+void test_big_tree()
+  { test_tree( 20 ); }
+  
 int main(int argc, char* argv[])
 {
   bool do_big_tree_test = false;
@@ -237,6 +318,7 @@ int main(int argc, char* argv[])
   int exitval = 0;
   exitval += RUN_TEST( test_ranged_set_with_holes );
   exitval += RUN_TEST( test_file_set );
+  exitval += RUN_TEST( test_small_tree );
   if (do_big_tree_test) {
     exitval += RUN_TEST( test_big_tree );
   }
