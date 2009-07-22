@@ -40,17 +40,22 @@ build_ext.initialize_options = pair_fun(build_ext.initialize_options, new_init)
 build_ext.finalize_options   = pair_fun(build_ext.finalize_options,   new_fin)
 
 
+def rebase(path):
+    return os.path.normpath( os.path.join( os.path.abspath(sys.argv[0]),
+                                           '../'+path) )
+
 iBase = Extension('itaps.iBase',
-                  depends      = ['common.h', 'iBase_Python.h'],
-                  sources      = ['iBase.c']
+                  depends = map(rebase, ['common.h', 'iBase_Python.h']),
+                  sources = map(rebase, ['iBase.c'])
                   )
 
 iMesh = Extension('itaps.iMesh',
-                  depends      = ['common.h', 'errors.h', 'iMesh_Python.h',
-                                  'iBase_Python.h', 'iMesh_entSet.inl',
-                                  'iMesh_iter.inl', 'iMesh_tag.inl',
-                                  'numpy_extensions.h', 'numpy_extensions.inl'],
-                  sources      = ['iMesh.c']
+                  depends = map(rebase,
+                                ['common.h', 'errors.h', 'iMesh_Python.h',
+                                 'iBase_Python.h', 'iMesh_entSet.inl',
+                                 'iMesh_iter.inl', 'iMesh_tag.inl',
+                                 'numpy_extensions.h', 'numpy_extensions.inl']),
+                  sources = map(rebase, ['iMesh.c'])
                   )
 
 class TestCommand(Command):
@@ -69,8 +74,7 @@ class TestCommand(Command):
             raise DistutilsOptionError('"verbosity" option must be an integer')
 
     def run(self):
-        root = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]),
-                                             '../test'))
+        root = rebase('test')
         old = os.getcwd()
         tests = []
         regex = re.compile(r'^(.*).py$')
@@ -104,8 +108,7 @@ class DocCommand(Command):
             self.target = '_build/' + self.builder
 
     def run(self):
-        root = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]),
-                                             '../doc'))
+        root = rebase('doc')
         old = os.getcwd()
 
         os.chdir(root)
@@ -167,8 +170,7 @@ class PerfBuildCommand(Command):
             add_imesh_defs(self.imesh_dir, self)
 
     def run(self):
-        root = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]),
-                                             '../perf'))
+        root = rebase('perf')
         old = os.getcwd()
         os.chdir(root)
 
@@ -207,8 +209,7 @@ class PerfRunCommand(Command):
             raise DistutilsOptionError('"count" option must be an integer')
 
     def run(self):
-        root = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]),
-                                             '../perf'))
+        root = rebase('perf')
         old = os.getcwd()
         os.chdir(root)
         os.system('python perf.py -c%d "%s"' % (self.count, self.file))
@@ -223,7 +224,7 @@ setup(name = 'PyTAPS',
       requires = ['numpy'],
       provides = ['itaps'],
 
-      package_dir = {'itaps': 'pkg'},
+      package_dir = {'itaps': rebase('pkg')},
       packages = ['itaps'],
       ext_modules = [iBase, iMesh],
       py_modules = ['itaps.helpers'],
