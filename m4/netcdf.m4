@@ -88,10 +88,10 @@ if test "xno" != "x$NETCDF_ARG"; then
     [AC_MSG_RESULT([yes]); NETCDF_LIBS="-lnetcdf_c++ -lnetcdf"], 
     [AC_MSG_RESULT([no]);
      AC_MSG_CHECKING([for netcdf_c++ library requiring HDF5-high-level])
-     LIBS="$LIBS -lhdf5_hl -lhdf5"
+     LIBS="$LIBS -lhdf5_hl $HDF5_LIBS"
      AC_TRY_LINK(
            [#include <netcdf.hh>], [NcFile ncf("foo",NcFile::ReadOnly);],
-           [AC_MSG_RESULT([yes]); NETCDF_LIBS="-lnetcdf_c++ -lnetcdf -lhdf5_hl ${HDF5_LIBS}"], 
+           [AC_MSG_RESULT([yes]); NETCDF_LIBS="-lnetcdf_c++ -lnetcdf -lhdf5_hl"], 
            [AC_MSG_RESULT([no]); HAVE_NETCDF=no] )    
      ])
   LIBS="$old_LIBS"
