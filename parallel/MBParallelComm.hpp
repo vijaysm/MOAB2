@@ -324,17 +324,44 @@ public:
      * \param hs Pointer to shared proc handle data
      * \param pstat Reference to pstatus data returned from this function
      */
-  MBErrorCode get_sharing_data(MBEntityHandle entity,
+  MBErrorCode get_sharing_data(const MBEntityHandle entity,
                                int *ps, 
                                MBEntityHandle *hs,
                                unsigned char &pstat,
                                unsigned int &num_ps);
 
-  MBErrorCode get_sharing_data(MBEntityHandle entity,
+    /** \brief Get the shared processors/handles for an entity
+     * Same as other version but with int num_ps
+     * \param entity Entity being queried
+     * \param ps Pointer to sharing proc data
+     * \param hs Pointer to shared proc handle data
+     * \param pstat Reference to pstatus data returned from this function
+     */
+  MBErrorCode get_sharing_data(const MBEntityHandle entity,
                                int *ps, 
                                MBEntityHandle *hs,
                                unsigned char &pstat,
                                int &num_ps);
+
+    /** \brief Get the intersection or union of all sharing processors
+     * Get the intersection or union of all sharing processors.  Processor set
+     * is cleared as part of this function.
+     * \param entities Entity list ptr
+     * \param num_entities Number of entities
+     * \param procs Processors returned
+     * \param op Either MBInterface::UNION or MBInterface::INTERSECT
+     */
+  MBErrorCode get_sharing_data(const MBEntityHandle *entities,
+                               int num_entities,
+                               std::set<int> &procs,
+                               int op = MBInterface::INTERSECT);
+  
+    /** \brief Get the intersection or union of all sharing processors
+     * Same as previous variant but with range as input
+     */
+  MBErrorCode get_sharing_data(const MBRange &entities,
+                               std::set<int> &procs,
+                               int op = MBInterface::INTERSECT);
   
     /** \brief Get entities on an inter-processor interface and of specified dimension
      * If other_proc is -1, any interface entities are returned.  If dim is -1,
@@ -587,6 +614,9 @@ public:
   
 private:
 
+    // common initialization code, called from various constructors
+  void initialize();
+  
   MBErrorCode set_sharing_data(MBEntityHandle ent, unsigned char pstatus,
                                int old_nump, int new_nump,
                                int *ps, MBEntityHandle *hs);
@@ -992,9 +1022,6 @@ private:
     //! Sequence manager, to get more efficient access to entities
   SequenceManager *sequenceManager;
   
-    //! data buffer used to communicate
-  std::vector<unsigned char> myBuffer;
-
     //! more data buffers, proc-specific
   std::vector<std::vector<unsigned char> > ownerSBuffs, ghostRBuffs;
 
@@ -1104,16 +1131,29 @@ inline void MBParallelComm::set_size(unsigned int s)
   procConfig.proc_size(s);
 }
 
-inline MBErrorCode MBParallelComm::get_sharing_data(MBEntityHandle entity,
+inline MBErrorCode MBParallelComm::get_sharing_data(const MBEntityHandle *entities,
+                                                    int num_entities,
+                                                    std::set<int> &procs,
+                                                    int op) 
+{
+  MBRange dum_range;
+    // cast away constness 'cuz the range is passed as const
+  MBEntityHandle *ents_cast = const_cast<MBEntityHandle*>(entities);
+  std::copy(ents_cast, ents_cast+num_entities, mb_range_inserter(dum_range));
+  return get_sharing_data(dum_range, procs, op);
+}
+
+inline MBErrorCode MBParallelComm::get_sharing_data(const MBEntityHandle entity,
                                                     int *ps, 
                                                     MBEntityHandle *hs,
                                                     unsigned char &pstat,
                                                     int &num_ps) 
 {
-  unsigned int dum_int;
-  MBErrorCode result = get_sharing_data(entity, ps, hs, pstat, dum_int);
-  num_ps = dum_int;
+  unsigned int dum_ps;
+  MBErrorCode result = get_sharing_data(entity, ps, hs, pstat, dum_ps);
+  if (MB_SUCCESS == result)
+    num_ps = dum_ps;
   return result;
 }
-
+  
 #endif

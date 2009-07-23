@@ -18,6 +18,7 @@
 #include <iostream>
 #include <sstream>
 #include <algorithm>
+#include <functional>
 #include <numeric>
 
 #define MIN(a,b) (a < b ? a : b)
@@ -172,22 +173,8 @@ MBParallelComm::MBParallelComm(MBInterface *impl, MPI_Comm comm, int* id )
           sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0),
           partitionTag(0), globalPartCount(-1), partitioningSet(0)
 {
-  myBuffer.resize(INITIAL_BUFF_SIZE);
-
-  tagServer = dynamic_cast<MBCore*>(mbImpl)->tag_server();
-  sequenceManager = dynamic_cast<MBCore*>(mbImpl)->sequence_manager();
-
-  int flag = 1;
-  int retval = MPI_Initialized(&flag);
-  if (MPI_SUCCESS != retval || !flag) {
-    int argc = 0;
-    char **argv = NULL;
-    
-      // mpi not initialized yet - initialize here
-    retval = MPI_Init(&argc, &argv);
-  }
-
-  pcommID = add_pcomm(this);
+  initialize();
+  
   if (id)
     *id = pcommID;
 }
@@ -201,7 +188,23 @@ MBParallelComm::MBParallelComm(MBInterface *impl,
       sharedhTag(0), sharedhsTag(0), pstatusTag(0), ifaceSetsTag(0),
       partitionTag(0), globalPartCount(-1), partitioningSet(0)
 {
-  myBuffer.swap(tmp_buff);
+  initialize();
+  
+  if (id)
+    *id = pcommID;
+}
+
+MBParallelComm::~MBParallelComm() 
+{
+  remove_pcomm(this);
+}
+
+void MBParallelComm::initialize() 
+{
+  tagServer = dynamic_cast<MBCore*>(mbImpl)->tag_server();
+  sequenceManager = dynamic_cast<MBCore*>(mbImpl)->sequence_manager();
+  
+    // initialize MPI, if necessary
   int flag = 1;
   int retval = MPI_Initialized(&flag);
   if (MPI_SUCCESS != retval || !flag) {
@@ -212,14 +215,12 @@ MBParallelComm::MBParallelComm(MBInterface *impl,
     retval = MPI_Init(&argc, &argv);
   }
 
-  pcommID = add_pcomm(this);
-  if (id)
-    *id = pcommID;
-}
+    // reserve space for vectors
+  buffProcs.reserve(MAX_SHARING_PROCS);
+  ownerSBuffs.reserve(MAX_SHARING_PROCS);
+  ghostRBuffs.reserve(MAX_SHARING_PROCS);
 
-MBParallelComm::~MBParallelComm() 
-{
-  remove_pcomm(this);
+  pcommID = add_pcomm(this);
 }
 
 int MBParallelComm::add_pcomm(MBParallelComm *pc) 
@@ -575,8 +576,6 @@ MBErrorCode MBParallelComm::unpack_buffer(unsigned char *buff_ptr,
                                           std::vector<unsigned int> &L2p,
                                           MBRange &new_ents) 
 {
-  if (myBuffer.capacity() == 0) return MB_FAILURE;
-  
 #ifdef DEBUG_PACKING
     unsigned char *tmp_buff = buff_ptr;
 #endif  
@@ -1260,6 +1259,7 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
       if (store_remote_handles) {
           // pointers to other procs/handles
         UNPACK_INT(buff_save, num_ps);
+        assert("Shouldn't ever be fewer than 1 procs here." && 0 < num_ps);
         UNPACK_INTS(buff_save, &ps[0], num_ps);
         UNPACK_EH(buff_save, &hs[0], num_ps);
       }
@@ -1498,7 +1498,7 @@ MBErrorCode MBParallelComm::list_entities(const MBEntityHandle *ents, int num_en
     return MB_SUCCESS;
   }
   
-  else if (NULL == ents || 0 == num_ents) {
+  else if (NULL == ents && 0 != num_ents) {
     return list_entities(sharedEnts);
   }
     
@@ -1509,10 +1509,11 @@ MBErrorCode MBParallelComm::list_entities(const MBEntityHandle *ents, int num_en
   MBErrorCode result;
 
   for (int i = 0; i < num_ents; i++) {
+    result = mbImpl->list_entities(ents+i, 1);
+
     result = get_sharing_data(ents[i], tmp_procs, tmp_handles, pstat, num_ps);
     RRA("Failed to get sharing data.");
 
-    result = mbImpl->list_entities(ents+i, 1);
     std::cout << "Pstatus: ";
     if (!num_ps)
       std::cout << "local " << std::endl;
@@ -1706,7 +1707,55 @@ MBErrorCode MBParallelComm::update_remote_data(const MBEntityHandle new_h,
   return MB_SUCCESS;
 }
 
-MBErrorCode MBParallelComm::get_sharing_data(MBEntityHandle entity,
+MBErrorCode MBParallelComm::get_sharing_data(const MBRange &entities,
+                                             std::set<int> &procs,
+                                             int operation)
+{
+    // get the union or intersection of sharing data for multiple entities
+
+  MBErrorCode result;
+  int sp2[MAX_SHARING_PROCS];
+  int num_ps;
+  unsigned char pstat;
+  std::set<int> tmp_procs;
+  procs.clear();
+  
+  for (MBRange::const_iterator rit = entities.begin(); rit != entities.end(); rit++) {
+        
+      // get sharing procs
+    result = get_sharing_data(*rit, sp2, NULL, pstat, num_ps);
+    RRA("Problem getting sharing data in get_sharing_data.");
+    if (!(pstat & PSTATUS_SHARED) && MBInterface::INTERSECT == operation) {
+      procs.clear();
+      return MB_SUCCESS;
+    }
+        
+    if (rit == entities.begin()) {
+      std::copy(sp2, sp2+num_ps, std::inserter(procs, procs.begin()));
+    }
+    else {
+      std::sort(sp2, sp2+num_ps);
+      tmp_procs.clear();
+      if (MBInterface::UNION == operation) 
+        std::set_union(procs.begin(), procs.end(), 
+                       sp2, sp2+num_ps, std::inserter(tmp_procs, tmp_procs.end()));
+      else if (MBInterface::INTERSECT == operation)
+        std::set_intersection(procs.begin(), procs.end(), 
+                              sp2, sp2+num_ps, std::inserter(tmp_procs, tmp_procs.end()));
+      else {
+        assert("Unknown operation." && false);
+        return MB_FAILURE;
+      }
+      procs.swap(tmp_procs);
+    }
+    if (MBInterface::INTERSECT == operation && procs.empty()) 
+      return MB_SUCCESS;
+  }
+
+  return MB_SUCCESS;
+}
+  
+MBErrorCode MBParallelComm::get_sharing_data(const MBEntityHandle entity,
                                              int *ps, 
                                              MBEntityHandle *hs,
                                              unsigned char &pstat,
@@ -2723,10 +2772,6 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBEntityHandle this_set,
   result = exchange_ghost_cells(-1, -1, 0, true, true);
   RRA("Trouble resolving shared entity remote handles.");
 
-    // now set the shared/interface tag on non-vertex entities on interface
-  result = tag_iface_entities();
-  RRA("Failed to tag iface entities.");
-
     // now build parent/child links for interface sets
   result = create_iface_pc_links();
   RRA("Trouble creating interface parent/child links.");
@@ -2763,7 +2808,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBParallelComm **pc,
 {
   std::vector<MBRange> verts(np);
   int tot_verts = 0;
-  unsigned int p, i, j, v, vtot;
+  unsigned int p, i, j, v;
   MBErrorCode rval;
   for (p = 0; p < np; p++) {
     MBSkinner skinner(pc[p]->get_moab());
@@ -2805,7 +2850,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBParallelComm **pc,
   }
   
   buffer sort_buffer;
-  buffer_init(&sort_buffer, vtot);
+  buffer_init(&sort_buffer, tot_verts);
   tuple_list_sort(&shared_ents, 0, &sort_buffer);
   buffer_free(&sort_buffer);
 
@@ -2843,6 +2888,8 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBParallelComm **pc,
     rval = pc[p]->get_interface_procs(psets, true);
     if (MB_SUCCESS != rval) return rval;
   }
+
+  tuple_list_free(&shared_ents);
   
   return MB_SUCCESS;
 }
@@ -2852,6 +2899,7 @@ MBErrorCode MBParallelComm::tag_iface_entities()
   MBErrorCode result = MB_SUCCESS;
   MBRange iface_ents, tmp_ents, rmv_ents;
   std::vector<unsigned char> pstat;
+  unsigned char set_pstat;
   MBRange::iterator rit2;
   unsigned int i;
   
@@ -2862,13 +2910,35 @@ MBErrorCode MBParallelComm::tag_iface_entities()
     RRA("Couldn't get iface set contents.");
     pstat.resize(iface_ents.size());
     result = mbImpl->tag_get_data(pstatus_tag(), iface_ents, &pstat[0]);
-    RRA("Couldn't get pstatus values.");
+    RRA("Couldn't get pstatus values for set ents.");
+    result = mbImpl->tag_get_data(pstatus_tag(), &(*rit), 1, &set_pstat);
+    RRA("Couldn't get pstatus values for set.");
     rmv_ents.clear();
     for (rit2 = iface_ents.begin(), i = 0; rit2 != iface_ents.end(); rit2++, i++) {
-      if (!(pstat[i] & PSTATUS_INTERFACE)) rmv_ents.insert(*rit2);
+      if (!(pstat[i] & PSTATUS_INTERFACE)) {
+        rmv_ents.insert(*rit2);
+        pstat[i] = 0x0;
+      }
     }
     result = mbImpl->remove_entities(*rit, rmv_ents);
     RRA("Couldn't remove entities from set.");
+
+    if (!(set_pstat & PSTATUS_NOT_OWNED)) continue;
+      // if we're here, we need to set the notowned status on (remaining) set contents
+
+      // remove rmv_ents from the contents list
+    iface_ents = subtract(iface_ents, rmv_ents);
+      // compress the pstat vector (removing 0x0's)
+    std::remove_if(pstat.begin(), pstat.end(), 
+                   std::bind2nd(std::equal_to<unsigned char>(), 0x0));
+      // fold the not_owned bit into remaining values
+    unsigned int sz = iface_ents.size();
+    for (i = 0; i < sz; i++)
+      pstat[i] |= PSTATUS_NOT_OWNED;
+
+      // set the tag on the entities
+    result = mbImpl->tag_set_data(pstatus_tag(), iface_ents, &pstat[0]);
+    RRA("Couldn't set pstatus values for set ents.");
   }
   
   return MB_SUCCESS;
@@ -2987,6 +3057,7 @@ MBErrorCode MBParallelComm::create_interface_sets(std::map<std::vector<int>, MBR
   if (proc_nranges.empty()) return MB_SUCCESS;
   
   int proc_ids[MAX_SHARING_PROCS];
+  MBEntityHandle proc_handles[MAX_SHARING_PROCS];
   MBTag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
   MBErrorCode result = get_shared_proc_tags(sharedp_tag, sharedps_tag, 
                                             sharedh_tag, sharedhs_tag,
@@ -3009,15 +3080,25 @@ MBErrorCode MBParallelComm::create_interface_sets(std::map<std::vector<int>, MBR
     result = mbImpl->add_entities(new_set, mit->second); 
     RRA("Failed to add entities to interface set.");
       // tag set with the proc rank(s)
-    if (mit->first.size() == 1)
+    if (mit->first.size() == 1) {
       result = mbImpl->tag_set_data(sharedp_tag, &new_set, 1, 
                                     &(mit->first)[0]); 
+      proc_handles[0] = 0;
+      result = mbImpl->tag_set_data(sharedh_tag, &new_set, 1, 
+                                    proc_handles); 
+    }
     else {
       // pad tag data out to MAX_SHARING_PROCS with -1
       assert( mit->first.size() <= MAX_SHARING_PROCS );
       std::copy( mit->first.begin(), mit->first.end(), proc_ids );
-      std::fill( proc_ids + mit->first.size(), proc_ids + MAX_SHARING_PROCS - mit->first.size(), -1 );
+      std::fill( proc_ids + mit->first.size(), proc_ids + MAX_SHARING_PROCS, -1 );
       result = mbImpl->tag_set_data(sharedps_tag, &new_set, 1, proc_ids );
+      unsigned int ind = std::find(proc_ids, proc_ids+mit->first.size(), procConfig.proc_rank())
+          - proc_ids;
+      assert(ind < mit->first.size());
+      std::fill( proc_handles + mit->first.size(), proc_handles + MAX_SHARING_PROCS, 0);
+      proc_handles[ind] = new_set;
+      result = mbImpl->tag_set_data(sharedhs_tag, &new_set, 1, proc_handles); 
     }
     RRA("Failed to tag interface set with procs.");
     
@@ -3116,15 +3197,11 @@ MBErrorCode MBParallelComm::tag_shared_ents(int resolve_dim,
                                             std::map<std::vector<int>, MBRange> &proc_nranges) 
 {
     // set sharing procs tags on other skin ents
-  MBTag sharedp_tag, sharedps_tag, sharedh_tag, sharedhs_tag, pstatus_tag;
-  MBErrorCode result = get_shared_proc_tags(sharedp_tag, sharedps_tag, 
-                                            sharedh_tag, sharedhs_tag, pstatus_tag);
-  RRA("Trouble getting shared proc tags in tag_shared_ents.");
+  MBErrorCode result;
   const MBEntityHandle *connect; int num_connect;
-  std::vector<int> sharing_procs, sharing_procs1, sharing_procs2;
-  std::vector<int>::iterator vii;
-  std::vector<unsigned char> pstatus_flags;
+  std::set<int> sharing_procs;
   std::vector<MBEntityHandle> dum_connect;
+  std::vector<int> sp_vec;
 
   for (int d = 3; d > 0; d--) {
     if (resolve_dim == d) continue;
@@ -3136,67 +3213,15 @@ MBErrorCode MBParallelComm::tag_shared_ents(int resolve_dim,
                                         &dum_connect);
       RRA("Failed to get connectivity on non-vertex skin entities.");
  
-        // if any vertices not shared, this entity isn't
-      bool is_shared = true;
-      pstatus_flags.resize( num_connect );
-      result = mbImpl->tag_get_data(pstatus_tag, connect, num_connect,
-                                    &pstatus_flags[0]);
-      RRA("Couldn't get pstatus flag.");
-      for (int nc = 0; nc < num_connect; nc++) {
-        if (!(pstatus_flags[nc] & PSTATUS_SHARED)) {
-          is_shared = false;
-          break;
-        }
-      }
-      if (!is_shared) continue;
-
-      for (int nc = 0; nc < num_connect; nc++) {
-        sharing_procs2.clear();
-        
-          // get sharing procs
-        sharing_procs2.resize(1);
-        result = mbImpl->tag_get_data(sharedp_tag, connect+nc, 1, &sharing_procs2[0]);
-        RRA("Couldn't get sharedp_tag on skin vertices in entity.");
-        if (sharing_procs2[0] == -1) {
-          sharing_procs2.resize(MAX_SHARING_PROCS);
-          result = mbImpl->tag_get_data(sharedps_tag, connect+nc, 1, &sharing_procs2[0]);
-          RRA("Couldn't get sharedps_tag on skin vertices in entity.");
-        }
-        assert(-1 != sharing_procs2[0]);
-          // remove any unnecessary entries
-        vii = std::find( sharing_procs2.begin(), sharing_procs2.end(), -1 );
-        sharing_procs2.erase( vii, sharing_procs2.end() );
-        
-          // build range of sharing procs for this vertex
-          // intersect with range for this skin ent
-        if (0 == nc) {
-          sharing_procs.swap( sharing_procs2 );
-        }
-        else if (resolve_dim < shared_dim) {
-          sharing_procs1.clear();
-          set_union( sharing_procs.begin(), sharing_procs.end(), 
-                     sharing_procs2.begin(), sharing_procs2.end(),
-                     std::back_inserter( sharing_procs1 ) );
-          sharing_procs.swap( sharing_procs1 );
-        }
-        else {
-          sharing_procs1.clear();
-          set_intersection( sharing_procs.begin(), sharing_procs.end(), 
-                            sharing_procs2.begin(), sharing_procs2.end(),
-                            std::back_inserter( sharing_procs1 ) );
-          sharing_procs.swap( sharing_procs1 );
-        }
-      }
-
-      if (sharing_procs.empty() && resolve_dim < shared_dim) continue;
-
-        // intersection is the owning proc(s) for this skin ent
+      int op = (resolve_dim < shared_dim ? MBInterface::UNION : MBInterface::INTERSECT);      
+      result = get_sharing_data(connect, num_connect, sharing_procs, op);
+      RRA("Failed to get sharing data in tag_shared_ents");
       if (sharing_procs.empty()) continue;
 
-      proc_nranges[sharing_procs].insert(*rit);
-
-        // reset sharing proc(s) tags
-      sharing_procs.clear();
+        // intersection is the owning proc(s) for this skin ent
+      sp_vec.clear();
+      std::copy(sharing_procs.begin(), sharing_procs.end(), std::back_inserter(sp_vec));
+      proc_nranges[sp_vec].insert(*rit);
     }
   }
 
@@ -3602,7 +3627,7 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     // number of incoming messages for ghosts is the number of procs we 
     // communicate with; for iface, it's the number of those with lower rank
   int num_incoming = buffProcs.size();
-  std::vector<MPI_Status> status(buffProcs.size());
+  std::vector<MPI_Status> status(MAX_SHARING_PROCS);
   std::vector<std::vector<MBEntityHandle> > recd_ents(num_incoming);
   std::vector<std::vector<MBEntityHandle> > L1hloc(buffProcs.size()), L1hrem(buffProcs.size());
   std::vector<std::vector<int> > L1p(buffProcs.size());
@@ -3663,13 +3688,17 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
       // handles for them from all expected procs; if not, need to clean
       // them up
     result = check_clean_iface(allsent);
-    RRA("Failed check.");
+    if (MB_SUCCESS != result) std::cout << "Failed check." << std::endl;
     
+      // now set the shared/interface tag on non-vertex entities on interface
+    result = tag_iface_entities();
+    RRA("Failed to tag iface entities.");
+
 #ifndef NDEBUG
     result = check_sent_ents(allsent);
-    RRA("Failed check on shared entities.");
+    if (MB_SUCCESS != result) std::cout << "Failed check." << std::endl;
     result = check_all_shared_handles();
-    RRA("Failed check on all shared handles.");
+    if (MB_SUCCESS != result) std::cout << "Failed check." << std::endl;
 #endif
 
 #ifdef DEBUG_MPE
@@ -5449,23 +5478,36 @@ MBErrorCode MBParallelComm::check_local_shared()
   MBErrorCode result;
   unsigned char pstat;
   MBRange bad_ents;
-  for (MBRange::const_iterator rit = sharedEnts.begin(); rit != sharedEnts.end(); rit++) {
+  std::vector<std::string> errors;
+  std::string dum_err;
+  
+  MBRange::const_iterator rit;
+  for (rit = sharedEnts.begin(); rit != sharedEnts.end(); rit++) {
 
       // get sharing procs for this ent
     result = get_sharing_data(*rit, tmp_procs, tmp_hs, pstat, num_ps);
-    if (MB_SUCCESS != result || num_ps < (int)vset.size()) {
+    if (MB_SUCCESS != result) {
       bad_ents.insert(*rit);
+      errors.push_back(std::string("Failure getting sharing data."));
       continue;
     }
 
+    bool bad = false;
       // entity must be shared
-    if (!(pstat & PSTATUS_SHARED) ||
+    if (!(pstat & PSTATUS_SHARED))
+      errors.push_back(std::string("Entity should be shared but isn't.")), bad = true;
+
       // if entity is not owned this must not be first proc
-        (pstat & PSTATUS_NOT_OWNED && tmp_procs[0] == (int)procConfig.proc_rank()) ||
+    if (pstat & PSTATUS_NOT_OWNED && tmp_procs[0] == (int)procConfig.proc_rank())
+      errors.push_back(std::string("Entity not owned but is first proc.")), bad = true;
+
       // if entity is owned and multishared, this must be first proc
-        (!(pstat & PSTATUS_NOT_OWNED) && pstat & PSTATUS_MULTISHARED && 
-         (tmp_procs[0] != (int)procConfig.proc_rank() || tmp_hs[0] != *rit))) {
-      bad_ents.insert(*rit); 
+    if (!(pstat & PSTATUS_NOT_OWNED) && pstat & PSTATUS_MULTISHARED && 
+        (tmp_procs[0] != (int)procConfig.proc_rank() || tmp_hs[0] != *rit))
+      errors.push_back(std::string("Entity owned and multishared but not first proc or not first handle.")), bad = true;
+
+    if (bad) {
+      bad_ents.insert(*rit);
       continue;
     }
     
@@ -5477,7 +5519,11 @@ MBErrorCode MBParallelComm::check_local_shared()
     
       // get vertices for this ent and intersection of sharing procs
     result = mbImpl->get_connectivity(*rit, connect, num_connect, false, &dum_connect);
-    if (MB_SUCCESS != result) {bad_ents.insert(*rit); continue;}
+    if (MB_SUCCESS != result) {
+      bad_ents.insert(*rit); 
+      errors.push_back(std::string("Couldn't get connectivity."));
+      continue;
+    }
     
     for (int i = 0; i < num_connect; i++) {
       result = get_sharing_data(connect[i], tmp_procs, NULL, pstat, num_ps);
@@ -5495,11 +5541,19 @@ MBErrorCode MBParallelComm::check_local_shared()
     tmp_set.clear();
     std::set_intersection(tmp_procs, tmp_procs+num_ps,
                           vset.begin(), vset.end(), std::inserter(tmp_set, tmp_set.end()));
-    if (orig_ps != (int)tmp_set.size()) bad_ents.insert(*rit);
+    if (orig_ps != (int)tmp_set.size()) {
+      errors.push_back(std::string("Vertex proc set not same size as entity proc set."));
+      bad_ents.insert(*rit);
+    }
   }
   
   if (!bad_ents.empty()) {
-    list_entities(bad_ents);
+    std::cout << "Found bad entities in check_local_shared:" << std::endl;
+    std::vector<std::string>::iterator vit;
+    for (rit = bad_ents.begin(), vit = errors.begin(); rit != bad_ents.end(); rit++, vit++) {
+      list_entities(&(*rit), 1);
+      std::cout << "Reason: " << *vit << std::endl;
+    }
     return MB_FAILURE;
   }
 

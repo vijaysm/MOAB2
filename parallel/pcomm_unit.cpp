@@ -15,6 +15,9 @@
 #  include <mpi.h>
 #endif
 
+#define STRINGIFY_(X) #X
+#define STRINGIFY(X) STRINGIFY_(X)
+
 /** Test pack/unpack of vertices */
 void test_pack_vertices();
 /** Test pack/unpack of elements */
@@ -1858,7 +1861,7 @@ void test_pack_shared_entities_3d()
 
 void test_pack_shared_arbitrary()
 {
-#define NP 4
+#define NP 3
   MBCore moab[NP];
   MBParallelComm *pc[NP];
   for (unsigned int i = 0; i < NP; i++) {
@@ -1867,25 +1870,35 @@ void test_pack_shared_arbitrary()
     pc[i]->set_size(NP);
   }
 
-  std::string ptag_name("MATERIAL_SET");
   std::vector<int> pa_vec;
   pa_vec.push_back(0);
   pa_vec.push_back(4);
   pa_vec.push_back(2);
   MBErrorCode rval;
+  std::vector<int> partition_tag_vals;
+  bool partition_distrib = false;
 
-  const char *fnames[] = {"/home/tautges/MOABpar2/test/64bricks_512hex.h5m"};
+#ifdef SRCDIR
+  const char *fnames[] = {STRINGIFY(SRCDIR) "/ptest.cub"};
+#else
+  const char *fnames[] = {"./ptest.cub"};
+#endif
   
-  std::string partition_name("MATERIAL_SET");
+  std::string ptag_name("GEOM_DIMENSION");
+  partition_tag_vals.push_back(3);
+  partition_distrib = true;
+  
+    //std::string ptag_name("MATERIAL_SET");
+    //partition_distrib = true;
+  
   FileOptions fopts(NULL);
   
   for (unsigned int i = 0; i < NP; i++) {
     ReadParallel rp(moab+i, pc[i]);
     MBEntityHandle tmp_set = 0;
-    std::vector<int> partition_tag_vals;
     rval = rp.load_file(fnames, 1, tmp_set, ReadParallel::POPT_READ_DELETE,
-                        partition_name, 
-                        partition_tag_vals, true, pa_vec, 
+                        ptag_name, 
+                        partition_tag_vals, partition_distrib, pa_vec, 
                         fopts, NULL, NULL, 0, i, false, -1, -1, -1, -1, 0);
     CHECK_ERR(rval);
   }
