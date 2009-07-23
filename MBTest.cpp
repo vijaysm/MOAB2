@@ -57,6 +57,10 @@ using namespace std;
 #include "testdir.h"
 string TestDir( TEST_DIR );
 
+#define CHKERR(A) do { if (MB_SUCCESS != (A)) { \
+  std::cerr << "Failure (error code " << (A) << ") at " __FILE__ ":" \
+            << __LINE__ << std::endl; \
+  return A; } } while(false)
 
   /*!
     @test 
@@ -2254,6 +2258,115 @@ MBErrorCode mb_mesh_set_root_appends( MBInterface* mb )
   return mb_mesh_set_appends( mb, -1 );
 }
 
+MBErrorCode mb_mesh_set_set_replace_test( MBInterface*  )
+{
+  MBCore moab;
+  MBInterface* mb = &moab;
+  MBErrorCode rval;
+  MBRange r;
+    // create 10 vertices to put in set
+  std::vector<double> coords(30);
+  rval = mb->create_vertices( &coords[0], 10, r );
+  CHKERR(rval);
+  std::vector<MBEntityHandle> verts(r.size());
+  std::copy( r.begin(), r.end(), verts.begin() );
+  r.clear();
+    // create a set
+  MBEntityHandle set;
+  rval = mb->create_meshset( MESHSET_SET, set );
+  CHKERR(rval);
+    // put every other vertex in set
+  for (size_t i = 0; i < 10; i += 2)
+    r.insert( verts[i] );
+  rval = mb->add_entities( set, r );
+  CHKERR(rval);
+  r.clear();
+    // swap 3 of the vertices
+  MBEntityHandle old_ents[3] = { verts[2], verts[4], verts[6] };
+  MBEntityHandle new_ents[3] = { verts[1], verts[9], verts[5] };
+  rval = mb->replace_entities( set, old_ents, new_ents, 3 );
+  CHKERR(rval);
+    // check new set contents
+  rval = mb->get_entities_by_handle( set, r );
+  CHKERR(rval);
+  MBRange r2;
+  r2.insert( verts[0] );
+  r2.insert( verts[1] );
+  r2.insert( verts[9] );
+  r2.insert( verts[5] );
+  r2.insert( verts[8] );
+  if (r != r2) {
+    std::cerr << "Range does not contain expected values." << std::endl
+              << "  Expected: " << r2 << std::endl
+              << "  Actual  : " << r  << std::endl;
+    return MB_FAILURE;
+  }
+  
+  return MB_SUCCESS;
+}
+
+MBErrorCode mb_mesh_set_list_replace_test( MBInterface*  )
+{
+  MBCore moab;
+  MBInterface* mb = &moab;
+  MBErrorCode rval;
+    // create 10 vertices to put in set
+  MBRange r;
+  std::vector<double> coords(30);
+  rval = mb->create_vertices( &coords[0], 10, r );
+  CHKERR(rval);
+  std::vector<MBEntityHandle> verts(r.size());
+  std::copy( r.begin(), r.end(), verts.begin() );
+  r.clear();
+    // create a set
+  MBEntityHandle set;
+  rval = mb->create_meshset( MESHSET_ORDERED, set );
+  CHKERR(rval);
+    // put all vertices in set, but add the first one a second time
+  std::vector<MBEntityHandle> list( verts );
+  list.push_back( verts.front() );
+  rval = mb->add_entities( set, &list[0], list.size() );
+    // swap 3 of the vertices
+  MBEntityHandle old_ents[3] = { verts[2], verts[4], verts[6] };
+  MBEntityHandle new_ents[3] = { verts[1], verts[9], verts[5] };
+  rval = mb->replace_entities( set, old_ents, new_ents, 3 );
+  CHKERR(rval);
+    // check new set contents
+  std::vector<MBEntityHandle> list2;
+  rval = mb->get_entities_by_handle( set, list2 );
+  CHKERR(rval);
+  list[2] = verts[1];
+  list[4] = verts[9];
+  list[6] = verts[5];
+  if (list != list2) {
+    std::cerr << "Range does not contain expected values." << std::endl;
+    std::cerr << "  Expected: ";
+    std::copy( list.begin(), list.end(), std::ostream_iterator<MBEntityHandle>(std::cerr, " ") );
+    std::cerr << std::endl << "  Actual  : ";
+    std::copy( list2.begin(), list2.end(), std::ostream_iterator<MBEntityHandle>(std::cerr, " ") );
+    std::cerr << std::endl;
+    return MB_FAILURE;
+  }
+    // now try replacing a repeated value
+  rval = mb->replace_entities( set, &verts[0], &verts[3], 1 );
+  CHKERR(rval);
+  list[0] = list[10] = verts[3];
+  list2.clear();
+  rval = mb->get_entities_by_handle( set, list2 );
+  CHKERR(rval);
+  if (list != list2) {
+    std::cerr << "Range does not contain expected values." << std::endl;
+    std::cerr << "  Expected: ";
+    std::copy( list.begin(), list.end(), std::ostream_iterator<MBEntityHandle>(std::cerr, " ") );
+    std::cerr << std::endl << "  Actual  : ";
+    std::copy( list2.begin(), list2.end(), std::ostream_iterator<MBEntityHandle>(std::cerr, " ") );
+    std::cerr << std::endl;
+    return MB_FAILURE;
+  }
+  
+  return MB_SUCCESS;
+}
+
   // number of entities of type MBVERTEX, MBEDGE, MBDTri, MBQUAD, MBTET, and MBHEX
   // in mbtest1.g  (all other values are 0.
 static const unsigned int num_entities[MBMAXTYPE] = {47,12,18,8,22,8};
@@ -4350,8 +4463,8 @@ MBErrorCode mb_merge_update_test(MBInterface*)
     // create two tracking sets containing the vertices
     // and edge of each quad
   MBEntityHandle set1, set2;
-  mb->create_meshset( MESHSET_TRACK_OWNER, set1 );
-  mb->create_meshset( MESHSET_TRACK_OWNER, set2 );
+  mb->create_meshset( MESHSET_TRACK_OWNER|MESHSET_SET, set1 );
+  mb->create_meshset( MESHSET_TRACK_OWNER|MESHSET_ORDERED, set2 );
   mb->add_entities( set1, verts, 4 );
   mb->add_entities( set2, verts+4, 4 );
   mb->add_entities( set1, &edge1, 1 );
@@ -4417,6 +4530,11 @@ MBErrorCode mb_merge_update_test(MBInterface*)
   std::sort( act.begin(), act.end() );
   if (exp != act) {
     std::cerr << "Incorrect set contents at " << __FILE__ << ":" << __LINE__ << std::endl;
+    std::cerr << "  Expected: ";
+    std::copy( exp.begin(), exp.end(), std::ostream_iterator<MBEntityHandle>(std::cerr, " ") );
+    std::cerr << std::endl << "  Actual  : ";
+    std::copy( act.begin(), act.end(), std::ostream_iterator<MBEntityHandle>(std::cerr, " ") );
+    std::cerr << std::endl;
     return MB_FAILURE;
   }
   
@@ -4428,17 +4546,18 @@ MBErrorCode mb_merge_update_test(MBInterface*)
   exp[4] = edge1;
   act.clear();
   mb->get_entities_by_handle( set2, act );
-  std::sort( exp.begin(), exp.end() );
-  std::sort( act.begin(), act.end() );
   if (exp != act) {
     std::cerr << "Incorrect set contents at " << __FILE__ << ":" << __LINE__ << std::endl;
+    std::cerr << "  Expected: ";
+    std::copy( exp.begin(), exp.end(), std::ostream_iterator<MBEntityHandle>(std::cerr, " ") );
+    std::cerr << std::endl << "  Actual  : ";
+    std::copy( act.begin(), act.end(), std::ostream_iterator<MBEntityHandle>(std::cerr, " ") );
+    std::cerr << std::endl;
     return MB_FAILURE;
   }
 
   return MB_SUCCESS;
 }
-  
-  
 
 MBErrorCode mb_stress_test(MBInterface *MB)
 {
@@ -6380,6 +6499,8 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_mesh_set_set_appends );
   RUN_TEST( mb_mesh_set_list_appends );
   RUN_TEST( mb_mesh_set_root_appends );
+  RUN_TEST( mb_mesh_set_set_replace_test );
+  RUN_TEST( mb_mesh_set_list_replace_test );
   RUN_TEST( mb_tags_test );
   RUN_TEST( mb_dense_tag_test );
   RUN_TEST( mb_sparse_tag_test );
@@ -6404,8 +6525,8 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_skin_surface_adj_test );
   RUN_TEST( mb_skin_volume_test );
   RUN_TEST( mb_skin_volume_adj_test );
-  RUN_TEST( mb_merge_test );
   RUN_TEST( mb_merge_update_test );
+  RUN_TEST( mb_merge_test );
   if (stress_test) RUN_TEST( mb_stress_test );
 
     // summary

@@ -2492,7 +2492,7 @@ MBErrorCode MBCore::remove_entities( MBEntityHandle meshset,
 
     //! return true if all entities are contained in set
 bool MBCore::contains_entities(MBEntityHandle meshset, 
-                               MBEntityHandle *entities,
+                               const MBEntityHandle *entities,
                                int num_entities, 
                                const int operation_type)
 {
@@ -2503,38 +2503,18 @@ bool MBCore::contains_entities(MBEntityHandle meshset,
     return false;
 }
 
-// replace entities in a meshset; entities appear in pairs,
-// old then new entity in each pair
-bool MBCore::replace_entities(MBEntityHandle meshset, 
-                              MBEntityHandle *entities,
-                              int num_entities) 
+// replace entities in a meshset
+MBErrorCode MBCore::replace_entities(MBEntityHandle meshset, 
+                                     const MBEntityHandle *old_entities,
+                                     const MBEntityHandle *new_entities,
+                                     int num_entities) 
 {
-  return false;
-    /*
-    // if a regular entity set, we're simply changing contents of this set
-  if (0 != meshset) {
-  
-    MBMeshSet* set = get_mesh_set( sequence_manager(), meshset );
-    if (set)
-      return set->replace_entities( meshset, entities, num_entities, a_entity_factory() );
-    else
-      return false;
-  }
-
-    // otherwise, we're actually changing an entity's handle
-    // in preparation, get all the non-tracking sets 
-  MBRange tmp_sets, all_sets;
-  MBErrorCode result = get_entities_by_type(0, MBENTITYSET, tmp_sets);
-  if (MB_SUCCESS != result) return result;
-  unsigned int option;
-  for (MBRange::iterator rit = tmp_sets.begin(); rit != tmp_sets.end(); rit++)
-    if (MB_SUCCESS == get_meshset_options(*rit, option) &&
-        !(option & MESHSET_TRACK_OWNER)) 
-      all_sets.insert(*rit);
-  
-    // now replace each entity
-  double coords[3];
-    */
+  MBMeshSet* set = get_mesh_set( sequence_manager(), meshset );
+  if (set)
+    return set->replace_entities( meshset, old_entities, new_entities, 
+                                  num_entities, a_entity_factory());
+  else
+    return MB_ENTITY_NOT_FOUND;
 }
 
 MBErrorCode MBCore::get_parent_meshsets(const MBEntityHandle meshset,

@@ -1341,10 +1341,13 @@ MBErrorCode AEntityFactory::merge_adjust_adjacencies(MBEntityHandle entity_to_ke
   for (unsigned int i = 0; i < adjs.size(); i++) {
     if (TYPE_FROM_HANDLE(adjs[i]) == MBENTITYSET) 
     {
-      result = this->add_adjacency(entity_to_keep, adjs[i]);
-      if(result != MB_SUCCESS) return result;
-      result = thisMB->add_entities(adjs[i], &entity_to_keep, 1);
-      if(result != MB_SUCCESS) return result;
+      //result = this->add_adjacency(entity_to_keep, adjs[i]);
+      //if(result != MB_SUCCESS) return result;
+      //result = thisMB->add_entities(adjs[i], &entity_to_keep, 1);
+      //if(result != MB_SUCCESS) return result;
+      result = thisMB->replace_entities( adjs[i], &entity_to_remove, &entity_to_keep, 1 );
+      if (MB_SUCCESS != result)
+        return result;
     }
     else if(ent_dim == 0)
     {

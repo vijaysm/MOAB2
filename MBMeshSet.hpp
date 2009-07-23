@@ -71,10 +71,11 @@ public:
 
     //! replace one entity with another in the set (contents and parent/child
     //! lists); returns whether it was replaced or not
-  bool replace_entities(MBEntityHandle my_handle, 
-                        const MBEntityHandle *entities, 
-                        size_t num_entities,
-                        AEntityFactory* mAdjFact);
+  MBErrorCode replace_entities(MBEntityHandle my_handle, 
+                               const MBEntityHandle *old_entities, 
+                               const MBEntityHandle *new_entities,
+                               size_t num_entities,
+                               AEntityFactory* mAdjFact);
   
     /** Clear *contents* of set (not parents or children) */
   inline MBErrorCode clear( MBEntityHandle myhandle, AEntityFactory* adjacencies );

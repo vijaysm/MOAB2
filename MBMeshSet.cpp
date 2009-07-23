@@ -1075,63 +1075,37 @@ MBErrorCode MBMeshSet::remove_entity_vector( const MBEntityHandle* vect, size_t 
 
 
 
-bool MBMeshSet::replace_entities( MBEntityHandle my_handle,
-                                  const MBEntityHandle* entities,
-                                  size_t num_entities,
-                                  AEntityFactory* adjfact )
+MBErrorCode MBMeshSet::replace_entities( MBEntityHandle my_handle,
+                                         const MBEntityHandle* old_entities,
+                                         const MBEntityHandle* new_entities,
+                                         size_t num_entities,
+                                         AEntityFactory* adjfact )
 {
-  assert(0 == num_entities%2);
   if (vector_based()) {
-    bool was_contained = false;
+    MBErrorCode result = MB_SUCCESS;
     size_t count;
     MBEntityHandle* vect = get_contents( count );
     MBEntityHandle* const vect_end = vect+count;
-    for (size_t i = 0; i < num_entities; i+=2) {
-      for (MBEntityHandle* p = vect; p != vect_end; ++p ) {
-        if (*p == entities[i]) {
-          if (tracking()) {
-            adjfact->remove_adjacency( *p, my_handle );
-            adjfact->add_adjacency( entities[i+1], my_handle, false );
-          }
-          *p = entities[i+1];
-          was_contained = true;
-        }
+    for (size_t i = 0; i < num_entities; ++i) {
+      MBEntityHandle* p = std::find( vect, vect_end, old_entities[i] );
+      if (p == vect_end) {
+        result = MB_ENTITY_NOT_FOUND;
       }
+      else do {
+        if (tracking()) {
+          adjfact->remove_adjacency( *p, my_handle );
+          adjfact->add_adjacency( new_entities[i], my_handle, false );
+        }
+        *p = new_entities[i];
+        p = std::find( p+1, vect_end, old_entities[i] );
+      } while (p != vect_end);
     }
-    return was_contained;
+    return result;
   }
   else {
-    std::vector<MBEntityHandle> swap_list;
-    swap_list.reserve( num_entities / 2 );
-
-      // get list of handles to remove
-    size_t count;
-    MBEntityHandle* vect = get_contents( count );
-    MBEntityHandle* const vect_end = vect+count;
-    for (size_t i = 0; i < num_entities; i+=2) {
-      MBEntityHandle* p = std::lower_bound(vect, vect_end, entities[i]);
-      if (p != vect_end && (*p == entities[i] || (p-vect)%2 == 1))
-        swap_list.push_back(entities[i]);
-    }
-    if (swap_list.empty())
-      return false;
-    
-      // remove entities
-    remove_entities( &swap_list[0], swap_list.size(), my_handle, adjfact );
-    
-      // get list of handles to add
-    std::vector<MBEntityHandle>::iterator si = swap_list.begin();
-    for (size_t i = 0; i < num_entities; ++i) {
-      if (entities[i] == *si) {
-        *si = entities[i+1];
-        if (++si == swap_list.end())
-          break;
-      }
-    }
-    
-      // add entities
-    add_entities( &swap_list[0], swap_list.size(), my_handle, adjfact );
-    return true;
+    MBErrorCode r1 = remove_entities( old_entities, num_entities, my_handle, adjfact );
+    MBErrorCode r2 = add_entities( new_entities, num_entities, my_handle, adjfact );
+    return (MB_SUCCESS == r2) ? r1 : r2;
   }
 }
 

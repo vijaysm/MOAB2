@@ -869,14 +869,15 @@ public:
 
     //! return true if all entities are contained in set
   virtual bool contains_entities(MBEntityHandle meshset, 
-                                 MBEntityHandle *entities,
+                                 const MBEntityHandle *entities,
                                  int num_entities,
                                  const int operation_type = MBInterface::INTERSECT);
 
     //! replace entities
-  virtual bool replace_entities(MBEntityHandle meshset, 
-                                MBEntityHandle *entities,
-                                int num_entities);
+  virtual MBErrorCode replace_entities(MBEntityHandle meshset, 
+                                       const MBEntityHandle *old_entities,
+                                       const MBEntityHandle *new_entities,
+                                       int num_entities);
 
   //------MeshSet Parent/Child functions------
   

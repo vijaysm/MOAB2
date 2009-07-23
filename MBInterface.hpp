@@ -1389,21 +1389,39 @@ public:
      * \return bool If true, all entities are contained in set
     */
   virtual bool contains_entities(MBEntityHandle meshset, 
-                                 MBEntityHandle *entities,
+                                 const MBEntityHandle *entities,
                                  int num_entities,
                                  const int operation_type = MBInterface::INTERSECT) = 0;
 
     //! Replace entities in a set with other entities
-    /** Replace entities in a set with other entities; entity list
-     * specified in pairs of (old, new)
+    /** Replace entities in a set with other entities
+     * 
+     * \note  Behavior is undefined if an entity handle exists in both the
+     *        old_entities and the new_entities arrays or old_entities
+     *        contains multiple copies of an entity.
+     * \note  If an entity occurs multiple times in an ordered set, all
+     *        occurances will be replaced.
+     * \note  For list-based sets, if not all handles in old_entities 
+     *        occcur in the set, the corresponding new_entities will not 
+     *        be added and  MB_ENTITY_NOT_FOUND will be returned.
+     *        For set-based sets, all entities in new_entities wll be
+     *        added and any contained entities in old_entities will be 
+     *        removed, and the return value will be MB_SUCCESS.
      * \param meshset Mesh set being modified
-     * \param entities Pairs of old/new entities
-     * \param num_entities Number of entities \em{total} in entities list
-     * \return bool If true, one or more entities were replaced
+     * \param old_entities Entities to replace
+     * \param new_entities New entities to add
+     * \param num_entities Number of entities in input arrays
+     * \return - MB_SUCCESS : all entities in old_entities replaced
+     *         - MB_ENTITY_NOT_FOUND : one or more entities in new_entities 
+     *                        not added to set because corresponding entity
+     *                        in old_entities did not occur in the ordered
+     *                        set.
+     *         - MB_FAILURE : internal error
     */
-  virtual bool replace_entities(MBEntityHandle meshset, 
-                                MBEntityHandle *entities,
-                                int num_entities) = 0;
+  virtual MBErrorCode replace_entities(MBEntityHandle meshset, 
+                                       const MBEntityHandle *old_entities,
+                                       const MBEntityHandle *new_entities,
+                                       int num_entities) = 0;
     //@}
 
     //! \name MeshSet parent/child functions
