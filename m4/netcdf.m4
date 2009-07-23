@@ -1,7 +1,10 @@
 #######################################################################################
 # Check for NetCDF library ((C++)
 # Sets HAVE_NETCDF to 'yes' or 'no'
-# If HAVE_NETCDF == yes, then exports NETCDF_CPPFLAGS and NETCDF_LDFLAGS
+# If HAVE_NETCDF == yes, then exports:
+#   NETCDF_CPPFLAGS
+#   NETCDF_LDFLAGS
+#   NETCDF_LIBS
 #######################################################################################
 AC_DEFUN([SNL_CHECK_NETCDF],[
 
@@ -82,14 +85,20 @@ if test "xno" != "x$NETCDF_ARG"; then
   LIBS="$LIBS -lnetcdf_c++ -lnetcdf"
   AC_TRY_LINK(
     [#include <netcdf.hh>], [NcFile ncf("foo",NcFile::ReadOnly);],
-    [AC_MSG_RESULT([yes])], 
-    [AC_MSG_RESULT([no]); 
-     AC_MSG_WARN([NetCDF C++ API not found])
-     HAVE_NETCDF=no] )
+    [AC_MSG_RESULT([yes]); NETCDF_LIBS="-lnetcdf_c++ -lnetcdf"], 
+    [AC_MSG_RESULT([no]);
+     AC_MSG_CHECKING([for netcdf_c++ library requiring HDF5-high-level])
+     LIBS="$LIBS -lhdf5_hl -lhdf5"
+     AC_TRY_LINK(
+           [#include <netcdf.hh>], [NcFile ncf("foo",NcFile::ReadOnly);],
+           [AC_MSG_RESULT([yes]); NETCDF_LIBS="-lnetcdf_c++ -lnetcdf -lhdf5_hl ${HDF5_LIBS}"], 
+           [AC_MSG_RESULT([no]); HAVE_NETCDF=no] )    
+     ])
   LIBS="$old_LIBS"
   AC_LANG_RESTORE
   CPPFLAGS="$old_CPPFLAGS"
   LDFLAGS="$old_LDFLAGS"
+
   if test "x$HAVE_NETCDF" = "xno"; then
     if test "x$NETCDF_ARG" != "x"; then 
       AC_MSG_ERROR("NetCDF not found or not working")

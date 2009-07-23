@@ -356,13 +356,14 @@ fi
 #                             NetCDF OPTIONS
 ################################################################################
 
+old_LDFLAGS="$LDFLAGS"
+LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
 SNL_CHECK_NETCDF
+LDFLAGS="$old_LDFLAGS"
 if test "xno" = "x$HAVE_NETCDF"; then
   AC_MSG_WARN([Support for ExodusII file format disabled])
-  NETCDF_LIBS=
 else
   DEFINES="$DEFINES -DNETCDF_FILE"
-  NETCDF_LIBS="-lnetcdf_c++ -lnetcdf"
 fi
 AM_CONDITIONAL(NETCDF_FILE, [test "xno" != "x$HAVE_NETCDF"])
 AM_CPPFLAGS="$NETCDF_CPPFLAGS $AM_CPPFLAGS"
