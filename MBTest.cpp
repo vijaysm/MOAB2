@@ -62,6 +62,16 @@ string TestDir( TEST_DIR );
             << __LINE__ << std::endl; \
   return A; } } while(false)
 
+
+#define CHECK_EQUAL( A, B ) do { if ((A) != (B)) { \
+            std::cerr << "Equality Test failed at " __FILE__ ":" << __LINE__ << std::endl; \
+            std::cerr << "  Expected: " << (A) << std::endl; \
+            std::cerr << "  Actual:   " << (B) << std::endl; \
+            return MB_FAILURE; } } while(false)
+#define CHECK( A ) do { if (!(A)) { \
+            std::cerr << "Test failed at " __FILE__ ":" << __LINE__ << std::endl; \
+            return MB_FAILURE; } } while(false)
+
   /*!
     @test 
     Vertex Coordinates
@@ -5209,6 +5219,171 @@ MBErrorCode mb_range_test(MBInterface *)
   return result;
 }
 
+MBErrorCode mb_range_erase_test(MBInterface *) 
+{
+  MBRange range;
+  MBRange::iterator result;
+  
+    // test erase from first node
+  range.clear();
+  range.insert( 5, 10 );
+  range.insert( 12, 20 );
+  result = range.erase( range.begin(), range.begin()+2 );
+  CHECK_EQUAL(  7u, range.front() );
+  CHECK_EQUAL( 20u, range.back() );
+  CHECK_EQUAL( 13u, range.size() );
+  CHECK_EQUAL(  7u, *result );
+  
+    // test erase first node
+  range.clear();
+  range.insert( 5, 10 );
+  range.insert( 12, 20 );
+  result = range.erase( range.begin(), range.begin()+6 );
+  CHECK_EQUAL( 12u, range.front() );
+  CHECK_EQUAL( 20u, range.back() );
+  CHECK_EQUAL(  9u, range.size() );
+  CHECK_EQUAL( 12u, *result );
+  
+    // test erase from back of first node
+  range.clear();
+  range.insert( 5, 10 );
+  range.insert( 12, 20 );
+  result = range.erase( range.begin()+2, range.begin()+6 );
+  CHECK_EQUAL(  5u, range.front() );
+  CHECK_EQUAL( 20u, range.back() );
+  CHECK_EQUAL( 11u, range.size() );
+  CHECK_EQUAL( 12u, *result );
+  
+    // test erase from middle of first node
+  range.clear();
+  range.insert( 5, 10 );
+  range.insert( 12, 20 );
+  result = range.erase( range.begin()+2, range.begin()+5 );
+  CHECK_EQUAL(  5u, range.front() );
+  CHECK_EQUAL( 20u, range.back() );
+  CHECK_EQUAL( 12u, range.size() );
+  CHECK_EQUAL( 10u, *result );
+  
+    // test erase spanning two nodes
+  range.clear();
+  range.insert( 5, 10 );
+  range.insert( 12, 20 );
+  result = range.erase( range.begin()+3, range.begin()+7 );
+  CHECK_EQUAL(  5u, range.front() );
+  CHECK_EQUAL( 20u, range.back() );
+  CHECK_EQUAL( 11u, range.size() );
+  CHECK_EQUAL( 13u, *result );
+  
+    // test erase of first node and part of second
+  range.clear();
+  range.insert( 5, 10 );
+  range.insert( 12, 20 );
+  result = range.erase( range.begin(), range.begin()+7 );
+  CHECK_EQUAL( 13u, range.front() );
+  CHECK_EQUAL( 20u, range.back() );
+  CHECK_EQUAL(  8u, range.size() );
+  CHECK_EQUAL( 13u, *result );
+  
+    // test erase spanning three nodes
+  range.clear();
+  range.insert( 5, 10 );
+  range.insert( 12, 20 );
+  range.insert( 100, 101 );
+  result = range.erase( range.begin()+3, range.begin()+16 );
+  CHECK_EQUAL(   5u, range.front() );
+  CHECK_EQUAL( 101u, range.back() );
+  CHECK_EQUAL(   4u, range.size() );
+  CHECK_EQUAL( 101u, *result );
+  
+    // test erase from start of second node
+  range.clear();
+  range.insert( 5, 10 );
+  range.insert( 12, 20 );
+  result = range.erase( range.begin()+6, range.begin()+8 );
+  CHECK_EQUAL(  5u, range.front() );
+  CHECK_EQUAL( 20u, range.back() );
+  CHECK_EQUAL( 13u, range.size() );
+  CHECK_EQUAL( 14u, *result );
+  
+    // test erase from back of last node
+  range.clear();
+  range.insert( 5, 10 );
+  range.insert( 12, 20 );
+  result = range.erase( range.begin()+13, range.end() );
+  CHECK_EQUAL(  5u, range.front() );
+  CHECK_EQUAL( 18u, range.back() );
+  CHECK_EQUAL( 13u, range.size() );
+  CHECK( result == range.end() );
+  
+    // test erase part of first node through end
+  range.clear();
+  range.insert( 5, 10 );
+  range.insert( 12, 20 );
+  result = range.erase( range.begin()+4, range.end() );
+  CHECK_EQUAL( 5u, range.front() );
+  CHECK_EQUAL( 8u, range.back() );
+  CHECK_EQUAL( 4u, range.size() );
+  CHECK( result == range.end() );
+  
+    // test erase of single node
+  range.clear();
+  range.insert( 5, 10 );
+  result = range.erase( range.begin(), range.end() );
+  CHECK_EQUAL( 0u, range.size() );
+  CHECK( result == range.end() );
+  
+    // test erase of multi-node range
+  range.clear();
+  range.insert( 5, 10 );
+  range.insert( 12, 20 );
+  range.insert( 100, 101 );
+  result = range.erase( range.begin(), range.end() );
+  CHECK_EQUAL( 0u, range.size() );
+  CHECK( result == range.end() );
+  
+    // test erase nothing
+  range.clear();
+  range.insert( 5, 10 );
+  range.insert( 12, 20 );
+  result = range.erase( range.begin()+3, range.begin()+3 );
+  CHECK_EQUAL(  5u, range.front() );
+  CHECK_EQUAL( 20u, range.back() );
+  CHECK_EQUAL( 15u, range.size() );
+  CHECK_EQUAL(  8u, *result );
+  
+    // test iterators before erase remain valid
+  MBRange::iterator a, b, c;
+  range.clear();
+  range.insert( 5, 10 );
+  range.insert( 12, 20 );
+  a = range.begin();
+  b = range.begin() + 6;  
+  c = range.begin() + 8;
+  result = range.erase( range.begin() + 9, range.end() );
+  CHECK( a == range.begin() );
+  CHECK( b == range.begin() + 6 );
+  CHECK( c == range.begin() + 8 );
+  CHECK( result == range.end() );
+  
+    // test iterators before erase remain valid, single value case
+  range.clear();
+  range.insert( 5, 10 );
+  range.insert( 12, 20 );
+  a = range.begin();
+  b = range.begin() + 6;  
+  c = range.begin() + 8;
+  result = range.erase( range.begin() + 9 );
+  CHECK_EQUAL( 5u, range.front() );
+  CHECK_EQUAL( 20u, range.back() );
+  CHECK_EQUAL( 14u, range.size() );
+  CHECK( a == range.begin() );
+  CHECK( b == range.begin() + 6 );
+  CHECK( c == range.begin() + 8 );
+  CHECK_EQUAL( 16u, *result );
+  
+  return MB_SUCCESS;
+}
+
 MBErrorCode mb_topo_util_test(MBInterface *gMB) 
 {
   MeshTopoUtil mtu(gMB);
@@ -6514,6 +6689,7 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_canon_number_test );
   RUN_TEST( mb_poly_test );
   RUN_TEST( mb_range_test );
+  RUN_TEST( mb_range_erase_test );
   RUN_TEST( mb_topo_util_test );
   RUN_TEST( mb_split_test );
   RUN_TEST( mb_range_seq_intersect_test );

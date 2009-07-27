@@ -424,12 +424,69 @@ MBRange::iterator MBRange::erase(iterator iter)
   // split the range
   else
   {
-    PairNode* new_node = alloc_pair(iter.mNode, iter.mNode->mPrev, kter->first, iter.mValue-1);
+    PairNode* new_node = alloc_pair(iter.mNode->mNext, iter.mNode, iter.mValue+1, kter->second);
     new_node->mPrev->mNext = new_node->mNext->mPrev = new_node;
-    iter.mNode->first = iter.mValue+1;
+    iter.mNode->second = iter.mValue - 1;
     return new_iter;
   }
 
+}
+
+
+  //! remove a range of items from the list
+MBRange::iterator MBRange::erase( iterator iter1, iterator iter2)
+{
+  iterator result;
+  
+  if (iter1.mNode == iter2.mNode) {
+    if (iter2.mValue <= iter1.mValue) {
+        // empty range OK, otherwise invalid input
+      return iter2;
+    }
+    
+      // If both iterators reference the same pair node, then
+      // we're either removing values from the front of the
+      // node or splitting the node.  We can never be removing
+      // the last value in the node in this case because iter2
+      // points *after* the last entry to be removed.
+    
+    PairNode* node = iter1.mNode;
+    if (iter1.mValue == node->first) {
+        node->first = iter2.mValue;
+        result = iter2;
+    }
+    else {
+      PairNode* new_node = alloc_pair( node->mNext, node, iter2.mValue, node->second );
+      new_node->mNext->mPrev = new_node;
+      new_node->mPrev->mNext = new_node;
+      node->second = iter1.mValue - 1;
+      result = iterator( new_node, new_node->first );
+    }
+  }
+  else {
+    if (iter1.mNode == &mHead)
+      return iter1;
+    PairNode* dn = iter1.mNode;
+    if (iter1.mValue > dn->first) {
+      dn->second = iter1.mValue-1;
+      dn = dn->mNext;
+    }
+    if (iter2.mNode != &mHead) 
+      iter2.mNode->first = iter2.mValue;
+    while (dn != iter2.mNode) {
+      PairNode* dead = dn;
+      dn = dn->mNext;
+
+      dead->mPrev->mNext = dead->mNext;
+      dead->mNext->mPrev = dead->mPrev;
+      dead->mPrev = dead->mNext = 0;
+      delete dead;
+    }
+    
+    result = iter2;
+  }
+  
+  return result;
 }
 
 void MBRange::delete_pair_node( PairNode* node )

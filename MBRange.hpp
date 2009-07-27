@@ -759,14 +759,6 @@ inline bool MBRange::empty() const
   return (mHead.mNext == &mHead);
 }
 
-  //! remove a range of items from the list
-inline MBRange::iterator MBRange::erase( iterator iter1, iterator iter2)
-{
-  while( iter1 != iter2 )
-    erase( iter1++ );
-  return iter1; 
-}
-
   //! erases a value from this container
 inline MBRange::iterator MBRange::erase(MBEntityHandle val) 
 { 
