@@ -927,77 +927,76 @@ fi
 ################################################################################
 #                           CGM
 ################################################################################
-if test $ENABLE_dagmc = yes; then
-  AC_ARG_WITH(cgm, 
-  [AC_HELP_STRING([--with-cgm=DIR], [Specify directory containing CGM])],
-  [CGM_DIR=$withval
-   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-cgm=\"${withval}\""
-   ], [CGM_DIR=])
-  case "x$CGM_DIR" in
-    xno|x)
-      CGM_MISSING=yes
-      ;;
-    xyes)
-      AC_MSG_ERROR([--with-cgm requires an argument])
-      ;;
-    *)
-      if ! test -d "$CGM_DIR"; then
-        AC_MSG_WARN([$CGM_DIR : not a directory.])
-      fi
-      CGM_MISSING=no
-      CGM_MAKE=
-      AC_CHECK_FILE([${CGM_DIR}/lib/cgm.make],
-                    [CGM_MAKE="${CGM_DIR}/lib/cgm.make";
-                     DEFINES="$DEFINES -DCGM"],
-                    [AC_CHECK_FILE([${CGM_DIR}/cgm.make],
-                                   [CGM_MAKE="${CGM_DIR}/cgm.make";
-                     DEFINES="$DEFINES -DCGM"],
-                                   [AC_MSG_WARN([$CGM_DIR : not a configured CGM]); 
-                                    CGM_MISSING=yes])
-                    ])
-      ;;
-  esac
-  
-  if test "x$CGM_MISSING" = "xno"; then
-    CGM_CONFIG_OPTIONS="include $CGM_MAKE"
-    
-    AC_MSG_CHECKING([Checking for GeometryQueryTool::ray_fire(RefFace*,...)])
-    SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_DEFINES], [CGM_CPPFLAGS="$make_val"])   
-    SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_INCLUDES],[CGM_CPPFLAGS="$CGM_CPPFLAGS $make_val"])   
-    SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_LTFLAGS],  [CGM_LTFLAGS="$make_val"])   
-    SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_LDFLAGS],  [CGM_LDFLAGS="$make_val"])   
-    SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_LIBS],     [CGM_LIBS="$make_val"])   
-    AC_LANG_PUSH([C++])
-    old_CPPFLAGS="$CPPFLAGS"
-    old_LDFLAGS="$LDFLAGS"
-    old_LIBS="$LIBS"
-    CPPFLAGS="$CGM_CPPFLAGS $CPPFLAGS"
-    LDFLAGS="$CGM_LTFLAGS $CGM_LDFLAGS $CPPFLAGS"
-    LIBS="$CGM_LIBS $LIBS"
-    AC_LINK_IFELSE(
-      [AC_LANG_PROGRAM([#include "GeometryQueryTool.hpp"
-                        #include "CubitVector.hpp"],
-                      [CubitVector a,b;
-                       DLIList<double> c;
-                       GeometryQueryTool::instance()->fire_ray((RefFace*)0, a, b, c );
-                      ])],
-      [MOAB_CGM_DEFINES="-DHAVE_CGM_FIRE_RAY"; AC_MSG_RESULT(yes)],
-      [AC_MSG_RESULT(no)])
-    CPPFLAGS="$old_CPPFLAGS"
-    LDFLAGS="$old_LDFLAGS"
-    LIBS="$old_LIBS"
-    AC_LANG_POP([C++])
-    EXPORT_LDFLAGS="$EXPORT_LDFLAGS $CGM_LDFLAGS"
-    EXPORT_LTFLAGS="$EXPORT_LTFLAGS $CGM_LTFLAGS"
-  fi
+AC_ARG_WITH(cgm, 
+[AC_HELP_STRING([--with-cgm=DIR], [Specify directory containing CGM])],
+[CGM_DIR=$withval
+ DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-cgm=\"${withval}\""
+ ], [CGM_DIR=])
 
-  AC_SUBST(MOAB_CGM_DEFINES)
-  AC_SUBST(CGM_CPPFLAGS)
-  AC_SUBST(CGM_LDFLAGS)
-  AC_SUBST(CGM_LTFLAGS)
-  AC_SUBST(CGM_LIBS)
+case "x$CGM_DIR" in
+  xno|x)
+    CGM_MISSING=yes
+    ;;
+  xyes)
+    AC_MSG_ERROR([--with-cgm requires an argument])
+    ;;
+  *)
+    if ! test -d "$CGM_DIR"; then
+      AC_MSG_WARN([$CGM_DIR : not a directory.])
+    fi
+    CGM_MISSING=no
+    CGM_MAKE=
+    AC_CHECK_FILE([${CGM_DIR}/lib/cgm.make],
+                  [CGM_MAKE="${CGM_DIR}/lib/cgm.make";
+                   DEFINES="$DEFINES -DCGM"],
+                  [AC_CHECK_FILE([${CGM_DIR}/cgm.make],
+                                 [CGM_MAKE="${CGM_DIR}/cgm.make";
+                   DEFINES="$DEFINES -DCGM"],
+                                 [AC_MSG_WARN([$CGM_DIR : not a configured CGM]); 
+                                  CGM_MISSING=yes])
+                  ])
+    ;;
+esac
 
+if test "x$CGM_MISSING" = "xno"; then
+  CGM_CONFIG_OPTIONS="include $CGM_MAKE"
+
+  AC_MSG_CHECKING([Checking for GeometryQueryTool::ray_fire(RefFace*,...)])
+  SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_DEFINES], [CGM_CPPFLAGS="$make_val"])   
+  SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_INCLUDES],[CGM_CPPFLAGS="$CGM_CPPFLAGS $make_val"])   
+  SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_LTFLAGS], [CGM_LTFLAGS="$make_val"])   
+  SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_LDFLAGS], [CGM_LDFLAGS="$make_val"])   
+  SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_LIBS],    [CGM_LIBS="$make_val"])   
+  AC_LANG_PUSH([C++])
+  old_CPPFLAGS="$CPPFLAGS"
+  old_LDFLAGS="$LDFLAGS"
+  old_LIBS="$LIBS"
+  CPPFLAGS="$CGM_CPPFLAGS $CPPFLAGS"
+  LDFLAGS="$CGM_LTFLAGS $CGM_LDFLAGS $CPPFLAGS"
+  LIBS="$CGM_LIBS $LIBS"
+  AC_LINK_IFELSE(
+    [AC_LANG_PROGRAM([#include "GeometryQueryTool.hpp"
+                      #include "CubitVector.hpp"],
+                    [CubitVector a,b;
+                     DLIList<double> c;
+                     GeometryQueryTool::instance()->fire_ray((RefFace*)0, a, b, c );
+                    ])],
+    [MOAB_CGM_DEFINES="-DHAVE_CGM_FIRE_RAY"; AC_MSG_RESULT(yes)],
+    [AC_MSG_RESULT(no)])
+  CPPFLAGS="$old_CPPFLAGS"
+  LDFLAGS="$old_LDFLAGS"
+  LIBS="$old_LIBS"
+  AC_LANG_POP([C++])
+  EXPORT_LDFLAGS="$EXPORT_LDFLAGS $CGM_LDFLAGS"
+  EXPORT_LTFLAGS="$EXPORT_LTFLAGS $CGM_LTFLAGS"
 fi
+
+AC_SUBST(MOAB_CGM_DEFINES)
+AC_SUBST(CGM_CPPFLAGS)
+AC_SUBST(CGM_LDFLAGS)
+AC_SUBST(CGM_LTFLAGS)
+AC_SUBST(CGM_LIBS)
+
 AM_CONDITIONAL( HAVE_CGM, [test "x$CGM_MISSING" = "xno"] )
 
 ################################################################################
