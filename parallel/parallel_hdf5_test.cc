@@ -831,26 +831,31 @@ void test_read_time()
   CHECK_ERR(rval);
   times[0] = MPI_Wtime() - times[0];
   times[1] = double(clock() - tmp_t) / CLOCKS_PER_SEC;
+  mb.delete_mesh();
     
     // Time read and delete
-  mb.delete_mesh();
+  MBCore moab2;
+  MBInterface& mb2 = moab2;
   times[2] = MPI_Wtime();
   tmp_t    = clock();
   const char opt2[] = "PARALLEL=READ_DELETE;PARTITION=PARTITION;PARTITION_BY_RANK";
-  rval = mb.load_file( file_name, file_set, opt2 );
+  rval = mb2.load_file( file_name, file_set, opt2 );
   CHECK_ERR(rval);
   times[2] = MPI_Wtime() - times[2];
   times[3] = double(clock() - tmp_t) / CLOCKS_PER_SEC;
+  mb2.delete_mesh();
     
     // Time broadcast and delete
-  mb.delete_mesh();
+  MBCore moab3;
+  MBInterface& mb3 = moab3;
   times[4] = MPI_Wtime();
   tmp_t    = clock();
   const char opt3[] = "PARALLEL=BCAST_DELETE;PARTITION=PARTITION;PARTITION_BY_RANK";
-  rval = mb.load_file( file_name, file_set, opt3 );
+  rval = mb3.load_file( file_name, file_set, opt3 );
   CHECK_ERR(rval);
   times[4] = MPI_Wtime() - times[4];
   times[5] = double(clock() - tmp_t) / CLOCKS_PER_SEC;
+  mb3.delete_mesh();
   
   double max_times[6] = {0,0,0,0,0,0}, sum_times[6] = {0,0,0,0,0,0}; 
   MPI_Reduce( &times, &max_times, 6, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD );
