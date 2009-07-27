@@ -535,6 +535,23 @@ void check_equal( const std::vector<T>& A, const std::vector<T>& B,
   check_array_equal( &A[0], A.size(), &B[0], B.size(), sA, sB, line, file );
 }
 
+#ifdef MB_RANGE_HPP
+
+void check_equal( const MBRange& A, const MBRange& B, const char* sA, const char* sB, int line, const char* file )
+{
+  if (A == B)
+    return;
+    
+  std::cout << "MBErrorCode Test Failed: " << sA << " == " << sB << std::endl;
+  std::cout << "  at line " << line << " of '" << file << "'" << std::endl;
+  std::cout << "   Expected: " << A << std::endl;
+  std::cout << "   Actual  : " << B << std::endl;
+  std::cout << std::endl;
+  flag_error();
+}
+
+#endif 
+
 #endif
 
 #endif

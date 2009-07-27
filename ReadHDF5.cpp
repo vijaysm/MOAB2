@@ -462,12 +462,45 @@ MBErrorCode ReadHDF5::get_subset_ids( const MBReaderIface::IDTag* subset_list,
       return error(rval);
   
     MBRange tmp_file_ids;
-    std::vector<int> ids( subset_list[i].tag_values, 
-                          subset_list[i].tag_values + subset_list[i].num_tag_values );
-    std::sort( ids.begin(), ids.end() );
-    rval = search_tag_values( tag_index, ids, tmp_file_ids );
-    if (MB_SUCCESS != rval)
-      return error(rval);
+    if (!subset_list[i].num_tag_values) {
+      rval = get_tagged_entities( tag_index, tmp_file_ids );
+    }
+    else {
+      std::vector<int> ids( subset_list[i].tag_values, 
+                            subset_list[i].tag_values + subset_list[i].num_tag_values );
+      std::sort( ids.begin(), ids.end() );
+      rval = search_tag_values( tag_index, ids, tmp_file_ids );
+      if (MB_SUCCESS != rval)
+        return error(rval);
+    }
+    
+    if (tmp_file_ids.empty())
+      return error(MB_ENTITY_NOT_FOUND);
+    
+    if (subset_list[i].num_parts) {
+        // check that the tag only identified sets
+      if ((unsigned long)fileInfo->sets.start_id > tmp_file_ids.front() ||
+          tmp_file_ids.back() >= (unsigned long)fileInfo->sets.start_id + fileInfo->sets.count) {
+        return error(MB_TYPE_OUT_OF_RANGE);
+      }
+      
+      MBRange::iterator s = tmp_file_ids.begin();
+      size_t num_per_proc = tmp_file_ids.size() / subset_list[i].num_parts;
+      size_t num_extra = tmp_file_ids.size() % subset_list[i].num_parts;
+      MBRange::iterator e;
+      if (subset_list[i].part_number < (long)num_extra) {
+        s += (num_per_proc+1) * subset_list[i].part_number;
+        e = s;
+        e += (num_per_proc+1);
+      }
+      else {
+        s += num_per_proc * subset_list[i].part_number + num_extra;
+        e = s;
+        e += num_per_proc;
+      }
+      tmp_file_ids.erase(e, tmp_file_ids.end());
+      tmp_file_ids.erase(tmp_file_ids.begin(), s);
+    }
     
     if (i == 0) 
       file_ids.swap( tmp_file_ids );
@@ -766,8 +799,8 @@ MBErrorCode ReadHDF5::search_tag_values( int tag_index,
   while (iter != ranges.end()) {
     long begin = *iter; ++iter;
     long end   = *iter; ++iter;
-    mhdf_readSparseTagEntities( tables[0], begin, end - begin + 1, 
-                                handleType, &indices[offset], &status );
+    mhdf_readSparseTagEntitiesWithOpt( tables[0], begin, end - begin + 1, 
+                                handleType, &indices[offset], indepIO, &status );
     if (is_error(status)) {
       mhdf_closeData( filePtr, tables[0], &status );
       return error(MB_FAILURE);
@@ -780,6 +813,75 @@ MBErrorCode ReadHDF5::search_tag_values( int tag_index,
   assert( offset == indices.size() );
   std::sort( indices.begin(), indices.end() );
   copy_sorted_file_ids( &indices[0], indices.size(), file_ids );
+  
+  return MB_SUCCESS;  
+}
+
+MBErrorCode ReadHDF5::get_tagged_entities( int tag_index, MBRange& file_ids )
+{
+  const mhdf_TagDesc& tag = fileInfo->tags[tag_index];
+   
+    // do dense data
+  MBRange::iterator hint = file_ids.begin();
+  for (int i = 0; i < tag.num_dense_indices; ++i)
+  {
+    int idx = tag.dense_elem_indices[i];
+    mhdf_EntDesc* ents;
+    if (idx == -2)
+      ents = &fileInfo->sets;
+    else if (idx == -1) 
+      ents = &fileInfo->nodes;
+    else {
+      if (idx < 0 || idx >= fileInfo->num_elem_desc) 
+        return error(MB_FAILURE);
+      ents = &(fileInfo->elems[idx].desc);
+    }
+    
+    MBEntityHandle h = (MBEntityHandle)ents->start_id;
+    hint = file_ids.insert( hint, h, h + ents->count );
+  }
+  
+  if (!tag.have_sparse)
+    return MB_SUCCESS;
+  
+    // do sparse data
+    
+  mhdf_Status status;
+  hid_t tables[2]; 
+  long size, junk; 
+  mhdf_openSparseTagData( filePtr, tag.name, &size, &junk, tables, &status );
+  if (is_error(status))
+    return error(MB_FAILURE);
+  mhdf_closeData( filePtr, tables[1], &status );
+  if (is_error(status)) {
+    mhdf_closeData( filePtr, tables[0], &status );
+    return error(MB_FAILURE);
+  }
+  
+  hint = file_ids.begin();
+  MBEntityHandle* buffer = reinterpret_cast<MBEntityHandle*>(dataBuffer);
+  const long buffer_size = bufferSize / sizeof(MBEntityHandle);
+  long remaining = size, offset = 0;
+  while (remaining) {
+    long count = std::min( buffer_size, remaining );
+    mhdf_readSparseTagEntitiesWithOpt( *tables, offset, count, 
+                                handleType, buffer, collIO, &status );
+    if (is_error(status)) {
+      mhdf_closeData( filePtr, *tables, &status );
+      return error(MB_FAILURE);
+    }
+    
+    std::sort( buffer, buffer + count );
+    for (long i = 0; i < count; ++i)
+      hint = file_ids.insert( hint, buffer[i], buffer[i] );
+    
+    remaining -= count;
+    offset += count;
+  }
+
+  mhdf_closeData( filePtr, *tables, &status );
+  if (is_error(status))
+    return error(MB_FAILURE);
   
   return MB_SUCCESS;  
 }

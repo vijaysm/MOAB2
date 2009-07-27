@@ -1,3 +1,4 @@
+#include "MBRange.hpp"
 #include "TestUtil.hpp"
 
 #include "MBCore.hpp"
@@ -8,8 +9,11 @@
 
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 #include <mpi.h>
 #include <unistd.h>
+#include <float.h>
+#include <stdio.h>
 
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)
@@ -30,8 +34,20 @@ void test_write_elements();
 void test_write_shared_sets();
 void test_var_length_parallel();
 
+void test_read_elements_common( bool by_rank, int intervals, bool print_time );
+
+int ReadIntervals = 0;
+void test_read_elements()         { test_read_elements_common( false, ReadIntervals, false ); }
+void test_read_elements_by_rank() { test_read_elements_common(  true, ReadIntervals, false ); }
+void test_read_time();
+
+void test_read_tags();
+void test_read_global_tags();
+void test_read_sets();
+
 bool KeepTmpFiles = false;
 bool PauseOnStart = false;
+const int DefaultReadIntervals = 2;
 
 int main( int argc, char* argv[] )
 {
@@ -43,8 +59,14 @@ int main( int argc, char* argv[] )
       KeepTmpFiles = true;
     else if (!strcmp( argv[i], "-p"))
       PauseOnStart = true;
+    else if (!strcmp( argv[i], "-r")) {
+      ++i;
+      CHECK( i < argc );
+      ReadIntervals = atoi( argv[i] );
+      CHECK( ReadIntervals > 0 );
+    }
     else {
-      std::cerr << "Usage: " << argv[0] << " [-k] [-p]" << std::endl;
+      std::cerr << "Usage: " << argv[0] << " [-k] [-p] [-r <int>]" << std::endl;
       return 1;
     }
   }
@@ -57,9 +79,28 @@ int main( int argc, char* argv[] )
   }
   
   int result = 0;
-  result += RUN_TEST( test_write_elements );
-  result += RUN_TEST( test_write_shared_sets );
-  result += RUN_TEST( test_var_length_parallel );
+  if (ReadIntervals) {
+    result = RUN_TEST( test_read_time );
+  }
+  else {
+    ReadIntervals = DefaultReadIntervals;
+    result += RUN_TEST( test_write_elements );
+    MPI_Barrier(MPI_COMM_WORLD);
+    result += RUN_TEST( test_write_shared_sets );
+    MPI_Barrier(MPI_COMM_WORLD);
+    result += RUN_TEST( test_var_length_parallel );
+    MPI_Barrier(MPI_COMM_WORLD);
+    result += RUN_TEST( test_read_elements );
+    MPI_Barrier(MPI_COMM_WORLD);
+    result += RUN_TEST( test_read_elements_by_rank );
+    MPI_Barrier(MPI_COMM_WORLD);
+    result += RUN_TEST( test_read_tags );
+    MPI_Barrier(MPI_COMM_WORLD);
+    result += RUN_TEST( test_read_global_tags );
+    MPI_Barrier(MPI_COMM_WORLD);
+    result += RUN_TEST( test_read_sets );
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
   
   MPI_Finalize();
   return result;
@@ -358,7 +399,7 @@ void test_write_elements()
     // load and partition a .cub file
   MBCore moab_instance;
   MBInterface& moab = moab_instance;
-  load_and_partition( moab, InputFile, true );
+  load_and_partition( moab, InputFile, false );
   
     // count number of owned entities of each type and sum over all procs
   count_owned_entities( moab, proc_counts );
@@ -587,3 +628,447 @@ void test_var_length_parallel()
       CHECK_EQUAL( 0, vtx_counts[j] );
   }
 }
+
+// create row of cubes of mesh
+void create_input_file( const char* file_name, 
+                        int intervals, 
+                        int num_cpu,
+                        const char* ijk_vert_tag_name = 0,
+                        const char* ij_set_tag_name = 0,
+                        const char* global_tag_name = 0,
+                        const int* global_mesh_value = 0, 
+                        const int* global_default_value = 0 )
+{
+  MBCore moab;
+  MBInterface& mb = moab;
+  MBErrorCode rval;
+  
+  MBTag ijk_vert_tag = 0, ij_set_tag = 0, global_tag = 0;
+  if (ijk_vert_tag_name) {
+    rval = mb.tag_create( ijk_vert_tag_name, 3*sizeof(int), MB_TAG_DENSE, 
+                          MB_TYPE_INTEGER, ijk_vert_tag, 0 );
+    CHECK_ERR(rval);
+  }
+  if (ij_set_tag_name) {
+    rval = mb.tag_create( ij_set_tag_name, 2*sizeof(int), MB_TAG_SPARSE, 
+                          MB_TYPE_INTEGER, ij_set_tag, 0 );
+    CHECK_ERR(rval);
+  }
+  if (global_tag_name) {
+    rval = mb.tag_create( global_tag_name, sizeof(int), MB_TAG_DENSE, 
+                          MB_TYPE_INTEGER, global_tag, global_default_value );
+    CHECK_ERR(rval);
+    if (global_mesh_value) {
+      rval = mb.tag_set_data( global_tag, 0, 0, global_mesh_value );
+      CHECK_ERR(rval);
+    }
+  }
+  
+  
+  int iv = intervals+1, ii = num_cpu*intervals+1;
+  std::vector<MBEntityHandle> verts(iv*iv*ii);
+  int idx = 0;
+  for (int i = 0; i < ii; ++i) {
+    for (int j = 0; j < iv; ++j) {
+      int start = idx;
+      for (int k = 0; k < iv; ++k) {
+        const double coords[3] = {i, j, k};
+        rval = mb.create_vertex( coords, verts[idx] );
+        CHECK_ERR(rval);
+        if (ijk_vert_tag) {
+          int vals[] = {i,j,k};
+          rval = mb.tag_set_data( ijk_vert_tag, &verts[idx], 1, vals );
+          CHECK_ERR(rval);
+        }
+        ++idx; 
+      }
+      
+      if (ij_set_tag) {
+        MBEntityHandle set;
+        rval = mb.create_meshset( MESHSET_SET, set );
+        CHECK_ERR(rval);
+        rval = mb.add_entities( set, &verts[start], idx - start );
+        CHECK_ERR(rval);
+        int vals[] = { i, j };
+        rval = mb.tag_set_data( ij_set_tag, &set, 1, vals );
+        CHECK_ERR(rval);
+      }
+    }
+  }
+  
+  const int eb = intervals*intervals*intervals;
+  std::vector<MBEntityHandle> elems(num_cpu*eb);
+  idx = 0;
+  for (int c = 0; c < num_cpu; ++c) {
+    for (int i = c*intervals; i < (c+1)*intervals; ++i) {
+      for (int j = 0; j < intervals; ++j) {
+        for (int k = 0; k < intervals; ++k) {
+          MBEntityHandle conn[8] = { verts[iv*(iv* i +      j    ) + k    ],
+                                     verts[iv*(iv*(i + 1) + j    ) + k    ],
+                                     verts[iv*(iv*(i + 1) + j + 1) + k    ],
+                                     verts[iv*(iv* i      + j + 1) + k    ],
+                                     verts[iv*(iv* i      + j    ) + k + 1],
+                                     verts[iv*(iv*(i + 1) + j    ) + k + 1],
+                                     verts[iv*(iv*(i + 1) + j + 1) + k + 1],
+                                     verts[iv*(iv* i      + j + 1) + k + 1] };
+
+          rval = mb.create_element( MBHEX, conn, 8, elems[idx++] );
+          CHECK_ERR(rval);
+        }
+      }
+    }
+  }
+  
+  MBTag part_tag;
+  rval = mb.tag_create( "PARTITION", sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, part_tag, 0 );
+  CHECK_ERR(rval);
+  
+  std::vector<MBEntityHandle> parts(num_cpu);
+  for (int i = 0; i < num_cpu; ++i) {
+    rval = mb.create_meshset( MESHSET_SET, parts[i] );
+    CHECK_ERR(rval);
+    rval = mb.add_entities( parts[i], &elems[i*eb], eb );
+    CHECK_ERR(rval);
+    rval = mb.tag_set_data( part_tag, &parts[i], 1, &i );
+    CHECK_ERR(rval);
+  }
+  
+  rval = mb.write_file( file_name, "MOAB" );
+  CHECK_ERR(rval);
+}
+
+void test_read_elements_common( bool by_rank, int intervals, bool print_time )
+{
+  const char *file_name = by_rank ? "test_read_rank.h5m" : "test_read.h5m";
+  int numproc, rank;
+  MPI_Comm_size( MPI_COMM_WORLD, &numproc );
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
+  MBCore moab;
+  MBInterface &mb = moab;
+  MBErrorCode rval;
+  MBEntityHandle file_set;
+
+    // if root processor, create hdf5 file for use in testing
+  if (0 == rank) 
+    create_input_file( file_name, intervals, numproc );
+  MPI_Barrier(MPI_COMM_WORLD); // make sure root has completed writing the file
+  
+    // do parallel read unless only one processor
+  const char opt1[] = "PARALLEL=READ_PART;PARTITION=PARTITION";
+  const char opt2[] = "PARALLEL=READ_PART;PARTITION=PARTITION;PARTITION_BY_RANK";
+  const char* opt = numproc == 1 ? 0 : by_rank ? opt2 : opt1;
+  rval = mb.load_file( file_name, file_set, opt );
+  MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
+  if (0 == rank && !KeepTmpFiles) remove( file_name );
+  CHECK_ERR(rval);
+      
+  
+  MBTag part_tag;
+  rval = mb.tag_get_handle( "PARTITION", part_tag );
+  CHECK_ERR(rval);
+  
+  MBRange parts;
+  rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &part_tag, 0, 1, parts );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( 1, (int)parts.size() );
+  MBEntityHandle part = parts.front();
+  int id;
+  rval = mb.tag_get_data( part_tag, &part, 1, &id );
+  CHECK_ERR(rval);
+  if (by_rank) {
+    CHECK_EQUAL( rank, id );
+  }
+  
+    // check that all of the elements in the mesh are in the part
+  int npart, nall;
+  rval = mb.get_number_entities_by_dimension( part, 3, npart );
+  CHECK_ERR(rval);
+  rval = mb.get_number_entities_by_dimension( 0, 3, nall );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( npart, nall );
+  
+    // check that we have the correct vertices
+  const double x_min = intervals*rank;
+  const double x_max = intervals*(rank+1);
+  MBRange verts;
+  rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
+  CHECK_ERR(rval);
+  std::vector<double> coords(verts.size());
+  rval = mb.get_coords( verts, &coords[0], 0, 0 );
+  CHECK_ERR(rval);
+  const double act_x_min = *std::min_element( coords.begin(), coords.end() );
+  const double act_x_max = *std::max_element( coords.begin(), coords.end() );
+  CHECK_REAL_EQUAL( x_min, act_x_min, DBL_EPSILON );
+  CHECK_REAL_EQUAL( x_max, act_x_max, DBL_EPSILON );
+}
+
+void test_read_time()
+{
+  const char file_name[] = "read_time.h5m";
+  int numproc, rank;
+  MPI_Comm_size( MPI_COMM_WORLD, &numproc );
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
+  MBErrorCode rval;
+  MBEntityHandle file_set;
+
+    // if root processor, create hdf5 file for use in testing
+  if (0 == rank) 
+    create_input_file( file_name, ReadIntervals, numproc );
+  MPI_Barrier( MPI_COMM_WORLD );
+  
+  // CPU Time for true paralle, wall time for true paralle,
+  //   CPU time for read and delete, wall time for read and delete
+  double times[6];
+  clock_t tmp_t;
+  
+    // Time true parallel read
+  MBCore moab;
+  MBInterface &mb = moab;
+  times[0] = MPI_Wtime();
+  tmp_t    = clock();
+  const char opt[] = "PARALLEL=READ_PART;PARTITION=PARTITION;PARTITION_BY_RANK";
+  rval = mb.load_file( file_name, file_set, opt );
+  CHECK_ERR(rval);
+  times[0] = MPI_Wtime() - times[0];
+  times[1] = double(clock() - tmp_t) / CLOCKS_PER_SEC;
+    
+    // Time read and delete
+  mb.delete_mesh();
+  times[2] = MPI_Wtime();
+  tmp_t    = clock();
+  const char opt2[] = "PARALLEL=READ_DELETE;PARTITION=PARTITION;PARTITION_BY_RANK";
+  rval = mb.load_file( file_name, file_set, opt2 );
+  CHECK_ERR(rval);
+  times[2] = MPI_Wtime() - times[2];
+  times[3] = double(clock() - tmp_t) / CLOCKS_PER_SEC;
+    
+    // Time broadcast and delete
+  mb.delete_mesh();
+  times[4] = MPI_Wtime();
+  tmp_t    = clock();
+  const char opt3[] = "PARALLEL=BCAST_DELETE;PARTITION=PARTITION;PARTITION_BY_RANK";
+  rval = mb.load_file( file_name, file_set, opt3 );
+  CHECK_ERR(rval);
+  times[4] = MPI_Wtime() - times[4];
+  times[5] = double(clock() - tmp_t) / CLOCKS_PER_SEC;
+  
+  double max_times[6] = {0,0,0,0,0,0}, sum_times[6] = {0,0,0,0,0,0}; 
+  MPI_Reduce( &times, &max_times, 6, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD );
+  MPI_Reduce( &times, &sum_times, 6, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD );
+  MPI_Barrier( MPI_COMM_WORLD );
+  if (0 == rank) {
+    printf( "%12s  %12s  %12s  %12s\n", "", "READ_PART", "READ_DELETE", "BCAST_DELETE" );
+    printf( "%12s  %12g  %12g  %12g\n", "Max Wall", max_times[0], max_times[2], max_times[4] );
+    printf( "%12s  %12g  %12g  %12g\n", "Total Wall", sum_times[0], sum_times[2], sum_times[4] );
+    printf( "%12s  %12g  %12g  %12g\n", "Max CPU", max_times[1], max_times[3], max_times[5] );
+    printf( "%12s  %12g  %12g  %12g\n", "Total CPU", sum_times[1], sum_times[3], sum_times[5] );
+  }
+  
+  MPI_Barrier( MPI_COMM_WORLD );
+  if (0 == rank && !KeepTmpFiles) remove( file_name );
+}
+
+void test_read_tags()
+{
+  const char tag_name[] = "test_tag_xx";
+  const char file_name[] = "test_read_tags.h5m";
+  int numproc, rank;
+  MPI_Comm_size( MPI_COMM_WORLD, &numproc );
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
+  MBCore moab;
+  MBInterface &mb = moab;
+  MBErrorCode rval;
+  MBEntityHandle file_set;
+
+    // if root processor, create hdf5 file for use in testing
+  if (0 == rank) 
+    create_input_file( file_name, DefaultReadIntervals, numproc, tag_name );
+  MPI_Barrier(MPI_COMM_WORLD); // make sure root has completed writing the file
+  
+    // do parallel read unless only one processor
+  const char opt1[] = "PARALLEL=READ_PART;PARTITION=PARTITION";
+  const char* opt = numproc == 1 ? 0 : opt1;
+  rval = mb.load_file( file_name, file_set, opt );
+  MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
+  if (0 == rank && !KeepTmpFiles) remove( file_name );
+  CHECK_ERR(rval);
+      
+  MBTag tag;
+  rval = mb.tag_get_handle( tag_name, tag );
+  CHECK_ERR(rval);
+  
+  int size = -1;
+  rval = mb.tag_get_size( tag, size );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( 3*(int)sizeof(int), size );
+  
+  MBTagType storage;
+  rval = mb.tag_get_type( tag, storage );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( MB_TAG_DENSE, storage );
+  
+  MBDataType type;
+  rval = mb.tag_get_data_type( tag, type );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( MB_TYPE_INTEGER, type );
+  
+  MBRange verts, tagged;
+  rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
+  CHECK_ERR(rval);
+  rval = mb.get_entities_by_type_and_tag( 0, MBVERTEX, &tag, 0, 1, tagged );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( verts, tagged );
+  
+  for (MBRange::iterator i = verts.begin(); i != verts.end(); ++i) {
+    double coords[3];
+    rval = mb.get_coords( &*i, 1, coords );
+    CHECK_ERR(rval);
+    int ijk[3];
+    rval = mb.tag_get_data( tag, &*i, 1, ijk );
+    CHECK_ERR(rval);
+    
+    CHECK( ijk[0] >= DefaultReadIntervals * rank );
+    CHECK( ijk[0] <= DefaultReadIntervals * (rank+1) );
+    CHECK( ijk[1] >= 0 );
+    CHECK( ijk[1] <= DefaultReadIntervals );
+    CHECK( ijk[2] >= 0 );
+    CHECK( ijk[2] <= DefaultReadIntervals );
+
+    CHECK_REAL_EQUAL( coords[0], (double)ijk[0], 1e-100 );
+    CHECK_REAL_EQUAL( coords[1], (double)ijk[1], 1e-100 );
+    CHECK_REAL_EQUAL( coords[2], (double)ijk[2], 1e-100 );
+  }
+}
+
+void test_read_global_tags()
+{
+  const char tag_name[] = "test_tag_g";
+  const char file_name[] = "test_read_global_tags.h5m";
+  int numproc, rank;
+  MPI_Comm_size( MPI_COMM_WORLD, &numproc );
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
+  MBCore moab;
+  MBInterface &mb = moab;
+  MBErrorCode rval;
+  MBEntityHandle file_set;
+  const int def_val = 0xdeadcad;
+  const int global_val = -11;
+
+    // if root processor, create hdf5 file for use in testing
+  if (0 == rank) 
+    create_input_file( file_name, 1, numproc, 0, 0, tag_name, &global_val, &def_val );
+  MPI_Barrier(MPI_COMM_WORLD); // make sure root has completed writing the file
+  
+    // do parallel read unless only one processor
+  const char opt1[] = "PARALLEL=READ_PART;PARTITION=PARTITION";
+  const char* opt = numproc == 1 ? 0 : opt1;
+  rval = mb.load_file( file_name, file_set, opt );
+  MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
+  if (0 == rank && !KeepTmpFiles) remove( file_name );
+  CHECK_ERR(rval);
+      
+  MBTag tag;
+  rval = mb.tag_get_handle( tag_name, tag );
+  CHECK_ERR(rval);
+  
+  int size = -1;
+  rval = mb.tag_get_size( tag, size );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( (int)sizeof(int), size );
+  
+  MBTagType storage;
+  rval = mb.tag_get_type( tag, storage );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( MB_TAG_DENSE, storage );
+  
+  MBDataType type;
+  rval = mb.tag_get_data_type( tag, type );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( MB_TYPE_INTEGER, type );
+  
+  int mesh_def_val, mesh_gbl_val;
+  rval = mb.tag_get_default_value( tag, &mesh_def_val );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( def_val, mesh_def_val );
+  rval = mb.tag_get_data( tag, 0, 0, &mesh_gbl_val );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( global_val, mesh_gbl_val );
+}
+
+void test_read_sets()
+{
+  const char tag_name[] = "test_tag_s";
+  const char file_name[] = "test_read_sets.h5m";
+  int numproc, rank;
+  MPI_Comm_size( MPI_COMM_WORLD, &numproc );
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
+  MBCore moab;
+  MBInterface &mb = moab;
+  MBErrorCode rval;
+  MBEntityHandle file_set;
+
+    // if root processor, create hdf5 file for use in testing
+  if (0 == rank) 
+    create_input_file( file_name, DefaultReadIntervals, numproc, 0, tag_name );
+  MPI_Barrier(MPI_COMM_WORLD); // make sure root has completed writing the file
+  
+    // do parallel read unless only one processor
+  const char opt1[] = "PARALLEL=READ_PART;PARTITION=PARTITION";
+  const char* opt = numproc == 1 ? 0 : opt1;
+  rval = mb.load_file( file_name, file_set, opt );
+  MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
+  if (0 == rank && !KeepTmpFiles) remove( file_name );
+  CHECK_ERR(rval);
+      
+  MBTag tag;
+  rval = mb.tag_get_handle( tag_name, tag );
+  CHECK_ERR(rval);
+  
+  int size = -1;
+  rval = mb.tag_get_size( tag, size );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( 2*(int)sizeof(int), size );
+  
+  MBTagType storage;
+  rval = mb.tag_get_type( tag, storage );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( MB_TAG_SPARSE, storage );
+  
+  MBDataType type;
+  rval = mb.tag_get_data_type( tag, type );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( MB_TYPE_INTEGER, type );
+  
+  const int iv = DefaultReadIntervals + 1;
+  MBRange sets;
+  rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &tag, 0, 1, sets );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( (MBEntityHandle)(iv*iv), sets.size() );
+  
+  for (MBRange::iterator i = sets.begin(); i != sets.end(); ++i) {
+    int ij[2];
+    rval = mb.tag_get_data( tag, &*i, 1, &ij );
+    CHECK_ERR(rval);
+    
+    CHECK( ij[0] >= DefaultReadIntervals * rank );
+    CHECK( ij[0] <= DefaultReadIntervals * (rank+1) );
+    CHECK( ij[1] >= 0 );
+    CHECK( ij[1] <= DefaultReadIntervals );
+    
+    MBRange contents;
+    rval = mb.get_entities_by_handle( *i, contents );
+    CHECK_ERR(rval);
+    CHECK(contents.all_of_type(MBVERTEX));
+    CHECK_EQUAL( (MBEntityHandle)iv, contents.size() );
+    
+    for (MBRange::iterator v = contents.begin(); v != contents.end(); ++v) {
+      double coords[3];
+      rval = mb.get_coords( &*v, 1, coords );
+      CHECK_ERR(rval);
+      CHECK_REAL_EQUAL( coords[0], (double)ij[0], 1e-100 );
+      CHECK_REAL_EQUAL( coords[1], (double)ij[1], 1e-100 );
+    }
+  }
+}
+
+

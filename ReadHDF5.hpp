@@ -252,6 +252,15 @@ private:
   MBErrorCode search_tag_values( int tag_index,
                                  const std::vector<int>& sorted_values,
                                  MBRange& file_ids_out );
+  
+  /**\brief Search for entities with specified tag 
+   * 
+   *\NOTE For parallel reads, this function does collective IO.
+   *
+   *\param tag_index  Index into info->tags specifying which tag to search.
+   *\param file_ids_out  File IDs for entities with specified tag values.
+   */
+  MBErrorCode get_tagged_entities( int tag_index, MBRange& file_ids_out );
                                  
   /**\brief Search a table of tag data for a specified set of values.
    *

@@ -228,7 +228,12 @@ void test_read_nothing_common( bool non_existant )
   MBEntityHandle file_set;
   int id = non_existant ? 8 : 7;
   rval = mb.load_file( TEST_FILE, file_set, READ_OPTS, ID_TAG_NAME, &id, 1 );
-  CHECK_ERR( rval );
+  if (non_existant) {
+    CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
+    return;
+  }
+  else
+    CHECK_ERR( rval );
   
   // the file should contain exactly two sets (the specified one and the new
   // file set, and nothing else.)

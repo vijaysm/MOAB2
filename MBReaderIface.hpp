@@ -39,6 +39,8 @@ class MBReaderIface
       const char* tag_name;  //!< Name of tag containing integer IDs
       const int* tag_values; //!< Array of integer ID values
       int num_tag_values;    //!< Length of tag_values array
+      int num_parts;         //!< If non-zero, load 1/num_parts of the matching sets
+      int part_number;       //!< If num_parts is non-zero, load part_number-th fraction of the sets
     };
     
     /**

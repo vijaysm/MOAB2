@@ -98,6 +98,7 @@ Set parallel read mode.  Options are:
                  I/O if available (this option is not supported for all 
                  file formats.)
   - FORMAT - depricated (use WRITE_PART)
+
   
   PARTITION
   PARTITION=<tag_name>
@@ -106,13 +107,24 @@ Specify that mesh should be partitioned using partition IDs stored
 in a tag.  If the tag name is not specified, the default ("PARTITION")
 is used.
 
-  PARTITION_VALS=<int_list>
 
-Specify, for each processor, the list of partition IDs.
+  PARTITION_VAL=<int_list>
+
+If a tag name is specified to the 'PARTITION' option, then treat as
+partitions only those sets for which the tag *value* is a single integer
+for which the value is one of integers in thie specified list.
+
 
   PARTITION_DISTRIBUTE
 
-?
+Depricated.  Implied by "PARTITION" option.
+
+
+  PARTITION_BY_RANK
+  
+Assume 1-1 mapping between MPI rank and part ID.  Assing parts
+to processors for which rank == part id.
+
 
   MPI_IO_RANK=<RANK>
 

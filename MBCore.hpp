@@ -17,6 +17,7 @@
 #define MB_IMPL_GENERAL_HPP
 
 #include "MBInterface.hpp"
+#include "MBReaderIface.hpp"
 #include <map>
 
 class MBWriteUtil;
@@ -102,12 +103,19 @@ public:
                                  int num_set_tag_values = 0 );
 
   /**Load or import a file. */
-  virtual MBErrorCode serial_load_file( const char* file_name,
-                                 MBEntityHandle& file_set,
-                                 const FileOptions& opts,
-                                 const char* set_tag_name = 0,
-                                 const int* set_tag_values = 0,
-                                 int num_set_tag_values = 0 );
+  MBErrorCode serial_load_file( const char* file_name,
+                         MBEntityHandle& file_set,
+                         const FileOptions& opts,
+                         const MBReaderIface::IDTag* subset_list = 0,
+                         int subset_list_length = 0,
+                         const MBTag* file_id_tag = 0 );
+                         
+  MBErrorCode serial_read_tag( const char* file_name,
+                               const char* tag_name,
+                               const FileOptions& opts,
+                               std::vector<int>& tag_vals,
+                               const MBReaderIface::IDTag* subset_list = 0,
+                               int subset_list_length = 0 );
   
   virtual MBErrorCode write_mesh(const char *file_name,
                                   const MBEntityHandle *output_list = NULL,

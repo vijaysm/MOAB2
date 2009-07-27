@@ -2518,7 +2518,7 @@ MBErrorCode MBParallelComm::unpack_tags(unsigned char *&buff_ptr,
 MBErrorCode MBParallelComm::resolve_shared_ents(MBEntityHandle this_set,
                                                 int resolve_dim,
                                                 int shared_dim,
-                                                MBTag* id_tag) 
+                                                const MBTag* id_tag) 
 {
   MBErrorCode result;
   MBRange proc_ents;
@@ -2555,7 +2555,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBEntityHandle this_set,
                                                 MBRange &proc_ents,
                                                 int resolve_dim,
                                                 int shared_dim,
-                                                MBTag* id_tag) 
+                                                const MBTag* id_tag) 
 {
 #ifdef DEBUG_MPE
   define_mpe();
@@ -4608,8 +4608,8 @@ MBErrorCode MBParallelComm::exchange_tags( MBTag src_tag,
 
 MBErrorCode MBParallelComm::update_shared_mesh()
 {
-  MBErrorCode result;
-  int success;
+//  MBErrorCode result;
+//  int success;
 
     // ,,,
     /*

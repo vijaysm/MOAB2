@@ -10,6 +10,8 @@
 #include "MBCN.hpp"
 
 #include <iostream>
+#include <iomanip>
+#include <iterator>
 #include <sstream>
 #include <algorithm>
 #include <assert.h>
@@ -20,12 +22,18 @@ const bool debug = false;
       dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(a); \
       return result;}
 
-enum ParallelActions {PA_READ=0, PA_BROADCAST, PA_DELETE_NONLOCAL,
-                      PA_CHECK_GIDS_SERIAL, PA_GET_FILESET_ENTS, 
+enum ParallelActions {PA_READ=0, 
+                      PA_READ_PART, 
+                      PA_BROADCAST, 
+                      PA_DELETE_NONLOCAL,
+                      PA_CHECK_GIDS_SERIAL, 
+                      PA_GET_FILESET_ENTS, 
                       PA_RESOLVE_SHARED_ENTS,
-                      PA_EXCHANGE_GHOSTS, PA_PRINT_PARALLEL};
+                      PA_EXCHANGE_GHOSTS, 
+                      PA_PRINT_PARALLEL};
 const char *ParallelActionsNames[] = {
     "PARALLEL READ",
+    "PARALLEL READ PART",
     "PARALLEL BROADCAST", 
     "PARALLEL DELETE NONLOCAL",
     "PARALLEL CHECK_GIDS_SERIAL",
@@ -35,8 +43,13 @@ const char *ParallelActionsNames[] = {
     "PARALLEL PRINT_PARALLEL"
 };
 
-const char* ReadParallel::parallelOptsNames[] = { "NONE", "BCAST", "BCAST_DELETE", 
-                                                  "READ_DELETE", "READ_PART", "", 0 };
+const char* ReadParallel::parallelOptsNames[] = { "NONE", 
+                                                  "BCAST", 
+                                                  "BCAST_DELETE", 
+                                                  "READ_DELETE", 
+                                                  "READ_PART", 
+                                                  "", 
+                                                  0 };
       
 ReadParallel::ReadParallel(MBInterface* impl, 
                            MBParallelComm *pc) 
@@ -52,9 +65,9 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
                                     const int num_files,
                                     MBEntityHandle& file_set,
                                     const FileOptions &opts,
-                                    const char* set_tag_name,
-                                    const int* set_tag_values,
-                                    const int num_tag_values ) 
+                                    const MBReaderIface::IDTag* subset_list,
+                                    int subset_list_length,
+                                    const MBTag* file_id_tag ) 
 {
   MBError *merror = ((MBCore*)mbImpl)->get_error_handler();
 
@@ -70,18 +83,23 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
     parallel_mode = 0;
   }
     // Get partition setting
+  bool distrib;
   std::string partition_tag_name;
   result = opts.get_option("PARTITION", partition_tag_name);
-  if (MB_ENTITY_NOT_FOUND == result || partition_tag_name.empty())
-    partition_tag_name = PARALLEL_PARTITION_TAG_NAME;
+  if (MB_ENTITY_NOT_FOUND == result) {
+    distrib = false;
+    partition_tag_name = "";
+  }
+  else {
+    distrib = true;
+    if (partition_tag_name.empty()) 
+      partition_tag_name = PARALLEL_PARTITION_TAG_NAME;
+  }
 
     // Get partition tag value(s), if any, and whether they're to be
     // distributed or assigned
   std::vector<int> partition_tag_vals;
   result = opts.get_ints_option("PARTITION_VAL", partition_tag_vals);
-  bool distrib = false;
-  result = opts.get_null_option("PARTITION_DISTRIBUTE");
-  if (MB_SUCCESS == result) distrib = true;
 
     // see if we need to report times
   bool cputime = false;
@@ -143,6 +161,15 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   std::vector<int> pa_vec;
   bool is_reader = (reader_rank == (int) myPcomm->proc_config().proc_rank());
   
+  bool partition_by_rank = false;
+  if (MB_SUCCESS == opts.get_null_option("PARTITION_BY_RANK")) {
+    partition_by_rank = true;
+    if (!partition_tag_vals.empty()) {
+      merror->set_last_error("Cannot specify both PARTITION_VALS and PARTITION_BY_RANK");
+      return MB_FAILURE;
+    }
+  }
+  
   switch (parallel_mode) {
     case POPT_BCAST:
         if (is_reader) {
@@ -175,8 +202,8 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
         break;
 
     case POPT_READ_PART:
-        merror->set_last_error( "Access to format-specific parallel read not implemented.\n");
-        return MB_NOT_IMPLEMENTED;
+        pa_vec.push_back(PA_READ_PART);
+        break;
     default:
         return MB_FAILURE;
   }
@@ -189,8 +216,9 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   
   return load_file(file_names, num_files, file_set, parallel_mode, 
                    partition_tag_name,
-                   partition_tag_vals, distrib, pa_vec, opts,
-                   set_tag_name, set_tag_values, num_tag_values,
+                   partition_tag_vals, distrib, 
+                   partition_by_rank, pa_vec, opts,
+                   subset_list, subset_list_length, file_id_tag,
                    reader_rank, cputime, 
                    resolve_dim, shared_dim,
                    ghost_dim, bridge_dim, num_layers);
@@ -203,11 +231,12 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
                                     std::string &partition_tag_name, 
                                     std::vector<int> &partition_tag_vals, 
                                     bool distrib,
+                                    bool partition_by_rank,
                                     std::vector<int> &pa_vec,
                                     const FileOptions &opts,
-                                    const char* set_tag_name,
-                                    const int* set_tag_values,
-                                    const int num_tag_values,
+                                    const MBReaderIface::IDTag* subset_list,
+                                    int subset_list_length,
+                                    const MBTag* file_id_tag,
                                     const int reader_rank,
                                     const bool cputime,
                                     const int resolve_dim,
@@ -219,6 +248,8 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   MBErrorCode result = MB_SUCCESS;
   if (myPcomm == NULL)
     myPcomm = new MBParallelComm(mbImpl);
+
+  MBError *merror = ((MBCore*)mbImpl)->get_error_handler();
 
   MBRange entities; 
   MBTag file_set_tag = 0;
@@ -238,6 +269,8 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   result = mbImpl->create_meshset(MESHSET_SET, file_set);
   if (MB_SUCCESS != result) return result;
   bool i_read = false;
+  MBTag id_tag = 0;
+  bool use_id_tag = false;
 
   for (i = 1, vit = pa_vec.begin();
        vit != pa_vec.end(); vit++, i++) {
@@ -256,9 +289,9 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
             tmp_result = impl->serial_load_file( file_names[j], 
                                                  new_file_set, 
                                                  opts,
-                                                 set_tag_name,
-                                                 set_tag_values,
-                                                 num_tag_values );
+                                                 subset_list,
+                                                 subset_list_length,
+                                                 file_id_tag );
             if (MB_SUCCESS != tmp_result) break;
 
               // put the contents of each file set for the reader into the 
@@ -283,6 +316,47 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
           tmp_result = mbImpl->tag_set_data(file_set_tag, &file_set, 1, 
                                             &other_sets);
           break;
+//==================
+      case PA_READ_PART: {
+          i_read = true;
+          if (num_files != 1) {
+            merror->set_last_error("Multiple file read not supported for READ_PART");
+            return MB_NOT_IMPLEMENTED;
+          }
+          
+          use_id_tag = true;
+          if (!file_id_tag) {
+            tmp_result = mbImpl->tag_create( "", sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, id_tag, 0 );
+            if (MB_SUCCESS != tmp_result)
+              break;
+            file_id_tag = &id_tag;
+          }
+          
+          MBReaderIface::IDTag parts = { partition_tag_name.c_str(),
+                                         0, 0, 0, 0 };
+          int rank = myPcomm->rank();
+          if (partition_by_rank) {
+            assert(partition_tag_vals.empty());
+            parts.tag_values = &rank;
+            parts.num_tag_values = 1;
+          }
+          else {
+            parts.num_parts = myPcomm->size();
+            parts.part_number = myPcomm->rank();
+            if (!partition_tag_vals.empty()) {
+              parts.tag_values = &partition_tag_vals[0];
+              parts.num_tag_values = partition_tag_vals.size();
+            }
+          }
+          std::vector<MBReaderIface::IDTag> subset( subset_list, 
+                                                    subset_list + subset_list_length );
+          subset.push_back( parts );
+          tmp_result = impl->serial_load_file( *file_names, file_set, opts, 
+                                               &subset[0], subset.size(), file_id_tag );
+          
+          if (MB_SUCCESS == tmp_result)
+            tmp_result = create_partition_sets( partition_tag_name, file_set );
+          } break;
 
 //==================
       case PA_GET_FILESET_ENTS:
@@ -333,6 +407,10 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
             std::cerr << "Delete nonlocal done; entities:" << std::endl;
             mbImpl->list_entities(0, 0);
           }
+          
+          if (MB_SUCCESS == tmp_result) 
+            tmp_result = create_partition_sets( partition_tag_name, file_set );
+          
           break;
 
 //==================
@@ -348,7 +426,8 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
           if (debug)
             std::cout << "Resolving shared entities." << std::endl;
 
-          tmp_result = myPcomm->resolve_shared_ents(file_set, resolve_dim, shared_dim);
+          tmp_result = myPcomm->resolve_shared_ents(file_set, resolve_dim, shared_dim,
+                                                    use_id_tag ? file_id_tag : 0);
           break;
         
 //==================
@@ -386,6 +465,12 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
     }
 
     if (cputime) act_times[i] = MPI_Wtime();
+  }
+
+  if (id_tag) {
+    MBErrorCode tmp_result = mbImpl->tag_delete( id_tag );
+    if (MB_SUCCESS != tmp_result && MB_SUCCESS == result)
+      result = tmp_result;
   }
 
   if (cputime && 0 == myPcomm->proc_config().proc_rank()) {
@@ -474,7 +559,29 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
   
   result = delete_nonlocal_entities(file_set); RR(" ");
   
-  if (ptag_name != PARALLEL_PARTITION_TAG_NAME) {
+  return result;
+}
+
+MBErrorCode ReadParallel::create_partition_sets( std::string &ptag_name,
+                                                 MBEntityHandle file_set )
+{
+  if (ptag_name == PARALLEL_PARTITION_TAG_NAME)
+    return MB_SUCCESS;
+  
+  int proc_rk = myPcomm->proc_config().proc_rank();
+  MBRange partition_sets;
+  MBErrorCode result;
+
+  MBTag ptag;
+  result = mbImpl->tag_get_handle(ptag_name.c_str(), ptag); 
+  RR("Failed getting tag handle in create_partition_sets.");
+
+  result = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET,
+                                                &ptag, NULL, 1,
+                                                myPcomm->partition_sets());
+  RR("Failed to get sets with partition-type tag.");
+
+
       // tag the partition sets with a standard tag name
     result = mbImpl->tag_create(PARALLEL_PARTITION_TAG_NAME, sizeof(int), 
                                 MB_TAG_SPARSE, 
@@ -499,7 +606,7 @@ MBErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
     for (unsigned int i = 0; i < myPcomm->partition_sets().size(); i++)
       values[i] = proc_rk;
     result = mbImpl->tag_set_data(ptag, myPcomm->partition_sets(), &values[0]); RR(" ");
-  }
+
 
   return result;
 }

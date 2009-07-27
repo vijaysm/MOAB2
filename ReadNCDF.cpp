@@ -508,6 +508,10 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
       readMeshIface->report_error( "ExodusII reader supports subset read only by material ID." );
       return MB_UNSUPPORTED_OPERATION;
     }
+    if (subset_list[0].num_parts) {
+      readMeshIface->report_error( "ExodusII reader does not support mesh partitioning");
+      return MB_UNSUPPORTED_OPERATION;
+    }
     blocks_to_load = subset_list[0].tag_values;
     num_blocks = subset_list[0].num_tag_values;
   }
