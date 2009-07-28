@@ -53,6 +53,12 @@
 #include "errmem.h"
 #include "types.h"
 
+#ifdef VALGRIND
+#  include <valgrind/memcheck.h>
+#elif !defined(VALGRIND_CHECK_MEM_IS_DEFINED)
+#  define VALGRIND_CHECK_MEM_IS_DEFINED
+#endif
+
 typedef struct { uint n; buffer buf; } crystal_buf;
 
 typedef struct {
@@ -110,6 +116,7 @@ static void crystal_send(crystal_data *p, uint target, int recvn)
   crystal_buf *t;
   int i;
   
+  VALGRIND_CHECK_MEM_IS_DEFINED( &p->send->n, sizeof(uint) );
   MPI_Isend(&p->send->n,sizeof(uint),MPI_UNSIGNED_CHAR,
             target  ,p->id   ,p->comm,&req[  0]);
   for(i=0;i<recvn;++i)
@@ -124,6 +131,7 @@ static void crystal_send(crystal_data *p, uint target, int recvn)
   recv[1]=recv[0]+count[0];
   p->keep->n=sum;
 
+  VALGRIND_CHECK_MEM_IS_DEFINED( p->send->buf.ptr,p->send->n*sizeof(uint) );
   MPI_Isend(p->send->buf.ptr,p->send->n*sizeof(uint),
             MPI_UNSIGNED_CHAR,target,p->id,p->comm,&req[0]);
   if(recvn) {

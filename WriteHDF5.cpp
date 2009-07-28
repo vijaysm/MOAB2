@@ -77,6 +77,26 @@ struct file { uint32_t magic; hid_t handle; };
 # define myassert(A)
 #endif
 
+
+#ifdef VALGRIND
+#  include <valgrind/memcheck.h>
+#else
+#  ifndef VALGRIND_CHECK_MEM_IS_DEFINED
+#    define VALGRIND_CHECK_MEM_IS_DEFINED
+#  endif
+#  ifndef VALGRIND_CHECK_MEM_IS_ADDRESSABLE
+#    define VALGRIND_CHECK_MEM_IS_ADDRESSABLE
+#  endif
+#  ifndef VALGRIND_MAKE_MEM_UNDEFINED
+#    define VALGRIND_MAKE_MEM_UNDEFINED
+#  endif
+#endif
+
+template <typename T> inline 
+void VALGRIND_MAKE_VEC_UNDEFINED( std::vector<T>& v ) {
+    VALGRIND_MAKE_MEM_UNDEFINED( &v[0], v.size() * sizeof(T) );
+}
+
 #define WRITE_HDF5_BUFFER_SIZE (40*1024*1024)
 
 static hid_t get_id_type()
@@ -424,6 +444,7 @@ DEBUGOUT("Gathering Mesh\n");
   else
   {
     std::vector<MBEntityHandle> passed_export_list(set_array, set_array+num_sets);
+    VALGRIND_MAKE_VEC_UNDEFINED( passed_export_list );
     result = gather_mesh_info( passed_export_list );
     if (MB_SUCCESS != result) 
       return result;
@@ -731,6 +752,7 @@ MBErrorCode WriteHDF5::write_nodes( )
   MBRange::const_iterator iter = nodeSet.range.begin();
   while (remaining)
   {
+    VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
     long count = chunk_size < remaining ? chunk_size : remaining;
     remaining -= count;
     MBRange::const_iterator end = iter;
@@ -805,6 +827,7 @@ MBErrorCode WriteHDF5::write_elems( ExportSet& elems )
   
   while (remaining)
   {
+    VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
     long count = chunk_size < remaining ? chunk_size : remaining;
     remaining -= count;
   
@@ -892,6 +915,7 @@ MBErrorCode WriteHDF5::write_parents_children( bool children )
   const unsigned long buffer_size = bufferSize / sizeof(id_t);
   unsigned long offset = children ? setChildrenOffset : setParentsOffset;
   unsigned long count = 0;
+  VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
   for (iter = setSet.range.begin(); iter != end; ++iter)
   {
     handle_list.clear();
@@ -909,12 +933,15 @@ MBErrorCode WriteHDF5::write_parents_children( bool children )
     CHK_MB_ERR_1(rval, table, status);
 
     if (id_list.size() + count > buffer_size) {
+        // buffer is full, flush it
       mhdf_writeSetParentsChildren( table, offset, count, id_type, buffer, &status );
       CHK_MHDF_ERR_1(status, table);
       offset += count;
       count = 0;
+      VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
 
-
+        // If id_list still doesn't it in empty buffer, write it
+        // directly rather than trying to buffer it
       if (id_list.size() > buffer_size) {
         mhdf_writeSetParentsChildren( table, offset, id_list.size(), id_type, &id_list[0], &status );
         CHK_MHDF_ERR_1(status, table);
@@ -981,6 +1008,7 @@ MBErrorCode WriteHDF5::write_sets( )
     content_chunk_size = (bufferSize - 4*sizeof(long)*chunk_size)/sizeof(id_t);
     assert(content_chunk_size>0);
     content_buffer = reinterpret_cast<id_t*>(buffer+4*chunk_size);
+    VALGRIND_MAKE_MEM_UNDEFINED( content_buffer, content_chunk_size*sizeof(content_buffer[0]) );
   }
     
   MBRange set_contents;
@@ -997,6 +1025,10 @@ MBErrorCode WriteHDF5::write_sets( )
     long* set_data = buffer;
     long count = remaining < chunk_size ? remaining : chunk_size;
     remaining -= count;
+      // tell valgrind that buffer portion used for set descriptions
+      // is uninitialized (as it is garbage data from the last iteration)
+    VALGRIND_MAKE_MEM_UNDEFINED( buffer, 4*sizeof(buffer[0])*chunk_size );
+
     for (long i = 0; i < count; ++i, ++iter, set_data += 4) {
     
       rval = get_set_info( *iter, content_size, child_size, parent_size, flags );
@@ -1040,6 +1072,8 @@ MBErrorCode WriteHDF5::write_sets( )
       if (id_list.size())
       {
         if (data_count + id_list.size() > content_chunk_size) {
+            // If there isn't enough space remaining in the buffer,
+            // flush the buffer.
           mhdf_writeSetData( content_table, 
                              content_buffer_offset,
                              data_count,
@@ -1049,7 +1083,11 @@ MBErrorCode WriteHDF5::write_sets( )
           CHK_MHDF_ERR_2C(status, set_table, writeSetContents, content_table );
           content_buffer_offset += data_count;
           data_count = 0;
+          VALGRIND_MAKE_MEM_UNDEFINED( content_buffer, content_chunk_size*sizeof(content_buffer[0]) );
         
+            // If there still isn't enough space in the buffer because
+            // the size of id_list is bigger than the entire buffer,
+            // write id_list directly.
           if (id_list.size() > content_chunk_size) {
             mhdf_writeSetData( content_table, 
                                content_buffer_offset,
@@ -1261,6 +1299,7 @@ MBErrorCode WriteHDF5::range_to_blocked_list( const MBRange& input_range,
 MBErrorCode WriteHDF5::range_to_id_list( const MBRange& range,
                                          id_t* array )
 {
+  VALGRIND_MAKE_MEM_UNDEFINED( array, sizeof(id_t)*range.size() );
   MBErrorCode rval = MB_SUCCESS;
   RangeMap<MBEntityHandle,id_t>::iterator ri = idMap.begin();
   MBRange::const_pair_iterator pi;
@@ -1299,6 +1338,7 @@ MBErrorCode WriteHDF5::vector_to_id_list(
   std::vector<MBEntityHandle>::const_iterator i_iter = input.begin();
   const std::vector<MBEntityHandle>::const_iterator i_end = input.end();
   output.resize(input.size());
+  VALGRIND_MAKE_VEC_UNDEFINED( output );
   std::vector<id_t>::iterator o_iter = output.begin();
   for (; i_iter != i_end; ++i_iter) {
     id_t id = idMap.find( *i_iter );
@@ -1368,6 +1408,7 @@ MBErrorCode WriteHDF5::write_adjacencies( const ExportSet& elements )
   id_t* buffer = (id_t*)dataBuffer;
   long chunk_size = bufferSize / sizeof(id_t); 
   long num_writes = (elements.max_num_adjs + chunk_size - 1)/chunk_size;
+  VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
   count = 0;
   for (iter = elements.range.begin(); iter != end; ++iter)
   {
@@ -1377,10 +1418,12 @@ MBErrorCode WriteHDF5::write_adjacencies( const ExportSet& elements )
     if (adj_list.size() == 0)
       continue;
     
+      // If buffer is full, flush it
     if (count + adj_list.size() + 2 > (unsigned long)chunk_size)
     {
       mhdf_writeAdjacencyWithOpt( table, offset, count, id_type, buffer, writeProp, &status );
       CHK_MHDF_ERR_1(status, table);
+      VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
       
       offset += count;
       count = 0;
@@ -1632,6 +1675,8 @@ MBErrorCode WriteHDF5::write_sparse_ids( const SparseTag& tag_data,
   MBRange::const_iterator iter = tag_data.range.begin();
   while (remaining)
   {
+    VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
+
       // write "chunk_size" blocks of data
     long count = (unsigned long)remaining > chunk_size ? chunk_size : remaining;
     remaining -= count;
@@ -1741,6 +1786,8 @@ DEBUGOUT((std::string("Tag: ") + name + "\n").c_str());
   }
   while (remaining)
   {
+    VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
+ 
       // write "chunk_size" blocks of data
     long count = (unsigned long)remaining > chunk_size ? chunk_size : remaining;
     remaining -= count;
@@ -1873,6 +1920,7 @@ DEBUGOUT((std::string("Var Len Tag: ") + name + "\n").c_str());
   char* const data_buffer = reinterpret_cast<char*>(size_buffer + num_entities);
   assert( data_buffer < bufferSize + dataBuffer );
   const size_t data_buffer_size = dataBuffer + bufferSize - data_buffer;
+  VALGRIND_MAKE_MEM_UNDEFINED( data_buffer, data_buffer_size );
   
     // offsets into tables
   long offset_offset = tag_data.offset;      // offset at which to write indices
@@ -1884,6 +1932,10 @@ DEBUGOUT((std::string("Var Len Tag: ") + name + "\n").c_str());
   size_t remaining = tag_data.range.size();
   MBRange::const_iterator i = tag_data.range.begin();
   while (remaining) {
+    VALGRIND_MAKE_MEM_UNDEFINED( pointer_buffer, num_entities*sizeof(pointer_buffer[0]) );
+    VALGRIND_MAKE_MEM_UNDEFINED( offset_buffer,  num_entities*sizeof(offset_buffer[0]) );
+    VALGRIND_MAKE_MEM_UNDEFINED( size_buffer   , num_entities*sizeof(size_buffer[0]) );
+  
     const size_t count = remaining < num_entities ? remaining : num_entities;
     remaining -= count;
     
@@ -1917,6 +1969,7 @@ DEBUGOUT((std::string("Var Len Tag: ") + name + "\n").c_str());
           CHK_MHDF_ERR_2(status, tables + 1);
           data_offset += bytes / type_size;
           bytes = 0;
+          VALGRIND_MAKE_MEM_UNDEFINED( data_buffer, data_buffer_size );
         }
       }
       
@@ -1924,6 +1977,7 @@ DEBUGOUT((std::string("Var Len Tag: ") + name + "\n").c_str());
       if (size > data_buffer_size) {
         if (mb_data_type == MB_TYPE_HANDLE) {
           std::vector<MBEntityHandle> tmp_storage(size/sizeof(MBEntityHandle));
+          VALGRIND_MAKE_VEC_UNDEFINED( tmp_storage );
           convert_handle_tag( reinterpret_cast<const MBEntityHandle*>(ptr),
                               &tmp_storage[0], tmp_storage.size() );
           ptr = &tmp_storage[0];

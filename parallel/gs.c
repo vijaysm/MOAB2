@@ -83,6 +83,13 @@
 #  include "crystal.h"  
 #  include "transfer.h"
 
+
+#ifdef VALGRIND
+#  include <valgrind/memcheck.h>
+#elif !defined(VALGRIND_CHECK_MEM_IS_DEFINED)
+#  define VALGRIND_CHECK_MEM_IS_DEFINED
+#endif
+
 typedef struct {
   uint np;           /* number of processors to communicate with          */
   uint *target;      /* int target[np]: array of processor ids to comm w/ */
@@ -412,6 +419,8 @@ gs_data *gs_data_setup(uint n, const long *label, const ulong *ulabel,
 #else
   buffer buf;
 #endif
+  VALGRIND_CHECK_MEM_IS_DEFINED(  label, nlabels * sizeof( long) );
+  VALGRIND_CHECK_MEM_IS_DEFINED( ulabel, nlabels * sizeof(ulong) );
 #ifdef USE_MPI
   MPI_Comm_dup(crystal->comm,&data->comm);
 #else

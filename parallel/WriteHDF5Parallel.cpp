@@ -50,7 +50,26 @@
   writeUtil->report_error( "MHDF Failure at " __FILE__ ":%d : %s\n", \
     __LINE__, mhdf_message(&(A)) ); \
   return MB_FAILURE; } } while(false)
-  
+
+
+#ifdef VALGRIND
+#  include <valgrind/memcheck.h>
+#else
+#  ifndef VALGRIND_CHECK_MEM_IS_DEFINED
+#    define VALGRIND_CHECK_MEM_IS_DEFINED
+#  endif
+#  ifndef VALGRIND_CHECK_MEM_IS_ADDRESSABLE
+#    define VALGRIND_CHECK_MEM_IS_ADDRESSABLE
+#  endif
+#  ifndef VALGRIND_MAKE_MEM_UNDEFINED
+#    define VALGRIND_MAKE_MEM_UNDEFINED
+#  endif
+#endif
+
+template <typename T> inline 
+void VALGRIND_MAKE_VEC_UNDEFINED( std::vector<T>& v ) {
+    VALGRIND_MAKE_MEM_UNDEFINED( &v[0], v.size() * sizeof(T) );
+}
 
 #define TPRINT(A)
 //#define TPRINT(A) tprint( (A) )
@@ -517,6 +536,8 @@ TPRINT("creating meshset table");
 TPRINT("communicating tag metadata");
   printdebug("Exchanging tag data for %d tags.\n", num_tags);
   std::vector<unsigned long> proc_tag_offsets(2*num_tags*myPcomm->proc_config().proc_size());
+  VALGRIND_CHECK_MEM_IS_DEFINED( &tag_counts[0], 2*num_tags*sizeof(long) );
+  VALGRIND_MAKE_VEC_UNDEFINED( proc_tag_offsets );
   result = MPI_Gather( &tag_counts[0], 2*num_tags, MPI_UNSIGNED_LONG,
                  &proc_tag_offsets[0], 2*num_tags, MPI_UNSIGNED_LONG,
                        0, myPcomm->proc_config().proc_comm() );
@@ -567,10 +588,16 @@ TPRINT("communicating tag metadata");
   
     // Send total counts to all processors.  This is necessary because all 
     // processors need to know if we are not writing anything for the tag (count == 0).  
+  if (myPcomm->rank() == 0) {
+    VALGRIND_CHECK_MEM_IS_DEFINED( &tag_counts[0], 2*num_tags*sizeof(long) );
+  }
   result = MPI_Bcast( &tag_counts[0], 2*num_tags, MPI_UNSIGNED_LONG, 0, myPcomm->proc_config().proc_comm() );
   CHECK_MPI(result);
   
     // Send to each processor its per-tag offset values.
+  if (myPcomm->rank() == 0) {
+    VALGRIND_CHECK_MEM_IS_DEFINED(  &proc_tag_offsets[0], proc_tag_offsets.size()*sizeof(long) );
+  }
   result = MPI_Scatter( &proc_tag_offsets[0], 2*num_tags, MPI_UNSIGNED_LONG,
                              &tag_offsets[0], 2*num_tags, MPI_UNSIGNED_LONG,
                              0, myPcomm->proc_config().proc_comm() );
@@ -631,6 +658,7 @@ MBErrorCode WriteHDF5Parallel::create_node_table( int dimension )
     // gather node counts for each processor
   std::vector<long> node_counts(myPcomm->proc_config().proc_size());
   long num_nodes = nodeSet.range.size();
+  VALGRIND_CHECK_MEM_IS_DEFINED( &num_nodes, sizeof(long) );
   result = MPI_Gather( &num_nodes, 1, MPI_LONG, &node_counts[0], 1, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
   CHECK_MPI(result);
   
@@ -667,6 +695,9 @@ MBErrorCode WriteHDF5Parallel::create_node_table( int dimension )
   
     // send each proc it's offset in the node table
   long offset;
+  if (myPcomm->rank() == 0) {
+    VALGRIND_CHECK_MEM_IS_DEFINED( &node_counts[0], sizeof(long) );
+  }
   result = MPI_Scatter( &node_counts[0], 1, MPI_LONG, 
                         &offset, 1, MPI_LONG,
                         0, myPcomm->proc_config().proc_comm() );
@@ -719,6 +750,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
   
     // Get list of types on this processor
   std::vector<int> my_types(num_types);
+  VALGRIND_MAKE_VEC_UNDEFINED( my_types );
   std::vector<int>::iterator viter = my_types.begin();
   for (std::list<ExportSet>::iterator eiter = exportList.begin();
        eiter != exportList.end(); ++eiter)
@@ -742,11 +774,14 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
 
     // Get list of types from each processor
   std::vector<int> displs(myPcomm->proc_config().proc_size() + 1);
+  VALGRIND_MAKE_VEC_UNDEFINED( displs );
   displs[0] = 0;
   for (unsigned long i = 1; i <= myPcomm->proc_config().proc_size(); ++i)
     displs[i] = displs[i-1] + counts[i-1];
   int total = displs[myPcomm->proc_config().proc_size()];
   std::vector<int> alltypes(total);
+  VALGRIND_MAKE_VEC_UNDEFINED( alltypes );
+  VALGRIND_CHECK_MEM_IS_DEFINED( &my_types[0], my_types.size()*sizeof(int) );
   result = MPI_Gatherv( &my_types[0], my_types.size(), MPI_INT,
                         &alltypes[0], &counts[0], &displs[0], MPI_INT,
                         0, myPcomm->proc_config().proc_comm() );
@@ -777,6 +812,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
   
     // Send list of types to each processor
   std::vector<int> intlist(total * 2);
+  VALGRIND_MAKE_VEC_UNDEFINED( intlist );
   viter = intlist.begin();
   for (liter = type_list.begin(); liter != type_list.end(); ++liter)
   {
@@ -845,10 +881,13 @@ MBErrorCode WriteHDF5Parallel::create_element_tables()
   const int numtypes = exportList.size();
   std::vector<long> my_counts(numtypes);
   std::vector<long> counts(numtypes * myPcomm->proc_config().proc_size() + numtypes);
+  VALGRIND_MAKE_VEC_UNDEFINED( my_counts );
+  VALGRIND_MAKE_VEC_UNDEFINED( counts );
   viter = my_counts.begin();
   for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
     { *viter = ex_iter->range.size(); ++viter; }
   
+  VALGRIND_CHECK_MEM_IS_DEFINED( &my_counts[0], numtypes*sizeof(long) );
   result = MPI_Gather( &my_counts[0], numtypes, MPI_LONG,
                        &counts[0],    numtypes, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
   CHECK_MPI(result);
@@ -866,6 +905,9 @@ MBErrorCode WriteHDF5Parallel::create_element_tables()
   }
   
     // Send offsets to each processor
+  if (myPcomm->rank() == 0) {
+    VALGRIND_CHECK_MEM_IS_DEFINED( &counts[0], counts.size()*sizeof(long) );
+  }
   result = MPI_Scatter( &counts[0],    numtypes, MPI_LONG,
                         &my_counts[0], numtypes, MPI_LONG,
                         0, myPcomm->proc_config().proc_comm() );
@@ -878,6 +920,7 @@ MBErrorCode WriteHDF5Parallel::create_element_tables()
   
     // Create element tables
   std::vector<long> start_ids(numtypes);
+  VALGRIND_MAKE_VEC_UNDEFINED( start_ids );
   if (myPcomm->proc_config().proc_rank() == 0)
   {
     viter = start_ids.begin();
@@ -928,6 +971,8 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
   std::vector<long>::iterator viter;
   std::list<ExportSet>::iterator ex_iter;
   std::vector<long> local(numtypes), all(myPcomm->proc_config().proc_size() * numtypes + numtypes);
+  VALGRIND_MAKE_VEC_UNDEFINED( local );
+  VALGRIND_MAKE_VEC_UNDEFINED( all );
   
     // Get adjacency counts for local processor
   viter = local.begin();
@@ -947,29 +992,33 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
   }
   
     // Send local adjacency counts to root processor
+  VALGRIND_CHECK_MEM_IS_DEFINED( &local[0], numtypes*sizeof(long) );
   result = MPI_Gather( &local[0], numtypes, MPI_LONG,
                        &all[0],   numtypes, MPI_LONG, 
                        0, myPcomm->proc_config().proc_comm() );
   CHECK_MPI(result);
   
-    // Convert counts to offsets
-  for (i = 0; i < numtypes; i++) 
-  {
-    long prev = 0;
-    for (unsigned j = 0; j <= myPcomm->proc_config().proc_size(); j++)
-    {
-      long tmp = all[j*numtypes + i];
-      all[j*numtypes+i] = prev;
-      prev += tmp;
-    }
-  }
   
-    // For each element type for which there is no adjacency data,
-    // send -1 to all processors as the offset
-  for (i = 0; i < numtypes; ++i)
-    if (all[numtypes*myPcomm->proc_config().proc_size()+i] == 0)
-      for (j = 0; j < myPcomm->proc_config().proc_size(); ++j)
-        all[j*numtypes+i] = -1;
+  if (myPcomm->rank() == 0) {
+      // Convert counts to offsets
+    for (i = 0; i < numtypes; i++) 
+    {
+      long prev = 0;
+      for (unsigned j = 0; j <= myPcomm->proc_config().proc_size(); j++)
+      {
+        long tmp = all[j*numtypes + i];
+        all[j*numtypes+i] = prev;
+        prev += tmp;
+      }
+    }
+
+      // For each element type for which there is no adjacency data,
+      // send -1 to all processors as the offset
+    for (i = 0; i < numtypes; ++i)
+      if (all[numtypes*myPcomm->proc_config().proc_size()+i] == 0)
+        for (j = 0; j < myPcomm->proc_config().proc_size(); ++j)
+          all[j*numtypes+i] = -1;
+  }
   
     // Send offsets back to each processor
   result = MPI_Scatter( &all[0],   numtypes, MPI_LONG,
@@ -1136,6 +1185,7 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
 
     // Exchange number of sets with tag between all processors
   data.counts.resize(myPcomm->proc_config().proc_size());
+  VALGRIND_MAKE_VEC_UNDEFINED( data.counts );
   int count = data.range.size();
   result = MPI_Allgather( &count,          1, MPI_INT, 
                           &data.counts[0], 1, MPI_INT,
@@ -1144,15 +1194,19 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
 
     // Exchange tag values for sets between all processors
   data.displs.resize(myPcomm->proc_config().proc_size()+1);
+  VALGRIND_MAKE_VEC_UNDEFINED( data.displs );
   data.displs[0] = 0;
   for (unsigned int j = 1; j <= myPcomm->proc_config().proc_size(); j++)
     data.displs[j] = data.displs[j-1] + data.counts[j-1];
   int total = data.displs[myPcomm->proc_config().proc_size()];
   data.all_values.resize(total);
+  VALGRIND_MAKE_VEC_UNDEFINED( data.all_values );
   data.local_values.resize(count);
+  VALGRIND_MAKE_VEC_UNDEFINED( data.local_values );
   rval = iFace->tag_get_data( data.data_tag, data.range, &data.local_values[0] );
   if (MB_SUCCESS != rval)
     return rval;
+  VALGRIND_CHECK_MEM_IS_DEFINED( &data.local_values[0], count*sizeof(int) );
   result = MPI_Allgatherv( &data.local_values[0], count, MPI_INT,
                            &data.all_values[0], &data.counts[0], &data.displs[0], MPI_INT,
                            myPcomm->proc_config().proc_comm() );
@@ -1301,6 +1355,7 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
     // Gather counts of non-shared sets from each proc
     // to determine total table size.
   std::vector<long> set_offsets(myPcomm->proc_config().proc_size() + 1);
+  VALGRIND_MAKE_VEC_UNDEFINED( set_offsets );
   long local_count = setSet.range.size();
   result = MPI_Gather( &local_count,    1, MPI_LONG,
                        &set_offsets[0], 1, MPI_LONG,
@@ -1372,6 +1427,7 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   if (MB_SUCCESS != rval) 
     return rval;
   std::vector<long> set_counts(3*myPcomm->proc_config().proc_size());
+  VALGRIND_MAKE_VEC_UNDEFINED( set_counts );
   result = MPI_Gather( data_counts,    3, MPI_LONG,
                        &set_counts[0], 3, MPI_LONG,
                        0, myPcomm->proc_config().proc_comm() );
@@ -1533,6 +1589,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
 
     // Calculate counts for each meshset
   std::vector<long> local_sizes(3*count);
+  VALGRIND_MAKE_VEC_UNDEFINED( local_sizes );
   std::vector<long>::iterator sizes_iter = local_sizes.begin();
   MBRange tmp_range;
   std::vector<MBEntityHandle> child_list;
@@ -1579,12 +1636,16 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
   
     // Exchange sizes for sets between all processors.
   std::vector<long> all_sizes(3*total);
+  VALGRIND_MAKE_VEC_UNDEFINED( all_sizes );
   std::vector<int> counts(myPcomm->proc_config().proc_size()), displs(myPcomm->proc_config().proc_size());
+  VALGRIND_MAKE_VEC_UNDEFINED( counts );
+  VALGRIND_MAKE_VEC_UNDEFINED( displs );
   for (i = 0; i < (unsigned)myPcomm->proc_config().proc_size(); i++)
     counts[i] = 3 * data.counts[i];
   displs[0] = 0;
   for (i = 1; i < (unsigned)myPcomm->proc_config().proc_size(); i++)
     displs[i] = displs[i-1] + counts[i-1];
+  VALGRIND_CHECK_MEM_IS_DEFINED( &local_sizes[0], 3*count*sizeof(long) );
   result = MPI_Allgatherv( &local_sizes[0], 3*count, MPI_LONG,
                            &all_sizes[0], &counts[0], &displs[0], MPI_LONG,
                            myPcomm->proc_config().proc_comm() );
@@ -1602,6 +1663,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
     // on this processor for the set *relative* to the start of the
     // data of *the set*.
   std::vector<long> local_offsets(3*count);
+  VALGRIND_MAKE_VEC_UNDEFINED( local_offsets );
   std::map<int,int> tagsort;  // Map of {tag value, index of first set w/ value}
   for (i = 0; i < total; ++i)
   {
@@ -1959,6 +2021,7 @@ MBErrorCode WriteHDF5Parallel::exchange_file_ids()
   MBRange::const_iterator i;
   const MBRange& imesh = interfaceMesh[myPcomm->proc_config().proc_rank()];
   std::vector<MBEntityHandle> file_id_vect( imesh.size() );
+  VALGRIND_MAKE_VEC_UNDEFINED( file_id_vect );
   std::vector<MBEntityHandle>::iterator j = file_id_vect.begin();
   for (i = imesh.begin(); i != imesh.end(); ++i, ++j) {
     *j = idMap.find( *i );
@@ -1992,6 +2055,7 @@ printrange( interfaceMesh[myPcomm->proc_config().proc_rank()] );
       continue;
 
     file_id_vect.resize( p->second.size() );
+    VALGRIND_MAKE_VEC_UNDEFINED( file_id_vect );
     rval = iFace->tag_get_data( file_id_tag, p->second, &file_id_vect[0] );
     if (MB_SUCCESS != rval) {
       iFace->tag_delete( file_id_tag );
