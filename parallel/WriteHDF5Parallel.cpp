@@ -42,6 +42,16 @@
 #include "WriteHDF5Parallel.hpp"
 
 
+#define CHECK_MPI(A) do { if (MPI_SUCCESS != (A)) { \
+  writeUtil->report_error( "MPI Failure at " __FILE__ ":%d\n", __LINE__ ); \
+  return MB_FAILURE; } } while(false)
+
+#define CHECK_HDF(A) do { if (mhdf_isError(&(A))) { \
+  writeUtil->report_error( "MHDF Failure at " __FILE__ ":%d : %s\n", \
+    __LINE__, mhdf_message(&(A)) ); \
+  return MB_FAILURE; } } while(false)
+  
+
 #define TPRINT(A)
 //#define TPRINT(A) tprint( (A) )
 static void tprint(const char* A) 
@@ -87,7 +97,7 @@ static void printdebug( const char* fmt, ... )
 
 
 #ifdef NDEBUG
-#  undef assert(A)
+#  undef assert
 #  define assert
 #else
 #  undef assert
@@ -510,7 +520,7 @@ TPRINT("communicating tag metadata");
   result = MPI_Gather( &tag_counts[0], 2*num_tags, MPI_UNSIGNED_LONG,
                  &proc_tag_offsets[0], 2*num_tags, MPI_UNSIGNED_LONG,
                        0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
   
     // Calculate the total counts over all processors (tag_counts)
     // and the offset at which each processor should begin writing
@@ -547,7 +557,8 @@ TPRINT("communicating tag metadata");
     if (0 == myPcomm->proc_config().proc_rank())
     {
       rval = create_tag(tag_iter->tag_id, next_offset, next_var_len_offset);
-      assert(MB_SUCCESS == rval);
+      if (MB_SUCCESS != rval)
+        return rval;
       printdebug( "Creating table of size %lu for tag 0x%lx\n", 
                   next_var_len_offset ? next_var_len_offset : next_offset, 
                   (unsigned long)tag_iter->tag_id );
@@ -557,13 +568,13 @@ TPRINT("communicating tag metadata");
     // Send total counts to all processors.  This is necessary because all 
     // processors need to know if we are not writing anything for the tag (count == 0).  
   result = MPI_Bcast( &tag_counts[0], 2*num_tags, MPI_UNSIGNED_LONG, 0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
   
     // Send to each processor its per-tag offset values.
   result = MPI_Scatter( &proc_tag_offsets[0], 2*num_tags, MPI_UNSIGNED_LONG,
                              &tag_offsets[0], 2*num_tags, MPI_UNSIGNED_LONG,
                              0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
 
 
   tag_iter = tagList.begin();
@@ -621,7 +632,7 @@ MBErrorCode WriteHDF5Parallel::create_node_table( int dimension )
   std::vector<long> node_counts(myPcomm->proc_config().proc_size());
   long num_nodes = nodeSet.range.size();
   result = MPI_Gather( &num_nodes, 1, MPI_LONG, &node_counts[0], 1, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
   
     // create node data in file
   long first_id;
@@ -632,17 +643,13 @@ MBErrorCode WriteHDF5Parallel::create_node_table( int dimension )
       total += node_counts[i];
       
     hid_t handle = mhdf_createNodeCoords( filePtr, dimension, total, &first_id, &status );
-    if (mhdf_isError( &status ))
-    {
-      writeUtil->report_error( "%s\n", mhdf_message( &status ) );
-      return MB_FAILURE;
-    }
+    CHECK_HDF(status);
     mhdf_closeData( filePtr, handle, &status );
   }
     
     // send id offset to every proc
   result = MPI_Bcast( &first_id, 1, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
   nodeSet.first_id = (id_t)first_id;
    
       // calculate per-processor offsets
@@ -663,7 +670,7 @@ MBErrorCode WriteHDF5Parallel::create_node_table( int dimension )
   result = MPI_Scatter( &node_counts[0], 1, MPI_LONG, 
                         &offset, 1, MPI_LONG,
                         0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
   nodeSet.offset = offset;
 
   return assign_ids( nodeSet.range, nodeSet.first_id + nodeSet.offset );
@@ -708,7 +715,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
   int num_types = 2*exportList.size();
   std::vector<int> counts(myPcomm->proc_config().proc_size());
   result = MPI_Gather( &num_types, 1, MPI_INT, &counts[0], 1, MPI_INT, 0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
   
     // Get list of types on this processor
   std::vector<int> my_types(num_types);
@@ -743,7 +750,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
   result = MPI_Gatherv( &my_types[0], my_types.size(), MPI_INT,
                         &alltypes[0], &counts[0], &displs[0], MPI_INT,
                         0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
   
     // Merge type lists
   std::list<elemtype> type_list;
@@ -766,7 +773,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
     // Send total number of types to each processor
   total = type_list.size();
   result = MPI_Bcast( &total, 1, MPI_INT, 0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
   
     // Send list of types to each processor
   std::vector<int> intlist(total * 2);
@@ -777,7 +784,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_type_list()
     *viter = liter->numnode; ++viter;
   }
   result = MPI_Bcast( &intlist[0], 2*total, MPI_INT, 0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
 
   #ifdef DEBUG
   START_SERIAL;
@@ -844,7 +851,7 @@ MBErrorCode WriteHDF5Parallel::create_element_tables()
   
   result = MPI_Gather( &my_counts[0], numtypes, MPI_LONG,
                        &counts[0],    numtypes, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
   
     // Convert counts to offsets
   for (int i = 0; i < numtypes; i++) 
@@ -862,7 +869,7 @@ MBErrorCode WriteHDF5Parallel::create_element_tables()
   result = MPI_Scatter( &counts[0],    numtypes, MPI_LONG,
                         &my_counts[0], numtypes, MPI_LONG,
                         0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
   
     // Update store offsets in ExportSets
   viter = my_counts.begin();
@@ -881,7 +888,8 @@ MBErrorCode WriteHDF5Parallel::create_element_tables()
                                  ex_iter->num_nodes,
                                  *citer,
                                  *viter );
-      assert(MB_SUCCESS == rval);
+      if (MB_SUCCESS != rval)
+        return rval;
       ++citer;
       ++viter;
     }
@@ -889,7 +897,7 @@ MBErrorCode WriteHDF5Parallel::create_element_tables()
   
     // send start IDs to each processor
   result = MPI_Bcast( &start_ids[0], numtypes, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
   
     // Assign IDs to local elements
   viter = start_ids.begin();
@@ -898,7 +906,8 @@ MBErrorCode WriteHDF5Parallel::create_element_tables()
     ex_iter->first_id = *(viter++);
     id_t myfirst = (id_t)(ex_iter->first_id + ex_iter->offset);
     rval = assign_ids( ex_iter->range, myfirst );
-    assert(MB_SUCCESS == rval);
+    if (MB_SUCCESS != rval)
+      return rval;
   }
   
   return MB_SUCCESS;
@@ -932,7 +941,8 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
   for (ex_iter = exportList.begin(); ex_iter != exportList.end(); ++ex_iter)
   {
     rval = count_adjacencies( ex_iter->range, num_adj );
-    assert (MB_SUCCESS == rval);
+    if (MB_SUCCESS != rval)
+      return rval;
     *viter = num_adj; ++viter;
   }
   
@@ -940,7 +950,7 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
   result = MPI_Gather( &local[0], numtypes, MPI_LONG,
                        &all[0],   numtypes, MPI_LONG, 
                        0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
   
     // Convert counts to offsets
   for (i = 0; i < numtypes; i++) 
@@ -965,7 +975,7 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
   result = MPI_Scatter( &all[0],   numtypes, MPI_LONG,
                         &local[0], numtypes, MPI_LONG,
                         0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
   
     // Record the adjacency offset in each ExportSet
   viter = local.begin();
@@ -985,11 +995,7 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
                                            mhdf_node_type_handle(),
                                            *viter,
                                            &status );
-      if (mhdf_isError( &status ))
-      {
-        writeUtil->report_error( "%s\n", mhdf_message( &status ) );
-        return MB_FAILURE;
-      }
+      CHECK_HDF(status);
       mhdf_closeData( filePtr, handle, &status );
     }
     ++viter;
@@ -1003,11 +1009,7 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
                                            ex_iter->name(),
                                            *viter,
                                            &status );
-      if (mhdf_isError( &status ))
-      {
-        writeUtil->report_error( "%s\n", mhdf_message( &status ) );
-        return MB_FAILURE;
-      }
+      CHECK_HDF(status);
       mhdf_closeData( filePtr, handle, &status );
     }
   }
@@ -1138,7 +1140,7 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
   result = MPI_Allgather( &count,          1, MPI_INT, 
                           &data.counts[0], 1, MPI_INT,
                           myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
 
     // Exchange tag values for sets between all processors
   data.displs.resize(myPcomm->proc_config().proc_size()+1);
@@ -1149,11 +1151,12 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
   data.all_values.resize(total);
   data.local_values.resize(count);
   rval = iFace->tag_get_data( data.data_tag, data.range, &data.local_values[0] );
-  assert( MB_SUCCESS == rval );
+  if (MB_SUCCESS != rval)
+    return rval;
   result = MPI_Allgatherv( &data.local_values[0], count, MPI_INT,
                            &data.all_values[0], &data.counts[0], &data.displs[0], MPI_INT,
                            myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
 
 
     // Remove from the list any sets that are unique to one processor
@@ -1270,7 +1273,7 @@ MBErrorCode WriteHDF5Parallel::set_shared_set_ids( RemoteSetData& data, long& of
 
 MBErrorCode WriteHDF5Parallel::create_meshset_tables()
 {
-  MBErrorCode rval;
+  MBErrorCode rval = MB_SUCCESS;
   int result, i;
   long total_offset = 0;
   MBRange::const_iterator riter;
@@ -1285,10 +1288,10 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   {
     rval = get_remote_set_data( multiProcSetTags.list[i],
                                 remote_set_data[i],
-                                total_offset ); assert(MB_SUCCESS == rval);
+                                total_offset ); 
+    if (MB_SUCCESS != rval)
+      return rval;
   }
-  //rval = get_interface_set_data( remote_set_data[i], total_offset );
-  if (MB_SUCCESS != rval) return rval;
 
   START_SERIAL;
   printdebug("myLocalSets\n");
@@ -1302,7 +1305,7 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   result = MPI_Gather( &local_count,    1, MPI_LONG,
                        &set_offsets[0], 1, MPI_LONG,
                        0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
   for (unsigned int j = 0; j <= myPcomm->proc_config().proc_size(); j++)
   {
     long tmp = set_offsets[j];
@@ -1314,7 +1317,7 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   long sets_offset;
   result = MPI_Scatter( &set_offsets[0], 1, MPI_LONG,
                         &sets_offset,    1, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
   setSet.offset = (id_t)(sets_offset);
 
     // Create the set description table
@@ -1322,12 +1325,13 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   if (myPcomm->proc_config().proc_rank() == 0 && total_count_and_start_id[0] > 0)
   {
     rval = create_set_meta( (id_t)total_count_and_start_id[0], total_count_and_start_id[1] );
-    assert (MB_SUCCESS == rval);
+    if (MB_SUCCESS != rval)
+      return rval;
   }
   
     // Send totals to all procs.
   result = MPI_Bcast( total_count_and_start_id, 2, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
   setSet.first_id = total_count_and_start_id[1];
   writeSets = total_count_and_start_id[0] > 0;
 
@@ -1354,7 +1358,8 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   for (i = 0; i < (int)remote_set_data.size(); ++i)
   {
     rval = negotiate_remote_set_contents( remote_set_data[i], data_offsets ); 
-    assert(MB_SUCCESS == rval);
+    if (MB_SUCCESS != rval)
+      return rval;
   }
   remote_set_data.clear();
   
@@ -1364,12 +1369,14 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
     // Communicate counts for local sets
   long data_counts[3];
   rval = count_set_size( setSet.range, data_counts[0], data_counts[1], data_counts[2] );
-  if (MB_SUCCESS != rval) return rval;
+  if (MB_SUCCESS != rval) 
+    return rval;
   std::vector<long> set_counts(3*myPcomm->proc_config().proc_size());
   result = MPI_Gather( data_counts,    3, MPI_LONG,
                        &set_counts[0], 3, MPI_LONG,
                        0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
+    
   for (unsigned int j = 0; j < 3*myPcomm->proc_config().proc_size(); ++j)
   {
     long tmp = set_counts[j];
@@ -1380,7 +1387,7 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   result = MPI_Scatter( &set_counts[0], 3, MPI_LONG,
                         data_offsets,   3, MPI_LONG,
                         0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
   setContentsOffset = data_offsets[0];
   setChildrenOffset = data_offsets[1];
   setParentsOffset = data_offsets[2];
@@ -1389,12 +1396,13 @@ MBErrorCode WriteHDF5Parallel::create_meshset_tables()
   if (myPcomm->proc_config().proc_rank() == 0)
   {
     rval = create_set_tables( all_counts[0], all_counts[1], all_counts[2] );
-    if (MB_SUCCESS != rval) return rval;
+    if (MB_SUCCESS != rval) 
+      return rval;
   }
   
     // Send totals to all processors
   result = MPI_Bcast( all_counts, 3, MPI_LONG, 0, myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
   writeSetContents = all_counts[0] > 0;
   writeSetChildren = all_counts[1] > 0;
   writeSetParents  = all_counts[2] > 0;
@@ -1534,8 +1542,9 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
     *sizes_iter = 0;
     tmp_range.clear();
     rval = iFace->get_entities_by_handle( *riter, tmp_range );
+    if (MB_SUCCESS != rval)
+      return rval;
     remove_remote_entities( *riter, tmp_range );
-    assert (MB_SUCCESS == rval);
     for (MBRange::iterator iter = tmp_range.begin(); iter != tmp_range.end(); ++iter)
       if (0 != idMap.find( *iter ))
         ++*sizes_iter;
@@ -1545,8 +1554,9 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
     *sizes_iter = 0;
     child_list.clear();
     rval = iFace->get_child_meshsets( *riter, child_list );
+    if (MB_SUCCESS != rval)
+      return rval;
     remove_remote_sets( *riter, child_list );
-    assert (MB_SUCCESS == rval);
     for (std::vector<MBEntityHandle>::iterator iter = child_list.begin();
          iter != child_list.end(); ++iter)
       if (0 != idMap.find( *iter ))
@@ -1557,8 +1567,9 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
     *sizes_iter = 0;
     child_list.clear();
     rval = iFace->get_parent_meshsets( *riter, child_list );
+    if (MB_SUCCESS != rval)
+      return rval;
     remove_remote_sets( *riter, child_list );
-    assert (MB_SUCCESS == rval);
     for (std::vector<MBEntityHandle>::iterator iter = child_list.begin();
          iter != child_list.end(); ++iter)
       if (0 != idMap.find( *iter ))
@@ -1577,7 +1588,7 @@ MBErrorCode WriteHDF5Parallel::negotiate_remote_set_contents( RemoteSetData& dat
   result = MPI_Allgatherv( &local_sizes[0], 3*count, MPI_LONG,
                            &all_sizes[0], &counts[0], &displs[0], MPI_LONG,
                            myPcomm->proc_config().proc_comm() );
-  assert(MPI_SUCCESS == result);
+  CHECK_MPI(result);
 
   
     // Update information in-place in the array from the Allgatherv.
@@ -1767,7 +1778,8 @@ TPRINT( "write_shared_set_descriptions" );
       // Get flag data
     unsigned int flags;
     rval = iFace->get_meshset_options( iter->handle, flags );
-    assert( MB_SUCCESS == rval );
+    if (MB_SUCCESS != rval)
+      return rval;
       
       // Write the data
     long data[4] = { iter->contentsOffset + iter->contentsCount - 1, 
@@ -1775,11 +1787,7 @@ TPRINT( "write_shared_set_descriptions" );
                      iter->parentsOffset  + iter->parentsCount  - 1,
                      flags };
     mhdf_writeSetMeta( table, file_id, 1, H5T_NATIVE_LONG, data, &status );
-    if (mhdf_isError(&status)) {
-      printdebug("Meshset %d : %s\n", ID_FROM_HANDLE(iter->handle), mhdf_message(&status));
-      assert(0);
-      return MB_FAILURE;
-    }
+    CHECK_HDF(status);
   }
 
 TPRINT( "finished write_shared_set_descriptions" );
@@ -1802,7 +1810,8 @@ TPRINT( "write_shared_set_contents" );
   {
     handle_list.clear();
     rval = iFace->get_entities_by_handle( iter->handle, handle_list );
-    assert( MB_SUCCESS == rval );
+    if (MB_SUCCESS != rval)
+      return rval;
     remove_remote_entities( iter->handle, handle_list );
     
     id_list.clear();
@@ -1816,7 +1825,7 @@ TPRINT( "write_shared_set_contents" );
                        id_type,
                        &id_list[0],
                        &status );
-    assert(!mhdf_isError(&status));
+    CHECK_HDF(status);
   }
   
 
@@ -1840,7 +1849,8 @@ TPRINT( "write_shared_set_children" );
   {
     handle_list.clear();
     rval = iFace->get_child_meshsets( iter->handle, handle_list );
-    assert( MB_SUCCESS == rval );
+    if (MB_SUCCESS != rval)
+      return rval;
     remove_remote_sets( iter->handle, handle_list );
     
     id_list.clear();
@@ -1853,7 +1863,7 @@ TPRINT( "write_shared_set_children" );
                                     id_type,
                                     &id_list[0],
                                     &status );
-      assert(!mhdf_isError(&status));
+      CHECK_HDF(status);
     }
   }
 
@@ -1877,7 +1887,8 @@ TPRINT( "write_shared_set_parents" );
   {
     handle_list.clear();
     rval = iFace->get_parent_meshsets( iter->handle, handle_list );
-    assert( MB_SUCCESS == rval );
+    if (MB_SUCCESS != rval)
+      return rval;
     remove_remote_sets( iter->handle, handle_list );
     
     id_list.clear();
@@ -1890,7 +1901,7 @@ TPRINT( "write_shared_set_parents" );
                                     id_type,
                                     &id_list[0],
                                     &status );
-      assert(!mhdf_isError(&status));
+      CHECK_HDF(status);
     }
   }
 
