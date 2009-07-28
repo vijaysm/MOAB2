@@ -911,7 +911,10 @@ MBErrorCode Tqdcfr::put_into_set(MBEntityHandle set_handle,
     std::vector<MBEntityHandle> *new_vector = new std::vector<MBEntityHandle>;
     new_vector->swap(excl_entities);
     result = mdbImpl->tag_set_data(excl_tag, &set_handle, 1, &new_vector);
-    if (MB_SUCCESS != result) return MB_FAILURE;
+    if (MB_SUCCESS != result) {
+      delete new_vector;
+      return MB_FAILURE;
+    }
   }
   
   return MB_SUCCESS;
@@ -2114,8 +2117,9 @@ MBErrorCode Tqdcfr::parse_acis_attribs(const unsigned int entity_rec_num,
                                        std::vector<AcisRecord> &records) 
 {
   unsigned int num_read;
-  std::vector<std::string> *attrib_vec = NULL;
-  char temp_name[80], *name_tag = NULL;
+  std::vector<std::string> attrib_vec;
+  char temp_name[80];
+  std::string name_tag;
   int id = -1;
   int uid = -1;
   int next_attrib = -1;
@@ -2149,8 +2153,7 @@ MBErrorCode Tqdcfr::parse_acis_attribs(const unsigned int entity_rec_num,
       if (num_read != 2) return MB_FAILURE;
 
         // put the name on the entity
-      name_tag = new char[num_chars+1];
-      strcpy(name_tag, temp_name);
+      name_tag = std::string( temp_name, num_chars );
     }
     else if (strncmp(records[current_attrib].att_string.c_str(), "ENTITY_ID", 9) == 0) {
         // parse id
@@ -2178,8 +2181,7 @@ MBErrorCode Tqdcfr::parse_acis_attribs(const unsigned int entity_rec_num,
       if (1 != num_read) return MB_FAILURE;
     }
     else {
-      if (attrib_vec == NULL) attrib_vec = new std::vector<std::string>;
-      attrib_vec->push_back(records[current_attrib].att_string);
+      attrib_vec.push_back(records[current_attrib].att_string);
     }
 
     records[current_attrib].processed = true;
@@ -2217,7 +2219,7 @@ MBErrorCode Tqdcfr::parse_acis_attribs(const unsigned int entity_rec_num,
   }
   
     // set the name
-  if (NULL != name_tag) {
+  if (!name_tag.empty()) {
     if (0 == entityNameTag) {
       result = mdbImpl->tag_get_handle(NAME_TAG_NAME, entityNameTag);
       if (MB_SUCCESS != result || 0 == entityNameTag) {
@@ -2228,26 +2230,29 @@ MBErrorCode Tqdcfr::parse_acis_attribs(const unsigned int entity_rec_num,
     }
     if (0 == entityNameTag) return MB_FAILURE;
 
-    result = mdbImpl->tag_set_data(entityNameTag, &(records[entity_rec_num].entity), 1, name_tag);
+    result = mdbImpl->tag_set_data(entityNameTag, &(records[entity_rec_num].entity), 1, name_tag.c_str());
     if (MB_SUCCESS != result) return result;
-    delete [] name_tag;
   }
 
-  if (NULL != attrib_vec) {
+  if (!attrib_vec.empty()) {
       // put the attrib vector in a tag on the entity
     std::vector<std::string> *dum_vec;
     result = mdbImpl->tag_get_data(attribVectorTag, &(records[entity_rec_num].entity), 1, &dum_vec);
     if (MB_SUCCESS != result && MB_TAG_NOT_FOUND != result) return result;
     if (MB_TAG_NOT_FOUND == result || dum_vec == NULL) {
         // put this list directly on the entity
-      result = mdbImpl->tag_set_data(attribVectorTag, &(records[entity_rec_num].entity), 1, &attrib_vec);
-      if (MB_SUCCESS != result) return result;
+      dum_vec = new std::vector<std::string>;
+      dum_vec->swap(attrib_vec);
+      result = mdbImpl->tag_set_data(attribVectorTag, &(records[entity_rec_num].entity), 1, &dum_vec);
+      if (MB_SUCCESS != result) {
+        delete dum_vec;
+        return result;
+      }
     }
     else {
         // copy this list over, and delete this list
-      std::copy(attrib_vec->begin(), attrib_vec->end(), 
+      std::copy(attrib_vec.begin(), attrib_vec.end(), 
                 std::back_inserter(*dum_vec));
-      delete attrib_vec;
     }
   }
   
