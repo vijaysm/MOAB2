@@ -324,12 +324,18 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
             return MB_NOT_IMPLEMENTED;
           }
           
-          use_id_tag = true;
-          if (!file_id_tag) {
-            tmp_result = mbImpl->tag_create( "", sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, id_tag, 0 );
-            if (MB_SUCCESS != tmp_result)
-              break;
-            file_id_tag = &id_tag;
+            // If we're going to resolve shared entities, then we need
+            // to ask the file reader to populate a tag with unique ids
+            // (typically file ids/indices/whatever.)
+          if (std::find( pa_vec.begin(), pa_vec.end(), PA_RESOLVE_SHARED_ENTS )
+              != pa_vec.end()) {
+            use_id_tag = true;
+            if (!file_id_tag) {
+              tmp_result = mbImpl->tag_create( "", sizeof(int), MB_TAG_DENSE, MB_TYPE_INTEGER, id_tag, 0 );
+              if (MB_SUCCESS != tmp_result)
+                break;
+              file_id_tag = &id_tag;
+            }
           }
           
           MBReaderIface::IDTag parts = { partition_tag_name.c_str(),
@@ -467,7 +473,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
     if (cputime) act_times[i] = MPI_Wtime();
   }
 
-  if (id_tag) {
+  if (use_id_tag) {
     MBErrorCode tmp_result = mbImpl->tag_delete( id_tag );
     if (MB_SUCCESS != tmp_result && MB_SUCCESS == result)
       result = tmp_result;
