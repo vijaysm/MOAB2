@@ -1346,29 +1346,36 @@ MBErrorCode WriteHDF5Parallel::set_shared_set_ids( RemoteSetData& data, long& of
     std::map<int,long>::iterator p = val_id_map.find( data.local_values[i] );
     assert( p != val_id_map.end() );
     long id = p->second;
-    if (idMap.end() == idMap.insert( *riter, id, 1 )) {
-      std::ostringstream s;
-      s << "[" << myPcomm->rank() << "] ";
-      std::string pfx1 = s.str();
-      s << "  ";
-      std::string pfx2 = s.str();
     
-      std::cerr << pfx1 << "Duplicate shared set handle or internal accounting error" << std::endl;
-      std::cerr << pfx1 << "RemoteSetData:  " << std::endl;
-      print_remote_set_data( std::cerr, iFace, data, pfx2.c_str() );
-      
-      std::cerr << pfx1 << "val_id_map: " << std::endl;
-      for (p = val_id_map.begin(); p != val_id_map.end(); ++p)
-        std::cerr << pfx2 << p->first << "->" << p->second << std::endl;
-      
-      std::cerr << "idMap: " << std::endl;
-      print_id_map( std::cerr, pfx2.c_str() );
-      
-      std::cerr << pfx1 << "Failed at: (" << i << ") " << data.local_values[i] 
-                << "->" << id << " for " 
-                << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*riter)) 
-                << " " << ID_FROM_HANDLE(*riter) << std::endl;
+    if (idMap.end() == idMap.insert( *riter, id, 1 )) {
+      for (unsigned x = 0; x < myPcomm->size(); ++x) {
+        MPI_Barrier( myPcomm->proc_config().proc_comm() );      
+        if (x != myPcomm->rank()) continue;   
 
+        std::ostringstream s;
+        s << "[" << myPcomm->rank() << "] ";
+        std::string pfx1 = s.str();
+        s << "  ";
+        std::string pfx2 = s.str();
+
+        std::cerr << pfx1 << "Duplicate shared set handle or internal accounting error" << std::endl;
+        std::cerr << pfx1 << "RemoteSetData:  " << std::endl;
+        print_remote_set_data( std::cerr, iFace, data, pfx2.c_str() );
+
+        std::cerr << pfx1 << "val_id_map: " << std::endl;
+        for (p = val_id_map.begin(); p != val_id_map.end(); ++p)
+          std::cerr << pfx2 << p->first << "->" << p->second << std::endl;
+
+        std::cerr << pfx1 << "idMap: " << std::endl;
+        print_id_map( std::cerr, pfx2.c_str() );
+
+        std::cerr << pfx1 << "Failed at: (" << i << ") " << data.local_values[i] 
+                  << "->" << id << " for " 
+                  << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*riter)) 
+                  << " " << ID_FROM_HANDLE(*riter) << std::endl;
+        std::cerr.flush();
+      }
+      
       assert(false);
       return MB_FAILURE;
     }
