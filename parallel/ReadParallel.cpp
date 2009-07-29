@@ -22,16 +22,7 @@ const bool debug = false;
       dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(a); \
       return result;}
 
-enum ParallelActions {PA_READ=0, 
-                      PA_READ_PART, 
-                      PA_BROADCAST, 
-                      PA_DELETE_NONLOCAL,
-                      PA_CHECK_GIDS_SERIAL, 
-                      PA_GET_FILESET_ENTS, 
-                      PA_RESOLVE_SHARED_ENTS,
-                      PA_EXCHANGE_GHOSTS, 
-                      PA_PRINT_PARALLEL};
-const char *ParallelActionsNames[] = {
+const char *ReadParallel::ParallelActionsNames[]; = {
     "PARALLEL READ",
     "PARALLEL READ PART",
     "PARALLEL BROADCAST", 
@@ -50,7 +41,7 @@ const char* ReadParallel::parallelOptsNames[] = { "NONE",
                                                   "READ_PART", 
                                                   "", 
                                                   0 };
-      
+
 ReadParallel::ReadParallel(MBInterface* impl, 
                            MBParallelComm *pc) 
         : mbImpl(impl), myPcomm(pc) 

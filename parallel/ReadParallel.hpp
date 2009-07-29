@@ -61,6 +61,18 @@ public:
 
   static const char *parallelOptsNames[];
   
+  enum ParallelActions {PA_READ=0, 
+                        PA_READ_PART, 
+                        PA_BROADCAST, 
+                        PA_DELETE_NONLOCAL,
+                        PA_CHECK_GIDS_SERIAL, 
+                        PA_GET_FILESET_ENTS, 
+                        PA_RESOLVE_SHARED_ENTS,
+                        PA_EXCHANGE_GHOSTS, 
+                        PA_PRINT_PARALLEL};
+
+  static const char *ParallelActionsNames[];
+  
   enum ParallelOpts { POPT_NONE=0, 
                       POPT_BCAST, 
                       POPT_BCAST_DELETE, 

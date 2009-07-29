@@ -1871,9 +1871,9 @@ void test_pack_shared_arbitrary()
   }
 
   std::vector<int> pa_vec;
-  pa_vec.push_back(0);
-  pa_vec.push_back(4);
-  pa_vec.push_back(2);
+  pa_vec.push_back(ReadParallel::PA_READ);
+  pa_vec.push_back(ReadParallel::PA_GET_FILESET_ENTS);
+  pa_vec.push_back(ReadParallel::PA_DELETE_NONLOCAL);
   MBErrorCode rval;
   std::vector<int> partition_tag_vals;
   bool partition_distrib = false;
@@ -1898,8 +1898,8 @@ void test_pack_shared_arbitrary()
     MBEntityHandle tmp_set = 0;
     rval = rp.load_file(fnames, 1, tmp_set, ReadParallel::POPT_READ_DELETE,
                         ptag_name, 
-                        partition_tag_vals, partition_distrib, pa_vec, 
-                        fopts, NULL, NULL, 0, i, false, -1, -1, -1, -1, 0);
+                        partition_tag_vals, partition_distrib, false, pa_vec, 
+                        fopts, NULL, 0, NULL, i, false, -1, -1, -1, -1, 0);
     CHECK_ERR(rval);
   }
   
