@@ -3451,7 +3451,12 @@ MBErrorCode MBParallelComm::filter_pstatus( MBRange &ents,
 {
   MBRange tmp_ents;
 
-  assert(!ents.empty());
+  //assert(!ents.empty());
+  if (ents.empty()) {
+    if (returned_ents)
+      returned_ents->clear();
+    return MB_SUCCESS;
+  }
 
     // Put into tmp_ents any entities which are not owned locally or
     // who are already shared with to_proc
