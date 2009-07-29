@@ -427,6 +427,7 @@ MBRange::iterator MBRange::erase(iterator iter)
     PairNode* new_node = alloc_pair(iter.mNode->mNext, iter.mNode, iter.mValue+1, kter->second);
     new_node->mPrev->mNext = new_node->mNext->mPrev = new_node;
     iter.mNode->second = iter.mValue - 1;
+    new_iter = const_iterator(new_node, new_node->first);
     return new_iter;
   }
 
