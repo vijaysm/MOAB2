@@ -20,6 +20,8 @@
 #include <set>
 #include <map>
 #include <utility>
+#include <iostream>
+#include <sstream>
 
 #include <mpi.h>
 
@@ -1123,6 +1125,35 @@ struct RemoteSetData {
   std::vector<int> local_values; //!< data_tag values for sets that exist on this processor
 };
 
+static void print_remote_set_data( std::ostream& s, MBInterface* mb,
+                            const struct RemoteSetData& data,
+                            const char* pfx = "" )
+{
+  std::string n1,n2;
+  if (data.data_tag)
+    mb->tag_get_name( data.data_tag, n1 );
+  if (data.filter_tag)
+    mb->tag_get_name( data.filter_tag, n2 );
+
+  std::cerr << pfx << "data_tag:     " << n1 << std::endl
+            << pfx << "filter_tag:   " << n2 << std::endl
+            << pfx << "filter_value: " << data.filter_value << std::endl
+            << pfx << "range:        " << data.range << std::endl
+            << pfx << "counts:       ";
+  std::copy( data.counts.begin(), data.counts.end(),
+             std::ostream_iterator<int>(std::cerr,",") );
+  std::cerr << std::endl << pfx << "displs:       ";
+  std::copy( data.displs.begin(), data.displs.end(),
+             std::ostream_iterator<int>(std::cerr,",") );
+  std::cerr << std::endl << pfx << "all_values:  ";
+  std::copy( data.all_values.begin(), data.all_values.end(),
+             std::ostream_iterator<int>(std::cerr,",") );
+  std::cerr << std::endl << pfx << "local_values:";
+  std::copy( data.local_values.begin(), data.local_values.end(),
+             std::ostream_iterator<int>(std::cerr,",") );
+  std::cerr << std::endl;
+}
+
 MBErrorCode WriteHDF5Parallel::get_remote_set_data( 
                         const WriteHDF5Parallel::MultiProcSetTags::Data& tags,
                         RemoteSetData& data, long& offset )
@@ -1316,6 +1347,28 @@ MBErrorCode WriteHDF5Parallel::set_shared_set_ids( RemoteSetData& data, long& of
     assert( p != val_id_map.end() );
     long id = p->second;
     if (idMap.end() == idMap.insert( *riter, id, 1 )) {
+      std::ostringstream s;
+      s << "[" << myPcomm->rank() << "] ";
+      std::string pfx1 = s.str();
+      s << "  ";
+      std::string pfx2 = s.str();
+    
+      std::cerr << pfx1 << "Duplicate shared set handle or internal accounting error" << std::endl;
+      std::cerr << pfx1 << "RemoteSetData:  " << std::endl;
+      print_remote_set_data( std::cerr, iFace, data, pfx2.c_str() );
+      
+      std::cerr << pfx1 << "val_id_map: " << std::endl;
+      for (p = val_id_map.begin(); p != val_id_map.end(); ++p)
+        std::cerr << pfx2 << p->first << "->" << p->second << std::endl;
+      
+      std::cerr << "idMap: " << std::endl;
+      print_id_map( std::cerr, pfx2.c_str() );
+      
+      std::cerr << pfx1 << "Failed at: (" << i << ") " << data.local_values[i] 
+                << "->" << id << " for " 
+                << MBCN::EntityTypeName(TYPE_FROM_HANDLE(*riter)) 
+                << " " << ID_FROM_HANDLE(*riter) << std::endl;
+
       assert(false);
       return MB_FAILURE;
     }

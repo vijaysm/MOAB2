@@ -261,6 +261,9 @@ protected:
   //! For parallel, may request collective IO.
   hid_t writeProp;
 
+  void print_id_map( std::ostream& str, const char* prefix = "" ) const;
+  
+  
 private:
 
   //! Do the actual work of write_file.  Separated from write_file

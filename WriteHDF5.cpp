@@ -2782,3 +2782,31 @@ MBErrorCode WriteHDF5::create_tag( MBTag tag_id,
     
   return MB_SUCCESS;
 }
+
+
+void WriteHDF5::print_id_map( std::ostream& s, const char* pfx ) const
+{
+  RangeMap<MBEntityHandle,id_t>::const_iterator i;
+  for (i = idMap.begin(); i != idMap.end(); ++i) {
+    const char* n1 = MBCN::EntityTypeName(TYPE_FROM_HANDLE(i->begin));
+    MBEntityID id = ID_FROM_HANDLE(i->begin);
+    if (i->count == 1) {
+      s << pfx << n1 << " " << id << " -> " << i->value << std::endl;
+    }
+    else {
+      const char* n2 = MBCN::EntityTypeName(TYPE_FROM_HANDLE(i->begin + i->count - 1));
+      if (n1 == n2) {
+        s << pfx << n1 << " " << id << "-" << id + i->count-1
+          << " -> " << i->value << "-" << i->value + i->count-1 << std::endl;
+      }
+      else {
+        s << pfx << n1 << " " << id << "-" 
+          << n1 << " " << ID_FROM_HANDLE(i->begin + i->count-1)
+          << " -> " << i->value << "-" << i->value + i->count-1 << std::endl;
+      }
+    }
+  }
+}
+
+      
+ 
