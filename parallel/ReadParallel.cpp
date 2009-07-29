@@ -22,7 +22,7 @@ const bool debug = false;
       dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(a); \
       return result;}
 
-const char *ReadParallel::ParallelActionsNames[]; = {
+const char *ReadParallel::ParallelActionsNames[] = {
     "PARALLEL READ",
     "PARALLEL READ PART",
     "PARALLEL BROADCAST", 
