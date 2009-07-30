@@ -304,11 +304,11 @@ public:
   MBErrorCode get_default_data_ref(const MBTag tag_handle, const void *& data, int& size);
 
   //! get information about a tag
-  const TagInfo* get_tag_info(const char *tag_name ) const;
-  const TagInfo* get_tag_info( MBTag tag_handle ) const;
-  TagInfo* get_tag_info( MBTag tag_handle );
-  const TagInfo* get_tag_info( MBTagId id, MBTagType storage ) const;
-  TagInfo* get_tag_info( MBTagId id, MBTagType storage );
+  inline const TagInfo* get_tag_info(const char *tag_name ) const;
+  inline const TagInfo* get_tag_info( MBTag tag_handle ) const;
+  inline TagInfo* get_tag_info( MBTag tag_handle );
+  inline const TagInfo* get_tag_info( MBTagId id, MBTagType storage ) const;
+  inline TagInfo* get_tag_info( MBTagId id, MBTagType storage );
   
   unsigned long get_memory_use( MBTag tag_handle ) const;
   

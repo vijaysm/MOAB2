@@ -141,49 +141,56 @@ public:
   static void SetBasis(const int in_basis);
 
   //! return the string type name for this type
-  static const char *EntityTypeName(const MBEntityType this_type);
+  static inline
+  const char *EntityTypeName(const MBEntityType this_type);
   
   //! given a name, find the corresponding entity type
   static MBEntityType EntityTypeFromName(const char *name);
   
   //! return the topological entity dimension
-  static short int Dimension(const MBEntityType t);
+  static inline
+  short int Dimension(const MBEntityType t);
 
   //! return the number of (corner) vertices contained in the specified type.  
-  static short int VerticesPerEntity(const MBEntityType t);
+  static inline
+  short int VerticesPerEntity(const MBEntityType t);
   
   //! return the number of sub-entities bounding the entity.
-  static short int NumSubEntities(const MBEntityType t, const int d);
+  static inline
+  short int NumSubEntities(const MBEntityType t, const int d);
 
   //! return the type of a particular sub-entity.
   //! \param this_type Type of entity for which sub-entity type is being queried
   //! \param sub_dimension Topological dimension of sub-entity whose type is being queried
   //! \param index Index of sub-entity whose type is being queried
   //! \return type Entity type of sub-entity with specified dimension and index
-  static MBEntityType SubEntityType(const MBEntityType this_type,
-                                    const int sub_dimension,
-                                    const int index);
+  static inline
+  MBEntityType SubEntityType(const MBEntityType this_type,
+                             const int sub_dimension,
+                             const int index);
   
   //! return the vertex indices of the specified sub-entity.
   //! \param this_type Type of entity for which sub-entity connectivity is being queried
   //! \param sub_dimension Dimension of sub-entity
   //! \param sub_index Index of sub-entity
   //! \param sub_entity_conn Connectivity of sub-entity (returned to calling function)
-  static void SubEntityVertexIndices(const MBEntityType this_type, 
-                                     const int sub_dimension,
-                                     const int sub_index,
-                                     int sub_entity_conn[]);
+  static inline
+  void SubEntityVertexIndices(const MBEntityType this_type, 
+                              const int sub_dimension,
+                              const int sub_index,
+                              int sub_entity_conn[]);
   
   //! return the vertex indices of the specified sub-entity.
   //! \param this_type Type of entity for which sub-entity connectivity is being queried
   //! \param sub_dimension Dimension of sub-entity
   //! \param sub_index Index of sub-entity
   //! \param num_sub_ent_vertices the number of vertices in the sub-entity
-  static const short* SubEntityVertexIndices( const MBEntityType this_type, 
-                                              const int sub_dimension,
-                                              const int sub_index,
-                                              MBEntityType& sub_type,
-                                              int& num_sub_ent_vertices );
+  static inline
+  const short* SubEntityVertexIndices( const MBEntityType this_type, 
+                                       const int sub_dimension,
+                                       const int sub_index,
+                                       MBEntityType& sub_type,
+                                       int& num_sub_ent_vertices );
   
   //! return the node indices of the specified sub-entity.
   //! \param this_topo            The topology of the queried element type
@@ -336,13 +343,15 @@ public:
     //! \param pvec Permutation array
     //! \param num_entries Number of indicies in permutation array
     //! \param is_reverse Array is reverse permutation
-  static void setPermutation(const MBEntityType t, const int dim, int *pvec, const int num_entries,
-                             const bool is_reverse = false);
+  static inline
+  void setPermutation(const MBEntityType t, const int dim, int *pvec, 
+                      const int num_entries, const bool is_reverse = false);
 
     //! Reset permutation or reverse permutation vector
     //! \param t EntityType whose permutation vector is being reset
     //! \param dim Dimension of facets being reset; if -1 is input, all dimensions are reset
-  static void resetPermutation(const MBEntityType t, const int dim);
+  static inline
+  void resetPermutation(const MBEntityType t, const int dim);
   
     //! Permute a handle array according to permutation vector set with setPermute; 
     //! permutation is done in-place
@@ -381,24 +390,27 @@ public:
   //! \param num_verts Number of nodes defining entity
   //! \return bool Returns true if <em>this_type</em> combined with <em>num_nodes</em> indicates
   //!  mid-edge nodes are likely
-  static bool HasMidEdgeNodes(const MBEntityType this_type, 
-                              const int num_verts);
+  static inline
+  bool HasMidEdgeNodes(const MBEntityType this_type, 
+                       const int num_verts);
 
   //! true if entities of a given type and number of nodes indicates mid face nodes are present.
   //! \param this_type Type of entity for which sub-entity connectivity is being queried
   //! \param num_verts Number of nodes defining entity
   //! \return bool Returns true if <em>this_type</em> combined with <em>num_nodes</em> indicates
   //!  mid-face nodes are likely
-  static bool HasMidFaceNodes(const MBEntityType this_type, 
-                              const int num_verts);
+  static inline
+  bool HasMidFaceNodes(const MBEntityType this_type, 
+                       const int num_verts);
 
   //! true if entities of a given type and number of nodes indicates mid region nodes are present.
   //! \param this_type Type of entity for which sub-entity connectivity is being queried
   //! \param num_verts Number of nodes defining entity
   //! \return bool Returns true if <em>this_type</em> combined with <em>num_nodes</em> indicates
   //!  mid-region nodes are likely
-  static bool HasMidRegionNodes(const MBEntityType this_type, 
-                                const int num_verts);
+  static inline
+  bool HasMidRegionNodes(const MBEntityType this_type, 
+                         const int num_verts);
 
   //! true if entities of a given type and number of nodes indicates mid edge/face/region nodes 
   //! are present.
@@ -406,15 +418,17 @@ public:
   //! \param num_verts Number of nodes defining entity
   //! \param mid_nodes If <em>mid_nodes[i], i=1..2</em> is non-zero, indicates that mid-edge 
   //!    (i=1), mid-face (i=2), and/or mid-region (i=3) nodes are likely
-  static void HasMidNodes(const MBEntityType this_type, 
-                          const int num_verts, 
-                          int mid_nodes[4]);
+  static inline
+  void HasMidNodes(const MBEntityType this_type, 
+                   const int num_verts, 
+                   int mid_nodes[4]);
 
   //! Same as above, except returns a single integer with the bits, from
   //! least significant to most significant set to one if the corresponding
   //! mid nodes on sub entities of the least dimension (0) to the highest
   //! dimension (3) are present in the elment type.
-  static int HasMidNodes( const MBEntityType this_type, const int num_verts );
+  static inline
+  int HasMidNodes( const MBEntityType this_type, const int num_verts );
 
   //! given data about an element and a vertex in that element, return the dimension
   //! and index of the sub-entity that the vertex resolves.  If it does not resolve a

@@ -220,16 +220,16 @@ public:
   ~MBRange();
 
   //! return the beginning const iterator of this range
-  const_iterator begin() const;
+  inline const_iterator begin() const;
   
   //! return the beginning const reverse iterator of this range
-  const_reverse_iterator rbegin() const;
+  inline const_reverse_iterator rbegin() const;
  
   //! return the ending const iterator for this range
-  const_iterator end() const;
+  inline const_iterator end() const;
   
   //! return the ending const reverse iterator for this range
-  const_reverse_iterator rend() const;
+  inline const_reverse_iterator rend() const;
 
   //! return the number of values this Ranges represents
   MBEntityHandle size() const;
@@ -239,7 +239,7 @@ public:
   
   //! return whether empty or not 
   //! always use "if(!Ranges::empty())" instead of "if(Ranges::size())"
-  bool empty() const;
+  inline bool empty() const;
 
   //! insert an item into the list and return the iterator for the inserted item
   iterator insert(MBEntityHandle val);
@@ -255,12 +255,12 @@ public:
   iterator erase( iterator iter1, iterator iter2);
 
   //! erases a value from this container
-  iterator erase(MBEntityHandle val);
+  inline iterator erase(MBEntityHandle val);
   
   //! get first entity in range
-  const MBEntityHandle& front() const;
+  inline const MBEntityHandle& front() const;
   //! get last entity in range
-  const MBEntityHandle& back() const;
+  inline const MBEntityHandle& back() const;
   //! remove first entity from range
   MBEntityHandle pop_front();
   //! remove last entity from range
