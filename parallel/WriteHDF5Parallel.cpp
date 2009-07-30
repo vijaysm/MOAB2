@@ -156,9 +156,9 @@ void WriteHDF5Parallel::printrange( MBRange& r )
     unsigned long id1 = iFace->id_from_handle( a );
     unsigned long id2 = iFace->id_from_handle( b );
     if (id1 == id2)
-      fprintf(DEBUG_OUT_STREAM, " %lu", id1 );
+      fprintf(DEBUG_OUT_STREAM, " %ld", (long)id1 );
     else
-      fprintf(DEBUG_OUT_STREAM, " %lu-%lu", id1, id2 );
+      fprintf(DEBUG_OUT_STREAM, " %ld-%ld", (long)id1, (long)id2 );
   }
   fprintf(DEBUG_OUT_STREAM, "\n");
   fflush( DEBUG_OUT_STREAM );
@@ -1198,14 +1198,24 @@ MBErrorCode WriteHDF5Parallel::get_remote_set_data(
     // isn't defined on this processor.
   if (rval != MB_TAG_NOT_FOUND)
   {
-    MBTag handles[] = { data.filter_tag, data.data_tag };
-    const void* values[] = { tags.useFilterValue ? &tags.filterValue : 0, 0 };
-    rval = iFace->get_entities_by_type_and_tag( 0, 
-                                                MBENTITYSET, 
-                                                handles,
-                                                values,
-                                                2,
-                                                data.range );
+    if (tags.useFilterValue) {
+      MBTag handles[] = { data.filter_tag, data.data_tag };
+      const void* values[] = {&tags.filterValue, 0 };
+      rval = iFace->get_entities_by_type_and_tag( 0, 
+                                                  MBENTITYSET, 
+                                                  handles,
+                                                  values,
+                                                  2,
+                                                  data.range );
+    }
+    else {
+      rval = iFace->get_entities_by_type_and_tag( 0, 
+                                                  MBENTITYSET, 
+                                                  &data.data_tag,
+                                                  0,
+                                                  1,
+                                                  data.range );
+    }
     if (rval != MB_SUCCESS) return rval;
     MBRange tmp = intersect( data.range,  setSet.range );
     data.range.swap( tmp );
