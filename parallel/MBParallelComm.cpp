@@ -4223,7 +4223,8 @@ MBErrorCode MBParallelComm::pack_remote_handles(std::vector<MBEntityHandle> &L1h
 {
     // 2 vectors of handles plus ints
   CHECK_BUFF_SPACE(buff, buff_ptr, ((L1p.size()+1)*sizeof(int) + 
-                                    L1hloc.size()*sizeof(MBEntityHandle)));
+                                    (L1hloc.size()+1)*sizeof(MBEntityHandle) + 
+                                    (L1hrem.size()+1)*sizeof(MBEntityHandle)));
   
     // should be in pairs of handles
   PACK_INT(buff_ptr, L1hloc.size());
