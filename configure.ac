@@ -69,7 +69,9 @@ SNL_TEMPLATE_FUNC_SPECIALIZATION
 DEFINES="$DEFINES $TEMPLATE_SPECIALIZATION $TEMPLATE_FUNC_SPECIALIZATION"
 
 if test "xno" != "x$CONFIGURE_FORTRAN"; then
-  AC_FC_WRAPPERS
+  if text "x" != "FC"; then
+    AC_FC_WRAPPERS
+  fi
 fi
 
 ################################################################################
