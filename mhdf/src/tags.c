@@ -1090,7 +1090,7 @@ read_tag_attrib_data( hid_t tag_id,
                       int is_var_len, 
                       mhdf_Status* status )
 {
-  int rval;
+  int rval, ilen;
   unsigned index;
   hid_t read_type = type_id;
   hsize_t len;
@@ -1111,12 +1111,14 @@ read_tag_attrib_data( hid_t tag_id,
   if (is_var_len) 
   {
     /* len = get_attrib_array_length_index(tag_id, index); */
-    len = get_attrib_array_length_name(tag_id, attrib_name);
-    if (len < 0) 
+    ilen = get_attrib_array_length_name(tag_id, attrib_name);
+    if (ilen < 0) 
     {
       mhdf_setFail( status, "Failed to read length of default/mesh value for tag" );
       return 0;
     }
+    len = ilen;
+    
       /* caller passes type_id == 0 for OPAQUE */
     if (0 == type_id)
       read_type = H5Tcreate( H5T_OPAQUE, len );

@@ -39,6 +39,7 @@
 #include <string.h>
 #include <limits>
 #include <cstdio>
+#include <iostream>
 #include <H5Tpublic.h>
 #include <H5Ppublic.h>
 #include "MBInterface.hpp"
@@ -2660,7 +2661,7 @@ MBErrorCode WriteHDF5::create_tag( MBTag tag_id,
   mhdf_TagDataType mhdf_type;
   int tag_size, elem_size, mhdf_size, storage;
   hid_t hdf_type = (hid_t)0;
-  hid_t handles[2];
+  hid_t handles[3];
   std::string tag_name;
   MBErrorCode rval;
   mhdf_Status status;
@@ -2783,6 +2784,10 @@ MBErrorCode WriteHDF5::create_tag( MBTag tag_id,
   return MB_SUCCESS;
 }
 
+void WriteHDF5::print_id_map( ) const
+{
+  print_id_map( std::cout, "" ) ;
+}
 
 void WriteHDF5::print_id_map( std::ostream& s, const char* pfx ) const
 {

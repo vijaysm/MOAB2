@@ -20,7 +20,7 @@ static struct mhdf_FileDesc* alloc_file_desc( mhdf_Status* status )
   
   memset( result, 0, sizeof(struct mhdf_FileDesc) );
   result->total_size = 4000;
-  result->offset = ((char*)result) + sizeof(struct mhdf_FileDesc);
+  result->offset = ((unsigned char*)result) + sizeof(struct mhdf_FileDesc);
   return result;
 }
 
@@ -362,6 +362,7 @@ mhdf_getFileSummary( mhdf_FileHandle file_handle,
   struct mhdf_FileDesc* result;
   hid_t table_id;
   int i, j, k, size, *indices, have;
+  unsigned int ui;
   void* ptr;
   char **elem_handles = 0, **tag_names = 0;
   unsigned char *array, *matrix;
@@ -428,12 +429,14 @@ mhdf_getFileSummary( mhdf_FileHandle file_handle,
   
     /* get element list */
   elem_handles = mhdf_getElemHandles( file_handle, 
-                                      &result->num_elem_desc, 
+                                      &ui, 
                                       status );
   if (elem_handles == NULL) {
     free( result );
     return NULL;
   }
+  result->num_elem_desc = ui;
+  
   
     /* allocate array of element descriptors */
   size = result->num_elem_desc * sizeof(struct mhdf_ElemDesc);
