@@ -2109,13 +2109,25 @@ MBErrorCode ReadHDF5::read_contents( ContentReader& tool,
   long sets_per_buffer = bufferSize / (sizeof(long) + (avg_set_len+1)*sizeof(MBEntityHandle));
     // round to down multiple of 8 to avoid alignment issues
   sets_per_buffer = 8 * (sets_per_buffer / 8);
-  if (sets_per_buffer < 10) // just in case there's one huge set
+  if (sets_per_buffer < 10) { // just in case there's one huge set
     sets_per_buffer = 10;  
+    if (sets_per_buffer * (long)sizeof(long) > bufferSize) 
+      sets_per_buffer = bufferSize/(sizeof(long)+2*sizeof(MBEntityHandle));
+  }
   long* offset_buffer = (long*)dataBuffer;
   MBEntityHandle* content_buffer = (MBEntityHandle*)(offset_buffer + sets_per_buffer);
   assert(bufferSize % sizeof(long) == 0);
   long content_size = (MBEntityHandle*)(dataBuffer + bufferSize) - content_buffer;
   assert(dataBuffer + bufferSize >= (char*)(content_buffer + content_size));
+    // content_size must be an even number or we might end up with half of a 
+    // range pair in the buffer, which will break code below
+  if (content_size % 2)
+    --content_size;
+    
+  if (!sets_per_buffer || !content_size) {
+      // buffer is too small to be usable
+    return MB_FAILURE;
+  }
  
   MBRange ranged_ids(ranged_ids_in);
   MBEntityHandle h = start_handle;
