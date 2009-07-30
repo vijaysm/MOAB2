@@ -56,9 +56,11 @@ public:
    * Insert mapping from [first_key, first_key+count) to [first_val, first_val+count) 
    *
    * Input range of keys many not overlap any other input range.  If it does overlap
-   * an existing range, end() is returned and the internal map is not changed.
+   * an existing range, the second value of the pair will be returned as false
+   * and the iterator will point to (one of) the overlapping ranges.
    */
-  inline iterator insert( KeyType first_key, ValType first_val, KeyType count );
+  inline std::pair<iterator,bool>
+  insert( KeyType first_key, ValType first_val, KeyType count );
   
   /** Find the value corresponding to the specified key.  Returns NullVal if not found */
   inline ValType find( KeyType key ) const;
@@ -110,7 +112,7 @@ protected:
 };
 
 template <typename KeyType, typename ValType, ValType NullVal> 
-inline typename RangeMap<KeyType,ValType,NullVal>::iterator
+inline std::pair<typename RangeMap<KeyType,ValType,NullVal>::iterator,bool>
 RangeMap<KeyType,ValType,NullVal>::insert( KeyType first_key, ValType first_val, KeyType count )
 {
   Range block = { first_key, count, first_val };
@@ -122,15 +124,15 @@ RangeMap<KeyType,ValType,NullVal>::insert( KeyType first_key, ValType first_val,
       if (i->begin + i->count == first_key && 
           i->value + i->count == first_val) {
         i->count += count;
-        return i;
+        return std::pair<iterator,bool>(i,true);
       }
     }
     data.push_back( block );
-    return data.end() - 1;
+    return std::pair<iterator,bool>(data.end() - 1,true);
   }
   
   if (i->begin < first_key + count)
-    return data.end();
+    return std::pair<iterator,bool>(i,false);
   
   if (i->begin == first_key + count &&
       i->value == first_val + count) {
@@ -148,7 +150,7 @@ RangeMap<KeyType,ValType,NullVal>::insert( KeyType first_key, ValType first_val,
         --i;
       }
     }
-    return i;
+    return std::pair<iterator,bool>(i,true);
   }
   
   if (i != data.begin()) {
@@ -156,12 +158,12 @@ RangeMap<KeyType,ValType,NullVal>::insert( KeyType first_key, ValType first_val,
     if (i->begin + i->count == first_key &&
         i->value + i->count == first_val) {
       i->count += count;
-      return i;
+      return std::pair<iterator,bool>(i,true);
     }
     ++i;
   }
   
-  return data.insert( i, block );
+  return std::pair<iterator,bool>(data.insert( i, block ),true);
 }
 
 

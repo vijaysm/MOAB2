@@ -968,8 +968,7 @@ MBErrorCode ReadHDF5::read_nodes( const MBRange& node_file_ids )
       memset( arrays[i], 0, count*sizeof(double) );
       arrays[i] += count;
     }
-    IDMap::iterator ins = idMap.insert( p->first, handle, count );
-    if (ins == idMap.end()) {
+    if (!idMap.insert( p->first, handle, count ).second) {
       mhdf_closeData( filePtr, data_id, &status );
       return error(MB_FAILURE);
     }
@@ -1034,8 +1033,7 @@ MBErrorCode ReadHDF5::read_elems( const mhdf_ElemDesc& elems, const MBRange& fil
                                          array );
     if (MB_SUCCESS != rval) 
       break;
-    IDMap::iterator ins = idMap.insert( p->first, handle, count );
-    if (ins == idMap.end()) 
+    if (!idMap.insert( p->first, handle, count ).second) 
       { rval = MB_FAILURE; break; }
 
     mhdf_readConnectivityWithOpt( data_id, p->first - first_id, count, handleType, array, indepIO, &status );
@@ -1145,8 +1143,7 @@ MBErrorCode ReadHDF5::read_node_adj_elems( const mhdf_ElemDesc& group,
         iter += node_per_elem;
         continue;
       }
-      IDMap::iterator ins = idMap.insert( start_id + i, h++, 1 );
-      if (ins == idMap.end()) 
+      if (!idMap.insert( start_id + i, h++, 1 ).second) 
         return error(MB_FAILURE);
         
       long* const end = iter + node_per_elem;
@@ -1236,8 +1233,7 @@ MBErrorCode ReadHDF5::read_poly( const mhdf_ElemDesc& elems, const MBRange& file
       MBErrorCode rval = mb->create_element( type, conn, len, handle );
       if (MB_SUCCESS != rval)
         return error(rval);
-      IDMap::iterator ins = idMap.insert( file_id, handle, 1 );
-      if (ins == idMap.end()) 
+      if (!idMap.insert( file_id, handle, 1 ).second) 
         return error(MB_FAILURE);
       return MB_SUCCESS;
     }
@@ -2068,8 +2064,7 @@ MBErrorCode ReadHDF5::read_sets( const MBRange& file_ids,
     MBEntityHandle h = start_handle;
     for (p = file_ids.const_pair_begin(); p != file_ids.const_pair_end(); ++p) {
       long count = p->second - p->first + 1;
-      IDMap::iterator ins = idMap.insert( p->first, h, count );
-      if (ins == idMap.end()) 
+      if (!idMap.insert( p->first, h, count ).second) 
         return error(MB_FAILURE);
       h += count;
     }

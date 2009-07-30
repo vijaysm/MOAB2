@@ -251,8 +251,7 @@ MBErrorCode WriteHDF5::assign_ids( const MBRange& entities, id_t id )
       (unsigned long)id,
       (unsigned long)(id+n-1));
 #endif
-    RangeMap<MBEntityHandle,id_t>::iterator it = idMap.insert( pi->first, id, n );
-    if (idMap.end() == it)
+    if (!idMap.insert( pi->first, id, n ).second)
       return MB_FAILURE;
     id += n;
   }

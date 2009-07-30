@@ -1350,7 +1350,6 @@ MBErrorCode WriteHDF5Parallel::set_shared_set_ids( RemoteSetData& data, long& of
     if (p == val_id_map.end())
       val_id_map[data.all_values[i]] = offset++;
   }
-  RangeMap<MBEntityHandle,id_t>::iterator insp;
   MBRange::const_iterator riter = data.range.begin();
   for (size_t i = 0; i < data.local_values.size(); ++i, ++riter)
   {
@@ -1358,8 +1357,7 @@ MBErrorCode WriteHDF5Parallel::set_shared_set_ids( RemoteSetData& data, long& of
     assert( p != val_id_map.end() );
     long id = p->second;
     
-    insp = idMap.insert( *riter, id, 1 );
-    if (idMap.end() == insp) {
+    if (!idMap.insert( *riter, id, 1 ).second) {
       for (unsigned x = 0; x < myPcomm->size(); ++x) {
         MPI_Barrier( myPcomm->proc_config().proc_comm() );      
         if (x != myPcomm->rank()) continue;   
@@ -2121,7 +2119,6 @@ printrange( interfaceMesh[myPcomm->proc_config().proc_rank()] );
   }
   
     // store file IDs for remote entities
-  RangeMap<MBEntityHandle,id_t>::iterator insp;
   for (proc_iter p = interfaceMesh.begin(); p != interfaceMesh.end(); ++p) {
     if (p->first == myPcomm->proc_config().proc_rank())
       continue;
@@ -2141,8 +2138,7 @@ printrange( interfaceMesh[myPcomm->proc_config().proc_rank()] );
          return MB_FAILURE;
       }
       else {
-        insp = idMap.insert( *i, *j, 1 );
-        if (insp == idMap.end()) {
+        if (!idMap.insert( *i, *j, 1 ).second) {
           iFace->tag_delete( file_id_tag );
           return MB_FAILURE;
         }
