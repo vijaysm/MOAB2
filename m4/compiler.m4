@@ -255,6 +255,8 @@ AC_MSG_CHECKING([for known c++ compilers])
 # Autoconf does G++ for us
 if test x$GXX = xyes; then
   cxx_compiler=GNU
+  # Intel claims to be GCC, check for it here
+  SNL_TRY_COMPILER_DEFINE([__INTEL_COMPILER],[cxx_compiler=Intel])
 # Search for other compiler types
 # For efficiency, limit checks to relevant OSs
 else
@@ -326,6 +328,11 @@ case "$cxx_compiler:$host_cpu" in
   GNU:*)
     SNL_CXX_SPECIAL="$EXTRA_GNU_FLAGS"
     ;;
+  Intel:*)
+    SNL_CXX_32BIT=-m32
+    SNL_CXX_64BIT=-m64
+    SNL_CXX_SPECIAL="$EXTRA_GNU_FLAGS -wd981 -wd383"
+    ;;
   VisualAge:*)
     SNL_CXX_32BIT=-q32
     SNL_CXX_64BIT=-q64
@@ -381,6 +388,8 @@ AC_MSG_CHECKING([for known C compilers])
 # Autoconf does gcc for us
 if test x$GCC = xyes; then
   cc_compiler=GNU
+  # Intel claims to be GCC, check for it here
+  SNL_TRY_COMPILER_DEFINE([__INTEL_COMPILER],[cc_compiler=Intel])
 # Search for other compiler types
 # For efficiency, limit checks to relevant OSs
 else
@@ -441,6 +450,11 @@ case "$cc_compiler:$host_cpu" in
     SNL_CC_32BIT=-m32
     SNL_CC_64BIT=-m64
     SNL_CC_SPECIAL="$EXTRA_GNU_FLAGS"
+    ;;
+  Intel:*)
+    SNL_CC_32BIT=-m32
+    SNL_CC_64BIT=-m64
+    SNL_CC_SPECIAL="$EXTRA_GNU_FLAGS -wd981 -wd383"
     ;;
   GNU:mips*)
     SNL_CC_32BIT="-mips32 -mabi=32"
