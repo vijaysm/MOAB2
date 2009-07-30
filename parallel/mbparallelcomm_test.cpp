@@ -308,7 +308,7 @@ MBErrorCode read_file(MBInterface *mbImpl,
       options << "PARALLEL=READ_DELETE;PARTITION=" << tag_name;
       break;
     case -2:
-      options << "PARALLEL=READ_PARALLEL;PARTITION=" << tag_name;
+      options << "PARALLEL=READ_PART;PARTITION=" << tag_name;
       break;
     case -3:
       options << "PARALLEL=BCAST;PARTITION=" << tag_name;

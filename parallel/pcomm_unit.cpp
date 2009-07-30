@@ -1832,6 +1832,9 @@ void test_pack_shared_entities_2d()
     // now 1 layer of hex ghosts
   rval = MBParallelComm::exchange_ghost_cells(pc, 4, 2, 0, 1, true);
   CHECK_ERR(rval);
+
+  for (unsigned int i = 0; i < 4; i++)
+    delete pc[i];
 }
 
 void test_pack_shared_entities_3d()
@@ -1857,6 +1860,9 @@ void test_pack_shared_entities_3d()
     // now 1 layer of hex ghosts
   rval = MBParallelComm::exchange_ghost_cells(pc, 4, 3, 0, 1, true);
   CHECK_ERR(rval);
+
+  for (unsigned int i = 0; i < 4; i++)
+    delete pc[i];
 }
 
 void test_pack_shared_arbitrary()
@@ -1913,6 +1919,9 @@ void test_pack_shared_arbitrary()
     // now 1 layer of hex ghosts
   rval = MBParallelComm::exchange_ghost_cells(pc, NP, 3, 0, 1, true);
   CHECK_ERR(rval);
+
+  for (unsigned int i = 0; i < NP; i++)
+    delete pc[i];
 }
 
 void test_filter_pstatus()
@@ -2015,4 +2024,5 @@ void test_filter_pstatus()
   CHECK(tmp_range.size() == 3 && tmp_range[0] == verts[3] && 
         tmp_range[1] == verts[4] && tmp_range[2] == verts[5]);
   
+  delete pcomm;
 }

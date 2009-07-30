@@ -16,7 +16,7 @@
 #include <algorithm>
 #include <assert.h>
 
-const bool debug = false;
+const bool debug = true;
 
 #define RR(a) if (MB_SUCCESS != result) {                               \
       dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(a); \
@@ -309,6 +309,9 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
           break;
 //==================
       case PA_READ_PART: {
+        if (debug)
+          std::cout << "Reading file " << file_names[0] << std::endl;
+
           i_read = true;
           if (num_files != 1) {
             merror->set_last_error("Multiple file read not supported for READ_PART");
