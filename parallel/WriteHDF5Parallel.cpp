@@ -228,7 +228,7 @@ static void print_type_sets( MBInterface* iFace, int rank, int size, MBRange& se
 #endif
 
 
-void range_remove( MBRange& from, const MBRange& removed )
+static void range_remove( MBRange& from, const MBRange& removed )
 {
   
 /* The following should be more efficient, but isn't due
@@ -1006,7 +1006,7 @@ MBErrorCode WriteHDF5Parallel::create_adjacency_tables()
     for (i = 0; i < numtypes; i++) 
     {
       long prev = 0;
-      for (unsigned j = 0; j <= myPcomm->proc_config().proc_size(); j++)
+      for (j = 0; j <= myPcomm->proc_config().proc_size(); j++)
       {
         long tmp = all[j*numtypes + i];
         all[j*numtypes+i] = prev;
@@ -1135,22 +1135,22 @@ static void print_remote_set_data( std::ostream& s, MBInterface* mb,
   if (data.filter_tag)
     mb->tag_get_name( data.filter_tag, n2 );
 
-  std::cerr << pfx << "data_tag:     " << n1 << std::endl
-            << pfx << "filter_tag:   " << n2 << std::endl
-            << pfx << "filter_value: " << data.filter_value << std::endl
-            << pfx << "range:        " << data.range << std::endl
-            << pfx << "counts:       ";
+  s << pfx << "data_tag:     " << n1 << std::endl
+    << pfx << "filter_tag:   " << n2 << std::endl
+    << pfx << "filter_value: " << data.filter_value << std::endl
+    << pfx << "range:        " << data.range << std::endl
+    << pfx << "counts:       ";
   std::copy( data.counts.begin(), data.counts.end(),
-             std::ostream_iterator<int>(std::cerr,",") );
-  std::cerr << std::endl << pfx << "displs:       ";
+             std::ostream_iterator<int>(s,",") );
+  s << std::endl << pfx << "displs:       ";
   std::copy( data.displs.begin(), data.displs.end(),
-             std::ostream_iterator<int>(std::cerr,",") );
-  std::cerr << std::endl << pfx << "all_values:  ";
+             std::ostream_iterator<int>(s,",") );
+  s << std::endl << pfx << "all_values:  ";
   std::copy( data.all_values.begin(), data.all_values.end(),
-             std::ostream_iterator<int>(std::cerr,",") );
-  std::cerr << std::endl << pfx << "local_values:";
+             std::ostream_iterator<int>(s,",") );
+  s << std::endl << pfx << "local_values:";
   std::copy( data.local_values.begin(), data.local_values.end(),
-             std::ostream_iterator<int>(std::cerr,",") );
+             std::ostream_iterator<int>(s,",") );
   std::cerr << std::endl;
 }
 
@@ -1350,6 +1350,7 @@ MBErrorCode WriteHDF5Parallel::set_shared_set_ids( RemoteSetData& data, long& of
     if (p == val_id_map.end())
       val_id_map[data.all_values[i]] = offset++;
   }
+  RangeMap<MBEntityHandle,id_t>::iterator insp;
   MBRange::const_iterator riter = data.range.begin();
   for (size_t i = 0; i < data.local_values.size(); ++i, ++riter)
   {
@@ -1357,7 +1358,8 @@ MBErrorCode WriteHDF5Parallel::set_shared_set_ids( RemoteSetData& data, long& of
     assert( p != val_id_map.end() );
     long id = p->second;
     
-    if (idMap.end() == idMap.insert( *riter, id, 1 )) {
+    insp = idMap.insert( *riter, id, 1 );
+    if (idMap.end() == insp) {
       for (unsigned x = 0; x < myPcomm->size(); ++x) {
         MPI_Barrier( myPcomm->proc_config().proc_comm() );      
         if (x != myPcomm->rank()) continue;   
@@ -2061,9 +2063,8 @@ public:
 bool TagNameCompare::operator() (const WriteHDF5::SparseTag& t1, 
                                  const WriteHDF5::SparseTag& t2)
 {
-  MBErrorCode rval;
-  rval = iFace->tag_get_name( t1.tag_id, name1 );
-  rval = iFace->tag_get_name( t2.tag_id, name2 );
+  iFace->tag_get_name( t1.tag_id, name1 );
+  iFace->tag_get_name( t2.tag_id, name2 );
   return name1 < name2;
 }  
 
@@ -2120,6 +2121,7 @@ printrange( interfaceMesh[myPcomm->proc_config().proc_rank()] );
   }
   
     // store file IDs for remote entities
+  RangeMap<MBEntityHandle,id_t>::iterator insp;
   for (proc_iter p = interfaceMesh.begin(); p != interfaceMesh.end(); ++p) {
     if (p->first == myPcomm->proc_config().proc_rank())
       continue;
@@ -2134,9 +2136,16 @@ printrange( interfaceMesh[myPcomm->proc_config().proc_rank()] );
     
     j = file_id_vect.begin();
     for (i = p->second.begin(); i != p->second.end(); ++i, ++j) {
-      if (*j == 0 || idMap.insert( *i, *j, 1 ) == idMap.end()) {
+      if (*j == 0) {
          iFace->tag_delete( file_id_tag );
          return MB_FAILURE;
+      }
+      else {
+        insp = idMap.insert( *i, *j, 1 );
+        if (insp == idMap.end()) {
+          iFace->tag_delete( file_id_tag );
+          return MB_FAILURE;
+        }
       }
     }
   }
