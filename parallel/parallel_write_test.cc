@@ -21,7 +21,7 @@ static void tprint(const char* A)
 }
 
 const int DEFAULT_INTERVALS  = 2;
-const char* DEFAULT_FILE_NAME = "paralle_write_test.h5m";
+const char* DEFAULT_FILE_NAME = "parallel_write_test.h5m";
 
 // Create mesh for each processor that is a cube of hexes
 // with the specified interval count along each edge.  Cubes
