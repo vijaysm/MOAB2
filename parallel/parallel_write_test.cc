@@ -150,6 +150,7 @@ int main( int argc, char* argv[] )
   
     // Create mesh
 TPRINT("Generating mesh");
+  double gen_time = MPI_Wtime();
   MBCore mb;
   MBInterface& moab = mb;
   MBErrorCode rval = generate_mesh( moab, intervals );
@@ -157,7 +158,8 @@ TPRINT("Generating mesh");
     std::cerr << "Mesh creation failed with error code: " << rval << std::endl;
     return (int)rval;
   }
-  
+  gen_time = MPI_Wtime() - gen_time;
+
     // Write out local mesh on each processor if requested.
   if (indiv_file_name) {
 TPRINT("Writing individual file");
@@ -174,6 +176,7 @@ TPRINT("Writing individual file");
   }
 
 TPRINT("Resolving shared entities");
+  double res_time = MPI_Wtime();
     // Negotiate shared entities using vertex global IDs
   MBRange hexes;
   moab.get_entities_by_type( 0, MBHEX, hexes );
@@ -183,8 +186,10 @@ TPRINT("Resolving shared entities");
     std::cerr << "MBParallelComm::resolve_shared_ents failed" << std::endl;
     return rval;
   }
+  res_time = MPI_Wtime() - res_time;
 
 TPRINT("Beginning parallel write");
+  double write_time = MPI_Wtime();
     // Do parallel write
   clock_t t = clock();
   rval = moab.write_file( output_file_name, "MOAB", "PARALLEL=WRITE_PART" );
@@ -196,6 +201,11 @@ TPRINT("Beginning parallel write");
     std::cerr << "\t\"" << msg << '"' << std::endl;
     return (int)rval;
   }
+  write_time = MPI_Wtime() - write_time;
+  
+  double times[3] = { gen_time, res_time, write_time };
+  double max[3] = { 0, 0, 0 };
+  MPI_Reduce( times, max, 3, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD );
   
     // Clean up and summarize
   if (0 == rank) {
@@ -206,6 +216,10 @@ TPRINT("Beginning parallel write");
 TPRINT("Removing written file");
       remove( output_file_name );
     }
+    
+    std::cout << "Wall time: generate: " << max[0] 
+              << ", resovle shared: " << max[1]
+              << ", write_file: " << max[2] << std::endl;
   }
   
 TPRINT("Finalizing MPI");
