@@ -791,7 +791,7 @@ MBErrorCode WriteHDF5::write_nodes( )
       }
     
       tprint("  writing %c node chunk %ld of %ld, %ld values at %ld ",
-             (char)('x'+d), num_writes - remaining_writes + 1, num_writes, offset, count );
+             (char)('x'+d), num_writes - remaining_writes + 1, num_writes, count, offset );
       mhdf_writeNodeCoordWithOpt( node_table, offset, count, d, buffer, writeProp, &status );
       CHK_MHDF_ERR_1(status, node_table);
     }
@@ -868,7 +868,7 @@ MBErrorCode WriteHDF5::write_elems( ExportSet& elems )
         return MB_FAILURE;
     
     tprint("  writing node connectivity %ld of %ld, %ld values at %ld ",
-           num_writes - remaining_writes + 1, num_writes, offset, count );
+           num_writes - remaining_writes + 1, num_writes, count, offset );
     mhdf_writeConnectivityWithOpt( elem_table, offset, count, 
                                    id_type, buffer, writeProp, &status );
     CHK_MHDF_ERR_1(status, elem_table);
