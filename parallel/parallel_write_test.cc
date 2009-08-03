@@ -40,6 +40,7 @@ void help() {
             << "  -i <N>    Each processor owns an NxNxN cube of hex elements (default: " << DEFAULT_INTERVALS << ")" << std::endl
             << "  -o <name> Retain output file and name it as specified." << std::endl
             << "  -g <name> Write local mesh to file name prefixed with MPI rank" << std::endl
+            << "  -R        Skip resolve of shared entities (interface ents will be duplicated in file)" << std::endl
             << std::endl
             << "This program creates a (non-strict) subset of a regular hex mesh "
                "such that the mesh is already partitioned, and then attempts to "
@@ -93,6 +94,7 @@ int main( int argc, char* argv[] )
   bool expect_intervals = false;
   bool expect_file_name = false;
   bool expect_indiv_file = false;
+  bool skip_resolve_shared = false;
     // process CL args
   for (int i = 1; i < argc; ++i) {
     if (expect_intervals) {
@@ -118,6 +120,8 @@ int main( int argc, char* argv[] )
       expect_file_name = true;
     else if (!strcmp( "-g", argv[i]))
       expect_indiv_file = true;
+    else if (!strcmp( "-R", argv[i]))
+      skip_resolve_shared = true;
     else if (!strcmp( "-h", argv[i])) {
       help();
       return 0;
@@ -175,19 +179,21 @@ TPRINT("Writing individual file");
     }
   }
 
-TPRINT("Resolving shared entities");
   double res_time = MPI_Wtime();
-    // Negotiate shared entities using vertex global IDs
   MBRange hexes;
   moab.get_entities_by_type( 0, MBHEX, hexes );
-  MBParallelComm* pcomm = new MBParallelComm( &moab );
-  rval = pcomm->resolve_shared_ents( 0, hexes, 3, 0 );
-  if (MB_SUCCESS != rval) {
-    std::cerr << "MBParallelComm::resolve_shared_ents failed" << std::endl;
-    return rval;
+  if (!skip_resolve_shared) {
+TPRINT("Resolving shared entities");
+      // Negotiate shared entities using vertex global IDs
+    MBParallelComm* pcomm = new MBParallelComm( &moab );
+    rval = pcomm->resolve_shared_ents( 0, hexes, 3, 0 );
+    if (MB_SUCCESS != rval) {
+      std::cerr << "MBParallelComm::resolve_shared_ents failed" << std::endl;
+      return rval;
+    }
   }
   res_time = MPI_Wtime() - res_time;
-
+  
 TPRINT("Beginning parallel write");
   double write_time = MPI_Wtime();
     // Do parallel write
@@ -289,7 +295,8 @@ MBErrorCode generate_mesh( MBInterface& moab, int num_interval )
         rval = moab.tag_set_data( global_id, &h, 1, &id );
         if (MB_SUCCESS != rval)
           return rval;
-          
+        
+        assert(v != vertices.end());
         *v++ = h;
       }
     }
