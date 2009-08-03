@@ -1,5 +1,6 @@
 
 #undef DEBUG
+#undef TIME_DEBUG
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -71,8 +72,6 @@ void VALGRIND_MAKE_VEC_UNDEFINED( std::vector<T>& v ) {
     VALGRIND_MAKE_MEM_UNDEFINED( &v[0], v.size() * sizeof(T) );
 }
 
-//#define TPRINT(A)
-#define TPRINT(A) tprint( (A) )
 
 #ifdef DEBUG
 #  define START_SERIAL                     \
@@ -404,12 +403,12 @@ MBErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
     pcommAllocated = true;
   }
 
-TPRINT("Gathering interface meshes");
+tprint("Gathering interface meshes");
   rval = gather_interface_meshes();
   if (MB_SUCCESS != rval) return rval;
 
     /**************** get tag names for sets likely to be shared ***********/
-TPRINT("Getting shared entity sets");
+tprint("Getting shared entity sets");
   rval = get_sharedset_tags();
   if (MB_SUCCESS != rval) return rval;
   
@@ -424,7 +423,7 @@ TPRINT("Getting shared entity sets");
     for (MBEntityType i = MBEDGE; i < MBENTITYSET; ++i)
       type_names[i] = MBCN::EntityTypeName( i );
    
-TPRINT("call mhdf_createFile");
+tprint("call mhdf_createFile");
     filePtr = mhdf_createFile( filename, overwrite, type_names, MBMAXTYPE, &status );
     if (!filePtr)
     {
@@ -432,7 +431,7 @@ TPRINT("call mhdf_createFile");
       return MB_FAILURE;
     }
     
-TPRINT("call write_qa");
+tprint("call write_qa");
     rval = write_qa( qa_records );
     if (MB_SUCCESS != rval) return rval;
   }
@@ -440,36 +439,36 @@ TPRINT("call write_qa");
   
      /**************** Create node coordinate table ***************/
  
-TPRINT("creating node table");
+tprint("creating node table");
   rval = create_node_table( dimension );
   if (MB_SUCCESS != rval) return rval;
   
     /**************** Create element tables ***************/
 
-TPRINT("negotiating element types");
+tprint("negotiating element types");
   rval = negotiate_type_list();
   if (MB_SUCCESS != rval) return rval;
-TPRINT("creating element table");
+tprint("creating element table");
   rval = create_element_tables();
   if (MB_SUCCESS != rval) return rval;
   
   
     /*************** Exchange file IDs *****************/
 
-TPRINT("communicating file ids");
+tprint("communicating file ids");
   rval = exchange_file_ids();
   if (MB_SUCCESS != rval) return rval;
  
 
     /**************** Create adjacency tables *********************/
   
-TPRINT("creating adjacency table");
+tprint("creating adjacency table");
   rval = create_adjacency_tables();
   if (MB_SUCCESS != rval) return rval;
   
     /**************** Create meshset tables *********************/
   
-TPRINT("creating meshset table");
+tprint("creating meshset table");
   rval = create_meshset_tables();
   if (MB_SUCCESS != rval) return rval;
   
@@ -525,7 +524,7 @@ TPRINT("creating meshset table");
   
     // Populate proc_tag_offsets on root processor with the values from
     // tag_counts on each processor.
-TPRINT("communicating tag metadata");
+tprint("communicating tag metadata");
   printdebug("Exchanging tag data for %d tags.\n", num_tags);
   std::vector<unsigned long> proc_tag_offsets(2*num_tags*myPcomm->proc_config().proc_size());
   VALGRIND_CHECK_MEM_IS_DEFINED( &tag_counts[0], 2*num_tags*sizeof(long) );
@@ -626,7 +625,7 @@ TPRINT("communicating tag metadata");
     mhdf_closeFile( filePtr, &status );
   }
   
-TPRINT("(re)opening file in parallel mode");
+tprint("(re)opening file in parallel mode");
   unsigned long junk;
   hid_t hdf_opt = H5Pcreate( H5P_FILE_ACCESS );
   H5Pset_fapl_mpio( hdf_opt, myPcomm->proc_config().proc_comm(), MPI_INFO_NULL );
@@ -638,7 +637,7 @@ TPRINT("(re)opening file in parallel mode");
     return MB_FAILURE;
   }
   
-TPRINT("Exiting parallel_create_file");
+tprint("Exiting parallel_create_file");
   return MB_SUCCESS;
 }
 
@@ -1880,8 +1879,8 @@ MBErrorCode WriteHDF5Parallel::write_shared_set_descriptions( hid_t table )
 {
 //char buffer[256];
 //sprintf(buffer, "write_shared_set_descriptions( %u )", (unsigned)parallelSets.size() );
-//TPRINT( buffer );
-TPRINT( "write_shared_set_descriptions" );
+//tprint( buffer );
+tprint( "write_shared_set_descriptions" );
 
   const id_t start_id = setSet.first_id;
   MBErrorCode rval;
@@ -1913,7 +1912,7 @@ TPRINT( "write_shared_set_descriptions" );
     CHECK_HDF(status);
   }
 
-TPRINT( "finished write_shared_set_descriptions" );
+tprint( "finished write_shared_set_descriptions" );
 
   return MB_SUCCESS;
 }
@@ -1921,7 +1920,7 @@ TPRINT( "finished write_shared_set_descriptions" );
 
 MBErrorCode WriteHDF5Parallel::write_shared_set_contents( hid_t table )
 {
-TPRINT( "write_shared_set_contents" );
+tprint( "write_shared_set_contents" );
 
   MBErrorCode rval;
   mhdf_Status status;
@@ -1952,14 +1951,14 @@ TPRINT( "write_shared_set_contents" );
   }
   
 
-TPRINT( "finished write_shared_set_contents" );
+tprint( "finished write_shared_set_contents" );
   return MB_SUCCESS;
 }
     
 
 MBErrorCode WriteHDF5Parallel::write_shared_set_children( hid_t table )
 {
-TPRINT( "write_shared_set_children" );
+tprint( "write_shared_set_children" );
 
   MBErrorCode rval;
   mhdf_Status status;
@@ -1990,14 +1989,14 @@ TPRINT( "write_shared_set_children" );
     }
   }
 
-TPRINT( "finished write_shared_set_children" );
+tprint( "finished write_shared_set_children" );
   return MB_SUCCESS;
 }
     
 
 MBErrorCode WriteHDF5Parallel::write_shared_set_parents( hid_t table )
 {
-TPRINT( "write_shared_set_parents" );
+tprint( "write_shared_set_parents" );
 
   MBErrorCode rval;
   mhdf_Status status;
@@ -2028,7 +2027,7 @@ TPRINT( "write_shared_set_parents" );
     }
   }
 
-TPRINT( "finished write_shared_set_parents" );
+tprint( "finished write_shared_set_parents" );
   return MB_SUCCESS;
 }
 
@@ -2042,6 +2041,7 @@ MBErrorCode WriteHDF5Parallel::write_finished()
 
 void WriteHDF5Parallel::tprint( const char* fmt, ... )
 {
+#ifdef TIME_DEBUG
   static const double t0 = MPI_Wtime();
   va_list args;
   va_start(args, fmt);
@@ -2052,6 +2052,7 @@ void WriteHDF5Parallel::tprint( const char* fmt, ... )
   vsnprintf( buffer+n, sizeof(buffer)-n, fmt, args );
   fputs( buffer, stderr ); 
   va_end(args);
+#endif
 }
 
 class TagNameCompare {
