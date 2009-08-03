@@ -1,10 +1,8 @@
 
 #undef DEBUG
 
-#ifdef DEBUG
-#  include <stdio.h>
-#  include <stdarg.h>
-#endif
+#include <stdio.h>
+#include <stdarg.h>
 
 #include <stdio.h>
 #include <time.h>
@@ -73,16 +71,8 @@ void VALGRIND_MAKE_VEC_UNDEFINED( std::vector<T>& v ) {
     VALGRIND_MAKE_MEM_UNDEFINED( &v[0], v.size() * sizeof(T) );
 }
 
-#define TPRINT(A)
-//#define TPRINT(A) tprint( (A) )
-static void tprint(const char* A) 
-{
-  int rank;
-  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
-  char buffer[128]; 
-  sprintf(buffer,"%02d: %6.2f: %s\n", rank, (double)clock()/CLOCKS_PER_SEC, A);
-  fputs( buffer, stderr ); 
-}
+//#define TPRINT(A)
+#define TPRINT(A) tprint( (A) )
 
 #ifdef DEBUG
 #  define START_SERIAL                     \
@@ -648,6 +638,7 @@ TPRINT("(re)opening file in parallel mode");
     return MB_FAILURE;
   }
   
+TPRINT("Exiting parallel_create_file");
   return MB_SUCCESS;
 }
 
@@ -2049,6 +2040,19 @@ MBErrorCode WriteHDF5Parallel::write_finished()
   return WriteHDF5::write_finished();
 }
 
+void WriteHDF5Parallel::tprint( const char* fmt, ... )
+{
+  static const double t0 = MPI_Wtime();
+  va_list args;
+  va_start(args, fmt);
+  int rank;
+  MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  char buffer[128]; 
+  size_t n = snprintf( buffer, sizeof(buffer), "%02d: %6.2f: \n", rank, MPI_Wtime()-t0 );
+  vsnprintf( buffer+n, sizeof(buffer)-n, fmt, args );
+  fputs( buffer, stderr ); 
+  va_end(args);
+}
 
 class TagNameCompare {
   MBInterface* iFace;

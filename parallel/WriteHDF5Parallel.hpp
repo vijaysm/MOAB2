@@ -195,6 +195,12 @@ class MB_DLL_EXPORT WriteHDF5Parallel : public WriteHDF5
       //! Virtual function overridden from WriteHDF5.  
       //! Release memory by clearing member lists.
     MBErrorCode write_finished();
+
+    virtual void tprint( const char* fmt, ... )
+#ifdef __GNUC__
+__attribute__((format(printf,2,3)))
+#endif
+    ;
     
       //! Remove any remote mesh entities from the passed range.
     void remove_remote_entities( MBEntityHandle relative, MBRange& range );

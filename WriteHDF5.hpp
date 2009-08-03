@@ -106,6 +106,11 @@ protected:
   virtual MBErrorCode write_shared_set_parents( hid_t )
     { return MB_SUCCESS;}
   virtual MBErrorCode write_finished();
+  virtual void tprint( const char* fmt, ... )
+#ifdef __GNUC__
+__attribute__((format(printf,2,3)))
+#endif
+  ;
 
  
   //! Gather tags
