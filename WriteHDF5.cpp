@@ -347,9 +347,12 @@ void WriteHDF5::tprint( const char* fmt, ... )
   va_list args;
   va_start(args, fmt);
   char buffer[128]; 
-  size_t n = snprintf( buffer, sizeof(buffer), "%6.2f: \n", (double)(clock()-t0)/CLOCKS_PER_SEC );
+  size_t n = snprintf( buffer, sizeof(buffer), "%6.2f: ", (double)(clock()-t0)/CLOCKS_PER_SEC );
   vsnprintf( buffer+n, sizeof(buffer)-n, fmt, args );
   fputs( buffer, stderr ); 
+  if (n > sizeof(buffer) - 2)
+    n = sizeof(buffer)-2;
+  strcpy( buffer+n, "\n" );
   va_end(args);
 #endif
 }
@@ -788,7 +791,7 @@ MBErrorCode WriteHDF5::write_nodes( )
       }
     
       tprint("  writing %c node chunk %ld of %ld, %ld values at %ld ",
-             (char)('x'+d), num_writes - remaining_writes, num_writes, offset, count );
+             (char)('x'+d), num_writes - remaining_writes + 1, num_writes, offset, count );
       mhdf_writeNodeCoordWithOpt( node_table, offset, count, d, buffer, writeProp, &status );
       CHK_MHDF_ERR_1(status, node_table);
     }
@@ -803,7 +806,7 @@ MBErrorCode WriteHDF5::write_nodes( )
     assert(writeProp != H5P_DEFAULT);
     for (int d = 0; d < dim; ++d) {
       tprint("  writing (empty) %d node chunk %ld of %ld.",
-             (char)('x'+d), num_writes - remaining_writes, num_writes );
+             (char)('x'+d), num_writes - remaining_writes + 1, num_writes );
       mhdf_writeNodeCoordWithOpt( node_table, offset, 0, d, 0, writeProp, &status );
       CHK_MHDF_ERR_1(status, node_table);
     }
@@ -865,7 +868,7 @@ MBErrorCode WriteHDF5::write_elems( ExportSet& elems )
         return MB_FAILURE;
     
     tprint("  writing node connectivity %ld of %ld, %ld values at %ld ",
-           num_writes - remaining_writes, num_writes, offset, count );
+           num_writes - remaining_writes + 1, num_writes, offset, count );
     mhdf_writeConnectivityWithOpt( elem_table, offset, count, 
                                    id_type, buffer, writeProp, &status );
     CHK_MHDF_ERR_1(status, elem_table);
@@ -878,7 +881,7 @@ MBErrorCode WriteHDF5::write_elems( ExportSet& elems )
   while (remaining_writes--) {
     assert(writeProp != H5P_DEFAULT);
     tprint("  writing (empty) connectivity chunk %ld of %ld.",
-           num_writes - remaining_writes, num_writes );
+           num_writes - remaining_writes + 1, num_writes );
     mhdf_writeConnectivityWithOpt( elem_table, offset, 0, id_type, 0, writeProp, &status );
     CHK_MHDF_ERR_1(status, elem_table);
   }

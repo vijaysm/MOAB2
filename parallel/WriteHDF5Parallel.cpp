@@ -2048,8 +2048,11 @@ void WriteHDF5Parallel::tprint( const char* fmt, ... )
   int rank;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   char buffer[128]; 
-  size_t n = snprintf( buffer, sizeof(buffer), "%02d: %6.2f: \n", rank, MPI_Wtime()-t0 );
-  vsnprintf( buffer+n, sizeof(buffer)-n, fmt, args );
+  size_t n = snprintf( buffer, sizeof(buffer), "%02d: %6.2f: ", rank, MPI_Wtime()-t0 );
+  n += vsnprintf( buffer+n, sizeof(buffer)-n, fmt, args );
+  if (n > sizeof(buffer) - 2)
+    n = sizeof(buffer)-2;
+  strcpy( buffer+n, "\n" );
   fputs( buffer, stderr ); 
   va_end(args);
 #endif
