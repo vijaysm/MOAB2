@@ -645,7 +645,7 @@ MBErrorCode MBSkinner::classify_2d_boundary( const MBRange &boundary,
   end_iter = boundary.end();
 
   std::vector<MBEntityHandle> conn;
-  static MBEntityHandle sub_conn[2];
+  MBEntityHandle sub_conn[2];
   MBEntityHandle match;
 
   MBRange edge_list;

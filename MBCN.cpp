@@ -969,7 +969,7 @@ inline int permute_this(MBEntityType t,
                         const int indices_per_ent,
                         const int num_entries) 
 {
-  static T tmp_conn[MB_MAX_SUB_ENTITIES];
+  T tmp_conn[MB_MAX_SUB_ENTITIES];
   assert(indices_per_ent <= MBCN::permuteVec[t][dim][MB_MAX_SUB_ENTITIES]);
   if (indices_per_ent > MBCN::permuteVec[t][dim][MB_MAX_SUB_ENTITIES]) return 1;
   short int *tvec = MBCN::permuteVec[t][dim];
@@ -991,7 +991,7 @@ inline int rev_permute_this(MBEntityType t,
                             const int indices_per_ent,
                             const int num_entries) 
 {
-  static T tmp_conn[MB_MAX_SUB_ENTITIES];
+  T tmp_conn[MB_MAX_SUB_ENTITIES];
   assert(indices_per_ent <= MBCN::revPermuteVec[t][dim][MB_MAX_SUB_ENTITIES]);
   if (indices_per_ent > MBCN::revPermuteVec[t][dim][MB_MAX_SUB_ENTITIES]) return 1;
   short int *tvec = MBCN::revPermuteVec[t][dim];

@@ -2262,8 +2262,7 @@ MBErrorCode Tqdcfr::parse_acis_attribs(const unsigned int entity_rec_num,
 MBErrorCode Tqdcfr::reset_record(AcisRecord &this_record) 
 {
   this_record.rec_type = Tqdcfr::UNKNOWN;
-  static const std::string blank;
-  this_record.att_string = blank;
+  this_record.att_string.clear();
   this_record.first_attrib = this_record.att_prev = 
     this_record.att_next = this_record.att_ent_num = -1;
   this_record.processed = false;

@@ -466,7 +466,7 @@ MBErrorCode MeshTopoUtil::get_bridge_adjacencies(const MBEntityHandle from_entit
 
   if (bridge_dim < from_dim) {
       // looping over each sub-entity of dimension bridge_dim...
-    static MBEntityHandle bridge_verts[MB_MAX_SUB_ENTITIES];
+    MBEntityHandle bridge_verts[MB_MAX_SUB_ENTITIES];
     int bridge_indices[MB_MAX_SUB_ENTITIES];
     for (int i = 0; i < MBCN::NumSubEntities(from_type, bridge_dim); i++) {
 
