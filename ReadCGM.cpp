@@ -129,7 +129,7 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
 
   int norm_tol, DEFAULT_NORM = 5;
   double faceting_tol, DEFAULT_FACET_TOL = 0.001, len_tol, DEFAULT_LEN_TOL = 0.0;
-  bool act_att = false;
+  bool act_att = true;
   //check for the options.
   if (MB_SUCCESS != opts.get_int_option( "FACET_NORMAL_TOLERANCE", norm_tol ))
     norm_tol = DEFAULT_NORM;
@@ -141,9 +141,10 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
     len_tol = DEFAULT_LEN_TOL;
 
   const char* name = "CGM_ATTRIBS";
-  const char* value = "yes";
+  const char* value = "no";
+  rval = opts.match_option(name,value); 
   if(MB_SUCCESS == opts.match_option(name,value)) 
-    act_att = true; 
+    act_att = false; 
 
   // CGM data
   std::map<RefEntity*,MBEntityHandle> entmap[5]; // one for each dim, and one for groups
