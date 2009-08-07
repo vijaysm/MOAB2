@@ -9,6 +9,12 @@
 
 #include "MBCartVect.hpp"
 
+#include <stdlib.h>
+#ifdef NDEBUG
+#  undef assert
+#  define assert(A) do { if (A) abort(); } while(false)
+#endif
+
 const unsigned INTERVALS = 4;
 const unsigned DEPTH = 7; // 3*log2(INTERVALS)+1
 const char* TAG_NAME = "TEST_DATA";
@@ -71,7 +77,7 @@ int main()
     double dims[] = { max[0] - min[0], max[1] - min[1], max[2] - min[2] };
     double volume = dims[0] * dims[1] * dims[2];
     assert( fabs(volume - 1.0) <= DBL_EPSILON );  
-    
+   
     // check depth of leaf
     assert( iter.depth() == DEPTH );
   }

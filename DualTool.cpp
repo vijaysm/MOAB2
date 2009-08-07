@@ -1973,6 +1973,7 @@ MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
             mb_range_inserter(tmp_addl_faces[i]));
     tmp_addl_faces[new_side].insert(new_quads[i]);
   }
+#ifndef NDEBUG
   bool cond1 = ("split_quads on 1, new_quads on 0" &&
           tmp_addl_faces[0].find(split_quads[0]) == tmp_addl_faces[0].end() &&
           tmp_addl_faces[0].find(split_quads[1]) == tmp_addl_faces[0].end() &&
@@ -1993,6 +1994,7 @@ MBErrorCode DualTool::split_pair_nonmanifold(MBEntityHandle *split_quads,
                tmp_addl_faces[1].find(new_quads[1]) != tmp_addl_faces[1].end());
   
   assert(cond1 || cond2);
+#endif
 
     //=============== split edge(s)
   for (int j = 0; j < 3; j++) {
@@ -2093,7 +2095,7 @@ MBErrorCode DualTool::foc_get_stars(MBEntityHandle *split_quads,
                                     std::vector<MBEntityHandle> *star_dp1,
                                     std::vector<MBEntityHandle> *star_dp2) 
 {
-  bool on_bdy, on_bdy_tmp;
+  bool on_bdy = false, on_bdy_tmp;
   MBErrorCode result;
   MeshTopoUtil mtu(mbImpl);
   

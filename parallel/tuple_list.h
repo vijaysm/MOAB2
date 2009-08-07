@@ -36,10 +36,10 @@ static void tuple_list_init_max(tuple_list *tl,
 {
   tl->n=0; tl->max=max;
   tl->mi=mi,tl->ml=ml,tl->mul=mul,tl->mr=mr;
-  tl->vi=(max ? tmalloc(sint, max*mi) : 0);
-  tl->vl=(max ? tmalloc(slong,max*ml) : 0);
-  tl->vul=(max ? tmalloc(ulong,max*mul) : 0);
-  tl->vr=(max ? tmalloc(real, max*mr) : 0);
+  tl->vi=(max*mi ? tmalloc(sint, max*mi) : 0);
+  tl->vl=(max*ml ? tmalloc(slong,max*ml) : 0);
+  tl->vul=(max*mul ? tmalloc(ulong,max*mul) : 0);
+  tl->vr=(max*mr ? tmalloc(real, max*mr) : 0);
 }
 
 static void tuple_list_free(tuple_list *tl) {
@@ -49,10 +49,14 @@ static void tuple_list_free(tuple_list *tl) {
 static void tuple_list_resize(tuple_list *tl, uint max)
 {
   tl->max = max;
-  tl->vi=trealloc(sint, tl->vi,tl->max*tl->mi);
-  tl->vl=trealloc(slong,tl->vl,tl->max*tl->ml);
-  tl->vul=trealloc(ulong,tl->vul,tl->max*tl->mul);
-  tl->vr=trealloc(real, tl->vr,tl->max*tl->mr);
+  if (tl->vi || (tl->max*tl->mi))
+    tl->vi=trealloc(sint, tl->vi,tl->max*tl->mi);
+  if (tl->vl || (tl->max*tl->ml))
+    tl->vl=trealloc(slong,tl->vl,tl->max*tl->ml);
+  if (tl->vul || (tl->max*tl->mul))
+    tl->vul=trealloc(ulong,tl->vul,tl->max*tl->mul);
+  if (tl->vr || (tl->max*tl->mr))
+    tl->vr=trealloc(real, tl->vr,tl->max*tl->mr);
 }
 
 static void tuple_list_grow(tuple_list *tl)

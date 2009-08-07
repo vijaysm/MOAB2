@@ -182,6 +182,7 @@ MBErrorCode evaluate_vertex_sequence(ScdVertexData *this_seq)
           result = MB_FAILURE;
         }
 
+        itmp = jtmp = ktmp = 0xdeadbeef;
         MBErrorCode tmp_result = this_seq->get_params(tmp_handle, itmp, jtmp, ktmp);
         if (MB_SUCCESS != tmp_result || i != itmp || j != jtmp || k != ktmp) {
           std::cout << "vertex seq: get_params didn't work, i, j, k = " << i << ", " 
@@ -240,6 +241,7 @@ MBErrorCode evaluate_element_sequence(StructuredElementSeq *this_seq)
         }
         
           // get_params
+        itmp = jtmp = ktmp = 0xdeadbeef;
         MBErrorCode tmp_result = this_seq->get_params(tmp_handle, itmp, jtmp, ktmp);
         if (MB_SUCCESS != tmp_result || i != itmp || j != jtmp || k != ktmp) {
           std::cout << "element seq: get_params didn't work, i, j, k = " << i << ", " 

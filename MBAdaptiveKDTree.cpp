@@ -1709,6 +1709,7 @@ MBErrorCode MBAdaptiveKDTree::find_close_triangle( MBEntityHandle root,
  *  are found.  The fisrt entry is maintaned as the closest of the
  *  list of triangles.
  */
+/*
 static MBErrorCode closest_to_triangles( MBInterface* moab,
                                          MBEntityHandle set_handle,
                                          double tolerance,
@@ -1801,6 +1802,7 @@ static MBErrorCode closest_to_triangles( MBInterface* moab,
   
   return MB_SUCCESS;
 }
+*/
 
 MBErrorCode MBAdaptiveKDTree::closest_triangle( MBEntityHandle tree_root,
                                  const double from_coords[3],

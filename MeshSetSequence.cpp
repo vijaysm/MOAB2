@@ -395,9 +395,9 @@ MBErrorCode MeshSetSequence::get_parent_child_meshsets( MBEntityHandle meshset,
 {
   MBErrorCode result = MB_SUCCESS;
   std::vector<MBEntityHandle>::iterator i;
-  const MBEntityHandle *array, *end;
+  const MBEntityHandle *array = 0, *end;
   MBEntityHandle s, e;
-  int count;
+  int count = 0;
   size_t n;
   
     // Skip any meshsets already in input vector (yes, don't

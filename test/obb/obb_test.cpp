@@ -1283,7 +1283,7 @@ static bool do_closest_point_test( MBOrientedBoxTreeTool& tool,
       std::cout << "Evaluating closest point to " << points[i] << std::endl;
     
     MBCartVect n_result, t_result;
-    MBEntityHandle n_tri, t_tri;
+    MBEntityHandle n_tri = 0, t_tri;
     
       // find closest point the slow way
     rval = closest_point_in_triangles( moab, points[i], n_result, n_tri );

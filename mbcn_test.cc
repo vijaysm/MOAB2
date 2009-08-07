@@ -565,14 +565,14 @@ static void do_test_side_number_2d( MBEntityType type, int idx )
     for (int off = 0; off < side_size; ++off) {
       int side_conn[4]; side_conn[3] = 0;
       for (int i = 0; i < side_size; ++i)
-        side_conn[(i+side_size-rev*off)%side_size] = elem_verts[side_idx[i]];
+        side_conn[(side_size+rev*i)%side_size] = elem_verts[side_idx[(i+off)%side_size]];
       
       int result_side = -100, result_sense = -100, result_offset = -100;
       int err = MBCN::SideNumber( type, elem_verts, side_conn, side_size, 2, 
                                   result_side, result_sense, result_offset );
       CHECK_EQUAL( 0, err );
       CHECK_EQUAL( idx, result_side );
-      CHECK_EQUAL( 1-2*rev, result_sense );
+      CHECK_EQUAL( rev, result_sense );
       CHECK_EQUAL( off, result_offset );
     }
   }
@@ -595,7 +595,7 @@ void test_side_number_tet()
   for (int edge = 0; edge < 6; ++edge)
     do_test_side_number_1d( MBTET, edge );
   for (int face = 0; face < 4; ++face)
-    do_test_side_number_1d( MBTET, face );
+    do_test_side_number_2d( MBTET, face );
 }
 
 void test_side_number_pyr()
@@ -603,7 +603,7 @@ void test_side_number_pyr()
   for (int edge = 0; edge < 8; ++edge)
     do_test_side_number_1d( MBPYRAMID, edge );
   for (int face = 0; face < 5; ++face)
-    do_test_side_number_1d( MBPYRAMID, face );
+    do_test_side_number_2d( MBPYRAMID, face );
 }
 
 void test_side_number_pri()
@@ -611,7 +611,7 @@ void test_side_number_pri()
   for (int edge = 0; edge < 9; ++edge)
     do_test_side_number_1d( MBPRISM, edge );
   for (int face = 0; face < 5; ++face)
-    do_test_side_number_1d( MBPRISM, face );
+    do_test_side_number_2d( MBPRISM, face );
 }
 
 void test_side_number_hex()
@@ -619,7 +619,7 @@ void test_side_number_hex()
   for (int edge = 0; edge < 12; ++edge)
     do_test_side_number_1d( MBHEX, edge );
   for (int face = 0; face < 8; ++face)
-    do_test_side_number_1d( MBHEX, face );
+    do_test_side_number_2d( MBHEX, face );
 }
 
 

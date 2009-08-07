@@ -672,8 +672,8 @@ MBErrorCode mb_temporary_test( MBInterface *gMB )
   if (MB_SUCCESS != result)
     return result;
 
-  int num_adj = meshsets.size();
-  assert(1 == num_adj);
+  if (1u != meshsets.size())
+    return MB_FAILURE;
 
   return MB_SUCCESS;
 }

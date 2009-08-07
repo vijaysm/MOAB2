@@ -2024,8 +2024,11 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
 
   //2. check for the operations, currently support set.
   const char* op;
-  if(tokens.size() > 2 && !tokens[2].empty())
-    op = tokens[2].c_str();
+  if (tokens.size() < 3 || (tokens[2] != "set" && tokens[2] != "add")) {
+    readMeshIface->report_error("ReadNCDF: invalid operation specified for update");
+    return MB_TYPE_OUT_OF_RANGE;
+  }
+  op = tokens[2].c_str();
 
   //3. check for destination, current only not implemented
   const char* des ;
@@ -2070,7 +2073,7 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
 
   NcVar *coordx = ncFile->get_var("vals_nod_var1");
   NcVar *coordy = ncFile->get_var("vals_nod_var2");
-  NcVar *coordz;
+  NcVar *coordz = 0;
   if(numberDimensions_loading == 3)
     coordz = ncFile->get_var("vals_nod_var3");
   if (NULL == coordx || !coordx->is_valid() ||
@@ -2116,7 +2119,7 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
 
   NcVar *coord1 = ncFile->get_var("coordx");
   NcVar *coord2 = ncFile->get_var("coordy");
-  NcVar *coord3;
+  NcVar *coord3 = 0;
   if(numberDimensions_loading == 3)
     coord3 = ncFile->get_var("coordz");
   if (NULL == coord1 || !coord1->is_valid() ||

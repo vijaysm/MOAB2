@@ -1165,6 +1165,7 @@ MBErrorCode WriteHDF5::write_sets( )
   }
   mhdf_closeData( filePtr, set_table, &status );
   
+  rval = MB_SUCCESS;
   if (writeSetContents && parallelWrite) 
     rval = write_shared_set_contents( content_table );
   if (writeSetContents)

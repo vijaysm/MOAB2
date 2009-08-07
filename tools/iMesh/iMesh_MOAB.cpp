@@ -2749,7 +2749,7 @@ extern "C" {
     }
 
     MBEntityHandle handle = ENTITY_HANDLE(entity_set_handle);
-    MBErrorCode result;
+    MBErrorCode result = MB_SUCCESS;
 
     if (use_top) {
       if (entity_topology == iMesh_SEPTAHEDRON)

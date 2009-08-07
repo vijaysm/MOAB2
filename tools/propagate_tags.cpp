@@ -190,7 +190,7 @@ int main( int argc, char* argv[] )
   bool have_data_tag = false;
   const char* write_tag_name = 0;
   MBTag write_tag = 0;
-  TagSpec data_tag;
+  TagSpec data_tag = { 0, 0 };
   typedef std::vector<TagSpec> TagVect;
   TagVect ident_tags;
   int data_size = 0;

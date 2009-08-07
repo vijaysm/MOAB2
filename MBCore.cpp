@@ -424,7 +424,7 @@ MBErrorCode MBCore::serial_load_file( const char* file_name,
    
   file_set = 0;
   
-  MBErrorCode rval;
+  MBErrorCode rval = MB_FAILURE;
   const MBReaderWriterSet* set = reader_writer_set();
 
     // otherwise try using the file extension to select a reader
@@ -464,7 +464,7 @@ MBErrorCode MBCore::serial_read_tag( const char* file_name,
   if (num_sets < 0)
     return MB_INDEX_OUT_OF_RANGE;
   
-  MBErrorCode rval;
+  MBErrorCode rval = MB_FAILURE;
   const MBReaderWriterSet* set = reader_writer_set();
 
     // otherwise try using the file extension to select a reader

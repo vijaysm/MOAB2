@@ -51,7 +51,7 @@ long* permutation( long count )
     if (count > RAND_MAX) {
       r += RAND_MAX * rand();
       if (count > ((long)RAND_MAX*RAND_MAX))
-        r += RAND_MAX*RAND_MAX*rand();
+        r += (long)RAND_MAX*(long)RAND_MAX*(long)rand();
     }
     std::swap( array[i], array[r%count] );
   }
@@ -65,7 +65,10 @@ void init()
   void* ptr;
   MBErrorCode rval = mb.query_interface( "MBReadUtilIface", &ptr );
   readTool = static_cast<MBReadUtilIface*>(ptr);
-  assert( !rval && readTool );
+  if (rval || !readTool) {
+    assert(false);
+    abort();
+  }
  
   queryVertPermutation = permutation( numVert );
   queryElemPermutation = permutation( numElem );
@@ -436,7 +439,10 @@ void create_vertices_block( )
 {
   std::vector<double*> arrays;
   MBErrorCode rval = readTool->get_node_arrays( 3, numVert, 0, vertStart, arrays );
-  assert(!rval && arrays.size() == 3);
+  if (rval || arrays.size() != 3) {
+    assert(false);
+    abort();
+  }
   double *x = arrays[0], *y = arrays[1], *z = arrays[2];
   assert( x && y && z );
   
@@ -449,7 +455,10 @@ void create_elements_single( )
   MBEntityHandle conn[8];
   element_conn( 0, conn );
   MBErrorCode rval = mb.create_element( MBHEX, conn, 8, elemStart );
-  assert(!rval);
+  if (rval) {
+    assert(false);
+    abort();
+  }
   
   MBEntityHandle h;
   for (long i = 1; i < numElem; ++i) {
@@ -465,7 +474,10 @@ void create_elements_block( )
 {
   MBEntityHandle* conn = 0;
   MBErrorCode rval = readTool->get_element_array( numElem, 8, MBHEX, 0, elemStart, conn );
-  assert(!rval && conn);
+  if (rval && !conn) {
+    assert(false);
+    abort();
+  }
   
   for (long i = 0; i < numElem; ++i) 
     element_conn( i, conn + 8*i );
@@ -483,7 +495,10 @@ void forward_order_query_vertices(int percent)
     for (y = 0; y < vert_per_edge; ++y) {
       for (x = 0; x < deleted_x; ++x, ++h) {
         r = mb.get_coords( &h, 1, coords );
-        assert(MB_SUCCESS == r);
+        if (MB_SUCCESS != r) {
+          assert(false);
+          abort();
+        }
       }
       h += (vert_per_edge - deleted_x);
     }
@@ -724,7 +739,10 @@ void create_missing_elements( int percent )
     if (deleted_elem( i, percent )) {
       element_conn( i, conn );
       rval = mb.create_element( MBHEX, conn, 8, h );
-      assert(!rval);
+      if (rval) {
+        assert(false);
+        abort();
+      }
     }
 }
 
@@ -733,7 +751,10 @@ inline void delete_vert( long index, int percent )
   if (deleted_vert(index, percent)) {
     MBEntityHandle h = index + vertStart;
     MBErrorCode rval = mb.delete_entities( &h, 1 );
-    assert(!rval);
+    if (rval) {
+      assert(false);
+      abort();
+    }
   }
 }
 
@@ -742,7 +763,10 @@ inline void delete_elem( long index, int percent )
   if (deleted_elem(index, percent)) {
     MBEntityHandle h = index + elemStart;
     MBErrorCode rval = mb.delete_entities( &h, 1 );
-    assert(!rval);
+    if (rval) {
+      assert(false);
+      abort();
+    }
   }
 }
 
