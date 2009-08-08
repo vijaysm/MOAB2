@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #ifdef NDEBUG
 #  undef assert
-#  define assert(A) do { if (A) abort(); } while(false)
+#  define assert(A) do { if (!(A)) abort(); } while(false)
 #endif
 
 const unsigned INTERVALS = 4;
