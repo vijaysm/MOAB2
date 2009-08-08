@@ -81,7 +81,7 @@ private:
   inline int is_error( mhdf_Status& status ) {
     int i;
     if ((i = mhdf_isError(&status))) 
-      readUtil->report_error( mhdf_message(&status) );
+      readUtil->report_error( "%s", mhdf_message(&status) );
     return i;
   }
   

@@ -256,7 +256,7 @@ MBErrorCode ReadHDF5::set_up_read( const char* filename,
     filePtr = mhdf_openFile( filename, 0, NULL, &status );
     if (!filePtr)
     {
-      readUtil->report_error( mhdf_message( &status ));
+      readUtil->report_error( "%s", mhdf_message( &status ));
       free( dataBuffer );
       return error(MB_FAILURE);
     }
@@ -978,7 +978,7 @@ MBErrorCode ReadHDF5::read_nodes( const MBRange& node_file_ids )
   mhdf_closeData( filePtr, data_id, &status );
   if (mhdf_isError( &status ))
   {
-    readUtil->report_error( mhdf_message(&status) );
+    readUtil->report_error( "%s", mhdf_message(&status) );
     return error(MB_FAILURE);
   }
   
@@ -2738,7 +2738,7 @@ MBErrorCode ReadHDF5::create_tag( const mhdf_TagDesc& info,
       mhdf_getTagValues( filePtr, info.name, hdf_type, info.default_value, info.global_value, &status );
       if (mhdf_isError( &status ))
       {
-        readUtil->report_error( mhdf_message( &status ) );
+        readUtil->report_error( "%s", mhdf_message( &status ) );
         if (hdf_type) H5Tclose( hdf_type );
         return error(MB_FAILURE);
       }

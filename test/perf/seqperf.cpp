@@ -50,8 +50,10 @@ long* permutation( long count )
     long r = rand();
     if (count > RAND_MAX) {
       r += RAND_MAX * rand();
-      if (count > ((long)RAND_MAX*RAND_MAX))
-        r += (long)RAND_MAX*(long)RAND_MAX*(long)rand();
+      if (count/RAND_MAX > RAND_MAX) {
+        long t = (long)RAND_MAX * rand();
+        r += (long)RAND_MAX * t;
+      }
     }
     std::swap( array[i], array[r%count] );
   }
