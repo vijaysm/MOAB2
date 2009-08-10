@@ -1237,14 +1237,14 @@ void test_build_from_tri()
   const MBCartVect axis[3] = { box.scaled_axis(0),
                                box.scaled_axis(1),
                                box.scaled_axis(2) };
-  const MBCartVect* verts = reinterpret_cast<const MBCartVect*>(coords);
   double min[3], max[3];
-  MBCartVect v = verts[0] - box.center;
+  MBCartVect v = MBCartVect(coords) - box.center;
   min[0] = max[0] = box.scaled_axis(0) % v;
   min[1] = max[1] = box.scaled_axis(1) % v;
   min[2] = max[2] = box.scaled_axis(2) % v;
   for (i = 1; i < 21; ++i) {
-    MBCartVect v = verts[i] - box.center;
+    MBCartVect vi( coords + 3*i );
+    MBCartVect v = vi - box.center;
     for (int j = 0; j < 3; ++j) {
       double d = (axis[j] % v) / (axis[j] % axis[j]);
       if (d < min[j])

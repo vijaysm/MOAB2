@@ -471,10 +471,11 @@ void testB(const int nelem, const double *coords, const MBEntityHandle *connect)
   int num_elems = nelem*nelem*nelem;
   MBEntityHandle vstart, estart;
 
-  MBReadUtilIface* readMeshIface;
   // get the read interface
-  gMB->query_interface("MBReadUtilIface", reinterpret_cast<void**>(&readMeshIface));
-
+  void* ptr = 0;
+  gMB->query_interface("MBReadUtilIface", &ptr);
+  MBReadUtilIface* readMeshIface = reinterpret_cast<MBReadUtilIface*>(ptr);
+  
   // create a sequence to hold the node coordinates
   // get the current number of entities and start at the next slot
   std::vector<double*> coord_arrays;
