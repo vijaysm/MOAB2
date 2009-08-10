@@ -366,7 +366,7 @@ int topology_adjacency_test(iMesh_Instance mesh)
         /* now remove any interior faces from the previous adjacent faces list */
         /* and we should be left with exterior faces */
       for (i = 0; i < adj_faces_size; i++) {
-	found = FALSE;
+        found = FALSE;
         for (iter = 0; iter < num_int; iter++) {
           if (interior[iter] == adj_faces[i]) {
             found = TRUE;
@@ -384,10 +384,10 @@ int topology_adjacency_test(iMesh_Instance mesh)
       if (face_loaded)
         if (num_ext+2*num_int !=
             num_faces_per_region*num_region) {
-	  printf("exterior/interior failure: %d ext, %d int, %d regions, %d faces per\n",
-		 num_ext, num_int, num_region, num_faces_per_region);
+          printf("exterior/interior failure: %d ext, %d int, %d regions, %d faces per\n",
+                 num_ext, num_int, num_region, num_faces_per_region);
           return FALSE;
-	}
+    }
 
       free(face_offsets);
       free(region_offsets);
@@ -1373,7 +1373,7 @@ int vertex_double_tag_test(iMesh_Instance mesh,
   }
 
   iMesh_getArrData(mesh, &dum_vert, 1, *double_tag,
-                   (char**)(&dum_val2_ptr), &dum_val2_alloc, &dum_val2_size, &result);
+                   &dum_val2_ptr, &dum_val2_alloc, &dum_val2_size, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to get double tag (val=1.0e6) in vertex_double_tag_test.\n");
     return FALSE;
@@ -1396,7 +1396,7 @@ int vertex_double_tag_test(iMesh_Instance mesh,
   }
 
   iMesh_getArrData(mesh, &dum_vert, 1, *double_tag,
-                   (char**)(&dum_val2_ptr), &dum_val2_alloc, &dum_val2_size, &result);
+                   &dum_val2_ptr, &dum_val2_alloc, &dum_val2_size, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to get double tag (val=2.0e9) in vertex_double_tag_test.\n");
     return FALSE;
@@ -1582,7 +1582,7 @@ int entityset_int_tag_test(iMesh_Instance mesh,
 
   dum_val2 = 0;
   iMesh_getEntSetData(mesh, sets[0], *int_tag,
-		      (char**)(&dum_val2_ptr), &dum_val2_alloc, &dum_val2_size, &result);
+                      &dum_val2_ptr, &dum_val2_alloc, &dum_val2_size, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to get int tag (val=11) in entityset_int_tag_test.");
     return FALSE;
@@ -1603,7 +1603,7 @@ int entityset_int_tag_test(iMesh_Instance mesh,
   }
 
   iMesh_getEntSetData(mesh, sets[sets_size-1], *int_tag,
-		      (char**)(&dum_val2_ptr), &dum_val2_alloc, &dum_val2_size, &result);
+                      &dum_val2_ptr, &dum_val2_alloc, &dum_val2_size, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to get int tag (val=12) in entityset_int_tag_test.");
     return FALSE;
@@ -1647,7 +1647,7 @@ int entityset_double_tag_test(iMesh_Instance mesh,
 
   dum_val2 = 0;
   iMesh_getEntSetData(mesh, sets[0], *double_tag,
-                      (char**)(&dum_val2_ptr), &dum_val2_alloc, &dum_val2_size, &result);
+                      &dum_val2_ptr, &dum_val2_alloc, &dum_val2_size, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to get double tag (val=1.0e6) in entityset_double_tag_test.");
     return FALSE;
@@ -1668,7 +1668,7 @@ int entityset_double_tag_test(iMesh_Instance mesh,
   }
 
   iMesh_getEntSetData(mesh, sets[sets_size-1], *double_tag,
-                      (char**)(&dum_val2_ptr), &dum_val2_alloc, &dum_val2_size, &result);
+                      &dum_val2_ptr, &dum_val2_alloc, &dum_val2_size, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to get double tag (val=2.0e9) in entityset_double_tag_test.");
     return FALSE;
@@ -1746,7 +1746,7 @@ int entityset_tag_delete_test(iMesh_Instance mesh,
   iBase_EntitySetHandle dum_entity = sets[0];
   int all_tags_alloc = 0, all_tags_size;
   iMesh_getAllEntSetTags(mesh, sets[0], &all_tags, &all_tags_alloc,
-			 &all_tags_size, &result);
+             &all_tags_size, &result);
   if (iBase_SUCCESS != result) {
     printf("Couldn't get all tag handles from entityset.\n");
     return FALSE;
@@ -1825,7 +1825,7 @@ int mesh_int_tag_test(iMesh_Instance mesh,
 {
   int result;
   int dum_val = 11, dum_val2;
-  void *dum_val2_ptr = &dum_val2;
+  char *dum_val2_ptr = (char*)&dum_val2;
   int dum_val2_alloc = sizeof(int), dum_val2_size;
 
     /* create a tag */
@@ -1848,7 +1848,7 @@ int mesh_int_tag_test(iMesh_Instance mesh,
 
   dum_val2 = 0;
   iMesh_getEntSetData(mesh, root_set, *int_tag,
-		      (char**)(&dum_val2_ptr), &dum_val2_alloc, &dum_val2_size, &result);
+                      &dum_val2_ptr, &dum_val2_alloc, &dum_val2_size, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to get int tag (val=11) in mesh_int_tag_test.");
     return FALSE;
@@ -1869,7 +1869,7 @@ int mesh_int_tag_test(iMesh_Instance mesh,
   }
 
   iMesh_getEntSetData(mesh, root_set, *int_tag,
-		      (char**)(&dum_val2_ptr), &dum_val2_alloc, &dum_val2_size, &result);
+                      &dum_val2_ptr, &dum_val2_alloc, &dum_val2_size, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to get int tag (val=12) in mesh_int_tag_test.");
     return FALSE;
@@ -1889,7 +1889,7 @@ int mesh_double_tag_test(iMesh_Instance mesh,
 {
   int result;
   double dum_val = 1.0e6, dum_val2;
-  void *dum_val2_ptr = &dum_val2;
+  char *dum_val2_ptr = (char*)&dum_val2;
   int dum_val2_alloc = sizeof(double), dum_val2_size;
 
     /* create a tag */
@@ -1912,7 +1912,7 @@ int mesh_double_tag_test(iMesh_Instance mesh,
 
   dum_val2 = 0;
   iMesh_getEntSetData(mesh, root_set, *double_tag,
-                      (char**)(&dum_val2_ptr), &dum_val2_alloc, &dum_val2_size, &result);
+                      &dum_val2_ptr, &dum_val2_alloc, &dum_val2_size, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to get double tag (val=1.0e6) in mesh_double_tag_test.");
     return FALSE;
@@ -1933,7 +1933,7 @@ int mesh_double_tag_test(iMesh_Instance mesh,
   }
 
   iMesh_getEntSetData(mesh, root_set, *double_tag,
-                      (char**)(&dum_val2_ptr), &dum_val2_alloc, &dum_val2_size, &result);
+                      &dum_val2_ptr, &dum_val2_alloc, &dum_val2_size, &result);
   if (iBase_SUCCESS != result) {
     printf("Failed to get double tag (val=2.0e9) in mesh_double_tag_test.");
     return FALSE;
@@ -2008,7 +2008,7 @@ int mesh_tag_delete_test(iMesh_Instance mesh)
   iBase_TagHandle *all_tags = NULL;
   int all_tags_alloc = 0, all_tags_size;
   iMesh_getAllEntSetTags(mesh, root_set, &all_tags, &all_tags_alloc,
-			 &all_tags_size, &result);
+                         &all_tags_size, &result);
   if (iBase_SUCCESS != result) {
     printf("Couldn't get all tag handles from entityset.\n");
     return FALSE;
