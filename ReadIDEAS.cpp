@@ -17,7 +17,9 @@ MBReaderIface* ReadIDEAS::factory( MBInterface* iface )
 ReadIDEAS::ReadIDEAS(MBInterface* impl)
     : MBI(impl)
 {
-  impl->query_interface("MBReadUtilIface", reinterpret_cast<void**>(&readMeshIface));
+  void* ptr = 0;
+  impl->query_interface("MBReadUtilIface", &ptr);
+  readMeshIface = reinterpret_cast<MBReadUtilIface*>(ptr);
 }
 
 

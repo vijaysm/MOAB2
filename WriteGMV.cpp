@@ -56,8 +56,9 @@ WriteGMV::WriteGMV(MBInterface *impl)
 {
   assert(impl != NULL);
 
-  std::string iface_name = "MBWriteUtilIface";
-  impl->query_interface(iface_name, reinterpret_cast<void**>(&mWriteIface));
+  void* ptr = 0;
+  impl->query_interface( "MBWriteUtilIface", &ptr );
+  mWriteIface = reinterpret_cast<MBWriteUtilIface*>(ptr);
 
   // initialize in case tag_get_handle fails below
   mMaterialSetTag  = 0;

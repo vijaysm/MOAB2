@@ -348,8 +348,9 @@ extern "C" {
     eatwhitespace(tmp_filename);
     eatwhitespace(tmp_options);
   
+    MBEntityHandle set = ENTITY_HANDLE(handle);
     MBErrorCode result = MBI->write_file(tmp_filename.c_str(), NULL, tmp_options.c_str(),
-                                         CONST_HANDLE_ARRAY_PTR(&handle), 1);
+                                         &set, 1);
 
     if (MB_SUCCESS != result) {
       std::string msg("iMesh_save:ERROR saving a mesh, with error type: ");
@@ -996,7 +997,8 @@ extern "C" {
   void iMesh_destroyEntSet (iMesh_Instance instance,
                             /*in*/ iBase_EntitySetHandle entity_set, int *err) 
   {
-    MBErrorCode result = MBI->delete_entities(HANDLE_ARRAY_PTR(&entity_set), 1);
+    MBEntityHandle set = ENTITY_HANDLE(entity_set);
+    MBErrorCode result = MBI->delete_entities(&set, 1);
     if (MB_SUCCESS != result)
       iMesh_processError(iBase_ERROR_MAP[result], "iMesh_destroyEntSet: couldn't delete the set.");
 
@@ -1119,8 +1121,8 @@ extern "C" {
                        /*in*/ iBase_EntitySetHandle entity_set_handle,
                        int *err)
   {
-    MBErrorCode result = MBI->add_entities(ENTITY_HANDLE(entity_set_handle),
-                                           CONST_HANDLE_ARRAY_PTR(&entity_set_to_add), 1);
+    MBEntityHandle to_add = ENTITY_HANDLE(entity_set_to_add);
+    MBErrorCode result = MBI->add_entities(ENTITY_HANDLE(entity_set_handle), &to_add, 1);
 
     if (result != MB_SUCCESS) {
       std::string msg("iMesh_addEntSet:ERROR adding entitysets, with error type: ");
@@ -1137,8 +1139,9 @@ extern "C" {
                        /*in*/ iBase_EntitySetHandle entity_set_handle, 
                        int *err)
   {
+    MBEntityHandle to_remove = ENTITY_HANDLE(entity_set_handle);
     MBErrorCode result = MBI->remove_entities
-      (ENTITY_HANDLE(entity_set_handle), CONST_HANDLE_ARRAY_PTR(&entity_set_to_remove), 1);
+      (ENTITY_HANDLE(entity_set_handle), &to_remove, 1);
   
     if (result != MB_SUCCESS) {
       std::string msg("iMesh_rmvEntSet:ERROR removing entitysets in EntitySet, "
@@ -1737,10 +1740,11 @@ extern "C" {
         // set the tag data on this entity set
       result = MBI->tag_set_data(TAG_HANDLE(tag_handle),
                                  NULL, 0, tag_value);
-    else
-      result = MBI->tag_set_data(TAG_HANDLE(tag_handle),
-                                 HANDLE_ARRAY_PTR(&entity_set_handle), 1, tag_value);
-  
+    else {
+      MBEntityHandle set = ENTITY_HANDLE(entity_set_handle);
+      result = MBI->tag_set_data(TAG_HANDLE(tag_handle), &set, 1, tag_value);
+    }
+    
     if (MB_SUCCESS != result)
       iMesh_processError(iBase_ERROR_MAP[result], "iMesh_setEntSetData: error");
 
@@ -1898,8 +1902,8 @@ extern "C" {
       iMesh_getRootSet(instance, &entity_set_handle, &success);
       if (iBase_ERROR_MAP[success] != iBase_SUCCESS) RETURN(iBase_ERROR_MAP[success]);
     }
-    MBErrorCode result = MBI->tag_delete_data(TAG_HANDLE(tag_handle),
-                                              HANDLE_ARRAY_PTR(&entity_set_handle), 1);
+    MBEntityHandle set = ENTITY_HANDLE(entity_set_handle);
+    MBErrorCode result = MBI->tag_delete_data(TAG_HANDLE(tag_handle), &set, 1);
   
       // don't check return; this tag may have never been set on the entity set
     RETURN(iBase_ERROR_MAP[result]);
