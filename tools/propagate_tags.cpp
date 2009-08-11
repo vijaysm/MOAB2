@@ -59,7 +59,7 @@ void usage( bool error = true )
     << "  -d <data_tag>[=<default>] " << std::endl
     << "  -c <data_tag=type:size>[=defult] " << std::endl
     << "  -w <write_tag>            " << std::endl
-    << "  -n|-e                     " << std::endl
+    << "  -n|-e|-E                  " << std::endl
     << std::endl;
   if (error) {
     s << "Try '-h' for verbose help." << std::endl;
@@ -103,6 +103,7 @@ void usage( bool error = true )
     << std::endl
     << " -n : Write tag data only on nodes (vertices)." << std::endl
     << " -e : Write tag data only on elements." << std::endl
+    << " -E : Tag value on each node is that of one of its adjacent elements." << std::endl
     << std::endl
     << "The syntax for specifying tag values is as follows: " 
     << std::endl << std::endl;
@@ -151,6 +152,7 @@ int main( int argc, char* argv[] )
       switch (argv[i][1]) { 
         case 't': case 'c': case 'd': case 'w': 
           ++i; 
+        case 'n': case 'e': case 'E':
           break;
         case 'h': 
           usage(false);
@@ -187,6 +189,7 @@ int main( int argc, char* argv[] )
     
   bool nodes_spec = false;
   bool elems_spec = false;
+  bool node_from_elem_spec = false;
   bool have_data_tag = false;
   const char* write_tag_name = 0;
   MBTag write_tag = 0;
@@ -203,6 +206,11 @@ int main( int argc, char* argv[] )
       nodes_spec = true;
     else if (!strcmp(argv[i], "-e"))
       elems_spec = true;
+    else if (!strcmp(argv[i], "-E")) {
+      node_from_elem_spec = true;
+      elems_spec = true;
+      nodes_spec = false;
+    }
     else if (!argv[i][0])
       usage();
     else
@@ -356,10 +364,20 @@ int main( int argc, char* argv[] )
     MBRange::iterator eb = entities.lower_bound( entities.begin(), 
                                                  entities.end(),
                                                  CREATE_HANDLE(MBEDGE,0,junk) );
-    MBRange::iterator j   = nodes_spec ? entities.begin() : eb;
-    MBRange::iterator end = elems_spec ? entities.end()   : eb;
-    for ( ; j != end; ++j)
-      CALL( tag_set_data, (write_tag, &*j, 1, &tag_data[0]) );
+    if (elems_spec) 
+      for (MBRange::iterator j = eb; j != entities.end(); ++j)
+        CALL( tag_set_data, (write_tag, &*j, 1, &tag_data[0]) );
+    if (nodes_spec)
+      for (MBRange::iterator j = entities.begin(); j != eb; ++j)
+        CALL( tag_set_data, (write_tag, &*j, 1, &tag_data[0]) );
+    if (node_from_elem_spec) {
+      MBRange elems;
+      elems.merge( eb, entities.end() );
+      entities.clear();
+      CALL( get_adjacencies, (elems, 0, false, entities, MBInterface::UNION) );
+      for (MBRange::iterator j = entities.begin(); j != entities.end(); ++j)
+        CALL( tag_set_data, (write_tag, &*j, 1, &tag_data[0]) );
+    }
   }
   
     // Write the output file
