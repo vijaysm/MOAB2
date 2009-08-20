@@ -26,6 +26,10 @@
 #include <iosfwd>
 #include <limits>
 
+#ifdef _MSC_VER
+# define finite _finite
+#endif
+
 class MBMatrix3 
 {
   double d[9];

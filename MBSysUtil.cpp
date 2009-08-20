@@ -5,21 +5,6 @@
 #include <assert.h>
 
 #include "MBEntityHandle.h"
-#ifdef MOAB_HAVE_INTTYPES_H
-#include <inttypes.h>
-#endif
-#ifdef MOAB_HAVE_STDDEF_H
-#include <stddef.h>
-#endif
-#ifdef MOAB_HAVE_STDINT_H
-#include <stdint.h>
-#endif
-
-#if defined(_MSC_VER) /* windows */
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
-typedef unsigned __int64 uint64_t;
-#endif
 
 namespace MBSysUtil
 {

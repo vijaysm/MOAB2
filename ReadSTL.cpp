@@ -29,19 +29,6 @@
 #include "MBSysUtil.hpp"
 
 #include "MBEntityHandle.h"
-#ifdef MOAB_HAVE_INTTYPES_H
-#include <inttypes.h>
-#endif
-#ifdef MOAB_HAVE_STDDEF_H
-#include <stddef.h>
-#endif
-#ifdef MOAB_HAVE_STDINT_H
-#include <stdint.h>
-#endif
-
-#if defined(_MSC_VER) /* Windows */
-typedef unsigned __int32 uint32_t;
-#endif
 
 #include <errno.h>
 #include <string.h>

@@ -29,15 +29,6 @@
 #include "MBSysUtil.hpp"
 
 #include "MBEntityHandle.h"
-#ifdef MOAB_HAVE_INTTYPES_H
-#include <inttypes.h>
-#endif
-#ifdef MOAB_HAVE_STDDEF_H
-#include <stddef.h>
-#endif
-#ifdef MOAB_HAVE_STDINT_H
-#include <stdint.h>
-#endif
 
 #include <stdio.h>
 #include <sys/types.h>
