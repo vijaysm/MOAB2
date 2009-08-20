@@ -695,11 +695,11 @@ protected:
  
 public:
   //constructor
-  explicit mb_range_inserter(MBRange& __x) : container(&__x) {}
+  explicit mb_range_inserter(MBRange& x) : container(&x) {}
   mb_range_inserter&
-  operator=(const MBRange::value_type& __value) 
+  operator=(const MBRange::value_type& value) 
   {
-    container->insert(__value);
+    container->insert(value);
     return *this;
   }
 
