@@ -1641,7 +1641,7 @@ MBErrorCode ReadABAQUS::get_set_nodes(MBEntityHandle parent_set,
 }
   
 
-MBTag ReadABAQUS::get_tag(char* tag_name, 
+MBTag ReadABAQUS::get_tag(const char* tag_name, 
 			  int tag_size,
 			  MBTagType tag_type,
 			  MBDataType tag_data_type)
@@ -1652,7 +1652,7 @@ MBTag ReadABAQUS::get_tag(char* tag_name,
 
 }
 
-MBTag ReadABAQUS::get_tag(char* tag_name, 
+MBTag ReadABAQUS::get_tag(const char* tag_name, 
 			  int tag_size,
 			  MBTagType tag_type,
 			  MBDataType tag_data_type,

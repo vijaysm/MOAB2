@@ -242,8 +242,10 @@ private:
 				      const std::vector<double> &translation,
 				      const std::vector<double> &rotation);
 
-  MBTag get_tag(char* tag_name, int tag_size, MBTagType tag_type, MBDataType tag_data_type);
-  MBTag get_tag(char* tag_name, int tag_size, MBTagType tag_type, MBDataType tag_data_type, const void* def_val);
+  MBTag get_tag(const char* tag_name, int tag_size, MBTagType tag_type,
+                MBDataType tag_data_type);
+  MBTag get_tag(const char* tag_name, int tag_size, MBTagType tag_type,
+                MBDataType tag_data_type, const void* def_val);
   
   void cyl2rect(std::vector<double> coord_list);
 
