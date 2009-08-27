@@ -25,6 +25,7 @@
 #include "ReadGmsh.hpp"
 #include "ReadIDEAS.hpp"
 #include "ReadMCNP5.hpp"
+#include "ReadNASTRAN.hpp"
 #include "ReadABAQUS.hpp"
 #include "ReadSms.hpp"
 #include "Tqdcfr.hpp"
@@ -79,6 +80,8 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
   
   register_factory( ReadMCNP5::factory, NULL, "MCNP5 format", "meshtal", "MESHTAL" );
   
+  register_factory( ReadNASTRAN::factory, NULL, "NASTRAN format", "nas", "NAS" );
+
   register_factory( ReadABAQUS::factory, NULL, "ABAQUS INP mesh format", "abq", "Abaqus mesh" );
   
   register_factory( ReadVtk::factory, WriteVtk::factory, "Kitware VTK", "vtk", "VTK" );
