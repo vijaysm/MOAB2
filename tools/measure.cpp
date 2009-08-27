@@ -185,8 +185,8 @@ double measure( MBEntityType type,
              tet_volume( coords[0], coords[2], coords[3], coords[4] ) ;
     case MBPRISM:
       return tet_volume( coords[0], coords[1], coords[2], coords[5] ) +
-             tet_volume( coords[3], coords[4], coords[5], coords[0] ) +
-             tet_volume( coords[0], coords[1], coords[4], coords[5] ) ;
+             tet_volume( coords[3], coords[5], coords[4], coords[0] ) +
+             tet_volume( coords[1], coords[4], coords[5], coords[0] ) ;
     case MBHEX:
       return tet_volume( coords[0], coords[1], coords[3], coords[4] ) +
              tet_volume( coords[7], coords[3], coords[6], coords[4] ) +
