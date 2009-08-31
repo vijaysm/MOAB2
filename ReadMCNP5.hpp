@@ -1,3 +1,42 @@
+/**
+ * MOAB, a Mesh-Oriented datABase, is a software component for creating,  
+ * storing and accessing finite element mesh data.
+ *
+ * Copyright 2004 Sandia Corporation.  Under the terms of Contract
+ * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
+ * retains certain rights in this software.
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either 
+ * version 2.1 of the License, or (at your option) any later version.
+ *                                 
+ */ 
+
+//----------------------------------------------------------------------
+// Filename : ReadMCNP5.hpp    
+// Purpose  : Read a meshtal file created by MCNP5 into MOAB
+// Creator  : Brandon Smith
+// Date     : 07/2009
+//----------------------------------------------------------------------
+
+/**
+ * Data structure of MCNP5 data created by this reader:
+ *
+ * each file_meshset contains
+ *   DATA_AND_TIME_TAG
+ *   TITLE_TAG
+ *   NPS_TAG
+ *   each tally_meshset contains
+ *     TALLY_NUMBER_TAG
+ *     TALLY_COMMENT_TAG
+ *     TALLY_PARTICLE_TAG
+ *     TALLY_COORD_SYS_TAG
+ *     each mesh element contains
+ *       TALLY_TAG
+ *       ERROR_TAG
+ */
+
 #include "MBInterface.hpp"
 #include "MBReaderIface.hpp"
 #include <iostream>
