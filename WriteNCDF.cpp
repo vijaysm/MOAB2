@@ -328,7 +328,7 @@ MBErrorCode WriteNCDF::gather_mesh_information(
                         std::vector<MBEntityHandle> &sidesets,
                         std::vector<MBEntityHandle> &nodesets)
 {
-
+  MBErrorCode rval;
   std::vector<MBEntityHandle>::iterator vector_iter, end_vector_iter;
 
   mesh_info.num_nodes = 0;
@@ -345,8 +345,12 @@ MBErrorCode WriteNCDF::gather_mesh_information(
   std::vector<MBEntityHandle> parent_meshsets;
 
   // clean out the bits for the element mark
-  mdbImpl->tag_delete(mEntityMark);
-  mdbImpl->tag_create("WriteNCDF element mark", 1, MB_TAG_BIT, mEntityMark, NULL);
+  rval = mdbImpl->tag_delete(mEntityMark);
+  if (MB_SUCCESS != rval)
+    return rval;
+  rval = mdbImpl->tag_create("WriteNCDF element mark", 1, MB_TAG_BIT, mEntityMark, NULL);
+  if (MB_SUCCESS != rval)
+    return rval;
 
   int highest_dimension_of_element_blocks = 0;
 
@@ -361,8 +365,9 @@ MBErrorCode WriteNCDF::gather_mesh_information(
 
     // get all Entity Handles in the mesh set
     MBRange dummy_range;
-    mdbImpl->get_entities_by_handle(*vector_iter, dummy_range, true );
-
+    rval = mdbImpl->get_entities_by_handle(*vector_iter, dummy_range, true );
+    if (MB_SUCCESS != rval)
+      return rval;
 
 
     // wait a minute, we are doing some filtering here that doesn't make sense at this level  CJS
@@ -421,7 +426,9 @@ MBErrorCode WriteNCDF::gather_mesh_information(
       highest_dimension_of_element_blocks = dimension;
 
     std::vector<MBEntityHandle> tmp_conn;
-    mdbImpl->get_connectivity(&(*(block_data.elements.begin())), 1, tmp_conn);
+    rval = mdbImpl->get_connectivity(&(*(block_data.elements.begin())), 1, tmp_conn);
+    if (MB_SUCCESS != rval)
+      return rval;
     block_data.element_type = ExoIIUtil::get_element_type_from_num_verts(tmp_conn.size(), entity_type, dimension);
     
     if (block_data.element_type == EXOII_MAX_ELEM_TYPE) {
@@ -438,7 +445,9 @@ MBErrorCode WriteNCDF::gather_mesh_information(
     mesh_info.num_elements += block_data.number_elements;
 
     // get the nodes for the elements
-    mWriteIface->gather_nodes_from_elements(block_data.elements, mEntityMark, mesh_info.nodes);
+    rval = mWriteIface->gather_nodes_from_elements(block_data.elements, mEntityMark, mesh_info.nodes);
+    if (MB_SUCCESS != rval)
+      return rval;
 
     if(!sidesets.empty())
     {
@@ -447,7 +456,9 @@ MBErrorCode WriteNCDF::gather_mesh_information(
           iter != block_data.elements.end(); ++iter)
       {
         unsigned char bit = 0x1;
-        mdbImpl->tag_set_data(mEntityMark, &(*iter), 1, &bit);
+        rval = mdbImpl->tag_set_data(mEntityMark, &(*iter), 1, &bit);
+        if (MB_SUCCESS != rval)
+          return rval;
       }
     }
 
