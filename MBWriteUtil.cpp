@@ -26,11 +26,13 @@
 #include "TagServer.hpp"
 #include "AEntityFactory.hpp"
 #include "MBTagConventions.hpp"
+#include "MBRangeSeqIntersectIter.hpp"
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
 #include <assert.h>
+#include <iostream>
 
 #ifdef WIN32
 #  define stat _stat
@@ -502,7 +504,6 @@ MBErrorCode MBWriteUtil::get_poly_arrays(
 {
   return MB_NOT_IMPLEMENTED;
 }
-  
 
       
 MBErrorCode MBWriteUtil::gather_nodes_from_elements(
@@ -511,9 +512,14 @@ MBErrorCode MBWriteUtil::gather_nodes_from_elements(
       MBRange& nodes
       )
 {
+  bool printed_warning = false;
 
   if(elements.empty())
     return MB_SUCCESS;
+
+  if (TYPE_FROM_HANDLE(elements.front()) <= MBVERTEX ||
+      TYPE_FROM_HANDLE(elements.back()) >= MBENTITYSET)
+    return MB_TYPE_OUT_OF_RANGE;
 
   TagServer* tag_server = mMB->tag_server();
 
@@ -526,88 +532,78 @@ MBErrorCode MBWriteUtil::gather_nodes_from_elements(
     mMB->tag_create("__MBWriteUtil::exporting_nodes", 1, MB_TAG_BIT, 
                      exporting_nodes_tag, NULL);
   }
-  
-
-  MBRange::const_iterator range_iter = elements.begin();
-  MBRange::const_iterator range_iter_end = elements.end();
-
-  TypeSequenceManager::const_iterator seq_iter, seq_iter_end;
-  MBEntityType current_type = TYPE_FROM_HANDLE(*range_iter);
- 
-  seq_iter = mMB->sequence_manager()->entity_map(current_type).begin();
-  seq_iter_end = mMB->sequence_manager()->entity_map(current_type).end();
-
-  // lets find the entity sequence which holds the first entity
-  TypeSequenceManager::const_iterator seq_iter_lookahead = seq_iter;
-  seq_iter_lookahead++;
-  for( ; seq_iter_lookahead != seq_iter_end && 
-      (*seq_iter_lookahead)->start_handle() < *range_iter; )
-  {
-    ++seq_iter;
-    ++seq_iter_lookahead;
-  }
-
-  // a look ahead iterator
-  MBRange::const_iterator range_iter_lookahead = range_iter;
 
   // the x,y,z tag handles we need
   MBEntityHandle lower_bound = ~0, upper_bound = 0;
   
-  // our main loop
-  for(; range_iter != range_iter_end && seq_iter != seq_iter_end; /* ++ is handled in loop*/ )
-  {
-    // find a range that fits in the current entity sequence
-    for(; range_iter_lookahead != range_iter_end && 
-        *range_iter_lookahead <= (*seq_iter)->end_handle(); 
-        ++range_iter_lookahead)
-    {}
+  std::vector<MBEntityHandle> tmp_conn;
   
-    if(current_type != TYPE_FROM_HANDLE(*range_iter))
-    {
-      current_type = TYPE_FROM_HANDLE(*range_iter);
-      seq_iter = mMB->sequence_manager()->entity_map(current_type).begin();
-      seq_iter_end = mMB->sequence_manager()->entity_map(current_type).end();
-
-      // lets find the entity sequence which holds the first entity of this type
-      TypeSequenceManager::const_iterator seq_iter_lookahead = seq_iter;
-      seq_iter_lookahead++;
-      for( ; seq_iter_lookahead != seq_iter_end && 
-          (*seq_iter_lookahead)->start_handle() < *range_iter; )
-      {
-        ++seq_iter;
-        ++seq_iter_lookahead;
+  MBRangeSeqIntersectIter iter( mMB->sequence_manager() );
+  for (MBErrorCode rval = iter.init( elements.begin(), elements.end() ); 
+       MB_FAILURE != rval; rval = iter.step()) {
+    if (MB_ENTITY_NOT_FOUND == rval) {
+      if (!printed_warning) {
+        std::cerr << "Warning: ignoring invalid element handle(s) in gather_nodes_from_elements" << std::endl;
+        printed_warning = true;
       }
+      continue;
     }
-
-    int i = static_cast<ElementSequence*>(*seq_iter)->nodes_per_element();
+    
+    ElementSequence* seq = static_cast<ElementSequence*>(iter.get_sequence());
 
     // get the connectivity array
-    MBEntityHandle* conn_array = NULL;
-    conn_array = static_cast<ElementSequence*>(*seq_iter)->get_connectivity_array();
+    const MBEntityHandle* conn_array = seq->get_connectivity_array();
+    
+    // if unstructed mesh
+    if (conn_array) {
+      assert(iter.get_start_handle() >= seq->start_handle());
+      assert(iter.get_end_handle() <= seq->end_handle());
+      const MBEntityHandle offset = iter.get_start_handle() - seq->start_handle();
+      const MBEntityHandle num_elem = iter.get_end_handle() - iter.get_start_handle() + 1;
+      
+      conn_array += offset * seq->nodes_per_element();
+      const MBEntityHandle num_node = num_elem * seq->nodes_per_element();
  
-    MBEntityHandle start_handle = (*seq_iter)->start_handle();
-
-    for(MBRange::const_iterator tmp_iter = range_iter; 
-        tmp_iter != range_iter_lookahead;
-        ++tmp_iter)
-    {
-      // for each node
-      for(int j=0; j<i; j++)
+        // for each node
+      for (MBEntityHandle j = 0; j < num_node; j++)
       {
-        MBEntityHandle node = *(conn_array + j + i*(*tmp_iter - start_handle));
+        MBEntityHandle node = conn_array[j];
         if(node < lower_bound)
           lower_bound = node;
         if(node > upper_bound)
           upper_bound = node;
         unsigned char bit = 0x1;
-        tag_server->set_data(exporting_nodes_tag, &node, 1, &bit);
+        rval = tag_server->set_data(exporting_nodes_tag, &node, 1, &bit);
+        assert(MB_SUCCESS == rval);
+        if (MB_SUCCESS != rval)
+          return rval;
       }
     }
+      // structured mesh
+    else {
+      for (MBEntityHandle h = iter.get_start_handle();
+           h < iter.get_end_handle(); ++h) {
+        tmp_conn.clear();
+        rval = seq->get_connectivity( h, tmp_conn, false );
+        if (MB_SUCCESS != rval) {
+          if(node_bit_mark_tag == 0)
+            mMB->tag_delete(exporting_nodes_tag);
+          return rval;
+        }
 
-    // go to the next entity sequence
-    ++seq_iter;
-    // start with the next entities
-    range_iter = range_iter_lookahead;
+          // for each node
+        for(size_t j=0; j<tmp_conn.size(); j++)
+        {
+          MBEntityHandle node = tmp_conn[j];
+          if(node < lower_bound)
+            lower_bound = node;
+          if(node > upper_bound)
+            upper_bound = node;
+          unsigned char bit = 0x1;
+          tag_server->set_data(exporting_nodes_tag, &node, 1, &bit);
+        }
+      }
+    }
   }
 
   // we can get a REALLY long loop if lower_bound is zero
@@ -624,9 +620,8 @@ MBErrorCode MBWriteUtil::gather_nodes_from_elements(
   // clean up our own marking tag
   if(node_bit_mark_tag == 0)
     mMB->tag_delete(exporting_nodes_tag);
-
+  
   return MB_SUCCESS;
-
 }
 
   //! assign ids to input elements starting with start_id, written to id_tag
