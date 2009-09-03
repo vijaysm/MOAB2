@@ -362,12 +362,19 @@ MBErrorCode MBBSPTree::merge_leaf( MBBSPTreeIter& iter )
     // Move iter to parent
   iter.up();
 
-    // Get all entities from children and put them in parent
+    // Get sets to merge
   MBEntityHandle parent = iter.handle();
+  iter.childVect.clear();
+  rval = moab()->get_child_meshsets( parent, iter.childVect );
+  if (MB_SUCCESS != rval)
+    return rval;
+    
+    // Remove child links
   moab()->remove_child_meshset( parent, iter.childVect[0] );
   moab()->remove_child_meshset( parent, iter.childVect[1] );
   std::vector<MBEntityHandle> stack( iter.childVect );
   
+    // Get all entities from children and put them in parent
   MBRange range;
   while (!stack.empty()) {
     MBEntityHandle h = stack.back();
