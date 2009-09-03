@@ -655,6 +655,7 @@ MBRange intersect(const MBRange &range1, const MBRange &range2)
   MBEntityHandle low_it, high_it;
   
   MBRange lhs;
+  MBRange::iterator hint = lhs.begin();
   
     // terminate the while loop when at least one "start" iterator is at the
     // end of the list
@@ -673,7 +674,7 @@ MBRange intersect(const MBRange &range1, const MBRange &range2)
       high_it = MIN(r_it[0]->second, r_it[1]->second);
       
         // insert into result
-      lhs.insert(low_it, high_it);
+      hint = lhs.insert(hint, low_it, high_it);
       
         // now find bounds of this insertion and increment corresponding iterator
       if (high_it == r_it[0]->second) r_it[0]++;
