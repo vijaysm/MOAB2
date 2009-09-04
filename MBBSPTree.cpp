@@ -507,6 +507,42 @@ MBErrorCode MBBSPTreeIter::get_parent_split_plane( MBBSPTree::Plane& plane ) con
   return tool()->get_split_plane( parent, plane );
 }
 
+bool MBBSPTreeIter::is_sibling( const MBBSPTreeIter& other_leaf ) const
+{
+  const size_t s = mStack.size();
+  return (s > 1) && (s == other_leaf.mStack.size()) &&
+         (other_leaf.mStack[s-2] == mStack[s-2]) &&
+         other_leaf.handle() != handle();
+}
+
+bool MBBSPTreeIter::is_sibling( MBEntityHandle other_leaf ) const
+{
+  if (mStack.size() < 2 || other_leaf == handle())
+    return false;
+  MBEntityHandle parent = mStack[mStack.size()-2];
+  childVect.clear();
+  MBErrorCode rval = tool()->moab()->get_child_meshsets( parent, childVect );
+  if (MB_SUCCESS != rval || childVect.size() != 2) {
+    assert(false);
+    return false;
+  }
+  return childVect[0] == other_leaf || childVect[1] == other_leaf;
+}
+
+bool MBBSPTreeIter::sibling_is_forward() const
+{
+  if (mStack.size() < 2) // if root
+    return false;
+  MBEntityHandle parent = mStack[mStack.size()-2];
+  childVect.clear();
+  MBErrorCode rval = tool()->moab()->get_child_meshsets( parent, childVect );
+  if (MB_SUCCESS != rval || childVect.size() != 2) {
+    assert(false);
+    return false;
+  }
+  return childVect[0] == handle();
+}  
+
 MBErrorCode MBBSPTreeBoxIter::initialize( MBBSPTree* tool_ptr,
                                           MBEntityHandle root,
                                           const double* point )
@@ -892,6 +928,108 @@ MBErrorCode MBBSPTreeBoxIter::get_box_corners( double coords[8][3] ) const
 {
   memcpy( coords, leafCoords, 24*sizeof(double) );
   return MB_SUCCESS;
+}
+
+// result = a - b
+static void subtr( double result[3], const double a[3], const double b[3] )
+{
+  result[0] = a[0] - b[0];
+  result[1] = a[1] - b[1];
+  result[2] = a[2] - b[2];
+}
+
+// result = a + b + c + d
+static void sum( double result[3], 
+                 const double a[3], 
+                 const double b[3],
+                 const double c[3],
+                 const double d[3] )
+{
+  result[0] = a[0] + b[0] + c[0] + d[0];
+  result[1] = a[1] + b[1] + c[1] + d[1];
+  result[2] = a[2] + b[2] + c[2] + d[2];
+}
+
+// result = a cross b
+static void cross( double result[3], const double a[3], const double b[3] )
+{
+  result[0] = a[1]*b[2] - a[2]*b[1];
+  result[1] = a[2]*b[0] - a[0]*b[2];
+  result[2] = a[0]*b[1] - a[1]*b[0];
+}
+
+static double dot( const double a[3], const double b[3] )
+{
+  return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+}
+
+double MBBSPTreeBoxIter::volume() const
+{
+    // have planar sides, so use mid-face tripple product
+  double f1[3], f2[3], f3[3], f4[3], f5[3], f6[3];
+  sum( f1, leafCoords[0], leafCoords[1], leafCoords[4], leafCoords[5] );
+  sum( f2, leafCoords[1], leafCoords[2], leafCoords[5], leafCoords[6] );
+  sum( f3, leafCoords[2], leafCoords[3], leafCoords[6], leafCoords[7] );
+  sum( f4, leafCoords[0], leafCoords[3], leafCoords[4], leafCoords[7] );
+  sum( f5, leafCoords[0], leafCoords[1], leafCoords[2], leafCoords[3] );
+  sum( f6, leafCoords[4], leafCoords[5], leafCoords[6], leafCoords[7] );
+  double v13[3], v24[3], v65[3];
+  subtr( v13, f1, f3 );
+  subtr( v24, f2, f4 );
+  subtr( v65, f6, f5 );
+  double cr[3];
+  cross( cr, v13, v24 );
+  return (1./64) * dot( cr, v65 );
+}
+
+MBBSPTreeBoxIter::XSect 
+MBBSPTreeBoxIter::splits( const MBBSPTree::Plane& plane ) const
+{
+  // test each corner relative to the plane
+  unsigned result  = 0;
+  for (unsigned i = 0; i < 8u; ++i) {
+    double d = plane.signed_distance( leafCoords[i] );
+      // if corner is on plane, than intersection 
+      // will result in a degenerate hex
+    if (fabs(d) < MBBSPTree::epsilon())
+      return NONHEX;
+      // if mark vertices above plane
+    if (d > 0.0)
+      result |= 1<<i;
+  }
+  
+  switch (result) {
+      // if all vertices or no vertices above plane,
+      // then plane doesn't intersect
+    case 0:
+    case 0xFF:
+      return MISS;
+  
+      // if there are four vertices above the plane
+      // and they compose a single face of the hex,
+      // then the cut will result in two hexes
+    case B0154:
+    case B1265:
+    case B2376:
+    case B3047:
+    case B3210:
+    case B4567:
+      return SPLIT;
+      
+      // otherwise intersects, but split would not result
+      // in two hexahedrons
+    default:
+      return NONHEX;
+  }
+}
+
+bool MBBSPTreeBoxIter::intersects( const MBBSPTree::Plane& plane ) const
+{
+  // test each corner relative to the plane
+  unsigned count  = 0;
+  for (unsigned i = 0; i < 8u; ++i) 
+    count += plane.above( leafCoords[i] );
+  return count > 0 && count < 8u;
 }
 
 MBErrorCode MBBSPTreeBoxIter::sibling_side( SideBits& side_out ) const

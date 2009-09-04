@@ -12,6 +12,9 @@ void test_leaf_containing_point_bounded_tree();
 void test_leaf_containing_point_unbounded_tree();
 void test_merge_leaf();
 void test_box_iter_neighbors();
+void test_leaf_sibling();
+void test_leaf_volume();
+void test_leaf_splits_intersects();
 
 int main()
 {
@@ -26,6 +29,9 @@ int main()
   failures += RUN_TEST( test_leaf_containing_point_unbounded_tree );
   failures += RUN_TEST( test_merge_leaf );
   failures += RUN_TEST( test_box_iter_neighbors );
+  failures += RUN_TEST( test_leaf_sibling );
+  failures += RUN_TEST( test_leaf_volume );
+  failures += RUN_TEST( test_leaf_splits_intersects );
 
   return failures;
 }
@@ -1460,3 +1466,238 @@ void test_box_iter_neighbors()
   CHECK_EQUAL( expected, neighbors( iter, leaves, MBBSPTreeBoxIter::B1265,  1e-6 ) );
 }
 
+
+void test_leaf_sibling()
+{
+  MBCore moab;
+  MBBSPTree tool( &moab );
+  MBErrorCode rval;
+  MBEntityHandle root;
+  MBBSPTreeIter iter;
+
+
+/*  Build Tree
+
+  1.0 +---------+--------------+
+      |    A    |              |
+      |         |              |
+  0.7 +---------+      C       |
+      |         |              |
+      |         |              |
+      |    B    |              |
+      |         +--------------+ 0.3
+      |         |      D       |
+      |         |              |
+  0.0 +---------+--------------+
+      0.0       0.4            1.0  */
+
+  const MBBSPTree::Plane  X_split(1.0, 0.0, 0.0,-0.4);
+  const MBBSPTree::Plane AB_split(0.0,-1.0, 0.0, 0.7);
+  const MBBSPTree::Plane CD_split(0.0,-1.0, 0.0, 0.3);
+  
+  const double min[3] = { 0, 0, 0 };
+  const double max[3] = { 1, 1, 1 };
+  rval = tool.create_tree( min, max, root );
+  CHECK_ERR(rval);
+  rval = tool.get_tree_iterator( root, iter );
+  CHECK_ERR(rval);
+  rval = tool.split_leaf( iter, X_split );
+  CHECK_ERR(rval);
+  rval = tool.split_leaf( iter, AB_split );
+  CHECK_ERR(rval);
+  rval = iter.step();
+  CHECK_ERR(rval);
+  rval = iter.step();
+  CHECK_ERR(rval);
+  rval = tool.split_leaf( iter, CD_split );
+  CHECK_ERR(rval);
+  
+    // create two iterators for testing
+  MBBSPTreeIter iter1, iter2;
+  rval = tool.get_tree_iterator( root, iter1 );
+  CHECK_ERR(rval);
+  rval = tool.get_tree_iterator( root, iter2 );
+  CHECK_ERR(rval);
+  
+  
+    // iter1 == A, iter2 == A
+  CHECK( !iter1.is_sibling( iter1 ) );
+  CHECK( !iter1.is_sibling( iter1.handle() ) );
+  CHECK( !iter1.is_sibling( iter2 ) );
+  CHECK(  iter1.sibling_is_forward() );
+  
+    // iter1 == A, iter2 == B
+  rval = iter2.step();
+  CHECK_ERR(rval);
+  CHECK(  iter1.is_sibling( iter2 ) );
+  CHECK(  iter1.is_sibling( iter2.handle() ) );
+  CHECK(  iter2.is_sibling( iter1 ) );
+  CHECK(  iter2.is_sibling( iter1.handle() ) );
+  CHECK( !iter2.sibling_is_forward() );
+  
+    // iter1 == A, iter2 == C
+  rval = iter2.step();
+  CHECK_ERR(rval);
+  CHECK( !iter1.is_sibling( iter2 ) );
+  CHECK( !iter1.is_sibling( iter2.handle() ) );
+  CHECK( !iter2.is_sibling( iter1 ) );
+  CHECK( !iter2.is_sibling( iter1.handle() ) );
+  CHECK(  iter2.sibling_is_forward() );
+  
+    // iter1 == B, iter2 == C
+  rval = iter1.step();
+  CHECK_ERR(rval);
+  CHECK( !iter1.is_sibling( iter2 ) );
+  CHECK( !iter1.is_sibling( iter2.handle() ) );
+  CHECK( !iter2.is_sibling( iter1 ) );
+  CHECK( !iter2.is_sibling( iter1.handle() ) );
+  CHECK( !iter1.sibling_is_forward() );
+
+    // iter1 == D, iter2 == C
+  rval = iter1.step();
+  CHECK_ERR(rval);
+  CHECK_EQUAL( iter1.handle(), iter2.handle() );
+  rval = iter1.step();
+  CHECK_ERR(rval);
+  CHECK(  iter1.is_sibling( iter2 ) );
+  CHECK(  iter1.is_sibling( iter2.handle() ) );
+  CHECK(  iter2.is_sibling( iter1 ) );
+  CHECK(  iter2.is_sibling( iter1.handle() ) );
+  CHECK( !iter1.sibling_is_forward() );
+}
+
+void test_leaf_volume()
+{
+  MBCore moab;
+  MBBSPTree tool( &moab );
+  MBErrorCode rval;
+  MBEntityHandle root;
+  MBBSPTreeBoxIter iter;
+
+
+/*  Build Tree
+
+  1.0 +---------+--------------+
+      |    A    |              |
+      |         |              |
+  0.7 +---------+      C       |
+      |         |              |
+      |         |              |
+      |    B    |              |
+      |         +--------------+ 0.3
+      |         |      D       |
+      |         |              |
+  0.0 +---------+--------------+
+      0.0       0.4            1.0  */
+
+  const MBBSPTree::Plane  X_split(1.0, 0.0, 0.0,-0.4);
+  const MBBSPTree::Plane AB_split(0.0,-1.0, 0.0, 0.7);
+  const MBBSPTree::Plane CD_split(0.0,-1.0, 0.0, 0.3);
+  
+  const double min[3] = { 0, 0, 0 };
+  const double max[3] = { 1, 1, 1 };
+  rval = tool.create_tree( min, max, root );
+  CHECK_ERR(rval);
+  rval = tool.get_tree_iterator( root, iter );
+  CHECK_ERR(rval);
+  rval = tool.split_leaf( iter, X_split );
+  CHECK_ERR(rval);
+  rval = tool.split_leaf( iter, AB_split );
+  CHECK_ERR(rval);
+  rval = iter.step();
+  CHECK_ERR(rval);
+  rval = iter.step();
+  CHECK_ERR(rval);
+  rval = tool.split_leaf( iter, CD_split );
+  CHECK_ERR(rval);
+  
+  // reset iterator
+  rval = tool.get_tree_iterator( root, iter );
+  CHECK_ERR(rval);
+  
+  // check leaf volumes
+  CHECK_REAL_EQUAL( 0.12, iter.volume(), 1e-12 ); // A
+  CHECK_ERR(iter.step());
+  CHECK_REAL_EQUAL( 0.28, iter.volume(), 1e-12 ); // B
+  CHECK_ERR(iter.step());
+  CHECK_REAL_EQUAL( 0.42, iter.volume(), 1e-12 ); // C
+  CHECK_ERR(iter.step());
+  CHECK_REAL_EQUAL( 0.18, iter.volume(), 1e-12 ); // D
+}
+  
+void test_leaf_splits_intersects()
+{
+  MBCore moab;
+  MBBSPTree tool( &moab );
+  MBErrorCode rval;
+  MBEntityHandle root;
+  MBBSPTreeBoxIter iter;
+  MBBSPTree::Plane p;
+  
+  const double min[3] = { 0, 0, 0 };
+  const double max[3] = { 1, 2, 3 };
+  rval = tool.create_tree( min, max, root );
+  CHECK_ERR(rval);
+  rval = tool.get_tree_iterator( root, iter );
+  CHECK_ERR(rval);
+  
+  p.set( 1, 0, 0, 1 ); // x == -1
+  CHECK_EQUAL( MBBSPTreeBoxIter::MISS, iter.splits( p ) );
+  CHECK( !iter.intersects( p ) );
+  p.flip();
+  CHECK_EQUAL( MBBSPTreeBoxIter::MISS, iter.splits( p ) );
+  CHECK( !iter.intersects( p ) );
+  
+  p.set( 1, 0, 0, 0 ); // x == 0
+  CHECK_EQUAL( MBBSPTreeBoxIter::NONHEX, iter.splits( p ) );
+  p.flip();
+  CHECK_EQUAL( MBBSPTreeBoxIter::NONHEX, iter.splits( p ) );
+ 
+  p.set( 1, 0, 0, -0.5 ); // x == 0.5
+  CHECK_EQUAL( MBBSPTreeBoxIter::SPLIT, iter.splits( p ) );
+  CHECK( iter.intersects( p ) );
+  p.flip();
+  CHECK_EQUAL( MBBSPTreeBoxIter::SPLIT, iter.splits( p ) );
+  CHECK( iter.intersects( p ) );
+  
+  p.set( 1, 0, 0, -1 ); // x == 1
+  CHECK_EQUAL( MBBSPTreeBoxIter::NONHEX, iter.splits( p ) );
+  p.flip();
+  CHECK_EQUAL( MBBSPTreeBoxIter::NONHEX, iter.splits( p ) );
+ 
+  p.set( 1, 0, 0, -2 ); // x == 2
+  CHECK_EQUAL( MBBSPTreeBoxIter::MISS, iter.splits( p ) );
+  CHECK( !iter.intersects( p ) );
+  p.flip();
+  CHECK_EQUAL( MBBSPTreeBoxIter::MISS, iter.splits( p ) );
+  CHECK( !iter.intersects( p ) );
+  
+  double pt1[3] = { 0, 0, 1.5 };
+  double pt2[3] = { 1, 0, 1.5 };
+  double pt3[3] = { 0, 1, 3.0 };
+  p.set( pt1, pt2, pt3 );
+  CHECK_EQUAL( MBBSPTreeBoxIter::NONHEX, iter.splits( p ) );
+  CHECK( iter.intersects( p ) );
+  p.flip();
+  CHECK_EQUAL( MBBSPTreeBoxIter::NONHEX, iter.splits( p ) );
+  CHECK( iter.intersects( p ) );
+  
+  double pt4[3] = { 0, 2, 2.8 };
+  p.set( pt1, pt2, pt4 );
+  CHECK_EQUAL( MBBSPTreeBoxIter::SPLIT, iter.splits( p ) );
+  CHECK( iter.intersects( p ) );
+  p.flip();
+  CHECK_EQUAL( MBBSPTreeBoxIter::SPLIT, iter.splits( p ) );
+  CHECK( iter.intersects( p ) );
+  
+  double pta[3] = { 0.8, 0, 0 };
+  double ptb[3] = { 0, 0.2, 3 };
+  double ptc[3] = { 0.8, 2, 3 };
+  p.set( pta, ptb, ptc );
+  CHECK_EQUAL( MBBSPTreeBoxIter::NONHEX, iter.splits( p ) );
+  CHECK( iter.intersects( p ) );
+  p.flip();
+  CHECK_EQUAL( MBBSPTreeBoxIter::NONHEX, iter.splits( p ) );
+  CHECK( iter.intersects( p ) );
+}
+  

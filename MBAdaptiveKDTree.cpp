@@ -716,6 +716,42 @@ MBErrorCode MBAdaptiveKDTreeIter::get_parent_split_plane( MBAdaptiveKDTree::Plan
 }
 
 
+bool MBAdaptiveKDTreeIter::is_sibling( const MBAdaptiveKDTreeIter& other_leaf ) const
+{
+  const size_t s = mStack.size();
+  return (s > 1) && (s == other_leaf.mStack.size()) &&
+         (other_leaf.mStack[s-2].entity == mStack[s-2].entity) &&
+         other_leaf.handle() != handle();
+}
+
+bool MBAdaptiveKDTreeIter::is_sibling( MBEntityHandle other_leaf ) const
+{
+  if (mStack.size() < 2 || other_leaf == handle())
+    return false;
+  MBEntityHandle parent = mStack[mStack.size()-2].entity;
+  childVect.clear();
+  MBErrorCode rval = tool()->moab()->get_child_meshsets( parent, childVect );
+  if (MB_SUCCESS != rval || childVect.size() != 2) {
+    assert(false);
+    return false;
+  }
+  return childVect[0] == other_leaf || childVect[1] == other_leaf;
+}
+
+bool MBAdaptiveKDTreeIter::sibling_is_forward() const
+{
+  if (mStack.size() < 2) // if root
+    return false;
+  MBEntityHandle parent = mStack[mStack.size()-2].entity;
+  childVect.clear();
+  MBErrorCode rval = tool()->moab()->get_child_meshsets( parent, childVect );
+  if (MB_SUCCESS != rval || childVect.size() != 2) {
+    assert(false);
+    return false;
+  }
+  return childVect[0] == handle();
+}  
+
 static MBErrorCode intersect_children_with_elems(
                                         MBAdaptiveKDTree* tool,
                                         const MBRange& elems,

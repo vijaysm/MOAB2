@@ -302,7 +302,17 @@ public:
     //! Get max corner of axis-aligned box for current leaf
   const double* box_max() const 
     { return mBox[BMAX]; }
-    
+  
+  double volume() const
+    { return (mBox[BMAX][0] - mBox[BMIN][0]) * 
+             (mBox[BMAX][1] - mBox[BMIN][1]) * 
+             (mBox[BMAX][2] - mBox[BMIN][2]); }
+  
+    //! test if a plane intersects the leaf box
+  bool intersects( const MBAdaptiveKDTree::Plane& plane ) const
+    { return mBox[BMIN][plane.norm] <= plane.coord &&
+             mBox[BMAX][plane.norm] >= plane.coord; }
+  
     //! Get depth in tree. root is at depth of 1.
   unsigned depth() const
     { return mStack.size(); }
@@ -369,6 +379,20 @@ public:
   
     //! Get split plane that separates this node from its immediate sibling.
   MBErrorCode get_parent_split_plane( MBAdaptiveKDTree::Plane& plane ) const;
+  
+    //! Return true if thos node and the passed node share the
+    //! same immediate parent.
+  bool is_sibling( const MBAdaptiveKDTreeIter& other_leaf ) const;
+  
+    //! Return true if thos node and the passed node share the
+    //! same immediate parent.
+  bool is_sibling( MBEntityHandle other_leaf ) const;
+  
+    //! Returns true if calling step() will advance to the
+    //! immediate sibling of the current node.  Returns false
+    //! if current node is root or back() will move to the 
+    //! immediate sibling.
+  bool sibling_is_forward( ) const;
 };
 
 #endif

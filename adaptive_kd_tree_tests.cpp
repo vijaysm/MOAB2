@@ -395,7 +395,7 @@ void check_point_in_triangles( MBInterface* moab,
    */
 void create_simple_2d_tree( MBAdaptiveKDTree& tool, 
                             MBEntityHandle& root,
-                            MBEntityHandle leaves[9] )
+                            MBEntityHandle leaves[9] = 0 )
 {
   MBErrorCode rval;
   MBAdaptiveKDTree::Plane plane;
@@ -432,13 +432,15 @@ void create_simple_2d_tree( MBAdaptiveKDTree& tool,
   rval = tool.split_leaf( iter, plane );
   CHECK( MB_SUCCESS == rval );
   CHECK( box_equal( iter, -5, -4, -1, -1, -2, 1 ) );
-  leaves[1] = iter.handle();
+  if (leaves)
+    leaves[1] = iter.handle();
   
     // leaf [2]
   rval = iter.step();
   CHECK( MB_SUCCESS == rval );
   CHECK( box_equal( iter, -5, -2, -1, -1, 0, 1 ) );
-  leaves[2] = iter.handle();
+  if (leaves)
+    leaves[2] = iter.handle();
   
     // non-leaf right of split plane (2)
   rval = iter.step();
@@ -451,13 +453,15 @@ void create_simple_2d_tree( MBAdaptiveKDTree& tool,
   rval = tool.split_leaf( iter, plane );
   CHECK( MB_SUCCESS == rval );
   CHECK( box_equal( iter, -1, -4, -1, 4, 0, 1 ) );
-  leaves[3] = iter.handle();
+  if (leaves)
+    leaves[3] = iter.handle();
   
     // leaf [4]
   rval = iter.step();
   CHECK( MB_SUCCESS == rval );
   CHECK( box_equal( iter, 4, -4, -1, 5, 0, 1 ) );
-  leaves[4] = iter.handle();
+  if (leaves)
+    leaves[4] = iter.handle();
   
     // non-leaf above split plane (1)
   rval = iter.step();
@@ -477,13 +481,15 @@ void create_simple_2d_tree( MBAdaptiveKDTree& tool,
   rval = tool.split_leaf( iter, plane );
   CHECK( MB_SUCCESS == rval );
   CHECK( box_equal( iter, -5, 0, -1, -3, 4, 1 ) );
-  leaves[5] = iter.handle();
+  if (leaves)
+    leaves[5] = iter.handle();
   
     // leaf [6];
   rval = iter.step();
   CHECK( MB_SUCCESS == rval );
   CHECK( box_equal( iter, -3, 0, -1, 0, 4, 1 ) );
-  leaves[6] = iter.handle();
+  if (leaves)
+    leaves[6] = iter.handle();
   
     // non-leaf right of split plane (5)
   rval = iter.step();
@@ -496,13 +502,15 @@ void create_simple_2d_tree( MBAdaptiveKDTree& tool,
   rval = tool.split_leaf( iter, plane );
   CHECK( MB_SUCCESS == rval );
   CHECK( box_equal( iter, 0, 0, -1, 5, 3, 1 ) );
-  leaves[7] = iter.handle();
+  if (leaves)
+    leaves[7] = iter.handle();
   
     // leaf [8];
   rval = iter.step();
   CHECK( MB_SUCCESS == rval );
   CHECK( box_equal( iter, 0, 3, -1, 5, 4, 1 ) );
-  leaves[8] = iter.handle();
+  if (leaves)
+    leaves[8] = iter.handle();
   
     // the end
   rval = iter.step();
@@ -1062,8 +1070,152 @@ void test_ray_intersect_triangles()
     check_point_in_triangles( &moab, &tris[i], 1, tript );
   }
 }
+
+void test_leaf_volume()
+{
+  MBCore moab;
+  MBAdaptiveKDTree tool( &moab );
+  MBEntityHandle root;
   
+  create_simple_2d_tree( tool, root );
+  MBAdaptiveKDTreeIter iter;
+  MBErrorCode rval = tool.get_tree_iterator( root, iter );
+  CHECK_ERR(rval);
   
+  CHECK_REAL_EQUAL( 16.0, iter.volume(), 1e-12 ); // 1
+  CHECK_ERR(iter.step());
+  CHECK_REAL_EQUAL( 16.0, iter.volume(), 1e-12 ); // 2
+  CHECK_ERR(iter.step());
+  CHECK_REAL_EQUAL( 40.0, iter.volume(), 1e-12 ); // 3
+  CHECK_ERR(iter.step());
+  CHECK_REAL_EQUAL(  8.0, iter.volume(), 1e-12 ); // 4
+  CHECK_ERR(iter.step());
+  CHECK_REAL_EQUAL( 16.0, iter.volume(), 1e-12 ); // 5
+  CHECK_ERR(iter.step());
+  CHECK_REAL_EQUAL( 24.0, iter.volume(), 1e-12 ); // 6
+  CHECK_ERR(iter.step());
+  CHECK_REAL_EQUAL( 30.0, iter.volume(), 1e-12 ); // 7
+  CHECK_ERR(iter.step());
+  CHECK_REAL_EQUAL( 10.0, iter.volume(), 1e-12 ); // 8
+}
+
+void test_leaf_sibling()
+{
+  MBErrorCode rval;
+  MBCore moab;
+  MBAdaptiveKDTree tool( &moab );
+  MBEntityHandle root;
+  
+  create_simple_2d_tree( tool, root );
+  MBAdaptiveKDTreeIter iter1, iter2;
+  rval = tool.get_tree_iterator( root, iter1 );
+  CHECK_ERR(rval);
+  rval = tool.get_tree_iterator( root, iter2 );
+  CHECK_ERR(rval);
+  
+    // iter1 == 1, iter2 == 1
+  CHECK( !iter1.is_sibling( iter1 ) );
+  CHECK( !iter1.is_sibling( iter1.handle() ) );
+  CHECK( !iter1.is_sibling( iter2 ) );
+  CHECK(  iter1.sibling_is_forward() );
+  
+    // iter1 == 1, iter2 == 2
+  rval = iter2.step();
+  CHECK_ERR(rval);
+  CHECK(  iter1.is_sibling( iter2 ) );
+  CHECK(  iter1.is_sibling( iter2.handle() ) );
+  CHECK(  iter2.is_sibling( iter1 ) );
+  CHECK(  iter2.is_sibling( iter1.handle() ) );
+  CHECK( !iter2.sibling_is_forward() );
+  
+    // iter1 == 1, iter2 == 3
+  rval = iter2.step();
+  CHECK_ERR(rval);
+  CHECK( !iter1.is_sibling( iter2 ) );
+  CHECK( !iter1.is_sibling( iter2.handle() ) );
+  CHECK( !iter2.is_sibling( iter1 ) );
+  CHECK( !iter2.is_sibling( iter1.handle() ) );
+  CHECK(  iter2.sibling_is_forward() );
+  
+    // iter1 == 2, iter2 == 3
+  rval = iter1.step();
+  CHECK_ERR(rval);
+  CHECK( !iter1.is_sibling( iter2 ) );
+  CHECK( !iter1.is_sibling( iter2.handle() ) );
+  CHECK( !iter2.is_sibling( iter1 ) );
+  CHECK( !iter2.is_sibling( iter1.handle() ) );
+  CHECK( !iter1.sibling_is_forward() );
+
+    // iter1 == 4, iter2 == 3
+  rval = iter1.step();
+  CHECK_ERR(rval);
+  CHECK_EQUAL( iter1.handle(), iter2.handle() );
+  rval = iter1.step();
+  CHECK_ERR(rval);
+  CHECK(  iter1.is_sibling( iter2 ) );
+  CHECK(  iter1.is_sibling( iter2.handle() ) );
+  CHECK(  iter2.is_sibling( iter1 ) );
+  CHECK(  iter2.is_sibling( iter1.handle() ) );
+  CHECK( !iter1.sibling_is_forward() );
+}  
+  
+
+void test_leaf_intersects_plane()
+{
+  MBErrorCode rval;
+  MBCore moab;
+  MBAdaptiveKDTree tool( &moab );
+  
+  MBEntityHandle root;
+  const double min[3] = { -5, -4, -1 };
+  const double max[3] = {  1,  2,  3 };
+  rval = tool.create_tree( min, max, root );
+  CHECK_ERR(rval);
+  
+  MBAdaptiveKDTreeIter iter;
+  rval = tool.get_tree_iterator( root, iter );
+  CHECK_ERR(rval);
+  
+  MBAdaptiveKDTree::Plane x1 = { min[0] - 1, MBAdaptiveKDTree::X };
+  CHECK( !iter.intersects( x1 ) );
+  MBAdaptiveKDTree::Plane x2 = { min[0]    , MBAdaptiveKDTree::X };
+  CHECK(  iter.intersects( x2 ) );
+  MBAdaptiveKDTree::Plane x3 = { min[0] + 1, MBAdaptiveKDTree::X };
+  CHECK(  iter.intersects( x3 ) );
+  MBAdaptiveKDTree::Plane x4 = { max[0] - 1, MBAdaptiveKDTree::X };
+  CHECK(  iter.intersects( x4 ) );
+  MBAdaptiveKDTree::Plane x5 = { max[0]    , MBAdaptiveKDTree::X };
+  CHECK(  iter.intersects( x5 ) );
+  MBAdaptiveKDTree::Plane x6 = { max[0] + 1, MBAdaptiveKDTree::X };
+  CHECK( !iter.intersects( x6 ) );
+  
+  MBAdaptiveKDTree::Plane y1 = { min[1] - 1, MBAdaptiveKDTree::Y };
+  CHECK( !iter.intersects( y1 ) );
+  MBAdaptiveKDTree::Plane y2 = { min[1]    , MBAdaptiveKDTree::Y };
+  CHECK(  iter.intersects( y2 ) );
+  MBAdaptiveKDTree::Plane y3 = { min[1] + 1, MBAdaptiveKDTree::Y };
+  CHECK(  iter.intersects( y3 ) );
+  MBAdaptiveKDTree::Plane y4 = { max[1] - 1, MBAdaptiveKDTree::Y };
+  CHECK(  iter.intersects( y4 ) );
+  MBAdaptiveKDTree::Plane y5 = { max[1]    , MBAdaptiveKDTree::Y };
+  CHECK(  iter.intersects( y5 ) );
+  MBAdaptiveKDTree::Plane y6 = { max[1] + 1, MBAdaptiveKDTree::Y };
+  CHECK( !iter.intersects( y6 ) );
+  
+  MBAdaptiveKDTree::Plane z1 = { min[2] - 1, MBAdaptiveKDTree::Z };
+  CHECK( !iter.intersects( z1 ) );
+  MBAdaptiveKDTree::Plane z2 = { min[2]    , MBAdaptiveKDTree::Z };
+  CHECK(  iter.intersects( z2 ) );
+  MBAdaptiveKDTree::Plane z3 = { min[2] + 1, MBAdaptiveKDTree::Z };
+  CHECK(  iter.intersects( z3 ) );
+  MBAdaptiveKDTree::Plane z4 = { max[2] - 1, MBAdaptiveKDTree::Z };
+  CHECK(  iter.intersects( z4 ) );
+  MBAdaptiveKDTree::Plane z5 = { max[2]    , MBAdaptiveKDTree::Z };
+  CHECK(  iter.intersects( z5 ) );
+  MBAdaptiveKDTree::Plane z6 = { max[2] + 1, MBAdaptiveKDTree::Z };
+  CHECK( !iter.intersects( z6 ) );
+}
+
 int main()
 {
   int error_count = 0;
@@ -1074,6 +1226,8 @@ int main()
   error_count += RUN_TEST(test_sphere_intersect_triangles);
   error_count += RUN_TEST(test_ray_intersect_triangles);
   error_count += RUN_TEST(test_tree_merge_nodes);
-  error_count += RUN_TEST(test_tree_merge_nodes);
+  error_count += RUN_TEST(test_leaf_volume);
+  error_count += RUN_TEST(test_leaf_sibling);
+  error_count += RUN_TEST(test_leaf_intersects_plane);
   return error_count;
 }

@@ -111,6 +111,9 @@ public:
       
     void set( const double pt1[3], const double pt2[3], const double pt3[3] );
     
+    void set( double i, double j, double k, double coeff )
+      { *this = Plane( i, j, k, coeff ); }
+    
       /** Create Y = 1 plane by doing set( Y, 1.0 ); */
     void set( Axis normal, double point_on_axis )
       { 
@@ -277,6 +280,20 @@ public:
   
     //! Get split plane that separates this node from its immediate sibling.
   MBErrorCode get_parent_split_plane( MBBSPTree::Plane& plane ) const;
+  
+    //! Return true if thos node and the passed node share the
+    //! same immediate parent.
+  bool is_sibling( const MBBSPTreeIter& other_leaf ) const;
+  
+    //! Return true if thos node and the passed node share the
+    //! same immediate parent.
+  bool is_sibling( MBEntityHandle other_leaf ) const;
+  
+    //! Returns true if calling step() will advance to the
+    //! immediate sibling of the current node.  Returns false
+    //! if current node is root or back() will move to the 
+    //! immediate sibling.
+  bool sibling_is_forward( ) const;
 };
 
 class MBBSPTreeBoxIter : public MBBSPTreeIter
@@ -340,8 +357,18 @@ class MBBSPTreeBoxIter : public MBBSPTreeIter
     //!       the iterator. Calling step() will not work.
   MBErrorCode back() { return MBBSPTreeIter::back(); }
   
-  //! Get coordinates of box corners, in Exodus II hexahedral ordering.
+    //! Get coordinates of box corners, in Exodus II hexahedral ordering.
   MBErrorCode get_box_corners( double coords[8][3] ) const;
+  
+    //! Get volume of leaf box
+  double volume() const;
+  
+    //! test if a plane intersects the leaf box
+  enum XSect { MISS = 0, SPLIT = 1, NONHEX = -1 };
+  XSect splits( const MBBSPTree::Plane& plane ) const;
+  
+    //! test if a plane intersects the leaf box
+  bool intersects( const MBBSPTree::Plane& plane ) const;
   
     //! Return the side of the box bounding this tree node
     //! that is shared with the immediately adjacent sibling
