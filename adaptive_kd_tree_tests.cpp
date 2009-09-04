@@ -3,22 +3,10 @@
 #include "MBCartVect.hpp"
 #include "MBGeomUtil.hpp"
 #include "MBRange.hpp"
+#include "TestUtil.hpp"
 
 #include <iostream>
 #include <algorithm>
-
-/* Like assert, except returns false rather than call abort() */
-#define CHECK( A ) \
-  if (!(A)) return check_failure( #A, __LINE__ )
-
-/* used in CHECK macro */
-bool check_failure( const char* str, int line )
-{
-    std::cout << "FAILURE:" << std::endl 
-              << "  Condtion: " << str << std::endl 
-              << "  Line: " << line << std::endl; 
-    return false; 
-}
 
 /* Utility method - compare two range boxes */
 bool box_equal( const MBAdaptiveKDTreeIter& iter, 
@@ -289,7 +277,7 @@ void build_triangle_octahedron( MBInterface* moab, MBRange& tris )
   build_triangles( moab, tris, 6, coords, 8, conn );
 }
 
-bool test_valid_tree( MBAdaptiveKDTree* tool, MBEntityHandle root, 
+void test_valid_tree( MBAdaptiveKDTree* tool, MBEntityHandle root, 
                       MBAdaptiveKDTree::Settings& settings,
                       const MBRange& expected_tris )
 {
@@ -322,11 +310,10 @@ bool test_valid_tree( MBAdaptiveKDTree* tool, MBEntityHandle root,
   
   CHECK( MB_ENTITY_NOT_FOUND == rval );
   CHECK( expected_tris == all_tris );
-  return true;
 }
 
 /* utility method - check that all tris share a vertex */
-bool check_common_vertex( MBInterface* moab,
+void check_common_vertex( MBInterface* moab,
                           const MBEntityHandle* tris,
                           unsigned num_tri,
                           MBCartVect point )
@@ -357,11 +344,10 @@ bool check_common_vertex( MBInterface* moab,
     rval = moab->get_connectivity( tris[j], conn, conn_len );
     CHECK( conn[0] == vertex || conn[1] == vertex || conn[2] == vertex );
   }
-  return true;
 }                        
  
 /* utility method - check that all tris share a vertex */
-bool check_point_in_triangles( MBInterface* moab,
+void check_point_in_triangles( MBInterface* moab,
                                const MBEntityHandle* tris,
                                unsigned num_tris,
                                MBCartVect point )
@@ -385,7 +371,6 @@ bool check_point_in_triangles( MBInterface* moab,
     CHECK( fabs(tript[1]) < 1e-6 );
     CHECK( fabs(tript[2]) < 1e-6 );
   }
-  return true;
 }
 
   /* Create the following 2D tree (no Z splits)
@@ -408,7 +393,7 @@ bool check_point_in_triangles( MBInterface* moab,
                     |                |
                     (2) X = -1      (4) X = 4
    */
-bool create_simple_2d_tree( MBAdaptiveKDTree& tool, 
+void create_simple_2d_tree( MBAdaptiveKDTree& tool, 
                             MBEntityHandle& root,
                             MBEntityHandle leaves[9] )
 {
@@ -522,11 +507,9 @@ bool create_simple_2d_tree( MBAdaptiveKDTree& tool,
     // the end
   rval = iter.step();
   CHECK( MB_ENTITY_NOT_FOUND == rval );
-
-  return true;
 }
 
-bool leaf_iterator_test()
+void leaf_iterator_test()
 {
   MBErrorCode rval;
   MBCore moab;
@@ -560,7 +543,7 @@ bool leaf_iterator_test()
   
     // construct a simple 2D tree for remaining tests
   MBEntityHandle leaves[9];
-  CHECK( create_simple_2d_tree( tool, root, leaves ) );
+  create_simple_2d_tree( tool, root, leaves );
 
   
   /**** Now traverse tree again, and check neighbors of each leaf *****/
@@ -694,11 +677,9 @@ bool leaf_iterator_test()
   CHECK( MB_SUCCESS == rval );
   CHECK( box_equal( iter, 0, 3, -1, 5, 4, 1 ) );
   CHECK( iter.handle() == leaves[8] );
-  
-  return true;
 }
 
-bool test_tree_merge_nodes()
+void test_tree_merge_nodes()
 {
     // build simple tree for tests
   MBErrorCode rval;
@@ -707,7 +688,7 @@ bool test_tree_merge_nodes()
   MBAdaptiveKDTree tool(mb);
   MBEntityHandle root;
   MBEntityHandle leaves[9];
-  CHECK( create_simple_2d_tree( tool, root, leaves ) );
+  create_simple_2d_tree( tool, root, leaves );
 
     // get iterator for tree
   MBAdaptiveKDTreeIter iter;
@@ -730,11 +711,9 @@ bool test_tree_merge_nodes()
     // leaf 5
   CHECK( box_equal( iter, -5, 0, -1, -3, 4, 1 ) );
   CHECK( iter.handle() == leaves[5] );
-  
-  return true;  
 }
 
-bool test_build_tree_bisect_triangles( )
+void test_build_tree_bisect_triangles( )
 {
   MBCore moab;
   MBAdaptiveKDTree tool( &moab );
@@ -751,30 +730,28 @@ bool test_build_tree_bisect_triangles( )
   build_triangle_box_small( &moab, box_tris );
   rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
-  CHECK( test_valid_tree( &tool, root, settings, box_tris ) );
+  test_valid_tree( &tool, root, settings, box_tris );
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_octahedron( &moab, box_tris );
   rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
-  CHECK( test_valid_tree( &tool, root, settings, box_tris ) );
+  test_valid_tree( &tool, root, settings, box_tris );
   
   moab.delete_mesh(); box_tris.clear();
   build_triangle_box_large( &moab, box_tris );
   rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
-  CHECK( test_valid_tree( &tool, root, settings, box_tris ) );
+  test_valid_tree( &tool, root, settings, box_tris );
   
   settings.maxTreeDepth = 2;
   build_triangle_box_large( &moab, box_tris );
   rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
-  CHECK( test_valid_tree( &tool, root, settings, box_tris ) );
-  
-  return true;
+  test_valid_tree( &tool, root, settings, box_tris );
 }
   
-bool test_closest_triangle()
+void test_closest_triangle()
 {
   MBCore moab;
   MBAdaptiveKDTree tool( &moab );
@@ -792,7 +769,7 @@ bool test_closest_triangle()
   build_triangle_box_small( &moab, box_tris );
   rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
-  CHECK( test_valid_tree( &tool, root, settings, box_tris ) );
+  test_valid_tree( &tool, root, settings, box_tris );
 
     // test closest to each corner of the box.
   for (unsigned i = 0; i < 8; ++i) {
@@ -808,7 +785,7 @@ bool test_closest_triangle()
     CHECK( fabs(y - point[1]) < 1e-6 );
     CHECK( fabs(z - point[2]) < 1e-6 );
       // check point is at triangle vertex
-    CHECK( check_common_vertex( tool.moab(), &tri, 1, point ) );
+    check_common_vertex( tool.moab(), &tri, 1, point );
   }
   
     // test location on each face
@@ -828,7 +805,7 @@ bool test_closest_triangle()
     CHECK( fabs(diff[1]) < 1e-6 );
     CHECK( fabs(diff[2]) < 1e-6 );
        // check that point is contained within triangle
-    CHECK( check_point_in_triangles( tool.moab(), &tri, 1, point ) );
+    check_point_in_triangles( tool.moab(), &tri, 1, point );
   }
   
     // test a location really far from the tree
@@ -841,7 +818,7 @@ bool test_closest_triangle()
     CHECK( fabs(point[1] - 0.75) < 1e-6 );    
     CHECK( fabs(point[2] - 1.00) < 1e-6 );    
        // check that point is contained within triangle
-    CHECK( check_point_in_triangles( tool.moab(), &tri, 1, point ) );
+    check_point_in_triangles( tool.moab(), &tri, 1, point );
   }
   
     // now do it all again with a lot more triangles
@@ -849,7 +826,7 @@ bool test_closest_triangle()
   build_triangle_box_large( &moab, box_tris );
   rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
-  CHECK( test_valid_tree( &tool, root, settings, box_tris ) );
+  test_valid_tree( &tool, root, settings, box_tris );
 
     // test closest to each corner of the box.
   for (unsigned i = 0; i < 8; ++i) {
@@ -865,7 +842,7 @@ bool test_closest_triangle()
     CHECK( fabs(3.0*y - point[1]) < 1e-6 );
     CHECK( fabs(3.0*z - point[2]) < 1e-6 );
       // check point is at triangle vertex
-    CHECK( check_common_vertex( tool.moab(), &tri, 1, point ) );
+    check_common_vertex( tool.moab(), &tri, 1, point );
   }
   
     // test location on each face
@@ -885,7 +862,7 @@ bool test_closest_triangle()
     CHECK( fabs(diff[1]) < 1e-6 );
     CHECK( fabs(diff[2]) < 1e-6 );
        // check that point is contained within triangle
-    CHECK( check_point_in_triangles( tool.moab(), &tri, 1, point ) );
+    check_point_in_triangles( tool.moab(), &tri, 1, point );
   }
   
     // test a location really far from the tree
@@ -898,13 +875,11 @@ bool test_closest_triangle()
     CHECK( fabs(point[1] - 2.75) < 1e-6 );    
     CHECK( fabs(point[2] - 3.00) < 1e-6 );    
        // check that point is contained within triangle
-    CHECK( check_point_in_triangles( tool.moab(), &tri, 1, point ) );
+    check_point_in_triangles( tool.moab(), &tri, 1, point );
   }
-  
-  return true;
 }
 
-bool test_sphere_intersect_triangles()
+void test_sphere_intersect_triangles()
 {
   MBCore moab;
   MBAdaptiveKDTree tool( &moab );
@@ -922,7 +897,7 @@ bool test_sphere_intersect_triangles()
   build_triangle_box_small( &moab, box_tris );
   rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
-  CHECK( test_valid_tree( &tool, root, settings, box_tris ) );
+  test_valid_tree( &tool, root, settings, box_tris );
 
     // test closest to each corner of the box.
   for (unsigned i = 0; i < 8; ++i) {
@@ -937,7 +912,7 @@ bool test_sphere_intersect_triangles()
     CHECK( triangles.size() >= 3 );
     CHECK( triangles.size() <= 6 );
       // check point is at the same vertex for each triangle
-    CHECK( check_common_vertex( tool.moab(), &triangles[0], triangles.size(), MBCartVect(center) ) );
+    check_common_vertex( tool.moab(), &triangles[0], triangles.size(), MBCartVect(center) );
   }
   
     // now do it all again with a lot more triangles
@@ -946,7 +921,7 @@ bool test_sphere_intersect_triangles()
   build_triangle_box_large( &moab, box_tris );
   rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
-  CHECK( test_valid_tree( &tool, root, settings, box_tris ) );
+  test_valid_tree( &tool, root, settings, box_tris );
 
     // test closest to each corner of the box.
   for (unsigned i = 0; i < 8; ++i) {
@@ -961,13 +936,11 @@ bool test_sphere_intersect_triangles()
     CHECK( triangles.size() >= 3 );
     CHECK( triangles.size() <= 6 );
       // check point is at the same vertex for each triangle
-    CHECK( check_common_vertex( tool.moab(), &triangles[0], triangles.size(), MBCartVect(center) ) );
+    check_common_vertex( tool.moab(), &triangles[0], triangles.size(), MBCartVect(center) );
   }
-  
-  return true;
 }
 
-bool test_ray_intersect_triangles()
+void test_ray_intersect_triangles()
 {
   MBCore moab;
   MBAdaptiveKDTree tool( &moab );
@@ -986,7 +959,7 @@ bool test_ray_intersect_triangles()
   build_triangle_box_small( &moab, box_tris );
   rval = tool.build_tree( box_tris, root, &settings );
   CHECK( MB_SUCCESS == rval );
-  CHECK( test_valid_tree( &tool, root, settings, box_tris ) );
+  test_valid_tree( &tool, root, settings, box_tris );
   
     // test ray through box parallel to X axis
   MBCartVect dir( 1, 0, 0 );
@@ -999,7 +972,7 @@ bool test_ray_intersect_triangles()
   for ( unsigned i = 0; i < dists.size(); ++i ) {
     CHECK( fabs(dists[i] - 1) < 1e-6 || fabs(dists[i] - 3) < 1e-6 );
     MBCartVect tript = pt + dists[i] * dir;
-    CHECK( check_point_in_triangles( &moab, &tris[i], 1, tript ) );
+    check_point_in_triangles( &moab, &tris[i], 1, tript );
   }
    
     // test ray through box parallel to X axis, closest tri only
@@ -1009,7 +982,7 @@ bool test_ray_intersect_triangles()
   CHECK( tris.size() == 1 );
   CHECK( dists.size() == tris.size() );
   CHECK( fabs(dists[0] - 1) < 1e-6  );
-  CHECK( check_point_in_triangles( &moab, &tris[0], 1, pt + dists[0] * dir ) );
+  check_point_in_triangles( &moab, &tris[0], 1, pt + dists[0] * dir );
 
     // test ray ending within box, parallel to X axis
   tris.clear(); dists.clear();
@@ -1018,7 +991,7 @@ bool test_ray_intersect_triangles()
   CHECK( tris.size() == 1 );
   CHECK( dists.size() == tris.size() );
   CHECK( fabs(dists[0] - 1) < 1e-6  );
-  CHECK( check_point_in_triangles( &moab, &tris[0], 1, pt + dists[0] * dir ) );
+  check_point_in_triangles( &moab, &tris[0], 1, pt + dists[0] * dir );
   
     // test ray starting within box parallel to X axis
   tris.clear(); dists.clear();
@@ -1030,7 +1003,7 @@ bool test_ray_intersect_triangles()
   for ( unsigned i = 0; i < dists.size(); ++i ) {
     CHECK( fabs(dists[i] - 1) < 1e-6 );
     MBCartVect tript = pt + dists[i] * dir;
-    CHECK( check_point_in_triangles( &moab, &tris[i], 1, tript ) );
+    check_point_in_triangles( &moab, &tris[i], 1, tript );
   }
   
     // test skew ray through box
@@ -1045,8 +1018,8 @@ bool test_ray_intersect_triangles()
     CHECK( fabs(dists[0] - 0.5*sqrt(2.0)) < 1e-6 );
     CHECK( fabs(dists[1] -     sqrt(2.0)) < 1e-6 );
   }
-  CHECK( check_point_in_triangles( &moab, &tris[0], 1, pt + dists[0] * dir ) );
-  CHECK( check_point_in_triangles( &moab, &tris[1], 1, pt + dists[1] * dir ) );
+  check_point_in_triangles( &moab, &tris[0], 1, pt + dists[0] * dir );
+  check_point_in_triangles( &moab, &tris[1], 1, pt + dists[1] * dir );
   
   
     // test ray through box parallel to -Y axis
@@ -1060,7 +1033,7 @@ bool test_ray_intersect_triangles()
   for ( unsigned i = 0; i < dists.size(); ++i ) {
     CHECK( fabs(dists[i] - 1) < 1e-6 || fabs(dists[i] - 3) < 1e-6 );
     MBCartVect tript = pt + dists[i] * dir;
-    CHECK( check_point_in_triangles( &moab, &tris[i], 1, tript ) );
+    check_point_in_triangles( &moab, &tris[i], 1, tript );
   }
   
     // test ray through box parallel to Z axis
@@ -1074,7 +1047,7 @@ bool test_ray_intersect_triangles()
   for ( unsigned i = 0; i < dists.size(); ++i ) {
     CHECK( fabs(dists[i] - 1) < 1e-6 || fabs(dists[i] - 3) < 1e-6 );
     MBCartVect tript = pt + dists[i] * dir;
-    CHECK( check_point_in_triangles( &moab, &tris[i], 1, tript ) );
+    check_point_in_triangles( &moab, &tris[i], 1, tript );
   }
   
     // test ray through box parallel to Z axis, limit 2 first 2 intersections
@@ -1086,10 +1059,8 @@ bool test_ray_intersect_triangles()
   for ( unsigned i = 0; i < dists.size(); ++i ) {
     CHECK( fabs(dists[i] - 1) < 1e-6 );
     MBCartVect tript = pt + dists[i] * dir;
-    CHECK( check_point_in_triangles( &moab, &tris[i], 1, tript ) );
+    check_point_in_triangles( &moab, &tris[i], 1, tript );
   }
-  
-  return true;
 }
   
   
@@ -1097,11 +1068,12 @@ int main()
 {
   int error_count = 0;
   
-  error_count += !leaf_iterator_test();
-  error_count += !test_build_tree_bisect_triangles();
-  error_count += !test_closest_triangle();
-  error_count += !test_sphere_intersect_triangles();
-  error_count += !test_ray_intersect_triangles();
-  error_count += !test_tree_merge_nodes();
+  error_count += RUN_TEST(leaf_iterator_test);
+  error_count += RUN_TEST(test_build_tree_bisect_triangles);
+  error_count += RUN_TEST(test_closest_triangle);
+  error_count += RUN_TEST(test_sphere_intersect_triangles);
+  error_count += RUN_TEST(test_ray_intersect_triangles);
+  error_count += RUN_TEST(test_tree_merge_nodes);
+  error_count += RUN_TEST(test_tree_merge_nodes);
   return error_count;
 }
