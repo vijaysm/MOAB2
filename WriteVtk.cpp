@@ -41,6 +41,7 @@
 #include "MBWriteUtilIface.hpp"
 #include "MBInternals.hpp"
 #include "FileOptions.hpp"
+#include "MBVersion.h"
 
 #define INS_ID(stringvar, prefix, id) \
 sprintf(stringvar, prefix, id)
@@ -215,7 +216,7 @@ MBErrorCode WriteVtk::gather_mesh( const MBEntityHandle* set_list,
 MBErrorCode WriteVtk::write_header( std::ostream& stream )
 {
   stream << "# vtk DataFile Version 3.0" << std::endl;
-  stream << "MOAB Version " << MOAB_API_VERSION_STRING << std::endl;
+  stream << MB_VERSION_STRING << std::endl;
   stream << "ASCII" << std::endl;
   stream << "DATASET UNSTRUCTURED_GRID" << std::endl;
   return MB_SUCCESS;
