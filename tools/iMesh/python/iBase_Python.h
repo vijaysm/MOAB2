@@ -81,7 +81,7 @@ static void **IBase_API = NULL;
 #define NPY_IBASETAG        (*(int*)         IBase_API[5])
 
 
-#if !defined(NO_IMPORT_ARRAY) && !defined(NO_IMPORT)
+#if !defined(NO_IMPORT_IBASE) && !defined(NO_IMPORT)
 static int import_iBase(void)
 {
     PyObject *module = PyImport_ImportModule("itaps.iBase");

@@ -1,3 +1,4 @@
+#define _IMESH_MODULE
 #include "errors.h"
 #include "common.h"
 #include "iMesh_Python.h"
@@ -6,10 +7,10 @@
 static enum iBase_TagValueType char_to_type(char c);
 static char type_to_char(enum iBase_TagValueType t);
 
+static PyTypeObject iMesh_Type;
 static PyTypeObject iMeshIter_Type;
 static PyTypeObject iMeshEntitySet_Type;
 static int NPY_IMESHENTSET;
-
 static PyTypeObject iMeshTag_Type;
 static int NPY_IMESHTAG;
 
@@ -1079,6 +1080,24 @@ PyMODINIT_FUNC initiMesh(void)
     m = Py_InitModule("iMesh",module_methods);
     import_array();
     import_iBase();
+
+    /***** register C API *****/
+    static void *IMesh_API[6];
+    PyObject *api_obj;
+
+    /* Initialize the C API pointer array */
+    IMesh_API[0] = &iMesh_Type;
+    IMesh_API[1] = &iMeshIter_Type;
+    IMesh_API[2] = &iMeshEntitySet_Type;
+    IMesh_API[3] = &NPY_IMESHENTSET;
+    IMesh_API[4] = &iMeshTag_Type;
+    IMesh_API[5] = &NPY_IMESHTAG;
+
+    /* Create a CObject containing the API pointer array's address */
+    api_obj = PyCObject_FromVoidPtr(IMesh_API,NULL);
+
+    if(api_obj != NULL)
+        PyModule_AddObject(m, "_C_API", api_obj);
 
     /***** import helper module *****/
     if( (g_helper_module = PyImport_ImportModule("itaps.helpers")) == NULL)

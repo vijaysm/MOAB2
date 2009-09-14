@@ -60,6 +60,60 @@ typedef struct
     ( ((iMeshTag_Object*)(o))->mesh )
 
 
+#ifndef _IMESH_MODULE
+
+#if defined(PY_IMESH_UNIQUE_SYMBOL)
+#define IMesh_API PY_IMESH_UNIQUE_SYMBOL
+#endif
+
+#if defined(NO_IMPORT) || defined(NO_IMPORT_IMESH)
+extern void **IMesh_API;
+#elif defined(PY_IMESH_UNIQUE_SYMBOL)
+void **IMesh_API;
+#else
+static void **IMesh_API = NULL;
+#endif
+
+#define iMesh_Type          (*(PyTypeObject*)IMesh_API[0])
+#define iMeshIter_Type      (*(PyTypeObject*)IMesh_API[1])
+#define iMeshEntitySet_Type (*(PyTypeObject*)IMesh_API[2])
+#define NPY_IMESHENTSET     (*(int*)         IMesh_API[3])
+#define iMeshTag_Type       (*(PyTypeObject*)IMesh_API[4])
+#define NPY_IMESHTAG        (*(int*)         IMesh_API[5])
+
+
+
+#if !defined(NO_IMPORT_IMESH) && !defined(NO_IMPORT)
+static int import_iMesh(void)
+{
+    PyObject *module = PyImport_ImportModule("itaps.iMesh");
+    PyObject *c_api = NULL;
+
+    if(module == NULL)
+        return -1;
+
+    c_api = PyObject_GetAttrString(module,"_C_API");
+    if(c_api == NULL)
+    {
+        Py_DECREF(module);
+        return -2;
+    }
+
+    if(PyCObject_Check(c_api))
+        IMesh_API = (void **)PyCObject_AsVoidPtr(c_api);
+
+    Py_DECREF(c_api);
+    Py_DECREF(module);
+
+    if(IMesh_API == NULL)
+        return -3;
+    return 0;
+}
+#endif
+
+#endif
+
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
