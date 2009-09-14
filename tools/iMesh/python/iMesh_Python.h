@@ -1,33 +1,19 @@
 #ifndef PYTAPS_IMESH_PYTHON_H
 #define PYTAPS_IMESH_PYTHON_H
 
-#include "common.h"
-
 #include <Python.h>
 #include <iMesh.h>
-
-#define PY_IBASE_UNIQUE_SYMBOL itaps_IBASE_API
 #include "iBase_Python.h"
 
-#define PY_ARRAY_UNIQUE_SYMBOL itaps_ARRAY_API
-#include "numpy_extensions.h"
-
-static int checkError(iMesh_Instance mesh,int err);
-static enum iBase_TagValueType char_to_type(char c);
-static char type_to_char(enum iBase_TagValueType t);
-
-static PyObject *
-AdjacencyList_New(PyObject *adj,PyObject *offsets);
-static PyObject *
-IndexedAdjacencyList_New(PyObject *ents, PyObject *adj,PyObject *indices,
-                         PyObject *offsets);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct
 {
     PyObject_HEAD
     iMesh_Instance mesh;
 } iMesh_Object;
-
 
 typedef struct
 {
@@ -41,18 +27,11 @@ typedef struct
     };
 } iMeshIter_Object;
 
-static PyTypeObject iMeshIter_Type;
-
 typedef struct
 {
     iBaseEntitySet_Object set;
     iMesh_Object *mesh;
 } iMeshEntitySet_Object;
-
-static PyTypeObject iMeshEntitySet_Type;
-static int NPY_IMESHENTSET;
-
-static iMeshEntitySet_Object * iMeshEntitySet_New(iMesh_Object *mesh);
 
 #define iMeshEntitySet_NewRaw()                         \
     (iMeshEntitySet_Object*)PyObject_CallObject(        \
@@ -62,18 +41,13 @@ static iMeshEntitySet_Object * iMeshEntitySet_New(iMesh_Object *mesh);
     PyObject_TypeCheck((o),&iMeshEntitySet_Type)
 
 #define iMeshEntitySet_GetMesh(o)                       \
-    ((iMeshEntitySet_Object*)(o))->mesh
+    ( ((iMeshEntitySet_Object*)(o))->mesh )
 
 typedef struct
 {
     iBaseTag_Object tag;
     iMesh_Object *mesh;
 } iMeshTag_Object;
-
-static PyTypeObject iMeshTag_Type;
-static int NPY_IMESHTAG;
-
-static iMeshTag_Object * iMeshTag_New(iMesh_Object *mesh);
 
 #define iMeshTag_NewRaw()                               \
     (iMeshTag_Object*)PyObject_CallObject(              \
@@ -83,6 +57,11 @@ static iMeshTag_Object * iMeshTag_New(iMesh_Object *mesh);
     PyObject_TypeCheck((o),&iMeshTag_Type)
 
 #define iMeshTag_GetMesh(o)                             \
-    ((iMeshTag_Object*)(o))->mesh
+    ( ((iMeshTag_Object*)(o))->mesh )
+
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif

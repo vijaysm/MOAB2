@@ -1,6 +1,21 @@
 #include "errors.h"
+#include "common.h"
 #include "iMesh_Python.h"
-#include "iBase_Python.h"
+#include "numpy_extensions.h"
+
+static enum iBase_TagValueType char_to_type(char c);
+static char type_to_char(enum iBase_TagValueType t);
+
+static PyTypeObject iMeshIter_Type;
+static PyTypeObject iMeshEntitySet_Type;
+static int NPY_IMESHENTSET;
+
+static PyTypeObject iMeshTag_Type;
+static int NPY_IMESHTAG;
+
+static iMeshEntitySet_Object * iMeshEntitySet_New(iMesh_Object *mesh);
+static iMeshTag_Object * iMeshTag_New(iMesh_Object *mesh);
+
 
 /* TODO: these are never freed! */
 static PyObject *g_helper_module;

@@ -1,5 +1,6 @@
 #define _IBASE_MODULE
 #include "iBase_Python.h"
+#include "common.h"
 
 #include <numpy/arrayobject.h>
 

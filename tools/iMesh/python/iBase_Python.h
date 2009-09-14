@@ -1,10 +1,12 @@
 #ifndef PYTAPS_IBASE_PYTHON_H
 #define PYTAPS_IBASE_PYTHON_H
 
-#include "common.h"
-
 #include <Python.h>
 #include <iBase.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct
 {
@@ -107,6 +109,10 @@ static int import_iBase(void)
 }
 #endif
 
+#endif
+
+#ifdef __cplusplus
+} // extern "C"
 #endif
 
 #endif
