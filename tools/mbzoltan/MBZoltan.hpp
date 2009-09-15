@@ -22,6 +22,7 @@
 #ifndef MB_ZOLTAN_HPP
 #define MB_ZOLTAN_HPP
 
+#include <stdlib.h>
 #include "zoltan_cpp.h"
 
 extern "C" 
