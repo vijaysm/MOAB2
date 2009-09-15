@@ -27,7 +27,7 @@ type_to_char(enum iBase_TagValueType t)
 static void
 iMeshTagObj_dealloc(iMeshTag_Object *self)
 {
-    Py_XDECREF(self->mesh);
+    Py_XDECREF(self->instance);
     ((PyObject*)self)->ob_type->tp_free((PyObject*)self);
 }
 
@@ -36,8 +36,9 @@ iMeshTagObj_getName(iMeshTag_Object *self,void *closure)
 {
     char name[512];
     int err;
-    iMesh_getTagName(self->mesh->mesh,self->tag.handle,name,&err,sizeof(name));
-    if(checkError(self->mesh->mesh,err))
+    iMesh_getTagName(self->instance->handle,self->base.handle,name,&err,
+                     sizeof(name));
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     return Py_BuildValue("s",name);
@@ -47,8 +48,8 @@ static PyObject *
 iMeshTagObj_getSizeValues(iMeshTag_Object *self,void *closure)
 {
     int size,err;
-    iMesh_getTagSizeValues(self->mesh->mesh,self->tag.handle,&size,&err);
-    if(checkError(self->mesh->mesh,err))
+    iMesh_getTagSizeValues(self->instance->handle,self->base.handle,&size,&err);
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     return Py_BuildValue("i",size);
@@ -58,8 +59,8 @@ static PyObject *
 iMeshTagObj_getSizeBytes(iMeshTag_Object *self,void *closure)
 {
     int size,err;
-    iMesh_getTagSizeBytes(self->mesh->mesh,self->tag.handle,&size,&err);
-    if(checkError(self->mesh->mesh,err))
+    iMesh_getTagSizeBytes(self->instance->handle,self->base.handle,&size,&err);
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     return Py_BuildValue("i",size);
@@ -69,8 +70,8 @@ static PyObject *
 iMeshTagObj_getType(iMeshTag_Object *self,void *closure)
 {
     int type,err;
-    iMesh_getTagType(self->mesh->mesh,self->tag.handle,&type,&err);
-    if(checkError(self->mesh->mesh,err))
+    iMesh_getTagType(self->instance->handle,self->base.handle,&type,&err);
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     return Py_BuildValue("c",type_to_char(type));
@@ -91,8 +92,8 @@ iMeshTagObj_setData(iMeshTag_Object *self,PyObject *args)
     if(typechar == 0)
     {
         /* infer the type of the data */
-        iMesh_getTagType(self->mesh->mesh,self->tag.handle,&type,&err);
-        if(checkError(self->mesh->mesh,err))
+        iMesh_getTagType(self->instance->handle,self->base.handle,&type,&err);
+        if(checkError(self->instance->handle,err))
             return NULL;
     }
     else
@@ -124,8 +125,8 @@ iMeshTagObj_setData(iMeshTag_Object *self,PyObject *args)
 
             data_size = PyArray_SIZE(data_arr);
             int *data = PyArray_DATA(data_arr);
-            iMesh_setIntArrData(self->mesh->mesh,entities,ent_size,
-                                self->tag.handle,data,data_size,&err);
+            iMesh_setIntArrData(self->instance->handle,entities,ent_size,
+                                self->base.handle,data,data_size,&err);
         }
         else if(type == iBase_DOUBLE)
         {
@@ -136,8 +137,8 @@ iMeshTagObj_setData(iMeshTag_Object *self,PyObject *args)
 
             data_size = PyArray_SIZE(data_arr);
             double *data = PyArray_DATA(data_arr);
-            iMesh_setDblArrData(self->mesh->mesh,entities,ent_size,
-                                self->tag.handle,data,data_size,&err);
+            iMesh_setDblArrData(self->instance->handle,entities,ent_size,
+                                self->base.handle,data,data_size,&err);
         }
         else if(type == iBase_ENTITY_HANDLE)
         {
@@ -148,8 +149,8 @@ iMeshTagObj_setData(iMeshTag_Object *self,PyObject *args)
 
             data_size = PyArray_SIZE(data_arr);
             iBase_EntityHandle *data = PyArray_DATA(data_arr);
-            iMesh_setEHArrData(self->mesh->mesh,entities,ent_size,
-                               self->tag.handle,data,data_size,&err);
+            iMesh_setEHArrData(self->instance->handle,entities,ent_size,
+                               self->base.handle,data,data_size,&err);
         }
         else /* iBase_BYTES */
         {
@@ -159,8 +160,8 @@ iMeshTagObj_setData(iMeshTag_Object *self,PyObject *args)
 
             data_size = PyArray_SIZE(data_arr);
             char *data = PyArray_DATA(data_arr);
-            iMesh_setArrData(self->mesh->mesh,entities,ent_size,
-                             self->tag.handle,data,data_size,&err);
+            iMesh_setArrData(self->instance->handle,entities,ent_size,
+                             self->base.handle,data,data_size,&err);
         }
 
         Py_DECREF(ents);
@@ -175,7 +176,7 @@ iMeshTagObj_setData(iMeshTag_Object *self,PyObject *args)
             PyObject *o = PyNumber_Int(data_obj);
             if(o == NULL)
                 return NULL;
-            iMesh_setEntSetIntData(self->mesh->mesh,set,self->tag.handle,
+            iMesh_setEntSetIntData(self->instance->handle,set,self->base.handle,
                                    PyInt_AsLong(o),&err);
             Py_DECREF(o);
         }
@@ -184,7 +185,7 @@ iMeshTagObj_setData(iMeshTag_Object *self,PyObject *args)
             PyObject *o = PyNumber_Float(data_obj);
             if(o == NULL)
                 return NULL;
-            iMesh_setEntSetDblData(self->mesh->mesh,set,self->tag.handle,
+            iMesh_setEntSetDblData(self->instance->handle,set,self->base.handle,
                                    PyFloat_AsDouble(o),&err);
             Py_DECREF(o);
         }
@@ -192,7 +193,7 @@ iMeshTagObj_setData(iMeshTag_Object *self,PyObject *args)
         {
             if(!iBaseEntity_Check(data_obj))
                 return NULL;
-            iMesh_setEntSetEHData(self->mesh->mesh,set,self->tag.handle,
+            iMesh_setEntSetEHData(self->instance->handle,set,self->base.handle,
                                   iBaseEntity_GetHandle(data_obj),&err);
         }
         else /* iBase_BYTES */
@@ -204,8 +205,8 @@ iMeshTagObj_setData(iMeshTag_Object *self,PyObject *args)
 
             char *data = PyArray_DATA(data_arr);
             int data_size = PyArray_SIZE(data_arr);
-            iMesh_setEntSetData(self->mesh->mesh,set,self->tag.handle,data,
-                                data_size,&err);
+            iMesh_setEntSetData(self->instance->handle,set,self->base.handle,
+                                data,data_size,&err);
             Py_DECREF(data_arr);
         }
     }
@@ -218,7 +219,7 @@ iMeshTagObj_setData(iMeshTag_Object *self,PyObject *args)
             PyObject *o = PyNumber_Int(data_obj);
             if(o == NULL)
                 return NULL;
-            iMesh_setIntData(self->mesh->mesh,entity,self->tag.handle,
+            iMesh_setIntData(self->instance->handle,entity,self->base.handle,
                              PyInt_AsLong(o),&err);
             Py_DECREF(o);
         }
@@ -227,7 +228,7 @@ iMeshTagObj_setData(iMeshTag_Object *self,PyObject *args)
             PyObject *o = PyNumber_Float(data_obj);
             if(o == NULL)
                 return NULL;
-            iMesh_setDblData(self->mesh->mesh,entity,self->tag.handle,
+            iMesh_setDblData(self->instance->handle,entity,self->base.handle,
                              PyFloat_AsDouble(o),&err);
             Py_DECREF(o);
         }
@@ -235,7 +236,7 @@ iMeshTagObj_setData(iMeshTag_Object *self,PyObject *args)
         {
             if(!iBaseEntity_Check(data_obj))
                 return NULL;
-            iMesh_setEHData(self->mesh->mesh,entity,self->tag.handle,
+            iMesh_setEHData(self->instance->handle,entity,self->base.handle,
                             iBaseEntity_GetHandle(data_obj),&err);
         }
         else /* iBase_BYTES */
@@ -247,7 +248,7 @@ iMeshTagObj_setData(iMeshTag_Object *self,PyObject *args)
 
             char *data = PyArray_DATA(data_arr);
             int data_size = PyArray_SIZE(data_arr);
-            iMesh_setData(self->mesh->mesh,entity,self->tag.handle,data,
+            iMesh_setData(self->instance->handle,entity,self->base.handle,data,
                           data_size,&err);
             Py_DECREF(data_arr);
         }
@@ -258,7 +259,7 @@ iMeshTagObj_setData(iMeshTag_Object *self,PyObject *args)
         return NULL;
     }
 
-    if(checkError(self->mesh->mesh,err))
+    if(checkError(self->instance->handle,err))
         return NULL;
     Py_RETURN_NONE;
 }
@@ -277,8 +278,8 @@ iMeshTagObj_getData(iMeshTag_Object *self,PyObject *args)
     if(typechar == 0)
     {
         /* infer the type of the data */
-        iMesh_getTagType(self->mesh->mesh,self->tag.handle,&type,&err);
-        if(checkError(self->mesh->mesh,err))
+        iMesh_getTagType(self->instance->handle,self->base.handle,&type,&err);
+        if(checkError(self->instance->handle,err))
             return NULL;
     }
     else
@@ -303,9 +304,9 @@ iMeshTagObj_getData(iMeshTag_Object *self,PyObject *args)
             int *data=0;
             int alloc=0,size;
 
-            iMesh_getIntArrData(self->mesh->mesh,entities,ent_size,
-                                self->tag.handle,&data,&alloc,&size,&err);
-            if(!checkError(self->mesh->mesh,err))
+            iMesh_getIntArrData(self->instance->handle,entities,ent_size,
+                                self->base.handle,&data,&alloc,&size,&err);
+            if(!checkError(self->instance->handle,err))
             {
                 npy_intp dims[] = {size};
                 ret = PyArray_NewFromMalloc(1,dims,NPY_INT,data);
@@ -316,9 +317,9 @@ iMeshTagObj_getData(iMeshTag_Object *self,PyObject *args)
             double *data=0;
             int alloc=0,size;
 
-            iMesh_getDblArrData(self->mesh->mesh,entities,ent_size,
-                                self->tag.handle,&data,&alloc,&size,&err);
-            if(!checkError(self->mesh->mesh,err))
+            iMesh_getDblArrData(self->instance->handle,entities,ent_size,
+                                self->base.handle,&data,&alloc,&size,&err);
+            if(!checkError(self->instance->handle,err))
             {
                 npy_intp dims[] = {size};
                 ret = PyArray_NewFromMalloc(1,dims,NPY_DOUBLE,data);
@@ -329,9 +330,9 @@ iMeshTagObj_getData(iMeshTag_Object *self,PyObject *args)
             iBase_EntityHandle *data=0;
             int alloc=0,size;
 
-            iMesh_getEHArrData(self->mesh->mesh,entities,ent_size,
-                               self->tag.handle,&data,&alloc,&size,&err);
-            if(!checkError(self->mesh->mesh,err))
+            iMesh_getEHArrData(self->instance->handle,entities,ent_size,
+                               self->base.handle,&data,&alloc,&size,&err);
+            if(!checkError(self->instance->handle,err))
             {
                 npy_intp dims[] = {size};
                 ret = PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,data);
@@ -342,9 +343,9 @@ iMeshTagObj_getData(iMeshTag_Object *self,PyObject *args)
             char *data=0;
             int alloc=0,size;
 
-            iMesh_getArrData(self->mesh->mesh,entities,ent_size,
-                             self->tag.handle,&data,&alloc,&size,&err);
-            if(!checkError(self->mesh->mesh,err))
+            iMesh_getArrData(self->instance->handle,entities,ent_size,
+                             self->base.handle,&data,&alloc,&size,&err);
+            if(!checkError(self->instance->handle,err))
             {
                 npy_intp dims[] = {size};
                 ret = PyArray_NewFromMalloc(1,dims,NPY_BYTE,data);
@@ -361,27 +362,27 @@ iMeshTagObj_getData(iMeshTag_Object *self,PyObject *args)
         if(type == iBase_INTEGER)
         {
             int data;
-            iMesh_getEntSetIntData(self->mesh->mesh,set,self->tag.handle,&data,
-                                   &err);
-            if(checkError(self->mesh->mesh,err))
+            iMesh_getEntSetIntData(self->instance->handle,set,
+                                   self->base.handle,&data,&err);
+            if(checkError(self->instance->handle,err))
                 return NULL;
             return Py_BuildValue("i",data);
         }
         else if(type == iBase_DOUBLE)
         {
             double data;
-            iMesh_getEntSetDblData(self->mesh->mesh,set,self->tag.handle,&data,
-                                   &err);
-            if(checkError(self->mesh->mesh,err))
+            iMesh_getEntSetDblData(self->instance->handle,set,
+                                   self->base.handle,&data,&err);
+            if(checkError(self->instance->handle,err))
                 return NULL;
             return Py_BuildValue("d",data);
         }
         else if(type == iBase_ENTITY_HANDLE)
         {
             iBaseEntity_Object *data = iBaseEntity_New();
-            iMesh_getEntSetEHData(self->mesh->mesh,set,self->tag.handle,
+            iMesh_getEntSetEHData(self->instance->handle,set,self->base.handle,
                                   &data->handle,&err);
-            if(checkError(self->mesh->mesh,err))
+            if(checkError(self->instance->handle,err))
             {
                 Py_DECREF(data);
                 return NULL;
@@ -392,9 +393,9 @@ iMeshTagObj_getData(iMeshTag_Object *self,PyObject *args)
         {
             char *data=0;
             int alloc=0,size;
-            iMesh_getEntSetData(self->mesh->mesh,set,self->tag.handle,&data,
-                                &alloc,&size,&err);
-            if(checkError(self->mesh->mesh,err))
+            iMesh_getEntSetData(self->instance->handle,set,self->base.handle,
+                                &data,&alloc,&size,&err);
+            if(checkError(self->instance->handle,err))
                 return NULL;
             npy_intp dims[] = {size};
             return PyArray_NewFromMalloc(1,dims,NPY_BYTE,data);
@@ -407,27 +408,27 @@ iMeshTagObj_getData(iMeshTag_Object *self,PyObject *args)
         if(type == iBase_INTEGER)
         {
             int data;
-            iMesh_getIntData(self->mesh->mesh,entity,self->tag.handle,&data,
-                             &err);
-            if(checkError(self->mesh->mesh,err))
+            iMesh_getIntData(self->instance->handle,entity,self->base.handle,
+                             &data,&err);
+            if(checkError(self->instance->handle,err))
                 return NULL;
             return Py_BuildValue("i",data);
         }
         else if(type == iBase_DOUBLE)
         {
             double data;
-            iMesh_getDblData(self->mesh->mesh,entity,self->tag.handle,&data,
-                             &err);
-            if(checkError(self->mesh->mesh,err))
+            iMesh_getDblData(self->instance->handle,entity,self->base.handle,
+                             &data,&err);
+            if(checkError(self->instance->handle,err))
                 return NULL;
             return Py_BuildValue("d",data);
         }
         else if(type == iBase_ENTITY_HANDLE)
         {
             iBaseEntity_Object *data = iBaseEntity_New();
-            iMesh_getEHData(self->mesh->mesh,entity,self->tag.handle,
+            iMesh_getEHData(self->instance->handle,entity,self->base.handle,
                             &data->handle,&err);
-            if(checkError(self->mesh->mesh,err))
+            if(checkError(self->instance->handle,err))
             {
                 Py_DECREF(data);
                 return NULL;
@@ -438,9 +439,9 @@ iMeshTagObj_getData(iMeshTag_Object *self,PyObject *args)
         {
             char *data=0;
             int alloc=0,size;
-            iMesh_getData(self->mesh->mesh,entity,self->tag.handle,&data,
+            iMesh_getData(self->instance->handle,entity,self->base.handle,&data,
                           &alloc,&size,&err);
-            if(checkError(self->mesh->mesh,err))
+            if(checkError(self->instance->handle,err))
                 return NULL;
             npy_intp dims[] = {size};
             return PyArray_NewFromMalloc(1,dims,NPY_BYTE,data);
@@ -467,19 +468,19 @@ iMeshTagObj_remove(iMeshTag_Object *self,PyObject *args)
     {
         int ent_size = PyArray_SIZE(ents);
         iBase_EntityHandle *entities = PyArray_DATA(ents);
-        iMesh_rmvArrTag(self->mesh->mesh,entities,ent_size,self->tag.handle,
-                        &err);
+        iMesh_rmvArrTag(self->instance->handle,entities,ent_size,
+                        self->base.handle,&err);
         Py_DECREF(ents);
     }
     else if(iBaseEntitySet_Check(obj))
     {
         iBase_EntitySetHandle set = iBaseEntitySet_GetHandle(obj);
-        iMesh_rmvEntSetTag(self->mesh->mesh,set,self->tag.handle,&err);
+        iMesh_rmvEntSetTag(self->instance->handle,set,self->base.handle,&err);
     }
     else if(iBaseEntity_Check(obj))
     {
         iBase_EntityHandle entity = iBaseEntity_GetHandle(obj);
-        iMesh_rmvTag(self->mesh->mesh,entity,self->tag.handle,&err);
+        iMesh_rmvTag(self->instance->handle,entity,self->base.handle,&err);
     }
     else
     {
@@ -487,7 +488,7 @@ iMeshTagObj_remove(iMeshTag_Object *self,PyObject *args)
         return NULL;
     }
 
-    if(checkError(self->mesh->mesh,err))
+    if(checkError(self->instance->handle,err))
         return NULL;
     Py_RETURN_NONE;
 }
@@ -507,7 +508,7 @@ static PyMethodDef iMeshTagObj_methods[] = {
 };
 
 static PyMemberDef iMeshTagObj_members[] = {
-    {"instance", T_OBJECT_EX, offsetof(iMeshTag_Object, mesh), READONLY,
+    {"instance", T_OBJECT_EX, offsetof(iMeshTag_Object, instance), READONLY,
      "base iMesh instance"},
     {0}
 };

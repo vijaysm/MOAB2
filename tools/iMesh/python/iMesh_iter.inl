@@ -14,22 +14,22 @@ iMeshIterObj_init(iMeshIter_Object *self,PyObject *args,PyObject *kwds)
                                      &array_size) )
         return -1;
 
-    self->mesh = set->mesh;
-    Py_INCREF(self->mesh);
+    self->instance = set->instance;
+    Py_INCREF(self->instance);
 
     if(array_size == 1)
     {
         self->is_arr = 0;
-        iMesh_initEntIter(self->mesh->mesh,set->set.handle,type,topo,
+        iMesh_initEntIter(self->instance->handle,set->base.handle,type,topo,
                           &self->iter,&err);
     }
     else
     {
         self->is_arr = 1;
-        iMesh_initEntArrIter(self->mesh->mesh,set->set.handle,type,topo,
+        iMesh_initEntArrIter(self->instance->handle,set->base.handle,type,topo,
                              array_size,&self->arr_iter,&err);
     }
-    if(checkError(self->mesh->mesh,err))
+    if(checkError(self->instance->handle,err))
         return -1;
 
     return 0;
@@ -38,16 +38,16 @@ iMeshIterObj_init(iMeshIter_Object *self,PyObject *args,PyObject *kwds)
 static void
 iMeshIterObj_dealloc(iMeshIter_Object *self)
 {
-    if(self->mesh && self->iter)
+    if(self->instance && self->iter)
     {
         int err;
         if(self->is_arr)
-            iMesh_endEntArrIter(self->mesh->mesh,self->arr_iter,&err);
+            iMesh_endEntArrIter(self->instance->handle,self->arr_iter,&err);
         else
-            iMesh_endEntIter(self->mesh->mesh,self->iter,&err);
+            iMesh_endEntIter(self->instance->handle,self->iter,&err);
     }
 
-    Py_XDECREF(self->mesh);
+    Py_XDECREF(self->instance);
     self->ob_type->tp_free((PyObject*)self);
 }
 
@@ -56,11 +56,11 @@ iMeshIterObj_reset(iMeshIter_Object *self,PyObject *args)
 {
     int err;
     if(self->is_arr)
-        iMesh_resetEntArrIter(self->mesh->mesh,self->arr_iter,&err);
+        iMesh_resetEntArrIter(self->instance->handle,self->arr_iter,&err);
     else
-        iMesh_resetEntIter(self->mesh->mesh,self->iter,&err);
+        iMesh_resetEntIter(self->instance->handle,self->iter,&err);
 
-    if(checkError(self->mesh->mesh,err))
+    if(checkError(self->instance->handle,err))
         return NULL;
     Py_RETURN_NONE;
 }
@@ -75,9 +75,9 @@ iMeshIterObj_iternext(iMeshIter_Object *self)
         iBase_EntityHandle *entities=0;
         int alloc=0,size;
 
-        iMesh_getNextEntArrIter(self->mesh->mesh,self->arr_iter,&entities,
+        iMesh_getNextEntArrIter(self->instance->handle,self->arr_iter,&entities,
                                 &alloc,&size,&has_data,&err);
-        if(checkError(self->mesh->mesh,err))
+        if(checkError(self->instance->handle,err))
             return NULL;
         if(!has_data)
             return NULL;
@@ -88,9 +88,9 @@ iMeshIterObj_iternext(iMeshIter_Object *self)
     else
     {
         iBase_EntityHandle entity;
-        iMesh_getNextEntIter(self->mesh->mesh,self->iter,&entity,&has_data,
-                             &err);
-        if(checkError(self->mesh->mesh,err))
+        iMesh_getNextEntIter(self->instance->handle,self->iter,&entity,
+                             &has_data,&err);
+        if(checkError(self->instance->handle,err))
             return NULL;
         if(!has_data)
             return NULL;
@@ -109,7 +109,7 @@ static PyMethodDef iMeshIterObj_methods[] = {
 };
 
 static PyMemberDef iMeshIterObj_members[] = {
-    {"instance", T_OBJECT_EX, offsetof(iMeshIter_Object, mesh), READONLY,
+    {"instance", T_OBJECT_EX, offsetof(iMeshIter_Object, instance), READONLY,
      "base iMesh instance"},
     {0}
 };

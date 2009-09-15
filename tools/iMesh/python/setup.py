@@ -6,6 +6,7 @@ from unittest import TextTestRunner, TestLoader
 import re
 import os
 import sys
+import string
 
 def pair_fun(pre, post):
     def tmp(self):
@@ -13,26 +14,27 @@ def pair_fun(pre, post):
         post(self)
     return tmp
 
-def add_imesh_defs(imesh_dir, self):
-        defs = parse_makefile( os.path.join(imesh_dir, 'iMesh-Defs.inc') )
+def add_itaps_defs(build_ext, itaps_dir, iface):
+    defs = parse_makefile( os.path.join(itaps_dir, iface+'-Defs.inc') )
+    prefix = string.upper(iface)
 
-        lib_match = re.compile(r'(?:(?<=\s)|^)-([lL])\s*(\S*)')
-        for match in lib_match.finditer( defs['IMESH_LIBS'] ):
-            if match.group(1) == 'l':
-                self.libraries.append( match.group(2) )
-            elif match.group(1) == 'L':
-                self.library_dirs.append( match.group(2) )
-
-        inc_match = re.compile(r'(?:(?<=\s)|^)-(I)\s*(\S*)')
-        for match in inc_match.finditer( defs['IMESH_INCLUDES'] ):
-            self.include_dirs.append( match.group(2) )
+    lib_match = re.compile(r'(?:(?<=\s)|^)-([lL])\s*(\S*)')
+    for match in lib_match.finditer( defs[prefix+'_LIBS'] ):
+        if match.group(1) == 'l':
+            build_ext.libraries.append( match.group(2) )
+        elif match.group(1) == 'L':
+            build_ext.library_dirs.append( match.group(2) )
+            
+    inc_match = re.compile(r'(?:(?<=\s)|^)-(I)\s*(\S*)')
+    for match in inc_match.finditer( defs[prefix+'_INCLUDES'] ):
+        build_ext.include_dirs.append( match.group(2) )
 
 def new_init(self):
     self.imesh_dir = None
 
 def new_fin(self):
     if self.imesh_dir:
-        add_imesh_defs(self.imesh_dir, self)
+        add_itaps_defs(self, self.imesh_dir, 'iMesh')
 
 build_ext.user_options.append(('imesh-dir=', None,
                                'root directory for iMesh interface'))
@@ -40,22 +42,17 @@ build_ext.initialize_options = pair_fun(build_ext.initialize_options, new_init)
 build_ext.finalize_options   = pair_fun(build_ext.finalize_options,   new_fin)
 
 
-def rebase(path):
-    return os.path.normpath( os.path.join( os.path.abspath(sys.argv[0]),
-                                           '../'+path) )
-
 iBase = Extension('itaps.iBase',
-                  depends = map(rebase, ['common.h', 'iBase_Python.h']),
-                  sources = map(rebase, ['iBase.c'])
+                  depends = ['common.h', 'iBase_Python.h'],
+                  sources = ['iBase.c']
                   )
 
 iMesh = Extension('itaps.iMesh',
-                  depends = map(rebase,
-                                ['common.h', 'errors.h', 'iMesh_Python.h',
-                                 'iBase_Python.h', 'iMesh_entSet.inl',
-                                 'iMesh_iter.inl', 'iMesh_tag.inl',
-                                 'numpy_extensions.h', 'numpy_extensions.inl']),
-                  sources = map(rebase, ['iMesh.c'])
+                  depends = ['common.h', 'errors.h', 'iMesh_Python.h',
+                             'iBase_Python.h', 'iMesh_entSet.inl',
+                             'iMesh_iter.inl', 'iMesh_tag.inl',
+                             'numpy_extensions.h', 'numpy_extensions.inl'],
+                  sources = ['iMesh.c']
                   )
 
 class TestCommand(Command):
@@ -74,7 +71,7 @@ class TestCommand(Command):
             raise DistutilsOptionError('"verbosity" option must be an integer')
 
     def run(self):
-        root = rebase('test')
+        root = 'test'
         old = os.getcwd()
         tests = []
         regex = re.compile(r'^(.*).py$')
@@ -108,7 +105,7 @@ class DocCommand(Command):
             self.target = '_build/' + self.builder
 
     def run(self):
-        root = rebase('doc')
+        root = 'doc'
         old = os.getcwd()
 
         os.chdir(root)
@@ -170,7 +167,7 @@ class PerfBuildCommand(Command):
             add_imesh_defs(self.imesh_dir, self)
 
     def run(self):
-        root = rebase('perf')
+        root = 'perf'
         old = os.getcwd()
         os.chdir(root)
 
@@ -209,7 +206,7 @@ class PerfRunCommand(Command):
             raise DistutilsOptionError('"count" option must be an integer')
 
     def run(self):
-        root = rebase('perf')
+        root = 'perf'
         old = os.getcwd()
         os.chdir(root)
         os.system('python perf.py -c%d "%s"' % (self.count, self.file))
@@ -224,7 +221,7 @@ setup(name = 'PyTAPS',
       requires = ['numpy'],
       provides = ['itaps'],
 
-      package_dir = {'itaps': rebase('pkg')},
+      package_dir = {'itaps': 'pkg'},
       packages = ['itaps'],
       ext_modules = [iBase, iMesh],
       py_modules = ['itaps.helpers'],

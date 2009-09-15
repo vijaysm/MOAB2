@@ -6,7 +6,7 @@
 static void
 iMeshEntSetObj_dealloc(iMeshEntitySet_Object *self)
 {
-    Py_XDECREF(self->mesh);
+    Py_XDECREF(self->instance);
     ((PyObject*)self)->ob_type->tp_free((PyObject*)self);
 }
 
@@ -19,9 +19,9 @@ iMeshEntSetObj_load(iMeshEntitySet_Object *self,PyObject *args)
         return NULL;
 
     int err;
-    iMesh_load(self->mesh->mesh,self->set.handle,name,options,&err,strlen(name),
-               strlen(options));
-    if(checkError(self->mesh->mesh,err))
+    iMesh_load(self->instance->handle,self->base.handle,name,options,&err,
+               strlen(name),strlen(options));
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     Py_RETURN_NONE;
@@ -36,9 +36,9 @@ iMeshEntSetObj_save(iMeshEntitySet_Object *self,PyObject *args)
         return NULL;
 
     int err;
-    iMesh_save(self->mesh->mesh,self->set.handle,name,options,&err,strlen(name),
-               strlen(options));
-    if(checkError(self->mesh->mesh,err))
+    iMesh_save(self->instance->handle,self->base.handle,name,options,&err,
+               strlen(name),strlen(options));
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     Py_RETURN_NONE;
@@ -52,8 +52,8 @@ iMeshEntSetObj_getNumOfType(iMeshEntitySet_Object *self,PyObject *args)
     if(!PyArg_ParseTuple(args,"i",&type))
         return NULL;
 
-    iMesh_getNumOfType(self->mesh->mesh,self->set.handle,type,&num,&err);
-    if(checkError(self->mesh->mesh,err))
+    iMesh_getNumOfType(self->instance->handle,self->base.handle,type,&num,&err);
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     return Py_BuildValue("i",num);
@@ -67,8 +67,8 @@ iMeshEntSetObj_getNumOfTopo(iMeshEntitySet_Object *self,PyObject *args)
     if(!PyArg_ParseTuple(args,"i",&topo))
         return NULL;
 
-    iMesh_getNumOfTopo(self->mesh->mesh,self->set.handle,topo,&num,&err);
-    if(checkError(self->mesh->mesh,err))
+    iMesh_getNumOfTopo(self->instance->handle,self->base.handle,topo,&num,&err);
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     return Py_BuildValue("i",num);
@@ -85,9 +85,9 @@ iMeshEntSetObj_getEntities(iMeshEntitySet_Object *self,PyObject *args)
     if(!PyArg_ParseTuple(args,"ii",&type,&topo))
         return NULL;
 
-    iMesh_getEntities(self->mesh->mesh,self->set.handle,type,topo,&entities,
-                      &alloc,&size,&err);
-    if(checkError(self->mesh->mesh,err))
+    iMesh_getEntities(self->instance->handle,self->base.handle,type,topo,
+                      &entities,&alloc,&size,&err);
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     npy_intp dims[] = {size};
@@ -113,14 +113,14 @@ iMeshEntSetObj_getAdjEntIndices(iMeshEntitySet_Object *self,PyObject *args)
     int *offsets=0;
     int off_alloc=0,off_size;
 
-    iMesh_getAdjEntIndices(self->mesh->mesh,self->set.handle,type_requestor,
-                           topo_requestor,type_requested,
+    iMesh_getAdjEntIndices(self->instance->handle,self->base.handle,
+                           type_requestor,topo_requestor,type_requested,
                            &entities,&ent_alloc,&ent_size,
                            &adj_ents,&adj_alloc,&adj_size,
                            &indices, &ind_alloc,&ind_size,
                            &offsets, &off_alloc,&off_size,
                            &err);
-    if(checkError(self->mesh->mesh,err))
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     npy_intp ent_dims[] = {ent_size};
@@ -139,8 +139,8 @@ static PyObject *
 iMeshEntSetObj_isList(iMeshEntitySet_Object *self,void *closure)
 {
     int is_list,err;
-    iMesh_isList(self->mesh->mesh,self->set.handle,&is_list,&err);
-    if(checkError(self->mesh->mesh,err))
+    iMesh_isList(self->instance->handle,self->base.handle,&is_list,&err);
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     return PyBool_FromLong(is_list);
@@ -154,9 +154,9 @@ iMeshEntSetObj_getNumEntSets(iMeshEntitySet_Object *self,PyObject *args)
     if(!PyArg_ParseTuple(args,"i",&num_hops))
         return NULL;
 
-    iMesh_getNumEntSets(self->mesh->mesh,self->set.handle,num_hops,&num_sets,
-                        &err);
-    if(checkError(self->mesh->mesh,err))
+    iMesh_getNumEntSets(self->instance->handle,self->base.handle,num_hops,
+                        &num_sets,&err);
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     return Py_BuildValue("i",num_sets);
@@ -171,14 +171,14 @@ iMeshEntSetObj_getEntSets(iMeshEntitySet_Object *self,PyObject *args)
     if(!PyArg_ParseTuple(args,"i",&num_hops))
         return NULL;
 
-    iMesh_getEntSets(self->mesh->mesh,self->set.handle,num_hops,&sets,
+    iMesh_getEntSets(self->instance->handle,self->base.handle,num_hops,&sets,
                      &sets_alloc,&sets_size,&err);
-    if(checkError(self->mesh->mesh,err))
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     npy_intp dims[] = {sets_size};
     return PyArray_NewFromMallocBase(1,dims,NPY_IMESHENTSET,sets,
-                                     (PyObject*)self->mesh);
+                                     (PyObject*)self->instance);
 }
 
 static PyObject *
@@ -195,18 +195,21 @@ iMeshEntSetObj_add(iMeshEntitySet_Object *self,PyObject *args)
     {
         int size = PyArray_SIZE(ents);
         iBase_EntityHandle *data = PyArray_DATA(ents);
-        iMesh_addEntArrToSet(self->mesh->mesh,data,size,self->set.handle,&err);
+        iMesh_addEntArrToSet(self->instance->handle,data,size,
+                             self->base.handle,&err);
         Py_DECREF(ents);
     }
     else if(iBaseEntitySet_Check(obj))
     {
         iBaseEntitySet_Object *set = (iBaseEntitySet_Object*)obj;
-        iMesh_addEntSet(self->mesh->mesh,set->handle,self->set.handle,&err);
+        iMesh_addEntSet(self->instance->handle,set->handle,self->base.handle,
+                        &err);
     }
     else if(iBaseEntity_Check(obj))
     {
         iBaseEntity_Object *ent = (iBaseEntity_Object*)obj;
-        iMesh_addEntToSet(self->mesh->mesh,ent->handle,self->set.handle,&err);
+        iMesh_addEntToSet(self->instance->handle,ent->handle,self->base.handle,
+                          &err);
     }
     else
     {
@@ -214,7 +217,7 @@ iMeshEntSetObj_add(iMeshEntitySet_Object *self,PyObject *args)
         return NULL;
     }
 
-    if(checkError(self->mesh->mesh,err))
+    if(checkError(self->instance->handle,err))
         return NULL;
     Py_RETURN_NONE;
 }
@@ -233,20 +236,21 @@ iMeshEntSetObj_remove(iMeshEntitySet_Object *self,PyObject *args)
     {
         int size = PyArray_SIZE(ents);
         iBase_EntityHandle *data = PyArray_DATA(ents);
-        iMesh_rmvEntArrFromSet(self->mesh->mesh,data,size,self->set.handle,
-                               &err);
+        iMesh_rmvEntArrFromSet(self->instance->handle,data,size,
+                               self->base.handle,&err);
         Py_DECREF(ents);
     }
     else if(iBaseEntitySet_Check(obj))
     {
         iBaseEntitySet_Object *set = (iBaseEntitySet_Object*)obj;
-        iMesh_rmvEntSet(self->mesh->mesh,set->handle,self->set.handle,&err);
+        iMesh_rmvEntSet(self->instance->handle,set->handle,self->base.handle,
+                        &err);
     }
     else if(iBaseEntity_Check(obj))
     {
         iBaseEntity_Object *ent = (iBaseEntity_Object*)obj;
-        iMesh_rmvEntFromSet(self->mesh->mesh,ent->handle,self->set.handle,
-                            &err);
+        iMesh_rmvEntFromSet(self->instance->handle,ent->handle,
+                            self->base.handle,&err);
     }
     else
     {
@@ -254,7 +258,7 @@ iMeshEntSetObj_remove(iMeshEntitySet_Object *self,PyObject *args)
         return NULL;
     }
 
-    if(checkError(self->mesh->mesh,err))
+    if(checkError(self->instance->handle,err))
         return NULL;
     Py_RETURN_NONE;
 }
@@ -276,10 +280,11 @@ iMeshEntSetObj_contains(iMeshEntitySet_Object *self,PyObject *args)
 
         int size = PyArray_SIZE(ents);
         iBase_EntityHandle *data = PyArray_DATA(ents);
-        iMesh_isEntArrContained(self->mesh->mesh,self->set.handle,data,size,
-                                &contains,&contains_alloc,&contains_size,&err);
+        iMesh_isEntArrContained(self->instance->handle,self->base.handle,data,
+                                size,&contains,&contains_alloc,&contains_size,
+                                &err);
         Py_DECREF(ents);
-        if(checkError(self->mesh->mesh,err))
+        if(checkError(self->instance->handle,err))
             return NULL;
 
         npy_intp dims[] = {contains_size};
@@ -290,9 +295,9 @@ iMeshEntSetObj_contains(iMeshEntitySet_Object *self,PyObject *args)
     {
         int contains;
         iBaseEntitySet_Object *set = (iBaseEntitySet_Object*)obj;
-        iMesh_isEntSetContained(self->mesh->mesh,self->set.handle,set->handle,
-                                &contains,&err);
-        if(checkError(self->mesh->mesh,err))
+        iMesh_isEntSetContained(self->instance->handle,self->base.handle,
+                                set->handle,&contains,&err);
+        if(checkError(self->instance->handle,err))
             return NULL;
 
         return PyBool_FromLong(contains);
@@ -301,9 +306,9 @@ iMeshEntSetObj_contains(iMeshEntitySet_Object *self,PyObject *args)
     {
         int contains;
         iBaseEntity_Object *ent = (iBaseEntity_Object*)obj;
-        iMesh_isEntContained(self->mesh->mesh,self->set.handle,ent->handle,
-                             &contains,&err);
-        if(checkError(self->mesh->mesh,err))
+        iMesh_isEntContained(self->instance->handle,self->base.handle,
+                             ent->handle,&contains,&err);
+        if(checkError(self->instance->handle,err))
             return NULL;
 
         return PyBool_FromLong(contains);
@@ -326,8 +331,9 @@ iMeshEntSetObj_addChild(iMeshEntitySet_Object *self,PyObject *args)
     if(!PyArg_ParseTuple(args,"O!",&iBaseEntitySet_Type,&set))
         return NULL;
 
-    iMesh_addPrntChld(self->mesh->mesh,self->set.handle,set->handle,&err);
-    if(checkError(self->mesh->mesh,err))
+    iMesh_addPrntChld(self->instance->handle,self->base.handle,set->handle,
+                      &err);
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     Py_RETURN_NONE;
@@ -342,8 +348,9 @@ iMeshEntSetObj_removeChild(iMeshEntitySet_Object *self,PyObject *args)
     if(!PyArg_ParseTuple(args,"O!",&iBaseEntitySet_Type,&set))
         return NULL;
 
-    iMesh_rmvPrntChld(self->mesh->mesh,self->set.handle,set->handle,&err);
-    if(checkError(self->mesh->mesh,err))
+    iMesh_rmvPrntChld(self->instance->handle,self->base.handle,set->handle,
+                      &err);
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     Py_RETURN_NONE;
@@ -358,9 +365,9 @@ iMeshEntSetObj_isChild(iMeshEntitySet_Object *self,PyObject *args)
     if(!PyArg_ParseTuple(args,"O!",&iBaseEntitySet_Type,&set))
         return NULL;
 
-    iMesh_isChildOf(self->mesh->mesh,self->set.handle,set->handle,&is_child,
-                    &err);
-    if(checkError(self->mesh->mesh,err))
+    iMesh_isChildOf(self->instance->handle,self->base.handle,set->handle,
+                    &is_child,&err);
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     return PyBool_FromLong(is_child);
@@ -374,9 +381,9 @@ iMeshEntSetObj_getNumChildren(iMeshEntitySet_Object *self,PyObject *args)
     if(!PyArg_ParseTuple(args,"i",&num_hops))
         return NULL;
 
-    iMesh_getNumChld(self->mesh->mesh,self->set.handle,num_hops,&num_children,
-                     &err);
-    if(checkError(self->mesh->mesh,err))
+    iMesh_getNumChld(self->instance->handle,self->base.handle,num_hops,
+                     &num_children,&err);
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     return Py_BuildValue("i",num_children);
@@ -390,9 +397,9 @@ iMeshEntSetObj_getNumParents(iMeshEntitySet_Object *self,PyObject *args)
     if(!PyArg_ParseTuple(args,"i",&num_hops))
         return NULL;
 
-    iMesh_getNumPrnt(self->mesh->mesh,self->set.handle,num_hops,&num_parents,
-                     &err);
-    if(checkError(self->mesh->mesh,err))
+    iMesh_getNumPrnt(self->instance->handle,self->base.handle,num_hops,
+                     &num_parents,&err);
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     return Py_BuildValue("i",num_parents);
@@ -407,14 +414,14 @@ iMeshEntSetObj_getChildren(iMeshEntitySet_Object *self,PyObject *args)
     if(!PyArg_ParseTuple(args,"i",&num_hops))
         return NULL;
 
-    iMesh_getChldn(self->mesh->mesh,self->set.handle,num_hops,&sets,
+    iMesh_getChldn(self->instance->handle,self->base.handle,num_hops,&sets,
                    &sets_alloc,&sets_size,&err);
-    if(checkError(self->mesh->mesh,err))
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     npy_intp dims[] = {sets_size};
     return PyArray_NewFromMallocBase(1,dims,NPY_IMESHENTSET,sets,
-                                     (PyObject*)self->mesh);
+                                     (PyObject*)self->instance);
 }
 
 static PyObject *
@@ -426,14 +433,14 @@ iMeshEntSetObj_getParents(iMeshEntitySet_Object *self,PyObject *args)
     if(!PyArg_ParseTuple(args,"i",&num_hops))
         return NULL;
 
-    iMesh_getPrnts(self->mesh->mesh,self->set.handle,num_hops,&sets,
+    iMesh_getPrnts(self->instance->handle,self->base.handle,num_hops,&sets,
                    &sets_alloc,&sets_size,&err);
-    if(checkError(self->mesh->mesh,err))
+    if(checkError(self->instance->handle,err))
         return NULL;
 
     npy_intp dims[] = {sets_size};
     return PyArray_NewFromMallocBase(1,dims,NPY_IMESHENTSET,sets,
-                                     (PyObject*)self->mesh);
+                                     (PyObject*)self->instance);
 }
 
 static PyObject *
@@ -458,14 +465,14 @@ iMeshEntSetObj_sub(iMeshEntitySet_Object *lhs,iMeshEntitySet_Object *rhs)
     int err;
     iMeshEntitySet_Object *result;
 
-    if(lhs->mesh->mesh != rhs->mesh->mesh)
+    if(lhs->instance->handle != rhs->instance->handle)
         return NULL;
 
-    result = iMeshEntitySet_New(lhs->mesh);
+    result = iMeshEntitySet_New(lhs->instance);
 
-    iMesh_subtract(lhs->mesh->mesh,lhs->set.handle,rhs->set.handle,
-                   &result->set.handle,&err);
-    if(checkError(lhs->mesh->mesh,err))
+    iMesh_subtract(lhs->instance->handle,lhs->base.handle,rhs->base.handle,
+                   &result->base.handle,&err);
+    if(checkError(lhs->instance->handle,err))
     {
         Py_DECREF((PyObject*)result);
         return NULL;
@@ -480,14 +487,14 @@ iMeshEntSetObj_bitand(iMeshEntitySet_Object *lhs,iMeshEntitySet_Object *rhs)
     int err;
     iMeshEntitySet_Object *result;
 
-    if(lhs->mesh->mesh != rhs->mesh->mesh)
+    if(lhs->instance->handle != rhs->instance->handle)
         return NULL;
 
-    result = iMeshEntitySet_New(lhs->mesh);
+    result = iMeshEntitySet_New(lhs->instance);
 
-    iMesh_intersect(lhs->mesh->mesh,lhs->set.handle,rhs->set.handle,
-                    &result->set.handle,&err);
-    if(checkError(lhs->mesh->mesh,err))
+    iMesh_intersect(lhs->instance->handle,lhs->base.handle,rhs->base.handle,
+                    &result->base.handle,&err);
+    if(checkError(lhs->instance->handle,err))
     {
         Py_DECREF((PyObject*)result);
         return NULL;
@@ -502,14 +509,14 @@ iMeshEntSetObj_bitor(iMeshEntitySet_Object *lhs,iMeshEntitySet_Object *rhs)
     int err;
     iMeshEntitySet_Object *result;
 
-    if(lhs->mesh->mesh != rhs->mesh->mesh)
+    if(lhs->instance->handle != rhs->instance->handle)
         return NULL;
 
-    result = iMeshEntitySet_New(lhs->mesh);
+    result = iMeshEntitySet_New(lhs->instance);
 
-    iMesh_unite(lhs->mesh->mesh,lhs->set.handle,rhs->set.handle,
-                &result->set.handle,&err);
-    if(checkError(lhs->mesh->mesh,err))
+    iMesh_unite(lhs->instance->handle,lhs->base.handle,rhs->base.handle,
+                &result->base.handle,&err);
+    if(checkError(lhs->instance->handle,err))
     {
         Py_DECREF((PyObject*)result);
         return NULL;
@@ -624,8 +631,8 @@ static PyMethodDef iMeshEntSetObj_methods[] = {
 };
 
 static PyMemberDef iMeshEntSetObj_members[] = {
-    {"instance", T_OBJECT_EX, offsetof(iMeshEntitySet_Object, mesh), READONLY,
-     "base iMesh instance"},
+    {"instance", T_OBJECT_EX, offsetof(iMeshEntitySet_Object, instance),
+     READONLY, "base iMesh instance"},
     {0}
 };
 

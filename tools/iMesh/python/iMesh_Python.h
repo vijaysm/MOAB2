@@ -12,13 +12,13 @@ extern "C" {
 typedef struct
 {
     PyObject_HEAD
-    iMesh_Instance mesh;
+    iMesh_Instance handle;
 } iMesh_Object;
 
 typedef struct
 {
     PyObject_HEAD
-    iMesh_Object *mesh;
+    iMesh_Object *instance;
     int is_arr;
     union
     {
@@ -29,8 +29,8 @@ typedef struct
 
 typedef struct
 {
-    iBaseEntitySet_Object set;
-    iMesh_Object *mesh;
+    iBaseEntitySet_Object base;
+    iMesh_Object *instance;
 } iMeshEntitySet_Object;
 
 #define iMeshEntitySet_NewRaw()                         \
@@ -41,12 +41,12 @@ typedef struct
     PyObject_TypeCheck((o),&iMeshEntitySet_Type)
 
 #define iMeshEntitySet_GetMesh(o)                       \
-    ( ((iMeshEntitySet_Object*)(o))->mesh )
+    ( ((iMeshEntitySet_Object*)(o))->instance )
 
 typedef struct
 {
-    iBaseTag_Object tag;
-    iMesh_Object *mesh;
+    iBaseTag_Object base;
+    iMesh_Object *instance;
 } iMeshTag_Object;
 
 #define iMeshTag_NewRaw()                               \
@@ -57,7 +57,7 @@ typedef struct
     PyObject_TypeCheck((o),&iMeshTag_Type)
 
 #define iMeshTag_GetMesh(o)                             \
-    ( ((iMeshTag_Object*)(o))->mesh )
+    ( ((iMeshTag_Object*)(o))->instance )
 
 
 #ifndef _IMESH_MODULE
