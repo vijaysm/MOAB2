@@ -20,8 +20,6 @@
  * 
  */
 
-#include <zoltan_cpp.h>
-
 #include <iostream>
 #include <assert.h>
 
@@ -59,6 +57,8 @@ MBZoltan::MBZoltan( MBInterface *impl ,
                      argvArg(argv)
 {
   mbpc = MBParallelComm::get_pcomm(mbImpl, 0);
+  if (!mbpc)
+    mbpc = new MBParallelComm( impl, MPI_COMM_WORLD, 0 );
 }
 
 MBZoltan::~MBZoltan() 
