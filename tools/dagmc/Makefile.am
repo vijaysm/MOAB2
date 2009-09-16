@@ -38,7 +38,7 @@ quads_to_tris_LDADD = $(top_builddir)/libMOAB.la
 test_geom_SOURCES = test_geom.cc
 test_geom_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS)  $(CGM_LDFLAGS) $(CGM_LIBS)
 
-update_coords_SOURCES = cub2h5m.cc quads_to_tris.cpp
+update_coords_SOURCES = cub2h5m.cc quads_to_tris.cpp quads_to_tris.hpp
 update_coords_LDADD = libdagmc.la $(top_builddir)/libMOAB.la $(CGM_LTFLAGS) $(CGM_LDFLAGS) $(CGM_LIBS)
 
 pt_vol_test_SOURCES = pt_vol_test.cc
