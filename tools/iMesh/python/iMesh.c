@@ -1,7 +1,8 @@
 #define _IMESH_MODULE
+#include "iMesh_Python.h"
 #include "errors.h"
 #include "common.h"
-#include "iMesh_Python.h"
+#include "helpers.h"
 #include "numpy_extensions.h"
 
 static enum iBase_TagValueType char_to_type(char c);
@@ -13,12 +14,6 @@ static PyTypeObject iMeshEntitySet_Type;
 static int NPY_IMESHENTSET;
 static PyTypeObject iMeshTag_Type;
 static int NPY_IMESHTAG;
-
-
-/* TODO: these are never freed! */
-static PyObject *g_helper_module;
-static PyObject *g_adj_list;
-static PyObject *g_ind_adj_list;
 
 static int
 checkError(iMesh_Instance mesh,int err)
@@ -33,40 +28,6 @@ checkError(iMesh_Instance mesh,int err)
     }
     else
         return 0;
-}
-
-/* NOTE: steals references to adj and offsets */
-static PyObject *
-AdjacencyList_New(PyObject *adj,PyObject *offsets)
-{
-    PyObject *res;
-
-    if( (res = PyObject_CallFunction(g_adj_list,"OO",adj,offsets)) == NULL)
-        PyErr_SetString(PyExc_RuntimeError,ERR_ADJ_LIST);
-
-    Py_DECREF(adj);
-    Py_DECREF(offsets);
-
-    return res;
-}
-
-/* NOTE: steals references to ents, adj, indices, and offsets */
-static PyObject *
-IndexedAdjacencyList_New(PyObject *ents, PyObject *adj,PyObject *indices,
-                         PyObject *offsets)
-{
-    PyObject *res;
-
-    if( (res = PyObject_CallFunction(g_ind_adj_list,"OOOO",ents,adj,indices,
-                                     offsets)) == NULL)
-        PyErr_SetString(PyExc_RuntimeError,ERR_ADJ_LIST);
-
-    Py_DECREF(ents);
-    Py_DECREF(adj);
-    Py_DECREF(indices);
-    Py_DECREF(offsets);
-
-    return res;
 }
 
 static iMeshEntitySet_Object *
@@ -139,7 +100,7 @@ iMeshObj_getGeometricDimension(iMesh_Object *self,void *closure)
     if(checkError(self->handle,err))
         return NULL;
 
-    return Py_BuildValue("i",dim);
+    return PyInt_FromLong(dim);
 }
 
 static int
@@ -216,6 +177,7 @@ iMeshObj_getVtxCoords(iMesh_Object *self,PyObject *args)
     {
         if(storage_order == -1)
         {
+            Py_DECREF(ents);
             PyErr_SetString(PyExc_ValueError,ERR_STORAGE_ORDER);
             return NULL;
         }
@@ -234,11 +196,7 @@ iMeshObj_getVtxCoords(iMesh_Object *self,PyObject *args)
         if(checkError(self->handle,err))
             return NULL;
 
-        npy_intp outer;
-        if(storage_order == iBase_BLOCKED)
-            outer = 3;
-        else
-            outer = size;
+        npy_intp outer = (storage_order == iBase_BLOCKED) ? 3:size;
         /* TODO: think about this */
         npy_intp dims[] = {outer, coords_size/outer};
         return PyArray_NewFromMalloc(2,dims,NPY_DOUBLE,coords);
@@ -249,7 +207,10 @@ iMeshObj_getVtxCoords(iMesh_Object *self,PyObject *args)
         iMesh_getVtxCoord(self->handle,iBaseEntity_GetHandle(obj), v+0,v+1,v+2,
                           &err);
         if(checkError(self->handle,err))
+        {
+            free(v);
             return NULL;
+        }
 
         npy_intp dims[] = {3};
         return PyArray_NewFromMalloc(1,dims,NPY_DOUBLE,v);
@@ -281,8 +242,8 @@ iMeshObj_getEntTopo(iMesh_Object *self,PyObject *args)
         size = PyArray_SIZE(ents);
         data = PyArray_DATA(ents);
 
-        iMesh_getEntArrTopo(self->handle,data,size,&topos,&topo_alloc,&topo_size,
-                            &err);
+        iMesh_getEntArrTopo(self->handle,data,size,&topos,&topo_alloc,
+                            &topo_size,&err);
         Py_DECREF(ents);
         if(checkError(self->handle,err))
             return NULL;
@@ -328,8 +289,8 @@ iMeshObj_getEntType(iMesh_Object *self,PyObject *args)
         size = PyArray_SIZE(ents);
         data = PyArray_DATA(ents);
       
-        iMesh_getEntArrType(self->handle,data,size,&types,&type_alloc,&type_size,
-                            &err);
+        iMesh_getEntArrType(self->handle,data,size,&types,&type_alloc,
+                            &type_size,&err);
         Py_DECREF(ents);
         if(checkError(self->handle,err))
             return NULL;
@@ -390,19 +351,6 @@ iMeshObj_getEntAdj(iMesh_Object *self,PyObject *args)
         return AdjacencyList_New(
             PyArray_NewFromMalloc(1,adj_dims,NPY_IBASEENT,adj),
             PyArray_NewFromMalloc(1,off_dims,NPY_INT,offsets) );
-
-        PyObject *pair = PyTuple_New(2);
-        npy_intp dims[1];
- 
-        dims[0] = adj_size;
-        PyTuple_SET_ITEM(pair, 0,
-            PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,adj));
-
-        dims[0] = offsets_size;
-        PyTuple_SET_ITEM(pair, 1,
-            PyArray_NewFromMalloc(1,dims,NPY_INT,offsets));
-
-        return pair;
     }
     else if(iBaseEntity_Check(obj))
     {
@@ -461,19 +409,6 @@ iMeshObj_getEnt2ndAdj(iMesh_Object *self,PyObject *args)
         return AdjacencyList_New(
             PyArray_NewFromMalloc(1,adj_dims,NPY_IBASEENT,adj),
             PyArray_NewFromMalloc(1,off_dims,NPY_INT,offsets) );
-
-        PyObject *pair = PyTuple_New(2);
-        npy_intp dims[1];
- 
-        dims[0] = adj_size;
-        PyTuple_SET_ITEM(pair, 0,
-            PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,adj));
-
-        dims[0] = offsets_size;
-        PyTuple_SET_ITEM(pair, 1,
-            PyArray_NewFromMalloc(1,dims,NPY_INT,offsets));
-
-        return pair;
     }
     else if(iBaseEntity_Check(obj))
     {
@@ -554,11 +489,13 @@ iMeshObj_setVtxCoords(iMesh_Object *self,PyObject *args)
     {
         if(storage_order == -1)
         {
+            Py_DECREF(ents);
             PyErr_SetString(PyExc_ValueError,ERR_STORAGE_ORDER);
             goto err;
         }
 
-        verts = PyArray_FROMANY(data,NPY_DOUBLE,2,2,NPY_C_CONTIGUOUS);
+        verts = PyArray_ToVectors(data,NPY_DOUBLE,2,3,
+                                  storage_order==iBase_INTERLEAVED);
         if(verts == NULL)
             goto err;
 
@@ -574,15 +511,9 @@ iMeshObj_setVtxCoords(iMesh_Object *self,PyObject *args)
     }
     else if(iBaseEntity_Check(obj))
     {
-        verts = PyArray_FROMANY(data,NPY_DOUBLE,1,1,NPY_C_CONTIGUOUS);
+        verts = PyArray_ToVectors(data,NPY_DOUBLE,1,3,0);
         if(verts == NULL)
             goto err;
-
-        if(PyArray_SIZE(verts) != 3)
-        {
-            PyErr_SetString(PyExc_ValueError,ERR_ARR_SIZE);
-            goto err;
-        }
 
         double *v = PyArray_DATA(verts);
         iBase_EntityHandle entity = iBaseEntity_GetHandle(obj);
@@ -698,10 +629,7 @@ iMeshObj_createEnt(iMesh_Object *self,PyObject *args)
         return NULL;
     }
 
-    PyObject *pair = PyTuple_New(2);
-    PyTuple_SET_ITEM(pair,0,(PyObject*)entity);
-    PyTuple_SET_ITEM(pair,1,Py_BuildValue("i",status));
-    return pair;
+    return Py_BuildValue("(Oi)",entity,status);
 }
 
 static PyObject *
@@ -731,18 +659,12 @@ iMeshObj_createEntArr(iMesh_Object *self,PyObject *args)
     if(checkError(self->handle,err))
         return NULL;
 
-    PyObject *pair = PyTuple_New(2);
-    npy_intp dims[1];
-
-    dims[0] = ent_size;
-    PyTuple_SET_ITEM(pair, 0,
-        PyArray_NewFromMalloc(1,dims,NPY_IBASEENT,entities));
-
-    dims[0] = stat_size;
-    PyTuple_SET_ITEM(pair, 1,
-        PyArray_NewFromMalloc(1,dims,NPY_INT,status));
-
-    return pair;
+    npy_intp ent_dims[] = {ent_size};
+    npy_intp stat_dims[] = {stat_size};
+    return Py_BuildValue("(OO)",
+        PyArray_NewFromMalloc(1,ent_dims,NPY_IBASEENT,entities),
+        PyArray_NewFromMalloc(1,stat_dims,NPY_INT,status)
+        );
 }
 
 
@@ -1077,6 +999,7 @@ PyMODINIT_FUNC initiMesh(void)
     m = Py_InitModule("iMesh",module_methods);
     import_array();
     import_iBase();
+    import_helpers();
 
     /***** register C API *****/
     static void *IMesh_API[6];
@@ -1095,16 +1018,6 @@ PyMODINIT_FUNC initiMesh(void)
 
     if(api_obj != NULL)
         PyModule_AddObject(m, "_C_API", api_obj);
-
-    /***** import helper module *****/
-    if( (g_helper_module = PyImport_ImportModule("itaps.helpers")) == NULL)
-        return;
-    if( (g_adj_list = PyObject_GetAttrString(g_helper_module,"AdjacencyList") )
-        == NULL)
-        return;
-    if( (g_ind_adj_list = PyObject_GetAttrString(g_helper_module,
-        "IndexedAdjacencyList")) == NULL)
-        return;
 
     REGISTER_SIMPLE(m,"Mesh",iMesh);
 
@@ -1170,4 +1083,3 @@ PyMODINIT_FUNC initiMesh(void)
 #include "iMesh_entSet.inl"
 #include "iMesh_iter.inl"
 #include "iMesh_tag.inl"
-#include "numpy_extensions.inl"
