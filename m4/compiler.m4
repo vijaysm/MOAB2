@@ -112,18 +112,38 @@ esac
 
 if test "xno" != "x$CHECK_CC"; then
   AC_PROG_CC( [$CC_LIST] )
-  SNL_CC_FLAGS
 fi
 AC_PROG_CPP
 if test "xno" != "x$CHECK_CXX"; then
   AC_PROG_CXX( [$CXX_LIST] )
   AC_PROG_CXXCPP
-  SNL_CXX_FLAGS
 fi
 if test "xno" != "x$CHECK_FC"; then
   AC_PROG_FC( [$FC_LIST] )
   AC_PROG_F77( [$F77_LIST] )
 fi
+
+]) # SNL_CHECK_COMPILERS
+
+
+
+#######################################################################################
+# Implement checks for C and C++ compiler options
+#
+#  CFLAGS   - C compiler flags
+#  CXXFLAGS - C++ compiler flags
+#
+#######################################################################################
+AC_DEFUN([SNL_COMPILER_FLAGS], [
+
+
+if test "xno" != "x$CHECK_CC"; then
+  SNL_CC_FLAGS
+fi
+if test "xno" != "x$CHECK_CXX"; then
+  SNL_CXX_FLAGS
+fi
+
 
 # Try to determine compiler-specific flags.  This must be done
 # before setting up libtool so that it can override libtool settings.
@@ -216,7 +236,7 @@ AC_ARG_ENABLE( 64bit, AC_HELP_STRING([--enable-64bit],[Force 64-bit objects]),
   CFLAGS="$CFLAGS $SNL_CC_64BIT"
 ])
 
-]) # SNL_CHECK_COMPILERS
+]) # SNL_COMPILER_FLAGS
 
 #######################################################################################
 # *******************************************************************************
@@ -232,11 +252,11 @@ AC_ARG_ENABLE( 64bit, AC_HELP_STRING([--enable-64bit],[Force 64-bit objects]),
 #  - action upon failure
 #################################################################################
 AC_DEFUN([SNL_TRY_COMPILER_DEFINE], [
-AC_COMPILE_IFELSE([
-AC_LANG_PROGRAM( [[#ifndef $1
-  choke me
-#endif]], []) ],
-[$2],[$3])
+ AC_COMPILE_IFELSE([
+ AC_LANG_PROGRAM( [[#ifndef $1
+   choke me
+ #endif]], []) ],
+ [$2],[$3])
 ])
 
 
@@ -248,7 +268,7 @@ AC_LANG_PROGRAM( [[#ifndef $1
 #   SNL_CXX_64BIT   : Flag to force compilation of 64-bit code
 #######################################################################################
 AC_DEFUN([SNL_CXX_FLAGS], [
-AC_REQUIRE([AC_PROG_CXX])
+AC_LANG_PUSH([C++])
 
 # Detect compiler 
 AC_MSG_CHECKING([for known c++ compilers])
@@ -261,8 +281,6 @@ if test x$GXX = xyes; then
 # For efficiency, limit checks to relevant OSs
 else
   cxx_compiler=unknown
-  AC_LANG_SAVE
-  AC_LANG_CPLUSPLUS
   case "$target_os" in
     aix*)
       SNL_TRY_COMPILER_DEFINE([__IBMCPP__],[cxx_compiler=VisualAge])
@@ -295,8 +313,9 @@ else
       SNL_TRY_COMPILER_DEFINE([__PGI],[cc_cmopiler=PortlandGroup])
       ;;
   esac
-  AC_LANG_RESTORE
 fi
+
+AC_LANG_POP([C++])
 AC_MSG_RESULT([$cxx_compiler])
 if test "x$cxx_compiler" = "xunknown"; then
   AC_MSG_WARN([Unrecognized C++ compiler: $CXX])
@@ -380,7 +399,7 @@ AC_MSG_RESULT([$cxx_compiler:$host_cpu])
 #   SNL_CC_64BIT   : Flag to force compilation of 64-bit code
 #######################################################################################
 AC_DEFUN([SNL_CC_FLAGS], [
-AC_REQUIRE([AC_PROG_CC])
+AC_LANG_PUSH([C])
 
 # Detect compiler 
 
@@ -428,6 +447,7 @@ else
       ;;
   esac
 fi
+AC_LANG_POP([C])
 AC_MSG_RESULT([$cc_compiler])
 if test "x$cc_compiler" = "xunknown"; then
   AC_MSG_WARN([Unrecognized C compiler: $CXX])
