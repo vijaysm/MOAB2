@@ -23,7 +23,8 @@ libiRel_la_SOURCES = \
 
 libiRel_la_include_HEADERS = iRel.h \
                              iRel_f.h \
-                             iRel_protos.h 
+                             iRel_protos.h \
+			     iRel_FCDefs.h
 
 # The directory in which to install headers
 libiRel_la_includedir = $(includedir)
@@ -57,13 +58,18 @@ CLEANFILES=iRel_protos.h
 FPFX=iRel
 SEDEXPR = 's/^[[:space:]]*void[[:space:]][[:space:]]*$(FPFX)_\([a-z][_a-zA-Z0-9]*\)[[:space:]]*(.*$$/$(FPFX)_\1/p'
 iRel_protos.h: iRel.h
-	echo '#include "iBase_FCDefs.h"' > $@
-	echo '#ifdef FC_FUNC_' >> $@
+	echo '#include "iRel_FCDefs.h"' > $@
+	echo '#ifdef IREL_FC_FUNC_' >> $@
 	echo >> $@
 	for func in `$(SED) -n $(SEDEXPR) $<`; do \
 	  lower=`echo $$func | tr '[:upper:]' '[:lower:]'`; \
           upper=`echo $$func | tr '[:lower:]' '[:upper:]'`; \
-	  echo "#define $$func FC_FUNC_( $$lower, $$upper )" >> $@; \
+	  echo "#define $$func IREL_FC_FUNC_( $$lower, $$upper )" >> $@; \
         done
 	echo >> $@
 	echo "#endif" >> $@
+
+iRel_FCDefs.h: iBase_FCDefs.h
+	./config.status iRel_FCDefs.h
+
+DISTCLEANFILES = iRel_FCDefs.h
