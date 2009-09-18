@@ -83,10 +83,13 @@ install-data-hook:
 	echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 
 iMesh_protos.h: iMesh.h mkprotos.sh
-	$(srcdir)/mkprotos.sh iMesh $< $@
+	$(srcdir)/mkprotos.sh iMesh MBCN $< $@ MBCN_FCDefs.h
 
 iMesh_extensions_protos.h: iMesh_extensions.h mkprotos.sh
-	$(srcdir)/mkprotos.sh iMesh $< $@
+	$(srcdir)/mkprotos.sh iMesh MBCN $< $@ MBCN_FCDefs.h
 
 iMeshP_protos.h: iMeshP.h mkprotos.sh
-	$(srcdir)/mkprotos.sh iMeshP $< $@
+	$(srcdir)/mkprotos.sh iMeshP MBCN $< $@ MBCN_FCDefs.h
+
+iMesh_FCDefs.h: iBase_FCDefs.h
+	cd ../.. && ./config.status tools/iMesh/iMesh_FCDefs.h

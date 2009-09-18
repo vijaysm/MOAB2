@@ -1048,7 +1048,7 @@ AC_ARG_VAR([FC], [FORTRAN compiler command])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_HEADERS([MBVersion.h])
 AC_CONFIG_HEADERS([MBEntityHandle.h])
-AC_CONFIG_HEADERS([MBCN_FCDefs.h])
+AC_CONFIG_HEADERS([iBase_FCDefs.h])
 AC_CONFIG_FILES([Makefile 
                  moab.make 
                  testdir.h
@@ -1077,6 +1077,8 @@ AC_CONFIG_FILES([Makefile
                  doc/Makefile
                  doxygen/Makefile
                  ])
+AC_CONFIG_COMMANDS([MBCN_FCDefs.h],
+  [sed -e "s/FC_FUNC/MBCN_FC_FUNC/" iBase_FCDefs.h >MBCN_FCDefs.h])
 
 AC_OUTPUT
 

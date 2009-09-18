@@ -272,10 +272,14 @@ libMOAB_la_include_HEADERS = \
   MeshTopoUtil.hpp \
   ReadWriteDefines.h \
   WriteTemplate.hpp \
+  MBCN_FCDefs.h \
   $(MOAB_EXTRA_HDRS)
 
 MBCN_protos.h: MBCN.h tools/iMesh/mkprotos.sh
-	$(srcdir)/tools/iMesh/mkprotos.sh MBCN $< $@
+	$(srcdir)/tools/iMesh/mkprotos.sh MBCN MBCN $< $@ MBCN_FCDefs.h
+
+MBCN_FCDefs.h: iBase_FCDefs.h
+	./config.status MBCN_FCDefs.h
 
 CPPFLAGS += -DSRCDIR=$(srcdir)
 
@@ -366,6 +370,7 @@ mbcn_test_CPPFLAGS = -DSRCDIR=$(srcdir)  # define anything to work around build 
 mbcn_test_LDADD = 
 
 # Other files to clean up (e.g. output from tests)
+DISTCLEANFILES = MBCN_FCDefs.h
 MOSTLYCLEANFILES = dumped_acis.sat tree.h5m
 
 test/mb_big_test.g: $(top_srcdir)/test/mb_big_test.g.gz
