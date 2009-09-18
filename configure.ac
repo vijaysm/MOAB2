@@ -2,14 +2,16 @@
 #                           Standard Stuff
 ################################################################################
 AC_INIT(Lasso, 2.5)
+AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_AUX_DIR([.])
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(Lasso,2.5)
+AM_INIT_AUTOMAKE
 
 AC_PROG_SED
 
 SNL_CHECK_COMPILERS
 AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" == "xyes"])
-LIBS="-lm"
+LIBS="$LIBS -lm"
 
 AC_PROG_LN_S
 AC_PROG_MAKE_SET

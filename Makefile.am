@@ -1,6 +1,9 @@
 AUTOMAKE_OPTIONS = foreign
 BUILT_SOURCES = iRel_protos.h
 
+# Don't loose the autoconf include path
+ACLOCAL_AMFLAGS = -I m4
+
 INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I. -I${IMESH_DIR}/include -I${IGEOM_DIR}/include
 
 DEFS += $(DEFINES)
