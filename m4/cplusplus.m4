@@ -60,7 +60,7 @@ AC_CACHE_CHECK([for C++-standard library in std:: namespace],
                                [snl_cv_cxx_stl_in_std=no])
                 AC_LANG_RESTORE])
                 
-if test snl_cv_cxx_stl_in_std = no; then
+if test $snl_cv_cxx_stl_in_std = no; then
   CANT_USE_STD=-DCANT_USE_STD
 else
   CANT_USE_STD=
@@ -79,7 +79,7 @@ AC_CACHE_CHECK([for C++-standard I/O in std:: namespace],
                                [snl_cv_cxx_io_in_std=no])
                 AC_LANG_RESTORE])
                 
-if test ssnl_cv_cxx_io_in_std = no; then
+if test $snl_cv_cxx_io_in_std = no; then
   CANT_USE_STD_IO=-DCANT_USE_STD_IO
 else
   CANT_USE_STD_IO=
@@ -119,7 +119,7 @@ AC_CACHE_CHECK([if C++ template definitions should be included],
                 rm -f $src $templ $exe
                 AC_LANG_RESTORE])
                 
-if test snl_cv_cxx_template_defs_included = yes; then
+if test $snl_cv_cxx_template_defs_included = yes; then
   TEMPLATE_DEFS_INCLUDED=-DTEMPLATE_DEFS_INCLUDED
 else
   TEMPLATE_DEFS_INCLUDED=
@@ -144,7 +144,7 @@ AC_CACHE_CHECK([if C++ compiler supports template class specialization],
                 AC_LANG_RESTORE])
 
 TEMPLATE_SPECIALIZATION=
-if test $snl_cv_template_specialization=yes; then
+if test $snl_cv_template_specialization = yes; then
   TEMPLATE_SPECIALIZATION=-DTEMPLATE_SPECIALIZATION
 fi
 
@@ -168,7 +168,7 @@ AC_CACHE_CHECK([if C++ compiler supports template function specialization],
                 AC_LANG_RESTORE])
 
 TEMPLATE_FUNC_SPECIALIZATION=
-if test $snl_cv_template_func_specialization=yes; then
+if test $snl_cv_template_func_specialization = yes; then
   TEMPLATE_FUNC_SPECIALIZATION=-DTEMPLATE_FUNC_SPECIALIZATION
 fi
 
