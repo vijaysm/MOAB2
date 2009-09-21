@@ -272,7 +272,6 @@ libMOAB_la_include_HEADERS = \
   MeshTopoUtil.hpp \
   ReadWriteDefines.h \
   WriteTemplate.hpp \
-  MBCN_FCDefs.h \
   $(MOAB_EXTRA_HDRS)
 
 MBCN_protos.h: MBCN.h tools/iMesh/mkprotos.sh
