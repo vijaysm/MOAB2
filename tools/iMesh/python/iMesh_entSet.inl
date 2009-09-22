@@ -56,7 +56,7 @@ iMeshEntSetObj_getNumOfType(iMeshEntitySet_Object *self,PyObject *args)
     if(checkError(self->instance->handle,err))
         return NULL;
 
-    return Py_BuildValue("i",num);
+    return PyInt_FromLong(num);
 }
 
 static PyObject *
@@ -71,7 +71,7 @@ iMeshEntSetObj_getNumOfTopo(iMeshEntitySet_Object *self,PyObject *args)
     if(checkError(self->instance->handle,err))
         return NULL;
 
-    return Py_BuildValue("i",num);
+    return PyInt_FromLong(num);
 }
 
 static PyObject *
@@ -159,7 +159,7 @@ iMeshEntSetObj_getNumEntSets(iMeshEntitySet_Object *self,PyObject *args)
     if(checkError(self->instance->handle,err))
         return NULL;
 
-    return Py_BuildValue("i",num_sets);
+    return PyInt_FromLong(num_sets);
 }
 
 static PyObject *
@@ -386,7 +386,7 @@ iMeshEntSetObj_getNumChildren(iMeshEntitySet_Object *self,PyObject *args)
     if(checkError(self->instance->handle,err))
         return NULL;
 
-    return Py_BuildValue("i",num_children);
+    return PyInt_FromLong(num_children);
 }
 
 static PyObject *
@@ -402,7 +402,7 @@ iMeshEntSetObj_getNumParents(iMeshEntitySet_Object *self,PyObject *args)
     if(checkError(self->instance->handle,err))
         return NULL;
 
-    return Py_BuildValue("i",num_parents);
+    return PyInt_FromLong(num_parents);
 }
 
 static PyObject *

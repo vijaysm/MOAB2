@@ -131,7 +131,7 @@ iMeshObj_getDfltStorage(iMesh_Object *self,void *closure)
     if(checkError(self->handle,err))
         return NULL;
 
-    return Py_BuildValue("i",order);
+    return PyInt_FromLong(order);
 }
 
 static PyObject *
@@ -159,7 +159,7 @@ iMeshObj_areEHValid(iMesh_Object *self,PyObject *args)
     if(checkError(self->handle,err))
         return NULL;
 
-    return Py_BuildValue("i",areInv);
+    return PyInt_FromLong(areInv);
 }
 
 static PyObject *

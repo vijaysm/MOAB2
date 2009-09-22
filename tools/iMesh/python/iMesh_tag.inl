@@ -41,7 +41,7 @@ iMeshTagObj_getName(iMeshTag_Object *self,void *closure)
     if(checkError(self->instance->handle,err))
         return NULL;
 
-    return Py_BuildValue("s",name);
+    return PyString_FromString(name);
 }
 
 static PyObject *
@@ -52,7 +52,7 @@ iMeshTagObj_getSizeValues(iMeshTag_Object *self,void *closure)
     if(checkError(self->instance->handle,err))
         return NULL;
 
-    return Py_BuildValue("i",size);
+    return PyInt_FromLong(size);
 }
 
 static PyObject *
@@ -63,7 +63,7 @@ iMeshTagObj_getSizeBytes(iMeshTag_Object *self,void *closure)
     if(checkError(self->instance->handle,err))
         return NULL;
 
-    return Py_BuildValue("i",size);
+    return PyInt_FromLong(size);
 }
 
 static PyObject *
@@ -366,7 +366,7 @@ iMeshTagObj_getData(iMeshTag_Object *self,PyObject *args)
                                    self->base.handle,&data,&err);
             if(checkError(self->instance->handle,err))
                 return NULL;
-            return Py_BuildValue("i",data);
+            return PyInt_FromLong(data);
         }
         else if(type == iBase_DOUBLE)
         {
@@ -375,7 +375,7 @@ iMeshTagObj_getData(iMeshTag_Object *self,PyObject *args)
                                    self->base.handle,&data,&err);
             if(checkError(self->instance->handle,err))
                 return NULL;
-            return Py_BuildValue("d",data);
+            return PyFloat_FromDouble(data);
         }
         else if(type == iBase_ENTITY_HANDLE)
         {
@@ -412,7 +412,7 @@ iMeshTagObj_getData(iMeshTag_Object *self,PyObject *args)
                              &data,&err);
             if(checkError(self->instance->handle,err))
                 return NULL;
-            return Py_BuildValue("i",data);
+            return PyInt_FromLong(data);
         }
         else if(type == iBase_DOUBLE)
         {
@@ -421,7 +421,7 @@ iMeshTagObj_getData(iMeshTag_Object *self,PyObject *args)
                              &data,&err);
             if(checkError(self->instance->handle,err))
                 return NULL;
-            return Py_BuildValue("d",data);
+            return PyFloat_FromDouble(data);
         }
         else if(type == iBase_ENTITY_HANDLE)
         {

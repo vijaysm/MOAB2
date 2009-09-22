@@ -78,9 +78,7 @@ iBaseEntArr_nonzero(void *data,void *arr)
 static PyObject *
 iBaseEntObj_repr(iBaseEntity_Object *self)
 {
-    char out[64];
-    snprintf(out,64,"<itaps.iBase.Entity %p>",self->handle);
-    return Py_BuildValue("s",out);
+    return PyString_FromFormat("<itaps.iBase.Entity %p>",self->handle);
 }
 
 static PyObject *
@@ -148,9 +146,7 @@ iBaseEntSetArr_nonzero(void *data,void *arr)
 static PyObject *
 iBaseEntSetObj_repr(iBaseEntitySet_Object *self)
 {
-    char out[64];
-    snprintf(out,64,"<itaps.iBase.EntitySet %p>",self->handle);
-    return Py_BuildValue("s",out);
+    return PyString_FromFormat("<itaps.iBase.EntitySet %p>",self->handle);
 }
 
 static PyObject *

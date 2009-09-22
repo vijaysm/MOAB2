@@ -38,7 +38,7 @@
 
 #define ADD_ENUM(typename,name,value)                           \
     do {                                                        \
-        PyObject *o = Py_BuildValue("i",(value));               \
+        PyObject *o = PyInt_FromLong((value));                  \
         PyDict_SetItemString((&typename ## _Type)->             \
                              tp_dict,(name),o);                 \
         Py_DECREF(o);                                           \
