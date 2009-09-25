@@ -752,6 +752,18 @@ bool MBAdaptiveKDTreeIter::sibling_is_forward() const
   return childVect[0] == handle();
 }  
 
+bool MBAdaptiveKDTreeIter::intersect_ray( const double ray_point[3],
+                                          const double ray_vect[3],
+                                          double& t_enter, 
+                                          double& t_exit ) const
+{
+  return MBGeomUtil::ray_box_intersect( MBCartVect(box_min()),
+                                        MBCartVect(box_max()),
+                                        MBCartVect(ray_point),
+                                        MBCartVect(ray_vect),
+                                        t_enter, t_exit );
+}
+
 static MBErrorCode intersect_children_with_elems(
                                         MBAdaptiveKDTree* tool,
                                         const MBRange& elems,

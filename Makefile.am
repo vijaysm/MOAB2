@@ -39,7 +39,8 @@ TESTS = moab_test \
 	mesh_set_test \
 	cub_file_test \
 	exodus_test \
-        mbcn_test 
+        mbcn_test \
+        bsp_tree_poly_test
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
 
@@ -146,6 +147,7 @@ libMOAB_la_SOURCES = \
   MBMeshSet.hpp \
   MBOrientedBox.cpp \
   MBOrientedBoxTreeTool.cpp \
+  BSPTreePoly.cpp \
   MBRange.cpp \
   MBRangeSeqIntersectIter.cpp \
   MBRangeSeqIntersectIter.hpp \
@@ -258,6 +260,7 @@ libMOAB_la_include_HEADERS = \
   MBOrientedBox.hpp \
   MBOrientedBoxTreeTool.hpp \
   MBParallelConventions.h \
+  BSPTreePoly.hpp \
   MBRange.hpp \
   MBReadUtilIface.hpp \
   MBReaderIface.hpp \
@@ -367,6 +370,8 @@ exodus_test_DEPENDENCIES = $(tag_test_LDADD)
 mbcn_test_SOURCES = MBCN.hpp MBCN.cpp mbcn_test.cc
 mbcn_test_CPPFLAGS = -DSRCDIR=$(srcdir)  # define anything to work around build issue
 mbcn_test_LDADD = 
+
+bsp_tree_poly_test_SOURCES = bsp_tree_poly_test.cpp
 
 # Other files to clean up (e.g. output from tests)
 DISTCLEANFILES = MBCN_FCDefs.h

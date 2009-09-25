@@ -31,6 +31,7 @@
 class MBBSPTreeBoxIter;
 class MBBSPTreeIter;
 class MBRange;
+class BSPTreePoly;
 
 class MBBSPTree
 {
@@ -133,6 +134,10 @@ public:
   //! Get bounding box for entire tree
   MBErrorCode get_tree_box( MBEntityHandle root_node,
                             double corner_coords[8][3] );
+  
+  //! Get bounding box for entire tree
+  MBErrorCode get_tree_box( MBEntityHandle root_node,
+                            double corner_coords[24] );
   
   //! Set bounding box for entire tree
   MBErrorCode set_tree_box( MBEntityHandle root_node,
@@ -281,6 +286,28 @@ public:
     //! Get split plane that separates this node from its immediate sibling.
   MBErrorCode get_parent_split_plane( MBBSPTree::Plane& plane ) const;
   
+    //! Get volume of leaf polyhedron
+  virtual double volume() const;
+  
+    //! Find range of overlap between ray and leaf.
+    //!
+    //!\param ray_point Coordinates of start point of ray
+    //!\param ray_vect  Directionion vector for ray such that
+    //!                 the ray is defined by r(t) = ray_point + t * ray_vect
+    //!                 for t > 0.
+    //!\param t_enter   Output: if return value is true, this value
+    //!                 is the parameter location along the ray at which
+    //!                 the ray entered the leaf.  If return value is false,
+    //!                 then this value is undefined.
+    //!\param t_exit    Output: if return value is true, this value
+    //!                 is the parameter location along the ray at which
+    //!                 the ray exited the leaf.  If return value is false,
+    //!                 then this value is undefined.
+    //!\return true if ray intersects leaf, false otherwise.
+  virtual bool intersect_ray( const double ray_point[3],
+                              const double ray_vect[3],
+                              double& t_enter, double& t_exit ) const;
+  
     //! Return true if thos node and the passed node share the
     //! same immediate parent.
   bool is_sibling( const MBBSPTreeIter& other_leaf ) const;
@@ -294,6 +321,9 @@ public:
     //! if current node is root or back() will move to the 
     //! immediate sibling.
   bool sibling_is_forward( ) const;
+  
+    //! Calculate the convex polyhedron bounding this leaf.
+  virtual MBErrorCode calculate_polyhedron( BSPTreePoly& polyhedron_out ) const;
 };
 
 class MBBSPTreeBoxIter : public MBBSPTreeIter
@@ -370,6 +400,25 @@ class MBBSPTreeBoxIter : public MBBSPTreeIter
     //! test if a plane intersects the leaf box
   bool intersects( const MBBSPTree::Plane& plane ) const;
   
+    //! Find range of overlap between ray and leaf.
+    //!
+    //!\param ray_point Coordinates of start point of ray
+    //!\param ray_vect  Directionion vector for ray such that
+    //!                 the ray is defined by r(t) = ray_point + t * ray_vect
+    //!                 for t > 0.
+    //!\param t_enter   Output: if return value is true, this value
+    //!                 is the parameter location along the ray at which
+    //!                 the ray entered the leaf.  If return value is false,
+    //!                 then this value is undefined.
+    //!\param t_exit    Output: if return value is true, this value
+    //!                 is the parameter location along the ray at which
+    //!                 the ray exited the leaf.  If return value is false,
+    //!                 then this value is undefined.
+    //!\return true if ray intersects leaf, false otherwise.
+  bool intersect_ray( const double ray_point[3],
+                      const double ray_vect[3],
+                      double& t_enter, double& t_exit ) const;
+  
     //! Return the side of the box bounding this tree node
     //! that is shared with the immediately adjacent sibling
     //! (the tree node that shares a common parent node with
@@ -396,6 +445,9 @@ class MBBSPTreeBoxIter : public MBBSPTreeIter
   MBErrorCode get_neighbors( SideBits side,
                              std::vector<MBBSPTreeBoxIter>& results,
                              double epsilon = 0.0 ) const;
+  
+    //! Calculate the convex polyhedron bounding this leaf.
+  MBErrorCode calculate_polyhedron( BSPTreePoly& polyhedron_out ) const;
 };
 
 #endif

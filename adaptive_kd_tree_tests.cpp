@@ -1216,6 +1216,77 @@ void test_leaf_intersects_plane()
   CHECK( !iter.intersects( z6 ) );
 }
 
+#define CHECK_RAY_XSECTS( PT, DIR, T_IN, T_OUT ) do { \
+  CHECK(iter.intersect_ray( (PT), (DIR), t_in, t_out )); \
+  CHECK_REAL_EQUAL( (T_IN), t_in, 1e-6 ); \
+  CHECK_REAL_EQUAL( (T_OUT), t_out, 1e-6 ); \
+  } while(false)
+    
+void test_leaf_intersects_ray()
+{
+  MBErrorCode rval;
+  MBCore moab;
+  MBAdaptiveKDTree tool( &moab );
+  double t_in, t_out;
+  
+  MBEntityHandle root;
+  const double min[3] = { -5, -4, -1 };
+  const double max[3] = {  1,  2,  3 };
+  rval = tool.create_tree( min, max, root );
+  CHECK_ERR(rval);
+  
+  MBAdaptiveKDTreeIter iter;
+  rval = tool.get_tree_iterator( root, iter );
+  CHECK_ERR(rval);
+  
+    // start with point inside box
+  const double pt1[] = { 0, 0, 0 };
+  const double dir1[] = { 0.1, 0.1, 0.1 };
+  CHECK_RAY_XSECTS( pt1, dir1, 0, 10 );
+  const double dir2[] = { 5, 5, 5 };
+  CHECK_RAY_XSECTS( pt1, dir2, 0, 0.2 );
+  const double pxdir[] = { 1, 0, 0 };
+  CHECK_RAY_XSECTS( pt1, pxdir, 0, 1 );
+  const double nxdir[] = { -1, 0, 0 };
+  CHECK_RAY_XSECTS( pt1, nxdir, 0, 5 );
+  const double pydir[] = { 0, 1, 0 };
+  CHECK_RAY_XSECTS( pt1, pydir, 0, 2 );
+  const double nydir[] = { 0, -1, 0 };
+  CHECK_RAY_XSECTS( pt1, nydir, 0, 4 );
+  const double pzdir[] = { 0, 0, 1 };
+  CHECK_RAY_XSECTS( pt1, pzdir, 0, 3 );
+  const double nzdir[] = { 0, 0, -1 };
+  CHECK_RAY_XSECTS( pt1, nzdir, 0, 1 );
+  
+    // point below box
+  const double pt2[] = { 0, 0, -2 };
+  CHECK_RAY_XSECTS( pt2, dir1, 10, 10 );
+  CHECK_RAY_XSECTS( pt2, dir2, 0.2, 0.2 );
+  CHECK(!iter.intersect_ray( pt2, pxdir, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt2, nxdir, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt2, pydir, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt2, nydir, t_in, t_out ));
+  CHECK_RAY_XSECTS( pt2, pzdir, 1, 5 );
+  CHECK(!iter.intersect_ray( pt2, nzdir, t_in, t_out ));
+  
+    // point right of box
+  const double pt3[] = { 3, 0, 0 };
+  CHECK(!iter.intersect_ray( pt3, dir1, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt3, dir2, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt3, pxdir, t_in, t_out ));
+  CHECK_RAY_XSECTS( pt3, nxdir, 2, 8 );
+  CHECK(!iter.intersect_ray( pt3, pydir, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt3, nydir, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt3, pzdir, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt3, nzdir, t_in, t_out ));
+  
+    // a few more complex test cases
+  const double dira[] = { -3, 0, 3 };
+  CHECK_RAY_XSECTS( pt3, dira, 2./3., 1.0 );
+  const double dirb[] = { -2, 0, 3.1 };
+  CHECK(!iter.intersect_ray( pt3, dirb, t_in, t_out ));
+}
+
 int main()
 {
   int error_count = 0;
@@ -1229,5 +1300,6 @@ int main()
   error_count += RUN_TEST(test_leaf_volume);
   error_count += RUN_TEST(test_leaf_sibling);
   error_count += RUN_TEST(test_leaf_intersects_plane);
+  error_count += RUN_TEST(test_leaf_intersects_ray);
   return error_count;
 }

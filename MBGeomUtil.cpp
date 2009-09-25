@@ -156,6 +156,59 @@ bool ray_tri_intersect( const MBCartVect vertices[3],
   return true;
 }
 
+bool ray_box_intersect( const MBCartVect& box_min,
+                        const MBCartVect& box_max,
+                        const MBCartVect& ray_pt,
+                        const MBCartVect& ray_dir,
+                        double& t_enter, double& t_exit )
+{
+  const double epsilon = 1e-12;
+  double t1, t2;
+
+  // Use 'slabs' method from 13.6.1 of Akenine-Moller
+  t_enter = 0.0;
+  t_exit  = std::numeric_limits<double>::infinity();
+  
+  // Intersect with each pair of axis-aligned planes bounding
+  // opposite faces of the leaf box
+  bool ray_is_valid = false; // is ray direction vector zero?
+  for (int axis = 0; axis < 3; ++axis) {
+    if (fabs(ray_dir[axis]) < epsilon) { // ray parallel to planes
+      if (ray_pt[axis] >= box_min[axis] &&
+          ray_pt[axis] <= box_max[axis])
+        continue;
+      else
+        return false;
+    }
+      
+      // find t values at which ray intersects each plane
+    ray_is_valid = true;
+    t1 = (box_min[axis] - ray_pt[axis]) / ray_dir[axis];
+    t2 = (box_max[axis] - ray_pt[axis]) / ray_dir[axis];
+    
+      // t_enter = max( t_enter_x, t_enter_y, t_enter_z )
+      // t_exit  = min( t_exit_x, t_exit_y, t_exit_z )
+      //   where
+      // t_enter_x = min( t1_x, t2_x );
+      // t_exit_x  = max( t1_x, t2_x )
+    if (t1 < t2) {
+      if (t_enter < t1)
+        t_enter = t1;
+      if (t_exit > t2)
+        t_exit = t2;
+    }
+    else {
+      if (t_enter < t2)
+        t_enter = t2;
+      if (t_exit > t1)
+        t_exit = t1;
+    }
+  }
+  
+  return ray_is_valid && (t_enter <= t_exit);
+}
+
+
 bool box_plane_overlap( const MBCartVect& normal,
                         double d,
                         MBCartVect min,

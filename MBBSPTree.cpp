@@ -22,6 +22,7 @@
 #include "MBGeomUtil.hpp"
 #include "MBRange.hpp"
 #include "MBInternals.hpp"
+#include "BSPTreePoly.hpp"
 
 #include <assert.h>
 #include <algorithm>
@@ -184,6 +185,12 @@ MBErrorCode MBBSPTree::set_tree_box( MBEntityHandle root_handle,
 
 MBErrorCode MBBSPTree::get_tree_box( MBEntityHandle root_handle,
                                      double corners[8][3] )
+{
+  return moab()->tag_get_data( rootTag, &root_handle, 1, corners );
+}
+
+MBErrorCode MBBSPTree::get_tree_box( MBEntityHandle root_handle,
+                                     double corners[24] )
 {
   return moab()->tag_get_data( rootTag, &root_handle, 1, corners );
 }
@@ -507,6 +514,13 @@ MBErrorCode MBBSPTreeIter::get_parent_split_plane( MBBSPTree::Plane& plane ) con
   return tool()->get_split_plane( parent, plane );
 }
 
+double MBBSPTreeIter::volume() const
+{
+  BSPTreePoly polyhedron;
+  MBErrorCode rval = calculate_polyhedron( polyhedron );
+  return MB_SUCCESS == rval ? polyhedron.volume() : -1.0;
+}
+
 bool MBBSPTreeIter::is_sibling( const MBBSPTreeIter& other_leaf ) const
 {
   const size_t s = mStack.size();
@@ -542,6 +556,46 @@ bool MBBSPTreeIter::sibling_is_forward() const
   }
   return childVect[0] == handle();
 }  
+
+MBErrorCode MBBSPTreeIter::calculate_polyhedron( BSPTreePoly& poly_out ) const
+{
+  MBErrorCode rval;
+  
+  assert( sizeof(MBCartVect) == 3*sizeof(double) );
+  MBCartVect corners[8];
+  rval = treeTool->get_tree_box( mStack.front(), corners[0].array() );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  rval = poly_out.set( corners );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  MBBSPTree::Plane plane;
+  std::vector<MBEntityHandle>::const_iterator i = mStack.begin();
+  std::vector<MBEntityHandle>::const_iterator here = mStack.end() - 1;
+  while (i != here) {
+    rval = treeTool->get_split_plane( *i, plane );
+    if (MB_SUCCESS != rval)
+      return rval;
+    
+    childVect.clear();
+    rval = treeTool->moab()->get_child_meshsets( *i, childVect );
+    if (MB_SUCCESS != rval)
+      return rval;
+    if (childVect.size() != 2)
+      return MB_FAILURE;
+      
+    ++i;
+    if (childVect[1] == *i)
+      plane.flip();
+    
+    MBCartVect norm( plane.norm );
+    poly_out.cut_polyhedron( norm, plane.coeff );
+  }
+  
+  return MB_SUCCESS;
+}
 
 MBErrorCode MBBSPTreeBoxIter::initialize( MBBSPTree* tool_ptr,
                                           MBEntityHandle root,
@@ -1154,6 +1208,11 @@ MBErrorCode MBBSPTreeBoxIter::get_neighbors(
   return MB_SUCCESS;
 }
 
+MBErrorCode MBBSPTreeBoxIter::calculate_polyhedron( BSPTreePoly& poly_out ) const
+{
+  return poly_out.set( reinterpret_cast<const MBCartVect*>(leafCoords) );
+}
+
 MBErrorCode MBBSPTree::leaf_containing_point( MBEntityHandle tree_root,
                                               const double point[3],
                                               MBEntityHandle& leaf_out )
@@ -1204,4 +1263,188 @@ MBErrorCode MBBSPTree::leaf_containing_point( MBEntityHandle root,
     if (MB_SUCCESS != rval)
       return rval;
   }
+}
+
+
+
+template <typename PlaneIter> static inline
+bool ray_intersect_halfspaces( const MBCartVect& ray_pt,
+                               const MBCartVect& ray_dir,
+                               const PlaneIter& begin, 
+                               const PlaneIter& end,
+                               double& t_enter, 
+                               double& t_exit )
+{
+  const double epsilon = 1e-12;
+
+    // begin with inifinite ray
+  t_enter = 0.0;
+  t_exit  = std::numeric_limits<double>::infinity();
+
+    // cut ray such that we keep only the portion contained
+    // in each halfspace
+  for (PlaneIter i = begin; i != end; ++i) {
+    MBCartVect norm( i->norm );
+    double coeff = i->coeff;
+    double den = norm % ray_dir;
+    if (fabs(den) < epsilon) { // ray is parallel to plane
+      if (i->above( ray_pt.array() ))
+        return false; // ray entirely outside half-space
+    }
+    else {
+      double t_xsect = (-coeff - (norm % ray_pt)) / den;
+        // keep portion of ray/segment below plane
+      if (den > 0) {
+        if (t_xsect < t_exit)
+          t_exit = t_xsect;
+      }
+      else {
+        if (t_xsect > t_enter)
+          t_enter = t_xsect;
+      }
+    }
+  }
+  
+  return t_exit >= t_enter;
+}
+                               
+class BoxPlaneIter {
+      int faceNum;
+      MBBSPTree::Plane facePlanes[6];
+  
+  public:  
+    BoxPlaneIter( const double coords[8][3] );
+    BoxPlaneIter( ) : faceNum(6) {} // initialize to 'end'
+    const MBBSPTree::Plane* operator->() const
+      { return facePlanes + faceNum; }
+    bool operator==( const BoxPlaneIter& other ) const
+      { return faceNum == other.faceNum; }
+    bool operator!=( const BoxPlaneIter& other ) const
+      { return faceNum != other.faceNum; }
+    BoxPlaneIter& operator++()
+      { ++faceNum; return *this; }
+};
+
+static const int box_face_corners[6][4] = { { 0, 1, 5, 4 },
+                                            { 1, 2, 6, 5 },
+                                            { 2, 3, 7, 6 },
+                                            { 3, 0, 4, 7 },
+                                            { 3, 2, 1, 0 },
+                                            { 4, 5, 6, 7 } };
+ 
+BoxPlaneIter::BoxPlaneIter( const double coords[8][3] )
+  : faceNum(0)
+{
+    // NOTE:  In the case of a BSP tree, all sides of the
+    //        leaf will planar.
+  assert( sizeof(MBCartVect) == sizeof(coords[0]) );
+  const MBCartVect* corners = reinterpret_cast<const MBCartVect*>(coords);
+  for (int i = 0; i < 6; ++i) {
+    const int* indices = box_face_corners[i];
+    MBCartVect v1 = corners[indices[1]] - corners[indices[0]];
+    MBCartVect v2 = corners[indices[3]] - corners[indices[0]];
+    MBCartVect n = v1 * v2;
+    facePlanes[i] = MBBSPTree::Plane( n.array(), -(n % corners[indices[2]]) );
+  }
+}
+
+
+bool MBBSPTreeBoxIter::intersect_ray( const double ray_point[3],
+                                      const double ray_vect[3],
+                                      double& t_enter, double& t_exit ) const
+{
+  BoxPlaneIter iter( this->leafCoords ), end;
+  return ray_intersect_halfspaces( MBCartVect(ray_point),
+                                   MBCartVect(ray_vect),
+                                   iter, end,
+                                   t_enter, t_exit );
+}
+
+class BSPTreePlaneIter {
+    MBBSPTree* toolPtr;
+    const MBEntityHandle* const pathToRoot;
+    int pathPos;
+    MBBSPTree::Plane tmpPlane;
+    std::vector<MBEntityHandle> tmpChildren;
+  public:
+    BSPTreePlaneIter( MBBSPTree* tool, const MBEntityHandle* path, int path_len )
+      : toolPtr(tool), pathToRoot(path), pathPos(path_len-1)
+      { operator++(); }
+    BSPTreePlaneIter() // initialize to 'end'
+      : toolPtr(0), pathToRoot(0), pathPos(-1) {}
+  
+    const MBBSPTree::Plane* operator->() const
+      { return &tmpPlane; }
+    bool operator==( const BSPTreePlaneIter& other ) const
+      { return pathPos == other.pathPos; }
+    bool operator!=( const BSPTreePlaneIter& other ) const
+      { return pathPos != other.pathPos; }
+    BSPTreePlaneIter& operator++();
+};
+
+BSPTreePlaneIter& BSPTreePlaneIter::operator++()
+{
+  if (--pathPos < 0)
+    return *this;
+
+  MBEntityHandle prev = pathToRoot[pathPos+1];
+  MBEntityHandle curr = pathToRoot[pathPos];
+  
+  MBErrorCode rval = toolPtr->get_split_plane( curr, tmpPlane );
+  if (MB_SUCCESS != rval) {
+    assert(false);
+    pathPos = 0;
+    return *this;
+  }
+  
+  tmpChildren.clear();
+  rval = toolPtr->moab()->get_child_meshsets( curr, tmpChildren );
+  if (MB_SUCCESS != rval || tmpChildren.size() != 2) {
+    assert(false);
+    pathPos = 0;
+    return *this;
+  }
+  
+  if (tmpChildren[1] == prev) 
+    tmpPlane.flip();
+  return *this;
+}
+
+
+bool MBBSPTreeIter::intersect_ray( const double ray_point[3],
+                                   const double ray_vect[3],
+                                   double& t_enter, double& t_exit ) const
+{
+    // intersect with half-spaces defining tree
+  BSPTreePlaneIter iter1( tool(), &mStack[0], mStack.size() ), end1;
+  if (!ray_intersect_halfspaces( MBCartVect(ray_point),
+                                 MBCartVect(ray_vect),
+                                 iter1, end1,
+                                 t_enter, t_exit ))
+    return false;
+  
+
+    // itersect with box bounding entire tree
+  double corners[8][3];
+  MBErrorCode rval = tool()->get_tree_box( mStack.front(), corners );
+  if (MB_SUCCESS != rval) {
+    assert(false); 
+    return false;
+  }
+  
+  BoxPlaneIter iter2( corners ), end2;
+  double t2_enter, t2_exit;
+  if (!ray_intersect_halfspaces( MBCartVect(ray_point),
+                                 MBCartVect(ray_vect),
+                                 iter2, end2,
+                                 t2_enter, t2_exit ))
+    return false;
+  
+    // if intersect both box and halfspaces, check that
+    // two intersections overlap
+  if (t_enter < t2_enter)
+    t_enter = t2_enter;
+  if (t_exit > t2_exit)
+    t_exit = t2_exit;
+  return t_enter <= t_exit;
 }

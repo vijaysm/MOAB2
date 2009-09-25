@@ -393,6 +393,25 @@ public:
     //! if current node is root or back() will move to the 
     //! immediate sibling.
   bool sibling_is_forward( ) const;
+  
+    //! Find range of overlap between ray and leaf.
+    //!
+    //!\param ray_point Coordinates of start point of ray
+    //!\param ray_vect  Directionion vector for ray such that
+    //!                 the ray is defined by r(t) = ray_point + t * ray_vect
+    //!                 for t > 0.
+    //!\param t_enter   Output: if return value is true, this value
+    //!                 is the parameter location along the ray at which
+    //!                 the ray entered the leaf.  If return value is false,
+    //!                 then this value is undefined.
+    //!\param t_exit    Output: if return value is true, this value
+    //!                 is the parameter location along the ray at which
+    //!                 the ray exited the leaf.  If return value is false,
+    //!                 then this value is undefined.
+    //!\return true if ray intersects leaf, false otherwise.
+  bool intersect_ray( const double ray_point[3],
+                      const double ray_vect[3],
+                      double& t_enter, double& t_exit ) const;
 };
 
 #endif

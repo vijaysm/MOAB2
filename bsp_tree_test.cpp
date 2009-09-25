@@ -1,6 +1,9 @@
 #include "MBCore.hpp"
 #include "TestUtil.hpp"
 #include "MBBSPTree.hpp"
+#include "MBCartVect.hpp"
+#include "BSPTreePoly.hpp"
+#include "MBRange.hpp"
 #include <algorithm>
 
 void test_set_plane();
@@ -13,8 +16,14 @@ void test_leaf_containing_point_unbounded_tree();
 void test_merge_leaf();
 void test_box_iter_neighbors();
 void test_leaf_sibling();
-void test_leaf_volume();
+void test_leaf_volume( bool box );
+void test_leaf_volume_box() { test_leaf_volume(true); }
+void test_leaf_volume_gen() { test_leaf_volume(false); }
 void test_leaf_splits_intersects();
+void test_leaf_intersects_ray_common( bool box );
+void test_box_leaf_intersects_ray() { test_leaf_intersects_ray_common(true); }
+void test_gen_leaf_intersects_ray() { test_leaf_intersects_ray_common(false); }
+void test_leaf_polyhedron();
 
 int main()
 {
@@ -30,8 +39,12 @@ int main()
   failures += RUN_TEST( test_merge_leaf );
   failures += RUN_TEST( test_box_iter_neighbors );
   failures += RUN_TEST( test_leaf_sibling );
-  failures += RUN_TEST( test_leaf_volume );
+  failures += RUN_TEST( test_leaf_volume_box );
+  failures += RUN_TEST( test_leaf_volume_gen );
   failures += RUN_TEST( test_leaf_splits_intersects );
+  failures += RUN_TEST( test_box_leaf_intersects_ray );
+  failures += RUN_TEST( test_gen_leaf_intersects_ray );
+  failures += RUN_TEST( test_leaf_polyhedron );
 
   return failures;
 }
@@ -1566,13 +1579,15 @@ void test_leaf_sibling()
   CHECK( !iter1.sibling_is_forward() );
 }
 
-void test_leaf_volume()
+void test_leaf_volume( bool box )
 {
   MBCore moab;
   MBBSPTree tool( &moab );
   MBErrorCode rval;
   MBEntityHandle root;
-  MBBSPTreeBoxIter iter;
+  MBBSPTreeBoxIter b_iter;
+  MBBSPTreeIter g_iter;
+  MBBSPTreeIter& iter = box ? b_iter : g_iter;
 
 
 /*  Build Tree
@@ -1701,3 +1716,386 @@ void test_leaf_splits_intersects()
   CHECK( iter.intersects( p ) );
 }
   
+#define CHECK_RAY_XSECTS( PT, DIR, T_IN, T_OUT ) do { \
+  CHECK(iter.intersect_ray( (PT), (DIR), t_in, t_out )); \
+  CHECK_REAL_EQUAL( (T_IN), t_in, 1e-6 ); \
+  CHECK_REAL_EQUAL( (T_OUT), t_out, 1e-6 ); \
+  } while(false)
+    
+void test_leaf_intersects_ray_common( bool box )
+{
+  MBErrorCode rval;
+  MBCore moab;
+  MBBSPTree tool( &moab );
+  double t_in, t_out;
+  
+  /** Start with only root box for initial testing **/
+  
+  /*  (1,5,-3)   (2,5,-3)
+            o----o
+           /:   / \
+          / :  /    \
+ (1,5,-1)o----o       \
+         |  :  \        \
+         |  :  Y \        \
+         |  :  ^   \        \
+         |  :  |     \        \
+         |  :  +-->X   \        \ (6,1,-3)
+         |  o./..........\.......o
+         | . L             \    /
+         |. Z                \ /
+         o--------------------o
+  (1,1,-1)                    (6,1,-1)
+  */
+  MBEntityHandle root;
+  const double corners[][3] = { { 1, 1, -3 },
+                                { 6, 1, -3 },
+                                { 2, 5, -3 },
+                                { 1, 5, -3 },
+                                { 1, 1, -1 },
+                                { 6, 1, -1 },
+                                { 2, 5, -1 },
+                                { 1, 5, -1 } };
+  rval = tool.create_tree( corners, root );
+  CHECK_ERR(rval);
+  
+  MBBSPTreeIter gen_iter;
+  MBBSPTreeBoxIter box_iter;
+  MBBSPTreeIter& iter = box ? static_cast<MBBSPTreeIter&>(box_iter) : gen_iter;
+  rval = tool.get_tree_iterator( root, iter );
+  CHECK_ERR(rval);
+  
+    // start with point inside box
+  const double pt1[] = { 3.5, 3, -2 };
+  const double dir1[] = { 0.1, 0.1, 0.1 };
+  CHECK_RAY_XSECTS( pt1, dir1, 0, 2.5 );
+  const double dir2[] = { 5, 5, 5 };
+  CHECK_RAY_XSECTS( pt1, dir2, 0, 0.05 );
+  const double pxdir[] = { 1, 0, 0 };
+  CHECK_RAY_XSECTS( pt1, pxdir, 0, 0.5 );
+  const double nxdir[] = { -1, 0, 0 };
+  CHECK_RAY_XSECTS( pt1, nxdir, 0, 2.5 );
+  const double pydir[] = { 0, 1, 0 };
+  CHECK_RAY_XSECTS( pt1, pydir, 0, 0.5 );
+  const double nydir[] = { 0, -1, 0 };
+  CHECK_RAY_XSECTS( pt1, nydir, 0, 2 );
+  const double pzdir[] = { 0, 0, 1 };
+  CHECK_RAY_XSECTS( pt1, pzdir, 0, 1 );
+  const double nzdir[] = { 0, 0, -1 };
+  CHECK_RAY_XSECTS( pt1, nzdir, 0, 1 );
+  
+    // point below box
+  const double pt2[] = { 3.5, 3, -4 };
+  CHECK(!iter.intersect_ray( pt2, dir1, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt2, dir2, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt2, pxdir, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt2, nxdir, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt2, pydir, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt2, nydir, t_in, t_out ));
+  CHECK_RAY_XSECTS( pt2, pzdir, 1, 3 );
+  CHECK(!iter.intersect_ray( pt2, nzdir, t_in, t_out ));
+  
+    // point right of box
+  const double pt3[] = { 7, 3, -2 };
+  CHECK(!iter.intersect_ray( pt3, dir1, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt3, dir2, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt3, pxdir, t_in, t_out ));
+  CHECK_RAY_XSECTS( pt3, nxdir, 3, 6 );
+  CHECK(!iter.intersect_ray( pt3, pydir, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt3, nydir, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt3, pzdir, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt3, nzdir, t_in, t_out ));
+  
+    // a few more complex test cases
+  const double dira[] = { -2, -2, 0 };
+  CHECK_RAY_XSECTS( pt3, dira, 0.75, 1.0 );
+  const double dirb[] = { -1, -2.1, 0 };
+  CHECK(!iter.intersect_ray( pt3, dirb, t_in, t_out ));
+
+
+  /** Now split twice and test the bottom right corne **/
+  
+  MBBSPTree::Plane Y3( MBBSPTree::Y, 3.0 );
+  rval = tool.split_leaf( iter, Y3 );
+  CHECK_ERR(rval);
+  MBBSPTree::Plane X2( MBBSPTree::X, 2.0 );
+  rval = tool.split_leaf( iter, X2 );
+  CHECK_ERR(rval);
+  rval = iter.step();
+  CHECK_ERR(rval);
+  
+  
+  /* 
+             (2,3,-3)
+                 o--------o (4,3,-3)
+                /:       /  \
+               / :      /     \
+      (2,3,-1)o--------o(4,3,-1)\ (6,1,-3)
+              |  o.......\.......o
+              | .          \    /
+              |.             \ /
+              o---------------o
+         (2,1,-1)             (6,1,-1)
+  */
+  
+  
+    // start with point inside box
+  const double pt4[] = { 4, 2, -2 };
+  CHECK_RAY_XSECTS( pt4, dir1, 0, 5 );
+  CHECK_RAY_XSECTS( pt4, dir2, 0, 0.1 );
+  CHECK_RAY_XSECTS( pt4, pxdir, 0, 1 );
+  CHECK_RAY_XSECTS( pt4, nxdir, 0, 2 );
+  CHECK_RAY_XSECTS( pt4, pydir, 0, 1 );
+  CHECK_RAY_XSECTS( pt4, nydir, 0, 1 );
+  CHECK_RAY_XSECTS( pt4, pzdir, 0, 1 );
+  CHECK_RAY_XSECTS( pt4, nzdir, 0, 1 );
+  
+    // point below box
+  const double pt5[] = { 4, 2, -4 };
+  CHECK(!iter.intersect_ray( pt5, dir1, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt5, dir2, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt5, pxdir, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt5, nxdir, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt5, pydir, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt5, nydir, t_in, t_out ));
+  CHECK_RAY_XSECTS( pt5, pzdir, 1, 3 );
+  CHECK(!iter.intersect_ray( pt5, nzdir, t_in, t_out ));
+  
+    // point right of box
+  const double pt6[] = { 7, 2, -2 };
+  CHECK(!iter.intersect_ray( pt6, dir1, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt6, dir2, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt6, pxdir, t_in, t_out ));
+  CHECK_RAY_XSECTS( pt6, nxdir, 2, 5 );
+  CHECK(!iter.intersect_ray( pt6, pydir, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt6, nydir, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt6, pzdir, t_in, t_out ));
+  CHECK(!iter.intersect_ray( pt6, nzdir, t_in, t_out ));
+  
+    // a few more complex test cases
+  const double dird[] = { -2, -2, 0 };
+  CHECK_RAY_XSECTS( pt6, dird, 0.5, 0.5 );
+  const double dire[] = { -3, -2, 0 };
+  CHECK_RAY_XSECTS( pt6, dire, 0.4, 0.5 );
+  const double dirf[] = { -2, -2.1, 0 };
+  CHECK(!iter.intersect_ray( pt6, dirf, t_in, t_out ));
+}
+
+static void box( const double pts[], int num_pts, double minpt[3], double maxpt[3] )
+{
+  minpt[0] = maxpt[0] = pts[0];
+  minpt[1] = maxpt[1] = pts[1];
+  minpt[2] = maxpt[2] = pts[2];
+  for (int i = 1; i < num_pts; ++i) {
+    for (int d = 0; d < 3; ++d) {
+      if (pts[3*i+d] < minpt[d])
+        minpt[d] = pts[3*i+d];
+      if (pts[3*i+d] > maxpt[d])
+        maxpt[d] = pts[3*i+d];
+    }
+  }
+}
+
+static MBEntityHandle build_tree( const double points[], int num_points, MBBSPTree& tool )
+{
+    // create points
+  MBErrorCode rval;
+  std::vector<MBEntityHandle> pts(num_points);
+  for (int i = 0; i < num_points; ++i) {
+    rval = tool.moab()->create_vertex( points + 3*i, pts[i] );
+    CHECK_ERR(rval);
+  }
+
+    // calculate bounding box of tree
+  double minpt[3], maxpt[3];
+  box( points, num_points, minpt, maxpt );
+  
+    // create initial (1-node) tree
+  MBEntityHandle root;
+  rval = tool.create_tree( minpt, maxpt, root );
+  CHECK_ERR(rval);
+  
+  MBBSPTreeIter iter;
+  rval = tool.get_tree_iterator( root, iter );
+  CHECK_ERR(rval);
+  
+  rval = tool.moab()->add_entities( root, &pts[0], pts.size() );
+  CHECK_ERR(rval);
+  
+    // build tree
+  std::vector<MBEntityHandle> left_pts, right_pts;
+  std::vector<MBCartVect> coords(num_points), tmp_coords;
+  std::vector<double> coeffs;
+  for (; MB_SUCCESS == rval; rval = iter.step()) {
+    pts.clear();
+    rval = tool.moab()->get_entities_by_handle( iter.handle(), pts );
+    CHECK_ERR(rval);
+    while (pts.size() > 1) {
+      
+      coords.resize(pts.size());
+      rval = tool.moab()->get_coords( &pts[0], pts.size(), coords[0].array() );
+      CHECK_ERR(rval);
+      
+        // find two points far apart apart
+      std::vector<MBCartVect>* ptr;
+      if (coords.size() < 10) 
+        ptr = &coords;
+      else {
+        tmp_coords.resize(16);
+        MBCartVect pn, px;
+        box( coords[0].array(), coords.size(), pn.array(), px.array() );
+        tmp_coords[8] = pn;
+        tmp_coords[9] = MBCartVect( px[0], pn[1], pn[2] );
+        tmp_coords[10] = MBCartVect( px[0], px[1], pn[2] );
+        tmp_coords[11] = MBCartVect( pn[0], px[1], pn[2] );
+        tmp_coords[12] = MBCartVect( pn[0], pn[1], px[2] );
+        tmp_coords[13] = MBCartVect( px[0], pn[1], px[2] );
+        tmp_coords[14] = px;
+        tmp_coords[15] = MBCartVect( pn[0], px[1], px[2] );
+        for (int i = 0; i < 8; ++i) {
+          tmp_coords[i] = coords[0];
+          for (size_t j = 1; j < coords.size(); ++j)
+            if ((coords[j]-tmp_coords[i+8]).length_squared() <
+                (tmp_coords[i] - tmp_coords[i+8]).length_squared())
+              tmp_coords[i] = coords[j];
+        }
+        tmp_coords.resize(8);
+        ptr = &tmp_coords;
+      }
+      
+      size_t pt1, pt2;
+      double lsqr = -1;
+      for (size_t i = 0; i < ptr->size(); ++i) {
+        for (size_t j = 0; j < ptr->size();++j) {
+          double ls = ((*ptr)[i] - (*ptr)[j]).length_squared();
+          if (ls > lsqr) {
+            lsqr = ls;
+            pt1 = i;
+            pt2 = j;
+          }
+        }
+      }
+      
+        // if all points are coincident
+      if (lsqr <= 1e-12) 
+        break;
+        
+        // define normal orthogonal to line through two points
+      MBCartVect norm = (*ptr)[pt1] - (*ptr)[pt2];
+      norm.normalize();
+      
+        // find mean position for plane
+      double coeff = 0.0;
+      for (size_t i = 0; i < coords.size(); ++i) 
+        coeff -= norm % coords[i]; 
+      coeff /= coords.size();
+      
+        // left/right sort points
+      left_pts.clear();
+      right_pts.clear();
+      for (size_t i = 0; i < coords.size(); ++i) {
+        double d = -(norm % coords[i]); 
+        if (d >= coeff) 
+          left_pts.push_back( pts[i] );
+        else
+          right_pts.push_back( pts[i] );
+      }
+      
+      rval = tool.split_leaf( iter, MBBSPTree::Plane( norm.array(), coeff ), left_pts, right_pts );
+      CHECK_ERR(rval);
+      CHECK( !left_pts.empty() && !right_pts.empty() );
+      pts.swap( left_pts );
+    }
+    
+//    printf("Leaf %d contains %d vertices: ", (int)ID_FROM_HANDLE(iter.handle()),
+//                                             (int)(pts.size()) );
+//    for (size_t i = 0; i < pts.size(); ++i)
+//      printf( "%d, ", (int)ID_FROM_HANDLE(pts[i]));
+//    printf("\n");
+  }
+  
+  CHECK(rval == MB_ENTITY_NOT_FOUND);
+  
+  
+    // verify that tree is constructed correctly
+  for (int i = 0; i < num_points; ++i) {
+    MBCartVect pt( points + 3*i );
+    MBEntityHandle leaf;
+    rval = tool.leaf_containing_point( root, pt.array(), leaf );
+    CHECK_ERR(rval);
+    MBRange ents;
+    rval = tool.moab()->get_entities_by_handle( leaf, ents );
+    CHECK_ERR(rval);
+    bool found = false;
+    for (MBRange::iterator j = ents.begin(); j != ents.end(); ++j) {
+      MBCartVect ent_coords;
+      rval = tool.moab()->get_coords( &*j, 1, ent_coords.array() );
+      CHECK_ERR(rval);
+      if ((pt - ent_coords).length_squared() < 1e-6)
+        found = true;
+    }
+    CHECK(found);
+  }
+  
+  return root;
+}
+      
+
+void test_leaf_polyhedron()
+{
+    // array of 20 points used to construct tree
+  static const double points[] = {
+       7, 6, 3,
+       5, 3, 5,
+       9, 2, 6,
+       7, 2, 1,
+       3, 9, 0,
+       6, 0, 6,
+       1, 6, 2,
+       9, 7, 8,
+       2, 0, 2,
+       5, 7, 3,
+       2, 2, 9,
+       7, 9, 8,
+       1, 6, 3,
+       3, 9, 2,
+       4, 9, 1,
+       4, 8, 7,
+       3, 0, 5,
+       0, 1, 6,
+       2, 3, 6,
+       1, 6, 0};
+  const int num_pts = sizeof(points)/(3*sizeof(double));
+
+  MBErrorCode rval;
+  MBCore moab;
+  MBBSPTree tool( &moab );
+  MBEntityHandle root = build_tree( points, num_pts, tool );
+  
+  MBBSPTreeIter iter;
+  rval = tool.get_tree_iterator( root, iter );
+  CHECK_ERR(rval);
+  
+  std::vector<MBEntityHandle> pts;
+  std::vector<MBCartVect> coords;
+  
+  for (; rval == MB_SUCCESS; rval = iter.step()) {
+    BSPTreePoly poly;
+    rval = iter.calculate_polyhedron( poly );
+    CHECK_ERR(rval);
+    
+    CHECK( poly.is_valid() );
+    CHECK( poly.volume() > 0.0 );
+    
+    pts.clear();
+    rval = tool.moab()->get_entities_by_handle( iter.handle(), pts );
+    CHECK_ERR(rval);
+    CHECK( !pts.empty() );
+    coords.resize(pts.size());
+    rval = tool.moab()->get_coords( &pts[0], pts.size(), coords[0].array() );
+    CHECK_ERR(rval);
+    
+    for (size_t i = 0; i < pts.size(); ++i)
+      CHECK( poly.is_point_contained( coords[i] ) );
+  }
+}

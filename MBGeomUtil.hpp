@@ -75,6 +75,30 @@ bool ray_tri_intersect( const MBCartVect vertices[3],
                         double& t_out,
                         const double* ray_length = 0 );
 
+
+    //! Find range of overlap between ray and axis-aligned box.
+    //!
+    //!\param box_min   Box corner with minimum coordinate values
+    //!\param box_max   Box corner with minimum coordinate values
+    //!\param ray_pt    Coordinates of start point of ray
+    //!\param ray_dir   Directionion vector for ray such that
+    //!                 the ray is defined by r(t) = ray_point + t * ray_vect
+    //!                 for t > 0.
+    //!\param t_enter   Output: if return value is true, this value
+    //!                 is the parameter location along the ray at which
+    //!                 the ray entered the leaf.  If return value is false,
+    //!                 then this value is undefined.
+    //!\param t_exit    Output: if return value is true, this value
+    //!                 is the parameter location along the ray at which
+    //!                 the ray exited the leaf.  If return value is false,
+    //!                 then this value is undefined.
+    //!\return true if ray intersects leaf, false otherwise.
+bool ray_box_intersect( const MBCartVect& box_min,
+                        const MBCartVect& box_max,
+                        const MBCartVect& ray_pt,
+                        const MBCartVect& ray_dir,
+                        double& t_enter, double& t_exit );
+
 /**\brief Test if plane intersects axis-aligned box
  *
  * Test for intersection between an unbounded plane and
