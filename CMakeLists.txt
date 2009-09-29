@@ -312,8 +312,6 @@ project( MOAB )
 
   autoconf_header( ${MOAB_SOURCE_DIR}/MBVersion.h.in ${MOAB_BINARY_DIR}/MBVersion.h )
   autoconf_header( ${MOAB_SOURCE_DIR}/MBEntityHandle.h.in ${MOAB_BINARY_DIR}/MBEntityHandle.h )
-  autoconf_header( ${MOAB_SOURCE_DIR}/MBCN_FCDefs.h.in ${MOAB_BINARY_DIR}/MBCN_FCDefs.h )
-
 
 # Testing
   # Point to the input decks for the tests
