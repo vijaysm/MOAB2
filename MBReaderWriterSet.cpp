@@ -80,7 +80,7 @@ MBReaderWriterSet::MBReaderWriterSet( MBCore* mdb, MBError* handler )
   
   register_factory( ReadMCNP5::factory, NULL, "MCNP5 format", "meshtal", "MESHTAL" );
   
-  const char* nastran_sufxs[] = { "nas", "bdf" };
+  const char* nastran_sufxs[] = { "nas", "bdf", NULL };
   register_factory( ReadNASTRAN::factory, NULL, "NASTRAN format", nastran_sufxs, "NAS" );
 
   register_factory( ReadABAQUS::factory, NULL, "ABAQUS INP mesh format", "abq", "Abaqus mesh" );
