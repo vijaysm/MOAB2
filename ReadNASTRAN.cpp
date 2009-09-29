@@ -83,7 +83,6 @@ MBErrorCode ReadNASTRAN::load_file(const char                  *filename,
   bool debug = false;
   if (debug) std::cout << "begin ReadNASTRAN::load_file" << std::endl;
   MBErrorCode result;
-  FILE* file = fopen( filename, "r" );
 
   // create the file set
   result = MBI->create_meshset(MESHSET_SET, file_set);
@@ -98,36 +97,38 @@ MBErrorCode ReadNASTRAN::load_file(const char                  *filename,
                            MB_TYPE_INTEGER, material_tag, 0);
   if(MB_SUCCESS!=result && MB_ALREADY_ALLOCATED!=result) return result;
 
-  // IMPORTANT: these are the same as the MOAB enums. Currently only vertices,
-  // tets, and prisms are supported. Implement more as needed.
-  const char* const data_type_names[] = { "GRID",     // MBVERTEX
-                                          "MBEDGE",
-                                          "MBTRI",
-                                          "MBQUAD",
-                                          "MBPOLYGON",
-                                          "CTETRA",   // MBTET
-                                          "MBPYRAMID",
-                                          "CPENTA",   // MBPRISM
-                                          "MBKNIFE",
-                                          "MBHEX",
-                                          "MBPOLYHEDRON", 
-                                          "MBENTITYSET",
-                                          "MBMAXTYPE" };
-
-  /* Count the entities of each type in the file. If the token is not
-  matched assume that it is something else in the file (not an error).
-  During the next read we will check for errors.
-  This is used to allocate the node array. Let the tokenizer run out of 
-  scope (and thus call fclose). There is no other way to rewind the 
-  tokenizer. */
+  // Count the entities of each type in the file. This is used to allocate the node array. 
   int entity_count[MBMAXTYPE];
   for(int i=0; i<MBMAXTYPE; i++) entity_count[i] = 0;
-  { FileTokenizer tokens( file, readMeshIface );
-    while( !tokens.eof() ) {
-      int data = tokens.match_token( data_type_names ) -1;
-      if(-1 != data) entity_count[data]++;
-    }
-  }   
+ 
+  /* Determine the line_format of the first line. Assume that the entire file 
+     has the same format. */  
+  std::string line;
+  std::ifstream file (filename);
+  getline(file,line);
+  line_format format;
+  result = determine_line_format( line, format );
+  if(MB_SUCCESS != result) return result;
+
+  /* Count the number of each entity in the file. This allows one to allocate
+     a sequential array of vertex handles. */
+  while(!file.eof()) {
+    // Cut the line into fields as determined by the line format.
+    // Use a vector to allow for an unknown number of tokens (continue lines).
+    // Continue lines are not implemented.
+    std::vector<std::string> tokens;
+    tokens.reserve(10); // assume 10 fields to avoid extra vector resizing
+    result = tokenize_line( line, format, tokens );
+    if(MB_SUCCESS != result) return result;
+
+    // Process the tokens of the line. The first token describes the entity type.
+    MBEntityType type;
+    result = determine_entity_type( tokens.front(), type );
+    if(MB_SUCCESS != result) return result;
+    entity_count[type]++;
+    getline(file,line);
+  }      
+
   if(debug) {
     for(int i=0; i<MBMAXTYPE; i++) {
       std::cout << "entity_count[" << i << "]=" << entity_count[i] << std::endl;
@@ -135,79 +136,203 @@ MBErrorCode ReadNASTRAN::load_file(const char                  *filename,
   }
 
   /* If we assume that the node ids are continuous, then the node ids can be
-  easily mapped to vertex handles. If they are not continuous then the node
-  ids themselves will need to be used to create connectivity. It is very 
-  slow to find each node by its id because this is a tag call. */
+     easily mapped to vertex handles. If they are not continuous then the node
+     ids themselves will need to be used to create connectivity. It is very 
+     slow to find each node by its id because this is a tag call. */
   bool node_ids_are_continuous = true;
 
   // Now that the number of vertices is known, create the vertices.
   MBEntityHandle start_vert = NULL;
   std::vector<double*> coord_arrays(3);
   result = readMeshIface->get_node_arrays( 3, entity_count[0], MB_START_ID,
-                                           start_vert, coord_arrays );
+					   start_vert, coord_arrays );
   if(MB_SUCCESS != result) return result;
   if(0 == start_vert) return MB_FAILURE; // check for NULL
   int vert_index = 0;
   if(debug) std::cout << "allocated coord arrays" << std::endl;
 
-  // Read the file again and build the entities. Each line in the file
-  // represents one entity.
-  file = fopen( filename, "r" );
-  FileTokenizer tokens( file, readMeshIface );
-  while( !tokens.eof() ) {
-    // these have been enumerated to match MBEntityTypes
-    int data = tokens.match_token( data_type_names ) -1;
-    MBEntityType datatype = (MBEntityType)data;
-    if(debug) {
-      std::cout << "MBVERTEX=" << MBVERTEX << " datatype=" << datatype << std::endl;
-    }
+  // Read the file again to create the entities.
+  file.clear();  // clear eof state from object
+  file.seekg(0); // rewind file
+  while (!file.eof()) {
+    getline(file,line);
 
-    // the eof was found
-    if( tokens.eof() ) {
-      break;
+    // Cut the line into fields as determined by the line format.
+    // Use a vector to allow for an unknown number of tokens (continue lines).
+    // Continue lines are not implemented.
+    std::vector<std::string> tokens;
+    tokens.reserve(10); // assume 10 fields to avoid extra vector resizing
+    result = tokenize_line( line, format, tokens );
+    if(MB_SUCCESS != result) return result;
 
-    // no matching entity was found
-    } else if(-1 == datatype ) {
-      return MB_NOT_IMPLEMENTED;
+    // Process the tokens of the line. The first token describes the entity type.
+    MBEntityType type;
+    result = determine_entity_type( tokens.front(), type );
+    if(MB_SUCCESS != result) return result;
 
-    // a vertex line was found
-    } else if(MBVERTEX == datatype) {
+    // Create the entity.
+    if(MBVERTEX == type) {
       result = read_node(tokens, id_tag, file_set, debug, coord_arrays, 
-                         vert_index, start_vert, node_ids_are_continuous ); 
+			 vert_index, start_vert, node_ids_are_continuous ); 
       if(MB_SUCCESS != result) return result;
-
-    // an element line was found
     } else {
-      result = read_element(tokens, id_tag, material_tag, datatype, file_set, 
-                            debug, start_vert, node_ids_are_continuous ); 
+      result = read_element(tokens, id_tag, material_tag, type, file_set, 
+			    debug, start_vert, node_ids_are_continuous ); 
       if(MB_SUCCESS != result) return result;
     }
-  } 
+  }
+  
+  file.close();
+  return MB_SUCCESS;
+}
+
+  /* Determine the type of NASTRAN line: small field, large field, or free field.
+     small field: each line has 10 fields of 8 characters
+     large field: 1x8, 4x16, 1x8. Field 1 must have an asterisk following the character string
+     free field: each line entry must be separated by a comma
+     Implementation tries to avoid more searches than necessary. */
+MBErrorCode ReadNASTRAN::determine_line_format( const std::string line, 
+                                                  line_format &format ) {
+  std::string::size_type found_asterisk = line.find("*");
+  if(std::string::npos != found_asterisk) {
+      format = LARGE_FIELD;
+      return MB_SUCCESS;
+    } else {
+      std::string::size_type found_comma = line.find(",");
+      if(std::string::npos != found_comma) {
+	format = FREE_FIELD;
+	return MB_SUCCESS;
+      } else {
+	format = SMALL_FIELD;
+	return MB_SUCCESS;
+      }
+    }
+  }
+
+  /* Tokenize the line. Continue-lines have not been implemented. */
+MBErrorCode ReadNASTRAN::tokenize_line(const std::string line, const line_format format, 
+				       std::vector<std::string> &tokens ) { 
+  size_t line_size = line.size();
+  switch(format) {
+  case SMALL_FIELD: {
+    // Expect 10 fields of 8 characters.
+    // The sample file does not have all 10 fields in each line
+    const int field_length = 8;
+    unsigned int n_tokens = line_size / field_length;
+    for(unsigned int i=0; i<n_tokens; i++) {
+      tokens.push_back( line.substr(i*field_length,field_length) );
+    }
+    break; 
+  } case LARGE_FIELD:
+    return MB_NOT_IMPLEMENTED;
+    break;
+  case FREE_FIELD:
+    return MB_NOT_IMPLEMENTED;
+    break;
+  default:
+    return MB_FAILURE;
+  }
+
+  return MB_SUCCESS;
+}
+
+MBErrorCode ReadNASTRAN::determine_entity_type( const std::string first_token, 
+                                                  MBEntityType &type ) {
+  if     (0==first_token.compare("GRID    ")) type = MBVERTEX;
+  else if(0==first_token.compare("CTETRA  ")) type = MBTET;
+  else if(0==first_token.compare("CPENTA  ")) type = MBPRISM;
+  else if(0==first_token.compare("CHEXA   ")) type = MBHEX;
+  else return MB_NOT_IMPLEMENTED;
+
+  return MB_SUCCESS;
+}
+
+// Just one example of coordinates:
+    /* GRID           1       03.9804546.9052-15.6008-1    
+       has the coordinates: ( 3.980454, 6.9052e-1, 5.6008e-1 )
+       GRID      200005       04.004752-3.985-15.4955-1  
+       has the coordinates: ( 4.004752, -3.985e-1, 5.4955e-1 ) */
+MBErrorCode ReadNASTRAN::get_real( const std::string token, double &real ) {
+  std::string significand = token;
+  std::string exponent = "0";
+
+  // Cut off the first digit because a "-" could be here indicating a negative
+  // number. Instead we are looking for a negative exponent.
+  std::string back_token = token.substr(1);
+  
+  // A minus that is not the first digit is always a negative exponent
+  std::string::size_type found_minus = back_token.find("-");
+  if(std::string::npos != found_minus) {
+    // separate the significand from the exponent at the "-"
+    exponent = token.substr( found_minus+1 );
+    significand = token.substr( 0, found_minus+1 );
+
+    // if the significand has an "E", remove it
+    if(std::string::npos != significand.find("E")) 
+      // Assume the "E" is at the end of the significand.
+      significand = significand.substr( 1, significand.size()-2 );
+
+    // If a minus does not exist past the 1st digit, but an "E" or "+" does, then 
+    // it is a positive exponent. First look for an "E",
+  } else { 
+    std::string::size_type found_E = token.find("E");
+    if(std::string::npos != found_E) {
+      significand = token.substr(0, found_E-1);
+      exponent = token.substr(found_E+1);
+      // if there is a "+" on the exponent, cut it off
+      std::size_t found_plus = exponent.find("+");
+      if(std::string::npos != found_plus) {
+	exponent = exponent.substr(found_plus+1);
+      }
+    } else {
+      // if there is a "+" on the exponent, cut it off
+      std::size_t found_plus = token.find("+");
+      if(std::string::npos != found_plus) {
+	significand = token.substr(0, found_plus-1);
+	exponent = token.substr(found_plus+1);
+      }
+    }
+  }
+    
+  // now assemble the real number
+  double signi = atof(significand.c_str());
+  double expon = atof(exponent.c_str());
+
+  if(HUGE_VAL==signi || HUGE_VAL==expon) return MB_FAILURE;
+  real = signi * pow( 10, expon );
   return MB_SUCCESS;
 }
 
 /* It has been determined that this line is a vertex. Read the rest of
    the line and create the vertex. */
-MBErrorCode ReadNASTRAN::read_node( FileTokenizer &tokens, 
-                                    MBTag id_tag,
-                                    const MBEntityHandle file_set,
-                                    const bool debug, 
-                                    std::vector<double*> coord_arrays, 
-                                    int &vert_index, 
-                                    const MBEntityHandle start_vert,
-                                    bool &node_ids_are_continuous ) {
+MBErrorCode ReadNASTRAN::read_node( const std::vector<std::string> tokens, 
+				      MBTag id_tag,
+				      const MBEntityHandle file_set,
+				      const bool debug, 
+				      std::vector<double*> coord_arrays, 
+				      int &vert_index, 
+				      const MBEntityHandle start_vert,
+				      bool &node_ids_are_continuous ) {
   // read the node's id (unique)
   MBErrorCode result;
-  int id;
-  if( !tokens.get_integers(1, &id) ) return MB_FAILURE;;
+  int id = atoi(tokens[1].c_str());
+
+  // read the node's coordinate system number
+  // "0" or blank refers to the basic coordinate system.
+  int coord_system = atoi(tokens[2].c_str());
+  if(0 != coord_system) {
+    std::cerr << "ReadNASTRAN: alternative coordinate systems not implemented" 
+              << std::endl;
+    return MB_NOT_IMPLEMENTED;    
+  }
 
   // read the coordinates
-  const char* coords_string = tokens.get_string();
-  if (!coords_string) return MB_FAILURE;
-  if(debug) std::cout << "coords_string=" << coords_string << std::endl; 
   double coords[3];
-  result = parse_coords( coords_string, coords, debug );
-  if(MB_SUCCESS != result) return result;
+  for(unsigned int i=0; i<3; i++) {
+    result = get_real( tokens[i+3], coords[i] );
+    if(MB_SUCCESS != result) return result;
+    if(debug) std::cout << "read_node: coords[" << i << "]=" << coords[i] << std::endl;
+  }
 
   // create the node
   MBEntityHandle vert = start_vert+vert_index;
@@ -231,83 +356,31 @@ MBErrorCode ReadNASTRAN::read_node( FileTokenizer &tokens,
   return MB_SUCCESS;
 }
 
-/* The coordinates are difficult to parse. Below are some samples. */
-MBErrorCode ReadNASTRAN::parse_coords( const char *coords_string, 
-                                       double     coords[],
-                                       const bool debug ) {
-  /* GRID           1       03.9804546.9052-15.6008-1    
-     has the coordinates: ( 3.980454, 6.9052e-1, 5.6008e-1 )
-     GRID      200005       04.004752-3.985-15.4955-1  
-     has the coordinates: ( 4.004752, -3.985e-1, 5.4955e-1 ) */
-  char x[9], y[8], z[8];
-  strncpy(x, coords_string,                     9); //will copy first 4 characters
-  strncpy(y, coords_string+sizeof(x),           8);
-  strncpy(z, coords_string+sizeof(x)+sizeof(y), 8);
-  if(debug) std::cout << "x=" << x << " y=" << y << " z=" << z << std::endl;
-
-  // returns memory location of last match if found. returns null if not found.
-  char *x_loc, *y_loc, *z_loc;
-  x_loc = strrchr(x,'-'); // - x + 1;
-  y_loc = strrchr(y,'-'); // - y + 1;
-  z_loc = strrchr(z,'-'); // - z + 1;
-  if(debug) std::cout << "loc=" << x_loc << " " << y_loc << " " << z_loc << std::endl;
-
-  // copies( destination memory address, source memory address, size to copy)
-  // copy only the exponent, if it exists.
-  char exp_x[9], exp_y[8], exp_z[8];
-  if(0 != x_loc) {
-    memcpy(exp_x, x_loc, 9);
-    coords[0] = atof(x) * pow(10, atof(exp_x));
-  } else {
-    coords[0] = atof(x);
-  }
-  if(0 != y_loc) {
-    memcpy(exp_y, y_loc, 8 );
-    coords[1] = atof(y) * pow(10, atof(exp_y));
-  } else {
-    coords[1] = atof(y);
-  }
-  if(0 != z_loc) {
-    memcpy(exp_z, z_loc, 8-(int)(z_loc-z) );
-    coords[2] = atof(z)*pow(10, atof(exp_z));;
-  } else {
-    coords[2] = atof(z);
-  }
-  //std::cout << "exp=" << exp_x << " " << exp_y << " " << exp_z << std::endl;
-  if(debug) std::cout << "coords[]=" << coords[0] << " " << coords[1] 
-                      << " " << coords[2] << std::endl;
-
-  return MB_SUCCESS;
-}
-
 /* The type of element has already been identified. Read the rest of the
    line and create the element. Assume that all of the nodes have already
    been created. */
-MBErrorCode ReadNASTRAN::read_element( FileTokenizer &tokens, 
-                                       MBTag id_tag, 
-                                       MBTag material_tag, 
-                                       const MBEntityType element_type,
-                                       const MBEntityHandle file_set, 
-                                       const bool debug, 
-                                       const MBEntityHandle start_vert,
-                                       const bool node_ids_are_continuous ) {
+MBErrorCode ReadNASTRAN::read_element( const std::vector<std::string> tokens, 
+				       MBTag id_tag, 
+				       MBTag material_tag, 
+				       const MBEntityType element_type,
+				       const MBEntityHandle file_set, 
+				       const bool debug, 
+				       const MBEntityHandle start_vert,
+				       const bool node_ids_are_continuous ) {
 
   // read the element's id (unique) and material set
   MBErrorCode result;
-  int id;
-  bool res = tokens.get_integers(1, &id);
-  if(false == res) return MB_FAILURE;
-  int material;
-  res = tokens.get_integers(1, &material);
-  if(false == res) return MB_FAILURE;
+  int id = atoi(tokens[1].c_str());    
+  int material = atoi(tokens[2].c_str());
 
   // the size of the connectivity array depends on the element type
   int n_conn = MBCN::VerticesPerEntity(element_type);
   
   // read the connected node ids from the file
   int conn[n_conn];
-  res = tokens.get_integers(n_conn, conn);
-  if(false == res) return MB_FAILURE;
+  for(int i=0; i<n_conn; i++) {
+    conn[i] = atoi(tokens[3+i].c_str());
+  }
 
   /* Get the vertex handles with those node ids. If the nodes do not have
      continuous ids we need to do a very slow tag search for global ids.
@@ -321,7 +394,7 @@ MBErrorCode ReadNASTRAN::read_element( FileTokenizer &tokens,
       void *vert_id_val[] = {&conn[i]};
       MBRange vert;
       result = MBI->get_entities_by_type_and_tag( file_set, MBVERTEX, &id_tag, 
-                                                  vert_id_val, 1, vert );
+						  vert_id_val, 1, vert );
       if(MB_SUCCESS != result) return result;
       if(1 != vert.size()) return MB_FAILURE; // only one vertex should have this global id 
       conn_verts[i] = vert.front();
@@ -340,7 +413,7 @@ MBErrorCode ReadNASTRAN::read_element( FileTokenizer &tokens,
   void *mat_val[] = {&material};
   MBRange material_set;
   result = MBI->get_entities_by_type_and_tag( file_set, MBENTITYSET, &material_tag, 
-                                                mat_val, 1, material_set );
+					      mat_val, 1, material_set );
   if(MB_SUCCESS != result) return result;   
   if(0 == material_set.size()) {
     MBEntityHandle new_material_set;

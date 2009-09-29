@@ -79,8 +79,23 @@ private:
 
   const MBTag* fileIDTag;                                      
   int nodeId, elemId;
+
+  enum line_format { SMALL_FIELD,                     
+                     LARGE_FIELD,                 
+                     FREE_FIELD }; 
+
+  MBErrorCode determine_line_format( const std::string line, 
+                                     line_format &format );
   
-  MBErrorCode read_node(FileTokenizer        &tokens, 
+  MBErrorCode tokenize_line( const std::string line, 
+                             const line_format format,
+                             std::vector<std::string> &tokens );  
+
+  MBErrorCode determine_entity_type( const std::string token, MBEntityType &type); 
+
+  MBErrorCode get_real( const std::string, double &real );
+
+  MBErrorCode read_node(const std::vector<std::string> tokens, 
                         MBTag                id_tag, 
                         const MBEntityHandle file_set, 
                         const bool           debug, 
@@ -89,11 +104,7 @@ private:
                         const MBEntityHandle start_vert,
                         bool                 &node_ids_are_continuous );
 
-  MBErrorCode parse_coords( const char *coords_string, 
-                            double     coords[], 
-                            const bool debug ); 
-
-  MBErrorCode read_element(FileTokenizer        &tokens, 
+  MBErrorCode read_element(const std::vector<std::string> tokens, 
                            MBTag                id_tag, 
                            MBTag                material_tag,
                            const MBEntityType   element_type,
