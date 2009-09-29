@@ -247,11 +247,21 @@ MBErrorCode ReadNASTRAN::determine_entity_type( const std::string first_token,
   return MB_SUCCESS;
 }
 
-// Just one example of coordinates:
-    /* GRID           1       03.9804546.9052-15.6008-1    
-       has the coordinates: ( 3.980454, 6.9052e-1, 5.6008e-1 )
-       GRID      200005       04.004752-3.985-15.4955-1  
-       has the coordinates: ( 4.004752, -3.985e-1, 5.4955e-1 ) */
+/* Some help from Jason:
+   Nastran floats must contain a decimal point, may contain
+   a leading '-' and may contain an exponent.  The 'E' is optional
+   when specifying an exponent.  A '-' or '+' at any location other
+   than the first position indicates an exponent.  For a positive
+   exponent, either a '+' or an 'E' must be specified.  For a
+   negative exponent, the 'E' is option and the '-' is always specified.
+   Examples for the real value 7.0 from mcs2006 quick reference guide:
+   7.0  .7E1  0.7+1  .70+1  7.E+0  70.-1
+
+   From the test file created in SC/Tetra:
+   GRID           1       03.9804546.9052-15.6008-1    
+   has the coordinates: ( 3.980454, 6.9052e-1, 5.6008e-1 )
+   GRID      200005       04.004752-3.985-15.4955-1  
+   has the coordinates: ( 4.004752, -3.985e-1, 5.4955e-1 ) */
 MBErrorCode ReadNASTRAN::get_real( const std::string token, double &real ) {
   std::string significand = token;
   std::string exponent = "0";
