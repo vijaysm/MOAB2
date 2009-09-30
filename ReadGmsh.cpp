@@ -16,6 +16,9 @@
 /**
  * \class ReadGmsh
  * \brief Gmsh (http://www.geuz.org/gmsh) file reader
+ *
+ * See: http://geuz.org/gmsh/doc/texinfo/gmsh.html#MSH-ASCII-file-format
+ *
  * \author Jason Kraftcheck
  */
 
@@ -53,29 +56,57 @@ ReadGmsh::~ReadGmsh()
   }
 }
 
-// Type info indexed by type id used in file format.
+// Indexed by position in Gmsh order, containing cooresponding
+// position in MOAB order.
 const int hex_27_node_order[] =  {  
     0,  1,  2,  3,  4,  5,  6,  7,                 // corners
     8, 11, 12,  9, 13, 10, 14, 15, 16, 19, 17, 18, // edges
    24, 20, 23, 21, 22, 25,                         // faces
    26 };                                           // volume
+// Indexed by position in MOAB order, containing cooresponding
+// position in Gmsh order.
+const int pri_15_node_order[] = { 
+    0,  1,  2,  3,  4,  5,            // corners
+    6,  8,  9,  7, 10, 11, 12, 14, 13 // edges
+    };
+const int pyr_13_node_order[] = { 
+    0,  1,  2,  3,  4,                // corners
+    5,  8,  9,  6, 10,  7, 11, 12     // edges
+    };
+// Type info indexed by type id used in file format.
 const ReadGmsh::ElementType typemap[] = {
-  { MBMAXTYPE, 0, 0 },
-  { MBEDGE,    2, 0 },
-  { MBTRI,     3, 0 },
-  { MBQUAD,    4, 0 },
-  { MBTET,     4, 0 },
-  { MBHEX,     8, 0 },
-  { MBPRISM,   6, 0 },
-  { MBPYRAMID, 5, 0 },
-  { MBEDGE,    3, 0 },
-  { MBTRI,     6, 0 },
-  { MBQUAD,    8, 0 },
-  { MBTET,    10, 0 },
+  { MBMAXTYPE, 0, 0 }, 
+  { MBEDGE,    2, 0 }, // 1
+  { MBTRI,     3, 0 }, // 2
+  { MBQUAD,    4, 0 }, // 3
+  { MBTET,     4, 0 }, // 4
+  { MBHEX,     8, 0 }, // 5
+  { MBPRISM,   6, 0 }, // 6
+  { MBPYRAMID, 5, 0 }, // 7
+  { MBEDGE,    3, 0 }, // 8
+  { MBTRI,     6, 0 }, // 9
+  { MBQUAD,    9, 0 }, // 10
+  { MBTET,    10, 0 }, // 11
   { MBHEX,    27, hex_27_node_order },
-  { MBMAXTYPE,18, 0 }, // prism w/ mid-face nodes on quads but not tris
-  { MBMAXTYPE,14, 0 }, // pyramid w/ mid-face nodes on quad but not tris
-  { MBMAXTYPE, 1, 0 }  // point element (0-rad sphere element?)
+  { MBMAXTYPE,18, 0 }, // 13  prism w/ mid-face nodes on quads but not tris
+  { MBMAXTYPE,14, 0 }, // 14  pyramid w/ mid-face nodes on quad but not tris
+  { MBMAXTYPE, 1, 0 }, // 15  point element (0-rad sphere element?)
+  { MBQUAD,    8, 0 }, // 16
+  { MBHEX,    20, hex_27_node_order },
+  { MBPRISM,  15, pri_15_node_order },
+  { MBPYRAMID,13, pyr_13_node_order },
+  { MBMAXTYPE, 9, 0 }, // 20  triangle w/ 2 nodes per edge
+  { MBMAXTYPE,10, 0 }, // 21    "       " "   "    "   "   and mid-face node
+  { MBMAXTYPE,12, 0 }, // 22  triangle w/ 3 nodes per edge
+  { MBMAXTYPE,15, 0 }, // 23    "       " "   "    "   "   and 3 mid-face nodes
+  { MBMAXTYPE,15, 0 }, // 24  triangle w/ 4 nodes per edge
+  { MBMAXTYPE,21, 0 }, // 25    "       " "   "    "   "   and 6 mid-face nodes
+  { MBMAXTYPE, 4, 0 }, // 26  4-node edge
+  { MBMAXTYPE, 5, 0 }, // 27  5-node edge
+  { MBMAXTYPE, 6, 0 }, // 28  6-node edge
+  { MBMAXTYPE,20, 0 }, // 29  tet w/ 2 nodes per edge and 1 per face
+  { MBMAXTYPE,35, 0 }, // 30  tet w/ 3 nodes per edge, 3 per face, and 1 mid-voluem
+  { MBMAXTYPE,56, 0 }  // 31  tet w/ 4 nodes per edge, 6 per face, and 4 mid-voluem
 };
 const int max_type_int = sizeof(typemap) / sizeof(typemap[0]) - 1;
 
@@ -174,7 +205,7 @@ MBErrorCode ReadGmsh::load_file_impl( const char* filename,
     if (!tokens.get_doubles( 1, &version ))
       return MB_FILE_WRITE_ERROR;
     
-    if (version != 2.0) {
+    if (version != 2.0 && version != 2.1) {
       readMeshIface->report_error( "%s: unknown format version: %f\n", filename, version );
       return MB_FILE_DOES_NOT_EXIST;
     }
