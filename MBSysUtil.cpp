@@ -71,16 +71,15 @@ void byteswap( void* data, unsigned value_size, size_t num_elem )
 
 inline static uint16_t swap_bytes( uint16_t value )
 {
-  return ((value & (uint16_t)0xFF00) >>  8) |
-         ((value & (uint16_t)0x00FF) <<  8);
+  return (value >> 8) | (value << 8);
 }
 
 inline static uint32_t swap_bytes( uint32_t value )
 {
-  return ((value & (uint32_t)0xFF000000) >> 24) |
-         ((value & (uint32_t)0x00FF0000) >>  8) |
-         ((value & (uint32_t)0x0000FF00) <<  8) |
-         ((value & (uint32_t)0X000000FF) << 24);
+  return ((value /*& (uint32_t)0xFF000000*/) >> 24) |
+         ((value   & (uint32_t)0x00FF0000  ) >>  8) |
+         ((value   & (uint32_t)0x0000FF00  ) <<  8) |
+         ((value /*& (uint32_t)0X000000FF*/) << 24);
 }
 
 const uint64_t m64b1 = 0xFF;
@@ -90,18 +89,18 @@ const uint64_t m64b4 = m64b1 << 24;
 const uint64_t m64b5 = m64b1 << 32;
 const uint64_t m64b6 = m64b1 << 40;
 const uint64_t m64b7 = m64b1 << 48;
-const uint64_t m64b8 = m64b1 << 56;
+//const uint64_t m64b8 = m64b1 << 56;
 
 inline static uint64_t swap_bytes( uint64_t value )
 {
-  return ((value & m64b8) >> 56) |
-         ((value & m64b7) >> 40) |
-         ((value & m64b6) >> 24) |
-         ((value & m64b5) >>  8) |
-         ((value & m64b4) <<  8) |
-         ((value & m64b3) << 24) |
-         ((value & m64b2) << 40) |
-         ((value & m64b1) << 56);
+  return ((value /*& m64b8*/) >> 56) |
+         ((value   & m64b7  ) >> 40) |
+         ((value   & m64b6  ) >> 24) |
+         ((value   & m64b5  ) >>  8) |
+         ((value   & m64b4  ) <<  8) |
+         ((value   & m64b3  ) << 24) |
+         ((value   & m64b2  ) << 40) |
+         ((value /*& m64b1*/) << 56);
 }
 /*
 inline static uint32_t swap_byte_pairs( uint32_t value )
