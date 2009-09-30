@@ -479,7 +479,7 @@ mhdf_getFileSummary( mhdf_FileHandle file_handle,
   
     /* Initialize each tag descriptor */
   for (i = 0; i < result->num_tag_desc; ++i) {
-    result = get_tag_desc( file_handle, &result, tag_names[i], i, file_id_type, status );
+    result = get_tag_desc( file_handle, result, tag_names[i], i, file_id_type, status );
     if (NULL == result) {
       free( elem_handles );
       free_string_list( tag_names, num_tag_names );
