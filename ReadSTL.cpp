@@ -357,9 +357,9 @@ MBErrorCode ReadSTL::binary_read_triangles( const char* name,
     // num_tri, resulting in a SEGFAULT. 
   
     // Get expected number of triangles
-  unsigned long num_tri = header.count;
   if (swap_bytes)
-    MBSysUtil::byteswap( &num_tri, 1 );
+    MBSysUtil::byteswap( &header.count, 1 );
+  unsigned long num_tri = header.count;
   
     // Get the file length
   long filesize = MBSysUtil::filesize( file );
@@ -371,8 +371,9 @@ MBErrorCode ReadSTL::binary_read_triangles( const char* name,
     {
         // Unless the byte order was specified explicitly in the 
         // tag, try the opposite byte order.
-      unsigned long num_tri_swap = num_tri;
-      MBSysUtil::byteswap( &num_tri_swap, 1 );
+      uint32_t num_tri_tmp = header.count;
+      MBSysUtil::byteswap( &num_tri_tmp, 1 );
+      unsigned long num_tri_swap = num_tri_tmp;
       if (byte_order != STL_UNKNOWN_BYTE_ORDER || // If byte order was specified, fail now
           ULONG_MAX / 50 - 84 < num_tri_swap  || // watch for overflow in next line
           84 + 50 * num_tri_swap != (unsigned long)filesize)
