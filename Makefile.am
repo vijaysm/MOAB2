@@ -122,6 +122,8 @@ libMOAB_la_SOURCES = \
   FileTokenizer.cpp \
   FileTokenizer.hpp \
   GeomTopoTool.cpp \
+  GmshUtil.cpp \
+  GmshUtil.hpp \
   HigherOrderFactory.cpp \
   HomXform.cpp \
   MBAdaptiveKDTree.cpp \

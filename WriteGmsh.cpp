@@ -6,6 +6,7 @@
 #include "MBRange.hpp"
 #include "MBWriteUtilIface.hpp"
 #include "FileOptions.hpp"
+#include "GmshUtil.hpp"
 
 #include <fstream>
 #include <map>
@@ -28,13 +29,6 @@ WriteGmsh::~WriteGmsh()
 {
   mbImpl->release_interface("MBWriteUtilIface", mWriteIface);
 }
-
-// Type info indexed by type id used in file format.
-const int hex_27_node_order[] =  {  
-    0,  1,  2,  3,  4,  5,  6,  7,                 // corners
-    8, 11, 12,  9, 13, 10, 14, 15, 16, 19, 17, 18, // edges
-   24, 20, 23, 21, 22, 25,                         // faces
-   26 };                                           // volume
 
 
   // A structure to store per-element information.
@@ -188,20 +182,9 @@ MBErrorCode WriteGmsh::write_file(const char *file_name,
     rval = mbImpl->get_connectivity( *i, conn, num_vtx );
     if (MB_SUCCESS != rval)
       return rval;
-      
-    switch (type) 
-    {
-      case MBEDGE:    ei.type = num_vtx == 2 ? 1 :                      8; break;
-      case MBTRI:     ei.type = num_vtx == 3 ? 2 :                      9; break;
-      case MBQUAD:    ei.type = num_vtx == 4 ? 3 :                     10; break;
-      case MBPYRAMID: ei.type = num_vtx == 5 ? 7 :                      0; break;
-      case MBPRISM:   ei.type = num_vtx == 6 ? 6 :                      0; break;
-      case MBTET:     ei.type = num_vtx == 4 ? 4 : num_vtx == 10 ? 11 : 0; break;
-      case MBHEX:     ei.type = num_vtx == 8 ? 5 : num_vtx == 27 ? 12 : 0; break;
-      default:        ei.type = 0;
-    }
     
-    if (ei.type == 0) 
+    ei.type = GmshUtil::get_gmsh_type( type, num_vtx );
+    if (ei.type < 0) 
     {
       mWriteIface->report_error( "Gmem file format does not support element "
                                  " of type %s with %d vertices.\n",
@@ -300,12 +283,14 @@ MBErrorCode WriteGmsh::write_file(const char *file_name,
     out << i->second.id << ' ' << i->second.type << ' ' << i->second.count;
     for (int j = 0; j < i->second.count; ++j)
       out << ' ' << i->second.sets[j];
-      
-      // special case for Hex27 - need to re-order vertices
-    if (i->second.type == 12)
+    
+    const int* order = GmshUtil::gmshElemTypes[i->second.type].node_order;
+    
+      // need to re-order vertices
+    if (order)
     {
-      for (int j = 0; j < 27; ++j)
-        out << ' ' << mbImpl->id_from_handle( conn[hex_27_node_order[j]] );
+      for (int j = 0; j < num_vtx; ++j)
+        out << ' ' << mbImpl->id_from_handle( conn[order[j]] );
     }
     else
     {  

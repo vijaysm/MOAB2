@@ -28,6 +28,7 @@
 #include "MBRange.hpp"
 
 class MBReadUtilIface;
+struct GmshElemType;
 
 // Base class for binary and ASCII readers
 class ReadGmsh : public MBReaderIface
@@ -58,12 +59,6 @@ public:
    //! Destructor
   virtual ~ReadGmsh();
 
-  struct ElementType {
-    MBEntityType mbtype;
-    int nodes;
-    const int* node_order;
-  };
-
 private:
 
   MBErrorCode load_file_impl( const char *file_name,
@@ -71,7 +66,7 @@ private:
                               const int num_material_sets,
                               const MBTag* file_id_tag );
   
-  MBErrorCode create_elements( const ElementType& type,
+  MBErrorCode create_elements( const GmshElemType& type,
                                const std::vector<int>& elem_ids,
                                const std::vector<int>& matl_ids,
                                const std::vector<int>& geom_ids,

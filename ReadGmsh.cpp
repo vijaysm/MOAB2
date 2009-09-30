@@ -31,6 +31,7 @@
 #include "MBTagConventions.hpp"
 #include "MBParallelConventions.h"
 #include "MBCN.hpp"
+#include "GmshUtil.hpp"
 
 #include <errno.h>
 #include <string.h>
@@ -55,60 +56,6 @@ ReadGmsh::~ReadGmsh()
     readMeshIface = 0;
   }
 }
-
-// Indexed by position in Gmsh order, containing cooresponding
-// position in MOAB order.
-const int hex_27_node_order[] =  {  
-    0,  1,  2,  3,  4,  5,  6,  7,                 // corners
-    8, 11, 12,  9, 13, 10, 14, 15, 16, 19, 17, 18, // edges
-   24, 20, 23, 21, 22, 25,                         // faces
-   26 };                                           // volume
-// Indexed by position in MOAB order, containing cooresponding
-// position in Gmsh order.
-const int pri_15_node_order[] = { 
-    0,  1,  2,  3,  4,  5,            // corners
-    6,  8,  9,  7, 10, 11, 12, 14, 13 // edges
-    };
-const int pyr_13_node_order[] = { 
-    0,  1,  2,  3,  4,                // corners
-    5,  8,  9,  6, 10,  7, 11, 12     // edges
-    };
-// Type info indexed by type id used in file format.
-const ReadGmsh::ElementType typemap[] = {
-  { MBMAXTYPE, 0, 0 }, 
-  { MBEDGE,    2, 0 }, // 1
-  { MBTRI,     3, 0 }, // 2
-  { MBQUAD,    4, 0 }, // 3
-  { MBTET,     4, 0 }, // 4
-  { MBHEX,     8, 0 }, // 5
-  { MBPRISM,   6, 0 }, // 6
-  { MBPYRAMID, 5, 0 }, // 7
-  { MBEDGE,    3, 0 }, // 8
-  { MBTRI,     6, 0 }, // 9
-  { MBQUAD,    9, 0 }, // 10
-  { MBTET,    10, 0 }, // 11
-  { MBHEX,    27, hex_27_node_order },
-  { MBMAXTYPE,18, 0 }, // 13  prism w/ mid-face nodes on quads but not tris
-  { MBMAXTYPE,14, 0 }, // 14  pyramid w/ mid-face nodes on quad but not tris
-  { MBMAXTYPE, 1, 0 }, // 15  point element (0-rad sphere element?)
-  { MBQUAD,    8, 0 }, // 16
-  { MBHEX,    20, hex_27_node_order },
-  { MBPRISM,  15, pri_15_node_order },
-  { MBPYRAMID,13, pyr_13_node_order },
-  { MBMAXTYPE, 9, 0 }, // 20  triangle w/ 2 nodes per edge
-  { MBMAXTYPE,10, 0 }, // 21    "       " "   "    "   "   and mid-face node
-  { MBMAXTYPE,12, 0 }, // 22  triangle w/ 3 nodes per edge
-  { MBMAXTYPE,15, 0 }, // 23    "       " "   "    "   "   and 3 mid-face nodes
-  { MBMAXTYPE,15, 0 }, // 24  triangle w/ 4 nodes per edge
-  { MBMAXTYPE,21, 0 }, // 25    "       " "   "    "   "   and 6 mid-face nodes
-  { MBMAXTYPE, 4, 0 }, // 26  4-node edge
-  { MBMAXTYPE, 5, 0 }, // 27  5-node edge
-  { MBMAXTYPE, 6, 0 }, // 28  6-node edge
-  { MBMAXTYPE,20, 0 }, // 29  tet w/ 2 nodes per edge and 1 per face
-  { MBMAXTYPE,35, 0 }, // 30  tet w/ 3 nodes per edge, 3 per face, and 1 mid-voluem
-  { MBMAXTYPE,56, 0 }  // 31  tet w/ 4 nodes per edge, 6 per face, and 4 mid-voluem
-};
-const int max_type_int = sizeof(typemap) / sizeof(typemap[0]) - 1;
 
 
 MBErrorCode ReadGmsh::read_tag_values( const char* /* file_name */,
@@ -301,7 +248,7 @@ MBErrorCode ReadGmsh::load_file_impl( const char* filename,
     // temporary, per-element data
   std::vector<int> int_data(5), tag_data(2);
   std::vector<long> tmp_conn;
-  int curr_elem_type = 0;
+  int curr_elem_type = -1;
   for (long i = 0; i < num_elem; ++i)
   {
       // Read element description
@@ -312,8 +259,8 @@ MBErrorCode ReadGmsh::load_file_impl( const char* filename,
         return MB_FILE_WRITE_ERROR;
       tag_data[0] = int_data[2];
       tag_data[1] = int_data[3];
-      if (int_data[4] != typemap[int_data[1]].nodes)
-      {
+      if ((unsigned)tag_data[1] < GmshUtil::numGmshElemType &&
+           GmshUtil::gmshElemTypes[tag_data[1]].num_nodes != (unsigned)int_data[4]) {
         readMeshIface->report_error( "Invalid node count for element type at line %d\n",
                                      tokens.line_number() );
         return MB_FILE_WRITE_ERROR;
@@ -346,7 +293,7 @@ MBErrorCode ReadGmsh::load_file_impl( const char* filename,
     {
       if (!id_list.empty())  // first iteration
       {
-        result = create_elements( typemap[curr_elem_type],
+        result = create_elements( GmshUtil::gmshElemTypes[curr_elem_type],
                                   id_list,
                                   mat_set_list,
                                   geom_set_list,
@@ -363,14 +310,14 @@ MBErrorCode ReadGmsh::load_file_impl( const char* filename,
       part_set_list.clear();
       connectivity.clear();
       curr_elem_type = int_data[1];
-      if (curr_elem_type > max_type_int ||
-          typemap[curr_elem_type].mbtype == MBMAXTYPE)
+      if ((unsigned)curr_elem_type >= GmshUtil::numGmshElemType ||
+          GmshUtil::gmshElemTypes[curr_elem_type].mb_type == MBMAXTYPE)
       {
         readMeshIface->report_error( "Unsupported element type %d at line %d\n",
                                      curr_elem_type, tokens.line_number() );
         return MB_FILE_WRITE_ERROR;
       }
-      tmp_conn.resize( typemap[curr_elem_type].nodes );
+      tmp_conn.resize( GmshUtil::gmshElemTypes[curr_elem_type].num_nodes );
     }
     
       // Store data from element description
@@ -399,7 +346,7 @@ MBErrorCode ReadGmsh::load_file_impl( const char* filename,
     // Create entity sequence for last element(s).
   if (!id_list.empty())
   {
-    result = create_elements( typemap[curr_elem_type],
+    result = create_elements( GmshUtil::gmshElemTypes[curr_elem_type],
                               id_list,
                               mat_set_list,
                               geom_set_list,
@@ -419,7 +366,7 @@ MBErrorCode ReadGmsh::load_file_impl( const char* filename,
 }
 
 //! Create an element sequence
-MBErrorCode ReadGmsh::create_elements( const ElementType& type,
+MBErrorCode ReadGmsh::create_elements( const GmshElemType& type,
                                const std::vector<int>& elem_ids,
                                const std::vector<int>& matl_ids,
                                const std::vector<int>& geom_ids,
@@ -431,7 +378,7 @@ MBErrorCode ReadGmsh::create_elements( const ElementType& type,
   
     // Make sure input is consistent
   const unsigned long num_elem = elem_ids.size();
-  const int node_per_elem = type.nodes;
+  const int node_per_elem = type.num_nodes;
   if (matl_ids.size() != num_elem ||
       geom_ids.size() != num_elem ||
       prtn_ids.size() != num_elem ||
@@ -441,7 +388,7 @@ MBErrorCode ReadGmsh::create_elements( const ElementType& type,
     // Create the element sequence
   MBEntityHandle handle = 0;
   MBEntityHandle* conn_array;
-  result = readMeshIface->get_element_array( num_elem, node_per_elem, type.mbtype,
+  result = readMeshIface->get_element_array( num_elem, node_per_elem, type.mb_type,
                                              MB_START_ID, 
                                              handle, conn_array );
   if (MB_SUCCESS != result)
@@ -480,15 +427,15 @@ MBErrorCode ReadGmsh::create_elements( const ElementType& type,
   }
   
     // Add elements to material sets
-  result = create_sets( type.mbtype, elements, matl_ids, 0 );
+  result = create_sets( type.mb_type, elements, matl_ids, 0 );
   if (MB_SUCCESS != result)
     return result;
     // Add elements to geometric sets
-  result = create_sets( type.mbtype, elements, geom_ids, 1 );
+  result = create_sets( type.mb_type, elements, geom_ids, 1 );
   if (MB_SUCCESS != result)
     return result;
     // Add elements to parallel partitions
-  result = create_sets( type.mbtype, elements, prtn_ids, 2 );
+  result = create_sets( type.mb_type, elements, prtn_ids, 2 );
   if (MB_SUCCESS != result)
     return result;
   
