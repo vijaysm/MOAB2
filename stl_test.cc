@@ -7,9 +7,10 @@
 #include <math.h>
 #include <algorithm>
 
-/* Input test file: gmsh2.msh
+/* Input test file: test/sample.stl
  * 
- * Example version 2.0 ASCII input file from Gmsh 2.4 manual.
+ * Example ASCII STL file from: 
+ *  http://people.sc.fsu.edu/~burkardt/data/stla/stla.html
  */
 #ifdef SRCDIR
 static const char sample[] = STRINGIFY(SRCDIR) "/test/sample.stl";
