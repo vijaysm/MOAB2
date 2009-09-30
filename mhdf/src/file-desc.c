@@ -170,7 +170,7 @@ unsigned get_file_id_size( hid_t file_id_type, mhdf_Status* status )
 }
   
 static
-struct mhdf_FileDesc* 
+struct mhdf_FileDesc*
 get_tag_desc( mhdf_FileHandle file_handle,
               struct mhdf_FileDesc* result,
               const char* name,
@@ -361,7 +361,7 @@ mhdf_getFileSummary( mhdf_FileHandle file_handle,
 {
   struct mhdf_FileDesc* result;
   hid_t table_id;
-  int i, j, k, size, *indices, have;
+  int i, j, k, size, *indices, have, num_tag_names = 0;
   unsigned int ui;
   void* ptr;
   char **elem_handles = 0, **tag_names = 0;
@@ -458,12 +458,13 @@ mhdf_getFileSummary( mhdf_FileHandle file_handle,
   }
   
     /* get tag list */
-  tag_names = mhdf_getTagNames( file_handle, &result->num_tag_desc, status );
+  tag_names = mhdf_getTagNames( file_handle, &num_tag_names, status );
   if (tag_names == NULL) {
     free( elem_handles );
     free( result );
     return NULL;
   }
+  result->num_tag_desc = num_tag_names;
   
     /* allocate array of tag descriptors */
   size = result->num_tag_desc * sizeof(struct mhdf_TagDesc);
@@ -478,10 +479,10 @@ mhdf_getFileSummary( mhdf_FileHandle file_handle,
   
     /* Initialize each tag descriptor */
   for (i = 0; i < result->num_tag_desc; ++i) {
-    result = get_tag_desc( file_handle, result, tag_names[i], i, file_id_type, status );
+    result = get_tag_desc( file_handle, &result, tag_names[i], i, file_id_type, status );
     if (NULL == result) {
       free( elem_handles );
-      free_string_list( tag_names, result->num_tag_desc );
+      free_string_list( tag_names, num_tag_names );
       return NULL;
     }
   }
@@ -492,7 +493,7 @@ mhdf_getFileSummary( mhdf_FileHandle file_handle,
   array = mhdf_malloc( size, status );
   if (NULL == array) {
     free( elem_handles );
-    free_string_list( tag_names, result->num_tag_desc );
+    free_string_list( tag_names, num_tag_names );
     free( result );
     return NULL;
   }
