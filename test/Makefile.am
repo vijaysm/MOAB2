@@ -27,7 +27,9 @@ EXTRA_DIST  = 125hex.g \
 	      v3_dodec.h5m \
               ho_test.g \
               test.cub \
-              ho_test.cub
+              ho_test.cub \
+	      sample.stl \
+	      gmsh2.msh
 
 CLEANFILES = mb_big_test.g \
              cell1.gen \
