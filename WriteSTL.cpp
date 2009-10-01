@@ -342,6 +342,7 @@ MBErrorCode WriteSTL::binary_write_triangles( FILE* file,
 
   double coords[9];
   BinTri tri;
+  tri.pad[0] = tri.pad[1] = '\0';
   for (MBRange::const_iterator iter = triangles.begin();
        iter != triangles.end(); ++iter)
   {
