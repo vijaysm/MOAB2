@@ -116,12 +116,14 @@ project( MOAB )
   # MOAB Library
   set ( MOAB_LIB_SRCS
     AEntityFactory.cpp
+    BSPTreePoly.cpp
     DualTool.cpp
     EntitySequence.cpp
     ExoIIUtil.cpp
     FileOptions.cpp
     FileTokenizer.cpp
     GeomTopoTool.cpp
+    GmshUtil.cpp
     HigherOrderFactory.cpp
     HomXform.cpp
     MBAdaptiveKDTree.cpp
@@ -150,8 +152,11 @@ project( MOAB )
     MeshSetSequence.cpp
     MeshTopoUtil.cpp
     PolyElementSeq.cpp
+    ReadABAQUS.cpp
     ReadGmsh.cpp
     ReadIDEAS.cpp
+    ReadMCNP5.cpp
+    ReadNASTRAN.cpp
     ReadSms.cpp
     ReadSTL.cpp
     ReadTetGen.cpp
