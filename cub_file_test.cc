@@ -83,9 +83,7 @@ static const char input_file_1[] = "test/test.cub";
 static const char ho_file[] = "test/ho_test.cub";
 #endif
 
-void read_file( MBInterface& moab, 
-                const char* input_file,
-                MBEntityHandle* file_set = 0 );
+void read_file( MBInterface& moab, const char* input_file );
 
 
 // Check that adjacent lower-order entities have
@@ -124,8 +122,6 @@ void test_side_sets();
 
 void test_node_sets();
 
-void test_file_set();
-
 void test_tri6 () { test_ho_elements(MBTRI, 6); }
 void test_tri7 () { test_ho_elements(MBTRI, 7); }
 
@@ -156,7 +152,6 @@ int main()
   result += RUN_TEST(test_blocks);
   result += RUN_TEST(test_side_sets);
   result += RUN_TEST(test_node_sets);
-  result += RUN_TEST(test_file_set);
   result += RUN_TEST(test_tri6 );
   result += RUN_TEST(test_tri7 );
   result += RUN_TEST(test_quad5);
@@ -173,17 +168,15 @@ int main()
   return result;
 }
 
-void read_file( MBInterface& moab, 
-                const char* input_file,
-                MBEntityHandle* file_set )
+void read_file( MBInterface& moab, const char* input_file )
 {
   MBErrorCode rval;
   MBEntityHandle set;
   Tqdcfr reader( &moab );
   FileOptions opts("");
+  rval = moab.create_meshset( MESHSET_SET, set );
+  CHECK_ERR(rval);
   rval = reader.load_file( input_file, set, opts, 0, 0, 0 );
-  if (file_set)
-    *file_set = set;
   CHECK_ERR(rval);
 }
 
@@ -831,21 +824,6 @@ void test_node_sets()
   test_bc_sets( DIRICHLET_SET_TAG_NAME, 2, ids, surfs );
 }
 
-void test_file_set()
-{
-  MBCore mb_impl;
-  MBInterface& mb = mb_impl;
-  MBEntityHandle set;
-  read_file( mb, input_file_1, &set );
-  
-  MBErrorCode rval;
-  MBRange exp, act;
-  rval = mb.get_entities_by_handle( 0, exp ); CHECK_ERR(rval);
-  rval = mb.get_entities_by_handle( set, act ); CHECK_ERR(rval);
-  exp.erase( set );
-  CHECK( exp == act );
-}
-
 static MBEntityHandle find_side( MBInterface& moab, 
                                  MBEntityHandle entity,
                                  int side_dim,
@@ -1044,9 +1022,17 @@ void test_multiple_files()
   MBErrorCode rval;
   MBCore mb_impl;
   MBInterface& mb = mb_impl;
+  MBRange file1_ents, file2_ents;
+  read_file( mb, input_file_1 );
+  mb.get_entities_by_handle( 0, file1_ents );
+  read_file( mb, input_file_1 );
+  mb.get_entities_by_handle( 0, file2_ents );
+  file2_ents = subtract( file2_ents, file1_ents );
   MBEntityHandle file1, file2;
-  read_file( mb, input_file_1, &file1);
-  read_file( mb, input_file_1, &file2 );
+  mb.create_meshset( MESHSET_SET, file1 );
+  mb.create_meshset( MESHSET_SET, file2 );
+  mb.add_entities( file1, file1_ents );
+  mb.add_entities( file2, file2_ents );
   
     // first check that we get the same number of verts from 
     // each file and that they are distinct vertices

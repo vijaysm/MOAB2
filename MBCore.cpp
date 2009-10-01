@@ -421,11 +421,19 @@ MBErrorCode MBCore::serial_load_file( const char* file_name,
 {
   if (num_sets < 0)
     return MB_INDEX_OUT_OF_RANGE;
-   
-  file_set = 0;
   
   MBErrorCode rval = MB_FAILURE;
   const MBReaderWriterSet* set = reader_writer_set();
+
+  
+  MBRange initial_ents;
+  rval = get_entities_by_handle( 0, initial_ents );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  rval = create_meshset( MESHSET_SET, file_set ); 
+  if (MB_SUCCESS != rval)
+    return rval;
 
     // otherwise try using the file extension to select a reader
   MBReaderIface* reader = set->get_file_extension_reader( file_name );
@@ -449,6 +457,18 @@ MBErrorCode MBCore::serial_load_file( const char* file_name,
           break;
       }
     }
+  }
+  
+  MBRange new_ents;
+  get_entities_by_handle( 0, new_ents );
+  new_ents = subtract( new_ents, initial_ents );
+  if (MB_SUCCESS != rval) {
+    delete_entities( new_ents );
+    file_set = 0;
+  }
+  else {
+    new_ents.erase( file_set );
+    rval = add_entities( file_set, new_ents );
   }
   
   return rval; 

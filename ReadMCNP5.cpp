@@ -69,7 +69,7 @@ MBErrorCode ReadMCNP5::read_tag_values( const char* /* file_name */,
 
 // load the file as called by the MBInterface function
 MBErrorCode ReadMCNP5::load_file(const char        *filename, 
-                                 MBEntityHandle    &input_meshset, 
+                                 MBEntityHandle    input_meshset, 
                                  const FileOptions &options,
                                  const MBReaderIface::IDTag* subset_list,
                                  int               subset_list_length,
@@ -133,7 +133,7 @@ MBErrorCode ReadMCNP5::load_file(const char        *filename,
 // This actually reads the file. It creates the mesh elements unless
 // the file is being averaged with a pre-existing mesh.
 MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
-                                     MBEntityHandle    &input_meshset,
+                                     MBEntityHandle    input_meshset,
                                      const FileOptions &options,
                                      const bool        average ) {
 
@@ -190,13 +190,10 @@ MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
   // blank line
   file.getline(line, 10000);
 
-  // Everything stored in the file being read will be in the output_meshset.
+  // Everything stored in the file being read will be in the input_meshset.
   // if this is being saved in MOAB, set header tags
-  MBEntityHandle output_meshset;
   if (!average) {
-    result = MBI->create_meshset( MESHSET_SET, output_meshset );
-    if(MB_SUCCESS != result) return result;
-    result = set_header_tags( output_meshset, 
+    result = set_header_tags( input_meshset, 
                               date_and_time,
                               title,
                               nps,
@@ -347,8 +344,6 @@ MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
       
       // add this tally's meshset to the output meshset
       if (debug) std::cout << "not averaging tally" << std::endl;
-      result = MBI->add_entities( output_meshset, &tally_meshset, 1);
-      if(MB_SUCCESS != result) return result;
 
     // average the tally values, then delete stuff that was created
     } else {
@@ -387,10 +382,7 @@ MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
     if(MB_SUCCESS != result) return result;
 
   // If this file is not being averaged, return the output meshset.
-  } else {
-    input_meshset = output_meshset;
-  }
-
+  } 
   file.close();
   return MB_SUCCESS;
 }

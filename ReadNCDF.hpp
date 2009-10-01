@@ -70,7 +70,7 @@ public:
 
     //! load an ExoII file
   MBErrorCode load_file( const char *exodus_file_name,
-                         MBEntityHandle& file_set,
+                         MBEntityHandle file_set,
                          const FileOptions& opts,
                          const MBReaderIface::IDTag* subset_list = 0,
                          int subset_list_length = 0,
@@ -101,7 +101,7 @@ private:
   void reset();
 
     //! read the header from the ExoII file
-  MBErrorCode read_exodus_header(const char *exodus_file_name);
+  MBErrorCode read_exodus_header();
   
     //! read the nodes
   MBErrorCode read_nodes(const MBTag* file_id_tag);
@@ -141,7 +141,7 @@ private:
  */
 
   //qa record stuff 
-  MBErrorCode read_qa_records();
+  MBErrorCode read_qa_records(MBEntityHandle file_set);
   MBErrorCode read_qa_information( std::vector<std::string> &qa_record_list);
 
   MBErrorCode read_qa_string(char *string,
@@ -157,10 +157,6 @@ private:
 
   MBErrorCode find_side_element_type( const int element_id, ExoIIElementType &type, 
                                        ReadBlockData &block_data, int &df_index, int side_id );
-
-  MBErrorCode remove_previously_loaded_blocks(const int *blocks_to_load,
-                                               const int num_blocks,
-                                               std::vector<int> &new_blocks);
   
  /* MBErrorCode assign_block_ids_to_ssets(MBEntityHandle ss_handle,
                                          MB_MeshSet *ss_mesh_set);
@@ -168,10 +164,6 @@ private:
 
   //! creates an element with the given connectivity
   MBErrorCode create_sideset_element( const std::vector<MBEntityHandle>&, MBEntityType, MBEntityHandle&);
-
-  //! I think this ought to be moved to MBCore. KGM
-  MBErrorCode check_file_status(std::string& filename,
-                                 bool& previously_read);
 
   int get_number_nodes( MBEntityHandle handle );
 

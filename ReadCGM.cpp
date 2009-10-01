@@ -109,7 +109,7 @@ MBErrorCode ReadCGM::read_tag_values( const char* /* file_name */,
 
 // copy geometry into mesh database
 MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
-                      MBEntityHandle& file_set,
+                      MBEntitySet,
                       const FileOptions& opts,
                       const MBReaderIface::IDTag* subset_list,
                       int subset_list_length,
@@ -117,15 +117,11 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
 {
   // blocks_to_load and num_blocks are ignored.
   MBErrorCode rval;
-  file_set = 0;
 
   if (subset_list && subset_list_length) {
     readUtilIface->report_error( "Reading subset of files not supported for CGM data." );
     return MB_UNSUPPORTED_OPERATION;
   }
-
-  std::string filename( cgm_file_name );
-  cgmFile = filename;
 
   int norm_tol, DEFAULT_NORM = 5;
   double faceting_tol, DEFAULT_FACET_TOL = 0.001, len_tol, DEFAULT_LEN_TOL = 0.0;
@@ -197,7 +193,7 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
       MBEntityHandle handle;
       rval = mdbImpl->create_meshset( dim == 1 ? MESHSET_ORDERED : MESHSET_SET, handle );
       if (MB_SUCCESS != rval)
-        return MB_FAILURE;
+        return rval;
     
       entmap[dim][ent] = handle;
       
@@ -227,7 +223,7 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
         MBEntityHandle h = entmap[dim-1][ent];
         rval = mdbImpl->add_parent_child( ci->second, h );
         if (MB_SUCCESS != rval)
-          return MB_FAILURE;
+          return rval;
       }
     }
   }
@@ -291,7 +287,7 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
     MBEntityHandle h;
     rval = mdbImpl->create_meshset( MESHSET_SET, h );
     if (MB_SUCCESS != rval)
-      return MB_FAILURE;
+      return rval;
     
     char namebuf[NAME_TAG_SIZE];
     memset( namebuf, '\0', NAME_TAG_SIZE );
@@ -565,18 +561,9 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
       return MB_FAILURE;
   }
   
-  MBRange init_range, loaded_range;
-  rval = mdbImpl->get_entities_by_handle(0, loaded_range);
-  if (MB_FAILURE == rval) return rval;
-  rval = mdbImpl->get_entities_by_handle(0, init_range);
-  loaded_range = subtract( loaded_range, init_range);
-  rval = mdbImpl->add_entities(mCurrentMeshHandle, loaded_range);
-  if (MB_FAILURE == rval) return rval;
-  
   if (file_id_tag)
     readUtilIface->assign_ids( *file_id_tag, loaded_range );
 
-  file_set = mCurrentMeshHandle;
   return MB_SUCCESS;
 }
 

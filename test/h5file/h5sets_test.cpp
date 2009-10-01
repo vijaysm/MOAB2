@@ -254,7 +254,7 @@ void test_tree( int max_depth )
   
   // create a binary tree to a depth of 20 (about 1 million nodes)
   rval = mb.create_meshset( MESHSET_SET, root ); CHECK_ERR(rval);
-  int idx = 0;
+  int idx = 1;
   recursive_build_tree( max_depth, mb, tag, root, 1, idx );
   const int last_idx = idx;
   std::cerr << "Created binary tree containing " << last_idx << " nodes." << std::endl;
@@ -273,14 +273,14 @@ void test_tree( int max_depth )
   // get tree root
   rval = mb.tag_get_handle( "GLOBAL_ID", tag ); CHECK_ERR(rval);
   MBRange roots;
-  idx = 0;
+  idx = 1;
   const void* vals[] = {&idx};
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &tag, vals, 1, roots );
   CHECK_EQUAL( (MBEntityHandle)1, roots.size() );
   root = roots.front();
   
   // check that tree is as we expect it
-  idx = 0;
+  idx = 1;
   recursive_check_tree( max_depth, mb, tag, root, 1, idx );
   CHECK_EQUAL( last_idx, idx );
 }

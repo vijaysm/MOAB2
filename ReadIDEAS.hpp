@@ -21,7 +21,7 @@ public:
   static MBReaderIface* factory( MBInterface* );
 
   MBErrorCode load_file( const char* fname, 
-			 MBEntityHandle& meshset, 
+			 MBEntityHandle meshset, 
 			 const FileOptions&,
                          const MBReaderIface::IDTag* subset_list = 0,
                          int subset_list_length = 0,
@@ -55,8 +55,5 @@ private:
   
   // MOAB Interface
   MBInterface* MBI;
-  
-  // Handle for the mesh
-  MBEntityHandle mesh_handle;
 
 };

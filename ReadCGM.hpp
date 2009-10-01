@@ -56,7 +56,7 @@ public:
     //  * MAX_FACET_EDGE_LENGTH=<real> (default: 0.0)
     //  * CGM_ATTRIBS=<yes|no>         (default: no)
   MBErrorCode load_file( const char *cgm_file_name,
-                         MBEntityHandle& file_set,
+                         MBEntityHandle file_set,
                          const FileOptions& opts,
                          const MBReaderIface::IDTag* subset_list = 0,
                          int subset_list_length = 0,
@@ -96,12 +96,6 @@ private:
 
     //! interface instance
   MBInterface* mdbImpl;
-
-    //! file name
-  std::string cgmFile;
-
-    //! Meshset Handle for the mesh that is currently being read
-  MBEntityHandle mCurrentMeshHandle;
 
   MBTag geom_tag, id_tag, name_tag, category_tag;
 };

@@ -72,7 +72,7 @@ public:
     //! Generic file loading code for both binary and ASCII readers.
     //! Calls reader-specific read_triangles function to do actual I/O.
   MBErrorCode load_file( const char *file_name,
-                         MBEntityHandle& file_set,
+                         MBEntityHandle file_set,
                          const FileOptions& opts,
                          const MBReaderIface::IDTag* subset_list = 0,
                          int subset_list_length = 0,
@@ -120,16 +120,6 @@ protected:
     //! interface instance
   MBInterface* mdbImpl;
 
-private:
-
-    //! Generic file loading code for both binary and ASCII readers.
-    //! Calls reader-specific *_read_triangles function to do actual I/O.
-  MBErrorCode load_file_impl( const char *file_name, 
-                              const FileOptions& opts,
-                              const MBTag* file_id_tag );
-
-    //! Meshset Handle for the mesh that is currently being read
-  MBEntityHandle mCurrentMeshHandle;
 };
 
 #endif

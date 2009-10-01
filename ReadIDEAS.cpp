@@ -35,7 +35,7 @@ MBErrorCode ReadIDEAS::read_tag_values( const char* /* file_name */,
 
 
 MBErrorCode ReadIDEAS::load_file(const char* fname, 
-                                 MBEntityHandle& meshset, 
+                                 MBEntityHandle meshset, 
                                  const FileOptions& options,
                                  const MBReaderIface::IDTag* subset_list,
                                  int subset_list_length,
@@ -47,11 +47,12 @@ MBErrorCode ReadIDEAS::load_file(const char* fname,
   }
 
   file.open( fname );
+  if (!file.good()) {
+    readMeshIface->report_error("Failed to open file: %s", fname);
+    return MB_FILE_DOES_NOT_EXIST;
+  }
 
   MBErrorCode rval;
-
-  rval = MBI->create_meshset(MESHSET_SET, mesh_handle);
-  if (MB_SUCCESS != rval) return rval;
 
   char line[10000];
   file.getline(line, 10000);
@@ -81,18 +82,8 @@ MBErrorCode ReadIDEAS::load_file(const char* fname,
         rval = skip_header(); 
       break;
     }
-
-    if (MB_SUCCESS != rval) {
-      file.close();
-      MBRange ents;
-      MBI->get_entities_by_handle( mesh_handle, ents );
-      ents.insert( mesh_handle );
-      MBI->delete_entities( ents );
-      return rval;
-    }
   }
 
-  meshset = mesh_handle;
   file.close();
   return MB_SUCCESS;
 
@@ -169,10 +160,6 @@ MBErrorCode ReadIDEAS::create_vertices(MBEntityHandle& first_vertex,
 
   MBRange verts;
   verts.insert( first_vertex, first_vertex + num_verts - 1 );
-  rval = MBI->add_entities( mesh_handle, verts );
-  assert( MB_SUCCESS == rval );
-  if (MB_SUCCESS != rval)
-    return rval;
   
   double *x = arrays[0];
   double *y = arrays[1];
@@ -261,9 +248,6 @@ MBErrorCode ReadIDEAS::create_tetrahedral_elements(MBEntityHandle vstart,
     
     rval = MBI->tag_set_data(mat_prop_tag,&handle,1,&mat_table);
     assert( MB_SUCCESS == rval);
-    
-    rval = MBI->add_entities( mesh_handle, &handle, 1);
-    assert( MB_SUCCESS == rval );
     
     if (file_id_tag) {
       rval = MBI->tag_set_data( *file_id_tag, &handle, 1, &id );

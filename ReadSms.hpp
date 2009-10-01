@@ -18,7 +18,7 @@ public:
   static MBReaderIface* factory( MBInterface* );
 
   MBErrorCode load_file( const char *file_name,
-                         MBEntityHandle& file_set,
+                         MBEntityHandle file_set,
                          const FileOptions& opts,
                          const MBReaderIface::IDTag* subset_list = 0,
                          int subset_list_length = 0,
@@ -57,9 +57,6 @@ private:
 
     //! interface instance
   MBInterface* mdbImpl;
-
-    //! Meshset Handle for the mesh that is currently being read
-  MBEntityHandle mCurrentMeshHandle;
   
   MBTag globalId, paramCoords, geomDimension;
   

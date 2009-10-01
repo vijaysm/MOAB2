@@ -291,7 +291,7 @@ MBErrorCode ReadHDF5::clean_up_read( const FileOptions& )
 }
 
 MBErrorCode ReadHDF5::load_file( const char* filename, 
-                                 MBEntityHandle& file_set, 
+                                 MBEntityHandle file_set, 
                                  const FileOptions& opts,
                                  const MBReaderIface::IDTag* subset_list,
                                  int subset_list_length,
@@ -304,46 +304,26 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
     return rval;
  
   if (subset_list && subset_list_length) 
-    rval = load_file_partial( file_set, subset_list, subset_list_length, opts );
+    rval = load_file_partial( subset_list, subset_list_length, opts );
   else
-    rval = load_file_impl( file_set, opts );
+    rval = load_file_impl( opts );
     
   if (MB_SUCCESS == rval && file_id_tag)
     rval = store_file_ids( *file_id_tag );
+  
+  if (MB_SUCCESS == rval)
+    rval = read_qa( file_set );
     
   MBErrorCode rval2 = clean_up_read( opts );
   if (rval == MB_SUCCESS && rval2 != MB_SUCCESS)
     rval = rval2;
-  
-  if (MB_SUCCESS == rval) {
-    DEBUGOUT("Creating entity set for file contents\n")
-
-    rval = iFace->create_meshset( MESHSET_SET, file_set );
-    if (MB_SUCCESS == rval) {
-      MBRange range;
-      MBRange::iterator hint = range.begin();
-      for (IDMap::iterator j = idMap.begin(); j != idMap.end(); ++j)
-        hint = range.insert( hint, j->value, j->value + j->count - 1);
-      rval = iFace->add_entities( file_set, range );
-    }
-  }
-        
-      // delete everything that was read in if read failed part-way through
-  if (MB_SUCCESS != rval) {
-    MBRange range;
-    range.insert( file_set );
-    for (IDMap::iterator i = idMap.begin(); i != idMap.end(); ++i) 
-      range.insert( i->value, i->value + i->count - 1 );
-    iFace->delete_entities( range );
-  }
   
   return rval;
 }
   
 
 
-MBErrorCode ReadHDF5::load_file_impl( MBEntityHandle file_set, 
-                                      const FileOptions& opts )
+MBErrorCode ReadHDF5::load_file_impl( const FileOptions& opts )
 {
   MBErrorCode rval;
   mhdf_Status status;
@@ -423,9 +403,7 @@ DEBUGOUT("Reading tags.\n");
       return error(rval);
   }
   
-DEBUGOUT("Finishing read.\n");
-  rval = read_qa( file_set );
-  return rval;
+  return MB_SUCCESS;
 }
 
 MBErrorCode ReadHDF5::find_int_tag( const char* name, int& index )
@@ -511,8 +489,7 @@ MBErrorCode ReadHDF5::get_subset_ids( const MBReaderIface::IDTag* subset_list,
   return MB_SUCCESS;
 }
 
-MBErrorCode ReadHDF5::load_file_partial( MBEntityHandle file_set, 
-                                         const MBReaderIface::IDTag* subset_list,
+MBErrorCode ReadHDF5::load_file_partial( const MBReaderIface::IDTag* subset_list,
                                          int subset_list_length,
                                          const FileOptions& opts )
 {

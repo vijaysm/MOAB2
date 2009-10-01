@@ -66,7 +66,7 @@ MBErrorCode ReadNASTRAN::read_tag_values( const char*        file_name,
 
 // load the file as called by the MBInterface function
 MBErrorCode ReadNASTRAN::load_file(const char                  *filename, 
-                                   MBEntityHandle              &file_set, 
+                                   MBEntityHandle              file_set, 
                                    const FileOptions           &options,
                                    const MBReaderIface::IDTag  *subset_list,
                                    int                         subset_list_length,
@@ -83,10 +83,6 @@ MBErrorCode ReadNASTRAN::load_file(const char                  *filename,
   bool debug = false;
   if (debug) std::cout << "begin ReadNASTRAN::load_file" << std::endl;
   MBErrorCode result;
-
-  // create the file set
-  result = MBI->create_meshset(MESHSET_SET, file_set);
-  if(MB_SUCCESS != result) return result;
 
   // create tags
   MBTag id_tag, material_tag;

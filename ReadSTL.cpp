@@ -72,44 +72,21 @@ MBErrorCode ReadSTL::read_tag_values( const char* /* file_name */,
   return MB_NOT_IMPLEMENTED;
 }
 
-
+// Generic load function for both ASCII and binary.  Calls
+// pure-virtual function implemented in subclasses to read
+// the data from the file.
 MBErrorCode ReadSTL::load_file( const char* filename,
-                                MBEntityHandle& file_set, 
+                                MBEntityHandle file_set, 
                                 const FileOptions& opts,
                                 const MBReaderIface::IDTag* subset_list,
                                 int subset_list_length,
                                 const MBTag* file_id_tag )
 {
-  mCurrentMeshHandle = 0;
-  const MBErrorCode result = load_file_impl( filename, opts, file_id_tag );
-  
   if (subset_list && subset_list_length) {
     readMeshIface->report_error( "Reading subset of files not supported for STL." );
     return MB_UNSUPPORTED_OPERATION;
   }
-  
-    // If file read has failed, destroy anything that was
-    // created during the read.
-  if (MB_SUCCESS != result && mCurrentMeshHandle)
-  {
-    MBRange entities;
-    mdbImpl->get_entities_by_handle( mCurrentMeshHandle, entities );
-    entities.insert( mCurrentMeshHandle );
-    mdbImpl->delete_entities( entities );
-    mCurrentMeshHandle = 0;
-  }
-  
-  file_set = mCurrentMeshHandle;
-  return result;
-}
 
-// Generic load function for both ASCII and binary.  Calls
-// pure-virtual function implemented in subclasses to read
-// the data from the file.
-MBErrorCode ReadSTL::load_file_impl(const char *filename,
-                                    const FileOptions& opts,
-                                    const MBTag* file_id_tag ) 
-{
   MBErrorCode result;
 
   std::vector<ReadSTL::Triangle> triangles;
@@ -151,10 +128,6 @@ MBErrorCode ReadSTL::load_file_impl(const char *filename,
   if (MB_SUCCESS != result)
     return result;
 
-    // make a meshset for this mesh
-  result = mdbImpl->create_meshset(MESHSET_SET, mCurrentMeshHandle);
-  if (MB_SUCCESS != result) return result;
-
     // Create a std::map from position->handle, and such
     // that all positions are specified, and handles are zero.
   std::map<Point,MBEntityHandle> vertex_map;
@@ -175,7 +148,7 @@ MBErrorCode ReadSTL::load_file_impl(const char *filename,
 
     // Add vertices to entity set
   MBRange range(handle, handle+vertex_map.size()-1);
-  result = mdbImpl->add_entities(mCurrentMeshHandle, range);
+  result = mdbImpl->add_entities(file_set, range);
   if (MB_SUCCESS != result)
     return result;
   
@@ -211,7 +184,7 @@ MBErrorCode ReadSTL::load_file_impl(const char *filename,
 
     // Add triangles to entity set
   MBRange range2(handle, handle+triangles.size()-1);
-  result = mdbImpl->add_entities(mCurrentMeshHandle, range2);
+  result = mdbImpl->add_entities(file_set, range2);
   if (MB_SUCCESS != result)
     return result;
   

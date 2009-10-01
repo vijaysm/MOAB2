@@ -60,6 +60,7 @@ MBErrorCode read_file_( MBInterface& moab, const char* input_file, const char* o
 {
   MBErrorCode rval;
   MBEntityHandle set;
+  moab.create_meshset( MESHSET_SET, set );
   ReadSTL reader( &moab );
   FileOptions opts(options);
   rval = reader.load_file( input_file, set, opts, 0, 0, 0 );
@@ -77,6 +78,7 @@ void convert_file( const char* input_file, const char* output_file, const char* 
   MBErrorCode rval;
   MBEntityHandle set;
   MBCore moab;
+  moab.create_meshset( MESHSET_SET, set );
 
   ReadSTL reader( &moab );
   FileOptions opts_reader("");

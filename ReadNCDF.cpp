@@ -26,6 +26,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <cmath>
+#include <memory>
 
 #include "MBCN.hpp"
 #include "MBRange.hpp"
@@ -172,259 +173,6 @@ ReadNCDF::~ReadNCDF()
 {
   std::string iface_name = "MBReadUtilIface";
   mdbImpl->release_interface(iface_name, readMeshIface);
-  if (NULL != ncFile)
-    delete ncFile;
-}
-
-// should this be moved to the core?  This could apply to ANY input
-// file type.  There is no exodus specific code here although the
-// loaded_blocks tag does get used later on and it does save the
-// current mesh handle.  But that could be handled differently.
-MBErrorCode ReadNCDF::check_file_status( std::string& exodus_file_name,
-                                          bool& previously_read) 
-{
-  MBErrorCode status = MB_FAILURE;
-  char mesh_tag_buffer[256] = "";
-
-  // assume that this is the first time reading this file
-  previously_read = false;
-
-  // look for any mesh sets tagged "__mesh" that already exist
-  MBTag mesh_tag=0;
-  if (mdbImpl->tag_get_handle("__mesh", mesh_tag) == MB_SUCCESS)
-  {
-    MBRange mesh_range;
-    mdbImpl->get_entities_by_type_and_tag( 0, MBENTITYSET, &mesh_tag, NULL, 1, mesh_range,
-                                           MBInterface::UNION);
-
-    // see if any of the mesh sets came from this filename
-    MBRange::iterator iter;
-    for (iter = mesh_range.begin(); iter != mesh_range.end(); iter++)
-    {
-      mdbImpl->tag_get_data(mesh_tag, &(*iter), 1, mesh_tag_buffer);
-
-      if (exodus_file_name.empty() || exodus_file_name == mesh_tag_buffer)
-      {
-        // found it, there should only be one.  Set the mesh handle and the flag
-        // indicating that the mesh has been previously read and use the
-        // handle later to determine what blocks need to be read.
-        mCurrentMeshHandle = *iter;
-        previously_read = true;
-
-        if (exodus_file_name.empty())
-          exodus_file_name = mesh_tag_buffer;
-        
-        return MB_SUCCESS;
-      }
-    }
-  }
-
-  // if we get to this point, this mesh has never been seen before; if the
-  // file name is null, that means no file was read
-  if (exodus_file_name.empty())
-    return MB_FILE_DOES_NOT_EXIST;
-
-    // ok, it's a valid name; make sure file exists
-  FILE* infile = NULL;
-  infile = fopen(exodus_file_name.c_str(), "r");
-  if (!infile) 
-    return MB_FILE_DOES_NOT_EXIST;
-  else 
-    fclose(infile);
-
-  // get the handle if it exists otherwise create a new "__mesh" handle
-  if (mdbImpl->tag_get_handle("__mesh", mesh_tag) != MB_SUCCESS)
-  {
-    memset( mesh_tag_buffer, 0, sizeof(mesh_tag_buffer) );
-    if( mdbImpl->tag_create("__mesh", sizeof(mesh_tag_buffer), MB_TAG_SPARSE,
-                            mesh_tag, mesh_tag_buffer) != MB_SUCCESS )
-      return MB_FAILURE;
-  }
-
-  // \bug the offset tags need to be created, but do I need to get them?
-  // get the "__vertex_offset" tag if it exists otherwise create a new one
-  int offset = 0;
-  MBTag tag_handle;
-  if (mdbImpl->tag_get_handle("__vertex_offset", tag_handle) != MB_SUCCESS)
-  {
-    if (mdbImpl->tag_create("__vertex_offset", sizeof(int), MB_TAG_SPARSE,
-                            tag_handle, &offset) != MB_SUCCESS )
-      return MB_FAILURE;
-  }
-
-
-  MBEntityHandle mesh_handle;
-  if( mdbImpl->create_meshset( MESHSET_SET, mesh_handle ) != MB_SUCCESS)
-      return MB_FAILURE;
-
-  MBRange temp_range;
-  MBRange::iterator iter, end_iter;
-  int highest_id = 0;
-  int temp_id= 0;
-
-  MBTag block_offset_tag=0;
-  
-  //block offset tag
-  if (mdbImpl->tag_get_handle("__block_id_offset", block_offset_tag) != MB_SUCCESS)
-  {
-    if (mdbImpl->tag_create("__block_id_offset", sizeof(int), MB_TAG_SPARSE,
-                            block_offset_tag, &offset) != MB_SUCCESS )
-      return MB_FAILURE;
-
-    //set the highest id to zero
-    int highest_id = 0;
-    if( mdbImpl->tag_set_data( block_offset_tag, &mesh_handle, 1, &highest_id ) != MB_SUCCESS )
-      return MB_FAILURE;
-
-  }
-  else
-  {
-
-    //get all 'matrerial' meshsets
-    if(mdbImpl->get_entities_by_type_and_tag( 0, MBENTITYSET, &mMaterialSetTag, NULL, 1, temp_range ) != MB_SUCCESS )
-      return MB_FAILURE;
-
-    highest_id = 0;  
-    temp_id = 0;  
-
-    if( !temp_range.empty() )
-    {
-
-      //get the highest id 
-      iter = temp_range.begin();
-      end_iter = temp_range.end();
-  
-      for(; iter != end_iter; iter++)
-      {
-        if(mdbImpl->tag_get_data( mMaterialSetTag, &(*iter), 1, &temp_id) != MB_SUCCESS )
-          return MB_FAILURE;
-       
-        if( temp_id > highest_id )
-          highest_id = temp_id;
-      }
-    }
-
-    //set the highest id
-    if( mdbImpl->tag_set_data( block_offset_tag, &mesh_handle, 1, &highest_id ) != MB_SUCCESS )
-      return MB_FAILURE;
-
-  }
-
-  //sideset offset tag
-  if (mdbImpl->tag_get_handle("__sideset_id_offset", tag_handle) != MB_SUCCESS)
-  {
-    if (mdbImpl->tag_create("__sideset_id_offset", sizeof(int), MB_TAG_SPARSE,
-                            tag_handle, &offset) != MB_SUCCESS )
-      return MB_FAILURE;
-
-    //set the highest id to zero
-    int highest_id = 0;
-    if( mdbImpl->tag_set_data( tag_handle, &mesh_handle, 1, &highest_id ) != MB_SUCCESS )
-      return MB_FAILURE;
-  }
-  else
-  {
-
-    temp_range.clear(); 
-    //get all sideset meshsets
-    if(mdbImpl->get_entities_by_type_and_tag( 0, MBENTITYSET, &mNeumannSetTag, NULL, 1, temp_range ) != MB_SUCCESS )
-      return MB_FAILURE;
-
-    highest_id = 0;  
-    temp_id = 0;  
-
-    if( !temp_range.empty() ) 
-    {
-
-      //get the highest id 
-      iter = temp_range.begin();
-      end_iter = temp_range.end();
-  
-      for(; iter != end_iter; iter++)
-      {
-        if(mdbImpl->tag_get_data( mNeumannSetTag, &(*iter), 1, &temp_id) != MB_SUCCESS )
-          return MB_FAILURE;
-       
-        if( temp_id > highest_id )
-          highest_id = temp_id;
-      }
-    }
-
-    if( mdbImpl->tag_get_handle( "__sideset_id_offset", tag_handle) != MB_SUCCESS )
-      return MB_FAILURE;
-
-    //set the highest id
-    if( mdbImpl->tag_set_data( tag_handle, &mesh_handle, 1, &highest_id ) != MB_SUCCESS )
-      return MB_FAILURE;
-
-  }
-
-  //nodeset offset tag
-  if (mdbImpl->tag_get_handle("__nodeset_id_offset", tag_handle) != MB_SUCCESS)
-  {
-    if (mdbImpl->tag_create("__nodeset_id_offset", sizeof(int), MB_TAG_SPARSE,
-                            tag_handle, &offset) != MB_SUCCESS )
-      return MB_FAILURE;
-
-    //set the highest id to zero
-    int highest_id = 0;
-    if( mdbImpl->tag_set_data( tag_handle, &mesh_handle, 1, &highest_id ) != MB_SUCCESS )
-      return MB_FAILURE;
-  }
-  else
-  {
-
-    temp_range.clear(); 
-    //get all nodeset meshsets
-    if(mdbImpl->get_entities_by_type_and_tag( 0, MBENTITYSET, &mDirichletSetTag, NULL, 1, temp_range ) != MB_SUCCESS )
-      return MB_FAILURE;
-
-    //get the highest id 
-    iter = temp_range.begin();
-    end_iter = temp_range.end();
-  
-    highest_id = 0;  
-    temp_id = 0;  
-
-    if( !temp_range.empty() ) 
-    {
-
-      //get the highest id 
-      iter = temp_range.begin();
-      end_iter = temp_range.end();
-  
-      for(; iter != end_iter; iter++)
-      {
-        if(mdbImpl->tag_get_data( mDirichletSetTag, &(*iter), 1, &temp_id) != MB_SUCCESS )
-          return MB_FAILURE;
-       
-        if( temp_id > highest_id )
-          highest_id = temp_id;
-      }
-    }
-
-    if( mdbImpl->tag_get_handle( "__nodeset_id_offset", tag_handle) != MB_SUCCESS )
-      return MB_FAILURE;
-
-    //set the highest id
-    if( mdbImpl->tag_set_data( tag_handle, &mesh_handle, 1, &highest_id ) != MB_SUCCESS )
-      return MB_FAILURE;
-
-  }
-
-
-  // save the filename on the mesh_tag
-  strncpy( mesh_tag_buffer, exodus_file_name.c_str(), sizeof(mesh_tag_buffer) - 1 );
-  mesh_tag_buffer[sizeof(mesh_tag_buffer)-1] = '\0';
-  status = mdbImpl->tag_set_data(mesh_tag, &mesh_handle, 1, mesh_tag_buffer);
-  if (status != MB_SUCCESS )
-    return MB_FAILURE;
-
-
-  // save this mesh handle as the current one being read
-  mCurrentMeshHandle = mesh_handle;
-
-  return MB_SUCCESS;
 }
   
 
@@ -440,8 +188,18 @@ MBErrorCode ReadNCDF::read_tag_values(const char* file_name,
     return MB_UNSUPPORTED_OPERATION;
   }
 
+      // open netcdf/exodus file
+  ncFile = new NcFile(file_name);
+  if (NULL == ncFile || !ncFile->is_valid())
+  {
+    readMeshIface->report_error("MBCN:: problem opening Netcdf/Exodus II file %s",file_name);
+    return MB_FILE_DOES_NOT_EXIST;
+  }
+    // delete file when we return from this function
+  std::auto_ptr<NcFile> deleter(ncFile);
+
     // 1. Read the header
-  MBErrorCode rval = read_exodus_header( file_name );
+  MBErrorCode rval = read_exodus_header( );
   if (MB_FAILURE == rval) 
     return rval;
   
@@ -485,7 +243,6 @@ MBErrorCode ReadNCDF::read_tag_values(const char* file_name,
     }
   }
   
-  delete ncFile;
   ncFile = 0;
   return rval;
 }
@@ -493,7 +250,7 @@ MBErrorCode ReadNCDF::read_tag_values(const char* file_name,
 
 
 MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
-                                MBEntityHandle& file_set,
+                                MBEntityHandle file_set,
                                 const FileOptions& opts,
                                 const MBReaderIface::IDTag* subset_list,
                                 int subset_list_length,
@@ -516,7 +273,6 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
     num_blocks = subset_list[0].num_tag_values;
   }
   
-  file_set = 0;
     // this function directs the reading of an exoii file, but doesn't do any of
     // the actual work
   
@@ -527,28 +283,30 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
   if(MB_SUCCESS == rval && !s.empty())
     return update(exodus_file_name, opts); 
 
-    // 0. Check for previously read file.
   reset();
-  bool previously_loaded = false;
-  std::string filename( exodus_file_name );
-  exodusFile = filename;
-  status = check_file_status(filename, previously_loaded);
-  if (MB_SUCCESS != status) 
-    return status;
+
+  // 0. Open the file.
+
+      // open netcdf/exodus file
+  ncFile = new NcFile(exodus_file_name);
+  if (NULL == ncFile || !ncFile->is_valid())
+  {
+    readMeshIface->report_error("MBCN:: problem opening Netcdf/Exodus II file %s",exodus_file_name);
+    return MB_FILE_DOES_NOT_EXIST;
+  }
+    // delete file when we return from this function
+  std::auto_ptr<NcFile> deleter(ncFile);
 
     // 1. Read the header
-  status = read_exodus_header(exodus_file_name);
+  status = read_exodus_header();
   if (MB_FAILURE == status) return status;
   
   status = mdbImpl->get_entities_by_handle(0, initRange);
   if (MB_FAILURE == status) return status;
 
     // 2. Read the nodes unless they've already been read before
-  if (!previously_loaded)
-  {
-    status = read_nodes(file_id_tag);
-    if (MB_FAILURE == status) return status;
-  }
+  status = read_nodes(file_id_tag);
+  if (MB_FAILURE == status) return status;
  
     //3. 
   status = read_block_headers(blocks_to_load, num_blocks);
@@ -571,46 +329,21 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
   if (MB_FAILURE == status) return status;
 
     // 8. Read qa records
-  if (!previously_loaded)
-  {
-    status = read_qa_records();
-    if (MB_FAILURE == status) return status;
-  }
-
-  
-  MBRange loaded_range;
-  status = mdbImpl->get_entities_by_handle(0, loaded_range);
-  if (MB_FAILURE == status) return status;
-  loaded_range = subtract( loaded_range, initRange);
-  status = mdbImpl->add_entities(mCurrentMeshHandle, loaded_range);
+  status = read_qa_records(file_set);
   if (MB_FAILURE == status) return status;
   
     // what about properties???
 
-  file_set = mCurrentMeshHandle;
-  delete ncFile;
   ncFile = 0;
   return MB_SUCCESS;
 }
 
 
 
-MBErrorCode ReadNCDF::read_exodus_header(const char *exodus_file_name)
+MBErrorCode ReadNCDF::read_exodus_header()
 {
-
-  if (NULL == ncFile) {
-    
-      // open netcdf/exodus file
-    CPU_WORD_SIZE = sizeof(double);  // With ExodusII version 2, all floats
-    IO_WORD_SIZE = sizeof(double);   // should be changed to doubles
-
-    ncFile = new NcFile(exodus_file_name);
-    if (NULL == ncFile || !ncFile->is_valid())
-    {
-      readMeshIface->report_error("MBCN:: problem opening Netcdf/Exodus II file %s",exodus_file_name);
-      return MB_FAILURE;
-    }
-  }
+  CPU_WORD_SIZE = sizeof(double);  // With ExodusII version 2, all floats
+  IO_WORD_SIZE = sizeof(double);   // should be changed to doubles
   
     // get the attributes
 
@@ -676,14 +409,6 @@ MBErrorCode ReadNCDF::read_nodes(const MBTag* file_id_tag)
       MB_START_ID, node_handle, arrays);
   
   vertexOffset = ID_FROM_HANDLE( node_handle ) - MB_START_ID;
-
-  // save the start id in the vertex offset tag.
-  MBTag offset_tag;
-  if (mdbImpl->tag_get_handle("__vertex_offset", offset_tag) != MB_SUCCESS)
-    return MB_FAILURE;
-
-  if( mdbImpl->tag_set_data(offset_tag, &mCurrentMeshHandle, 1, &vertexOffset) != MB_SUCCESS)
-    return MB_FAILURE;
 
   // read in the coordinates
   NcBool status;
@@ -759,35 +484,18 @@ MBErrorCode ReadNCDF::read_block_headers(const int *blocks_to_load,
 
   int exodus_id = 1;
 
-  // if the active_block_id_list is NULL all blocks are active.
+  // if the active_block_id_list is NULL all blocks are active. 
   int temp_num_blocks = num_blocks;
   if (NULL == blocks_to_load || 0 == num_blocks) {
     blocks_to_load = &block_ids[0];
     temp_num_blocks = numberElementBlocks_loading;
   }
-  
-    // if we're only reading active blocks, go through the block list
-    // removing inactive ones and update the list of currently read blocks.
-  std::vector<int> new_blocks;
-  MBErrorCode result = remove_previously_loaded_blocks(blocks_to_load,
-                                                        temp_num_blocks,
-                                                        new_blocks);
-  if (result != MB_SUCCESS)
-    return result;
 
+  std::vector<int> new_blocks(blocks_to_load,blocks_to_load+numberElementBlocks_loading);
 
   std::vector<int>::iterator iter, end_iter;
   iter = block_ids.begin();
   end_iter = block_ids.end();
- 
-
-  //get block offset tag
-  MBTag tag_handle;
-  if (mdbImpl->tag_get_handle("__block_id_offset", tag_handle) != MB_SUCCESS)
-    return MB_FAILURE;
-  int block_offset = 0;
-  if( mdbImpl->tag_get_data( tag_handle, &mCurrentMeshHandle, 1, &block_offset ) != MB_SUCCESS )
-    return MB_FAILURE;
 
     // read header information and initialize header-type block information
   NcDim *temp_dim;
@@ -818,7 +526,7 @@ MBErrorCode ReadNCDF::read_block_headers(const int *blocks_to_load,
 
     //if block is in 'blocks_to_load'----load it!
     if( std::find(new_blocks.begin(), new_blocks.end(), *iter) 
-        != new_blocks.end()) 
+        != block_ids.end()) 
     { 
       block_data.reading_in = true;
     }
@@ -848,64 +556,6 @@ bool ReadNCDF::dimension_exists(const char *attrib_name)
   return false;
 }
 
-MBErrorCode ReadNCDF::remove_previously_loaded_blocks(const int *blocks_to_load,
-                                                        const int num_blocks,
-                                                        std::vector<int> &new_blocks) 
-{
-  // if this mesh has been previously read, also remove the block ids
-  // that were read before.
-
-  //get all the blocks of mCurrentMeshHandle
-  MBRange child_meshsets; 
-  if(mdbImpl->get_entities_by_type(0, MBENTITYSET, child_meshsets ) != MB_SUCCESS )
-    return MB_FAILURE;
-
-  child_meshsets = subtract( child_meshsets, initRange);
-
-  MBTag tag_handle;
-
-  MBRange::iterator iter, end_iter;
- 
-  //get the block id offset 
-  int id_offset = 0;
-  if( mdbImpl->tag_get_handle( "__block_id_offset", tag_handle) != MB_SUCCESS )
-    return MB_FAILURE;
-
-  if( mdbImpl->tag_get_data( tag_handle, &mCurrentMeshHandle, 1, &id_offset) != MB_SUCCESS )
-    return MB_FAILURE;
-
-  //make a vector of currently loaded block
-  std::vector< int > loaded_blocks;
-  iter = child_meshsets.begin(); 
-  end_iter = child_meshsets.end(); 
-  int block_id = 0;
-  for(; iter != end_iter; iter++)
-  {
-    if(mdbImpl->tag_get_data( mMaterialSetTag, &(*iter), 1, &block_id ) != MB_SUCCESS ) 
-      continue;
-
-    //strip the offset
-    loaded_blocks.push_back( block_id /*- id_offset*/ ); 
-  }
-
-
-  // takes already loaded blocks out of 'blocks_to_load'
-  std::copy(blocks_to_load, blocks_to_load+num_blocks, std::back_inserter(new_blocks));
-  std::sort(new_blocks.begin(), new_blocks.end());
-  std::sort(loaded_blocks.begin(), loaded_blocks.end()); 
-  
-  std::vector<int> tmp;
-
-  std::set_difference(new_blocks.begin(), new_blocks.end(),
-                      loaded_blocks.begin(), loaded_blocks.end(),
-                      std::back_inserter(tmp)); 
-
-  new_blocks.swap(tmp);
-    
-  return MB_SUCCESS;
-}
-
-
 MBErrorCode ReadNCDF::read_elements(const MBTag* file_id_tag)
 {
     // read in elements
@@ -919,26 +569,6 @@ MBErrorCode ReadNCDF::read_elements(const MBTag* file_id_tag)
   std::vector<ReadBlockData>::iterator this_it;
     this_it = blocksLoading.begin();
 
-
-  //here we have to offset the block id
-
-  //get the block id offset 
-  MBTag tag_handle;
-  if( mdbImpl->tag_get_handle( "__block_id_offset", tag_handle) != MB_SUCCESS )
-    return MB_FAILURE;
-
-  int id_offset = 0;
-  if( mdbImpl->tag_get_data( tag_handle, &mCurrentMeshHandle, 1, &id_offset) != MB_SUCCESS )
-    return MB_FAILURE;
-
-  //set the id on this block
-
-  //reset vertexOffset 
-  if (mdbImpl->tag_get_handle("__vertex_offset", tag_handle) != MB_SUCCESS)
-    return MB_FAILURE;
-
-  if( mdbImpl->tag_get_data(tag_handle, &mCurrentMeshHandle, 1, &vertexOffset) != MB_SUCCESS)
-    return MB_FAILURE;
 
   std::vector<char> temp_string_storage(max_str_length+1);
   char *temp_string = &temp_string_storage[0];
@@ -1055,7 +685,6 @@ MBErrorCode ReadNCDF::read_elements(const MBTag* file_id_tag)
     }
 
     //set the block id with an offset
-    block_id += id_offset;
     if( mdbImpl->tag_set_data( mMaterialSetTag, &ms_handle, 1, &block_id ) != MB_SUCCESS )
       return MB_FAILURE;
     if( mdbImpl->tag_set_data( mGlobalIdTag, &ms_handle, 1, &block_id ) != MB_SUCCESS )
@@ -1164,15 +793,6 @@ MBErrorCode ReadNCDF::read_nodesets()
     return MB_FAILURE;
   }
 
-    //get the node_id_offset
-  MBTag tag_handle;
-  if( mdbImpl->tag_get_handle( "__nodeset_id_offset", tag_handle ) != MB_SUCCESS )
-    return MB_FAILURE;
-
-  int nodeset_id_offset = 0; 
-  if( mdbImpl->tag_get_data( tag_handle, &mCurrentMeshHandle, 1, &nodeset_id_offset ) != MB_SUCCESS )
-    return MB_FAILURE;
-
 
     // use a vector of ints to read node handles
   std::vector<int> node_handles;
@@ -1246,7 +866,7 @@ MBErrorCode ReadNCDF::read_nodesets()
       if( mdbImpl->tag_get_data( mDirichletSetTag, &(*iter), 1, &nodeset_id ) != MB_SUCCESS )
         continue; 
 
-      if((id_array[i]+nodeset_id_offset) == nodeset_id )
+      if(id_array[i] == nodeset_id )
       {
           //found the meshset
         ns_handle = *iter;
@@ -1297,7 +917,7 @@ MBErrorCode ReadNCDF::read_nodesets()
         // set a tag signifying dirichlet bc
         // TODO: create this tag another way
 
-      int nodeset_id = id_array[i] + nodeset_id_offset;
+      int nodeset_id = id_array[i];
       if( mdbImpl->tag_set_data(mDirichletSetTag, &ns_handle, 1, &nodeset_id ) != MB_SUCCESS )
         return MB_FAILURE;
       if( mdbImpl->tag_set_data(mGlobalIdTag, &ns_handle, 1, &nodeset_id ) != MB_SUCCESS )
@@ -1365,15 +985,6 @@ MBErrorCode ReadNCDF::read_sidesets()
   int number_sides_in_set;
   int number_dist_factors_in_set;
 
-
-  //get the sideset_id_offset
-  MBTag tag_handle;
-  if( mdbImpl->tag_get_handle( "__sideset_id_offset", tag_handle ) != MB_SUCCESS )
-    return MB_FAILURE;
-
-  int sideset_id_offset = 0; 
-  if( mdbImpl->tag_get_data( tag_handle, &mCurrentMeshHandle, 1, &sideset_id_offset ) != MB_SUCCESS )
-    return MB_FAILURE;
 
   // Maybe there is already a sidesets meshset here we can append to 
   MBRange child_meshsets;
@@ -1446,7 +1057,7 @@ MBErrorCode ReadNCDF::read_sidesets()
         if( mdbImpl->tag_get_data( mNeumannSetTag, &(*iter), 1, &sideset_id ) != MB_SUCCESS )
           continue; 
 
-        if( (id_array[i] + sideset_id_offset) == sideset_id )
+        if( id_array[i] == sideset_id )
         {
           //found the meshset
           ss_handle = *iter;
@@ -1465,7 +1076,7 @@ MBErrorCode ReadNCDF::read_sidesets()
           return MB_FAILURE;
         }
 
-        int sideset_id = id_array[i] + sideset_id_offset;
+        int sideset_id = id_array[i];
         if( mdbImpl->tag_set_data(mNeumannSetTag, &ss_handle, 1, &sideset_id ) != MB_SUCCESS)
           return MB_FAILURE;
         if( mdbImpl->tag_set_data(mGlobalIdTag, &ss_handle, 1, &sideset_id ) != MB_SUCCESS)
@@ -1892,7 +1503,7 @@ MBErrorCode ReadNCDF::find_side_element_type( const int exodus_id, ExoIIElementT
   return MB_FAILURE;
 }
 
-MBErrorCode ReadNCDF::read_qa_records()
+MBErrorCode ReadNCDF::read_qa_records(MBEntityHandle file_set)
 {
   std::vector<std::string> qa_records;
   read_qa_information( qa_records );
@@ -1908,7 +1519,7 @@ MBErrorCode ReadNCDF::read_qa_records()
   {
     const void* ptr = &tag_data[0];
     int size = tag_data.size();
-    if( mdbImpl->tag_set_data( mQaRecordTag, &mCurrentMeshHandle, 1, &ptr, &size  ) != MB_SUCCESS ) {
+    if( mdbImpl->tag_set_data( mQaRecordTag, &file_set, 1, &ptr, &size  ) != MB_SUCCESS ) {
       return MB_FAILURE;
     }
   }
@@ -2037,15 +1648,20 @@ MBErrorCode ReadNCDF::update(const char *exodus_file_name,
   else
     des = "";
 
-  // a. read in the node_num_map and coords from the input exodus file.
-  bool previously_loaded = false;
-  std::string filename( exodus_file_name );
-  ncFile = NULL;
-  rval = check_file_status(filename, previously_loaded);
+
+      // open netcdf/exodus file
+  ncFile = new NcFile(exodus_file_name);
+  if (NULL == ncFile || !ncFile->is_valid())
+  {
+    readMeshIface->report_error("MBCN:: problem opening Netcdf/Exodus II file %s",exodus_file_name);
+    return MB_FILE_DOES_NOT_EXIST;
+  }
+    // delete file when we return from this function
+  std::auto_ptr<NcFile> deleter(ncFile);
+
+  rval = read_exodus_header();
   if (MB_SUCCESS != rval)
     return rval;
-
-  read_exodus_header(exodus_file_name);
   
   //read in the node_num_map .
   std::vector<int> ptr(numberNodes_loading);

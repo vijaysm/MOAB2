@@ -74,7 +74,7 @@ MBErrorCode ReadTetGen::read_tag_values( const char* /* file_name */,
 
 
 MBErrorCode ReadTetGen::load_file( const char* file_name_c,
-                                   MBEntityHandle& file_set,
+                                   MBEntityHandle file_set,
                                    const FileOptions& opts,
                                    const MBReaderIface::IDTag* subset_list,
                                    int subset_list_length,
@@ -138,24 +138,24 @@ MBErrorCode ReadTetGen::load_file( const char* file_name_c,
   MBRange tets, tris, edges;
   std::vector<MBEntityHandle> nodes;
   rval = read_node_file( node_file, &attr_tags[0][0], &attr_idx[0][0], attr_tags[0].size(), nodes );
-  if (MB_SUCCESS == rval && ele_file.is_open())
-    rval = read_elem_file( MBTET, ele_file, nodes, tets );
-  if (MB_SUCCESS == rval && face_file.is_open())
-    rval = read_elem_file( MBTRI, face_file, nodes, tris );
-  if (MB_SUCCESS == rval && edge_file.is_open())
-    rval = read_elem_file( MBEDGE, edge_file, nodes, edges );
-
-  file_set = 0;
-  if (MB_SUCCESS == rval)
-    rval = mbIface->create_meshset( MESHSET_SET, file_set );
   if (MB_SUCCESS == rval)
     rval = mbIface->add_entities( file_set, &nodes[0], nodes.size() );
-  if (MB_SUCCESS == rval)
-    rval = mbIface->add_entities( file_set, tets );
-  if (MB_SUCCESS == rval)
-    rval = mbIface->add_entities( file_set, tris );
-  if (MB_SUCCESS == rval)
-    rval = mbIface->add_entities( file_set, edges );
+  if (MB_SUCCESS == rval && ele_file.is_open()) {
+    rval = read_elem_file( MBTET, ele_file, nodes, tets );
+    if (MB_SUCCESS == rval)
+      rval = mbIface->add_entities( file_set, tets );
+  }
+  if (MB_SUCCESS == rval && face_file.is_open()) {
+    rval = read_elem_file( MBTRI, face_file, nodes, tris );
+    if (MB_SUCCESS == rval)
+      rval = mbIface->add_entities( file_set, tris );
+  }
+  if (MB_SUCCESS == rval && edge_file.is_open()) {
+    rval = read_elem_file( MBEDGE, edge_file, nodes, edges );
+    if (MB_SUCCESS == rval)
+      rval = mbIface->add_entities( file_set, edges );
+  }
+
   if (file_id_tag && MB_SUCCESS == rval)
     rval = readTool->assign_ids( *file_id_tag, &nodes[0], nodes.size() );
   if (file_id_tag && MB_SUCCESS == rval)
@@ -164,15 +164,6 @@ MBErrorCode ReadTetGen::load_file( const char* file_name_c,
     rval = readTool->assign_ids( *file_id_tag, tris );
   if (file_id_tag && MB_SUCCESS == rval)
     rval = readTool->assign_ids( *file_id_tag, tets );
-  
-  if (MB_SUCCESS != rval) {
-    if (file_set) 
-      mbIface->delete_entities( &file_set, 1 );
-    mbIface->delete_entities( tets );
-    mbIface->delete_entities( tris );
-    mbIface->delete_entities( edges );
-    mbIface->delete_entities( &nodes[0], nodes.size() );
-  }
   
   return rval;  
 }

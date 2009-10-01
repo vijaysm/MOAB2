@@ -54,7 +54,7 @@ public:
   static MBReaderIface* factory( MBInterface* );
   
   MBErrorCode load_file( const char*                 fname,
-                         MBEntityHandle              &input_meshset,
+                         MBEntityHandle              input_meshset,
                          const FileOptions           &options,
                          const MBReaderIface::IDTag* subset_list = 0,
                          int                         subset_list_length = 0,
@@ -100,7 +100,7 @@ private:
 
   // reads the meshtal file
   MBErrorCode load_one_file( const char        *fname,
-                             MBEntityHandle    &input_meshset,
+                             MBEntityHandle    input_meshset,
                              const FileOptions &options,
                              const bool        average );
   

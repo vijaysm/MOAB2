@@ -202,14 +202,13 @@ MBErrorCode Tqdcfr::read_tag_values( const char* /* file_name */,
 }
 
 MBErrorCode Tqdcfr::load_file(const char *file_name,
-                              MBEntityHandle& file_set,
+                              MBEntityHandle file_set,
                               const FileOptions& opts,
                               const MBReaderIface::IDTag* subset_list,
                               int subset_list_length,
                               const MBTag* file_id_tag) 
 {
   MBErrorCode result;
-  file_set = mFileSet = 0;
 
   if (subset_list && subset_list_length) {
     readUtilIface->report_error( "Reading subset of files not supported for CUB files." );
@@ -230,15 +229,6 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
     readUtilIface->report_error("This doesn't appear to be a .cub file.");
     return MB_FAILURE;
   }
-  
-    // create meshset to contain file
-  result = mdbImpl->create_meshset( MESHSET_SET, file_set );
-  if (MB_SUCCESS != result) {
-    readUtilIface->report_error("Problems creating mesh set for file contents.");
-    return result;
-  }
-
-  mFileSet = file_set;
 
     // get "before" entities
   result = mdbImpl->get_entities_by_handle(0, beforeEnts);
@@ -396,7 +386,6 @@ MBErrorCode Tqdcfr::load_file(const char *file_name,
     return result;
 
   after_ents = subtract( after_ents, beforeEnts);
-  result = mdbImpl->add_entities(mFileSet, after_ents);
   
   if (file_id_tag)
     readUtilIface->assign_ids( *file_id_tag, after_ents );
@@ -2579,11 +2568,7 @@ void Tqdcfr::ModelEntry::print()
 
 MBErrorCode Tqdcfr::create_set( MBEntityHandle& h, unsigned int flags )
 {
-  MBErrorCode rval;
-  if (!mFileSet)
-    return MB_FAILURE;
-  rval = mdbImpl->create_meshset( flags, h );
-  return rval;
+  return mdbImpl->create_meshset( flags, h );
 }
 
 #ifdef TEST_TQDCFR

@@ -73,7 +73,7 @@ MBErrorCode ReadSms::read_tag_values(const char* /* file_name */,
 
 
 MBErrorCode ReadSms::load_file( const char* filename, 
-                                MBEntityHandle& file_set,
+                                MBEntityHandle ,
                                 const FileOptions& ,
                                 const MBReaderIface::IDTag* subset_list,
                                 int subset_list_length,
@@ -94,22 +94,9 @@ MBErrorCode ReadSms::load_file( const char* filename,
     return MB_FILE_DOES_NOT_EXIST;
   }
 
-  mCurrentMeshHandle = 0;
   const MBErrorCode result = load_file_impl( file_ptr, file_id_tag );
   fclose( file_ptr );
-  
-    // If file read has failed, destroy anything that was
-    // created during the read.
-  if (MB_SUCCESS != result && mCurrentMeshHandle)
-  {
-    MBRange entities;
-    mdbImpl->get_entities_by_handle( mCurrentMeshHandle, entities );
-    entities.insert( mCurrentMeshHandle );
-    mdbImpl->delete_entities( entities );
-    mCurrentMeshHandle = 0;
-  }
-  
-  file_set = mCurrentMeshHandle;
+
   return result;
 }
 
@@ -347,9 +334,6 @@ MBErrorCode ReadSms::load_file_impl( FILE* file_ptr, const MBTag* file_id_tag )
     CHECK("Failed to create edge.");
     if (MB_SUCCESS != result) return result;
 
-    result = mdbImpl->add_entities(mCurrentMeshHandle, &new_faces[i], 1);
-    if (MB_SUCCESS != result) return result;
-
     result = mdbImpl->add_entities(this_gent, &new_faces[i], 1);
     CHECK("Failed to add edge to geom set.");
     if (MB_SUCCESS != result) return result;
@@ -476,11 +460,6 @@ MBErrorCode ReadSms::get_set(std::vector<MBEntityHandle> *sets,
                                      &set_dim);
       if (MB_SUCCESS != result) return result;
       
-      result = mdbImpl->add_entities( mCurrentMeshHandle,
-                                      &sets[set_dim][set_id],
-                                      1 );
-      if (MB_SUCCESS != result) return result;
-      
       if (file_id_tag) {
         result = mdbImpl->tag_set_data(*file_id_tag,
                                      &sets[set_dim][set_id], 1,
@@ -534,20 +513,10 @@ MBErrorCode ReadSms::add_entities( MBEntityHandle start,
                                    MBEntityHandle count,
                                    const MBTag* file_id_tag )
 {
-  if (!count)
+  if (!count || !file_id_tag)
     return MB_FAILURE;
+
   MBRange range;
   range.insert( start, start + count - 1 );
-  
-  MBErrorCode rval = mdbImpl->add_entities( mCurrentMeshHandle, range );
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  if (file_id_tag) {
-    rval = readMeshIface->assign_ids( *file_id_tag, range, 1 );
-    if (MB_SUCCESS != rval)
-      return rval;
-  }
-  
-  return MB_SUCCESS;
+  return readMeshIface->assign_ids( *file_id_tag, range, 1 );
 }

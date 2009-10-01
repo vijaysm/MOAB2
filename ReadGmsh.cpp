@@ -70,47 +70,23 @@ MBErrorCode ReadGmsh::read_tag_values( const char* /* file_name */,
 
 
 MBErrorCode ReadGmsh::load_file( const char* filename, 
-                                 MBEntityHandle& file_set,
+                                 MBEntityHandle,
                                  const FileOptions& ,
                                  const MBReaderIface::IDTag* subset_list,
                                  int subset_list_length,
                                  const MBTag* file_id_tag )
 {
-  int num_blocks = 0;
-  const int* blocks = 0;
+  int num_material_sets = 0;
+  const int* material_set_list = 0;
   if (subset_list && subset_list_length) {
     if (subset_list_length > 1 && !strcmp( subset_list[0].tag_name, MATERIAL_SET_TAG_NAME) ) {
       readMeshIface->report_error( "GMsh supports subset read only by material ID." );
       return MB_UNSUPPORTED_OPERATION;
     }
-    blocks = subset_list[0].tag_values;
-    num_blocks = subset_list[0].num_tag_values;
+    material_set_list = subset_list[0].tag_values;
+    num_material_sets = subset_list[0].num_tag_values;
   }
 
-  mCurrentMeshHandle = 0;
-  const MBErrorCode result = load_file_impl( filename, blocks, num_blocks, file_id_tag );
-  
-    // If file read has failed, destroy anything that was
-    // created during the read.
-  if (MB_SUCCESS != result && mCurrentMeshHandle)
-  {
-    MBRange entities;
-    mdbImpl->get_entities_by_handle( mCurrentMeshHandle, entities );
-    entities.insert( mCurrentMeshHandle );
-    mdbImpl->delete_entities( entities );
-    mCurrentMeshHandle = 0;
-  }
-  
-  file_set = mCurrentMeshHandle;
-  return result;
-}
-
-
-MBErrorCode ReadGmsh::load_file_impl( const char* filename, 
-                                      const int* material_set_list,
-                                      const int num_material_sets,
-                                      const MBTag* file_id_tag )
-{
   geomSets.clear();
   MBErrorCode result = mdbImpl->tag_get_handle( GLOBAL_ID_TAG_NAME, globalId );
   if (MB_TAG_NOT_FOUND == result)
@@ -169,22 +145,12 @@ MBErrorCode ReadGmsh::load_file_impl( const char* filename,
   long num_nodes;
   if (!tokens.get_long_ints( 1, &num_nodes ))
     return MB_FILE_WRITE_ERROR;
-
-    // make a meshset for this mesh
-  result = mdbImpl->create_meshset(MESHSET_SET, mCurrentMeshHandle);
-  if (MB_SUCCESS != result) return result;
   
     // allocate nodes
   std::vector<double*> coord_arrays;
   MBEntityHandle handle = 0;
   result = readMeshIface->get_node_arrays( 3, num_nodes, MB_START_ID, 
                                            handle, coord_arrays );
-  if (MB_SUCCESS != result)
-    return result;
-  
-    // put nodes in set of all loaded entities
-  MBRange node_handles( handle, handle + num_nodes - 1 );
-  result = mdbImpl->add_entities( mCurrentMeshHandle, node_handles );
   if (MB_SUCCESS != result)
     return result;
 
@@ -394,12 +360,6 @@ MBErrorCode ReadGmsh::create_elements( const GmshElemType& type,
   if (MB_SUCCESS != result)
     return result;
   
-    // Put newly created elements in set of all entities read from file.
-  MBRange elements( handle, handle + num_elem - 1 );
-  result = mdbImpl->add_entities( mCurrentMeshHandle, elements );
-  if (MB_SUCCESS != result)
-    return result;
-  
     // Copy passed element connectivity into entity sequence data.
   if (type.node_order)
   {
@@ -417,6 +377,7 @@ MBErrorCode ReadGmsh::create_elements( const GmshElemType& type,
   if (MB_SUCCESS != result) return result;
 
     // Store element IDs
+  MBRange elements( handle, handle + num_elem - 1 );
   result = mdbImpl->tag_set_data( globalId, elements, &elem_ids[0] );
   if (MB_SUCCESS != result)
     return result;
@@ -537,10 +498,6 @@ MBErrorCode ReadGmsh::create_sets( MBEntityType type,
     if (sets.empty())
     {
       result = mdbImpl->create_meshset( MESHSET_SET, set );
-      if (MB_SUCCESS != result)
-        return result;
-         
-      result = mdbImpl->add_entities( mCurrentMeshHandle, &set, 1 );
       if (MB_SUCCESS != result)
         return result;
      

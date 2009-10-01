@@ -82,10 +82,9 @@ public:
 class MBModulator : public std::map<MBHash,MBEntityHandle>
 {
 public:
-  MBModulator( MBInterface* iface, MBEntityHandle fset, std::string tag_name, MBDataType mb_type, size_t size, size_t per_elem )
+  MBModulator( MBInterface* iface, std::string tag_name, MBDataType mb_type, size_t size, size_t per_elem )
     {
     this->mesh = iface;
-    this->file_set = fset;
     std::vector<unsigned char> default_val;
     default_val.resize( size * per_elem );
     this->mesh->tag_create( tag_name.c_str(), size, MB_TAG_SPARSE,
@@ -122,7 +121,6 @@ public:
         {
         this->mesh->create_meshset( MESHSET_SET, mset );
         this->mesh->tag_set_data( this->tag, &mset, 1, tag_data );
-        this->mesh->add_entities( this->file_set, &mset, 1 );
         }
       (*this)[h] = mset;
       return mset;
@@ -132,7 +130,6 @@ public:
 
   MBInterface* mesh;
   MBTag tag;
-  MBEntityHandle file_set;
 };
 #endif // MB_VTK_MATERIAL_SETS
 
@@ -182,14 +179,13 @@ MBErrorCode ReadVtk::read_tag_values( const char* /* file_name */,
 
 
 MBErrorCode ReadVtk::load_file( const char *filename,
-                                MBEntityHandle& file_set,
+                                MBEntityHandle ,
                                 const FileOptions& opts,
                                 const MBReaderIface::IDTag* subset_list,
                                 int subset_list_length,
                                 const MBTag* file_id_tag) 
 {
   MBErrorCode result;
-  file_set = 0;
 
   int major, minor;
   char vendor_string[257];
@@ -257,10 +253,6 @@ MBErrorCode ReadVtk::load_file( const char *filename,
     case 1:  // ASCII
       break;
   }
-
-    // make a meshset for this mesh
-  result = mdbImpl->create_meshset(MESHSET_SET, mCurrentMeshHandle);
-  if (MB_SUCCESS != result) return result;
 
     // Read the mesh
   if (!tokens.match_token( "DATASET" ))
@@ -334,7 +326,6 @@ MBErrorCode ReadVtk::load_file( const char *filename,
       return result;
   }
   
-  file_set = mCurrentMeshHandle;
   return MB_SUCCESS;
 }
 
@@ -358,9 +349,7 @@ MBErrorCode ReadVtk::allocate_vertices( long num_verts,
   y_coord_array_out = arrays[1];
   z_coord_array_out = arrays[2];
   
-    // Add vertices to meshset
-  MBRange vert_range(start_handle_out, start_handle_out+num_verts-1);
-  return mdbImpl->add_entities(mCurrentMeshHandle, vert_range);
+  return MB_SUCCESS;
 }
 
 MBErrorCode ReadVtk::read_vertices( FileTokenizer& tokens,
@@ -407,7 +396,7 @@ MBErrorCode ReadVtk::allocate_elements( long num_elements,
   
   MBRange range(start_handle_out, start_handle_out+num_elements-1);
   append_to_this.push_back( range );
-  return mdbImpl->add_entities(mCurrentMeshHandle, range);
+  return MB_SUCCESS;
 }
 
 MBErrorCode ReadVtk::vtk_read_dataset( FileTokenizer& tokens,
@@ -1040,7 +1029,7 @@ MBErrorCode ReadVtk::vtk_read_tag_data( FileTokenizer& tokens,
   }
 
 #ifdef MB_VTK_MATERIAL_SETS
-  MBModulator materialMap( this->mdbImpl, this->mCurrentMeshHandle, this->mPartitionTagName, mb_type, size, per_elem );
+  MBModulator materialMap( this->mdbImpl, this->mPartitionTagName, mb_type, size, per_elem );
   bool isMaterial =
     size * per_elem <= 4 &&                            // must have int-sized values (MBParallelComm requires it)
     ! this->mPartitionTagName.empty() &&               // must have a non-empty field name...

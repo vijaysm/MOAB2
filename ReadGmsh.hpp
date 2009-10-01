@@ -40,7 +40,7 @@ public:
   static MBReaderIface* factory( MBInterface* );
 
   MBErrorCode load_file( const char *file_name,
-                         MBEntityHandle& file_set,
+                         MBEntityHandle file_set,
                          const FileOptions& opts,
                          const MBReaderIface::IDTag* subset_list = 0,
                          int subset_list_length = 0,
@@ -61,11 +61,6 @@ public:
 
 private:
 
-  MBErrorCode load_file_impl( const char *file_name,
-                              const int* material_set_list,
-                              const int num_material_sets,
-                              const MBTag* file_id_tag );
-  
   MBErrorCode create_elements( const GmshElemType& type,
                                const std::vector<int>& elem_ids,
                                const std::vector<int>& matl_ids,
@@ -86,9 +81,6 @@ private:
 
     //! interface instance
   MBInterface* mdbImpl;
-
-    //! Meshset Handle for the mesh that is currently being read
-  MBEntityHandle mCurrentMeshHandle;
   
   MBTag globalId;
   MBRange geomSets;
