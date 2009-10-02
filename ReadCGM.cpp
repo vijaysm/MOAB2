@@ -109,7 +109,7 @@ MBErrorCode ReadCGM::read_tag_values( const char* /* file_name */,
 
 // copy geometry into mesh database
 MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
-                      MBEntitySet,
+                      MBEntityHandle,
                       const FileOptions& opts,
                       const MBReaderIface::IDTag* subset_list,
                       int subset_list_length,
@@ -561,9 +561,6 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
       return MB_FAILURE;
   }
   
-  if (file_id_tag)
-    readUtilIface->assign_ids( *file_id_tag, loaded_range );
-
   return MB_SUCCESS;
 }
 
