@@ -2,7 +2,6 @@
 #include "InitCGMA.hpp"
 #include "CGMApp.hpp"
 #include "MBCore.hpp"
-#include "cgm2moab.hpp"
 #include "cubfile.h"
 #include "Tqdcfr.hpp"
 #include "FileOptions.hpp"

@@ -6,14 +6,12 @@ INCLUDES += -I$(top_srcdir) -I$(top_builddir)
 lib_LTLIBRARIES = libdagmc.la
 libdagmc_la_SOURCES = DagMC.cpp
 libdagmc_la_includedir = $(includedir)
-libdagmc_la_include_HEADERS = cgm2moab.hpp cubfile.h DagMC.hpp
+libdagmc_la_include_HEADERS = cubfile.h DagMC.hpp
 
 if HAVE_CGM
 INCLUDES += $(CGM_INCLUDES)
 CPPFLAGS += $(CGM_CPPFLAGS) -DCGM $(MOAB_CGM_DEFINES)
 CXXFLAGS += $(CGM_CXXFLAGS)
-
-libdagmc_la_SOURCES += cgm2moab.cc
 
 noinst_PROGRAMS = update_coords quads_to_tris
 bin_PROGRAMS = cgm2moab

@@ -17,7 +17,6 @@ set( MOAB_TEST_GEOM_SRCS
 if ( CGM_FOUND )
   set( MOAB_DAGMC_LIB_SRCS
     ${MOAB_DAGMC_LIB_SRCS}
-    cgm2moab.cc
   )
   set( MOAB_DAGMC_SRCS
     main.cc
