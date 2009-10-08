@@ -131,13 +131,13 @@ std::string __PACK_string, __UNPACK_string;
 #define RRA(a) if (MB_SUCCESS != result) {\
       std::string tmp_str; mbImpl->get_last_error(tmp_str);\
       tmp_str.append("\n"); tmp_str.append(a);\
-      dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(tmp_str.c_str()); \
+      dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(tmp_str); \
       return result;}
 
 #define RRAI(i, a) if (MB_SUCCESS != result) {                \
       std::string tmp_str; i->get_last_error(tmp_str);\
       tmp_str.append("\n"); tmp_str.append(a);\
-      dynamic_cast<MBCore*>(i)->get_error_handler()->set_last_error(tmp_str.c_str()); \
+      dynamic_cast<MBCore*>(i)->get_error_handler()->set_last_error(tmp_str); \
       return result;}
 
 /** Name of tag used to store MBParallelComm Index on mesh paritioning sets */
@@ -4448,7 +4448,7 @@ MBErrorCode MBParallelComm::exchange_tags(std::vector<MBTag> &src_tags,
   }
   
     // ok, now wait
-  MPI_Status status[MAX_SHARING_PROCS];
+//  MPI_Status status[MAX_SHARING_PROCS];
   success = MPI_Barrier(procConfig.proc_comm());
 //  success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], status);
   if (MPI_SUCCESS != success) {
