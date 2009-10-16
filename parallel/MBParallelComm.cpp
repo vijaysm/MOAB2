@@ -79,51 +79,182 @@ std::string __PACK_string, __UNPACK_string;
 #define UPC(n, m)
 #endif
 
-#define PACK_INT(buff, int_val) {int tmp_val = int_val; PACK_INTS(buff, &tmp_val, 1);}
+template <typename T> static inline
+void UNPACK( unsigned char*& buff, T* val, size_t count )
+{
+  memcpy( val, buff, count*sizeof(T) );
+  buff += count*sizeof(T);
+}
 
-#define PACK_INTS(buff, int_val, num) {memcpy(buff, int_val, (num)*sizeof(int)); buff += (num)*sizeof(int); PC(num, " ints");}
+template <typename T> static inline
+void PACK( unsigned char*& buff, const T* val, size_t count )
+{
+  memcpy( buff, val, count*sizeof(T) );
+  buff += count*sizeof(T);
+}
 
-#define PACK_DBL(buff, dbl_val, num) {memcpy(buff, dbl_val, (num)*sizeof(double)); buff += (num)*sizeof(double); PC(num, " doubles");}
+//#define PACK_INTS(buff, int_val, num) {memcpy(buff, int_val, (num)*sizeof(int)); buff += (num)*sizeof(int); PC(num, " ints");}
+static inline
+void PACK_INTS( unsigned char*& buff, const int* int_val, size_t num )
+  { PACK( buff, int_val, num ); PC(num, " ints"); }
 
-#define PACK_EH(buff, eh_val, num) {memcpy(buff, eh_val, (num)*sizeof(MBEntityHandle)); buff += (num)*sizeof(MBEntityHandle); PC(num, " handles");}
+//#define PACK_INT(buff, int_val) {int tmp_val = int_val; PACK_INTS(buff, &tmp_val, 1);}
+static inline
+void PACK_INT( unsigned char*& buff, int int_val )
+  { PACK_INTS( buff, &int_val, 1 ); }
 
-#define PACK_CHAR_64(buff, char_val) {strcpy((char*)buff, char_val); buff += 64; PC(64, " chars");}
+//#define PACK_DBL(buff, dbl_val, num) {memcpy(buff, dbl_val, (num)*sizeof(double)); buff += (num)*sizeof(double); PC(num, " doubles");}
+static inline
+void PACK_DBL( unsigned char*& buff, const double* dbl_val, size_t num )
+  { PACK( buff, dbl_val, num ); PC(num, " doubles"); }
 
-#define PACK_VOID(buff, val, num) {memcpy(buff, val, num); buff += num; PC(num, " void");}
+//#define PACK_EH(buff, eh_val, num) {memcpy(buff, eh_val, (num)*sizeof(MBEntityHandle)); buff += (num)*sizeof(MBEntityHandle); PC(num, " handles");}
+static inline
+void PACK_EH( unsigned char*& buff, const MBEntityHandle* eh_val, size_t num )
+  { PACK( buff, eh_val, num ); PC(num, " handles"); }
 
-#define PACK_BYTES(buff, val, num) PACK_INT(buff, num) PACK_VOID(buff, val, num)
+//#define PACK_CHAR_64(buff, char_val) {strcpy((char*)buff, char_val); buff += 64; PC(64, " chars");}
+static inline
+void PACK_CHAR_64( unsigned char*& buff, const char* str )
+{
+  strncpy( reinterpret_cast<char*>(buff), str, 64 );
+  buff += 64;
+  PC(64, " chars");
+}
 
+//#define PACK_VOID(buff, val, num) {memcpy(buff, val, num); buff += num; PC(num, " void");}
+static inline
+void PACK_VOID( unsigned char*& buff, const void* val, size_t num )
+{
+  PACK( buff, reinterpret_cast<const unsigned char*>(val), num );
+  PC(num, " void");
+}
+
+//#define PACK_BYTES(buff, val, num) PACK_INT(buff, num) PACK_VOID(buff, val, num)
+static inline
+void PACK_BYTES( unsigned char*& buff, const void* val, int num )
+  { PACK_INT(buff, num); PACK_VOID(buff, val, num); }
+
+/*
 #define PACK_RANGE(buff, rng) {int num_subs = num_subranges(rng); PACK_INTS(buff, &num_subs, 1); PC(num_subs, "-subranged range"); \
           for (MBRange::const_pair_iterator cit = rng.const_pair_begin(); cit != rng.const_pair_end(); cit++) { \
             MBEntityHandle eh = (*cit).first; PACK_EH(buff, &eh, 1); \
             eh = (*cit).second; PACK_EH(buff, &eh, 1);}; }
+*/
+static inline
+void PACK_RANGE( unsigned char*& buff, const MBRange& rng )
+{
+  PACK_INT( buff, rng.psize() );
+  MBRange::const_pair_iterator cit;
+  for (cit = rng.const_pair_begin(); cit != rng.const_pair_end(); ++cit) {
+    MBEntityHandle eh[2] = { cit->first, cit->second };
+    PACK_EH(buff, eh, 2);
+  }
+  PC(rng.psize(), "-subranged range");
+}
 
-#define UNPACK_INT(buff, int_val) {UNPACK_INTS(buff, &int_val, 1);}
+//#define UNPACK_INTS(buff, int_val, num) {memcpy(int_val, buff, (num)*sizeof(int)); buff += (num)*sizeof(int); UPC(num, " ints");}
+static inline
+void UNPACK_INTS( unsigned char*& buff, int* int_val, size_t num )
+  { UNPACK(buff, int_val, num); UPC(num, " ints"); }
 
-#define UNPACK_INTS(buff, int_val, num) {memcpy(int_val, buff, (num)*sizeof(int)); buff += (num)*sizeof(int); UPC(num, " ints");}
+//#define UNPACK_INT(buff, int_val) {UNPACK_INTS(buff, &int_val, 1);}
+static inline
+void UNPACK_INT( unsigned char*& buff, int& int_val )
+  { UNPACK_INTS( buff, &int_val, 1 ); }
 
-#define UNPACK_DBL(buff, dbl_val, num) {memcpy(dbl_val, buff, (num)*sizeof(double)); buff += (num)*sizeof(double); UPC(num, " doubles");}
+//#define UNPACK_DBL(buff, dbl_val, num) {memcpy(dbl_val, buff, (num)*sizeof(double)); buff += (num)*sizeof(double); UPC(num, " doubles");}
+static inline
+void UNPACK_DBL( unsigned char*& buff, double* dbl_val, size_t num )
+  { UNPACK(buff, dbl_val, num); UPC(num, " doubles"); }
 
-#define UNPACK_EH(buff, eh_val, num) {memcpy(eh_val, buff, (num)*sizeof(MBEntityHandle)); buff += (num)*sizeof(MBEntityHandle); UPC(num, " handles");}
+//#define UNPACK_EH(buff, eh_val, num) {memcpy(eh_val, buff, (num)*sizeof(MBEntityHandle)); buff += (num)*sizeof(MBEntityHandle); UPC(num, " handles");}
+static inline
+void UNPACK_EH( unsigned char*& buff, MBEntityHandle* eh_val, size_t num )
+  { UNPACK(buff, eh_val, num); UPC(num, " handles"); }
 
-#define UNPACK_CHAR_64(buff, char_val) {strcpy(char_val, (char*)buff); buff += 64; UPC(64, " chars");}
+//#define UNPACK_CHAR_64(buff, char_val) {strcpy(char_val, (char*)buff); buff += 64; UPC(64, " chars");}
+static inline
+void UNPACK_CHAR_64( unsigned char*& buff, char* char_val )
+{
+  memcpy( buff, char_val, 64 );
+  buff += 64;
+  UPC(64, " chars");
+}
 
-#define UNPACK_VOID(buff, val, num) {memcpy(val, buff, num); buff += num; UPC(num, " void");}
+//#define UNPACK_VOID(buff, val, num) {memcpy(val, buff, num); buff += num; UPC(num, " void");}
+static inline
+void UNPACK_VOID( unsigned char*& buff, void* val, size_t num )
+{
+  UNPACK(buff, reinterpret_cast<unsigned char*>(val), num);
+  UPC(num, " void");
+}
 
+static inline
+void UNPACK_TYPE( unsigned char*& buff, MBEntityType& type )
+{
+  int int_type = MBMAXTYPE;
+  UNPACK_INT(buff, int_type);
+  type = static_cast<MBEntityType>(int_type);
+  assert(type >= MBVERTEX && type <= MBMAXTYPE);
+}
+
+/*
 #define UNPACK_RANGE(buff, rng) {int num_subs; UNPACK_INTS(buff, &num_subs, 1); UPC(num_subs, "-subranged range"); MBEntityHandle _eh[2]; \
           for (int i = 0; i < num_subs; i++) { UNPACK_EH(buff, _eh, 2); rng.insert(_eh[0], _eh[1]);}}
+*/
+static inline
+void UNPACK_RANGE( unsigned char*& buff, MBRange& rng )
+{
+  int num_subs;
+  MBEntityHandle eh[2];
+  UNPACK_INT( buff, num_subs );
+  for (int i = 0; i < num_subs; ++i) {
+    UPC(num_subs, "-subranged range"); 
+    UNPACK_EH(buff, eh, 2); 
+    rng.insert(eh[0], eh[1]);
+  }
+}    
+
+/*
 #define CHECK_BUFF_SPACE(buff_vec, buff_ptr, addl_space) { \
       unsigned int _old_size = buff_ptr - &buff_vec[0],            \
           _new_size = _old_size + (addl_space);    \
       if (_new_size > buff_vec.size()) {               \
         buff_vec.resize(1.5*_new_size);            \
         buff_ptr = &buff_vec[_new_size-(addl_space)];} }
+*/
+template <typename T> static inline
+void CHECK_BUFF_SPACE( std::vector<T>& buff_vec, 
+                       T*& buff_ptr,
+                       size_t addl_space )
+{
+  size_t old_size = buff_ptr - &buff_vec[0];
+  size_t new_size = old_size + addl_space;
+  if (new_size > buff_vec.size()) {
+    buff_vec.resize(1.5*new_size);
+    buff_ptr = &buff_vec[old_size];
+  }
+}
 
+/*
 #define INIT_BUFFER(_buff_vec, _buff_ptr) \
     _buff_vec.reserve(INITIAL_BUFF_SIZE); _buff_vec.resize(sizeof(int)); \
     _buff_ptr = &_buff_vec[sizeof(int)]
+*/
+template<typename T> static inline 
+void INIT_BUFFER(std::vector<T>& buff_vec, T*& buff_ptr)
+{
+  buff_vec.reserve(INITIAL_BUFF_SIZE);
+  buff_vec.resize(sizeof(int));
+  buff_ptr = &buff_vec[sizeof(int)];
+}
 
-#define RANGE_SIZE(rng) (2*sizeof(MBEntityHandle)*num_subranges(rng)+sizeof(int))
+
+//#define RANGE_SIZE(rng) (2*sizeof(MBEntityHandle)*num_subranges(rng)+sizeof(int))
+static inline size_t RANGE_SIZE(const MBRange& rng)
+  { return 2*sizeof(MBEntityHandle)*rng.psize()+sizeof(int); }
+
 #define RR(a) if (MB_SUCCESS != result) {\
           dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(a);\
           return result;}
@@ -1224,9 +1355,8 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
   
   while (!done) {
     MBEntityType this_type = MBMAXTYPE;
-    UNPACK_INT(buff_ptr, this_type);
-    assert(this_type >= MBVERTEX && 
-           (this_type == MBMAXTYPE || this_type < MBENTITYSET));
+    UNPACK_TYPE(buff_ptr, this_type);
+    assert(this_type != MBENTITYSET);
 
       // MBMAXTYPE signifies end of entities data
     if (MBMAXTYPE == this_type) break;
@@ -1444,9 +1574,8 @@ MBErrorCode MBParallelComm::print_buffer(unsigned char *buff_ptr)
   
   while (true) {
     MBEntityType this_type = MBMAXTYPE;
-    UNPACK_INT(buff_ptr, this_type);
-    assert(this_type >= MBVERTEX && 
-           (this_type == MBMAXTYPE || this_type < MBENTITYSET));
+    UNPACK_TYPE(buff_ptr, this_type);
+    assert(this_type != MBENTITYSET);
 
       // MBMAXTYPE signifies end of entities data
     if (MBMAXTYPE == this_type) break;
