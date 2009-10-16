@@ -665,12 +665,9 @@ MBErrorCode MBParallelComm::pack_buffer(MBRange &orig_ents,
 
   MBRange::const_iterator rit;
 
-    // get an estimate of the buffer size
-  buff_size = estimate_ents_buffer_size(orig_ents, store_remote_handles);
-  buff.clear();
-  buff.reserve(1);
+    // get initial buffer ptr
+  buff.resize(1);
   unsigned char *buff_ptr = &buff[0];
-  CHECK_BUFF_SPACE(buff, buff_ptr, buff_size);
   
     // entities
   result = pack_entities(orig_ents, buff, buff_ptr,
@@ -692,6 +689,7 @@ MBErrorCode MBParallelComm::pack_buffer(MBRange &orig_ents,
     RRA("Packing tags (count) failed.");
   }
 
+  buff_size = buff_ptr - &buff[0];
   return result;
 }
  
