@@ -1,3 +1,6 @@
+@IGEOM_CONFIG_OPTIONS@
+@IMESH_CONFIG_OPTIONS@
+
 AUTOMAKE_OPTIONS = foreign
 BUILT_SOURCES = iRel_protos.h
 
@@ -16,8 +19,12 @@ rtestc_SOURCES = rtestc.c
 
 LDADD = libiRel.la 
 
+TESTS = rtestc
+check_PROGRAMS = ${TESTS}
+
 rtestc_DEPENDENCIES = libiRel.la ${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMesh.la 
 rtestc_LDADD = libiRel.la ${IGEOM_DIR}/lib/libiGeom.la ${IMESH_DIR}/lib/libiMesh.la 
+rtestc_LDFLAGS = ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${IMESH_LTFLAGS} ${IMESH_LDFLAGS} 
 
 libiRel_la_SOURCES = \
 	iRel_Lasso.cpp \

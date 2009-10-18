@@ -484,17 +484,23 @@ int move_to_test(iRel_Instance assoc,
 int main( int argc, char *argv[] )
 {
     // Check command line arg
-  char *geom_filename;
-  char *mesh_filename;
+  char *geom_filename = "brick.cub";
+  char *mesh_filename = "brick.cub";
 
-  if (argc < 2) {
+  if (argc == 2 && !strcmp(argv[1], "-h")) {
     printf("Usage: %s <geom_filename> <mesh_filename>\n",
            argv[0]);
     return 1;
   }
+  else if (argc == 2) {
+    geom_filename = argv[1];
+    mesh_filename = argv[1];
+  }
+  else if (argc == 3) {
+    geom_filename = argv[1];
+    mesh_filename = argv[2];
+  }
 
-  geom_filename = argv[1];
-  mesh_filename = argv[2];
   int result;
   int number_tests = 0;
   int number_tests_successful = 0;
