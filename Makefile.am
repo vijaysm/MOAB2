@@ -141,7 +141,6 @@ libMOAB_la_SOURCES = \
   MBCNArrays.hpp \
   MBCartVect.cpp \
   MBMatrix3.cpp \
-  MBMatrix3.hpp \
   MBCore.cpp \
   MBFactory.cpp \
   MBGeomUtil.cpp \
@@ -261,6 +260,7 @@ libMOAB_la_include_HEADERS = \
   MBForward.hpp \
   MBGeomUtil.hpp \
   MBInterface.hpp \
+  MBMatrix3.hpp \
   MBOrientedBox.hpp \
   MBOrientedBoxTreeTool.hpp \
   MBParallelConventions.h \
