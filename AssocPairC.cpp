@@ -5,6 +5,7 @@
 #include "iRel.h"
 
 #include <string.h>
+#include <stdio.h>
 
 #define RETURN(a) {iRel_LAST_ERROR.error_type = a; return a;}
 #define iRel_processError(a, b) {sprintf(iRel_LAST_ERROR.description, "%s", b); iRel_LAST_ERROR.error_type = a;}
