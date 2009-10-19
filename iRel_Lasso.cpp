@@ -19,6 +19,7 @@
 #include <map>
 #include <algorithm>
 #include <math.h>
+#include <stdio.h>
 
 const bool debug = false;
 
@@ -48,7 +49,7 @@ const bool debug = false;
 iBase_Error iRel_LAST_ERROR;
 
 #define RETURN(a) {iRel_LAST_ERROR.error_type = *ierr = a; return;}
-#define iRel_processError(a, b) {sprintf(iRel_LAST_ERROR.description, b); iRel_LAST_ERROR.error_type = *ierr = a;}
+#define iRel_processError(a, b) {sprintf(iRel_LAST_ERROR.description, "%s", b); iRel_LAST_ERROR.error_type = *ierr = a;}
 
 void
 iRel_dtor(iRel_Instance instance, int *ierr) 

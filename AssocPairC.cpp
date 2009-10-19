@@ -7,7 +7,7 @@
 #include <string.h>
 
 #define RETURN(a) {iRel_LAST_ERROR.error_type = a; return a;}
-#define iRel_processError(a, b) {sprintf(iRel_LAST_ERROR.description, b); iRel_LAST_ERROR.error_type = a;}
+#define iRel_processError(a, b) {sprintf(iRel_LAST_ERROR.description, "%s", b); iRel_LAST_ERROR.error_type = a;}
 #define PROCESS_GERROR  if (iBase_SUCCESS != result) {\
           char this_descr[120];\
           iGeom_getDescription((iGeom_Instance)ifaceInstances[iface_no], this_descr, \
