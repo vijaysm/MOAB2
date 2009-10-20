@@ -2065,6 +2065,39 @@ int mesh_tag_test(iMesh_Instance mesh)
           && tag_delete_success);
 }
 
+int set_remove_contained_regression( iMesh_Instance mesh )
+{
+    int err,contained;
+    iBase_EntitySetHandle set,sub;
+
+    iMesh_createEntSet(mesh,0,&set,&err);
+    if (iBase_SUCCESS != err) return 0;
+    iMesh_createEntSet(mesh,1,&sub,&err);
+    if (iBase_SUCCESS != err) return 0;
+
+    iMesh_addEntSet(mesh,sub,set,&err);
+    if (iBase_SUCCESS != err) return 0;
+
+    iMesh_isEntSetContained(mesh,set,sub,&contained,&err);
+    if (iBase_SUCCESS != err) return 0;
+    if (!contained) {
+      fprintf(stderr,"isEntSetContained returned false for contained set\n");
+      return 0;
+    }
+
+    iMesh_rmvEntSet(mesh,sub,set,&err);
+    if (iBase_SUCCESS != err) return 0;
+
+    iMesh_isEntSetContained(mesh,set,sub,&contained,&err);
+    if (iBase_SUCCESS != err) return 0;
+    if (contained) {
+      fprintf(stderr,"isEntSetContained returned true for removed set\n");
+      return 0;
+    }
+    
+    return 1;
+}
+
 int main( int argc, char *argv[] )
 {
     /* Check command line arg */
@@ -2178,6 +2211,15 @@ int main( int argc, char *argv[] )
     /* mesh tag test */
   printf("   mesh_tag_test: ");
   result = mesh_tag_test(mesh);
+  handle_error_code(result, &number_tests_failed,
+                    &number_tests_not_implemented,
+                    &number_tests_successful);
+  number_tests++;
+  printf("\n");
+
+    /* regression test for remove/contained bug */
+  printf("   set_remove_contained_regression: ");
+  result = set_remove_contained_regression(mesh);
   handle_error_code(result, &number_tests_failed,
                     &number_tests_not_implemented,
                     &number_tests_successful);
