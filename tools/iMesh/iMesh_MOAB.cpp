@@ -15,6 +15,9 @@
 
 #include <iostream>
 #include <cassert>
+#include <cstring>
+#include <stdarg.h>
+#include <stdio.h>
 #define MIN(a,b) (a < b ? a : b)
 
 MBiMesh::MBiMesh()
@@ -195,9 +198,13 @@ iMesh_EntityIterator create_itaps_iterator( MBRange& range, int array_size )
   return reinterpret_cast<iMesh_EntityIterator>(iter);
 }
 
-
-
-#define iMesh_processError(a, b) {sprintf(iMesh_LAST_ERROR.description, "%s", b); iMesh_LAST_ERROR.error_type = a; *err = a;}
+static inline void
+iMesh_processError( iBase_ErrorType code, const char* desc ) 
+{
+  std::strncpy( iMesh_LAST_ERROR.description, desc,
+                sizeof(iMesh_LAST_ERROR.description) );
+  iMesh_LAST_ERROR.error_type = code;
+}
 
 #ifdef __cplusplus
 extern "C" {
@@ -1631,7 +1638,7 @@ extern "C" {
     static ::std::string name;
     MBErrorCode result = MBI->tag_get_name(TAG_HANDLE(tag_handle), name);
     if (MB_SUCCESS != result)
-      iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getTagName: problem getting name.")
+      iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getTagName: problem getting name.");
         else
           iMesh_LAST_ERROR.error_type = iBase_SUCCESS;
 
@@ -1667,7 +1674,7 @@ extern "C" {
   {
     MBErrorCode result = MBI->tag_get_size(TAG_HANDLE(tag_handle), *tag_size_val);
     if (MB_SUCCESS != result)
-      iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getTagSize: problem getting size.")
+      iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getTagSize: problem getting size.");
         else {
           int this_type;
           int success;
@@ -1701,7 +1708,7 @@ extern "C" {
   {
     MBErrorCode result = MBI->tag_get_size(TAG_HANDLE(tag_handle), *tag_size_bytes);
     if (MB_SUCCESS != result)
-      iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getTagSize: problem getting size.")
+      iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getTagSize: problem getting size.");
         else {
           iMesh_LAST_ERROR.error_type = iBase_SUCCESS;
         }
