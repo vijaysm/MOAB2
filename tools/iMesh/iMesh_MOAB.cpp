@@ -1728,7 +1728,7 @@ extern "C" {
       msg += std::string(tag_name) + std::string("'");
       iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
       *tag_handle = 0;
-      return;
+      RETURN(iBase_ERROR_MAP[result]);
     }
 
     iMesh_LAST_ERROR.error_type = iBase_SUCCESS;
@@ -2889,7 +2889,8 @@ MBErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
     std::string msg("MBMesh::tag_set_vertices: getting entities didn't succeed., with error type: ");
     msg += MBI->get_error_string(result);
     iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
-    return result;
+    *err = iBase_ERROR_MAP[result];
+    return MB_FAILURE;
   }
 
     // remove any sets
@@ -2903,6 +2904,7 @@ MBErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
     std::string msg("MBMesh::tag_set_vertices: getting vertices didn't succeed., with error type: ");
     msg += MBI->get_error_string(result);
     iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
+    *err = iBase_ERROR_MAP[result];
     return result;
   }
   
@@ -2914,6 +2916,7 @@ MBErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
       std::string msg("MBMesh::tag_set_vertices: couldn't make tag., with error type: ");
       msg += MBI->get_error_string(result);
       iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
+      *err = iBase_ERROR_MAP[result];
       return result;
     }
   }
@@ -2925,6 +2928,7 @@ MBErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
       std::string msg("MBMesh::tag_set_vertices: couldn't set pos_tag., with error type: ");
       msg += MBI->get_error_string(result);
       iMesh_processError(iBase_ERROR_MAP[result], msg.c_str());
+      *err = iBase_ERROR_MAP[result];
       return result;
     }
   }
