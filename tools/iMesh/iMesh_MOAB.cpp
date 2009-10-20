@@ -1146,7 +1146,7 @@ extern "C" {
                        /*in*/ iBase_EntitySetHandle entity_set_handle, 
                        int *err)
   {
-    MBEntityHandle to_remove = ENTITY_HANDLE(entity_set_handle);
+    MBEntityHandle to_remove = ENTITY_HANDLE(entity_set_to_remove);
     MBErrorCode result = MBI->remove_entities
       (ENTITY_HANDLE(entity_set_handle), &to_remove, 1);
   
