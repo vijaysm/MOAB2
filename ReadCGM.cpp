@@ -191,7 +191,8 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
     for (int i = entlist.size(); i--; ) {
       RefEntity* ent = entlist.get_and_step();
       MBEntityHandle handle;
-      rval = mdbImpl->create_meshset( dim == 1 ? MESHSET_ORDERED : MESHSET_SET, handle );
+      rval = mdbImpl->create_meshset( dim == 1 ? MESHSET_ORDERED | MESHSET_TRACK_OWNER : 
+                                                 MESHSET_SET | MESHSET_TRACK_OWNER, handle );
       if (MB_SUCCESS != rval)
         return rval;
     

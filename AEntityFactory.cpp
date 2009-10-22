@@ -31,6 +31,8 @@
 #include <algorithm>
 #include <set>
 
+#include <iostream> // brandon
+
 MBErrorCode AEntityFactory::get_vertices( MBEntityHandle h,
                                           const MBEntityHandle*& vect_out,
                                           int& count_out,
@@ -584,6 +586,7 @@ MBErrorCode AEntityFactory::get_adjacencies(const MBEntityHandle entity,
                                              bool create_if_missing,
                                              std::vector<MBEntityHandle> &adjacent_entities)
 {
+  //std::cout << "mVertElemAdj=" << mVertElemAdj << std::endl;
   MBEntityType ent_type = TYPE_FROM_HANDLE(entity);
 
   if (ent_type == MBMAXTYPE) return MB_TYPE_OUT_OF_RANGE;
