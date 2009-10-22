@@ -1491,11 +1491,9 @@ MBErrorCode MBAdaptiveKDTree::leaf_containing_point( MBEntityHandle root,
     return rval;
     
     // test that point is inside tree
-    // Brandon: add a tolerance
-  double tol = 0.001;
-  if (point[0] < result.box_min()[0]-tol || point[0] > result.box_max()[0]+tol ||
-      point[1] < result.box_min()[1]-tol || point[1] > result.box_max()[1]+tol ||
-      point[2] < result.box_min()[2]-tol || point[2] > result.box_max()[2]+tol)
+  if (point[0] < result.box_min()[0] || point[0] > result.box_max()[0] ||
+      point[1] < result.box_min()[1] || point[1] > result.box_max()[1] ||
+      point[2] < result.box_min()[2] || point[2] > result.box_max()[2])
     return MB_ENTITY_NOT_FOUND;  
 
     // initialize iterator at tree root
