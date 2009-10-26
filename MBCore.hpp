@@ -845,6 +845,10 @@ public:
   virtual MBErrorCode get_meshset_options(const MBEntityHandle ms_handle, 
                                            unsigned int& options) const;
 
+  //! set the options of a mesh set
+  virtual MBErrorCode set_meshset_options(const MBEntityHandle ms_handle, 
+                                          const unsigned int options);
+
   //! subtracts meshset2 from meshset1 - modifies meshset1
   virtual MBErrorCode subtract_meshset(MBEntityHandle meshset1, 
                                         const MBEntityHandle meshset2);

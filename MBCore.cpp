@@ -2436,6 +2436,17 @@ MBErrorCode MBCore::get_meshset_options( const MBEntityHandle ms_handle,
   return MB_SUCCESS;
 }
 
+MBErrorCode MBCore::set_meshset_options( const MBEntityHandle ms_handle, 
+                                         const unsigned int options)
+{
+  MBMeshSet* set = get_mesh_set( sequence_manager(), ms_handle );
+  if (!set)
+    return MB_ENTITY_NOT_FOUND;
+  
+  return set->set_flags(options, ms_handle, a_entity_factory());
+}
+
+
 MBErrorCode MBCore::clear_meshset( const MBEntityHandle *ms_handles,
                                     const int num_meshsets)
 {

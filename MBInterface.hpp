@@ -1316,6 +1316,14 @@ public:
   virtual MBErrorCode get_meshset_options(const MBEntityHandle ms_handle, 
                                           unsigned int& options) const = 0;
 
+    //! Set the options of a mesh set
+    /** Set the options of a mesh set.
+        \param ms_handle Handle for meshset whose options are being changed
+        \param options Bit mask of options to be used
+    */
+  virtual MBErrorCode set_meshset_options(const MBEntityHandle ms_handle, 
+                                          const unsigned int options) = 0;
+
     //! Subtract meshsets
     /** Subtract <em>meshset2</em> from <em>meshset1</em>, placing the results in meshset1.
         \param meshset1 Mesh set being subtracted from, also used to pass back result
