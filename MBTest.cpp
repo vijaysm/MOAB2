@@ -2377,6 +2377,142 @@ MBErrorCode mb_mesh_set_list_replace_test( MBInterface*  )
   return MB_SUCCESS;
 }
 
+/* Test the following changes to a meshset:
+  set       -> tracking
+  tracking  -> set
+  unordered -> ordered
+  ordered   -> unordered
+*/
+MBErrorCode mb_mesh_set_flag_test(MBInterface *mb) {
+  MBErrorCode rval;
+    // create 10 vertices to put in set
+  MBRange verts;
+  std::vector<double> coords(30);
+  rval = mb->create_vertices( &coords[0], 10, verts );
+  CHKERR(rval);
+  
+  // CHECK SET->TRACKING
+  // create a set and add the verts
+  MBEntityHandle set;
+  rval = mb->create_meshset( MESHSET_SET, set );
+  CHKERR(rval);
+  rval = mb->add_entities( set, verts);
+  CHKERR(rval);
+  // the verts should not be tracking adjacencies
+  MBRange adj_sets;
+  rval = mb->get_adjacencies( verts, 4, false, adj_sets);
+  CHKERR(rval);
+  if(!adj_sets.empty()) {
+    std::cerr << "range should be empty but contains:" << std::endl;
+    rval = mb->list_entities( adj_sets );
+    return MB_FAILURE;
+  }
+  // check to make sure the flags on MESHSET_SET
+  unsigned int flags;
+  rval = mb->get_meshset_options( set, flags );
+  CHKERR(rval);
+  if(!MESHSET_SET&flags || MESHSET_TRACK_OWNER&flags || MESHSET_ORDERED&flags){
+    std::cerr << "set should be MESHSET_SET only, flags=" << flags << std::endl;
+    return MB_FAILURE;
+  }
+  // change to a tracking set and check flags
+  rval = mb->set_meshset_options( set, MESHSET_TRACK_OWNER);
+  CHKERR(rval);
+  rval = mb->get_meshset_options( set, flags );
+  CHKERR(rval);
+  if(MESHSET_SET&flags || !MESHSET_TRACK_OWNER&flags || MESHSET_ORDERED&flags){
+    std::cerr << "set should be MESHSET_TRACK_OWNER only, flags=" << flags 
+              << std::endl;
+    return MB_FAILURE;
+  }
+  // check adjacencies
+  rval = mb->get_adjacencies( verts, 4, false, adj_sets);
+  CHKERR(rval);
+  if(1 != adj_sets.size()) {
+    std::cerr << "range should contain a set, adj_sets.size()=" 
+              << adj_sets.size() << std::endl;
+    rval = mb->list_entities( adj_sets );
+    return MB_FAILURE;
+  }
+
+  // CHECK TRACKING->SET
+  // change to a standard set and check flags
+  rval = mb->set_meshset_options( set, MESHSET_SET);
+  CHKERR(rval);
+  rval = mb->get_meshset_options( set, flags );
+  CHKERR(rval);
+  if(!MESHSET_SET&flags || MESHSET_TRACK_OWNER&flags || MESHSET_ORDERED&flags){
+    std::cerr << "set should be MESHSET_SET only, flags=" << flags 
+              << std::endl;
+    return MB_FAILURE;
+  }
+  // the set should no longer be adjacent to the vertices
+  adj_sets.clear();
+  rval = mb->get_adjacencies( verts, 4, false, adj_sets);
+  CHKERR(rval);
+  if(!adj_sets.empty()) {
+    std::cerr << "range should be empty but contains:" << std::endl;
+    rval = mb->list_entities( adj_sets );
+    return MB_FAILURE;
+  }
+  // CHECK UNORDERED->ORDERED
+  // add a duplicate vert
+  rval = mb->add_entities( set, &verts.front(), 1);
+  CHKERR(rval);
+  // unordered sets cannot hold duplicates so size shouldn't change
+  std::vector<MBEntityHandle> entities;
+  rval = mb->get_entities_by_handle( set, entities );
+  if(10 != entities.size()) {
+    std::cerr << "set should not hold duplicate entities" << std::endl;
+    return MB_FAILURE;
+  }
+  // change to an ordered set and check flags
+  rval = mb->set_meshset_options( set, MESHSET_ORDERED);
+  CHKERR(rval);
+  rval = mb->get_meshset_options( set, flags );
+  CHKERR(rval);
+  if(MESHSET_SET&flags || MESHSET_TRACK_OWNER&flags || !MESHSET_ORDERED&flags){
+    std::cerr << "set should be MESHSET_ORDERED only, flags=" << flags 
+              << std::endl;
+    return MB_FAILURE;
+  }
+  // swap the order with some entities to that the handles aren't ordered
+  rval = mb->clear_meshset( &set, 1 );
+  CHKERR(rval);
+  entities.clear();
+  entities[0] = verts[1];
+  entities[1] = verts[0];
+  rval = mb->add_entities( set, &entities[0], 2);
+  CHKERR(rval);
+  // check to ensure the entities keep their order
+  entities.clear();
+  rval = mb->get_entities_by_handle( set, entities );
+  if(verts[0]!=entities[1] || verts[1]!=entities[0]) {
+    std::cerr << "ordered set did not keep its order" << std::endl;
+    return MB_FAILURE;
+  }
+
+  // CHECK ORDERED->UNORDERED
+  // change to an unordered set and check flags
+  rval = mb->set_meshset_options( set, MESHSET_SET);
+  CHKERR(rval);
+  rval = mb->get_meshset_options( set, flags );
+  CHKERR(rval);
+  if(!MESHSET_SET&flags || MESHSET_TRACK_OWNER&flags || MESHSET_ORDERED&flags){
+    std::cerr << "set should be MESHSET_SET only, flags=" << flags 
+              << std::endl;
+    return MB_FAILURE;
+  }
+  // the entities in the set should now be ordered by handle
+  entities.clear();
+  rval = mb->get_entities_by_handle( set, entities );
+  if(verts[0]!=entities[0] || verts[1]!=entities[1]) {
+    std::cerr << "unordered set is still ordered" << std::endl;
+    return MB_FAILURE;
+  }
+  return MB_SUCCESS;
+}
+
   // number of entities of type MBVERTEX, MBEDGE, MBDTri, MBQUAD, MBTET, and MBHEX
   // in mbtest1.g  (all other values are 0.
 static const unsigned int num_entities[MBMAXTYPE] = {47,12,18,8,22,8};
@@ -6676,6 +6812,7 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_mesh_set_root_appends );
   RUN_TEST( mb_mesh_set_set_replace_test );
   RUN_TEST( mb_mesh_set_list_replace_test );
+  RUN_TEST( mb_mesh_set_flag_test );
   RUN_TEST( mb_tags_test );
   RUN_TEST( mb_dense_tag_test );
   RUN_TEST( mb_sparse_tag_test );

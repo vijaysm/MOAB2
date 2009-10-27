@@ -266,7 +266,7 @@ MBErrorCode MBMeshSet::convert( unsigned flags, MBEntityHandle my_handle, AEntit
   if (MB_SUCCESS != rval)
     return rval;
 
-  if ((mFlags & MESHSET_ORDERED) && !(flags & MESHSET_ORDERED)) {
+  if (!(mFlags & MESHSET_ORDERED) && (flags & MESHSET_ORDERED)) {
     size_t datalen;
     MBEntityHandle* data = get_contents(datalen);
     if (datalen) {
@@ -288,7 +288,7 @@ MBErrorCode MBMeshSet::convert( unsigned flags, MBEntityHandle my_handle, AEntit
       }
     }
   }
-  else if (!(mFlags & MESHSET_ORDERED) && (flags & MESHSET_ORDERED)) {
+  else if ((mFlags & MESHSET_ORDERED) && !(flags & MESHSET_ORDERED)) {
     size_t datalen;
     MBEntityHandle* data = get_contents(datalen);
     if (datalen) {
@@ -300,7 +300,7 @@ MBErrorCode MBMeshSet::convert( unsigned flags, MBEntityHandle my_handle, AEntit
       memcpy( data, &ranges[0], ranges.size()*sizeof(MBEntityHandle) );
     }
   }
-
+  
   return MB_SUCCESS;
 }
 

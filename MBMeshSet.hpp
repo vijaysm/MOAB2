@@ -329,12 +329,12 @@ MBMeshSet::~MBMeshSet()
   
 MBErrorCode MBMeshSet::set_flags( unsigned flags, MBEntityHandle my_handle, AEntityFactory* adjacencies ) 
 {
-  if (mContentCount == 0) {
-    mFlags = flags;
-    return MB_SUCCESS;
+  if(ZERO != mContentCount) {
+    MBErrorCode result = convert(flags, my_handle, adjacencies);
+    if(MB_SUCCESS != result) return result;
   }
-  else 
-    return convert( flags, my_handle, adjacencies );
+  mFlags = flags;
+  return MB_SUCCESS;
 }
     
 
