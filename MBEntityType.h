@@ -25,7 +25,7 @@ extern "C" {
  *  grouped together and all elements of similar dimension are
  *  grouped together.
  */
-enum MBEntityType
+typedef enum 
 {
   MBVERTEX = 0, /**< Mesh Vertex AKA node */
   MBEDGE,       /**< Mesh Edge */
@@ -41,7 +41,7 @@ enum MBEntityType
   MBENTITYSET,    /**< MeshSet */
   MBMAXTYPE  /**< Just a place keeper - must be the # of entities, for array */
     /**< dimensioning purposes  */
-};
+} MBEntityType;
 
 #ifdef __cplusplus
 } /* extern "C" */
