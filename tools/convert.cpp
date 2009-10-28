@@ -114,6 +114,9 @@ void print_help( const char* name )
 void usage_error( const char* name )
 {
   print_usage( name, std::cerr );
+#ifdef USE_MPI
+  MPI_Finalize();
+#endif
   exit(USAGE_ERROR);
 } 
 
@@ -129,6 +132,11 @@ bool make_opts_string( std::vector<std::string> options, std::string& result );
 
 int main(int argc, char* argv[])
 {
+#ifdef USE_MPI
+  MPI_Init(&argc,&argv);
+#endif
+
+
   MBInterface* gMB;
   MBErrorCode result;
   MBRange range;
@@ -253,9 +261,13 @@ int main(int argc, char* argv[])
     // construct options string from individual options
   std::string read_options, write_options;
   if (!make_opts_string(  read_opts,  read_options ) ||
-      !make_opts_string( write_opts, write_options ))
+      !make_opts_string( write_opts, write_options )) 
+  {
+#ifdef USE_MPI
+    MPI_Finalize();
+#endif
     return USAGE_ERROR;
-  
+  }
   
     // Read the input file.
   reset_times();
@@ -268,6 +280,9 @@ int main(int argc, char* argv[])
     std::string message;
     if (MB_SUCCESS == gMB->get_last_error(message) && !message.empty())
       std::cerr << "Error message: " << message << std::endl;
+#ifdef USE_MPI
+    MPI_Finalize();
+#endif
     return READ_ERROR;
   }
   std::cerr << "Read \"" << in << "\"" << std::endl;
@@ -470,6 +485,9 @@ int main(int argc, char* argv[])
   if (have_sets && set_list.empty())
   {
     std::cerr << "Nothing to write." << std::endl;
+#ifdef USE_MPI
+    MPI_Finalize();
+#endif
     return ENT_NOT_FOUND;
   }
   
@@ -495,6 +513,9 @@ int main(int argc, char* argv[])
     std::string message;
     if (MB_SUCCESS == gMB->get_last_error(message) && !message.empty())
       std::cerr << "Error message: " << message << std::endl;
+#ifdef USE_MPI
+    MPI_Finalize();
+#endif
     return WRITE_ERROR;
   }
   std::cerr << "Wrote \"" << out << "\"" << std::endl;
