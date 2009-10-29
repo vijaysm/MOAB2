@@ -1228,7 +1228,7 @@ MBErrorCode MBCore::get_adjacencies(const MBRange &from_entities,
       std::set_intersection(adj_entities.begin(), adj_entities.end(), 
                             temp_vec.begin(), temp_vec.end(),
                             mb_range_inserter(temp_range));
-      adj_entities = temp_range;
+      adj_entities.swap(temp_range);
     }
     else if (operation_type == MBInterface::UNION) {
       std::copy(temp_vec.begin(), temp_vec.end(), mb_range_inserter(adj_entities));

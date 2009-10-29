@@ -56,6 +56,7 @@ int RESOLVE_START, RESOLVE_END;
 #endif
 #undef DEBUG_COMM
 #undef DEBUG_PACKING
+#undef DEBUG_MSGS
 #ifdef DEBUG_PACKING
 unsigned int __PACK_num = 0, __UNPACK_num = 0, __PACK_count = 0, __UNPACK_count = 0;
 std::string __PACK_string, __UNPACK_string;
@@ -93,27 +94,22 @@ void PACK( unsigned char*& buff, const T* val, size_t count )
   buff += count*sizeof(T);
 }
 
-//#define PACK_INTS(buff, int_val, num) {memcpy(buff, int_val, (num)*sizeof(int)); buff += (num)*sizeof(int); PC(num, " ints");}
 static inline
 void PACK_INTS( unsigned char*& buff, const int* int_val, size_t num )
   { PACK( buff, int_val, num ); PC(num, " ints"); }
 
-//#define PACK_INT(buff, int_val) {int tmp_val = int_val; PACK_INTS(buff, &tmp_val, 1);}
 static inline
 void PACK_INT( unsigned char*& buff, int int_val )
   { PACK_INTS( buff, &int_val, 1 ); }
 
-//#define PACK_DBL(buff, dbl_val, num) {memcpy(buff, dbl_val, (num)*sizeof(double)); buff += (num)*sizeof(double); PC(num, " doubles");}
 static inline
 void PACK_DBL( unsigned char*& buff, const double* dbl_val, size_t num )
   { PACK( buff, dbl_val, num ); PC(num, " doubles"); }
 
-//#define PACK_EH(buff, eh_val, num) {memcpy(buff, eh_val, (num)*sizeof(MBEntityHandle)); buff += (num)*sizeof(MBEntityHandle); PC(num, " handles");}
 static inline
 void PACK_EH( unsigned char*& buff, const MBEntityHandle* eh_val, size_t num )
   { PACK( buff, eh_val, num ); PC(num, " handles"); }
 
-//#define PACK_CHAR_64(buff, char_val) {strcpy((char*)buff, char_val); buff += 64; PC(64, " chars");}
 static inline
 void PACK_CHAR_64( unsigned char*& buff, const char* str )
 {
@@ -122,7 +118,6 @@ void PACK_CHAR_64( unsigned char*& buff, const char* str )
   PC(64, " chars");
 }
 
-//#define PACK_VOID(buff, val, num) {memcpy(buff, val, num); buff += num; PC(num, " void");}
 static inline
 void PACK_VOID( unsigned char*& buff, const void* val, size_t num )
 {
@@ -130,17 +125,10 @@ void PACK_VOID( unsigned char*& buff, const void* val, size_t num )
   PC(num, " void");
 }
 
-//#define PACK_BYTES(buff, val, num) PACK_INT(buff, num) PACK_VOID(buff, val, num)
 static inline
 void PACK_BYTES( unsigned char*& buff, const void* val, int num )
   { PACK_INT(buff, num); PACK_VOID(buff, val, num); }
 
-/*
-#define PACK_RANGE(buff, rng) {int num_subs = num_subranges(rng); PACK_INTS(buff, &num_subs, 1); PC(num_subs, "-subranged range"); \
-          for (MBRange::const_pair_iterator cit = rng.const_pair_begin(); cit != rng.const_pair_end(); cit++) { \
-            MBEntityHandle eh = (*cit).first; PACK_EH(buff, &eh, 1); \
-            eh = (*cit).second; PACK_EH(buff, &eh, 1);}; }
-*/
 static inline
 void PACK_RANGE( unsigned char*& buff, const MBRange& rng )
 {
@@ -153,27 +141,22 @@ void PACK_RANGE( unsigned char*& buff, const MBRange& rng )
   PC(rng.psize(), "-subranged range");
 }
 
-//#define UNPACK_INTS(buff, int_val, num) {memcpy(int_val, buff, (num)*sizeof(int)); buff += (num)*sizeof(int); UPC(num, " ints");}
 static inline
 void UNPACK_INTS( unsigned char*& buff, int* int_val, size_t num )
   { UNPACK(buff, int_val, num); UPC(num, " ints"); }
 
-//#define UNPACK_INT(buff, int_val) {UNPACK_INTS(buff, &int_val, 1);}
 static inline
 void UNPACK_INT( unsigned char*& buff, int& int_val )
   { UNPACK_INTS( buff, &int_val, 1 ); }
 
-//#define UNPACK_DBL(buff, dbl_val, num) {memcpy(dbl_val, buff, (num)*sizeof(double)); buff += (num)*sizeof(double); UPC(num, " doubles");}
 static inline
 void UNPACK_DBL( unsigned char*& buff, double* dbl_val, size_t num )
   { UNPACK(buff, dbl_val, num); UPC(num, " doubles"); }
 
-//#define UNPACK_EH(buff, eh_val, num) {memcpy(eh_val, buff, (num)*sizeof(MBEntityHandle)); buff += (num)*sizeof(MBEntityHandle); UPC(num, " handles");}
 static inline
 void UNPACK_EH( unsigned char*& buff, MBEntityHandle* eh_val, size_t num )
   { UNPACK(buff, eh_val, num); UPC(num, " handles"); }
 
-//#define UNPACK_CHAR_64(buff, char_val) {strcpy(char_val, (char*)buff); buff += 64; UPC(64, " chars");}
 static inline
 void UNPACK_CHAR_64( unsigned char*& buff, char* char_val )
 {
@@ -182,7 +165,6 @@ void UNPACK_CHAR_64( unsigned char*& buff, char* char_val )
   UPC(64, " chars");
 }
 
-//#define UNPACK_VOID(buff, val, num) {memcpy(val, buff, num); buff += num; UPC(num, " void");}
 static inline
 void UNPACK_VOID( unsigned char*& buff, void* val, size_t num )
 {
@@ -199,10 +181,6 @@ void UNPACK_TYPE( unsigned char*& buff, MBEntityType& type )
   assert(type >= MBVERTEX && type <= MBMAXTYPE);
 }
 
-/*
-#define UNPACK_RANGE(buff, rng) {int num_subs; UNPACK_INTS(buff, &num_subs, 1); UPC(num_subs, "-subranged range"); MBEntityHandle _eh[2]; \
-          for (int i = 0; i < num_subs; i++) { UNPACK_EH(buff, _eh, 2); rng.insert(_eh[0], _eh[1]);}}
-*/
 static inline
 void UNPACK_RANGE( unsigned char*& buff, MBRange& rng )
 {
@@ -216,14 +194,6 @@ void UNPACK_RANGE( unsigned char*& buff, MBRange& rng )
   }
 }    
 
-/*
-#define CHECK_BUFF_SPACE(buff_vec, buff_ptr, addl_space) { \
-      unsigned int _old_size = buff_ptr - &buff_vec[0],            \
-          _new_size = _old_size + (addl_space);    \
-      if (_new_size > buff_vec.size()) {               \
-        buff_vec.resize(1.5*_new_size);            \
-        buff_ptr = &buff_vec[_new_size-(addl_space)];} }
-*/
 template <typename T> static inline
 void CHECK_BUFF_SPACE( std::vector<T>& buff_vec, 
                        T*& buff_ptr,
@@ -237,11 +207,6 @@ void CHECK_BUFF_SPACE( std::vector<T>& buff_vec,
   }
 }
 
-/*
-#define INIT_BUFFER(_buff_vec, _buff_ptr) \
-    _buff_vec.reserve(INITIAL_BUFF_SIZE); _buff_vec.resize(sizeof(int)); \
-    _buff_ptr = &_buff_vec[sizeof(int)]
-*/
 template<typename T> static inline 
 void INIT_BUFFER(std::vector<T>& buff_vec, T*& buff_ptr)
 {
@@ -251,7 +216,6 @@ void INIT_BUFFER(std::vector<T>& buff_vec, T*& buff_ptr)
 }
 
 
-//#define RANGE_SIZE(rng) (2*sizeof(MBEntityHandle)*num_subranges(rng)+sizeof(int))
 static inline size_t RANGE_SIZE(const MBRange& rng)
   { return 2*sizeof(MBEntityHandle)*rng.psize()+sizeof(int); }
 
@@ -898,7 +862,8 @@ MBErrorCode MBParallelComm::pack_entities(MBRange &entities,
       RRA("Failed to build sharedhps.");
 
         // now pack them
-      CHECK_BUFF_SPACE(buff, buff_ptr, (num_ents+1)*sizeof(int) + sizeof(MBEntityHandle));
+      CHECK_BUFF_SPACE(buff, buff_ptr, (num_ents+1)*sizeof(int) + 
+                       num_ents*sizeof(MBEntityHandle));
       PACK_INT(buff_ptr, num_ents);
       PACK_INTS(buff_ptr, tmp_procs, num_ents);
       PACK_EH(buff_ptr, tmp_handles, num_ents);
@@ -1036,7 +1001,9 @@ MBErrorCode MBParallelComm::build_sharedhps_list(const MBEntityHandle entity,
     num_ents = 1;
   }
 
+#ifndef NDEBUG
   int tmp_ps = num_ents;
+#endif
   
     // now add others, with zero handle for now
   for (std::set<unsigned int>::iterator sit = entprocs.begin();
@@ -1330,7 +1297,7 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
 
     // procs the sending proc is telling me I'll be receiving from
   std::set<unsigned int> comm_procs;
-  
+
     // 1. # entities = E
   int num_ents;
   unsigned char *buff_save = buff_ptr;
@@ -1539,80 +1506,114 @@ MBErrorCode MBParallelComm::unpack_entities(unsigned char *&buff_ptr,
   return MB_SUCCESS;
 }
 
-MBErrorCode MBParallelComm::print_buffer(unsigned char *buff_ptr) 
+MBErrorCode MBParallelComm::print_buffer(unsigned char *buff_ptr, int mesg_tag, 
+                                         int from_proc, bool sent) 
 {
-  int total_size;
-  UNPACK_INT(buff_ptr, total_size);
-  std::cout << total_size << " entities..." << std::endl;
+  std::cout << procConfig.proc_rank();
+  if (sent) std::cout << " sent";
+  else std::cout << " received";
+  std::cout << " message type " << mesg_tag 
+            << " to/from proc " << from_proc << "; contents:" << std::endl;
 
-    // 1. # entities = E
-  int num_ents;
-  int i, j, k;
-  std::vector<int> ps;
-  std::vector<MBEntityHandle> hs;
+  if (MB_MESG_ENTS == mesg_tag) {
+    int total_size;
+    UNPACK_INT(buff_ptr, total_size);
+    std::cout << total_size << " entities..." << std::endl;
 
-  UNPACK_INT(buff_ptr, num_ents);
-  std::cout << num_ents << " entities..." << std::endl;
+      // 1. # entities = E
+    int num_ents;
+    int i, j, k;
+    std::vector<int> ps;
+    std::vector<MBEntityHandle> hs;
 
-    // save place where remote handle info starts, then scan forward to ents
-  for (i = 0; i < num_ents; i++) {
-    UNPACK_INT(buff_ptr, j);
-    ps.resize(j);
-    hs.resize(j);
-    std::cout << "Entity " << i << ": # procs = " << j << std::endl;
-    UNPACK_INTS(buff_ptr, &ps[0], j);
-    UNPACK_EH(buff_ptr, &hs[0], j);
-    std::cout << "   Procs: ";
-    for (k = 0; k < j; k++) std::cout << ps[k] << " ";
-    std::cout << std::endl;
-    std::cout << "   Handles: ";
-    for (k = 0; k < j; k++) std::cout << hs[k] << " ";
-    std::cout << std::endl;
-  }
+    UNPACK_INT(buff_ptr, num_ents);
+    std::cout << num_ents << " entities..." << std::endl;
+
+      // save place where remote handle info starts, then scan forward to ents
+    for (i = 0; i < num_ents; i++) {
+      UNPACK_INT(buff_ptr, j);
+      ps.resize(j);
+      hs.resize(j);
+      std::cout << "Entity " << i << ": # procs = " << j << std::endl;
+      UNPACK_INTS(buff_ptr, &ps[0], j);
+      UNPACK_EH(buff_ptr, &hs[0], j);
+      std::cout << "   Procs: ";
+      for (k = 0; k < j; k++) std::cout << ps[k] << " ";
+      std::cout << std::endl;
+      std::cout << "   Handles: ";
+      for (k = 0; k < j; k++) std::cout << hs[k] << " ";
+      std::cout << std::endl;
+    }
   
   while (true) {
     MBEntityType this_type = MBMAXTYPE;
     UNPACK_TYPE(buff_ptr, this_type);
     assert(this_type != MBENTITYSET);
 
-      // MBMAXTYPE signifies end of entities data
-    if (MBMAXTYPE == this_type) break;
+        // MBMAXTYPE signifies end of entities data
+      if (MBMAXTYPE == this_type) break;
 
-      // get the number of ents
-    int num_ents2, verts_per_entity;
-    UNPACK_INT(buff_ptr, num_ents2);
+        // get the number of ents
+      int num_ents2, verts_per_entity;
+      UNPACK_INT(buff_ptr, num_ents2);
 
-      // unpack the nodes per entity
-    if (MBVERTEX != this_type && num_ents2) {
-      UNPACK_INT(buff_ptr, verts_per_entity);
-    }
+        // unpack the nodes per entity
+      if (MBVERTEX != this_type && num_ents2) {
+        UNPACK_INT(buff_ptr, verts_per_entity);
+      }
 
-    std::cout << "Type: " << MBCN::EntityTypeName(this_type)
-              << "; num_ents = " << num_ents2;
-    if (MBVERTEX != this_type) std::cout << "; verts_per_ent = " << verts_per_entity;
-    std::cout << std::endl;
+      std::cout << "Type: " << MBCN::EntityTypeName(this_type)
+                << "; num_ents = " << num_ents2;
+      if (MBVERTEX != this_type) std::cout << "; verts_per_ent = " << verts_per_entity;
+      std::cout << std::endl;
     
-    for (int e = 0; e < num_ents2; e++) {
-        // check for existing entity, otherwise make new one
-      MBEntityHandle *connect;
-      double *coords;
+      for (int e = 0; e < num_ents2; e++) {
+          // check for existing entity, otherwise make new one
+        MBEntityHandle *connect;
+        double *coords;
 
-      if (MBVERTEX == this_type) {
-        coords = (double*) buff_ptr;
-        buff_ptr += 3*sizeof(double);
-        std::cout << "xyz = " << coords[0] << ", " << coords[1] << ", " 
-                  << coords[2] << std::endl;
-      }
-      else {
-        connect = (MBEntityHandle*) buff_ptr;
-        buff_ptr += verts_per_entity * sizeof(MBEntityHandle);
+        if (MBVERTEX == this_type) {
+          coords = (double*) buff_ptr;
+          buff_ptr += 3*sizeof(double);
+          std::cout << "xyz = " << coords[0] << ", " << coords[1] << ", " 
+                    << coords[2] << std::endl;
+        }
+        else {
+          connect = (MBEntityHandle*) buff_ptr;
+          buff_ptr += verts_per_entity * sizeof(MBEntityHandle);
 
-          // update connectivity to local handles
-        std::cout << "Connectivity: ";
-        for (k = 0; k < verts_per_entity; k++) std::cout << connect[k] << " ";
-        std::cout << std::endl;
+            // update connectivity to local handles
+          std::cout << "Connectivity: ";
+          for (k = 0; k < verts_per_entity; k++) std::cout << connect[k] << " ";
+          std::cout << std::endl;
+        }
       }
     }
+  }
+  
+  else if (MB_MESG_REMOTE_HANDLES) {
+    int num_ents;
+    UNPACK_INT(buff_ptr, num_ents);
+    std::vector<MBEntityHandle> L1hloc(num_ents), L1hrem(num_ents);
+    std::vector<int> L1p(num_ents);
+    UNPACK_INTS(buff_ptr, &L1p[0], num_ents);
+    UNPACK_EH(buff_ptr, &L1hrem[0], num_ents);
+    UNPACK_EH(buff_ptr, &L1hloc[0], num_ents);
+    std::cout << num_ents << " Entity pairs; hremote/hlocal/proc: " << std::endl;
+    for (int i = 0; i < num_ents; i++) {
+      MBEntityType etype = TYPE_FROM_HANDLE(L1hloc[i]);
+      std::cout << MBCN::EntityTypeName(etype) << ID_FROM_HANDLE(L1hrem[i])  << ", " 
+                << MBCN::EntityTypeName(etype) << ID_FROM_HANDLE(L1hloc[i])  << ", " 
+                << L1p[i] << std::endl;
+    }
+  }
+  else if (MB_MESG_TAGS) {
+    assert(false);
+    return MB_FAILURE;
+  }
+  else {
+    assert(false);
+    return MB_FAILURE;
   }
 
   return MB_SUCCESS;
@@ -1803,8 +1804,8 @@ MBErrorCode MBParallelComm::update_remote_data(const MBEntityHandle new_h,
   
     // set sharing tags
   if (num_exist > 2) {
-    std::fill(tag_ps+num_exist, tag_ps+MAX_SHARING_PROCS-num_exist, -1);
-    std::fill(tag_hs+num_exist, tag_hs+MAX_SHARING_PROCS-num_exist, 0);
+    std::fill(tag_ps+num_exist, tag_ps+MAX_SHARING_PROCS, -1);
+    std::fill(tag_hs+num_exist, tag_hs+MAX_SHARING_PROCS, 0);
     result = mbImpl->tag_set_data(sharedps_tag(), &new_h, 1, tag_ps);
     RRA("Couldn't set sharedps tag.");
     result = mbImpl->tag_set_data(sharedhs_tag(), &new_h, 1, tag_hs);
@@ -2698,7 +2699,14 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBEntityHandle this_set,
       result = mbImpl->get_dimension(shared_dim); 
       RRA("Couldn't get dimension.");
     }
-    else shared_dim = mbImpl->dimension_from_handle(*proc_ents.begin())-1;
+    else if (!proc_ents.empty())
+      shared_dim = mbImpl->dimension_from_handle(*proc_ents.begin())-1;
+    else if (resolve_dim == 3)
+      shared_dim = 2;
+    else {
+      assert(false && "Unable to guess shared_dim.");
+      return MB_FAILURE;
+    }
   }
   assert(shared_dim >= 0 && resolve_dim >= 0);
   
@@ -2734,7 +2742,7 @@ MBErrorCode MBParallelComm::resolve_shared_ents(MBEntityHandle this_set,
     // zero; don't create them if they don't exist already
   for (int this_dim = skin_dim-1; this_dim >= 0; this_dim--) {
     result = mbImpl->get_adjacencies(skin_ents[skin_dim], this_dim,
-                                     false, skin_ents[this_dim],
+                                     true, skin_ents[this_dim],
                                      MBInterface::UNION);
     RRA("Failed getting skin adjacencies.");
   }
@@ -3746,6 +3754,10 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
                            &entprocs, &allsent); 
     RRA("Packing entities failed.");
 
+#ifdef DEBUG_MSGS
+    result = print_buffer(&ownerSBuffs[ind][0], MB_MESG_ENTS, *proc_it, true);
+#endif
+    
       // send the buffer (buffer size saved in send_buffer)
     result = send_buffer(*proc_it, &ownerSBuffs[ind][0], 
                          buff_ptr-&ownerSBuffs[ind][0], MB_MESG_ENTS,
@@ -3799,10 +3811,17 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     
     if (done) {
       unsigned char *buff_ptr = &ghostRBuffs[ind][sizeof(int)];
+#ifdef DEBUG_MSGS
+      print_buffer(buff_ptr-sizeof(int), MB_MESG_ENTS, buffProcs[ind], false);
+#endif  
       result = unpack_entities(buff_ptr,
                                store_remote_handles, ind, is_iface,
                                L1hloc, L1hrem, L1p, L2hloc, L2hrem, L2p, new_ents);
       RRA("Failed to unpack entities.");
+
+      if (recv_reqs.size() != buffProcs.size()) {
+        recv_reqs.resize(buffProcs.size(), MPI_REQUEST_NULL);
+      }
     }
     else {
       num_incoming++;
@@ -3890,6 +3909,10 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     result = pack_remote_handles(L1hloc[ind], L1hrem[ind], L1p[ind], *proc_it,
                                  ownerSBuffs[ind], buff_ptr);
     RRA("Failed to pack remote handles.");
+
+#ifdef DEBUG_MSGS
+    print_buffer(&ownerSBuffs[ind][0], MB_MESG_REMOTE_HANDLES, buffProcs[ind], true);
+#endif  
     result = send_buffer(buffProcs[ind], &ownerSBuffs[ind][0], 
                          buff_ptr - &ownerSBuffs[ind][0], 
                          MB_MESG_REMOTE_HANDLES, 
@@ -3932,6 +3955,9 @@ MBErrorCode MBParallelComm::exchange_ghost_cells(int ghost_dim, int bridge_dim,
     if (done) {
         // incoming remote handles
       buff_ptr = &ghostRBuffs[ind][sizeof(int)];
+#ifdef DEBUG_MSGS
+      print_buffer(buff_ptr, MB_MESG_REMOTE_HANDLES, buffProcs[ind], false);
+#endif  
       result = unpack_remote_handles(buffProcs[ind], buff_ptr,
                                      L2hloc, L2hrem, L2p);
       RRA("Failed to unpack remote handles.");
@@ -5481,6 +5507,8 @@ MBErrorCode MBParallelComm::pack_shared_handles(
 
     unsigned char pstat;
     rval = get_sharing_data( *i, ent_procs, handles, pstat, num_sharing );
+    if (MB_SUCCESS != rval)
+      return rval;
     for (int j = 0; j < num_sharing; ++j) {
       if (ent_procs[j] == (int)proc_config().proc_rank())
         continue;

@@ -285,7 +285,7 @@ public:
                                   int resolve_dim = 3, 
                                   int shared_dim = -1,
                                   const MBTag* id_tag = 0);
-  
+    
   static MBErrorCode resolve_shared_ents(MBParallelComm **pc, 
                                          const unsigned int np, 
                                          const int to_dim);
@@ -704,7 +704,8 @@ private:
                               std::vector<unsigned char> &buff,
                               unsigned char *&buff_ptr);
   
-  MBErrorCode print_buffer(unsigned char *buff_ptr);
+  MBErrorCode print_buffer(unsigned char *buff_ptr, int mesg_type, int from_proc,
+                           bool sent);
   
     //! for all the entities in the received buffer; for each, save
     //! entities in this instance which match connectivity, or zero if none found

@@ -13,11 +13,11 @@
 using namespace std;
 
 // Number of cells in each direction:
-const int NC = 4;
+const int NC = 2;
 
-const int MNI = 5;
-const int MNJ = 10;
-const int MNK = 10;
+const int NI = 2;
+const int NJ = 2;
+const int NK = 1;
 
 // Number of processes:
 const int NPROCS = 4;
@@ -66,56 +66,52 @@ int main(int argc, char *argv[])
 
 void set_local_domain_bounds() 
 {
-  switch(rank) {
-  case 0:
-
-    switch (size) {
+  switch (size) {
     case 2:
-      is = 0; ie = NC/2;
-      js = 0; je = NC;
-      ks = 0; ke = NC;
-      break;
+        switch(rank) {
+          case 0:
+              is = 0; ie = NI/2;
+              js = 0; je = NJ;
+              ks = 0; ke = NK;
+              break;
 
+
+          case 1:
+              is = NI/2; ie = NI;
+              js = 0; je = NJ;
+              ks = 0; ke = NK;
+              break;
+        }
+        break;
+        
     case 4:
-      is = 0; ie = NC/2;
-      js = 0; je = NC/2;
-      ks = 0; ke = NC;
-      break;
-    }
-    break;
+        switch(rank) {
+          case 0:
+              is = 0; ie = NI/2;
+              js = 0; je = NJ/2;
+              ks = 0; ke = NK;
+              break;
+          case 1:
+              is = NI/2; ie = NI;
+              js = 0; je = NJ/2;
+              ks = 0; ke = NK;
+              break;
+          case 2:
+              is = 0; ie = NI/2;
+              js = NJ/2; je = NJ;
+              ks = 0; ke = NK;
+              break;
+          case 3:
+              is = NI/2; ie = NI;
+              js = NJ/2; je = NJ;
+              ks = 0; ke = NK;
+              break;
+        }
+        break;
 
-  case 1:
-
-    switch(size) {
-    case 2:
-      is = NC/2; ie = NC;
-      js = 0; je = NC;
-      ks = 0; ke = NC;
-      break;
-
-    case 4:
-      is = NC/2; ie = NC;
-      js = 0; je = NC/2;
-      ks = 0; ke = NC;
-      break;
-    }
-    break;
-
-  case 2:
-    is = 0; ie = NC/2;
-    js = NC/2; je = NC;
-    ks = 0; ke = NC;
-    break;
-
-  case 3:
-    is = NC/2; ie = NC;
-    js = NC/2; je = NC;
-    ks = 0; ke = NC;
-    break;
-
-  default:
-    cerr << "Run this with 4 processes\n";
-    exit(1);
+    default:
+        cerr << "Run this with 4 processes\n";
+        exit(1);
   }
 }
 
@@ -124,7 +120,7 @@ void create_hexes_and_verts()
 {
   MBCore *mbcore = dynamic_cast<MBCore*>(mbint);
   HomCoord coord_min(0,0,0);
-  HomCoord coord_max(NC/2, NC, NC);
+  HomCoord coord_max(ie-is, je-js, ke-ks);
   EntitySequence* vertex_seq = NULL;
   EntitySequence* cell_seq = NULL;
   MBEntityHandle vs, cs;
@@ -133,8 +129,8 @@ void create_hexes_and_verts()
   error(mbcore->create_scd_sequence(coord_min, coord_max, MBHEX, 1, cs, cell_seq));
 
   HomCoord p1(0,0,0);
-  HomCoord p2(NC/2,0,0);
-  HomCoord p3(0,NC/2,0);
+  HomCoord p2(1,0,0);
+  HomCoord p3(0,1,0);
 
   error(mbcore->add_vsequence(vertex_seq, cell_seq, p1, p1, p2, p2, p3, p3));
 
@@ -147,22 +143,22 @@ void create_hexes_and_verts()
 
   MBErrorCode err;
 
-  for(i = is; i < ie + 1; i++) 
+  for(k = ks; k < ke + 1; k++)
     for(j = js; j < je + 1; j++)
-      for(k = ks; k < ke + 1; k++) {	
-	gid = k + j*(NC+1) + i*(NC+1)*(NC+1) + 1;
+      for(i = is; i < ie + 1; i++) {
+        gid = 1 + i + j*(NI+1) + k*(NI+1)*(NJ+1);
         err = mbint->tag_set_data(global_id_tag, &handle, 1, &gid);
-	if(err != MB_SUCCESS) {
-	  exit(1);
-	}
-	handle++;
+        if(err != MB_SUCCESS) {
+          exit(1);
+        }
+        handle++;
       }
 
   handle = cs;
-  for(i = is; i < ie; i++) 
+  for(k = ks; k < ke; k++)
     for(j = js; j < je; j++)
-      for(k = ks; k < ke; k++) {	
-	gid = k + j*NC + i*NC*NC + 1;
+      for(i = is; i < ie; i++) {
+        gid = 1 + i + j*NI + k*NI*NJ;
         error(mbint->tag_set_data(global_id_tag, &handle, 1, &gid));
 	handle++;
       }
@@ -172,7 +168,6 @@ void create_hexes_and_verts()
 void resolve_and_exchange()
 {
   MBEntityHandle entity_set;
-  MBErrorCode err;
 
   // Create the entity set:
   error(mbint->create_meshset(MESHSET_SET, entity_set));

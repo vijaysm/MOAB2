@@ -36,7 +36,7 @@ const bool debug = false;
 #define RRA(a) if (MB_SUCCESS != result) {\
       std::string tmp_str; mbImpl->get_last_error(tmp_str);\
       tmp_str.append("\n"); tmp_str.append(a);\
-      dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(tmp_str.c_str()); \
+      dynamic_cast<MBCore*>(mbImpl)->get_error_handler()->set_last_error(tmp_str); \
       return result;}
 
 MBErrorCode create_linear_mesh(MBInterface *mbImpl,
@@ -69,7 +69,7 @@ int main(int argc, char **argv)
   err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // start time
-  double stime, rtime, setime, dtime, ltime;
+  double stime, rtime, dtime, ltime;
   if (0 == rank) stime = MPI_Wtime();
 
     // create MOAB instance based on that
@@ -202,12 +202,12 @@ int main(int argc, char **argv)
   if (0 == rank) std::cout << "Times: " 
                            << dtime-stime << " "
                            << rtime-stime << " "
-                           << setime-rtime << " "
-                           << ltime-setime << " "
                            << dtime - ltime
-                           << " (total/read/shared/report/delete)"
+                           << " (total/read/delete)"
                            << std::endl;
-   
+
+  delete mbImpl;
+  
   return (MB_SUCCESS == result ? 0 : 1);
 }
 
