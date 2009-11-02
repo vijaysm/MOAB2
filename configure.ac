@@ -166,6 +166,9 @@ AM_CONDITIONAL(USE_MPI, [test "xno" != "x$WITH_MPI"])
 if test "xyes" = "x$MPI_CXX_HELP_NEEDED"; then
   AC_DEFINE( [MB_MPI_CXX_CONFLICT], [1], 
     [MPICH_IGNORE_CXX_SEEK is not sufficient to avoid conflicts] )
+  AC_DEFINE_UNQUOTED([MB_SEEK_SET],[$SEEK_SET],["Value of C SEEK_SET"])
+  AC_DEFINE_UNQUOTED([MB_SEEK_CUR],[$SEEK_CUR],["Value of C SEEK_CUR"])
+  AC_DEFINE_UNQUOTED([MB_SEEK_END],[$SEEK_END],["Value of C SEEK_END"])
 fi
 
 ################################################################################
