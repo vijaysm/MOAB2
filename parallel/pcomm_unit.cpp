@@ -12,7 +12,7 @@
 #include <sstream>
 
 #ifdef USE_MPI
-#  include <mpi.h>
+#  include "MBmpi.h"
 #endif
 
 #define STRINGIFY_(X) #X

@@ -47,7 +47,7 @@
  * because its C++ headers do not like SEEK_* macros.
  */
 #include "MBParallelComm.hpp"
-#include "mpi.h"
+#include "MBmpi.h"
 #include "ReadParallel.hpp"
 #endif
 

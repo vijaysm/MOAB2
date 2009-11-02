@@ -10,7 +10,7 @@
 #undef IS_BUILDING_MB
 
 #ifdef USE_MPI    
-#include "mpi.h"
+#include "MBmpi.h"
 #endif
 
 #include <iostream>

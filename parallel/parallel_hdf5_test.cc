@@ -10,7 +10,7 @@
 #include <iostream>
 #include <sstream>
 #include <algorithm>
-#include <mpi.h>
+#include "MBmpi.h"
 #include <unistd.h>
 #include <float.h>
 #include <stdio.h>

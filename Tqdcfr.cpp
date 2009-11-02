@@ -26,7 +26,7 @@
 #include "exodus_order.h"
 
 #ifdef USE_MPI
-#include "mpi.h"
+#include "MBmpi.h"
 #endif
 
 #include <iostream>

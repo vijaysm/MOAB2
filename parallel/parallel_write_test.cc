@@ -1,7 +1,7 @@
 #include "MBCore.hpp"
 #include "MBParallelComm.hpp"
 #include "MBTagConventions.hpp"
-#include <mpi.h>
+#include "MBmpi.h"
 #include <stdlib.h>
 #include <iostream>
 #include <time.h>

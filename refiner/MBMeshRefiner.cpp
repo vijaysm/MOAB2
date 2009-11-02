@@ -8,7 +8,7 @@
 
 #ifdef USE_MPI
 #include "MBParallelComm.hpp"
-#include <mpi.h>
+#include "MBmpi.h"
 #else // USE_MPI
 typedef int MPI_Comm;
 #endif // USE_MPI

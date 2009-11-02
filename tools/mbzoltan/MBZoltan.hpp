@@ -23,6 +23,7 @@
 #define MB_ZOLTAN_HPP
 
 #include <stdlib.h>
+#include "MBmpi.h"
 #include "zoltan_cpp.h"
 
 extern "C" 

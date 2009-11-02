@@ -48,7 +48,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <mpi.h>
+#include "MBmpi.h"
 
 #include "errmem.h"
 #include "types.h"

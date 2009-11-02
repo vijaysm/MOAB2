@@ -158,42 +158,15 @@ MK_CHECK_UNORDERED_MAP([CPPFLAGS="$CPPFLAGS -DUNORDERED_MAP_NS=$result -DHAVE_UN
 #                              MPI OPTIONS
 ################################################################################
 
-AC_ARG_VAR(MPIEXEC,[Program to use to run parallel tests (default: mpiexec or mpirun)])
-AC_ARG_VAR(MPIEXEC_NP,[Command line flag to specify number of processors to use (default: -np)])
-AC_ARG_VAR(NP,[Number of processors to on which to run parallel tests (default: 2)])
-if test "x$WITH_MPI" != "xno"; then
-  DEFINES="$DEFINES -DUSE_MPI"
-  AC_CHECK_HEADER([mpi.h],[],[AC_MSG_ERROR([mpi.h not found or not working])])
-  AC_MSG_CHECKING([If -DMPICH_IGNORE_CXX_SEEK is necessary])
-  AC_LANG_SAVE
-  AC_LANG_CPLUSPLUS
-  AC_PREPROC_IFELSE([AC_LANG_PROGRAM( [[#include <stdio.h>
-     #include <mpi.h>]],[])],
-    [AC_MSG_RESULT([no])],
-    [save_CPPFLAGS="$CPPFLAGS"
-     CPPFLAGS="$CPPFLAGS -DMPICH_IGNORE_CXX_SEEK"
-     AC_PREPROC_IFELSE([AC_LANG_PROGRAM( [[#include <stdio.h>
-         #include <mpi.h>]],[])],
-         [AC_MSG_RESULT([yes]); AM_CPPFLAGS="$AM_CPPLFLAGS -DMPICH_IGNORE_CXX_SEEK" ],
-         [AC_MSG_ERROR([mpi.h is not usable])]),
-     CPPFLAGS="$save_CPPFLAGS"])
-  AC_LANG_RESTORE
-  if test "x$MPIEXEC" = "x"; then
-    if test "x$WITH_MPI" != "xyes"; then
-      AC_CHECK_PROGS([MPIEXEC],[mpiexec mpirun],[true],[${WITH_MPI}:${WITH_MPI}/bin])
-    else
-      AC_CHECK_PROGS([MPIEXEC],[mpiexec mpirun],[true])
-    fi
-  fi
-  if test "x$MPIEXEC_NP" = "x"; then
-    MPIEXEC_NP="-np"
-  fi
-  if test "x$NP" = "x"; then
-    NP=2
-  fi
-fi
+FATHOM_CHECK_MPI
+FATHOM_CONFIG_MPI_EXEC
+test "xyes" != "x$WITH_MPI" || DEFINES="$DEFINES -DUSE_MPI"
 AM_CONDITIONAL(USE_MPI, [test "xno" != "x$WITH_MPI"])
-AM_CONDITIONAL(USE_MPIEXEC, [test "x$MPIEXEC" != "xtrue"])
+# Used to generate MBmpi.h
+if test "xyes" = "x$MPI_CXX_HELP_NEEDED"; then
+  AC_DEFINE( [MB_MPI_CXX_CONFLICT], [1], 
+    [MPICH_IGNORE_CXX_SEEK is not sufficient to avoid conflicts] )
+fi
 
 ################################################################################
 #                           Python
@@ -1047,8 +1020,7 @@ AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
 
 AC_ARG_VAR([FC], [FORTRAN compiler command])
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_HEADERS([MBVersion.h])
-AC_CONFIG_HEADERS([MBEntityHandle.h])
+AC_CONFIG_HEADERS([MBVersion.h MBEntityHandle.h parallel/MBmpi_config.h])
 AC_CONFIG_HEADERS([iBase_FCDefs.h])
 AC_CONFIG_FILES([Makefile 
                  moab.make 

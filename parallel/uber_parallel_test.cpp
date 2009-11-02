@@ -4,7 +4,7 @@
 #include "FileOptions.hpp"
 #include "MBTagConventions.hpp"
 #include "MBCore.hpp"
-#include "mpi.h"
+#include "MBmpi.h"
 #include <iostream>
 #include <algorithm>
 #include <sstream>

@@ -16,7 +16,7 @@
 #include "StructuredElementSeq.hpp"
 #include "SequenceManager.hpp"
 #include "MBError.hpp"
-#include "mpi.h"
+#include "MBmpi.h"
 #include <iostream>
 #include <sstream>
 #include <assert.h>

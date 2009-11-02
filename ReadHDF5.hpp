@@ -25,6 +25,9 @@
 
 #include <stdlib.h>
 #include <list>
+#ifdef USE_MPI
+#  include "MBmpi.h"
+#endif
 #include "mhdf.h"
 #include "MBForward.hpp"
 #include "MBReadUtilIface.hpp"

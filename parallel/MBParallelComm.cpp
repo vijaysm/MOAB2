@@ -40,7 +40,7 @@ extern "C"
 }
 
 #ifdef USE_MPI
-#include "mpi.h"
+#include "MBmpi.h"
 #endif
 
 const unsigned int INITIAL_BUFF_SIZE = 1024;

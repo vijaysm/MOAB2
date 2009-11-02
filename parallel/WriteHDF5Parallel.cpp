@@ -22,7 +22,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <mpi.h>
+#include "MBmpi.h"
 
 #include <H5Tpublic.h>
 #include <H5Ppublic.h>

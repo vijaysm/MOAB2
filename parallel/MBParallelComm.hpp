@@ -33,36 +33,7 @@
 #include <set>
 #include <vector>
 #include "math.h"
-
-#ifdef SEEK_SET
-#  define SEEK_SET_OLD SEEK_SET
-#  undef SEEK_SET
-#endif
-#ifdef SEEK_CUR
-#  define SEEK_CUR_OLD SEEK_CUR
-#  undef SEEK_CUR
-#endif
-#ifdef SEEK_END
-#  define SEEK_END_OLD SEEK_END
-#  undef SEEK_END
-#endif
-#include "mpi.h"
-#ifdef SEEK_SET_OLD
-#  undef SEEK_SET
-#  define SEEK_SET SEEK_SET_OLD
-#  undef SEEK_SET_OLD
-#endif
-#ifdef SEEK_CUR_OLD
-#  undef SEEK_CUR
-#  define SEEK_CUR SEEK_CUR_OLD
-#  undef SEEK_CUR_OLD
-#endif
-#ifdef SEEK_END_OLD
-#  undef SEEK_END
-#  define SEEK_END SEEK_END_OLD
-#  undef SEEK_END_OLD
-#endif
-
+#include "MBmpi.h"
 
 extern "C" {
   struct tuple_list;

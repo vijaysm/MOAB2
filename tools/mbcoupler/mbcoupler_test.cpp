@@ -4,7 +4,7 @@
 #include "FileOptions.hpp"
 #include "ReadParallel.hpp"
 #include "MBCoupler.hpp"
-#include "mpi.h"
+#include "MBmpi.h"
 #include <iostream>
 #include <sstream>
 #include <assert.h>

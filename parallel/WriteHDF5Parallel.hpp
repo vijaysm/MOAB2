@@ -9,7 +9,7 @@
 #define WRITE_HDF5_PARALLEL_HPP
 
 #include "WriteHDF5.hpp"
-#include <mpi.h>
+#include "MBmpi.h"
 #include <map>
 
 struct RemoteSetData;

@@ -1,6 +1,9 @@
 AUTOMAKE_OPTIONS = foreign
 DEFS = $(DEFINES)
-INCLUDES += -I$(top_srcdir) -I$(top_builddir)
+INCLUDES += -I$(top_srcdir) \
+            -I$(top_builddir) \
+            -I$(top_srcdir)/parallel \
+            -I$(top_builddir)/parallel
 LDADD = $(top_builddir)/libMOAB.la
 
 # For old (pre 1.10.x) versions of Automake
