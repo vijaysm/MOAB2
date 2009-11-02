@@ -1,6 +1,11 @@
 
 DEFS = $(DEFINES)
-INCLUDES += -I$(top_srcdir) -I$(top_srcdir)/mhdf/include -I$(top_builddir)
+INCLUDES += -I$(top_srcdir) \
+            -I$(top_srcdir)/mhdf/include \
+            -I$(top_builddir) \
+            -I$(top_srcdir)/parallel \
+	    -I$(top_builddir)/parallel
+
 check_PROGRAMS = h5test h5legacy h5varlen h5sets_test h5regression h5partial
 
 TESTS = $(check_PROGRAMS)
