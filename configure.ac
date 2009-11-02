@@ -46,7 +46,7 @@ AM_CONDITIONAL([ENABLE_imesh],[test "xyes" = "x$ENABLE_imesh"])
 ################################################################################
 
 EXTRA_GNU_FLAGS='-Wall -pipe'
-SNL_CHECK_COMPILERS([yes],[yes],[$CONFIGURE_FORTRAN])
+FATHOM_CHECK_COMPILERS([yes],[yes],[$CONFIGURE_FORTRAN])
 AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" != "xno"])
 LIBS="-lm"
 
@@ -54,7 +54,7 @@ AC_PROG_LN_S
 AC_PROG_MAKE_SET
 AC_DISABLE_SHARED
 AC_PROG_LIBTOOL
-SNL_COMPILER_FLAGS
+FATHOM_COMPILER_FLAGS
 
 AC_CHECK_PROG([ZCAT],[gunzip],[gunzip -c],[])
 AC_CHECK_PROG([ZCAT],[gzip],[gzip -cd],[])
@@ -65,8 +65,8 @@ fi
 AC_SUBST([ZCAT])
 AM_CONDITIONAL([HAVE_ZCAT],[test "x" = "x$ZCAT"])
 
-SNL_TEMPLATE_SPECIALIZATION
-SNL_TEMPLATE_FUNC_SPECIALIZATION
+FATHOM_TEMPLATE_SPECIALIZATION
+FATHOM_TEMPLATE_FUNC_SPECIALIZATION
 DEFINES="$DEFINES $TEMPLATE_SPECIALIZATION $TEMPLATE_FUNC_SPECIALIZATION"
 
 if test "xno" != "x$CONFIGURE_FORTRAN"; then
@@ -151,7 +151,7 @@ fi
 #                             BOOST OPTIONS
 ################################################################################
 
-dnl SNL_CHECK_BOOST( [boost/pool/object_pool.hpp] )
+dnl FATHOM_CHECK_BOOST( [boost/pool/object_pool.hpp] )
 MK_CHECK_UNORDERED_MAP([CPPFLAGS="$CPPFLAGS -DUNORDERED_MAP_NS=$result -DHAVE_UNORDERED_MAP=${incdir}unordered_map"])
 
 ################################################################################
@@ -300,7 +300,7 @@ AM_CONDITIONAL([ENABLE_pytaps],[test "xyes" = "x$ENABLE_pytaps"])
 #                              HDF5 OPTIONS
 ################################################################################
 
-SNL_CHECK_HDF5
+FATHOM_CHECK_HDF5
 if test "xno" = "x$HAVE_HDF5"; then
   AC_MSG_WARN([Support for native HDF5 file format disabled])
 else
@@ -334,7 +334,7 @@ fi
 
 old_LDFLAGS="$LDFLAGS"
 LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
-SNL_CHECK_NETCDF
+FATHOM_CHECK_NETCDF
 LDFLAGS="$old_LDFLAGS"
 if test "xno" = "x$HAVE_NETCDF"; then
   AC_MSG_WARN([Support for ExodusII file format disabled])
@@ -750,7 +750,7 @@ dnl  - The library name
 dnl  - The name of the variable to which to prepend the library link flag
 dnl  - List of extra libraries required for link test
 dnl  - Optional library path linker argument (e.g. -L/opt/foo)
-  AC_DEFUN([SNL_CHECK_LIB_LIST],[
+  AC_DEFUN([FATHOM_CHECK_LIB_LIST],[
     old_LIBS="$LIBS"
     LIBS="$4 ${$2} $old_LIBS"
     AC_HAVE_LIBRARY([$1],[$2="-l$1 ${$2}"],[],[$3])
@@ -759,40 +759,40 @@ dnl  - Optional library path linker argument (e.g. -L/opt/foo)
   
    # These are ordered such that a given library depends only on those libraries
    # that preceed it in the list.
-  SNL_CHECK_LIB_LIST([pthread],[vtk_sys_libs])
-  SNL_CHECK_LIB_LIST([dl],     [vtk_sys_libs])
-  SNL_CHECK_LIB_LIST([m],      [vtk_sys_libs])
-  SNL_CHECK_LIB_LIST([gcc],    [vtk_sys_libs])
+  FATHOM_CHECK_LIB_LIST([pthread],[vtk_sys_libs])
+  FATHOM_CHECK_LIB_LIST([dl],     [vtk_sys_libs])
+  FATHOM_CHECK_LIB_LIST([m],      [vtk_sys_libs])
+  FATHOM_CHECK_LIB_LIST([gcc],    [vtk_sys_libs])
   x_libs_arg="$X_EXTRA_LIBS -lX11 $X_PRE_LIBS"
-  SNL_CHECK_LIB_LIST([Xext],[vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
-  SNL_CHECK_LIB_LIST([ICE], [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
-  SNL_CHECK_LIB_LIST([SM],  [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
-  SNL_CHECK_LIB_LIST([Xt],  [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
-  SNL_CHECK_LIB_LIST([GL],  [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
-  SNL_CHECK_LIB_LIST([GLU], [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
+  FATHOM_CHECK_LIB_LIST([Xext],[vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
+  FATHOM_CHECK_LIB_LIST([ICE], [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
+  FATHOM_CHECK_LIB_LIST([SM],  [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
+  FATHOM_CHECK_LIB_LIST([Xt],  [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
+  FATHOM_CHECK_LIB_LIST([GL],  [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
+  FATHOM_CHECK_LIB_LIST([GLU], [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
   vtk_libs_arg="-L$x_libraries $vtk_x_libs $X_EXTRA_LIBS -lX11 $X_PRE_LIBS $vtk_sys_libs"
-  SNL_CHECK_LIB_LIST([vtksys],        [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkCommon],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkDICOMParser],[vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkfreetype],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkexpat],      [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkzlib],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkpng],        [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkjpeg],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtktiff],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkftgl],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkFiltering],  [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkImaging],    [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([verdict],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkGraphics],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkNetCDF],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkexoIIc],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkmetaio],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkIO],         [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkRendering],  [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkParallel],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([vtkHybrid],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  SNL_CHECK_LIB_LIST([QVTK],          [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtksys],        [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtkCommon],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtkDICOMParser],[vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtkfreetype],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtkexpat],      [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtkzlib],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtkpng],        [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtkjpeg],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtktiff],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtkftgl],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtkFiltering],  [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtkImaging],    [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([verdict],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtkGraphics],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtkNetCDF],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtkexoIIc],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtkmetaio],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtkIO],         [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtkRendering],  [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtkParallel],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([vtkHybrid],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_LIB_LIST([QVTK],          [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   
    # Make sure we found at least vtkCommon and vtkRendering
   if ! echo "x $vtk_libs" | grep lvtkCommon >/dev/null; then
@@ -879,7 +879,7 @@ dnl  - Optional library path linker argument (e.g. -L/opt/foo)
   dnl  - name of output variable
   dnl  - first list
   dnl  - second list
-  AC_DEFUN([SNL_MERGE_LISTS],[
+  AC_DEFUN([FATHOM_MERGE_LISTS],[
     $1="$2"
     # Reverse list two
     for item3 in $3; do 
@@ -891,8 +891,8 @@ dnl  - Optional library path linker argument (e.g. -L/opt/foo)
     done
     $1="${$1} $2"
   ])
-  SNL_MERGE_LISTS([XLIBS_tmp],[$X_EXTRA_LIBS -lX11 $X_PRE_LIBS],[$vtk_x_libs])
-  SNL_MERGE_LISTS([XLIBS],[$vtk_sys_libs],[$XLIBS_tmp])
+  FATHOM_MERGE_LISTS([XLIBS_tmp],[$X_EXTRA_LIBS -lX11 $X_PRE_LIBS],[$vtk_x_libs])
+  FATHOM_MERGE_LISTS([XLIBS],[$vtk_sys_libs],[$XLIBS_tmp])
   QVDUAL_LIBS="$LIBS $GRAPH_LIBS -L$VTK_LIB_DIR $vtk_libs $QT_LIBS $XLIBS"
   QVDUAL_INCLUDES="$GRAPH_INC_DIR $VTK_INCLUDES $QT_INCLUDES"
   AC_SUBST(VTK_LIB_DIR)
@@ -938,11 +938,11 @@ if test "x$CGM_MISSING" = "xno"; then
   CGM_CONFIG_OPTIONS="include $CGM_MAKE"
 
   AC_MSG_CHECKING([Checking for GeometryQueryTool::ray_fire(RefFace*,...)])
-  SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_DEFINES], [CGM_CPPFLAGS="$make_val"])   
-  SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_INCLUDES],[CGM_CPPFLAGS="$CGM_CPPFLAGS $make_val"])   
-  SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_LTFLAGS], [CGM_LTFLAGS="$make_val"])   
-  SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_LDFLAGS], [CGM_LDFLAGS="$make_val"])   
-  SNL_MAKE_INC_VAR([$CGM_MAKE],[CGM_LIBS],    [CGM_LIBS="$make_val"])   
+  FATHOM_MAKE_INC_VAR([$CGM_MAKE],[CGM_DEFINES], [CGM_CPPFLAGS="$make_val"])   
+  FATHOM_MAKE_INC_VAR([$CGM_MAKE],[CGM_INCLUDES],[CGM_CPPFLAGS="$CGM_CPPFLAGS $make_val"])   
+  FATHOM_MAKE_INC_VAR([$CGM_MAKE],[CGM_LTFLAGS], [CGM_LTFLAGS="$make_val"])   
+  FATHOM_MAKE_INC_VAR([$CGM_MAKE],[CGM_LDFLAGS], [CGM_LDFLAGS="$make_val"])   
+  FATHOM_MAKE_INC_VAR([$CGM_MAKE],[CGM_LIBS],    [CGM_LIBS="$make_val"])   
   AC_LANG_PUSH([C++])
   old_CPPFLAGS="$CPPFLAGS"
   old_LDFLAGS="$LDFLAGS"

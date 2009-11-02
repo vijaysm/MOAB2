@@ -6,7 +6,7 @@
 #  HDF5_LDFLAGS
 #  HDF5_LIBS
 #######################################################################################
-AC_DEFUN([SNL_CHECK_HDF5],[
+AC_DEFUN([FATHOM_CHECK_HDF5],[
 
   # CLI option for linking zlib
 AC_ARG_WITH(zlib,
@@ -184,4 +184,4 @@ if test "xno" != "x$HDF5_ARG"; then
 fi
 
 
-]) # SNL_CHECK_HDF5
+]) # FATHOM_CHECK_HDF5

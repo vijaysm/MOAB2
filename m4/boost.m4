@@ -4,9 +4,9 @@
 # Unless user specified --without-boost, will check for any passed headers.
 # For any found headers, -DHAVE_[header] will be added to DEFINES
 #######################################################################################
-AC_DEFUN([SNL_CHECK_BOOST],[
+AC_DEFUN([FATHOM_CHECK_BOOST],[
 AC_MSG_CHECKING([if boost library is enabled])
-SNL_BOOST_OPT_HEADER_LIST="$1"
+FATHOM_BOOST_OPT_HEADER_LIST="$1"
 AC_ARG_WITH(boost, 
 [AC_HELP_STRING([--with-boost=DIR], [Specify directory where boost is installed])
 AC_HELP_STRING([--without-boost], [Disable support for boost libraries])],
@@ -24,7 +24,7 @@ else
   fi
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
-  AC_CHECK_HEADERS( [$SNL_BOOST_OPT_HEADER_LIST],[def=`echo "$ac_header" | $as_tr_cpp`; DEFINES="$DEFINES -DHAVE_$def"] )
+  AC_CHECK_HEADERS( [$FATHOM_BOOST_OPT_HEADER_LIST],[def=`echo "$ac_header" | $as_tr_cpp`; DEFINES="$DEFINES -DHAVE_$def"] )
   AC_LANG_RESTORE
 fi
-]) # SNL_CHECK_BOOST
+]) # FATHOM_CHECK_BOOST

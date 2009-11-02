@@ -6,7 +6,7 @@
 #   NETCDF_LDFLAGS
 #   NETCDF_LIBS
 #######################################################################################
-AC_DEFUN([SNL_CHECK_NETCDF],[
+AC_DEFUN([FATHOM_CHECK_NETCDF],[
 
 AC_MSG_CHECKING([if NetCDF support is enabled])
 AC_ARG_WITH(netcdf, 
@@ -110,4 +110,4 @@ if test "xno" != "x$NETCDF_ARG"; then
   fi
 fi
 
-]) # SNL_HAVE_NETCDF
+]) # FATHOM_HAVE_NETCDF

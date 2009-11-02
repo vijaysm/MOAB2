@@ -11,7 +11,7 @@
 # If ACIS_VERSION is set, the corresponding test
 # will be skipped.
 #######################################################################################
-AC_DEFUN([SNL_ACIS_ENV], [
+AC_DEFUN([FATHOM_ACIS_ENV], [
 
 AC_CHECK_FILE([$ACIS_DIR/include/acis.hxx], [], [AC_MSG_ERROR("Invalid ACIS path")])
  
@@ -28,7 +28,7 @@ for dir in $dir_list; do
       ;;
     *)
       if ! test "$ACIS_VERSION" -gt "600"; then
-        SNL_ACIS_VERSION( [$dir] )
+        FATHOM_ACIS_VERSION( [$dir] )
         ACIS_LIB_DIR="$dir"
       fi
       ;;
@@ -37,7 +37,7 @@ for dir in $dir_list; do
   case "$dir" in
     *_debug)
       if ! test "$ACIS_VERSION" -gt "600"; then
-        SNL_ACIS_VERSION( [$dir] )
+        FATHOM_ACIS_VERSION( [$dir] )
         ACIS_DEBUG_LIB_DIR="$dir"
       fi
       ;;
@@ -92,8 +92,8 @@ AC_MSG_RESULT([$ACIS_PLATFORM])
 #######################################################################################
 # Macro to check for ACIS translators.
 #######################################################################################
-AC_DEFUN([SNL_ACIS_TRANSLATOR], [
-AC_REQUIRE([SNL_ACIS_ENV])
+AC_DEFUN([FATHOM_ACIS_TRANSLATOR], [
+AC_REQUIRE([FATHOM_ACIS_ENV])
 case "$ACIS_VERSION" in
   11??)
     ACIS_XLATE_LIBS='-lxacis2k -lxcore2k -lxutil'
@@ -126,7 +126,7 @@ LIBS="$old_LIBS"
 # Macro to get ACIS_VERSION
 # Expected arguments: ACIS library path
 #######################################################################################
-AC_DEFUN([SNL_ACIS_VERSION], [
+AC_DEFUN([FATHOM_ACIS_VERSION], [
 AC_REQUIRE([AC_PROG_LIBTOOL])
 AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
@@ -134,7 +134,7 @@ AC_MSG_CHECKING([ACIS version of $1])
 src=conftest.cc
 exe=conftest
 
-cat <<END_SNL_ACIS_VERSION_SRC  >$src
+cat <<END_FATHOM_ACIS_VERSION_SRC  >$src
 #include <stdio.h>
 int get_major_version();
 int get_minor_version();
@@ -145,7 +145,7 @@ int main(int,char**) { printf("%d\n",
     get_point_version()); 
 return 0;}
 
-END_SNL_ACIS_VERSION_SRC
+END_FATHOM_ACIS_VERSION_SRC
 
 FLAGS="$CXXFLAGS $LDFLAGS -L$1 -R$1"
 if ./libtool --mode=link $CXX $FLAGS $src -lSpaBase -o $exe >/dev/null 2>/dev/null; then
@@ -158,4 +158,4 @@ fi
 
 #rm -f $src $exe
 AC_LANG_RESTORE
-]) # SNL_ACIS_VERSION
+]) # FATHOM_ACIS_VERSION

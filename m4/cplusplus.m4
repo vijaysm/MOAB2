@@ -44,7 +44,7 @@ fi
 #      exist or do not define symbols to be in the "std" namespace.
 #      For example: if this is defined, #include <iostrea.h> rather than <iostream>
 #######################################################################################
-AC_DEFUN([SNL_CANT_USE_STD], [
+AC_DEFUN([FATHOM_CANT_USE_STD], [
 
 AC_CACHE_CHECK([for C++-standard library in std:: namespace],
                [snl_cv_cxx_stl_in_std],
@@ -85,7 +85,7 @@ else
   CANT_USE_STD_IO=
 fi
 
-]) # SNL_CANT_USE_STD
+]) # FATHOM_CANT_USE_STD
 
 
 
@@ -95,7 +95,7 @@ fi
 # included (in the .hpp files).
 # Sets TEMPLATE_DEFS_INCLUDED=-DTEMPLATE_DEFS_INCLUDED
 #######################################################################################
-AC_DEFUN([SNL_TEMPLATE_DEFS_INCLUDED], [
+AC_DEFUN([FATHOM_TEMPLATE_DEFS_INCLUDED], [
 
 AC_CACHE_CHECK([if C++ template definitions should be included],
                [snl_cv_cxx_template_defs_included],
@@ -125,13 +125,13 @@ else
   TEMPLATE_DEFS_INCLUDED=
 fi
 
-]) # SNL_TEMPLATE_DEFS_INCLUDED
+]) # FATHOM_TEMPLATE_DEFS_INCLUDED
 
 #######################################################################################
 # Check if compiler supports template class specialization.
 # Sets TEMPLATE_SPECIALIZATION=-DTEMPLATE_SPECIALIZATION
 #######################################################################################
-AC_DEFUN([SNL_TEMPLATE_SPECIALIZATION], [
+AC_DEFUN([FATHOM_TEMPLATE_SPECIALIZATION], [
 AC_CACHE_CHECK([if C++ compiler supports template class specialization],
                [snl_cv_template_specialization],
                [AC_LANG_SAVE
@@ -148,13 +148,13 @@ if test $snl_cv_template_specialization = yes; then
   TEMPLATE_SPECIALIZATION=-DTEMPLATE_SPECIALIZATION
 fi
 
-]) # SNL_TEMPLATE_SPECIALIZATION
+]) # FATHOM_TEMPLATE_SPECIALIZATION
 
 #######################################################################################
 # Check if compiler supports template function specialization.
 # Sets TEMPLATE_FUNC_SPECIALIZATION=-DTEMPLATE_FUNC_SPECIALIZATION
 #######################################################################################
-AC_DEFUN([SNL_TEMPLATE_FUNC_SPECIALIZATION], [
+AC_DEFUN([FATHOM_TEMPLATE_FUNC_SPECIALIZATION], [
 AC_CACHE_CHECK([if C++ compiler supports template function specialization],
                [snl_cv_template_func_specialization],
                [AC_LANG_SAVE
@@ -172,4 +172,4 @@ if test $snl_cv_template_func_specialization = yes; then
   TEMPLATE_FUNC_SPECIALIZATION=-DTEMPLATE_FUNC_SPECIALIZATION
 fi
 
-]) # SNL_TEMPLATE_FUNC_SPECIALIZATION
+]) # FATHOM_TEMPLATE_FUNC_SPECIALIZATION
