@@ -39,6 +39,7 @@ if PARALLEL
 
 # The list of header files which are to be installed
   MOAB_PARALLEL_HDRS += \
+     MBmpi.h MBmpi_config.h \
      MBParallelComm.hpp \
      MBProcConfig.hpp \
      MBParallelData.hpp \
