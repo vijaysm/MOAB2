@@ -57,7 +57,24 @@ AC_DEFUN([FATHOM_CHECK_MPI], [
                           #define MPICH_IGNORE_CXX_SEEK
                           #include <mpi.h>],[])],
         [MPI_CXX_HELP_NEEDED=no; AC_MSG_RESULT([MPICH_IGNORE_CXX_SEEK])],
-        [MPI_CXX_HELP_NEEDED=yes; AC_MSG_RESULT([yes])])
+        [MPI_CXX_HELP_NEEDED=yes
+         AC_MSG_RESULT([yes])
+
+         AC_MSG_CHECKING([value of SEEK_SET])
+         FATHOM_MACRO_VALUE([stdio.h],[SEEK_SET],[SEEK_SET],[16])
+         AC_MSG_RESULT([$SEEK_SET])
+         AC_DEFINE_UNQUOTED([MB_SEEK_SET],[$SEEK_SET],["Value of C SEEK_SET"])
+
+         AC_MSG_CHECKING([value of SEEK_CUR])
+         FATHOM_MACRO_VALUE([stdio.h],[SEEK_CUR],[SEEK_CUR],[16])
+         AC_MSG_RESULT([$SEEK_CUR])
+         AC_DEFINE_UNQUOTED([MB_SEEK_CUR],[$SEEK_CUR],["Value of C SEEK_CUR"])
+
+         AC_MSG_CHECKING([value of SEEK_END])
+         FATHOM_MACRO_VALUE([stdio.h],[SEEK_END],[SEEK_END],[16])
+         AC_MSG_RESULT([$SEEK_END])
+         AC_DEFINE_UNQUOTED([MB_SEEK_END],[$SEEK_END],["Value of C SEEK_END"])
+       ])
     ])
     AC_LANG_POP([C++])
   fi
