@@ -1,4 +1,3 @@
-/* MBmpi.h.  Generated from MBmpi.h.in by configure.  */
 #ifndef MB_MPI_H
 #define MB_MPI_H
 #include "MBmpi_config.h"
