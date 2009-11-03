@@ -54,6 +54,11 @@ MBAdaptiveKDTree::Settings::Settings()
 #define MB_AD_KD_TREE_USE_TWO_DOUBLE_TAG
 
 #if defined(MB_AD_KD_TREE_USE_SINGLE_TAG) && defined(HDF5_FILE)
+  /* include our MPI header before any HDF5 because otherwise
+     it will get included indirectly by HDF5 */
+# ifdef USE_MPI
+#  include "MBmpi.h"
+# endif 
 # include <H5Tpublic.h>
 #endif
 

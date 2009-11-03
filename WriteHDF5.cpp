@@ -41,6 +41,11 @@
 #include <limits>
 #include <cstdio>
 #include <iostream>
+/* include our MPI header before any HDF5 because otherwise
+   it will get included indirectly by HDF5 */
+#ifdef USE_MPI
+#  include "MBmpi.h"
+#endif 
 #include <H5Tpublic.h>
 #include <H5Ppublic.h>
 #include "MBInterface.hpp"
