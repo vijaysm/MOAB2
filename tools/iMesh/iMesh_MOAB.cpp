@@ -2993,8 +2993,9 @@ MBErrorCode create_int_ents(MBInterface *instance,
 
 void eatwhitespace(std::string &this_string) 
 {
-  std::string::size_type len = this_string.find_last_not_of(" ");
-  if (len != this_string.npos) this_string[len+1] = '\0';
+  std::string::size_type p = this_string.find_last_not_of(" ");
+  if (p != this_string.npos)
+    this_string.resize(p+1);
 }
   
 void cfunc_(int arg3, char *mystr, char *mystr2, int arg2, 
