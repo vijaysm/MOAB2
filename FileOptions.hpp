@@ -150,6 +150,12 @@ public:
   /** Get list of options */
   void get_options( std::vector<std::string>& list ) const;
   
+  /** Check if all options have been looked at */
+  bool all_seen() const;
+  
+  /** Get first unseen option */
+  MBErrorCode get_unseen_option( std::string& value ) const;
+  
 private:
   
   /**\brief Check for option 
@@ -163,6 +169,7 @@ private:
 
   char* mData;
   std::vector<const char*> mOptions;
+  mutable std::vector<bool> mSeen;
 
     /** Case-insensitive compare of name with option value. */
   static bool compare( const char* name, const char* option );

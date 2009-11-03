@@ -23,6 +23,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <algorithm>
 
 const char DEFAULT_SEPARATOR = ';';
 
@@ -55,6 +56,8 @@ FileOptions::FileOptions( const char* str )
       if (!strempty(i)) // skip empty strings
         mOptions.push_back( i );
   }
+  
+  mSeen.resize( mOptions.size(), false );
 }
 
 FileOptions::FileOptions( const FileOptions& copy ) :
@@ -69,6 +72,7 @@ FileOptions::FileOptions( const FileOptions& copy ) :
     for (size_t i = 0; i < mOptions.size(); ++i)
       mOptions[i] = mData + (copy.mOptions[i] - copy.mData);
   }
+  mSeen = copy.mSeen;
 }
 
 FileOptions& FileOptions::operator=( const FileOptions& copy )
@@ -86,7 +90,8 @@ FileOptions& FileOptions::operator=( const FileOptions& copy )
     for (size_t i = 0; i < mOptions.size(); ++i)
       mOptions[i] = mData + (copy.mOptions[i] - copy.mData);
   }
-    
+
+  mSeen = copy.mSeen;
   return *this;
 }
 
@@ -228,7 +233,8 @@ MBErrorCode FileOptions::get_option( const char* name, const char*& value ) cons
         // name must be either the null char or an equals symbol.
       if (*value == '=') 
         ++value;
-        
+      
+      mSeen[i - mOptions.begin()] = true;
       return MB_SUCCESS;
     }
   }
@@ -279,6 +285,25 @@ void FileOptions::get_options( std::vector<std::string>& list ) const
   list.clear();
   list.resize( mOptions.size() );
   std::copy( mOptions.begin(), mOptions.end(), list.begin() );
+}
+
+bool FileOptions::all_seen() const
+{
+  return std::find( mSeen.begin(), mSeen.end(), false ) == mSeen.end();
+}
+
+MBErrorCode FileOptions::get_unseen_option( std::string& name ) const
+{
+  std::vector<bool>::iterator i = std::find( mSeen.begin(), mSeen.end(), false );
+  if (i == mSeen.end()) {
+    name.clear();
+    return MB_ENTITY_NOT_FOUND;
+  }
+  
+  const char* opt = mOptions[i - mSeen.begin()];
+  const char* end = strchr( opt, '=' );
+  name = end ? std::string(opt, end-opt) : std::string(opt);
+  return MB_SUCCESS;
 }
 
 #ifdef TEST
@@ -384,6 +409,12 @@ int main()
   rval = tool.get_str_option( "nul3", s );
   EQUAL( rval, MB_TYPE_OUT_OF_RANGE );
   
+    // We haven't looked at all of the options yet
+  EQUAL( false, tool.all_seen() );
+  rval = tool.get_unseen_option( s );
+  CHECK( rval );
+  EQUAL( s, "str3" );
+  
     // test options using generic get_option method
     
   rval = tool.get_option( "NUL3", s );
@@ -398,6 +429,10 @@ int main()
   unsigned l = tool.size();
   EQUAL( l, 12u );
   
+    // We requested every option
+  EQUAL( true, tool.all_seen() );
+  rval = tool.get_unseen_option( s );
+  EQUAL( MB_ENTITY_NOT_FOUND, rval );
   
     // test alternate separator
   
@@ -405,6 +440,12 @@ int main()
   l = tool2.size();
   EQUAL( l, 2 );
   
+    // We haven't looked at all of the options yet
+  EQUAL( false, tool2.all_seen() );
+  rval = tool2.get_unseen_option( s );
+  CHECK( rval );
+  EQUAL( s, "OPT1" );
+   
   rval = tool2.get_option( "opt1", s );
   CHECK( rval );
   EQUAL( s, "ABC" );
@@ -417,6 +458,11 @@ int main()
   l = tool2.size();
   EQUAL( l, 2 );
   
+    // We requested every option
+  EQUAL( true, tool2.all_seen() );
+  rval = tool2.get_unseen_option( s );
+  EQUAL( MB_ENTITY_NOT_FOUND, rval );
+  
     
     // test empty options string
     
@@ -425,18 +471,21 @@ int main()
   EQUAL( e, true );
   l = tool3.size();
   EQUAL( l, 0 );
+  EQUAL( true, tool3.all_seen() );
   
   FileOptions tool4(NULL);
   e = tool4.empty();
   EQUAL( e, true );
   l = tool4.size();
   EQUAL( l, 0 );
+  EQUAL( true, tool4.all_seen() );
   
   FileOptions tool5(";+");
   e = tool5.empty();
   EQUAL( e, true );
   l = tool5.size();
   EQUAL( l, 0 );
+  EQUAL( true, tool5.all_seen() );
   
     // test copy constructor
   

@@ -395,9 +395,9 @@ MBErrorCode MBCore::load_file( const char* file_name,
     else if (rval != MB_ENTITY_NOT_FOUND) 
       return rval;
     if (set_tag_name && num_set_tag_vals) 
-      return ReadParallel(this,pcomm).load_file( file_name, file_set, opts, &t, 1 );
+      rval = ReadParallel(this,pcomm).load_file( file_name, file_set, opts, &t, 1 );
     else
-      return ReadParallel(this,pcomm).load_file( file_name, file_set, opts );
+      rval = ReadParallel(this,pcomm).load_file( file_name, file_set, opts );
 #else
     mError->set_last_error( "PARALLEL option not valid, this instance"
                             " compiled for serial execution.\n" );
@@ -406,10 +406,21 @@ MBErrorCode MBCore::load_file( const char* file_name,
   }
   else {
     if (set_tag_name && num_set_tag_vals) 
-      return serial_load_file( file_name, file_set, opts, &t, 1 );
+      rval = serial_load_file( file_name, file_set, opts, &t, 1 );
     else 
-      return serial_load_file( file_name, file_set, opts );
+      rval = serial_load_file( file_name, file_set, opts );
   }
+  
+  if (MB_SUCCESS == rval && !opts.all_seen()) {
+    std::string bad_opt;
+    if (MB_SUCCESS == opts.get_unseen_option( bad_opt ))
+      mError->set_last_error( "Unrecognized option: \"%s\"", bad_opt.c_str() );
+    else
+      mError->set_last_error( "Unrecognized option." );
+    rval = MB_FAILURE;
+  }
+  
+  return rval;
 }
 
 MBErrorCode MBCore::serial_load_file( const char* file_name,
@@ -588,6 +599,15 @@ MBErrorCode MBCore::write_file( const char* file_name,
                             tag_list, num_tags );
   delete writer;
   
+  if (MB_SUCCESS == rval && !opts.all_seen()) {
+    std::string bad_opt;
+    if (MB_SUCCESS == opts.get_unseen_option( bad_opt ))
+      mError->set_last_error( "Unrecognized option: \"%s\"", bad_opt.c_str() );
+    else
+      mError->set_last_error( "Unrecognized option." );
+    rval = MB_FAILURE;
+  }
+
   return rval;
 }
    
