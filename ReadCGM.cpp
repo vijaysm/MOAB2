@@ -17,7 +17,6 @@
 #endif
 
 #include "GeometryQueryTool.hpp"
-#include "GeometryQueryEngine.hpp"
 #include "ModelQueryEngine.hpp"
 #include "RefEntityName.hpp"
 #include "GMem.hpp"
@@ -387,10 +386,8 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
   for (ci = entmap[1].begin(); ci != entmap[1].end(); ++ci) {
     RefEdge* edge = dynamic_cast<RefEdge*>(ci->first);
     Curve* curve = edge->get_curve_ptr();
-    GeometryQueryEngine* gqe = curve->get_geometry_query_engine();
     data.clean_out();
-    int count;
-    CubitStatus s = gqe->get_graphics( curve, count, &data, faceting_tol);
+    edge->get_graphics( data, faceting_tol);
     if (CUBIT_SUCCESS != s)
       return MB_FAILURE;
       
@@ -411,7 +408,7 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
     
       // Special case for point curve
     if (points.size() < 2) {
-      if (start_vtx != end_vtx || curve->measure() > gqe->get_sme_resabs_tolerance()) {
+      if (start_vtx != end_vtx || curve->measure() > GEOMETRY_RESABS ) {
         std::cerr << "Warning: No facetting for curve " << edge->id() << std::endl;
         continue;
       }
@@ -422,15 +419,15 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
       continue;
     }
     
-    const bool closed = (points.front() - points.back()).length() < gqe->get_sme_resabs_tolerance();
+    const bool closed = (points.front() - points.back()).length() < GEOMETRY_RESABS;
     if (closed != (start_vtx == end_vtx)) {
       std::cerr << "Warning: topology and geometry inconsistant for possibly closed curve "
                 << edge->id() << std::endl;
     }
     
       // check proximity of vertices to end coordinates
-    if ((start_vtx->coordinates() - points.front()).length() > gqe->get_sme_resabs_tolerance()
-     || (  end_vtx->coordinates() - points.back() ).length() > gqe->get_sme_resabs_tolerance()) {
+    if ((start_vtx->coordinates() - points.front()).length() > GEOMETRY_RESABS
+     || (  end_vtx->coordinates() - points.back() ).length() > GEOMETRY_RESABS ) {
       std::cerr << "Warning: vertices not at ends of curve " << edge->id() << std::endl;
     }
     
@@ -471,12 +468,10 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
     // create geometry for all surfaces
   for (ci = entmap[2].begin(); ci != entmap[2].end(); ++ci) {
     RefFace* face = dynamic_cast<RefFace*>(ci->first);
-    Surface* surf = face->get_surface_ptr();
-    GeometryQueryEngine* gqe = surf->get_geometry_query_engine();
+
     data.clean_out();
-    int nt, np, nf;
-    CubitStatus s = gqe->get_graphics( surf, nt, np, nf, &data, 
-                                       norm_tol, faceting_tol, len_tol);
+    CubitStatus s = face->get_graphics( data, norm_tol, faceting_tol, len_tol );
+
     if (CUBIT_SUCCESS != s)
       return MB_FAILURE;
 
@@ -496,7 +491,7 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
         CubitVector vpos( data.point_list()[j].x,
                           data.point_list()[j].y,
                           data.point_list()[j].z );
-        if ((pos - vpos).length_squared() < gqe->get_sme_resabs_tolerance()*gqe->get_sme_resabs_tolerance()) {
+        if ((pos - vpos).length_squared() < GEOMETRY_RESABS*GEOMETRY_RESABS ) {
           if (verts[j])
             std::cerr << "Warning: Coincident vertices in surface " << face->id() << std::endl;
           verts[j] = entmap[0][vtx];
