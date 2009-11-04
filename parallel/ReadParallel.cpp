@@ -85,6 +85,11 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
     distrib = true;
     if (partition_tag_name.empty()) 
       partition_tag_name = PARALLEL_PARTITION_TAG_NAME;
+      
+      // also get depricated PARTITION_DISTRIBUTE option
+      // so that higher-level code doesn't return an error
+      // due to an unrecongized option
+    opts.get_null_option( "PARTITION_DISTRIBUTE" );
   }
 
     // Get partition tag value(s), if any, and whether they're to be
