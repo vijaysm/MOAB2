@@ -5,6 +5,7 @@
 .. module:: itaps.helpers
    :synopsis: Helper classes to simplify common operations.
 
+
 AdjacencyList
 =============
 
