@@ -24,6 +24,9 @@
 #define WRITE_HDF5_HPP
 
 #include <list>
+#ifdef USE_MPI // include this before HDF5 headers to avoid conflicts
+#  include "MBmpi.h"
+#endif
 #include "mhdf.h"
 #include "MBForward.hpp"
 #include "MBRange.hpp"
