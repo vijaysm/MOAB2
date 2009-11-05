@@ -6,6 +6,7 @@
    :synopsis: Basic services to manage a discrete mesh composed of sets of
               entities.
 
+
 Mesh
 ====
 
