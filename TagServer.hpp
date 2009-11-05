@@ -244,7 +244,9 @@ public:
   MBErrorCode get_entities( const MBTag tag_handle, 
                              MBRange &entities);
 
-  //! gets all entity handles that match a type and tag
+  //! For the set of entities in the input range, return those
+  //! that match the specified type and have a value for the 
+  //! specified tag.
   MBErrorCode get_entities( const MBRange &input_range,
                              const MBTag tag_handle, 
                              const MBEntityType type,
@@ -257,7 +259,8 @@ public:
                                             MBRange &entities,
                                             int value_size = 0 );
   
-  //! gets all entity handles that match a type, tag and tag value 
+  //! For the set of entities in the input range, return those
+  //! that match the specified type and have the specified tag value.
   MBErrorCode get_entities_with_tag_value( const MBRange &input_range,
                                             const MBEntityType type,
                                             const MBTag tag_handle,

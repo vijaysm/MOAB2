@@ -39,7 +39,7 @@ public:
   //! set the name of the tag
   void set_name( const std::string& name) { mTagName = name; }
 
-  //! set the size of the data
+  //! set the size of the data, might be MB_VARIABLE_LENGTH 
   void set_size( const int size ) { mDataSize = size; }
 
   //! get the name of the tag
