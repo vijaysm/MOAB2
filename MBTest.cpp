@@ -891,6 +891,82 @@ MBErrorCode mb_adjacencies_test(MBInterface *mb)
   return result;
 
 }
+  
+MBErrorCode mb_adjacencies_create_delete_test(MBInterface *mb) 
+{
+  MBCore moab;
+  mb = &moab;
+  MBErrorCode rval;
+
+  double coords[] = { 0, 0, 0, 2, 0, 0, 1, 2, 0 };
+  MBRange verts;
+  rval = mb->create_vertices( coords, 3, verts );
+  if (MB_SUCCESS != rval)
+    return rval;
+  if (verts.size() != 3)
+    return MB_FAILURE;
+  MBEntityHandle vert_arr[3];
+
+  MBEntityHandle tri;
+  std::copy( verts.begin(), verts.end(), vert_arr );
+  rval = mb->create_element( MBTRI, vert_arr, 3, tri );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  vert_arr[2] = vert_arr[0];
+  MBEntityHandle forward_edge, reverse_edge;
+  rval = mb->create_element( MBEDGE, vert_arr, 2, forward_edge );
+  if (MB_SUCCESS != rval)
+    return rval;
+    
+  std::vector<MBEntityHandle> results;
+  rval = mb->get_adjacencies( &forward_edge, 1, 2, false, results );
+  if (results.size() != 1 || results.front() != tri) {
+    std::cerr << "Adjacency query from forward edge to tri failed at "
+              << __FILE__ <<  ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+  results.clear();
+  rval = mb->get_adjacencies( &tri, 1, 1, false, results );
+  if (results.size() != 1 || results.front() != forward_edge) {
+    std::cerr << "Adjacency query from tri to forward edge failed at "
+              << __FILE__ <<  ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+  
+  rval = mb->delete_entities( &forward_edge, 1 );
+  if (MB_SUCCESS != rval)
+    return rval;
+  
+  results.clear();
+  rval = mb->get_adjacencies( &tri, 1, 1, false, results );
+  if (!results.empty()) {
+    std::cerr << "Adjacency query from tri returned non-existent edge at "
+              << __FILE__ <<  ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+  
+  rval = mb->create_element( MBEDGE, vert_arr+1, 2, reverse_edge );
+  if (MB_SUCCESS != rval)
+    return rval;
+    
+  results.clear();
+  rval = mb->get_adjacencies( &reverse_edge, 1, 2, false, results );
+  if (results.size() != 1 || results.front() != tri) {
+    std::cerr << "Adjacency query from reverse edge to tri failed at "
+              << __FILE__ <<  ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+  results.clear();
+  rval = mb->get_adjacencies( &tri, 1, 1, false, results );
+  if (results.size() != 1 || results.front() != reverse_edge) {
+    std::cerr << "Adjacency query from tri to reverse edge failed at "
+              << __FILE__ <<  ":" << __LINE__ << std::endl;
+    return MB_FAILURE;
+  }
+  
+  return MB_SUCCESS;
+}
 
 static MBErrorCode create_two_hex_full_mesh( MBInterface* mb,
                                              MBEntityHandle vertices[12],
@@ -6795,6 +6871,7 @@ int main(int argc, char* argv[])
 
   RUN_TEST( mb_adjacent_vertex_test );
   RUN_TEST( mb_adjacencies_test );
+  RUN_TEST( mb_adjacencies_create_delete_test );
   RUN_TEST( mb_upward_adjacencies_test );
   RUN_TEST( mb_vertex_coordinate_test );
   RUN_TEST( mb_vertex_tag_test );
