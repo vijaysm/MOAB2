@@ -1,6 +1,6 @@
 #include "MBCore.hpp"
-#include "TestUtil.hpp"
 #include "MBRange.hpp"
+#include "TestUtil.hpp"
 #include <stdlib.h>
 #include <algorithm>
 
@@ -28,6 +28,7 @@ void test_create_variable_length_tag();
 void test_get_set_variable_length_sparse();
 void test_get_set_variable_length_dense();
 void test_get_set_variable_length_mesh();
+void test_get_ents_with_default_value();
 
 void regression_one_entity_by_var_tag();
 void regression_tag_on_nonexistent_entity();
@@ -60,6 +61,7 @@ int main()
   failures += RUN_TEST( test_get_set_variable_length_sparse );
   failures += RUN_TEST( test_get_set_variable_length_dense );
   failures += RUN_TEST( test_get_set_variable_length_mesh );  
+  failures += RUN_TEST( test_get_ents_with_default_value );  
   failures += RUN_TEST( regression_one_entity_by_var_tag );
   failures += RUN_TEST( regression_tag_on_nonexistent_entity );
   
@@ -1585,6 +1587,93 @@ void test_get_set_variable_length_mesh()
   CHECK_EQUAL( values5[4], reinterpret_cast<const int*>(data[0])[4] );
 }
 
+void test_get_ents_with_default_value()
+{
+  MBCore moab;
+  MBInterface &mb = moab;
+  MBErrorCode rval;
+  MBRange result;
+
+    // create a bunch of vertices
+  std::vector<double> coords(90,0.0);
+  MBRange verts;
+  rval = mb.create_vertices( &coords[0], coords.size()/3, verts );
+  CHECK_ERR( rval );
+  CHECK_EQUAL( coords.size()/3, verts.size() );
+    // create one edge, which we should never get back from 
+    // our queries with type == MBVERTEX
+  MBEntityHandle edge, ends[] = { verts.front(), verts.back() };
+  rval = mb.create_element( MBEDGE, ends, 2, edge );
+  CHECK_ERR(rval);
+  
+    // split vertices into four groups
+  MBRange sets[4];
+  size_t s = 0;
+  for (MBRange::iterator i = verts.begin(); i != verts.end(); ++i) {
+    sets[s].insert(*i);
+    s = (s+1)%4;
+  }
+
+
+    // create a sparse tag and set some verts to non-default value
+  int default_sparse = 5;
+  MBTag tag_sparse = test_create_tag( mb, "int", sizeof(int), MB_TAG_SPARSE, MB_TYPE_INTEGER, &default_sparse );
+  std::vector<int> sparse_vals(sets[0].size(), -1);
+  rval = mb.tag_set_data( tag_sparse, sets[0], &sparse_vals[0] );
+  CHECK_ERR(rval);
+  
+    // get all entities with default value for sparse tag
+  result.clear();
+  const void* ptrs[] = { &default_sparse };
+  rval = mb.get_entities_by_type_and_tag( 0, MBVERTEX, &tag_sparse, ptrs, 1, result );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( subtract(verts, sets[0]), result );
+
+
+    // create a dense tag and set some verts to non-default value
+  double default_dense = -1.0;
+  MBTag tag_dense = test_create_tag( mb, "double", sizeof(double), MB_TAG_DENSE, MB_TYPE_DOUBLE, &default_dense );
+  std::vector<double> dense_vals(sets[1].size(), 3.14159);
+  rval = mb.tag_set_data( tag_dense, sets[1], &dense_vals[0] );
+  CHECK_ERR(rval);
+  
+    // get all entities with default value for dense tag
+  result.clear();
+  ptrs[0] = &default_dense;
+  rval = mb.get_entities_by_type_and_tag( 0, MBVERTEX, &tag_dense, ptrs, 1, result );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( subtract(verts, sets[1]), result );
+  
+  
+    // create a variable-length tag and set some verts to non-default value
+  // SKIP THIS: NO API FOR QUERYING ENTITIES WITH VARIABLE-LENGTH VALUE
+  //int default_vlen[] = { 1, 2, 3 };
+  //MBTag tag_vlen = test_create_var_len_tag( mb, "vlen", MB_TAG_SPARSE, MB_TYPE_INTEGER, default_vlen, sizeof(default_vlen) );
+  //int other_vlen[] = { 4, 5, 6, 7 };
+  //std::vector<const void*> vlen_ptrs( sets[2].size(), other_vlen );
+  //std::vector<int> vlen_sizes( sets[2].size)(), sizeof(other_vlen) );
+  //rval = mb.tag_set_data( tag_vlen, sets[2], &vlen_ptrs[0], &vlen_sizes[0] );
+  //CHECK_ERR(rval);
+  
+  
+    // check that INTERSECT option works as expected
+  result.clear();
+  result.insert( sets[1].front() );
+  ptrs[0] = &default_sparse;
+  rval = mb.get_entities_by_type_and_tag( 0, MBVERTEX, &tag_sparse, ptrs, 1, result, MBInterface::INTERSECT );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( (size_t)1, result.size() );
+  CHECK_EQUAL( sets[1].front(), result.front() );
+  
+  
+    // check that UNITE option works as expected
+  result.clear();
+  result.insert( edge );
+  ptrs[0] = &default_sparse;
+  rval = mb.get_entities_by_type_and_tag( 0, MBVERTEX, &tag_sparse, ptrs, 1, result, MBInterface::UNION );
+  CHECK_ERR(rval);
+  CHECK_EQUAL( edge, result.back() );
+}
 
 void setup_mesh( MBInterface& mb )
 {

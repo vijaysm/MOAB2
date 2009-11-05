@@ -44,6 +44,7 @@
 #include "MBBits.hpp"
 #include "MBInterface.hpp"
 #include "SequenceManager.hpp"
+#include "TagCompare.hpp"
 
 using namespace std;
   
@@ -861,9 +862,26 @@ MBErrorCode TagServer::get_entities_with_tag_value( const MBRange &range,
   const TagInfo* info = get_tag_info( tag_handle );
   if (!info)
     return MB_TAG_NOT_FOUND;
-  if (!value_size && info->get_size() != MB_VARIABLE_LENGTH)
+    
+  if (!value_size) {
+    if (info->get_size() == MB_VARIABLE_LENGTH)
+      return MB_VARIABLE_DATA_LENGTH;
     value_size = info->get_size();
-
+  }
+  
+    // If tag value is default value, then we want every entity
+    // in 'range' of the correct type, except those with a different tag value.
+  bool equals_default;
+  if (info->default_value()) {
+    if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
+      equals_default = (*(char*)value == *(char*)info->default_value());
+    else
+      equals_default = !memcmp( value, info->default_value(), info->default_value_size() );
+  }
+  MBRange tmp_ents;
+  if (equals_default)
+    tmp_ents.swap( entities );
+  
   switch (PROP_FROM_TAG_HANDLE(tag_handle)) {
     case MB_TAG_SPARSE:
       result = mSparseData->get_entities_with_tag_value(range, id, *info, type, entities, value, value_size);
@@ -880,7 +898,29 @@ MBErrorCode TagServer::get_entities_with_tag_value( const MBRange &range,
       break;
   }
 
-  return result;
+  if (MB_SUCCESS != result || !equals_default)
+    return result;
+
+    // If tag value is default value, then we want every entity
+    // in 'range' of the correct type, except those with a different tag value.
+  
+  MBRange all_tagged;
+  result = get_entities( range, tag_handle, type, all_tagged );
+  if (MB_SUCCESS != result) 
+    return result;
+  
+    // get entities with a different tag value
+  entities = subtract( all_tagged, entities );
+    // get everything that does not have a different value
+  entities = subtract( range, entities );
+    // remove entities of the incorrect type, if any
+  std::pair<MBRange::iterator,MBRange::iterator> p = entities.equal_range(type);
+  entities.erase( entities.begin(), p.first );
+  entities.erase( p.second, entities.end() );
+    // merge with entities initially in range
+  entities.merge( tmp_ents );
+    
+  return MB_SUCCESS;
   
 }
 
