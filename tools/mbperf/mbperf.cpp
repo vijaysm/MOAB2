@@ -755,7 +755,7 @@ void skin_adj( const int nelem )
     // force creation of adjacencies
   rval = gMB->get_entities_by_dimension( 0, 0, verts );
   assert(MB_SUCCESS == rval); assert(!verts.empty());
-  rval = gMB->get_adjacencies( verts, 3, false, hexes );
+  rval = gMB->get_adjacencies( verts, 3, false, hexes, MBInterface::UNION );
   assert(MB_SUCCESS == rval); assert(!hexes.empty());
 
   MBSkinner tool(gMB);
