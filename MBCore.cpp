@@ -946,7 +946,8 @@ MBErrorCode  MBCore::get_connectivity(const MBEntityHandle *entity_handles,
                                         topological_connectivity);
   if (MB_SUCCESS != result) return result;
   
-  std::copy(tmp_connect.begin(), tmp_connect.end(), mb_range_inserter(connectivity));
+  std::sort( tmp_connect.begin(), tmp_connect.end() );
+  std::copy(tmp_connect.rbegin(), tmp_connect.rend(), mb_range_inserter(connectivity));
   return result;
 }
 
@@ -956,55 +957,21 @@ MBErrorCode  MBCore::get_connectivity(const MBEntityHandle *entity_handles,
                                       std::vector<MBEntityHandle> &connectivity,
                                       bool topological_connectivity) const
 {
-  if (num_handles == 0) return MB_FAILURE;
+  connectivity.clear(); // this seems wrong as compared to other API functions,
+                        // but changing it breaks lost of code, so I'm leaving
+                        // it in.  - j.kraftcheck 2009-11-06
   
-    // Make sure the entity should have a connectivity.
-  MBEntityType type = TYPE_FROM_HANDLE(entity_handles[0]);
-
-  int i;
-  connectivity.clear();
-
-  // handle the special case where someone asks for the connectivity
-  // of a vertex.  This actually kind of makes sense for a sphere element.
-  if (type == MBVERTEX)
-  {
-    connectivity.reserve(num_handles);
-    std::copy(entity_handles, entity_handles+num_handles, 
-              std::back_inserter(connectivity));
-    return MB_SUCCESS;
+  MBErrorCode rval;
+  std::vector<MBEntityHandle> tmp_storage; // used only for structured mesh
+  const MBEntityHandle* conn;
+  int len;
+  for (int i = 0; i < num_handles; ++i) {
+    rval = get_connectivity( entity_handles[i], conn, len, topological_connectivity, &tmp_storage );
+    if (MB_SUCCESS != rval)
+      return rval;
+    connectivity.insert( connectivity.end(), conn, conn + len );
   }
-
-    // WARNING: This is very dependent on the ordering of the MBEntityType enum
-  if(type <= MBVERTEX || type >= MBENTITYSET)
-    return MB_TYPE_OUT_OF_RANGE;
-
-  MBErrorCode result = MB_SUCCESS, temp_result;
-  for (i = 0; i < num_handles; i++) {
-    const EntitySequence* seq = 0;
-
-      // We know that connectivity is stored in an EntitySequence so jump straight
-      // to the entity sequence
-    temp_result = sequence_manager()->find(entity_handles[i], seq);
-    if (seq == NULL) {
-      result = MB_ENTITY_NOT_FOUND;
-      continue;
-    }
-    else if (temp_result != MB_SUCCESS) {
-      result = temp_result;
-      continue;
-    }
-
-    const ElementSequence *elem_seq = static_cast<const ElementSequence*>(seq);
-      // let's be smart about this...
-    temp_result = elem_seq->get_connectivity(entity_handles[i], connectivity,
-                                             topological_connectivity);
-    if (MB_SUCCESS != temp_result) {
-      result = temp_result;
-      continue;
-    }
-  }
-  
-  return result;
+  return MB_SUCCESS;
 }
 
 //! get the connectivity for element handles.  For non-element handles, return an error
@@ -1079,57 +1046,160 @@ MBErrorCode  MBCore::set_connectivity(const MBEntityHandle entity_handle,
   return status;
 }
 
-MBErrorCode MBCore::get_adjacencies(const MBEntityHandle *from_entities,
-                                      const int num_entities,
-                                      const int to_dimension,
-                                      const bool create_if_missing,
-                                      std::vector<MBEntityHandle> &adj_entities,
-                                      const int operation_type)
+MBErrorCode MBCore::get_adjacencies( const MBEntityHandle *from_entities,
+                                     const int num_entities,
+                                     const int to_dimension,
+                                     const bool create_if_missing,
+                                     std::vector<MBEntityHandle> &adj_entities,
+                                     const int operation_type )
 {
   MBErrorCode result;
-  if (num_entities == 1) {
+  if (num_entities == 1 && adj_entities.empty()) {
     if(to_dimension == 0 && TYPE_FROM_HANDLE(from_entities[0]) != MBPOLYHEDRON)
       result = get_connectivity(&from_entities[0], 1, adj_entities);
     else
       result = aEntityFactory->get_adjacencies(from_entities[0], to_dimension, 
-                                               create_if_missing, adj_entities);
-    std::vector<MBEntityHandle>::iterator iter = 
-      std::remove(adj_entities.begin(), adj_entities.end(), MBEntityHandle(0));
-    if(iter != adj_entities.end())
-      adj_entities.erase(iter, adj_entities.end());
+                                             create_if_missing, adj_entities);
+    
+    //adj_entities.erase( std::remove( adj_entities.begin(), adj_entities.end(), 0 ), adj_entities.end() );
     return result;
   }
   
-  MBRange temp_range, temp_range2;
-  std::copy(from_entities, from_entities+num_entities,
-            mb_range_inserter(temp_range));
+  if (operation_type == MBInterface::UNION) {
+    std::vector<MBEntityHandle> tmp_storage;
+    const MBEntityHandle* conn;
+    int len;
+    for (int i = 0; i < num_entities; ++i) {
+      if(to_dimension == 0 && TYPE_FROM_HANDLE(from_entities[0]) != MBPOLYHEDRON) {
+        result = get_connectivity(from_entities[i], conn, len, false, &tmp_storage);
+        adj_entities.insert( adj_entities.end(), conn, conn+len );
+        if (MB_SUCCESS != result)
+          return result;
+      }
+      else {
+        result = aEntityFactory->get_adjacencies(from_entities[i], to_dimension, 
+                                                 create_if_missing, adj_entities);
+        if (MB_SUCCESS != result)
+          return result;
+      }
+    }
+    std::sort( adj_entities.begin(), adj_entities.end() );
+    adj_entities.erase( std::unique( adj_entities.begin(), adj_entities.end() ), adj_entities.end() );
+    return MB_SUCCESS;
+  }
   
-  result = get_adjacencies(temp_range, to_dimension, create_if_missing, temp_range2,
-                           operation_type);
-  if (MB_SUCCESS != result) 
-    return result;
-  
-  adj_entities.clear();
-  adj_entities.reserve(temp_range2.size());
-  for (MBRange::const_iterator it = temp_range2.begin();
-       it != temp_range2.end();
-       ++it)
-    adj_entities.push_back(*it);
-  
+  std::vector<MBEntityHandle> tmp_adj;
+  for (int i = 0; i < num_entities; ++i) {
+    tmp_adj.clear();
+    if(to_dimension == 0 && TYPE_FROM_HANDLE(from_entities[i]) != MBPOLYHEDRON)
+      result = get_connectivity(&from_entities[i], 1, tmp_adj);
+    else
+      result = aEntityFactory->get_adjacencies(from_entities[i], to_dimension, 
+                                               create_if_missing, tmp_adj);
+    if (MB_SUCCESS != result)
+      return result;
+    
+    if (tmp_adj.empty()) {
+      adj_entities.clear();
+      return MB_SUCCESS;
+    }
+    else if (i == 0 && adj_entities.empty())
+      adj_entities.swap(tmp_adj);
+    else {
+      std::sort( tmp_adj.begin(), tmp_adj.end() );
+      std::vector<MBEntityHandle>::iterator it, w;
+      for( it = w = adj_entities.begin(); it != adj_entities.end(); ++it ) {
+        if (std::binary_search( tmp_adj.begin(), tmp_adj.end(), *it ))
+          { *w = *it; ++w; }
+      }
+      adj_entities.erase( w, adj_entities.end() );
+    }
+  }
+ 
   return MB_SUCCESS;
 }
 
-MBErrorCode MBCore::get_adjacencies(const MBEntityHandle *from_entities,
-                                    const int num_entities,
-                                    const int to_dimension,
-                                      const bool create_if_missing,
-                                      MBRange &adj_entities,
-                                      const int operation_type)
+template <typename ITER> static inline
+MBErrorCode get_adjacencies_common( MBCore* mb,
+                             ITER begin, ITER end,
+                             const int to_dimension,
+                             const bool create_if_missing,
+                             MBRange &adj_entities,
+                             const int operation_type )
 {
-  MBRange tmp_from_entities;
-  std::copy(from_entities, from_entities+num_entities, mb_range_inserter(tmp_from_entities));
-  return get_adjacencies(tmp_from_entities, to_dimension, create_if_missing, 
-                         adj_entities, operation_type);
+  MBRange temp_range;
+  std::vector<MBEntityHandle> temp_vec;
+  std::vector<MBEntityHandle>::const_iterator adj_it;
+  MBErrorCode result = MB_SUCCESS, tmp_result;
+
+  for (ITER from_it = begin; from_it != end; from_it++) 
+  {
+      // running results kept in adj_entities; clear temp_vec and temp_range, which are working space
+    temp_vec.clear();
+    temp_range.clear();
+
+      // get the next set of adjacencies
+    MBEntityType type = TYPE_FROM_HANDLE(*from_it);
+    if (to_dimension == MBCN::Dimension(type)) 
+      { temp_vec.push_back(*from_it); tmp_result = MB_SUCCESS; }
+    else if(to_dimension == 0 && type != MBPOLYHEDRON)
+      tmp_result = mb->get_connectivity(&(*from_it), 1, temp_vec);
+    else
+      tmp_result = mb->a_entity_factory()->get_adjacencies(*from_it, to_dimension, 
+                                                   create_if_missing, temp_vec);
+    
+    if (MB_SUCCESS != tmp_result) result = tmp_result;
+    
+    std::sort( temp_vec.begin(), temp_vec.end() );
+    
+      // if we're on the first iteration and we didn't come in with entities,
+      // just get the first results and move on
+    if (adj_entities.empty() && from_it == begin) {
+      std::copy(temp_vec.rbegin(), temp_vec.rend(), mb_range_inserter(adj_entities));
+      continue;
+    }
+
+      // operate on the vectors
+    MBRange::iterator hint = adj_entities.begin();
+    if (operation_type == MBInterface::INTERSECT) {
+      adj_it = temp_vec.begin();
+      while (hint != adj_entities.end()) {
+        while (adj_it != temp_vec.end() && *adj_it < *hint)
+          ++adj_it;
+        if (adj_it == temp_vec.end()) {
+          adj_entities.erase( hint, adj_entities.end() );
+          break;
+        }
+        
+        if (*adj_it == *hint)
+          ++hint;
+        else
+          hint = adj_entities.erase(hint);
+      }
+      
+        // If doing INTERSECT and the current results are the empty set,
+        // then the final result must also be the empty set.  
+      if (adj_entities.empty())
+        return MB_SUCCESS;
+    }
+    else if (operation_type == MBInterface::UNION) {
+      for (adj_it = temp_vec.begin(); adj_it != temp_vec.end(); ++adj_it)
+        hint = adj_entities.insert( hint, *adj_it );
+    }
+  }
+
+  return result;
+}
+
+MBErrorCode MBCore::get_adjacencies( const MBEntityHandle *from_entities,
+                                     const int num_entities,
+                                     const int to_dimension,
+                                     const bool create_if_missing,
+                                     MBRange &adj_entities,
+                                     const int operation_type )
+{
+  return get_adjacencies_common( this, from_entities, from_entities + num_entities,
+                          to_dimension, create_if_missing, adj_entities, operation_type );
 }
 
 MBErrorCode MBCore::get_vertices( const MBRange& from_entities,
@@ -1214,67 +1284,10 @@ MBErrorCode MBCore::get_adjacencies(const MBRange &from_entities,
     return get_vertices( from_entities, adj_entities );
   }
 
-  MBRange temp_range;
-  std::vector<MBEntityHandle> temp_vec;
-  std::vector<MBEntityHandle>::const_iterator adj_it;
-  MBErrorCode result = MB_SUCCESS, tmp_result;
-
-  for (MBRange::const_iterator from_it = from_entities.begin(); 
-       from_it != from_entities.end(); from_it++) 
-  {
-      // running results kept in adj_entities; clear temp_vec and temp_range, which are working space
-    temp_vec.clear();
-    temp_range.clear();
-
-      // get the next set of adjacencies
-    if(to_dimension == 0 && TYPE_FROM_HANDLE(*from_it) != MBPOLYHEDRON)
-      tmp_result = get_connectivity(&(*from_it), 1, temp_vec);
-    else
-      tmp_result = aEntityFactory->get_adjacencies(*from_it, to_dimension, 
-                                                   create_if_missing, temp_vec);
-    
-    if (MB_SUCCESS != tmp_result) result = tmp_result;
-    
-    std::sort( temp_vec.begin(), temp_vec.end() );
-    
-      // if we're on the first iteration and we didn't come in with entities,
-      // just get the first results and move on
-    if (adj_entities.empty() && from_it == from_entities.begin()) {
-      std::copy(temp_vec.rbegin(), temp_vec.rend(), mb_range_inserter(adj_entities));
-      continue;
-    }
-
-      // operate on the vectors
-    MBRange::iterator hint = adj_entities.begin();
-    if (operation_type == MBInterface::INTERSECT) {
-      adj_it = temp_vec.begin();
-      while (hint != adj_entities.end()) {
-        while (adj_it != temp_vec.end() && *adj_it < *hint)
-          ++adj_it;
-        if (adj_it == temp_vec.end()) {
-          adj_entities.erase( hint, adj_entities.end() );
-          break;
-        }
-        
-        if (*adj_it == *hint)
-          ++hint;
-        else
-          hint = adj_entities.erase(hint);
-      }
-      
-        // If doing INTERSECT and the current results are the empty set,
-        // then the final result must also be the empty set.  
-      if (adj_entities.empty())
-        return MB_SUCCESS;
-    }
-    else if (operation_type == MBInterface::UNION) {
-      for (adj_it = temp_vec.begin(); adj_it != temp_vec.end(); ++adj_it)
-        hint = adj_entities.insert( hint, *adj_it );
-    }
-  }
-
-  return result;
+  return get_adjacencies_common( this, from_entities.begin(), from_entities.end(),
+                           to_dimension, create_if_missing, adj_entities, operation_type );
 }
+
 
 MBErrorCode MBCore::add_adjacencies(const MBEntityHandle entity_handle, 
                                     const MBEntityHandle *adjacencies,
