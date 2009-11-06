@@ -48,8 +48,6 @@ void test_pack_tag_handle_data();
 void test_pack_shared_entities_2d();
 /** Test pack/unpack of shared entities in 3d*/
 void test_pack_shared_entities_3d();
-/** Test pack/unpack of arbitrary mesh file */
-void test_pack_shared_arbitrary();
 /** Test filter_pstatus function*/
 void test_filter_pstatus();
 
@@ -76,7 +74,6 @@ int main( int argc, char* argv[] )
   num_err += RUN_TEST( test_pack_tag_handle_data );
   num_err += RUN_TEST( test_pack_shared_entities_2d );
   num_err += RUN_TEST( test_pack_shared_entities_3d );
-  num_err += RUN_TEST( test_pack_shared_arbitrary );
   num_err += RUN_TEST( test_filter_pstatus );
   
 #ifdef USE_MPI
@@ -1862,65 +1859,6 @@ void test_pack_shared_entities_3d()
   CHECK_ERR(rval);
 
   for (unsigned int i = 0; i < 4; i++)
-    delete pc[i];
-}
-
-void test_pack_shared_arbitrary()
-{
-#define NP 3
-  MBCore moab[NP];
-  MBParallelComm *pc[NP];
-  for (unsigned int i = 0; i < NP; i++) {
-    pc[i] = new MBParallelComm(&moab[i]);
-    pc[i]->set_rank(i);
-    pc[i]->set_size(NP);
-  }
-
-  std::vector<int> pa_vec;
-  pa_vec.push_back(ReadParallel::PA_READ);
-  pa_vec.push_back(ReadParallel::PA_GET_FILESET_ENTS);
-  pa_vec.push_back(ReadParallel::PA_DELETE_NONLOCAL);
-  MBErrorCode rval;
-  std::vector<int> partition_tag_vals;
-  bool partition_distrib = false;
-
-#ifdef SRCDIR
-  const char *fnames[] = {STRINGIFY(SRCDIR) "/ptest.cub"};
-#else
-  const char *fnames[] = {"./ptest.cub"};
-#endif
-  
-  std::string ptag_name("GEOM_DIMENSION");
-  partition_tag_vals.push_back(3);
-  partition_distrib = true;
-  
-    //std::string ptag_name("MATERIAL_SET");
-    //partition_distrib = true;
-  
-  FileOptions fopts(NULL);
-  
-  for (unsigned int i = 0; i < NP; i++) {
-    ReadParallel rp(moab+i, pc[i]);
-    MBEntityHandle tmp_set = 0;
-    rval = rp.load_file(fnames, 1, tmp_set, ReadParallel::POPT_READ_DELETE,
-                        ptag_name, 
-                        partition_tag_vals, partition_distrib, false, pa_vec, 
-                        fopts, NULL, 0, NULL, i, false, -1, -1, -1, -1, 0);
-    CHECK_ERR(rval);
-  }
-  
-  rval = MBParallelComm::resolve_shared_ents(pc, NP, 3);
-  CHECK_ERR(rval);
-
-    // exchange interface cells
-  rval = MBParallelComm::exchange_ghost_cells(pc, NP, -1, -1, 0, true);
-  CHECK_ERR(rval);
-  
-    // now 1 layer of hex ghosts
-  rval = MBParallelComm::exchange_ghost_cells(pc, NP, 3, 0, 1, true);
-  CHECK_ERR(rval);
-
-  for (unsigned int i = 0; i < NP; i++)
     delete pc[i];
 }
 

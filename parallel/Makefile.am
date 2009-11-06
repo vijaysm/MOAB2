@@ -46,7 +46,7 @@ if PARALLEL
      ReadParallel.hpp \
      crystal.h errmem.h types.h
 
-  MOAB_PARALLEL_TEST += pcomm_unit parallel_unit_tests uber_parallel_test scdtest
+  MOAB_PARALLEL_TEST += pcomm_unit parallel_unit_tests uber_parallel_test scdtest pcomm_serial
 
 if PARALLEL_HDF5
 #  libMOABpar_la_LIBADD = $(top_builddir)/mhdf/libmhdf.la
@@ -88,6 +88,8 @@ parallel_write_test_SOURCES = parallel_write_test.cc
 parallel_write_test_LDADD = ../libMOAB.la
 uber_parallel_test_SOURCES = uber_parallel_test.cpp
 uber_parallel_test_LDADD = ../libMOAB.la
+pcomm_serial_SOURCES = pcomm_serial.cpp
+pcomm_serial_LDADD = ../libMOAB.la
 
 scdtest_SOURCES = scdtest.cpp
 scdtest_LDADD = ../libMOAB.la
