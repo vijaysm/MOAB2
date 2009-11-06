@@ -871,7 +871,7 @@ MBErrorCode TagServer::get_entities_with_tag_value( const MBRange &range,
   
     // If tag value is default value, then we want every entity
     // in 'range' of the correct type, except those with a different tag value.
-  bool equals_default;
+  bool equals_default = false;
   if (info->default_value()) {
     if (PROP_FROM_TAG_HANDLE(tag_handle) == MB_TAG_BIT)
       equals_default = (*(char*)value == *(char*)info->default_value());
