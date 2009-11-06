@@ -45,6 +45,7 @@ extern "C" int getrusage(int, struct rusage *);
 #include "EntitySequence.hpp"
 #include "SequenceManager.hpp"
 #include "HomXform.hpp"
+#include "MBSkinner.hpp"
 
 double LENGTH = 1.0;
 const int DEFAULT_INTERVALS = 50;
@@ -53,6 +54,9 @@ const int DEFAULT_INTERVALS = 50;
 void testA(const int nelem);
 void testB(const int nelem);
 void testC(const int nelem);
+void skin_time(const int intervals);
+void skin_adj(const int intervals);
+void skin_vert(const int intervals);
 void print_time(const bool print_em, double &tot_time, double &utime, double &stime,
                 double &mem);
 void query_vert_to_elem(MBInterface*);
@@ -60,6 +64,7 @@ void query_elem_to_vert(MBInterface*);
 void query_struct_elem_to_vert(MBInterface*);
 void get_time_mem(double &tot_time, double &user_time,
                   double &sys_time, double &tot_mem);
+void bulk_construct_mesh( MBInterface* gMB, const int nelem );
 
 void compute_edge(double *start, const int nelem,  const double xint,
                   const int stride) 
@@ -278,16 +283,16 @@ void build_connect(const int nelem, const MBEntityHandle vstart, MBEntityHandle 
 typedef void (*test_func_t)( int );
 const struct {
   std::string testName;
-  std::string testDesc;
   test_func_t testFunc;
+  std::string testDesc;
 } TestList[] = {
- { "struct", "Conn. and adj. query time for structured mesh", &testA },
- { "bulk",   "Conn. and adj. query time for bulk-created mesh", &testB },
- { "indiv",  "Conn. and adj. query time for per-entity created mesh", &testC },
-// { "skin",       "Test skin time", &skin_time },
-// { "skin_adj",   "Test skin time using vertex-to-element adjacencies", &skin_adj },
- };
-
+ { "struct",    &testA,     "Conn. and adj. query time for structured mesh" },
+ { "bulk",      &testB,     "Conn. and adj. query time for bulk-created mesh" },
+ { "indiv",     &testC,     "Conn. and adj. query time for per-entity created mesh" },
+ { "skin",      &skin_time, "Test time to get skin quads" },
+ { "skin_adj",  &skin_adj,  "Test skin quads using vert-to-elem adjacencies" },
+ { "skin_vert", &skin_vert, "Test time to get skin verts" },
+};
 const int TestListSize = sizeof(TestList)/sizeof(TestList[0]); 
 
 void usage( const char* argv0, bool error = true )
@@ -360,7 +365,7 @@ int main(int argc, char* argv[])
           std::cerr << "Invalid test name: " << argv[i] << std::endl;
           return 1;
         }
-      } while (TestList[j].testName == argv[i]);
+      } while (TestList[j].testName != argv[i]);
       test_list.push_back( TestList[j].testFunc );
     }
   }
@@ -579,15 +584,8 @@ void testA( int nelem )
             << std::endl;
 }
 
-void testB(const int nelem) 
+void bulk_construct_mesh( MBInterface* gMB, const int nelem )
 {
-  MBCore moab;
-  MBInterface* gMB = &moab;
-  double ttime0, ttime1, ttime2, ttime3, utime, stime, mem;
-  
-  print_time(false, ttime0, utime, stime, mem);
-  std::cout << "Ready to read model into MOAB; memory = " << mem/1.0e6 << " MB." << std::endl;
-
   int num_verts = (nelem + 1)*(nelem + 1)*(nelem + 1);
   int num_elems = nelem*nelem*nelem;
   MBEntityHandle vstart, estart;
@@ -616,6 +614,18 @@ void testB(const int nelem)
   build_connect(nelem, vstart, conn);
   result = readMeshIface->update_adjacencies(estart, num_elems, 8, conn);
   assert(MB_SUCCESS == result);
+}
+
+void testB(const int nelem) 
+{
+  MBCore moab;
+  MBInterface* gMB = &moab;
+  double ttime0, ttime1, ttime2, ttime3, utime, stime, mem;
+  
+  print_time(false, ttime0, utime, stime, mem);
+  std::cout << "Ready to read model into MOAB; memory = " << mem/1.0e6 << " MB." << std::endl;
+
+  bulk_construct_mesh( gMB, nelem );
 
   print_time(false, ttime1, utime, stime, mem);
   std::cout << "Read model into MOAB; memory = " << mem/1.0e6 << " MB." << std::endl;
@@ -710,4 +720,70 @@ void testC(const int nelem)
             << ttime2-ttime1 << ", " 
             << ttime3-ttime2 << " seconds" 
             << std::endl;
+}
+
+void skin_time( const int nelem ) 
+{
+  MBCore moab;
+  MBInterface* gMB = &moab;
+  MBErrorCode rval;
+
+  bulk_construct_mesh( gMB, nelem );
+
+  MBRange skin, hexes;
+  rval = gMB->get_entities_by_dimension( 0, 3, hexes );
+  assert(MB_SUCCESS == rval); assert(!hexes.empty());
+
+  MBSkinner tool(gMB);
+  clock_t t = clock();
+  rval = tool.find_skin( hexes, 2, skin, false );
+  double d = ((double)(clock() - t))/CLOCKS_PER_SEC;
+  assert(MB_SUCCESS == rval);
+  
+  std::cout << "Got 2D skin in " << d << " seconds w/out vertex-to-element adjacencies" << std::endl;
+}
+
+void skin_adj( const int nelem ) 
+{
+  MBCore moab;
+  MBInterface* gMB = &moab;
+  MBErrorCode rval;
+
+  bulk_construct_mesh( gMB, nelem );
+
+  MBRange skin, verts, hexes;
+    // force creation of adjacencies
+  rval = gMB->get_entities_by_dimension( 0, 0, verts );
+  assert(MB_SUCCESS == rval); assert(!verts.empty());
+  rval = gMB->get_adjacencies( verts, 3, false, hexes );
+  assert(MB_SUCCESS == rval); assert(!hexes.empty());
+
+  MBSkinner tool(gMB);
+  clock_t t = clock();
+  rval = tool.find_skin( hexes, 2, skin, true );
+  double d = ((double)(clock() - t))/CLOCKS_PER_SEC;
+  assert(MB_SUCCESS == rval);
+
+  std::cout << "Got 2D skin in " << d << " seconds with vertex-to-element adjacencies" << std::endl;
+}
+
+void skin_vert( const int nelem ) 
+{
+  MBCore moab;
+  MBInterface* gMB = &moab;
+  MBErrorCode rval;
+
+  bulk_construct_mesh( gMB, nelem );
+
+  MBRange skin, hexes;
+  rval = gMB->get_entities_by_dimension( 0, 3, hexes );
+  assert(MB_SUCCESS == rval); assert(!hexes.empty());
+
+  MBSkinner tool(gMB);
+  clock_t t = clock();
+  rval = tool.find_skin( hexes, 0, skin, false );
+  double d = ((double)(clock() - t))/CLOCKS_PER_SEC;
+  assert(MB_SUCCESS == rval);
+  
+  std::cout << "Got 0D skin in " << d << " seconds w/out vertex-to-element adjacencies" << std::endl;
 }
