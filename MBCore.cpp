@@ -1216,6 +1216,7 @@ MBErrorCode MBCore::get_adjacencies(const MBRange &from_entities,
 
   MBRange temp_range;
   std::vector<MBEntityHandle> temp_vec;
+  std::vector<MBEntityHandle>::const_iterator adj_it;
   MBErrorCode result = MB_SUCCESS, tmp_result;
 
   for (MBRange::const_iterator from_it = from_entities.begin(); 
@@ -1234,24 +1235,41 @@ MBErrorCode MBCore::get_adjacencies(const MBRange &from_entities,
     
     if (MB_SUCCESS != tmp_result) result = tmp_result;
     
+    std::sort( temp_vec.begin(), temp_vec.end() );
+    
       // if we're on the first iteration and we didn't come in with entities,
       // just get the first results and move on
     if (adj_entities.empty() && from_it == from_entities.begin()) {
-      std::copy(temp_vec.begin(), temp_vec.end(), mb_range_inserter(adj_entities));
+      std::copy(temp_vec.rbegin(), temp_vec.rend(), mb_range_inserter(adj_entities));
       continue;
     }
 
       // operate on the vectors
+    MBRange::iterator hint = adj_entities.begin();
     if (operation_type == MBInterface::INTERSECT) {
-        // only have to sort if we're doing intersection
-      std::sort(temp_vec.begin(), temp_vec.end());
-      std::set_intersection(adj_entities.begin(), adj_entities.end(), 
-                            temp_vec.begin(), temp_vec.end(),
-                            mb_range_inserter(temp_range));
-      adj_entities.swap(temp_range);
+      adj_it = temp_vec.begin();
+      while (hint != adj_entities.end()) {
+        while (adj_it != temp_vec.end() && *adj_it < *hint)
+          ++adj_it;
+        if (adj_it == temp_vec.end()) {
+          adj_entities.erase( hint, adj_entities.end() );
+          break;
+        }
+        
+        if (*adj_it == *hint)
+          ++hint;
+        else
+          hint = adj_entities.erase(hint);
+      }
+      
+        // If doing INTERSECT and the current results are the empty set,
+        // then the final result must also be the empty set.  
+      if (adj_entities.empty())
+        return MB_SUCCESS;
     }
     else if (operation_type == MBInterface::UNION) {
-      std::copy(temp_vec.begin(), temp_vec.end(), mb_range_inserter(adj_entities));
+      for (adj_it = temp_vec.begin(); adj_it != temp_vec.end(); ++adj_it)
+        hint = adj_entities.insert( hint, *adj_it );
     }
   }
 

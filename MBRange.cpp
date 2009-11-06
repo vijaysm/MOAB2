@@ -231,7 +231,7 @@ MBRange& MBRange::operator=(const MBRange& copy)
   inserts a single value into this range
 */
 
-MBRange::iterator MBRange::insert(MBEntityHandle val)
+MBRange::iterator MBRange::insert( MBRange::iterator hint, MBEntityHandle val )
 {
 
   // if this is empty, just add it and return an iterator to it
@@ -246,7 +246,8 @@ MBRange::iterator MBRange::insert(MBEntityHandle val)
   
   // find the location in the list where we can safely insert
   // new items and keep it ordered
-  PairNode* jter = mHead.mNext;
+  PairNode* hter = hint.mNode;
+  PairNode* jter = hter->first <= val ? hter : mHead.mNext;
   for( ; (jter != &mHead) && (jter->second < val); jter=jter->mNext);
   PairNode* iter = jter;
   jter = jter->mPrev;
@@ -299,24 +300,12 @@ MBRange::iterator MBRange::insert(MBEntityHandle val)
 
 }
 
-
-/*!
-  inserts a range of values
-*/
-MBRange::iterator MBRange::insert(MBEntityHandle val1, MBEntityHandle val2)
-{
-
-  if(val1 == 0 || val1 > val2)
-    return end();
-
-  return insert( begin(), val1, val2 );
-}
-
 MBRange::iterator MBRange::insert( MBRange::iterator prev,
                                    MBEntityHandle val1, 
                                    MBEntityHandle val2 )
 {
-  assert( val1 <= val2 && val1 );
+  if(val1 == 0 || val1 > val2)
+    return end();
 
   // Empty 
   if (mHead.mNext == &mHead)

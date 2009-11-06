@@ -241,12 +241,20 @@ public:
   //! always use "if(!Ranges::empty())" instead of "if(Ranges::size())"
   inline bool empty() const;
 
+  iterator insert( iterator hint, MBEntityHandle val );
+
   //! insert an item into the list and return the iterator for the inserted item
-  iterator insert(MBEntityHandle val);
+  iterator insert(MBEntityHandle val)
+    { return insert( begin(), val ); }
   
   //! insert a range of items into this list and return the iterator for the first
   //! inserted item
-  iterator insert(MBEntityHandle val1, MBEntityHandle val2);
+  iterator insert( iterator hint, MBEntityHandle first, MBEntityHandle last );
+  
+  //! insert a range of items into this list and return the iterator for the first
+  //! inserted item
+  iterator insert(MBEntityHandle val1, MBEntityHandle val2)
+    { return insert( begin(), val1, val2 ); }
   
     //! remove an item from this list and return an iterator to the next item
   iterator erase(iterator iter);
@@ -338,10 +346,6 @@ public:
   MBEntityHandle operator[](MBEntityID index) const;
 
   int index(MBEntityHandle handle) const;
-  
-  MBRange::iterator insert( MBRange::iterator prev,
-                            MBEntityHandle first,
-                            MBEntityHandle last );
   
 protected:
 
