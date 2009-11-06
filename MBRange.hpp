@@ -420,6 +420,7 @@ public:
     friend class MBRange;
     friend class pair_iterator;
     friend class const_pair_iterator;
+    friend MBEntityID operator-( const const_iterator&, const const_iterator& );
   public:
     //! default constructor - intialize base default constructor
     const_iterator() : mNode(NULL), mValue(0) {}
@@ -685,6 +686,9 @@ operator-( const MBRange::const_iterator& it, MBEntityID step )
 inline MBRange::const_iterator 
 operator-( MBEntityID step, const MBRange::const_iterator& it )
   { MBRange::const_iterator tmp(it); return tmp -= step; }
+  
+MBEntityID 
+operator-(  const MBRange::const_iterator& it1, const MBRange::const_iterator& it2 );
 
 //! Use as you would an STL back_inserter
 /**

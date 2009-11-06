@@ -233,11 +233,11 @@ MBRange& MBRange::operator=(const MBRange& copy)
 
 MBRange::iterator MBRange::insert( MBRange::iterator hint, MBEntityHandle val )
 {
-
-  // if this is empty, just add it and return an iterator to it
+  // don't allow zero-valued handles in MBRange
   if(val == 0)
     return end();
 
+  // if this is empty, just add it and return an iterator to it
   if(&mHead == mHead.mNext)
   {
     mHead.mNext = mHead.mPrev = alloc_pair(&mHead, &mHead, val, val);
@@ -732,6 +732,24 @@ MBRange subtract(const MBRange &range1, const MBRange &range2)
     return lhs;
   }
 }
+
+  
+MBEntityID 
+operator-( const MBRange::const_iterator& it2, const MBRange::const_iterator& it1 )
+{
+  assert( !it2.mValue || *it2 >= *it1 );
+  if (it2.mNode == it1.mNode) {
+    return *it2 - *it1;
+  }
+
+  MBEntityID result = it1.mNode->second - it1.mValue + 1;
+  for (MBRange::PairNode* n = it1.mNode->mNext; n != it2.mNode; n = n->mNext)
+    result += n->second - n->first + 1;
+  if (it2.mValue) // (it2.mNode != &mHead)
+    result += it2.mValue - it2.mNode->first;
+  return result;
+}
+
 
 MBRange::const_iterator MBRange::lower_bound(MBRange::const_iterator first,
                                              MBRange::const_iterator last,
