@@ -4014,14 +4014,14 @@ MBErrorCode mb_entity_conversion_test(MBInterface *MB)
     // skin the model
   for(MBRange::iterator tet_iter = entities.begin(); tet_iter != entities.end(); ++tet_iter)
   {
-    std::vector<MBEntityHandle> adj(32);
+    std::vector<MBEntityHandle> adj;
     error = MB->get_adjacencies(&(*tet_iter), 1, 2, true, adj);
     if (MB_SUCCESS != error)
       return error;
     for(std::vector<MBEntityHandle>::iterator tri_iter = adj.begin();
         tri_iter != adj.end(); ++tri_iter)
     {
-      std::vector<MBEntityHandle> up_adj(2);
+      std::vector<MBEntityHandle> up_adj;
       MB->get_adjacencies(&(*tri_iter), 1, 3, false, up_adj);
       if(up_adj.size() > 1) {
         error = MB->delete_entities(&(*tri_iter), 1);
