@@ -30,6 +30,7 @@ extern "C" int getrusage(int, struct rusage *);
 #include <stdlib.h>
 #include <stdio.h>
 #include <iostream>
+#include <iomanip>
 #include <time.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -46,15 +47,17 @@ extern "C" int getrusage(int, struct rusage *);
 #include "HomXform.hpp"
 
 double LENGTH = 1.0;
+const int DEFAULT_INTERVALS = 50;
 
-void testA(const int nelem, const double *coords);
-void testB(const int nelem, const double *coords, const MBEntityHandle *connect);
-void testC(const int nelem, const double *coords);
+
+void testA(const int nelem);
+void testB(const int nelem);
+void testC(const int nelem);
 void print_time(const bool print_em, double &tot_time, double &utime, double &stime,
                 double &mem);
-void query_vert_to_elem();
-void query_elem_to_vert();
-void query_struct_elem_to_vert();
+void query_vert_to_elem(MBInterface*);
+void query_elem_to_vert(MBInterface*);
+void query_struct_elem_to_vert(MBInterface*);
 void get_time_mem(double &tot_time, double &user_time,
                   double &sys_time, double &tot_mem);
 
@@ -105,7 +108,7 @@ void compute_face(double *a, const int nelem,  const double xint,
   }
 }
 
-void build_coords(const int nelem, double *&coords) 
+void build_coords(const int nelem, std::vector<double>& coords) 
 {
   double ttime0, ttime1, utime1, stime1, mem1;
   print_time(false, ttime0, utime1, stime1, mem1);
@@ -115,7 +118,7 @@ void build_coords(const int nelem, double *&coords)
   int numv = nelem+1;
   int numv_sq = numv*numv;
   int tot_numv = numv*numv*numv;
-  coords = new double[3*tot_numv];
+  coords.resize(3*tot_numv);
 
 // use FORTRAN-like indexing
 #define VINDEX(i,j,k) (i + (j*numv) + (k*numv_sq))
@@ -248,12 +251,8 @@ void build_coords(const int nelem, double *&coords)
             << mem1/1.0e6 << " MB." << std::endl;
 }
 
-void build_connect(const int nelem, const MBEntityHandle vstart, MBEntityHandle *&connect) 
+void build_connect(const int nelem, const MBEntityHandle vstart, MBEntityHandle *connect) 
 {
-    // allocate the memory
-  int nume_tot = nelem*nelem*nelem;
-  connect = new MBEntityHandle[8*nume_tot];
-
   MBEntityHandle vijk;
   int numv = nelem + 1;
   int numv_sq = numv*numv;
@@ -276,59 +275,113 @@ void build_connect(const int nelem, const MBEntityHandle vstart, MBEntityHandle 
   }
 }
 
-MBInterface *gMB;
+typedef void (*test_func_t)( int );
+const struct {
+  std::string testName;
+  std::string testDesc;
+  test_func_t testFunc;
+} TestList[] = {
+ { "struct", "Conn. and adj. query time for structured mesh", &testA },
+ { "bulk",   "Conn. and adj. query time for bulk-created mesh", &testB },
+ { "indiv",  "Conn. and adj. query time for per-entity created mesh", &testC },
+// { "skin",       "Test skin time", &skin_time },
+// { "skin_adj",   "Test skin time using vertex-to-element adjacencies", &skin_adj },
+ };
+
+const int TestListSize = sizeof(TestList)/sizeof(TestList[0]); 
+
+void usage( const char* argv0, bool error = true )
+{
+  std::ostream& str = error ? std::cerr : std::cout;
+  str << "Usage: " << argv0 << " -i <ints_per_side> <test_name> [<test_name2> ...]" << std::endl;
+  str << "       " << argv0 << " [-h|-l]" << std::endl;
+  if (error)
+    return;
+  str << "  -i  : specify interverals per side (num hex = ints^3, default: " << DEFAULT_INTERVALS << std::endl;
+  str << "  -h  : print this help text." << std::endl;
+  str << "  -l  : list available tests"  << std::endl;
+}
+
+void list_tests( ) 
+{
+  unsigned max_test_name = 0, max_test_desc = 0;
+  for (int i = 0; i < TestListSize; ++i) {
+    if (TestList[i].testName.size() > max_test_name)
+      max_test_name = TestList[i].testName.size();
+    if (TestList[i].testDesc.size() > max_test_desc)
+      max_test_desc = TestList[i].testDesc.size();
+  }
+  std::cout << std::setw(max_test_name) << "NAME" << "   " 
+            << std::setw(max_test_desc) << std::left << "DESCRIPTION" << std::endl
+            << std::setfill('-') << std::setw(max_test_name) << "" << "   " 
+            << std::setfill('-') << std::setw(max_test_desc) << "" 
+            << std::setfill(' ') << std::endl;
+  for (int i = 0; i < TestListSize; ++i) 
+    std::cout << std::setw(max_test_name) << TestList[i].testName << " : "
+              << std::setw(max_test_desc) << std::left << TestList[i].testDesc << std::endl;
+}  
+  
 int main(int argc, char* argv[])
 {
-  int nelem = 20;
-  if (argc < 3) {
-    std::cout << "Usage: " << argv[0] << " <ints_per_side> <A|B|C>" << std::endl;
+  int intervals = DEFAULT_INTERVALS;
+  std::vector<test_func_t> test_list;
+  bool did_help = false;
+  bool expect_ints = false;
+  for (int i = 1; i < argc; ++i) {
+    if (expect_ints) {
+      expect_ints = false;
+      char* endptr;
+      intervals = strtol( argv[i], &endptr, 0 );
+      if (intervals < 1) {
+        usage(argv[0]);
+        std::cerr << "Invalid interval count: " << intervals << std::endl;
+        return 1;
+      }
+    }
+    else if (*argv[i] == '-') { // flag
+      for (int j = 1; argv[i][j]; ++j) {
+        switch (argv[i][j]) {
+          case 'i': expect_ints = true; break;
+          case 'h': did_help = true; usage(argv[0],false); break;
+          case 'l': did_help = true; list_tests(); break;
+          default:
+            usage(argv[0]);
+            std::cerr << "Invalid option: -" << argv[i][j] << std::endl;
+            return 1;
+        }
+      }
+    }
+    else {
+      int j = -1;
+      do {
+        ++j;
+        if (j >= TestListSize) {
+          usage(argv[0]);
+          std::cerr << "Invalid test name: " << argv[i] << std::endl;
+          return 1;
+        }
+      } while (TestList[j].testName == argv[i]);
+      test_list.push_back( TestList[j].testFunc );
+    }
+  }
+  
+    // error if no input
+  if (test_list.empty() && !did_help) {
+    usage(argv[0]);
+    std::cerr << "No tests specified" << std::endl;
     return 1;
   }
   
-  char which_test = '\0';
-  
-  sscanf(argv[1], "%d", &nelem);
-  sscanf(argv[2], "%c", &which_test);
-
-  if (which_test != 'A' && which_test != 'B' && which_test != 'C') {
-      std::cout << "Must indicate A or B or C for test." << std::endl;
-      return 1;
-  }
-  
-  std::cout << "number of elements: " << nelem << "; test " 
-            << which_test << std::endl;
-
-  gMB = new MBCore();
-
-    // pre-build the coords array
-  double *coords = NULL;
-  build_coords(nelem, coords);
-  assert(NULL != coords);
-
-  MBEntityHandle *connect = NULL;
-  build_connect(nelem, 1, connect);
-
-  switch (which_test) {
-    case 'A':
-        // test A: create structured mesh
-      testA(nelem, coords);
-      break;
-      
-    case 'B':
-        // test B: create mesh using bulk interface
-      testB(nelem, coords, connect);
-      break;
-      
-    case 'C':
-    // test C: create mesh using individual interface
-      testC(nelem, coords);
-      break;
+    // now run the tests
+  for (std::vector<test_func_t>::iterator i = test_list.begin(); i != test_list.end(); ++i) {
+    test_func_t fptr = *i;
+    fptr(intervals);
   }
   
   return 0;
 }
 
-void query_elem_to_vert()
+void query_elem_to_vert(MBInterface* gMB)
 {
   MBRange all_hexes;
   MBErrorCode result = gMB->get_entities_by_type(0, MBHEX, all_hexes);
@@ -351,7 +404,7 @@ void query_elem_to_vert()
   }
 }
 
-void query_vert_to_elem()
+void query_vert_to_elem(MBInterface* gMB)
 {
   MBRange all_verts;
   std::vector<MBEntityHandle> neighbor_hexes;
@@ -364,7 +417,7 @@ void query_vert_to_elem()
   }
 }
 
-void query_struct_elem_to_vert()
+void query_struct_elem_to_vert(MBInterface* gMB)
 {
     // assumes brick mapped mesh with handles starting at zero
   MBRange all_hexes;
@@ -454,8 +507,10 @@ void get_time_mem(double &tot_time, double &user_time,
 }
 #endif
 
-void testA(const int nelem, const double *coords) 
+void testA( int nelem ) 
 {
+  MBCore moab;
+  MBInterface* gMB = &moab;
   double ttime0, ttime1, ttime2, ttime3, utime, stime, mem;
   
   print_time(false, ttime0, utime, stime, mem);
@@ -466,7 +521,7 @@ void testA(const int nelem, const double *coords)
   EntitySequence *dum_seq = NULL;
   ScdVertexData *vseq = NULL;
   StructuredElementSeq *eseq = NULL;
-  SequenceManager *seq_mgr = dynamic_cast<MBCore*>(gMB)->sequence_manager();
+  SequenceManager *seq_mgr = moab.sequence_manager();
   HomCoord vseq_minmax[2] = {HomCoord(0,0,0), 
                              HomCoord(nelem, nelem, nelem)};
   MBEntityHandle vstart, estart;
@@ -488,6 +543,9 @@ void testA(const int nelem, const double *coords)
                                vseq_minmax[0], vseq_minmax[0], vseq_minmax[0]);
   assert(MB_SUCCESS == result);
 
+  std::vector<double> coords;
+  build_coords(nelem, coords);
+
     // set the coordinates of the vertices
   MBEntityHandle handle;
   int i;
@@ -503,12 +561,12 @@ void testA(const int nelem, const double *coords)
   std::cout << "Read model into MOAB; memory  = " << mem/1.0e6 << " MB." << std::endl;
 
     // query the mesh 2 ways
-  query_struct_elem_to_vert();
+  query_struct_elem_to_vert(gMB);
 
   print_time(false, ttime2, utime, stime, mem);
   std::cout << "After E-v query; memory  = " << mem/1.0e6 << " MB." << std::endl;
 
-  query_vert_to_elem();
+  query_vert_to_elem(gMB);
   
   print_time(false, ttime3, utime, stime, mem);
   std::cout << "After v-E query; memory  = " << mem/1.0e6 << " MB." << std::endl;
@@ -521,8 +579,10 @@ void testA(const int nelem, const double *coords)
             << std::endl;
 }
 
-void testB(const int nelem, const double *coords, const MBEntityHandle *connect) 
+void testB(const int nelem) 
 {
+  MBCore moab;
+  MBInterface* gMB = &moab;
   double ttime0, ttime1, ttime2, ttime3, utime, stime, mem;
   
   print_time(false, ttime0, utime, stime, mem);
@@ -544,14 +604,16 @@ void testB(const int nelem, const double *coords, const MBEntityHandle *connect)
   assert(MB_SUCCESS == result && 1 == vstart &&
          coord_arrays[0] && coord_arrays[1] && coord_arrays[2]);
     // memcpy the coordinate data into place
-  memcpy(coord_arrays[0], coords, sizeof(double)*num_verts);
+  std::vector<double> coords;
+  build_coords(nelem, coords);
+  memcpy(coord_arrays[0], &coords[0], sizeof(double)*num_verts);
   memcpy(coord_arrays[1], &coords[num_verts], sizeof(double)*num_verts);
   memcpy(coord_arrays[2], &coords[2*num_verts], sizeof(double)*num_verts);
   
   MBEntityHandle *conn = 0;
   result = readMeshIface->get_element_array(num_elems, 8, MBHEX, 1, estart, conn);
   assert(MB_SUCCESS == result);
-  memcpy(conn, connect, num_elems*8*sizeof(MBEntityHandle));
+  build_connect(nelem, vstart, conn);
   result = readMeshIface->update_adjacencies(estart, num_elems, 8, conn);
   assert(MB_SUCCESS == result);
 
@@ -559,12 +621,12 @@ void testB(const int nelem, const double *coords, const MBEntityHandle *connect)
   std::cout << "Read model into MOAB; memory = " << mem/1.0e6 << " MB." << std::endl;
 
     // query the mesh 2 ways
-  query_elem_to_vert();
+  query_elem_to_vert(gMB);
 
   print_time(false, ttime2, utime, stime, mem);
   std::cout << "After E-v query; memory = " << mem/1.0e6 << " MB." << std::endl;
 
-  query_vert_to_elem();
+  query_vert_to_elem(gMB);
   
   print_time(false, ttime3, utime, stime, mem);
   std::cout << "After v-E query; memory = " << mem/1.0e6 << " MB." << std::endl;
@@ -577,8 +639,10 @@ void testB(const int nelem, const double *coords, const MBEntityHandle *connect)
             << std::endl;
 }
 
-void testC(const int nelem, const double *coords) 
+void testC(const int nelem) 
 {
+  MBCore moab;
+  MBInterface* gMB = &moab;
   double ttime0, ttime1, ttime2, ttime3, utime, stime, mem;
   
   print_time(false, ttime0, utime, stime, mem);
@@ -586,6 +650,8 @@ void testC(const int nelem, const double *coords)
 
     // create the vertices; assume we don't need to keep a list of vertex handles, since they'll
     // be created in sequence
+  std::vector<double> coords;
+  build_coords(nelem, coords);
   int numv = nelem + 1;
   int numv_sq = numv*numv;
   int num_verts = numv*numv*numv;
@@ -628,12 +694,12 @@ void testC(const int nelem, const double *coords)
   std::cout << "Read data into MOAB; memory  = " << mem/1.0e6 << " MB." << std::endl;
 
     // query the mesh 2 ways
-  query_elem_to_vert();
+  query_elem_to_vert(gMB);
 
   print_time(false, ttime2, utime, stime, mem);
   std::cout << "After E-v query; memory  = " << mem/1.0e6 << " MB." << std::endl;
 
-  query_vert_to_elem();
+  query_vert_to_elem(gMB);
   
   print_time(false, ttime3, utime, stime, mem);
   std::cout << "After v-E query; memory  = " << mem/1.0e6 << " MB." << std::endl;
