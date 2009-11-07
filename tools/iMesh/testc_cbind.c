@@ -2098,6 +2098,54 @@ int set_remove_contained_regression( iMesh_Instance mesh )
     return 1;
 }
 
+int all_adjacency_regression( iMesh_Instance mesh )
+{
+    int err;
+
+    double coords[] = { 0,0,0, 1,1,1 };
+
+    iBase_EntityHandle *verts = NULL;
+    int verts_alloc = 0,verts_size;
+
+    iBase_EntityHandle line;
+    int status;
+
+    iBase_EntityHandle *adj = NULL;
+    int adj_alloc = 0,adj_size;
+
+    iMesh_newMesh("",&mesh,&err,0);
+    if (iBase_SUCCESS != err) return 0;
+
+    iMesh_createVtxArr(mesh,2,iBase_INTERLEAVED,coords,6,&verts,&verts_alloc,
+                       &verts_size,&err);
+    if (iBase_SUCCESS != err) return 0;
+
+    iMesh_createEnt(mesh,iMesh_LINE_SEGMENT,verts,2,&line,&status,&err);
+    if (iBase_SUCCESS != err || status != iBase_NEW) return 0;
+
+    iMesh_getEntAdj(mesh,verts[0],iBase_ALL_TYPES,&adj,&adj_alloc,&adj_size,
+                    &err);
+    if (iBase_SUCCESS != err) return 0;
+    if(adj_size != 1 || adj[0] != line) {
+        printf("Bad: couldn't find adjacency for vertex\n");
+        return 0;
+    }
+    free(adj);
+
+    adj_alloc = adj = 0;
+    iMesh_getEntAdj(mesh,line,iBase_ALL_TYPES,&adj,&adj_alloc,&adj_size,
+                    &err);
+    if (iBase_SUCCESS != err) return 0;
+    if(adj_size != 2 || ((adj[0] != verts[0] || adj[1] != verts[1]) &&
+                         (adj[0] != verts[1] || adj[1] != verts[0])) ) {
+        printf("Bad: couldn't find adjacencies for line\n");
+        return 0;
+    }
+    free(adj);
+    
+    return 1;
+}
+
 int main( int argc, char *argv[] )
 {
     /* Check command line arg */
@@ -2220,6 +2268,15 @@ int main( int argc, char *argv[] )
     /* regression test for remove/contained bug */
   printf("   set_remove_contained_regression: ");
   result = set_remove_contained_regression(mesh);
+  handle_error_code(result, &number_tests_failed,
+                    &number_tests_not_implemented,
+                    &number_tests_successful);
+  number_tests++;
+  printf("\n");
+
+    /* regression test for adjacencies with iBase_ALL_TYPES bug */
+  printf("   all_adjacency_regression: ");
+  result = all_adjacency_regression(mesh);
   handle_error_code(result, &number_tests_failed,
                     &number_tests_not_implemented,
                     &number_tests_successful);

@@ -716,7 +716,7 @@ extern "C" {
         for (int dim = 0; dim < 4; ++dim) {
           if (MBCN::Dimension(TYPE_FROM_HANDLE(*entity_iter)) == dim)
             continue;
-          result = MBI->get_adjacencies( entity_iter, 1, dim, false, adj_ents );
+          result = MBI->get_adjacencies( entity_iter, 1, dim, false, adj_ents, MBInterface::UNION );
           if (MB_SUCCESS != result) {
             iMesh_processError(iBase_ERROR_MAP[result], "iMesh_getEntArrAdj: trouble getting adjacency list.");
             RETURN(iBase_ERROR_MAP[result]);
