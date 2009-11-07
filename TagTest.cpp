@@ -1599,7 +1599,7 @@ void test_get_ents_with_default_value()
   MBRange verts;
   rval = mb.create_vertices( &coords[0], coords.size()/3, verts );
   CHECK_ERR( rval );
-  CHECK_EQUAL( coords.size()/3, verts.size() );
+  CHECK_EQUAL( coords.size()/3, (size_t)verts.size() );
     // create one edge, which we should never get back from 
     // our queries with type == MBVERTEX
   MBEntityHandle edge, ends[] = { verts.front(), verts.back() };
@@ -1662,7 +1662,7 @@ void test_get_ents_with_default_value()
   ptrs[0] = &default_sparse;
   rval = mb.get_entities_by_type_and_tag( 0, MBVERTEX, &tag_sparse, ptrs, 1, result, MBInterface::INTERSECT );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (size_t)1, result.size() );
+  CHECK_EQUAL( (MBEntityHandle)1, result.size() );
   CHECK_EQUAL( sets[1].front(), result.front() );
   
   
