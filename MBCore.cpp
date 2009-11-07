@@ -1047,7 +1047,7 @@ MBErrorCode  MBCore::set_connectivity(const MBEntityHandle entity_handle,
 }
 
 
-template <typename ITER> static 
+template <typename ITER> static inline
 MBErrorCode get_adjacencies_union( MBCore* gMB,
                                    ITER begin, ITER end,
                                    int to_dimension,
@@ -1109,7 +1109,7 @@ MBErrorCode get_adjacencies_union( MBCore* gMB,
   return result;
 }
 
-template <typename ITER> static 
+template <typename ITER> static inline
 MBErrorCode get_adjacencies_intersection( MBCore* mb,
                              ITER begin, ITER end,
                              const int to_dimension,
@@ -1167,7 +1167,7 @@ MBErrorCode get_adjacencies_intersection( MBCore* mb,
   return MB_SUCCESS;
 }
 
-template <typename ITER> static 
+template <typename ITER> static inline
 MBErrorCode get_adjacencies_intersection( MBCore* mb,
                              ITER begin, ITER end,
                              const int to_dimension,
