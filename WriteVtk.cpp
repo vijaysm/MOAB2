@@ -285,7 +285,7 @@ MBErrorCode WriteVtk::write_elems( std::ostream& stream,
       writeTool->report_error( "Vtk file format does not support elements "
         "of type %s (%d) with %d nodes.\n", MBCN::EntityTypeName(type), 
         (int)type, conn_len);
-      continue;
+      return MB_FAILURE;
     }
 
       // Get IDs from vertex handles
