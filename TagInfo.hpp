@@ -122,7 +122,7 @@ inline TagInfo::TagInfo( const char* name,
    mMeshValueSize(0),
    mDataSize(size),
    dataType(type),
-   mTagName(name),
+   mTagName(name ? name : ""),
    isValid(true)
 {
   if (default_value) {
