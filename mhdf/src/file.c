@@ -289,12 +289,17 @@ mhdf_openFileWithOpt( const char* filename,
   API_BEGIN;
   
     /* Check if file is HDF5 */
-  if (H5Fis_hdf5( filename ) <= 0)
+  if (H5Fis_hdf5( filename ) <= 0) {
+    mhdf_setFail( status, "%s: File is not HDF5", filename );
     return NULL;
+  }
   
     /* Create struct to hold working data */
   file_ptr = mhdf_alloc_FileHandle( 0, status );
-  if (!file_ptr) return NULL;
+  if (!file_ptr) {
+    mhdf_setFail( status, "Memory allocation failed" );
+    return NULL;
+  }  
 
     /* Create the file */
   flags = writable ? H5F_ACC_RDWR : H5F_ACC_RDONLY;
@@ -325,6 +330,7 @@ mhdf_openFileWithOpt( const char* filename,
   if (!scan_for_max_id( file_ptr, status ))
   {
     H5Fclose( file_ptr->hdf_handle );
+    mhdf_setFail( status, "Internal error reading file" );
     free( file_ptr );
     return NULL;
   }
