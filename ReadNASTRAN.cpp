@@ -426,6 +426,7 @@ MBErrorCode ReadNASTRAN::read_element( const std::vector<std::string> tokens,
     result = MBI->create_meshset( 0, new_material_set );
     if(MB_SUCCESS != result) return result;
     result = MBI->add_entities( file_set, &new_material_set, 1 );
+    if(MB_SUCCESS != result) return result;
     result = MBI->tag_set_data( material_tag, &new_material_set, 1, &material );
     if(MB_SUCCESS != result) return result;
     material_set.insert( new_material_set );

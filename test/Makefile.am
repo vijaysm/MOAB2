@@ -29,7 +29,8 @@ EXTRA_DIST  = 125hex.g \
               test.cub \
               ho_test.cub \
 	      sample.stl \
-	      gmsh2.msh
+	      gmsh2.msh \
+              test.nas
 
 CLEANFILES = mb_big_test.g \
              cell1.gen \

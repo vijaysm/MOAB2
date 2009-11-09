@@ -40,6 +40,7 @@ TESTS = moab_test \
 	cub_file_test \
 	exodus_test \
         gmsh_test \
+	nastran_test \
         stl_test \
         mbcn_test \
         bsp_tree_poly_test
@@ -372,6 +373,9 @@ exodus_test_DEPENDENCIES = $(tag_test_LDADD)
 
 gmsh_test_SOURCES = TestUtil.hpp gmsh_test.cc
 gmsh_test_DEPENDENCIES = $(tag_test_LDADD)
+
+nastran_test_SOURCES = TestUtil.hpp nastran_test.cc
+nastran_test_DEPENDENCIES = $(tag_test_LDADD)
 
 stl_test_SOURCES = TestUtil.hpp stl_test.cc
 stl_test_DEPENDENCIES = $(tag_test_LDADD)
