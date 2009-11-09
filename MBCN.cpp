@@ -226,12 +226,13 @@ short int side_number(const T *parent_conn,
                 int &offset)
 {
   int parent_num_verts = MBCN::VerticesPerEntity(parent_type);
-  std::vector<int> side_indices(child_num_verts);
+  int side_indices[8]; 
+  assert(sizeof(side_indices)/sizeof(side_indices[0]) <= child_num_verts);
   
   for (int i = 0; i < child_num_verts; i++) {
-    const T *tmp = std::find(parent_conn, parent_conn+parent_num_verts, child_conn[i]);
-    if (tmp == parent_conn+parent_num_verts) return -1;
-    else side_indices[i] = tmp - parent_conn;
+    side_indices[i] = std::find(parent_conn, parent_conn+parent_num_verts, child_conn[i]) - parent_conn;
+    if (side_indices[i] == parent_num_verts) 
+      return -1;
   }
   
   return MBCN::SideNumber(parent_type, &side_indices[0], child_num_verts,
