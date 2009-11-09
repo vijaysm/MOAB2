@@ -227,7 +227,7 @@ short int side_number(const T *parent_conn,
 {
   int parent_num_verts = MBCN::VerticesPerEntity(parent_type);
   int side_indices[8]; 
-  assert(sizeof(side_indices)/sizeof(side_indices[0]) <= (size_t)child_num_verts);
+  assert(sizeof(side_indices)/sizeof(side_indices[0]) >= (size_t)child_num_verts);
   
   for (int i = 0; i < child_num_verts; i++) {
     side_indices[i] = std::find(parent_conn, parent_conn+parent_num_verts, child_conn[i]) - parent_conn;
