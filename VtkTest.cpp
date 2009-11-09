@@ -33,13 +33,17 @@ DECLARE_TEST(tri3)
 DECLARE_TEST(tri6)
 DECLARE_TEST(quad4)
 DECLARE_TEST(quad8)
+DECLARE_TEST(quad9)
 DECLARE_TEST(polygon)
 DECLARE_TEST(tet4)
 DECLARE_TEST(tet10)
 DECLARE_TEST(hex8)
 DECLARE_TEST(hex20)
+DECLARE_TEST(hex27)
 DECLARE_TEST(wedge)
+DECLARE_TEST(wedge15)
 DECLARE_TEST(pyramid)
+DECLARE_TEST(pyramid13)
 
 DECLARE_TEST(structured_points_2d)
 DECLARE_TEST(structured_grid_2d)
@@ -325,6 +329,32 @@ bool test_quad8()
   return test_read_write_element( coords, 13, conn, conn, 16, 2, 23, MBQUAD );
 }
 
+bool test_quad9()
+{
+  const double coords[] = 
+    { 0, 0, 0,
+      0, 2, 0,
+      0, 4, 0,
+      0, 0, 4,
+      0, 2, 4, 
+      0, 4, 4,
+      4, 0, 0,
+      4, 2, 0,
+      4, 4, 0,
+      2, 0, 0,
+      2, 2, 0,
+      2, 4, 0,
+      0, 0, 2,
+      0, 2, 2,
+      0, 4, 2
+    };
+  const int conn[] = 
+    { 0, 2, 5, 3, 1, 14, 4, 12, 12,
+      2, 0, 6, 8, 1, 9, 7, 11, 10 };
+  
+  return test_read_write_element( coords, 15, conn, conn, 18, 2, 28, MBQUAD );
+}
+
 bool test_polygon()
 {
   const double coords[] = 
@@ -458,18 +488,40 @@ bool test_hex20()
 {
   const int vtk_conn[] = 
     {  0,  2,  8,  6, 
-      18, 20, 26, 25, 
-       1,  5,  7, 13, 
+      18, 20, 26, 24, 
+       1,  5,  7,  3, 
       19, 23, 25, 21,
        9, 11, 17, 15 };
   const int exo_conn[] =
     {  0,  2,  8,  6, 
-      18, 20, 26, 25, 
-       1,  5,  7, 13, 
+      18, 20, 26, 24, 
+       1,  5,  7,  3, 
        9, 11, 17, 15,
       19, 23, 25, 21 };
   
   return test_read_write_element( grid_2x2x2, 27, vtk_conn, exo_conn, 20, 1, 25, MBHEX );       
+}
+
+bool test_hex27()
+{
+  const int vtk_conn[] = 
+    {  0,  2,  8,  6, 
+      18, 20, 26, 24, 
+       1,  5,  7,  3, 
+      19, 23, 25, 21,
+       9, 11, 17, 15,
+      10, 16, 14, 12,
+       4, 22, 13 };
+  const int moab_conn[] =
+    {  0,  2,  8,  6, 
+      18, 20, 26, 24, 
+       1,  5,  7,  3, 
+       9, 11, 17, 15,
+      19, 23, 25, 21,
+      14, 16, 12, 10,
+       4, 22, 13 };
+  
+  return test_read_write_element( grid_2x2x2, 27, vtk_conn, moab_conn, 27, 1, 29, MBHEX );       
 }
 
 bool test_wedge()
@@ -492,6 +544,40 @@ bool test_wedge()
   return test_read_write_element( coords, 8, vtk_conn, exo_conn, 12, 2, 13, MBPRISM ); 
 }
 
+bool test_wedge15()
+{
+  const double coords[] =
+    { 2, 0, 0,
+      2, 2, 0,
+      0, 2, 0,
+      0, 0, 0,
+      2, 0, 2,
+      2, 2, 2,
+      0, 2, 2,
+      0, 0, 2,
+      2, 1, 0,
+      1, 2, 0,
+      0, 1, 0,
+      1, 0, 0,
+      1, 1, 0,
+      2, 1, 2,
+      1, 2, 2,
+      0, 1, 2,
+      1, 0, 2,
+      1, 1, 2,
+      2, 0, 1,
+      2, 2, 1,
+      0, 2, 1,
+      0, 0, 1 };
+  const int exo_conn[] = 
+    { 0, 1, 3, 4, 5, 7, 8, 12, 11, 18, 19, 21, 13, 17, 16,
+      1, 2, 3, 5, 6, 7, 9, 10, 12, 19, 20, 21, 14, 15, 17 };
+  const int vtk_conn[] =
+    { 0, 3, 1, 4, 7, 5, 11, 12, 8, 16, 17, 13, 18, 21, 19,
+      1, 3, 2, 5, 7, 6, 12, 10, 9, 17, 15, 14, 19, 21, 20 };
+  return test_read_write_element( coords, 22, vtk_conn, exo_conn, 30, 2, 26, MBPRISM ); 
+}
+
 bool test_pyramid()
 {
   const double coords[] = 
@@ -506,6 +592,34 @@ bool test_pyramid()
       3, 2, 1, 0, 4 };
   
   return test_read_write_element( coords, 6, conn, conn, 10, 2, 14, MBPYRAMID );
+}
+
+bool test_pyramid13()
+{
+  const double coords[] = 
+    {  2, -2,  0,
+       2,  2,  0,
+      -2,  2,  0,
+      -2, -2,  0,
+       0,  0, -2,
+       0,  0,  2,
+       2,  0,  0,
+       0,  2,  0,
+      -2,  0,  0,
+       0, -2,  0,
+       1, -1, -1,
+       1,  1, -1,
+      -1,  1, -1,
+      -1, -1, -1,
+       1, -1,  1,
+       1,  1,  1,
+      -1,  1,  1,
+      -1, -1,  1 };
+  const int conn[] = 
+    { 0, 1, 2, 3, 5, 6, 7, 8, 9, 14, 15, 16, 17,
+      3, 2, 1, 0, 4, 8, 7, 6, 9, 13, 12, 11, 10 };
+  
+  return test_read_write_element( coords, 18, conn, conn, 26, 2, 27, MBPYRAMID );
 }
 
 bool test_structured_2d( const char* file );
