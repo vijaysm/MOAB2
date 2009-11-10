@@ -58,7 +58,7 @@ MBReaderIface* ReadCGM::factory( MBInterface* iface )
 { return new ReadCGM( iface ); }
 
 ReadCGM::ReadCGM(MBInterface *impl)
-    : geom_tag(0), id_tag(0), name_tag(0), category_tag(0)
+  : geom_tag(0), id_tag(0), name_tag(0), category_tag(0), faceting_tol_tag(0)
 {
   assert(NULL != impl);
   mdbImpl = impl;
@@ -84,6 +84,9 @@ ReadCGM::ReadCGM(MBInterface *impl)
   rval = mdbImpl->tag_create( CATEGORY_TAG_NAME, CATEGORY_TAG_SIZE,
                             MB_TAG_SPARSE, MB_TYPE_OPAQUE, category_tag, 0, true );
   assert(!rval);
+  rval = mdbImpl->tag_create("FACETING_TOL", sizeof(double), MB_TAG_SPARSE,
+			     MB_TYPE_DOUBLE, faceting_tol_tag, 0, true );
+  assert(!rval);
 }
 
 ReadCGM::~ReadCGM()
@@ -108,7 +111,7 @@ MBErrorCode ReadCGM::read_tag_values( const char* /* file_name */,
 
 // copy geometry into mesh database
 MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
-                      MBEntityHandle,
+                      MBEntityHandle file_set,
                       const FileOptions& opts,
                       const MBReaderIface::IDTag* subset_list,
                       int subset_list_length,
@@ -140,6 +143,10 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
   rval = opts.match_option(name,value); 
   if(MB_SUCCESS == opts.match_option(name,value)) 
     act_att = false; 
+
+  // tag the file_set with the faceting_tol
+  rval = mdbImpl->tag_set_data( faceting_tol_tag, &file_set, 1, &faceting_tol );
+  if(MB_SUCCESS != rval) return rval;
 
   // CGM data
   std::map<RefEntity*,MBEntityHandle> entmap[5]; // one for each dim, and one for groups
@@ -194,6 +201,9 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
       if (MB_SUCCESS != rval)
         return rval;
     
+      rval = mdbImpl->add_entities( file_set, &handle, 1 );
+      if(MB_SUCCESS != rval) return rval;
+
       entmap[dim][ent] = handle;
       
       rval = mdbImpl->tag_set_data( geom_tag, &handle, 1, &dim );
@@ -287,6 +297,9 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
     rval = mdbImpl->create_meshset( MESHSET_SET, h );
     if (MB_SUCCESS != rval)
       return rval;
+
+    rval = mdbImpl->add_entities( file_set, &h, 1 );
+    if(MB_SUCCESS != rval) return rval;
     
     char namebuf[NAME_TAG_SIZE];
     memset( namebuf, '\0', NAME_TAG_SIZE );
@@ -530,6 +543,7 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
         type = MBTRI;
       else {
         std::cerr << "Warning: non-triangle facet in surface " << face->id() << std::endl;
+	std::cerr << "  entity has " << *facet << " edges" << std::endl;
         if (*facet == 4)
           type = MBQUAD;
         else
@@ -555,7 +569,7 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
     if (MB_SUCCESS != rval)
       return MB_FAILURE;
   }
-  
+
   return MB_SUCCESS;
 }
 
