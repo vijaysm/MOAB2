@@ -30,6 +30,7 @@
 #include "SenseEntity.hpp"
 #include "Surface.hpp"
 #include "Curve.hpp"
+#include "Body.hpp"
 #include "InitCGMA.hpp"
 
 #include "MBCore.hpp"
@@ -356,9 +357,34 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
     while (entlist.size()) {
       RefEntity* ent = entlist.pop();
       int dim = ent->dimension();
+
       if (dim < 0) {
-        if (entmap[4].find(ent) != entmap[4].end())
-          entities.insert( entmap[4][ent] );
+
+	Body* body;
+        if (entmap[4].find(ent) != entmap[4].end()){
+          // child is another group; examine its contents
+	  entities.insert( entmap[4][ent] );
+	}
+	else if( (body = dynamic_cast<Body*>(ent)) != NULL ){
+	  // Child is a CGM Body, which presumably comprises some volumes--
+	  // extract volumes as if they belonged to group.
+	  DLIList<RefVolume*> vols;
+	  body->ref_volumes( vols );
+	  for( int vi = vols.size(); vi--; ){
+	    RefVolume* vol = vols.get_and_step();
+	    if( entmap[3].find(vol) != entmap[3].end() ){
+	      entities.insert( entmap[3][vol] );
+	    }
+	    else{
+	      std::cerr << "Warning: CGM Body has orphan RefVolume" << std::endl;
+	    }
+	  }	  
+	}
+	else{
+	  // otherwise, warn user.
+	  std::cerr << "Warning: A dim<0 entity is being ignored by ReadCGM." << std::endl;
+	}
+
       }
       else if (dim < 4) {
         if (entmap[dim].find(ent) != entmap[dim].end())
