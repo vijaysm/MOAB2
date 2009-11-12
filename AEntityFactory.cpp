@@ -93,39 +93,33 @@ MBErrorCode AEntityFactory::get_elements(MBEntityHandle source_entity,
 {
   // check for trivial case first
   const MBEntityType source_type = TYPE_FROM_HANDLE(source_entity);
-  const int source_dimension = MBCN::Dimension(source_type);
+  const unsigned source_dimension = MBCN::Dimension(source_type);
+
+  if (source_type >= MBENTITYSET || target_dimension < 1 || target_dimension > 3) {
+    return MB_TYPE_OUT_OF_RANGE;
+  }
+  else if (source_dimension == target_dimension) {
+    target_entities.push_back( source_entity );
+    return MB_SUCCESS;
+  }
 
   MBErrorCode result;
-  if((unsigned int)source_dimension == target_dimension)
-  {
-    result = MB_FAILURE;
+  if(mVertElemAdj == false && target_dimension != 0) {
+    result = create_vert_elem_adjacencies();
+    if (MB_SUCCESS != result) return result;
   }
-  else if(target_dimension > 4)
-  {
-    result = MB_TYPE_OUT_OF_RANGE;
-  }
-  else if(target_dimension == (source_type != MBPOLYHEDRON ? 0 : 2)) 
-  {
-    result = thisMB->get_connectivity(&source_entity, 1, target_entities);
-  }
-  else if( target_dimension == 4 ) //get meshsets 'source' is in
-  {
-    result = get_associated_meshsets( source_entity, target_entities ); 
-  }
-  else if(source_dimension == 0)
+
+  if(source_dimension == 0)
   {
     result = get_zero_to_n_elements(source_entity, target_dimension,
       target_entities, create_if_missing, create_adjacency_option);
   }
-  else if((unsigned int)source_dimension > target_dimension)
+  else if(source_dimension > target_dimension)
   {
-    if (MBPOLYHEDRON == source_type && target_dimension == 0) 
-      result = get_polyhedron_vertices(source_entity, target_entities);
-    else
-      result = get_down_adjacency_elements(source_entity, target_dimension,
-                                           target_entities, create_if_missing, create_adjacency_option);
+    result = get_down_adjacency_elements(source_entity, target_dimension,
+                                         target_entities, create_if_missing, create_adjacency_option);
   }
-  else //if((unsigned int)source_dimension < target_dimension)
+  else //if(source_dimension < target_dimension)
   {
     result = get_up_adjacency_elements( source_entity, target_dimension,
            target_entities, create_if_missing, create_adjacency_option);
@@ -579,26 +573,30 @@ MBErrorCode AEntityFactory::get_adjacencies( MBEntityHandle entity,
   return result;
 }
 
-MBErrorCode AEntityFactory::get_adjacencies(const MBEntityHandle entity,
-                                             const unsigned int to_dimension,
+MBErrorCode AEntityFactory::get_adjacencies( const MBEntityHandle source_entity,
+                                             const unsigned int target_dimension,
                                              bool create_if_missing,
-                                             std::vector<MBEntityHandle> &adjacent_entities)
+                                             std::vector<MBEntityHandle> &target_entities )
 {
-  MBEntityType ent_type = TYPE_FROM_HANDLE(entity);
+  const MBEntityType source_type = TYPE_FROM_HANDLE(source_entity);
 
-  if (ent_type == MBMAXTYPE) return MB_TYPE_OUT_OF_RANGE;
-  
-  if ((unsigned int)MBCN::Dimension(ent_type) == to_dimension) {
-    adjacent_entities.push_back(entity);
-    return MB_SUCCESS;
+  MBErrorCode result;
+  if (target_dimension == 4) { //get meshsets 'source' is in
+    result = get_associated_meshsets( source_entity, target_entities ); 
   }
-
-  if(mVertElemAdj == false && to_dimension != 0) {
-    MBErrorCode result = create_vert_elem_adjacencies();
-    if (MB_SUCCESS != result) return result;
+  else if (target_dimension == (source_type != MBPOLYHEDRON ? 0 : 2)) {
+    result = thisMB->get_connectivity(&source_entity, 1, target_entities);
   }
-  
-  return get_elements(entity, to_dimension, adjacent_entities, create_if_missing, 0);
+  else if (target_dimension == 0 && source_type == MBPOLYHEDRON) {
+    result = get_polyhedron_vertices(source_entity, target_entities);
+  }
+  else {
+    result = get_elements( source_entity, 
+                           target_dimension,
+                           target_entities,
+                           create_if_missing );
+  }
+  return result;
 }
 
 

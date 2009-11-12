@@ -59,7 +59,7 @@ public:
  *
  *\param source_entity    The entity for which to retrieve the adjacencies.
  *\param target_dimension Retrieve adjacent entities of this dimension.  Must
- *                        be in the range [0,4], where 4 is used to indicated entity sets.
+ *                        be in the range [1,3], where 4 is used to indicated entity sets.
  *\param target_entities  Requested adjacent entities will be appended to this list.
  *\param create_if_missing If true, adjacent elements of the specified dimension will
  *                        be created if they do not already exist.  If the target dimension
