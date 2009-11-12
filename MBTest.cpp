@@ -6784,6 +6784,34 @@ MBErrorCode mb_skin_volume_test_common( bool use_adj )
   return MB_SUCCESS;
 }
 
+
+// It is a common problem for readers to incorrectly
+// handle invalid/unknown file types and non-existant 
+// files.  For either case, MOAB will try all readers
+// (assuming it doesn't recongnize the file extension),
+// so we can test all the readers w/out knowing which
+// readers we have.
+const char* argv0 = 0;
+MBErrorCode mb_read_fail_test(MBInterface* mb)
+{
+  MBEntityHandle set;
+  MBErrorCode rval;
+  
+    // try reading a non-existant file
+  rval = mb->load_file( tmpnam(0), set );
+  if (MB_FILE_DOES_NOT_EXIST != rval)
+    return MB_FAILURE;
+  
+    // try reading an invalid file
+  if (!argv0)  // not set by main, oops!
+    return MB_FAILURE;
+  rval = mb->load_file( argv0, set );
+  if (MB_SUCCESS == rval)
+    return MB_FAILURE;
+  
+  return MB_SUCCESS;
+}
+
 int number_tests = 0;
 int number_tests_failed = 0;
 #define RUN_TEST( A ) _run_test( (A), #A )
@@ -6841,6 +6869,7 @@ static void usage(const char* exe) {
 
 int main(int argc, char* argv[])
 {
+  argv0 = argv[0];
 
     // Check command line arg to see if we should avoid doing the stress test
   bool stress_test = true;
@@ -6915,6 +6944,7 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_skin_surface_adj_test );
   RUN_TEST( mb_skin_volume_test );
   RUN_TEST( mb_skin_volume_adj_test );
+  RUN_TEST( mb_read_fail_test );
   RUN_TEST( mb_merge_update_test );
   RUN_TEST( mb_merge_test );
   if (stress_test) RUN_TEST( mb_stress_test );
