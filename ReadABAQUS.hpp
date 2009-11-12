@@ -273,6 +273,10 @@ private:
   std::ifstream abFile;        // abaqus file
 
   std::string readline;
+  
+  unsigned lineNo;
+  
+  void report_error( const char* );
 
   //! Cached tags for reading.  Note that all these tags are defined when the
   //! core is initialized.
