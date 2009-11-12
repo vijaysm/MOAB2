@@ -101,7 +101,8 @@ MBErrorCode ReadNASTRAN::load_file(const char                  *filename,
      has the same format. */  
   std::string line;
   std::ifstream file (filename);
-  getline(file,line);
+  if (!getline(file,line))
+    return MB_FILE_DOES_NOT_EXIST;
   line_format format;
   result = determine_line_format( line, format );
   if(MB_SUCCESS != result) return result;
