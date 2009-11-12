@@ -104,7 +104,7 @@ MBErrorCode AEntityFactory::get_elements(MBEntityHandle source_entity,
   {
     result = MB_TYPE_OUT_OF_RANGE;
   }
-  if(target_dimension == (source_type != MBPOLYHEDRON ? 0 : 2)) 
+  else if(target_dimension == (source_type != MBPOLYHEDRON ? 0 : 2)) 
   {
     result = thisMB->get_connectivity(&source_entity, 1, target_entities);
   }
