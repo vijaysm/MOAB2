@@ -104,7 +104,7 @@ MBErrorCode AEntityFactory::get_elements(MBEntityHandle source_entity,
   }
 
   MBErrorCode result;
-  if(mVertElemAdj == false && target_dimension != 0) {
+  if(mVertElemAdj == false) {
     result = create_vert_elem_adjacencies();
     if (MB_SUCCESS != result) return result;
   }
@@ -579,6 +579,7 @@ MBErrorCode AEntityFactory::get_adjacencies( const MBEntityHandle source_entity,
                                              std::vector<MBEntityHandle> &target_entities )
 {
   const MBEntityType source_type = TYPE_FROM_HANDLE(source_entity);
+  const unsigned source_dimension = MBCN::Dimension(source_type);
 
   MBErrorCode result;
   if (target_dimension == 4) { //get meshsets 'source' is in
@@ -590,12 +591,33 @@ MBErrorCode AEntityFactory::get_adjacencies( const MBEntityHandle source_entity,
   else if (target_dimension == 0 && source_type == MBPOLYHEDRON) {
     result = get_polyhedron_vertices(source_entity, target_entities);
   }
-  else {
-    result = get_elements( source_entity, 
-                           target_dimension,
-                           target_entities,
-                           create_if_missing );
+  else if (source_dimension == target_dimension) {
+    target_entities.push_back( source_entity );
+    result = MB_SUCCESS;
   }
+  else {
+    if(mVertElemAdj == false) {
+      result = create_vert_elem_adjacencies();
+      if (MB_SUCCESS != result) return result;
+    }
+
+    if(source_dimension == 0)
+    {
+      result = get_zero_to_n_elements(source_entity, target_dimension,
+        target_entities, create_if_missing);
+    }
+    else if(source_dimension > target_dimension)
+    {
+      result = get_down_adjacency_elements(source_entity, target_dimension,
+                                           target_entities, create_if_missing);
+    }
+    else //if(source_dimension < target_dimension)
+    {
+      result = get_up_adjacency_elements( source_entity, target_dimension,
+             target_entities, create_if_missing);
+    }
+  }
+
   return result;
 }
 
