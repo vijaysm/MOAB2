@@ -65,15 +65,8 @@ inline MBEntityHandle CREATE_HANDLE(const unsigned type, const MBEntityID id, in
 
 inline MBEntityHandle CREATE_HANDLE( const unsigned type, const MBEntityID id )
 {
-  // if compiling without asserts, simplify things a bit
-#ifdef NDEBUG
+  assert( id <= MB_END_ID && type <= MBMAXTYPE );
   return (((MBEntityHandle)type) << MB_ID_WIDTH)|id;
-#else
-  int err;
-  MBEntityHandle result = CREATE_HANDLE( type, id, err );
-  assert(!err);
-  return result;
-#endif
 }
 
 inline MBEntityHandle FIRST_HANDLE( unsigned type )
