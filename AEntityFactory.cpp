@@ -92,40 +92,40 @@ MBErrorCode AEntityFactory::get_elements(MBEntityHandle source_entity,
                                           const int create_adjacency_option)
 {
   // check for trivial case first
-  MBEntityType source_type = TYPE_FROM_HANDLE(source_entity);
-  int source_dimension = MBCN::Dimension(source_type);
+  const MBEntityType source_type = TYPE_FROM_HANDLE(source_entity);
+  const int source_dimension = MBCN::Dimension(source_type);
 
+  MBErrorCode result;
   if((unsigned int)source_dimension == target_dimension)
-    return MB_FAILURE;
-
-  if(target_dimension > 4)
-    return MB_FAILURE;
-  
-  std::vector<MBEntityHandle> vertices;
-
-  MBErrorCode result = MB_FAILURE;
-    
+  {
+    result = MB_FAILURE;
+  }
+  else if(target_dimension > 4)
+  {
+    result = MB_TYPE_OUT_OF_RANGE;
+  }
   if(target_dimension == (source_type != MBPOLYHEDRON ? 0 : 2)) 
-    return thisMB->get_connectivity(&source_entity, 1, target_entities);
-
-  if( target_dimension == 4 ) //get meshsets 'source' is in
   {
-      result = get_associated_meshsets( source_entity, target_entities ); 
+    result = thisMB->get_connectivity(&source_entity, 1, target_entities);
   }
-  else if (MBPOLYHEDRON == source_type && target_dimension == 0) {
-    result = get_polyhedron_vertices(source_entity, target_entities);
-  }
-  else if((unsigned int)source_dimension > target_dimension)
+  else if( target_dimension == 4 ) //get meshsets 'source' is in
   {
-    result = get_down_adjacency_elements(source_entity, target_dimension,
-                                         target_entities, create_if_missing, create_adjacency_option);
+    result = get_associated_meshsets( source_entity, target_entities ); 
   }
   else if(source_dimension == 0)
   {
     result = get_zero_to_n_elements(source_entity, target_dimension,
       target_entities, create_if_missing, create_adjacency_option);
   }
-  else if((unsigned int)source_dimension < target_dimension)
+  else if((unsigned int)source_dimension > target_dimension)
+  {
+    if (MBPOLYHEDRON == source_type && target_dimension == 0) 
+      result = get_polyhedron_vertices(source_entity, target_entities);
+    else
+      result = get_down_adjacency_elements(source_entity, target_dimension,
+                                           target_entities, create_if_missing, create_adjacency_option);
+  }
+  else //if((unsigned int)source_dimension < target_dimension)
   {
     result = get_up_adjacency_elements( source_entity, target_dimension,
            target_entities, create_if_missing, create_adjacency_option);
@@ -640,120 +640,38 @@ MBErrorCode AEntityFactory::get_zero_to_n_elements(MBEntityHandle source_entity,
                             const bool create_if_missing,
                             const int /*create_adjacency_option = -1*/)
 {
+  MBAdjacencyVector::iterator start_ent, end_ent;
 
-  MBErrorCode result = MB_SUCCESS;
+  // get the adjacency vector
+  MBAdjacencyVector *adj_vec = NULL;
+  MBErrorCode result = get_adjacencies( source_entity, adj_vec );
+  if(result != MB_SUCCESS || adj_vec == NULL)
+    return result;
   
-  // case 0 to 3  -- find any 3d element
-  if (target_dimension == 3)
-  {
-    // get the adjacency vector
-    MBAdjacencyVector *adj_vec = NULL;
-    result = get_adjacencies( source_entity, adj_vec );
-    if(result != MB_SUCCESS || adj_vec == NULL)
-      return result;
-
-    // find entities that have this dimension
-    MBDimensionPair dim_pair = MBCN::TypeDimensionMap[target_dimension];
-    int dum;
-    MBAdjacencyVector::iterator start_ent =
-      std::lower_bound(adj_vec->begin(), adj_vec->end(), CREATE_HANDLE(dim_pair.first, MB_START_ID, dum));
-    MBAdjacencyVector::iterator end_ent =
-      std::lower_bound(start_ent, adj_vec->end(), CREATE_HANDLE(dim_pair.second, MB_END_ID, dum));
-
-    // copy the entities
-    target_entities.insert( target_entities.end(), start_ent, end_ent );
-  }
-
-  else if( target_dimension == 2 )
-  {
-    // get the adjacency vector
-    MBAdjacencyVector *adj_vec = NULL;
-    result = get_adjacencies( source_entity, adj_vec );
-    if(result != MB_SUCCESS || adj_vec == NULL)
-      return result;
-  
-    MBDimensionPair dim_pair;
-    MBAdjacencyVector::iterator start_ent, end_ent;
-    int dum;
-
-    if(create_if_missing)
-    {
-      // find all the 3d elements
-      dim_pair = MBCN::TypeDimensionMap[3];
-      start_ent = std::lower_bound(adj_vec->begin(), 
-                                   adj_vec->end(), 
-                                   CREATE_HANDLE(dim_pair.first, MB_START_ID, dum));
-
-      end_ent = std::lower_bound(start_ent, 
-                                 adj_vec->end(), 
-                                 CREATE_HANDLE(dim_pair.second, MB_END_ID, dum));
+  if (target_dimension < 3 && create_if_missing) {
+      std::vector<MBEntityHandle> tmp_ents;
       
-      std::vector<MBEntityHandle> elem_3d(start_ent, end_ent);
+      start_ent = std::lower_bound(adj_vec->begin(), adj_vec->end(), 
+                         FIRST_HANDLE(MBCN::TypeDimensionMap[target_dimension+1].first));
+
+      end_ent = std::lower_bound(start_ent, adj_vec->end(), 
+                         LAST_HANDLE(MBCN::TypeDimensionMap[3].second));
+      
+      std::vector<MBEntityHandle> elems(start_ent, end_ent);
  
-      // make 2d elements from all the 3d elements 
-      for(start_ent = elem_3d.begin(); start_ent != elem_3d.end(); ++start_ent)
-      {
-        std::vector<MBEntityHandle> tmp_ents;
-        get_down_adjacency_elements(*start_ent, 2, tmp_ents, create_if_missing, 0);
-      }
-    }
-
-    // now get the 2d elements
-    dim_pair = MBCN::TypeDimensionMap[target_dimension];
-    start_ent = std::lower_bound(adj_vec->begin(), adj_vec->end(), CREATE_HANDLE(dim_pair.first, MB_START_ID, dum));
-    end_ent = std::lower_bound(start_ent, adj_vec->end(), CREATE_HANDLE(dim_pair.second, MB_END_ID, dum));
-
-    // copy the entities
-    target_entities.insert( target_entities.end(), start_ent, end_ent );
-  }
-
-  else if( target_dimension == 1 )
-  {
-    // get the adjacency vector
-    MBAdjacencyVector *adj_vec = NULL;
-    result = get_adjacencies( source_entity, adj_vec );
-    if(result != MB_SUCCESS || adj_vec == NULL)
-      return result;
-
-    MBDimensionPair dim_pair2;
-    int dum;
-    MBAdjacencyVector::iterator start_ent, end_ent;
-
-    if(create_if_missing)
-    {
-      // find all the 3d elements
-      MBDimensionPair dim_pair3 = MBCN::TypeDimensionMap[3];
-      dim_pair2 = MBCN::TypeDimensionMap[2];
-      
-      start_ent = std::lower_bound(adj_vec->begin(), 
-                                   adj_vec->end(), 
-                                   CREATE_HANDLE(dim_pair2.first, MB_START_ID, dum));
-
-      end_ent = std::lower_bound(start_ent, 
-                                 adj_vec->end(), 
-                                 CREATE_HANDLE(dim_pair3.second, MB_END_ID, dum));
-      
-      std::vector<MBEntityHandle> elems( start_ent, end_ent );
-      
-      // make 1d elements from all the 2d and 3d elements
+      // make target_dimension elements from all adjacient higher-dimension elements
       for(start_ent = elems.begin(); start_ent != elems.end(); ++start_ent)
       {
-        std::vector<MBEntityHandle> tmp_ents;
-        get_down_adjacency_elements(*start_ent, 1, tmp_ents, create_if_missing,0);
+        tmp_ents.clear();
+        get_down_adjacency_elements(*start_ent, target_dimension, tmp_ents, create_if_missing, 0);
       }
-    }
-
-    // now get the 1d elements
-    dim_pair2 = MBCN::TypeDimensionMap[target_dimension];
-    start_ent = std::lower_bound(adj_vec->begin(), adj_vec->end(), CREATE_HANDLE(dim_pair2.first, MB_START_ID, dum));
-    end_ent = std::lower_bound(start_ent, adj_vec->end(), CREATE_HANDLE(dim_pair2.second, MB_END_ID, dum));
-
-    // copy the entities
-    target_entities.insert( target_entities.end(), start_ent, end_ent );
   }
-
-  return result;
-  
+    
+  MBDimensionPair dim_pair = MBCN::TypeDimensionMap[target_dimension];
+  start_ent = std::lower_bound(adj_vec->begin(), adj_vec->end(), FIRST_HANDLE(dim_pair.first ));
+  end_ent   = std::lower_bound(start_ent,        adj_vec->end(), LAST_HANDLE (dim_pair.second));
+  target_entities.insert( target_entities.end(), start_ent, end_ent );
+  return MB_SUCCESS;  
 }
 
 MBErrorCode AEntityFactory::get_down_adjacency_elements(MBEntityHandle source_entity,
