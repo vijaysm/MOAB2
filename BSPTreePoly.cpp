@@ -285,7 +285,7 @@ int BSPTreePoly::EdgeUse::sense() const
     return -1;
   else
     return 0;
-};
+}
 
 BSPTreePoly::Vertex* BSPTreePoly::EdgeUse::start() const
 {
