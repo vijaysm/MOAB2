@@ -68,12 +68,12 @@ MBErrorCode ReadMCNP5::read_tag_values( const char* /* file_name */,
 
 
 // load the file as called by the MBInterface function
-MBErrorCode ReadMCNP5::load_file(const char        *filename, 
-                                 MBEntityHandle    input_meshset, 
-                                 const FileOptions &options,
-                                 const MBReaderIface::IDTag* subset_list,
-                                 int               subset_list_length,
-                                 const MBTag*      file_id_tag) {
+MBErrorCode ReadMCNP5::load_file(const char                 *filename, 
+                                 const MBEntityHandle       *input_meshset, 
+                                 const FileOptions          &options,
+                                 const MBReaderIface::IDTag *subset_list,
+                                 int                         subset_list_length,
+                                 const MBTag                *file_id_tag) {
   // at this time there is no support for reading a subset of the file
   if (subset_list && subset_list_length) {
     readMeshIface->report_error( "Reading subset of files not supported for meshtal." );
@@ -132,10 +132,10 @@ MBErrorCode ReadMCNP5::load_file(const char        *filename,
 
 // This actually reads the file. It creates the mesh elements unless
 // the file is being averaged with a pre-existing mesh.
-MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
-                                     MBEntityHandle    input_meshset,
-                                     const FileOptions &options,
-                                     const bool        average ) {
+MBErrorCode ReadMCNP5::load_one_file(const char           *fname,
+                                     const MBEntityHandle *input_meshset,
+                                     const FileOptions    &options,
+                                     const bool           average ) {
 
   bool debug = false;
   if (debug) std::cout << "begin ReadMCNP5::load_one_file" << std::endl;
@@ -192,8 +192,8 @@ MBErrorCode ReadMCNP5::load_one_file(const char        *fname,
 
   // Everything stored in the file being read will be in the input_meshset.
   // if this is being saved in MOAB, set header tags
-  if (!average) {
-    result = set_header_tags( input_meshset, 
+  if (!average && 0 != input_meshset) {
+    result = set_header_tags( *input_meshset, 
                               date_and_time,
                               title,
                               nps,

@@ -49,11 +49,10 @@ class MBReaderIface
      * Method all readers must provide to import a mesh.
      *
      *\param file_name      The file to read.
-     *\param file_set       The entity set to which to add all entities read
-     *                      from the file.  If the reader returns anything 
-     *                      other than MB_SUCCESS, it is the responsibility
-     *                      of the caller to delete this set and any contained
-     *                      entities that were read.
+     *\param file_set       Optional pointer to entity set representing
+     *                      file.  If this is not NULL, reader may optionally
+     *                      tag the pointed-to set with format-specific
+     *                      meta-data.
      *\param subset_list    An array of tag name and value sets specifying
      *                      the subset of the file to read.  If multiple
      *                      tags are specified, the sets that match all
@@ -64,7 +63,7 @@ class MBReaderIface
      *\author Jason Kraftcheck
      */
     virtual MBErrorCode load_file( const char* file_name,
-                                   MBEntityHandle file_set,
+                                   const MBEntityHandle* file_set,
                                    const FileOptions& opts,
                                    const IDTag* subset_list = 0,
                                    int subset_list_length = 0,

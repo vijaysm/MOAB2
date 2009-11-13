@@ -125,9 +125,8 @@ MBErrorCode test_read(const char *filename, const char *option)
   MBCore mb_instance;
   MBInterface& moab = mb_instance;
   MBErrorCode rval;
-  MBEntityHandle set;
 
-  rval = moab.load_file( filename, set, option);
+  rval = moab.load_file( filename, 0, option);
   CHKERR(rval);
 
   MBParallelComm* pcomm = MBParallelComm::get_pcomm(&moab, 0);

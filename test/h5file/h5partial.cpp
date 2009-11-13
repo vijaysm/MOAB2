@@ -227,7 +227,9 @@ void test_read_nothing_common( bool non_existant )
   // now read back in only the empty set
   MBEntityHandle file_set;
   int id = non_existant ? 8 : 7;
-  rval = mb.load_file( TEST_FILE, file_set, READ_OPTS, ID_TAG_NAME, &id, 1 );
+  rval = mb.create_meshset( MESHSET_SET, file_set );
+  CHECK_ERR(rval);
+  rval = mb.load_file( TEST_FILE, &file_set, READ_OPTS, ID_TAG_NAME, &id, 1 );
   if (non_existant) {
     CHECK_EQUAL( MB_ENTITY_NOT_FOUND, rval );
     return;
@@ -306,7 +308,9 @@ void test_read_nodes_common( int num_read_sets )
   values.resize( num_read_sets );
   for (int i = 0; i < num_read_sets; ++i) values[i] = 2*(i+1);
   MBEntityHandle file_set;
-  rval = mb.load_file( TEST_FILE, file_set, READ_OPTS, ID_TAG_NAME, &values[0], num_read_sets );
+  rval = mb.create_meshset( MESHSET_SET, file_set );
+  CHECK_ERR(rval);
+  rval = mb.load_file( TEST_FILE, &file_set, READ_OPTS, ID_TAG_NAME, &values[0], num_read_sets );
   CHECK_ERR(rval);
   
   int count, expected = 0;
@@ -556,8 +560,7 @@ void test_read_one_set_elems()
   for (int id = 1; id <= NUM_SETS; ++id) {
     rval = mb.delete_mesh();
     CHECK_ERR(rval);
-    MBEntityHandle file_set;
-    rval = mb.load_file( TEST_FILE, file_set, READ_OPTS, ID_TAG_NAME, &id, 1 );
+    rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, &id, 1 );
     CHECK_ERR(rval);
     MBRange verts;
     rval = mb.get_entities_by_type( 0, MBVERTEX, verts );
@@ -576,7 +579,9 @@ void test_read_two_sets_elems()
   create_mesh( true, false, false, false );
   int ids[2] = { 2, 8 };
   MBEntityHandle file_set;
-  rval = mb.load_file( TEST_FILE, file_set, READ_OPTS, ID_TAG_NAME, ids, 2 );
+  rval = mb.create_meshset( MESHSET_SET, file_set );
+  CHECK_ERR(rval);
+  rval = mb.load_file( TEST_FILE, &file_set, READ_OPTS, ID_TAG_NAME, ids, 2 );
   CHECK_ERR(rval);
   
   MBRange sets;
@@ -641,8 +646,7 @@ void test_read_double_tag()
   
   create_mesh( true, false, false, false );
   int ids[2] = { 1, 4 };
-  MBEntityHandle file_set;
-  rval = mb.load_file( TEST_FILE, file_set, READ_OPTS, ID_TAG_NAME, ids, 2 );
+  rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, ids, 2 );
   CHECK_ERR(rval);
   
   MBTag tag = check_tag( mb, CENTROID_NAME, MB_TAG_DENSE, MB_TYPE_DOUBLE, 3*sizeof(double) );
@@ -671,8 +675,7 @@ void test_read_opaque_tag()
   
   create_mesh( true, false, false, false );
   int ids[2] = { 1, 4 };
-  MBEntityHandle file_set;
-  rval = mb.load_file( TEST_FILE, file_set, READ_OPTS, ID_TAG_NAME, ids, 2 );
+  rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, ids, 2 );
   CHECK_ERR(rval);
 
   MBTag tag = check_tag( mb, LOGICAL_NAME, MB_TAG_DENSE, MB_TYPE_OPAQUE, 2*sizeof(int) );
@@ -701,8 +704,7 @@ static void test_read_handle_tag_common( bool var_len )
   const char tag_name[] = "VTX_ADJ";
   create_mesh( true, false, false, false, tag_name, var_len );
   int ids[2] = { 7, 10 };
-  MBEntityHandle file_set;
-  rval = mb.load_file( TEST_FILE, file_set, READ_OPTS, ID_TAG_NAME, ids, 2 );
+  rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, ids, 2 );
   CHECK_ERR(rval);
   
   MBTag tag = check_tag( mb, tag_name, MB_TAG_DENSE, MB_TYPE_HANDLE, 
@@ -754,8 +756,7 @@ void test_read_tagged_elems()
   
   create_mesh( false, false, true, false );
   int id = 5;
-  MBEntityHandle file_set;
-  rval = mb.load_file( TEST_FILE, file_set, READ_OPTS, ID_TAG_NAME, &id, 1 );
+  rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, &id, 1 );
   CHECK_ERR(rval);
   
   MBRange verts;
@@ -778,8 +779,7 @@ void test_read_tagged_nodes()
   
   create_mesh( false, false, false, true );
   int id = 1; // NOTE: this test will only succeed for ID == 1 
-  MBEntityHandle file_set;
-  rval = mb.load_file( TEST_FILE, file_set, READ_OPTS, ID_TAG_NAME, &id, 1 );
+  rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, &id, 1 );
   CHECK_ERR(rval);
   
   MBRange verts;
@@ -897,8 +897,7 @@ void test_read_one_set_polyhedra()
   rval = mb.delete_mesh();
   CHECK_ERR(rval);
   
-  MBEntityHandle file;
-  rval = mb.load_file( TEST_FILE, file, READ_OPTS, ID_TAG_NAME, ids, 1 );
+  rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, ids, 1 );
   CHECK_ERR(rval);
   
   MBRange rpoly;
@@ -966,8 +965,10 @@ void test_read_set_sets()
     CHECK_ERR(rval);
     
     MBEntityHandle file;
+    rval = mb.create_meshset( MESHSET_SET, file );
+    CHECK_ERR(rval);
     int id = i+1;
-    rval = mb.load_file( TEST_FILE, file, READ_OPTS ";SETS=NONE", ID_TAG_NAME, &id, 1 );
+    rval = mb.load_file( TEST_FILE, &file, READ_OPTS ";SETS=NONE", ID_TAG_NAME, &id, 1 );
     CHECK_ERR(rval);
     
       // check that the total number of sets read is as expected
@@ -1146,7 +1147,10 @@ void test_gather_sets_common( bool contents, GatherTestMode mode )
     rval = mb.delete_mesh();
     CHECK_ERR(rval);
     
-    rval = mb.load_file( TEST_FILE, file, opt.c_str(), ID_TAG_NAME, test_ids+i, 1 );
+    rval = mb.create_meshset( MESHSET_SET, file );
+    CHECK_ERR(rval);
+    
+    rval = mb.load_file( TEST_FILE, 0, opt.c_str(), ID_TAG_NAME, test_ids+i, 1 );
     CHECK_ERR(rval);
     rval = mb.tag_get_handle( ID_TAG_NAME, id_tag );
     CHECK_ERR(rval);
@@ -1216,7 +1220,8 @@ void test_gather_sets_ranged( bool contents, GatherTestMode mode )
   MBEntityHandle file;
   const int read_id = 3;
   rval = mb.delete_mesh(); CHECK_ERR(rval);
-  rval = mb.load_file( TEST_FILE, file, opt.c_str(), ID_TAG_NAME, &read_id, 1 );
+  rval = mb.create_meshset( MESHSET_SET, file ); CHECK_ERR(rval);
+  rval = mb.load_file( TEST_FILE, &file, opt.c_str(), ID_TAG_NAME, &read_id, 1 );
   CHECK_ERR(rval);
   
     // get any sets that were read it
@@ -1292,10 +1297,9 @@ void test_read_containing_sets()
   MBInterface& mb = instance;
   
     // read some sets
-  MBEntityHandle file;
   const int ids[] = { 1, 5, 9 };
   const int num_sets = sizeof(ids)/sizeof(int);
-  rval = mb.load_file( TEST_FILE, file, READ_OPTS, ID_TAG_NAME, ids, num_sets );
+  rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, ids, num_sets );
   CHECK_ERR(rval);
 
   MBTag id_tag;
@@ -1380,8 +1384,7 @@ void test_read_adjacencies()
   
     // read mesh
   rval = mb.delete_mesh(); CHECK_ERR(rval);
-  MBEntityHandle file;
-  rval = mb.load_file( TEST_FILE, file, READ_OPTS, ID_TAG_NAME, ids, 1 );
+  rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, ids, 1 );
   CHECK_ERR(rval);
   
     // expect two hexes and two edges
@@ -1466,8 +1469,7 @@ void test_read_sides()
   
     // read first set back in
   rval = mb.delete_mesh(); CHECK_ERR(rval);
-  MBEntityHandle file;
-  rval = mb.load_file( TEST_FILE, file, READ_OPTS, ID_TAG_NAME, ids, 1 );
+  rval = mb.load_file( TEST_FILE, 0, READ_OPTS, ID_TAG_NAME, ids, 1 );
   CHECK_ERR(rval);
   
     // check expected counts

@@ -250,7 +250,7 @@ MBErrorCode ReadNCDF::read_tag_values(const char* file_name,
 
 
 MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
-                                MBEntityHandle file_set,
+                                const MBEntityHandle* file_set,
                                 const FileOptions& opts,
                                 const MBReaderIface::IDTag* subset_list,
                                 int subset_list_length,
@@ -329,8 +329,10 @@ MBErrorCode ReadNCDF::load_file(const char *exodus_file_name,
   if (MB_FAILURE == status) return status;
 
     // 8. Read qa records
-  status = read_qa_records(file_set);
-  if (MB_FAILURE == status) return status;
+  if (file_set) {
+    status = read_qa_records(*file_set);
+    if (MB_FAILURE == status) return status;
+  }
   
     // what about properties???
 

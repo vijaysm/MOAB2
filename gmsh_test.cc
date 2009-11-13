@@ -40,11 +40,9 @@ int main()
 void read_file( MBInterface& moab, const char* input_file )
 {
   MBErrorCode rval;
-  MBEntityHandle set;
-  moab.create_meshset( MESHSET_SET, set );
   ReadGmsh reader( &moab );
   FileOptions opts("");
-  rval = reader.load_file( input_file, set, opts, 0, 0, 0 );
+  rval = reader.load_file( input_file, 0, opts, 0, 0, 0 );
   CHECK_ERR(rval);
 }
 

@@ -116,10 +116,9 @@ int main( int argc, char* argv[] )
   MBCore moab;
   MBInterface& mb = moab;
   MBErrorCode rval;
-  MBEntityHandle file_set;
   std::string init_msg, msg;
   mb.get_last_error( init_msg );
-  rval = mb.load_file( input_file, file_set );
+  rval = mb.load_file( input_file );
   if (MB_SUCCESS != rval) {
     std::cerr << input_file << " : failed to read file." << std::endl;
     mb.get_last_error( msg );

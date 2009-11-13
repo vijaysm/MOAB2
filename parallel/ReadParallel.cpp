@@ -54,7 +54,7 @@ ReadParallel::ReadParallel(MBInterface* impl,
 
 MBErrorCode ReadParallel::load_file(const char **file_names,
                                     const int num_files,
-                                    MBEntityHandle& file_set,
+                                    const MBEntityHandle* file_set,
                                     const FileOptions &opts,
                                     const MBReaderIface::IDTag* subset_list,
                                     int subset_list_length,
@@ -222,7 +222,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
     
 MBErrorCode ReadParallel::load_file(const char **file_names,
                                     const int num_files,
-                                    MBEntityHandle& file_set,
+                                    const MBEntityHandle* file_set_ptr,
                                     int parallel_mode, 
                                     std::string &partition_tag_name, 
                                     std::vector<int> &partition_tag_vals, 
@@ -262,8 +262,10 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
   act_times[0] = MPI_Wtime();
   
     // make a new set for the parallel read
+  MBEntityHandle file_set;
   result = mbImpl->create_meshset(MESHSET_SET, file_set);
   if (MB_SUCCESS != result) return result;
+
   bool i_read = false;
   MBTag id_tag = 0;
   bool use_id_tag = false;
@@ -281,9 +283,11 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
             if (debug)
               std::cout << "Reading file " << file_names[j] << std::endl;
 
-            MBEntityHandle new_file_set = 0;
+            MBEntityHandle new_file_set;
+            result = mbImpl->create_meshset(MESHSET_SET, new_file_set);
+            if (MB_SUCCESS != result) return result;
             tmp_result = impl->serial_load_file( file_names[j], 
-                                                 new_file_set, 
+                                                 &new_file_set, 
                                                  opts,
                                                  subset_list,
                                                  subset_list_length,
@@ -356,7 +360,7 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
           std::vector<MBReaderIface::IDTag> subset( subset_list, 
                                                     subset_list + subset_list_length );
           subset.push_back( parts );
-          tmp_result = impl->serial_load_file( *file_names, file_set, opts, 
+          tmp_result = impl->serial_load_file( *file_names, &file_set, opts, 
                                                &subset[0], subset.size(), file_id_tag );
           
           if (MB_SUCCESS == tmp_result)
@@ -490,6 +494,13 @@ MBErrorCode ReadParallel::load_file(const char **file_names,
     std::cout << ")" << std::endl;
   }
   
+  if (MB_SUCCESS == result && file_set_ptr) {
+    MBRange all_ents;
+    result = mbImpl->get_entities_by_handle(file_set, all_ents);
+    if (MB_SUCCESS == result)
+      result = mbImpl->add_entities(*file_set_ptr, all_ents);
+  }
+    
   return result;
 }
 

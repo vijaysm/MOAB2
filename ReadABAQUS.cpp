@@ -132,7 +132,7 @@ MBErrorCode ReadABAQUS::read_tag_values( const char* /* file_name */,
 
 
 MBErrorCode ReadABAQUS::load_file(const char *abaqus_file_name,
-				  MBEntityHandle file_set,
+				  const MBEntityHandle* file_set_ptr,
 				  const FileOptions& opts,
 				  const MBReaderIface::IDTag* subset_list,
 				  int subset_list_length,
@@ -147,6 +147,11 @@ MBErrorCode ReadABAQUS::load_file(const char *abaqus_file_name,
     return MB_FILE_DOES_NOT_EXIST;
 
   bool in_unsupported = false;
+
+  MBEntityHandle file_set;
+  status = mdbImpl->create_meshset( MESHSET_SET, file_set );
+  if (MB_SUCCESS != status)
+    return status;
 
   next_line_type = get_next_line_type();
   while (next_line_type != abq_eof)
@@ -254,8 +259,11 @@ MBErrorCode ReadABAQUS::load_file(const char *abaqus_file_name,
 
     }
   
-
-  return MB_SUCCESS;
+  if (file_set_ptr) {
+    status = mdbImpl->unite_meshset( *file_set_ptr, file_set );
+    MB_RETURN_IF_FAIL;
+  }
+  return mdbImpl->delete_entities( &file_set, 1 );
 }
   
 

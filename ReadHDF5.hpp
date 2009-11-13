@@ -51,7 +51,7 @@ public:
    * \param export_set_count Length of <code>export_sets</code> array.
    */
   MBErrorCode load_file( const char* filename,
-                         MBEntityHandle file_set,
+                         const MBEntityHandle* file_set,
                          const FileOptions& opts,
                          const MBReaderIface::IDTag* subset_list = 0,
                          int subset_list_length = 0,

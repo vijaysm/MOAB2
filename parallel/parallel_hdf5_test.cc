@@ -262,9 +262,8 @@ void print_partitioned_entities( MBInterface& moab, bool list_non_shared = false
 void load_and_partition( MBInterface& moab, const char* filename, bool print )
 {
   MBErrorCode rval;
-  MBEntityHandle set;
   
-  rval = moab.load_file( filename, set, 
+  rval = moab.load_file( filename, 0, 
                          "PARALLEL=READ_DELETE;"
                          "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
                          "PARTITION_DISTRIBUTE;"
@@ -279,7 +278,6 @@ void load_and_partition( MBInterface& moab, const char* filename, bool print )
 void save_and_load_on_root( MBInterface& moab, const char* tmp_filename )
 {
   MBErrorCode rval;
-  MBEntityHandle set;
   int procnum;
   MPI_Comm_rank( MPI_COMM_WORLD, &procnum );
   
@@ -296,7 +294,7 @@ void save_and_load_on_root( MBInterface& moab, const char* tmp_filename )
   
   moab.delete_mesh();
   if (procnum == 0) {
-    rval = moab.load_file( tmp_filename, set );
+    rval = moab.load_file( tmp_filename );
     if (!KeepTmpFiles)
       remove( tmp_filename );
     CHECK_ERR(rval);
@@ -438,8 +436,7 @@ void test_write_elements()
   
   if (rank == 0) {
     MBCore moab2;
-    MBEntityHandle set;
-    rval = moab2.load_file( InputFile, set );
+    rval = moab2.load_file( InputFile );
     CHECK_ERR(rval);
     check_identical_mesh( moab, moab2 );
   }
@@ -484,8 +481,7 @@ void test_write_shared_sets()
   
   MBCore moab2_instance;
   MBInterface& moab2 = moab2_instance;
-  MBEntityHandle set;
-  rval = moab2.load_file( InputFile, set );
+  rval = moab2.load_file( InputFile );
   CHECK_ERR(rval);
   
   MBTag mattag1, mattag2;
@@ -746,7 +742,6 @@ void test_read_elements_common( bool by_rank, int intervals, bool print_time )
   MBCore moab;
   MBInterface &mb = moab;
   MBErrorCode rval;
-  MBEntityHandle file_set;
 
     // if root processor, create hdf5 file for use in testing
   if (0 == rank) 
@@ -757,7 +752,7 @@ void test_read_elements_common( bool by_rank, int intervals, bool print_time )
   const char opt1[] = "PARALLEL=READ_PART;PARTITION=PARTITION";
   const char opt2[] = "PARALLEL=READ_PART;PARTITION=PARTITION;PARTITION_BY_RANK";
   const char* opt = numproc == 1 ? 0 : by_rank ? opt2 : opt1;
-  rval = mb.load_file( file_name, file_set, opt );
+  rval = mb.load_file( file_name, 0, opt );
   MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
   if (0 == rank && !KeepTmpFiles) remove( file_name );
   CHECK_ERR(rval);
@@ -809,7 +804,6 @@ void test_read_time()
   MPI_Comm_size( MPI_COMM_WORLD, &numproc );
   MPI_Comm_rank( MPI_COMM_WORLD, &rank    );
   MBErrorCode rval;
-  MBEntityHandle file_set;
 
     // if root processor, create hdf5 file for use in testing
   if (0 == rank) 
@@ -827,7 +821,7 @@ void test_read_time()
   times[0] = MPI_Wtime();
   tmp_t    = clock();
   const char opt[] = "PARALLEL=READ_PART;PARTITION=PARTITION;PARTITION_BY_RANK";
-  rval = mb.load_file( file_name, file_set, opt );
+  rval = mb.load_file( file_name, 0, opt );
   CHECK_ERR(rval);
   times[0] = MPI_Wtime() - times[0];
   times[1] = double(clock() - tmp_t) / CLOCKS_PER_SEC;
@@ -839,7 +833,7 @@ void test_read_time()
   times[2] = MPI_Wtime();
   tmp_t    = clock();
   const char opt2[] = "PARALLEL=READ_DELETE;PARTITION=PARTITION;PARTITION_BY_RANK";
-  rval = mb2.load_file( file_name, file_set, opt2 );
+  rval = mb2.load_file( file_name, 0, opt2 );
   CHECK_ERR(rval);
   times[2] = MPI_Wtime() - times[2];
   times[3] = double(clock() - tmp_t) / CLOCKS_PER_SEC;
@@ -851,7 +845,7 @@ void test_read_time()
   times[4] = MPI_Wtime();
   tmp_t    = clock();
   const char opt3[] = "PARALLEL=BCAST_DELETE;PARTITION=PARTITION;PARTITION_BY_RANK";
-  rval = mb3.load_file( file_name, file_set, opt3 );
+  rval = mb3.load_file( file_name, 0, opt3 );
   CHECK_ERR(rval);
   times[4] = MPI_Wtime() - times[4];
   times[5] = double(clock() - tmp_t) / CLOCKS_PER_SEC;
@@ -883,7 +877,6 @@ void test_read_tags()
   MBCore moab;
   MBInterface &mb = moab;
   MBErrorCode rval;
-  MBEntityHandle file_set;
 
     // if root processor, create hdf5 file for use in testing
   if (0 == rank) 
@@ -893,7 +886,7 @@ void test_read_tags()
     // do parallel read unless only one processor
   const char opt1[] = "PARALLEL=READ_PART;PARTITION=PARTITION";
   const char* opt = numproc == 1 ? 0 : opt1;
-  rval = mb.load_file( file_name, file_set, opt );
+  rval = mb.load_file( file_name, 0, opt );
   MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
   if (0 == rank && !KeepTmpFiles) remove( file_name );
   CHECK_ERR(rval);
@@ -955,7 +948,6 @@ void test_read_global_tags()
   MBCore moab;
   MBInterface &mb = moab;
   MBErrorCode rval;
-  MBEntityHandle file_set;
   const int def_val = 0xdeadcad;
   const int global_val = -11;
 
@@ -967,7 +959,7 @@ void test_read_global_tags()
     // do parallel read unless only one processor
   const char opt1[] = "PARALLEL=READ_PART;PARTITION=PARTITION";
   const char* opt = numproc == 1 ? 0 : opt1;
-  rval = mb.load_file( file_name, file_set, opt );
+  rval = mb.load_file( file_name, 0, opt );
   MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
   if (0 == rank && !KeepTmpFiles) remove( file_name );
   CHECK_ERR(rval);
@@ -1010,7 +1002,6 @@ void test_read_sets()
   MBCore moab;
   MBInterface &mb = moab;
   MBErrorCode rval;
-  MBEntityHandle file_set;
 
     // if root processor, create hdf5 file for use in testing
   if (0 == rank) 
@@ -1020,7 +1011,7 @@ void test_read_sets()
     // do parallel read unless only one processor
   const char opt1[] = "PARALLEL=READ_PART;PARTITION=PARTITION";
   const char* opt = numproc == 1 ? 0 : opt1;
-  rval = mb.load_file( file_name, file_set, opt );
+  rval = mb.load_file( file_name, 0, opt );
   MPI_Barrier(MPI_COMM_WORLD); // make sure all procs complete before removing file
   if (0 == rank && !KeepTmpFiles) remove( file_name );
   CHECK_ERR(rval);

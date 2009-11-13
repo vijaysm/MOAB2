@@ -317,7 +317,7 @@ MBErrorCode ReadHDF5::clean_up_read( const FileOptions& )
 }
 
 MBErrorCode ReadHDF5::load_file( const char* filename, 
-                                 MBEntityHandle file_set, 
+                                 const MBEntityHandle* file_set, 
                                  const FileOptions& opts,
                                  const MBReaderIface::IDTag* subset_list,
                                  int subset_list_length,
@@ -337,8 +337,8 @@ MBErrorCode ReadHDF5::load_file( const char* filename,
   if (MB_SUCCESS == rval && file_id_tag)
     rval = store_file_ids( *file_id_tag );
   
-  if (MB_SUCCESS == rval)
-    rval = read_qa( file_set );
+  if (MB_SUCCESS == rval && 0 != file_set)
+    rval = read_qa( *file_set );
     
   MBErrorCode rval2 = clean_up_read( opts );
   if (rval == MB_SUCCESS && rval2 != MB_SUCCESS)

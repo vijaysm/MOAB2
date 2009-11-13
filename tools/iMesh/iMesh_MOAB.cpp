@@ -51,7 +51,7 @@ MBErrorCode MBiMesh::delete_entities( const MBRange& r )
 
 MBErrorCode create_int_ents(MBInterface *instance,
                             MBRange &from_ents,
-                            MBEntityHandle in_set = 0);
+                            const MBEntityHandle* in_set = 0);
 
 #define CHECK_SIZE(array, allocated, size, type, retval)  \
   if (0 != allocated && NULL != array && allocated < (size)) {\
@@ -313,9 +313,16 @@ extern "C" {
     eatwhitespace(tmp_options);
     std::string opts = ";"; opts += tmp_options;
   
-    MBEntityHandle file_set;
+    MBRange orig_ents;
+    MBErrorCode result = MBI->get_entities_by_handle( 0, orig_ents );
+    if (MB_SUCCESS != result) RETURN(iBase_ERROR_MAP[result]);
   
-    MBErrorCode result = MBI->load_file(tmp_filename.c_str(), file_set, opts.c_str());
+    const MBEntityHandle* file_set = 0;
+    if (handle != 0 /*root_set*/) {
+      file_set = reinterpret_cast<const MBEntityHandle*>(&handle);
+    }
+  
+    result = MBI->load_file(tmp_filename.c_str(), file_set, opts.c_str());
 
     if (MB_SUCCESS != result) {
       std::string msg("iMesh_load:ERROR loading a mesh, with error type: ");
@@ -324,19 +331,12 @@ extern "C" {
       RETURN(iBase_ERROR_MAP[result]);
     }
 
-    if (handle) {
-      MBRange set_ents;
-      result = MBI->get_entities_by_handle(file_set, set_ents);
-      if (MB_SUCCESS != result) RETURN(iBase_ERROR_MAP[result]);
-      result = MBI->add_entities(ENTITY_HANDLE(handle), set_ents);
-      if (MB_SUCCESS != result) RETURN(iBase_ERROR_MAP[result]);
-    }
-
       // create interior edges/faces if requested
     if (MBimesh->AdjTable[5] || MBimesh->AdjTable[10]) {
       MBRange set_ents;
-      result = MBI->get_entities_by_handle(file_set, set_ents, true);
+      result = MBI->get_entities_by_handle(0, set_ents);
       if (MB_SUCCESS != result) RETURN(iBase_ERROR_MAP[result]);
+      set_ents = subtract( set_ents, orig_ents );
       result = create_int_ents(MBI, set_ents, file_set);
       if (MB_SUCCESS != result) RETURN(iBase_ERROR_MAP[result]);
     }
@@ -2956,7 +2956,7 @@ MBErrorCode iMesh_tag_set_vertices(iMesh_Instance instance,
 
 MBErrorCode create_int_ents(MBInterface *instance,
                             MBRange &from_ents,
-                            MBEntityHandle in_set) 
+                            const MBEntityHandle* in_set) 
 {
   MBiMesh* mbimesh = dynamic_cast<MBiMesh*>(instance);
   assert(mbimesh->AdjTable[10] || mbimesh->AdjTable[5]);
@@ -2970,7 +2970,7 @@ MBErrorCode create_int_ents(MBInterface *instance,
     unsigned int old_size = from_ents.size();
     from_ents.merge(int_ents);
     if (old_size != from_ents.size() && in_set) {
-      result = instance->add_entities(in_set, int_ents);
+      result = instance->add_entities(*in_set, int_ents);
       if (MB_SUCCESS != result) return result;
     }
   }
@@ -2983,7 +2983,7 @@ MBErrorCode create_int_ents(MBInterface *instance,
     unsigned int old_size = from_ents.size();
     from_ents.merge(int_ents);
     if (old_size != from_ents.size() && in_set) {
-      result = instance->add_entities(in_set, int_ents);
+      result = instance->add_entities(*in_set, int_ents);
       if (MB_SUCCESS != result) return result;
     }
   }

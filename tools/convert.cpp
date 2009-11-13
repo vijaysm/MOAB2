@@ -271,8 +271,7 @@ int main(int argc, char* argv[])
   
     // Read the input file.
   reset_times();
-  MBEntityHandle read_meshset;
-  result = gMB->load_file( in, read_meshset, read_options.c_str() );
+  result = gMB->load_file( in, 0, read_options.c_str() );
   if (MB_SUCCESS != result)
   { 
     std::cerr << "Failed to load \"" << in << "\"." << std::endl;

@@ -96,7 +96,7 @@ public:
 
   /**Load or import a file. */
   virtual MBErrorCode load_file( const char* file_name,
-                                 MBEntityHandle& file_set,
+                                 const MBEntityHandle* file_set = 0,
                                  const char* options = 0,
                                  const char* set_tag_name = 0,
                                  const int* set_tag_values = 0,
@@ -104,7 +104,7 @@ public:
 
   /**Load or import a file. */
   MBErrorCode serial_load_file( const char* file_name,
-                         MBEntityHandle& file_set,
+                         const MBEntityHandle* file_set,
                          const FileOptions& opts,
                          const MBReaderIface::IDTag* subset_list = 0,
                          int subset_list_length = 0,

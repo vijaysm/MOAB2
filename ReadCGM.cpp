@@ -112,7 +112,7 @@ MBErrorCode ReadCGM::read_tag_values( const char* /* file_name */,
 
 // copy geometry into mesh database
 MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
-                      MBEntityHandle file_set,
+                      const MBEntityHandle* file_set,
                       const FileOptions& opts,
                       const MBReaderIface::IDTag* subset_list,
                       int subset_list_length,
@@ -146,8 +146,10 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
     act_att = false; 
 
   // tag the file_set with the faceting_tol
-  rval = mdbImpl->tag_set_data( faceting_tol_tag, &file_set, 1, &faceting_tol );
-  if(MB_SUCCESS != rval) return rval;
+  if (file_set) {
+    rval = mdbImpl->tag_set_data( faceting_tol_tag, file_set, 1, &faceting_tol );
+    if(MB_SUCCESS != rval) return rval;
+  }
 
   // CGM data
   std::map<RefEntity*,MBEntityHandle> entmap[5]; // one for each dim, and one for groups
@@ -201,9 +203,6 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
       rval = mdbImpl->create_meshset( dim == 1 ? MESHSET_ORDERED : MESHSET_SET, handle );
       if (MB_SUCCESS != rval)
         return rval;
-    
-      rval = mdbImpl->add_entities( file_set, &handle, 1 );
-      if(MB_SUCCESS != rval) return rval;
 
       entmap[dim][ent] = handle;
       
@@ -298,9 +297,6 @@ MBErrorCode ReadCGM::load_file(const char *cgm_file_name,
     rval = mdbImpl->create_meshset( MESHSET_SET, h );
     if (MB_SUCCESS != rval)
       return rval;
-
-    rval = mdbImpl->add_entities( file_set, &h, 1 );
-    if(MB_SUCCESS != rval) return rval;
     
     char namebuf[NAME_TAG_SIZE];
     memset( namebuf, '\0', NAME_TAG_SIZE );

@@ -39,6 +39,7 @@
 #include "MBInterface.hpp"
 #include "MBReaderIface.hpp"
 #include "FileTokenizer.hpp"
+#include "RangeMap.hpp"
 
 class MBReadUtilIface;
 
@@ -50,7 +51,7 @@ public:
   static MBReaderIface* factory( MBInterface* );
   
   MBErrorCode load_file( const char                  *filename,
-                         MBEntityHandle              file_set,
+                         const MBEntityHandle        *file_set,
                          const FileOptions           &options,
                          const MBReaderIface::IDTag  *subset_list = 0,
                          int                         subset_list_length = 0,
@@ -65,7 +66,7 @@ public:
 			       const char         *tag_name,
 			       const FileOptions  &opts,
 			       std::vector<int>   &tag_values_out,
-			       const IDTag        *subset_list,
+                               const IDTag        *subset_list,
 		      	       int                subset_list_length );
 
 protected:
@@ -76,9 +77,8 @@ private:
   
   // MOAB Interface
   MBInterface* MBI;
-
-  const MBTag* fileIDTag;                                      
-  int nodeId, elemId;
+  
+  RangeMap<int, MBEntityHandle> nodeIdMap, elemIdMap;
 
   enum line_format { SMALL_FIELD,                     
                      LARGE_FIELD,                 
@@ -96,21 +96,17 @@ private:
   MBErrorCode get_real( const std::string, double &real );
 
   MBErrorCode read_node(const std::vector<std::string> tokens, 
-                        MBTag                id_tag, 
-                        const MBEntityHandle file_set, 
                         const bool           debug, 
-                        std::vector<double*> coord_arrays, 
-                        int                  &vert_index,
-                        const MBEntityHandle start_vert,
-                        bool                 &node_ids_are_continuous );
+                        double*              coord_arrays[3], 
+                        int                  &node_id);
 
   MBErrorCode read_element(const std::vector<std::string> tokens, 
-                           MBTag                id_tag, 
-                           MBTag                material_tag,
-                           const MBEntityType   element_type,
-                           const MBEntityHandle file_set, 
-                           const bool           debug, 
-                           const MBEntityHandle start_vert,
-                           const bool           node_ids_are_continuous );
+                           std::vector<MBRange>           &materials,
+                           const MBEntityType             element_type,
+                           const bool                     debug );
+
+  MBErrorCode create_materials( const std::vector<MBRange> &materials );
+
+  MBErrorCode assign_ids( const MBTag* file_id_tag );
 };
 #endif

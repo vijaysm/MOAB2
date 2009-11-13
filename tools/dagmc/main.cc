@@ -129,7 +129,6 @@ int main( int argc, char* argv[] )
     // Intitalize MOAB
   MBCore moab;
   MBInterface* iface = &moab;
-  MBEntityHandle file_set;
   MBErrorCode rval;
 
 // If CUB file, extract ACIS geometry
@@ -163,12 +162,12 @@ int main( int argc, char* argv[] )
       exit(2);
     }
 
-    rval = iface->load_file(temp_name,file_set,options,NULL,0,0);
+    rval = iface->load_file(temp_name,0,options,NULL,0,0);
     remove( temp_name );
     free( temp_name );
   }
   else {
-    rval = iface->load_file(input_name,file_set,options,NULL,0,0);
+    rval = iface->load_file(input_name,0,options,NULL,0,0);
   }
   if (MB_SUCCESS != rval) {
     std::cerr << "Failed to read '" << input_name << "' of type '" << file_type << "'" << std::endl;

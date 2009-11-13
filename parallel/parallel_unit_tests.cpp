@@ -399,10 +399,9 @@ MBErrorCode test_elements_on_several_procs( const char* filename )
   MBCore mb_instance;
   MBInterface& moab = mb_instance;
   MBErrorCode rval;
-  MBEntityHandle set;
   const char* geom_names[] = { "vertex", "curve", "surface", "volume", "unknown" };
   
-  rval = moab.load_file( filename, set, 
+  rval = moab.load_file( filename, 0, 
                          "PARALLEL=READ_DELETE;"
                          "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
                          "PARTITION_DISTRIBUTE;"
@@ -650,7 +649,6 @@ MBErrorCode test_ghost_elements( const char* filename,
   MBCore mb_instance;
   MBInterface& moab = mb_instance;
   MBErrorCode rval;
-  MBEntityHandle set;
 
   std::ostringstream file_opts;
   file_opts << "PARALLEL=READ_DELETE;"
@@ -662,7 +660,7 @@ MBErrorCode test_ghost_elements( const char* filename,
             << bridge_dimension << '.'
             << num_layers;
   
-  rval = moab.load_file( filename, set, file_opts.str().c_str() );
+  rval = moab.load_file( filename, 0, file_opts.str().c_str() );
   CHKERR(rval);
   MBTag geom_tag, id_tag;
   rval = moab.tag_get_handle( GEOM_DIMENSION_TAG_NAME, geom_tag ); CHKERR(rval);
@@ -773,8 +771,7 @@ MBErrorCode test_ghost_elements( const char* filename,
   
     // read file in serial
   MBCore moab2;
-  MBEntityHandle set2;
-  rval = moab2.load_file( filename, set2 );  
+  rval = moab2.load_file( filename );  
   PCHECK(MB_SUCCESS == rval);
   
     // get the global IDs of teh entities we expect to be ghosted
@@ -842,9 +839,8 @@ MBErrorCode test_ghost_tag_exchange( const char* filename )
   MBCore mb_instance;
   MBInterface& moab = mb_instance;
   MBErrorCode rval;
-  MBEntityHandle set;
 
-  rval = moab.load_file( filename, set, 
+  rval = moab.load_file( filename, 0, 
                          "PARALLEL=READ_DELETE;"
                          "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
                          "PARTITION_DISTRIBUTE;"
@@ -935,9 +931,8 @@ MBErrorCode regression_ghost_tag_exchange_no_default( const char* filename )
   MBCore mb_instance;
   MBInterface& moab = mb_instance;
   MBErrorCode rval;
-  MBEntityHandle set;
 
-  rval = moab.load_file( filename, set, 
+  rval = moab.load_file( filename, 0, 
                          "PARALLEL=READ_DELETE;"
                          "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
                          "PARTITION_DISTRIBUTE;"

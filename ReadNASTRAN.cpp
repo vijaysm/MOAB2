@@ -38,7 +38,7 @@ MBReaderIface* ReadNASTRAN::factory( MBInterface* iface ) {
 
 // constructor
 ReadNASTRAN::ReadNASTRAN(MBInterface* impl)
-  : MBI(impl), fileIDTag(0) {
+  : MBI(impl) {
     assert(NULL != impl);
     void *ptr = 0;
     MBI->query_interface("MBReadUtilIface", &ptr);
@@ -66,7 +66,7 @@ MBErrorCode ReadNASTRAN::read_tag_values( const char*        file_name,
 
 // load the file as called by the MBInterface function
 MBErrorCode ReadNASTRAN::load_file(const char                  *filename, 
-                                   MBEntityHandle              file_set, 
+                                   const MBEntityHandle        *, 
                                    const FileOptions           &options,
                                    const MBReaderIface::IDTag  *subset_list,
                                    int                         subset_list_length,
@@ -76,22 +76,13 @@ MBErrorCode ReadNASTRAN::load_file(const char                  *filename,
     readMeshIface->report_error( "Reading subset of files not supported for NASTRAN." );
     return MB_UNSUPPORTED_OPERATION;
   }
-  
-  nodeId = elemId = 0;
-  fileIDTag = file_id_tag;
+
+  nodeIdMap.clear();
+  elemIdMap.clear();
 
   bool debug = false;
   if (debug) std::cout << "begin ReadNASTRAN::load_file" << std::endl;
   MBErrorCode result;
-
-  // create tags
-  MBTag id_tag, material_tag;
-  result = MBI->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, 
-                           MB_TYPE_INTEGER, id_tag, 0);
-  if(MB_SUCCESS!=result && MB_ALREADY_ALLOCATED!=result) return result;
-  result = MBI->tag_create(MATERIAL_SET_TAG_NAME, sizeof(int), MB_TAG_DENSE, 
-                           MB_TYPE_INTEGER, material_tag, 0);
-  if(MB_SUCCESS!=result && MB_ALREADY_ALLOCATED!=result) return result;
 
   // Count the entities of each type in the file. This is used to allocate the node array. 
   int entity_count[MBMAXTYPE];
@@ -131,12 +122,9 @@ MBErrorCode ReadNASTRAN::load_file(const char                  *filename,
       std::cout << "entity_count[" << i << "]=" << entity_count[i] << std::endl;
     }
   }
-
-  /* If we assume that the node ids are continuous, then the node ids can be
-     easily mapped to vertex handles. If they are not continuous then the node
-     ids themselves will need to be used to create connectivity. It is very 
-     slow to find each node by its id because this is a tag call. */
-  bool node_ids_are_continuous = true;
+  
+  // Keep list of material sets
+  std::vector<MBRange> materials;
 
   // Now that the number of vertices is known, create the vertices.
   MBEntityHandle start_vert = NULL;
@@ -145,7 +133,7 @@ MBErrorCode ReadNASTRAN::load_file(const char                  *filename,
 					   start_vert, coord_arrays );
   if(MB_SUCCESS != result) return result;
   if(0 == start_vert) return MB_FAILURE; // check for NULL
-  int vert_index = 0;
+  int id, vert_index = 0;
   if(debug) std::cout << "allocated coord arrays" << std::endl;
 
   // Read the file again to create the entities.
@@ -169,17 +157,29 @@ MBErrorCode ReadNASTRAN::load_file(const char                  *filename,
 
     // Create the entity.
     if(MBVERTEX == type) {
-      result = read_node(tokens, id_tag, file_set, debug, coord_arrays, 
-			 vert_index, start_vert, node_ids_are_continuous ); 
+      double* coords[3] = { coord_arrays[0] + vert_index,
+                            coord_arrays[1] + vert_index,
+                            coord_arrays[2] + vert_index };
+      result = read_node(tokens, debug, coords, id ); 
       if(MB_SUCCESS != result) return result;
+      if (!nodeIdMap.insert( id, start_vert + vert_index, 1 ).second)
+        return MB_FAILURE; // duplicate IDs!
+      ++vert_index;
     } else {
-      result = read_element(tokens, id_tag, material_tag, type, file_set, 
-			    debug, start_vert, node_ids_are_continuous ); 
+      result = read_element( tokens, materials, type, debug ); 
       if(MB_SUCCESS != result) return result;
     }
   }
+
+  result = create_materials( materials );
+  if(MB_SUCCESS != result) return result;
+
+  result = assign_ids( file_id_tag );
+  if(MB_SUCCESS != result) return result;  
   
   file.close();
+  nodeIdMap.clear();
+  elemIdMap.clear();
   return MB_SUCCESS;
 }
 
@@ -313,16 +313,12 @@ MBErrorCode ReadNASTRAN::get_real( const std::string token, double &real ) {
 /* It has been determined that this line is a vertex. Read the rest of
    the line and create the vertex. */
 MBErrorCode ReadNASTRAN::read_node( const std::vector<std::string> tokens, 
-				      MBTag id_tag,
-				      const MBEntityHandle file_set,
-				      const bool debug, 
-				      std::vector<double*> coord_arrays, 
-				      int &vert_index, 
-				      const MBEntityHandle start_vert,
-				      bool &node_ids_are_continuous ) {
+				    const bool debug, 
+				    double* coords[3],
+                                    int& id ) {
   // read the node's id (unique)
   MBErrorCode result;
-  int id = atoi(tokens[1].c_str());
+  id = atoi(tokens[1].c_str());
 
   // read the node's coordinate system number
   // "0" or blank refers to the basic coordinate system.
@@ -334,31 +330,11 @@ MBErrorCode ReadNASTRAN::read_node( const std::vector<std::string> tokens,
   }
 
   // read the coordinates
-  double coords[3];
   for(unsigned int i=0; i<3; i++) {
-    result = get_real( tokens[i+3], coords[i] );
+    result = get_real( tokens[i+3], *coords[i] );
     if(MB_SUCCESS != result) return result;
     if(debug) std::cout << "read_node: coords[" << i << "]=" << coords[i] << std::endl;
   }
-
-  // create the node
-  MBEntityHandle vert = start_vert+vert_index;
-  for(int i=0; i<3; i++) coord_arrays[i][vert_index] = coords[i];
-  vert_index++;
-
-  // check to see if the node ids are still continuous
-  if(id != vert_index) {
-    node_ids_are_continuous = false;
-    std::cout << "node ids are not continuous" << std::endl;
-  }
-
-  // tag with the global id from the NASTRAN file
-  result = MBI->tag_set_data( id_tag, &vert, 1, &id );
-  if(MB_SUCCESS != result) return result;
-
-  // add to the file set
-  result = MBI->add_entities( file_set, &vert, 1 );
-  if(MB_SUCCESS != result) return result;
 
   return MB_SUCCESS;
 }
@@ -367,75 +343,114 @@ MBErrorCode ReadNASTRAN::read_node( const std::vector<std::string> tokens,
    line and create the element. Assume that all of the nodes have already
    been created. */
 MBErrorCode ReadNASTRAN::read_element( const std::vector<std::string> tokens, 
-				       MBTag id_tag, 
-				       MBTag material_tag, 
+				       std::vector<MBRange> &materials,
 				       const MBEntityType element_type,
-				       const MBEntityHandle file_set, 
-				       const bool debug, 
-				       const MBEntityHandle start_vert,
-				       const bool node_ids_are_continuous ) {
+				       const bool debug ) {
 
   // read the element's id (unique) and material set
   MBErrorCode result;
   int id = atoi(tokens[1].c_str());    
   int material = atoi(tokens[2].c_str());
+  
+    // Resize materials list if necessary.  This code is somewhat complicated
+    // so as to avoid copying of MBRanges
+  if (material >= (int)materials.size()) {
+    if ((int)materials.capacity() < material)
+      materials.resize( material+1 );
+    else {
+      std::vector<MBRange> new_mat( material+1 );
+      for (size_t i = 0; i < materials.size(); ++i)
+        new_mat[i].swap( materials[i] );
+      materials.swap( new_mat );
+    }
+  }
 
   // the size of the connectivity array depends on the element type
   int n_conn = MBCN::VerticesPerEntity(element_type);
+  MBEntityHandle conn_verts[27];
+  assert(n_conn <= (int)(sizeof(conn_verts)/sizeof(MBEntityHandle)));
   
   // read the connected node ids from the file
-  int conn[n_conn];
   for(int i=0; i<n_conn; i++) {
-    conn[i] = atoi(tokens[3+i].c_str());
-  }
-
-  /* Get the vertex handles with those node ids. If the nodes do not have
-     continuous ids we need to do a very slow tag search for global ids.
-     The cannonical numbering between NASTRAN and MOAB is the same for 
-     tets and prisms. */
-  MBEntityHandle conn_verts[n_conn];
-  for(int i=0; i<n_conn; i++) {
-    if(node_ids_are_continuous) {  
-      conn_verts[i] = start_vert + conn[i] -1;
-    } else {
-      void *vert_id_val[] = {&conn[i]};
-      MBRange vert;
-      result = MBI->get_entities_by_type_and_tag( file_set, MBVERTEX, &id_tag, 
-						  vert_id_val, 1, vert );
-      if(MB_SUCCESS != result) return result;
-      if(1 != vert.size()) return MB_FAILURE; // only one vertex should have this global id 
-      conn_verts[i] = vert.front();
-    }
-    if(debug) std::cout << "conn[" << i << "]=" << conn[i] << std::endl;
+    int n = atoi(tokens[3+i].c_str());
+    conn_verts[i] = nodeIdMap.find( n );
+    if (!conn_verts[i]) // invalid vertex id
+      return MB_FAILURE;
   }
 
   // Create the element and set the global id from the NASTRAN file
   MBEntityHandle element;
   result = MBI->create_element( element_type, conn_verts, n_conn, element );
   if(MB_SUCCESS != result) return result;
-  result = MBI->tag_set_data( id_tag, &element, 1, &id );
-  if(MB_SUCCESS != result) return result;
+  elemIdMap.insert( id, element, 1 );
+  
+  materials[material].insert( element );
+  return MB_SUCCESS;
+}
 
-  // Create the material set for the element if it does not already exist.
-  void *mat_val[] = {&material};
-  MBRange material_set;
-  result = MBI->get_entities_by_type_and_tag( file_set, MBENTITYSET, &material_tag, 
-					      mat_val, 1, material_set );
-  if(MB_SUCCESS != result) return result;   
-  if(0 == material_set.size()) {
-    MBEntityHandle new_material_set;
-    result = MBI->create_meshset( 0, new_material_set );
-    if(MB_SUCCESS != result) return result;
-    result = MBI->add_entities( file_set, &new_material_set, 1 );
-    if(MB_SUCCESS != result) return result;
-    result = MBI->tag_set_data( material_tag, &new_material_set, 1, &material );
-    if(MB_SUCCESS != result) return result;
-    material_set.insert( new_material_set );
-  } else if(1 < material_set.size()) {
-    return MB_MULTIPLE_ENTITIES_FOUND;
+
+MBErrorCode ReadNASTRAN::create_materials( const std::vector<MBRange>& materials )
+{
+  MBErrorCode result;
+  MBTag material_tag;
+  result = MBI->tag_create(MATERIAL_SET_TAG_NAME, sizeof(int), MB_TAG_DENSE, 
+                           MB_TYPE_INTEGER, material_tag, 0);
+  if(MB_SUCCESS!=result && MB_ALREADY_ALLOCATED!=result) return result;
+  
+  for (size_t i = 0; i < materials.size(); ++i) {
+    if (materials[i].empty())
+      continue;
+    
+      // Merge with existing or create new?  Original code effectively
+      // created new by only merging with existing in current file set,
+      // so do the same here. - j.kraftcheck
+      
+    MBEntityHandle handle;
+    result = MBI->create_meshset( MESHSET_SET, handle );
+    if (MB_SUCCESS != result)
+      return result;
+    
+    result = MBI->add_entities( handle, materials[i] );
+    if (MB_SUCCESS != result)
+      return result;
+    
+    int id = i;
+    result = MBI->tag_set_data( material_tag, &handle, 1, &id );
+    if (MB_SUCCESS != result)
+      return result;
   }
-  result = MBI->add_entities( material_set.front(), &element, 1 );
-  if(MB_SUCCESS != result) return result;
+  
+  return MB_SUCCESS;
+}
 
+MBErrorCode ReadNASTRAN::assign_ids( const MBTag* file_id_tag )
+{
+
+  // create tag
+  MBErrorCode result;
+  MBTag id_tag;
+  result = MBI->tag_create(GLOBAL_ID_TAG_NAME, sizeof(int), MB_TAG_DENSE, 
+                           MB_TYPE_INTEGER, id_tag, 0);
+  if(MB_SUCCESS!=result && MB_ALREADY_ALLOCATED!=result) return result;
+
+  RangeMap<int,MBEntityHandle>::iterator i;
+  std::vector<int> ids;
+  for (int t = 0; t < 2; ++t) {
+    RangeMap<int,MBEntityHandle>& fileIdMap = t ? elemIdMap : nodeIdMap;
+    for (i = fileIdMap.begin(); i != fileIdMap.end(); ++i) {
+      MBRange range( i->value, i->value + i->count - 1 );
+
+      result = readMeshIface->assign_ids( id_tag, range, i->begin );
+      if (MB_SUCCESS != result)
+        return result;
+
+      if (file_id_tag && *file_id_tag != id_tag) {
+        result = readMeshIface->assign_ids( *file_id_tag, range, i->begin );
+        if (MB_SUCCESS != result)
+          return result;
+      }
+    }
+  }
+  
   return MB_SUCCESS;
 }

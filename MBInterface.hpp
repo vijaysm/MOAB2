@@ -214,7 +214,7 @@ public:
    *\param num_set_tag_values The length of set_tag_values.
    */
   virtual MBErrorCode load_file( const char* file_name,
-                                 MBEntityHandle& file_set,
+                                 const MBEntityHandle* file_set = 0,
                                  const char* options = 0,
                                  const char* set_tag_name = 0,
                                  const int* set_tag_values = 0,

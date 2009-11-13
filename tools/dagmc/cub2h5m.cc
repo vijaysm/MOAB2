@@ -113,16 +113,15 @@ int main( int argc, char* argv[] )
     MBCore *my_impl = new MBCore();
     Tqdcfr *my_tqd = new Tqdcfr(my_impl);
     ReadNCDF my_ex_reader(my_impl);
-    MBEntityHandle file_set;
     char options[120] = "tdata=coord,";
     strcat(options, time_step);
     strcat(options,",set");
     FileOptions opts(options)  ;
 
-    MBErrorCode result = my_tqd->load_file(input_name, file_set, opts, NULL, 0, 0);
+    MBErrorCode result = my_tqd->load_file(input_name, 0, opts, NULL, 0, 0);
 
     //opts = "tdata=coord, 100, sum, temp.exo";
-    result =  my_ex_reader.load_file(update_name, file_set, opts, NULL, 0 , 0);
+    result =  my_ex_reader.load_file(update_name, 0, opts, NULL, 0 , 0);
 
     // convert the quads to tris
     quads_to_tris( my_impl, file_set );

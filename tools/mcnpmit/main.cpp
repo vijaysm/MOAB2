@@ -148,6 +148,8 @@ int main(int argc, char **argv) {
   }
   else {
 
+    MBresult = MBI->create_meshset( MESHSET_SET, meshset );
+    assert( MB_SUCCESS == MBresult );
     MBresult = MBI->load_file( CAD_filename.c_str(), meshset );
     assert( MB_SUCCESS == MBresult );
 

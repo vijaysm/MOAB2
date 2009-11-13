@@ -73,7 +73,7 @@ MBErrorCode ReadSms::read_tag_values(const char* /* file_name */,
 
 
 MBErrorCode ReadSms::load_file( const char* filename, 
-                                MBEntityHandle ,
+                                const MBEntityHandle* ,
                                 const FileOptions& ,
                                 const MBReaderIface::IDTag* subset_list,
                                 int subset_list_length,

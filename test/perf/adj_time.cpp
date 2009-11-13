@@ -19,8 +19,7 @@ int main()
   MBInterface& mb = moab;
   
     // load test file
-  MBEntityHandle set;
-  rval = mb.load_file( default_input_file, set );
+  rval = mb.load_file( default_input_file );
   if (MB_SUCCESS != rval) {
     std::cerr << default_input_file <<": failed to load file." << std::endl;
     return 1;

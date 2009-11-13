@@ -54,7 +54,7 @@ public:
   static MBReaderIface* factory( MBInterface* );
   
   MBErrorCode load_file( const char*                 fname,
-                         MBEntityHandle              input_meshset,
+                         const MBEntityHandle        *input_meshset,
                          const FileOptions           &options,
                          const MBReaderIface::IDTag* subset_list = 0,
                          int                         subset_list_length = 0,
@@ -99,10 +99,10 @@ private:
   int nodeId, elemId;
 
   // reads the meshtal file
-  MBErrorCode load_one_file( const char        *fname,
-                             MBEntityHandle    input_meshset,
-                             const FileOptions &options,
-                             const bool        average );
+  MBErrorCode load_one_file( const char           *fname,
+                             const MBEntityHandle *input_meshset,
+                             const FileOptions    &options,
+                             const bool           average );
   
   MBErrorCode create_tags( MBTag &date_and_time_tag,  
                            MBTag &title_tag,

@@ -88,14 +88,12 @@ int main(int argc, char **argv)
     // read in mesh(es)
   std::vector<MBParallelComm *> pcs(filenames.size()); 
   std::vector<ReadParallel *> rps(filenames.size()); 
-  std::vector<MBEntityHandle> filesets(filenames.size()); 
 
   for (unsigned int i = 0; i < filenames.size(); i++) {
     pcs[i] = new MBParallelComm(mbImpl);
     rps[i] = new ReadParallel(mbImpl, pcs[i]);
     
-    result = rps[i]->load_file(filenames[i], filesets[i], 
-                               FileOptions(opts.c_str()), 0, 0, 0);
+    result = rps[i]->load_file(filenames[i], 0, FileOptions(opts.c_str()));
     PRINT_LAST_ERROR;
   }
 

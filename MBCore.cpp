@@ -363,13 +363,12 @@ MBErrorCode  MBCore::load_mesh( const char *file_name,
                                 const int* block_id_list,
                                 const int num_blocks )
 {
-  MBEntityHandle file_set;
   const char* name = block_id_list ? MATERIAL_SET_TAG_NAME : 0;
-  return load_file( file_name, file_set, 0, name, block_id_list, num_blocks );
+  return load_file( file_name, 0, 0, name, block_id_list, num_blocks );
 }
 
 MBErrorCode MBCore::load_file( const char* file_name,
-                               MBEntityHandle& file_set,
+                               const MBEntityHandle* file_set,
                                const char* options,
                                const char* set_tag_name,
                                const int* set_tag_vals,
@@ -424,7 +423,7 @@ MBErrorCode MBCore::load_file( const char* file_name,
 }
 
 MBErrorCode MBCore::serial_load_file( const char* file_name,
-                                      MBEntityHandle& file_set,
+                                      const MBEntityHandle* file_set,
                                       const FileOptions& opts,
                                       const MBReaderIface::IDTag* subsets,
                                       int num_sets,
@@ -439,10 +438,6 @@ MBErrorCode MBCore::serial_load_file( const char* file_name,
   
   MBRange initial_ents;
   rval = get_entities_by_handle( 0, initial_ents );
-  if (MB_SUCCESS != rval)
-    return rval;
-  
-  rval = create_meshset( MESHSET_SET, file_set ); 
   if (MB_SUCCESS != rval)
     return rval;
 
@@ -475,11 +470,9 @@ MBErrorCode MBCore::serial_load_file( const char* file_name,
   new_ents = subtract( new_ents, initial_ents );
   if (MB_SUCCESS != rval) {
     delete_entities( new_ents );
-    file_set = 0;
   }
-  else {
-    new_ents.erase( file_set );
-    rval = add_entities( file_set, new_ents );
+  else if (file_set) {
+    rval = add_entities( *file_set, new_ents );
   }
   
   return rval; 

@@ -6794,18 +6794,17 @@ MBErrorCode mb_skin_volume_test_common( bool use_adj )
 const char* argv0 = 0;
 MBErrorCode mb_read_fail_test(MBInterface* mb)
 {
-  MBEntityHandle set;
   MBErrorCode rval;
   
     // try reading a non-existant file
-  rval = mb->load_file( tmpnam(0), set );
+  rval = mb->load_file( tmpnam(0) );
   if (MB_FILE_DOES_NOT_EXIST != rval)
     return MB_FAILURE;
   
     // try reading an invalid file
   if (!argv0)  // not set by main, oops!
     return MB_FAILURE;
-  rval = mb->load_file( argv0, set );
+  rval = mb->load_file( argv0 );
   if (MB_SUCCESS == rval)
     return MB_FAILURE;
   

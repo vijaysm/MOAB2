@@ -22,11 +22,10 @@ int main(int argc, char **argv) {
   // load file from input argument
   MBErrorCode result;
   std::string filename = argv[1];
-  MBEntityHandle input_meshset;
-  result = MBI->load_file( filename.c_str(), input_meshset );
+  result = MBI->load_file( filename.c_str() );
     assert( MB_SUCCESS == result );
 
-  result = quads_to_tris( MBI, input_meshset );
+  result = quads_to_tris( MBI, 0 );
     assert( MB_SUCCESS == result );
 
 

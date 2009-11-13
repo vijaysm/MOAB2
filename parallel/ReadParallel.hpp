@@ -18,7 +18,7 @@ public:
 
     //! load a file
   MBErrorCode load_file(const char *file_name,
-                        MBEntityHandle& file_set,
+                        const MBEntityHandle* file_set,
                         const FileOptions &opts,
                         const MBReaderIface::IDTag* subset_list = 0,
                         int subset_list_length = 0,
@@ -27,7 +27,7 @@ public:
     //! load multiple files
   MBErrorCode load_file(const char **file_names,
                         const int num_files,
-                        MBEntityHandle& file_set,
+                        const MBEntityHandle* file_set,
                         const FileOptions &opts,
                         const MBReaderIface::IDTag* subset_list = 0,
                         int subset_list_length = 0,
@@ -35,7 +35,7 @@ public:
   
   MBErrorCode load_file(const char **file_names,
                         const int num_files,
-                        MBEntityHandle& file_set,
+                        const MBEntityHandle* file_set,
                         int parallel_mode, 
                         std::string &partition_tag_name, 
                         std::vector<int> &partition_tag_vals, 
@@ -101,7 +101,7 @@ private:
 };
 
 inline MBErrorCode ReadParallel::load_file(const char *file_name,
-                                           MBEntityHandle& file_set,
+                                           const MBEntityHandle* file_set,
                                            const FileOptions &opts,
                                            const MBReaderIface::IDTag* subset_list,
                                            int subset_list_length,

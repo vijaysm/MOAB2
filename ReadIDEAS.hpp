@@ -21,7 +21,7 @@ public:
   static MBReaderIface* factory( MBInterface* );
 
   MBErrorCode load_file( const char* fname, 
-			 MBEntityHandle meshset, 
+			 const MBEntityHandle* meshset, 
 			 const FileOptions&,
                          const MBReaderIface::IDTag* subset_list = 0,
                          int subset_list_length = 0,

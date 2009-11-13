@@ -337,7 +337,6 @@ MBErrorCode read_file(MBInterface *mbImpl,
   if (print_parallel) 
     options << ";PRINT_PARALLEL";
 
-  std::vector<MBEntityHandle> filesets(filenames.size());
   std::vector<MBParallelComm*> pcs(filenames.size());
   std::vector<ReadParallel*> rps(filenames.size());
   MBErrorCode result;
@@ -347,7 +346,7 @@ MBErrorCode read_file(MBInterface *mbImpl,
       pcs[i] = new MBParallelComm(mbImpl);
       rps[i] = new ReadParallel(mbImpl, pcs[i]);
     
-      result = rps[i]->load_file(filenames[i].c_str(), filesets[i], 
+      result = rps[i]->load_file(filenames[i].c_str(), 0, 
                                  FileOptions(options.str().c_str()), 0, 0, 0);
       if (MB_SUCCESS != result) 
         PRINT_LAST_ERROR;
@@ -368,7 +367,7 @@ MBErrorCode read_file(MBInterface *mbImpl,
     }
   }
   else {
-    result = mbImpl->load_file(filenames[0].c_str(), filesets[0], 
+    result = mbImpl->load_file(filenames[0].c_str(), 0, 
                                options.str().c_str());
     pcs[0] = MBParallelComm::get_pcomm(mbImpl, 0);
     assert(pcs[0]);
@@ -383,7 +382,10 @@ MBErrorCode test_packing(MBInterface *mbImpl, const char *filename)
 {
     // read the mesh
   MBEntityHandle file_set;
-  MBErrorCode result = mbImpl->load_file(filename, file_set, NULL);
+  MBErrorCode result = mbImpl->create_meshset( MESHSET_SET, file_set );
+  RRA("create_meshset failed.");
+
+  result = mbImpl->load_file(filename, &file_set, NULL);
   if (MB_SUCCESS != result) {
     std::cerr << "Reading file failed; message:" << std::endl;
     PRINT_LAST_ERROR;

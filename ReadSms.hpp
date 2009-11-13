@@ -18,7 +18,7 @@ public:
   static MBReaderIface* factory( MBInterface* );
 
   MBErrorCode load_file( const char *file_name,
-                         MBEntityHandle file_set,
+                         const MBEntityHandle* file_set,
                          const FileOptions& opts,
                          const MBReaderIface::IDTag* subset_list = 0,
                          int subset_list_length = 0,

@@ -77,7 +77,8 @@ int main( int argc, char* argv[] )
   
   MBEntityHandle file;
   MBErrorCode rval;
-  rval = mb.load_file( input, file );
+  rval = mb.create_meshset( MESHSET_SET, file ); check(rval);
+  rval = mb.load_file( input, &file );
   if (MB_SUCCESS != rval) {
     std::cerr << "Failed to load file: " << input << std::endl;
     return FILE_IO_ERROR;

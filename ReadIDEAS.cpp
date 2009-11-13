@@ -35,7 +35,7 @@ MBErrorCode ReadIDEAS::read_tag_values( const char* /* file_name */,
 
 
 MBErrorCode ReadIDEAS::load_file(const char* fname, 
-                                 MBEntityHandle meshset, 
+                                 const MBEntityHandle* , 
                                  const FileOptions& options,
                                  const MBReaderIface::IDTag* subset_list,
                                  int subset_list_length,

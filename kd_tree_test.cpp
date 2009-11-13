@@ -116,23 +116,14 @@ int main()
   }
   
   // write to file
-#if MB_VERSION_MAJOR <= 3
-  err = moab.write_mesh( "tree.h5m" );
-#else
   err = moab.write_file( "tree.h5m" );
-#endif
   assert(!err);
 
   // clear everything
   moab.delete_mesh();
   
   // read tree from file
-#if MB_VERSION_MAJOR <= 3
-  err = moab.load_mesh( "tree.h5m" );
-#else
-  MBEntityHandle file;
-  err = moab.load_file( "tree.h5m", file );
-#endif
+  err = moab.load_file( "tree.h5m" );
   assert(!err);
  
   // get tag handle by name, because the handle may have changed
@@ -183,23 +174,14 @@ int main()
 
   
   // write to file
-#if MB_VERSION_MAJOR <= 3
-  err = moab.write_mesh( "tree.h5m" );
-#else
   err = moab.write_file( "tree.h5m" );
-#endif
   assert(!err);
 
   // clear everything
   moab.delete_mesh();
   
   // read tree from file
-#if MB_VERSION_MAJOR <= 3
-  err = moab.load_mesh( "tree.h5m" );
-#else
-  MBEntityHandle file;
-  err = moab.load_file( "tree.h5m", file );
-#endif
+  err = moab.load_file( "tree.h5m" );
   assert(!err);
   
   // check that tag doesn't exist

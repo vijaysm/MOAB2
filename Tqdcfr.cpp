@@ -202,7 +202,7 @@ MBErrorCode Tqdcfr::read_tag_values( const char* /* file_name */,
 }
 
 MBErrorCode Tqdcfr::load_file(const char *file_name,
-                              MBEntityHandle file_set,
+                              const MBEntityHandle* ,
                               const FileOptions& opts,
                               const MBReaderIface::IDTag* subset_list,
                               int subset_list_length,
@@ -2590,10 +2590,9 @@ int main(int argc, char* argv[])
 
   MBCore *my_impl = new MBCore();
   Tqdcfr *my_tqd = new Tqdcfr(my_impl);
-  MBEntityHandle file_set;
   FileOptions opts(NULL);
   
-  MBErrorCode result = my_tqd->load_file(file, file_set, opts, 0, 0, 0);
+  MBErrorCode result = my_tqd->load_file(file, 0, opts, 0, 0, 0);
 
   if (MB_SUCCESS == result)
     std::cout << "Success." << std::endl;
@@ -2612,7 +2611,7 @@ int main(int argc, char* argv[])
   my_impl = new MBCore;
   my_tqd = new Tqdcfr(my_impl);
   
-  result = my_tqd->load_file(file, file_set, opts, 0, 0, 0);
+  result = my_tqd->load_file(file, 0, opts, 0, 0, 0);
 
   if (MB_SUCCESS == result)
     std::cout << "Success." << std::endl;
@@ -2640,7 +2639,7 @@ int main(int argc, char* argv[])
   std::string options = "PARALLEL=READ_DELETE;PARTITION=MATERIAL_SET;PARTITION_DISTRIBUTE";
   std::cout << "Testing parallel..." << std::endl;
   
-  result = my_impl->load_file(file, file_set, 
+  result = my_impl->load_file(file, 0, 
                               options.c_str());
 
   if (MB_SUCCESS == result)

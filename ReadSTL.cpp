@@ -76,7 +76,7 @@ MBErrorCode ReadSTL::read_tag_values( const char* /* file_name */,
 // pure-virtual function implemented in subclasses to read
 // the data from the file.
 MBErrorCode ReadSTL::load_file( const char* filename,
-                                MBEntityHandle file_set, 
+                                const MBEntityHandle* , 
                                 const FileOptions& opts,
                                 const MBReaderIface::IDTag* subset_list,
                                 int subset_list_length,
@@ -145,18 +145,6 @@ MBErrorCode ReadSTL::load_file( const char* filename,
                                            handle, coord_arrays );
   if (MB_SUCCESS != result)
     return result;
-
-    // Add vertices to entity set
-  MBRange range(handle, handle+vertex_map.size()-1);
-  result = mdbImpl->add_entities(file_set, range);
-  if (MB_SUCCESS != result)
-    return result;
-  
-  if (file_id_tag) {
-    result = readMeshIface->assign_ids( *file_id_tag, range );
-    if (MB_SUCCESS != result)
-      return result;
-  }
     
     // Copy vertex coordinates into entity sequence coordinate arrays
     // and copy handle into vertex_map.
@@ -181,18 +169,6 @@ MBErrorCode ReadSTL::load_file( const char* filename,
                                              connectivity );
   if (MB_SUCCESS != result)
     return result;
-
-    // Add triangles to entity set
-  MBRange range2(handle, handle+triangles.size()-1);
-  result = mdbImpl->add_entities(file_set, range2);
-  if (MB_SUCCESS != result)
-    return result;
-  
-  if (file_id_tag) {
-    result = readMeshIface->assign_ids( *file_id_tag, range2 );
-    if (MB_SUCCESS != result)
-      return result;
-  }
   
     // Use vertex_map to reconver triangle connectivity from
     // vertex coordinates.

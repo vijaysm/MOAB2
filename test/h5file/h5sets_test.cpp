@@ -18,12 +18,14 @@ void read_write_file( MBInterface& output, MBInterface& input, MBEntityHandle* i
   MBErrorCode rval;
   rval = output.write_file( filename );
   CHECK_ERR(rval);
-  rval = input.load_file( filename, file );
+  if (input_set) {
+    rval = input.create_meshset( MESHSET_SET, *input_set );
+    CHECK_ERR(rval);
+  }
+  rval = input.load_file( filename, input_set );
   if (!keep_file)
     remove(filename);
   CHECK_ERR(rval);
-  if (input_set)
-    *input_set = file;
 }
 
 void test_ranged_set_with_holes()
@@ -265,7 +267,7 @@ void test_tree( int max_depth )
   // write file and read back in
   rval = mb.write_file( str.str().c_str(), 0, "BUFFER_SIZE=1024" ); CHECK_ERR(rval);
   mb.delete_mesh();
-  rval = mb.load_file( str.str().c_str(), root );
+  rval = mb.load_file( str.str().c_str() );
   if (!keep_file)
     remove( str.str().c_str() );
   CHECK_ERR(rval);

@@ -179,7 +179,7 @@ MBErrorCode ReadVtk::read_tag_values( const char* /* file_name */,
 
 
 MBErrorCode ReadVtk::load_file( const char *filename,
-                                MBEntityHandle ,
+                                const MBEntityHandle* ,
                                 const FileOptions& opts,
                                 const MBReaderIface::IDTag* subset_list,
                                 int subset_list_length,
