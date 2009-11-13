@@ -175,7 +175,7 @@ if test "xno" != "x$HDF5_ARG"; then
     HDF5_LDFLAGS=
     HDF5_LIBS=
   else
-    HDF5_LIBS="$HDF5_LIBS -l$HDF5_LIBNAME"
+    HDF5_LIBS="-l$HDF5_LIBNAME $HDF5_LIBS"
   fi
   
   CPPFLAGS="$old_CPPFLAGS"
