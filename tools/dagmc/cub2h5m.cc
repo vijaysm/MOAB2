@@ -124,7 +124,7 @@ int main( int argc, char* argv[] )
     result =  my_ex_reader.load_file(update_name, 0, opts, NULL, 0 , 0);
 
     // convert the quads to tris
-    quads_to_tris( my_impl, file_set );
+    quads_to_tris( my_impl );
 
     result = my_impl->write_mesh( output_name );
     assert(!result);
