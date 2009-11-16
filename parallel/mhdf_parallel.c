@@ -268,7 +268,12 @@ int main( int argc, char* argv[] )
   
   if (RANK == 0)
     create_file();
-  
+
+  /* Wait for rank 0 to finish creating the file, otherwise rank 1 may find it to be invalid */
+  rval = MPI_Barrier(MPI_COMM_WORLD);
+  if (rval)
+    return rval;
+
   write_file_data();
   
   MPI_Finalize();
