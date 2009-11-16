@@ -354,9 +354,10 @@ extern "C" {
 
     eatwhitespace(tmp_filename);
     eatwhitespace(tmp_options);
-  
+    std::string opts = ";"; opts += tmp_options;
+
     MBEntityHandle set = ENTITY_HANDLE(handle);
-    MBErrorCode result = MBI->write_file(tmp_filename.c_str(), NULL, tmp_options.c_str(),
+    MBErrorCode result = MBI->write_file(tmp_filename.c_str(), NULL, opts.c_str(),
                                          &set, 1);
 
     if (MB_SUCCESS != result) {
