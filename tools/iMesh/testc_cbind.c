@@ -60,6 +60,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include "iMesh.h"
+#include "MBTypes.h"
+extern enum iBase_ErrorType iBase_ERROR_MAP[MB_FAILURE+1];
+
 
 #define FALSE 0
 #define TRUE 1
@@ -118,6 +121,26 @@ int load_mesh_test(const char *filename, iMesh_Instance mesh)
     return FALSE;
   }
 
+  return TRUE;
+}
+
+#define TEST_ERROR_CODE( A, B ) \
+  if (iBase_ERROR_MAP[(A)] != (B)) { \
+    printf("ERROR: Invalid mapping for MOAB error code %s\n", #A); \
+    printf("       Expected %d, actual is %d\n", (int)iBase_ERROR_MAP[(A)], (int)(B) ); \
+    return FALSE; \
+  }
+
+int error_code_test(iMesh_Instance mesh) {
+  TEST_ERROR_CODE( MB_SUCCESS,                  iBase_SUCCESS )
+  TEST_ERROR_CODE( MB_TYPE_OUT_OF_RANGE,        iBase_INVALID_ENTITY_TYPE )
+  TEST_ERROR_CODE( MB_MEMORY_ALLOCATION_FAILED, iBase_MEMORY_ALLOCATION_FAILED )
+  TEST_ERROR_CODE( MB_ENTITY_NOT_FOUND,         iBase_INVALID_ENTITY_HANDLE )
+  TEST_ERROR_CODE( MB_TAG_NOT_FOUND,            iBase_TAG_NOT_FOUND )
+  TEST_ERROR_CODE( MB_FILE_DOES_NOT_EXIST,      iBase_FILE_NOT_FOUND )
+  TEST_ERROR_CODE( MB_UNSUPPORTED_OPERATION,    iBase_NOT_SUPPORTED )
+  TEST_ERROR_CODE( MB_UNHANDLED_OPTION,         iBase_INVALID_ARGUMENT )
+  TEST_ERROR_CODE( MB_FAILURE,                  iBase_FAILURE )
   return TRUE;
 }
 
@@ -2277,6 +2300,14 @@ int main( int argc, char *argv[] )
     /* regression test for adjacencies with iBase_ALL_TYPES bug */
   printf("   all_adjacency_regression: ");
   result = all_adjacency_regression(mesh);
+  handle_error_code(result, &number_tests_failed,
+                    &number_tests_not_implemented,
+                    &number_tests_successful);
+  number_tests++;
+  printf("\n");
+
+  printf("   error_code_test: ");
+  result = error_code_test(mesh);
   handle_error_code(result, &number_tests_failed,
                     &number_tests_not_implemented,
                     &number_tests_successful);

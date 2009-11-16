@@ -198,9 +198,10 @@ public:
    *\param file_set  Output: a handle to a new set containing all entities 
    *                        read or imported from the file.
    *\param options A list of string options, separated by semicolons (;).
-   *               See README.IO for more information.  Typical options
-   *               include the file type, parallel options, and options
-   *               specific to certain file formats.
+   *               See README.IO for more information.  Options are typically
+   *               format-specific options or parallel options.  If an
+   *               option value is unrecognized but the file read otherwise
+   *               succeeded, MB_UNHANDLED_OPTION will be returned.
    *\param set_tag_name The name of a tag used to designate the subset
    *               of the file to read.  The name must correspond to 
    *               data in the file that will be instantiated in MOAB

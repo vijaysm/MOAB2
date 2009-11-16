@@ -77,24 +77,6 @@
 
 using namespace std;
 
-const char *MBCore::errorStrings[] = {
-  "MB_SUCCESS",
-  "MB_INDEX_OUT_OF_RANGE",
-  "MB_TYPE_OUT_OF_RANGE",
-  "MB_MEMORY_ALLOCATION_FAILED",
-  "MB_ENTITY_NOT_FOUND",
-  "MB_MULTIPLE_ENTITIES_FOUND",
-  "MB_TAG_NOT_FOUND",
-  "MB_FILE_DOES_NOT_EXIST",
-  "MB_FILE_WRITE_ERROR",
-  "MB_NOT_IMPLEMENTED",
-  "MB_ALREADY_ALLOCATED",
-  "MB_VARIABLE_DATA_LENGTH",
-  "MB_INVALID_SIZE",
-  "MB_UNSUPPORTED_OPERATION",
-  "MB_FAILURE",
-};
-
 static inline const MBMeshSet* get_mesh_set( const SequenceManager* sm,
                                              MBEntityHandle h )
 {
@@ -416,7 +398,7 @@ MBErrorCode MBCore::load_file( const char* file_name,
       mError->set_last_error( "Unrecognized option: \"%s\"", bad_opt.c_str() );
     else
       mError->set_last_error( "Unrecognized option." );
-    rval = MB_FAILURE;
+    rval = MB_UNHANDLED_OPTION;
   }
   
   return rval;
@@ -598,7 +580,7 @@ MBErrorCode MBCore::write_file( const char* file_name,
       mError->set_last_error( "Unrecognized option: \"%s\"", bad_opt.c_str() );
     else
       mError->set_last_error( "Unrecognized option." );
-    rval = MB_FAILURE;
+    rval = MB_UNHANDLED_OPTION;
   }
 
   return rval;
@@ -2941,6 +2923,25 @@ MBErrorCode MBCore::get_last_error(std::string& info) const
 
 std::string MBCore::get_error_string(const MBErrorCode code) const 
 {
+  static const char* errorStrings[MB_FAILURE+1] = {
+    "MB_SUCCESS",
+    "MB_INDEX_OUT_OF_RANGE",
+    "MB_TYPE_OUT_OF_RANGE",
+    "MB_MEMORY_ALLOCATION_FAILED",
+    "MB_ENTITY_NOT_FOUND",
+    "MB_MULTIPLE_ENTITIES_FOUND",
+    "MB_TAG_NOT_FOUND",
+    "MB_FILE_DOES_NOT_EXIST",
+    "MB_FILE_WRITE_ERROR",
+    "MB_NOT_IMPLEMENTED",
+    "MB_ALREADY_ALLOCATED",
+    "MB_VARIABLE_DATA_LENGTH",
+    "MB_INVALID_SIZE",
+    "MB_UNSUPPORTED_OPERATION",
+    "MB_UNHANDLED_OPTION",
+    "MB_FAILURE",
+  };
+
   return errorStrings[code];
 }
 

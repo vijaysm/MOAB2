@@ -161,7 +161,7 @@ const iBase_TagValueType tstt_data_type_table[] =
   iBase_ENTITY_HANDLE
 };
 
-const iBase_ErrorType iBase_ERROR_MAP[] = 
+const iBase_ErrorType iBase_ERROR_MAP[MB_FAILURE+1] = 
 {
   iBase_SUCCESS, // MB_SUCCESS = 0,
   iBase_INVALID_ENTITY_HANDLE, // MB_INDEX_OUT_OF_RANGE,
@@ -177,6 +177,7 @@ const iBase_ErrorType iBase_ERROR_MAP[] =
   iBase_FAILURE, // MB_VARIABLE_DATA_LENGTH,
   iBase_FAILURE, // MB_INVALID_SIZE,
   iBase_NOT_SUPPORTED, // MB_UNSUPPORTED_OPERATION,
+  iBase_INVALID_ARGUMENT, // MB_UNHANDLED_OPTION
   iBase_FAILURE // MB_FAILURE};
 };
 

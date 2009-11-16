@@ -6811,6 +6811,35 @@ MBErrorCode mb_read_fail_test(MBInterface* mb)
   return MB_SUCCESS;
 }
 
+#define TEST_ERROR_CODE(E) \
+  if (mb->get_error_string(E) != #E) { \
+    std::cerr << "Invalid error string from get_error_string for " \
+              << #E << ": " << mb->get_error_string(E) << std::endl;\
+    return MB_FAILURE; \
+  } 
+
+MBErrorCode mb_enum_string_test( MBInterface* mb )
+{
+  TEST_ERROR_CODE( MB_SUCCESS );
+  TEST_ERROR_CODE( MB_INDEX_OUT_OF_RANGE );
+  TEST_ERROR_CODE( MB_TYPE_OUT_OF_RANGE );
+  TEST_ERROR_CODE( MB_MEMORY_ALLOCATION_FAILED );
+  TEST_ERROR_CODE( MB_ENTITY_NOT_FOUND );
+  TEST_ERROR_CODE( MB_MULTIPLE_ENTITIES_FOUND );
+  TEST_ERROR_CODE( MB_TAG_NOT_FOUND );
+  TEST_ERROR_CODE( MB_FILE_DOES_NOT_EXIST );
+  TEST_ERROR_CODE( MB_FILE_WRITE_ERROR );
+  TEST_ERROR_CODE( MB_NOT_IMPLEMENTED );
+  TEST_ERROR_CODE( MB_ALREADY_ALLOCATED );
+  TEST_ERROR_CODE( MB_VARIABLE_DATA_LENGTH );
+  TEST_ERROR_CODE( MB_INVALID_SIZE );
+  TEST_ERROR_CODE( MB_UNSUPPORTED_OPERATION );
+  TEST_ERROR_CODE( MB_UNHANDLED_OPTION );
+  TEST_ERROR_CODE( MB_FAILURE );
+  
+  return MB_SUCCESS;
+}
+
 int number_tests = 0;
 int number_tests_failed = 0;
 #define RUN_TEST( A ) _run_test( (A), #A )
@@ -6944,6 +6973,7 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_skin_volume_test );
   RUN_TEST( mb_skin_volume_adj_test );
   RUN_TEST( mb_read_fail_test );
+  RUN_TEST( mb_enum_string_test );
   RUN_TEST( mb_merge_update_test );
   RUN_TEST( mb_merge_test );
   if (stress_test) RUN_TEST( mb_stress_test );

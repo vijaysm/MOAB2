@@ -1187,9 +1187,6 @@ private:
   MBReaderWriterSet* readerWriterSet;
 
   MBError* mError;
-
-  static const char *errorStrings[];
-  
 };
 
   

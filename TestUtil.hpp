@@ -373,6 +373,7 @@ const char* mb_error_str( MBErrorCode err )
     case MB_VARIABLE_DATA_LENGTH    : return "Variable Data Length";
     case MB_INVALID_SIZE            : return "Invalid Size";
     case MB_UNSUPPORTED_OPERATION   : return "Unsupported Operation";
+    case MB_UNHANDLED_OPTION        : return "Unhandled Option";
     case MB_FAILURE                 : return "Failure";
     default                         : return "(unknown)";
   }

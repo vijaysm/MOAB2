@@ -20,7 +20,7 @@ extern const MBDataType mb_data_type_table[4];
 extern const iBase_TagValueType tstt_data_type_table[MB_MAX_DATA_TYPE+1];
 
 /* map from MOAB's MBErrorCode to tstt's */
-extern const iBase_ErrorType iBase_ERROR_MAP[MB_FAILURE+1];
+extern "C" const iBase_ErrorType iBase_ERROR_MAP[MB_FAILURE+1];
 
 /* Create ITAPS iterator */
 iMesh_EntityIterator create_itaps_iterator( MBRange& swap_range,
