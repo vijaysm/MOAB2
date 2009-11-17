@@ -2535,7 +2535,7 @@ extern "C" {
     bool use_type = false;
       // initialize just to get rid of compiler warning
     MBEntityType type = mb_topology_table[iMesh_ALL_TOPOLOGIES];
-    MBRange out_entities;
+    std::vector<MBEntityHandle> out_entities;
  
     if (entity_topology >= iMesh_POINT
         && entity_topology < iMesh_ALL_TOPOLOGIES) {
@@ -2572,24 +2572,27 @@ extern "C" {
       RETURN(iBase_ERROR_MAP[result]);
     }
 
-    int num_ents = out_entities.size() - out_entities.num_of_type(MBENTITYSET);
+      // remove entity sets from the result list
+    std::vector<MBEntityHandle>::iterator iter, end_iter;
+    if (iBase_ALL_TYPES == entity_type && iMesh_ALL_TOPOLOGIES == entity_topology) {
+      for (iter = out_entities.begin(); iter != out_entities.end() && 
+           TYPE_FROM_HANDLE(*iter) != MBENTITYSET; ++iter);
+      for (end_iter = iter; iter != out_entities.end(); ++iter)
+        if (TYPE_FROM_HANDLE(*iter) != MBENTITYSET)
+          *(end_iter++) = *iter;
+      out_entities.erase( end_iter, out_entities.end() );
+    }
+
+    int num_ents = out_entities.size();
     
     CHECK_SIZE(*entity_handles, *entity_handles_allocated, 
                num_ents, iBase_EntityHandle, iBase_MEMORY_ALLOCATION_FAILED);
   
-    MBRange::iterator iter = out_entities.begin();
-    MBRange::iterator end_iter = out_entities.end();
     int k = 0;
 
       // filter out entity sets here
-    if (iBase_ALL_TYPES == entity_type && iMesh_ALL_TOPOLOGIES == entity_topology) {
-      for (; iter != end_iter && MBI->type_from_handle(*iter) != MBENTITYSET; iter++)
-        (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
-    }
-    else {
-      for (; iter != end_iter; iter++)
-        (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
-    }
+    for (iter = out_entities.begin(); iter != out_entities.end(); iter++)
+      (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
 
       // now it's safe to set the size; set it to k, not out_entities.size(), to
       // account for sets which might have been removed
