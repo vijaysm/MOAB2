@@ -2155,7 +2155,7 @@ int all_adjacency_regression( iMesh_Instance mesh )
     }
     free(adj);
 
-    adj_alloc = adj = 0;
+    adj_alloc = 0; adj = 0;
     iMesh_getEntAdj(mesh,line,iBase_ALL_TYPES,&adj,&adj_alloc,&adj_size,
                     &err);
     if (iBase_SUCCESS != err) return 0;
@@ -2165,8 +2165,41 @@ int all_adjacency_regression( iMesh_Instance mesh )
         return 0;
     }
     free(adj);
-    
+    free(verts);
+    iMesh_dtor(mesh,&err);
+    if (iBase_SUCCESS != err) return 0;
     return 1;
+}
+
+#define CHK(err) if (err != iBase_SUCCESS)                              \
+    do {printf("%s:%d ITAPS error %d\n",__FILE__,__LINE__,err); return 0;} while (0)
+static int ordered_set_regression( iMesh_Instance mesh )
+{
+  double coords[] = { 0,0,0, 1,1,1 };
+  iBase_EntityHandle line,*p,verts[2],ents_in[3],ents_out[3];
+  iBase_EntitySetHandle set;
+  int i,err,status,two=2,three=3;
+
+  iMesh_newMesh("",&mesh,&err,0);CHK(err);
+  p = verts;
+  iMesh_createVtxArr(mesh,2,iBase_INTERLEAVED,coords,6,&p,&two,&two,&err);CHK(err);
+  iMesh_createEnt(mesh,iMesh_LINE_SEGMENT,verts,2,&line,&status,&err);CHK(err);
+  if (status != iBase_NEW) return 0;
+  iMesh_createEntSet(mesh,1,&set,&err);CHK(err);
+  ents_in[0] = verts[1];
+  ents_in[1] = line;
+  ents_in[2] = verts[0];
+  iMesh_addEntArrToSet(mesh,ents_in,three,set,&err);CHK(err);
+  p = ents_out;
+  iMesh_getEntities(mesh,set,iBase_ALL_TYPES,iMesh_ALL_TOPOLOGIES,&p,&three,&three,&err);CHK(err);
+  for (i=0; i<three; i++) {
+    if (ents_in[i] != ents_out[i]) {
+      printf("Ordered set does not preserve order\n");
+      return 0;
+    }
+  }
+  iMesh_dtor(mesh,&err);CHK(err);
+  return 1;
 }
 
 int main( int argc, char *argv[] )
@@ -2308,6 +2341,15 @@ int main( int argc, char *argv[] )
 
   printf("   error_code_test: ");
   result = error_code_test(mesh);
+  handle_error_code(result, &number_tests_failed,
+                    &number_tests_not_implemented,
+                    &number_tests_successful);
+  number_tests++;
+  printf("\n");
+
+      /* regression test for ordered sets not preserving order */
+  printf("   ordered_set_regression: ");
+  result = ordered_set_regression(mesh);
   handle_error_code(result, &number_tests_failed,
                     &number_tests_not_implemented,
                     &number_tests_successful);
