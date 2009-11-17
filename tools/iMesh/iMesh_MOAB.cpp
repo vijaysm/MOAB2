@@ -1969,6 +1969,12 @@ extern "C" {
     *new_entity_handle = reinterpret_cast<iBase_EntityHandle>(tmp_ent);
 
     *err = *status;
+
+    if (MB_SUCCESS == result && (MBimesh->AdjTable[5] || MBimesh->AdjTable[10])) {
+      MBRange set_ents;
+      set_ents.insert( tmp_ent );
+      create_int_ents(MBI, set_ents);
+    }
   }
 
   void iMesh_deleteEnt(iMesh_Instance instance,
