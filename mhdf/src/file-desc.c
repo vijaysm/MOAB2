@@ -28,8 +28,8 @@ static void* realloc_data( struct mhdf_FileDesc** data, size_t append_bytes, mhd
 {
   void* result_ptr;
   struct mhdf_FileDesc* const input_ptr = *data;
-  unsigned char* const mem_ptr = (unsigned char*)input_ptr;
-  size_t new_size;
+  unsigned char* mem_ptr = (unsigned char*)input_ptr;
+  size_t new_size, orig_size = input_ptr->offset - mem_ptr;
   
   if (mem_ptr + input_ptr->total_size < input_ptr->offset + append_bytes) {
     if (append_bytes < input_ptr->total_size)
@@ -42,10 +42,13 @@ static void* realloc_data( struct mhdf_FileDesc** data, size_t append_bytes, mhd
 
     if (*data != input_ptr)
       mhdf_fixFileDesc( *data, input_ptr );
+      
+    mem_ptr = (unsigned char*)(*data);
+    (*data)->offset = mem_ptr + orig_size;
   }
   
-  result_ptr = input_ptr->offset;
-  input_ptr->offset += append_bytes;
+  result_ptr = (*data)->offset;
+  (*data)->offset += append_bytes;
   return result_ptr;
 }
 
